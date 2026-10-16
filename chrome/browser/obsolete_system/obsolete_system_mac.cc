@@ -4,65 +4,32 @@
 
 #include "chrome/browser/obsolete_system/obsolete_system.h"
 
-#include "base/system/sys_info.h"
+#include "base/mac/mac_util.h"
 #include "chrome/common/chrome_version.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 
-namespace {
-
-enum class Obsoleteness {
-  MacOS1013Obsolete,
-  MacOS1014Obsolete,
-  NotObsolete,
-};
-
-Obsoleteness OsObsoleteness() {
-#if CHROME_VERSION_MAJOR >= 114
-  // Use base::SysInfo::OperatingSystemVersionNumbers() here rather than the
-  // preferred base::mac::IsOS*() function because the IsOS functions for
-  // obsolete system versions are removed to help prevent obsolete code from
-  // existing in the Chromium codebase.
-  int32_t major, minor, bugfix;
-  base::SysInfo::OperatingSystemVersionNumbers(&major, &minor, &bugfix);
-
-  if (major < 10 || (major == 10 && minor <= 13)) {
-    return Obsoleteness::MacOS1013Obsolete;
-  }
-
-  if (major == 10 && minor == 14) {
-    return Obsoleteness::MacOS1014Obsolete;
-  }
-
-  return Obsoleteness::NotObsolete;
-#else
-  return Obsoleteness::NotObsolete;
-#endif
-}
-
-}  // namespace
+// Chromium 138 will be the last mstone to support macOS 11.
+constexpr int kLastMStoneWithSupport = 138;
+constexpr int kMacOSReleaseBeingObsoleted = 11;
 
 namespace ObsoleteSystem {
 
 bool IsObsoleteNowOrSoon() {
-  return OsObsoleteness() != Obsoleteness::NotObsolete;
+  // Warn for the last three mstones.
+  if (CHROME_VERSION_MAJOR >= kLastMStoneWithSupport - 2) {
+    return base::mac::MacOSMajorVersion() <= kMacOSReleaseBeingObsoleted;
+  }
+  return false;
 }
 
 std::u16string LocalizedObsoleteString() {
-  switch (OsObsoleteness()) {
-    case Obsoleteness::MacOS1013Obsolete:
-      return l10n_util::GetStringUTF16(IDS_MAC_10_13_OBSOLETE);
-    case Obsoleteness::MacOS1014Obsolete:
-      return l10n_util::GetStringUTF16(IDS_MAC_10_14_OBSOLETE);
-    default:
-      return std::u16string();
-  }
+  return l10n_util::GetStringUTF16(IDS_MACOS_OBSOLETE);
 }
 
 bool IsEndOfTheLine() {
-  // M116 is the last milestone supporting macOS 10.13 and macOS 10.14.
-  return CHROME_VERSION_MAJOR >= 116;
+  return CHROME_VERSION_MAJOR >= kLastMStoneWithSupport;
 }
 
 const char* GetLinkURL() {

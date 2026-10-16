@@ -41,7 +41,7 @@ class ScreenRotationAnimatorTestApi
   // MultiLayerAnimatorTestControllerDelegate:
   std::vector<ui::LayerAnimator*> GetLayerAnimators() override;
 
-  raw_ptr<ScreenRotationAnimator, ExperimentalAsh> animator_;
+  raw_ptr<ScreenRotationAnimator, DanglingUntriaged> animator_;
 };
 
 }  // namespace ash

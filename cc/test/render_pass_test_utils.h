@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+#include <memory>
 #include <vector>
 
 #include "cc/paint/filter_operations.h"
@@ -26,9 +27,9 @@ struct SyncToken;
 
 namespace viz {
 class ClientResourceProvider;
-class ContextProvider;
 class DisplayResourceProvider;
 class CompositorRenderPass;
+class RasterContextProvider;
 }  // namespace viz
 
 namespace cc {
@@ -74,7 +75,9 @@ inline viz::SolidColorDrawQuad* AddTransparentQuad(RenderPassType* pass,
                                                    float opacity) {
   viz::SharedQuadState* shared_state = pass->CreateAndAppendSharedQuadState();
   shared_state->SetAll(gfx::Transform(), rect, rect, gfx::MaskFilterInfo(),
-                       absl::nullopt, false, opacity, SkBlendMode::kSrcOver, 0);
+                       /*clip=*/std::nullopt, /*contents_opaque=*/false,
+                       opacity, SkBlendMode::kSrcOver, /*sorting_context=*/0,
+                       /*layer_id=*/0u, /*fast_rounded_corner=*/false);
   auto* quad =
       pass->template CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
   quad->SetNew(shared_state, rect, rect, color, false);
@@ -126,9 +129,14 @@ void AddOneOfEveryQuadTypeInDisplayResourceProvider(
     viz::AggregatedRenderPass* to_pass,
     viz::DisplayResourceProvider* resource_provider,
     viz::ClientResourceProvider* child_resource_provider,
-    viz::ContextProvider* child_context_provider,
+    viz::RasterContextProvider* child_context_provider,
     viz::AggregatedRenderPassId child_pass_id,
     gpu::SyncToken* sync_token_for_mailbox_texture);
+
+std::unique_ptr<viz::AggregatedRenderPass> CopyToAggregatedRenderPass(
+    viz::CompositorRenderPass* from_pass,
+    viz::AggregatedRenderPassId to_id,
+    gfx::ContentColorUsage content_usage);
 
 }  // namespace cc
 

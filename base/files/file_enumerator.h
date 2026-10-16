@@ -14,6 +14,7 @@
 #include "base/containers/stack.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
+#include "base/functional/function_ref.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 
@@ -22,6 +23,8 @@
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include <unordered_map>
 #include <unordered_set>
 #endif
 
@@ -36,6 +39,9 @@ namespace base {
 //
 //   base::FileEnumerator e(my_dir, false, base::FileEnumerator::FILES,
 //                          FILE_PATH_LITERAL("*.txt"));
+// Using `ForEach` with a lambda:
+//   e.ForEach([](const base::FilePath& item) {...});
+// Using a `for` loop:
 //   for (base::FilePath name = e.Next(); !name.empty(); name = e.Next())
 //     ...
 class BASE_EXPORT FileEnumerator {
@@ -44,6 +50,22 @@ class BASE_EXPORT FileEnumerator {
   class BASE_EXPORT FileInfo {
    public:
     FileInfo();
+#if BUILDFLAG(IS_ANDROID)
+    // Android has both posix paths, and Content-URIs. It will use the linux /
+    // posix code for posix paths where a FileInfo() object is constructed and
+    // then `stat_` is populated via fstat() and used for IsDirectory(),
+    // GetSize(), GetLastModifiedTime(). Content-URIs provide all values in this
+    // constructor and writes `is_directory`, `size` and `time` to `stat_`.
+    FileInfo(base::FilePath content_uri,
+             base::FilePath filename,
+             bool is_directory,
+             off_t size,
+             Time time);
+#endif
+    FileInfo(const FileInfo& that);
+    FileInfo& operator=(const FileInfo& that);
+    FileInfo(FileInfo&& that);
+    FileInfo& operator=(FileInfo&& that);
     ~FileInfo();
 
     bool IsDirectory() const;
@@ -52,6 +74,11 @@ class BASE_EXPORT FileEnumerator {
     // is in constrast to the value returned by FileEnumerator.Next() which
     // includes the |root_path| passed into the FileEnumerator constructor.
     FilePath GetName() const;
+
+#if BUILDFLAG(IS_ANDROID)
+    // Display names of subdirs.
+    const std::vector<std::string>& subdirs() const { return subdirs_; }
+#endif
 
     int64_t GetSize() const;
 
@@ -72,6 +99,10 @@ class BASE_EXPORT FileEnumerator {
    private:
     friend class FileEnumerator;
 
+#if BUILDFLAG(IS_ANDROID)
+    FilePath content_uri_;
+    std::vector<std::string> subdirs_;
+#endif
 #if BUILDFLAG(IS_WIN)
     CHROME_WIN32_FIND_DATA find_data_;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
@@ -139,6 +170,14 @@ class BASE_EXPORT FileEnumerator {
   // since the underlying code uses OS-specific matching routines.  In general,
   // Windows matching is less featureful than others, so test there first.
   // If unspecified, this will match all files.
+  //
+  // |folder_search_policy| optionally specifies a search behavior. Refer to
+  // |FolderSearchPolicy| for a list of folder search policies and the meaning
+  // of them. If |recursive| is false, this parameter has no effect.
+  //
+  // |error_policy| optionally specifies the behavior when an error occurs.
+  // Refer to |ErrorPolicy| for a list of error policies and the meaning of
+  // them.
   FileEnumerator(const FilePath& root_path, bool recursive, int file_type);
   FileEnumerator(const FilePath& root_path,
                  bool recursive,
@@ -158,6 +197,12 @@ class BASE_EXPORT FileEnumerator {
   FileEnumerator(const FileEnumerator&) = delete;
   FileEnumerator& operator=(const FileEnumerator&) = delete;
   ~FileEnumerator();
+
+  // Calls `ref` synchronously for each path found by the `FileEnumerator`. Each
+  // path will incorporate the `root_path` passed in the constructor:
+  // "<root_path>/file_name.txt". If the `root_path` is absolute, then so will
+  // be the paths provided in the `ref` invocations.
+  void ForEach(FunctionRef<void(const FilePath& path)> ref);
 
   // Returns the next file or an empty string if there are no more results.
   //
@@ -197,15 +242,27 @@ class BASE_EXPORT FileEnumerator {
   bool has_find_data_ = false;
   CHROME_WIN32_FIND_DATA find_data_;
   HANDLE find_handle_ = INVALID_HANDLE_VALUE;
+
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+  // Marks the given inode as visited. Returns true if it is the first time that
+  // it got marked as visited.
+  bool MarkVisited(const stat_wrapper_t& st) {
+    return visited_[st.st_dev].insert(st.st_ino).second;
+  }
+
   // The files in the current directory
   std::vector<FileInfo> directory_entries_;
 
-  // Set of visited directories. Used to prevent infinite looping along
-  // circular symlinks.
-  // The Android NDK (r23) does not declare `st_ino` as an `ino_t`, hence the
-  // need for the ugly decltype.
-  std::unordered_set<decltype(stat_wrapper_t::st_ino)> visited_directories_;
+#if BUILDFLAG(IS_ANDROID)
+  // The Android NDK (r23) does not declare `st_dev` as a `dev_t`, nor `st_ino`
+  // as an `ino_t`, hence the need for these decltypes.
+  using dev_t = decltype(stat_wrapper_t::st_dev);
+  using ino_t = decltype(stat_wrapper_t::st_ino);
+#endif
+
+  // Set of visited directories. Used to prevent infinite looping along circular
+  // symlinks and bind-mounts.
+  std::unordered_map<dev_t, std::unordered_set<ino_t>> visited_;
 
   // The next entry to use from the directory_entries_ vector
   size_t current_directory_entry_;
@@ -221,6 +278,12 @@ class BASE_EXPORT FileEnumerator {
   // A stack that keeps track of which subdirectories we still need to
   // enumerate in the breadth-first search.
   base::stack<FilePath> pending_paths_;
+#if BUILDFLAG(IS_ANDROID)
+  // Matches pending_paths_, but with display names.
+  base::stack<std::vector<std::string>> pending_subdirs_;
+  // Display names of subdirs of the current entry.
+  std::vector<std::string> subdirs_;
+#endif
 };
 
 }  // namespace base

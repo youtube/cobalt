@@ -10,7 +10,6 @@ import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -21,7 +20,6 @@ import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.net.ConnectionType;
 import org.chromium.net.NetworkChangeNotifierAutoDetect;
 
@@ -32,21 +30,16 @@ import org.chromium.net.NetworkChangeNotifierAutoDetect;
 @Config(manifest = Config.NONE)
 public class NetworkStatusListenerAndroidTest {
     private static final int NATIVE_PTR = 1;
-
-    @Rule
-    public JniMocker mJniMocker = new JniMocker();
-    @Mock
-    private NetworkChangeNotifierAutoDetect mAutoDetect;
-    @Mock
-    NetworkChangeNotifierAutoDetect.NetworkState mNetworkState;
-    @Mock
-    private NetworkStatusListenerAndroid.Natives mNativeMock;
+    @Mock private NetworkChangeNotifierAutoDetect mAutoDetect;
+    @Mock NetworkChangeNotifierAutoDetect.NetworkState mNetworkState;
+    @Mock private NetworkStatusListenerAndroid.Natives mNativeMock;
 
     private NetworkStatusListenerAndroid mListener;
 
     private static class TestAutoDetectFactory
             extends BackgroundNetworkStatusListener.AutoDetectFactory {
-        private NetworkChangeNotifierAutoDetect mAutoDetect;
+        private final NetworkChangeNotifierAutoDetect mAutoDetect;
+
         TestAutoDetectFactory(NetworkChangeNotifierAutoDetect autoDetect) {
             mAutoDetect = autoDetect;
         }
@@ -65,7 +58,7 @@ public class NetworkStatusListenerAndroidTest {
         MockitoAnnotations.initMocks(this);
         BackgroundNetworkStatusListener.setAutoDetectFactory(
                 new TestAutoDetectFactory(mAutoDetect));
-        mJniMocker.mock(NetworkStatusListenerAndroidJni.TEST_HOOKS, mNativeMock);
+        NetworkStatusListenerAndroidJni.setInstanceForTesting(mNativeMock);
     }
 
     private void runBackgroundThread() {
@@ -74,9 +67,10 @@ public class NetworkStatusListenerAndroidTest {
 
         // Run the background thread.
         ShadowLooper shadowLooper =
-                Shadows.shadowOf(NetworkStatusListenerAndroid.getHelperForTesting()
-                                         .getHandlerForTesting()
-                                         .getLooper());
+                Shadows.shadowOf(
+                        NetworkStatusListenerAndroid.getHelperForTesting()
+                                .getHandlerForTesting()
+                                .getLooper());
         shadowLooper.runToEndOfTasks();
 
         // Flush any UI thread tasks created by the background thread.
@@ -87,7 +81,9 @@ public class NetworkStatusListenerAndroidTest {
         when(mAutoDetect.getCurrentNetworkState()).thenReturn(mNetworkState);
         when(mNetworkState.getConnectionType()).thenReturn(connectionType);
         ThreadUtils.runOnUiThreadBlocking(
-                () -> { mListener = NetworkStatusListenerAndroid.create(NATIVE_PTR); });
+                () -> {
+                    mListener = NetworkStatusListenerAndroid.create(NATIVE_PTR);
+                });
     }
 
     @Test
@@ -112,10 +108,11 @@ public class NetworkStatusListenerAndroidTest {
         Assert.assertEquals(ConnectionType.CONNECTION_3G, mListener.getCurrentConnectionType());
 
         // Change the connection type on main thread, the connection type should be updated.
-        ThreadUtils.runOnUiThreadBlocking(() -> {
-            NetworkStatusListenerAndroid.getHelperForTesting().onConnectionTypeChanged(
-                    ConnectionType.CONNECTION_5G);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    NetworkStatusListenerAndroid.getHelperForTesting()
+                            .onConnectionTypeChanged(ConnectionType.CONNECTION_5G);
+                });
 
         runBackgroundThread();
 

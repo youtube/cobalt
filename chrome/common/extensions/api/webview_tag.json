@@ -6,11 +6,6 @@
   {
     "namespace": "webviewTag",
     "description": "Use the <code>webview</code> tag to actively load live content from the web over the network and embed it in your Chrome App. Your app can control the appearance of the <code>webview</code> and interact with the web content, initiate navigations in an embedded web page, react to error events that happen within it, and more (see <a href=\"#usage\">Usage</a>).",
-    "documentation_options": {
-      "title": "<webview> Tag",
-      "namespace": "<webview>",
-      "documented_in": "tags/webview"
-    },
     "types": [
       {
         "id": "ClearDataOptions",
@@ -625,6 +620,21 @@
         "functions": [
           { "name": "allow", "description": "Allow the permission request. This is the default behavior if <code>deny</code> is not called.." },
           { "name": "deny", "description": "Deny the permission request." }
+        ]
+      },
+      {
+        "id": "HidPermissionRequest",
+        "type": "object",
+        "description": "The type of <code>request</code> object which accompanies an <code>hid</code> <a href=\"#event-permissionrequest\">permissionrequest</a></code> DOM event.",
+        "properties": {
+          "url": {
+            "description": "The URL of the frame requesting access to the HID API.",
+            "type": "string"
+          }
+        },
+        "functions": [
+          { "name": "allow", "description": "Allow the permission request." },
+          { "name": "deny", "description": "Deny the permission request. This is the default behavior if <code>allow</code> is not called." }
         ]
       },
       {
@@ -1410,13 +1420,13 @@
             "name": "permission",
             "description": "The type of permission being requested.",
             "type": "string",
-            "enum": ["media", "geolocation", "pointerLock", "download", "loadplugin", "filesystem", "fullscreen"]
+            "enum": ["media", "geolocation", "pointerLock", "download", "loadplugin", "filesystem", "fullscreen", "hid"]
           },
           {
             "name": "request",
             "type": "object",
             "properties": {},
-            "description": "An object which holds details of the requested permission. Depending on the type of permission requested, this may be a $(ref:webviewTag.MediaPermissionRequest), $(ref:webviewTag.GeolocationPermissionRequest), $(ref:webviewTag.PointerLockPermissionRequest), $(ref:webviewTag.DownloadPermissionRequest), $(ref:webviewTag.LoadPluginPermissionRequest), or $(ref:webviewTag.FullscreenPermissionRequest)."
+            "description": "An object which holds details of the requested permission. Depending on the type of permission requested, this may be a $(ref:webviewTag.MediaPermissionRequest), $(ref:webviewTag.GeolocationPermissionRequest), $(ref:webviewTag.PointerLockPermissionRequest), $(ref:webviewTag.DownloadPermissionRequest), $(ref:webviewTag.LoadPluginPermissionRequest), $(ref:webviewTag.FullscreenPermissionRequest) or $(ref:webviewTag.HidPermissionRequest)."
           }
         ]
       },

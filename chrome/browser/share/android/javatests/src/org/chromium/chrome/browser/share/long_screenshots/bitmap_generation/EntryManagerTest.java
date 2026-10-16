@@ -11,7 +11,6 @@ import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.when;
-import static org.mockito.MockitoAnnotations.initMocks;
 
 import android.graphics.Bitmap;
 import android.graphics.Rect;
@@ -25,11 +24,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.share.long_screenshots.bitmap_generation.LongScreenshotsEntry.EntryStatus;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.paintpreview.player.CompositorStatus;
@@ -45,32 +45,20 @@ import org.chromium.url.GURL;
 public class EntryManagerTest {
     private static final long FAKE_CAPTURE_ADDR = 123L;
 
-    @Rule
-    public JniMocker mJniMocker = new JniMocker();
-
-    @Mock
-    private Tab mTabMock;
-    @Mock
-    private WebContents mWebContentsMock;
-    @Mock
-    private LongScreenshotsTabService mTabServiceMock;
-    @Mock
-    private ScreenshotBoundsManager mBoundsManagerMock;
-    @Mock
-    private LongScreenshotsCompositor mLongScreenshotsCompositorMock;
-    @Mock
-    private EntryManager.BitmapGeneratorObserver mObserverMock;
-    @Mock
-    private LongScreenshotsTabServiceFactory.Natives mLongScreenshotsTabServiceFactoryJniMock;
-    @Mock
-    private Bitmap mBitmapMock;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private Tab mTabMock;
+    @Mock private WebContents mWebContentsMock;
+    @Mock private LongScreenshotsTabService mTabServiceMock;
+    @Mock private ScreenshotBoundsManager mBoundsManagerMock;
+    @Mock private LongScreenshotsCompositor mLongScreenshotsCompositorMock;
+    @Mock private EntryManager.BitmapGeneratorObserver mObserverMock;
+    @Mock private LongScreenshotsTabServiceFactory.Natives mLongScreenshotsTabServiceFactoryJniMock;
+    @Mock private Bitmap mBitmapMock;
 
     private InOrder mInOrder;
 
-    @Captor
-    private ArgumentCaptor<Runnable> mErrorCaptor;
-    @Captor
-    private ArgumentCaptor<Callback<Bitmap>> mCompleteCaptor;
+    @Captor private ArgumentCaptor<Runnable> mErrorCaptor;
+    @Captor private ArgumentCaptor<Callback<Bitmap>> mCompleteCaptor;
 
     private EntryManager mEntryManager;
     private LongScreenshotsTabService.CaptureProcessor mProcessor;
@@ -79,10 +67,9 @@ public class EntryManagerTest {
 
     @Before
     public void setUp() {
-        initMocks(this);
         when(mTabMock.getWebContents()).thenReturn(mWebContentsMock);
 
-        mJniMocker.mock(LongScreenshotsTabServiceFactoryJni.TEST_HOOKS,
+        LongScreenshotsTabServiceFactoryJni.setInstanceForTesting(
                 mLongScreenshotsTabServiceFactoryJniMock);
         mInOrder = inOrder(mTabServiceMock, mObserverMock);
         when(mLongScreenshotsTabServiceFactoryJniMock.getServiceInstanceForCurrentProfile())
@@ -96,17 +83,22 @@ public class EntryManagerTest {
         mInOrder.verify(mTabServiceMock).captureTab(eq(mTabMock), any(), eq(false));
         mInOrder.verify(mObserverMock).onStatusChange(eq(EntryStatus.CAPTURE_IN_PROGRESS));
         mGenerator = mEntryManager.getBitmapGeneratorForTesting();
-        mGenerator.setCompositorFactoryForTesting(new BitmapGenerator.CompositorFactory() {
-            @Override
-            public LongScreenshotsCompositor create(GURL url, LongScreenshotsTabService tabService,
-                    String directoryName, long nativeCaptureResultPtr, Callback<Integer> callback) {
-                assertNull(mOnCompositorResultCallback);
-                mOnCompositorResultCallback = callback;
-                return mLongScreenshotsCompositorMock;
-            }
-        });
+        mGenerator.setCompositorFactoryForTesting(
+                new BitmapGenerator.CompositorFactory() {
+                    @Override
+                    public LongScreenshotsCompositor create(
+                            GURL url,
+                            LongScreenshotsTabService tabService,
+                            String directoryName,
+                            long nativeCaptureResultPtr,
+                            Callback<Integer> callback) {
+                        assertNull(mOnCompositorResultCallback);
+                        mOnCompositorResultCallback = callback;
+                        return mLongScreenshotsCompositorMock;
+                    }
+                });
         when(mLongScreenshotsCompositorMock.requestBitmap(
-                     any(), anyFloat(), mErrorCaptor.capture(), mCompleteCaptor.capture()))
+                        any(), anyFloat(), mErrorCaptor.capture(), mCompleteCaptor.capture()))
                 .thenReturn(0);
     }
 
@@ -116,9 +108,7 @@ public class EntryManagerTest {
         mEntryManager.destroy();
     }
 
-    /**
-     * Tests capture through to generation of the fullpage entry.
-     */
+    /** Tests capture through to generation of the fullpage entry. */
     @Test
     public void testGenerateFullpageEntry() {
         mProcessor.processCapturedTab(FAKE_CAPTURE_ADDR, Status.OK);
@@ -133,9 +123,7 @@ public class EntryManagerTest {
         assertEquals(entry.getBitmap(), mBitmapMock);
     }
 
-    /**
-     * Tests capture through to generation of specified entry.
-     */
+    /** Tests capture through to generation of specified entry. */
     @Test
     public void testGenerateSpecificEntry() {
         mProcessor.processCapturedTab(FAKE_CAPTURE_ADDR, Status.OK);
@@ -150,9 +138,7 @@ public class EntryManagerTest {
         assertEquals(entry.getBitmap(), mBitmapMock);
     }
 
-    /**
-     * Tests capture through to generation of specified entry failing.
-     */
+    /** Tests capture through to generation of specified entry failing. */
     @Test
     public void testGenerateSpecificEntryFailed() {
         mProcessor.processCapturedTab(FAKE_CAPTURE_ADDR, Status.OK);
@@ -167,9 +153,7 @@ public class EntryManagerTest {
         assertNull(entry.getBitmap());
     }
 
-    /**
-     * Tests capture failure.
-     */
+    /** Tests capture failure. */
     @Test
     public void testCaptureFailed() {
         mProcessor.processCapturedTab(FAKE_CAPTURE_ADDR, Status.CAPTURE_FAILED);
@@ -177,9 +161,7 @@ public class EntryManagerTest {
         mInOrder.verify(mObserverMock).onStatusChange(eq(EntryStatus.GENERATION_ERROR));
     }
 
-    /**
-     * Tests capture failure due to low memory.
-     */
+    /** Tests capture failure due to low memory. */
     @Test
     public void testCaptureFailedLowMemory() {
         mProcessor.processCapturedTab(FAKE_CAPTURE_ADDR, Status.LOW_MEMORY_DETECTED);
@@ -187,9 +169,7 @@ public class EntryManagerTest {
         mInOrder.verify(mObserverMock).onStatusChange(eq(EntryStatus.INSUFFICIENT_MEMORY));
     }
 
-    /**
-     * Tests compositor initialization failure.
-     */
+    /** Tests compositor initialization failure. */
     @Test
     public void testCompositorFailed() {
         mProcessor.processCapturedTab(FAKE_CAPTURE_ADDR, Status.OK);
@@ -197,9 +177,7 @@ public class EntryManagerTest {
         mInOrder.verify(mObserverMock).onStatusChange(eq(EntryStatus.GENERATION_ERROR));
     }
 
-    /**
-     * Tests compositor initialization failure due to low memory.
-     */
+    /** Tests compositor initialization failure due to low memory. */
     @Test
     public void testCompositorFailedLowMemory() {
         mProcessor.processCapturedTab(FAKE_CAPTURE_ADDR, Status.OK);

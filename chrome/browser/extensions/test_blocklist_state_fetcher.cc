@@ -16,7 +16,7 @@ namespace {
 
 class DummySharedURLLoaderFactory : public network::SharedURLLoaderFactory {
  public:
-  DummySharedURLLoaderFactory() {}
+  DummySharedURLLoaderFactory() = default;
 
   // network::URLLoaderFactory implementation:
   void CreateLoaderAndStart(
@@ -40,7 +40,6 @@ class DummySharedURLLoaderFactory : public network::SharedURLLoaderFactory {
   // network::PendingSharedURLLoaderFactory implementation
   std::unique_ptr<network::PendingSharedURLLoaderFactory> Clone() override {
     NOTREACHED();
-    return nullptr;
   }
 
  private:
@@ -61,7 +60,7 @@ TestBlocklistStateFetcher::TestBlocklistStateFetcher(
   fetcher_->url_loader_factory_ = url_loader_factory_.get();
 }
 
-TestBlocklistStateFetcher::~TestBlocklistStateFetcher() {}
+TestBlocklistStateFetcher::~TestBlocklistStateFetcher() = default;
 
 void TestBlocklistStateFetcher::SetBlocklistVerdict(
     const std::string& id,
@@ -78,14 +77,16 @@ bool TestBlocklistStateFetcher::HandleFetcher(const std::string& id) {
     }
   }
 
-  if (!url_loader)
+  if (!url_loader) {
     return false;
+  }
 
   ClientCRXListInfoResponse response;
-  if (base::Contains(verdicts_, id))
+  if (base::Contains(verdicts_, id)) {
     response.set_verdict(verdicts_[id]);
-  else
+  } else {
     response.set_verdict(ClientCRXListInfoResponse::NOT_IN_BLOCKLIST);
+  }
 
   std::string response_str;
   response.SerializeToString(&response_str);

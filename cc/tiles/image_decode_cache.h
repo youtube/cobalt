@@ -48,11 +48,9 @@ class CC_EXPORT ImageDecodeCache {
   // reporting systems.
   struct TracingInfo {
     TracingInfo(uint64_t prepare_tiles_id,
-                TilePriority::PriorityBin requesting_tile_bin,
-                TaskType task_type)
+                TilePriority::PriorityBin requesting_tile_bin)
         : prepare_tiles_id(prepare_tiles_id),
-          requesting_tile_bin(requesting_tile_bin),
-          task_type(task_type) {}
+          requesting_tile_bin(requesting_tile_bin) {}
     TracingInfo() = default;
 
     // ID for the current prepare tiles call.
@@ -60,9 +58,6 @@ class CC_EXPORT ImageDecodeCache {
 
     // The bin of the tile that caused this image to be requested.
     const TilePriority::PriorityBin requesting_tile_bin = TilePriority::NOW;
-
-    // Whether the decode is requested as a part of tile rasterization.
-    const TaskType task_type = TaskType::kInRaster;
   };
 
   static devtools_instrumentation::ScopedImageDecodeTask::TaskType
@@ -76,7 +71,6 @@ class CC_EXPORT ImageDecodeCache {
         return ScopedTaskType::kOutOfRaster;
     }
     NOTREACHED();
-    return ScopedTaskType::kInRaster;
   }
 
   static devtools_instrumentation::ScopedImageDecodeTask::ImageType
@@ -142,7 +136,8 @@ class CC_EXPORT ImageDecodeCache {
   // worker thread which may not have the right GPU context for upload.
   virtual TaskResult GetOutOfRasterDecodeTaskForImageAndRef(
       ClientId client_id,
-      const DrawImage& image) = 0;
+      const DrawImage& image,
+      bool speculative = false) = 0;
 
   // Unrefs an image. When the tile is finished, this should be called for every
   // GetTaskForImageAndRef call that returned true.
@@ -171,8 +166,7 @@ class CC_EXPORT ImageDecodeCache {
   // retaining cached resources longer than needed. If |context_lock_acquired|
   // is true, the caller has already acquired the context lock.
   virtual void SetShouldAggressivelyFreeResources(
-      bool aggressively_free_resources,
-      bool context_lock_acquired) = 0;
+      bool aggressively_free_resources) = 0;
 
   // Clears all elements from the cache.
   virtual void ClearCache() = 0;

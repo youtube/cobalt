@@ -6,11 +6,13 @@
 
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/logging.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/shared_memory_mapping.h"
 #include "base/memory/writable_shared_memory_region.h"
 #include "base/no_destructor.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
+#include "base/types/pass_key.h"
 #include "media/base/audio_glitch_info.h"
 #include "media/base/audio_timestamp_helper.h"
 
@@ -26,7 +28,7 @@ constexpr size_t kNumBuffers = 4;
 // keep latency reasonably low, while making playback reliable under normal
 // conditions.
 //
-// TODO(crbug.com/1153909): It may be possible to reduce this value to reduce
+// TODO(crbug.com/40159229): It may be possible to reduce this value to reduce
 // total latency, but that requires that an elevated scheduling profile is
 // applied to this thread.
 constexpr base::TimeDelta kLeadTimeExtra = base::Milliseconds(20);
@@ -59,8 +61,8 @@ scoped_refptr<base::SingleThreadTaskRunner> GetDefaultAudioTaskRunner() {
 scoped_refptr<WebEngineAudioOutputDevice> WebEngineAudioOutputDevice::Create(
     fidl::InterfaceHandle<fuchsia::media::AudioConsumer> audio_consumer_handle,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner) {
-  scoped_refptr<WebEngineAudioOutputDevice> result(
-      new WebEngineAudioOutputDevice(task_runner));
+  auto result = base::MakeRefCounted<WebEngineAudioOutputDevice>(
+      base::PassKey<WebEngineAudioOutputDevice>(), task_runner);
   task_runner->PostTask(
       FROM_HERE,
       base::BindOnce(
@@ -78,6 +80,7 @@ WebEngineAudioOutputDevice::CreateOnDefaultThread(
 }
 
 WebEngineAudioOutputDevice::WebEngineAudioOutputDevice(
+    base::PassKey<WebEngineAudioOutputDevice>,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner)
     : task_runner_(std::move(task_runner)) {}
 
@@ -148,7 +151,7 @@ bool WebEngineAudioOutputDevice::SetVolume(double volume) {
 media::OutputDeviceInfo WebEngineAudioOutputDevice::GetOutputDeviceInfo() {
   // AudioConsumer doesn't provider any information about the output device.
   //
-  // TODO(crbug.com/852834): Update this method when that functionality is
+  // TODO(crbug.com/42050621): Update this method when that functionality is
   // implemented.
   return media::OutputDeviceInfo(
       std::string(), media::OUTPUT_DEVICE_STATUS_OK,

@@ -4,17 +4,17 @@
 
 #include "base/synchronization/waitable_event_watcher.h"
 
+#include <windows.h>
+
 #include "base/compiler_specific.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/win/object_watcher.h"
-
-#include <windows.h>
 
 namespace base {
 
 WaitableEventWatcher::WaitableEventWatcher() = default;
 
-WaitableEventWatcher::~WaitableEventWatcher() {}
+WaitableEventWatcher::~WaitableEventWatcher() = default;
 
 bool WaitableEventWatcher::StartWatching(
     WaitableEvent* event,

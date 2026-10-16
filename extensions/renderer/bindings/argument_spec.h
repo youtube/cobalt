@@ -7,13 +7,13 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "base/strings/string_piece.h"
 #include "base/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "v8/include/v8.h"
 
 namespace extensions {
@@ -38,10 +38,9 @@ class ArgumentSpec {
  public:
   using PropertiesMap = std::map<std::string, std::unique_ptr<ArgumentSpec>>;
 
-  // Reads the description from |value| and sets associated fields.
+  // Reads the description from `dict` and sets associated fields.
   // TODO(devlin): We should strongly think about generating these instead of
   // populating them at runtime.
-  explicit ArgumentSpec(const base::Value& value);
   explicit ArgumentSpec(const base::Value::Dict& dict);
   explicit ArgumentSpec(ArgumentType type);
 
@@ -50,22 +49,22 @@ class ArgumentSpec {
 
   ~ArgumentSpec();
 
-  // Returns true if the given |value| is of the correct type to match this
-  // spec. If it is not, populates |error|.
+  // Returns true if the given `value` is of the correct type to match this
+  // spec. If it is not, populates `error`.
   bool IsCorrectType(v8::Local<v8::Value> value,
                      const APITypeReferenceMap& refs,
                      std::string* error) const;
 
-  // Returns true if the passed |value| matches this specification. If
-  // |out_value| is non-null, converts the value to a base::Value and populates
-  // |out_value|. Similarly, if |v8_out_value| is non-null, this will populate
+  // Returns true if the passed `value` matches this specification. If
+  // `out_value` is non-null, converts the value to a base::Value and populates
+  // `out_value`. Similarly, if |v8_out_value| is non-null, this will populate
   // |v8_out_value| with the parsed value. The advantage to duplicating the
   // parsed value into |v8_out_value| is that for defined objects, the result
   // will be a data object with no getters/setters, so clients don't need to
   // worry about re-checking the arguments. Note that this will *not* apply in
   // the case of ArgumentType::ANY, ArgumentType::BINARY, or
   // ArgumentType::FUNCTION, where we do not copy the (arbitrary) contents.
-  // If both |out_value| and |v8_out_value| are null, no conversion is
+  // If both `out_value` and |v8_out_value| are null, no conversion is
   // performed.
   bool ParseArgument(v8::Local<v8::Context> context,
                      v8::Local<v8::Value> value,
@@ -83,9 +82,9 @@ class ArgumentSpec {
   ArgumentType type() const { return type_; }
   const std::set<std::string>& enum_values() const { return enum_values_; }
 
-  void set_name(base::StringPiece name) { name_ = std::string(name); }
+  void set_name(std::string_view name) { name_ = std::string(name); }
   void set_optional(bool optional) { optional_ = optional; }
-  void set_ref(base::StringPiece ref) { ref_ = std::string(ref); }
+  void set_ref(std::string_view ref) { ref_ = std::string(ref); }
   void set_minimum(int minimum) { minimum_ = minimum; }
   void set_properties(PropertiesMap properties) {
     properties_ = std::move(properties);
@@ -112,7 +111,7 @@ class ArgumentSpec {
   }
 
  private:
-  // Initializes this object according to |type_string| and |dict|.
+  // Initializes this object according to `type_string` and `dict`.
   void InitializeType(const base::Value::Dict& dict);
 
   // Conversion functions. These should only be used if the spec is of the given
@@ -145,7 +144,7 @@ class ArgumentSpec {
                                v8::Local<v8::Value>* v8_out_value,
                                std::string* error) const;
 
-  // Returns an error message indicating the type of |value| does not match the
+  // Returns an error message indicating the type of `value` does not match the
   // expected type.
   std::string GetInvalidTypeError(v8::Local<v8::Value> value) const;
 
@@ -170,22 +169,22 @@ class ArgumentSpec {
 
   // The reference the argument points to, if any. Note that if this is set,
   // none of the following fields describing the argument will be.
-  absl::optional<std::string> ref_;
+  std::optional<std::string> ref_;
 
   // The type of instance an object should be, if any. Only applicable for
   // ArgumentType::OBJECT. If specified, the argument must contain the instance
   // type in its prototype chain.
-  absl::optional<std::string> instance_of_;
+  std::optional<std::string> instance_of_;
 
   // A minimum and maximum for integer and double values, if any.
-  absl::optional<int> minimum_;
-  absl::optional<int> maximum_;
+  std::optional<int> minimum_;
+  std::optional<int> maximum_;
 
   // A minimium length for strings or arrays.
-  absl::optional<size_t> min_length_;
+  std::optional<size_t> min_length_;
 
   // A maximum length for strings or arrays.
-  absl::optional<size_t> max_length_;
+  std::optional<size_t> max_length_;
 
   // A map of required properties; present only for objects. Note that any
   // properties *not* defined in this map will be dropped during conversion.
@@ -205,6 +204,10 @@ class ArgumentSpec {
   // to allow the API to pass an object with arbitrary properties. Only
   // applicable for ArgumentType::OBJECT.
   std::unique_ptr<ArgumentSpec> additional_properties_;
+
+  // Whether this specific spec should ignore additional properties provided
+  // which do not match the spec, without emitting an error.
+  bool ignore_additional_properties_ = false;
 };
 
 }  // namespace extensions

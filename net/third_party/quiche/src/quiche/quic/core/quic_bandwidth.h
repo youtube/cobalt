@@ -21,7 +21,7 @@
 
 namespace quic {
 
-class QUIC_EXPORT_PRIVATE QuicBandwidth {
+class QUICHE_EXPORT QuicBandwidth {
  public:
   // Creates a new QuicBandwidth with an internal value of 0.
   static constexpr QuicBandwidth Zero() { return QuicBandwidth(0); }
@@ -100,6 +100,11 @@ class QUIC_EXPORT_PRIVATE QuicBandwidth {
   }
 
   std::string ToDebuggingValue() const;
+
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, QuicBandwidth bandwidth) {
+    sink.Append(bandwidth.ToDebuggingValue());
+  }
 
  private:
   explicit constexpr QuicBandwidth(int64_t bits_per_second)

@@ -14,6 +14,8 @@
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 
+namespace extensions {
+
 WebUIURLFetcher::WebUIURLFetcher(int render_process_id,
                                  int render_frame_id,
                                  const GURL& url,
@@ -27,15 +29,16 @@ WebUIURLFetcher::~WebUIURLFetcher() {
 }
 
 void WebUIURLFetcher::Start() {
-  content::RenderFrameHost* rfh =
+  content::RenderFrameHost* render_frame_host =
       content::RenderFrameHost::FromID(render_process_id_, render_frame_id_);
-  if (!rfh) {
+  if (!render_frame_host) {
     std::move(callback_).Run(false, nullptr);
     return;
   }
 
   mojo::Remote<network::mojom::URLLoaderFactory> factory(
-      content::CreateWebUIURLLoaderFactory(rfh, url_.scheme(), {}));
+      content::CreateWebUIURLLoaderFactory(render_frame_host, url_.scheme(),
+                                           {}));
 
   net::NetworkTrafficAnnotationTag traffic_annotation =
       net::DefineNetworkTrafficAnnotation("webui_content_scripts_download", R"(
@@ -63,18 +66,24 @@ void WebUIURLFetcher::Start() {
                                               traffic_annotation);
   fetcher_->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
       factory.get(), base::BindOnce(&WebUIURLFetcher::OnURLLoaderComplete,
-                                    base::Unretained(this)));
+                                    weak_ptr_factory_.GetWeakPtr()));
 }
 
 void WebUIURLFetcher::OnURLLoaderComplete(
     std::unique_ptr<std::string> response_body) {
   int response_code = 0;
-  if (fetcher_->ResponseInfo() && fetcher_->ResponseInfo()->headers)
+  if (fetcher_->ResponseInfo() && fetcher_->ResponseInfo()->headers) {
     response_code = fetcher_->ResponseInfo()->headers->response_code();
+  }
 
   fetcher_.reset();
-  std::unique_ptr<std::string> data(new std::string());
-  if (response_body)
+  std::unique_ptr<std::string> data;
+  if (response_body) {
     data = std::move(response_body);
+  } else {
+    data = std::make_unique<std::string>();
+  }
   std::move(callback_).Run(response_code == 200, std::move(data));
 }
+
+}  // namespace extensions

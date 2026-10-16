@@ -30,7 +30,6 @@ EnumTraits<network::mojom::RequestPriority, net::RequestPriority>::ToMojom(
       return network::mojom::RequestPriority::kHighest;
   }
   NOTREACHED();
-  return static_cast<network::mojom::RequestPriority>(priority);
 }
 
 bool EnumTraits<network::mojom::RequestPriority, net::RequestPriority>::
@@ -57,8 +56,6 @@ bool EnumTraits<network::mojom::RequestPriority, net::RequestPriority>::
   }
 
   NOTREACHED();
-  *out = static_cast<net::RequestPriority>(in);
-  return true;
 }
 
 network::mojom::URLRequestReferrerPolicy
@@ -89,7 +86,6 @@ EnumTraits<network::mojom::URLRequestReferrerPolicy,
       return network::mojom::URLRequestReferrerPolicy::kNoReferrer;
   }
   NOTREACHED();
-  return static_cast<network::mojom::URLRequestReferrerPolicy>(policy);
 }
 
 bool EnumTraits<network::mojom::URLRequestReferrerPolicy, net::ReferrerPolicy>::
@@ -129,7 +125,6 @@ bool EnumTraits<network::mojom::URLRequestReferrerPolicy, net::ReferrerPolicy>::
   }
 
   NOTREACHED();
-  return false;
 }
 
 }  // namespace mojo

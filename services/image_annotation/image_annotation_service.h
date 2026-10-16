@@ -13,7 +13,6 @@
 #include "base/metrics/field_trial_params.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-#include "services/data_decoder/public/mojom/json_parser.mojom.h"
 #include "services/image_annotation/annotator.h"
 #include "services/image_annotation/public/mojom/image_annotation.mojom.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -29,6 +28,7 @@ class ImageAnnotationService : public mojom::ImageAnnotationService {
       mojo::PendingReceiver<mojom::ImageAnnotationService> receiver,
       std::string api_key,
       scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
+      std::unique_ptr<manta::AnchovyProvider> anchovy_provider,
       std::unique_ptr<Annotator::Client> annotator_client);
 
   ImageAnnotationService(const ImageAnnotationService&) = delete;

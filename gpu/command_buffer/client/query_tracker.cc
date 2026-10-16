@@ -11,10 +11,10 @@
 #include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <vector>
 
 #include "base/atomicops.h"
 #include "base/containers/circular_deque.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/numerics/safe_conversions.h"
 #include "gpu/command_buffer/client/gles2_cmd_helper.h"
 #include "gpu/command_buffer/client/gles2_implementation.h"
@@ -32,7 +32,7 @@ QuerySyncManager::Bucket::Bucket(QuerySync* sync_mem,
 QuerySyncManager::Bucket::~Bucket() = default;
 
 void QuerySyncManager::Bucket::FreePendingSyncs() {
-  base::EraseIf(pending_syncs, [this](const PendingSync& pending) {
+  std::erase_if(pending_syncs, [this](const PendingSync& pending) {
     QuerySync* sync = this->syncs + pending.index;
     if (base::subtle::Acquire_Load(&sync->process_count) ==
         pending.submit_count) {
@@ -157,11 +157,6 @@ void QueryTracker::Query::Begin(QueryTrackerClient* client) {
     case GL_GET_ERROR_QUERY_CHROMIUM:
       // To nothing on begin for error queries.
       break;
-    case GL_LATENCY_QUERY_CHROMIUM:
-      client_begin_time_us_ = MicrosecondsSinceOriginOfTime();
-      // tell service about id, shared memory and count
-      client->IssueBeginQuery(target(), id(), shm_id(), shm_offset());
-      break;
     case GL_ASYNC_PIXEL_PACK_COMPLETED_CHROMIUM:
     default:
       // tell service about id, shared memory and count
@@ -219,11 +214,6 @@ bool QueryTracker::Query::CheckResultsAvailable(CommandBufferHelper* helper,
     // this method from CommandBufferHelper.
     if (processed_all || helper->IsContextLost()) {
       switch (target()) {
-        case GL_LATENCY_QUERY_CHROMIUM:
-          // Disabled DCHECK because of http://crbug.com/419236.
-          //DCHECK(info_.sync->result >= client_begin_time_us_);
-          result_ = info_.sync->result - client_begin_time_us_;
-          break;
         case GL_COMMANDS_ISSUED_CHROMIUM:
         case GL_COMMANDS_ISSUED_TIMESTAMP_CHROMIUM:
         case GL_ASYNC_PIXEL_PACK_COMPLETED_CHROMIUM:

@@ -13,15 +13,23 @@
 #include <string.h>
 
 #include <algorithm>
+#include <cstdint>
+#include <memory>
+#include <optional>
 #include <queue>
 #include <utility>
 #include <vector>
 
+#include "api/array_view.h"
+#include "api/call/transport.h"
 #include "api/media_types.h"
+#include "api/test/simulated_network.h"
 #include "api/units/timestamp.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "system_wrappers/include/clock.h"
 
 namespace webrtc {
@@ -30,13 +38,13 @@ namespace {
 constexpr int64_t kLogIntervalMs = 5000;
 }  // namespace
 
-NetworkPacket::NetworkPacket(rtc::CopyOnWriteBuffer packet,
+NetworkPacket::NetworkPacket(CopyOnWriteBuffer packet,
                              int64_t send_time,
                              int64_t arrival_time,
-                             absl::optional<PacketOptions> packet_options,
+                             std::optional<PacketOptions> packet_options,
                              bool is_rtcp,
                              MediaType media_type,
-                             absl::optional<int64_t> packet_time_us,
+                             std::optional<int64_t> packet_time_us,
                              Transport* transport)
     : packet_(std::move(packet)),
       send_time_(send_time),
@@ -102,38 +110,17 @@ FakeNetworkPipe::FakeNetworkPipe(
     Clock* clock,
     std::unique_ptr<NetworkBehaviorInterface> network_behavior,
     PacketReceiver* receiver,
-    uint64_t seed)
+    uint64_t /* seed */)
     : clock_(clock),
       network_behavior_(std::move(network_behavior)),
       receiver_(receiver),
-      global_transport_(nullptr),
       clock_offset_ms_(0),
       dropped_packets_(0),
       sent_packets_(0),
       total_packet_delay_us_(0),
       last_log_time_us_(clock_->TimeInMicroseconds()) {}
 
-FakeNetworkPipe::FakeNetworkPipe(
-    Clock* clock,
-    std::unique_ptr<NetworkBehaviorInterface> network_behavior,
-    Transport* transport)
-    : clock_(clock),
-      network_behavior_(std::move(network_behavior)),
-      receiver_(nullptr),
-      global_transport_(transport),
-      clock_offset_ms_(0),
-      dropped_packets_(0),
-      sent_packets_(0),
-      total_packet_delay_us_(0),
-      last_log_time_us_(clock_->TimeInMicroseconds()) {
-  RTC_DCHECK(global_transport_);
-  AddActiveTransport(global_transport_);
-}
-
 FakeNetworkPipe::~FakeNetworkPipe() {
-  if (global_transport_) {
-    RemoveActiveTransport(global_transport_);
-  }
   RTC_DCHECK(active_transports_.empty());
 }
 
@@ -156,54 +143,34 @@ void FakeNetworkPipe::RemoveActiveTransport(Transport* transport) {
   }
 }
 
-bool FakeNetworkPipe::SendRtp(const uint8_t* packet,
-                              size_t length,
-                              const PacketOptions& options) {
-  RTC_DCHECK(global_transport_);
-  EnqueuePacket(rtc::CopyOnWriteBuffer(packet, length), options, false,
-                global_transport_);
-  return true;
-}
-
-bool FakeNetworkPipe::SendRtcp(const uint8_t* packet, size_t length) {
-  RTC_DCHECK(global_transport_);
-  EnqueuePacket(rtc::CopyOnWriteBuffer(packet, length), absl::nullopt, true,
-                global_transport_);
-  return true;
-}
-
-bool FakeNetworkPipe::SendRtp(const uint8_t* packet,
-                              size_t length,
+bool FakeNetworkPipe::SendRtp(ArrayView<const uint8_t> packet,
                               const PacketOptions& options,
                               Transport* transport) {
   RTC_DCHECK(transport);
-  EnqueuePacket(rtc::CopyOnWriteBuffer(packet, length), options, false,
-                transport);
+  EnqueuePacket(CopyOnWriteBuffer(packet), options, false, transport);
   return true;
 }
 
-bool FakeNetworkPipe::SendRtcp(const uint8_t* packet,
-                               size_t length,
+bool FakeNetworkPipe::SendRtcp(ArrayView<const uint8_t> packet,
                                Transport* transport) {
   RTC_DCHECK(transport);
-  EnqueuePacket(rtc::CopyOnWriteBuffer(packet, length), absl::nullopt, true,
-                transport);
+  EnqueuePacket(CopyOnWriteBuffer(packet), std::nullopt, true, transport);
   return true;
 }
 
 void FakeNetworkPipe::DeliverRtpPacket(
     MediaType media_type,
     RtpPacketReceived packet,
-    OnUndemuxablePacketHandler undemuxable_packet_handler) {
+    OnUndemuxablePacketHandler /* undemuxable_packet_handler */) {
   MutexLock lock(&process_lock_);
   int64_t time_now_us = clock_->TimeInMicroseconds();
   EnqueuePacket(
       NetworkPacket(std::move(packet), media_type, time_now_us, time_now_us));
 }
 
-void FakeNetworkPipe::DeliverRtcpPacket(rtc::CopyOnWriteBuffer packet) {
-  EnqueuePacket(std::move(packet), absl::nullopt, true, MediaType::ANY,
-                absl::nullopt);
+void FakeNetworkPipe::DeliverRtcpPacket(CopyOnWriteBuffer packet) {
+  EnqueuePacket(std::move(packet), std::nullopt, true, MediaType::ANY,
+                std::nullopt);
 }
 
 void FakeNetworkPipe::SetClockOffset(int64_t offset_ms) {
@@ -214,11 +181,11 @@ void FakeNetworkPipe::SetClockOffset(int64_t offset_ms) {
 FakeNetworkPipe::StoredPacket::StoredPacket(NetworkPacket&& packet)
     : packet(std::move(packet)) {}
 
-bool FakeNetworkPipe::EnqueuePacket(rtc::CopyOnWriteBuffer packet,
-                                    absl::optional<PacketOptions> options,
+bool FakeNetworkPipe::EnqueuePacket(CopyOnWriteBuffer packet,
+                                    std::optional<PacketOptions> options,
                                     bool is_rtcp,
                                     MediaType media_type,
-                                    absl::optional<int64_t> packet_time_us) {
+                                    std::optional<int64_t> packet_time_us) {
   MutexLock lock(&process_lock_);
   int64_t time_now_us = clock_->TimeInMicroseconds();
   return EnqueuePacket(NetworkPacket(std::move(packet), time_now_us,
@@ -226,15 +193,15 @@ bool FakeNetworkPipe::EnqueuePacket(rtc::CopyOnWriteBuffer packet,
                                      packet_time_us, nullptr));
 }
 
-bool FakeNetworkPipe::EnqueuePacket(rtc::CopyOnWriteBuffer packet,
-                                    absl::optional<PacketOptions> options,
+bool FakeNetworkPipe::EnqueuePacket(CopyOnWriteBuffer packet,
+                                    std::optional<PacketOptions> options,
                                     bool is_rtcp,
                                     Transport* transport) {
   MutexLock lock(&process_lock_);
   int64_t time_now_us = clock_->TimeInMicroseconds();
   return EnqueuePacket(NetworkPacket(std::move(packet), time_now_us,
                                      time_now_us, options, is_rtcp,
-                                     MediaType::ANY, absl::nullopt, transport));
+                                     MediaType::ANY, std::nullopt, transport));
 }
 
 bool FakeNetworkPipe::EnqueuePacket(NetworkPacket&& net_packet) {
@@ -356,9 +323,10 @@ void FakeNetworkPipe::DeliverNetworkPacket(NetworkPacket* packet) {
       return;
     }
     if (packet->is_rtcp()) {
-      transport->SendRtcp(packet->data(), packet->data_length());
+      transport->SendRtcp(MakeArrayView(packet->data(), packet->data_length()),
+                          packet->packet_options());
     } else {
-      transport->SendRtp(packet->data(), packet->data_length(),
+      transport->SendRtp(MakeArrayView(packet->data(), packet->data_length()),
                          packet->packet_options());
     }
   } else if (receiver_) {
@@ -387,14 +355,14 @@ void FakeNetworkPipe::DeliverNetworkPacket(NetworkPacket* packet) {
   }
 }
 
-absl::optional<int64_t> FakeNetworkPipe::TimeUntilNextProcess() {
+std::optional<int64_t> FakeNetworkPipe::TimeUntilNextProcess() {
   MutexLock lock(&process_lock_);
-  absl::optional<int64_t> delivery_us = network_behavior_->NextDeliveryTimeUs();
+  std::optional<int64_t> delivery_us = network_behavior_->NextDeliveryTimeUs();
   if (delivery_us) {
     int64_t delay_us = *delivery_us - clock_->TimeInMicroseconds();
     return std::max<int64_t>((delay_us + 500) / 1000, 0);
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 bool FakeNetworkPipe::HasReceiver() const {

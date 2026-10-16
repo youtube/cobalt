@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 
 #include <map>
 #include <string>
 
+#include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/format_macros.h"
 #include "base/i18n/icu_string_conversions.h"
@@ -26,9 +32,7 @@ namespace {
 bool VerifyWords(const convert_dict::DicReader::WordList& org_words,
                  const std::string& serialized) {
   hunspell::BDictReader reader;
-  EXPECT_TRUE(
-      reader.Init(reinterpret_cast<const unsigned char*>(serialized.data()),
-      serialized.size()));
+  EXPECT_TRUE(reader.Init(base::as_byte_span(serialized)));
 
   hunspell::WordIterator iter = reader.GetAllWordIterator();
 
@@ -116,15 +120,15 @@ void RunDictionaryTest(const char* codepage,
     writer.SetWords(dic_reader.words());
 
     std::string bdict_data = writer.GetBDict();
+    base::span<const uint8_t> bytes = base::as_byte_span(bdict_data);
     VerifyWords(dic_reader.words(), bdict_data);
-    EXPECT_TRUE(hunspell::BDict::Verify(bdict_data.data(), bdict_data.size()));
+    EXPECT_TRUE(hunspell::BDict::Verify(bytes));
 
     // Trim the end of this BDICT and verify our verifier tells these trimmed
     // BDICTs are corrupted.
     for (size_t i = 1; i < bdict_data.size(); ++i) {
       SCOPED_TRACE(base::StringPrintf("i = %" PRIuS, i));
-      EXPECT_FALSE(hunspell::BDict::Verify(bdict_data.data(),
-                                           bdict_data.size() - i));
+      EXPECT_FALSE(hunspell::BDict::Verify(bytes.first(i)));
     }
   }
 

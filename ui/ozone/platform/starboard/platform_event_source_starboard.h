@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_H_
-#define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_H_
+#ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_STARBOARD_H_
+#define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_STARBOARD_H_
 
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
@@ -31,6 +31,12 @@ class PlatformEventSourceStarboard : public PlatformEventSource {
   PlatformEventSourceStarboard& operator=(const PlatformEventSourceStarboard&) =
       delete;
 
+  std::unique_ptr<ui::Event> CreateKeyboardRemoteInputEvent(
+      const SbEvent* event);
+  std::unique_ptr<ui::Event> CreateMouseInputEvent(const SbEvent* event);
+  std::unique_ptr<ui::Event> CreateMouseWheelInputEvent(const SbEvent* event);
+  std::unique_ptr<ui::Event> CreateTouchInputEvent(const SbEvent* event);
+
   void HandleEvent(const SbEvent* event);
   void HandleFocusEvent(const SbEvent* event);
   void DispatchFocusEvent(bool is_focused);
@@ -47,6 +53,8 @@ class PlatformEventSourceStarboard : public PlatformEventSource {
   void DispatchWindowSizeChanged(int width, int height);
 
  private:
+  int current_pressed_mouse_buttons_ GUARDED_BY_CONTEXT(sequence_checker_) = 0;
+
   base::ObserverList<PlatformEventObserverStarboard>::Unchecked sb_observers_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
@@ -57,4 +65,4 @@ class PlatformEventSourceStarboard : public PlatformEventSource {
 
 }  // namespace ui
 
-#endif  // UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_H_
+#endif  // UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_STARBOARD_H_

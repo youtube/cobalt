@@ -26,6 +26,8 @@
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
+#include "cobalt/testing/browser_tests/browser/test_shell.h"
+#include "cobalt/testing/browser_tests/content_browser_test_utils_internal.h"
 #include "content/browser/browser_main_loop.h"
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/renderer_host/media/media_stream_manager.h"
@@ -35,7 +37,6 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
-#include "content/public/browser/notification_source.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_paths.h"
@@ -268,16 +269,10 @@ void IsolateOriginsForTesting(
   }
 }
 
-#if BUILDFLAG(IS_WIN)
-
-void SetMockCursorPositionForTesting(WebContents* web_contents,
-                                     const gfx::Point& position) {
-  views::test::DesktopWindowTreeHostWinTestApi host(
-      static_cast<views::DesktopWindowTreeHostWin*>(
-          web_contents->GetNativeView()->GetHost()));
-  host.SetMockCursorPositionForTesting(position);
+// TODO(crbug.com/40278950): Use
+// `WebFrameWidgetImpl::NotifySwapAndPresentationTime` instead.
+void WaitForCopyableView(WebContents* web_contents) {
+  WaitForCopyableViewInWebContents(web_contents);
 }
-
-#endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace content

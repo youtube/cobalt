@@ -19,7 +19,6 @@ TEST_F(StructTraitsTest, RendererSettings) {
   RendererSettings input;
 
   // Set |input| to non-default values.
-  input.apply_simple_frame_rate_throttling = false;
   input.allow_antialiasing = false;
   input.force_antialiasing = true;
   input.force_blending_with_shaders = true;
@@ -27,12 +26,15 @@ TEST_F(StructTraitsTest, RendererSettings) {
   input.should_clear_root_render_pass = false;
   input.release_overlay_resources_after_gpu_query = true;
   input.highp_threshold_min = -1;
+  input.occlusion_culler_settings.quad_split_limit = 10;
+  input.occlusion_culler_settings.maximum_occluder_complexity = 1;
+  input.occlusion_culler_settings.minimum_fragments_reduced = 100;
+  input.occlusion_culler_settings
+      .generate_complex_occluder_for_rounded_corners = true;
 
   RendererSettings output;
   mojom::RendererSettings::Deserialize(
       mojom::RendererSettings::Serialize(&input), &output);
-  EXPECT_EQ(input.apply_simple_frame_rate_throttling,
-            output.apply_simple_frame_rate_throttling);
   EXPECT_EQ(input.allow_antialiasing, output.allow_antialiasing);
   EXPECT_EQ(input.force_antialiasing, output.force_antialiasing);
   EXPECT_EQ(input.force_blending_with_shaders,
@@ -43,6 +45,16 @@ TEST_F(StructTraitsTest, RendererSettings) {
   EXPECT_EQ(input.release_overlay_resources_after_gpu_query,
             output.release_overlay_resources_after_gpu_query);
   EXPECT_EQ(input.highp_threshold_min, output.highp_threshold_min);
+  EXPECT_EQ(input.occlusion_culler_settings.quad_split_limit,
+            output.occlusion_culler_settings.quad_split_limit);
+  EXPECT_EQ(input.occlusion_culler_settings.maximum_occluder_complexity,
+            output.occlusion_culler_settings.maximum_occluder_complexity);
+  EXPECT_EQ(input.occlusion_culler_settings.minimum_fragments_reduced,
+            output.occlusion_culler_settings.minimum_fragments_reduced);
+  EXPECT_EQ(input.occlusion_culler_settings
+                .generate_complex_occluder_for_rounded_corners,
+            output.occlusion_culler_settings
+                .generate_complex_occluder_for_rounded_corners);
 }
 
 TEST_F(StructTraitsTest, DebugRendererSettings) {

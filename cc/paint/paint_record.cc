@@ -29,7 +29,7 @@ PaintRecord& PaintRecord::operator=(const PaintRecord&) = default;
 
 PaintRecord::PaintRecord(sk_sp<PaintOpBuffer> buffer)
     : buffer_(std::move(buffer)) {
-  DCHECK(buffer_);
+  CHECK(buffer_);
 }
 
 // static
@@ -74,13 +74,10 @@ SkRect PaintRecord::GetFixedScaleBounds(const SkMatrix& ctm,
 sk_sp<SkPicture> PaintRecord::ToSkPicture(
     const SkRect& bounds,
     ImageProvider* image_provider,
-    PlaybackParams::CustomDataRasterCallback custom_callback,
-    PlaybackParams::ConvertOpCallback convert_op_callback) const {
+    const PlaybackCallbacks& callbacks) const {
   SkPictureRecorder recorder;
   SkCanvas* canvas = recorder.beginRecording(bounds);
-  PlaybackParams params(image_provider);
-  params.custom_callback = std::move(custom_callback);
-  params.convert_op_callback = std::move(convert_op_callback);
+  PlaybackParams params(image_provider, SkM44(), callbacks);
   Playback(canvas, params);
   return recorder.finishRecordingAsPicture();
 }

@@ -10,16 +10,17 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 
-import androidx.annotation.Nullable;
-
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 
 /**
  * The view for the entire search resumption layout, including a header, an option button to
  * collapse or expand the suggestion section, and the section of a set of search suggestions.
  */
+@NullMarked
 public class SearchResumptionModuleView extends LinearLayout {
     private View mHeaderView;
     private ImageView mOptionView;
@@ -36,27 +37,28 @@ public class SearchResumptionModuleView extends LinearLayout {
         mTileContainerView = findViewById(R.id.search_resumption_module_tiles_container);
         mOptionView = findViewById(R.id.header_option);
         configureExpandedCollapsed(
-                !SharedPreferencesManager.getInstance().readBoolean(
-                        ChromePreferenceKeys.SEARCH_RESUMPTION_MODULE_COLLAPSE_ON_NTP,
-                        false) /* shouldExpand */,
-                true /* isFirstSetup */);
+                !ChromeSharedPreferences.getInstance()
+                        .readBoolean(
+                                ChromePreferenceKeys.SEARCH_RESUMPTION_MODULE_COLLAPSE_ON_NTP,
+                                false)
+                /* shouldExpand= */ ,
+                /* isFirstSetup= */ true);
     }
 
     void setExpandCollapseCallback(Callback<Boolean> callback) {
-        mHeaderView.setOnClickListener(v -> {
-            boolean shouldExpand = mTileContainerView.isExpanded() ? false : true;
-            configureExpandedCollapsed(shouldExpand, false /* isFirstSetup */);
-            callback.onResult(shouldExpand);
-        });
+        mHeaderView.setOnClickListener(
+                v -> {
+                    boolean shouldExpand = !mTileContainerView.isExpanded();
+                    configureExpandedCollapsed(shouldExpand, /* isFirstSetup= */ false);
+                    callback.onResult(shouldExpand);
+                });
     }
 
     void destroy() {
         mTileContainerView.destroy();
     }
 
-    /**
-     * Configures expanding or collapsing the suggest sections.
-     */
+    /** Configures expanding or collapsing the suggest sections. */
     private void configureExpandedCollapsed(boolean shouldExpand, boolean isFirstSetup) {
         if (isFirstSetup || mTileContainerView.isExpanded() != shouldExpand) {
             if (shouldExpand) {
@@ -64,17 +66,19 @@ public class SearchResumptionModuleView extends LinearLayout {
             } else {
                 mOptionView.setImageResource(R.drawable.ic_expand_more_black_24dp);
             }
-            String collapseOrExpandedText = getContext().getResources().getString(shouldExpand
-                            ? R.string.accessibility_expanded
-                            : R.string.accessibility_collapsed);
-            String description = getContext().getResources().getString(
-                    R.string.search_resumption_module_subtitle);
+            String collapseOrExpandedText =
+                    getContext()
+                            .getString(
+                                    shouldExpand
+                                            ? R.string.accessibility_expanded
+                                            : R.string.accessibility_collapsed);
+            String description = getContext().getString(R.string.search_resumption_module_subtitle);
             mHeaderView.setContentDescription(description + " " + collapseOrExpandedText);
         }
 
         if (mTileContainerView.isExpanded() == shouldExpand) return;
 
         mTileContainerView.configureExpandedCollapsed(
-                shouldExpand, !isFirstSetup /* isAnimationEnabled */);
+                shouldExpand, /* isAnimationEnabled= */ !isFirstSetup);
     }
 }

@@ -17,6 +17,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
+#include "chrome/browser/chrome_browser_main_extra_parts_nacl_deprecation.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -63,8 +64,7 @@ void AddPrivateSwitches(base::CommandLine* command_line) {
 
 }  // namespace
 
-PPAPITestMessageHandler::PPAPITestMessageHandler() {
-}
+PPAPITestMessageHandler::PPAPITestMessageHandler() = default;
 
 TestMessageHandler::MessageResponse PPAPITestMessageHandler::HandleMessage(
     const std::string& json) {
@@ -115,12 +115,12 @@ void PPAPITestBase::InfoBarObserver::OnManagerShuttingDown(
 
 void PPAPITestBase::InfoBarObserver::VerifyInfoBarState() {
   infobars::ContentInfoBarManager* infobar_manager = GetInfoBarManager();
-  EXPECT_EQ(expecting_infobar_ ? 1U : 0U, infobar_manager->infobar_count());
+  EXPECT_EQ(expecting_infobar_ ? 1U : 0U, infobar_manager->infobars().size());
   if (!expecting_infobar_)
     return;
   expecting_infobar_ = false;
 
-  infobars::InfoBar* infobar = infobar_manager->infobar_at(0);
+  infobars::InfoBar* infobar = infobar_manager->infobars()[0];
   ConfirmInfoBarDelegate* delegate =
       infobar->delegate()->AsConfirmInfoBarDelegate();
   ASSERT_TRUE(delegate != nullptr);
@@ -143,8 +143,7 @@ PPAPITestBase::PPAPITestBase() {
   // These are needed to test that the right NetworkAnonymizationKey is used.
   scoped_feature_list_.InitWithFeatures(
       // enabled_features
-      {net::features::kSplitHostCacheByNetworkIsolationKey,
-       net::features::kPartitionConnectionsByNetworkIsolationKey},
+      {net::features::kPartitionConnectionsByNetworkIsolationKey, kNaclAllow},
       // disabled_features
       {});
 }
@@ -177,7 +176,7 @@ void PPAPITestBase::SetUpOnMainThread() {
 GURL PPAPITestBase::GetTestFileUrl(const std::string& test_case) {
   base::ScopedAllowBlockingForTesting allow_blocking;
   base::FilePath test_path;
-  EXPECT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &test_path));
+  EXPECT_TRUE(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_path));
   test_path = test_path.Append(FILE_PATH_LITERAL("ppapi"));
   test_path = test_path.Append(FILE_PATH_LITERAL("tests"));
   test_path = test_path.Append(FILE_PATH_LITERAL("test_case.html"));
@@ -285,7 +284,7 @@ void PPAPITest::SetUpCommandLine(base::CommandLine* command_line) {
   if (in_process_)
     command_line->AppendSwitch(switches::kPpapiInProcess);
 
-  // TODO(https://crbug.com/1172495): Remove once NaCl code can be deleted.
+  // TODO(crbug.com/40166667): Remove once NaCl code can be deleted.
   command_line->AppendSwitchASCII(blink::switches::kBlinkSettings,
                                   "allowNonEmptyNavigatorPlugins=true");
 }
@@ -307,16 +306,6 @@ OutOfProcessPPAPITest::OutOfProcessPPAPITest() {
 void OutOfProcessPPAPITest::SetUpCommandLine(base::CommandLine* command_line) {
   PPAPITest::SetUpCommandLine(command_line);
   command_line->AppendSwitch(switches::kUseFakeUIForMediaStream);
-}
-
-void OutOfProcessPPAPITest::RunTest(const std::string& test_case) {
-#if BUILDFLAG(IS_WIN)
-  // See crbug.com/1231528 for context.
-  if (test_case == "Printing")
-    return;
-#endif
-
-  PPAPITestBase::RunTest(test_case);
 }
 
 // Send touch events to a plugin and expect the events to reach the renderer

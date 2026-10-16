@@ -5,11 +5,13 @@
 #ifndef SERVICES_VIZ_PUBLIC_CPP_COMPOSITING_SHARED_QUAD_STATE_MOJOM_TRAITS_H_
 #define SERVICES_VIZ_PUBLIC_CPP_COMPOSITING_SHARED_QUAD_STATE_MOJOM_TRAITS_H_
 
+#include <optional>
+
 #include "base/check_op.h"
-#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "components/viz/common/quads/shared_quad_state.h"
+#include "services/viz/public/cpp/compositing/offset_tag_mojom_traits.h"
 #include "services/viz/public/mojom/compositing/shared_quad_state.mojom-shared.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/mask_filter_info.h"
 #include "ui/gfx/mojom/mask_filter_info_mojom_traits.h"
 #include "ui/gfx/mojom/rrect_f_mojom_traits.h"
@@ -17,7 +19,8 @@
 namespace mojo {
 
 struct OptSharedQuadState {
-  raw_ptr<const viz::SharedQuadState> sqs;
+  // RAW_PTR_EXCLUSION: Performance reasons (based on analysis of speedometer3).
+  RAW_PTR_EXCLUSION const viz::SharedQuadState* sqs = nullptr;
 };
 
 template <>
@@ -40,15 +43,15 @@ struct StructTraits<viz::mojom::SharedQuadStateDataView, OptSharedQuadState> {
     return input.sqs->visible_quad_layer_rect;
   }
 
-  static const absl::optional<gfx::MaskFilterInfo> mask_filter_info(
+  static const std::optional<gfx::MaskFilterInfo> mask_filter_info(
       const OptSharedQuadState& input) {
     return input.sqs->mask_filter_info.IsEmpty()
-               ? absl::nullopt
-               : absl::optional<gfx::MaskFilterInfo>(
+               ? std::nullopt
+               : std::optional<gfx::MaskFilterInfo>(
                      input.sqs->mask_filter_info);
   }
 
-  static const absl::optional<gfx::Rect>& clip_rect(
+  static const std::optional<gfx::Rect>& clip_rect(
       const OptSharedQuadState& input) {
     return input.sqs->clip_rect;
   }
@@ -76,6 +79,10 @@ struct StructTraits<viz::mojom::SharedQuadStateDataView, OptSharedQuadState> {
   static bool is_fast_rounded_corner(const OptSharedQuadState& input) {
     return input.sqs->is_fast_rounded_corner;
   }
+
+  static const viz::OffsetTag& offset_tag(const OptSharedQuadState& input) {
+    return input.sqs->offset_tag;
+  }
 };
 
 template <>
@@ -99,7 +106,7 @@ struct StructTraits<viz::mojom::SharedQuadStateDataView, viz::SharedQuadState> {
     return sqs.mask_filter_info;
   }
 
-  static const absl::optional<gfx::Rect>& clip_rect(
+  static const std::optional<gfx::Rect>& clip_rect(
       const viz::SharedQuadState& sqs) {
     return sqs.clip_rect;
   }
@@ -126,16 +133,21 @@ struct StructTraits<viz::mojom::SharedQuadStateDataView, viz::SharedQuadState> {
     return sqs.is_fast_rounded_corner;
   }
 
+  static const viz::OffsetTag& offset_tag(const viz::SharedQuadState& sqs) {
+    return sqs.offset_tag;
+  }
+
   static bool Read(viz::mojom::SharedQuadStateDataView data,
                    viz::SharedQuadState* out) {
     if (!data.ReadQuadToTargetTransform(&out->quad_to_target_transform) ||
         !data.ReadQuadLayerRect(&out->quad_layer_rect) ||
         !data.ReadVisibleQuadLayerRect(&out->visible_quad_layer_rect) ||
-        !data.ReadClipRect(&out->clip_rect)) {
+        !data.ReadClipRect(&out->clip_rect) ||
+        !data.ReadOffsetTag(&out->offset_tag)) {
       return false;
     }
 
-    absl::optional<gfx::MaskFilterInfo> mask_filter;
+    std::optional<gfx::MaskFilterInfo> mask_filter;
     if (!data.ReadMaskFilterInfo(&mask_filter)) {
       return false;
     }

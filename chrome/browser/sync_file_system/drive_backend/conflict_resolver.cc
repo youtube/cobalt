@@ -32,7 +32,7 @@ namespace drive_backend {
 ConflictResolver::ConflictResolver(SyncEngineContext* sync_context)
     : sync_context_(sync_context) {}
 
-ConflictResolver::~ConflictResolver() {}
+ConflictResolver::~ConflictResolver() = default;
 
 void ConflictResolver::RunPreflight(std::unique_ptr<SyncTaskToken> token) {
   token->InitializeTaskLog("Conflict Resolution");
@@ -63,8 +63,6 @@ void ConflictResolver::RunExclusive(std::unique_ptr<SyncTaskToken> token) {
     DCHECK_LT(1u, trackers.size());
     if (!trackers.has_active()) {
       NOTREACHED();
-      SyncTaskManager::NotifyTaskDone(std::move(token), SYNC_STATUS_FAILED);
-      return;
     }
 
     token->RecordLog(base::StringPrintf(
@@ -76,7 +74,6 @@ void ConflictResolver::RunExclusive(std::unique_ptr<SyncTaskToken> token) {
       FileTracker tracker;
       if (!metadata_database()->FindTrackerByTrackerID(*itr, &tracker)) {
         NOTREACHED();
-        continue;
       }
 
       if (tracker.active())
@@ -87,8 +84,6 @@ void ConflictResolver::RunExclusive(std::unique_ptr<SyncTaskToken> token) {
           tracker.parent_tracker_id(), &parent_tracker);
       if (!should_success) {
         NOTREACHED();
-        SyncTaskManager::NotifyTaskDone(std::move(token), SYNC_STATUS_FAILED);
-        return;
       }
       parents_to_remove_.push_back(parent_tracker.file_id());
     }
@@ -104,7 +99,6 @@ void ConflictResolver::RunExclusive(std::unique_ptr<SyncTaskToken> token) {
       FileTracker tracker;
       if (!metadata_database()->FindTrackerByTrackerID(*itr, &tracker)) {
         NOTREACHED();
-        continue;
       }
       if (tracker.file_id() != target_file_id_) {
         non_primary_file_ids_.push_back(
@@ -166,14 +160,12 @@ std::string ConflictResolver::PickPrimaryFile(const TrackerIDSet& trackers) {
     FileTracker tracker;
     if (!metadata_database()->FindTrackerByTrackerID(*itr, &tracker)) {
       NOTREACHED();
-      continue;
     }
 
     std::unique_ptr<FileMetadata> file_metadata(new FileMetadata);
     if (!metadata_database()->FindFileByFileID(tracker.file_id(),
                                                file_metadata.get())) {
       NOTREACHED();
-      continue;
     }
 
     if (!primary) {
@@ -305,8 +297,6 @@ void ConflictResolver::DidGetRemoteMetadata(
 
   if (!entry) {
     NOTREACHED();
-    SyncTaskManager::NotifyTaskDone(std::move(token), SYNC_STATUS_FAILED);
-    return;
   }
 
   status = metadata_database()->UpdateByFileResource(*entry);

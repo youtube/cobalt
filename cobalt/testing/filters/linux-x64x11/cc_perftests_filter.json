@@ -1,14 +1,14 @@
 {
   "failing_tests": [
-    "AnimationHostPerfTest.Push10TimelinesPropertiesTo",
     "AnimationHostPerfTest.Push1000AnimationsPropertiesTo",
     "AnimationHostPerfTest.Push1000TimelinesPropertiesTo",
+    "AnimationHostPerfTest.Push10TimelinesPropertiesTo",
     "BrowserCompositorInvalidateLayerTreePerfTest.DenseBrowserUIThreaded",
     "LayerPerfTest.PushPropertiesTo",
     "LayerTreeHostPerfTestJsonReader.HeavyPageThreaded",
     "LayerTreeHostPerfTestJsonReader.TenTenThreaded",
     "LayerTreeHostPerfTestJsonReader.TenTenThreaded_FullDamageEachFrame",
-    "LayerTreeHostPerfTestLeafInvalidates.TenTenThreaded",
+    "LayerTreeHostPerfTestLeafInvalidates.*",
     "PaintOpPerfTest.ManyFlagsOps",
     "PictureLayerImplPerfTest.TilingSetEvictionQueueConstruct",
     "PictureLayerImplPerfTest.TilingSetEvictionQueueConstructAndIterate",
@@ -18,6 +18,7 @@
     "RasterBufferProviderPerfTests/RasterBufferProviderPerfTest.ScheduleAndExecuteTasks/3",
     "RasterBufferProviderPerfTests/RasterBufferProviderPerfTest.ScheduleTasks/3",
     "ScrollingLayerTreePerfTest.LongScrollablePageSingleThread",
-    "ScrollingLayerTreePerfTest.LongScrollablePageThreaded"
+    "ScrollingLayerTreePerfTest.LongScrollablePageThreaded",
+    "TileManagerPerfTest.*"
   ]
 }

@@ -10,7 +10,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "components/browsing_data/core/pref_names.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/sync/service/sync_service.h"
 #include "content/public/browser/browser_thread.h"
 
 using content::BrowserThread;
@@ -25,7 +25,7 @@ SiteDataCounter::SiteDataCounter(Profile* profile)
     : profile_(profile),
       sync_tracker_(this, SyncServiceFactory::GetForProfile(profile)) {}
 
-SiteDataCounter::~SiteDataCounter() {}
+SiteDataCounter::~SiteDataCounter() = default;
 
 void SiteDataCounter::OnInitialized() {
   sync_tracker_.OnInitialized(

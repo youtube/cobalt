@@ -11,10 +11,12 @@
 #include "chrome/services/sharing/nearby/platform/atomic_boolean.h"
 #include "chrome/services/sharing/nearby/platform/atomic_uint32.h"
 #include "chrome/services/sharing/nearby/platform/ble_medium.h"
+#include "chrome/services/sharing/nearby/platform/ble_v2_medium.h"
 #include "chrome/services/sharing/nearby/platform/bluetooth_adapter.h"
 #include "chrome/services/sharing/nearby/platform/bluetooth_classic_medium.h"
 #include "chrome/services/sharing/nearby/platform/condition_variable.h"
 #include "chrome/services/sharing/nearby/platform/count_down_latch.h"
+#include "chrome/services/sharing/nearby/platform/credential_storage.h"
 #include "chrome/services/sharing/nearby/platform/input_file.h"
 #include "chrome/services/sharing/nearby/platform/log_message.h"
 #include "chrome/services/sharing/nearby/platform/mutex.h"
@@ -23,14 +25,18 @@
 #include "chrome/services/sharing/nearby/platform/scheduled_executor.h"
 #include "chrome/services/sharing/nearby/platform/submittable_executor.h"
 #include "chrome/services/sharing/nearby/platform/webrtc.h"
+#include "chrome/services/sharing/nearby/platform/wifi_direct_medium.h"
 #include "chrome/services/sharing/nearby/platform/wifi_lan_medium.h"
 #include "chromeos/ash/services/nearby/public/mojom/firewall_hole.mojom.h"
+#include "chromeos/ash/services/nearby/public/mojom/mdns.mojom.h"
 #include "chromeos/ash/services/nearby/public/mojom/tcp_socket_factory.mojom.h"
 #include "chromeos/services/network_config/public/mojom/cros_network_config.mojom.h"
+#include "components/cross_device/nearby/nearby_features.h"
 #include "device/bluetooth/public/mojom/adapter.mojom.h"
 #include "mojo/public/cpp/bindings/shared_remote.h"
 #include "third_party/nearby/src/internal/platform/implementation/atomic_boolean.h"
 #include "third_party/nearby/src/internal/platform/implementation/atomic_reference.h"
+#include "third_party/nearby/src/internal/platform/implementation/awdl.h"
 #include "third_party/nearby/src/internal/platform/implementation/ble.h"
 #include "third_party/nearby/src/internal/platform/implementation/ble_v2.h"
 #include "third_party/nearby/src/internal/platform/implementation/bluetooth_adapter.h"
@@ -48,6 +54,64 @@
 #include "third_party/nearby/src/internal/platform/implementation/wifi.h"
 #include "third_party/nearby/src/internal/platform/implementation/wifi_direct.h"
 #include "third_party/nearby/src/internal/platform/implementation/wifi_hotspot.h"
+
+namespace nearby::chrome {
+
+// Minimal `WifiMedium` implementation required to allow WiFi Direct.
+class WifiMedium : public api::WifiMedium {
+ public:
+  WifiMedium() {
+    // The official WifiDirectMedium implementation queries the platform layer
+    // to determine if the device supports WiFi Direct, so this capabilities
+    // value is not actually used to determine support.
+    capabilities_.support_wifi_direct = true;
+  }
+
+  // api::WifiMedium
+  bool IsInterfaceValid() const override {
+    // This call is required for the WifiDirectMedium to trigger properly.
+    return true;
+  }
+
+  api::WifiCapability& GetCapability() override {
+    NOTIMPLEMENTED();
+    return capabilities_;
+  }
+
+  api::WifiInformation& GetInformation() override {
+    NOTIMPLEMENTED();
+    return information_;
+  }
+
+  bool Scan(const ScanResultCallback& scan_result_callback) override {
+    NOTIMPLEMENTED();
+    return false;
+  }
+
+  api::WifiConnectionStatus ConnectToNetwork(
+      absl::string_view ssid,
+      absl::string_view password,
+      api::WifiAuthType auth_type) override {
+    NOTIMPLEMENTED();
+    return api::WifiConnectionStatus::kUnknown;
+  }
+
+  bool VerifyInternetConnectivity() override {
+    NOTIMPLEMENTED();
+    return false;
+  }
+
+  std::string GetIpAddress() override {
+    NOTIMPLEMENTED();
+    return std::string();
+  }
+
+ private:
+  api::WifiCapability capabilities_;
+  api::WifiInformation information_;
+};
+
+}  // namespace nearby::chrome
 
 namespace nearby::api {
 
@@ -102,7 +166,8 @@ ImplementationPlatform::CreateMultiThreadExecutor(int max_concurrency) {
 
 std::unique_ptr<ScheduledExecutor>
 ImplementationPlatform::CreateScheduledExecutor() {
-  // TODO(crbug/1091190): Figure out if task runner needs to run in main thread.
+  // TODO(crbug.com/40134072): Figure out if task runner needs to run in main
+  // thread.
   return std::make_unique<chrome::ScheduledExecutor>(
       base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()}));
 }
@@ -110,6 +175,12 @@ ImplementationPlatform::CreateScheduledExecutor() {
 std::unique_ptr<AtomicUint32> ImplementationPlatform::CreateAtomicUint32(
     std::uint32_t initial_value) {
   return std::make_unique<chrome::AtomicUint32>(initial_value);
+}
+
+std::unique_ptr<AwdlMedium> ImplementationPlatform::CreateAwdlMedium() {
+  // This constructor is not supported by Chrome.
+  NOTIMPLEMENTED();
+  return nullptr;
 }
 
 std::unique_ptr<BluetoothAdapter>
@@ -210,13 +281,29 @@ std::unique_ptr<BleMedium> ImplementationPlatform::CreateBleMedium(
 
 std::unique_ptr<ble_v2::BleMedium> ImplementationPlatform::CreateBleV2Medium(
     api::BluetoothAdapter& adapter) {
-  // Do nothing. ble_v2::BleMedium is not yet supported in Chrome Nearby.
+  nearby::NearbySharedRemotes* nearby_shared_remotes =
+      nearby::NearbySharedRemotes::GetInstance();
+  // Ignore the provided |adapter| argument; it is a reference to the object
+  // created by ImplementationPlatform::CreateBluetoothAdapter(). Instead,
+  // directly use the cached bluetooth::mojom::Adapter.
+  if (nearby_shared_remotes &&
+      nearby_shared_remotes->bluetooth_adapter.is_bound() &&
+      features::IsNearbyBleV2Enabled()) {
+    return std::make_unique<chrome::BleV2Medium>(
+        nearby_shared_remotes->bluetooth_adapter);
+  }
   return nullptr;
 }
 
-// TODO(b/279611359): Wire into Chrome impl.
 std::unique_ptr<api::CredentialStorage>
 ImplementationPlatform::CreateCredentialStorage() {
+  nearby::NearbySharedRemotes* nearby_shared_remotes =
+      nearby::NearbySharedRemotes::GetInstance();
+  if (nearby_shared_remotes &&
+      nearby_shared_remotes->nearby_presence_credential_storage.is_bound()) {
+    return std::make_unique<nearby::chrome::CredentialStorage>(
+        nearby_shared_remotes->nearby_presence_credential_storage);
+  }
   return nullptr;
 }
 
@@ -226,12 +313,33 @@ ImplementationPlatform::CreateServerSyncMedium() {
 }
 
 std::unique_ptr<WifiMedium> ImplementationPlatform::CreateWifiMedium() {
-  return nullptr;
+  return std::make_unique<chrome::WifiMedium>();
 }
 
 std::unique_ptr<WifiDirectMedium>
 ImplementationPlatform::CreateWifiDirectMedium() {
-  return nullptr;
+  nearby::NearbySharedRemotes* nearby_shared_remotes =
+      nearby::NearbySharedRemotes::GetInstance();
+  if (!nearby_shared_remotes) {
+    return nullptr;
+  }
+
+  // TODO(b/340273442): This should always be bound when the WifiDirect feature
+  // flag is enabled. Update logging to ERROR after launch.
+  if (!nearby_shared_remotes->wifi_direct_manager.is_bound()) {
+    VLOG(1) << "WifiDirectManager not bound. Returning null WifiDirect medium";
+    return nullptr;
+  }
+
+  if (!nearby_shared_remotes->wifi_direct_firewall_hole_factory.is_bound()) {
+    VLOG(1)
+        << "FirewallHoleFactory not bound. Returning null WifiDirect medium";
+    return nullptr;
+  }
+
+  return std::make_unique<chrome::WifiDirectMedium>(
+      std::move(nearby_shared_remotes->wifi_direct_manager),
+      std::move(nearby_shared_remotes->wifi_direct_firewall_hole_factory));
 }
 
 std::unique_ptr<WifiHotspotMedium>
@@ -257,7 +365,7 @@ std::unique_ptr<WifiLanMedium> ImplementationPlatform::CreateWifiLanMedium() {
 
   // TODO(https://crbug.com/1261238): This should always be bound when the
   // WifiLan feature flag is enabled. Update logging to ERROR after launch.
-  const mojo::SharedRemote<sharing::mojom::FirewallHoleFactory>&
+  const mojo::SharedRemote<::sharing::mojom::FirewallHoleFactory>&
       firewall_hole_factory = nearby_shared_remotes->firewall_hole_factory;
   if (!firewall_hole_factory.is_bound()) {
     VLOG(1) << "FirewallHoleFactory not bound. Returning null WifiLan medium";
@@ -266,15 +374,28 @@ std::unique_ptr<WifiLanMedium> ImplementationPlatform::CreateWifiLanMedium() {
 
   // TODO(https://crbug.com/1261238): This should always be bound when the
   // WifiLan feature flag is enabled. Update logging to ERROR after launch.
-  const mojo::SharedRemote<sharing::mojom::TcpSocketFactory>&
+  const mojo::SharedRemote<::sharing::mojom::TcpSocketFactory>&
       tcp_socket_factory = nearby_shared_remotes->tcp_socket_factory;
   if (!tcp_socket_factory.is_bound()) {
     VLOG(1) << "TcpSocketFactory not bound. Returning null WifiLan medium";
     return nullptr;
   }
 
+  const mojo::SharedRemote<::sharing::mojom::MdnsManager>& mdns_manager =
+      nearby_shared_remotes->mdns_manager;
+  if (features::IsNearbyMdnsEnabled() && !mdns_manager.is_bound()) {
+    LOG(ERROR) << "MdnsManager not bound. Returning null WifiLan medium";
+    return nullptr;
+  }
+
   return std::make_unique<chrome::WifiLanMedium>(
-      tcp_socket_factory, cros_network_config, firewall_hole_factory);
+      tcp_socket_factory, cros_network_config, firewall_hole_factory,
+      mdns_manager);
+}
+
+std::unique_ptr<Timer> ImplementationPlatform::CreateTimer() {
+  // This method is not currently used by Chromium. If it ever is, implement it.
+  NOTREACHED();
 }
 
 std::unique_ptr<WebRtcMedium> ImplementationPlatform::CreateWebRtcMedium() {
@@ -288,11 +409,11 @@ std::unique_ptr<WebRtcMedium> ImplementationPlatform::CreateWebRtcMedium() {
 
   const mojo::SharedRemote<network::mojom::P2PSocketManager>& socket_manager =
       nearby_shared_remotes->socket_manager;
-  const mojo::SharedRemote<sharing::mojom::MdnsResponderFactory>&
+  const mojo::SharedRemote<::sharing::mojom::MdnsResponderFactory>&
       mdns_responder_factory = nearby_shared_remotes->mdns_responder_factory;
-  const mojo::SharedRemote<sharing::mojom::IceConfigFetcher>&
+  const mojo::SharedRemote<::sharing::mojom::IceConfigFetcher>&
       ice_config_fetcher = nearby_shared_remotes->ice_config_fetcher;
-  const mojo::SharedRemote<sharing::mojom::WebRtcSignalingMessenger>&
+  const mojo::SharedRemote<::sharing::mojom::WebRtcSignalingMessenger>&
       messenger = nearby_shared_remotes->webrtc_signaling_messenger;
 
   auto log_error = [](std::string dependency_name) {
@@ -330,10 +451,11 @@ std::unique_ptr<WebRtcMedium> ImplementationPlatform::CreateWebRtcMedium() {
 std::unique_ptr<Mutex> ImplementationPlatform::CreateMutex(Mutex::Mode mode) {
   // Chrome does not support unchecked Mutex in debug mode, therefore
   // chrome::Mutex is used for both kRegular and kRegularNoCheck.
-  if (mode == Mutex::Mode::kRecursive)
+  if (mode == Mutex::Mode::kRecursive) {
     return std::make_unique<chrome::RecursiveMutex>();
-  else
+  } else {
     return std::make_unique<chrome::Mutex>();
+  }
 }
 
 std::unique_ptr<ConditionVariable>

@@ -29,6 +29,12 @@ bool MimeifyReport(const crashpad::CrashReportDatabase::UploadReport& report,
 bool WriteBodyToFile(crashpad::HTTPBodyStream* body,
                      crashpad::FileWriterInterface* writer);
 
+void WriteAnrAsMime(crashpad::FileReader* anr_reader,
+                    crashpad::FileWriterInterface* writer,
+                    const std::string& version_number,
+                    const std::string& build_id,
+                    const std::string& variations_string,
+                    const std::string& anr_file_name);
 }  // namespace minidump_uploader
 
 #endif  // COMPONENTS_MINIDUMP_UPLOADER_REWRITE_MINIDUMPS_AS_MIMES_H_

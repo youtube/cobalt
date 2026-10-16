@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ppapi/tests/test_crypto.h"
 
 #include "ppapi/c/dev/ppb_crypto_dev.h"
@@ -27,7 +32,7 @@ void TestCrypto::RunTests(const std::string& filter) {
 
 std::string TestCrypto::TestGetRandomBytes() {
   const int kBufSize = 16;
-  char buf[kBufSize] = {0};
+  char buf[kBufSize] = {};
 
   crypto_interface_->GetRandomBytes(buf, kBufSize);
 

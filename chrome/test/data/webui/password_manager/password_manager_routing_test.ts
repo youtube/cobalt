@@ -4,7 +4,8 @@
 
 import 'chrome://password-manager/password_manager.js';
 
-import {CheckupSubpage, Page, Route, RouteObserverMixin, Router, UrlParam} from 'chrome://password-manager/password_manager.js';
+import type {Route} from 'chrome://password-manager/password_manager.js';
+import {CheckupSubpage, Page, RouteObserverMixin, Router, UrlParam} from 'chrome://password-manager/password_manager.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {assertEquals, assertFalse} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
@@ -18,8 +19,8 @@ class TestElement extends TestElementBase {
     };
   }
 
-  newRoute: Route|undefined;
-  oldRoute: Route|undefined;
+  declare newRoute: Route|undefined;
+  declare oldRoute: Route|undefined;
 
   override currentRouteChanged(newRoute: Route, oldRoute: Route): void {
     this.newRoute = newRoute;

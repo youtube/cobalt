@@ -20,6 +20,7 @@ namespace android_webview {
 class AwContentsOriginMatcher;
 class AwRenderViewHostExt;
 
+// Lifetime: WebView
 class AwSettings : public content::WebContentsObserver {
  public:
   // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.android_webview.settings
@@ -36,6 +37,12 @@ class AwSettings : public content::WebContentsObserver {
     PREFER_MEDIA_QUERY_OVER_FORCE_DARK = 2,
   };
 
+  // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.android_webview.settings
+  enum SpeculativeLoadingAllowedFlags {
+    SPECULATIVE_LOADING_DISABLED = 0,
+    PRERENDER_ENABLED = 1,
+  };
+
   enum RequestedWithHeaderMode {
     NO_HEADER = 0,
     APP_PACKAGE_NAME = 1,
@@ -49,6 +56,17 @@ class AwSettings : public content::WebContentsObserver {
     COUNT,
   };
 
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.android_webview.settings
+  enum AttributionBehavior {
+    DISABLED = 0,
+    APP_SOURCE_AND_WEB_TRIGGER = 1,
+    WEB_SOURCE_AND_WEB_TRIGGER = 2,
+    APP_SOURCE_AND_APP_TRIGGER = 3,
+    kMaxValue = APP_SOURCE_AND_APP_TRIGGER,
+  };
+
   static AwSettings* FromWebContents(content::WebContents* web_contents);
   static bool GetAllowSniffingFileUrls();
 
@@ -56,13 +74,22 @@ class AwSettings : public content::WebContentsObserver {
   // on feature flags and trial config
   static RequestedWithHeaderMode GetDefaultRequestedWithHeaderMode();
 
-  AwSettings(JNIEnv* env, jobject obj, content::WebContents* web_contents);
+  AwSettings(JNIEnv* env,
+             const jni_zero::JavaRef<jobject>& obj,
+             content::WebContents* web_contents);
   ~AwSettings() override;
 
+  bool GetAllowFileAccessFromFileURLs();
   bool GetJavaScriptEnabled();
   bool GetJavaScriptCanOpenWindowsAutomatically();
   bool GetAllowThirdPartyCookies();
   MixedContentMode GetMixedContentMode();
+  AttributionBehavior GetAttributionBehavior();
+  bool IsPrerender2Allowed();
+  bool IsBackForwardCacheEnabled();
+  bool initial_page_scale_is_non_default() {
+    return initial_page_scale_is_non_default_;
+  }
 
   // Called from Java. Methods with "Locked" suffix require that the settings
   // access lock is held during their execution.
@@ -87,9 +114,6 @@ class AwSettings : public content::WebContentsObserver {
   void UpdateWebkitPreferencesLocked(
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& obj);
-  void UpdateFormDataPreferencesLocked(
-      JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& obj);
   void UpdateRendererPreferencesLocked(
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& obj);
@@ -108,6 +132,18 @@ class AwSettings : public content::WebContentsObserver {
   void UpdateMixedContentModeLocked(
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& obj);
+  void UpdateAttributionBehaviorLocked(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jobject>& obj);
+  void UpdateSpeculativeLoadingAllowedLocked(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jobject>& obj);
+  void UpdateBackForwardCacheEnabledLocked(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jobject>& obj);
+  void UpdateGeolocationEnabledLocked(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jobject>& obj);
 
   void PopulateWebPreferences(blink::web_pref::WebPreferences* web_prefs);
   bool GetAllowFileAccess();
@@ -115,6 +151,7 @@ class AwSettings : public content::WebContentsObserver {
                           const base::android::JavaParamRef<jobject>& obj);
   bool PrefersDarkFromTheme(JNIEnv* env,
                             const base::android::JavaParamRef<jobject>& obj);
+  base::android::ScopedJavaLocalRef<jobject> GetJavaObject();
 
   void SetEnterpriseAuthenticationAppLinkPolicyEnabled(
       JNIEnv* env,
@@ -127,20 +164,13 @@ class AwSettings : public content::WebContentsObserver {
     return enterprise_authentication_app_link_policy_enabled_;
   }
 
-  void SetRestrictSensitiveWebContentEnabled(
-      JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& obj,
-      jboolean enabled);
-  bool GetRestrictSensitiveWebContentEnabled();
-  inline bool restrict_sensitive_web_content_enabled() {
-    return restrict_sensitive_web_content_enabled_;
-  }
-
   base::android::ScopedJavaLocalRef<jobjectArray>
   UpdateXRequestedWithAllowListOriginMatcher(
       JNIEnv* env,
       const base::android::JavaParamRef<jobjectArray>& rules);
   scoped_refptr<AwContentsOriginMatcher> xrw_allowlist_matcher();
+
+  bool geolocation_enabled() { return geolocation_enabled_; }
 
  private:
   AwRenderViewHostExt* GetAwRenderViewHostExt();
@@ -156,15 +186,32 @@ class AwSettings : public content::WebContentsObserver {
   bool javascript_can_open_windows_automatically_{false};
   bool allow_third_party_cookies_{false};
   bool allow_file_access_{false};
+  bool allow_file_access_from_file_urls_{false};
   // TODO(b/222053757,ayushsha): Change this policy to be by
   // default false from next Android version(Maybe Android U).
   bool enterprise_authentication_app_link_policy_enabled_{true};
-  bool restrict_sensitive_web_content_enabled_{false};
   MixedContentMode mixed_content_mode_;
+  AttributionBehavior attribution_behavior_;
+  SpeculativeLoadingAllowedFlags speculative_loading_allowed_flags_{
+      SpeculativeLoadingAllowedFlags::SPECULATIVE_LOADING_DISABLED};
+  bool bfcache_enabled_in_java_settings_{false};
+  bool geolocation_enabled_{false};
+
+  // Whether the settings that would affect the initial page scale is set to a
+  // non-default value or not. This includes directly changing the initial page
+  // scale and also setting the "load with overview mode" setting. This is
+  // temporarily needed to prevent same-site RenderFrameHost swaps due to
+  // RenderDocument, because these settings are not carried over immediately
+  // during the swap, causing the initial page scale to not be used.
+  // TODO(https://crbug.com/40615943): Remove this once we carry over the
+  // initial page scale correctly.
+  bool initial_page_scale_is_non_default_ = false;
 
   scoped_refptr<AwContentsOriginMatcher> xrw_allowlist_matcher_;
 
   JavaObjectWeakGlobalRef aw_settings_;
+
+  bool in_update_everything_locked_{false};
 };
 
 }  // namespace android_webview

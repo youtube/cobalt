@@ -5,6 +5,7 @@
 #include "components/metrics/clean_exit_beacon.h"
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <utility>
 
@@ -20,6 +21,7 @@
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "components/metrics/metrics_pref_names.h"
@@ -30,13 +32,13 @@
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
+
 #include "base/strings/string_util_win.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/win/registry.h"
 #endif
 
 namespace metrics {
-
 namespace {
 
 using ::variations::prefs::kVariationsCrashStreak;
@@ -50,8 +52,8 @@ bool g_skip_clean_shutdown_steps = false;
 // Records the the combined state of two distinct beacons' values in a
 // histogram.
 void RecordBeaconConsistency(
-    absl::optional<bool> beacon_file_beacon_value,
-    absl::optional<bool> platform_specific_beacon_value) {
+    std::optional<bool> beacon_file_beacon_value,
+    std::optional<bool> platform_specific_beacon_value) {
   CleanExitBeaconConsistency consistency =
       CleanExitBeaconConsistency::kDirtyDirty;
 
@@ -89,17 +91,22 @@ void MaybeIncrementCrashStreak(bool did_previous_session_exit_cleanly,
                                base::Value* beacon_file_contents,
                                PrefService* local_state) {
   int num_crashes;
+  int local_state_num_crashes = local_state->GetInteger(kVariationsCrashStreak);
+
   if (beacon_file_contents) {
-    absl::optional<int> crash_streak =
+    std::optional<int> crash_streak =
         beacon_file_contents->GetDict().FindInt(kVariationsCrashStreak);
     // Any contents without the key should have been rejected by
     // MaybeGetFileContents().
     DCHECK(crash_streak);
     num_crashes = crash_streak.value();
+    base::UmaHistogramCounts100(
+        "Variations.SafeMode.CrashStreakDiscrepancy",
+        std::abs(local_state_num_crashes - num_crashes));
   } else {
-    // TODO(crbug/1341087): Consider not falling back to Local State for clients
-    // on platforms that support the beacon file.
-    num_crashes = local_state->GetInteger(kVariationsCrashStreak);
+    // TODO(crbug.com/40850830): Consider not falling back to Local State for
+    // clients on platforms that support the beacon file.
+    num_crashes = local_state_num_crashes;
   }
 
   if (!did_previous_session_exit_cleanly) {
@@ -132,13 +139,10 @@ void MaybeIncrementCrashStreak(bool did_previous_session_exit_cleanly,
     // For platforms that do not use the beacon file, the crash streak is
     // scheduled to be written to disk later on in startup. At the latest, this
     // is done when a Local State write is scheduled via WriteBeaconFile(). A
-    // write is not scheduled here for three reasons.
+    // write is not scheduled here for two reasons.
     //
     // 1. It is an expensive operation.
-    // 2. Android WebLayer (one of the two platforms that does not use the
-    //    beacon file) did not appear to benefit from scheduling the write. See
-    //    crbug/1341850 for details.
-    // 3. Android WebView (the other beacon-file-less platform) has its own
+    // 2. Android WebView (which does not use the beacon file) has its own
     //    Variations Safe Mode mechanism and does not need the crash streak.
     local_state->SetInteger(kVariationsCrashStreak, num_crashes);
   }
@@ -246,18 +250,18 @@ bool CleanExitBeacon::DidPreviousSessionExitCleanly(
   if (!IsBeaconFileSupported())
     return local_state_->GetBoolean(prefs::kStabilityExitedCleanly);
 
-  absl::optional<bool> beacon_file_beacon_value =
+  std::optional<bool> beacon_file_beacon_value =
       beacon_file_contents ? beacon_file_contents->GetDict().FindBool(
                                  prefs::kStabilityExitedCleanly)
-                           : absl::nullopt;
+                           : std::nullopt;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_IOS)
-  absl::optional<bool> backup_beacon_value = ExitedCleanly();
+  std::optional<bool> backup_beacon_value = ExitedCleanly();
   RecordBeaconConsistency(beacon_file_beacon_value, backup_beacon_value);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_IOS)
-  // TODO(crbug/1231106): For the time being, this is a no-op; i.e.,
+  // TODO(crbug.com/40190558): For the time being, this is a no-op; i.e.,
   // ShouldUseUserDefaultsBeacon() always returns false.
   if (ShouldUseUserDefaultsBeacon())
     return backup_beacon_value.value_or(true);
@@ -301,8 +305,8 @@ void CleanExitBeacon::WriteBeaconValue(bool exited_cleanly,
     DCHECK(!exited_cleanly);
     WriteBeaconFile(exited_cleanly);
   } else {
-    // TODO(crbug/1341864): Stop updating |kStabilityExitedCleanly| on platforms
-    // that support the beacon file.
+    // TODO(crbug.com/40851383): Stop updating |kStabilityExitedCleanly| on
+    // platforms that support the beacon file.
     local_state_->SetBoolean(prefs::kStabilityExitedCleanly, exited_cleanly);
     if (IsBeaconFileSupported()) {
       WriteBeaconFile(exited_cleanly);
@@ -324,11 +328,11 @@ void CleanExitBeacon::WriteBeaconValue(bool exited_cleanly,
   SetUserDefaultsBeacon(exited_cleanly);
 #endif  // BUILDFLAG(IS_WIN)
 
-  has_exited_cleanly_ = absl::make_optional(exited_cleanly);
+  has_exited_cleanly_ = std::make_optional(exited_cleanly);
 }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_IOS)
-absl::optional<bool> CleanExitBeacon::ExitedCleanly() {
+std::optional<bool> CleanExitBeacon::ExitedCleanly() {
 #if BUILDFLAG(IS_WIN)
   base::win::RegKey regkey;
   DWORD value = 0u;
@@ -339,12 +343,12 @@ absl::optional<bool> CleanExitBeacon::ExitedCleanly() {
           ERROR_SUCCESS) {
     return value ? true : false;
   }
-  return absl::nullopt;
+  return std::nullopt;
 #endif  // BUILDFLAG(IS_WIN)
 #if BUILDFLAG(IS_IOS)
   if (HasUserDefaultsBeacon())
     return GetUserDefaultsBeacon();
-  return absl::nullopt;
+  return std::nullopt;
 #endif  // BUILDFLAG(IS_IOS)
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_IOS)
@@ -396,7 +400,7 @@ void CleanExitBeacon::SetStabilityExitedCleanlyForTesting(
 std::string CleanExitBeacon::CreateBeaconFileContentsForTesting(
     bool exited_cleanly,
     int crash_streak) {
-  const std::string exited_cleanly_str = exited_cleanly ? "true" : "false";
+  const std::string exited_cleanly_str = base::ToString(exited_cleanly);
   return base::StringPrintf(
       "{\n"
       "  \"user_experience_metrics.stability.exited_cleanly\":%s,\n"

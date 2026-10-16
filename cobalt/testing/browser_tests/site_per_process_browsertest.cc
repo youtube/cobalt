@@ -1,6 +1,16 @@
-// Copyright 2012 The Chromium Authors
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/testing/browser_tests/site_per_process_browsertest.h"
 
@@ -12,6 +22,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <tuple>
@@ -52,8 +63,8 @@
 #include "cc/base/math_util.h"
 #include "cc/input/touch_action.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/common/main_frame_counter_test_impl.h"  // nogncheck
 #include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/testing/browser_tests/common/main_frame_counter_test_impl.h"
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils_internal.h"
@@ -350,15 +361,15 @@ void FocusFrame(FrameTreeNode* frame) {
 }
 
 bool ConvertJSONToPoint(const std::string& str, gfx::PointF* point) {
-  absl::optional<base::Value> value = base::JSONReader::Read(str);
+  std::optional<base::Value> value = base::JSONReader::Read(str);
   if (!value.has_value()) {
     return false;
   }
   if (!value->is_dict()) {
     return false;
   }
-  absl::optional<double> x = value->GetDict().FindDouble("x");
-  absl::optional<double> y = value->GetDict().FindDouble("y");
+  std::optional<double> x = value->GetDict().FindDouble("x");
+  std::optional<double> y = value->GetDict().FindDouble("y");
   if (!x.has_value()) {
     return false;
   }
@@ -379,7 +390,7 @@ CreateParsedPermissionsPolicyDeclaration(
     blink::mojom::PermissionsPolicyFeature feature,
     const std::vector<GURL>& origins,
     bool match_all_origins = false,
-    const absl::optional<GURL> self_if_matches = absl::nullopt) {
+    const std::optional<GURL> self_if_matches = std::nullopt) {
   blink::ParsedPermissionsPolicyDeclaration declaration;
 
   declaration.feature = feature;
@@ -404,7 +415,7 @@ blink::ParsedPermissionsPolicy CreateParsedPermissionsPolicy(
     const std::vector<blink::mojom::PermissionsPolicyFeature>& features,
     const std::vector<GURL>& origins,
     bool match_all_origins = false,
-    const absl::optional<GURL> self_if_matches = absl::nullopt) {
+    const std::optional<GURL> self_if_matches = std::nullopt) {
   blink::ParsedPermissionsPolicy result;
   result.reserve(features.size());
   for (const auto& feature : features) {
@@ -3761,6 +3772,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   EXPECT_EQ(named_frame_url, foo_root->current_url());
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 class SitePerProcessFencedFrameTest : public SitePerProcessBrowserTestBase {
  public:
   SitePerProcessFencedFrameTest() {
@@ -3845,6 +3857,7 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessFencedFrameTest,
                    ->browsing_context_state()
                    ->GetRenderFrameProxyHost(embedder_site_instance->group()));
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 // Similar to DiscoverNamedFrameFromAncestorOfOpener, but check that if a
 // window is created without a name and acquires window.name later, it will
@@ -4805,7 +4818,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
     std::ignore = params->associated_interface_provider_remote
                       .InitWithNewEndpointAndPassReceiver();
     params->previous_frame_token = previous_frame_token;
-    params->opener_frame_token = absl::nullopt;
+    params->opener_frame_token = std::nullopt;
     params->parent_frame_token =
         shell()->web_contents()->GetPrimaryMainFrame()->GetFrameToken();
     params->frame_owner_properties = blink::mojom::FrameOwnerProperties::New();
@@ -4871,7 +4884,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
       node->current_frame_host()->GetFrameToken();
   int widget_routing_id =
       node->current_frame_host()->GetRenderWidgetHost()->GetRoutingID();
-  absl::optional<blink::FrameToken> parent_frame_token =
+  std::optional<blink::FrameToken> parent_frame_token =
       node->parent()
           ->frame_tree_node()
           ->render_manager()
@@ -4896,10 +4909,10 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
     std::ignore = params->interface_broker.InitWithNewPipeAndPassReceiver();
     std::ignore = params->associated_interface_provider_remote
                       .InitWithNewEndpointAndPassReceiver();
-    params->previous_frame_token = absl::nullopt;
-    params->opener_frame_token = absl::nullopt;
+    params->previous_frame_token = std::nullopt;
+    params->opener_frame_token = std::nullopt;
     params->parent_frame_token = parent_frame_token;
-    params->previous_sibling_frame_token = absl::nullopt;
+    params->previous_sibling_frame_token = std::nullopt;
     params->frame_owner_properties = blink::mojom::FrameOwnerProperties::New();
     params->widget_params = mojom::CreateFrameWidgetParams::New();
     params->widget_params->routing_id = widget_routing_id;
@@ -6074,8 +6087,8 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   std::unique_ptr<NavigationEntryImpl> restored_entry =
       NavigationEntryImpl::FromNavigationEntry(
           NavigationController::CreateNavigationEntry(
-              main_url, Referrer(), /* initiator_origin= */ absl::nullopt,
-              /* initiator_base_url= */ absl::nullopt,
+              main_url, Referrer(), /* initiator_origin= */ std::nullopt,
+              /* initiator_base_url= */ std::nullopt,
               ui::PAGE_TRANSITION_RELOAD, false, std::string(),
               controller.GetBrowserContext(),
               nullptr /* blob_url_loader_factory */));
@@ -6190,8 +6203,8 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   std::unique_ptr<NavigationEntryImpl> restored_entry =
       NavigationEntryImpl::FromNavigationEntry(
           NavigationController::CreateNavigationEntry(
-              main_url, Referrer(), /* initiator_origin= */ absl::nullopt,
-              /* initiator_base_url= */ absl::nullopt,
+              main_url, Referrer(), /* initiator_origin= */ std::nullopt,
+              /* initiator_base_url= */ std::nullopt,
               ui::PAGE_TRANSITION_RELOAD, false, std::string(),
               controller.GetBrowserContext(),
               nullptr /* blob_url_loader_factory */));
@@ -6299,8 +6312,8 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   std::unique_ptr<NavigationEntryImpl> restored_entry =
       NavigationEntryImpl::FromNavigationEntry(
           NavigationController::CreateNavigationEntry(
-              main_url, Referrer(), /* initiator_origin= */ absl::nullopt,
-              /* initiator_base_url= */ absl::nullopt,
+              main_url, Referrer(), /* initiator_origin= */ std::nullopt,
+              /* initiator_base_url= */ std::nullopt,
               ui::PAGE_TRANSITION_RELOAD, false, std::string(),
               controller.GetBrowserContext(),
               nullptr /* blob_url_loader_factory */));
@@ -6785,43 +6798,6 @@ IN_PROC_BROWSER_TEST_P(
   // There are posted tasks that must be run before the test shuts down, lest
   // they access deleted state.
   RunPostedTasks();
-}
-
-// Test for https://crbug.com/615575. It ensures that file chooser triggered
-// by a document in an out-of-process subframe works properly.
-// TODO(b/437371782): Investigate test failure.
-#if BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_FileChooserInSubframe FileChooserInSubframe
-#else
-#define MAYBE_FileChooserInSubframe DISABLED_FileChooserInSubframe
-#endif
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, MAYBE_FileChooserInSubframe) {
-  EXPECT_TRUE(NavigateToURL(
-      shell(), embedded_test_server()->GetURL(
-                   "a.com", "/cross_site_iframe_factory.html?a(b)")));
-  FrameTreeNode* root = web_contents()->GetPrimaryFrameTree().root();
-
-  GURL url(embedded_test_server()->GetURL("b.com", "/file_input.html"));
-  EXPECT_TRUE(NavigateToURLFromRenderer(root->child_at(0), url));
-
-  // Use FileChooserDelegate to avoid showing the actual dialog and to respond
-  // back to the renderer process with predefined file.
-  base::RunLoop run_loop;
-  base::FilePath file;
-  EXPECT_TRUE(base::PathService::Get(base::DIR_TEMP, &file));
-  file = file.AppendASCII("bar");
-  std::unique_ptr<FileChooserDelegate> delegate(
-      new FileChooserDelegate(file, run_loop.QuitClosure()));
-  shell()->web_contents()->SetDelegate(delegate.get());
-  EXPECT_TRUE(ExecJs(root->child_at(0),
-                     "document.getElementById('fileinput').click();"));
-  run_loop.Run();
-
-  // Also, extract the file from the renderer process to ensure that the
-  // response made it over successfully and the proper filename is set.
-  EXPECT_EQ("bar",
-            EvalJs(root->child_at(0),
-                   "document.getElementById('fileinput').files[0].name;"));
 }
 
 // Test that the pending RenderFrameHost is canceled and destroyed when its
@@ -10637,16 +10613,16 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   // be non-passive to ensure TouchStart doesn't get acked until after the
   // touch handler completes.
   EXPECT_TRUE(ExecJs(child_node,
-                     "touch_event_count = 0;\
-       function touch_handler(ev) {\
-         var start = Date.now();\
-         while (Date.now() < start + 1000) {}\
-         touch_event_count++;\
-       }\
-       document.body.addEventListener('touchstart', touch_handler,\
-                                      { passive : false });\
-       document.body.addEventListener('touchend', touch_handler,\
-                                      { passive : false });"));
+                     R"(touch_event_count = 0;
+       function touch_handler(ev) {
+         var start = Date.now();
+         while (Date.now() < start + 1000) {}
+         touch_event_count++;
+       }
+       document.body.addEventListener('touchstart', touch_handler,
+                                      { passive : false });
+       document.body.addEventListener('touchend', touch_handler,
+                                      { passive : false });)" );
 
   WaitForHitTestData(child_node->current_frame_host());
 
@@ -10681,12 +10657,12 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
     // We need to know the center of the child's body, but in root view
     // coordinates.
     std::string str = EvalJs(child_node,
-                             "var rect = document.body.getBoundingClientRect();\
-         var point = {\
-           x: rect.left + rect.width / 2,\
-           y: rect.top + rect.height / 2\
-         };\
-         JSON.stringify(point);")
+                             "var rect = document.body.getBoundingClientRect();"
+                             "var point = {"
+                             "x: rect.left + rect.width / 2,"
+                             "y: rect.top + rect.height / 2"
+                             "};"
+                             "JSON.stringify(point);")
                           .ExtractString();
     ConvertJSONToPoint(str, &child_tap_point);
     child_tap_point = child_node->current_frame_host()
@@ -10720,7 +10696,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   root_host->QueueSyntheticGesture(
       std::move(root_tap_gesture),
       base::BindOnce([](SyntheticGesture::Result result) {
-        EXPECT_EQ(SyntheticGesture::GESTURE_FINISHED, result);
+    EXPECT_EQ(SyntheticGesture::GESTURE_FINISHED, result);
       }));
 
   root_ack_waiter.Wait();
@@ -11610,15 +11586,9 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 // subframe is visible and generates paint events.  See
 // https://crbug.com/638375.
 // TODO(b/437371782): Investigate test failure.
-#if BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_SubframeVisibleAfterRenderViewBecomesSwappedOut \
-  SubframeVisibleAfterRenderViewBecomesSwappedOut
-#else
-#define MAYBE_SubframeVisibleAfterRenderViewBecomesSwappedOut \
-  DISABLED_SubframeVisibleAfterRenderViewBecomesSwappedOut
-#endif
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       MAYBE_SubframeVisibleAfterRenderViewBecomesSwappedOut) {
+IN_PROC_BROWSER_TEST_P(
+    SitePerProcessBrowserTest,
+    DISABLED_SubframeVisibleAfterRenderViewBecomesSwappedOut) {
   GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
@@ -12165,8 +12135,8 @@ class SitePerProcessBrowserTouchActionTest : public SitePerProcessBrowserTest {
       RenderWidgetHostViewBase* rwhv_root,
       RenderWidgetHostViewBase* rwhv_child,
       const gfx::Point& event_position,
-      absl::optional<cc::TouchAction>& effective_touch_action,
-      absl::optional<cc::TouchAction>& allowed_touch_action) {
+      std::optional<cc::TouchAction>& effective_touch_action,
+      std::optional<cc::TouchAction>& allowed_touch_action) {
     InputEventAckWaiter ack_observer(
         rwhv_child->GetRenderWidgetHost(),
         base::BindRepeating([](blink::mojom::InputEventResultSource source,
@@ -12380,8 +12350,8 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTouchActionTest,
 
   WaitForTouchActionUpdated(root_thread_observer.get(),
                             child_thread_observer.get());
-  absl::optional<cc::TouchAction> effective_touch_action;
-  absl::optional<cc::TouchAction> allowed_touch_action;
+  std::optional<cc::TouchAction> effective_touch_action;
+  std::optional<cc::TouchAction> allowed_touch_action;
   cc::TouchAction expected_touch_action = cc::TouchAction::kPan;
   // Gestures are filtered by the intersection of touch-action values of the
   // touched element and all its ancestors up to the one that implements the
@@ -12462,8 +12432,8 @@ IN_PROC_BROWSER_TEST_F(
   // Child should inherit effective touch action none from root.
   WaitForTouchActionUpdated(root_thread_observer.get(),
                             child_thread_observer.get());
-  absl::optional<cc::TouchAction> effective_touch_action;
-  absl::optional<cc::TouchAction> allowed_touch_action;
+  std::optional<cc::TouchAction> effective_touch_action;
+  std::optional<cc::TouchAction> allowed_touch_action;
   cc::TouchAction expected_touch_action = cc::TouchAction::kPan;
   GetTouchActionsForChild(router, rwhv_root, rwhv_child, point_inside_child,
                           effective_touch_action, allowed_touch_action);
@@ -12552,8 +12522,8 @@ IN_PROC_BROWSER_TEST_P(
   // Child should inherit effective touch action none from root.
   WaitForTouchActionUpdated(root_thread_observer.get(),
                             child_thread_observer.get());
-  absl::optional<cc::TouchAction> effective_touch_action;
-  absl::optional<cc::TouchAction> allowed_touch_action;
+  std::optional<cc::TouchAction> effective_touch_action;
+  std::optional<cc::TouchAction> allowed_touch_action;
   cc::TouchAction expected_touch_action =
       cc::TouchAction::kPan | cc::TouchAction::kInternalPanXScrolls |
       cc::TouchAction::kInternalNotWritable;

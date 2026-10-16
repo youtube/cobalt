@@ -69,8 +69,9 @@ void HandleCheckFileResult(int64_t expected_size,
 
 base::FilePath GetMediaTestDir() {
   base::FilePath test_file;
-  if (!base::PathService::Get(base::DIR_SOURCE_ROOT, &test_file))
+  if (!base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_file)) {
     return base::FilePath();
+  }
   return test_file.AppendASCII("media").AppendASCII("test").AppendASCII("data");
 }
 
@@ -203,7 +204,7 @@ class MediaFileValidatorTest : public InProcessBrowserTest {
                  int64_t expected_size,
                  base::OnceCallback<void(bool success)> callback) {
     operation_runner()->GetMetadata(
-        url, storage::FileSystemOperation::GET_METADATA_FIELD_SIZE,
+        url, {storage::FileSystemOperation::GetMetadataField::kSize},
         base::BindOnce(&HandleCheckFileResult, expected_size,
                        std::move(callback)));
   }
@@ -276,7 +277,7 @@ IN_PROC_BROWSER_TEST_F(MediaFileValidatorTest, UnsupportedExtension) {
   MoveTest("a.txt", std::string(kValidImage, std::size(kValidImage)), false);
 }
 
-// TODO(crbug.com/1169640): Re-enable. Flaky on Linux.
+// TODO(crbug.com/40744004): Re-enable. Flaky on Linux.
 #if BUILDFLAG(IS_LINUX)
 #define MAYBE_ValidImage DISABLED_ValidImage
 #else

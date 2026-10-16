@@ -7,19 +7,21 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
 #include "base/bits.h"
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "base/functional/callback.h"
 #include "base/memory/aligned_memory.h"
-#include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/stack_allocated.h"
 #include "cc/paint/paint_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "cc/paint/scroll_offset_map.h"
 #include "third_party/skia/include/core/SkM44.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
+#include "ui/gfx/display_color_spaces.h"
 
 class SkCanvas;
 class SkColorSpace;
@@ -44,7 +46,15 @@ class TransferCacheSerializeHelper;
 
 enum class PaintOpType : uint8_t;
 
-struct CC_PAINT_EXPORT PlaybackParams {
+struct CC_PAINT_EXPORT PlaybackCallbacks {
+  STACK_ALLOCATED();
+
+ public:
+  PlaybackCallbacks();
+  ~PlaybackCallbacks();
+  PlaybackCallbacks(const PlaybackCallbacks&);
+  PlaybackCallbacks& operator=(const PlaybackCallbacks&);
+
   using CustomDataRasterCallback =
       base::RepeatingCallback<void(SkCanvas* canvas, uint32_t id)>;
   using DidDrawOpCallback = base::RepeatingCallback<void()>;
@@ -55,27 +65,26 @@ struct CC_PAINT_EXPORT PlaybackParams {
   using ConvertOpCallback =
       base::RepeatingCallback<const PaintOp*(const PaintOp& op)>;
 
-  explicit PlaybackParams(ImageProvider* image_provider);
-  PlaybackParams(
-      ImageProvider* image_provider,
-      const SkM44& original_ctm,
-      CustomDataRasterCallback custom_callback = CustomDataRasterCallback(),
-      DidDrawOpCallback did_draw_op_callback = DidDrawOpCallback(),
-      ConvertOpCallback convert_op_callback = ConvertOpCallback());
-  ~PlaybackParams();
-
-  PlaybackParams(const PlaybackParams& other);
-  PlaybackParams& operator=(const PlaybackParams& other);
-
-  // `image_provider` is not a raw_ptr<...> for performance reasons (based on
-  // analysis of sampling profiler data and tab_search:top100:2020).
-  RAW_PTR_EXCLUSION ImageProvider* image_provider;
-
-  SkM44 original_ctm;
   CustomDataRasterCallback custom_callback;
   DidDrawOpCallback did_draw_op_callback;
   ConvertOpCallback convert_op_callback;
-  absl::optional<bool> save_layer_alpha_should_preserve_lcd_text;
+};
+
+struct CC_PAINT_EXPORT PlaybackParams {
+  STACK_ALLOCATED();
+
+ public:
+  explicit PlaybackParams(
+      ImageProvider* image_provider = nullptr,
+      const SkM44& original_ctm = SkM44(),
+      const PlaybackCallbacks& callbacks = PlaybackCallbacks());
+  ~PlaybackParams();
+
+  ImageProvider* image_provider = nullptr;
+  SkM44 original_ctm;
+  PlaybackCallbacks callbacks;
+  std::optional<bool> save_layer_alpha_should_preserve_lcd_text;
+  const ScrollOffsetMap* raster_inducing_scroll_offsets = nullptr;
   bool is_analyzing = false;
 };
 
@@ -101,33 +110,38 @@ static constexpr int kMinNumberOfSlowPathsForMSAA = 6;
 class CC_PAINT_EXPORT PaintOpBuffer : public SkRefCnt {
  public:
   struct CC_PAINT_EXPORT SerializeOptions {
+    STACK_ALLOCATED();
+
+   public:
     SerializeOptions();
-    SerializeOptions(ImageProvider* image_provider,
-                     TransferCacheSerializeHelper* transfer_cache,
-                     ClientPaintCache* paint_cache,
-                     SkStrikeServer* strike_server,
-                     sk_sp<SkColorSpace> color_space,
-                     SkottieSerializationHistory* skottie_serialization_history,
-                     bool can_use_lcd_text,
-                     bool context_supports_distance_field_text,
-                     int max_texture_size);
+    SerializeOptions(
+        ImageProvider* image_provider,
+        TransferCacheSerializeHelper* transfer_cache,
+        ClientPaintCache* paint_cache,
+        SkStrikeServer* strike_server,
+        sk_sp<SkColorSpace> color_space,
+        SkottieSerializationHistory* skottie_serialization_history,
+        bool can_use_lcd_text,
+        bool context_supports_distance_field_text,
+        int max_texture_size,
+        const ScrollOffsetMap* raster_inducing_scroll_offsets = nullptr);
     SerializeOptions(const SerializeOptions&);
     SerializeOptions& operator=(const SerializeOptions&);
     ~SerializeOptions();
 
     // Required.
-    raw_ptr<ImageProvider> image_provider = nullptr;
-    raw_ptr<TransferCacheSerializeHelper> transfer_cache = nullptr;
-    raw_ptr<ClientPaintCache> paint_cache = nullptr;
-    raw_ptr<SkStrikeServer> strike_server = nullptr;
+    ImageProvider* image_provider = nullptr;
+    TransferCacheSerializeHelper* transfer_cache = nullptr;
+    ClientPaintCache* paint_cache = nullptr;
+    SkStrikeServer* strike_server = nullptr;
     sk_sp<SkColorSpace> color_space;
-    raw_ptr<SkottieSerializationHistory> skottie_serialization_history =
-        nullptr;
+    SkottieSerializationHistory* skottie_serialization_history = nullptr;
     bool can_use_lcd_text = false;
     bool context_supports_distance_field_text = true;
     int max_texture_size = 0;
+    const ScrollOffsetMap* raster_inducing_scroll_offsets = nullptr;
 
-    // TODO(crbug.com/1096123): Cleanup after study completion.
+    // TODO(crbug.com/40136055): Cleanup after study completion.
     //
     // If true, perform serializaion in a way that avoids serializing transient
     // members, such as IDs, so that a stable digest can be calculated. This
@@ -136,23 +150,24 @@ class CC_PAINT_EXPORT PaintOpBuffer : public SkRefCnt {
   };
 
   struct CC_PAINT_EXPORT DeserializeOptions {
-    DeserializeOptions(TransferCacheDeserializeHelper* transfer_cache,
-                       ServicePaintCache* paint_cache,
-                       SkStrikeClient* strike_client,
-                       std::vector<uint8_t>* scratch_buffer,
-                       bool is_privileged,
-                       SharedImageProvider* shared_image_provider);
-    raw_ptr<TransferCacheDeserializeHelper> transfer_cache = nullptr;
-    raw_ptr<ServicePaintCache> paint_cache = nullptr;
-    raw_ptr<SkStrikeClient> strike_client = nullptr;
+    STACK_ALLOCATED();
+
+   public:
+    TransferCacheDeserializeHelper* transfer_cache = nullptr;
+    ServicePaintCache* paint_cache = nullptr;
+    SkStrikeClient* strike_client = nullptr;
+    // Used to memcpy Skia flattenables into to avoid TOCTOU issues.
+    std::vector<uint8_t>& scratch_buffer;
     // Do a DumpWithoutCrashing when serialization fails.
     bool crash_dump_on_failure = false;
-    // Used to memcpy Skia flattenables into to avoid TOCTOU issues.
-    raw_ptr<std::vector<uint8_t>> scratch_buffer = nullptr;
     // True if the deserialization is happening on a privileged gpu channel.
     // e.g. in the case of UI.
     bool is_privileged = false;
-    raw_ptr<SharedImageProvider> shared_image_provider = nullptr;
+    // The HDR headroom to apply when deserializing.
+    // TODO(crbug.com/40281980): Move this to playback instead of
+    // deserialization.
+    float hdr_headroom = 1.f;
+    SharedImageProvider* shared_image_provider = nullptr;
   };
 
   enum { kInitialBufferSize = 4096 };
@@ -180,7 +195,9 @@ class CC_PAINT_EXPORT PaintOpBuffer : public SkRefCnt {
 
   // Replays the paint op buffer into the canvas.
   void Playback(SkCanvas* canvas) const;
-  void Playback(SkCanvas* canvas, const PlaybackParams& params) const;
+  void Playback(SkCanvas* canvas,
+                const PlaybackParams& params,
+                bool local_ctm = true) const;
 
   // Deserialize PaintOps from |input|. The original content will be
   // overwritten.
@@ -219,15 +236,17 @@ class CC_PAINT_EXPORT PaintOpBuffer : public SkRefCnt {
   int num_slow_paths_up_to_min_for_MSAA() const {
     return num_slow_paths_up_to_min_for_MSAA_;
   }
-  bool HasNonAAPaint() const { return has_non_aa_paint_; }
-  bool HasDiscardableImages() const { return has_discardable_images_; }
-
+  bool has_non_aa_paint() const { return has_non_aa_paint_; }
   bool has_draw_ops() const { return has_draw_ops_; }
   bool has_draw_text_ops() const { return has_draw_text_ops_; }
   bool has_save_layer_ops() const { return has_save_layer_ops_; }
   bool has_save_layer_alpha_ops() const { return has_save_layer_alpha_ops_; }
   bool has_effects_preventing_lcd_text_for_save_layer_alpha() const {
     return has_effects_preventing_lcd_text_for_save_layer_alpha_;
+  }
+  bool has_discardable_images() const { return has_discardable_images_; }
+  gfx::ContentColorUsage content_color_usage() const {
+    return content_color_usage_;
   }
   bool NeedsAdditionalInvalidationForLCDText(
       const PaintOpBuffer& old_buffer) const;
@@ -239,6 +258,7 @@ class CC_PAINT_EXPORT PaintOpBuffer : public SkRefCnt {
   // If the shrinking-to-fit allocates a new data buffer, this PaintOpBuffer
   // retains the original data buffer for future use.
   PaintRecord ReleaseAsRecord();
+  PaintRecord DeepCopyAsRecord();
 
   bool EqualsForTesting(const PaintOpBuffer& other) const;
 
@@ -257,7 +277,7 @@ class CC_PAINT_EXPORT PaintOpBuffer : public SkRefCnt {
 
     new (op) T{std::forward<Args>(args)...};
     DCHECK_EQ(op->type, static_cast<uint8_t>(T::kType));
-    op->aligned_size = aligned_size;
+    DCHECK_EQ(aligned_size, op->AlignedSize());
     AnalyzeAddedOp(op);
     return *op;
   }
@@ -278,9 +298,6 @@ class CC_PAINT_EXPORT PaintOpBuffer : public SkRefCnt {
 
     has_non_aa_paint_ |= op->HasNonAAPaint();
 
-    has_discardable_images_ |= op->HasDiscardableImages();
-    has_discardable_images_ |= op->HasDiscardableImagesFromFlags();
-
     subrecord_bytes_used_ += op->AdditionalBytesUsed();
     subrecord_op_count_ += op->AdditionalOpCount();
 
@@ -290,6 +307,10 @@ class CC_PAINT_EXPORT PaintOpBuffer : public SkRefCnt {
     has_save_layer_alpha_ops_ |= op->HasSaveLayerAlphaOps();
     has_effects_preventing_lcd_text_for_save_layer_alpha_ |=
         op->HasEffectsPreventingLCDTextForSaveLayerAlpha();
+
+    has_discardable_images_ |= op->HasDiscardableImages(&content_color_usage_);
+    has_discardable_images_ |=
+        op->HasDiscardableImagesFromFlags(&content_color_usage_);
   }
 
   size_t GetOpOffsetForTracing(const PaintOp& op) const {
@@ -301,6 +322,8 @@ class CC_PAINT_EXPORT PaintOpBuffer : public SkRefCnt {
   }
 
   const char* DataBufferForTesting() const { return data_.get(); }
+
+  const PaintOp& GetOpAtForTesting(size_t index) const;
 
   class Iterator;
   class OffsetIterator;
@@ -329,7 +352,8 @@ class CC_PAINT_EXPORT PaintOpBuffer : public SkRefCnt {
   // the vector will be replayed.
   void Playback(SkCanvas* canvas,
                 const PlaybackParams& params,
-                const std::vector<size_t>* indices) const;
+                bool local_ctm,
+                const std::vector<size_t>* offsets) const;
 
   // Creates a new buffer sized to `new_size`, copying the old to the new (if
   // the old exists). Returns the old buffer.
@@ -340,7 +364,18 @@ class CC_PAINT_EXPORT PaintOpBuffer : public SkRefCnt {
   BufferDataPtr ReallocIfNeededToFit();
 
   // Returns the allocated op.
-  void* AllocatePaintOp(uint16_t aligned_size);
+  void* AllocatePaintOp(uint16_t aligned_size) {
+    DCHECK(is_mutable());
+    if (used_ + aligned_size > reserved_) {
+      return AllocatePaintOpSlowPath(aligned_size);
+    } else {
+      void* op = UNSAFE_TODO(data_.get() + used_);
+      used_ += aligned_size;
+      op_count_++;
+      return op;
+    }
+  }
+  void* AllocatePaintOpSlowPath(uint16_t aligned_size);
 
   void ResetRetainingBuffer();
 
@@ -358,13 +393,15 @@ class CC_PAINT_EXPORT PaintOpBuffer : public SkRefCnt {
   // required for an MSAA sample count for raster.
   int num_slow_paths_up_to_min_for_MSAA_ = 0;
 
-  bool has_non_aa_paint_ : 1;
-  bool has_discardable_images_ : 1;
-  bool has_draw_ops_ : 1;
-  bool has_draw_text_ops_ : 1;
-  bool has_save_layer_ops_ : 1;
-  bool has_save_layer_alpha_ops_ : 1;
-  bool has_effects_preventing_lcd_text_for_save_layer_alpha_ : 1;
+  bool has_non_aa_paint_ : 1 = false;
+  bool has_draw_ops_ : 1 = false;
+  bool has_draw_text_ops_ : 1 = false;
+  bool has_save_layer_ops_ : 1 = false;
+  bool has_save_layer_alpha_ops_ : 1 = false;
+  bool has_effects_preventing_lcd_text_for_save_layer_alpha_ : 1 = false;
+
+  bool has_discardable_images_ : 1 = false;
+  gfx::ContentColorUsage content_color_usage_ = gfx::ContentColorUsage::kSRGB;
 };
 
 }  // namespace cc

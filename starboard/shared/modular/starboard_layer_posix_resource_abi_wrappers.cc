@@ -15,6 +15,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_resource_abi_wrappers.h"
 
 #include <errno.h>
+
 #include <algorithm>
 
 #include "starboard/common/log.h"

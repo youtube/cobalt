@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://webui-test/mojo_webui_test_support.js';
 import 'chrome://new-tab-page/lazy_load.js';
 
-import {VoiceSearchOverlayElement} from 'chrome://new-tab-page/lazy_load.js';
+import type {VoiceSearchOverlayElement} from 'chrome://new-tab-page/lazy_load.js';
 import {$$, NewTabPageProxy, VoiceAction as Action, VoiceError as Error, WindowProxy} from 'chrome://new-tab-page/new_tab_page.js';
 import {PageCallbackRouter, PageHandlerRemote} from 'chrome://new-tab-page/new_tab_page.mojom-webui.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {fakeMetricsPrivate, MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
+import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
+import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
-import {TestMock} from 'chrome://webui-test/test_mock.js';
-import {isVisible} from 'chrome://webui-test/test_util.js';
+import type {TestMock} from 'chrome://webui-test/test_mock.js';
+import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {assertNotStyle, assertStyle, installMock, keydown} from './test_support.js';
 
@@ -107,8 +107,8 @@ suite('NewTabPageVoiceSearchOverlayTest', () => {
 
   test('creating overlay shows waiting text', () => {
     // Assert.
-    assertTrue(isVisible(voiceSearchOverlay.shadowRoot!.querySelector(
-        '#texts *[text=waiting]')));
+    assertTrue(isVisible(
+        voiceSearchOverlay.shadowRoot.querySelector('#texts *[text=waiting]')));
     assertFalse(
         voiceSearchOverlay.$.micContainer.classList.contains('listening'));
     assertFalse(
@@ -116,24 +116,26 @@ suite('NewTabPageVoiceSearchOverlayTest', () => {
     assertStyle(voiceSearchOverlay.$.micVolume, '--mic-volume-level', '0');
   });
 
-  test('on audio received shows speak text', () => {
+  test('on audio received shows speak text', async () => {
     // Act.
     mockSpeechRecognition.onaudiostart!();
+    await microtasksFinished();
 
     // Assert.
     assertTrue(isVisible(
-        voiceSearchOverlay.shadowRoot!.querySelector('#texts *[text=speak]')));
+        voiceSearchOverlay.shadowRoot.querySelector('#texts *[text=speak]')));
     assertTrue(
         voiceSearchOverlay.$.micContainer.classList.contains('listening'));
     assertStyle(voiceSearchOverlay.$.micVolume, '--mic-volume-level', '0');
   });
 
-  test('on speech received starts volume animation', () => {
+  test('on speech received starts volume animation', async () => {
     // Arrange.
     windowProxy.setResultFor('random', 0.5);
 
     // Act.
     mockSpeechRecognition.onspeechstart!();
+    await microtasksFinished();
 
     // Assert.
     assertTrue(
@@ -141,7 +143,7 @@ suite('NewTabPageVoiceSearchOverlayTest', () => {
     assertStyle(voiceSearchOverlay.$.micVolume, '--mic-volume-level', '0.5');
   });
 
-  test('on result received shows recognized text', () => {
+  test('on result received shows recognized text', async () => {
     // Arrange.
     windowProxy.setResultFor('random', 0.5);
     const result = createResults(2);
@@ -150,10 +152,11 @@ suite('NewTabPageVoiceSearchOverlayTest', () => {
 
     // Act.
     mockSpeechRecognition.onresult!(result);
+    await microtasksFinished();
 
     // Assert.
     const [intermediateResult, finalResult] =
-        voiceSearchOverlay.shadowRoot!.querySelectorAll<HTMLElement>(
+        voiceSearchOverlay.shadowRoot.querySelectorAll<HTMLElement>(
             '#texts *[text=result] span');
     assertTrue(isVisible(intermediateResult!));
     assertTrue(isVisible(finalResult!));
@@ -220,14 +223,15 @@ suite('NewTabPageVoiceSearchOverlayTest', () => {
             mockSpeechRecognition.onerror!
                 (new webkitSpeechRecognitionError('error', {error}));
           }
+          await microtasksFinished();
 
           // Assert.
-          assertTrue(isVisible(voiceSearchOverlay.shadowRoot!.querySelector(
+          assertTrue(isVisible(voiceSearchOverlay.shadowRoot.querySelector(
               '#texts *[text=error]')));
-          assertTrue(isVisible(voiceSearchOverlay.shadowRoot!.querySelector(
+          assertTrue(isVisible(voiceSearchOverlay.shadowRoot.querySelector(
               `#errors *[error="${text}"]`)));
           assertNotStyle(
-              voiceSearchOverlay.shadowRoot!.querySelector(
+              voiceSearchOverlay.shadowRoot.querySelector(
                   `#errorLinks *[link="${link}"]`)!,
               'display', 'none');
           assertFalse(voiceSearchOverlay.$.micContainer.classList.contains(
@@ -241,18 +245,19 @@ suite('NewTabPageVoiceSearchOverlayTest', () => {
         });
       });
 
-  test('on end received shows error text if no final result', () => {
+  test('on end received shows error text if no final result', async () => {
     // Act.
     mockSpeechRecognition.onend!();
+    await microtasksFinished();
 
     // Assert.
     assertTrue(isVisible(
-        voiceSearchOverlay.shadowRoot!.querySelector('#texts *[text=error]')));
-    assertTrue(isVisible(voiceSearchOverlay.shadowRoot!.querySelector(
+        voiceSearchOverlay.shadowRoot.querySelector('#texts *[text=error]')));
+    assertTrue(isVisible(voiceSearchOverlay.shadowRoot.querySelector(
         '#errors *[error="audio-capture"]')));
   });
 
-  test('on end received shows result text if final result', () => {
+  test('on end received shows result text if final result', async () => {
     // Arrange.
     const result = createResults(1);
     Object.assign(result.results[0]!, {isFinal: true});
@@ -260,13 +265,14 @@ suite('NewTabPageVoiceSearchOverlayTest', () => {
     // Act.
     mockSpeechRecognition.onresult!(result);
     mockSpeechRecognition.onend!();
+    await microtasksFinished();
 
     // Assert.
     assertTrue(isVisible(
-        voiceSearchOverlay.shadowRoot!.querySelector('#texts *[text=result]')));
+        voiceSearchOverlay.shadowRoot.querySelector('#texts *[text=result]')));
   });
 
-  const test_params = [
+  const testParams = [
     {
       functionName: 'onaudiostart',
       arguments: [],
@@ -293,7 +299,7 @@ suite('NewTabPageVoiceSearchOverlayTest', () => {
     },
   ];
 
-  test_params.forEach(function(param) {
+  testParams.forEach(function(param) {
     test(`${param.functionName} received resets timer`, async () => {
       // Act.
       // Need to account for previously set timers.
@@ -311,10 +317,11 @@ suite('NewTabPageVoiceSearchOverlayTest', () => {
 
     // Act.
     callback();
+    await microtasksFinished();
 
     // Assert.
     assertTrue(isVisible(
-        voiceSearchOverlay.shadowRoot!.querySelector('#texts *[text=error]')));
+        voiceSearchOverlay.shadowRoot.querySelector('#texts *[text=error]')));
   });
 
   test('on error timeout closes overlay', async () => {
@@ -365,7 +372,7 @@ suite('NewTabPageVoiceSearchOverlayTest', () => {
       assertEquals(0, windowProxy.getCallCount('navigate'));
 
       // Act.
-      keydown(voiceSearchOverlay.shadowRoot!.activeElement as HTMLElement, key);
+      keydown(voiceSearchOverlay.shadowRoot.activeElement as HTMLElement, key);
 
       // Assert.
       assertEquals(1, windowProxy.getCallCount('navigate'));
@@ -374,7 +381,7 @@ suite('NewTabPageVoiceSearchOverlayTest', () => {
 
     test(`'${key}' does not submit query if no result`, () => {
       // Act.
-      keydown(voiceSearchOverlay.shadowRoot!.activeElement as HTMLElement, key);
+      keydown(voiceSearchOverlay.shadowRoot.activeElement as HTMLElement, key);
 
       // Assert.
       assertEquals(0, windowProxy.getCallCount('navigate'));
@@ -405,7 +412,7 @@ suite('NewTabPageVoiceSearchOverlayTest', () => {
   test('\'Escape\' closes overlay', () => {
     // Act.
     keydown(
-        voiceSearchOverlay.shadowRoot!.activeElement as HTMLElement, 'Escape');
+        voiceSearchOverlay.shadowRoot.activeElement as HTMLElement, 'Escape');
 
     // Assert.
     assertFalse(voiceSearchOverlay.$.dialog.open);

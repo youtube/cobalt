@@ -3,11 +3,13 @@
   "platforms": [
     "linux-x64x11-no-starboard"
   ],
+  "test_package": true,
   "web_tests": true,
   "targets": [
     "blink_web_tests",
     "dump_syms",
-    "minidump_stackwalk"
+    "minidump_stackwalk",
+    "chromedriver"
   ],
   "build_configs": [
     "devel"

@@ -8,10 +8,10 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
-#include "base/mac/scoped_nsobject.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "device/bluetooth/bluetooth_adapter.h"
@@ -59,6 +59,8 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothLowEnergyAdapterApple
   bool IsInitialized() const override;
   bool IsPresent() const override;
   bool IsPowered() const override;
+  PermissionStatus GetOsPermissionStatus() const override;
+  void RequestSystemPermission(RequestSystemPermissionCallback) override;
   bool IsDiscoverable() const override;
   void SetDiscoverable(bool discoverable,
                        base::OnceClosure callback,
@@ -102,7 +104,7 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothLowEnergyAdapterApple
   // `low_energy_devices_info_`. If the framework supports the paired status, it
   // calls GetDevicePairedStatusCallback to check the status of the device.
   bool IsBluetoothLowEnergyDeviceSystemPaired(
-      base::StringPiece device_identifier) const;
+      std::string_view device_identifier) const;
 
  protected:
   BluetoothLowEnergyAdapterApple();
@@ -111,9 +113,10 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothLowEnergyAdapterApple
   virtual void LazyInitialize();
   virtual void InitForTest(
       scoped_refptr<base::SingleThreadTaskRunner> ui_task_runner);
-  virtual GetDevicePairedStatusCallback GetDevicePariedStatus() const;
+  virtual GetDevicePairedStatusCallback GetDevicePairedStatus() const;
   virtual base::WeakPtr<BluetoothLowEnergyAdapterApple>
   GetLowEnergyWeakPtr() = 0;
+  virtual void TriggerSystemPermissionPrompt() = 0;
 
   // BluetoothAdapter override:
   bool SetPoweredImpl(bool powered) override;
@@ -191,6 +194,8 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothLowEnergyAdapterApple
   bool DoesCollideWithKnownDevice(CBPeripheral* peripheral,
                                   BluetoothLowEnergyDeviceMac* device_mac);
 
+  void FlushRequestSystemPermissionCallbacks();
+
   // Discovery manager for Bluetooth Low Energy.
   std::unique_ptr<BluetoothLowEnergyDiscoveryManagerMac>
       low_energy_discovery_manager_;
@@ -200,13 +205,13 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothLowEnergyAdapterApple
       low_energy_advertisement_manager_;
 
   // Underlying CoreBluetooth CBCentralManager and its delegate.
-  base::scoped_nsobject<CBCentralManager> low_energy_central_manager_;
-  base::scoped_nsobject<BluetoothLowEnergyCentralManagerDelegate>
+  CBCentralManager* __strong low_energy_central_manager_;
+  BluetoothLowEnergyCentralManagerDelegate* __strong
       low_energy_central_manager_delegate_;
 
   // Underlying CoreBluetooth CBPeripheralManager and its delegate.
-  base::scoped_nsobject<CBPeripheralManager> low_energy_peripheral_manager_;
-  base::scoped_nsobject<BluetoothLowEnergyPeripheralManagerDelegate>
+  CBPeripheralManager* __strong low_energy_peripheral_manager_;
+  BluetoothLowEnergyPeripheralManagerDelegate* __strong
       low_energy_peripheral_manager_delegate_;
 
   // Watches system file /Library/Preferences/com.apple.Bluetooth.plist to
@@ -217,6 +222,11 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothLowEnergyAdapterApple
   // Map of UUID formatted device identifiers of paired Bluetooth devices and
   // corresponding device address.
   DevicesInfo low_energy_devices_info_;
+
+  // Callbacks from `RequestSystemPermission` will be called once the Bluetooth
+  // system permission has settled.
+  std::vector<BluetoothAdapter::RequestSystemPermissionCallback>
+      request_system_permission_callbacks_;
 };
 
 }  // namespace device

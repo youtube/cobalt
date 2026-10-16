@@ -27,7 +27,7 @@
 #include "third_party/blink/renderer/core/svg/gradient_attributes.h"
 #include "third_party/blink/renderer/core/svg/svg_length.h"
 #include "third_party/blink/renderer/core/svg/svg_length_context.h"
-#include "third_party/blink/renderer/platform/graphics/gradient.h"
+#include "third_party/blink/renderer/core/svg/svg_length_functions.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
 #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
 #include "third_party/blink/renderer/platform/transforms/affine_transform.h"
@@ -36,28 +36,28 @@ namespace blink {
 
 namespace {
 
-gfx::SizeF MakeViewport(const SVGLengthContext& context,
+gfx::SizeF MakeViewport(const SVGViewportResolver& viewport_resolver,
                         const LengthPoint& point,
                         SVGUnitTypes::SVGUnitType type) {
-  if (!point.X().IsPercentOrCalc() && !point.Y().IsPercentOrCalc()) {
+  if (!point.X().HasPercent() && !point.Y().HasPercent()) {
     return gfx::SizeF(0, 0);
   }
   if (type == SVGUnitTypes::kSvgUnitTypeObjectboundingbox) {
     return gfx::SizeF(1, 1);
   }
-  return context.ResolveViewport();
+  return viewport_resolver.ResolveViewport();
 }
 
-float MakeViewportDimension(const SVGLengthContext& context,
+float MakeViewportDimension(const SVGViewportResolver& viewport_resolver,
                             const Length& radius,
                             SVGUnitTypes::SVGUnitType type) {
-  if (!radius.IsPercentOrCalc()) {
+  if (!radius.HasPercent()) {
     return 0;
   }
   if (type == SVGUnitTypes::kSvgUnitTypeObjectboundingbox) {
     return 1;
   }
-  return context.ViewportDimension(SVGLengthMode::kOther);
+  return viewport_resolver.ViewportDimension(SVGLengthMode::kOther);
 }
 
 }  // unnamed namespace
@@ -124,12 +124,20 @@ std::unique_ptr<GradientData> LayoutSVGResourceGradient::BuildGradientData(
         object_bounding_box.width(), object_bounding_box.height());
   }
 
+  if (!attributes.GradientTransform().IsInvertible()) {
+    return gradient_data;
+  }
+
   // Create gradient object
   gradient_data->gradient = BuildGradient();
+  gradient_data->gradient->SetColorInterpolationSpace(
+      StyleRef().ColorInterpolation() == EColorInterpolation::kLinearrgb
+          ? Color::ColorSpace::kSRGBLinear
+          : Color::ColorSpace::kNone,
+      Color::HueInterpolationMethod::kShorter);
   gradient_data->gradient->AddColorStops(attributes.Stops());
 
-  AffineTransform gradient_transform = attributes.GradientTransform();
-  gradient_data->userspace_transform *= gradient_transform;
+  gradient_data->userspace_transform *= attributes.GradientTransform();
 
   return gradient_data;
 }
@@ -157,8 +165,8 @@ bool LayoutSVGResourceGradient::ApplyShader(
   ImageDrawOptions draw_options;
   draw_options.apply_dark_mode =
       auto_dark_mode.enabled && StyleRef().ForceDark();
-  gradient_data->gradient->ApplyToFlags(
-      flags, AffineTransformToSkMatrix(transform), draw_options);
+  gradient_data->gradient->ApplyToFlags(flags, transform.ToSkMatrix(),
+                                        draw_options);
   return true;
 }
 
@@ -176,37 +184,38 @@ gfx::PointF LayoutSVGResourceGradient::ResolvePoint(
     const SVGLength& x,
     const SVGLength& y) const {
   NOT_DESTROYED();
-  const SVGLengthContext context(GetElement());
+  const SVGViewportResolver viewport_resolver(*this);
   const SVGLengthConversionData conversion_data(*this);
   const LengthPoint point(x.ConvertToLength(conversion_data),
                           y.ConvertToLength(conversion_data));
-  return PointForLengthPoint(point, MakeViewport(context, point, type));
+  return PointForLengthPoint(point,
+                             MakeViewport(viewport_resolver, point, type));
 }
 
 float LayoutSVGResourceGradient::ResolveRadius(SVGUnitTypes::SVGUnitType type,
                                                const SVGLength& r) const {
   NOT_DESTROYED();
-  const SVGLengthContext context(GetElement());
+  const SVGViewportResolver viewport_resolver(*this);
   const SVGLengthConversionData conversion_data(*this);
   const Length& radius = r.ConvertToLength(conversion_data);
-  return FloatValueForLength(radius,
-                             MakeViewportDimension(context, radius, type));
+  return FloatValueForLength(
+      radius, MakeViewportDimension(viewport_resolver, radius, type));
 }
 
-GradientSpreadMethod LayoutSVGResourceGradient::PlatformSpreadMethodFromSVGType(
+Gradient::SpreadMethod
+LayoutSVGResourceGradient::PlatformSpreadMethodFromSVGType(
     SVGSpreadMethodType method) {
   switch (method) {
     case kSVGSpreadMethodUnknown:
     case kSVGSpreadMethodPad:
-      return kSpreadMethodPad;
+      return Gradient::SpreadMethod::kPad;
     case kSVGSpreadMethodReflect:
-      return kSpreadMethodReflect;
+      return Gradient::SpreadMethod::kReflect;
     case kSVGSpreadMethodRepeat:
-      return kSpreadMethodRepeat;
+      return Gradient::SpreadMethod::kRepeat;
   }
 
   NOTREACHED();
-  return kSpreadMethodPad;
 }
 
 }  // namespace blink

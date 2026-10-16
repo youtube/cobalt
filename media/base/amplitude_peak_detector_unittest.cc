@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "media/base/amplitude_peak_detector.h"
+
+#include <string_view>
 
 #include "base/location.h"
 #include "base/test/bind.h"
@@ -59,7 +62,7 @@ class AmplitudePeakDetectorTest : public testing::TestWithParam<int> {
       const SampleLocation& location) {
     auto bus = GetSilentAudioBus();
 
-    bus->channel(location.channel)[location.index] = value;
+    bus->channel_span(location.channel)[location.index] = value;
 
     return bus;
   }
@@ -70,7 +73,7 @@ class AmplitudePeakDetectorTest : public testing::TestWithParam<int> {
 
   void RunSimpleDetectionTest(float value,
                               bool expect_peak,
-                              base::StringPiece message) {
+                              std::string_view message) {
     const SampleLocation kTestSampleLocations[] = {
         {0, 0},
         {0, kFrames / 2},
@@ -218,7 +221,7 @@ class FixedSampleAmplitudePeakDetector : public AmplitudePeakDetectorTest {
   template <typename SampleType>
   void RunSimpleDetectionTest_Fixed(float value,
                                     bool expect_peak,
-                                    base::StringPiece message) {
+                                    std::string_view message) {
     std::vector<SampleType> samples(
         kFrames, FixedSampleTypeTraits<SampleType>::kZeroPointValue);
 
@@ -238,7 +241,7 @@ class FixedSampleAmplitudePeakDetector : public AmplitudePeakDetectorTest {
 
   void VerifyFindPeaks(const void* data,
                        bool expect_peak,
-                       base::StringPiece message) {
+                       std::string_view message) {
     CreateDetector(
         expect_peak
             ? base::MakeExpectedRunAtLeastOnceClosure(FROM_HERE, message)

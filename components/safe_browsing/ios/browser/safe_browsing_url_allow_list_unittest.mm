@@ -9,17 +9,14 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using safe_browsing::SBThreatType;
 
 namespace {
 // Constants used in tests.
-const SBThreatType kFirstThreatType = safe_browsing::SB_THREAT_TYPE_URL_MALWARE;
+const SBThreatType kFirstThreatType =
+    safe_browsing::SBThreatType::SB_THREAT_TYPE_URL_MALWARE;
 const SBThreatType kSecondThreatType =
-    safe_browsing::SB_THREAT_TYPE_URL_PHISHING;
+    safe_browsing::SBThreatType::SB_THREAT_TYPE_URL_PHISHING;
 // Mocked SafeBrowsingUrlAllowList::Observer for use in tests.
 class MockAllowListObserver : public SafeBrowsingUrlAllowList::Observer {
  public:
@@ -37,8 +34,8 @@ class MockAllowListObserver : public SafeBrowsingUrlAllowList::Observer {
 // Mocked WebStateObserver for use in tests.
 class MockWebStateObserver : public web::WebStateObserver {
  public:
-  MockWebStateObserver() {}
-  ~MockWebStateObserver() override {}
+  MockWebStateObserver() = default;
+  ~MockWebStateObserver() override = default;
 
   MOCK_METHOD1(DidChangeVisibleSecurityState, void(web::WebState*));
 };

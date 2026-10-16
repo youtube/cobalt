@@ -9,6 +9,7 @@
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/demuxer.h"
 #include "media/base/demuxer_stream.h"
@@ -32,8 +33,11 @@ class MEDIA_EXPORT SourceBufferState {
   using CreateDemuxerStreamCB =
       base::RepeatingCallback<ChunkDemuxerStream*(DemuxerStream::Type)>;
 
-  using NewTextTrackCB = base::RepeatingCallback<void(ChunkDemuxerStream*,
-                                                      const TextTrackConfig&)>;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Overrides the maximum number of bytes that a single call to Parse() will
+  // inspect from the pending buffer.
+  static void SetMaxPendingBytesPerParseOverride(int max_bytes);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   SourceBufferState(std::unique_ptr<StreamParser> stream_parser,
                     std::unique_ptr<FrameProcessor> frame_processor,
@@ -46,10 +50,12 @@ class MEDIA_EXPORT SourceBufferState {
   ~SourceBufferState();
 
   void Init(StreamParser::InitCB init_cb,
-            const std::string& expected_codecs,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+            std::string_view mime_type,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+            std::optional<std::string_view> expected_codecs,
             const StreamParser::EncryptedMediaInitDataCB&
-                encrypted_media_init_data_cb,
-            NewTextTrackCB new_text_track_cb);
+                encrypted_media_init_data_cb);
 
   // Reconfigures this source buffer to use |new_stream_parser|. Caller must
   // first ensure that ResetParserState() was done to flush any pending frames
@@ -66,7 +72,16 @@ class MEDIA_EXPORT SourceBufferState {
   // append failure using a `QuotaExceededErr` exception per the MSE
   // specification. App could use a back-off and retry strategy or otherwise
   // alter their behavior to attempt to buffer media for further playback.
-  [[nodiscard]] bool AppendToParseBuffer(const uint8_t* data, size_t length);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // `data` is borrowed by the StreamParser and must remain valid until
+  // `release_runner` is destroyed. A null `release_runner` means `data` is not
+  // retained for the parser, which is then handed a copy instead.
+  [[nodiscard]] bool AppendToParseBuffer(
+      base::span<const uint8_t> data,
+      base::ScopedClosureRunner release_runner);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+  [[nodiscard]] bool AppendToParseBuffer(base::span<const uint8_t> data);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Tells the stream parser to parse more of the data previously sent to it
   // from this object's AppendToParseBuffer(). `*timestamp_offset` is used and
@@ -179,6 +194,14 @@ class MEDIA_EXPORT SourceBufferState {
 
   void SetParseWarningCallback(SourceBufferParseWarningCB parse_warning_cb);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Set and get the current |mime_type_| string for the SourceBuffer.
+  void set_mime_type(std::string_view mime_type) {
+    mime_type_ = std::string(mime_type);
+  }
+  const std::string& mime_type() const { return mime_type_; }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
  private:
   // State advances through this list to PARSER_INITIALIZED.
   // The intent is to ensure at least one config is received prior to parser
@@ -202,15 +225,13 @@ class MEDIA_EXPORT SourceBufferState {
 
   // Initializes |stream_parser_|. Also, updates |expected_audio_codecs| and
   // |expected_video_codecs|.
-  void InitializeParser(const std::string& expected_codecs);
+  void InitializeParser(std::optional<std::string_view> expected_codecs);
 
   // Called by the |stream_parser_| when a new initialization segment is
   // encountered.
   // Returns true on a successful call. Returns false if an error occurred while
   // processing decoder configurations.
-  bool OnNewConfigs(std::string expected_codecs,
-                    std::unique_ptr<MediaTracks> tracks,
-                    const StreamParser::TextTrackConfigMap& text_configs);
+  bool OnNewConfigs(std::unique_ptr<MediaTracks> tracks);
 
   // Called by the |stream_parser_| at the beginning of a new media segment.
   void OnNewMediaSegment();
@@ -268,7 +289,6 @@ class MEDIA_EXPORT SourceBufferState {
   using DemuxerStreamMap = std::map<StreamParser::TrackId, ChunkDemuxerStream*>;
   DemuxerStreamMap audio_streams_;
   DemuxerStreamMap video_streams_;
-  DemuxerStreamMap text_streams_;
 
   std::unique_ptr<FrameProcessor> frame_processor_;
   const CreateDemuxerStreamCB create_demuxer_stream_cb_;
@@ -276,7 +296,6 @@ class MEDIA_EXPORT SourceBufferState {
 
   StreamParser::InitCB init_cb_;
   StreamParser::EncryptedMediaInitDataCB encrypted_media_init_data_cb_;
-  NewTextTrackCB new_text_track_cb_;
 
   State state_;
 
@@ -292,8 +311,18 @@ class MEDIA_EXPORT SourceBufferState {
   bool first_init_segment_received_ = false;
   bool encrypted_media_init_data_reported_ = false;
 
+  // Initialization can happen with an optional set of codecs, which much be
+  // strictly matched, if provided. If no strict codecs are provided, then
+  // non-strict mode is enabled, and codecs are not checked.
+  bool strict_codec_expectations_ = true;
+
   std::vector<AudioCodec> expected_audio_codecs_;
   std::vector<VideoCodec> expected_video_codecs_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Full mime_type string of the SourceBuffer.
+  std::string mime_type_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

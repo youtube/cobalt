@@ -1,16 +1,16 @@
-// Copyright (c) 2020, Google Inc.
+// Copyright 2020 The BoringSSL Authors
 //
-// Permission to use, copy, modify, and/or distribute this software for any
-// purpose with or without fee is hereby granted, provided that the above
-// copyright notice and this permission notice appear in all copies.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-// SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-// OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-// CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package subprocess
 
@@ -59,7 +59,7 @@ type kasDHTestResponse struct {
 
 type kasDH struct{}
 
-func (k *kasDH) Process(vectorSet []byte, m Transactable) (interface{}, error) {
+func (k *kasDH) Process(vectorSet []byte, m Transactable) (any, error) {
 	var parsed kasDHVectorSet
 	if err := json.Unmarshal(vectorSet, &parsed); err != nil {
 		return nil, err
@@ -68,6 +68,7 @@ func (k *kasDH) Process(vectorSet []byte, m Transactable) (interface{}, error) {
 	// See https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-ffc-sp800-56ar3.html
 	var ret []kasDHTestGroupResponse
 	for _, group := range parsed.Groups {
+		group := group
 		response := kasDHTestGroupResponse{
 			ID: group.ID,
 		}
@@ -110,6 +111,8 @@ func (k *kasDH) Process(vectorSet []byte, m Transactable) (interface{}, error) {
 
 		const method = "FFDH"
 		for _, test := range group.Tests {
+			test := test
+
 			if len(test.PeerPublicHex) == 0 {
 				return nil, fmt.Errorf("%d/%d is missing peer's key", group.ID, test.ID)
 			}
@@ -139,31 +142,33 @@ func (k *kasDH) Process(vectorSet []byte, m Transactable) (interface{}, error) {
 					return nil, err
 				}
 
-				result, err := m.Transact(method, 2, p, q, g, peerPublic, privateKey, publicKey)
-				if err != nil {
-					return nil, err
-				}
-
-				ok := bytes.Equal(result[1], expectedOutput)
-				response.Tests = append(response.Tests, kasDHTestResponse{
-					ID:     test.ID,
-					Passed: &ok,
+				m.TransactAsync(method, 2, [][]byte{p, q, g, peerPublic, privateKey, publicKey}, func(result [][]byte) error {
+					ok := bytes.Equal(result[1], expectedOutput)
+					response.Tests = append(response.Tests, kasDHTestResponse{
+						ID:     test.ID,
+						Passed: &ok,
+					})
+					return nil
 				})
 			} else {
-				result, err := m.Transact(method, 2, p, q, g, peerPublic, nil, nil)
-				if err != nil {
-					return nil, err
-				}
-
-				response.Tests = append(response.Tests, kasDHTestResponse{
-					ID:             test.ID,
-					LocalPublicHex: hex.EncodeToString(result[0]),
-					ResultHex:      hex.EncodeToString(result[1]),
+				m.TransactAsync(method, 2, [][]byte{p, q, g, peerPublic, nil, nil}, func(result [][]byte) error {
+					response.Tests = append(response.Tests, kasDHTestResponse{
+						ID:             test.ID,
+						LocalPublicHex: hex.EncodeToString(result[0]),
+						ResultHex:      hex.EncodeToString(result[1]),
+					})
+					return nil
 				})
 			}
 		}
 
-		ret = append(ret, response)
+		m.Barrier(func() {
+			ret = append(ret, response)
+		})
+	}
+
+	if err := m.Flush(); err != nil {
+		return nil, err
 	}
 
 	return ret, nil

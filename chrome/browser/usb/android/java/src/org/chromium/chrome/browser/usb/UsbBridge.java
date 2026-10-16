@@ -4,14 +4,16 @@
 
 package org.chromium.chrome.browser.usb;
 
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.content_public.browser.WebContents;
 
-/**
- * Java access point for UsbBridge, allowing for querying USB state.
- */
+/** Java access point for UsbBridge, allowing for querying USB state. */
+@NullMarked
 public class UsbBridge {
-    public static boolean isWebContentsConnectedToUsbDevice(WebContents webContents) {
+    public static boolean isWebContentsConnectedToUsbDevice(@Nullable WebContents webContents) {
         if (webContents == null) return false;
         return UsbBridgeJni.get().isWebContentsConnectedToUsbDevice(webContents);
     }

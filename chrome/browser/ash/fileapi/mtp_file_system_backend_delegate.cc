@@ -20,8 +20,7 @@ MTPFileSystemBackendDelegate::MTPFileSystemBackendDelegate(
           new MTPWatcherManager(device_media_async_file_util_.get())) {
 }
 
-MTPFileSystemBackendDelegate::~MTPFileSystemBackendDelegate() {
-}
+MTPFileSystemBackendDelegate::~MTPFileSystemBackendDelegate() = default;
 
 storage::AsyncFileUtil* MTPFileSystemBackendDelegate::GetAsyncFileUtil(
     storage::FileSystemType type) {
@@ -58,14 +57,6 @@ storage::WatcherManager* MTPFileSystemBackendDelegate::GetWatcherManager(
     storage::FileSystemType type) {
   DCHECK_EQ(storage::kFileSystemTypeDeviceMediaAsFileStorage, type);
   return mtp_watcher_manager_.get();
-}
-
-void MTPFileSystemBackendDelegate::GetRedirectURLForContents(
-    const storage::FileSystemURL& url,
-    storage::URLCallback callback) {
-  DCHECK_EQ(storage::kFileSystemTypeDeviceMediaAsFileStorage, url.type());
-
-  std::move(callback).Run(GURL());
 }
 
 }  // namespace ash

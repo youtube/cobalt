@@ -11,6 +11,8 @@
 #include <memory>
 #include <utility>
 
+#include "base/check.h"
+#include "base/containers/heap_array.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/files/important_file_writer.h"
@@ -18,40 +20,26 @@
 #include "base/functional/callback.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ref.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notreached.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "chrome/browser/download/simple_download_manager_coordinator_factory.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_key.h"
 #include "components/download/public/common/download_item.h"
+#include "components/download/public/common/simple_download_manager_coordinator.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/download_item_utils.h"
+#include "content/public/browser/download_manager.h"
 
 namespace safe_browsing {
 
 namespace {
-
-// Histogram bucket values for metadata read operations. Do not reorder.
-enum MetadataReadResult {
-  READ_SUCCESS = 0,
-  OPEN_FAILURE = 1,
-  NOT_FOUND = 2,
-  GET_INFO_FAILURE = 3,
-  FILE_TOO_BIG = 4,
-  READ_FAILURE = 5,
-  PARSE_FAILURE = 6,
-  MALFORMED_DATA = 7,
-  NUM_READ_RESULTS
-};
-
-// Histogram bucket values for metadata write operations. Do not reorder.
-enum MetadataWriteResult {
-  WRITE_SUCCESS = 0,
-  SERIALIZATION_FAILURE = 1,
-  WRITE_FAILURE = 2,
-  NUM_WRITE_RESULTS
-};
 
 // The name of the metadata file in the profile directory.
 const base::FilePath::CharType kDownloadMetadataBasename[] =
@@ -66,8 +54,6 @@ class DownloadItemData : public base::SupportsUserData::Data {
  public:
   DownloadItemData(const DownloadItemData&) = delete;
   DownloadItemData& operator=(const DownloadItemData&) = delete;
-
-  ~DownloadItemData() override {}
 
   // Sets the ClientDownloadRequest for a given DownloadItem.
   static void SetRequestForDownload(
@@ -134,62 +120,33 @@ void ReadMetadataInBackground(const base::FilePath& metadata_path,
                               DownloadMetadata* metadata) {
   using base::File;
   DCHECK(metadata);
-  MetadataReadResult result = NUM_READ_RESULTS;
   File metadata_file(metadata_path, File::FLAG_OPEN | File::FLAG_READ);
-  if (metadata_file.IsValid()) {
-    base::File::Info info;
-    if (metadata_file.GetInfo(&info)) {
-      if (info.size <= INT_MAX) {
-        const int size = static_cast<int>(info.size);
-        std::unique_ptr<char[]> file_data(new char[info.size]);
-        if (metadata_file.Read(0, file_data.get(), size)) {
-          if (!metadata->ParseFromArray(file_data.get(), size))
-            result = PARSE_FAILURE;
-          else if (!MetadataIsValid(*metadata))
-            result = MALFORMED_DATA;
-          else
-            result = READ_SUCCESS;
-        } else {
-          result = READ_FAILURE;
-        }
-      } else {
-        result = FILE_TOO_BIG;
-      }
-    } else {
-      result = GET_INFO_FAILURE;
+  base::File::Info info;
+  if (metadata_file.IsValid() && metadata_file.GetInfo(&info) &&
+      info.size <= INT_MAX) {
+    auto file_data = base::HeapArray<uint8_t>::Uninit(info.size);
+    if (metadata_file.Read(0, file_data).value_or(0) &&
+        metadata->ParseFromArray(file_data.data(),
+                                 static_cast<int>(file_data.size())) &&
+        MetadataIsValid(*metadata)) {
+      return;
     }
-  } else if (metadata_file.error_details() != File::FILE_ERROR_NOT_FOUND) {
-    result = OPEN_FAILURE;
-  } else {
-    result = NOT_FOUND;
   }
-  if (result != READ_SUCCESS)
-    metadata->Clear();
-  UMA_HISTOGRAM_ENUMERATION(
-      "SBIRS.DownloadMetadata.ReadResult", result, NUM_READ_RESULTS);
+  metadata->Clear();
 }
 
 // Writes |download_metadata| to |metadata_path|.
 void WriteMetadataInBackground(const base::FilePath& metadata_path,
                                DownloadMetadata* download_metadata) {
-  MetadataWriteResult result = NUM_WRITE_RESULTS;
   std::string file_data;
   if (download_metadata->SerializeToString(&file_data)) {
-    result =
-        base::ImportantFileWriter::WriteFileAtomically(metadata_path, file_data)
-            ? WRITE_SUCCESS
-            : WRITE_FAILURE;
-  } else {
-    result = SERIALIZATION_FAILURE;
+    base::ImportantFileWriter::WriteFileAtomically(metadata_path, file_data);
   }
-  UMA_HISTOGRAM_ENUMERATION(
-      "SBIRS.DownloadMetadata.WriteResult", result, NUM_WRITE_RESULTS);
 }
 
 // Deletes |metadata_path|.
 void DeleteMetadataInBackground(const base::FilePath& metadata_path) {
-  bool success = base::DeleteFile(metadata_path);
-  UMA_HISTOGRAM_BOOLEAN("SBIRS.DownloadMetadata.DeleteSuccess", success);
+  base::DeleteFile(metadata_path);
 }
 
 // Runs |callback| with the DownloadDetails in |download_metadata|.
@@ -208,31 +165,29 @@ void ReturnResults(DownloadMetadataManager::GetDownloadDetailsCallback callback,
 // Applies operations to the profile's persistent DownloadMetadata as they occur
 // on its corresponding download item. An instance can be in one of three
 // states: waiting for metatada load, waiting for metadata to load after its
-// corresponding DownloadManager has gone down, and not waiting for metadata to
-// load. The instance observes all download items beloing to its manager. While
-// it is waiting for metadata to load, it records all operations on download
-// items that must be reflected in the metadata. Once the metadata is ready,
-// recorded operations are applied to the metadata. The instance continues to
-// observe all download items to keep the existing metadata up to date. While
-// waiting for metadata to load, an instance also tracks callbacks to be run to
-// provide consumers with persisted details of a download.
-class DownloadMetadataManager::ManagerContext
-    : public download::DownloadItem::Observer {
+// corresponding SimpleDownloadManagerCoordinator has gone down, and not waiting
+// for metadata to load. The instance is notified on events for downloads
+// belonging to its coordinator. While it is waiting for metadata to load, it
+// records all operations on download items that must be reflected in the
+// metadata. Once the metadata is ready, recorded operations are applied to the
+// metadata. While waiting for metadata to load, an instance also tracks
+// callbacks to be run to provide consumers with persisted details of a
+// download.
+class DownloadMetadataManager::ManagerContext {
  public:
   ManagerContext(scoped_refptr<base::SequencedTaskRunner> task_runner,
-                 content::DownloadManager* download_manager);
+                 content::BrowserContext& browser_context);
 
   ManagerContext(const ManagerContext&) = delete;
   ManagerContext& operator=(const ManagerContext&) = delete;
+
+  content::BrowserContext* browser_context() { return &browser_context_.get(); }
 
   // Detaches this context from its owner. The owner must not access the context
   // following this call. The context will be deleted immediately if it is not
   // waiting for a metadata load with either recorded operations or pending
   // callbacks.
-  void Detach(content::DownloadManager* download_manager);
-
-  // Notifies the context that |download| has been added to its manager.
-  void OnDownloadCreated(download::DownloadItem* download);
+  void Detach();
 
   // Sets |request| as the relevant metadata to persist for |download| if or
   // when it is complete. If |request| is null, the metadata for |download|
@@ -245,11 +200,9 @@ class DownloadMetadataManager::ManagerContext
   // thread.
   void GetDownloadDetails(GetDownloadDetailsCallback callback);
 
- protected:
-  // download::DownloadItem::Observer methods.
-  void OnDownloadUpdated(download::DownloadItem* download) override;
-  void OnDownloadOpened(download::DownloadItem* download) override;
-  void OnDownloadRemoved(download::DownloadItem* download) override;
+  void OnDownloadUpdated(download::DownloadItem* download);
+  void OnDownloadOpened(download::DownloadItem* download);
+  void OnDownloadRemoved(download::DownloadItem* download);
 
  private:
   enum State {
@@ -257,7 +210,7 @@ class DownloadMetadataManager::ManagerContext
     WAITING_FOR_LOAD,
 
     // The context is waiting for the metadata file to be loaded and its
-    // corresponding DownloadManager has gone away.
+    // corresponding SimpleDownloadManagerCoordinator has gone away.
     DETACHED_WAIT,
 
     // The context has loaded the metadata file.
@@ -273,7 +226,7 @@ class DownloadMetadataManager::ManagerContext
   // A mapping of download IDs to their corresponding data.
   typedef std::map<uint32_t, ItemData> ItemDataMap;
 
-  ~ManagerContext() override;
+  ~ManagerContext();
 
   // Commits |request| to the DownloadDetails for |item|'s BrowserContext.
   // Callbacks will be run immediately if the context had been waiting for a
@@ -310,6 +263,8 @@ class DownloadMetadataManager::ManagerContext
   // A task runner to which IO tasks are posted.
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
+  const raw_ref<content::BrowserContext> browser_context_;
+
   // The path to the metadata file for this context.
   base::FilePath metadata_path_;
 
@@ -319,9 +274,9 @@ class DownloadMetadataManager::ManagerContext
   // corresponding to the metadata file are applied to the file and all other
   // recorded data are dropped. Queued GetDownloadDetailsCallbacks are run upon
   // read completion as well. The context is moved to the DETACHED_WAIT state if
-  // the corresponding DownloadManager goes away while a read operation is
-  // outstanding. When the read subsequently completes, the context is destroyed
-  // after the processing described above is performed.
+  // the corresponding SimpleDownloadManagerCoordinator goes away while a read
+  // operation is outstanding. When the read subsequently completes, the context
+  // is destroyed after the processing described above is performed.
   State state_;
 
   // The current metadata for the context. May be supplied either by reading
@@ -339,7 +294,6 @@ class DownloadMetadataManager::ManagerContext
   base::WeakPtrFactory<ManagerContext> weak_factory_{this};
 };
 
-
 // DownloadMetadataManager -----------------------------------------------------
 
 DownloadMetadataManager::DownloadMetadataManager()
@@ -349,32 +303,38 @@ DownloadMetadataManager::DownloadMetadataManager()
            base::MayBlock()})) {}
 
 DownloadMetadataManager::~DownloadMetadataManager() {
-  // Destruction may have taken place before managers have gone down.
-  for (const auto& manager_context_pair : contexts_) {
-    manager_context_pair.first->RemoveObserver(this);
-    manager_context_pair.second->Detach(manager_context_pair.first);
+  // Destruction may have taken place before coordinators have gone down.
+  for (auto [coordinator, context] : contexts_) {
+    coordinator->GetNotifier()->RemoveObserver(this);
+    context->Detach();
   }
   contexts_.clear();
 }
 
 void DownloadMetadataManager::AddDownloadManager(
     content::DownloadManager* download_manager) {
-  // Nothing to do if this download manager is already being observed.
-  if (contexts_.count(download_manager))
+  content::BrowserContext* const browser_context =
+      download_manager->GetBrowserContext();
+  download::SimpleDownloadManagerCoordinator* const coordinator =
+      GetCoordinatorForBrowserContext(browser_context);
+
+  // Nothing to do if this coordinator is already being observed.
+  if (base::Contains(contexts_, coordinator)) {
     return;
-  download_manager->AddObserver(this);
-  contexts_[download_manager] =
-      new ManagerContext(task_runner_, download_manager);
+  }
+
+  coordinator->GetNotifier()->AddObserver(this);
+  contexts_[coordinator] = new ManagerContext(task_runner_, *browser_context);
 }
 
 void DownloadMetadataManager::SetRequest(download::DownloadItem* item,
                                          const ClientDownloadRequest* request) {
   DCHECK(request);
-  content::DownloadManager* download_manager =
-      GetDownloadManagerForBrowserContext(
+  download::SimpleDownloadManagerCoordinator* const coordinator =
+      GetCoordinatorForBrowserContext(
           content::DownloadItemUtils::GetBrowserContext(item));
-  DCHECK_EQ(contexts_.count(download_manager), 1U);
-  contexts_[download_manager]->SetRequest(
+  DCHECK(base::Contains(contexts_, coordinator));
+  contexts_[coordinator]->SetRequest(
       item, std::make_unique<ClientDownloadRequest>(*request));
 }
 
@@ -382,14 +342,14 @@ void DownloadMetadataManager::GetDownloadDetails(
     content::BrowserContext* browser_context,
     GetDownloadDetailsCallback callback) {
   DCHECK(browser_context);
-  // The DownloadManager for |browser_context| may not have been created yet. In
+  // The coordinator for |browser_context| may not have been created yet. In
   // this case, asking for it would cause history to load in the background and
   // wouldn't really help much. Instead, scan the contexts to see if one belongs
   // to |browser_context|. If one is not found, read the metadata and return it.
   std::unique_ptr<ClientIncidentReport_DownloadDetails> download_details;
-  for (const auto& manager_context_pair : contexts_) {
-    if (manager_context_pair.first->GetBrowserContext() == browser_context) {
-      manager_context_pair.second->GetDownloadDetails(std::move(callback));
+  for (auto [coordinator, context] : contexts_) {
+    if (context->browser_context() == browser_context) {
+      context->GetDownloadDetails(std::move(callback));
       return;
     }
   }
@@ -404,55 +364,63 @@ void DownloadMetadataManager::GetDownloadDetails(
                      base::WrapUnique(metadata)));
 }
 
-content::DownloadManager*
-DownloadMetadataManager::GetDownloadManagerForBrowserContext(
-    content::BrowserContext* context) {
-  return context->GetDownloadManager();
-}
+void DownloadMetadataManager::OnManagerGoingDown(
+    download::SimpleDownloadManagerCoordinator* coordinator) {
+  coordinator->GetNotifier()->RemoveObserver(this);
 
-void DownloadMetadataManager::OnDownloadCreated(
-    content::DownloadManager* download_manager,
-    download::DownloadItem* item) {
-  DCHECK_EQ(contexts_.count(download_manager), 1U);
-  contexts_[download_manager]->OnDownloadCreated(item);
-}
-
-void DownloadMetadataManager::ManagerGoingDown(
-    content::DownloadManager* download_manager) {
-  DCHECK_EQ(contexts_.count(download_manager), 1U);
-  auto iter = contexts_.find(download_manager);
-  iter->first->RemoveObserver(this);
-  iter->second->Detach(download_manager);
+  auto iter = contexts_.find(coordinator);
+  CHECK(iter != contexts_.end());
+  ManagerContext* const context = iter->second;
   contexts_.erase(iter);
+
+  context->Detach();
 }
 
+void DownloadMetadataManager::OnDownloadUpdated(
+    download::SimpleDownloadManagerCoordinator* coordinator,
+    download::DownloadItem* download) {
+  auto iter = contexts_.find(coordinator);
+  CHECK(iter != contexts_.end());
+  iter->second->OnDownloadUpdated(download);
+}
+
+void DownloadMetadataManager::OnDownloadOpened(
+    download::SimpleDownloadManagerCoordinator* coordinator,
+    download::DownloadItem* download) {
+  auto iter = contexts_.find(coordinator);
+  CHECK(iter != contexts_.end());
+  iter->second->OnDownloadOpened(download);
+}
+
+void DownloadMetadataManager::OnDownloadRemoved(
+    download::SimpleDownloadManagerCoordinator* coordinator,
+    download::DownloadItem* download) {
+  auto iter = contexts_.find(coordinator);
+  CHECK(iter != contexts_.end());
+  iter->second->OnDownloadRemoved(download);
+}
+
+download::SimpleDownloadManagerCoordinator*
+DownloadMetadataManager::GetCoordinatorForBrowserContext(
+    content::BrowserContext* context) {
+  return SimpleDownloadManagerCoordinatorFactory::GetForKey(
+      Profile::FromBrowserContext(context)->GetProfileKey());
+}
 
 // DownloadMetadataManager::ManagerContext -------------------------------------
 
 DownloadMetadataManager::ManagerContext::ManagerContext(
     scoped_refptr<base::SequencedTaskRunner> task_runner,
-    content::DownloadManager* download_manager)
+    content::BrowserContext& browser_context)
     : task_runner_(std::move(task_runner)),
-      metadata_path_(GetMetadataPath(download_manager->GetBrowserContext())),
+      browser_context_(browser_context),
+      metadata_path_(GetMetadataPath(&browser_context)),
       state_(WAITING_FOR_LOAD) {
-  // Observe all pre-existing items in the manager.
-  content::DownloadManager::DownloadVector items;
-  download_manager->GetAllDownloads(&items);
-  for (auto* download_item : items)
-    download_item->AddObserver(this);
-
   // Start the asynchronous task to read the persistent metadata.
   ReadMetadata();
 }
 
-void DownloadMetadataManager::ManagerContext::Detach(
-    content::DownloadManager* download_manager) {
-  // Stop observing all items belonging to the manager.
-  content::DownloadManager::DownloadVector items;
-  download_manager->GetAllDownloads(&items);
-  for (auto* download_item : items)
-    download_item->RemoveObserver(this);
-
+void DownloadMetadataManager::ManagerContext::Detach() {
   // Delete the instance immediately if there's no work to process after a
   // pending read completes.
   if (get_details_callbacks_.empty() && pending_items_.empty()) {
@@ -461,11 +429,6 @@ void DownloadMetadataManager::ManagerContext::Detach(
     // delete the instance in OnMetadataReady.
     state_ = DETACHED_WAIT;
   }
-}
-
-void DownloadMetadataManager::ManagerContext::OnDownloadCreated(
-    download::DownloadItem* download) {
-  download->AddObserver(this);
 }
 
 void DownloadMetadataManager::ManagerContext::SetRequest(
@@ -545,7 +508,7 @@ void DownloadMetadataManager::ManagerContext::CommitRequest(
   download_metadata_->mutable_download()->set_allocated_download(
       request.release());
   download_metadata_->mutable_download()->set_download_time_msec(
-      item->GetEndTime().ToJavaTime());
+      item->GetEndTime().InMillisecondsSinceUnixEpoch());
   // Persist it.
   WriteMetadata();
   // Run callbacks (only present in case of a transition to LOAD_COMPLETE).
@@ -649,7 +612,7 @@ void DownloadMetadataManager::ManagerContext::OnMetadataReady(
 void DownloadMetadataManager::ManagerContext::UpdateLastOpenedTime(
     const base::Time& last_opened_time) {
   download_metadata_->mutable_download()->set_open_time_msec(
-      last_opened_time.ToJavaTime());
+      last_opened_time.InMillisecondsSinceUnixEpoch());
   WriteMetadata();
 }
 

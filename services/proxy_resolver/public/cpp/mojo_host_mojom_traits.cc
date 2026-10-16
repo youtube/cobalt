@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "net/base/address_list.h"
-#include "services/network/public/cpp/address_family_mojom_traits.h"
 
 namespace mojo {
 
@@ -28,7 +27,6 @@ EnumTraits<proxy_resolver::mojom::HostResolveOperation,
   }
 
   NOTREACHED();
-  return proxy_resolver::mojom::HostResolveOperation::kMinValue;
 }
 
 // static
@@ -52,7 +50,6 @@ bool EnumTraits<proxy_resolver::mojom::HostResolveOperation,
   }
 
   NOTREACHED();
-  return false;
 }
 
 }  // namespace mojo

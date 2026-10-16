@@ -7,6 +7,9 @@
 
 namespace storage {
 
+MockBlobRegistryDelegate::MockBlobRegistryDelegate() = default;
+MockBlobRegistryDelegate::~MockBlobRegistryDelegate() = default;
+
 bool MockBlobRegistryDelegate::CanReadFile(const base::FilePath& file) {
   return can_read_file_result;
 }
@@ -14,11 +17,6 @@ bool MockBlobRegistryDelegate::CanReadFile(const base::FilePath& file) {
 bool MockBlobRegistryDelegate::CanAccessDataForOrigin(
     const url::Origin& origin) {
   return can_access_data_for_origin;
-}
-
-file_access::ScopedFileAccessDelegate::RequestFilesAccessIOCallback
-MockBlobRegistryDelegate::GetAccessCallback() {
-  return base::DoNothing();
 }
 
 }  // namespace storage

@@ -5,7 +5,7 @@
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_test_info.h"
 
 #include "third_party/blink/renderer/platform/fonts/font.h"
-#include "third_party/blink/renderer/platform/fonts/shaping/shape_result_inline_headers.h"
+#include "third_party/blink/renderer/platform/fonts/shaping/shape_result_run.h"
 
 namespace blink {
 
@@ -13,7 +13,7 @@ unsigned ShapeResultTestInfo::NumberOfRunsForTesting() const {
   return runs_.size();
 }
 
-ShapeResult::RunInfo& ShapeResultTestInfo::RunInfoForTesting(
+ShapeResultRun& ShapeResultTestInfo::RunInfoForTesting(
     unsigned run_index) const {
   return *runs_[run_index];
 }
@@ -54,7 +54,7 @@ float ShapeResultTestInfo::AdvanceForTesting(unsigned run_index,
 
 SimpleFontData* ShapeResultTestInfo::FontDataForTesting(
     unsigned run_index) const {
-  return runs_[run_index]->font_data_.get();
+  return runs_[run_index]->font_data_.Get();
 }
 
 Vector<unsigned> ShapeResultTestInfo::CharacterIndexesForTesting() const {

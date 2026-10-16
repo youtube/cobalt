@@ -19,21 +19,30 @@
 #include <android/native_window.h>
 #include <jni.h>
 
-#include "base/android/jni_android.h"
 #include "starboard/common/size.h"
 #include "starboard/decode_target.h"
 #include "starboard/shared/starboard/decode_target/decode_target_internal.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
 class DecodeTarget final : public SbDecodeTargetPrivate {
  public:
-  explicit DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider);
+  // Creates the GL texture / SurfaceTexture / Surface via |provider|'s GLES
+  // context runner. Returns nullptr if the runner could not execute the
+  // creation closure (e.g. the GL context could not be made current), so an
+  // uninitialized target is never handed to callers.
+  static scoped_refptr<DecodeTarget> Create(
+      SbDecodeTargetGraphicsContextProvider* provider);
 
   bool GetInfo(SbDecodeTargetInfo* out_info) final;
 
-  jobject surface_texture() const { return surface_texture_.obj(); }
-  jobject surface() const { return surface_.obj(); }
+  const jni_zero::ScopedJavaGlobalRef<jobject>& surface_texture() const {
+    return surface_texture_;
+  }
+  const jni_zero::ScopedJavaGlobalRef<jobject>& surface() const {
+    return surface_;
+  }
 
   void set_dimension(const Size& size) {
     info_.planes[0].width = size.width;
@@ -48,17 +57,21 @@ class DecodeTarget final : public SbDecodeTargetPrivate {
   }
 
  private:
+  explicit DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider);
+  // Safe to run on a target whose CreateOnContextRunner() never ran.
   ~DecodeTarget() final;
 
   void CreateOnContextRunner();
 
   // Java objects which wrap the texture.  We hold on to global references
   // to these objects.
-  base::android::ScopedJavaGlobalRef<jobject> surface_texture_;
-  base::android::ScopedJavaGlobalRef<jobject> surface_;
-  ANativeWindow* native_window_;
+  jni_zero::ScopedJavaGlobalRef<jobject> surface_texture_;
+  jni_zero::ScopedJavaGlobalRef<jobject> surface_;
+  // Default-initialized so that the destructor is safe when
+  // CreateOnContextRunner() never ran.
+  ANativeWindow* native_window_ = nullptr;
 
-  SbDecodeTargetInfo info_;
+  SbDecodeTargetInfo info_ = {};
 };
 
 }  // namespace starboard

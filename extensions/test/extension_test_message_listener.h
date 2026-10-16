@@ -5,6 +5,7 @@
 #ifndef EXTENSIONS_TEST_EXTENSION_TEST_MESSAGE_LISTENER_H_
 #define EXTENSIONS_TEST_EXTENSION_TEST_MESSAGE_LISTENER_H_
 
+#include <optional>
 #include <string>
 
 #include "base/functional/callback.h"
@@ -14,7 +15,6 @@
 #include "extensions/browser/api/test/test_api_observer.h"
 #include "extensions/browser/api/test/test_api_observer_registry.h"
 #include "extensions/common/extension_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 class BrowserContext;
@@ -116,7 +116,7 @@ enum class ReplyBehavior {
 class ExtensionTestMessageListener : public extensions::TestApiObserver {
  public:
   // Listen for the `expected_message` with the specified `reply_behavior`.
-  // TODO(devlin): Possibly update this to just take a StringPiece, once the
+  // TODO(devlin): Possibly update this to just take a string_view, once the
   // enum conversions highlighted below are done?
   explicit ExtensionTestMessageListener(
       const std::string& expected_message,
@@ -132,7 +132,7 @@ class ExtensionTestMessageListener : public extensions::TestApiObserver {
   // message, or waits until it arrives. Once this returns true, message() and
   // extension_id_for_message() accessors can be used.
   // Returns false if the wait is interrupted and we still haven't gotten the
-  // message, or if the message was equal to |failure_message_|.
+  // message, or if the message was equal to `failure_message_`.
   [[nodiscard]] bool WaitUntilSatisfied();
 
   // Send the given message as a reply. It is only valid to call this after
@@ -165,7 +165,7 @@ class ExtensionTestMessageListener : public extensions::TestApiObserver {
     on_repeatedly_satisfied_ = on_repeatedly_satisfied;
   }
 
-  void set_extension_id(const std::string& extension_id) {
+  void set_extension_id(const extensions::ExtensionId& extension_id) {
     extension_id_ = extension_id;
   }
 
@@ -188,7 +188,7 @@ class ExtensionTestMessageListener : public extensions::TestApiObserver {
 
   // The message we're expecting. If empty, we will wait for any message,
   // regardless of contents.
-  const absl::optional<std::string> expected_message_;
+  const std::optional<std::string> expected_message_;
 
   // The last message we received.
   std::string message_;
@@ -207,18 +207,18 @@ class ExtensionTestMessageListener : public extensions::TestApiObserver {
   const ReplyBehavior reply_behavior_;
 
   // The extension id that we listen for, or empty.
-  std::string extension_id_;
+  extensions::ExtensionId extension_id_;
 
   // If non-null, we listen to messages only from this BrowserContext.
   raw_ptr<const content::BrowserContext> browser_context_ = nullptr;
 
   // The message that signals failure.
-  absl::optional<std::string> failure_message_;
+  std::optional<std::string> failure_message_;
 
   // If we received a message that was the failure message.
   bool failed_ = false;
 
-  // The extension id from which |message_| was received.
+  // The extension id from which `message_` was received.
   extensions::ExtensionId extension_id_for_message_;
 
   // Whether the ExtensionFunction handling the message had an active user

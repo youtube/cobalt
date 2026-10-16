@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ash/utility/haptics_util.h"
+#include "chromeos/utils/haptics_util.h"
 
 #include <vector>
 
 #include "ash/shell.h"
 #include "ash/test/ash_test_base.h"
+#include "ash/test/ash_test_util.h"
 #include "ash/utility/haptics_tracking_test_input_controller.h"
 #include "ash/wm/desks/desk_animation_impl.h"
 #include "ash/wm/desks/desk_mini_view.h"
@@ -15,14 +16,17 @@
 #include "ash/wm/desks/desks_controller.h"
 #include "ash/wm/desks/desks_histogram_enums.h"
 #include "ash/wm/desks/desks_test_util.h"
-#include "ash/wm/desks/legacy_desk_bar_view.h"
+#include "ash/wm/desks/overview_desk_bar_view.h"
 #include "ash/wm/desks/root_window_desk_switch_animator_test_api.h"
 #include "ash/wm/gestures/wm_gesture_handler.h"
 #include "ash/wm/overview/overview_controller.h"
 #include "ash/wm/overview/overview_grid.h"
 #include "ash/wm/overview/overview_item.h"
 #include "ash/wm/overview/overview_session.h"
-#include "ash/wm/workspace/workspace_window_resizer.h"
+#include "ash/wm/workspace/workspace_window_resizer_test_api.h"
+#include "chromeos/ui/frame/multitask_menu/multitask_button.h"
+#include "chromeos/ui/frame/multitask_menu/multitask_menu_view_test_api.h"
+#include "chromeos/ui/frame/multitask_menu/split_button_view.h"
 #include "ui/aura/window.h"
 #include "ui/events/devices/haptic_touchpad_effects.h"
 #include "ui/gfx/geometry/rect.h"
@@ -54,7 +58,7 @@ TEST_F(HapticsUtilTest, HapticFeedbackBasic) {
   for (HapticTouchpadEffect effect : effects) {
     for (HapticTouchpadEffectStrength strength : strengths) {
       for (int count = 0; count < 16; count++) {
-        haptics_util::PlayHapticTouchpadEffect(effect, strength);
+        chromeos::haptics_util::PlayHapticTouchpadEffect(effect, strength);
         EXPECT_EQ(count + 1,
                   input_controller->GetSentHapticCount(effect, strength));
       }
@@ -107,10 +111,11 @@ TEST_F(HapticsUtilTest, HapticFeedbackForNormalWindowSnap) {
     event_generator->set_current_screen_location(start);
     event_generator->PressLeftButton();
     event_generator->MoveMouseTo(test_case.first);
-    WorkspaceWindowResizer* workspace_resizer =
-        WorkspaceWindowResizer::GetInstanceForTest();
-    if (workspace_resizer->dwell_countdown_timer_.IsRunning())
-      workspace_resizer->dwell_countdown_timer_.FireNow();
+    auto& dwell_countdown_timer =
+        WorkspaceWindowResizerTestApi().GetDwellCountdownTimer();
+    if (dwell_countdown_timer.IsRunning()) {
+      dwell_countdown_timer.FireNow();
+    }
     EXPECT_EQ((int)i + 1, input_controller->GetSentHapticCount(
                               HapticTouchpadEffect::kSnap,
                               HapticTouchpadEffectStrength::kMedium));
@@ -143,7 +148,7 @@ TEST_F(HapticsUtilTest, HapticFeedbackForOverviewWindowSnap) {
   for (size_t i = 0; i < test_cases.size(); i++) {
     std::pair<gfx::Point, gfx::Rect> test_case = test_cases[i];
     EnterOverview();
-    OverviewItem* overview_item =
+    auto* overview_item =
         overview_controller->overview_session()->GetOverviewItemForWindow(
             window.get());
 
@@ -164,7 +169,7 @@ TEST_F(HapticsUtilTest, HapticFeedbackForOverviewWindowSnap) {
   for (size_t i = 0; i < test_cases.size(); i++) {
     std::pair<gfx::Point, gfx::Rect> test_case = test_cases[i];
     EnterOverview();
-    OverviewItem* overview_item =
+    auto* overview_item =
         overview_controller->overview_session()->GetOverviewItemForWindow(
             window.get());
 
@@ -300,7 +305,7 @@ TEST_F(HapticsUtilTest, HapticFeedbackForDragAndDrop) {
 
   // Drag a window in overview. Test that kTick feedback is sent.
   EnterOverview();
-  OverviewItem* overview_item =
+  auto* overview_item =
       overview_controller->overview_session()->GetOverviewItemForWindow(
           window.get());
   const gfx::RectF bounds_f = overview_item->target_bounds();
@@ -331,6 +336,52 @@ TEST_F(HapticsUtilTest, HapticFeedbackForDragAndDrop) {
   event_generator->ReleaseLeftButton();
   EXPECT_TRUE(overview_controller->InOverviewSession());
   ExitOverview();
+}
+
+TEST_F(HapticsUtilTest, HapticFeedbackForMultitaskMenu) {
+  auto input_controller =
+      std::make_unique<HapticsTrackingTestInputController>();
+
+  std::unique_ptr<aura::Window> window = CreateAppWindow();
+
+  // Show the clamshell multitask menu via hover. Test that kSnap feedback is
+  // sent.
+  chromeos::MultitaskMenu* multitask_menu = ShowAndWaitMultitaskMenuForWindow(
+      window.get(), chromeos::MultitaskMenuEntryType::kFrameSizeButtonHover);
+  ASSERT_TRUE(multitask_menu);
+  EXPECT_EQ(1, input_controller->GetSentHapticCount(
+                   HapticTouchpadEffect::kSnap,
+                   HapticTouchpadEffectStrength::kMedium));
+
+  // Test that the kSnap feedback is sent whenever we hover over one of the
+  // multitask menu buttons.
+  auto* event_generator = GetEventGenerator();
+  chromeos::MultitaskMenuViewTestApi test_api(
+      multitask_menu->multitask_menu_view());
+  event_generator->MoveMouseTo(
+      test_api.GetFloatButton()->GetBoundsInScreen().CenterPoint());
+  EXPECT_EQ(2, input_controller->GetSentHapticCount(
+                   HapticTouchpadEffect::kSnap,
+                   HapticTouchpadEffectStrength::kMedium));
+
+  event_generator->MoveMouseTo(
+      test_api.GetFullButton()->GetBoundsInScreen().CenterPoint());
+  EXPECT_EQ(3, input_controller->GetSentHapticCount(
+                   HapticTouchpadEffect::kSnap,
+                   HapticTouchpadEffectStrength::kMedium));
+
+  chromeos::SplitButtonView* half_button = test_api.GetHalfButton();
+  event_generator->MoveMouseTo(
+      half_button->GetLeftTopButton()->GetBoundsInScreen().CenterPoint());
+  EXPECT_EQ(4, input_controller->GetSentHapticCount(
+                   HapticTouchpadEffect::kSnap,
+                   HapticTouchpadEffectStrength::kMedium));
+
+  event_generator->MoveMouseTo(
+      half_button->GetRightBottomButton()->GetBoundsInScreen().CenterPoint());
+  EXPECT_EQ(5, input_controller->GetSentHapticCount(
+                   HapticTouchpadEffect::kSnap,
+                   HapticTouchpadEffectStrength::kMedium));
 }
 
 }  // namespace ash

@@ -8,13 +8,13 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
-#include "ash/public/cpp/sensor_disabled_notification_delegate.h"
 #include "ash/public/cpp/session/session_observer.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/system/privacy_hub/privacy_hub_controller.h"
 #include "ash/system/privacy_hub/privacy_hub_notification_controller.h"
+#include "ash/system/privacy_hub/sensor_disabled_notification_delegate.h"
 #include "ash/system/system_notification_controller.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
@@ -60,6 +60,14 @@ MicrophonePrivacySwitchController::~MicrophonePrivacySwitchController() {
   CrasAudioHandler::Get()->RemoveAudioObserver(this);
 }
 
+// static
+MicrophonePrivacySwitchController* MicrophonePrivacySwitchController::Get() {
+  auto* privacy_hub_controller = PrivacyHubController::Get();
+  return privacy_hub_controller
+             ? privacy_hub_controller->microphone_controller()
+             : nullptr;
+}
+
 void MicrophonePrivacySwitchController::OnActiveUserPrefServiceChanged(
     PrefService* pref_service) {
   // Subscribing again to pref changes.
@@ -74,6 +82,11 @@ void MicrophonePrivacySwitchController::OnActiveUserPrefServiceChanged(
   // preference when creating the controller during the browser initialization
   // after creating the user profile.
   SetSystemMute();
+}
+
+bool MicrophonePrivacySwitchController::IsMicrophoneUsageAllowed() const {
+  return pref_change_registrar_->prefs()->GetBoolean(
+      prefs::kUserMicrophoneAllowed);
 }
 
 void MicrophonePrivacySwitchController::OnInputMuteChanged(

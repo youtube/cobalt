@@ -5,6 +5,7 @@
 #include "services/network/host_resolver.h"
 
 #include <map>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -40,7 +41,6 @@
 #include "net/test/gtest_util.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/scheme_host_port.h"
 
 namespace network {
@@ -78,8 +78,8 @@ class TestResolveHostClient : public mojom::ResolveHostClient {
 
   void OnComplete(int error,
                   const net::ResolveErrorInfo& resolve_error_info,
-                  const absl::optional<net::AddressList>& addresses,
-                  const absl::optional<net::HostResolverEndpointResults>&
+                  const std::optional<net::AddressList>& addresses,
+                  const std::optional<net::HostResolverEndpointResults>&
                       endpoint_results_with_metadata) override {
     DCHECK(!complete_);
 
@@ -114,22 +114,22 @@ class TestResolveHostClient : public mojom::ResolveHostClient {
     return result_error_;
   }
 
-  const absl::optional<net::AddressList>& result_addresses() const {
+  const std::optional<net::AddressList>& result_addresses() const {
     DCHECK(complete_);
     return result_addresses_;
   }
 
-  const absl::optional<std::vector<std::string>>& result_text() const {
+  const std::optional<std::vector<std::string>>& result_text() const {
     DCHECK(complete_);
     return result_text_;
   }
 
-  const absl::optional<std::vector<net::HostPortPair>>& result_hosts() const {
+  const std::optional<std::vector<net::HostPortPair>>& result_hosts() const {
     DCHECK(complete_);
     return result_hosts_;
   }
 
-  const absl::optional<net::HostResolverEndpointResults>&
+  const std::optional<net::HostResolverEndpointResults>&
   endpoint_results_with_metadata() const {
     DCHECK(complete_);
     return endpoint_results_with_metadata_;
@@ -141,10 +141,10 @@ class TestResolveHostClient : public mojom::ResolveHostClient {
   bool complete_;
   int top_level_result_error_;
   int result_error_;
-  absl::optional<net::AddressList> result_addresses_;
-  absl::optional<std::vector<std::string>> result_text_;
-  absl::optional<std::vector<net::HostPortPair>> result_hosts_;
-  absl::optional<net::HostResolverEndpointResults>
+  std::optional<net::AddressList> result_addresses_;
+  std::optional<std::vector<std::string>> result_text_;
+  std::optional<std::vector<net::HostPortPair>> result_hosts_;
+  std::optional<net::HostResolverEndpointResults>
       endpoint_results_with_metadata_;
   const raw_ptr<base::RunLoop> run_loop_;
 };
@@ -515,8 +515,9 @@ TEST_F(HostResolverTest, GetEndpointResultsWithMetadata) {
   expected_endpoint_results[0].metadata = expected_with_https_endpoint_metadata;
 
   EXPECT_EQ(net::OK, without_https_client.result_error());
-  EXPECT_THAT(without_https_client.endpoint_results_with_metadata(),
-              absl::nullopt);
+  EXPECT_THAT(
+      without_https_client.endpoint_results_with_metadata(),
+      testing::AnyOf(std::nullopt, testing::Optional(testing::IsEmpty())));
 
   EXPECT_EQ(net::OK, with_https_client.result_error());
   EXPECT_THAT(with_https_client.endpoint_results_with_metadata(),
@@ -918,7 +919,9 @@ TEST_F(HostResolverTest, Failure_Sync) {
   EXPECT_EQ(net::ERR_NAME_NOT_RESOLVED,
             response_client.top_level_result_error());
   EXPECT_EQ(net::ERR_NAME_NOT_RESOLVED, response_client.result_error());
-  EXPECT_FALSE(response_client.result_addresses());
+  EXPECT_THAT(
+      response_client.result_addresses(),
+      testing::AnyOf(std::nullopt, testing::Optional(testing::IsEmpty())));
   EXPECT_EQ(0u, resolver.GetNumOutstandingRequestsForTesting());
 }
 
@@ -951,7 +954,9 @@ TEST_F(HostResolverTest, Failure_Async) {
   run_loop.Run();
 
   EXPECT_EQ(net::ERR_NAME_NOT_RESOLVED, response_client.result_error());
-  EXPECT_FALSE(response_client.result_addresses());
+  EXPECT_THAT(
+      response_client.result_addresses(),
+      testing::AnyOf(std::nullopt, testing::Optional(testing::IsEmpty())));
   EXPECT_TRUE(control_handle_closed);
   EXPECT_EQ(0u, resolver.GetNumOutstandingRequestsForTesting());
 }
@@ -1112,7 +1117,9 @@ TEST_F(HostResolverTest, Cancellation) {
   // On cancellation, should receive an ERR_FAILED result, and the internal
   // resolver request should have been cancelled.
   EXPECT_EQ(net::ERR_ABORTED, response_client.result_error());
-  EXPECT_FALSE(response_client.result_addresses());
+  EXPECT_THAT(
+      response_client.result_addresses(),
+      testing::AnyOf(std::nullopt, testing::Optional(testing::IsEmpty())));
   EXPECT_EQ(1, inner_resolver->num_cancellations());
   EXPECT_TRUE(control_handle_closed);
   EXPECT_EQ(0u, resolver.GetNumOutstandingRequestsForTesting());
@@ -1201,7 +1208,9 @@ TEST_F(HostResolverTest, DestroyResolver) {
   // On context destruction, should receive an ERR_FAILED result, and the
   // internal resolver request should have been cancelled.
   EXPECT_EQ(net::ERR_FAILED, response_client.result_error());
-  EXPECT_FALSE(response_client.result_addresses());
+  EXPECT_THAT(
+      response_client.result_addresses(),
+      testing::AnyOf(std::nullopt, testing::Optional(testing::IsEmpty())));
   EXPECT_EQ(1, inner_resolver->num_cancellations());
   EXPECT_TRUE(control_handle_closed);
 }
@@ -1299,6 +1308,7 @@ TEST_F(HostResolverTest, Binding) {
 
   HostResolver resolver(resolver_remote.BindNewPipeAndPassReceiver(),
                         std::move(shutdown_callback), inner_resolver.get(),
+                        /*owned_internal_resolver=*/nullptr,
                         net::NetLog::Get());
 
   base::RunLoop run_loop;
@@ -1341,6 +1351,7 @@ TEST_F(HostResolverTest, CloseBinding) {
 
   HostResolver resolver(resolver_remote.BindNewPipeAndPassReceiver(),
                         std::move(shutdown_callback), inner_resolver.get(),
+                        /*owned_internal_resolver=*/nullptr,
                         net::NetLog::Get());
 
   ASSERT_EQ(0, inner_resolver->num_cancellations());
@@ -1368,7 +1379,9 @@ TEST_F(HostResolverTest, CloseBinding) {
 
   // Request should be cancelled.
   EXPECT_EQ(net::ERR_FAILED, response_client.result_error());
-  EXPECT_FALSE(response_client.result_addresses());
+  EXPECT_THAT(
+      response_client.result_addresses(),
+      testing::AnyOf(std::nullopt, testing::Optional(testing::IsEmpty())));
   EXPECT_TRUE(control_handle_closed);
   EXPECT_EQ(1, inner_resolver->num_cancellations());
   EXPECT_EQ(0u, resolver.GetNumOutstandingRequestsForTesting());
@@ -1389,6 +1402,7 @@ TEST_F(HostResolverTest, CloseBinding_SubsequentRequest) {
 
   HostResolver resolver(resolver_remote.BindNewPipeAndPassReceiver(),
                         std::move(shutdown_callback), inner_resolver.get(),
+                        /*owned_internal_resolver=*/nullptr,
                         net::NetLog::Get());
 
   base::RunLoop run_loop;
@@ -1452,7 +1466,9 @@ TEST_F(HostResolverTest, IsSpeculative) {
   run_loop.Run();
 
   EXPECT_EQ(net::OK, response_client.result_error());
-  EXPECT_FALSE(response_client.result_addresses());
+  EXPECT_THAT(
+      response_client.result_addresses(),
+      testing::AnyOf(std::nullopt, testing::Optional(testing::IsEmpty())));
   EXPECT_EQ(0u, resolver.GetNumOutstandingRequestsForTesting());
 }
 
@@ -1502,7 +1518,9 @@ TEST_F(HostResolverTest, TextResults) {
   run_loop.Run();
 
   EXPECT_EQ(net::OK, response_client.result_error());
-  EXPECT_FALSE(response_client.result_addresses());
+  EXPECT_THAT(
+      response_client.result_addresses(),
+      testing::AnyOf(std::nullopt, testing::Optional(testing::IsEmpty())));
   EXPECT_THAT(response_client.result_text(),
               testing::Optional(testing::ElementsAreArray(kTextRecords)));
   EXPECT_FALSE(response_client.result_hosts());
@@ -1545,7 +1563,9 @@ TEST_F(HostResolverTest, HostResults) {
   run_loop.Run();
 
   EXPECT_EQ(net::OK, response_client.result_error());
-  EXPECT_FALSE(response_client.result_addresses());
+  EXPECT_THAT(
+      response_client.result_addresses(),
+      testing::AnyOf(std::nullopt, testing::Optional(testing::IsEmpty())));
   EXPECT_FALSE(response_client.result_text());
   EXPECT_THAT(response_client.result_hosts(),
               testing::Optional(testing::UnorderedElementsAre(

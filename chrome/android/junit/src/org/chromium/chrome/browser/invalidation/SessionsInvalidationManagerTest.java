@@ -7,14 +7,16 @@ package org.chromium.chrome.browser.invalidation;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
-import static org.mockito.MockitoAnnotations.initMocks;
 
 import android.app.Activity;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 import org.robolectric.annotation.Config;
 
@@ -27,26 +29,21 @@ import org.chromium.chrome.browser.recent_tabs.ForeignSessionHelper;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Tests for the {@link SessionsInvalidationManager}.
- */
+/** Tests for the {@link SessionsInvalidationManager}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class SessionsInvalidationManagerTest {
-    @Mock
-    private ResumableDelayedTaskRunner mResumableDelayedTaskRunner;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private ResumableDelayedTaskRunner mResumableDelayedTaskRunner;
 
-    @Mock
-    private Profile mProfile;
+    @Mock private Profile mProfile;
 
-    @Mock
-    private ForeignSessionHelper mForeignSessionHelper;
+    @Mock private ForeignSessionHelper mForeignSessionHelper;
 
     private Activity mActivity;
 
     @Before
     public void setup() {
-        initMocks(this);
         mActivity = Robolectric.buildActivity(Activity.class).setup().get();
     }
 
@@ -74,9 +71,7 @@ public class SessionsInvalidationManagerTest {
         assertTrue(listenerCallbackCalled.get());
     }
 
-    /**
-     * Test that timer pauses when the application goes to the background.
-     */
+    /** Test that timer pauses when the application goes to the background. */
     @Test
     public void testTimerPausesWhenTheApplicationPauses() {
         SessionsInvalidationManager manager =

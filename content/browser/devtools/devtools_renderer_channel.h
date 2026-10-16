@@ -8,6 +8,7 @@
 #include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
@@ -24,7 +25,7 @@ namespace content {
 class DevToolsAgentHostImpl;
 class DevToolsSession;
 class RenderFrameHostImpl;
-class WorkerDevToolsAgentHost;
+class WorkerOrWorkletDevToolsAgentHost;
 
 // This class encapsulates a connection to blink::mojom::DevToolsAgent
 // in the renderer (either RenderFrame or some kind of worker).
@@ -57,6 +58,7 @@ class DevToolsRendererChannel : public blink::mojom::DevToolsAgentHost {
       RenderFrameHostImpl* frame_host);
   void AttachSession(DevToolsSession* session);
   void InspectElement(const gfx::Point& point);
+  using GetUniqueFormCallback = base::OnceCallback<void(uint64_t)>;
   void ForceDetachWorkerSessions();
 
   using ChildTargetCreatedCallback =
@@ -77,6 +79,9 @@ class DevToolsRendererChannel : public blink::mojom::DevToolsAgentHost {
       bool waiting_for_debugger,
       blink::mojom::DevToolsExecutionContextType context_type) override;
   void ChildTargetDestroyed(DevToolsAgentHostImpl*);
+  void MainThreadDebuggerPaused() override;
+  void MainThreadDebuggerResumed() override;
+  void BringToForeground() override;
 
   void CleanupConnection();
   void SetRendererInternal(blink::mojom::DevToolsAgent* agent,
@@ -85,15 +90,16 @@ class DevToolsRendererChannel : public blink::mojom::DevToolsAgentHost {
                            bool force_using_io);
   void ReportChildTargetsCallback();
 
-  DevToolsAgentHostImpl* owner_;
+  raw_ptr<DevToolsAgentHostImpl> owner_;
   mojo::Receiver<blink::mojom::DevToolsAgentHost> receiver_{this};
   mojo::AssociatedReceiver<blink::mojom::DevToolsAgentHost>
       associated_receiver_{this};
   mojo::Remote<blink::mojom::DevToolsAgent> agent_remote_;
   mojo::AssociatedRemote<blink::mojom::DevToolsAgent> associated_agent_remote_;
   int process_id_;
-  RenderFrameHostImpl* frame_host_ = nullptr;
-  base::flat_set<WorkerDevToolsAgentHost*> child_targets_;
+  raw_ptr<RenderFrameHostImpl> frame_host_ = nullptr;
+  base::flat_set<raw_ptr<WorkerOrWorkletDevToolsAgentHost, CtnExperimental>>
+      child_targets_;
   ChildTargetCreatedCallback child_target_created_callback_;
   bool wait_for_debugger_ = false;
   base::OnceClosure set_report_completion_callback_;

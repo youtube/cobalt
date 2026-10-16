@@ -4,11 +4,14 @@
 
 #include "ash/accelerators/accelerator_commands.h"
 
-#include "accelerator_notifications.h"
-#include "ash/accessibility/accessibility_controller_impl.h"
+#include <algorithm>
+#include <optional>
+
+#include "ash/accelerators/accelerator_lookup.h"
+#include "ash/accelerators/accelerator_notifications.h"
+#include "ash/accessibility/accessibility_controller.h"
 #include "ash/accessibility/magnifier/docked_magnifier_controller.h"
 #include "ash/accessibility/magnifier/fullscreen_magnifier_controller.h"
-#include "ash/ambient/ambient_controller.h"
 #include "ash/app_list/app_list_controller_impl.h"
 #include "ash/assistant/assistant_controller_impl.h"
 #include "ash/capture_mode/capture_mode_camera_controller.h"
@@ -20,20 +23,24 @@
 #include "ash/display/display_move_window_util.h"
 #include "ash/display/privacy_screen_controller.h"
 #include "ash/display/screen_orientation_controller.h"
-#include "ash/focus_cycler.h"
+#include "ash/focus/focus_cycler.h"
 #include "ash/frame/non_client_frame_view_ash.h"
 #include "ash/game_dashboard/game_dashboard_controller.h"
+#include "ash/glanceables/glanceables_controller.h"
 #include "ash/ime/ime_controller_impl.h"
 #include "ash/keyboard/keyboard_controller_impl.h"
 #include "ash/media/media_controller_impl.h"
-#include "ash/public/cpp/ambient/ambient_client.h"
+#include "ash/public/cpp/accelerator_actions.h"
+#include "ash/public/cpp/annotator/annotator_controller_base.h"
 #include "ash/public/cpp/app_types_util.h"
 #include "ash/public/cpp/assistant/assistant_state.h"
+#include "ash/public/cpp/capture_mode/capture_mode_api.h"
 #include "ash/public/cpp/new_window_delegate.h"
-#include "ash/public/cpp/projector/projector_controller.h"
 #include "ash/public/cpp/system/toast_data.h"
+#include "ash/quick_insert/quick_insert_controller.h"
 #include "ash/root_window_controller.h"
 #include "ash/rotator/window_rotation.h"
+#include "ash/scanner/scanner_metrics.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/shelf/shelf.h"
 #include "ash/shelf/shelf_focus_cycler.h"
@@ -47,11 +54,14 @@
 #include "ash/system/notification_center/notification_center_tray.h"
 #include "ash/system/palette/palette_tray.h"
 #include "ash/system/power/power_button_controller.h"
+#include "ash/system/privacy_hub/camera_privacy_switch_controller.h"
+#include "ash/system/privacy_hub/privacy_hub_controller.h"
 #include "ash/system/status_area_widget.h"
 #include "ash/system/time/calendar_metrics.h"
 #include "ash/system/time/calendar_model.h"
 #include "ash/system/toast/toast_manager_impl.h"
 #include "ash/system/tray/system_tray_notifier.h"
+#include "ash/system/tray/tray_background_view.h"
 #include "ash/system/unified/date_tray.h"
 #include "ash/system/unified/unified_system_tray.h"
 #include "ash/system/unified/unified_system_tray_bubble.h"
@@ -62,26 +72,43 @@
 #include "ash/wm/mru_window_tracker.h"
 #include "ash/wm/overview/overview_controller.h"
 #include "ash/wm/overview/overview_session.h"
+#include "ash/wm/overview/overview_utils.h"
+#include "ash/wm/pip/pip_controller.h"
 #include "ash/wm/screen_pinning_controller.h"
-#include "ash/wm/tablet_mode/tablet_mode_multitask_menu_event_handler.h"
+#include "ash/wm/snap_group/snap_group.h"
+#include "ash/wm/snap_group/snap_group_controller.h"
+#include "ash/wm/snap_group/snap_group_metrics.h"
+#include "ash/wm/splitview/layout_divider_controller.h"
+#include "ash/wm/splitview/split_view_utils.h"
+#include "ash/wm/tablet_mode/tablet_mode_controller.h"
+#include "ash/wm/tablet_mode/tablet_mode_multitask_menu_controller.h"
 #include "ash/wm/tablet_mode/tablet_mode_window_manager.h"
+#include "ash/wm/tile_group/window_tiling_controller.h"
 #include "ash/wm/window_cycle/window_cycle_controller.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_util.h"
 #include "ash/wm/wm_event.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
-#include "base/ranges/algorithm.h"
+#include "base/numerics/ranges.h"
+#include "base/time/time.h"
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
+#include "chromeos/ash/components/dbus/biod/fake_biod_client.h"
 #include "chromeos/ash/services/assistant/public/cpp/assistant_enums.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "chromeos/ui/base/display_util.h"
 #include "chromeos/ui/base/window_properties.h"
+#include "chromeos/ui/frame/caption_buttons/frame_caption_button_container_view.h"
 #include "chromeos/ui/frame/caption_buttons/frame_size_button.h"
+#include "chromeos/ui/frame/frame_utils.h"
 #include "chromeos/ui/wm/desks/chromeos_desks_histogram_enums.h"
 #include "chromeos/ui/wm/window_util.h"
 #include "components/prefs/pref_service.h"
+#include "components/session_manager/session_manager_types.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/base/emoji/emoji_panel_helper.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -94,8 +121,9 @@
 #include "ui/display/screen.h"
 #include "ui/display/util/display_util.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/message_center/message_center.h"
+#include "ui/strings/grit/ui_strings.h"
 #include "ui/views/widget/widget.h"
-#include "ui/views/window/frame_caption_button.h"
 #include "ui/wm/core/window_animations.h"
 #include "ui/wm/core/window_util.h"
 
@@ -105,6 +133,7 @@ namespace ash {
 const char kAccelWindowSnap[] = "Ash.Accelerators.WindowSnap";
 const char kAccelRotation[] = "Ash.Accelerators.Rotation.Usage";
 const char kAccelActivateDeskByIndex[] = "Ash.Accelerators.ActivateDeskByIndex";
+const char kAccelToggleQuickInsert[] = "Ash.Accelerators.TogglePicker.Action";
 
 namespace accelerators {
 
@@ -121,6 +150,9 @@ constexpr char kAssistantErrorToastId[] = "assistant_error";
 // Toast ID for the notification center tray "No notifications" toast.
 constexpr char kNotificationCenterTrayNoNotificationsToastId[] =
     "notification_center_tray_toast_ids.no_notifications";
+// Toast IDs for the Toggle Camera Allowed shortcut.
+constexpr char kToggleCameraToastId[] = "toggle_camera_toast";
+constexpr char kCameraForceDisabledToastId[] = "camera_force_disabled_toast";
 
 // These values are written to logs.  New enum values can be added, but existing
 // enums must never be renumbered or deleted and reused.
@@ -145,6 +177,14 @@ enum class ActivateDeskAcceleratorAction {
   kMaxValue = kDesk8,
 };
 
+// Record what action is triggered by pressing toggle Quick Insert.
+// The enum value is 1:1 mapped to what's defined in enums.xml.
+enum class ToggleQuickInsertAction {
+  kToggleCapsLock = 0,
+  kToggleQuickInsert = 1,
+  kMaxValue = kToggleQuickInsert,
+};
+
 void RecordRotationAcceleratorAction(const RotationAcceleratorAction& action) {
   UMA_HISTOGRAM_ENUMERATION(kAccelRotation, action);
 }
@@ -157,6 +197,11 @@ void RecordActivateDeskByIndexAcceleratorAction(
 void RecordWindowSnapAcceleratorAction(
     const WindowSnapAcceleratorAction& action) {
   UMA_HISTOGRAM_ENUMERATION(kAccelWindowSnap, action);
+}
+
+void RecordToggleQuickInsertAcceleratorAction(
+    const ToggleQuickInsertAction& action) {
+  UMA_HISTOGRAM_ENUMERATION(kAccelToggleQuickInsert, action);
 }
 
 display::Display::Rotation GetNextRotationInClamshell(
@@ -172,14 +217,13 @@ display::Display::Rotation GetNextRotationInClamshell(
       return display::Display::ROTATE_0;
   }
   NOTREACHED() << "Unknown rotation:" << current;
-  return display::Display::ROTATE_0;
 }
 
 display::Display::Rotation GetNextRotationInTabletMode(
     int64_t display_id,
     display::Display::Rotation current) {
   Shell* shell = Shell::Get();
-  DCHECK(shell->tablet_mode_controller()->InTabletMode());
+  DCHECK(display::Screen::GetScreen()->InTabletMode());
 
   if (!display::HasInternalDisplay() ||
       display_id != display::Display::InternalDisplayId()) {
@@ -227,7 +271,6 @@ display::Display::Rotation GetNextRotationInTabletMode(
                              : display::Display::ROTATE_0;
   }
   NOTREACHED() << "Unknown rotation:" << current;
-  return display::Display::ROTATE_0;
 }
 
 views::Widget* FindPipWidget() {
@@ -256,15 +299,14 @@ int64_t GetDisplayIdForRotation() {
 
 void RotateScreenImpl() {
   auto* shell = Shell::Get();
-  const bool in_tablet_mode =
-      Shell::Get()->tablet_mode_controller()->InTabletMode();
   const int64_t display_id = GetDisplayIdForRotation();
   const display::ManagedDisplayInfo& display_info =
       shell->display_manager()->GetDisplayInfo(display_id);
   const auto active_rotation = display_info.GetActiveRotation();
   const auto next_rotation =
-      in_tablet_mode ? GetNextRotationInTabletMode(display_id, active_rotation)
-                     : GetNextRotationInClamshell(active_rotation);
+      display::Screen::GetScreen()->InTabletMode()
+          ? GetNextRotationInTabletMode(display_id, active_rotation)
+          : GetNextRotationInClamshell(active_rotation);
   if (active_rotation == next_rotation)
     return;
 
@@ -361,26 +403,16 @@ void ShowToast(const std::string& id,
   Shell::Get()->toast_manager()->Show(std::move(toast));
 }
 
-void HandleToggleSystemTrayBubbleInternal(bool focus_message_center) {
-  aura::Window* target_root = Shell::GetRootWindowForNewWindows();
-  UnifiedSystemTray* tray = RootWindowController::ForWindow(target_root)
-                                ->GetStatusAreaWidget()
-                                ->unified_system_tray();
-  if (tray->IsBubbleShown()) {
-    tray->CloseBubble();
-  } else {
-    tray->ShowBubble();
-    tray->ActivateBubble();
-
-    if (focus_message_center)
-      tray->FocusMessageCenter(false, true);
-  }
-}
-
 // Enters capture mode image type with |source|.
 void EnterImageCaptureMode(CaptureModeSource source,
                            CaptureModeEntryType entry_type) {
   auto* capture_mode_controller = CaptureModeController::Get();
+  if (!capture_mode_controller->SupportsBehaviorChange(entry_type)) {
+    // If capture mode session is already active with the default behavior,
+    // disallow changing the source. This is needed even if `Start()` is a
+    // no-op, since the session is already active. See http://b/252343022.
+    return;
+  }
   capture_mode_controller->SetSource(source);
   capture_mode_controller->SetType(CaptureModeType::kImage);
   capture_mode_controller->Start(entry_type);
@@ -415,6 +447,60 @@ aura::Window* GetTargetWindow() {
   return window->IsVisible() ? window : nullptr;
 }
 
+// Returns the eligible independent windows for Snap Group creation.
+std::optional<std::pair<aura::Window*, aura::Window*>>
+GetIndependentWindowPairForSnapGroupCreation() {
+  std::optional<std::pair<aura::Window*, aura::Window*>> window_pair;
+  if (IsInOverviewSession()) {
+    return window_pair;
+  }
+
+  SnapGroupController* snap_group_controller = SnapGroupController::Get();
+  if (!snap_group_controller) {
+    return window_pair;
+  }
+
+  aura::Window* root_window = window_util::GetRootWindowAt(
+      display::Screen::GetScreen()->GetCursorScreenPoint());
+  aura::Window::Windows windows = GetActiveDeskAppWindowsInZOrder(root_window);
+  aura::Window::Windows window_pair_list;
+  for (size_t i = 0; i < windows.size() && window_pair_list.size() < 2; i++) {
+    aura::Window* window = windows[i];
+    WindowState* window_state = WindowState::Get(window);
+    if (!window->IsVisible() || window_state->IsMinimized() ||
+        desks_util::IsWindowVisibleOnAllWorkspaces(window)) {
+      continue;
+    }
+
+    // Upon finding a Snap Group, further iteration is unnecessary. Any windows
+    // appearing later in the vector will be hidden behind the group.
+    if (snap_group_controller->GetSnapGroupForGivenWindow(window)) {
+      break;
+    }
+
+    window_pair_list.push_back(window);
+  }
+
+  if (window_pair_list.size() == 2) {
+    window_pair =
+        std::make_pair(window_pair_list.at(0), window_pair_list.at(1));
+  }
+
+  return window_pair;
+}
+
+void ToggleTray(TrayBackgroundView* tray) {
+  if (!tray || !tray->GetVisible()) {
+    // Do nothing when the tray is not being shown.
+    return;
+  }
+  if (tray->GetBubbleView()) {
+    tray->CloseBubble();
+  } else {
+    tray->ShowBubble();
+  }
+}
+
 }  // namespace
 
 bool CanActivateTouchHud() {
@@ -425,9 +511,9 @@ bool CanCreateNewIncognitoWindow() {
   // Guest mode does not use incognito windows. The browser may have other
   // restrictions on incognito mode (e.g. enterprise policy) but those are rare.
   // For non-guest mode, consume the key and defer the decision to the browser.
-  absl::optional<user_manager::UserType> user_type =
+  std::optional<user_manager::UserType> user_type =
       Shell::Get()->session_controller()->GetUserType();
-  return user_type && *user_type != user_manager::USER_TYPE_GUEST;
+  return user_type && *user_type != user_manager::UserType::kGuest;
 }
 
 bool CanCycleInputMethod() {
@@ -474,6 +560,95 @@ bool CanLock() {
   return Shell::Get()->session_controller()->CanLockScreen();
 }
 
+bool CanCreateSnapGroup() {
+  return SnapGroupController::Get();
+}
+
+void CreateSnapGroup() {
+  SnapGroupController* snap_group_controller = SnapGroupController::Get();
+  CHECK(snap_group_controller);
+
+  auto maybe_create_snap_group =
+      [&](aura::Window* window1, aura::Window* window2,
+          std::optional<base::TimeTicks> carry_over_creation_time) {
+        if (auto* snap_group = snap_group_controller->AddSnapGroup(
+                window1, window2, /*replace=*/false,
+                carry_over_creation_time)) {
+          // TODO(b/346624805): See if we can move this to `AddSnapGroup()`.
+          // Currently needed since multiple places can refresh snap bounds.
+          snap_group->RefreshSnapGroup();
+        }
+        if (snap_group_controller->AreWindowsInSnapGroup(window1, window2)) {
+          Shell::Get()->accessibility_controller()->TriggerAccessibilityAlert(
+              AccessibilityAlert::SNAP_GROUP_CREATION);
+        }
+      };
+
+  // Phase 1: Find the topmost two independent windows snapped on the opposite
+  // sides.
+  const std::optional<std::pair<aura::Window*, aura::Window*>>
+      independent_windows = GetIndependentWindowPairForSnapGroupCreation();
+  if (independent_windows.has_value()) {
+    aura::Window* window1 = independent_windows->first;
+    aura::Window* window2 = independent_windows->second;
+    const WindowState* window1_state = WindowState::Get(window1);
+    WindowStateType window1_state_type = window1_state->GetStateType();
+    const auto window1_snap_ratio = window1_state->snap_ratio();
+
+    const WindowState* window2_state = WindowState::Get(window2);
+    WindowStateType window2_state_type = window2_state->GetStateType();
+    const auto window2_snap_ratio = window2_state->snap_ratio();
+
+    const bool snap_ratio_sum_equal_to_one =
+        window1_snap_ratio.has_value() && window2_snap_ratio.has_value() &&
+        base::IsApproximatelyEqual(*window1_snap_ratio + *window2_snap_ratio,
+                                   1.f, std::numeric_limits<float>::epsilon());
+
+    if (snap_ratio_sum_equal_to_one) {
+      if (window1_state_type == WindowStateType::kPrimarySnapped &&
+          window2_state_type == WindowStateType::kSecondarySnapped) {
+        maybe_create_snap_group(window1, window2, std::nullopt);
+        return;
+      }
+
+      if (window1_state_type == WindowStateType::kSecondarySnapped &&
+          window2_state_type == WindowStateType::kPrimarySnapped) {
+        maybe_create_snap_group(window2, window1, std::nullopt);
+        return;
+      }
+    }
+  }
+
+  // Phase 2: Find topmost visible snapped window and a Snap Group underneath to
+  // perform snap to replace.
+  const std::optional<std::pair<aura::Window*, aura::Window*>>
+      snap_to_replace_window_pair =
+          snap_group_controller
+              ->GetWindowPairForSnapToReplaceWithKeyboardShortcut();
+  if (!snap_to_replace_window_pair.has_value()) {
+    return;
+  }
+
+  SnapGroup* to_be_replaced_snap_group = nullptr;
+  for (aura::Window* window : {snap_to_replace_window_pair->first,
+                               snap_to_replace_window_pair->second}) {
+    if (SnapGroup* snap_group =
+            snap_group_controller->GetSnapGroupForGivenWindow(window)) {
+      to_be_replaced_snap_group = snap_group;
+      break;
+    }
+  }
+
+  const base::TimeTicks carry_over_creation_time =
+      to_be_replaced_snap_group->carry_over_creation_time();
+  snap_group_controller->RemoveSnapGroup(to_be_replaced_snap_group,
+                                         SnapGroupExitPoint::kSnapToReplace);
+
+  maybe_create_snap_group(snap_to_replace_window_pair->first,
+                          snap_to_replace_window_pair->second,
+                          carry_over_creation_time);
+}
+
 bool CanMinimizeTopWindowOnBack() {
   return window_util::ShouldMinimizeTopWindowOnBack();
 }
@@ -487,8 +662,17 @@ bool CanPerformMagnifierZoom() {
          Shell::Get()->docked_magnifier_controller()->GetEnabled();
 }
 
+bool CanResizePipWindow() {
+  return Shell::Get()->pip_controller()->CanResizePip();
+}
+
+bool CanToggleGeminiApp() {
+  return features::IsAppLaunchShortcutEnabled();
+}
+
 bool CanScreenshot(bool take_screenshot) {
-  // |TAKE_SCREENSHOT| is allowed when user session is blocked.
+  // |AcceleratorAction::kTakeScreenshot| is allowed when user session is
+  // blocked.
   return take_screenshot ||
          !Shell::Get()->session_controller()->IsUserSessionBlocked();
 }
@@ -497,42 +681,46 @@ bool CanShowStylusTools() {
   return GetPaletteTray()->ShouldShowPalette();
 }
 
-bool CanStartAmbientMode() {
-  return AmbientClient::Get() && AmbientClient::Get()->IsAmbientModeAllowed();
+bool CanStopScreenRecording() {
+  return CaptureModeController::Get()->is_recording_in_progress();
+}
+
+bool CanStartSunfishSession() {
+  return CanShowSunfishOrScannerUi() &&
+         !Shell::Get()->session_controller()->IsUserSessionBlocked();
 }
 
 bool CanSwapPrimaryDisplay() {
   return display::Screen::GetScreen()->GetNumDisplays() > 1;
 }
 
-bool CanToggleDictation() {
-  return Shell::Get()->accessibility_controller()->dictation().enabled();
+bool CanTilingWindowResize() {
+  if (!features::IsTilingWindowResizeEnabled()) {
+    return false;
+  }
+  auto* controller = Shell::Get()->window_tiling_controller();
+  return controller && controller->CanTilingResize(GetTargetWindow());
+}
+
+bool CanEnableOrToggleDictation() {
+  return true;
 }
 
 bool CanToggleFloatingWindow() {
-  if (!chromeos::wm::features::IsWindowLayoutMenuEnabled()) {
-    return false;
-  }
   return GetTargetWindow() != nullptr;
 }
 
 bool CanToggleGameDashboard() {
-  if (!features::IsGameDashboardEnabled()) {
-    return false;
-  }
   aura::Window* window = GetTargetWindow();
-  return window && GameDashboardController::Get()->IsSupported(window);
+  return window && GameDashboardController::ReadyForAccelerator(window);
 }
 
 bool CanToggleMultitaskMenu() {
-  if (!chromeos::wm::features::IsWindowLayoutMenuEnabled()) {
-    return false;
-  }
   aura::Window* window = GetTargetWindow();
   if (!window) {
     return false;
   }
-  if (Shell::Get()->tablet_mode_controller()->InTabletMode()) {
+  if (display::Screen::GetScreen()->InTabletMode()) {
     // In tablet mode, the window just has to be able to maximize.
     return WindowState::Get(window)->CanMaximize();
   }
@@ -552,7 +740,7 @@ bool CanToggleOverview() {
   auto windows =
       Shell::Get()->mru_window_tracker()->BuildMruWindowList(kActiveDesk);
   // Do not toggle overview if there is a window being dragged.
-  for (auto* window : windows) {
+  for (aura::Window* window : windows) {
     if (WindowState::Get(window)->is_dragged())
       return false;
   }
@@ -560,15 +748,14 @@ bool CanToggleOverview() {
 }
 
 bool CanTogglePrivacyScreen() {
+  CHECK(Shell::HasInstance());
   return Shell::Get()->privacy_screen_controller()->IsSupported();
 }
 
 bool CanToggleProjectorMarker() {
-  auto* projector_controller = ProjectorController::Get();
-  if (projector_controller) {
-    return projector_controller->GetAnnotatorAvailability();
-  }
-  return false;
+  auto* annotator_controller = AnnotatorControllerBase::Get();
+  return annotator_controller &&
+         annotator_controller->GetAnnotatorAvailability();
 }
 
 bool CanToggleResizeLockMenu() {
@@ -597,6 +784,10 @@ bool CanWindowSnap() {
   return window_state && window_state->IsUserPositionable();
 }
 
+void AccessibilityAction() {
+  Shell::Get()->accessibility_controller()->PerformAccessibilityAction();
+}
+
 void ActivateDesk(bool activate_left) {
   auto* desks_controller = DesksController::Get();
   const bool success = desks_controller->ActivateAdjacentDesk(
@@ -612,9 +803,9 @@ void ActivateDesk(bool activate_left) {
 }
 
 void ActivateDeskAtIndex(AcceleratorAction action) {
-  DCHECK_GE(action, DESKS_ACTIVATE_0);
-  DCHECK_LE(action, DESKS_ACTIVATE_7);
-  const size_t target_index = action - DESKS_ACTIVATE_0;
+  DCHECK_GE(action, AcceleratorAction::kDesksActivate0);
+  DCHECK_LE(action, AcceleratorAction::kDesksActivate7);
+  const size_t target_index = action - AcceleratorAction::kDesksActivate0;
   auto* desks_controller = DesksController::Get();
   // Only 1 desk animation can occur at a time so ignore this action if there's
   // an ongoing desk animation.
@@ -630,8 +821,9 @@ void ActivateDeskAtIndex(AcceleratorAction action) {
         desks[target_index].get(),
         DesksSwitchSource::kIndexedDeskSwitchShortcut);
   } else {
-    for (auto* root : Shell::GetAllRootWindows())
+    for (aura::Window* root : Shell::GetAllRootWindows()) {
       desks_animations::PerformHitTheWallAnimation(root, /*going_left=*/false);
+    }
   }
 }
 
@@ -742,10 +934,6 @@ void LockScreen() {
 }
 
 void MaybeTakePartialScreenshot() {
-  // If a capture mode session is already running, this shortcut will be treated
-  // as a no-op.
-  if (CaptureModeController::Get()->IsActive())
-    return;
   base::RecordAction(base::UserMetricsAction("Accel_Take_Partial_Screenshot"));
   EnterImageCaptureMode(CaptureModeSource::kRegion,
                         CaptureModeEntryType::kAccelTakePartialScreenshot);
@@ -815,7 +1003,7 @@ void MoveActiveItem(bool going_left) {
   const bool in_overview = overview_controller->InOverviewSession();
   if (in_overview) {
     window_to_move =
-        overview_controller->overview_session()->GetHighlightedWindow();
+        overview_controller->overview_session()->GetFocusedWindow();
   } else {
     window_to_move = GetTargetWindow();
   }
@@ -916,6 +1104,35 @@ void OpenHelp() {
   NewWindowDelegate::GetInstance()->OpenGetHelp();
 }
 
+void ToggleGeminiApp() {
+  if (ash::features::IsAppLaunchShortcutEnabled()) {
+    NewWindowDelegate::GetInstance()->ToggleGeminiApp();
+  }
+}
+
+void PerformTilingWindowResize(AcceleratorAction action) {
+  if (!features::IsTilingWindowResizeEnabled()) {
+    return;
+  }
+  auto* controller = Shell::Get()->window_tiling_controller();
+  switch (action) {
+    case kTilingWindowResizeLeft:
+      controller->OnTilingResizeLeft(GetTargetWindow());
+      return;
+    case kTilingWindowResizeRight:
+      controller->OnTilingResizeRight(GetTargetWindow());
+      return;
+    case kTilingWindowResizeUp:
+      controller->OnTilingResizeUp(GetTargetWindow());
+      return;
+    case kTilingWindowResizeDown:
+      controller->OnTilingResizeDown(GetTargetWindow());
+      return;
+    default:
+      return;
+  }
+}
+
 void PowerPressed(bool pressed) {
   Shell::Get()->power_button_controller()->OnPowerButtonEvent(
       pressed, base::TimeTicks());
@@ -958,6 +1175,10 @@ void ResetDisplayZoom() {
   display_manager->ResetDisplayZoom(display.id());
 }
 
+void ResizePipWindow() {
+  Shell::Get()->pip_controller()->HandleKeyboardShortcut();
+}
+
 void RestoreTab() {
   NewWindowDelegate::GetPrimary()->RestoreTab();
 }
@@ -995,6 +1216,8 @@ void RotateScreen() {
     Shell::Get()->accessibility_controller()->ShowConfirmationDialog(
         l10n_util::GetStringUTF16(IDS_ASH_ROTATE_SCREEN_TITLE),
         l10n_util::GetStringUTF16(IDS_ASH_ROTATE_SCREEN_BODY),
+        l10n_util::GetStringUTF16(IDS_ASH_CONTINUE_BUTTON),
+        l10n_util::GetStringUTF16(IDS_APP_CANCEL),
         base::BindOnce(&OnRotationDialogAccepted),
         base::BindOnce(&OnRotationDialogCancelled),
         /*on_close_callback=*/base::DoNothing());
@@ -1016,7 +1239,7 @@ void ShiftPrimaryDisplay() {
   const display::Displays& active_display_list =
       display_manager->active_display_list();
 
-  auto primary_display_iter = base::ranges::find(
+  auto primary_display_iter = std::ranges::find(
       active_display_list, primary_display_id, &display::Display::id);
 
   DCHECK(primary_display_iter != active_display_list.end());
@@ -1032,36 +1255,46 @@ void ShiftPrimaryDisplay() {
       primary_display_iter->id(), true /* throttle */);
 }
 
-void ShowEmojiPicker() {
+void ShowEmojiPicker(const base::TimeTicks accelerator_timestamp) {
   ui::ShowEmojiPanel();
-}
-
-void ShowKeyboardShortcutViewer() {
-  if (features::ShouldOnlyShowNewShortcutApp()) {
-    ShowShortcutCustomizationApp();
-    return;
-  }
-  NewWindowDelegate::GetInstance()->ShowKeyboardShortcutViewer();
 }
 
 void ShowShortcutCustomizationApp() {
   NewWindowDelegate::GetInstance()->ShowShortcutCustomizationApp();
 }
 
-void ShowStylusTools() {
-  GetPaletteTray()->ShowBubble();
-}
-
 void ShowTaskManager() {
   NewWindowDelegate::GetInstance()->ShowTaskManager();
 }
 
+void StartSunfishSession() {
+  RecordScannerFeatureUserState(
+      ScannerFeatureUserState::kSunfishSessionStartedFromKeyboardShortcut);
+  CaptureModeController::Get()->StartSunfishSession();
+}
+
+void StopScreenRecording() {
+  CaptureModeController* controller = CaptureModeController::Get();
+  CHECK(controller->is_recording_in_progress());
+  controller->EndVideoRecording(EndRecordingReason::kKeyboardShortcut);
+}
+
 void Suspend() {
-  chromeos::PowerManagerClient::Get()->RequestSuspend();
+  chromeos::PowerManagerClient::Get()->RequestSuspend(
+      /*wakeup_count=*/std::nullopt, /*duration_secs=*/0,
+      power_manager::REQUEST_SUSPEND_DEFAULT);
 }
 
 void SwitchToNextIme() {
   Shell::Get()->ime_controller()->SwitchToNextIme();
+}
+
+void SwitchToLastUsedIme(bool key_pressed) {
+  if (key_pressed) {
+    Shell::Get()->ime_controller()->SwitchToLastUsedIme();
+  }
+  // Else: consume the Ctrl+Space EventType::kKeyReleased event but do not do
+  // anything.
 }
 
 void ToggleAppList(AppListShowSource show_source,
@@ -1085,10 +1318,6 @@ void TakeScreenshot(bool from_snapshot_key) {
     return;
   }
   capture_mode_controller->CaptureScreenshotsOfAllDisplays();
-}
-
-void ToggleAmbientMode() {
-  Shell::Get()->ambient_controller()->ToggleInSessionUi();
 }
 
 void ToggleAssignToAllDesk() {
@@ -1174,6 +1403,11 @@ void ToggleAssistant() {
     case AssistantAllowedState::DISALLOWED_BY_NO_BINARY:
       // No need to show toast.
       return;
+    case AssistantAllowedState::DISALLOWED_BY_NEW_ENTRY_POINT:
+      // Showing new entry point instead.
+      AssistantUiController::Get()->ShowUi(
+          assistant::AssistantEntryPoint::kHotkey);
+      return;
     case AssistantAllowedState::ALLOWED:
       // Nothing need to do if allowed.
       break;
@@ -1187,8 +1421,21 @@ void ToggleCalendar() {
   aura::Window* target_root = Shell::GetRootWindowForNewWindows();
   StatusAreaWidget* status_area_widget =
       RootWindowController::ForWindow(target_root)->GetStatusAreaWidget();
-  UnifiedSystemTray* tray = status_area_widget->unified_system_tray();
 
+  DateTray* date_tray = status_area_widget->date_tray();
+  GlanceablesController* const glanceables_controller =
+      Shell::Get()->glanceables_controller();
+  if (glanceables_controller &&
+      glanceables_controller->AreGlanceablesAvailable()) {
+    if (date_tray->is_active()) {
+      date_tray->HideGlanceableBubble();
+    } else {
+      date_tray->ShowGlanceableBubble(/*from_keyboard=*/true);
+    }
+    return;
+  }
+
+  UnifiedSystemTray* tray = status_area_widget->unified_system_tray();
   // If currently showing the calendar view, close it.
   if (tray->IsShowingCalendarView()) {
     tray->CloseBubble();
@@ -1209,6 +1456,54 @@ void ToggleCalendar() {
       calendar_metrics::CalendarEventSource::kKeyboard);
 }
 
+void ToggleCameraAllowed() {
+  if (!features::IsToggleCameraShortcutEnabled()) {
+    return;
+  }
+
+  auto* pref_service =
+      Shell::Get()->session_controller()->GetActivePrefService();
+  if (!pref_service) {
+    return;
+  }
+
+  PrivacyHubController* privacy_hub_controller =
+      Shell::Get()->privacy_hub_controller();
+  if (!privacy_hub_controller) {
+    return;
+  }
+
+  CameraPrivacySwitchController* camera_privacy_switch_controller =
+      privacy_hub_controller->camera_controller();
+  if (!camera_privacy_switch_controller) {
+    return;
+  }
+
+  // Camera access may be force-disabled in cases where an admin is using Remote
+  // Desktop to control a user's device. This shortcut should respect that
+  // setting and should not enable the camera in such situations.
+  if (camera_privacy_switch_controller->IsCameraAccessForceDisabled()) {
+    ShowToast(kCameraForceDisabledToastId,
+              ToastCatalogName::kCameraForceDisabled,
+              l10n_util::GetStringUTF16(IDS_ASH_CAMERA_ACCESS_DISABLED));
+    return;
+  }
+
+  // Toggle the value of the pref.
+  const bool wasCameraPreviouslyAllowed =
+      pref_service->GetBoolean(prefs::kUserCameraAllowed);
+  const bool isCameraNowAllowed = !wasCameraPreviouslyAllowed;
+  pref_service->SetBoolean(prefs::kUserCameraAllowed, isCameraNowAllowed);
+
+  if (isCameraNowAllowed) {
+    ShowToast(kToggleCameraToastId, ToastCatalogName::kCameraNowAllowed,
+              l10n_util::GetStringUTF16(IDS_ASH_CAMERA_NOW_ALLOWED));
+  } else {
+    ShowToast(kToggleCameraToastId, ToastCatalogName::kCameraNowAllowed,
+              l10n_util::GetStringUTF16(IDS_ASH_CAMERA_NOW_DISALLOWED));
+  }
+}
+
 void ToggleCapsLock() {
   ImeControllerImpl* ime_controller = Shell::Get()->ime_controller();
   ime_controller->SetCapsLockEnabled(!ime_controller->IsCapsLockEnabled());
@@ -1220,8 +1515,39 @@ void ToggleClipboardHistory(bool is_plain_text_paste) {
       is_plain_text_paste);
 }
 
-void ToggleDictation() {
-  Shell::Get()->accessibility_controller()->ToggleDictationFromSource(
+void ToggleDoNotDisturb() {
+  message_center::MessageCenter* message_center =
+      message_center::MessageCenter::Get();
+  CHECK(message_center);
+  const bool is_quiet_mode = message_center->IsQuietMode();
+  message_center->SetQuietMode(!is_quiet_mode);
+}
+
+void ToggleQuickInsert(base::TimeTicks accelerator_timestamp) {
+  const bool outside_user_session =
+      !Shell::Get()->session_controller()->IsActiveUserSessionStarted();
+  const bool is_oobe = Shell::Get()->session_controller()->GetSessionState() ==
+                       session_manager::SessionState::OOBE;
+  const bool is_modal_window = Shell::IsSystemModalWindowOpen();
+  if (outside_user_session || is_oobe || is_modal_window) {
+    ToggleCapsLock();
+    RecordToggleQuickInsertAcceleratorAction(
+        ToggleQuickInsertAction::kToggleCapsLock);
+    return;
+  }
+
+  CHECK(Shell::Get()->quick_insert_controller());
+  Shell::Get()->quick_insert_controller()->ToggleWidget(accelerator_timestamp);
+  RecordToggleQuickInsertAcceleratorAction(
+      ToggleQuickInsertAction::kToggleQuickInsert);
+}
+
+void EnableSelectToSpeak() {
+  Shell::Get()->accessibility_controller()->EnableSelectToSpeakWithDialog();
+}
+
+void EnableOrToggleDictation() {
+  Shell::Get()->accessibility_controller()->EnableOrToggleDictationFromSource(
       DictationToggleSource::kKeyboard);
 }
 
@@ -1240,7 +1566,7 @@ void ToggleDockedMagnifier() {
 
   DockedMagnifierController* docked_magnifier_controller =
       shell->docked_magnifier_controller();
-  AccessibilityControllerImpl* accessibility_controller =
+  AccessibilityController* accessibility_controller =
       shell->accessibility_controller();
 
   const bool current_enabled = docked_magnifier_controller->GetEnabled();
@@ -1251,7 +1577,8 @@ void ToggleDockedMagnifier() {
     accessibility_controller->ShowConfirmationDialog(
         l10n_util::GetStringUTF16(IDS_ASH_DOCKED_MAGNIFIER_TITLE),
         l10n_util::GetStringUTF16(IDS_ASH_DOCKED_MAGNIFIER_BODY),
-        base::BindOnce([]() {
+        l10n_util::GetStringUTF16(IDS_ASH_CONTINUE_BUTTON),
+        l10n_util::GetStringUTF16(IDS_APP_CANCEL), base::BindOnce([]() {
           Shell::Get()
               ->accessibility_controller()
               ->docked_magnifier()
@@ -1266,7 +1593,6 @@ void ToggleDockedMagnifier() {
 }
 
 void ToggleFloating() {
-  DCHECK(chromeos::wm::features::IsWindowLayoutMenuEnabled());
   aura::Window* window = GetTargetWindow();
   DCHECK(window);
   // `CanFloatWindow` check is placed here rather than
@@ -1309,7 +1635,7 @@ void ToggleFullscreenMagnifier() {
 
   FullscreenMagnifierController* magnification_controller =
       shell->fullscreen_magnifier_controller();
-  AccessibilityControllerImpl* accessibility_controller =
+  AccessibilityController* accessibility_controller =
       shell->accessibility_controller();
 
   const bool current_enabled = magnification_controller->IsEnabled();
@@ -1317,9 +1643,30 @@ void ToggleFullscreenMagnifier() {
       accessibility_controller->fullscreen_magnifier().WasDialogAccepted();
 
   if (!current_enabled && !dialog_ever_accepted) {
+    // Enable fullscreen magnifier before showing the dialog, so that users
+    // can see the dialog more clearly.
+    int title = IDS_ASH_SCREEN_MAGNIFIER_TITLE;
+    std::u16string body =
+        l10n_util::GetStringUTF16(IDS_ASH_SCREEN_MAGNIFIER_BODY);
+    int cancel = IDS_APP_CANCEL;
+    int confirm = IDS_ASH_CONTINUE_BUTTON;
+      Shell::Get()->fullscreen_magnifier_controller()->SetEnabled(true);
+      title = IDS_ASH_SCREEN_MAGNIFIER_DIALOG_TITLE;
+      cancel = IDS_ASH_SCREEN_MAGNIFIER_DIALOG_TURN_OFF_BUTTON;
+      confirm = IDS_ASH_SCREEN_MAGNIFIER_DIALOG_KEEP_ON_BUTTON;
+
+      std::vector<AcceleratorLookup::AcceleratorDetails> zoom_in_details =
+          Shell::Get()->accelerator_lookup()->GetAvailableAcceleratorsForAction(
+              AcceleratorAction::kMagnifierZoomIn);
+      std::vector<AcceleratorLookup::AcceleratorDetails> zoom_out_details =
+          Shell::Get()->accelerator_lookup()->GetAvailableAcceleratorsForAction(
+              AcceleratorAction::kMagnifierZoomOut);
+      if (zoom_in_details.empty() || zoom_out_details.empty()) {
+        body = l10n_util::GetStringUTF16(IDS_ASH_SCREEN_MAGNIFIER_DIALOG_BODY);
+    }
     accessibility_controller->ShowConfirmationDialog(
-        l10n_util::GetStringUTF16(IDS_ASH_SCREEN_MAGNIFIER_TITLE),
-        l10n_util::GetStringUTF16(IDS_ASH_SCREEN_MAGNIFIER_BODY),
+        l10n_util::GetStringUTF16(title), body,
+        l10n_util::GetStringUTF16(confirm), l10n_util::GetStringUTF16(cancel),
         base::BindOnce([]() {
           Shell::Get()
               ->accessibility_controller()
@@ -1327,18 +1674,29 @@ void ToggleFullscreenMagnifier() {
               .SetDialogAccepted();
           SetFullscreenMagnifierEnabled(true);
         }),
-        /*on_cancel_callback=*/base::DoNothing(),
-        /*on_close_callback=*/base::DoNothing());
+        /*on_cancel_callback=*/base::BindOnce([]() {
+          Shell::Get()->fullscreen_magnifier_controller()->SetEnabled(false);
+        }),
+        /*on_close_callback=*/base::BindOnce([]() {
+          Shell::Get()->fullscreen_magnifier_controller()->SetEnabled(false);
+        }));
+    // Center the magnifier on the new dialog. This is done manually because the
+    // dialog focus may change before the AccessibilityCommon extension has
+    // loaded and begun listening for focus events.
+    magnification_controller->HandleMoveMagnifierToRect(
+        accessibility_controller->GetConfirmationDialogBoundsInScreen());
   } else {
     SetFullscreenMagnifierEnabled(!current_enabled);
   }
 }
 
 void ToggleGameDashboard() {
-  DCHECK(features::IsGameDashboardEnabled());
   aura::Window* window = GetTargetWindow();
   DCHECK(window);
-  // TODO(phshah): Connect to Game Dashboard.
+  if (auto* context =
+          GameDashboardController::Get()->GetGameDashboardContext(window)) {
+    context->ToggleMainMenuByAccelerator();
+  }
 }
 
 void ToggleHighContrast() {
@@ -1354,7 +1712,7 @@ void ToggleHighContrast() {
     return;
   }
 
-  AccessibilityControllerImpl* controller = shell->accessibility_controller();
+  AccessibilityController* controller = shell->accessibility_controller();
   const bool current_enabled = controller->high_contrast().enabled();
   const bool dialog_ever_accepted =
       controller->high_contrast().WasDialogAccepted();
@@ -1363,7 +1721,8 @@ void ToggleHighContrast() {
     controller->ShowConfirmationDialog(
         l10n_util::GetStringUTF16(IDS_ASH_HIGH_CONTRAST_TITLE),
         l10n_util::GetStringUTF16(IDS_ASH_HIGH_CONTRAST_BODY),
-        base::BindOnce([]() {
+        l10n_util::GetStringUTF16(IDS_ASH_CONTINUE_BUTTON),
+        l10n_util::GetStringUTF16(IDS_APP_CANCEL), base::BindOnce([]() {
           Shell::Get()
               ->accessibility_controller()
               ->high_contrast()
@@ -1399,16 +1758,7 @@ void ToggleImeMenuBubble() {
   StatusAreaWidget* status_area_widget =
       Shelf::ForWindow(Shell::GetPrimaryRootWindow())->GetStatusAreaWidget();
   if (status_area_widget) {
-    ImeMenuTray* ime_menu_tray = status_area_widget->ime_menu_tray();
-    if (!ime_menu_tray || !ime_menu_tray->GetVisible()) {
-      // Do nothing when Ime tray is not being shown.
-      return;
-    }
-    if (ime_menu_tray->GetBubbleView()) {
-      ime_menu_tray->CloseBubble();
-    } else {
-      ime_menu_tray->ShowBubble();
-    }
+    ToggleTray(status_area_widget->ime_menu_tray());
   }
 }
 
@@ -1452,6 +1802,16 @@ bool ToggleMinimized() {
   return true;
 }
 
+void ToggleMouseKeys() {
+  Shell::Get()->accessibility_controller()->ToggleMouseKeys();
+}
+
+void ToggleSnapGroupsMinimize() {
+  // TODO(b/333772909): Remove this workaroound to disable shortcut when the
+  // mojom conversion is disabled for deprecated shortcuts.
+  base::DoNothing();
+}
+
 void ToggleResizeLockMenu() {
   aura::Window* window = GetTargetWindow();
   auto* frame_view = NonClientFrameViewAsh::Get(window);
@@ -1459,10 +1819,6 @@ void ToggleResizeLockMenu() {
 }
 
 void ToggleMessageCenterBubble() {
-  if (!features::IsQsRevampEnabled()) {
-    HandleToggleSystemTrayBubbleInternal(/*focus_message_center=*/true);
-    return;
-  }
   aura::Window* target_root = Shell::GetRootWindowForNewWindows();
   NotificationCenterTray* tray = RootWindowController::ForWindow(target_root)
                                      ->GetStatusAreaWidget()
@@ -1491,16 +1847,16 @@ void ToggleMirrorMode() {
 }
 
 void ToggleMultitaskMenu() {
-  DCHECK(chromeos::wm::features::IsWindowLayoutMenuEnabled());
   aura::Window* window = GetTargetWindow();
   DCHECK(window);
-  if (auto* tablet_mode_controller = Shell::Get()->tablet_mode_controller();
-      tablet_mode_controller->InTabletMode()) {
-    auto* tablet_mode_event_handler =
-        tablet_mode_controller->tablet_mode_window_manager()
-            ->tablet_mode_multitask_menu_event_handler();
+  if (display::Screen::GetScreen()->InTabletMode()) {
+    auto* multitask_menu_controller =
+        Shell::Get()
+            ->tablet_mode_controller()
+            ->tablet_mode_window_manager()
+            ->tablet_mode_multitask_menu_controller();
     // Does nothing if the menu is already shown.
-    tablet_mode_event_handler->ShowMultitaskMenu(window);
+    multitask_menu_controller->ShowMultitaskMenu(window);
     return;
   }
   auto* frame_view = NonClientFrameViewAsh::Get(window);
@@ -1528,20 +1884,34 @@ void ToggleOverview() {
 void TogglePrivacyScreen() {
   PrivacyScreenController* controller =
       Shell::Get()->privacy_screen_controller();
-  controller->SetEnabled(
-      !controller->GetEnabled(),
-      PrivacyScreenController::kToggleUISurfaceKeyboardShortcut);
+  controller->SetEnabled(!controller->GetEnabled());
 }
 
 void ToggleProjectorMarker() {
-  auto* projector_controller = ProjectorController::Get();
-  if (projector_controller) {
-    projector_controller->ToggleAnnotationTray();
+  if (auto* annotator_controller = AnnotatorControllerBase::Get()) {
+    annotator_controller->ToggleAnnotationTray();
+  }
+}
+
+void ToggleStylusTools() {
+  StatusAreaWidget* status_area_widget =
+      Shelf::ForWindow(Shell::GetPrimaryRootWindow())->GetStatusAreaWidget();
+  if (status_area_widget) {
+    ToggleTray(status_area_widget->palette_tray());
   }
 }
 
 void ToggleSystemTrayBubble() {
-  HandleToggleSystemTrayBubbleInternal(false /*focus_message_center*/);
+  aura::Window* target_root = Shell::GetRootWindowForNewWindows();
+  UnifiedSystemTray* tray = RootWindowController::ForWindow(target_root)
+                                ->GetStatusAreaWidget()
+                                ->unified_system_tray();
+  if (tray->IsBubbleShown()) {
+    tray->CloseBubble();
+  } else {
+    tray->ShowBubble();
+    tray->ActivateBubble();
+  }
 }
 
 void ToggleUnifiedDesktop() {
@@ -1576,18 +1946,12 @@ void UnpinWindow() {
 
 void VolumeDown() {
   auto* audio_handler = CrasAudioHandler::Get();
-  if (audio_handler->IsOutputMuted()) {
-    audio_handler->SetOutputVolumePercent(0);
-  } else {
-    if (audio_handler->IsOutputVolumeBelowDefaultMuteLevel())
-      audio_handler->SetOutputMute(true);
-    else
-      AcceleratorController::PlayVolumeAdjustmentSound();
-    if (features::IsAudioPeripheralVolumeGranularityEnabled())
-      audio_handler->DecreaseOutputVolumeByOneStep(kStepPercentage);
-    else
-      audio_handler->AdjustOutputVolumeByPercent(-kStepPercentage);
+
+  // Only plays the audio if unmuted.
+  if (!audio_handler->IsOutputMuted()) {
+    AcceleratorController::PlayVolumeAdjustmentSound();
   }
+  audio_handler->DecreaseOutputVolumeByOneStep(kStepPercentage);
 }
 
 void VolumeMute() {
@@ -1595,23 +1959,26 @@ void VolumeMute() {
       true, CrasAudioHandler::AudioSettingsChangeSource::kAccelerator);
 }
 
+void VolumeMuteToggle() {
+  auto* audio_handler = CrasAudioHandler::Get();
+  CHECK(audio_handler);
+  audio_handler->SetOutputMute(
+      !audio_handler->IsOutputMuted(),
+      CrasAudioHandler::AudioSettingsChangeSource::kAccelerator);
+}
+
 void VolumeUp() {
   auto* audio_handler = CrasAudioHandler::Get();
   bool play_sound = false;
   if (audio_handler->IsOutputMuted()) {
     audio_handler->SetOutputMute(false);
-    audio_handler->AdjustOutputVolumeToAudibleLevel();
-    play_sound = true;
-  } else {
-    play_sound = audio_handler->GetOutputVolumePercent() != 100;
-    if (features::IsAudioPeripheralVolumeGranularityEnabled())
-      audio_handler->IncreaseOutputVolumeByOneStep(kStepPercentage);
-    else
-      audio_handler->AdjustOutputVolumeByPercent(kStepPercentage);
   }
+  play_sound = audio_handler->GetOutputVolumePercent() != 100;
+  audio_handler->IncreaseOutputVolumeByOneStep(kStepPercentage);
 
-  if (play_sound)
+  if (play_sound) {
     AcceleratorController::PlayVolumeAdjustmentSound();
+  }
 }
 
 void WindowMinimize() {
@@ -1620,9 +1987,9 @@ void WindowMinimize() {
 
 void WindowSnap(AcceleratorAction action) {
   Shell* shell = Shell::Get();
-  const bool in_tablet = shell->tablet_mode_controller()->InTabletMode();
+  const bool in_tablet = display::Screen::GetScreen()->InTabletMode();
   const bool in_overview = shell->overview_controller()->InOverviewSession();
-  if (action == WINDOW_CYCLE_SNAP_LEFT) {
+  if (action == AcceleratorAction::kWindowCycleSnapLeft) {
     if (in_tablet) {
       RecordWindowSnapAcceleratorAction(
           WindowSnapAcceleratorAction::kCycleLeftSnapInTablet);
@@ -1646,16 +2013,23 @@ void WindowSnap(AcceleratorAction action) {
     }
   }
 
-  const WMEvent event(action == WINDOW_CYCLE_SNAP_LEFT
-                          ? WM_EVENT_CYCLE_SNAP_PRIMARY
-                          : WM_EVENT_CYCLE_SNAP_SECONDARY);
   aura::Window* window = GetTargetWindow();
   DCHECK(window);
 
-  auto* window_state = WindowState::Get(window);
-  window_state->set_snap_action_source(
+  // For displays rotated 90 or 180 degrees, they are considered upside down.
+  // Here, primary snap does not match physical left or top. The accelerators
+  // should always match the physical left or top.
+  const bool physical_left_or_top =
+      (action == AcceleratorAction::kWindowCycleSnapLeft);
+  chromeos::SnapDirection snap_direction =
+      chromeos::GetSnapDirectionForWindow(window, physical_left_or_top);
+
+  const WindowSnapWMEvent event(
+      snap_direction == chromeos::SnapDirection::kPrimary
+          ? WM_EVENT_CYCLE_SNAP_PRIMARY
+          : WM_EVENT_CYCLE_SNAP_SECONDARY,
       WindowSnapActionSource::kKeyboardShortcutToSnap);
-  window_state->OnWMEvent(&event);
+  WindowState::Get(window)->OnWMEvent(&event);
 }
 
 bool ZoomDisplay(bool up) {
@@ -1670,6 +2044,19 @@ bool ZoomDisplay(bool up) {
   display::Display display =
       display::Screen::GetScreen()->GetDisplayNearestPoint(point);
   return display_manager->ZoomDisplay(display.id(), up);
+}
+
+void TouchFingerprintSensor(int finger_id) {
+  // This function only called with [1,3]. If the range is changed in
+  // the caller AcceleratorControllerImpl::PerformAction function then
+  // this should be changed accordingly.
+  DCHECK(1 <= finger_id && finger_id <= 3);
+  FakeBiodClient* client = FakeBiodClient::Get();
+  if (!client) {
+    LOG(ERROR) << "FakeBiod is not initialized.";
+    return;
+  }
+  client->TouchFingerprintSensor(finger_id);
 }
 
 }  // namespace accelerators

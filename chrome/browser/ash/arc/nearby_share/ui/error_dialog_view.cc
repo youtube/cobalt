@@ -8,8 +8,11 @@
 
 #include "ash/frame/non_client_frame_view_ash.h"
 #include "base/functional/callback_forward.h"
+#include "chrome/browser/nearby_sharing/common/nearby_share_features.h"
+#include "chrome/browser/nearby_sharing/common/nearby_share_resource_getter.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/views/view.h"
 
 namespace arc {
@@ -19,13 +22,18 @@ ErrorDialogView::ErrorDialogView(views::View* anchor_view,
     : BaseDialogDelegateView(anchor_view) {
   SetShowTitle(false);
 
-  SetButtons(ui::DIALOG_BUTTON_OK);
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kOk));
   // Set up OK button
-  SetButtonLabel(ui::DIALOG_BUTTON_OK, l10n_util::GetStringUTF16(IDS_CLOSE));
+  SetButtonLabel(ui::mojom::DialogButton::kOk,
+                 l10n_util::GetStringUTF16(IDS_CLOSE));
   SetAcceptCallback(std::move(close_callback));
 
   AddDialogMessage(
-      l10n_util::GetStringUTF16(IDS_ASH_ARC_NEARBY_SHARE_ERROR_DIALOG_MESSAGE));
+      features::IsNameEnabled()
+          ? NearbyShareResourceGetter::GetInstance()->GetStringWithFeatureName(
+                IDS_ASH_ARC_NEARBY_SHARE_ERROR_DIALOG_MESSAGE_PH)
+          : l10n_util::GetStringUTF16(
+                IDS_ASH_ARC_NEARBY_SHARE_ERROR_DIALOG_MESSAGE));
 }
 
 ErrorDialogView::~ErrorDialogView() = default;

@@ -16,6 +16,15 @@
 
 #include <sys/uio.h>
 
+ssize_t __abi_wrap_readv(int fildes, const struct musl_iovec* iov, int iovcnt) {
+  struct iovec platform_iov[iovcnt];
+  for (int i = 0; i < iovcnt; ++i) {
+    platform_iov[i].iov_base = iov[i].iov_base;
+    platform_iov[i].iov_len = iov[i].iov_len;
+  }
+  return readv(fildes, platform_iov, iovcnt);
+}
+
 ssize_t __abi_wrap_writev(int fildes,
                           const struct musl_iovec* iov,
                           int iovcnt) {

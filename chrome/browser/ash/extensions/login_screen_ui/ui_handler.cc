@@ -10,10 +10,11 @@
 #include "ash/public/cpp/login_screen.h"
 #include "ash/public/cpp/login_screen_model.h"
 #include "ash/public/cpp/login_types.h"
-#include "chrome/browser/ash/login/ui/login_screen_extension_ui/create_options.h"
-#include "chrome/browser/ash/login/ui/login_screen_extension_ui/window.h"
+#include "base/trace_event/trace_event.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/ash/login/login_screen_extension_ui/create_options.h"
+#include "chrome/browser/ui/ash/login/login_screen_extension_ui/window.h"
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
 #include "components/session_manager/core/session_manager.h"
 #include "content/public/browser/browser_thread.h"
@@ -40,7 +41,6 @@ const char kErrorNotOnLoginOrLockScreen[] =
 
 const char kExtensionNameImprivata[] = "Imprivata OneSign";
 const char kExtensionNameImprivataTest[] = "LoginScreenUi test extension";
-const char kExtensionNameUnknown[] = "UNKNOWN EXTENSION";
 
 std::string GetHardcodedExtensionName(const extensions::Extension* extension) {
   const extensions::Feature* imprivata_login_screen_extension =
@@ -55,7 +55,6 @@ std::string GetHardcodedExtensionName(const extensions::Extension* extension) {
     return kExtensionNameImprivataTest;
   }
   NOTREACHED();
-  return kExtensionNameUnknown;
 }
 
 bool CanUseLoginScreenUiApi(const extensions::Extension* extension) {
@@ -156,7 +155,7 @@ void UiHandler::RemoveWindowForExtension(const std::string& extension_id) {
 
 void UiHandler::OnWindowClosed(const std::string& extension_id) {
   if (!close_callback_.is_null()) {
-    std::move(close_callback_).Run(/*success=*/true, absl::nullopt);
+    std::move(close_callback_).Run(/*success=*/true, std::nullopt);
     close_callback_.Reset();
   }
 
@@ -178,6 +177,7 @@ bool UiHandler::HasOpenWindow(const std::string& extension_id) const {
 }
 
 void UiHandler::UpdateSessionState() {
+  TRACE_EVENT0("ui", "UiHandler::UpdateSessionState");
   session_manager::SessionState state =
       session_manager::SessionManager::Get()->session_state();
   bool new_login_or_lock_screen_active =
@@ -194,6 +194,7 @@ void UiHandler::UpdateSessionState() {
 }
 
 void UiHandler::OnSessionStateChanged() {
+  TRACE_EVENT0("login", "LoginStateAsh::OnSessionStateChanged");
   UpdateSessionState();
 }
 

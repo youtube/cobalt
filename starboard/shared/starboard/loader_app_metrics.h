@@ -19,13 +19,6 @@ namespace starboard {
 
 const void* GetLoaderAppMetricsApi();
 
-// Alias to prevent breaking the RDK build on CI.
-// See https://paste.googleplex.com/6310485490270208
-// TODO: b/441955897 - Remove this alias once RDK build on CI is updated
-namespace shared::starboard {
-using ::starboard::GetLoaderAppMetricsApi;
-}
-
 }  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_LOADER_APP_METRICS_H_

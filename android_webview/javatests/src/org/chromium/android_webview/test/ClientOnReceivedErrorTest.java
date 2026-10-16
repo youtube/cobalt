@@ -15,6 +15,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.UseParametersRunnerFactory;
 
 import org.chromium.android_webview.AwContents;
 import org.chromium.android_webview.WebviewErrorCode;
@@ -31,16 +33,20 @@ import java.util.concurrent.TimeUnit;
  * of the callback, so the distinction between this and ClientOnReceivedError2Test.java is no longer
  * as significant.
  */
-@RunWith(AwJUnit4ClassRunner.class)
-public class ClientOnReceivedErrorTest {
-    @Rule
-    public AwActivityTestRule mActivityTestRule = new AwActivityTestRule();
+@RunWith(Parameterized.class)
+@UseParametersRunnerFactory(AwJUnit4ClassRunnerWithParameters.Factory.class)
+public class ClientOnReceivedErrorTest extends AwParameterizedTest {
+    @Rule public AwActivityTestRule mActivityTestRule;
 
     private TestAwContentsClient mContentsClient;
     private AwContents mAwContents;
 
     // URLs which do not exist on the public internet (because they use the ".test" TLD).
     private static final String BAD_HTML_URL = "http://fake.domain.test/a.html";
+
+    public ClientOnReceivedErrorTest(AwSettingsMutation param) {
+        this.mActivityTestRule = new AwActivityTestRule(param.getMutation());
+    }
 
     @Before
     public void setUp() {
@@ -62,9 +68,12 @@ public class ClientOnReceivedErrorTest {
         // Verify that onReceivedError is called. The particular error code
         // that is returned depends on the configuration of the device (such as
         // existence of a proxy) so we don't test for it.
-        onReceivedErrorHelper.waitForCallback(onReceivedErrorCount,
-                /* numberOfCallsToWaitFor= */ 1, WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        Assert.assertEquals(BAD_HTML_URL, onReceivedErrorHelper.getRequest().url);
+        onReceivedErrorHelper.waitForCallback(
+                onReceivedErrorCount,
+                /* numberOfCallsToWaitFor= */ 1,
+                WAIT_TIMEOUT_MS,
+                TimeUnit.MILLISECONDS);
+        Assert.assertEquals(BAD_HTML_URL, onReceivedErrorHelper.getRequest().getUrl());
         Assert.assertNotNull(onReceivedErrorHelper.getError().description);
     }
 
@@ -79,9 +88,10 @@ public class ClientOnReceivedErrorTest {
         mActivityTestRule.loadUrlAsync(mAwContents, url);
 
         onReceivedErrorHelper.waitForCallback(onReceivedErrorCount);
-        Assert.assertEquals(WebviewErrorCode.ERROR_UNSUPPORTED_SCHEME,
+        Assert.assertEquals(
+                WebviewErrorCode.ERROR_UNSUPPORTED_SCHEME,
                 onReceivedErrorHelper.getError().errorCode);
-        Assert.assertEquals(url, onReceivedErrorHelper.getRequest().url);
+        Assert.assertEquals(url, onReceivedErrorHelper.getRequest().getUrl());
         Assert.assertNotNull(onReceivedErrorHelper.getError().description);
     }
 
@@ -94,8 +104,11 @@ public class ClientOnReceivedErrorTest {
                 mContentsClient.getOnPageFinishedHelper();
 
         int currentCallCount = onPageFinishedHelper.getCallCount();
-        mActivityTestRule.loadDataAsync(mAwContents,
-                "<html><iframe src=\"http//invalid.url.co/\" /></html>", "text/html", false);
+        mActivityTestRule.loadDataAsync(
+                mAwContents,
+                "<html><iframe src=\"http//invalid.url.co/\" /></html>",
+                "text/html",
+                false);
 
         onPageFinishedHelper.waitForCallback(currentCallCount);
         Assert.assertEquals(0, onReceivedErrorHelper.getCallCount());
@@ -113,7 +126,7 @@ public class ClientOnReceivedErrorTest {
         onReceivedErrorHelper.waitForCallback(onReceivedErrorCount);
         Assert.assertEquals(
                 WebviewErrorCode.ERROR_UNKNOWN, onReceivedErrorHelper.getError().errorCode);
-        Assert.assertEquals(url, onReceivedErrorHelper.getRequest().url);
+        Assert.assertEquals(url, onReceivedErrorHelper.getRequest().getUrl());
         Assert.assertNotNull(onReceivedErrorHelper.getError().description);
     }
 
@@ -129,7 +142,7 @@ public class ClientOnReceivedErrorTest {
         onReceivedErrorHelper.waitForCallback(onReceivedErrorCount);
         Assert.assertEquals(
                 WebviewErrorCode.ERROR_UNKNOWN, onReceivedErrorHelper.getError().errorCode);
-        Assert.assertEquals(url, onReceivedErrorHelper.getRequest().url);
+        Assert.assertEquals(url, onReceivedErrorHelper.getRequest().getUrl());
         Assert.assertNotNull(onReceivedErrorHelper.getError().description);
     }
 
@@ -140,14 +153,15 @@ public class ClientOnReceivedErrorTest {
         OnReceivedErrorHelper onReceivedErrorHelper = mContentsClient.getOnReceivedErrorHelper();
         final String url = "http://example.com/index.html";
         int onReceivedErrorCount = onReceivedErrorHelper.getCallCount();
-        mActivityTestRule.getAwSettingsOnUiThread(mAwContents)
+        mActivityTestRule
+                .getAwSettingsOnUiThread(mAwContents)
                 .setCacheMode(WebSettings.LOAD_CACHE_ONLY);
         mActivityTestRule.loadUrlAsync(mAwContents, url);
 
         onReceivedErrorHelper.waitForCallback(onReceivedErrorCount);
         Assert.assertEquals(
                 WebviewErrorCode.ERROR_UNKNOWN, onReceivedErrorHelper.getError().errorCode);
-        Assert.assertEquals(url, onReceivedErrorHelper.getRequest().url);
+        Assert.assertEquals(url, onReceivedErrorHelper.getRequest().getUrl());
         Assert.assertFalse(onReceivedErrorHelper.getError().description.isEmpty());
     }
 }

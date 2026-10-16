@@ -33,11 +33,14 @@ HttpsOnlyModeBlockingPage::HttpsOnlyModeBlockingPage(
     content::WebContents* web_contents,
     const GURL& request_url,
     std::unique_ptr<SecurityInterstitialControllerClient> controller_client,
-    bool is_under_advanced_protection)
+    const security_interstitials::https_only_mode::HttpInterstitialState&
+        interstitial_state,
+    MetricsCallback metrics_callback)
     : SecurityInterstitialPage(web_contents,
                                request_url,
                                std::move(controller_client)),
-      is_under_advanced_protection_(is_under_advanced_protection) {
+      interstitial_state_(interstitial_state),
+      metrics_callback_(std::move(metrics_callback)) {
   controller()->metrics_helper()->RecordUserDecision(MetricsHelper::SHOW);
   controller()->metrics_helper()->RecordUserInteraction(
       MetricsHelper::TOTAL_VISITS);
@@ -49,6 +52,11 @@ void HttpsOnlyModeBlockingPage::OnInterstitialClosing() {
   // If the page is closing without an explicit decision, record it as not
   // proceeding.
   if (!user_made_decision_) {
+    if (metrics_callback_ && !ukm_recorded_) {
+      std::move(metrics_callback_)
+          .Run(https_only_mode::BlockingResult::kInterstitialDontProceed);
+      ukm_recorded_ = true;
+    }
     controller()->metrics_helper()->RecordUserDecision(
         MetricsHelper::DONT_PROCEED);
   }
@@ -70,12 +78,22 @@ void HttpsOnlyModeBlockingPage::CommandReceived(const std::string& command) {
   DCHECK(retval);
   switch (cmd) {
     case security_interstitials::CMD_DONT_PROCEED:
+      if (metrics_callback_ && !ukm_recorded_) {
+        std::move(metrics_callback_)
+            .Run(https_only_mode::BlockingResult::kInterstitialDontProceed);
+        ukm_recorded_ = true;
+      }
       user_made_decision_ = true;
       controller()->metrics_helper()->RecordUserDecision(
           MetricsHelper::DONT_PROCEED);
       controller()->GoBack();
       break;
     case security_interstitials::CMD_PROCEED:
+      if (metrics_callback_ && !ukm_recorded_) {
+        std::move(metrics_callback_)
+            .Run(https_only_mode::BlockingResult::kInterstitialProceed);
+        ukm_recorded_ = true;
+      }
       user_made_decision_ = true;
       controller()->metrics_helper()->RecordUserDecision(
           MetricsHelper::PROCEED);
@@ -87,6 +105,14 @@ void HttpsOnlyModeBlockingPage::CommandReceived(const std::string& command) {
       controller()->OpenUrlInNewForegroundTab(GURL(kLearnMoreLink));
       break;
     }
+    case security_interstitials::CMD_OPEN_ANDROID_ADVANCED_PROTECTION_SETTINGS:
+#if BUILDFLAG(IS_ANDROID)
+      controller()->metrics_helper()->RecordUserInteraction(
+          security_interstitials::MetricsHelper::
+              OPEN_ADVANCED_PROTECTION_SETTINGS);
+      controller()->OpenAdvancedProtectionSettings();
+#endif  // BUILDFLAG(IS_ANDROID)
+      break;
     case security_interstitials::CMD_DO_REPORT:
     case security_interstitials::CMD_DONT_REPORT:
     case security_interstitials::CMD_SHOW_MORE_SECTION:
@@ -99,7 +125,6 @@ void HttpsOnlyModeBlockingPage::CommandReceived(const std::string& command) {
     case security_interstitials::CMD_REPORT_PHISHING_ERROR:
       // Not supported by the HTTPS-only mode blocking page.
       NOTREACHED() << "Unsupported command: " << command;
-      break;
     case security_interstitials::CMD_ERROR:
     case security_interstitials::CMD_TEXT_FOUND:
     case security_interstitials::CMD_TEXT_NOT_FOUND:
@@ -110,9 +135,11 @@ void HttpsOnlyModeBlockingPage::CommandReceived(const std::string& command) {
 
 void HttpsOnlyModeBlockingPage::PopulateInterstitialStrings(
     base::Value::Dict& load_time_data) {
-  PopulateHttpsOnlyModeStringsForSharedHTML(load_time_data);
-  PopulateHttpsOnlyModeStringsForBlockingPage(load_time_data, request_url(),
-                                              is_under_advanced_protection_);
+  PopulateHttpsOnlyModeStringsForSharedHTML(
+      load_time_data, /*august2024_refresh_enabled=*/true);
+  PopulateHttpsOnlyModeStringsForBlockingPage(
+      load_time_data, request_url(), interstitial_state_,
+      /*august2024_refresh_enabled=*/true);
 }
 
 }  // namespace security_interstitials

@@ -12,6 +12,8 @@ import android.util.SparseArray;
 
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,9 +24,10 @@ import java.util.Map;
  * AndroidPermissionDelegate that implements much of the logic around requesting permissions.
  * Subclasses need to implement only the basic permissions checking and requesting methods.
  */
+@NullMarked
 public abstract class AndroidPermissionDelegateWithRequester implements AndroidPermissionDelegate {
-    private Handler mHandler;
-    private SparseArray<PermissionRequestInfo> mOutstandingPermissionRequests;
+    private final Handler mHandler;
+    private final SparseArray<PermissionRequestInfo> mOutstandingPermissionRequests;
     private int mNextRequestCode;
 
     // Constants used for permission request code bounding.
@@ -39,9 +42,12 @@ public abstract class AndroidPermissionDelegateWithRequester implements AndroidP
     @Override
     public final boolean hasPermission(String permission) {
         boolean isGranted =
-                ApiCompatibilityUtils.checkPermission(ContextUtils.getApplicationContext(),
-                        permission, Process.myPid(), Process.myUid())
-                == PackageManager.PERMISSION_GRANTED;
+                ApiCompatibilityUtils.checkPermission(
+                                ContextUtils.getApplicationContext(),
+                                permission,
+                                Process.myPid(),
+                                Process.myUid())
+                        == PackageManager.PERMISSION_GRANTED;
         if (isGranted) {
             PermissionPrefs.clearPermissionWasDenied(permission);
         }
@@ -93,17 +99,20 @@ public abstract class AndroidPermissionDelegateWithRequester implements AndroidP
         // callback with whatever the current permission state is for all the requested
         // permissions.  The response is posted to keep the async behavior of this method
         // consistent.
-        mHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                int[] results = new int[permissions.length];
-                for (int i = 0; i < permissions.length; i++) {
-                    results[i] = hasPermission(permissions[i]) ? PackageManager.PERMISSION_GRANTED
-                                                               : PackageManager.PERMISSION_DENIED;
-                }
-                callback.onRequestPermissionsResult(permissions, results);
-            }
-        });
+        mHandler.post(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        int[] results = new int[permissions.length];
+                        for (int i = 0; i < permissions.length; i++) {
+                            results[i] =
+                                    hasPermission(permissions[i])
+                                            ? PackageManager.PERMISSION_GRANTED
+                                            : PackageManager.PERMISSION_DENIED;
+                        }
+                        callback.onRequestPermissionsResult(permissions, results);
+                    }
+                });
     }
 
     @Override
@@ -131,15 +140,17 @@ public abstract class AndroidPermissionDelegateWithRequester implements AndroidP
     /**
      * Returns if an information about permission denial should be stored. Denial should not be
      * stored iff:
+     *
      * <ul>
-     *   <li> Android version >= Android.R
-     *   <li> The information about initial @see Activity.shouldShowRequestPermissionRationale is
-     *        present and the value is false
-     *   <li> The current value of @see Activity.shouldShowRequestPermissionRationale is false as
-     *        well
+     *   <li>Android version >= Android.R
+     *   <li>The information about initial @see Activity.shouldShowRequestPermissionRationale is
+     *       present and the value is false
+     *   <li>The current value of @see Activity.shouldShowRequestPermissionRationale is false as
+     *       well
      * </ul>
      */
-    private boolean shouldPersistDenial(PermissionRequestInfo requestInfo, String permission) {
+    private boolean shouldPersistDenial(
+            @Nullable PermissionRequestInfo requestInfo, String permission) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return true;
 
         boolean initialShowRationaleState = false;
@@ -154,9 +165,7 @@ public abstract class AndroidPermissionDelegateWithRequester implements AndroidP
     protected abstract boolean requestPermissionsFromRequester(
             String[] permissions, int requestCode);
 
-    /**
-     * Issues the permission request and returns whether it was sent successfully.
-     */
+    /** Issues the permission request and returns whether it was sent successfully. */
     private boolean requestPermissionsInternal(String[] permissions, PermissionCallback callback) {
         int requestCode = REQUEST_CODE_PREFIX + mNextRequestCode;
         mNextRequestCode = (mNextRequestCode + 1) % REQUEST_CODE_RANGE_SIZE;

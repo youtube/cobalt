@@ -5,10 +5,10 @@
 package org.chromium.chrome.browser.ntp.search;
 
 import android.content.Context;
-import android.graphics.drawable.Drawable;
 import android.text.TextWatcher;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.View.OnDragListener;
 import android.view.ViewGroup;
 
 import org.chromium.chrome.R;
@@ -37,8 +37,10 @@ public class SearchBoxCoordinator {
         mMediator = new SearchBoxMediator(context, mModel, mView);
     }
 
-    public void initialize(ActivityLifecycleDispatcher activityLifecycleDispatcher,
-            boolean isIncognito, WindowAndroid windowAndroid) {
+    public void initialize(
+            ActivityLifecycleDispatcher activityLifecycleDispatcher,
+            boolean isIncognito,
+            WindowAndroid windowAndroid) {
         mMediator.initialize(activityLifecycleDispatcher);
         mIsIncognito = isIncognito;
         mWindowAndroid = windowAndroid;
@@ -48,20 +50,12 @@ public class SearchBoxCoordinator {
         return mView;
     }
 
-    public View getVoiceSearchButton() {
-        return mView.findViewById(R.id.voice_search_button);
-    }
-
     public void destroy() {
         mMediator.onDestroy();
     }
 
     public void setAlpha(float alpha) {
         mModel.set(SearchBoxProperties.ALPHA, alpha);
-    }
-
-    public void setBackground(Drawable background) {
-        mModel.set(SearchBoxProperties.BACKGROUND, background);
     }
 
     public void setVisibility(boolean visible) {
@@ -76,12 +70,12 @@ public class SearchBoxCoordinator {
         mMediator.setSearchBoxClickListener(listener);
     }
 
-    public void setSearchBoxTextWatcher(TextWatcher textWatcher) {
-        mModel.set(SearchBoxProperties.SEARCH_BOX_TEXT_WATCHER, textWatcher);
+    public void setSearchBoxDragListener(OnDragListener listener) {
+        mMediator.setSearchBoxDragListener(listener);
     }
 
-    public void setSearchBoxHintColor(int hintTextColor) {
-        mModel.set(SearchBoxProperties.SEARCH_BOX_HINT_COLOR, hintTextColor);
+    public void setSearchBoxTextWatcher(TextWatcher textWatcher) {
+        mModel.set(SearchBoxProperties.SEARCH_BOX_TEXT_WATCHER, textWatcher);
     }
 
     public void setVoiceSearchButtonVisibility(boolean visible) {
@@ -129,15 +123,11 @@ public class SearchBoxCoordinator {
         mMediator.setTextViewTranslationX(translationX);
     }
 
-    public void setButtonsHeight(int height) {
-        mMediator.setButtonsHeight(height);
+    public void setSearchTextSize(float textSize) {
+        mModel.set(SearchBoxProperties.SEARCH_BOX_TEXT_SIZE, textSize);
     }
 
-    public void setButtonsWidth(int width) {
-        mMediator.setButtonsWidth(width);
-    }
-
-    public void setLensButtonLeftMargin(int leftMargin) {
-        mMediator.setLensButtonLeftMargin(leftMargin);
+    public boolean getIncognitoModeForTesting() {
+        return mIsIncognito;
     }
 }

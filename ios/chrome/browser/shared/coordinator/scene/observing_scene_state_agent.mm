@@ -4,17 +4,13 @@
 
 #import "ios/chrome/browser/shared/coordinator/scene/observing_scene_state_agent.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation ObservingSceneAgent
 
 #pragma mark - SceneAgent
 
 + (instancetype)agentFromScene:(SceneState*)sceneState {
   for (id agent in sceneState.connectedAgents) {
-    if ([agent isKindOfClass:[self class]]) {
+    if ([agent isMemberOfClass:[self class]]) {
       return agent;
     }
   }

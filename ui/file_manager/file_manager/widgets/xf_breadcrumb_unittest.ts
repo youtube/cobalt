@@ -2,21 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import {getTrustedHTML} from 'chrome://resources/js/static_types.js';
 import {assertEquals, assertFalse, assertGT, assertNotEquals, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
 
 import {hasOverflowEllipsis} from '../common/js/dom_utils.js';
 import {waitUntil} from '../common/js/test_error_reporting.js';
 
-import {BreadcrumbClickedEvent, XfBreadcrumb} from './xf_breadcrumb.js';
+import {type BreadcrumbClickedEvent, XfBreadcrumb} from './xf_breadcrumb.js';
 
 /**
  * Creates new <xf-breadcrumb> element for each test. Asserts it has no initial
  * path using the element.path getter.
  */
 export function setUp() {
-  document.body.setAttribute('theme', 'refresh23');
-  document.body.innerHTML = '<xf-breadcrumb></xf-breadcrumb>';
+  document.body.innerHTML = getTrustedHTML`
+    <xf-breadcrumb></xf-breadcrumb>
+  `;
   const breadcrumb = document.querySelector('xf-breadcrumb');
   assertEquals('', breadcrumb!.path);
 }
@@ -177,7 +179,7 @@ function simulateMouseEnter(element: HTMLElement) {
 /** Returns the visible buttons rendered with CSS overflow ellipsis.  */
 function getEllipsisButtons(breadcrumb: XfBreadcrumb): HTMLButtonElement[] {
   const pathButtons = Array.from(
-      breadcrumb.shadowRoot!.querySelectorAll<HTMLButtonElement>('button[id]')!,
+      breadcrumb.shadowRoot!.querySelectorAll<HTMLButtonElement>('button[id]'),
   );
   if (breadcrumb.parts.length <= 4) {
     return pathButtons.filter(hasOverflowEllipsis);
@@ -185,7 +187,7 @@ function getEllipsisButtons(breadcrumb: XfBreadcrumb): HTMLButtonElement[] {
 
   const elidedButtons =
       Array.from(breadcrumb.shadowRoot!.querySelectorAll<HTMLButtonElement>(
-          'cr-action-menu button')!);
+          'cr-action-menu button'));
   const allButtons =
       [pathButtons[0]].concat(elidedButtons, pathButtons.slice(1)) as
       HTMLButtonElement[];

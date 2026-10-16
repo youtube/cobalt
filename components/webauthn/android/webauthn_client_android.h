@@ -5,7 +5,10 @@
 #ifndef COMPONENTS_WEBAUTHN_ANDROID_WEBAUTHN_CLIENT_ANDROID_H_
 #define COMPONENTS_WEBAUTHN_ANDROID_WEBAUTHN_CLIENT_ANDROID_H_
 
+#include <cstdint>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "base/functional/callback_forward.h"
 
@@ -17,7 +20,7 @@ namespace device {
 class DiscoverableCredentialMetadata;
 }
 
-namespace components {
+namespace webauthn {
 
 class WebAuthnClientAndroid {
  public:
@@ -36,20 +39,39 @@ class WebAuthnClientAndroid {
       content::RenderFrameHost* frame_host,
       const std::vector<device::DiscoverableCredentialMetadata>& credentials,
       bool is_conditional_request,
-      base::OnceCallback<void(const std::vector<uint8_t>& id)> callback) = 0;
+      base::RepeatingCallback<void(const std::vector<uint8_t>& id)>
+          getAssertionCallback,
+      base::RepeatingCallback<void()> hybridCallback) = 0;
 
-  // Cancels a request if one is outstanding. Revokes the credential list and
-  // causes the callback to be called with an empty credential.
-  virtual void CancelWebAuthnRequest(content::RenderFrameHost* frame_host) = 0;
+  // Closes an outstanding conditional UI request, so passkeys will no longer be
+  // displayed through autofill.
+  virtual void CleanupWebAuthnRequest(content::RenderFrameHost* frame_host) = 0;
 
   // Called when a pendingGetCredential call is completed. The provided closure
   // can be used to trigger CredMan UI flows. Android U+ only.
   void OnCredManConditionalRequestPending(
       content::RenderFrameHost* render_frame_host,
       bool has_results,
-      base::RepeatingClosure full_assertion_request);
+      base::RepeatingCallback<void(bool)> full_assertion_request);
+
+  // Called when a CredMan sheet is closed. This can happen if the user
+  // dismissed the UI, selected a credential, or if there are errors. Android U+
+  // only.
+  void OnCredManUiClosed(content::RenderFrameHost* render_frame_host,
+                         bool success);
+
+  // Called when a conditional request that is stored in CredMan should be
+  // cleaned. Android U+ only.
+  void CleanupCredManRequest(content::RenderFrameHost* render_frame_host);
+
+  // Called when a user selects a password from the CredMan UI. The provided
+  // `username` and `password` can be filled in the password form in the
+  // `render_frame_host`.
+  void OnPasswordCredentialReceived(content::RenderFrameHost* render_frame_host,
+                                    std::u16string username,
+                                    std::u16string password);
 };
 
-}  // namespace components
+}  // namespace webauthn
 
 #endif  // COMPONENTS_WEBAUTHN_ANDROID_WEBAUTHN_CLIENT_ANDROID_H_

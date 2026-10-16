@@ -6,9 +6,9 @@
 
 #include <string>
 
-#include "base/notreached.h"
+#include "base/files/file_path.h"
+#include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
-#include "base/time/time.h"
 #include "base/version.h"
 #include "chrome/browser/google/google_brand.h"
 #include "chrome/install_static/install_details.h"
@@ -19,6 +19,10 @@ std::string BrowserUpdaterClient::GetAppId() {
       std::wstring(install_static::InstallDetails::Get().app_guid()));
 }
 
+base::FilePath BrowserUpdaterClient::GetExpectedEcp() {
+  return {};
+}
+
 updater::RegistrationRequest BrowserUpdaterClient::GetRegistrationRequest() {
   updater::RegistrationRequest req;
   req.app_id = GetAppId();
@@ -27,4 +31,9 @@ updater::RegistrationRequest BrowserUpdaterClient::GetRegistrationRequest() {
   req.ap =
       base::SysWideToUTF8(install_static::InstallDetails::Get().update_ap());
   return req;
+}
+
+bool BrowserUpdaterClient::AppMatches(
+    const updater::UpdateService::AppState& app) {
+  return base::EqualsCaseInsensitiveASCII(app.app_id, GetAppId());
 }

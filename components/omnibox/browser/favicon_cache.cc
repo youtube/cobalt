@@ -42,7 +42,7 @@ FaviconCache::FaviconCache(favicon::FaviconService* favicon_service,
   }
 }
 
-FaviconCache::~FaviconCache() {}
+FaviconCache::~FaviconCache() = default;
 
 gfx::Image FaviconCache::GetFaviconForPageUrl(
     const GURL& page_url,
@@ -152,7 +152,7 @@ void FaviconCache::InvokeRequestCallbackWithFavicon(const Request& request,
   lru_cache_.Put(request, image);
 
   auto it = pending_requests_.find(request);
-  DCHECK(it != pending_requests_.end());
+  CHECK(it != pending_requests_.end());
   for (auto& callback : it->second) {
     std::move(callback).Run(image);
   }
@@ -182,8 +182,9 @@ void FaviconCache::InvalidateCachedRequests(const Request& request) {
   }
 }
 
-void FaviconCache::OnURLsDeleted(history::HistoryService* history_service,
-                                 const history::DeletionInfo& deletion_info) {
+void FaviconCache::OnHistoryDeletions(
+    history::HistoryService* history_service,
+    const history::DeletionInfo& deletion_info) {
   // We only care about actual user (or sync) deletions.
   if (deletion_info.is_from_expiration())
     return;

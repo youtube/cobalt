@@ -23,7 +23,7 @@ gfx::NativeWindow LocalProcessWindowFinder::GetProcessWindowAtPoint(
 bool LocalProcessWindowFinder::ShouldStopIterating(HWND hwnd) {
   // If the host knows `hwnd` is not on the current_workspace, return.
   gfx::NativeWindow native_win = screen_win_->GetNativeWindowFromHWND(hwnd);
-  absl::optional<bool> on_current_workspace;
+  std::optional<bool> on_current_workspace;
   if (native_win) {
     on_current_workspace =
         screen_win_->IsWindowOnCurrentVirtualDesktop(native_win);
@@ -52,7 +52,7 @@ LocalProcessWindowFinder::LocalProcessWindowFinder(const gfx::Point& screen_loc,
                                                    ScreenWin* screen_win,
                                                    const std::set<HWND>& ignore)
     : BaseWindowFinderWin(ignore), screen_win_(screen_win) {
-  screen_loc_ = display::win::ScreenWin::DIPToScreenPoint(screen_loc);
+  screen_loc_ = display::win::GetScreenWin()->DIPToScreenPoint(screen_loc);
   EnumThreadWindows(GetCurrentThreadId(), WindowCallbackProc, as_lparam());
 }
 

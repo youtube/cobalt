@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/ownership/owner_key_util_impl.h"
 
 #include <stdint.h>
@@ -52,8 +57,8 @@ class OwnerKeyUtilImplTest : public testing::Test {
   OwnerKeyUtilImplTest& operator=(const OwnerKeyUtilImplTest&) = delete;
 
  protected:
-  OwnerKeyUtilImplTest() {}
-  ~OwnerKeyUtilImplTest() override {}
+  OwnerKeyUtilImplTest() = default;
+  ~OwnerKeyUtilImplTest() override = default;
 
   void SetUp() override {
     ASSERT_TRUE(tmpdir_.CreateUniqueTempDir());

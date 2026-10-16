@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//media/media_options.gni")
 if (is_cobalt) {
   import("//starboard/build/buildflags.gni")
 }
@@ -20,7 +21,17 @@ source_set("common") {
     "mojo_decoder_buffer_converter.h",
     "mojo_pipe_read_write_util.cc",
     "mojo_pipe_read_write_util.h",
+    "validation_utils.cc",
+    "validation_utils.h",
   ]
+
+  if (is_cobalt && use_starboard_media) {
+    sources += [
+      "starboard/empty_media_resource.h",
+      "starboard/mojo_renderer_bypass_bridge.cc",
+      "starboard/mojo_renderer_bypass_bridge.h",
+    ]
+  }
 
   deps = [
     "//base",
@@ -38,10 +49,17 @@ source_set("unit_tests") {
   testonly = true
 
   sources = [
+    "audio_data_s16_converter_unittest.cc",
     "media_type_converters_unittest.cc",
     "mojo_data_pipe_read_write_unittest.cc",
     "mojo_decoder_buffer_converter_unittest.cc",
   ]
+
+  if (is_cobalt && use_starboard_media) {
+    sources += [
+      "starboard/mojo_renderer_bypass_bridge_unittest.cc",
+    ]
+  }
 
   deps = [
     "//base",

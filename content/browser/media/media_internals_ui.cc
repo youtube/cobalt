@@ -24,12 +24,14 @@ void CreateAndAddMediaInternalsHTMLSource(BrowserContext* browser_context) {
       browser_context, kChromeUIMediaInternalsHost);
 
   source->UseStringsJs();
-  source->AddResourcePaths(
-      base::make_span(kMediaInternalsResources, kMediaInternalsResourcesSize));
+  source->AddResourcePaths(kMediaInternalsResources);
   source->SetDefaultResource(IDR_MEDIA_INTERNALS_MEDIA_INTERNALS_HTML);
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::TrustedTypes,
       "trusted-types static-types;");
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ScriptSrc,
+      "script-src chrome://resources chrome://webui-test 'self';");
 }
 
 }  // namespace

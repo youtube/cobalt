@@ -8,7 +8,6 @@
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/html/blocking_attribute.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -29,7 +28,6 @@ ComputePendingSheetTypeAndRenderBlockingBehavior(Element& sheet_owner,
                               : RenderBlockingBehavior::kBlocking);
   }
   bool potentially_render_blocking =
-      RuntimeEnabledFeatures::BlockingAttributeEnabled() &&
       IsA<HTMLElement>(sheet_owner) &&
       To<HTMLElement>(sheet_owner).IsPotentiallyRenderBlocking();
   return potentially_render_blocking

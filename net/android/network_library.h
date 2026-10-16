@@ -11,18 +11,19 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/functional/callback.h"
-#include "base/strings/string_piece.h"
 #include "net/android/cert_verify_result_android.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/mime_util.h"
 #include "net/base/net_export.h"
 #include "net/base/network_handle.h"
 #include "net/socket/socket_descriptor.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net::android {
 
@@ -34,22 +35,24 @@ std::vector<std::string> GetUserAddedRoots();
 // certificate listed first.
 // |auth_type| is as per the Java X509Certificate.checkServerTrusted method.
 void VerifyX509CertChain(const std::vector<std::string>& cert_chain,
-                         base::StringPiece auth_type,
-                         base::StringPiece host,
+                         std::string_view auth_type,
+                         std::string_view host,
+                         std::string_view ocsp_response,
+                         std::string_view sct_list,
                          CertVerifyStatusAndroid* status,
                          bool* is_issued_by_known_root,
                          std::vector<std::string>* verified_chain);
 
 // Adds a certificate as a root trust certificate to the trust manager.
 // |cert| is DER encoded certificate, |len| is its length in bytes.
-void AddTestRootCertificate(const uint8_t* cert, size_t len);
+void AddTestRootCertificate(base::span<const uint8_t> cert);
 
 // Removes all root certificates added by |AddTestRootCertificate| calls.
 void ClearTestRootCertificates();
 
 // Returns true if cleartext traffic to |host| is allowed by the app. Always
 // true on L and older.
-bool IsCleartextPermitted(const std::string& host);
+bool IsCleartextPermitted(std::string_view host);
 
 // Returns true if it can determine that only loopback addresses are configured.
 // i.e. if only 127.0.0.1 and ::1 are routable.
@@ -58,8 +61,7 @@ bool HaveOnlyLoopbackAddresses();
 
 // Get the mime type (if any) that is associated with the file extension.
 // Returns true if a corresponding mime type exists.
-bool GetMimeTypeFromExtension(const std::string& extension,
-                              std::string* result);
+bool GetMimeTypeFromExtension(std::string_view extension, std::string* result);
 
 // Returns MCC+MNC (mobile country code + mobile network code) as
 // the numeric name of the current registered operator. This function
@@ -91,7 +93,7 @@ NET_EXPORT_PRIVATE void SetWifiEnabledForTesting(bool enabled);
 // Returns the signal strength level (between 0 and 4, both inclusive) of the
 // currently registered Wifi connection. If the value is unavailable, an
 // empty value is returned.
-NET_EXPORT_PRIVATE absl::optional<int32_t> GetWifiSignalLevel();
+NET_EXPORT_PRIVATE std::optional<int32_t> GetWifiSignalLevel();
 
 // Gets the DNS servers for the current default network and puts them in
 // `dns_servers`. Sets `dns_over_tls_active` and `dns_over_tls_hostname` based
@@ -150,6 +152,24 @@ NET_EXPORT_PRIVATE int GetAddrInfoForNetwork(handles::NetworkHandle network,
                                              const char* service,
                                              const struct addrinfo* hints,
                                              struct addrinfo** res);
+
+// Register a QUIC UDP socket and a UDP payload that can close a QUIC connection
+// to the Android system server.
+// When the app loses network access (e.g. due to a freezer or firewall chains),
+// the Android system server 1)destroys the registered UDP socket by sending a
+// SOCK_DESTROY netlink message and 2)sends the registered UDP payload to the
+// server.
+// This prevents unnecessary modem wakeups caused by packets from the server
+// after the app loses network access.
+// See ConnectivityManager#registerQuicConnectionClosePayload for further
+// detail.
+NET_EXPORT_PRIVATE void RegisterQuicConnectionClosePayload(
+    int fd,
+    base::span<uint8_t> payload);
+
+// Unregister the QUIC socket and its associated UDP payload that were
+// previously registered by RegisterQuicConnectionClosePayload
+NET_EXPORT_PRIVATE void UnregisterQuicConnectionClosePayload(int fd);
 
 }  // namespace net::android
 

@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/size.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -40,13 +41,9 @@ class CpuVideoFrame : public VideoFrame {
   };
 
   struct Plane {
-    Plane(int width, int height, int pitch_in_bytes, const uint8_t* data)
-        : width(width),
-          height(height),
-          pitch_in_bytes(pitch_in_bytes),
-          data(data) {}
-    int width;
-    int height;
+    Plane(Size size, int pitch_in_bytes, const uint8_t* data)
+        : size(size), pitch_in_bytes(pitch_in_bytes), data(data) {}
+    Size size;
     int pitch_in_bytes;
     const uint8_t* data;
   };
@@ -54,14 +51,24 @@ class CpuVideoFrame : public VideoFrame {
   explicit CpuVideoFrame(int64_t timestamp) : VideoFrame(timestamp) {}
 
   Format format() const { return format_; }
-  int width() const { return width_; }
-  int height() const { return height_; }
+  const Size& size() const { return size_; }
 
   int GetPlaneCount() const;
   const Plane& GetPlane(int index) const;
 
   scoped_refptr<CpuVideoFrame> ConvertTo(Format target_format) const;
 
+  static scoped_refptr<CpuVideoFrame> CreateYV12Frame(
+      int bit_depth,
+      Size size,
+      int source_y_pitch_in_bytes,
+      int source_uv_pitch_in_bytes,
+      int64_t timestamp,  // microseconds
+      const uint8_t* y,
+      const uint8_t* u,
+      const uint8_t* v);
+
+  // Deprecated: Use the Size-based overload.
   static scoped_refptr<CpuVideoFrame> CreateYV12Frame(
       int bit_depth,
       int width,
@@ -71,12 +78,15 @@ class CpuVideoFrame : public VideoFrame {
       int64_t timestamp,  // microseconds
       const uint8_t* y,
       const uint8_t* u,
-      const uint8_t* v);
+      const uint8_t* v) {
+    return CreateYV12Frame(bit_depth, Size(width, height),
+                           source_y_pitch_in_bytes, source_uv_pitch_in_bytes,
+                           timestamp, y, u, v);
+  }
 
  private:
   Format format_;
-  int width_;
-  int height_;
+  Size size_;
 
   // The following two variables are valid when the frame contains pixel data.
   std::vector<Plane> planes_;

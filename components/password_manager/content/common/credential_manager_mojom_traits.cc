@@ -24,7 +24,6 @@ EnumTraits<blink::mojom::CredentialType, password_manager::CredentialType>::
   }
 
   NOTREACHED();
-  return blink::mojom::CredentialType::EMPTY;
 }
 
 // static
@@ -45,7 +44,6 @@ bool EnumTraits<blink::mojom::CredentialType,
   }
 
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -65,7 +63,6 @@ EnumTraits<blink::mojom::CredentialManagerError,
   }
 
   NOTREACHED();
-  return blink::mojom::CredentialManagerError::UNKNOWN;
 }
 
 // static
@@ -90,7 +87,6 @@ bool EnumTraits<blink::mojom::CredentialManagerError,
   }
 
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -105,10 +101,11 @@ EnumTraits<blink::mojom::CredentialMediationRequirement,
       return blink::mojom::CredentialMediationRequirement::kOptional;
     case password_manager::CredentialMediationRequirement::kRequired:
       return blink::mojom::CredentialMediationRequirement::kRequired;
+    case password_manager::CredentialMediationRequirement::kConditional:
+      return blink::mojom::CredentialMediationRequirement::kConditional;
   }
 
   NOTREACHED();
-  return blink::mojom::CredentialMediationRequirement::kOptional;
 }
 
 // static
@@ -126,10 +123,12 @@ bool EnumTraits<blink::mojom::CredentialMediationRequirement,
     case blink::mojom::CredentialMediationRequirement::kRequired:
       *output = password_manager::CredentialMediationRequirement::kRequired;
       return true;
+    case blink::mojom::CredentialMediationRequirement::kConditional:
+      *output = password_manager::CredentialMediationRequirement::kConditional;
+      return true;
   }
 
   NOTREACHED();
-  return false;
 }
 
 // static

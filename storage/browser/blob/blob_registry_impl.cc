@@ -12,9 +12,6 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/task/sequenced_task_runner.h"
-#include "components/file_access/scoped_file_access.h"
-#include "components/file_access/scoped_file_access_delegate.h"
-#include "net/base/features.h"
 #include "storage/browser/blob/blob_builder_from_stream.h"
 #include "storage/browser/blob/blob_data_builder.h"
 #include "storage/browser/blob/blob_impl.h"
@@ -30,8 +27,6 @@ namespace storage {
 namespace {
 
 using MemoryStrategy = BlobMemoryController::Strategy;
-
-BlobRegistryImpl::URLStoreCreationHook* g_url_store_creation_hook = nullptr;
 
 }  // namespace
 
@@ -60,21 +55,17 @@ class BlobRegistryImpl::BlobUnderConstruction {
     mojo::Remote<blink::mojom::Blob> blob;
   };
 
-  BlobUnderConstruction(
-      BlobRegistryImpl* blob_registry,
-      const std::string& uuid,
-      const std::string& content_type,
-      const std::string& content_disposition,
-      std::vector<ElementEntry> elements,
-      mojo::ReportBadMessageCallback bad_message_callback,
-      file_access::ScopedFileAccessDelegate::RequestFilesAccessIOCallback
-          file_access)
+  BlobUnderConstruction(BlobRegistryImpl* blob_registry,
+                        const std::string& uuid,
+                        const std::string& content_type,
+                        const std::string& content_disposition,
+                        std::vector<ElementEntry> elements,
+                        mojo::ReportBadMessageCallback bad_message_callback)
       : blob_registry_(blob_registry),
         uuid_(uuid),
         builder_(std::make_unique<BlobDataBuilder>(uuid)),
         elements_(std::move(elements)),
-        bad_message_callback_(std::move(bad_message_callback)),
-        file_access_(std::move(file_access)) {
+        bad_message_callback_(std::move(bad_message_callback)) {
     builder_->set_content_type(content_type);
     builder_->set_content_disposition(content_disposition);
   }
@@ -220,10 +211,6 @@ class BlobRegistryImpl::BlobUnderConstruction {
   // Number of dependent blobs that have started constructing.
   size_t ready_dependent_blob_count_ = 0;
 
-  // Callback to gain dlp file access.
-  file_access::ScopedFileAccessDelegate::RequestFilesAccessIOCallback
-      file_access_;
-
   base::WeakPtrFactory<BlobUnderConstruction> weak_ptr_factory_{this};
 };
 
@@ -293,7 +280,7 @@ void BlobRegistryImpl::BlobUnderConstruction::StartTransportation(
     // requested asynchronously later again anyway.
     for (auto& entry : elements_) {
       if (entry.element->is_bytes())
-        entry.element->get_bytes()->embedded_data = absl::nullopt;
+        entry.element->get_bytes()->embedded_data = std::nullopt;
     }
   }
 
@@ -396,9 +383,9 @@ void BlobRegistryImpl::BlobUnderConstruction::ResolvedAllBlobDependencies() {
       const auto& f = element->get_file();
       builder_->AppendFile(f->path, f->offset, f->length,
                            f->expected_modification_time.value_or(base::Time()),
-                           file_access_);
+                           base::NullCallback());
     } else if (element->is_blob()) {
-      DCHECK(blob_uuid_it != referenced_blob_uuids_.end());
+      CHECK(blob_uuid_it != referenced_blob_uuids_.end());
       const std::string& blob_uuid = *blob_uuid_it++;
       builder_->AppendBlob(blob_uuid, element->get_blob()->offset,
                            element->get_blob()->length, context()->registry());
@@ -503,22 +490,8 @@ bool BlobRegistryImpl::BlobUnderConstruction::ContainsCycles(
 }
 #endif
 
-BlobRegistryImpl::BlobRegistryImpl(
-    base::WeakPtr<BlobStorageContext> context,
-    base::WeakPtr<BlobUrlRegistry> url_registry,
-    scoped_refptr<base::TaskRunner> url_registry_runner)
-    : context_(std::move(context)),
-      url_registry_(std::move(url_registry)),
-      url_registry_runner_(std::move(url_registry_runner)) {
-  DCHECK(
-      !base::FeatureList::IsEnabled(net::features::kSupportPartitionedBlobUrl));
-}
-
 BlobRegistryImpl::BlobRegistryImpl(base::WeakPtr<BlobStorageContext> context)
-    : context_(std::move(context)) {
-  DCHECK(
-      base::FeatureList::IsEnabled(net::features::kSupportPartitionedBlobUrl));
-}
+    : context_(std::move(context)) {}
 
 BlobRegistryImpl::~BlobRegistryImpl() {
   // BlobBuilderFromStream needs to be aborted before it can be destroyed, but
@@ -576,7 +549,7 @@ void BlobRegistryImpl::Register(
 
   blobs_under_construction_[uuid] = std::make_unique<BlobUnderConstruction>(
       this, uuid, content_type, content_disposition, std::move(element_entries),
-      receivers_.GetBadMessageCallback(), delegate->GetAccessCallback());
+      receivers_.GetBadMessageCallback());
 
   std::unique_ptr<BlobDataHandle> handle = context_->AddFutureBlob(
       uuid, content_type, content_disposition,
@@ -610,73 +583,6 @@ void BlobRegistryImpl::RegisterFromStream(
   blobs_being_streamed_.insert(std::move(blob_builder));
   blob_builder_ptr->Start(expected_length, std::move(data),
                           std::move(progress_client));
-}
-
-void BlobRegistryImpl::GetBlobFromUUID(
-    mojo::PendingReceiver<blink::mojom::Blob> blob,
-    const std::string& uuid,
-    GetBlobFromUUIDCallback callback) {
-  if (!context_) {
-    std::move(callback).Run();
-    return;
-  }
-
-  if (uuid.empty()) {
-    receivers_.ReportBadMessage(
-        "Invalid UUID passed to BlobRegistry::GetBlobFromUUID");
-    return;
-  }
-  if (!context_->registry().HasEntry(uuid)) {
-    LOG(ERROR) << "Invalid UUID: " << uuid;
-    std::move(callback).Run();
-    return;
-  }
-  BlobImpl::Create(context_->GetBlobDataFromUUID(uuid), std::move(blob));
-  std::move(callback).Run();
-}
-
-void BlobRegistryImpl::URLStoreForOrigin(
-    const url::Origin& origin,
-    mojo::PendingAssociatedReceiver<blink::mojom::BlobURLStore> receiver) {
-  Delegate* delegate = receivers_.current_context().get();
-  DCHECK(delegate);
-  if (base::FeatureList::IsEnabled(net::features::kSupportPartitionedBlobUrl)) {
-    mojo::ReportBadMessage(
-        "BlobRegistryImpl::URLStoreForOrigin isn't available when the "
-        "kSupportPartitionedBlobUrl flag is enabled");
-    return;
-  }
-  if (!origin.opaque() && !delegate->CanAccessDataForOrigin(origin)) {
-    mojo::ReportBadMessage(
-        "Cannot access data for origin passed to "
-        "BlobRegistryImpl::URLStoreForOrigin");
-    return;
-  }
-  url_registry_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          [](const url::Origin& origin,
-             mojo::PendingAssociatedReceiver<blink::mojom::BlobURLStore>
-                 receiver,
-             base::WeakPtr<BlobUrlRegistry> url_registry) {
-            auto self_owned_associated_receiver =
-                mojo::MakeSelfOwnedAssociatedReceiver(
-                    std::make_unique<BlobURLStoreImpl>(
-                        blink::StorageKey::CreateFirstParty(origin),
-                        std::move(url_registry)),
-                    std::move(receiver));
-            if (g_url_store_creation_hook)
-              g_url_store_creation_hook->Run(self_owned_associated_receiver);
-          },
-          origin, std::move(receiver), url_registry_));
-}
-
-// static
-void BlobRegistryImpl::SetURLStoreCreationHookForTesting(
-    URLStoreCreationHook* hook) {
-  DCHECK(
-      !base::FeatureList::IsEnabled(net::features::kSupportPartitionedBlobUrl));
-  g_url_store_creation_hook = hook;
 }
 
 void BlobRegistryImpl::BlobBuildAborted(const std::string& uuid) {

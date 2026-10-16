@@ -26,7 +26,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/file.h"
 #include "starboard/system.h"
 #include "unicode/putil.h"
 #include "unicode/udata.h"
@@ -129,8 +128,8 @@ void InitializeIcuDatabase() {
     return;
   }
 
-  // Inform the OS that the mapped data is accessed randomly.
-  madvise(icu_data, length, MADV_RANDOM);
+  // Inform the OS that the mapped data is accessed sequentially.
+  madvise(icu_data, length, MADV_NORMAL);
 
   if (!SetIcuDataPointer(icu_data)) {
     PrintIcuNotLoadedWarning();

@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/reporting/storage/storage.h"
 
 #include <atomic>
 #include <cstdint>
+#include <optional>
 #include <tuple>
 #include <utility>
 
@@ -20,6 +26,8 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/threading/sequence_bound.h"
+#include "base/types/expected.h"
+#include "base/types/expected_macros.h"
 #include "components/reporting/compression/compression_module.h"
 #include "components/reporting/compression/test_compression_module.h"
 #include "components/reporting/encryption/decryption.h"
@@ -40,7 +48,6 @@
 #include "crypto/sha2.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using ::testing::_;
 using ::testing::AtLeast;
@@ -99,7 +106,7 @@ class SingleDecryptionContext {
   SingleDecryptionContext(
       const EncryptedRecord& encrypted_record,
       scoped_refptr<test::Decryptor> decryptor,
-      base::OnceCallback<void(StatusOr<base::StringPiece>)> response)
+      base::OnceCallback<void(StatusOr<std::string_view>)> response)
       : encrypted_record_(encrypted_record),
         decryptor_(decryptor),
         response_(std::move(response)) {}
@@ -109,7 +116,7 @@ class SingleDecryptionContext {
       delete;
 
   ~SingleDecryptionContext() {
-    DCHECK(!response_) << "Self-destruct without prior response";
+    CHECK(!response_) << "Self-destruct without prior response";
   }
 
   void Start() {
@@ -120,7 +127,7 @@ class SingleDecryptionContext {
   }
 
  private:
-  void Respond(StatusOr<base::StringPiece> result) {
+  void Respond(StatusOr<std::string_view> result) {
     std::move(response_).Run(result);
     delete this;
   }
@@ -132,48 +139,48 @@ class SingleDecryptionContext {
         base::BindOnce(
             [](SingleDecryptionContext* self,
                StatusOr<std::string> private_key_result) {
-              if (!private_key_result.ok()) {
-                self->Respond(private_key_result.status());
+              if (!private_key_result.has_value()) {
+                self->Respond(base::unexpected(private_key_result.error()));
                 return;
               }
               base::ThreadPool::PostTask(
                   FROM_HERE,
                   base::BindOnce(&SingleDecryptionContext::DecryptSharedSecret,
                                  base::Unretained(self),
-                                 private_key_result.ValueOrDie()));
+                                 private_key_result.value()));
             },
             base::Unretained(this)));
   }
 
-  void DecryptSharedSecret(base::StringPiece private_key) {
+  void DecryptSharedSecret(std::string_view private_key) {
     // Decrypt shared secret from private key and peer public key.
     auto shared_secret_result = decryptor_->DecryptSecret(
         private_key, encrypted_record_.encryption_info().encryption_key());
-    if (!shared_secret_result.ok()) {
-      Respond(shared_secret_result.status());
+    if (!shared_secret_result.has_value()) {
+      Respond(base::unexpected(shared_secret_result.error()));
       return;
     }
     base::ThreadPool::PostTask(
-        FROM_HERE, base::BindOnce(&SingleDecryptionContext::OpenRecord,
-                                  base::Unretained(this),
-                                  shared_secret_result.ValueOrDie()));
+        FROM_HERE,
+        base::BindOnce(&SingleDecryptionContext::OpenRecord,
+                       base::Unretained(this), shared_secret_result.value()));
   }
 
-  void OpenRecord(base::StringPiece shared_secret) {
+  void OpenRecord(std::string_view shared_secret) {
     decryptor_->OpenRecord(
         shared_secret,
         base::BindOnce(
             [](SingleDecryptionContext* self,
                StatusOr<test::Decryptor::Handle*> handle_result) {
-              if (!handle_result.ok()) {
-                self->Respond(handle_result.status());
+              if (!handle_result.has_value()) {
+                self->Respond(base::unexpected(handle_result.error()));
                 return;
               }
               base::ThreadPool::PostTask(
                   FROM_HERE,
                   base::BindOnce(&SingleDecryptionContext::AddToRecord,
                                  base::Unretained(self),
-                                 base::Unretained(handle_result.ValueOrDie())));
+                                 base::Unretained(handle_result.value())));
             },
             base::Unretained(this)));
   }
@@ -185,7 +192,7 @@ class SingleDecryptionContext {
             [](SingleDecryptionContext* self, test::Decryptor::Handle* handle,
                Status status) {
               if (!status.ok()) {
-                self->Respond(status);
+                self->Respond(base::unexpected(status));
                 return;
               }
               base::ThreadPool::PostTask(
@@ -200,8 +207,8 @@ class SingleDecryptionContext {
   void CloseRecord(test::Decryptor::Handle* handle) {
     handle->CloseRecord(base::BindOnce(
         [](SingleDecryptionContext* self,
-           StatusOr<base::StringPiece> decryption_result) {
-          self->Respond(decryption_result);
+           StatusOr<std::string_view> decryption_result) {
+          self->Respond(std::move(decryption_result));
         },
         base::Unretained(this)));
   }
@@ -209,7 +216,7 @@ class SingleDecryptionContext {
  private:
   const EncryptedRecord encrypted_record_;
   const scoped_refptr<test::Decryptor> decryptor_;
-  base::OnceCallback<void(StatusOr<base::StringPiece>)> response_;
+  base::OnceCallback<void(StatusOr<std::string_view>)> response_;
 };
 
 class StorageTest
@@ -263,7 +270,7 @@ class StorageTest
                 (const));
     MOCK_METHOD(bool,
                 UploadRecord,
-                (int64_t /*uploader_id*/, Priority, int64_t, base::StringPiece),
+                (int64_t /*uploader_id*/, Priority, int64_t, std::string_view),
                 (const));
     MOCK_METHOD(bool,
                 UploadRecordFailure,
@@ -311,7 +318,7 @@ class StorageTest
                         Priority priority,
                         int64_t sequencing_id,
                         int64_t generation_id,
-                        base::StringPiece data,
+                        std::string_view data,
                         base::OnceCallback<void(bool)> processed_cb) {
       DoEncounterSeqId(uploader_id, priority, sequencing_id, generation_id);
       DCHECK_CALLED_ON_VALID_SEQUENCE(scoped_checker_);
@@ -401,7 +408,7 @@ class StorageTest
         base::flat_map<std::tuple<Priority,
                                   int64_t /*generation id*/,
                                   int64_t /*sequencing id*/>,
-                       absl::optional<std::string /*digest*/>>;
+                       std::optional<std::string /*digest*/>>;
 
     // Helper class for setting up mock uploader expectations of a successful
     // completion.
@@ -437,7 +444,7 @@ class StorageTest
         return std::move(uploader_);
       }
 
-      SetUp& Required(int64_t sequencing_id, base::StringPiece value) {
+      SetUp& Required(int64_t sequencing_id, std::string_view value) {
         CHECK(uploader_) << "'Complete' already called";
         EXPECT_CALL(*uploader_->mock_upload_,
                     UploadRecord(Eq(uploader_id_), Eq(priority_),
@@ -447,7 +454,7 @@ class StorageTest
         return *this;
       }
 
-      SetUp& Possible(int64_t sequencing_id, base::StringPiece value) {
+      SetUp& Possible(int64_t sequencing_id, std::string_view value) {
         CHECK(uploader_) << "'Complete' already called";
         EXPECT_CALL(*uploader_->mock_upload_,
                     UploadRecord(Eq(uploader_id_), Eq(priority_),
@@ -540,7 +547,7 @@ class StorageTest
           // unique_ptr and pass to SequenceBoundUpload to own.
           // MockUpload outlives TestUploader and is destructed together with
           // SequenceBoundUpload (on a sequenced task runner).
-          mock_upload_(new ::testing::NiceMock<const MockUpload>()),
+          mock_upload_(new ::testing::NiceMock<MockUpload>()),
           sequence_bound_upload_(self->main_task_runner_,
                                  base::WrapUnique(mock_upload_.get())),
           decryptor_(self->decryptor_) {
@@ -573,11 +580,11 @@ class StorageTest
                [](SequenceInformation sequence_information,
                   base::OnceCallback<void(bool)> processed_cb,
                   scoped_refptr<base::SequencedTaskRunner> task_runner,
-                  TestUploader* uploader, StatusOr<base::StringPiece> result) {
-                 ASSERT_OK(result.status()) << result.status();
+                  TestUploader* uploader, StatusOr<std::string_view> result) {
+                 ASSERT_TRUE(result.has_value()) << result.error();
                  WrappedRecord wrapped_record;
                  ASSERT_TRUE(wrapped_record.ParseFromArray(
-                     result.ValueOrDie().data(), result.ValueOrDie().size()));
+                     result.value().data(), result.value().size()));
                  // Schedule on the same runner to verify wrapped record once
                  // decrypted.
                  task_runner->PostTask(
@@ -626,7 +633,7 @@ class StorageTest
           std::make_tuple(sequence_information.priority(),
                           sequence_information.sequencing_id(),
                           sequence_information.generation_id()),
-          absl::nullopt);
+          std::nullopt);
 
       sequence_bound_upload_.AsyncCall(&SequenceBoundUpload::DoUploadGap)
           .WithArgs(uploader_id_, sequence_information.priority(),
@@ -704,7 +711,7 @@ class StorageTest
         std::string serialized_record;
         wrapped_record.record().SerializeToString(&serialized_record);
         const auto record_digest = crypto::SHA256HashString(serialized_record);
-        DCHECK_EQ(record_digest.size(), crypto::kSHA256Length);
+        CHECK_EQ(record_digest.size(), crypto::kSHA256Length);
         if (record_digest != wrapped_record.record_digest()) {
           sequence_bound_upload_
               .AsyncCall(&SequenceBoundUpload::DoUploadRecordFailure)
@@ -756,7 +763,7 @@ class StorageTest
     // match the expected uploader.
     const int64_t uploader_id_;
 
-    absl::optional<int64_t> generation_id_;
+    std::optional<int64_t> generation_id_;
     const raw_ptr<base::flat_map<Priority, int64_t>> last_upload_generation_id_;
     const raw_ptr<LastRecordDigestMap> last_record_digest_map_;
 
@@ -808,9 +815,9 @@ class StorageTest
     ASSERT_FALSE(storage_) << "TestStorage already assigned";
     StatusOr<scoped_refptr<Storage>> storage_result =
         CreateTestStorage(options, encryption_module);
-    ASSERT_OK(storage_result)
-        << "Failed to create TestStorage, error=" << storage_result.status();
-    storage_ = std::move(storage_result.ValueOrDie());
+    ASSERT_TRUE(storage_result.has_value())
+        << "Failed to create TestStorage, error=" << storage_result.error();
+    storage_ = std::move(storage_result.value());
   }
 
   void ResetTestStorage() {
@@ -872,11 +879,11 @@ class StorageTest
                   LOG(ERROR) << "Upload not expected, reason="
                              << UploaderInterface::ReasonToString(reason);
                   std::move(start_uploader_cb)
-                      .Run(Status(
+                      .Run(base::unexpected(Status(
                           error::CANCELLED,
                           base::StrCat(
                               {"Unexpected upload ignored, reason=",
-                               UploaderInterface::ReasonToString(reason)})));
+                               UploaderInterface::ReasonToString(reason)}))));
                   return;
                 }
                 --(self->expected_uploads_count_);
@@ -886,14 +893,15 @@ class StorageTest
               LOG_IF(FATAL, ++(self->upload_count_) >= 16uL)
                   << "Too many uploads";
               auto result = self->set_mock_uploader_expectations_.Call(reason);
-              if (!result.ok()) {
+              if (!result.has_value()) {
                 LOG(ERROR) << "Upload not allowed, reason="
                            << UploaderInterface::ReasonToString(reason) << " "
-                           << result.status();
-                std::move(start_uploader_cb).Run(result.status());
+                           << result.error();
+                std::move(start_uploader_cb)
+                    .Run(base::unexpected(result.error()));
                 return;
               }
-              auto uploader = std::move(result.ValueOrDie());
+              auto uploader = std::move(result.value());
               std::move(start_uploader_cb).Run(std::move(uploader));
             },
             reason, std::move(start_uploader_cb), base::Unretained(this)));
@@ -905,13 +913,14 @@ class StorageTest
     if (reason == UploaderInterface::UploadReason::KEY_DELIVERY &&
         key_delivery_failure_.load()) {
       std::move(start_uploader_cb)
-          .Run(Status(error::FAILED_PRECONDITION, "Test cannot start upload"));
+          .Run(base::unexpected(
+              Status(error::FAILED_PRECONDITION, "Test cannot start upload")));
       return;
     }
     AsyncStartMockUploader(reason, std::move(start_uploader_cb));
   }
 
-  Status WriteString(Priority priority, base::StringPiece data) {
+  Status WriteString(Priority priority, std::string_view data) {
     EXPECT_TRUE(storage_) << "Storage not created yet";
     test::TestEvent<Status> w;
     Record record;
@@ -924,7 +933,7 @@ class StorageTest
     return w.result();
   }
 
-  void WriteStringOrDie(Priority priority, base::StringPiece data) {
+  void WriteStringOrDie(Priority priority, std::string_view data) {
     const Status write_result = WriteString(priority, data);
     ASSERT_OK(write_result) << write_result;
   }
@@ -954,7 +963,7 @@ class StorageTest
   }
 
   SignedEncryptionInfo GenerateAndSignKey() {
-    DCHECK(decryptor_) << "Decryptor not created";
+    CHECK(decryptor_) << "Decryptor not created";
     // Generate new pair of private key and public value.
     uint8_t private_key[kKeySize];
     Encryptor::PublicKeyId public_key_id;
@@ -966,8 +975,8 @@ class StorageTest
         std::string(reinterpret_cast<const char*>(public_value), kKeySize),
         prepare_key_pair.cb());
     auto prepare_key_result = prepare_key_pair.result();
-    DCHECK(prepare_key_result.ok());
-    public_key_id = prepare_key_result.ValueOrDie();
+    CHECK(prepare_key_result.has_value()) << prepare_key_result.error();
+    public_key_id = prepare_key_result.value();
     // Prepare signed encryption key to be delivered to Storage.
     SignedEncryptionInfo signed_encryption_key;
     signed_encryption_key.set_public_asymmetric_key(
@@ -981,16 +990,16 @@ class StorageTest
     uint8_t signature[kSignatureSize];
     test::SignMessage(
         signing_private_key_,
-        base::StringPiece(reinterpret_cast<const char*>(value_to_sign),
-                          sizeof(value_to_sign)),
+        std::string_view(reinterpret_cast<const char*>(value_to_sign),
+                         sizeof(value_to_sign)),
         signature);
     signed_encryption_key.set_signature(
         std::string(reinterpret_cast<const char*>(signature), kSignatureSize));
     // Double check signature.
-    DCHECK(VerifySignature(
+    CHECK(VerifySignature(
         signature_verification_public_key_,
-        base::StringPiece(reinterpret_cast<const char*>(value_to_sign),
-                          sizeof(value_to_sign)),
+        std::string_view(reinterpret_cast<const char*>(value_to_sign),
+                         sizeof(value_to_sign)),
         signature));
     return signed_encryption_key;
   }
@@ -1013,8 +1022,8 @@ class StorageTest
         kKeySize));
     // Create decryption module.
     auto decryptor_result = test::Decryptor::Create();
-    ASSERT_OK(decryptor_result.status()) << decryptor_result.status();
-    decryptor_ = std::move(decryptor_result.ValueOrDie());
+    ASSERT_TRUE(decryptor_result.has_value()) << decryptor_result.error();
+    decryptor_ = std::move(decryptor_result.value());
     // Prepare the key.
     signed_encryption_key_ = GenerateAndSignKey();
     // First record enqueue to Storage would need key delivered.
@@ -1082,8 +1091,8 @@ class StorageTest
 constexpr std::array<const char*, 3> kData = {"Rec1111", "Rec222", "Rec33"};
 constexpr std::array<const char*, 3> kMoreData = {"More1111", "More222",
                                                   "More33"};
-constexpr std::array<char, (1024 * 1024 / 3)* 2> kBigData = {'A'};
-constexpr base::StringPiece xBigData(&kBigData.front(), kBigData.size());
+constexpr std::array<char, (1024 * 1024 / 3) * 2> kBigData = {'A'};
+constexpr std::string_view xBigData(&kBigData.front(), kBigData.size());
 
 TEST_P(StorageTest, WriteIntoNewStorageAndReopen) {
   CreateTestStorageOrDie(BuildTestStorageOptions());
@@ -1854,7 +1863,8 @@ TEST_P(StorageTest, WriteAndImmediateUploadWithFailure) {
     EXPECT_CALL(set_mock_uploader_expectations_,
                 Call(Eq(UploaderInterface::UploadReason::IMMEDIATE_FLUSH)))
         .WillOnce(Invoke([](UploaderInterface::UploadReason reason) {
-          return Status(error::UNAVAILABLE, "Intended failure in test");
+          return base::unexpected(
+              Status(error::UNAVAILABLE, "Intended failure in test"));
         }))
         .RetiresOnSaturation();
     EXPECT_CALL(set_mock_uploader_expectations_,
@@ -1889,7 +1899,8 @@ TEST_P(StorageTest, WriteEncryptFailure) {
   EXPECT_CALL(*test_encryption_module, EncryptRecordImpl(_, _))
       .WillOnce(WithArg<1>(
           Invoke([](base::OnceCallback<void(StatusOr<EncryptedRecord>)> cb) {
-            std::move(cb).Run(Status(error::UNKNOWN, "Failing for tests"));
+            std::move(cb).Run(
+                base::unexpected(Status(error::UNKNOWN, "Failing for tests")));
           })))
       .RetiresOnSaturation();
   const Status result = WriteString(FAST_BATCH, "TEST_MESSAGE");
@@ -2007,9 +2018,9 @@ TEST_P(StorageTest, KeyDeliveryFailureOnNewStorage) {
   ASSERT_FALSE(storage_) << "StorageTest already assigned";
   StatusOr<scoped_refptr<Storage>> storage_result =
       CreateTestStorageWithFailedKeyDelivery(BuildTestStorageOptions());
-  ASSERT_OK(storage_result)
-      << "Failed to create StorageTest, error=" << storage_result.status();
-  storage_ = std::move(storage_result.ValueOrDie());
+  ASSERT_TRUE(storage_result.has_value())
+      << "Failed to create StorageTest, error=" << storage_result.error();
+  storage_ = std::move(storage_result.value());
 
   key_delivery_failure_.store(true);
   for (size_t failure = 1; failure < kFailuresCount; ++failure) {
@@ -2078,7 +2089,8 @@ TEST_P(StorageTest, KeyDeliveryFailureOnNewStorage) {
                 Call(Eq(UploaderInterface::UploadReason::INIT_RESUME)))
         .WillOnce(Invoke([&waiter](UploaderInterface::UploadReason reason) {
           waiter.Signal();
-          return Status(error::UNAVAILABLE, "Skipped upload in test");
+          return base::unexpected(
+              Status(error::UNAVAILABLE, "Skipped upload in test"));
         }))
         .RetiresOnSaturation();
 

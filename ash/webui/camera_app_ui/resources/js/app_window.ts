@@ -106,6 +106,7 @@ export class AppWindow {
     this.perfs.push({
       event: event,
       duration: (performance.now() - this.launchedTime),
+      perfInfo: {},
     });
   }
 
@@ -140,8 +141,6 @@ export class AppWindow {
 
   /**
    * Reports error and makes it visible on Tast side.
-   *
-   * @param errorInfo Information of the error.
    */
   reportError(errorInfo: ErrorInfo): void {
     this.errors.push(errorInfo);

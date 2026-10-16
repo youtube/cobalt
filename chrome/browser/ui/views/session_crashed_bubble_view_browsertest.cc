@@ -33,7 +33,7 @@ class SessionCrashedBubbleViewTest : public DialogBrowserTest {
   void ShowUi(const std::string& name) override {
     // TODO(pbos): Set up UMA opt-in conditions instead of providing this bool.
     crash_bubble_ = SessionCrashedBubbleView::ShowBubble(
-        browser(), false, name == "SessionCrashedBubbleOfferUma");
+        browser(), name == "SessionCrashedBubbleOfferUma");
   }
 
  protected:
@@ -52,7 +52,7 @@ IN_PROC_BROWSER_TEST_F(SessionCrashedBubbleViewTest,
 
 // Regression test for https://crbug.com/1042010, it should be possible to focus
 // the bubble with the "focus dialog" hotkey combination (Alt+Shift+A).
-// TODO(https://crbug.com/1350659): Flaky on mac-12-arm64-rel.
+// TODO(crbug.com/40856612): Flaky on mac-12-arm64-rel.
 #if BUILDFLAG(IS_MAC) && defined(ARCH_CPU_ARM64) && defined(NDEBUG)
 #define MAYBE_CanFocusBubbleWithFocusDialogHotkey \
   DISABLED_CanFocusBubbleWithFocusDialogHotkey
@@ -63,7 +63,6 @@ IN_PROC_BROWSER_TEST_F(SessionCrashedBubbleViewTest,
 IN_PROC_BROWSER_TEST_F(SessionCrashedBubbleViewTest,
                        MAYBE_CanFocusBubbleWithFocusDialogHotkey) {
   ShowUi("SessionCrashedBubble");
-
   views::FocusManager* focus_manager =
       crash_bubble_->GetWidget()->GetFocusManager();
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
@@ -78,11 +77,13 @@ IN_PROC_BROWSER_TEST_F(SessionCrashedBubbleViewTest,
 
 // Regression test for https://crbug.com/1042010, it should be possible to focus
 // the bubble with the "rotate pane focus" (F6) hotkey.
-// TODO(crbug.com/1343849): Flaky on Mac.
+// TODO(crbug.com/40852599): Flaky on Mac.
 #if BUILDFLAG(IS_MAC)
-#define MAYBE_CanFocusBubbleWithRotatePaneFocusHotkey DISABLED_CanFocusBubbleWithRotatePaneFocusHotkey
+#define MAYBE_CanFocusBubbleWithRotatePaneFocusHotkey \
+  DISABLED_CanFocusBubbleWithRotatePaneFocusHotkey
 #else
-#define MAYBE_CanFocusBubbleWithRotatePaneFocusHotkey CanFocusBubbleWithRotatePaneFocusHotkey
+#define MAYBE_CanFocusBubbleWithRotatePaneFocusHotkey \
+  CanFocusBubbleWithRotatePaneFocusHotkey
 #endif
 IN_PROC_BROWSER_TEST_F(SessionCrashedBubbleViewTest,
                        MAYBE_CanFocusBubbleWithRotatePaneFocusHotkey) {
@@ -103,7 +104,7 @@ IN_PROC_BROWSER_TEST_F(SessionCrashedBubbleViewTest,
 }
 
 IN_PROC_BROWSER_TEST_F(SessionCrashedBubbleViewTest, AlertAccessibleEvent) {
-  views::test::AXEventCounter counter(views::AXEventManager::Get());
+  views::test::AXEventCounter counter(views::AXUpdateNotifier::Get());
   EXPECT_EQ(0, counter.GetCount(ax::mojom::Event::kAlert));
   ShowUi("SessionCrashedBubble");
   EXPECT_EQ(1, counter.GetCount(ax::mojom::Event::kAlert));

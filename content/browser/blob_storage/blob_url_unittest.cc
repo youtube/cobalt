@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/342213636): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stdint.h>
 
 #include <limits>
 #include <memory>
+#include <string_view>
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -129,7 +135,7 @@ class BlobURLTest : public testing::Test {
     base::RunLoop run_loop;
     file_system_context_->OpenFileSystem(
         blink::StorageKey::CreateFromStringForTesting(kFileSystemURLOrigin),
-        /*bucket=*/absl::nullopt, kFileSystemType,
+        /*bucket=*/std::nullopt, kFileSystemType,
         storage::OPEN_FILE_SYSTEM_CREATE_IF_NONEXISTENT,
         base::BindOnce(&BlobURLTest::OnValidateFileSystem,
                        base::Unretained(this), run_loop.QuitClosure()));
@@ -140,12 +146,10 @@ class BlobURLTest : public testing::Test {
     const char kFilename1[] = "FileSystemFile1.dat";
     temp_file_system_file1_ = GetFileSystemURL(kFilename1);
     WriteFileSystemFile(kFilename1, kTestFileSystemFileData1,
-                        std::size(kTestFileSystemFileData1) - 1,
                         &temp_file_system_file_modification_time1_);
     const char kFilename2[] = "FileSystemFile2.dat";
     temp_file_system_file2_ = GetFileSystemURL(kFilename2);
     WriteFileSystemFile(kFilename2, kTestFileSystemFileData2,
-                        std::size(kTestFileSystemFileData2) - 1,
                         &temp_file_system_file_modification_time2_);
   }
 
@@ -154,8 +158,7 @@ class BlobURLTest : public testing::Test {
   }
 
   void WriteFileSystemFile(const std::string& filename,
-                           const char* buf,
-                           int buf_size,
+                           std::string_view data,
                            base::Time* modification_time) {
     storage::FileSystemURL url =
         file_system_context_->CreateCrackedFileSystemURL(
@@ -164,7 +167,7 @@ class BlobURLTest : public testing::Test {
 
     ASSERT_EQ(base::File::FILE_OK,
               storage::AsyncFileTestHelper::CreateFileWithData(
-                  file_system_context_.get(), url, buf, buf_size));
+                  file_system_context_.get(), url, data));
 
     base::File::Info file_info;
     ASSERT_EQ(base::File::FILE_OK,
@@ -210,7 +213,7 @@ class BlobURLTest : public testing::Test {
     request.method = method;
     request.headers = extra_headers;
 
-    storage::BlobURLStoreImpl url_store(storage_key,
+    storage::BlobURLStoreImpl url_store(storage_key, storage_key.origin(), 0,
                                         blob_url_registry_.AsWeakPtr());
 
     mojo::PendingRemote<blink::mojom::Blob> blob_remote;
@@ -231,10 +234,9 @@ class BlobURLTest : public testing::Test {
         base::BindOnce(
             [](base::OnceClosure done,
                const base::UnguessableToken& agent_registered,
-               const absl::optional<base::UnguessableToken>&
+               const std::optional<base::UnguessableToken>&
                    unsafe_agent_cluster_id,
-               const absl::optional<net::SchemefulSite>&
-                   unsafe_top_level_site) {
+               const std::optional<net::SchemefulSite>& unsafe_top_level_site) {
               EXPECT_EQ(agent_registered, unsafe_agent_cluster_id);
               std::move(done).Run();
             },
@@ -353,7 +355,7 @@ class BlobURLTest : public testing::Test {
   std::string response_;
   int response_error_code_;
   scoped_refptr<net::HttpResponseHeaders> response_headers_;
-  absl::optional<std::string> response_metadata_;
+  std::optional<std::string> response_metadata_;
 
   int expected_error_code_;
   int expected_status_code_;
@@ -423,7 +425,7 @@ TEST_F(BlobURLTest, TestGetLargeFileSystemFileRequest) {
     large_data.append(1, static_cast<char>(i % 256));
 
   const char kFilename[] = "LargeBlob.dat";
-  WriteFileSystemFile(kFilename, large_data.data(), large_data.size(), nullptr);
+  WriteFileSystemFile(kFilename, large_data, nullptr);
 
   blob_data_->AppendFileSystemFile(
       file_system_context_->CrackURLInFirstPartyContext(
@@ -599,7 +601,7 @@ TEST_F(BlobURLTest, TestZeroSizeSideData) {
 TEST_F(BlobURLTest, BrokenBlob) {
   blob_handle_ = blob_context_.AddBrokenBlob(
       "uuid", "", "", storage::BlobStatus::ERR_INVALID_CONSTRUCTION_ARGUMENTS);
-  TestErrorRequest(net::ERR_FAILED);
+  TestErrorRequest(net::ERR_BLOB_INVALID_CONSTRUCTION_ARGUMENTS);
 }
 
 }  // namespace content

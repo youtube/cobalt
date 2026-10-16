@@ -13,6 +13,7 @@
 #include "base/memory/weak_ptr.h"
 #include "remoting/host/base/desktop_environment_options.h"
 #include "remoting/protocol/desktop_capturer.h"
+#include "third_party/webrtc/modules/desktop_capture/desktop_capture_types.h"
 
 namespace webrtc {
 class DesktopCapturer;
@@ -22,6 +23,7 @@ class MouseCursorMonitor;
 namespace remoting {
 
 class ActionExecutor;
+class ActiveDisplayMonitor;
 class AudioCapturer;
 class ClientSessionControl;
 class ClientSessionEvents;
@@ -49,7 +51,8 @@ class DesktopEnvironment {
   virtual std::unique_ptr<AudioCapturer> CreateAudioCapturer() = 0;
   virtual std::unique_ptr<InputInjector> CreateInputInjector() = 0;
   virtual std::unique_ptr<ScreenControls> CreateScreenControls() = 0;
-  virtual std::unique_ptr<DesktopCapturer> CreateVideoCapturer() = 0;
+  virtual std::unique_ptr<DesktopCapturer> CreateVideoCapturer(
+      webrtc::ScreenId id) = 0;
 
   // Returns a DisplayInfoMonitor that is owned by this object. Returns
   // nullptr if the implementation does not support monitoring of displays
@@ -61,6 +64,8 @@ class DesktopEnvironment {
   virtual std::unique_ptr<KeyboardLayoutMonitor> CreateKeyboardLayoutMonitor(
       base::RepeatingCallback<void(const protocol::KeyboardLayout&)>
           callback) = 0;
+  virtual std::unique_ptr<ActiveDisplayMonitor> CreateActiveDisplayMonitor(
+      base::RepeatingCallback<void(webrtc::ScreenId)> callback) = 0;
   virtual std::unique_ptr<FileOperations> CreateFileOperations() = 0;
   virtual std::unique_ptr<UrlForwarderConfigurator>
   CreateUrlForwarderConfigurator() = 0;
@@ -76,22 +81,26 @@ class DesktopEnvironment {
 
   // Returns an id which identifies the current desktop session on Windows.
   // Other platforms will always return the default value (UINT32_MAX).
-  virtual uint32_t GetDesktopSessionId() const = 0;
+  virtual std::uint32_t GetDesktopSessionId() const = 0;
 };
 
 // Used to create |DesktopEnvironment| instances.
 class DesktopEnvironmentFactory {
  public:
+  using CreateCallback =
+      base::OnceCallback<void(std::unique_ptr<DesktopEnvironment>)>;
+
   virtual ~DesktopEnvironmentFactory() = default;
 
-  // Creates an instance of |DesktopEnvironment|. Returns a nullptr pointer if
-  // the desktop environment could not be created for any reason (if the curtain
-  // failed to active for instance). |client_session_control| must outlive
-  // the created desktop environment.
-  virtual std::unique_ptr<DesktopEnvironment> Create(
+  // Creates an instance of |DesktopEnvironment|. Callback is invoked with a
+  // nullptr pointer if the desktop environment could not be created for any
+  // reason (if the curtain failed to activate for instance).
+  // |client_session_control| must outlive the created desktop environment.
+  virtual void Create(
       base::WeakPtr<ClientSessionControl> client_session_control,
       base::WeakPtr<ClientSessionEvents> client_session_events,
-      const DesktopEnvironmentOptions& options) = 0;
+      const DesktopEnvironmentOptions& options,
+      CreateCallback callback) = 0;
 
   // Returns |true| if created |DesktopEnvironment| instances support audio
   // capture.

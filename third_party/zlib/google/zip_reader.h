@@ -10,6 +10,7 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/files/file.h"
 #include "base/files/file_path.h"
@@ -51,6 +52,12 @@ class WriterDelegate {
   // Called if an error occurred while extracting the file. The WriterDelegate
   // can then remove and clean up the partially extracted data.
   virtual void OnError() {}
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Invoked at the end of the entry extraction to flush to persistent storage.
+  // Returns failure on failure to flush.
+  virtual bool Flush() { return true; }
+#endif
 };
 
 // This class is used for reading ZIP archives. A typical use case of this class
@@ -142,6 +149,9 @@ class ZipReader {
 
     // Entry POSIX permissions (POSIX systems only).
     int posix_mode;
+
+    // True if the entry is a symbolic link (POSIX systems only).
+    bool is_symbolic_link = false;
   };
 
   ZipReader();
@@ -281,7 +291,7 @@ class ZipReader {
 
   // Normalizes the given path passed as UTF-16 string piece. Sets entry_.path,
   // entry_.is_directory and entry_.is_unsafe.
-  void Normalize(base::StringPiece16 in);
+  void Normalize(std::u16string_view in);
 
   // Runs the ListenerCallback at a throttled rate.
   void ReportProgress(ListenerCallback listener_callback, uint64_t bytes) const;
@@ -361,6 +371,11 @@ class FileWriterDelegate : public WriterDelegate {
 
   // Empties the file to avoid leaving garbage data in it.
   void OnError() override;
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Flush to persistent storage.
+  bool Flush() override;
+#endif
 
   // Gets the number of bytes written into the file.
   int64_t file_length() { return file_length_; }

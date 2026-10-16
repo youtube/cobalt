@@ -11,13 +11,14 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
+#include "base/strings/stringprintf.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
+#include "components/cross_device/logging/logging.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/message_center/message_center.h"
 #include "ui/message_center/public/cpp/notification.h"
 #include "ui/message_center/public/cpp/notification_delegate.h"
-
-#include "ash/quick_pair/common/logging.h"
 
 using message_center::MessageCenter;
 using message_center::Notification;
@@ -44,6 +45,8 @@ const char kFastPairAssociateAccountNotificationId[] =
     "cros_fast_pair_associate_account_notification_id";
 const char kFastPairDiscoverySubsequentNotificationId[] =
     "cros_fast_pair_discovery_subsequent_notification_id";
+const char kFastPairDisplayPasskeyNotificationId[] =
+    "cros_fast_pair_display_passkey_notification_id";
 
 // Values outside of the range (e.g. -1) will show an infinite loading
 // progress bar.
@@ -109,8 +112,8 @@ class NotificationDelegate : public message_center::NotificationDelegate {
   ~NotificationDelegate() override = default;
 
   // message_center::NotificationDelegate override:
-  void Click(const absl::optional<int>& button_index,
-             const absl::optional<std::u16string>& reply) override {
+  void Click(const std::optional<int>& button_index,
+             const std::optional<std::u16string>& reply) override {
     if (!button_index)
       return;
 
@@ -131,8 +134,8 @@ class NotificationDelegate : public message_center::NotificationDelegate {
     // dismisses the notification to prevent the timer firing and removing
     // notifications that might come up later.
     if (expire_notification_timer_) {
-      QP_LOG(VERBOSE) << __func__
-                      << ": stopping expiration timer on notification close";
+      CD_LOG(VERBOSE, Feature::FP)
+          << __func__ << ": stopping expiration timer on notification close";
       expire_notification_timer_->Stop();
     }
 
@@ -155,7 +158,7 @@ class NotificationDelegate : public message_center::NotificationDelegate {
   base::RepeatingClosure on_primary_click_;
   base::RepeatingClosure on_secondary_click_;
   base::OnceCallback<void(FastPairNotificationDismissReason)> on_close_;
-  raw_ptr<base::OneShotTimer, ExperimentalAsh> expire_notification_timer_;
+  raw_ptr<base::OneShotTimer, DanglingUntriaged> expire_notification_timer_;
 };
 
 FastPairNotificationController::FastPairNotificationController(
@@ -194,7 +197,7 @@ void FastPairNotificationController::ShowErrorNotification(
   error_notification->set_delegate(base::MakeRefCounted<NotificationDelegate>(
       /*on_primary_click=*/launch_bluetooth_pairing,
       /*on_close=*/std::move(on_close)));
-  error_notification->set_image(device_image);
+  error_notification->SetImage(device_image);
 
   message_center_->AddNotification(std::move(error_notification));
 }
@@ -206,8 +209,8 @@ void FastPairNotificationController::ExtendNotification() {
   // point if the notification is for the same device, which means we reset the
   // timeout.
   if (expire_notification_timer_.IsRunning()) {
-    QP_LOG(INFO) << __func__
-                 << " extending notification for re-discovered device";
+    CD_LOG(INFO, Feature::FP)
+        << __func__ << " extending notification for re-discovered device";
     expire_notification_timer_.Reset();
   }
 }
@@ -243,7 +246,7 @@ void FastPairNotificationController::ShowUserDiscoveryNotification(
           /*expire_notification_timer=*/&expire_notification_timer_);
 
   discovery_notification->set_delegate(notification_delegate);
-  discovery_notification->set_image(device_image);
+  discovery_notification->SetImage(device_image);
 
   // Start timer for how long to show the notification before removing the
   // notification. After the timeout period, we will remove the notification
@@ -286,7 +289,7 @@ void FastPairNotificationController::ShowGuestDiscoveryNotification(
           /*expire_notification_timer=*/&expire_notification_timer_);
 
   discovery_notification->set_delegate(notification_delegate);
-  discovery_notification->set_image(device_image);
+  discovery_notification->SetImage(device_image);
 
   // Start timer for how long to show the notification before removing the
   // notification. After the timeout period, we will remove the notification
@@ -331,7 +334,7 @@ void FastPairNotificationController::ShowSubsequentDiscoveryNotification(
           /*expire_notification_timer=*/&expire_notification_timer_);
 
   discovery_notification->set_delegate(notification_delegate);
-  discovery_notification->set_image(device_image);
+  discovery_notification->SetImage(device_image);
 
   // Start timer for how long to show the notification before removing the
   // notification. After the timeout period, we will remove the notification
@@ -357,6 +360,8 @@ void FastPairNotificationController::ShowApplicationAvailableNotification(
           message_center_);
   application_available_notification->set_title(l10n_util::GetStringFUTF16(
       IDS_FAST_PAIR_DOWNLOAD_NOTIFICATION_APP_TITLE, device_name));
+  application_available_notification->set_message(l10n_util::GetStringUTF16(
+      IDS_FAST_PAIR_DOWNLOAD_NOTIFICATION_APP_MESSAGE));
 
   message_center::ButtonInfo download_button(
       l10n_util::GetStringUTF16(IDS_FAST_PAIR_DOWNLOAD_APP_BUTTON));
@@ -366,11 +371,7 @@ void FastPairNotificationController::ShowApplicationAvailableNotification(
       base::MakeRefCounted<NotificationDelegate>(
           /*on_primary_click=*/download_app_callback,
           /*on_close=*/std::move(on_close)));
-  application_available_notification->set_type(
-      message_center::NOTIFICATION_TYPE_PROGRESS);
-  application_available_notification->set_progress(
-      kInfiniteLoadingProgressValue);
-  application_available_notification->set_image(device_image);
+  application_available_notification->SetImage(device_image);
 
   message_center_->AddNotification(
       std::move(application_available_notification));
@@ -388,7 +389,9 @@ void FastPairNotificationController::ShowApplicationInstalledNotification(
           message_center::SystemNotificationWarningLevel::NORMAL,
           message_center_);
   application_installed_notification->set_title(l10n_util::GetStringFUTF16(
-      IDS_FAST_PAIR_SETUP_APP_NOTIFICATION_TITLE, app_name));
+      IDS_FAST_PAIR_SETUP_APP_NOTIFICATION_TITLE, device_name));
+  application_installed_notification->set_message(
+      l10n_util::GetStringUTF16(IDS_FAST_PAIR_SETUP_APP_NOTIFICATION_MESSAGE));
 
   message_center::ButtonInfo setup_button(
       l10n_util::GetStringUTF16(IDS_FAST_PAIR_SETUP_APP_BUTTON));
@@ -398,11 +401,7 @@ void FastPairNotificationController::ShowApplicationInstalledNotification(
       base::MakeRefCounted<NotificationDelegate>(
           /*on_primary_click=*/launch_app_callback,
           /*on_close=*/std::move(on_close)));
-  application_installed_notification->set_type(
-      message_center::NOTIFICATION_TYPE_PROGRESS);
-  application_installed_notification->set_progress(
-      kInfiniteLoadingProgressValue);
-  application_installed_notification->set_image(device_image);
+  application_installed_notification->SetImage(device_image);
 
   message_center_->AddNotification(
       std::move(application_installed_notification));
@@ -432,7 +431,7 @@ void FastPairNotificationController::ShowPairingNotification(
       /*on_close=*/std::move(on_close)));
   pairing_notification->set_type(message_center::NOTIFICATION_TYPE_PROGRESS);
   pairing_notification->set_progress(kInfiniteLoadingProgressValue);
-  pairing_notification->set_image(device_image);
+  pairing_notification->SetImage(device_image);
   pairing_notification->set_pinned(true);
 
   message_center_->AddNotification(std::move(pairing_notification));
@@ -469,7 +468,7 @@ void FastPairNotificationController::ShowAssociateAccount(
           /*expire_notification_timer=*/&expire_notification_timer_);
 
   associate_account_notification->set_delegate(notification_delegate);
-  associate_account_notification->set_image(device_image);
+  associate_account_notification->SetImage(device_image);
 
   // Start timer for how long to show the notification before removing the
   // notification. After the timeout period, we will remove the notification
@@ -481,6 +480,20 @@ void FastPairNotificationController::ShowAssociateAccount(
           weak_ptr_factory_.GetWeakPtr(), notification_delegate));
 
   message_center_->AddNotification(std::move(associate_account_notification));
+}
+
+void FastPairNotificationController::ShowPasskey(
+    const std::u16string& device_name,
+    uint32_t passkey) {
+  std::unique_ptr<message_center::Notification> passkey_notification =
+      CreateNotification(kFastPairDisplayPasskeyNotificationId,
+                         message_center::SystemNotificationWarningLevel::NORMAL,
+                         message_center_);
+  passkey_notification->set_message(l10n_util::GetStringFUTF16(
+      IDS_ASH_STATUS_TRAY_BLUETOOTH_DISPLAY_PASSKEY, device_name,
+      base::UTF8ToUTF16(base::StringPrintf("%06i", passkey))));
+
+  message_center_->AddNotification(std::move(passkey_notification));
 }
 
 void FastPairNotificationController::RemoveNotifications() {

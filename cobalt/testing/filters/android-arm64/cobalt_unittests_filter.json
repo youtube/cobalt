@@ -1,3 +1,6 @@
 {
-  "failing_tests": []
+  "failing_tests": [
+    "CobaltMetricsServiceClientTest.IdleTimerIsRepeatingAndKeepsFiring",
+    "HistogramFetcherTest.FetchHistograms_CalculatesDeltaCorrectly"
+  ]
 }

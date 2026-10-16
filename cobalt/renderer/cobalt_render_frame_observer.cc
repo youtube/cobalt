@@ -17,38 +17,29 @@
 #include "base/command_line.h"
 #include "cobalt/browser/switches.h"
 #include "content/public/renderer/render_frame.h"
+#include "net/base/ip_address.h"
+#include "net/base/url_util.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/system.h"
-
-#if defined(RUN_BROWSER_TESTS)
-#include "third_party/blink/public/web/web_testing_support.h"  // nogncheck
-#endif  // defined(RUN_BROWSER_TESTS)
+#include "third_party/blink/public/web/web_local_frame.h"
+#include "url/gurl.h"
+#include "url/url_constants.h"
 
 namespace cobalt {
 
 CobaltRenderFrameObserver::CobaltRenderFrameObserver(
     content::RenderFrame* render_frame)
-    : content::RenderFrameObserver(render_frame) {}
+    : content::RenderFrameObserver(render_frame) {
+  if (render_frame && render_frame->GetWebFrame()) {
+    render_frame->GetWebFrame()->SetContentSettingsClient(this);
+  }
+}
 
 CobaltRenderFrameObserver::~CobaltRenderFrameObserver() = default;
 
 void CobaltRenderFrameObserver::OnDestruct() {
   delete this;
 }
-
-#if defined(RUN_BROWSER_TESTS)
-void CobaltRenderFrameObserver::DidClearWindowObject() {
-  const auto& cmd = *base::CommandLine::ForCurrentProcess();
-  if (cmd.HasSwitch(switches::kExposeInternalsForTesting)) {
-    // The internals object is injected here so that window.internals is exposed
-    // to JavaScript at initial load of the web app, when the frame navigates
-    // from the initial empty document to the actual document. This approach is
-    // borrowed from content shell.
-    blink::WebTestingSupport::InjectInternalsObject(
-        render_frame()->GetWebFrame());
-  }
-}
-#endif  // defined(RUN_BROWSER_TESTS)
 
 void CobaltRenderFrameObserver::DidMeaningfulLayout(
     blink::WebMeaningfulLayout meaningful_layout) {
@@ -62,6 +53,29 @@ void CobaltRenderFrameObserver::DidMeaningfulLayout(
       graphics_extension->ReportFullyDrawn();
     }
   }
+}
+
+bool CobaltRenderFrameObserver::AllowRunningInsecureContent(
+    bool enabled_per_settings,
+    const blink::WebURL& url) {
+  if (enabled_per_settings) {
+    return true;
+  }
+  const GURL gurl(url);
+  // Allow insecure WebSocket connections (ws:) to local/private network
+  // endpoints (RFC 1918 / loopback) for testing frameworks such as YTS.
+  // See b/377410179, b/545796867.
+  if (gurl.SchemeIs(url::kWsScheme)) {
+    if (net::IsLocalhost(gurl)) {
+      return true;
+    }
+    net::IPAddress ip_address;
+    if (ip_address.AssignFromIPLiteral(gurl.host_piece()) &&
+        !ip_address.IsPubliclyRoutable()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace cobalt

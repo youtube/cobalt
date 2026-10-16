@@ -1,16 +1,16 @@
-/* Copyright (c) 2018, Google Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
+// Copyright 2018 The BoringSSL Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <openssl/stack.h>
 
@@ -24,6 +24,7 @@
 #include <gtest/gtest.h>
 
 #include <openssl/mem.h>
+#include <openssl/rand.h>
 
 
 // Define a custom stack type for testing.
@@ -46,6 +47,8 @@ static bssl::UniquePtr<TEST_INT> TEST_INT_new(int x) {
 }
 
 DEFINE_STACK_OF(TEST_INT)
+
+namespace {
 
 struct ShallowStackDeleter {
   void operator()(STACK_OF(TEST_INT) *sk) const { sk_TEST_INT_free(sk); }
@@ -481,3 +484,52 @@ TEST(StackTest, IsSorted) {
   sk_TEST_INT_set_cmp_func(sk.get(), nullptr);
   EXPECT_FALSE(sk_TEST_INT_is_sorted(sk.get()));
 }
+
+TEST(StackTest, Sort) {
+  constexpr size_t kMaxLength = 100;
+  constexpr int kIterations = 500;
+  for (size_t len = 0; len < kMaxLength; len++) {
+    SCOPED_TRACE(len);
+    for (int iter = 0; iter < kIterations; iter++) {
+      // Make a random input list.
+      std::vector<int> vec(len);
+      RAND_bytes(reinterpret_cast<uint8_t *>(vec.data()),
+                 sizeof(int) * vec.size());
+      SCOPED_TRACE(testing::PrintToString(vec));
+
+      // Convert it to a |STACK_OF(TEST_INT)|.
+      bssl::UniquePtr<STACK_OF(TEST_INT)> sk(sk_TEST_INT_new(compare));
+      ASSERT_TRUE(sk);
+      for (int v : vec) {
+        auto value = TEST_INT_new(v);
+        ASSERT_TRUE(value);
+        ASSERT_TRUE(bssl::PushToStack(sk.get(), std::move(value)));
+      }
+
+      // Sort it with our sort implementation.
+      sk_TEST_INT_sort(sk.get());
+      std::vector<int> result;
+      for (const TEST_INT *v : sk.get()) {
+        result.push_back(*v);
+      }
+
+      // The result must match the STL's version.
+      std::sort(vec.begin(), vec.end());
+      EXPECT_EQ(vec, result);
+    }
+  }
+}
+
+TEST(StackTest, NullIsEmpty) {
+  EXPECT_EQ(0u, sk_TEST_INT_num(nullptr));
+
+  EXPECT_EQ(nullptr, sk_TEST_INT_value(nullptr, 0));
+  EXPECT_EQ(nullptr, sk_TEST_INT_value(nullptr, 1));
+
+  bssl::UniquePtr<TEST_INT> value = TEST_INT_new(6);
+  ASSERT_TRUE(value);
+  size_t index;
+  EXPECT_FALSE(sk_TEST_INT_find(nullptr, &index, value.get()));
+}
+
+}  // namespace

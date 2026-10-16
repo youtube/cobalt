@@ -9,6 +9,7 @@
 
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/task_environment.h"
@@ -31,7 +32,7 @@ class PrintingContextTest : public PrintingTest<testing::Test>,
   void PrintSettingsCallback(mojom::ResultCode result) { result_ = result; }
 
   // PrintingContext::Delegate methods.
-  gfx::NativeView GetParentView() override { return nullptr; }
+  gfx::NativeView GetParentView() override { return gfx::NativeView(); }
   std::string GetAppLocale() override { return std::string(); }
 
  protected:
@@ -58,8 +59,10 @@ using ScopedGlobalAlloc =
 
 class MockPrintingContextWin : public PrintingContextSystemDialogWin {
  public:
-  explicit MockPrintingContextWin(Delegate* delegate)
-      : PrintingContextSystemDialogWin(delegate) {}
+  MockPrintingContextWin(Delegate* delegate)
+      : PrintingContextSystemDialogWin(
+            delegate,
+            PrintingContext::OutOfProcessBehavior::kDisabled) {}
 
  protected:
   // This is a fake PrintDlgEx implementation that sets the right fields in
@@ -103,7 +106,7 @@ class MockPrintingContextWin : public PrintingContextSystemDialogWin {
     void* dev_mode_ptr = GlobalLock(dev_mode_mem.Get());
     if (!dev_mode_ptr)
       return E_FAIL;
-    memcpy(dev_mode_ptr, dev_mode, dev_mode_size);
+    UNSAFE_TODO(memcpy(dev_mode_ptr, dev_mode, dev_mode_size));
     GlobalUnlock(dev_mode_mem.Get());
     dev_mode_ptr = nullptr;
 
@@ -123,16 +126,21 @@ class MockPrintingContextWin : public PrintingContextSystemDialogWin {
     DEVNAMES* dev_names = reinterpret_cast<DEVNAMES*>(dev_names_ptr);
     dev_names->wDefault = 1;
     dev_names->wDriverOffset = sizeof(DEVNAMES) / sizeof(wchar_t);
-    memcpy(reinterpret_cast<uint8_t*>(dev_names_ptr) + dev_names->wDriverOffset,
-           info_2.get()->pDriverName, driver_size);
-    dev_names->wDeviceOffset = base::checked_cast<WORD>(
-        dev_names->wDriverOffset + driver_size / sizeof(wchar_t));
-    memcpy(reinterpret_cast<uint8_t*>(dev_names_ptr) + dev_names->wDeviceOffset,
-           info_2.get()->pPrinterName, printer_size);
-    dev_names->wOutputOffset = base::checked_cast<WORD>(
-        dev_names->wDeviceOffset + printer_size / sizeof(wchar_t));
-    memcpy(reinterpret_cast<uint8_t*>(dev_names_ptr) + dev_names->wOutputOffset,
-           info_2.get()->pPortName, port_size);
+    UNSAFE_TODO({
+      memcpy(
+          reinterpret_cast<uint8_t*>(dev_names_ptr) + dev_names->wDriverOffset,
+          info_2.get()->pDriverName, driver_size);
+      dev_names->wDeviceOffset = base::checked_cast<WORD>(
+          dev_names->wDriverOffset + driver_size / sizeof(wchar_t));
+      memcpy(
+          reinterpret_cast<uint8_t*>(dev_names_ptr) + dev_names->wDeviceOffset,
+          info_2.get()->pPrinterName, printer_size);
+      dev_names->wOutputOffset = base::checked_cast<WORD>(
+          dev_names->wDeviceOffset + printer_size / sizeof(wchar_t));
+      memcpy(
+          reinterpret_cast<uint8_t*>(dev_names_ptr) + dev_names->wOutputOffset,
+          info_2.get()->pPortName, port_size);
+    });
     GlobalUnlock(dev_names_mem.Get());
     dev_names_ptr = nullptr;
 
@@ -183,7 +191,8 @@ TEST_F(PrintingContextTest, DISABLED_Base) {
   auto settings = std::make_unique<PrintSettings>();
   settings->set_device_name(base::WideToUTF16(GetDefaultPrinter()));
   // Initialize it.
-  PrintingContextWin context(this);
+  PrintingContextWin context(this,
+                             PrintingContext::OutOfProcessBehavior::kDisabled);
   EXPECT_EQ(mojom::ResultCode::kSuccess,
             context.InitWithSettingsForTest(std::move(settings)));
 

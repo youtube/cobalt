@@ -148,35 +148,32 @@ void AudioTimeStretcher::Initialize(SbMediaAudioSampleType sample_type,
   transition_window_.reset(new float[ola_window_size_ * 2]);
   GetPeriodicHanningWindow(2 * ola_window_size_, transition_window_.get());
 
-  wsola_output_ = new DecodedAudio(
-      channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
-      (ola_window_size_ + ola_hop_size_) * bytes_per_frame_);
+  wsola_output_ =
+      DecodedAudio(channels_, sample_type_, /*timestamp=*/0,
+                   (ola_window_size_ + ola_hop_size_) * bytes_per_frame_);
   // Initialize for overlap-and-add of the first block.
-  memset(wsola_output_->data(), 0, wsola_output_->size_in_bytes());
+  memset(wsola_output_.data(), 0, wsola_output_.size_in_bytes());
 
   // Auxiliary containers.
-  optimal_block_ = new DecodedAudio(channels_, sample_type_,
-                                    kSbMediaAudioFrameStorageTypeInterleaved, 0,
-                                    ola_window_size_ * bytes_per_frame_);
-  search_block_ = new DecodedAudio(
-      channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
+  optimal_block_ = DecodedAudio(channels_, sample_type_, /*timestamp=*/0,
+                                ola_window_size_ * bytes_per_frame_);
+  search_block_ = DecodedAudio(
+      channels_, sample_type_, /*timestamp=*/0,
       (num_candidate_blocks_ + (ola_window_size_ - 1)) * bytes_per_frame_);
-  target_block_ = new DecodedAudio(channels_, sample_type_,
-                                   kSbMediaAudioFrameStorageTypeInterleaved, 0,
-                                   ola_window_size_ * bytes_per_frame_);
+  target_block_ = DecodedAudio(channels_, sample_type_, /*timestamp=*/0,
+                               ola_window_size_ * bytes_per_frame_);
 }
 
-scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
-                                                     double playback_rate) {
+DecodedAudio AudioTimeStretcher::Read(int requested_frames,
+                                      double playback_rate) {
   SB_DCHECK_GT(bytes_per_frame_, 0);
   SB_DCHECK_GE(playback_rate, 0);
 
-  scoped_refptr<DecodedAudio> dest = new DecodedAudio(
-      channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
-      requested_frames * bytes_per_frame_);
+  DecodedAudio dest(channels_, sample_type_, /*timestamp=*/0,
+                    requested_frames * bytes_per_frame_);
 
   if (playback_rate == 0) {
-    dest->ShrinkTo(0);
+    dest.ShrinkTo(0);
     return dest;
   }
 
@@ -196,7 +193,7 @@ scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
     // audio_buffer_.frames()+1.
     int seek_frames = std::min(static_cast<int>(muted_partial_frame_),
                                audio_buffer_.frames());
-    memset(dest->data(), 0, frames_to_render * bytes_per_frame_);
+    memset(dest.data(), 0, frames_to_render * bytes_per_frame_);
     audio_buffer_.SeekFrames(seek_frames);
 
     // Determine the partial frame that remains to be skipped for next call. If
@@ -205,7 +202,7 @@ scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
     // another playback rate that mutes, the code will attempt to line up the
     // frames again.
     muted_partial_frame_ -= seek_frames;
-    dest->ShrinkTo(frames_to_render * bytes_per_frame_);
+    dest.ShrinkTo(frames_to_render * bytes_per_frame_);
     return dest;
   }
 
@@ -217,19 +214,19 @@ scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
   if (ola_window_size_ <= faster_step && slower_step >= ola_window_size_) {
     const int frames_to_copy =
         std::min(audio_buffer_.frames(), requested_frames);
-    const int frames_read = audio_buffer_.ReadFrames(frames_to_copy, 0, dest);
+    const int frames_read = audio_buffer_.ReadFrames(frames_to_copy, 0, &dest);
     SB_DCHECK_EQ(frames_read, frames_to_copy);
-    dest->ShrinkTo(frames_read * bytes_per_frame_);
+    dest.ShrinkTo(frames_read * bytes_per_frame_);
     return dest;
   }
 
   int rendered_frames = 0;
   do {
     rendered_frames += WriteCompletedFramesTo(
-        requested_frames - rendered_frames, rendered_frames, dest);
+        requested_frames - rendered_frames, rendered_frames, &dest);
   } while (rendered_frames < requested_frames &&
            RunOneWsolaIteration(playback_rate));
-  dest->ShrinkTo(rendered_frames * bytes_per_frame_);
+  dest.ShrinkTo(rendered_frames * bytes_per_frame_);
   return dest;
 }
 
@@ -239,7 +236,7 @@ void AudioTimeStretcher::FlushBuffers() {
   output_time_ = 0.0;
   search_block_index_ = 0;
   target_block_index_ = 0;
-  memset(wsola_output_->data(), 0, wsola_output_->size_in_bytes());
+  memset(wsola_output_.data(), 0, wsola_output_.size_in_bytes());
   num_complete_frames_ = 0;
 
   // Reset |capacity_| so growth triggered by underflows doesn't penalize seek
@@ -247,27 +244,108 @@ void AudioTimeStretcher::FlushBuffers() {
   capacity_ = initial_capacity_;
 }
 
-void AudioTimeStretcher::EnqueueBuffer(
-    const scoped_refptr<DecodedAudio>& audio_data) {
-  SB_DCHECK(!audio_data->is_end_of_stream());
-  audio_buffer_.Append(audio_data);
+void AudioTimeStretcher::EnqueueBuffer(DecodedAudio&& audio_data) {
+  SB_DCHECK(!audio_data.is_end_of_stream());
+  audio_buffer_.Append(std::move(audio_data));
 }
 
 bool AudioTimeStretcher::IsQueueFull() const {
   return audio_buffer_.frames() >= capacity_;
 }
 
-// TODO: Make order of functions in .cc the same as order of functions in .h.
-bool AudioTimeStretcher::CanPerformWsola() const {
-  const int search_block_size = num_candidate_blocks_ + (ola_window_size_ - 1);
-  const int frames = audio_buffer_.frames();
-  return target_block_index_ + ola_window_size_ <= frames &&
-         search_block_index_ + search_block_size <= frames;
+void AudioTimeStretcher::GetOptimalBlock() {
+  int optimal_index = 0;
+
+  // An interval around last optimal block which is excluded from the search.
+  // This is to reduce the buzzy sound. The number 160 is rather arbitrary and
+  // derived heuristically.
+  const int kExcludeIntervalLengthFrames = 160;
+  if (TargetIsWithinSearchRegion()) {
+    optimal_index = target_block_index_;
+    PeekAudioWithZeroPrepend(optimal_index, &optimal_block_);
+  } else {
+    PeekAudioWithZeroPrepend(target_block_index_, &target_block_);
+    PeekAudioWithZeroPrepend(search_block_index_, &search_block_);
+    int last_optimal =
+        target_block_index_ - ola_hop_size_ - search_block_index_;
+    Interval exclude_interval =
+        std::make_pair(last_optimal - kExcludeIntervalLengthFrames / 2,
+                       last_optimal + kExcludeIntervalLengthFrames / 2);
+
+    // |optimal_index| is in frames and it is relative to the beginning of the
+    // |search_block_|.
+    optimal_index =
+        OptimalIndex(&search_block_, &target_block_, exclude_interval);
+
+    // Translate |index| w.r.t. the beginning of |audio_buffer_| and extract the
+    // optimal block.
+    optimal_index += search_block_index_;
+    PeekAudioWithZeroPrepend(optimal_index, &optimal_block_);
+
+    // Make a transition from target block to the optimal block if different.
+    // Target block has the best continuation to the current output.
+    // Optimal block is the most similar block to the target, however, it might
+    // introduce some discontinuity when over-lap-added. Therefore, we combine
+    // them for a smoother transition. The length of transition window is twice
+    // as that of the optimal-block which makes it like a weighting function
+    // where target-block has higher weight close to zero (weight of 1 at index
+    // 0) and lower weight close the end.
+    for (int k = 0; k < channels_; ++k) {
+      float* ch_opt = reinterpret_cast<float*>(optimal_block_.data()) + k;
+      const float* const ch_target =
+          reinterpret_cast<float*>(target_block_.data()) + k;
+      for (int n = 0; n < ola_window_size_; ++n) {
+        ch_opt[n * channels_] =
+            ch_opt[n * channels_] * transition_window_[n] +
+            ch_target[n * channels_] * transition_window_[ola_window_size_ + n];
+      }
+    }
+  }
+
+  // Next target is one hop ahead of the current optimal.
+  target_block_index_ = optimal_index + ola_hop_size_;
 }
 
-int AudioTimeStretcher::ConvertMillisecondsToFrames(int ms) const {
-  const double kMillisecondsPerSeconds = 1000;
-  return static_cast<int>(ms * (samples_per_second_ / kMillisecondsPerSeconds));
+int AudioTimeStretcher::WriteCompletedFramesTo(int requested_frames,
+                                               int dest_offset,
+                                               DecodedAudio* dest) {
+  SB_DCHECK_GT(bytes_per_frame_, 0);
+
+  int rendered_frames = std::min(num_complete_frames_, requested_frames);
+
+  if (rendered_frames == 0) {
+    return 0;  // There is nothing to read from |wsola_output_|, return.
+  }
+
+  memcpy(dest->data() + bytes_per_frame_ * dest_offset, wsola_output_.data(),
+         rendered_frames * bytes_per_frame_);
+
+  // Remove the frames which are read.
+  int frames_to_move = wsola_output_.frames() - rendered_frames;
+  memmove(wsola_output_.data(),
+          wsola_output_.data() + rendered_frames * bytes_per_frame_,
+          frames_to_move * bytes_per_frame_);
+  num_complete_frames_ -= rendered_frames;
+  return rendered_frames;
+}
+
+void AudioTimeStretcher::PeekAudioWithZeroPrepend(int read_offset_frames,
+                                                  DecodedAudio* dest) {
+  SB_DCHECK_GT(bytes_per_frame_, 0);
+  SB_CHECK_LE(read_offset_frames + dest->frames(), audio_buffer_.frames());
+
+  int write_offset = 0;
+  int num_frames_to_read = dest->frames();
+  if (read_offset_frames < 0) {
+    int num_zero_frames_appended =
+        std::min(-read_offset_frames, num_frames_to_read);
+    read_offset_frames = 0;
+    num_frames_to_read -= num_zero_frames_appended;
+    write_offset = num_zero_frames_appended;
+    memset(dest->data(), 0, num_zero_frames_appended * bytes_per_frame_);
+  }
+  audio_buffer_.PeekFrames(num_frames_to_read, read_offset_frames, write_offset,
+                           dest);
 }
 
 bool AudioTimeStretcher::RunOneWsolaIteration(double playback_rate) {
@@ -282,9 +360,9 @@ bool AudioTimeStretcher::RunOneWsolaIteration(double playback_rate) {
   // Overlap-and-add.
   for (int k = 0; k < channels_; ++k) {
     const float* const ch_opt_frame =
-        reinterpret_cast<const float*>(optimal_block_->data()) + k;
-    float* ch_output = reinterpret_cast<float*>(wsola_output_->data()) + k +
-                       num_complete_frames_ * sizeof(float);
+        reinterpret_cast<const float*>(optimal_block_.data()) + k;
+    float* ch_output = reinterpret_cast<float*>(wsola_output_.data()) + k +
+                       num_complete_frames_ * channels_;
     for (int n = 0; n < ola_hop_size_; ++n) {
       ch_output[n * channels_] =
           ch_output[n * channels_] * ola_window_[ola_hop_size_ + n] +
@@ -293,9 +371,9 @@ bool AudioTimeStretcher::RunOneWsolaIteration(double playback_rate) {
   }
   // Copy the second half to the output.
   const float* const ch_opt_frame =
-      reinterpret_cast<const float*>(optimal_block_->data());
-  float* ch_output = reinterpret_cast<float*>(wsola_output_->data()) +
-                     num_complete_frames_ * sizeof(float);
+      reinterpret_cast<const float*>(optimal_block_.data());
+  float* ch_output = reinterpret_cast<float*>(wsola_output_.data()) +
+                     num_complete_frames_ * channels_;
   memcpy(&ch_output[ola_hop_size_ * channels_],
          &ch_opt_frame[ola_hop_size_ * channels_],
          sizeof(*ch_opt_frame) * ola_hop_size_ * channels_);
@@ -304,15 +382,6 @@ bool AudioTimeStretcher::RunOneWsolaIteration(double playback_rate) {
   UpdateOutputTime(playback_rate, ola_hop_size_);
   RemoveOldInputFrames(playback_rate);
   return true;
-}
-
-void AudioTimeStretcher::UpdateOutputTime(double playback_rate,
-                                          double time_change) {
-  output_time_ += time_change;
-  // Center of the search region, in frames.
-  const int search_block_center_index =
-      static_cast<int>(output_time_ * playback_rate + 0.5);
-  search_block_index_ = search_block_center_index - search_block_center_offset_;
 }
 
 void AudioTimeStretcher::RemoveOldInputFrames(double playback_rate) {
@@ -333,27 +402,13 @@ void AudioTimeStretcher::RemoveOldInputFrames(double playback_rate) {
   UpdateOutputTime(playback_rate, -output_time_change);
 }
 
-int AudioTimeStretcher::WriteCompletedFramesTo(int requested_frames,
-                                               int dest_offset,
-                                               DecodedAudio* dest) {
-  SB_DCHECK_GT(bytes_per_frame_, 0);
-
-  int rendered_frames = std::min(num_complete_frames_, requested_frames);
-
-  if (rendered_frames == 0) {
-    return 0;  // There is nothing to read from |wsola_output_|, return.
-  }
-
-  memcpy(dest->data() + bytes_per_frame_ * dest_offset, wsola_output_->data(),
-         rendered_frames * bytes_per_frame_);
-
-  // Remove the frames which are read.
-  int frames_to_move = wsola_output_->frames() - rendered_frames;
-  memmove(wsola_output_->data(),
-          wsola_output_->data() + rendered_frames * bytes_per_frame_,
-          frames_to_move * bytes_per_frame_);
-  num_complete_frames_ -= rendered_frames;
-  return rendered_frames;
+void AudioTimeStretcher::UpdateOutputTime(double playback_rate,
+                                          double time_change) {
+  output_time_ += time_change;
+  // Center of the search region, in frames.
+  const int search_block_center_index =
+      static_cast<int>(output_time_ * playback_rate + 0.5);
+  search_block_index_ = search_block_center_index - search_block_center_offset_;
 }
 
 bool AudioTimeStretcher::TargetIsWithinSearchRegion() const {
@@ -364,77 +419,16 @@ bool AudioTimeStretcher::TargetIsWithinSearchRegion() const {
              search_block_index_ + search_block_size;
 }
 
-void AudioTimeStretcher::GetOptimalBlock() {
-  int optimal_index = 0;
-
-  // An interval around last optimal block which is excluded from the search.
-  // This is to reduce the buzzy sound. The number 160 is rather arbitrary and
-  // derived heuristically.
-  const int kExcludeIntervalLengthFrames = 160;
-  if (TargetIsWithinSearchRegion()) {
-    optimal_index = target_block_index_;
-    PeekAudioWithZeroPrepend(optimal_index, optimal_block_.get());
-  } else {
-    PeekAudioWithZeroPrepend(target_block_index_, target_block_.get());
-    PeekAudioWithZeroPrepend(search_block_index_, search_block_.get());
-    int last_optimal =
-        target_block_index_ - ola_hop_size_ - search_block_index_;
-    Interval exclude_interval =
-        std::make_pair(last_optimal - kExcludeIntervalLengthFrames / 2,
-                       last_optimal + kExcludeIntervalLengthFrames / 2);
-
-    // |optimal_index| is in frames and it is relative to the beginning of the
-    // |search_block_|.
-    optimal_index = OptimalIndex(search_block_.get(), target_block_.get(),
-                                 kSbMediaAudioFrameStorageTypeInterleaved,
-                                 exclude_interval);
-
-    // Translate |index| w.r.t. the beginning of |audio_buffer_| and extract the
-    // optimal block.
-    optimal_index += search_block_index_;
-    PeekAudioWithZeroPrepend(optimal_index, optimal_block_.get());
-
-    // Make a transition from target block to the optimal block if different.
-    // Target block has the best continuation to the current output.
-    // Optimal block is the most similar block to the target, however, it might
-    // introduce some discontinuity when over-lap-added. Therefore, we combine
-    // them for a smoother transition. The length of transition window is twice
-    // as that of the optimal-block which makes it like a weighting function
-    // where target-block has higher weight close to zero (weight of 1 at index
-    // 0) and lower weight close the end.
-    for (int k = 0; k < channels_; ++k) {
-      float* ch_opt = reinterpret_cast<float*>(optimal_block_->data()) + k;
-      const float* const ch_target =
-          reinterpret_cast<float*>(target_block_->data()) + k;
-      for (int n = 0; n < ola_window_size_; ++n) {
-        ch_opt[n * channels_] =
-            ch_opt[n * channels_] * transition_window_[n] +
-            ch_target[n * channels_] * transition_window_[ola_window_size_ + n];
-      }
-    }
-  }
-
-  // Next target is one hop ahead of the current optimal.
-  target_block_index_ = optimal_index + ola_hop_size_;
+bool AudioTimeStretcher::CanPerformWsola() const {
+  const int search_block_size = num_candidate_blocks_ + (ola_window_size_ - 1);
+  const int frames = audio_buffer_.frames();
+  return target_block_index_ + ola_window_size_ <= frames &&
+         search_block_index_ + search_block_size <= frames;
 }
 
-void AudioTimeStretcher::PeekAudioWithZeroPrepend(int read_offset_frames,
-                                                  DecodedAudio* dest) {
-  SB_DCHECK_GT(bytes_per_frame_, 0);
-  SB_CHECK_LE(read_offset_frames + dest->frames(), audio_buffer_.frames());
-
-  int write_offset = 0;
-  int num_frames_to_read = dest->frames();
-  if (read_offset_frames < 0) {
-    int num_zero_frames_appended =
-        std::min(-read_offset_frames, num_frames_to_read);
-    read_offset_frames = 0;
-    num_frames_to_read -= num_zero_frames_appended;
-    write_offset = num_zero_frames_appended;
-    memset(dest->data(), 0, num_zero_frames_appended * bytes_per_frame_);
-  }
-  audio_buffer_.PeekFrames(num_frames_to_read, read_offset_frames, write_offset,
-                           dest);
+int AudioTimeStretcher::ConvertMillisecondsToFrames(int ms) const {
+  const double kMillisecondsPerSeconds = 1000;
+  return static_cast<int>(ms * (samples_per_second_ / kMillisecondsPerSeconds));
 }
 
 }  // namespace starboard

@@ -35,18 +35,6 @@ class ASH_EXPORT PrivacyScreenController
     ~Observer() override = default;
   };
 
-  // The UI surface from which the privacy screen is toggled on/off. Keep in
-  // sync with PrivacyScreenToggleUISurface in
-  // tools/metrics/histograms/enums.xml.
-  enum ToggleUISurface {
-    kToggleUISurfaceKeyboardShortcut,
-    kToggleUISurfaceFeaturePod,
-    kToggleUISurfaceToastButton,
-
-    // Must be last.
-    kToggleUISurfaceCount,
-  };
-
   PrivacyScreenController();
   ~PrivacyScreenController() override;
 
@@ -60,7 +48,7 @@ class ASH_EXPORT PrivacyScreenController
   // Get the PrivacyScreen settings stored in the current active user prefs.
   bool GetEnabled() const;
   // Set the desired PrivacyScreen settings in the current active user prefs.
-  void SetEnabled(bool enabled, ToggleUISurface ui_surface);
+  void SetEnabled(bool enabled);
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
@@ -74,10 +62,13 @@ class ASH_EXPORT PrivacyScreenController
   void OnSigninScreenPrefServiceInitialized(PrefService* pref_service) override;
 
   // DisplayConfigurator::Observer:
-  void OnDisplayModeChanged(
-      const std::vector<display::DisplaySnapshot*>& displays) override;
+  void OnDisplayConfigurationChanged(
+      const std::vector<raw_ptr<display::DisplaySnapshot, VectorExperimental>>&
+          displays) override;
 
  private:
+  friend class PrivacyScreenToastControllerTest;
+
   // Calculates PrivacyScreen's logical status.
   bool CalculateCurrentStatus() const;
 
@@ -103,7 +94,7 @@ class ASH_EXPORT PrivacyScreenController
 
   // The pref service of the currently active user. Can be null in
   // ash_unittests.
-  raw_ptr<PrefService, ExperimentalAsh> active_user_pref_service_ = nullptr;
+  raw_ptr<PrefService> active_user_pref_service_ = nullptr;
 
   // Set to true when entering the login screen. This should happen once per
   // Chrome restart.

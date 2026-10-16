@@ -13,29 +13,40 @@ source_set("pdf") {
     "chrome_pdf_stream_delegate.h",
     "pdf_extension_util.cc",
     "pdf_extension_util.h",
-    "pdf_frame_util.cc",
-    "pdf_frame_util.h",
+    "pdf_viewer_stream_manager.cc",
+    "pdf_viewer_stream_manager.h",
   ]
   deps = [
     "//base",
     "//build:chromeos_buildflags",
     "//chrome/browser:browser_process",
     "//chrome/browser:resources",
+    "//chrome/browser/pdf:pdf_pref_names",
+    "//chrome/browser/profiles:profile",
     "//chrome/browser/resources/pdf:resources",
     "//chrome/common",
+    "//components/pdf/browser",
     "//components/pdf/browser:interceptors",
-    "//components/services/screen_ai/buildflags",
+    "//components/pdf/common:util",
+    "//components/prefs",
     "//components/zoom",
     "//content/public/browser",
     "//extensions/browser",
     "//extensions/common:common_constants",
     "//extensions/common/api",
+    "//mojo/public/cpp/bindings",
     "//pdf:buildflags",
+    "//pdf:features",
     "//printing/buildflags",
+    "//third_party/blink/public/common:headers",
     "//ui/base",
     "//ui/gfx:color_utils",
     "//url",
   ]
+
+  if (is_chromeos) {
+    deps += [ "//chromeos/ash/components/browser_context_helper" ]
+  }
 
   if (enable_print_preview) {
     deps += [ "//chrome/common" ]
@@ -49,6 +60,24 @@ source_set("pdf_pref_names") {
   ]
 }
 
+if (is_chromeos) {
+  source_set("pdf_service") {
+    sources = [
+      "pdf_service.cc",
+      "pdf_service.h",
+    ]
+    public_deps = [
+      "//chrome/services/pdf/public/mojom",
+      "//mojo/public/cpp/bindings",
+    ]
+    deps = [
+      "//base",
+      "//chrome/app:generated_resources",
+      "//content/public/browser",
+    ]
+  }
+}
+
 source_set("pdf_extension_test_utils") {
   testonly = true
   sources = [
@@ -57,6 +86,29 @@ source_set("pdf_extension_test_utils") {
   ]
   deps = [
     "//base",
-    "//chrome/test:test_support",
+    "//base/test:test_support",
+    "//chrome/browser/ui",
+    "//chrome/browser/ui/tabs:tab_strip",
+    "//components/pdf/common:util",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//extensions/browser",
+    "//pdf:features",
+    "//testing/gtest",
+  ]
+}
+
+source_set("pdf_test_utils") {
+  testonly = true
+  sources = [
+    "pdf_test_util.cc",
+    "pdf_test_util.h",
+  ]
+  deps = [
+    "//base",
+    "//extensions/browser",
+    "//net",
+    "//services/network/public/mojom:url_loader_base",
+    "//url",
   ]
 }

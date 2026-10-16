@@ -13,11 +13,14 @@
 #include "base/scoped_observation.h"
 #include "base/values.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
+#include "chromeos/ash/components/network/cellular_utils.h"
+#include "chromeos/ash/components/network/managed_network_configuration_handler.h"
 #include "chromeos/ash/components/network/network_configuration_observer.h"
 #include "chromeos/ash/components/network/network_connection_observer.h"
 #include "chromeos/ash/components/network/network_metadata_observer.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
 #include "chromeos/ash/components/network/network_state_handler_observer.h"
+#include "chromeos/ash/components/network/text_message_suppression_state.h"
 
 class PrefService;
 class PrefRegistrySimple;
@@ -45,6 +48,7 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkMetadataStore
       NetworkConfigurationHandler* network_configuration_handler,
       NetworkConnectionHandler* network_connection_handler,
       NetworkStateHandler* network_state_handler,
+      ManagedNetworkConfigurationHandler* managed_network_configuration_handler,
       PrefService* profile_pref_service,
       PrefService* device_pref_service,
       bool is_enterprise_managed);
@@ -128,19 +132,10 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkMetadataStore
   // marks networks that were added in OOBE to the user's list.
   void OwnSharedNetworksOnFirstUserLogin();
 
-  // Sets whether traffic counters should be automatically reset.
-  void SetEnableTrafficCountersAutoReset(const std::string& network_guid,
-                                         bool enable);
-
   // Sets the day of the month on which traffic counters are automatically
   // reset.
   void SetDayOfTrafficCountersAutoReset(const std::string& network_guid,
-                                        const absl::optional<int>& day);
-
-  // Returns whether traffic counters should be automatically reset. Returns
-  // nullptr if no pref exists for |network_guid|.
-  const base::Value* GetEnableTrafficCountersAutoReset(
-      const std::string& network_guid);
+                                        const std::optional<int>& day);
 
   // Returns the day of the month on which traffic counters are automatically
   // reset. Returns nullptr if no pref exists for |network_guid|.
@@ -149,15 +144,30 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkMetadataStore
 
   // Records if the default network is configured to use secure DNS template
   // URIs which contain user or device identifiers.
-  void set_secure_dns_templates_with_identifiers_active(bool active) {
-    secure_dns_templates_with_identifiers_active_ = active;
-  }
+  void SetSecureDnsTemplatesWithIdentifiersActive(bool active);
 
   // Returns whether the default network is configured to use secure DNS
   // template URIs which contain user or device identifiers.
   bool secure_dns_templates_with_identifiers_active() const {
     return secure_dns_templates_with_identifiers_active_;
   }
+
+  // Sets user suppression state to configure text message notifications.
+  virtual void SetUserTextMessageSuppressionState(
+      const std::string& network_guid,
+      const UserTextMessageSuppressionState& state);
+
+  // Returns the user set text message suppression state. When no user state has
+  // been configured this will return |TextMessageSuppressionState::kAllow|
+  // which will default to allowing text message notifications.
+  virtual UserTextMessageSuppressionState GetUserTextMessageSuppressionState(
+      const std::string& network_guid);
+
+  // Sets whether the deviceReportXDREvents policy is enabled.
+  void SetReportXdrEventsEnabled(bool enabled);
+
+  // Returns whether the deviceReportXDREvents policy is enabled.
+  bool report_xdr_events_enabled() { return report_xdr_events_enabled_; }
 
   // Manage observers.
   void AddObserver(NetworkMetadataObserver* observer);
@@ -188,18 +198,19 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkMetadataStore
   void OnDisableHiddenError(const std::string& error_name);
 
   base::ObserverList<NetworkMetadataObserver> observers_;
-  raw_ptr<NetworkConfigurationHandler, ExperimentalAsh>
-      network_configuration_handler_;
-  raw_ptr<NetworkConnectionHandler, ExperimentalAsh>
-      network_connection_handler_;
-  raw_ptr<NetworkStateHandler, ExperimentalAsh> network_state_handler_;
+  raw_ptr<NetworkConfigurationHandler> network_configuration_handler_;
+  raw_ptr<NetworkConnectionHandler> network_connection_handler_;
+  raw_ptr<NetworkStateHandler> network_state_handler_;
+  raw_ptr<ManagedNetworkConfigurationHandler>
+      managed_network_configuration_handler_;
   base::ScopedObservation<NetworkStateHandler, NetworkStateHandlerObserver>
       network_state_handler_observer_{this};
-  raw_ptr<PrefService, ExperimentalAsh> profile_pref_service_;
-  raw_ptr<PrefService, ExperimentalAsh> device_pref_service_;
+  raw_ptr<PrefService> profile_pref_service_;
+  raw_ptr<PrefService> device_pref_service_;
   bool is_enterprise_managed_;
   bool has_profile_loaded_ = false;
   bool secure_dns_templates_with_identifiers_active_ = false;
+  bool report_xdr_events_enabled_ = false;
   base::WeakPtrFactory<NetworkMetadataStore> weak_ptr_factory_{this};
 };
 

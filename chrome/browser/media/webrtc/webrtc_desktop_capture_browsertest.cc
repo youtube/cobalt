@@ -2,19 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
+
 #include "base/barrier_closure.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/test/bind.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/api/desktop_capture/desktop_capture_api.h"
+#include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
 #include "chrome/browser/media/webrtc/fake_desktop_media_picker_factory.h"
 #include "chrome/browser/media/webrtc/webrtc_browsertest_base.h"
 #include "chrome/browser/media/webrtc/webrtc_browsertest_common.h"
@@ -23,13 +24,13 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/tab_sharing/tab_sharing_infobar_delegate.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/infobars/content/content_infobar_manager.h"
-#include "components/infobars/core/confirm_infobar_delegate.h"
 #include "components/infobars/core/infobar.h"
 #include "components/infobars/core/infobar_manager.h"
 #include "content/public/browser/browser_thread.h"
@@ -50,7 +51,7 @@ content::WebContents* GetWebContents(Browser* browser, int tab) {
 
 content::DesktopMediaID GetDesktopMediaIDForScreen() {
   return content::DesktopMediaID(content::DesktopMediaID::TYPE_SCREEN,
-                                 content::DesktopMediaID::kNullId);
+                                 content::DesktopMediaID::kFakeId);
 }
 
 content::DesktopMediaID GetDesktopMediaIDForTab(Browser* browser, int tab) {
@@ -59,8 +60,9 @@ content::DesktopMediaID GetDesktopMediaIDForTab(Browser* browser, int tab) {
   return content::DesktopMediaID(
       content::DesktopMediaID::TYPE_WEB_CONTENTS,
       content::DesktopMediaID::kNullId,
-      content::WebContentsMediaCaptureId(main_frame->GetProcess()->GetID(),
-                                         main_frame->GetRoutingID()));
+      content::WebContentsMediaCaptureId(
+          main_frame->GetProcess()->GetDeprecatedID(),
+          main_frame->GetRoutingID()));
 }
 
 infobars::ContentInfoBarManager* GetInfoBarManager(Browser* browser, int tab) {
@@ -73,9 +75,9 @@ infobars::ContentInfoBarManager* GetInfoBarManager(
   return infobars::ContentInfoBarManager::FromWebContents(contents);
 }
 
-ConfirmInfoBarDelegate* GetDelegate(Browser* browser, int tab) {
-  return static_cast<ConfirmInfoBarDelegate*>(
-      GetInfoBarManager(browser, tab)->infobar_at(0)->delegate());
+TabSharingInfoBarDelegate* GetDelegate(Browser* browser, int tab) {
+  return static_cast<TabSharingInfoBarDelegate*>(
+      GetInfoBarManager(browser, tab)->infobars()[0]->delegate());
 }
 
 class InfobarUIChangeObserver : public TabStripModelObserver {
@@ -152,7 +154,7 @@ class InfobarUIChangeObserver : public TabStripModelObserver {
 
  public:
   void EraseObserver(InfoBarChangeObserver* observer) {
-    auto iter = base::ranges::find(
+    auto iter = std::ranges::find(
         observers_, observer,
         [](const auto& observer_iter) { return observer_iter.second.get(); });
     observers_.erase(iter);
@@ -232,18 +234,19 @@ class WebRtcDesktopCaptureBrowserTest : public WebRtcTestBase {
     command_line->AppendSwitchASCII(switches::kAutoSelectDesktopCaptureSource,
                                     "Entire screen");
     command_line->AppendSwitch(switches::kEnableUserMediaScreenCapturing);
-    // TODO(https://crbug.com/1424557): Remove this after fixing feature
+    // MSan and GL do not get along so avoid using the GPU with MSan.
+    // TODO(crbug.com/40260482): Remove this after fixing feature
     // detection in 0c tab capture path as it'll no longer be needed.
-    if constexpr (!BUILDFLAG(IS_CHROMEOS)) {
-      command_line->AppendSwitch(switches::kUseGpuInTests);
-    }
+#if !BUILDFLAG(IS_CHROMEOS) && !defined(MEMORY_SANITIZER)
+    command_line->AppendSwitch(switches::kUseGpuInTests);
+#endif
   }
 
  protected:
   void InitializeTabSharingForFirstTab(
       MediaIDCallback media_id_callback,
       InfobarUIChangeObserver* observer,
-      absl::optional<std::string> extra_video_constraints = absl::nullopt) {
+      std::optional<std::string> extra_video_constraints = std::nullopt) {
     ASSERT_TRUE(embedded_test_server()->Start());
     LoadDesktopCaptureExtension();
     auto* first_tab = OpenTestPageInNewTab(kMainWebrtcTestHtmlPage);
@@ -301,17 +304,29 @@ class WebRtcDesktopCaptureBrowserTest : public WebRtcTestBase {
     SetupPeerconnectionWithLocalStream(first_tab);
     SetupPeerconnectionWithLocalStream(second_tab);
     NegotiateCall(first_tab, second_tab);
-    VerifyStatsGeneratedCallback(second_tab);
     DetectVideoAndHangUp(first_tab, second_tab);
   }
 
   FakeDesktopMediaPickerFactory picker_factory_;
+
+  // TODO(https://crbug.com/40804030): Remove this when updated to use MV3.
+  extensions::ScopedTestMV2Enabler mv2_enabler_;
 };
 
+// TODO(crbug.com/40915051): Fails on MAC.
+// TODO(crbug.com/40915051): Fails with MSAN. Determine if enabling the test for
+// MSAN is feasible or not.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_TabCaptureProvidesMinFps DISABLED_TabCaptureProvidesMinFps
+#elif defined(MEMORY_SANITIZER)
+#define MAYBE_TabCaptureProvidesMinFps DISABLED_TabCaptureProvidesMinFps
+#else
+#define MAYBE_TabCaptureProvidesMinFps TabCaptureProvidesMinFps
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcDesktopCaptureBrowserTest,
-                       TabCaptureProvidesMinFps) {
+                       MAYBE_TabCaptureProvidesMinFps) {
   constexpr int kFps = 30;
-  constexpr const char* const kFpsString = "30";
+  constexpr const char* kFpsString = "30";
   constexpr int kTestTimeSeconds = 2;
   // We wait with measuring frame rate until a few frames has passed. This is
   // because the frame rate frame dropper in VideoTrackAdapter is pretty
@@ -357,8 +372,10 @@ IN_PROC_BROWSER_TEST_F(WebRtcDesktopCaptureBrowserTest,
   ASSERT_GE(average_fps, kFps / 3);
 }
 
-// TODO(crbug.com/1395498): Fails on Linux ASan LSan builder
-#if BUILDFLAG(IS_LINUX) && defined(ADDRESS_SANITIZER) && defined(LEAK_SANITIZER)
+// TODO(crbug.com/40915051): Fails on Linux ASan, LSan and MSan builders.
+#if BUILDFLAG(IS_LINUX) &&                                      \
+    ((defined(ADDRESS_SANITIZER) && defined(LEAK_SANITIZER)) || \
+     defined(MEMORY_SANITIZER))
 #define MAYBE_TabCaptureProvides0HzWith0MinFpsConstraintAndStaticContent \
   DISABLED_TabCaptureProvides0HzWith0MinFpsConstraintAndStaticContent
 #else
@@ -389,19 +406,22 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_LE(frame_counter, 3);
 }
 
-// TODO(crbug.com/796889): Enable on Mac when thread check crash is fixed.
-// TODO(sprang): Figure out why test times out on Win 10 and ChromeOS.
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-// TODO(crbug.com/1225911): Test is flaky on Linux.
+// Flaky on ASan bots. See https://crbug.com/40270173.
+// Crashes on some Macs. See https://crbug.com/351095634.
+#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || BUILDFLAG(IS_MAC)
+#define MAYBE_RunP2PScreenshareWhileSharingScreen \
+  DISABLED_RunP2PScreenshareWhileSharingScreen
+#else
+#define MAYBE_RunP2PScreenshareWhileSharingScreen \
+  RunP2PScreenshareWhileSharingScreen
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcDesktopCaptureBrowserTest,
-                       DISABLED_RunP2PScreenshareWhileSharingScreen) {
+                       MAYBE_RunP2PScreenshareWhileSharingScreen) {
   RunP2PScreenshareWhileSharing(base::BindOnce(GetDesktopMediaIDForScreen));
 }
 
-// TODO(crbug.com/1282292, crbug.com/1304686): Test is flaky on Linux, Windows
-// and ChromeOS.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
+// Flaky on ASan bots. See https://crbug.com/40270173.
+#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER)
 #define MAYBE_RunP2PScreenshareWhileSharingTab \
   DISABLED_RunP2PScreenshareWhileSharingTab
 #else
@@ -424,13 +444,13 @@ IN_PROC_BROWSER_TEST_F(WebRtcDesktopCaptureBrowserTest,
   // Should delete 3 infobars and create 3 new!
   observer.ExpectCalls(6);
   // Switch shared tab from 2 to 0.
-  GetDelegate(browser(), 0)->Cancel();
+  GetDelegate(browser(), 0)->ShareThisTabInstead();
   observer.Wait();
 
   // Should delete 3 infobars and create 3 new!
   observer.ExpectCalls(6);
   // Switch shared tab from 0 to 2.
-  GetDelegate(browser(), 2)->Cancel();
+  GetDelegate(browser(), 2)->ShareThisTabInstead();
   observer.Wait();
 }
 

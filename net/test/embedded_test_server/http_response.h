@@ -5,7 +5,9 @@
 #ifndef NET_TEST_EMBEDDED_TEST_SERVER_HTTP_RESPONSE_H_
 #define NET_TEST_EMBEDDED_TEST_SERVER_HTTP_RESPONSE_H_
 
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/compiler_specific.h"
 #include "base/functional/bind.h"
@@ -13,11 +15,9 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/time/time.h"
 #include "net/http/http_status_code.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net::test_server {
 
@@ -94,26 +94,30 @@ class BasicHttpResponse : public HttpResponse {
   void set_code(HttpStatusCode code) { code_ = code; }
 
   std::string reason() const {
-    return reason_.value_or(GetHttpReasonPhrase(code_));
+    if (reason_) {
+      return *reason_;
+    } else {
+      return GetHttpReasonPhrase(code_);
+    }
   }
-  void set_reason(absl::optional<std::string> reason) {
+  void set_reason(std::optional<std::string> reason) {
     reason_ = std::move(reason);
   }
 
   // The content of the response.
   const std::string& content() const { return content_; }
-  void set_content(base::StringPiece content) {
+  void set_content(std::string_view content) {
     content_ = std::string{content};
   }
 
   // The content type.
   const std::string& content_type() const { return content_type_; }
-  void set_content_type(base::StringPiece content_type) {
+  void set_content_type(std::string_view content_type) {
     content_type_ = std::string{content_type};
   }
 
   // Adds a custom header.
-  void AddCustomHeader(base::StringPiece key, base::StringPiece value) {
+  void AddCustomHeader(std::string_view key, std::string_view value) {
     custom_headers_.emplace_back(key, value);
   }
 
@@ -126,7 +130,7 @@ class BasicHttpResponse : public HttpResponse {
 
  private:
   HttpStatusCode code_ = HTTP_OK;
-  absl::optional<std::string> reason_;
+  std::optional<std::string> reason_;
   std::string content_;
   std::string content_type_;
   base::StringPairs custom_headers_;

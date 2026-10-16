@@ -4,24 +4,14 @@
 
 package org.chromium.chrome.browser.ntp;
 
-import android.content.Intent;
-import android.os.SystemClock;
-
 import androidx.annotation.IntDef;
 
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.metrics.RecordUserAction;
-import org.chromium.base.supplier.Supplier;
-import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.feed.FeedFeatures;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tab.TabCreationState;
-import org.chromium.chrome.browser.tabmodel.TabModelSelector;
-import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.chrome.browser.util.BrowserUiUtils;
-import org.chromium.components.embedder_support.util.UrlUtilities;
+import org.chromium.chrome.browser.util.BrowserUiUtils.ModuleTypeOnStartAndNtp;
 import org.chromium.components.embedder_support.util.UrlUtilitiesJni;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.base.PageTransition;
@@ -68,29 +58,29 @@ public class NewTabPageUma {
     /** User clicked on the "learn more" link in the footer or in the feed header menu. */
     public static final int ACTION_CLICKED_LEARN_MORE = 9;
 
-    /** User clicked on the "Refresh" button in the "all dismissed" state. */
-    public static final int ACTION_CLICKED_ALL_DISMISSED_REFRESH = 10;
+    /** (Obsolete) User clicked on the "Refresh" button in the "all dismissed" state. */
+    // public static final int ACTION_CLICKED_ALL_DISMISSED_REFRESH = 10;
 
     /** (Obsolete) User opened an explore sites tile. */
     // public static final int ACTION_OPENED_EXPLORE_SITES_TILE = 11;
 
     /**
-     * User clicked on the "Manage Interests" item in the snippet card menu or in the feed header
-     * menu.
+     * (Obsolete) User clicked on the "Manage Interests" item in the snippet card menu or in the
+     * feed header menu.
      */
-    public static final int ACTION_CLICKED_MANAGE_INTERESTS = 12;
+    // public static final int ACTION_CLICKED_MANAGE_INTERESTS = 12;
 
-    /** User triggered a block content action. **/
-    public static final int ACTION_BLOCK_CONTENT = 13;
+    /** (Obsolete) User triggered a block content action. */
+    // public static final int ACTION_BLOCK_CONTENT = 13;
 
-    /** (Obsolete)  User clicked on the "Manage activity" item in the feed header menu. */
+    /** (Obsolete) User clicked on the "Manage activity" item in the feed header menu. */
     // public static final int ACTION_CLICKED_MANAGE_ACTIVITY = 14;
 
     /** (Obsolete) User clicked on the feed header menu button item in the feed header menu. */
     // public static final int ACTION_CLICKED_FEED_HEADER_MENU = 15;
 
-    /** User clicked to play the full video for a video snippet shown on the NTP. */
-    public static final int ACTION_OPENED_VIDEO = 16;
+    /** (Obsolete) User clicked to play the full video for a video snippet shown on the NTP. */
+    // public static final int ACTION_OPENED_VIDEO = 16;
 
     /** The number of possible actions. */
     private static final int NUM_ACTIONS = 17;
@@ -99,26 +89,24 @@ public class NewTabPageUma {
     public static final int NTP_IMPRESSION_REGULAR = 0;
 
     /** Potential NTP impressions (instead of blank page if no tab is open). */
-    public static final int NTP_IMPESSION_POTENTIAL_NOTAB = 1;
+    public static final int NTP_IMPRESSION_POTENTIAL_NO_TAB = 1;
 
     /** The number of possible NTP impression types */
     private static final int NUM_NTP_IMPRESSION = 2;
 
-    /** The maximal number of suggestions per section. Keep in sync with kMaxSuggestionsPerCategory
-     * in content_suggestions_metrics.cc. */
-    private static final int MAX_SUGGESTIONS_PER_SECTION = 20;
-
     /**
      * Possible results when updating content suggestions list in the UI. Keep in sync with the
-     * ContentSuggestionsUIUpdateResult2 enum in enums.xml. Do not remove or change existing
-     * values other than NUM_UI_UPDATE_RESULTS.
+     * ContentSuggestionsUiUpdateResult2 enum in enums.xml. Do not remove or change existing values
+     * other than NUM_UI_UPDATE_RESULTS.
      */
-    @IntDef({ContentSuggestionsUIUpdateResult.SUCCESS_APPENDED,
-            ContentSuggestionsUIUpdateResult.SUCCESS_REPLACED,
-            ContentSuggestionsUIUpdateResult.FAIL_ALL_SEEN,
-            ContentSuggestionsUIUpdateResult.FAIL_DISABLED})
+    @IntDef({
+        ContentSuggestionsUiUpdateResult.SUCCESS_APPENDED,
+        ContentSuggestionsUiUpdateResult.SUCCESS_REPLACED,
+        ContentSuggestionsUiUpdateResult.FAIL_ALL_SEEN,
+        ContentSuggestionsUiUpdateResult.FAIL_DISABLED
+    })
     @Retention(RetentionPolicy.SOURCE)
-    public @interface ContentSuggestionsUIUpdateResult {
+    public @interface ContentSuggestionsUiUpdateResult {
         /**
          * The content suggestions are successfully appended (because they are set for the first
          * time or explicitly marked to be appended).
@@ -142,42 +130,27 @@ public class NewTabPageUma {
 
     // These values are persisted to logs. Entries should not be renumbered and
     // numeric values should never be reused. This maps directly to
-    // the ContentSuggestionsDisplayStatus enum defined in tools/metrics/enums.xml.
-    @IntDef({ContentSuggestionsDisplayStatus.VISIBLE, ContentSuggestionsDisplayStatus.COLLAPSED,
-            ContentSuggestionsDisplayStatus.DISABLED_BY_POLICY,
-            ContentSuggestionsDisplayStatus.DISABLED})
+    // the ContentSuggestionsDisplayStatus enum defined in tools/metrics/histograms/enums.xml.
+    @IntDef({
+        ContentSuggestionsDisplayStatus.VISIBLE,
+        ContentSuggestionsDisplayStatus.COLLAPSED,
+        ContentSuggestionsDisplayStatus.DISABLED_BY_POLICY,
+        ContentSuggestionsDisplayStatus.DISABLED,
+        ContentSuggestionsDisplayStatus.DISABLED_BY_DSE
+    })
     @Retention(RetentionPolicy.SOURCE)
     private @interface ContentSuggestionsDisplayStatus {
         int VISIBLE = 0;
         int COLLAPSED = 1;
         int DISABLED_BY_POLICY = 2;
         int DISABLED = 3;
-        int NUM_ENTRIES = 4;
-    }
-
-    private final TabModelSelector mTabModelSelector;
-    private final Supplier<Long> mLastInteractionTime;
-    private final boolean mActivityHadWarmStart;
-    private final Supplier<Intent> mActivityIntent;
-    private TabCreationRecorder mTabCreationRecorder;
-
-    /**
-     * Constructor.
-     * @param tabModelSelector Tab model selector to observe tab creation event.
-     * @param lastInteractionTime The time user interacted with UI lastly.
-     * @param activityHadWarmStart {@code true} if the activity did a warm start.
-     * @param intent Supplier of the activity intent.
-     */
-    public NewTabPageUma(TabModelSelector tabModelSelector, Supplier<Long> lastInteractionTime,
-            boolean activityHadWarmStart, Supplier<Intent> intent) {
-        mTabModelSelector = tabModelSelector;
-        mLastInteractionTime = lastInteractionTime;
-        mActivityHadWarmStart = activityHadWarmStart;
-        mActivityIntent = intent;
+        int DISABLED_BY_DSE = 4;
+        int NUM_ENTRIES = 5;
     }
 
     /**
      * Records an action taken by the user on the NTP.
+     *
      * @param action One of the ACTION_* values defined in this class.
      */
     public static void recordAction(int action) {
@@ -204,97 +177,42 @@ public class NewTabPageUma {
             }
         }
         if (isNtp) {
-            BrowserUiUtils.recordModuleClickHistogram(BrowserUiUtils.HostSurface.NEW_TAB_PAGE,
-                    BrowserUiUtils.ModuleTypeOnStartAndNTP.OMNIBOX);
+            BrowserUiUtils.recordModuleClickHistogram(ModuleTypeOnStartAndNtp.OMNIBOX);
         }
     }
 
     /**
      * Record a NTP impression (even potential ones to make informed product decisions). If the
      * impression type is {@link NewTabPageUma#NTP_IMPRESSION_REGULAR}, also records a user action.
+     *
      * @param impressionType Type of the impression from NewTabPageUma.java
      */
-    public static void recordNTPImpression(int impressionType) {
+    public static void recordNtpImpression(int impressionType) {
         assert impressionType >= 0;
         assert impressionType < NUM_NTP_IMPRESSION;
         RecordHistogram.recordEnumeratedHistogram(
                 "Android.NTP.Impression", impressionType, NUM_NTP_IMPRESSION);
     }
 
-    /**
-     * Records how often new tabs with a NewTabPage are created. This helps to determine how often
-     * users navigate back to already opened NTPs.
-     */
-    public void monitorNTPCreation() {
-        mTabCreationRecorder = new TabCreationRecorder();
-        mTabModelSelector.addObserver(mTabCreationRecorder);
-    }
-
-    /**
-     * Records how much time elapsed from start until the search box became available to the user.
-     */
-    public void recordSearchAvailableLoadTime() {
-        // Log the time it took for the search box to be displayed at startup, based on the
-        // timestamp on the intent for the activity. If the user has interacted with the
-        // activity already, it's not a startup, and the timestamp on the activity would not be
-        // relevant either.
-        if (mLastInteractionTime.get() != 0) return;
-        long timeFromIntent = SystemClock.elapsedRealtime()
-                - IntentHandler.getTimestampFromIntent(mActivityIntent.get());
-        if (mActivityHadWarmStart) {
-            RecordHistogram.recordMediumTimesHistogram(
-                    "NewTabPage.SearchAvailableLoadTime2.WarmStart", timeFromIntent);
-        } else {
-            RecordHistogram.recordMediumTimesHistogram(
-                    "NewTabPage.SearchAvailableLoadTime2.ColdStart", timeFromIntent);
-        }
-    }
-
-    /**
-     * Records number of prefetched article suggestions, which were available when content
-     * suggestions surface was opened and there was no network connection.
-     */
-    public static void recordPrefetchedArticleSuggestionsCount(int count) {
-        RecordHistogram.recordEnumeratedHistogram(
-                "NewTabPage.ContentSuggestions.CountOnNtpOpenedIfVisible."
-                        + "Articles.Prefetched.Offline2",
-                count, MAX_SUGGESTIONS_PER_SECTION);
-    }
-
-    /**
-     * Records Content Suggestions Display Status when NTPs opened.
-     */
-    public void recordContentSuggestionsDisplayStatus(Profile profile) {
-        @ContentSuggestionsDisplayStatus
-        int status = ContentSuggestionsDisplayStatus.VISIBLE;
+    /** Records Content Suggestions Display Status when NTPs opened. */
+    public static void recordContentSuggestionsDisplayStatus(Profile profile) {
+        @ContentSuggestionsDisplayStatus int status = ContentSuggestionsDisplayStatus.VISIBLE;
         if (!UserPrefs.get(profile).getBoolean(Pref.ENABLE_SNIPPETS)) {
             // Disabled by policy.
             status = ContentSuggestionsDisplayStatus.DISABLED_BY_POLICY;
-        } else if (!FeedFeatures.isFeedEnabled()) {
+        } else if (!UserPrefs.get(profile).getBoolean(Pref.ENABLE_SNIPPETS_BY_DSE)) {
+            // Disabled when swapping NTP is enabled and the default search engine isn't Google.
+            status = ContentSuggestionsDisplayStatus.DISABLED_BY_DSE;
+        } else if (!FeedFeatures.isFeedEnabled(profile)) {
             status = ContentSuggestionsDisplayStatus.DISABLED;
         } else if (!UserPrefs.get(profile).getBoolean(Pref.ARTICLES_LIST_VISIBLE)) {
             // Articles are collapsed.
             status = ContentSuggestionsDisplayStatus.COLLAPSED;
         }
 
-        RecordHistogram.recordEnumeratedHistogram("ContentSuggestions.Feed.DisplayStatusOnOpen",
-                status, ContentSuggestionsDisplayStatus.NUM_ENTRIES);
-    }
-
-    /**
-     * Records the number of new NTPs opened in a new tab. Use through
-     * {@link NewTabPageUma#monitorNTPCreation(TabModelSelector)}.
-     */
-    private static class TabCreationRecorder implements TabModelSelectorObserver {
-        @Override
-        public void onNewTabCreated(Tab tab, @TabCreationState int creationState) {
-            if (!UrlUtilities.isNTPUrl(tab.getUrl())) return;
-            RecordUserAction.record("MobileNTPOpenedInNewTab");
-        }
-    }
-
-    /** Destroy and unhook objects at destruction. */
-    public void destroy() {
-        if (mTabCreationRecorder != null) mTabModelSelector.removeObserver(mTabCreationRecorder);
+        RecordHistogram.recordEnumeratedHistogram(
+                "ContentSuggestions.Feed.DisplayStatusOnOpen",
+                status,
+                ContentSuggestionsDisplayStatus.NUM_ENTRIES);
     }
 }

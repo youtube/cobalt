@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/test/spawned_test_server/local_test_server.h"
 
 #include <poll.h>
@@ -132,13 +137,13 @@ bool LocalTestServer::LaunchPython(
              << options.environment["PYTHONPATH"];
 
   // Set CWD to source root.
-  if (!base::PathService::Get(base::DIR_SOURCE_ROOT,
+  if (!base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT,
                               &options.current_directory)) {
-    LOG(ERROR) << "Failed to get DIR_SOURCE_ROOT";
+    LOG(ERROR) << "Failed to get DIR_SRC_TEST_DATA_ROOT";
     return false;
   }
 
-  options.fds_to_remap.push_back(std::make_pair(pipefd[1], pipefd[1]));
+  options.fds_to_remap.emplace_back(pipefd[1], pipefd[1]);
   LOG(ERROR) << "Running: " << python_command.GetCommandLineString();
   process_ = base::LaunchProcess(python_command, options);
   if (!process_.IsValid()) {

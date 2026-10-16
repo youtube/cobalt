@@ -79,7 +79,7 @@ def GetPkgConfigPrefixToStrip(options, args):
   # from pkg-config's |prefix| variable.
   prefix = subprocess.check_output([options.pkg_config,
       "--variable=prefix"] + args, env=os.environ).decode('utf-8')
-  if prefix[-4] == '/usr':
+  if prefix[:4] == '/usr':
     return prefix[4:]
   return prefix
 
@@ -216,7 +216,7 @@ def main():
 
   for flag in all_flags[:]:
     if len(flag) == 0 or MatchesAnyRegexp(flag, strip_out):
-      continue;
+      continue
 
     if flag[:2] == '-l':
       libs.append(RewritePath(flag[2:], prefix, sysroot))
@@ -239,7 +239,12 @@ def main():
   # Output a GN array, the first one is the cflags, the second are the libs. The
   # JSON formatter prints GN compatible lists when everything is a list of
   # strings.
-  print(json.dumps([includes, cflags, libs, lib_dirs]))
+  print(
+      json.dumps(
+          [sorted(includes),
+           sorted(cflags),
+           sorted(libs),
+           sorted(lib_dirs)]))
   return 0
 
 

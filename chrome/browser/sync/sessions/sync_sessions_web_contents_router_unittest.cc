@@ -19,7 +19,7 @@ class StartSyncFlareMock {
   StartSyncFlareMock() = default;
   ~StartSyncFlareMock() = default;
 
-  void StartSyncFlare(syncer::ModelType type) { was_run_ = true; }
+  void StartSyncFlare(syncer::DataType type) { was_run_ = true; }
 
   bool was_run() { return was_run_; }
 
@@ -49,7 +49,7 @@ class SyncSessionsWebContentsRouterTest
   SyncSessionsWebContentsRouter* router() { return router_; }
 
  private:
-  raw_ptr<SyncSessionsWebContentsRouter> router_;
+  raw_ptr<SyncSessionsWebContentsRouter, DanglingUntriaged> router_ = nullptr;
 };
 
 // Disabled on android due to complexity of creating a full TabAndroid object

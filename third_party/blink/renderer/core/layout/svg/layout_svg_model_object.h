@@ -47,16 +47,14 @@ class LayoutSVGModelObject : public LayoutObject {
 
   bool IsChildAllowed(LayoutObject*, const ComputedStyle&) const override;
 
-  PhysicalRect VisualRectInDocument(
-      VisualRectFlags = kDefaultVisualRectFlags) const override;
-
   gfx::RectF VisualRectInLocalSVGCoordinates() const override {
     NOT_DESTROYED();
-    return StrokeBoundingBox();
+    return DecoratedBoundingBox();
   }
 
-  void AbsoluteQuads(Vector<gfx::QuadF>&,
-                     MapCoordinatesFlags mode = 0) const override;
+  void QuadsInAncestorInternal(Vector<gfx::QuadF>&,
+                               const LayoutBoxModelObject* ancestor,
+                               MapCoordinatesFlags) const override;
   gfx::RectF LocalBoundingBoxRectForAccessibility() const final;
 
   void MapLocalToAncestor(const LayoutBoxModelObject* ancestor,
@@ -72,19 +70,20 @@ class LayoutSVGModelObject : public LayoutObject {
     return To<SVGElement>(LayoutObject::GetNode());
   }
 
-  bool IsOfType(LayoutObjectType type) const override {
+  bool IsSVG() const final {
     NOT_DESTROYED();
-    return type == kLayoutObjectSVG || LayoutObject::IsOfType(type);
+    return true;
   }
 
  protected:
+  void ImageChanged(WrappedImagePtr, CanDeferInvalidation) override;
   void WillBeDestroyed() override;
 
   void InsertedIntoTree() override;
   void WillBeRemovedFromTree() override;
 
-  AffineTransform CalculateLocalTransform() const;
-  bool CheckForImplicitTransformChange(bool bbox_changed) const;
+  bool CheckForImplicitTransformChange(const SVGLayoutInfo&,
+                                       bool bbox_changed) const;
 
  private:
   // LayoutSVGModelObject subclasses should use GetElement() instead.
@@ -93,7 +92,7 @@ class LayoutSVGModelObject : public LayoutObject {
   void AddOutlineRects(OutlineRectCollector&,
                        OutlineInfo*,
                        const PhysicalOffset& additional_offset,
-                       NGOutlineType) const final;
+                       OutlineType) const final;
 };
 
 }  // namespace blink

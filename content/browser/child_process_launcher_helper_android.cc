@@ -2,22 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "content/browser/child_process_launcher_helper.h"
+
 #include <memory>
 #include <tuple>
+#include <utility>
+#include <vector>
 
 #include "base/android/apk_assets.h"
 #include "base/android/application_status_listener.h"
+#include "base/android/binder.h"
+#include "base/android/binder_box.h"
+#include "base/android/build_info.h"
 #include "base/android/jni_array.h"
+#include "base/base_switches.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/i18n/icu_util.h"
 #include "base/logging.h"
 #include "base/metrics/field_trial.h"
+#include "base/process/launch.h"
 #include "content/browser/child_process_launcher.h"
-#include "content/browser/child_process_launcher_helper.h"
 #include "content/browser/child_process_launcher_helper_posix.h"
 #include "content/browser/posix_file_descriptor_info_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
-#include "content/public/android/content_jni_headers/ChildProcessLauncherHelperImpl_jni.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/child_process_launcher_utils.h"
@@ -28,6 +36,9 @@
 #include "sandbox/policy/features.h"
 #include "sandbox/policy/switches.h"
 
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "content/public/android/content_jni_headers/ChildProcessLauncherHelperImpl_jni.h"
+
 using base::android::AttachCurrentThread;
 using base::android::JavaParamRef;
 using base::android::ScopedJavaGlobalRef;
@@ -37,6 +48,11 @@ using base::android::ToJavaArrayOfStrings;
 namespace content {
 namespace internal {
 namespace {
+
+// Controls whether to explicitly enable service group importance logic.
+BASE_FEATURE(kServiceGroupImportance,
+             "ServiceGroupImportance",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Stops a child process based on the handle returned from StartChildProcess.
 void StopChildProcess(base::ProcessHandle handle) {
@@ -50,9 +66,9 @@ void StopChildProcess(base::ProcessHandle handle) {
 
 void ChildProcessLauncherHelper::BeforeLaunchOnClientThread() {}
 
-absl::optional<mojo::NamedPlatformChannel>
+std::optional<mojo::NamedPlatformChannel>
 ChildProcessLauncherHelper::CreateNamedPlatformChannelOnLauncherThread() {
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 std::unique_ptr<PosixFileDescriptorInfo>
@@ -92,6 +108,20 @@ bool ChildProcessLauncherHelper::BeforeLaunchOnLauncherThread(
   DCHECK(process_type == switches::kGpuProcess ||
          !command_line()->HasSwitch(sandbox::policy::switches::kNoSandbox));
 
+  // The child processes can't correctly retrieve host package information so we
+  // rather feed this information through the command line.
+  auto* build_info = base::android::BuildInfo::GetInstance();
+  command_line()->AppendSwitchASCII(switches::kHostPackageName,
+                                    build_info->host_package_name());
+  command_line()->AppendSwitchASCII(switches::kPackageName,
+                                    build_info->package_name());
+  command_line()->AppendSwitchASCII(switches::kHostPackageLabel,
+                                    build_info->host_package_label());
+  command_line()->AppendSwitchASCII(switches::kHostVersionCode,
+                                    build_info->host_version_code());
+  command_line()->AppendSwitchASCII(switches::kPackageVersionName,
+                                    build_info->package_version_name());
+
   return true;
 }
 
@@ -108,6 +138,14 @@ ChildProcessLauncherHelper::LaunchProcessOnLauncherThread(
   JNIEnv* env = AttachCurrentThread();
   DCHECK(env);
 
+  std::vector<base::android::BinderRef> binders;
+  if (mojo_channel_->remote_endpoint().platform_handle().is_valid_binder()) {
+    base::LaunchOptions binder_options;
+    auto endpoint = mojo_channel_->TakeRemoteEndpoint();
+    endpoint.PrepareToPass(binder_options, *command_line());
+    binders = std::move(binder_options.binders);
+  }
+
   // Create the Command line String[]
   ScopedJavaLocalRef<jobjectArray> j_argv =
       ToJavaArrayOfStrings(env, command_line()->argv());
@@ -115,33 +153,36 @@ ChildProcessLauncherHelper::LaunchProcessOnLauncherThread(
   size_t file_count = files_to_register->GetMappingSize();
   DCHECK(file_count > 0);
 
-  ScopedJavaLocalRef<jclass> j_file_info_class = base::android::GetClass(
-      env, "org/chromium/base/process_launcher/FileDescriptorInfo");
-  ScopedJavaLocalRef<jobjectArray> j_file_infos(
-      env, env->NewObjectArray(file_count, j_file_info_class.obj(), NULL));
-  base::android::CheckException(env);
-
+  std::vector<int32_t> ids(file_count);
+  std::vector<int32_t> fds(file_count);
+  std::vector<bool> auto_closes(file_count);
+  std::vector<int64_t> offsets(file_count);
+  std::vector<int64_t> sizes(file_count);
   for (size_t i = 0; i < file_count; ++i) {
     int fd = files_to_register->GetFDAt(i);
-    PCHECK(0 <= fd);
-    int id = files_to_register->GetIDAt(i);
+    CHECK(0 <= fd);
+    fds[i] = fd;
+    ids[i] = files_to_register->GetIDAt(i);
     const auto& region = files_to_register->GetRegionAt(i);
+    offsets[i] = region.offset;
+    sizes[i] = region.size;
     bool auto_close = files_to_register->OwnsFD(fd);
     if (auto_close) {
       std::ignore = files_to_register->ReleaseFD(fd).release();
     }
-
-    ScopedJavaLocalRef<jobject> j_file_info =
-        Java_ChildProcessLauncherHelperImpl_makeFdInfo(
-            env, id, fd, auto_close, region.offset, region.size);
-    PCHECK(j_file_info.obj());
-    env->SetObjectArrayElement(j_file_infos.obj(), i, j_file_info.obj());
+    auto_closes[i] = auto_close;
   }
+
+  ScopedJavaLocalRef<jobjectArray> j_file_infos =
+      Java_ChildProcessLauncherHelperImpl_makeFdInfos(
+          env, ids, fds, auto_closes, offsets, sizes);
+  CHECK(j_file_infos.obj());
 
   AddRef();  // Balanced by OnChildProcessStarted.
   java_peer_.Reset(Java_ChildProcessLauncherHelperImpl_createAndStart(
       env, reinterpret_cast<intptr_t>(this), j_argv, j_file_infos,
-      can_use_warm_up_connection));
+      can_use_warm_up_connection,
+      base::android::PackBinderBox(env, std::move(binders))));
 
   client_task_runner_->PostTask(
       FROM_HERE,
@@ -193,7 +234,8 @@ static void JNI_ChildProcessLauncherHelperImpl_SetTerminationInfo(
     jint binding_state,
     jboolean killed_by_us,
     jboolean clean_exit,
-    jboolean exception_during_init) {
+    jboolean exception_during_init,
+    jboolean is_spare_renderer) {
   ChildProcessTerminationInfo* info =
       reinterpret_cast<ChildProcessTerminationInfo*>(termination_info_ptr);
   info->binding_state =
@@ -201,15 +243,25 @@ static void JNI_ChildProcessLauncherHelperImpl_SetTerminationInfo(
   info->was_killed_intentionally_by_browser = killed_by_us;
   info->threw_exception_during_init = exception_during_init;
   info->clean_exit = clean_exit;
+  info->is_spare_renderer = is_spare_renderer;
 }
 
 static jboolean
 JNI_ChildProcessLauncherHelperImpl_ServiceGroupImportanceEnabled(JNIEnv* env) {
   // Not this is called on the launcher thread, not UI thread.
-  return SiteIsolationPolicy::AreIsolatedOriginsEnabled() ||
-         SiteIsolationPolicy::UseDedicatedProcessesForAllSites() ||
-         SiteIsolationPolicy::AreDynamicIsolatedOriginsEnabled() ||
-         SiteIsolationPolicy::ArePreloadedIsolatedOriginsEnabled();
+  //
+  // Note that service grouping is mandatory for site isolation on pre-U devices
+  // to avoid cached process limit. By service grouping, cached chrome renderer
+  // processes in a group are counted as one. On pre-U devices the cached
+  // process limit is usually 32 or such. U+ devices has a larger limit 1024 or
+  // such.
+  return (SiteIsolationPolicy::AreIsolatedOriginsEnabled() ||
+          SiteIsolationPolicy::UseDedicatedProcessesForAllSites() ||
+          SiteIsolationPolicy::AreDynamicIsolatedOriginsEnabled() ||
+          SiteIsolationPolicy::ArePreloadedIsolatedOriginsEnabled()) &&
+         (base::android::android_info::sdk_int() <
+              base::android::android_info::SDK_VERSION_U ||
+          base::FeatureList::IsEnabled(kServiceGroupImportance));
 }
 
 // static
@@ -256,11 +308,13 @@ void ChildProcessLauncherHelper::SetRenderProcessPriorityOnLauncherThread(
     const RenderProcessPriority& priority) {
   JNIEnv* env = AttachCurrentThread();
   DCHECK(env);
-  return Java_ChildProcessLauncherHelperImpl_setPriority(
+  Java_ChildProcessLauncherHelperImpl_setPriority(
       env, java_peer_, process.Handle(), priority.visible,
-      priority.has_media_stream, priority.has_foreground_service_worker,
-      priority.frame_depth, priority.intersects_viewport,
-      priority.boost_for_pending_views, static_cast<jint>(priority.importance));
+      priority.has_media_stream, priority.has_immersive_xr_session,
+      priority.has_foreground_service_worker, priority.frame_depth,
+      priority.intersects_viewport, priority.boost_for_pending_views,
+      priority.boost_for_loading, priority.is_spare_renderer,
+      static_cast<jint>(priority.importance));
 }
 
 // Called from ChildProcessLauncher.java when the ChildProcess was started.

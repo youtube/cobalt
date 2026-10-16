@@ -7,16 +7,17 @@ package org.chromium.chrome.browser.incognito;
 import android.util.Pair;
 
 import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.tabpersistence.TabStateDirectory;
 import org.chromium.chrome.browser.tabpersistence.TabStateFileManager;
 
 import java.io.File;
 
-/**
- * Manages tab state files for incognito tabs.
- */
+/** Manages tab state files for incognito tabs. */
+@NullMarked
 public class IncognitoTabPersistence {
     private static final String TAG = "IncognitoFileDelete";
+
     /**
      * Deletes files with saved state of incognito tabs.
      * @return whether successful.

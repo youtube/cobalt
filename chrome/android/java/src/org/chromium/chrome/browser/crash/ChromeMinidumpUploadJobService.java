@@ -5,13 +5,15 @@
 package org.chromium.chrome.browser.crash;
 
 import org.chromium.build.annotations.IdentifierNameString;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.base.SplitCompatMinidumpUploadJobService;
 import org.chromium.chrome.browser.metrics.UmaUtils;
 
 /** See {@link ChromeMinidumpUploadJobServiceImpl}. */
+@NullMarked
 public class ChromeMinidumpUploadJobService extends SplitCompatMinidumpUploadJobService {
-    @IdentifierNameString
-    private static String sImplClassName =
+    @SuppressWarnings("FieldCanBeFinal") // @IdentifierNameString requires non-final
+    private static @IdentifierNameString String sImplClassName =
             "org.chromium.chrome.browser.crash.ChromeMinidumpUploadJobServiceImpl";
 
     public ChromeMinidumpUploadJobService() {

@@ -11,7 +11,7 @@
 
 #include "base/strings/string_split.h"
 #include "base/values.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/common/pref_names.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/policy/core/browser/policy_error_map.h"
@@ -41,7 +41,7 @@ WebUsbAllowDevicesForUrlsPolicyHandler::WebUsbAllowDevicesForUrlsPolicyHandler(
           SchemaOnErrorStrategy::SCHEMA_ALLOW_UNKNOWN) {}
 
 WebUsbAllowDevicesForUrlsPolicyHandler::
-    ~WebUsbAllowDevicesForUrlsPolicyHandler() {}
+    ~WebUsbAllowDevicesForUrlsPolicyHandler() = default;
 
 bool WebUsbAllowDevicesForUrlsPolicyHandler::CheckPolicySettings(
     const PolicyMap& policies,
@@ -67,8 +67,8 @@ bool WebUsbAllowDevicesForUrlsPolicyHandler::CheckPolicySettings(
     auto* devices_list = item.GetDict().FindList(kDevicesKey);
     DCHECK(devices_list);
     for (const auto& device : *devices_list) {
-      absl::optional<int> vendor_id = device.GetDict().FindInt(kVendorIdKey);
-      absl::optional<int> product_id = device.GetDict().FindInt(kProductIdKey);
+      std::optional<int> vendor_id = device.GetDict().FindInt(kVendorIdKey);
+      std::optional<int> product_id = device.GetDict().FindInt(kProductIdKey);
       if (product_id.has_value()) {
         // If a |product_id| is specified, then a |vendor_id| must also be
         // specified. Otherwise, the policy is invalid.

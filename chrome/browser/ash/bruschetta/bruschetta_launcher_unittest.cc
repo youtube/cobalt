@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/bruschetta/bruschetta_launcher.h"
 
 #include <memory>
+#include <optional>
 
 #include "base/files/file.h"
 #include "base/files/file_util.h"
@@ -20,6 +21,7 @@
 #include "chrome/browser/ash/bruschetta/bruschetta_util.h"
 #include "chrome/browser/ash/guest_os/dbus_test_helper.h"
 #include "chrome/browser/ash/guest_os/guest_os_session_tracker.h"
+#include "chrome/browser/ash/guest_os/guest_os_session_tracker_factory.h"
 #include "chrome/browser/ash/guest_os/public/types.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/dbus/concierge/fake_concierge_client.h"
@@ -30,7 +32,6 @@
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 const char kLaunchHistogram[] = "Bruschetta.LaunchResult";
@@ -50,19 +51,17 @@ class BruschettaLauncherTest : public testing::Test,
 
  protected:
   void SetUp() override {
-    BruschettaServiceFactory::EnableForTesting(&profile_);
     launcher_ = std::make_unique<BruschettaLauncher>(kTestVmName, &profile_);
 
     // We set up all our mocks to succeed, then failing tests explicitly break
     // the one thing they want to check the failure mode of.
-    ASSERT_TRUE(CreateTestFiles());
     vm_tools::concierge::StartVmResponse response;
     response.set_success(true);
     response.set_status(vm_tools::concierge::VmStatus::VM_STATUS_RUNNING);
     FakeConciergeClient()->set_start_vm_response(std::move(response));
 
     guest_os::GuestId id{guest_os::VmType::BRUSCHETTA, kTestVmName, "penguin"};
-    guest_os::GuestOsSessionTracker::GetForProfile(&profile_)
+    guest_os::GuestOsSessionTrackerFactory::GetForProfile(&profile_)
         ->AddGuestForTesting(id, guest_os::GuestInfo(id, 30, {}, {}, {}, {}));
 
     SetupPrefs();
@@ -79,26 +78,15 @@ class BruschettaLauncherTest : public testing::Test,
         });
   }
 
-  bool CreateTestFiles() {
-    bios_path_ = profile_.GetPath().Append(kBiosPath);
-    base::File::Error error;
-    bool result =
-        base::CreateDirectoryAndGetError(bios_path_.DirName(), &error);
-    if (!result) {
-      LOG(ERROR) << "Error creating downloads folder: " << error;
-      return false;
-    }
-    return base::WriteFile(bios_path_, "");
-  }
-
   void SetupPrefs() {
-    BruschettaService::GetForProfile(&profile_)->RegisterInPrefs(
+    BruschettaServiceFactory::GetForProfile(&profile_)->RegisterInPrefs(
         MakeBruschettaId(kTestVmName), kTestVmConfig);
 
     base::Value::Dict pref;
     base::Value::Dict config;
     config.Set(prefs::kPolicyEnabledKey,
                static_cast<int>(prefs::PolicyEnabledState::RUN_ALLOWED));
+    config.Set(prefs::kPolicyNameKey, "Display Name");
 
     base::Value::Dict vtpm;
     vtpm.Set(prefs::kPolicyVTPMEnabledKey, true);
@@ -127,15 +115,15 @@ class BruschettaLauncherTest : public testing::Test,
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::RunLoop run_loop_;
   TestingProfile profile_;
-  base::FilePath bios_path_;
   std::unique_ptr<BruschettaLauncher> launcher_;
   base::HistogramTester histogram_tester_{};
 };
 
 // Try to launch, but DLC service returns an error.
-TEST_F(BruschettaLauncherTest, LaunchDlcFailure) {
+TEST_F(BruschettaLauncherTest, LaunchToolsDlcFailure) {
   BruschettaResult result;
-  FakeDlcserviceClient()->set_install_error("Error installing");
+  FakeDlcserviceClient()->set_install_errors(base::circular_deque(
+      {std::string("Error installing"), std::string(dlcservice::kErrorNone)}));
 
   launcher_->EnsureRunning(StoreResultThenQuitRunLoop(&result));
   run_loop_.Run();
@@ -144,24 +132,25 @@ TEST_F(BruschettaLauncherTest, LaunchDlcFailure) {
   histogram_tester_.ExpectUniqueSample(kLaunchHistogram,
                                        BruschettaResult::kDlcInstallError, 1);
 
-  ASSERT_FALSE(BruschettaService::GetForProfile(&profile_)
+  ASSERT_FALSE(BruschettaServiceFactory::GetForProfile(&profile_)
                    ->GetRunningVmsForTesting()
                    .contains(kTestVmName));
 }
 
-// Try to launch, but BIOS file doesn't exist.
-TEST_F(BruschettaLauncherTest, LaunchBiosNotAccessible) {
+// Try to launch, but DLC service returns an error.
+TEST_F(BruschettaLauncherTest, LaunchFirmwareDlcFailure) {
   BruschettaResult result;
-  ASSERT_TRUE(base::DeleteFile(bios_path_));
+  FakeDlcserviceClient()->set_install_errors(base::circular_deque(
+      {std::string(dlcservice::kErrorNone), std::string("Error installing")}));
 
   launcher_->EnsureRunning(StoreResultThenQuitRunLoop(&result));
   run_loop_.Run();
 
-  ASSERT_EQ(result, BruschettaResult::kBiosNotAccessible);
+  ASSERT_EQ(result, BruschettaResult::kDlcInstallError);
   histogram_tester_.ExpectUniqueSample(kLaunchHistogram,
-                                       BruschettaResult::kBiosNotAccessible, 1);
+                                       BruschettaResult::kDlcInstallError, 1);
 
-  ASSERT_FALSE(BruschettaService::GetForProfile(&profile_)
+  ASSERT_FALSE(BruschettaServiceFactory::GetForProfile(&profile_)
                    ->GetRunningVmsForTesting()
                    .contains(kTestVmName));
 }
@@ -182,7 +171,7 @@ TEST_F(BruschettaLauncherTest, LaunchStartVmFails) {
   histogram_tester_.ExpectUniqueSample(kLaunchHistogram,
                                        BruschettaResult::kStartVmFailed, 1);
 
-  ASSERT_FALSE(BruschettaService::GetForProfile(&profile_)
+  ASSERT_FALSE(BruschettaServiceFactory::GetForProfile(&profile_)
                    ->GetRunningVmsForTesting()
                    .contains(kTestVmName));
 }
@@ -199,15 +188,36 @@ TEST_F(BruschettaLauncherTest, LaunchStartVmSuccess) {
   run_loop_.Run();
 
   ASSERT_EQ(result, BruschettaResult::kSuccess);
-  histogram_tester_.ExpectUniqueSample(kLaunchHistogram,
-                                       BruschettaResult::kSuccess, 1);
 
   // Alpha VMs should have vtpm enabled.
-  const auto& running_vms =
-      BruschettaService::GetForProfile(&profile_)->GetRunningVmsForTesting();
+  const auto& running_vms = BruschettaServiceFactory::GetForProfile(&profile_)
+                                ->GetRunningVmsForTesting();
   auto it = running_vms.find(kTestVmName);
   ASSERT_NE(it, running_vms.end());
   ASSERT_TRUE(it->second.vtpm_enabled);
+
+  // Run for another few minutes to check that we only get the single success
+  // metric and not e.g. a spurious timeout metric as we saw in b/299415527.
+  this->task_environment_.FastForwardBy(base::Minutes(5));
+  histogram_tester_.ExpectUniqueSample(kLaunchHistogram,
+                                       BruschettaResult::kSuccess, 1);
+}
+
+// Try to launch, but vm_concierge is not available.
+TEST_F(BruschettaLauncherTest, WaitConciergeFails) {
+  BruschettaResult result;
+  FakeConciergeClient()->set_wait_for_service_to_be_available_response(false);
+
+  launcher_->EnsureRunning(StoreResultThenQuitRunLoop(&result));
+  run_loop_.Run();
+
+  ASSERT_EQ(result, BruschettaResult::kConciergeUnavailable);
+  histogram_tester_.ExpectUniqueSample(
+      kLaunchHistogram, BruschettaResult::kConciergeUnavailable, 1);
+
+  ASSERT_FALSE(BruschettaServiceFactory::GetForProfile(&profile_)
+                   ->GetRunningVmsForTesting()
+                   .contains(kTestVmName));
 }
 
 // Multiple concurrent launch requests are batched into one request.
@@ -268,7 +278,7 @@ TEST_F(BruschettaLauncherTest, LaunchTimeout) {
 
   // The timeout here happens *after* starting the VM, so we still expect it to
   // be registered as running.
-  ASSERT_TRUE(BruschettaService::GetForProfile(&profile_)
+  ASSERT_TRUE(BruschettaServiceFactory::GetForProfile(&profile_)
                   ->GetRunningVmsForTesting()
                   .contains(kTestVmName));
 }
@@ -286,7 +296,7 @@ TEST_F(BruschettaLauncherTest, LaunchBlockedByPolicy) {
   histogram_tester_.ExpectUniqueSample(kLaunchHistogram,
                                        BruschettaResult::kForbiddenByPolicy, 1);
 
-  ASSERT_FALSE(BruschettaService::GetForProfile(&profile_)
+  ASSERT_FALSE(BruschettaServiceFactory::GetForProfile(&profile_)
                    ->GetRunningVmsForTesting()
                    .contains(kTestVmName));
 }
@@ -307,8 +317,8 @@ TEST_F(BruschettaLauncherTest, VtpmEnabledByPolicy) {
   histogram_tester_.ExpectUniqueSample(kLaunchHistogram,
                                        BruschettaResult::kSuccess, 1);
 
-  const auto& running_vms =
-      BruschettaService::GetForProfile(&profile_)->GetRunningVmsForTesting();
+  const auto& running_vms = BruschettaServiceFactory::GetForProfile(&profile_)
+                                ->GetRunningVmsForTesting();
   auto it = running_vms.find(kTestVmName);
   ASSERT_NE(it, running_vms.end());
   ASSERT_TRUE(it->second.vtpm_enabled);
@@ -330,8 +340,8 @@ TEST_F(BruschettaLauncherTest, VtpmDisabledByPolicy) {
   histogram_tester_.ExpectUniqueSample(kLaunchHistogram,
                                        BruschettaResult::kSuccess, 1);
 
-  const auto& running_vms =
-      BruschettaService::GetForProfile(&profile_)->GetRunningVmsForTesting();
+  const auto& running_vms = BruschettaServiceFactory::GetForProfile(&profile_)
+                                ->GetRunningVmsForTesting();
   auto it = running_vms.find(kTestVmName);
   ASSERT_NE(it, running_vms.end());
   ASSERT_FALSE(it->second.vtpm_enabled);

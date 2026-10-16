@@ -9,19 +9,20 @@
 #include <utility>
 
 #include "base/files/file_path.h"
-#include "base/test/scoped_feature_list.h"
+#include "base/test/gmock_callback_support.h"
 #include "base/test/task_environment.h"
 #include "components/gcm_driver/fake_gcm_driver.h"
 #include "components/gcm_driver/gcm_driver.h"
 #include "components/gcm_driver/instance_id/instance_id.h"
 #include "components/gcm_driver/instance_id/instance_id_driver.h"
-#include "components/sync/base/features.h"
 #include "components/sync/invalidations/fcm_registration_token_observer.h"
 #include "components/sync/invalidations/invalidations_listener.h"
 #include "google_apis/gcm/engine/account_mapping.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using base::test::RunOnceCallback;
+using base::test::RunOnceCallbackRepeatedly;
 using instance_id::InstanceID;
 using testing::_;
 using testing::Invoke;
@@ -110,15 +111,11 @@ class FCMHandlerTest : public testing::Test {
     // This is called in the FCMHandler.
     ON_CALL(mock_instance_id_driver_, GetInstanceID(kSyncInvalidationsAppId))
         .WillByDefault(Return(&mock_instance_id_));
-    override_features_.InitWithFeatures(
-        /*enabled_features=*/{kUseSyncInvalidations},
-        /*disabled_features=*/{});
   }
 
  protected:
   base::test::SingleThreadTaskEnvironment task_environment_{
       base::test::SingleThreadTaskEnvironment::TimeSource::MOCK_TIME};
-  base::test::ScopedFeatureList override_features_;
 
   gcm::FakeGCMDriver fake_gcm_driver_;
   NiceMock<MockInstanceIDDriver> mock_instance_id_driver_;
@@ -130,9 +127,7 @@ class FCMHandlerTest : public testing::Test {
 TEST_F(FCMHandlerTest, ShouldReturnValidToken) {
   // Check that the handler gets the token through GetToken.
   EXPECT_CALL(mock_instance_id_, GetToken)
-      .WillOnce(WithArg<4>(Invoke([](InstanceID::GetTokenCallback callback) {
-        std::move(callback).Run("token", InstanceID::Result::SUCCESS);
-      })));
+      .WillOnce(RunOnceCallback<4>("token", InstanceID::Result::SUCCESS));
 
   fcm_handler_.StartListening();
 
@@ -159,9 +154,7 @@ TEST_F(FCMHandlerTest, ShouldNotifyOnTokenChange) {
   // Check that the handler gets the token through GetToken.
   ON_CALL(mock_instance_id_, GetToken)
       .WillByDefault(
-          WithArg<4>(Invoke([](InstanceID::GetTokenCallback callback) {
-            std::move(callback).Run("token", InstanceID::Result::SUCCESS);
-          })));
+          RunOnceCallbackRepeatedly<4>("token", InstanceID::Result::SUCCESS));
 
   EXPECT_CALL(mock_token_observer, OnFCMRegistrationTokenChanged());
   fcm_handler_.StartListening();
@@ -176,9 +169,7 @@ TEST_F(FCMHandlerTest, ShouldScheduleTokenValidationAndActOnNewToken) {
   // Check that the handler gets the token through GetToken and notifies the
   // observer.
   EXPECT_CALL(mock_instance_id_, GetToken)
-      .WillOnce(WithArg<4>(Invoke([](InstanceID::GetTokenCallback callback) {
-        std::move(callback).Run("token", InstanceID::Result::SUCCESS);
-      })));
+      .WillOnce(RunOnceCallback<4>("token", InstanceID::Result::SUCCESS));
   EXPECT_CALL(mock_token_observer, OnFCMRegistrationTokenChanged()).Times(1);
   fcm_handler_.StartListening();
 
@@ -188,9 +179,7 @@ TEST_F(FCMHandlerTest, ShouldScheduleTokenValidationAndActOnNewToken) {
       base::Minutes(kTokenValidationPeriodMinutesDefault) - base::Seconds(1));
   // When it is time, validation happens.
   EXPECT_CALL(mock_instance_id_, GetToken)
-      .WillOnce(WithArg<4>(Invoke([](InstanceID::GetTokenCallback callback) {
-        std::move(callback).Run("new token", InstanceID::Result::SUCCESS);
-      })));
+      .WillOnce(RunOnceCallback<4>("new token", InstanceID::Result::SUCCESS));
   EXPECT_CALL(mock_token_observer, OnFCMRegistrationTokenChanged()).Times(1);
   task_environment_.FastForwardBy(base::Seconds(1));
 
@@ -204,9 +193,7 @@ TEST_F(FCMHandlerTest, ShouldScheduleTokenValidationAndNotActOnSameToken) {
   // Check that the handler gets the token through GetToken and notifies the
   // observer.
   EXPECT_CALL(mock_instance_id_, GetToken)
-      .WillOnce(WithArg<4>(Invoke([](InstanceID::GetTokenCallback callback) {
-        std::move(callback).Run("token", InstanceID::Result::SUCCESS);
-      })));
+      .WillOnce(RunOnceCallback<4>("token", InstanceID::Result::SUCCESS));
   EXPECT_CALL(mock_token_observer, OnFCMRegistrationTokenChanged()).Times(1);
   fcm_handler_.StartListening();
 
@@ -216,9 +203,7 @@ TEST_F(FCMHandlerTest, ShouldScheduleTokenValidationAndNotActOnSameToken) {
       base::Minutes(kTokenValidationPeriodMinutesDefault) - base::Seconds(1));
   // When it is time, validation happens.
   EXPECT_CALL(mock_instance_id_, GetToken)
-      .WillOnce(WithArg<4>(Invoke([](InstanceID::GetTokenCallback callback) {
-        std::move(callback).Run("token", InstanceID::Result::SUCCESS);
-      })));
+      .WillOnce(RunOnceCallback<4>("token", InstanceID::Result::SUCCESS));
   EXPECT_CALL(mock_token_observer, OnFCMRegistrationTokenChanged()).Times(0);
   task_environment_.FastForwardBy(base::Seconds(1));
 
@@ -228,9 +213,7 @@ TEST_F(FCMHandlerTest, ShouldScheduleTokenValidationAndNotActOnSameToken) {
 TEST_F(FCMHandlerTest, ShouldClearTokenOnStopListeningPermanently) {
   // Check that the handler gets the token through GetToken.
   EXPECT_CALL(mock_instance_id_, GetToken)
-      .WillOnce(WithArg<4>(Invoke([](InstanceID::GetTokenCallback callback) {
-        std::move(callback).Run("token", InstanceID::Result::SUCCESS);
-      })));
+      .WillOnce(RunOnceCallback<4>("token", InstanceID::Result::SUCCESS));
   fcm_handler_.StartListening();
 
   NiceMock<MockTokenObserver> mock_token_observer;
@@ -242,7 +225,7 @@ TEST_F(FCMHandlerTest, ShouldClearTokenOnStopListeningPermanently) {
   // Token should be cleared when StopListeningPermanently() is called.
   EXPECT_CALL(mock_token_observer, OnFCMRegistrationTokenChanged());
   fcm_handler_.StopListeningPermanently();
-  EXPECT_EQ(absl::nullopt, fcm_handler_.GetFCMRegistrationToken());
+  EXPECT_EQ(std::nullopt, fcm_handler_.GetFCMRegistrationToken());
 
   fcm_handler_.RemoveTokenObserver(&mock_token_observer);
 }
@@ -285,9 +268,7 @@ TEST_F(FCMHandlerTest, ShouldLimitIncomingMessagesForReplay) {
 TEST_F(FCMHandlerTest, ShouldClearLastIncomingMessagesOnStopListening) {
   EXPECT_CALL(mock_instance_id_, GetToken)
       .WillRepeatedly(
-          WithArg<4>(Invoke([](InstanceID::GetTokenCallback callback) {
-            std::move(callback).Run("token", InstanceID::Result::SUCCESS);
-          })));
+          RunOnceCallbackRepeatedly<4>("token", InstanceID::Result::SUCCESS));
   fcm_handler_.StartListening();
 
   gcm::IncomingMessage gcm_message;

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/sanitizer_buildflags.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/simple_test_tick_clock.h"
@@ -32,7 +33,9 @@ class BackForwardCacheWebContentsDelegate : public WebContentsDelegate {
  public:
   BackForwardCacheWebContentsDelegate() = default;
 
-  bool IsBackForwardCacheSupported() override { return true; }
+  bool IsBackForwardCacheSupported(WebContents& web_contents) override {
+    return true;
+  }
 };
 
 }  // namespace
@@ -189,8 +192,13 @@ TEST_F(BackForwardCacheMetricsTest, TimeRecordedAtStart) {
               testing::ElementsAre(UkmEntry{id3, {{time_away, 0b1000}}}));
 }
 
-// TODO(crbug.com/1255492): Flaky under TSan.
-TEST_F(BackForwardCacheMetricsTest, DISABLED_TimeRecordedWhenRendererIsKilled) {
+// TODO(crbug.com/40200059): Flaky under TSan.
+#if BUILDFLAG(USING_SANITIZER)
+#define MAYBE_TimeRecordedWhenRendererIsKilled DISABLED_TimeRecordedWhenRendererIsKilled
+#else
+#define MAYBE_TimeRecordedWhenRendererIsKilled TimeRecordedWhenRendererIsKilled
+#endif
+TEST_F(BackForwardCacheMetricsTest, MAYBE_TimeRecordedWhenRendererIsKilled) {
   // Need to enable back-forward cache to make sure a page is put into the
   // cache.
   base::test::ScopedFeatureList scoped_feature_list;
@@ -233,46 +241,60 @@ TEST_F(BackForwardCacheMetricsTest, DISABLED_TimeRecordedWhenRendererIsKilled) {
 TEST_F(BackForwardCacheMetricsTest, AllFeaturesCovered) {
   // Features that were removed from the enum must have their int value listed
   // here because ::All() will still include them.
-  std::vector<uint64_t> removed_features{
+  std::unordered_set<uint64_t> removed_features{
       /* WebSchedulerTrackedFeature::kPageShowEventListener =*/6,
       /* WebSchedulerTrackedFeature::kPageHideEventListener =*/7,
       /* WebSchedulerTrackedFeature::kBeforeUnloadEventListener =*/8,
       /* WebSchedulerTrackedFeature::kUnloadEventListener =*/9,
       /* WebSchedulerTrackedFeature::kFreezeEventListener =*/10,
       /* WebSchedulerTrackedFeature::kResumeEventListener =*/11,
+      /* WebSchedulerTrackedFeature::kDedicatedWorkerOrWorklet =*/14,
       /* WebSchedulerTrackedFeature::kServiceWorkerControlledPage =*/16,
+      /* WebSchedulerTrackedFeature::kOutstandingIndexedDBTransaction =*/17,
       /* WebSchedulerTrackedFeature::kHasScriptableFramesInMultipleTabs =*/18,
       /* WebSchedulerTrackedFeature::kRequestedGeolocationPermission =*/19,
       /* WebSchedulerTrackedFeature::kRequestedNotificationsPermission =*/20,
-      /* Never existed =*/25,
+      /* WebSchedulerTrackedFeature::kIndexedDBConnection =*/28,
       /* WebSchedulerTrackedFeature::kWebGL =*/29,
       /* WebSchedulerTrackedFeature::kWebVR =*/30,
       /* WebSchedulerTrackedFeature::kWakeLock =*/35,
       /* WebSchedulerTrackedFeature::kWebFileSystem =*/39,
       /* WebSchedulerTrackedFeature::kAppBanner =*/42,
+      /* WebSchedulerTrackedFeature::kWebDatabase =*/44,
+      /* WebSchedulerTrackedFeature::kPortal =*/46,
+      /* WebSchedulerTrackedFeature::kSpeechSynthesis =*/50,
       /* WebSchedulerTrackedFeature::kMediaSessionImplOnServiceCreated =*/56};
 
-  // Combine the result of |GetDisallowedFeatures()| and |GetAllowedFeatures()|.
-  std::vector<uint64_t> combined_features;
-  auto disallowed_features = BackForwardCacheImpl::GetDisallowedFeatures(
-      BackForwardCacheImpl::RequestedFeatures::kAll);
-  auto allowed_features = BackForwardCacheImpl::GetAllowedFeatures(
-      BackForwardCacheImpl::RequestedFeatures::kAll);
-  EXPECT_TRUE(Intersection(disallowed_features, allowed_features).Empty());
-
-  for (auto feature : Union(disallowed_features, allowed_features)) {
-    combined_features.push_back(static_cast<uint64_t>(feature));
+  for (BackForwardCacheImpl::CacheControlNoStoreContext ccns_context :
+       {BackForwardCacheImpl::kInCCNSContext,
+        BackForwardCacheImpl::kNotInCCNSContext}) {
+    // Combine the result of |GetDisallowedFeatures()| and
+    // |GetAllowedFeatures()|.
+    std::unordered_set<uint64_t> combined_features;
+    auto disallowed_features = BackForwardCacheImpl::GetDisallowedFeatures(
+        BackForwardCacheImpl::RequestedFeatures::kAll, ccns_context);
+    auto allowed_features = BackForwardCacheImpl::GetAllowedFeatures(
+        BackForwardCacheImpl::RequestedFeatures::kAll, ccns_context);
+    ASSERT_TRUE(Intersection(disallowed_features, allowed_features).empty());
+    for (auto feature : Union(disallowed_features, allowed_features)) {
+      combined_features.emplace(static_cast<uint64_t>(feature));
+    }
+    // Add the removed features to the list.
+    for (auto feature : removed_features) {
+      ASSERT_FALSE(combined_features.contains(feature));
+      combined_features.emplace(feature);
+    }
+    // Make a list of all the WebSchedulerTrackedFeatures indices.
+    std::unordered_set<uint64_t> all_features;
+    for (auto feature : blink::scheduler::WebSchedulerTrackedFeatures::All()) {
+      all_features.emplace(static_cast<uint64_t>(feature));
+    }
+    SCOPED_TRACE(ccns_context == BackForwardCacheImpl::kInCCNSContext
+                     ? "InCCNSContext"
+                     : "NotInCCNSContext");
+    EXPECT_THAT(combined_features,
+                testing::UnorderedElementsAreArray(all_features));
   }
-  // Add the removed features to the list.
-  combined_features.insert(combined_features.begin(), removed_features.begin(),
-                           removed_features.end());
-  // Make a list of all the WebSchedulerTrackedFeatures indices.
-  std::vector<uint64_t> all_features;
-  for (auto feature : blink::scheduler::WebSchedulerTrackedFeatures::All()) {
-    all_features.push_back(static_cast<uint64_t>(feature));
-  }
-  EXPECT_THAT(combined_features, testing::UnorderedElementsAreArray(
-                                     all_features.begin(), all_features.end()));
 }
 
 TEST_F(BackForwardCacheMetricsTest, PageWithFormsMetricsStoredRecorded) {
@@ -312,7 +334,7 @@ TEST_F(BackForwardCacheMetricsTest, PageWithFormsMetricsStoredRecorded) {
 }
 
 TEST_F(BackForwardCacheMetricsTest,
-       PageWithFormsMetricsRecordedForSameDocumentNavigation) {
+       PageWithFormsMetricsRecordedForSameSiteNavigation) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(
       GetBasicBackForwardCacheFeatureForTesting(),
@@ -326,12 +348,8 @@ TEST_F(BackForwardCacheMetricsTest,
                                                      main_test_rfh());
   BackForwardCache::SetHadFormDataAssociated(main_test_rfh()->GetPage());
 
-  // Navigating to the same document does not create a new RFH.
-  RenderFrameHostWrapper old_rfh(main_test_rfh());
   NavigationSimulator::NavigateAndCommitFromDocument(url_with_form_with_handle,
                                                      main_test_rfh());
-  EXPECT_EQ(old_rfh->GetLifecycleState(),
-            RenderFrameHost::LifecycleState::kActive);
 
   // Record PageSeen without stored in cache.
   histogram_tester_.ExpectBucketCount(

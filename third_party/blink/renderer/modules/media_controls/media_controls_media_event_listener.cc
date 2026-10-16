@@ -8,6 +8,7 @@
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/html/media/html_media_element.h"
+#include "third_party/blink/renderer/core/html/media/html_video_element.h"
 #include "third_party/blink/renderer/core/html/track/text_track_list.h"
 #include "third_party/blink/renderer/modules/media_controls/media_controls_impl.h"
 #include "third_party/blink/renderer/modules/remoteplayback/availability_callback_wrapper.h"
@@ -113,7 +114,7 @@ void MediaControlsMediaEventListener::Attach() {
   // https://crbug.com/713275.
   if (!remote_playback_availability_callback_id_.has_value()) {
     remote_playback_availability_callback_id_ =
-        absl::make_optional(remote.WatchAvailabilityInternal(
+        std::make_optional(remote.WatchAvailabilityInternal(
             MakeGarbageCollected<AvailabilityCallbackWrapper>(
                 WTF::BindRepeating(&MediaControlsMediaEventListener::
                                        OnRemotePlaybackAvailabilityChanged,

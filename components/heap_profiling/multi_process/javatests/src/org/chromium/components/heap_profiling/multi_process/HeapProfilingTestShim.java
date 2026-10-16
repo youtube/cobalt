@@ -4,14 +4,12 @@
 
 package org.chromium.components.heap_profiling.multi_process;
 
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.build.annotations.MainDex;
+import org.jni_zero.NativeMethods;
 
 /**
  * Provides direct access to heap_profiling_test_shim, which in turn forwards to
  * heap_profiling::TestDriver. Only used for testing.
  */
-@MainDex
 public class HeapProfilingTestShim {
     public HeapProfilingTestShim() {
         mNativeHeapProfilingTestShim = HeapProfilingTestShimJni.get().init(this);
@@ -23,10 +21,20 @@ public class HeapProfilingTestShim {
      *  When |pseudoStacks| is true, the stacks use trace-event based stacks
      *  rather than native stacks.
      */
-    public boolean runTestForMode(String mode, boolean dynamicallyStartProfiling, String stackMode,
-            boolean shouldSample, boolean sampleEverything) {
-        return HeapProfilingTestShimJni.get().runTestForMode(mNativeHeapProfilingTestShim, mode,
-                dynamicallyStartProfiling, stackMode, shouldSample, sampleEverything);
+    public boolean runTestForMode(
+            String mode,
+            boolean dynamicallyStartProfiling,
+            String stackMode,
+            boolean shouldSample,
+            boolean sampleEverything) {
+        return HeapProfilingTestShimJni.get()
+                .runTestForMode(
+                        mNativeHeapProfilingTestShim,
+                        mode,
+                        dynamicallyStartProfiling,
+                        stackMode,
+                        shouldSample,
+                        sampleEverything);
     }
 
     /**
@@ -45,9 +53,15 @@ public class HeapProfilingTestShim {
     @NativeMethods
     interface Natives {
         long init(HeapProfilingTestShim obj);
+
         void destroy(long nativeHeapProfilingTestShim);
-        boolean runTestForMode(long nativeHeapProfilingTestShim, String mode,
-                boolean dynamicallyStartProfiling, String stackMode, boolean shouldSample,
+
+        boolean runTestForMode(
+                long nativeHeapProfilingTestShim,
+                String mode,
+                boolean dynamicallyStartProfiling,
+                String stackMode,
+                boolean shouldSample,
                 boolean sampleEverything);
     }
 }

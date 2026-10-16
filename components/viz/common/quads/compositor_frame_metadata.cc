@@ -27,10 +27,11 @@ CompositorFrameMetadata::CompositorFrameMetadata(
       root_scroll_offset(other.root_scroll_offset),
       page_scale_factor(other.page_scale_factor),
       scrollable_viewport_size(other.scrollable_viewport_size),
+      visible_viewport_size(other.visible_viewport_size),
       content_color_usage(other.content_color_usage),
       may_contain_video(other.may_contain_video),
-      is_resourceless_software_draw_with_scroll_or_animation(
-          other.is_resourceless_software_draw_with_scroll_or_animation),
+      is_handling_interaction(other.is_handling_interaction),
+      is_handling_animation(other.is_handling_animation),
       root_background_color(other.root_background_color),
       latency_info(other.latency_info),
       referenced_surfaces(other.referenced_surfaces),
@@ -43,8 +44,14 @@ CompositorFrameMetadata::CompositorFrameMetadata(
       top_controls_visible_height(other.top_controls_visible_height),
       preferred_frame_interval(other.preferred_frame_interval),
       display_transform_hint(other.display_transform_hint),
+      is_mobile_optimized(other.is_mobile_optimized),
       transition_directives(other.transition_directives),
-      has_shared_element_resources(other.has_shared_element_resources) {
+      has_shared_element_resources(other.has_shared_element_resources),
+      screenshot_destination(other.screenshot_destination),
+      is_software(other.is_software),
+      offset_tag_definitions(other.offset_tag_definitions),
+      offset_tag_values(other.offset_tag_values),
+      frame_interval_inputs(other.frame_interval_inputs) {
   if (other.delegated_ink_metadata) {
     delegated_ink_metadata = std::make_unique<gfx::DelegatedInkMetadata>(
         *other.delegated_ink_metadata.get());

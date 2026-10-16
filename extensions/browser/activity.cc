@@ -43,9 +43,10 @@ const char* Activity::ToString(Type type) {
       return "PEPPER_API";
     case PROCESS_MANAGER:
       return "PROCESS_MANAGER";
+    case DEBUGGER:
+      return "DEBUGGER";
   }
   NOTREACHED();
-  return "";
 }
 
 }  // namespace extensions

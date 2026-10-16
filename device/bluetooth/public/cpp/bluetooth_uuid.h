@@ -14,9 +14,9 @@
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_WIN)
-#include <rpc.h>
+#include <string_view>
 
-#include "base/strings/string_piece_forward.h"
+#include "base/win/windows_types.h"
 #endif  // BUILDFLAG(IS_WIN)
 
 namespace device {
@@ -66,7 +66,7 @@ class BluetoothUUID {
 
 #if BUILDFLAG(IS_WIN)
   // The canonical UUID string format is device::BluetoothUUID.value().
-  static GUID GetCanonicalValueAsGUID(base::StringPiece uuid);
+  static GUID GetCanonicalValueAsGUID(std::string_view uuid);
 #endif  // BUILDFLAG(IS_WIN)
 
   // Returns true, if the UUID is in a valid canonical format.
@@ -94,13 +94,15 @@ class BluetoothUUID {
   // invalid.
   std::vector<uint8_t> GetBytes() const;
 
-  // Permit sufficient comparison to allow a UUID to be used as a key in a
-  // std::map.
-  bool operator<(const BluetoothUUID& uuid) const;
+  // Allow a UUID to be passed to e.g. `std::ranges::is_sorted()`.
+  auto operator<=>(const BluetoothUUID& uuid) const {
+    return canonical_value_ <=> uuid.canonical_value_;
+  }
 
   // Equality operators.
-  bool operator==(const BluetoothUUID& uuid) const;
-  bool operator!=(const BluetoothUUID& uuid) const;
+  bool operator==(const BluetoothUUID& uuid) const {
+    return canonical_value_ == uuid.canonical_value_;
+  }
 
  private:
   // String representation of the UUID that was used during construction. For

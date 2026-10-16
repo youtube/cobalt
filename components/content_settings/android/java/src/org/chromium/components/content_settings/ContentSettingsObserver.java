@@ -4,9 +4,11 @@
 
 package org.chromium.components.content_settings;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.content_public.browser.BrowserContextHandle;
 
 /**
@@ -14,6 +16,7 @@ import org.chromium.content_public.browser.BrowserContextHandle;
  * content settings provider when it is created.
  */
 @JNINamespace("content_settings")
+@NullMarked
 public abstract class ContentSettingsObserver {
     private final long mNativeAndroidObserver;
     private boolean mIsDestroyed;
@@ -27,8 +30,10 @@ public abstract class ContentSettingsObserver {
     }
 
     @CalledByNative
-    private void onContentSettingChanged(String primaryPattern, String secondaryPattern,
-            @ContentSettingsType int contentSettingsType) {
+    private void onContentSettingChanged(
+            String primaryPattern,
+            String secondaryPattern,
+            @ContentSettingsType.EnumType int contentSettingsType) {
         onContentSettingChanged(
                 primaryPattern, secondaryPattern, new ContentSettingsTypeSet(contentSettingsType));
     }
@@ -39,12 +44,12 @@ public abstract class ContentSettingsObserver {
      * @param secondaryPattern The secondary pattern for the changed content settings.
      * @param contentSettingsTypeSet The {@link ContentSettingsTypeSet} that is being changed.
      */
-    protected abstract void onContentSettingChanged(String primaryPattern, String secondaryPattern,
+    protected abstract void onContentSettingChanged(
+            String primaryPattern,
+            String secondaryPattern,
             ContentSettingsTypeSet contentSettingsTypeSet);
 
-    /**
-     * Destroy the linked native object and stop listen to content settings changes.
-     */
+    /** Destroy the linked native object and stop listen to content settings changes. */
     public void destroy() {
         assert !mIsDestroyed : "This observer is already destroyed.";
         mIsDestroyed = true;
@@ -54,6 +59,7 @@ public abstract class ContentSettingsObserver {
     @NativeMethods
     interface Natives {
         long init(ContentSettingsObserver caller, BrowserContextHandle contextHandle);
+
         void destroy(long nativeAndroidObserver, ContentSettingsObserver caller);
     }
 }

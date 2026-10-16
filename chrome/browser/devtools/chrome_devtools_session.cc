@@ -5,25 +5,34 @@
 #include "chrome/browser/devtools/chrome_devtools_session.h"
 
 #include <memory>
+#include <string_view>
 #include <type_traits>
+
+#include "base/command_line.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/metrics_hashes.h"
 #include "base/strings/string_number_conversions.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
+#include "chrome/browser/browser_features.h"
+#include "chrome/browser/devtools/protocol/autofill_handler.h"
 #include "chrome/browser/devtools/protocol/browser_handler.h"
 #include "chrome/browser/devtools/protocol/cast_handler.h"
 #include "chrome/browser/devtools/protocol/emulation_handler.h"
+#include "chrome/browser/devtools/protocol/extensions_handler.h"
 #include "chrome/browser/devtools/protocol/page_handler.h"
+#include "chrome/browser/devtools/protocol/pwa_handler.h"
 #include "chrome/browser/devtools/protocol/security_handler.h"
 #include "chrome/browser/devtools/protocol/storage_handler.h"
+#include "chrome/browser/devtools/protocol/system_info_handler.h"
 #include "chrome/browser/devtools/protocol/target_handler.h"
+#include "chrome/common/chrome_switches.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/devtools_agent_host_client.h"
 #include "content/public/browser/devtools_agent_host_client_channel.h"
 #include "content/public/browser/devtools_manager_delegate.h"
 #include "third_party/inspector_protocol/crdtp/dispatch.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/devtools/protocol/window_manager_handler.h"
 #endif
 
@@ -65,6 +74,24 @@ ChromeDevToolsSession::ChromeDevToolsSession(
           agent_host->GetWebContents(), &dispatcher_);
     }
   }
+  if (agent_host->GetWebContents() &&
+      (agent_host->GetType() == content::DevToolsAgentHost::kTypePage ||
+       agent_host->GetType() == content::DevToolsAgentHost::kTypeFrame)) {
+    if (IsDomainAvailableToUntrustedClient<AutofillHandler>() ||
+        channel->GetClient()->IsTrusted()) {
+      autofill_handler_ =
+          std::make_unique<AutofillHandler>(&dispatcher_, agent_host->GetId());
+    }
+  }
+  if (IsDomainAvailableToUntrustedClient<ExtensionsHandler>() ||
+      channel->GetClient()->IsTrusted()) {
+    extensions_handler_ = std::make_unique<ExtensionsHandler>(
+        &dispatcher_, agent_host->GetId(),
+        channel->GetClient()->AllowUnsafeOperations() &&
+            base::CommandLine::ForCurrentProcess()->HasSwitch(
+                ::switches::kEnableUnsafeExtensionDebugging) &&
+            agent_host->GetType() == content::DevToolsAgentHost::kTypeBrowser);
+  }
   if (IsDomainAvailableToUntrustedClient<EmulationHandler>() ||
       channel->GetClient()->IsTrusted()) {
     emulation_handler_ =
@@ -73,14 +100,28 @@ ChromeDevToolsSession::ChromeDevToolsSession(
   if (IsDomainAvailableToUntrustedClient<TargetHandler>() ||
       channel->GetClient()->IsTrusted()) {
     target_handler_ = std::make_unique<TargetHandler>(
-        &dispatcher_, channel->GetClient()->IsTrusted());
+        &dispatcher_, channel->GetClient()->IsTrusted(),
+        channel->GetClient()->MayReadLocalFiles());
   }
   if (IsDomainAvailableToUntrustedClient<BrowserHandler>() ||
       channel->GetClient()->IsTrusted()) {
     browser_handler_ =
         std::make_unique<BrowserHandler>(&dispatcher_, agent_host->GetId());
   }
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+  if (IsDomainAvailableToUntrustedClient<SystemInfoHandler>() ||
+      channel->GetClient()->IsTrusted()) {
+    system_info_handler_ = std::make_unique<SystemInfoHandler>(&dispatcher_);
+  }
+  if ((agent_host->GetType() == content::DevToolsAgentHost::kTypeBrowser ||
+       agent_host->GetType() == content::DevToolsAgentHost::kTypePage) &&
+      channel->GetClient()->AllowUnsafeOperations()) {
+    if (IsDomainAvailableToUntrustedClient<PWAHandler>() ||
+        channel->GetClient()->IsTrusted()) {
+      pwa_handler_ =
+          std::make_unique<PWAHandler>(&dispatcher_, agent_host->GetId());
+    }
+  }
+#if BUILDFLAG(IS_CHROMEOS)
   window_manager_handler_ =
       std::make_unique<WindowManagerHandler>(&dispatcher_);
 #endif
@@ -88,9 +129,8 @@ ChromeDevToolsSession::ChromeDevToolsSession(
 
 ChromeDevToolsSession::~ChromeDevToolsSession() = default;
 
-base::HistogramBase::Sample GetCommandUmaId(
-    const base::StringPiece command_name) {
-  return static_cast<base::HistogramBase::Sample>(
+base::HistogramBase::Sample32 GetCommandUmaId(std::string_view command_name) {
+  return static_cast<base::HistogramBase::Sample32>(
       base::HashMetricName(command_name));
 }
 
@@ -102,8 +142,8 @@ void ChromeDevToolsSession::HandleCommand(
   crdtp::UberDispatcher::DispatchResult dispatched =
       dispatcher_.Dispatch(dispatchable);
 
-  auto command_uma_id = GetCommandUmaId(base::StringPiece(
-      reinterpret_cast<const char*>(dispatchable.Method().begin()),
+  auto command_uma_id = GetCommandUmaId(std::string_view(
+      reinterpret_cast<const char*>(dispatchable.Method().data()),
       dispatchable.Method().size()));
   std::string client_type = client_channel_->GetClient()->GetTypeForMetrics();
   DCHECK(client_type == "DevTools" || client_type == "Extension" ||

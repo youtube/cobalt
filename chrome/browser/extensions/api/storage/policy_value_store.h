@@ -13,6 +13,7 @@
 
 #include "components/value_store/value_store.h"
 #include "extensions/browser/api/storage/settings_observer.h"
+#include "extensions/common/extension_id.h"
 
 namespace policy {
 class PolicyMap;
@@ -27,7 +28,7 @@ namespace extensions {
 // and manages its lifetime.
 class PolicyValueStore : public value_store::ValueStore {
  public:
-  PolicyValueStore(const std::string& extension_id,
+  PolicyValueStore(const ExtensionId& extension_id,
                    SequenceBoundSettingsChangedCallback observer,
                    std::unique_ptr<value_store::ValueStore> delegate);
 
@@ -36,7 +37,7 @@ class PolicyValueStore : public value_store::ValueStore {
 
   ~PolicyValueStore() override;
 
-  // Stores |policy| in the persistent database represented by the |delegate_|
+  // Stores `policy` in the persistent database represented by the `delegate_`
   // and notifies observers with the changes from the previous policy.
   void SetCurrentPolicy(const policy::PolicyMap& policy);
 
@@ -47,6 +48,7 @@ class PolicyValueStore : public value_store::ValueStore {
   size_t GetBytesInUse(const std::string& key) override;
   size_t GetBytesInUse(const std::vector<std::string>& keys) override;
   size_t GetBytesInUse() override;
+  ReadResult GetKeys() override;
   ReadResult Get(const std::string& key) override;
   ReadResult Get(const std::vector<std::string>& keys) override;
   ReadResult Get() override;
@@ -63,7 +65,7 @@ class PolicyValueStore : public value_store::ValueStore {
   value_store::ValueStore* delegate() { return delegate_.get(); }
 
  private:
-  std::string extension_id_;
+  ExtensionId extension_id_;
   SequenceBoundSettingsChangedCallback observer_;
   std::unique_ptr<value_store::ValueStore> delegate_;
 };

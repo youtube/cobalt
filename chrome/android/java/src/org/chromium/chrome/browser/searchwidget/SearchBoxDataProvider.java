@@ -16,32 +16,26 @@ import org.chromium.chrome.browser.omnibox.UrlBarData;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityPreferencesManager;
 import org.chromium.components.browser_ui.styles.ChromeColors;
-import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
 import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.url.GURL;
 
 class SearchBoxDataProvider implements LocationBarDataProvider {
-    private final @ColorInt int mPrimaryColor;
-    private boolean mIsFromQuickActionSearchWidget;
-    private Tab mTab;
+    private /* PageClassification */ int mPageClassification;
+    private @ColorInt int mPrimaryColor;
     private GURL mGurl;
+    private boolean mIsIncognito;
 
     /**
-     * @param context The {@link Context} for accessing colors.
-     * @param isFromQuickActionSearchWidget
+     * Initialize this instance of the SearchBoxDataProvider.
+     *
+     * <p>Note: this is called only once during the lifetime of the SearchActivity, and is not
+     * invoked when SearchActivity receives a new Intent.
+     *
+     * @param context current context
      */
-    SearchBoxDataProvider(Context context) {
-        mIsFromQuickActionSearchWidget = false;
-        mPrimaryColor = ChromeColors.getPrimaryBackgroundColor(context, isIncognito());
-    }
-
-    /**
-     * Called when native library is loaded and a tab has been initialized.
-     * @param tab The tab to use.
-     */
-    public void onNativeLibraryReady(Tab tab) {
-        assert LibraryLoader.getInstance().isInitialized();
-        mTab = tab;
+    /* package */ void initialize(Context context, boolean isIncognito) {
+        mPrimaryColor = ChromeColors.getPrimaryBackgroundColor(context, isIncognito);
+        mIsIncognito = isIncognito;
     }
 
     @Override
@@ -51,11 +45,16 @@ class SearchBoxDataProvider implements LocationBarDataProvider {
 
     @Override
     public boolean isIncognito() {
-        return false;
+        return mIsIncognito;
     }
 
     @Override
-    public boolean isInOverviewAndShowingOmnibox() {
+    public boolean isIncognitoBranded() {
+        return mIsIncognito;
+    }
+
+    @Override
+    public boolean isOffTheRecord() {
         return false;
     }
 
@@ -71,12 +70,12 @@ class SearchBoxDataProvider implements LocationBarDataProvider {
 
     @Override
     public Tab getTab() {
-        return mTab;
+        return null;
     }
 
     @Override
     public boolean hasTab() {
-        return mTab != null;
+        return false;
     }
 
     @Override
@@ -101,15 +100,10 @@ class SearchBoxDataProvider implements LocationBarDataProvider {
     public void removeObserver(Observer observer) {}
 
     @Override
-    public String getCurrentUrl() {
-        return SearchActivityPreferencesManager.getCurrent().searchEngineUrl;
-    }
-
-    @Override
     public GURL getCurrentGurl() {
-        if (mGurl == null) {
+        if (GURL.isEmptyOrInvalid(mGurl)) {
             assert LibraryLoader.getInstance().isInitialized();
-            mGurl = new GURL(getCurrentUrl());
+            mGurl = SearchActivityPreferencesManager.getCurrent().searchEngineUrl;
         }
 
         return mGurl;
@@ -126,12 +120,8 @@ class SearchBoxDataProvider implements LocationBarDataProvider {
     }
 
     @Override
-    public int getPageClassification(boolean isFocusedFromFakebox, boolean isPrefetch) {
-        if (mIsFromQuickActionSearchWidget) {
-            return PageClassification.ANDROID_SHORTCUTS_WIDGET_VALUE;
-        } else {
-            return PageClassification.ANDROID_SEARCH_WIDGET_VALUE;
-        }
+    public int getPageClassification(boolean isPrefetch) {
+        return mPageClassification;
     }
 
     @Override
@@ -149,7 +139,15 @@ class SearchBoxDataProvider implements LocationBarDataProvider {
         return 0;
     }
 
-    void setIsFromQuickActionSearchWidget(boolean isFromQuickActionsWidget) {
-        mIsFromQuickActionSearchWidget = isFromQuickActionsWidget;
+    void setPageClassification(int pageClassification) {
+        mPageClassification = pageClassification;
+    }
+
+    void setCurrentUrl(GURL url) {
+        mGurl = url;
+    }
+
+    void setIsIncognitoForTesting(boolean isIncognito) {
+        mIsIncognito = isIncognito;
     }
 }

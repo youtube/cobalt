@@ -8,13 +8,13 @@
 #include <utility>
 
 #include "base/functional/bind.h"
-
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/bind_post_task.h"
 #include "build/build_config.h"
+#include "gpu/command_buffer/client/test_shared_image_interface.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_frame_layout.h"
 #include "media/gpu/chromeos/fourcc.h"
@@ -25,8 +25,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/rect.h"
 
-namespace media {
-namespace test {
+namespace media::test {
+
 namespace {
 
 #define ASSERT_TRUE_OR_RETURN_NULLPTR(predicate) \
@@ -37,11 +37,11 @@ namespace {
     }                                            \
   } while (0)
 
-absl::optional<VideoFrameLayout> CreateLayout(
+std::optional<VideoFrameLayout> CreateLayout(
     const ImageProcessor::PortConfig& config) {
   const VideoPixelFormat pixel_format = config.fourcc.ToVideoPixelFormat();
   if (config.planes.empty())
-    return absl::nullopt;
+    return std::nullopt;
 
   if (config.fourcc.IsMultiPlanar()) {
     return VideoFrameLayout::CreateWithPlanes(pixel_format, config.size,
@@ -51,19 +51,20 @@ absl::optional<VideoFrameLayout> CreateLayout(
                                                config.planes);
   }
 }
-}  // namespace
+
+}  // anonymous namespace
 
 // static
 std::unique_ptr<ImageProcessorClient> ImageProcessorClient::Create(
+    std::optional<ImageProcessor::CreateBackendCB> create_backend_cb,
     const ImageProcessor::PortConfig& input_config,
     const ImageProcessor::PortConfig& output_config,
     size_t num_buffers,
-    VideoRotation relative_rotation,
     std::vector<std::unique_ptr<VideoFrameProcessor>> frame_processors) {
   auto ip_client =
       base::WrapUnique(new ImageProcessorClient(std::move(frame_processors)));
-  if (!ip_client->CreateImageProcessor(input_config, output_config, num_buffers,
-                                       relative_rotation)) {
+  if (!ip_client->CreateImageProcessor(create_backend_cb, input_config,
+                                       output_config, num_buffers)) {
     LOG(ERROR) << "Failed to create ImageProcessor";
     return nullptr;
   }
@@ -74,6 +75,7 @@ ImageProcessorClient::ImageProcessorClient(
     std::vector<std::unique_ptr<VideoFrameProcessor>> frame_processors)
     : gpu_memory_buffer_factory_(
           gpu::GpuMemoryBufferFactory::CreateNativeType(nullptr)),
+      test_sii_(base::MakeRefCounted<gpu::TestSharedImageInterface>()),
       frame_processors_(std::move(frame_processors)),
       image_processor_client_thread_("ImageProcessorClientThread"),
       output_cv_(&output_lock_),
@@ -93,10 +95,10 @@ ImageProcessorClient::~ImageProcessorClient() {
 }
 
 bool ImageProcessorClient::CreateImageProcessor(
+    std::optional<ImageProcessor::CreateBackendCB> create_backend_cb,
     const ImageProcessor::PortConfig& input_config,
     const ImageProcessor::PortConfig& output_config,
-    size_t num_buffers,
-    VideoRotation relative_rotation) {
+    size_t num_buffers) {
   DCHECK_CALLED_ON_VALID_THREAD(test_main_thread_checker_);
   base::WaitableEvent done(base::WaitableEvent::ResetPolicy::AUTOMATIC,
                            base::WaitableEvent::InitialState::NOT_SIGNALED);
@@ -105,9 +107,9 @@ bool ImageProcessorClient::CreateImageProcessor(
   // blocking.
   image_processor_client_thread_.task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&ImageProcessorClient::CreateImageProcessorTask,
-                                base::Unretained(this), std::cref(input_config),
-                                std::cref(output_config), num_buffers,
-                                relative_rotation, &done));
+                                base::Unretained(this), create_backend_cb,
+                                std::cref(input_config),
+                                std::cref(output_config), num_buffers, &done));
   done.Wait();
   if (!image_processor_) {
     LOG(ERROR) << "Failed to create ImageProcessor";
@@ -117,20 +119,28 @@ bool ImageProcessorClient::CreateImageProcessor(
 }
 
 void ImageProcessorClient::CreateImageProcessorTask(
+    std::optional<ImageProcessor::CreateBackendCB> create_backend_cb,
     const ImageProcessor::PortConfig& input_config,
     const ImageProcessor::PortConfig& output_config,
     size_t num_buffers,
-    VideoRotation relative_rotation,
     base::WaitableEvent* done) {
   DCHECK_CALLED_ON_VALID_THREAD(image_processor_client_thread_checker_);
   // base::Unretained(this) for ErrorCB is safe here because the callback is
   // executed on |image_processor_client_thread_| which is owned by this class.
-  image_processor_ = ImageProcessorFactory::Create(
-      input_config, output_config, ImageProcessor::OutputMode::IMPORT,
-      num_buffers, relative_rotation,
-      image_processor_client_thread_.task_runner(),
-      base::BindRepeating(&ImageProcessorClient::NotifyError,
-                          base::Unretained(this)));
+  ImageProcessor::ErrorCB error_cb = base::BindRepeating(
+      &ImageProcessorClient::NotifyError, base::Unretained(this));
+
+  if (create_backend_cb) {
+    image_processor_ =
+        ImageProcessor::Create(*create_backend_cb, input_config, output_config,
+                               ImageProcessor::OutputMode::IMPORT, error_cb,
+                               image_processor_client_thread_.task_runner());
+  } else {
+    image_processor_ = ImageProcessorFactory::Create(
+        input_config, output_config, num_buffers, error_cb,
+        image_processor_client_thread_.task_runner());
+  }
+
   done->Signal();
 }
 
@@ -142,14 +152,14 @@ scoped_refptr<VideoFrame> ImageProcessorClient::CreateInputFrame(
 
   const ImageProcessor::PortConfig& input_config =
       image_processor_->input_config();
-  const VideoFrame::StorageType input_storage_type =
-      input_config.storage_type();
-  absl::optional<VideoFrameLayout> input_layout = CreateLayout(input_config);
+  const VideoFrame::StorageType input_storage_type = input_config.storage_type;
+  std::optional<VideoFrameLayout> input_layout = CreateLayout(input_config);
   ASSERT_TRUE_OR_RETURN_NULLPTR(input_layout);
 
   if (VideoFrame::IsStorageTypeMappable(input_storage_type)) {
     return CloneVideoFrame(CreateVideoFrameFromImage(input_image).get(),
-                           *input_layout, VideoFrame::STORAGE_OWNED_MEMORY);
+                           *input_layout, test_sii_.get(),
+                           VideoFrame::STORAGE_OWNED_MEMORY);
   } else {
     ASSERT_TRUE_OR_RETURN_NULLPTR(
         input_storage_type == VideoFrame::STORAGE_DMABUFS ||
@@ -162,7 +172,8 @@ scoped_refptr<VideoFrame> ImageProcessorClient::CreateInputFrame(
             ? gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE
             : gfx::BufferUsage::GPU_READ_CPU_READ_WRITE;
     return CloneVideoFrame(CreateVideoFrameFromImage(input_image).get(),
-                           *input_layout, input_storage_type, dst_buffer_usage);
+                           *input_layout, test_sii_.get(), input_storage_type,
+                           dst_buffer_usage);
   }
 }
 
@@ -175,8 +186,8 @@ scoped_refptr<VideoFrame> ImageProcessorClient::CreateOutputFrame(
   const ImageProcessor::PortConfig& output_config =
       image_processor_->output_config();
   const VideoFrame::StorageType output_storage_type =
-      output_config.storage_type();
-  absl::optional<VideoFrameLayout> output_layout = CreateLayout(output_config);
+      output_config.storage_type;
+  std::optional<VideoFrameLayout> output_layout = CreateLayout(output_config);
   ASSERT_TRUE_OR_RETURN_NULLPTR(output_layout);
   if (VideoFrame::IsStorageTypeMappable(output_storage_type)) {
     return VideoFrame::CreateFrameWithLayout(
@@ -194,7 +205,8 @@ scoped_refptr<VideoFrame> ImageProcessorClient::CreateOutputFrame(
 
   if (output_storage_type == VideoFrame::STORAGE_GPU_MEMORY_BUFFER) {
     output_frame = CreateGpuMemoryBufferVideoFrame(
-        output_frame.get(), gfx::BufferUsage::GPU_READ_CPU_READ_WRITE);
+        output_frame.get(), gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
+        test_sii_.get());
   }
   return output_frame;
 }
@@ -282,5 +294,4 @@ void ImageProcessorClient::ProcessTask(scoped_refptr<VideoFrame> input_frame,
   next_frame_index_++;
 }
 
-}  // namespace test
-}  // namespace media
+}  // namespace media::test

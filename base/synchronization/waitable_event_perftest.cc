@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/memory/raw_ptr.h"
 #include "base/synchronization/waitable_event.h"
 
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "base/threading/simple_thread.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
@@ -61,7 +61,7 @@ class TraceWaitableEvent {
 
   bool TimedWaitUntil(const TimeTicks& end_time) {
     ElapsedTimer timer;
-    const bool signaled = event_.TimedWait(end_time - timer.Begin());
+    const bool signaled = event_.TimedWait(end_time - timer.start_time());
     total_wait_time_ += timer.Elapsed();
     ++wait_samples_;
     return signaled;
@@ -98,10 +98,12 @@ class SignalerThread : public SimpleThread {
 
   void Run() override {
     while (!stop_event_.IsSignaled()) {
-      if (waiter_)
+      if (waiter_) {
         waiter_->Wait();
-      if (signaler_)
+      }
+      if (signaler_) {
         signaler_->Signal();
+      }
     }
   }
 

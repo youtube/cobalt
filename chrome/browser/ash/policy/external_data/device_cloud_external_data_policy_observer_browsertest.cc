@@ -12,7 +12,6 @@
 #include "base/functional/bind.h"
 #include "base/json/json_writer.h"
 #include "base/path_service.h"
-#include "base/test/repeating_test_future.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_browser_test.h"
@@ -45,7 +44,7 @@ const char* const kPolicyName = key::kDevicePrinters;
 class MockDeviceCloudExternalDataPolicyObserverDelegate
     : public DeviceCloudExternalDataPolicyObserver::Delegate {
  public:
-  MockDeviceCloudExternalDataPolicyObserverDelegate() {}
+  MockDeviceCloudExternalDataPolicyObserverDelegate() = default;
 
   void OnDeviceExternalDataFetched(const std::string& policy,
                                    std::unique_ptr<std::string> data,
@@ -64,7 +63,7 @@ class MockDeviceCloudExternalDataPolicyObserverDelegate
 class DeviceCloudExternalDataPolicyObserverTest
     : public DevicePolicyCrosBrowserTest {
  public:
-  DeviceCloudExternalDataPolicyObserverTest() {}
+  DeviceCloudExternalDataPolicyObserverTest() = default;
 
  protected:
   void SetUpOnMainThread() override {
@@ -83,7 +82,7 @@ class DeviceCloudExternalDataPolicyObserverTest
     policy_change_registrar_ = std::make_unique<PolicyChangeRegistrar>(
         policy_service, PolicyNamespace(POLICY_DOMAIN_CHROME, std::string()));
     policy_change_registrar_->Observe(
-        kPolicyName, policy_changed_repeating_future_.GetCallback());
+        kPolicyName, policy_changed_repeating_future_.GetRepeatingCallback());
   }
 
   void TearDownOnMainThread() override {
@@ -131,7 +130,7 @@ class DeviceCloudExternalDataPolicyObserverTest
  private:
   std::unique_ptr<DeviceCloudExternalDataPolicyObserver> observer_;
   std::unique_ptr<PolicyChangeRegistrar> policy_change_registrar_;
-  base::test::RepeatingTestFuture<const base::Value*, const base::Value*>
+  base::test::TestFuture<const base::Value*, const base::Value*>
       policy_changed_repeating_future_;
 };
 

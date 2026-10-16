@@ -29,7 +29,6 @@
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "services/network/public/cpp/network_quality_tracker.h"
-#include "third_party/blink/public/common/features.h"
 
 namespace {
 
@@ -185,7 +184,7 @@ class DataSaverBrowserTest : public InProcessBrowserTest {
                                 base::Unretained(this))) {}
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     InProcessBrowserTest::SetUp();
   }
 
@@ -253,8 +252,9 @@ IN_PROC_BROWSER_TEST_F(DataSaverBrowserTest,
   prerender_helper()->AddPrerenderAsync(prerendering_url);
   observer.WaitForTrigger(prerendering_url);
 
-  int host_id = prerender_helper()->GetHostForUrl(prerendering_url);
-  EXPECT_EQ(host_id, content::RenderFrameHost::kNoFrameTreeNodeId);
+  content::FrameTreeNodeId host_id =
+      prerender_helper()->GetHostForUrl(prerendering_url);
+  EXPECT_TRUE(host_id.is_null());
 
   histogram_tester.ExpectUniqueSample(
       "Prerender.Experimental.PrerenderHostFinalStatus.SpeculationRule",
@@ -301,7 +301,7 @@ class DataSaverWithServerBrowserTest : public InProcessBrowserTest {
   std::string expected_save_data_header_;
 };
 
-// TODO(crbug.com/1401238): Fix and enable test.
+// TODO(crbug.com/40250644): Fix and enable test.
 IN_PROC_BROWSER_TEST_F(DataSaverWithServerBrowserTest, DISABLED_ReloadPage) {
   Init();
   ASSERT_TRUE(test_server_->Start());
@@ -365,7 +365,7 @@ INSTANTIATE_TEST_SUITE_P(/* no prefix */,
 
 // Checks that the Save-Data header is sent in a request for dedicated worker
 // script when the data saver is enabled.
-// TODO(crbug.com/1401238): Fix and enable test.
+// TODO(crbug.com/40250644): Fix and enable test.
 IN_PROC_BROWSER_TEST_P(DataSaverForWorkerBrowserTest,
                        DISABLED_DedicatedWorker) {
   data_saver::OverrideIsDataSaverEnabledForTesting(IsEnabledDataSaver());
@@ -486,7 +486,7 @@ IN_PROC_BROWSER_TEST_P(DataSaverForWorkerBrowserTest, ServiceWorker_Update) {
 
 // Checks that Save-Data header is appropriately set to requests from fetch() in
 // a dedicated worker.
-// TODO(crbug.com/1401238): Fix and enable test.
+// TODO(crbug.com/40250644): Fix and enable test.
 IN_PROC_BROWSER_TEST_P(DataSaverForWorkerBrowserTest,
                        DISABLED_FetchFromWorker) {
   data_saver::OverrideIsDataSaverEnabledForTesting(IsEnabledDataSaver());
@@ -502,7 +502,7 @@ IN_PROC_BROWSER_TEST_P(DataSaverForWorkerBrowserTest,
 
 // Checks that Save-Data header is appropriately set to requests from fetch() in
 // a shared worker.
-// TODO(crbug.com/1401238): Fix and enable test.
+// TODO(crbug.com/40250644): Fix and enable test.
 IN_PROC_BROWSER_TEST_P(DataSaverForWorkerBrowserTest,
                        DISABLED_FetchFromSharedWorker) {
   data_saver::OverrideIsDataSaverEnabledForTesting(IsEnabledDataSaver());
@@ -519,7 +519,7 @@ IN_PROC_BROWSER_TEST_P(DataSaverForWorkerBrowserTest,
 
 // Checks that Save-Data header is appropriately set to requests from fetch() in
 // a service worker.
-// TODO(crbug.com/1401238): Fix and enable test.
+// TODO(crbug.com/40250644): Fix and enable test.
 IN_PROC_BROWSER_TEST_P(DataSaverForWorkerBrowserTest,
                        DISABLED_FetchFromServiceWorker) {
   data_saver::OverrideIsDataSaverEnabledForTesting(IsEnabledDataSaver());
@@ -538,7 +538,7 @@ IN_PROC_BROWSER_TEST_P(DataSaverForWorkerBrowserTest,
 
 // Checks that Save-Data header is appropriately set to requests from fetch() in
 // a page controlled by a service worker without fetch handler.
-// TODO(crbug.com/1401238): Fix and enable test.
+// TODO(crbug.com/40250644): Fix and enable test.
 IN_PROC_BROWSER_TEST_P(
     DataSaverForWorkerBrowserTest,
     DISABLED_FetchFromServiceWorkerControlledPage_NoFetchHandler) {
@@ -562,7 +562,7 @@ IN_PROC_BROWSER_TEST_P(
 
 // Checks that Save-Data header is appropriately set to requests from fetch() in
 // a page controlled by a service worker with fetch handler but no respondWith.
-// TODO(crbug.com/1401238): Fix and enable test.
+// TODO(crbug.com/40250644): Fix and enable test.
 IN_PROC_BROWSER_TEST_P(
     DataSaverForWorkerBrowserTest,
     DISABLED_FetchFromServiceWorkerControlledPage_PassThrough) {
@@ -588,7 +588,7 @@ IN_PROC_BROWSER_TEST_P(
 // Checks that Save-Data header is appropriately set to requests from fetch() in
 // a page controlled by a service worker with fetch handler and responds with
 // fetch().
-// TODO(crbug.com/1401238): Fix and enable test.
+// TODO(crbug.com/40250644): Fix and enable test.
 IN_PROC_BROWSER_TEST_P(
     DataSaverForWorkerBrowserTest,
     DISABLED_FetchFromServiceWorkerControlledPage_RespondWithFetch) {
@@ -609,61 +609,4 @@ IN_PROC_BROWSER_TEST_P(
   EXPECT_EQ(expected,
             content::EvalJs(GetActiveWebContents(),
                             "fetch_from_page('/echoheader?Save-Data');"));
-}
-
-class DataSaverWithImageServerBrowserTest : public InProcessBrowserTest {
- public:
-  DataSaverWithImageServerBrowserTest() {
-    scoped_feature_list_.InitWithFeatures({blink::features::kSaveDataImgSrcset},
-                                          {});
-  }
-  void SetUp() override {
-    test_server_ = std::make_unique<net::EmbeddedTestServer>();
-    test_server_->RegisterRequestMonitor(base::BindRepeating(
-        &DataSaverWithImageServerBrowserTest::MonitorImageRequest,
-        base::Unretained(this)));
-    test_server_->ServeFilesFromSourceDirectory(GetChromeTestDataDir());
-    ASSERT_TRUE(test_server_->Start());
-
-    InProcessBrowserTest::SetUp();
-  }
-
-  void SetImagesNotToLoad(const std::vector<std::string>& imgs_not_to_load) {
-    imgs_not_to_load_ = std::vector<std::string>(imgs_not_to_load);
-  }
-
-  void TearDown() override {
-    data_saver::ResetIsDataSaverEnabledForTesting();
-    InProcessBrowserTest::TearDown();
-  }
-
-  std::unique_ptr<net::EmbeddedTestServer> test_server_;
-
- private:
-  // Called by |test_server_|.
-  void MonitorImageRequest(const net::test_server::HttpRequest& request) {
-    for (const auto& img : imgs_not_to_load_)
-      EXPECT_FALSE(request.GetURL().path() == img);
-  }
-
-  base::test::ScopedFeatureList scoped_feature_list_;
-  std::vector<std::string> imgs_not_to_load_;
-};
-
-IN_PROC_BROWSER_TEST_F(DataSaverWithImageServerBrowserTest,
-                       ImgSrcset_DataSaverEnabled) {
-  data_saver::OverrideIsDataSaverEnabledForTesting(true);
-  SetImagesNotToLoad({"/data_saver/red.jpg"});
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), test_server_->GetURL("/data_saver/image_srcset.html")));
-}
-
-IN_PROC_BROWSER_TEST_F(DataSaverWithImageServerBrowserTest,
-                       ImgSrcset_DataSaverDisabled) {
-  data_saver::OverrideIsDataSaverEnabledForTesting(false);
-  SetImagesNotToLoad({"/data_saver/green.jpg"});
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), test_server_->GetURL("/data_saver/image_srcset.html")));
 }

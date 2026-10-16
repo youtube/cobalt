@@ -23,12 +23,14 @@
 #include "ash/test/ash_test_base.h"
 #include "ash/test/ash_test_helper.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
+#include "ash/wm/tablet_mode/tablet_mode_controller_test_api.h"
 #include "base/command_line.h"
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
 #include "base/numerics/math_constants.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/values.h"
 #include "components/prefs/scoped_user_pref_update.h"
@@ -41,10 +43,10 @@
 #include "ui/display/manager/display_configurator.h"
 #include "ui/display/manager/display_layout_store.h"
 #include "ui/display/manager/display_manager.h"
-#include "ui/display/manager/display_manager_utilities.h"
 #include "ui/display/manager/json_converter.h"
 #include "ui/display/manager/managed_display_info.h"
 #include "ui/display/manager/test/touch_device_manager_test_api.h"
+#include "ui/display/manager/util/display_manager_test_util.h"
 #include "ui/display/screen.h"
 #include "ui/display/test/display_manager_test_api.h"
 #include "ui/display/util/display_util.h"
@@ -137,15 +139,26 @@ class DisplayPrefsTest : public AshTestBase {
     AshTestBase::TearDown();
   }
 
-  void LoggedInAsUser() { SimulateUserLogin("user1@test.com"); }
+  void LoggedInAsUser() { SimulateUserLogin({"user1@test.com"}); }
 
   void LoggedInAsGuest() { SimulateGuestLogin(); }
 
   void LoggedInAsPublicAccount() {
-    SimulateUserLogin("pa@test.com", user_manager::USER_TYPE_PUBLIC_ACCOUNT);
+    SimulateUserLogin({"pa@test.com", user_manager::UserType::kPublicAccount});
   }
 
   void LoadDisplayPreferences() { display_prefs()->LoadDisplayPreferences(); }
+
+  display::ManagedDisplayInfo CreateDisplayInfo(int64_t id,
+                                                const gfx::Rect& bounds) {
+    display::ManagedDisplayInfo info = display::CreateDisplayInfo(id, bounds);
+    // Each display should have at least one native mode.
+    display::ManagedDisplayMode mode(bounds.size(), /*refresh_rate=*/60.f,
+                                     /*is_interlaced=*/true,
+                                     /*native=*/true);
+    info.SetManagedDisplayModes({mode});
+    return info;
+  }
 
   // Do not use the implementation of display_prefs.cc directly to avoid
   // notifying the update to the system.
@@ -295,7 +308,7 @@ class DisplayPrefsTest : public AshTestBase {
   DisplayPrefs* display_prefs() { return Shell::Get()->display_prefs(); }
 
  private:
-  std::unique_ptr<WindowTreeHostManager::Observer> observer_;
+  std::unique_ptr<display::DisplayManagerObserver> observer_;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
@@ -312,7 +325,7 @@ TEST_F(DisplayPrefsTest, ListedLayoutOverrides) {
 
   display::DisplayIdList list = display_manager()->GetConnectedDisplayIdList();
   display::DisplayIdList dummy_list = display::test::CreateDisplayIdList2(
-      list[0], display::GetNextSynthesizedDisplayId(list[1]));
+      list[0], display::SynthesizeDisplayIdFromSeed(list[1]));
   ASSERT_NE(list[0], dummy_list[1]);
 
   StoreDisplayLayoutPrefForList(list, display::DisplayPlacement::TOP, 20);
@@ -326,9 +339,9 @@ TEST_F(DisplayPrefsTest, ListedLayoutOverrides) {
   LoadDisplayPreferences();
 
   // requested_power_state_ should be chromeos::DISPLAY_POWER_ALL_ON at boot
-  const absl::optional<chromeos::DisplayPowerState> requested_power_state =
+  const std::optional<chromeos::DisplayPowerState> requested_power_state =
       display_configurator()->GetRequestedPowerStateForTest();
-  ASSERT_NE(absl::nullopt, requested_power_state);
+  ASSERT_NE(std::nullopt, requested_power_state);
   EXPECT_EQ(chromeos::DISPLAY_POWER_ALL_ON, *requested_power_state);
   // DisplayPowerState should be ignored at boot.
   EXPECT_EQ(chromeos::DISPLAY_POWER_ALL_ON,
@@ -363,7 +376,7 @@ TEST_F(DisplayPrefsTest, BasicStores) {
   UpdateDisplay("300x200*2, 400x300#500x400|300x200*1.25");
   display::test::DisplayManagerTestApi display_manager_test(display_manager());
   int64_t id2 = display_manager_test.GetSecondaryDisplay().id();
-  int64_t dummy_id = display::GetNextSynthesizedDisplayId(id2);
+  int64_t dummy_id = display::SynthesizeDisplayIdFromSeed(id2);
   ASSERT_NE(id1, dummy_id);
 
   LoggedInAsUser();
@@ -389,8 +402,7 @@ TEST_F(DisplayPrefsTest, BasicStores) {
   window_tree_host_manager->SetPrimaryDisplayId(dummy_id);
   EXPECT_NE(dummy_id, display::Screen::GetScreen()->GetPrimaryDisplay().id());
 
-  window_tree_host_manager->SetOverscanInsets(
-      id1, gfx::Insets::TLBR(10, 11, 12, 13));
+  display_manager()->SetOverscanInsets(id1, gfx::Insets::TLBR(10, 11, 12, 13));
   display_manager()->SetDisplayRotation(id1, display::Display::ROTATE_90,
                                         display::Display::RotationSource::USER);
 
@@ -431,12 +443,15 @@ TEST_F(DisplayPrefsTest, BasicStores) {
                                       gfx::Size(231, 416), 1);
   touchdevice_3.phys = "1357";
 
-  display_manager()->SetTouchCalibrationData(id2, point_pair_quad_1,
-                                             touch_size_1, touchdevice);
-  display_manager()->SetTouchCalibrationData(id2, point_pair_quad_2,
-                                             touch_size_2, touchdevice_2);
-  display_manager()->SetTouchCalibrationData(id2, point_pair_quad_2,
-                                             touch_size_1, touchdevice_3);
+  display_manager()->SetTouchCalibrationData(
+      id2, point_pair_quad_1, touch_size_1, touchdevice,
+      /*apply_spatial_calibration=*/true);
+  display_manager()->SetTouchCalibrationData(
+      id2, point_pair_quad_2, touch_size_2, touchdevice_2,
+      /*apply_spatial_calibration=*/true);
+  display_manager()->SetTouchCalibrationData(
+      id2, point_pair_quad_2, touch_size_1, touchdevice_3,
+      /*apply_spatial_calibration=*/true);
 
   const base::Value::Dict& displays =
       local_state()->GetDict(prefs::kSecondaryDisplays);
@@ -466,10 +481,17 @@ TEST_F(DisplayPrefsTest, BasicStores) {
   EXPECT_TRUE(property);
   EXPECT_EQ(1, property->FindInt("rotation"));
 
-  absl::optional<double> display_zoom_1 =
+  std::optional<double> display_zoom_1 =
       property->FindDouble("display_zoom_factor");
   ASSERT_TRUE(display_zoom_1);
   EXPECT_NEAR(*display_zoom_1, zoom_factor_1, 0.0001);
+
+  const base::Value::Dict* display_zoom_dict_1 =
+      property->FindDict("display_zoom_factor_map");
+  std::optional<double> display_zoom_from_map_1 =
+      display_zoom_dict_1->FindDouble("300x200");
+  ASSERT_TRUE(display_zoom_from_map_1);
+  EXPECT_NEAR(*display_zoom_from_map_1, zoom_factor_1, 0.0001);
 
   // Internal display never registered the resolution.
   EXPECT_FALSE(property->FindInt("width"));
@@ -509,10 +531,17 @@ TEST_F(DisplayPrefsTest, BasicStores) {
   ASSERT_TRUE(property);
   EXPECT_EQ(0, property->FindInt("rotation"));
 
-  absl::optional<double> display_zoom_2 =
+  std::optional<double> display_zoom_2 =
       property->FindDouble("display_zoom_factor");
   ASSERT_TRUE(display_zoom_2);
   EXPECT_NEAR(*display_zoom_2, zoom_factor_2, 0.0001);
+
+  const base::Value::Dict* display_zoom_dict_2 =
+      property->FindDict("display_zoom_factor_map");
+  std::optional<double> display_zoom_from_map_2 =
+      display_zoom_dict_2->FindDouble("500x400");
+  ASSERT_TRUE(display_zoom_from_map_2);
+  EXPECT_NEAR(*display_zoom_from_map_2, zoom_factor_2, 0.0001);
 
   EXPECT_FALSE(property->FindInt("insets_top"));
   EXPECT_FALSE(property->FindInt("insets_left"));
@@ -602,9 +631,14 @@ TEST_F(DisplayPrefsTest, BasicStores) {
 
   // Set new display's selected resolution.
   display_manager()->RegisterDisplayProperty(
-      display::GetNextSynthesizedDisplayId(id2), display::Display::ROTATE_0,
-      nullptr, gfx::Size(500, 400), 1.0f, 1.0f, 60.f, false,
-      display::kVrrNotCapable, absl::nullopt);
+      display::SynthesizeDisplayIdFromSeed(id2), display::Display::ROTATE_0,
+      /*overscan_insets=*/nullptr, /*resolution_in_pixels=*/gfx::Size(500, 400),
+      /*device_scale_factor=*/1.0f, /*display_zoom_factor=*/1.0f,
+      /*display_zoom_factor_map=*/{}, /*refresh_rate=*/60.f,
+      /*is_interlaced=*/false,
+      /*variable_refresh_rate_state=*/
+      display::VariableRefreshRateState::kVrrNotCapable,
+      /*vsync_rate_min=*/std::nullopt);
 
   UpdateDisplay("300x200*2, 600x500#600x500|500x400");
   EXPECT_FALSE(display_manager()->IsInMirrorMode());
@@ -632,9 +666,14 @@ TEST_F(DisplayPrefsTest, BasicStores) {
 
   // Set yet another new display's selected resolution.
   display_manager()->RegisterDisplayProperty(
-      display::GetNextSynthesizedDisplayId(id2), display::Display::ROTATE_0,
-      nullptr, gfx::Size(500, 400), 1.0f, 1.0f, 60.f, false,
-      display::kVrrNotCapable, absl::nullopt);
+      display::SynthesizeDisplayIdFromSeed(id2), display::Display::ROTATE_0,
+      /*overscan_insets=*/nullptr, /*resolution_in_pixels=*/gfx::Size(500, 400),
+      /*device_scale_factor=*/1.0f, /*display_zoom_factor=*/1.0f,
+      /*display_zoom_factor_map=*/{}, /*refresh_rate=*/60.f,
+      /*is_interlaced=*/false,
+      /*variable_refresh_rate_state=*/
+      display::VariableRefreshRateState::kVrrNotCapable,
+      /*vsync_rate_min=*/std::nullopt);
   // Disconnect 2nd display first to generate new id for external display.
   UpdateDisplay("300x200*2");
   UpdateDisplay("300x200*2, 500x400#600x500|500x400%60.0f");
@@ -786,8 +825,8 @@ TEST_F(DisplayPrefsTestGuest, DisplayPrefsTestGuest) {
   display_manager()->UpdateZoomFactor(id1, 1.f / scale);
   window_tree_host_manager->SetPrimaryDisplayId(id2);
   int64_t new_primary = display::Screen::GetScreen()->GetPrimaryDisplay().id();
-  window_tree_host_manager->SetOverscanInsets(
-      new_primary, gfx::Insets::TLBR(10, 11, 12, 13));
+  display_manager()->SetOverscanInsets(new_primary,
+                                       gfx::Insets::TLBR(10, 11, 12, 13));
   display_manager()->SetDisplayRotation(new_primary,
                                         display::Display::ROTATE_90,
                                         display::Display::RotationSource::USER);
@@ -859,8 +898,8 @@ TEST_P(DisplayPrefsPublicAccountTest, StoreDisplayPrefsForPublicAccount) {
   window_tree_host_manager->SetPrimaryDisplayId(id2);
   const int64_t new_primary =
       display::Screen::GetScreen()->GetPrimaryDisplay().id();
-  window_tree_host_manager->SetOverscanInsets(
-      new_primary, gfx::Insets::TLBR(10, 11, 12, 13));
+  display_manager()->SetOverscanInsets(new_primary,
+                                       gfx::Insets::TLBR(10, 11, 12, 13));
   display_manager()->SetDisplayRotation(new_primary,
                                         display::Display::ROTATE_90,
                                         display::Display::RotationSource::USER);
@@ -950,7 +989,7 @@ TEST_F(DisplayPrefsTest, DontSaveAndRestoreAllOff) {
   local_state()->SetString(prefs::kDisplayPowerState, "all_off");
   display_configurator()->reset_requested_power_state_for_test();
   LoadDisplayPreferences();
-  EXPECT_EQ(absl::nullopt,
+  EXPECT_EQ(std::nullopt,
             display_configurator()->GetRequestedPowerStateForTest());
 }
 
@@ -977,7 +1016,7 @@ TEST_F(DisplayPrefsTest, DontSaveTabletModeControllerRotations) {
   update.Set(ACCELEROMETER_SOURCE_SCREEN, 0.0f, base::kMeanGravityFloat, 0.0f);
   TabletModeController* controller = Shell::Get()->tablet_mode_controller();
   controller->OnAccelerometerUpdated(update);
-  EXPECT_TRUE(controller->InTabletMode());
+  EXPECT_TRUE(display::Screen::GetScreen()->InTabletMode());
 
   // Trigger 90 degree rotation
   update.Set(ACCELEROMETER_SOURCE_ATTACHED_KEYBOARD, base::kMeanGravityFloat,
@@ -1017,7 +1056,7 @@ TEST_F(DisplayPrefsTest, StoreRotationStateNoLogin) {
 
   const base::Value::Dict& properties =
       local_state()->GetDict(prefs::kDisplayRotationLock);
-  absl::optional<bool> rotation_lock = properties.FindBool("lock");
+  std::optional<bool> rotation_lock = properties.FindBool("lock");
   ASSERT_TRUE(rotation_lock.has_value());
   EXPECT_EQ(current_rotation_lock, rotation_lock.value());
 
@@ -1040,7 +1079,7 @@ TEST_F(DisplayPrefsTest, StoreRotationStateGuest) {
 
   const base::Value::Dict& properties =
       local_state()->GetDict(prefs::kDisplayRotationLock);
-  absl::optional<bool> rotation_lock = properties.FindBool("lock");
+  std::optional<bool> rotation_lock = properties.FindBool("lock");
   ASSERT_TRUE(rotation_lock.has_value());
   EXPECT_EQ(current_rotation_lock, rotation_lock.value());
 
@@ -1063,7 +1102,7 @@ TEST_F(DisplayPrefsTest, StoreRotationStateNormalUser) {
 
   const base::Value::Dict& properties =
       local_state()->GetDict(prefs::kDisplayRotationLock);
-  absl::optional<bool> rotation_lock = properties.FindBool("lock");
+  std::optional<bool> rotation_lock = properties.FindBool("lock");
   ASSERT_TRUE(rotation_lock.has_value());
   EXPECT_EQ(current_rotation_lock, rotation_lock.value());
 
@@ -1116,7 +1155,7 @@ TEST_F(DisplayPrefsTest, LoadRotationNoLogin) {
   TabletModeController* tablet_mode_controller =
       Shell::Get()->tablet_mode_controller();
   tablet_mode_controller->OnAccelerometerUpdated(update);
-  EXPECT_TRUE(tablet_mode_controller->InTabletMode());
+  EXPECT_TRUE(display::Screen::GetScreen()->InTabletMode());
   bool screen_orientation_rotation_lock = IsRotationLocked();
   display::Display::Rotation tablet_mode_rotation =
       GetCurrentInternalDisplayRotation();
@@ -1136,7 +1175,7 @@ TEST_F(DisplayPrefsTest, RotationLockTriggersStore) {
 
   const base::Value::Dict& properties =
       local_state()->GetDict(prefs::kDisplayRotationLock);
-  absl::optional<bool> rotation_lock = properties.FindBool("lock");
+  std::optional<bool> rotation_lock = properties.FindBool("lock");
   EXPECT_TRUE(rotation_lock.has_value());
 }
 
@@ -1172,13 +1211,13 @@ TEST_F(DisplayPrefsTest, SaveUnifiedMode) {
   EXPECT_FALSE(displays.FindDict(base::NumberToString(unified_id)));
 
   // Mirror mode should remember if the default mode was unified.
-  display_manager()->SetMirrorMode(display::MirrorMode::kNormal, absl::nullopt);
+  display_manager()->SetMirrorMode(display::MirrorMode::kNormal, std::nullopt);
   new_value = secondary_displays.FindDict(display::DisplayIdListToString(list));
   ASSERT_TRUE(new_value);
   EXPECT_TRUE(display::JsonToDisplayLayout(*new_value, &stored_layout));
   EXPECT_TRUE(stored_layout.default_unified);
 
-  display_manager()->SetMirrorMode(display::MirrorMode::kOff, absl::nullopt);
+  display_manager()->SetMirrorMode(display::MirrorMode::kOff, std::nullopt);
   new_value = secondary_displays.FindDict(display::DisplayIdListToString(list));
   ASSERT_TRUE(new_value);
   EXPECT_TRUE(display::JsonToDisplayLayout(*new_value, &stored_layout));
@@ -1197,9 +1236,9 @@ TEST_F(DisplayPrefsTest, RestoreUnifiedMode) {
   const int64_t first_display_id = 210000001;
   const int64_t second_display_id = 220000002;
   display::ManagedDisplayInfo first_display_info =
-      display::CreateDisplayInfo(first_display_id, gfx::Rect(1, 1, 600, 500));
+      CreateDisplayInfo(first_display_id, gfx::Rect(1, 1, 600, 500));
   display::ManagedDisplayInfo second_display_info =
-      display::CreateDisplayInfo(second_display_id, gfx::Rect(2, 2, 600, 500));
+      CreateDisplayInfo(second_display_id, gfx::Rect(2, 2, 600, 500));
   std::vector<display::ManagedDisplayInfo> display_info_list;
   display_info_list.emplace_back(first_display_info);
   display_manager()->OnNativeDisplaysChanged(display_info_list);
@@ -1243,7 +1282,7 @@ TEST_F(DisplayPrefsTest, RestoreUnifiedMode) {
   display_manager()->OnNativeDisplaysChanged(display_info_list);
   EXPECT_TRUE(display_manager()->IsInMirrorMode());
 
-  display_manager()->SetMirrorMode(display::MirrorMode::kOff, absl::nullopt);
+  display_manager()->SetMirrorMode(display::MirrorMode::kOff, std::nullopt);
   EXPECT_TRUE(display_manager()->IsInUnifiedMode());
 
   // Remove the second display.
@@ -1354,8 +1393,9 @@ TEST_F(DisplayPrefsTest, LegacyTouchCalibrationDataSupport) {
       std::string("test touch device 4"), gfx::Size(231, 416), 1);
   display::TouchDeviceIdentifier identifier =
       display::TouchDeviceIdentifier::FromDevice(touchdevice_4);
-  display_manager()->SetTouchCalibrationData(id_2, point_pair_quad,
-                                             touch_size_2, touchdevice_4);
+  display_manager()->SetTouchCalibrationData(
+      id_2, point_pair_quad, touch_size_2, touchdevice_4,
+      /*apply_spatial_calibration=*/true);
 
   EXPECT_TRUE(tdm->touch_associations().count(identifier));
   EXPECT_TRUE(tdm->touch_associations().at(identifier).count(id_2));
@@ -1394,14 +1434,14 @@ TEST_F(DisplayPrefsTest, ExternalDisplayMirrorInfo) {
   const int64_t second_display_masked_id =
       display::GetDisplayIdWithoutOutputIndex(second_display_id);
   display::ManagedDisplayInfo first_display_info =
-      display::CreateDisplayInfo(first_display_id, gfx::Rect(1, 1, 600, 500));
+      CreateDisplayInfo(first_display_id, gfx::Rect(1, 1, 600, 500));
   display::ManagedDisplayInfo second_display_info =
-      display::CreateDisplayInfo(second_display_id, gfx::Rect(2, 2, 600, 500));
+      CreateDisplayInfo(second_display_id, gfx::Rect(2, 2, 600, 500));
   std::vector<display::ManagedDisplayInfo> display_info_list;
 
   // There's no external display now.
-  display_info_list.push_back(display::CreateDisplayInfo(
-      internal_display_id, gfx::Rect(0, 0, 200, 100)));
+  display_info_list.push_back(
+      CreateDisplayInfo(internal_display_id, gfx::Rect(0, 0, 200, 100)));
   display_manager()->OnNativeDisplaysChanged(display_info_list);
 
   // Add first display id to the external display mirror info.
@@ -1487,13 +1527,12 @@ TEST_F(DisplayPrefsTest, ExternalDisplayConnectedBeforeLoadingPrefs) {
           .SetFirstDisplayAsInternalDisplay();
   constexpr int64_t external_display_id = 210000001;
   display::ManagedDisplayInfo external_display_info =
-      display::CreateDisplayInfo(external_display_id,
-                                 gfx::Rect(1, 1, 600, 500));
+      CreateDisplayInfo(external_display_id, gfx::Rect(1, 1, 600, 500));
 
   // Both internal and external displays connect before the prefs are loaded.
   std::vector<display::ManagedDisplayInfo> display_info_list;
-  display_info_list.push_back(display::CreateDisplayInfo(
-      internal_display_id, gfx::Rect(0, 0, 200, 100)));
+  display_info_list.push_back(
+      CreateDisplayInfo(internal_display_id, gfx::Rect(0, 0, 200, 100)));
   display_info_list.push_back(external_display_info);
   display_manager()->OnNativeDisplaysChanged(display_info_list);
 
@@ -1515,7 +1554,7 @@ TEST_F(DisplayPrefsTest, ExternalDisplayConnectedBeforeLoadingPrefs) {
   // reconfiguring after the prefs have been loaded. Make sure that the external
   // display mirror configs are not overwritten, and the loaded prefs will be
   // applied.
-  display_manager()->SetMirrorMode(display::MirrorMode::kOff, absl::nullopt);
+  display_manager()->SetMirrorMode(display::MirrorMode::kOff, std::nullopt);
 
   display_manager()->OnNativeDisplaysChanged(display_info_list);
   EXPECT_TRUE(display_manager()->IsInMirrorMode());
@@ -1530,19 +1569,19 @@ TEST_F(DisplayPrefsTest, DisplayMixedMirrorMode) {
   constexpr int64_t first_display_id = 210000001;
   constexpr int64_t second_display_id = 220000002;
   std::vector<display::ManagedDisplayInfo> display_info_list;
-  display_info_list.push_back(display::CreateDisplayInfo(
-      internal_display_id, gfx::Rect(0, 0, 200, 100)));
   display_info_list.push_back(
-      display::CreateDisplayInfo(first_display_id, gfx::Rect(1, 1, 600, 500)));
+      CreateDisplayInfo(internal_display_id, gfx::Rect(0, 0, 200, 100)));
   display_info_list.push_back(
-      display::CreateDisplayInfo(second_display_id, gfx::Rect(2, 2, 600, 500)));
+      CreateDisplayInfo(first_display_id, gfx::Rect(1, 1, 600, 500)));
+  display_info_list.push_back(
+      CreateDisplayInfo(second_display_id, gfx::Rect(2, 2, 600, 500)));
 
   // Store mixed mirror mode parameters which specify mirroring from the
   // internal display to the first external display.
   display::DisplayIdList dst_ids;
   dst_ids.emplace_back(first_display_id);
-  absl::optional<display::MixedMirrorModeParams> mixed_params(
-      absl::in_place, internal_display_id, dst_ids);
+  std::optional<display::MixedMirrorModeParams> mixed_params(
+      std::in_place, internal_display_id, dst_ids);
   display_prefs()->StoreDisplayMixedMirrorModeParamsForTest(mixed_params);
   LoadDisplayPreferences();
 
@@ -1571,8 +1610,8 @@ TEST_F(DisplayPrefsTest, DisplayMixedMirrorMode) {
   // the first external display to the second external display)
   dst_ids.clear();
   dst_ids.emplace_back(second_display_id);
-  absl::optional<display::MixedMirrorModeParams> new_mixed_params(
-      absl::in_place, first_display_id, dst_ids);
+  std::optional<display::MixedMirrorModeParams> new_mixed_params(
+      std::in_place, first_display_id, dst_ids);
   display_manager()->SetMirrorMode(display::MirrorMode::kMixed,
                                    new_mixed_params);
   EXPECT_TRUE(display_manager()->IsInSoftwareMirrorMode());
@@ -1591,7 +1630,7 @@ TEST_F(DisplayPrefsTest, DisplayMixedMirrorMode) {
             (*destination_ids_list)[0].GetString());
 
   // Turn off mirror mode.
-  display_manager()->SetMirrorMode(display::MirrorMode::kOff, absl::nullopt);
+  display_manager()->SetMirrorMode(display::MirrorMode::kOff, std::nullopt);
   EXPECT_FALSE(display_manager()->IsInMirrorMode());
 
   // Check the preferences.
@@ -1605,7 +1644,7 @@ TEST_F(DisplayPrefsTest, SaveTabletModeWithSingleDisplay) {
   const int64_t id0 = display::test::DisplayManagerTestApi(display_manager())
                           .SetFirstDisplayAsInternalDisplay();
 
-  EXPECT_FALSE(Shell::Get()->tablet_mode_controller()->InTabletMode());
+  EXPECT_FALSE(display::Screen::GetScreen()->InTabletMode());
   const base::Value::Dict* properties = ReadPropertiesForDisplay(id0);
   EXPECT_THAT(properties->FindDouble("display_zoom_factor"),
               Optional(DoubleEq(1.25f)));
@@ -1615,9 +1654,9 @@ TEST_F(DisplayPrefsTest, SaveTabletModeWithSingleDisplay) {
   LoggedInAsUser();
 
   // Turn on tablet mode.
-  Shell::Get()->tablet_mode_controller()->SetEnabledForTest(true);
+  ash::TabletModeControllerTestApi().EnterTabletMode();
   base::RunLoop().RunUntilIdle();
-  EXPECT_TRUE(Shell::Get()->tablet_mode_controller()->InTabletMode());
+  EXPECT_TRUE(display::Screen::GetScreen()->InTabletMode());
 
   // Change display settings.
   display_manager()->UpdateZoomFactor(id0, 1.5);
@@ -1637,9 +1676,9 @@ TEST_F(DisplayPrefsTest, SaveTabletModeWithSingleDisplay) {
               Optional(static_cast<int>(display::Display::ROTATE_90)));
 
   // Turn off tablet mode.
-  Shell::Get()->tablet_mode_controller()->SetEnabledForTest(false);
+  ash::TabletModeControllerTestApi().LeaveTabletMode();
   base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(Shell::Get()->tablet_mode_controller()->InTabletMode());
+  EXPECT_FALSE(display::Screen::GetScreen()->InTabletMode());
   // Zoom should stay at the new value.
   EXPECT_FLOAT_EQ(display_manager()->GetDisplayInfo(id0).zoom_factor(), 1.5);
   // Rotation should restore to the original value.
@@ -1684,7 +1723,7 @@ TEST_F(DisplayPrefsTest, SaveTabletModeWithMixedExternalDisplays) {
   ExpectMixedMirrorModeParamsPrefs(ids[0], {ids[1]});
   ExpectExternalDisplayMirrorPrefs(old_ext_mirror_info);
 
-  EXPECT_FALSE(Shell::Get()->tablet_mode_controller()->InTabletMode());
+  EXPECT_FALSE(display::Screen::GetScreen()->InTabletMode());
 
   // Verify initial stored display prefs.
   const base::Value::Dict* properties = ReadPropertiesForDisplay(ids[0]);
@@ -1708,15 +1747,15 @@ TEST_F(DisplayPrefsTest, SaveTabletModeWithMixedExternalDisplays) {
   LoggedInAsUser();
 
   // Turn on tablet mode and make display changes.
-  Shell::Get()->tablet_mode_controller()->SetEnabledForTest(true);
+  ash::TabletModeControllerTestApi().EnterTabletMode();
   base::RunLoop().RunUntilIdle();
-  EXPECT_TRUE(Shell::Get()->tablet_mode_controller()->InTabletMode());
+  EXPECT_TRUE(display::Screen::GetScreen()->InTabletMode());
   EXPECT_TRUE(display_manager()->IsInSoftwareMirrorMode());
   EXPECT_EQ(display_manager()->mirroring_source_id(), ids[0]);
   EXPECT_THAT(display_manager()->GetMirroringDestinationDisplayIdList(),
               ElementsAre(ids[1], ids[2]));
   // Tablet mode forces normal mirror mode, so mixed params is empty.
-  EXPECT_EQ(display_manager()->mixed_mirror_mode_params(), absl::nullopt);
+  EXPECT_EQ(display_manager()->mixed_mirror_mode_params(), std::nullopt);
   EXPECT_EQ(display_manager()->external_display_mirror_info(),
             old_ext_mirror_info);
   // Mixed mirror mode params pref should remain at the original value.
@@ -1736,7 +1775,7 @@ TEST_F(DisplayPrefsTest, SaveTabletModeWithMixedExternalDisplays) {
   display_manager()->UpdateDisplays();
 
   // Things should stay in tablet mode.
-  EXPECT_TRUE(Shell::Get()->tablet_mode_controller()->InTabletMode());
+  EXPECT_TRUE(display::Screen::GetScreen()->InTabletMode());
   EXPECT_TRUE(display_manager()->IsInSoftwareMirrorMode());
   EXPECT_EQ(display_manager()->mirroring_source_id(), ids[0]);
   // Currently, restarting in tablet mode reverts back to the original mixed
@@ -1782,9 +1821,9 @@ TEST_F(DisplayPrefsTest, SaveTabletModeWithMixedExternalDisplays) {
               Optional(static_cast<int>(display::Display::ROTATE_0)));
 
   // Turn off tablet mode.
-  Shell::Get()->tablet_mode_controller()->SetEnabledForTest(false);
+  ash::TabletModeControllerTestApi().LeaveTabletMode();
   base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(Shell::Get()->tablet_mode_controller()->InTabletMode());
+  EXPECT_FALSE(display::Screen::GetScreen()->InTabletMode());
   EXPECT_TRUE(display_manager()->IsInSoftwareMirrorMode());
   EXPECT_EQ(display_manager()->mirroring_source_id(), ids[0]);
   EXPECT_THAT(display_manager()->GetMirroringDestinationDisplayIdList(),
@@ -1827,6 +1866,55 @@ TEST_F(DisplayPrefsTest, SaveTabletModeWithMixedExternalDisplays) {
               Optional(DoubleEq(1.2f)));
   EXPECT_THAT(properties->FindInt("rotation"),
               Optional(static_cast<int>(display::Display::ROTATE_0)));
+}
+
+TEST_F(DisplayPrefsTest, IsDisplayAvailableInPref) {
+  int64_t id = display::Screen::GetScreen()->GetPrimaryDisplay().id();
+
+  // Display is not available in prefs before adding the display.
+  EXPECT_FALSE(display_prefs()->IsDisplayAvailableInPref(id));
+
+  // Display is available in prefs after adding the display.
+  UpdateDisplay("300x200");
+  EXPECT_TRUE(display_prefs()->IsDisplayAvailableInPref(id));
+}
+
+class DisplayPrefsStartupTest : public DisplayPrefsTest {
+ public:
+  void SetUp() override {
+    base::CommandLine::ForCurrentProcess()->AppendSwitch(
+        ::switches::kUseFirstDisplayAsInternal);
+    ScopedDictPrefUpdate update(local_state(), prefs::kDisplayRotationLock);
+    update->Set("lock", true);
+    update->Set("orientation",
+                static_cast<int>(display::Display::Rotation::ROTATE_90));
+    DisplayPrefsTest::SetUp();
+  }
+};
+
+// Make sure that the orientation lock information is correctly preserved
+// during the startup in Tablet Mode, so that it'll be locked to the correct,
+// same orientation in next startup time. crbug.com/391763863.
+TEST_F(DisplayPrefsStartupTest, RotationLockInfoDuringStartupInTabletMode) {
+  ash::TabletModeControllerTestApi().EnterTabletMode();
+
+  ASSERT_TRUE(base::test::RunUntil(
+      []() -> bool { return display::Screen::GetScreen()->InTabletMode(); }));
+
+  auto display = display::Screen::GetScreen()->GetPrimaryDisplay();
+  ScreenOrientationController* screen_orientation_controller =
+      Shell::Get()->screen_orientation_controller();
+
+  EXPECT_EQ(display::Display::Rotation::ROTATE_90, display.rotation());
+  EXPECT_TRUE(screen_orientation_controller->rotation_locked());
+
+  const base::Value::Dict& properties =
+      local_state()->GetDict(prefs::kDisplayRotationLock);
+  const std::optional<bool> rotation_lock = properties.FindBool("lock");
+  EXPECT_TRUE(rotation_lock.value_or(false));
+
+  const std::optional<int> rotation = properties.FindInt("orientation");
+  EXPECT_EQ(display::Display::Rotation::ROTATE_90, rotation.value_or(-1));
 }
 
 }  // namespace ash

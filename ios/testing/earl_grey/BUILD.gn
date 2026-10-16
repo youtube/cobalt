@@ -2,8 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//testing/test.gni")
+
 source_set("eg_app_support+eg2") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
 
   deps = [
@@ -11,7 +12,7 @@ source_set("eg_app_support+eg2") {
     "//build/config/ios:xctest",
     "//ios/third_party/earl_grey2:app_framework+link",
     "//ios/web/common:uikit",
-    "//testing/gtest:gtest",
+    "//testing/gtest",
   ]
 
   sources = [
@@ -26,15 +27,10 @@ source_set("eg_app_support+eg2") {
 }
 
 source_set("eg_test_support+eg2") {
-  configs += [
-    "//build/config/compiler:enable_arc",
-    "//build/config/ios:xctest_config",
-  ]
+  configs += [ "//build/config/ios:xctest_config" ]
   testonly = true
 
   sources = [
-    "app_launch_configuration.h",
-    "app_launch_configuration.mm",
     "app_launch_manager.h",
     "app_launch_manager.mm",
     "app_launch_manager_app_interface.h",
@@ -51,22 +47,49 @@ source_set("eg_test_support+eg2") {
     "earl_grey_test.h",
     "matchers.h",
     "matchers.mm",
+    "scoped_disable_fast_animation_earl_grey.h",
+    "scoped_disable_fast_animation_earl_grey.mm",
     "system_alert_handler.h",
     "system_alert_handler.mm",
   ]
 
   deps = [
+    ":launch_configuration",
     "//base",
-    "//base/ios",
     "//base/test:test_support",
     "//components/variations",
     "//ios/testing:system_alert_handler",
     "//ios/third_party/earl_grey2:test_lib",
     "//ios/third_party/edo",
     "//ios/web/common",
-    "//testing/gtest:gtest",
+    "//testing/gtest",
     "//ui/display",
   ]
 
   public_deps = [ "//ios/third_party/earl_grey2:test_lib" ]
+}
+
+source_set("launch_configuration") {
+  testonly = true
+  sources = [
+    "app_launch_argument_generator.h",
+    "app_launch_argument_generator.mm",
+    "app_launch_configuration.h",
+  ]
+  deps = [
+    "//base/test:test_support",
+    "//components/variations",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "app_launch_argument_generator_unittest.mm" ]
+  frameworks = [ "Foundation.framework" ]
+  deps = [
+    ":launch_configuration",
+    "//base",
+    "//base/test:test_support",
+    "//testing/gtest",
+  ]
 }

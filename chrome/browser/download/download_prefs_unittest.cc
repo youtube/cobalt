@@ -5,12 +5,13 @@
 #include "chrome/browser/download/download_prefs.h"
 
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/json/values_util.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/download/download_prompt_status.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/download/public/common/download_features.h"
@@ -20,27 +21,27 @@
 #include "components/safe_browsing/core/common/features.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/test/browser_task_environment.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "base/test/scoped_running_on_chromeos.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
-#include "chrome/browser/ash/file_manager/fake_disk_mount_manager.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
+#include "chrome/browser/ash/file_manager/volume_manager.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chromeos/ash/components/dbus/cros_disks/cros_disks_client.h"
+#include "chromeos/ash/components/disks/disk_mount_manager.h"
+#include "chromeos/ash/components/disks/fake_disk_mount_manager.h"
 #include "components/drive/drive_pref_names.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#include "components/user_manager/scoped_user_manager.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "base/hash/md5.h"
-#include "base/path_service.h"
-#include "chrome/common/chrome_paths.h"
-#include "chrome/common/chrome_paths_lacros.h"
-#include "components/account_id/account_id.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/flags/android/chrome_feature_list.h"
+#endif
 
 using safe_browsing::FileTypePolicies;
 
@@ -359,13 +360,7 @@ TEST(DownloadPrefsTest, AutoOpenSetByPolicyBlobURL) {
   EXPECT_FALSE(prefs.IsAutoOpenByPolicy(kBlobDisallowedURL, kFilePath));
 }
 
-// TODO(crbug.com/1326319): Flaky on Win.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_Pdf DISABLED_Pdf
-#else
-#define MAYBE_Pdf Pdf
-#endif
-TEST(DownloadPrefsTest, MAYBE_Pdf) {
+TEST(DownloadPrefsTest, Pdf) {
   const base::FilePath kPdfFile(FILE_PATH_LITERAL("abcd.pdf"));
   const GURL kURL("http://basic.com");
 
@@ -529,48 +524,19 @@ TEST(DownloadPrefsTest, DownloadDirSanitization) {
   DownloadPrefs prefs(&profile);
   const base::FilePath default_dir =
       prefs.GetDefaultDownloadDirectoryForProfile();
-  AccountId account_id =
-      AccountId::FromUserEmailGaiaId(profile.GetProfileUserName(), "12345");
+  AccountId account_id = AccountId::FromUserEmailGaiaId(
+      profile.GetProfileUserName(), GaiaId("12345"));
   const std::string drivefs_profile_salt = "a";
   base::FilePath removable_media_dir;
   base::FilePath android_files_dir;
   base::FilePath linux_files_dir;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
   removable_media_dir = ash::CrosDisksClient::GetRemovableDiskMountPoint();
   android_files_dir = base::FilePath(file_manager::util::GetAndroidFilesPath());
   linux_files_dir = file_manager::util::GetCrostiniMountDirectory(&profile);
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-  // These values would normally be sent by ash during lacros startup.
-  base::FilePath documents_path =
-      base::PathService::CheckedGet(chrome::DIR_USER_DOCUMENTS);
-  removable_media_dir = base::FilePath("/media/removable");
-  android_files_dir = base::FilePath("/run/arc/sdcard/write/emulated/0");
-  linux_files_dir =
-      base::FilePath("/media/fuse/crostini_0123456789abcdef_termina_penguin");
-  const base::FilePath drivefs_dir = base::FilePath(
-      "/media/fuse/drivefs-" + base::MD5String(drivefs_profile_salt + "-" +
-                                               account_id.GetAccountIdKey()));
-  const base::FilePath ash_resources_dir = base::FilePath("/opt/google/chrome");
-  base::FilePath share_cache_dir = profile.GetPath().AppendASCII("ShareCache");
-  base::FilePath preinstalled_web_app_config_dir;
-  base::FilePath preinstalled_web_app_extra_config_dir;
-  chrome::SetLacrosDefaultPaths(
-      documents_path, default_dir, drivefs_dir, removable_media_dir,
-      android_files_dir, linux_files_dir, ash_resources_dir, share_cache_dir,
-      preinstalled_web_app_config_dir, preinstalled_web_app_extra_config_dir);
-#endif
 
   // Test a valid subdirectory of downloads.
   ExpectValidDownloadDir(&profile, &prefs, default_dir.AppendASCII("testdir"));
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // Test a valid subdirectory of documents. This isn't tested for ash because
-  // these tests run on the linux "emulator", where ash uses ~/Documents, but
-  // the ash path sanitization code doesn't handle that path.
-  ExpectValidDownloadDir(&profile, &prefs,
-                         documents_path.AppendASCII("testdir"));
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
   // Test with an invalid path outside the permitted paths.
   profile.GetPrefs()->SetString(prefs::kDownloadDefaultDirectory,
@@ -612,19 +578,16 @@ TEST(DownloadPrefsTest, DownloadDirSanitization) {
     // Create new profile for enabled feature to work.
     TestingProfile profile2(base::FilePath("/home/chronos/u-0123456789abcdef"));
     DownloadPrefs prefs2(&profile2);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    ash::FakeChromeUserManager user_manager;
-    const auto* user = user_manager.AddUser(account_id);
+    user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+        user_manager{std::make_unique<ash::FakeChromeUserManager>()};
+    const auto* user = user_manager->AddUser(account_id);
     ash::ProfileHelper::Get()->SetUserToProfileMappingForTesting(user,
                                                                  &profile2);
-    ash::ProfileHelper::Get()->SetProfileToUserMappingForTesting(
-        const_cast<user_manager::User*>(user));
     profile2.GetPrefs()->SetString(drive::prefs::kDriveFsProfileSalt,
                                    drivefs_profile_salt);
     auto* integration_service =
         drive::DriveIntegrationServiceFactory::GetForProfile(&profile2);
     integration_service->SetEnabled(true);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
     // My Drive root.
     ExpectValidDownloadDir(
@@ -647,17 +610,26 @@ TEST(DownloadPrefsTest, DownloadDirSanitization) {
                                    "/media/fuse/drivefs-something-else/root");
     EXPECT_EQ(prefs2.DownloadPath(), default_dir2);
   }
+
+  // Temp for OneDrive.
+  {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitAndEnableFeature(features::kSkyVault);
+
+    base::FilePath temp_path;
+    base::GetTempDir(&temp_path);
+    ExpectValidDownloadDir(&profile, &prefs, temp_path);
+  }
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
 // Tests that download path is correct when migrated from old format.
 TEST(DownloadPrefsTest, DownloadPathWithMigrationFromOldFormat) {
   content::BrowserTaskEnvironment task_environment;
   base::FilePath default_download_dir =
       DownloadPrefs::GetDefaultDownloadDirectory();
   base::FilePath path_from_pref = default_download_dir.Append("a").Append("b");
-  ash::disks::DiskMountManager::InitializeForTesting(
-      new file_manager::FakeDiskMountManager);
+  ash::disks::FakeDiskMountManager disk_mount_manager;
+  ash::disks::DiskMountManager::InitializeForTesting(&disk_mount_manager);
 
   TestingProfile profile(base::FilePath("/home/chronos/u-0123456789abcdef"));
   base::test::ScopedRunningOnChromeOS running_on_chromeos;
@@ -674,8 +646,8 @@ TEST(DownloadPrefsTest, DownloadPathWithMigrationFromOldFormat) {
 // Tests that default download path pref is migrated from old format.
 TEST(DownloadPrefsTest, DefaultDownloadPathPrefMigrationFromOldFormat) {
   content::BrowserTaskEnvironment task_environment;
-  ash::disks::DiskMountManager::InitializeForTesting(
-      new file_manager::FakeDiskMountManager);
+  ash::disks::FakeDiskMountManager disk_mount_manager;
+  ash::disks::DiskMountManager::InitializeForTesting(&disk_mount_manager);
 
   TestingProfile profile(base::FilePath("/home/chronos/u-0123456789abcdef"));
   base::test::ScopedRunningOnChromeOS running_on_chromeos;
@@ -687,7 +659,6 @@ TEST(DownloadPrefsTest, DefaultDownloadPathPrefMigrationFromOldFormat) {
           prefs::kDownloadDefaultDirectory),
       base::FilePath("/home/chronos/u-0123456789abcdef/MyFiles/Downloads"));
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -708,51 +679,6 @@ TEST(DownloadPrefsTest, ManagedPromptForDownload) {
   profile.GetTestingPrefService()->SetManagedPref(
       prefs::kPromptForDownload, std::make_unique<base::Value>(false));
   EXPECT_FALSE(prefs.PromptForDownload());
-}
-
-#else  // !is_android
-// Verifies the returned value of PromptForDuplicateFile().
-TEST(DownloadPrefsTest, PromptForDuplicateFile) {
-  content::BrowserTaskEnvironment task_environment;
-  TestingProfile profile;
-  DownloadPrefs prefs(&profile);
-
-  // Duplicate prompt disabled.
-  profile.GetPrefs()->SetBoolean(prefs::kDownloadDuplicateFilePromptEnabled,
-                                 false);
-  EXPECT_FALSE(prefs.PromptForDuplicateFile());
-
-  // BubbleV2 enabled and duplicate prompt enabled.
-  {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitWithFeatures(
-        /*enabled_features=*/{safe_browsing::kDownloadBubble,
-                              safe_browsing::kDownloadBubbleV2},
-        /*disabled_features=*/{});
-    profile.GetPrefs()->SetBoolean(prefs::kDownloadDuplicateFilePromptEnabled,
-                                   true);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    EXPECT_FALSE(prefs.PromptForDuplicateFile());
-#else
-    EXPECT_TRUE(prefs.PromptForDuplicateFile());
-#endif
-  }
-
-  // BubbleV2 disabled and duplicate prompt enabled.
-  {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitWithFeatures(
-        /*enabled_features=*/{safe_browsing::kDownloadBubble},
-        /*disabled_features=*/{safe_browsing::kDownloadBubbleV2});
-    profile.GetPrefs()->SetBoolean(prefs::kDownloadDuplicateFilePromptEnabled,
-                                   true);
-    EXPECT_FALSE(prefs.PromptForDuplicateFile());
-  }
-
-  // Bubble disabled by enterprise policy.
-  profile.GetTestingPrefService()->SetManagedPref(
-      prefs::kDownloadBubbleEnabled, std::make_unique<base::Value>(false));
-  EXPECT_FALSE(prefs.PromptForDuplicateFile());
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 

@@ -18,6 +18,27 @@ author/reviewer/OWNERS agree that another course is better.
   setters.  Note that constructors and destructors can be more expensive than
   they appear and should also generally not be inlined.
 
+Use forward declarations when:
+* Declaring a reference or pointer to a type (e.g. `MyClass& myRef;`).
+* Declaring a `unique_ptr` to a type if the type's destructor is out of line.
+* Declaring a function that takes the type as a reference parameter (e.g.
+  `void f(MyClass& arg);`).
+* Using the type in `typedef` or `using` aliases (e.g.
+  `using MyClassPtr = MyClass*;`).
+* Declaring friend classes or friend functions.
+
+You can't use forward declarations when:
+* Creating an instance of the type (e.g. `MyClass obj;`). The compiler needs to
+  know the type's size to allocate memory.
+* Accessing members of the type (e.g. `obj.Method();`). The compiler needs to
+  know the type's layout to access its members.
+* Inheriting from a type (e.g. `class Derived : public MyClass`). The compiler
+  needs the full definition of the base class to calculate the size and layout
+  of the derived class.
+* Using the type as a template argument where the template implementation
+  requires complete information about the type.
+* When you need to know the size of the type (e.g. `sizeof(MyClass);`).
+
 ## Static variables
 
 Dynamic initialization of function-scope static variables is **thread-safe** in
@@ -68,8 +89,9 @@ class TypeName {
 
 ## Variable initialization
 
-There are myriad ways to initialize variables in C++11.  Prefer the following
+There are myriad ways to initialize variables in C++. Prefer the following
 general rules:
+
 1. Use assignment syntax when performing "simple" initialization with one or
    more literal values which will simply be composed into the object:
 
@@ -125,6 +147,9 @@ general rules:
    ```cpp
    auto x{1};  // Until C++17, decltype(x) is std::initializer_list<int>, not int!
    ```
+
+For more reading, please see abseil's [Tip of the Week #88: Initialization: =,
+(), and {}](https://abseil.io/tips/88).
 
 ## Initialize members in the declaration where possible
 
@@ -280,17 +305,18 @@ Good::Good() = default;
 
 ## Comment style
 
-References to code in comments should be wrapped in `` ` ` `` pairs. Codesearch uses
-this as a heuristic for finding C++ symbols in comments and generating
-cross-references for that symbol.
+References to code in comments should be wrapped in `` ` ` `` pairs. Codesearch
+uses this as a heuristic for finding C++ symbols in comments and generating
+cross-references for that symbol. Historically, Chrome also used `||` pairs to
+delimit variable names; codesearch understands both conventions and will
+generate a cross-reference either way. Going forward, prefer the new style even
+if existing code uses the old one.
 
 * Class and type names: `` `FooClass` ``.
 * Function names: `` `FooFunction()` ``. The trailing parens disambiguate
   against class names, and occasionally, English words.
-* Variable names: `` `foo_var` ``. Historically, Chrome also used `||` pairs to
-  delimit variable names; codesearch understands both conventions and will
-  generate a cross-reference either way.
-* Tracking comments for future improvements: `// TODO(crbug.com/12345): ...`,
+* Variable names: `` `foo_var` ``.
+* Tracking comments for future improvements: `// TODO(crbug.com/40781525): ...`,
   or, less optimally, `// TODO(knowledgeable_username): ...`.  Tracking bugs
   provide space to give background context and current status; a username might
   at least provide a starting point for asking about an issue.
@@ -298,14 +324,17 @@ cross-references for that symbol.
 ```cpp
 // `FooImpl` implements the `FooBase` class.
 // `FooFunction()` modifies `foo_member_`.
-// TODO(crbug.com/1): Rename things to something more descriptive than "foo".
+// TODO(crbug.com/40097047): Rename things to something more descriptive than "foo".
 ```
 
 ## Named namespaces
 
-Named namespaces are discouraged in top-level embedders (e.g., `chrome/`). See
-[this thread](https://groups.google.com/a/chromium.org/d/msg/chromium-dev/8ROncnL1t4k/J7uJMCQ8BwAJ)
-for background and discussion.
+Most code should be in a namespace, with the exception of code under
+`//chrome`, which may be in the global namespace (do not use the `chrome::`
+namespace). Minimize use of nested namespaces, as they do not actually
+improve encapsulation; if a nested namespace is needed, do not reuse the
+name of any top-level namespace. For more detailed guidance and rationale,
+see https://abseil.io/tips/130.
 
 ## Guarding with DCHECK_IS_ON()
 
@@ -321,7 +350,8 @@ dead code if it's not used elsewhere.
 However, if your `DCHECK()` relies on work that is done outside of the
 `DCHECK()` macro, that work may not be eliminated in official release builds.
 Thus any code that is only present to support a `DCHECK()` should be guarded by
-`#if DCHECK_IS_ON()` to avoid including that code in official release builds.
+`if constexpr (DCHECK_IS_ON())` (see the next item) or `#if DCHECK_IS_ON()` to
+avoid including that code in official release builds.
 
 This code is fine without any guards for `DCHECK_IS_ON()`.
 ```cpp
@@ -372,3 +402,51 @@ runtime. This is done to avoid "unused variable" and "unused function" warnings
 when DCHECKs are turned off. This means that you may need to guard the
 `DCHECK()` macro if it depends on a variable or function that is also guarded
 by a check for `DCHECK_IS_ON()`.
+
+## Minimizing preprocessor conditionals
+
+Eliminate uses of `#if ...` when there are reasonable alternatives. Some common
+cases:
+
+* APIs that are conceptually reasonable for all platforms, but only actually do
+  anything on one. Instead of guarding the API and all callers in `#if`s, you
+  can define and call the API unconditionally, and guard platform-specific
+  implementation.
+* Test code that expects different values under different `#define`s:
+  ```cpp
+    // Works, but verbose, and might be more annoying/prone to bugs during
+    // future maintenance.
+  #if BUILDFLAG(COOL_FEATURE)
+    EXPECT_EQ(5, NumChildren());
+  #else
+    EXPECT_EQ(3, NumChildren());
+  #endif
+
+    // Shorter and less repetitive.
+    EXPECT_EQ(BUILDFLAG(COOLFEATURE) ? 5 : 3, NumChildren());
+  ```
+* Code guarded by `DCHECK_IS_ON()` or a similar "should always work in either
+  configuration" `#define`, which could still compile when the `#define` is
+  unset. Prefer `if constexpr (DCHECK_IS_ON())` or similar, since the compiler
+  will continue to verify the code's syntax in all cases, but it will not be
+  compiled in if the condition is false. Note that this only works inside a
+  function, and only if the code does not refer to symbols whose declarations
+  are `#ifdef`ed away. Don't unconditionally declare debug-only symbols just
+  to use this technique -- only use it when it doesn't require additional
+  tweaks to the surrounding code.
+
+## Use [[likely]] and [[unlikely]] sparingly
+
+C++20 adds the `[[likely]]` and `[[unlikely]]` attributes, which inform the
+compiler whether code is likely to be executed or not. Use these sparingly.
+
+* Intuition is often inaccurate, and branch predictors are very good. It's easy
+  to accidentally pessimize performance with these, so they should only be used
+  when the likelihood is well-known and the performance benefit is justified.
+* Future code changes can make these annotations inaccurate even if they were
+  accurate when first added. This is hard to notice.
+* PGO data overrides these annotations, so if they're reached during profiling,
+  official builds won't benefit from them anyway. Thus the primary benefit is
+  for non-PGO-optimized builds, e.g. making execution on bots faster or having
+  local developer builds behave more like an official build.
+* The added verbosity can marginally decrease readability.

@@ -12,7 +12,7 @@
 #include "third_party/blink/renderer/platform/wtf/type_traits.h"
 #include "third_party/blink/renderer/platform/wtf/vector_traits.h"
 #include "v8/include/cppgc/cross-thread-persistent.h"
-#include "v8/include/cppgc/persistent.h"
+#include "v8/include/cppgc/persistent.h"  // IWYU pragma: export
 #include "v8/include/cppgc/source-location.h"
 
 // Required to optimize away locations for builds that do not need them to avoid
@@ -59,8 +59,8 @@ cppgc::internal::BasicCrossThreadPersistent<U, weakness> DownCast(
   return p.template To<U>();
 }
 
-template <typename T,
-          typename = std::enable_if_t<WTF::IsGarbageCollectedType<T>::value>>
+template <typename T>
+  requires(WTF::IsGarbageCollectedType<T>::value)
 Persistent<T> WrapPersistentIfNeeded(T* value) {
   return Persistent<T>(value);
 }

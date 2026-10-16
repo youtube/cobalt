@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_SECURITY_INTERSTITIALS_CORE_BASE_SAFE_BROWSING_ERROR_UI_H_
 #define COMPONENTS_SECURITY_INTERSTITIALS_CORE_BASE_SAFE_BROWSING_ERROR_UI_H_
 
+#include <map>
+
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/values.h"
@@ -12,6 +14,18 @@
 #include "url/gurl.h"
 
 namespace security_interstitials {
+
+struct InterstitialInteractionDetails {
+  InterstitialInteractionDetails(int occurrence_count,
+                                 int64_t first_timestamp,
+                                 int64_t last_timestamp);
+  int occurrence_count;
+  int64_t first_timestamp;
+  int64_t last_timestamp;
+};
+
+using InterstitialInteractionMap =
+    std::map<SecurityInterstitialCommand, InterstitialInteractionDetails>;
 
 // A base class for quiet vs loud versions of the safe browsing interstitial.
 // This class displays UI for Safe Browsing errors that block page loads. This
@@ -27,7 +41,7 @@ class BaseSafeBrowsingErrorUI {
   };
 
   struct SBErrorDisplayOptions {
-    SBErrorDisplayOptions(bool is_main_frame_load_blocked,
+    SBErrorDisplayOptions(bool is_main_frame_load_pending,
                           bool is_extended_reporting_opt_in_allowed,
                           bool is_off_the_record,
                           bool is_extended_reporting_enabled,
@@ -42,8 +56,9 @@ class BaseSafeBrowsingErrorUI {
 
     SBErrorDisplayOptions(const SBErrorDisplayOptions& other);
 
-    // Indicates if this SB interstitial is blocking main frame load.
-    bool is_main_frame_load_blocked;
+    // Indicates if this SB interstitial is shown when the main frame load is
+    // pending.
+    bool is_main_frame_load_pending;
 
     // Indicates if user is allowed to opt-in extended reporting preference.
     bool is_extended_reporting_opt_in_allowed;
@@ -87,7 +102,6 @@ class BaseSafeBrowsingErrorUI {
 
   BaseSafeBrowsingErrorUI(
       const GURL& request_url,
-      const GURL& main_frame_url,
       BaseSafeBrowsingErrorUI::SBInterstitialReason reason,
       const BaseSafeBrowsingErrorUI::SBErrorDisplayOptions& display_options,
       const std::string& app_locale,
@@ -99,8 +113,8 @@ class BaseSafeBrowsingErrorUI {
 
   virtual ~BaseSafeBrowsingErrorUI();
 
-  bool is_main_frame_load_blocked() const {
-    return display_options_.is_main_frame_load_blocked;
+  bool is_main_frame_load_pending() const {
+    return display_options_.is_main_frame_load_pending;
   }
 
   bool is_extended_reporting_opt_in_allowed() const {
@@ -186,16 +200,27 @@ class BaseSafeBrowsingErrorUI {
   ControllerClient* controller() { return controller_; }
 
   GURL request_url() const { return request_url_; }
-  GURL main_frame_url() const { return main_frame_url_; }
+
+  bool did_user_make_decision() { return user_made_decision_; }
+
+  std::unique_ptr<InterstitialInteractionMap>
+  get_interstitial_interaction_data() {
+    return std::move(interstitial_interaction_data_);
+  }
 
   virtual void PopulateStringsForHtml(base::Value::Dict& load_time_data) = 0;
   virtual void HandleCommand(SecurityInterstitialCommand command) = 0;
 
   virtual int GetHTMLTemplateId() const = 0;
 
+ protected:
+  // Records the number of occurrences of different user interactions with a
+  // security interstitial. Used for metrics.
+  std::unique_ptr<InterstitialInteractionMap> interstitial_interaction_data_;
+  bool user_made_decision_;
+
  private:
   const GURL request_url_;
-  const GURL main_frame_url_;
   const SBInterstitialReason interstitial_reason_;
   SBErrorDisplayOptions display_options_;
   const std::string app_locale_;

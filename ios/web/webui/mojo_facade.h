@@ -11,6 +11,8 @@
 #include <unordered_map>
 
 #include "base/functional/callback.h"
+#import "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/values.h"
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "mojo/public/cpp/system/simple_watcher.h"
@@ -113,6 +115,16 @@ class MojoFacade {
   // returns that ID. The ID can be used by JS to reference this pipe.
   int AllocatePipeId(mojo::ScopedMessagePipeHandle pipe);
 
+  // SimpleWatcher callback which notifies us when a handle's watched signals
+  // are raised. `callback_id` identifies the JS-side callback registered for
+  // this watcher, and `watch_id` identifies the JS-side MojoWatcher responsible
+  // for the event. This ultimately invokes the JS-side callback and then
+  // re-arms the watcher once the JS has run.
+  void OnWatcherCallback(int callback_id, int watch_id, MojoResult result);
+
+  // Calls ArmOrNotify() for matching watcher.
+  void ArmOnNotifyWatcher(int watch_id);
+
   // Returns the pipe handle associated with `id` in JS, or an invalid handle if
   // no such association exists.
   mojo::MessagePipeHandle GetPipeFromId(int id);
@@ -123,7 +135,7 @@ class MojoFacade {
   mojo::ScopedMessagePipeHandle TakePipeFromId(int id);
 
   // Runs JavaScript on WebUI page.
-  WebState* web_state_ = nullptr;
+  raw_ptr<WebState> web_state_ = nullptr;
 
   // The next available integer ID to assign a Mojo pipe for use in JS.
   int next_pipe_id_ = 1;
@@ -137,8 +149,10 @@ class MojoFacade {
 
   // Currently active watches created through this facade.
   std::map<int, std::unique_ptr<mojo::SimpleWatcher>> watchers_;
+
+  base::WeakPtrFactory<MojoFacade> weak_ptr_factory_{this};
 };
 
-}  // web
+}  // namespace web
 
 #endif  // IOS_WEB_WEBUI_MOJO_FACADE_H_

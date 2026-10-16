@@ -11,6 +11,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/sync/test/integration/bookmarks_helper.h"
 #include "chrome/browser/sync/test/integration/encryption_helper.h"
+#include "chrome/browser/sync/test/integration/fake_server_match_status_checker.h"
 #include "chrome/browser/sync/test/integration/sessions_helper.h"
 #include "chrome/browser/sync/test/integration/single_client_status_change_checker.h"
 #include "chrome/browser/sync/test/integration/status_change_checker.h"
@@ -50,23 +51,11 @@ class SingleClientUserEventsSyncTest : public SyncTest {
   }
 };
 
-class SingleClientUserEventsSyncTestWithEnabledThrottling
-    : public SingleClientUserEventsSyncTest {
- public:
-  SingleClientUserEventsSyncTestWithEnabledThrottling() {
-    features_override_.InitAndEnableFeature(
-        syncer::kSyncExtensionTypesThrottling);
-  }
-
- private:
-  base::test::ScopedFeatureList features_override_;
-};
-
 IN_PROC_BROWSER_TEST_F(SingleClientUserEventsSyncTest, Sanity) {
   ASSERT_TRUE(SetupSync());
   EXPECT_EQ(
       0u,
-      GetFakeServer()->GetSyncEntitiesByModelType(syncer::USER_EVENTS).size());
+      GetFakeServer()->GetSyncEntitiesByDataType(syncer::USER_EVENTS).size());
   syncer::UserEventService* event_service =
       browser_sync::UserEventServiceFactory::GetForProfile(GetProfile(0));
   const UserEventSpecifics specifics = CreateTestEvent(base::Time());
@@ -88,18 +77,28 @@ IN_PROC_BROWSER_TEST_F(SingleClientUserEventsSyncTest, RetrySequential) {
   event_service->RecordUserEvent(specifics1);
 
   // This will block until we hit a TRANSIENT_ERROR, at which point we will
-  // regain control and can switch back to SUCCESS.
-  EXPECT_TRUE(ExpectUserEvents({specifics1}));
-  GetFakeServer()->OverrideResponseType(
-      base::BindRepeating(&BounceType, CommitResponse::SUCCESS));
-  // Because the fake server records commits even on failure, we are able to
-  // verify that the commit for this event reached the server twice.
-  EXPECT_TRUE(ExpectUserEvents({specifics1, specifics1}));
+  // regain control and can switch back to SUCCESS. Note that the fake server
+  // records commits even on failure.
+  ASSERT_TRUE(ExpectUserEvents({specifics1}));
+
+  // Wait for another commit attempt and return SUCCESS.
+  base::RunLoop run_loop;
+  UserEventSpecifics retry_specifics;
+  GetFakeServer()->OverrideResponseType(base::BindLambdaForTesting(
+      [&](const syncer::LoopbackServerEntity& entity) {
+        if (entity.GetDataType() == syncer::USER_EVENTS) {
+          retry_specifics = entity.GetSpecifics().user_event();
+          run_loop.Quit();
+        }
+        return CommitResponse::SUCCESS;
+      }));
+  run_loop.Run();
+  EXPECT_EQ(retry_specifics.event_time_usec(), specifics1.event_time_usec());
 
   // Only record |specifics2| after |specifics1| was successful to avoid race
   // conditions.
   event_service->RecordUserEvent(specifics2);
-  EXPECT_TRUE(ExpectUserEvents({specifics1, specifics1, specifics2}));
+  EXPECT_TRUE(ExpectUserEvents({specifics1, specifics2}));
 }
 
 IN_PROC_BROWSER_TEST_F(SingleClientUserEventsSyncTest, RetryParallel) {
@@ -113,35 +112,37 @@ IN_PROC_BROWSER_TEST_F(SingleClientUserEventsSyncTest, RetryParallel) {
   syncer::UserEventService* event_service =
       browser_sync::UserEventServiceFactory::GetForProfile(GetProfile(0));
 
-  // Set up the server so that the first entity that arrives results in a
-  // transient error.
-  // We're not really sure if |specifics1| or |specifics2| is going to see the
-  // error, so record the one that does into |retry_specifics| and use it in
-  // expectations.
-  bool first = true;
-  UserEventSpecifics retry_specifics;
+  // Set up the server so that the first commit attempt of `specifics1` results
+  // in a transient error.
+  base::RunLoop run_loop;
+  bool first_attempt = true;
   GetFakeServer()->OverrideResponseType(base::BindLambdaForTesting(
       [&](const syncer::LoopbackServerEntity& entity) {
-        if (first && entity.GetModelType() == syncer::USER_EVENTS) {
-          first = false;
-          SyncEntity sync_entity;
-          entity.SerializeAsProto(&sync_entity);
-          retry_specifics = sync_entity.specifics().user_event();
+        if (entity.GetDataType() != syncer::USER_EVENTS ||
+            entity.GetSpecifics().user_event().event_time_usec() !=
+                specifics1.event_time_usec()) {
+          return CommitResponse::SUCCESS;
+        }
+
+        if (first_attempt) {
+          first_attempt = false;
           return CommitResponse::TRANSIENT_ERROR;
         }
+
+        // Entity has been retried.
+        run_loop.Quit();
         return CommitResponse::SUCCESS;
       }));
 
   event_service->RecordUserEvent(specifics2);
   event_service->RecordUserEvent(specifics1);
-  // First wait for these two events to arrive on the server - only after this
-  // has happened will |retry_specifics| actually be populated.
-  // Note: The entity that got the transient error is still considered
-  // "committed" by the fake server.
+
+  // We can't use only ExpectUserEvents() here because the entity that got the
+  // transient error is still considered committed by the fake server.
+  run_loop.Run();
+
+  // Verify that both specifics were committed to the server.
   EXPECT_TRUE(ExpectUserEvents({specifics1, specifics2}));
-  // Now that |retry_specifics| got populated by the lambda above, make sure it
-  // also arrives on the server.
-  EXPECT_TRUE(ExpectUserEvents({specifics1, specifics2, retry_specifics}));
 }
 
 IN_PROC_BROWSER_TEST_F(SingleClientUserEventsSyncTest, NoHistory) {
@@ -185,7 +186,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientUserEventsSyncTest, NoSessions) {
 
   event_service->RecordUserEvent(specifics);
 
-  // PROXY_TABS shouldn't affect us in any way.
+  // UserSelectableType::kTabs shouldn't affect UserEvents in any way.
   EXPECT_TRUE(ExpectUserEvents({specifics}));
 }
 
@@ -209,7 +210,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientUserEventsSyncTest, Encryption) {
   // something else through the system that we can wait on before checking.
   // Tab/SESSIONS data was picked fairly arbitrarily, note that we expect 2
   // entries, one for the window/header and one for the tab.
-  sessions_helper::OpenTab(0, GURL("http://www.one.com/"));
+  sessions_helper::OpenTab(0, GURL("https://www.one.com/"));
   EXPECT_TRUE(ServerCountMatchStatusChecker(syncer::SESSIONS, 2).Wait());
   EXPECT_TRUE(ExpectUserEvents({test_event1}));
 }
@@ -238,7 +239,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientUserEventsSyncTest,
   // because it may simply not have reached the server yet. So let's send
   // something else through the system that we can wait on before checking.
   ASSERT_TRUE(
-      bookmarks_helper::AddURL(0, "What are you syncing about?",
+      bookmarks_helper::AddURL(0, u"What are you syncing about?",
                                GURL("https://google.com/synced-bookmark-1")));
   ASSERT_TRUE(ServerCountMatchStatusChecker(syncer::BOOKMARKS, 1).Wait());
 
@@ -248,8 +249,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientUserEventsSyncTest,
 
 // This is an analogy to SingleClientBookmarksSyncTest.DepleteQuota, tested on
 // a datatype that has no quota restrictions.
-IN_PROC_BROWSER_TEST_F(SingleClientUserEventsSyncTestWithEnabledThrottling,
-                       NoQuotaApplied) {
+IN_PROC_BROWSER_TEST_F(SingleClientUserEventsSyncTest, NoQuotaApplied) {
   ASSERT_TRUE(SetupSync());
   // Add enough user events that would deplete quota in the initial cycle.
   syncer::UserEventService* event_service =
@@ -277,9 +277,9 @@ IN_PROC_BROWSER_TEST_F(SingleClientUserEventsSyncTestWithEnabledThrottling,
   EXPECT_TRUE(ExpectUserEvents(expected_specifics));
 
   // Make sure the histogram gets propagated from the sync engine sequence.
-  base::StatisticsRecorder::ImportProvidedHistograms();
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
   // There is no record in the depleted quota histogram.
-  histogram_tester.ExpectTotalCount("Sync.ModelTypeCommitWithDepletedQuota", 0);
+  histogram_tester.ExpectTotalCount("Sync.DataTypeCommitWithDepletedQuota", 0);
 }
 
 }  // namespace

@@ -5,7 +5,6 @@
 
 from collections import defaultdict
 
-import hasher
 import json5_generator
 import template_expander
 
@@ -27,6 +26,7 @@ class MakeElementTypeHelpersWriter(json5_generator.Writer):
         'noConstructor': {},
         'noTypeHelpers': {},
         'runtimeEnabled': {},
+        'runtimeFlagHasOriginTrial': {},
     }
     default_metadata = {
         'attrsNullNamespace': None,
@@ -38,7 +38,6 @@ class MakeElementTypeHelpersWriter(json5_generator.Writer):
         'namespaceURI': '',
     }
     filters = {
-        'hash': hasher.hash,
         'symbol': _symbol,
     }
 

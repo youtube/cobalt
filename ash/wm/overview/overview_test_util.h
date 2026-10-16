@@ -8,24 +8,18 @@
 #include "ash/wm/overview/overview_session.h"
 #include "ui/events/keycodes/keyboard_codes_posix.h"
 
-namespace ui {
-namespace test {
+namespace views {
+class View;
+}  // namespace views
+
+namespace ui::test {
 class EventGenerator;
-}  // namespace test
-}  // namespace ui
+}  // namespace ui::test
 
 namespace ash {
 
-void SendKey(ui::KeyboardCode key, int flags = ui::EF_NONE);
-
-// Highlights |window| in the active overview session by cycling through all
-// windows in overview until it is found. Returns true if |window| was found,
-// false otherwise.
-bool HighlightOverviewWindow(const aura::Window* window);
-
-// Gets the current highlighted window. Returns nullptr if no window is
-// highlighted.
-const aura::Window* GetOverviewHighlightedWindow();
+class OverviewGrid;
+class OverviewItemBase;
 
 void ToggleOverview(
     OverviewEnterExitType type = OverviewEnterExitType::kNormal);
@@ -35,27 +29,47 @@ void ToggleOverview(
 void WaitForOverviewEnterAnimation();
 void WaitForOverviewExitAnimation();
 
-OverviewSession* GetOverviewSession();
+// Like `WaitForOverviewEnterAnimation()` but waits even if using zero duration.
+// Used to wait for async pine image read operation.
+void WaitForOverviewEntered();
 
 OverviewGrid* GetOverviewGridForRoot(aura::Window* root);
 
-const std::vector<std::unique_ptr<OverviewItem>>& GetOverviewItemsForRoot(
+const std::vector<std::unique_ptr<OverviewItemBase>>& GetOverviewItemsForRoot(
     int index);
 
-// Returns the OverviewItem associated with |window| if it exists.
-OverviewItem* GetOverviewItemForWindow(aura::Window* window);
+std::vector<aura::Window*> GetWindowsListInOverviewGrids();
 
-// Returns a rect that accounts for the shelf hotseat. Used by tests which test
-// the grids' bounds in relation to work area or snapped window bounds.
-gfx::Rect ShrinkBoundsByHotseatInset(const gfx::Rect& rect);
+// Returns the OverviewItem associated with |window| if it exists.
+OverviewItemBase* GetOverviewItemForWindow(aura::Window* window);
 
 // If `drop` is false, the dragged `item` won't be dropped; giving the caller
 // a chance to do some validations before the item is dropped.
-void DragItemToPoint(OverviewItem* item,
+void DragItemToPoint(OverviewItemBase* item,
                      const gfx::Point& screen_location,
                      ui::test::EventGenerator* event_generator,
                      bool by_touch_gestures = false,
                      bool drop = true);
+
+// Press the key repeatedly until a window is focused, i.e. ignoring any
+// desk items.
+void SendKeyUntilOverviewItemIsFocused(
+    ui::KeyboardCode key,
+    ui::test::EventGenerator* event_generator);
+
+// Waits until the occlusion state for window is equal to `target_state`.
+void WaitForOcclusionStateChange(aura::Window* window,
+                                 aura::Window::OcclusionState target_state);
+
+// Returns true if the given `window` is on its corresponding overview grid,
+// returns false otherwise.
+bool IsWindowInItsCorrespondingOverviewGrid(aura::Window* window);
+
+views::View* GetFocusedView();
+
+// Calls `views::test::RunScheduledLayout()` for the desk bar within overview
+// mode for every root window. This is a no-op if a desk bar is not active.
+void RunScheduledLayoutForAllOverviewDeskBars();
 
 }  // namespace ash
 

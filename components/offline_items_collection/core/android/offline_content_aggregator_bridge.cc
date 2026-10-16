@@ -15,9 +15,11 @@
 #include "components/offline_items_collection/core/android/offline_item_bridge.h"
 #include "components/offline_items_collection/core/android/offline_item_share_info_bridge.h"
 #include "components/offline_items_collection/core/android/offline_item_visuals_bridge.h"
-#include "components/offline_items_collection/core/jni_headers/OfflineContentAggregatorBridge_jni.h"
 #include "components/offline_items_collection/core/offline_item.h"
 #include "components/offline_items_collection/core/throttled_offline_content_provider.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/offline_items_collection/core/jni_headers/OfflineContentAggregatorBridge_jni.h"
 
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
@@ -78,14 +80,14 @@ void RenameItemCallback(ScopedJavaGlobalRef<jobject> j_callback,
 void RunGetAllItemsCallback(const base::android::JavaRef<jobject>& j_callback,
                             const std::vector<OfflineItem>& items) {
   JNIEnv* env = AttachCurrentThread();
-  RunObjectCallbackAndroid(
+  base::android::RunObjectCallbackAndroid(
       j_callback, OfflineItemBridge::CreateOfflineItemList(env, items));
 }
 
 void RunGetItemByIdCallback(const base::android::JavaRef<jobject>& j_callback,
-                            const absl::optional<OfflineItem>& item) {
+                            const std::optional<OfflineItem>& item) {
   JNIEnv* env = AttachCurrentThread();
-  RunObjectCallbackAndroid(
+  base::android::RunObjectCallbackAndroid(
       j_callback, item.has_value()
                       ? OfflineItemBridge::CreateOfflineItem(env, item.value())
                       : nullptr);
@@ -173,11 +175,9 @@ void OfflineContentAggregatorBridge::ResumeDownload(
     JNIEnv* env,
     const JavaParamRef<jobject>& jobj,
     const JavaParamRef<jstring>& j_namespace,
-    const JavaParamRef<jstring>& j_id,
-    jboolean j_has_user_gesture) {
+    const JavaParamRef<jstring>& j_id) {
   provider_->ResumeDownload(JNI_OfflineContentAggregatorBridge_CreateContentId(
-                                env, j_namespace, j_id),
-                            j_has_user_gesture);
+      env, j_namespace, j_id));
 }
 
 void OfflineContentAggregatorBridge::GetItemById(
@@ -271,7 +271,7 @@ void OfflineContentAggregatorBridge::OnItemRemoved(const ContentId& id) {
 
 void OfflineContentAggregatorBridge::OnItemUpdated(
     const OfflineItem& item,
-    const absl::optional<UpdateDelta>& update_delta) {
+    const std::optional<UpdateDelta>& update_delta) {
   if (java_ref_.is_null())
     return;
 
@@ -282,7 +282,7 @@ void OfflineContentAggregatorBridge::OnItemUpdated(
 }
 
 void OfflineContentAggregatorBridge::OnContentProviderGoingDown() {
-  // TODO(crbug.com/1177397): This event is only needed for desktop Chrome,
+  // TODO(crbug.com/40168774): This event is only needed for desktop Chrome,
   // so we didn't add an onContentProviderGoingDown() method yet. If Java
   // observers need to listen for this event in the future, we should add some
   // plumbing here.

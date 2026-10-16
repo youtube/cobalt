@@ -10,6 +10,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
 
+import org.chromium.base.ThreadUtils;
+
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -148,8 +150,14 @@ public class TestTouchUtils {
      * @param stepCount The total number of motion events that should be generated during the drag.
      * @param downTime The initial time of the drag, in ms.
      */
-    public static void dragTo(Instrumentation instrumentation, float fromX, float toX, float fromY,
-            float toY, int stepCount, long downTime) {
+    public static void dragTo(
+            Instrumentation instrumentation,
+            float fromX,
+            float toX,
+            float fromY,
+            float toY,
+            int stepCount,
+            long downTime) {
         float x = fromX;
         float y = fromY;
         float yStep = (toY - fromY) / stepCount;
@@ -186,13 +194,25 @@ public class TestTouchUtils {
      * @param toY The relative y-coordinate of the end point of the drag.
      * @param stepCount The total number of motion events that should be generated during the drag.
      */
-    public static void dragCompleteView(Instrumentation instrumentation, View view, int fromX,
-            int toX, int fromY, int toY, int stepCount) {
+    public static void dragCompleteView(
+            Instrumentation instrumentation,
+            View view,
+            int fromX,
+            int toX,
+            int fromY,
+            int toY,
+            int stepCount) {
         int fromLocation[] = getAbsoluteLocationFromRelative(view, fromX, fromY);
         int toLocation[] = getAbsoluteLocationFromRelative(view, toX, toY);
         long downTime = dragStart(instrumentation, fromLocation[0], fromLocation[1]);
-        dragTo(instrumentation, fromLocation[0], toLocation[0], fromLocation[1], toLocation[1],
-                stepCount, downTime);
+        dragTo(
+                instrumentation,
+                fromLocation[0],
+                toLocation[0],
+                fromLocation[1],
+                toLocation[1],
+                stepCount,
+                downTime);
         dragEnd(instrumentation, toLocation[0], toLocation[1], downTime);
     }
 
@@ -203,7 +223,10 @@ public class TestTouchUtils {
      * @param v The view to call performClick on.
      */
     public static void performClickOnMainSync(Instrumentation instrumentation, final View v) {
-        TestThreadUtils.runOnUiThreadBlocking(() -> { v.performClick(); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    v.performClick();
+                });
     }
 
     /**
@@ -214,6 +237,6 @@ public class TestTouchUtils {
      */
     public static void performLongClickOnMainSync(Instrumentation instrumentation, final View v)
             throws ExecutionException {
-        TestThreadUtils.runOnUiThreadBlocking(() -> v.performLongClick());
+        ThreadUtils.runOnUiThreadBlocking(() -> v.performLongClick());
     }
 }

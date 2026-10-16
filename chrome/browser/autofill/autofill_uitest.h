@@ -13,10 +13,11 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/interactive_test_utils.h"
-#include "components/autofill/core/browser/autofill_test_utils.h"
-#include "components/autofill/core/browser/browser_autofill_manager.h"
-#include "components/autofill/core/browser/browser_autofill_manager_test_delegate.h"
-#include "components/autofill/core/browser/test_event_waiter.h"
+#include "components/autofill/content/browser/content_autofill_driver_factory.h"
+#include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
+#include "components/autofill/core/browser/foundations/browser_autofill_manager_test_delegate.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/autofill/core/browser/test_utils/test_event_waiter.h"
 #include "components/autofill/core/common/dense_set.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -32,7 +33,8 @@ namespace autofill {
 enum class ObservedUiEvents {
   kPreviewFormData,
   kFormDataFilled,
-  kSuggestionShown,
+  kSuggestionsShown,
+  kSuggestionsHidden,
   kNoEvent,
   kMaxValue = kNoEvent
 };
@@ -45,7 +47,7 @@ std::ostream& operator<<(std::ostream& os, ObservedUiEvents event);
 void TryToCloseAllPrompts(content::WebContents* web_contents);
 
 class BrowserAutofillManagerTestDelegateImpl
-    : public autofill::BrowserAutofillManagerTestDelegate {
+    : public BrowserAutofillManagerTestDelegate {
  public:
   BrowserAutofillManagerTestDelegateImpl();
 
@@ -56,7 +58,7 @@ class BrowserAutofillManagerTestDelegateImpl
 
   ~BrowserAutofillManagerTestDelegateImpl() override;
 
-  // Controls whether back-to-back events of |type|, except for the first one,
+  // Controls whether back-to-back events of `type`, except for the first one,
   // are ignored. This is useful for cross-iframe forms, where events such as
   // ObservedUiEvents::kFormDataFilled are triggered by each filled renderer
   // form.
@@ -66,7 +68,7 @@ class BrowserAutofillManagerTestDelegateImpl
   void DidPreviewFormData() override;
   void DidFillFormData() override;
   void DidShowSuggestions() override;
-  void OnTextFieldChanged() override;
+  void DidHideSuggestions() override;
 
   void SetExpectations(std::list<ObservedUiEvents> expected_events,
                        base::TimeDelta timeout = base::Seconds(0),
@@ -82,7 +84,8 @@ class BrowserAutofillManagerTestDelegateImpl
 };
 
 class AutofillUiTest : public InProcessBrowserTest,
-                       public content::WebContentsObserver {
+                       public content::WebContentsObserver,
+                       public ContentAutofillDriverFactory::Observer {
  public:
   explicit AutofillUiTest(
       const test::AutofillTestEnvironment::Options& options = {
@@ -111,7 +114,7 @@ class AutofillUiTest : public InProcessBrowserTest,
 
   void SendKeyToPopup(content::RenderFrameHost* render_frame_host,
                       const ui::DomKey key);
-  // Send key to the render host view's widget if |widget| is null.
+  // Send key to the render host view's widget if `widget` is null.
   [[nodiscard]] testing::AssertionResult SendKeyToPopupAndWait(
       ui::DomKey key,
       std::list<ObservedUiEvents> expected_events,
@@ -132,7 +135,7 @@ class AutofillUiTest : public InProcessBrowserTest,
                               ui::DomCode code,
                               ui::KeyboardCode key_code);
 
-  bool HandleKeyPressEvent(const content::NativeWebKeyboardEvent& event);
+  bool HandleKeyPressEvent(const input::NativeWebKeyboardEvent& event);
 
   // DoNothingAndWait() violates an assertion if during the time an event
   // happens. Delayed events during DoNothingAndWait() may therefore cause
@@ -155,6 +158,17 @@ class AutofillUiTest : public InProcessBrowserTest,
   void RenderFrameHostChanged(content::RenderFrameHost* old_host,
                               content::RenderFrameHost* new_host) override;
 
+  // ContentAutofillDriverFactory::Observer
+  void OnContentAutofillDriverFactoryDestroyed(
+      ContentAutofillDriverFactory& factory) override;
+  void OnContentAutofillDriverCreated(ContentAutofillDriverFactory& factory,
+                                      ContentAutofillDriver& driver) override;
+
+  test::AutofillBrowserTestEnvironment autofill_test_environment_;
+  base::ScopedObservation<ContentAutofillDriverFactory,
+                          ContentAutofillDriverFactory::Observer>
+      autofill_driver_factory_observation_{this};
+
   raw_ptr<content::RenderFrameHost> current_main_rfh_ = nullptr;
   BrowserAutofillManagerTestDelegateImpl test_delegate_;
 
@@ -162,11 +176,12 @@ class AutofillUiTest : public InProcessBrowserTest,
   // event the tests create and have the WebContents forward is handled by some
   // key press event callback. It is necessary to have this sink because if no
   // key press event callback handles the event (at least on Mac), a DCHECK
-  // ends up going off that the |event| doesn't have an |os_event| associated
+  // ends up going off that the `event` doesn't have an `os_event` associated
   // with it.
-  content::RenderWidgetHost::KeyPressEventCallback key_press_event_sink_;
+  content::RenderWidgetHost::KeyPressEventCallback key_press_event_sink_{
+      base::BindRepeating(&AutofillUiTest::HandleKeyPressEvent,
+                          base::Unretained(this))};
 
-  test::AutofillBrowserTestEnvironment autofill_test_environment_;
   std::unique_ptr<ui::ScopedAnimationDurationScaleMode> disable_animation_;
 };
 

@@ -6,17 +6,23 @@
 #define UI_VIEWS_CONTROLS_MENU_MENU_HOST_H_
 
 #include <memory>
+#include <string>
 
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "build/build_config.h"
 #include "ui/base/owned_window_anchor.h"
-#include "ui/base/ui_base_types.h"
-#include "ui/gfx/geometry/rect.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
 
+namespace gfx {
+class Insets;
+class Rect;
+}  // namespace gfx
+
 namespace views {
 
+class MenuControllerTest;
 class SubmenuView;
 class View;
 class Widget;
@@ -28,17 +34,14 @@ class PreMenuEventDispatchHandler;
 #endif  // defined(USE_AURA)
 }  // namespace internal
 
-namespace test {
-class MenuControllerTest;
-}  // namespace test
-
-// SubmenuView uses a MenuHost to house the SubmenuView.
+// `SubmenuView` uses a `MenuHost` to house the `SubmenuView`.
 //
-// SubmenuView owns the MenuHost. When SubmenuView is done with the MenuHost
-// |DestroyMenuHost| is invoked. The one exception to this is if the native
-// OS destroys the widget out from under us, in which case |MenuHostDestroyed|
-// is invoked back on the SubmenuView and the SubmenuView then drops references
-// to the MenuHost.
+// As a `Widget`, `MenuHost` is owned by the widget system. `SubmenuView`
+// creates `MenuHost` and when `SubmenuView` is done with the `MenuHost`
+// `DestroyMenuHost` is invoked, which leads to the destruction of the
+// `MenuHost`. Alternatively, the OS may destroy the widget. In this case
+// `MenuHost` invokes `MenuHostDestroyed` on the `SubmenuView` and the
+// `SubmenuView` then drops references to the `MenuHost`.
 class MenuHost : public Widget, public WidgetObserver {
  public:
   struct InitParams {
@@ -47,7 +50,6 @@ class MenuHost : public Widget, public WidgetObserver {
     raw_ptr<View> contents_view = nullptr;
     bool do_capture = false;
     gfx::NativeView native_view_for_gestures;
-    ui::MenuType menu_type = ui::MenuType::kRootContextMenu;
     // Window that is stacked below a new menu window (can be different from the
     // |parent|).
     raw_ptr<Widget> context = nullptr;
@@ -91,7 +93,7 @@ class MenuHost : public Widget, public WidgetObserver {
   void ReleaseMenuHostCapture();
 
  private:
-  friend class test::MenuControllerTest;
+  friend class MenuControllerTest;
 
   // Widget:
   internal::RootView* CreateRootView() override;
@@ -101,17 +103,20 @@ class MenuHost : public Widget, public WidgetObserver {
   void OnDragWillStart() override;
   void OnDragComplete() override;
   Widget* GetPrimaryWindowWidget() override;
+  gfx::Insets GetCustomInsetsInDIP() const override;
 
   // WidgetObserver:
   void OnWidgetDestroying(Widget* widget) override;
 
-  // Parent of the MenuHost widget.
-  raw_ptr<Widget, DanglingUntriaged> owner_ = nullptr;
+  // Returns the parent of the MenuHost widget.
+  Widget* GetOwner();
 
-  gfx::NativeView native_view_for_gestures_ = nullptr;
+  base::ScopedObservation<Widget, WidgetObserver> owner_observation_{this};
 
-  // The view we contain.
-  raw_ptr<SubmenuView, DanglingUntriaged> submenu_;
+  gfx::NativeView native_view_for_gestures_ = gfx::NativeView();
+
+  // The view we contain, owned by `MenuItemView`.
+  raw_ptr<SubmenuView> submenu_ = nullptr;
 
   // If true, DestroyMenuHost has been invoked.
   bool destroying_ = false;

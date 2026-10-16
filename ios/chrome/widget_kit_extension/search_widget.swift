@@ -19,27 +19,72 @@ struct SearchWidget: Widget {
     )
     .description(Text("IDS_IOS_WIDGET_KIT_EXTENSION_SEARCH_DESCRIPTION"))
     .supportedFamilies([.systemSmall])
+    .crDisfavoredLocations()
+    .crContentMarginsDisabled()
+    .crContainerBackgroundRemovable(false)
+  }
+}
+
+@available(iOS 17, *)
+struct SearchWidgetConfigurable: Widget {
+  // Changing 'kind' or deleting this widget will cause all installed instances of this widget to
+  // stop updating and show the placeholder state.
+  let kind: String = "SearchWidget"
+  var body: some WidgetConfiguration {
+    AppIntentConfiguration(
+      kind: kind, intent: SelectAccountIntent.self, provider: ConfigurableProvider()
+    ) { entry in
+      SearchWidgetEntryView(entry: entry)
+    }
+    .configurationDisplayName(
+      Text("IDS_IOS_WIDGET_KIT_EXTENSION_SEARCH_DISPLAY_NAME")
+    )
+    .description(Text("IDS_IOS_WIDGET_KIT_EXTENSION_SEARCH_DESCRIPTION"))
+    .supportedFamilies([.systemSmall])
+    .crDisfavoredLocations()
+    .crContentMarginsDisabled()
+    .crContainerBackgroundRemovable(false)
   }
 }
 
 struct SearchWidgetEntryView: View {
-  var entry: Provider.Entry
+  var entry: ConfigureWidgetEntry
+
+  var body: some View {
+    // The account to display was deleted (entry.deleted can only be true if
+    // WidgetForMIMAvailable is true).
+    if entry.deleted && !entry.isPreview {
+      SmallWidgetDeletedAccountView()
+    } else {
+      SearchWidgetEntryViewTemplate(
+        destinationURL: destinationURL(url: WidgetConstants.SearchWidget.url, gaia: entry.gaiaID),
+        imageName: "widget_chrome_logo",
+        title: "IDS_IOS_WIDGET_KIT_EXTENSION_SEARCH_TITLE",
+        accessibilityLabel: "IDS_IOS_WIDGET_KIT_EXTENSION_SEARCH_A11Y_LABEL", entry: entry)
+    }
+  }
+}
+
+struct SearchWidgetEntryViewTemplate: View {
+  let destinationURL: URL
+  let imageName: String
+  let title: LocalizedStringKey
+  let accessibilityLabel: LocalizedStringKey
+  var entry: ConfigureWidgetEntry
 
   var body: some View {
     // We wrap this widget in a link on top of using `widgetUrl` so that the voice over will treat
     // the widget as one tap target. Without the wrapping, voice over treats the content within
     // the widget as multiple tap targets.
-    Link(destination: WidgetConstants.SearchWidget.url) {
+    Link(destination: destinationURL) {
       ZStack {
-        Color("widget_background_color")
-          .unredacted()
         VStack(alignment: .leading, spacing: 0) {
           ZStack {
             RoundedRectangle(cornerRadius: 26)
               .frame(height: 52)
               .foregroundColor(Color("widget_search_bar_color"))
             HStack(spacing: 0) {
-              Image("widget_chrome_logo")
+              Image(imageName)
                 .clipShape(Circle())
                 .padding(.leading, 8)
                 .unredacted()
@@ -50,16 +95,47 @@ struct SearchWidgetEntryView: View {
           .padding([.leading, .trailing], 11)
           .padding(.top, 16)
           Spacer()
-          Text("IDS_IOS_WIDGET_KIT_EXTENSION_SEARCH_TITLE")
-            .foregroundColor(Color("widget_text_color"))
-            .fontWeight(.semibold)
-            .font(.subheadline)
-            .padding([.leading, .bottom, .trailing], 16)
+          HStack {
+            Text(title)
+              .foregroundColor(Color("widget_text_color"))
+              .fontWeight(.semibold)
+              .font(.subheadline)
+              .padding([.leading, .bottom], 16)
+            Spacer()
+            if ChromeWidgetsMain.WidgetForMIMAvailable {
+              AvatarForSearch(entry: entry)
+            }
+          }
         }
       }
     }
-    .widgetURL(WidgetConstants.SearchWidget.url)
+    .widgetURL(destinationURL)
     .accessibility(
-      label: Text("IDS_IOS_WIDGET_KIT_EXTENSION_SEARCH_A11Y_LABEL"))
+      label: Text(accessibilityLabel)
+    )
+    .crContainerBackground(
+      Color("widget_background_color")
+        .unredacted())
+  }
+}
+
+struct AvatarForSearch: View {
+  var entry: ConfigureWidgetEntry
+  var body: some View {
+    if entry.isPreview {
+      Circle()
+        .foregroundColor(Color("widget_text_color"))
+        .opacity(0.2)
+        .frame(width: 25, height: 25)
+        .padding([.bottom, .trailing], 16)
+    } else if let avatar = entry.avatar {
+      avatar
+        .resizable()
+        .clipShape(Circle())
+        .unredacted()
+        .scaledToFill()
+        .frame(width: 25, height: 25)
+        .padding([.bottom, .trailing], 16)
+    }
   }
 }

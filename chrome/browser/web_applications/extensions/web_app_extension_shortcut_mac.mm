@@ -18,13 +18,13 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/extension_ui_util.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/web_applications/app_shim_registry_mac.h"
-#include "chrome/browser/web_applications/os_integration/web_app_shortcut_mac.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "chrome/browser/web_applications/web_app_command_scheduler.h"
+#include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/common/extensions/manifest_handlers/app_launch_info.h"
 #import "chrome/common/mac/app_mode_common.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "extensions/browser/extension_registry.h"
@@ -44,6 +44,9 @@ class Latch : public base::RefCountedThreadSafe<
  public:
   explicit Latch(base::OnceClosure callback) : callback_(std::move(callback)) {}
 
+  Latch(const Latch&) = delete;
+  Latch& operator=(const Latch&) = delete;
+
   // Wraps a reference to |this| in a Closure and returns it. Running the
   // Closure does nothing. The Closure just serves to keep a reference alive
   // until |this| is ready to be destroyed; invoking the |callback|.
@@ -56,9 +59,6 @@ class Latch : public base::RefCountedThreadSafe<
   friend class base::DeleteHelper<Latch>;
   friend struct content::BrowserThread::DeleteOnThread<
       content::BrowserThread::UI>;
-
-  Latch(const Latch&) = delete;
-  Latch& operator=(const Latch&) = delete;
 
   ~Latch() { std::move(callback_).Run(); }
 
@@ -141,16 +141,14 @@ void ShowCreateChromeAppShortcutsDialog(
     const std::string& app_id,
     base::OnceCallback<void(bool)> close_callback) {
   // On Mac, the Applications folder is the only option, so don't bother asking
-  // the user anything. Just create shortcuts.
-  CreateShortcutsForWebApp(web_app::SHORTCUT_CREATION_BY_USER,
-                           web_app::ShortcutLocations(), profile, app_id,
-                           base::BindOnce(std::move(close_callback)));
-  // Also inform AppShimRegistry about the created shortcut. For anything other
-  // than default apps this is a no-op, as you can't create shortcuts without
-  // the app already having been installed (at which point AppShimRegistry would
-  // have been informed). But for default apps this is required to make sure the
-  // created shortcut opens the app in the correct profile.
-  AppShimRegistry::Get()->OnAppInstalledForProfile(app_id, profile->GetPath());
+  // the user anything. Just create shortcuts via OS integration.
+  auto* provider = web_app::WebAppProvider::GetForWebApps(profile);
+  CHECK(provider);
+  provider->scheduler().SynchronizeOsIntegration(
+      app_id, base::BindOnce(std::move(close_callback), true),
+      web_app::ConvertShortcutLocationsToSynchronizeOptions(
+          web_app::ShortcutLocations(), web_app::SHORTCUT_CREATION_BY_USER),
+      /*upgrade_to_fully_installed_if_installed=*/true);
 }
 
 }  // namespace chrome

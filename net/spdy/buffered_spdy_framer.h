@@ -10,18 +10,18 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/memory/raw_ptr.h"
-#include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "net/base/net_export.h"
 #include "net/log/net_log_source.h"
 #include "net/spdy/header_coalescer.h"
-#include "net/third_party/quiche/src/quiche/spdy/core/http2_frame_decoder_adapter.h"
-#include "net/third_party/quiche/src/quiche/spdy/core/http2_header_block.h"
-#include "net/third_party/quiche/src/quiche/spdy/core/spdy_alt_svc_wire_format.h"
-#include "net/third_party/quiche/src/quiche/spdy/core/spdy_framer.h"
-#include "net/third_party/quiche/src/quiche/spdy/core/spdy_protocol.h"
+#include "net/third_party/quiche/src/quiche/common/http/http_header_block.h"
+#include "net/third_party/quiche/src/quiche/http2/core/http2_frame_decoder_adapter.h"
+#include "net/third_party/quiche/src/quiche/http2/core/spdy_alt_svc_wire_format.h"
+#include "net/third_party/quiche/src/quiche/http2/core/spdy_framer.h"
+#include "net/third_party/quiche/src/quiche/http2/core/spdy_protocol.h"
 
 namespace net {
 
@@ -49,7 +49,7 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface {
                          spdy::SpdyStreamId parent_stream_id,
                          bool exclusive,
                          bool fin,
-                         spdy::Http2HeaderBlock headers,
+                         quiche::HttpHeaderBlock headers,
                          base::TimeTicks recv_first_byte_time) = 0;
 
   // Called when a data frame header is received.
@@ -97,7 +97,7 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface {
   // Called when a GOAWAY frame has been parsed.
   virtual void OnGoAway(spdy::SpdyStreamId last_accepted_stream_id,
                         spdy::SpdyErrorCode error_code,
-                        base::StringPiece debug_data) = 0;
+                        std::string_view debug_data) = 0;
 
   // Called when a WINDOW_UPDATE frame has been parsed.
   virtual void OnWindowUpdate(spdy::SpdyStreamId stream_id,
@@ -106,12 +106,12 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface {
   // Called when a PUSH_PROMISE frame has been parsed.
   virtual void OnPushPromise(spdy::SpdyStreamId stream_id,
                              spdy::SpdyStreamId promised_stream_id,
-                             spdy::Http2HeaderBlock headers) = 0;
+                             quiche::HttpHeaderBlock headers) = 0;
 
   // Called when an ALTSVC frame has been parsed.
   virtual void OnAltSvc(
       spdy::SpdyStreamId stream_id,
-      base::StringPiece origin,
+      std::string_view origin,
       const spdy::SpdyAltSvcWireFormat::AlternativeServiceVector&
           altsvc_vector) = 0;
 
@@ -188,7 +188,7 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
                      spdy::SpdyStreamId promised_stream_id,
                      bool end) override;
   void OnAltSvc(spdy::SpdyStreamId stream_id,
-                absl::string_view origin,
+                std::string_view origin,
                 const spdy::SpdyAltSvcWireFormat::AlternativeServiceVector&
                     altsvc_vector) override;
   void OnDataFrameHeader(spdy::SpdyStreamId stream_id,
@@ -202,7 +202,7 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
                   int weight,
                   bool exclusive) override {}
   void OnPriorityUpdate(spdy::SpdyStreamId prioritized_stream_id,
-                        absl::string_view priority_field_value) override {}
+                        std::string_view priority_field_value) override {}
   bool OnUnknownFrame(spdy::SpdyStreamId stream_id,
                       uint8_t frame_type) override;
   void OnUnknownFrameStart(spdy::SpdyStreamId stream_id,
@@ -210,7 +210,7 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
                            uint8_t type,
                            uint8_t flags) override {}
   void OnUnknownFramePayload(spdy::SpdyStreamId stream_id,
-                             absl::string_view payload) override {}
+                             std::string_view payload) override {}
 
   // spdy::SpdyFramer methods.
   size_t ProcessInput(const char* data, size_t len);

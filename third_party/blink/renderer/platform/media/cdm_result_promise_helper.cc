@@ -22,7 +22,6 @@ CdmResultForUMA ConvertCdmExceptionToResultForUMA(
       return TYPE_ERROR;
   }
   NOTREACHED();
-  return INVALID_STATE_ERROR;
 }
 
 WebContentDecryptionModuleException ConvertCdmException(
@@ -38,7 +37,6 @@ WebContentDecryptionModuleException ConvertCdmException(
       return kWebContentDecryptionModuleExceptionTypeError;
   }
   NOTREACHED();
-  return kWebContentDecryptionModuleExceptionInvalidStateError;
 }
 
 WebEncryptedMediaKeyInformation::KeyStatus ConvertCdmKeyStatus(
@@ -58,9 +56,10 @@ WebEncryptedMediaKeyInformation::KeyStatus ConvertCdmKeyStatus(
       return WebEncryptedMediaKeyInformation::KeyStatus::kStatusPending;
     case media::CdmKeyInformation::RELEASED:
       return WebEncryptedMediaKeyInformation::KeyStatus::kReleased;
+    case media::CdmKeyInformation::USABLE_IN_FUTURE:
+      return WebEncryptedMediaKeyInformation::KeyStatus::kUsableInFuture;
   }
   NOTREACHED();
-  return WebEncryptedMediaKeyInformation::KeyStatus::kInternalError;
 }
 
 void ReportCdmResultUMA(const std::string& uma_name,

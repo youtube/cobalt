@@ -5,15 +5,22 @@
 #ifndef CHROME_BROWSER_ASH_ARC_INPUT_OVERLAY_UTIL_H_
 #define CHROME_BROWSER_ASH_ARC_INPUT_OVERLAY_UTIL_H_
 
+#include <memory>
 #include <string>
 
+#include "ash/game_dashboard/game_dashboard_utils.h"
+#include "ash/public/cpp/arc_game_controls_flag.h"
 #include "chrome/browser/ash/arc/input_overlay/constants.h"
 #include "chrome/browser/ash/arc/input_overlay/db/proto/app_data.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/events/keycodes/dom/dom_code.h"
-#include "ui/events/keycodes/keyboard_codes_posix.h"
-#include "ui/gfx/geometry/point.h"
-#include "ui/gfx/geometry/size.h"
+
+namespace aura {
+class Window;
+}  // namespace aura
+
+namespace ui {
+class KeyEvent;
+}  // namespace ui
 
 namespace views {
 class View;
@@ -21,43 +28,48 @@ class View;
 
 namespace arc::input_overlay {
 
+using ash::game_dashboard_utils::IsFlagChanged;
+using ash::game_dashboard_utils::IsFlagSet;
+using ash::game_dashboard_utils::UpdateFlag;
+
 class Action;
 class InputElement;
 
-// Arrow key move distance per key press event.
-constexpr int kArrowKeyMoveDistance = 2;
-
 // Gets the event flags for the modifier domcode. Return ui::DomCode::NONE if
-// |code| is not modifier DomCode.
+// `code` is not modifier DomCode.
 int ModifierDomCodeToEventFlag(ui::DomCode code);
 bool IsSameDomCode(ui::DomCode a, ui::DomCode b);
 // Convert mouse action strings to enum values.
 MouseAction ConvertToMouseActionEnum(const std::string& mouse_action);
 
-// Update |position| according to |key| if |key| is arrow key.
-bool UpdatePositionByArrowKey(ui::KeyboardCode key, gfx::Point& position);
-
-// Return the input binding filtered by |binding_option| in |action|.
+// Return the input binding filtered by `binding_option` in `action`.
 InputElement* GetInputBindingByBindingOption(Action* action,
                                              BindingOption binding_option);
 
-// Clamp position |position| inside of the |parent_size| with padding of
-// |parent_padding|
-void ClampPosition(gfx::Point& position,
-                   const gfx::Size& ui_size,
-                   const gfx::Size& parent_size,
-                   int parent_padding = 0);
-
 // Return the current running version of Game controls. If it is not set, it's
 // Alpha version. Otherwise, it is AlphaV2+ version.
-absl::optional<std::string> GetCurrentSystemVersion();
+std::string GetCurrentSystemVersion();
 
-// Reset the focus to |view|.
+// Reset the focus to `view`.
 void ResetFocusTo(views::View* view);
 
-// TODO(b/260937747): Update or remove when removing flags
-// |kArcInputOverlayAlphaV2| or |kArcInputOverlayBeta|.
-bool AllowReposition();
+// Return true if `code` is not allowed to bind.
+bool IsReservedDomCode(ui::DomCode code);
+
+// Returns true if `key_event` has event flags from `Ctrl`, `Shift`, `Alt` or
+// `Search`.
+// Because "modifier key + regular key" may conflict with system shortcut keys,
+// it is not supported currently in Game Controls. This is called when only key
+// pressed event is received. Because if key `G` is pressed first and then press
+// `Ctrl` key, `Action` binded by key `G` has already injected touch event(s)
+// before `Ctrl` key is pressed. Then releasing key `G` while `Ctrl` key is
+// still pressed, `Action` binded by key `G` should also be released.
+bool ContainShortcutEventFlags(const ui::KeyEvent* key_event);
+
+// Turn `flag` on or off for `window` property `ash::kArcGameControlsFlagsKey`.
+void UpdateFlagAndProperty(aura::Window* window,
+                           ash::ArcGameControlsFlag flag,
+                           bool turn_on);
 
 }  // namespace arc::input_overlay
 

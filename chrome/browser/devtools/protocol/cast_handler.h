@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/containers/flat_set.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/devtools/protocol/cast.h"
 #include "chrome/browser/ui/media_router/media_sink_with_cast_modes_observer.h"
@@ -47,7 +48,7 @@ class CastHandler : public protocol::Cast::Backend,
       std::unique_ptr<StartTabMirroringCallback> callback) override;
   protocol::Response StopCasting(const std::string& in_sink_name) override;
   protocol::Response Enable(
-      protocol::Maybe<std::string> in_presentation_url) override;
+      std::optional<std::string> in_presentation_url) override;
   protocol::Response Disable() override;
 
   // media_router::MediaSinkWithCastModesObserver:
@@ -79,7 +80,7 @@ class CastHandler : public protocol::Cast::Backend,
   media_router::MediaRoute::Id GetRouteIdForSink(
       const media_router::MediaSink::Id& sink_id) const;
 
-  void StartObservingForSinks(protocol::Maybe<std::string> presentation_url);
+  void StartObservingForSinks(std::optional<std::string> presentation_url);
 
   // Sends a notification that sinks (or their associated routes) have been
   // updated.
@@ -99,8 +100,8 @@ class CastHandler : public protocol::Cast::Backend,
       const media_router::RouteRequestResult& result);
   void OnIssue(const std::string& issue);
 
-  content::WebContents* web_contents_;
-  media_router::MediaRouter* router_;
+  raw_ptr<content::WebContents> web_contents_;
+  raw_ptr<media_router::MediaRouter> router_;
 
   std::unique_ptr<media_router::QueryResultManager> query_result_manager_;
   std::unique_ptr<MediaRoutesObserver> routes_observer_;

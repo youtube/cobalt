@@ -14,6 +14,7 @@
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/metadata/metadata_types.h"
+#include "ui/base/metadata/metadata_utils.h"
 #include "ui/gfx/geometry/insets.h"
 
 namespace UM = ui::metadata;
@@ -76,11 +77,11 @@ END_METADATA
 // Descendent class in the simple hierarchy. The inherited properties are
 // visible within the metadata.
 class MetadataTestClass : public MetadataTestBaseClass {
+  METADATA_HEADER(MetadataTestClass, MetadataTestBaseClass)
+
  public:
   MetadataTestClass() = default;
   ~MetadataTestClass() override = default;
-
-  METADATA_HEADER(MetadataTestClass);
 
   void SetFloatProperty(float new_value) {
     if (float_property_ == new_value)
@@ -98,32 +99,35 @@ class MetadataTestClass : public MetadataTestBaseClass {
   float float_property_ = 0.f;
 };
 
-BEGIN_METADATA(MetadataTestClass, MetadataTestBaseClass)
+BEGIN_METADATA(MetadataTestClass)
 ADD_PROPERTY_METADATA(float, FloatProperty)
 END_METADATA
 
 // Test view to which class properties are attached.
 class ClassPropertyMetaDataTestClass : public MetadataTestBaseClass {
+  METADATA_HEADER(ClassPropertyMetaDataTestClass, MetadataTestBaseClass)
+
  public:
   ClassPropertyMetaDataTestClass() = default;
   ~ClassPropertyMetaDataTestClass() override = default;
-
-  METADATA_HEADER(ClassPropertyMetaDataTestClass);
 };
 
-DEFINE_UI_CLASS_PROPERTY_KEY(int, kIntKey, -1)
-DEFINE_OWNED_UI_CLASS_PROPERTY_KEY(gfx::Insets, kOwnedInsetsKey1, nullptr)
-DEFINE_OWNED_UI_CLASS_PROPERTY_KEY(gfx::Insets, kOwnedInsetsKey2, nullptr)
-DEFINE_UI_CLASS_PROPERTY_KEY(gfx::Insets*, kInsetsKey1, nullptr)
-DEFINE_UI_CLASS_PROPERTY_KEY(gfx::Insets*, kInsetsKey2, nullptr)
-DEFINE_UI_CLASS_PROPERTY_TYPE(gfx::Insets*)
+// Test view which doesn't have metadata attached.
+struct MetadataTestClassNoMetadata : public MetadataTestBaseClass {};
 
-BEGIN_METADATA(ClassPropertyMetaDataTestClass, MetadataTestBaseClass)
+DEFINE_UI_CLASS_PROPERTY_KEY(int, kIntKey, -1)
+DEFINE_OWNED_UI_CLASS_PROPERTY_KEY(gfx::Point, kOwnedInsetsKey1)
+DEFINE_OWNED_UI_CLASS_PROPERTY_KEY(gfx::Point, kOwnedInsetsKey2)
+DEFINE_UI_CLASS_PROPERTY_KEY(gfx::Point*, kInsetsKey1, nullptr)
+DEFINE_UI_CLASS_PROPERTY_KEY(gfx::Point*, kInsetsKey2, nullptr)
+DEFINE_UI_CLASS_PROPERTY_TYPE(gfx::Point*)
+
+BEGIN_METADATA(ClassPropertyMetaDataTestClass)
 ADD_CLASS_PROPERTY_METADATA(int, kIntKey)
-ADD_CLASS_PROPERTY_METADATA(gfx::Insets, kOwnedInsetsKey1)
-ADD_CLASS_PROPERTY_METADATA(gfx::Insets*, kOwnedInsetsKey2)
-ADD_CLASS_PROPERTY_METADATA(gfx::Insets, kInsetsKey1)
-ADD_CLASS_PROPERTY_METADATA(gfx::Insets*, kInsetsKey2)
+ADD_CLASS_PROPERTY_METADATA(gfx::Point, kOwnedInsetsKey1)
+ADD_CLASS_PROPERTY_METADATA(gfx::Point*, kOwnedInsetsKey2)
+ADD_CLASS_PROPERTY_METADATA(gfx::Point, kInsetsKey1)
+ADD_CLASS_PROPERTY_METADATA(gfx::Point*, kInsetsKey2)
 END_METADATA
 
 TEST_F(MetadataTest, TestFloatMetadataPropertyAccess) {
@@ -221,7 +225,7 @@ TEST_F(MetadataTest, TestMetaDataFile) {
 
 TEST_F(MetadataTest, TestClassPropertyMetaData) {
   ClassPropertyMetaDataTestClass test_class;
-  gfx::Insets insets1(8), insets2 = insets1;
+  gfx::Point insets1(8, 10), insets2 = insets1;
 
   std::map<std::string, std::u16string> expected_kv = {
       {"kIntKey", u"-1"},
@@ -235,7 +239,8 @@ TEST_F(MetadataTest, TestClassPropertyMetaData) {
     for (auto member = metadata->begin(); member != metadata->end(); member++) {
       std::string key = (*member)->member_name();
       if (expected_kv.count(key)) {
-        EXPECT_EQ((*member)->GetValueAsString(&test_class), expected_kv[key]);
+        EXPECT_EQ((*member)->GetValueAsString(&test_class), expected_kv[key])
+            << "Key: " << key;
         expected_kv.erase(key);
       }
     }
@@ -251,10 +256,20 @@ TEST_F(MetadataTest, TestClassPropertyMetaData) {
   test_class.SetProperty(kInsetsKey2, &insets2);
 
   expected_kv = {{"kIntKey", u"1"},
-                 {"kOwnedInsetsKey1", u"8,8,8,8"},
-                 {"kOwnedInsetsKey2", u"(assigned)"},
-                 {"kInsetsKey1", u"8,8,8,8"},
-                 {"kInsetsKey2", u"(assigned)"}};
+                 {"kOwnedInsetsKey1", u"8,10"},
+                 {"kOwnedInsetsKey2", u"&{8,10}"},
+                 {"kInsetsKey1", u"8,10"},
+                 {"kInsetsKey2", u"&{8,10}"}};
 
   verify();
+}
+
+TEST_F(MetadataTest, TestHasMetaData) {
+  EXPECT_FALSE(UM::kHasClassMetadata<MetadataTestClassNoMetadata>);
+  EXPECT_TRUE(UM::kHasClassMetadata<ClassPropertyMetaDataTestClass>);
+  EXPECT_TRUE(UM::kHasClassMetadata<ClassPropertyMetaDataTestClass*>);
+  EXPECT_TRUE(UM::kHasClassMetadata<ClassPropertyMetaDataTestClass&>);
+  EXPECT_TRUE(UM::kHasClassMetadata<const ClassPropertyMetaDataTestClass>);
+  EXPECT_TRUE(UM::kHasClassMetadata<const ClassPropertyMetaDataTestClass*>);
+  EXPECT_TRUE(UM::kHasClassMetadata<const ClassPropertyMetaDataTestClass&>);
 }

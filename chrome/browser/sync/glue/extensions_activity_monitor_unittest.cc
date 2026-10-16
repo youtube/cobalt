@@ -12,13 +12,11 @@
 #include "base/memory/raw_ref.h"
 #include "base/path_service.h"
 #include "base/values.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/extensions/api/bookmarks/bookmarks_api.h"
 #include "chrome/browser/extensions/api/bookmarks/bookmarks_api_watcher.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/sync/base/extensions_activity.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/test/browser_task_environment.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest_constants.h"
@@ -60,7 +58,9 @@ template <class T>
 void FireBookmarksApiEvent(Profile* profile,
                            const scoped_refptr<Extension>& extension,
                            int repeats) {
-  scoped_refptr<extensions::BookmarksFunction> bookmarks_function(new T());
+  scoped_refptr<extensions::BookmarksFunction> bookmarks_function =
+      base::MakeRefCounted<T>();
+  bookmarks_function->set_extension(extension.get());
   bookmarks_function->set_histogram_value(T::static_histogram_value());
   bookmarks_function->SetName(T::static_function_name());
   // |bookmarks_function| won't be run, just passed to Notify(), so calling
@@ -68,7 +68,7 @@ void FireBookmarksApiEvent(Profile* profile,
   bookmarks_function->ignore_did_respond_for_testing();
   for (int i = 0; i < repeats; i++) {
     extensions::BookmarksApiWatcher::GetForBrowserContext(profile)
-        ->NotifyApiInvoked(extension.get(), bookmarks_function.get());
+        ->NotifyApiInvoked(bookmarks_function.get());
   }
 }
 

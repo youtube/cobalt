@@ -15,13 +15,13 @@
 --
 
 DROP VIEW IF EXISTS {{table_name}}_span;
-CREATE VIEW {{table_name}}_span AS
+CREATE PERFETTO VIEW {{table_name}}_span AS
 SELECT
   ts,
   LEAD(ts, 1, (
     SELECT IFNULL(
       end_ts,
-      (SELECT end_ts FROM trace_bounds)
+      trace_end()
     )
     FROM process p WHERE p.upid = pct.upid) + 1
   ) OVER(PARTITION BY track_id ORDER BY ts) - ts AS dur,

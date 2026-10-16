@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/modules/peerconnection/rtc_rtp_receiver_impl.h"
 
 #include "base/check_op.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
@@ -13,11 +14,14 @@
 #include "third_party/blink/renderer/platform/peerconnection/rtc_rtp_sender_platform.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_rtp_source.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_stats.h"
-#include "third_party/blink/renderer/platform/peerconnection/webrtc_util.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
 #include "third_party/webrtc/api/scoped_refptr.h"
 
 namespace blink {
+
+BASE_FEATURE(kRTCAlignReceivedEncodedVideoTransforms,
+             "RTCAlignReceivedEncodedVideoTransforms",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 RtpReceiverState::RtpReceiverState(
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
@@ -109,7 +113,7 @@ scoped_refptr<webrtc::RtpReceiverInterface> RtpReceiverState::webrtc_receiver()
   return webrtc_receiver_;
 }
 
-rtc::scoped_refptr<webrtc::DtlsTransportInterface>
+webrtc::scoped_refptr<webrtc::DtlsTransportInterface>
 RtpReceiverState::webrtc_dtls_transport() const {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
   return webrtc_dtls_transport_;
@@ -137,10 +141,11 @@ class RTCRtpReceiverImpl::RTCRtpReceiverInternal
           RTCRtpReceiverImpl::RTCRtpReceiverInternal,
           RTCRtpReceiverImpl::RTCRtpReceiverInternalTraits> {
  public:
-  RTCRtpReceiverInternal(rtc::scoped_refptr<webrtc::PeerConnectionInterface>
+  RTCRtpReceiverInternal(webrtc::scoped_refptr<webrtc::PeerConnectionInterface>
                              native_peer_connection,
                          RtpReceiverState state,
-                         bool encoded_insertable_streams)
+                         bool require_encoded_insertable_streams,
+                         std::unique_ptr<webrtc::Metronome> decode_metronome)
       : native_peer_connection_(std::move(native_peer_connection)),
         main_task_runner_(state.main_task_runner()),
         signaling_task_runner_(state.signaling_task_runner()),
@@ -148,17 +153,19 @@ class RTCRtpReceiverImpl::RTCRtpReceiverInternal
         state_(std::move(state)) {
     DCHECK(native_peer_connection_);
     DCHECK(state_.is_initialized());
-    if (encoded_insertable_streams &&
-        webrtc_receiver_->media_type() == cricket::MEDIA_TYPE_AUDIO) {
+    if (webrtc_receiver_->media_type() == webrtc::MediaType::AUDIO) {
       encoded_audio_transformer_ =
           std::make_unique<RTCEncodedAudioStreamTransformer>(main_task_runner_);
       webrtc_receiver_->SetDepacketizerToDecoderFrameTransformer(
           encoded_audio_transformer_->Delegate());
-    }
-    if (encoded_insertable_streams &&
-        webrtc_receiver_->media_type() == cricket::MEDIA_TYPE_VIDEO) {
+    } else {
+      CHECK(webrtc_receiver_->media_type() == webrtc::MediaType::VIDEO);
       encoded_video_transformer_ =
-          std::make_unique<RTCEncodedVideoStreamTransformer>(main_task_runner_);
+          std::make_unique<RTCEncodedVideoStreamTransformer>(
+              main_task_runner_, base::FeatureList::IsEnabled(
+                                     kRTCAlignReceivedEncodedVideoTransforms)
+                                     ? std::move(decode_metronome)
+                                     : nullptr);
       webrtc_receiver_->SetDepacketizerToDecoderFrameTransformer(
           encoded_video_transformer_->Delegate());
     }
@@ -191,14 +198,11 @@ class RTCRtpReceiverImpl::RTCRtpReceiverInternal
     return sources;
   }
 
-  void GetStats(RTCStatsReportCallback callback,
-                const Vector<webrtc::NonStandardGroupId>& exposed_group_ids,
-                bool is_track_stats_deprecation_trial_enabled) {
+  void GetStats(RTCStatsReportCallback callback) {
     signaling_task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&RTCRtpReceiverInternal::GetStatsOnSignalingThread, this,
-                       std::move(callback), exposed_group_ids,
-                       is_track_stats_deprecation_trial_enabled));
+                       std::move(callback)));
   }
 
   std::unique_ptr<webrtc::RtpParameters> GetParameters() {
@@ -206,9 +210,8 @@ class RTCRtpReceiverImpl::RTCRtpReceiverInternal
         webrtc_receiver_->GetParameters());
   }
 
-  void SetJitterBufferMinimumDelay(absl::optional<double> delay_seconds) {
-    webrtc_receiver_->SetJitterBufferMinimumDelay(
-        blink::ToAbslOptional(delay_seconds));
+  void SetJitterBufferMinimumDelay(std::optional<double> delay_seconds) {
+    webrtc_receiver_->SetJitterBufferMinimumDelay(delay_seconds);
   }
 
   RTCEncodedAudioStreamTransformer* GetEncodedAudioStreamTransformer() const {
@@ -228,19 +231,15 @@ class RTCRtpReceiverImpl::RTCRtpReceiverInternal
     DCHECK(main_task_runner_->BelongsToCurrentThread());
   }
 
-  void GetStatsOnSignalingThread(
-      RTCStatsReportCallback callback,
-      const Vector<webrtc::NonStandardGroupId>& exposed_group_ids,
-      bool is_track_stats_deprecation_trial_enabled) {
+  void GetStatsOnSignalingThread(RTCStatsReportCallback callback) {
     native_peer_connection_->GetStats(
-        rtc::scoped_refptr<webrtc::RtpReceiverInterface>(
+        webrtc::scoped_refptr<webrtc::RtpReceiverInterface>(
             webrtc_receiver_.get()),
-        CreateRTCStatsCollectorCallback(
-            main_task_runner_, std::move(callback), exposed_group_ids,
-            is_track_stats_deprecation_trial_enabled));
+        CreateRTCStatsCollectorCallback(main_task_runner_,
+                                        std::move(callback)));
   }
 
-  const rtc::scoped_refptr<webrtc::PeerConnectionInterface>
+  const webrtc::scoped_refptr<webrtc::PeerConnectionInterface>
       native_peer_connection_;
   // Task runners and webrtc receiver: Same information as stored in
   // |state_| but const and safe to touch on the signaling thread to
@@ -275,13 +274,16 @@ uintptr_t RTCRtpReceiverImpl::getId(
 }
 
 RTCRtpReceiverImpl::RTCRtpReceiverImpl(
-    rtc::scoped_refptr<webrtc::PeerConnectionInterface> native_peer_connection,
+    webrtc::scoped_refptr<webrtc::PeerConnectionInterface>
+        native_peer_connection,
     RtpReceiverState state,
-    bool encoded_insertable_streams)
+    bool require_encoded_insertable_streams,
+    std::unique_ptr<webrtc::Metronome> decode_metronome)
     : internal_(base::MakeRefCounted<RTCRtpReceiverInternal>(
           std::move(native_peer_connection),
           std::move(state),
-          encoded_insertable_streams)) {}
+          require_encoded_insertable_streams,
+          std::move(decode_metronome))) {}
 
 RTCRtpReceiverImpl::RTCRtpReceiverImpl(const RTCRtpReceiverImpl& other)
     : internal_(other.internal_) {}
@@ -311,7 +313,7 @@ uintptr_t RTCRtpReceiverImpl::Id() const {
   return getId(internal_->state().webrtc_receiver().get());
 }
 
-rtc::scoped_refptr<webrtc::DtlsTransportInterface>
+webrtc::scoped_refptr<webrtc::DtlsTransportInterface>
 RTCRtpReceiverImpl::DtlsTransport() {
   return internal_->state().webrtc_dtls_transport();
 }
@@ -338,12 +340,8 @@ Vector<std::unique_ptr<RTCRtpSource>> RTCRtpReceiverImpl::GetSources() {
   return internal_->GetSources();
 }
 
-void RTCRtpReceiverImpl::GetStats(
-    RTCStatsReportCallback callback,
-    const Vector<webrtc::NonStandardGroupId>& exposed_group_ids,
-    bool is_track_stats_deprecation_trial_enabled) {
-  internal_->GetStats(std::move(callback), exposed_group_ids,
-                      is_track_stats_deprecation_trial_enabled);
+void RTCRtpReceiverImpl::GetStats(RTCStatsReportCallback callback) {
+  internal_->GetStats(std::move(callback));
 }
 
 std::unique_ptr<webrtc::RtpParameters> RTCRtpReceiverImpl::GetParameters()
@@ -352,7 +350,7 @@ std::unique_ptr<webrtc::RtpParameters> RTCRtpReceiverImpl::GetParameters()
 }
 
 void RTCRtpReceiverImpl::SetJitterBufferMinimumDelay(
-    absl::optional<double> delay_seconds) {
+    std::optional<double> delay_seconds) {
   internal_->SetJitterBufferMinimumDelay(delay_seconds);
 }
 

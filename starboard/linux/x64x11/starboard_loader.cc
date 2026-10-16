@@ -13,7 +13,9 @@
 // limitations under the License.
 
 #include <dlfcn.h>
+
 #include <iostream>
+
 #include "starboard/event.h"
 
 int main(int argc, char** argv) {

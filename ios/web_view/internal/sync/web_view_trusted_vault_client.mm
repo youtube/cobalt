@@ -2,24 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ios/web_view/internal/sync/web_view_trusted_vault_client.h"
+#import "ios/web_view/internal/sync/web_view_trusted_vault_client.h"
 
-#include <vector>
+#import <vector>
 
-#include "base/check.h"
-#include "base/functional/callback.h"
-#include "base/logging.h"
-#include "base/notreached.h"
-#include "base/strings/sys_string_conversions.h"
-#include "components/signin/public/identity_manager/account_info.h"
+#import "base/check.h"
+#import "base/functional/callback.h"
+#import "base/logging.h"
+#import "base/notreached.h"
+#import "base/strings/sys_string_conversions.h"
+#import "components/signin/public/identity_manager/account_info.h"
+#import "google_apis/gaia/gaia_id.h"
 #import "ios/web_view/internal/sync/cwv_sync_controller_internal.h"
 #import "ios/web_view/internal/sync/cwv_trusted_vault_observer_internal.h"
 #import "ios/web_view/public/cwv_identity.h"
 #import "ios/web_view/public/cwv_trusted_vault_provider.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace ios_web_view {
 
@@ -29,7 +26,7 @@ CWVIdentity* CWVIdentityFromCoreAccountInfo(
   return [[CWVIdentity alloc]
       initWithEmail:base::SysUTF8ToNSString(account_info.email)
            fullName:nil
-             gaiaID:base::SysUTF8ToNSString(account_info.gaia)];
+             gaiaID:account_info.gaia.ToNSString()];
 }
 }  // namespace
 
@@ -78,7 +75,7 @@ void WebViewTrustedVaultClient::FetchKeys(
   [provider
       fetchKeysForIdentity:CWVIdentityFromCoreAccountInfo(account_info)
                 completion:^(NSArray<NSData*>* shared_keys, NSError* error) {
-                  // TODO(crbug.com/1266130): Share this logic with
+                  // TODO(crbug.com/40204010): Share this logic with
                   // //ios/chrome.
                   std::vector<std::vector<uint8_t>> shared_key_vector;
                   for (NSData* data in shared_keys) {
@@ -92,7 +89,7 @@ void WebViewTrustedVaultClient::FetchKeys(
 }
 
 void WebViewTrustedVaultClient::StoreKeys(
-    const std::string& gaia_id,
+    const GaiaId& gaia_id,
     const std::vector<std::vector<uint8_t>>& keys,
     int last_key_version) {
   // Not used on iOS.
@@ -137,7 +134,7 @@ void WebViewTrustedVaultClient::GetIsRecoverabilityDegraded(
 }
 
 void WebViewTrustedVaultClient::AddTrustedRecoveryMethod(
-    const std::string& gaia_id,
+    const GaiaId& gaia_id,
     const std::vector<uint8_t>& public_key,
     int method_type_hint,
     base::OnceClosure callback) {

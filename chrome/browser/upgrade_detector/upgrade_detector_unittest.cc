@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/upgrade_detector/upgrade_detector.h"
+
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -13,12 +16,10 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "chrome/browser/upgrade_detector/upgrade_detector.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
@@ -76,9 +77,7 @@ class UpgradeDetectorTest : public ::testing::Test {
       env_ = base::Environment::Create();
       // Store the original timezone of the device so that it can be restored in
       // the destructor at the end of the test.
-      std::string env_tz;
-      if (env_->GetVar("TZ", &env_tz))
-        original_tz_ = env_tz;
+      original_tz_ = env_->GetVar("TZ");
       tz_overridden_ = true;
     }
     DCHECK(env_);
@@ -119,7 +118,7 @@ class UpgradeDetectorTest : public ::testing::Test {
   ScopedTestingLocalState scoped_local_state_;
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   std::unique_ptr<base::Environment> env_;
-  absl::optional<std::string> original_tz_;
+  std::optional<std::string> original_tz_;
   bool tz_overridden_ = false;
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 };
@@ -131,7 +130,7 @@ TEST_F(UpgradeDetectorTest, RelaunchWindowPolicy) {
 
   // Set relaunch window from 2:20am to 5:20am.
   SetRelaunchWindowPref(/*hour=*/2, /*minute=*/20, /*duration_mins=*/180);
-  absl::optional<UpgradeDetector::RelaunchWindow> window =
+  std::optional<UpgradeDetector::RelaunchWindow> window =
       upgrade_detector.GetRelaunchWindowPolicyValue();
   ASSERT_TRUE(window);
   EXPECT_EQ(window.value().hour, 2);

@@ -18,7 +18,7 @@ class FilePath;
 }
 
 namespace policy {
-class MachineLevelUserCloudPolicyManager;
+class CloudPolicyManager;
 }
 
 namespace enterprise_reporting {
@@ -31,6 +31,8 @@ class ReportingDelegateFactory;
  */
 class ProfileReportGenerator {
  public:
+  using ExtensionsEnabledCallback = base::RepeatingCallback<bool()>;
+
   class Delegate {
    public:
     Delegate() = default;
@@ -45,19 +47,28 @@ class ProfileReportGenerator {
     // Sets sign-in information in the report, including email and gaia id.
     virtual void GetSigninUserInfo(
         enterprise_management::ChromeUserProfileInfo* report) = 0;
-    // Sets intalled extension information in the report.
+    // Set affiliation information in the report.
+    virtual void GetAffiliationInfo(
+        enterprise_management::ChromeUserProfileInfo* report) = 0;
+    // Sets installed extension information in the report.
     virtual void GetExtensionInfo(
         enterprise_management::ChromeUserProfileInfo* report) = 0;
     // Sets extension requests information in the report.
     virtual void GetExtensionRequest(
         enterprise_management::ChromeUserProfileInfo* report) = 0;
+    // Sets profile id in the report.
+    virtual void GetProfileId(
+        enterprise_management::ChromeUserProfileInfo* report) = 0;
+    // Sets profile name in the report.
+    virtual void GetProfileName(
+        enterprise_management::ChromeUserProfileInfo* report) = 0;
 
     // Returns a new platform-specific policy conversions client.
     virtual std::unique_ptr<policy::PolicyConversionsClient>
-    MakePolicyConversionsClient() = 0;
+    MakePolicyConversionsClient(bool is_machine_scope) = 0;
     // Get a pointer to the current platform's cloud policy manager.
-    virtual policy::MachineLevelUserCloudPolicyManager*
-    GetCloudPolicyManager() = 0;
+    virtual policy::CloudPolicyManager* GetCloudPolicyManager(
+        bool is_machine_scope) = 0;
   };
 
   explicit ProfileReportGenerator(ReportingDelegateFactory* delegate_factory);
@@ -67,14 +78,20 @@ class ProfileReportGenerator {
 
   void set_extensions_enabled(bool enabled);
   void set_policies_enabled(bool enabled);
+  void set_is_machine_scope(bool is_machine);
 
-  // Generates a report for the profile associated with |path| and |name| if
-  // it's activated, and returns the report. The report is null if it can't be
-  // generated.
-  std::unique_ptr<enterprise_management::ChromeUserProfileInfo> MaybeGenerate(
+  // Pass a callback to enable/disable extension report with dynamic condition.
+  void SetExtensionsEnabledCallback(ExtensionsEnabledCallback callback);
+
+  // Generates a report for the profile associated with `path` if
+  // it's activated, and returns the report by invoking `callback` with its
+  // value. The report is null if it can't be generated.
+  void MaybeGenerate(
       const base::FilePath& path,
-      const std::string& name,
-      ReportType report_type);
+      ReportType report_type,
+      base::OnceCallback<
+          void(std::unique_ptr<enterprise_management::ChromeUserProfileInfo>)>
+          callback);
 
  protected:
   void GetChromePolicyInfo();
@@ -87,6 +104,9 @@ class ProfileReportGenerator {
 
   bool extensions_enabled_ = true;
   bool policies_enabled_ = true;
+  bool is_machine_scope_ = true;
+
+  base::RepeatingCallback<bool()> extensions_enabled_callback_;
 
   std::unique_ptr<enterprise_management::ChromeUserProfileInfo> report_;
 };

@@ -8,12 +8,15 @@ import android.content.Context;
 
 import androidx.annotation.MainThread;
 
+import org.chromium.build.annotations.NullMarked;
+
 /**
  * A BackgroundTaskScheduler is used to schedule jobs that run in the background.
  * It is backed by the system API ({@link android.app.job.JobScheduler}).
  *
  * To get an instance of this class, use {@link BackgroundTaskSchedulerFactory#getScheduler()}.
  */
+@NullMarked
 public interface BackgroundTaskScheduler {
     /**
      * Schedules a background task. See {@link TaskInfo} for information on what types of tasks that
@@ -36,9 +39,7 @@ public interface BackgroundTaskScheduler {
     @MainThread
     void cancel(Context context, int taskId);
 
-    /**
-     * Flushes cached UMA data. Must not be invoked until native has been loaded.
-     */
+    /** Flushes cached UMA data. Must not be invoked until native has been loaded. */
     @MainThread
     void doMaintenance();
 }

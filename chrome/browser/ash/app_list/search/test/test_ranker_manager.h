@@ -28,6 +28,8 @@ class TestRankerManager : public RankerManager {
   void SetCategoryRanks(
       base::flat_map<ash::AppListSearchResultCategory, double> category_ranks);
 
+  void SetBestMatchString(const std::u16string& best_match_string);
+
   // Ranker:
   void UpdateResultRanks(ResultsMap& results, ProviderType provider) override;
 
@@ -38,8 +40,7 @@ class TestRankerManager : public RankerManager {
 
   // Ranker:
   void Start(const std::u16string& query,
-             ResultsMap& results,
-             CategoriesList& categories) override {}
+             const CategoriesList& categories) override {}
   void Train(const LaunchData& launch) override;
   void Remove(ChromeSearchResult* result) override {}
 
@@ -48,6 +49,7 @@ class TestRankerManager : public RankerManager {
 
  private:
   base::flat_map<Category, double> category_ranks_;
+  std::u16string best_match_string_;
   bool did_train_ = false;
 };
 

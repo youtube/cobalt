@@ -6,19 +6,18 @@ package org.chromium.components.browser_ui.media;
 
 import android.util.SparseArray;
 
-import androidx.annotation.VisibleForTesting;
-
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
  * A class that manages the services/notifications for various media types.
  * Each notification is associated with a different {@link MediaNotificationController}.
  */
+@NullMarked
 public class MediaNotificationManager {
-    private static final String TAG = "MediaNotification";
-
     // Maps the notification ids to their corresponding notification managers.
-    private static SparseArray<MediaNotificationController> sControllers;
+    private static final SparseArray<MediaNotificationController> sControllers;
 
     static {
         sControllers = new SparseArray<MediaNotificationController>();
@@ -36,7 +35,8 @@ public class MediaNotificationManager {
      * @param delegate a factory function for the delegate passed to new {@link
      *         MediaNotificatonController} instances.
      */
-    public static void show(MediaNotificationInfo notificationInfo,
+    public static void show(
+            MediaNotificationInfo notificationInfo,
             Supplier<MediaNotificationController.Delegate> delegateFactory) {
         MediaNotificationController controller = sControllers.get(notificationInfo.id);
         if (controller == null) {
@@ -86,11 +86,10 @@ public class MediaNotificationManager {
         controller.activateAndroidMediaSession(tabId);
     }
 
-    public static MediaNotificationController getController(int notificationId) {
+    public static @Nullable MediaNotificationController getController(int notificationId) {
         return sControllers.get(notificationId);
     }
 
-    @VisibleForTesting
     public static void setControllerForTesting(
             int notificationId, MediaNotificationController controller) {
         sControllers.put(notificationId, controller);

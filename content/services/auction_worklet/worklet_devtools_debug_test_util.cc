@@ -51,7 +51,8 @@ TestDevToolsAgentClient::TestDevToolsAgentClient(
   agent_->AttachDevToolsSession(receiver_.BindNewEndpointAndPassRemote(),
                                 session_.BindNewEndpointAndPassReceiver(),
                                 io_session_.BindNewPipeAndPassReceiver(),
-                                nullptr, use_binary_protocol_,
+                                nullptr, /*script_to_evaluate_on_load*/ "",
+                                use_binary_protocol_,
                                 /*client_is_trusted=*/true, session_id_,
                                 /*session_waits_for_debugger=*/false);
 }
@@ -69,11 +70,10 @@ void TestDevToolsAgentClient::RunCommand(Channel channel,
     crdtp::Status status =
         crdtp::json::ConvertJSONToCBOR(ToSpan(payload), &cbor);
     CHECK(status.ok()) << status.Message();
-    message = base::span<const uint8_t>(cbor.data(), cbor.size());
+    message = base::as_byte_span(cbor);
   } else {
     // Keep it JSON.
-    message = base::span<const uint8_t>(
-        reinterpret_cast<const uint8_t*>(payload.data()), payload.size());
+    message = base::as_byte_span(payload);
   }
 
   if (channel == Channel::kMain)
@@ -160,7 +160,7 @@ void TestDevToolsAgentClient::LogEvent(
 
   // Now make it into a base::Value, to make it easy to look stuff up in it,
   // and queue it.
-  absl::optional<base::Value> val = base::JSONReader::Read(payload_json);
+  std::optional<base::Value> val = base::JSONReader::Read(payload_json);
   CHECK(val.has_value());
   Event event;
   event.type = type;

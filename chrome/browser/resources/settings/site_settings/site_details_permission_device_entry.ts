@@ -7,14 +7,15 @@
  * 'site-details-permission-device-entry' shows a single device for a given
  * chooser exception.
  */
-import 'chrome://resources/cr_elements/policy/cr_policy_pref_indicator.js';
+import '/shared/settings/controls/cr_policy_pref_indicator.js';
 import '../settings_shared.css.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './site_details_permission_device_entry.html.js';
-import {ChooserException, SiteException, SiteSettingsPrefsBrowserProxyImpl} from './site_settings_prefs_browser_proxy.js';
+import type {ChooserException, SiteException} from './site_settings_prefs_browser_proxy.js';
+import {SiteSettingsPrefsBrowserProxyImpl} from './site_settings_prefs_browser_proxy.js';
 
 export interface SiteDetailsPermissionDeviceEntryElement {
   $: {
@@ -40,7 +41,7 @@ export class SiteDetailsPermissionDeviceEntryElement extends PolymerElement {
     };
   }
 
-  exception: ChooserException;
+  declare exception: ChooserException;
 
   /**
    * Get the SiteException that is enforced from |this.exception.sites| if any.

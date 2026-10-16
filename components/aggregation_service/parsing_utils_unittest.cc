@@ -4,43 +4,32 @@
 
 #include "components/aggregation_service/parsing_utils.h"
 
+#include <optional>
 #include <string>
 
-#include "components/aggregation_service/aggregation_service.mojom.h"
+#include "components/aggregation_service/aggregation_coordinator_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "url/gurl.h"
+#include "url/origin.h"
 
 namespace aggregation_service {
 namespace {
 
-using ::aggregation_service::mojom::AggregationCoordinator;
-
 TEST(AggregationServiceParsingUtilsTest, ParseAggregationCoordinator) {
+  ScopedAggregationCoordinatorAllowlistForTesting scoped_coordinator_allowlist(
+      {url::Origin::Create(GURL("https://b.test"))});
+
   const struct {
     std::string str;
-    absl::optional<mojom::AggregationCoordinator> expected;
+    std::optional<url::Origin> expected;
   } kTestCases[] = {
-      {"aws-cloud", AggregationCoordinator::kAwsCloud},
-      {"AWS-CLOUD", absl::nullopt},
-      {"unknown", absl::nullopt},
+      {"https://b.test", url::Origin::Create(GURL("https://b.test"))},
+      {"https://a.test", std::nullopt},
   };
 
   for (const auto& test_case : kTestCases) {
-    EXPECT_EQ(ParseAggregationCoordinator(test_case.str), test_case.expected);
-  }
-}
-
-TEST(AggregationServiceParsingUtilsTest, SerializeAggregationCoordinator) {
-  const struct {
-    mojom::AggregationCoordinator coordinator;
-    const char* expected;
-  } kTestCases[] = {
-      {AggregationCoordinator::kAwsCloud, "aws-cloud"},
-  };
-
-  for (const auto& test_case : kTestCases) {
-    EXPECT_EQ(SerializeAggregationCoordinator(test_case.coordinator),
-              test_case.expected);
+    EXPECT_EQ(ParseAggregationCoordinator(test_case.str), test_case.expected)
+        << test_case.str;
   }
 }
 

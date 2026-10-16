@@ -2,39 +2,52 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/websockets/websocket_channel.h"
 
-#include <limits.h>
 #include <stddef.h>
 #include <string.h>
 
+#include <algorithm>
 #include <iostream>
 #include <iterator>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>
 
+#include "base/check.h"
+#include "base/containers/span.h"
+#include "base/dcheck_is_on.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/run_loop.h"
-#include "base/strings/string_piece.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "net/base/auth.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/io_buffer.h"
+#include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
+#include "net/base/isolation_info.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
+#include "net/cookies/site_for_cookies.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/log/net_log_with_source.h"
+#include "net/ssl/ssl_info.h"
+#include "net/storage_access_api/status.h"
 #include "net/test/test_with_task_environment.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_builder.h"
@@ -76,10 +89,8 @@ std::ostream& operator<<(std::ostream& os, const WebSocketFrameHeader& header) {
 
 std::ostream& operator<<(std::ostream& os, const WebSocketFrame& frame) {
   os << "{" << frame.header << ", ";
-  if (frame.payload) {
-    return os << "\""
-              << base::StringPiece(frame.payload, frame.header.payload_length)
-              << "\"}";
+  if (!frame.payload.empty()) {
+    return os << "\"" << base::as_string_view(frame.payload) << "\"}";
   }
   return os << "NULL}";
 }
@@ -124,24 +135,25 @@ using ::testing::StrictMock;
 
 // A selection of characters that have traditionally been mangled in some
 // environment or other, for testing 8-bit cleanliness.
-const char kBinaryBlob[] = {'\n',   '\r',    // BACKWARDS CRNL
-                            '\0',            // nul
-                            '\x7F',          // DEL
-                            '\x80', '\xFF',  // NOT VALID UTF-8
-                            '\x1A',          // Control-Z, EOF on DOS
-                            '\x03',          // Control-C
-                            '\x04',          // EOT, special for Unix terms
-                            '\x1B',          // ESC, often special
-                            '\b',            // backspace
-                            '\'',            // single-quote, special in PHP
+constexpr char kBinaryBlob[] = {
+    '\n',   '\r',    // BACKWARDS CRNL
+    '\0',            // nul
+    '\x7F',          // DEL
+    '\x80', '\xFF',  // NOT VALID UTF-8
+    '\x1A',          // Control-Z, EOF on DOS
+    '\x03',          // Control-C
+    '\x04',          // EOT, special for Unix terms
+    '\x1B',          // ESC, often special
+    '\b',            // backspace
+    '\'',            // single-quote, special in PHP
 };
-const size_t kBinaryBlobSize = std::size(kBinaryBlob);
+constexpr size_t kBinaryBlobSize = std::size(kBinaryBlob);
 
-const int kVeryBigTimeoutMillis = 60 * 60 * 24 * 1000;
+constexpr int kVeryBigTimeoutMillis = 60 * 60 * 24 * 1000;
 
 // TestTimeouts::tiny_timeout() is 100ms! I could run halfway around the world
 // in that time! I would like my tests to run a bit quicker.
-const int kVeryTinyTimeoutMillis = 1;
+constexpr int kVeryTinyTimeoutMillis = 1;
 
 using ChannelState = WebSocketChannel::ChannelState;
 constexpr ChannelState CHANNEL_ALIVE = WebSocketChannel::CHANNEL_ALIVE;
@@ -164,6 +176,7 @@ class MockWebSocketEventInterface : public WebSocketEventInterface {
   }
 
   MOCK_METHOD1(OnCreateURLRequest, void(URLRequest*));
+  MOCK_METHOD2(OnURLRequestConnected, void(URLRequest*, const TransportInfo&));
   MOCK_METHOD3(OnAddChannelResponse,
                void(std::unique_ptr<WebSocketHandshakeResponseInfo> response,
                     const std::string&,
@@ -176,7 +189,7 @@ class MockWebSocketEventInterface : public WebSocketEventInterface {
   MOCK_METHOD0(OnSendDataFrameDone, void(void));          // NOLINT
   MOCK_METHOD0(OnClosingHandshake, void(void));           // NOLINT
   MOCK_METHOD3(OnFailChannel,
-               void(const std::string&, int, absl::optional<int>));  // NOLINT
+               void(const std::string&, int, std::optional<int>));  // NOLINT
   MOCK_METHOD3(OnDropChannel,
                void(bool, uint16_t, const std::string&));  // NOLINT
 
@@ -198,7 +211,7 @@ class MockWebSocketEventInterface : public WebSocketEventInterface {
                      scoped_refptr<HttpResponseHeaders> response_headers,
                      const IPEndPoint& remote_endpoint,
                      base::OnceCallback<void(const AuthCredentials*)> callback,
-                     absl::optional<AuthCredentials>* credentials) override {
+                     std::optional<AuthCredentials>* credentials) override {
     return OnAuthRequiredCalled(std::move(auth_info),
                                 std::move(response_headers), remote_endpoint,
                                 credentials);
@@ -212,13 +225,15 @@ class MockWebSocketEventInterface : public WebSocketEventInterface {
                int(const AuthChallengeInfo&,
                    scoped_refptr<HttpResponseHeaders>,
                    const IPEndPoint&,
-                   absl::optional<AuthCredentials>*));
+                   std::optional<AuthCredentials>*));
 };
 
 // This fake EventInterface is for tests which need a WebSocketEventInterface
 // implementation but are not verifying how it is used.
 class FakeWebSocketEventInterface : public WebSocketEventInterface {
   void OnCreateURLRequest(URLRequest* request) override {}
+  void OnURLRequestConnected(URLRequest* request,
+                             const TransportInfo& info) override {}
   void OnAddChannelResponse(
       std::unique_ptr<WebSocketHandshakeResponseInfo> response,
       const std::string& selected_protocol,
@@ -231,7 +246,7 @@ class FakeWebSocketEventInterface : public WebSocketEventInterface {
   void OnClosingHandshake() override {}
   void OnFailChannel(const std::string& message,
                      int net_error,
-                     absl::optional<int> response_code) override {}
+                     std::optional<int> response_code) override {}
   void OnDropChannel(bool was_clean,
                      uint16_t code,
                      const std::string& reason) override {}
@@ -247,8 +262,8 @@ class FakeWebSocketEventInterface : public WebSocketEventInterface {
                      scoped_refptr<HttpResponseHeaders> response_headers,
                      const IPEndPoint& remote_endpoint,
                      base::OnceCallback<void(const AuthCredentials*)> callback,
-                     absl::optional<AuthCredentials>* credentials) override {
-    *credentials = absl::nullopt;
+                     std::optional<AuthCredentials>* credentials) override {
+    *credentials = std::nullopt;
     return OK;
   }
 };
@@ -361,10 +376,11 @@ std::vector<std::unique_ptr<WebSocketFrame>> CreateFrameVector(
     result_header.masked = (source_frame.masked == MASKED);
     result_header.payload_length = frame_length;
     if (source_frame.data) {
-      auto buffer = base::MakeRefCounted<IOBuffer>(frame_length);
+      auto buffer = base::MakeRefCounted<IOBufferWithSize>(frame_length);
       result_frame_data->push_back(buffer);
-      memcpy(buffer->data(), source_frame.data, frame_length);
-      result_frame->payload = buffer->data();
+      std::copy(source_frame.data, source_frame.data + frame_length,
+                buffer->data());
+      result_frame->payload = buffer->span();
     }
     result_frames.push_back(std::move(result_frame));
   }
@@ -426,7 +442,7 @@ class EqualsFramesMatcher : public ::testing::MatcherInterface<
         return false;
       }
       if (expected_length != 0 &&
-          memcmp(actual_frame.payload, expected_frame.data,
+          memcmp(actual_frame.payload.data(), expected_frame.data,
                  actual_frame.header.payload_length) != 0) {
         *listener << "the data content differs";
         return false;
@@ -597,10 +613,10 @@ class EchoeyFakeWebSocketStream : public FakeWebSocketStream {
   int WriteFrames(std::vector<std::unique_ptr<WebSocketFrame>>* frames,
                   CompletionOnceCallback callback) override {
     for (const auto& frame : *frames) {
-      auto buffer = base::MakeRefCounted<IOBuffer>(
+      auto buffer = base::MakeRefCounted<IOBufferWithSize>(
           static_cast<size_t>(frame->header.payload_length));
-      memcpy(buffer->data(), frame->payload, frame->header.payload_length);
-      frame->payload = buffer->data();
+      buffer->span().copy_from(frame->payload);
+      frame->payload = buffer->span();
       buffers_.push_back(buffer);
     }
     stored_frames_.insert(stored_frames_.end(),
@@ -745,6 +761,7 @@ struct WebSocketStreamCreationCallbackArgumentSaver {
       const std::vector<std::string>& requested_subprotocols,
       const url::Origin& new_origin,
       const SiteForCookies& new_site_for_cookies,
+      StorageAccessApiStatus new_storage_access_api_status,
       const IsolationInfo& new_isolation_info,
       const HttpRequestHeaders& additional_headers,
       URLRequestContext* new_url_request_context,
@@ -754,6 +771,7 @@ struct WebSocketStreamCreationCallbackArgumentSaver {
     socket_url = new_socket_url;
     origin = new_origin;
     site_for_cookies = new_site_for_cookies;
+    storage_access_api_status = new_storage_access_api_status;
     isolation_info = new_isolation_info;
     url_request_context = new_url_request_context;
     connect_delegate = std::move(new_connect_delegate);
@@ -763,21 +781,22 @@ struct WebSocketStreamCreationCallbackArgumentSaver {
   GURL socket_url;
   url::Origin origin;
   SiteForCookies site_for_cookies;
+  StorageAccessApiStatus storage_access_api_status;
   IsolationInfo isolation_info;
   raw_ptr<URLRequestContext> url_request_context;
   std::unique_ptr<WebSocketStream::ConnectDelegate> connect_delegate;
 };
 
-std::vector<char> AsVector(base::StringPiece s) {
+std::vector<char> AsVector(std::string_view s) {
   return std::vector<char>(s.begin(), s.end());
 }
 
-// Converts a base::StringPiece to a IOBuffer. For test purposes, it is
+// Converts a std::string_view to a IOBuffer. For test purposes, it is
 // convenient to be able to specify data as a string, but the
 // WebSocketEventInterface requires the IOBuffer type.
-scoped_refptr<IOBuffer> AsIOBuffer(base::StringPiece s) {
-  auto buffer = base::MakeRefCounted<IOBuffer>(s.size());
-  base::ranges::copy(s, buffer->data());
+scoped_refptr<IOBuffer> AsIOBuffer(std::string_view s) {
+  auto buffer = base::MakeRefCounted<IOBufferWithSize>(s.size());
+  std::ranges::copy(s, buffer->data());
   return buffer;
 }
 
@@ -793,6 +812,12 @@ class WebSocketChannelTest : public TestWithTaskEnvironment {
  protected:
   WebSocketChannelTest() : stream_(std::make_unique<FakeWebSocketStream>()) {}
 
+  ~WebSocketChannelTest() override {
+    // This has to be destroyed before `channel_`, which has to be destroyed
+    // before the URLRequestContext (which is also owned by `argument_saver`).
+    connect_data_.argument_saver.connect_delegate.reset();
+  }
+
   // Creates a new WebSocketChannel and connects it, using the settings stored
   // in |connect_data_|.
   void CreateChannelAndConnect() {
@@ -801,8 +826,8 @@ class WebSocketChannelTest : public TestWithTaskEnvironment {
     channel_->SendAddChannelRequestForTesting(
         connect_data_.socket_url, connect_data_.requested_subprotocols,
         connect_data_.origin, connect_data_.site_for_cookies,
-        connect_data_.isolation_info, HttpRequestHeaders(),
-        TRAFFIC_ANNOTATION_FOR_TESTS,
+        net::StorageAccessApiStatus::kNone, connect_data_.isolation_info,
+        HttpRequestHeaders(), TRAFFIC_ANNOTATION_FOR_TESTS,
         base::BindOnce(&WebSocketStreamCreationCallbackArgumentSaver::Create,
                        base::Unretained(&connect_data_.argument_saver)));
   }
@@ -856,6 +881,9 @@ class WebSocketChannelTest : public TestWithTaskEnvironment {
     url::Origin origin;
     // First party for cookies for the request.
     net::SiteForCookies site_for_cookies;
+    // Whether the calling context has opted into the Storage Access API.
+    StorageAccessApiStatus storage_access_api_status =
+        StorageAccessApiStatus::kNone;
     // IsolationInfo created from the origin.
     net::IsolationInfo isolation_info;
 
@@ -996,6 +1024,8 @@ TEST_F(WebSocketChannelTest, EverythingIsPassedToTheCreatorFunction) {
   EXPECT_EQ(connect_data_.origin.Serialize(), actual.origin.Serialize());
   EXPECT_TRUE(
       connect_data_.site_for_cookies.IsEquivalent(actual.site_for_cookies));
+  EXPECT_EQ(connect_data_.storage_access_api_status,
+            actual.storage_access_api_status);
   EXPECT_TRUE(
       connect_data_.isolation_info.IsEqualForTesting(actual.isolation_info));
 }
@@ -1018,7 +1048,7 @@ TEST_F(WebSocketChannelEventInterfaceTest, ConnectFailureReported) {
   CreateChannelAndConnect();
 
   connect_data_.argument_saver.connect_delegate->OnFailure("hello", ERR_FAILED,
-                                                           absl::nullopt);
+                                                           std::nullopt);
 }
 
 TEST_F(WebSocketChannelEventInterfaceTest, NonWebSocketSchemeRejected) {
@@ -1579,7 +1609,7 @@ TEST_F(WebSocketChannelEventInterfaceTest, FailJustAfterHandshake) {
       url, response_headers, IPEndPoint(), base::Time());
   connect_delegate->OnStartOpeningHandshake(std::move(request_info));
 
-  connect_delegate->OnFailure("bye", ERR_FAILED, absl::nullopt);
+  connect_delegate->OnFailure("bye", ERR_FAILED, std::nullopt);
   base::RunLoop().RunUntilIdle();
 }
 
@@ -1617,7 +1647,7 @@ TEST_F(WebSocketChannelEventInterfaceTest, OneByteClosePayloadMessage) {
   EXPECT_CALL(
       *event_interface_,
       OnFailChannel(
-          "Received a broken close frame containing an invalid size body.", _,
+          "Received a broken close frame with an invalid size of 1 byte.", _,
           _));
 
   CreateChannelAndConnectSuccessfully();
@@ -2223,8 +2253,9 @@ TEST_F(WebSocketChannelStreamTest, WrittenBinaryFramesAre8BitClean) {
   ASSERT_EQ(1U, frames->size());
   const WebSocketFrame* out_frame = (*frames)[0].get();
   EXPECT_EQ(kBinaryBlobSize, out_frame->header.payload_length);
-  ASSERT_TRUE(out_frame->payload);
-  EXPECT_EQ(0, memcmp(kBinaryBlob, out_frame->payload, kBinaryBlobSize));
+  ASSERT_FALSE(out_frame->payload.empty());
+  EXPECT_EQ(std::string_view(kBinaryBlob, kBinaryBlobSize),
+            base::as_string_view(out_frame->payload));
 }
 
 // Test the read path for 8-bit cleanliness as well.
@@ -2234,9 +2265,9 @@ TEST_F(WebSocketChannelEventInterfaceTest, ReadBinaryFramesAre8BitClean) {
   WebSocketFrameHeader& frame_header = frame->header;
   frame_header.final = true;
   frame_header.payload_length = kBinaryBlobSize;
-  auto buffer = base::MakeRefCounted<IOBuffer>(kBinaryBlobSize);
+  auto buffer = base::MakeRefCounted<IOBufferWithSize>(kBinaryBlobSize);
   memcpy(buffer->data(), kBinaryBlob, kBinaryBlobSize);
-  frame->payload = buffer->data();
+  frame->payload = buffer->span();
   std::vector<std::unique_ptr<WebSocketFrame>> frames;
   frames.push_back(std::move(frame));
   auto stream = std::make_unique<ReadableFakeWebSocketStream>();
@@ -2653,7 +2684,7 @@ TEST_F(WebSocketChannelEventInterfaceTest, OnAuthRequiredCalled) {
   const GURL wss_url("wss://example.com/on_auth_required");
   connect_data_.socket_url = wss_url;
   AuthChallengeInfo auth_info;
-  absl::optional<AuthCredentials> credentials;
+  std::optional<AuthCredentials> credentials;
   auto response_headers =
       base::MakeRefCounted<HttpResponseHeaders>("HTTP/1.1 200 OK");
   IPEndPoint remote_endpoint(net::IPAddress(127, 0, 0, 1), 80);

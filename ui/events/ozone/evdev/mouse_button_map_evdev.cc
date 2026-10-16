@@ -9,9 +9,9 @@
 #include "base/feature_list.h"
 #include "base/logging.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_features.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace ui {
 namespace {
@@ -21,11 +21,11 @@ namespace {
 constexpr int kSharedDeviceSettingsId = -1;
 
 bool ShouldEnablePerDeviceSettings() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   return ash::features::IsInputDeviceSettingsSplitEnabled();
 #else
   return false;
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 }  // namespace
@@ -36,7 +36,7 @@ MouseButtonMapEvdev::MouseButtonMapEvdev()
 MouseButtonMapEvdev::~MouseButtonMapEvdev() {
 }
 
-void MouseButtonMapEvdev::SetPrimaryButtonRight(absl::optional<int> device_id,
+void MouseButtonMapEvdev::SetPrimaryButtonRight(std::optional<int> device_id,
                                                 bool primary_button_right) {
   if (!enable_per_device_settings_ || !device_id.has_value()) {
     device_id = kSharedDeviceSettingsId;

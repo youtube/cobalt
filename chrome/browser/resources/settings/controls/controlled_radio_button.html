@@ -36,9 +36,10 @@
     on-keydown="onInputKeydown_">
   <div class="disc-border"></div>
   <div class="disc"></div>
+  <div id="overlay"></div>
 </div>
 
-<div id="labelWrapper">
+<div id="labelWrapper" part="labelWrapper">
   <span id="label" hidden$="[[!label]]">[[label]]</span>
   <span id="slotted-content">
     <slot></slot>

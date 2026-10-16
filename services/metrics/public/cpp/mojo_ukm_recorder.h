@@ -49,6 +49,8 @@ class METRICS_EXPORT MojoUkmRecorder
 
   ~MojoUkmRecorder() override;
 
+  void UpdateSourceURL(SourceId source_id, const GURL& url) override;
+
   base::WeakPtr<MojoUkmRecorder> GetWeakPtr();
 
  protected:
@@ -59,7 +61,6 @@ class METRICS_EXPORT MojoUkmRecorder
   void ClientDisconnected();
 
   // UkmRecorder:
-  void UpdateSourceURL(SourceId source_id, const GURL& url) override;
   void UpdateAppURL(SourceId source_id,
                     const GURL& url,
                     const AppType app_type) override;
@@ -67,6 +68,9 @@ class METRICS_EXPORT MojoUkmRecorder
       SourceId source_id,
       const UkmSource::NavigationData& navigation_data) override;
   void AddEntry(mojom::UkmEntryPtr entry) override;
+  void RecordWebDXFeatures(SourceId source_id,
+                           const std::set<int32_t>& features,
+                           const size_t max_feature_value) override;
   void MarkSourceForDeletion(ukm::SourceId source_id) override;
 
   // UkmRecorderClientInterface:

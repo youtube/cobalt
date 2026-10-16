@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ui/views/global_media_controls/media_notification_device_entry_ui.h"
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -26,7 +27,7 @@ class StopCastingHandler {
   StopCastingHandler() = default;
   ~StopCastingHandler() = default;
 
-  MOCK_METHOD0(StopCasting, void());
+  MOCK_METHOD(void, StopCasting, (), ());
 };
 
 // A mock class for delegating media notification footer view.
@@ -36,9 +37,9 @@ class MockFooterViewDelegate : public MediaItemUIFooterView::Delegate {
   ~MockFooterViewDelegate() override = default;
 
   // MediaNotificationfooterview::Delegate.
-  MOCK_METHOD0(OnDropdownButtonClicked, void());
-  MOCK_METHOD0(IsDeviceSelectorExpanded, bool());
-  MOCK_METHOD1(OnDeviceSelected, void(int));
+  MOCK_METHOD(void, OnDropdownButtonClicked, (), (override));
+  MOCK_METHOD(bool, IsDeviceSelectorExpanded, (), (override));
+  MOCK_METHOD(void, OnDeviceSelected, (int), (override));
 };
 
 }  // namespace
@@ -59,7 +60,8 @@ class MediaItemUIFooterViewTest : public ChromeViewsTestBase {
   }
 
   void CreateView(bool is_cast_session) {
-    widget_ = CreateTestWidget();
+    widget_ =
+        CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET);
     handler_ = std::make_unique<StopCastingHandler>();
     delegate_ = std::make_unique<NiceMock<MockFooterViewDelegate>>();
 
@@ -77,15 +79,16 @@ class MediaItemUIFooterViewTest : public ChromeViewsTestBase {
 
   void SimulateButtonClicked(views::View* view) {
     views::test::ButtonTestApi(static_cast<views::Button*>(view))
-        .NotifyClick(ui::MouseEvent(ui::ET_MOUSE_PRESSED, gfx::Point(),
+        .NotifyClick(ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(),
                                     gfx::Point(), ui::EventTimeForNow(), 0, 0));
   }
 
   std::vector<views::View*> GetVisibleItems() {
     std::vector<views::View*> item;
-    for (auto* view : get_view()->children()) {
-      if (view->GetVisible() && view->width() > 0)
+    for (views::View* view : get_view()->children()) {
+      if (view->GetVisible() && view->width() > 0) {
         item.push_back(view);
+      }
     }
     return item;
   }
@@ -102,7 +105,7 @@ class MediaItemUIFooterViewTest : public ChromeViewsTestBase {
   std::unique_ptr<views::Widget> widget_;
   std::unique_ptr<StopCastingHandler> handler_;
   std::unique_ptr<MockFooterViewDelegate> delegate_;
-  raw_ptr<MediaItemUIFooterView> view_ = nullptr;
+  raw_ptr<MediaItemUIFooterView, DanglingUntriaged> view_ = nullptr;
 };
 
 TEST_F(MediaItemUIFooterViewTest, ViewDuringCast) {
@@ -128,7 +131,7 @@ TEST_F(MediaItemUIFooterViewTest, DevicesCanFit) {
                                SK_ColorRED, "device", device2_name);
   device2.set_tag(1);
 
-  std::map<int, DeviceEntryUI*> devices;
+  std::map<int, raw_ptr<DeviceEntryUI, CtnExperimental>> devices;
   devices[0] = &device1;
   devices[1] = &device2;
 
@@ -145,8 +148,9 @@ TEST_F(MediaItemUIFooterViewTest, DevicesCanFit) {
 
   EXPECT_CALL(*delegate(), OnDeviceSelected(0));
   EXPECT_CALL(*delegate(), OnDeviceSelected(1));
-  for (auto* view : visible_items)
+  for (auto* view : visible_items) {
     SimulateButtonClicked(view);
+  }
 }
 
 TEST_F(MediaItemUIFooterViewTest, OverflowButton) {
@@ -158,7 +162,7 @@ TEST_F(MediaItemUIFooterViewTest, OverflowButton) {
   AudioDeviceEntryView device(views::Button::PressedCallback(), SK_ColorRED,
                               SK_ColorRED, "device", device_name);
 
-  std::map<int, DeviceEntryUI*> devices;
+  std::map<int, raw_ptr<DeviceEntryUI, CtnExperimental>> devices;
   devices[0] = &device;
   devices[1] = &device;
 
@@ -186,7 +190,7 @@ TEST_F(MediaItemUIFooterViewTest, OverflowButtonFallback) {
   AudioDeviceEntryView device(views::Button::PressedCallback(), SK_ColorRED,
                               SK_ColorRED, "device", device_name);
 
-  std::map<int, DeviceEntryUI*> devices;
+  std::map<int, raw_ptr<DeviceEntryUI, CtnExperimental>> devices;
   devices[0] = &device;
   devices[1] = &device;
 

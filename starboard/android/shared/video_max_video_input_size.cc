@@ -14,37 +14,24 @@
 
 #include "starboard/android/shared/video_max_video_input_size.h"
 
-#include <pthread.h>
+#include <algorithm>
 
 #include "starboard/common/check_op.h"
-#include "starboard/common/log.h"
-#include "starboard/thread.h"
 
 namespace starboard {
+namespace {
 
-pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-pthread_key_t s_thread_local_key = 0;
+thread_local int g_max_video_input_size = 0;
 
-void InitThreadLocalKey() {
-  [[maybe_unused]] int res = pthread_key_create(&s_thread_local_key, NULL);
-  SB_DCHECK_EQ(res, 0);
-}
-
-void EnsureThreadLocalKeyInited() {
-  pthread_once(&s_once_flag, InitThreadLocalKey);
-}
+}  // namespace
 
 int GetMaxVideoInputSizeForCurrentThread() {
-  EnsureThreadLocalKeyInited();
-  // If the key is not valid or there is no value associated
-  // with the key, it returns 0.
-  return reinterpret_cast<uintptr_t>(pthread_getspecific(s_thread_local_key));
+  return g_max_video_input_size;
 }
 
 void SetMaxVideoInputSizeForCurrentThread(int max_video_input_size) {
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key,
-                      reinterpret_cast<void*>(max_video_input_size));
+  SB_DCHECK_GE(max_video_input_size, 0);
+  g_max_video_input_size = std::max(0, max_video_input_size);
 }
 
 }  // namespace starboard

@@ -5,12 +5,15 @@
 #ifndef INCLUDE_CPPGC_VISITOR_H_
 #define INCLUDE_CPPGC_VISITOR_H_
 
+#include <type_traits>
+
 #include "cppgc/custom-space.h"
-#include "cppgc/ephemeron-pair.h"
 #include "cppgc/garbage-collected.h"
 #include "cppgc/internal/logging.h"
+#include "cppgc/internal/member-storage.h"
 #include "cppgc/internal/pointer-policies.h"
 #include "cppgc/liveness-broker.h"
+#include "cppgc/macros.h"
 #include "cppgc/member.h"
 #include "cppgc/sentinel-pointer.h"
 #include "cppgc/source-location.h"
@@ -32,6 +35,25 @@ class VisitorFactory;
 }  // namespace internal
 
 using WeakCallback = void (*)(const LivenessBroker&, const void*);
+
+/**
+ * An ephemeron pair is used to conditionally retain an object.
+ * The `value` will be kept alive only if the `key` is alive.
+ */
+template <typename K, typename V>
+struct EphemeronPair {
+  CPPGC_DISALLOW_NEW();
+
+  EphemeronPair(K* k, V* v) : key(k), value(v) {}
+  WeakMember<K> key;
+  Member<V> value;
+
+  void ClearValueIfKeyIsDead(const LivenessBroker& broker) {
+    if (!broker.IsHeapObjectAlive(key)) value = nullptr;
+  }
+
+  void Trace(Visitor* visitor) const;
+};
 
 /**
  * Visitor passed to trace methods. All managed pointers must have called the
@@ -69,7 +91,7 @@ class V8_EXPORT Visitor {
    */
   template <typename T>
   void Trace(const Member<T>& member) {
-    const T* value = member.GetRawAtomic();
+    const T* value = member.GetAtomic();
     CPPGC_DCHECK(value != kSentinelPointer);
     TraceImpl(value);
   }
@@ -87,7 +109,7 @@ class V8_EXPORT Visitor {
     static_assert(!internal::IsAllocatedOnCompactableSpace<T>::value,
                   "Weak references to compactable objects are not allowed");
 
-    const T* value = weak_member.GetRawAtomic();
+    const T* value = weak_member.GetAtomic();
 
     // Bailout assumes that WeakMember emits write barrier.
     if (!value) {
@@ -107,11 +129,35 @@ class V8_EXPORT Visitor {
    */
   template <typename T>
   void Trace(const subtle::UncompressedMember<T>& member) {
-    const T* value = member.GetRawAtomic();
+    const T* value = member.GetAtomic();
     CPPGC_DCHECK(value != kSentinelPointer);
     TraceImpl(value);
   }
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
+
+  template <typename T>
+  void TraceMultiple(const subtle::UncompressedMember<T>* start, size_t len) {
+    static_assert(sizeof(T), "Pointee type must be fully defined.");
+    static_assert(internal::IsGarbageCollectedOrMixinType<T>::value,
+                  "T must be GarbageCollected or GarbageCollectedMixin type");
+    VisitMultipleUncompressedMember(start, len,
+                                    &TraceTrait<T>::GetTraceDescriptor);
+  }
+
+  template <typename T,
+            std::enable_if_t<!std::is_same_v<
+                Member<T>, subtle::UncompressedMember<T>>>* = nullptr>
+  void TraceMultiple(const Member<T>* start, size_t len) {
+    static_assert(sizeof(T), "Pointee type must be fully defined.");
+    static_assert(internal::IsGarbageCollectedOrMixinType<T>::value,
+                  "T must be GarbageCollected or GarbageCollectedMixin type");
+#if defined(CPPGC_POINTER_COMPRESSION)
+    static_assert(std::is_same_v<Member<T>, subtle::CompressedMember<T>>,
+                  "Member and CompressedMember must be the same.");
+    VisitMultipleCompressedMember(start, len,
+                                  &TraceTrait<T>::GetTraceDescriptor);
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
+  }
 
   /**
    * Trace method for inlined objects that are not allocated themselves but
@@ -129,6 +175,26 @@ class V8_EXPORT Visitor {
     CheckObjectNotInConstruction(&object);
 #endif  // V8_ENABLE_CHECKS
     TraceTrait<T>::Trace(this, &object);
+  }
+
+  template <typename T>
+  void TraceMultiple(const T* start, size_t len) {
+#if V8_ENABLE_CHECKS
+    // This object is embedded in potentially multiple nested objects. The
+    // outermost object must not be in construction as such objects are (a) not
+    // processed immediately, and (b) only processed conservatively if not
+    // otherwise possible.
+    CheckObjectNotInConstruction(start);
+#endif  // V8_ENABLE_CHECKS
+    for (size_t i = 0; i < len; ++i) {
+      const T* object = &start[i];
+      if constexpr (std::is_polymorphic_v<T>) {
+        // The object's vtable may be uninitialized in which case the object is
+        // not traced.
+        if (*reinterpret_cast<const uintptr_t*>(object) == 0) continue;
+      }
+      TraceTrait<T>::Trace(this, object);
+    }
   }
 
   /**
@@ -166,12 +232,12 @@ class V8_EXPORT Visitor {
   template <typename KeyType, typename ValueType>
   void TraceEphemeron(const WeakMember<KeyType>& weak_member_key,
                       const Member<ValueType>* member_value) {
-    const KeyType* key = weak_member_key.GetRawAtomic();
+    const KeyType* key = weak_member_key.GetAtomic();
     if (!key) return;
 
     // `value` must always be non-null.
     CPPGC_DCHECK(member_value);
-    const ValueType* value = member_value->GetRawAtomic();
+    const ValueType* value = member_value->GetAtomic();
     if (!value) return;
 
     // KeyType and ValueType may refer to GarbageCollectedMixin.
@@ -201,7 +267,7 @@ class V8_EXPORT Visitor {
                       const ValueType* value) {
     static_assert(!IsGarbageCollectedOrMixinTypeV<ValueType>,
                   "garbage-collected types must use WeakMember and Member");
-    const KeyType* key = weak_member_key.GetRawAtomic();
+    const KeyType* key = weak_member_key.GetAtomic();
     if (!key) return;
 
     // `value` must always be non-null.
@@ -227,7 +293,7 @@ class V8_EXPORT Visitor {
    */
   template <typename T>
   void TraceStrongly(const WeakMember<T>& weak_member) {
-    const T* value = weak_member.GetRawAtomic();
+    const T* value = weak_member.GetAtomic();
     CPPGC_DCHECK(value != kSentinelPointer);
     TraceImpl(value);
   }
@@ -303,6 +369,11 @@ class V8_EXPORT Visitor {
     return false;
   }
 
+  /**
+   * Checks whether the visitor is running concurrently to the mutator or not.
+   */
+  virtual bool IsConcurrent() const { return false; }
+
  protected:
   virtual void Visit(const void* self, TraceDescriptor) {}
   virtual void VisitWeak(const void* self, TraceDescriptor, WeakCallback,
@@ -313,6 +384,39 @@ class V8_EXPORT Visitor {
                                   TraceDescriptor weak_desc,
                                   WeakCallback callback, const void* data) {}
   virtual void HandleMovableReference(const void**) {}
+
+  virtual void VisitMultipleUncompressedMember(
+      const void* start, size_t len,
+      TraceDescriptorCallback get_trace_descriptor) {
+    // Default implementation merely delegates to Visit().
+    const char* it = static_cast<const char*>(start);
+    const char* end = it + len * internal::kSizeOfUncompressedMember;
+    for (; it < end; it += internal::kSizeOfUncompressedMember) {
+      const auto* current = reinterpret_cast<const internal::RawPointer*>(it);
+      const void* object = current->LoadAtomic();
+      if (!object) continue;
+
+      Visit(object, get_trace_descriptor(object));
+    }
+  }
+
+#if defined(CPPGC_POINTER_COMPRESSION)
+  virtual void VisitMultipleCompressedMember(
+      const void* start, size_t len,
+      TraceDescriptorCallback get_trace_descriptor) {
+    // Default implementation merely delegates to Visit().
+    const char* it = static_cast<const char*>(start);
+    const char* end = it + len * internal::kSizeofCompressedMember;
+    for (; it < end; it += internal::kSizeofCompressedMember) {
+      const auto* current =
+          reinterpret_cast<const internal::CompressedPointer*>(it);
+      const void* object = current->LoadAtomic();
+      if (!object) continue;
+
+      Visit(object, get_trace_descriptor(object));
+    }
+  }
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
 
  private:
   template <typename T, void (T::*method)(const LivenessBroker&)>
@@ -326,8 +430,7 @@ class V8_EXPORT Visitor {
   template <typename PointerType>
   static void HandleWeak(const LivenessBroker& info, const void* object) {
     const PointerType* weak = static_cast<const PointerType*>(object);
-    auto* raw_ptr = weak->GetFromGC();
-    if (!info.IsHeapObjectAlive(raw_ptr)) {
+    if (!info.IsHeapObjectAlive(weak->GetFromGC())) {
       weak->ClearFromGC();
     }
   }
@@ -356,6 +459,11 @@ class V8_EXPORT Visitor {
   friend class internal::ConservativeTracingVisitor;
   friend class internal::VisitorBase;
 };
+
+template <typename K, typename V>
+void EphemeronPair<K, V>::Trace(Visitor* visitor) const {
+  visitor->TraceEphemeron(key, value);
+}
 
 namespace internal {
 
@@ -413,8 +521,7 @@ class V8_EXPORT RootVisitor {
   template <typename PointerType>
   static void HandleWeak(const LivenessBroker& info, const void* object) {
     const PointerType* weak = static_cast<const PointerType*>(object);
-    auto* raw_ptr = weak->GetFromGC();
-    if (!info.IsHeapObjectAlive(raw_ptr)) {
+    if (!info.IsHeapObjectAlive(weak->GetFromGC())) {
       weak->ClearFromGC();
     }
   }

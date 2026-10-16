@@ -4,20 +4,24 @@
 
 import '//resources/cr_elements/cr_tab_box/cr_tab_box.js';
 
-import {CrTabBoxElement} from '//resources/cr_elements/cr_tab_box/cr_tab_box.js';
-import {assert} from '//resources/js/assert_ts.js';
+import type {CrTabBoxElement} from '//resources/cr_elements/cr_tab_box/cr_tab_box.js';
+import {assert} from '//resources/js/assert.js';
 import {CustomElement} from '//resources/js/custom_element.js';
 
 import {getTemplate} from './cr_tab_box_demo.html.js';
 
 class CrTabBoxDemoElement extends CustomElement {
+  static get is() {
+    return 'cr-tab-box-demo';
+  }
+
   static override get template() {
     return getTemplate();
   }
 
-  private tabBox_: CrTabBoxElement|null;
+  private tabBox_: CrTabBoxElement|null = null;
 
-  async connectedCallback() {
+  connectedCallback() {
     this.tabBox_ = this.shadowRoot!.querySelector('cr-tab-box');
     assert(this.tabBox_);
     this.tabBox_.addEventListener(
@@ -52,8 +56,7 @@ class CrTabBoxDemoElement extends CustomElement {
     const template =
         this.shadowRoot!.querySelector<HTMLTemplateElement>('#template');
     assert(template);
-    const clone =
-        document.importNode(template.content, true) as DocumentFragment;
+    const clone = document.importNode(template.content, true);
 
     const tab = clone.querySelector<HTMLElement>('div[slot=\'tab\']');
     assert(tab);
@@ -91,4 +94,6 @@ class CrTabBoxDemoElement extends CustomElement {
   }
 }
 
-customElements.define('cr-tab-box-demo', CrTabBoxDemoElement);
+export const tagName = CrTabBoxDemoElement.is;
+
+customElements.define(CrTabBoxDemoElement.is, CrTabBoxDemoElement);

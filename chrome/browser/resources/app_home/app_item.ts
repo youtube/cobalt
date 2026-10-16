@@ -2,15 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import '//resources/cr_elements/cr_hidden_style.css.js';
+import '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import '//resources/cr_elements/cr_checkbox/cr_checkbox.js';
 
-import {CrActionMenuElement} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import type {CrActionMenuElement} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
+import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
-import {AppInfo, ClickEvent, RunOnOsLoginMode} from './app_home.mojom-webui.js';
+import type {AppInfo, ClickEvent} from './app_home.mojom-webui.js';
+import {AppType, RunOnOsLoginMode} from './app_home.mojom-webui.js';
 import {AppHomeUserAction, recordUserAction} from './app_home_utils.js';
-import {getTemplate} from './app_item.html.js';
+import {getCss} from './app_item.css.js';
+import {getHtml} from './app_item.html.js';
 import {BrowserProxy} from './browser_proxy.js';
 import {UserDisplayMode} from './user_display_mode.mojom-webui.js';
 
@@ -21,25 +23,41 @@ export interface AppItemElement {
   };
 }
 
-export class AppItemElement extends PolymerElement {
+export class AppItemElement extends CrLitElement {
   static get is() {
     return 'app-item';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
-      appInfo: Object,
+      appInfo: {type: Object},
     };
   }
 
-  appInfo: AppInfo;
+  accessor appInfo: AppInfo = {
+    appType: AppType.kWebApp,
+    id: '',
+    startUrl: {url: ''},
+    name: '',
+    iconUrl: {url: ''},
+    mayShowRunOnOsLoginMode: false,
+    mayToggleRunOnOsLoginMode: false,
+    runOnOsLoginMode: 0,
+    isLocallyInstalled: false,
+    openInWindow: false,
+    mayUninstall: false,
+    storePageUrl: {url: ''},
+  };
 
-  override ready() {
-    super.ready();
+  override firstUpdated() {
     this.addEventListener('contextmenu', this.handleContextMenu_);
     this.addEventListener('click', this.handleClick_);
     this.addEventListener('auxclick', this.handleClick_);
@@ -70,9 +88,8 @@ export class AppItemElement extends PolymerElement {
   }
 
   private isValidPosition(position: any) {
-    const rect =
-        this.shadowRoot!.getElementById(
-                            'objectContainer')!.getBoundingClientRect();
+    const rect = this.shadowRoot.getElementById(
+                                    'objectContainer')!.getBoundingClientRect();
     if (!rect) {
       return false;
     }
@@ -89,9 +106,8 @@ export class AppItemElement extends PolymerElement {
       // Events other than a MouseEvent do not have locations specified, so
       // automatically default to the middle of the icon for the context menu to
       // show up.
-      const rect =
-          this.shadowRoot!.getElementById(
-                              'iconContainer')!.getBoundingClientRect();
+      const rect = this.shadowRoot.getElementById(
+                                      'iconContainer')!.getBoundingClientRect();
       if (rect) {
         return {
           top: rect.top + (rect.height / 2),
@@ -119,7 +135,7 @@ export class AppItemElement extends PolymerElement {
       shiftKey: e.shiftKey,
     };
 
-    if (this.appInfo.isDeprecatedApp) {
+    if (this.appInfo.appType === AppType.kDeprecatedChromeApp) {
       recordUserAction(AppHomeUserAction.LAUNCH_DEPRECATED_APP);
     } else {
       recordUserAction(AppHomeUserAction.LAUNCH_WEB_APP);
@@ -138,7 +154,7 @@ export class AppItemElement extends PolymerElement {
   // The CrActionMenuElement is a modal that does not listen to any other
   // events other than mousedown on right click when it is open. This allows
   // us to listen to changes on the dom even when the menu is showing.
-  private onMenuMousedown_(e: MouseEvent) {
+  protected onMenuMousedown_(e: MouseEvent) {
     // Actions that are not a right click on a different app are handled
     // correctly by the cr-action-menu. Listening to them here causes
     // errors.
@@ -156,44 +172,56 @@ export class AppItemElement extends PolymerElement {
   }
 
   // Methods to hide menu items:
-  private isWebStoreLinkHidden_() {
+  protected isWebStoreLinkHidden_() {
     return !this.appInfo.storePageUrl;
   }
-  private isOpenInWindowHidden_() {
-    return this.appInfo.isLocallyInstalled || this.appInfo.isDeprecatedApp;
+
+  protected isOpenInWindowHidden_() {
+    return !this.appInfo.isLocallyInstalled ||
+        this.appInfo.appType === AppType.kDeprecatedChromeApp ||
+        this.appInfo.appType === AppType.kIsolatedWebApp;
   }
-  private isLaunchOnStartupDisabled_() {
+
+  protected isLaunchOnStartupDisabled_() {
     return !this.appInfo.mayToggleRunOnOsLoginMode;
   }
-  private isLaunchOnStartupHidden_() {
+
+  protected isLaunchOnStartupHidden_() {
     return !this.appInfo.mayShowRunOnOsLoginMode ||
-        this.appInfo.isDeprecatedApp;
+        this.appInfo.appType === AppType.kDeprecatedChromeApp;
   }
-  private isCreateShortcutHidden_() {
-    return !this.appInfo.isLocallyInstalled || this.appInfo.isDeprecatedApp;
+
+  protected isCreateShortcutHidden_() {
+    return !this.appInfo.isLocallyInstalled ||
+        this.appInfo.appType === AppType.kDeprecatedChromeApp;
   }
-  private isInstallLocallyHidden_() {
-    return this.appInfo.isLocallyInstalled || this.appInfo.isDeprecatedApp;
+
+  protected isInstallLocallyHidden_() {
+    return this.appInfo.isLocallyInstalled ||
+        this.appInfo.appType === AppType.kDeprecatedChromeApp;
   }
-  private isUninstallHidden_() {
+
+  protected isUninstallHidden_() {
     return !this.appInfo.isLocallyInstalled;
   }
-  private isRemoveFromChromeHidden_() {
+
+  protected isRemoveFromChromeHidden_() {
     return this.appInfo.isLocallyInstalled;
   }
-  private isAppSettingsHidden_() {
+
+  protected isAppSettingsHidden_() {
     return !this.appInfo.isLocallyInstalled;
   }
 
-  private isLocallyInstalled_() {
+  protected isLocallyInstalled_() {
     return this.appInfo.isLocallyInstalled;
   }
 
-  private isLaunchOnStartUp_() {
-    return (this.appInfo.runOnOsLoginMode !== RunOnOsLoginMode.kNotRun);
+  protected isLaunchOnStartUp_() {
+    return this.appInfo.runOnOsLoginMode !== RunOnOsLoginMode.kNotRun;
   }
 
-  private onMenuClick_(event: Event) {
+  protected onMenuClick_(event: Event) {
     // The way the menu works, it's inside of a dialog which covers the whole
     // screen. Because our element uses a click listener on the entire element,
     // any clicks anywhere while the context menu is open will then bubble up to
@@ -201,7 +229,7 @@ export class AppItemElement extends PolymerElement {
     event.stopPropagation();
   }
 
-  private openStorePage_() {
+  protected openStorePage_() {
     if (!this.appInfo.storePageUrl) {
       return;
     }
@@ -209,8 +237,9 @@ export class AppItemElement extends PolymerElement {
     this.closeContextMenu();
   }
 
-  private onOpenInWindowItemClick_() {
-    if (this.appInfo.openInWindow) {
+  protected onOpenInWindowItemChange_(e: CustomEvent<boolean>) {
+    const checked = e.detail;
+    if (!checked) {
       BrowserProxy.getInstance().handler.setUserDisplayMode(
           this.appInfo.id, UserDisplayMode.kBrowser);
       recordUserAction(AppHomeUserAction.OPEN_IN_WINDOW_UNCHECKED);
@@ -222,7 +251,7 @@ export class AppItemElement extends PolymerElement {
   }
 
   // Changing the app's launch mode.
-  private onLaunchOnStartupItemClick_() {
+  protected onLaunchOnStartupItemClick_() {
     if (this.isLaunchOnStartupDisabled_()) {
       return;
     }
@@ -238,7 +267,7 @@ export class AppItemElement extends PolymerElement {
     }
   }
 
-  private onCreateShortcutItemClick_() {
+  protected onCreateShortcutItemClick_() {
     if (this.appInfo.id) {
       BrowserProxy.getInstance().handler.createAppShortcut(this.appInfo.id);
       recordUserAction(AppHomeUserAction.CREATE_SHORTCUT);
@@ -246,7 +275,7 @@ export class AppItemElement extends PolymerElement {
     this.closeContextMenu();
   }
 
-  private onInstallLocallyItemClick_() {
+  protected onInstallLocallyItemClick_() {
     if (this.appInfo.id) {
       BrowserProxy.getInstance().handler.installAppLocally(this.appInfo.id);
       recordUserAction(AppHomeUserAction.INSTALL_APP_LOCALLY);
@@ -254,7 +283,7 @@ export class AppItemElement extends PolymerElement {
     this.closeContextMenu();
   }
 
-  private onUninstallItemClick_() {
+  protected onUninstallItemClick_() {
     if (this.appInfo.id) {
       BrowserProxy.getInstance().handler.uninstallApp(this.appInfo.id);
       recordUserAction(AppHomeUserAction.UNINSTALL);
@@ -262,7 +291,7 @@ export class AppItemElement extends PolymerElement {
     this.closeContextMenu();
   }
 
-  private onAppSettingsItemClick_() {
+  protected onAppSettingsItemClick_() {
     if (this.appInfo.id) {
       BrowserProxy.getInstance().handler.showAppSettings(this.appInfo.id);
       recordUserAction(AppHomeUserAction.OPEN_APP_SETTINGS);
@@ -270,7 +299,7 @@ export class AppItemElement extends PolymerElement {
     this.closeContextMenu();
   }
 
-  private getIconUrl_() {
+  protected getIconUrl_() {
     const url = new URL(this.appInfo.iconUrl.url);
     // For web app, the backend serves grayscale image when the app is not
     // locally installed automatically and doesn't recognize this query param,

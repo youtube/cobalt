@@ -5,8 +5,6 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_WEB_APPS_FORCE_INSTALLED_DEPRECATED_APPS_DIALOG_VIEW_H_
 #define CHROME_BROWSER_UI_VIEWS_WEB_APPS_FORCE_INSTALLED_DEPRECATED_APPS_DIALOG_VIEW_H_
 
-#include <string>
-
 #include "base/functional/callback_forward.h"
 #include "extensions/common/extension_id.h"
 #include "ui/views/layout/box_layout_view.h"
@@ -15,9 +13,12 @@ namespace content {
 class WebContents;
 }  // namespace content
 
+// Creates a dialog with one button. Clicking it opens a new tab to
+// kChromeAppsDeprecationLearnMoreURL.
 class ForceInstalledDeprecatedAppsDialogView : public views::BoxLayoutView {
+  METADATA_HEADER(ForceInstalledDeprecatedAppsDialogView, views::BoxLayoutView)
+
  public:
-  METADATA_HEADER(ForceInstalledDeprecatedAppsDialogView);
   ForceInstalledDeprecatedAppsDialogView(
       const ForceInstalledDeprecatedAppsDialogView&) = delete;
   ForceInstalledDeprecatedAppsDialogView& operator=(
@@ -26,12 +27,11 @@ class ForceInstalledDeprecatedAppsDialogView : public views::BoxLayoutView {
 
   // Create the dialog metadata and show it.
   static void CreateAndShowDialog(const extensions::ExtensionId& app_id,
-                                  content::WebContents* web_contents,
-                                  base::OnceClosure launch_anyways);
+                                  content::WebContents* web_contents);
 
  private:
-  ForceInstalledDeprecatedAppsDialogView(const std::u16string& app_name,
-                                         content::WebContents* web_contents);
+  explicit ForceInstalledDeprecatedAppsDialogView(
+      content::WebContents* web_contents);
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_WEB_APPS_FORCE_INSTALLED_DEPRECATED_APPS_DIALOG_VIEW_H_

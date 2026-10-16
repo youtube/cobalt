@@ -5,11 +5,11 @@
 #ifndef CHROMEOS_ASH_SERVICES_IME_IME_SHARED_LIBRARY_WRAPPER_H_
 #define CHROMEOS_ASH_SERVICES_IME_IME_SHARED_LIBRARY_WRAPPER_H_
 
-#include "chromeos/ash/services/ime/public/cpp/shared_lib/interfaces.h"
+#include <optional>
 
 #include "base/no_destructor.h"
 #include "base/scoped_native_library.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "chromeos/ash/services/ime/public/cpp/shared_lib/interfaces.h"
 
 namespace ash {
 namespace ime {
@@ -44,13 +44,23 @@ inline constexpr char kCloseMojoModeFnName[] = "CloseMojoMode";
 typedef void (*CloseMojoModeFn)();
 
 inline constexpr char kInitializeConnectionFactoryFnName[] =
-    "InitializeConnectionFactory";
+    "InitializeConnectionFactoryV2";
 typedef bool (*InitializeConnectionFactoryFn)(
-    uint32_t receiver_connection_factory_handle);
+    uintptr_t receiver_connection_factory_handle);
 
 inline constexpr char kIsInputMethodConnectedFnName[] =
     "IsInputMethodConnected";
 typedef bool (*IsInputMethodConnectedFn)();
+
+inline constexpr char kInitUserDataServiceFnName[] = "InitUserDataService";
+typedef void (*InitUserDataServiceFn)(ImeCrosPlatform* platform);
+
+inline constexpr char kProcessUserDataRequestFnName[] =
+    "ProcessUserDataRequest";
+typedef C_SerializedProto (*ProcessUserDataRequestFn)(C_SerializedProto args);
+
+inline constexpr char kDeleteSerializedProtoFnName[] = "DeleteSerializedProto";
+typedef void (*DeleteSerializedProtoFn)(C_SerializedProto args);
 
 // END: Signatures of "C" API entry points of CrOS 1P IME shared lib.
 
@@ -66,25 +76,24 @@ class ImeSharedLibraryWrapper {
   struct EntryPoints {
     InitProtoModeFn init_proto_mode;
     CloseProtoModeFn close_proto_mode;
-
-    // TODO(b/214153032): Prefix the following with "proto_mode_" to better
-    // indicate they only pertain to the IME shared lib's ProtoMode. While it's
-    // "hard" to rename corresponding "C" API functions due to cross-repo
-    // backward compat requirements, these are local and rename is feasible.
-    ImeDecoderSupportsFn supports;
-    ImeDecoderActivateImeFn activate_ime;
-    ImeDecoderProcessFn process;
+    ImeDecoderSupportsFn proto_mode_supports;
+    ImeDecoderActivateImeFn proto_mode_activate_ime;
+    ImeDecoderProcessFn proto_mode_process;
 
     InitMojoModeFn init_mojo_mode;
     CloseMojoModeFn close_mojo_mode;
-    InitializeConnectionFactoryFn initialize_connection_factory;
-    IsInputMethodConnectedFn is_input_method_connected;
+    InitializeConnectionFactoryFn mojo_mode_initialize_connection_factory;
+    IsInputMethodConnectedFn mojo_mode_is_input_method_connected;
+
+    InitUserDataServiceFn init_user_data_service;
+    ProcessUserDataRequestFn process_user_data_request;
+    DeleteSerializedProtoFn delete_serialized_proto;
   };
 
   // Loads the IME shared library (if not already loaded) then returns its entry
   // points. Entry points are only available if the IME shared library has been
   // successfully loaded.
-  virtual absl::optional<EntryPoints> MaybeLoadThenReturnEntryPoints() = 0;
+  virtual std::optional<EntryPoints> MaybeLoadThenReturnEntryPoints() = 0;
 };
 
 // A proxy class for the IME decoder.
@@ -99,7 +108,7 @@ class ImeSharedLibraryWrapperImpl : public ImeSharedLibraryWrapper {
   ImeSharedLibraryWrapperImpl& operator=(const ImeSharedLibraryWrapperImpl&) =
       delete;
 
-  absl::optional<EntryPoints> MaybeLoadThenReturnEntryPoints() override;
+  std::optional<EntryPoints> MaybeLoadThenReturnEntryPoints() override;
 
  private:
   friend class base::NoDestructor<ImeSharedLibraryWrapperImpl>;
@@ -108,9 +117,9 @@ class ImeSharedLibraryWrapperImpl : public ImeSharedLibraryWrapper {
   ~ImeSharedLibraryWrapperImpl() override;
 
   // Result of IME decoder DSO initialization.
-  absl::optional<base::ScopedNativeLibrary> library_;
+  std::optional<base::ScopedNativeLibrary> library_;
 
-  absl::optional<EntryPoints> entry_points_;
+  std::optional<EntryPoints> entry_points_;
 };
 
 }  // namespace ime

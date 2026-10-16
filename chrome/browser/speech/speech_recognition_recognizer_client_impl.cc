@@ -5,6 +5,7 @@
 #include "chrome/browser/speech/speech_recognition_recognizer_client_impl.h"
 
 #include <algorithm>
+#include <string_view>
 #include <utility>
 
 #include "ash/constants/ash_features.h"
@@ -36,7 +37,7 @@ static constexpr int kAudioSampleRate = 16000;
 static constexpr int kPollingTimesPerSecond = 10;
 
 media::AudioParameters GetAudioParameters(
-    const absl::optional<media::AudioParameters>& params,
+    const std::optional<media::AudioParameters>& params,
     bool is_multichannel_supported) {
   if (params) {
     media::AudioParameters result = params.value();
@@ -124,25 +125,66 @@ SpeechRecognitionRecognizerClientImpl::GetOnDeviceSpeechRecognitionAvailability(
 ash::ServerBasedRecognitionAvailability
 SpeechRecognitionRecognizerClientImpl::GetServerBasedRecognitionAvailability(
     const std::string& language) {
-  if (!ash::features::IsInternalServerSideSpeechRecognitionEnabled()) {
+  if (!(ash::features::IsInternalServerSideSpeechRecognitionEnabled() ||
+        ash::features::IsInternalServerSideSpeechRecognitionEnabledByFinch())) {
     return ash::ServerBasedRecognitionAvailability::
         kServerBasedRecognitionNotAvailable;
   }
 
-  // This is an explicit list of locales that we support in addition to the list
-  // of languages below.
-  static constexpr auto kSupportedLocales =
-      base::MakeFixedFlatSet<base::StringPiece>({"ar-x-maghrebi", "zh-tw"});
+  static constexpr auto kSupportedLanguagesAndLocales =
+      base::MakeFixedFlatSet<std::string_view>({
+          "de",              // German
+          "de-AT",           // German (Austria)
+          "de-CH",           // German (Switzerland)
+          "de-DE",           // German (Germany)
+          "de-LI",           // German (Italy)
+          "en",              // English
+          "en-AU",           // English (Australia)
+          "en-CA",           // English (Canada)
+          "en-GB",           // English (UK)
+          "en-GB-oxendict",  // English (UK, OED spelling)
+          "en-IE",           // English (Ireland)
+          "en-NZ",           // English (New Zealand)
+          "en-US",           // English (US)
+          "en-XA",           // Long strings Pseudolocale
+          "en-ZA",           // English (South Africa)
+          "es",              // Spanish
+          "es-419",          // Spanish (Latin America)
+          "es-AR",           // Spanish (Argentina)
+          "es-CL",           // Spanish (Chile)
+          "es-CO",           // Spanish (Colombia)
+          "es-CR",           // Spanish (Costa Rica)
+          "es-ES",           // Spanish (Spain)
+          "es-HN",           // Spanish (Honduras)
+          "es-MX",           // Spanish (Mexico)
+          "es-PE",           // Spanish (Peru)
+          "es-US",           // Spanish (US)
+          "es-UY",           // Spanish (Uruguay)
+          "es-VE",           // Spanish (Venezuela)
+          "fr",              // French
+          "fr-CA",           // French (Canada)
+          "fr-CH",           // French (Switzerland)
+          "fr-FR",           // French (France)
+          "id",              // Indonesian
+          "it",              // Italian
+          "it-CH",           // Italian (Switzerland)
+          "it-IT",           // Italian (Italy)
+          "ja",              // Japanese
+          "ko",              // Korean
+          "pt",              // Portuguese
+          "pt-BR",           // Portuguese (Brazil)
+          "pt-PT",           // Portuguese (Portugal)
+          "ru",              // Russian
+          "sv",              // Swedish
+          "tr",              // Turkish
+      });
 
-  // All locales under the following languages are supported. The locales are
-  // automatically routed to their appropriate recognizer on the server side.
-  static constexpr auto kSupportedLangauges =
-      base::MakeFixedFlatSet<base::StringPiece>(
-          {"cs", "da", "de", "en", "es", "fi", "fr", "hi", "id", "it", "ja",
-           "ko", "nl", "pt", "ru", "sv", "tr", "vi"});
+  bool is_supported =
+      ash::features::IsInternalServerSideSpeechRecognitionEnabled() &&
+      kSupportedLanguagesAndLocales.contains(language);
 
-  if (kSupportedLangauges.contains(language::ExtractBaseLanguage(language)) ||
-      kSupportedLocales.contains(base::ToLowerASCII(language))) {
+  if (is_supported ||
+      ash::features::IsInternalServerSideSpeechRecognitionEnabledByFinch()) {
     return ash::ServerBasedRecognitionAvailability::kAvailable;
   }
 
@@ -225,7 +267,7 @@ void SpeechRecognitionRecognizerClientImpl::OnSpeechRecognitionError() {
 
 void SpeechRecognitionRecognizerClientImpl::OnLanguageIdentificationEvent(
     media::mojom::LanguageIdentificationEventPtr event) {
-  // Do nothing.
+  delegate()->OnLanguageIdentificationEvent(std::move(event));
 }
 
 void SpeechRecognitionRecognizerClientImpl::OnSpeechRecognitionStopped() {
@@ -244,7 +286,7 @@ void SpeechRecognitionRecognizerClientImpl::OnRecognizerDisconnected() {
 }
 
 void SpeechRecognitionRecognizerClientImpl::StartFetchingOnInputDeviceInfo(
-    const absl::optional<media::AudioParameters>& params) {
+    const std::optional<media::AudioParameters>& params) {
   // waiting_for_params_ was set before requesting audio params from the
   // AudioSystem, which returns here asynchronously. If this has changed, then
   // we shouldn't start up any more.

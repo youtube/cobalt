@@ -12,8 +12,10 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
 #include "media/base/media_export.h"
 #include "media/base/stream_parser.h"
 #include "media/formats/common/offset_byte_queue.h"
@@ -24,6 +26,10 @@
 #include "media/formats/mp4/aac.h"
 #endif
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/formats/common/offset_segmented_byte_queue.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media::mp4 {
 
 struct Movie;
@@ -33,9 +39,11 @@ class BoxReader;
 
 class MEDIA_EXPORT MP4StreamParser : public StreamParser {
  public:
-  MP4StreamParser(const std::set<int>& audio_object_types,
+  MP4StreamParser(std::optional<base::flat_set<int>> strict_audio_object_types,
                   bool has_sbr,
-                  bool has_flac);
+                  bool has_flac,
+                  bool has_iamf,
+                  bool has_dv);
 
   MP4StreamParser(const MP4StreamParser&) = delete;
   MP4StreamParser& operator=(const MP4StreamParser&) = delete;
@@ -45,16 +53,30 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   void Init(InitCB init_cb,
             NewConfigCB config_cb,
             NewBuffersCB new_buffers_cb,
-            bool ignore_text_tracks,
             EncryptedMediaInitDataCB encrypted_media_init_data_cb,
             NewMediaSegmentCB new_segment_cb,
             EndMediaSegmentCB end_of_segment_cb,
             MediaLog* media_log) override;
   void Flush() override;
   bool GetGenerateTimestampsFlag() const override;
-  [[nodiscard]] bool AppendToParseBuffer(const uint8_t* buf,
-                                         size_t size) override;
+  [[nodiscard]] bool AppendToParseBuffer(
+      base::span<const uint8_t> buf) override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  [[nodiscard]] bool AppendToParseBuffer(
+      base::span<const uint8_t> buf,
+      base::ScopedClosureRunner release_runner) override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] ParseStatus Parse(int max_pending_bytes_to_inspect) override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+ private:
+  // The following function and variable should technically be moved down.  They
+  // are kept here to make the new feature easy to review and maintain.
+  [[nodiscard]] ParseStatus ParseInternal(int max_pending_bytes_to_inspect);
+
+  bool buffers_parsed_ = false;
+
+ public:
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Calculates the rotation value from the track header display matricies.
   VideoTransformation CalculateRotation(const TrackHeader& track,
@@ -94,11 +116,6 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   void ChangeState(State new_state);
 
   bool EmitConfigs();
-#if BUILDFLAG(USE_PROPRIETARY_CODECS)
-  bool PrepareAACBuffer(const AAC& aac_config,
-                        std::vector<uint8_t>* frame_buf,
-                        std::vector<SubsampleEntry>* subsamples) const;
-#endif
   ParseResult EnqueueSample(BufferQueueMap* buffers);
   bool SendAndFlushSamples(BufferQueueMap* buffers);
 
@@ -132,10 +149,25 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   // operations, otherwise more data than the amount indicated in the Parse()
   // call's `max_pending_bytes_to_inspect` increment might be inspected in a
   // Parse() call. See the various Modulated*() wrappers in this class.
-  // TODO(https://crbug.com/1286464): Consider reworking all these parsers to
+  // TODO(crbug.com/40815633): Consider reworking all these parsers to
   // use a new type of queue that internally modulates the increment.
   int64_t max_parse_offset_ = 0;
   OffsetByteQueue queue_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Created by the first AppendToParseBuffer() call that comes with a release
+  // runner, after which it holds the stream instead of `queue_`, and the
+  // overload without a runner must no longer be called. The "borrow_mode"
+  // param of kCobaltInPlaceMediaSourceParser decides whether the queue borrows
+  // or copies each append.
+  std::unique_ptr<OffsetSegmentedByteQueue> segmented_queue_;
+
+  // Scratch buffer to reuse capacity for video frame bitstream conversion.
+  // Reusing this is possible on Starboard because the frame data is copied
+  // into the media pool rather than moved (which would release/deallocate
+  // the vector's backing memory).
+  std::vector<uint8_t> scratch_frame_buf_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // These two parameters are only valid in the |kEmittingSegments| state.
   //
@@ -159,11 +191,21 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   bool has_video_;
   std::set<uint32_t> audio_track_ids_;
   std::set<uint32_t> video_track_ids_;
+
   // The object types allowed for audio tracks. For FLAC indication, use
-  // |has_flac_|;
-  const std::set<int> audio_object_types_;
+  // |has_flac_|. If this is a nullopt, then strict object type assertion will
+  // not happen.
+  const std::optional<base::flat_set<int>> strict_audio_object_types_;
   const bool has_sbr_;
   const bool has_flac_;
+  const bool has_iamf_;
+  // Indicate if source buffer has been set as Dolby Vision. If true,
+  // always treat the source buffer as Dolby Vision, if false and if
+  // the source buffer is cross-compatible, use its compatible codec
+  // defined in Dolby Vision Profiles and Levels specification:
+  // https://professionalsupport.dolby.com/s/article/What-is-Dolby-Vision-Profile,
+  // otherwise still treat the buffer as Dolby Vision.
+  const bool has_dv_;
 
   // Tracks the number of MEDIA_LOGS for skipping empty trun samples.
   int num_empty_samples_skipped_;

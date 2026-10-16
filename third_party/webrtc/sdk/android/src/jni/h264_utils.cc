@@ -11,14 +11,15 @@
 #include "api/video_codecs/h264_profile_level_id.h"
 #include "sdk/android/generated_video_jni/H264Utils_jni.h"
 #include "sdk/android/src/jni/video_codec_info.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace webrtc {
 namespace jni {
 
 static jboolean JNI_H264Utils_IsSameH264Profile(
     JNIEnv* env,
-    const JavaParamRef<jobject>& params1,
-    const JavaParamRef<jobject>& params2) {
+    const jni_zero::JavaParamRef<jobject>& params1,
+    const jni_zero::JavaParamRef<jobject>& params2) {
   return H264IsSameProfile(JavaToNativeStringMap(env, params1),
                            JavaToNativeStringMap(env, params2));
 }

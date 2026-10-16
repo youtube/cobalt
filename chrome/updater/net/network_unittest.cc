@@ -25,7 +25,7 @@
 #include "build/build_config.h"
 #include "chrome/updater/net/network.h"
 #include "chrome/updater/policy/service.h"
-#include "chrome/updater/util/unittest_util.h"
+#include "chrome/updater/test/unit_test_util.h"
 #include "components/update_client/network.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
@@ -52,8 +52,6 @@ using DownloadToFileCompleteCallback =
 
 class UpdaterNetworkTest : public ::testing::Test {
  public:
-  ~UpdaterNetworkTest() override = default;
-
   void StartedCallback(int response_code, int64_t content_length) {
     EXPECT_EQ(response_code, 200);
   }
@@ -64,15 +62,17 @@ class UpdaterNetworkTest : public ::testing::Test {
   }
 
   void PostRequestCompleteCallback(const std::string& expected_body,
-                                   std::unique_ptr<std::string> response_body,
+                                   std::optional<std::string> response_body,
                                    int net_error,
                                    const std::string& header_etag,
                                    const std::string& header_x_cup_server_proof,
+                                   const std::string& header_cookie,
                                    int64_t xheader_retry_after_sec) {
-    EXPECT_STREQ(response_body->c_str(), expected_body.c_str());
+    EXPECT_EQ(*response_body, expected_body);
     EXPECT_EQ(net_error, 0);
-    EXPECT_STREQ(header_etag.c_str(), "Wfhw789h");
-    EXPECT_STREQ(header_x_cup_server_proof.c_str(), "server-proof");
+    EXPECT_EQ(header_etag, "Wfhw789h");
+    EXPECT_EQ(header_x_cup_server_proof, "server-proof");
+    EXPECT_EQ(header_cookie, "cookie");
     EXPECT_EQ(xheader_retry_after_sec, 67);
     PostRequestCompleted();
   }
@@ -97,19 +97,20 @@ class UpdaterNetworkTest : public ::testing::Test {
       http_response->AddCustomHeader("x-retry-after", "67");
       http_response->AddCustomHeader("etag", "Wfhw789h");
       http_response->AddCustomHeader("x-cup-server-proof", "server-proof");
+      http_response->AddCustomHeader("Cookie", "cookie");
     } else if (request.method == net::test_server::HttpMethod::METHOD_GET) {
       http_response->set_content("hello");
       http_response->set_content_type("application/octet-stream");
     } else {
-      NOTREACHED();
+      ADD_FAILURE();
     }
 
     http_response->set_code(net::HTTP_OK);
     return http_response;
   }
 
-  MOCK_METHOD0(DownloadToFileCompleted, void(void));
-  MOCK_METHOD0(PostRequestCompleted, void(void));
+  MOCK_METHOD(void, DownloadToFileCompleted, ());
+  MOCK_METHOD(void, PostRequestCompleted, ());
 
  protected:
   base::test::TaskEnvironment task_environment_;
@@ -136,8 +137,6 @@ class UpdaterNetworkTest : public ::testing::Test {
 // embedded test server running on localhost.
 class UpdaterDownloadTest : public ::testing::Test {
  protected:
-  ~UpdaterDownloadTest() override = default;
-
   base::FilePath dest_;
   GURL gurl_;
 
@@ -146,7 +145,7 @@ class UpdaterDownloadTest : public ::testing::Test {
     server_.ServeFilesFromSourceDirectory("chrome/updater/test/data");
     server_handle_ = server_.StartAndReturnHandle();
     ASSERT_TRUE(scoped_dir_.CreateUniqueTempDir());
-    dest_ = scoped_dir_.GetPath().AppendASCII("updater-signed.exe");
+    dest_ = scoped_dir_.GetPath().AppendUTF8("updater-signed.exe");
     gurl_ = GURL(base::StrCat({server_.base_url().spec(), "signed.exe"}));
   }
 
@@ -165,8 +164,8 @@ TEST_F(UpdaterNetworkTest, NetworkFetcherPostRequest) {
       .WillOnce(RunClosure(run_loop_.QuitClosure()));
   fetcher_->PostRequest(
       test_server_.GetURL("/echo"), kPostData, {}, {},
-      base::BindOnce(&UpdaterNetworkTest::StartedCallback,
-                     base::Unretained(this)),
+      base::BindRepeating(&UpdaterNetworkTest::StartedCallback,
+                          base::Unretained(this)),
       base::BindRepeating(&UpdaterNetworkTest::ProgressCallback,
                           base::Unretained(this)),
       base::BindOnce(&UpdaterNetworkTest::PostRequestCompleteCallback,
@@ -187,8 +186,8 @@ TEST_F(UpdaterNetworkTest, NetworkFetcherDownloadToFile) {
         .WillOnce(RunClosure(run_loop_.QuitClosure()));
     fetcher_->DownloadToFile(
         test_server_.GetURL("/echo"), test_file_path,
-        base::BindOnce(&UpdaterNetworkTest::StartedCallback,
-                       base::Unretained(this)),
+        base::BindRepeating(&UpdaterNetworkTest::StartedCallback,
+                            base::Unretained(this)),
         base::BindRepeating(&UpdaterNetworkTest::ProgressCallback,
                             base::Unretained(this)),
         base::BindOnce(&UpdaterNetworkTest::DownloadCallback,
@@ -212,7 +211,7 @@ TEST_F(UpdaterDownloadTest, NetworkFetcher) {
     ASSERT_NE(fetcher, nullptr);
     fetcher->DownloadToFile(
         gurl_, dest_,
-        base::BindOnce([](int response_code, int64_t /*content_length*/) {
+        base::BindRepeating([](int response_code, int64_t /*content_length*/) {
           EXPECT_EQ(response_code, 200);
         }),
         base::BindRepeating([](int64_t /*current*/) {}),
@@ -231,7 +230,7 @@ TEST_F(UpdaterDownloadTest, NetworkFetcher) {
 TEST_F(UpdaterDownloadTest, URLMonFetcher) {
   EXPECT_FALSE(base::PathExists(dest_));
   EXPECT_HRESULT_SUCCEEDED(
-      ::URLDownloadToFile(nullptr, base::ASCIIToWide(gurl_.spec()).c_str(),
+      ::URLDownloadToFile(nullptr, base::UTF8ToWide(gurl_.spec()).c_str(),
                           dest_.value().c_str(), 0, nullptr));
   EXPECT_TRUE(base::PathExists(dest_));
 }

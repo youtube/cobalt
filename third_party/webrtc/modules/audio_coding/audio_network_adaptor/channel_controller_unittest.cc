@@ -10,8 +10,12 @@
 
 #include "modules/audio_coding/audio_network_adaptor/channel_controller.h"
 
+#include <cstddef>
 #include <memory>
+#include <optional>
 
+#include "modules/audio_coding/audio_network_adaptor/controller.h"
+#include "modules/audio_coding/audio_network_adaptor/include/audio_network_adaptor_config.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -33,7 +37,7 @@ std::unique_ptr<ChannelController> CreateChannelController(int init_channels) {
 }
 
 void CheckDecision(ChannelController* controller,
-                   const absl::optional<int>& uplink_bandwidth_bps,
+                   const std::optional<int>& uplink_bandwidth_bps,
                    size_t expected_num_channels) {
   if (uplink_bandwidth_bps) {
     Controller::NetworkMetrics network_metrics;
@@ -50,7 +54,7 @@ void CheckDecision(ChannelController* controller,
 TEST(ChannelControllerTest, OutputInitValueWhenUplinkBandwidthUnknown) {
   constexpr int kInitChannels = 2;
   auto controller = CreateChannelController(kInitChannels);
-  CheckDecision(controller.get(), absl::nullopt, kInitChannels);
+  CheckDecision(controller.get(), std::nullopt, kInitChannels);
 }
 
 TEST(ChannelControllerTest, SwitchTo2ChannelsOnHighUplinkBandwidth) {

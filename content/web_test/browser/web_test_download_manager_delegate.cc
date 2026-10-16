@@ -48,9 +48,11 @@ void WebTestDownloadManagerDelegate::CheckDownloadAllowed(
     const content::WebContents::Getter& web_contents_getter,
     const GURL& url,
     const std::string& request_method,
-    absl::optional<url::Origin> request_initiator,
+    std::optional<url::Origin> request_initiator,
     bool from_download_cross_origin_redirect,
     bool content_initiated,
+    const std::string& mime_type,
+    std::optional<ui::PageTransition> page_transition,
     content::CheckDownloadAllowedCallback check_download_allowed_cb) {
   auto* test_controller = WebTestControlHost::Get();
   bool should_wait_until_external_url_load =
@@ -62,8 +64,8 @@ void WebTestDownloadManagerDelegate::CheckDownloadAllowed(
   if (!content_initiated || !should_wait_until_external_url_load) {
     ShellDownloadManagerDelegate::CheckDownloadAllowed(
         web_contents_getter, url, request_method, request_initiator,
-        from_download_cross_origin_redirect, content_initiated,
-        std::move(check_download_allowed_cb));
+        from_download_cross_origin_redirect, content_initiated, mime_type,
+        std::move(page_transition), std::move(check_download_allowed_cb));
     return;
   }
 

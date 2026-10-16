@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/modules/direct_sockets/udp_writable_stream_wrapper.h"
 
+#include "base/metrics/histogram_functions.h"
 #include "net/base/net_errors.h"
 #include "third_party/blink/public/mojom/direct_sockets/direct_sockets.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -14,10 +15,12 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_arraybuffer_arraybufferview.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_socket_dns_query_type.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_udp_message.h"
+#include "third_party/blink/renderer/core/core_probes_inl.h"
 #include "third_party/blink/renderer/core/dom/abort_signal.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/frame/report.h"
 #include "third_party/blink/renderer/core/streams/underlying_sink_base.h"
 #include "third_party/blink/renderer/core/streams/writable_stream.h"
 #include "third_party/blink/renderer/core/streams/writable_stream_default_controller.h"
@@ -38,11 +41,13 @@ UDPWritableStreamWrapper::UDPWritableStreamWrapper(
     ScriptState* script_state,
     CloseOnceCallback on_close,
     const Member<UDPSocketMojoRemote> udp_socket,
-    network::mojom::blink::RestrictedUDPSocketMode mode)
+    network::mojom::blink::RestrictedUDPSocketMode mode,
+    uint64_t inspector_id)
     : WritableStreamWrapper(script_state),
       on_close_(std::move(on_close)),
       udp_socket_(udp_socket),
-      mode_(mode) {
+      mode_(mode),
+      inspector_id_(inspector_id) {
   ScriptState::Scope scope(script_state);
 
   auto* sink = WritableStreamWrapper::MakeForwardingUnderlyingSink(this);
@@ -71,28 +76,29 @@ void UDPWritableStreamWrapper::OnAbortSignal() {
   }
 }
 
-ScriptPromise UDPWritableStreamWrapper::Write(ScriptValue chunk,
-                                              ExceptionState& exception_state) {
+ScriptPromise<IDLUndefined> UDPWritableStreamWrapper::Write(
+    ScriptValue chunk,
+    ExceptionState& exception_state) {
   DCHECK(udp_socket_->get().is_bound());
 
   UDPMessage* message = UDPMessage::Create(GetScriptState()->GetIsolate(),
                                            chunk.V8Value(), exception_state);
   if (exception_state.HadException()) {
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
   if (!message->hasData()) {
     exception_state.ThrowTypeError("UDPMessage: missing 'data' field.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
-  absl::optional<net::HostPortPair> dest_addr;
+  std::optional<net::HostPortPair> dest_addr;
   if (message->hasRemoteAddress() && message->hasRemotePort()) {
     if (mode_ == network::mojom::RestrictedUDPSocketMode::CONNECTED) {
       exception_state.ThrowTypeError(
           "UDPMessage: 'remoteAddress' and 'remotePort' must not be specified "
           "in 'connected' mode.");
-      return ScriptPromise();
+      return EmptyPromise();
     }
     dest_addr = net::HostPortPair(message->remoteAddress().Utf8(),
                                   message->remotePort());
@@ -100,12 +106,12 @@ ScriptPromise UDPWritableStreamWrapper::Write(ScriptValue chunk,
     exception_state.ThrowTypeError(
         "UDPMessage: either none or both 'remoteAddress' and 'remotePort' "
         "fields must be specified.");
-    return ScriptPromise();
+    return EmptyPromise();
   } else if (mode_ == network::mojom::RestrictedUDPSocketMode::BOUND) {
     exception_state.ThrowTypeError(
         "UDPMessage: 'remoteAddress' and 'remotePort' must be specified "
         "in 'bound' mode.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
   auto dns_query_type = net::DnsQueryType::UNSPECIFIED;
@@ -114,7 +120,7 @@ ScriptPromise UDPWritableStreamWrapper::Write(ScriptValue chunk,
       exception_state.ThrowTypeError(
           "UDPMessage: 'dnsQueryType' must not be specified "
           "in 'connected' mode.");
-      return ScriptPromise();
+      return EmptyPromise();
     }
     switch (message->dnsQueryType().AsEnum()) {
       case V8SocketDnsQueryType::Enum::kIpv4:
@@ -127,11 +133,17 @@ ScriptPromise UDPWritableStreamWrapper::Write(ScriptValue chunk,
   }
 
   DOMArrayPiece array_piece(message->data());
-  base::span<const uint8_t> data{array_piece.Bytes(), array_piece.ByteLength()};
+  base::span<const uint8_t> data = array_piece.ByteSpan();
+  if (data.empty()) {
+    exception_state.ThrowTypeError(
+        "UDPMessage: 'data' field must not be empty.");
+    return EmptyPromise();
+  }
 
   DCHECK(!write_promise_resolver_);
-  write_promise_resolver_ = MakeGarbageCollected<ScriptPromiseResolver>(
-      GetScriptState(), exception_state.GetContext());
+  write_promise_resolver_ =
+      MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+          GetScriptState(), exception_state.GetContext());
 
   auto callback = WTF::BindOnce(&UDPWritableStreamWrapper::OnSend,
                                 WrapWeakPersistent(this));
@@ -141,6 +153,22 @@ ScriptPromise UDPWritableStreamWrapper::Write(ScriptValue chunk,
   } else {
     udp_socket_->get()->Send(data, std::move(callback));
   }
+
+  // report to CDP
+  {
+    std::optional<String> probe_remote_addr;
+    std::optional<uint16_t> probe_remote_port;
+    if (message->hasRemoteAddress()) {
+      probe_remote_addr = message->remoteAddress();
+    }
+    if (message->hasRemotePort()) {
+      probe_remote_port = message->remotePort();
+    }
+    probe::DirectUDPSocketChunkSent(*GetScriptState(), inspector_id_, data,
+                                    std::move(probe_remote_addr),
+                                    std::move(probe_remote_port));
+  }
+
   return write_promise_resolver_->Promise();
 }
 
@@ -163,7 +191,8 @@ void UDPWritableStreamWrapper::CloseStream() {
   SetState(State::kClosed);
   DCHECK(!write_promise_resolver_);
 
-  std::move(on_close_).Run(/*exception=*/ScriptValue());
+  std::move(on_close_).Run(/*exception=*/v8::Local<v8::Value>(),
+                           /*net_error=*/net::OK);
 }
 
 void UDPWritableStreamWrapper::ErrorStream(int32_t error_code) {
@@ -172,28 +201,31 @@ void UDPWritableStreamWrapper::ErrorStream(int32_t error_code) {
   }
   SetState(State::kAborted);
 
+  // Error codes are negative.
+  base::UmaHistogramSparse("DirectSockets.UDPWritableStreamError", -error_code);
+
   auto* script_state = write_promise_resolver_
                            ? write_promise_resolver_->GetScriptState()
                            : GetScriptState();
   // Scope is needed because there's no ScriptState* on the call stack for
-  // ScriptValue::From.
+  // ScriptValue.
   ScriptState::Scope scope{script_state};
 
-  auto exception = ScriptValue::From(
-      script_state,
-      V8ThrowDOMException::CreateOrDie(script_state->GetIsolate(),
-                                       DOMExceptionCode::kNetworkError,
-                                       String{"Stream aborted by the remote: " +
-                                              net::ErrorToString(error_code)}));
+  auto message =
+      String{"Stream aborted by the remote: " + net::ErrorToString(error_code)};
+
+  auto exception = V8ThrowDOMException::CreateOrDie(
+      script_state->GetIsolate(), DOMExceptionCode::kNetworkError, message);
 
   if (write_promise_resolver_) {
     write_promise_resolver_->Reject(exception);
     write_promise_resolver_ = nullptr;
   } else {
-    Controller()->error(script_state, exception);
+    Controller()->error(script_state,
+                        ScriptValue(script_state->GetIsolate(), exception));
   }
 
-  std::move(on_close_).Run(exception);
+  std::move(on_close_).Run(exception, error_code);
 }
 
 }  // namespace blink

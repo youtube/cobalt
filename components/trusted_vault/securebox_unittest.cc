@@ -2,20 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/trusted_vault/securebox.h"
 
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace trusted_vault {
 
@@ -23,11 +28,12 @@ namespace {
 
 using testing::Eq;
 using testing::IsEmpty;
+using testing::IsNull;
 using testing::Ne;
 using testing::NotNull;
 using testing::SizeIs;
 
-std::vector<uint8_t> StringToBytes(base::StringPiece str) {
+std::vector<uint8_t> StringToBytes(std::string_view str) {
   const uint8_t* raw_data = reinterpret_cast<const uint8_t*>(str.data());
   return std::vector<uint8_t>(raw_data, raw_data + str.length());
 }
@@ -41,6 +47,16 @@ class SecureBoxTest : public testing::Test {
   const std::vector<uint8_t> kTestHeader = StringToBytes("TEST_HEADER");
   const std::vector<uint8_t> kTestPayload = StringToBytes("TEST_PAYLOAD");
 };
+
+TEST_F(SecureBoxTest, ShouldReturnNullIfCreateByImportWithIncorrectSize) {
+  // Sizes other than `kPublicKeyLengthInBytes` should return null.
+  EXPECT_THAT(SecureBoxPublicKey::CreateByImport(std::vector<uint8_t>(64, 1)),
+              IsNull());
+  EXPECT_THAT(SecureBoxPublicKey::CreateByImport(std::vector<uint8_t>(66, 1)),
+              IsNull());
+  EXPECT_THAT(SecureBoxPublicKey::CreateByImport(std::vector<uint8_t>()),
+              IsNull());
+}
 
 TEST_F(SecureBoxTest, ShouldExportAndImportPublicKey) {
   std::unique_ptr<SecureBoxKeyPair> key_pair =
@@ -110,10 +126,10 @@ TEST_F(SecureBoxTest, ShouldEncryptThenDecrypt) {
   std::vector<uint8_t> encrypted = key_pair->public_key().Encrypt(
       kTestSharedSecret, kTestHeader, kTestPayload);
 
-  absl::optional<std::vector<uint8_t>> decrypted =
+  std::optional<std::vector<uint8_t>> decrypted =
       key_pair->private_key().Decrypt(kTestSharedSecret, kTestHeader,
                                       encrypted);
-  ASSERT_THAT(decrypted, Ne(absl::nullopt));
+  ASSERT_THAT(decrypted, Ne(std::nullopt));
   EXPECT_THAT(*decrypted, Eq(kTestPayload));
 }
 
@@ -125,10 +141,10 @@ TEST_F(SecureBoxTest, ShouldEncryptThenDecryptWithEmptySharedSecret) {
   std::vector<uint8_t> encrypted = key_pair->public_key().Encrypt(
       /*shared_secret=*/base::span<uint8_t>(), kTestHeader, kTestPayload);
 
-  absl::optional<std::vector<uint8_t>> decrypted =
+  std::optional<std::vector<uint8_t>> decrypted =
       key_pair->private_key().Decrypt(/*shared_secret=*/base::span<uint8_t>(),
                                       kTestHeader, encrypted);
-  ASSERT_THAT(decrypted, Ne(absl::nullopt));
+  ASSERT_THAT(decrypted, Ne(std::nullopt));
   EXPECT_THAT(*decrypted, Eq(kTestPayload));
 }
 
@@ -140,10 +156,10 @@ TEST_F(SecureBoxTest, ShouldEncryptThenDecryptWithEmptyHeader) {
   std::vector<uint8_t> encrypted = key_pair->public_key().Encrypt(
       kTestSharedSecret, /*header=*/base::span<uint8_t>(), kTestPayload);
 
-  absl::optional<std::vector<uint8_t>> decrypted =
+  std::optional<std::vector<uint8_t>> decrypted =
       key_pair->private_key().Decrypt(
           kTestSharedSecret, /*header=*/base::span<uint8_t>(), encrypted);
-  ASSERT_THAT(decrypted, Ne(absl::nullopt));
+  ASSERT_THAT(decrypted, Ne(std::nullopt));
   EXPECT_THAT(*decrypted, Eq(kTestPayload));
 }
 
@@ -155,10 +171,10 @@ TEST_F(SecureBoxTest, ShouldEncryptThenDecryptWithEmptyPayload) {
   std::vector<uint8_t> encrypted = key_pair->public_key().Encrypt(
       kTestSharedSecret, kTestHeader, /*payload=*/base::span<uint8_t>());
 
-  absl::optional<std::vector<uint8_t>> decrypted =
+  std::optional<std::vector<uint8_t>> decrypted =
       key_pair->private_key().Decrypt(kTestSharedSecret, kTestHeader,
                                       encrypted);
-  ASSERT_THAT(decrypted, Ne(absl::nullopt));
+  ASSERT_THAT(decrypted, Ne(std::nullopt));
   EXPECT_THAT(*decrypted, IsEmpty());
 }
 
@@ -238,9 +254,9 @@ TEST_F(SecureBoxTest, ShouldDecryptTestVectors) {
     ASSERT_TRUE(base::HexStringToBytes(test_vector.encrypted_payload,
                                        &encrypted_payload));
 
-    absl::optional<std::vector<uint8_t>> decrypted_payload =
+    std::optional<std::vector<uint8_t>> decrypted_payload =
         private_key->Decrypt(shared_secret, header, encrypted_payload);
-    ASSERT_THAT(decrypted_payload, Ne(absl::nullopt));
+    ASSERT_THAT(decrypted_payload, Ne(std::nullopt));
 
     std::vector<uint8_t> expected_payload;
     ASSERT_TRUE(base::HexStringToBytes(test_vector.payload, &expected_payload));
@@ -252,10 +268,10 @@ TEST_F(SecureBoxTest, ShouldEncryptThenDecryptInSymmetricMode) {
   std::vector<uint8_t> encrypted =
       SecureBoxSymmetricEncrypt(kTestSharedSecret, kTestHeader, kTestPayload);
 
-  absl::optional<std::vector<uint8_t>> decrypted =
+  std::optional<std::vector<uint8_t>> decrypted =
       SecureBoxSymmetricDecrypt(kTestSharedSecret, kTestHeader, encrypted);
 
-  ASSERT_THAT(decrypted, Ne(absl::nullopt));
+  ASSERT_THAT(decrypted, Ne(std::nullopt));
   EXPECT_THAT(*decrypted, Eq(kTestPayload));
 }
 
@@ -307,9 +323,9 @@ TEST_F(SecureBoxTest, ShouldDecryptTestVectorsInSymmetricMode) {
     ASSERT_TRUE(base::HexStringToBytes(test_vector.encrypted_payload,
                                        &encrypted_payload));
 
-    absl::optional<std::vector<uint8_t>> decrypted_payload =
+    std::optional<std::vector<uint8_t>> decrypted_payload =
         SecureBoxSymmetricDecrypt(shared_secret, header, encrypted_payload);
-    ASSERT_THAT(decrypted_payload, Ne(absl::nullopt));
+    ASSERT_THAT(decrypted_payload, Ne(std::nullopt));
 
     std::vector<uint8_t> expected_payload;
     ASSERT_TRUE(base::HexStringToBytes(test_vector.payload, &expected_payload));

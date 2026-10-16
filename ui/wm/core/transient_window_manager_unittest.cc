@@ -3,15 +3,17 @@
 // found in the LICENSE file.
 
 #include "ui/wm/core/transient_window_manager.h"
-#include "base/memory/raw_ptr.h"
 
+#include <array>
 #include <utility>
 
+#include "base/memory/raw_ptr.h"
 #include "ui/aura/client/window_parenting_client.h"
 #include "ui/aura/test/aura_test_base.h"
 #include "ui/aura/test/test_windows.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_observer.h"
+#include "ui/aura/window_tracker.h"
 #include "ui/wm/core/transient_window_observer.h"
 #include "ui/wm/core/window_util.h"
 
@@ -95,10 +97,32 @@ class TransientWindowManagerTest : public aura::test::AuraTestBase {
     window->SetType(aura::client::WINDOW_TYPE_NORMAL);
     window->Init(ui::LAYER_TEXTURED);
     AddTransientChild(parent, window);
-    aura::client::ParentWindowWithContext(window, root_window(), gfx::Rect());
+    aura::client::ParentWindowWithContext(window, root_window(), gfx::Rect(),
+                                          display::kInvalidDisplayId);
     return window;
   }
 };
+
+#if GTEST_HAS_DEATH_TEST
+// Tests that creating a transient tree with a cycle in it will crash on a
+// CHECK. See a crash that can happen if we allow cycles http://b/286947509.
+TEST_F(TransientWindowManagerTest, TransientCycle) {
+  std::unique_ptr<Window> w1(CreateTestWindowWithId(0, root_window()));
+  std::unique_ptr<Window> w2(CreateTestWindowWithId(1, root_window()));
+  std::unique_ptr<Window> w3(CreateTestWindowWithId(2, root_window()));
+
+  // Creating a cylce in the hierarchy will cause a crash.
+  //
+  // w1 <-- w2 <-- w3
+  //  |             ^
+  //  |             |
+  //  +-------------+
+  //
+  wm::AddTransientChild(w1.get(), w2.get());
+  wm::AddTransientChild(w2.get(), w3.get());
+  EXPECT_DEATH(wm::AddTransientChild(w3.get(), w1.get()), "");
+}
+#endif
 
 // Various assertions for transient children.
 TEST_F(TransientWindowManagerTest, TransientChildren) {
@@ -351,7 +375,7 @@ TEST_F(TransientWindowManagerTest, CrashOnVisibilityChange) {
 // Tests that windows are restacked properly after a call to AddTransientChild()
 // or RemoveTransientChild().
 TEST_F(TransientWindowManagerTest, RestackUponAddOrRemoveTransientChild) {
-  std::unique_ptr<Window> windows[4];
+  std::array<std::unique_ptr<Window>, 4> windows;
   for (int i = 0; i < 4; i++)
     windows[i].reset(CreateTestWindowWithId(i, root_window()));
   EXPECT_EQ("0 1 2 3", ChildWindowIDsAsString(root_window()));
@@ -494,6 +518,40 @@ TEST_F(TransientWindowManagerTest, ChangeParent) {
   // child_3 and child_4 should remain unaffected.
   EXPECT_EQ(child_3->parent(), container_1.get());
   EXPECT_EQ(child_4->parent(), container_3.get());
+}
+
+// Tests that the lifetime of the transient window will be determined by its
+// transient parent by default. But the transient window is still able to
+// outlive the transient parent if we explicitly
+// `set_parent_controls_lifetime()` to false through its transient window
+// manager.
+TEST_F(TransientWindowManagerTest,
+       TransientLifeTimeMayBeControlledByTransientParent) {
+  // Test that the lifetime of the transient window is controlled by its
+  // transient parent by default.
+  std::unique_ptr<Window> parent(CreateTestWindowWithId(0, root_window()));
+  std::unique_ptr<Window> transient(CreateTransientChild(1, parent.get()));
+
+  aura::WindowTracker tracker({transient.get()});
+
+  // Release the ownership of the `transient` to avoid double deletion in
+  // `TransientWindowManager::OnWindowDestroying()`.
+  transient.release();
+  parent.reset();
+  EXPECT_TRUE(tracker.windows().empty());
+
+  std::unique_ptr<Window> new_parent(CreateTestWindowWithId(2, root_window()));
+  std::unique_ptr<Window> new_transient(
+      CreateTransientChild(3, new_parent.get()));
+
+  tracker.Add(new_transient.get());
+
+  // Test that the transient window can outlive its transient parent by setting
+  // `set_parent_controls_lifetime()` to false.
+  wm::TransientWindowManager::GetOrCreate(new_transient.get())
+      ->set_parent_controls_lifetime(false);
+  new_parent.reset();
+  EXPECT_FALSE(tracker.windows().empty());
 }
 
 }  // namespace wm

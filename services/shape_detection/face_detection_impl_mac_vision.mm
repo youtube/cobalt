@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "services/shape_detection/face_detection_impl_mac_vision.h"
 
 #include <vector>
@@ -67,7 +72,7 @@ void FaceDetectionImplMacVision::OnFacesDetected(VNRequest* request,
   if (receiver_)  // Can be unbound in unit testing.
     receiver_->ResumeIncomingMethodCallProcessing();
 
-  if (![request.results count] || error) {
+  if (!request.results.count || error) {
     std::move(detected_callback_).Run({});
     return;
   }

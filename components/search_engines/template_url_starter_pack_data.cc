@@ -5,6 +5,7 @@
 #include "components/search_engines/template_url_starter_pack_data.h"
 
 #include "base/strings/utf_string_conversions.h"
+#include "components/omnibox/common/omnibox_features.h"
 #include "components/search_engines/search_engine_type.h"
 #include "components/search_engines/template_url_data.h"
 #include "components/search_engines/template_url_data_util.h"
@@ -14,12 +15,12 @@
 namespace TemplateURLStarterPackData {
 
 // Update this whenever a change is made to any starter pack data.
-const int kCurrentDataVersion = 5;
+const int kCurrentDataVersion = 12;
 
 // Only update this if there's an incompatible change that requires force
 // updating the user's starter pack data. This will overwrite any of the
 // user's changes to the starter pack entries.
-const int kFirstCompatibleDataVersion = 5;
+const int kFirstCompatibleDataVersion = 10;
 
 const StarterPackEngine bookmarks = {
     .name_message_id = IDS_SEARCH_ENGINES_STARTER_PACK_BOOKMARKS_NAME,
@@ -54,10 +55,28 @@ const StarterPackEngine tabs = {
     .type = SEARCH_ENGINE_STARTER_PACK_TABS,
 };
 
+const StarterPackEngine Gemini = {
+    .name_message_id = IDS_SEARCH_ENGINES_STARTER_PACK_GEMINI_NAME,
+    .keyword_message_id = IDS_SEARCH_ENGINES_STARTER_PACK_GEMINI_KEYWORD,
+    .favicon_url = nullptr,
+    .search_url = "https://gemini.google.com/app?q={searchTerms}",
+    .destination_url = "https://gemini.google.com",
+    .id = StarterPackID::kGemini,
+    .type = SEARCH_ENGINE_STARTER_PACK_GEMINI,
+};
+
+const StarterPackEngine page = {
+    .name_message_id = IDS_SEARCH_ENGINES_STARTER_PACK_PAGE_NAME,
+    .keyword_message_id = IDS_SEARCH_ENGINES_STARTER_PACK_PAGE_KEYWORD,
+    .favicon_url = nullptr,
+    .search_url = "chrome://page/?q={searchTerms}",
+    .destination_url = "chrome://page",
+    .id = StarterPackID::kPage,
+    .type = SEARCH_ENGINE_STARTER_PACK_PAGE,
+};
+
 const StarterPackEngine* engines[] = {
-    &bookmarks,
-    &history,
-    &tabs,
+    &bookmarks, &history, &tabs, &Gemini, &page,
 };
 
 int GetDataVersion() {

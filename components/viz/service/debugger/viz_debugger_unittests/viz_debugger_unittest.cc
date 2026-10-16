@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/rand_util.h"
 #include "base/strings/stringprintf.h"
 #include "components/viz/service/debugger/viz_debugger.h"
 #include "components/viz/service/debugger/viz_debugger_unittests/viz_debugger_internal.h"
@@ -36,7 +37,7 @@ TEST_F(VisualDebuggerTest, GeneralDrawSubmission) {
   const char kAnnoRect[] = "annorect";
   const char kAnnoText[] = "annotext";
   const char kAnnoLog[] = "annolog";
-  const gfx::Rect kTestRect = gfx::Rect(12, 34, 56, 78);
+  const gfx::RectF kTestRect = gfx::RectF(12, 34, 56, 78);
   const gfx::RectF kTestUV = gfx::RectF(0.46, 0.25, 0.38, 1);
   static const int kNumFrames = 4;
   GetInternal()->ForceEnabled();
@@ -56,9 +57,8 @@ TEST_F(VisualDebuggerTest, GeneralDrawSubmission) {
     EXPECT_EQ(counter_, frame_idx);
     EXPECT_EQ(window_x_, 256);
     EXPECT_EQ(window_x_, 256);
-    EXPECT_EQ(static_cast<int>(draw_rect_calls_cache_.size()), kNumSubmission);
+    EXPECT_EQ(static_cast<int>(draw_calls_cache_.size()), kNumSubmission * 2);
     EXPECT_EQ(static_cast<int>(log_calls_cache_.size()), kNumSubmission);
-    EXPECT_EQ(static_cast<int>(draw_text_calls_cache_.size()), kNumSubmission);
 
     if (frame_idx == 0) {
       EXPECT_EQ(sources_cache_.size(), 3u);
@@ -77,18 +77,18 @@ TEST_F(VisualDebuggerTest, GeneralDrawSubmission) {
     }
 
     for (int i = 0; i < kNumSubmission; i++) {
-      EXPECT_EQ(draw_rect_calls_cache_[i].uv, kTestUV);
-      EXPECT_EQ(draw_rect_calls_cache_[i].pos,
+      EXPECT_EQ(draw_calls_cache_[i * 2].uv, kTestUV);
+      EXPECT_EQ(draw_calls_cache_[i * 2].pos,
                 gfx::Vector2dF(kTestRect.origin().x(), kTestRect.origin().y()));
-      EXPECT_EQ(draw_rect_calls_cache_[i].obj_size, kTestRect.size());
-      EXPECT_EQ(draw_rect_calls_cache_[i].source_index, 0);
-      EXPECT_EQ(draw_rect_calls_cache_[i].draw_index, i * 3);
+      EXPECT_EQ(draw_calls_cache_[i * 2].obj_size, kTestRect.size());
+      EXPECT_EQ(draw_calls_cache_[i * 2].source_index, 0);
+      EXPECT_EQ(draw_calls_cache_[i * 2].draw_index, i * 3);
 
-      EXPECT_EQ(draw_text_calls_cache_[i].pos,
+      EXPECT_EQ(draw_calls_cache_[i * 2 + 1].pos,
                 gfx::Vector2dF(kTestRect.origin().x(), kTestRect.origin().y()));
-      EXPECT_EQ(draw_text_calls_cache_[i].source_index, 1);
-      EXPECT_EQ(draw_text_calls_cache_[i].draw_index, i * 3 + 1);
-      EXPECT_EQ(draw_text_calls_cache_[i].text,
+      EXPECT_EQ(draw_calls_cache_[i * 2 + 1].source_index, 1);
+      EXPECT_EQ(draw_calls_cache_[i * 2 + 1].draw_index, i * 3 + 1);
+      EXPECT_EQ(draw_calls_cache_[i * 2 + 1].text,
                 base::StringPrintf("Text %d", i));
 
       EXPECT_EQ(log_calls_cache_[i].value, base::StringPrintf("%d", i));
@@ -98,7 +98,7 @@ TEST_F(VisualDebuggerTest, GeneralDrawSubmission) {
   }
 }
 
-static void FunctionNameTest(const char* anno_rect, gfx::Rect rect) {
+static void FunctionNameTest(const char* anno_rect, gfx::RectF rect) {
   DBG_DRAW_RECT(anno_rect, rect);
 }
 
@@ -108,8 +108,8 @@ TEST_F(VisualDebuggerTest, FilterDrawSubmission) {
   const char kAnnoMatch[] = "before_annorect_after";
 
   GetInternal()->ForceEnabled();
-  const gfx::Rect kTestRect = gfx::Rect(10, 30, 50, 70);
-  const gfx::Rect kMissingRect = gfx::Rect(11, 33, 55, 77);
+  const gfx::RectF kTestRect = gfx::RectF(10, 30, 50, 70);
+  const gfx::RectF kMissingRect = gfx::RectF(11, 33, 55, 77);
   std::vector<int> valid_indices;
   SetFilter({TestFilter("annorect")});
   valid_indices.push_back(GetInternal()->GetSourceCount());
@@ -150,7 +150,7 @@ TEST_F(VisualDebuggerTest, FilterDrawSubmission) {
   EXPECT_EQ(sources_cache_[3].anno, kAnnoMatch);
 
   auto check_draw = [](const VizDebuggerInternal::DrawCall& draw_call,
-                       const gfx::Rect& rect, int src_idx, int draw_idx) {
+                       const gfx::RectF& rect, int src_idx, int draw_idx) {
     EXPECT_EQ(draw_call.pos,
               gfx::Vector2dF(rect.origin().x(), rect.origin().y()));
     EXPECT_EQ(draw_call.obj_size, rect.size());
@@ -159,7 +159,7 @@ TEST_F(VisualDebuggerTest, FilterDrawSubmission) {
   };
   // Makes sure all valid indices are here and have the correct rect.
   for (size_t i = 0; i < kNumDrawCalls; i++) {
-    check_draw(draw_rect_calls_cache_[i], kTestRect, valid_indices[i], i);
+    check_draw(draw_calls_cache_[i], kTestRect, valid_indices[i], i);
   }
 }
 
@@ -206,15 +206,19 @@ TEST_F(VisualDebuggerTest, NonFilterActiveNoCost) {
   SetFilter({TestFilter(kStrA)});
   DBG_DRAW_TEXT(kStrA, gfx::Point(), get_a_string());
   DBG_DRAW_TEXT(kStrB, gfx::Point(), get_b_string());
-  EXPECT_EQ(1, count_a);
+  DBG_LOG(kStrA, "%s", get_a_string().c_str());
+  DBG_LOG(kStrB, "%s", get_b_string().c_str());
+  EXPECT_EQ(2, count_a);
   EXPECT_EQ(0, count_b);
 
   // Filter on "anno_B" which should call 'get_b_string'.
   SetFilter({TestFilter(kStrB)});
   DBG_DRAW_TEXT(kStrA, gfx::Point(), get_a_string());
   DBG_DRAW_TEXT(kStrB, gfx::Point(), get_b_string());
-  EXPECT_EQ(1, count_a);
-  EXPECT_EQ(1, count_b);
+  DBG_LOG(kStrA, "%s", get_a_string().c_str());
+  DBG_LOG(kStrB, "%s", get_b_string().c_str());
+  EXPECT_EQ(2, count_a);
+  EXPECT_EQ(2, count_b);
 }
 
 // This tests passing a single buffer synchronously into the visual debuggeer
@@ -247,8 +251,7 @@ TEST_F(VisualDebuggerTest, SingleBufferSync) {
     EXPECT_EQ(counter_, frame_idx);
     EXPECT_EQ(window_x_, 256);
     EXPECT_EQ(window_x_, 256);
-    EXPECT_EQ(draw_rect_calls_cache_.size(),
-              static_cast<size_t>(kNumSubmission));
+    EXPECT_EQ(draw_calls_cache_.size(), static_cast<size_t>(kNumSubmission));
     EXPECT_EQ(buffers_.size(), static_cast<size_t>(kNumSubmission));
 
     if (frame_idx == 0) {
@@ -261,7 +264,7 @@ TEST_F(VisualDebuggerTest, SingleBufferSync) {
       EXPECT_EQ(sources_cache_.size(), 0u);
     }
 
-    EXPECT_EQ(draw_rect_calls_cache_[0].buff_id, 0);
+    EXPECT_EQ(draw_calls_cache_[0].buff_id, 0);
 
     auto& pixmap = buffers_[0].buffer_info.bitmap.pixmap();
     EXPECT_EQ(pixmap.info().width(), kBufferWidth);
@@ -306,8 +309,7 @@ TEST_F(VisualDebuggerTest, MultipleBuffersSync) {
     EXPECT_EQ(counter_, frame_idx);
     EXPECT_EQ(window_x_, 256);
     EXPECT_EQ(window_x_, 256);
-    EXPECT_EQ(draw_rect_calls_cache_.size(),
-              static_cast<size_t>(kNumSubmission));
+    EXPECT_EQ(draw_calls_cache_.size(), static_cast<size_t>(kNumSubmission));
     EXPECT_EQ(buffers_.size(), static_cast<size_t>(kNumSubmission));
 
     if (frame_idx == 0) {
@@ -366,8 +368,7 @@ TEST_F(VisualDebuggerTest, SingleBufferAsync) {
     EXPECT_EQ(counter_, frame_idx);
     EXPECT_EQ(window_x_, 256);
     EXPECT_EQ(window_x_, 256);
-    EXPECT_EQ(draw_rect_calls_cache_.size(),
-              static_cast<size_t>(kNumSubmission));
+    EXPECT_EQ(draw_calls_cache_.size(), static_cast<size_t>(kNumSubmission));
 
     if (frame_idx == 0) {
       EXPECT_EQ(sources_cache_.size(), 1u);
@@ -379,7 +380,7 @@ TEST_F(VisualDebuggerTest, SingleBufferAsync) {
       // After the first frame there are no new sources in the loop.
       EXPECT_EQ(sources_cache_.size(), 0u);
       EXPECT_EQ(buffers_.size(), static_cast<size_t>(kNumSubmission));
-      EXPECT_EQ(draw_rect_calls_cache_[0].buff_id, 1);
+      EXPECT_EQ(draw_calls_cache_[0].buff_id, 1);
       auto& pixmap = buffers_[0].buffer_info.bitmap.pixmap();
       EXPECT_EQ(pixmap.info().width(), kBufferWidth);
       EXPECT_EQ(pixmap.info().height(), kBufferHeight);
@@ -420,11 +421,10 @@ TEST_F(VisualDebuggerTest, MultipleBuffersAsync) {
       int id = i;
       DBG_DRAW_RECT_BUFF(kAnnoRect, kTestRect, &id);
       // Random numbers between 0-255 for BGRA values
-      uint8_t temp1 = (id + 15) * 11231;
-      uint8_t temp2 = (id + 24) * 32461231;
-      uint8_t temp3 = (id + 523) * 72321231;
-      uint8_t temp4 = (id + 52) * 321231;
-      const auto kFillColor = SkColorSetARGB(temp1, temp2, temp3, temp4);
+      uint8_t temp[4];
+      base::RandBytes(temp);
+      const auto kFillColor =
+          SkColorSetARGB(temp[0], temp[1], temp[2], temp[3]);
       test_buffers_color[id] = kFillColor;
     }
 
@@ -433,8 +433,7 @@ TEST_F(VisualDebuggerTest, MultipleBuffersAsync) {
     EXPECT_EQ(counter_, frame_idx);
     EXPECT_EQ(window_x_, 256);
     EXPECT_EQ(window_x_, 256);
-    EXPECT_EQ(draw_rect_calls_cache_.size(),
-              static_cast<size_t>(kNumSubmission));
+    EXPECT_EQ(draw_calls_cache_.size(), static_cast<size_t>(kNumSubmission));
 
     if (frame_idx == 0) {
       EXPECT_EQ(sources_cache_.size(), 1u);
@@ -447,7 +446,7 @@ TEST_F(VisualDebuggerTest, MultipleBuffersAsync) {
       EXPECT_EQ(sources_cache_.size(), 0u);
       EXPECT_EQ(buffers_.size(), static_cast<size_t>(kNumSubmission));
       for (int i = 0; i < kNumSubmission; i++) {
-        EXPECT_EQ(draw_rect_calls_cache_[i].buff_id, i + 8);
+        EXPECT_EQ(draw_calls_cache_[i].buff_id, i + 8);
         auto& pixmap = buffers_[i].buffer_info.bitmap.pixmap();
 
         EXPECT_EQ(pixmap.info().width(), kBufferWidth);
@@ -477,6 +476,26 @@ TEST_F(VisualDebuggerTest, TestDebugFlagAnnoAndFunction) {
   // The default value for a bool flag when the visual debugger is disabled is
   // false.
   EXPECT_FALSE(flag_default_value_check());
+}
+
+// This tests makes sure that expressions inside debugging macros are not
+// evaluated by default with visual debugger off.
+TEST_F(VisualDebuggerTest, DefaultDisabledNoExecute) {
+  const char* kStrA = "anno_A";
+  // These integers are mutated on a function invocation.
+  int count_a = 0;
+
+  auto get_a_string = [&count_a, &kStrA]() {
+    count_a++;
+    return std::string(kStrA);
+  };
+
+  DBG_DRAW_TEXT(kStrA, gfx::Point(), get_a_string());
+  DBG_LOG(kStrA, "%s", get_a_string().c_str());
+  EXPECT_EQ(0, count_a);
+
+  EXPECT_EQ(get_a_string(), kStrA);
+  EXPECT_EQ(1, count_a);
 }
 
 // For optimization purposes the flag fbool values return false as a constexpr.

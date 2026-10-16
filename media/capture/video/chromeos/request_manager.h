@@ -8,6 +8,7 @@
 #include <cstring>
 #include <map>
 #include <memory>
+#include <optional>
 #include <queue>
 #include <set>
 #include <vector>
@@ -29,7 +30,6 @@
 #include "media/capture/video_capture_types.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
@@ -49,6 +49,25 @@ constexpr int32_t kMinConfiguredStreams = 1;
 // Maximum configured streams could contain two optional YUV streams.
 constexpr int32_t kMaxConfiguredStreams = 4;
 
+// The interface to register/retire buffer from the buffer pool maintained in
+// the camera HAL side.
+class CAPTURE_EXPORT VideoCaptureBufferObserver {
+ public:
+  VideoCaptureBufferObserver(base::WeakPtr<RequestManager> request_manager);
+
+  ~VideoCaptureBufferObserver();
+
+  // Registers buffer to the camera HAL buffer pool.
+  void OnNewBuffer(ClientType client_type,
+                   cros::mojom::CameraBufferHandlePtr buffer);
+
+  // Retires a buffer from the camera HAL buffer pool.
+  void OnBufferRetired(ClientType client_type, uint64_t buffer_id);
+
+ private:
+  const base::WeakPtr<RequestManager> request_manager_;
+};
+
 // RequestManager is responsible for managing the flow for sending capture
 // requests and receiving capture results. Having RequestBuilder to build
 // request and StreamBufferManager to handles stream buffers, it focuses on
@@ -62,8 +81,6 @@ class CAPTURE_EXPORT RequestManager final
       const uint32_t bytesused,
       const VideoCaptureFormat& capture_format,
       int screen_rotation)>;
-  using TakePhotoCallback =
-      base::OnceCallback<void(int status, media::mojom::BlobPtr blob_result)>;
 
   // CaptureResult is used to hold the pending capture results for each frame.
   struct CaptureResult {
@@ -91,15 +108,10 @@ class CAPTURE_EXPORT RequestManager final
     size_t unsubmitted_buffer_count;
     // The callback used to return the captured still capture JPEG buffer.  Set
     // if and only if the capture request was sent with a still capture buffer.
-    TakePhotoCallback still_capture_callback;
-    // The reprocess effect that this capture request is used. Will be set to
-    // NO_EFFECT if it is not a reprocess request.
-    cros::mojom::Effect reprocess_effect;
-    // The input buffer id for this capture request.
-    absl::optional<uint64_t> input_buffer_id;
-    // The orientation which is stored at the time the request is prepared. It
-    // can be used to construct the reprocess job info when the result is back.
-    int32_t orientation;
+    VideoCaptureDevice::TakePhotoCallback still_capture_callback;
+    // This map stores callbacks that can be used to return buffers for portrait
+    // mode requests.
+    TakePhotoCallbackMap portrait_callbacks_map;
   };
 
   RequestManager() = delete;
@@ -113,7 +125,8 @@ class CAPTURE_EXPORT RequestManager final
                  std::unique_ptr<CameraBufferFactory> camera_buffer_factory,
                  BlobifyCallback blobify_callback,
                  scoped_refptr<base::SingleThreadTaskRunner> ipc_task_runner,
-                 uint32_t device_api_version);
+                 uint32_t device_api_version,
+                 bool use_buffer_management_apis);
 
   RequestManager(const RequestManager&) = delete;
   RequestManager& operator=(const RequestManager&) = delete;
@@ -131,11 +144,11 @@ class CAPTURE_EXPORT RequestManager final
 
   bool HasStreamsConfiguredForTakePhoto();
 
-  // StartPreview is the entry point to starting the video capture.  The way
+  // StartPreview is the entry point to starting the video capture. The way
   // the video capture loop works is:
   //
   //  (1) Preparing capture request by mixing preview request, one-shot request
-  //      and reprocess request if they exists. And build the capture request by
+  //      and effect request if they exists. And build the capture request by
   //      RequestBuilder.
   //  (2) Once the capture request is built, it sends the capture request and
   //      it will go back to (1) to generate next capture request.
@@ -146,16 +159,6 @@ class CAPTURE_EXPORT RequestManager final
   //      to deliver the filled buffer to Chrome. After the buffer is consumed
   //      by Chrome it is enqueued back to the free buffer queue. Goto (1) to
   //      start another capture loop.
-  //
-  // When TakePhoto() is called, an additional YUV buffer is queued in step (2)
-  // to let the HAL fill the photo result in YUV format. If it is a regular
-  // capture, only one reprocess task will be added into the queue which asks
-  // HAL to convert YUV photo to JPEG format. If it is a request with
-  // special effect (e.g. Portrait mode shot), there will be more than one
-  // reprocess task added in the queue and it will be processed sequentially.
-  //
-  // For every reprocess task, there is a corresponding callback which will
-  // return the photo result in JPEG format.
   void StartPreview(cros::mojom::CameraMetadataPtr preview_settings);
 
   // Stops the capture loop.  After StopPreview is called |callback_ops_| is
@@ -164,13 +167,23 @@ class CAPTURE_EXPORT RequestManager final
   void StopPreview(base::OnceCallback<void(int32_t)> callback);
 
   void TakePhoto(cros::mojom::CameraMetadataPtr settings,
-                 ReprocessTaskQueue reprocess_tasks);
+                 VideoCaptureDevice::TakePhotoCallback callback);
+
+  void TakePortraitPhoto(cros::mojom::CameraMetadataPtr settings,
+                         TakePhotoCallbackMap callbacks_map);
 
   base::WeakPtr<RequestManager> GetWeakPtr();
 
   // CaptureMetadataDispatcher implementations.
   void AddResultMetadataObserver(ResultMetadataObserver* observer) override;
   void RemoveResultMetadataObserver(ResultMetadataObserver* observer) override;
+
+  // Registers buffer to the camera HAL buffer pool.
+  void OnNewBuffer(ClientType client_type,
+                   cros::mojom::CameraBufferHandlePtr buffer);
+
+  // Retires a buffer from the camera HAL buffer pool.
+  void OnBufferRetired(ClientType client_type, uint64_t buffer_id);
 
   // Queues a capture setting that will be send along with the earliest next
   // capture request.
@@ -190,21 +203,8 @@ class CAPTURE_EXPORT RequestManager final
  private:
   friend class RequestManagerTest;
 
-  // ReprocessJobInfo holds the queued reprocess tasks and associated metadata
-  // for a given YUVInput buffer.
-  struct ReprocessJobInfo {
-    ReprocessJobInfo(ReprocessTaskQueue queue,
-                     cros::mojom::CameraMetadataPtr metadata,
-                     uint64_t timestamp,
-                     int32_t orientation);
-    ReprocessJobInfo(ReprocessJobInfo&& info);
-    ~ReprocessJobInfo();
-
-    ReprocessTaskQueue task_queue;
-    cros::mojom::CameraMetadataPtr metadata;
-    uint64_t shutter_timestamp;
-    int32_t orientation;
-  };
+  // Puts Portrait Mode vendor tag into the metadata.
+  void SetPortraitModeVendorKey(cros::mojom::CameraMetadataPtr* settings);
 
   // Puts JPEG orientation information into the metadata.
   void SetJpegOrientation(cros::mojom::CameraMetadataPtr* settings,
@@ -213,31 +213,25 @@ class CAPTURE_EXPORT RequestManager final
   // Puts JPEG thumbnail size information into the metadata.
   void SetJpegThumbnailSize(cros::mojom::CameraMetadataPtr* settings) const;
 
-  // Puts sensor timestamp into the metadata for reprocess request.
-  void SetSensorTimestamp(cros::mojom::CameraMetadataPtr* settings,
-                          uint64_t shutter_timestamp);
-
   // Puts availability of Zero Shutter Lag into the metadata.
   void SetZeroShutterLag(cros::mojom::CameraMetadataPtr* settings,
                          bool enabled);
 
-  // Prepares a capture request by mixing repeating request with one-shot
-  // request if it exists. If there are reprocess requests in the queue, just
-  // build the reprocess capture request without mixing the repeating request.
+  // Prepares a capture request by mixing repeating request with one-shot/effect
+  // request if it exists.
   void PrepareCaptureRequest();
 
-  bool TryPrepareReprocessRequest(std::set<StreamType>* stream_types,
-                                  cros::mojom::CameraMetadataPtr* settings,
-                                  TakePhotoCallback* callback,
-                                  absl::optional<uint64_t>* input_buffer_id,
-                                  cros::mojom::Effect* reprocess_effect);
+  bool TryPreparePortraitModeRequest(std::set<StreamType>* stream_types,
+                                     cros::mojom::CameraMetadataPtr* settings,
+                                     TakePhotoCallbackMap* callbacks_map);
 
   bool TryPreparePreviewRequest(std::set<StreamType>* stream_types,
                                 cros::mojom::CameraMetadataPtr* settings);
 
-  bool TryPrepareOneShotRequest(std::set<StreamType>* stream_types,
-                                cros::mojom::CameraMetadataPtr* settings,
-                                TakePhotoCallback* callback);
+  bool TryPrepareOneShotRequest(
+      std::set<StreamType>* stream_types,
+      cros::mojom::CameraMetadataPtr* settings,
+      VideoCaptureDevice::TakePhotoCallback* callback);
 
   bool TryPrepareRecordingRequest(std::set<StreamType>* stream_types);
 
@@ -284,7 +278,9 @@ class CAPTURE_EXPORT RequestManager final
   void SubmitCapturedPreviewRecordingBuffer(uint32_t frame_number,
                                             uint64_t buffer_ipc_id,
                                             StreamType stream_type);
-  void SubmitCapturedJpegBuffer(uint32_t frame_number, uint64_t buffer_ipc_id);
+  void SubmitCapturedJpegBuffer(uint32_t frame_number,
+                                uint64_t buffer_ipc_id,
+                                StreamType stream_type);
 
   // If there are some metadata set by SetCaptureMetadata() or
   // SetRepeatingCaptureMetadata(), update them onto |capture_settings|.
@@ -297,7 +293,7 @@ class CAPTURE_EXPORT RequestManager final
 
   std::unique_ptr<StreamCaptureInterface> capture_interface_;
 
-  raw_ptr<CameraDeviceContext, ExperimentalAsh> device_context_;
+  raw_ptr<CameraDeviceContext> device_context_;
 
   bool zero_shutter_lag_supported_;
 
@@ -351,7 +347,8 @@ class CAPTURE_EXPORT RequestManager final
 
   // StreamBufferManager does not own the ResultMetadataObservers.  The
   // observers are responsible for removing itself before self-destruction.
-  std::unordered_set<ResultMetadataObserver*> result_metadata_observers_;
+  std::unordered_set<raw_ptr<ResultMetadataObserver, CtnExperimental>>
+      result_metadata_observers_;
 
   // The list of settings to set/override once in the capture request.
   std::vector<cros::mojom::CameraMetadataEntryPtr> capture_settings_override_;
@@ -366,27 +363,12 @@ class CAPTURE_EXPORT RequestManager final
 
   std::queue<cros::mojom::CameraMetadataPtr> take_photo_settings_queue_;
 
-  // Queue that contains ReprocessTaskQueue that will be consumed by
-  // reprocess-supported devices.
-  std::queue<ReprocessTaskQueue> pending_reprocess_tasks_queue_;
-
   // Callback for TakePhoto(). When preparing capture request, the callback will
   // be popped and moved to CaptureResult.
-  std::queue<base::OnceCallback<void(int, mojom::BlobPtr)>>
-      take_photo_callback_queue_;
+  std::queue<VideoCaptureDevice::TakePhotoCallback> take_photo_callback_queue_;
 
-  // Map that maps buffer id to reprocess task info. If all reprocess tasks for
-  // specific buffer id are all consumed, release that buffer.
-  std::map<uint64_t, ReprocessJobInfo> buffer_id_reprocess_job_info_map_;
-
-  // Map that maps frame number to reprocess task queue. We should consume the
-  // content inside this map when preparing capture request.
-  std::map<uint32_t, ReprocessTaskQueue> frame_number_reprocess_tasks_map_;
-
-  // Buffer ids that are currently processing. When preparing capture request,
-  // we will ignore the reprocess task if its corresponding buffer id is in
-  // the set.
-  std::set<uint64_t> processing_buffer_ids_;
+  // Map for Portrait Mode request callbacks.
+  TakePhotoCallbackMap take_portrait_photo_callback_map_;
 
   // Map for retrieving the last received frame number. It is used to check for
   // duplicate or out of order of frames.
@@ -399,6 +381,9 @@ class CAPTURE_EXPORT RequestManager final
 
   // The API version of the camera device.
   uint32_t device_api_version_;
+
+  // Set true if the buffer management APIs are enabled.
+  bool use_buffer_management_apis_;
 
   base::WeakPtrFactory<RequestManager> weak_ptr_factory_{this};
 };

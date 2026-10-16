@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.password_check;
 import android.app.Activity;
 import android.content.Context;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.password_manager.PasswordCheckReferrer;
 
 /**
@@ -14,6 +15,7 @@ import org.chromium.chrome.browser.password_manager.PasswordCheckReferrer;
  * the compromised passwords and exposes actions that will help the users to make safer their
  * credentials.
  */
+@NullMarked
 public interface PasswordCheck extends PasswordCheckComponentUi.Delegate {
     /** Observes events and state changes of the password check. */
     interface Observer {
@@ -50,9 +52,7 @@ public interface PasswordCheck extends PasswordCheckComponentUi.Delegate {
      */
     void showUi(Context context, @PasswordCheckReferrer int passwordCheckReferrer);
 
-    /**
-     * Cleans up the C++ part, thus removing the compromised credentials from memory.
-     */
+    /** Cleans up the C++ part, thus removing the compromised credentials from memory. */
     void destroy();
 
     /**
@@ -108,18 +108,15 @@ public interface PasswordCheck extends PasswordCheckComponentUi.Delegate {
      */
     int getSavedPasswordsCount();
 
-    /**
-     * Launch the password check in the Google Account.
-     */
+    /** Launch the password check in the Google Account. */
     void launchCheckupInAccount(Activity activity);
 
-    /**
-     * Starts the password check, if one is not running already.
-     */
+    /** Starts the password check, if one is not running already. */
     void startCheck();
 
-    /**
-     * Stops the password check, if one is running. Otherwise, does nothing.
-     */
+    /** Stops the password check, if one is running. Otherwise, does nothing. */
     void stopCheck();
+
+    /** Checks if user is signed into Chrome account to perform the password check. */
+    boolean hasAccountForRequest();
 }

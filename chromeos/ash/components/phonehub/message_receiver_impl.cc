@@ -57,8 +57,11 @@ std::string GetMessageTypeName(proto::MessageType message_type) {
 }  // namespace
 
 MessageReceiverImpl::MessageReceiverImpl(
-    secure_channel::ConnectionManager* connection_manager)
-    : connection_manager_(connection_manager) {
+    secure_channel::ConnectionManager* connection_manager,
+    PhoneHubStructuredMetricsLogger* phone_hub_structured_metrics_logger)
+    : connection_manager_(connection_manager),
+      phone_hub_structured_metrics_logger_(
+          phone_hub_structured_metrics_logger) {
   DCHECK(connection_manager_);
 
   connection_manager_->AddObserver(this);
@@ -80,6 +83,8 @@ void MessageReceiverImpl::OnMessageReceived(const std::string& payload) {
                << GetMessageTypeName(message_type) << " message.";
   util::LogMessageResult(message_type,
                          util::PhoneHubMessageResult::kResponseReceived);
+  phone_hub_structured_metrics_logger_->LogPhoneHubMessageEvent(
+      message_type, PhoneHubMessageDirection::kPhoneToChromebook);
 
   // Decode the proto message if the message is something we want to notify to
   // clients.
@@ -107,8 +112,7 @@ void MessageReceiverImpl::OnMessageReceived(const std::string& payload) {
     return;
   }
 
-  if (features::IsPhoneHubFeatureSetupErrorHandlingEnabled() &&
-      message_type == proto::MessageType::FEATURE_SETUP_RESPONSE) {
+  if (message_type == proto::MessageType::FEATURE_SETUP_RESPONSE) {
     proto::FeatureSetupResponse response;
     // Serialized proto is after the first two bytes of |payload|.
     if (!response.ParseFromString(payload.substr(2))) {

@@ -14,9 +14,9 @@
 #include <array>
 #include <cmath>
 #include <numeric>
+#include <optional>
 #include <vector>
 
-#include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
@@ -74,7 +74,7 @@ class ReverbModelEstimatorTest {
   float true_power_tail_ = 0.f;
   std::vector<std::vector<float>> h_;
   std::vector<std::vector<std::array<float, kFftLengthBy2Plus1>>> H2_;
-  std::vector<absl::optional<float>> quality_linear_;
+  std::vector<std::optional<float>> quality_linear_;
 };
 
 void ReverbModelEstimatorTest::CreateImpulseResponseWithDecay() {
@@ -109,7 +109,7 @@ void ReverbModelEstimatorTest::CreateImpulseResponseWithDecay() {
       H_j.Spectrum(Aec3Optimization::kNone, H2_[ch][j]);
     }
   }
-  rtc::ArrayView<float> H2_tail(H2_[0][H2_[0].size() - 1]);
+  ArrayView<float> H2_tail(H2_[0][H2_[0].size() - 1]);
   true_power_tail_ = std::accumulate(H2_tail.begin(), H2_tail.end(), 0.f);
 }
 void ReverbModelEstimatorTest::RunEstimator() {

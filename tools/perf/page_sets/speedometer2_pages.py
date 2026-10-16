@@ -9,7 +9,7 @@ import re
 from page_sets import press_story
 
 _SPEEDOMETER_SUITE_NAME_BASE = '{0}-TodoMVC'
-_SPEEDOMETER_SUITES = [
+_SPEEDOMETER_SUITES = (
     'VanillaJS',
     'Vanilla-ES2015',
     'Vanilla-ES2015-Babel-Webpack',
@@ -26,7 +26,7 @@ _SPEEDOMETER_SUITES = [
     'Inferno',
     'Elm',
     'Flight',
-]
+)
 
 
 class _Speedometer2Story(press_story.PressStory):
@@ -58,15 +58,11 @@ class _Speedometer2Story(press_story.PressStory):
     ]
 
   def ExecuteTest(self, action_runner):
+    DEFAULT_ITERATIONS = 10
+
     action_runner.tab.WaitForDocumentReadyStateToBeComplete()
-    if not self._iterations:
-      iterationCount = 10
-      # A single iteration on android takes ~75 seconds, the benchmark times out
-      # when running for 10 iterations.
-      if action_runner.tab.browser.platform.GetOSName() == 'android':
-        iterationCount = 3
-    else:
-      iterationCount = self._iterations
+    iterationCount = (self._iterations
+                      if self._iterations is not None else DEFAULT_ITERATIONS)
 
     if self._should_filter_suites:
       action_runner.ExecuteJavaScript(
@@ -136,5 +132,5 @@ class Speedometer21Story(_Speedometer2Story):
   NAME = 'Speedometer21'
 
 
-class Speedometer2Story(Speedometer20Story):
+class Speedometer2Story(Speedometer21Story):
   NAME = 'Speedometer2'

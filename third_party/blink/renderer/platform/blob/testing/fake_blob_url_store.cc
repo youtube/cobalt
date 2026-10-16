@@ -13,7 +13,7 @@ void FakeBlobURLStore::Register(
     const KURL& url,
     // TODO(https://crbug.com/1224926): Remove this once experiment is over.
     const base::UnguessableToken& unsafe_agent_cluster_id,
-    const absl::optional<BlinkSchemefulSite>& unsafe_top_level_site,
+    const std::optional<BlinkSchemefulSite>& unsafe_top_level_site,
     RegisterCallback callback) {
   registrations.insert(url, mojo::Remote<mojom::blink::Blob>(std::move(blob)));
   agent_registrations.insert(url, unsafe_agent_cluster_id);
@@ -25,18 +25,6 @@ void FakeBlobURLStore::Revoke(const KURL& url) {
   revocations.push_back(url);
 }
 
-void FakeBlobURLStore::Resolve(const KURL& url, ResolveCallback callback) {
-  auto blob_it = registrations.find(url);
-  auto agent_it = agent_registrations.find(url);
-  if (blob_it == registrations.end() || agent_it == agent_registrations.end()) {
-    std::move(callback).Run(mojo::NullRemote(), absl::nullopt);
-    return;
-  }
-  mojo::PendingRemote<mojom::blink::Blob> blob;
-  blob_it->value->Clone(blob.InitWithNewPipeAndPassReceiver());
-  std::move(callback).Run(std::move(blob), agent_it->value);
-}
-
 void FakeBlobURLStore::ResolveAsURLLoaderFactory(
     const KURL&,
     mojo::PendingReceiver<network::mojom::blink::URLLoaderFactory>,
@@ -44,10 +32,11 @@ void FakeBlobURLStore::ResolveAsURLLoaderFactory(
   NOTREACHED();
 }
 
-void FakeBlobURLStore::ResolveForNavigation(
+void FakeBlobURLStore::ResolveAsBlobURLToken(
     const KURL&,
     mojo::PendingReceiver<mojom::blink::BlobURLToken>,
-    ResolveForNavigationCallback callback) {
+    bool is_top_level_navigation,
+    ResolveAsBlobURLTokenCallback callback) {
   NOTREACHED();
 }
 

@@ -1,0 +1,134 @@
+# Copyright 2020 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("model") {
+  sources = [
+    "discover_feed_configuration.h",
+    "discover_feed_configuration.mm",
+    "discover_feed_experiments_tracker.h",
+    "discover_feed_experiments_tracker.mm",
+    "discover_feed_observer.h",
+    "discover_feed_observer_bridge.h",
+    "discover_feed_observer_bridge.mm",
+    "discover_feed_service.h",
+    "discover_feed_service.mm",
+    "discover_feed_view_controller_configuration.h",
+    "discover_feed_view_controller_configuration.mm",
+    "discover_feed_visibility_observer.h",
+    "discover_feed_visibility_provider_configuration.h",
+    "discover_feed_visibility_provider_configuration.mm",
+    "feed_model_configuration.h",
+    "feed_model_configuration.mm",
+  ]
+  deps = [
+    "//components/feed/core/v2/public/ios:feed_ios_public",
+    "//components/search_engines",
+    "//components/variations",
+    "//ios/chrome/browser/metrics/model:accessor",
+    "//ios/chrome/browser/search_engines/model:template_url_service_factory",
+    "//ios/public/provider/chrome/browser/signin:signin_sso_api",
+  ]
+  public_deps = [
+    ":constants",
+    ":discover_feed_refresher",
+    "//base",
+  ]
+  frameworks = [ "UIKit.framework" ]
+}
+
+# This is a separate target because the factory depends on the provider
+# and the provider depends on the declaration of the service (since it
+# provides an implementation). Using separate targets prevents circular
+# dependencies.
+source_set("discover_feed_factory") {
+  sources = [
+    "discover_feed_service_factory.h",
+    "discover_feed_service_factory.mm",
+  ]
+  deps = [
+    ":model",
+    "//base",
+    "//components/signin/public/identity_manager",
+    "//ios/chrome/browser/feature_engagement/model",
+    "//ios/chrome/browser/ntp/shared/metrics",
+    "//ios/chrome/browser/search_engines/model:template_url_service_factory",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/profile:profile_keyed_service_factory",
+    "//ios/chrome/browser/signin/model",
+    "//ios/chrome/browser/signin/model:authentication_service_factory",
+    "//ios/chrome/browser/sync/model",
+    "//ios/public/provider/chrome/browser/discover_feed:discover_feed_api",
+  ]
+}
+
+source_set("discover_feed_app_agent") {
+  sources = [
+    "discover_feed_app_agent.h",
+    "discover_feed_app_agent.mm",
+  ]
+  deps = [
+    ":discover_feed_app_agent_profile_helper",
+    "//base",
+    "//ios/chrome/app/application_delegate:observing_app_state_agent",
+    "//ios/chrome/browser/start_surface/ui_bundled:feature_flags",
+  ]
+}
+
+source_set("discover_feed_app_agent_profile_helper") {
+  visibility = [ ":discover_feed_app_agent" ]
+  sources = [
+    "discover_feed_app_agent_profile_helper.h",
+    "discover_feed_app_agent_profile_helper.mm",
+  ]
+  deps = [
+    ":discover_feed_factory",
+    ":model",
+    "//base",
+    "//components/search_engines",
+    "//components/signin/public/base",
+    "//ios/chrome/app/profile",
+    "//ios/chrome/browser/content_notification/model:util",
+    "//ios/chrome/browser/ntp/shared/metrics:constants",
+    "//ios/chrome/browser/push_notification/model:profile_service",
+    "//ios/chrome/browser/push_notification/model:profile_service_factory",
+    "//ios/chrome/browser/push_notification/model:push_notification_client_id",
+    "//ios/chrome/browser/push_notification/model:push_notification_service",
+    "//ios/chrome/browser/search_engines/model:template_url_service_factory",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/signin/model:authentication_service",
+    "//ios/chrome/browser/signin/model:authentication_service_factory",
+  ]
+}
+
+source_set("constants") {
+  sources = [
+    "feed_constants.h",
+    "feed_constants.mm",
+  ]
+}
+
+source_set("discover_feed_refresher") {
+  sources = [ "discover_feed_refresher.h" ]
+}
+
+source_set("discover_feed_visibility_browser_agent") {
+  sources = [
+    "discover_feed_visibility_browser_agent.h",
+    "discover_feed_visibility_browser_agent.mm",
+  ]
+  deps = [
+    ":discover_feed_factory",
+    "//base",
+    "//ios/chrome/app/application_delegate:app_state",
+    "//ios/chrome/app/profile",
+    "//ios/chrome/browser/regional_capabilities/model",
+    "//ios/chrome/browser/search_engines/model:template_url_service_factory",
+    "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/public/provider/chrome/browser/discover_feed:discover_feed_api",
+  ]
+}

@@ -7,14 +7,14 @@
 
 #include <vector>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "chrome/browser/profiles/refcounted_profile_keyed_service_factory.h"
 
 class Profile;
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }
 
 namespace history {
@@ -43,7 +43,7 @@ class TopSitesFactory : public RefcountedProfileKeyedServiceFactory {
   TopSitesFactory& operator=(const TopSitesFactory&) = delete;
 
  private:
-  friend struct base::DefaultSingletonTraits<TopSitesFactory>;
+  friend base::NoDestructor<TopSitesFactory>;
 
   TopSitesFactory();
   ~TopSitesFactory() override;

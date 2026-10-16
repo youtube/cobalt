@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "gpu/command_buffer/service/context_state.h"
 
 #include <stddef.h>
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 
 #include "gpu/command_buffer/common/gles2_cmd_utils.h"
 #include "gpu/command_buffer/service/buffer_manager.h"
@@ -15,7 +21,6 @@
 #include "gpu/command_buffer/service/program_manager.h"
 #include "gpu/command_buffer/service/renderbuffer_manager.h"
 #include "gpu/command_buffer/service/transform_feedback_manager.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_implementation.h"
 #include "ui/gl/gl_version_info.h"
@@ -63,13 +68,12 @@ GLuint GetServiceId(const TextureUnit& unit, GLuint target) {
       return Get2dServiceId(unit);
     case GL_TEXTURE_CUBE_MAP:
       return GetCubeServiceId(unit);
-    case GL_TEXTURE_RECTANGLE_ARB:
+    case GL_TEXTURE_RECTANGLE_ANGLE:
       return GetArbServiceId(unit);
     case GL_TEXTURE_EXTERNAL_OES:
       return GetOesServiceId(unit);
     default:
       NOTREACHED();
-      return 0;
   }
 }
 
@@ -79,14 +83,13 @@ bool TargetIsSupported(const FeatureInfo* feature_info, GLuint target) {
       return true;
     case GL_TEXTURE_CUBE_MAP:
       return true;
-    case GL_TEXTURE_RECTANGLE_ARB:
+    case GL_TEXTURE_RECTANGLE_ANGLE:
       return feature_info->feature_flags().arb_texture_rectangle;
     case GL_TEXTURE_EXTERNAL_OES:
       return feature_info->feature_flags().oes_egl_image_external ||
              feature_info->feature_flags().nv_egl_stream_consumer_external;
     default:
       NOTREACHED();
-      return false;
   }
 }
 
@@ -128,7 +131,6 @@ bool Vec4::Equal(const Vec4& other) const {
       break;
     default:
       NOTREACHED();
-      break;
   }
   return true;
 }
@@ -151,7 +153,6 @@ void Vec4::GetValues<GLfloat>(GLfloat* values) const {
       break;
     default:
       NOTREACHED();
-      break;
   }
 }
 
@@ -173,7 +174,6 @@ void Vec4::GetValues<GLint>(GLint* values) const {
       break;
     default:
       NOTREACHED();
-      break;
   }
 }
 
@@ -195,7 +195,6 @@ void Vec4::GetValues<GLuint>(GLuint* values) const {
       break;
     default:
       NOTREACHED();
-      break;
   }
 }
 
@@ -320,7 +319,7 @@ void ContextState::RestoreTextureUnitBindings(
     api()->glBindTextureFn(GL_TEXTURE_EXTERNAL_OES, service_id_oes);
   }
   if (bind_texture_arb) {
-    api()->glBindTextureFn(GL_TEXTURE_RECTANGLE_ARB, service_id_arb);
+    api()->glBindTextureFn(GL_TEXTURE_RECTANGLE_ANGLE, service_id_arb);
   }
   if (bind_texture_2d_array) {
     api()->glBindTextureFn(GL_TEXTURE_2D_ARRAY, service_id_2d_array);
@@ -339,8 +338,8 @@ void ContextState::RestoreSamplerBinding(GLuint unit,
   if (const auto& cur_sampler = sampler_units[unit])
     cur_id = cur_sampler->service_id();
 
-  absl::optional<GLuint> prev_id;
-  if (prev_state) {
+  std::optional<GLuint> prev_id;
+  if (prev_state && unit < prev_state->sampler_units.size()) {
     const auto& prev_sampler = prev_state->sampler_units[unit];
     prev_id.emplace(prev_sampler ? prev_sampler->service_id() : 0);
   }
@@ -520,7 +519,6 @@ void ContextState::RestoreVertexAttribValues() const {
       } break;
       default:
         NOTREACHED();
-        break;
     }
   }
 }
@@ -768,7 +766,6 @@ void ContextState::SetBoundBuffer(GLenum target, Buffer* buffer) {
       break;
     default:
       NOTREACHED();
-      break;
   }
 }
 
@@ -872,7 +869,7 @@ void ContextState::UnbindTexture(TextureRef* texture) {
         api()->glActiveTextureFn(GL_TEXTURE0 + jj);
         active_unit = jj;
       }
-      api()->glBindTextureFn(GL_TEXTURE_RECTANGLE_ARB, 0);
+      api()->glBindTextureFn(GL_TEXTURE_RECTANGLE_ANGLE, 0);
     } else if (unit.bound_texture_3d.get() == texture) {
       unit.bound_texture_3d = nullptr;
       if (active_unit != jj) {
@@ -929,7 +926,7 @@ PixelStoreParams ContextState::GetUnpackParams(Dimension dimension) {
 void ContextState::EnableDisableFramebufferSRGB(bool enable) {
   if (framebuffer_srgb_valid_ && framebuffer_srgb_ == enable)
     return;
-  EnableDisable(GL_FRAMEBUFFER_SRGB, enable);
+  EnableDisable(GL_FRAMEBUFFER_SRGB_EXT, enable);
   framebuffer_srgb_ = enable;
   framebuffer_srgb_valid_ = true;
 }

@@ -12,19 +12,170 @@
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/test/task_environment.h"
 #include "base/values.h"
+#include "chromeos/ash/components/network/managed_network_configuration_handler.h"
+#include "chromeos/ash/components/network/network_handler.h"
+#include "chromeos/ash/components/network/network_handler_test_helper.h"
 #include "chromeos/ash/components/network/network_ui_data.h"
 #include "chromeos/components/onc/onc_signature.h"
 #include "chromeos/components/onc/onc_test_utils.h"
 #include "chromeos/components/onc/variable_expander.h"
 #include "chromeos/test/chromeos_test_utils.h"
+#include "components/prefs/testing_pref_service.h"
+#include "components/user_manager/fake_user_manager.h"
+#include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/test_helper.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace ash::onc {
 
 namespace test_utils = ::chromeos::onc::test_utils;
 
-TEST(ONCUtils, ProxySettingsToProxyConfig) {
+class ONCUtilsTest : public testing::Test {
+ public:
+  ONCUtilsTest() = default;
+  ONCUtilsTest(const ONCUtilsTest&) = delete;
+  ONCUtilsTest& operator=(const ONCUtilsTest&) = delete;
+  ~ONCUtilsTest() override = default;
+
+  void SetUp() override {
+    user_manager::UserManagerImpl::RegisterPrefs(local_state_.registry());
+    auto fake_user_manager =
+        std::make_unique<user_manager::FakeUserManager>(&local_state_);
+    auto account_id =
+        AccountId::FromUserEmailGaiaId("account@test.com", GaiaId("fakegaia"));
+    const user_manager::User* user = fake_user_manager->AddGaiaUser(
+        account_id, user_manager::UserType::kRegular);
+    fake_user_manager->UserLoggedIn(
+        account_id, user_manager::TestHelper::GetFakeUsernameHash(account_id));
+    fake_user_manager->SwitchActiveUser(account_id);
+
+    scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
+        std::move(fake_user_manager));
+
+    network_handler_test_helper_ =
+        std::make_unique<ash::NetworkHandlerTestHelper>();
+    network_handler_test_helper_->AddDefaultProfiles();
+    network_handler_test_helper_->profile_test()->AddProfile(
+        "/profile/1", user->username_hash());
+    base::RunLoop().RunUntilIdle();
+  }
+
+  void TearDown() override {
+    network_handler_test_helper_.reset();
+    scoped_user_manager_.reset();
+  }
+
+ protected:
+  base::test::SingleThreadTaskEnvironment task_environment_;
+  TestingPrefServiceSimple local_state_;
+  std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
+  std::unique_ptr<ash::NetworkHandlerTestHelper> network_handler_test_helper_;
+};
+
+TEST_F(ONCUtilsTest,
+       ImportNetworksForUser_ImportONCShouldNotOverrideExistingPolicy) {
+  const char kPolicyGuid[] = "policy_guid";
+  const char kWifiSSID[] = "wifi_ssid";
+  const char kWifiPassphrase[] = "test_phassphrase";
+  const char kWifiOncName[] = "wifi_onc_name";
+
+  base::Value::Dict wifi_config =
+      base::Value::Dict()
+          .Set(::onc::network_config::kGUID, kPolicyGuid)
+          .Set(::onc::network_config::kName, kWifiOncName)
+          .Set(::onc::network_config::kType, ::onc::network_config::kWiFi)
+          .Set(::onc::network_config::kWiFi,
+               base::Value::Dict()
+                   .Set(::onc::wifi::kSSID, kWifiSSID)
+                   .Set(::onc::wifi::kPassphrase, kWifiPassphrase)
+                   .Set(::onc::wifi::kSecurity, ::onc::wifi::kWEP_PSK));
+  const user_manager::User* user =
+      user_manager::UserManager::Get()->GetActiveUser();
+
+  // Set user policy
+  NetworkHandler::Get()->managed_network_configuration_handler()->SetPolicy(
+      ::onc::ONC_SOURCE_USER_POLICY, user->username_hash(),
+      base::Value::List().Append(wifi_config.Clone()), base::Value::Dict());
+
+  // Set shared policy
+  NetworkHandler::Get()->managed_network_configuration_handler()->SetPolicy(
+      ::onc::ONC_SOURCE_DEVICE_POLICY, std::string(), base::Value::List(),
+      base::Value::Dict());
+  base::RunLoop().RunUntilIdle();
+
+  // Modify the wifi config to "None" security and attempt to import it for the
+  // user.
+  wifi_config.Set(::onc::network_config::kWiFi,
+                  base::Value::Dict()
+                      .Set(::onc::wifi::kSSID, kWifiSSID)
+                      .Set(::onc::wifi::kSecurity, ::onc::wifi::kSecurityNone));
+  std::string error;
+  ImportNetworksForUser(user, base::Value::List().Append(wifi_config.Clone()),
+                        &error);
+
+  // Verify the import network should not override the existing policy
+  // configured network.
+  std::string service_path =
+      network_handler_test_helper_->service_test()->FindServiceMatchingGUID(
+          kPolicyGuid);
+  ASSERT_FALSE(service_path.empty());
+
+  const base::Value::Dict* properties =
+      network_handler_test_helper_->service_test()->GetServiceProperties(
+          service_path);
+  ASSERT_TRUE(properties);
+  const std::string* security =
+      properties->FindString(shill::kSecurityClassProperty);
+  ASSERT_TRUE(security);
+  EXPECT_EQ(*security, shill::kSecurityClassWep);
+}
+
+TEST_F(ONCUtilsTest, ImportNetworksForUser_ImportONCWithRemoveField) {
+  const char kPolicyGuid[] = "policy_guid";
+  const char kWifiSSID[] = "wifi_ssid";
+  const char kWifiPassphrase[] = "test_phassphrase";
+  const char kWifiOncName[] = "wifi_onc_name";
+
+  base::Value::Dict wifi_config =
+      base::Value::Dict()
+          .Set(::onc::network_config::kGUID, kPolicyGuid)
+          .Set(::onc::network_config::kName, kWifiOncName)
+          .Set(::onc::network_config::kType, ::onc::network_config::kWiFi)
+          .Set(::onc::kRemove, true)
+          .Set(::onc::network_config::kWiFi,
+               base::Value::Dict()
+                   .Set(::onc::wifi::kSSID, kWifiSSID)
+                   .Set(::onc::wifi::kPassphrase, kWifiPassphrase)
+                   .Set(::onc::wifi::kSecurity, ::onc::wifi::kWEP_PSK));
+  const user_manager::User* user =
+      user_manager::UserManager::Get()->GetActiveUser();
+
+  // Set user policy
+  NetworkHandler::Get()->managed_network_configuration_handler()->SetPolicy(
+      ::onc::ONC_SOURCE_USER_POLICY, user->username_hash(), base::Value::List(),
+      base::Value::Dict());
+
+  // Set shared policy
+  NetworkHandler::Get()->managed_network_configuration_handler()->SetPolicy(
+      ::onc::ONC_SOURCE_DEVICE_POLICY, std::string(), base::Value::List(),
+      base::Value::Dict());
+
+  std::string error;
+  ImportNetworksForUser(user, base::Value::List().Append(wifi_config.Clone()),
+                        &error);
+  ASSERT_TRUE(error.empty());
+
+  // Verify the no network should be imported.
+  std::string service_path =
+      network_handler_test_helper_->service_test()->FindServiceMatchingGUID(
+          kPolicyGuid);
+  ASSERT_TRUE(service_path.empty());
+}
+
+TEST_F(ONCUtilsTest, ProxySettingsToProxyConfig) {
   base::Value::List list_of_tests =
       test_utils::ReadTestList("proxy_config.json");
 
@@ -48,14 +199,14 @@ TEST(ONCUtils, ProxySettingsToProxyConfig) {
         test_case_dict.FindDict("ONC_ProxySettings");
     ASSERT_TRUE(onc_proxy_settings);
 
-    absl::optional<base::Value::Dict> actual_proxy_config =
+    std::optional<base::Value::Dict> actual_proxy_config =
         ConvertOncProxySettingsToProxyConfig(*onc_proxy_settings);
     ASSERT_TRUE(actual_proxy_config.has_value());
     EXPECT_EQ(*expected_proxy_config, actual_proxy_config);
   }
 }
 
-TEST(ONCUtils, ProxyConfigToOncProxySettings) {
+TEST_F(ONCUtilsTest, ProxyConfigToOncProxySettings) {
   base::Value::List list_of_tests =
       test_utils::ReadTestList("proxy_config.json");
 
@@ -72,7 +223,7 @@ TEST(ONCUtils, ProxyConfigToOncProxySettings) {
         test_case_dict.FindDict("ONC_ProxySettings");
     ASSERT_TRUE(onc_proxy_settings);
 
-    absl::optional<base::Value::Dict> actual_proxy_settings =
+    std::optional<base::Value::Dict> actual_proxy_settings =
         ConvertProxyConfigToOncProxySettings(*shill_proxy_config);
     ASSERT_TRUE(actual_proxy_settings.has_value());
     EXPECT_TRUE(

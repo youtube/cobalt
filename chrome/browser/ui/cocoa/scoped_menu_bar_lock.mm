@@ -12,11 +12,13 @@
 @end
 
 ScopedMenuBarLock::ScopedMenuBarLock() {
-  if ([NSMenu instancesRespondToSelector:@selector(_lockMenuPosition)])
-    [[NSApp mainMenu] _lockMenuPosition];
+  if ([NSMenu instancesRespondToSelector:@selector(_lockMenuPosition)]) {
+    [NSApp.mainMenu _lockMenuPosition];
+  }
 }
 
 ScopedMenuBarLock::~ScopedMenuBarLock() {
-  if ([NSMenu instancesRespondToSelector:@selector(_unlockMenuPosition)])
-    [[NSApp mainMenu] _unlockMenuPosition];
+  if ([NSMenu instancesRespondToSelector:@selector(_unlockMenuPosition)]) {
+    [NSApp.mainMenu _unlockMenuPosition];
+  }
 }

@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -16,7 +17,6 @@
 #include "remoting/host/file_transfer/file_operations.h"
 #include "remoting/protocol/file_transfer_helpers.h"
 #include "remoting/protocol/named_message_pipe_handler.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace remoting {
 
@@ -84,7 +84,7 @@ class FileTransferMessageHandler : public protocol::NamedMessagePipeHandler {
 
   State state_ = kConnected;
   std::unique_ptr<FileOperations> file_operations_;
-  absl::optional<BufferedFileWriter> buffered_file_writer_;
+  std::optional<BufferedFileWriter> buffered_file_writer_;
   std::unique_ptr<FileOperations::Reader> file_reader_;
   std::size_t queued_chunks_ = 0;
   base::WeakPtrFactory<FileTransferMessageHandler> weak_ptr_factory_{this};

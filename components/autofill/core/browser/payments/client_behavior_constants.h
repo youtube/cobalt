@@ -16,16 +16,31 @@ enum class ClientBehaviorConstants {
   // Note that the number of the behavior, not the name, is sent in the JSON
   // request to Payments.
 
-  // For more information on this signal, see AutofillEnableNewSaveCardBubbleUi
-  // flag. This enum is to be always included in the client_behavior_signals
-  // from M113 onwards as this retrieves the correct TOS footer for
-  // FasterAndProtected bubble.
+  // Originally used for the AutofillEnableNewSaveCardBubbleUi rollout. This
+  // enum was provided to certain upload card requests between M113 and M123 in
+  // order to retrieve the correct TOS footer from the Payments server. It is
+  // now deprecated and should no longer be used.
   kUsingFasterAndProtectedUi = 1,
 
   // From M114 onwards, this enum is added to the client_behavior_signals in the
   // UnmaskCardRequest when a selected suggestion contains the credit card's
   // metadata (both card art image AND card product name to be shown).
   kShowingCardArtImageAndCardProductName = 2,
+
+  // For more information on this signal, see
+  // kAutofillEnableCvcStorageAndFilling flag. This enum is to be included in
+  // the client_behavior_signals as this retrieves the correct TOS in the footer
+  // for Chrome to offer to save a card's CVC.
+  kOfferingToSaveCvc = 3,
+
+  // Some UIs are expected to show the account email appended to the legal
+  // message. The payments server will use the presence of this constant to
+  // determine whether to send a legal message that includes the account email.
+  kShowAccountEmailInLegalMessage = 4,
+
+  // This enum reflects that the selected credit card suggestion contained a
+  // label with a applicable credit card benefit.
+  kShowingCardBenefits = 5,
 };
 }  // namespace autofill
 

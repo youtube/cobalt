@@ -6,6 +6,8 @@
 
 #include <stddef.h>
 
+#include <string_view>
+
 #include "base/check.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_tokenizer.h"
@@ -13,16 +15,16 @@
 
 INIParser::INIParser() : used_(false) {}
 
-INIParser::~INIParser() {}
+INIParser::~INIParser() = default;
 
 void INIParser::Parse(const std::string& content) {
   DCHECK(!used_);
   used_ = true;
   base::StringTokenizer tokenizer(content, "\r\n");
 
-  base::StringPiece current_section;
+  std::string_view current_section;
   while (tokenizer.GetNext()) {
-    base::StringPiece line = tokenizer.token_piece();
+    std::string_view line = tokenizer.token_piece();
     if (line.empty()) {
       // Skips the empty line.
       continue;
@@ -38,7 +40,7 @@ void INIParser::Parse(const std::string& content) {
       if (end != std::string::npos)
         current_section = current_section.substr(0, end);
     } else {
-      base::StringPiece key, value;
+      std::string_view key, value;
       size_t equal = line.find('=');
       if (equal != std::string::npos) {
         key = line.substr(0, equal);
@@ -49,17 +51,21 @@ void INIParser::Parse(const std::string& content) {
   }
 }
 
-DictionaryValueINIParser::DictionaryValueINIParser() {}
+DictionaryValueINIParser::DictionaryValueINIParser() = default;
 
-DictionaryValueINIParser::~DictionaryValueINIParser() {}
+DictionaryValueINIParser::~DictionaryValueINIParser() = default;
 
-void DictionaryValueINIParser::HandleTriplet(base::StringPiece section,
-                                             base::StringPiece key,
-                                             base::StringPiece value) {
+void DictionaryValueINIParser::HandleTriplet(std::string_view section,
+                                             std::string_view key,
+                                             std::string_view value) {
   // Checks whether the section and key contain a '.' character.
   // Those sections and keys break `base::Value::Dict`'s path format when not
   // using the *WithoutPathExpansion methods.
   if (section.find('.') == std::string::npos &&
-      key.find('.') == std::string::npos)
+      key.find('.') == std::string::npos &&
+      base::IsStringUTF8AllowingNoncharacters(section) &&
+      base::IsStringUTF8AllowingNoncharacters(key) &&
+      base::IsStringUTF8AllowingNoncharacters(value)) {
     root_.SetByDottedPath(base::StrCat({section, ".", key}), value);
+  }
 }

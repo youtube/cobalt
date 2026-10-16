@@ -3,10 +3,22 @@
 # found in the LICENSE file.
 
 import("//mojo/public/tools/bindings/mojom.gni")
+import("//cobalt/build/configs/cobalt.gni")
 
 mojom_component("mojom") {
   output_prefix = "resource_coordinator_public_mojom"
   macro_prefix = "RESOURCE_COORDINATOR_PUBLIC_MOJOM"
+
+  enabled_features = []
+  if (is_cobalt) {
+    enabled_features += [ "is_cobalt" ]
+    if (is_linux || is_android) {
+      enabled_features += [ "is_cobalt_with_libchrobalt_metrics" ]
+    }
+  }
+  if (is_linux || is_chromeos || is_android) {
+    enabled_features += [ "private_swap_info" ]
+  }
 
   sources = [
     "memory_instrumentation/constants.mojom",
@@ -17,11 +29,6 @@ mojom_component("mojom") {
     "//mojo/public/mojom/base",
     "//services/metrics/public/mojom",
   ]
-
-  enabled_features = []
-  if (is_linux || is_chromeos || is_android) {
-    enabled_features += [ "private_swap_info" ]
-  }
 
   cpp_typemaps = [
     {

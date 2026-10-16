@@ -7,15 +7,16 @@
 #include <utility>
 
 #include "mojo/public/cpp/bindings/remote.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/mojom/permissions/permission.mojom-blink.h"
-#include "third_party/blink/public/mojom/permissions/permission_automation.mojom-blink.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/test/mojom/permissions/permission_automation.test-mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_permission_state.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -31,78 +32,55 @@
 namespace blink {
 
 // static
-ScriptPromise InternalsPermission::setPermission(
+ScriptPromise<IDLUndefined> InternalsPermission::setPermission(
     ScriptState* script_state,
     Internals&,
     const ScriptValue& raw_descriptor,
-    const String& state,
-    const String& origin,
-    const String& embedding_origin,
+    const V8PermissionState& state,
     ExceptionState& exception_state) {
   mojom::blink::PermissionDescriptorPtr descriptor =
       ParsePermissionDescriptor(script_state, raw_descriptor, exception_state);
   if (exception_state.HadException() || !script_state->ContextIsValid())
-    return ScriptPromise();
+    return EmptyPromise();
 
   LocalDOMWindow* window = LocalDOMWindow::From(script_state);
-  KURL url;
-  if (origin.IsNull()) {
-    const SecurityOrigin* security_origin = window->GetSecurityOrigin();
-    if (security_origin->IsOpaque()) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kNotAllowedError,
-          "Unable to set permission for an opaque origin.");
-      return ScriptPromise();
-    }
-    url = KURL(security_origin->ToString());
-    DCHECK(url.IsValid());
-  } else {
-    url = KURL(origin);
-    if (!url.IsValid()) {
-      exception_state.ThrowDOMException(DOMExceptionCode::kSyntaxError,
-                                        "'" + origin + "' is not a valid URL.");
-      return ScriptPromise();
-    }
+  const SecurityOrigin* security_origin = window->GetSecurityOrigin();
+  if (security_origin->IsOpaque()) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kNotAllowedError,
+        "Unable to set permission for an opaque origin.");
+    return EmptyPromise();
   }
+  KURL url = KURL(security_origin->ToString());
+  DCHECK(url.IsValid());
 
-  KURL embedding_url;
-  if (embedding_origin.IsNull()) {
-    Frame& top_frame = window->GetFrame()->Tree().Top();
-    const SecurityOrigin* top_security_origin =
-        top_frame.GetSecurityContext()->GetSecurityOrigin();
-    if (top_security_origin->IsOpaque()) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kNotAllowedError,
-          "Unable to set permission for an opaque embedding origin.");
-      return ScriptPromise();
-    }
-    embedding_url = KURL(top_security_origin->ToString());
-  } else {
-    embedding_url = KURL(embedding_origin);
-    if (!embedding_url.IsValid()) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kSyntaxError,
-          "'" + embedding_origin + "' is not a valid URL.");
-      return ScriptPromise();
-    }
+  Frame& top_frame = window->GetFrame()->Tree().Top();
+  const SecurityOrigin* top_security_origin =
+      top_frame.GetSecurityContext()->GetSecurityOrigin();
+  if (top_security_origin->IsOpaque()) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kNotAllowedError,
+        "Unable to set permission for an opaque embedding origin.");
+    return EmptyPromise();
   }
+  KURL embedding_url = KURL(top_security_origin->ToString());
 
   mojo::Remote<test::mojom::blink::PermissionAutomation> permission_automation;
   Platform::Current()->GetBrowserInterfaceBroker()->GetInterface(
       permission_automation.BindNewPipeAndPassReceiver());
   DCHECK(permission_automation.is_bound());
 
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
-  ScriptPromise promise = resolver->Promise();
+  auto promise = resolver->Promise();
   auto* raw_permission_automation = permission_automation.get();
   raw_permission_automation->SetPermission(
-      std::move(descriptor), ToPermissionStatus(state.Utf8()), url,
+      std::move(descriptor), ToPermissionStatus(state.AsCStr()), url,
       embedding_url,
       WTF::BindOnce(
           // While we only really need |resolver|, we also take the
           // mojo::Remote<> so that it remains alive after this function exits.
-          [](ScriptPromiseResolver* resolver,
+          [](ScriptPromiseResolver<IDLUndefined>* resolver,
              mojo::Remote<test::mojom::blink::PermissionAutomation>,
              bool success) {
             if (success)

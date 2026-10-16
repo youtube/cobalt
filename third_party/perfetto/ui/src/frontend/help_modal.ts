@@ -1,4 +1,3 @@
-
 // Copyright (C) 2019 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,20 +13,25 @@
 // limitations under the License.
 
 import m from 'mithril';
-
-import {globals} from './globals';
+import {assertExists} from '../base/logging';
+import {AppImpl} from '../core/app_impl';
+import {HotkeyGlyphs} from '../widgets/hotkey_glyphs';
+import {showModal} from '../widgets/modal';
+import {Spinner} from '../widgets/spinner';
 import {
   KeyboardLayoutMap,
   nativeKeyboardLayoutMap,
   NotSupportedError,
-} from './keyboard_layout_map';
-import {showModal} from './modal';
-import {KeyMapping} from './pan_and_zoom_handler';
-import {Spinner} from './widgets/spinner';
+} from '../base/keyboard_layout_map';
+import {KeyMapping} from './viewer_page/wasd_navigation_handler';
+import {raf} from '../core/raf_scheduler';
 
 export function toggleHelp() {
-  globals.logging.logEvent('User Actions', 'Show help');
-  showHelp();
+  AppImpl.instance.analytics.logEvent('User Actions', 'Show help');
+  showModal({
+    title: 'Perfetto Help',
+    content: () => m(KeyMappingsHelp),
+  });
 }
 
 function keycap(glyph: m.Children): m.Children {
@@ -48,129 +52,124 @@ class KeyMappingsHelp implements m.ClassComponent {
 
   oninit() {
     nativeKeyboardLayoutMap()
-        .then((keyMap: KeyboardLayoutMap) => {
-          this.keyMap = keyMap;
-          globals.rafScheduler.scheduleFullRedraw();
-        })
-        .catch((e) => {
-          if (e instanceof NotSupportedError ||
-              e.toString().includes('SecurityError')) {
-            // Keyboard layout is unavailable. Since showing the keyboard
-            // mappings correct for the user's keyboard layout is a nice-to-
-            // have, and users with non-QWERTY layouts are usually aware of the
-            // fact that the are using non-QWERTY layouts, we resort to showing
-            // English QWERTY mappings as a best-effort approach.
-            // The alternative would be to show key mappings for all keyboard
-            // layouts which is not feasible.
-            this.keyMap = new EnglishQwertyKeyboardLayoutMap();
-            globals.rafScheduler.scheduleFullRedraw();
-          } else {
-            // Something unexpected happened. Either the browser doesn't conform
-            // to the keyboard API spec, or the keyboard API spec has changed!
-            throw e;
-          }
-        });
+      .then((keyMap: KeyboardLayoutMap) => {
+        this.keyMap = keyMap;
+        raf.scheduleFullRedraw();
+      })
+      .catch((e) => {
+        if (
+          e instanceof NotSupportedError ||
+          String(e).includes('SecurityError')
+        ) {
+          // Keyboard layout is unavailable. Since showing the keyboard
+          // mappings correct for the user's keyboard layout is a nice-to-
+          // have, and users with non-QWERTY layouts are usually aware of the
+          // fact that the are using non-QWERTY layouts, we resort to showing
+          // English QWERTY mappings as a best-effort approach.
+          // The alternative would be to show key mappings for all keyboard
+          // layouts which is not feasible.
+          this.keyMap = new EnglishQwertyKeyboardLayoutMap();
+          raf.scheduleFullRedraw();
+        } else {
+          // Something unexpected happened. Either the browser doesn't conform
+          // to the keyboard API spec, or the keyboard API spec has changed!
+          throw e;
+        }
+      });
   }
 
-  view(_: m.Vnode): m.Children {
-    const ctrlOrCmd =
-        window.navigator.platform.indexOf('Mac') !== -1 ? 'Cmd' : 'Ctrl';
-
-    const queryPageInstructions = globals.hideSidebar ? [] : [
-      m('h2', 'Making SQL queries from the query page'),
-      m('table',
-        m('tr',
-          m('td', keycap('Ctrl'), ' + ', keycap('Enter')),
-          m('td', 'Execute query')),
-        m('tr',
-          m('td', keycap('Ctrl'), ' + ', keycap('Enter'), ' (with selection)'),
-          m('td', 'Execute selection'))),
-    ];
-
-    const sidebarInstructions = globals.hideSidebar ?
-        [] :
-        [m('tr',
-           m('td', keycap(ctrlOrCmd), ' + ', keycap('b')),
-           m('td', 'Toggle display of sidebar'))];
-
+  view(): m.Children {
     return m(
-        '.help',
-        m('h2', 'Navigation'),
+      '.help',
+      m('h2', 'Navigation'),
+      m(
+        'table',
         m(
-            'table',
-            m(
-                'tr',
-                m('td',
-                  this.codeToKeycap(KeyMapping.KEY_ZOOM_IN),
-                  '/',
-                  this.codeToKeycap(KeyMapping.KEY_ZOOM_OUT)),
-                m('td', 'Zoom in/out'),
-                ),
-            m(
-                'tr',
-                m('td',
-                  this.codeToKeycap(KeyMapping.KEY_PAN_LEFT),
-                  '/',
-                  this.codeToKeycap(KeyMapping.KEY_PAN_RIGHT)),
-                m('td', 'Pan left/right'),
-                ),
-            ),
-        m('h2', 'Mouse Controls'),
-        m('table',
-          m('tr', m('td', 'Click'), m('td', 'Select event')),
-          m('tr', m('td', 'Ctrl + Scroll wheel'), m('td', 'Zoom in/out')),
-          m('tr', m('td', 'Click + Drag'), m('td', 'Select area')),
-          m('tr', m('td', 'Shift + Click + Drag'), m('td', 'Pan left/right'))),
-        m('h2', 'Making SQL queries from the viewer page'),
-        m('table',
-          m('tr',
-            m('td', keycap(':'), ' in the (empty) search box'),
-            m('td', 'Switch to query input')),
-          m('tr', m('td', keycap('Enter')), m('td', 'Execute query')),
-          m('tr',
-            m('td', keycap('Ctrl'), ' + ', keycap('Enter')),
-            m('td',
-              'Execute query and pin output ' +
-                  '(output will not be replaced by regular query input)'))),
-        ...queryPageInstructions,
-        m('h2', 'Other'),
+          'tr',
+          m(
+            'td',
+            this.codeToKeycap(KeyMapping.KEY_ZOOM_IN),
+            '/',
+            this.codeToKeycap(KeyMapping.KEY_ZOOM_OUT),
+          ),
+          m('td', 'Zoom in/out'),
+        ),
         m(
-            'table',
-            m('tr',
-              m('td', keycap('f'), ' (with event selected)'),
-              m('td', 'Scroll + zoom to current selection')),
-            m('tr',
-              m('td', keycap('['), '/', keycap(']'), ' (with event selected)'),
-              m('td',
-                'Select next/previous slice that is connected by a flow.',
-                m('br'),
-                'If there are multiple flows,' +
-                    'the one that is in focus (bold) is selected')),
-            m('tr',
-              m('td',
-                keycap(ctrlOrCmd),
-                ' + ',
-                keycap('['),
-                '/',
-                keycap(']'),
-                ' (with event selected)'),
-              m('td', 'Switch focus to another flow')),
-            m('tr',
-              m('td', keycap('m'), ' (with event or area selected)'),
-              m('td', 'Mark the area (temporarily)')),
-            m('tr',
-              m('td',
-                keycap('Shift'),
-                ' + ',
-                keycap('m'),
-                ' (with event or area selected)'),
-              m('td', 'Mark the area (persistently)')),
-            m('tr',
-              m('td', keycap(ctrlOrCmd), ' + ', keycap('a')),
-              m('td', 'Select all')),
-            ...sidebarInstructions,
-            m('tr', m('td', keycap('?')), m('td', 'Show help')),
-            ));
+          'tr',
+          m(
+            'td',
+            this.codeToKeycap(KeyMapping.KEY_PAN_LEFT),
+            '/',
+            this.codeToKeycap(KeyMapping.KEY_PAN_RIGHT),
+          ),
+          m('td', 'Pan left/right'),
+        ),
+      ),
+      m('h2', 'Mouse Controls'),
+      m(
+        'table',
+        m('tr', m('td', 'Click'), m('td', 'Select event')),
+        m('tr', m('td', 'Ctrl + Scroll wheel'), m('td', 'Zoom in/out')),
+        m('tr', m('td', 'Click + Drag'), m('td', 'Select area')),
+        m('tr', m('td', 'Shift + Click + Drag'), m('td', 'Pan left/right')),
+      ),
+      m('h2', 'Running commands from the viewer page'),
+      m(
+        'table',
+        m(
+          'tr',
+          m('td', keycap('>'), ' in the (empty) search box'),
+          m('td', 'Switch to command mode'),
+        ),
+      ),
+      m('h2', 'Making SQL queries from the viewer page'),
+      m(
+        'table',
+        m(
+          'tr',
+          m('td', keycap(':'), ' in the (empty) search box'),
+          m('td', 'Switch to query mode'),
+        ),
+        m('tr', m('td', keycap('Enter')), m('td', 'Execute query')),
+        m(
+          'tr',
+          m('td', keycap('Ctrl'), ' + ', keycap('Enter')),
+          m(
+            'td',
+            'Execute query and pin output ' +
+              '(output will not be replaced by regular query input)',
+          ),
+        ),
+      ),
+      m('h2', 'Making SQL queries from the query page'),
+      m(
+        'table',
+        m(
+          'tr',
+          m('td', keycap('Ctrl'), ' + ', keycap('Enter')),
+          m('td', 'Execute query'),
+        ),
+        m(
+          'tr',
+          m('td', keycap('Ctrl'), ' + ', keycap('Enter'), ' (with selection)'),
+          m('td', 'Execute selection'),
+        ),
+      ),
+      m('h2', 'Command Hotkeys'),
+      m(
+        'table',
+        AppImpl.instance.commands.commands
+          .filter(({defaultHotkey}) => defaultHotkey)
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map(({defaultHotkey, name}) => {
+            return m(
+              'tr',
+              m('td', m(HotkeyGlyphs, {hotkey: assertExists(defaultHotkey)})),
+              m('td', name),
+            );
+          }),
+      ),
+    );
   }
 
   private codeToKeycap(code: string): m.Children {
@@ -180,12 +179,4 @@ class KeyMappingsHelp implements m.ClassComponent {
       return keycap(m(Spinner));
     }
   }
-}
-
-function showHelp() {
-  showModal({
-    title: 'Perfetto Help',
-    content: () => m(KeyMappingsHelp),
-    buttons: [],
-  });
 }

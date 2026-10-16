@@ -12,6 +12,7 @@
 #include "base/system/sys_info.h"
 #include "base/time/default_clock.h"
 #include "base/time/default_tick_clock.h"
+#include "base/trace_event/trace_event.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
 #include "chromeos/dbus/power_manager/idle.pb.h"
 #include "components/exo/wm_helper.h"
@@ -97,7 +98,7 @@ GuestOsEngagementMetrics::~GuestOsEngagementMetrics() {
     session_manager::SessionManager::Get()->RemoveObserver(this);
 
   // If WMHelper is already destroyed, do nothing.
-  // TODO(crbug.com/748380): Fix shutdown order.
+  // TODO(crbug.com/40531599): Fix shutdown order.
   if (exo::WMHelper::HasInstance())
     exo::WMHelper::GetInstance()->RemoveActivationObserver(this);
 }
@@ -118,6 +119,7 @@ void GuestOsEngagementMetrics::OnWindowActivated(
 }
 
 void GuestOsEngagementMetrics::OnSessionStateChanged() {
+  TRACE_EVENT0("login", "GuestOsEngagementMetrics::OnSessionStateChanged");
   UpdateEngagementTime();
   session_active_ = session_manager::SessionManager::Get()->session_state() ==
                     session_manager::SessionState::ACTIVE;

@@ -27,6 +27,7 @@
 #include "third_party/blink/renderer/core/html/parser/html_tree_builder.h"
 #include "third_party/blink/renderer/core/html/parser/parser_synchronization_policy.h"
 #include "third_party/blink/renderer/core/html_names.h"
+#include "third_party/blink/renderer/core/keywords.h"
 
 namespace blink {
 
@@ -37,13 +38,14 @@ TextDocumentParser::TextDocumentParser(HTMLDocument& document,
 
 TextDocumentParser::~TextDocumentParser() = default;
 
-void TextDocumentParser::AppendBytes(const char* data, size_t length) {
-  if (!length || IsStopped())
+void TextDocumentParser::AppendBytes(base::span<const uint8_t> data) {
+  if (data.empty() || IsStopped()) {
     return;
+  }
 
   if (!have_inserted_fake_pre_element_)
     InsertFakePreElement();
-  HTMLDocumentParser::AppendBytes(data, length);
+  HTMLDocumentParser::AppendBytes(data);
 }
 
 void TextDocumentParser::InsertFakePreElement() {
@@ -56,16 +58,19 @@ void TextDocumentParser::InsertFakePreElement() {
 
   // Allow the browser to display the text file in dark mode if it is set as
   // the preferred color scheme.
-  attributes.push_back(Attribute(html_names::kNameAttr, "color-scheme"));
-  attributes.push_back(Attribute(html_names::kContentAttr, "light dark"));
+  attributes.push_back(
+      Attribute(html_names::kNameAttr, keywords::kColorScheme));
+  attributes.push_back(
+      Attribute(html_names::kContentAttr, AtomicString("light dark")));
   AtomicHTMLToken fake_meta(HTMLToken::kStartTag, html_names::HTMLTag::kMeta,
                             attributes);
   TreeBuilder()->ConstructTree(&fake_meta);
   attributes.clear();
 
   // Wrap the actual contents of the text file in <pre>.
-  attributes.push_back(Attribute(
-      html_names::kStyleAttr, "word-wrap: break-word; white-space: pre-wrap;"));
+  attributes.push_back(
+      Attribute(html_names::kStyleAttr,
+                AtomicString("word-wrap: break-word; white-space: pre-wrap;")));
   AtomicHTMLToken fake_pre(HTMLToken::kStartTag, html_names::HTMLTag::kPre,
                            attributes);
   TreeBuilder()->ConstructTree(&fake_pre);

@@ -78,12 +78,6 @@ void StorageServiceImpl::SetDataDirectory(
                           weak_ptr_factory_.GetWeakPtr()),
       base::SequencedTaskRunner::GetCurrentDefault()));
 
-  // Prevent SQLite from trying to use mmap, as SandboxedVfs does not currently
-  // support this.
-  //
-  // TODO(crbug.com/1117049): Configure this per Database instance.
-  sql::Database::DisableMmapByDefault();
-
   // SQLite needs our VFS implementation to work over a FilesystemProxy. This
   // installs it as the default implementation for the service process.
   sql::SandboxedVfs::Register(
@@ -93,7 +87,7 @@ void StorageServiceImpl::SetDataDirectory(
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 void StorageServiceImpl::BindPartition(
-    const absl::optional<base::FilePath>& path,
+    const std::optional<base::FilePath>& path,
     mojo::PendingReceiver<mojom::Partition> receiver) {
   if (path.has_value()) {
     if (!path->IsAbsolute()) {

@@ -4,6 +4,9 @@
 
 #include "chrome/browser/ui/views/file_system_access/file_system_access_icon_view.h"
 
+#include <algorithm>
+#include <iterator>
+
 #include "base/feature_list.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/app/vector_icons/vector_icons.h"
@@ -17,6 +20,19 @@
 #include "content/public/browser/web_contents.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/views/accessibility/view_accessibility.h"
+
+namespace {
+
+std::vector<base::FilePath> GetPaths(
+    const std::vector<content::PathInfo>& path_infos) {
+  std::vector<base::FilePath> result;
+  std::ranges::transform(path_infos, std::back_inserter(result),
+                         &content::PathInfo::path);
+  return result;
+}
+
+}  // namespace
 
 FileSystemAccessIconView::FileSystemAccessIconView(
     IconLabelBubbleView::Delegate* icon_label_bubble_delegate,
@@ -27,10 +43,8 @@ FileSystemAccessIconView::FileSystemAccessIconView(
                          page_action_icon_delegate,
                          "FileSystemAccess") {
   SetVisible(false);
-  SetAccessibilityProperties(
-      /*role*/ absl::nullopt,
-      l10n_util::GetStringUTF16(
-          IDS_FILE_SYSTEM_ACCESS_DIRECTORY_USAGE_TOOLTIP));
+  GetViewAccessibility().SetName(l10n_util::GetStringUTF16(
+      IDS_FILE_SYSTEM_ACCESS_DIRECTORY_USAGE_TOOLTIP));
 }
 
 views::BubbleDialogDelegate* FileSystemAccessIconView::GetBubble() const {
@@ -55,19 +69,21 @@ void FileSystemAccessIconView::UpdateImpl() {
 
   SetVisible(has_write_access_ || show_read_indicator);
 
-  if (has_write_access_ != had_write_access)
+  if (has_write_access_ != had_write_access) {
     UpdateIconImage();
+  }
 
-  SetAccessibleName(has_write_access_
-                        ? l10n_util::GetStringUTF16(
+  GetViewAccessibility().SetName(
+      has_write_access_ ? l10n_util::GetStringUTF16(
                               IDS_FILE_SYSTEM_ACCESS_WRITE_USAGE_TOOLTIP)
                         : l10n_util::GetStringUTF16(
                               IDS_FILE_SYSTEM_ACCESS_DIRECTORY_USAGE_TOOLTIP));
 
   // If icon isn't visible, a bubble shouldn't be shown either. Close it if
   // it was still open.
-  if (!GetVisible())
+  if (!GetVisible()) {
     FileSystemAccessUsageBubbleView::CloseCurrentBubble();
+  }
 }
 
 void FileSystemAccessIconView::OnExecuting(ExecuteSource execute_source) {
@@ -84,22 +100,22 @@ void FileSystemAccessIconView::OnExecuting(ExecuteSource execute_source) {
   }
 
   ChromeFileSystemAccessPermissionContext::Grants grants =
-      context->GetPermissionGrants(origin);
+      context->ConvertObjectsToGrants(context->GetGrantedObjects(origin));
 
   FileSystemAccessUsageBubbleView::Usage usage;
-  usage.readable_files = std::move(grants.file_read_grants);
-  usage.readable_directories = std::move(grants.directory_read_grants);
-  usage.writable_files = std::move(grants.file_write_grants);
-  usage.writable_directories = std::move(grants.directory_write_grants);
+  usage.readable_files = GetPaths(grants.file_read_grants);
+  usage.readable_directories = GetPaths(grants.directory_read_grants);
+  usage.writable_files = GetPaths(grants.file_write_grants);
+  usage.writable_directories = GetPaths(grants.directory_write_grants);
 
   FileSystemAccessUsageBubbleView::ShowBubble(web_contents, origin,
                                               std::move(usage));
 }
 
 const gfx::VectorIcon& FileSystemAccessIconView::GetVectorIcon() const {
-  return has_write_access_ ? vector_icons::kSaveOriginalFileIcon
+  return has_write_access_ ? kFileSaveChromeRefreshIcon
                            : vector_icons::kInsertDriveFileOutlineIcon;
 }
 
-BEGIN_METADATA(FileSystemAccessIconView, PageActionIconView)
+BEGIN_METADATA(FileSystemAccessIconView)
 END_METADATA

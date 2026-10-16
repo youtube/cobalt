@@ -1,11 +1,17 @@
 [package]
 name = "bssl-crypto"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 publish = false
-license = "MIT"
+license = "Apache-2.0"
 
 [dependencies]
-# the crate will need to be generated at this path by running this command at root
-# `cmake -G Ninja -B build -DRUST_BINDINGS="$(gcc -dumpmachine)" && ninja -C build`
-bssl-sys = {path = "../../build/rust/bssl-sys"}
+bssl-sys = {path = "../bssl-sys"}
+
+[features]
+default = []
+# `std` depends on the Rust `std` crate, but adds some useful trait impls if
+# available.
+std = []
+# `mlalgs` enables ML-KEM and ML-DSA support. This requires Rust 1.82.
+mlalgs = []

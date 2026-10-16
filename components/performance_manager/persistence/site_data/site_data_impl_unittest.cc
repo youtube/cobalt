@@ -37,7 +37,7 @@ class TestSiteDataImpl : public SiteDataImpl {
   }
 
  protected:
-  ~TestSiteDataImpl() override {}
+  ~TestSiteDataImpl() override = default;
 };
 
 class MockDataStore : public testing::NoopSiteDataStore {
@@ -49,19 +49,15 @@ class MockDataStore : public testing::NoopSiteDataStore {
 
   ~MockDataStore() override = default;
 
-  // Note: As move-only parameters (e.g. OnceCallback) aren't supported by mock
-  // methods, add On... methods to pass a non-const reference to OnceCallback.
-  void ReadSiteDataFromStore(
-      const url::Origin& origin,
-      SiteDataStore::ReadSiteDataFromStoreCallback callback) override {
-    OnReadSiteDataFromStore(origin, callback);
-  }
-  MOCK_METHOD2(OnReadSiteDataFromStore,
-               void(const url::Origin&,
-                    SiteDataStore::ReadSiteDataFromStoreCallback&));
-
-  MOCK_METHOD2(WriteSiteDataIntoStore,
-               void(const url::Origin&, const SiteDataProto&));
+  MOCK_METHOD(void,
+              ReadSiteDataFromStore,
+              (const url::Origin&,
+               SiteDataStore::ReadSiteDataFromStoreCallback),
+              (override));
+  MOCK_METHOD(void,
+              WriteSiteDataIntoStore,
+              (const url::Origin&, const SiteDataProto&),
+              (override));
 };
 
 // Returns a SiteDataFeatureProto that indicates that a feature hasn't been
@@ -106,12 +102,12 @@ class SiteDataImplTest : public ::testing::Test {
       SiteDataStore::ReadSiteDataFromStoreCallback* read_cb) {
     auto read_from_store_mock_impl =
         [&](const url::Origin& origin,
-            SiteDataStore::ReadSiteDataFromStoreCallback& callback) {
+            SiteDataStore::ReadSiteDataFromStoreCallback callback) {
           *read_cb = std::move(callback);
         };
 
     EXPECT_CALL(*mock_data_store,
-                OnReadSiteDataFromStore(::testing::_, ::testing::_))
+                ReadSiteDataFromStore(::testing::_, ::testing::_))
         .WillOnce(::testing::Invoke(read_from_store_mock_impl));
     auto local_site_data =
         GetDataImpl(origin, destroy_delegate_.GetWeakPtr(), mock_data_store);
@@ -414,7 +410,7 @@ TEST_F(SiteDataImplTest, OnInitCallbackMergePreviousObservations) {
   // Initialize a fake protobuf that indicates that this site updates its title
   // while in background and set a fake last loaded time (this should be
   // overridden once the callback runs).
-  absl::optional<SiteDataProto> test_proto = SiteDataProto();
+  std::optional<SiteDataProto> test_proto = SiteDataProto();
   SiteDataFeatureProto unused_feature_proto = GetUnusedFeatureProto();
   test_proto->mutable_updates_title_in_background()->CopyFrom(
       GetUsedFeatureProto());
@@ -589,7 +585,7 @@ TEST_F(SiteDataImplTest, OptionalFieldsNotPopulatedWhenClean) {
   EXPECT_EQ(0u, local_site_data->cpu_usage_estimate().num_datums());
   EXPECT_EQ(0u, local_site_data->private_footprint_kb_estimate().num_datums());
 
-  absl::optional<SiteDataProto> test_proto = SiteDataProto();
+  std::optional<SiteDataProto> test_proto = SiteDataProto();
 
   // Run the callback to indicate that the initialization has completed.
   std::move(read_cb).Run(test_proto);
@@ -671,7 +667,7 @@ TEST_F(SiteDataImplTest, DataLoadedCallbackInvoked) {
       base::BindLambdaForTesting([&]() { callback_invoked = true; }));
 
   // Run the callback to indicate that the initialization has completed.
-  absl::optional<SiteDataProto> test_proto = SiteDataProto();
+  std::optional<SiteDataProto> test_proto = SiteDataProto();
   std::move(read_cb).Run(test_proto);
 
   EXPECT_TRUE(callback_invoked);

@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_PROPERTIES_CSS_UNRESOLVED_PROPERTY_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_PROPERTIES_CSS_UNRESOLVED_PROPERTY_H_
 
-#include "base/containers/span.h"
 #include "base/notreached.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/properties/css_exposure.h"
@@ -15,15 +14,17 @@
 namespace blink {
 
 class ExecutionContext;
-CORE_EXPORT const CSSUnresolvedProperty& GetCSSPropertyVariableInternal();
 
 // TODO(crbug.com/793288): audit and consider redesigning how aliases are
 // handled once more of project Ribbon is done and all use of aliases can be
 // found and (hopefully) constrained.
 class CORE_EXPORT CSSUnresolvedProperty {
  public:
-  static const CSSUnresolvedProperty& Get(CSSPropertyID);
-  static const CSSUnresolvedProperty* GetAliasProperty(CSSPropertyID);
+  static const CSSUnresolvedProperty& Get(CSSPropertyID id) {
+    DCHECK_NE(id, CSSPropertyID::kInvalid);
+    DCHECK_LE(id, kLastUnresolvedCSSProperty);
+    return *GetPropertyInternal(id);
+  }
 
   // Origin trials are taken into account only when a non-nullptr
   // ExecutionContext is provided.
@@ -38,18 +39,11 @@ class CORE_EXPORT CSSUnresolvedProperty {
   }
 
   virtual bool IsResolvedProperty() const { return false; }
-  virtual const char* GetPropertyName() const {
-    NOTREACHED();
-    return nullptr;
-  }
+  virtual const char* GetPropertyName() const { NOTREACHED(); }
   virtual const WTF::AtomicString& GetPropertyNameAtomicString() const {
     NOTREACHED();
-    return g_empty_atom;
   }
-  virtual const char* GetJSPropertyName() const {
-    NOTREACHED();
-    return "";
-  }
+  virtual const char* GetJSPropertyName() const { NOTREACHED(); }
   WTF::String GetPropertyNameString() const {
     // We share the StringImpl with the AtomicStrings.
     return GetPropertyNameAtomicString().GetString();
@@ -60,13 +54,6 @@ class CORE_EXPORT CSSUnresolvedProperty {
   }
 
  protected:
-  static const CSSUnresolvedProperty& GetNonAliasProperty(CSSPropertyID id) {
-    if (id == CSSPropertyID::kVariable) {
-      return GetCSSPropertyVariableInternal();
-    }
-    return *kPropertyClasses[static_cast<int>(id)];
-  }
-
   constexpr CSSUnresolvedProperty() = default;
 };
 

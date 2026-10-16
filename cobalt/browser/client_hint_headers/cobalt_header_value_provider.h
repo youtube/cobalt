@@ -19,33 +19,62 @@
 #include <string>
 
 #include "base/no_destructor.h"
+#include "base/synchronization/lock.h"
+#include "base/thread_annotations.h"
 
 namespace cobalt {
 namespace browser {
 
-using HeaderMap = std::map<std::string, std::string>;
+// Client hint header name constants.
+constexpr char kCobaltCertScopeHeaderName[] =
+    "Sec-CH-UA-Co-Youtube-Certification-Scope";
+constexpr char kAndroidOSExperienceHeaderName[] =
+    "Sec-CH-UA-Co-Android-OS-Experience";
+constexpr char kPlayServicesVersionHeaderName[] =
+    "Sec-CH-UA-Co-Android-Play-Services-Version";
+constexpr char kBuildFingerprintHeaderName[] =
+    "Sec-CH-UA-Co-Android-Build-Fingerprint";
 
+// Thread-safe provider for Cobalt-specific trusted client hint HTTP headers.
+// Holds global header key-value pairs attached to outgoing network requests.
 class CobaltHeaderValueProvider {
  public:
-  // Get the singleton instance.
-  static CobaltHeaderValueProvider* GetInstance();
+  using HeaderMap = std::map<std::string, std::string>;
 
-  CobaltHeaderValueProvider() = default;
+  // Returns the process-wide singleton instance of CobaltHeaderValueProvider.
+  static CobaltHeaderValueProvider* GetInstance();
 
   CobaltHeaderValueProvider(const CobaltHeaderValueProvider&) = delete;
   CobaltHeaderValueProvider& operator=(const CobaltHeaderValueProvider&) =
       delete;
 
-  ~CobaltHeaderValueProvider() = default;
-
+  // Thread-safely sets or updates a client hint header key-value pair.
   void SetHeaderValue(const std::string& header_name,
                       const std::string& header_value);
-  const HeaderMap& GetHeaderValues() const;
+
+  // Thread-safely returns a copy of all current client hint header key-value
+  // pairs.
+  HeaderMap GetHeaderValues() const;
+
+  // Clears all stored header values for test isolation.
+  void ClearHeaderValuesForTesting();
+
+  // Re-initializes system property client hint headers for testing.
+  void LoadSystemProperties();
 
  private:
   friend class base::NoDestructor<CobaltHeaderValueProvider>;
 
-  HeaderMap header_values_;
+  // Private constructor and destructor to enforce singleton usage via
+  // GetInstance() and base::NoDestructor.
+  CobaltHeaderValueProvider();
+  ~CobaltHeaderValueProvider() = default;
+
+  // Guard for concurrent access to header_values_.
+  mutable base::Lock lock_;
+
+  // Map of header name to header value.
+  HeaderMap header_values_ GUARDED_BY(lock_);
 };
 
 }  // namespace browser

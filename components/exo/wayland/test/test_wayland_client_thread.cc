@@ -1,10 +1,12 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/exo/wayland/test/test_wayland_client_thread.h"
 
 #include <utility>
+
+#include <poll.h>
 
 #include <wayland-client-core.h>
 
@@ -20,9 +22,9 @@ TestWaylandClientThread::TestWaylandClientThread(const std::string& name)
     : Thread(name), controller_(FROM_HERE) {}
 
 TestWaylandClientThread::~TestWaylandClientThread() {
-  // Stop watching the descriptor here to guarantee that no new events will come
-  // during or after the destruction of the display.
-  controller_.StopWatchingFileDescriptor();
+  // Guarantee that no new events will come during or after the destruction of
+  // the display.
+  stopped_ = true;
 
   task_runner()->PostTask(FROM_HERE,
                           base::BindOnce(&TestWaylandClientThread::DoCleanUp,
@@ -58,7 +60,7 @@ void TestWaylandClientThread::RunAndWait(base::OnceClosure closure) {
       base::BindOnce(&TestWaylandClientThread::DoRun, base::Unretained(this),
                      std::move(closure)),
       run_loop.QuitClosure());
-  // TODO(crbug.com/1424930): Use busy loop to workaround RunLoop::Run()
+  // TODO(crbug.com/40260645): Use busy loop to workaround RunLoop::Run()
   // erroneously advancing mock time.
   while (!run_loop.AnyQuitCalled()) {
     run_loop.RunUntilIdle();
@@ -66,8 +68,27 @@ void TestWaylandClientThread::RunAndWait(base::OnceClosure closure) {
 }
 
 void TestWaylandClientThread::OnFileCanReadWithoutBlocking(int fd) {
-  while (wl_display_prepare_read(client_->display()) != 0)
-    wl_display_dispatch_pending(client_->display());
+  if (stopped_) {
+    return;
+  }
+
+  if (wl_display_prepare_read(client_->display()) != 0) {
+    return;
+  }
+  // Disconnect can be seen as a read event, and wl_display_prepare_read_queue()
+  // is used to prevent read from other thread and does not actually check the
+  // `fd`'s state.  Make sure that `fd` has indeed has data to read.
+  struct pollfd fds;
+  fds.fd = fd;
+  fds.events = POLLIN;
+  fds.revents = 0;
+
+  auto ret = poll(&fds, 1, -1);
+
+  if (ret != POLLIN) {
+    wl_display_cancel_read(client_->display());
+    return;
+  }
 
   wl_display_read_events(client_->display());
   wl_display_dispatch_pending(client_->display());
@@ -92,10 +113,12 @@ void TestWaylandClientThread::DoInit(
 
 void TestWaylandClientThread::DoRun(base::OnceClosure closure) {
   std::move(closure).Run();
+  wl_display_flush(client_->display());
   wl_display_roundtrip(client_->display());
 }
 
 void TestWaylandClientThread::DoCleanUp() {
+  controller_.StopWatchingFileDescriptor();
   client_.reset();
 }
 

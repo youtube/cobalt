@@ -8,6 +8,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -21,7 +22,6 @@
 #include "components/leveldb_proto/public/proto_database.h"
 #include "components/leveldb_proto/testing/fake_db.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace feature_engagement {
 
@@ -75,6 +75,10 @@ class PersistentAvailabilityStoreTest : public testing::Test {
       std::unique_ptr<std::map<std::string, uint32_t>> availabilities) {
     load_successful_ = success;
     load_results_ = std::move(availabilities);
+    // This callback only gets called once and the DB, created in CreateDB(),
+    // will be freed before the callstack unwinds. Clear the cached pointer to
+    // avoid a dangling pointer error later.
+    db_ = nullptr;
   }
 
  protected:
@@ -84,7 +88,7 @@ class PersistentAvailabilityStoreTest : public testing::Test {
   PersistentAvailabilityStore::OnLoadedCallback load_callback_;
 
   // Callback results.
-  absl::optional<bool> load_successful_;
+  std::optional<bool> load_successful_;
   std::unique_ptr<std::map<std::string, uint32_t>> load_results_;
 
   // |db_availabilities_| is used during creation of the FakeDB in CreateDB(),

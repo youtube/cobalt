@@ -4,23 +4,30 @@
 
 #include "chrome/browser/sync/test/integration/secondary_account_helper.h"
 
+#include <string>
+#include <vector>
+
+#include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
 #include "chrome/browser/signin/chrome_signin_client_test_util.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
+#include "google_apis/gaia/gaia_auth_util.h"
+#include "google_apis/gaia/gaia_id.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/net/network_portal_detector_test_impl.h"
 #include "chromeos/ash/components/network/network_handler.h"
 #include "chromeos/ash/components/network/network_state.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
 #include "chromeos/ash/components/network/portal_detector/network_portal_detector.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace secondary_account_helper {
 
@@ -34,6 +41,37 @@ void OnWillCreateBrowserContextServices(
                                    test_url_loader_factory));
 }
 
+void SetCookieForGaiaId(
+    const GaiaId& gaia_id,
+    const std::string& email,
+    bool signed_out,
+    signin::IdentityManager* identity_manager,
+    network::TestURLLoaderFactory* test_url_loader_factory) {
+  base::flat_map<GaiaId, signin::CookieParamsForTest> cookies_by_gaia_id;
+  signin::AccountsInCookieJarInfo cookies =
+      identity_manager->GetAccountsInCookieJar();
+  for (const gaia::ListedAccount& account :
+       cookies.GetPotentiallyInvalidSignedInAccounts()) {
+    cookies_by_gaia_id[account.gaia_id] = {.email = account.email,
+                                           .gaia_id = account.gaia_id,
+                                           .signed_out = false};
+  }
+  for (const gaia::ListedAccount& account : cookies.GetSignedOutAccounts()) {
+    cookies_by_gaia_id[account.gaia_id] = {
+        .email = account.email, .gaia_id = account.gaia_id, .signed_out = true};
+  }
+
+  cookies_by_gaia_id[gaia_id] = {
+      .email = email, .gaia_id = gaia_id, .signed_out = signed_out};
+
+  std::vector<signin::CookieParamsForTest> new_cookie_list;
+  for (const auto& [k, v] : cookies_by_gaia_id) {
+    new_cookie_list.push_back(v);
+  }
+  signin::SetCookieAccounts(identity_manager, test_url_loader_factory,
+                            new_cookie_list);
+}
+
 }  // namespace
 
 base::CallbackListSubscription SetUpSigninClient(
@@ -43,7 +81,7 @@ base::CallbackListSubscription SetUpSigninClient(
           &OnWillCreateBrowserContextServices, test_url_loader_factory));
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 void InitNetwork() {
   auto* portal_detector = new ash::NetworkPortalDetectorTestImpl();
 
@@ -52,14 +90,10 @@ void InitNetwork() {
 
   portal_detector->SetDefaultNetworkForTesting(default_network->guid());
 
-  portal_detector->SetDetectionResultsForTesting(
-      default_network->guid(),
-      ash::NetworkPortalDetector::CAPTIVE_PORTAL_STATUS_ONLINE, 204);
-
   // Takes ownership.
   ash::network_portal_detector::InitializeForTesting(portal_detector);
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 AccountInfo SignInUnconsentedAccount(
     Profile* profile,
@@ -67,29 +101,56 @@ AccountInfo SignInUnconsentedAccount(
     const std::string& email) {
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(profile);
+#if !BUILDFLAG(IS_CHROMEOS)
+  AccountInfo account_info = signin::MakePrimaryAccountAvailable(
+      identity_manager, email, signin::ConsentLevel::kSignin);
+#else
   AccountInfo account_info =
       signin::MakeAccountAvailable(identity_manager, email);
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // Unlike other platforms, ChromeOS does not get the primary account from the
-  // cookies, and it needs to be set explicitly.
-  identity_manager->GetPrimaryAccountMutator()->SetPrimaryAccount(
-      account_info.account_id, signin::ConsentLevel::kSignin);
-#endif
-  signin::SetCookieAccounts(identity_manager, test_url_loader_factory,
-                            {{account_info.email, account_info.gaia}});
+#endif  // !BUILDFLAG(IS_CHROMEOS)
+  SetCookieForGaiaId(account_info.gaia, account_info.email,
+                     /*signed_out=*/false, identity_manager,
+                     test_url_loader_factory);
   return account_info;
 }
 
-void SignOutAccount(Profile* profile,
-                    network::TestURLLoaderFactory* test_url_loader_factory,
-                    const CoreAccountId& account_id) {
+AccountInfo ImplicitSignInUnconsentedAccount(
+    Profile* profile,
+    network::TestURLLoaderFactory* test_url_loader_factory,
+    const std::string& email) {
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(profile);
-  signin::SetCookieAccounts(identity_manager, test_url_loader_factory, {});
-  signin::RemoveRefreshTokenForAccount(identity_manager, account_id);
+  signin::AccountAvailabilityOptionsBuilder builder;
+  AccountInfo account_info = signin::MakeAccountAvailable(
+      identity_manager,
+      builder
+#if !BUILDFLAG(IS_CHROMEOS)
+          .AsPrimary(signin::ConsentLevel::kSignin)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
+        // `kWebSignin` is not explicit signin.
+          .WithAccessPoint(signin_metrics::AccessPoint::kWebSignin)
+          .Build(email));
+  SetCookieForGaiaId(account_info.gaia, account_info.email,
+                     /*signed_out=*/false, identity_manager,
+                     test_url_loader_factory);
+  return account_info;
 }
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+void SignOut(Profile* profile,
+             network::TestURLLoaderFactory* test_url_loader_factory) {
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile);
+  CoreAccountInfo account =
+      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
+  CHECK(!account.IsEmpty());
+  SetCookieForGaiaId(account.gaia, account.email,
+                     /*signed_out=*/true, identity_manager,
+                     test_url_loader_factory);
+  signin::ClearPrimaryAccount(identity_manager);
+  signin::RemoveRefreshTokenForPrimaryAccount(identity_manager);
+}
+
+#if !BUILDFLAG(IS_CHROMEOS)
 void GrantSyncConsent(Profile* profile, const std::string& email) {
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(profile);
@@ -101,6 +162,6 @@ void GrantSyncConsent(Profile* profile, const std::string& email) {
   primary_account_mutator->SetPrimaryAccount(account.account_id,
                                              signin::ConsentLevel::kSync);
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace secondary_account_helper

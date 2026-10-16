@@ -8,7 +8,7 @@
 #include <utility>
 
 #include "third_party/blink/renderer/core/animation/compositor_animations.h"
-#include "third_party/blink/renderer/core/css/css_custom_property_declaration.h"
+#include "third_party/blink/renderer/core/css/css_unparsed_declaration_value.h"
 #include "third_party/blink/renderer/core/css/css_variable_data.h"
 #include "third_party/blink/renderer/core/css/cssom/computed_style_property_map.h"
 #include "third_party/blink/renderer/core/css/cssom/cross_thread_keyword_value.h"
@@ -19,6 +19,7 @@
 #include "third_party/blink/renderer/core/css/properties/css_property_ref.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
@@ -71,7 +72,7 @@ bool BuildNativeValues(const ComputedStyle& style,
         CSSProperty::Get(property_id)
             .CrossThreadStyleValueFromComputedStyle(
                 style, /* layout_object */ nullptr,
-                /* allow_visited_style */ false);
+                /* allow_visited_style */ false, CSSValuePhase::kComputedValue);
     if (value->GetType() ==
         CrossThreadStyleValue::StyleValueType::kUnknownType) {
       return false;
@@ -95,7 +96,7 @@ bool BuildCustomValues(
     std::unique_ptr<CrossThreadStyleValue> value =
         ref.GetProperty().CrossThreadStyleValueFromComputedStyle(
             style, /* layout_object */ nullptr,
-            /* allow_visited_style */ false);
+            /* allow_visited_style */ false, CSSValuePhase::kComputedValue);
     if (value->GetType() ==
         CrossThreadStyleValue::StyleValueType::kUnknownType) {
       return false;
@@ -120,7 +121,7 @@ bool BuildCustomValues(
 }  // namespace
 
 // static
-absl::optional<PaintWorkletStylePropertyMap::CrossThreadData>
+std::optional<PaintWorkletStylePropertyMap::CrossThreadData>
 PaintWorkletStylePropertyMap::BuildCrossThreadData(
     const Document& document,
     UniqueObjectId unique_object_id,
@@ -133,11 +134,11 @@ PaintWorkletStylePropertyMap::BuildCrossThreadData(
   data.ReserveCapacityForSize(native_properties.size() +
                               custom_properties.size());
   if (!BuildNativeValues(style, native_properties, data)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   if (!BuildCustomValues(document, unique_object_id, style, custom_properties,
                          data, input_property_keys)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return data;
 }
@@ -176,7 +177,8 @@ CSSStyleValueVector PaintWorkletStylePropertyMap::getAll(
     ExceptionState& exception_state) const {
   CSSPropertyID property_id = CssPropertyID(execution_context, property_name);
   if (property_id == CSSPropertyID::kInvalid) {
-    exception_state.ThrowTypeError("Invalid propertyName: " + property_name);
+    exception_state.ThrowTypeError(
+        WTF::StrCat({"Invalid propertyName: ", property_name}));
     return CSSStyleValueVector();
   }
 

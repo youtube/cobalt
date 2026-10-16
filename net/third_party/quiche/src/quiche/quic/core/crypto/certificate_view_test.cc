@@ -7,6 +7,8 @@
 #include <limits>
 #include <memory>
 #include <sstream>
+#include <string>
+#include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/escaping.h"
@@ -157,27 +159,27 @@ TEST(CertificateViewTest, DerTime) {
               Optional(QuicWallTime::FromUNIXSeconds(24)));
   EXPECT_TRUE(ParseDerTime(CBS_ASN1_UTCTIME, "200101000024Z").has_value());
 
-  EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, ""), absl::nullopt);
+  EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, ""), std::nullopt);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024.001Z"),
-            absl::nullopt);
+            std::nullopt);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024Q"),
-            absl::nullopt);
+            std::nullopt);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024-0500"),
-            absl::nullopt);
+            std::nullopt);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "700101000024ZZ"),
-            absl::nullopt);
+            std::nullopt);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024.00Z"),
-            absl::nullopt);
+            std::nullopt);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024.Z"),
-            absl::nullopt);
+            std::nullopt);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "197O0101000024Z"),
-            absl::nullopt);
+            std::nullopt);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024.0O1Z"),
-            absl::nullopt);
+            std::nullopt);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "-9700101000024Z"),
-            absl::nullopt);
+            std::nullopt);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "1970-101000024Z"),
-            absl::nullopt);
+            std::nullopt);
 
   EXPECT_TRUE(ParseDerTime(CBS_ASN1_UTCTIME, "490101000024Z").has_value());
   // This should parse as 1950, which predates UNIX epoch.
@@ -186,27 +188,30 @@ TEST(CertificateViewTest, DerTime) {
   EXPECT_THAT(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101230000Z"),
               Optional(QuicWallTime::FromUNIXSeconds(23 * 3600)));
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101240000Z"),
-            absl::nullopt);
+            std::nullopt);
 }
 
 TEST(CertificateViewTest, NameAttribute) {
   // OBJECT_IDENTIFIER { 1.2.840.113554.4.1.112411 }
   // UTF8String { "Test" }
-  std::string unknown_oid =
-      absl::HexStringToBytes("060b2a864886f712040186ee1b0c0454657374");
+  std::string unknown_oid;
+  ASSERT_TRUE(absl::HexStringToBytes("060b2a864886f712040186ee1b0c0454657374",
+                                     &unknown_oid));
   EXPECT_EQ("1.2.840.113554.4.1.112411=Test",
             X509NameAttributeToString(StringPieceToCbs(unknown_oid)));
 
   // OBJECT_IDENTIFIER { 2.5.4.3 }
   // UTF8String { "Bell: \x07" }
-  std::string non_printable =
-      absl::HexStringToBytes("06035504030c0742656c6c3a2007");
+  std::string non_printable;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("06035504030c0742656c6c3a2007", &non_printable));
   EXPECT_EQ(R"(CN=Bell: \x07)",
             X509NameAttributeToString(StringPieceToCbs(non_printable)));
 
   // OBJECT_IDENTIFIER { "\x55\x80" }
   // UTF8String { "Test" }
-  std::string invalid_oid = absl::HexStringToBytes("060255800c0454657374");
+  std::string invalid_oid;
+  ASSERT_TRUE(absl::HexStringToBytes("060255800c0454657374", &invalid_oid));
   EXPECT_EQ("(5580)=Test",
             X509NameAttributeToString(StringPieceToCbs(invalid_oid)));
 }

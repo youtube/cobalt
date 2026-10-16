@@ -1,6 +1,16 @@
-// Copyright 2014 The Chromium Authors
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <stddef.h>
 
@@ -143,7 +153,7 @@ class WebRtcGetUserMediaBrowserTest : public WebRtcContentBrowserTestBase {
     ASSERT_TRUE(parsed_json->is_list());
 
     for (const auto& entry : parsed_json->GetList()) {
-      const base::Value::Dict* dict = entry.GetIfDict();
+      const base::DictValue* dict = entry.GetIfDict();
       ASSERT_TRUE(dict);
       const std::string* kind = dict->FindString("kind");
       const std::string* device_id = dict->FindString("id");

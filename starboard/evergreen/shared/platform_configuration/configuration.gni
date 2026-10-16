@@ -14,7 +14,6 @@
 
 import("//starboard/build/config/modular/configuration.gni")
 
-size_config_path = "//starboard/evergreen/shared/platform_configuration:size"
 cobalt_licenses_platform = "evergreen"
 
 # Evergreen relies on the underlying platform for the player.

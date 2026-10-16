@@ -8,10 +8,9 @@
 #include <memory>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "components/viz/service/display_embedder/output_presenter.h"
 #include "components/viz/service/viz_service_export.h"
-#include "gpu/command_buffer/common/shared_image_usage.h"
-#include "gpu/command_buffer/service/shared_image/shared_image_factory.h"
 #include "ui/ozone/public/overlay_plane.h"
 
 namespace ui {
@@ -19,6 +18,8 @@ class PlatformWindowSurface;
 }  // namespace ui
 
 namespace viz {
+
+class SkiaOutputSurfaceDependency;
 
 class VIZ_SERVICE_EXPORT OutputPresenterFuchsia : public OutputPresenter {
  public:
@@ -32,26 +33,13 @@ class VIZ_SERVICE_EXPORT OutputPresenterFuchsia : public OutputPresenter {
 
   // OutputPresenter implementation:
   void InitializeCapabilities(OutputSurface::Capabilities* capabilities) final;
-  bool Reshape(const SkImageInfo& image_info,
-               const gfx::ColorSpace& color_space,
-               int sample_count,
-               float device_scale_factor,
-               gfx::OverlayTransform transform) final;
-  std::vector<std::unique_ptr<Image>> AllocateImages(
-      gfx::ColorSpace color_space,
-      gfx::Size image_size,
-      size_t num_images) final;
+  bool Reshape(const ReshapeParams& params) final;
   void Present(SwapCompletionCallback completion_callback,
                BufferPresentedCallback presentation_callback,
                gfx::FrameData data) final;
-  void SchedulePrimaryPlane(
-      const OverlayProcessorInterface::OutputSurfaceOverlayPlane& plane,
-      Image* image,
-      bool is_submitted) final;
   void ScheduleOverlayPlane(
       const OutputPresenter::OverlayPlaneCandidate& overlay_plane_candidate,
-      ScopedOverlayAccess* access,
-      std::unique_ptr<gfx::GpuFence> acquire_fence) final;
+      ScopedOverlayAccess* access) final;
 
  private:
   struct PendingFrame {
@@ -71,11 +59,11 @@ class VIZ_SERVICE_EXPORT OutputPresenterFuchsia : public OutputPresenter {
     std::vector<ui::OverlayPlane> overlays;
   };
 
-  ui::PlatformWindowSurface* const window_surface_;
-  SkiaOutputSurfaceDependency* const dependency_;
+  const raw_ptr<ui::PlatformWindowSurface> window_surface_;
+  const raw_ptr<SkiaOutputSurfaceDependency> dependency_;
 
   // The next frame to be submitted by SwapBuffers().
-  absl::optional<PendingFrame> next_frame_;
+  std::optional<PendingFrame> next_frame_;
 };
 
 }  // namespace viz

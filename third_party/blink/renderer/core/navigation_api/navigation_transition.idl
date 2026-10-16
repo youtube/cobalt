@@ -1,8 +1,7 @@
 [Exposed=Window]
 interface NavigationTransition {
-  readonly attribute NavigationNavigationType navigationType;
+  readonly attribute NavigationType navigationType;
   readonly attribute NavigationHistoryEntry from;
-  [CallWith=ScriptState] readonly attribute Promise<void> finished;
-
-  // NavigationResult rollback(optional NavigationOptions options = {});
+  [CallWith=ScriptState, RuntimeEnabled=NavigateEventCommitBehavior] readonly attribute Promise<undefined> committed;
+  [CallWith=ScriptState] readonly attribute Promise<undefined> finished;
 };

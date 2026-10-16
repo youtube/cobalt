@@ -124,8 +124,8 @@ public class SurfaceTextureHelperTest {
     // `surfaceTextureHelper` as the target EGLSurface.
     final EglBase eglOesBase = EglBase.create(eglBase.getEglBaseContext(), EglBase.CONFIG_PLAIN);
     eglOesBase.createSurface(surfaceTextureHelper.getSurfaceTexture());
-    assertEquals(eglOesBase.surfaceWidth(), width);
-    assertEquals(eglOesBase.surfaceHeight(), height);
+    assertEquals(width, eglOesBase.surfaceWidth());
+    assertEquals(height, eglOesBase.surfaceHeight());
 
     final int red[] = new int[] {79, 144, 185};
     final int green[] = new int[] {66, 210, 162};
@@ -155,10 +155,10 @@ public class SurfaceTextureHelperTest {
 
       // Assert rendered image is expected constant color.
       while (rgbaData.hasRemaining()) {
-        assertEquals(rgbaData.get() & 0xFF, red[i]);
-        assertEquals(rgbaData.get() & 0xFF, green[i]);
-        assertEquals(rgbaData.get() & 0xFF, blue[i]);
-        assertEquals(rgbaData.get() & 0xFF, 255);
+        assertEquals(red[i], rgbaData.get() & 0xFF);
+        assertEquals(green[i], rgbaData.get() & 0xFF);
+        assertEquals(blue[i], rgbaData.get() & 0xFF);
+        assertEquals(255, rgbaData.get() & 0xFF);
       }
     }
 
@@ -192,8 +192,8 @@ public class SurfaceTextureHelperTest {
     // `surfaceTextureHelper` as the target EGLSurface.
     final EglBase eglOesBase = EglBase.create(eglBase.getEglBaseContext(), EglBase.CONFIG_PLAIN);
     eglOesBase.createSurface(surfaceTextureHelper.getSurfaceTexture());
-    assertEquals(eglOesBase.surfaceWidth(), width);
-    assertEquals(eglOesBase.surfaceHeight(), height);
+    assertEquals(width, eglOesBase.surfaceWidth());
+    assertEquals(height, eglOesBase.surfaceHeight());
 
     final int red = 79;
     final int green = 66;
@@ -227,10 +227,10 @@ public class SurfaceTextureHelperTest {
 
     // Assert rendered image is expected constant color.
     while (rgbaData.hasRemaining()) {
-      assertEquals(rgbaData.get() & 0xFF, red);
-      assertEquals(rgbaData.get() & 0xFF, green);
-      assertEquals(rgbaData.get() & 0xFF, blue);
-      assertEquals(rgbaData.get() & 0xFF, 255);
+      assertEquals(red, rgbaData.get() & 0xFF);
+      assertEquals(green, rgbaData.get() & 0xFF);
+      assertEquals(blue, rgbaData.get() & 0xFF);
+      assertEquals(255,rgbaData.get() & 0xFF);
     }
     // Late frame return after everything has been disposed and released.
     textureBuffer.release();
@@ -447,8 +447,8 @@ public class SurfaceTextureHelperTest {
     // `surfaceTextureHelper` as the target EGLSurface.
 
     eglBase.createSurface(surfaceTextureHelper.getSurfaceTexture());
-    assertEquals(eglBase.surfaceWidth(), width);
-    assertEquals(eglBase.surfaceHeight(), height);
+    assertEquals(width, eglBase.surfaceWidth());
+    assertEquals(height, eglBase.surfaceHeight());
 
     final int red[] = new int[] {79, 144, 185};
     final int green[] = new int[] {66, 210, 162};

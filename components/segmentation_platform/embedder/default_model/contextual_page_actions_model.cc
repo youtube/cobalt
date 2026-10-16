@@ -17,44 +17,55 @@ namespace segmentation_platform {
 namespace {
 using proto::SegmentId;
 
+// Label input size
+constexpr int kLabelInputSize = 4;
 // Default parameters for contextual page actions model.
 constexpr SegmentId kSegmentId =
     SegmentId::OPTIMIZATION_TARGET_CONTEXTUAL_PAGE_ACTION_PRICE_TRACKING;
 constexpr int64_t kOneDayInSeconds = 86400;
 // Parameters for share action model.
-constexpr int64_t kShareOutputCollectionDelayInSec = 300;
 constexpr std::array<MetadataWriter::UMAFeature, 6> kShareUMAFeatures = {
     MetadataWriter::UMAFeature::FromUserAction(
         "MobileMenuShare",
-        kShareOutputCollectionDelayInSec),
+        ContextualPageActionsModel::kShareOutputCollectionDelayInSec),
     MetadataWriter::UMAFeature::FromUserAction(
         "Omnibox.EditUrlSuggestion.Share",
-        kShareOutputCollectionDelayInSec),
+        ContextualPageActionsModel::kShareOutputCollectionDelayInSec),
     MetadataWriter::UMAFeature::FromUserAction(
         "MobileActionMode.Share",
-        kShareOutputCollectionDelayInSec),
+        ContextualPageActionsModel::kShareOutputCollectionDelayInSec),
     MetadataWriter::UMAFeature::FromUserAction(
         "MobileMenuDirectShare",
-        kShareOutputCollectionDelayInSec),
+        ContextualPageActionsModel::kShareOutputCollectionDelayInSec),
     MetadataWriter::UMAFeature::FromUserAction(
         "Omnibox.EditUrlSuggestion.Copy",
-        kShareOutputCollectionDelayInSec),
+        ContextualPageActionsModel::kShareOutputCollectionDelayInSec),
     MetadataWriter::UMAFeature::FromUserAction(
         "Tab.Screenshot",
-        kShareOutputCollectionDelayInSec),
+        ContextualPageActionsModel::kShareOutputCollectionDelayInSec),
 };
 
-constexpr std::array<const char*, 2> kContextualPageActionModelLabels = {
-    kContextualPageActionModelLabelPriceTracking,
-    kContextualPageActionModelLabelReaderMode};
+constexpr std::array<const char*, kLabelInputSize>
+    kContextualPageActionModelLabels = {
+        kContextualPageActionModelLabelDiscounts,
+        kContextualPageActionModelLabelPriceInsights,
+        kContextualPageActionModelLabelPriceTracking,
+        kContextualPageActionModelLabelReaderMode};
+
+MetadataWriter::CustomInput CreateCustomInput(std::string name) {
+  return MetadataWriter::CustomInput{
+      .tensor_length = 1,
+      .fill_policy = proto::CustomInput::FILL_FROM_INPUT_CONTEXT,
+      .name = name.c_str()};
+}
 
 }  // namespace
 
 ContextualPageActionsModel::ContextualPageActionsModel()
-    : ModelProvider(kSegmentId) {}
+    : DefaultModelProvider(kSegmentId) {}
 
-void ContextualPageActionsModel::InitAndFetchModel(
-    const ModelUpdatedCallback& model_updated_callback) {
+std::unique_ptr<DefaultModelProvider::ModelConfig>
+ContextualPageActionsModel::GetModelConfig() {
   proto::SegmentationModelMetadata metadata;
   MetadataWriter writer(&metadata);
   writer.SetSegmentationMetadataConfig(
@@ -63,21 +74,27 @@ void ContextualPageActionsModel::InitAndFetchModel(
       /*min_signal_collection_length=*/kOneDayInSeconds,
       /*result_time_to_live=*/kOneDayInSeconds);
 
+  // Add discounts custom input.
+  proto::CustomInput* discounts_input =
+      writer.AddCustomInput(CreateCustomInput("discounts_input"));
+  (*discounts_input->mutable_additional_args())["name"] =
+      kContextualPageActionModelInputDiscounts;
+
+  // Add price insights custom input.
+  proto::CustomInput* price_insights_input =
+      writer.AddCustomInput(CreateCustomInput("price_insights_input"));
+  (*price_insights_input->mutable_additional_args())["name"] =
+      kContextualPageActionModelInputPriceInsights;
+
   // Add price tracking custom input.
   proto::CustomInput* price_tracking_input =
-      writer.AddCustomInput(MetadataWriter::CustomInput{
-          .tensor_length = 1,
-          .fill_policy = proto::CustomInput::FILL_FROM_INPUT_CONTEXT,
-          .name = "price_tracking_input"});
+      writer.AddCustomInput(CreateCustomInput("price_tracking_input"));
   (*price_tracking_input->mutable_additional_args())["name"] =
       kContextualPageActionModelInputPriceTracking;
 
   // Add reader mode custom input.
   proto::CustomInput* reader_mode_input =
-      writer.AddCustomInput(MetadataWriter::CustomInput{
-          .tensor_length = 1,
-          .fill_policy = proto::CustomInput::FILL_FROM_INPUT_CONTEXT,
-          .name = "reader_mode_input"});
+      writer.AddCustomInput(CreateCustomInput("reader_mode_input"));
   (*reader_mode_input->mutable_additional_args())["name"] =
       kContextualPageActionModelInputReaderMode;
 
@@ -86,8 +103,11 @@ void ContextualPageActionsModel::InitAndFetchModel(
     writer.AddUmaFeatures(kShareUMAFeatures.data(), kShareUMAFeatures.size(),
                           false);
 
+    metadata.set_upload_tensors(true);
+
     // Add share output collection with delay.
-    writer.AddDelayTrigger(kShareOutputCollectionDelayInSec);
+    writer.AddDelayTrigger(
+        ContextualPageActionsModel::kShareOutputCollectionDelayInSec);
     writer.AddUmaFeatures(kShareUMAFeatures.data(), kShareUMAFeatures.size(),
                           true);
   }
@@ -98,41 +118,41 @@ void ContextualPageActionsModel::InitAndFetchModel(
 
   // Set output config, labels, and classifier.
   writer.AddOutputConfigForMultiClassClassifier(
-      kContextualPageActionModelLabels.begin(),
-      kContextualPageActionModelLabels.size(),
+      kContextualPageActionModelLabels,
       /*top_k_outputs=*/1, threshold);
 
   constexpr int kModelVersion = 1;
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindRepeating(model_updated_callback, kSegmentId,
-                                     std::move(metadata), kModelVersion));
+  return std::make_unique<ModelConfig>(std::move(metadata), kModelVersion);
 }
 
 void ContextualPageActionsModel::ExecuteModelWithInput(
     const ModelProvider::Request& inputs,
     ExecutionCallback callback) {
-  size_t custom_input_size = 2;
   size_t expected_input_size =
       base::FeatureList::IsEnabled(features::kContextualPageActionShareModel)
-          ? kShareUMAFeatures.size() + custom_input_size
-          : custom_input_size;
+          ? kShareUMAFeatures.size() + kLabelInputSize
+          : kLabelInputSize;
 
   // Invalid inputs.
   if (inputs.size() != expected_input_size) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+        FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
     return;
   }
 
-  // TODO(haileywang): Use input[2] to input[7] to show share button.
-  bool can_track_price = inputs[0];
-  bool has_reader_mode = inputs[1];
+  // TODO(haileywang): Use input[4] to input[9] to show share button.
+  bool has_discounts = inputs[0];
+  bool has_price_insights = inputs[1];
+  bool can_track_price = inputs[2];
+  bool has_reader_mode = inputs[3];
 
   // Create response.
-  ModelProvider::Response response(2, 0);
-  response[0] = can_track_price;
-  response[1] = has_reader_mode;
-  // TODO(crbug/1399467): Set a classifier threshold.
+  ModelProvider::Response response(kLabelInputSize, 0);
+  response[0] = has_discounts;
+  response[1] = has_price_insights;
+  response[2] = can_track_price;
+  response[3] = has_reader_mode;
+  // TODO(crbug.com/40249852): Set a classifier threshold.
 
   // TODO(shaktisahu): This class needs some rethinking to correctly associate
   // the labeled outputs to the flattened vector. Maybe have this method return
@@ -143,10 +163,6 @@ void ContextualPageActionsModel::ExecuteModelWithInput(
 
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), response));
-}
-
-bool ContextualPageActionsModel::ModelAvailable() {
-  return true;
 }
 
 }  // namespace segmentation_platform

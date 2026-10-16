@@ -1,5 +1,6 @@
-monorail {
-  component: "Blink>Paint"
+monorail: {
+  component: "Internals>Printing"
 }
-team_email: "paint-dev@chromium.org"
-
+buganizer_public: {
+  component_id: 1457089
+}

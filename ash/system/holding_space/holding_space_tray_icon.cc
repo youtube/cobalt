@@ -4,6 +4,8 @@
 
 #include "ash/system/holding_space/holding_space_tray_icon.h"
 
+#include <vector>
+
 #include "ash/public/cpp/holding_space/holding_space_constants.h"
 #include "ash/public/cpp/holding_space/holding_space_item.h"
 #include "ash/public/cpp/holding_space/holding_space_metrics.h"
@@ -18,7 +20,6 @@
 #include "base/barrier_closure.h"
 #include "base/containers/adapters.h"
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/containers/unique_ptr_adapters.h"
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
@@ -79,7 +80,9 @@ class HoldingSpaceTrayIcon::ResizeAnimation
         target_size_(target_size),
         animation_(this),
         animation_throughput_tracker_(
-            icon->GetWidget()->GetCompositor()->RequestNewThroughputTracker()) {
+            icon->GetWidget()
+                ->GetCompositor()
+                ->RequestNewCompositorMetricsTracker()) {
     animation_.SetTweenType(gfx::Tween::FAST_OUT_SLOW_IN);
     animation_.SetSlideDuration(
         ui::ScopedAnimationDurationScaleMode::duration_multiplier() *
@@ -121,7 +124,7 @@ class HoldingSpaceTrayIcon::ResizeAnimation
 
   void Start() {
     animation_throughput_tracker_.Start(
-        metrics_util::ForSmoothness(base::BindRepeating(
+        metrics_util::ForSmoothnessV3(base::BindRepeating(
             holding_space_metrics::RecordPodResizeAnimationSmoothness)));
 
     animation_.Show();
@@ -131,8 +134,8 @@ class HoldingSpaceTrayIcon::ResizeAnimation
   void AdvanceToEnd() { animation_.End(); }
 
  private:
-  const raw_ptr<HoldingSpaceTrayIcon, ExperimentalAsh> icon_;
-  const raw_ptr<views::View, ExperimentalAsh> previews_container_;
+  const raw_ptr<HoldingSpaceTrayIcon> icon_;
+  const raw_ptr<views::View> previews_container_;
   const gfx::Size initial_size_;
   const gfx::Size target_size_;
 
@@ -157,18 +160,11 @@ void HoldingSpaceTrayIcon::Clear() {
   item_ids_.clear();
   previews_by_id_.clear();
   removed_previews_.clear();
-  SetPreferredSize(CalculatePreferredSize());
+  SetPreferredSize(CalculatePreferredSize({}));
 }
 
-int HoldingSpaceTrayIcon::GetHeightForWidth(int width) const {
-  // The parent for this view (`TrayContainer`) uses a `BoxLayout` for its
-  // `LayoutManager`. When the shelf orientation is vertical, the `BoxLayout`
-  // will also have vertical orientation and will invoke `GetHeightForWidth()`
-  // instead of `GetPreferredSize()` when determining preferred size.
-  return GetPreferredSize().height();
-}
-
-gfx::Size HoldingSpaceTrayIcon::CalculatePreferredSize() const {
+gfx::Size HoldingSpaceTrayIcon::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   const int num_visible_previews =
       std::min(kHoldingSpaceTrayIconMaxVisiblePreviews,
                static_cast<int>(previews_by_id_.size()));
@@ -348,7 +344,7 @@ void HoldingSpaceTrayIcon::OnShelfAlignmentChanged(
     resize_animation_.reset();
   }
 
-  SetPreferredSize(CalculatePreferredSize());
+  SetPreferredSize(CalculatePreferredSize({}));
   previews_container_->SetTransform(gfx::Transform());
 }
 
@@ -366,14 +362,14 @@ void HoldingSpaceTrayIcon::OnShelfConfigUpdated() {
     resize_animation_.reset();
   }
 
-  SetPreferredSize(CalculatePreferredSize());
+  SetPreferredSize(CalculatePreferredSize({}));
   previews_container_->SetTransform(gfx::Transform());
 }
 
 void HoldingSpaceTrayIcon::OnOldItemAnimatedOut(
     HoldingSpaceTrayIconPreview* preview,
     const base::RepeatingClosure& callback) {
-  base::EraseIf(removed_previews_, base::MatchesUniquePtr(preview));
+  std::erase_if(removed_previews_, base::MatchesUniquePtr(preview));
   callback.Run();
 }
 
@@ -386,7 +382,7 @@ void HoldingSpaceTrayIcon::OnOldItemsRemoved() {
   // Now that the old items have been removed, resize the icon, and update
   // previews position within the icon.
   const gfx::Size initial_size = size();
-  const gfx::Size target_size = CalculatePreferredSize();
+  const gfx::Size target_size = CalculatePreferredSize({});
 
   if (initial_size != target_size) {
     // Changing icon bounds changes the relative position of existing item
@@ -523,7 +519,7 @@ void HoldingSpaceTrayIcon::EnsurePreviewLayerStackingOrder() {
   }
 }
 
-BEGIN_METADATA(HoldingSpaceTrayIcon, views::View)
+BEGIN_METADATA(HoldingSpaceTrayIcon)
 END_METADATA
 
 }  // namespace ash

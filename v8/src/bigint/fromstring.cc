@@ -59,7 +59,7 @@ void ProcessorImpl::FromStringClassic(RWDigits Z,
 //   just copy the previous result. (In theory we could even de-dupe them, but
 //   as the parts/multipliers grow, we'll need most of the memory anyway.)
 //   Copied results are marked with a * below.
-// - We can re-use memory using a system of three buffers whose usage rotates:
+// - We can reuse memory using a system of three buffers whose usage rotates:
 //   - one is considered empty, and is overwritten with the new parts,
 //   - one holds the multipliers (and will be "empty" in the next round), and
 //   - one initially holds the parts and is overwritten with the new multipliers
@@ -90,7 +90,11 @@ void ProcessorImpl::FromStringLarge(RWDigits Z,
                                     FromStringAccumulator* accumulator) {
   int num_parts = static_cast<int>(accumulator->heap_parts_.size());
   DCHECK(num_parts >= 2);
-  DCHECK(Z.len() >= num_parts);
+  // This is a release-mode check to guard against concurrent in-sandbox
+  // corruption. Due to the rotating-buffer scheme described above, if Z
+  // was too short, the algorithm would get confused and eventually perform
+  // OOB writes into {multipliers_storage} (allocated below).
+  CHECK(Z.len() >= num_parts);
   RWDigits parts(accumulator->heap_parts_.data(), num_parts);
   Storage multipliers_storage(num_parts);
   RWDigits multipliers(multipliers_storage.get(), num_parts);
@@ -242,9 +246,9 @@ void ProcessorImpl::FromStringBasePowerOfTwo(
   const int num_parts = accumulator->ResultLength();
   DCHECK(num_parts >= 1);
   DCHECK(Z.len() >= num_parts);
-  Digits parts(accumulator->heap_parts_.size() > 0
-                   ? accumulator->heap_parts_.data()
-                   : accumulator->stack_parts_,
+  Digits parts(accumulator->heap_parts_.empty()
+                   ? accumulator->stack_parts_
+                   : accumulator->heap_parts_.data(),
                num_parts);
   uint8_t radix = accumulator->radix_;
   DCHECK(radix == 2 || radix == 4 || radix == 8 || radix == 16 || radix == 32);

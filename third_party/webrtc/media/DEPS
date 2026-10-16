@@ -25,6 +25,9 @@ specific_include_rules = {
   ".*webrtc_video_engine\.h": [
     "+video/config",
   ],
+  ".*webrtc_video_engine\.cc": [
+    "+video/config",
+  ],
   ".*media_channel\.h": [
     "+video/config",
   ],
@@ -33,5 +36,11 @@ specific_include_rules = {
   ],
   ".*fake_webrtc_call\.cc": [
     "+video/config",
+  ],
+  ".*fake_webrtc_call\.h": [
+    "+video/config",
+  ],
+  ".*codec\.h": [
+    "+absl/strings/str_format.h",
   ],
 }

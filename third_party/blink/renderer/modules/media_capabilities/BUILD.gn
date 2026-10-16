@@ -19,6 +19,9 @@ blink_modules_sources("media_capabilities") {
     "//third_party/blink/renderer/modules/encryptedmedia:encryptedmedia",
     "//third_party/blink/renderer/modules/mediarecorder",
   ]
+  if (is_cobalt) {
+    deps -= [ "//third_party/blink/renderer/modules/mediarecorder" ]
+  }
 }
 
 fuzzable_proto_library("fuzzer_media_configuration_proto") {

@@ -7,14 +7,19 @@
  * Author: Daniel Veillard
  */
 
-#include <libxml/parser.h>
-
 #ifndef __XML_ERROR_H__
 #define __XML_ERROR_H__
+
+#include <libxml/xmlversion.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/*
+ * Backward compatibility
+ */
+#define initGenericErrorDefaultFunc(h) xmlSetGenericErrorFunc(NULL, *(h))
 
 /**
  * xmlErrorLevel:
@@ -210,6 +215,12 @@ typedef enum {
     XML_ERR_NAME_TOO_LONG, /* 110 */
     XML_ERR_USER_STOP, /* 111 */
     XML_ERR_COMMENT_ABRUPTLY_ENDED, /* 112 */
+    XML_WAR_ENCODING_MISMATCH, /* 113 */
+    XML_ERR_RESOURCE_LIMIT, /* 114 */
+    XML_ERR_ARGUMENT, /* 115 */
+    XML_ERR_SYSTEM, /* 116 */
+    XML_ERR_REDECL_PREDEF_ENTITY, /* 117 */
+    XML_ERR_INT_SUBSET_NOT_FINISHED, /* 118 */
     XML_NS_ERR_XML_NAMESPACE = 200,
     XML_NS_ERR_UNDEFINED_NAMESPACE, /* 201 */
     XML_NS_ERR_QNAME, /* 202 */
@@ -472,6 +483,7 @@ typedef enum {
     XML_IO_EADDRINUSE, /* 1554 */
     XML_IO_EALREADY, /* 1555 */
     XML_IO_EAFNOSUPPORT, /* 1556 */
+    XML_IO_UNSUPPORTED_PROTOCOL, /* 1557 */
     XML_XINCLUDE_RECURSION=1600,
     XML_XINCLUDE_PARSE_VALUE, /* 1601 */
     XML_XINCLUDE_ENTITY_DEF_MISMATCH, /* 1602 */
@@ -855,7 +867,25 @@ typedef void (*xmlGenericErrorFunc) (void *ctx,
  * Signature of the function to use when there is an error and
  * the module handles the new error reporting mechanism.
  */
-typedef void (*xmlStructuredErrorFunc) (void *userData, xmlErrorPtr error);
+typedef void (*xmlStructuredErrorFunc) (void *userData, const xmlError *error);
+
+/** DOC_DISABLE */
+XML_DEPRECATED
+XMLPUBFUN const xmlError *__xmlLastError(void);
+
+XMLPUBFUN xmlGenericErrorFunc *__xmlGenericError(void);
+XMLPUBFUN void **__xmlGenericErrorContext(void);
+XMLPUBFUN xmlStructuredErrorFunc *__xmlStructuredError(void);
+XMLPUBFUN void **__xmlStructuredErrorContext(void);
+
+#ifndef XML_GLOBALS_NO_REDEFINITION
+  #define xmlLastError (*__xmlLastError())
+  #define xmlGenericError (*__xmlGenericError())
+  #define xmlGenericErrorContext (*__xmlGenericErrorContext())
+  #define xmlStructuredError (*__xmlStructuredError())
+  #define xmlStructuredErrorContext (*__xmlStructuredErrorContext())
+#endif
+/** DOC_ENABLE */
 
 /*
  * Use the following function to reset the two global variables
@@ -866,11 +896,16 @@ XMLPUBFUN void
 				 xmlGenericErrorFunc handler);
 XML_DEPRECATED
 XMLPUBFUN void
-    initGenericErrorDefaultFunc	(xmlGenericErrorFunc *handler);
+    xmlThrDefSetGenericErrorFunc(void *ctx,
+                                 xmlGenericErrorFunc handler);
 
 XMLPUBFUN void
     xmlSetStructuredErrorFunc	(void *ctx,
 				 xmlStructuredErrorFunc handler);
+XML_DEPRECATED
+XMLPUBFUN void
+    xmlThrDefSetStructuredErrorFunc(void *ctx,
+                                 xmlStructuredErrorFunc handler);
 /*
  * Default message routines used by SAX and Valid context for error
  * and warning reporting.
@@ -891,26 +926,33 @@ XMLPUBFUN void
     xmlParserValidityWarning	(void *ctx,
 				 const char *msg,
 				 ...) LIBXML_ATTR_FORMAT(2,3);
+/** DOC_DISABLE */
+struct _xmlParserInput;
+/** DOC_ENABLE */
 XMLPUBFUN void
-    xmlParserPrintFileInfo	(xmlParserInputPtr input);
+    xmlParserPrintFileInfo	(struct _xmlParserInput *input);
 XMLPUBFUN void
-    xmlParserPrintFileContext	(xmlParserInputPtr input);
+    xmlParserPrintFileContext	(struct _xmlParserInput *input);
+XMLPUBFUN void
+xmlFormatError			(const xmlError *err,
+				 xmlGenericErrorFunc channel,
+				 void *data);
 
 /*
  * Extended error information routines
  */
-XMLPUBFUN xmlErrorPtr
+XMLPUBFUN const xmlError *
     xmlGetLastError		(void);
 XMLPUBFUN void
     xmlResetLastError		(void);
-XMLPUBFUN xmlErrorPtr
+XMLPUBFUN const xmlError *
     xmlCtxtGetLastError		(void *ctx);
 XMLPUBFUN void
     xmlCtxtResetLastError	(void *ctx);
 XMLPUBFUN void
     xmlResetError		(xmlErrorPtr err);
 XMLPUBFUN int
-    xmlCopyError		(xmlErrorPtr from,
+    xmlCopyError		(const xmlError *from,
 				 xmlErrorPtr to);
 
 #ifdef __cplusplus

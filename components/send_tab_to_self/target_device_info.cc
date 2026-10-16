@@ -6,9 +6,11 @@
 
 #include "base/feature_list.h"
 #include "base/strings/strcat.h"
+#include "base/trace_event/trace_event.h"
 #include "components/send_tab_to_self/features.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/sync_device_info/device_info.h"
+#include "third_party/abseil-cpp/absl/strings/ascii.h"
 #include "ui/base/l10n/l10n_util.h"
 
 namespace {
@@ -21,6 +23,9 @@ std::string GetDeviceType(syncer::DeviceInfo::FormFactor form_factor) {
       device_type_message_id = IDS_SHARING_DEVICE_TYPE_COMPUTER;
       break;
 
+    case syncer::DeviceInfo::FormFactor::kAutomotive:
+    case syncer::DeviceInfo::FormFactor::kWearable:
+    case syncer::DeviceInfo::FormFactor::kTv:
     case syncer::DeviceInfo::FormFactor::kUnknown:
       device_type_message_id = IDS_SHARING_DEVICE_TYPE_DEVICE;
       break;
@@ -41,8 +46,10 @@ std::string CapitalizeWords(const std::string& sentence) {
   std::string capitalized_sentence;
   bool use_upper_case = true;
   for (char ch : sentence) {
-    capitalized_sentence += (use_upper_case ? toupper(ch) : ch);
-    use_upper_case = !isalpha(ch);
+    capitalized_sentence +=
+        (use_upper_case ? absl::ascii_toupper(static_cast<unsigned char>(ch))
+                        : ch);
+    use_upper_case = !absl::ascii_isalpha(static_cast<unsigned char>(ch));
   }
   return capitalized_sentence;
 }
@@ -65,7 +72,7 @@ TargetDeviceInfo::TargetDeviceInfo(
       last_updated_timestamp(last_updated_timestamp) {}
 
 TargetDeviceInfo::TargetDeviceInfo(const TargetDeviceInfo& other) = default;
-TargetDeviceInfo::~TargetDeviceInfo() {}
+TargetDeviceInfo::~TargetDeviceInfo() = default;
 
 bool TargetDeviceInfo::operator==(const TargetDeviceInfo& rhs) const {
   return this->full_name == rhs.full_name &&
@@ -77,13 +84,15 @@ bool TargetDeviceInfo::operator==(const TargetDeviceInfo& rhs) const {
 }
 
 SharingDeviceNames GetSharingDeviceNames(const syncer::DeviceInfo* device) {
+  TRACE_EVENT0("ui", "send_tab_to_self::GetSharingDeviceNames");
   DCHECK(device);
   std::string model = device->model_name();
 
   // 1. Skip renaming for M78- devices where HardwareInfo is not available.
   // 2. Skip renaming if client_name is high quality i.e. not equals to model.
-  if (model.empty() || model != device->client_name())
+  if (model.empty() || model != device->client_name()) {
     return {device->client_name(), device->client_name()};
+  }
 
   std::string manufacturer = CapitalizeWords(device->manufacturer_name());
 
@@ -95,8 +104,9 @@ SharingDeviceNames GetSharingDeviceNames(const syncer::DeviceInfo* device) {
 
   // Internal names of Apple devices are formatted as MacbookPro2,3 or
   // iPhone2,1 or Ipad4,1.
-  if (manufacturer == "Apple Inc.")
+  if (manufacturer == "Apple Inc.") {
     return {model, model.substr(0, model.find_first_of("0123456789,"))};
+  }
 
   std::string short_name =
       base::StrCat({manufacturer, " ", GetDeviceType(device->form_factor())});

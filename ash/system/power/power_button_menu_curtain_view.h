@@ -7,8 +7,8 @@
 
 #include "ash/ash_export.h"
 #include "ash/style/system_shadow.h"
-#include "base/allocator/partition_allocator/pointers/raw_ptr.h"
 #include "base/check_deref.h"
+#include "base/memory/raw_ptr.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/compositor/layer_animation_observer.h"
 #include "ui/views/controls/image_view.h"
@@ -22,6 +22,8 @@ namespace ash {
 class ASH_EXPORT PowerButtonMenuCurtainView
     : public views::FlexLayoutView,
       public ui::ImplicitAnimationObserver {
+  METADATA_HEADER(PowerButtonMenuCurtainView, views::FlexLayoutView)
+
  public:
   PowerButtonMenuCurtainView();
   PowerButtonMenuCurtainView(const PowerButtonMenuCurtainView&) = delete;
@@ -33,8 +35,6 @@ class ASH_EXPORT PowerButtonMenuCurtainView
 
   // views::View:
   void OnThemeChanged() override;
-
-  METADATA_HEADER(PowerButtonMenuCurtainView);
 
  private:
   void Initialize();

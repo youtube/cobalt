@@ -2,14 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "third_party/blink/renderer/platform/audio/vector_math.h"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 #include <numeric>
 #include <random>
 
-#include "base/ranges/algorithm.h"
+#include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -30,32 +37,36 @@ constexpr size_t kMaxByteAlignment = kMaxBitAlignment / 8u;
 
 constexpr size_t kMaxStride = 2u;
 
-constexpr MemoryLayout kMemoryLayouts[] = {
+constexpr auto kMemoryLayouts = std::to_array<MemoryLayout>({
     {kMaxByteAlignment / 4u, 1u},
     {kMaxByteAlignment / 2u, 1u},
     {kMaxByteAlignment / 2u + kMaxByteAlignment / 4u, 1u},
     {kMaxByteAlignment, 1u},
-    {0u, kMaxStride}};
+    {0u, kMaxStride},
+});
 constexpr size_t kMemoryLayoutCount =
-    sizeof(kMemoryLayouts) / sizeof(*kMemoryLayouts);
+    (kMemoryLayouts.size() * sizeof(decltype(kMemoryLayouts)::value_type)) /
+    sizeof(kMemoryLayouts[0]);
 
 // This is the minimum vector size in bytes needed for MSA instructions on
 // MIPS.
 constexpr size_t kMaxVectorSizeInBytes = 1024u;
-constexpr size_t kVectorSizesInBytes[] = {
-    kMaxVectorSizeInBytes,
-    // This vector size in bytes is chosen so that the following optimization
-    // paths can be tested on x86 family architectures using different memory
-    // layouts:
-    //  * AVX + SSE + scalar
-    //  * scalar + SSE + AVX
-    //  * SSE + AVX + scalar
-    //  * scalar + AVX + SSE
-    // On other architectures, this vector size in bytes results in either
-    // optimization + scalar path or scalar path to be tested.
-    kMaxByteAlignment + kMaxByteAlignment / 2u + kMaxByteAlignment / 4u};
+constexpr auto kVectorSizesInBytes = std::to_array<size_t>(
+    {kMaxVectorSizeInBytes,
+     // This vector size in bytes is chosen so that the following optimization
+     // paths can be tested on x86 family architectures using different memory
+     // layouts:
+     //  * AVX + SSE + scalar
+     //  * scalar + SSE + AVX
+     //  * SSE + AVX + scalar
+     //  * scalar + AVX + SSE
+     // On other architectures, this vector size in bytes results in either
+     // optimization + scalar path or scalar path to be tested.
+     kMaxByteAlignment + kMaxByteAlignment / 2u + kMaxByteAlignment / 4u});
 constexpr size_t kVectorSizeCount =
-    sizeof(kVectorSizesInBytes) / sizeof(*kVectorSizesInBytes);
+    (kVectorSizesInBytes.size() *
+     sizeof(decltype(kVectorSizesInBytes)::value_type)) /
+    sizeof(kVectorSizesInBytes[0]);
 
 // Compare two floats and consider all NaNs to be equal.
 bool Equal(float a, float b) {
@@ -76,13 +87,15 @@ class TestVector {
     STACK_ALLOCATED();
 
    public:
-    // These types are used by std::iterator_traits used by base::ranges::equal
+    // These types are used by std::iterator_traits used by std::ranges::equal
     // used by TestVector::operator==.
     using difference_type = ptrdiff_t;
     using iterator_category = std::bidirectional_iterator_tag;
     using pointer = T*;
     using reference = T&;
     using value_type = T;
+
+    constexpr Iterator() = default;
 
     Iterator(T* p, int stride) : p_(p), stride_(stride) {}
 
@@ -109,8 +122,8 @@ class TestVector {
     T& operator*() const { return *p_; }
 
    private:
-    T* p_;
-    size_t stride_;
+    T* p_ = nullptr;
+    size_t stride_ = 0;
   };
 
  public:
@@ -130,7 +143,7 @@ class TestVector {
                    primary_vector.memory_layout(),
                    primary_vector.size()) {}
 
-  Iterator begin() const { return Iterator(p_, stride()); }
+  Iterator begin() const { return Iterator(p_.get(), stride()); }
   Iterator end() const { return Iterator(p_ + size() * stride(), stride()); }
   ReverseIterator rbegin() const { return ReverseIterator(end()); }
   ReverseIterator rend() const { return ReverseIterator(begin()); }
@@ -138,9 +151,10 @@ class TestVector {
   T* p() const { return p_; }
   size_t size() const { return size_; }
   int stride() const { return static_cast<int>(memory_layout()->stride); }
+  base::span<T> as_span() const { return base::span<T>(p_.get(), size_); }
 
   bool operator==(const TestVector& other) const {
-    return base::ranges::equal(*this, other, Equal);
+    return std::ranges::equal(*this, other, Equal);
   }
   T& operator[](size_t i) const { return p_[i * stride()]; }
 
@@ -159,8 +173,8 @@ class TestVector {
     return reinterpret_cast<size_t>(p) % kMaxByteAlignment;
   }
 
-  T* p_;
-  const MemoryLayout* memory_layout_;
+  raw_ptr<T, AllowPtrArithmetic> p_;
+  raw_ptr<const MemoryLayout> memory_layout_;
   size_t size_;
 };
 
@@ -235,7 +249,7 @@ class VectorMathTest : public testing::Test {
     return sources_[i];
   }
 
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     std::minstd_rand generator(3141592653u);
     // Fill in source buffers with finite random floats.
     std::uniform_real_distribution<float> float_distribution(-10.0f, 10.0f);
@@ -352,8 +366,8 @@ TEST_F(VectorMathTest, Vclip) {
       expected_dest[i] = ClampTo(source[i], low_threshold, high_threshold);
     }
     for (auto& dest : GetSecondaryVectors(GetDestination(1u), source)) {
-      Vclip(source.p(), source.stride(), &low_threshold, &high_threshold,
-            dest.p(), dest.stride(), source.size());
+      Vclip(source.as_span(), source.stride(), &low_threshold, &high_threshold,
+            dest.as_span(), dest.stride());
       EXPECT_EQ(expected_dest, dest);
     }
   }
@@ -401,7 +415,7 @@ TEST_F(VectorMathTest, Vsma) {
       expected_dest[i] = dest_source[i] + scale * source[i];
     }
     for (auto& dest : GetSecondaryVectors(GetDestination(1u), source)) {
-      base::ranges::copy(dest_source, dest.begin());
+      std::ranges::copy(dest_source, dest.begin());
       Vsma(source.p(), source.stride(), &scale, dest.p(), dest.stride(),
            source.size());
       // Different optimizations may use different precisions for intermediate

@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/threading/thread_restrictions.h"
+#include "components/guest_view/browser/guest_view_manager_delegate.h"
+#include "components/guest_view/browser/test_guest_view_manager.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "extensions/browser/app_window/app_window.h"
@@ -37,13 +40,15 @@ class MockShellAppDelegate : public extensions::ShellAppDelegate {
       content::MediaResponseCallback callback,
       const extensions::Extension* extension) override {
     media_access_requested_ = true;
-    if (media_access_request_quit_closure_)
+    if (media_access_request_quit_closure_) {
       std::move(media_access_request_quit_closure_).Run();
+    }
   }
 
   void WaitForRequestMediaPermission() {
-    if (media_access_requested_)
+    if (media_access_requested_) {
       return;
+    }
     base::RunLoop run_loop;
     media_access_request_quit_closure_ = run_loop.QuitClosure();
     run_loop.Run();
@@ -66,7 +71,7 @@ class MockShellAppViewGuestDelegate
   MockShellAppViewGuestDelegate() = default;
 
   extensions::AppDelegate* CreateAppDelegate(
-      content::WebContents* web_contents) override {
+      content::BrowserContext* browser_context) override {
     return new MockShellAppDelegate();
   }
 };
@@ -75,9 +80,9 @@ class MockExtensionsAPIClient : public extensions::ShellExtensionsAPIClient {
  public:
   MockExtensionsAPIClient() = default;
 
-  extensions::AppViewGuestDelegate* CreateAppViewGuestDelegate()
+  std::unique_ptr<extensions::AppViewGuestDelegate> CreateAppViewGuestDelegate()
       const override {
-    return new MockShellAppViewGuestDelegate();
+    return std::make_unique<MockShellAppViewGuestDelegate>();
   }
 };
 
@@ -85,9 +90,32 @@ class MockExtensionsAPIClient : public extensions::ShellExtensionsAPIClient {
 
 namespace extensions {
 
-class AppViewTest : public AppShellTest {
+class AppViewTest : public AppShellTest,
+                    public testing::WithParamInterface<bool> {
+ public:
+  static std::string DescribeParams(
+      const testing::TestParamInfo<ParamType>& info) {
+    return info.param ? "MPArch" : "InnerWebContents";
+  }
+
+  AppViewTest() {
+    scoped_feature_list_.InitWithFeatureState(features::kGuestViewMPArch,
+                                              GetParam());
+  }
+
  protected:
-  AppViewTest() = default;
+  void SetUpOnMainThread() override {
+    AppShellTest::SetUpOnMainThread();
+    content::BrowserContext* context =
+        ShellContentBrowserClient::Get()->GetBrowserContext();
+    test_guest_view_manager_ = factory_.GetOrCreateTestGuestViewManager(
+        context, ExtensionsAPIClient::Get()->CreateGuestViewManagerDelegate());
+  }
+
+  void TearDownOnMainThread() override {
+    test_guest_view_manager_ = nullptr;
+    AppShellTest::TearDownOnMainThread();
+  }
 
   content::WebContents* GetFirstAppWindowWebContents() {
     const AppWindowRegistry::AppWindowList& app_window_list =
@@ -117,31 +145,50 @@ class AppViewTest : public AppShellTest {
     ExtensionTestMessageListener launch_listener("LAUNCHED");
     ASSERT_TRUE(launch_listener.WaitUntilSatisfied());
 
-    embedder_web_contents_ = GetFirstAppWindowWebContents();
-
     ExtensionTestMessageListener done_listener("TEST_PASSED");
     done_listener.set_failure_message("TEST_FAILED");
-    ASSERT_TRUE(content::ExecuteScript(
-        embedder_web_contents_.get(),
+    ASSERT_TRUE(content::ExecJs(
+        GetFirstAppWindowWebContents(),
         base::StringPrintf("runTest('%s', '%s')", test_name.c_str(),
                            app_embedded->id().c_str())))
         << "Unable to start test.";
     ASSERT_TRUE(done_listener.WaitUntilSatisfied());
   }
 
+  guest_view::TestGuestViewManager* test_guest_view_manager() const {
+    return test_guest_view_manager_;
+  }
+
  private:
-  raw_ptr<content::WebContents, DanglingUntriaged> embedder_web_contents_;
+  guest_view::TestGuestViewManagerFactory factory_;
+  raw_ptr<guest_view::TestGuestViewManager> test_guest_view_manager_ = nullptr;
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+INSTANTIATE_TEST_SUITE_P(/* no prefix */,
+                         AppViewTest,
+                         testing::Bool(),
+                         AppViewTest::DescribeParams);
+
 // Tests that <appview> correctly processes parameters passed on connect.
-IN_PROC_BROWSER_TEST_F(AppViewTest, TestAppViewGoodDataShouldSucceed) {
+IN_PROC_BROWSER_TEST_P(AppViewTest, TestAppViewGoodDataShouldSucceed) {
   RunTest("testAppViewGoodDataShouldSucceed",
           "app_view/apitest",
           "app_view/apitest/skeleton");
+  // Note that the callback of the appview connect method runs after guest
+  // creation, but not necessarily after attachment. So we now ensure that the
+  // guest successfully attaches and loads.
+  EXPECT_TRUE(test_guest_view_manager()->WaitUntilAttachedAndLoaded(
+      test_guest_view_manager()->WaitForSingleGuestViewCreated()));
 }
 
 // Tests that <appview> can handle media permission requests.
-IN_PROC_BROWSER_TEST_F(AppViewTest, TestAppViewMediaRequest) {
+IN_PROC_BROWSER_TEST_P(AppViewTest, TestAppViewMediaRequest) {
+  // TODO(crbug.com/40202416): Implement for MPArch.
+  if (base::FeatureList::IsEnabled(features::kGuestViewMPArch)) {
+    GTEST_SKIP() << "MPArch implementation skipped. https://crbug.com/40202416";
+  }
+
   static_cast<ShellExtensionsBrowserClient*>(ExtensionsBrowserClient::Get())
       ->SetAPIClientForTest(nullptr);
   static_cast<ShellExtensionsBrowserClient*>(ExtensionsBrowserClient::Get())
@@ -156,20 +203,22 @@ IN_PROC_BROWSER_TEST_F(AppViewTest, TestAppViewMediaRequest) {
 // Tests that <appview> correctly processes parameters passed on connect.
 // This test should fail to connect because the embedded app (skeleton) will
 // refuse the data passed by the embedder app and deny the request.
-IN_PROC_BROWSER_TEST_F(AppViewTest, TestAppViewRefusedDataShouldFail) {
+IN_PROC_BROWSER_TEST_P(AppViewTest, TestAppViewRefusedDataShouldFail) {
   RunTest("testAppViewRefusedDataShouldFail",
           "app_view/apitest",
           "app_view/apitest/skeleton");
 }
 
 // Tests that <appview> is able to navigate to another installed app.
-IN_PROC_BROWSER_TEST_F(AppViewTest, TestAppViewWithUndefinedDataShouldSucceed) {
+IN_PROC_BROWSER_TEST_P(AppViewTest, TestAppViewWithUndefinedDataShouldSucceed) {
   RunTest("testAppViewWithUndefinedDataShouldSucceed",
           "app_view/apitest",
           "app_view/apitest/skeleton");
+  EXPECT_TRUE(test_guest_view_manager()->WaitUntilAttachedAndLoaded(
+      test_guest_view_manager()->WaitForSingleGuestViewCreated()));
 }
 
-IN_PROC_BROWSER_TEST_F(AppViewTest, TestAppViewNoEmbedRequestListener) {
+IN_PROC_BROWSER_TEST_P(AppViewTest, TestAppViewNoEmbedRequestListener) {
   RunTest("testAppViewNoEmbedRequestListener", "app_view/apitest",
           "app_view/apitest/no_embed_request_listener");
 }

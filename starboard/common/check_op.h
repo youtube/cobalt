@@ -91,8 +91,7 @@ template <typename T>
 inline typename std::enable_if<
     SupportsOstreamOperator<const T&>::value &&
         !std::is_function<typename std::remove_pointer<T>::type>::value,
-    char*>::type
-CheckOpValueStr(const T& v) {
+    char*>::type CheckOpValueStr(const T& v) {
   auto f = [](std::ostream& s, const void* p) {
     s << *reinterpret_cast<const T*>(p);
   };
@@ -247,7 +246,12 @@ DEFINE_SB_CHECK_OP_IMPL(GT, > )
 
 #else
 
-#define SB_DCHECK_OP(name, op, val1, val2) SB_EAT_STREAM_PARAMETERS
+// Mirrors //base/check_op.h: keeps CheckOpValueStr instantiated to avoid
+// unused-function warnings in modular builds.
+#define SB_DCHECK_OP(name, op, val1, val2)                        \
+  SB_EAT_CHECK_STREAM_PARAMS((::starboard::CheckOpValueStr(val1), \
+                              ::starboard::CheckOpValueStr(val2), \
+                              (val1)op(val2)))
 #endif
 
 // clang-format off

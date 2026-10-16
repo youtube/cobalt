@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <limits>
 #include <set>
+#include <string_view>
 #include <utility>
 
 #include "base/command_line.h"
@@ -17,57 +18,38 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/test_file_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/protocol/data_type_progress_marker.pb.h"
 #include "components/sync/protocol/proto_value_conversions.h"
 #include "components/sync/protocol/sync_entity.pb.h"
 #include "components/sync/protocol/sync_enums.pb.h"
 #include "net/http/http_status_code.h"
 
-using syncer::GetModelTypeFromSpecifics;
+using syncer::DataType;
+using syncer::DataTypeSet;
+using syncer::GetDataTypeFromSpecifics;
 using syncer::LoopbackServer;
 using syncer::LoopbackServerEntity;
-using syncer::ModelType;
-using syncer::ModelTypeSet;
 
 namespace fake_server {
 
+FakeServer::FakeServer(const base::FilePath& loopback_server_dir) {
+  CHECK(!loopback_server_dir.empty());
+  // Needed by syncer::LoopbackServer.
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  loopback_server_ = std::make_unique<syncer::LoopbackServer>(
+      loopback_server_dir.AppendASCII("profile.pb"));
+  loopback_server_->set_observer_for_tests(this);
+}
+
 FakeServer::FakeServer()
-    : commit_error_type_(sync_pb::SyncEnums::SUCCESS),
-      error_type_(sync_pb::SyncEnums::SUCCESS),
-      alternate_triggered_errors_(false),
-      request_counter_(0),
-      disallow_sending_encryption_keys_(false) {
-  base::ScopedAllowBlockingForTesting allow_blocking;
-  loopback_server_storage_ = std::make_unique<base::ScopedTempDir>();
-  if (!loopback_server_storage_->CreateUniqueTempDir()) {
-    NOTREACHED() << "Creating temp dir failed.";
-  }
-  loopback_server_ = std::make_unique<syncer::LoopbackServer>(
-      loopback_server_storage_->GetPath().AppendASCII("profile.pb"));
-  loopback_server_->set_observer_for_tests(this);
-}
+    : FakeServer(base::CreateUniqueTempDirectoryScopedToTest()) {}
 
-FakeServer::FakeServer(const base::FilePath& user_data_dir)
-    : commit_error_type_(sync_pb::SyncEnums::SUCCESS),
-      error_type_(sync_pb::SyncEnums::SUCCESS),
-      alternate_triggered_errors_(false),
-      request_counter_(0),
-      disallow_sending_encryption_keys_(false) {
-  base::ScopedAllowBlockingForTesting allow_blocking;
-  base::FilePath loopback_server_path =
-      user_data_dir.AppendASCII("FakeSyncServer");
-  loopback_server_ = std::make_unique<syncer::LoopbackServer>(
-      loopback_server_path.AppendASCII("profile.pb"));
-  loopback_server_->set_observer_for_tests(this);
-}
-
-FakeServer::~FakeServer() {
-  base::ScopedAllowBlockingForTesting allow_blocking;
-  loopback_server_storage_.reset();
-}
+FakeServer::~FakeServer() = default;
 
 namespace {
 
@@ -78,16 +60,17 @@ struct HashAndTime {
 
 std::unique_ptr<sync_pb::DataTypeProgressMarker>
 RemoveFullUpdateTypeProgressMarkerIfExists(
-    ModelType model_type,
+    DataType data_type,
     sync_pb::ClientToServerMessage* message) {
-  DCHECK(model_type == syncer::AUTOFILL_WALLET_DATA ||
-         model_type == syncer::AUTOFILL_WALLET_OFFER);
+  DCHECK(data_type == syncer::AUTOFILL_WALLET_DATA ||
+         data_type == syncer::AUTOFILL_WALLET_OFFER ||
+         data_type == syncer::AUTOFILL_VALUABLE);
   google::protobuf::RepeatedPtrField<sync_pb::DataTypeProgressMarker>*
       progress_markers =
           message->mutable_get_updates()->mutable_from_progress_marker();
   for (int index = 0; index < progress_markers->size(); ++index) {
-    if (syncer::GetModelTypeFromSpecificsFieldNumber(
-            progress_markers->Get(index).data_type_id()) == model_type) {
+    if (syncer::GetDataTypeFromSpecificsFieldNumber(
+            progress_markers->Get(index).data_type_id()) == data_type) {
       auto result = std::make_unique<sync_pb::DataTypeProgressMarker>(
           progress_markers->Get(index));
       progress_markers->erase(progress_markers->begin() + index);
@@ -101,16 +84,17 @@ void VerifyNoProgressMarkerExistsInResponseForFullUpdateType(
     sync_pb::GetUpdatesResponse* gu_response) {
   for (const sync_pb::DataTypeProgressMarker& marker :
        gu_response->new_progress_marker()) {
-    ModelType type =
-        syncer::GetModelTypeFromSpecificsFieldNumber(marker.data_type_id());
+    DataType type =
+        syncer::GetDataTypeFromSpecificsFieldNumber(marker.data_type_id());
     // Verified there is no progress marker for the full sync type we cared
     // about.
     DCHECK(type != syncer::AUTOFILL_WALLET_DATA &&
-           type != syncer::AUTOFILL_WALLET_OFFER);
+           type != syncer::AUTOFILL_WALLET_OFFER &&
+           type != syncer::AUTOFILL_VALUABLE);
   }
 }
 
-// Returns a hash representing |entities| including each entity's ID and
+// Returns a hash representing `entities` including each entity's ID and
 // version, in a way that the order of the entities is irrelevant.
 uint64_t ComputeEntitiesHash(const std::vector<sync_pb::SyncEntity>& entities) {
   // Make sure to pick a token that will be consistent across clients when
@@ -137,7 +121,7 @@ HashAndTime UnpackProgressMarkerToken(const std::string& token) {
   // The hash is stored as a first piece of the string (space delimited), the
   // second piece is the timestamp.
   HashAndTime hash_and_time;
-  std::vector<base::StringPiece> pieces =
+  std::vector<std::string_view> pieces =
       base::SplitStringPiece(token, base::kWhitespaceASCII,
                              base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   uint64_t micros_since_windows_epoch = 0;
@@ -246,6 +230,9 @@ net::HttpStatusCode FakeServer::HandleParsedCommand(
   switch (message.message_contents()) {
     case sync_pb::ClientToServerMessage::GET_UPDATES:
       last_getupdates_message_ = message;
+      for (Observer& observer : observers_) {
+        observer.OnWillGetUpdates(message);
+      }
       break;
     case sync_pb::ClientToServerMessage::COMMIT:
       last_commit_message_ = message;
@@ -257,7 +244,6 @@ net::HttpStatusCode FakeServer::HandleParsedCommand(
     case sync_pb::ClientToServerMessage::DEPRECATED_3:
     case sync_pb::ClientToServerMessage::DEPRECATED_4:
       NOTREACHED();
-      break;
   }
 
   if (http_error_status_code_) {
@@ -294,6 +280,10 @@ net::HttpStatusCode FakeServer::HandleParsedCommand(
   std::unique_ptr<sync_pb::DataTypeProgressMarker> offer_marker =
       RemoveFullUpdateTypeProgressMarkerIfExists(
           syncer::AUTOFILL_WALLET_OFFER, &message_without_full_update_type);
+  std::unique_ptr<sync_pb::DataTypeProgressMarker> valuable_marker =
+      RemoveFullUpdateTypeProgressMarkerIfExists(
+          syncer::AUTOFILL_VALUABLE, &message_without_full_update_type);
+
   net::HttpStatusCode http_status_code =
       SendToLoopbackServer(message_without_full_update_type, response);
 
@@ -318,6 +308,26 @@ net::HttpStatusCode FakeServer::HandleParsedCommand(
     if (offer_marker != nullptr) {
       PopulateFullUpdateTypeResults(offer_entities_, *offer_marker,
                                     response->mutable_get_updates());
+    }
+
+    if (valuable_marker != nullptr) {
+      PopulateFullUpdateTypeResults(valuable_entities_, *valuable_marker,
+                                    response->mutable_get_updates());
+    }
+
+    for (sync_pb::DataTypeProgressMarker& progress_marker :
+         *response->mutable_get_updates()->mutable_new_progress_marker()) {
+      DataType type = syncer::GetDataTypeFromSpecificsFieldNumber(
+          progress_marker.data_type_id());
+      if (!syncer::SharedTypes().Has(type)) {
+        continue;
+      }
+      sync_pb::GarbageCollectionDirective::CollaborationGarbageCollection*
+          collaboration_gc = progress_marker.mutable_gc_directive()
+                                 ->mutable_collaboration_gc();
+      for (const std::string& collaboration_id : collaborations_) {
+        collaboration_gc->add_active_collaboration_ids(collaboration_id);
+      }
     }
   }
 
@@ -344,8 +354,9 @@ net::HttpStatusCode FakeServer::SendToLoopbackServer(
 }
 
 bool FakeServer::GetLastCommitMessage(sync_pb::ClientToServerMessage* message) {
-  if (!last_commit_message_.has_commit())
+  if (!last_commit_message_.has_commit()) {
     return false;
+  }
 
   message->CopyFrom(last_commit_message_);
   return true;
@@ -353,8 +364,9 @@ bool FakeServer::GetLastCommitMessage(sync_pb::ClientToServerMessage* message) {
 
 bool FakeServer::GetLastGetUpdatesMessage(
     sync_pb::ClientToServerMessage* message) {
-  if (!last_getupdates_message_.has_get_updates())
+  if (!last_getupdates_message_.has_get_updates()) {
     return false;
+  }
 
   message->CopyFrom(last_getupdates_message_);
   return true;
@@ -365,21 +377,25 @@ void FakeServer::OverrideResponseType(
   loopback_server_->OverrideResponseType(std::move(response_type_override));
 }
 
+void FakeServer::FlushToDisk() {
+  loopback_server_->FlushToDisk();
+}
+
 base::Value::Dict FakeServer::GetEntitiesAsDictForTesting() {
   DCHECK(thread_checker_.CalledOnValidThread());
   return loopback_server_->GetEntitiesAsDictForTesting();
 }
 
-std::vector<sync_pb::SyncEntity> FakeServer::GetSyncEntitiesByModelType(
-    ModelType model_type) {
+std::vector<sync_pb::SyncEntity> FakeServer::GetSyncEntitiesByDataType(
+    DataType data_type) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  return loopback_server_->GetSyncEntitiesByModelType(model_type);
+  return loopback_server_->GetSyncEntitiesByDataType(data_type);
 }
 
-std::vector<sync_pb::SyncEntity>
-FakeServer::GetPermanentSyncEntitiesByModelType(ModelType model_type) {
+std::vector<sync_pb::SyncEntity> FakeServer::GetPermanentSyncEntitiesByDataType(
+    DataType data_type) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  return loopback_server_->GetPermanentSyncEntitiesByModelType(model_type);
+  return loopback_server_->GetPermanentSyncEntitiesByDataType(data_type);
 }
 
 const std::vector<std::vector<uint8_t>>& FakeServer::GetKeystoreKeys() const {
@@ -392,7 +408,7 @@ void FakeServer::TriggerKeystoreKeyRotation() {
   loopback_server_->AddNewKeystoreKeyForTesting();
 
   std::vector<sync_pb::SyncEntity> nigori_entities =
-      loopback_server_->GetPermanentSyncEntitiesByModelType(syncer::NIGORI);
+      loopback_server_->GetPermanentSyncEntitiesByDataType(syncer::NIGORI);
 
   DCHECK_EQ(nigori_entities.size(), 1U);
   bool success =
@@ -403,27 +419,26 @@ void FakeServer::TriggerKeystoreKeyRotation() {
 
 void FakeServer::InjectEntity(std::unique_ptr<LoopbackServerEntity> entity) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(entity->GetModelType() != syncer::AUTOFILL_WALLET_DATA &&
-         entity->GetModelType() != syncer::AUTOFILL_WALLET_OFFER)
-      << "Wallet/Offer data must be injected via "
-         "SetWalletData()/SetOfferData().";
+  DCHECK(entity->GetDataType() != syncer::AUTOFILL_WALLET_DATA &&
+         entity->GetDataType() != syncer::AUTOFILL_WALLET_OFFER &&
+         entity->GetDataType() != syncer::AUTOFILL_VALUABLE)
+      << "Wallet/Offer/Valuable data must be injected via "
+         "SetWalletData()/SetOfferData()/SetValuableData().";
 
-  const ModelType model_type = entity->GetModelType();
+  const DataType data_type = entity->GetDataType();
 
   OnWillCommit();
   loopback_server_->SaveEntity(std::move(entity));
 
   // Notify observers so invalidations are mimic-ed.
-  OnCommit(/*committer_invalidator_client_id=*/std::string(),
-           /*committed_model_types=*/{model_type});
+  OnCommit(/*committed_data_types=*/{data_type});
 }
 
 base::Time FakeServer::SetWalletData(
     const std::vector<sync_pb::SyncEntity>& wallet_entities) {
   DCHECK(!wallet_entities.empty());
-  ModelType model_type =
-      GetModelTypeFromSpecifics(wallet_entities[0].specifics());
-  DCHECK(model_type == syncer::AUTOFILL_WALLET_DATA);
+  DataType data_type = GetDataTypeFromSpecifics(wallet_entities[0].specifics());
+  CHECK_EQ(data_type, syncer::AUTOFILL_WALLET_DATA);
 
   OnWillCommit();
   wallet_entities_ = wallet_entities;
@@ -441,8 +456,7 @@ base::Time FakeServer::SetWalletData(
     entity.set_version(version);
   }
 
-  OnCommit(/*committer_invalidator_client_id=*/std::string(),
-           /*committed_model_types=*/{syncer::AUTOFILL_WALLET_DATA});
+  OnCommit(/*committed_data_types=*/{syncer::AUTOFILL_WALLET_DATA});
 
   return now;
 }
@@ -450,9 +464,8 @@ base::Time FakeServer::SetWalletData(
 base::Time FakeServer::SetOfferData(
     const std::vector<sync_pb::SyncEntity>& offer_entities) {
   DCHECK(!offer_entities.empty());
-  ModelType model_type =
-      GetModelTypeFromSpecifics(offer_entities[0].specifics());
-  DCHECK(model_type == syncer::AUTOFILL_WALLET_OFFER);
+  DataType data_type = GetDataTypeFromSpecifics(offer_entities[0].specifics());
+  CHECK_EQ(data_type, syncer::AUTOFILL_WALLET_OFFER);
 
   OnWillCommit();
   offer_entities_ = offer_entities;
@@ -470,8 +483,36 @@ base::Time FakeServer::SetOfferData(
     entity.set_version(version);
   }
 
-  OnCommit(/*committer_id=*/std::string(),
-           /*committed_model_types=*/{syncer::AUTOFILL_WALLET_OFFER});
+  OnCommit(/*committed_data_types=*/{syncer::AUTOFILL_WALLET_OFFER});
+
+  return now;
+}
+
+base::Time FakeServer::SetValuableData(
+    const std::vector<sync_pb::SyncEntity>& valuable_entities) {
+  CHECK(!valuable_entities.empty());
+  DataType data_type =
+      GetDataTypeFromSpecifics(valuable_entities[0].specifics());
+  CHECK_EQ(data_type, syncer::AUTOFILL_VALUABLE);
+
+  OnWillCommit();
+  valuable_entities_ = valuable_entities;
+
+  const base::Time now = base::Time::Now();
+  const int64_t version = (now - base::Time::UnixEpoch()).InMilliseconds();
+
+  for (sync_pb::SyncEntity& entity : valuable_entities_) {
+    CHECK(!entity.has_client_tag_hash())
+        << "The sync server doesn not provide a client tag for valuable "
+           "entries.";
+    CHECK(!entity.id_string().empty()) << "server id required!";
+
+    // The version is overridden during serving of the entities, but is useful
+    // here to influence the entities' hash.
+    entity.set_version(version);
+  }
+
+  OnCommit(/*committed_data_types=*/{syncer::AUTOFILL_VALUABLE});
 
   return now;
 }
@@ -486,14 +527,17 @@ bool FakeServer::ModifyEntitySpecifics(
     const std::string& id,
     const sync_pb::EntitySpecifics& updated_specifics) {
   OnWillCommit();
-  if (!loopback_server_->ModifyEntitySpecifics(id, updated_specifics)) {
-    return false;
+
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    if (!loopback_server_->ModifyEntitySpecifics(id, updated_specifics)) {
+      return false;
+    }
   }
 
   // Notify observers so invalidations are mimic-ed.
   OnCommit(
-      /*committer_invalidator_client_id=*/std::string(),
-      /*committed_model_types=*/{GetModelTypeFromSpecifics(updated_specifics)});
+      /*committed_data_types=*/{GetDataTypeFromSpecifics(updated_specifics)});
 
   return true;
 }
@@ -503,14 +547,16 @@ bool FakeServer::ModifyBookmarkEntity(
     const std::string& parent_id,
     const sync_pb::EntitySpecifics& updated_specifics) {
   OnWillCommit();
-  if (!loopback_server_->ModifyBookmarkEntity(id, parent_id,
-                                              updated_specifics)) {
-    return false;
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    if (!loopback_server_->ModifyBookmarkEntity(id, parent_id,
+                                                updated_specifics)) {
+      return false;
+    }
   }
 
   // Notify observers so invalidations are mimic-ed.
-  OnCommit(/*committer_invalidator_client_id=*/std::string(),
-           /*committed_model_types=*/{syncer::BOOKMARKS});
+  OnCommit(/*committed_data_types=*/{syncer::BOOKMARKS});
 
   return true;
 }
@@ -525,14 +571,13 @@ void FakeServer::ClearServerData() {
   }
 
   // Notify observers so invalidations are mimic-ed.
-  OnCommit(/*committer_invalidator_client_id=*/std::string(),
-           /*committed_model_types=*/{syncer::NIGORI});
+  OnCommit(/*committed_data_types=*/{syncer::NIGORI});
 }
 
-void FakeServer::DeleteAllEntitiesForModelType(ModelType model_type) {
+void FakeServer::DeleteAllEntitiesForDataType(DataType data_type) {
   DCHECK(thread_checker_.CalledOnValidThread());
   base::ScopedAllowBlockingForTesting allow_blocking;
-  loopback_server_->DeleteAllEntitiesForModelType(model_type);
+  loopback_server_->DeleteAllEntitiesForDataType(data_type);
 }
 
 void FakeServer::SetHttpError(net::HttpStatusCode http_status_code) {
@@ -543,7 +588,7 @@ void FakeServer::SetHttpError(net::HttpStatusCode http_status_code) {
 
 void FakeServer::ClearHttpError() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  http_error_status_code_ = absl::nullopt;
+  http_error_status_code_ = std::nullopt;
 }
 
 void FakeServer::SetClientCommand(
@@ -605,13 +650,14 @@ void FakeServer::DisallowSendingEncryptionKeys() {
   disallow_sending_encryption_keys_ = true;
 }
 
-void FakeServer::SetThrottledTypes(syncer::ModelTypeSet types) {
+void FakeServer::SetThrottledTypes(syncer::DataTypeSet types) {
   loopback_server_->SetThrottledTypesForTesting(types);
 }
 
 bool FakeServer::ShouldSendTriggeredError() const {
-  if (!alternate_triggered_errors_)
+  if (!alternate_triggered_errors_) {
     return true;
+  }
 
   // Check that the counter is odd so that we trigger an error on the first
   // request after alternating is enabled.
@@ -634,14 +680,16 @@ void FakeServer::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
-void FakeServer::OnCommit(const std::string& committer_invalidator_client_id,
-                          syncer::ModelTypeSet committed_model_types) {
-  for (Observer& observer : observers_)
-    observer.OnCommit(committer_invalidator_client_id, committed_model_types);
+void FakeServer::OnCommit(syncer::DataTypeSet committed_data_types) {
+  for (Observer& observer : observers_) {
+    observer.OnCommit(committed_data_types);
+  }
 }
 
-void FakeServer::OnHistoryCommit(const std::string& url) {
-  committed_history_urls_.insert(url);
+void FakeServer::OnCommittedDeletionOrigin(
+    syncer::DataType type,
+    const sync_pb::DeletionOrigin& deletion_origin) {
+  committed_deletion_origins_[type].push_back(deletion_origin);
 }
 
 void FakeServer::EnableStrongConsistencyWithConflictDetectionModel() {
@@ -659,17 +707,33 @@ void FakeServer::SetBagOfChips(const sync_pb::ChipBag& bag_of_chips) {
   loopback_server_->SetBagOfChipsForTesting(bag_of_chips);
 }
 
-void FakeServer::TriggerMigrationDoneError(syncer::ModelTypeSet types) {
+void FakeServer::TriggerMigrationDoneError(syncer::DataTypeSet types) {
   DCHECK(thread_checker_.CalledOnValidThread());
   loopback_server_->TriggerMigrationForTesting(types);
 }
 
-const std::set<std::string>& FakeServer::GetCommittedHistoryURLs() const {
-  return committed_history_urls_;
+void FakeServer::AddCollaboration(const std::string& collaboration_id) {
+  collaborations_.insert(collaboration_id);
+  // TODO(b/325917757): update collaboration data type.
+}
+
+void FakeServer::RemoveCollaboration(const std::string& collaboration_id) {
+  collaborations_.erase(collaboration_id);
+  // TODO(b/325917757): update collaboration data type.
 }
 
 std::string FakeServer::GetStoreBirthday() const {
   return loopback_server_->GetStoreBirthday();
+}
+
+const std::vector<sync_pb::DeletionOrigin>&
+FakeServer::GetCommittedDeletionOrigins(syncer::DataType type) const {
+  auto it = committed_deletion_origins_.find(type);
+  if (it == committed_deletion_origins_.end()) {
+    static const std::vector<sync_pb::DeletionOrigin> empty_result;
+    return empty_result;
+  }
+  return it->second;
 }
 
 base::WeakPtr<FakeServer> FakeServer::AsWeakPtr() {
@@ -683,6 +747,13 @@ void FakeServer::LogForTestFailure(const base::Location& location,
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableFakeServerFailureOutput)) {
     return;
+  }
+  if (gtest_scoped_traces_.empty()) {
+    gtest_scoped_traces_.push_back(std::make_unique<testing::ScopedTrace>(
+        location.file_name(), location.line_number(),
+        base::StringPrintf(
+            "Add --%s to hide verbose logs from the fake server.",
+            switches::kDisableFakeServerFailureOutput)));
   }
   gtest_scoped_traces_.push_back(std::make_unique<testing::ScopedTrace>(
       location.file_name(), location.line_number(),

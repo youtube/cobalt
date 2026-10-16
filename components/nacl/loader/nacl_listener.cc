@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/nacl/loader/nacl_listener.h"
 
 #include <errno.h>
@@ -52,10 +57,6 @@
 #include "base/posix/eintr_wrapper.h"
 #endif
 
-#if BUILDFLAG(IS_WIN)
-#include <io.h>
-#endif
-
 namespace {
 
 NaClListener* g_listener;
@@ -79,22 +80,6 @@ void LoadStatusCallback(int load_status) {
   g_listener->trusted_listener()->renderer_host()->ReportLoadStatus(
       static_cast<NaClErrorCode>(load_status));
 }
-
-#if BUILDFLAG(IS_WIN)
-int AttachDebugExceptionHandler(const void* info, size_t info_size) {
-  std::string info_string(reinterpret_cast<const char*>(info), info_size);
-  bool result = false;
-  if (!g_listener->Send(new NaClProcessMsg_AttachDebugExceptionHandler(
-           info_string, &result)))
-    return false;
-  return result;
-}
-
-void DebugStubPortSelectedHandler(uint16_t port) {
-  g_listener->Send(new NaClProcessHostMsg_DebugStubPortSelected(port));
-}
-
-#endif
 
 // Creates the PPAPI IPC channel between the NaCl IRT and the host
 // (browser/renderer) process, and starts to listen it on the thread where
@@ -172,8 +157,6 @@ NaClListener::NaClListener()
 
 NaClListener::~NaClListener() {
   NOTREACHED();
-  shutdown_event_.Signal();
-  g_listener = NULL;
 }
 
 bool NaClListener::Send(IPC::Message* msg) {
@@ -211,7 +194,7 @@ class FileTokenMessageFilter : public IPC::MessageFilter {
     g_listener->OnFileTokenResolved(token_lo, token_hi, ipc_fd, file_path);
   }
  private:
-  ~FileTokenMessageFilter() override {}
+  ~FileTokenMessageFilter() override = default;
 };
 
 void NaClListener::Listen() {
@@ -289,7 +272,7 @@ void NaClListener::OnAddPrefetchedResource(
 
 void NaClListener::OnStart(nacl::NaClStartParams params) {
   is_started_ = true;
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_APPLE)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   int urandom_fd = HANDLE_EINTR(dup(base::GetUrandomFD()));
   if (urandom_fd < 0) {
     LOG(FATAL) << "Failed to dup() the urandom FD";
@@ -359,18 +342,7 @@ void NaClListener::OnStart(nacl::NaClStartParams params) {
 
   DCHECK(params.process_type != nacl::kUnknownNaClProcessType);
   CHECK(params.irt_handle != IPC::InvalidPlatformFileForTransit());
-  base::PlatformFile irt_handle =
-      IPC::PlatformFileForTransitToPlatformFile(params.irt_handle);
-
-#if BUILDFLAG(IS_WIN)
-  args->irt_fd = _open_osfhandle(reinterpret_cast<intptr_t>(irt_handle),
-                                 _O_RDONLY | _O_BINARY);
-  if (args->irt_fd < 0) {
-    LOG(FATAL) << "_open_osfhandle() failed";
-  }
-#else
-  args->irt_fd = irt_handle;
-#endif
+  args->irt_fd = IPC::PlatformFileForTransitToPlatformFile(params.irt_handle);
 
   if (params.validation_cache_enabled) {
     // SHA256 block size.
@@ -410,11 +382,6 @@ void NaClListener::OnStart(nacl::NaClStartParams params) {
   args->debug_stub_server_bound_socket_fd =
       IPC::PlatformFileForTransitToPlatformFile(
           params.debug_stub_server_bound_socket);
-#endif
-#if BUILDFLAG(IS_WIN)
-  args->attach_debug_exception_handler_func = AttachDebugExceptionHandler;
-  args->debug_stub_server_port_selected_handler_func =
-      DebugStubPortSelectedHandler;
 #endif
   args->load_status_handler_func = LoadStatusCallback;
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)

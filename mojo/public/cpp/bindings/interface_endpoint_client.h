@@ -9,6 +9,8 @@
 
 #include <map>
 #include <memory>
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "base/component_export.h"
@@ -17,10 +19,11 @@
 #include "base/functional/callback.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_span.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
-#include "base/strings/string_piece_forward.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/thread_annotations.h"
@@ -36,7 +39,6 @@
 #include "mojo/public/cpp/bindings/message_metadata_helpers.h"
 #include "mojo/public/cpp/bindings/scoped_interface_endpoint_handle.h"
 #include "mojo/public/cpp/bindings/thread_safe_proxy.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace mojo {
 
@@ -100,7 +102,8 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) InterfaceEndpointClient
   AssociatedGroup* associated_group();
 
   scoped_refptr<ThreadSafeProxy> CreateThreadSafeProxy(
-      scoped_refptr<ThreadSafeProxy::Target> target);
+      scoped_refptr<ThreadSafeProxy::Target> target,
+      const base::Location& location);
 
   // Sets a MessageFilter which can filter a message after validation but
   // before dispatch.
@@ -113,7 +116,7 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) InterfaceEndpointClient
   // and notifies all interfaces running on this pipe.
   void RaiseError();
 
-  void CloseWithReason(uint32_t custom_reason, base::StringPiece description);
+  void CloseWithReason(uint32_t custom_reason, std::string_view description);
 
   // Used by ControlMessageProxy to send messages through this endpoint.
   void SendControlMessage(Message* message);
@@ -153,7 +156,7 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) InterfaceEndpointClient
 
   // NOTE: |message| must have passed message header validation.
   bool HandleIncomingMessage(Message* message);
-  void NotifyError(const absl::optional<DisconnectReason>& reason);
+  void NotifyError(const std::optional<DisconnectReason>& reason);
 
   // The following methods send interface control messages.
   // They must only be called when the handle is not in pending association
@@ -225,6 +228,10 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) InterfaceEndpointClient
     return sync_method_ordinals_;
   }
 
+  // If adding a new call to this function, be sure to update the list of
+  // suffixes in histograms.xml
+  static void SetThreadNameSuffixForMetrics(std::string thread_name);
+
  private:
   struct PendingAsyncResponse {
    public:
@@ -276,7 +283,9 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) InterfaceEndpointClient
     bool Accept(Message* message) override;
 
    private:
-    const raw_ptr<InterfaceEndpointClient> owner_;
+    // RAW_PTR_EXCLUSION: Performance reasons (based on analysis of
+    // speedometer3).
+    RAW_PTR_EXCLUSION InterfaceEndpointClient* const owner_ = nullptr;
   };
 
   void InitControllerIfNecessary();
@@ -286,7 +295,7 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) InterfaceEndpointClient
 
   bool HandleValidatedMessage(Message* message);
 
-  const base::span<const uint32_t> sync_method_ordinals_;
+  const base::raw_span<const uint32_t> sync_method_ordinals_;
 
   // The callback to invoke when our peer endpoint sends us NotifyIdle and we
   // have no outstanding unacked messages. If null, no callback has been set and
@@ -300,11 +309,11 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) InterfaceEndpointClient
 
   // The timeout to wait for continuous idling before notiftying our peer that
   // we're idle.
-  absl::optional<base::TimeDelta> idle_timeout_;
+  std::optional<base::TimeDelta> idle_timeout_;
 
   // The current idle timer, valid only while we're idle. If this fires, we send
   // a NotifyIdle to our peer.
-  absl::optional<base::OneShotTimer> notify_idle_timer_;
+  std::optional<base::OneShotTimer> notify_idle_timer_;
 
   // A ref to a ConnectionGroup used to track the idle state of this endpoint,
   // if any. Only non-null if an EnableIdleTracking message has been received.
@@ -318,12 +327,12 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) InterfaceEndpointClient
 
   ScopedInterfaceEndpointHandle handle_;
   std::unique_ptr<AssociatedGroup> associated_group_;
-  // `controller_` is not a raw_ptr<...> for performance reasons (based on
-  // analysis of sampling profiler data).
+  // RAW_PTR_EXCLUSION: Performance reasons (based on analysis of sampling
+  // profiler data).
   RAW_PTR_EXCLUSION InterfaceEndpointController* controller_ = nullptr;
 
-  // `incoming_receiver_` is not a raw_ptr<...> for performance reasons (based
-  // on analysis of sampling profiler data).
+  // RAW_PTR_EXCLUSION: Performance reasons (based on analysis of sampling
+  // profiler data).
   RAW_PTR_EXCLUSION MessageReceiverWithResponderStatus* const
       incoming_receiver_ = nullptr;
   HandleIncomingMessageThunk thunk_{this};

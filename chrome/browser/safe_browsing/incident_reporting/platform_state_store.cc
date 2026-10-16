@@ -16,8 +16,9 @@
 
 #include "chrome/browser/safe_browsing/incident_reporting/platform_state_store.h"
 
+#include <optional>
+
 #include "base/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if defined(USE_PLATFORM_STATE_STORE)
 
@@ -49,7 +50,6 @@ void KeysAndDigestsToProtobuf(
     if (!item.second.is_string() ||
         !base::StringToUint(item.second.GetString(), &digest)) {
       NOTREACHED();
-      continue;
     }
     StateStoreData::Incidents::KeyDigestMapFieldEntry* key_digest =
         key_digest_pairs->Add();
@@ -68,14 +68,12 @@ void IncidentsSentToProtobuf(
     const base::Value::Dict* keys_and_digests = item.second.GetIfDict();
     if (!keys_and_digests) {
       NOTREACHED();
-      continue;
     }
     if (keys_and_digests->empty())
       continue;
     int incident_type = 0;
     if (!base::StringToInt(item.first, &incident_type)) {
       NOTREACHED();
-      continue;
     }
     StateStoreData::TypeIncidentsMapFieldEntry* entry =
         type_incidents_pairs->Add();
@@ -119,7 +117,7 @@ void RestoreFromProtobuf(
 
 #endif  // USE_PLATFORM_STATE_STORE
 
-absl::optional<base::Value::Dict> Load(Profile* profile) {
+std::optional<base::Value::Dict> Load(Profile* profile) {
 #if defined(USE_PLATFORM_STATE_STORE)
   base::Value::Dict value_dict;
   std::string data;
@@ -137,14 +135,13 @@ absl::optional<base::Value::Dict> Load(Profile* profile) {
     case PlatformStateStoreLoadResult::READ_FAILED:
     case PlatformStateStoreLoadResult::PARSE_ERROR:
       // Return nullopt for all error cases.
-      return absl::nullopt;
+      return std::nullopt;
     case PlatformStateStoreLoadResult::NUM_RESULTS:
       NOTREACHED();
-      break;
   }
   return value_dict;
 #else
-  return absl::nullopt;
+  return std::nullopt;
 #endif
 }
 

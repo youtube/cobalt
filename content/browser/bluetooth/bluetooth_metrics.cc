@@ -29,15 +29,16 @@ int HashUUID(const std::string& canonical_uuid) {
                                          "strings in canonical format to "
                                          "ensure consistent hash results.";
 
-  // TODO(520284): Other than verifying that |uuid| contains a value, this logic
-  // should be migrated to a dedicated histogram macro for hashed strings.
+  // TODO(crbug.com/41194594): Other than verifying that |uuid| contains a
+  // value, this logic should be migrated to a dedicated histogram macro for
+  // hashed strings.
   uint32_t data = base::PersistentHash(canonical_uuid);
 
   // Strip off the sign bit to make the hash look nicer.
   return static_cast<int>(data & 0x7fffffff);
 }
 
-int HashUUID(const absl::optional<BluetoothUUID>& uuid) {
+int HashUUID(const std::optional<BluetoothUUID>& uuid) {
   return uuid ? HashUUID(uuid->canonical_value()) : 0;
 }
 
@@ -79,21 +80,19 @@ void RecordRequestDeviceOptions(
 // GATTServer.Connect
 
 void RecordConnectGATTOutcome(UMAConnectGATTOutcome outcome) {
-  UMA_HISTOGRAM_ENUMERATION("Bluetooth.Web.ConnectGATT.Outcome",
-                            static_cast<int>(outcome),
-                            static_cast<int>(UMAConnectGATTOutcome::COUNT));
+  UMA_HISTOGRAM_ENUMERATION("Bluetooth.Web.ConnectGATT.Outcome", outcome);
 }
 
 void RecordConnectGATTOutcome(CacheQueryOutcome outcome) {
-  DCHECK(outcome == CacheQueryOutcome::NO_DEVICE);
-  RecordConnectGATTOutcome(UMAConnectGATTOutcome::NO_DEVICE);
+  DCHECK_EQ(outcome, CacheQueryOutcome::kNoDevice);
+  RecordConnectGATTOutcome(UMAConnectGATTOutcome::kNoDevice);
 }
 
 // getPrimaryService & getPrimaryServices
 
 void RecordGetPrimaryServicesServices(
     blink::mojom::WebBluetoothGATTQueryQuantity quantity,
-    const absl::optional<BluetoothUUID>& service) {
+    const std::optional<BluetoothUUID>& service) {
   // TODO(ortuno): Use a macro to histogram strings.
   // http://crbug.com/520284
   switch (quantity) {
@@ -110,7 +109,7 @@ void RecordGetPrimaryServicesServices(
 
 void RecordGetCharacteristicsCharacteristic(
     blink::mojom::WebBluetoothGATTQueryQuantity quantity,
-    const absl::optional<BluetoothUUID>& characteristic) {
+    const std::optional<BluetoothUUID>& characteristic) {
   switch (quantity) {
     case blink::mojom::WebBluetoothGATTQueryQuantity::SINGLE:
       base::UmaHistogramSparse("Bluetooth.Web.GetCharacteristic.Characteristic",
@@ -147,18 +146,17 @@ void RecordGATTOperationOutcome(UMAGATTOperation operation,
 static UMAGATTOperationOutcome TranslateCacheQueryOutcomeToGATTOperationOutcome(
     CacheQueryOutcome outcome) {
   switch (outcome) {
-    case CacheQueryOutcome::SUCCESS:
-    case CacheQueryOutcome::BAD_RENDERER:
+    case CacheQueryOutcome::kSuccess:
+    case CacheQueryOutcome::kBadRenderer:
       // No need to record a success or renderer crash.
       NOTREACHED();
-      return UMAGATTOperationOutcome::kNotSupported;
-    case CacheQueryOutcome::NO_DEVICE:
+    case CacheQueryOutcome::kNoDevice:
       return UMAGATTOperationOutcome::kNoDevice;
-    case CacheQueryOutcome::NO_SERVICE:
+    case CacheQueryOutcome::kNoService:
       return UMAGATTOperationOutcome::kNoService;
-    case CacheQueryOutcome::NO_CHARACTERISTIC:
+    case CacheQueryOutcome::kNoCharacteristic:
       return UMAGATTOperationOutcome::kNoCharacteristic;
-    case CacheQueryOutcome::NO_DESCRIPTOR:
+    case CacheQueryOutcome::kNoDescriptor:
       return UMAGATTOperationOutcome::kNoDescriptor;
   }
 }
@@ -205,9 +203,7 @@ void RecordRSSISignalStrength(int rssi) {
 
 void RecordRSSISignalStrengthLevel(UMARSSISignalStrengthLevel level) {
   UMA_HISTOGRAM_ENUMERATION(
-      "Bluetooth.Web.RequestDevice.RSSISignalStrengthLevel",
-      static_cast<int>(level),
-      static_cast<int>(UMARSSISignalStrengthLevel::COUNT));
+      "Bluetooth.Web.RequestDevice.RSSISignalStrengthLevel", level);
 }
 
 }  // namespace content

@@ -43,12 +43,12 @@ class AllDownloadItemNotifier : public content::DownloadManager::Observer,
   // belongs to.
   class Observer {
    public:
-    Observer() {}
+    Observer() = default;
 
     Observer(const Observer&) = delete;
     Observer& operator=(const Observer&) = delete;
 
-    virtual ~Observer() {}
+    virtual ~Observer() = default;
 
     virtual void OnManagerInitialized(content::DownloadManager* manager) {}
     virtual void OnManagerGoingDown(content::DownloadManager* manager) {}
@@ -93,7 +93,7 @@ class AllDownloadItemNotifier : public content::DownloadManager::Observer,
 
   raw_ptr<content::DownloadManager> manager_;
   raw_ptr<AllDownloadItemNotifier::Observer> observer_;
-  std::set<DownloadItem*> observing_;
+  std::set<raw_ptr<DownloadItem, SetExperimental>> observing_;
   base::WeakPtrFactory<AllDownloadItemNotifier> weak_factory_{this};
 };
 

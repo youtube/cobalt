@@ -5,12 +5,14 @@
 #include "media/formats/hls/media_playlist.h"
 
 #include <cmath>
+#include <optional>
+#include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "base/memory/scoped_refptr.h"
 #include "base/numerics/clamped_math.h"
-#include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "media/formats/hls/media_segment.h"
 #include "media/formats/hls/multivariant_playlist.h"
@@ -21,8 +23,6 @@
 #include "media/formats/hls/tags.h"
 #include "media/formats/hls/types.h"
 #include "media/formats/hls/variable_dictionary.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "url/gurl.h"
 
 namespace media::hls {
@@ -32,18 +32,18 @@ struct MediaPlaylist::CtorArgs {
   types::DecimalInteger version;
   bool independent_segments;
   base::TimeDelta target_duration;
-  absl::optional<PartialSegmentInfo> partial_segment_info;
+  std::optional<PartialSegmentInfo> partial_segment_info;
   std::vector<scoped_refptr<MediaSegment>> segments;
   base::TimeDelta total_duration;
-  absl::optional<PlaylistType> playlist_type;
+  std::optional<PlaylistType> playlist_type;
   bool end_list;
   bool i_frames_only;
   bool has_media_sequence_tag;
   bool can_skip_dateranges;
   bool can_block_reload;
-  absl::optional<base::TimeDelta> skip_boundary;
+  std::optional<base::TimeDelta> skip_boundary;
   base::TimeDelta hold_back_distance;
-  absl::optional<base::TimeDelta> part_hold_back_distance;
+  std::optional<base::TimeDelta> part_hold_back_distance;
 };
 
 MediaPlaylist::~MediaPlaylist() = default;
@@ -54,10 +54,11 @@ Playlist::Kind MediaPlaylist::GetKind() const {
 
 // static
 ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
-    base::StringPiece source,
+    std::string_view source,
     GURL uri,
     types::DecimalInteger version,
-    const MultivariantPlaylist* parent_playlist) {
+    const MultivariantPlaylist* parent_playlist,
+    TagRecorder* tag_recorder) {
   DCHECK(version != 0);
   if (version < Playlist::kMinSupportedVersion ||
       version > Playlist::kMaxSupportedVersion) {
@@ -80,21 +81,24 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
 
   CommonParserState common_state;
   VariableDictionary::SubstitutionBuffer sub_buffer;
-  absl::optional<XTargetDurationTag> target_duration_tag;
-  absl::optional<InfTag> inf_tag;
-  absl::optional<XGapTag> gap_tag;
-  absl::optional<XDiscontinuityTag> discontinuity_tag;
-  absl::optional<XByteRangeTag> byterange_tag;
-  absl::optional<XBitrateTag> bitrate_tag;
-  absl::optional<XPlaylistTypeTag> playlist_type_tag;
-  absl::optional<XEndListTag> end_list_tag;
-  absl::optional<XIFramesOnlyTag> i_frames_only_tag;
-  absl::optional<XPartInfTag> part_inf_tag;
-  absl::optional<XServerControlTag> server_control_tag;
-  absl::optional<XMediaSequenceTag> media_sequence_tag;
-  absl::optional<XDiscontinuitySequenceTag> discontinuity_sequence_tag;
+  std::optional<XTargetDurationTag> target_duration_tag;
+  std::optional<InfTag> inf_tag;
+  std::optional<XGapTag> gap_tag;
+  std::optional<XDiscontinuityTag> discontinuity_tag;
+  std::optional<XByteRangeTag> byterange_tag;
+  std::optional<XBitrateTag> bitrate_tag;
+  std::optional<XPlaylistTypeTag> playlist_type_tag;
+  std::optional<XEndListTag> end_list_tag;
+  std::optional<XIFramesOnlyTag> i_frames_only_tag;
+  std::optional<XPartInfTag> part_inf_tag;
+  std::optional<XServerControlTag> server_control_tag;
+  std::optional<XMediaSequenceTag> media_sequence_tag;
+  std::optional<XDiscontinuitySequenceTag> discontinuity_sequence_tag;
   std::vector<scoped_refptr<MediaSegment>> segments;
   scoped_refptr<MediaSegment::InitializationSegment> initialization_segment;
+  scoped_refptr<MediaSegment::EncryptionData> encryption_data;
+  bool new_init_segment = false;
+  bool new_encryption_data = false;
 
   types::DecimalInteger discontinuity_sequence_number = 0;
 
@@ -122,8 +126,11 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
     auto item = std::move(item_result).value();
 
     // Handle tags
-    if (auto* tag = absl::get_if<TagItem>(&item)) {
+    if (auto* tag = std::get_if<TagItem>(&item)) {
       if (!tag->GetName().has_value()) {
+        if (tag_recorder) {
+          tag_recorder->SetMetric(TagRecorder::Metric::kUnknownTag);
+        }
         HandleUnknownTag(*tag);
         continue;
       }
@@ -159,7 +166,7 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
           break;
         }
         case MediaPlaylistTagName::kXByteRange: {
-          // TODO(https://crbug.com/1328528): Investigate supporting aspects of
+          // TODO(crbug.com/40226468): Investigate supporting aspects of
           // this tag not described by the spec
           auto error = ParseUniqueTag(*tag, byterange_tag);
           if (error.has_value()) {
@@ -168,10 +175,13 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
           break;
         }
         case MediaPlaylistTagName::kXDateRange: {
-          // TODO(crbug.com/1266991): Implement the EXT-X-DATERANGE tag.
+          // TODO(crbug.com/40057824): Implement the EXT-X-DATERANGE tag.
           break;
         }
         case MediaPlaylistTagName::kXDiscontinuity: {
+          if (tag_recorder) {
+            tag_recorder->SetMetric(TagRecorder::Metric::kDiscontinuity);
+          }
           // Multiple occurrences of `EXT-X-DISCONTINUITY` per media segment are
           // allowed, and each increments the segment's discontinuity sequence
           // number by 1. The spec doesn't explicitly forbid this, and this
@@ -188,6 +198,10 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
           break;
         }
         case MediaPlaylistTagName::kXDiscontinuitySequence: {
+          if (tag_recorder) {
+            tag_recorder->SetMetric(
+                TagRecorder::Metric::kDiscontinuitySequence);
+          }
           auto error = ParseUniqueTag(*tag, discontinuity_sequence_tag);
           if (error.has_value()) {
             return std::move(error).value();
@@ -214,6 +228,9 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
           break;
         }
         case MediaPlaylistTagName::kXGap: {
+          if (tag_recorder) {
+            tag_recorder->SetMetric(TagRecorder::Metric::kGap);
+          }
           auto error = ParseUniqueTag(*tag, gap_tag);
           if (error.has_value()) {
             return std::move(error).value();
@@ -228,7 +245,58 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
           break;
         }
         case MediaPlaylistTagName::kXKey: {
-          // TODO(crbug.com/1266991): Implement the EXT-X-KEY tag.
+          if (tag_recorder) {
+            tag_recorder->SetMetric(TagRecorder::Metric::kKey);
+          }
+          auto result =
+              XKeyTag::Parse(*tag, common_state.variable_dict, sub_buffer);
+          if (!result.has_value()) {
+            return std::move(result).error().AddHere();
+          }
+          auto value = std::move(result).value();
+
+          if (tag_recorder) {
+            TagRecorder::Metric crypto;
+            switch (value.method) {
+              case XKeyTagMethod::kNone:
+                crypto = TagRecorder::Metric::kNoCrypto;
+                break;
+              case XKeyTagMethod::kAES128:
+              case XKeyTagMethod::kAES256:
+                crypto = TagRecorder::Metric::kSegmentAES;
+                break;
+              case XKeyTagMethod::kSampleAES:
+                crypto = TagRecorder::Metric::kSample;
+                break;
+              case XKeyTagMethod::kSampleAESCTR:
+                crypto = TagRecorder::Metric::kAESCTR;
+                break;
+              case XKeyTagMethod::kSampleAESCENC:
+                crypto = TagRecorder::Metric::kAESCENC;
+                break;
+              case XKeyTagMethod::kISO230017:
+                crypto = TagRecorder::Metric::kISO230017;
+                break;
+            }
+            tag_recorder->SetMetric(crypto);
+          }
+          if (value.method == XKeyTagMethod::kNone) {
+            if (encryption_data != nullptr) {
+              new_encryption_data = true;
+            }
+            encryption_data = nullptr;
+          } else {
+            auto resource_uri = uri.Resolve(value.uri.value().Str());
+            if (!resource_uri.is_valid()) {
+              return ParseStatusCode::kInvalidUri;
+            }
+            new_encryption_data = true;
+            encryption_data =
+                base::MakeRefCounted<MediaSegment::EncryptionData>(
+                    std::move(resource_uri), value.method, value.keyformat,
+                    value.iv);
+          }
+
           break;
         }
         case MediaPlaylistTagName::kXMap: {
@@ -246,7 +314,7 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
           }
 
           // Extract the byte range
-          absl::optional<types::ByteRange> byte_range;
+          std::optional<types::ByteRange> byte_range;
           if (value.byte_range.has_value()) {
             // Safari defaults byte range offset to 0, do that here as well.
             byte_range = types::ByteRange::Validate(
@@ -256,6 +324,7 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
             }
           }
 
+          new_init_segment = true;
           initialization_segment =
               base::MakeRefCounted<MediaSegment::InitializationSegment>(
                   std::move(resource_uri), byte_range);
@@ -274,7 +343,10 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
           break;
         }
         case MediaPlaylistTagName::kXPart: {
-          // TODO(crbug.com/1266991): Integrate the EXT-X-PART tag.
+          if (tag_recorder) {
+            tag_recorder->SetMetric(TagRecorder::Metric::kPart);
+          }
+          // TODO(crbug.com/40057824): Integrate the EXT-X-PART tag.
           break;
         }
         case MediaPlaylistTagName::kXPartInf: {
@@ -292,15 +364,16 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
           break;
         }
         case MediaPlaylistTagName::kXPreloadHint: {
-          // TODO(crbug.com/1266991): Implement the EXT-X-PRELOAD-HINT tag.
+          // TODO(crbug.com/40057824): Implement the EXT-X-PRELOAD-HINT tag.
           break;
         }
         case MediaPlaylistTagName::kXProgramDateTime: {
-          // TODO(crbug.com/1266991): Implement the EXT-X-PROGRAM-DATE-TIME tag.
+          // TODO(crbug.com/40057824): Implement the EXT-X-PROGRAM-DATE-TIME
+          // tag.
           break;
         }
         case MediaPlaylistTagName::kXRenditionReport: {
-          // TODO(crbug.com/1266991): Implement the EXT-X-RENDITION-REPORT tag.
+          // TODO(crbug.com/40057824): Implement the EXT-X-RENDITION-REPORT tag.
           break;
         }
         case MediaPlaylistTagName::kXServerControl: {
@@ -311,7 +384,10 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
           break;
         }
         case MediaPlaylistTagName::kXSkip: {
-          // TODO(crbug.com/1266991): Implement the EXT-X-SKIP tag.
+          if (tag_recorder) {
+            tag_recorder->SetMetric(TagRecorder::Metric::kSkip);
+          }
+          // TODO(crbug.com/40057824): Implement the EXT-X-SKIP tag.
           // Since the appearance of the EXT-X-SKIP tag implies that this is a
           // playlist delta update, we cannot parse this playlist.
           return ParseStatusCode::kPlaylistHasUnexpectedDeltaUpdate;
@@ -331,13 +407,26 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
     // Handle URIs
     // `GetNextLineItem` should return either a TagItem (handled above) or a
     // UriItem.
-    static_assert(absl::variant_size<GetNextLineItemResult>() == 2);
-    auto segment_uri_result = ParseUri(absl::get<UriItem>(std::move(item)), uri,
+    static_assert(std::variant_size<GetNextLineItemResult>() == 2);
+    auto segment_uri_result = ParseUri(std::get<UriItem>(std::move(item)), uri,
                                        common_state, sub_buffer);
     if (!segment_uri_result.has_value()) {
       return std::move(segment_uri_result).error();
     }
     auto segment_uri = std::move(segment_uri_result).value();
+
+    if (tag_recorder) {
+      const auto filename = segment_uri.ExtractFileName();
+      if (filename.ends_with(".ts")) {
+        tag_recorder->SetMetric(TagRecorder::Metric::kSegmentTS);
+      } else if (filename.ends_with(".mp4")) {
+        tag_recorder->SetMetric(TagRecorder::Metric::kSegmentMP4);
+      } else if (filename.ends_with(".aac")) {
+        tag_recorder->SetMetric(TagRecorder::Metric::kSegmentAAC);
+      } else {
+        tag_recorder->SetMetric(TagRecorder::Metric::kSegmentOther);
+      }
+    }
 
     // For this to be a valid media segment, we must have parsed an Inf tag
     // since the last segment.
@@ -352,7 +441,7 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
     const types::DecimalInteger media_sequence_number =
         (media_sequence_tag ? media_sequence_tag->number : 0) + segments.size();
 
-    absl::optional<types::ByteRange> byterange;
+    std::optional<types::ByteRange> byterange;
     if (byterange_tag.has_value()) {
       auto range = byterange_tag->range;
 
@@ -381,7 +470,7 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
 
     // The previous occurrence of the EXT-X-BITRATE tag applies to this segment
     // only if this segment is not a byterange of its resource.
-    absl::optional<types::DecimalInteger> bitrate;
+    std::optional<types::DecimalInteger> bitrate;
     if (bitrate_tag.has_value() && !byterange.has_value()) {
       // The value in the tag is expressed in kilobits per-second, but we wish
       // to normalize all bitrates to bits-per-second. The spec specifically
@@ -394,8 +483,11 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
 
     segments.push_back(base::MakeRefCounted<MediaSegment>(
         inf_tag->duration, media_sequence_number, discontinuity_sequence_number,
-        std::move(segment_uri), initialization_segment, byterange, bitrate,
-        discontinuity_tag.has_value(), gap_tag.has_value()));
+        std::move(segment_uri), initialization_segment, encryption_data,
+        byterange, bitrate, discontinuity_tag.has_value(), gap_tag.has_value(),
+        new_init_segment, new_encryption_data));
+    new_init_segment = false;
+    new_encryption_data = false;
 
     // Reset per-segment tags
     inf_tag.reset();
@@ -417,7 +509,7 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
     return ParseStatusCode::kTargetDurationExceedsMax;
   }
 
-  absl::optional<PartialSegmentInfo> partial_segment_info;
+  std::optional<PartialSegmentInfo> partial_segment_info;
   if (part_inf_tag.has_value()) {
     partial_segment_info = MediaPlaylist::PartialSegmentInfo{
         .target_duration = part_inf_tag->target_duration};
@@ -432,9 +524,9 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
 
   bool can_skip_dateranges = false;
   bool can_block_reload = false;
-  absl::optional<base::TimeDelta> skip_boundary;
+  std::optional<base::TimeDelta> skip_boundary;
   base::TimeDelta hold_back_distance = target_duration * 3;
-  absl::optional<base::TimeDelta> part_hold_back_distance;
+  std::optional<base::TimeDelta> part_hold_back_distance;
   if (server_control_tag.has_value()) {
     can_skip_dateranges = server_control_tag->can_skip_dateranges;
     can_block_reload = server_control_tag->can_block_reload;
@@ -509,7 +601,7 @@ ParseStatus::Or<scoped_refptr<MediaPlaylist>> MediaPlaylist::Parse(
       common_state.independent_segments_tag.has_value() ||
       (parent_playlist && parent_playlist->AreSegmentsIndependent());
 
-  absl::optional<PlaylistType> playlist_type;
+  std::optional<PlaylistType> playlist_type;
   if (playlist_type_tag) {
     playlist_type = playlist_type_tag->type;
   }

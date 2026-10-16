@@ -11,18 +11,18 @@
 #include <string>
 
 #include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/containers/linked_list.h"
 #include "base/functional/callback.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
+#include "base/trace_event/memory_dump_provider.h"
 #include "gpu/gpu_gles2_export.h"
 #include "gpu/ipc/common/gpu_disk_cache_type.h"
 
 namespace gpu {
-
-class DecoderClient;
-
 namespace webgpu {
 
 class DawnCachingInterfaceFactory;
@@ -40,6 +40,12 @@ class GPU_GLES2_EXPORT DawnCachingBackend
 
   size_t LoadData(const std::string& key, void* value_out, size_t value_size);
   void StoreData(const std::string& key, const void* value, size_t value_size);
+
+  void PurgeMemory(
+      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+
+  void OnMemoryDump(const std::string& dump_name,
+                    base::trace_event::ProcessMemoryDump* pmd);
 
  private:
   // Internal entry class for LRU tracking and holding key/value pair.
@@ -59,18 +65,25 @@ class GPU_GLES2_EXPORT DawnCachingBackend
     const std::string data_;
   };
 
+  // Overrides for transparent flat_set lookups using a string.
+  friend bool operator<(const std::unique_ptr<Entry>& lhs,
+                        const std::unique_ptr<Entry>& rhs);
+  friend bool operator<(const std::unique_ptr<Entry>& lhs,
+                        const std::string& rhs);
+  friend bool operator<(const std::string& lhs,
+                        const std::unique_ptr<Entry>& rhs);
+
   friend class base::RefCounted<DawnCachingBackend>;
   ~DawnCachingBackend();
 
   void EvictEntry(Entry* entry) EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   base::Lock mutex_;
-  base::flat_map<std::string, std::unique_ptr<Entry>> entries_
-      GUARDED_BY(mutex_);
+  base::flat_set<std::unique_ptr<Entry>> entries_ GUARDED_BY(mutex_);
   base::LinkedList<Entry> lru_ GUARDED_BY(mutex_);
 
-  size_t max_size_;
-  size_t current_size_ = 0;
+  size_t max_size_ GUARDED_BY(mutex_);
+  size_t current_size_ GUARDED_BY(mutex_) = 0;
 };
 
 }  // namespace detail
@@ -87,6 +100,10 @@ class GPU_GLES2_EXPORT DawnCachingBackend
 class GPU_GLES2_EXPORT DawnCachingInterface
     : public dawn::platform::CachingInterface {
  public:
+  using CacheBlobCallback =
+      base::RepeatingCallback<void(const std::string& key,
+                                   const std::string& blob)>;
+
   ~DawnCachingInterface() override;
 
   size_t LoadData(const void* key,
@@ -109,22 +126,21 @@ class GPU_GLES2_EXPORT DawnCachingInterface
   // the factory.
   explicit DawnCachingInterface(
       scoped_refptr<detail::DawnCachingBackend> backend,
-      DecoderClient* decoder_client = nullptr);
+      CacheBlobCallback callback = {});
 
   // Caching interface owns a reference to the backend.
   scoped_refptr<detail::DawnCachingBackend> backend_ = nullptr;
 
-  // Decoder client provides ability to store cache entries to persistent disk.
-  // The client is not owned by this class and needs to be valid throughout the
-  // interfaces lifetime.
-  raw_ptr<DecoderClient> decoder_client_ = nullptr;
+  // The callback provides ability to store cache entries to persistent disk.
+  CacheBlobCallback cache_blob_callback_;
 };
 
 // Factory class for producing and managing DawnCachingInterfaces.
 // Creating/using caching interfaces through the factory guarantees that we will
 // not run into issues where backends are being initialized with the same
 // parameters leading to blockage.
-class GPU_GLES2_EXPORT DawnCachingInterfaceFactory {
+class GPU_GLES2_EXPORT DawnCachingInterfaceFactory
+    : public base::trace_event::MemoryDumpProvider {
  public:
   // Factory for backend creation, especially for testing.
   using BackendFactory =
@@ -132,14 +148,14 @@ class GPU_GLES2_EXPORT DawnCachingInterfaceFactory {
 
   explicit DawnCachingInterfaceFactory(BackendFactory factory);
   DawnCachingInterfaceFactory();
-  ~DawnCachingInterfaceFactory();
+  ~DawnCachingInterfaceFactory() override;
 
   // Returns a pointer to a DawnCachingInterface, creating a backend for it if
   // necessary. For handle based instances, the factory keeps a reference to the
   // backend until ReleaseHandle below is called.
   std::unique_ptr<DawnCachingInterface> CreateInstance(
       const gpu::GpuDiskCacheHandle& handle,
-      DecoderClient* decoder_client = nullptr);
+      DawnCachingInterface::CacheBlobCallback callback = {});
 
   // Returns a pointer to a DawnCachingInterface that owns the in memory
   // backend. This is used for incognito cases where the cache should not be
@@ -157,6 +173,13 @@ class GPU_GLES2_EXPORT DawnCachingInterfaceFactory {
   // notifies the GPU process, and the last reference held by the factory is
   // released.
   void ReleaseHandle(const gpu::GpuDiskCacheHandle& handle);
+
+  void PurgeMemory(
+      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+
+  // base::trace_event::MemoryDumpProvider implementation.
+  bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
+                    base::trace_event::ProcessMemoryDump* pmd) override;
 
  private:
   // Creates a default backend for assignment.

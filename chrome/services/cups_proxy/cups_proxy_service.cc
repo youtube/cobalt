@@ -12,11 +12,21 @@
 #include "chrome/services/cups_proxy/cups_proxy_service_delegate.h"
 #include "chrome/services/cups_proxy/proxy_manager.h"
 #include "chromeos/ash/components/dbus/cups_proxy/cups_proxy_client.h"
+#include "mojo/core/configuration.h"
 #include "mojo/public/cpp/platform/platform_channel.h"
 #include "mojo/public/cpp/system/invitation.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 
 namespace cups_proxy {
+
+namespace {
+
+CupsProxyService* GetCupsProxyService() {
+  static base::NoDestructor<CupsProxyService> service;
+  return service.get();
+}
+
+}  // namespace
 
 CupsProxyService::CupsProxyService() = default;
 CupsProxyService::~CupsProxyService() = default;
@@ -24,8 +34,12 @@ CupsProxyService::~CupsProxyService() = default;
 // static
 void CupsProxyService::Spawn(
     std::unique_ptr<CupsProxyServiceDelegate> delegate) {
-  static base::NoDestructor<CupsProxyService> service;
-  service->BindToCupsProxyDaemon(std::move(delegate));
+  GetCupsProxyService()->BindToCupsProxyDaemon(std::move(delegate));
+}
+
+// static
+void CupsProxyService::Shutdown() {
+  GetCupsProxyService()->ShutdownImpl();
 }
 
 void CupsProxyService::BindToCupsProxyDaemon(
@@ -42,6 +56,9 @@ void CupsProxyService::BindToCupsProxyDaemon(
   // Include an initial Mojo pipe in the invitation.
   mojo::ScopedMessagePipeHandle pipe = invitation.AttachMessagePipe(
       ::printing::kBootstrapMojoConnectionChannelToken);
+  if (!mojo::core::GetConfiguration().is_broker_process) {
+    invitation.set_extra_flags(MOJO_SEND_INVITATION_FLAG_SHARE_BROKER);
+  }
   mojo::OutgoingInvitation::Send(std::move(invitation),
                                  base::kNullProcessHandle,
                                  platform_channel.TakeLocalEndpoint());
@@ -69,6 +86,10 @@ void CupsProxyService::OnBindToCupsProxyDaemon(bool success) {
   }
 
   DVLOG(1) << "CupsProxyService: bootstrap success!";
+}
+
+void CupsProxyService::ShutdownImpl() {
+  proxy_manager_.reset();
 }
 
 }  // namespace cups_proxy

@@ -7,8 +7,6 @@
 #include <memory>
 #include <vector>
 
-#include "ash/components/arc/mojom/app.mojom.h"
-#include "ash/components/arc/test/fake_app_instance.h"
 #include "ash/constants/ash_features.h"
 #include "base/strings/strcat.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -26,6 +24,8 @@
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chromeos/ash/experiences/arc/mojom/app.mojom.h"
+#include "chromeos/ash/experiences/arc/test/fake_app_instance.h"
 #include "components/prefs/pref_service.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/app_types.h"
@@ -43,9 +43,10 @@ constexpr char kTestShareTextParam[] = "share_text";
 constexpr char kTestWebApkPackageName[] = "org.chromium.webapk.some_package";
 const std::u16string kTestAppTitle = u"Test App";
 
-std::unique_ptr<WebAppInstallInfo> BuildDefaultWebAppInfo() {
-  auto app_info = std::make_unique<WebAppInstallInfo>();
-  app_info->start_url = GURL(kTestAppUrl);
+std::unique_ptr<web_app::WebAppInstallInfo> BuildDefaultWebAppInfo(
+    GURL app_url = GURL(kTestAppUrl)) {
+  auto app_info =
+      web_app::WebAppInstallInfo::CreateWithStartUrlForTesting(app_url);
   app_info->scope = GURL(kTestAppUrl);
   app_info->title = kTestAppTitle;
   app_info->manifest_url = GURL(kTestManifestUrl);
@@ -100,7 +101,8 @@ class WebApkManagerTest : public apps::AppRegistryCache::Observer,
   }
 
   void WaitForAppUninstall(const std::string& app_id) {
-    Observe(&(app_service_proxy()->AppRegistryCache()));
+    app_registry_cache_observer_.Observe(
+        &(app_service_proxy()->AppRegistryCache()));
     app_id_ = app_id;
     base::RunLoop run_loop;
     quit_callback_ = run_loop.QuitClosure();
@@ -117,13 +119,13 @@ class WebApkManagerTest : public apps::AppRegistryCache::Observer,
         update.Readiness() == apps::Readiness::kUninstalledByUser &&
         !quit_callback_.is_null()) {
       std::move(quit_callback_).Run();
-      Observe(nullptr);
+      app_registry_cache_observer_.Reset();
     }
   }
 
   void OnAppRegistryCacheWillBeDestroyed(
       apps::AppRegistryCache* cache) override {
-    Observe(nullptr);
+    app_registry_cache_observer_.Reset();
   }
 
   TestingProfile* profile() { return &profile_; }
@@ -143,6 +145,10 @@ class WebApkManagerTest : public apps::AppRegistryCache::Observer,
   apps::AppServiceTest app_service_test_;
   std::string app_id_;
   base::OnceClosure quit_callback_;
+
+  base::ScopedObservation<apps::AppRegistryCache,
+                          apps::AppRegistryCache::Observer>
+      app_registry_cache_observer_{this};
 };
 
 TEST_F(WebApkManagerTest, InstallsWebApkOnStartup) {
@@ -174,8 +180,8 @@ TEST_F(WebApkManagerTest, InstallWebApkAfterStartup) {
 
 // Does not install web apps without a Share Target definition.
 TEST_F(WebApkManagerTest, NoShareTarget) {
-  auto app_info = std::make_unique<WebAppInstallInfo>();
-  app_info->start_url = GURL(kTestAppUrl);
+  auto app_info = web_app::WebAppInstallInfo::CreateWithStartUrlForTesting(
+      GURL(kTestAppUrl));
   app_info->title = kTestAppTitle;
   auto app_id = web_app::test::InstallWebApp(profile(), std::move(app_info));
 
@@ -188,9 +194,9 @@ TEST_F(WebApkManagerTest, NoShareTarget) {
 // has a WebAPK installed, only install a new WebAPK for the other app.
 TEST_F(WebApkManagerTest, IgnoresAlreadyInstalledWebApkOnStartup) {
   auto app_info_1 = BuildDefaultWebAppInfo();
-  auto app_info_2 = BuildDefaultWebAppInfo();
-  // Change the start_url so that the two apps have different IDs.
-  app_info_2->start_url = GURL(base::StrCat({kTestAppUrl, "/app_2"}));
+  // Change the manifest_id so that the two apps have different IDs.
+  auto app_info_2 =
+      BuildDefaultWebAppInfo(GURL(base::StrCat({kTestAppUrl, "/app_2"})));
 
   auto app_id_1 =
       web_app::test::InstallWebApp(profile(), std::move(app_info_1));
@@ -209,8 +215,8 @@ TEST_F(WebApkManagerTest, IgnoresAlreadyInstalledWebApkOnStartup) {
 }
 
 TEST_F(WebApkManagerTest, RemovesIneligibleWebApkOnStartup) {
-  auto app_info = std::make_unique<WebAppInstallInfo>();
-  app_info->start_url = GURL(kTestAppUrl);
+  auto app_info = web_app::WebAppInstallInfo::CreateWithStartUrlForTesting(
+      GURL(kTestAppUrl));
   app_info->title = kTestAppTitle;
   auto app_id = web_app::test::InstallWebApp(profile(), std::move(app_info));
 
@@ -262,7 +268,8 @@ TEST_F(WebApkManagerTest, QueuesUpdatedApp) {
   auto updated_app_info = BuildDefaultWebAppInfo();
   updated_app_info->title = u"Some new title";
   auto updated_app_id =
-      web_app::test::InstallWebApp(profile(), BuildDefaultWebAppInfo());
+      web_app::test::InstallWebApp(profile(), std::move(updated_app_info),
+                                   /*overwrite_existing_manifest_fields=*/true);
   EXPECT_EQ(app_id, updated_app_id);
 
   auto install_task =
@@ -278,9 +285,9 @@ TEST_F(WebApkManagerTest, QueuesUpdatedApp) {
 
 TEST_F(WebApkManagerTest, QueuesPendingUpdateOnStartup) {
   auto app_info_1 = BuildDefaultWebAppInfo();
-  auto app_info_2 = BuildDefaultWebAppInfo();
-  // Change the start_url so that the two apps have different IDs.
-  app_info_2->start_url = GURL(base::StrCat({kTestAppUrl, "/app_2"}));
+  // Change the manifest_id so that the two apps have different IDs.
+  auto app_info_2 =
+      BuildDefaultWebAppInfo(GURL(base::StrCat({kTestAppUrl, "/app_2"})));
 
   auto app_id_1 =
       web_app::test::InstallWebApp(profile(), std::move(app_info_1));

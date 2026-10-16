@@ -19,45 +19,58 @@ class ExtensionOptionsGuest
     : public guest_view::GuestView<ExtensionOptionsGuest> {
  public:
   static const char Type[];
+  static const guest_view::GuestViewHistogramValue HistogramValue;
 
   ~ExtensionOptionsGuest() override;
   ExtensionOptionsGuest(const ExtensionOptionsGuest&) = delete;
   ExtensionOptionsGuest& operator=(const ExtensionOptionsGuest&) = delete;
 
   static std::unique_ptr<GuestViewBase> Create(
-      content::WebContents* owner_web_contents);
+      content::RenderFrameHost* owner_rfh);
 
  private:
-  explicit ExtensionOptionsGuest(content::WebContents* owner_web_contents);
+  explicit ExtensionOptionsGuest(content::RenderFrameHost* owner_rfh);
 
   // GuestViewBase implementation.
-  void CreateWebContents(std::unique_ptr<GuestViewBase> owned_this,
-                         const base::Value::Dict& create_params,
-                         WebContentsCreatedCallback callback) final;
+  void CreateInnerPage(std::unique_ptr<GuestViewBase> owned_this,
+                       scoped_refptr<content::SiteInstance> site_instance,
+                       const base::Value::Dict& create_params,
+                       GuestPageCreatedCallback callback) final;
   void DidInitialize(const base::Value::Dict& create_params) final;
+  void DidAttachToEmbedder() final;
   void MaybeRecreateGuestContents(
-      content::WebContents* embedder_web_contents) final;
+      content::RenderFrameHost* outer_contents_frame) final;
   void GuestViewDidStopLoading() final;
   const char* GetAPINamespace() const final;
   int GetTaskPrefix() const final;
   bool IsPreferredSizeModeEnabled() const final;
   void OnPreferredSizeChanged(const gfx::Size& pref_size) final;
 
+  // GuestpageHolder::Delegate implementation.
+  bool GuestHandleContextMenu(content::RenderFrameHost& render_frame_host,
+                              const content::ContextMenuParams& params) final;
+  void GuestClose() final;
+
   // content::WebContentsDelegate implementation.
-  void AddNewContents(content::WebContents* source,
-                      std::unique_ptr<content::WebContents> new_contents,
-                      const GURL& target_url,
-                      WindowOpenDisposition disposition,
-                      const blink::mojom::WindowFeatures& window_features,
-                      bool user_gesture,
-                      bool* was_blocked) final;
+  content::WebContents* AddNewContents(
+      content::WebContents* source,
+      std::unique_ptr<content::WebContents> new_contents,
+      const GURL& target_url,
+      WindowOpenDisposition disposition,
+      const blink::mojom::WindowFeatures& window_features,
+      bool user_gesture,
+      bool* was_blocked) final;
   content::WebContents* OpenURLFromTab(
       content::WebContents* source,
-      const content::OpenURLParams& params) final;
+      const content::OpenURLParams& params,
+      base::OnceCallback<void(content::NavigationHandle&)>
+          navigation_handle_callback) final;
   void CloseContents(content::WebContents* source) final;
   bool HandleContextMenu(content::RenderFrameHost& render_frame_host,
                          const content::ContextMenuParams& params) final;
+  bool ShouldResumeRequestsForCreatedWindow() override;
   bool IsWebContentsCreationOverridden(
+      content::RenderFrameHost* opener,
       content::SiteInstance* source_site_instance,
       content::mojom::WindowContainerType window_container_type,
       const GURL& opener_url,

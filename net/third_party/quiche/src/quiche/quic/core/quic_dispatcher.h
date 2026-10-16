@@ -9,27 +9,46 @@
 #define QUICHE_QUIC_CORE_QUIC_DISPATCHER_H_
 
 #include <cstddef>
+#include <cstdint>
+#include <list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
-#include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/frames/quic_rst_stream_frame.h"
+#include "quiche/quic/core/frames/quic_stop_sending_frame.h"
+#include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_blocked_writer_interface.h"
+#include "quiche/quic/core/quic_blocked_writer_list.h"
 #include "quiche/quic/core/quic_buffered_packet_store.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_crypto_server_stream_base.h"
+#include "quiche/quic/core/quic_dispatcher_stats.h"
+#include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_process_packet_interface.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_time_wait_list_manager.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_version_manager.h"
+#include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/core/tls_chlo_extractor.h"
+#include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
-#include "quiche/common/platform/api/quiche_reference_counted.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 
 namespace quic {
@@ -40,15 +59,11 @@ class QuicDispatcherPeer;
 class QuicConfig;
 class QuicCryptoServerConfig;
 
-class QUIC_NO_EXPORT QuicDispatcher
+class QUICHE_EXPORT QuicDispatcher
     : public QuicTimeWaitListManager::Visitor,
       public ProcessPacketInterface,
       public QuicBufferedPacketStore::VisitorInterface {
  public:
-  // Ideally we'd have a linked_hash_set: the  boolean is unused.
-  using WriteBlockedList =
-      quiche::QuicheLinkedHashMap<QuicBlockedWriterInterface*, bool>;
-
   QuicDispatcher(
       const QuicConfig* config, const QuicCryptoServerConfig* crypto_config,
       QuicVersionManager* version_manager,
@@ -121,12 +136,6 @@ class QUIC_NO_EXPORT QuicDispatcher
     QUICHE_DCHECK(false);
   }
 
-  // QuicTimeWaitListManager::Visitor interface implementation
-  // Called whenever the time wait list manager adds a new connection to the
-  // time-wait list.
-  void OnConnectionAddedToTimeWaitList(
-      QuicConnectionId server_connection_id) override;
-
   using ReferenceCountedSessionMap =
       absl::flat_hash_map<QuicConnectionId, std::shared_ptr<QuicSession>,
                           QuicConnectionIdHash>;
@@ -144,9 +153,15 @@ class QUIC_NO_EXPORT QuicDispatcher
                           QuicConnectionIdHash>;
 
   // QuicBufferedPacketStore::VisitorInterface implementation.
-  void OnExpiredPackets(QuicConnectionId server_connection_id,
-                        QuicBufferedPacketStore::BufferedPacketList
+  void OnExpiredPackets(QuicBufferedPacketStore::BufferedPacketList
                             early_arrived_packets) override;
+  HandleCidCollisionResult HandleConnectionIdCollision(
+      const QuicConnectionId& original_connection_id,
+      const QuicConnectionId& replaced_connection_id,
+      const QuicSocketAddress& self_address,
+      const QuicSocketAddress& peer_address, ParsedQuicVersion version,
+      const ParsedClientHello* parsed_chlo) override;
+  void OnPathDegrading() override {}
 
   // Create connections for previously buffered CHLOs as many as allowed.
   virtual void ProcessBufferedChlos(size_t max_connections_to_create);
@@ -163,28 +178,16 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   // Apply an operation for each session.
   void PerformActionOnActiveSessions(
-      std::function<void(QuicSession*)> operation) const;
+      quiche::UnretainedCallback<void(QuicSession*)> operation) const;
 
   // Get a snapshot of all sessions.
   std::vector<std::shared_ptr<QuicSession>> GetSessionsSnapshot() const;
 
   bool accept_new_connections() const { return accept_new_connections_; }
 
- protected:
-  // Creates a QUIC session based on the given information.
-  // |alpn| is the selected ALPN from |parsed_chlo.alpns|.
-  virtual std::unique_ptr<QuicSession> CreateQuicSession(
-      QuicConnectionId server_connection_id,
-      const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address, absl::string_view alpn,
-      const ParsedQuicVersion& version,
-      const ParsedClientHello& parsed_chlo) = 0;
+  uint64_t num_packets_received() const { return stats_.packets_processed; }
 
-  // Tries to validate and dispatch packet based on available information.
-  // Returns true if packet is dropped or successfully dispatched (e.g.,
-  // processed by existing session, processed by time wait list, etc.),
-  // otherwise, returns false and the packet needs further processing.
-  virtual bool MaybeDispatchPacket(const ReceivedPacketInfo& packet_info);
+  const QuicDispatcherStats& stats() const { return stats_; }
 
   // Values to be returned by ValidityChecks() to indicate what should be done
   // with a packet. Fates with greater values are considered to be higher
@@ -198,6 +201,22 @@ class QUIC_NO_EXPORT QuicDispatcher
     // Drop the packet.
     kFateDrop,
   };
+
+ protected:
+  // Creates a QUIC session based on the given information.
+  // |alpn| is the selected ALPN from |parsed_chlo.alpns|.
+  virtual std::unique_ptr<QuicSession> CreateQuicSession(
+      QuicConnectionId server_connection_id,
+      const QuicSocketAddress& self_address,
+      const QuicSocketAddress& peer_address, absl::string_view alpn,
+      const ParsedQuicVersion& version, const ParsedClientHello& parsed_chlo,
+      ConnectionIdGeneratorInterface& connection_id_generator) = 0;
+
+  // Tries to validate and dispatch packet based on available information.
+  // Returns true if packet is dropped or successfully dispatched (e.g.,
+  // processed by existing session, processed by time wait list, etc.),
+  // otherwise, returns false and the packet needs further processing.
+  virtual bool MaybeDispatchPacket(const ReceivedPacketInfo& packet_info);
 
   // This method is called by ProcessHeader on packets not associated with a
   // known connection ID.  It applies validity checks and returns a
@@ -217,9 +236,6 @@ class QUIC_NO_EXPORT QuicDispatcher
   // Create and return the time wait list manager for this dispatcher, which
   // will be owned by the dispatcher as time_wait_list_manager_
   virtual QuicTimeWaitListManager* CreateQuicTimeWaitListManager();
-
-  // Buffers packet until it can be delivered to a connection.
-  void BufferEarlyPacket(const ReceivedPacketInfo& packet_info);
 
   // Called when |packet_info| is the last received packet of the client hello.
   // |parsed_chlo| is the parsed version of the client hello. Creates a new
@@ -256,9 +272,9 @@ class QUIC_NO_EXPORT QuicDispatcher
   QuicPacketWriter* writer() { return writer_.get(); }
 
   // Returns true if a session should be created for a connection with an
-  // unknown version identified by |version_label|.
+  // unknown version.
   virtual bool ShouldCreateSessionForUnknownVersion(
-      QuicVersionLabel version_label);
+      const ReceivedPacketInfo& packet_info);
 
   void SetLastError(QuicErrorCode error);
 
@@ -269,7 +285,7 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   bool HasBufferedPackets(QuicConnectionId server_connection_id);
 
-  // Called when BufferEarlyPacket() fail to buffer the packet.
+  // Called when failed to enqueue the packet into the buffered packet store.
   virtual void OnBufferPacketFailure(
       QuicBufferedPacketStore::EnqueuePacketResult result,
       QuicConnectionId server_connection_id);
@@ -286,35 +302,40 @@ class QUIC_NO_EXPORT QuicDispatcher
   // 1) send connection close with |error_code| and |error_details| and add
   // connection to time wait list or 2) directly add connection to time wait
   // list with |action|.
+  // |self_address| and |peer_address| are passed to
+  // |OnStatelessConnectionCloseSent| when a connection close is sent.
   void StatelesslyTerminateConnection(
+      const QuicSocketAddress& self_address,
+      const QuicSocketAddress& peer_address,
       QuicConnectionId server_connection_id, PacketHeaderFormat format,
       bool version_flag, bool use_length_prefix, ParsedQuicVersion version,
       QuicErrorCode error_code, const std::string& error_details,
       QuicTimeWaitListManager::TimeWaitAction action);
+  void StatelesslyTerminateConnection(
+      const QuicSocketAddress& self_address,
+      const QuicSocketAddress& peer_address,
+      QuicConnectionId server_connection_id, PacketHeaderFormat format,
+      bool version_flag, bool use_length_prefix, ParsedQuicVersion version,
+      QuicErrorCode error_code, const std::string& error_details,
+      QuicTimeWaitListManager::TimeWaitAction action,
+      const std::optional<QuicConnectionId>& replaced_connection_id,
+      QuicPacketNumber last_sent_packet_number);
 
   // Save/Restore per packet context.
   virtual std::unique_ptr<QuicPerPacketContext> GetPerPacketContext() const;
   virtual void RestorePerPacketContext(
       std::unique_ptr<QuicPerPacketContext> /*context*/) {}
 
-  // If true, our framer will change its expected connection ID length
-  // to the received destination connection ID length of all IETF long headers.
-  void SetShouldUpdateExpectedServerConnectionIdLength(
-      bool should_update_expected_server_connection_id_length) {
-    should_update_expected_server_connection_id_length_ =
-        should_update_expected_server_connection_id_length;
-  }
-
-  // If true, the dispatcher will allow incoming initial packets that have
-  // destination connection IDs shorter than 64 bits.
-  void SetAllowShortInitialServerConnectionIds(
-      bool allow_short_initial_server_connection_ids) {
-    allow_short_initial_server_connection_ids_ =
-        allow_short_initial_server_connection_ids;
-  }
-
   // Called if a packet from an unseen connection is reset or rejected.
   virtual void OnNewConnectionRejected() {}
+
+  // Called by |StatelesslyTerminateConnection| when a connection close packet
+  // is generated.
+  virtual void OnStatelessConnectionCloseGenerated(
+      const QuicSocketAddress& /*self_address*/,
+      const QuicSocketAddress& /*peer_address*/,
+      QuicConnectionId /*connection_id*/, ParsedQuicVersion /*version*/,
+      QuicErrorCode /*error_code*/, const std::string& /*error_details*/) {}
 
   // Selects the preferred ALPN from a vector of ALPNs.
   // This runs through the list of ALPNs provided by the client and picks the
@@ -327,11 +348,12 @@ class QUIC_NO_EXPORT QuicDispatcher
   virtual void MaybeResetPacketsWithNoVersion(
       const quic::ReceivedPacketInfo& packet_info);
 
-  // Called on packets with unsupported versions.
-  virtual void MaybeSendVersionNegotiationPacket(
+  // Called on packets with unsupported versions. Returns true if a version
+  // negotiation packet is sent.
+  virtual bool MaybeSendVersionNegotiationPacket(
       const ReceivedPacketInfo& packet_info);
 
-  ConnectionIdGeneratorInterface& connection_id_generator() {
+  virtual ConnectionIdGeneratorInterface& ConnectionIdGenerator() {
     return connection_id_generator_;
   }
 
@@ -344,10 +366,10 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   struct ExtractChloResult {
     // If set, a full client hello has been successfully parsed.
-    absl::optional<ParsedClientHello> parsed_chlo;
+    std::optional<ParsedClientHello> parsed_chlo;
     // If set, the TLS alert that will cause a connection close.
     // Always empty for Google QUIC.
-    absl::optional<uint8_t> tls_alert;
+    std::optional<uint8_t> tls_alert;
   };
 
   // Try to extract information(sni, alpns, ...) if the full Client Hello has
@@ -377,11 +399,29 @@ class QUIC_NO_EXPORT QuicDispatcher
   bool IsServerConnectionIdTooShort(QuicConnectionId connection_id) const;
 
   // Core CHLO processing logic.
+  //
+  // |chlo_extractor_state| state of the TLS CHLO extractor used to extract
+  // the CHLO.
+  //
+  // |connection_id_generator| != nullptr indicates we have attempted to
+  // call connection_id_generator->MaybeReplaceConnectionId() and the result is
+  // in |replaced_connection_id|.
+  //
+  // |connection_id_generator| == nullptr indicates we have not attempted to
+  // generate a replacement connection ID, in that case
+  // - |replaced_connection_id| should be std::nullopt.
+  // - CreateSessionFromChlo will generate a replacement connection ID using
+  //   ConnectionIdGenerator().MaybeReplaceConnectionId().
   std::shared_ptr<QuicSession> CreateSessionFromChlo(
-      const QuicConnectionId original_connection_id,
-      const ParsedClientHello& parsed_chlo, const ParsedQuicVersion version,
-      const QuicSocketAddress self_address,
-      const QuicSocketAddress peer_address);
+      QuicConnectionId original_connection_id,
+      const std::optional<QuicConnectionId>& replaced_connection_id,
+      const ParsedClientHello& parsed_chlo, ParsedQuicVersion version,
+      QuicSocketAddress self_address, QuicSocketAddress peer_address,
+      TlsChloExtractor::State chlo_extractor_state,
+      ConnectionIdGeneratorInterface* connection_id_generator,
+      absl::Span<const DispatcherSentPacket> dispatcher_sent_packets);
+
+  QuicDispatcherStats stats_;
 
   const QuicConfig* config_;
 
@@ -391,7 +431,7 @@ class QUIC_NO_EXPORT QuicDispatcher
   QuicCompressedCertsCache compressed_certs_cache_;
 
   // The list of connections waiting to write.
-  WriteBlockedList write_blocked_list_;
+  QuicBlockedWriterList write_blocked_list_;
 
   ReferenceCountedSessionMap reference_counted_session_map_;
 
@@ -438,18 +478,12 @@ class QUIC_NO_EXPORT QuicDispatcher
   // connections), false otherwise.
   bool accept_new_connections_;
 
-  // If false, the dispatcher follows the IETF spec and rejects packets with
-  // invalid destination connection IDs lengths below 64 bits.
-  // If true they are allowed.
-  bool allow_short_initial_server_connection_ids_;
-
   // IETF short headers contain a destination connection ID but do not
   // encode its length. This variable contains the length we expect to read.
   // This is also used to signal an error when a long header packet with
-  // different destination connection ID length is received when
-  // should_update_expected_server_connection_id_length_ is false and packet's
+  // different destination connection ID length is received when packet's
   // version does not allow variable length connection ID.
-  uint8_t expected_server_connection_id_length_;
+  const uint8_t expected_server_connection_id_length_;
 
   // Records client addresses that have been recently reset.
   absl::flat_hash_set<QuicSocketAddress, QuicSocketAddressHash>
@@ -457,10 +491,6 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   // An alarm which clear recent_stateless_reset_addresses_.
   std::unique_ptr<QuicAlarm> clear_stateless_reset_addresses_alarm_;
-
-  // If true, change expected_server_connection_id_length_ to be the received
-  // destination connection ID length of all IETF long headers.
-  bool should_update_expected_server_connection_id_length_;
 
   ConnectionIdGeneratorInterface& connection_id_generator_;
 };

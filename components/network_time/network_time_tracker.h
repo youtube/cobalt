@@ -6,18 +6,24 @@
 #define COMPONENTS_NETWORK_TIME_NETWORK_TIME_TRACKER_H_
 
 #include <stdint.h>
+
 #include <memory>
+#include <optional>
+#include <string_view>
 
 #include "base/feature_list.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/observer_list.h"
+#include "base/observer_list_types.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/clock.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
-#include "components/network_time/historical_latencies_container.h"
+#include "components/client_update_protocol/ecdsa.h"
+#include "components/network_time/time_tracker/time_tracker.h"
 #include "url/gurl.h"
 
 class PrefRegistrySimple;
@@ -91,12 +97,10 @@ class NetworkTimeTracker {
     FETCHES_IN_BACKGROUND_AND_ON_DEMAND,
   };
 
-  // Number of samples to be used for the computation of clock drift.
-  enum class ClockDriftSamples : uint8_t {
-    NO_SAMPLES = 0,
-    TWO_SAMPLES = 2,
-    FOUR_SAMPLES = 4,
-    SIX_SAMPLES = 6,
+  class NetworkTimeObserver : public base::CheckedObserver {
+   public:
+    virtual void OnNetworkTimeChanged(
+        const TimeTracker::TimeTrackerState state) = 0;
   };
 
   static void RegisterPrefs(PrefRegistrySimple* registry);
@@ -104,11 +108,16 @@ class NetworkTimeTracker {
   // Constructor.  Arguments may be stubbed out for tests. |url_loader_factory|
   // must be non-null unless the kNetworkTimeServiceQuerying is disabled.
   // Otherwise, time is available only if |UpdateNetworkTime| is called.
+  // If |fetch_behavior| is not nullopt, it will control the behavior of the
+  // NetworkTimeTracker, if it is nullopt, it will be controlled via a feature
+  // parameter.
   NetworkTimeTracker(
       std::unique_ptr<base::Clock> clock,
       std::unique_ptr<const base::TickClock> tick_clock,
       PrefService* pref_service,
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+      std::optional<FetchBehavior> fetch_behavior,
+      base::span<const uint8_t> pubkey = base::span<const uint8_t>());
 
   NetworkTimeTracker(const NetworkTimeTracker&) = delete;
   NetworkTimeTracker& operator=(const NetworkTimeTracker&) = delete;
@@ -157,15 +166,19 @@ class NetworkTimeTracker {
   // Blocks until the the next time query completes.
   void WaitForFetch();
 
-  void SetMaxResponseSizeForTesting(size_t limit);
+  void AddObserver(NetworkTimeObserver* obs);
 
-  void SetPublicKeyForTesting(base::StringPiece key);
+  void RemoveObserver(NetworkTimeObserver* obs);
+
+  bool GetTrackerState(TimeTracker::TimeTrackerState* state) const;
+
+  void SetMaxResponseSizeForTesting(size_t limit);
 
   void SetTimeServerURLForTesting(const GURL& url);
 
   GURL GetTimeServerURLForTesting() const;
 
-  bool QueryTimeServiceForTesting(bool on_demand = true);
+  bool QueryTimeServiceForTesting();
 
   void WaitForFetchForTesting(uint32_t nonce);
 
@@ -173,39 +186,19 @@ class NetworkTimeTracker {
 
   base::TimeDelta GetTimerDelayForTesting() const;
 
- private:
-  // Tells how a call to CheckTime was initiated.
-  enum class CheckTimeType {
-    ON_DEMAND,
-    BACKGROUND,
-  };
+  void ClearNetworkTimeForTesting();
 
+ private:
   // Checks whether a network time query should be issued, and issues one if so.
   // Upon response, execution resumes in |OnURLFetchComplete|.
-  void CheckTime(CheckTimeType check_type);
+  void CheckTime();
 
   // Updates network time from a time server response, returning true
   // if successful.
-  bool UpdateTimeFromResponse(CheckTimeType check_type,
-                              std::unique_ptr<std::string> response_body);
-
-  // Processes the clock skew and clock drift histograms.
-  void ProcessClockHistograms(base::Time current_time, base::TimeDelta latency);
-
-  // Records histograms related to clock skew. All of these histograms are
-  // currently local-only. See https://crbug.com/1258624.
-  void RecordClockSkewHistograms(base::TimeDelta system_clock_skew,
-                                 base::TimeDelta fetch_latency);
-
-  // Triggers clock drift measurements if not already triggered and if enabled.
-  void MaybeTriggerClockDriftMeasurements();
-
-  // Records histograms related to clock drift.
-  void RecordClockDriftHistograms();
+  bool UpdateTimeFromResponse(std::optional<std::string> response_body);
 
   // Called to process responses from the secure time service.
-  void OnURLLoaderComplete(CheckTimeType check_type,
-                           std::unique_ptr<std::string> response_body);
+  void OnURLLoaderComplete(std::optional<std::string> response_body);
 
   // Sets the next time query to be run at the specified time.
   void QueueCheckTime(base::TimeDelta delay);
@@ -213,16 +206,9 @@ class NetworkTimeTracker {
   // Returns true if there's sufficient reason to suspect that
   // NetworkTimeTracker does not know what time it is.  This returns true
   // unconditionally every once in a long while, just to be on the safe side.
-  bool ShouldIssueTimeQuery(CheckTimeType check_type);
+  bool ShouldIssueTimeQuery();
 
-  // Computes clock drift value in seconds/second based on collected
-  // samples. This return value tells how many seconds the client's clock
-  // is drifting away from the roughtime clock in one second.
-  double ComputeClockDrift();
-
-  // Computes the variance of the latencies corresponding to the samples used
-  // for computing clock drift.
-  double ComputeClockDriftLatencyVariance();
+  void NotifyObservers();
 
   // State variables for internally-managed secure time service queries.
   GURL server_url_;
@@ -234,7 +220,7 @@ class NetworkTimeTracker {
   base::RepeatingTimer timer_;
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
   std::unique_ptr<network::SimpleURLLoader> time_fetcher_;
-  std::unique_ptr<client_update_protocol::Ecdsa> query_signer_;
+  client_update_protocol::Ecdsa query_signer_;
 
   // The |Clock| and |TickClock| are used to sanity-check one another, allowing
   // the NetworkTimeTracker to notice e.g. suspend/resume events and clock
@@ -244,46 +230,25 @@ class NetworkTimeTracker {
 
   raw_ptr<PrefService> pref_service_;
 
-  // Network time based on last call to UpdateNetworkTime().
-  mutable base::Time network_time_at_last_measurement_;
-
-  // The estimated local times that correspond with |network_time_|. Assumes
-  // the actual network time measurement was performed midway through the
-  // latency time.  See UpdateNetworkTime(...) implementation for details.  The
-  // tick clock is the one actually used to return values to callers, but both
-  // clocks must agree to within some tolerance.
-  base::Time time_at_last_measurement_;
-  base::TimeTicks ticks_at_last_measurement_;
-
-  // Uncertainty of |network_time_| based on added inaccuracies/resolution.  See
-  // UpdateNetworkTime(...) implementation for details.
-  base::TimeDelta network_time_uncertainty_;
-
   // True if any time query has completed (but not necessarily succeeded) in
   // this NetworkTimeTracker's lifetime.
   bool time_query_completed_;
 
   // The time that was received from the last network time fetch made by
-  // CheckTime(). Unlike |network_time_at_least_measurement_|, this time
-  // is not updated when UpdateNetworkTime() is called. Used for UMA
-  // metrics.
+  // CheckTime(). Unlike the time used inside |tracker_| this time is not
+  // updated when UpdateNetworkTime() is called. Used for UMA metrics.
   base::Time last_fetched_time_;
 
   // Callbacks to run when the in-progress time fetch completes.
   std::vector<base::OnceClosure> fetch_completion_callbacks_;
 
-  // Computes statistics over a sliding window of the most recent fetch
-  // latencies.
-  HistoricalLatenciesContainer historical_latencies_;
-
-  // Flag keeping track of whether clock drift measurements were triggered.
-  bool clock_drift_measurement_triggered_ = false;
-
-  // Containers for recording clock drift metrics.
-  std::vector<base::TimeDelta> clock_drift_latencies_;
-  std::vector<base::TimeDelta> clock_drift_skews_;
-
   base::ThreadChecker thread_checker_;
+
+  std::optional<FetchBehavior> fetch_behavior_;
+
+  std::optional<TimeTracker> tracker_;
+
+  base::ObserverList<NetworkTimeObserver> observers_;
 };
 
 }  // namespace network_time

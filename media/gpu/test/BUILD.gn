@@ -2,16 +2,20 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/ui.gni")
 import("//media/gpu/args.gni")
 import("//media/media_options.gni")
 
 # TODO(crbug.com/1006266): consider using |use_chromeos_video_acceleration|.
-if (enable_av1_decoder && (use_v4l2_codec || use_vaapi)) {
+if (enable_av1_decoder &&
+    (use_v4l2_codec || use_vaapi || is_win || is_android)) {
   test("video_decode_accelerator_tests") {
     testonly = true
-    sources = [ "video_decode_accelerator_tests.cc" ]
+    sources = [
+      "video_decode_accelerator_test_suite.cc",
+      "video_decode_accelerator_test_suite.h",
+      "video_decode_accelerator_tests.cc",
+    ]
     data = [ "//media/test/data/" ]
     deps = [
       ":frame_file_writer",
@@ -20,10 +24,24 @@ if (enable_av1_decoder && (use_v4l2_codec || use_vaapi)) {
       ":test_helpers",
       ":video_player",
       ":video_player_test_environment",
+      "//base/test:test_support",
       "//media:test_support",
       "//media/gpu:buildflags",
+      "//testing/gmock",
       "//testing/gtest",
     ]
+
+    if (is_chromeos || is_linux) {
+      deps += [ "//media/gpu/chromeos:common" ]
+    }
+
+    if (use_vaapi) {
+      data_deps = [ "//media/gpu/vaapi/test/fake_libva_driver:fake_drv_video" ]
+    }
+
+    if (use_v4l2_codec) {
+      deps += [ "//media/gpu/v4l2" ]
+    }
   }
 
   test("video_decode_accelerator_perf_tests") {
@@ -36,9 +54,12 @@ if (enable_av1_decoder && (use_v4l2_codec || use_vaapi)) {
       ":video_player_test_environment",
       "//media:test_support",
       "//media/gpu:buildflags",
-      "//sandbox/linux:sandbox_services",
       "//testing/gtest",
     ]
+
+    if (use_v4l2_codec || use_vaapi) {
+      deps += [ "//sandbox/linux:sandbox_services" ]
+    }
   }
 
   test("video_encode_accelerator_tests") {
@@ -54,9 +75,17 @@ if (enable_av1_decoder && (use_v4l2_codec || use_vaapi)) {
       ":video_encoder_test_environment",
       "//media:test_support",
       "//media/gpu:buildflags",
-      "//media/gpu:common",
+      "//testing/gmock",
       "//testing/gtest",
     ]
+
+    if (is_android) {
+      deps += [
+        # The test needs the java dependencies to add the java classes for their
+        # native counterparts to the test apk.
+        "//media/base/android:media_java",
+      ]
+    }
   }
 
   test("video_encode_accelerator_perf_tests") {
@@ -69,10 +98,9 @@ if (enable_av1_decoder && (use_v4l2_codec || use_vaapi)) {
       ":test_helpers",
       ":video_encoder",
       ":video_encoder_test_environment",
-      ":video_encoder_test_environment",
+      "//base/test:test_support",
       "//media:test_support",
       "//media/gpu:buildflags",
-      "//media/gpu:common",
       "//testing/gtest",
     ]
   }
@@ -85,8 +113,10 @@ source_set("helpers") {
     "image.h",
     "image_quality_metrics.cc",
     "image_quality_metrics.h",
-    "video.cc",
-    "video.h",
+    "raw_video.cc",
+    "raw_video.h",
+    "video_bitstream.cc",
+    "video_bitstream.h",
     "video_frame_helpers.cc",
     "video_frame_helpers.h",
   ]
@@ -94,6 +124,7 @@ source_set("helpers") {
     "//base:base",
     "//base/test:test_config",
     "//base/test:test_support",
+    "//gpu:test_support",
     "//gpu/ipc/common",
     "//media:test_support",
     "//media/gpu",
@@ -112,8 +143,9 @@ source_set("frame_validator") {
   deps = [
     ":helpers",
     ":test_helpers",
-    "//build:chromeos_buildflags",
+    "//gpu:test_support",
     "//media/gpu",
+    "//testing/gmock",
   ]
 }
 
@@ -125,7 +157,6 @@ source_set("frame_file_writer") {
   ]
   deps = [
     ":helpers",
-    "//build:chromeos_buildflags",
     "//media/gpu",
     "//ui/gfx/codec:codec",
   ]
@@ -142,15 +173,13 @@ source_set("test_helpers") {
     "//media:test_support",
   ]
   deps = [
+    "//gpu:test_support",
     "//media/gpu",
-    "//media/parsers",
     "//mojo/public/cpp/system",
+    "//testing/gmock",
     "//testing/gtest",
     "//third_party/libyuv",
   ]
-  if (use_ozone) {
-    deps += [ "//ui/ozone" ]
-  }
 }
 
 static_library("video_player") {
@@ -167,9 +196,19 @@ static_library("video_player") {
   ]
   deps = [
     ":test_helpers",
+    "//gpu:test_support",
     "//media/gpu",
+    "//testing/gmock",
     "//testing/gtest:gtest",
   ]
+
+  if (use_vaapi || use_v4l2_codec) {
+    sources += [
+      "video_player/mappable_video_frame_converter.cc",
+      "video_player/mappable_video_frame_converter.h",
+    ]
+    deps += [ "//media/gpu/chromeos:common" ]
+  }
 }
 
 static_library("video_test_environment") {
@@ -192,9 +231,6 @@ static_library("video_test_environment") {
     ":frame_file_writer",
     "//testing/gtest",
   ]
-  if (use_ozone) {
-    public_deps += [ "//ui/ozone" ]
-  }
 }
 
 static_library("video_player_test_environment") {
@@ -209,36 +245,34 @@ static_library("video_player_test_environment") {
     ":helpers",
     ":video_player",
     ":video_test_environment",
-    "//build:chromeos_buildflags",
     "//media/gpu",
   ]
 }
 
-if (use_libgav1_parser) {
-  static_library("video_encoder") {
-    testonly = true
-    sources = [
-      "bitstream_helpers.cc",
-      "bitstream_helpers.h",
-      "video_encoder/bitstream_file_writer.cc",
-      "video_encoder/bitstream_file_writer.h",
-      "video_encoder/bitstream_validator.cc",
-      "video_encoder/bitstream_validator.h",
-      "video_encoder/decoder_buffer_validator.cc",
-      "video_encoder/decoder_buffer_validator.h",
-      "video_encoder/video_encoder.cc",
-      "video_encoder/video_encoder.h",
-      "video_encoder/video_encoder_client.cc",
-      "video_encoder/video_encoder_client.h",
-    ]
-    deps = [
-      ":test_helpers",
-      "//media/gpu",
-      "//media/parsers",
-      "//testing/gtest:gtest",
-      "//third_party/libgav1:libgav1_parser",
-    ]
-  }
+static_library("video_encoder") {
+  testonly = true
+  sources = [
+    "bitstream_helpers.cc",
+    "bitstream_helpers.h",
+    "video_encoder/bitstream_file_writer.cc",
+    "video_encoder/bitstream_file_writer.h",
+    "video_encoder/bitstream_validator.cc",
+    "video_encoder/bitstream_validator.h",
+    "video_encoder/decoder_buffer_validator.cc",
+    "video_encoder/decoder_buffer_validator.h",
+    "video_encoder/video_encoder.cc",
+    "video_encoder/video_encoder.h",
+    "video_encoder/video_encoder_client.cc",
+    "video_encoder/video_encoder_client.h",
+  ]
+  public_deps = [ "//third_party/libgav1:libgav1_parser" ]
+  deps = [
+    ":test_helpers",
+    "//gpu:test_support",
+    "//media/gpu",
+    "//testing/gmock",
+    "//testing/gtest:gtest",
+  ]
 }
 
 static_library("video_encoder_test_environment") {
@@ -251,15 +285,12 @@ static_library("video_encoder_test_environment") {
   public_deps = [
     ":helpers",
     ":video_test_environment",
-  ]
-  deps = [
-    "//base:base",
-    "//build:chromeos_buildflags",
     "//media/gpu",
   ]
+  deps = [ "//base" ]
 }
 
-if (use_vaapi || use_v4l2_codec) {
+if (use_linux_video_acceleration) {
   static_library("image_processor") {
     testonly = true
     sources = [
@@ -268,10 +299,11 @@ if (use_vaapi || use_v4l2_codec) {
     ]
     deps = [
       ":helpers",
-      "//build:chromeos_buildflags",
+      "//gpu:test_support",
       "//media:test_support",
       "//media/gpu",
       "//media/gpu/chromeos",
+      "//testing/gmock",
       "//testing/gtest",
       "//third_party/libyuv",
     ]
@@ -279,7 +311,7 @@ if (use_vaapi || use_v4l2_codec) {
   }
 }
 
-if (is_chromeos_ash) {
+if (is_chromeos) {
   static_library("local_gpu_memory_buffer_manager") {
     testonly = true
     sources = [
@@ -293,6 +325,7 @@ if (is_chromeos_ash) {
       "//third_party/minigbm",
       "//ui/gfx:memory_buffer",
       "//ui/gfx/geometry",
+      "//ui/gfx/linux:gbm",
     ]
   }
 }

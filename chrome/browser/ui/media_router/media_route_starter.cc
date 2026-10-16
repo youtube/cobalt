@@ -4,8 +4,9 @@
 
 #include "chrome/browser/ui/media_router/media_route_starter.h"
 
+#include <algorithm>
+
 #include "base/containers/contains.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
@@ -15,6 +16,7 @@
 #include "chrome/browser/ui/media_router/media_router_ui_helper.h"
 #include "chrome/browser/ui/media_router/query_result_manager.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/media_message_center/media_notification_util.h"
 #include "components/media_router/browser/issue_manager.h"
 #include "components/media_router/browser/media_router.h"
 #include "components/media_router/browser/media_router_factory.h"
@@ -28,6 +30,8 @@
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/constants.h"
+#include "media/remoting/device_capability_checker.h"
+#include "net/base/url_util.h"
 #include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(IS_MAC)
@@ -43,11 +47,12 @@ void RunRouteResponseCallbacks(
     std::vector<MediaRouteResultCallback> route_result_callbacks,
     mojom::RoutePresentationConnectionPtr connection,
     const RouteRequestResult& result) {
-  if (presentation_callback)
+  if (presentation_callback) {
     std::move(presentation_callback).Run(std::move(connection), result);
-  DCHECK(!connection);
-  for (auto& callback : route_result_callbacks)
+  }
+  for (auto& callback : route_result_callbacks) {
     std::move(callback).Run(result);
+  }
 }
 
 // Gets the profile to use for the `MediaRouteStarter` when there is no
@@ -74,8 +79,9 @@ MediaRouteStarter::MediaRouteStarter(MediaRouterUIParameters params)
               : nullptr),
       query_result_manager_(
           std::make_unique<QueryResultManager>(GetMediaRouter())) {
-  if (presentation_manager_)
+  if (presentation_manager_) {
     presentation_manager_->AddObserver(this);
+  }
   InitPresentationSources(params.initial_modes);
   InitMirroringSources(params.initial_modes);
   InitRemotePlaybackSources(params.initial_modes, params.video_codec,
@@ -84,16 +90,19 @@ MediaRouteStarter::MediaRouteStarter(MediaRouterUIParameters params)
 
 MediaRouteStarter::~MediaRouteStarter() {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  if (presentation_manager_)
+  if (presentation_manager_) {
     presentation_manager_->RemoveObserver(this);
+  }
 
   // If |start_presentation_context_| still exists, then it means presentation
   // route request was never attempted.
   if (start_presentation_context_) {
-    bool presentation_sinks_available = base::ranges::any_of(
+    bool presentation_sinks_available = std::ranges::any_of(
         GetQueryResultManager()->GetSinksWithCastModes(),
         [](const MediaSinkWithCastModes& sink) {
-          return base::Contains(sink.cast_modes, MediaCastMode::PRESENTATION);
+          return base::Contains(sink.cast_modes, MediaCastMode::PRESENTATION) ||
+                 base::Contains(sink.cast_modes,
+                                MediaCastMode::REMOTE_PLAYBACK);
         });
     if (presentation_sinks_available) {
       start_presentation_context_->InvokeErrorCallback(
@@ -174,16 +183,13 @@ std::unique_ptr<RouteParameters> MediaRouteStarter::CreateRouteParameters(
                                            : url::Origin::Create(GURL());
 
   params->timeout = GetRouteRequestTimeout(cast_mode);
-  params->off_the_record =
-      GetWebContents() &&
-      GetWebContents()->GetBrowserContext()->IsOffTheRecord();
-
   return params;
 }
 
 bool MediaRouteStarter::GetScreenCapturePermission(MediaCastMode cast_mode) {
-  if (!RequiresScreenCapturePermission(cast_mode))
+  if (!RequiresScreenCapturePermission(cast_mode)) {
     return true;
+  }
 
   return media_router::GetScreenCapturePermission();
 }
@@ -194,6 +200,14 @@ void MediaRouteStarter::StartRoute(std::unique_ptr<RouteParameters> params) {
 
   MediaRouteResponseCallback presentation_callback;
 
+  // There are two ways to initialize MediaRouterUI with Presentation cast mode
+  // and each method requires different way to propagate route responses back to
+  // sites.
+  // 1. For StartPresentationContext passed by sites. We should use
+  // the StartPresentationContext for presentation response callback.
+  // 2. For the default presentation request managed by
+  // WebContentsPresentationManager. In this case, we should use
+  // WebContentsPresentationManager::OnPresentationResponse.
   if (params->cast_mode == MediaCastMode::PRESENTATION) {
     if (start_presentation_context_) {
       presentation_callback =
@@ -208,13 +222,28 @@ void MediaRouteStarter::StartRoute(std::unique_ptr<RouteParameters> params) {
     }
   }
 
+  // There are two ways to initialize MediaRouterUI for REMOTE_PLAYBACK cast
+  // mode:
+  // 1. Remote Playback API prompt() function passes a StartPresentationContext
+  // object. We should use the StartPresentationContext for presentation
+  // response callback.
+  // 2. Media Session items for Media Remoting from the GMC dialog. In this way,
+  // the site does not use the Remote Playback API and there's no need to set up
+  // presentation callback.
+  if (params->cast_mode == MediaCastMode::REMOTE_PLAYBACK &&
+      start_presentation_context_) {
+    presentation_callback =
+        base::BindOnce(&StartPresentationContext::HandleRouteResponse,
+                       std::move(start_presentation_context_));
+  }
+
   GetMediaRouter()->CreateRoute(
       params->source_id, params->request->sink_id, params->origin,
       GetWebContents(),
       base::BindOnce(&RunRouteResponseCallbacks,
                      std::move(presentation_callback),
                      std::move(params->route_result_callbacks)),
-      params->timeout, params->off_the_record);
+      params->timeout);
 }
 
 std::u16string MediaRouteStarter::GetPresentationRequestSourceName() const {
@@ -225,9 +254,7 @@ std::u16string MediaRouteStarter::GetPresentationRequestSourceName() const {
              ? base::UTF8ToUTF16(GetExtensionName(
                    frame_origin.GetURL(),
                    extensions::ExtensionRegistry::Get(GetBrowserContext())))
-             : url_formatter::FormatOriginForSecurityDisplay(
-                   frame_origin,
-                   url_formatter::SchemeDisplay::OMIT_HTTP_AND_HTTPS);
+             : media_message_center::GetOriginNameForDisplay(frame_origin);
 }
 
 bool MediaRouteStarter::SinkSupportsCastMode(const MediaSink::Id& sink_id,
@@ -267,8 +294,19 @@ void MediaRouteStarter::InitPresentationSources(
     return;
   }
   if (start_presentation_context_) {
-    OnDefaultPresentationChanged(
-        &start_presentation_context_->presentation_request());
+    auto media_source =
+        MediaSource(start_presentation_context_->presentation_request()
+                        .presentation_urls[0]);
+    if (media_source.IsRemotePlaybackSource()) {
+      media_source.AppendTabIdToRemotePlaybackUrlQuery(
+          sessions::SessionTabHelper::IdForTab(web_contents_).id());
+      GetQueryResultManager()->SetSourcesForCastMode(
+          MediaCastMode::REMOTE_PLAYBACK, {media_source},
+          url::Origin::Create(GURL()));
+    } else {
+      OnDefaultPresentationChanged(
+          &start_presentation_context_->presentation_request());
+    }
   } else if (presentation_manager_ &&
              presentation_manager_->HasDefaultPresentationRequest()) {
     OnDefaultPresentationChanged(

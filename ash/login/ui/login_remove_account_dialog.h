@@ -12,6 +12,7 @@
 #include "ash/login/ui/login_button.h"
 #include "base/memory/raw_ptr.h"
 #include "components/user_manager/user_type.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/focus/focus_search.h"
 #include "ui/views/view.h"
@@ -23,6 +24,8 @@ class RemoveUserButton;
 
 class ASH_EXPORT LoginRemoveAccountDialog : public LoginBaseBubbleView,
                                             public views::FocusTraversable {
+  METADATA_HEADER(LoginRemoveAccountDialog, LoginBaseBubbleView)
+
  public:
   class TestApi {
    public:
@@ -38,7 +41,7 @@ class ASH_EXPORT LoginRemoveAccountDialog : public LoginBaseBubbleView,
     views::Label* management_disclosure_label();
 
    private:
-    raw_ptr<LoginRemoveAccountDialog, ExperimentalAsh> bubble_;
+    raw_ptr<LoginRemoveAccountDialog> bubble_;
   };
 
   LoginRemoveAccountDialog(const LoginUserInfo& user,
@@ -50,17 +53,12 @@ class ASH_EXPORT LoginRemoveAccountDialog : public LoginBaseBubbleView,
   LoginRemoveAccountDialog& operator=(const LoginRemoveAccountDialog&) = delete;
   ~LoginRemoveAccountDialog() override;
 
-  // Resets the user menu to the state where Remove User has not been pressed.
-  void ResetState();
-
   // LoginBaseBubbleView:
   LoginButton* GetBubbleOpener() const override;
 
   // views::View:
   void RequestFocus() override;
   bool HasFocus() const override;
-  const char* GetClassName() const override;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
   views::FocusTraversable* GetPaneFocusTraversable() override;
 
   // views::FocusTraversable:
@@ -70,16 +68,18 @@ class ASH_EXPORT LoginRemoveAccountDialog : public LoginBaseBubbleView,
 
  private:
   void RemoveUserButtonPressed();
+  void UpdateAccessibleDescription();
+  void UpdateAccessibleName();
 
-  raw_ptr<LoginButton, ExperimentalAsh> bubble_opener_ = nullptr;
+  raw_ptr<LoginButton, DanglingUntriaged> bubble_opener_ = nullptr;
   base::RepeatingClosure on_remove_user_warning_shown_;
   base::RepeatingClosure on_remove_user_requested_;
-  raw_ptr<views::View, ExperimentalAsh> managed_user_data_ = nullptr;
-  raw_ptr<views::View, ExperimentalAsh> remove_user_confirm_data_ = nullptr;
-  raw_ptr<RemoveUserButton, ExperimentalAsh> remove_user_button_ = nullptr;
-  raw_ptr<views::Label, ExperimentalAsh> username_label_ = nullptr;
-  raw_ptr<views::Label, ExperimentalAsh> email_label_ = nullptr;
-  raw_ptr<views::Label, ExperimentalAsh> management_disclosure_label_ = nullptr;
+  raw_ptr<views::View> managed_user_data_ = nullptr;
+  raw_ptr<views::View> remove_user_confirm_data_ = nullptr;
+  raw_ptr<RemoveUserButton> remove_user_button_ = nullptr;
+  raw_ptr<views::Label> username_label_ = nullptr;
+  raw_ptr<views::Label> email_label_ = nullptr;
+  raw_ptr<views::Label> management_disclosure_label_ = nullptr;
 
   std::u16string warning_message_;
 

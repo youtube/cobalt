@@ -1,18 +1,27 @@
-# TODO(crbug.com/1195712): implement the feature for Wayland.
+# TODO(crbug.com/40759171): implement the feature for Wayland.
 -GlobalCommandsApiTest.GlobalCommand
 
+# TODO(crbug.com/40927367): This test relies on popups being destroyed when the user clicks on the
+# desktop. This currently only works in Chromium when passing `--use-wayland-explicit-grab` (see
+# crbug.com/1220274 for more context). Re-enable the test once the default popup dismissal behaviour
+# is fixed.
+-BookmarkBarViewTest2.HideOnDesktopClick
+
+# TODO(crbug.com/40279447): Requires an additional custom "set bounds using mouse emulation"
+# implementation similar to what was introduced in https://crrev.com/c/4738688.
+-TabDragging/DetachToBrowserTabDragControllerTest.DragDirectlyToSecondWindow/*
+
+# TODO(crbug.com/373738727): Extremely flaky on the bot, locally only sometimes times out.
+-BookmarkBarViewTest4.ContextMenus
+
 # Failing interactive ui tests
--AppWindowTest.InitAlwaysOnTopToFullscreen
--AppWindowTest.InitFullscreenAndAlwaysOnTop
--AppWindowTest.InitFullscreenToAlwaysOnTop
--AppWindowTest.RuntimeAlwaysOnTopToFullscreen
--AppWindowTest.RuntimeFullscreenToAlwaysOnTop
 -BookmarkBarViewTest12.CloseWithModalDialog
 -BookmarkBarViewTest13.ClickOnContextMenuSeparator
 -BookmarkBarViewTest15.MenuStaysVisibleAfterDelete
 -BookmarkBarViewTest17.ContextMenus3
 -BookmarkBarViewTest21.ContextMenusForEmptyFolder
 -BookmarkBarViewTest23.ContextMenusKeyboard
+-BookmarkBarViewTest29.DNDToEmptyMenu
 -BookmarkBarViewTest5.DND
 -BookmarkBarViewTest7.DNDToDifferentMenu
 -BookmarkBarViewTest8.DNDBackToOriginatingMenu
@@ -25,26 +34,23 @@
 -DesktopWindowTreeHostPlatformImplTest.InputMethodFocus
 -DevToolsManagerDelegateTest.ShowMinimizedWindow
 -ExtensionApiTest.WindowOpenFocus
--KeyboardLockInteractiveBrowserTest.ActiveWithSomeKeysLocked
 -MediaDialogViewBrowserTest.PictureInPicture
 -NotificationsTestWithFakeMediaStream.ShouldQueueDuringScreenPresent
--OmniboxViewViewsTest.DefaultTypedNavigationsToHttps_ZeroSuggest_NoUpgrade
 -OmniboxViewViewsTest.SelectionClipboard
 -PasswordBubbleInteractiveUiTest.AutoSigninNoFocus
 -PopupBlockerBrowserTest.ModalPopUnder
 -SameSiteSubframe/DragAndDropBrowserTest.CrossTabDrag/0
--SitePerProcessInteractiveBrowserTest.TabAndMouseFocusNavigation
 -StartupBrowserCreatorTest.LastUsedProfileActivated
--TabDragging/DetachToBrowserTabDragControllerTest*
--TabMetricsLoggerTest.CreateWindowFeaturesTestMultipleWindows
--TabMetricsLoggerTest.CreateWindowFeaturesTestWindowActivation
 -WebAppProfileSwitcherBrowserTest.SwitchWebAppProfileActivateWindowOnly
--WebContentsInteractionTestUtilInteractiveUiTest.UseElementBoundsInScreenToSendInput
 -WidgetInputMethodInteractiveTest.Activation
 -WidgetInputMethodInteractiveTest.OneWindow
 -WidgetInputMethodInteractiveTest.TwoWindows
 
-# TODO(crbug.com/523255,crbug.com/1192997): Fix flaky MenuItemView tests.
+# TODO(crbug.com/40175111): Fix flaky MenuItemView tests.
+# Flakiness likely caused by bug in Weston, making popups spawn offscreen
+# (https://gitlab.freedesktop.org/wayland/weston/-/issues/816).
+# Re-enable once `xdg_positioner` is properly implemented (planned for
+# Weston 15).
 -MenuItemViewTestBasic2.SelectItem2
 -MenuItemViewTestInsert20.InsertItem20
 -MenuItemViewTestInsert00.InsertItem00
@@ -55,8 +61,21 @@
 -MenuControllerUITest.TestMouseOverShownMenu
 -BookmarkBarViewTest18.BookmarkBarViewTest18_SiblingMenu
 
-# TODO(crbug.com/1195324): flaky fullscreen notification test
+# TODO(crbug.com/40758956): flaky fullscreen notification test
 -NotificationsTest.TestShouldDisplayMultiFullscreen
 
-# TODO(crbug.com/1192997): Flaky on the bot. Locally runs fine.
+# TODO(crbug.com/40175111): Flaky on the bot. Locally runs fine.
 -BrowserActionInteractiveTest.TestOpenPopup
+
+# TODO(crbug.com/40923067): Enable when feature isn't buggy any more. (Used to pass with Weston 9,
+# but doesn't pass with Weston 12.)
+-FullscreenControlViewTest.MouseAndTouchInteraction_NoInterference
+-FullscreenControlViewTest.MouseExitFullscreen_TimeoutAndRetrigger
+
+# These cannot work because they rely on receiving key events during a DnD session, which isn't
+# possible on Linux Wayland.
+-TabDragging/DetachToBrowserTabDragControllerTest.KeyPressShouldEndDragTest/*
+-TabDragging/DetachToBrowserTabDragControllerTest.Revert*
+
+# TODO(crbug.com/40800718): Enable once the xdg desktop portal backed implementation is in place.
+-EyeDropperViewAuraInteractiveTest.*

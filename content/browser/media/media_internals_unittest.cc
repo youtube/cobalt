@@ -14,6 +14,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/lock.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/types/cxx23_to_underlying.h"
 #include "build/build_config.h"
 #include "content/browser/media/session/media_session_impl.h"
 #include "content/public/browser/media_session_service.h"
@@ -57,7 +58,7 @@ class MediaInternalsTestBase {
     std::string utf8_update = base::UTF16ToUTF8(update);
     const std::string::size_type first_brace = utf8_update.find('{');
     const std::string::size_type last_brace = utf8_update.rfind('}');
-    absl::optional<base::Value> output_value = base::JSONReader::Read(
+    std::optional<base::Value> output_value = base::JSONReader::Read(
         utf8_update.substr(first_brace, last_brace - first_brace + 1));
     ASSERT_TRUE(output_value);
     ASSERT_TRUE(output_value->is_dict());
@@ -66,7 +67,7 @@ class MediaInternalsTestBase {
   }
 
   void ExpectInt(const std::string& key, int expected_value) const {
-    absl::optional<int> actual_value = update_data_.FindInt(key);
+    std::optional<int> actual_value = update_data_.FindInt(key);
     ASSERT_TRUE(actual_value);
     EXPECT_EQ(expected_value, *actual_value);
   }
@@ -227,6 +228,7 @@ class MediaInternalsAudioLogTest
   }
 
  protected:
+  const content::BrowserTaskEnvironment task_environment_;
   MediaInternals::UpdateCallback update_cb_;
   const media::AudioParameters test_params_;
   const media::AudioLogFactory::AudioComponent test_component_;
@@ -241,8 +243,6 @@ class MediaInternalsAudioLogTest
                        media::AudioParameters::DUCKING);
     return params;
   }
-
-  const content::BrowserTaskEnvironment task_environment_;
 };
 
 TEST_P(MediaInternalsAudioLogTest, AudioLogCreateStartStopErrorClose) {
@@ -257,7 +257,7 @@ TEST_P(MediaInternalsAudioLogTest, AudioLogCreateStartStopErrorClose) {
   ExpectString("effects", "ECHO_CANCELLER | DUCKING");
   ExpectString("device_id", kTestDeviceID);
   ExpectInt("component_id", kTestComponentID);
-  ExpectInt("component_type", test_component_);
+  ExpectInt("component_type", base::to_underlying(test_component_));
   ExpectStatus("created");
 
   // Verify OnStarted().
@@ -296,11 +296,12 @@ TEST_P(MediaInternalsAudioLogTest, AudioLogCreateClose) {
 INSTANTIATE_TEST_SUITE_P(
     MediaInternalsAudioLogTest,
     MediaInternalsAudioLogTest,
-    testing::Values(media::AudioLogFactory::AUDIO_INPUT_CONTROLLER,
-                    media::AudioLogFactory::AUDIO_OUTPUT_CONTROLLER,
-                    media::AudioLogFactory::AUDIO_OUTPUT_STREAM));
+    testing::Values(
+        media::AudioLogFactory::AudioComponent::kAudioInputController,
+        media::AudioLogFactory::AudioComponent::kAudioOuputController,
+        media::AudioLogFactory::AudioComponent::kAudioOutputStream));
 
-// TODO(https://crbug.com/873320): AudioFocusManager is not available on
+// TODO(crbug.com/40589017): AudioFocusManager is not available on
 // Android.
 #if !BUILDFLAG(IS_ANDROID)
 
@@ -483,7 +484,7 @@ TEST_F(MediaInternalsAudioFocusTest, AudioFocusStateIsUpdated) {
   // Abandon audio focus.
   RemoveAllPlayersForTest(media_session1);
 
-  // TODO(https://crbug.com/916177): This should wait on a more precise
+  // TODO(crbug.com/40606983): This should wait on a more precise
   // condition than RunLoop idling, but it's not clear exactly what that should
   // be.
   base::RunLoop().RunUntilIdle();

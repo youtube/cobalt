@@ -10,6 +10,8 @@
 
 #include "api/units/time_delta.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 
 #include "test/gtest.h"
@@ -21,6 +23,7 @@ TEST(TimeDeltaTest, ConstExpr) {
   constexpr TimeDelta kTimeDeltaZero = TimeDelta::Zero();
   constexpr TimeDelta kTimeDeltaPlusInf = TimeDelta::PlusInfinity();
   constexpr TimeDelta kTimeDeltaMinusInf = TimeDelta::MinusInfinity();
+  static_assert(TimeDelta() == kTimeDeltaZero);
   static_assert(kTimeDeltaZero.IsZero(), "");
   static_assert(kTimeDeltaPlusInf.IsPlusInfinity(), "");
   static_assert(kTimeDeltaMinusInf.IsMinusInfinity(), "");

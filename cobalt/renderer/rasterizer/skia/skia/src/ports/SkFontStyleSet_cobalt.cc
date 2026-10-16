@@ -23,6 +23,7 @@
 #include "base/notreached.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkWoff2FontCache_cobalt.h"
 #include "src/core/SkOSFile.h"
 #include "src/core/SkTraceEvent.h"
 #include "src/utils/SkOSPath.h"
@@ -147,8 +148,8 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
   // to 4 axes, and although OpenType font variations may have more, they tend
   // not to -- it's usually just weight, width, and slant. But just in case,
   // use a relatively high reservation.
-  computed_variation_position.reserve_back(16);
-  axis_definitions.reserve_back(16);
+  computed_variation_position.reserve(16);
+  axis_definitions.reserve(16);
 
   for (int i = 0; i < family_info.fonts.size(); ++i) {
     const FontFileInfo& font_file = family_info.fonts[i];
@@ -403,6 +404,10 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
   // the font style set's page ranges. Now, verify that the specific character
   // is supported by the font style set.
 
+  if (styles_.empty()) {
+    return false;
+  }
+
   // The character map is lazily generated. Generate it now if it isn't already
   // generated.
   int style_index = GetClosestStyleIndex(style);
@@ -412,6 +417,24 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
     // set, the logic will be attempted again.
     while (styles_.size() > 0) {
       SkFontStyleSetEntry_Cobalt* closest_style = styles_[style_index].get();
+
+      // When the CobaltMmapFontCache feature is enabled, scan the decompressed
+      // SFNT bytes instead of routing the WOFF2 file through FreeType's in-heap
+      // brotli reconstruction, and create the typeface from the same stream,
+      // so that the font is decompressed at most once. Without such a stream,
+      // fall back to the default path below.
+      if (sk_woff2_cache_cobalt::IsMmapFontCacheEnabled()) {
+        if (std::unique_ptr<SkStreamAsset> stream =
+                OpenDecompressedStream(closest_style, style_index)) {
+          if (!CharacterMapContainsCharacter(character,
+                                             character_maps_[style_index])) {
+            return false;
+          }
+          CreateDecompressedTypeface(closest_style, style_index,
+                                     std::move(stream));
+          return true;
+        }
+      }
 
       SkFileMemoryChunkStreamProvider* stream_provider =
           local_typeface_stream_manager_->GetStreamProvider(
@@ -448,7 +471,10 @@ bool SkFontStyleSet_Cobalt::ContainsCharacter(const SkFontStyle& style,
     }
   }
 
-  DCHECK(character_maps_[style_index]);
+  if (styles_.empty() || !character_maps_[style_index]) {
+    // Every font style failed to load and was removed from the set.
+    return false;
+  }
   return CharacterMapContainsCharacter(character, character_maps_[style_index]);
 }
 
@@ -470,17 +496,25 @@ bool SkFontStyleSet_Cobalt::GenerateStyleFaceInfo(
   // Providing a pointer to the character map will cause it to be generated
   // during ScanFont. Only provide it if it hasn't already been generated.
 
-  font_character_map::CharacterMap* character_map = NULL;
+  bool created_character_map = false;
+  font_character_map::CharacterMap* character_map = nullptr;
   if (!character_maps_[style_index]) {
     character_maps_[style_index] =
         base::MakeRefCounted<font_character_map::CharacterMap>();
     character_map = character_maps_[style_index].get();
+    created_character_map = true;
   }
 
   SkFontStyle old_style = style->font_style;
   if (!sk_freetype_cobalt::ScanFont(
           stream, style->face_index, &style->face_name, &style->font_style,
           &style->face_is_fixed_pitch, nullptr, character_map)) {
+    // If the character map was created by this call, discard it so that a
+    // retry (e.g. after falling back from the mmap font cache to the WOFF2
+    // path) regenerates it rather than treating the empty map as complete.
+    if (created_character_map) {
+      character_maps_[style_index] = nullptr;
+    }
     return false;
   }
 
@@ -511,11 +545,89 @@ int SkFontStyleSet_Cobalt::GetClosestStyleIndex(const SkFontStyle& pattern) {
   return closest_index;
 }
 
+std::unique_ptr<SkStreamAsset> SkFontStyleSet_Cobalt::OpenDecompressedStream(
+    SkFontStyleSetEntry_Cobalt* entry,
+    int style_index) {
+  DCHECK(sk_woff2_cache_cobalt::IsMmapFontCacheEnabled());
+  if (!entry->mmap_cache_checked) {
+    entry->mmap_cache_checked = true;
+    entry->mmap_cache_path =
+        sk_woff2_cache_cobalt::GetCachedSfntPath(entry->font_file_path);
+  }
+  if (!entry->mmap_cache_path.isEmpty()) {
+    // SkStream::MakeFromFile mmaps the file (with a path-keyed shared SkData
+    // cache), so duplicated streams and the FreeType face all share the same
+    // clean, file-backed pages via FT_OPEN_MEMORY.
+    std::unique_ptr<SkStreamAsset> stream =
+        SkStream::MakeFromFile(entry->mmap_cache_path.c_str());
+    if (stream && GenerateStyleFaceInfo(entry, stream.get(), style_index)) {
+      return stream;
+    }
+    LOG(ERROR) << "Failed to load cached font, decompressing the WOFF2: "
+               << entry->mmap_cache_path.c_str();
+    entry->mmap_cache_path.reset();
+  }
+
+  // No usable cache file, normally because this is the font's first use:
+  // decompress the font into memory, here, and write the cache file from the
+  // same bytes in the background, for the next app launches. The same bytes
+  // serve scanning, rendering and the cache file, so the font is decompressed
+  // only once.
+  // This runs on whichever thread creates the typeface, including threads
+  // where blocking is disallowed (e.g. the browser UI thread creating the
+  // default font), so it must not write files itself.
+  sk_sp<SkData> sfnt =
+      sk_woff2_cache_cobalt::DecompressWoff2(entry->font_file_path);
+  if (!sfnt) {
+    return nullptr;
+  }
+  std::unique_ptr<SkStreamAsset> stream = SkMemoryStream::Make(sfnt);
+  if (!GenerateStyleFaceInfo(entry, stream.get(), style_index)) {
+    return nullptr;
+  }
+  sk_woff2_cache_cobalt::ScheduleCacheFileWrite(entry->font_file_path,
+                                                std::move(sfnt));
+  return stream;
+}
+
+void SkFontStyleSet_Cobalt::CreateDecompressedTypeface(
+    SkFontStyleSetEntry_Cobalt* style_entry,
+    int style_index,
+    std::unique_ptr<SkStreamAsset> stream) {
+  LOG(INFO) << "Scanned decompressed font: " << style_entry->face_name.c_str()
+            << "(" << style_entry->font_style.weight() << ", "
+            << style_entry->font_style.width() << ", "
+            << style_entry->font_style.slant() << "); File: \""
+            << (style_entry->mmap_cache_path.isEmpty()
+                    ? style_entry->font_file_path.c_str()
+                    : style_entry->mmap_cache_path.c_str())
+            << "\"";
+  style_entry->typeface.reset(new SkTypeface_CobaltStream(
+      std::move(stream), style_entry->face_index, style_entry->font_style,
+      style_entry->face_is_fixed_pitch, family_name_,
+      disable_character_map_ ? nullptr : character_maps_[style_index],
+      style_entry->disable_synthetic_bolding,
+      style_entry->computed_variation_position));
+}
+
 void SkFontStyleSet_Cobalt::CreateStreamProviderTypeface(
     SkFontStyleSetEntry_Cobalt* style_entry,
     int style_index,
     SkFileMemoryChunkStreamProvider* stream_provider /*=NULL*/) {
   if (!stream_provider) {
+    // When the CobaltMmapFontCache feature is enabled, create the typeface
+    // from the decompressed SFNT bytes: the mmap'd cache file or, without
+    // one, the font decompressed into memory. FreeType then reads those bytes
+    // directly (FT_OPEN_MEMORY) instead of decompressing the WOFF2 file onto
+    // the heap each time that it opens the font. Without such a stream, fall
+    // back to the default path below.
+    if (sk_woff2_cache_cobalt::IsMmapFontCacheEnabled()) {
+      if (std::unique_ptr<SkStreamAsset> stream =
+              OpenDecompressedStream(style_entry, style_index)) {
+        CreateDecompressedTypeface(style_entry, style_index, std::move(stream));
+        return;
+      }
+    }
     stream_provider = local_typeface_stream_manager_->GetStreamProvider(
         style_entry->font_file_path.c_str());
   }

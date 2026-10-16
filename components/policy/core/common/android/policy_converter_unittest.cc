@@ -10,9 +10,8 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/json/json_writer.h"
-#include "base/test/scoped_feature_list.h"
+#include "base/types/expected_macros.h"
 #include "base/values.h"
-#include "components/policy/core/common/features.h"
 #include "components/policy/core/common/schema.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -41,17 +40,15 @@ class PolicyConverterTest : public testing::Test {
           "dict": { "type": "object" }
         }
       })";
-
-    std::string error;
-    schema_ = Schema::Parse(kSchemaTemplate, &error);
-    ASSERT_TRUE(schema_.valid()) << error;
+    ASSIGN_OR_RETURN(schema_, Schema::Parse(kSchemaTemplate),
+                     [](const auto& e) { ADD_FAILURE() << e; });
   }
 
  protected:
   // Converts the passed in value to the passed in schema, and serializes the
   // result to JSON, to make it easier to compare with EXPECT_EQ.
   std::string Convert(Value value, const Schema& value_schema) {
-    absl::optional<base::Value> converted_value =
+    std::optional<base::Value> converted_value =
         PolicyConverter::ConvertValueToSchema(std::move(value), value_schema);
     EXPECT_TRUE(converted_value.has_value());
 
@@ -80,7 +77,7 @@ class PolicyConverterTest : public testing::Test {
       JNIEnv* env,
       std::vector<std::string> values) {
     jobjectArray java_array = (jobjectArray)env->NewObjectArray(
-        values.size(), env->FindClass("java/lang/String"), nullptr);
+        values.size(), jni_zero::g_string_class, nullptr);
     for (size_t i = 0; i < values.size(); i++) {
       env->SetObjectArrayElement(
           java_array, i,
@@ -141,10 +138,6 @@ TEST_F(PolicyConverterTest, ConvertToStringValue) {
 }
 
 TEST_F(PolicyConverterTest, ConvertToListValue) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      ::policy::features::kListPoliciesAcceptCommaSeparatedStringsAndroid);
-
   Schema list_schema = schema_.GetKnownProperty("list");
   ASSERT_TRUE(list_schema.valid());
 
@@ -157,29 +150,6 @@ TEST_F(PolicyConverterTest, ConvertToListValue) {
   EXPECT_EQ("[\"hurz\"]", Convert(Value("hurz"), list_schema));
   EXPECT_EQ("[\"foo\",\"bar\"]", Convert(Value("foo,bar"), list_schema));
   EXPECT_EQ("[\"foo\",\"bar\"]", Convert(Value("foo, bar"), list_schema));
-  EXPECT_EQ("19", Convert(Value(19), list_schema));
-
-  EXPECT_FALSE(PolicyConverter::ConvertValueToSchema(Value(""), list_schema)
-                   .has_value());
-}
-
-TEST_F(PolicyConverterTest, ConvertToListValue_RejectCommaSeparatedLists) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndDisableFeature(
-      ::policy::features::kListPoliciesAcceptCommaSeparatedStringsAndroid);
-
-  Schema list_schema = schema_.GetKnownProperty("list");
-  ASSERT_TRUE(list_schema.valid());
-
-  Value::List list;
-  list.Append("foo");
-  list.Append("bar");
-  EXPECT_EQ("[\"foo\",\"bar\"]", Convert(Value(std::move(list)), list_schema));
-  EXPECT_EQ("[\"baz\",\"blurp\"]",
-            Convert(Value("[\"baz\", \"blurp\"]"), list_schema));
-  EXPECT_EQ("\"hurz\"", Convert(Value("hurz"), list_schema));
-  EXPECT_EQ("\"foo,bar\"", Convert(Value("foo,bar"), list_schema));
-  EXPECT_EQ("\"foo, bar\"", Convert(Value("foo, bar"), list_schema));
   EXPECT_EQ("19", Convert(Value(19), list_schema));
 
   EXPECT_FALSE(PolicyConverter::ConvertValueToSchema(Value(""), list_schema)

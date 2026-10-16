@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromeos/ash/components/dbus/userdataauth/fake_cryptohome_misc_client.h"
 
 #include "base/location.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
+#include "chromeos/ash/components/cryptohome/error_util.h"
 #include "chromeos/ash/components/dbus/userdataauth/userdataauth_client.h"
 
 namespace ash {
@@ -43,7 +49,7 @@ void FakeCryptohomeMiscClient::GetSystemSalt(
 void FakeCryptohomeMiscClient::GetSanitizedUsername(
     const ::user_data_auth::GetSanitizedUsernameRequest& request,
     GetSanitizedUsernameCallback callback) {
-  absl::optional<::user_data_auth::GetSanitizedUsernameReply> reply;
+  std::optional<::user_data_auth::GetSanitizedUsernameReply> reply;
   reply = BlockingGetSanitizedUsername(request);
   ReturnProtobufMethodCallback(*reply, std::move(callback));
 }
@@ -59,9 +65,8 @@ void FakeCryptohomeMiscClient::LockToSingleUserMountUntilReboot(
     const ::user_data_auth::LockToSingleUserMountUntilRebootRequest& request,
     LockToSingleUserMountUntilRebootCallback callback) {
   ::user_data_auth::LockToSingleUserMountUntilRebootReply reply;
-  if (cryptohome_error_ ==
-      ::user_data_auth::CryptohomeErrorCode::CRYPTOHOME_ERROR_NOT_SET) {
-    reply.set_error(cryptohome_error_);
+  if (cryptohome_error_ == ::user_data_auth::CRYPTOHOME_ERROR_NOT_SET) {
+    reply.set_error(::user_data_auth::CRYPTOHOME_ERROR_NOT_SET);
     is_device_locked_to_single_user_ = true;
   } else {
     reply.set_error(::user_data_auth::CryptohomeErrorCode::
@@ -78,7 +83,7 @@ void FakeCryptohomeMiscClient::GetRsuDeviceId(
   ReturnProtobufMethodCallback(reply, std::move(callback));
 }
 
-absl::optional<::user_data_auth::GetSanitizedUsernameReply>
+std::optional<::user_data_auth::GetSanitizedUsernameReply>
 FakeCryptohomeMiscClient::BlockingGetSanitizedUsername(
     const ::user_data_auth::GetSanitizedUsernameRequest& request) {
   user_data_auth::GetSanitizedUsernameReply reply;

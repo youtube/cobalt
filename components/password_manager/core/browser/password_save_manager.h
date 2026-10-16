@@ -5,12 +5,16 @@
 #ifndef COMPONENTS_PASSWORD_MANAGER_CORE_BROWSER_PASSWORD_SAVE_MANAGER_H_
 #define COMPONENTS_PASSWORD_MANAGER_CORE_BROWSER_PASSWORD_SAVE_MANAGER_H_
 
-#include "components/password_manager/core/browser/password_store_interface.h"
+#include "components/password_manager/core/browser/password_store/password_store.h"
+#include "components/password_manager/core/browser/password_store/password_store_interface.h"
 
 namespace autofill {
-struct FormData;
-class GaiaIdHash;
+class FormData;
 }  // namespace autofill
+
+namespace signin {
+class GaiaIdHash;
+}  // namespace signin
 
 namespace password_manager {
 
@@ -68,13 +72,6 @@ class PasswordSaveManager {
   virtual void Save(const autofill::FormData* observed_form,
                     const PasswordForm& parsed_submitted_form) = 0;
 
-  // Replaces `credentials_to_update` with `parsed_submitted_form` in the store.
-  // An optional `observed_form` is passed along to be able to send votes. This
-  // is null for HTTP or proxy auth.
-  virtual void Update(const PasswordForm& credentials_to_update,
-                      const autofill::FormData* observed_form,
-                      const PasswordForm& parsed_submitted_form) = 0;
-
   virtual void Blocklist(const PasswordFormDigest& form_digest) = 0;
   virtual void Unblocklist(const PasswordFormDigest& form_digest) = 0;
 
@@ -100,7 +97,7 @@ class PasswordSaveManager {
   // PasswordForm returned by GetPendingCredentials() and stores it in the
   // profile store. This is relevant only for account store users.
   virtual void BlockMovingToAccountStoreFor(
-      const autofill::GaiaIdHash& gaia_id_hash) = 0;
+      const signin::GaiaIdHash& gaia_id_hash) = 0;
 
   // Updates the submission indicator event for pending credentials at the
   // moment of submisison detection.
@@ -113,6 +110,13 @@ class PasswordSaveManager {
 
   // Signals that the user updated the username value in the bubble prompt.
   virtual void UsernameUpdatedInBubble() = 0;
+
+  // Returns the password store type into which the form is going to be saved or
+  // updated. It might be that the credential is updated in both stores; in this
+  // case the result will be the enum value with both bits set (the account and
+  // the profile store bits).
+  virtual PasswordForm::Store GetPasswordStoreForSaving(
+      const PasswordForm& password_form) const = 0;
 
   virtual std::unique_ptr<PasswordSaveManager> Clone() = 0;
 };

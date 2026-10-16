@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
@@ -54,28 +55,26 @@ CheckerImagingDecision GetAnimationDecision(const PaintImage& image) {
     return CheckerImagingDecision::kVetoedMultipartImage;
 
   switch (image.animation_type()) {
-    case PaintImage::AnimationType::ANIMATED:
+    case PaintImage::AnimationType::kAnimated:
       return CheckerImagingDecision::kVetoedAnimatedImage;
-    case PaintImage::AnimationType::VIDEO:
+    case PaintImage::AnimationType::kVideo:
       return CheckerImagingDecision::kVetoedVideoFrame;
-    case PaintImage::AnimationType::STATIC:
+    case PaintImage::AnimationType::kStatic:
       return CheckerImagingDecision::kCanChecker;
   }
 
   NOTREACHED();
-  return CheckerImagingDecision::kCanChecker;
 }
 
 CheckerImagingDecision GetLoadDecision(const PaintImage& image) {
   switch (image.completion_state()) {
-    case PaintImage::CompletionState::DONE:
+    case PaintImage::CompletionState::kDone:
       return CheckerImagingDecision::kCanChecker;
-    case PaintImage::CompletionState::PARTIALLY_DONE:
+    case PaintImage::CompletionState::kPartiallyDone:
       return CheckerImagingDecision::kVetoedPartiallyLoadedImage;
   }
 
   NOTREACHED();
-  return CheckerImagingDecision::kCanChecker;
 }
 
 CheckerImagingDecision GetSizeDecision(const SkIRect& src_rect,
@@ -209,12 +208,13 @@ void CheckerImageTracker::ClearTracker(bool can_clear_decode_policy_tracking) {
   if (can_clear_decode_policy_tracking) {
     decoding_mode_map_.clear();
     image_async_decode_state_.clear();
+    image_decode_queue_.clear();
   } else {
     // If we can't clear the decode policy, we need to make sure we still
     // re-decode and checker images that were pending invalidation.
     for (auto image_id : images_pending_invalidation_) {
       auto it = image_async_decode_state_.find(image_id);
-      DCHECK(it != image_async_decode_state_.end());
+      CHECK(it != image_async_decode_state_.end());
       DCHECK_EQ(it->second.policy, DecodePolicy::SYNC);
       it->second.policy = DecodePolicy::ASYNC;
     }
@@ -252,6 +252,7 @@ void CheckerImageTracker::DidFinishImageDecode(
   // would have also requested an invalidation, so we can just schedule the next
   // decode here.
   if (it->second.policy == DecodePolicy::SYNC) {
+    // Expensive DCHECK without immediate dereference.
     DCHECK(decoding_mode_map_.find(image_id) != decoding_mode_map_.end());
     DCHECK_EQ(decoding_mode_map_[image_id], PaintImage::DecodingMode::kSync);
 
@@ -289,8 +290,7 @@ bool CheckerImageTracker::ShouldCheckerImage(const DrawImage& draw_image,
 
   // If the image is pending invalidation, continue checkering it. All tiles
   // for these images will be invalidated on the next pending tree.
-  if (images_pending_invalidation_.find(image_id) !=
-      images_pending_invalidation_.end()) {
+  if (base::Contains(images_pending_invalidation_, image_id)) {
     return true;
   }
 
@@ -407,7 +407,7 @@ void CheckerImageTracker::ScheduleNextImageDecode() {
     // needed.
     PaintImage::Id image_id = candidate.stable_id();
     auto it = image_async_decode_state_.find(image_id);
-    DCHECK(it != image_async_decode_state_.end());
+    CHECK(it != image_async_decode_state_.end());
     if (it->second.policy != DecodePolicy::ASYNC)
       continue;
 
@@ -434,8 +434,10 @@ void CheckerImageTracker::ScheduleNextImageDecode() {
       "cc", "CheckerImageTracker::DeferImageDecode", TRACE_ID_LOCAL(image_id));
   ImageController::ImageDecodeRequestId request_id =
       image_controller_->QueueImageDecode(
-          draw_image, base::BindOnce(&CheckerImageTracker::DidFinishImageDecode,
-                                     weak_factory_.GetWeakPtr(), image_id));
+          draw_image,
+          base::BindOnce(&CheckerImageTracker::DidFinishImageDecode,
+                         weak_factory_.GetWeakPtr(), image_id),
+          /*speculative*/ false);
 
   image_id_to_decode_.emplace(image_id, std::make_unique<ScopedDecodeHolder>(
                                             image_controller_, request_id));

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ppapi/tests/test_tcp_socket.h"
 
 #include <vector>
@@ -168,7 +173,7 @@ std::string TestTCPSocket::TestReadWrite() {
   ASSERT_EQ(PP_ERROR_FAILED, read_error);
   ASSERT_EQ("", read_data);
 
-  char write_data[32 * 1024] = {0};
+  char write_data[32 * 1024] = {};
   // Write to the socket until there's an error, just to make sure the error
   // handling code works. As with the read case, go through two failures
   // (which may or may not fail with the same error code).
@@ -521,7 +526,7 @@ std::string TestTCPSocket::TestWriteFails() {
   // Write to the socket until there's an error. Some writes may succeed, since
   // Mojo writes complete before the socket tries to send data. As with the read
   // case, wait for two errors.
-  char write_data[32 * 1024] = {0};
+  char write_data[32 * 1024] = {};
   int failures = 0;
   while (true) {
     TestCompletionCallback cb(instance_->pp_instance(), callback_type());
@@ -744,7 +749,7 @@ std::string TestTCPSocket::TestAcceptedSocketWriteFails() {
   // Write to the socket until there's an error. Some writes may succeed, since
   // Mojo writes complete before the socket tries to send data. As with the read
   // case, wait for two errors.
-  char write_data[32 * 1024] = {0};
+  char write_data[32 * 1024] = {};
   int failures = 0;
   while (true) {
     callback.WaitForResult(accepted_socket.Write(

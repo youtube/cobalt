@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
@@ -82,13 +83,21 @@ void MojoDataPipeReader::TryReadData(MojoResult result) {
   }
 
   DCHECK_GT(current_buffer_size_, bytes_read_);
-  uint32_t num_bytes = current_buffer_size_ - bytes_read_;
+  size_t num_bytes = current_buffer_size_ - bytes_read_;
   if (current_buffer_) {
-    result = consumer_handle_->ReadData(current_buffer_ + bytes_read_,
-                                        &num_bytes, MOJO_READ_DATA_FLAG_NONE);
+    // SAFETY: Depending on the caller of Read to provide a valid ptr+size.
+    //
+    // TODO(lukasza): Consider removing the whole `MojoDataPipeReader` class:
+    // * It is only used from test code (from unit tests of
+    //   `MojoDataPipeWriter`)
+    // * It uses `UNSAFE_BUFFERS` + it is the only caller of `DiscardData`
+    base::span<uint8_t> buffer =
+        UNSAFE_BUFFERS(base::span(current_buffer_.get(), current_buffer_size_));
+    buffer = buffer.subspan(bytes_read_);
+    result =
+        consumer_handle_->ReadData(MOJO_READ_DATA_FLAG_NONE, buffer, num_bytes);
   } else {
-    result = consumer_handle_->ReadData(nullptr, &num_bytes,
-                                        MOJO_READ_DATA_FLAG_DISCARD);
+    result = consumer_handle_->DiscardData(num_bytes, num_bytes);
   }
 
   if (IsPipeReadWriteError(result)) {
@@ -157,18 +166,16 @@ MojoDataPipeWriter::~MojoDataPipeWriter() {
   DVLOG(1) << __func__;
 }
 
-void MojoDataPipeWriter::Write(const uint8_t* buffer,
-                               uint32_t buffer_size,
+void MojoDataPipeWriter::Write(base::span<const uint8_t> buffer,
                                DoneCB done_cb) {
   DVLOG(3) << __func__;
   // Write() can not be called when another writing request is in process.
-  DCHECK(!current_buffer_);
+  DCHECK(current_buffer_.empty());
   DCHECK(done_cb);
-  if (!buffer_size) {
+  if (buffer.empty()) {
     std::move(done_cb).Run(true);
     return;
   }
-  DCHECK(buffer);
 
   // Cannot write if the pipe is already closed.
   if (!producer_handle_.is_valid()) {
@@ -179,8 +186,6 @@ void MojoDataPipeWriter::Write(const uint8_t* buffer,
   }
 
   current_buffer_ = buffer;
-  current_buffer_size_ = buffer_size;
-  bytes_written_ = 0;
   done_cb_ = std::move(done_cb);
   // Try writing data immediately to reduce latency.
   TryWriteData(MOJO_RESULT_OK);
@@ -192,19 +197,17 @@ void MojoDataPipeWriter::TryWriteData(MojoResult result) {
     return;
   }
 
-  DCHECK(current_buffer_);
-  DCHECK_GT(current_buffer_size_, bytes_written_);
-  uint32_t num_bytes = current_buffer_size_ - bytes_written_;
-
-  result = producer_handle_->WriteData(current_buffer_ + bytes_written_,
-                                       &num_bytes, MOJO_WRITE_DATA_FLAG_NONE);
+  DCHECK(!current_buffer_.empty());
+  size_t actually_written_bytes = 0;
+  result = producer_handle_->WriteData(
+      current_buffer_, MOJO_WRITE_DATA_FLAG_NONE, actually_written_bytes);
   if (IsPipeReadWriteError(result)) {
     OnPipeError(result);
   } else {
     if (result == MOJO_RESULT_OK) {
-      DCHECK_GT(num_bytes, 0u);
-      bytes_written_ += num_bytes;
-      if (bytes_written_ == current_buffer_size_) {
+      DCHECK_GT(actually_written_bytes, 0u);
+      current_buffer_ = current_buffer_.subspan(actually_written_bytes);
+      if (current_buffer_.empty()) {
         CompleteCurrentWrite();
         return;
       }
@@ -216,7 +219,7 @@ void MojoDataPipeWriter::TryWriteData(MojoResult result) {
 void MojoDataPipeWriter::CompleteCurrentWrite() {
   DVLOG(4) << __func__;
   DCHECK(done_cb_);
-  current_buffer_ = nullptr;
+  current_buffer_ = base::span<const uint8_t>();
   std::move(done_cb_).Run(true);
 }
 
@@ -226,13 +229,10 @@ void MojoDataPipeWriter::OnPipeError(MojoResult result) {
 
   producer_handle_.reset();
 
-  if (current_buffer_) {
+  if (!current_buffer_.empty()) {
     DVLOG(1) << __func__ << ": writing to data pipe failed. result=" << result
-             << ", buffer size=" << current_buffer_size_
-             << ", num_bytes(written)=" << bytes_written_;
-    current_buffer_ = nullptr;
-    current_buffer_size_ = 0;
-    bytes_written_ = 0;
+             << ", current_buffer_.size()=" << current_buffer_.size();
+    current_buffer_ = base::span<const uint8_t>();
     DCHECK(done_cb_);
     std::move(done_cb_).Run(false);
   }

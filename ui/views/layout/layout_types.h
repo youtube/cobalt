@@ -6,13 +6,15 @@
 #define UI_VIEWS_LAYOUT_LAYOUT_TYPES_H_
 
 #include <algorithm>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <tuple>
 #include <utility>
 
 #include "base/check.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "ui/base/metadata/base_type_conversion.h"
+#include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/views_export.h"
 
@@ -37,9 +39,9 @@ class VIEWS_EXPORT SizeBound {
   // explicitly inline because Clang currently doesn't realize that "constexpr"
   // explicitly means "inline" and thus should count as "intentionally inlined
   // and thus shouldn't be warned about".
-  // TODO(crbug.com/1045568): Remove "inline" if Clang's isInlineSpecified()
+  // TODO(crbug.com/40116092): Remove "inline" if Clang's isInlineSpecified()
   // learns about constexpr.
-  // TODO(crbug.com/1045570): Put method bodies here if complex constructor
+  // TODO(crbug.com/40116093): Put method bodies here if complex constructor
   // heuristic learns to peer into types to discover that e.g. Optional is not
   // complex.
   inline constexpr SizeBound();
@@ -62,17 +64,21 @@ class VIEWS_EXPORT SizeBound {
     return is_bounded() ? std::min(this->value(), value) : value;
   }
 
+  constexpr int value_or(int defaule_value) const {
+    return is_bounded() ? value() : defaule_value;
+  }
+
   void operator+=(const SizeBound& rhs);
   void operator-=(const SizeBound& rhs);
 
   std::string ToString() const;
 
  private:
-  friend constexpr bool operator==(const SizeBound& lhs, const SizeBound& rhs);
-  friend constexpr bool operator!=(const SizeBound& lhs, const SizeBound& rhs);
+  friend constexpr bool operator==(const SizeBound&,
+                                   const SizeBound&) = default;
 
   // nullopt represents "unbounded".
-  absl::optional<int> bound_;
+  std::optional<int> bound_;
 };
 constexpr SizeBound::SizeBound() = default;
 constexpr SizeBound::SizeBound(int bound) : bound_(bound) {}
@@ -96,12 +102,6 @@ constexpr bool operator<=(const SizeBound& lhs, const SizeBound& rhs) {
 }
 constexpr bool operator>=(const SizeBound& lhs, const SizeBound& rhs) {
   return !(lhs < rhs);
-}
-constexpr bool operator==(const SizeBound& lhs, const SizeBound& rhs) {
-  return lhs.bound_ == rhs.bound_;
-}
-constexpr bool operator!=(const SizeBound& lhs, const SizeBound& rhs) {
-  return lhs.bound_ != rhs.bound_;
 }
 
 // Stores an optional width and height upper bound. Used when calculating the
@@ -134,7 +134,13 @@ class VIEWS_EXPORT SizeBounds {
   // specified amounts.
   void Enlarge(int width, int height);
 
+  // Shrink the SizeBounds by the given `insets`.
+  SizeBounds Inset(const gfx::Insets& inset) const;
+
   std::string ToString() const;
+
+  friend constexpr bool operator==(const SizeBounds&,
+                                   const SizeBounds&) = default;
 
  private:
   SizeBound width_;
@@ -147,13 +153,6 @@ constexpr SizeBounds::SizeBounds(const gfx::Size& size)
     : width_(size.width()), height_(size.height()) {}
 constexpr SizeBounds::SizeBounds(const SizeBounds&) = default;
 constexpr SizeBounds::SizeBounds(SizeBounds&&) = default;
-constexpr bool operator==(const SizeBounds& lhs, const SizeBounds& rhs) {
-  return std::tie(lhs.width(), lhs.height()) ==
-         std::tie(rhs.width(), rhs.height());
-}
-constexpr bool operator!=(const SizeBounds& lhs, const SizeBounds& rhs) {
-  return !(lhs == rhs);
-}
 constexpr bool operator<(const SizeBounds& lhs, const SizeBounds& rhs) {
   return std::tie(lhs.height(), lhs.width()) <
          std::tie(rhs.height(), rhs.width());
@@ -172,5 +171,8 @@ void PrintTo(const SizeBounds& size_bounds, ::std::ostream* os);
 void PrintTo(LayoutOrientation layout_orientation, ::std::ostream* os);
 
 }  // namespace views
+
+EXPORT_ENUM_CONVERTERS(views::LayoutAlignment, VIEWS_EXPORT)
+EXPORT_ENUM_CONVERTERS(views::LayoutOrientation, VIEWS_EXPORT)
 
 #endif  // UI_VIEWS_LAYOUT_LAYOUT_TYPES_H_

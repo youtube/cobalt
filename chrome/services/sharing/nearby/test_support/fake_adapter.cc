@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "base/containers/contains.h"
-#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace bluetooth {
@@ -85,7 +84,19 @@ FakeAdapter::FakeAdapter() = default;
 FakeAdapter::~FakeAdapter() = default;
 
 void FakeAdapter::ConnectToDevice(const std::string& address,
-                                  ConnectToDeviceCallback callback) {}
+                                  ConnectToDeviceCallback callback) {
+  if (connect_to_device_result_ == bluetooth::mojom::ConnectResult::SUCCESS) {
+    mojo::PendingRemote<mojom::Device> pending_device;
+    mojo::MakeSelfOwnedReceiver(
+        std::move(fake_device_),
+        pending_device.InitWithNewPipeAndPassReceiver());
+    std::move(callback).Run(connect_to_device_result_,
+                            std::move(pending_device));
+    return;
+  }
+
+  std::move(callback).Run(connect_to_device_result_, mojo::NullRemote());
+}
 
 void FakeAdapter::GetDevices(GetDevicesCallback callback) {}
 
@@ -93,6 +104,8 @@ void FakeAdapter::GetInfo(GetInfoCallback callback) {
   mojom::AdapterInfoPtr adapter_info = mojom::AdapterInfo::New();
   adapter_info->address = address_;
   adapter_info->name = name_;
+  adapter_info->extended_advertisement_support =
+      extended_advertisement_support_;
   adapter_info->present = present_;
   adapter_info->powered = powered_;
   adapter_info->discoverable = discoverable_;
@@ -111,13 +124,15 @@ void FakeAdapter::RegisterAdvertisement(
     const device::BluetoothUUID& service_uuid,
     const std::vector<uint8_t>& service_data,
     bool use_scan_response,
+    bool connectable,
     RegisterAdvertisementCallback callback) {
   if (!should_advertisement_registration_succeed_) {
     std::move(callback).Run(mojo::NullRemote());
     return;
   }
 
-  registered_advertisements_map_.insert({service_uuid, service_data});
+  registered_advertisements_map_.insert(
+      {service_uuid, std::make_pair(service_data, connectable)});
 
   auto advertisement = std::make_unique<FakeAdvertisement>(
       base::BindOnce(&FakeAdapter::OnAdvertisementDestroyed,
@@ -222,6 +237,33 @@ void FakeAdapter::CreateRfcommServiceInsecurely(
   std::move(callback).Run(std::move(pending_server_socket));
 }
 
+void FakeAdapter::CreateLocalGattService(
+    const device::BluetoothUUID& service_id,
+    mojo::PendingRemote<mojom::GattServiceObserver> observer,
+    CreateLocalGattServiceCallback callback) {
+  mojo::PendingRemote<mojom::GattService> pending_gatt_service;
+  fake_gatt_service_->SetObserver(std::move(observer));
+  gatt_service_receiver_ = mojo::MakeSelfOwnedReceiver(
+      std::move(fake_gatt_service_),
+      pending_gatt_service.InitWithNewPipeAndPassReceiver());
+  std::move(callback).Run(std::move(pending_gatt_service));
+
+  if (create_local_gatt_service_callback_) {
+    std::move(create_local_gatt_service_callback_).Run();
+  }
+}
+
+void FakeAdapter::SetShouldAdvertisementRegistrationSucceed(
+    bool should_advertisement_registration_succeed) {
+  should_advertisement_registration_succeed_ =
+      should_advertisement_registration_succeed;
+}
+
+void FakeAdapter::IsLeScatternetDualRoleSupported(
+    IsLeScatternetDualRoleSupportedCallback callback) {
+  std::move(callback).Run(is_dual_role_supported_);
+}
+
 void FakeAdapter::SetShouldDiscoverySucceed(bool should_discovery_succeed) {
   should_discovery_succeed_ = should_discovery_succeed;
 }
@@ -231,10 +273,37 @@ void FakeAdapter::SetAdvertisementDestroyedCallback(
   on_advertisement_destroyed_callback_ = std::move(callback);
 }
 
+void FakeAdapter::SetCreateLocalGattServiceCallback(
+    base::OnceClosure callback) {
+  create_local_gatt_service_callback_ = std::move(callback);
+}
+
+void FakeAdapter::SetCreateLocalGattServiceResult(
+    std::unique_ptr<FakeGattService> fake_gatt_service) {
+  fake_gatt_service_ = std::move(fake_gatt_service);
+}
+
+void FakeAdapter::SetExtendedAdvertisementSupport(
+    bool extended_advertisement_support) {
+  extended_advertisement_support_ = extended_advertisement_support;
+}
+
 const std::vector<uint8_t>* FakeAdapter::GetRegisteredAdvertisementServiceData(
     const device::BluetoothUUID& service_uuid) {
   auto it = registered_advertisements_map_.find(service_uuid);
-  return it == registered_advertisements_map_.end() ? nullptr : &it->second;
+  return it == registered_advertisements_map_.end() ? nullptr
+                                                    : &it->second.first;
+}
+
+std::optional<bool> FakeAdapter::GetRegisteredAdvertisementConnectable(
+    const device::BluetoothUUID& service_uuid) {
+  auto it = registered_advertisements_map_.find(service_uuid);
+  if (it == registered_advertisements_map_.end()) {
+    return std::nullopt;
+  }
+
+  bool connectable = it->second.second;
+  return connectable;
 }
 
 void FakeAdapter::SetDiscoverySessionDestroyedCallback(
@@ -272,6 +341,13 @@ void FakeAdapter::AllowIncomingConnectionForServiceNameAndUuidPair(
     const device::BluetoothUUID& service_uuid) {
   allowed_connections_for_service_name_and_uuid_pair_.emplace(service_name,
                                                               service_uuid);
+}
+
+void FakeAdapter::SetConnectToDeviceResult(
+    bluetooth::mojom::ConnectResult result,
+    std::unique_ptr<FakeDevice> fake_device) {
+  connect_to_device_result_ = result;
+  fake_device_ = std::move(fake_device);
 }
 
 void FakeAdapter::OnAdvertisementDestroyed(

@@ -13,16 +13,12 @@
 #import "ios/testing/earl_grey/earl_grey_app.h"
 #import "ios/web/public/test/web_view_interaction_test_util.h"
 #import "ios/web/public/web_state.h"
-#import "net/base/mac/url_conversions.h"
+#import "net/base/apple/url_conversions.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
-// TODO(crbug.com/757982): Remove this class, after LoadImage() is removed.
+// TODO(crbug.com/41340619): Remove this class, after LoadImage() is removed.
 // A helper delegate class that allows downloading responses with invalid
 // SSL certs.
-@interface TestURLSessionDelegateDeprecated : NSObject<NSURLSessionDelegate>
+@interface TestURLSessionDelegateDeprecated : NSObject <NSURLSessionDelegate>
 @end
 
 @implementation TestURLSessionDelegateDeprecated
@@ -41,13 +37,17 @@
 namespace web {
 
 id<GREYMatcher> WebViewInWebState(WebState* web_state) {
+  __weak UIView* web_state_view = web_state->GetView();
   GREYMatchesBlock matches = ^BOOL(UIView* view) {
     return [view isKindOfClass:[WKWebView class]] &&
-           [view isDescendantOfView:web_state->GetView()];
+           [view isDescendantOfView:web_state_view];
   };
 
   GREYDescribeToBlock describe = ^(id<GREYDescription> description) {
-    [description appendText:@"web view in web state"];
+    [description
+        appendText:[NSString
+                       stringWithFormat:@"web view in web state (webView: %@)",
+                                        web_state_view.description]];
   };
 
   return [[GREYElementMatcherBlock alloc] initWithMatchesBlock:matches
@@ -55,14 +55,18 @@ id<GREYMatcher> WebViewInWebState(WebState* web_state) {
 }
 
 id<GREYMatcher> WebViewScrollView(WebState* web_state) {
+  __weak UIView* web_state_view = web_state->GetView();
   GREYMatchesBlock matches = ^BOOL(UIView* view) {
     return [view isKindOfClass:[UIScrollView class]] &&
            [view.superview isKindOfClass:[WKWebView class]] &&
-           [view isDescendantOfView:web_state->GetView()];
+           [view isDescendantOfView:web_state_view];
   };
 
   GREYDescribeToBlock describe = ^(id<GREYDescription> description) {
-    [description appendText:@"web view scroll view"];
+    [description
+        appendText:[NSString
+                       stringWithFormat:@"web view scroll view (webView: %@)",
+                                        web_state_view.description]];
   };
 
   return [[GREYElementMatcherBlock alloc] initWithMatchesBlock:matches

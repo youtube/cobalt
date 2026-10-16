@@ -19,7 +19,6 @@
 #include "base/logging.h"
 #include "starboard/event.h"
 #include "ui/base/ime/input_method_minimal.h"
-#include "ui/display/fake/fake_display_delegate.h"
 #include "ui/events/ozone/layout/keyboard_layout_engine_manager.h"
 #include "ui/events/ozone/layout/stub/stub_keyboard_layout_engine.h"
 #include "ui/gl/gl_switches.h"
@@ -91,7 +90,7 @@ class OzonePlatformStarboard : public OzonePlatform {
     // TODO(b/371272304): Implement a native display delegate to allow display
     // configuration and hotplug (adding a new display while the process is
     // running).
-    return std::make_unique<display::FakeDisplayDelegate>();
+    return nullptr;
   }
 
   std::unique_ptr<PlatformScreen> CreateScreen() override {
@@ -111,6 +110,8 @@ class OzonePlatformStarboard : public OzonePlatform {
       gfx::AcceleratedWidget widget) override {
     return std::make_unique<InputMethodMinimal>(ime_key_event_dispatcher);
   }
+
+  bool IsWindowCompositingSupported() const override { return false; }
 
   void PostCreateMainMessageLoop(base::OnceCallback<void()> shutdown_cb,
                                  scoped_refptr<base::SingleThreadTaskRunner>
@@ -132,7 +133,7 @@ class OzonePlatformStarboard : public OzonePlatform {
     }
     // TODO(b/371272304): Investigate if we need our own implementation of
     // InputController for things like gamepads or other atypical input devices.
-    input_controller_ = CreateStubInputController();
+    input_controller_ = nullptr;
     cursor_factory_ = std::make_unique<BitmapCursorFactory>();
     gpu_platform_support_host_.reset(CreateStubGpuPlatformSupportHost());
 

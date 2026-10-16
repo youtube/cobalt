@@ -5,11 +5,12 @@
 #ifndef ASH_QUICK_PAIR_KEYED_SERVICE_FAST_PAIR_BLUETOOTH_CONFIG_DELEGATE_H_
 #define ASH_QUICK_PAIR_KEYED_SERVICE_FAST_PAIR_BLUETOOTH_CONFIG_DELEGATE_H_
 
+#include <optional>
+
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "chromeos/ash/services/bluetooth_config/fast_pair_delegate.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash::bluetooth_config {
 class AdapterStateController;
@@ -25,11 +26,18 @@ namespace quick_pair {
 class FastPairBluetoothConfigDelegate
     : public bluetooth_config::FastPairDelegate {
  public:
-  class Observer : public base::CheckedObserver {
+  // The delegate_ is set in the constructor and implements the following
+  // virtual methods.
+  class Delegate {
    public:
+    virtual ~Delegate() = default;
+
+    // Called when the AdapterStateController is changed.
     virtual void OnAdapterStateControllerChanged(
         bluetooth_config::AdapterStateController* adapter_state_controller) = 0;
   };
+
+  explicit FastPairBluetoothConfigDelegate(Delegate* delegate);
 
   FastPairBluetoothConfigDelegate();
   FastPairBluetoothConfigDelegate(const FastPairBluetoothConfigDelegate&) =
@@ -38,11 +46,8 @@ class FastPairBluetoothConfigDelegate
       const FastPairBluetoothConfigDelegate&) = delete;
   ~FastPairBluetoothConfigDelegate() override;
 
-  void AddObserver(Observer* observer);
-  void RemoveObserver(Observer* observer);
-
   // bluetooth_config::FastPairDelegate
-  absl::optional<bluetooth_config::DeviceImageInfo> GetDeviceImageInfo(
+  std::optional<bluetooth_config::DeviceImageInfo> GetDeviceImageInfo(
       const std::string& device_id) override;
   void ForgetDevice(const std::string& mac_address) override;
   void UpdateDeviceNickname(const std::string& mac_address,
@@ -57,11 +62,10 @@ class FastPairBluetoothConfigDelegate
   }
 
  private:
-  base::ObserverList<Observer> observers_;
-  raw_ptr<bluetooth_config::AdapterStateController, ExperimentalAsh>
-      adapter_state_controller_ = nullptr;
-  raw_ptr<bluetooth_config::DeviceNameManager, ExperimentalAsh>
-      device_name_manager_ = nullptr;
+  raw_ptr<Delegate> delegate_;
+  raw_ptr<bluetooth_config::AdapterStateController> adapter_state_controller_ =
+      nullptr;
+  raw_ptr<bluetooth_config::DeviceNameManager> device_name_manager_ = nullptr;
 };
 
 }  // namespace quick_pair

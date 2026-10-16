@@ -19,9 +19,6 @@
 
 namespace media {
 
-// TODO(dalecurtis): FFmpeg API uses |bytes_per_channel| instead of
-// |bits_per_channel|, we should switch over since bits are generally confusing
-// to work with.
 class MEDIA_EXPORT AudioDecoderConfig {
  public:
   // Constructs an uninitialized object. Clients should call Initialize() with
@@ -37,6 +34,9 @@ class MEDIA_EXPORT AudioDecoderConfig {
                      EncryptionScheme encryption_scheme);
 
   AudioDecoderConfig(const AudioDecoderConfig& other);
+  AudioDecoderConfig(AudioDecoderConfig&& other);
+  AudioDecoderConfig& operator=(const AudioDecoderConfig& other);
+  AudioDecoderConfig& operator=(AudioDecoderConfig&& other);
 
   ~AudioDecoderConfig();
 
@@ -65,7 +65,6 @@ class MEDIA_EXPORT AudioDecoderConfig {
   void SetChannelsForDiscrete(int channels);
 
   AudioCodec codec() const { return codec_; }
-  int bits_per_channel() const { return bytes_per_channel_ * 8; }
   int bytes_per_channel() const { return bytes_per_channel_; }
   ChannelLayout channel_layout() const { return channel_layout_; }
   int channels() const { return channels_; }
@@ -123,10 +122,11 @@ class MEDIA_EXPORT AudioDecoderConfig {
     return target_output_sample_format_;
   }
 
-  void set_aac_extra_data(std::vector<uint8_t> aac_extra_data) {
-    aac_extra_data_ = std::move(aac_extra_data);
-  }
-  const std::vector<uint8_t>& aac_extra_data() const { return aac_extra_data_; }
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Mime_type string of the config.
+  void set_mime_type(std::string_view mime_type) { mime_type_ = mime_type; }
+  const std::string& mime_type() const { return mime_type_; }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
   // WARNING: When modifying or adding any parameters, update the following:
@@ -163,17 +163,12 @@ class MEDIA_EXPORT AudioDecoderConfig {
   // Desired output format of bitstream. Optionally set. See setter comments.
   SampleFormat target_output_sample_format_ = kUnknownSampleFormat;
 
-  // This is a hack for backward compatibility. For AAC, to preserve existing
-  // behavior, we set `aac_extra_data_` on all platforms but only set
-  // `extra_data` on Android.
-  // TODO(crbug.com/1250841): Remove this after we land a long term fix.
-  std::vector<uint8_t> aac_extra_data_;
-
   // Indicates if a decoder should implicitly discard decoder delay without it
   // being explicitly marked in discard padding.
   bool should_discard_decoder_delay_ = true;
 
-  // Derived values from mandatory and optional parameters above:
+  // Derived values from mandatory and optional parameters above.
+  // A frame contains samples across all channels.
 
   int bytes_per_channel_ = 0;
   int bytes_per_frame_ = 0;
@@ -182,6 +177,10 @@ class MEDIA_EXPORT AudioDecoderConfig {
   // be manually set in `SetChannelsForDiscrete()`;
   int channels_ = 0;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Full mime string for the audio decoder config.
+  std::string mime_type_ = "";
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler
   // generated copy constructor and assignment operator. Since the extra data is
   // typically small, the performance impact is minimal.

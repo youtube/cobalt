@@ -63,7 +63,7 @@ class MockGCMDriver : public testing::StrictMock<gcm::FakeGCMDriver> {
   MockGCMDriver(const MockGCMDriver&) = delete;
   MockGCMDriver& operator=(const MockGCMDriver&) = delete;
 
-  ~MockGCMDriver() override {}
+  ~MockGCMDriver() override = default;
 
   MOCK_METHOD2(RegisterImpl,
                void(const std::string&, const std::vector<std::string>&));
@@ -123,7 +123,7 @@ class MockGCMDriver : public testing::StrictMock<gcm::FakeGCMDriver> {
   }
 
  private:
-  raw_ptr<gcm::GCMConnectionObserver, ExperimentalAsh> observer_ = nullptr;
+  raw_ptr<gcm::GCMConnectionObserver> observer_ = nullptr;
 };
 
 class HeartbeatSchedulerTest : public testing::Test {

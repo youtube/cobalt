@@ -89,6 +89,7 @@ class MediaConstraintsPrivate final
 
   bool IsUnconstrained() const;
   const MediaTrackConstraintSetPlatform& Basic() const;
+  MediaTrackConstraintSetPlatform& MutableBasic();
   const Vector<MediaTrackConstraintSetPlatform>& Advanced() const;
   const String ToString() const;
 
@@ -125,6 +126,10 @@ bool MediaConstraintsPrivate::IsUnconstrained() const {
 }
 
 const MediaTrackConstraintSetPlatform& MediaConstraintsPrivate::Basic() const {
+  return basic_;
+}
+
+MediaTrackConstraintSetPlatform& MediaConstraintsPrivate::MutableBasic() {
   return basic_;
 }
 
@@ -198,6 +203,10 @@ bool LongConstraint::IsUnconstrained() const {
   return !has_min_ && !has_max_ && !has_exact_ && !has_ideal_;
 }
 
+void LongConstraint::ResetToUnconstrained() {
+  *this = LongConstraint(GetName());
+}
+
 String LongConstraint::ToString() const {
   StringBuilder builder;
   builder.Append('{');
@@ -240,6 +249,10 @@ bool DoubleConstraint::IsUnconstrained() const {
   return !has_min_ && !has_max_ && !has_exact_ && !has_ideal_;
 }
 
+void DoubleConstraint::ResetToUnconstrained() {
+  *this = DoubleConstraint(GetName());
+}
+
 String DoubleConstraint::ToString() const {
   StringBuilder builder;
   builder.Append('{');
@@ -249,6 +262,62 @@ String DoubleConstraint::ToString() const {
   MaybeEmitNamedValue(builder, has_ideal_, "ideal", ideal_);
   builder.Append('}');
   return builder.ToString();
+}
+
+DoubleOrBooleanConstraint::DoubleOrBooleanConstraint(const char* name)
+    : DoubleConstraint(name) {}
+
+bool DoubleOrBooleanConstraint::HasMandatory() const {
+  return DoubleConstraint::HasMandatory() || HasExactBoolean();
+}
+
+bool DoubleOrBooleanConstraint::Matches(double value) const {
+  return DoubleConstraint::Matches(value) && MatchesBoolean(true);
+}
+
+bool DoubleOrBooleanConstraint::MatchesBoolean(bool value) const {
+  if (HasExactBoolean() && ExactBoolean() != value) {
+    return false;
+  }
+  if (!value && DoubleConstraint::HasMandatory()) {
+    return false;
+  }
+  return true;
+}
+
+bool DoubleOrBooleanConstraint::IsPresentAndNotFalse() const {
+  if (!IsPresent()) {
+    return false;
+  }
+  if (HasExactBoolean()) {
+    DCHECK(DoubleConstraint::IsUnconstrained());
+    DCHECK(!HasIdealBoolean());
+    return ExactBoolean();
+  }
+  if (HasIdealBoolean()) {
+    DCHECK(DoubleConstraint::IsUnconstrained());
+    DCHECK(!HasExactBoolean());
+    return IdealBoolean();
+  }
+  return true;
+}
+
+bool DoubleOrBooleanConstraint::IsUnconstrained() const {
+  return DoubleConstraint::IsUnconstrained() && !HasExactBoolean() &&
+         !HasIdealBoolean();
+}
+
+void DoubleOrBooleanConstraint::ResetToUnconstrained() {
+  *this = DoubleOrBooleanConstraint(GetName());
+}
+
+String DoubleOrBooleanConstraint::ToString() const {
+  if (DoubleConstraint::IsUnconstrained() &&
+      (HasExactBoolean() || HasIdealBoolean())) {
+    bool value = HasExactBoolean() ? ExactBoolean() : IdealBoolean();
+    return value ? "true" : "false";
+  }
+  return DoubleConstraint::ToString();
 }
 
 StringConstraint::StringConstraint(const char* name)
@@ -276,6 +345,10 @@ const Vector<String>& StringConstraint::Exact() const {
 
 const Vector<String>& StringConstraint::Ideal() const {
   return ideal_;
+}
+
+void StringConstraint::ResetToUnconstrained() {
+  *this = StringConstraint(GetName());
 }
 
 String StringConstraint::ToString() const {
@@ -333,6 +406,10 @@ bool BooleanConstraint::IsUnconstrained() const {
   return !has_ideal_ && !has_exact_;
 }
 
+void BooleanConstraint::ResetToUnconstrained() {
+  *this = BooleanConstraint(GetName());
+}
+
 String BooleanConstraint::ToString() const {
   StringBuilder builder;
   builder.Append('{');
@@ -353,27 +430,36 @@ MediaTrackConstraintSetPlatform::MediaTrackConstraintSetPlatform()
       sample_rate("sampleRate"),
       sample_size("sampleSize"),
       echo_cancellation("echoCancellation"),
-      echo_cancellation_type("echoCancellationType"),
+      auto_gain_control("autoGainControl"),
+      noise_suppression("noiseSuppression"),
+      voice_isolation("voiceIsolation"),
       latency("latency"),
       channel_count("channelCount"),
       device_id("deviceId"),
       disable_local_echo("disableLocalEcho"),
       suppress_local_audio_playback("suppressLocalAudioPlayback"),
+      restrict_own_audio("restrictOwnAudio"),
+      group_id("groupId"),
+      display_surface("displaySurface"),
+      exposure_compensation("exposureCompensation"),
+      exposure_time("exposureTime"),
+      color_temperature("colorTemperature"),
+      iso("iso"),
+      brightness("brightness"),
+      contrast("contrast"),
+      saturation("saturation"),
+      sharpness("sharpness"),
+      focus_distance("focusDistance"),
       pan("pan"),
       tilt("tilt"),
       zoom("zoom"),
-      group_id("groupId"),
-      display_surface("displaySurface"),
+      torch("torch"),
+      background_blur("backgroundBlur"),
+      background_segmentation_mask("backgroundSegmentationMask"),
+      eye_gaze_correction("eyeGazeCorrection"),
+      face_framing("faceFraming"),
       media_stream_source("mediaStreamSource"),
       render_to_associated_sink("chromeRenderToAssociatedSink"),
-      goog_echo_cancellation("googEchoCancellation"),
-      goog_experimental_echo_cancellation("googExperimentalEchoCancellation"),
-      goog_auto_gain_control("autoGainControl"),
-      goog_noise_suppression("noiseSuppression"),
-      goog_highpass_filter("googHighpassFilter"),
-      goog_experimental_noise_suppression("googExperimentalNoiseSuppression"),
-      goog_audio_mirroring("googAudioMirroring"),
-      goog_da_echo_cancellation("googDAEchoCancellation"),
       goog_noise_reduction("googNoiseReduction") {}
 
 Vector<const BaseConstraint*> MediaTrackConstraintSetPlatform::AllConstraints()
@@ -388,7 +474,9 @@ Vector<const BaseConstraint*> MediaTrackConstraintSetPlatform::AllConstraints()
           &sample_rate,
           &sample_size,
           &echo_cancellation,
-          &echo_cancellation_type,
+          &auto_gain_control,
+          &noise_suppression,
+          &voice_isolation,
           &latency,
           &channel_count,
           &device_id,
@@ -397,18 +485,25 @@ Vector<const BaseConstraint*> MediaTrackConstraintSetPlatform::AllConstraints()
           &media_stream_source,
           &disable_local_echo,
           &suppress_local_audio_playback,
+          &restrict_own_audio,
+          &exposure_compensation,
+          &exposure_time,
+          &color_temperature,
+          &iso,
+          &brightness,
+          &contrast,
+          &saturation,
+          &sharpness,
+          &focus_distance,
           &pan,
           &tilt,
           &zoom,
+          &torch,
+          &background_blur,
+          &background_segmentation_mask,
+          &eye_gaze_correction,
+          &face_framing,
           &render_to_associated_sink,
-          &goog_echo_cancellation,
-          &goog_experimental_echo_cancellation,
-          &goog_auto_gain_control,
-          &goog_noise_suppression,
-          &goog_highpass_filter,
-          &goog_experimental_noise_suppression,
-          &goog_audio_mirroring,
-          &goog_da_echo_cancellation,
           &goog_noise_reduction};
 }
 
@@ -481,6 +576,12 @@ void MediaConstraints::Assign(const MediaConstraints& other) {
   private_ = other.private_;
 }
 
+MediaConstraints::MediaConstraints() = default;
+
+MediaConstraints::MediaConstraints(const MediaConstraints& other) {
+  Assign(other);
+}
+
 void MediaConstraints::Reset() {
   private_.Reset();
 }
@@ -506,6 +607,11 @@ const MediaTrackConstraintSetPlatform& MediaConstraints::Basic() const {
   return private_->Basic();
 }
 
+MediaTrackConstraintSetPlatform& MediaConstraints::MutableBasic() {
+  DCHECK(!IsNull());
+  return private_->MutableBasic();
+}
+
 const Vector<MediaTrackConstraintSetPlatform>& MediaConstraints::Advanced()
     const {
   DCHECK(!IsNull());
@@ -514,7 +620,7 @@ const Vector<MediaTrackConstraintSetPlatform>& MediaConstraints::Advanced()
 
 const String MediaConstraints::ToString() const {
   if (IsNull()) {
-    return String("");
+    return g_empty_string;
   }
   return private_->ToString();
 }

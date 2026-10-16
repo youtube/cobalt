@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "ui/gl/angle_platform_impl.h"
 
 #include "base/base64.h"
@@ -11,6 +16,7 @@
 #include "base/lazy_instance.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/no_destructor.h"
 #include "base/task/thread_pool.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/trace_event/trace_event.h"
@@ -24,7 +30,7 @@ namespace {
 ResetDisplayPlatformFunc g_angle_reset_platform = nullptr;
 
 double ANGLEPlatformImpl_currentTime(PlatformMethods* platform) {
-  return base::Time::Now().ToDoubleT();
+  return base::Time::Now().InSecondsFSinceUnixEpoch();
 }
 
 double ANGLEPlatformImpl_monotonicallyIncreasingTime(
@@ -132,8 +138,13 @@ void ANGLEPlatformImpl_postWorkerTask(PlatformMethods* platform,
                                       PostWorkerTaskCallback callback,
                                       void* user_data) {
   base::ThreadPool::PostTask(
-      FROM_HERE, {base::TaskPriority::USER_VISIBLE},
+      FROM_HERE, {base::TaskPriority::USER_BLOCKING},
       base::BindOnce(&AnglePlatformImpl_runWorkerTask, callback, user_data));
+}
+
+void ANGLEPlatformImpl_recordShaderCacheUse(bool in_cache) {
+  // Metrics were no longer required, we can remove once Angle no longer
+  // requires the method.
 }
 
 }  // anonymous namespace
@@ -171,6 +182,8 @@ bool InitializePlatform(EGLDisplay display) {
       ANGLEPlatformImpl_monotonicallyIncreasingTime;
   platformMethods->updateTraceEventDuration =
       ANGLEPlatformImpl_updateTraceEventDuration;
+  platformMethods->recordShaderCacheUse =
+      ANGLEPlatformImpl_recordShaderCacheUse;
 
   // Initialize the delegate to allow posting tasks in the Chromium thread pool.
   // The thread pool is not available in some unittests.

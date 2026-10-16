@@ -1,0 +1,5 @@
+try/chromeos-arm-generic-rel
+try/chromeos-arm64-generic-rel
+try/chromium_presubmit
+try/linux-chromeos-rel
+try/linux-chromeos-rel-compilator

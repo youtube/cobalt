@@ -18,7 +18,7 @@
 #define ANGLE_HANDLE_ERR(X) \
     (void)(X);              \
     return;
-#define ANGLE_CONTEXT_TRY(EXPR) ANGLE_TRY_TEMPLATE(EXPR, ANGLE_HANDLE_ERR)
+#define ANGLE_CONTEXT_TRY(EXPR) ANGLE_TRY_TEMPLATE(EXPR, static_cast<void>(0), ANGLE_HANDLE_ERR)
 
 namespace gl
 {
@@ -35,6 +35,12 @@ constexpr angle::PackedEnumMap<PrimitiveMode, GLsizei> kMinimumPrimitiveCounts =
     {PrimitiveMode::TrianglesAdjacency, 3},
     {PrimitiveMode::TriangleStripAdjacency, 3},
 }};
+
+// All bits except |DIRTY_BIT_READ_FRAMEBUFFER_BINDING| because |mDrawDirtyObjects| does not contain
+// |DIRTY_OBJECT_READ_FRAMEBUFFER|, to avoid synchronizing with invalid read framebuffer state.
+constexpr state::DirtyBits kDrawDirtyBits =
+    ~state::DirtyBits{state::DIRTY_BIT_READ_FRAMEBUFFER_BINDING};
+constexpr state::ExtendedDirtyBits kDrawExtendedDirtyBits = state::ExtendedDirtyBits().set();
 
 ANGLE_INLINE void MarkTransformFeedbackBufferUsage(const Context *context,
                                                    GLsizei count,
@@ -54,7 +60,7 @@ ANGLE_INLINE void MarkShaderStorageUsage(const Context *context)
         Buffer *buffer = context->getState().getIndexedShaderStorageBuffer(index).get();
         if (buffer)
         {
-            buffer->onDataChanged();
+            buffer->onDataChanged(context);
         }
     }
 
@@ -75,37 +81,53 @@ ANGLE_INLINE void MarkShaderStorageUsage(const Context *context)
 //  an error. ANGLE will treat this as a no-op.
 //  A no-op draw occurs if the count of vertices is less than the minimum required to
 //  have a valid primitive for this mode (0 for points, 0-1 for lines, 0-2 for tris).
+ANGLE_INLINE bool Context::noopDrawProgram() const
+{
+    // Make sure any pending link is done before checking whether draw is allowed.
+    mState.ensureNoPendingLink(this);
+
+    // No-op when there is no active vertex shader
+    return !mStateCache.getCanDraw();
+}
+
 ANGLE_INLINE bool Context::noopDraw(PrimitiveMode mode, GLsizei count) const
 {
-    if (!mStateCache.getCanDraw())
+    if (ANGLE_UNLIKELY(count < kMinimumPrimitiveCounts[mode]))
     {
         return true;
     }
 
-    return count < kMinimumPrimitiveCounts[mode];
+    return noopDrawProgram();
+}
+
+ANGLE_INLINE bool Context::noopDrawInstanced(PrimitiveMode mode,
+                                             GLsizei count,
+                                             GLsizei instanceCount) const
+{
+    if (ANGLE_UNLIKELY(instanceCount < 1))
+    {
+        return true;
+    }
+
+    return noopDraw(mode, count);
 }
 
 ANGLE_INLINE bool Context::noopMultiDraw(GLsizei drawcount) const
 {
-    return drawcount == 0 || !mStateCache.getCanDraw();
+    if (ANGLE_UNLIKELY(drawcount < 1))
+    {
+        return true;
+    }
+
+    return noopDrawProgram();
 }
 
-ANGLE_INLINE angle::Result Context::syncDirtyBits(Command command)
-{
-    const State::DirtyBits &dirtyBits                 = mState.getDirtyBits();
-    const State::ExtendedDirtyBits &extendedDirtyBits = mState.getExtendedDirtyBits();
-    ANGLE_TRY(mImplementation->syncState(this, dirtyBits, mAllDirtyBits, extendedDirtyBits,
-                                         mAllExtendedDirtyBits, command));
-    mState.clearDirtyBits();
-    return angle::Result::Continue;
-}
-
-ANGLE_INLINE angle::Result Context::syncDirtyBits(const State::DirtyBits &bitMask,
-                                                  const State::ExtendedDirtyBits &extendedBitMask,
+ANGLE_INLINE angle::Result Context::syncDirtyBits(const state::DirtyBits bitMask,
+                                                  const state::ExtendedDirtyBits extendedBitMask,
                                                   Command command)
 {
-    const State::DirtyBits &dirtyBits = (mState.getDirtyBits() & bitMask);
-    const State::ExtendedDirtyBits &extendedDirtyBits =
+    const state::DirtyBits dirtyBits = (mState.getDirtyBits() & bitMask);
+    const state::ExtendedDirtyBits extendedDirtyBits =
         (mState.getExtendedDirtyBits() & extendedBitMask);
     ANGLE_TRY(mImplementation->syncState(this, dirtyBits, bitMask, extendedDirtyBits,
                                          extendedBitMask, command));
@@ -114,7 +136,7 @@ ANGLE_INLINE angle::Result Context::syncDirtyBits(const State::DirtyBits &bitMas
     return angle::Result::Continue;
 }
 
-ANGLE_INLINE angle::Result Context::syncDirtyObjects(const State::DirtyObjects &objectMask,
+ANGLE_INLINE angle::Result Context::syncDirtyObjects(const state::DirtyObjects &objectMask,
                                                      Command command)
 {
     return mState.syncDirtyObjects(this, objectMask, command);
@@ -124,13 +146,13 @@ ANGLE_INLINE angle::Result Context::prepareForDraw(PrimitiveMode mode)
 {
     if (mGLES1Renderer)
     {
-        ANGLE_TRY(mGLES1Renderer->prepareForDraw(mode, this, &mState));
+        ANGLE_TRY(mGLES1Renderer->prepareForDraw(mode, this, &mState, getMutableGLES1State()));
     }
 
     ANGLE_TRY(syncDirtyObjects(mDrawDirtyObjects, Command::Draw));
     ASSERT(!isRobustResourceInitEnabled() ||
            !mState.getDrawFramebuffer()->hasResourceThatNeedsInit());
-    return syncDirtyBits(Command::Draw);
+    return syncDirtyBits(kDrawDirtyBits, kDrawExtendedDirtyBits, Command::Draw);
 }
 
 ANGLE_INLINE void Context::drawArrays(PrimitiveMode mode, GLint first, GLsizei count)
@@ -182,6 +204,250 @@ ANGLE_INLINE void Context::bindBuffer(BufferBinding target, BufferID buffer)
 
     mState.setBufferBinding(this, target, bufferObject);
     mStateCache.onBufferBindingChange(this);
+
+    if (bufferObject && isWebGL())
+    {
+        bufferObject->onBind(this, target);
+    }
+}
+
+ANGLE_INLINE void Context::uniform1f(UniformLocation location, GLfloat x)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform1fv(location, 1, &x);
+}
+
+ANGLE_INLINE void Context::uniform1fv(UniformLocation location, GLsizei count, const GLfloat *v)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform1fv(location, count, v);
+}
+
+ANGLE_INLINE void Context::setUniform1iImpl(Program *program,
+                                            UniformLocation location,
+                                            GLsizei count,
+                                            const GLint *v)
+{
+    program->getExecutable().setUniform1iv(this, location, count, v);
+}
+
+ANGLE_INLINE void Context::uniform1i(UniformLocation location, GLint x)
+{
+    Program *program = getActiveLinkedProgram();
+    setUniform1iImpl(program, location, 1, &x);
+}
+
+ANGLE_INLINE void Context::uniform1iv(UniformLocation location, GLsizei count, const GLint *v)
+{
+    Program *program = getActiveLinkedProgram();
+    setUniform1iImpl(program, location, count, v);
+}
+
+ANGLE_INLINE void Context::uniform2f(UniformLocation location, GLfloat x, GLfloat y)
+{
+    GLfloat xy[2]    = {x, y};
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform2fv(location, 1, xy);
+}
+
+ANGLE_INLINE void Context::uniform2fv(UniformLocation location, GLsizei count, const GLfloat *v)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform2fv(location, count, v);
+}
+
+ANGLE_INLINE void Context::uniform2i(UniformLocation location, GLint x, GLint y)
+{
+    GLint xy[2]      = {x, y};
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform2iv(location, 1, xy);
+}
+
+ANGLE_INLINE void Context::uniform2iv(UniformLocation location, GLsizei count, const GLint *v)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform2iv(location, count, v);
+}
+
+ANGLE_INLINE void Context::uniform3f(UniformLocation location, GLfloat x, GLfloat y, GLfloat z)
+{
+    GLfloat xyz[3]   = {x, y, z};
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform3fv(location, 1, xyz);
+}
+
+ANGLE_INLINE void Context::uniform3fv(UniformLocation location, GLsizei count, const GLfloat *v)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform3fv(location, count, v);
+}
+
+ANGLE_INLINE void Context::uniform3i(UniformLocation location, GLint x, GLint y, GLint z)
+{
+    GLint xyz[3]     = {x, y, z};
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform3iv(location, 1, xyz);
+}
+
+ANGLE_INLINE void Context::uniform3iv(UniformLocation location, GLsizei count, const GLint *v)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform3iv(location, count, v);
+}
+
+ANGLE_INLINE void Context::uniform4f(UniformLocation location,
+                                     GLfloat x,
+                                     GLfloat y,
+                                     GLfloat z,
+                                     GLfloat w)
+{
+    GLfloat xyzw[4]  = {x, y, z, w};
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform4fv(location, 1, xyzw);
+}
+
+ANGLE_INLINE void Context::uniform4fv(UniformLocation location, GLsizei count, const GLfloat *v)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform4fv(location, count, v);
+}
+
+ANGLE_INLINE void Context::uniform4i(UniformLocation location, GLint x, GLint y, GLint z, GLint w)
+{
+    GLint xyzw[4]    = {x, y, z, w};
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform4iv(location, 1, xyzw);
+}
+
+ANGLE_INLINE void Context::uniform4iv(UniformLocation location, GLsizei count, const GLint *v)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform4iv(location, count, v);
+}
+
+ANGLE_INLINE void Context::uniform1ui(UniformLocation location, GLuint v0)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform1uiv(location, 1, &v0);
+}
+
+ANGLE_INLINE void Context::uniform2ui(UniformLocation location, GLuint v0, GLuint v1)
+{
+    Program *program  = getActiveLinkedProgram();
+    const GLuint xy[] = {v0, v1};
+    program->getExecutable().setUniform2uiv(location, 1, xy);
+}
+
+ANGLE_INLINE void Context::uniform3ui(UniformLocation location, GLuint v0, GLuint v1, GLuint v2)
+{
+    Program *program   = getActiveLinkedProgram();
+    const GLuint xyz[] = {v0, v1, v2};
+    program->getExecutable().setUniform3uiv(location, 1, xyz);
+}
+
+ANGLE_INLINE void Context::uniform4ui(UniformLocation location,
+                                      GLuint v0,
+                                      GLuint v1,
+                                      GLuint v2,
+                                      GLuint v3)
+{
+    Program *program    = getActiveLinkedProgram();
+    const GLuint xyzw[] = {v0, v1, v2, v3};
+    program->getExecutable().setUniform4uiv(location, 1, xyzw);
+}
+
+ANGLE_INLINE void Context::uniform1uiv(UniformLocation location, GLsizei count, const GLuint *value)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform1uiv(location, count, value);
+}
+
+ANGLE_INLINE void Context::uniform2uiv(UniformLocation location, GLsizei count, const GLuint *value)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform2uiv(location, count, value);
+}
+
+ANGLE_INLINE void Context::uniform3uiv(UniformLocation location, GLsizei count, const GLuint *value)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform3uiv(location, count, value);
+}
+
+ANGLE_INLINE void Context::uniform4uiv(UniformLocation location, GLsizei count, const GLuint *value)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniform4uiv(location, count, value);
+}
+
+ANGLE_INLINE void Context::uniformMatrix2x3fv(UniformLocation location,
+                                              GLsizei count,
+                                              GLboolean transpose,
+                                              const GLfloat *value)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniformMatrix2x3fv(location, count, transpose, value);
+}
+
+ANGLE_INLINE void Context::uniformMatrix3x2fv(UniformLocation location,
+                                              GLsizei count,
+                                              GLboolean transpose,
+                                              const GLfloat *value)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniformMatrix3x2fv(location, count, transpose, value);
+}
+
+ANGLE_INLINE void Context::uniformMatrix2x4fv(UniformLocation location,
+                                              GLsizei count,
+                                              GLboolean transpose,
+                                              const GLfloat *value)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniformMatrix2x4fv(location, count, transpose, value);
+}
+
+ANGLE_INLINE void Context::uniformMatrix4x2fv(UniformLocation location,
+                                              GLsizei count,
+                                              GLboolean transpose,
+                                              const GLfloat *value)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniformMatrix4x2fv(location, count, transpose, value);
+}
+
+ANGLE_INLINE void Context::uniformMatrix3x4fv(UniformLocation location,
+                                              GLsizei count,
+                                              GLboolean transpose,
+                                              const GLfloat *value)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniformMatrix3x4fv(location, count, transpose, value);
+}
+
+ANGLE_INLINE void Context::uniformMatrix4x3fv(UniformLocation location,
+                                              GLsizei count,
+                                              GLboolean transpose,
+                                              const GLfloat *value)
+{
+    Program *program = getActiveLinkedProgram();
+    program->getExecutable().setUniformMatrix4x3fv(location, count, transpose, value);
+}
+
+ANGLE_INLINE void Context::vertexAttribPointer(GLuint index,
+                                               GLint size,
+                                               VertexAttribType type,
+                                               GLboolean normalized,
+                                               GLsizei stride,
+                                               const void *ptr)
+{
+    bool vertexAttribDirty = false;
+    mState.setVertexAttribPointer(this, index, mState.getTargetBuffer(BufferBinding::Array), size,
+                                  type, normalized != GL_FALSE, stride, ptr, &vertexAttribDirty);
+    if (vertexAttribDirty)
+    {
+        mStateCache.onVertexArrayStateChange(this);
+    }
 }
 
 }  // namespace gl

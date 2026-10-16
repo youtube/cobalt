@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "mojo/core/data_pipe_consumer_dispatcher.h"
 
 #include <stddef.h>
@@ -390,7 +395,7 @@ DataPipeConsumerDispatcher::Deserialize(const void* data,
     return nullptr;
   }
 
-  absl::optional<base::UnguessableToken> buffer_guid =
+  std::optional<base::UnguessableToken> buffer_guid =
       base::UnguessableToken::Deserialize(state->buffer_guid_high,
                                           state->buffer_guid_low);
   if (!buffer_guid.has_value()) {
@@ -400,12 +405,18 @@ DataPipeConsumerDispatcher::Deserialize(const void* data,
 
   auto region_handle = CreateSharedMemoryRegionHandleFromPlatformHandles(
       std::move(handles[0]), PlatformHandle());
-  auto region = base::subtle::PlatformSharedMemoryRegion::Take(
+  auto maybe_region = base::subtle::PlatformSharedMemoryRegion::TakeOrFail(
       std::move(region_handle),
       base::subtle::PlatformSharedMemoryRegion::Mode::kUnsafe,
       state->options.capacity_num_bytes, buffer_guid.value());
+  if (!maybe_region.has_value()) {
+    LOG(ERROR) << "Failed to deserialize platform shared memory region: "
+               << static_cast<int>(maybe_region.error());
+    AssertNotExtractingHandlesFromMessage();
+    return nullptr;
+  }
   auto ring_buffer =
-      base::UnsafeSharedMemoryRegion::Deserialize(std::move(region));
+      base::UnsafeSharedMemoryRegion::Deserialize(*std::move(maybe_region));
   if (!ring_buffer.IsValid()) {
     DLOG(ERROR) << "Failed to deserialize shared buffer handle.";
     AssertNotExtractingHandlesFromMessage();

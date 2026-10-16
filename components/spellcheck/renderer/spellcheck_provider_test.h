@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "components/spellcheck/renderer/empty_local_interface_provider.h"
@@ -17,14 +18,13 @@
 #include "components/spellcheck/spellcheck_buildflags.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/public/platform/web_vector.h"
 #include "third_party/blink/public/web/web_text_checking_completion.h"
 #include "third_party/blink/public/web/web_text_checking_result.h"
 
 struct FakeTextCheckingResult {
   size_t completion_count_ = 0;
   size_t cancellation_count_ = 0;
-  blink::WebVector<blink::WebTextCheckingResult> results_;
+  std::vector<blink::WebTextCheckingResult> results_;
 
   explicit FakeTextCheckingResult();
   ~FakeTextCheckingResult();
@@ -37,10 +37,10 @@ class FakeTextCheckingCompletion : public blink::WebTextCheckingCompletion {
   ~FakeTextCheckingCompletion() override;
 
   void DidFinishCheckingText(
-      const blink::WebVector<blink::WebTextCheckingResult>& results) override;
+      const std::vector<blink::WebTextCheckingResult>& results) override;
   void DidCancelCheckingText() override;
 
-  FakeTextCheckingResult* result_;
+  raw_ptr<FakeTextCheckingResult> result_;
 };
 
 // A fake SpellCheck object which can fake the number of (enabled) spell check
@@ -86,9 +86,8 @@ class TestingSpellCheckProvider : public SpellCheckProvider,
       const std::u16string& text,
       std::unique_ptr<blink::WebTextCheckingCompletion> completion);
 
-  void SetLastResults(
-      const std::u16string last_request,
-      blink::WebVector<blink::WebTextCheckingResult>& last_results);
+  void SetLastResults(const std::u16string last_request,
+                      std::vector<blink::WebTextCheckingResult>& last_results);
   bool SatisfyRequestFromCache(const std::u16string& text,
                                blink::WebTextCheckingCompletion* completion);
 
@@ -123,9 +122,10 @@ class TestingSpellCheckProvider : public SpellCheckProvider,
     return static_cast<FakeSpellCheck*>(spellcheck_);
   }
 
+  base::WeakPtr<SpellCheckProvider> GetWeakPtr();
+
  private:
   // spellcheck::mojom::SpellCheckHost:
-  void RequestDictionary() override;
   void NotifyChecked(const std::u16string& word, bool misspelled) override;
 
 #if BUILDFLAG(USE_RENDERER_SPELLCHECKER)
@@ -136,14 +136,14 @@ class TestingSpellCheckProvider : public SpellCheckProvider,
 
 #if BUILDFLAG(USE_BROWSER_SPELLCHECKER)
   void RequestTextCheck(const std::u16string&,
-                        int,
                         RequestTextCheckCallback) override;
+#if BUILDFLAG(ENABLE_SPELLING_SERVICE)
   using SpellCheckProvider::CheckSpelling;
   void CheckSpelling(const std::u16string&,
-                     int,
                      CheckSpellingCallback) override;
   void FillSuggestionList(const std::u16string&,
                           FillSuggestionListCallback) override;
+#endif  // BUILDFLAG(ENABLE_SPELLING_SERVICE)
 #if BUILDFLAG(IS_WIN)
   void InitializeDictionaries(InitializeDictionariesCallback callback) override;
 #endif  // BUILDFLAG(IS_WIN)

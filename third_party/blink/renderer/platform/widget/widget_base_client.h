@@ -8,23 +8,29 @@
 #include <vector>
 
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "cc/metrics/begin_main_frame_metrics.h"
 #include "cc/metrics/frame_sequence_tracker_collection.h"
-#include "cc/metrics/web_vital_metrics.h"
 #include "cc/paint/element_id.h"
 #include "cc/trees/layer_tree_host_client.h"
+#include "services/viz/public/mojom/hit_test/input_target_client.mojom-blink.h"
 #include "third_party/blink/public/common/metrics/document_update_reason.h"
 #include "third_party/blink/public/mojom/input/input_handler.mojom-blink.h"
 #include "third_party/blink/public/platform/web_input_event_result.h"
 #include "third_party/blink/public/platform/web_text_input_type.h"
 #include "third_party/blink/public/web/web_lifecycle_update.h"
+#include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/widget/input/input_handler_proxy.h"
+#include "ui/base/mojom/menu_source_type.mojom-blink-forward.h"
 #include "ui/display/mojom/screen_orientation.mojom-blink.h"
+
+namespace viz {
+struct FrameTimingDetails;
+}
 
 namespace cc {
 class LayerTreeFrameSink;
 struct BeginMainFrameMetrics;
-struct WebVitalMetrics;
 }  // namespace cc
 
 namespace blink {
@@ -47,7 +53,7 @@ class WidgetBaseClient {
 
   // Called to update the document lifecycle, advance the state of animations
   // and dispatch rAF.
-  virtual void BeginMainFrame(base::TimeTicks frame_time) = 0;
+  virtual void BeginMainFrame(const viz::BeginFrameArgs& args) = 0;
 
   // Requests that the lifecycle of the widget be updated.
   virtual void UpdateLifecycle(WebLifecycleUpdate requested_update,
@@ -78,10 +84,6 @@ class WidgetBaseClient {
     return nullptr;
   }
 
-  virtual std::unique_ptr<cc::WebVitalMetrics> GetWebVitalMetrics() {
-    return nullptr;
-  }
-
   // Methods called to mark the beginning and end of the
   // LayerTreeHost::UpdateLayers method. Only called when gathering main frame
   // UMA and UKM. That is, when RecordStartOfFrameMetrics has been called, and
@@ -96,6 +98,12 @@ class WidgetBaseClient {
   virtual void BeginCommitCompositorFrame() {}
   virtual void EndCommitCompositorFrame(base::TimeTicks commit_start_time,
                                         base::TimeTicks commit_finish_time) {}
+
+#if BUILDFLAG(IS_COBALT)
+  virtual void DidPresentCobaltFrame(
+      uint32_t frame_token,
+      const viz::FrameTimingDetails& frame_timing_details) {}
+#endif
 
   // Applies viewport related properties during a commit from the compositor
   // thread.
@@ -154,7 +162,7 @@ class WidgetBaseClient {
   virtual void FocusChanged(mojom::blink::FocusState focus_state) {}
 
   // Call to request an animation frame from the compositor.
-  virtual void ScheduleAnimation() {}
+  virtual void ScheduleAnimation(bool urgent) {}
 
   // TODO(bokan): Temporary to unblock synthetic gesture events running under
   // VR. https://crbug.com/940063
@@ -192,9 +200,9 @@ class WidgetBaseClient {
   virtual gfx::Rect ViewportVisibleRect() = 0;
 
   // The screen orientation override.
-  virtual absl::optional<display::mojom::blink::ScreenOrientation>
+  virtual std::optional<display::mojom::blink::ScreenOrientation>
   ScreenOrientationOverride() {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Return the overridden device scale factor for testing.
@@ -236,6 +244,11 @@ class WidgetBaseClient {
   // Whether to use ScrollPredictor to resample scroll events. This is false for
   // web_tests to ensure that scroll deltas are not timing-dependent.
   virtual bool AllowsScrollResampling() { return true; }
+
+  virtual void ShowContextMenu(ui::mojom::blink::MenuSourceType source_type,
+                               const gfx::Point& location) {}
+  virtual void BindInputTargetClient(
+      mojo::PendingReceiver<viz::mojom::blink::InputTargetClient> receiver) {}
 };
 
 }  // namespace blink

@@ -7,6 +7,7 @@
 #include "third_party/blink/public/mojom/frame/lifecycle.mojom-shared.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_permission_state.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/event_target_modules_names.h"
@@ -16,7 +17,7 @@ namespace blink {
 
 // static
 PermissionStatus* PermissionStatus::Take(PermissionStatusListener* listener,
-                                         ScriptPromiseResolver* resolver) {
+                                         ScriptPromiseResolverBase* resolver) {
   ExecutionContext* execution_context = resolver->GetExecutionContext();
   PermissionStatus* permission_status =
       MakeGarbageCollected<PermissionStatus>(listener, execution_context);
@@ -44,8 +45,7 @@ ExecutionContext* PermissionStatus::GetExecutionContext() const {
 void PermissionStatus::AddedEventListener(
     const AtomicString& event_type,
     RegisteredEventListener& registered_listener) {
-  EventTargetWithInlineData::AddedEventListener(event_type,
-                                                registered_listener);
+  EventTarget::AddedEventListener(event_type, registered_listener);
 
   if (!listener_)
     return;
@@ -58,8 +58,7 @@ void PermissionStatus::AddedEventListener(
 void PermissionStatus::RemovedEventListener(
     const AtomicString& event_type,
     const RegisteredEventListener& registered_listener) {
-  EventTargetWithInlineData::RemovedEventListener(event_type,
-                                                  registered_listener);
+  EventTarget::RemovedEventListener(event_type, registered_listener);
   if (!listener_)
     return;
 
@@ -86,9 +85,10 @@ void PermissionStatus::ContextLifecycleStateChanged(
     StopListening();
 }
 
-String PermissionStatus::state() const {
-  if (!listener_)
-    return String();
+V8PermissionState PermissionStatus::state() const {
+  if (!listener_) {
+    return V8PermissionState(V8PermissionState::Enum::kDenied);
+  }
   return listener_->state();
 }
 
@@ -129,7 +129,7 @@ void PermissionStatus::OnPermissionStatusChange(MojoPermissionStatus status) {
 
 void PermissionStatus::Trace(Visitor* visitor) const {
   visitor->Trace(listener_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ExecutionContextLifecycleStateObserver::Trace(visitor);
   PermissionStatusListener::Observer::Trace(visitor);
 }

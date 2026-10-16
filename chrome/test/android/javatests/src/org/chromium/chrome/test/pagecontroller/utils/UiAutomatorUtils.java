@@ -12,14 +12,18 @@ import android.os.Environment;
 import android.os.ParcelFileDescriptor;
 import android.os.Process;
 import android.os.RemoteException;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
-import androidx.test.InstrumentationRegistry;
 import androidx.test.core.app.ApplicationProvider;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
 
-import org.chromium.base.Log;
+import org.hamcrest.Matchers;
+
+import org.chromium.base.test.util.Criteria;
+import org.chromium.base.test.util.CriteriaHelper;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -30,16 +34,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Callable;
 
-/**
- *  Allows tests to perform UI actions.
- */
+/** Allows tests to perform UI actions. */
 public class UiAutomatorUtils {
     private static final String TAG = "UiAutomatorUtils";
     private static final int SWIPE_STEPS_PER_SECOND = 200;
     private static final int MAX_SWIPES = 30;
     private static final float DEFAULT_SWIPE_SECONDS_PER_PAGE = 0.2f;
     private static final float DEFAULT_SWIPE_SCREEN_FRACTION = 0.6f;
+    private static final long WAIT_TIMEOUT_MS = 20000L;
+    private static final long UI_CHECK_INTERVAL = 1000L;
     private static final long SHORT_CLICK_DURATION = 10L;
     private static final long LONG_CLICK_DURATION = 1000L;
     // Give applications more time to launch.
@@ -49,8 +54,8 @@ public class UiAutomatorUtils {
     // clicking, steps is one of the parameters to drag.
     public static final int CLICK_STEPS_PER_SECOND = 100;
 
-    private UiDevice mDevice;
-    private UiLocatorHelper mLocatorHelper;
+    private final UiDevice mDevice;
+    private final UiLocatorHelper mLocatorHelper;
 
     private static class LazyHolder {
         static final UiAutomatorUtils sInstance = new UiAutomatorUtils();
@@ -124,9 +129,16 @@ public class UiAutomatorUtils {
      */
     public void clickOutsideOf(@NonNull IUi2Locator locator) {
         Rect bounds = getBounds(locator);
-        Log.d(TAG,
-                "Clicking outside of bounds with Bottom:" + bounds.bottom + " Top:" + bounds.top
-                        + " Left:" + bounds.left + " Right:" + bounds.right);
+        Log.d(
+                TAG,
+                "Clicking outside of bounds with Bottom:"
+                        + bounds.bottom
+                        + " Top:"
+                        + bounds.top
+                        + " Left:"
+                        + bounds.left
+                        + " Right:"
+                        + bounds.right);
         clickOutsideOfArea(bounds.left, bounds.top, bounds.right, bounds.bottom);
     }
 
@@ -160,7 +172,11 @@ public class UiAutomatorUtils {
     private void clickDurationInternal(IUi2Locator locator, long duration) {
         UiObject2 object2 = mLocatorHelper.getOne(locator);
         Point center = object2.getVisibleCenter();
-        mDevice.swipe(center.x, center.y, center.x, center.y,
+        mDevice.swipe(
+                center.x,
+                center.y,
+                center.x,
+                center.y,
                 (int) (CLICK_STEPS_PER_SECOND * duration / 1000L));
     }
 
@@ -177,19 +193,21 @@ public class UiAutomatorUtils {
     /**
      * Copied over from UiAutomator UiDevice v18.0.1, it was removed for some reason, but is useful.
      * Executes a shell command using shell user identity, and return the standard output in string.
-     * <p>
-     * Calling function with large amount of output will have memory impacts, and the function call
-     * will block if the command executed is blocking.
+     *
+     * <p>Calling function with large amount of output will have memory impacts, and the function
+     * call will block if the command executed is blocking.
+     *
      * <p>Note: calling this function requires API level 21 or above
+     *
      * @param cmd Command to run
-     * @return    The standard output of the command
-     * @throws IOException
+     * @return The standard output of the command
      * @since API Level 21
      */
     public String executeShellCommand(@NonNull String cmd) throws IOException {
         ParcelFileDescriptor pfd =
-                InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand(
-                        cmd);
+                InstrumentationRegistry.getInstrumentation()
+                        .getUiAutomation()
+                        .executeShellCommand(cmd);
         byte[] buf = new byte[512];
         int bytesRead;
         FileInputStream fis = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
@@ -236,9 +254,9 @@ public class UiAutomatorUtils {
 
     /**
      * Performs the swipe up gesture repeatedly until a locator is found.
-     * @param locator  locator that will stop the swipe if found on screen.
-     * @param stopLocator  locator that will cause an UiLocationException if found before locator.
-     * @throws UiLocationException
+     *
+     * @param locator locator that will stop the swipe if found on screen.
+     * @param stopLocator locator that will cause an UiLocationException if found before locator.
      */
     public void swipeUpVerticallyUntilFound(IUi2Locator locator, IUi2Locator stopLocator) {
         swipeVerticallyUntilFound(locator, stopLocator, DEFAULT_SWIPE_SCREEN_FRACTION);
@@ -246,9 +264,9 @@ public class UiAutomatorUtils {
 
     /**
      * Performs the swipe down gesture repeatedly until a locator is found.
-     * @param locator     locator that will stop the swipe if found on screen.
+     *
+     * @param locator locator that will stop the swipe if found on screen.
      * @param stopLocator locator that will cause an UiLocationException if found before locator.
-     * @throws UiLocationException
      */
     public void swipeDownVerticallyUntilFound(IUi2Locator locator, IUi2Locator stopLocator) {
         swipeVerticallyUntilFound(locator, stopLocator, -DEFAULT_SWIPE_SCREEN_FRACTION);
@@ -313,12 +331,46 @@ public class UiAutomatorUtils {
         }
     }
 
+    public void waitUntilAnyVisible(IUi2Locator... locators) {
+        CriteriaHelper.pollInstrumentationThread(
+                toNotSatisfiedRunnable(
+                        () -> {
+                            for (IUi2Locator locator : locators) {
+                                if (mLocatorHelper.isOnScreen(locator)) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        },
+                        "No Chrome views on screen. (i.e. Chrome has crashed "
+                                + "on startup). Look at earlier logs for the actual "
+                                + "crash stacktrace."),
+                WAIT_TIMEOUT_MS,
+                UI_CHECK_INTERVAL);
+    }
+
+    private static Runnable toNotSatisfiedRunnable(
+            Callable<Boolean> criteria, String failureReason) {
+        return () -> {
+            try {
+                boolean isSatisfied = criteria.call();
+                Criteria.checkThat(failureReason, isSatisfied, Matchers.is(true));
+            } catch (RuntimeException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        };
+    }
+
     private void launchApplication(String packageName, long timeout) {
         Context context = ApplicationProvider.getApplicationContext();
         final Intent intent = context.getPackageManager().getLaunchIntentForPackage(packageName);
         if (intent == null) {
-            throw new IllegalStateException("Could not get intent to launch " + packageName
-                    + ", please ensure that it is installed");
+            throw new IllegalStateException(
+                    "Could not get intent to launch "
+                            + packageName
+                            + ", please ensure that it is installed");
         }
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
         context.startActivity(intent);
@@ -329,9 +381,6 @@ public class UiAutomatorUtils {
     }
 
     // positive fraction indicates swipe up
-    /**
-     * @throws UiLocationException
-     */
     private void swipeVerticallyUntilFound(
             IUi2Locator locator, IUi2Locator stopLocator, float fractionOfScreen) {
         if (mLocatorHelper.isOnScreen(locator)) return;
@@ -422,9 +471,13 @@ public class UiAutomatorUtils {
         int h = mDevice.getDisplayHeight();
         int startY = h / 2 - (int) (fractionOfScreen / 2f * h);
         int stopY = startY + (int) (fractionOfScreen * h);
-        int steps = (int) (DEFAULT_SWIPE_SECONDS_PER_PAGE * Math.abs(fractionOfScreen)
-                * SWIPE_STEPS_PER_SECOND);
-        Log.d(TAG,
+        int steps =
+                (int)
+                        (DEFAULT_SWIPE_SECONDS_PER_PAGE
+                                * Math.abs(fractionOfScreen)
+                                * SWIPE_STEPS_PER_SECOND);
+        Log.d(
+                TAG,
                 "Swiping vertically from " + stopY + " to " + startY + " in " + steps + " steps");
         mDevice.swipe(x, stopY, x, startY, steps);
     }
@@ -479,7 +532,8 @@ public class UiAutomatorUtils {
                 strings.add(line);
             }
         }
-        Log.d(TAG,
+        Log.d(
+                TAG,
                 "readAllFromFile read " + strings.size() + " lines from " + file.getAbsolutePath());
         return strings;
     }

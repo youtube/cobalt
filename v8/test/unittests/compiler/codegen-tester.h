@@ -28,7 +28,7 @@ class RawMachineAssemblerTester : public CallHelper<ReturnType>,
             isolate,
             CSignature::New(zone, MachineTypeForC<ReturnType>(), p...)),
         RawMachineAssembler(
-            isolate, zone->template New<Graph>(zone),
+            isolate, zone->template New<TFGraph>(zone),
             Linkage::GetSimplifiedCDescriptor(
                 zone,
                 CSignature::New(zone, MachineTypeForC<ReturnType>(), p...),
@@ -46,7 +46,7 @@ class RawMachineAssemblerTester : public CallHelper<ReturnType>,
             isolate,
             CSignature::New(zone, MachineTypeForC<ReturnType>(), p...)),
         RawMachineAssembler(
-            isolate, zone->template New<Graph>(zone),
+            isolate, zone->template New<TFGraph>(zone),
             Linkage::GetSimplifiedCDescriptor(
                 zone,
                 CSignature::New(zone, MachineTypeForC<ReturnType>(), p...),
@@ -60,19 +60,19 @@ class RawMachineAssemblerTester : public CallHelper<ReturnType>,
 
   ~RawMachineAssemblerTester() override = default;
 
-  void CheckNumber(double expected, Object number) {
-    CHECK(this->isolate()->factory()->NewNumber(expected)->SameValue(number));
+  void CheckNumber(double expected, Tagged<Object> number) {
+    CHECK(Object::SameValue(*this->isolate()->factory()->NewNumber(expected),
+                            number));
   }
 
-  void CheckString(const char* expected, Object string) {
-    CHECK(
-        this->isolate()->factory()->InternalizeUtf8String(expected)->SameValue(
-            string));
+  void CheckString(const char* expected, Tagged<Object> string) {
+    CHECK(Object::SameValue(
+        *this->isolate()->factory()->InternalizeUtf8String(expected), string));
   }
 
   void GenerateCode() { Generate(); }
 
-  Handle<Code> GetCode() {
+  DirectHandle<Code> GetCode() {
     Generate();
     return code_.ToHandleChecked();
   }

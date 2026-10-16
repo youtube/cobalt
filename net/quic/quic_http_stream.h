@@ -10,10 +10,10 @@
 
 #include <set>
 #include <string>
+#include <string_view>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/idempotency.h"
@@ -26,7 +26,7 @@
 #include "net/quic/quic_chromium_client_session.h"
 #include "net/quic/quic_chromium_client_stream.h"
 #include "net/spdy/multiplexed_http_stream.h"
-#include "net/third_party/quiche/src/quiche/quic/core/http/quic_client_push_promise_index.h"
+#include "net/third_party/quiche/src/quiche/common/http/http_header_block.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_packets.h"
 
 namespace net {
@@ -75,12 +75,11 @@ class NET_EXPORT_PRIVATE QuicHttpStream : public MultiplexedHttpStream {
   void SetPriority(RequestPriority priority) override;
   void SetRequestIdempotency(Idempotency idempotency) override;
   const std::set<std::string>& GetDnsAliases() const override;
-  base::StringPiece GetAcceptChViaAlps() const override;
-  absl::optional<quic::QuicErrorCode> GetQuicErrorCode() const override;
-  absl::optional<quic::QuicRstStreamErrorCode> GetQuicRstStreamErrorCode()
+  std::string_view GetAcceptChViaAlps() const override;
+  std::optional<QuicConnectionDetails> GetQuicConnectionDetails()
       const override;
 
-  static HttpResponseInfo::ConnectionInfo ConnectionInfoFromQuicVersion(
+  static HttpConnectionInfo ConnectionInfoFromQuicVersion(
       quic::ParsedQuicVersion quic_version);
 
  private:
@@ -88,8 +87,6 @@ class NET_EXPORT_PRIVATE QuicHttpStream : public MultiplexedHttpStream {
 
   enum State {
     STATE_NONE,
-    STATE_HANDLE_PROMISE,
-    STATE_HANDLE_PROMISE_COMPLETE,
     STATE_REQUEST_STREAM,
     STATE_REQUEST_STREAM_COMPLETE,
     STATE_SET_REQUEST_PRIORITY,
@@ -106,8 +103,6 @@ class NET_EXPORT_PRIVATE QuicHttpStream : public MultiplexedHttpStream {
   void DoCallback(int rv);
 
   int DoLoop(int rv);
-  int DoHandlePromise();
-  int DoHandlePromiseComplete(int rv);
   int DoRequestStream();
   int DoRequestStreamComplete(int rv);
   int DoSetRequestPriority();
@@ -119,7 +114,7 @@ class NET_EXPORT_PRIVATE QuicHttpStream : public MultiplexedHttpStream {
   int DoSendBodyComplete(int rv);
 
   void OnReadResponseHeadersComplete(int rv);
-  int ProcessResponseHeaders(const spdy::Http2HeaderBlock& headers);
+  int ProcessResponseHeaders(const quiche::HttpHeaderBlock& headers);
   void ReadTrailingHeaders();
   void OnReadTrailingHeadersComplete(int rv);
 
@@ -169,8 +164,7 @@ class NET_EXPORT_PRIVATE QuicHttpStream : public MultiplexedHttpStream {
   bool can_send_early_ = false;
 
   // The request body to send, if any, owned by the caller.
-  // DanglingUntriaged because it is assigned a DanglingUntriaged pointer.
-  raw_ptr<UploadDataStream, DanglingUntriaged> request_body_stream_ = nullptr;
+  raw_ptr<UploadDataStream> request_body_stream_ = nullptr;
   // Time the request was issued.
   base::Time request_time_;
   // The priority of the request.
@@ -186,12 +180,12 @@ class NET_EXPORT_PRIVATE QuicHttpStream : public MultiplexedHttpStream {
   int response_status_ = ERR_UNEXPECTED;
 
   // Serialized request headers.
-  spdy::Http2HeaderBlock request_headers_;
+  quiche::HttpHeaderBlock request_headers_;
 
-  spdy::Http2HeaderBlock response_header_block_;
+  quiche::HttpHeaderBlock response_header_block_;
   bool response_headers_received_ = false;
 
-  spdy::Http2HeaderBlock trailing_header_block_;
+  quiche::HttpHeaderBlock trailing_header_block_;
   bool trailing_headers_received_ = false;
 
   // Number of bytes received by the headers stream on behalf of this stream.
@@ -208,8 +202,10 @@ class NET_EXPORT_PRIVATE QuicHttpStream : public MultiplexedHttpStream {
   // the default value of false.
   bool closed_is_first_stream_ = false;
 
-  absl::optional<quic::QuicErrorCode> connection_error_;
-  absl::optional<quic::QuicRstStreamErrorCode> stream_error_;
+  quic::QuicErrorCode connection_error_ = quic::QUIC_NO_ERROR;
+  quic::QuicRstStreamErrorCode stream_error_ = quic::QUIC_STREAM_NO_ERROR;
+  uint64_t connection_wire_error_ = 0;
+  uint64_t ietf_application_error_ = 0;
 
   // The caller's callback to be used for asynchronous operations.
   CompletionOnceCallback callback_;
@@ -227,8 +223,6 @@ class NET_EXPORT_PRIVATE QuicHttpStream : public MultiplexedHttpStream {
 
   int session_error_ =
       ERR_UNEXPECTED;  // Error code from the connection shutdown.
-
-  bool found_promise_ = false;
 
   // Set to true when DoLoop() is being executed, false otherwise.
   bool in_loop_ = false;

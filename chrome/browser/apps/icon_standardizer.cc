@@ -2,8 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/apps/icon_standardizer.h"
 
+#include "base/trace_event/trace_event.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkMaskFilter.h"
 #include "ui/gfx/image/image_skia.h"
@@ -38,6 +44,7 @@ float GetDistanceBetweenPoints(gfx::PointF first_point,
 // Returns the distance for the farthest visible pixel away from the center of
 // the icon.
 float GetFarthestVisiblePointFromCenter(const SkBitmap& bitmap) {
+  TRACE_EVENT0("ui", "apps::GetFarthestVisiblePointFromCenter");
   int width = bitmap.width();
   int height = bitmap.height();
 
@@ -91,6 +98,7 @@ float GetFarthestVisiblePointFromCenter(const SkBitmap& bitmap) {
 }
 
 bool IsIconRepCircleShaped(const gfx::ImageSkiaRep& rep) {
+  TRACE_EVENT0("ui", "apps::IsIconRepCircleShaped");
   SkBitmap bitmap(rep.GetBitmap());
   int width = bitmap.width();
   int height = bitmap.height();
@@ -182,15 +190,16 @@ bool IsIconRepCircleShaped(const gfx::ImageSkiaRep& rep) {
   return (percentage_diff_pixels < kCircleShapePixelDifferenceThreshold);
 }
 
-absl::optional<gfx::ImageSkiaRep> StandardizeSizeOfImageRep(
+std::optional<gfx::ImageSkiaRep> StandardizeSizeOfImageRep(
     const gfx::ImageSkiaRep& rep,
     float scale) {
+  TRACE_EVENT0("ui", "apps::StandardizeSizeOfImageRep");
   SkBitmap unscaled_bitmap(rep.GetBitmap());
   int width = unscaled_bitmap.width();
   int height = unscaled_bitmap.height();
 
   if (width == height) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   int longest_side = std::max(width, height);
@@ -209,10 +218,11 @@ absl::optional<gfx::ImageSkiaRep> StandardizeSizeOfImageRep(
 // Returns an image with equal width and height. If necessary, padding is
 // added to ensure the width and height are equal.
 gfx::ImageSkia StandardizeSize(const gfx::ImageSkia& image) {
+  TRACE_EVENT0("ui", "apps::StandardizeSize");
   gfx::ImageSkia final_image;
 
-  for (gfx::ImageSkiaRep rep : image.image_reps()) {
-    absl::optional<gfx::ImageSkiaRep> new_rep =
+  for (const gfx::ImageSkiaRep& rep : image.image_reps()) {
+    std::optional<gfx::ImageSkiaRep> new_rep =
         StandardizeSizeOfImageRep(rep, rep.scale());
     if (!new_rep) {
       return image;
@@ -226,10 +236,11 @@ gfx::ImageSkia StandardizeSize(const gfx::ImageSkia& image) {
 
 }  // namespace
 
-absl::optional<gfx::ImageSkiaRep> CreateStandardIconImageRep(
+std::optional<gfx::ImageSkiaRep> CreateStandardIconImageRep(
     const gfx::ImageSkiaRep& base_rep,
     float scale) {
-  absl::optional<gfx::ImageSkiaRep> resized_image_skia_rep =
+  TRACE_EVENT0("ui", "apps::CreateStandardIconImageRep");
+  std::optional<gfx::ImageSkiaRep> resized_image_skia_rep =
       StandardizeSizeOfImageRep(base_rep, scale);
   const gfx::ImageSkiaRep& standard_size_rep =
       resized_image_skia_rep.value_or(base_rep);
@@ -247,7 +258,7 @@ absl::optional<gfx::ImageSkiaRep> CreateStandardIconImageRep(
 
     if (icon_to_bitmap_size_ratio <= kBackgroundCircleScale) {
       // No need to scale down the icon, so just use the |unscaled_bitmap|.
-      return absl::nullopt;
+      return std::nullopt;
     }
     SkBitmap final_bitmap;
     final_bitmap.allocN32Pixels(width, height);
@@ -329,11 +340,12 @@ absl::optional<gfx::ImageSkiaRep> CreateStandardIconImageRep(
 }
 
 gfx::ImageSkia CreateStandardIconImage(const gfx::ImageSkia& image) {
+  TRACE_EVENT0("ui", "apps::CreateStandardIconImage");
   gfx::ImageSkia final_image;
   gfx::ImageSkia standard_size_image = StandardizeSize(image);
 
-  for (gfx::ImageSkiaRep rep : standard_size_image.image_reps()) {
-    absl::optional<gfx::ImageSkiaRep> standard_rep =
+  for (const gfx::ImageSkiaRep& rep : standard_size_image.image_reps()) {
+    std::optional<gfx::ImageSkiaRep> standard_rep =
         CreateStandardIconImageRep(rep, rep.scale());
     final_image.AddRepresentation(standard_rep.value_or(rep));
   }

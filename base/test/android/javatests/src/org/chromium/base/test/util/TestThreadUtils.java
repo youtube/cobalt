@@ -9,9 +9,7 @@ import org.chromium.base.ThreadUtils;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 
-/**
- * Helper methods to deal with threading related tasks in tests.
- */
+/** Helper methods to deal with threading related tasks in tests. */
 public class TestThreadUtils {
     /**
      * Since PostTask goes through c++, and order is not guaranteed between c++ and Java Handler
@@ -29,6 +27,14 @@ public class TestThreadUtils {
         try {
             task.get();
         } catch (InterruptedException | ExecutionException e) {
+        }
+    }
+
+    /** Wraps Thread.sleep(). */
+    public static void sleep(int millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
         }
     }
 }

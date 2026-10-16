@@ -16,18 +16,17 @@
 
 #include <string>
 
-#include "base/android/jni_android.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/platform_info.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
 namespace {
 
-// TODO: b/372559388 - Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
+using jni_zero::AttachCurrentThread;
 
 bool GetFirmwareVersionDetails(char* out_value, int value_length) {
   JNIEnv* env = AttachCurrentThread();

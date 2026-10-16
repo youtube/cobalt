@@ -8,9 +8,9 @@
 
 #include "base/check.h"
 #include "base/command_line.h"
-#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/notreached.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
@@ -19,7 +19,6 @@
 #include "components/performance_manager/graph/frame_node_impl.h"
 #include "components/performance_manager/graph/page_node_impl.h"
 #include "components/performance_manager/graph/process_node_impl.h"
-#include "components/performance_manager/public/features.h"
 #include "components/performance_manager/public/mojom/v8_contexts.mojom.h"
 #include "components/performance_manager/public/performance_manager.h"
 #include "components/performance_manager/v8_memory/v8_context_tracker.h"
@@ -28,7 +27,9 @@
 #include "content/public/test/navigation_simulator.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/test_utils.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace performance_manager {
 
@@ -81,18 +82,18 @@ void V8MemoryTestBase::DelayedReplyWithData(
 
 void V8MemoryTestBase::ExpectQuery(
     MockV8DetailedMemoryReporter* mock_reporter,
-    base::RepeatingCallback<
+    base::OnceCallback<
         void(MockV8DetailedMemoryReporter::GetV8MemoryUsageCallback callback)>
         responder,
     ExpectedMode expected_mode) {
   EXPECT_CALL(*mock_reporter, GetV8MemoryUsage(expected_mode, _))
-      .WillOnce(
-          [this, responder](
-              ExpectedMode mode,
-              MockV8DetailedMemoryReporter::GetV8MemoryUsageCallback callback) {
-            this->last_query_time_ = base::TimeTicks::Now();
-            responder.Run(std::move(callback));
-          });
+      .WillOnce([this, responder = std::move(responder)](
+                    ExpectedMode mode,
+                    MockV8DetailedMemoryReporter::GetV8MemoryUsageCallback
+                        callback) mutable {
+        this->last_query_time_ = base::TimeTicks::Now();
+        std::move(responder).Run(std::move(callback));
+      });
 }
 
 void V8MemoryTestBase::ExpectQueryAndReply(
@@ -100,8 +101,8 @@ void V8MemoryTestBase::ExpectQueryAndReply(
     blink::mojom::PerProcessV8MemoryUsagePtr data,
     ExpectedMode expected_mode) {
   ExpectQuery(mock_reporter,
-              base::BindRepeating(&V8MemoryTestBase::ReplyWithData,
-                                  base::Unretained(this), base::Passed(&data)),
+              base::BindOnce(&V8MemoryTestBase::ReplyWithData,
+                             base::Unretained(this), std::move(data)),
               expected_mode);
 }
 
@@ -110,11 +111,10 @@ void V8MemoryTestBase::ExpectQueryAndDelayReply(
     const base::TimeDelta& delay,
     blink::mojom::PerProcessV8MemoryUsagePtr data,
     ExpectedMode expected_mode) {
-  ExpectQuery(
-      mock_reporter,
-      base::BindRepeating(&V8MemoryTestBase::DelayedReplyWithData,
-                          base::Unretained(this), delay, base::Passed(&data)),
-      expected_mode);
+  ExpectQuery(mock_reporter,
+              base::BindOnce(&V8MemoryTestBase::DelayedReplyWithData,
+                             base::Unretained(this), delay, std::move(data)),
+              expected_mode);
 }
 
 void V8MemoryTestBase::ExpectBindReceiver(
@@ -169,7 +169,6 @@ V8MemoryPerformanceManagerTestHarness::V8MemoryPerformanceManagerTestHarness()
     : PerformanceManagerTestHarness(
           // Use MOCK_TIME so that ExpectQueryAndDelayReply can be used.
           base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
-  GetGraphFeatures().EnableExecutionContextRegistry();
   GetGraphFeatures().EnableV8ContextTracker();
 }
 
@@ -179,28 +178,13 @@ V8MemoryPerformanceManagerTestHarness::
 void V8MemoryPerformanceManagerTestHarness::SetUp() {
   PerformanceManagerTestHarness::SetUp();
 
-  if (!base::FeatureList::IsEnabled(features::kRunOnMainThread)) {
-    // Precondition: CallOnGraph must run on a different sequence. Note that
-    // all tasks passed to CallOnGraph will only run when run_loop.Run() is
-    // called.
-    ASSERT_TRUE(GetMainThreadTaskRunner()->RunsTasksInCurrentSequence());
-    base::RunLoop run_loop;
-    PerformanceManager::CallOnGraph(
-        FROM_HERE, base::BindLambdaForTesting([&] {
-          EXPECT_FALSE(
-              this->GetMainThreadTaskRunner()->RunsTasksInCurrentSequence());
-          run_loop.Quit();
-        }));
-    run_loop.Run();
-  }
-
   // Set the active contents and simulate a navigation, which adds nodes to
   // the graph.
   content::IsolateAllSitesForTesting(base::CommandLine::ForCurrentProcess());
   SetContents(CreateTestWebContents());
   main_frame_ = content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL(kMainFrameUrl));
-  main_process_id_ = RenderProcessHostId(main_frame_->GetProcess()->GetID());
+  main_process_id_ = main_frame_->GetProcess()->GetID();
 }
 
 void V8MemoryPerformanceManagerTestHarness::CreateCrossProcessChildFrame() {
@@ -210,7 +194,7 @@ void V8MemoryPerformanceManagerTestHarness::CreateCrossProcessChildFrame() {
       content::RenderFrameHostTester::For(main_frame_)->AppendChild("frame1");
   child_frame_ = content::NavigationSimulator::NavigateAndCommitFromDocument(
       GURL(kChildFrameUrl), child_frame_);
-  child_process_id_ = RenderProcessHostId(child_frame_->GetProcess()->GetID());
+  child_process_id_ = child_frame_->GetProcess()->GetID();
   ASSERT_NE(main_process_id_, child_process_id_);
 }
 
@@ -243,14 +227,14 @@ int WebMemoryTestHarness::GetNextUniqueId() {
 }
 
 FrameNodeImpl* WebMemoryTestHarness::AddFrameNodeImpl(
-    absl::optional<std::string> url,
+    std::optional<std::string> url,
     int browsing_instance_id,
     Bytes memory_usage,
     FrameNodeImpl* parent,
     FrameNodeImpl* opener,
     ProcessNodeImpl* process,
-    absl::optional<std::string> id_attribute,
-    absl::optional<std::string> src_attribute,
+    std::optional<std::string> id_attribute,
+    std::optional<std::string> src_attribute,
     Bytes canvas_memory_usage) {
   // If there's an opener, the new frame is also a new page.
   auto* page = pages_.front().get();
@@ -263,10 +247,21 @@ FrameNodeImpl* WebMemoryTestHarness::AddFrameNodeImpl(
   int frame_routing_id = GetNextUniqueId();
   auto frame_token = blink::LocalFrameToken();
   auto frame = CreateNode<FrameNodeImpl>(
-      process, page, parent, frame_routing_id, frame_token,
+      process, page, parent, /*outer_document_for_fenced_frame=*/nullptr,
+      frame_routing_id, frame_token,
       content::BrowsingInstanceId(browsing_instance_id));
   if (url) {
-    frame->OnNavigationCommitted(GURL(*url), /*same document*/ true);
+    // "about:blank" uses the parent's origin. url::Origin::Resolve() does the
+    // right thing. Fall back to url::Origin::Create() if there's no parent
+    // origin to resolve against.
+    const GURL gurl(*url);
+    const auto origin =
+        parent && parent->GetOrigin().has_value()
+            ? url::Origin::Resolve(gurl, parent->GetOrigin().value())
+            : url::Origin::Create(gurl);
+    frame->OnNavigationCommitted(gurl, origin,
+                                 /*same_document=*/false,
+                                 /*is_served_from_back_forward_cache=*/false);
   }
   if (memory_usage || canvas_memory_usage) {
     auto* data =
@@ -320,10 +315,12 @@ FrameNodeImpl* WebMemoryTestHarness::AddFrameNodeImpl(
 
 WorkerNodeImpl* WebMemoryTestHarness::AddWorkerNode(
     WorkerNode::WorkerType worker_type,
-    std::string url,
+    std::string script_url,
     Bytes bytes,
     FrameNodeImpl* parent) {
-  auto* worker_node = AddWorkerNodeImpl(worker_type, url, bytes);
+  auto* worker_node = AddWorkerNodeImpl(
+      worker_type, parent->GetOrigin().value_or(url::Origin()), script_url,
+      bytes);
   worker_node->AddClientFrame(parent);
   return worker_node;
 }
@@ -331,28 +328,45 @@ WorkerNodeImpl* WebMemoryTestHarness::AddWorkerNode(
 WorkerNodeImpl* WebMemoryTestHarness::AddWorkerNodeWithoutData(
     WorkerNode::WorkerType worker_type,
     FrameNodeImpl* parent) {
-  auto worker_node = CreateNode<WorkerNodeImpl>(worker_type, process_.get());
+  auto* worker_node = AddWorkerNodeImpl(
+      worker_type, parent->GetOrigin().value_or(url::Origin()));
   worker_node->AddClientFrame(parent);
-  workers_.push_back(std::move(worker_node));
-  return workers_.back().get();
+  return worker_node;
 }
 
 WorkerNodeImpl* WebMemoryTestHarness::AddWorkerNode(
     WorkerNode::WorkerType worker_type,
-    std::string url,
+    std::string script_url,
     Bytes bytes,
     WorkerNodeImpl* parent) {
-  auto* worker_node = AddWorkerNodeImpl(worker_type, url, bytes);
+  auto* worker_node =
+      AddWorkerNodeImpl(worker_type, parent->GetOrigin(), script_url, bytes);
   worker_node->AddClientWorker(parent);
   return worker_node;
 }
 
 WorkerNodeImpl* WebMemoryTestHarness::AddWorkerNodeImpl(
     WorkerNode::WorkerType worker_type,
-    std::string url,
+    const url::Origin& origin,
+    std::string script_url,
     Bytes bytes) {
-  auto worker_node = CreateNode<WorkerNodeImpl>(worker_type, process_.get());
-  worker_node->OnFinalResponseURLDetermined(GURL(url));
+  auto worker_token = [worker_type]() -> blink::WorkerToken {
+    switch (worker_type) {
+      case WorkerNode::WorkerType::kDedicated:
+        return blink::DedicatedWorkerToken();
+      case WorkerNode::WorkerType::kShared:
+        return blink::SharedWorkerToken();
+      case WorkerNode::WorkerType::kService:
+        return blink::ServiceWorkerToken();
+    }
+    NOTREACHED();
+  }();
+  auto worker_node = CreateNode<WorkerNodeImpl>(
+      worker_type, process_.get(), /*browser_context_id=*/std::string(),
+      worker_token, origin);
+  if (!script_url.empty()) {
+    worker_node->OnFinalResponseURLDetermined(GURL(script_url));
+  }
   if (bytes) {
     V8DetailedMemoryExecutionContextData::CreateForTesting(worker_node.get())
         ->set_v8_bytes_used(*bytes);

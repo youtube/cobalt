@@ -4,7 +4,6 @@
 
 #include "cc/base/features.h"
 #include "third_party/blink/renderer/core/dom/document.h"
-#include "third_party/blink/renderer/core/dom/node_computed_style.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/input/event_handler.h"
@@ -89,18 +88,10 @@ void ScrollSnapTest::GestureScroll(double x,
   ScrollEnd(x + delta_x, y + delta_y);
 
   // Wait for animation to finish.
-  if (base::FeatureList::IsEnabled(::features::kScrollUnification) ||
-      composited) {
-    // Pass raster = true to reach LayerTreeHostImpl::UpdateAnimationState,
-    // which will set start time and transition to KeyframeModel::RUNNING.
-    Compositor().BeginFrame(0.016, true);
-    Compositor().BeginFrame(0.3);
-  } else {
-    // ScrollAnimatorCompositorCoordinator drives the snap animation.
-    Compositor().BeginFrame();  // update run_state_.
-    Compositor().BeginFrame();  // Set start_time = now.
-    Compositor().BeginFrame(0.3);
-  }
+  // Pass raster = true to reach LayerTreeHostImpl::UpdateAnimationState,
+  // which will set start time and transition to KeyframeModel::RUNNING.
+  Compositor().BeginFrame(0.016, true);
+  Compositor().BeginFrame(0.3);
 }
 
 void ScrollSnapTest::ScrollBegin(double x,
@@ -153,7 +144,7 @@ void ScrollSnapTest::ScrollEnd(double x, double y, bool is_in_inertial_phase) {
 }
 
 void ScrollSnapTest::SetInitialScrollOffset(double x, double y) {
-  Element* scroller = GetDocument().getElementById("scroller");
+  Element* scroller = GetDocument().getElementById(AtomicString("scroller"));
   scroller->GetLayoutBoxForScrolling()
       ->GetScrollableArea()
       ->ScrollToAbsolutePosition(gfx::PointF(x, y),
@@ -169,7 +160,7 @@ TEST_F(ScrollSnapTest, ScrollSnapOnX) {
 
   GestureScroll(100, 100, -50, 0);
 
-  Element* scroller = GetDocument().getElementById("scroller");
+  Element* scroller = GetDocument().getElementById(AtomicString("scroller"));
   // Snaps to align the area at start.
   ASSERT_EQ(scroller->scrollLeft(), 200);
   // An x-locked scroll ignores snap points on y.
@@ -183,7 +174,7 @@ TEST_F(ScrollSnapTest, ScrollSnapOnY) {
 
   GestureScroll(100, 100, 0, -50);
 
-  Element* scroller = GetDocument().getElementById("scroller");
+  Element* scroller = GetDocument().getElementById(AtomicString("scroller"));
   // A y-locked scroll ignores snap points on x.
   ASSERT_EQ(scroller->scrollLeft(), 150);
   // Snaps to align the area at start.
@@ -197,7 +188,7 @@ TEST_F(ScrollSnapTest, ScrollSnapOnBoth) {
 
   GestureScroll(100, 100, -50, -50);
 
-  Element* scroller = GetDocument().getElementById("scroller");
+  Element* scroller = GetDocument().getElementById(AtomicString("scroller"));
   // A scroll gesture that has move in both x and y would snap on both axes.
   ASSERT_EQ(scroller->scrollLeft(), 200);
   ASSERT_EQ(scroller->scrollTop(), 200);
@@ -209,7 +200,7 @@ TEST_F(ScrollSnapTest, AnimateFlingToArriveAtSnapPoint) {
   SetInitialScrollOffset(0, 200);
   Compositor().BeginFrame();
 
-  Element* scroller = GetDocument().getElementById("scroller");
+  Element* scroller = GetDocument().getElementById(AtomicString("scroller"));
   ASSERT_EQ(scroller->scrollLeft(), 0);
   ASSERT_EQ(scroller->scrollTop(), 200);
 
@@ -438,6 +429,163 @@ TEST_F(ScrollSnapTest, SnapWhenBodyOverflowHtmlViewportDefining) {
   // should capture snap points defined on it as opposed to layout view.
   ASSERT_EQ(body->scrollLeft(), 200);
   ASSERT_EQ(body->scrollTop(), 200);
+}
+
+TEST_F(ScrollSnapTest, ResizeDuringGesture) {
+  ResizeView(gfx::Size(400, 400));
+  SimRequest request("https://example.com/test.html", "text/html");
+  LoadURL("https://example.com/test.html");
+  request.Complete(R"HTML(
+    <!DOCTYPE html>
+    <style>
+    ::-webkit-scrollbar { display: none; }
+    html { scroll-snap-type: both mandatory; }
+    body { margin: 0; width: 600px; height: 600px; }
+    #a1 { position: absolute; left: 0; top: 0; background: blue;
+          width: 100px; height: 100px; scroll-snap-align: start; }
+    #a2 { position: absolute; left: 400px; top: 400px; background: blue;
+          width: 100px; height: 100px; scroll-snap-align: end; }
+    </style>
+    <div id='a1'></div>
+    <div id='a2'></div>
+  )HTML");
+
+  Compositor().BeginFrame();
+
+  Element* viewport = GetDocument().scrollingElement();
+  ASSERT_EQ(viewport->scrollLeft(), 0);
+  ASSERT_EQ(viewport->scrollTop(), 0);
+
+  ScrollBegin(10, 10, -75, -75);
+  ScrollUpdate(10, 10, -75, -75);
+
+  Compositor().BeginFrame();
+
+  ASSERT_EQ(viewport->scrollLeft(), 75);
+  ASSERT_EQ(viewport->scrollTop(), 75);
+
+  ResizeView(gfx::Size(450, 450));
+  Compositor().BeginFrame();
+
+  // After mid-gesture resize, we should still be at 75.
+  ASSERT_EQ(viewport->scrollLeft(), 75);
+  ASSERT_EQ(viewport->scrollTop(), 75);
+
+  ScrollEnd(10, 10);
+
+  // The scrollend is deferred for the snap animation in cc::InputHandler; wait
+  // for the animation to finish.  (We pss raster = true to ensure that we call
+  // LayerTreeHostImpl::UpdateAnimationState, which will set start time and
+  // transition to KeyframeModel::RUNNING.)
+  Compositor().BeginFrame(0.016, true);
+  Compositor().BeginFrame(0.3);
+
+  // Once the snap animation is finished, we run a deferred SnapAfterLayout.
+  ASSERT_EQ(viewport->scrollLeft(), 50);
+  ASSERT_EQ(viewport->scrollTop(), 50);
+}
+
+TEST_F(ScrollSnapTest, SnapAreaResizeDuringScrollAnimation) {
+  v8::HandleScope HandleScope(
+      WebView().GetPage()->GetAgentGroupScheduler().Isolate());
+  WebView().MainFrameViewWidget()->Resize(gfx::Size(800, 600));
+  SimRequest request("https://example.com/test.html", "text/html");
+  LoadURL("https://example.com/test.html");
+  request.Complete(
+      R"HTML(
+    <!DOCTYPE html>
+    <style>
+      .snap {
+        scroll-snap-type: x mandatory;
+        scroll-snap-align: start;
+      }
+      .scroller {
+        width: 500px;
+        height: 200px;
+        overflow-x: scroll;
+        border: solid 1px black;
+        position: relative;
+        scroll-behavior: smooth;
+      }
+      .box {
+        background-color: purple;
+        height: 50px;
+        width: 50px;
+        display: inline-block;
+        margin-right: 100px;
+      }
+      .space {
+        position: absolute;
+        width: 200vw;
+        height: 100px;
+      }
+    </style>
+    <div class='snap scroller' id='snapscroller'>
+      <div class='space'>
+        <div class='snap box' id='snapbox1'>
+          <h1>1</h1>
+        </div>
+        <div class='snap box' id='snapbox2'>
+          <h1>2</h1>
+        </div>
+        <div class='snap box' id='snapbox3'>
+          <h1>3</h1>
+        </div>
+        <div class='snap box' id='snapbox4'>
+          <h1>4</h1>
+        </div>
+        <div class='snap box' id='snapbox5'>
+          <h1>5</h1>
+        </div>
+      </div>
+     </div>
+  <script>
+  function expand(box) {
+    box.style.height = "100px";
+    // box.style.width = "100px";
+  }
+  function scrollListener() {
+    for (const box of document.querySelectorAll(".box")) {
+      expand(box);
+    }
+  }
+  // once a scroll event is observed, expand the snap areas.
+  snapscroller.addEventListener("scroll", scrollListener, { once: true});
+  </script>)HTML");
+  Compositor().BeginFrame();
+
+  Element* box5 = GetDocument().getElementById(AtomicString("snapbox5"));
+  Element* scroller =
+      GetDocument().getElementById(AtomicString("snapscroller"));
+
+  Compositor().BeginFrame();
+  double last_offset = scroller->scrollLeft();
+  EXPECT_EQ(box5->clientHeight(), 50);
+
+  // Target the left edge of the last box. Make it an unaligned position using a
+  // small delta to verify snapping happens.
+  const double delta = 20;
+  const double target_offset = box5->OffsetLeft() + delta;
+
+  scroller->scrollTo(target_offset, 0);
+  // Make some progress.
+  Compositor().BeginFrame();  // update run_state_.
+  Compositor().BeginFrame();  // Set start_time = now.
+  Compositor().BeginFrame(0.2);
+  EXPECT_GT(scroller->scrollLeft(), last_offset);
+  last_offset = scroller->scrollLeft();
+
+  // Make some more progress.
+  Compositor().BeginFrame(0.8);
+  EXPECT_GT(scroller->scrollLeft(), last_offset);
+  last_offset = scroller->scrollLeft();
+
+  // Sanity-check that the layout change happened.
+  EXPECT_EQ(box5->clientHeight(), 100);
+
+  // Finish the scroll.
+  Compositor().BeginFrame(1.0);
+  EXPECT_EQ(scroller->scrollLeft(), box5->OffsetLeft());
 }
 
 }  // namespace blink

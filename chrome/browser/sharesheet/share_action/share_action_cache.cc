@@ -4,7 +4,7 @@
 
 #include "chrome/browser/sharesheet/share_action/share_action_cache.h"
 
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/about_flags.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sharesheet/share_action/example_action.h"
@@ -12,7 +12,7 @@
 #include "chrome/browser/sharesheet/sharesheet_types.h"
 #include "ui/gfx/vector_icon_types.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/sharesheet/copy_to_clipboard_share_action.h"
 #include "chrome/browser/ash/sharesheet/drive_share_action.h"
 #include "chrome/browser/nearby_sharing/nearby_sharing_service_factory.h"
@@ -23,7 +23,7 @@ namespace sharesheet {
 
 ShareActionCache::ShareActionCache(Profile* profile) {
   // ShareActions will be initialised here by calling AddShareAction.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   if (NearbySharingServiceFactory::IsNearbyShareSupportedForBrowserContext(
           profile)) {
     AddShareAction(std::make_unique<NearbyShareAction>(profile));
@@ -31,7 +31,7 @@ ShareActionCache::ShareActionCache(Profile* profile) {
   AddShareAction(std::make_unique<ash::sharesheet::DriveShareAction>());
   AddShareAction(
       std::make_unique<ash::sharesheet::CopyToClipboardShareAction>(profile));
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 ShareActionCache::~ShareActionCache() = default;
@@ -41,11 +41,10 @@ ShareActionCache::GetShareActions() {
   return share_actions_;
 }
 
-ShareAction* ShareActionCache::GetActionFromName(
-    const std::u16string& action_name) {
+ShareAction* ShareActionCache::GetActionFromType(ShareActionType action_type) {
   auto iter = share_actions_.begin();
   while (iter != share_actions_.end()) {
-    if ((*iter)->GetActionName() == action_name) {
+    if ((*iter)->GetActionType() == action_type) {
       return iter->get();
     } else {
       iter++;
@@ -54,9 +53,9 @@ ShareAction* ShareActionCache::GetActionFromName(
   return nullptr;
 }
 
-const gfx::VectorIcon* ShareActionCache::GetVectorIconFromName(
-    const std::u16string& display_name) {
-  ShareAction* share_action = GetActionFromName(display_name);
+const gfx::VectorIcon* ShareActionCache::GetVectorIconFromType(
+    ShareActionType action_type) {
+  ShareAction* share_action = GetActionFromType(action_type);
   if (share_action == nullptr) {
     return nullptr;
   }

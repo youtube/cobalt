@@ -80,13 +80,13 @@ mojo::PendingRemote<mojom::XRRuntime> VRDeviceBase::BindXRRuntime() {
   return runtime_receiver_.BindNewPipeAndPassRemote();
 }
 
-void LogViewerType(VrViewerType type) {
-  base::UmaHistogramSparse("VRViewerType", static_cast<int>(type));
-}
-
 void VRDeviceBase::SetSupportedFeatures(
         const std::vector<mojom::XRSessionFeature>& features) {
   device_data_.supported_features = features;
+}
+
+void VRDeviceBase::SetDeviceData(device::mojom::XRDeviceData&& device_data) {
+  device_data_ = std::move(device_data);
 }
 
 }  // namespace device

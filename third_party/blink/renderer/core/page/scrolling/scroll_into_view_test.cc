@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "cc/base/features.h"
+#include "base/test/scoped_feature_list.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/mojom/frame/find_in_page.mojom-blink.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink.h"
 #include "third_party/blink/public/web/web_script_source.h"
@@ -29,6 +30,7 @@
 #include "third_party/blink/renderer/core/testing/sim/sim_request.h"
 #include "third_party/blink/renderer/core/testing/sim/sim_test.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
+#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 
 namespace blink {
 
@@ -48,7 +50,7 @@ TEST_F(ScrollIntoViewTest, InstantScroll) {
 
   Compositor().BeginFrame();
   ASSERT_EQ(Window().scrollY(), 0);
-  Element* content = GetDocument().getElementById("content");
+  Element* content = GetDocument().getElementById(AtomicString("content"));
   ScrollIntoViewOptions* options = ScrollIntoViewOptions::Create();
   options->setBlock("start");
   content->scrollIntoView(
@@ -81,7 +83,7 @@ TEST_F(ScrollIntoViewTest, ScrollPaddingOnDocumentElWhenBodyDefinesViewport) {
 
   Compositor().BeginFrame();
   ASSERT_EQ(Window().scrollY(), 0);
-  Element* target = GetDocument().getElementById("target");
+  Element* target = GetDocument().getElementById(AtomicString("target"));
   target->scrollIntoView();
 
   // Sanity check that document element is the viewport defining element
@@ -111,7 +113,7 @@ TEST_F(ScrollIntoViewTest,
 
   Compositor().BeginFrame();
   ASSERT_EQ(Window().scrollY(), 0);
-  Element* target = GetDocument().getElementById("target");
+  Element* target = GetDocument().getElementById(AtomicString("target"));
   target->scrollIntoView();
 
   // Sanity check that document element is the viewport defining element
@@ -147,7 +149,7 @@ TEST_F(ScrollIntoViewTest, ScrollPaddingOnBodyWhenDocumentElDefinesViewport) {
 
   Compositor().BeginFrame();
   ASSERT_EQ(Window().scrollY(), 0);
-  Element* target = GetDocument().getElementById("target");
+  Element* target = GetDocument().getElementById(AtomicString("target"));
   target->scrollIntoView();
 
   // Sanity check that document element is the viewport defining element
@@ -161,6 +163,55 @@ TEST_F(ScrollIntoViewTest, ScrollPaddingOnBodyWhenDocumentElDefinesViewport) {
   ASSERT_EQ(Window().scrollY(), 10 - 2);
 }
 
+// When the sum of scroll-padding in a scroll container along a specific axis
+// exceeds the length of that axis, it results in an empty scrollport. In this
+// case, invoking scrollIntoView on a child element within the scrollport
+// should not trigger scrolling.
+// See https://crbug.com/40055750
+TEST_F(ScrollIntoViewTest, EmptyScrollportSinceScrollPadding) {
+  v8::HandleScope HandleScope(
+      WebView().GetPage()->GetAgentGroupScheduler().Isolate());
+  WebView().MainFrameViewWidget()->Resize(gfx::Size(300, 300));
+  SimRequest request("https://example.com/test.html", "text/html");
+  LoadURL("https://example.com/test.html");
+  request.Complete(R"HTML(
+      <style>
+        #container {
+          width: 200px;
+          display: flex;
+          flex-direction: row;
+          overflow-x: scroll;
+          scroll-padding: 50px 0;
+          height: 50px;
+        }
+
+        .item {
+          width: 50px;
+          height: 50px;
+          flex-shrink: 0;
+        }
+      </style>
+     <div id="container">
+        <div class="item"></div>
+        <div id="target" class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+      </div>
+    )HTML");
+
+  Compositor().BeginFrame();
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  target->scrollIntoView();
+  Element* scroller = GetDocument().getElementById(AtomicString("container"));
+
+  ASSERT_EQ(scroller->scrollLeft(), 0);
+}
+
 TEST_F(ScrollIntoViewTest, SmoothScroll) {
   v8::HandleScope HandleScope(
       WebView().GetPage()->GetAgentGroupScheduler().Isolate());
@@ -171,7 +222,7 @@ TEST_F(ScrollIntoViewTest, SmoothScroll) {
       "<div id='space' style='height: 1000px'></div>"
       "<div id='content' style='height: 1000px'></div>");
 
-  Element* content = GetDocument().getElementById("content");
+  Element* content = GetDocument().getElementById(AtomicString("content"));
   ScrollIntoViewOptions* options = ScrollIntoViewOptions::Create();
   options->setBlock("start");
   options->setBehavior("smooth");
@@ -185,8 +236,7 @@ TEST_F(ScrollIntoViewTest, SmoothScroll) {
   Compositor().BeginFrame();  // update run_state_.
   Compositor().BeginFrame();  // Set start_time = now.
   Compositor().BeginFrame(0.2);
-  ASSERT_NEAR(Window().scrollY(),
-              (::features::IsImpulseScrollAnimationEnabled() ? 800 : 299), 1);
+  ASSERT_NEAR(Window().scrollY(), 299, 1);
 
   // Finish scrolling the container
   Compositor().BeginFrame(1);
@@ -207,8 +257,8 @@ TEST_F(ScrollIntoViewTest, NestedContainer) {
     </div>
   )HTML");
 
-  Element* container = GetDocument().getElementById("container");
-  Element* content = GetDocument().getElementById("content");
+  Element* container = GetDocument().getElementById(AtomicString("container"));
+  Element* content = GetDocument().getElementById(AtomicString("content"));
   ScrollIntoViewOptions* options = ScrollIntoViewOptions::Create();
   options->setBlock("start");
   options->setBehavior("smooth");
@@ -223,23 +273,12 @@ TEST_F(ScrollIntoViewTest, NestedContainer) {
   Compositor().BeginFrame();  // update run_state_.
   Compositor().BeginFrame();  // Set start_time = now.
   Compositor().BeginFrame(0.2);
-  ASSERT_NEAR(Window().scrollY(),
-              (::features::IsImpulseScrollAnimationEnabled() ? 800 : 299), 1);
-  ASSERT_EQ(container->scrollTop(), 0);
+  ASSERT_NEAR(Window().scrollY(), 299, 1);
+  ASSERT_NEAR(container->scrollTop(), 299, 1);
 
   // Finish scrolling the outer container
   Compositor().BeginFrame(1);
   ASSERT_EQ(Window().scrollY(), container->OffsetTop());
-  ASSERT_EQ(container->scrollTop(), 0);
-
-  // Scrolling the inner container
-  Compositor().BeginFrame();  // Set start_time = now.
-  Compositor().BeginFrame(0.2);
-  ASSERT_NEAR(container->scrollTop(),
-              (::features::IsImpulseScrollAnimationEnabled() ? 794 : 299), 1);
-
-  // Finish scrolling the inner container
-  Compositor().BeginFrame(1);
   ASSERT_EQ(container->scrollTop(),
             content->OffsetTop() - container->OffsetTop());
 }
@@ -261,10 +300,12 @@ TEST_F(ScrollIntoViewTest, NewScrollIntoViewAbortsCurrentAnimation) {
     </div>
   )HTML");
 
-  Element* container1 = GetDocument().getElementById("container1");
-  Element* container2 = GetDocument().getElementById("container2");
-  Element* content1 = GetDocument().getElementById("content1");
-  Element* content2 = GetDocument().getElementById("content2");
+  Element* container1 =
+      GetDocument().getElementById(AtomicString("container1"));
+  Element* container2 =
+      GetDocument().getElementById(AtomicString("container2"));
+  Element* content1 = GetDocument().getElementById(AtomicString("content1"));
+  Element* content2 = GetDocument().getElementById(AtomicString("content2"));
   ScrollIntoViewOptions* options = ScrollIntoViewOptions::Create();
   options->setBlock("start");
   options->setBehavior("smooth");
@@ -280,37 +321,90 @@ TEST_F(ScrollIntoViewTest, NewScrollIntoViewAbortsCurrentAnimation) {
   Compositor().BeginFrame();  // update run_state_.
   Compositor().BeginFrame();  // Set start_time = now.
   Compositor().BeginFrame(0.2);
-  ASSERT_NEAR(Window().scrollY(),
-              (::features::IsImpulseScrollAnimationEnabled() ? 800 : 299), 1);
-  ASSERT_EQ(container1->scrollTop(), 0);
+  ASSERT_NEAR(Window().scrollY(), 299, 1);
+  ASSERT_NEAR(container1->scrollTop(), 299, 1);
 
   content2->scrollIntoView(arg);
   Compositor().BeginFrame();  // update run_state_.
   Compositor().BeginFrame();  // Set start_time = now.
   Compositor().BeginFrame(0.2);
-  ASSERT_NEAR(Window().scrollY(),
-              (::features::IsImpulseScrollAnimationEnabled() ? 171 : 61), 1);
-  ASSERT_EQ(container1->scrollTop(), 0);  // container1 should not scroll.
+  ASSERT_NEAR(Window().scrollY(), 61, 1);
+  ASSERT_GT(container1->scrollTop(), 299);
 
   Compositor().BeginFrame(1);
   ASSERT_EQ(Window().scrollY(), container2->OffsetTop());
-  ASSERT_EQ(container2->scrollTop(), 0);
+  ASSERT_EQ(container2->scrollTop(),
+            content2->OffsetTop() - container2->OffsetTop());
+}
 
-  // Scrolling content2 in container2
+// Ensure an in-progress smooth sequenced scroll isn't interrupted by a
+// scrollIntoView call that doesn't actually cause scrolling.
+TEST_F(ScrollIntoViewTest, NoOpScrollIntoViewContinuesCurrentAnimation) {
+  v8::HandleScope HandleScope(
+      WebView().GetPage()->GetAgentGroupScheduler().Isolate());
+  WebView().MainFrameViewWidget()->Resize(gfx::Size(800, 600));
+  SimRequest request("https://example.com/test.html", "text/html");
+  LoadURL("https://example.com/test.html");
+  request.Complete(R"HTML(
+    <style>
+      body { margin: 0; }
+    </style>
+    <div id='space' style='height: 500px'></div>
+    <div id='visibleElement' style='height: 100px'></div>
+    <div id='container' style='height: 300px; overflow: scroll'>
+      <div id='space' style='height: 1000px'></div>
+      <div id='content' style='height: 1000px'></div>
+    </div>
+  )HTML");
+
+  Element* container = GetDocument().getElementById(AtomicString("container"));
+  Element* content = GetDocument().getElementById(AtomicString("content"));
+  Element* visibleElement =
+      GetDocument().getElementById(AtomicString("visibleElement"));
+
+  Compositor().BeginFrame();
+  ASSERT_EQ(Window().scrollY(), 0);
+  ASSERT_EQ(container->scrollTop(), 0);
+
+  {
+    ScrollIntoViewOptions* options = ScrollIntoViewOptions::Create();
+    options->setBlock("start");
+    options->setBehavior("smooth");
+    auto* arg =
+        MakeGarbageCollected<V8UnionBooleanOrScrollIntoViewOptions>(options);
+    content->scrollIntoView(arg);
+  }
+
+  Compositor().BeginFrame();  // update run_state_.
   Compositor().BeginFrame();  // Set start_time = now.
   Compositor().BeginFrame(0.2);
-  ASSERT_NEAR(container2->scrollTop(),
-              (::features::IsImpulseScrollAnimationEnabled() ? 952 : 300), 1);
+  ASSERT_NEAR(Window().scrollY(), 241, 1);
+  ASSERT_NEAR(container->scrollTop(), 299, 1);
 
-  // Finish all the animation to make sure there is no another animation queued
-  // on container1.
+  // Since visibleElement is already on screen, this call should be a no-op.
+  {
+    ScrollIntoViewOptions* options = ScrollIntoViewOptions::Create();
+    // "nearest" is a no-op if the element is fully on-screen.
+    options->setBlock("nearest");
+    options->setBehavior("smooth");
+    auto* arg =
+        MakeGarbageCollected<V8UnionBooleanOrScrollIntoViewOptions>(options);
+    visibleElement->scrollIntoView(arg);
+  }
+
+  // The window animation should continue running but the container shouldn't
+  // yet have started unless MultiSmoothScrollIntoView support is enabled.
+  Compositor().BeginFrame();
+  ASSERT_NEAR(Window().scrollY(), 260, 1);
+  ASSERT_GT(container->scrollTop(), 299);
+
+  // Finish the animation to make sure the animation to content finishes
+  // without interruption.
   while (Compositor().NeedsBeginFrame()) {
     Compositor().BeginFrame();
   }
-  ASSERT_EQ(Window().scrollY(), container2->OffsetTop());
-  ASSERT_EQ(container2->scrollTop(),
-            content2->OffsetTop() - container2->OffsetTop());
-  ASSERT_EQ(container1->scrollTop(), 0);
+  EXPECT_EQ(Window().scrollY(), container->OffsetHeight());
+  EXPECT_EQ(container->scrollTop(), 1000);
 }
 
 TEST_F(ScrollIntoViewTest, ScrollWindowAbortsCurrentAnimation) {
@@ -327,8 +421,8 @@ TEST_F(ScrollIntoViewTest, ScrollWindowAbortsCurrentAnimation) {
     </div>
   )HTML");
 
-  Element* container = GetDocument().getElementById("container");
-  Element* content = GetDocument().getElementById("content");
+  Element* container = GetDocument().getElementById(AtomicString("container"));
+  Element* content = GetDocument().getElementById(AtomicString("content"));
   ScrollIntoViewOptions* options = ScrollIntoViewOptions::Create();
   options->setBlock("start");
   options->setBehavior("smooth");
@@ -343,9 +437,8 @@ TEST_F(ScrollIntoViewTest, ScrollWindowAbortsCurrentAnimation) {
   Compositor().BeginFrame();  // update run_state_.
   Compositor().BeginFrame();  // Set start_time = now.
   Compositor().BeginFrame(0.2);
-  ASSERT_NEAR(Window().scrollY(),
-              (::features::IsImpulseScrollAnimationEnabled() ? 800 : 299), 1);
-  ASSERT_EQ(container->scrollTop(), 0);
+  ASSERT_NEAR(Window().scrollY(), 299, 1);
+  ASSERT_NEAR(container->scrollTop(), 299, 1);
 
   ScrollToOptions* window_option = ScrollToOptions::Create();
   window_option->setLeft(0);
@@ -355,12 +448,12 @@ TEST_F(ScrollIntoViewTest, ScrollWindowAbortsCurrentAnimation) {
   Compositor().BeginFrame();  // update run_state_.
   Compositor().BeginFrame();  // Set start_time = now.
   Compositor().BeginFrame(0.2);
-  ASSERT_NEAR(Window().scrollY(),
-              (::features::IsImpulseScrollAnimationEnabled() ? 165 : 58), 1);
+  ASSERT_NEAR(Window().scrollY(), 58, 1);
 
   Compositor().BeginFrame(1);
   ASSERT_EQ(Window().scrollY(), 0);
-  ASSERT_EQ(container->scrollTop(), 0);
+  ASSERT_EQ(container->scrollTop(),
+            content->OffsetTop() - container->OffsetTop());
 }
 
 TEST_F(ScrollIntoViewTest, BlockAndInlineSettings) {
@@ -381,7 +474,7 @@ TEST_F(ScrollIntoViewTest, BlockAndInlineSettings) {
   int window_height = 600;
   int window_width = 800;
 
-  Element* content = GetDocument().getElementById("content");
+  Element* content = GetDocument().getElementById(AtomicString("content"));
   ScrollIntoViewOptions* options = ScrollIntoViewOptions::Create();
   ASSERT_EQ(Window().scrollY(), 0);
 
@@ -442,9 +535,10 @@ TEST_F(ScrollIntoViewTest, SmoothAndInstantInChain) {
     </div>
   )HTML");
 
-  Element* container = GetDocument().getElementById("container");
-  Element* inner_container = GetDocument().getElementById("inner_container");
-  Element* content = GetDocument().getElementById("content");
+  Element* container = GetDocument().getElementById(AtomicString("container"));
+  Element* inner_container =
+      GetDocument().getElementById(AtomicString("inner_container"));
+  Element* content = GetDocument().getElementById(AtomicString("content"));
   ScrollIntoViewOptions* options = ScrollIntoViewOptions::Create();
   options->setBlock("start");
   auto* arg =
@@ -465,8 +559,7 @@ TEST_F(ScrollIntoViewTest, SmoothAndInstantInChain) {
   Compositor().BeginFrame();  // update run_state_.
   Compositor().BeginFrame();  // Set start_time = now.
   Compositor().BeginFrame(0.2);
-  ASSERT_NEAR(container->scrollTop(),
-              (::features::IsImpulseScrollAnimationEnabled() ? 794 : 299), 1);
+  ASSERT_NEAR(container->scrollTop(), 299, 1);
 
   // Finish scrolling the container
   Compositor().BeginFrame(1);
@@ -492,16 +585,15 @@ TEST_F(ScrollIntoViewTest, SmoothScrollAnchor) {
     </div>
   )HTML");
 
-  Element* content = GetDocument().getElementById("content");
-  Element* container = GetDocument().getElementById("container");
+  Element* content = GetDocument().getElementById(AtomicString("content"));
+  Element* container = GetDocument().getElementById(AtomicString("container"));
   ASSERT_EQ(container->scrollTop(), 0);
 
   // Scrolling the container
   Compositor().BeginFrame();  // update run_state_.
   Compositor().BeginFrame();  // Set start_time = now.
   Compositor().BeginFrame(0.2);
-  ASSERT_NEAR(container->scrollTop(),
-              (::features::IsImpulseScrollAnimationEnabled() ? 794 : 299), 1);
+  ASSERT_NEAR(container->scrollTop(), 299, 1);
 
   // Finish scrolling the container
   Compositor().BeginFrame(1);
@@ -521,7 +613,7 @@ TEST_F(ScrollIntoViewTest, FindDoesNotScrollOverflowHidden) {
       <div style='height: 500px'>hello</div>
     </div>
   )HTML");
-  Element* container = GetDocument().getElementById("container");
+  Element* container = GetDocument().getElementById(AtomicString("container"));
   Compositor().BeginFrame();
   ASSERT_EQ(container->scrollTop(), 0);
   const int kFindIdentifier = 12345;
@@ -543,7 +635,7 @@ TEST_F(ScrollIntoViewTest, ApplyRootElementScrollBehaviorToViewport) {
       "<div id='space' style='height: 1000px'></div>"
       "<div id='content' style='height: 1000px'></div></html>");
 
-  Element* content = GetDocument().getElementById("content");
+  Element* content = GetDocument().getElementById(AtomicString("content"));
   ScrollIntoViewOptions* options = ScrollIntoViewOptions::Create();
   options->setBlock("start");
   auto* arg =
@@ -556,8 +648,7 @@ TEST_F(ScrollIntoViewTest, ApplyRootElementScrollBehaviorToViewport) {
   Compositor().BeginFrame();  // update run_state_.
   Compositor().BeginFrame();  // Set start_time = now.
   Compositor().BeginFrame(0.2);
-  ASSERT_NEAR(Window().scrollY(),
-              (::features::IsImpulseScrollAnimationEnabled() ? 800 : 299), 1);
+  ASSERT_NEAR(Window().scrollY(), 299, 1);
 
   // Finish scrolling the container
   Compositor().BeginFrame(1);
@@ -611,8 +702,8 @@ TEST_F(ScrollIntoViewTest, StopAtLayoutViewportForFocusedEditable) {
 
   Compositor().BeginFrame();
 
-  Element* root = GetDocument().getElementById("root");
-  Element* inner = GetDocument().getElementById("inner");
+  Element* root = GetDocument().getElementById(AtomicString("root"));
+  Element* inner = GetDocument().getElementById(AtomicString("inner"));
 
   // Make sure the root scroller is set since that's what we're trying to test
   // here.
@@ -622,7 +713,7 @@ TEST_F(ScrollIntoViewTest, StopAtLayoutViewportForFocusedEditable) {
     ASSERT_EQ(root, rs_controller.GlobalRootScroller());
   }
 
-  Element* editable = GetDocument().getElementById("target");
+  Element* editable = GetDocument().getElementById(AtomicString("target"));
 
   // Ensure the input is focused, as it normally would be when ScrollIntoView
   // is invoked with this param.
@@ -635,7 +726,7 @@ TEST_F(ScrollIntoViewTest, StopAtLayoutViewportForFocusedEditable) {
   // Use ScrollRectToVisible on the #target element, specifying
   // for_focused_editable.
   LayoutObject* target = editable->GetLayoutObject();
-  auto params = ScrollAlignment::CreateScrollIntoViewParams(
+  auto params = scroll_into_view_util::CreateScrollIntoViewParams(
       ScrollAlignment::LeftAlways(), ScrollAlignment::TopAlways(),
       mojom::blink::ScrollType::kProgrammatic, false,
       mojom::blink::ScrollBehavior::kInstant);
@@ -709,14 +800,14 @@ TEST_F(ScrollIntoViewTest, RemoveSequencedScrollableArea) {
 
   Compositor().BeginFrame();
 
-  Element* target = GetDocument().getElementById("target");
+  Element* target = GetDocument().getElementById(AtomicString("target"));
   target->scrollIntoView();
 
   Compositor().BeginFrame();  // update run_state_.
   Compositor().BeginFrame();  // Set start_time = now.
 
-  Element* inner = GetDocument().getElementById("inner");
-  Element* outer = GetDocument().getElementById("outer");
+  Element* inner = GetDocument().getElementById(AtomicString("inner"));
+  Element* outer = GetDocument().getElementById(AtomicString("outer"));
   outer->removeChild(inner);
 
   // Make sure that we don't try to animate the removed scroller.
@@ -737,10 +828,10 @@ TEST_F(ScrollIntoViewTest, SmoothUserScrollNotAbortedByProgrammaticScrolls) {
   ASSERT_EQ(Window().scrollY(), 0);
 
   // A smooth UserScroll.
-  Element* content = GetDocument().getElementById("content");
+  Element* content = GetDocument().getElementById(AtomicString("content"));
   scroll_into_view_util::ScrollRectToVisible(
       *content->GetLayoutObject(), content->BoundingBoxForScrollIntoView(),
-      ScrollAlignment::CreateScrollIntoViewParams(
+      scroll_into_view_util::CreateScrollIntoViewParams(
           ScrollAlignment::ToEdgeIfNeeded(), ScrollAlignment::TopAlways(),
           mojom::blink::ScrollType::kUser, false,
           mojom::blink::ScrollBehavior::kSmooth, true));
@@ -749,8 +840,7 @@ TEST_F(ScrollIntoViewTest, SmoothUserScrollNotAbortedByProgrammaticScrolls) {
   Compositor().BeginFrame();  // update run_state_.
   Compositor().BeginFrame();  // Set start_time = now.
   Compositor().BeginFrame(0.2);
-  ASSERT_NEAR(Window().scrollY(),
-              (::features::IsImpulseScrollAnimationEnabled() ? 800 : 299), 1);
+  ASSERT_NEAR(Window().scrollY(), 299, 1);
 
   // ProgrammaticScroll that could interrupt the current smooth scroll.
   Window().scrollTo(0, 0);
@@ -774,7 +864,7 @@ TEST_F(ScrollIntoViewTest, LongDistanceSmoothScrollFinishedInThreeSeconds) {
   Compositor().BeginFrame();
   ASSERT_EQ(Window().scrollY(), 0);
 
-  Element* target = GetDocument().getElementById("target");
+  Element* target = GetDocument().getElementById(AtomicString("target"));
   ScrollIntoViewOptions* options = ScrollIntoViewOptions::Create();
   options->setBlock("start");
   options->setBehavior("smooth");
@@ -786,9 +876,7 @@ TEST_F(ScrollIntoViewTest, LongDistanceSmoothScrollFinishedInThreeSeconds) {
   Compositor().BeginFrame();  // update run_state_.
   Compositor().BeginFrame();  // Set start_time = now.
   Compositor().BeginFrame(0.2);
-  ASSERT_NEAR(Window().scrollY(),
-              (::features::IsImpulseScrollAnimationEnabled() ? 79389 : 16971),
-              1);
+  ASSERT_NEAR(Window().scrollY(), 16971, 1);
 
   // Finish scrolling the container
   Compositor().BeginFrame(0.5);
@@ -847,9 +935,10 @@ TEST_F(ScrollIntoViewTest, OriginCrossingUseCounter) {
   local_child.Complete(child_html);
   xorigin_child.Complete(child_html);
 
-  Element* local_child_frame = GetDocument().getElementById("localChildFrame");
+  Element* local_child_frame =
+      GetDocument().getElementById(AtomicString("localChildFrame"));
   Element* xorigin_child_frame =
-      GetDocument().getElementById("xoriginChildFrame");
+      GetDocument().getElementById(AtomicString("xoriginChildFrame"));
   Document* local_child_document =
       To<HTMLIFrameElement>(local_child_frame)->contentDocument();
   Document* xorigin_child_document =
@@ -860,7 +949,8 @@ TEST_F(ScrollIntoViewTest, OriginCrossingUseCounter) {
     ASSERT_EQ(GetDocument().View()->GetScrollableArea()->GetScrollOffset(),
               ScrollOffset(0, 0));
 
-    Element* target = local_child_document->getElementById("target");
+    Element* target =
+        local_child_document->getElementById(AtomicString("target"));
     target->scrollIntoView();
 
     ASSERT_NE(GetDocument().View()->GetScrollableArea()->GetScrollOffset(),
@@ -877,7 +967,8 @@ TEST_F(ScrollIntoViewTest, OriginCrossingUseCounter) {
     ASSERT_EQ(GetDocument().View()->GetScrollableArea()->GetScrollOffset(),
               ScrollOffset(0, 0));
 
-    Element* target = xorigin_child_document->getElementById("target");
+    Element* target =
+        xorigin_child_document->getElementById(AtomicString("target"));
     target->scrollIntoView();
 
     ASSERT_NE(GetDocument().View()->GetScrollableArea()->GetScrollOffset(),
@@ -935,15 +1026,17 @@ TEST_F(ScrollIntoViewTest, FromDisplayNoneIframe) {
   Compositor().BeginFrame();
   ASSERT_EQ(Window().scrollY(), 0);
 
-  Element* child_frame = GetDocument().getElementById("childFrame");
+  Element* child_frame =
+      GetDocument().getElementById(AtomicString("childFrame"));
   ASSERT_TRUE(child_frame);
   Document* child_document =
       To<HTMLIFrameElement>(child_frame)->contentDocument();
 
-  Element* target = child_document->getElementById("target");
+  Element* target = child_document->getElementById(AtomicString("target"));
   PhysicalRect rect(target->GetLayoutObject()->AbsoluteBoundingBoxRect());
 
-  child_frame->setAttribute(html_names::kStyleAttr, "display:none");
+  child_frame->setAttribute(html_names::kStyleAttr,
+                            AtomicString("display:none"));
   Compositor().BeginFrame();
 
   // Calling scroll into view on an element without a LayoutObject shouldn't
@@ -962,7 +1055,7 @@ TEST_F(ScrollIntoViewTest, FromDisplayNoneIframe) {
   // may call into so ensure we don't crash or do something strange since its
   // owner element will not have a LayoutObject.
   ASSERT_TRUE(child_document->GetLayoutView());
-  auto params = ScrollAlignment::CreateScrollIntoViewParams(
+  auto params = scroll_into_view_util::CreateScrollIntoViewParams(
       ScrollAlignment::LeftAlways(), ScrollAlignment::TopAlways(),
       mojom::blink::ScrollType::kProgrammatic, false,
       mojom::blink::ScrollBehavior::kInstant);

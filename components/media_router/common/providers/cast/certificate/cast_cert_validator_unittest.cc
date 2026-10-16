@@ -6,16 +6,18 @@
 
 #include <memory>
 
+#include "base/command_line.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "components/media_router/common/providers/cast/certificate/cast_cert_reader.h"
 #include "components/media_router/common/providers/cast/certificate/cast_cert_test_helpers.h"
-#include "net/cert/pki/cert_errors.h"
-#include "net/cert/pki/parsed_certificate.h"
-#include "net/cert/pki/signature_algorithm.h"
-#include "net/cert/pki/trust_store_in_memory.h"
+#include "components/media_router/common/providers/cast/certificate/switches.h"
 #include "net/cert/x509_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/boringssl/src/pki/cert_errors.h"
+#include "third_party/boringssl/src/pki/parsed_certificate.h"
+#include "third_party/boringssl/src/pki/signature_algorithm.h"
+#include "third_party/boringssl/src/pki/trust_store_in_memory.h"
 
 namespace cast_certificate {
 
@@ -32,6 +34,11 @@ enum TrustStoreDependency {
   // verified in production.
   TRUST_STORE_BUILTIN,
 
+  // Uses the built-in trust store for Cast. However also load a
+  // developer-signed certificate file. This is how certificates are verified if
+  // the --cast_developer_certificates_path command line option is set.
+  TRUST_STORE_BUILTIN_WITH_DEVELOPER_CERTIFICATE_PATH,
+
   // Instead of using the built-in trust store, use root certificate in the
   // provided test chain as the trust anchor.
   //
@@ -44,6 +51,10 @@ enum TrustStoreDependency {
   // verifying control groups. It is not how code works in production.
   TRUST_STORE_FROM_TEST_FILE_UNCONSTRAINED,
 };
+
+// Used for TRUST_STORE_BUILTIN_WITH_DEVELOPER_CERTIFICATE_PATH mode.
+const std::string kDeveloperSignedCertificateFile =
+    "generated_root_cast_receiver.pem";
 
 // Reads a test chain from |certs_file_name|, and asserts that verifying it as
 // a Cast device certificate yields |expected_result|.
@@ -70,11 +81,25 @@ void RunTest(CastCertError expected_result,
   auto certs = ReadCertificateChainFromFile(
       testing::GetCastCertificatesSubDirectory().AppendASCII(certs_file_name));
 
-  std::unique_ptr<net::TrustStoreInMemory> trust_store;
+  std::unique_ptr<bssl::TrustStoreInMemory> trust_store;
+  std::unique_ptr<testing::ScopedCastTrustStoreConfig> scoped_cast_trust_store;
 
   switch (trust_store_dependency) {
     case TRUST_STORE_BUILTIN:
       // Leave trust_store as nullptr.
+      scoped_cast_trust_store =
+          testing::ScopedCastTrustStoreConfig::BuiltInCertificates();
+      ASSERT_NE(scoped_cast_trust_store, nullptr);
+      break;
+
+    case TRUST_STORE_BUILTIN_WITH_DEVELOPER_CERTIFICATE_PATH:
+      // Leave trust_store as nullptr.
+      // Use the developer-signed certificate file:
+      // kDeveloperSignedCertificateFile.
+      scoped_cast_trust_store =
+          testing::ScopedCastTrustStoreConfig::BuiltInAndTestCertificates(
+              kDeveloperSignedCertificateFile);
+      ASSERT_NE(scoped_cast_trust_store, nullptr);
       break;
 
     case TRUST_STORE_FROM_TEST_FILE:
@@ -82,9 +107,9 @@ void RunTest(CastCertError expected_result,
       ASSERT_FALSE(certs.empty());
 
       // Parse the root certificate of the chain.
-      net::CertErrors errors;
-      std::shared_ptr<const net::ParsedCertificate> root =
-          net::ParsedCertificate::Create(
+      bssl::CertErrors errors;
+      std::shared_ptr<const bssl::ParsedCertificate> root =
+          bssl::ParsedCertificate::Create(
               net::x509_util::CreateCryptoBuffer(certs.back()), {}, &errors);
       ASSERT_TRUE(root) << errors.ToDebugString();
 
@@ -92,7 +117,7 @@ void RunTest(CastCertError expected_result,
       certs.pop_back();
 
       // Add it to the trust store as a trust anchor
-      trust_store = std::make_unique<net::TrustStoreInMemory>();
+      trust_store = std::make_unique<bssl::TrustStoreInMemory>();
 
       if (trust_store_dependency == TRUST_STORE_FROM_TEST_FILE_UNCONSTRAINED) {
         // This is a test-only mode where anchor constraints are not enforced.
@@ -109,12 +134,13 @@ void RunTest(CastCertError expected_result,
   CastDeviceCertPolicy policy;
 
   CastCertError result = VerifyDeviceCertUsingCustomTrustStore(
-      certs, time, &context, &policy, nullptr, CRLPolicy::CRL_OPTIONAL,
+      certs, time, &context, &policy, nullptr, nullptr, CRLPolicy::CRL_OPTIONAL,
       trust_store.get());
 
   ASSERT_EQ(expected_result, result);
-  if (expected_result != CastCertError::OK)
+  if (expected_result != CastCertError::OK) {
     return;
+  }
 
   EXPECT_EQ(expected_policy, policy);
   ASSERT_TRUE(context.get());
@@ -155,10 +181,8 @@ void RunTest(CastCertError expected_result,
 // base::Time::FromExploded clamping the range to what is supported by mktime
 // and timegm.
 base::Time CreateDate(int year, int month, int day) {
-  base::Time::Exploded time = {0};
-  time.year = year;
-  time.month = month;
-  time.day_of_month = day;
+  const base::Time::Exploded time = {
+      .year = year, .month = month, .day_of_month = day};
   base::Time result;
   EXPECT_TRUE(base::Time::FromUTCExploded(time, &result));
   return result;
@@ -200,6 +224,25 @@ TEST(VerifyCastDeviceCertTest, ChromecastGen1) {
 
 // Tests verifying a valid certificate chain of length 2:
 //
+//   0: 2ZZBG9 FA8FCA3EF91A
+//   1: Eureka Gen1 ICA
+//
+// Chains to trust anchor:
+//   Eureka Root CA    (built-in trust store)
+//
+// The trust store loads a developer-signed certificate to emulate running
+// with the --cast_developer_certificate_path command line flag. The device
+// does not use the root of trust from the loaded certificate.
+TEST(VerifyCastDeviceCertTest,
+     BuiltInTrustDeviceWithUnusedDeveloperCertificatePathLoaded) {
+  RunTest(CastCertError::OK, "2ZZBG9 FA8FCA3EF91A", CastDeviceCertPolicy::NONE,
+          "chromecast_gen1.pem", AprilFirst2016(),
+          TRUST_STORE_BUILTIN_WITH_DEVELOPER_CERTIFICATE_PATH,
+          "signeddata/2ZZBG9_FA8FCA3EF91A.pem");
+}
+
+// Tests verifying a valid certificate chain of length 2:
+//
 //  0: 2ZZBG9 FA8FCA3EF91A
 //  1: Eureka Gen1 ICA
 //
@@ -234,6 +277,21 @@ TEST(VerifyCastDeviceCertTest, ChromecastGen2) {
 TEST(VerifyCastDeviceCertTest, Fugu) {
   RunTest(CastCertError::OK, "-6394818897508095075", CastDeviceCertPolicy::NONE,
           "fugu.pem", AprilFirst2016(), TRUST_STORE_BUILTIN, "");
+}
+
+// Tests verifying a developer signed certificate that is provided via the
+// command line flag: --cast_developer_certificates_path.
+//
+//   0: Cast Root CA
+//
+// Chains to trust anchor:
+//   Cast Root CA     (built-in trust store)
+//
+// Chains to trust anchor:
+TEST(VerifyCastDeviceCertTest, DeviceMatchingCastDeveloperCertificatePath) {
+  RunTest(CastCertError::OK, "Cast Root CA", CastDeviceCertPolicy::NONE,
+          kDeveloperSignedCertificateFile, CreateDate(2024, 4, 4),
+          TRUST_STORE_BUILTIN_WITH_DEVELOPER_CERTIFICATE_PATH, "");
 }
 
 // Tests verifying an invalid certificate chain of length 1:

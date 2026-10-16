@@ -9,13 +9,12 @@
 #include "components/shared_highlighting/core/common/disabled_sites.h"
 #include "components/shared_highlighting/core/common/fragment_directives_utils.h"
 #include "components/shared_highlighting/core/common/shared_highlighting_features.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/core/annotation/annotation_agent_impl.h"
 #include "third_party/blink/renderer/core/annotation/annotation_selector.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/editing/markers/document_marker.h"
 #include "third_party/blink/renderer/core/editing/markers/document_marker_controller.h"
-#include "third_party/blink/renderer/core/editing/position_with_affinity.h"
 #include "third_party/blink/renderer/core/editing/range_in_flat_tree.h"
 #include "third_party/blink/renderer/core/editing/selection_editor.h"
 #include "third_party/blink/renderer/core/editing/visible_units.h"
@@ -107,28 +106,6 @@ void TextFragmentHandler::RemoveFragments() {
   GetFrame()->View()->ClearFragmentAnchor();
 }
 
-// static
-bool TextFragmentHandler::IsOverTextFragment(HitTestResult result) {
-  if (!result.InnerNode() || !result.InnerNodeFrame()) {
-    return false;
-  }
-
-  // Tree should be clean before accessing the position.
-  // |HitTestResult::GetPosition| calls |PositionForPoint()| which requires
-  // |kPrePaintClean|.
-  DCHECK_GE(result.InnerNodeFrame()->GetDocument()->Lifecycle().GetState(),
-            DocumentLifecycle::kPrePaintClean);
-
-  DocumentMarkerController& marker_controller =
-      result.InnerNodeFrame()->GetDocument()->Markers();
-  PositionWithAffinity pos_with_affinity = result.GetPosition();
-  const Position marker_position = pos_with_affinity.GetPosition();
-  auto markers = marker_controller.MarkersAroundPosition(
-      ToPositionInFlatTree(marker_position),
-      DocumentMarker::MarkerTypes::TextFragment());
-  return !markers.empty();
-}
-
 void TextFragmentHandler::ExtractTextFragmentsMatches(
     ExtractTextFragmentsMatchesCallback callback) {
   Vector<String> text_fragment_matches;
@@ -218,8 +195,11 @@ void TextFragmentHandler::Trace(Visitor* visitor) const {
 void TextFragmentHandler::DidDetachDocumentOrFrame() {
   // Clear out any state in the generator and cancel pending tasks so they
   // don't run after frame detachment.
-  if (GetTextFragmentSelectorGenerator())
+  if (GetTextFragmentSelectorGenerator()) {
     GetTextFragmentSelectorGenerator()->Reset();
+    // The generator is preserved since that's used in RequestSelector to
+    // determine whether to respond with kNotGenerated.
+  }
 
   annotation_agents_.clear();
 }
@@ -259,10 +239,8 @@ bool TextFragmentHandler::ShouldPreemptivelyGenerateFor(LocalFrame* frame) {
     return true;
 
   // Only generate for iframe urls if they are supported
-  return base::FeatureList::IsEnabled(
-             shared_highlighting::kSharedHighlightingAmp) &&
-         shared_highlighting::SupportsLinkGenerationInIframe(
-             GURL(frame->GetDocument()->Url()));
+  return shared_highlighting::SupportsLinkGenerationInIframe(
+      GURL(frame->GetDocument()->Url()));
 }
 
 // static

@@ -69,13 +69,26 @@ BrowserContext* AuctionWorkletDevToolsAgentHost::GetBrowserContext() {
   return worklet_ ? worklet_->owning_frame()->GetBrowserContext() : nullptr;
 }
 
-bool AuctionWorkletDevToolsAgentHost::AttachSession(DevToolsSession* session,
-                                                    bool acquire_wake_lock) {
+bool AuctionWorkletDevToolsAgentHost::AttachSession(DevToolsSession* session) {
   // We use `force_using_io_session` as AuctionV8DevToolsSession can't handle
   // commands on main session when blocked on a breakpoint, only on IO session.
   session->AttachToAgent(associated_agent_remote_.get(),
                          /*force_using_io_session=*/true);
   return true;
+}
+
+// static
+scoped_refptr<AuctionWorkletDevToolsAgentHost>
+AuctionWorkletDevToolsAgentHost::Create(DebuggableAuctionWorklet* worklet) {
+  auto self =
+      base::WrapRefCounted(new AuctionWorkletDevToolsAgentHost(worklet));
+  // This needs to be outside of constructor due to bind until we make the base
+  // class a `StartRefCountFromOne` (i.e. REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE).
+  if (auto pid_opt = worklet->GetPid(base::BindOnce(
+          &AuctionWorkletDevToolsAgentHost::SetProcessId, self))) {
+    self->SetProcessId(*pid_opt);
+  }
+  return self;
 }
 
 AuctionWorkletDevToolsAgentHost::AuctionWorkletDevToolsAgentHost(
@@ -143,8 +156,7 @@ AuctionWorkletDevToolsAgentHostManager::GetOrCreateFor(
   if (it != hosts_.end())
     return it->second;
 
-  auto host =
-      base::WrapRefCounted(new AuctionWorkletDevToolsAgentHost(worklet));
+  auto host = AuctionWorkletDevToolsAgentHost::Create(worklet);
   hosts_.insert(std::make_pair(worklet, host));
   return host;
 }

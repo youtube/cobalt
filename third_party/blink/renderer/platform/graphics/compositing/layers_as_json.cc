@@ -8,9 +8,7 @@
 #include "third_party/blink/renderer/platform/geometry/geometry_as_json.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
 #include "third_party/blink/renderer/platform/graphics/compositing/content_layer_client_impl.h"
-#include "third_party/blink/renderer/platform/graphics/graphics_types.h"
 #include "third_party/blink/renderer/platform/graphics/paint/transform_paint_property_node.h"
-#include "third_party/blink/renderer/platform/wtf/text/text_stream.h"
 #include "ui/gfx/geometry/point_f.h"
 
 namespace blink {
@@ -18,9 +16,7 @@ namespace blink {
 namespace {
 
 String PointerAsString(const void* ptr) {
-  WTF::TextStream ts;
-  ts << ptr;
-  return ts.Release();
+  return String::Format("%p", ptr);
 }
 
 double RoundCloseToZero(double number) {
@@ -73,7 +69,7 @@ std::unique_ptr<JSONObject> CCLayerAsJSON(const cc::Layer& layer,
   if (layer.should_check_backface_visibility())
     json->SetString("backfaceVisibility", "hidden");
 
-  if (Color::FromSkColor4f(layer.background_color()).Alpha() &&
+  if (!Color::FromSkColor4f(layer.background_color()).IsFullyTransparent() &&
       ((flags & kLayerTreeIncludesDebugInfo) ||
        // Omit backgroundColor for these layers because it's not interesting
        // and we want to avoid platform differences and changes with CLs
@@ -92,6 +88,12 @@ std::unique_ptr<JSONObject> CCLayerAsJSON(const cc::Layer& layer,
         compositing_reasons_json->PushString(name);
       json->SetArray("compositingReasons", std::move(compositing_reasons_json));
     }
+  }
+
+  if ((flags & kLayerTreeIncludesDebugInfo) &&
+      layer.hit_test_opaqueness() != cc::HitTestOpaqueness::kOpaque) {
+    json->SetString("hitTestOpaqueness",
+                    cc::HitTestOpaquenessToString(layer.hit_test_opaqueness()));
   }
 
   return json;
@@ -156,11 +158,11 @@ void LayersAsJSON::AddLayer(const cc::Layer& layer,
                             const ContentLayerClientImpl* layer_client) {
   if (!(flags_ & kLayerTreeIncludesAllLayers) && !layer.draws_content()) {
     std::string debug_name = layer.DebugName();
-    if (debug_name == "LayoutNGView #document" ||
-        debug_name == "LayoutView #document" ||
+    if (debug_name == "LayoutView #document" ||
         debug_name == "Inner Viewport Scroll Layer" ||
-        debug_name == "Scrolling Contents Layer")
+        debug_name == "Scrolling Contents Layer") {
       return;
+    }
   }
 
   auto layer_json = CCLayerAsJSON(layer, flags_);

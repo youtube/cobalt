@@ -32,12 +32,10 @@ Compiler::Compiler(rx::GLImplFactory *implFactory, const State &state, egl::Disp
       mOutputType(mImplementation->getTranslatorOutputType()),
       mResources()
 {
-    // TODO(http://anglebug.com/3819): Update for GL version specific validation
-    ASSERT(state.getClientMajorVersion() == 1 || state.getClientMajorVersion() == 2 ||
-           state.getClientMajorVersion() == 3 || state.getClientMajorVersion() == 4);
+    ASSERT(state.getClientVersion() >= ES_1_0 && state.getClientVersion() <= ES_3_2);
 
     {
-        std::lock_guard<std::mutex> lock(display->getDisplayGlobalMutex());
+        std::lock_guard<angle::SimpleMutex> lock(display->getDisplayGlobalMutex());
         if (gActiveCompilers == 0)
         {
             sh::Initialize();
@@ -69,6 +67,7 @@ Compiler::Compiler(rx::GLImplFactory *implFactory, const State &state, egl::Disp
         extensions.shaderNoperspectiveInterpolationNV;
     mResources.ARB_texture_rectangle = extensions.textureRectangleANGLE;
     mResources.EXT_gpu_shader5       = extensions.gpuShader5EXT;
+    mResources.OES_gpu_shader5       = extensions.gpuShader5OES;
     mResources.OES_shader_io_blocks  = extensions.shaderIoBlocksOES;
     mResources.EXT_shader_io_blocks  = extensions.shaderIoBlocksEXT;
     mResources.OES_texture_storage_multisample_2d_array =
@@ -87,10 +86,8 @@ Compiler::Compiler(rx::GLImplFactory *implFactory, const State &state, egl::Disp
     mResources.FragmentPrecisionHigh = 1;
     mResources.EXT_frag_depth        = extensions.fragDepthEXT;
 
-    // OVR_multiview state
+    // OVR_multiview / OVR_multiview2
     mResources.OVR_multiview = extensions.multiviewOVR;
-
-    // OVR_multiview2 state
     mResources.OVR_multiview2 = extensions.multiview2OVR;
     mResources.MaxViewsOVR    = caps.maxViews;
 
@@ -104,6 +101,12 @@ Compiler::Compiler(rx::GLImplFactory *implFactory, const State &state, egl::Disp
     // OES_texture_cube_map_array
     mResources.OES_texture_cube_map_array = extensions.textureCubeMapArrayOES;
     mResources.EXT_texture_cube_map_array = extensions.textureCubeMapArrayEXT;
+
+    // EXT_texture_query_lod
+    mResources.EXT_texture_query_lod = extensions.textureQueryLodEXT;
+
+    // EXT_texture_shadow_lod
+    mResources.EXT_texture_shadow_lod = extensions.textureShadowLodEXT;
 
     // EXT_shadow_samplers
     mResources.EXT_shadow_samplers = extensions.shadowSamplersEXT;
@@ -138,6 +141,10 @@ Compiler::Compiler(rx::GLImplFactory *implFactory, const State &state, egl::Disp
     // GL_ARM_shader_framebuffer_fetch
     mResources.ARM_shader_framebuffer_fetch = extensions.shaderFramebufferFetchARM;
 
+    // GL_ARM_shader_framebuffer_fetch_depth_stencil
+    mResources.ARM_shader_framebuffer_fetch_depth_stencil =
+        extensions.shaderFramebufferFetchDepthStencilARM;
+
     // GLSL ES 3.0 constants
     mResources.MaxVertexOutputVectors  = caps.maxVertexOutputComponents / 4;
     mResources.MaxFragmentInputVectors = caps.maxFragmentInputComponents / 4;
@@ -158,8 +165,6 @@ Compiler::Compiler(rx::GLImplFactory *implFactory, const State &state, egl::Disp
 
     // ANGLE_shader_pixel_local_storage.
     mResources.MaxPixelLocalStoragePlanes = caps.maxPixelLocalStoragePlanes;
-    mResources.MaxColorAttachmentsWithActivePixelLocalStorage =
-        caps.maxColorAttachmentsWithActivePixelLocalStorage;
     mResources.MaxCombinedDrawBuffersAndPixelLocalStoragePlanes =
         caps.maxCombinedDrawBuffersAndPixelLocalStoragePlanes;
 
@@ -212,9 +217,10 @@ Compiler::Compiler(rx::GLImplFactory *implFactory, const State &state, egl::Disp
     mResources.MaxShaderStorageBufferBindings = caps.maxShaderStorageBufferBindings;
 
     // Needed by point size clamping workaround
+    mResources.MinPointSize = caps.minAliasedPointSize;
     mResources.MaxPointSize = caps.maxAliasedPointSize;
 
-    if (state.getClientMajorVersion() == 2 && !extensions.drawBuffersEXT)
+    if (state.getClientVersion() == ES_2_0 && !extensions.drawBuffersEXT)
     {
         mResources.MaxDrawBuffers = 1;
     }
@@ -239,6 +245,7 @@ Compiler::Compiler(rx::GLImplFactory *implFactory, const State &state, egl::Disp
 
     // Tessellation Shader constants
     mResources.EXT_tessellation_shader        = extensions.tessellationShaderEXT;
+    mResources.OES_tessellation_shader        = extensions.tessellationShaderOES;
     mResources.MaxTessControlInputComponents  = caps.maxTessControlInputComponents;
     mResources.MaxTessControlOutputComponents = caps.maxTessControlOutputComponents;
     mResources.MaxTessControlTextureImageUnits =
@@ -276,7 +283,7 @@ Compiler::~Compiler() = default;
 
 void Compiler::onDestroy(const Context *context)
 {
-    std::lock_guard<std::mutex> lock(context->getDisplay()->getDisplayGlobalMutex());
+    std::lock_guard<angle::SimpleMutex> lock(context->getDisplay()->getDisplayGlobalMutex());
     for (auto &pool : mPools)
     {
         for (ShCompilerInstance &instance : pool)
@@ -325,24 +332,9 @@ void Compiler::putInstance(ShCompilerInstance &&instance)
 
 ShShaderSpec Compiler::SelectShaderSpec(const State &state)
 {
-    const EGLenum clientType = state.getClientType();
-    const EGLint profileMask = state.getProfileMask();
-    const GLint majorVersion = state.getClientMajorVersion();
-    const GLint minorVersion = state.getClientMinorVersion();
+    const GLint majorVersion = state.getClientVersion().getMajor();
+    const GLint minorVersion = state.getClientVersion().getMinor();
     bool isWebGL             = state.isWebGL();
-
-    // For Desktop GL
-    if (clientType == EGL_OPENGL_API)
-    {
-        if ((profileMask & EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT) != 0)
-        {
-            return SH_GL_CORE_SPEC;
-        }
-        else
-        {
-            return SH_GL_COMPATIBILITY_SPEC;
-        }
-    }
 
     if (majorVersion >= 3)
     {

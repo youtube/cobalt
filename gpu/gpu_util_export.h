@@ -5,7 +5,7 @@
 #ifndef GPU_GPU_UTIL_EXPORT_H_
 #define GPU_GPU_UTIL_EXPORT_H_
 
-#if defined(COMPONENT_BUILD) && !defined(NACL_WIN64)
+#if defined(COMPONENT_BUILD)
 #if defined(WIN32)
 
 #if defined(GPU_UTIL_IMPLEMENTATION)
@@ -15,11 +15,7 @@
 #endif  // defined(GPU_UTIL_IMPLEMENTATION)
 
 #else  // defined(WIN32)
-#if defined(GPU_UTIL_IMPLEMENTATION)
 #define GPU_UTIL_EXPORT __attribute__((visibility("default")))
-#else
-#define GPU_UTIL_EXPORT
-#endif
 #endif
 
 #else  // defined(COMPONENT_BUILD)

@@ -15,7 +15,6 @@
 #include "cc/paint/paint_image_builder.h"
 #include "cc/paint/paint_image_generator.h"
 #include "cc/paint/paint_record.h"
-#include "cc/paint/paint_worklet_input.h"
 #include "cc/paint/skia_paint_image_generator.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
@@ -25,7 +24,7 @@
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/core/SkSize.h"
 #include "third_party/skia/include/core/SkYUVAPixmaps.h"
-#include "third_party/skia/include/gpu/GrBackendSurface.h"
+#include "third_party/skia/include/gpu/ganesh/GrBackendSurface.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 
 namespace cc {
@@ -68,7 +67,7 @@ bool PaintImage::IsSameForTesting(const PaintImage& other) const {
          completion_state_ == other.completion_state_ &&
          is_multipart_ == other.is_multipart_ &&
          texture_backing_ == other.texture_backing_ &&
-         paint_worklet_input_ == other.paint_worklet_input_;
+         deferred_paint_record_ == other.deferred_paint_record_;
   // Do not check may_be_lcp_candidate_ as it should not affect any rendering
   // operation, only metrics collection.
 }
@@ -121,7 +120,11 @@ const sk_sp<SkImage>& PaintImage::GetSkImage() const {
 
 sk_sp<SkImage> PaintImage::GetSwSkImage() const {
   if (texture_backing_) {
-    return texture_backing_->GetSkImageViaReadback();
+    auto image = texture_backing_->GetSkImageViaReadback();
+    if (image && reinterpret_as_srgb_) {
+      image = image->reinterpretColorSpace(SkColorSpace::MakeSRGB());
+    }
+    return image;
   } else if (cached_sk_image_ && cached_sk_image_->isTextureBacked()) {
     return cached_sk_image_->makeNonTextureImage();
   }
@@ -139,8 +142,19 @@ bool PaintImage::readPixels(const SkImageInfo& dst_info,
                             int src_x,
                             int src_y) const {
   if (texture_backing_) {
-    return texture_backing_->readPixels(dst_info, dst_pixels, dst_row_bytes,
-                                        src_x, src_y);
+    auto dst_info_adjusted = dst_info;
+    if (reinterpret_as_srgb_) {
+      // To reinterpret the read pixels as sRGB, set `dst_info_adjusted`'s
+      // color space to match the texture's space. This only works when the
+      // caller expects sRGB pixels.
+      CHECK(!dst_info.colorSpace() ||
+            SkColorSpace::Equals(dst_info.colorSpace(),
+                                 SkColorSpace::MakeSRGB().get()));
+      dst_info_adjusted = dst_info.makeColorSpace(
+          texture_backing_->GetSkImageInfo().refColorSpace());
+    }
+    return texture_backing_->readPixels(dst_info_adjusted, dst_pixels,
+                                        dst_row_bytes, src_x, src_y);
   } else if (cached_sk_image_) {
     return cached_sk_image_->readPixels(dst_info, dst_pixels, dst_row_bytes,
                                         src_x, src_y);
@@ -152,13 +166,19 @@ SkImageInfo PaintImage::GetSkImageInfo(AuxImage aux_image) const {
   switch (aux_image) {
     case AuxImage::kDefault:
       if (paint_image_generator_) {
-        return paint_image_generator_->GetSkImageInfo();
+        const auto info = paint_image_generator_->GetSkImageInfo();
+        return reinterpret_as_srgb_
+                   ? info.makeColorSpace(SkColorSpace::MakeSRGB())
+                   : info;
       } else if (texture_backing_) {
-        return texture_backing_->GetSkImageInfo();
+        const auto info = texture_backing_->GetSkImageInfo();
+        return reinterpret_as_srgb_
+                   ? info.makeColorSpace(SkColorSpace::MakeSRGB())
+                   : info;
       } else if (cached_sk_image_) {
         return cached_sk_image_->imageInfo();
-      } else if (paint_worklet_input_) {
-        auto size = paint_worklet_input_->GetSize();
+      } else if (deferred_paint_record_) {
+        auto size = deferred_paint_record_->GetSize();
         return SkImageInfo::MakeUnknown(base::ClampCeil(size.width()),
                                         base::ClampCeil(size.height()));
       }
@@ -174,9 +194,19 @@ gpu::Mailbox PaintImage::GetMailbox() const {
   return texture_backing_->GetMailbox();
 }
 
+const scoped_refptr<PaintWorkletInput> PaintImage::GetPaintWorkletInput()
+    const {
+  if (!IsPaintWorklet()) {
+    return nullptr;
+  }
+  scoped_refptr<PaintWorkletInput> paint_worklet_input(
+      static_cast<PaintWorkletInput*>(deferred_paint_record().get()));
+  return paint_worklet_input;
+}
+
 bool PaintImage::IsOpaque() const {
   if (IsPaintWorklet())
-    return paint_worklet_input_->KnownToBeOpaque();
+    return deferred_paint_record_->KnownToBeOpaque();
   return GetSkImageInfo().isOpaque();
 }
 
@@ -223,6 +253,16 @@ bool PaintImage::Decode(SkPixmap pixmap,
          GetSupportedDecodeSize(pixmap.dimensions(), aux_image));
   switch (aux_image) {
     case AuxImage::kDefault:
+      if (reinterpret_as_srgb_) {
+        // To reinterpret the generated pixels as sRGB, set `pixmap`'s color
+        // space to match the generator's space. This only works when the
+        // caller expects sRGB pixels.
+        CHECK(!pixmap.colorSpace() ||
+              SkColorSpace::Equals(pixmap.colorSpace(),
+                                   SkColorSpace::MakeSRGB().get()));
+        pixmap.setColorSpace(
+            paint_image_generator_->GetSkImageInfo().refColorSpace());
+      }
       if (paint_image_generator_) {
         return paint_image_generator_->GetPixels(pixmap, frame_index, client_id,
                                                  stable_id());
@@ -239,6 +279,8 @@ bool PaintImage::DecodeYuv(const SkYUVAPixmaps& pixmaps,
                            size_t frame_index,
                            AuxImage aux_image,
                            GeneratorClientId client_id) const {
+  // This function assumes that the color space being applied to `pixmaps`
+  // is the same color space returned by `GetSkImageInfo()`.
   DCHECK(pixmaps.isValid());
   const uint32_t lazy_pixel_ref = stable_id();
   switch (aux_image) {
@@ -260,8 +302,8 @@ bool PaintImage::DecodeFromSkImage(SkPixmap pixmap,
   auto image = GetSkImageForFrame(frame_index, client_id);
   DCHECK(image);
   if (color_space) {
-    image = image->makeColorSpace(color_space,
-                                  static_cast<GrDirectContext*>(nullptr));
+    image = image->makeColorSpace(static_cast<GrDirectContext*>(nullptr),
+                                  color_space);
     if (!image)
       return false;
   }
@@ -269,7 +311,7 @@ bool PaintImage::DecodeFromSkImage(SkPixmap pixmap,
 }
 
 bool PaintImage::ShouldAnimate() const {
-  return animation_type_ == AnimationType::ANIMATED &&
+  return animation_type_ == AnimationType::kAnimated &&
          repetition_count_ != kAnimationNone && FrameCount() > 1;
 }
 
@@ -310,8 +352,9 @@ gfx::ContentColorUsage PaintImage::GetContentColorUsage(bool* is_hlg) const {
     *is_hlg = false;
 
   // Right now, JS paint worklets can only be in sRGB
-  if (paint_worklet_input_)
+  if (IsPaintWorklet()) {
     return gfx::ContentColorUsage::kSRGB;
+  }
 
   // Gainmap images are always HDR.
   if (HasGainmap()) {
@@ -368,8 +411,12 @@ bool PaintImage::IsYuv(
   }
 }
 
+bool PaintImage::NeedsLayer() const {
+  return IsPaintWorklet() && deferred_paint_record_->NeedsLayer();
+}
+
 const std::vector<FrameMetadata>& PaintImage::GetFrameMetadata() const {
-  DCHECK_EQ(animation_type_, AnimationType::ANIMATED);
+  DCHECK_EQ(animation_type_, AnimationType::kAnimated);
   DCHECK(paint_image_generator_);
 
   return paint_image_generator_->GetFrameMetadata();
@@ -404,6 +451,9 @@ sk_sp<SkImage> PaintImage::GetSkImageForFrame(
   sk_sp<SkImage> image =
       SkImages::DeferredFromGenerator(std::make_unique<SkiaPaintImageGenerator>(
           paint_image_generator_, index, client_id));
+  if (image && reinterpret_as_srgb_) {
+    image = image->reinterpretColorSpace(SkColorSpace::MakeSRGB());
+  }
   return image;
 }
 

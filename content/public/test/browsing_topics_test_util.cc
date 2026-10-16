@@ -4,7 +4,9 @@
 
 #include "content/public/test/browsing_topics_test_util.h"
 
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "components/browsing_topics/common/common_types.h"
 #include "content/browser/browsing_topics/browsing_topics_site_data_manager_impl.h"
 
 namespace content {
@@ -44,6 +46,25 @@ std::vector<browsing_topics::ApiUsageContext> GetBrowsingTopicsApiUsage(
   return api_usage_contexts;
 }
 
+std::map<browsing_topics::HashedDomain, std::string>
+GetContextDomainsFromHashedContextDomains(
+    content::BrowsingTopicsSiteDataManager* topics_site_data_manager,
+    std::set<browsing_topics::HashedDomain> hashed_context_domains) {
+  base::RunLoop run_loop;
+
+  std::map<browsing_topics::HashedDomain, std::string> query_result;
+  topics_site_data_manager->GetContextDomainsFromHashedContextDomains(
+      hashed_context_domains,
+      base::BindLambdaForTesting(
+          [&](std::map<browsing_topics::HashedDomain, std::string> result) {
+            query_result = result;
+            run_loop.Quit();
+          }));
+
+  run_loop.Run();
+  return query_result;
+}
+
 TesterBrowsingTopicsSiteDataManager::TesterBrowsingTopicsSiteDataManager(
     const base::FilePath& user_data_directory)
     : manager_impl_(
@@ -63,23 +84,45 @@ TesterBrowsingTopicsSiteDataManager::~TesterBrowsingTopicsSiteDataManager() =
 
 void TesterBrowsingTopicsSiteDataManager::OnBrowsingTopicsApiUsed(
     const browsing_topics::HashedHost& hashed_top_host,
-    const base::flat_set<browsing_topics::HashedDomain>& hashed_context_domains,
+    const browsing_topics::HashedDomain& hashed_context_domain,
+    const std::string& context_domain,
     base::Time time) {
-  manager_impl_->OnBrowsingTopicsApiUsed(hashed_top_host,
-                                         hashed_context_domains, time);
+  manager_impl_->OnBrowsingTopicsApiUsed(hashed_top_host, hashed_context_domain,
+                                         context_domain, time);
 }
 
 void TesterBrowsingTopicsSiteDataManager::GetBrowsingTopicsApiUsage(
     base::Time begin_time,
     base::Time end_time,
     GetBrowsingTopicsApiUsageCallback callback) {
+  auto run_callback_after_delay = base::BindLambdaForTesting(
+      [callback = std::move(callback),
+       this](browsing_topics::ApiUsageContextQueryResult result) mutable {
+        base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+            FROM_HERE,
+            base::BindLambdaForTesting([callback = std::move(callback),
+                                        result = std::move(result)]() mutable {
+              std::move(callback).Run(std::move(result));
+            }),
+            query_result_delay_);
+      });
+
   if (!query_failure_override_) {
-    manager_impl_->GetBrowsingTopicsApiUsage(begin_time, end_time,
-                                             std::move(callback));
+    manager_impl_->GetBrowsingTopicsApiUsage(
+        begin_time, end_time, std::move(run_callback_after_delay));
     return;
   }
 
-  std::move(callback).Run(browsing_topics::ApiUsageContextQueryResult());
+  std::move(run_callback_after_delay)
+      .Run(browsing_topics::ApiUsageContextQueryResult());
+}
+
+void TesterBrowsingTopicsSiteDataManager::
+    GetContextDomainsFromHashedContextDomains(
+        const std::set<browsing_topics::HashedDomain>& hashed_context_domains,
+        GetContextDomainsFromHashedContextDomainsCallback callback) {
+  manager_impl_->GetContextDomainsFromHashedContextDomains(
+      hashed_context_domains, std::move(callback));
 }
 
 }  // namespace content

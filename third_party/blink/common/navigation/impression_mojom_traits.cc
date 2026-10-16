@@ -10,8 +10,8 @@ namespace mojo {
 bool StructTraits<blink::mojom::ImpressionDataView, blink::Impression>::Read(
     blink::mojom::ImpressionDataView data,
     blink::Impression* out) {
-  return data.ReadAttributionSrcToken(&out->attribution_src_token) &&
-         data.ReadNavType(&out->nav_type);
+  out->is_empty_attribution_src_tag = data.is_empty_attribution_src_tag();
+  return data.ReadAttributionSrcToken(&out->attribution_src_token);
 }
 
 }  // namespace mojo

@@ -24,11 +24,12 @@
 
 namespace chrome {
 
-void AddTabAt(Browser* browser,
-              const GURL& url,
-              int idx,
-              bool foreground,
-              absl::optional<tab_groups::TabGroupId> group) {
+content::WebContents* AddAndReturnTabAt(
+    Browser* browser,
+    const GURL& url,
+    int idx,
+    bool foreground,
+    std::optional<tab_groups::TabGroupId> group) {
   // Time new tab page creation time.  We keep track of the timing data in
   // WebContents, but we want to include the time it takes to create the
   // WebContents object too.
@@ -39,14 +40,26 @@ void AddTabAt(Browser* browser,
                                   : WindowOpenDisposition::NEW_BACKGROUND_TAB;
   params.tabstrip_index = idx;
   params.group = group;
+  params.pwa_navigation_capturing_force_off = true;
   Navigate(&params);
 
-  if (!params.navigated_or_inserted_contents)
-    return;
+  if (!params.navigated_or_inserted_contents) {
+    return nullptr;
+  }
 
   CoreTabHelper* core_tab_helper =
       CoreTabHelper::FromWebContents(params.navigated_or_inserted_contents);
   core_tab_helper->set_new_tab_start_time(new_tab_start_time);
+
+  return params.navigated_or_inserted_contents;
+}
+
+void AddTabAt(Browser* browser,
+              const GURL& url,
+              int idx,
+              bool foreground,
+              std::optional<tab_groups::TabGroupId> group) {
+  /*void*/ AddAndReturnTabAt(browser, url, idx, foreground, std::move(group));
 }
 
 content::WebContents* AddSelectedTabWithURL(Browser* browser,
@@ -54,17 +67,20 @@ content::WebContents* AddSelectedTabWithURL(Browser* browser,
                                             ui::PageTransition transition) {
   NavigateParams params(browser, url, transition);
   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  params.pwa_navigation_capturing_force_off = true;
   Navigate(&params);
   return params.navigated_or_inserted_contents;
 }
 
-void AddWebContents(Browser* browser,
-                    content::WebContents* source_contents,
-                    std::unique_ptr<content::WebContents> new_contents,
-                    const GURL& target_url,
-                    WindowOpenDisposition disposition,
-                    const blink::mojom::WindowFeatures& window_features,
-                    NavigateParams::WindowAction window_action) {
+content::WebContents* AddWebContents(
+    Browser* browser,
+    content::WebContents* source_contents,
+    std::unique_ptr<content::WebContents> new_contents,
+    const GURL& target_url,
+    WindowOpenDisposition disposition,
+    const blink::mojom::WindowFeatures& window_features,
+    NavigateParams::WindowAction window_action,
+    bool user_gesture) {
   // No code for this yet.
   DCHECK(disposition != WindowOpenDisposition::SAVE_TO_DISK);
   // Can't create a new contents for the current tab - invalid case.
@@ -80,10 +96,12 @@ void AddWebContents(Browser* browser,
   // was created without a user gesture, we have to set |user_gesture| to true,
   // so it gets correctly focused.
   params.user_gesture = true;
+  params.original_user_gesture = user_gesture;
 
   ConfigureTabGroupForNavigation(&params);
 
   Navigate(&params);
+  return params.navigated_or_inserted_contents;
 }
 
 void CloseWebContents(Browser* browser,
@@ -91,7 +109,8 @@ void CloseWebContents(Browser* browser,
                       bool add_to_history) {
   int index = browser->tab_strip_model()->GetIndexOfWebContents(contents);
   if (index == TabStripModel::kNoTab) {
-    NOTREACHED() << "CloseWebContents called for tab not in our strip";
+    DUMP_WILL_BE_NOTREACHED()
+        << "CloseWebContents called for tab not in our strip";
     return;
   }
 
@@ -101,8 +120,9 @@ void CloseWebContents(Browser* browser,
 }
 
 void ConfigureTabGroupForNavigation(NavigateParams* nav_params) {
-  if (!nav_params->source_contents)
+  if (!nav_params->source_contents) {
     return;
+  }
 
   if (!nav_params->browser || !nav_params->browser->SupportsWindowFeature(
                                   Browser::WindowFeature::FEATURE_TABSTRIP)) {
@@ -118,8 +138,9 @@ void ConfigureTabGroupForNavigation(NavigateParams* nav_params) {
   // If the source tab is not in the current tab strip (e.g. if the current
   // navigation is in a new window), don't set the group. Groups cannot be
   // shared across multiple windows.
-  if (source_index == TabStripModel::kNoTab)
+  if (source_index == TabStripModel::kNoTab) {
     return;
+  }
 
   // Do not set the group when the navigation is from bookmarks.
   if (ui::PageTransitionCoreTypeIs(nav_params->transition,

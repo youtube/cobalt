@@ -32,9 +32,7 @@ static_library("video_dmp") {
 }
 
 action("player_download_test_data") {
-  if (enable_install_targets) {
-    install_content = true
-  }
+  visibility = [ ":player_test_data" ]
 
   script = "//starboard/tools/download_from_gcs.py"
 
@@ -72,4 +70,24 @@ action("player_download_test_data") {
     "--output",
     rebase_path("$outdir/testdata", root_build_dir),
   ]
+}
+
+if (is_apple) {
+  # The resources downloaded in ":player_download_test_data" must be packed into
+  # the bundle on e.g. tvOS. Each target that needs those files (e.g. "nplb") is
+  # supposed to depend on this target.
+  bundle_data("player_test_data") {
+    testonly = true
+
+    public_deps = [ ":player_download_test_data" ]
+
+    sources = get_target_outputs(":player_download_test_data")
+
+    outputs = [ "{{bundle_resources_dir}}/content/test/starboard/shared/starboard/player/testdata/{{source_file_part}}" ]
+  }
+} else {
+  group("player_test_data") {
+    testonly = true
+    data_deps = [ ":player_download_test_data" ]
+  }
 }

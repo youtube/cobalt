@@ -6,26 +6,41 @@ package org.chromium.chrome.browser.toolbar.top;
 
 import android.graphics.Rect;
 
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
-/**
- * Utility class for creating native resources.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** Utility class for creating native resources. */
 @JNINamespace("android")
+@NullMarked
 public class ResourceFactory {
     public static long createToolbarContainerResource(
             Rect toolbarPosition, Rect locationBarPosition, int shadowHeight) {
-        return ResourceFactoryJni.get().createToolbarContainerResource(toolbarPosition.left,
-                toolbarPosition.top, toolbarPosition.right, toolbarPosition.bottom,
-                locationBarPosition.left, locationBarPosition.top, locationBarPosition.right,
-                locationBarPosition.bottom, shadowHeight);
+        return ResourceFactoryJni.get()
+                .createToolbarContainerResource(
+                        toolbarPosition.left,
+                        toolbarPosition.top,
+                        toolbarPosition.right,
+                        toolbarPosition.bottom,
+                        locationBarPosition.left,
+                        locationBarPosition.top,
+                        locationBarPosition.right,
+                        locationBarPosition.bottom,
+                        shadowHeight);
     }
 
     @NativeMethods
     interface Natives {
-        long createToolbarContainerResource(int toolbarLeft, int toolbarTop, int toolbarRight,
-                int toolbarBottom, int locationBarLeft, int locationBarTop, int locationBarRight,
-                int locationBarBottom, int shadowHeight);
+        long createToolbarContainerResource(
+                int toolbarLeft,
+                int toolbarTop,
+                int toolbarRight,
+                int toolbarBottom,
+                int locationBarLeft,
+                int locationBarTop,
+                int locationBarRight,
+                int locationBarBottom,
+                int shadowHeight);
     }
 }

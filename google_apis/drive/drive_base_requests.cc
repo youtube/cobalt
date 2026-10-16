@@ -10,13 +10,13 @@
 #include <memory>
 #include <utility>
 
+#include "base/containers/contains.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/location.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/values.h"
@@ -127,8 +127,8 @@ void GenerateMultipartBody(MultipartType multipart_type,
     while (true) {
       boundary = net::GenerateMimeMultipartBoundary();
       bool conflict_with_content = false;
-      for (auto& part : parts) {
-        if (part.data.find(boundary, 0) != std::string::npos) {
+      for (const auto& part : parts) {
+        if (base::Contains(part.data, boundary)) {
           conflict_with_content = true;
           break;
         }
@@ -152,7 +152,7 @@ void GenerateMultipartBody(MultipartType multipart_type,
   output->data.clear();
   if (data_offset)
     data_offset->clear();
-  for (auto& part : parts) {
+  for (const auto& part : parts) {
     output->data.append(base::StringPrintf(
         kMultipartItemHeaderFormat, boundary.c_str(), part.type.c_str()));
     if (data_offset)
@@ -530,7 +530,7 @@ void MultipartUploadRequestBase::NotifyResult(
                        weak_ptr_factory_.GetWeakPtr(), code,
                        std::move(notify_complete_callback)));
   } else {
-    absl::optional<std::string> reason = MapJsonErrorToReason(body);
+    std::optional<std::string> reason = MapJsonErrorToReason(body);
     NotifyError(reason.has_value() ? MapDriveReasonToError(code, reason.value())
                                    : code);
     std::move(notify_complete_callback).Run();

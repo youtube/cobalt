@@ -11,6 +11,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_split.h"
 #include "base/time/time.h"
+#include "components/content_settings/core/browser/content_settings_utils.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings_constraints.h"
 #include "components/content_settings/core/common/content_settings_types.h"
@@ -40,7 +41,7 @@ ReduceAcceptLanguageService::ReduceAcceptLanguageService(
     : settings_map_(settings_map), is_incognito_(is_incognito) {
   DCHECK(settings_map_);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   const std::string& key = language::prefs::kPreferredLanguages;
 #else
   const std::string& key = language::prefs::kAcceptLanguages;
@@ -56,13 +57,18 @@ ReduceAcceptLanguageService::ReduceAcceptLanguageService(
 
 ReduceAcceptLanguageService::~ReduceAcceptLanguageService() = default;
 
-absl::optional<std::string> ReduceAcceptLanguageService::GetReducedLanguage(
+void ReduceAcceptLanguageService::Shutdown() {
+  user_accept_languages_.clear();
+  pref_accept_language_.Destroy();
+}
+
+std::optional<std::string> ReduceAcceptLanguageService::GetReducedLanguage(
     const url::Origin& origin) {
   const GURL& url = origin.GetURL();
 
   // Only reduce accept-language in http and https scheme.
   if (!url.SchemeIsHTTPOrHTTPS())
-    return absl::nullopt;
+    return std::nullopt;
 
   // Record the time spent getting the reduced accept language to better
   // understand whether this prefs read can introduce any large latency.
@@ -72,7 +78,7 @@ absl::optional<std::string> ReduceAcceptLanguageService::GetReducedLanguage(
       url, GURL(), ContentSettingsType::REDUCED_ACCEPT_LANGUAGE, nullptr);
 
   if (accept_language_rule.is_none()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   DCHECK(accept_language_rule.is_dict());
@@ -80,13 +86,13 @@ absl::optional<std::string> ReduceAcceptLanguageService::GetReducedLanguage(
   const base::Value* language_value =
       accept_language_rule.GetDict().Find(kReduceAcceptLanguageSettingKey);
   if (language_value == nullptr) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // We should guarantee reduce accept language always be Type::String since
   // we save it as string in the Prefs.
   DCHECK(language_value->is_string());
-  return absl::make_optional(language_value->GetString());
+  return std::make_optional(language_value->GetString());
 }
 
 std::vector<std::string> ReduceAcceptLanguageService::GetUserAcceptLanguages()
@@ -110,13 +116,12 @@ void ReduceAcceptLanguageService::PersistReducedLanguage(
       network::features::kReduceAcceptLanguageCacheDuration.Get();
 
   accept_language_dictionary.Set(kReduceAcceptLanguageSettingKey, language);
+  content_settings::ContentSettingConstraints constraints;
+  constraints.set_lifetime(cache_duration);
+  constraints.set_session_model(content_settings::mojom::SessionModel::DURABLE);
   settings_map_->SetWebsiteSettingDefaultScope(
       url, GURL(), ContentSettingsType::REDUCED_ACCEPT_LANGUAGE,
-      base::Value(std::move(accept_language_dictionary)),
-      {cache_duration.is_zero()
-           ? base::Time()
-           : content_settings::GetConstraintExpiration(cache_duration),
-       content_settings::SessionModel::Durable});
+      base::Value(std::move(accept_language_dictionary)), constraints);
 
   // Record the time spent getting the reduce accept language.
   base::TimeDelta duration = base::TimeTicks::Now() - start_time;
@@ -147,6 +152,10 @@ void ReduceAcceptLanguageService::UpdateAcceptLanguage() {
           : pref_accept_language_.GetValue());
   user_accept_languages_ = base::SplitString(
       accept_languages_str, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+
+  base::UmaHistogramBoolean(
+      "ReduceAcceptLanguage.AcceptLanguagePrefValueIsEmpty",
+      user_accept_languages_.empty());
 }
 
 }  // namespace reduce_accept_language

@@ -126,12 +126,12 @@ PositionTemplate<Strategy> StartOfParagraphAlgorithm(
     if (layout_object->IsText() &&
         To<LayoutText>(layout_object)->ResolvedTextLength()) {
       if (style.ShouldPreserveBreaks()) {
-        auto* text = To<LayoutText>(layout_object);
-        int index = text->TextLength();
+        const String& text = To<LayoutText>(layout_object)->TransformedText();
+        int index = text.length();
         if (previous_node_iterator == start_node && candidate_offset < index)
           index = max(0, candidate_offset);
         while (--index >= 0) {
-          if ((*text)[index] == '\n') {
+          if (text[index] == '\n') {
             return PositionTemplate<Strategy>(To<Text>(previous_node_iterator),
                                               index + 1);
           }
@@ -206,7 +206,13 @@ PositionTemplate<Strategy> EndOfParagraphAlgorithm(
     }
     return Strategy::Next(*next_node_iterator, start_block);
   };
-
+  // If the first node in the paragraph is non editable, the position has
+  // enclosing node as its anchor node. The following while loop breaks out
+  // without iterating over next node if next_node_iterator is an enclosing
+  // block. Move to next node here since it is needed only for the start_node.
+  if (start_node == start_block) {
+    next_node_iterator = nextNode();
+  }
   while (next_node_iterator) {
     if (boundary_crossing_rule == kCannotCrossEditingBoundary &&
         !NodeIsUserSelectAll(next_node_iterator) &&
@@ -214,8 +220,15 @@ PositionTemplate<Strategy> EndOfParagraphAlgorithm(
       break;
     if (boundary_crossing_rule == kCanSkipOverEditingBoundary) {
       while (next_node_iterator &&
-             IsEditable(*next_node_iterator) != start_node_is_editable)
-        next_node_iterator = nextNode();
+             IsEditable(*next_node_iterator) != start_node_is_editable) {
+        if (!next_node_iterator->IsDescendantOf(highest_root)) {
+          break;
+        }
+        candidate_node = next_node_iterator;
+        candidate_type = PositionAnchorType::kAfterAnchor;
+        next_node_iterator =
+            Strategy::NextSkippingChildren(*next_node_iterator, start_block);
+      }
       if (!next_node_iterator ||
           !next_node_iterator->IsDescendantOf(highest_root))
         break;
@@ -228,7 +241,17 @@ PositionTemplate<Strategy> EndOfParagraphAlgorithm(
     }
     const ComputedStyle& style = layout_object->StyleRef();
     if (style.Visibility() != EVisibility::kVisible) {
-      next_node_iterator = nextNode();
+      if (RuntimeEnabledFeatures::
+              HandleDeletionAtStartAndEndBoundaryContainingHiddenElementEnabled()) {
+        // We should skip the children of hidden elements and
+        // place the position immediately after the anchor.
+        candidate_node = next_node_iterator;
+        candidate_type = PositionAnchorType::kAfterAnchor;
+        next_node_iterator =
+            Strategy::NextSkippingChildren(*next_node_iterator, start_block);
+      } else {
+        next_node_iterator = nextNode();
+      }
       continue;
     }
 
@@ -239,21 +262,24 @@ PositionTemplate<Strategy> EndOfParagraphAlgorithm(
     // can't accept the caret.
     if (layout_object->IsText() &&
         To<LayoutText>(layout_object)->ResolvedTextLength()) {
-      auto* const text = To<LayoutText>(layout_object);
+      auto* const layout_text = To<LayoutText>(layout_object);
       if (style.ShouldPreserveBreaks()) {
-        const int length = text->TextLength();
+        const String& text = layout_text->TransformedText();
+        const int length = text.length();
         for (int i = (next_node_iterator == start_node ? candidate_offset : 0);
              i < length; ++i) {
-          if ((*text)[i] == '\n') {
-            return PositionTemplate<Strategy>(To<Text>(next_node_iterator),
-                                              i + text->TextStartOffset());
+          if (text[i] == '\n') {
+            return PositionTemplate<Strategy>(
+                To<Text>(next_node_iterator),
+                i + layout_text->TextStartOffset());
           }
         }
       }
 
       candidate_node = next_node_iterator;
       candidate_type = PositionAnchorType::kOffsetInAnchor;
-      candidate_offset = text->CaretMaxOffset() + text->TextStartOffset();
+      candidate_offset =
+          layout_text->CaretMaxOffset() + layout_text->TextStartOffset();
       next_node_iterator = nextNode();
     } else if (EditingIgnoresContent(*next_node_iterator) ||
                IsDisplayInsideTable(next_node_iterator)) {

@@ -35,7 +35,7 @@
 #include <thread>
 #include <tuple>
 
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) || \
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX_BUT_NOT_QNX) || \
     PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
 #include <sys/prctl.h>
 #endif
@@ -64,7 +64,7 @@ struct ChildProcessArgs {
 // Don't add any dynamic allocation in this function. This will be invoked
 // under a fork(), potentially in a state where the allocator lock is held.
 void __attribute__((noreturn)) ChildProcess(ChildProcessArgs* args) {
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) || \
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX_BUT_NOT_QNX) || \
     PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
   // In no case we want a child process to outlive its parent process. This is
   // relevant for tests, so that a test failure/crash doesn't leave child
@@ -182,7 +182,7 @@ void __attribute__((noreturn)) ChildProcess(ChildProcessArgs* args) {
   if (!args->exec_cmd)
     _exit(0);
 
-  // If |args[0]| is a path use execv() (which takes a path), othewise use
+  // If |args[0]| is a path use execv() (which takes a path), otherwise use
   // exevp(), which uses the shell and follows PATH.
   if (strchr(args->exec_cmd, '/')) {
     char** env = args->env.empty() ? environ : args->env.data();
@@ -269,7 +269,7 @@ void Subprocess::Start() {
   auto* rusage = s_->rusage.get();
   s_->waitpid_thread = std::thread([pid, exit_status_pipe_wr, rusage] {
     int pid_stat = -1;
-    struct rusage usg {};
+    struct rusage usg{};
     int wait_res = PERFETTO_EINTR(wait4(pid, &pid_stat, 0, &usg));
     PERFETTO_CHECK(wait_res == pid);
 
@@ -390,7 +390,7 @@ void Subprocess::TryReadExitStatus() {
   } else if (WIFSIGNALED(pid_stat)) {
     s_->returncode = 128 + WTERMSIG(pid_stat);  // Follow bash convention.
   } else {
-    PERFETTO_FATAL("waitpid() returned an unexpected value (0x%x)", pid_stat);
+    PERFETTO_FATAL("waitpid() returned an unexpected value (%d)", pid_stat);
   }
 }
 

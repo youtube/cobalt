@@ -77,8 +77,7 @@ OptionsPageInfo::OptionsPageInfo(const GURL& options_page,
       open_in_tab_(open_in_tab) {
 }
 
-OptionsPageInfo::~OptionsPageInfo() {
-}
+OptionsPageInfo::~OptionsPageInfo() = default;
 
 // static
 const GURL& OptionsPageInfo::GetOptionsPage(const Extension* extension) {
@@ -105,7 +104,7 @@ bool OptionsPageInfo::ShouldOpenInTab(const Extension* extension) {
 
 std::unique_ptr<OptionsPageInfo> OptionsPageInfo::Create(
     Extension* extension,
-    const base::Value* options_ui_value,
+    const base::Value::Dict* options_ui_dict,
     const std::string& options_page_string,
     std::vector<InstallWarning>* install_warnings,
     std::u16string* error) {
@@ -117,14 +116,10 @@ std::unique_ptr<OptionsPageInfo> OptionsPageInfo::Create(
   bool open_in_tab = !FeatureSwitch::embedded_extension_options()->IsEnabled();
 
   // Parse the options_ui object.
-  if (options_ui_value) {
-    std::u16string options_ui_error;
-
-    std::unique_ptr<OptionsUI> options_ui =
-        OptionsUI::FromValueDeprecated(*options_ui_value, &options_ui_error);
-    if (!options_ui) {
-      install_warnings->push_back(
-          InstallWarning(base::UTF16ToASCII(options_ui_error)));
+  if (options_ui_dict) {
+    auto options_ui = OptionsUI::FromValue(*options_ui_dict);
+    if (!options_ui.has_value()) {
+      install_warnings->emplace_back(base::UTF16ToASCII(options_ui.error()));
     } else {
       std::u16string options_parse_error;
       if (!ParseOptionsUrl(extension,
@@ -132,13 +127,12 @@ std::unique_ptr<OptionsPageInfo> OptionsPageInfo::Create(
                            keys::kOptionsUI,
                            &options_parse_error,
                            &options_page)) {
-        install_warnings->push_back(
-            InstallWarning(base::UTF16ToASCII(options_parse_error)));
+        install_warnings->emplace_back(base::UTF16ToASCII(options_parse_error));
       }
       if (options_ui->chrome_style) {
-        if (extension->manifest_version() < 3)
+        if (extension->manifest_version() < 3) {
           chrome_style = *options_ui->chrome_style;
-        else {
+        } else {
           *error = errors::kChromeStyleInvalidForManifestV3;
           return nullptr;
         }
@@ -163,14 +157,10 @@ std::unique_ptr<OptionsPageInfo> OptionsPageInfo::Create(
                                            open_in_tab);
 }
 
-OptionsPageManifestHandler::OptionsPageManifestHandler() {
-}
+OptionsPageHandler::OptionsPageHandler() = default;
+OptionsPageHandler::~OptionsPageHandler() = default;
 
-OptionsPageManifestHandler::~OptionsPageManifestHandler() {
-}
-
-bool OptionsPageManifestHandler::Parse(Extension* extension,
-                                       std::u16string* error) {
+bool OptionsPageHandler::Parse(Extension* extension, std::u16string* error) {
   std::vector<InstallWarning> install_warnings;
   const Manifest* manifest = extension->manifest();
 
@@ -184,27 +174,30 @@ bool OptionsPageManifestHandler::Parse(Extension* extension,
     options_page_string = temp->GetString();
   }
 
-  const base::Value* options_ui_value = manifest->FindPath(keys::kOptionsUI);
+  const base::Value::Dict* options_ui_dict =
+      manifest->FindDictPath(keys::kOptionsUI);
 
   std::unique_ptr<OptionsPageInfo> info =
-      OptionsPageInfo::Create(extension, options_ui_value, options_page_string,
+      OptionsPageInfo::Create(extension, options_ui_dict, options_page_string,
                               &install_warnings, error);
-  if (!info)
+  if (!info) {
     return false;
+  }
 
   extension->AddInstallWarnings(std::move(install_warnings));
   extension->SetManifestData(keys::kOptionsUI, std::move(info));
   return true;
 }
 
-bool OptionsPageManifestHandler::Validate(
-    const Extension* extension,
-    std::string* error,
-    std::vector<InstallWarning>* warnings) const {
+bool OptionsPageHandler::Validate(const Extension* extension,
+                                  std::string* error,
+                                  std::vector<InstallWarning>* warnings) const {
   // Validate path to the options page.  Don't check the URL for hosted apps,
   // because they are expected to refer to an external URL.
-  if (!OptionsPageInfo::HasOptionsPage(extension) || extension->is_hosted_app())
+  if (!OptionsPageInfo::HasOptionsPage(extension) ||
+      extension->is_hosted_app()) {
     return true;
+  }
 
   base::FilePath options_path = file_util::ExtensionURLToRelativeFilePath(
       OptionsPageInfo::GetOptionsPage(extension));
@@ -217,7 +210,7 @@ bool OptionsPageManifestHandler::Validate(
   return true;
 }
 
-base::span<const char* const> OptionsPageManifestHandler::Keys() const {
+base::span<const char* const> OptionsPageHandler::Keys() const {
   static constexpr const char* kKeys[] = {keys::kOptionsPage, keys::kOptionsUI};
   return kKeys;
 }

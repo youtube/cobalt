@@ -51,7 +51,7 @@ SpeechSynthesisUtterance::SpeechSynthesisUtterance(ExecutionContext* context,
       mojom_utterance_(mojom::blink::SpeechSynthesisUtterance::New()) {
   // Set default values. |voice| intentionally left null.
   mojom_utterance_->text = text;
-  mojom_utterance_->lang = String("");
+  mojom_utterance_->lang = g_empty_string;
   mojom_utterance_->volume = mojom::blink::kSpeechSynthesisDoublePrefNotSet;
   mojom_utterance_->rate = mojom::blink::kSpeechSynthesisDoublePrefNotSet;
   mojom_utterance_->pitch = mojom::blink::kSpeechSynthesisDoublePrefNotSet;
@@ -64,7 +64,7 @@ const AtomicString& SpeechSynthesisUtterance::InterfaceName() const {
 }
 
 SpeechSynthesisVoice* SpeechSynthesisUtterance::voice() const {
-  return voice_;
+  return voice_.Get();
 }
 
 void SpeechSynthesisUtterance::setVoice(SpeechSynthesisVoice* voice) {
@@ -102,7 +102,7 @@ void SpeechSynthesisUtterance::Trace(Visitor* visitor) const {
   visitor->Trace(synthesis_);
   visitor->Trace(voice_);
   ExecutionContextClient::Trace(visitor);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
 }
 
 void SpeechSynthesisUtterance::OnStartedSpeaking() {
@@ -156,9 +156,9 @@ void SpeechSynthesisUtterance::Start(SpeechSynthesis* synthesis) {
   mojom::blink::SpeechSynthesisUtterancePtr mojom_utterance_to_send =
       mojom_utterance_->Clone();
   if (mojom_utterance_to_send->voice.IsNull())
-    mojom_utterance_to_send->voice = String("");
+    mojom_utterance_to_send->voice = g_empty_string;
   if (mojom_utterance_to_send->text.IsNull())
-    mojom_utterance_to_send->text = String("");
+    mojom_utterance_to_send->text = g_empty_string;
 
   receiver_.reset();
 

@@ -15,10 +15,13 @@
 #ifndef STARBOARD_SHARED_WIDEVINE_DRM_SYSTEM_WIDEVINE_H_
 #define STARBOARD_SHARED_WIDEVINE_DRM_SYSTEM_WIDEVINE_H_
 
+#include <sys/types.h>
+
 #include <atomic>
 #include <limits>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -26,7 +29,6 @@
 #include "build/build_config.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
-#include "starboard/thread.h"
 #include "third_party/internal/ce_cdm/cdm/include/cdm.h"
 
 namespace starboard {
@@ -55,19 +57,16 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   static bool IsDrmSystemWidevine(SbDrmSystem drm_system);
 
   // From |SbDrmSystemPrivate|.
-  void GenerateSessionUpdateRequest(int ticket,
-                                    const char* type,
-                                    const void* initialization_data,
-                                    int initialization_data_size) override;
+  void GenerateSessionUpdateRequest(
+      int ticket,
+      std::string_view type,
+      std::string_view initialization_data) override;
 
   void UpdateSession(int ticket,
-                     const void* key,
-                     int key_size,
-                     const void* sb_drm_session_id,
-                     int sb_drm_session_id_size) override;
+                     std::string_view key,
+                     std::string_view sb_drm_session_id) override;
 
-  void CloseSession(const void* sb_drm_session_id,
-                    int sb_drm_session_id_size) override;
+  void CloseSession(std::string_view sb_drm_session_id) override;
 
   DecryptStatus Decrypt(InputBuffer* buffer) override;
 
@@ -80,10 +79,9 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   // this function.  Note that it is benign if this function is called in
   // parallel with a server certificate request.
   void UpdateServerCertificate(int ticket,
-                               const void* certificate,
-                               int certificate_size) override;
+                               std::string_view certificate) override;
 
-  const void* GetMetrics(int* size) override { return NULL; }
+  std::optional<std::string_view> GetMetrics() override { return std::nullopt; }
 
  private:
   // Stores the data necessary to call GenerateSessionUpdateRequestInternal().
@@ -131,8 +129,7 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   int GetAndResetTicket(const std::string& sb_drm_session_id);
   std::string WvdmSessionIdToSbDrmSessionId(
       const std::string& wvcdm_session_id);
-  bool SbDrmSessionIdToWvdmSessionId(const void* sb_drm_session_id,
-                                     int sb_drm_session_id_size,
+  bool SbDrmSessionIdToWvdmSessionId(std::string_view sb_drm_session_id,
                                      std::string* wvcdm_session_id);
 
   // Generates a special key message to ask for the server certificate.  When
@@ -177,7 +174,7 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   // call to |GenerateKeyRequest| or |AddKey|, but CDM may invoke host's methods
   // spontaneously from the timer thread. In that case |GetTicket| need to
   // return |kSbDrmTicketInvalid|.
-  const SbThreadId ticket_thread_id_;
+  const pid_t ticket_thread_id_;
 
   std::vector<GenerateSessionUpdateRequestData>
       pending_generate_session_update_requests_;
@@ -186,8 +183,6 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   std::unique_ptr<::widevine::Cdm> cdm_;
 
   bool is_server_certificate_set_ = false;
-
-  volatile bool quitting_ = false;
 
   std::mutex unblock_key_retry_mutex_;
   std::optional<int64_t> unblock_key_retry_start_time_;

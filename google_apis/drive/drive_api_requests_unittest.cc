@@ -2,15 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "google_apis/drive/drive_api_requests.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <utility>
 
+#include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -37,6 +40,7 @@
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "services/network/network_service.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
+#include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/test/fake_test_cert_verifier_params_factory.h"
 #include "services/network/test/test_network_context_client.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -161,7 +165,7 @@ class DriveApiRequestsTest : public testing::Test {
     network::mojom::URLLoaderFactoryParamsPtr params =
         network::mojom::URLLoaderFactoryParams::New();
     params->process_id = network::mojom::kBrowserProcessId;
-    params->is_corb_enabled = false;
+    params->is_orb_enabled = false;
     network_context_->CreateURLLoaderFactory(
         url_loader_factory_.BindNewPipeAndPassReceiver(), std::move(params));
     test_shared_loader_factory_ =
@@ -277,7 +281,7 @@ class DriveApiRequestsTest : public testing::Test {
   std::unique_ptr<net::test_server::HttpResponse> HandleChildrenDeleteRequest(
       const net::test_server::HttpRequest& request) {
     if (request.method != net::test_server::METHOD_DELETE ||
-        request.relative_url.find("/children/") == std::string::npos) {
+        !base::Contains(request.relative_url, "/children/")) {
       // The request is not the "Children: delete" request. Delegate the
       // processing to the next handler.
       return nullptr;
@@ -315,7 +319,7 @@ class DriveApiRequestsTest : public testing::Test {
   std::unique_ptr<net::test_server::HttpResponse> HandleDeleteRequest(
       const net::test_server::HttpRequest& request) {
     if (request.method != net::test_server::METHOD_DELETE ||
-        request.relative_url.find("/files/") == std::string::npos) {
+        !base::Contains(request.relative_url, "/files/")) {
       // The file is not file deletion request. Delegate the processing to the
       // next handler.
       return nullptr;
@@ -587,9 +591,21 @@ TEST_F(DriveApiRequestsTest, DriveApiDataRequest_Fields) {
 }
 
 TEST_F(DriveApiRequestsTest, FilesInsertRequest) {
-  const base::Time::Exploded kModifiedDate = {2012, 7, 0, 19, 15, 59, 13, 123};
-  const base::Time::Exploded kLastViewedByMeDate = {2013, 7,  0,  19,
-                                                    15,   59, 13, 123};
+  static constexpr base::Time::Exploded kModifiedDate = {.year = 2012,
+                                                         .month = 7,
+                                                         .day_of_month = 19,
+                                                         .hour = 15,
+                                                         .minute = 59,
+                                                         .second = 13,
+                                                         .millisecond = 123};
+  static constexpr base::Time::Exploded kLastViewedByMeDate = {
+      .year = 2013,
+      .month = 7,
+      .day_of_month = 19,
+      .hour = 15,
+      .minute = 59,
+      .second = 13,
+      .millisecond = 123};
 
   // Set an expected data file containing the directory's entry data.
   expected_data_file_path_ =
@@ -657,9 +673,21 @@ TEST_F(DriveApiRequestsTest, FilesInsertRequest) {
 }
 
 TEST_F(DriveApiRequestsTest, FilesPatchRequest) {
-  const base::Time::Exploded kModifiedDate = {2012, 7, 0, 19, 15, 59, 13, 123};
-  const base::Time::Exploded kLastViewedByMeDate = {2013, 7,  0,  19,
-                                                    15,   59, 13, 123};
+  static constexpr base::Time::Exploded kModifiedDate = {.year = 2012,
+                                                         .month = 7,
+                                                         .day_of_month = 19,
+                                                         .hour = 15,
+                                                         .minute = 59,
+                                                         .second = 13,
+                                                         .millisecond = 123};
+  static constexpr base::Time::Exploded kLastViewedByMeDate = {
+      .year = 2013,
+      .month = 7,
+      .day_of_month = 19,
+      .hour = 15,
+      .minute = 59,
+      .second = 13,
+      .millisecond = 123};
 
   // Set an expected data file containing valid result.
   expected_data_file_path_ =
@@ -838,7 +866,13 @@ TEST_F(DriveApiRequestsTest, ChangesListNextPageRequest) {
 }
 
 TEST_F(DriveApiRequestsTest, FilesCopyRequest) {
-  const base::Time::Exploded kModifiedDate = {2012, 7, 0, 19, 15, 59, 13, 123};
+  static constexpr base::Time::Exploded kModifiedDate = {.year = 2012,
+                                                         .month = 7,
+                                                         .day_of_month = 19,
+                                                         .hour = 15,
+                                                         .minute = 59,
+                                                         .second = 13,
+                                                         .millisecond = 123};
 
   // Set an expected data file containing the dummy file entry data.
   // It'd be returned if we copy a file.
@@ -1504,9 +1538,21 @@ TEST_F(DriveApiRequestsTest, UploadNewLargeFileRequest) {
 }
 
 TEST_F(DriveApiRequestsTest, UploadNewFileWithMetadataRequest) {
-  const base::Time::Exploded kModifiedDate = {2012, 7, 0, 19, 15, 59, 13, 123};
-  const base::Time::Exploded kLastViewedByMeDate = {2013, 7,  0,  19,
-                                                    15,   59, 13, 123};
+  static constexpr base::Time::Exploded kModifiedDate = {.year = 2012,
+                                                         .month = 7,
+                                                         .day_of_month = 19,
+                                                         .hour = 15,
+                                                         .minute = 59,
+                                                         .second = 13,
+                                                         .millisecond = 123};
+  static constexpr base::Time::Exploded kLastViewedByMeDate = {
+      .year = 2013,
+      .month = 7,
+      .day_of_month = 19,
+      .hour = 15,
+      .minute = 59,
+      .second = 13,
+      .millisecond = 123};
 
   // Set an expected url for uploading.
   expected_upload_path_ = kTestUploadNewFilePath;
@@ -1877,9 +1923,21 @@ TEST_F(DriveApiRequestsTest,
 }
 
 TEST_F(DriveApiRequestsTest, UploadExistingFileWithMetadataRequest) {
-  const base::Time::Exploded kModifiedDate = {2012, 7, 0, 19, 15, 59, 13, 123};
-  const base::Time::Exploded kLastViewedByMeDate = {2013, 7,  0,  19,
-                                                    15,   59, 13, 123};
+  static constexpr base::Time::Exploded kModifiedDate = {.year = 2012,
+                                                         .month = 7,
+                                                         .day_of_month = 19,
+                                                         .hour = 15,
+                                                         .minute = 59,
+                                                         .second = 13,
+                                                         .millisecond = 123};
+  static constexpr base::Time::Exploded kLastViewedByMeDate = {
+      .year = 2013,
+      .month = 7,
+      .day_of_month = 19,
+      .hour = 15,
+      .minute = 59,
+      .second = 13,
+      .millisecond = 123};
 
   // Set an expected url for uploading.
   expected_upload_path_ = kTestUploadExistingFilePath;
@@ -2079,6 +2137,8 @@ TEST_F(DriveApiRequestsTest, PermissionsInsertRequest) {
 TEST_F(DriveApiRequestsTest, BatchUploadRequest) {
   // Preapre constants.
   const char kTestContentType[] = "text/plain";
+  const char kTestConvertedMimeType[] = "application/vnd.google-apps.document";
+
   const std::string kTestContent(10, 'a');
   const base::FilePath kTestFilePath =
       temp_dir_.GetPath().AppendASCII("upload_file.txt");
@@ -2093,9 +2153,9 @@ TEST_F(DriveApiRequestsTest, BatchUploadRequest) {
   request_sender_->StartRequestWithAuthRetry(std::move(request));
 
   // Create child request.
-  ApiErrorCode errors[] = {OTHER_ERROR, OTHER_ERROR};
-  std::unique_ptr<FileResource> file_resources[2];
-  base::RunLoop run_loop[2];
+  auto errors = std::to_array<ApiErrorCode>({OTHER_ERROR, OTHER_ERROR});
+  std::array<std::unique_ptr<FileResource>, 2> file_resources;
+  std::array<base::RunLoop, 2> run_loop;
   for (int i = 0; i < 2; ++i) {
     FileResourceCallback callback = test_util::CreateQuitCallback(
         &run_loop[i],
@@ -2104,9 +2164,9 @@ TEST_F(DriveApiRequestsTest, BatchUploadRequest) {
         new drive::MultipartUploadNewFileDelegate(
             request_sender_->blocking_task_runner(),
             base::StringPrintf("new file title %d", i), "parent_resource_id",
-            kTestContentType, kTestContent.size(), base::Time(), base::Time(),
-            kTestFilePath, drive::Properties(), *url_generator_,
-            std::move(callback), ProgressCallback());
+            kTestContentType, kTestConvertedMimeType, kTestContent.size(),
+            base::Time(), base::Time(), kTestFilePath, drive::Properties(),
+            *url_generator_, std::move(callback), ProgressCallback());
     child_request->SetBoundaryForTesting("INNERBOUNDARY");
     request_ptr->AddRequest(child_request);
   }
@@ -2130,8 +2190,12 @@ TEST_F(DriveApiRequestsTest, BatchUploadRequest) {
       "--INNERBOUNDARY\n"
       "Content-Type: application/json\n"
       "\n"
-      "{\"parents\":[{\"id\":\"parent_resource_id\","
-      "\"kind\":\"drive#fileLink\"}],\"title\":\"new file title 0\"}\n"
+      "{"
+      "\"mimeType\":\"application/vnd.google-apps.document\","
+      "\"parents\":[{\"id\":\"parent_resource_id\","
+      "\"kind\":\"drive#fileLink\"}],"
+      "\"title\":\"new file title 0\""
+      "}\n"
       "--INNERBOUNDARY\n"
       "Content-Type: text/plain\n"
       "\n"
@@ -2148,8 +2212,12 @@ TEST_F(DriveApiRequestsTest, BatchUploadRequest) {
       "--INNERBOUNDARY\n"
       "Content-Type: application/json\n"
       "\n"
-      "{\"parents\":[{\"id\":\"parent_resource_id\","
-      "\"kind\":\"drive#fileLink\"}],\"title\":\"new file title 1\"}\n"
+      "{"
+      "\"mimeType\":\"application/vnd.google-apps.document\","
+      "\"parents\":[{\"id\":\"parent_resource_id\","
+      "\"kind\":\"drive#fileLink\"}],"
+      "\"title\":\"new file title 1\""
+      "}\n"
       "--INNERBOUNDARY\n"
       "Content-Type: text/plain\n"
       "\n"
@@ -2208,7 +2276,7 @@ TEST_F(DriveApiRequestsTest, BatchUploadRequestProgress) {
   std::unique_ptr<drive::BatchUploadRequest> request =
       std::make_unique<drive::BatchUploadRequest>(request_sender_.get(),
                                                   *url_generator_);
-  TestBatchableDelegate* requests[] = {
+  auto requests = std::to_array<TestBatchableDelegate*>({
       new TestBatchableDelegate(GURL("http://example.com/test"),
                                 "application/binary", std::string(100, 'a'),
                                 base::DoNothing()),
@@ -2217,8 +2285,10 @@ TEST_F(DriveApiRequestsTest, BatchUploadRequestProgress) {
                                 base::DoNothing()),
       new TestBatchableDelegate(GURL("http://example.com/test"),
                                 "application/binary", std::string(0, 'c'),
-                                base::DoNothing())};
-  const size_t kExpectedUploadDataPosition[] = {207, 515, 773};
+                                base::DoNothing()),
+  });
+  const auto kExpectedUploadDataPosition =
+      std::to_array<size_t>({207, 515, 773});
   const size_t kExpectedUploadDataSize = 851;
   request->AddRequest(requests[0]);
   request->AddRequest(requests[1]);

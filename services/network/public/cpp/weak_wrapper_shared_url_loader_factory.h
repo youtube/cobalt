@@ -20,6 +20,13 @@ namespace network {
 class COMPONENT_EXPORT(NETWORK_CPP) WeakWrapperSharedURLLoaderFactory
     : public network::SharedURLLoaderFactory {
  public:
+  // Warning: since this will not own `factory_ptr`, and is ref-counted (thus
+  // potentially having distant things extend its lifetime), it's easy to end up
+  // with a dangling pointer. Make sure to call `Detach()` when the lifetime
+  // of the underlying implementation is about to end.
+  //
+  // If you're using this with TestURLLoaderFactory, consider using its
+  // GetSafeWeakWrapper() which will Detach() automatically.
   explicit WeakWrapperSharedURLLoaderFactory(
       mojom::URLLoaderFactory* factory_ptr);
 

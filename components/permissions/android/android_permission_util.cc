@@ -5,13 +5,26 @@
 #include "components/permissions/android/android_permission_util.h"
 
 #include "base/android/jni_array.h"
-#include "components/permissions/android/jni_headers/AndroidPermissionRequester_jni.h"
-#include "components/permissions/android/jni_headers/PermissionUtil_jni.h"
+#include "components/location/android/location_settings_impl.h"
 #include "components/permissions/permission_uma_util.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/android/window_android.h"
 
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/permissions/android/core_jni/PermissionUtil_jni.h"
+#include "components/permissions/android/jni_headers/AndroidPermissionRequester_jni.h"
+
 namespace permissions {
+
+namespace {
+
+// Returns whether the Android location setting is enabled/disabled.
+bool IsSystemLocationSettingEnabled() {
+  LocationSettingsImpl location_settings;
+  return location_settings.IsSystemLocationSettingEnabled();
+}
+
+}  // namespace
 
 void AppendRequiredAndroidPermissionsForContentSetting(
     ContentSettingsType content_settings_type,
@@ -104,11 +117,6 @@ bool DoesAppLevelSettingsAllowSiteNotifications() {
   return Java_PermissionUtil_doesAppLevelSettingsAllowSiteNotifications(env);
 }
 
-bool AreAppLevelNotificationsEnabled() {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  return Java_PermissionUtil_areAppLevelNotificationsEnabled(env);
-}
-
 bool NeedsLocationPermissionForBluetooth(content::WebContents* web_contents) {
   JNIEnv* env = base::android::AttachCurrentThread();
   auto* window_android = web_contents->GetNativeView()->GetWindowAndroid();
@@ -140,11 +148,42 @@ bool CanRequestSystemPermissionsForBluetooth(
       env, window_android->GetJavaObject());
 }
 
+bool HasSystemPermission(ContentSettingsType type,
+                         content::WebContents* web_contents) {
+  if (!web_contents || !web_contents->GetNativeView()) {
+    return false;
+  }
+  if (type == ContentSettingsType::GEOLOCATION &&
+      !IsSystemLocationSettingEnabled()) {
+    return false;
+  }
+  auto* window_android = web_contents->GetNativeView()->GetWindowAndroid();
+  DCHECK(window_android);
+
+  return HasRequiredAndroidPermissionsForContentSetting(window_android, type);
+}
+
+bool CanRequestSystemPermission(ContentSettingsType type,
+                                content::WebContents* web_contents) {
+  if (!web_contents || !web_contents->GetNativeView()) {
+    return false;
+  }
+  if (type == ContentSettingsType::GEOLOCATION &&
+      !IsSystemLocationSettingEnabled()) {
+    return false;
+  }
+  JNIEnv* env = base::android::AttachCurrentThread();
+  auto* window_android = web_contents->GetNativeView()->GetWindowAndroid();
+  DCHECK(window_android);
+  return Java_PermissionUtil_canRequestSystemPermission(
+      env, static_cast<int>(type), window_android->GetJavaObject());
+}
+
 void RequestSystemPermissionsForBluetooth(content::WebContents* web_contents) {
   JNIEnv* env = base::android::AttachCurrentThread();
   auto* window_android = web_contents->GetNativeView()->GetWindowAndroid();
   DCHECK(window_android);
-  // TODO(crbug.com/1412290): Pass the callback from native layer.
+  // TODO(crbug.com/40255210): Pass the callback from native layer.
   return Java_PermissionUtil_requestSystemPermissionsForBluetooth(
       env, window_android->GetJavaObject(), nullptr);
 }

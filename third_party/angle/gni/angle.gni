@@ -5,8 +5,6 @@
 import("//build_overrides/angle.gni")
 
 declare_args() {
-  is_ggp = false
-
   # Extract native libs in ANGLE apk. Useful for flamegraph generation.
   angle_extract_native_libs = false
 
@@ -25,19 +23,27 @@ declare_args() {
   # Don't build dEQP by default.
   build_angle_deqp_tests = false
 
-  # Enable Desktop GL frontend support.
-  angle_enable_gl_desktop_frontend = false
+  build_angle_end2end_tests_aosp = false
+
+  # List of traces for benchmark mode
+  angle_standalone_benchmark_traces = []
+
+  # Benchmark mode golden default directory
+  angle_standalone_benchmark_goldens_dir = ""
 }
 
 declare_args() {
-  # Expose WGL entry points, which is necessary for running windows desktop GL applications against ANGLE.
-  # TODO(http://anglebug.com/7628): This condition should be `angle_enable_gl_desktop_frontend && is_win`
-  # This is disabled by default on Windows because it was causing some test failures. Once the WGL frontend
-  # has more functionality implemented, we can re-enable this.
-  angle_expose_wgl_entry_points = false
+  # Enable angle standalone benchmark mode if list of traces is provided
+  angle_standalone_benchmark =
+      is_android && angle_standalone_benchmark_traces != []
 
-  # Expose GLX entry points by default when using Desktop GL on Linux.
-  angle_expose_glx_entry_points = angle_enable_gl_desktop_frontend && is_linux
+  # Only bundle traces in the APK if we're building a subset or if standalone benchmark is selected
+  restricted_traces_outside_of_apk =
+      is_android && angle_restricted_traces == [] &&
+      angle_standalone_benchmark_traces == []
+
+  # Enables OpenCL testing support
+  angle_enable_cl_testing = angle_enable_cl && (is_linux || is_android)
 }
 
 if (angle_has_build) {
@@ -54,16 +60,17 @@ if (angle_has_build) {
     import("//build/config/win/visual_studio_version.gni")
   }
 
-  if (is_castos || ozone_platform_headless) {
+  if (is_chromeos) {
+    angle_vulkan_display_mode = "offscreen"
+  } else if (is_castos || ozone_platform_headless) {
     angle_vulkan_display_mode = "headless"
   }
 
   declare_args() {
     angle_use_gbm = ozone_platform_gbm
-    angle_use_x11 = ozone_platform_x11 && !is_ggp && (is_linux || is_chromeos)
-    angle_use_wayland =
-        ozone_platform_wayland && !is_ggp && is_linux && !is_castos
-    angle_use_vulkan_display = (is_linux || is_chromeos) && !is_ggp
+    angle_use_x11 = ozone_platform_x11 && (is_linux || is_chromeos)
+    angle_use_wayland = ozone_platform_wayland && is_linux && !is_castos
+    angle_use_vulkan_display = is_linux || is_chromeos
   }
 } else {
   declare_args() {
@@ -73,18 +80,19 @@ if (angle_has_build) {
     is_lsan = false
     build_with_chromium = false
     dcheck_always_on = false
-    angle_use_x11 = (is_linux || is_chromeos) && !is_ggp
-    angle_use_wayland = is_linux && !is_ggp
+    angle_use_x11 = is_linux || is_chromeos
+    angle_use_wayland = is_linux
     use_ozone = false
     ozone_platform_gbm = false
     ozone_platform_wayland = false
     ozone_platform_headless = false
     use_fuzzing_engine = false
     is_apple = is_mac || is_ios
+    is_desktop_android = false
   }
 
   declare_args() {
-    angle_use_vulkan_display = (is_linux || is_chromeos) && !is_ggp
+    angle_use_vulkan_display = is_linux || is_chromeos
   }
 }
 
@@ -104,7 +112,8 @@ declare_args() {
 
   if (current_cpu == "arm64" || current_cpu == "x64" ||
       current_cpu == "mips64el" || current_cpu == "s390x" ||
-      current_cpu == "ppc64" || current_cpu == "loong64") {
+      current_cpu == "ppc64" || current_cpu == "loong64" ||
+      current_cpu == "riscv64" || current_cpu == "arm64e") {
     angle_64bit_current_cpu = true
   } else if (current_cpu == "arm" || current_cpu == "x86" ||
              current_cpu == "mipsel" || current_cpu == "s390" ||
@@ -116,6 +125,12 @@ declare_args() {
 
   # Indicate if the rapidJSON library is available to build with in third_party/.
   angle_has_rapidjson = angle_has_build
+
+  angle_is_winappsdk = false
+
+  # Windows App SDK is a separate dependency from nuget.org that needs to
+  # be pre-processed before being used.
+  winappsdk_dir = ""
 }
 
 declare_args() {
@@ -125,16 +140,16 @@ declare_args() {
   if (!is_android) {
     ndk_api_level_at_least_26 = false
   } else {
-    ndk_api_level_at_least_26 =
-        (!angle_64bit_current_cpu && android32_ndk_api_level >= 26) ||
-        (angle_64bit_current_cpu && android64_ndk_api_level >= 26)
+    ndk_api_level_at_least_26 = android_ndk_api_level >= 26
   }
 
-  # Vulkan loader is statically linked on Mac. http://anglebug.com/4477
+  # Vulkan loader is statically linked on Mac. http://anglebug.com/40096682
   angle_shared_libvulkan = !is_mac
 
   # There's no "is_winuwp" helper in BUILDCONFIG.gn, so we define one ourselves
-  angle_is_winuwp = is_win && target_os == "winuwp"
+  # Windows App SDK is almost UWP but for Win32, so we want all the same things
+  angle_is_winuwp = (is_win && target_os == "winuwp") || angle_is_winappsdk
+
   angle_is_msvc = is_win && !is_clang
 
   # Default to using "_angle" suffix on Android
@@ -149,9 +164,6 @@ declare_args() {
 
   # Frame capture code is enabled by default if rapidjson is available.
   angle_has_frame_capture = angle_has_rapidjson
-
-  # By default, include the SPIR-V based MSL translator (in addition to the direct translator)
-  angle_enable_msl_through_spirv = is_mac
 }
 
 declare_args() {
@@ -169,15 +181,14 @@ declare_args() {
   angle_enable_gl =
       (ozone_platform_gbm || ozone_platform_wayland || !is_linux ||
        ((angle_use_x11 && !is_chromeos) || angle_use_wayland || is_castos)) &&
-      !is_fuchsia && !angle_is_winuwp && !is_ggp && !is_win_arm64
+      !is_fuchsia && !angle_is_winuwp && !is_win_arm64 && !is_ios
 
   angle_enable_vulkan =
       angle_has_build &&
-      !(is_android && build_with_chromium && is_official_build) &&
       ((is_win && !angle_is_winuwp) ||
        ((is_linux || is_chromeos) &&
         (angle_use_x11 || angle_use_wayland || angle_use_vulkan_display)) ||
-       is_android || is_fuchsia || is_ggp || angle_enable_msl_through_spirv)
+       is_android || is_fuchsia || is_mac)
 
   # When set to true, ANGLE will not use VK_KHR_surface and VK_KHR_swapchain
   # extensions. Content can be rendered only off-screen.
@@ -187,11 +198,19 @@ declare_args() {
   angle_enable_null = !is_official_build
   angle_enable_gl_desktop_backend = !is_android && !is_ios
 
-  # http://anglebug.com/2634
+  # http://anglebug.com/40096506
   angle_enable_metal = is_apple
 
   # Enables the OpenCL pass-through back end
   angle_enable_cl_passthrough = angle_enable_cl
+
+  # Disable WGPU backend.
+  # Currently disabled on Android, Fuschia, WinUWP, and Win MSVC. X11 required on Linux.
+  # anglebug.com/42266968
+  angle_enable_wgpu =
+      !is_official_build && !(is_android || is_fuchsia || angle_is_winuwp) &&
+      (!is_win || is_clang) && (!is_linux || angle_use_x11) &&
+      defined(angle_dawn_dir)
 }
 
 declare_args() {
@@ -208,6 +227,9 @@ declare_args() {
 assert(!angle_is_winuwp || !angle_enable_cl,
        "OpenCL is not supported on Windows UWP")
 
+assert(!angle_is_winappsdk || winappsdk_dir != "",
+       "No path to Windows App SDK was provided using 'winappsdk_dir'")
+
 if (!angle_enable_cl) {
   angle_enable_cl_passthrough = false
 }
@@ -219,11 +241,7 @@ if (!defined(checkout_angle_mesa)) {
 declare_args() {
   # Currently SwiftShader's Vulkan front-end doesn't build on Android.
   # Disabled by default on MSVC because of compiler warnings/errors.
-  angle_enable_swiftshader =
-      angle_enable_vulkan && !is_android && !is_ggp && is_clang
-
-  # Translator frontend support:
-  angle_enable_desktop_glsl = angle_enable_gl_desktop_frontend
+  angle_enable_swiftshader = angle_enable_vulkan && !is_android && is_clang
 
   # Translator backend support:
   angle_enable_hlsl = angle_enable_d3d9 || angle_enable_d3d11
@@ -232,6 +250,10 @@ declare_args() {
   angle_enable_trace = false
   angle_enable_trace_android_logcat = false
   angle_enable_trace_events = false
+  angle_enable_platform_trace_events = build_with_chromium
+  angle_dump_pipeline_cache_graph = false
+
+  angle_always_log_info = false
 
   # Unwind backtrace support. This feature is currently only implemented
   # on Android for debugging purposes. Disabled by default.
@@ -244,9 +266,16 @@ declare_args() {
   # Disable the layers in ubsan builds because of really slow builds.
   # Vulkan Validation Layers require Android NDK API level 26, i.e. Oreo, due to
   # Vulkan Validation Layers compatibility issues, see http://crrev/c/1405714.
+  # This is disabled in the Chromium build because the current build toolchain
+  # for APKs and bundles expect a single .so file in trichrome builds. See
+  # https://bugs.chromium.org/p/angleproject/issues/detail?id=8398 for details.
   angle_enable_vulkan_validation_layers =
       angle_enable_vulkan && !is_ubsan && !is_tsan && !is_asan &&
-      angle_debug_layers_enabled && (!is_android || ndk_api_level_at_least_26)
+      angle_debug_layers_enabled &&
+      (!is_android || (ndk_api_level_at_least_26 && !build_with_chromium))
+  angle_enable_vulkan_api_dump_layer =
+      angle_enable_vulkan && angle_debug_layers_enabled && angle_standalone &&
+      !is_apple && (is_linux || is_android)
 
   # ISpriteVisual windows cannot be validated and can lead to crashes if an invalid window is
   # provided to ANGLE. Disable them for non-standalone ANGLE builds. crbug.com/1176118
@@ -256,22 +285,16 @@ declare_args() {
   # Disable performance counter output by default
   angle_enable_perf_counter_output = false
 
-  # We should use EAGL (ES) on iOS except on Mac Catalyst on Intel CPUs, which uses CGL (desktop GL).
-  angle_enable_eagl = angle_enable_gl && is_ios &&
-                      !(target_environment == "catalyst" &&
-                        (target_cpu == "x86" || target_cpu == "x64"))
-
   # Directory where to find wayland source files
   angle_wayland_dir = "$angle_root/third_party/wayland"
 
-  angle_vulkan_headers_dir =
-      "$angle_root/third_party/vulkan-deps/vulkan-headers/src"
-  angle_vulkan_loader_dir =
-      "$angle_root/third_party/vulkan-deps/vulkan-loader/src"
-  angle_vulkan_tools_dir =
-      "$angle_root/third_party/vulkan-deps/vulkan-tools/src"
+  angle_vulkan_headers_dir = "$angle_root/third_party/vulkan-headers/src"
+  angle_vulkan_loader_dir = "$angle_root/third_party/vulkan-loader/src"
+  angle_vulkan_tools_dir = "$angle_root/third_party/vulkan-tools/src"
   angle_vulkan_validation_layers_dir =
-      "$angle_root/third_party/vulkan-deps/vulkan-validation-layers/src"
+      "$angle_root/third_party/vulkan-validation-layers/src"
+  angle_lunarg_vulkantools_dir =
+      "$angle_root/third_party/lunarg-vulkantools/src"
 
   angle_build_vulkan_system_info = angle_has_build && !angle_is_winuwp
 
@@ -280,11 +303,13 @@ declare_args() {
   angle_enable_overlay = angle_enable_vulkan && angle_debug_layers_enabled
 
   angle_build_mesa = false
+
+  # Android platform's addTraceEvent ignores the timestamp and time() is a relatively heavy call.
+  angle_trace_events_ignore_timestamp = is_android && angle_standalone
 }
 
 declare_args() {
-  # TODO(jdarpinian): Support enabling CGL and EAGL at the same time using the soft linking code. Also support disabling both for Metal-only builds.
-  angle_enable_cgl = angle_enable_gl && !angle_enable_eagl && is_apple
+  angle_enable_cgl = angle_enable_gl && is_mac
 
   angle_enable_apple_translator_workarounds =
       is_apple && (angle_enable_glsl || use_fuzzing_engine)
@@ -315,10 +340,16 @@ angle_remove_configs = []
 
 if (angle_has_build) {
   angle_remove_configs += [ "//build/config/compiler:default_include_dirs" ]
-}
 
-if (angle_has_build && is_clang) {
-  angle_remove_configs += [ "//build/config/clang:find_bad_constructs" ]
+  if (is_clang && !is_nacl) {
+    angle_remove_configs += [ "//build/config/clang:find_bad_constructs" ]
+  }
+
+  if (!is_debug && !is_fuchsia) {
+    # default->optimize_max (e.g. Android defaults to -Oz, optimize_max is -O2)
+    angle_remove_configs += [ "//build/config/compiler:default_optimization" ]
+    angle_common_configs += [ "//build/config/compiler:optimize_max" ]
+  }
 }
 
 set_defaults("angle_executable") {
@@ -415,6 +446,14 @@ template("angle_shared_library") {
     configs += invoker.configs
     configs -= invoker.suppressed_configs
 
+    if (is_apple) {
+      # If a "build with ARC" config is present, remove it.
+      if (filter_include(configs, [ "//build/config/compiler:enable_arc" ]) !=
+          []) {
+        configs -= [ "//build/config/compiler:enable_arc" ]
+      }
+    }
+
     public_configs += [ angle_root + ":shared_library_public_config" ]
 
     if (is_android) {
@@ -459,6 +498,14 @@ template("angle_source_set") {
 
     configs += invoker.configs
     configs -= invoker.suppressed_configs
+
+    if (is_apple) {
+      # If a "build with ARC" config is present, remove it.
+      if (filter_include(configs, [ "//build/config/compiler:enable_arc" ]) !=
+          []) {
+        configs -= [ "//build/config/compiler:enable_arc" ]
+      }
+    }
   }
 }
 
@@ -477,10 +524,18 @@ template("angle_static_library") {
 
     configs += invoker.configs
     configs -= invoker.suppressed_configs
+
+    if (is_apple) {
+      # If a "build with ARC" config is present, remove it.
+      if (filter_include(configs, [ "//build/config/compiler:enable_arc" ]) !=
+          []) {
+        configs -= [ "//build/config/compiler:enable_arc" ]
+      }
+    }
   }
 }
 
-if (angle_standalone || build_with_chromium) {
+if (angle_standalone || build_with_chromium || build_angle_end2end_tests_aosp) {
   template("angle_test") {
     test(target_name) {
       forward_variables_from(invoker,
@@ -494,6 +549,14 @@ if (angle_standalone || build_with_chromium) {
       configs += invoker.configs
       configs -= invoker.suppressed_configs
 
+      if (is_apple) {
+        # If a "build with ARC" config is present, remove it.
+        if (filter_include(configs, [ "//build/config/compiler:enable_arc" ]) !=
+            []) {
+          configs -= [ "//build/config/compiler:enable_arc" ]
+        }
+      }
+
       if (is_ios) {
         # shared libraries are hidden inside ios_framework_bundle, but we include headers from them
         check_includes = false
@@ -503,13 +566,15 @@ if (angle_standalone || build_with_chromium) {
                       "$angle_root:angle_common",
                       "$angle_root:includes",
                       "$angle_root/src/tests:angle_test_expectations",
-                      "$angle_root/third_party/rapidjson:rapidjson",
                       "$angle_root/util:angle_test_utils",
                       "//testing/gmock",
                       "//testing/gtest",
                       "//third_party/googletest:gmock",
                       "//third_party/googletest:gtest",
                     ]
+      if (angle_has_rapidjson) {
+        public_deps += [ "$angle_root/third_party/rapidjson:rapidjson" ]
+      }
 
       data = invoker.data + [
                "$angle_root/src/tests/py_utils/android_helper.py",
@@ -519,11 +584,13 @@ if (angle_standalone || build_with_chromium) {
                "//testing/xvfb.py",
              ]
 
-      sources += [
-        "$angle_root/src/tests/test_utils/runner/HistogramWriter.h",
-        "$angle_root/src/tests/test_utils/runner/TestSuite.cpp",
-        "$angle_root/src/tests/test_utils/runner/TestSuite.h",
-      ]
+      if (angle_has_rapidjson) {
+        sources += [
+          "$angle_root/src/tests/test_utils/runner/HistogramWriter.h",
+          "$angle_root/src/tests/test_utils/runner/TestSuite.cpp",
+          "$angle_root/src/tests/test_utils/runner/TestSuite.h",
+        ]
+      }
 
       if (angle_has_histograms) {
         sources +=
@@ -545,8 +612,7 @@ if (angle_standalone || build_with_chromium) {
         }
       }
 
-      if ((is_linux && !is_chromeos) ||
-          (build_with_chromium && is_chromeos_lacros && !is_chromeos_device)) {
+      if (is_linux && !is_chromeos) {
         use_xvfb = true
       }
 
@@ -560,7 +626,12 @@ if (angle_standalone || build_with_chromium) {
         configs -= [ "//build/config/android:hide_all_but_jni" ]
         use_default_launcher = false
         generate_final_jni = false
-        android_manifest_template = "$angle_root/src/tests/test_utils/runner/android/java/AndroidManifest.xml.jinja2"
+        if (angle_standalone_benchmark) {
+          android_manifest_template = "$angle_root/src/tests/test_utils/runner/android/java/StandaloneBenchmarkAndroidManifest.xml.jinja2"
+        } else {
+          android_manifest_template = "$angle_root/src/tests/test_utils/runner/android/java/AndroidManifest.xml.jinja2"
+        }
+
         deps += [
           "$angle_root/src/tests:native_test_java",
           "$angle_root/src/tests:native_test_support_android",
@@ -582,115 +653,7 @@ if (angle_standalone || build_with_chromium) {
   }
 }
 
-template("angle_trace") {
-  angle_shared_library(target_name) {
-    testonly = true
-
-    # Similar to capture replay sample, use the file index for sources
-    sources = invoker.sources
-
-    data = invoker.data
-    defines = [ "ANGLE_REPLAY_IMPLEMENTATION" ]
-    suppressed_configs += [ "$angle_root:constructor_and_destructor_warnings" ]
-
-    deps = [
-      "$angle_root/util:angle_trace_fixture",
-      "$angle_root/util:angle_trace_loader",
-    ]
-
-    if (defined(invoker.deps)) {
-      deps += invoker.deps
-    }
-
-    if (is_android) {
-      libs = [ "log" ]
-    }
-
-    # Disable optimization in the trace perf tests to avoid optimizing huge files.
-    if (!is_debug && !is_ubsan) {
-      suppressed_configs += [
-        "//build/config/compiler:afdo",
-        "//build/config/compiler:afdo_optimize_size",
-        "//build/config/compiler:default_optimization",
-        "//build/config/compiler/pgo:default_pgo_flags",
-      ]
-      configs += [ "//build/config/compiler:no_optimize" ]
-    }
-
-    include_dirs = [ "." ]
-
-    if (defined(invoker.output_name)) {
-      output_name = invoker.output_name
-    }
-  }
-}
-
-set_defaults("angle_trace_library") {
-  # Uses a short name to work around file path limits on Windows.
-  short_names = false
-}
-
-template("angle_trace_library") {
-  _trace_targets = []
-
-  if (invoker.short_names) {
-    _trace_counter = 1
-  }
-
-  foreach(_trace_and_version, invoker.trace_list) {
-    _trace_and_version_arr = []
-    _trace_and_version_arr = string_split(_trace_and_version)
-    _trace = _trace_and_version_arr[0]
-    if (defined(invoker.trace_dir)) {
-      _trace_dir = invoker.trace_dir
-    } else {
-      _trace_dir = _trace
-    }
-    _trace_json_path = "$_trace_dir/$_trace.json"
-    _trace_data = []
-    _trace_data = read_file(_trace_json_path, "json")
-
-    if (invoker.short_names) {
-      _target = "cr_trace_${_trace_counter}"
-      _trace_counter += 1
-    } else {
-      _target = "${target_name}_$_trace"
-    }
-
-    _gen_target = "gen${target_name}_$_trace"
-    action(_gen_target) {
-      script = "//scripts/tracegz.py"
-      args = [
-        _trace,
-        rebase_path(_trace_dir, root_build_dir),
-      ]
-      outputs = [ "$root_gen_dir/tracegz_$_trace.gz" ]
-    }
-
-    angle_trace(_target) {
-      sources = rebase_path(_trace_data.TraceFiles, ".", _trace_dir)
-
-      data = [
-        "$_trace_dir/$_trace.json",
-        "$_trace_dir/$_trace.angledata.gz",
-        "$root_gen_dir/tracegz_$_trace.gz",
-      ]
-
-      deps = [ ":$_gen_target" ]
-
-      if (invoker.short_names) {
-        output_name = _trace
-      }
-    }
-
-    _trace_targets += [ ":$_target" ]
-  }
-
-  angle_shared_library(target_name) {
-    testonly = true
-    data = [ invoker.json_path ]
-    data_deps = _trace_targets
-    deps = [ "$angle_root:angle_common" ]
-    public_deps = [ "$angle_root/util:angle_trace_loader" ]
-  }
+if (angle_enable_cl) {
+  # need the llvm build flags
+  import("$angle_clspv_dir/gn/build/llvm_buildflags.gni")
 }

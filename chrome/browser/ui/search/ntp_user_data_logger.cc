@@ -55,7 +55,6 @@ CustomizedFeature LoggingEventToCustomizedFeature(NTPLoggingEventType event) {
   }
 
   NOTREACHED();
-  return CustomizedFeature::CUSTOMIZED_FEATURE_BACKGROUND;
 }
 
 // Converts |NTPLoggingEventType| to a |CustomizeChromeBackgroundAction|.
@@ -79,8 +78,6 @@ CustomizeChromeBackgroundAction LoggingEventToCustomizeChromeBackgroundAction(
   }
 
   NOTREACHED();
-  return CustomizeChromeBackgroundAction::
-      CUSTOMIZE_CHROME_BACKGROUND_ACTION_SELECT_COLLECTION;
 }
 
 // Converts |NTPLoggingEventType| to a |CustomizeLocalImageBackgroundAction|.
@@ -98,8 +95,6 @@ LoggingEventToCustomizeLocalImageBackgroundAction(NTPLoggingEventType event) {
   }
 
   NOTREACHED();
-  return CustomizeLocalImageBackgroundAction::
-      CUSTOMIZE_LOCAL_IMAGE_BACKGROUND_ACTION_CANCEL;
 }
 
 // Converts |NTPLoggingEventType| to a |CustomizeShortcutAction|.
@@ -130,7 +125,6 @@ CustomizeShortcutAction LoggingEventToCustomizeShortcutAction(
   }
 
   NOTREACHED();
-  return CustomizeShortcutAction::CUSTOMIZE_SHORTCUT_ACTION_REMOVE;
 }
 
 // Converts a richer picker background related |NTPLoggingEventType|
@@ -161,7 +155,6 @@ const char* LoggingEventToBackgroundUserActionName(NTPLoggingEventType event) {
       return "NTPRicherPicker.Backgrounds.DailyRefreshEnabled";
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 
@@ -177,7 +170,6 @@ const char* LoggingEventToMenuUserActionName(NTPLoggingEventType event) {
       return "NTPRicherPicker.DoneClicked";
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 
@@ -193,7 +185,6 @@ const char* LoggingEventToShortcutUserActionName(NTPLoggingEventType event) {
       return "NTPRicherPicker.Shortcuts.VisibilityToggleClicked";
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 
@@ -235,7 +226,6 @@ LogoClickType LoggingEventToLogoClick(NTPLoggingEventType event) {
       return LOGO_CLICK_TYPE_ANIMATED;
     default:
       NOTREACHED();
-      return LOGO_CLICK_TYPE_MAX;
   }
 }
 
@@ -254,7 +244,7 @@ NTPUserDataLogger::NTPUserDataLogger(Profile* profile,
     : during_startup_(!AfterStartupTaskUtils::IsBrowserStartupComplete()),
       ntp_url_(ntp_url),
       profile_(profile),
-      // TODO(https://crbug.com/1280310): Migrate NTP navigation startup time
+      // TODO(crbug.com/40811386): Migrate NTP navigation startup time
       // from base::Time to base::TimeTicks to avoid time glitches.
       ntp_navigation_start_time_(
           base::TimeTicks::UnixEpoch() +
@@ -266,14 +256,14 @@ NTPUserDataLogger::~NTPUserDataLogger() = default;
 void NTPUserDataLogger::LogOneGoogleBarFetchDuration(
     bool success,
     const base::TimeDelta& duration) {
-  UMA_HISTOGRAM_MEDIUM_TIMES("NewTabPage.OneGoogleBar.RequestLatency",
-                             duration);
+  DEPRECATED_UMA_HISTOGRAM_MEDIUM_TIMES(
+      "NewTabPage.OneGoogleBar.RequestLatency", duration);
   if (success) {
-    UMA_HISTOGRAM_MEDIUM_TIMES("NewTabPage.OneGoogleBar.RequestLatency.Success",
-                               duration);
+    DEPRECATED_UMA_HISTOGRAM_MEDIUM_TIMES(
+        "NewTabPage.OneGoogleBar.RequestLatency.Success", duration);
   } else {
-    UMA_HISTOGRAM_MEDIUM_TIMES("NewTabPage.OneGoogleBar.RequestLatency.Failure",
-                               duration);
+    DEPRECATED_UMA_HISTOGRAM_MEDIUM_TIMES(
+        "NewTabPage.OneGoogleBar.RequestLatency.Failure", duration);
   }
 }
 
@@ -419,7 +409,7 @@ void NTPUserDataLogger::EmitNtpStatistics(base::TimeDelta load_time,
   }
 
   int tiles_count = 0;
-  for (const absl::optional<ntp_tiles::NTPTileImpression>& impression :
+  for (const std::optional<ntp_tiles::NTPTileImpression>& impression :
        logged_impressions_) {
     if (!impression.has_value()) {
       break;
@@ -502,14 +492,15 @@ void NTPUserDataLogger::RecordDoodleImpression(base::TimeDelta time,
   }
 
   if (should_record_doodle_load_time_) {
-    UMA_HISTOGRAM_MEDIUM_TIMES("NewTabPage.LogoShownTime2", time);
+    DEPRECATED_UMA_HISTOGRAM_MEDIUM_TIMES("NewTabPage.LogoShownTime2", time);
     should_record_doodle_load_time_ = false;
   }
 }
 
 void NTPUserDataLogger::RecordAction(const char* action) {
-  if (!action || !DefaultSearchProviderIsGoogle())
+  if (!action || !DefaultSearchProviderIsGoogle()) {
     return;
+  }
 
   base::RecordAction(base::UserMetricsAction(action));
 }

@@ -121,7 +121,6 @@ class GCMClientImpl
   void Initialize(
       const ChromeBuildInfo& chrome_build_info,
       const base::FilePath& store_path,
-      bool remove_account_mappings_with_email_key,
       const scoped_refptr<base::SequencedTaskRunner>& blocking_task_runner,
       scoped_refptr<base::SequencedTaskRunner> io_task_runner,
       base::RepeatingCallback<void(
@@ -177,7 +176,6 @@ class GCMClientImpl
     CheckinInfo();
     ~CheckinInfo();
     bool IsValid() const { return android_id != 0 && secret != 0; }
-    void SnapshotCheckinAccounts();
     void Reset();
 
     // Android ID of the device as assigned by the server.
@@ -187,11 +185,6 @@ class GCMClientImpl
     // True if accounts were already provided through SetAccountsForCheckin(),
     // or when |last_checkin_accounts| was loaded as empty.
     bool accounts_set;
-    // Map of account email addresses and OAuth2 tokens that will be sent to the
-    // checkin server on a next checkin.
-    std::map<std::string, std::string> account_tokens;
-    // As set of accounts last checkin was completed with.
-    std::set<std::string> last_checkin_accounts;
   };
 
   // Reasons for resetting the GCM Store.

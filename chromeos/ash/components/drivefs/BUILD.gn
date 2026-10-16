@@ -2,10 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//chromeos/dbus/config/use_real_dbus_clients.gni")
 
-assert(is_chromeos_ash, "Non-ChromeOS builds cannot depend on //ash")
+assert(is_chromeos, "Non-ChromeOS builds cannot depend on //chromeos/ash")
 
 component("drivefs") {
   sources = [
@@ -15,18 +14,19 @@ component("drivefs") {
     "drivefs_bootstrap.h",
     "drivefs_host.cc",
     "drivefs_host.h",
-    "drivefs_host_observer.h",
     "drivefs_http_client.cc",
     "drivefs_http_client.h",
-    "drivefs_pin_manager.cc",
-    "drivefs_pin_manager.h",
+    "drivefs_pinning_manager.cc",
+    "drivefs_pinning_manager.h",
     "drivefs_search.cc",
     "drivefs_search.h",
+    "drivefs_search_query.cc",
+    "drivefs_search_query.h",
+    "drivefs_search_query_delegate.cc",
+    "drivefs_search_query_delegate.h",
     "drivefs_session.cc",
     "drivefs_session.h",
     "drivefs_util.h",
-    "sync_status_tracker.cc",
-    "sync_status_tracker.h",
   ]
   if (!use_real_dbus_clients) {
     sources += [
@@ -40,11 +40,15 @@ component("drivefs") {
     "//chromeos/ash/components/dbus",
     "//chromeos/ash/components/dbus/cros_disks",
     "//chromeos/ash/components/dbus/spaced",
+    "//chromeos/ash/components/dbus/userdataauth",
     "//chromeos/ash/components/disks",
     "//chromeos/ash/components/drivefs/mojom",
-    "//chromeos/ash/components/drivefs/mojom:pin_manager_types",
+    "//chromeos/ash/components/drivefs/mojom:pinning_manager_types",
+    "//chromeos/ash/components/file_manager",
     "//chromeos/ash/components/network",
     "//chromeos/components/mojo_bootstrap",
+    "//chromeos/dbus/power:power",
+    "//chromeos/dbus/power:power_manager_proto",
     "//components/account_id",
     "//components/drive",
     "//components/signin/public/identity_manager",
@@ -82,10 +86,10 @@ source_set("unit_tests") {
     "drivefs_bootstrap_unittest.cc",
     "drivefs_host_unittest.cc",
     "drivefs_http_client_unittest.cc",
-    "drivefs_pin_manager_unittest.cc",
+    "drivefs_pinning_manager_unittest.cc",
+    "drivefs_search_query_unittest.cc",
     "drivefs_search_unittest.cc",
     "drivefs_session_unittest.cc",
-    "sync_status_tracker_unittest.cc",
   ]
 
   deps = [
@@ -94,10 +98,15 @@ source_set("unit_tests") {
     "//ash/constants",
     "//base",
     "//base/test:test_support",
+    "//chromeos/ash/components/dbus/spaced",
+    "//chromeos/ash/components/dbus/spaced:spaced_proto",
+    "//chromeos/ash/components/dbus/userdataauth",
     "//chromeos/ash/components/disks:test_support",
     "//chromeos/ash/components/drivefs/mojom",
-    "//chromeos/ash/components/drivefs/mojom:pin_manager_types",
+    "//chromeos/ash/components/drivefs/mojom:pinning_manager_types",
     "//chromeos/components/mojo_bootstrap",
+    "//chromeos/dbus/power",
+    "//chromeos/dbus/power:power_manager_proto",
     "//components/account_id",
     "//components/drive",
     "//components/invalidation/impl:test_support",

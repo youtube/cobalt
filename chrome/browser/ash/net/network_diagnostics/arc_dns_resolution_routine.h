@@ -8,11 +8,11 @@
 #include <string>
 #include <vector>
 
-#include "ash/components/arc/mojom/net.mojom.h"
-#include "ash/components/arc/session/arc_bridge_service.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ash/net/network_diagnostics/network_diagnostics_routine.h"
+#include "chromeos/ash/experiences/arc/mojom/net.mojom.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
 
 namespace ash {
 namespace network_diagnostics {
@@ -24,7 +24,8 @@ class ArcDnsResolutionRoutine : public NetworkDiagnosticsRoutine {
   using RunArcDnsResolutionCallback = chromeos::network_diagnostics::mojom::
       NetworkDiagnosticsRoutines::RunArcDnsResolutionCallback;
 
-  ArcDnsResolutionRoutine();
+  explicit ArcDnsResolutionRoutine(
+      chromeos::network_diagnostics::mojom::RoutineCallSource source);
   ArcDnsResolutionRoutine(const ArcDnsResolutionRoutine&) = delete;
   ArcDnsResolutionRoutine& operator=(const ArcDnsResolutionRoutine&) = delete;
   ~ArcDnsResolutionRoutine() override;
@@ -55,7 +56,7 @@ class ArcDnsResolutionRoutine : public NetworkDiagnosticsRoutine {
   bool successfully_resolved_hostnames_ = true;
   bool failed_to_get_arc_service_manager_ = false;
   bool failed_to_get_net_instance_service_for_dns_resolution_test_ = false;
-  raw_ptr<arc::mojom::NetInstance, ExperimentalAsh> net_instance_ = nullptr;
+  raw_ptr<arc::mojom::NetInstance, DanglingUntriaged> net_instance_ = nullptr;
   int64_t max_latency_ = 0;
   base::WeakPtrFactory<ArcDnsResolutionRoutine> weak_ptr_factory_{this};
 };
@@ -63,4 +64,4 @@ class ArcDnsResolutionRoutine : public NetworkDiagnosticsRoutine {
 }  // namespace network_diagnostics
 }  // namespace ash
 
-#endif  //  CHROME_BROWSER_ASH_NET_NETWORK_DIAGNOSTICS_ARC_DNS_RESOLUTION_ROUTINE_H_
+#endif  // CHROME_BROWSER_ASH_NET_NETWORK_DIAGNOSTICS_ARC_DNS_RESOLUTION_ROUTINE_H_

@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/overloaded.h"
-#include "base/strings/string_piece.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "build/build_config.h"
 #include "content/public/app/content_main_delegate.h"
@@ -23,8 +24,6 @@
 #include "content/public/utility/content_utility_client.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 
 namespace variations {
 class VariationsIdsProvider;
@@ -48,9 +47,9 @@ class MockContentMainDelegate : public ContentBrowserTestShellMainDelegate {
  public:
   using Super = ContentBrowserTestShellMainDelegate;
 
-  MOCK_METHOD(absl::optional<int>, MockBasicStartupComplete, ());
-  absl::optional<int> BasicStartupComplete() override {
-    absl::optional<int> result = MockBasicStartupComplete();
+  MOCK_METHOD(std::optional<int>, MockBasicStartupComplete, ());
+  std::optional<int> BasicStartupComplete() override {
+    std::optional<int> result = MockBasicStartupComplete();
     // Check for early exit code.
     if (result.has_value())
       return result;
@@ -72,7 +71,7 @@ class MockContentMainDelegate : public ContentBrowserTestShellMainDelegate {
   // The return value of RunProcess is platform-dependent and the startup
   // sequence depends heavily on it, so don't allow it to be mocked.
   MOCK_METHOD(void, MockRunProcess, (const std::string&, MainFunctionParams));
-  absl::variant<int, MainFunctionParams> RunProcess(
+  std::variant<int, MainFunctionParams> RunProcess(
       const std::string& process_type,
       MainFunctionParams main_function_params) override {
     // MainFunctionParams is move-only so pass a dummy to the mock.
@@ -96,9 +95,9 @@ class MockContentMainDelegate : public ContentBrowserTestShellMainDelegate {
     return Super::ShouldLockSchemeRegistry();
   }
 
-  MOCK_METHOD(absl::optional<int>, MockPreBrowserMain, ());
-  absl::optional<int> PreBrowserMain() override {
-    absl::optional<int> result = MockPreBrowserMain();
+  MOCK_METHOD(std::optional<int>, MockPreBrowserMain, ());
+  std::optional<int> PreBrowserMain() override {
+    std::optional<int> result = MockPreBrowserMain();
     // Check for early exit code.
     if (result.has_value())
       return result;
@@ -118,9 +117,9 @@ class MockContentMainDelegate : public ContentBrowserTestShellMainDelegate {
     return Super::CreateVariationsIdsProvider();
   }
 
-  MOCK_METHOD(absl::optional<int>, MockPostEarlyInitialization, (InvokedIn));
-  absl::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override {
-    absl::optional<int> result = MockPostEarlyInitialization(invoked_in);
+  MOCK_METHOD(std::optional<int>, MockPostEarlyInitialization, (InvokedIn));
+  std::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override {
+    std::optional<int> result = MockPostEarlyInitialization(invoked_in);
     // Check for early exit code.
     if (result.has_value())
       return result;
@@ -169,17 +168,17 @@ class MockContentMainDelegate : public ContentBrowserTestShellMainDelegate {
 };
 
 MATCHER_P(InvokedInMatcher, process_type, "") {
-  // `arg` is an absl::variant. Return true if the type held by the variant is
+  // `arg` is an std::variant. Return true if the type held by the variant is
   // correct for `process_type` (empty means the browser process).
-  return absl::visit(base::Overloaded{
-                         [&](ContentMainDelegate::InvokedInBrowserProcess) {
-                           return process_type.empty();
-                         },
-                         [&](ContentMainDelegate::InvokedInChildProcess) {
-                           return !process_type.empty();
-                         },
-                     },
-                     arg);
+  return std::visit(base::Overloaded{
+                        [&](ContentMainDelegate::InvokedInBrowserProcess) {
+                          return process_type.empty();
+                        },
+                        [&](ContentMainDelegate::InvokedInChildProcess) {
+                          return !process_type.empty();
+                        },
+                    },
+                    arg);
 }
 
 // Tests that methods of ContentMainDelegate are called in the expected order.
@@ -218,7 +217,7 @@ class ContentMainRunnerImplBrowserTest : public ContentBrowserTest {
         .WillOnce(DoAll(
             // Test the starting state of ContentMainRunnerImpl.
             Invoke(this, &Self::TestBasicStartupComplete),
-            Return(absl::nullopt)));
+            Return(std::nullopt)));
     EXPECT_CALL(mock_delegate_, MockCreateContentBrowserClient());
     EXPECT_CALL(mock_delegate_, MockPreSandboxStartup());
     EXPECT_CALL(mock_delegate_, MockSandboxInitialized(kBrowserProcessType));
@@ -229,11 +228,11 @@ class ContentMainRunnerImplBrowserTest : public ContentBrowserTest {
                 ShouldInitializeMojo(InvokedInMatcher(kBrowserProcessType)))
         .WillOnce(Return(true));
     EXPECT_CALL(mock_delegate_, MockPreBrowserMain())
-        .WillOnce(Return(absl::nullopt));
+        .WillOnce(Return(std::nullopt));
     EXPECT_CALL(mock_delegate_, MockPostEarlyInitialization(
                                     InvokedInMatcher(kBrowserProcessType)))
         .WillOnce(DoAll(Invoke(this, &Self::TestPostEarlyInitialization),
-                        Return(absl::nullopt)));
+                        Return(std::nullopt)));
     EXPECT_CALL(mock_delegate_, MockRunProcess(kBrowserProcessType, _));
 #if !BUILDFLAG(IS_ANDROID)
     // Android never calls ProcessExiting, since it leaks its ContentMainRunner
@@ -252,9 +251,8 @@ class ContentMainRunnerImplBrowserTest : public ContentBrowserTest {
 
   void TestBasicStartupComplete() {
     // The PostEarlyInitialization test checks that ContentMainRunnerImpl set up
-    // the ThreadPoolInstance and FeatureList. These tests would be invalid if
-    // they already exist before starting.
-    EXPECT_FALSE(base::ThreadPoolInstance::Get());
+    // the FeatureList. This test is invalid if it already exists
+    // before starting.
     EXPECT_FALSE(base::FeatureList::GetInstance());
   }
 

@@ -54,7 +54,7 @@ class CORE_EXPORT ValidationMessageOverlayDelegate
 
  private:
   LocalFrameView& FrameView() const;
-  void WriteDocument(SharedBuffer*);
+  void WriteDocument(SegmentedBuffer&);
   Element& GetElementById(const AtomicString&) const;
   void AdjustBubblePosition(const gfx::Rect& view_rect);
 
@@ -62,6 +62,8 @@ class CORE_EXPORT ValidationMessageOverlayDelegate
   Persistent<Page> page_;
   Persistent<ChromeClient> chrome_client_;
 
+  // TODO(crbug.com/334963179): Remove bubble_size_ when the
+  // ValidationBubbleNoForcedLayout flag is removed.
   gfx::Size bubble_size_;
 
   // A page which triggered this validation message.

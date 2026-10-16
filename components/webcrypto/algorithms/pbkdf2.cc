@@ -26,7 +26,7 @@ const blink::WebCryptoKeyUsageMask kAllKeyUsages =
 
 class Pbkdf2Implementation : public AlgorithmImplementation {
  public:
-  Pbkdf2Implementation() {}
+  Pbkdf2Implementation() = default;
 
   Status ImportKey(blink::WebCryptoKeyFormat format,
                    base::span<const uint8_t> key_data,
@@ -64,7 +64,7 @@ class Pbkdf2Implementation : public AlgorithmImplementation {
 
   Status DeriveBits(const blink::WebCryptoAlgorithm& algorithm,
                     const blink::WebCryptoKey& base_key,
-                    absl::optional<unsigned int> length_bits,
+                    std::optional<unsigned int> length_bits,
                     std::vector<uint8_t>* derived_bytes) const override {
     crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
 
@@ -72,15 +72,12 @@ class Pbkdf2Implementation : public AlgorithmImplementation {
       return Status::ErrorPbkdf2DeriveBitsLengthNotSpecified();
     }
 
+    // Even though the RFC8018 states that length must be a "positive integer"
+    // the spec considers that it's better to avoid discontinuity in the allowed
+    // values of this parameter.
+    // https://github.com/w3c/webcrypto/issues/370
     if (*length_bits % 8) {
       return Status::ErrorPbkdf2InvalidLength();
-    }
-
-    // According to RFC 2898 "dkLength" (derived key length) is
-    // described as being a "positive integer", so it is an error for
-    // it to be 0.
-    if (*length_bits == 0) {
-      return Status::ErrorPbkdf2DeriveBitsLengthZero();
     }
 
     const blink::WebCryptoPbkdf2Params* params = algorithm.Pbkdf2Params();
@@ -124,10 +121,9 @@ class Pbkdf2Implementation : public AlgorithmImplementation {
                                     key);
   }
 
-  Status GetKeyLength(
-      const blink::WebCryptoAlgorithm& key_length_algorithm,
-      absl::optional<unsigned int>* length_bits) const override {
-    *length_bits = absl::nullopt;
+  Status GetKeyLength(const blink::WebCryptoAlgorithm& key_length_algorithm,
+                      std::optional<unsigned int>* length_bits) const override {
+    *length_bits = std::nullopt;
     return Status::Success();
   }
 };

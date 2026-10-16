@@ -16,7 +16,7 @@ import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.chrome.browser.compositor.bottombar.OverlayPanel.PanelState;
 import org.chromium.chrome.browser.compositor.bottombar.OverlayPanel.StateChangeReason;
 import org.chromium.chrome.browser.contextualsearch.ResolvedSearchTerm.CardTag;
-import org.chromium.chrome.browser.sync.SyncService;
+import org.chromium.chrome.browser.profiles.Profile;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -39,8 +39,11 @@ public class ContextualSearchUma {
     // Constants with ContextualSearchPreferenceState in enums.xml.
     // These values are persisted to logs. Entries should not be renumbered and
     // numeric values should never be reused.
-    @IntDef({ContextualSearchPreference.UNINITIALIZED, ContextualSearchPreference.ENABLED,
-            ContextualSearchPreference.DISABLED})
+    @IntDef({
+        ContextualSearchPreference.UNINITIALIZED,
+        ContextualSearchPreference.ENABLED,
+        ContextualSearchPreference.DISABLED
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ContextualSearchPreference {
         int UNINITIALIZED = 0;
@@ -60,8 +63,12 @@ public class ContextualSearchUma {
 
     // Constants used to log UMA "enum" histograms with details about whether search results
     // were seen, and what the original triggering gesture was.
-    @IntDef({ResultsByGesture.SEEN_FROM_TAP, ResultsByGesture.NOT_SEEN_FROM_TAP,
-            ResultsByGesture.SEEN_FROM_LONG_PRESS, ResultsByGesture.NOT_SEEN_FROM_LONG_PRESS})
+    @IntDef({
+        ResultsByGesture.SEEN_FROM_TAP,
+        ResultsByGesture.NOT_SEEN_FROM_TAP,
+        ResultsByGesture.SEEN_FROM_LONG_PRESS,
+        ResultsByGesture.NOT_SEEN_FROM_LONG_PRESS
+    })
     @Retention(RetentionPolicy.SOURCE)
     private @interface ResultsByGesture {
         int SEEN_FROM_TAP = 0;
@@ -82,8 +89,12 @@ public class ContextualSearchUma {
     }
 
     // Enums for the Counted.Event histogram designed to match the Rasta queries(event) metric.
-    @IntDef({CountedEvent.UNINTELLIGENT_COUNTED, CountedEvent.INTELLIGENT_COUNTED,
-            CountedEvent.INTELLIGENT_NOT_COUNTED, CountedEvent.NUM_ENTRIES})
+    @IntDef({
+        CountedEvent.UNINTELLIGENT_COUNTED,
+        CountedEvent.INTELLIGENT_COUNTED,
+        CountedEvent.INTELLIGENT_NOT_COUNTED,
+        CountedEvent.NUM_ENTRIES
+    })
     @Retention(RetentionPolicy.SOURCE)
     private @interface CountedEvent {
         int UNINTELLIGENT_COUNTED = 0;
@@ -92,9 +103,7 @@ public class ContextualSearchUma {
         int NUM_ENTRIES = 3;
     }
 
-    /**
-     * Key used in maps from {state, reason} to state entry (exit) logging code.
-     */
+    /** Key used in maps from {state, reason} to state entry (exit) logging code. */
     static class StateChangeKey {
         final @PanelState int mState;
         final @StateChangeReason int mReason;
@@ -125,15 +134,18 @@ public class ContextualSearchUma {
     // "Seen by gesture" code map: logged on first exit from expanded panel, or promo,
     // broken down by gesture.
     private static final Map<Pair<Boolean, Boolean>, Integer> SEEN_BY_GESTURE_CODES;
+
     static {
         final boolean unseen = false;
         final boolean seen = true;
         Map<Pair<Boolean, Boolean>, Integer> codes = new HashMap<Pair<Boolean, Boolean>, Integer>();
         codes.put(new Pair<Boolean, Boolean>(seen, TAP), ResultsByGesture.SEEN_FROM_TAP);
         codes.put(new Pair<Boolean, Boolean>(unseen, TAP), ResultsByGesture.NOT_SEEN_FROM_TAP);
-        codes.put(new Pair<Boolean, Boolean>(seen, LONG_PRESS),
+        codes.put(
+                new Pair<Boolean, Boolean>(seen, LONG_PRESS),
                 ResultsByGesture.SEEN_FROM_LONG_PRESS);
-        codes.put(new Pair<Boolean, Boolean>(unseen, LONG_PRESS),
+        codes.put(
+                new Pair<Boolean, Boolean>(unseen, LONG_PRESS),
                 ResultsByGesture.NOT_SEEN_FROM_LONG_PRESS);
         SEEN_BY_GESTURE_CODES = Collections.unmodifiableMap(codes);
     }
@@ -143,9 +155,11 @@ public class ContextualSearchUma {
      * Contextual Search feature is active, and will track the different preference settings
      * (disabled, enabled or uninitialized). Calling more than once is fine.
      */
-    public static void logPreferenceState() {
-        RecordHistogram.recordEnumeratedHistogram("Search.ContextualSearchPreferenceState",
-                getPreferenceValue(), ContextualSearchPreference.NUM_ENTRIES);
+    public static void logPreferenceState(Profile profile) {
+        RecordHistogram.recordEnumeratedHistogram(
+                "Search.ContextualSearchPreferenceState",
+                getPreferenceValue(profile),
+                ContextualSearchPreference.NUM_ENTRIES);
     }
 
     /**
@@ -163,7 +177,8 @@ public class ContextualSearchUma {
      * @param enabled Whether the preference is being enabled or disabled.
      */
     public static void logMainPreferenceChange(boolean enabled) {
-        RecordHistogram.recordEnumeratedHistogram("Search.ContextualSearchPreferenceStateChange",
+        RecordHistogram.recordEnumeratedHistogram(
+                "Search.ContextualSearchPreferenceStateChange",
                 enabled ? ContextualSearchPreference.ENABLED : ContextualSearchPreference.DISABLED,
                 ContextualSearchPreference.NUM_ENTRIES);
     }
@@ -209,29 +224,16 @@ public class ContextualSearchUma {
      * @param wasTap Whether the gesture that originally caused the panel to show was a Tap.
      */
     public static void logResultsSeen(boolean wasPanelSeen, boolean wasTap) {
-        RecordHistogram.recordEnumeratedHistogram("Search.ContextualSearchResultsSeen",
-                wasPanelSeen ? Results.SEEN : Results.NOT_SEEN, Results.NUM_ENTRIES);
+        RecordHistogram.recordEnumeratedHistogram(
+                "Search.ContextualSearchResultsSeen",
+                wasPanelSeen ? Results.SEEN : Results.NOT_SEEN,
+                Results.NUM_ENTRIES);
         logHistogramByGesture(wasPanelSeen, wasTap, "Search.ContextualSearchResultsSeenByGesture");
     }
 
     /**
-     * Logs whether search results were seen for a Tap gesture, for all users and sync-enabled
-     * users. For sync-enabled users we log to a separate histogram for that sub-population in order
-     * to help validate the Ranker Tap Suppression model results (since they are trained on UKM data
-     * which approximately reflects this sync-enabled population).
-     * @param wasPanelSeen Whether the panel was seen.
-     */
-    public static void logTapResultsSeen(boolean wasPanelSeen) {
-        RecordHistogram.recordBooleanHistogram(
-                "Search.ContextualSearch.Tap.ResultsSeen", wasPanelSeen);
-        if (SyncService.get() != null && SyncService.get().isSyncFeatureEnabled()) {
-            RecordHistogram.recordBooleanHistogram(
-                    "Search.ContextualSearch.Tap.SyncEnabled.ResultsSeen", wasPanelSeen);
-        }
-    }
-
-    /**
-     * Logs whether search results were seen for all gestures.  Recorded for all users.
+     * Logs whether search results were seen for all gestures. Recorded for all users.
+     *
      * @param wasPanelSeen Whether the panel was seen.
      */
     public static void logAllResultsSeen(boolean wasPanelSeen) {
@@ -272,14 +274,15 @@ public class ContextualSearchUma {
             boolean wasPanelSeen, boolean wasDocumentPainted, boolean wasPrefetch) {
         // Get the enum for the category for those seen, and record the category of the search.
         // Default to the simplest Counted enum, which is useful for both histograms.
-        @CountedEvent
-        int searchEnum = CountedEvent.UNINTELLIGENT_COUNTED;
+        @CountedEvent int searchEnum = CountedEvent.UNINTELLIGENT_COUNTED;
         if (wasPanelSeen) {
             // Prefetch indicates an intelligent search and might not have been counted through
             // dynamic JavaScript conversion.
             if (wasPrefetch) {
-                searchEnum = wasDocumentPainted ? CountedEvent.INTELLIGENT_COUNTED
-                                                : CountedEvent.INTELLIGENT_NOT_COUNTED;
+                searchEnum =
+                        wasDocumentPainted
+                                ? CountedEvent.INTELLIGENT_COUNTED
+                                : CountedEvent.INTELLIGENT_NOT_COUNTED;
             }
             RecordHistogram.recordEnumeratedHistogram(
                     "Search.ContextualSearch.Counted.Event", searchEnum, CountedEvent.NUM_ENTRIES);
@@ -373,9 +376,7 @@ public class ContextualSearchUma {
         }
     }
 
-    /**
-     * Logs that the user established a new selection when Contextual Search is active.
-     */
+    /** Logs that the user established a new selection when Contextual Search is active. */
     public static void logSelectionEstablished() {
         RecordUserAction.record("ContextualSearch.SelectionEstablished");
     }
@@ -446,16 +447,19 @@ public class ContextualSearchUma {
      * @param quickActionCategory The {@link QuickActionCategory} for the quick action.
      * @param numMatchingAppsApps The number of apps that the resolved intent matched.
      */
-    public static void logQuickActionIntentResolution(int quickActionCategory,
-            int numMatchingAppsApps) {
-        int code = numMatchingAppsApps == 0
-                ? QuickActionResolve.FAILED
-                : numMatchingAppsApps == 1 ? QuickActionResolve.SINGLE
-                                           : QuickActionResolve.MULTIPLE;
+    public static void logQuickActionIntentResolution(
+            int quickActionCategory, int numMatchingAppsApps) {
+        int code =
+                numMatchingAppsApps == 0
+                        ? QuickActionResolve.FAILED
+                        : numMatchingAppsApps == 1
+                                ? QuickActionResolve.SINGLE
+                                : QuickActionResolve.MULTIPLE;
         RecordHistogram.recordEnumeratedHistogram(
                 "Search.ContextualSearchQuickActions.IntentResolution."
                         + getLabelForQuickActionCategory(quickActionCategory),
-                code, QuickActionResolve.NUM_ENTRIES);
+                code,
+                QuickActionResolve.NUM_ENTRIES);
     }
 
     /**
@@ -467,7 +471,8 @@ public class ContextualSearchUma {
     public static void logQuickActionShown(boolean quickActionShown, int quickActionCategory) {
         if (quickActionShown) {
             RecordHistogram.recordEnumeratedHistogram(
-                    "Search.ContextualSearchQuickActions.Category", quickActionCategory,
+                    "Search.ContextualSearchQuickActions.Category",
+                    quickActionCategory,
                     QuickActionCategory.BOUNDARY);
         }
     }
@@ -478,9 +483,11 @@ public class ContextualSearchUma {
      * @param quickActionCategory The {@link QuickActionCategory} for the quick action.
      */
     public static void logQuickActionResultsSeen(boolean wasSeen, int quickActionCategory) {
-        RecordHistogram.recordEnumeratedHistogram("Search.ContextualSearchQuickActions.ResultsSeen."
+        RecordHistogram.recordEnumeratedHistogram(
+                "Search.ContextualSearchQuickActions.ResultsSeen."
                         + getLabelForQuickActionCategory(quickActionCategory),
-                wasSeen ? Results.SEEN : Results.NOT_SEEN, Results.NUM_ENTRIES);
+                wasSeen ? Results.SEEN : Results.NOT_SEEN,
+                Results.NUM_ENTRIES);
     }
 
     /**
@@ -492,7 +499,7 @@ public class ContextualSearchUma {
         RecordHistogram.recordBooleanHistogram(
                 "Search.ContextualSearchQuickActions.Clicked."
                         + getLabelForQuickActionCategory(quickActionCategory),
-                 wasClicked);
+                wasClicked);
     }
 
     /**
@@ -562,10 +569,10 @@ public class ContextualSearchUma {
     /**
      * @return The code for the Contextual Search preference.
      */
-    private static int getPreferenceValue() {
-        if (ContextualSearchPolicy.isContextualSearchUninitialized()) {
+    private static int getPreferenceValue(Profile profile) {
+        if (ContextualSearchPolicy.isContextualSearchUninitialized(profile)) {
             return ContextualSearchPreference.UNINITIALIZED;
-        } else if (ContextualSearchPolicy.isContextualSearchDisabled()) {
+        } else if (ContextualSearchPolicy.isContextualSearchDisabled(profile)) {
             return ContextualSearchPreference.DISABLED;
         }
         return ContextualSearchPreference.ENABLED;
@@ -577,14 +584,16 @@ public class ContextualSearchUma {
      * @param wasTap Whether the gesture that originally caused the panel to show was a Tap.
      * @param histogramName The full name of the histogram to log to.
      */
-    private static void logHistogramByGesture(boolean wasPanelSeen, boolean wasTap,
-            String histogramName) {
-        RecordHistogram.recordEnumeratedHistogram(histogramName,
-                getPanelSeenByGestureStateCode(wasPanelSeen, wasTap), ResultsByGesture.NUM_ENTRIES);
+    private static void logHistogramByGesture(
+            boolean wasPanelSeen, boolean wasTap, String histogramName) {
+        RecordHistogram.recordEnumeratedHistogram(
+                histogramName,
+                getPanelSeenByGestureStateCode(wasPanelSeen, wasTap),
+                ResultsByGesture.NUM_ENTRIES);
     }
 
     private static String getLabelForQuickActionCategory(int quickActionCategory) {
-        switch(quickActionCategory) {
+        switch (quickActionCategory) {
             case QuickActionCategory.ADDRESS:
                 return "Address";
             case QuickActionCategory.EMAIL:

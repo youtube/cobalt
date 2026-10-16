@@ -10,7 +10,6 @@
 #include "android_webview/common/aw_paths.h"
 #include "android_webview/common/aw_switches.h"
 #include "android_webview/common/crash_reporter/crash_keys.h"
-#include "android_webview/common_jni_headers/AwCrashReporterClient_jni.h"
 #include "base/android/build_info.h"
 #include "base/android/java_exception_reporter.h"
 #include "base/android/jni_android.h"
@@ -28,6 +27,9 @@
 #include "components/version_info/android/channel_getter.h"
 #include "components/version_info/version_info.h"
 #include "components/version_info/version_info_values.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "android_webview/crash_client_jni/AwCrashReporterClient_jni.h"
 
 using base::android::AttachCurrentThread;
 
@@ -54,12 +56,10 @@ class AwCrashReporterClient : public crash_reporter::CrashReporterClient {
     return false;
   }
 
-  void GetProductNameAndVersion(std::string* product_name,
-                                std::string* version,
-                                std::string* channel) override {
-    *product_name = "AndroidWebView";
-    *version = PRODUCT_VERSION;
-    *channel =
+  void GetProductInfo(ProductInfo* product_info) override {
+    product_info->product_name = "AndroidWebView";
+    product_info->version = PRODUCT_VERSION;
+    product_info->channel =
         version_info::GetChannelString(version_info::android::GetChannel());
   }
 
@@ -116,7 +116,6 @@ bool g_enabled;
 void EnableCrashReporter(const std::string& process_type) {
   if (g_enabled) {
     NOTREACHED() << "EnableCrashReporter called more than once";
-    return;
   }
 
   AwCrashReporterClient* client = AwCrashReporterClient::Get();

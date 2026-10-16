@@ -78,7 +78,7 @@ SearchHandler::SearchHandler(
       construction_time_(base::TimeTicks::Now()) {
   local_search_service_proxy->GetIndex(
       local_search_service::IndexId::kHelpAppLauncher,
-      local_search_service::Backend::kInvertedIndex,
+      local_search_service::Backend::kLinearMap,
       index_remote_.BindNewPipeAndPassReceiver());
   DCHECK(index_remote_.is_bound());
 
@@ -88,7 +88,7 @@ SearchHandler::SearchHandler(
   // This reduces the number of irrelevant search results.
   index_remote_->SetSearchParams(
       {
-          /*relevance_threshold=*/0.32,  // Same as default.
+          /*relevance_threshold=*/0.73,  // The threshold used by linear map.
           /*prefix_threshold=*/0.8,
           /*fuzzy_threshold=*/0.85,
       },
@@ -198,7 +198,7 @@ void SearchHandler::OnFindComplete(
     SearchCallback callback,
     uint32_t max_num_results,
     local_search_service::ResponseStatus response_status,
-    const absl::optional<std::vector<local_search_service::Result>>&
+    const std::optional<std::vector<local_search_service::Result>>&
         local_search_service_results) {
   if (response_status != local_search_service::ResponseStatus::kSuccess) {
     LogSearchResultStatus(

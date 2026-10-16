@@ -10,34 +10,31 @@
 
 #include "call/adaptation/video_stream_adapter.h"
 
+#include <cstddef>
+#include <optional>
 #include <string>
-#include <utility>
 
-#include "absl/types/optional.h"
+#include "api/adaptation/resource.h"
+#include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
-#include "api/video/video_adaptation_reason.h"
-#include "api/video_codecs/video_codec.h"
+#include "api/video/video_adaptation_counters.h"
 #include "api/video_codecs/video_encoder.h"
 #include "call/adaptation/adaptation_constraint.h"
-#include "call/adaptation/encoder_settings.h"
 #include "call/adaptation/test/fake_frame_rate_provider.h"
 #include "call/adaptation/test/fake_resource.h"
 #include "call/adaptation/test/fake_video_stream_input_state_provider.h"
 #include "call/adaptation/video_source_restrictions.h"
 #include "call/adaptation/video_stream_input_state.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/string_encode.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/scoped_key_value_config.h"
-#include "test/testsupport/rtc_expect_death.h"
-#include "video/config/video_encoder_config.h"
 
 namespace webrtc {
 
 using ::testing::_;
-using ::testing::DoAll;
 using ::testing::Return;
-using ::testing::SaveArg;
 
 namespace {
 
@@ -52,12 +49,12 @@ const int kBalancedLowFrameRateFps = 10;
 
 std::string BalancedFieldTrialConfig() {
   return "WebRTC-Video-BalancedDegradationSettings/pixels:" +
-         rtc::ToString(kBalancedLowResolutionPixels) + "|" +
-         rtc::ToString(kBalancedMediumResolutionPixels) + "|" +
-         rtc::ToString(kBalancedHighResolutionPixels) +
-         ",fps:" + rtc::ToString(kBalancedLowFrameRateFps) + "|" +
-         rtc::ToString(kBalancedMediumFrameRateFps) + "|" +
-         rtc::ToString(kBalancedHighFrameRateFps) + "/";
+         absl::StrCat(kBalancedLowResolutionPixels) + "|" +
+         absl::StrCat(kBalancedMediumResolutionPixels) + "|" +
+         absl::StrCat(kBalancedHighResolutionPixels) +
+         ",fps:" + absl::StrCat(kBalancedLowFrameRateFps) + "|" +
+         absl::StrCat(kBalancedMediumFrameRateFps) + "|" +
+         absl::StrCat(kBalancedHighFrameRateFps) + "/";
 }
 
 // Responsible for adjusting the inputs to VideoStreamAdapter (SetInput), such
@@ -114,9 +111,9 @@ class FakeVideoStream {
 class FakeVideoStreamAdapterListner : public VideoSourceRestrictionsListener {
  public:
   void OnVideoSourceRestrictionsUpdated(
-      VideoSourceRestrictions restrictions,
-      const VideoAdaptationCounters& adaptation_counters,
-      rtc::scoped_refptr<Resource> reason,
+      VideoSourceRestrictions /* restrictions */,
+      const VideoAdaptationCounters& /* adaptation_counters */,
+      scoped_refptr<Resource> /* reason */,
       const VideoSourceRestrictions& unfiltered_restrictions) override {
     calls_++;
     last_restrictions_ = unfiltered_restrictions;
@@ -158,9 +155,9 @@ class VideoStreamAdapterTest : public ::testing::Test {
                  field_trials_) {}
 
  protected:
-  webrtc::test::ScopedKeyValueConfig field_trials_;
+  test::ScopedKeyValueConfig field_trials_;
   FakeVideoStreamInputStateProvider input_state_provider_;
-  rtc::scoped_refptr<Resource> resource_;
+  scoped_refptr<Resource> resource_;
   testing::StrictMock<MockVideoStreamEncoderObserver> encoder_stats_observer_;
   VideoStreamAdapter adapter_;
 };
@@ -180,9 +177,9 @@ TEST_F(VideoStreamAdapterTest, MaintainFramerate_DecreasesPixelsToThreeFifths) {
   adapter_.ApplyAdaptation(adaptation, nullptr);
   EXPECT_EQ(static_cast<size_t>((kInputPixels * 3) / 5),
             adapter_.source_restrictions().max_pixels_per_frame());
-  EXPECT_EQ(absl::nullopt,
+  EXPECT_EQ(std::nullopt,
             adapter_.source_restrictions().target_pixels_per_frame());
-  EXPECT_EQ(absl::nullopt, adapter_.source_restrictions().max_frame_rate());
+  EXPECT_EQ(std::nullopt, adapter_.source_restrictions().max_frame_rate());
   EXPECT_EQ(1, adapter_.adaptation_counters().resolution_adaptations);
 }
 
@@ -219,7 +216,7 @@ TEST_F(VideoStreamAdapterTest, MaintainFramerate_IncreasePixelsToFiveThirds) {
             adapter_.source_restrictions().max_pixels_per_frame());
   EXPECT_EQ(static_cast<size_t>(target),
             adapter_.source_restrictions().target_pixels_per_frame());
-  EXPECT_EQ(absl::nullopt, adapter_.source_restrictions().max_frame_rate());
+  EXPECT_EQ(std::nullopt, adapter_.source_restrictions().max_frame_rate());
   EXPECT_EQ(1, adapter_.adaptation_counters().resolution_adaptations);
 }
 
@@ -247,9 +244,9 @@ TEST_F(VideoStreamAdapterTest, MaintainResolution_DecreasesFpsToTwoThirds) {
   Adaptation adaptation = adapter_.GetAdaptationDown();
   EXPECT_EQ(Adaptation::Status::kValid, adaptation.status());
   adapter_.ApplyAdaptation(adaptation, nullptr);
-  EXPECT_EQ(absl::nullopt,
+  EXPECT_EQ(std::nullopt,
             adapter_.source_restrictions().max_pixels_per_frame());
-  EXPECT_EQ(absl::nullopt,
+  EXPECT_EQ(std::nullopt,
             adapter_.source_restrictions().target_pixels_per_frame());
   EXPECT_EQ(static_cast<double>((kInputFps * 2) / 3),
             adapter_.source_restrictions().max_frame_rate());
@@ -286,9 +283,9 @@ TEST_F(VideoStreamAdapterTest, MaintainResolution_IncreaseFpsToThreeHalves) {
   Adaptation adaptation = adapter_.GetAdaptationUp();
   EXPECT_EQ(Adaptation::Status::kValid, adaptation.status());
   fake_stream.ApplyAdaptation(adaptation);
-  EXPECT_EQ(absl::nullopt,
+  EXPECT_EQ(std::nullopt,
             adapter_.source_restrictions().max_pixels_per_frame());
-  EXPECT_EQ(absl::nullopt,
+  EXPECT_EQ(std::nullopt,
             adapter_.source_restrictions().target_pixels_per_frame());
   EXPECT_EQ(static_cast<double>((input_fps * 3) / 2),
             adapter_.source_restrictions().max_frame_rate());
@@ -321,9 +318,9 @@ TEST_F(VideoStreamAdapterTest, Balanced_DecreaseFrameRate) {
   Adaptation adaptation = adapter_.GetAdaptationDown();
   EXPECT_EQ(Adaptation::Status::kValid, adaptation.status());
   adapter_.ApplyAdaptation(adaptation, nullptr);
-  EXPECT_EQ(absl::nullopt,
+  EXPECT_EQ(std::nullopt,
             adapter_.source_restrictions().max_pixels_per_frame());
-  EXPECT_EQ(absl::nullopt,
+  EXPECT_EQ(std::nullopt,
             adapter_.source_restrictions().target_pixels_per_frame());
   EXPECT_EQ(static_cast<double>(kBalancedMediumFrameRateFps),
             adapter_.source_restrictions().max_frame_rate());
@@ -349,9 +346,9 @@ TEST_F(VideoStreamAdapterTest, Balanced_DecreaseResolution) {
     EXPECT_EQ(Adaptation::Status::kValid, adaptation.status());
     fake_stream.ApplyAdaptation(adaptation);
   }
-  EXPECT_EQ(absl::nullopt,
+  EXPECT_EQ(std::nullopt,
             adapter_.source_restrictions().max_pixels_per_frame());
-  EXPECT_EQ(absl::nullopt,
+  EXPECT_EQ(std::nullopt,
             adapter_.source_restrictions().target_pixels_per_frame());
   EXPECT_EQ(static_cast<double>(kBalancedHighFrameRateFps),
             adapter_.source_restrictions().max_frame_rate());
@@ -368,7 +365,7 @@ TEST_F(VideoStreamAdapterTest, Balanced_DecreaseResolution) {
       static_cast<size_t>((kBalancedHighResolutionPixels * 3) / 5);
   EXPECT_EQ(kReducedPixelsFirstStep,
             adapter_.source_restrictions().max_pixels_per_frame());
-  EXPECT_EQ(absl::nullopt,
+  EXPECT_EQ(std::nullopt,
             adapter_.source_restrictions().target_pixels_per_frame());
   EXPECT_EQ(static_cast<double>(kBalancedHighFrameRateFps),
             adapter_.source_restrictions().max_frame_rate());
@@ -387,7 +384,7 @@ TEST_F(VideoStreamAdapterTest, Balanced_DecreaseResolution) {
   }
   EXPECT_EQ(kReducedPixelsSecondStep,
             adapter_.source_restrictions().max_pixels_per_frame());
-  EXPECT_EQ(absl::nullopt,
+  EXPECT_EQ(std::nullopt,
             adapter_.source_restrictions().target_pixels_per_frame());
   EXPECT_EQ(static_cast<double>(kBalancedHighFrameRateFps),
             adapter_.source_restrictions().max_frame_rate());
@@ -482,7 +479,7 @@ TEST_F(VideoStreamAdapterTest, Balanced_IncreaseFrameRateAndResolution) {
     Adaptation adaptation = adapter_.GetAdaptationUp();
     EXPECT_EQ(Adaptation::Status::kValid, adaptation.status());
     fake_stream.ApplyAdaptation(adaptation);
-    EXPECT_EQ(absl::nullopt, adapter_.source_restrictions().max_frame_rate());
+    EXPECT_EQ(std::nullopt, adapter_.source_restrictions().max_frame_rate());
     EXPECT_EQ(2, adapter_.adaptation_counters().resolution_adaptations);
     EXPECT_EQ(0, adapter_.adaptation_counters().fps_adaptations);
   }
@@ -921,7 +918,7 @@ TEST_F(VideoStreamAdapterTest, AdaptationConstraintDisallowsAdaptationsUp) {
 
 TEST(VideoStreamAdapterDeathTest,
      SetDegradationPreferenceInvalidatesAdaptations) {
-  webrtc::test::ScopedKeyValueConfig field_trials;
+  test::ScopedKeyValueConfig field_trials;
   FakeVideoStreamInputStateProvider input_state_provider;
   testing::StrictMock<MockVideoStreamEncoderObserver> encoder_stats_observer_;
   VideoStreamAdapter adapter(&input_state_provider, &encoder_stats_observer_,
@@ -934,7 +931,7 @@ TEST(VideoStreamAdapterDeathTest,
 }
 
 TEST(VideoStreamAdapterDeathTest, AdaptDownInvalidatesAdaptations) {
-  webrtc::test::ScopedKeyValueConfig field_trials;
+  test::ScopedKeyValueConfig field_trials;
   FakeVideoStreamInputStateProvider input_state_provider;
   testing::StrictMock<MockVideoStreamEncoderObserver> encoder_stats_observer_;
   VideoStreamAdapter adapter(&input_state_provider, &encoder_stats_observer_,

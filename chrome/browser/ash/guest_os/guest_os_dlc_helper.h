@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_ASH_GUEST_OS_GUEST_OS_DLC_HELPER_H_
 
 #include <ostream>
+#include <string_view>
 
 #include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
@@ -50,11 +51,7 @@ class GuestOsDlcInstallation {
   //
   // During installation |progress_callback| will be invoked repeatedly with a
   // value in [0,1] to indicate the installation's progress.
-  //
-  // If |retry| is set we will attempt to retry the installation for known
-  // transient failure cases.
   GuestOsDlcInstallation(std::string dlc_id,
-                         bool retry,
                          base::OnceCallback<void(Result)> completion_callback,
                          ProgressCallback progress_callback);
 
@@ -64,7 +61,18 @@ class GuestOsDlcInstallation {
 
   ~GuestOsDlcInstallation();
 
+  // If you intend to uninstall immediately after canceling, prefer this
+  // method. Normally you can just delete the object to cancel the installation,
+  // but dlcservice may still try to mount it in the background. Using this
+  // cancel ensures dlcservice won't be busy with the current installation.
+  void CancelGracefully();
+
  private:
+  void CheckState();
+
+  void OnGetDlcStateCompleted(std::string_view err,
+                              const dlcservice::DlcState& dlc_state);
+
   void StartInstall();
 
   void OnDlcInstallCompleted(
@@ -74,6 +82,7 @@ class GuestOsDlcInstallation {
   int retries_remaining_;
   base::OnceCallback<void(Result)> completion_callback_;
   ProgressCallback progress_callback_;
+  bool gracefully_cancelled_ = false;
 
   base::WeakPtrFactory<GuestOsDlcInstallation> weak_factory_{this};
 };

@@ -7,6 +7,9 @@
 
 #include "cc/cc_export.h"
 #include "cc/paint/element_id.h"
+#include "cc/trees/damage_reason.h"
+#include "cc/trees/mutator_host.h"
+#include "cc/trees/property_ids.h"
 #include "ui/gfx/geometry/point3_f.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/transform.h"
@@ -25,14 +28,6 @@ struct CC_EXPORT TransformNode {
   TransformNode(const TransformNode&);
   TransformNode& operator=(const TransformNode&);
 
-  // The node index of this node in the transform tree node vector.
-  int id;
-  // The node index of the parent node in the transform tree node vector.
-  int parent_id;
-  // The node index of the nearest parent frame node in the transform tree node
-  // vector.
-  int parent_frame_id;
-
   ElementId element_id;
 
   // The local transform information is combined to form to_parent (ignoring
@@ -47,83 +42,111 @@ struct CC_EXPORT TransformNode {
 
   gfx::Transform to_parent;
 
-  // This is the node which defines the sticky position constraints for this
-  // transform node. -1 indicates there are no sticky position constraints.
-  int sticky_position_constraint_id;
+  // The node index of this node in the transform tree node vector.
+  int id = kInvalidPropertyNodeId;
+  // The node index of the parent node in the transform tree node vector.
+  int parent_id = kInvalidPropertyNodeId;
+  // The node index of the nearest parent frame node in the transform tree node
+  // vector.
+  int parent_frame_id = kInvalidPropertyNodeId;
 
-  // This is the data of the scroll container of the anchor node specified by
-  // the `anchor-scroll` property. -1 indicates there is no such node.
-  int anchor_scroll_containers_data_id;
+  // This is the node which defines the sticky position constraints for this
+  // transform node.
+  int sticky_position_constraint_id = kInvalidPropertyNodeId;
+
+  // This is the data of the scroll adjustment containers of the default anchor
+  // of an anchor positioned element. -1 indicates there is no such node.
+  int anchor_position_scroll_data_id = kInvalidPropertyNodeId;
 
   // This id determines which 3d rendering context the node is in. 0 is a
   // special value and indicates that the node is not in any 3d rendering
   // context.
-  int sorting_context_id;
+  int sorting_context_id = 0;
 
   // True if |TransformTree::UpdateLocalTransform| needs to be called which
   // will update |to_parent|.
-  bool needs_local_transform_update : 1;
+  bool needs_local_transform_update : 1 = true;
 
   // Whether this node or any ancestor has a potentially running
   // (i.e., irrespective of exact timeline) transform animation or an
   // invertible transform.
-  bool node_and_ancestors_are_animated_or_invertible : 1;
+  bool node_and_ancestors_are_animated_or_invertible : 1 = true;
 
-  bool is_invertible : 1;
+  bool is_invertible : 1 = true;
   // Whether the transform from this node to the screen is
   // invertible.
-  bool ancestors_are_invertible : 1;
+  bool ancestors_are_invertible : 1 = true;
 
   // Whether this node has a potentially running (i.e., irrespective
   // of exact timeline) transform animation.
-  bool has_potential_animation : 1;
+  bool has_potential_animation : 1 = false;
   // Whether this node has a currently running transform animation.
-  bool is_currently_animating : 1;
+  bool is_currently_animating : 1 = false;
   // Whether this node *or an ancestor* has a potentially running
   // (i.e., irrespective of exact timeline) transform
   // animation.
-  bool to_screen_is_potentially_animated : 1;
+  bool to_screen_is_potentially_animated : 1 = false;
 
   // Flattening, when needed, is only applied to a node's inherited transform,
   // never to its local transform. It's true by default.
-  bool flattens_inherited_transform : 1;
+  bool flattens_inherited_transform : 1 = true;
 
   // This is true if the to_parent transform at every node on the path to the
   // root is flat.
-  bool node_and_ancestors_are_flat : 1;
+  bool node_and_ancestors_are_flat : 1 = true;
 
-  bool scrolls : 1;
+  bool scrolls : 1 = false;
 
-  bool should_undo_overscroll : 1;
+  bool should_undo_overscroll : 1 = false;
 
-  bool should_be_snapped : 1;
+  bool should_be_snapped : 1 = false;
 
   // Used by the compositor to determine which layers need to be repositioned by
   // the compositor as a result of browser controls expanding/contracting the
   // outer viewport size before Blink repositions the fixed layers.
-  bool moved_by_outer_viewport_bounds_delta_y : 1;
+  bool moved_by_outer_viewport_bounds_delta_y : 1 = false;
+
+  // Used by the compositor to determine which layers need to be repositioned by
+  // the compositor as a result of safe area inset bottom before Blink
+  // repositions the fixed layers.
+  bool moved_by_safe_area_bottom : 1 = false;
 
   // Layer scale factor is used as a fallback when we either cannot adjust
   // raster scale or if the raster scale cannot be extracted from the screen
   // space transform. For layers in the subtree of the page scale layer, the
   // layer scale factor should include the page scale factor.
-  bool in_subtree_of_page_scale_layer : 1;
-
-  // We need to track changes to to_screen transform to compute the damage rect.
-  bool transform_changed : 1;
+  bool in_subtree_of_page_scale_layer : 1 = false;
 
   // Whether the parent transform node should be used for checking backface
   // visibility, not this transform one.
-  bool delegates_to_parent_for_backface : 1;
+  bool delegates_to_parent_for_backface : 1 = false;
 
   // Set to true, if the compositing reason is will-change:transform, scale,
   // rotate, or translate (for the CSS property that created this node).
-  bool will_change_transform : 1;
+  bool will_change_transform : 1 = false;
 
   // Set to true, if the node or it's parent |will_change_transform| is true.
-  bool node_or_ancestors_will_change_transform : 1;
+  bool node_or_ancestors_will_change_transform : 1 = false;
 
-  gfx::PointF scroll_offset;
+ private:
+  bool transform_changed_ : 1 = false;
+
+  gfx::PointF scroll_offset_;
+
+ public:
+  // We need to track changes to to_screen transform to compute the damage rect.
+  void SetScrollOffset(const gfx::PointF& offset, DamageReason damage_reason);
+  const gfx::PointF& scroll_offset() const { return scroll_offset_; }
+
+  // Sets `transform_changed_` to true and false, as well as add to and clear
+  // damage reasons.
+  void SetTransformChanged(DamageReason damage_reason);
+  void ClearTransformChanged();
+
+  // Copy `transform_changed_` and add damage reasons from `other`.
+  void CopyTransformChangedFrom(const TransformNode& other);
+
+  bool transform_changed() const { return transform_changed_; }
 
   // This value stores the snapped amount whenever we snap. If the snap is due
   // to a scroll, we need it to calculate fixed-pos elements adjustment, even
@@ -133,11 +156,19 @@ struct CC_EXPORT TransformNode {
   // From MutatorHost::GetMaximuimAnimationScale(). Updated by
   // PropertyTrees::MaximumAnimationScaleChanged() and
   // LayerTreeImpl::UpdateTransformAnimation().
-  float maximum_animation_scale;
+  float maximum_animation_scale = kInvalidScale;
 
   // Set to the element ID of containing document if this transform node is the
   // root of a visible frame subtree.
   ElementId visible_frame_element_id;
+
+ private:
+  DamageReasonSet damage_reasons_;
+
+ public:
+  // Only meant to be used for mojo deserialization.
+  bool SetDamageReasonsForDeserialization(DamageReasonSet reasons);
+  DamageReasonSet damage_reasons() const { return damage_reasons_; }
 
 #if DCHECK_IS_ON()
   bool operator==(const TransformNode& other) const;
@@ -160,7 +191,7 @@ struct CC_EXPORT TransformCachedNodeData {
   gfx::Transform from_screen;
   gfx::Transform to_screen;
 
-  bool is_showing_backface : 1;
+  bool is_showing_backface = false;
 
   bool operator==(const TransformCachedNodeData& other) const;
 };

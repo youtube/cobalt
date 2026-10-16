@@ -4,13 +4,19 @@
 
 #include "chrome/browser/ui/views/profiles/profile_picker_view.h"
 
+#include <optional>
 #include <set>
 
 #include "base/barrier_closure.h"
 #include "base/cfi_buildflags.h"
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/json/values_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/run_loop.h"
+#include "base/strings/strcat.h"
+#include "base/strings/utf_string_conversions.h"
+#include "base/task/current_thread.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/metrics/user_action_tester.h"
@@ -18,8 +24,8 @@
 #include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "base/version_info/version_info.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/chrome_browser_main.h"
 #include "chrome/browser/chrome_browser_main_extra_parts.h"
@@ -30,6 +36,7 @@
 #include "chrome/browser/metrics/first_web_contents_profiler_base.h"
 #include "chrome/browser/policy/cloud/user_policy_signin_service.h"
 #include "chrome/browser/policy/cloud/user_policy_signin_service_factory.h"
+#include "chrome/browser/policy/cloud/user_policy_signin_service_test_util.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/policy/profile_policy_connector_builder.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
@@ -38,32 +45,35 @@
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_test_util.h"
+#include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
 #include "chrome/browser/signin/chrome_signin_client_test_util.h"
-#include "chrome/browser/signin/dice_tab_helper.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "chrome/browser/signin/signin_features.h"
 #include "chrome/browser/signin/signin_promo.h"
 #include "chrome/browser/signin/signin_util.h"
-#include "chrome/browser/sync/sync_encryption_keys_tab_helper.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/sync/sync_startup_tracker.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
+#include "chrome/browser/themes/theme_syncable_service.h"
+#include "chrome/browser/trusted_vault/trusted_vault_encryption_keys_tab_helper.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/profile_ui_test_utils.h"
-#include "chrome/browser/ui/signin/profile_customization_util.h"
+#include "chrome/browser/ui/profiles/profile_customization_util.h"
+#include "chrome/browser/ui/profiles/profile_ui_test_utils.h"
 #include "chrome/browser/ui/startup/first_run_service.h"
 #include "chrome/browser/ui/tab_dialogs.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
+#include "chrome/browser/ui/views/profiles/profile_picker_dice_reauth_provider.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_test_base.h"
-#include "chrome/browser/ui/views/user_education/browser_feature_promo_controller.h"
-#include "chrome/browser/ui/webui/signin/enterprise_profile_welcome_handler.h"
-#include "chrome/browser/ui/webui/signin/enterprise_profile_welcome_ui.h"
+#include "chrome/browser/ui/webui/profile_helper.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service_factory.h"
+#include "chrome/browser/ui/webui/signin/managed_user_profile_notice_handler.h"
+#include "chrome/browser/ui/webui/signin/managed_user_profile_notice_ui.h"
 #include "chrome/browser/ui/webui/signin/profile_customization_handler.h"
 #include "chrome/browser/ui/webui/signin/profile_customization_ui.h"
 #include "chrome/browser/ui/webui/signin/profile_picker_handler.h"
@@ -72,39 +82,55 @@
 #include "chrome/browser/ui/webui/signin/signin_utils.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
+#include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/profile_deletion_observer.h"
+#include "chrome/test/base/profile_destruction_waiter.h"
+#include "chrome/test/base/profile_waiter.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "chrome/test/user_education/interactive_feature_promo_test.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/feature_engagement/public/tracker.h"
-#include "components/feature_engagement/test/scoped_iph_feature_list.h"
-#include "components/feature_engagement/test/test_tracker.h"
+#include "components/keep_alive_registry/keep_alive_types.h"
+#include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
 #include "components/policy/core/common/mock_configuration_policy_provider.h"
 #include "components/policy/policy_constants.h"
 #include "components/prefs/pref_service.h"
+#include "components/signin/public/base/signin_buildflags.h"
+#include "components/signin/public/base/signin_metrics.h"
+#include "components/signin/public/base/signin_pref_names.h"
+#include "components/signin/public/identity_manager/account_capabilities.h"
+#include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/signin/public/identity_manager/identity_utils.h"
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
+#include "components/signin/public/identity_manager/signin_constants.h"
+#include "components/supervised_user/core/browser/supervised_user_preferences.h"
+#include "components/supervised_user/core/common/pref_names.h"
+#include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "components/sync/base/pref_names.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_user_settings.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "components/sync/test/test_sync_service.h"
-#include "components/user_education/test/feature_promo_test_util.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/test_launcher.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "extensions/common/extension_id.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/gaia_urls.h"
+#include "google_apis/gaia/google_service_auth_error.h"
 #include "services/network/test/test_url_loader_factory.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/events/event_constants.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/widget/widget_delegate.h"
 #include "url/gurl.h"
 
@@ -112,12 +138,14 @@
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "components/policy/core/common/management/management_service.h"
 #include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chrome/browser/lacros/account_manager/fake_account_manager_ui_dialog_waiter.h"
-#include "components/account_manager_core/chromeos/account_manager.h"
-#include "components/account_manager_core/chromeos/account_manager_facade_factory.h"
-#include "components/account_manager_core/chromeos/account_manager_mojo_service.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+#endif  // BUILDFLAG(IS_MAC)
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+#include "chrome/browser/signin/dice_tab_helper.h"
+#include "chrome/browser/signin/process_dice_header_delegate_impl.h"
+#endif
+
+using signin::constants::kNoHostedDomainFound;
 
 namespace {
 const SkColor kProfileColor = SK_ColorRED;
@@ -126,11 +154,11 @@ const SkColor kProfileColor = SK_ColorRED;
 enum class ForceEphemeralProfilesPolicy { kUnset, kEnabled, kDisabled };
 
 const char16_t kOriginalProfileName[] = u"OriginalProfile";
-const char kGaiaId[] = "some_gaia_id";
-
-#if !BUILDFLAG(IS_CHROMEOS_LACROS)
 const char16_t kWork[] = u"Work";
-#endif  // !BUILDFLAG(IS_CHROMEOS_LACROS)
+
+#if !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CHROMEOS)
+const char kReauthResultHistogramName[] = "ProfilePicker.ReauthResult";
+#endif
 
 AccountInfo FillAccountInfo(
     const CoreAccountInfo& core_info,
@@ -152,7 +180,8 @@ AccountInfo FillAccountInfo(
 
 GURL GetSyncConfirmationURL() {
   return AppendSyncConfirmationQueryParams(GURL("chrome://sync-confirmation/"),
-                                           SyncConfirmationStyle::kWindow);
+                                           SyncConfirmationStyle::kWindow,
+                                           /*is_sync_promo=*/true);
 }
 
 class BrowserAddedWaiter : public BrowserListObserver {
@@ -167,8 +196,9 @@ class BrowserAddedWaiter : public BrowserListObserver {
   ~BrowserAddedWaiter() override { BrowserList::RemoveObserver(this); }
 
   Browser* Wait() {
-    if (BrowserList::GetInstance()->size() == total_count_)
+    if (BrowserList::GetInstance()->size() == total_count_) {
       return BrowserList::GetInstance()->GetLastActive();
+    }
     run_loop_.Run();
     EXPECT_TRUE(browser_);
     return browser_;
@@ -177,69 +207,16 @@ class BrowserAddedWaiter : public BrowserListObserver {
  private:
   // BrowserListObserver implementation.
   void OnBrowserAdded(Browser* browser) override {
-    if (BrowserList::GetInstance()->size() != total_count_)
+    if (BrowserList::GetInstance()->size() != total_count_) {
       return;
+    }
     browser_ = browser;
     run_loop_.Quit();
   }
 
   const size_t total_count_;
-  raw_ptr<Browser, DanglingUntriaged> browser_ = nullptr;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> browser_ = nullptr;
   base::RunLoop run_loop_;
-};
-
-// Fake user policy signin service immediately invoking the callbacks.
-class FakeUserPolicySigninService : public policy::UserPolicySigninService {
- public:
-  static std::unique_ptr<KeyedService> Build(content::BrowserContext* context) {
-    Profile* profile = Profile::FromBrowserContext(context);
-    return std::make_unique<FakeUserPolicySigninService>(
-        profile, IdentityManagerFactory::GetForProfile(profile), std::string(),
-        std::string());
-  }
-
-  static std::unique_ptr<KeyedService> BuildForEnterprise(
-      content::BrowserContext* context) {
-    Profile* profile = Profile::FromBrowserContext(context);
-    // Non-empty dm token & client id means enterprise account.
-    return std::make_unique<FakeUserPolicySigninService>(
-        profile, IdentityManagerFactory::GetForProfile(profile), "foo", "bar");
-  }
-
-  FakeUserPolicySigninService(Profile* profile,
-                              signin::IdentityManager* identity_manager,
-                              const std::string& dm_token,
-                              const std::string& client_id)
-      : UserPolicySigninService(profile,
-                                nullptr,
-                                nullptr,
-                                nullptr,
-                                identity_manager,
-                                nullptr),
-        dm_token_(dm_token),
-        client_id_(client_id) {}
-
-  // policy::UserPolicySigninService:
-  void RegisterForPolicyWithAccountId(
-      const std::string& username,
-      const CoreAccountId& account_id,
-      PolicyRegistrationCallback callback) override {
-    std::move(callback).Run(dm_token_, client_id_);
-  }
-
-  // policy::UserPolicySigninServiceBase:
-  void FetchPolicyForSignedInUser(
-      const AccountId& account_id,
-      const std::string& dm_token,
-      const std::string& client_id,
-      scoped_refptr<network::SharedURLLoaderFactory> test_shared_loader_factory,
-      PolicyFetchCallback callback) override {
-    std::move(callback).Run(true);
-  }
-
- private:
-  std::string dm_token_;
-  std::string client_id_;
 };
 
 class TestTabDialogs : public TabDialogs {
@@ -273,12 +250,10 @@ class TestTabDialogs : public TabDialogs {
   void ShowDeprecatedAppsDialog(
       const extensions::ExtensionId& optional_launched_extension_id,
       const std::set<extensions::ExtensionId>& deprecated_app_ids,
-      content::WebContents* web_contents,
-      base::OnceClosure launch_anyways) override {}
+      content::WebContents* web_contents) override {}
   void ShowForceInstalledDeprecatedAppsDialog(
       const extensions::ExtensionId& app_id,
-      content::WebContents* web_contents,
-      base::OnceClosure launch_anyways) override {}
+      content::WebContents* web_contents) override {}
   void ShowForceInstalledPreinstalledDeprecatedAppDialog(
       const extensions::ExtensionId& app_id,
       content::WebContents* web_contents) override {}
@@ -287,10 +262,6 @@ class TestTabDialogs : public TabDialogs {
   raw_ptr<content::WebContents> contents_;
   raw_ptr<base::RunLoop> run_loop_;
 };
-
-std::unique_ptr<KeyedService> CreateTestTracker(content::BrowserContext*) {
-  return feature_engagement::CreateTestTracker();
-}
 
 class PageNonEmptyPaintObserver : public content::WebContentsObserver {
  public:
@@ -303,10 +274,12 @@ class PageNonEmptyPaintObserver : public content::WebContentsObserver {
   void Wait() {
     // Check if the right page has already been painted or loaded.
     if (web_contents()->GetLastCommittedURL() == url_) {
-      if (web_contents()->CompletedFirstVisuallyNonEmptyPaint())
+      if (web_contents()->CompletedFirstVisuallyNonEmptyPaint()) {
         DidFirstVisuallyNonEmptyPaint();
-      if (!web_contents()->IsLoading())
+      }
+      if (!web_contents()->IsLoading()) {
         DidStopLoading();
+      }
     }
 
     run_loop_.Run();
@@ -316,8 +289,9 @@ class PageNonEmptyPaintObserver : public content::WebContentsObserver {
   // WebContentsObserver:
   void DidFirstVisuallyNonEmptyPaint() override {
     // Making sure that the same event does not trigger the barrier twice.
-    if (did_paint_)
+    if (did_paint_) {
       return;
+    }
 
     did_paint_ = true;
     barrier_closure_.Run();
@@ -327,8 +301,9 @@ class PageNonEmptyPaintObserver : public content::WebContentsObserver {
     ASSERT_EQ(web_contents()->GetLastCommittedURL(), url_);
 
     // Making sure that the same event does not trigger the barrier twice.
-    if (did_load_)
+    if (did_load_) {
       return;
+    }
 
     // It shouldn't technically be necessary to wait for load stop here, we do
     // this to be consistent with the other tests relying on `WaitForLoadStop()`
@@ -355,16 +330,53 @@ void WaitForFirstNonEmptyPaint(const GURL& url, content::WebContents* target) {
 
 }  // namespace
 
-class ProfilePickerCreationFlowBrowserTest : public ProfilePickerTestBase {
+class ProfilePickerViewBrowserTest : public ProfilePickerTestBase {};
+
+// Regression test for crbug.com/1442159.
+IN_PROC_BROWSER_TEST_F(ProfilePickerViewBrowserTest,
+                       ShowScreen_DoesNotFinishForErrorOnInternalNavigation) {
+  GURL bad_target_url{"chrome://unregistered-host"};
+  base::test::TestFuture<void> navigation_finished_future;
+
+  ProfilePicker::Show(ProfilePicker::Params::FromEntryPoint(
+      ProfilePicker::EntryPoint::kProfileMenuManageProfiles));
+  WaitForLoadStop(GURL{"chrome://profile-picker"});
+  view()->ShowScreenInPickerContents(bad_target_url,
+                                     navigation_finished_future.GetCallback());
+
+  WaitForLoadStop(bad_target_url, web_contents());
+  EXPECT_FALSE(navigation_finished_future.IsReady());
+}
+
+// Regression test for crbug.com/1442159.
+IN_PROC_BROWSER_TEST_F(ProfilePickerViewBrowserTest,
+                       ShowScreen_FinishesForErrorOnStandardNavigation) {
+  // URL intended to simulate an https navigation that fails because the host
+  // can't be found. With an internet connection it would redirect to the
+  // DNS_PROBE_FINISHED_NXDOMAIN error page. Simulate that in the picker flow
+  // using the `--gaia-url` command line parameter.
+  // During tests all external navigations fail anyway, but that's good enough
+  // for what we're trying to verify.
+  GURL bad_target_url{"https://url.madeup"};
+  base::test::TestFuture<void> navigation_finished_future;
+
+  ProfilePicker::Show(ProfilePicker::Params::FromEntryPoint(
+      ProfilePicker::EntryPoint::kProfileMenuManageProfiles));
+  WaitForLoadStop(GURL{"chrome://profile-picker"});
+  view()->ShowScreenInPickerContents(bad_target_url,
+                                     navigation_finished_future.GetCallback());
+
+  WaitForLoadStop(bad_target_url, web_contents());
+  EXPECT_TRUE(navigation_finished_future.IsReady());
+}
+
+class ProfilePickerCreationFlowBrowserTest
+    : public InteractiveFeaturePromoTestT<ProfilePickerTestBase> {
  public:
-  explicit ProfilePickerCreationFlowBrowserTest(
-      bool local_profile_creation_dialog_enabled) {
-    std::vector<base::test::FeatureRef> enabled_features = {
-        feature_engagement::kIPHProfileSwitchFeature};
-    if (local_profile_creation_dialog_enabled) {
-      enabled_features.push_back(kSyncPromoAfterSigninIntercept);
-    }
-    feature_list_.InitAndEnableFeatures(enabled_features);
+  ProfilePickerCreationFlowBrowserTest()
+      : InteractiveFeaturePromoTestT(UseDefaultTrackerAllowingPromos(
+            {feature_engagement::kIPHProfileSwitchFeature,
+             feature_engagement::kIPHSupervisedUserProfileSigninFeature})) {
 #if BUILDFLAG(IS_MAC)
     // Ensure the platform is unmanaged
     platform_management_ =
@@ -374,12 +386,8 @@ class ProfilePickerCreationFlowBrowserTest : public ProfilePickerTestBase {
 #endif
   }
 
-  ProfilePickerCreationFlowBrowserTest()
-      : ProfilePickerCreationFlowBrowserTest(
-            /*local_profile_creation_dialog_enabled=*/false) {}
-
   void SetUpInProcessBrowserTestFixture() override {
-    ProfilePickerTestBase::SetUpInProcessBrowserTestFixture();
+    InteractiveFeaturePromoTestT::SetUpInProcessBrowserTestFixture();
     create_services_subscription_ =
         BrowserContextDependencyManager::GetInstance()
             ->RegisterCreateServicesCallbackForTesting(
@@ -389,20 +397,20 @@ class ProfilePickerCreationFlowBrowserTest : public ProfilePickerTestBase {
   }
 
   void SetUpOnMainThread() override {
-    ProfilePickerTestBase::SetUpOnMainThread();
+    InteractiveFeaturePromoTestT::SetUpOnMainThread();
 
     // Avoid showing the What's New page. These tests assume this isn't the
     // first update and the NTP opens after sign in.
-    g_browser_process->local_state()->SetInteger(prefs::kLastWhatsNewVersion,
-                                                 CHROME_VERSION_MAJOR);
+    g_browser_process->local_state()->SetInteger(
+        prefs::kLastWhatsNewVersion,
+        version_info::GetMajorVersionNumberAsInt());
   }
 
   virtual void OnWillCreateBrowserContextServices(
       content::BrowserContext* context) {
     policy::UserPolicySigninServiceFactory::GetInstance()->SetTestingFactory(
-        context, base::BindRepeating(&FakeUserPolicySigninService::Build));
-    feature_engagement::TrackerFactory::GetInstance()->SetTestingFactory(
-        context, base::BindRepeating(&CreateTestTracker));
+        context,
+        base::BindRepeating(&policy::FakeUserPolicySigninService::Build));
 
     // Clear the previous cookie responses (if any) before using it for a new
     // profile (as test_url_loader_factory() is shared across profiles).
@@ -417,16 +425,13 @@ class ProfilePickerCreationFlowBrowserTest : public ProfilePickerTestBase {
       const std::string& email,
       const std::string& given_name,
       const std::string& hosted_domain = kNoHostedDomainFound,
-      bool start_on_management_page = false) {
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-    return LacrosSignIn(target_url, email, given_name, hosted_domain,
-                        start_on_management_page);
-#else
+      bool start_on_management_page = false,
+      bool is_supervised_profile = false) {
     Profile* profile_being_created = StartDiceSignIn(start_on_management_page);
-    FinishDiceSignIn(profile_being_created, email, given_name, hosted_domain);
+    FinishDiceSignIn(profile_being_created, email, given_name, hosted_domain,
+                     is_supervised_profile);
     WaitForLoadStop(target_url);
     return profile_being_created;
-#endif
   }
 
   // Returns the initial page.
@@ -443,72 +448,6 @@ class ProfilePickerCreationFlowBrowserTest : public ProfilePickerTestBase {
     return kInitialPageUrl;
   }
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  Profile* LacrosSignIn(const GURL& target_url,
-                        const std::string& email,
-                        const std::string& given_name,
-                        const std::string& hosted_domain = kNoHostedDomainFound,
-                        bool start_on_management_page = false) {
-    const GURL kProfilePickerUrl = ShowPickerAndWait(start_on_management_page);
-
-    account_manager::AccountKey kAccountKey{
-        kGaiaId, account_manager::AccountType::kGaia};
-    auto* account_manager = MaybeGetAshAccountManagerForTests();
-    DCHECK(account_manager);
-    if (account_manager->IsTokenAvailable(kAccountKey)) {
-      // Account already exists on the device. Fake clicking the account button.
-      base::Value::List args;
-      args.Append(/*color=*/static_cast<int>(kProfileColor));
-      args.Append(/*gaiaid=*/kGaiaId);
-      web_contents()->GetWebUI()->ProcessWebUIMessage(
-          kProfilePickerUrl, "selectExistingAccountLacros", std::move(args));
-    } else {
-      // The account needs to be added to the device.
-      // Fake clicking the "Use another account" button.
-      base::Value::List args;
-      args.Append(/*color=*/static_cast<int>(kProfileColor));
-      web_contents()->GetWebUI()->ProcessWebUIMessage(
-          kProfilePickerUrl, "selectNewAccount", std::move(args));
-      // Wait for the Ash UI to show up.
-      FakeAccountManagerUI* fake_ui = GetFakeAccountManagerUI();
-      FakeAccountManagerUIDialogWaiter(
-          fake_ui, FakeAccountManagerUIDialogWaiter::Event::kAddAccount)
-          .Wait();
-
-      // Fake the OS account addition.
-      account_manager->UpsertAccount(kAccountKey, email, "access_token");
-
-      // Fake that this account was successfully added via the UI.
-      crosapi::AccountManagerMojoService* mojo_service =
-          MaybeGetAshAccountManagerMojoServiceForTests();
-      DCHECK(mojo_service);
-      mojo_service->OnAccountAdditionFinishedForTesting(
-          account_manager::AccountAdditionResult::FromAccount(
-              {kAccountKey, email}));
-      fake_ui->CloseDialog();
-    }
-
-    WaitForLoadStop(target_url);
-    // `contents_profile` is either a new profile, or the system profile if the
-    // "profile switch" interstitial is shown.
-    Profile* contents_profile =
-        static_cast<Profile*>(web_contents()->GetBrowserContext());
-
-    // Add full account info.
-    signin::IdentityManager* identity_manager =
-        IdentityManagerFactory::GetForProfile(contents_profile);
-    if (identity_manager) {
-      CoreAccountInfo core_account_info =
-          identity_manager->GetPrimaryAccountInfo(
-              signin::ConsentLevel::kSignin);
-      AccountInfo account_info =
-          FillAccountInfo(core_account_info, given_name, hosted_domain);
-      signin::UpdateAccountInfoForAccount(identity_manager, account_info);
-    }
-
-    return contents_profile;
-  }
-#else
   // Opens the Gaia signin page in the profile creation flow. Returns the new
   // profile that was created.
   Profile* StartDiceSignIn(bool start_on_management_page = false) {
@@ -523,37 +462,76 @@ class ProfilePickerCreationFlowBrowserTest : public ProfilePickerTestBase {
     // The DICE navigation happens in a new web contents (for the profile being
     // created), wait for it.
     WaitForLoadStop(GetSigninChromeSyncDiceUrl());
+
+    // Check that the `DiceTabHelper` was created.
+    DiceTabHelper* tab_helper = DiceTabHelper::FromWebContents(web_contents());
+    CHECK(tab_helper);
+    EXPECT_EQ(tab_helper->signin_access_point(),
+              signin_metrics::AccessPoint::kUserManager);
+
     return static_cast<Profile*>(web_contents()->GetBrowserContext());
+  }
+
+  void SimulateEnableSyncDiceHeader(content::WebContents* contents,
+                                    const CoreAccountInfo& account_info) {
+    // Simulate the Dice "ENABLE_SYNC" header parameter.
+    auto process_dice_header_delegate_impl =
+        ProcessDiceHeaderDelegateImpl::Create(contents);
+    process_dice_header_delegate_impl->EnableSync(account_info);
   }
 
   AccountInfo FinishDiceSignIn(
       Profile* profile_being_created,
       const std::string& email,
       const std::string& given_name,
-      const std::string& hosted_domain = kNoHostedDomainFound) {
+      const std::string& hosted_domain = kNoHostedDomainFound,
+      bool is_supervised_profile = false) {
     // Add an account - simulate a successful Gaia sign-in.
     signin::IdentityManager* identity_manager =
         IdentityManagerFactory::GetForProfile(profile_being_created);
-    CoreAccountInfo core_account_info =
-        signin::MakeAccountAvailable(identity_manager, email);
-    signin::SetCookieAccounts(identity_manager, test_url_loader_factory(),
-                              {{email, core_account_info.gaia}});
+    CoreAccountInfo core_account_info = signin::MakeAccountAvailable(
+        identity_manager,
+        signin::AccountAvailabilityOptionsBuilder(test_url_loader_factory())
+            .WithAccessPoint(signin_metrics::AccessPoint::kUserManager)
+            .Build(email));
     EXPECT_TRUE(identity_manager->HasAccountWithRefreshToken(
         core_account_info.account_id));
 
+    CHECK(profile_being_created);
     AccountInfo account_info =
         FillAccountInfo(core_account_info, given_name, hosted_domain);
+
+    if (is_supervised_profile) {
+      supervised_user::EnableParentalControls(
+          *profile_being_created->GetPrefs());
+      AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+      mutator.set_is_subject_to_parental_controls(true);
+    }
     signin::UpdateAccountInfoForAccount(identity_manager, account_info);
+
+    if (web_contents()) {
+      SimulateEnableSyncDiceHeader(web_contents(), core_account_info);
+    }
+
+    // The flow should work even if the primary account is not set at this
+    // point,for example because the /ListAccounts call did not complete yet.
+    // Regression test for https://crbug.com/1469586
+    EXPECT_FALSE(
+        identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+
     return account_info;
   }
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+
+  static bool HasPromoBeenShown(Browser* browser,
+                                const base::Feature& feature) {
+    return browser->window()->IsFeaturePromoActive(feature) ||
+           browser->window()->IsFeaturePromoQueued(feature);
+  }
 
   // Returns true if the profile switch IPH has been shown.
-  bool ProfileSwitchPromoHasBeenShown(Browser* browser) {
-    return user_education::test::WaitForStartupPromo(
-        feature_engagement::TrackerFactory::GetForBrowserContext(
-            browser->profile()),
-        feature_engagement::kIPHProfileSwitchFeature);
+  static bool ProfileSwitchPromoHasBeenShown(Browser* browser) {
+    return HasPromoBeenShown(browser,
+                             feature_engagement::kIPHProfileSwitchFeature);
   }
 
   // Simulates a click on a profile card. The profile picker must be already
@@ -588,6 +566,53 @@ class ProfilePickerCreationFlowBrowserTest : public ProfilePickerTestBase {
     return path;
   }
 
+  // Create a new Profile and destroy it immediately so that it is not loaded.
+  base::FilePath CreateNewProfileAndUnload() {
+    ProfileManager* profile_manager = g_browser_process->profile_manager();
+    base::FilePath new_profile_path =
+        profile_manager->GenerateNextProfileDirectoryPath();
+
+    Profile* new_profile = &profiles::testing::CreateProfileSync(
+        profile_manager, new_profile_path);
+
+    ProfileDestructionWaiter profile_destruction_waiter(new_profile);
+    Browser* new_browser = CreateBrowser(new_profile);
+    CloseBrowserSynchronously(new_browser);
+    profile_destruction_waiter.Wait();
+
+    return new_profile_path;
+  }
+
+  // Simulates a click on "Continue without an account" to create a local
+  // profile and open the profile customization dialog.
+  void CreateLocalProfile() {
+    base::Value::List args;
+    args.Append(base::Value());
+    profile_picker_handler()->HandleContinueWithoutAccount(args);
+  }
+
+  // Simulates a click on "Done" on the Profile Customization to confirm the
+  // creation of the local profile.
+  void ConfirmLocalProfileCreation(content::WebContents* dialog_web_contents) {
+    base::Value::List args;
+    args.Append(base::Value(kLocalProfileName));
+    dialog_web_contents->GetWebUI()
+        ->GetController()
+        ->GetAs<ProfileCustomizationUI>()
+        ->GetProfileCustomizationHandlerForTesting()
+        ->HandleDone(args);
+  }
+
+  // Simulates a click on "Delete profile" on the Profile Customization to
+  // cancel the creation of the local profile.
+  void DeleteLocalProfile(content::WebContents* dialog_web_contents) {
+    dialog_web_contents->GetWebUI()
+        ->GetController()
+        ->GetAs<ProfileCustomizationUI>()
+        ->GetProfileCustomizationHandlerForTesting()
+        ->HandleDeleteProfile(base::Value::List());
+  }
+
   // Returns profile picker webUI handler. Profile picker must be opened before
   // calling this function.
   ProfilePickerHandler* profile_picker_handler() {
@@ -603,10 +628,31 @@ class ProfilePickerCreationFlowBrowserTest : public ProfilePickerTestBase {
     return &test_url_loader_factory_;
   }
 
+  void SimulateNavigateBack() {
+    // Use "Command [" for Mac and "Alt Left" for the other operating systems.
+#if BUILDFLAG(IS_MAC)
+    view()->AcceleratorPressed(
+        ui::Accelerator(ui::VKEY_OEM_4, ui::EF_COMMAND_DOWN));
+#else
+    view()->AcceleratorPressed(ui::Accelerator(ui::VKEY_LEFT, ui::EF_ALT_DOWN));
+#endif
+  }
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  bool IsNativeToolbarVisible() {
+    return view()->IsNativeToolbarVisibleForTesting();
+  }
+#endif
+
+ protected:
+  const GURL kLocalProfileCreationUrl = AppendProfileCustomizationQueryParams(
+      GURL("chrome://profile-customization"),
+      ProfileCustomizationStyle::kLocalProfileCreation);
+  const std::string kLocalProfileName = "LocalProfile";
+
  private:
   network::TestURLLoaderFactory test_url_loader_factory_;
   base::CallbackListSubscription create_services_subscription_;
-  feature_engagement::test::ScopedIphFeatureList feature_list_;
 #if BUILDFLAG(IS_MAC)
   std::unique_ptr<policy::ScopedManagementServiceOverrideForTesting>
       platform_management_;
@@ -621,8 +667,22 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest, ShowPicker) {
   // Check that non-default accessible title is provided both before the page
   // loads and after it loads.
   views::WidgetDelegate* delegate = widget()->widget_delegate();
+
+  ui::AXNodeData root_view_data;
+  widget()->GetRootView()->GetViewAccessibility().GetAccessibleNodeData(
+      &root_view_data);
+  EXPECT_EQ(
+      root_view_data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+      delegate->GetAccessibleWindowTitle());
   EXPECT_NE(delegate->GetWindowTitle(), delegate->GetAccessibleWindowTitle());
   WaitForLoadStop(GURL("chrome://profile-picker"));
+
+  root_view_data = ui::AXNodeData();
+  widget()->GetRootView()->GetViewAccessibility().GetAccessibleNodeData(
+      &root_view_data);
+  EXPECT_EQ(
+      root_view_data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+      delegate->GetAccessibleWindowTitle());
   EXPECT_NE(delegate->GetWindowTitle(), delegate->GetAccessibleWindowTitle());
 }
 
@@ -641,11 +701,19 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest, ShowChoice) {
 
 IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
                        CreateSignedInProfile) {
+  base::HistogramTester histogram_tester;
+
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
   // Simulate a successful sign-in and wait for the sign-in to propagate to the
   // flow, resulting in sync confirmation screen getting displayed.
   Profile* profile_being_created = SignInForNewProfile(
       GetSyncConfirmationURL(), "joe.consumer@gmail.com", "Joe");
+
+  signin_metrics::AccessPoint expected_access_point =
+      signin_metrics::AccessPoint::kUserManager;
+
+  histogram_tester.ExpectUniqueSample("Signin.SignIn.Completed",
+                                      expected_access_point, 1);
 
   // Simulate closing the UI with "No, thanks".
   LoginUIServiceFactory::GetForProfile(profile_being_created)
@@ -669,9 +737,9 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
       SyncServiceFactory::GetForProfile(profile_being_created);
   EXPECT_FALSE(entry->IsAuthenticated());
   EXPECT_FALSE(sync_service->HasSyncConsent());
-  EXPECT_EQ(ThemeServiceFactory::GetForProfile(profile_being_created)
-                ->GetAutogeneratedThemeColor(),
-            kProfileColor);
+  EXPECT_EQ(
+      ThemeServiceFactory::GetForProfile(profile_being_created)->GetUserColor(),
+      kProfileColor);
 }
 
 // Regression test for https://crbug.com/1431342
@@ -680,11 +748,7 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
   // Closes the picker at the same time the new browser is created.
   class ClosePickerOnBrowserAddedObserver : public BrowserListObserver {
    public:
-    explicit ClosePickerOnBrowserAddedObserver(
-        ProfilePickerCreationFlowBrowserTest* fixture)
-        : fixture_(fixture) {
-      BrowserList::AddObserver(this);
-    }
+    ClosePickerOnBrowserAddedObserver() { BrowserList::AddObserver(this); }
 
     // This observer is registered early, before the call to
     // `OpenBrowserWindowForProfile()` in `ProfileManagementFlowController`. It
@@ -692,20 +756,11 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
     // `clear_host_callback_` is called
     void OnBrowserAdded(Browser* browser) override {
       BrowserList::RemoveObserver(this);
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-      // On Lacros, using `ProfilePicker::Hide()` causes a timeout.
-      fixture_->widget()->CloseNow();
-#else
       ProfilePicker::Hide();
-#endif
-      fixture_->WaitForPickerClosed();
     }
-
-   private:
-    raw_ptr<ProfilePickerCreationFlowBrowserTest> fixture_ = nullptr;
   };
 
-  ClosePickerOnBrowserAddedObserver close_picker_on_browser_added(this);
+  ClosePickerOnBrowserAddedObserver close_picker_on_browser_added;
 
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
   // Simulate a successful sign-in and wait for the sign-in to propagate to the
@@ -722,9 +777,8 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
                   new_browser->tab_strip_model()->GetActiveWebContents());
 }
 
-#if !BUILDFLAG(IS_CHROMEOS_LACROS)
-// TODO(crbug.com/1368936) Test is flaky on Linux Tests
-#if BUILDFLAG(IS_LINUX)
+// TODO(crbug.com/40868761): Test is flaky on Linux and Windows.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 #define MAYBE_CreateForceSignedInProfile DISABLED_CreateForceSignedInProfile
 #else
 #define MAYBE_CreateForceSignedInProfile CreateForceSignedInProfile
@@ -741,44 +795,584 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
 
   // Wait for the picker to open on the profile creation flow.
   ShowPickerAndWait();
-  auto* profile_picker_view =
-      static_cast<ProfilePickerView*>(ProfilePicker::GetViewForTesting());
 
-  // Wait for the force signin dialog to load.
-  LOG(WARNING)
-      << "DEBUG - Picker shown. Ensuring that the dialog is shown. "
-      << (profile_picker_view->dialog_host_.GetDialogDelegateViewForTesting()
-              ? "We already"
-              : "We don't yet")
-      << " have a dialog delegate view.";
-  GURL force_signin_webui_url = signin::GetEmbeddedPromoURL(
-      signin_metrics::AccessPoint::ACCESS_POINT_USER_MANAGER,
-      signin_metrics::Reason::kForcedSigninPrimaryAccount, true);
-  force_signin_webui_url =
-      AddFromProfilePickerURLParameter(force_signin_webui_url);
-
-  ui_test_utils::UrlLoadObserver url_observer(
-      force_signin_webui_url, content::NotificationService::AllSources());
-  url_observer.Wait();
-  LOG(WARNING) << "DEBUG - Finished waiting for the dialog.";
-
-  // The dialog view should be created.
-  EXPECT_TRUE(
-      profile_picker_view->dialog_host_.GetDialogDelegateViewForTesting());
-
-  // A new profile should have been created for the forced sign-in flow.
-  EXPECT_EQ(2u, g_browser_process->profile_manager()->GetNumberOfProfiles());
-  // Get the profile that was used to load the `force_signin_webui_url`.
-  Profile* force_signin_profile = Profile::FromBrowserContext(
-      content::Source<content::NavigationController>(url_observer.source())
-          .ptr()
-          ->GetBrowserContext());
-  EXPECT_TRUE(force_signin_profile);
-  // Make sure that the force_signin profile is different from the main one.
-  EXPECT_FALSE(force_signin_profile->IsSameOrParent(browser()->profile()));
-
-  // The tail end of the flow is handled by inline_login_*
+  // The DICE navigation happens in a new web contents (for the profile being
+  // created), wait for it.
+  profiles::testing::WaitForPickerUrl(GetSigninChromeSyncDiceUrl());
 }
+
+// Force signin is disabled on Linux and ChromeOS.
+// TODO(crbug.com/40235093): enable this test when enabling force sign in
+// on Linux.
+#if !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CHROMEOS)
+class ForceSigninProfilePickerCreationFlowBrowserTest
+    : public ProfilePickerCreationFlowBrowserTest {
+ public:
+  explicit ForceSigninProfilePickerCreationFlowBrowserTest(
+      bool force_signin_enabled = true)
+      : force_signin_setter_(force_signin_enabled) {}
+
+  void SimulateSuccesfulSignin(signin::IdentityManager* identity_manager,
+                               const std::string& email) {
+    // Simulate a successful reauth by making the account available.
+    signin::MakeAccountAvailable(identity_manager, email);
+  }
+
+  bool IsForceSigninErrorDialogShown() {
+    CheckMainProfilePickerUrlOpened();
+    return content::EvalJs(web_contents(),
+                           // Check the `open` field
+                           base::StrCat({kForceSigninErrorDialogPath, ".open"}))
+        .ExtractBool();
+  }
+
+  std::u16string GetForceSigninErrorDialogTitleText() {
+    CheckMainProfilePickerUrlOpened();
+    return std::u16string(base::TrimWhitespace(
+        base::UTF8ToUTF16(
+            content::EvalJs(
+                web_contents(),
+                // Get the title text content of the dialog.
+                base::StrCat({kForceSigninErrorDialogPath,
+                              ".querySelector(\'#dialog-title\').textContent"}))
+                .ExtractString()),
+        base::TRIM_ALL));
+  }
+
+  std::u16string GetForceSigninErrorDialogBodyText() {
+    CheckMainProfilePickerUrlOpened();
+    return std::u16string(base::TrimWhitespace(
+        base::UTF8ToUTF16(
+            content::EvalJs(
+                web_contents(),
+                // Get the body text content of the dialog.
+                base::StrCat({kForceSigninErrorDialogPath,
+                              ".querySelector(\'#dialog-body\').textContent"}))
+                .ExtractString()),
+        base::TRIM_ALL));
+  }
+
+  base::HistogramTester* histogram_tester() { return &histogram_tester_; }
+
+ private:
+  void CheckMainProfilePickerUrlOpened() {
+    // Make sure the profile picker is opened, with the main profile picker view
+    // (where the dialog can be shown), and the page is fully loaded.
+    EXPECT_TRUE(ProfilePicker::IsOpen());
+    const GURL main_profile_picker_url("chrome://profile-picker");
+    EXPECT_EQ(web_contents()->GetURL().GetWithEmptyPath(),
+              main_profile_picker_url);
+    WaitForLoadStop(main_profile_picker_url);
+  }
+
+  // 'forceSigninErrorDialog' cr-dialog node.
+  static constexpr char kForceSigninErrorDialogPath[] =
+      "document.body.getElementsByTagName('profile-picker-app')[0]."
+      "shadowRoot.getElementById('mainView').shadowRoot."
+      "getElementById(\'forceSigninErrorDialog\')";
+
+  signin_util::ScopedForceSigninSetterForTesting force_signin_setter_;
+  base::HistogramTester histogram_tester_;
+};
+
+IN_PROC_BROWSER_TEST_F(ForceSigninProfilePickerCreationFlowBrowserTest,
+                       ForceSigninSuccessful) {
+  size_t initial_browser_count = BrowserList::GetInstance()->size();
+  // Create a new signin flow, sign-in, and wait for the Sync Comfirmation
+  // promo.
+  Profile* force_sign_in_profile =
+      SignInForNewProfile(GetSyncConfirmationURL(), "joe.consumer@gmail.com",
+                          "Joe", kNoHostedDomainFound, true);
+  // No browser for the created profile exist yet.
+  ASSERT_EQ(chrome::GetBrowserCount(force_sign_in_profile), 0u);
+  ASSERT_TRUE(ProfilePicker::IsOpen());
+
+  ProfileAttributesEntry* entry =
+      g_browser_process->profile_manager()
+          ->GetProfileAttributesStorage()
+          .GetProfileAttributesWithPath(force_sign_in_profile->GetPath());
+  // Profile is still locked and ephemeral at this point.
+  EXPECT_EQ(entry->IsSigninRequired(), true);
+  EXPECT_EQ(entry->IsEphemeral(), true);
+
+  // Simulate the "Yes, I'm in" button clicked.
+  LoginUIServiceFactory::GetForProfile(force_sign_in_profile)
+      ->SyncConfirmationUIClosed(LoginUIService::SYNC_WITH_DEFAULT_SETTINGS);
+
+  // A browser should open up and the picker should be closed.
+  Browser* new_browser = BrowserAddedWaiter(initial_browser_count + 1u).Wait();
+  WaitForPickerClosed();
+
+  // The browser is for the newly created profile.
+  EXPECT_EQ(new_browser->profile(), force_sign_in_profile);
+  // Profile is unlocked and ready to be used.
+  EXPECT_EQ(entry->IsSigninRequired(), false);
+  EXPECT_EQ(entry->IsEphemeral(), false);
+}
+
+IN_PROC_BROWSER_TEST_F(ForceSigninProfilePickerCreationFlowBrowserTest,
+                       ForceSigninAbortedBySyncDeclined_ThenSigninAgain) {
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  // Only the default profile exists at this point.
+  size_t initial_profile_count = 1u;
+  ASSERT_EQ(profile_manager->GetNumberOfProfiles(), initial_profile_count);
+
+  // Create a new signin flow, sign-in, and wait for the Sync Comfirmation
+  // promo.
+  Profile* force_sign_in_profile =
+      SignInForNewProfile(GetSyncConfirmationURL(), "joe.consumer@gmail.com",
+                          "Joe", kNoHostedDomainFound, true);
+  base::FilePath force_sign_in_profile_path = force_sign_in_profile->GetPath();
+  // No browser for the created profile exist yet.
+  ASSERT_EQ(chrome::GetBrowserCount(force_sign_in_profile), 0u);
+  ASSERT_TRUE(ProfilePicker::IsOpen());
+
+  ProfileAttributesStorage& storage =
+      profile_manager->GetProfileAttributesStorage();
+  ProfileAttributesEntry* entry =
+      storage.GetProfileAttributesWithPath(force_sign_in_profile_path);
+  ASSERT_NE(entry, nullptr);
+
+  EXPECT_EQ(profile_manager->GetNumberOfProfiles(), initial_profile_count + 1);
+  // Profile is still locked and ephemeral at this point.
+  EXPECT_EQ(entry->IsSigninRequired(), true);
+  EXPECT_EQ(entry->IsEphemeral(), true);
+
+  ProfileDeletionObserver deletion_observer;
+  // Simulate the "No thanks" button clicked.
+  LoginUIServiceFactory::GetForProfile(force_sign_in_profile)
+      ->SyncConfirmationUIClosed(LoginUIService::ABORT_SYNC);
+
+  // Expect the profile to be deleted.
+  deletion_observer.Wait();
+
+  // Expect a redirect to the initial page of the profile picker.
+  WaitForLoadStop(GURL("chrome://profile-picker"));
+  EXPECT_TRUE(ProfilePicker::IsOpen());
+
+  // The created profile path entry is now deletec.
+  EXPECT_EQ(storage.GetProfileAttributesWithPath(force_sign_in_profile_path),
+            nullptr);
+  // Makes sure that the only profile that exist is the default one and not the
+  // one we attempted to create.
+  EXPECT_EQ(profile_manager->GetNumberOfProfiles(), initial_profile_count);
+
+  // ---------------------------------------------------------------------------
+  // This part of the test is to make sure we can safely instantiate a new sign
+  // in flow after declining the first one.
+  // ---------------------------------------------------------------------------
+
+  size_t initial_browser_count = BrowserList::GetInstance()->size();
+
+  // Create a second signin flow as part of the same session.
+  Profile* force_sign_in_profile_2 =
+      SignInForNewProfile(GetSyncConfirmationURL(), "joe.consumer1@gmail.com",
+                          "Joe", kNoHostedDomainFound, true);
+
+  LoginUIServiceFactory::GetForProfile(force_sign_in_profile_2)
+      ->SyncConfirmationUIClosed(LoginUIService::SYNC_WITH_DEFAULT_SETTINGS);
+
+  Browser* new_browser = BrowserAddedWaiter(initial_browser_count + 1u).Wait();
+  WaitForPickerClosed();
+
+  // The browser is for the newly created profile.
+  EXPECT_EQ(new_browser->profile(), force_sign_in_profile_2);
+}
+
+IN_PROC_BROWSER_TEST_F(ForceSigninProfilePickerCreationFlowBrowserTest,
+                       ForceSigninReauthSuccessful) {
+  size_t initial_browser_count = BrowserList::GetInstance()->size();
+  ASSERT_EQ(initial_browser_count, 0u);
+
+  const std::vector<Profile*> profiles =
+      g_browser_process->profile_manager()->GetLoadedProfiles();
+  ASSERT_GE(profiles.size(), 1u);
+  Profile* profile = profiles[0];
+  ProfileAttributesEntry* entry =
+      g_browser_process->profile_manager()
+          ->GetProfileAttributesStorage()
+          .GetProfileAttributesWithPath(profile->GetPath());
+
+  ASSERT_TRUE(entry->IsSigninRequired());
+  ASSERT_TRUE(ProfilePicker::IsOpen());
+
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile);
+
+  const std::string email("test@managedchrome.com");
+  signin::MakePrimaryAccountAvailable(identity_manager, email,
+                                      signin::ConsentLevel::kSignin);
+  // Only managed accounts are allowed to reauth.
+  entry->SetUserAcceptedAccountManagement(true);
+
+  CoreAccountId primary_account =
+      identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
+  ASSERT_FALSE(primary_account.empty());
+
+  // Simulate an invalid account.
+  signin::SetInvalidRefreshTokenForPrimaryAccount(identity_manager);
+
+  // Opening the locked profile from the profile picker should trigger the
+  // reauth.
+  OpenProfileFromPicker(entry->GetPath(), false);
+  WaitForLoadStop(GetChromeReauthURL(email));
+
+  // Simulate a successful reauth with the existing email.
+  SimulateSuccesfulSignin(identity_manager, email);
+
+  // A browser should open and the profile should now be unlocked.
+  Browser* new_browser = BrowserAddedWaiter(initial_browser_count + 1u).Wait();
+  EXPECT_TRUE(new_browser);
+  EXPECT_EQ(new_browser->profile(), profile);
+  EXPECT_FALSE(entry->IsSigninRequired());
+  histogram_tester()->ExpectUniqueSample(
+      kReauthResultHistogramName, ProfilePickerReauthResult::kSuccess, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(ForceSigninProfilePickerCreationFlowBrowserTest,
+                       ForceSigninReauthInGlicModeShowsErrorDialog) {
+  size_t initial_browser_count = BrowserList::GetInstance()->size();
+  ASSERT_EQ(initial_browser_count, 0u);
+
+  const std::vector<Profile*> profiles =
+      g_browser_process->profile_manager()->GetLoadedProfiles();
+  ASSERT_GE(profiles.size(), 1u);
+  Profile* profile = profiles[0];
+  ProfileAttributesEntry* entry =
+      g_browser_process->profile_manager()
+          ->GetProfileAttributesStorage()
+          .GetProfileAttributesWithPath(profile->GetPath());
+
+  ASSERT_TRUE(entry->IsSigninRequired());
+
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile);
+
+  const std::string email("test@managedchrome.com");
+  signin::MakePrimaryAccountAvailable(identity_manager, email,
+                                      signin::ConsentLevel::kSignin);
+  // Only managed accounts are allowed to reauth.
+  entry->SetUserAcceptedAccountManagement(true);
+  // Only glic eligible profiles are shown in the Glic version of the picker.
+  entry->SetIsGlicEligible(true);
+
+  CoreAccountId primary_account =
+      identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
+  ASSERT_FALSE(primary_account.empty());
+
+  // Simulate an invalid account.
+  signin::SetInvalidRefreshTokenForPrimaryAccount(identity_manager);
+
+  // Ensure picker is closed and open the picker in the Glic Version.
+  ProfilePicker::Hide();
+  base::MockCallback<base::OnceCallback<void(Profile*)>> mock_callback;
+  ProfilePicker::Show(
+      ProfilePicker::Params::ForGlicManager(mock_callback.Get()));
+  WaitForPickerClosedAndReopenedImmediately();
+
+  EXPECT_CALL(mock_callback, Run(testing::_)).Times(0);
+  ASSERT_TRUE(ProfilePicker::IsOpen());
+  ASSERT_FALSE(IsForceSigninErrorDialogShown());
+
+  // Attempt to open the locked profile that can be reauthed.
+  OpenProfileFromPicker(entry->GetPath(), false);
+
+  // Profile remains locked and an error message is displayed as Glic does not
+  // support the reauth step.
+  EXPECT_TRUE(ProfilePicker::IsOpen());
+  EXPECT_TRUE(IsForceSigninErrorDialogShown());
+  // Check error dialog content.
+  ForceSigninUIError::UiTexts errors =
+      ForceSigninUIError::ReauthNotSupportedByGlicFlow().GetErrorTexts();
+  EXPECT_EQ(GetForceSigninErrorDialogTitleText(), errors.first);
+  EXPECT_EQ(GetForceSigninErrorDialogBodyText(), errors.second);
+  EXPECT_EQ(BrowserList::GetInstance()->size(), initial_browser_count);
+  EXPECT_TRUE(entry->IsSigninRequired());
+
+  testing::Mock::VerifyAndClearExpectations(&mock_callback);
+  EXPECT_CALL(mock_callback, Run(nullptr)).Times(1);
+  ProfilePicker::Hide();
+  WaitForPickerClosed();
+}
+
+IN_PROC_BROWSER_TEST_F(ForceSigninProfilePickerCreationFlowBrowserTest,
+                       ForceSigninReauthWithAnotherAccount) {
+  size_t initial_browser_count = BrowserList::GetInstance()->size();
+  ASSERT_EQ(initial_browser_count, 0u);
+
+  const std::vector<Profile*> profiles =
+      g_browser_process->profile_manager()->GetLoadedProfiles();
+  ASSERT_GE(profiles.size(), 1u);
+  Profile* profile = profiles[0];
+  ProfileAttributesEntry* entry =
+      g_browser_process->profile_manager()
+          ->GetProfileAttributesStorage()
+          .GetProfileAttributesWithPath(profile->GetPath());
+
+  ASSERT_TRUE(entry->IsSigninRequired());
+  ASSERT_TRUE(ProfilePicker::IsOpen());
+  ASSERT_FALSE(IsForceSigninErrorDialogShown());
+
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile);
+
+  const std::string email("test@managedchrome.com");
+  signin::MakePrimaryAccountAvailable(identity_manager, email,
+                                      signin::ConsentLevel::kSignin);
+  // Only managed accounts are allowed to reauth.
+  entry->SetUserAcceptedAccountManagement(true);
+
+  CoreAccountId primary_account =
+      identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
+  ASSERT_FALSE(primary_account.empty());
+
+  // Simulate an invalid account.
+  signin::SetInvalidRefreshTokenForPrimaryAccount(identity_manager);
+
+  // Opening the locked profile from the profile picker should trigger the
+  // reauth.
+  OpenProfileFromPicker(entry->GetPath(), false);
+  WaitForLoadStop(GetChromeReauthURL(email));
+
+  // Simulate a successful sign in with another email address.
+  const std::string different_email("test2@managedchrome.com");
+  ASSERT_NE(email, different_email);
+  SimulateSuccesfulSignin(identity_manager, different_email);
+
+  // Expect the profile picker to be opened instead of a browser, and the
+  // profile to be still locked.
+  WaitForLoadStop(GURL("chrome://profile-picker"));
+  EXPECT_TRUE(ProfilePicker::IsOpen());
+  EXPECT_TRUE(IsForceSigninErrorDialogShown());
+  // Check error dialog content.
+  ForceSigninUIError::UiTexts errors =
+      ForceSigninUIError::ReauthWrongAccount(email).GetErrorTexts();
+  EXPECT_EQ(GetForceSigninErrorDialogTitleText(), errors.first);
+  EXPECT_EQ(GetForceSigninErrorDialogBodyText(), errors.second);
+  EXPECT_EQ(BrowserList::GetInstance()->size(), initial_browser_count);
+  EXPECT_TRUE(entry->IsSigninRequired());
+  histogram_tester()->ExpectUniqueSample(
+      kReauthResultHistogramName, ProfilePickerReauthResult::kErrorUsedNewEmail,
+      1);
+}
+
+IN_PROC_BROWSER_TEST_F(ForceSigninProfilePickerCreationFlowBrowserTest,
+                       ForceSigninReauthNavigateBackShouldAbort) {
+  size_t initial_browser_count = BrowserList::GetInstance()->size();
+  ASSERT_EQ(initial_browser_count, 0u);
+
+  const std::vector<Profile*> profiles =
+      g_browser_process->profile_manager()->GetLoadedProfiles();
+  ASSERT_GE(profiles.size(), 1u);
+  Profile* profile = profiles[0];
+  ProfileAttributesEntry* entry =
+      g_browser_process->profile_manager()
+          ->GetProfileAttributesStorage()
+          .GetProfileAttributesWithPath(profile->GetPath());
+
+  ASSERT_TRUE(entry->IsSigninRequired());
+  ASSERT_TRUE(ProfilePicker::IsOpen());
+
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile);
+
+  const std::string email("test@managedchrome.com");
+  signin::MakePrimaryAccountAvailable(identity_manager, email,
+                                      signin::ConsentLevel::kSignin);
+  // Only managed accounts are allowed to reauth.
+  entry->SetUserAcceptedAccountManagement(true);
+
+  CoreAccountId primary_account =
+      identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
+  ASSERT_FALSE(primary_account.empty());
+
+  // Simulate an invalid account.
+  signin::SetInvalidRefreshTokenForPrimaryAccount(identity_manager);
+
+  // Opening the locked profile from the profile picker should trigger the
+  // reauth, and the back button toolbar should be visible.
+  OpenProfileFromPicker(entry->GetPath(), false);
+  WaitForLoadStop(GetChromeReauthURL(email));
+  EXPECT_TRUE(IsNativeToolbarVisible());
+
+  // Simulate a redirect within the reauth page (requesting a password for
+  // example), the actual URL is not important for the testing purposes.
+  GURL redirect_url("https://www.google.com/");
+  web_contents()->GetController().LoadURL(redirect_url, content::Referrer(),
+                                          ui::PAGE_TRANSITION_AUTO_TOPLEVEL,
+                                          std::string());
+  WaitForLoadStop(redirect_url);
+
+  // Simulate a back navigation within the reauth redirect.
+  SimulateNavigateBack();
+
+  // Expect it to take us back to the initial reauth page.
+  WaitForLoadStop(GetChromeReauthURL(email));
+
+  // Simulate a back navigation within the reauth page.
+  SimulateNavigateBack();
+
+  // Expect the profile picker to be opened since it was the last step before
+  // reauth, toolbar should be hidden, and the profile to be still locked.
+  WaitForLoadStop(GURL("chrome://profile-picker"));
+  EXPECT_TRUE(ProfilePicker::IsOpen());
+  EXPECT_FALSE(IsNativeToolbarVisible());
+  EXPECT_EQ(BrowserList::GetInstance()->size(), initial_browser_count);
+  EXPECT_TRUE(entry->IsSigninRequired());
+}
+
+IN_PROC_BROWSER_TEST_F(ForceSigninProfilePickerCreationFlowBrowserTest,
+                       ForceSigninLaunchInactiveDefaultProfile) {
+  size_t initial_browser_count = BrowserList::GetInstance()->size();
+  ASSERT_EQ(initial_browser_count, 0u);
+
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  const std::vector<Profile*> profiles = profile_manager->GetLoadedProfiles();
+  ASSERT_GE(profiles.size(), 1u);
+  Profile* default_profile = profiles[0];
+  ProfileAttributesEntry* default_profile_entry =
+      profile_manager->GetProfileAttributesStorage()
+          .GetProfileAttributesWithPath(default_profile->GetPath());
+
+  ASSERT_TRUE(ProfilePicker::IsOpen());
+  // Make sure that this is the default profile. Also this profile is not yet
+  // active/used which makes a valid candidate to sign in.
+  ASSERT_EQ(default_profile_entry->GetPath(),
+            profiles::GetDefaultProfileDir(profile_manager->user_data_dir()));
+  ASSERT_EQ(default_profile_entry->GetActiveTime(), base::Time());
+  ASSERT_TRUE(default_profile_entry->IsSigninRequired());
+
+  // Opening the default profile for the first time is allowed, it is expected
+  // to open the sign in screen.
+  OpenProfileFromPicker(default_profile_entry->GetPath(), false);
+  WaitForLoadStop(GetSigninChromeSyncDiceUrl());
+
+  // Finish the signin that was started from opening the default profile.
+  FinishDiceSignIn(default_profile, "joe.consumer@gmail.com", "Joe");
+  WaitForLoadStop(GetSyncConfirmationURL());
+
+  // Accept Sync.
+  LoginUIServiceFactory::GetForProfile(default_profile)
+      ->SyncConfirmationUIClosed(LoginUIService::SYNC_WITH_DEFAULT_SETTINGS);
+
+  // A browser should open and the profile should now be unlocked.
+  Browser* new_browser = BrowserAddedWaiter(initial_browser_count + 1u).Wait();
+  EXPECT_TRUE(new_browser);
+  EXPECT_EQ(new_browser->profile(), default_profile);
+  EXPECT_FALSE(default_profile_entry->IsSigninRequired());
+
+  // Default profile is now active.
+  EXPECT_NE(default_profile_entry->GetActiveTime(), base::Time());
+}
+
+// Regression tetst for b/360733721.
+IN_PROC_BROWSER_TEST_F(
+    ForceSigninProfilePickerCreationFlowBrowserTest,
+    ForceSigninWithPatternMatchingShouldFailSigninWithWrongPatternEmail) {
+  // Set the username pattern restriction.
+  PrefService* local_state = g_browser_process->local_state();
+  local_state->SetString(prefs::kGoogleServicesUsernamePattern, "*.google.com");
+
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  size_t initial_number_of_profiles = profile_manager->GetNumberOfProfiles();
+
+  ASSERT_TRUE(ProfilePicker::IsOpen());
+
+  GURL initial_picker_url =
+      ProfilePicker::GetWebViewForTesting()->GetWebContents()->GetURL();
+
+  // Start the signin process.
+  Profile* profile_being_created = StartDiceSignIn(true);
+  // Profile will be destroyed at the end of the flow.
+  ProfileDestructionWaiter destruction_waiter(profile_being_created);
+  // During signin process a new profile is created.
+  EXPECT_EQ(profile_manager->GetNumberOfProfiles(),
+            initial_number_of_profiles + 1u);
+
+  // Make sure that the ProfilePicker navigated.
+  EXPECT_NE(initial_picker_url,
+            ProfilePicker::GetWebViewForTesting()->GetWebContents()->GetURL());
+
+  const std::string email = "joe.consumer@gmail.com";
+  // Verify that patternt does not match.
+  ASSERT_FALSE(signin::IsUsernameAllowedByPatternFromPrefs(local_state, email));
+  // Signing in with a profile that does not match the pattern should stop the
+  // profile creation flow.
+  FinishDiceSignIn(profile_being_created, email, "Joe", kNoHostedDomainFound);
+
+  // Returning to the profile picker main page.
+  WaitForLoadStop(GURL("chrome://profile-picker"));
+  // Created profile is destroyed.
+  destruction_waiter.Wait();
+  EXPECT_EQ(profile_manager->GetNumberOfProfiles(), initial_number_of_profiles);
+  EXPECT_TRUE(IsForceSigninErrorDialogShown());
+  // Check error dialog content.
+  ForceSigninUIError::UiTexts errors =
+      ForceSigninUIError::SigninPatternNotMatching(email).GetErrorTexts();
+  EXPECT_EQ(GetForceSigninErrorDialogTitleText(), errors.first);
+  EXPECT_EQ(GetForceSigninErrorDialogBodyText(), errors.second);
+}
+
+class ForceSigninProfilePickerCreationFlowBrowserTestWithPRE
+    : public ForceSigninProfilePickerCreationFlowBrowserTest {
+ public:
+  ForceSigninProfilePickerCreationFlowBrowserTestWithPRE()
+      : ForceSigninProfilePickerCreationFlowBrowserTest(
+            /*force_signin_enabled=*/!content::IsPreTest()) {}
+};
+
+IN_PROC_BROWSER_TEST_F(ForceSigninProfilePickerCreationFlowBrowserTestWithPRE,
+                       PRE_ProfileThatCannotBeManagedCannotBeOpened) {
+  ASSERT_FALSE(signin_util::IsForceSigninEnabled());
+
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  // Only default profile exists.
+  ASSERT_EQ(1u, profile_manager->GetNumberOfProfiles());
+
+  // Activate this profile then close the session.
+  CreateBrowser(profile_manager->GetLoadedProfiles()[0]);
+}
+
+IN_PROC_BROWSER_TEST_F(ForceSigninProfilePickerCreationFlowBrowserTestWithPRE,
+                       ProfileThatCannotBeManagedCannotBeOpened) {
+  ASSERT_TRUE(signin_util::IsForceSigninEnabled());
+
+  size_t initial_browser_count = BrowserList::GetInstance()->size();
+  ASSERT_EQ(0u, initial_browser_count);
+
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  std::vector<ProfileAttributesEntry*> entries =
+      profile_manager->GetProfileAttributesStorage().GetAllProfilesAttributes();
+  ASSERT_EQ(1u, entries.size());
+  // Use the same (only) profile as in PRE.
+  ProfileAttributesEntry* existing_entry = entries[0];
+
+  // Profile has been used and is now locked.
+  ASSERT_NE(existing_entry->GetActiveTime(), base::Time());
+  ASSERT_TRUE(existing_entry->IsSigninRequired());
+  ASSERT_FALSE(existing_entry->CanBeManaged());
+
+  ASSERT_TRUE(ProfilePicker::IsOpen());
+  ASSERT_FALSE(IsForceSigninErrorDialogShown());
+
+  // Attempting to open this profile, profile was previously active and not
+  // syncing/managed.
+  OpenProfileFromPicker(existing_entry->GetPath(), false);
+
+  // Should not succeed.
+  EXPECT_EQ(initial_browser_count, BrowserList::GetInstance()->size());
+  // Error dialog is shown on top of the ProfilePicker.
+  EXPECT_TRUE(IsForceSigninErrorDialogShown());
+  // Check error dialog content.
+  ForceSigninUIError::UiTexts errors =
+      ForceSigninUIError::ReauthNotAllowed().GetErrorTexts();
+  EXPECT_EQ(GetForceSigninErrorDialogTitleText(), errors.first);
+  EXPECT_EQ(GetForceSigninErrorDialogBodyText(), errors.second);
+  // Profile is still locked.
+  EXPECT_TRUE(existing_entry->IsSigninRequired());
+}
+
+#endif
 
 // Regression test for crbug.com/1266415.
 IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
@@ -789,12 +1383,12 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
   // It would be nicer to verify that HasEncryptionKeysApiForTesting()
   // returns true but this isn't possible because the sigin page returns an
   // error, without setting up a fake HTTP server.
-  EXPECT_NE(SyncEncryptionKeysTabHelper::FromWebContents(web_contents()),
-            nullptr);
+  EXPECT_NE(
+      TrustedVaultEncryptionKeysTabHelper::FromWebContents(web_contents()),
+      nullptr);
 }
 
-// Regression test for crbug.com/1196290. Makes no sense for lacros because you
-// cannot sign-in twice in the same way on lacros.
+// Regression test for crbug.com/1196290.
 IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
                        CreateSignedInProfileAfterCancellingFirstAttempt) {
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
@@ -842,9 +1436,9 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
       SyncServiceFactory::GetForProfile(profile_being_created);
   EXPECT_FALSE(entry->IsAuthenticated());
   EXPECT_FALSE(sync_service->HasSyncConsent());
-  EXPECT_EQ(ThemeServiceFactory::GetForProfile(profile_being_created)
-                ->GetAutogeneratedThemeColor(),
-            kProfileColor);
+  EXPECT_EQ(
+      ThemeServiceFactory::GetForProfile(profile_being_created)->GetUserColor(),
+      kProfileColor);
 }
 
 IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
@@ -934,15 +1528,11 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
                        CreateSignedInProfileDiceReenter) {
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
   Profile* profile_being_created = StartDiceSignIn();
+  EXPECT_TRUE(IsNativeToolbarVisible());
 
   // Navigate back from the sign in step.
-  // Use "Command [" for Mac and "Alt Left" for the other operating systems.
-#if BUILDFLAG(IS_MAC)
-  view()->AcceleratorPressed(
-      ui::Accelerator(ui::VKEY_OEM_4, ui::EF_COMMAND_DOWN));
-#else
-  view()->AcceleratorPressed(ui::Accelerator(ui::VKEY_LEFT, ui::EF_ALT_DOWN));
-#endif
+  SimulateNavigateBack();
+  EXPECT_FALSE(IsNativeToolbarVisible());
 
   // Simulate the sign-in screen get re-entered with a different color
   // (configured on the local profile screen).
@@ -981,13 +1571,12 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
       SyncServiceFactory::GetForProfile(profile_being_created);
   EXPECT_FALSE(entry->IsAuthenticated());
   EXPECT_FALSE(sync_service->HasSyncConsent());
-  EXPECT_EQ(ThemeServiceFactory::GetForProfile(profile_being_created)
-                ->GetAutogeneratedThemeColor(),
-            kDifferentProfileColor);
+  EXPECT_EQ(
+      ThemeServiceFactory::GetForProfile(profile_being_created)->GetUserColor(),
+      kDifferentProfileColor);
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS_LACROS)
 
-// TODO(crbug.com/1289326) Test is flaky on Linux CFI, Linux dbg, Mac ASan
+// TODO(crbug.com/40817459) Test is flaky on Linux CFI, Linux dbg, Mac ASan
 #if ((BUILDFLAG(CFI_ICALL_CHECK) || !defined(NDEBUG)) && \
      BUILDFLAG(IS_LINUX)) ||                             \
     (BUILDFLAG(IS_MAC) && defined(ADDRESS_SANITIZER))
@@ -1027,16 +1616,16 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
   syncer::SyncService* sync_service =
       SyncServiceFactory::GetForProfile(profile_being_created);
   EXPECT_TRUE(sync_service->HasSyncConsent());
-  EXPECT_FALSE(sync_service->GetUserSettings()->IsFirstSetupComplete());
+  EXPECT_FALSE(
+      sync_service->GetUserSettings()->IsInitialSyncFeatureSetupComplete());
 
   // The color is not applied if the user enters settings.
   EXPECT_FALSE(ThemeServiceFactory::GetForProfile(profile_being_created)
-                   ->UsingAutogeneratedTheme());
+                   ->GetUserColor()
+                   .has_value());
 }
 
-// The following tests rely on dice specific logic. Some of them could be
-// extended to cover lacros as well.
-#if !BUILDFLAG(IS_CHROMEOS_LACROS)
+// The following tests rely on dice specific logic.
 IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
                        CreateSignedInProfileOpenLink) {
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
@@ -1044,14 +1633,14 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
 
   // Simulate clicking on a link that opens in a new window.
   const GURL kURL("https://foo.google.com");
-  EXPECT_TRUE(ExecuteScript(web_contents(),
-                            "var link = document.createElement('a');"
-                            "link.href = '" +
-                                kURL.spec() +
-                                "';"
-                                "link.target = '_blank';"
-                                "document.body.appendChild(link);"
-                                "link.click();"));
+  EXPECT_TRUE(ExecJs(web_contents(),
+                     "var link = document.createElement('a');"
+                     "link.href = '" +
+                         kURL.spec() +
+                         "';"
+                         "link.target = '_blank';"
+                         "document.body.appendChild(link);"
+                         "link.click();"));
   // A new pppup browser is displayed (with the specified URL).
   Browser* new_browser = BrowserAddedWaiter(2u).Wait();
   EXPECT_EQ(new_browser->type(), Browser::TYPE_POPUP);
@@ -1059,7 +1648,7 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
 }
 
 // Regression test for crbug.com/1219980.
-// TODO(crbug.com/1219535): Re-implement the test bases on the final fix.
+// TODO(crbug.com/40772284): Re-implement the test bases on the final fix.
 IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
                        CreateSignedInProfileSecurityInterstitials) {
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
@@ -1074,7 +1663,6 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
   base::RunLoop().RunUntilIdle();
 }
 
-// TODO(crbug.com/1248040): Extend this test to support lacros.
 IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
                        CreateSignedInProfileExtendedInfoTimeout) {
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
@@ -1089,19 +1677,20 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
           base::Milliseconds(10));
 
   // Add an account - simulate a successful Gaia sign-in.
-  CoreAccountInfo core_account_info =
-      signin::MakeAccountAvailable(identity_manager, "joe.consumer@gmail.com");
-  signin::SetCookieAccounts(
-      identity_manager, test_url_loader_factory(),
-      {{"joe.consumer@gmail.com", core_account_info.gaia}});
+  CoreAccountInfo core_account_info = signin::MakeAccountAvailable(
+      identity_manager,
+      signin::AccountAvailabilityOptionsBuilder(test_url_loader_factory())
+          .WithCookie()
+          .Build("joe.consumer@gmail.com"));
   ASSERT_TRUE(identity_manager->HasAccountWithRefreshToken(
       core_account_info.account_id));
 
-  // Wait for the sign-in to propagate to the flow, resulting in sync
+  // Simulate the Dice "ENABLE_SYNC" header parameter, resulting in sync
   // confirmation screen getting displayed.
+  SimulateEnableSyncDiceHeader(web_contents(), core_account_info);
   WaitForLoadStop(GetSyncConfirmationURL());
 
-  // Simulate closing the UI with "Yes, I'm in".
+  // Simulate closing the UI with "No, Thanks".
   LoginUIServiceFactory::GetForProfile(profile_being_created)
       ->SyncConfirmationUIClosed(LoginUIService::ABORT_SYNC);
   Browser* new_browser = BrowserAddedWaiter(2u).Wait();
@@ -1125,14 +1714,21 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
       SyncServiceFactory::GetForProfile(profile_being_created);
   EXPECT_FALSE(entry->IsAuthenticated());
   EXPECT_FALSE(sync_service->HasSyncConsent());
-  EXPECT_EQ(ThemeServiceFactory::GetForProfile(profile_being_created)
-                ->GetAutogeneratedThemeColor(),
-            kProfileColor);
+  EXPECT_EQ(
+      ThemeServiceFactory::GetForProfile(profile_being_created)->GetUserColor(),
+      kProfileColor);
 }
 
-// TODO(crbug.com/1248040): Extend this test to support lacros.
+// TODO(crbug.com/41496960): Flaky on Linux MSan.
+#if BUILDFLAG(IS_LINUX) && defined(MEMORY_SANITIZER)
+#define MAYBE_CreateSignedInProfileExtendedInfoDelayed \
+  DISABLED_CreateSignedInProfileExtendedInfoDelayed
+#else
+#define MAYBE_CreateSignedInProfileExtendedInfoDelayed \
+  CreateSignedInProfileExtendedInfoDelayed
+#endif
 IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
-                       CreateSignedInProfileExtendedInfoDelayed) {
+                       MAYBE_CreateSignedInProfileExtendedInfoDelayed) {
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
   Profile* profile_being_created = StartDiceSignIn();
 
@@ -1140,16 +1736,17 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
       IdentityManagerFactory::GetForProfile(profile_being_created);
 
   // Add an account - simulate a successful Gaia sign-in.
-  CoreAccountInfo core_account_info =
-      signin::MakeAccountAvailable(identity_manager, "joe.consumer@gmail.com");
-  signin::SetCookieAccounts(
-      identity_manager, test_url_loader_factory(),
-      {{"joe.consumer@gmail.com", core_account_info.gaia}});
+  CoreAccountInfo core_account_info = signin::MakeAccountAvailable(
+      identity_manager,
+      signin::AccountAvailabilityOptionsBuilder(test_url_loader_factory())
+          .WithCookie()
+          .Build("joe.consumer@gmail.com"));
   ASSERT_TRUE(identity_manager->HasAccountWithRefreshToken(
       core_account_info.account_id));
 
-  // Wait for the sign-in to propagate to the flow, resulting in sync
+  // Simulate the Dice "ENABLE_SYNC" header parameter, resulting in sync
   // confirmation screen getting displayed.
+  SimulateEnableSyncDiceHeader(web_contents(), core_account_info);
   WaitForLoadStop(GetSyncConfirmationURL());
 
   // Simulate closing the UI with "No, thanks".
@@ -1182,9 +1779,9 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
       SyncServiceFactory::GetForProfile(profile_being_created);
   EXPECT_FALSE(entry->IsAuthenticated());
   EXPECT_FALSE(sync_service->HasSyncConsent());
-  EXPECT_EQ(ThemeServiceFactory::GetForProfile(profile_being_created)
-                ->GetAutogeneratedThemeColor(),
-            kProfileColor);
+  EXPECT_EQ(
+      ThemeServiceFactory::GetForProfile(profile_being_created)->GetUserColor(),
+      kProfileColor);
 }
 
 IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
@@ -1216,10 +1813,10 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
   EXPECT_EQ(entry->GetLocalProfileName(), kWork);
   // The color is not applied if the user enters the SAML flow.
   EXPECT_FALSE(ThemeServiceFactory::GetForProfile(profile_being_created)
-                   ->UsingAutogeneratedTheme());
+                   ->GetUserColor()
+                   .has_value());
 }
 
-// TODO(crbug.com/1248040): Extend this test to support lacros.
 // Regression test for crash https://crbug.com/1195784.
 // Crash requires specific conditions to be reproduced. Browser should have 2
 // profiles with the same GAIA account name and the first profile should use
@@ -1280,7 +1877,20 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
   // This should not crash.
   StartDiceSignIn();
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS_LACROS)
+
+// Regression test for https://crbug.com/1467483
+IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
+                       DiceSigninFailure) {
+  ASSERT_EQ(1u, BrowserList::GetInstance()->size());
+  StartDiceSignIn();
+
+  // Simulate Dice token exchange failure. This should not crash.
+  auto process_dice_header_delegate_impl =
+      ProcessDiceHeaderDelegateImpl::Create(web_contents());
+  process_dice_header_delegate_impl->HandleTokenExchangeFailure(
+      "example@gmail.com",
+      GoogleServiceAuthError::FromServiceError("SomeError"));
+}
 
 IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
                        OpenPickerAndClose) {
@@ -1324,39 +1934,21 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest, ReShow) {
   ProfilePicker::Show(ProfilePicker::Params::FromEntryPoint(
       ProfilePicker::EntryPoint::kProfileLocked));
   EXPECT_FALSE(widget_weak->IsClosed());
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // Show the account selection.
-  base::test::TestFuture<const std::string&> account_future_1;
-  ProfilePicker::Show(ProfilePicker::Params::ForLacrosSelectAvailableAccount(
-      base::FilePath(), account_future_1.GetCallback()));
-  // The picker is not reused
-  EXPECT_TRUE(widget_weak->IsClosed());
-  WaitForPickerClosedAndReopenedImmediately();
-
-  // Show the account selection again.
-  base::test::TestFuture<const std::string&> account_future_2;
-  EXPECT_FALSE(account_future_1.IsReady());
-  widget_weak = widget()->GetWeakPtr();
-  ProfilePicker::Show(ProfilePicker::Params::ForLacrosSelectAvailableAccount(
-      base::FilePath(), account_future_2.GetCallback()));
-  // The picker is reused, and the previous callback is called.
-  EXPECT_FALSE(widget_weak->IsClosed());
-  EXPECT_TRUE(account_future_1.Get().empty());
-  EXPECT_FALSE(account_future_2.IsReady());
-
-  // Hide the picker. The callback is called.
-  ProfilePicker::Hide();
-  EXPECT_TRUE(widget_weak->IsClosed());
-  EXPECT_TRUE(account_future_2.Get().empty());
-#endif
 }
 
-IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest, OpenProfile) {
+// TODO(crbug.com/325310963): Re-enable this flaky test on macOS.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_OpenProfile DISABLED_OpenProfile
+#else
+#define MAYBE_OpenProfile OpenProfile
+#endif
+IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
+                       MAYBE_OpenProfile) {
   base::HistogramTester histogram_tester;
 
-  AvatarToolbarButton::SetIPHMinDelayAfterCreationForTesting(base::Seconds(0));
-  auto lock = BrowserFeaturePromoController::BlockActiveWindowCheckForTesting();
+  auto scoped_iph_delay =
+      AvatarToolbarButton::SetScopedIPHMinDelayAfterCreationForTesting(
+          base::Seconds(0));
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
   // Create a second profile.
   base::FilePath other_path = CreateNewProfileWithoutBrowser();
@@ -1366,6 +1958,11 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest, OpenProfile) {
   WaitForLoadStop(GURL("chrome://profile-picker"));
   // Open the other profile.
   OpenProfileFromPicker(other_path, /*open_settings=*/false);
+  // Attempt to open the profile twice, within the same picker. Simulates double
+  // clicking on a profile card, not having any undesired effect.
+  // Check: crbug.com/389726677.
+  OpenProfileFromPicker(other_path, /*open_settings=*/false);
+
   // Browser for the profile is displayed.
   Browser* new_browser = BrowserAddedWaiter(2u).Wait();
   WaitForFirstNonEmptyPaint(
@@ -1417,7 +2014,7 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
       metrics::StartupProfilingFinishReason::kDone, 1);
 }
 
-// TODO(crbug.com/1289326) Test is flaky on Linux CFI, Linux dbg, Mac ASan
+// TODO(crbug.com/40817459) Test is flaky on Linux CFI, Linux dbg, Mac ASan
 #if ((BUILDFLAG(CFI_ICALL_CHECK) || !defined(NDEBUG)) && \
      BUILDFLAG(IS_LINUX)) ||                             \
     (BUILDFLAG(IS_MAC) && defined(ADDRESS_SANITIZER))
@@ -1427,7 +2024,9 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
 #endif
 IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
                        MAYBE_OpenProfile_Settings) {
-  AvatarToolbarButton::SetIPHMinDelayAfterCreationForTesting(base::Seconds(0));
+  auto scoped_iph_delay =
+      AvatarToolbarButton::SetScopedIPHMinDelayAfterCreationForTesting(
+          base::Seconds(0));
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
   // Create a second profile.
   base::FilePath other_path = CreateNewProfileWithoutBrowser();
@@ -1469,7 +2068,9 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
 // Regression test for https://crbug.com/1199035
 IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
                        OpenProfile_Guest) {
-  AvatarToolbarButton::SetIPHMinDelayAfterCreationForTesting(base::Seconds(0));
+  auto scoped_iph_delay =
+      AvatarToolbarButton::SetScopedIPHMinDelayAfterCreationForTesting(
+          base::Seconds(0));
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
   // Create a second profile.
   base::FilePath other_path = CreateNewProfileWithoutBrowser();
@@ -1508,17 +2109,369 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
   ASSERT_EQ(0u, BrowserList::GetInstance()->size());
 
   // Imitate creating a new profile through the profile picker.
-  ProfilePickerHandler* handler = profile_picker_handler();
-  base::Value::List args;
-  args.Append(u"My Profile");  // Profile name.
-  args.Append(base::Value());  // Profile color.
-  args.Append(0);              // Avatar index.
-  args.Append(false);          // Create shortcut.
-  handler->HandleCreateProfile(args);
+  CreateLocalProfile();
 
   BrowserAddedWaiter(1u).Wait();
   EXPECT_EQ(1u, BrowserList::GetInstance()->size());
   WaitForPickerClosed();
+}
+
+IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
+                       CreateLocalProfile) {
+  ASSERT_EQ(1u, BrowserList::GetInstance()->size());
+  ASSERT_EQ(1u, g_browser_process->profile_manager()
+                    ->GetProfileAttributesStorage()
+                    .GetNumberOfProfiles());
+
+  content::TestNavigationObserver profile_customization_observer(
+      kLocalProfileCreationUrl);
+  profile_customization_observer.StartWatchingNewWebContents();
+  BrowserAddedWaiter waiter = BrowserAddedWaiter(2u);
+
+  ProfilePicker::Show(ProfilePicker::Params::FromEntryPoint(
+      ProfilePicker::EntryPoint::kProfileMenuAddNewProfile));
+  // Wait until webUI is fully initialized.
+  WaitForLoadStop(GURL("chrome://profile-picker/new-profile"));
+
+  // Simulate clicking the "Continue without an account" button.
+  CreateLocalProfile();
+
+  Browser* new_browser = waiter.Wait();
+  profile_customization_observer.Wait();
+  content::WebContents* dialog_web_contents =
+      new_browser->signin_view_controller()
+          ->GetModalDialogWebContentsForTesting();
+  EXPECT_EQ(dialog_web_contents->GetLastCommittedURL(),
+            kLocalProfileCreationUrl);
+
+  ProfileAttributesEntry* entry =
+      g_browser_process->profile_manager()
+          ->GetProfileAttributesStorage()
+          .GetProfileAttributesWithPath(new_browser->profile()->GetPath());
+  ASSERT_TRUE(entry->IsEphemeral());
+  EXPECT_FALSE(ProfilePicker::IsOpen());
+  EXPECT_TRUE(new_browser->signin_view_controller()->ShowsModalDialog());
+
+  // Simulate clicking the "Done" button on the profile customization dialog.
+  ConfirmLocalProfileCreation(dialog_web_contents);
+
+  ASSERT_FALSE(entry->IsEphemeral());
+  ASSERT_EQ(kLocalProfileName, base::UTF16ToUTF8(entry->GetLocalProfileName()));
+  ASSERT_EQ(2u, g_browser_process->profile_manager()
+                    ->GetProfileAttributesStorage()
+                    .GetNumberOfProfiles());
+  EXPECT_FALSE(new_browser->signin_view_controller()->ShowsModalDialog());
+}
+
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_CancelLocalProfileCreation DISABLED_CancelLocalProfileCreation
+#else
+#define MAYBE_CancelLocalProfileCreation CancelLocalProfileCreation
+#endif  // BUILDFLAG(IS_MAC)
+IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
+                       MAYBE_CancelLocalProfileCreation) {
+  ASSERT_EQ(1u, BrowserList::GetInstance()->size());
+  ASSERT_EQ(1u, g_browser_process->profile_manager()
+                    ->GetProfileAttributesStorage()
+                    .GetNumberOfProfiles());
+
+  content::TestNavigationObserver profile_customization_observer(
+      kLocalProfileCreationUrl);
+  profile_customization_observer.StartWatchingNewWebContents();
+  BrowserAddedWaiter browser_added_waiter = BrowserAddedWaiter(2u);
+
+  ProfilePicker::Show(ProfilePicker::Params::FromEntryPoint(
+      ProfilePicker::EntryPoint::kProfileMenuAddNewProfile));
+  // Wait until webUI is fully initialized.
+  WaitForLoadStop(GURL("chrome://profile-picker/new-profile"));
+
+  // Simulate clicking the "Continue without an account" button.
+  CreateLocalProfile();
+
+  Browser* new_browser = browser_added_waiter.Wait();
+  profile_customization_observer.Wait();
+  content::WebContents* dialog_web_contents =
+      new_browser->signin_view_controller()
+          ->GetModalDialogWebContentsForTesting();
+  EXPECT_EQ(dialog_web_contents->GetLastCommittedURL(),
+            kLocalProfileCreationUrl);
+
+  base::FilePath profile_path = new_browser->profile()->GetPath();
+  ProfileAttributesEntry* entry =
+      g_browser_process->profile_manager()
+          ->GetProfileAttributesStorage()
+          .GetProfileAttributesWithPath(profile_path);
+  ASSERT_EQ(2u, g_browser_process->profile_manager()
+                    ->GetProfileAttributesStorage()
+                    .GetNumberOfProfiles());
+  ASSERT_TRUE(entry->IsEphemeral());
+  EXPECT_FALSE(ProfilePicker::IsOpen());
+  EXPECT_TRUE(new_browser->signin_view_controller()->ShowsModalDialog());
+
+  // Simulate clicking the "Delete profile" button on the profile customization
+  // dialog.
+  ProfileDeletionObserver observer;
+  DeleteLocalProfile(dialog_web_contents);
+  observer.Wait();
+
+  ASSERT_EQ(1u, g_browser_process->profile_manager()
+                    ->GetProfileAttributesStorage()
+                    .GetNumberOfProfiles());
+  ASSERT_EQ(nullptr, g_browser_process->profile_manager()
+                         ->GetProfileAttributesStorage()
+                         .GetProfileAttributesWithPath(profile_path));
+  EXPECT_TRUE(ProfilePicker::IsOpen());
+}
+
+IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest, DeleteProfile) {
+  // Create a second profile.
+  base::FilePath other_path = CreateNewProfileWithoutBrowser();
+  Profile* profile =
+      g_browser_process->profile_manager()->GetProfileByPath(other_path);
+  ASSERT_TRUE(profile);
+  // Open the picker.
+  ProfilePicker::Show(ProfilePicker::Params::FromEntryPoint(
+      ProfilePicker::EntryPoint::kProfileMenuManageProfiles));
+  WaitForLoadStop(GURL("chrome://profile-picker"));
+  ProfilePickerHandler* handler = profile_picker_handler();
+
+  // Simulate profile deletion from the picker.
+  ProfileDestructionWaiter waiter(profile);
+  base::Value::List args;
+  args.Append(base::FilePathToValue(other_path));
+  handler->HandleGetProfileStatistics(args);
+  handler->HandleRemoveProfile(args);
+  waiter.Wait();
+}
+
+// Regression test for https://crbug.com/1488267
+IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
+                       DeleteProfileFromOwnTab) {
+  // Open the picker in a tab.
+  Profile* profile = browser()->profile();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(chrome::kChromeUIProfilePickerUrl)));
+
+  content::WebContents* contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ProfilePickerHandler* handler = contents->GetWebUI()
+                                      ->GetController()
+                                      ->GetAs<ProfilePickerUI>()
+                                      ->GetProfilePickerHandlerForTesting();
+
+  // Simulate profile deletion from the picker.
+  ProfileDestructionWaiter waiter(profile);
+  base::Value::List args;
+  args.Append(base::FilePathToValue(profile->GetPath()));
+  handler->HandleGetProfileStatistics(args);
+  handler->HandleRemoveProfile(args);
+  waiter.Wait();
+}
+
+class SupervisedProfilePickerHideGuestModeTest
+    : public ProfilePickerCreationFlowBrowserTest {
+ public:
+  void OpenProfilePicker() {
+    ProfilePicker::Show(ProfilePicker::Params::FromEntryPoint(
+        ProfilePicker::EntryPoint::kProfileMenuManageProfiles));
+    WaitForLoadStop(GURL("chrome://profile-picker"));
+  }
+
+  void RemoveProfile(Profile* profile) {
+    ProfileDestructionWaiter waiter(profile);
+    webui::DeleteProfileAtPath(profile->GetPath(),
+                               ProfileMetrics::DELETE_PROFILE_USER_MANAGER);
+    waiter.Wait();
+  }
+
+  bool IsGuestModeButtonHidden() {
+    return content::EvalJs(
+               web_contents(),
+               base::StrCat({"getComputedStyle(", kBrowseAsGuestButtonPath,
+                             ").display == \"none\" "}))
+        .ExtractBool();
+  }
+
+  ::testing::AssertionResult ClickGuestModeButton() {
+    return content::ExecJs(web_contents(),
+                           base::StrCat({kBrowseAsGuestButtonPath, ".click"}));
+  }
+
+ private:
+  static constexpr char kBrowseAsGuestButtonPath[] =
+      "document.body.getElementsByTagName('"
+      "profile-picker-app')[0].shadowRoot."
+      "getElementById('mainView').shadowRoot.getElementById("
+      "\'browseAsGuestButton\')";
+};
+
+IN_PROC_BROWSER_TEST_F(SupervisedProfilePickerHideGuestModeTest,
+                       DeleteSupervisedProfile) {
+  Profile* default_profile = browser()->profile();
+  AccountInfo default_account_info =
+      FinishDiceSignIn(default_profile, "adult@gmail.com", "Adult");
+
+  // Create a second supervised profile and signin.
+  base::FilePath child_path = CreateNewProfileWithoutBrowser();
+  Profile* child_profile =
+      g_browser_process->profile_manager()->GetProfileByPath(child_path);
+
+  AccountInfo child_account_info =
+      FinishDiceSignIn(child_profile, "child@gmail.com", "child",
+                       kNoHostedDomainFound, /*is_supervised_profile=*/true);
+  ASSERT_TRUE(child_profile);
+
+  OpenProfilePicker();
+
+  // Guest Mode button will be unavailable when a supervised user is added.
+  EXPECT_TRUE(IsGuestModeButtonHidden());
+
+  RemoveProfile(child_profile);
+
+  // Guest Mode button will be available when a supervised user is removed.
+  EXPECT_FALSE(IsGuestModeButtonHidden());
+  EXPECT_TRUE(ClickGuestModeButton());
+}
+
+IN_PROC_BROWSER_TEST_F(SupervisedProfilePickerHideGuestModeTest,
+                       DeleteLastSupervisedProfile) {
+  base::FilePath child_path = CreateNewProfileWithoutBrowser();
+  Profile* child_profile =
+      g_browser_process->profile_manager()->GetProfileByPath(child_path);
+  supervised_user::EnableParentalControls(*child_profile->GetPrefs());
+
+  ASSERT_TRUE(child_profile);
+
+  OpenProfilePicker();
+
+  EXPECT_TRUE(IsGuestModeButtonHidden());
+
+  RemoveProfile(child_profile);
+
+  EXPECT_FALSE(IsGuestModeButtonHidden());
+  EXPECT_TRUE(ClickGuestModeButton());
+}
+
+IN_PROC_BROWSER_TEST_F(SupervisedProfilePickerHideGuestModeTest,
+                       RegularProfile_GuestModeAvailable) {
+  Profile* default_profile = browser()->profile();
+  AccountInfo default_account_info =
+      FinishDiceSignIn(default_profile, "adult@gmail.com", "Adult");
+
+  // Open the picker.
+  OpenProfilePicker();
+
+  EXPECT_FALSE(IsGuestModeButtonHidden());
+  EXPECT_TRUE(ClickGuestModeButton());
+}
+
+class SupervisedUserProfileIPHTest
+    : public ProfilePickerCreationFlowBrowserTest,
+      public testing::WithParamInterface<
+          LoginUIService::SyncConfirmationUIClosedResult> {
+ public:
+  SupervisedUserProfileIPHTest() = default;
+
+ protected:
+  LoginUIService::SyncConfirmationUIClosedResult GetSyncConfirmationResult() {
+    return GetParam();
+  }
+
+  // Returns true if the supervised user profile IPH has been shown.
+  bool SupervisedProfilePromoHasBeenShown(Browser* browser) {
+    return HasPromoBeenShown(
+        browser, feature_engagement::kIPHSupervisedUserProfileSigninFeature);
+  }
+
+  static bool ShouldIphShow(
+      LoginUIService::SyncConfirmationUIClosedResult sync_result) {
+    switch (sync_result) {
+      case LoginUIService::SyncConfirmationUIClosedResult::ABORT_SYNC:
+        // Reject Sync (pick "No thanks" button).
+        // This paths triggers the customization bubble. The IPH is not shown on
+        // making a sync choice.
+        return false;
+      case LoginUIService::SyncConfirmationUIClosedResult::CONFIGURE_SYNC_FIRST:
+        // Go to Sync configuration (pick the "Settings" button). The
+        // customization bubble is skipped and the IPH is shown.
+        return true;
+      case LoginUIService::SyncConfirmationUIClosedResult::
+          SYNC_WITH_DEFAULT_SETTINGS:
+        // Accept Sync (pick "Yes I am In" button).
+        // When a synced theme is returned from the theme service, the
+        // suctomization bubble is skipped and the IPH is shown.
+        return true;
+      case LoginUIService::SyncConfirmationUIClosedResult::UI_CLOSED:
+        return false;
+    }
+  }
+};
+
+std::string SyncConfirmationResultToString(
+    LoginUIService::SyncConfirmationUIClosedResult result) {
+  switch (result) {
+    case LoginUIService::SyncConfirmationUIClosedResult::ABORT_SYNC:
+      return "OnSyncAborted";
+    case LoginUIService::SyncConfirmationUIClosedResult::CONFIGURE_SYNC_FIRST:
+      return "OnSyncConfiguration";
+    case LoginUIService::SyncConfirmationUIClosedResult::
+        SYNC_WITH_DEFAULT_SETTINGS:
+      return "OnSyncAccepted";
+    case LoginUIService::SyncConfirmationUIClosedResult::UI_CLOSED:
+      return "OnSyncScreenClosed";
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    SupervisedUserProfileIPHTest,
+    testing::Values(LoginUIService::SYNC_WITH_DEFAULT_SETTINGS,
+                    LoginUIService::CONFIGURE_SYNC_FIRST,
+                    LoginUIService::ABORT_SYNC),
+    [](const auto& info) {
+      return SyncConfirmationResultToString(info.param);
+    });
+
+IN_PROC_BROWSER_TEST_P(SupervisedUserProfileIPHTest,
+                       ShowIphWhenCustomizationBubbleIsSkipped) {
+  size_t initial_browser_count = BrowserList::GetInstance()->size();
+  auto scoped_iph_delay =
+      AvatarToolbarButton::SetScopedIPHMinDelayAfterCreationForTesting(
+          base::Seconds(0));
+
+  // Simulate a successful sign-in and wait for the sign-in to propagate to the
+  // flow, resulting in sync confirmation screen getting displayed.
+  Profile* profile_being_created = SignInForNewProfile(
+      GetSyncConfirmationURL(), "joe@gmail.com", "Joe", kNoHostedDomainFound,
+      /*start_on_management_page=*/false,
+      /*is_supervised_profile=*/true);
+
+  // Pick an action from the Sync screen.
+  LoginUIServiceFactory::GetForProfile(profile_being_created)
+      ->SyncConfirmationUIClosed(GetSyncConfirmationResult());
+
+  Browser* new_browser = BrowserAddedWaiter(initial_browser_count + 1).Wait();
+  CHECK(new_browser);
+  ASSERT_TRUE(content::WaitForLoadStop(
+      new_browser->tab_strip_model()->GetActiveWebContents()));
+
+  auto* theme_service =
+      ThemeServiceFactory::GetForProfile(profile_being_created);
+  theme_service->BuildAutogeneratedThemeFromColor(SK_ColorGRAY);
+  if (GetSyncConfirmationResult() ==
+      LoginUIService::SYNC_WITH_DEFAULT_SETTINGS) {
+    // Receiving a non-default theme from the theme service, so that the
+    // customization bubble is skipped and the SU IPH is shown.
+    theme_service->GetThemeSyncableService()->NotifyOnSyncStartedForTesting(
+        ThemeSyncableService::ThemeSyncState::kApplied);
+  }
+
+  WaitForPickerClosed();
+
+  base::test::RunUntil([&]() {
+    return ShouldIphShow(GetSyncConfirmationResult()) ==
+           SupervisedProfilePromoHasBeenShown(new_browser);
+  });
 }
 
 class ProfilePickerEnterpriseCreationFlowBrowserTest
@@ -1529,26 +2482,30 @@ class ProfilePickerEnterpriseCreationFlowBrowserTest
     ProfilePickerCreationFlowBrowserTest::OnWillCreateBrowserContextServices(
         context);
     policy::UserPolicySigninServiceFactory::GetInstance()->SetTestingFactory(
-        context,
-        base::BindRepeating(&FakeUserPolicySigninService::BuildForEnterprise));
+        context, base::BindRepeating(
+                     &policy::FakeUserPolicySigninService::BuildForEnterprise));
   }
+  // `GetLocalProfileName` assertions would fail without enabling the feature
+  // in non-fieldtrial tests.
+  base::test::ScopedFeatureList feature_list_{
+      features::kEnterpriseProfileBadgingForAvatar};
 };
 
 IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
                        CreateSignedInProfile) {
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
   // Simulate a successful sign-in and wait for the sign-in to propagate to the
-  // flow, resulting in enterprise welcome screen getting displayed.
+  // flow, resulting in managed user notice screen getting displayed.
   // Consumer-looking gmail address avoids code that forces the sync service to
   // actually start which would add overhead in mocking further stuff.
   // Enterprise domain needed for this profile being detected as Work.
   Profile* profile_being_created =
-      SignInForNewProfile(GURL("chrome://enterprise-profile-welcome/"),
+      SignInForNewProfile(GURL(chrome::kChromeUIManagedUserProfileNoticeUrl),
                           "joe.enterprise@gmail.com", "Joe", "enterprise.com");
 
-  profiles::testing::ExpectPickerWelcomeScreenTypeAndProceed(
+  profiles::testing::ExpectPickerManagedUserNoticeScreenTypeAndProceed(
       /*expected_type=*/
-      EnterpriseProfileWelcomeUI::ScreenType::kEntepriseAccountSyncEnabled,
+      ManagedUserProfileNoticeUI::ScreenType::kEntepriseAccountSyncEnabled,
       /*choice=*/signin::SIGNIN_CHOICE_NEW_PROFILE);
 
   WaitForLoadStop(GetSyncConfirmationURL());
@@ -1567,7 +2524,7 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
           ->GetProfileAttributesStorage()
           .GetProfileAttributesWithPath(profile_being_created->GetPath());
   ASSERT_NE(entry, nullptr);
-  EXPECT_NE(entry->GetGAIAId(), std::string());
+  EXPECT_NE(entry->GetGAIAId(), GaiaId());
   EXPECT_FALSE(entry->IsEphemeral());
   EXPECT_EQ(entry->GetLocalProfileName(), u"enterprise.com");
 
@@ -1575,21 +2532,88 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
       SyncServiceFactory::GetForProfile(profile_being_created);
   EXPECT_FALSE(entry->IsAuthenticated());
   EXPECT_FALSE(sync_service->HasSyncConsent());
-  EXPECT_EQ(ThemeServiceFactory::GetForProfile(profile_being_created)
-                ->GetAutogeneratedThemeColor(),
-            kProfileColor);
+  EXPECT_EQ(
+      ThemeServiceFactory::GetForProfile(profile_being_created)->GetUserColor(),
+      kProfileColor);
 }
 
-#if !BUILDFLAG(IS_CHROMEOS_LACROS)
-// TODO(crbug.com/1248047): Extend this test to support mirror.
+IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
+                       CreateSignedInProfileWithSuggestedTwoFactorAuthSetup) {
+  const GURL kTwoFactorIntersitialUrl(
+      "https://myaccount.google.com/interstitials/twosvrequired?query=value");
+
+  ASSERT_EQ(1u, BrowserList::GetInstance()->size());
+
+  Profile* profile_being_created = StartDiceSignIn();
+
+  // Add an account - simulate a successful Gaia sign-in.
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile_being_created);
+  CoreAccountInfo core_account_info = signin::MakeAccountAvailable(
+      identity_manager,
+      signin::AccountAvailabilityOptionsBuilder(test_url_loader_factory())
+          .WithAccessPoint(signin_metrics::AccessPoint::kUserManager)
+          .Build("joe.acme@gmail.com"));
+  EXPECT_TRUE(identity_manager->HasAccountWithRefreshToken(
+      core_account_info.account_id));
+
+  signin::UpdateAccountInfoForAccount(
+      identity_manager,
+      /*account_info=*/FillAccountInfo(core_account_info, "Joe", "acme.com"));
+  identity_manager->GetPrimaryAccountMutator()->SetPrimaryAccount(
+      core_account_info.account_id, signin::ConsentLevel::kSignin,
+      signin_metrics::AccessPoint::kWebSignin);
+
+  // Redirect the web contents to a the two factor intersitial authentication
+  // page.
+  web_contents()->GetController().LoadURL(
+      kTwoFactorIntersitialUrl, content::Referrer(),
+      ui::PAGE_TRANSITION_AUTO_TOPLEVEL, std::string());
+
+  WaitForLoadStop(GURL(chrome::kChromeUIManagedUserProfileNoticeUrl));
+  profiles::testing::ExpectPickerManagedUserNoticeScreenTypeAndProceed(
+      /*expected_type=*/
+      ManagedUserProfileNoticeUI::ScreenType::kEntepriseAccountSyncEnabled,
+      /*choice=*/signin::SIGNIN_CHOICE_NEW_PROFILE);
+
+  WaitForLoadStop(GetSyncConfirmationURL());
+  // Simulate finishing the flow with "No, thanks".
+  LoginUIServiceFactory::GetForProfile(profile_being_created)
+      ->SyncConfirmationUIClosed(LoginUIService::ABORT_SYNC);
+
+  WaitForPickerClosed();
+  Browser* new_browser = BrowserAddedWaiter(2u).Wait();
+  WaitForLoadStop(kTwoFactorIntersitialUrl,
+                  new_browser->tab_strip_model()->GetActiveWebContents());
+
+  // Check expectations when the profile creation flow is done.
+  ProfileAttributesEntry* entry =
+      g_browser_process->profile_manager()
+          ->GetProfileAttributesStorage()
+          .GetProfileAttributesWithPath(profile_being_created->GetPath());
+  ASSERT_NE(entry, nullptr);
+  EXPECT_NE(entry->GetGAIAId(), GaiaId());
+  EXPECT_FALSE(entry->IsEphemeral());
+  EXPECT_EQ(entry->GetLocalProfileName(), u"acme.com");
+
+  syncer::SyncService* sync_service =
+      SyncServiceFactory::GetForProfile(profile_being_created);
+  EXPECT_FALSE(entry->IsAuthenticated());
+  EXPECT_FALSE(sync_service->HasSyncConsent());
+  EXPECT_EQ(
+      ThemeServiceFactory::GetForProfile(profile_being_created)->GetUserColor(),
+      kProfileColor);
+}
+
+// TODO(crbug.com/40197102): Extend this test to support mirror.
 IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
                        CreateSignedInProfileWithSyncDisabled) {
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
   Profile* profile_being_created = StartDiceSignIn();
 
   // Set the device as managed in prefs.
-  profile_being_created->GetPrefs()->SetBoolean(syncer::prefs::kSyncManaged,
-                                                true);
+  profile_being_created->GetPrefs()->SetBoolean(
+      syncer::prefs::internal::kSyncManaged, true);
   syncer::SyncService* sync_service =
       SyncServiceFactory::GetForProfile(profile_being_created);
 
@@ -1599,13 +2623,13 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
   FinishDiceSignIn(profile_being_created, "joe.enterprise@gmail.com", "Joe",
                    "enterprise.com");
 
-  // Wait for the sign-in to propagate to the flow, resulting in enterprise
-  // welcome screen getting displayed.
-  WaitForLoadStop(GURL("chrome://enterprise-profile-welcome/"));
+  // Wait for the sign-in to propagate to the flow, resulting in managed user
+  // notice screen getting displayed.
+  WaitForLoadStop(GURL(chrome::kChromeUIManagedUserProfileNoticeUrl));
 
-  profiles::testing::ExpectPickerWelcomeScreenTypeAndProceed(
+  profiles::testing::ExpectPickerManagedUserNoticeScreenTypeAndProceed(
       /*expected_type=*/
-      EnterpriseProfileWelcomeUI::ScreenType::kConsumerAccountSyncDisabled,
+      ManagedUserProfileNoticeUI::ScreenType::kEntepriseAccountSyncDisabled,
       /*choice=*/signin::SIGNIN_CHOICE_NEW_PROFILE);
 
   Browser* new_browser = BrowserAddedWaiter(2u).Wait();
@@ -1623,16 +2647,15 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
   EXPECT_EQ(entry->GetLocalProfileName(), u"enterprise.com");
 
   // Sync is disabled.
-  EXPECT_NE(entry->GetGAIAId(), std::string());
+  EXPECT_NE(entry->GetGAIAId(), GaiaId());
   EXPECT_FALSE(sync_service->IsSyncFeatureEnabled());
-  EXPECT_EQ(ThemeServiceFactory::GetForProfile(profile_being_created)
-                ->GetAutogeneratedThemeColor(),
-            kProfileColor);
+  EXPECT_EQ(
+      ThemeServiceFactory::GetForProfile(profile_being_created)->GetUserColor(),
+      kProfileColor);
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS_LACROS)
 
-// TODO(crbug.com/1289326) Test is flaky on Linux CFI
-// TODO(crbug.com/1403890) Test is also flaky on Linux (dbg)
+// TODO(crbug.com/40817459) Test is flaky on Linux CFI
+// TODO(crbug.com/40885685) Test is also flaky on Linux (dbg)
 #if BUILDFLAG(IS_LINUX)
 #define MAYBE_CreateSignedInEnterpriseProfileSettings \
   DISABLED_CreateSignedInEnterpriseProfileSettings
@@ -1644,21 +2667,21 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
                        MAYBE_CreateSignedInEnterpriseProfileSettings) {
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
   // Simulate a successful sign-in and wait for the sign-in to propagate to the
-  // flow, resulting in enterprise welcome screen getting displayed.
+  // flow, resulting in managed user notice screen getting displayed.
   // Consumer-looking gmail address avoids code that forces the sync service to
   // actually start which would add overhead in mocking further stuff.
   // Enterprise domain needed for this profile being detected as Work.
   Profile* profile_being_created =
-      SignInForNewProfile(GURL("chrome://enterprise-profile-welcome/"),
+      SignInForNewProfile(GURL(chrome::kChromeUIManagedUserProfileNoticeUrl),
                           "joe.enterprise@gmail.com", "Joe", "enterprise.com");
 
-  // Wait for the sign-in to propagate to the flow, resulting in enterprise
-  // welcome screen getting displayed.
-  WaitForLoadStop(GURL("chrome://enterprise-profile-welcome/"));
+  // Wait for the sign-in to propagate to the flow, resulting in managed user
+  // notice screen getting displayed.
+  WaitForLoadStop(GURL(chrome::kChromeUIManagedUserProfileNoticeUrl));
 
-  profiles::testing::ExpectPickerWelcomeScreenTypeAndProceed(
+  profiles::testing::ExpectPickerManagedUserNoticeScreenTypeAndProceed(
       /*expected_type=*/
-      EnterpriseProfileWelcomeUI::ScreenType::kEntepriseAccountSyncEnabled,
+      ManagedUserProfileNoticeUI::ScreenType::kEntepriseAccountSyncEnabled,
       /*choice=*/signin::SIGNIN_CHOICE_NEW_PROFILE);
 
   WaitForLoadStop(GetSyncConfirmationURL());
@@ -1677,7 +2700,7 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
           ->GetProfileAttributesStorage()
           .GetProfileAttributesWithPath(profile_being_created->GetPath());
   ASSERT_NE(entry, nullptr);
-  EXPECT_NE(entry->GetGAIAId(), std::string());
+  EXPECT_NE(entry->GetGAIAId(), GaiaId());
   EXPECT_FALSE(entry->IsEphemeral());
   EXPECT_EQ(entry->GetLocalProfileName(), u"enterprise.com");
 
@@ -1686,33 +2709,35 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
   syncer::SyncService* sync_service =
       SyncServiceFactory::GetForProfile(profile_being_created);
   EXPECT_TRUE(sync_service->HasSyncConsent());
-  EXPECT_FALSE(sync_service->GetUserSettings()->IsFirstSetupComplete());
+  EXPECT_FALSE(
+      sync_service->GetUserSettings()->IsInitialSyncFeatureSetupComplete());
 
   // The color is not applied if the user enters settings.
   EXPECT_FALSE(ThemeServiceFactory::GetForProfile(profile_being_created)
-                   ->UsingAutogeneratedTheme());
+                   ->GetUserColor()
+                   .has_value());
 }
 
 IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest, Cancel) {
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
   // Simulate a successful sign-in and wait for the sign-in to propagate to the
-  // flow, resulting in enterprise welcome screen getting displayed.
+  // flow, resulting in managed user notice screen getting displayed.
   // Consumer-looking gmail address avoids code that forces the sync service to
   // actually start which would add overhead in mocking further stuff.
   // Enterprise domain needed for this profile being detected as Work.
   Profile* profile_being_created =
-      SignInForNewProfile(GURL("chrome://enterprise-profile-welcome/"),
+      SignInForNewProfile(GURL(chrome::kChromeUIManagedUserProfileNoticeUrl),
                           "joe.enterprise@gmail.com", "Joe", "enterprise.com");
   base::FilePath profile_being_created_path = profile_being_created->GetPath();
 
-  // Wait for the sign-in to propagate to the flow, resulting in enterprise
-  // welcome screen getting displayed.
-  WaitForLoadStop(GURL("chrome://enterprise-profile-welcome/"));
+  // Wait for the sign-in to propagate to the flow, resulting in managed user
+  // notice screen getting displayed.
+  WaitForLoadStop(GURL(chrome::kChromeUIManagedUserProfileNoticeUrl));
 
   ProfileDeletionObserver observer;
-  profiles::testing::ExpectPickerWelcomeScreenTypeAndProceed(
+  profiles::testing::ExpectPickerManagedUserNoticeScreenTypeAndProceed(
       /*expected_type=*/
-      EnterpriseProfileWelcomeUI::ScreenType::kEntepriseAccountSyncEnabled,
+      ManagedUserProfileNoticeUI::ScreenType::kEntepriseAccountSyncEnabled,
       /*choice=*/signin::SIGNIN_CHOICE_CANCEL);
 
   // As the profile creation flow was opened directly, the window is closed now.
@@ -1732,23 +2757,24 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
 
   // Simulate a successful sign-in and wait for the sign-in to propagate to the
-  // flow, resulting in enterprise welcome screen getting displayed.
+  // flow, resulting in managed user notice screen getting displayed.
   // Consumer-looking gmail address avoids code that forces the sync service to
   // actually start which would add overhead in mocking further stuff.
   // Enterprise domain needed for this profile being detected as Work.
-  Profile* profile_being_created = SignInForNewProfile(
-      GURL("chrome://enterprise-profile-welcome/"), "joe.enterprise@gmail.com",
-      "Joe", "enterprise.com", /*start_on_management_page=*/true);
+  Profile* profile_being_created =
+      SignInForNewProfile(GURL(chrome::kChromeUIManagedUserProfileNoticeUrl),
+                          "joe.enterprise@gmail.com", "Joe", "enterprise.com",
+                          /*start_on_management_page=*/true);
   base::FilePath profile_being_created_path = profile_being_created->GetPath();
 
-  // Wait for the sign-in to propagate to the flow, resulting in enterprise
-  // welcome screen getting displayed.
-  WaitForLoadStop(GURL("chrome://enterprise-profile-welcome/"));
+  // Wait for the sign-in to propagate to the flow, resulting in managed user
+  // notice screen getting displayed.
+  WaitForLoadStop(GURL(chrome::kChromeUIManagedUserProfileNoticeUrl));
 
   ProfileDeletionObserver observer;
-  profiles::testing::ExpectPickerWelcomeScreenTypeAndProceed(
+  profiles::testing::ExpectPickerManagedUserNoticeScreenTypeAndProceed(
       /*expected_type=*/
-      EnterpriseProfileWelcomeUI::ScreenType::kEntepriseAccountSyncEnabled,
+      ManagedUserProfileNoticeUI::ScreenType::kEntepriseAccountSyncEnabled,
       /*choice=*/signin::SIGNIN_CHOICE_CANCEL);
 
   // As the management page was opened, the picker returns to it.
@@ -1766,6 +2792,8 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
 IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
                        CreateSignedInProfileSigninAlreadyExists_ConfirmSwitch) {
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
+  const GaiaId test_gaia_id =
+      signin::GetTestGaiaIdForEmail("joe.consumer@gmail.com");
 
   // Create a pre-existing profile syncing with the same account as the profile
   // being created.
@@ -1776,18 +2804,10 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
       storage.GetProfileAttributesWithPath(other_path);
   ASSERT_NE(other_entry, nullptr);
   // Fake sync is enabled in this profile with Joe's account.
-  other_entry->SetAuthInfo(kGaiaId, u"joe.consumer@gmail.com",
+  other_entry->SetAuthInfo(test_gaia_id, u"joe.consumer@gmail.com",
                            /*is_consented_primary_account=*/true);
-  other_entry->SetGaiaIds({kGaiaId});
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // Add the account to the OS account manager.
-  account_manager::AccountKey kAccountKey{kGaiaId,
-                                          account_manager::AccountType::kGaia};
-  auto* account_manager = MaybeGetAshAccountManagerForTests();
-  DCHECK(account_manager);
-  account_manager->UpsertAccount(kAccountKey, "joe.consumer@gmail.com",
-                                 "access_token");
-#endif
+  other_entry->SetGaiaIds({test_gaia_id});
+
   size_t initial_profile_count = g_browser_process->profile_manager()
                                      ->GetProfileAttributesStorage()
                                      .GetNumberOfProfiles();
@@ -1817,17 +2837,12 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
   // Check expectations when the profile creation flow is done.
   WaitForPickerClosed();
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // On Lacros, the "profile switch" interstitial is rendered in the system
-  // profile.
-  EXPECT_TRUE(contents_profile->IsSystemProfile());
-#else
   EXPECT_NE(contents_profile_path, ProfileManager::GetSystemProfilePath());
   // Profile should be already deleted.
   ProfileAttributesEntry* entry =
       storage.GetProfileAttributesWithPath(contents_profile_path);
   EXPECT_EQ(entry, nullptr);
-#endif
+
   EXPECT_EQ(initial_profile_count, g_browser_process->profile_manager()
                                        ->GetProfileAttributesStorage()
                                        .GetNumberOfProfiles());
@@ -1836,6 +2851,8 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
 IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
                        CreateSignedInProfileSigninAlreadyExists_CancelSwitch) {
   ASSERT_EQ(1u, BrowserList::GetInstance()->size());
+  const GaiaId test_gaia_id =
+      signin::GetTestGaiaIdForEmail("joe.consumer@gmail.com");
 
   // Create a pre-existing profile syncing with the same account as the profile
   // being created.
@@ -1846,18 +2863,10 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
       storage.GetProfileAttributesWithPath(other_path);
   ASSERT_NE(other_entry, nullptr);
   // Fake sync is enabled in this profile with Joe's account.
-  other_entry->SetAuthInfo(kGaiaId, u"joe.consumer@gmail.com",
+  other_entry->SetAuthInfo(test_gaia_id, u"joe.consumer@gmail.com",
                            /*is_consented_primary_account=*/true);
-  other_entry->SetGaiaIds({kGaiaId});
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // Add the account to the OS account manager.
-  account_manager::AccountKey kAccountKey{kGaiaId,
-                                          account_manager::AccountType::kGaia};
-  auto* account_manager = MaybeGetAshAccountManagerForTests();
-  DCHECK(account_manager);
-  account_manager->UpsertAccount(kAccountKey, "joe.consumer@gmail.com",
-                                 "access_token");
-#endif
+  other_entry->SetGaiaIds({test_gaia_id});
+
   size_t initial_profile_count = g_browser_process->profile_manager()
                                      ->GetProfileAttributesStorage()
                                      .GetNumberOfProfiles();
@@ -1887,15 +2896,10 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerEnterpriseCreationFlowBrowserTest,
   // Only one browser should be displayed.
   EXPECT_EQ(BrowserList::GetInstance()->size(), 1u);
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // On Lacros, the "profile switch" interstitial is rendered in the system
-  // profile.
-  EXPECT_TRUE(contents_profile->IsSystemProfile());
-#else
   EXPECT_FALSE(contents_profile->IsSystemProfile());
   // The sign-in profile should be marked for deletion.
   IsProfileDirectoryMarkedForDeletion(contents_profile_path);
-#endif
+
   EXPECT_EQ(initial_profile_count, g_browser_process->profile_manager()
                                        ->GetProfileAttributesStorage()
                                        .GetNumberOfProfiles());
@@ -1906,17 +2910,6 @@ class ProfilePickerCreationFlowEphemeralProfileBrowserTest
       public testing::WithParamInterface<ForceEphemeralProfilesPolicy> {
  public:
   ProfilePickerCreationFlowEphemeralProfileBrowserTest() = default;
-
-  void SetUp() override {
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-    if (GetForceEphemeralProfilesPolicy() !=
-        ForceEphemeralProfilesPolicy::kUnset) {
-      GTEST_SKIP() << "Lacros does not support ephemeral profiles policy";
-    }
-#endif
-
-    ProfilePickerCreationFlowBrowserTest::SetUp();
-  }
 
   ForceEphemeralProfilesPolicy GetForceEphemeralProfilesPolicy() const {
     return GetParam();
@@ -1929,13 +2922,8 @@ class ProfilePickerCreationFlowEphemeralProfileBrowserTest
 
   // Check that the policy was correctly applied to the preference.
   void CheckPolicyApplied(Profile* profile) {
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-    DCHECK_EQ(GetForceEphemeralProfilesPolicy(),
-              ForceEphemeralProfilesPolicy::kUnset);
-#else
     EXPECT_EQ(profile->GetPrefs()->GetBoolean(prefs::kForceEphemeralProfiles),
               AreEphemeralProfilesForced());
-#endif
   }
 
   static ProfileManager* profile_manager() {
@@ -1947,8 +2935,9 @@ class ProfilePickerCreationFlowEphemeralProfileBrowserTest
     for (const auto* entry : profile_manager()
                                  ->GetProfileAttributesStorage()
                                  .GetAllProfilesAttributes()) {
-      if (entry->GetLocalProfileName() == name)
+      if (entry->GetLocalProfileName() == name) {
         return true;
+      }
     }
     return false;
   }
@@ -1960,7 +2949,6 @@ class ProfilePickerCreationFlowEphemeralProfileBrowserTest
   }
 
   void SetUpInProcessBrowserTestFixture() override {
-#if !BUILDFLAG(IS_CHROMEOS_LACROS)
     ForceEphemeralProfilesPolicy policy = GetForceEphemeralProfilesPolicy();
 
     if (policy != ForceEphemeralProfilesPolicy::kUnset) {
@@ -1978,7 +2966,7 @@ class ProfilePickerCreationFlowEphemeralProfileBrowserTest
       policy::BrowserPolicyConnector::SetPolicyProviderForTesting(
           &policy_provider_);
     }
-#endif
+
     ProfilePickerCreationFlowBrowserTest::SetUpInProcessBrowserTestFixture();
   }
 
@@ -2065,7 +3053,6 @@ IN_PROC_BROWSER_TEST_P(ProfilePickerCreationFlowEphemeralProfileBrowserTest,
   EXPECT_TRUE(OriginalProfileExists());
 }
 
-#if !BUILDFLAG(IS_CHROMEOS_LACROS)
 // Flaky on Windows: https://crbug.com/1247530.
 #if BUILDFLAG(IS_WIN)
 #define MAYBE_PRE_ExitDuringSignin DISABLED_PRE_ExitDuringSignin
@@ -2101,7 +3088,6 @@ IN_PROC_BROWSER_TEST_P(ProfilePickerCreationFlowEphemeralProfileBrowserTest,
   // The other profile still exists.
   EXPECT_NE(AreEphemeralProfilesForced(), OriginalProfileExists());
 }
-#endif
 
 INSTANTIATE_TEST_SUITE_P(
     All,
@@ -2109,153 +3095,6 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Values(ForceEphemeralProfilesPolicy::kUnset,
                     ForceEphemeralProfilesPolicy::kDisabled,
                     ForceEphemeralProfilesPolicy::kEnabled));
-
-class ProfilePickerLocalProfileCreationDialogBrowserTest
-    : public ProfilePickerCreationFlowBrowserTest {
- public:
-  ProfilePickerLocalProfileCreationDialogBrowserTest()
-      : ProfilePickerCreationFlowBrowserTest(
-            /*local_profile_creation_dialog_enabled=*/true) {}
-
-  // Simulates a click on "Continue without an account" to create a local
-  // profile and open the profile customization dialog.
-  void CreateLocalProfile() {
-    base::Value::List args;
-    args.Append(base::Value());
-    profile_picker_handler()->HandleCreateProfileAndOpenCustomizationDialog(
-        args);
-  }
-
-  // Simulates a click on "Done" on the Profile Customization to confirm the
-  // creation of the local profile.
-  void ConfirmLocalProfileCreation(content::WebContents* dialog_web_contents) {
-    base::Value::List args;
-    args.Append(base::Value(kProfileName));
-    dialog_web_contents->GetWebUI()
-        ->GetController()
-        ->GetAs<ProfileCustomizationUI>()
-        ->GetProfileCustomizationHandlerForTesting()
-        ->HandleDone(args);
-  }
-
-  // Simulates a click on "Delete profile" on the Profile Customization to
-  // cancel the creation of the local profile.
-  void DeleteLocalProfile(content::WebContents* dialog_web_contents) {
-    dialog_web_contents->GetWebUI()
-        ->GetController()
-        ->GetAs<ProfileCustomizationUI>()
-        ->GetProfileCustomizationHandlerForTesting()
-        ->HandleDeleteProfile(base::Value::List());
-  }
-
- protected:
-  const GURL kProfileCustomizationUrl = AppendProfileCustomizationQueryParams(
-      GURL("chrome://profile-customization"),
-      ProfileCustomizationStyle::kLocalProfileCreation);
-  const std::string kProfileName = "Test";
-};
-
-IN_PROC_BROWSER_TEST_F(ProfilePickerLocalProfileCreationDialogBrowserTest,
-                       CreateLocalProfile) {
-  ASSERT_EQ(1u, BrowserList::GetInstance()->size());
-  ASSERT_EQ(1u, g_browser_process->profile_manager()
-                    ->GetProfileAttributesStorage()
-                    .GetNumberOfProfiles());
-
-  content::TestNavigationObserver profile_customization_observer(
-      kProfileCustomizationUrl);
-  profile_customization_observer.StartWatchingNewWebContents();
-  BrowserAddedWaiter waiter = BrowserAddedWaiter(2u);
-
-  ProfilePicker::Show(ProfilePicker::Params::FromEntryPoint(
-      ProfilePicker::EntryPoint::kProfileMenuAddNewProfile));
-  // Wait until webUI is fully initialized.
-  WaitForLoadStop(GURL("chrome://profile-picker/new-profile"));
-
-  // Simulate clicking the "Continue without an account" button.
-  CreateLocalProfile();
-
-  Browser* new_browser = waiter.Wait();
-  profile_customization_observer.Wait();
-  content::WebContents* dialog_web_contents =
-      new_browser->signin_view_controller()
-          ->GetModalDialogWebContentsForTesting();
-  EXPECT_EQ(dialog_web_contents->GetLastCommittedURL(),
-            kProfileCustomizationUrl);
-
-  ProfileAttributesEntry* entry =
-      g_browser_process->profile_manager()
-          ->GetProfileAttributesStorage()
-          .GetProfileAttributesWithPath(new_browser->profile()->GetPath());
-  ASSERT_TRUE(entry->IsEphemeral());
-  EXPECT_FALSE(ProfilePicker::IsOpen());
-  EXPECT_TRUE(new_browser->signin_view_controller()->ShowsModalDialog());
-
-  // Simulate clicking the "Done" button on the profile customization dialog.
-  ConfirmLocalProfileCreation(dialog_web_contents);
-
-  ASSERT_FALSE(entry->IsEphemeral());
-  ASSERT_EQ(kProfileName, base::UTF16ToUTF8(entry->GetLocalProfileName()));
-  ASSERT_EQ(2u, g_browser_process->profile_manager()
-                    ->GetProfileAttributesStorage()
-                    .GetNumberOfProfiles());
-  EXPECT_FALSE(new_browser->signin_view_controller()->ShowsModalDialog());
-}
-
-IN_PROC_BROWSER_TEST_F(ProfilePickerLocalProfileCreationDialogBrowserTest,
-                       CancelLocalProfileCreation) {
-  ASSERT_EQ(1u, BrowserList::GetInstance()->size());
-  ASSERT_EQ(1u, g_browser_process->profile_manager()
-                    ->GetProfileAttributesStorage()
-                    .GetNumberOfProfiles());
-
-  content::TestNavigationObserver profile_customization_observer(
-      kProfileCustomizationUrl);
-  profile_customization_observer.StartWatchingNewWebContents();
-  BrowserAddedWaiter browser_added_waiter = BrowserAddedWaiter(2u);
-
-  ProfilePicker::Show(ProfilePicker::Params::FromEntryPoint(
-      ProfilePicker::EntryPoint::kProfileMenuAddNewProfile));
-  // Wait until webUI is fully initialized.
-  WaitForLoadStop(GURL("chrome://profile-picker/new-profile"));
-
-  // Simulate clicking the "Continue without an account" button.
-  CreateLocalProfile();
-
-  Browser* new_browser = browser_added_waiter.Wait();
-  profile_customization_observer.Wait();
-  content::WebContents* dialog_web_contents =
-      new_browser->signin_view_controller()
-          ->GetModalDialogWebContentsForTesting();
-  EXPECT_EQ(dialog_web_contents->GetLastCommittedURL(),
-            kProfileCustomizationUrl);
-
-  base::FilePath profile_path = new_browser->profile()->GetPath();
-  ProfileAttributesEntry* entry =
-      g_browser_process->profile_manager()
-          ->GetProfileAttributesStorage()
-          .GetProfileAttributesWithPath(profile_path);
-  ASSERT_EQ(2u, g_browser_process->profile_manager()
-                    ->GetProfileAttributesStorage()
-                    .GetNumberOfProfiles());
-  ASSERT_TRUE(entry->IsEphemeral());
-  EXPECT_FALSE(ProfilePicker::IsOpen());
-  EXPECT_TRUE(new_browser->signin_view_controller()->ShowsModalDialog());
-
-  // Simulate clicking the "Delete profile" button on the profile customization
-  // dialog.
-  ProfileDeletionObserver observer;
-  DeleteLocalProfile(dialog_web_contents);
-  observer.Wait();
-
-  ASSERT_EQ(1u, g_browser_process->profile_manager()
-                    ->GetProfileAttributesStorage()
-                    .GetNumberOfProfiles());
-  ASSERT_EQ(nullptr, g_browser_process->profile_manager()
-                         ->GetProfileAttributesStorage()
-                         .GetProfileAttributesWithPath(profile_path));
-  EXPECT_TRUE(ProfilePicker::IsOpen());
-}
 
 // Only MacOS has a keyboard shortcut to exit Chrome.
 #if BUILDFLAG(IS_MAC)
@@ -2282,441 +3121,116 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
                       "Joe");
   EXPECT_TRUE(ProfilePicker::IsOpen());
 
-// Navigate back does nothing.
-#if BUILDFLAG(IS_MAC)
-  view()->AcceleratorPressed(
-      ui::Accelerator(ui::VKEY_OEM_4, ui::EF_COMMAND_DOWN));
-#else
-  view()->AcceleratorPressed(ui::Accelerator(ui::VKEY_LEFT, ui::EF_ALT_DOWN));
-#endif
+  // Navigate back does nothing.
+  SimulateNavigateBack();
+
   EXPECT_EQ(web_contents()->GetController().GetPendingEntry(), nullptr);
 }
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
+IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest, GlicPickProfile) {
+  size_t initial_browser_count = BrowserList::GetInstance()->size();
 
-class ProfilePickerLacrosFirstRunBrowserTestBase
-    : public ProfilePickerTestBase {
- public:
-  void SetUpInProcessBrowserTestFixture() override {
-    ProfilePickerTestBase::SetUpInProcessBrowserTestFixture();
-    create_services_subscription_ =
-        BrowserContextDependencyManager::GetInstance()
-            ->RegisterCreateServicesCallbackForTesting(base::BindRepeating(
-                &ProfilePickerLacrosFirstRunBrowserTestBase::
-                    OnWillCreateBrowserContextServices,
-                base::Unretained(this)));
-  }
+  base::FilePath new_profile_path = CreateNewProfileAndUnload();
 
-  virtual void OnWillCreateBrowserContextServices(
-      content::BrowserContext* context) {
-    SyncServiceFactory::GetInstance()->SetTestingFactory(
-        context, base::BindRepeating([](content::BrowserContext* context)
-                                         -> std::unique_ptr<KeyedService> {
-          auto sync_service = std::make_unique<syncer::TestSyncService>();
+  // Enable Glic.
+  ProfileAttributesEntry* new_entry =
+      g_browser_process->profile_manager()
+          ->GetProfileAttributesStorage()
+          .GetProfileAttributesWithPath(new_profile_path);
+  ASSERT_TRUE(new_entry);
+  new_entry->SetIsGlicEligible(true);
 
-          // The FRE will be paused, waiting for the state to change
-          // before either showing or exiting it.
-          // `GoThroughFirstRunFlow()` will do this, or the test
-          // should call `sync_service()` to do this manually.
-          sync_service->SetTransportState(
-              syncer::SyncService::TransportState::INITIALIZING);
+  // Open the picker with Glic version.
+  base::MockCallback<base::OnceCallback<void(Profile*)>> picked_profile_mock;
+  EXPECT_CALL(picked_profile_mock, Run(testing::_))
+      .WillOnce([&new_profile_path](Profile* profile) {
+        EXPECT_TRUE(profile);
+        EXPECT_EQ(profile->GetPath(), new_profile_path);
+        EXPECT_TRUE(
+            g_browser_process->profile_manager()->HasKeepAliveForTesting(
+                profile, ProfileKeepAliveOrigin::kWaitingForGlicView));
+      });
 
-          return sync_service;
-        }));
-  }
+  ProfilePicker::Show(
+      ProfilePicker::Params::ForGlicManager(picked_profile_mock.Get()));
+  WaitForLoadStop(GURL("chrome://profile-picker/"));
 
-  void SetUpDefaultCommandLine(base::CommandLine* command_line) override {
-    ProfilePickerTestBase::SetUpDefaultCommandLine(command_line);
+  ProfileWaiter profile_waiter;
+  // Pick the newly created profile.
+  OpenProfileFromPicker(new_profile_path, /*open_settings=*/false);
 
-    if (GetTestPreCount() <= 1) {
-      // Show the FRE in these tests. We only disable the FRE for PRE_PRE_ tests
-      // (with GetTestPreCount() == 2) as we need the general set up to run
-      // and finish registering a signed in account with the primary profile. It
-      // will then be available to the subsequent steps of the test.
-      // TODO(https://crbug.com/1315195): Find a simpler way to set this up.
-      command_line->RemoveSwitch(switches::kNoFirstRun);
-    }
-  }
+  // Picked profile should now load.
+  Profile* loaded_profile = profile_waiter.WaitForProfileAdded();
+  EXPECT_EQ(loaded_profile->GetPath(), new_profile_path);
 
-  // Helper to obtain the primary profile from the `ProfileManager` instead of
-  // going through the `Browser`, which we don't open in many tests here.
-  Profile* GetPrimaryProfile() {
-    ProfileManager* profile_manager = g_browser_process->profile_manager();
-    return profile_manager->GetProfile(
-        profile_manager->GetPrimaryUserProfilePath());
-  }
-
-  // Helper to walk through the FRE. Performs a few assertions, and performs the
-  // specified choices when prompted.
-  void GoThroughFirstRunFlow(bool quit_on_welcome,
-                             absl::optional<bool> quit_on_sync) {
-    Profile* profile = GetPrimaryProfile();
-    EXPECT_TRUE(ShouldOpenFirstRun(profile));
-
-    // The profile picker should be open on start to show the FRE.
-    EXPECT_EQ(0u, BrowserList::GetInstance()->size());
-    EXPECT_TRUE(ProfilePicker::IsOpen());
-
-    // The entry point should get logged when the FRE is opened, not completed.
-    histogram_tester().ExpectUniqueSample(
-        "Profile.LacrosPrimaryProfileFirstRunEntryPoint",
-        FirstRunService::EntryPoint::kProcessStartup, 1);
-
-    // Unblock the sync service.
-    sync_service()->SetTransportState(
-        syncer::SyncService::TransportState::ACTIVE);
-    sync_service()->FireStateChanged();
-
-    // A welcome page should be displayed.
-    WaitForPickerWidgetCreated();
-
-    WaitForLoadStop(GURL(chrome::kChromeUIIntroURL));
-    content::WebContents* contents = web_contents();
-    EXPECT_TRUE(contents);
-    base::OnceClosure complete_welcome =
-        base::BindLambdaForTesting([contents]() {
-          contents->GetWebUI()->ProcessWebUIMessage(
-              contents->GetURL(), "continueWithAccount", base::Value::List());
-        });
-
-    if (quit_on_welcome) {
-      // Do nothing for now, we will exit the flow below.
-      ASSERT_FALSE(quit_on_sync.has_value());
-    } else {
-      // Proceed to the sync confirmation page.
-      std::move(complete_welcome).Run();
-      WaitForLoadStop(GetSyncConfirmationURL());
-    }
-    if (quit_on_welcome || quit_on_sync.value()) {
-      // Exit the flow.
-      ProfilePicker::Hide();
-    } else {
-      // Opt-in to sync.
-      LoginUIServiceFactory::GetForProfile(profile)->SyncConfirmationUIClosed(
-          LoginUIService::SYNC_WITH_DEFAULT_SETTINGS);
-    }
-
-    // Wait for the FRE closure to settle before the caller can proceed with
-    // assertions.
-    WaitForPickerClosed();
-  }
-
-  const base::HistogramTester& histogram_tester() { return histogram_tester_; }
-
-  syncer::TestSyncService* sync_service() {
-    return static_cast<syncer::TestSyncService*>(
-        SyncServiceFactory::GetForProfile(GetPrimaryProfile()));
-  }
-
- private:
-  // Start tracking the logged histograms from the beginning, since the FRE can
-  // be triggered and completed before we enter the test body.
-  base::HistogramTester histogram_tester_;
-
-  base::CallbackListSubscription create_services_subscription_;
-
-  // Lifts the timeout to make sure it is not hiding errors where we don't get
-  // the signal that the sync service started.
-  // TODO(https://crbug.com/1324886): Find a better way to safely work around
-  // the sync service stalling issue.
-  testing::ScopedSyncStartupTimeoutOverride sync_startup_timeout_{
-      absl::optional<base::TimeDelta>()};
-};
-
-class ProfilePickerLacrosFirstRunBrowserTest
-    : public ProfilePickerLacrosFirstRunBrowserTestBase {
- private:
-  profiles::testing::ScopedNonEnterpriseDomainSetterForTesting
-      non_enterprise_domain_setter_;
-};
-
-// Overall sequence for QuitEarly:
-// Start browser => Show FRE => Quit on welcome step.
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosFirstRunBrowserTest,
-                       PRE_PRE_QuitEarly) {
-  // Dummy case to set up the primary profile.
-  histogram_tester().ExpectTotalCount(
-      "Profile.LacrosPrimaryProfileFirstRunEntryPoint", 0);
-}
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosFirstRunBrowserTest, PRE_QuitEarly) {
-  GoThroughFirstRunFlow(
-      /*quit_on_welcome=*/true,
-      /*quit_on_sync=*/absl::nullopt);
-
-  // No browser window should open because we closed the FRE UI early.
-  EXPECT_EQ(0u, BrowserList::GetInstance()->size());
-  EXPECT_TRUE(ShouldOpenFirstRun(GetPrimaryProfile()));
-
-  histogram_tester().ExpectUniqueSample(
-      "Profile.LacrosPrimaryProfileFirstRunOutcome",
-      ProfileMetrics::ProfileSignedInFlowOutcome::kAbortedOnEnterpriseWelcome,
-      1);
-  // After exit we still only have the one entry point logged.
-  histogram_tester().ExpectUniqueSample(
-      "Profile.LacrosPrimaryProfileFirstRunEntryPoint",
-      FirstRunService::EntryPoint::kProcessStartup, 1);
-}
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosFirstRunBrowserTest, QuitEarly) {
-  // On the second run, the FRE is still not marked finished and we should
-  // reopen it.
-  EXPECT_TRUE(ShouldOpenFirstRun(GetPrimaryProfile()));
-  EXPECT_TRUE(ProfilePicker::IsOpen());
-
-  // Same as the PRE_ test, we log this on FRE open.
-  histogram_tester().ExpectUniqueSample(
-      "Profile.LacrosPrimaryProfileFirstRunEntryPoint",
-      FirstRunService::EntryPoint::kProcessStartup, 1);
-}
-
-// Overall sequence for QuitAtEnd:
-// Start browser => Show FRE => Advance to sync consent step => Quit.
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosFirstRunBrowserTest,
-                       PRE_PRE_QuitAtEnd) {
-  // Dummy case to set up the primary profile.
-}
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosFirstRunBrowserTest, PRE_QuitAtEnd) {
-  Profile* profile = GetPrimaryProfile();
-
-  GoThroughFirstRunFlow(
-      /*quit_on_welcome=*/false,
-      /*quit_on_sync=*/true);
-
-  // Because we quit, we should also quit chrome, but mark the FRE finished.
-  EXPECT_FALSE(ShouldOpenFirstRun(profile));
-  EXPECT_EQ(0u, BrowserList::GetInstance()->size());
-  histogram_tester().ExpectUniqueSample(
-      "Profile.LacrosPrimaryProfileFirstRunOutcome",
-      ProfileMetrics::ProfileSignedInFlowOutcome::kAbortedAfterSignIn, 1);
-  EXPECT_FALSE(chrome::enterprise_util::UserAcceptedAccountManagement(profile));
-}
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosFirstRunBrowserTest, QuitAtEnd) {
-  Profile* profile = GetPrimaryProfile();
-
-  // On the second run, the FRE is marked finished and we should skip it.
-  EXPECT_FALSE(ShouldOpenFirstRun(profile));
-  EXPECT_FALSE(chrome::enterprise_util::UserAcceptedAccountManagement(profile));
-  EXPECT_FALSE(ProfilePicker::IsOpen());
-  EXPECT_EQ(1u, BrowserList::GetInstance()->size());
-}
-
-// Overall sequence for OptIn:
-// Start browser => Show FRE => Advance to sync consent step => Opt-in.
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosFirstRunBrowserTest, PRE_PRE_OptIn) {
-  // Dummy case to set up the primary profile.
-  histogram_tester().ExpectTotalCount(
-      "Profile.LacrosPrimaryProfileFirstRunEntryPoint", 0);
-}
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosFirstRunBrowserTest, PRE_OptIn) {
-  GoThroughFirstRunFlow(
-      /*quit_on_welcome=*/false,
-      /*quit_on_sync=*/false);
-
-  // A browser should open.
-  EXPECT_FALSE(ShouldOpenFirstRun(GetPrimaryProfile()));
-  EXPECT_EQ(1u, BrowserList::GetInstance()->size());
-  histogram_tester().ExpectUniqueSample(
-      "Profile.LacrosPrimaryProfileFirstRunOutcome",
-      ProfileMetrics::ProfileSignedInFlowOutcome::kConsumerSync, 1);
-  // After exit we still only have the one entry point logged.
-  histogram_tester().ExpectUniqueSample(
-      "Profile.LacrosPrimaryProfileFirstRunEntryPoint",
-      FirstRunService::EntryPoint::kProcessStartup, 1);
-}
-
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosFirstRunBrowserTest, OptIn) {
-  // On the second run, the FRE is marked finished and we should skip it.
-  EXPECT_FALSE(ShouldOpenFirstRun(GetPrimaryProfile()));
-  EXPECT_FALSE(ProfilePicker::IsOpen());
-  EXPECT_EQ(1u, BrowserList::GetInstance()->size());
-}
-
-class ManagedProfileSetUpHelper : public ChromeBrowserMainExtraParts {
- public:
-  void PostProfileInit(Profile* profile, bool is_initial_profile) override {
-    // Only one profile, the primary one, should be initialized in this test.
-    EXPECT_EQ(
-        profile->GetPath(),
-        g_browser_process->profile_manager()->GetPrimaryUserProfilePath());
-    profile->GetProfilePolicyConnector()->OverrideIsManagedForTesting(true);
-  }
-};
-
-class ProfilePickerLacrosManagedFirstRunBrowserTest
-    : public ProfilePickerLacrosFirstRunBrowserTestBase {
- public:
-  void CreatedBrowserMainParts(content::BrowserMainParts* parts) override {
-    ProfilePickerLacrosFirstRunBrowserTestBase::CreatedBrowserMainParts(parts);
-    static_cast<ChromeBrowserMainParts*>(parts)->AddParts(
-        std::make_unique<ManagedProfileSetUpHelper>());
-  }
-
-  const base::UserActionTester& user_action_tester() {
-    return user_action_tester_;
-  }
-
- private:
-  base::UserActionTester user_action_tester_;
-};
-
-// Overall sequence for QuitEarly:
-// Start browser => Show FRE => Quit on welcome step.
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosManagedFirstRunBrowserTest,
-                       PRE_PRE_QuitEarly) {
-  // Dummy case to set up the primary profile.
-  histogram_tester().ExpectTotalCount(
-      "Profile.LacrosPrimaryProfileFirstRunEntryPoint", 0);
-}
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosManagedFirstRunBrowserTest,
-                       PRE_QuitEarly) {
-  Profile* profile = GetPrimaryProfile();
-  // TODO(crbug.com/1322067): This is a bug, the flag should not be set.
-  EXPECT_TRUE(chrome::enterprise_util::UserAcceptedAccountManagement(profile));
-  EXPECT_EQ(1, user_action_tester().GetActionCount(
-                   "Signin_EnterpriseAccountPrompt_ImportData"));
-
-  // TODO(crbug.com/1324886): Workaround for Sync startup attempting a real
-  // connection.
-  SyncServiceFactory::GetForProfile(profile)->StopAndClear();
-
-  GoThroughFirstRunFlow(
-      /*quit_on_welcome=*/true,
-      /*quit_on_sync=*/absl::nullopt);
-
-  // No browser window should open because we closed the FRE UI early.
-  EXPECT_EQ(0u, BrowserList::GetInstance()->size());
-  EXPECT_TRUE(ShouldOpenFirstRun(profile));
-
-  histogram_tester().ExpectUniqueSample(
-      "Profile.LacrosPrimaryProfileFirstRunOutcome",
-      ProfileMetrics::ProfileSignedInFlowOutcome::kAbortedOnEnterpriseWelcome,
-      1);
-  // After exit we still only have the one entry point logged.
-  histogram_tester().ExpectUniqueSample(
-      "Profile.LacrosPrimaryProfileFirstRunEntryPoint",
-      FirstRunService::EntryPoint::kProcessStartup, 1);
-}
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosManagedFirstRunBrowserTest,
-                       QuitEarly) {
-  Profile* profile = GetPrimaryProfile();
-
-  // TODO(crbug.com/1322067): This is a bug, the flag should not be set.
-  EXPECT_TRUE(chrome::enterprise_util::UserAcceptedAccountManagement(profile));
-  EXPECT_EQ(0, user_action_tester().GetActionCount(
-                   "Signin_EnterpriseAccountPrompt_ImportData"));
-
-  // TODO(crbug.com/1324886): Workaround for Sync startup attempting a real
-  // connection.
-  SyncServiceFactory::GetForProfile(profile)->StopAndClear();
-
-  // On the second run, the FRE is still not marked finished and we should
-  // reopen it.
-  GoThroughFirstRunFlow(
-      /*quit_on_welcome=*/true,
-      /*quit_on_sync=*/absl::nullopt);
-}
-
-// Overall sequence for QuitAtEnd:
-// Start browser => Show FRE => Advance to sync consent step => Quit.
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosManagedFirstRunBrowserTest,
-                       PRE_PRE_QuitAtEnd) {
-  // Dummy case to set up the primary profile.
-  histogram_tester().ExpectTotalCount(
-      "Profile.LacrosPrimaryProfileFirstRunEntryPoint", 0);
-}
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosManagedFirstRunBrowserTest,
-                       PRE_QuitAtEnd) {
-  Profile* profile = GetPrimaryProfile();
-  // TODO(crbug.com/1322067): This is a bug, the flag is set too early
-  EXPECT_TRUE(chrome::enterprise_util::UserAcceptedAccountManagement(profile));
-  EXPECT_EQ(1, user_action_tester().GetActionCount(
-                   "Signin_EnterpriseAccountPrompt_ImportData"));
-
-  GoThroughFirstRunFlow(
-      /*quit_on_welcome=*/false,
-      /*quit_on_sync=*/true);
-
-  // The user went past the welcome step, management should be marked accepted.
-  EXPECT_TRUE(chrome::enterprise_util::UserAcceptedAccountManagement(profile));
-  EXPECT_EQ(1, user_action_tester().GetActionCount(
-                   "Signin_EnterpriseAccountPrompt_ImportData"));
-
-  // No browser window should open because we closed the FRE UI early.
-  EXPECT_EQ(0u, BrowserList::GetInstance()->size());
-  EXPECT_FALSE(ShouldOpenFirstRun(profile));
-
-  histogram_tester().ExpectUniqueSample(
-      "Profile.LacrosPrimaryProfileFirstRunOutcome",
-      ProfileMetrics::ProfileSignedInFlowOutcome::kAbortedAfterSignIn, 1);
-  // After exit we still only have the one entry point logged.
-  histogram_tester().ExpectUniqueSample(
-      "Profile.LacrosPrimaryProfileFirstRunEntryPoint",
-      FirstRunService::EntryPoint::kProcessStartup, 1);
-}
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosManagedFirstRunBrowserTest,
-                       QuitAtEnd) {
-  Profile* profile = GetPrimaryProfile();
-
-  // On the second run, the FRE is marked finished and we should skip it.
-  EXPECT_FALSE(ShouldOpenFirstRun(profile));
-  EXPECT_TRUE(chrome::enterprise_util::UserAcceptedAccountManagement(profile));
-  EXPECT_FALSE(ProfilePicker::IsOpen());
-  EXPECT_EQ(1u, BrowserList::GetInstance()->size());
-}
-
-// Overall sequence for SyncDisabled:
-// Start browser => FRE Skipped => Browser opens.
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosManagedFirstRunBrowserTest,
-                       PRE_PRE_SyncDisabled) {
-  // Dummy case to set up the primary profile.
-  histogram_tester().ExpectTotalCount(
-      "Profile.LacrosPrimaryProfileFirstRunEntryPoint", 0);
-}
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosManagedFirstRunBrowserTest,
-                       PRE_SyncDisabled) {
-  Profile* profile = GetPrimaryProfile();
-
-  // The profile picker is created but is waiting for the
-  // sync service to complete its initialization to
-  // determine whether to show the FRE or not.
-  EXPECT_TRUE(chrome::enterprise_util::UserAcceptedAccountManagement(profile));
-  EXPECT_EQ(1, user_action_tester().GetActionCount(
-                   "Signin_EnterpriseAccountPrompt_ImportData"));
-  EXPECT_TRUE(ProfilePicker::IsOpen());
-  EXPECT_EQ(0u, BrowserList::GetInstance()->size());
-  EXPECT_EQ(ProfilePickerView::State::kInitializing,
-            view()->state_for_testing());
-
-  // Unblock the sync service and simulate the server-side
-  // being disabled.
-  sync_service()->SetDisableReasons(
-      syncer::SyncService::DISABLE_REASON_ENTERPRISE_POLICY);
-  sync_service()->SetTransportState(
-      syncer::SyncService::TransportState::ACTIVE);
-  sync_service()->FireStateChanged();
-
-  // The pending state should resolve by skipping the FRE.
-  EXPECT_FALSE(ShouldOpenFirstRun(profile));
   WaitForPickerClosed();
-  EXPECT_FALSE(ProfilePicker::IsOpen());
-  EXPECT_EQ(1u, BrowserList::GetInstance()->size());
-  histogram_tester().ExpectUniqueSample(
-      "Profile.LacrosPrimaryProfileFirstRunOutcome",
-      ProfileMetrics::ProfileSignedInFlowOutcome::kSkippedByPolicies, 1);
 
-  // After exit we still only have the one entry point logged.
-  histogram_tester().ExpectUniqueSample(
-      "Profile.LacrosPrimaryProfileFirstRunEntryPoint",
-      FirstRunService::EntryPoint::kProcessStartup, 1);
-}
-IN_PROC_BROWSER_TEST_F(ProfilePickerLacrosManagedFirstRunBrowserTest,
-                       SyncDisabled) {
-  Profile* profile = GetPrimaryProfile();
-
-  // On the second run, the FRE is marked finished and we should skip it.
-  EXPECT_FALSE(ShouldOpenFirstRun(profile));
-  EXPECT_TRUE(chrome::enterprise_util::UserAcceptedAccountManagement(profile));
-  EXPECT_FALSE(ProfilePicker::IsOpen());
-  EXPECT_EQ(1u, BrowserList::GetInstance()->size());
+  // No new browser were added.
+  EXPECT_EQ(initial_browser_count, BrowserList::GetInstance()->size());
 }
 
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+struct GlicTestParam {
+  bool profiles_are_glic_eligible;
+  std::string expected_learn_more_url;
+};
+
+const GlicTestParam kGlicTestParams[] = {
+    {
+        .profiles_are_glic_eligible = false,
+        .expected_learn_more_url = chrome::kSigninOnDesktopLearnMoreURL,
+    },
+    {
+        .profiles_are_glic_eligible = true,
+        .expected_learn_more_url = chrome::kAddNewProfileOnDesktopLearnMoreURL,
+    },
+};
+
+class ProfilePickerWithGlicParamBrowserTest
+    : public ProfilePickerCreationFlowBrowserTest,
+      public testing::WithParamInterface<GlicTestParam> {};
+
+IN_PROC_BROWSER_TEST_P(ProfilePickerWithGlicParamBrowserTest,
+                       GlicLearnMoreClicked) {
+  ScopedKeepAlive keep_alive{KeepAliveOrigin::BACKGROUND_MODE_MANAGER,
+                             KeepAliveRestartOption::DISABLED};
+
+  std::vector<ProfileAttributesEntry*> entries =
+      g_browser_process->profile_manager()
+          ->GetProfileAttributesStorage()
+          .GetAllProfilesAttributes();
+  ASSERT_EQ(entries.size(), 1u);
+  ProfileAttributesEntry* profile_entry = entries[0];
+  ASSERT_TRUE(profile_entry);
+  profile_entry->SetIsGlicEligible(GetParam().profiles_are_glic_eligible);
+
+  base::FilePath initial_profile_path = browser()->profile()->GetPath();
+  // Destroy the current profile to make sure no profiles are loaded.
+  ProfileDestructionWaiter profile_destruction_waiter(browser()->profile());
+  CloseBrowserSynchronously(browser());
+  profile_destruction_waiter.Wait();
+  ASSERT_EQ(0u, BrowserList::GetInstance()->size());
+  ASSERT_THAT(g_browser_process->profile_manager()->GetLoadedProfiles(),
+              testing::IsEmpty());
+
+  // Open the picker with Glic version.
+  ProfilePicker::Show(ProfilePicker::Params::ForGlicManager(base::DoNothing()));
+  WaitForLoadStop(GURL("chrome://profile-picker/"));
+
+  profile_picker_handler()->HandleOnLearnMoreClicked(base::Value::List());
+  Browser* new_browser = ui_test_utils::WaitForBrowserToOpen();
+  EXPECT_TRUE(new_browser);
+  EXPECT_EQ(new_browser->profile()->GetPath(), initial_profile_path);
+
+  ui_test_utils::TabAddedWaiter tab_waiter(new_browser);
+  content::WebContents* learn_more_content = tab_waiter.Wait();
+  EXPECT_EQ(learn_more_content->GetURL(), GetParam().expected_learn_more_url);
+}
+
+INSTANTIATE_TEST_SUITE_P(,
+                         ProfilePickerWithGlicParamBrowserTest,
+                         testing::ValuesIn(kGlicTestParams),
+                         [](const auto& info) {
+                           return info.param.profiles_are_glic_eligible
+                                      ? "GlicEligibleProfiles"
+                                      : "GlicIneligibleProfiles";
+                         });

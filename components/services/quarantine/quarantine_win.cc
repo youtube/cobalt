@@ -4,15 +4,16 @@
 
 #include "components/services/quarantine/quarantine.h"
 
+#include <objbase.h>
+
+#include <shobjidl.h>
 #include <windows.h>
-#include <wrl/client.h>
 
 #include <cguid.h>
-#include <objbase.h>
 #include <shellapi.h>
 #include <shlobj.h>
-#include <shobjidl.h>
 #include <wininet.h>
+#include <wrl/client.h>
 
 #include "base/check_op.h"
 #include "base/feature_list.h"
@@ -224,13 +225,14 @@ QuarantineFileResult SetInternetZoneIdentifierDirectly(
 void QuarantineFile(const base::FilePath& file,
                     const GURL& source_url_unsafe,
                     const GURL& referrer_url_unsafe,
+                    const std::optional<url::Origin>& request_initiator,
                     const std::string& client_guid,
                     mojom::Quarantine::QuarantineFileCallback callback) {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::MAY_BLOCK);
 
-  int64_t file_size = 0;
-  if (!base::PathExists(file) || !base::GetFileSize(file, &file_size)) {
+  std::optional<int64_t> file_size = base::GetFileSize(file);
+  if (!file_size.has_value()) {
     std::move(callback).Run(QuarantineFileResult::FILE_MISSING);
     return;
   }
@@ -244,9 +246,13 @@ void QuarantineFile(const base::FilePath& file,
   }
 
   GURL source_url = SanitizeUrlForQuarantine(source_url_unsafe);
+  if (source_url.is_empty() && request_initiator.has_value()) {
+    source_url = SanitizeUrlForQuarantine(request_initiator->GetURL());
+  }
+
   GURL referrer_url = SanitizeUrlForQuarantine(referrer_url_unsafe);
 
-  if (file_size == 0 || IsEqualGUID(guid, GUID_NULL)) {
+  if (file_size.value() == 0 || IsEqualGUID(guid, GUID_NULL)) {
     // Calling InvokeAttachmentServices on an empty file can result in the file
     // being deleted.  Also an anti-virus scan doesn't make a lot of sense to
     // perform on an empty file.

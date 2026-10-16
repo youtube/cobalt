@@ -4,26 +4,16 @@
 
 #include "components/spellcheck/renderer/platform_spelling_engine.h"
 
+#include "components/spellcheck/spellcheck_buildflags.h"
 #include "content/public/renderer/render_thread.h"
 #include "services/service_manager/public/cpp/local_interface_provider.h"
 
 using content::RenderThread;
 
-PlatformSpellingEngine::PlatformSpellingEngine(
-    service_manager::LocalInterfaceProvider* embedder_provider)
-    : embedder_provider_(embedder_provider) {}
+PlatformSpellingEngine::PlatformSpellingEngine() = default;
 
 PlatformSpellingEngine::~PlatformSpellingEngine() = default;
 
-spellcheck::mojom::SpellCheckHost&
-PlatformSpellingEngine::GetOrBindSpellCheckHost() {
-  if (spell_check_host_)
-    return *spell_check_host_;
-
-  embedder_provider_->GetInterface(
-      spell_check_host_.BindNewPipeAndPassReceiver());
-  return *spell_check_host_;
-}
 
 void PlatformSpellingEngine::Init(base::File bdict_file) {
 }
@@ -39,11 +29,17 @@ bool PlatformSpellingEngine::IsEnabled() {
 // Synchronously query against the platform's spellchecker.
 // TODO(groby): We might want async support here, too. Ideally,
 // all engines share a similar path for async requests.
-bool PlatformSpellingEngine::CheckSpelling(const std::u16string& word_to_check,
-                                           int tag) {
+bool PlatformSpellingEngine::CheckSpelling(
+    const std::u16string& word_to_check,
+    spellcheck::mojom::SpellCheckHost& host) {
+#if BUILDFLAG(USE_BROWSER_SPELLCHECKER) && !BUILDFLAG(ENABLE_SPELLING_SERVICE)
+  return false;
+#else
   bool word_correct = false;
-  GetOrBindSpellCheckHost().CheckSpelling(word_to_check, tag, &word_correct);
+  host.CheckSpelling(word_to_check, &word_correct);
   return word_correct;
+#endif  // BUILDFLAG(USE_BROWSER_SPELLCHECKER) &&
+        // !BUILDFLAG(ENABLE_SPELLING_SERVICE)
 }
 
 // Synchronously query against the platform's spellchecker.
@@ -51,7 +47,12 @@ bool PlatformSpellingEngine::CheckSpelling(const std::u16string& word_to_check,
 // all engines share a similar path for async requests.
 void PlatformSpellingEngine::FillSuggestionList(
     const std::u16string& wrong_word,
+    spellcheck::mojom::SpellCheckHost& host,
     std::vector<std::u16string>* optional_suggestions) {
-  GetOrBindSpellCheckHost().FillSuggestionList(wrong_word,
-                                               optional_suggestions);
+#if BUILDFLAG(USE_BROWSER_SPELLCHECKER) && !BUILDFLAG(ENABLE_SPELLING_SERVICE)
+  optional_suggestions->clear();
+#else
+  host.FillSuggestionList(wrong_word, optional_suggestions);
+#endif  // BUILDFLAG(USE_BROWSER_SPELLCHECKER) &&
+        // !BUILDFLAG(ENABLE_SPELLING_SERVICE)
 }

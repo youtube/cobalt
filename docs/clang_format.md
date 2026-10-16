@@ -11,10 +11,9 @@ for updates.
 ## Easiest usage, from the command line
 
 To automatically format a pending patch according to
-[Chromium style](https://www.chromium.org/developers/coding-style), run:
-``` git cl format ``` from the command line. This should work on all platforms
-without any extra set up: the tool is integrated with depot_tools and the
-Chromium checkout.
+[Chromium style](/styleguide/c++/c++.md), run: `git cl format` from the command
+line. This should work on all platforms without any extra set up: the tool is
+integrated with depot_tools and the Chromium checkout.
 
 Like other `git-cl` commands, this operates on a diff relative to the upstream
 branch. Only the lines that changed in a CL will be reformatted. To see what
@@ -27,7 +26,7 @@ the now-formatted code.
 Many developers find it useful to integrate the clang-format tool with their
 editor of choice. As a convenience, the scripts for this are also available in
 your checkout of Chrome under
-[src/buildtools/clang_format/script/](https://source.chromium.org/chromium/chromium/src/+/HEAD:buildtools/clang_format/script/).
+[src/third_party/clang-format/script/](https://source.chromium.org/chromium/chromium/src/+/HEAD:third_party/clang-format/script/).
 
 If you use an editor integration, you should try to make sure that you're using
 the version of clang-format that comes with your checkout. That way, you'll

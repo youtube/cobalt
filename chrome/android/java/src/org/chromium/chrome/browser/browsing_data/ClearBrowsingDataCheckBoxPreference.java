@@ -11,25 +11,31 @@ import android.text.style.ClickableSpan;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.accessibility.AccessibilityEvent;
 import android.widget.TextView;
+
 import androidx.preference.PreferenceViewHolder;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.components.browser_ui.settings.ChromeBaseCheckBoxPreference;
-import org.chromium.ui.text.NoUnderlineClickableSpan;
+import org.chromium.ui.text.ChromeClickableSpan;
 import org.chromium.ui.text.SpanApplier;
 
+import java.util.Objects;
+
 /**
- * A preference representing one browsing data type in ClearBrowsingDataFragment.
- * This class allows clickable links inside the checkbox summary.
+ * A preference representing one browsing data type in ClearBrowsingDataFragment. This class allows
+ * clickable links inside the checkbox summary.
  */
+@NullMarked
 public class ClearBrowsingDataCheckBoxPreference extends ChromeBaseCheckBoxPreference {
-    private View mView;
-    private Runnable mLinkClickDelegate;
+    private @Nullable View mView;
+    private @Nullable Runnable mLinkClickDelegate;
     private boolean mHasClickableSpans;
 
-    /**
-     * Constructor for inflating from XML.
-     */
+    /** Constructor for inflating from XML. */
     public ClearBrowsingDataCheckBoxPreference(Context context, AttributeSet attrs) {
         super(context, attrs);
     }
@@ -48,45 +54,54 @@ public class ClearBrowsingDataCheckBoxPreference extends ChromeBaseCheckBoxPrefe
 
         mView = holder.itemView;
 
-        final TextView textView = (TextView) mView.findViewById(android.R.id.summary);
+        final TextView textView = mView.findViewById(android.R.id.summary);
 
         // Create custom onTouch listener to be able to respond to click events inside the summary.
-        textView.setOnTouchListener((View v, MotionEvent event) -> {
-            if (!mHasClickableSpans) {
-                return false;
-            }
-            // Find out which character was touched.
-            int offset = textView.getOffsetForPosition(event.getX(), event.getY());
-            // Check if this character contains a span.
-            CharSequence text = textView.getText();
-            // TODO(crbug.com/783866): On some devices the SpannableString is not applied correctly.
-            boolean isSpanned = text instanceof Spanned;
-            if (!isSpanned) {
-                return false;
-            }
-            ClickableSpan[] types = ((Spanned) text).getSpans(offset, offset, ClickableSpan.class);
-
-            if (types.length > 0) {
-                if (event.getAction() == MotionEvent.ACTION_UP) {
-                    for (ClickableSpan type : types) {
-                        type.onClick(textView);
+        textView.setOnTouchListener(
+                (View v, MotionEvent event) -> {
+                    if (!mHasClickableSpans) {
+                        return false;
                     }
-                }
-                return true;
-            } else {
-                return false;
-            }
-        });
+                    // Find out which character was touched.
+                    int offset = textView.getOffsetForPosition(event.getX(), event.getY());
+                    // Check if this character contains a span.
+                    CharSequence text = textView.getText();
+                    // TODO(crbug.com/40549355): On some devices the SpannableString is not applied
+                    // correctly.
+                    boolean isSpanned = text instanceof Spanned;
+                    if (!isSpanned) {
+                        return false;
+                    }
+                    ClickableSpan[] types =
+                            ((Spanned) text).getSpans(offset, offset, ClickableSpan.class);
+
+                    if (types.length > 0) {
+                        if (event.getAction() == MotionEvent.ACTION_UP) {
+                            for (ClickableSpan type : types) {
+                                type.onClick(textView);
+                            }
+                        }
+                        return true;
+                    } else {
+                        return false;
+                    }
+                });
     }
 
-    public void announceForAccessibility(CharSequence announcement) {
-        if (mView != null) mView.announceForAccessibility(announcement);
+    public void maybeAnnounceSummaryChange(CharSequence announcement) {
+        if (mView == null) return;
+        final TextView summaryView = mView.findViewById(android.R.id.summary);
+        summaryView.setContentDescription(announcement);
+        if (mView.isAccessibilityFocused()) {
+            summaryView.sendAccessibilityEvent(
+                    AccessibilityEvent.CONTENT_CHANGE_TYPE_CONTENT_DESCRIPTION);
+        }
     }
 
     @Override
-    public void setSummary(CharSequence summary) {
+    public void setSummary(@Nullable CharSequence summary) {
         // If there is no link in the summary invoke the default behavior.
-        String summaryString = summary.toString();
+        String summaryString = Objects.requireNonNullElse(summary, "").toString();
         if (!summaryString.contains("<link>") || !summaryString.contains("</link>")) {
             super.setSummary(summary);
             return;
@@ -99,11 +114,19 @@ public class ClearBrowsingDataCheckBoxPreference extends ChromeBaseCheckBoxPrefe
             return;
         }
         // Linkify <link></link> span.
-        final SpannableString summaryWithLink = SpanApplier.applySpans(summaryString,
-                new SpanApplier.SpanInfo("<link>", "</link>",
-                        new NoUnderlineClickableSpan(getContext(), (widget) -> {
-                            if (mLinkClickDelegate != null) mLinkClickDelegate.run();
-                        })));
+        final SpannableString summaryWithLink =
+                SpanApplier.applySpans(
+                        summaryString,
+                        new SpanApplier.SpanInfo(
+                                "<link>",
+                                "</link>",
+                                new ChromeClickableSpan(
+                                        getContext(),
+                                        (widget) -> {
+                                            if (mLinkClickDelegate != null) {
+                                                mLinkClickDelegate.run();
+                                            }
+                                        })));
 
         mHasClickableSpans = true;
         super.setSummary(summaryWithLink);

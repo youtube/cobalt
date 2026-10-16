@@ -10,7 +10,6 @@ Ash sits below chrome in the dependency graph (i.e. it cannot depend on code
 in //chrome). For historical reasons, ash has multiple dependency levels:
 
 *   General //ash code is on top (//ash/system, //ash/wm, etc.)
-*   //ash/components sit below //ash, see [README](/ash/components/README.md)
 *   //ash/constants sit near the bottom of the dependency graph, see
     [README](/ash/constants/README.md)
 
@@ -52,3 +51,6 @@ between the two processes was done over mojo. Windowing was done using the
 window-service (some times called mus), which ran with Ash. Many of the mojo
 interfaces have been converted to pure virtual interfaces, with the
 implementation in ash. The mash project was stopped around 4/2019.
+
+"Shelf party" was an Easter-egg feature that made shelf icons fly around the
+screen. It did not launch and [was removed](http://b/284500985) in June 2023.

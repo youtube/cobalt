@@ -2,16 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {ConsoleTestRunner} from 'console_test_runner';
+
+import * as Common from 'devtools/core/common/common.js';
+import * as Console from 'devtools/panels/console/console.js';
+import * as SDK from 'devtools/core/sdk/sdk.js';
+
 (async function() {
   TestRunner.addResult(`Tests that console correctly groups similar messages.\n`);
 
-  await TestRunner.loadLegacyModule('console'); await TestRunner.loadTestModule('console_test_runner');
   await TestRunner.showPanel('console');
 
   // Show all messages, including verbose.
-  Console.ConsoleView.instance().setImmediatelyFilterMessagesForTest();
-  Console.ConsoleView.instance().filter.textFilterUI.setValue("url:script");
-  Console.ConsoleView.instance().filter.messageLevelFiltersSetting.set(Console.ConsoleFilter.allLevelsFilterValue());
+  Console.ConsoleView.ConsoleView.instance().setImmediatelyFilterMessagesForTest();
+  Console.ConsoleView.ConsoleView.instance().filter.textFilterUI.setValue("url:script");
+  Console.ConsoleView.ConsoleView.instance().filter.messageLevelFiltersSetting.set(Console.ConsoleFilter.ConsoleFilter.allLevelsFilterValue());
 
   for (var i = 0; i < 5; i++) {
     // Groupable messages.
@@ -34,7 +40,7 @@
   await ConsoleTestRunner.dumpConsoleMessages();
 
   TestRunner.addResult('\n\nStop grouping messages:\n');
-  Console.ConsoleView.instance().groupSimilarSetting.set(false);
+  Console.ConsoleView.ConsoleView.instance().groupSimilarSetting.set(false);
   await ConsoleTestRunner.dumpConsoleMessages();
   TestRunner.completeTest();
 
@@ -44,10 +50,10 @@
    * @param {string} level
    */
   function addViolationMessage(text, url, level) {
-    var message = new SDK.ConsoleMessage(
+    var message = new SDK.ConsoleModel.ConsoleMessage(
         null, Protocol.Log.LogEntrySource.Violation, level, text,
         {type: Protocol.Runtime.ConsoleAPICalledEventType.Log, url});
-    const consoleModel = SDK.targetManager.primaryPageTarget().model(SDK.ConsoleModel);
+    const consoleModel = SDK.TargetManager.TargetManager.instance().primaryPageTarget().model(SDK.ConsoleModel.ConsoleModel);
     consoleModel.addMessage(message);
   }
 
@@ -56,11 +62,11 @@
    * @param {string} url
    */
   function addConsoleAPIMessage(text,  url) {
-    var message = new SDK.ConsoleMessage(
-        null, SDK.ConsoleMessage.FrontendMessageSource.ConsoleAPI,
+    var message = new SDK.ConsoleModel.ConsoleMessage(
+        null, Common.Console.FrontendMessageSource.ConsoleAPI,
         Protocol.Log.LogEntryLevel.Info, text,
         {type: Protocol.Runtime.ConsoleAPICalledEventType.Log, url});
-    const consoleModel = SDK.targetManager.primaryPageTarget().model(SDK.ConsoleModel);
+    const consoleModel = SDK.TargetManager.TargetManager.instance().primaryPageTarget().model(SDK.ConsoleModel.ConsoleModel);
     consoleModel.addMessage(message);
   }
 })();

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+
 namespace network {
 
 KeepaliveStatisticsRecorder::KeepaliveStatisticsRecorder() = default;
@@ -26,7 +27,7 @@ void KeepaliveStatisticsRecorder::Register(
 void KeepaliveStatisticsRecorder::Unregister(
     const base::UnguessableToken& top_level_frame_id) {
   auto it = per_top_level_frame_records_.find(top_level_frame_id);
-  DCHECK(it != per_top_level_frame_records_.end());
+  CHECK(it != per_top_level_frame_records_.end());
 
   if (it->second.num_registrations == 1) {
     per_top_level_frame_records_.erase(it);

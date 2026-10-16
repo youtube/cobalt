@@ -2,22 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "services/device/generic_sensor/platform_sensor_android.h"
 
 #include "base/functional/bind.h"
-#include "base/metrics/field_trial_params.h"
-#include "services/device/generic_sensor/jni_headers/PlatformSensor_jni.h"
-#include "services/device/public/cpp/device_features.h"
 
-using base::android::AttachCurrentThread;
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "services/device/generic_sensor/jni_headers/PlatformSensor_jni.h"
+
 using base::android::JavaRef;
+using jni_zero::AttachCurrentThread;
 
 namespace device {
 namespace {
 void StartSensorBlocking(base::android::ScopedJavaGlobalRef<jobject> j_object,
                          double frequency) {
-  device::Java_PlatformSensor_startSensor2(AttachCurrentThread(), j_object,
-                                           frequency);
+  device::Java_PlatformSensor_startSensor(AttachCurrentThread(), j_object,
+                                          frequency);
 }
 
 void StopSensorBlocking(base::android::ScopedJavaGlobalRef<jobject> j_object) {
@@ -29,10 +34,10 @@ void StopSensorBlocking(base::android::ScopedJavaGlobalRef<jobject> j_object) {
 scoped_refptr<PlatformSensorAndroid> PlatformSensorAndroid::Create(
     mojom::SensorType type,
     SensorReadingSharedBuffer* reading_buffer,
-    PlatformSensorProvider* provider,
+    base::WeakPtr<PlatformSensorProvider> provider,
     const JavaRef<jobject>& java_provider) {
   auto sensor = base::MakeRefCounted<PlatformSensorAndroid>(
-      type, reading_buffer, provider);
+      type, reading_buffer, std::move(provider));
   JNIEnv* env = AttachCurrentThread();
   sensor->j_object_.Reset(
       Java_PlatformSensor_create(env, java_provider, static_cast<jint>(type),
@@ -47,14 +52,12 @@ scoped_refptr<PlatformSensorAndroid> PlatformSensorAndroid::Create(
 PlatformSensorAndroid::PlatformSensorAndroid(
     mojom::SensorType type,
     SensorReadingSharedBuffer* reading_buffer,
-    PlatformSensorProvider* provider)
-    : PlatformSensor(type, reading_buffer, provider) {}
+    base::WeakPtr<PlatformSensorProvider> provider)
+    : PlatformSensor(type, reading_buffer, std::move(provider)) {}
 
 PlatformSensorAndroid::~PlatformSensorAndroid() {
   if (j_object_) {
-    if (base::FeatureList::IsEnabled(features::kAsyncSensorCalls)) {
-      StopSensor();
-    }
+    StopSensor();
     Java_PlatformSensor_sensorDestroyed(AttachCurrentThread(), j_object_);
   }
 }
@@ -79,24 +82,15 @@ double PlatformSensorAndroid::GetMaximumSupportedFrequency() {
 
 bool PlatformSensorAndroid::StartSensor(
     const PlatformSensorConfiguration& configuration) {
-  if (base::FeatureList::IsEnabled(features::kAsyncSensorCalls)) {
-    sequenced_task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&StartSensorBlocking, j_object_,
-                                  configuration.frequency()));
-    return true;
-  } else {
-    return Java_PlatformSensor_startSensor(AttachCurrentThread(), j_object_,
-                                           configuration.frequency());
-  }
+  sequenced_task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&StartSensorBlocking, j_object_,
+                                configuration.frequency()));
+  return true;
 }
 
 void PlatformSensorAndroid::StopSensor() {
-  if (base::FeatureList::IsEnabled(features::kAsyncSensorCalls)) {
-    sequenced_task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&StopSensorBlocking, j_object_));
-  } else {
-    Java_PlatformSensor_stopSensor(AttachCurrentThread(), j_object_);
-  }
+  sequenced_task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&StopSensorBlocking, j_object_));
 }
 
 bool PlatformSensorAndroid::CheckSensorConfiguration(
@@ -109,9 +103,14 @@ bool PlatformSensorAndroid::CheckSensorConfiguration(
 void PlatformSensorAndroid::NotifyPlatformSensorError(
     JNIEnv*,
     const JavaRef<jobject>& caller) {
+  // This function may be called from Java while this object's destructor is
+  // being invoked, however we know that to reach this point we must be before
+  // the completion of the call to Java_PlatformSensor_sensorDestroyed(). This
+  // means that the WeakPtrFactory is still valid. The WeakPtr will detect
+  // completion of the destructor.
   PostTaskToMainSequence(
       FROM_HERE,
-      base::BindOnce(&PlatformSensorAndroid::NotifySensorError, this));
+      base::BindOnce(&PlatformSensorAndroid::NotifySensorError, AsWeakPtr()));
 }
 
 void PlatformSensorAndroid::UpdatePlatformSensorReading(
@@ -130,6 +129,13 @@ void PlatformSensorAndroid::UpdatePlatformSensorReading(
   reading.raw.values[3] = value4;
 
   UpdateSharedBufferAndNotifyClients(reading);
+}
+
+void PlatformSensorAndroid::SimulateSensorEventFromJavaForTesting(
+    base::android::ScopedJavaGlobalRef<jobject> j_object_,
+    jint reading_values_length) {
+  Java_PlatformSensor_simulateSensorEventForTesting(  // IN-TEST
+      AttachCurrentThread(), j_object_, reading_values_length);
 }
 
 }  // namespace device

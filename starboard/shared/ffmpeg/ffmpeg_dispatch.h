@@ -18,7 +18,8 @@
 #ifndef STARBOARD_SHARED_FFMPEG_FFMPEG_DISPATCH_H_
 #define STARBOARD_SHARED_FFMPEG_FFMPEG_DISPATCH_H_
 
-#include "starboard/types.h"
+#include <stddef.h>
+#include <stdint.h>
 
 struct AVCodec;
 struct AVCodecContext;
@@ -74,8 +75,6 @@ class FFMPEGDispatch {
                                      int avcodec,
                                      int avformat,
                                      int avutil);
-
-  bool is_valid() const;
 
   unsigned (*avutil_version)(void);
   void* (*av_malloc)(size_t size);

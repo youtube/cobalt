@@ -52,7 +52,7 @@ TEST(VectorIconTest, RelativeMoveToAfterClose) {
       MOVE_TO, 4, 5, LINE_TO, 10, 11, CLOSE,
       // This move should use (4, 5) as the start point rather than (10, 11).
       R_MOVE_TO, 20, 21, R_LINE_TO, 50, 51};
-  const VectorIconRep rep_list[] = {{elements, std::size(elements)}};
+  const VectorIconRep rep_list[] = {{elements}};
   const VectorIcon icon(rep_list, 1u, nullptr);
 
   PaintVectorIcon(&canvas, icon, 100, SK_ColorMAGENTA);
@@ -68,9 +68,42 @@ TEST(VectorIconTest, RelativeMoveToAfterClose) {
   EXPECT_EQ(SkIntToScalar(77), last_point.y());
 }
 
+TEST(VectorIconTest, FillRuleNonZero) {
+  Canvas canvas(gfx::Size(200, 100), 1.0, true);
+  /* Draw two paths, and each path consists of two stacked squares.
+     The first has fill type kEvenOdd and the second has kWinding.
+     Both paths have winding order of 2 at their centers.
+    +---->------+     +---->------+
+    | +-->----+ |     | +-->----+ |
+    | |       v V     | |       v V
+    | |       | |     | |       | |
+    | +--<----+ |     | +---<---+ |
+    +----<------+     +-----<-----+
+       EvenOdd            Winding
+  */
+  const PathElement elements[] = {
+      MOVE_TO, 0, 0, R_H_LINE_TO, 90, R_V_LINE_TO, 90, R_H_LINE_TO, -90, CLOSE,
+      MOVE_TO, 20, 20, R_H_LINE_TO, 50, R_V_LINE_TO, 50, R_H_LINE_TO, -50,
+      CLOSE,
+      // The next path is filled by kWinding.
+      NEW_PATH, FILL_RULE_NONZERO, MOVE_TO, 110, 0, R_H_LINE_TO, 90,
+      R_V_LINE_TO, 90, R_H_LINE_TO, -90, CLOSE, MOVE_TO, 130, 20, R_H_LINE_TO,
+      50, R_V_LINE_TO, 50, R_H_LINE_TO, -50, CLOSE};
+  const VectorIconRep rep_list[] = {{elements}};
+  const VectorIcon icon(rep_list, 1u, nullptr);
+
+  PaintVectorIcon(&canvas, icon, 100, SK_ColorBLACK);
+  // For EvenOdd fill type, the center is NOT filled, because its winding order
+  // is an even number.
+  EXPECT_EQ(SK_ColorTRANSPARENT, canvas.GetBitmap().getColor(50, 50));
+  // For Winding fill type, the center is filled, because its winding order
+  // is not zero.
+  EXPECT_EQ(SK_ColorBLACK, canvas.GetBitmap().getColor(150, 50));
+}
+
 TEST(VectorIconTest, FlipsInRtl) {
-  // Set the locale to a rtl language otherwise FLIPS_IN_RTL will do nothing.
-  base::i18n::SetICUDefaultLocale("he");
+  // We need to set RTL, otherwise FLIPS_IN_RTL does nothing.
+  base::i18n::SetRTLForTesting(true);
   ASSERT_TRUE(base::i18n::IsRTL());
 
   const int canvas_size = 20;
@@ -93,7 +126,7 @@ TEST(VectorIconTest, FlipsInRtl) {
                                   R_H_LINE_TO,
                                   -20,
                                   CLOSE};
-  const VectorIconRep rep_list[] = {{elements, std::size(elements)}};
+  const VectorIconRep rep_list[] = {{elements}};
   const VectorIcon icon(rep_list, 1u, nullptr);
   PaintVectorIcon(&canvas, icon, canvas_size, color);
 
@@ -111,6 +144,8 @@ TEST(VectorIconTest, FlipsInRtl) {
   // quarter of the original icon, since each side should be scaled down by a
   // factor of two.
   EXPECT_EQ(100, colored_pixel_count);
+
+  base::i18n::SetRTLForTesting(false);
 }
 
 TEST(VectorIconTest, CorrectSizePainted) {
@@ -219,11 +254,8 @@ TEST(VectorIconTest, CorrectSizePainted) {
                                     0,
                                     CLOSE};
   // VectorIconReps are always sorted in descending order of size.
-  const VectorIconRep rep_list[] = {{elements48, std::size(elements48)},
-                                    {elements32, std::size(elements32)},
-                                    {elements24, std::size(elements24)},
-                                    {elements20, std::size(elements20)},
-                                    {elements16, std::size(elements16)}};
+  const VectorIconRep rep_list[] = {
+      {elements48}, {elements32}, {elements24}, {elements20}, {elements16}};
   const VectorIcon icon(rep_list, 5u, nullptr);
 
   // Test exact sizes paint the correctly sized icon, including the largest and

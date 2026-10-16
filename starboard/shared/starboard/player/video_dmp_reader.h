@@ -17,11 +17,11 @@
 
 #include <map>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include <optional>
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
@@ -138,6 +138,8 @@ class VideoDmpReader {
     size_t audio_access_units_size = 0;
     int64_t audio_bitrate = 0;
     int audio_duration = 0;
+    std::optional<uint8_t> iamf_primary_profile;
+    std::optional<uint8_t> iamf_additional_profile;
 
     SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
     size_t video_access_units_size = 0;

@@ -23,16 +23,16 @@ namespace {
 
 ScreenDetailed* FindScreenDetailedByDisplayId(
     ScreenDetails* screen_details,
-    absl::optional<int64_t> display_id) {
+    std::optional<int64_t> display_id) {
   if (display_id == display::kInvalidDisplayId) {
     return nullptr;
   }
 
-  auto* const screen_iterator = base::ranges::find_if(
-      screen_details->screens(),
-      [display_id](const ScreenDetailed* screen_detailed) {
-        return *display_id == screen_detailed->DisplayId();
-      });
+  auto screen_iterator =
+      std::ranges::find_if(screen_details->screens(),
+                           [display_id](const ScreenDetailed* screen_detailed) {
+                             return *display_id == screen_detailed->DisplayId();
+                           });
 
   return (screen_iterator != screen_details->screens().end()) ? *screen_iterator
                                                               : nullptr;
@@ -42,7 +42,7 @@ ScreenDetailed* FindScreenDetailedByDisplayId(
 
 MediaStreamSet* MediaStreamSet::Create(
     ExecutionContext* context,
-    const MediaStreamDescriptorVector& stream_descriptors,
+    const GCedMediaStreamDescriptorVector& stream_descriptors,
     UserMediaRequestType request_type,
     MediaStreamSetInitializedCallback callback) {
   DCHECK(IsMainThread());
@@ -53,7 +53,7 @@ MediaStreamSet* MediaStreamSet::Create(
 
 MediaStreamSet::MediaStreamSet(
     ExecutionContext* context,
-    const MediaStreamDescriptorVector& stream_descriptors,
+    const GCedMediaStreamDescriptorVector& stream_descriptors,
     UserMediaRequestType request_type,
     MediaStreamSetInitializedCallback callback)
     : ExecutionContextClient(context),
@@ -61,8 +61,8 @@ MediaStreamSet::MediaStreamSet(
       media_streams_initialized_callback_(std::move(callback)) {
   DCHECK(IsMainThread());
 
-  if (request_type == UserMediaRequestType::kDisplayMediaSet) {
-    InitializeGetDisplayMediaSetStreams(context, stream_descriptors);
+  if (request_type == UserMediaRequestType::kAllScreensMedia) {
+    InitializeGetAllScreensMediaStreams(context, stream_descriptors);
     return;
   }
 
@@ -93,9 +93,9 @@ void MediaStreamSet::Trace(Visitor* visitor) const {
   ExecutionContextClient::Trace(visitor);
 }
 
-void MediaStreamSet::InitializeGetDisplayMediaSetStreams(
+void MediaStreamSet::InitializeGetAllScreensMediaStreams(
     ExecutionContext* context,
-    const MediaStreamDescriptorVector& stream_descriptors) {
+    const GCedMediaStreamDescriptorVector& stream_descriptors) {
   DCHECK(IsMainThread());
 
   LocalDOMWindow* const window = To<LocalDOMWindow>(context);
@@ -103,7 +103,7 @@ void MediaStreamSet::InitializeGetDisplayMediaSetStreams(
 
   // TODO(crbug.com/1358949): Move the generation of the |ScreenDetails| object
   // next to the generation of the descriptors and store them as members to
-  // avoid race conditions. Further, match the getDisplayMediaSet API and the
+  // avoid race conditions. Further, match the getAllScreensMedia API and the
   // window placement API by unique IDs instead of assuming the same order.
   ScreenDetails* const screen_details =
       MakeGarbageCollected<ScreenDetails>(window);
@@ -140,7 +140,7 @@ void MediaStreamSet::OnMediaStreamSetInitialized() {
 }
 
 // TODO(crbug.com/1300883): Clean up other streams if one stream capture
-// results in an error. This is only required for getDisplayMediaSet.
+// results in an error. This is only required for getAllScreensMedia.
 // Currently existing functionality generates only one stream which is not
 // affected by this change.
 void MediaStreamSet::OnMediaStreamInitialized(

@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "ash/ash_export.h"
-#include "ash/display/window_tree_host_manager.h"
 #include "ash/public/cpp/projector/projector_session.h"
 #include "ash/public/cpp/session/session_observer.h"
 #include "ash/shelf/shelf_observer.h"
@@ -19,6 +18,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/display/manager/display_manager_observer.h"
 #include "ui/events/devices/input_device_event_observer.h"
 
 class PrefChangeRegistrar;
@@ -57,10 +58,12 @@ class ASH_EXPORT PaletteTray : public TrayBackgroundView,
                                public SessionObserver,
                                public ShelfObserver,
                                public ShellObserver,
-                               public WindowTreeHostManager::Observer,
+                               public display::DisplayManagerObserver,
                                public PaletteToolManager::Delegate,
                                public ui::InputDeviceEventObserver,
                                public ProjectorSessionObserver {
+  METADATA_HEADER(PaletteTray, TrayBackgroundView)
+
  public:
   explicit PaletteTray(Shelf* shelf);
 
@@ -91,35 +94,34 @@ class ASH_EXPORT PaletteTray : public TrayBackgroundView,
   // ShellObserver:
   void OnLockStateChanged(bool locked) override;
   void OnShellInitialized() override;
+  void OnShellDestroying() override;
 
-  // WindowTreeHostManager::Observer:
-  void OnDisplayConfigurationChanged() override;
+  // display::DisplayManagerObserver:
+  void OnDidApplyDisplayChanges() override;
 
   // TrayBackgroundView:
-  void ClickedOutsideBubble() override;
+  void ClickedOutsideBubble(const ui::LocatedEvent& event) override;
+  void UpdateTrayItemColor(bool is_active) override;
   void OnThemeChanged() override;
-  std::u16string GetAccessibleNameForTray() override;
   void HandleLocaleChange() override;
   void HideBubbleWithView(const TrayBubbleView* bubble_view) override;
   void AnchorUpdated() override;
   void Initialize() override;
-  void CloseBubble() override;
+  void CloseBubbleInternal() override;
   void ShowBubble() override;
   TrayBubbleView* GetBubbleView() override;
   views::Widget* GetBubbleWidget() const override;
-  const char* GetClassName() const override;
 
   // PaletteToolManager::Delegate:
   void HidePalette() override;
   void HidePaletteImmediately() override;
-  void RecordPaletteOptionsUsage(PaletteTrayOptions option,
-                                 PaletteInvocationMethod method) override;
 
   // ProjectorSessionObserver:
   void OnProjectorSessionActiveStateChanged(bool active) override;
 
  private:
   friend class PaletteTrayTestApi;
+  friend class StatusAreaInternalsHandler;
 
   // ui::InputDeviceObserver:
   void OnInputDeviceConfigurationChanged(uint8_t input_device_types) override;
@@ -182,14 +184,13 @@ class ASH_EXPORT PaletteTray : public TrayBackgroundView,
   // A Shell pre-target handler that notifies PaletteTray of stylus events.
   std::unique_ptr<ui::EventHandler> stylus_event_handler_;
 
-  raw_ptr<PrefService, ExperimentalAsh> local_state_ = nullptr;  // Not owned.
-  raw_ptr<PrefService, ExperimentalAsh> active_user_pref_service_ =
-      nullptr;  // Not owned.
+  raw_ptr<PrefService> local_state_ = nullptr;               // Not owned.
+  raw_ptr<PrefService> active_user_pref_service_ = nullptr;  // Not owned.
   std::unique_ptr<PrefChangeRegistrar> pref_change_registrar_local_;
   std::unique_ptr<PrefChangeRegistrar> pref_change_registrar_user_;
 
   // Weak pointer, will be parented by TrayContainer for its lifetime.
-  raw_ptr<views::ImageView, ExperimentalAsh> icon_ = nullptr;
+  raw_ptr<views::ImageView> icon_ = nullptr;
 
   // Cached palette pref value.
   bool is_palette_enabled_ = true;

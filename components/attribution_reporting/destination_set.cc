@@ -4,20 +4,22 @@
 
 #include "components/attribution_reporting/destination_set.h"
 
+#include <algorithm>
+#include <optional>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "base/check.h"
-#include "base/ranges/algorithm.h"
+#include "base/containers/flat_set.h"
+#include "base/functional/overloaded.h"
 #include "base/types/expected.h"
+#include "base/types/expected_macros.h"
 #include "base/values.h"
 #include "components/attribution_reporting/constants.h"
 #include "components/attribution_reporting/source_registration_error.mojom-shared.h"
 #include "components/attribution_reporting/suitable_origin.h"
 #include "mojo/public/cpp/bindings/default_construct_tag.h"
 #include "net/base/schemeful_site.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace attribution_reporting {
 
@@ -25,27 +27,18 @@ namespace {
 
 using ::attribution_reporting::mojom::SourceRegistrationError;
 
-absl::optional<net::SchemefulSite> DeserializeDestination(
-    const std::string& s) {
-  auto destination = SuitableOrigin::Deserialize(s);
-  if (!destination.has_value()) {
-    return absl::nullopt;
-  }
-  return net::SchemefulSite(*destination);
-}
-
 bool DestinationsValid(const DestinationSet::Destinations& destinations) {
   return !destinations.empty() && destinations.size() <= kMaxDestinations &&
-         base::ranges::all_of(destinations, &IsSitePotentiallySuitable);
+         std::ranges::all_of(destinations, &IsSitePotentiallySuitable);
 }
 
 }  // namespace
 
 // static
-absl::optional<DestinationSet> DestinationSet::Create(
+std::optional<DestinationSet> DestinationSet::Create(
     Destinations destinations) {
   if (!DestinationsValid(destinations)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return DestinationSet(std::move(destinations));
 }
@@ -57,50 +50,71 @@ DestinationSet::FromJSON(const base::Value* v) {
     return base::unexpected(SourceRegistrationError::kDestinationMissing);
   }
 
-  std::vector<net::SchemefulSite> destination_sites;
-  if (const std::string* str = v->GetIfString()) {
-    auto destination = DeserializeDestination(*str);
-    if (!destination.has_value()) {
-      return base::unexpected(
-          SourceRegistrationError::kDestinationUntrustworthy);
-    }
+  // Although we build this set iteratively, which results in O(n^2)
+  // construction, n is very small, so this is fine.
+  static_assert(kMaxDestinations == 3,
+                "Consider using more performant set construction if the size "
+                "limit increases.");
+  base::flat_set<net::SchemefulSite> destination_sites;
 
-    destination_sites.push_back(std::move(*destination));
-  } else if (const base::Value::List* list = v->GetIfList()) {
-    if (list->size() > kMaxDestinations) {
-      return base::unexpected(SourceRegistrationError::kDestinationListTooLong);
-    }
-    if (list->empty()) {
-      return base::unexpected(SourceRegistrationError::kDestinationMissing);
-    }
-    destination_sites.reserve(list->size());
+  using AppendIfValidResult = base::expected<void, SourceRegistrationError>;
 
-    for (const auto& item : *list) {
-      const std::string* item_str = item.GetIfString();
-      if (!item_str) {
+  const auto append_if_valid =
+      [&](const std::string& str,
+          SourceRegistrationError error) -> AppendIfValidResult {
+    auto origin = SuitableOrigin::Deserialize(str);
+    if (!origin.has_value()) {
+      return base::unexpected(error);
+    }
+    destination_sites.emplace(*origin);
+    return base::ok();
+  };
+
+  RETURN_IF_ERROR(v->Visit(base::Overloaded{
+      [&](const std::string& str) {
+        return append_if_valid(
+            str, SourceRegistrationError::kDestinationUntrustworthy);
+      },
+      [&](const base::Value::List& list) -> AppendIfValidResult {
+        if (list.empty()) {
+          return base::unexpected(
+              SourceRegistrationError::kDestinationWrongType);
+        }
+
+        destination_sites.reserve(std::min(list.size(), kMaxDestinations));
+
+        for (const auto& item : list) {
+          const std::string* str = item.GetIfString();
+          if (!str) {
+            return base::unexpected(
+                SourceRegistrationError::kDestinationWrongType);
+          }
+          RETURN_IF_ERROR(append_if_valid(
+              *str, SourceRegistrationError::kDestinationListUntrustworthy));
+
+          if (destination_sites.size() > kMaxDestinations) {
+            return base::unexpected(
+                SourceRegistrationError::kDestinationWrongType);
+          }
+        }
+
+        return base::ok();
+      },
+      [](const auto&) -> AppendIfValidResult {
         return base::unexpected(SourceRegistrationError::kDestinationWrongType);
-      }
-      auto destination = DeserializeDestination(*item_str);
-      if (!destination.has_value()) {
-        return base::unexpected(
-            SourceRegistrationError::kDestinationUntrustworthy);
-      }
+      },
+  }));
 
-      destination_sites.push_back(std::move(*destination));
-    }
-  } else {
-    return base::unexpected(SourceRegistrationError::kDestinationWrongType);
-  }
   return DestinationSet(std::move(destination_sites));
 }
 
 DestinationSet::DestinationSet(Destinations destinations)
     : destinations_(std::move(destinations)) {
-  DCHECK(IsValid());
+  CHECK(IsValid());
 }
 
 DestinationSet::DestinationSet(mojo::DefaultConstruct::Tag) {
-  DCHECK(!IsValid());
+  CHECK(!IsValid());
 }
 
 DestinationSet::~DestinationSet() = default;
@@ -118,12 +132,12 @@ bool DestinationSet::IsValid() const {
 }
 
 base::Value DestinationSet::ToJson() const {
-  DCHECK(IsValid());
+  CHECK(IsValid());
   if (destinations_.size() == 1) {
     return base::Value(destinations_.begin()->Serialize());
   }
 
-  base::Value::List list;
+  auto list = base::Value::List::with_capacity(destinations_.size());
   for (const auto& destination : destinations_) {
     list.Append(destination.Serialize());
   }

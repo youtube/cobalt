@@ -70,11 +70,6 @@ const ShelfButtonClickMapping kShelfTargets[] = {
      LoginMetricsRecorder::LockScreenUserClickTarget::kTargetCount,
      LoginMetricsRecorder::LoginScreenUserClickTarget::kAddUserButton,
      LoginMetricsRecorder::OobeUserClickTarget::kTargetCount},
-    // |kCloseNoteButton|
-    {LoginMetricsRecorder::ShelfButtonClickTarget::kCloseNoteButton,
-     LoginMetricsRecorder::LockScreenUserClickTarget::kCloseNoteButton,
-     LoginMetricsRecorder::LoginScreenUserClickTarget::kTargetCount,
-     LoginMetricsRecorder::OobeUserClickTarget::kTargetCount},
     // |kParentAccessButton|
     {LoginMetricsRecorder::ShelfButtonClickTarget::kParentAccessButton,
      LoginMetricsRecorder::LockScreenUserClickTarget::kParentAccessButton,
@@ -95,6 +90,11 @@ const ShelfButtonClickMapping kShelfTargets[] = {
      LoginMetricsRecorder::LockScreenUserClickTarget::kTargetCount,
      LoginMetricsRecorder::LoginScreenUserClickTarget::kTargetCount,
      LoginMetricsRecorder::OobeUserClickTarget::kSignIn},
+    // |kSchoolEnrollmentButton|
+    {LoginMetricsRecorder::ShelfButtonClickTarget::kSchoolEnrollmentButton,
+     LoginMetricsRecorder::LockScreenUserClickTarget::kTargetCount,
+     LoginMetricsRecorder::LoginScreenUserClickTarget::kTargetCount,
+     LoginMetricsRecorder::OobeUserClickTarget::kSchoolEnrollmentButton},
 };
 
 // Defines mapping of TrayClickTarget |original| to different UMA target in
@@ -126,11 +126,6 @@ const TrayClickMapping kTrayTargets[] = {
     // |kNotificationTray|
     {LoginMetricsRecorder::TrayClickTarget::kNotificationTray,
      LoginMetricsRecorder::LockScreenUserClickTarget::kNotificationTray,
-     LoginMetricsRecorder::LoginScreenUserClickTarget::kTargetCount,
-     LoginMetricsRecorder::OobeUserClickTarget::kTargetCount},
-    // |kTrayActionNoteButton|
-    {LoginMetricsRecorder::TrayClickTarget::kTrayActionNoteButton,
-     LoginMetricsRecorder::LockScreenUserClickTarget::kTrayActionNoteButton,
      LoginMetricsRecorder::LoginScreenUserClickTarget::kTargetCount,
      LoginMetricsRecorder::OobeUserClickTarget::kTargetCount},
 };
@@ -176,7 +171,6 @@ void LoginMetricsRecorder::RecordUserTrayClick(TrayClickTarget target) {
         return;
       default:
         NOTREACHED() << "Unexpected session state: " << static_cast<int>(state);
-        return;
     }
   }
   NOTREACHED() << "Tray click target wasn't found in the |kTrayTargets|.";
@@ -211,7 +205,6 @@ void LoginMetricsRecorder::RecordUserShelfButtonClick(
         return;
       default:
         NOTREACHED() << "Unexpected session state: " << static_cast<int>(state);
-        return;
     }
   }
   NOTREACHED() << "Shelf click target wasn't found in the |kShelfTargets|.";

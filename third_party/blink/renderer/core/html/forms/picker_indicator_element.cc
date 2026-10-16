@@ -51,6 +51,7 @@ PickerIndicatorElement::PickerIndicatorElement(
       picker_indicator_owner_(&picker_indicator_owner) {
   SetShadowPseudoId(shadow_element_names::kPseudoCalendarPickerIndicator);
   setAttribute(html_names::kIdAttr, shadow_element_names::kIdPickerIndicator);
+  SetAXProperties();
 }
 
 PickerIndicatorElement::~PickerIndicatorElement() {
@@ -124,6 +125,7 @@ void PickerIndicatorElement::OpenPopup() {
     // Invalidate paint to ensure that the focus ring is removed.
     OwnerElement().GetLayoutObject()->SetShouldDoFullPaintInvalidation();
   }
+  OwnerElement().PseudoStateChanged(CSSSelector::kPseudoOpen);
 }
 
 Element& PickerIndicatorElement::OwnerElement() const {
@@ -138,7 +140,11 @@ void PickerIndicatorElement::ClosePopup() {
 }
 
 bool PickerIndicatorElement::HasOpenedPopup() const {
-  return chooser_;
+  return chooser_ != nullptr;
+}
+
+bool PickerIndicatorElement::IsPickerVisible() const {
+  return chooser_ && chooser_->IsPickerVisible();
 }
 
 void PickerIndicatorElement::DetachLayoutTree(bool performing_reattach) {
@@ -147,7 +153,19 @@ void PickerIndicatorElement::DetachLayoutTree(bool performing_reattach) {
 }
 
 AXObject* PickerIndicatorElement::PopupRootAXObject() const {
-  return chooser_ ? chooser_->RootAXObject() : nullptr;
+  return chooser_ ? chooser_->RootAXObject(&OwnerElement()) : nullptr;
+}
+
+void PickerIndicatorElement::SetAXProperties() {
+  if (!picker_indicator_owner_) {
+    return;
+  }
+  setAttribute(html_names::kTabindexAttr, AtomicString("0"));
+  setAttribute(html_names::kAriaHaspopupAttr, AtomicString("menu"));
+  setAttribute(html_names::kRoleAttr, AtomicString("button"));
+  setAttribute(
+      html_names::kTitleAttr,
+      AtomicString(picker_indicator_owner_->AriaLabelForPickerIndicator()));
 }
 
 bool PickerIndicatorElement::IsPickerIndicatorElement() const {
@@ -161,21 +179,7 @@ Node::InsertionNotificationRequest PickerIndicatorElement::InsertedInto(
 }
 
 void PickerIndicatorElement::DidNotifySubtreeInsertionsToDocument() {
-  if (!GetDocument().ExistingAXObjectCache())
-    return;
-  // Don't make this focusable if we are in web tests in order to avoid
-  // breaking existing tests.
-  // TODO(crbug.com/1054048): We should have a way to disable accessibility in
-  // web tests.  Once we do have it, this early return should be removed.
-  if (WebTestSupport::IsRunningWebTest())
-    return;
-  setAttribute(html_names::kTabindexAttr, "0");
-  setAttribute(html_names::kAriaHaspopupAttr, "menu");
-  setAttribute(html_names::kRoleAttr, "button");
-  setAttribute(
-      html_names::kAriaLabelAttr,
-      AtomicString(
-          this->picker_indicator_owner_->AriaLabelForPickerIndicator()));
+  SetAXProperties();
 }
 
 void PickerIndicatorElement::Trace(Visitor* visitor) const {

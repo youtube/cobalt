@@ -14,6 +14,9 @@ option optimize_for = LITE_RUNTIME;
 
 package sync_pb;
 
+import "components/sync/protocol/tab_group_attribution_metadata.proto";
+
+// LINT.IfChange(SavedTabGroupSpecifics)
 // Sync protocol datatype extension for saved tab groups. Saved Tab Groups are
 // tab groups which can be recalled between browser sessions, and if sync is
 // turned on, cross device. A saved tab group contains tabs which are stored as
@@ -36,7 +39,9 @@ message SavedTabGroup {
   }
 
   // The position of the SavedTabGroup in any visual display. This also
-  // represents the index in the SavedTabGroupModel of the group.
+  // represents the index in the SavedTabGroupModel of the group. This field
+  // will be deprecated and replaced by the pinned_position field in tab group
+  // V2.
   optional int64 position = 1;
 
   // The displayed title of the group, shown on the tab group and the saved tab
@@ -45,6 +50,12 @@ message SavedTabGroup {
 
   // The color of the group, mapped to tab_groups::TabGroupColorId.
   optional SavedTabGroupColor color = 3;
+
+  // Position of the pinned tab group in bookmark bar on Desktop. This will
+  // replace the position field in Tab Group V2.
+  optional int64 pinned_position = 4;
+
+  reserved 5;
 }
 
 // Sync protocol datatype extension for saved tab group tabs. SavedTabGroupTab
@@ -80,4 +91,15 @@ message SavedTabGroupSpecifics {
     SavedTabGroup group = 4;
     SavedTabGroupTab tab = 5;
   }
+
+  // Attribution metadata about the associated tab group or tab.
+  optional AttributionMetadata attribution_metadata = 6;
+
+  // A mechanism to identify the client version that wrote this specifics.
+  // Designed to aid business logic when reading newly added fields that
+  // didn't exist in older clients.
+  // The client version must be incremented whenever a new field is added to the
+  // specifics.
+  optional int32 version = 7;
 }
+// LINT.ThenChange(//components/saved_tab_groups/internal/saved_tab_group_sync_bridge.cc:TrimAllSupportedFieldsFromRemoteSpecifics)

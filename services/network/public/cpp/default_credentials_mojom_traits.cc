@@ -17,7 +17,6 @@ EnumTraits<network::mojom::DefaultCredentials,
       return network::mojom::DefaultCredentials::DISALLOW_DEFAULT_CREDENTIALS;
   }
   NOTREACHED();
-  return network::mojom::DefaultCredentials::ALLOW_DEFAULT_CREDENTIALS;
 }
 
 bool EnumTraits<network::mojom::DefaultCredentials,

@@ -14,12 +14,14 @@
 #include <algorithm>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/containers/heap_array.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/numerics/safe_conversions.h"
@@ -29,7 +31,6 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "tools/imagediff/image_diff_png.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -94,12 +95,13 @@ class Image {
     if (byte_length == 0)
       return false;
 
-    std::unique_ptr<unsigned char[]> source(new unsigned char[byte_length]);
-    if (fread(source.get(), 1, byte_length, stdin) != byte_length)
+    auto source = base::HeapArray<unsigned char>::Uninit(byte_length);
+    if (fread(source.data(), 1, source.size(), stdin) != source.size()) {
       return false;
+    }
 
-    if (!image_diff_png::DecodePNG(source.get(), byte_length,
-                                   &data_, &w_, &h_)) {
+    if (!image_diff_png::DecodePNG(source.data(), source.size(), &data_, &w_,
+                                   &h_)) {
       Clear();
       return false;
     }

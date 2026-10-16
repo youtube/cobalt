@@ -4,33 +4,35 @@
 
 package org.chromium.chrome.browser.incognito.reauth;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 
 import androidx.annotation.DrawableRes;
 import androidx.annotation.IdRes;
 import androidx.annotation.IntDef;
-import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.incognito.R;
-import org.chromium.components.browser_ui.settings.SettingsLauncher;
-import org.chromium.components.browser_ui.widget.listmenu.BasicListMenu;
-import org.chromium.components.browser_ui.widget.listmenu.ListMenu;
-import org.chromium.components.browser_ui.widget.listmenu.ListMenuButtonDelegate;
-import org.chromium.components.browser_ui.widget.listmenu.ListMenuItemProperties;
+import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
+import org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils;
+import org.chromium.ui.listmenu.BasicListMenu;
+import org.chromium.ui.listmenu.ListMenu;
+import org.chromium.ui.listmenu.ListMenuDelegate;
+import org.chromium.ui.listmenu.ListMenuItemProperties;
 import org.chromium.ui.modelutil.MVCListAdapter;
 import org.chromium.ui.modelutil.PropertyModel;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/**
- * A delegate for the menu button present inside the Incognito re-auth view full page.
- */
+/** A delegate for the menu button present inside the Incognito re-auth view full page. */
+@NullMarked
 class IncognitoReauthMenuDelegate implements ListMenu.Delegate {
     /**
-     * An enum interface denoting the various options (in-order) present in the
-     * three dots menu in the incognito re-auth full page view.
+     * An enum interface denoting the various options (in-order) present in the three dots menu in
+     * the incognito re-auth full page view.
      */
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({MenuItemType.CLOSE_INCOGNITO_TABS, MenuItemType.SETTINGS})
@@ -41,23 +43,16 @@ class IncognitoReauthMenuDelegate implements ListMenu.Delegate {
 
     private final Context mContext;
     private final Runnable mCloseAllIncognitoTabsRunnable;
-    private final SettingsLauncher mSettingsLauncher;
     private final BasicListMenu mIncognitoReauthMenu;
 
     /**
      * @param context The {@link Context} from where the android resources would be fetched.
      * @param closeAllIncognitoTabRunnable The {@link Runnable} which would be used to close the
-     *         Incognito tabs when the user clicks on "Close Incognito tabs" option.
-     * @param settingsLauncher The {@link SettingsLauncher} which is
-     *         responsible to opening the {@link SettingsActivity} when the user clicks on
-     *         "Settings" option.
+     *     Incognito tabs when the user clicks on "Close Incognito tabs" option.
      */
-    IncognitoReauthMenuDelegate(@NonNull Context context,
-            @NonNull Runnable closeAllIncognitoTabRunnable,
-            @NonNull SettingsLauncher settingsLauncher) {
+    IncognitoReauthMenuDelegate(Context context, Runnable closeAllIncognitoTabRunnable) {
         mContext = context;
         mCloseAllIncognitoTabsRunnable = closeAllIncognitoTabRunnable;
-        mSettingsLauncher = settingsLauncher;
         mIncognitoReauthMenu = buildIncognitoReauthMenu();
     }
 
@@ -85,15 +80,15 @@ class IncognitoReauthMenuDelegate implements ListMenu.Delegate {
     }
 
     /**
-     * @return {@link ListMenuButtonDelegate} which returns the underlying menu delegate.
+     * @return {@link ListMenuDelegate} which returns the underlying menu delegate.
      */
-    ListMenuButtonDelegate getListMenuButtonDelegate() {
+    ListMenuDelegate getListMenuDelegate() {
         return () -> mIncognitoReauthMenu;
     }
 
     private BasicListMenu buildIncognitoReauthMenu() {
         MVCListAdapter.ModelList itemList = buildMenuItems();
-        return new BasicListMenu(
+        return BrowserUiListMenuUtils.getBasicListMenu(
                 mContext, itemList, this, R.color.menu_item_bg_color_dark_baseline);
     }
 
@@ -108,26 +103,27 @@ class IncognitoReauthMenuDelegate implements ListMenu.Delegate {
         switch (type) {
             case MenuItemType.CLOSE_INCOGNITO_TABS:
                 return buildMenuListItemWithCustomApperance(
-                        /*titleId=*/R.string.menu_close_all_incognito_tabs,
-                        /*menuId=*/0,
-                        /*startIconId=*/R.drawable.btn_close,
-                        /*enabled=*/true,
-                        /*colorTint=*/R.color.default_icon_color_secondary_light_tint_list,
-                        /*textAppearanceStyle=*/
-                        R.style.TextAppearance_TextLarge_Primary_Baseline_Light,
-                        /*textEllipsizedAtEnd=*/true);
+                        /* titleId= */ R.string.menu_close_all_incognito_tabs,
+                        /* menuId= */ 0,
+                        /* startIconId= */ R.drawable.btn_close,
+                        /* enabled= */ true,
+                        /* colorTint= */ R.color.default_icon_color_secondary_light_tint_list,
+                        /* textAppearanceStyle= */ R.style
+                                .TextAppearance_TextLarge_Primary_Baseline_Light,
+                        /* textEllipsizedAtEnd= */ true);
             case MenuItemType.SETTINGS:
-                return buildMenuListItemWithCustomApperance(/*titleId=*/R.string.menu_settings,
-                        /*menuId=*/0,
-                        /*startIconId=*/R.drawable.settings_cog,
-                        /*enabled=*/true,
-                        /*colorTint=*/R.color.default_icon_color_secondary_light_tint_list,
-                        /*textAppearanceStyle=*/
-                        R.style.TextAppearance_TextLarge_Primary_Baseline_Light,
-                        /*textEllipsizedAtEnd=*/true);
+                return buildMenuListItemWithCustomApperance(
+                        /* titleId= */ R.string.menu_settings,
+                        /* menuId= */ 0,
+                        /* startIconId= */ R.drawable.settings_cog,
+                        /* enabled= */ true,
+                        /* colorTint= */ R.color.default_icon_color_secondary_light_tint_list,
+                        /* textAppearanceStyle= */ R.style
+                                .TextAppearance_TextLarge_Primary_Baseline_Light,
+                        /* textEllipsizedAtEnd= */ true);
             default:
                 assert false : "Not implemented yet.";
-                return null;
+                return assumeNonNull(null);
         }
     }
 
@@ -136,12 +132,12 @@ class IncognitoReauthMenuDelegate implements ListMenu.Delegate {
     }
 
     private void onSettingsMenuItemClicked() {
-        mSettingsLauncher.launchSettingsActivity(mContext);
+        SettingsNavigationFactory.createSettingsNavigation().startSettings(mContext);
     }
 
     /**
-     * Helper function to build a list menu item. Pass 0 for attributes that aren't
-     * applicable to the menu item (e.g. if there is no icon or text).
+     * Helper function to build a list menu item. Pass 0 for attributes that aren't applicable to
+     * the menu item (e.g. if there is no icon or text).
      *
      * @param titleId The text on the menu item.
      * @param menuId Id of the menu item.
@@ -150,19 +146,25 @@ class IncognitoReauthMenuDelegate implements ListMenu.Delegate {
      * @param colorTint The color tinr to apply on the menu item icons.
      * @param textAppearanceStyle The style to apply on the text.
      * @param textEllipsizedAtEnd Whether to ellipsize the text at the end when it doesn't fit the
-     *         view width.
+     *     view width.
      * @return ListItem Representing an item with text or icon.
      */
     private static MVCListAdapter.ListItem buildMenuListItemWithCustomApperance(
-            @StringRes int titleId, @IdRes int menuId, @DrawableRes int startIconId,
-            boolean enabled, int colorTint, int textAppearanceStyle, boolean textEllipsizedAtEnd) {
-        return new MVCListAdapter.ListItem(BasicListMenu.ListMenuItemType.MENU_ITEM,
+            @StringRes int titleId,
+            @IdRes int menuId,
+            @DrawableRes int startIconId,
+            boolean enabled,
+            int colorTint,
+            int textAppearanceStyle,
+            boolean textEllipsizedAtEnd) {
+        return new MVCListAdapter.ListItem(
+                BasicListMenu.ListMenuItemType.MENU_ITEM,
                 new PropertyModel.Builder(ListMenuItemProperties.ALL_KEYS)
                         .with(ListMenuItemProperties.TITLE_ID, titleId)
                         .with(ListMenuItemProperties.MENU_ITEM_ID, menuId)
                         .with(ListMenuItemProperties.START_ICON_ID, startIconId)
                         .with(ListMenuItemProperties.ENABLED, enabled)
-                        .with(ListMenuItemProperties.TINT_COLOR_ID, colorTint)
+                        .with(ListMenuItemProperties.ICON_TINT_COLOR_STATE_LIST_ID, colorTint)
                         .with(ListMenuItemProperties.TEXT_APPEARANCE_ID, textAppearanceStyle)
                         .with(ListMenuItemProperties.IS_TEXT_ELLIPSIZED_AT_END, textEllipsizedAtEnd)
                         .build());

@@ -59,7 +59,7 @@ RecordingTypeMenuView::RecordingTypeMenuView(
           this,
           SystemShadow::Type::kElevation12)) {
   SetPaintToLayer();
-  SetBackground(views::CreateThemedSolidBackground(kColorAshShieldAndBase80));
+  SetBackground(views::CreateSolidBackground(kColorAshShieldAndBase80));
   layer()->SetFillsBoundsOpaquely(false);
   layer()->SetRoundedCornerRadius(kRoundedCorners);
   layer()->SetBackgroundBlur(ColorProvider::kBackgroundBlurSigma);
@@ -75,9 +75,7 @@ RecordingTypeMenuView::RecordingTypeMenuView(
 
   capture_mode_util::SetHighlightBorder(
       this, kCornerRadius,
-      chromeos::features::IsJellyrollEnabled()
-          ? views::HighlightBorder::Type::kHighlightBorderOnShadow
-          : views::HighlightBorder::Type::kHighlightBorder1);
+      views::HighlightBorder::Type::kHighlightBorderOnShadow);
 
   shadow_->SetRoundedCornerRadius(kCornerRadius);
 }
@@ -87,12 +85,31 @@ RecordingTypeMenuView::~RecordingTypeMenuView() = default;
 // static
 gfx::Rect RecordingTypeMenuView::GetIdealScreenBounds(
     const gfx::Rect& capture_label_widget_screen_bounds,
+    const gfx::Rect& target_display_screen_bounds,
     views::View* contents_view) {
   const auto size = GetIdealSize(contents_view);
   const auto bottom_center = capture_label_widget_screen_bounds.bottom_center();
-  const int y = bottom_center.y() + kYOffsetFromLabelWidget;
-  const int x = bottom_center.x() - (size.width() / 2);
-  return gfx::Rect(gfx::Point(x, y), size);
+  // Make sure the left and right edges are within the screen bounds.
+  int x = std::max(0, bottom_center.x() - (size.width() / 2));
+  if (x + size.width() > target_display_screen_bounds.right()) {
+    x = target_display_screen_bounds.right() - size.width();
+  }
+
+  // Try positioning the menu below the bar first, if this makes it outside the
+  // bounds of the display, then try positioning it above.
+  gfx::Rect result{gfx::Point(x, bottom_center.y() + kYOffsetFromLabelWidget),
+                   size};
+  if (result.bottom() > target_display_screen_bounds.bottom()) {
+    result.set_y(capture_label_widget_screen_bounds.y() -
+                 kYOffsetFromLabelWidget - size.height());
+  }
+
+  CHECK(target_display_screen_bounds.Contains(result))
+      << "display bounds (screen) = " << target_display_screen_bounds.ToString()
+      << ", recording type menu bounds (screen) = " << result.ToString()
+      << ", user region bounds (root) = "
+      << CaptureModeController::Get()->user_capture_region().ToString();
+  return result;
 }
 
 void RecordingTypeMenuView::OnOptionSelected(int option_id) const {

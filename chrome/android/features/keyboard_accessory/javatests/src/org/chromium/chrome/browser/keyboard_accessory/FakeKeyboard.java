@@ -4,7 +4,7 @@
 
 package org.chromium.chrome.browser.keyboard_accessory;
 
-import static org.chromium.content_public.browser.test.util.TestThreadUtils.runOnUiThreadBlocking;
+import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
 
 import android.app.Activity;
 import android.content.Context;
@@ -16,7 +16,6 @@ import androidx.annotation.NonNull;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.ChromeKeyboardVisibilityDelegate;
 import org.chromium.chrome.browser.ChromeWindow;
-import org.chromium.components.browser_ui.widget.InsetObserverView;
 
 import java.lang.ref.WeakReference;
 
@@ -38,18 +37,15 @@ public class FakeKeyboard extends ChromeKeyboardVisibilityDelegate {
     private static final int KEYBOARD_HEIGHT_DP = 234;
     private boolean mIsShowing;
 
-    public FakeKeyboard(WeakReference<Activity> activity,
+    public FakeKeyboard(
+            WeakReference<Activity> activity,
             @NonNull Supplier<ManualFillingComponent> manualFillingComponentSupplier) {
         super(activity, manualFillingComponentSupplier);
     }
 
     protected int getStaticKeyboardHeight() {
-        return (int) getActivity().getResources().getDisplayMetrics().density * KEYBOARD_HEIGHT_DP;
-    }
-
-    @Override
-    public boolean hideSoftKeyboardOnly(View view) {
-        return hideAndroidSoftKeyboard(view);
+        return (int)
+                (getActivity().getResources().getDisplayMetrics().density * KEYBOARD_HEIGHT_DP);
     }
 
     @Override
@@ -58,58 +54,47 @@ public class FakeKeyboard extends ChromeKeyboardVisibilityDelegate {
     }
 
     @Override
-    protected boolean isAndroidSoftKeyboardShowing(Context context, View view) {
-        return mIsShowing;
-    }
-
-    @Override
     public void showKeyboard(View view) {
         boolean keyboardWasVisible = mIsShowing;
         mIsShowing = true;
-        runOnUiThreadBlocking(() -> {
-            // Fake a layout change for components listening to the activity directly ...
-            if (getStaticKeyboardHeight() <= 0) return; // ... unless the keyboard didn't affect it.
-            if (!keyboardWasVisible) notifyListeners(isKeyboardShowing(getActivity(), view));
-            // Pretend a layout change for components listening to the activity directly:
-            View contentView = getActivity().findViewById(android.R.id.content);
-            ViewGroup.LayoutParams p = contentView.getLayoutParams();
-            p.height = p.height - getStaticKeyboardHeight();
-            contentView.setLayoutParams(p);
-        });
+        runOnUiThreadBlocking(
+                () -> {
+                    // Fake a layout change for components listening to the activity directly ...
+                    if (getStaticKeyboardHeight() <= 0) {
+                        return; // ... unless the keyboard didn't affect it.
+                    }
+                    if (!keyboardWasVisible) {
+                        notifyListeners(isKeyboardShowing(getActivity(), view));
+                    }
+                    // Pretend a layout change for components listening to the activity directly:
+                    View contentView = getActivity().findViewById(android.R.id.content);
+                    ViewGroup.LayoutParams p = contentView.getLayoutParams();
+                    p.height = p.height - getStaticKeyboardHeight();
+                    contentView.setLayoutParams(p);
+                });
     }
 
     @Override
-    protected boolean hideAndroidSoftKeyboard(View view) {
+    public boolean hideSoftKeyboardOnly(View view) {
         boolean keyboardWasVisible = mIsShowing;
         mIsShowing = false;
-        runOnUiThreadBlocking(() -> {
-            // Fake a layout change for components listening to the activity directly ...
-            if (getStaticKeyboardHeight() <= 0) return; // ... unless the keyboard didn't affect it.
-            if (keyboardWasVisible) notifyListeners(isKeyboardShowing(getActivity(), view));
-            View contentView = getActivity().findViewById(android.R.id.content);
-            ViewGroup.LayoutParams p = contentView.getLayoutParams();
-            p.height = p.height + getStaticKeyboardHeight();
-            contentView.setLayoutParams(p);
-        });
+        runOnUiThreadBlocking(
+                () -> {
+                    // Fake a layout change for components listening to the activity directly ...
+                    if (getStaticKeyboardHeight() <= 0) {
+                        return; // ... unless the keyboard didn't affect it.
+                    }
+                    if (keyboardWasVisible) notifyListeners(isKeyboardShowing(getActivity(), view));
+                    View contentView = getActivity().findViewById(android.R.id.content);
+                    ViewGroup.LayoutParams p = contentView.getLayoutParams();
+                    p.height = p.height + getStaticKeyboardHeight();
+                    contentView.setLayoutParams(p);
+                });
         return keyboardWasVisible;
     }
 
     @Override
-    public int calculateKeyboardHeight(View rootView) {
+    public int calculateTotalKeyboardHeight(View rootView) {
         return mIsShowing ? getStaticKeyboardHeight() : 0;
-    }
-
-    /**
-     * Creates an inset observer view calculating the bottom inset based on the fake keyboard.
-     * @param context Context used to instantiate this view.
-     * @return a {@link InsetObserverView}
-     */
-    InsetObserverView createInsetObserver(Context context) {
-        return new InsetObserverView(context) {
-            @Override
-            public int getSystemWindowInsetsBottom() {
-                return mIsShowing ? getStaticKeyboardHeight() : 0;
-            }
-        };
     }
 }

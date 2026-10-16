@@ -44,6 +44,10 @@ message TracingServiceState {
     // the build system and the repo (standalone vs AOSP).
     // This is intended for human debugging only.
     optional string sdk_version = 4;
+
+    // Returns true if the process appears to be frozen (Android only).
+    // Introduced in Perfetto V49 / Android 24Q4.
+    optional bool frozen = 6;
   }
 
   // Describes a data source registered by a producer. Data sources are listed
@@ -84,6 +88,18 @@ message TracingServiceState {
     // Time when the session was started, in the CLOCK_REALTIME domain.
     // Available only on Linux-based systems.
     optional int64 start_realtime_ns = 8;
+
+    // The fields below have been introduced in v42.
+
+    // The bugreport_score, as set in TraceConfig.bugreport_score.
+    optional int32 bugreport_score = 9;
+
+    // As per TraceConfig.bugreport_filename.
+    optional string bugreport_filename = 10;
+
+    // If true, the session is in the STARTED state. If false the session is in
+    // any other state (see `state` field).
+    optional bool is_started = 11;
   }
 
   // Lists all the producers connected.

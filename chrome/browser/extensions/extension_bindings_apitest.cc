@@ -8,6 +8,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/extensions/api/permissions/permissions_api.h"
 #include "chrome/browser/extensions/extension_apitest.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -64,12 +65,12 @@ void MouseUpInWebContents(content::WebContents* web_contents) {
 
 class ExtensionBindingsApiTest : public ExtensionApiTest {
  public:
-  ExtensionBindingsApiTest() {}
+  ExtensionBindingsApiTest() = default;
 
   ExtensionBindingsApiTest(const ExtensionBindingsApiTest&) = delete;
   ExtensionBindingsApiTest& operator=(const ExtensionBindingsApiTest&) = delete;
 
-  ~ExtensionBindingsApiTest() override {}
+  ~ExtensionBindingsApiTest() override = default;
 
   void SetUpOnMainThread() override {
     ExtensionApiTest::SetUpOnMainThread();
@@ -114,10 +115,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionBindingsApiTest, LastError) {
   extensions::ExtensionHost* host = FindHostWithPath(manager, "/bg.html", 1);
   ASSERT_TRUE(host);
 
-  bool result = false;
-  ASSERT_TRUE(content::ExecuteScriptAndExtractBool(host->host_contents(),
-                                                   "testLastError()", &result));
-  EXPECT_TRUE(result);
+  EXPECT_EQ(true, content::EvalJs(host->host_contents(), "testLastError()"));
 }
 
 // Regression test that we don't delete our own bindings with about:blank
@@ -290,11 +288,9 @@ IN_PROC_BROWSER_TEST_F(FramesExtensionBindingsApiTest, FramesBeforeNavigation) {
       embedded_test_server()->GetURL(
           "/extensions/api_test/bindings/frames_before_navigation.html")));
 
-  bool page_success = false;
-  ASSERT_TRUE(content::ExecuteScriptAndExtractBool(
-      browser()->tab_strip_model()->GetWebContentsAt(0), "getResult()",
-      &page_success));
-  EXPECT_TRUE(page_success);
+  EXPECT_EQ(true,
+            content::EvalJs(browser()->tab_strip_model()->GetWebContentsAt(0),
+                            "getResult()"));
 
   // Reply to |sender|, causing it to send a message over to |receiver|, and
   // then ask |receiver| for the total message count. It should be 1 since
@@ -542,9 +538,9 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(event_router->ExtensionHasEventListener(extension->id(),
                                                        "tabs.onCreated"));
 
-  // Register both lsiteners, and verify they were added.
-  ASSERT_TRUE(content::ExecuteScript(first_tab, "registerListener()"));
-  ASSERT_TRUE(content::ExecuteScript(second_tab, "registerListener()"));
+  // Register both listeners, and verify they were added.
+  ASSERT_TRUE(content::ExecJs(first_tab, "registerListener()"));
+  ASSERT_TRUE(content::ExecJs(second_tab, "registerListener()"));
   EXPECT_TRUE(event_router->ExtensionHasEventListener(extension->id(),
                                                       "tabs.onCreated"));
 
@@ -554,7 +550,7 @@ IN_PROC_BROWSER_TEST_F(
   chrome::CloseWebContents(browser(), second_tab, add_to_history);
   watcher.Wait();
   // Hacky round trip to the renderer to flush IPCs.
-  ASSERT_TRUE(content::ExecuteScript(first_tab, ""));
+  ASSERT_TRUE(content::ExecJs(first_tab, ""));
 
   // Since the second page is still open, the extension should still be
   // registered as a listener.
@@ -798,6 +794,108 @@ IN_PROC_BROWSER_TEST_F(ExtensionBindingsApiTest,
   EXPECT_EQ("success",
             content::EvalJs(web_contents, "window.getEnteredFullscreen",
                             content::EXECUTE_SCRIPT_NO_USER_GESTURE));
+}
+
+// Tests that, if a document has an active user gesture, a new message coming in
+// that *also* has a user gesture won't override the active one. Regression test
+// for https://crbug.com/355266358.
+IN_PROC_BROWSER_TEST_F(ExtensionBindingsApiTest,
+                       UserGestureFromMessageWontOverrideActiveGesture) {
+  static constexpr char kManifest[] =
+      R"({
+           "name": "Test Extension",
+           "manifest_version": 3,
+           "version": "0.1",
+           "background": {"service_worker": "background.js"},
+           "side_panel": {"default_path": "panel.html"},
+           "content_scripts": [{
+             "matches": ["*://example.com/*"],
+             "js": ["content_script.js"]
+           }],
+           "permissions": ["sidePanel"]
+         })";
+  // The following content script:
+  // 1) Installs a listener for mousedown that sends a message to the
+  //    service worker.
+  // 2) Has a listener for a response from the service worker.
+  // 3) Has a listener for a click event (mousedown -> mouseup) that
+  //    waits for the response from the service worker, and then sends a new
+  //    message instructing the service worker to open the side panel.
+  // In step 1), there will be an active user gesture. Step 2) will receive
+  // a message and that message will *also* have an active user gesture, but
+  // it is "restricted" since it came from an extension message, rather than a
+  // user interaction. As such, the user gesture from step 2) cannot be used to
+  // curry a user gesture further along in messaging. But the user gesture from
+  // step 1) should still be active at this point, and is valid, so that should
+  // result in a user gesture being sent with the message in step 3), which
+  // allows the side panel to be opened.
+  static constexpr char kContentScriptJs[] =
+      R"(let resolveResponsePromise;
+         let receivedResponse = new Promise((resolve) => {
+           resolveResponsePromise = resolve;
+         });
+         document.addEventListener('mousedown', () => {
+           chrome.runtime.sendMessage('first');
+         });
+         chrome.runtime.onMessage.addListener(msg => {
+           chrome.test.assertEq('firstResponse', msg);
+           resolveResponsePromise();
+         });
+         document.addEventListener('click', async() => {
+           await receivedResponse;
+           chrome.runtime.sendMessage('openPanel');
+         });
+         chrome.test.sendMessage('content script ready');)";
+  // The service worker listens for incoming messages. It will reply to the
+  // first and open the side panel on the second.
+  static constexpr char kBackgroundJs[] =
+      R"(chrome.runtime.onMessage.addListener((msg, sender) => {
+           if (msg == 'first') {
+             chrome.tabs.sendMessage(sender.tab.id, 'firstResponse');
+           } else if (msg == 'openPanel') {
+             chrome.sidePanel.open({tabId: sender.tab.id}, () => {
+               chrome.test.assertNoLastError();
+             });
+           } else {
+             chrome.test.fail('Unexpected message: ' + msg);
+           }
+         });)";
+  // A side panel and accompanying script that simply call notifyPass() on
+  // opening.
+  static constexpr char kPanelHtml[] =
+      R"(<html>
+           Hello, world!
+           <script src="panel.js"></script>
+         </html>)";
+  static constexpr char kPanelJs[] = "chrome.test.notifyPass()";
+
+  TestExtensionDir test_dir;
+  test_dir.WriteManifest(kManifest);
+  test_dir.WriteFile(FILE_PATH_LITERAL("background.js"), kBackgroundJs);
+  test_dir.WriteFile(FILE_PATH_LITERAL("content_script.js"), kContentScriptJs);
+  test_dir.WriteFile(FILE_PATH_LITERAL("panel.html"), kPanelHtml);
+  test_dir.WriteFile(FILE_PATH_LITERAL("panel.js"), kPanelJs);
+
+  const Extension* extension = LoadExtension(test_dir.UnpackedPath());
+  ASSERT_TRUE(extension);
+
+  const GURL url =
+      embedded_test_server()->GetURL("example.com", "/simple.html");
+
+  // Navigate to a web page and wait for the content script to run and set up.
+  ExtensionTestMessageListener content_script_listener("content script ready");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  ASSERT_TRUE(content_script_listener.WaitUntilSatisfied());
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ResultCatcher result_catcher;
+  // Click in the web contents.
+  MouseDownInWebContents(web_contents);
+  MouseUpInWebContents(web_contents);
+
+  // The test succeeds if the side panel opens.
+  ASSERT_TRUE(result_catcher.GetNextResult()) << result_catcher.message();
 }
 
 // Tests that bindings are properly instantiated for a window navigated to an

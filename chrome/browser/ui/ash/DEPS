@@ -1,33 +1,36 @@
 include_rules = [
-  # //chrome/browser/ui/ash is conceptually part of "ash". See the "Lacros:
-  # ChromeOS source code directory migration" design doc at
-  # https://docs.google.com/document/d/1g-98HpzA8XcoGBWUv1gQNr4rbnD5yfvbtYZyPDDbkaE
+  # //chrome/browser/ui/ash is conceptually part of "ash".
   "+ash",
 
-  # ash depends on views, so code in ui/ash is allowed to depend on ui/views.
-  "+chrome/browser/ui/views",
+  # ChromeOS should not depend on //chrome. See //docs/chromeos/code.md for
+  # details.
+  "-chrome",
 
-  "+media",
-  "+components/app_constants",
-  "+components/desks_storage"
+  # Browser abstraction for use by ChromeOS feature code. Will eventually be
+  # moved out of chrome/.
+  "+chrome/browser/ash/browser_delegate/browser_controller.h",
+  "+chrome/browser/ash/browser_delegate/browser_delegate.h",
+  "+chrome/browser/ash/browser_delegate/browser_type.h"
 ]
 
 specific_include_rules = {
   ".*test.*": [
+    "+chrome/test",
+    "+chrome/browser/ui/views/tabs",
     "+components/user_education/views",
-    "+ui/message_center/message_center.h",
-  ],
-  "assistant_timers_browsertest\.cc": [
+    "+components/viz/test",
+    "+media",
     "+ui/message_center",
   ],
-  "chrome_shell_delegate\.cc": [
-    "+cc/input/touch_action.h",
-    "+content/public/browser/chromeos/multi_capture_service.h",
-  ],
-  "chrome_shelf_controller_unittest\.cc": [
-    "+components/viz/test/test_gpu_service_holder.h",
-  ],
-  "shelf_context_menu_unittest\.cc": [
-    "+components/viz/test/test_gpu_service_holder.h",
+
+  "test_util\.*": [
+    "+ash",
+    "+chrome/browser/ash/crosapi",
+    "+chrome/browser/ui/ash",
+    "+chrome/browser/ui/browser_commands.h",
+    "+chrome/browser/ui/browser.h",
+    "+chrome/browser/ui/exclusive_access",
+    "+chrome/browser/ui/views",
+    "+chrome/test/base",
   ],
 }

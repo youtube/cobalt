@@ -18,6 +18,9 @@
 #include <android/native_window.h>
 #include <jni.h>
 
+#include "starboard/decode_target.h"
+#include "third_party/jni_zero/jni_zero.h"
+
 namespace starboard {
 
 class VideoSurfaceHolder {
@@ -36,17 +39,16 @@ class VideoSurfaceHolder {
 
   // Returns the surface which video should be rendered. Surface cannot be
   // acquired before last holder release the surface.
-  jobject AcquireVideoSurface();
+  jni_zero::ScopedJavaLocalRef<jobject> AcquireVideoSurface();
 
   // Release the surface to make the surface available for other holder.
   void ReleaseVideoSurface();
 
-  // Get the native window size. Return false if don't have available native
-  // window.
-  bool GetVideoWindowSize(int* width, int* height);
+  // Cleans up the video surface, and posts the task to |gpu_provider|.
+  void CleanUpVideoSurface(SbDecodeTargetGraphicsContextProvider* gpu_provider);
 
-  // Clear the video window by painting it Black.
-  void ClearVideoWindow(bool force_reset_surface);
+  // Reset the video surface by re-creating video surface.
+  void ResetVideoSurface();
 };
 
 }  // namespace starboard

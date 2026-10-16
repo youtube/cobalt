@@ -14,12 +14,11 @@
 
 #include "starboard/android/shared/decode_target.h"
 
-#include <android/native_window_jni.h>
-#include <jni.h>
-
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#include <android/native_window_jni.h>
+#include <jni.h>
 
 #include <functional>
 #include <mutex>
@@ -28,11 +27,10 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/gles/gl_call.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 namespace {
-
-using base::android::AttachCurrentThread;
 
 void RunOnContextRunner(void* context) {
   std::function<void()>* closure = static_cast<std::function<void()>*>(context);
@@ -40,6 +38,22 @@ void RunOnContextRunner(void* context) {
 }
 
 }  // namespace
+
+// static
+scoped_refptr<DecodeTarget> DecodeTarget::Create(
+    SbDecodeTargetGraphicsContextProvider* provider) {
+  scoped_refptr<DecodeTarget> decode_target(new DecodeTarget(provider));
+  if (decode_target->surface_texture_.is_null() ||
+      decode_target->surface_.is_null()) {
+    // The GLES context runner did not run CreateOnContextRunner() (see
+    // StarboardRendererWrapper::GraphicsContextRunner). Nothing GL-side was
+    // created, so the target can be destroyed here, off the GL context.
+    SB_LOG(ERROR) << "Decode target was not initialized by the GLES context "
+                     "runner.";
+    return nullptr;
+  }
+  return decode_target;
+}
 
 DecodeTarget::DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider) {
   std::function<void()> closure =
@@ -55,10 +69,14 @@ bool DecodeTarget::GetInfo(SbDecodeTargetInfo* out_info) {
 }
 
 DecodeTarget::~DecodeTarget() {
-  ANativeWindow_release(native_window_);
+  if (native_window_) {
+    ANativeWindow_release(native_window_);
+  }
 
-  glDeleteTextures(1, &info_.planes[0].texture);
-  SB_DCHECK_EQ(glGetError(), static_cast<GLenum>(GL_NO_ERROR));
+  if (info_.planes[0].texture != 0) {
+    glDeleteTextures(1, &info_.planes[0].texture);
+    SB_CHECK_EQ(glGetError(), static_cast<GLenum>(GL_NO_ERROR));
+  }
 }
 
 void DecodeTarget::CreateOnContextRunner() {
@@ -78,7 +96,7 @@ void DecodeTarget::CreateOnContextRunner() {
   GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T,
                           GL_CLAMP_TO_EDGE));
 
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   // Wrap the GL texture in an Android SurfaceTexture object.
   surface_texture_ =
       VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(env, texture);
@@ -86,9 +104,8 @@ void DecodeTarget::CreateOnContextRunner() {
 
   // We will also need an Android Surface object in order to obtain a
   // ANativeWindow object that we can pass into the AMediaCodec library.
-  surface_ =
-      VideoSurfaceTextureBridge::CreateSurface(env, surface_texture_.obj());
-  SB_CHECK(surface_texture_);
+  surface_ = VideoSurfaceTextureBridge::CreateSurface(env, surface_texture_);
+  SB_CHECK(surface_);
 
   native_window_ = ANativeWindow_fromSurface(env, surface_.obj());
 

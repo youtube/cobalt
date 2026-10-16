@@ -4,21 +4,25 @@
 
 package org.chromium.components.browser_ui.contacts_picker;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.ContentResolver;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 
-import androidx.annotation.VisibleForTesting;
 import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.task.AsyncTask;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
-/**
- * Holds on to a {@link ContactView} that displays information about a contact.
- */
-public class ContactViewHolder
-        extends ViewHolder implements FetchIconWorkerTask.IconRetrievedCallback {
+/** Holds on to a {@link ContactView} that displays information about a contact. */
+@NullMarked
+public class ContactViewHolder extends ViewHolder
+        implements FetchIconWorkerTask.IconRetrievedCallback {
     // Our parent category.
     private final PickerCategoryView mCategoryView;
 
@@ -32,23 +36,27 @@ public class ContactViewHolder
     private ContactDetails mContact;
 
     // A worker task for asynchronously retrieving icons off the main thread.
-    private FetchIconWorkerTask mWorkerTask;
+    private @Nullable FetchIconWorkerTask mWorkerTask;
 
     // The size the contact icon will be displayed at (one side of a square).
     private final int mIconSize;
 
     // The icon to use when testing.
-    private static Bitmap sIconForTest;
+    private static @Nullable Bitmap sIconForTest;
 
     /**
      * The PickerBitmapViewHolder.
+     *
      * @param itemView The {@link ContactView} for the contact.
      * @param categoryView The {@link PickerCategoryView} showing the contacts.
      * @param contentResolver The {@link ContentResolver} to use for the lookup.
      * @param iconSize The size the contact icon will be displayed at (one side of a square).
      */
-    public ContactViewHolder(ContactView itemView, PickerCategoryView categoryView,
-            ContentResolver contentResolver, int iconSize) {
+    public ContactViewHolder(
+            ContactView itemView,
+            PickerCategoryView categoryView,
+            ContentResolver contentResolver,
+            int iconSize) {
         super(itemView);
         mCategoryView = categoryView;
         mContentResolver = contentResolver;
@@ -57,10 +65,12 @@ public class ContactViewHolder
     }
 
     /**
-     * Sets the contact details to show in the itemview. If the image is not found in the cache,
-     * an asynchronous worker task is created to load it.
+     * Sets the contact details to show in the itemview. If the image is not found in the cache, an
+     * asynchronous worker task is created to load it.
+     *
      * @param contact The contact details to show.
      */
+    @Initializer
     public void setContactDetails(ContactDetails contact) {
         mContact = contact;
 
@@ -85,10 +95,9 @@ public class ContactViewHolder
         }
     }
 
-    /**
-     * Cancels the worker task to retrieve the icon.
-     */
+    /** Cancels the worker task to retrieve the icon. */
     public void cancelIconRetrieval() {
+        assumeNonNull(mWorkerTask);
         mWorkerTask.cancel(true);
         mWorkerTask = null;
     }
@@ -96,7 +105,7 @@ public class ContactViewHolder
     // FetchIconWorkerTask.IconRetrievedCallback:
 
     @Override
-    public void iconRetrieved(Bitmap icon, String contactId) {
+    public void iconRetrieved(@Nullable Bitmap icon, String contactId) {
         if (mCategoryView.getIconCache().getBitmap(contactId) == null) {
             mCategoryView.getIconCache().putBitmap(contactId, icon);
         }
@@ -107,8 +116,8 @@ public class ContactViewHolder
     }
 
     /** Sets the icon to use when testing. */
-    @VisibleForTesting
     public static void setIconForTesting(Bitmap icon) {
         sIconForTest = icon;
+        ResettersForTesting.register(() -> sIconForTest = null);
     }
 }

@@ -61,7 +61,7 @@ void AwRenderViewExt::WebViewCreated(blink::WebView* web_view,
 AwRenderViewExt* AwRenderViewExt::FromWebView(blink::WebView* web_view) {
   DCHECK(web_view != nullptr);
   auto iter = GetViewExtMap()->find(web_view);
-  DCHECK(GetViewExtMap()->end() != iter)
+  CHECK(GetViewExtMap()->end() != iter)
       << "AwRenderViewExt should always exist for a WebView";
   AwRenderViewExt* render_view_ext = iter->second;
   return render_view_ext;

@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Point} from './constants.js';
-import {GestureDetector, PinchEventDetail} from './gesture_detector.js';
-import {SwipeDetector, SwipeDirection} from './swipe_detector.js';
-import {ViewportInterface, ViewportScroller} from './viewport_scroller.js';
+import {FormFieldFocusType} from './constants.js';
+import type {PinchEventDetail} from './gesture_detector.js';
+import {GestureDetector} from './gesture_detector.js';
+import {convertFormFocusChangeMessage} from './message_converter.js';
+import type {SwipeDirection} from './swipe_detector.js';
+import {SwipeDetector} from './swipe_detector.js';
 
 interface InProcessPdfPluginElement extends HTMLEmbedElement {
   postMessage(message: any): void;
@@ -23,37 +25,17 @@ if (parentOrigin === 'chrome-untrusted://print') {
   parentOrigin = 'chrome://print';
 }
 
-/**
- * {@link Viewport}-compatible wrapper around the window's scroll position
- * operations.
- */
-class SimulatedViewport implements ViewportInterface {
-  get position(): Point {
-    return {x: window.scrollX, y: window.scrollY};
-  }
-
-  setPosition(point: Point): void {
-    window.scrollTo(point.x, point.y);
-  }
-}
-const viewportScroller =
-    new ViewportScroller(new SimulatedViewport(), plugin, window);
-
 // Plugin-to-parent message handlers. All messages are passed through, but some
 // messages may affect this frame, too.
-let isFormFieldFocused = false;
+let isFormFieldFocused: boolean = false;
 plugin.addEventListener('message', e => {
   const message = (e as MessageEvent).data;
   switch (message.type) {
     case 'formFocusChange':
-      // TODO(crbug.com/1279516): Ideally, the plugin would just consume
+      // TODO(crbug.com/40810904): Ideally, the plugin would just consume
       // interesting keyboard events first.
-      isFormFieldFocused = (message as {focused: boolean}).focused;
-      break;
-
-    case 'setIsSelecting':
-      viewportScroller.setEnableScrolling(
-          (message as {isSelecting: boolean}).isSelecting);
+      const focusedData = convertFormFocusChangeMessage(message);
+      isFormFieldFocused = focusedData.focused !== FormFieldFocusType.NONE;
       break;
   }
 
@@ -90,7 +72,7 @@ channel.port1.onmessage = e => {
       break;
 
     case 'syncScrollToRemote':
-      // TODO(crbug.com/1306236): Implement smooth scrolling correctly.
+      // TODO(crbug.com/40218278): Implement smooth scrolling correctly.
       window.scrollTo({
         left: e.data.x,
         top: e.data.y,
@@ -110,7 +92,7 @@ channel.port1.onmessage = e => {
     case 'viewport':
       // Snoop on "viewport" message to support real RTL scrolling in Print
       // Preview.
-      // TODO(crbug.com/1158670): Support real RTL scrolling in the PDF viewer.
+      // TODO(crbug.com/40737077): Support real RTL scrolling in the PDF viewer.
       if (parentOrigin === 'chrome://print' && e.data.layoutOptions) {
         switch (e.data.layoutOptions.direction) {
           case 1:
@@ -178,6 +160,21 @@ function relaySwipe(e: Event): void {
 const swipeDetector = new SwipeDetector(plugin);
 swipeDetector.getEventTarget().addEventListener('swipe', relaySwipe);
 
+// <if expr="enable_pdf_ink2">
+document.addEventListener('pointerdown', e => {
+  // Only forward left click.
+  if (e.button !== 0) {
+    return;
+  }
+
+  channel.port1.postMessage({
+    type: 'sendClickEvent',
+    x: e.clientX,
+    y: e.clientY,
+  });
+});
+// </if>
+
 document.addEventListener('keydown', e => {
   // Only forward potential shortcut keys.
   switch (e.key) {
@@ -204,6 +201,10 @@ document.addEventListener('keydown', e => {
       }
       return;
 
+    // <if expr="enable_pdf_ink2">
+    case 'Enter':
+      // Enter is used to create new text annotations.
+    // </if>
     case 'Escape':
     case 'Tab':
       // Print Preview is interested in Escape and Tab.
@@ -219,8 +220,9 @@ document.addEventListener('keydown', e => {
       return;
 
     case 'a':
-      // Take over Ctrl+A (but not Ctrl-Shift-A or Ctrl-Alt-A).
-      if (hasCtrlModifier(e) && !e.shiftKey && !e.altKey) {
+      // Take over Ctrl+A (but not other combinations like Ctrl-Shift-A).
+      // Note that on macOS, "Ctrl" is Command.
+      if (hasCtrlModifierOnly(e)) {
         e.preventDefault();
         break;
       }
@@ -249,7 +251,7 @@ document.addEventListener('keydown', e => {
 });
 
 // Suppress extra scroll by preventing the default "keypress" handler for Space.
-// TODO(crbug.com/1279429): Ideally would prevent "keydown" instead, but this
+// TODO(crbug.com/40208546): Ideally would prevent "keydown" instead, but this
 // doesn't work when a plugin element has focus.
 document.addEventListener('keypress', e => {
   switch (e.key) {
@@ -262,7 +264,7 @@ document.addEventListener('keypress', e => {
   }
 });
 
-// TODO(crbug.com/1252096): Load from pdf_viewer_utils.js instead.
+// TODO(crbug.com/40792950): Load from pdf_viewer_utils.js instead.
 function hasCtrlModifier(e: KeyboardEvent): boolean {
   let hasModifier = e.ctrlKey;
   // <if expr="is_macosx">
@@ -271,7 +273,16 @@ function hasCtrlModifier(e: KeyboardEvent): boolean {
   return hasModifier;
 }
 
-// TODO(crbug.com/1252096): Load from chrome://resources/js/util_ts.js instead.
+// TODO(crbug.com/40792950): Load from pdf_viewer_utils.js instead.
+function hasCtrlModifierOnly(e: KeyboardEvent): boolean {
+  let metaModifier = e.metaKey;
+  // <if expr="is_macosx">
+  metaModifier = e.ctrlKey;
+  // </if>
+  return hasCtrlModifier(e) && !e.shiftKey && !e.altKey && !metaModifier;
+}
+
+// TODO(crbug.com/40792950): Load from chrome://resources/js/util.js instead.
 function hasKeyModifiers(e: KeyboardEvent): boolean {
   return !!(e.altKey || e.ctrlKey || e.metaKey || e.shiftKey);
 }

@@ -11,10 +11,12 @@
 #include "chrome/browser/notifications/notification_permission_context.h"
 #include "chrome/browser/permissions/notifications_engagement_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/safety_hub/disruptive_notification_permissions_manager.h"
 #include "components/permissions/features.h"
 #include "components/permissions/permission_uma_util.h"
 #include "components/permissions/permission_util.h"
 #include "content/public/browser/notification_event_dispatcher.h"
+#include "services/metrics/public/cpp/ukm_recorder.h"
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/notifications/platform_notification_service_factory.h"
@@ -49,8 +51,8 @@ void NonPersistentNotificationHandler::OnClick(
     Profile* profile,
     const GURL& origin,
     const std::string& notification_id,
-    const absl::optional<int>& action_index,
-    const absl::optional<std::u16string>& reply,
+    const std::optional<int>& action_index,
+    const std::optional<std::u16string>& reply,
     base::OnceClosure completed_closure) {
   // Non persistent notifications don't allow buttons or replies.
   // https://notifications.spec.whatwg.org/#create-a-notification
@@ -65,14 +67,22 @@ void NonPersistentNotificationHandler::OnClick(
               weak_ptr_factory_.GetWeakPtr(), profile, origin, notification_id,
               std::move(completed_closure)));
 
-  if (base::FeatureList::IsEnabled(
-          permissions::features::kNotificationInteractionHistory)) {
-    auto* service =
-        NotificationsEngagementServiceFactory::GetForProfile(profile);
-    // This service might be missing for incognito profiles and in tests.
-    if (service)
-      service->RecordNotificationInteraction(origin);
+  auto* service = NotificationsEngagementServiceFactory::GetForProfile(profile);
+  // This service might be missing for incognito profiles and in tests.
+  if (service) {
+    service->RecordNotificationInteraction(origin);
   }
+
+  // If there is a proposed disruptive notification revocation, report a false
+  // positive due to user interacting with a notification. Disruptive are
+  // notifications with high notification volume and low site engagement score.
+  ukm::SourceId source_id = ukm::UkmRecorder::GetSourceIdForNotificationEvent(
+      base::PassKey<NonPersistentNotificationHandler>(), origin);
+  DisruptiveNotificationPermissionsManager::MaybeReportFalsePositive(
+      profile, origin,
+      DisruptiveNotificationPermissionsManager::FalsePositiveReason::
+          kNonPersistentNotificationClick,
+      source_id);
 }
 
 void NonPersistentNotificationHandler::DidDispatchClickEvent(

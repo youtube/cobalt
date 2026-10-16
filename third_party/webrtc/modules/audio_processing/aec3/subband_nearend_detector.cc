@@ -27,13 +27,12 @@ SubbandNearendDetector::SubbandNearendDetector(
           1.f / (config_.subband2.high - config_.subband2.low + 1)) {}
 
 void SubbandNearendDetector::Update(
-    rtc::ArrayView<const std::array<float, kFftLengthBy2Plus1>>
-        nearend_spectrum,
-    rtc::ArrayView<const std::array<float, kFftLengthBy2Plus1>>
-        residual_echo_spectrum,
-    rtc::ArrayView<const std::array<float, kFftLengthBy2Plus1>>
+    ArrayView<const std::array<float, kFftLengthBy2Plus1>> nearend_spectrum,
+    ArrayView<const std::array<float, kFftLengthBy2Plus1>>
+    /* residual_echo_spectrum */,
+    ArrayView<const std::array<float, kFftLengthBy2Plus1>>
         comfort_noise_spectrum,
-    bool initial_state) {
+    bool /* initial_state */) {
   nearend_state_ = false;
   for (size_t ch = 0; ch < num_capture_channels_; ++ch) {
     const std::array<float, kFftLengthBy2Plus1>& noise =

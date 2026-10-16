@@ -104,6 +104,7 @@ __MUSL_LONG_TYPE musl_nsec_to_platform_nsec(__MUSL_LONG_TYPE musl_nsec) {
   }
 }
 
+namespace starboard {
 mode_t musl_mode_to_platform_mode(musl_mode_t musl_mode) {
   mode_t platform_mode = 0;
 
@@ -135,6 +136,7 @@ mode_t musl_mode_to_platform_mode(musl_mode_t musl_mode) {
 
   return platform_mode;
 }
+}  // namespace starboard
 
 int __abi_wrap_fstat(int fildes, struct musl_stat* musl_info) {
   struct stat stat_info;  // The type from platform toolchain.
@@ -142,24 +144,12 @@ int __abi_wrap_fstat(int fildes, struct musl_stat* musl_info) {
   return stat_helper(retval, &stat_info, musl_info);
 }
 
-int __abi_wrap_lstat(const char* path, struct musl_stat* musl_info) {
-  struct stat stat_info;  // The type from platform toolchain.
-  int retval = lstat(path, &stat_info);
-  return stat_helper(retval, &stat_info, musl_info);
-}
-
-int __abi_wrap_stat(const char* path, struct musl_stat* musl_info) {
-  struct stat stat_info;  // The type from platform toolchain.
-  int retval = stat(path, &stat_info);
-  return stat_helper(retval, &stat_info, musl_info);
-}
-
 int __abi_wrap_chmod(const char* path, musl_mode_t mode) {
-  return chmod(path, musl_mode_to_platform_mode(mode));
+  return chmod(path, starboard::musl_mode_to_platform_mode(mode));
 }
 
 int __abi_wrap_fchmod(int fd, musl_mode_t mode) {
-  return fchmod(fd, musl_mode_to_platform_mode(mode));
+  return fchmod(fd, starboard::musl_mode_to_platform_mode(mode));
 }
 
 int __abi_wrap_utimensat(int fildes,
@@ -181,11 +171,11 @@ int __abi_wrap_utimensat(int fildes,
   if (!path) {
     path = "";
     flag |= AT_EMPTY_PATH;
-  }
-  // If utimensat is called with |path| set as the empty string but without the
-  // |AT_EMPTY_PATH| flag enabled, we set errno to ENOENT and return -1. |path|
-  // should not be set as the empty string without the |AT_EMPTY_PATH| enabled.
-  else if ((strcmp(path, "") == 0) && ((flag & AT_EMPTY_PATH) == 0)) {
+  } else if ((strcmp(path, "") == 0) && ((flag & AT_EMPTY_PATH) == 0)) {
+    // If utimensat is called with |path| set as the empty string but without
+    // the |AT_EMPTY_PATH| flag enabled, we set errno to ENOENT and return -1.
+    // |path| should not be set as the empty string without the |AT_EMPTY_PATH|
+    // enabled.
     errno = ENOENT;
     return -1;
   }
@@ -200,4 +190,19 @@ int __abi_wrap_utimensat(int fildes,
     platform_times = times;
   }
   return utimensat(fildes, path, platform_times, flag);
+}
+
+int __abi_wrap_fstatat(int fildes,
+                       const char* path,
+                       struct musl_stat* musl_info,
+                       int musl_flag) {
+  fildes = (fildes == MUSL_AT_FDCWD) ? AT_FDCWD : fildes;
+
+  int flag = musl_flag_to_platform_flag(musl_flag);
+  if (flag == -1) {
+    return -1;
+  }
+  struct stat stat_info;  // The type from platform toolchain.
+  int retval = fstatat(fildes, path, &stat_info, flag);
+  return stat_helper(retval, &stat_info, musl_info);
 }

@@ -16,6 +16,7 @@
 #include "components/media_router/browser/media_router.h"
 #include "components/media_router/browser/media_router_factory.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/background.h"
@@ -26,8 +27,8 @@
 
 namespace {
 
-constexpr auto kInsets = gfx::Insets::VH(6, 15);
-constexpr gfx::Size kSize{400, 30};
+constexpr auto kInsets = gfx::Insets::VH(6, 10);
+constexpr gfx::Size kSize{400, 40};
 constexpr auto kBorderInsets = gfx::Insets::VH(4, 8);
 
 }  // anonymous namespace
@@ -72,8 +73,9 @@ MediaItemUILegacyCastFooterView::GetStopCastingButtonForTesting() {
 
 void MediaItemUILegacyCastFooterView::OnColorsChanged(SkColor foreground,
                                                       SkColor background) {
-  if (foreground == foreground_color_ && background == background_color_)
+  if (foreground == foreground_color_ && background == background_color_) {
     return;
+  }
 
   foreground_color_ = foreground;
   background_color_ = background;
@@ -99,3 +101,6 @@ void MediaItemUILegacyCastFooterView::UpdateColors() {
       views::CreateRoundedRectBorder(1, radius, foreground_color_),
       kBorderInsets));
 }
+
+BEGIN_METADATA(MediaItemUILegacyCastFooterView)
+END_METADATA

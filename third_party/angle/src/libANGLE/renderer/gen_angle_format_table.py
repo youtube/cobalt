@@ -33,7 +33,7 @@ template_autogen_h = """// GENERATED FILE - DO NOT EDIT.
 namespace angle
 {{
 
-enum class FormatID
+enum class FormatID : uint8_t
 {{
 {angle_format_enum}
 }};
@@ -56,6 +56,7 @@ template_autogen_inl = """// GENERATED FILE - DO NOT EDIT.
 //   Queries for typed format information from the ANGLE format enum.
 
 #include "libANGLE/renderer/Format.h"
+#include "libANGLE/cl_types.h"
 
 #include "image_util/copyimage.h"
 #include "image_util/generatemip.h"
@@ -83,6 +84,80 @@ FormatID Format::InternalFormatToID(GLenum internalFormat)
 {angle_format_switch}
     }}
 }}
+
+#if defined(ANGLE_ENABLE_CL)
+// static
+FormatID Format::CLRFormatToID(cl_channel_type internalChannelType)
+{{
+    switch (internalChannelType)
+    {{
+{angle_r_format_switch}
+    }}
+}}
+
+// static
+FormatID Format::CLRGFormatToID(cl_channel_type internalChannelType)
+{{
+    switch (internalChannelType)
+    {{
+{angle_rg_format_switch}
+    }}
+}}
+
+// static
+FormatID Format::CLRGBFormatToID(cl_channel_type internalChannelType)
+{{
+    switch (internalChannelType)
+    {{
+{angle_rgb_format_switch}
+    }}
+}}
+
+// static
+FormatID Format::CLRGBAFormatToID(cl_channel_type internalChannelType)
+{{
+    switch (internalChannelType)
+    {{
+{angle_rgba_format_switch}
+    }}
+}}
+
+// static
+FormatID Format::CLBGRAFormatToID(cl_channel_type internalChannelType)
+{{
+    switch (internalChannelType)
+    {{
+{angle_bgra_format_switch}
+    }}
+}}
+
+// static
+FormatID Format::CLsRGBAFormatToID(cl_channel_type internalChannelType)
+{{
+    switch (internalChannelType)
+    {{
+{angle_srgba_format_switch}
+    }}
+}}
+
+// static
+FormatID Format::CLDEPTHFormatToID(cl_channel_type internalChannelType)
+{{
+    switch (internalChannelType)
+    {{
+{angle_depth_format_switch}
+    }}
+}}
+
+// static
+FormatID Format::CLDEPTHSTENCILFormatToID(cl_channel_type internalChannelType)
+{{
+    switch (internalChannelType)
+    {{
+{angle_depth_stencil_format_switch}
+    }}
+}}
+#endif  // ANGLE_ENABLE_CL
 
 const Format *GetFormatInfoTable()
 {{
@@ -117,6 +192,8 @@ def get_channel_struct(angle_format):
     if 'BLOCK' in angle_format['id']:
         return None
     if 'VERTEX' in angle_format['id']:
+        return None
+    if 'EXTERNAL' in angle_format['id']:
         return None
 
     bits = angle_format['bits']
@@ -248,6 +325,7 @@ def get_vertex_attrib_type(format_id):
     has_r16 = "R16" in format_id
     has_r32 = "R32" in format_id
     has_r10 = "R10" in format_id
+    has_r10x6 = "R10X6" in format_id
     has_vertex = "VERTEX" in format_id
 
     if has_fixed:
@@ -258,6 +336,9 @@ def get_vertex_attrib_type(format_id):
 
     if has_r8:
         return "Byte" if has_s else "UnsignedByte"
+
+    if has_r10x6:
+        return "InvalidEnum"
 
     if has_r10:
         if has_vertex:
@@ -342,9 +423,9 @@ def json_to_table_data(format_id, json, angle_to_gl):
     parsed["isFixed"] = bool_str("FIXED" in format_id)
     parsed["isScaled"] = bool_str("SCALED" in format_id)
     parsed["isSRGB"] = bool_str("SRGB" in format_id)
-    # For now we only look for the 'PLANE' substring in format string. Expand this condition
+    # For now we only look for the 'PLANE' or 'EXTERNAL' substring in format string. Expand this condition
     # when adding support for YUV formats that have different identifying markers.
-    parsed["isYUV"] = bool_str("PLANE" in format_id)
+    parsed["isYUV"] = bool_str("PLANE" in format_id or "EXTERNAL" in format_id)
 
     parsed["vertexAttribType"] = "gl::VertexAttribType::" + get_vertex_attrib_type(format_id)
 
@@ -356,15 +437,18 @@ def json_to_table_data(format_id, json, angle_to_gl):
 def sorted_ds_first(all_angle):
     ds_sorted = []
     color_sorted = []
+    external_sorted = []
     for format_id in sorted(all_angle):
         if format_id == 'NONE':
             continue
-        if format_id[0] == 'D' or format_id[0] == 'S':
+        if 'EXTERNAL' in format_id:
+            external_sorted.append(format_id)
+        elif format_id[0] == 'D' or format_id[0] == 'S':
             ds_sorted.append(format_id)
         else:
             color_sorted.append(format_id)
 
-    return ds_sorted + color_sorted
+    return ds_sorted + color_sorted + external_sorted
 
 
 def parse_angle_format_table(all_angle, json_data, angle_to_gl):
@@ -417,6 +501,17 @@ def main():
         return 0
 
     gl_to_angle = angle_format.load_forward_table('angle_format_map.json')
+
+    cl_r_to_angle = angle_format.load_forward_table('angle_cl_format_map.json', "r")
+    cl_rg_to_angle = angle_format.load_forward_table('angle_cl_format_map.json', "rg")
+    cl_rgb_to_angle = angle_format.load_forward_table('angle_cl_format_map.json', "rgb")
+    cl_rgba_to_angle = angle_format.load_forward_table('angle_cl_format_map.json', "rgba")
+    cl_bgra_to_angle = angle_format.load_forward_table('angle_cl_format_map.json', "bgra")
+    cl_srgba_to_angle = angle_format.load_forward_table('angle_cl_format_map.json', "srgba")
+    cl_depth_to_angle = angle_format.load_forward_table('angle_cl_format_map.json', "depth")
+    cl_depth_stencil_to_angle = angle_format.load_forward_table('angle_cl_format_map.json',
+                                                                "depth_stencil")
+
     angle_to_gl = angle_format.load_inverse_table('angle_format_map.json')
     data_source_name = 'angle_format_data.json'
     json_data = angle_format.load_json(data_source_name)
@@ -424,11 +519,30 @@ def main():
 
     angle_format_cases = parse_angle_format_table(all_angle, json_data, angle_to_gl)
     switch_data = gen_map_switch_string(gl_to_angle)
+
+    cl_r_switch_data = gen_map_switch_string(cl_r_to_angle)
+    cl_rg_switch_data = gen_map_switch_string(cl_rg_to_angle)
+    cl_rgb_switch_data = gen_map_switch_string(cl_rgb_to_angle)
+    cl_rgba_switch_data = gen_map_switch_string(cl_rgba_to_angle)
+    cl_bgra_switch_data = gen_map_switch_string(cl_bgra_to_angle)
+    cl_srgba_switch_data = gen_map_switch_string(cl_srgba_to_angle)
+    cl_depth_switch_data = gen_map_switch_string(cl_depth_to_angle)
+    cl_depth_stencil_switch_data = gen_map_switch_string(cl_depth_stencil_to_angle)
+
     output_cpp = template_autogen_inl.format(
         script_name=os.path.basename(sys.argv[0]),
         angle_format_info_cases=angle_format_cases,
         angle_format_switch=switch_data,
-        data_source_name=data_source_name)
+        data_source_name=data_source_name,
+        angle_r_format_switch=cl_r_switch_data,
+        angle_rg_format_switch=cl_rg_switch_data,
+        angle_rgb_format_switch=cl_rgb_switch_data,
+        angle_rgba_format_switch=cl_rgba_switch_data,
+        angle_bgra_format_switch=cl_bgra_switch_data,
+        angle_srgba_format_switch=cl_srgba_switch_data,
+        angle_depth_format_switch=cl_depth_switch_data,
+        angle_depth_stencil_format_switch=cl_depth_stencil_switch_data)
+
     with open('Format_table_autogen.cpp', 'wt') as out_file:
         out_file.write(output_cpp)
         out_file.close()

@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
@@ -20,7 +21,6 @@
 #include "components/invalidation/public/invalidation_util.h"
 #include "components/invalidation/public/invalidator_state.h"
 #include "net/base/backoff_entry.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class PrefRegistrySimple;
 class PrefService;
@@ -39,10 +39,16 @@ namespace invalidation {
 // topics.
 class INVALIDATION_EXPORT PerUserTopicSubscriptionManager {
  public:
+  using RequestType = PerUserTopicSubscriptionRequest::RequestType;
   class Observer {
    public:
+    virtual ~Observer() = default;
+
     virtual void OnSubscriptionChannelStateChanged(
         SubscriptionChannelState state) = 0;
+    virtual void OnSubscriptionRequestFinished(Topic topic,
+                                               RequestType request_type,
+                                               Status code) = 0;
   };
 
   PerUserTopicSubscriptionManager(
@@ -58,9 +64,9 @@ class INVALIDATION_EXPORT PerUserTopicSubscriptionManager {
 
   // Just calls std::make_unique. For ease of base::Bind'ing
   static std::unique_ptr<PerUserTopicSubscriptionManager> Create(
+      network::mojom::URLLoaderFactory* url_loader_factory,
       IdentityProvider* identity_provider,
       PrefService* pref_service,
-      network::mojom::URLLoaderFactory* url_loader_factory,
       const std::string& project_id);
 
   // RegisterProfilePrefs and RegisterPrefs register the same prefs, because on
@@ -75,10 +81,10 @@ class INVALIDATION_EXPORT PerUserTopicSubscriptionManager {
   virtual void Init();
 
   // Triggers subscription and/or unsubscription requests so that the set of
-  // subscribed topics matches |topics|. If the |instance_id_token| has changed,
-  // triggers re-subscription for all topics.
-  virtual void UpdateSubscribedTopics(const Topics& topics,
-                                      const std::string& instance_id_token);
+  // subscribed topics matches |topics|. If the |new_instance_id_token| has
+  // changed, triggers re-subscription for all topics.
+  virtual void UpdateSubscribedTopics(const TopicMap& topics,
+                                      const std::string& new_instance_id_token);
 
   // Called when the InstanceID token (previously passed to
   // UpdateSubscribedTopics()) is deleted or revoked. Clears the cached token
@@ -91,9 +97,7 @@ class INVALIDATION_EXPORT PerUserTopicSubscriptionManager {
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
-  base::Value::Dict CollectDebugData() const;
-
-  virtual absl::optional<Topic> LookupSubscribedPublicTopicByPrivateTopic(
+  virtual std::optional<Topic> LookupSubscribedPublicTopicByPrivateTopic(
       const std::string& private_topic) const;
 
   TopicSet GetSubscribedTopicsForTest() const;
@@ -102,9 +106,20 @@ class INVALIDATION_EXPORT PerUserTopicSubscriptionManager {
     return pending_subscriptions_.empty();
   }
 
+  size_t GetPendingSubscriptionsCountForTest() const {
+    return pending_subscriptions_.size();
+  }
+
+ protected:
+  // These are protected so that the mock can access them.
+  void NotifySubscriptionChannelStateChange(
+      SubscriptionChannelState invalidator_state);
+  void NotifySubscriptionRequestFinished(Topic topic,
+                                         RequestType request_type,
+                                         Status code);
+
  private:
   struct SubscriptionEntry;
-  enum class TokenStateOnSubscriptionRequest;
 
   void StartPendingSubscriptions();
 
@@ -131,11 +146,19 @@ class INVALIDATION_EXPORT PerUserTopicSubscriptionManager {
   void OnAccessTokenRequestSucceeded(const std::string& access_token);
   void OnAccessTokenRequestFailed(GoogleServiceAuthError error);
 
-  void DropAllSavedSubscriptionsOnTokenChange();
-  TokenStateOnSubscriptionRequest DropAllSavedSubscriptionsOnTokenChangeImpl();
+  // Compares `new_instance_id_token` and `instance_id_token_` to report the
+  // nature of the change (if any) to UMA.
+  void ReportNewInstanceIdTokenState(
+      const std::string& new_instance_id_token) const;
 
-  void NotifySubscriptionChannelStateChange(
-      SubscriptionChannelState invalidator_state);
+  // In case `new_instance_id_token` differs from `instance_id_token_`, this
+  // drops subscriptions from memory and `pref_service_`.
+  void DropAllSavedSubscriptionsOnTokenChange(
+      const std::string& new_instance_id_token);
+
+  // Stores `new_instance_id_token` as `instance_id_token_` and persists it in
+  // `pref_service_`.
+  void StoreNewToken(const std::string& new_instance_id_token);
 
   const raw_ptr<PrefService> pref_service_;
   const raw_ptr<IdentityProvider> identity_provider_;

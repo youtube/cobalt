@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/350788890): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 // Functions for canonicalizing "mailto:" URLs.
 
 #include "url/url_canon.h"
@@ -45,7 +50,7 @@ bool DoCanonicalizeMailtoURL(const URLComponentSource<CHAR>& source,
   // Scheme (known, so we don't bother running it through the more
   // complicated scheme canonicalizer).
   new_parsed->scheme.begin = output->length();
-  output->Append("mailto:", 7);
+  output->Append("mailto:");
   new_parsed->scheme.len = 6;
 
   bool success = true;
@@ -73,7 +78,7 @@ bool DoCanonicalizeMailtoURL(const URLComponentSource<CHAR>& source,
   }
 
   // Query -- always use the default UTF8 charset converter.
-  CanonicalizeQuery(source.query, parsed.query, NULL,
+  CanonicalizeQuery(parsed.query.maybe_as_string_view_on(source.query), nullptr,
                     output, &new_parsed->query);
 
   return success;

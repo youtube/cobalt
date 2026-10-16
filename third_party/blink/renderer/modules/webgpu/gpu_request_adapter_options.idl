@@ -10,6 +10,8 @@ enum GPUPowerPreference {
 };
 
 dictionary GPURequestAdapterOptions {
+    [RuntimeEnabled=WebGPUFeatureLevel] DOMString featureLevel = "core";
     GPUPowerPreference powerPreference;
     boolean forceFallbackAdapter = false;
+    [RuntimeEnabled=WebXRGPUBinding] boolean xrCompatible = false;
 };

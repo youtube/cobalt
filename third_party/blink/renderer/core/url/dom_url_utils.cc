@@ -26,9 +26,6 @@
 
 #include "third_party/blink/renderer/core/url/dom_url_utils.h"
 
-#include "base/feature_list.h"
-#include "third_party/blink/public/common/features.h"
-#include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/weborigin/known_ports.h"
 
@@ -63,10 +60,10 @@ void DOMURLUtils::setPassword(const String& value) {
 }
 
 void DOMURLUtils::setHost(const String& value) {
-  if (value.empty())
-    return;
-
   KURL kurl = Url();
+  if (value.empty() && !kurl.CanRemoveHost()) {
+    return;
+  }
   if (!kurl.CanSetHostOrPort())
     return;
 
@@ -76,10 +73,10 @@ void DOMURLUtils::setHost(const String& value) {
 }
 
 void DOMURLUtils::setHostname(const String& value) {
-  if (value.empty())
-    return;
-
   KURL kurl = Url();
+  if (value.empty() && !kurl.CanRemoveHost()) {
+    return;
+  }
   if (!kurl.CanSetHostOrPort())
     return;
 
@@ -88,19 +85,13 @@ void DOMURLUtils::setHostname(const String& value) {
     SetURL(kurl);
 }
 
-void DOMURLUtils::setPort(ExecutionContext* execution_context,
-                          const String& value) {
+void DOMURLUtils::setPort(const String& value) {
   KURL kurl = Url();
-  if (!kurl.CanSetHostOrPort())
+  if (!kurl.CanSetHostOrPort()) {
     return;
+  }
   if (!value.empty()) {
-    bool value_overflow;
-    kurl.SetPort(value, &value_overflow);
-    if (value_overflow &&
-        base::FeatureList::IsEnabled(features::kURLSetPortCheckOverflow)) {
-      execution_context->CountUse(
-          mojom::blink::WebFeature::kURLSetPortCheckOverflow);
-    }
+    kurl.SetPort(value);
   } else {
     kurl.RemovePort();
   }

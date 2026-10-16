@@ -24,9 +24,11 @@
 #include "components/download/public/common/download_item_impl.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
+#include "base/check_is_test.h"
 #include "base/files/file_util.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
@@ -35,9 +37,9 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/observer_list.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/memory_usage_estimator.h"
@@ -51,6 +53,7 @@
 #include "components/download/public/common/download_file.h"
 #include "components/download/public/common/download_interrupt_reasons.h"
 #include "components/download/public/common/download_item_impl_delegate.h"
+#include "components/download/public/common/download_item_rename_handler.h"
 #include "components/download/public/common/download_job_factory.h"
 #include "components/download/public/common/download_stats.h"
 #include "components/download/public/common/download_task_runner.h"
@@ -63,11 +66,14 @@
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/url_request/referrer_policy.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "components/download/internal/common/android/download_collection_bridge.h"
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_MAC)
+#include "base/mac/mac_util.h"
+#endif  // BUILDFLAG(IS_MAC)
 
 namespace download {
 
@@ -129,7 +135,6 @@ std::string GetDownloadCreationTypeNames(
       return "SAVE_PAGE_AS";
     default:
       NOTREACHED();
-      return "INVALID_TYPE";
   }
 }
 
@@ -155,11 +160,34 @@ std::string GetDownloadDangerNames(DownloadDangerType type) {
       return "POTENTIALLY_UNWANTED";
     case DOWNLOAD_DANGER_TYPE_ALLOWLISTED_BY_POLICY:
       return "ALLOWLISTED_BY_POLICY";
+    case DOWNLOAD_DANGER_TYPE_ASYNC_SCANNING:
+      return "ASYNC_SCANNING";
+    case DOWNLOAD_DANGER_TYPE_BLOCKED_PASSWORD_PROTECTED:
+      return "BLOCKED_PASSWORD_PROTECTED";
+    case DOWNLOAD_DANGER_TYPE_BLOCKED_TOO_LARGE:
+      return "BLOCKED_TOO_LARGE";
+    case DOWNLOAD_DANGER_TYPE_SENSITIVE_CONTENT_WARNING:
+      return "SENSITIVE_CONTENT_WARNING";
+    case DOWNLOAD_DANGER_TYPE_SENSITIVE_CONTENT_BLOCK:
+      return "SENSITIVE_CONTENT_BLOCK";
+    case DOWNLOAD_DANGER_TYPE_DEEP_SCANNED_SAFE:
+      return "DEEP_SCANNED_SAFE";
+    case DOWNLOAD_DANGER_TYPE_DEEP_SCANNED_OPENED_DANGEROUS:
+      return "DEEP_SCANNED_OPENED_DANGEROUS";
+    case DOWNLOAD_DANGER_TYPE_PROMPT_FOR_SCANNING:
+      return "PROMPT_FOR_SCANNING";
     case DOWNLOAD_DANGER_TYPE_DANGEROUS_ACCOUNT_COMPROMISE:
       return "DANGEROUS_ACCOUNT_COMPROMISE";
-    default:
+    case DOWNLOAD_DANGER_TYPE_DEEP_SCANNED_FAILED:
+      return "DEEP_SCANNED_FAILED";
+    case DOWNLOAD_DANGER_TYPE_PROMPT_FOR_LOCAL_PASSWORD_SCANNING:
+      return "PROMPT_FOR_LOCAL_PASSWORD_SCANNING";
+    case DOWNLOAD_DANGER_TYPE_ASYNC_LOCAL_PASSWORD_SCANNING:
+      return "ASYNC_LOCAL_PASSWORD_SCANNING";
+    case DOWNLOAD_DANGER_TYPE_BLOCKED_SCAN_FAILED:
+      return "BLOCKED_SCAN_FAILED";
+    case DOWNLOAD_DANGER_TYPE_MAX:
       NOTREACHED();
-      return "UNKNOWN_DANGER_TYPE";
   }
 }
 
@@ -168,8 +196,8 @@ class DownloadItemActivatedData
  public:
   DownloadItemActivatedData(DownloadItem::DownloadCreationType download_type,
                             uint32_t download_id,
-                            std::string original_url,
-                            std::string final_url,
+                            const GURL& original_url,
+                            const GURL& final_url,
                             std::string file_name,
                             DownloadDangerType danger_type,
                             int64_t start_offset,
@@ -196,10 +224,12 @@ class DownloadItemActivatedData
         GetDownloadCreationTypeNames(download_type_).c_str()));
     out->append(base::StringPrintf("\"id\":\"%d\",", download_id_));
     out->append("\"original_url\":");
-    base::EscapeJSONString(original_url_, true, out);
+    base::EscapeJSONString(original_url_.is_valid() ? original_url_.spec() : "",
+                           true, out);
     out->append(",");
     out->append("\"final_url\":");
-    base::EscapeJSONString(final_url_, true, out);
+    base::EscapeJSONString(final_url_.is_valid() ? final_url_.spec() : "", true,
+                           out);
     out->append(",");
     out->append("\"file_name\":");
     base::EscapeJSONString(file_name_, true, out);
@@ -210,15 +240,15 @@ class DownloadItemActivatedData
     out->append(
         base::StringPrintf("\"start_offset\":\"%" PRId64 "\",", start_offset_));
     out->append(base::StringPrintf("\"has_user_gesture\":\"%s\"",
-                                   has_user_gesture_ ? "true" : "false"));
+                                   base::ToString(has_user_gesture_).c_str()));
     out->append("}");
   }
 
  private:
   DownloadItem::DownloadCreationType download_type_;
   uint32_t download_id_;
-  std::string original_url_;
-  std::string final_url_;
+  GURL original_url_;
+  GURL final_url_;
   std::string file_name_;
   DownloadDangerType danger_type_;
   int64_t start_offset_;
@@ -236,7 +266,7 @@ DownloadItemImpl::RequestInfo::RequestInfo(
     const std::string& serialized_embedder_download_data,
     const GURL& tab_url,
     const GURL& tab_referrer_url,
-    const absl::optional<url::Origin>& request_initiator,
+    const std::optional<url::Origin>& request_initiator,
     const std::string& suggested_filename,
     const base::FilePath& forced_file_path,
     ui::PageTransition transition_type,
@@ -244,7 +274,7 @@ DownloadItemImpl::RequestInfo::RequestInfo(
     const std::string& remote_address,
     base::Time start_time,
     ::network::mojom::CredentialsMode credentials_mode,
-    const absl::optional<net::IsolationInfo>& isolation_info,
+    const std::optional<net::IsolationInfo>& isolation_info,
     int64_t range_request_from,
     int64_t range_request_to)
     : url_chain(url_chain),
@@ -311,7 +341,7 @@ DownloadItemImpl::DownloadItemImpl(
     const std::string& serialized_embedder_download_data,
     const GURL& tab_url,
     const GURL& tab_refererr_url,
-    const absl::optional<url::Origin>& request_initiator,
+    const std::optional<url::Origin>& request_initiator,
     const std::string& mime_type,
     const std::string& original_mime_type,
     base::Time start_time,
@@ -347,7 +377,7 @@ DownloadItemImpl::DownloadItemImpl(
                     std::string(),
                     start_time,
                     ::network::mojom::CredentialsMode::kInclude,
-                    absl::nullopt,
+                    std::nullopt,
                     range_request_from,
                     range_request_to),
       guid_(guid),
@@ -438,7 +468,12 @@ DownloadItemImpl::DownloadItemImpl(DownloadItemImplDelegate* delegate,
       is_updating_observers_(false),
       fetch_error_body_(info.fetch_error_body),
       request_headers_(info.request_headers),
-      download_source_(info.download_source) {
+      download_source_(info.download_source)
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      is_must_download_(info.is_must_download)
+#endif  // BUILDFLAG(IS_ANDROID)
+{
   delegate_->Attach();
   Init(true /* actively downloading */, TYPE_ACTIVE_DOWNLOAD);
   allow_metered_ |= delegate_->IsActiveNetworkMetered();
@@ -451,12 +486,14 @@ DownloadItemImpl::DownloadItemImpl(
     DownloadItemImplDelegate* delegate,
     uint32_t download_id,
     const base::FilePath& path,
+    const base::FilePath& display_name,
     const GURL& url,
     const std::string& mime_type,
     DownloadJob::CancelRequestCallback cancel_request_callback)
     : request_info_(url),
       guid_(base::Uuid::GenerateRandomV4().AsLowercaseString()),
       download_id_(download_id),
+      display_name_(display_name),
       mime_type_(mime_type),
       original_mime_type_(mime_type),
       start_tick_(base::TimeTicks::Now()),
@@ -553,26 +590,12 @@ void DownloadItemImpl::ValidateInsecureDownload() {
   MaybeCompleteDownload();
 }
 
-void DownloadItemImpl::StealDangerousDownload(bool delete_file_afterward,
-                                              AcquireFileCallback callback) {
+void DownloadItemImpl::CopyDownload(AcquireFileCallback callback) {
   DVLOG(20) << __func__ << "() download = " << DebugString(true);
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(IsDangerous());
   DCHECK(AllDataSaved());
 
-  if (delete_file_afterward) {
-    if (download_file_) {
-      GetDownloadTaskRunner()->PostTaskAndReplyWithResult(
-          FROM_HERE,
-          base::BindOnce(&DownloadFileDetach, std::move(download_file_)),
-          std::move(callback));
-    } else {
-      std::move(callback).Run(GetFullPath());
-    }
-    destination_info_.current_path.clear();
-    Remove();
-    // Download item has now been deleted.
-  } else if (download_file_) {
+  if (download_file_) {
     GetDownloadTaskRunner()->PostTaskAndReplyWithResult(
         FROM_HERE,
         base::BindOnce(&MakeCopyOfDownloadFile, download_file_.get()),
@@ -795,6 +818,15 @@ DownloadItem::DownloadState DownloadItemImpl::GetState() const {
   return InternalToExternalState(state_);
 }
 
+void DownloadItemImpl::SetStateForTesting(DownloadItem::DownloadState state) {
+  CHECK_IS_TEST();
+  state_ = ExternalToInternalState(state);
+}
+
+void DownloadItemImpl::SetDownloadUrlForTesting(GURL url) {
+  request_info_.url_chain.push_back(url);
+}
+
 DownloadInterruptReason DownloadItemImpl::GetLastReason() const {
   return last_reason_;
 }
@@ -838,7 +870,6 @@ bool DownloadItemImpl::CanResume() const {
     case MAX_DOWNLOAD_INTERNAL_STATE:
       NOTREACHED();
   }
-  return false;
 }
 
 bool DownloadItemImpl::IsDone() const {
@@ -851,10 +882,6 @@ int64_t DownloadItemImpl::GetBytesWasted() const {
 
 int32_t DownloadItemImpl::GetAutoResumeCount() const {
   return auto_resume_count_;
-}
-
-bool DownloadItemImpl::IsOffTheRecord() const {
-  return delegate_->IsOffTheRecord();
 }
 
 const GURL& DownloadItemImpl::GetURL() const {
@@ -882,6 +909,9 @@ const std::string& DownloadItemImpl::GetSerializedEmbedderDownloadData() const {
 }
 
 const GURL& DownloadItemImpl::GetTabUrl() const {
+  if (IsSavePackageDownload()) {
+    return GetURL();
+  }
   return request_info_.tab_url;
 }
 
@@ -889,7 +919,7 @@ const GURL& DownloadItemImpl::GetTabReferrerUrl() const {
   return request_info_.tab_referrer_url;
 }
 
-const absl::optional<url::Origin>& DownloadItemImpl::GetRequestInitiator()
+const std::optional<url::Origin>& DownloadItemImpl::GetRequestInitiator()
     const {
   return request_info_.request_initiator;
 }
@@ -1010,19 +1040,50 @@ DownloadFile* DownloadItemImpl::GetDownloadFile() {
   return download_file_.get();
 }
 
+DownloadItemRenameHandler* DownloadItemImpl::GetRenameHandler() {
+  return rename_handler_.get();
+}
+
+#if BUILDFLAG(IS_ANDROID)
+bool DownloadItemImpl::IsFromExternalApp() {
+  return is_from_external_app_;
+}
+
+bool DownloadItemImpl::IsMustDownload() {
+  return is_must_download_;
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 bool DownloadItemImpl::IsDangerous() const {
-  return danger_type_ == DOWNLOAD_DANGER_TYPE_DANGEROUS_FILE ||
-         danger_type_ == DOWNLOAD_DANGER_TYPE_DANGEROUS_URL ||
-         danger_type_ == DOWNLOAD_DANGER_TYPE_DANGEROUS_CONTENT ||
-         danger_type_ == DOWNLOAD_DANGER_TYPE_UNCOMMON_CONTENT ||
-         danger_type_ == DOWNLOAD_DANGER_TYPE_DANGEROUS_HOST ||
-         danger_type_ == DOWNLOAD_DANGER_TYPE_POTENTIALLY_UNWANTED ||
-         danger_type_ == DOWNLOAD_DANGER_TYPE_BLOCKED_PASSWORD_PROTECTED ||
-         danger_type_ == DOWNLOAD_DANGER_TYPE_BLOCKED_TOO_LARGE ||
-         danger_type_ == DOWNLOAD_DANGER_TYPE_SENSITIVE_CONTENT_WARNING ||
-         danger_type_ == DOWNLOAD_DANGER_TYPE_SENSITIVE_CONTENT_BLOCK ||
-         danger_type_ == DOWNLOAD_DANGER_TYPE_PROMPT_FOR_SCANNING ||
-         danger_type_ == DOWNLOAD_DANGER_TYPE_DANGEROUS_ACCOUNT_COMPROMISE;
+  switch (danger_type_) {
+    case DOWNLOAD_DANGER_TYPE_DANGEROUS_FILE:
+    case DOWNLOAD_DANGER_TYPE_DANGEROUS_URL:
+    case DOWNLOAD_DANGER_TYPE_DANGEROUS_CONTENT:
+    case DOWNLOAD_DANGER_TYPE_UNCOMMON_CONTENT:
+    case DOWNLOAD_DANGER_TYPE_DANGEROUS_HOST:
+    case DOWNLOAD_DANGER_TYPE_POTENTIALLY_UNWANTED:
+    case DOWNLOAD_DANGER_TYPE_BLOCKED_PASSWORD_PROTECTED:
+    case DOWNLOAD_DANGER_TYPE_BLOCKED_TOO_LARGE:
+    case DOWNLOAD_DANGER_TYPE_SENSITIVE_CONTENT_WARNING:
+    case DOWNLOAD_DANGER_TYPE_SENSITIVE_CONTENT_BLOCK:
+    case DOWNLOAD_DANGER_TYPE_DEEP_SCANNED_OPENED_DANGEROUS:
+    case DOWNLOAD_DANGER_TYPE_PROMPT_FOR_SCANNING:
+    case DOWNLOAD_DANGER_TYPE_DANGEROUS_ACCOUNT_COMPROMISE:
+    case DOWNLOAD_DANGER_TYPE_PROMPT_FOR_LOCAL_PASSWORD_SCANNING:
+    case DOWNLOAD_DANGER_TYPE_BLOCKED_SCAN_FAILED:
+      return true;
+    case DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS:
+    case DOWNLOAD_DANGER_TYPE_MAYBE_DANGEROUS_CONTENT:
+    case DOWNLOAD_DANGER_TYPE_USER_VALIDATED:
+    case DOWNLOAD_DANGER_TYPE_ALLOWLISTED_BY_POLICY:
+    case DOWNLOAD_DANGER_TYPE_ASYNC_SCANNING:
+    case DOWNLOAD_DANGER_TYPE_ASYNC_LOCAL_PASSWORD_SCANNING:
+    case DOWNLOAD_DANGER_TYPE_DEEP_SCANNED_SAFE:
+    case DOWNLOAD_DANGER_TYPE_DEEP_SCANNED_FAILED:
+      return false;
+    case DOWNLOAD_DANGER_TYPE_MAX:
+      NOTREACHED();
+  }
 }
 
 bool DownloadItemImpl::IsInsecure() const {
@@ -1082,6 +1143,10 @@ int64_t DownloadItemImpl::GetReceivedBytes() const {
 const std::vector<DownloadItem::ReceivedSlice>&
 DownloadItemImpl::GetReceivedSlices() const {
   return received_slices_;
+}
+
+int64_t DownloadItemImpl::GetUploadedBytes() const {
+  return destination_info_.uploaded_bytes;
 }
 
 base::Time DownloadItemImpl::GetStartTime() const {
@@ -1154,7 +1219,7 @@ DownloadItem::DownloadCreationType DownloadItemImpl::GetDownloadCreationType()
   return request_info_.credentials_mode;
 }
 
-const absl::optional<net::IsolationInfo>& DownloadItemImpl::GetIsolationInfo()
+const std::optional<net::IsolationInfo>& DownloadItemImpl::GetIsolationInfo()
     const {
   return request_info_.isolation_info;
 }
@@ -1256,7 +1321,7 @@ std::string DownloadItemImpl::DebugString(bool verbose) const {
         IsPaused() ? 'T' : 'F', DebugResumeModeString(GetResumeMode()),
         auto_resume_count_, GetDangerType(), AllDataSaved() ? 'T' : 'F',
         GetLastModifiedTime().c_str(), GetETag().c_str(),
-        download_file_ ? "true" : "false", url_list.c_str(),
+        base::ToString(download_file_).c_str(), url_list.c_str(),
         GetFullPath().value().c_str(), GetTargetFilePath().value().c_str(),
         GetReferrerUrl().spec().c_str(),
         GetSerializedEmbedderDownloadData().c_str());
@@ -1404,6 +1469,15 @@ void DownloadItemImpl::MarkAsComplete() {
 
   DCHECK(AllDataSaved());
   destination_info_.end_time = base::Time::Now();
+#if BUILDFLAG(IS_ANDROID)
+  if (GetTargetFilePath().IsContentUri()) {
+    GetDownloadTaskRunner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            base::IgnoreResult(&DownloadCollectionBridge::PublishDownload),
+            GetTargetFilePath()));
+  }
+#endif
   TransitionTo(COMPLETE_INTERNAL);
   UpdateObservers();
 }
@@ -1514,8 +1588,8 @@ void DownloadItemImpl::Init(bool active,
   }
 
   auto active_data = std::make_unique<DownloadItemActivatedData>(
-      download_type, GetId(), GetOriginalUrl().spec(), GetURL().spec(),
-      file_name, GetDangerType(), GetReceivedBytes(), HasUserGesture());
+      download_type, GetId(), GetOriginalUrl(), GetURL(), file_name,
+      GetDangerType(), GetReceivedBytes(), HasUserGesture());
 
   if (active) {
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
@@ -1611,7 +1685,7 @@ void DownloadItemImpl::Start(
       RecordParallelizableDownloadCount(NEW_DOWNLOAD_COUNT,
                                         IsParallelDownloadEnabled());
     }
-    RecordDownloadMimeType(mime_type_);
+    RecordDownloadMimeType(mime_type_, transient_);
     DownloadContent file_type = DownloadContentFromMimeType(mime_type_, false);
     DownloadConnectionSecurity state = CheckDownloadConnectionSecurity(
         new_create_info.url(), new_create_info.url_chain);
@@ -1621,7 +1695,7 @@ void DownloadItemImpl::Start(
     if (!delegate_->IsOffTheRecord()) {
       RecordDownloadCountWithSource(NEW_DOWNLOAD_COUNT_NORMAL_PROFILE,
                                     download_source_);
-      RecordDownloadMimeTypeForNormalProfile(mime_type_);
+      RecordDownloadMimeTypeForNormalProfile(mime_type_, transient_);
     }
   }
 
@@ -1648,6 +1722,8 @@ void DownloadItemImpl::Start(
               base::BindRepeating(&DownloadItemImpl::OnDownloadFileInitialized,
                                   weak_ptr_factory_.GetWeakPtr()),
               GetReceivedSlices());
+
+  rename_handler_ = delegate_->GetRenameHandlerForDownload(this);
 }
 
 void DownloadItemImpl::OnDownloadFileInitialized(DownloadInterruptReason result,
@@ -1687,31 +1763,26 @@ void DownloadItemImpl::DetermineDownloadTarget() {
 
 // Called by delegate_ when the download target path has been determined.
 void DownloadItemImpl::OnDownloadTargetDetermined(
-    const base::FilePath& target_path,
-    TargetDisposition disposition,
-    DownloadDangerType danger_type,
-    InsecureDownloadStatus insecure_download_status,
-    const base::FilePath& intermediate_path,
-    const base::FilePath& display_name,
-    const std::string& mime_type,
-    DownloadInterruptReason interrupt_reason) {
+    DownloadTargetInfo target_info) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (state_ == CANCELLED_INTERNAL)
     return;
 
   DCHECK(state_ == TARGET_PENDING_INTERNAL ||
          state_ == INTERRUPTED_TARGET_PENDING_INTERNAL);
-  DVLOG(20) << __func__ << "() target_path:" << target_path.value()
-            << " intermediate_path:" << intermediate_path.value()
-            << " disposition:" << disposition << " danger_type:" << danger_type
+  DVLOG(20) << __func__ << "() target_path:" << target_info.target_path.value()
+            << " intermediate_path:" << target_info.intermediate_path.value()
+            << " disposition:" << target_info.target_disposition
+            << " danger_type:" << target_info.danger_type
             << " interrupt_reason:"
-            << DownloadInterruptReasonToString(interrupt_reason)
+            << DownloadInterruptReasonToString(target_info.interrupt_reason)
             << " this:" << DebugString(true);
 
   RecordDownloadCountWithSource(DOWNLOAD_TARGET_DETERMINED_COUNT,
                                 download_source_);
 
-  if (IsCancellation(interrupt_reason) || target_path.empty()) {
+  if (IsCancellation(target_info.interrupt_reason) ||
+      target_info.target_path.empty()) {
     Cancel(true);
     return;
   }
@@ -1722,21 +1793,27 @@ void DownloadItemImpl::OnDownloadTargetDetermined(
   // intermediate rename. In the case of a new download, we'll lose the partial
   // data that may have been downloaded, but that should be a small loss.
   if (state_ == TARGET_PENDING_INTERNAL &&
-      interrupt_reason != DOWNLOAD_INTERRUPT_REASON_NONE) {
-    deferred_interrupt_reason_ = interrupt_reason;
+      target_info.interrupt_reason != DOWNLOAD_INTERRUPT_REASON_NONE) {
+    deferred_interrupt_reason_ = target_info.interrupt_reason;
+    insecure_download_status_ = target_info.insecure_download_status;
     TransitionTo(INTERRUPTED_TARGET_PENDING_INTERNAL);
     OnTargetResolved();
     return;
   }
 
-  destination_info_.target_path = target_path;
-  destination_info_.target_disposition = disposition;
-  SetDangerType(danger_type);
-  insecure_download_status_ = insecure_download_status;
-  if (!display_name.empty())
-    SetDisplayName(display_name);
-  if (!mime_type.empty())
-    mime_type_ = mime_type;
+  destination_info_.target_path = target_info.target_path;
+  destination_info_.target_disposition = target_info.target_disposition;
+  SetDangerType(target_info.danger_type);
+  insecure_download_status_ = target_info.insecure_download_status;
+  if (!target_info.display_name.empty()) {
+    SetDisplayName(target_info.display_name);
+  }
+  if (!target_info.mime_type.empty()) {
+    mime_type_ = target_info.mime_type;
+  }
+#if BUILDFLAG(IS_MAC)
+  file_tags_ = target_info.file_tags;
+#endif
 
   // This was an interrupted download that was looking for a filename. Resolve
   // early without performing the intermediate rename. If there is a
@@ -1750,7 +1827,8 @@ void DownloadItemImpl::OnDownloadTargetDetermined(
   // We want the intermediate and target paths to refer to the same directory so
   // that they are both on the same device and subject to same
   // space/permission/availability constraints.
-  DCHECK(intermediate_path.DirName() == target_path.DirName());
+  DCHECK(target_info.intermediate_path.DirName() ==
+         target_info.target_path.DirName());
 
   // During resumption, we may choose to proceed with the same intermediate
   // file. No rename is necessary if our intermediate file already has the
@@ -1759,9 +1837,9 @@ void DownloadItemImpl::OnDownloadTargetDetermined(
   // The intermediate name may change from its original value during filename
   // determination on resumption, for example if the reason for the interruption
   // was the download target running out space, resulting in a user prompt.
-  if (intermediate_path == GetFullPath()) {
+  if (target_info.intermediate_path == GetFullPath()) {
     OnDownloadRenamedToIntermediateName(DOWNLOAD_INTERRUPT_REASON_NONE,
-                                        intermediate_path);
+                                        target_info.intermediate_path);
     return;
   }
 
@@ -1777,7 +1855,7 @@ void DownloadItemImpl::OnDownloadTargetDetermined(
       base::BindOnce(
           &DownloadFile::RenameAndUniquify,
           // Safe because we control download file lifetime.
-          base::Unretained(download_file_.get()), intermediate_path,
+          base::Unretained(download_file_.get()), target_info.intermediate_path,
           base::BindOnce(&DownloadItemImpl::OnDownloadRenamedToIntermediateName,
                          weak_ptr_factory_.GetWeakPtr())));
 }
@@ -1883,7 +1961,7 @@ void DownloadItemImpl::OnDownloadCompleting() {
   // Unilaterally rename; even if it already has the right name,
   // we need the annotation.
   DownloadFile::RenameCompletionCallback rename_callback =
-      base::BindOnce(&DownloadItemImpl::OnDownloadRenamedToFinalName,
+      base::BindOnce(&DownloadItemImpl::OnRenameAndAnnotateDone,
                      weak_ptr_factory_.GetWeakPtr());
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1905,13 +1983,33 @@ void DownloadItemImpl::OnDownloadCompleting() {
 
   GetDownloadTaskRunner()->PostTask(
       FROM_HERE,
-      base::BindOnce(&DownloadFile::RenameAndAnnotate,
-                     base::Unretained(download_file_.get()),
-                     GetTargetFilePath(),
-                     delegate_->GetApplicationClientIdForFileScanning(),
-                     delegate_->IsOffTheRecord() ? GURL() : GetURL(),
-                     delegate_->IsOffTheRecord() ? GURL() : GetReferrerUrl(),
-                     std::move(quarantine), std::move(rename_callback)));
+      base::BindOnce(
+          &DownloadFile::RenameAndAnnotate,
+          base::Unretained(download_file_.get()), GetTargetFilePath(),
+          delegate_->GetApplicationClientIdForFileScanning(),
+          delegate_->IsOffTheRecord() ? GURL() : GetURL(),
+          delegate_->IsOffTheRecord() ? GURL() : GetReferrerUrl(),
+          delegate_->IsOffTheRecord() ? std::nullopt : GetRequestInitiator(),
+          std::move(quarantine), std::move(rename_callback)));
+}
+
+void DownloadItemImpl::OnRenameAndAnnotateDone(
+    DownloadInterruptReason reason,
+    const base::FilePath& full_path) {
+  DownloadFile::RenameCompletionCallback rename_callback =
+      base::BindOnce(&DownloadItemImpl::OnDownloadRenamedToFinalName,
+                     weak_ptr_factory_.GetWeakPtr());
+  if (rename_handler_) {
+    renaming_ = true;
+
+    rename_handler_->Start(
+        base::BindRepeating(&DownloadItemImpl::UpdateRenameProgress,
+                            weak_ptr_factory_.GetWeakPtr()),
+        std::move(rename_callback));
+    return;
+  }
+
+  OnDownloadRenamedToFinalName(reason, full_path);
 }
 
 void DownloadItemImpl::OnDownloadRenamedToFinalName(
@@ -1919,6 +2017,8 @@ void DownloadItemImpl::OnDownloadRenamedToFinalName(
     const base::FilePath& full_path) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!IsSavePackageDownload());
+
+  renaming_ = false;
 
   // If a cancel or interrupt hit, we'll cancel the DownloadFile, which
   // will result in deleting the file on the file thread.  So we don't
@@ -1945,6 +2045,10 @@ void DownloadItemImpl::OnDownloadRenamedToFinalName(
     DCHECK(!full_path.empty());
     SetFullPath(full_path);
   }
+
+#if BUILDFLAG(IS_MAC)
+  base::mac::SetFileTags(full_path, file_tags_);
+#endif
 
   // Complete the download and release the DownloadFile.
   DCHECK(download_file_);
@@ -2004,14 +2108,6 @@ void DownloadItemImpl::Completed() {
     }
   }
 
-  // TODO(crbug.com/1372476): Remove these histograms after debugging.
-  if (!IsTemporary()) {
-    base::UmaHistogramBoolean("Download.Complete.IsOpenWhenCompleteSet",
-                              GetOpenWhenComplete());
-    base::UmaHistogramBoolean(
-        "Download.Complete.IsShouldOpenFileBasedOnExtensionSet",
-        ShouldOpenFileBasedOnExtension());
-  }
   if (auto_opened_) {
     // If it was already handled by the delegate, do nothing.
   } else if (GetOpenWhenComplete() || ShouldOpenFileBasedOnExtension() ||
@@ -2076,7 +2172,6 @@ void DownloadItemImpl::InterruptWithPartialState(
     case INITIAL_INTERNAL:
     case MAX_DOWNLOAD_INTERNAL_STATE:
       NOTREACHED();
-      return;
 
     case TARGET_PENDING_INTERNAL:
     case INTERRUPTED_TARGET_PENDING_INTERNAL:
@@ -2167,7 +2262,7 @@ void DownloadItemImpl::InterruptWithPartialState(
 
   base::TimeDelta time_since_start = base::Time::Now() - GetStartTime();
   int resulting_file_size = GetReceivedBytes();
-  absl::optional<int> change_in_file_size;
+  std::optional<int> change_in_file_size;
   if (total_bytes_ >= 0) {
     change_in_file_size = total_bytes_ - resulting_file_size;
   }
@@ -2308,7 +2403,6 @@ void DownloadItemImpl::TransitionTo(DownloadInternalState new_state) {
   switch (state_) {
     case INITIAL_INTERNAL:
       NOTREACHED();
-      break;
 
     case TARGET_PENDING_INTERNAL:
     case TARGET_RESOLVED_INTERNAL:
@@ -2377,7 +2471,6 @@ void DownloadItemImpl::TransitionTo(DownloadInternalState new_state) {
 
     case MAX_DOWNLOAD_INTERNAL_STATE:
       NOTREACHED();
-      break;
   }
 
   DVLOG(20) << __func__ << "() from:" << DebugDownloadStateString(old_state)
@@ -2404,9 +2497,8 @@ void DownloadItemImpl::TransitionTo(DownloadInternalState new_state) {
         TRACE_ID_WITH_SCOPE("DownloadItemActive", download_id_),
         "download_item",
         std::make_unique<DownloadItemActivatedData>(
-            TYPE_ACTIVE_DOWNLOAD, GetId(), GetOriginalUrl().spec(),
-            GetURL().spec(), file_name, GetDangerType(), GetReceivedBytes(),
-            HasUserGesture()));
+            TYPE_ACTIVE_DOWNLOAD, GetId(), GetOriginalUrl(), GetURL(),
+            file_name, GetDangerType(), GetReceivedBytes(), HasUserGesture()));
   }
 }
 
@@ -2545,9 +2637,8 @@ void DownloadItemImpl::ResumeInterruptedDownload(
     download_params->add_request_header(header.first, header.second);
   }
 
-  if (base::FeatureList::IsEnabled(features::kDownloadRange) &&
-      (request_info_.range_request_from != kInvalidRange ||
-       request_info_.range_request_to != kInvalidRange)) {
+  if (request_info_.range_request_from != kInvalidRange ||
+      request_info_.range_request_to != kInvalidRange) {
     // Arbitrary range request doesn't use If-Range header and resumption
     // invalidation.
     download_params->set_range_request_offset(request_info_.range_request_from,
@@ -2615,7 +2706,6 @@ DownloadItem::DownloadState DownloadItemImpl::InternalToExternalState(
       break;
   }
   NOTREACHED();
-  return MAX_DOWNLOAD_STATE;
 }
 
 // static
@@ -2633,7 +2723,6 @@ DownloadItemImpl::ExternalToInternalState(DownloadState external_state) {
     default:
       NOTREACHED();
   }
-  return MAX_DOWNLOAD_INTERNAL_STATE;
 }
 
 // static
@@ -2660,7 +2749,6 @@ bool DownloadItemImpl::IsValidSavePackageStateTransition(
     case MAX_DOWNLOAD_INTERNAL_STATE:
       NOTREACHED();
   }
-  return false;
 #else
   return true;
 #endif
@@ -2710,7 +2798,6 @@ bool DownloadItemImpl::IsValidStateTransition(DownloadInternalState from,
     case MAX_DOWNLOAD_INTERNAL_STATE:
       NOTREACHED();
   }
-  return false;
 #else
   return true;
 #endif  // DCHECK_IS_ON()
@@ -2743,7 +2830,6 @@ const char* DownloadItemImpl::DebugDownloadStateString(
       break;
   }
   NOTREACHED() << "Unknown download state " << state;
-  return "unknown";
 }
 
 const char* DownloadItemImpl::DebugResumeModeString(ResumeMode mode) {
@@ -2760,12 +2846,21 @@ const char* DownloadItemImpl::DebugResumeModeString(ResumeMode mode) {
       return "USER_RESTART";
   }
   NOTREACHED() << "Unknown resume mode " << static_cast<int>(mode);
-  return "unknown";
 }
 
 std::pair<int64_t, int64_t> DownloadItemImpl::GetRangeRequestOffset() const {
   return std::make_pair(request_info_.range_request_from,
                         request_info_.range_request_to);
+}
+
+void DownloadItemImpl::UpdateRenameProgress(int64_t bytes_so_far,
+                                            int64_t bytes_per_sec) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(renaming_);
+
+  destination_info_.uploaded_bytes = bytes_so_far;
+
+  UpdateObservers();
 }
 
 }  // namespace download

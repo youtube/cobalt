@@ -13,6 +13,8 @@ import android.provider.MediaStore;
 import androidx.core.content.FileProvider;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.embedder_support.util.UrlConstants;
 
 import java.io.File;
@@ -29,31 +31,34 @@ import java.util.Arrays;
  * application is blocked from accessing the file till the file is ready. This provider allows only
  * one blocked file to be shared at a given time.
  */
+@NullMarked
 public class ChromeFileProvider extends FileProvider {
     private static final String AUTHORITY_SUFFIX = ".FileProvider";
     private static final String BLOCKED_FILE_PREFIX = "BlockedFile_";
 
     // All these static objects must be accesseed in a synchronized block:
-    private static Object sLock = new Object();
+    private static final Object sLock = new Object();
     private static boolean sIsFileReady;
-    private static Uri sCurrentBlockingUri;
-    private static Uri sFileUri;
+    private static @Nullable Uri sCurrentBlockingUri;
+    private static @Nullable Uri sFileUri;
+    private static @Nullable Uri sGeneratedUriForTesting;
 
     /**
      * Returns an unique uri to identify the file to be shared and block access to it till
      * notifyFileReady is called.
      *
-     * This function clobbers any uri that was previously created and the client application
+     * <p>This function clobbers any uri that was previously created and the client application
      * accessing those uri will get a null file descriptor.
      */
     public static Uri generateUriAndBlockAccess() {
         String authority = getAuthority();
         String fileName = BLOCKED_FILE_PREFIX + String.valueOf(System.nanoTime());
-        Uri blockingUri = new Uri.Builder()
-                                  .scheme(UrlConstants.CONTENT_SCHEME)
-                                  .authority(authority)
-                                  .path(fileName)
-                                  .build();
+        Uri blockingUri =
+                new Uri.Builder()
+                        .scheme(UrlConstants.CONTENT_SCHEME)
+                        .authority(authority)
+                        .path(fileName)
+                        .build();
         synchronized (sLock) {
             sCurrentBlockingUri = blockingUri;
             sFileUri = null;
@@ -66,10 +71,18 @@ public class ChromeFileProvider extends FileProvider {
 
     /**
      * Returns an unique uri to identify the file to be shared.
+     *
      * @param file File for which the Uri is generated.
      */
     public static Uri generateUri(File file) throws IllegalArgumentException {
+        if (sGeneratedUriForTesting != null) {
+            return sGeneratedUriForTesting;
+        }
         return getUriForFile(ContextUtils.getApplicationContext(), getAuthority(), file);
+    }
+
+    public static void setGeneratedUriForTesting(Uri uri) {
+        sGeneratedUriForTesting = uri;
     }
 
     /**
@@ -88,14 +101,20 @@ public class ChromeFileProvider extends FileProvider {
     }
 
     @Override
-    public ParcelFileDescriptor openFile(Uri uri, String mode) throws FileNotFoundException {
+    public @Nullable ParcelFileDescriptor openFile(Uri uri, String mode)
+            throws FileNotFoundException {
         Uri fileUri = getFileUriWhenReady(uri);
         return fileUri != null ? super.openFile(fileUri, mode) : null;
     }
 
     @Override
-    public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs,
-            String sortOrder) {
+    @SuppressWarnings("NullAway") // FileProvider returns NonNull but ContentProvider allows null.
+    public @Nullable Cursor query(
+            Uri uri,
+            String @Nullable [] projection,
+            @Nullable String selection,
+            String @Nullable [] selectionArgs,
+            @Nullable String sortOrder) {
         Uri fileUri = getFileUriWhenReady(uri);
         if (fileUri == null) return null;
 
@@ -140,14 +159,14 @@ public class ChromeFileProvider extends FileProvider {
     }
 
     @Override
-    public String getType(Uri uri) {
+    public @Nullable String getType(Uri uri) {
         Uri fileUri = getFileUriWhenReady(uri);
         return fileUri != null ? super.getType(fileUri) : null;
     }
 
     @Override
-    public int delete(Uri uri, String selection, String[] selectionArgs) {
-        if (uri != null && uri.getPath().contains(BLOCKED_FILE_PREFIX)) {
+    public int delete(Uri uri, @Nullable String selection, String @Nullable [] selectionArgs) {
+        if (uri.getPath() != null && uri.getPath().contains(BLOCKED_FILE_PREFIX)) {
             synchronized (sLock) {
                 if (!doesMatchCurrentBlockingUri(uri)) return 0;
                 sFileUri = null;
@@ -162,9 +181,11 @@ public class ChromeFileProvider extends FileProvider {
      * Waits and returns file uri iff the file is ready to be accessed, or returns null if file is
      * replaced.
      */
-    protected static Uri getFileUriWhenReady(Uri uri) {
+    protected static @Nullable Uri getFileUriWhenReady(Uri uri) {
         // If the uri passed is not a blocked file, then the given uri can be directly used.
-        if (uri == null || !uri.getPath().contains(BLOCKED_FILE_PREFIX)) return uri;
+        if (uri.getPath() == null || !uri.getPath().contains(BLOCKED_FILE_PREFIX)) {
+            return uri;
+        }
 
         synchronized (sLock) {
             // Wait only if the file is not ready and the current file has not changed.
@@ -181,9 +202,7 @@ public class ChromeFileProvider extends FileProvider {
         return null;
     }
 
-    /**
-     * Gets the authority string for content URI generation.
-     */
+    /** Gets the authority string for content URI generation. */
     private static String getAuthority() {
         return ContextUtils.getApplicationContext().getPackageName() + AUTHORITY_SUFFIX;
     }

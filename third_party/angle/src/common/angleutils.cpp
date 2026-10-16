@@ -18,33 +18,6 @@ namespace angle
 // force the renderer to re-apply the state.
 const uintptr_t DirtyPointer = std::numeric_limits<uintptr_t>::max();
 
-SaveFileHelper::SaveFileHelper(const std::string &filePathIn)
-    : mOfs(filePathIn, std::ios::binary | std::ios::out), mFilePath(filePathIn)
-{
-    if (!mOfs.is_open())
-    {
-        FATAL() << "Could not open " << filePathIn;
-    }
-}
-
-SaveFileHelper::~SaveFileHelper()
-{
-    printf("Saved '%s'.\n", mFilePath.c_str());
-}
-
-void SaveFileHelper::checkError()
-{
-    if (mOfs.bad())
-    {
-        FATAL() << "Error writing to " << mFilePath;
-    }
-}
-
-void SaveFileHelper::write(const uint8_t *data, size_t size)
-{
-    mOfs.write(reinterpret_cast<const char *>(data), size);
-}
-
 // AMD_performance_monitor helpers.
 
 PerfMonitorCounter::PerfMonitorCounter() = default;
@@ -153,4 +126,17 @@ size_t FormatStringIntoVector(const char *fmt, va_list vararg, std::vector<char>
     va_end(varargCopy);
     ASSERT(len >= 0);
     return static_cast<size_t>(len);
+}
+
+const char *MakeStaticString(const std::string &str)
+{
+    // On the heap so that no destructor runs on application exit.
+    static std::set<std::string> *strings = new std::set<std::string>;
+    std::set<std::string>::iterator it    = strings->find(str);
+    if (it != strings->end())
+    {
+        return it->c_str();
+    }
+
+    return strings->insert(str).first->c_str();
 }

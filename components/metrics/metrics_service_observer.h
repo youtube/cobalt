@@ -6,15 +6,16 @@
 #define COMPONENTS_METRICS_METRICS_SERVICE_OBSERVER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/callback_list.h"
 #include "base/containers/flat_map.h"
 #include "base/files/file_path.h"
-#include "base/strings/string_piece.h"
+#include "base/memory/raw_ptr.h"
 #include "components/metrics/metrics_logs_event_manager.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace metrics {
 
@@ -51,7 +52,7 @@ class MetricsServiceObserver : public MetricsLogsEventManager::Observer {
       double timestampMs;
 
       // An optional message associated with the event.
-      absl::optional<std::string> message;
+      std::optional<std::string> message;
     };
 
     Log();
@@ -76,7 +77,7 @@ class MetricsServiceObserver : public MetricsLogsEventManager::Observer {
 
     // The type of log (stability, ongoing, independent). This is only set if
     // this log is a UMA log.
-    absl::optional<MetricsLog::LogType> type;
+    std::optional<MetricsLog::LogType> type;
   };
 
   // |service_type| is the type of service this observer will be observing from.
@@ -89,14 +90,14 @@ class MetricsServiceObserver : public MetricsLogsEventManager::Observer {
 
   // MetricsLogsEventManager::Observer:
   void OnLogCreated(
-      base::StringPiece log_hash,
-      base::StringPiece log_data,
-      base::StringPiece log_timestamp,
+      std::string_view log_hash,
+      std::string_view log_data,
+      std::string_view log_timestamp,
       metrics::MetricsLogsEventManager::CreateReason reason) override;
   void OnLogEvent(MetricsLogsEventManager::LogEvent event,
-                  base::StringPiece log_hash,
-                  base::StringPiece message) override;
-  void OnLogType(absl::optional<MetricsLog::LogType> log_type) override;
+                  std::string_view log_hash,
+                  std::string_view message) override;
+  void OnLogType(std::optional<MetricsLog::LogType> log_type) override;
 
   // Exports |logs_| to a JSON string and writes it to |json_output|. If
   // |include_log_proto_data| is true, the protos of the logs will be included.
@@ -147,7 +148,7 @@ class MetricsServiceObserver : public MetricsLogsEventManager::Observer {
  private:
   // Returns the Log object from |logs_| with the given |log_hash| if one
   // exists. Returns nullptr otherwise.
-  Log* GetLogFromHash(base::StringPiece log_hash);
+  Log* GetLogFromHash(std::string_view log_hash);
 
   // The type of service this observer is observing. This has no impact on how
   // the logs are stored. This is only used when exporting the logs (see
@@ -160,12 +161,12 @@ class MetricsServiceObserver : public MetricsLogsEventManager::Observer {
 
   // An overlay on |logs_| that allows for a log to be located based on its
   // hash.
-  base::flat_map<base::StringPiece, Log*> indexed_logs_;
+  base::flat_map<std::string_view, raw_ptr<Log, CtnExperimental>> indexed_logs_;
 
   // Keeps track of the type of UMA logs (ongoing, stability, independent) that
   // are being created. This should only be set for UMA logs, since the concept
   // of log type only exists in UMA.
-  absl::optional<MetricsLog::LogType> uma_log_type_;
+  std::optional<MetricsLog::LogType> uma_log_type_;
 
   // List of callbacks to run whenever this observer is notified. Note that
   // OnLogType() will not trigger the callbacks.

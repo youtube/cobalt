@@ -8,6 +8,7 @@
 
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
+#include "base/location.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/plugins/plugin_prefs.h"
@@ -16,8 +17,6 @@
 #include "chrome/common/chrome_render_frame.mojom.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/notification_service.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/browser/plugin_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
@@ -52,12 +51,12 @@ ChromePluginServiceFilter::ContextInfo::ContextInfo(
 
 ChromePluginServiceFilter::ContextInfo::~ContextInfo() = default;
 
-ChromePluginServiceFilter::ProcessDetails::ProcessDetails() {}
+ChromePluginServiceFilter::ProcessDetails::ProcessDetails() = default;
 
 ChromePluginServiceFilter::ProcessDetails::ProcessDetails(
     const ProcessDetails& other) = default;
 
-ChromePluginServiceFilter::ProcessDetails::~ProcessDetails() {}
+ChromePluginServiceFilter::ProcessDetails::~ProcessDetails() = default;
 
 // ChromePluginServiceFilter definitions.
 
@@ -82,27 +81,33 @@ void ChromePluginServiceFilter::UnregisterProfile(Profile* profile) {
 void ChromePluginServiceFilter::AuthorizePlugin(
     int render_process_id,
     const base::FilePath& plugin_path) {
+  content::GetUIThreadTaskRunner({})->PostTask(
+      FROM_HERE,
+      base::BindOnce(&ChromePluginServiceFilter::ObserveRenderProcessHost,
+                     weak_factory_.GetWeakPtr(), render_process_id));
   base::AutoLock auto_lock(lock_);
   ProcessDetails* details = GetOrRegisterProcess(render_process_id);
   details->authorized_plugins.insert(plugin_path);
 }
 
 void ChromePluginServiceFilter::AuthorizeAllPlugins(
-    content::WebContents* web_contents,
+    content::RenderFrameHost* main_render_frame_host,
     bool load_blocked,
     const std::string& identifier) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK(!main_render_frame_host->GetParent());
 
   // Authorize all plugins is intended for the granting access to only
   // the currently active page, so we iterate on the main frame.
-  web_contents->GetPrimaryMainFrame()->ForEachRenderFrameHost(
+  main_render_frame_host->ForEachRenderFrameHost(
       [](content::RenderFrameHost* render_frame_host) {
         ChromePluginServiceFilter::GetInstance()->AuthorizePlugin(
-            render_frame_host->GetProcess()->GetID(), base::FilePath());
+            render_frame_host->GetProcess()->GetDeprecatedID(),
+            base::FilePath());
       });
 
   if (load_blocked) {
-    web_contents->GetPrimaryMainFrame()
+    main_render_frame_host
         ->ForEachRenderFrameHost(
             [&identifier](content::RenderFrameHost* render_frame_host) {
               mojo::AssociatedRemote<chrome::mojom::ChromeRenderFrame>
@@ -150,26 +155,26 @@ bool ChromePluginServiceFilter::CanLoadPlugin(int render_process_id,
           base::Contains(details->authorized_plugins, base::FilePath()));
 }
 
+void ChromePluginServiceFilter::RenderProcessExited(
+    content::RenderProcessHost* host,
+    const content::ChildProcessTerminationInfo& info) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  base::AutoLock auto_lock(lock_);
+  plugin_details_.erase(host->GetDeprecatedID());
+  host_observation_.RemoveObservation(host);
+}
+
+void ChromePluginServiceFilter::NotifyIfObserverAddedForTesting(
+    base::RepeatingClosure observer_added_callback_for_testing) {
+  observer_added_callback_for_testing_ =
+      std::move(observer_added_callback_for_testing);
+}
+
 ChromePluginServiceFilter::ChromePluginServiceFilter() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  registrar_.Add(this, content::NOTIFICATION_RENDERER_PROCESS_CLOSED,
-                 content::NotificationService::AllSources());
 }
 
-ChromePluginServiceFilter::~ChromePluginServiceFilter() {}
-
-void ChromePluginServiceFilter::Observe(
-    int type,
-    const content::NotificationSource& source,
-    const content::NotificationDetails& details) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  DCHECK_EQ(content::NOTIFICATION_RENDERER_PROCESS_CLOSED, type);
-  int render_process_id =
-      content::Source<content::RenderProcessHost>(source).ptr()->GetID();
-
-  base::AutoLock auto_lock(lock_);
-  plugin_details_.erase(render_process_id);
-}
+ChromePluginServiceFilter::~ChromePluginServiceFilter() = default;
 
 ChromePluginServiceFilter::ProcessDetails*
 ChromePluginServiceFilter::GetOrRegisterProcess(
@@ -184,4 +189,23 @@ ChromePluginServiceFilter::GetProcess(
   if (it == plugin_details_.end())
     return nullptr;
   return &it->second;
+}
+
+void ChromePluginServiceFilter::ObserveRenderProcessHost(
+    int render_process_id) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  content::RenderProcessHost* host =
+      content::RenderProcessHost::FromID(render_process_id);
+  if (!host) {
+    // The RenderProcessHost ceased to exist before we could observe it.
+    base::AutoLock auto_lock(lock_);
+    plugin_details_.erase(render_process_id);
+    return;
+  }
+  if (!host_observation_.IsObservingSource(host)) {
+    host_observation_.AddObservation(host);
+    if (observer_added_callback_for_testing_) {
+      observer_added_callback_for_testing_.Run();
+    }
+  }
 }

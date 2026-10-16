@@ -31,7 +31,7 @@ TEST(DumpInfoTest, BadTimeStringIsNotValid) {
   std::unique_ptr<DumpInfo> info(
       CreateDumpInfo("{"
                      "\"name\": \"name\","
-                     "\"dump_time\" : \"Mar 23 2014 01:23:45\","
+                     "\"dump_time\" : \"What up\","
                      "\"dump\": \"dump_string\","
                      "\"uptime\": \"123456789\","
                      "\"logfile\": \"logfile.log\""
@@ -47,15 +47,14 @@ TEST(DumpInfoTest, AllRequiredFieldsIsValid) {
                      "\"uptime\": \"123456789\","
                      "\"logfile\": \"logfile.log\""
                      "}"));
-  base::Time::Exploded ex = {0};
-  ex.second = 1;
-  ex.minute = 31;
-  ex.hour = 18;
-  ex.day_of_month = 12;
-  ex.month = 11;
-  ex.year = 2001;
+  static constexpr base::Time::Exploded kTime = {.year = 2001,
+                                                 .month = 11,
+                                                 .day_of_month = 12,
+                                                 .hour = 18,
+                                                 .minute = 31,
+                                                 .second = 1};
   base::Time dump_time;
-  EXPECT_TRUE(base::Time::FromLocalExploded(ex, &dump_time));
+  EXPECT_TRUE(base::Time::FromLocalExploded(kTime, &dump_time));
 
   ASSERT_TRUE(info->valid());
   ASSERT_EQ(dump_time, info->dump_time());
@@ -85,15 +84,14 @@ TEST(DumpInfoTest, SomeRequiredFieldsEmptyIsValid) {
                      "\"uptime\": \"\","
                      "\"logfile\": \"\""
                      "}"));
-  base::Time::Exploded ex = {0};
-  ex.second = 1;
-  ex.minute = 31;
-  ex.hour = 18;
-  ex.day_of_month = 12;
-  ex.month = 11;
-  ex.year = 2001;
+  static constexpr base::Time::Exploded kTime = {.year = 2001,
+                                                 .month = 11,
+                                                 .day_of_month = 12,
+                                                 .hour = 18,
+                                                 .minute = 31,
+                                                 .second = 1};
   base::Time dump_time;
-  EXPECT_TRUE(base::Time::FromLocalExploded(ex, &dump_time));
+  EXPECT_TRUE(base::Time::FromLocalExploded(kTime, &dump_time));
 
   ASSERT_TRUE(info->valid());
   ASSERT_EQ(dump_time, info->dump_time());
@@ -117,17 +115,26 @@ TEST(DumpInfoTest, AllOptionalFieldsIsValid) {
                      "\"last_app_name\": \"last_app\","
                      "\"release_version\": \"RELEASE\","
                      "\"build_number\": \"BUILD_NUMBER\","
-                     "\"reason\": \"foo\""
+                     "\"reason\": \"foo\","
+                     "\"comments\": \"comments\","
+                     "\"js_engine\": \"js_engine\","
+                     "\"js_build_label\": \"js_build_label\","
+                     "\"js_exception_category\": \"js_exception_category\","
+                     "\"js_exception_details\": \"js_exception_details\","
+                     "\"js_exception_signature\": \"js_exception_signature\","
+                     "\"js_error_app\": \"js_error_app\","
+                     "\"previous_logfile\": \"previous_logfile\","
+                     "\"background_apps\": \"background_apps\","
+                     "\"server_url\": \"server_url\""
                      "}"));
-  base::Time::Exploded ex = {0};
-  ex.second = 1;
-  ex.minute = 31;
-  ex.hour = 18;
-  ex.day_of_month = 12;
-  ex.month = 11;
-  ex.year = 2001;
+  static constexpr base::Time::Exploded kTime = {.year = 2001,
+                                                 .month = 11,
+                                                 .day_of_month = 12,
+                                                 .hour = 18,
+                                                 .minute = 31,
+                                                 .second = 1};
   base::Time dump_time;
-  EXPECT_TRUE(base::Time::FromLocalExploded(ex, &dump_time));
+  EXPECT_TRUE(base::Time::FromLocalExploded(kTime, &dump_time));
 
   ASSERT_TRUE(info->valid());
   ASSERT_EQ(dump_time, info->dump_time());
@@ -144,6 +151,13 @@ TEST(DumpInfoTest, AllOptionalFieldsIsValid) {
   ASSERT_EQ("current_app", info->params().current_app_name);
   ASSERT_EQ("last_app", info->params().last_app_name);
   ASSERT_EQ("foo", info->params().reason);
+
+  ASSERT_EQ("comments", info->params().comments);
+  ASSERT_EQ("js_engine", info->params().js_engine);
+  ASSERT_EQ("js_build_label", info->params().js_build_label);
+  ASSERT_EQ("js_exception_category", info->params().js_exception_category);
+  ASSERT_EQ("js_exception_details", info->params().js_exception_details);
+  ASSERT_EQ("js_exception_signature", info->params().js_exception_signature);
 }
 
 TEST(DumpInfoTest, SomeOptionalFieldsIsValid) {
@@ -155,17 +169,19 @@ TEST(DumpInfoTest, SomeOptionalFieldsIsValid) {
                      "\"uptime\": \"123456789\","
                      "\"logfile\": \"logfile.log\","
                      "\"suffix\": \"suffix\","
-                     "\"prev_app_name\": \"previous_app\""
+                     "\"prev_app_name\": \"previous_app\","
+                     "\"comments\": \"my comments\","
+                     "\"js_engine\": \"js_engine version\","
+                     "\"js_build_label\": \"js_build_label debug\""
                      "}"));
-  base::Time::Exploded ex = {0};
-  ex.second = 1;
-  ex.minute = 31;
-  ex.hour = 18;
-  ex.day_of_month = 12;
-  ex.month = 11;
-  ex.year = 2001;
+  static constexpr base::Time::Exploded kTime = {.year = 2001,
+                                                 .month = 11,
+                                                 .day_of_month = 12,
+                                                 .hour = 18,
+                                                 .minute = 31,
+                                                 .second = 1};
   base::Time dump_time;
-  EXPECT_TRUE(base::Time::FromLocalExploded(ex, &dump_time));
+  EXPECT_TRUE(base::Time::FromLocalExploded(kTime, &dump_time));
 
   ASSERT_TRUE(info->valid());
   ASSERT_EQ(dump_time, info->dump_time());
@@ -175,6 +191,10 @@ TEST(DumpInfoTest, SomeOptionalFieldsIsValid) {
 
   ASSERT_EQ("suffix", info->params().suffix);
   ASSERT_EQ("previous_app", info->params().previous_app_name);
+
+  ASSERT_EQ("my comments", info->params().comments);
+  ASSERT_EQ("js_engine version", info->params().js_engine);
+  ASSERT_EQ("js_build_label debug", info->params().js_build_label);
 }
 
 TEST(DumpInfoTest, ExtraFieldsIsNotValid) {
@@ -191,6 +211,12 @@ TEST(DumpInfoTest, ExtraFieldsIsNotValid) {
                      "\"last_app_name\": \"last_app\","
                      "\"release_version\": \"RELEASE\","
                      "\"build_number\": \"BUILD_NUMBER\","
+                     "\"comments\": \"comments\","
+                     "\"js_engine\": \"js_engine\","
+                     "\"js_build_label\": \"js_build_label\","
+                     "\"js_exception_category\": \"js_exception_category\","
+                     "\"js_exception_details\": \"js_exception_details\","
+                     "\"js_exception_signature\": \"js_exception_signature\","
                      "\"hello\": \"extra_field\""
                      "}"));
   ASSERT_FALSE(info->valid());

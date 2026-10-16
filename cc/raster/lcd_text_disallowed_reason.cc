@@ -35,7 +35,6 @@ const char* LCDTextDisallowedReasonToString(LCDTextDisallowedReason reason) {
       return "no-text";
   }
   NOTREACHED();
-  return "";
 }
 
 std::ostream& operator<<(std::ostream& os, LCDTextDisallowedReason reason) {

@@ -2,30 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {DefaultUserImage, UserImage, UserImageObserverRemote, UserInfo, UserProviderInterface} from 'chrome://personalization/js/personalization_app.js';
-import {BigBuffer} from 'chrome://resources/mojo/mojo/public/mojom/base/big_buffer.mojom-webui.js';
-import {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
+import type {DefaultUserImage, UserImage, UserImageObserverRemote, UserInfo, UserProviderInterface} from 'chrome://personalization/js/personalization_app.js';
+import type {BigBuffer} from 'chrome://resources/mojo/mojo/public/mojom/base/big_buffer.mojom-webui.js';
+import type {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
 export class TestUserProvider extends TestBrowserProxy implements
     UserProviderInterface {
-  public defaultUserImages: DefaultUserImage[] = [
+  defaultUserImages: DefaultUserImage[] = [
     {
       index: 8,
       title: {data: 'Test title'.split('').map(ch => ch.charCodeAt(0))},
       url: {url: 'data://test_url'},
-      sourceInfo: undefined,
+      sourceInfo: null,
     },
   ];
 
-  public image: UserImage = {defaultImage: this.defaultUserImages[0]} as any;
+  image: UserImage = {defaultImage: this.defaultUserImages[0]} as any;
 
-  public info: UserInfo = {
+  info: UserInfo = {
     name: 'test name',
     email: 'test@email',
   };
 
-  public profileImage: Url = {
+  profileImage: Url = {
     url: 'data://test_profile_url',
   };
 
@@ -64,7 +64,7 @@ export class TestUserProvider extends TestBrowserProxy implements
     this.methodCalled('selectDefaultImage', index);
   }
 
-  async selectProfileImage() {
+  selectProfileImage() {
     this.methodCalled('selectProfileImage');
     this.profileImage = {
       url: 'data://updated_test_url',

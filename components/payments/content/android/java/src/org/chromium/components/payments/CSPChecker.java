@@ -5,9 +5,11 @@
 package org.chromium.components.payments;
 
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.url.GURL;
 
 /** Checks the Content-Security-Policy (CSP). */
+@NullMarked
 public interface CSPChecker {
     /**
      * Checks whether CSP connect-src directive allows the given URL. The parameters match
@@ -18,6 +20,9 @@ public interface CSPChecker {
      * @param didFollowRedirect Whether there was a redirect.
      * @param resultCallback The callback to invoke with the result of the CSP check.
      */
-    void allowConnectToSource(GURL url, GURL urlBeforeRedirects, boolean didFollowRedirect,
+    void allowConnectToSource(
+            GURL url,
+            GURL urlBeforeRedirects,
+            boolean didFollowRedirect,
             Callback<Boolean> resultCallback);
 }

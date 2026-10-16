@@ -26,7 +26,7 @@ class ProfileSigninConfirmationDelegate;
 // A cross-platform interface for invoking various tab modal dialogs/bubbles.
 class TabDialogs : public base::SupportsUserData::Data {
  public:
-  ~TabDialogs() override {}
+  ~TabDialogs() override = default;
 
   // Creates a platform specific instance, and attaches it to |contents|.
   // If an instance is already attached, does nothing.
@@ -54,14 +54,12 @@ class TabDialogs : public base::SupportsUserData::Data {
   virtual void ShowDeprecatedAppsDialog(
       const extensions::ExtensionId& optional_launched_extension_id,
       const std::set<extensions::ExtensionId>& deprecated_app_ids,
-      content::WebContents* web_contents,
-      base::OnceClosure launch_anyways) = 0;
+      content::WebContents* web_contents) = 0;
 
   // Shows the force installed and deprecated app dialog.
   virtual void ShowForceInstalledDeprecatedAppsDialog(
       const extensions::ExtensionId& app_id,
-      content::WebContents* web_contents,
-      base::OnceClosure launch_anyways) = 0;
+      content::WebContents* web_contents) = 0;
 
   // Shows the force installed and deprecated app dialog.
   virtual void ShowForceInstalledPreinstalledDeprecatedAppDialog(

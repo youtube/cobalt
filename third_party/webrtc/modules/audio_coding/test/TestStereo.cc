@@ -10,13 +10,30 @@
 
 #include "modules/audio_coding/test/TestStereo.h"
 
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <string>
+#include <utility>
 
 #include "absl/strings/match.h"
+#include "absl/strings/str_cat.h"
+#include "api/array_view.h"
+#include "api/audio/audio_frame.h"
+#include "api/audio_codecs/audio_format.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
+#include "api/environment/environment_factory.h"
+#include "api/neteq/default_neteq_factory.h"
+#include "api/neteq/neteq.h"
+#include "api/rtp_headers.h"
+#include "api/rtp_parameters.h"
+#include "api/units/timestamp.h"
+#include "modules/audio_coding/include/audio_coding_module.h"
 #include "modules/audio_coding/include/audio_coding_module_typedefs.h"
-#include "modules/include/module_common_types.h"
+#include "modules/audio_coding/test/PCMFile.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
@@ -25,7 +42,7 @@ namespace webrtc {
 
 // Class for simulating packet handling
 TestPackStereo::TestPackStereo()
-    : receiver_acm_(NULL),
+    : neteq_(nullptr),
       seq_no_(0),
       timestamp_diff_(0),
       last_in_timestamp_(0),
@@ -35,8 +52,8 @@ TestPackStereo::TestPackStereo()
 
 TestPackStereo::~TestPackStereo() {}
 
-void TestPackStereo::RegisterReceiverACM(acm2::AcmReceiver* acm_receiver) {
-  receiver_acm_ = acm_receiver;
+void TestPackStereo::RegisterReceiverNetEq(NetEq* neteq) {
+  neteq_ = neteq;
   return;
 }
 
@@ -45,7 +62,7 @@ int32_t TestPackStereo::SendData(const AudioFrameType frame_type,
                                  const uint32_t timestamp,
                                  const uint8_t* payload_data,
                                  const size_t payload_size,
-                                 int64_t absolute_capture_timestamp_ms) {
+                                 int64_t /* absolute_capture_timestamp_ms */) {
   RTPHeader rtp_header;
   int32_t status = 0;
 
@@ -60,8 +77,9 @@ int32_t TestPackStereo::SendData(const AudioFrameType frame_type,
   }
 
   if (lost_packet_ == false) {
-    status = receiver_acm_->InsertPacket(
-        rtp_header, rtc::ArrayView<const uint8_t>(payload_data, payload_size));
+    status = neteq_->InsertPacket(
+        rtp_header, ArrayView<const uint8_t>(payload_data, payload_size),
+        /*receive_time=*/Timestamp::MinusInfinity());
 
     if (frame_type != AudioFrameType::kAudioFrameCN) {
       payload_size_ = static_cast<int>(payload_size);
@@ -97,19 +115,21 @@ void TestPackStereo::set_lost_packet(bool lost) {
 }
 
 TestStereo::TestStereo()
-    : acm_a_(AudioCodingModule::Create()),
-      acm_b_(std::make_unique<acm2::AcmReceiver>(
-          acm2::AcmReceiver::Config(CreateBuiltinAudioDecoderFactory()))),
-      channel_a2b_(NULL),
+    : env_(CreateEnvironment()),
+      acm_a_(AudioCodingModule::Create()),
+      neteq_(DefaultNetEqFactory().Create(env_,
+                                          NetEq::Config(),
+                                          CreateBuiltinAudioDecoderFactory())),
+      channel_a2b_(nullptr),
       test_cntr_(0),
       pack_size_samp_(0),
       pack_size_bytes_(0),
       counter_(0) {}
 
 TestStereo::~TestStereo() {
-  if (channel_a2b_ != NULL) {
+  if (channel_a2b_ != nullptr) {
     delete channel_a2b_;
-    channel_a2b_ = NULL;
+    channel_a2b_ = nullptr;
   }
 }
 
@@ -120,9 +140,9 @@ void TestStereo::Perform() {
 
   // Open both mono and stereo test files in 32 kHz.
   const std::string file_name_stereo =
-      webrtc::test::ResourcePath("audio_coding/teststereo32kHz", "pcm");
+      test::ResourcePath("audio_coding/teststereo32kHz", "pcm");
   const std::string file_name_mono =
-      webrtc::test::ResourcePath("audio_coding/testfile32kHz", "pcm");
+      test::ResourcePath("audio_coding/testfile32kHz", "pcm");
   frequency_hz = 32000;
   in_file_stereo_ = new PCMFile();
   in_file_mono_ = new PCMFile();
@@ -132,10 +152,10 @@ void TestStereo::Perform() {
   in_file_mono_->ReadStereo(false);
 
   // Create and initialize two ACMs, one for each side of a one-to-one call.
-  ASSERT_TRUE((acm_a_.get() != NULL) && (acm_b_.get() != NULL));
-  acm_b_->FlushBuffers();
+  ASSERT_TRUE((acm_a_.get() != nullptr) && (neteq_.get() != nullptr));
+  neteq_->FlushBuffers();
 
-  acm_b_->SetCodecs({{103, {"ISAC", 16000, 1}},
+  neteq_->SetCodecs({{103, {"ISAC", 16000, 1}},
                      {104, {"ISAC", 32000, 1}},
                      {107, {"L16", 8000, 1}},
                      {108, {"L16", 16000, 1}},
@@ -147,7 +167,6 @@ void TestStereo::Perform() {
                      {110, {"PCMU", 8000, 2}},
                      {8, {"PCMA", 8000, 1}},
                      {118, {"PCMA", 8000, 2}},
-                     {102, {"ILBC", 8000, 1}},
                      {9, {"G722", 8000, 1}},
                      {119, {"G722", 8000, 2}},
                      {120, {"OPUS", 48000, 2, {{"stereo", "1"}}}},
@@ -158,7 +177,7 @@ void TestStereo::Perform() {
   // Create and connect the channel.
   channel_a2b_ = new TestPackStereo;
   EXPECT_EQ(0, acm_a_->RegisterTransportCallback(channel_a2b_));
-  channel_a2b_->RegisterReceiverACM(acm_b_.get());
+  channel_a2b_->RegisterReceiverNetEq(neteq_.get());
 
   char codec_pcma_temp[] = "PCMA";
   RegisterSendCodec('A', codec_pcma_temp, 8000, 64000, 80, 2);
@@ -169,6 +188,8 @@ void TestStereo::Perform() {
   audio_channels = 2;
   codec_channels = 2;
 
+// TODO(bugs.webrtc.org/345525069): Either fix/enable or remove G722.
+#if defined(__has_feature) && !__has_feature(undefined_behavior_sanitizer)
   // All codecs are tested for all allowed sampling frequencies, rates and
   // packet sizes.
   channel_a2b_->set_codec_mode(kStereo);
@@ -188,6 +209,7 @@ void TestStereo::Perform() {
   RegisterSendCodec('A', codec_g722, 16000, 64000, 960, codec_channels);
   Run(channel_a2b_, audio_channels, codec_channels);
   out_file_.Close();
+#endif
 
   channel_a2b_->set_codec_mode(kStereo);
   test_cntr_++;
@@ -293,12 +315,15 @@ void TestStereo::Perform() {
   audio_channels = 1;
   codec_channels = 2;
 
+// TODO(bugs.webrtc.org/345525069): Either fix/enable or remove G722.
+#if defined(__has_feature) && !__has_feature(undefined_behavior_sanitizer)
   test_cntr_++;
   channel_a2b_->set_codec_mode(kStereo);
   OpenOutFile(test_cntr_);
   RegisterSendCodec('A', codec_g722, 16000, 64000, 160, codec_channels);
   Run(channel_a2b_, audio_channels, codec_channels);
   out_file_.Close();
+#endif
 
   test_cntr_++;
   channel_a2b_->set_codec_mode(kStereo);
@@ -349,12 +374,15 @@ void TestStereo::Perform() {
   codec_channels = 1;
   channel_a2b_->set_codec_mode(kMono);
 
+// TODO(bugs.webrtc.org/345525069): Either fix/enable or remove G722.
+#if defined(__has_feature) && !__has_feature(undefined_behavior_sanitizer)
   // Run stereo audio and mono codec.
   test_cntr_++;
   OpenOutFile(test_cntr_);
   RegisterSendCodec('A', codec_g722, 16000, 64000, 160, codec_channels);
   Run(channel_a2b_, audio_channels, codec_channels);
   out_file_.Close();
+#endif
 
   test_cntr_++;
   OpenOutFile(test_cntr_);
@@ -387,7 +415,7 @@ void TestStereo::Perform() {
   OpenOutFile(test_cntr_);
   // Encode and decode in mono.
   RegisterSendCodec('A', codec_opus, 48000, 32000, 960, codec_channels);
-  acm_b_->SetCodecs({{120, {"OPUS", 48000, 2}}});
+  neteq_->SetCodecs({{120, {"OPUS", 48000, 2}}});
   Run(channel_a2b_, audio_channels, codec_channels);
 
   // Encode in stereo, decode in mono.
@@ -406,13 +434,13 @@ void TestStereo::Perform() {
   // Decode in stereo.
   test_cntr_++;
   OpenOutFile(test_cntr_);
-  acm_b_->SetCodecs({{120, {"OPUS", 48000, 2, {{"stereo", "1"}}}}});
+  neteq_->SetCodecs({{120, {"OPUS", 48000, 2, {{"stereo", "1"}}}}});
   Run(channel_a2b_, audio_channels, 2);
   out_file_.Close();
   // Decode in mono.
   test_cntr_++;
   OpenOutFile(test_cntr_);
-  acm_b_->SetCodecs({{120, {"OPUS", 48000, 2}}});
+  neteq_->SetCodecs({{120, {"OPUS", 48000, 2}}});
   Run(channel_a2b_, audio_channels, codec_channels);
   out_file_.Close();
 #endif
@@ -446,7 +474,7 @@ void TestStereo::RegisterSendCodec(char side,
                                 0.875);
 
   // Set pointer to the ACM where to register the codec
-  AudioCodingModule* my_acm = NULL;
+  AudioCodingModule* my_acm = nullptr;
   switch (side) {
     case 'A': {
       my_acm = acm_a_.get();
@@ -455,33 +483,32 @@ void TestStereo::RegisterSendCodec(char side,
     case 'B': {
       // We no longer use this case. Refactor code to avoid the switch.
       ASSERT_TRUE(false);
-      // my_acm = acm_b_.get();
+      // my_acm = neteq_.get();
       break;
     }
     default:
       break;
   }
-  ASSERT_TRUE(my_acm != NULL);
+  ASSERT_TRUE(my_acm != nullptr);
 
   auto encoder_factory = CreateBuiltinAudioEncoderFactory();
   const int clockrate_hz = absl::EqualsIgnoreCase(codec_name, "g722")
                                ? sampling_freq_hz / 2
                                : sampling_freq_hz;
-  const std::string ptime = rtc::ToString(rtc::CheckedDivExact(
-      pack_size, rtc::CheckedDivExact(sampling_freq_hz, 1000)));
-  SdpAudioFormat::Parameters params = {{"ptime", ptime}};
+  const std::string ptime = absl::StrCat(
+      CheckedDivExact(pack_size, CheckedDivExact(sampling_freq_hz, 1000)));
+  CodecParameterMap params = {{"ptime", ptime}};
   RTC_CHECK(channels == 1 || channels == 2);
   if (absl::EqualsIgnoreCase(codec_name, "opus")) {
     if (channels == 2) {
       params["stereo"] = "1";
     }
     channels = 2;
-    params["maxaveragebitrate"] = rtc::ToString(rate);
+    params["maxaveragebitrate"] = absl::StrCat(rate);
   }
-  constexpr int payload_type = 17;
-  auto encoder = encoder_factory->MakeAudioEncoder(
-      payload_type, SdpAudioFormat(codec_name, clockrate_hz, channels, params),
-      absl::nullopt);
+  auto encoder = encoder_factory->Create(
+      env_, SdpAudioFormat(codec_name, clockrate_hz, channels, params),
+      {.payload_type = 17});
   EXPECT_NE(nullptr, encoder);
   my_acm->SetEncoder(std::move(encoder));
 
@@ -559,7 +586,8 @@ void TestStereo::Run(TestPackStereo* channel,
 
     // Run receive side of ACM
     bool muted;
-    EXPECT_EQ(0, acm_b_->GetAudio(out_freq_hz_b, &audio_frame, &muted));
+    EXPECT_EQ(NetEq::kOK, neteq_->GetAudio(&audio_frame, &muted));
+    EXPECT_TRUE(resampler_helper_.MaybeResample(out_freq_hz_b, &audio_frame));
     ASSERT_FALSE(muted);
 
     // Write output speech to file
@@ -589,8 +617,8 @@ void TestStereo::Run(TestPackStereo* channel,
 
 void TestStereo::OpenOutFile(int16_t test_number) {
   std::string file_name;
-  rtc::StringBuilder file_stream;
-  file_stream << webrtc::test::OutputPath() << "teststereo_out_" << test_number
+  StringBuilder file_stream;
+  file_stream << test::OutputPath() << "teststereo_out_" << test_number
               << ".pcm";
   file_name = file_stream.str();
   out_file_.Open(file_name, 32000, "wb");

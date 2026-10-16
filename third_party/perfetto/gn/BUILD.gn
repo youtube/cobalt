@@ -13,7 +13,9 @@
 # limitations under the License.
 
 import("perfetto.gni")
+import("perfetto_android_sdk.gni")
 import("perfetto_python.gni")
+import("pkg_config.gni")
 import("proto_library.gni")
 
 if (perfetto_root_path == "//") {
@@ -50,13 +52,21 @@ action("gen_buildflags") {
   # We can't just use (is_linux || is_android) in perfetto.gni because that
   # doesn't work in Android Mac host builds. We lose the GN notion of OS once
   # we run the tools/gen_xxx generators.
+  #
+  # Currently, QNX has the OS_LINUX flag enabled to remain as compatible as
+  # possible. Watchdog is an exception where it uses Linux-specific system
+  # calls. Therefore we skip enabling the watchdog in QNX.
   if (enable_perfetto_watchdog) {
-    perfetto_watchdog = "PERFETTO_BUILDFLAG_DEFINE_PERFETTO_OS_ANDROID() || " +
-                        "PERFETTO_BUILDFLAG_DEFINE_PERFETTO_OS_LINUX()"
+    perfetto_watchdog =
+        "PERFETTO_BUILDFLAG_DEFINE_PERFETTO_OS_ANDROID() || " +
+        "PERFETTO_BUILDFLAG_DEFINE_PERFETTO_OS_LINUX_BUT_NOT_QNX()"
   } else {
     perfetto_watchdog = "0"
   }
-  if (enable_perfetto_tools) {
+
+  # We need local symbolization to run diff tests in chrome.
+  if (enable_perfetto_tools ||
+      (enable_perfetto_trace_processor && build_with_chromium)) {
     perfetto_local_symbolizer =
         "PERFETTO_BUILDFLAG_DEFINE_PERFETTO_OS_LINUX() || " +
         "PERFETTO_BUILDFLAG_DEFINE_PERFETTO_OS_MAC() ||" +
@@ -73,6 +83,7 @@ action("gen_buildflags") {
     "PERFETTO_IPC=$enable_perfetto_ipc",
     "PERFETTO_WATCHDOG=$perfetto_watchdog",
     "PERFETTO_COMPONENT_BUILD=$perfetto_component_build",
+    "PERFETTO_ENABLE_ETM_IMPORTER=$enable_perfetto_etm_importer",
     "PERFETTO_FORCE_DLOG_ON=$perfetto_force_dlog_on",
     "PERFETTO_FORCE_DLOG_OFF=$perfetto_force_dlog_off",
     "PERFETTO_FORCE_DCHECK_ON=$perfetto_force_dcheck_on",
@@ -83,6 +94,7 @@ action("gen_buildflags") {
     "PERFETTO_TP_LINENOISE=$enable_perfetto_trace_processor_linenoise",
     "PERFETTO_TP_HTTPD=$enable_perfetto_trace_processor_httpd",
     "PERFETTO_TP_JSON=$enable_perfetto_trace_processor_json",
+    "PERFETTO_TP_INSTRUMENTS=$enable_perfetto_trace_processor_mac_instruments",
     "PERFETTO_LOCAL_SYMBOLIZER=$perfetto_local_symbolizer",
     "PERFETTO_ZLIB=$enable_perfetto_zlib",
     "PERFETTO_TRACED_PERF=$enable_perfetto_traced_perf",
@@ -91,6 +103,7 @@ action("gen_buildflags") {
     "PERFETTO_X64_CPU_OPT=$enable_perfetto_x64_cpu_opt",
     "PERFETTO_LLVM_DEMANGLE=$enable_perfetto_llvm_demangle",
     "PERFETTO_SYSTEM_CONSUMER=$enable_perfetto_system_consumer",
+    "PERFETTO_THREAD_SAFETY_ANNOTATIONS=$perfetto_thread_safety_annotations",
   ]
 
   rel_out_path = rebase_path(gen_header_path, "$root_build_dir")
@@ -207,6 +220,7 @@ group("gtest_main") {
 # Full protobuf is just for host tools .No binary shipped on device should
 # depend on this.
 protobuf_full_deps_allowlist = [
+  "../buildtools/grpc:*",
   "../src/ipc/protoc_plugin:*",
   "../src/protozero/protoc_plugin:*",
   "../src/protozero/filtering:filter_util",
@@ -224,8 +238,19 @@ config("system_protoc") {
   libs = [ "protoc" ]  # This will link against libprotoc.so
 }
 
+# pkg_deps selects the appropriate pkg-config based on current_toolchain and
+# this is a no-op if |perfetto_use_pkgconfig| is false.
+pkg_config("pkgconfig_protobuf") {
+  pkg_deps = [ "protobuf" ]
+}
+
 config("system_protobuf") {
-  libs = [ "protobuf" ]  # This will link against libprotobuf.so
+  if (perfetto_use_pkgconfig) {
+    configs = [ ":pkgconfig_protobuf" ]
+  } else {
+    # Fallback if pkg-config isn't enabled.
+    libs = [ "protobuf" ]  # This will link against libprotobuf.so
+  }
 }
 
 # protoc compiler library, it's used for building protoc plugins.
@@ -275,7 +300,7 @@ config("protobuf_gen_config") {
     "GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER",
   ]
   cflags = []
-  if (!is_clang || !is_win) {
+  if (is_gcc) {
     cflags += [ "-Wno-deprecated-declarations" ]
   }
   if (is_clang && is_win) {
@@ -289,6 +314,17 @@ config("protobuf_gen_config") {
       "-Wno-unused-parameter",
       "-Wno-shadow-field-in-constructor",
       "-Wno-zero-as-null-pointer-constant",
+
+      # Fixed in upstream protobuf v3.22.0
+      # d37cbfd4485f("Update inlined_string_field.h"), but we don't have that.
+      "-Wno-undef",
+    ]
+  }
+  if (!is_clang && is_win) {
+    # MSVC
+    cflags += [
+      "/wd4838",  # conversion from 'unsigned long' to 'int' requires a
+                  # narrowing conversion
     ]
   }
 
@@ -343,6 +379,16 @@ config("sqlite_third_party_include_path") {
   }
 }
 
+if (enable_perfetto_trace_processor_mac_instruments) {
+  group("expat") {
+    if (perfetto_root_path == "//") {
+      public_deps = [ "//buildtools:expat" ]
+    } else {
+      public_deps = [ "//third_party/expat:expat" ]
+    }
+  }
+}
+
 if (enable_perfetto_trace_processor_json) {
   group("jsoncpp") {
     if (perfetto_root_path == "//") {
@@ -351,6 +397,17 @@ if (enable_perfetto_trace_processor_json) {
     } else {
       public_deps = [ "//third_party/jsoncpp:jsoncpp" ]
     }
+  }
+}
+
+if (enable_perfetto_grpc) {
+  group("grpc") {
+    public_configs = [ "//buildtools:grpc_public_config" ]
+    public_deps = [ "//buildtools/grpc:grpc++" ]
+  }
+
+  group("cpp_httplib") {
+    public_deps = [ "//buildtools:cpp_httplib" ]
   }
 }
 
@@ -423,5 +480,18 @@ perfetto_py_library("pandas_py") {
 }
 perfetto_py_library("tp_vendor_py") {
 }
+perfetto_py_library("tp_resolvers_py") {
+}
 perfetto_py_library("protobuf_py") {
+}
+
+# Android Java SDK libraries wich need to be provided by other build systems.
+perfetto_android_library("android_test_common") {
+}
+
+if (enable_perfetto_etm_importer) {
+  group("open_csd") {
+    visibility = [ "//src/trace_processor/importers/etm:etm_impl" ]
+    public_deps = [ "//buildtools:open_csd" ]
+  }
 }

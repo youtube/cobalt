@@ -5,23 +5,11 @@
 #include "quiche/quic/core/quic_connection_context.h"
 
 #include "absl/base/attributes.h"
-#include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
 namespace {
 ABSL_CONST_INIT thread_local QuicConnectionContext* current_context = nullptr;
 }  // namespace
-
-std::string QuicConnectionProcessPacketContext::DebugString() const {
-  if (decrypted_payload.empty()) {
-    return "Not processing packet";
-  }
-
-  return absl::StrCat("current_frame_offset: ", current_frame_offset,
-                      ", payload size: ", decrypted_payload.size(),
-                      ", payload hexdump: ",
-                      quiche::QuicheTextUtils::HexDump(decrypted_payload));
-}
 
 // static
 QuicConnectionContext* QuicConnectionContext::Current() {
@@ -32,15 +20,15 @@ QuicConnectionContextSwitcher::QuicConnectionContextSwitcher(
     QuicConnectionContext* new_context)
     : old_context_(QuicConnectionContext::Current()) {
   current_context = new_context;
-  if (new_context && new_context->tracer) {
-    new_context->tracer->Activate();
+  if (new_context && new_context->listener) {
+    new_context->listener->Activate();
   }
 }
 
 QuicConnectionContextSwitcher::~QuicConnectionContextSwitcher() {
   QuicConnectionContext* current = QuicConnectionContext::Current();
-  if (current && current->tracer) {
-    current->tracer->Deactivate();
+  if (current && current->listener) {
+    current->listener->Deactivate();
   }
   current_context = old_context_;
 }

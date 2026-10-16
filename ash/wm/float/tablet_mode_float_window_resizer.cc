@@ -8,7 +8,6 @@
 #include "ash/wm/drag_details.h"
 #include "ash/wm/float/float_controller.h"
 #include "ash/wm/window_state.h"
-#include "chromeos/ui/wm/features.h"
 #include "ui/aura/window.h"
 #include "ui/base/hit_test.h"
 
@@ -28,7 +27,6 @@ TabletModeFloatWindowResizer::TabletModeFloatWindowResizer(
     WindowState* window_state)
     : WindowResizer(window_state),
       last_location_in_parent_(details().initial_location_in_parent) {
-  CHECK(chromeos::wm::features::IsWindowLayoutMenuEnabled());
   window_state->OnDragStarted(HTCAPTION);
 }
 
@@ -79,7 +77,7 @@ void TabletModeFloatWindowResizer::FlingOrSwipe(ui::GestureEvent* event) {
 
   const ui::GestureEventDetails& details = event->details();
   float velocity_x = 0.f, velocity_y = 0.f;
-  if (event->type() == ui::ET_SCROLL_FLING_START) {
+  if (event->type() == ui::EventType::kScrollFlingStart) {
     velocity_x = details.velocity_x();
     velocity_y = details.velocity_y();
 
@@ -91,7 +89,7 @@ void TabletModeFloatWindowResizer::FlingOrSwipe(ui::GestureEvent* event) {
       return;
     }
   } else {
-    CHECK_EQ(ui::ET_GESTURE_SWIPE, event->type());
+    CHECK_EQ(ui::EventType::kGestureSwipe, event->type());
 
     // Use any negative value if `swipe_left()` or `swipe_up()`, otherwise use
     // any positive value.

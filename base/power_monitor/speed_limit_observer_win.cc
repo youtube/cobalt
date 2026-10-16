@@ -5,9 +5,9 @@
 #include "base/power_monitor/speed_limit_observer_win.h"
 
 #include <windows.h>
+#include <winternl.h>
 
 #include <powerbase.h>
-#include <winternl.h>
 
 #include <algorithm>
 #include <memory>
@@ -15,7 +15,11 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "base/power_monitor/cpu_frequency_utils.h"
 #include "base/system/sys_info.h"
+#include "base/timer/elapsed_timer.h"
+#include "base/trace_event/base_tracing.h"
+#include "build/build_config.h"
 
 namespace {
 
@@ -27,7 +31,11 @@ constexpr base::TimeDelta kSampleInterval = base::Seconds(1);
 
 // Size of moving-average filter which is used to smooth out variations in
 // speed-limit estimates.
-constexpr size_t kMovingAverageWindowSize = 10;
+size_t kMovingAverageWindowSize = 10;
+
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+constexpr const char kPowerTraceCategory[] = TRACE_DISABLED_BY_DEFAULT("power");
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
 // From
 // https://msdn.microsoft.com/en-us/library/windows/desktop/aa373184(v=vs.85).aspx.
@@ -83,7 +91,7 @@ SpeedLimitObserverWin::~SpeedLimitObserverWin() {
   timer_.Stop();
 }
 
-int SpeedLimitObserverWin::GetCurrentSpeedLimit() {
+int SpeedLimitObserverWin::GetCurrentSpeedLimit() const {
   const int kSpeedLimitMax = PowerThermalObserver::kSpeedLimitMax;
 
   int idleness_percent = 0;
@@ -94,6 +102,26 @@ int SpeedLimitObserverWin::GetCurrentSpeedLimit() {
 
   // Get the latest estimated throttling level (value between 0.0 and 1.0).
   float throttling_level = EstimateThrottlingLevel();
+
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+  // Emit trace events to investigate issues with power throttling. Run this
+  // block only if tracing is running to avoid executing expensive calls to
+  // EstimateCpuFrequency(...).
+  bool trace_events_enabled;
+  TRACE_EVENT_CATEGORY_GROUP_ENABLED(kPowerTraceCategory,
+                                     &trace_events_enabled);
+  if (trace_events_enabled) {
+    TRACE_COUNTER(kPowerTraceCategory, "idleness", idleness_percent);
+    TRACE_COUNTER(kPowerTraceCategory, "throttling_level",
+                  static_cast<unsigned int>(throttling_level * 100));
+
+#if defined(ARCH_CPU_X86_FAMILY)
+    double cpu_frequency = EstimateCpuFrequency();
+    TRACE_COUNTER(kPowerTraceCategory, "frequency_mhz",
+                  static_cast<unsigned int>(cpu_frequency / 1'000'000));
+#endif
+  }
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
   // Ignore the value if the global idleness is above 90% or throttling value
   // is very small. This approach avoids false alarms and removes noise from the
@@ -119,14 +147,14 @@ int SpeedLimitObserverWin::GetCurrentSpeedLimit() {
     return kSpeedLimitMax;
   }
 
-  // Add the latest speeed-limit value [0,100] to the MA filter and return its
+  // Add the latest speed-limit value [0,100] to the MA filter and return its
   // output after ensuring that the filter is full. We do this to avoid initial
   // false alarms at startup and after calling Reset() on the filter.
   moving_average_.AddSample(speed_limit);
-  if (moving_average_.Size() < kMovingAverageWindowSize) {
+  if (moving_average_.Count() < kMovingAverageWindowSize) {
     return kSpeedLimitMax;
   }
-  return moving_average_.GetAverageRoundedDown();
+  return moving_average_.Mean();
 }
 
 void SpeedLimitObserverWin::OnTimerTick() {
@@ -137,9 +165,14 @@ void SpeedLimitObserverWin::OnTimerTick() {
     speed_limit_ = speed_limit;
     callback_.Run(speed_limit_);
   }
+
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+  TRACE_COUNTER(kPowerTraceCategory, "speed_limit",
+                static_cast<unsigned int>(speed_limit));
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 }
 
-float SpeedLimitObserverWin::EstimateThrottlingLevel() {
+float SpeedLimitObserverWin::EstimateThrottlingLevel() const {
   float throttling_level = 0.f;
 
   // Populate the PROCESSOR_POWER_INFORMATION structures for all logical CPUs
@@ -155,12 +188,15 @@ float SpeedLimitObserverWin::EstimateThrottlingLevel() {
   // Estimate the level of throttling by measuring how many CPUs that are not
   // in idle state and how "far away" they are from the most idle state. Local
   // tests have shown that `MaxIdleState` is typically 2 or 3 and
-  // `CurrentIdleState` switches to 2 or 1 when some sort of trottling starts
-  // to take place. `CurrentIdleState` equal to 0 can happen on devices where
-  // `MaxIdleState` equals 1 but it seems hard to provoke when `MaxIdleState`
-  // is larger than 1.
-  // The Intel Extreme Tuning Utility application has been used to monitor when
-  // any type of throttling (thermal, power-limit, PMAX etc) starts.
+  //
+  // `CurrentIdleState` switches to 2 or 1 when some sort of throttling starts
+  // to take place. The Intel Extreme Tuning Utility application has been used
+  // to monitor when any type of throttling (thermal, power-limit, PMAX etc)
+  // starts.
+  //
+  // `CurrentIdleState` contains the CPU C-State + 1. When `MaxIdleState` is
+  // 1, the `CurrentIdleState` will always be 0 and the C-States are not
+  // supported.
   int num_non_idle_cpus = 0;
   float load_fraction_total = 0.0;
   for (size_t i = 0; i < num_cpus(); ++i) {
@@ -179,10 +215,12 @@ float SpeedLimitObserverWin::EstimateThrottlingLevel() {
     // Used for a sanity check only.
     num_non_idle_cpus += (info[i].CurrentIdleState < info[i].MaxIdleState);
   }
+
   DCHECK_LE(load_fraction_total, static_cast<float>(num_non_idle_cpus))
       << " load_fraction_total: " << load_fraction_total
       << " num_non_idle_cpus:" << num_non_idle_cpus;
   throttling_level = (load_fraction_total / num_cpus());
+
   return throttling_level;
 }
 

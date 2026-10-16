@@ -1,0 +1,3 @@
+HTTP/1.1 200 OK
+Link: <test.dict>; rel="compression-dictionary"
+Content-Type: text/html

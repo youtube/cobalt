@@ -14,7 +14,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
-#include "ui/base/layout.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia.h"
 
@@ -52,7 +52,7 @@ class ArcAppIcon {
     virtual void OnIconFailed(ArcAppIcon* icon) {}
 
    protected:
-    virtual ~Observer() {}
+    virtual ~Observer() = default;
   };
 
   enum IconType {
@@ -209,7 +209,7 @@ class ArcAppIcon {
   // implementation, and at the same time, sending the request to the ARC side
   // to request the new foreground and background images.
   //
-  // TODO(crbug.com/1083331): Remove the migration handling code, which reads
+  // TODO(crbug.com/40131344): Remove the migration handling code, which reads
   // the old icon_png_data, when the adaptive icon feature is enabled in the
   // stable release, and the adaptive icon flag is removed.
   static std::unique_ptr<ArcAppIcon::ReadResult> ReadAdaptiveIconFiles(
@@ -246,13 +246,13 @@ class ArcAppIcon {
   void UpdateCompressed(ui::ResourceScaleFactor scale_factor, std::string data);
   void DiscardDecodeRequest(DecodeRequest* request, bool is_decode_success);
 
-  const raw_ptr<content::BrowserContext, ExperimentalAsh> context_;
+  const raw_ptr<content::BrowserContext> context_;
   const std::string app_id_;
   // Contains app id that is actually used to read an icon resource to support
   // shelf group mapping to shortcut.
   const std::string mapped_app_id_;
   const int resource_size_in_dip_;
-  const raw_ptr<Observer, ExperimentalAsh> observer_;
+  const raw_ptr<Observer> observer_;
   const IconType icon_type_;
   // Used to separate first 5 loaded app icons and other app icons.
   // Only one form of app icons will be loaded, compressed or uncompressed, so

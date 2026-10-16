@@ -11,6 +11,10 @@
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
 #include "build/build_config.h"
+#include "chrome/browser/apps/app_service/app_service_proxy.h"
+#include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
+#include "chrome/browser/apps/browser_instance/browser_app_instance.h"
+#include "chrome/browser/apps/browser_instance/browser_app_instance_tracker.h"
 #include "chrome/browser/autofill/address_normalizer_factory.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/autofill/validation_rules_storage_factory.h"
@@ -23,9 +27,9 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/views/payments/payment_request_dialog_view.h"
-#include "components/autofill/core/browser/address_normalizer_impl.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager.h"
+#include "components/autofill/core/browser/data_quality/addresses/address_normalizer_impl.h"
 #include "components/autofill/core/browser/geo/region_data_loader_impl.h"
-#include "components/autofill/core/browser/personal_data_manager.h"
 #include "components/autofill/core/browser/ui/region_combobox_model.h"
 #include "components/keyed_service/core/service_access_type.h"
 #include "components/payments/content/payment_manifest_web_data_service.h"
@@ -41,7 +45,7 @@
 #include "content/public/browser/web_contents.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy_feature.mojom-shared.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-shared.h"
 #include "third_party/libaddressinput/chromium/chrome_metadata_source.h"
 #include "third_party/libaddressinput/chromium/chrome_storage_impl.h"
 
@@ -64,7 +68,7 @@ std::unique_ptr<::i18n::addressinput::Storage> GetAddressInputStorage() {
 bool FrameSupportsPayments(content::RenderFrameHost* rfh) {
   return rfh && rfh->IsActive() && rfh->IsRenderFrameLive() &&
          rfh->IsFeatureEnabled(
-             blink::mojom::PermissionsPolicyFeature::kPayment);
+             network::mojom::PermissionsPolicyFeature::kPayment);
 }
 
 }  // namespace
@@ -134,11 +138,8 @@ void ChromePaymentRequestDelegate::ShowProcessingSpinner() {
 
 autofill::PersonalDataManager*
 ChromePaymentRequestDelegate::GetPersonalDataManager() {
-  // Autofill uses the original profile's PersonalDataManager to make data
-  // available in incognito, so PaymentRequest should do the same.
-  return autofill::PersonalDataManagerFactory::GetForProfile(
-      Profile::FromBrowserContext(GetBrowserContextOrNull())
-          ->GetOriginalProfile());
+  return autofill::PersonalDataManagerFactory::GetForBrowserContext(
+      GetBrowserContextOrNull());
 }
 
 const std::string& ChromePaymentRequestDelegate::GetApplicationLocale() const {
@@ -204,7 +205,7 @@ bool ChromePaymentRequestDelegate::IsBrowserWindowActive() const {
   if (!FrameSupportsPayments(rfh))
     return false;
 
-  Browser* browser = chrome::FindBrowserWithWebContents(
+  Browser* browser = chrome::FindBrowserWithTab(
       content::WebContents::FromRenderFrameHost(rfh));
   return browser && browser->window() && browser->window()->IsActive();
 }
@@ -302,6 +303,11 @@ PaymentRequestDialog* ChromePaymentRequestDelegate::GetDialogForTesting() {
 SecurePaymentConfirmationNoCreds*
 ChromePaymentRequestDelegate::GetNoMatchingCredentialsDialogForTesting() {
   return spc_no_creds_dialog_.get();
+}
+
+std::optional<base::UnguessableToken>
+ChromePaymentRequestDelegate::GetChromeOSTWAInstanceId() const {
+  return std::nullopt;
 }
 
 const base::WeakPtr<PaymentUIObserver>

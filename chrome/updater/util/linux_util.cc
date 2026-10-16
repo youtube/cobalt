@@ -4,16 +4,20 @@
 
 #include "chrome/updater/util/linux_util.h"
 
+#include <optional>
+
 #include "base/base_paths.h"
 #include "base/files/file_path.h"
+#include "base/functional/callback.h"
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
+#include "chrome/enterprise_companion/installer_paths.h"
 #include "chrome/updater/constants.h"
+#include "chrome/updater/registration_data.h"
 #include "chrome/updater/updater_branding.h"
 #include "chrome/updater/updater_scope.h"
 #include "chrome/updater/util/posix_util.h"
 #include "chrome/updater/util/util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace updater {
 namespace {
@@ -23,15 +27,18 @@ constexpr base::FilePath::CharType kSystemDataPath[] =
 constexpr base::FilePath::CharType kUserRelativeDataPath[] =
     FILE_PATH_LITERAL(".local/");
 
-}  // namespace
+base::FilePath GetUpdaterFolderName() {
+  return base::FilePath(COMPANY_SHORTNAME_LOWERCASE_STRING)
+      .Append(PRODUCT_FULLNAME_DASHED_LOWERCASE_STRING);
+}
 
-const char kLauncherName[] = "launcher";
+}  // namespace
 
 base::FilePath GetExecutableRelativePath() {
   return base::FilePath(base::StrCat({kExecutableName, kExecutableSuffix}));
 }
 
-absl::optional<base::FilePath> GetInstallDirectory(UpdaterScope scope) {
+std::optional<base::FilePath> GetInstallDirectory(UpdaterScope scope) {
   base::FilePath path;
   switch (scope) {
     case UpdaterScope::kUser:
@@ -43,14 +50,33 @@ absl::optional<base::FilePath> GetInstallDirectory(UpdaterScope scope) {
     case UpdaterScope::kSystem:
       return base::FilePath(kSystemDataPath).Append(GetUpdaterFolderName());
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<base::FilePath> GetUpdateServiceLauncherPath(
+std::optional<base::FilePath> GetUpdateServiceLauncherPath(UpdaterScope scope) {
+  std::optional<base::FilePath> path = GetInstallDirectory(scope);
+  return path ? std::optional<base::FilePath>(path->Append(kLauncherName))
+              : std::nullopt;
+}
+
+bool MigrateLegacyUpdaters(
+    UpdaterScope scope,
+    base::RepeatingCallback<void(const RegistrationRequest&)>
+        register_callback) {
+  // There is no legacy update client for Linux.
+  return true;
+}
+
+std::optional<base::FilePath> GetBundledEnterpriseCompanionExecutablePath(
     UpdaterScope scope) {
-  absl::optional<base::FilePath> path = GetInstallDirectory(scope);
-  return path ? absl::optional<base::FilePath>(path->AppendASCII(kLauncherName))
-              : absl::nullopt;
+  std::optional<base::FilePath> install_dir =
+      GetVersionedInstallDirectory(scope);
+  if (!install_dir) {
+    return std::nullopt;
+  }
+
+  return install_dir->Append(
+      base::StrCat({enterprise_companion::kExecutableName, kExecutableSuffix}));
 }
 
 }  // namespace updater

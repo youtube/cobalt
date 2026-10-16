@@ -28,32 +28,51 @@ class CancellingSelectFileDialog : public ui::SelectFileDialog {
                       int file_type_index,
                       const base::FilePath::StringType& default_extension,
                       gfx::NativeWindow owning_window,
-                      void* params,
                       const GURL* caller) override {
     if (out_params_) {
       out_params_->type = type;
       if (file_types) {
         out_params_->file_types = *file_types;
       } else {
-        out_params_->file_types = absl::nullopt;
+        out_params_->file_types = std::nullopt;
       }
       out_params_->owning_window = owning_window;
       out_params_->file_type_index = file_type_index;
       out_params_->default_path = default_path;
       out_params_->title = title;
-      out_params_->caller = caller;
+      if (caller) {
+        out_params_->caller = *caller;
+      } else {
+        out_params_->caller = std::nullopt;
+      }
+
+      // Free the pointer since output parameters should only be written to
+      // once.
+      out_params_ = nullptr;
     }
-    listener_->FileSelectionCanceled(params);
+    listener_->FileSelectionCanceled();
   }
+
+#if BUILDFLAG(IS_ANDROID)
+  void SetAcceptTypes(std::vector<std::u16string> types) override {
+    if (out_params_) {
+      out_params_->accept_types = std::move(types);
+    }
+  }
+#endif
 
   bool IsRunning(gfx::NativeWindow owning_window) const override {
     return false;
   }
-  void ListenerDestroyed() override {}
+  void ListenerDestroyed() override { listener_ = nullptr; }
   bool HasMultipleFileTypeChoicesImpl() override { return false; }
 
  private:
-  ~CancellingSelectFileDialog() override = default;
+  ~CancellingSelectFileDialog() override {
+    if (out_params_) {
+      out_params_ = nullptr;
+    }
+  }
   raw_ptr<SelectFileDialogParams> out_params_;
 };
 
@@ -75,40 +94,50 @@ class FakeSelectFileDialog : public ui::SelectFileDialog {
                       int file_type_index,
                       const base::FilePath::StringType& default_extension,
                       gfx::NativeWindow owning_window,
-                      void* params,
                       const GURL* caller) override {
     if (out_params_) {
       out_params_->type = type;
       if (file_types) {
         out_params_->file_types = *file_types;
       } else {
-        out_params_->file_types = absl::nullopt;
+        out_params_->file_types = std::nullopt;
       }
       out_params_->owning_window = owning_window;
       out_params_->file_type_index = file_type_index;
       out_params_->default_path = default_path;
       out_params_->title = title;
-      out_params_->caller = caller;
+      if (caller) {
+        out_params_->caller = *caller;
+      } else {
+        out_params_->caller = std::nullopt;
+      }
+
+      // Clean up the output parameters; they should only be filled in once.
+      out_params_ = nullptr;
     }
     // The selected files are passed by reference to the listener. Ensure they
     // outlive the dialog if it is immediately deleted by the listener.
     std::vector<ui::SelectedFileInfo> result = std::move(result_);
     result_.clear();
     if (result.size() == 1) {
-      listener_->FileSelectedWithExtraInfo(result[0], 0, params);
+      listener_->FileSelected(result[0], 0);
     } else {
-      listener_->MultiFilesSelectedWithExtraInfo(result, params);
+      listener_->MultiFilesSelected(result);
     }
   }
 
   bool IsRunning(gfx::NativeWindow owning_window) const override {
     return false;
   }
-  void ListenerDestroyed() override {}
+  void ListenerDestroyed() override { listener_ = nullptr; }
   bool HasMultipleFileTypeChoicesImpl() override { return false; }
 
  private:
-  ~FakeSelectFileDialog() override = default;
+  ~FakeSelectFileDialog() override {
+    if (out_params_) {
+      out_params_ = nullptr;
+    }
+  }
   std::vector<ui::SelectedFileInfo> result_;
   raw_ptr<SelectFileDialogParams> out_params_;
 };
@@ -122,8 +151,9 @@ CancellingSelectFileDialogFactory::CancellingSelectFileDialogFactory(
     SelectFileDialogParams* out_params)
     : out_params_(out_params) {}
 
-CancellingSelectFileDialogFactory::~CancellingSelectFileDialogFactory() =
-    default;
+CancellingSelectFileDialogFactory::~CancellingSelectFileDialogFactory() {
+  out_params_ = nullptr;
+}
 
 ui::SelectFileDialog* CancellingSelectFileDialogFactory::Create(
     ui::SelectFileDialog::Listener* listener,
@@ -144,7 +174,9 @@ FakeSelectFileDialogFactory::FakeSelectFileDialogFactory(
     SelectFileDialogParams* out_params)
     : result_(std::move(result)), out_params_(out_params) {}
 
-FakeSelectFileDialogFactory::~FakeSelectFileDialogFactory() = default;
+FakeSelectFileDialogFactory::~FakeSelectFileDialogFactory() {
+  out_params_ = nullptr;
+}
 
 ui::SelectFileDialog* FakeSelectFileDialogFactory::Create(
     ui::SelectFileDialog::Listener* listener,

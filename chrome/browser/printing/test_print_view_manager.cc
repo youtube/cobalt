@@ -8,10 +8,11 @@
 #include <memory>
 #include <utility>
 
-#include "base/auto_reset.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
+#include "build/build_config.h"
+#include "chrome/browser/printing/print_job.h"
 #include "chrome/browser/printing/print_job_manager.h"
 #include "chrome/browser/printing/print_view_manager_common.h"
 #include "chrome/browser/printing/printer_query.h"
@@ -21,6 +22,11 @@
 #include "content/public/browser/render_frame_host.h"
 #include "printing/mojom/print.mojom.h"
 #include "printing/print_settings.h"
+
+#if BUILDFLAG(IS_WIN)
+#include "printing/metafile.h"
+#include "printing/print_job_constants.h"
+#endif
 
 namespace printing {
 
@@ -44,6 +50,37 @@ void OnDidUpdatePrintSettings(
 
   std::move(callback).Run(std::move(settings));
 }
+
+class TestPrintJob : public PrintJob {
+ public:
+  explicit TestPrintJob(PrintJobManager* print_job_manager)
+      : PrintJob(print_job_manager) {}
+
+#if BUILDFLAG(IS_WIN)
+  void set_simulate_pdf_conversion_error_on_page_index(uint32_t page_index) {
+    simulate_pdf_conversion_error_on_page_index_ = page_index;
+  }
+#endif
+
+ private:
+  ~TestPrintJob() override = default;
+
+#if BUILDFLAG(IS_WIN)
+  // `PrintJob` overrides:
+  void OnPdfPageConverted(uint32_t page_index,
+                          float scale_factor,
+                          std::unique_ptr<MetafilePlayer> metafile) override {
+    if (simulate_pdf_conversion_error_on_page_index_.has_value() &&
+        page_index == *simulate_pdf_conversion_error_on_page_index_) {
+      // Override the page index to simulate an error.
+      page_index = kInvalidPageIndex;
+    }
+    PrintJob::OnPdfPageConverted(page_index, scale_factor, std::move(metafile));
+  }
+
+  std::optional<uint32_t> simulate_pdf_conversion_error_on_page_index_;
+#endif  // BUILDFLAG(IS_WIN)
+};
 
 }  // namespace
 
@@ -73,7 +110,7 @@ bool TestPrintViewManager::StartPrinting(content::WebContents* contents) {
 
 void TestPrintViewManager::WaitUntilPreviewIsShownOrCancelled() {
   base::RunLoop run_loop;
-  base::AutoReset<base::RunLoop*> auto_reset(&run_loop_, &run_loop);
+  quit_closure_ = run_loop.QuitClosure();
   run_loop.Run();
 }
 
@@ -92,20 +129,30 @@ bool TestPrintViewManager::PrintNow(content::RenderFrameHost* rfh) {
   return *print_now_result_;
 }
 
-bool TestPrintViewManager::CreateNewPrintJob(
-    std::unique_ptr<PrinterQuery> query) {
-  if (!PrintViewManager::CreateNewPrintJob(std::move(query))) {
-    return false;
+scoped_refptr<PrintJob> TestPrintViewManager::CreatePrintJob(
+    PrintJobManager* print_job_manager) {
+  auto print_job = base::MakeRefCounted<TestPrintJob>(print_job_manager);
+#if BUILDFLAG(IS_WIN)
+  if (simulate_pdf_conversion_error_on_page_index_.has_value()) {
+    print_job->set_simulate_pdf_conversion_error_on_page_index(
+        *simulate_pdf_conversion_error_on_page_index_);
   }
+#endif
   if (on_did_create_print_job_) {
-    on_did_create_print_job_.Run(print_job_.get());
+    on_did_create_print_job_.Run(print_job.get());
   }
-  return true;
+  return print_job;
+}
+
+void TestPrintViewManager::PrintPreviewRejectedForTesting() {
+  if (quit_closure_) {
+    std::move(quit_closure_).Run();
+  }
 }
 
 void TestPrintViewManager::PrintPreviewAllowedForTesting() {
-  if (run_loop_) {
-    run_loop_->Quit();
+  if (quit_closure_) {
+    std::move(quit_closure_).Run();
   }
 }
 

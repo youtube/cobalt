@@ -5,9 +5,10 @@
 #ifndef NET_FIRST_PARTY_SETS_FIRST_PARTY_SET_ENTRY_OVERRIDE_H_
 #define NET_FIRST_PARTY_SETS_FIRST_PARTY_SET_ENTRY_OVERRIDE_H_
 
+#include <optional>
+
 #include "net/base/net_export.h"
 #include "net/first_party_sets/first_party_set_entry.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace mojo {
 template <typename DataViewType, typename T>
@@ -45,7 +46,7 @@ class NET_EXPORT FirstPartySetEntryOverride {
   // Returns the new target entry, if this override is not a deletion. Must not
   // be called if `IsDeletion()` is true.
   const FirstPartySetEntry& GetEntry() const {
-    DCHECK(!IsDeletion());
+    CHECK(!IsDeletion());
     return entry_.value();
   }
 
@@ -55,7 +56,7 @@ class NET_EXPORT FirstPartySetEntryOverride {
       network::mojom::FirstPartySetEntryOverrideDataView,
       FirstPartySetEntryOverride>;
 
-  absl::optional<FirstPartySetEntry> entry_;
+  std::optional<FirstPartySetEntry> entry_;
 };
 
 NET_EXPORT std::ostream& operator<<(std::ostream& os,

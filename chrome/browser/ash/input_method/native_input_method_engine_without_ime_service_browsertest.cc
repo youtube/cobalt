@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/memory/raw_ptr.h"
-#include "chrome/browser/ash/input_method/native_input_method_engine.h"
-
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
+#include "base/dcheck_is_on.h"
+#include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -16,6 +15,7 @@
 #include "base/values.h"
 #include "build/branding_buildflags.h"
 #include "chrome/browser/ash/input_method/assistive_window_controller.h"
+#include "chrome/browser/ash/input_method/native_input_method_engine.h"
 #include "chrome/browser/ash/input_method/stub_input_method_engine_observer.h"
 #include "chrome/browser/ash/input_method/suggestion_enums.h"
 #include "chrome/browser/ash/input_method/textinput_test_helper.h"
@@ -27,10 +27,11 @@
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "components/autofill/core/browser/autofill_test_utils.h"
-#include "components/autofill/core/browser/data_model/autofill_profile.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_utils.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/base/ime/ash/ime_bridge.h"
@@ -87,7 +88,7 @@ class KeyProcessingWaiter {
   void Wait() { run_loop_.Run(); }
 
  private:
-  base::RunLoop run_loop_;
+  base::RunLoop run_loop_{base::RunLoop::Type::kNestableTasksAllowed};
 };
 
 // These use the browser test framework but tamper with the environment through
@@ -102,8 +103,7 @@ class NativeInputMethodEngineWithoutImeServiceTest
  public:
   NativeInputMethodEngineWithoutImeServiceTest() : input_method_(this) {
     feature_list_.InitWithFeatures(
-        /*enabled_features=*/{features::kMultilingualTyping,
-                              features::kOnDeviceGrammarCheck},
+        /*enabled_features=*/{features::kOnDeviceGrammarCheck},
         /*disabled_features=*/{});
   }
 
@@ -176,12 +176,13 @@ class NativeInputMethodEngineWithoutImeServiceTest
                         int flags = ui::EF_NONE) {
     KeyProcessingWaiter waiterPressed;
     KeyProcessingWaiter waiterReleased;
-    engine_->ProcessKeyEvent({ui::ET_KEY_PRESSED, code, flags},
+    engine_->ProcessKeyEvent({ui::EventType::kKeyPressed, code, flags},
                              waiterPressed.CreateCallback());
-    engine_->ProcessKeyEvent({ui::ET_KEY_RELEASED, code, flags},
+    engine_->ProcessKeyEvent({ui::EventType::kKeyReleased, code, flags},
                              waiterReleased.CreateCallback());
-    if (need_flush)
+    if (need_flush) {
       engine_->FlushForTesting();
+    }
 
     waiterPressed.Wait();
     waiterReleased.Wait();
@@ -203,9 +204,9 @@ class NativeInputMethodEngineWithoutImeServiceTest
   }
 
   std::unique_ptr<NativeInputMethodEngine> engine_;
-  raw_ptr<Profile, ExperimentalAsh> profile_;
-  raw_ptr<PrefService, ExperimentalAsh> prefs_;
-  raw_ptr<TestObserver, ExperimentalAsh> observer_;
+  raw_ptr<Profile, DanglingUntriaged> profile_;
+  raw_ptr<PrefService, DanglingUntriaged> prefs_;
+  raw_ptr<TestObserver, DanglingUntriaged> observer_;
 
  private:
   InputMethodAsh input_method_;
@@ -348,8 +349,19 @@ IN_PROC_BROWSER_TEST_F(NativeInputMethodEngineWithoutImeServiceTest,
   }
 }
 
+// TODO(pbos): Re-enable on all build configurations. This hits a
+// DUMP_WILL_BE_NOTREACHED() in ~Profile as it's being destroyed with observers
+// still present in its ObserverList. Usually this is a sign of UAFs waiting to
+// happen (those observers will likely try to unregister themselves later). It's
+// unclear if this is a quirk of the test or a bug in production code.
+#if defined(OFFICIAL_BUILD) && !DCHECK_IS_ON()
+#define MAYBE_DestroyProfile DestroyProfile
+#else
+#define MAYBE_DestroyProfile DISABLED_DestroyProfile
+#endif  // defined(OFFICIAL_BUILD) && !DCHECK_IS_ON()
+
 IN_PROC_BROWSER_TEST_F(NativeInputMethodEngineWithoutImeServiceTest,
-                       DestroyProfile) {
+                       MAYBE_DestroyProfile) {
   EXPECT_NE(engine_->GetPrefChangeRegistrarForTesting(), nullptr);
   profile_->MaybeSendDestroyedNotification();
   EXPECT_EQ(engine_->GetPrefChangeRegistrarForTesting(), nullptr);
@@ -549,199 +561,27 @@ IN_PROC_BROWSER_TEST_F(NativeInputMethodEngineWithoutImeServiceTest,
   SetFocus(nullptr);
 }
 
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 IN_PROC_BROWSER_TEST_F(NativeInputMethodEngineWithoutImeServiceTest,
-                       SendsMetricsForExperimentalMultilingual) {
-  base::HistogramTester histogram_tester;
-
-  // TODO(crbug/1162211): Use object-oriented encapsulation for input method IDs
-  // instead of unstructured type-unsafe error-prone string concats.
-  const std::string input_method_id_prefix =
-      "_comp_ime_jkghodnilhceideoidjikpgommlajknk";
-  const std::string input_method_id = "experimental_layout-us_lang-fr-FR";
-  const std::string full_input_method_id =
-      input_method_id_prefix + input_method_id;
-
-  // More prod-like way to change input method; required because "multilingual
-  // experiment" metrics rely on real CrOS IMF "input method management".
-  scoped_refptr<InputMethodManager::State> active_ime_state =
-      InputMethodManager::Get()->GetActiveIMEState();
-  active_ime_state->EnableInputMethod(full_input_method_id);
-  active_ime_state->ChangeInputMethod(full_input_method_id,
-                                      false /* show_message */);
-
-  // Need to weirdly enable the same input method onto the bespoke instance
-  // of NativeInputMethodEngine that's the test subject, and attach it to the
-  // CrOS IMF environment, bypassing CrOS IMF "input method management" in the
-  // same way as all other tests here to fit in with the overall setup here.
-  // The NativeInputMethodEngine created and managed by CrOS IMF (thus also
-  // enabled via above ChangeInputMethod step) is effectively ignored.
-  // TODO(crbug/1197005): Migrate to unit tests to avoid all such weirdness.
-  engine_->Enable(input_method_id);
-  IMEBridge::Get()->SetCurrentEngineHandler(engine_.get());
+                       ReplaceSurroundingTextPerformsAtomicInsertText) {
+  engine_->Enable(kEngineIdUs);
 
   TextInputTestHelper helper(GetBrowserInputMethod());
   SetUpTextInput(helper);
-  const std::u16string corrected_text = u"corrected";
-  const std::u16string typed_text = u"typed";
-  helper.GetTextInputClient()->InsertText(
-      corrected_text,
-      ui::TextInputClient::InsertTextCursorBehavior::kMoveCursorAfterText);
-  helper.WaitForSurroundingTextChanged(corrected_text);
-  EXPECT_EQ(IMEBridge::Get()
-                ->GetInputContextHandler()
-                ->GetSurroundingTextInfo()
-                .surrounding_text,
-            corrected_text);
-
-  histogram_tester.ExpectBucketCount(
-      "InputMethod.MultilingualExperiment.Autocorrect.Actions",
-      AutocorrectActions::kUnderlined, 0);
-  histogram_tester.ExpectBucketCount(
-      "InputMethod.MultilingualExperiment.DiacriticalAutocorrect.Actions",
-      AutocorrectActions::kUnderlined, 0);
-
-  engine_->OnAutocorrect(typed_text, corrected_text, 0);
-
-  // This indicates an autocorrect trigger, although the metric sounds
-  // UI-centric. This should captures all autocorrect triggers (that will be
-  // either accepted or rejected by the users in different ways).
-  histogram_tester.ExpectBucketCount(
-      "InputMethod.MultilingualExperiment.Autocorrect.Actions",
-      AutocorrectActions::kUnderlined, 1);
-  histogram_tester.ExpectBucketCount(
-      "InputMethod.MultilingualExperiment.DiacriticalAutocorrect.Actions",
-      AutocorrectActions::kUnderlined, 0);
-
-  // Move cursor into the corrected word, sending VKEY_LEFT fails, so use JS.
-  // This incurs UI popup that allows user to reject the autocorrect trigger.
   content::WebContents* tab =
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(content::ExecJs(
-      tab, "document.getElementById('text_id').setSelectionRange(2,2)"));
-  helper.WaitForSurroundingTextChanged(corrected_text, gfx::Range(2, 2));
-
-  histogram_tester.ExpectBucketCount(
-      "InputMethod.MultilingualExperiment.Autocorrect.Actions",
-      AutocorrectActions::kReverted, 0);
-  histogram_tester.ExpectBucketCount(
-      "InputMethod.MultilingualExperiment.DiacriticalAutocorrect.Actions",
-      AutocorrectActions::kReverted, 0);
-
-  // This simulates user rejecting the autocorrect trigger by navigating and
-  // and selecting the "undo" button. This isn't the only way autocorrect
-  // trigger is rejected though. Other kinds of rejects aren't recorded yet.
-  DispatchKeyPress(ui::VKEY_UP, false);
-  DispatchKeyPress(ui::VKEY_RETURN, false);
-  helper.WaitForSurroundingTextChanged(typed_text);
-
-  histogram_tester.ExpectBucketCount(
-      "InputMethod.MultilingualExperiment.Autocorrect.Actions",
-      AutocorrectActions::kReverted, 1);
-  histogram_tester.ExpectBucketCount(
-      "InputMethod.MultilingualExperiment.DiacriticalAutocorrect.Actions",
-      AutocorrectActions::kReverted, 0);
-
-  SetFocus(nullptr);
-}
-#endif
-
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-IN_PROC_BROWSER_TEST_F(NativeInputMethodEngineWithoutImeServiceTest,
-                       SendsDiacriticalMetricsForExperimentalMultilingual) {
-  base::HistogramTester histogram_tester;
-
-  // TODO(crbug/1162211): Use object-oriented encapsulation for input method IDs
-  // instead of unstructured type-unsafe error-prone string concats.
-  const std::string input_method_id_prefix =
-      "_comp_ime_jkghodnilhceideoidjikpgommlajknk";
-  const std::string input_method_id = "experimental_layout-us_lang-fr-FR";
-  const std::string full_input_method_id =
-      input_method_id_prefix + input_method_id;
-
-  // More prod-like way to change input method; required because "multilingual
-  // experiment" metrics rely on real CrOS IMF "input method management".
-  scoped_refptr<InputMethodManager::State> active_ime_state =
-      InputMethodManager::Get()->GetActiveIMEState();
-  active_ime_state->EnableInputMethod(full_input_method_id);
-  active_ime_state->ChangeInputMethod(full_input_method_id,
-                                      false /* show_message */);
-
-  // Need to weirdly enable the same input method onto the bespoke instance
-  // of NativeInputMethodEngine that's the test subject, and attach it to the
-  // CrOS IMF environment, bypassing CrOS IMF "input method management" in the
-  // same way as all other tests here to fit in with the overall setup here.
-  // The NativeInputMethodEngine created and managed by CrOS IMF (thus also
-  // enabled via above ChangeInputMethod step) is effectively ignored.
-  // TODO(crbug/1197005): Migrate to unit tests to avoid all such weirdness.
-  engine_->Enable(input_method_id);
-  IMEBridge::Get()->SetCurrentEngineHandler(engine_.get());
-
-  TextInputTestHelper helper(GetBrowserInputMethod());
-  SetUpTextInput(helper);
-  const std::u16string corrected_text = u"français";
-  const std::u16string typed_text = u"francais";
-  helper.GetTextInputClient()->InsertText(
-      corrected_text,
-      ui::TextInputClient::InsertTextCursorBehavior::kMoveCursorAfterText);
-  helper.WaitForSurroundingTextChanged(corrected_text);
-  EXPECT_EQ(IMEBridge::Get()
-                ->GetInputContextHandler()
-                ->GetSurroundingTextInfo()
-                .surrounding_text,
-            corrected_text);
-
-  histogram_tester.ExpectBucketCount(
-      "InputMethod.MultilingualExperiment.Autocorrect.Actions",
-      AutocorrectActions::kUnderlined, 0);
-  histogram_tester.ExpectBucketCount(
-      "InputMethod.MultilingualExperiment.DiacriticalAutocorrect.Actions",
-      AutocorrectActions::kUnderlined, 0);
-
-  engine_->OnAutocorrect(typed_text, corrected_text, 0);
-
-  // This indicates an autocorrect trigger, although the metric sounds
-  // UI-centric. This should captures all autocorrect triggers (that will be
-  // either accepted or rejected by the users in different ways).
-  histogram_tester.ExpectBucketCount(
-      "InputMethod.MultilingualExperiment.Autocorrect.Actions",
-      AutocorrectActions::kUnderlined, 1);
-  histogram_tester.ExpectBucketCount(
-      "InputMethod.MultilingualExperiment.DiacriticalAutocorrect.Actions",
-      AutocorrectActions::kUnderlined, 1);
-
-  // Move cursor into the corrected word, sending VKEY_LEFT fails, so use JS.
-  // This incurs UI popup that allows user to reject the autocorrect trigger.
-  content::WebContents* tab =
-      browser()->tab_strip_model()->GetActiveWebContents();
+      tab, "document.getElementById('text_id').value = 'original'"));
   ASSERT_TRUE(content::ExecJs(
-      tab, "document.getElementById('text_id').setSelectionRange(2,2)"));
-  helper.WaitForSurroundingTextChanged(corrected_text, gfx::Range(2, 2));
+      tab, "document.getElementById('text_id').setSelectionRange(4,4)"));
 
-  histogram_tester.ExpectBucketCount(
-      "InputMethod.MultilingualExperiment.Autocorrect.Actions",
-      AutocorrectActions::kReverted, 0);
-  histogram_tester.ExpectBucketCount(
-      "InputMethod.MultilingualExperiment.DiacriticalAutocorrect.Actions",
-      AutocorrectActions::kReverted, 0);
+  helper.GetTextInputClient()->ExtendSelectionAndReplace(3, 2, u"replaced");
+  helper.WaitForSurroundingTextChanged(u"oreplacedal");
 
-  // This simulates user rejecting the autocorrect trigger by navigating and
-  // and selecting the "undo" button. This isn't the only way autocorrect
-  // trigger is rejected though. Other kinds of rejects aren't recorded yet.
-  DispatchKeyPress(ui::VKEY_UP, false);
-  DispatchKeyPress(ui::VKEY_RETURN, false);
-  helper.WaitForSurroundingTextChanged(typed_text);
-
-  histogram_tester.ExpectBucketCount(
-      "InputMethod.MultilingualExperiment.Autocorrect.Actions",
-      AutocorrectActions::kReverted, 1);
-  histogram_tester.ExpectBucketCount(
-      "InputMethod.MultilingualExperiment.DiacriticalAutocorrect.Actions",
-      AutocorrectActions::kReverted, 1);
+  EXPECT_EQ(helper.GetElementInnerText("text_events", tab),
+            "replaced;insertText;false\n");
 
   SetFocus(nullptr);
 }
-#endif
 
 }  // namespace input_method
 }  // namespace ash

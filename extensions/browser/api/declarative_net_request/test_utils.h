@@ -6,6 +6,7 @@
 #define EXTENSIONS_BROWSER_API_DECLARATIVE_NET_REQUEST_TEST_UTILS_H_
 
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -22,11 +23,14 @@
 #include "extensions/common/api/declarative_net_request.h"
 #include "extensions/common/api/declarative_net_request/constants.h"
 #include "extensions/common/extension_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 class BrowserContext;
 }  // namespace content
+
+namespace net {
+class HttpResponseHeaders;
+}  // namespace net
 
 namespace extensions {
 
@@ -35,8 +39,9 @@ class Extension;
 namespace declarative_net_request {
 
 class FileBackedRulesetSource;
+struct RequestParams;
 class RulesetMatcher;
-struct RulesCountPair;
+struct RuleCounts;
 struct TestRule;
 
 // Enum specifying the extension load type. Used for parameterized tests.
@@ -60,9 +65,9 @@ std::ostream& operator<<(std::ostream& output, RequestAction::Type type);
 std::ostream& operator<<(std::ostream& output, const RequestAction& action);
 std::ostream& operator<<(std::ostream& output, const ParseResult& result);
 std::ostream& operator<<(std::ostream& output,
-                         const absl::optional<RequestAction>& action);
+                         const std::optional<RequestAction>& action);
 std::ostream& operator<<(std::ostream& output, LoadRulesetResult result);
-std::ostream& operator<<(std::ostream& output, const RulesCountPair& count);
+std::ostream& operator<<(std::ostream& output, const RuleCounts& count);
 
 // Returns true if the given extension's indexed static rulesets are all valid.
 // Should be called on a sequence where file IO is allowed.
@@ -71,8 +76,8 @@ bool AreAllIndexedStaticRulesetsValid(
     content::BrowserContext* browser_context,
     FileBackedRulesetSource::RulesetFilter ruleset_filter);
 
-// Helper to create a verified ruleset matcher. Populates |matcher| and
-// |expected_checksum|. Returns true on success.
+// Helper to create a verified ruleset matcher. Populates `matcher` and
+// `expected_checksum`. Returns true on success.
 bool CreateVerifiedMatcher(const std::vector<TestRule>& rules,
                            const FileBackedRulesetSource& source,
                            std::unique_ptr<RulesetMatcher>* matcher,
@@ -87,11 +92,20 @@ FileBackedRulesetSource CreateTemporarySource(
 api::declarative_net_request::ModifyHeaderInfo CreateModifyHeaderInfo(
     api::declarative_net_request::HeaderOperation operation,
     std::string header,
-    absl::optional<std::string> value);
+    std::optional<std::string> value,
+    std::optional<std::string> regex_filter = std::nullopt,
+    std::optional<std::string> regex_substitution = std::nullopt,
+    std::optional<api::declarative_net_request::HeaderRegexOptions>
+        regex_options = std::nullopt);
 
 bool EqualsForTesting(
     const api::declarative_net_request::ModifyHeaderInfo& lhs,
     const api::declarative_net_request::ModifyHeaderInfo& rhs);
+
+api::declarative_net_request::HeaderInfo CreateHeaderInfo(
+    std::string header,
+    std::optional<std::vector<std::string>> values,
+    std::optional<std::vector<std::string>> excluded_values);
 
 // Test observer for RulesetManager. This is a multi-use observer i.e.
 // WaitForExtensionsWithRulesetsCount can be called multiple times per lifetime
@@ -107,7 +121,7 @@ class RulesetManagerObserver : public RulesetManager::TestObserver {
   // function.
   std::vector<GURL> GetAndResetRequestSeen();
 
-  // Waits for the number of rulesets to change to |count|. Note |count| is the
+  // Waits for the number of rulesets to change to `count`. Note `count` is the
   // number of extensions with rulesets or the number of active
   // CompositeMatchers.
   void WaitForExtensionsWithRulesetsCount(size_t count);
@@ -120,7 +134,7 @@ class RulesetManagerObserver : public RulesetManager::TestObserver {
 
   const raw_ptr<RulesetManager> manager_;
   size_t current_count_ = 0;
-  absl::optional<size_t> expected_count_;
+  std::optional<size_t> expected_count_;
   std::unique_ptr<base::RunLoop> run_loop_;
   std::vector<GURL> observed_requests_;
   SEQUENCE_CHECKER(sequence_checker_);
@@ -154,6 +168,10 @@ base::flat_set<int> GetDisabledRuleIdsFromMatcherForTesting(
     const RulesetManager& ruleset_manager,
     const Extension& extension,
     const std::string& ruleset_id_string);
+
+RequestParams CreateRequestWithResponseHeaders(
+    const GURL& url,
+    const net::HttpResponseHeaders* headers);
 
 }  // namespace declarative_net_request
 }  // namespace extensions

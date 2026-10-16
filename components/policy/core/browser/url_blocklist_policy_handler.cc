@@ -5,6 +5,7 @@
 #include "components/policy/core/browser/url_blocklist_policy_handler.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -14,6 +15,7 @@
 #include "base/strings/string_util.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "components/policy/core/browser/configuration_policy_handler.h"
 #include "components/policy/core/browser/policy_error_map.h"
 #include "components/policy/core/common/policy_logger.h"
 #include "components/policy/core/common/policy_map.h"
@@ -22,7 +24,6 @@
 #include "components/prefs/pref_value_map.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/url_matcher/url_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
@@ -76,7 +77,7 @@ bool URLBlocklistPolicyHandler::CheckPolicySettings(const PolicyMap& policies,
     return true;
   }
 
-  // Filters more than |url_util::kMaxFiltersPerPolicy| are ignored, add a
+  // Filters more than |policy::kMaxUrlFiltersPerPolicy| are ignored, add a
   // warning message.
   if (url_blocklist->GetList().size() + disabled_schemes_entries >
       kMaxUrlFiltersPerPolicy) {
@@ -117,7 +118,7 @@ void URLBlocklistPolicyHandler::ApplyPolicySettings(const PolicyMap& policies,
   const base::Value* url_blocklist_policy =
       policies.GetValue(policy_name(), base::Value::Type::LIST);
 
-  absl::optional<base::Value::List> merged_url_blocklist;
+  std::optional<base::Value::List> merged_url_blocklist;
 
 #if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID)
   const base::Value* disabled_schemes_policy =

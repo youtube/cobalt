@@ -24,6 +24,8 @@
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_callbacks.h"
 
 #ifndef SOL_UDP
 #define SOL_UDP 17
@@ -43,18 +45,20 @@
 
 namespace quic {
 
-const int kCmsgSpaceForIpv4 = CMSG_SPACE(sizeof(in_pktinfo));
-const int kCmsgSpaceForIpv6 = CMSG_SPACE(sizeof(in6_pktinfo));
+inline constexpr int kCmsgSpaceForIpv4 = CMSG_SPACE(sizeof(in_pktinfo));
+inline constexpr int kCmsgSpaceForIpv6 = CMSG_SPACE(sizeof(in6_pktinfo));
 // kCmsgSpaceForIp should be big enough to hold both IPv4 and IPv6 packet info.
-const int kCmsgSpaceForIp = (kCmsgSpaceForIpv4 < kCmsgSpaceForIpv6)
-                                ? kCmsgSpaceForIpv6
-                                : kCmsgSpaceForIpv4;
+inline constexpr int kCmsgSpaceForIp = (kCmsgSpaceForIpv4 < kCmsgSpaceForIpv6)
+                                           ? kCmsgSpaceForIpv6
+                                           : kCmsgSpaceForIpv4;
 
-const int kCmsgSpaceForSegmentSize = CMSG_SPACE(sizeof(uint16_t));
+inline constexpr int kCmsgSpaceForSegmentSize = CMSG_SPACE(sizeof(uint16_t));
 
-const int kCmsgSpaceForTxTime = CMSG_SPACE(sizeof(uint64_t));
+inline constexpr int kCmsgSpaceForTxTime = CMSG_SPACE(sizeof(uint64_t));
 
-const int kCmsgSpaceForTTL = CMSG_SPACE(sizeof(int));
+inline constexpr int kCmsgSpaceForTTL = CMSG_SPACE(sizeof(int));
+
+inline constexpr int kCmsgSpaceForTOS = CMSG_SPACE(sizeof(int));
 
 // QuicMsgHdr is used to build msghdr objects that can be used send packets via
 // ::sendmsg.
@@ -72,11 +76,14 @@ const int kCmsgSpaceForTTL = CMSG_SPACE(sizeof(int));
 //   *hdr.GetNextCmsgData<uint16_t>(SOL_UDP, UDP_SEGMENT) = 1200;
 //
 //   QuicLinuxSocketUtils::WritePacket(fd, hdr);
-class QUIC_EXPORT_PRIVATE QuicMsgHdr {
+class QUICHE_EXPORT QuicMsgHdr {
  public:
-  QuicMsgHdr(const char* buffer, size_t buf_len,
-             const QuicSocketAddress& peer_address, char* cbuf,
-             size_t cbuf_size);
+  // Creates a QuicMsgHeader without setting the peer address in
+  // msghdr.msg_name. This can be set later with SetPeerAddress().
+  QuicMsgHdr(iovec* iov, size_t iov_len, char* cbuf, size_t cbuf_size);
+
+  // Sets the peer address in msghdr.msg_name.
+  void SetPeerAddress(const QuicSocketAddress& peer_address);
 
   // Set IP info in the next cmsg. Both IPv4 and IPv6 are supported.
   void SetIpInNextCmsg(const QuicIpAddress& self_address);
@@ -94,7 +101,6 @@ class QUIC_EXPORT_PRIVATE QuicMsgHdr {
                                 size_t data_size);
 
   msghdr hdr_;
-  iovec iov_;
   sockaddr_storage raw_peer_address_;
   char* cbuf_;
   const size_t cbuf_size_;
@@ -103,24 +109,25 @@ class QUIC_EXPORT_PRIVATE QuicMsgHdr {
 };
 
 // BufferedWrite holds all information needed to send a packet.
-struct QUIC_EXPORT_PRIVATE BufferedWrite {
+struct QUICHE_EXPORT BufferedWrite {
   BufferedWrite(const char* buffer, size_t buf_len,
                 const QuicIpAddress& self_address,
                 const QuicSocketAddress& peer_address)
       : BufferedWrite(buffer, buf_len, self_address, peer_address,
                       std::unique_ptr<PerPacketOptions>(),
-                      /*release_time=*/0) {}
+                      QuicPacketWriterParams(), /*release_time=*/0) {}
 
   BufferedWrite(const char* buffer, size_t buf_len,
                 const QuicIpAddress& self_address,
                 const QuicSocketAddress& peer_address,
                 std::unique_ptr<PerPacketOptions> options,
-                uint64_t release_time)
+                const QuicPacketWriterParams& params, uint64_t release_time)
       : buffer(buffer),
         buf_len(buf_len),
         self_address(self_address),
         peer_address(peer_address),
         options(std::move(options)),
+        params(params),
         release_time(release_time) {}
 
   const char* buffer;  // Not owned.
@@ -128,6 +135,7 @@ struct QUIC_EXPORT_PRIVATE BufferedWrite {
   QuicIpAddress self_address;
   QuicSocketAddress peer_address;
   std::unique_ptr<PerPacketOptions> options;
+  QuicPacketWriterParams params;
 
   // The release time according to the owning packet writer's clock, which is
   // often not a QuicClock. Calculated from packet writer's Now() and the
@@ -152,13 +160,15 @@ struct QUIC_EXPORT_PRIVATE BufferedWrite {
 //
 //   int num_packets_sent;
 //   QuicSocketUtils::WriteMultiplePackets(fd, &mhdr, &num_packets_sent);
-class QUIC_EXPORT_PRIVATE QuicMMsgHdr {
+class QUICHE_EXPORT QuicMMsgHdr {
  public:
-  using ControlBufferInitializer = std::function<void(
+  using ControlBufferInitializer = quiche::UnretainedCallback<void(
       QuicMMsgHdr* mhdr, int i, const BufferedWrite& buffered_write)>;
   template <typename IteratorT>
-  QuicMMsgHdr(const IteratorT& first, const IteratorT& last, size_t cbuf_size,
-              ControlBufferInitializer cbuf_initializer)
+  QuicMMsgHdr(
+      const IteratorT& first, const IteratorT& last, size_t cbuf_size,
+      ControlBufferInitializer cbuf_initializer =
+          +[](quic::QuicMMsgHdr*, int, const quic::BufferedWrite&) {})
       : num_msgs_(std::distance(first, last)), cbuf_size_(cbuf_size) {
     static_assert(
         std::is_same<typename std::iterator_traits<IteratorT>::value_type,
@@ -178,9 +188,7 @@ class QUIC_EXPORT_PRIVATE QuicMMsgHdr {
       ++i;
 
       InitOneHeader(i, *it);
-      if (cbuf_initializer) {
-        cbuf_initializer(this, i, *it);
-      }
+      cbuf_initializer(this, i, *it);
     }
   }
 
@@ -248,7 +256,7 @@ class QUIC_EXPORT_PRIVATE QuicMMsgHdr {
   std::unique_ptr<char[]> storage_;
 };
 
-class QUIC_EXPORT_PRIVATE QuicLinuxSocketUtils {
+class QUICHE_EXPORT QuicLinuxSocketUtils {
  public:
   // Return the UDP segment size of |fd|, 0 means segment size has not been set
   // on this socket. If GSO is not supported, return -1.

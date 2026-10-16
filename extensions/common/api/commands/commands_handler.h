@@ -12,6 +12,7 @@
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest.h"
 #include "extensions/common/manifest_handler.h"
+#include "ui/base/accelerators/command.h"
 
 namespace extensions {
 
@@ -26,12 +27,12 @@ struct CommandsInfo : public Extension::ManifestData {
   std::unique_ptr<Command> browser_action_command;
   std::unique_ptr<Command> page_action_command;
   std::unique_ptr<Command> action_command;
-  CommandMap named_commands;
+  ui::CommandMap named_commands;
 
   static const Command* GetBrowserActionCommand(const Extension* extension);
   static const Command* GetPageActionCommand(const Extension* extension);
   static const Command* GetActionCommand(const Extension* extension);
-  static const CommandMap* GetNamedCommands(const Extension* extension);
+  static const ui::CommandMap* GetNamedCommands(const Extension* extension);
 };
 
 // Parses the "commands" manifest key.
@@ -48,14 +49,12 @@ class CommandsHandler : public ManifestHandler {
   bool AlwaysParseForType(Manifest::Type type) const override;
 
  private:
-  // If the extension defines a browser action (or action in MV3), but no
-  // command for it, then we synthesize a generic one, so the user can
-  // configure a shortcut for it. No keyboard shortcut will be assigned to it,
-  // until the user selects one. A generic command is not set for extensions
-  // defining a page action.
-  // TODO(crbug.com/1353210): Change name to MaybeSetActionDefault.
-  void MaybeSetBrowserActionDefault(const Extension* extension,
-                                    CommandsInfo* info);
+  // If the extension defines an action (or browser action in manifest versions
+  // prior to 3), but no command for it, then we synthesize a generic one, so
+  // the user can configure a shortcut for it. No keyboard shortcut will be
+  // assigned to it, until the user selects one. A generic command is not set
+  // for extensions defining a page action.
+  void MaybeSetActionDefault(const Extension* extension, CommandsInfo* info);
 
   base::span<const char* const> Keys() const override;
 };

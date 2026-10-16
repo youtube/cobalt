@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <utility>
@@ -63,7 +64,7 @@ class QuicCryptoServerStreamTest : public QuicTest {
             std::move(proof_source), KeyExchangeSource::Default()),
         server_compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize),
-        server_id_(kServerHostname, kServerPort, false),
+        server_id_(kServerHostname, kServerPort),
         client_crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {}
 
   void Initialize() { InitializeServer(); }
@@ -210,6 +211,10 @@ TEST_F(QuicCryptoServerStreamTest, ForwardSecureAfterCHLO) {
   InitializeFakeClient();
 
   AdvanceHandshakeWithFakeClient();
+  if (GetQuicReloadableFlag(quic_require_handshake_confirmation)) {
+    crypto_test_utils::AdvanceHandshake(client_connection_, client_stream(), 0,
+                                        server_connection_, server_stream(), 0);
+  }
   EXPECT_TRUE(server_stream()->encryption_established());
   EXPECT_TRUE(server_stream()->one_rtt_keys_available());
   EXPECT_EQ(ENCRYPTION_FORWARD_SECURE,
@@ -243,7 +248,9 @@ TEST_F(QuicCryptoServerStreamTest, ZeroRTT) {
   crypto_test_utils::CommunicateHandshakeMessages(
       client_connection_, client_stream(), server_connection_, server_stream());
 
-  EXPECT_EQ(1, client_stream()->num_sent_client_hellos());
+  EXPECT_EQ(
+      (GetQuicReloadableFlag(quic_require_handshake_confirmation) ? 2 : 1),
+      client_stream()->num_sent_client_hellos());
   EXPECT_TRUE(server_stream()->ResumptionAttempted());
 }
 
@@ -301,6 +308,10 @@ TEST_F(QuicCryptoServerStreamTest, SendSCUPAfterHandshakeComplete) {
   InitializeServer();
   InitializeFakeClient();
   AdvanceHandshakeWithFakeClient();
+  if (GetQuicReloadableFlag(quic_require_handshake_confirmation)) {
+    crypto_test_utils::AdvanceHandshake(client_connection_, client_stream(), 0,
+                                        server_connection_, server_stream(), 0);
+  }
 
   // Send a SCUP message and ensure that the client was able to verify it.
   EXPECT_CALL(*client_connection_, CloseConnection(_, _, _)).Times(0);

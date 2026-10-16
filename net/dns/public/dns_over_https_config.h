@@ -5,14 +5,14 @@
 #ifndef NET_DNS_PUBLIC_DNS_OVER_HTTPS_CONFIG_H_
 #define NET_DNS_PUBLIC_DNS_OVER_HTTPS_CONFIG_H_
 
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "net/base/net_export.h"
 #include "net/dns/public/dns_over_https_server_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
@@ -33,17 +33,17 @@ class NET_EXPORT DnsOverHttpsConfig {
 
   // Constructs a Config from URI templates of zero or more servers.
   // Returns `nullopt` if any string is invalid.
-  static absl::optional<DnsOverHttpsConfig> FromTemplatesForTesting(
+  static std::optional<DnsOverHttpsConfig> FromTemplatesForTesting(
       std::vector<std::string> servers);
 
   // Constructs a Config from its text form if valid.  Returns `nullopt` if the
   // input is empty or invalid (even partly invalid).
-  static absl::optional<DnsOverHttpsConfig> FromString(
-      base::StringPiece doh_config);
+  static std::optional<DnsOverHttpsConfig> FromString(
+      std::string_view doh_config);
 
   // Constructs a DnsOverHttpsConfig from its text form, skipping any invalid
   // templates in the whitespace-separated form.  The result may be empty.
-  static DnsOverHttpsConfig FromStringLax(base::StringPiece doh_config);
+  static DnsOverHttpsConfig FromStringLax(std::string_view doh_config);
 
   bool operator==(const DnsOverHttpsConfig& other) const;
 
@@ -61,7 +61,7 @@ class NET_EXPORT DnsOverHttpsConfig {
  private:
   // Constructs a Config from URI templates of zero or more servers.
   // Returns `nullopt` if any string is invalid.
-  static absl::optional<DnsOverHttpsConfig> FromTemplates(
+  static std::optional<DnsOverHttpsConfig> FromTemplates(
       std::vector<std::string> servers);
 
   std::vector<DnsOverHttpsServerConfig> servers_;

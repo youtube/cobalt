@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
@@ -84,7 +85,8 @@ class GCMDriver {
   // Max number of sender IDs that can be passed to |Register| on desktop.
   constexpr static size_t kMaxSenders = 100;
 
-  using GCMAppHandlerMap = std::map<std::string, GCMAppHandler*>;
+  using GCMAppHandlerMap =
+      std::map<std::string, raw_ptr<GCMAppHandler, CtnExperimental>>;
   using RegisterCallback =
       base::OnceCallback<void(const std::string& registration_id,
                               GCMClient::Result result)>;
@@ -190,7 +192,7 @@ class GCMDriver {
   // |callback| will be called asynchronously when |message| has been decrypted.
   // A dispatchable message will be used in case of success, an empty message in
   // case of failure.
-  // TODO(crbug/1045907): Decouple this from GCMDriver.
+  // TODO(crbug.com/40116239): Decouple this from GCMDriver.
   virtual void DecryptMessage(const std::string& app_id,
                               const std::string& authorized_entity,
                               const std::string& message,
@@ -201,10 +203,6 @@ class GCMDriver {
   // This method must be called before destroying the GCMDriver. Once it has
   // been called, no other GCMDriver methods may be used.
   virtual void Shutdown();
-
-  // Called when the user signs in to or out of a GAIA account.
-  virtual void OnSignedIn() = 0;
-  virtual void OnSignedOut() = 0;
 
   // Adds a handler for a given app.
   virtual void AddAppHandler(const std::string& app_id, GCMAppHandler* handler);

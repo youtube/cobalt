@@ -5,15 +5,19 @@
 #include "chrome/browser/ash/login/demo_mode/demo_components.h"
 
 #include "ash/constants/ash_features.h"
-#include "ash/constants/ash_paths.h"
+#include "ash/constants/ash_pref_names.h"
+#include "ash/constants/ash_switches.h"
 #include "base/check_op.h"
+#include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/path_service.h"
+#include "base/version.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
+#include "components/prefs/pref_service.h"
+#include "content/public/browser/browser_thread.h"
 
 namespace ash {
 namespace {
@@ -26,6 +30,34 @@ constexpr base::FilePath::CharType kDemoAndroidAppsPath[] =
 constexpr base::FilePath::CharType kExternalExtensionsPrefsPath[] =
     FILE_PATH_LITERAL("demo_extensions.json");
 
+PrefService* LocalState() {
+  if (!g_browser_process) {
+    return nullptr;
+  }
+
+  return g_browser_process->local_state();
+}
+
+void RecordAppVersion(const base::Version& version) {
+  auto* local_state = LocalState();
+  // In some unittests `local_state` may be null.
+  if (local_state) {
+    local_state->SetString(prefs::kDemoModeAppVersion, version.IsValid()
+                                                           ? version.GetString()
+                                                           : std::string());
+  }
+}
+
+void RecordResourcesVersion(const base::Version& version) {
+  auto* local_state = LocalState();
+  // In some unittests `local_state` may be null.
+  if (local_state) {
+    local_state->SetString(
+        prefs::kDemoModeResourcesVersion,
+        version.IsValid() ? version.GetString() : std::string());
+  }
+}
+
 }  // namespace
 
 // static
@@ -33,19 +65,6 @@ const char DemoComponents::kDemoModeResourcesComponentName[] =
     "demo-mode-resources";
 
 const char DemoComponents::kDemoModeAppComponentName[] = "demo-mode-app";
-
-// static
-const char DemoComponents::kOfflineDemoModeResourcesComponentName[] =
-    "offline-demo-mode-resources";
-
-// static
-base::FilePath DemoComponents::GetPreInstalledPath() {
-  base::FilePath preinstalled_components_root;
-  base::PathService::Get(DIR_PREINSTALLED_COMPONENTS,
-                         &preinstalled_components_root);
-  return preinstalled_components_root.AppendASCII("cros-components")
-      .AppendASCII(kOfflineDemoModeResourcesComponentName);
-}
 
 DemoComponents::DemoComponents(DemoSession::DemoModeConfig config)
     : config_(config) {
@@ -76,26 +95,50 @@ base::FilePath DemoComponents::GetExternalExtensionsPrefsPath() const {
 }
 
 void DemoComponents::LoadAppComponent(base::OnceClosure load_callback) {
-  g_browser_process->platform_part()->cros_component_manager()->Load(
+  const auto* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(ash::switches::kDemoModeSwaContentDirectory)) {
+    OnAppComponentLoaded(std::move(load_callback),
+                         component_updater::ComponentManagerAsh::Error::NONE,
+                         base::FilePath(command_line->GetSwitchValueASCII(
+                             ash::switches::kDemoModeSwaContentDirectory)));
+    return;
+  }
+
+  g_browser_process->platform_part()->component_manager_ash()->Load(
       kDemoModeAppComponentName,
-      component_updater::CrOSComponentManager::MountPolicy::kMount,
-      component_updater::CrOSComponentManager::UpdatePolicy::kDontForce,
+      component_updater::ComponentManagerAsh::MountPolicy::kMount,
+      component_updater::ComponentManagerAsh::UpdatePolicy::kDontForce,
       base::BindOnce(&DemoComponents::OnAppComponentLoaded,
                      weak_ptr_factory_.GetWeakPtr(), std::move(load_callback)));
 }
 
 void DemoComponents::OnAppComponentLoaded(
     base::OnceClosure load_callback,
-    component_updater::CrOSComponentManager::Error error,
+    component_updater::ComponentManagerAsh::Error error,
     const base::FilePath& app_component_path) {
+  // Before returning saying that the app component has been loaded
+  // let's ensure that the app's version is loaded.
   app_component_error_ = error;
   default_app_component_path_ = app_component_path;
-  std::move(load_callback).Run();
+
+  auto component_manager_ash =
+      g_browser_process->platform_part()->component_manager_ash();
+
+  // component_manager_ash may be null in unit tests.
+  if (component_manager_ash) {
+    component_manager_ash->GetVersion(
+        kDemoModeAppComponentName,
+        base::BindOnce(&DemoComponents::OnAppVersionReady,
+                       weak_ptr_factory_.GetWeakPtr(),
+                       std::move(load_callback)));
+  } else {
+    std::move(load_callback).Run();
+  }
 }
 
 void DemoComponents::LoadResourcesComponent(base::OnceClosure load_callback) {
   // TODO(b/254735031): Consider removing this callback queuing logic, since
-  // it's already supported internally by CrOSComponentManager::Load
+  // it's already supported internally by ComponentManagerAsh::Load
   if (resources_loaded_) {
     if (load_callback)
       std::move(load_callback).Run();
@@ -109,23 +152,51 @@ void DemoComponents::LoadResourcesComponent(base::OnceClosure load_callback) {
     return;
   resources_load_requested_ = true;
 
-  auto cros_component_manager =
-      g_browser_process->platform_part()->cros_component_manager();
-  // In unit tests, DemoModeTestHelper should set up a fake
-  // CrOSComponentManager.
-  DCHECK(cros_component_manager);
+  const auto* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(ash::switches::kDemoModeResourceDirectory)) {
+    InstalledComponentLoaded(
+        component_updater::ComponentManagerAsh::Error::NONE,
+        base::FilePath(command_line->GetSwitchValueASCII(
+            ash::switches::kDemoModeResourceDirectory)));
+    return;
+  }
 
-  cros_component_manager->Load(
+  auto component_manager_ash =
+      g_browser_process->platform_part()->component_manager_ash();
+  // In unit tests, DemoModeTestHelper should set up a fake
+  // ComponentManagerAsh.
+  DCHECK(component_manager_ash);
+
+  component_manager_ash->Load(
       kDemoModeResourcesComponentName,
-      component_updater::CrOSComponentManager::MountPolicy::kMount,
-      component_updater::CrOSComponentManager::UpdatePolicy::kDontForce,
+      component_updater::ComponentManagerAsh::MountPolicy::kMount,
+      component_updater::ComponentManagerAsh::UpdatePolicy::kDontForce,
       base::BindOnce(&DemoComponents::InstalledComponentLoaded,
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
+void DemoComponents::OnAppVersionReady(base::OnceClosure callback,
+                                       const base::Version& version) {
+  app_component_version_ = version;
+
+  content::GetUIThreadTaskRunner({})->PostTask(
+      FROM_HERE, base::BindOnce(&RecordAppVersion, version));
+
+  std::move(callback).Run();
+}
+
+void DemoComponents::OnResourcesVersionReady(const base::FilePath& path,
+                                             const base::Version& version) {
+  resources_component_version_ = version;
+  content::GetUIThreadTaskRunner({})->PostTask(
+      FROM_HERE, base::BindOnce(&RecordResourcesVersion, version));
+
+  OnDemoResourcesLoaded(std::make_optional(path));
+}
+
 void DemoComponents::SetCrOSComponentLoadedForTesting(
     const base::FilePath& path,
-    component_updater::CrOSComponentManager::Error error) {
+    component_updater::ComponentManagerAsh::Error error) {
   InstalledComponentLoaded(error, path);
   OnAppComponentLoaded(base::DoNothing(), error, path);
 }
@@ -136,14 +207,26 @@ void DemoComponents::SetPreinstalledOfflineResourcesLoadedForTesting(
 }
 
 void DemoComponents::InstalledComponentLoaded(
-    component_updater::CrOSComponentManager::Error error,
+    component_updater::ComponentManagerAsh::Error error,
     const base::FilePath& path) {
   resources_component_error_ = error;
-  OnDemoResourcesLoaded(absl::make_optional(path));
+
+  auto component_manager_ash =
+      g_browser_process->platform_part()->component_manager_ash();
+
+  // component_manager_ash may be null in unit tests.
+  if (component_manager_ash) {
+    component_manager_ash->GetVersion(
+        kDemoModeResourcesComponentName,
+        base::BindOnce(&DemoComponents::OnResourcesVersionReady,
+                       weak_ptr_factory_.GetWeakPtr(), path));
+  } else {
+    OnDemoResourcesLoaded(std::make_optional(path));
+  }
 }
 
 void DemoComponents::OnDemoResourcesLoaded(
-    absl::optional<base::FilePath> mounted_path) {
+    std::optional<base::FilePath> mounted_path) {
   resources_loaded_ = true;
 
   if (mounted_path.has_value())

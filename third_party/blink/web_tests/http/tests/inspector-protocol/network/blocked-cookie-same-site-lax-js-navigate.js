@@ -1,7 +1,8 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {page, session, dp} = await testRunner.startBlank(
       `Verifies that making cross origin requests with SameSite=Lax cookies sends us Network.RequestWillBeSentExtraInfo events with corresponding blocked cookies.\n`);
   await dp.Network.enable();
+  await dp.Network.setCacheDisabled({cacheDisabled: true});
 
   const setCookieUrl = 'https://cookie.test:8443/inspector-protocol/network/resources/set-cookie.php?cookie='
       + encodeURIComponent('name=value; SameSite=Lax');

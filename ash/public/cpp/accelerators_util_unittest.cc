@@ -22,6 +22,8 @@
 
 namespace ash {
 
+using KeyCodeLookupEntry = AcceleratorKeycodeLookupCache::KeyCodeLookupEntry;
+
 class AcceleratorsUtilTest : public AshTestBase {
  public:
   AcceleratorsUtilTest() {
@@ -40,15 +42,16 @@ class AcceleratorsUtilTest : public AshTestBase {
 TEST_F(AcceleratorsUtilTest, BasicDomCode) {
   const std::u16string expected = u"a";
 
-  absl::optional<std::u16string> found_key_string =
-      AcceleratorKeycodeLookupCache::Get()->Find(ui::KeyboardCode::VKEY_A);
-  EXPECT_FALSE(found_key_string.has_value());
+  std::optional<KeyCodeLookupEntry> found_entry =
+      AcceleratorKeycodeLookupCache::Get()->Find(ui::KeyboardCode::VKEY_A,
+                                                 /*remap_positional_key=*/true);
+  EXPECT_FALSE(found_entry.has_value());
   EXPECT_EQ(expected, KeycodeToKeyString(ui::KeyboardCode::VKEY_A));
   // Expect the cache to be populated.
-  found_key_string =
-      AcceleratorKeycodeLookupCache::Get()->Find(ui::KeyboardCode::VKEY_A);
-  EXPECT_TRUE(found_key_string.has_value());
-  EXPECT_EQ(expected, found_key_string.value());
+  found_entry = AcceleratorKeycodeLookupCache::Get()->Find(
+      ui::KeyboardCode::VKEY_A, /*remap_positional_key=*/true);
+  EXPECT_TRUE(found_entry.has_value());
+  EXPECT_EQ(expected, found_entry->key_display);
 }
 
 TEST_F(AcceleratorsUtilTest, PositionalKeyCode) {
@@ -57,10 +60,10 @@ TEST_F(AcceleratorsUtilTest, PositionalKeyCode) {
   // with DomKey `ß`. With positional remapping, VKEY_OEM_4 is remapped to
   // search for DomCode BRACKET_LEFT, resulting in DomKey `ü`.
   const std::vector<ui::StubKeyboardLayoutEngine::CustomLookupEntry> table = {
-      {ui::DomCode::MINUS, /**character=*/u'ß', /**character_shifted=*/u'?',
-       ui::KeyboardCode::VKEY_OEM_4},
-      {ui::DomCode::BRACKET_LEFT, /**character=*/u'ü',
-       /**character_shifted=*/u'Ü', ui::KeyboardCode::VKEY_OEM_1}};
+      {ui::DomCode::MINUS, ui::DomKey::FromCharacter(u'ß'),
+       ui::DomKey::FromCharacter(u'?'), ui::KeyboardCode::VKEY_OEM_4},
+      {ui::DomCode::BRACKET_LEFT, ui::DomKey::FromCharacter(u'ü'),
+       ui::DomKey::FromCharacter(u'Ü'), ui::KeyboardCode::VKEY_OEM_1}};
 
   layout_engine_->SetCustomLookupTableForTesting(table);
 
@@ -77,16 +80,23 @@ TEST_F(AcceleratorsUtilTest, PositionalKeyCode) {
 
 TEST_F(AcceleratorsUtilTest, NonAlphanumericKey) {
   const std::u16string expected = u"Meta";
-  absl::optional<std::u16string> found_key_string =
-      AcceleratorKeycodeLookupCache::Get()->Find(
-          ui::KeyboardCode::VKEY_COMMAND);
-  EXPECT_FALSE(found_key_string.has_value());
+  std::optional<AcceleratorKeycodeLookupCache::KeyCodeLookupEntry> found_entry =
+      AcceleratorKeycodeLookupCache::Get()->Find(ui::KeyboardCode::VKEY_COMMAND,
+                                                 /*remap_positional_key=*/true);
+  EXPECT_FALSE(found_entry.has_value());
   EXPECT_EQ(expected, KeycodeToKeyString(ui::KeyboardCode::VKEY_COMMAND));
 
-  found_key_string = AcceleratorKeycodeLookupCache::Get()->Find(
-      ui::KeyboardCode::VKEY_COMMAND);
-  EXPECT_TRUE(found_key_string.has_value());
-  EXPECT_EQ(expected, found_key_string.value());
+  found_entry = AcceleratorKeycodeLookupCache::Get()->Find(
+      ui::KeyboardCode::VKEY_COMMAND, /*remap_positional_key=*/true);
+  EXPECT_TRUE(found_entry.has_value());
+  EXPECT_EQ(expected, found_entry->key_display);
+}
+
+TEST_F(AcceleratorsUtilTest, UnidentifiedKey) {
+  EXPECT_EQ(u"Key 10", GetKeyDisplay(ui::KeyboardCode::VKEY_BACKTAB));
+  EXPECT_EQ(u"Key 231", GetKeyDisplay(ui::KeyboardCode::VKEY_PACKET));
+  EXPECT_EQ(u"Key 240", GetKeyDisplay(ui::KeyboardCode::VKEY_OEM_ATTN));
+  EXPECT_EQ(u"Key 241", GetKeyDisplay(ui::KeyboardCode::VKEY_OEM_FINISH));
 }
 
 }  // namespace ash

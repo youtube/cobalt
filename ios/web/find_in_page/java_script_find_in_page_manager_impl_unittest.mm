@@ -4,6 +4,7 @@
 
 #import "ios/web/find_in_page/java_script_find_in_page_manager_impl.h"
 
+#import "base/memory/raw_ptr.h"
 #import "base/run_loop.h"
 #import "base/test/ios/wait_util.h"
 #import "base/test/metrics/user_action_tester.h"
@@ -19,10 +20,6 @@
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_test.h"
 #import "testing/gtest/include/gtest/gtest.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using base::test::ios::kWaitForJSCompletionTimeout;
 using base::test::ios::WaitUntilConditionOrTimeout;
@@ -51,7 +48,7 @@ class JavaScriptFindInPageManagerImplTest : public WebTest {
 
     JavaScriptFeatureManager::FromBrowserState(GetBrowserState())
         ->ConfigureFeatures({feature});
-    JavaScriptFindInPageManagerImpl::CreateForWebState(fake_web_state_.get());
+    JavaScriptFindInPageManager::CreateForWebState(fake_web_state_.get());
     GetFindInPageManager()->SetDelegate(&fake_delegate_);
   }
 
@@ -64,7 +61,7 @@ class JavaScriptFindInPageManagerImplTest : public WebTest {
   // `js_result` for the JavaScript function call "findInString.findString".
   std::unique_ptr<FakeWebFrame> CreateMainWebFrameWithJsResultForFind(
       base::Value* js_result) {
-    auto frame = FakeWebFrame::CreateMainWebFrame(GURL());
+    auto frame = FakeWebFrame::CreateMainWebFrame();
     frame->AddJsResultForFunctionCall(js_result, kFindInPageSearch);
     frame->set_browser_state(GetBrowserState());
     return frame;
@@ -74,26 +71,22 @@ class JavaScriptFindInPageManagerImplTest : public WebTest {
   // `js_result` for the JavaScript function call "findInString.findString".
   std::unique_ptr<FakeWebFrame> CreateChildWebFrameWithJsResultForFind(
       base::Value* js_result) {
-    auto frame = FakeWebFrame::CreateChildWebFrame(GURL());
+    auto frame = FakeWebFrame::CreateChildWebFrame();
     frame->AddJsResultForFunctionCall(js_result, kFindInPageSearch);
     frame->set_browser_state(GetBrowserState());
     return frame;
   }
 
   void AddWebFrame(std::unique_ptr<FakeWebFrame> frame) {
-    WebFrame* frame_ptr = frame.get();
     fake_web_frames_manager_->AddWebFrame(std::move(frame));
-    fake_web_state_->OnWebFrameDidBecomeAvailable(frame_ptr);
   }
 
   void RemoveWebFrame(const std::string& frame_id) {
-    WebFrame* frame_ptr = fake_web_frames_manager_->GetFrameWithId(frame_id);
-    fake_web_state_->OnWebFrameWillBecomeUnavailable(frame_ptr);
     fake_web_frames_manager_->RemoveWebFrame(frame_id);
   }
 
   std::unique_ptr<FakeWebState> fake_web_state_;
-  FakeWebFramesManager* fake_web_frames_manager_;
+  raw_ptr<FakeWebFramesManager> fake_web_frames_manager_;
   FakeFindInPageManagerDelegate fake_delegate_;
   base::UserActionTester user_action_tester_;
 };

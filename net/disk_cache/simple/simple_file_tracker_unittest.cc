@@ -4,13 +4,13 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "net/base/cache_type.h"
@@ -91,8 +91,8 @@ TEST_F(SimpleFileTrackerTest, Basic) {
   file_tracker_.Register(entry.get(), SimpleFileTracker::SubFile::FILE_1,
                          std::move(file_1));
 
-  base::StringPiece msg_0 = "Hello";
-  base::StringPiece msg_1 = "Worldish Place";
+  std::string_view msg_0 = "Hello";
+  std::string_view msg_1 = "Worldish Place";
 
   {
     SimpleFileTracker::FileHandle borrow_0 = file_tracker_.Acquire(
@@ -100,10 +100,8 @@ TEST_F(SimpleFileTrackerTest, Basic) {
     SimpleFileTracker::FileHandle borrow_1 = file_tracker_.Acquire(
         &ops, entry.get(), SimpleFileTracker::SubFile::FILE_1);
 
-    EXPECT_EQ(static_cast<int>(msg_0.size()),
-              borrow_0->Write(0, msg_0.data(), msg_0.size()));
-    EXPECT_EQ(static_cast<int>(msg_1.size()),
-              borrow_1->Write(0, msg_1.data(), msg_1.size()));
+    EXPECT_EQ(msg_0.size(), borrow_0->Write(0, base::as_byte_span(msg_0)));
+    EXPECT_EQ(msg_1.size(), borrow_1->Write(0, base::as_byte_span(msg_1)));
 
     // For stream 0 do release/close, for stream 1 do close/release --- where
     // release happens when borrow_{0,1} go out of scope
@@ -141,8 +139,8 @@ TEST_F(SimpleFileTrackerTest, Collision) {
   file_tracker_.Register(entry2.get(), SimpleFileTracker::SubFile::FILE_0,
                          std::move(file2));
 
-  base::StringPiece msg = "Alpha";
-  base::StringPiece msg2 = "Beta";
+  std::string_view msg = "Alpha";
+  std::string_view msg2 = "Beta";
 
   {
     SimpleFileTracker::FileHandle borrow = file_tracker_.Acquire(
@@ -150,10 +148,8 @@ TEST_F(SimpleFileTrackerTest, Collision) {
     SimpleFileTracker::FileHandle borrow2 = file_tracker_.Acquire(
         &ops, entry2.get(), SimpleFileTracker::SubFile::FILE_0);
 
-    EXPECT_EQ(static_cast<int>(msg.size()),
-              borrow->Write(0, msg.data(), msg.size()));
-    EXPECT_EQ(static_cast<int>(msg2.size()),
-              borrow2->Write(0, msg2.data(), msg2.size()));
+    EXPECT_EQ(msg.size(), borrow->Write(0, base::as_byte_span(msg)));
+    EXPECT_EQ(msg2.size(), borrow2->Write(0, base::as_byte_span(msg2)));
   }
   file_tracker_.Close(entry.get(), SimpleFileTracker::SubFile::FILE_0);
   file_tracker_.Close(entry2.get(), SimpleFileTracker::SubFile::FILE_0);
@@ -202,7 +198,7 @@ TEST_F(SimpleFileTrackerTest, PointerStability) {
   // Make sure the FileHandle lent out doesn't get screwed up as we update
   // the state (and potentially move the underlying base::File object around).
   const int kEntries = 8;
-  SyncEntryPointer entries[kEntries] = {
+  std::array<SyncEntryPointer, kEntries> entries = {
       MakeSyncEntry(1), MakeSyncEntry(1), MakeSyncEntry(1), MakeSyncEntry(1),
       MakeSyncEntry(1), MakeSyncEntry(1), MakeSyncEntry(1), MakeSyncEntry(1),
   };
@@ -214,7 +210,7 @@ TEST_F(SimpleFileTrackerTest, PointerStability) {
   file_tracker_.Register(entries[0].get(), SimpleFileTracker::SubFile::FILE_0,
                          std::move(file_0));
 
-  base::StringPiece msg = "Message to write";
+  std::string_view msg = "Message to write";
   {
     SimpleFileTracker::FileHandle borrow = file_tracker_.Acquire(
         &ops, entries[0].get(), SimpleFileTracker::SubFile::FILE_0);
@@ -228,8 +224,7 @@ TEST_F(SimpleFileTrackerTest, PointerStability) {
                              std::move(file_n));
     }
 
-    EXPECT_EQ(static_cast<int>(msg.size()),
-              borrow->Write(0, msg.data(), msg.size()));
+    EXPECT_EQ(msg.size(), borrow->Write(0, base::as_byte_span(msg)));
   }
 
   for (const auto& entry : entries)
@@ -306,7 +301,7 @@ TEST_F(SimpleFileTrackerTest, OverLimit) {
   // still open, so no change in stats after.
   SimpleFileTracker::FileHandle borrow_last = file_tracker_.Acquire(
       &ops, entries[kEntries - 1].get(), SimpleFileTracker::SubFile::FILE_0);
-  EXPECT_EQ(1, borrow_last->Write(0, "L", 1));
+  EXPECT_EQ(1u, borrow_last->Write(0, base::byte_span_from_cstring("L")));
 
   histogram_tester.ExpectBucketCount("SimpleCache.FileDescriptorLimiterAction",
                                      disk_cache::FD_LIMIT_CLOSE_FILE,
@@ -326,7 +321,7 @@ TEST_F(SimpleFileTrackerTest, OverLimit) {
     if (i != 2) {
       EXPECT_TRUE(borrow.IsOK());
       char c = static_cast<char>(i);
-      EXPECT_EQ(1, borrow->Write(0, &c, 1));
+      EXPECT_EQ(1u, borrow->Write(0, base::byte_span_from_ref(c)));
     } else {
       EXPECT_FALSE(borrow.IsOK());
     }
@@ -348,8 +343,7 @@ TEST_F(SimpleFileTrackerTest, OverLimit) {
   UpdateEntryFileKey(entries[1].get(), key);
   base::FilePath new_path =
       entries[1]->GetFilenameForSubfile(SimpleFileTracker::SubFile::FILE_0);
-  EXPECT_TRUE(base::StartsWith(new_path.BaseName().MaybeAsASCII(), "todelete_",
-                               base::CompareCase::SENSITIVE));
+  EXPECT_TRUE(new_path.BaseName().MaybeAsASCII().starts_with("todelete_"));
   EXPECT_TRUE(base::Move(old_path, new_path));
 
   // Now re-acquire everything again; this time reading.
@@ -360,7 +354,7 @@ TEST_F(SimpleFileTrackerTest, OverLimit) {
     char expected = static_cast<char>(i);
     if (i != 2) {
       EXPECT_TRUE(borrow.IsOK());
-      EXPECT_EQ(1, borrow->Read(0, &read, 1));
+      EXPECT_EQ(1, borrow->Read(0, base::byte_span_from_ref(read)));
       EXPECT_EQ(expected, read);
     } else {
       EXPECT_FALSE(borrow.IsOK());
@@ -379,7 +373,7 @@ TEST_F(SimpleFileTrackerTest, OverLimit) {
 
   // Read from the last one, too. Should still be fine.
   char read;
-  EXPECT_EQ(1, borrow_last->Read(0, &read, 1));
+  EXPECT_EQ(1, borrow_last->Read(0, base::byte_span_from_ref(read)));
   EXPECT_EQ('L', read);
 
   for (const auto& entry : entries)

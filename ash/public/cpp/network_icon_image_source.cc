@@ -4,6 +4,8 @@
 
 #include "ash/public/cpp/network_icon_image_source.h"
 
+#include <array>
+
 #include "third_party/skia/include/core/SkPath.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/insets.h"
@@ -34,6 +36,14 @@ SkPath CreateArcPath(gfx::RectF oval, float start_angle, float sweep_angle) {
 }
 
 }  // namespace
+
+//------------------------------------------------------------------------------
+// Badges
+
+Badges::Badges() = default;
+Badges::~Badges() = default;
+Badges::Badges(const Badges&) = default;
+Badges& Badges::operator=(const Badges&) = default;
 
 //------------------------------------------------------------------------------
 // NetworkIconImageSource
@@ -150,8 +160,8 @@ void SignalStrengthImageSource::DrawArcs(gfx::Canvas* canvas) {
     flags.setStyle(cc::PaintFlags::kFill_Style);
     // Percent of the height of the background wedge that we draw the
     // foreground wedge, indexed by signal strength.
-    static constexpr float kWedgeHeightPercentages[] = {0.f, 0.375f, 0.5833f,
-                                                        0.75f, 1.f};
+    static constexpr std::array<float, 5> kWedgeHeightPercentages = {
+        0.f, 0.375f, 0.5833f, 0.75f, 1.f};
     const float wedge_percent = kWedgeHeightPercentages[signal_strength_];
     oval_bounds.Inset(
         gfx::InsetsF((oval_bounds.height() / 2) * (1.f - wedge_percent)));
@@ -197,8 +207,8 @@ void SignalStrengthImageSource::DrawBars(gfx::Canvas* canvas) {
     flags.setStyle(cc::PaintFlags::kFill_Style);
     // As a percentage of the bg triangle, the length of one of the short
     // sides of the fg triangle, indexed by signal strength.
-    static constexpr float kTriangleSidePercents[] = {0.f, 0.375f, 0.5833f,
-                                                      0.75f, 1.f};
+    static constexpr std::array<float, 5> kTriangleSidePercents = {
+        0.f, 0.375f, 0.5833f, 0.75f, 1.f};
     canvas->DrawPath(make_triangle(kTriangleSidePercents[signal_strength_] *
                                    kFullTriangleSide),
                      flags);

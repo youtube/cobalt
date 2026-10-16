@@ -18,10 +18,9 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
-#include "starboard/shared/gles/gl_call.h"
-
 #include "starboard/common/check_op.h"
 #include "starboard/decode_target.h"
+#include "starboard/shared/gles/gl_call.h"
 
 SbDecodeTargetPrivate::Data::~Data() {
   glDeleteTextures(1, &info.planes[0].texture);
@@ -85,11 +84,13 @@ void CreateTargetFromVideoFrameWithContextRunner(void* context) {
         params->decode_target_out->data->info.planes[plane_index].texture));
     GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT,
                           video_frame_plane.pitch_in_bytes));
-    if (target_info.planes[plane_index].width == video_frame_plane.width &&
-        target_info.planes[plane_index].height == video_frame_plane.height) {
+    if (target_info.planes[plane_index].width == video_frame_plane.size.width &&
+        target_info.planes[plane_index].height ==
+            video_frame_plane.size.height) {
       // No need to reallocate texture object, only update pixels.
-      GL_CALL(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, video_frame_plane.width,
-                              video_frame_plane.height, GL_ALPHA,
+      GL_CALL(glTexSubImage2D(GL_TEXTURE_2D, /*level=*/0, /*xoffset=*/0,
+                              /*yoffset=*/0, video_frame_plane.size.width,
+                              video_frame_plane.size.height, GL_RED_EXT,
                               GL_UNSIGNED_BYTE, video_frame_plane.data));
 
     } else {
@@ -101,9 +102,10 @@ void CreateTargetFromVideoFrameWithContextRunner(void* context) {
       GL_CALL(
           glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
 
-      GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, video_frame_plane.width,
-                           video_frame_plane.height, 0, GL_ALPHA,
-                           GL_UNSIGNED_BYTE, video_frame_plane.data));
+      GL_CALL(glTexImage2D(
+          GL_TEXTURE_2D, /*level=*/0, GL_RED_EXT, video_frame_plane.size.width,
+          video_frame_plane.size.height, /*border=*/0, GL_RED_EXT,
+          GL_UNSIGNED_BYTE, video_frame_plane.data));
     }
 
     GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH_EXT, 0));
@@ -111,15 +113,15 @@ void CreateTargetFromVideoFrameWithContextRunner(void* context) {
 
     // Set sizes and regions.
     target_info.planes[plane_index].content_region.right =
-        static_cast<float>(video_frame_plane.width);
+        static_cast<float>(video_frame_plane.size.width);
     target_info.planes[plane_index].content_region.bottom =
-        static_cast<float>(video_frame_plane.height);
-    target_info.planes[plane_index].width = video_frame_plane.width;
-    target_info.planes[plane_index].height = video_frame_plane.height;
+        static_cast<float>(video_frame_plane.size.height);
+    target_info.planes[plane_index].width = video_frame_plane.size.width;
+    target_info.planes[plane_index].height = video_frame_plane.size.height;
   }
 
-  target_info.width = params->frame->width();
-  target_info.height = params->frame->height();
+  target_info.width = params->frame->size().width;
+  target_info.height = params->frame->size().height;
 }
 
 void CreateTargetFromImageWithContextRunner(void* context) {

@@ -4,20 +4,24 @@
 
 #include "ash/system/tray/tray_item_view.h"
 
+#include <optional>
+
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/shelf_types.h"
 #include "ash/shelf/shelf.h"
+#include "ash/system/status_area_animation_controller.h"
 #include "ash/system/tray/tray_constants.h"
 #include "base/metrics/histogram_functions.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_node_data.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/compositor.h"
+#include "ui/compositor/compositor_metrics_tracker.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator.h"
 #include "ui/compositor/scoped_animation_duration_scale_mode.h"
-#include "ui/compositor/throughput_tracker.h"
 #include "ui/gfx/animation/slide_animation.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/fill_layout.h"
@@ -49,26 +53,50 @@ void RecordAnimationSmoothness(const std::string& histogram_name,
 
 void SetupThroughputTrackerForAnimationSmoothness(
     views::Widget* widget,
-    absl::optional<ui::ThroughputTracker>& tracker,
+    std::optional<ui::ThroughputTracker>& tracker,
     const char* histogram_name) {
   // Return if `tracker` is already running; `widget` may not exist in tests.
   if (tracker || !widget)
     return;
 
-  tracker.emplace(widget->GetCompositor()->RequestNewThroughputTracker());
-  tracker->Start(ash::metrics_util::ForSmoothness(
+  tracker.emplace(
+      widget->GetCompositor()->RequestNewCompositorMetricsTracker());
+  tracker->Start(ash::metrics_util::ForSmoothnessV3(
       base::BindRepeating(&RecordAnimationSmoothness, histogram_name)));
 }
 
 }  // namespace
 
-void IconizedLabel::GetAccessibleNodeData(ui::AXNodeData* node_data) {
-  if (custom_accessible_name_.empty())
-    return Label::GetAccessibleNodeData(node_data);
+void IconizedLabel::SetCustomAccessibleName(const std::u16string& name) {
+  custom_accessible_name_ = name;
 
-  node_data->role = ax::mojom::Role::kStaticText;
-  node_data->SetNameChecked(custom_accessible_name_);
+  UpdateAccessibleRole();
+  GetViewAccessibility().SetName(custom_accessible_name_);
 }
+
+void IconizedLabel::AdjustAccessibleName(std::u16string& new_name,
+                                         ax::mojom::NameFrom& name_from) {
+  if (!custom_accessible_name_.empty()) {
+    new_name = custom_accessible_name_;
+    name_from = ax::mojom::NameFrom::kAttribute;
+  } else {
+    views::Label::AdjustAccessibleName(new_name, name_from);
+  }
+}
+
+void IconizedLabel::UpdateAccessibleRole() {
+  if (!custom_accessible_name_.empty()) {
+    GetViewAccessibility().SetRole(ax::mojom::Role::kStaticText);
+  } else {
+    GetViewAccessibility().SetRole(GetTextContext() ==
+                                           views::style::CONTEXT_DIALOG_TITLE
+                                       ? ax::mojom::Role::kTitleBar
+                                       : ax::mojom::Role::kStaticText);
+  }
+}
+
+BEGIN_METADATA(IconizedLabel)
+END_METADATA
 
 TrayItemView::TrayItemView(Shelf* shelf)
     : views::AnimationDelegateViews(this), shelf_(shelf) {
@@ -90,14 +118,20 @@ void TrayItemView::RemoveObserver(Observer* observer) {
 
 void TrayItemView::CreateLabel() {
   label_ = new IconizedLabel;
-  AddChildView(label_.get());
+  AddChildViewRaw(label_.get());
   PreferredSizeChanged();
+  for (auto& observer : observers_) {
+    observer.OnTrayItemChildViewChanged();
+  }
 }
 
 void TrayItemView::CreateImageView() {
   image_view_ = new views::ImageView;
-  AddChildView(image_view_.get());
+  AddChildViewRaw(image_view_.get());
   PreferredSizeChanged();
+  for (auto& observer : observers_) {
+    observer.OnTrayItemChildViewChanged();
+  }
 }
 
 void TrayItemView::DestroyLabel() {
@@ -106,6 +140,10 @@ void TrayItemView::DestroyLabel() {
 
   RemoveChildViewT(label_.get());
   label_ = nullptr;
+
+  for (auto& observer : observers_) {
+    observer.OnTrayItemChildViewChanged();
+  }
 }
 
 void TrayItemView::DestroyImageView() {
@@ -114,6 +152,14 @@ void TrayItemView::DestroyImageView() {
 
   RemoveChildViewT(image_view_.get());
   image_view_ = nullptr;
+
+  for (auto& observer : observers_) {
+    observer.OnTrayItemChildViewChanged();
+  }
+}
+
+void TrayItemView::UpdateLabelOrImageViewColor(bool active) {
+  is_active_ = active;
 }
 
 base::ScopedClosureRunner TrayItemView::DisableAnimation() {
@@ -149,9 +195,9 @@ void TrayItemView::SetVisible(bool visible) {
     observer.OnTrayItemVisibilityAboutToChange(target_visible_);
   }
   views::View::SetVisible(visible);
-  if (!GetWidget() ||
-      ui::ScopedAnimationDurationScaleMode::duration_multiplier() ==
-          ui::ScopedAnimationDurationScaleMode::ZERO_DURATION) {
+  // During startup TrayItemViews are often SetVisible(false) before they are
+  // attached to a widget. Don't bother constructing animations for them.
+  if (!GetWidget()) {
     return;
   }
   PerformVisibilityAnimation(visible);
@@ -172,14 +218,18 @@ void TrayItemView::PerformVisibilityAnimation(bool visible) {
   }
 
   // Immediately progress to the end of the animation if animation is disabled.
-  if (!IsAnimationEnabled()) {
-    // Tray items need to stay visible during the notification center tray's
-    // hide animation, so don't do anything here.
+  // NOTE: `ScreenRotationAnimator` can set animations to ZERO_DURATION.
+  if (!ShouldVisibilityChangeBeAnimated() ||
+      ui::ScopedAnimationDurationScaleMode::duration_multiplier() ==
+          ui::ScopedAnimationDurationScaleMode::ZERO_DURATION) {
+    // Tray items need to stay visible if the notification center tray's hide
+    // animation is going to run, so don't hide the tray item here.
     // `StatusAreaAnimationController` will call `ImmediatelyUpdateVisibility()`
     // once the hide animation is over to ensure that all tray items are given a
-    // chance to properly update their visibilities. Only applicable when the
-    // QS revamp is enabled.
-    if (features::IsQsRevampEnabled() && !target_visible_) {
+    // chance to properly update their visibilities.
+    if (!target_visible_ && shelf_->status_area_widget()
+                                ->animation_controller()
+                                ->is_hide_animation_scheduled()) {
       return;
     }
     animation_->SetSlideDuration(base::TimeDelta());
@@ -189,14 +239,14 @@ void TrayItemView::PerformVisibilityAnimation(bool visible) {
 
   if (target_visible_) {
     SetupThroughputTrackerForAnimationSmoothness(
-        GetWidget(), throughput_tracker_,
+        GetWidget(), show_throughput_tracker_,
         kShowAnimationSmoothnessHistogramName);
     animation_->SetSlideDuration(base::Milliseconds(400));
     animation_->Show();
     AnimationProgressed(animation_.get());
   } else {
     SetupThroughputTrackerForAnimationSmoothness(
-        GetWidget(), throughput_tracker_,
+        GetWidget(), hide_throughput_tracker_,
         kHideAnimationSmoothnessHistogramName);
     animation_->SetSlideDuration(base::Milliseconds(100));
     animation_->Hide();
@@ -215,11 +265,15 @@ void TrayItemView::ImmediatelyUpdateVisibility() {
   views::View::SetVisible(target_visible_);
 }
 
-gfx::Size TrayItemView::CalculatePreferredSize() const {
+gfx::Size TrayItemView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   DCHECK_EQ(1u, children().size());
-  gfx::Size size = views::View::CalculatePreferredSize();
+  gfx::Size size = views::View::CalculatePreferredSize(available_size);
   if (image_view_) {
     size = gfx::Size(kUnifiedTrayIconSize, kUnifiedTrayIconSize);
+    // Some TrayItemViews have slightly larger icons (e.g. Ethernet with VPN
+    // badge).
+    size.SetToMax(image_view_->CalculatePreferredSize({}));
   }
 
   if (!animation_.get() || !animation_->is_animating() ||
@@ -236,14 +290,6 @@ gfx::Size TrayItemView::CalculatePreferredSize() const {
     size.set_height(std::max(1, static_cast<int>(size.height() * progress)));
   }
   return size;
-}
-
-int TrayItemView::GetHeightForWidth(int width) const {
-  return GetPreferredSize().height();
-}
-
-const char* TrayItemView::GetClassName() const {
-  return "TrayItemView";
 }
 
 void TrayItemView::ChildPreferredSizeChanged(views::View* child) {
@@ -289,10 +335,16 @@ void TrayItemView::AnimationEnded(const gfx::Animation* animation) {
   views::View::SetVisible(target_visible_);
   layer()->SetOpacity(target_visible_ ? 1.0 : 0.0);
 
-  if (throughput_tracker_) {
-    // Reset `throughput_tracker_` to reset animation metrics recording.
-    throughput_tracker_->Stop();
-    throughput_tracker_.reset();
+  if (show_throughput_tracker_) {
+    // Reset `show_throughput_tracker_` to reset animation metrics recording.
+    show_throughput_tracker_->Stop();
+    show_throughput_tracker_.reset();
+  }
+
+  if (hide_throughput_tracker_) {
+    // Reset `hide_throughput_tracker_` to reset animation metrics recording.
+    hide_throughput_tracker_->Stop();
+    hide_throughput_tracker_.reset();
   }
 
   if (animation_idle_closure_) {
@@ -336,5 +388,8 @@ double TrayItemView::GetItemScaleProgressFromAnimationProgress(
   return (animation_value - kAnimatingOutEndValue) *
          (1 / (1 - kAnimatingOutEndValue));
 }
+
+BEGIN_METADATA(TrayItemView)
+END_METADATA
 
 }  // namespace ash

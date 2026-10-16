@@ -35,9 +35,11 @@ class CursorDelegateEvdev;
 class DeviceManager;
 class InputDeviceFactoryEvdev;
 class InputDeviceFactoryEvdevProxy;
+struct KeyboardDevice;
+struct TouchpadDevice;
 class SystemInputInjector;
 class GamepadProviderOzone;
-enum class DomCode;
+enum class DomCode : uint32_t;
 enum class StylusState;
 
 #if !defined(USE_EVDEV)
@@ -85,7 +87,7 @@ class COMPONENT_EXPORT(EVDEV) EventFactoryEvdev : public DeviceEventObserver,
 
   // Device lifecycle events.
   void DispatchKeyboardDevicesUpdated(
-      const std::vector<InputDevice>& devices,
+      const std::vector<KeyboardDevice>& devices,
       base::flat_map<int, std::vector<uint64_t>> key_bits_mapping);
   void DispatchTouchscreenDevicesUpdated(
       const std::vector<TouchscreenDevice>& devices);
@@ -93,13 +95,17 @@ class COMPONENT_EXPORT(EVDEV) EventFactoryEvdev : public DeviceEventObserver,
                                    bool has_mouse);
   void DispatchPointingStickDevicesUpdated(
       const std::vector<InputDevice>& devices);
-  void DispatchTouchpadDevicesUpdated(const std::vector<InputDevice>& devices,
-                                      bool has_haptic_touchpad);
+  void DispatchTouchpadDevicesUpdated(
+      const std::vector<TouchpadDevice>& devices,
+      bool has_haptic_touchpad);
+  void DispatchGraphicsTabletDevicesUpdated(
+      const std::vector<InputDevice>& devices);
   void DispatchUncategorizedDevicesUpdated(
       const std::vector<InputDevice>& devices);
   void DispatchDeviceListsComplete();
   void DispatchStylusStateChanged(StylusState stylus_state);
   void DispatchMicrophoneMuteSwitchValueChanged(bool muted);
+  void DispatchAnyKeysPressedUpdated(bool any);
 
   // Gamepad event and gamepad device event. These events are dispatched to
   // GamepadObserver through GamepadProviderOzone.

@@ -4,6 +4,9 @@
 
 package org.chromium.components.paintpreview.player;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.graphics.Point;
 import android.graphics.Rect;
@@ -13,12 +16,13 @@ import android.view.ViewGroup;
 import android.view.ViewGroup.LayoutParams;
 import android.widget.FrameLayout;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.UnguessableToken;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.paintpreview.browser.NativePaintPreviewServiceProvider;
 import org.chromium.components.paintpreview.player.accessibility.PlayerAccessibilityDelegate;
 import org.chromium.components.paintpreview.player.frame.PlayerFrameCoordinator;
@@ -33,15 +37,14 @@ import java.util.Map;
  * This is the only public class in this package and is hence the access point of this component for
  * the outer world. Users should call {@link #destroy()}  to ensure the native part is destroyed.
  */
+@NullMarked
 public class PlayerManager {
     /**
      * Users of the {@link PlayerManager} class have to implement and pass this interface in the
      * constructor.
      */
     public interface Listener {
-        /**
-         * Called when the compositor cannot be successfully initialized.
-         */
+        /** Called when the compositor cannot be successfully initialized. */
         void onCompositorError(@CompositorStatus int status);
 
         /**
@@ -50,58 +53,47 @@ public class PlayerManager {
          */
         void onViewReady();
 
-        /**
-         * Called when the first paint event happens.
-         */
+        /** Called when the first paint event happens. */
         void onFirstPaint();
 
-        /**
-         * Called when the use interacts with the paint preview.
-         */
+        /** Called when the use interacts with the paint preview. */
         void onUserInteraction();
 
-        /**
-         * Called when a frustrated behavior is detected.
-         */
+        /** Called when a frustrated behavior is detected. */
         void onUserFrustration();
 
-        /**
-         * Called when the a pull to refresh gesture is performed.
-         */
+        /** Called when the a pull to refresh gesture is performed. */
         void onPullToRefresh();
 
-        /**
-         * Called with a url to trigger a navigation.
-         */
+        /** Called with a url to trigger a navigation. */
         void onLinkClick(GURL url);
 
-        /**
-         * @return Whether accessibility is currently enabled.
-         */
+        /** @return Whether accessibility is currently enabled. */
         boolean isAccessibilityEnabled();
 
-        /**
-         * Called when accessibility for paint preview cannot be provided.
-         */
+        /** Called when accessibility for paint preview cannot be provided. */
         void onAccessibilityNotSupported();
     }
 
     private static PlayerCompositorDelegate.Factory sCompositorDelegateFactory =
             new CompositorDelegateFactory();
 
-    private Context mContext;
+    private final Context mContext;
     private PlayerCompositorDelegate mDelegate;
-    private PaintPreviewFrame mRootFrameData;
-    private PlayerFrameCoordinator mRootFrameCoordinator;
-    private FrameLayout mHostView;
+
+    private @Nullable PaintPreviewFrame mRootFrameData;
+
+    private @Nullable PlayerFrameCoordinator mRootFrameCoordinator;
+
+    private final FrameLayout mHostView;
     private static final String sInitEvent = "paint_preview PlayerManager init";
-    private PlayerSwipeRefreshHandler mPlayerSwipeRefreshHandler;
-    private PlayerGestureListener mPlayerGestureListener;
-    private boolean mIgnoreInitialScrollOffset;
-    private Listener mListener;
+    private final PlayerSwipeRefreshHandler mPlayerSwipeRefreshHandler;
+    private final PlayerGestureListener mPlayerGestureListener;
+    private final boolean mIgnoreInitialScrollOffset;
+    private final Listener mListener;
     private long mNativeAxTree;
-    private PlayerAccessibilityDelegate mAccessibilityDelegate;
-    private WebContentsAccessibilityImpl mWebContentsAccessibility;
+    private @Nullable PlayerAccessibilityDelegate mAccessibilityDelegate;
+    private @Nullable WebContentsAccessibilityImpl mWebContentsAccessibility;
 
     // The minimum ratio value of a sub-frame's area to its parent, for the sub-frame to be
     // considered 'large'.
@@ -122,9 +114,13 @@ public class PlayerManager {
      * @param ignoreInitialScrollOffset         If true the initial scroll state that is recorded at
      *                                          capture time is ignored.
      */
-    public PlayerManager(GURL url, Context context,
+    public PlayerManager(
+            GURL url,
+            Context context,
             NativePaintPreviewServiceProvider nativePaintPreviewServiceProvider,
-            String directoryKey, @NonNull Listener listener, int backgroundColor,
+            String directoryKey,
+            Listener listener,
+            int backgroundColor,
             boolean ignoreInitialScrollOffset) {
         TraceEvent.begin("PlayerManager");
         TraceEvent.startAsync(sInitEvent, hashCode());
@@ -133,15 +129,25 @@ public class PlayerManager {
         mIgnoreInitialScrollOffset = ignoreInitialScrollOffset;
 
         // This calls into native to set up the compositor.
-        mDelegate = getCompositorDelegateFactory().create(nativePaintPreviewServiceProvider, url,
-                directoryKey, false, this::onCompositorReady, mListener::onCompositorError);
+        mDelegate =
+                getCompositorDelegateFactory()
+                        .create(
+                                nativePaintPreviewServiceProvider,
+                                url,
+                                directoryKey,
+                                false,
+                                this::onCompositorReady,
+                                mListener::onCompositorError);
 
-        // TODO(crbug/1230021): Consider making these parts of setup deferred as these objects
+        // TODO(crbug.com/40190158): Consider making these parts of setup deferred as these objects
         // aren't needed immediately and appear to be the slowest part of PlayerManager init.
         mPlayerSwipeRefreshHandler =
                 new PlayerSwipeRefreshHandler(mContext, mListener::onPullToRefresh);
-        mPlayerGestureListener = new PlayerGestureListener(
-                mListener::onLinkClick, mListener::onUserInteraction, mListener::onUserFrustration);
+        mPlayerGestureListener =
+                new PlayerGestureListener(
+                        mListener::onLinkClick,
+                        mListener::onUserInteraction,
+                        mListener::onUserFrustration);
 
         // Set up the HostView to avoid partial loads looking choppy. Ensure it draws so that the
         // container has a defined height immediately. Otherwise on emulators onDraw might not be
@@ -162,10 +168,8 @@ public class PlayerManager {
         mRootFrameCoordinator.setAcceptUserInput(acceptUserInput);
     }
 
-    /**
-     * @return Current scroll position of the main frame. null if the player is not initialized.
-     */
-    public Point getScrollPosition() {
+    /** @return Current scroll position of the main frame. null if the player is not initialized. */
+    public @Nullable Point getScrollPosition() {
         if (mRootFrameCoordinator == null) return null;
 
         Point rootScrollPosition = mRootFrameCoordinator.getScrollPosition();
@@ -174,9 +178,7 @@ public class PlayerManager {
         return rootOffset;
     }
 
-    /**
-     * @return Current scale. 0 if the player is not initialized.
-     */
+    /** @return Current scale. 0 if the player is not initialized. */
     public float getScale() {
         if (mRootFrameCoordinator == null) return 0f;
 
@@ -188,25 +190,51 @@ public class PlayerManager {
      * method initializes a sub-component for each frame and adds the view for the root frame to
      * {@link #mHostView}.
      */
-    private void onCompositorReady(UnguessableToken rootFrameGuid, UnguessableToken[] frameGuids,
-            int[] frameContentSize, int[] scrollOffsets, int[] subFramesCount,
-            UnguessableToken[] subFrameGuids, int[] subFrameClipRects, float pageScaleFactor,
+    private void onCompositorReady(
+            UnguessableToken rootFrameGuid,
+            UnguessableToken[] frameGuids,
+            int[] frameContentSize,
+            int[] scrollOffsets,
+            int[] subFramesCount,
+            UnguessableToken[] subFrameGuids,
+            int[] subFrameClipRects,
+            float pageScaleFactor,
             long nativeAxTree) {
         TraceEvent.begin("PlayerManager.onCompositorReady");
-        mRootFrameData = buildFrameTreeHierarchy(rootFrameGuid, frameGuids, frameContentSize,
-                scrollOffsets, subFramesCount, subFrameGuids, subFrameClipRects,
-                mIgnoreInitialScrollOffset);
+        mRootFrameData =
+                buildFrameTreeHierarchy(
+                        rootFrameGuid,
+                        frameGuids,
+                        frameContentSize,
+                        scrollOffsets,
+                        subFramesCount,
+                        subFrameGuids,
+                        subFrameClipRects,
+                        mIgnoreInitialScrollOffset);
 
-        float initialScaleFactor = Math.max(
-                pageScaleFactor, mHostView.getWidth() / ((float) mRootFrameData.getContentWidth()));
-        mRootFrameCoordinator = new PlayerFrameCoordinator(mContext, mDelegate,
-                mRootFrameData.getGuid(), mRootFrameData.getContentWidth(),
-                mRootFrameData.getContentHeight(), mRootFrameData.getInitialScrollX(),
-                mRootFrameData.getInitialScrollY(), initialScaleFactor, true,
-                mPlayerSwipeRefreshHandler, mPlayerGestureListener, mListener::onFirstPaint,
-                mListener::isAccessibilityEnabled, this::initializeAccessibility);
+        float initialScaleFactor =
+                Math.max(
+                        pageScaleFactor,
+                        mHostView.getWidth() / ((float) mRootFrameData.getContentWidth()));
+        mRootFrameCoordinator =
+                new PlayerFrameCoordinator(
+                        mContext,
+                        mDelegate,
+                        mRootFrameData.getGuid(),
+                        mRootFrameData.getContentWidth(),
+                        mRootFrameData.getContentHeight(),
+                        mRootFrameData.getInitialScrollX(),
+                        mRootFrameData.getInitialScrollY(),
+                        initialScaleFactor,
+                        true,
+                        mPlayerSwipeRefreshHandler,
+                        mPlayerGestureListener,
+                        mListener::onFirstPaint,
+                        mListener::isAccessibilityEnabled,
+                        this::initializeAccessibility);
         buildSubFrameCoordinators(mRootFrameCoordinator, mRootFrameData);
-        mHostView.addView(mRootFrameCoordinator.getView(),
+        mHostView.addView(
+                mRootFrameCoordinator.getView(),
                 new FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         if (mPlayerSwipeRefreshHandler != null) {
@@ -245,6 +273,7 @@ public class PlayerManager {
             return;
         }
 
+        assumeNonNull(mRootFrameData);
         if (mRootFrameData.hasScrollableDescendants(false)) {
             // If there are any scrollable sub-frames that are not direct children of root frame,
             // we can't add accessibility support regardless of root frame's scrollability.
@@ -296,7 +325,8 @@ public class PlayerManager {
         }
 
         Size subFrameOffset =
-                new Size(mRootFrameData.getSubFrameClips()[scrollableSubFrameIndex].left,
+                new Size(
+                        mRootFrameData.getSubFrameClips()[scrollableSubFrameIndex].left,
                         mRootFrameData.getSubFrameClips()[scrollableSubFrameIndex].top);
         mAccessibilityDelegate =
                 new PlayerAccessibilityDelegate(scrollableSubFrame, mNativeAxTree, subFrameOffset);
@@ -310,9 +340,11 @@ public class PlayerManager {
      * scrollable direct sub-frame, and that sub-frame is sufficiently large (80% of main frame).
      */
     private int indexOfLargeScrollableSubFrame() {
+        assumeNonNull(mRootFrameCoordinator);
         Rect mainFrameViewPort = mRootFrameCoordinator.getViewportForAccessibility().asRect();
         int scrollableSubFrameIndex = -1;
         boolean hasLargeScrollableSubFrame = false;
+        assumeNonNull(mRootFrameData);
         for (int i = 0; i < mRootFrameData.getSubFrames().length; i++) {
             PaintPreviewFrame subFrame = mRootFrameData.getSubFrames()[i];
             Rect subFrameClip = mRootFrameData.getSubFrameClips()[i];
@@ -342,28 +374,40 @@ public class PlayerManager {
      * @return The root {@link PaintPreviewFrame}
      */
     @VisibleForTesting
-    static PaintPreviewFrame buildFrameTreeHierarchy(UnguessableToken rootFrameGuid,
-            UnguessableToken[] frameGuids, int[] frameContentSize, int[] scrollOffsets,
-            int[] subFramesCount, UnguessableToken[] subFrameGuids, int[] subFrameClipRects,
+    static PaintPreviewFrame buildFrameTreeHierarchy(
+            UnguessableToken rootFrameGuid,
+            UnguessableToken[] frameGuids,
+            int[] frameContentSize,
+            int[] scrollOffsets,
+            int[] subFramesCount,
+            UnguessableToken[] subFrameGuids,
+            int[] subFrameClipRects,
             boolean ignoreInitialScrollOffset) {
         Map<UnguessableToken, PaintPreviewFrame> framesMap = new HashMap<>();
         for (int i = 0; i < frameGuids.length; i++) {
             int initalScrollX = ignoreInitialScrollOffset ? 0 : scrollOffsets[i * 2];
             int initalScrollY = ignoreInitialScrollOffset ? 0 : scrollOffsets[(i * 2) + 1];
-            framesMap.put(frameGuids[i],
-                    new PaintPreviewFrame(frameGuids[i], frameContentSize[i * 2],
-                            frameContentSize[(i * 2) + 1], initalScrollX, initalScrollY));
+            framesMap.put(
+                    frameGuids[i],
+                    new PaintPreviewFrame(
+                            frameGuids[i],
+                            frameContentSize[i * 2],
+                            frameContentSize[(i * 2) + 1],
+                            initalScrollX,
+                            initalScrollY));
         }
 
         int subFrameIdIndex = 0;
         for (int i = 0; i < frameGuids.length; i++) {
-            PaintPreviewFrame currentFrame = framesMap.get(frameGuids[i]);
+            PaintPreviewFrame currentFrame = assumeNonNull(framesMap.get(frameGuids[i]));
             int currentFrameSubFrameCount = subFramesCount[i];
             PaintPreviewFrame[] subFrames = new PaintPreviewFrame[currentFrameSubFrameCount];
             Rect[] subFrameClips = new Rect[currentFrameSubFrameCount];
-            for (int subFrameIndex = 0; subFrameIndex < currentFrameSubFrameCount;
+            for (int subFrameIndex = 0;
+                    subFrameIndex < currentFrameSubFrameCount;
                     subFrameIndex++, subFrameIdIndex++) {
-                subFrames[subFrameIndex] = framesMap.get(subFrameGuids[subFrameIdIndex]);
+                subFrames[subFrameIndex] =
+                        assertNonNull(framesMap.get(subFrameGuids[subFrameIdIndex]));
                 int x = subFrameClipRects[subFrameIdIndex * 4];
                 int y = subFrameClipRects[subFrameIdIndex * 4 + 1];
                 int width = subFrameClipRects[subFrameIdIndex * 4 + 2];
@@ -373,7 +417,7 @@ public class PlayerManager {
             currentFrame.setSubFrames(subFrames);
             currentFrame.setSubFrameClips(subFrameClips);
         }
-        return framesMap.get(rootFrameGuid);
+        return assertNonNull(framesMap.get(rootFrameGuid));
     }
 
     /**
@@ -389,10 +433,21 @@ public class PlayerManager {
         for (int i = 0; i < frame.getSubFrames().length; i++) {
             PaintPreviewFrame childFrame = frame.getSubFrames()[i];
             PlayerFrameCoordinator childCoordinator =
-                    new PlayerFrameCoordinator(mContext, mDelegate, childFrame.getGuid(),
-                            childFrame.getContentWidth(), childFrame.getContentHeight(),
-                            childFrame.getInitialScrollX(), childFrame.getInitialScrollY(), 0f,
-                            false, null, mPlayerGestureListener, null, null, null);
+                    new PlayerFrameCoordinator(
+                            mContext,
+                            mDelegate,
+                            childFrame.getGuid(),
+                            childFrame.getContentWidth(),
+                            childFrame.getContentHeight(),
+                            childFrame.getInitialScrollX(),
+                            childFrame.getInitialScrollY(),
+                            0f,
+                            false,
+                            null,
+                            mPlayerGestureListener,
+                            null,
+                            null,
+                            null);
             buildSubFrameCoordinators(childCoordinator, childFrame);
             frameCoordinator.addSubFrame(childCoordinator, frame.getSubFrameClips()[i]);
         }
@@ -408,8 +463,10 @@ public class PlayerManager {
         }
     }
 
+    @SuppressWarnings("NullAway") // mDelegate is only nullable after the call to destroy()
     public void destroy() {
         if (mWebContentsAccessibility != null) {
+            assumeNonNull(mRootFrameCoordinator);
             mRootFrameCoordinator.getView().setWebContentsAccessibility(null);
             mWebContentsAccessibility.destroy();
             mWebContentsAccessibility = null;
@@ -431,22 +488,40 @@ public class PlayerManager {
 
     static class CompositorDelegateFactory implements PlayerCompositorDelegate.Factory {
         @Override
-        public PlayerCompositorDelegate create(NativePaintPreviewServiceProvider service, GURL url,
-                String directoryKey, boolean mainFrameMode,
-                @NonNull PlayerCompositorDelegate.CompositorListener compositorListener,
+        public PlayerCompositorDelegate create(
+                NativePaintPreviewServiceProvider service,
+                GURL url,
+                String directoryKey,
+                boolean mainFrameMode,
+                PlayerCompositorDelegate.CompositorListener compositorListener,
                 Callback<Integer> compositorErrorCallback) {
-            return new PlayerCompositorDelegateImpl(service, 0, url, directoryKey, mainFrameMode,
-                    compositorListener, compositorErrorCallback);
+            return new PlayerCompositorDelegateImpl(
+                    service,
+                    0,
+                    url,
+                    directoryKey,
+                    mainFrameMode,
+                    compositorListener,
+                    compositorErrorCallback);
         }
 
         @Override
         public PlayerCompositorDelegate createForCaptureResult(
-                NativePaintPreviewServiceProvider service, long nativeCaptureResultPtr, GURL url,
-                String directoryKey, boolean mainFrameMode,
-                @NonNull PlayerCompositorDelegate.CompositorListener compositorListener,
+                NativePaintPreviewServiceProvider service,
+                long nativeCaptureResultPtr,
+                GURL url,
+                String directoryKey,
+                boolean mainFrameMode,
+                PlayerCompositorDelegate.CompositorListener compositorListener,
                 Callback<Integer> compositorErrorCallback) {
-            return new PlayerCompositorDelegateImpl(service, nativeCaptureResultPtr, url,
-                    directoryKey, mainFrameMode, compositorListener, compositorErrorCallback);
+            return new PlayerCompositorDelegateImpl(
+                    service,
+                    nativeCaptureResultPtr,
+                    url,
+                    directoryKey,
+                    mainFrameMode,
+                    compositorListener,
+                    compositorErrorCallback);
         }
     }
 
@@ -454,17 +529,15 @@ public class PlayerManager {
         return sCompositorDelegateFactory;
     }
 
-    @VisibleForTesting
     public boolean checkRequiredBitmapsLoadedForTest() {
+        assumeNonNull(mRootFrameCoordinator);
         return mRootFrameCoordinator.checkRequiredBitmapsLoadedForTest();
     }
 
-    @VisibleForTesting
-    public WebContentsAccessibility getWebContentsAccessibilityForTesting() {
+    public @Nullable WebContentsAccessibility getWebContentsAccessibilityForTesting() {
         return mWebContentsAccessibility;
     }
 
-    @VisibleForTesting
     public static void overrideCompositorDelegateFactoryForTesting(
             PlayerCompositorDelegate.Factory factory) {
         if (factory == null) {

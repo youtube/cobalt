@@ -2,20 +2,35 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ash/constants/ash_pref_names.h"
+#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
+#include "chrome/browser/policy/policy_test_utils.h"
+#include "components/policy/core/common/policy_map.h"
+#include "components/policy/policy_constants.h"
+#include "content/public/test/browser_test.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
 #include "chrome/browser/ash/accessibility/magnification_manager.h"
 #include "chrome/browser/ash/accessibility/magnifier_type.h"
-#include "chrome/browser/policy/policy_test_utils.h"
 #include "chrome/browser/ui/ash/keyboard/chrome_keyboard_controller_client.h"
 #include "chrome/browser/ui/browser.h"
-#include "components/policy/core/common/policy_map.h"
-#include "components/policy/policy_constants.h"
 #include "components/prefs/pref_service.h"
-#include "content/public/test/browser_test.h"
+#endif
+
+#if BUILDFLAG(IS_WIN)
+#include <tuple>
+
+#include "ui/accessibility/accessibility_features.h"
+#include "ui/accessibility/platform/ax_platform.h"
+#endif
 
 namespace policy {
+
+#if BUILDFLAG(IS_CHROMEOS)
 
 using ::ash::AccessibilityManager;
 using ::ash::MagnificationManager;
@@ -215,7 +230,29 @@ IN_PROC_BROWSER_TEST_F(AccessibilityPolicyTest, StickyKeysEnabled) {
   EXPECT_FALSE(accessibility_manager->IsStickyKeysEnabled());
 }
 
-IN_PROC_BROWSER_TEST_F(AccessibilityPolicyTest, VirtualKeyboardEnabled) {
+// TODO(b/307433336): Remove this once the flag is enabled by default.
+// TODO(b/307433336): Move these tests to a separate file since these are not
+// accessibility related.
+class AccessibilityPolicyTouchVirtualKeyboardEnabledTest
+    : public AccessibilityPolicyTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  AccessibilityPolicyTouchVirtualKeyboardEnabledTest() {
+    feature_list_.InitWithFeatureState(
+        ash::features::kTouchVirtualKeyboardPolicyListenPrefsAtLogin,
+        GetParam());
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(,
+                         AccessibilityPolicyTouchVirtualKeyboardEnabledTest,
+                         ::testing::Values(true, false));
+
+IN_PROC_BROWSER_TEST_P(AccessibilityPolicyTouchVirtualKeyboardEnabledTest,
+                       TouchVirtualKeyboardEnabledDefault) {
   auto* keyboard_client = ChromeKeyboardControllerClient::Get();
   ASSERT_TRUE(keyboard_client);
 
@@ -227,6 +264,12 @@ IN_PROC_BROWSER_TEST_F(AccessibilityPolicyTest, VirtualKeyboardEnabled) {
   EXPECT_TRUE(keyboard_client->is_keyboard_enabled());
   ClearEnableFlag(keyboard::KeyboardEnableFlag::kTouchEnabled);
   EXPECT_FALSE(keyboard_client->is_keyboard_enabled());
+}
+
+IN_PROC_BROWSER_TEST_P(AccessibilityPolicyTouchVirtualKeyboardEnabledTest,
+                       TouchVirtualKeyboardEnabledTrueEnablesVirtualKeyboard) {
+  auto* keyboard_client = ChromeKeyboardControllerClient::Get();
+  ASSERT_TRUE(keyboard_client);
 
   // Verify enabling the policy takes effect immediately and that that user
   // cannot disable the keyboard..
@@ -238,9 +281,17 @@ IN_PROC_BROWSER_TEST_F(AccessibilityPolicyTest, VirtualKeyboardEnabled) {
   EXPECT_TRUE(keyboard_client->is_keyboard_enabled());
   ClearEnableFlag(keyboard::KeyboardEnableFlag::kTouchEnabled);
   EXPECT_TRUE(keyboard_client->is_keyboard_enabled());
+}
+
+IN_PROC_BROWSER_TEST_P(
+    AccessibilityPolicyTouchVirtualKeyboardEnabledTest,
+    TouchVirtualKeyboardEnabledFalseDisablesVirtualKeyboard) {
+  auto* keyboard_client = ChromeKeyboardControllerClient::Get();
+  ASSERT_TRUE(keyboard_client);
 
   // Verify that disabling the policy takes effect immediately and that the user
   // cannot enable the keyboard.
+  PolicyMap policies;
   policies.Set(key::kTouchVirtualKeyboardEnabled, POLICY_LEVEL_MANDATORY,
                POLICY_SCOPE_USER, POLICY_SOURCE_CLOUD, base::Value(false),
                nullptr);
@@ -462,5 +513,136 @@ IN_PROC_BROWSER_TEST_F(AccessibilityPolicyTest, AutoclickEnabled) {
   // Verify that no confirmation dialog has been shown.
   EXPECT_FALSE(accessibility_manager->IsDisableAutoclickDialogVisibleForTest());
 }
+
+IN_PROC_BROWSER_TEST_F(AccessibilityPolicyTest, ColorCorrectionEnabled) {
+  // Verifies that the color correction accessibility feature can be controlled
+  // through policy.
+  AccessibilityManager* accessibility_manager = AccessibilityManager::Get();
+
+  accessibility_manager->SetColorCorrectionEnabled(false);
+  // Verify that color correction is initially disabled.
+  EXPECT_FALSE(accessibility_manager->IsColorCorrectionEnabled());
+
+  // Manually enable color correction.
+  accessibility_manager->SetColorCorrectionEnabled(true);
+  EXPECT_TRUE(accessibility_manager->IsColorCorrectionEnabled());
+
+  // Verify that policy overrides the manual setting.
+  PolicyMap policies;
+  policies.Set(key::kColorCorrectionEnabled, POLICY_LEVEL_MANDATORY,
+               POLICY_SCOPE_USER, POLICY_SOURCE_CLOUD, base::Value(false),
+               nullptr);
+  UpdateProviderPolicy(policies);
+  EXPECT_FALSE(accessibility_manager->IsColorCorrectionEnabled());
+
+  // Verify that color correction cannot be enabled manually anymore.
+  accessibility_manager->SetColorCorrectionEnabled(true);
+  EXPECT_FALSE(accessibility_manager->IsColorCorrectionEnabled());
+
+  policies.Set(key::kColorCorrectionEnabled, POLICY_LEVEL_MANDATORY,
+               POLICY_SCOPE_USER, POLICY_SOURCE_CLOUD, base::Value(true),
+               nullptr);
+  UpdateProviderPolicy(policies);
+  EXPECT_TRUE(accessibility_manager->IsColorCorrectionEnabled());
+
+  // Verify that color correction cannot be disabled manually anymore.
+  accessibility_manager->SetColorCorrectionEnabled(false);
+  EXPECT_TRUE(accessibility_manager->IsColorCorrectionEnabled());
+}
+
+// Verifies that the FaceGaze accessibility feature can be forced off via
+// policy.
+IN_PROC_BROWSER_TEST_F(AccessibilityPolicyTest, FaceGazeForcedOff) {
+  AccessibilityManager* accessibility_manager = AccessibilityManager::Get();
+  PrefService* prefs = browser()->profile()->GetPrefs();
+
+  // Verify that FaceGaze is initially disabled.
+  EXPECT_FALSE(accessibility_manager->IsFaceGazeEnabled());
+
+  // Manually enable FaceGaze.
+  prefs->SetBoolean(ash::prefs::kAccessibilityFaceGazeEnabled, true);
+  EXPECT_TRUE(accessibility_manager->IsFaceGazeEnabled());
+
+  // Verify that policy overrides the manual setting.
+  PolicyMap policies;
+  policies.Set(key::kFaceGazeEnabled, POLICY_LEVEL_MANDATORY, POLICY_SCOPE_USER,
+               POLICY_SOURCE_CLOUD, base::Value(false), nullptr);
+  UpdateProviderPolicy(policies);
+  EXPECT_FALSE(accessibility_manager->IsFaceGazeEnabled());
+}
+
+// Verifies that the FaceGaze accessibility feature can be forced on via
+// policy.
+IN_PROC_BROWSER_TEST_F(AccessibilityPolicyTest, FaceGazeForcedOn) {
+  // Verify that FaceGaze is initially disabled.
+  AccessibilityManager* accessibility_manager = AccessibilityManager::Get();
+  EXPECT_FALSE(accessibility_manager->IsFaceGazeEnabled());
+
+  // Verify that policy overrides the manual setting.
+  PolicyMap policies;
+  policies.Set(key::kFaceGazeEnabled, POLICY_LEVEL_MANDATORY, POLICY_SCOPE_USER,
+               POLICY_SOURCE_CLOUD, base::Value(true), nullptr);
+  UpdateProviderPolicy(policies);
+  EXPECT_TRUE(accessibility_manager->IsFaceGazeEnabled());
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_WIN)
+// Tests that the UiAutomationProviderEnabled policy is respected when set, and
+// that the UiaProvider feature takes effect only when the policy is not set.
+class UiAutomationProviderPolicyTest
+    : public PolicyTest,
+      public ::testing::WithParamInterface<
+          std::tuple<PolicyTest::BooleanPolicy, bool>> {
+ protected:
+  static PolicyTest::BooleanPolicy GetBooleanPolicyParam() {
+    return std::get<0>(GetParam());
+  }
+
+  static bool GetFeatureEnabledParam() { return std::get<1>(GetParam()); }
+
+  UiAutomationProviderPolicyTest() {
+    feature_list_.InitWithFeatureState(::features::kUiaProvider,
+                                       GetFeatureEnabledParam());
+  }
+
+  void SetUpInProcessBrowserTestFixture() override {
+    PolicyTest::SetUpInProcessBrowserTestFixture();
+    if (const auto boolean_policy = GetBooleanPolicyParam();
+        boolean_policy != BooleanPolicy::kNotConfigured) {
+      PolicyMap policy_map;
+      SetPolicy(&policy_map, key::kUiAutomationProviderEnabled,
+                base::Value(boolean_policy == BooleanPolicy::kTrue));
+      UpdateProviderPolicy(policy_map);
+    }
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(UiAutomationProviderPolicyTest, IsUiaProviderEnabled) {
+  if (const auto boolean_policy = GetBooleanPolicyParam();
+      boolean_policy == BooleanPolicy::kNotConfigured) {
+    // Enabled or disabled according to the variations framework.
+    ASSERT_EQ(::ui::AXPlatform::GetInstance().IsUiaProviderEnabled(),
+              GetFeatureEnabledParam());
+  } else {
+    // Enabled or disabled according to the value of the policy.
+    ASSERT_EQ(::ui::AXPlatform::GetInstance().IsUiaProviderEnabled(),
+              boolean_policy == BooleanPolicy::kTrue);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    UiAutomationProviderPolicyTest,
+    ::testing::Combine(
+        ::testing::Values(PolicyTest::BooleanPolicy::kNotConfigured,
+                          PolicyTest::BooleanPolicy::kFalse,
+                          PolicyTest::BooleanPolicy::kTrue),
+        ::testing::Bool()));
+
+#endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace policy

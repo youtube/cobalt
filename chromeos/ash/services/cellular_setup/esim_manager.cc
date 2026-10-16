@@ -44,10 +44,11 @@ void LogEuiccPaths(const std::set<dbus::ObjectPath>& new_euicc_paths) {
 
 // static
 std::string ESimManager::GetRootSmdsAddress() {
-  // An empty string indicates that the root GSMA address should be used.
-  return features::IsUseStorkSmdsServerAddressEnabled()
-             ? kStorkSmdsServerAddress
-             : std::string();
+  // This function returns which server should be used when performing an SM-DS
+  // scan and will only ever return the root GSM Association server or the Stork
+  // server.
+  return features::ShouldUseStorkSmds() ? kStorkSmdsServerAddress
+                                        : std::string();
 }
 
 ESimManager::ESimManager()
@@ -93,6 +94,8 @@ void ESimManager::AddObserver(
 
 void ESimManager::GetAvailableEuiccs(GetAvailableEuiccsCallback callback) {
   std::vector<mojo::PendingRemote<mojom::Euicc>> euicc_list;
+  NET_LOG(DEBUG) << "GetAvailableEuiccs(): Num available_euiccs_: "
+                 << available_euiccs_.size();
   for (auto const& euicc : available_euiccs_)
     euicc_list.push_back(euicc->CreateRemote());
   std::move(callback).Run(std::move(euicc_list));
@@ -177,6 +180,7 @@ bool ESimManager::RemoveUntrackedEuiccs(
        euicc_it != available_euiccs_.end();) {
     if (new_euicc_paths.find((*euicc_it)->path()) == new_euicc_paths.end()) {
       removed = true;
+      NET_LOG(DEBUG) << "Removing EUICC: " << (*euicc_it)->path().value();
       euicc_it = available_euiccs_.erase(euicc_it);
     } else {
       euicc_it++;
@@ -189,6 +193,7 @@ bool ESimManager::CreateEuiccIfNew(const dbus::ObjectPath& euicc_path) {
   Euicc* euicc_info = GetEuiccFromPath(euicc_path);
   if (euicc_info)
     return false;
+  NET_LOG(DEBUG) << "Creating EUICC: " << euicc_path.value();
   available_euiccs_.push_back(std::make_unique<Euicc>(euicc_path, this));
   return true;
 }

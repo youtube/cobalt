@@ -4,15 +4,15 @@
 
 #include "ui/views/controls/link.h"
 
-#include "build/build_config.h"
-
 #include "base/check.h"
 #include "base/strings/utf_string_conversions.h"
+#include "build/build_config.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/cursor/cursor.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
+#include "ui/color/color_variant.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/canvas.h"
@@ -31,9 +31,10 @@ Link::Link(const std::u16string& title, int text_context, int text_style)
   enabled_changed_subscription_ = AddEnabledChangedCallback(
       base::BindRepeating(&Link::RecalculateFont, base::Unretained(this)));
 
-  SetAccessibilityProperties(ax::mojom::Role::kLink, title);
+  GetViewAccessibility().SetRole(ax::mojom::Role::kLink);
+  GetViewAccessibility().SetName(title);
   // Prevent invisible links from being announced by screen reader.
-  GetViewAccessibility().OverrideIsIgnored(title.empty());
+  GetViewAccessibility().SetIsIgnored(title.empty());
 
   // Label() indirectly calls SetText(), but at that point our virtual override
   // will not be reached.  Call it explicitly here to configure focus.
@@ -45,22 +46,31 @@ Link::Link(const std::u16string& title, int text_context, int text_style)
 Link::~Link() = default;
 
 SkColor Link::GetColor() const {
-  // TODO(tapted): Use style::GetColor().
+  // TODO(crbug.com/40268779): Use TypographyProvider::GetColorId().
   const ui::ColorProvider* color_provider = GetColorProvider();
   DCHECK(color_provider);
-  if (!GetEnabled())
+  if (!GetEnabled()) {
     return color_provider->GetColor(ui::kColorLinkForegroundDisabled);
+  }
 
-  if (requested_enabled_color_.has_value())
+  if (requested_enabled_color_) {
     return requested_enabled_color_.value();
+  }
+
+  if (GetTextContext() == style::CONTEXT_BUBBLE_FOOTER) {
+    return color_provider->GetColor(
+        pressed_ ? ui::kColorLinkForegroundPressedOnBubbleFooter
+                 : ui::kColorLinkForegroundOnBubbleFooter);
+  }
 
   return color_provider->GetColor(pressed_ ? ui::kColorLinkForegroundPressed
                                            : ui::kColorLinkForeground);
 }
 
 void Link::SetForceUnderline(bool force_underline) {
-  if (force_underline_ == force_underline)
+  if (force_underline_ == force_underline) {
     return;
+  }
 
   force_underline_ = force_underline;
   RecalculateFont();
@@ -71,8 +81,9 @@ bool Link::GetForceUnderline() const {
 }
 
 ui::Cursor Link::GetCursor(const ui::MouseEvent& event) {
-  if (!GetEnabled())
+  if (!GetEnabled()) {
     return ui::Cursor();
+  }
   return ui::mojom::CursorType::kHand;
 }
 
@@ -92,8 +103,9 @@ void Link::OnMouseExited(const ui::MouseEvent& event) {
 
 bool Link::OnMousePressed(const ui::MouseEvent& event) {
   if (!GetEnabled() ||
-      (!event.IsLeftMouseButton() && !event.IsMiddleMouseButton()))
+      (!event.IsLeftMouseButton() && !event.IsMiddleMouseButton())) {
     return false;
+  }
   SetPressed(true);
   return true;
 }
@@ -111,8 +123,9 @@ void Link::OnMouseReleased(const ui::MouseEvent& event) {
   OnMouseCaptureLost();
   if (GetEnabled() &&
       (event.IsLeftMouseButton() || event.IsMiddleMouseButton()) &&
-      HitTestPoint(event.location()))
+      HitTestPoint(event.location())) {
     OnClick(event);
+  }
 }
 
 void Link::OnMouseCaptureLost() {
@@ -124,8 +137,9 @@ bool Link::OnKeyPressed(const ui::KeyEvent& event) {
                     (event.flags() & ui::EF_ALT_DOWN) == 0) ||
                    (event.key_code() == ui::VKEY_RETURN &&
                     PlatformStyle::kReturnClicksFocusedControl));
-  if (!activate)
+  if (!activate) {
     return false;
+  }
 
   SetPressed(false);
   OnClick(event);
@@ -133,12 +147,13 @@ bool Link::OnKeyPressed(const ui::KeyEvent& event) {
 }
 
 void Link::OnGestureEvent(ui::GestureEvent* event) {
-  if (!GetEnabled())
+  if (!GetEnabled()) {
     return;
+  }
 
-  if (event->type() == ui::ET_GESTURE_TAP_DOWN) {
+  if (event->type() == ui::EventType::kGestureTapDown) {
     SetPressed(true);
-  } else if (event->type() == ui::ET_GESTURE_TAP) {
+  } else if (event->type() == ui::EventType::kGestureTap) {
     OnClick(*event);
   } else {
     SetPressed(false);
@@ -174,10 +189,10 @@ void Link::SetFontList(const gfx::FontList& font_list) {
   RecalculateFont();
 }
 
-void Link::SetText(const std::u16string& text) {
+void Link::SetText(std::u16string_view text) {
   Label::SetText(text);
   // Prevent invisible links from being announced by screen reader.
-  GetViewAccessibility().OverrideIsIgnored(text.empty());
+  GetViewAccessibility().SetIsIgnored(text.empty());
   ConfigureFocus();
 }
 
@@ -186,10 +201,14 @@ void Link::OnThemeChanged() {
   Label::SetEnabledColor(GetColor());
 }
 
-void Link::SetEnabledColor(SkColor color) {
-  requested_enabled_color_ = color;
-  if (GetWidget())
+void Link::SetEnabledColor(ui::ColorVariant color) {
+  if (color.GetSkColor()) {
+    requested_enabled_color_ = color.GetSkColor().value();
+  }
+
+  if (GetWidget()) {
     Label::SetEnabledColor(GetColor());
+  }
 }
 
 bool Link::IsSelectionSupported() const {
@@ -207,8 +226,9 @@ void Link::SetPressed(bool pressed) {
 
 void Link::OnClick(const ui::Event& event) {
   RequestFocus();
-  if (callback_)
+  if (callback_) {
     callback_.Run(event);
+  }
 }
 
 void Link::RecalculateFont() {
@@ -218,8 +238,9 @@ void Link::RecalculateFont() {
           ? (style | gfx::Font::UNDERLINE)
           : (style & ~gfx::Font::UNDERLINE);
 
-  if (style != intended_style)
+  if (style != intended_style) {
     Label::SetFontList(font_list().DeriveWithStyle(intended_style));
+  }
 }
 
 void Link::ConfigureFocus() {
@@ -235,7 +256,7 @@ void Link::ConfigureFocus() {
   }
 }
 
-BEGIN_METADATA(Link, Label)
+BEGIN_METADATA(Link)
 ADD_READONLY_PROPERTY_METADATA(SkColor, Color, ui::metadata::SkColorConverter)
 ADD_PROPERTY_METADATA(bool, ForceUnderline)
 END_METADATA

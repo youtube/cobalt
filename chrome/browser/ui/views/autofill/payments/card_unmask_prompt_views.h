@@ -12,6 +12,7 @@
 #include "chrome/browser/ui/autofill/payments/autofill_dialog_models.h"
 #include "components/autofill/core/browser/ui/payments/card_unmask_prompt_view.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
 #include "ui/views/window/dialog_delegate.h"
@@ -35,8 +36,9 @@ class CardUnmaskPromptController;
 class CardUnmaskPromptViews : public CardUnmaskPromptView,
                               public views::BubbleDialogDelegateView,
                               public views::TextfieldController {
+  METADATA_HEADER(CardUnmaskPromptViews, views::BubbleDialogDelegateView)
+
  public:
-  METADATA_HEADER(CardUnmaskPromptViews);
   CardUnmaskPromptViews(CardUnmaskPromptController* controller,
                         content::WebContents* web_contents);
   CardUnmaskPromptViews(const CardUnmaskPromptViews&) = delete;
@@ -54,7 +56,7 @@ class CardUnmaskPromptViews : public CardUnmaskPromptView,
   View* GetContentsView() override;
   void AddedToWidget() override;
   std::u16string GetWindowTitle() const override;
-  bool IsDialogButtonEnabled(ui::DialogButton button) const override;
+  bool IsDialogButtonEnabled(ui::mojom::DialogButton button) const override;
   View* GetInitiallyFocusedView() override;
   bool ShouldShowCloseButton() const override;
   bool Cancel() override;

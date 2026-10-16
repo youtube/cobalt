@@ -15,6 +15,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/notifications/notification_display_service.h"
+#include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
 #include "chrome/browser/supervised_user/supervised_user_settings_service_factory.h"
@@ -46,8 +47,9 @@ const char kNotificationShownActionName[] =
 GURL GetURLToOpen(const std::string& allowed_host) {
   // When a match pattern containing * (e.g. *.google.*) is allowlisted, return
   // an empty URL because we can't know which URL to open.
-  if (allowed_host.find('*') != std::string::npos)
-    return GURL::EmptyGURL();
+  if (allowed_host.find('*') != std::string::npos) {
+    return GURL();
+  }
 
   // Constructs a URL that the user can open, defaulting to HTTPS.
   GURL url = GURL(base::StrCat(
@@ -105,7 +107,7 @@ void WebsiteApprovalNotifier::MaybeShowApprovalNotification(
       chromeos::kNotificationSupervisedUserIcon,
       message_center::SystemNotificationWarningLevel::NORMAL);
   base::RecordAction(base::UserMetricsAction(kNotificationShownActionName));
-  NotificationDisplayService::GetForProfile(profile_)->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile_)->Display(
       NotificationHandler::Type::TRANSIENT, notification,
       /*metadata=*/nullptr);
 }

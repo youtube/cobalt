@@ -37,16 +37,20 @@ class TestWindowDelegate : public WindowDelegate {
     minimum_size_ = minimum_size;
   }
 
-  void set_maximum_size(const gfx::Size& maximum_size) {
+  void set_maximum_size(const std::optional<gfx::Size>& maximum_size) {
     maximum_size_ = maximum_size;
   }
 
   // Sets the return value for CanFocus(). Default is true.
   void set_can_focus(bool can_focus) { can_focus_ = can_focus; }
 
+  void set_on_occlusion_changed(base::RepeatingClosure callback) {
+    on_occlusion_changed_ = std::move(callback);
+  }
+
   // Overridden from WindowDelegate:
   gfx::Size GetMinimumSize() const override;
-  gfx::Size GetMaximumSize() const override;
+  std::optional<gfx::Size> GetMaximumSize() const override;
   void OnBoundsChanged(const gfx::Rect& old_bounds,
                        const gfx::Rect& new_bounds) override;
   gfx::NativeCursor GetCursor(const gfx::Point& point) override;
@@ -62,6 +66,9 @@ class TestWindowDelegate : public WindowDelegate {
   void OnWindowDestroying(Window* window) override;
   void OnWindowDestroyed(Window* window) override;
   void OnWindowTargetVisibilityChanged(bool visible) override;
+  void OnWindowOcclusionChanged(
+      Window::OcclusionState old_occlusion_state,
+      Window::OcclusionState new_occlusion_state) override;
   bool HasHitTestMask() const override;
   void GetHitTestMask(SkPath* mask) const override;
 
@@ -69,8 +76,10 @@ class TestWindowDelegate : public WindowDelegate {
   int window_component_;
   bool delete_on_destroyed_;
   gfx::Size minimum_size_;
-  gfx::Size maximum_size_;
+  std::optional<gfx::Size> maximum_size_;
   bool can_focus_;
+
+  base::RepeatingClosure on_occlusion_changed_;
 };
 
 // A simple WindowDelegate implementation for these tests. It owns itself

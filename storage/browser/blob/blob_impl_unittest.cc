@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
@@ -32,8 +33,8 @@ class DataPipeReader : public mojo::DataPipeDrainer::Client {
   DataPipeReader(std::string* data_out, base::OnceClosure done_callback)
       : data_out_(data_out), done_callback_(std::move(done_callback)) {}
 
-  void OnDataAvailable(const void* data, size_t num_bytes) override {
-    data_out_->append(static_cast<const char*>(data), num_bytes);
+  void OnDataAvailable(base::span<const uint8_t> data) override {
+    data_out_->append(base::as_string_view(data));
   }
 
   void OnDataComplete() override { std::move(done_callback_).Run(); }
@@ -221,7 +222,7 @@ TEST_F(BlobImplTest, ReadAll_BrokenBlob) {
   client_receiver.FlushForTesting();
   EXPECT_FALSE(client.calculated_size_);
   EXPECT_TRUE(client.completed_);
-  EXPECT_EQ(net::ERR_FAILED, client.status_);
+  EXPECT_EQ(net::ERR_BLOB_INVALID_CONSTRUCTION_ARGUMENTS, client.status_);
   EXPECT_EQ(0u, client.data_length_);
 }
 
@@ -361,7 +362,7 @@ TEST_F(BlobImplTest, ReadRange_BrokenBlob) {
   client_receiver.FlushForTesting();
   EXPECT_FALSE(client.calculated_size_);
   EXPECT_TRUE(client.completed_);
-  EXPECT_EQ(net::ERR_FAILED, client.status_);
+  EXPECT_EQ(net::ERR_BLOB_INVALID_CONSTRUCTION_ARGUMENTS, client.status_);
   EXPECT_EQ(0u, client.data_length_);
 }
 

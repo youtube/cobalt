@@ -36,15 +36,16 @@ perfetto::base::TempFile MkTemp(const char* str) {
 
 std::string FilterToText(FilterUtil& filter,
                          std::optional<std::string> bytecode = {}) {
-  perfetto::base::TempFile tmp = perfetto::base::TempFile::Create();
+  std::string tmp_path = perfetto::base::TempFile::Create().path();
   {
-    perfetto::base::ScopedFstream tmp_stream(fopen(tmp.path().c_str(), "w"));
+    perfetto::base::ScopedFstream tmp_stream(fopen(tmp_path.c_str(), "wb"));
+    PERFETTO_CHECK(!!tmp_stream);
     filter.set_print_stream_for_testing(*tmp_stream);
     filter.PrintAsText(bytecode);
     filter.set_print_stream_for_testing(stdout);
   }
   std::string output;
-  PERFETTO_CHECK(perfetto::base::ReadFile(tmp.path(), &output));
+  PERFETTO_CHECK(perfetto::base::ReadFile(tmp_path, &output));
   // Make the output a bit more compact.
   output = std::regex_replace(output, std::regex(" +"), " ");
   return std::regex_replace(output, std::regex(" +\\n"), "\n");
@@ -300,6 +301,80 @@ Child2 6 message n1 Child2.Nested
 Child2.Nested 1 int64 f1
 )",
             FilterToText(filter, bytecode));
+}
+
+TEST(SchemaParserTest, Passthrough) {
+  auto schema = MkTemp(R"(
+  syntax = "proto2";
+  message Root {
+    optional int32 i32 = 13;
+    optional TracePacket packet = 7;
+  }
+  message TraceConfig {
+    optional int32 f3 = 3;
+    optional int64 f4 = 4;
+  }
+  message TracePacket {
+    optional int32 f1 = 3;
+    optional int64 f2 = 4;
+    optional TraceConfig cfg = 5;
+  }
+  )");
+
+  FilterUtil filter;
+  std::set<std::string> passthrough{"TracePacket:cfg"};
+  ASSERT_TRUE(
+      filter.LoadMessageDefinition(schema.path(), "Root", "", passthrough));
+
+  EXPECT_EQ(R"(Root 7 message packet TracePacket
+Root 13 int32 i32
+TracePacket 3 int32 f1
+TracePacket 4 int64 f2
+TracePacket 5 bytes cfg
+)",
+            FilterToText(filter));
+
+  std::string bytecode = filter.GenerateFilterBytecode();
+  // If we generate bytecode from the schema itself, all fields are allowed and
+  // the result is identical to the unfiltered output.
+  EXPECT_EQ(FilterToText(filter), FilterToText(filter, bytecode));
+}
+
+TEST(SchemaParserTest, FilterString) {
+  auto schema = MkTemp(R"(
+  syntax = "proto2";
+  message Root {
+    optional int32 i32 = 13;
+    optional TracePacket packet = 7;
+  }
+  message TraceConfig {
+    optional string f1 = 1;
+  }
+  message TracePacket {
+    optional int32 f1 = 3;
+    optional int64 f2 = 4;
+    optional TraceConfig cfg = 5;
+  }
+  )");
+
+  FilterUtil filter;
+  std::set<std::string> filter_string{"TraceConfig:f1"};
+  ASSERT_TRUE(filter.LoadMessageDefinition(schema.path(), "Root", "", {},
+                                           filter_string));
+
+  EXPECT_EQ(R"(Root 7 message packet TracePacket
+Root 13 int32 i32
+TracePacket 3 int32 f1
+TracePacket 4 int64 f2
+TracePacket 5 message cfg TraceConfig
+TraceConfig 1 string f1 # FILTER STRING
+)",
+            FilterToText(filter));
+
+  std::string bytecode = filter.GenerateFilterBytecode();
+  // If we generate bytecode from the schema itself, all fields are allowed and
+  // the result is identical to the unfiltered output.
+  EXPECT_EQ(FilterToText(filter), FilterToText(filter, bytecode));
 }
 
 }  // namespace

@@ -10,7 +10,6 @@
 #include "base/android/jni_string.h"
 #include "base/memory/ptr_util.h"
 #include "base/task/single_thread_task_runner.h"
-#include "content/public/android/content_jni_headers/AppWebMessagePort_jni.h"
 #include "content/public/browser/android/message_payload.h"
 #include "content/public/browser/android/message_port_helper.h"
 #include "content/public/browser/browser_thread.h"
@@ -23,6 +22,12 @@
 #include "third_party/blink/public/common/messaging/transferable_message_mojom_traits.h"
 #include "third_party/blink/public/common/messaging/web_message_port.h"
 #include "third_party/blink/public/mojom/messaging/transferable_message.mojom.h"
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/jni_zero/cobalt_for_google3_buildflags.h" // nogncheck
+#endif
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "content/public/android/content_jni_headers/AppWebMessagePort_jni.h"
 
 namespace content::android {
 
@@ -37,9 +42,16 @@ base::android::ScopedJavaLocalRef<jobjectArray> CreateJavaMessagePort(
 
   JNIEnv* env = base::android::AttachCurrentThread();
   return base::android::ToTypedJavaArrayOfObjects(
-      env, base::make_span(j_descriptors),
-      base::android::GetClass(
-          env, kClassPath_org_chromium_content_browser_AppWebMessagePort));
+      env, base::span(j_descriptors),
+#if BUILDFLAG(IS_COBALT)
+  #if BUILDFLAG(IS_COBALT_ON_GOOGLE3)
+      cobalt_org_chromium_content_browser_AppWebMessagePort_clazz(env));
+  #else
+      org_chromium_content_browser_AppWebMessagePort_clazz(env));
+  #endif
+#else
+    org_chromium_content_browser_AppWebMessagePort_clazz(env));
+#endif
 }
 
 // static
@@ -116,7 +128,7 @@ void AppWebMessagePort::PostMessage(
   // set the agent cluster ID to the embedder's, and nullify its parent task ID.
   transferable_message.sender_agent_cluster_id =
       blink::WebMessagePort::GetEmbedderAgentClusterID();
-  transferable_message.parent_task_id = absl::nullopt;
+  transferable_message.parent_task_id = std::nullopt;
 
   mojo::Message mojo_message =
       blink::mojom::TransferableMessage::SerializeAsMessage(

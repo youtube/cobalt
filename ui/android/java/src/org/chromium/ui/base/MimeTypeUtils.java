@@ -3,26 +3,39 @@
 // found in the LICENSE file.
 package org.chromium.ui.base;
 
-import android.Manifest.permission;
+import android.Manifest;
+import android.content.ClipDescription;
+import android.os.Build;
 import android.webkit.MimeTypeMap;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.Nullable;
 
-import org.chromium.base.BuildInfo;
-import org.chromium.ui.permissions.PermissionConstants;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.url.GURL;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/**
- * Utility methods for determining and working with mime types.
- */
+/** Utility methods for determining and working with mime types. */
+@NullMarked
 public class MimeTypeUtils {
-    /**
-     * A set of known mime types.
-     */
+    /** The MIME type for a plain text objects dragged from Chrome. */
+    public static final String CHROME_MIMETYPE_TEXT = "chrome/text";
+
+    /** The MIME type for a link objects dragged from Chrome. */
+    public static final String CHROME_MIMETYPE_LINK = "chrome/link";
+
+    /** The MIME type for a tab object dragged from Chrome. */
+    public static final String CHROME_MIMETYPE_TAB = "chrome/tab";
+
+    /** The MIME type for a tab group object dragged from Chrome. */
+    public static final String CHROME_MIMETYPE_TAB_GROUP = "chrome/tab-group";
+
+    /** The MIME type for pdf. */
+    public static final String PDF_MIME_TYPE = "application/pdf";
+
+    /** A set of known mime types. */
     // Note: these values must match the AndroidUtilsMimeTypes enum in enums.xml.
     // Only add new values at the end, right before NUM_ENTRIES. We depend on these specific
     // values in UMA histograms.
@@ -46,8 +59,7 @@ public class MimeTypeUtils {
      */
     public static @Type int getMimeTypeForUrl(GURL url) {
         String extension = MimeTypeMap.getFileExtensionFromUrl(url.getSpec());
-        @Type
-        int mimeType = Type.UNKNOWN;
+        @Type int mimeType = Type.UNKNOWN;
         if (extension != null) {
             String type = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
             if (type != null) {
@@ -71,29 +83,29 @@ public class MimeTypeUtils {
     /**
      * @param mimeType The mime type associated with an operation that needs a permission.
      * @return The name of the Android permission to request. Returns null if no permission will
-     *         allow access to the file, for example on Android T+ where READ_EXTERNAL_STORAGE has
-     *         been replaced with a handful of READ_MEDIA_* permissions.
+     *     allow access to the file, for example on Android T+ where READ_EXTERNAL_STORAGE has been
+     *     replaced with a handful of READ_MEDIA_* permissions.
      */
     public @Nullable static String getPermissionNameForMimeType(@MimeTypeUtils.Type int mimeType) {
-        if (useExternalStoragePermission()) {
-            return permission.READ_EXTERNAL_STORAGE;
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return Manifest.permission.READ_EXTERNAL_STORAGE;
         }
 
         switch (mimeType) {
             case MimeTypeUtils.Type.AUDIO:
-                return PermissionConstants.READ_MEDIA_AUDIO;
+                return Manifest.permission.READ_MEDIA_AUDIO;
             case MimeTypeUtils.Type.IMAGE:
-                return PermissionConstants.READ_MEDIA_IMAGES;
+                return Manifest.permission.READ_MEDIA_IMAGES;
             case MimeTypeUtils.Type.VIDEO:
-                return PermissionConstants.READ_MEDIA_VIDEO;
+                return Manifest.permission.READ_MEDIA_VIDEO;
             default:
                 return null;
         }
     }
 
-    static boolean useExternalStoragePermission() {
-        // Extracted into a helper method for easy testing. Can be replaced with test annotations
-        // once Robolectric recognizes SDK = T.
-        return !BuildInfo.isAtLeastT() || !BuildInfo.targetsAtLeastT();
+    public static boolean clipDescriptionHasBrowserContent(ClipDescription clipDescription) {
+        if (clipDescription == null) return false;
+        return clipDescription.hasMimeType(CHROME_MIMETYPE_TAB)
+                || clipDescription.hasMimeType(CHROME_MIMETYPE_TAB_GROUP);
     }
 }

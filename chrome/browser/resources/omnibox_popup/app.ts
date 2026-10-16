@@ -2,40 +2,45 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import '//resources/cr_components/omnibox/realbox_dropdown.js';
-import './strings.m.js';
+import '//resources/cr_components/searchbox/searchbox_dropdown.js';
+import '/strings.m.js';
 
-import {startColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
-import {AutocompleteResult, PageCallbackRouter} from '//resources/cr_components/omnibox/omnibox.mojom-webui.js';
-import {RealboxBrowserProxy} from '//resources/cr_components/omnibox/realbox_browser_proxy.js';
-import {RealboxDropdownElement} from '//resources/cr_components/omnibox/realbox_dropdown.js';
-import {assert} from '//resources/js/assert_ts.js';
+import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
+import type {AutocompleteResult, OmniboxPopupSelection, PageCallbackRouter} from '//resources/cr_components/searchbox/searchbox.mojom-webui.js';
+import {SearchboxBrowserProxy} from '//resources/cr_components/searchbox/searchbox_browser_proxy.js';
+import type {SearchboxDropdownElement} from '//resources/cr_components/searchbox/searchbox_dropdown.js';
+import {assert} from '//resources/js/assert.js';
 import {MetricsReporterImpl} from '//resources/js/metrics_reporter/metrics_reporter.js';
-import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {getTemplate} from './app.html.js';
+import {getCss} from './app.css.js';
+import {getHtml} from './app.html.js';
 
-// 675px ~= 449px (--ntp-realbox-primary-side-min-width) * 1.5 + some margin.
+// 675px ~= 449px (--cr-realbox-primary-side-min-width) * 1.5 + some margin.
 const canShowSecondarySideMediaQueryList =
     window.matchMedia('(min-width: 675px)');
 
 export interface OmniboxPopupAppElement {
   $: {
-    matches: RealboxDropdownElement,
+    matches: SearchboxDropdownElement,
   };
 }
 
 // Displays the autocomplete matches in the autocomplete result.
-export class OmniboxPopupAppElement extends PolymerElement {
+export class OmniboxPopupAppElement extends CrLitElement {
   static get is() {
     return 'omnibox-popup-app';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
       /**
        * Whether the secondary side can be shown based on the feature state and
@@ -43,55 +48,55 @@ export class OmniboxPopupAppElement extends PolymerElement {
        */
       canShowSecondarySide: {
         type: Boolean,
-        value: () => canShowSecondarySideMediaQueryList.matches,
-        reflectToAttribute: true,
+        reflect: true,
       },
 
       /*
        * Whether the secondary side is currently available to be shown.
        */
       hasSecondarySide: {
-        reflectToAttribute: true,
         type: Boolean,
+        reflect: true,
       },
 
-      result_: Object,
+      result_: {type: Object},
     };
   }
 
-  canShowSecondarySide: boolean;
-  hasSecondarySide: boolean;
-  private result_: AutocompleteResult;
+  accessor canShowSecondarySide: boolean =
+      canShowSecondarySideMediaQueryList.matches;
+  accessor hasSecondarySide: boolean = false;
+  protected accessor result_: AutocompleteResult|null = null;
 
   private callbackRouter_: PageCallbackRouter;
-  private omniboxAutocompleteResultChangedListenerId_: number|null = null;
-  private selectMatchAtLineListenerId_: number|null = null;
+  private autocompleteResultChangedListenerId_: number|null = null;
+  private selectionChangedListenerId_: number|null = null;
 
   constructor() {
     super();
-    this.callbackRouter_ = RealboxBrowserProxy.getInstance().callbackRouter;
-    startColorChangeUpdater();
+    this.callbackRouter_ = SearchboxBrowserProxy.getInstance().callbackRouter;
+    ColorChangeUpdater.forDocument().start();
   }
 
   override connectedCallback() {
     super.connectedCallback();
-    this.omniboxAutocompleteResultChangedListenerId_ =
-        this.callbackRouter_.omniboxAutocompleteResultChanged.addListener(
-            this.onOmniboxAutocompleteResultChanged_.bind(this));
-    this.selectMatchAtLineListenerId_ =
-        this.callbackRouter_.selectMatchAtLine.addListener(
-            this.onSelectMatchAtLine_.bind(this));
+    this.autocompleteResultChangedListenerId_ =
+        this.callbackRouter_.autocompleteResultChanged.addListener(
+            this.onAutocompleteResultChanged_.bind(this));
+    this.selectionChangedListenerId_ =
+        this.callbackRouter_.updateSelection.addListener(
+            this.onUpdateSelection_.bind(this));
     canShowSecondarySideMediaQueryList.addEventListener(
         'change', this.onCanShowSecondarySideChanged_.bind(this));
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
-    assert(this.omniboxAutocompleteResultChangedListenerId_);
+    assert(this.autocompleteResultChangedListenerId_);
     this.callbackRouter_.removeListener(
-        this.omniboxAutocompleteResultChangedListenerId_);
-    assert(this.selectMatchAtLineListenerId_);
-    this.callbackRouter_.removeListener(this.selectMatchAtLineListenerId_);
+        this.autocompleteResultChangedListenerId_);
+    assert(this.selectionChangedListenerId_);
+    this.callbackRouter_.removeListener(this.selectionChangedListenerId_);
     canShowSecondarySideMediaQueryList.removeEventListener(
         'change', this.onCanShowSecondarySideChanged_.bind(this));
   }
@@ -100,7 +105,7 @@ export class OmniboxPopupAppElement extends PolymerElement {
     this.canShowSecondarySide = e.matches;
   }
 
-  private onOmniboxAutocompleteResultChanged_(result: AutocompleteResult) {
+  private onAutocompleteResultChanged_(result: AutocompleteResult) {
     this.result_ = result;
 
     if (result.matches[0]?.allowedToBeDefaultMatch) {
@@ -110,7 +115,7 @@ export class OmniboxPopupAppElement extends PolymerElement {
     }
   }
 
-  private onResultRepaint_() {
+  protected onResultRepaint_() {
     const metricsReporter = MetricsReporterImpl.getInstance();
     metricsReporter.measure('ResultChanged')
         .then(
@@ -121,8 +126,13 @@ export class OmniboxPopupAppElement extends PolymerElement {
         .catch(() => {});
   }
 
-  private onSelectMatchAtLine_(line: number) {
-    this.$.matches.selectIndex(line);
+  private onUpdateSelection_(
+      oldSelection: OmniboxPopupSelection, selection: OmniboxPopupSelection) {
+    this.$.matches.updateSelection(oldSelection, selection);
+  }
+
+  protected onHasSecondarySideChanged_(e: CustomEvent<{value: boolean}>) {
+    this.hasSecondarySide = e.detail.value;
   }
 }
 

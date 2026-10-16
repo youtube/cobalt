@@ -5,62 +5,97 @@
 package org.chromium.chrome.browser.customtabs;
 
 import androidx.annotation.IntDef;
+import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.build.annotations.NullMarked;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.BitSet;
 
 /** Records a histogram that tracks usage of all the CCT features of interest. */
+@NullMarked
 public class CustomTabsFeatureUsage {
+    @VisibleForTesting
+    public static final String CUSTOM_TABS_FEATURE_USAGE_HISTOGRAM = "CustomTabs.FeatureUsage";
+
     // NOTE: This must be kept in sync with the definition |CustomTabsFeatureUsed|
     // in tools/metrics/histograms/enums.xml.
-    @IntDef({CustomTabsFeature.CTF_SESSIONS, CustomTabsFeature.EXTRA_ACTION_BUTTON_BUNDLE,
-            CustomTabsFeature.EXTRA_TINT_ACTION_BUTTON,
-            CustomTabsFeature.EXTRA_INITIAL_BACKGROUND_COLOR,
-            CustomTabsFeature.EXTRA_ENABLE_BACKGROUND_INTERACTION,
-            CustomTabsFeature.EXTRA_CLOSE_BUTTON_ICON,
-            CustomTabsFeature.EXTRA_CLOSE_BUTTON_POSITION, CustomTabsFeature.CTF_DARK,
-            CustomTabsFeature.CTF_LIGHT, CustomTabsFeature.EXTRA_COLOR_SCHEME,
-            CustomTabsFeature.CTF_SYSTEM, CustomTabsFeature.EXTRA_DISABLE_DOWNLOAD_BUTTON,
-            CustomTabsFeature.EXTRA_DISABLE_STAR_BUTTON,
-            CustomTabsFeature.EXTRA_EXIT_ANIMATION_BUNDLE, CustomTabsFeature.EXPERIMENT_IDS,
-            CustomTabsFeature.EXTRA_OPEN_NEW_INCOGNITO_TAB,
-            CustomTabsFeature.EXTRA_INITIAL_ACTIVITY_HEIGHT_PX,
-            CustomTabsFeature.EXTRA_ENABLE_EMBEDDED_MEDIA_EXPERIENCE,
-            CustomTabsFeature.EXTRA_BROWSER_LAUNCH_SOURCE, CustomTabsFeature.EXTRA_MEDIA_VIEWER_URL,
-            CustomTabsFeature.EXTRA_MENU_ITEMS, CustomTabsFeature.EXTRA_CALLING_ACTIVITY_PACKAGE,
-            CustomTabsFeature.CTF_PACKAGE_NAME, CustomTabsFeature.EXTRA_TOOLBAR_CORNER_RADIUS_DP,
-            CustomTabsFeature.CTF_PARTIAL, CustomTabsFeature.EXTRA_REMOTEVIEWS_PENDINGINTENT,
-            CustomTabsFeature.CTF_READER_MODE, CustomTabsFeature.EXTRA_REMOTEVIEWS_VIEW_IDS,
-            CustomTabsFeature.EXTRA_REMOTEVIEWS,
-            CustomTabsFeature.EXTRA_ACTIVITY_HEIGHT_RESIZE_BEHAVIOR,
-            CustomTabsFeature.EXTRA_SCREEN_ORIENTATION, CustomTabsFeature.CTF_SENT_BY_CHROME,
-            CustomTabsFeature.EXTRA_KEEP_ALIVE, CustomTabsFeature.EXTRA_DEFAULT_SHARE_MENU_ITEM,
-            CustomTabsFeature.EXTRA_SHARE_STATE, CustomTabsFeature.EXTRA_TITLE_VISIBILITY_STATE,
-            CustomTabsFeature.EXTRA_TOOLBAR_ITEMS, CustomTabsFeature.EXTRA_TRANSLATE_LANGUAGE,
-            CustomTabsFeature.EXTRA_DISPLAY_MODE,
-            CustomTabsFeature.EXTRA_LAUNCH_AS_TRUSTED_WEB_ACTIVITY,
-            CustomTabsFeature.EXTRA_ADDITIONAL_TRUSTED_ORIGINS,
-            CustomTabsFeature.EXTRA_ENABLE_URLBAR_HIDING,
-            CustomTabsFeature.EXTRA_AUTO_TRANSLATE_LANGUAGE,
-            CustomTabsFeature.EXTRA_INTENT_FEATURE_OVERRIDES,
-            CustomTabsFeature.CTF_PARTIAL_SIDE_SHEET,
-            CustomTabsFeature.EXTRA_ACTIVITY_SIDE_SHEET_BREAKPOINT_DP,
-            CustomTabsFeature.EXTRA_INITIAL_ACTIVITY_WIDTH_PX,
-            CustomTabsFeature.EXTRA_ACTIVITY_SIDE_SHEET_ENABLE_MAXIMIZATION,
-            CustomTabsFeature.EXTRA_SECONDARY_TOOLBAR_SWIPE_UP_ACTION,
-            CustomTabsFeature.EXTRA_ACTIVITY_SIDE_SHEET_DECORATION_TYPE,
-            CustomTabsFeature.EXTRA_ACTIVITY_SIDE_SHEET_POSITION,
-            CustomTabsFeature.EXTRA_ACTIVITY_SIDE_SHEET_SLIDE_IN_BEHAVIOR,
-            CustomTabsFeature.EXTRA_ACTIVITY_SIDE_SHEET_ROUNDED_CORNERS_POSITION,
-            CustomTabsFeature.COUNT})
+    // LINT.IfChange(CustomTabsFeature)
+    @IntDef({
+        CustomTabsFeature.CTF_SESSIONS,
+        CustomTabsFeature.EXTRA_ACTION_BUTTON_BUNDLE,
+        CustomTabsFeature.EXTRA_TINT_ACTION_BUTTON,
+        CustomTabsFeature.EXTRA_INITIAL_BACKGROUND_COLOR,
+        CustomTabsFeature.EXTRA_ENABLE_BACKGROUND_INTERACTION,
+        CustomTabsFeature.EXTRA_CLOSE_BUTTON_ICON,
+        CustomTabsFeature.EXTRA_CLOSE_BUTTON_POSITION,
+        CustomTabsFeature.CTF_DARK,
+        CustomTabsFeature.CTF_LIGHT,
+        CustomTabsFeature.EXTRA_COLOR_SCHEME,
+        CustomTabsFeature.CTF_SYSTEM,
+        CustomTabsFeature.EXTRA_DISABLE_DOWNLOAD_BUTTON,
+        CustomTabsFeature.EXTRA_DISABLE_STAR_BUTTON,
+        CustomTabsFeature.EXTRA_EXIT_ANIMATION_BUNDLE,
+        CustomTabsFeature.EXPERIMENT_IDS,
+        CustomTabsFeature.EXTRA_OPEN_NEW_INCOGNITO_TAB,
+        CustomTabsFeature.EXTRA_INITIAL_ACTIVITY_HEIGHT_PX,
+        CustomTabsFeature.EXTRA_ENABLE_EMBEDDED_MEDIA_EXPERIENCE,
+        CustomTabsFeature.EXTRA_BROWSER_LAUNCH_SOURCE,
+        CustomTabsFeature.EXTRA_MEDIA_VIEWER_URL,
+        CustomTabsFeature.EXTRA_MENU_ITEMS,
+        CustomTabsFeature.EXTRA_CALLING_ACTIVITY_PACKAGE,
+        CustomTabsFeature.CTF_PACKAGE_NAME,
+        CustomTabsFeature.EXTRA_TOOLBAR_CORNER_RADIUS_DP,
+        CustomTabsFeature.CTF_PARTIAL,
+        CustomTabsFeature.EXTRA_REMOTEVIEWS_PENDINGINTENT,
+        CustomTabsFeature.CTF_READER_MODE,
+        CustomTabsFeature.EXTRA_REMOTEVIEWS_VIEW_IDS,
+        CustomTabsFeature.EXTRA_REMOTEVIEWS,
+        CustomTabsFeature.EXTRA_ACTIVITY_HEIGHT_RESIZE_BEHAVIOR,
+        CustomTabsFeature.EXTRA_SCREEN_ORIENTATION,
+        CustomTabsFeature.CTF_SENT_BY_CHROME,
+        CustomTabsFeature.EXTRA_KEEP_ALIVE,
+        CustomTabsFeature.EXTRA_DEFAULT_SHARE_MENU_ITEM,
+        CustomTabsFeature.EXTRA_SHARE_STATE,
+        CustomTabsFeature.EXTRA_TITLE_VISIBILITY_STATE,
+        CustomTabsFeature.EXTRA_TOOLBAR_ITEMS,
+        CustomTabsFeature.EXTRA_TRANSLATE_LANGUAGE,
+        CustomTabsFeature.EXTRA_DISPLAY_MODE,
+        CustomTabsFeature.EXTRA_LAUNCH_AS_TRUSTED_WEB_ACTIVITY,
+        CustomTabsFeature.EXTRA_ADDITIONAL_TRUSTED_ORIGINS,
+        CustomTabsFeature.EXTRA_ENABLE_URLBAR_HIDING,
+        CustomTabsFeature.EXTRA_AUTO_TRANSLATE_LANGUAGE,
+        CustomTabsFeature.EXTRA_INTENT_FEATURE_OVERRIDES,
+        CustomTabsFeature.CTF_PARTIAL_SIDE_SHEET,
+        CustomTabsFeature.EXTRA_ACTIVITY_SIDE_SHEET_BREAKPOINT_DP,
+        CustomTabsFeature.EXTRA_INITIAL_ACTIVITY_WIDTH_PX,
+        CustomTabsFeature.EXTRA_ACTIVITY_SIDE_SHEET_ENABLE_MAXIMIZATION,
+        CustomTabsFeature.EXTRA_SECONDARY_TOOLBAR_SWIPE_UP_ACTION,
+        CustomTabsFeature.EXTRA_ACTIVITY_SIDE_SHEET_DECORATION_TYPE,
+        CustomTabsFeature.EXTRA_ACTIVITY_SIDE_SHEET_POSITION,
+        CustomTabsFeature.EXTRA_ACTIVITY_SIDE_SHEET_SLIDE_IN_BEHAVIOR,
+        CustomTabsFeature.EXTRA_ACTIVITY_SIDE_SHEET_ROUNDED_CORNERS_POSITION,
+        CustomTabsFeature.EXTRA_ACTIVITY_SCROLL_CONTENT_RESIZE,
+        CustomTabsFeature.EXTRA_ENABLE_EPHEMERAL_BROWSING,
+        CustomTabsFeature.EXTRA_ENABLE_GOOGLE_BOTTOM_BAR,
+        CustomTabsFeature.EXTRA_GOOGLE_BOTTOM_BAR_BUTTONS,
+        CustomTabsFeature.EXTRA_NETWORK,
+        CustomTabsFeature.EXTRA_LAUNCH_AUTH_TAB,
+        CustomTabsFeature.EXTRA_REDIRECT_SCHEME,
+        CustomTabsFeature.EXTRA_HTTPS_REDIRECT_HOST,
+        CustomTabsFeature.EXTRA_HTTPS_REDIRECT_PATH,
+        CustomTabsFeature.EXTRA_OPEN_IN_BROWSER_STATE,
+        CustomTabsFeature.EXTRA_LAUNCH_HANDLER,
+        CustomTabsFeature.EXTRA_FILE_HANDLERS,
+        CustomTabsFeature.COUNT
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface CustomTabsFeature {
         /** Special enum for the start of a session. */
         int CTF_SESSIONS = 0;
+
         int EXTRA_ACTION_BUTTON_BUNDLE = 1;
         int EXTRA_TINT_ACTION_BUTTON = 2;
         int EXTRA_INITIAL_BACKGROUND_COLOR = 3;
@@ -113,31 +148,30 @@ public class CustomTabsFeatureUsage {
         int EXTRA_ACTIVITY_SIDE_SHEET_POSITION = 50;
         int EXTRA_ACTIVITY_SIDE_SHEET_SLIDE_IN_BEHAVIOR = 51;
         int EXTRA_ACTIVITY_SIDE_SHEET_ROUNDED_CORNERS_POSITION = 52;
+        int EXTRA_ACTIVITY_SCROLL_CONTENT_RESIZE = 54;
+        int EXTRA_ENABLE_EPHEMERAL_BROWSING = 55;
+        int EXTRA_ENABLE_GOOGLE_BOTTOM_BAR = 56;
+        int EXTRA_GOOGLE_BOTTOM_BAR_BUTTONS = 57;
+        int EXTRA_NETWORK = 58;
+        int EXTRA_LAUNCH_AUTH_TAB = 59;
+        int EXTRA_REDIRECT_SCHEME = 60;
+        int EXTRA_HTTPS_REDIRECT_HOST = 61;
+        int EXTRA_HTTPS_REDIRECT_PATH = 62;
+        int EXTRA_OPEN_IN_BROWSER_STATE = 63;
+        int EXTRA_LAUNCH_HANDLER = 64;
+        int EXTRA_FILE_HANDLERS = 65;
 
         /** Total count of entries. */
-        int COUNT = 53;
+        int COUNT = 66;
     }
 
-    // Whether flag-enabled or not.
-    private boolean mIsEnabled;
+    // LINT.ThenChange(/tools/metrics/histograms/metadata/custom_tabs/enums.xml:CustomTabsFeatureUsed)
 
     /** Tracks whether we have written each enum or not. */
-    private BitSet mUsed = new BitSet(CustomTabsFeature.COUNT);
-
-    /** Tracks the usage of Chrome Custom Tabs in a single large histogram. */
-    public CustomTabsFeatureUsage() {
-        mIsEnabled = isEnabled();
-    }
-
-    /** @return whether this feature is enabled or not. */
-    static boolean isEnabled() {
-        return ChromeFeatureList.sCctFeatureUsage.isEnabled();
-    }
+    private final BitSet mUsed = new BitSet(CustomTabsFeature.COUNT);
 
     /** Logs the usage of the given feature, if enabled. */
     void log(@CustomTabsFeature int feature) {
-        if (!mIsEnabled) return;
-
         logInternal(feature);
         // Make sure we've logged a Session.
         // This ensures no feature can have a higher usage that SESSIONS.
@@ -151,6 +185,6 @@ public class CustomTabsFeatureUsage {
 
         mUsed.set(feature);
         RecordHistogram.recordEnumeratedHistogram(
-                "CustomTabs.FeatureUsage", feature, CustomTabsFeature.COUNT);
+                CUSTOM_TABS_FEATURE_USAGE_HISTOGRAM, feature, CustomTabsFeature.COUNT);
     }
 }

@@ -15,10 +15,10 @@ component("system") {
     "data_pipe_producer.h",
     "data_pipe_utils.cc",
     "data_pipe_utils.h",
-    "dynamic_library_support.cc",
-    "dynamic_library_support.h",
     "file_data_source.cc",
     "file_data_source.h",
+    "file_stream_data_source.cc",
+    "file_stream_data_source.h",
     "filtered_data_source.cc",
     "filtered_data_source.h",
     "functions.cc",
@@ -31,6 +31,7 @@ component("system") {
     "invitation.h",
     "isolated_connection.cc",
     "isolated_connection.h",
+    "message.cc",
     "message.h",
     "message_pipe.cc",
     "message_pipe.h",
@@ -64,6 +65,8 @@ component("system") {
     "//mojo/public/c/system",
     "//mojo/public/cpp/platform",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   defines = [ "MOJO_CPP_SYSTEM_IMPLEMENTATION" ]
 }

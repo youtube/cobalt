@@ -24,9 +24,7 @@ import org.chromium.url.GURL;
 import org.chromium.url.Origin;
 import org.chromium.url.mojom.Url;
 
-/**
- * Unit tests for ClientDataJson
- */
+/** Unit tests for ClientDataJson */
 @RunWith(BaseJUnit4ClassRunner.class)
 @Batch(Batch.UNIT_TESTS)
 public class ClientDataJsonTest {
@@ -38,6 +36,69 @@ public class ClientDataJsonTest {
     @Test
     @SmallTest
     public void testBuildClientDataJson() {
+        PaymentOptions payment = createSamplePaymentOptions();
+        byte[] challenge = new byte[3];
+        String relyingPartyId = "subdomain.example.test";
+        String origin = "https://example.test";
+        Origin topOrigin = Origin.create(new GURL("https://www.chromium.test/pay"));
+        String output =
+                ClientDataJson.buildClientDataJson(
+                        ClientDataRequestType.PAYMENT_GET,
+                        origin,
+                        challenge,
+                        /* isCrossOrigin= */ false,
+                        payment,
+                        relyingPartyId,
+                        topOrigin);
+
+        // Test that the output has the expected fields.
+        assertThat(output, containsString("\"type\":\"payment.get\""));
+        assertThat(output, containsString("\"challenge\":\"AAAA\""));
+        assertThat(output, containsString(String.format("\"origin\":\"%s\"", origin)));
+        assertThat(output, containsString("\"crossOrigin\":false"));
+        assertThat(output, containsString(String.format("\"rpId\":\"%s\"", relyingPartyId)));
+        // The topOrigin is formatted with no trailing slash.
+        assertThat(output, containsString("\"topOrigin\":\"https://www.chromium.test\""));
+        assertThat(output, containsString("\"payeeOrigin\":\"https://test.example\""));
+        assertThat(output, containsString(String.format("\"value\":\"%s\"", payment.total.value)));
+        assertThat(
+                output,
+                containsString(String.format("\"currency\":\"%s\"", payment.total.currency)));
+        assertThat(
+                output,
+                containsString(String.format("\"icon\":\"%s\"", payment.instrument.icon.url)));
+        assertThat(
+                output,
+                containsString(
+                        String.format("\"displayName\":\"%s\"", payment.instrument.displayName)));
+        assertThat(output, containsString(String.format("\"browserBoundPublicKey\":\"AQIDBA\"")));
+    }
+
+    @Test
+    @SmallTest
+    public void testBuildClientDataForJsonPaymentCredentialCreation() {
+        PaymentOptions payment = createSamplePaymentOptions();
+        byte[] challenge = new byte[3];
+        String relyingPartyId = "subdomain.example.test";
+        String origin = "https://example.test";
+        Origin topOrigin = Origin.create(new GURL("https://www.chromium.test/pay"));
+        String output =
+                ClientDataJson.buildClientDataJson(
+                        ClientDataRequestType.WEB_AUTHN_CREATE,
+                        origin,
+                        challenge,
+                        /* isCrossOrigin= */ false,
+                        payment,
+                        relyingPartyId,
+                        topOrigin);
+        assertThat(output, containsString("\"type\":\"webauthn.create\""));
+        assertThat(output, containsString("\"challenge\":\"AAAA\""));
+        assertThat(output, containsString(String.format("\"origin\":\"%s\"", origin)));
+        assertThat(output, containsString("\"crossOrigin\":false"));
+        assertThat(output, containsString("\"payment\":{\"browserBoundPublicKey\":\"AQIDBA\"}"));
+    }
+
+    private PaymentOptions createSamplePaymentOptions() {
         PaymentOptions payment = new PaymentOptions();
         payment.total = new PaymentCurrencyAmount();
         payment.total.currency = "USD";
@@ -50,30 +111,7 @@ public class ClientDataJsonTest {
         payment.payeeOrigin.scheme = "https";
         payment.payeeOrigin.host = "test.example";
         payment.payeeOrigin.port = 443;
-
-        byte[] challenge = new byte[3];
-        String relyingPartyId = "subdomain.example.test";
-        String origin = "https://example.test";
-        Origin topOrigin = Origin.create(new GURL("https://www.chromium.test/pay"));
-        String output = ClientDataJson.buildClientDataJson(ClientDataRequestType.PAYMENT_GET,
-                origin, challenge, /*isCrossOrigin=*/false, payment, relyingPartyId, topOrigin);
-
-        // Test that the output has the expected fields.
-        assertThat(output, containsString("\"type\":\"payment.get\""));
-        assertThat(output, containsString("\"challenge\":\"AAAA\""));
-        assertThat(output, containsString(String.format("\"origin\":\"%s\"", origin)));
-        assertThat(output, containsString("\"crossOrigin\":false"));
-        assertThat(output, containsString(String.format("\"rpId\":\"%s\"", relyingPartyId)));
-        // The topOrigin is formatted with no trailing slash.
-        assertThat(output, containsString("\"topOrigin\":\"https://www.chromium.test\""));
-        assertThat(output, containsString("\"payeeOrigin\":\"https://test.example\""));
-        assertThat(output, containsString(String.format("\"value\":\"%s\"", payment.total.value)));
-        assertThat(output,
-                containsString(String.format("\"currency\":\"%s\"", payment.total.currency)));
-        assertThat(output,
-                containsString(String.format("\"icon\":\"%s\"", payment.instrument.icon.url)));
-        assertThat(output,
-                containsString(
-                        String.format("\"displayName\":\"%s\"", payment.instrument.displayName)));
+        payment.browserBoundPublicKey = new byte[] {0x01, 0x02, 0x03, 0x04};
+        return payment;
     }
 }

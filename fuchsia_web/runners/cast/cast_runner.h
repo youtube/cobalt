@@ -10,6 +10,7 @@
 #include <fuchsia/web/cpp/fidl.h>
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <vector>
 
@@ -20,7 +21,6 @@
 #include "fuchsia_web/runners/cast/cast_component.h"
 #include "fuchsia_web/runners/cast/pending_cast_component.h"
 #include "fuchsia_web/runners/common/web_content_runner.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class WebInstanceHost;
 
@@ -56,6 +56,8 @@ class CastRunner final : public fuchsia::component::runner::ComponentRunner,
       fuchsia::component::runner::ComponentStartInfo start_info,
       fidl::InterfaceRequest<fuchsia::component::runner::ComponentController>
           controller) override;
+  void handle_unknown_method(uint64_t ordinal,
+                             bool method_has_response) override;
 
   // chromium::cast::DataReset implementation.
   void DeletePersistentData(DeletePersistentDataCallback callback) override;
@@ -81,14 +83,14 @@ class CastRunner final : public fuchsia::component::runner::ComponentRunner,
   WebContentRunner::WebInstanceConfig
   GetIsolatedWebInstanceConfigWithFuchsiaDirs(
       std::vector<fuchsia::web::ContentDirectoryProvider> content_directories);
-  // TODO(crbug.com/1082821): Remove this once the CastStreamingReceiver
+  // TODO(crbug.com/40131115): Remove this once the CastStreamingReceiver
   // Component has been implemented.
   WebContentRunner::WebInstanceConfig
   GetIsolatedWebInstanceConfigForCastStreaming();
 
   // Returns CreateContextParams for |app_config|. Returns nullopt if there is
   // no need to create an isolated context.
-  absl::optional<WebContentRunner::WebInstanceConfig>
+  std::optional<WebContentRunner::WebInstanceConfig>
   GetWebInstanceConfigForAppConfig(
       chromium::cast::ApplicationConfig* app_config);
 
@@ -115,7 +117,7 @@ class CastRunner final : public fuchsia::component::runner::ComponentRunner,
   // Returns false if tha data directory cannot be cleaned-up.
   bool DeletePersistentDataInternal();
 
-  // TODO(crbug.com/1188780): Used to detect when the persisted cache directory
+  // TODO(crbug.com/40755074): Used to detect when the persisted cache directory
   // was erased. The sentinel file is created at the top-level of the cache
   // directory, so cannot be deleted by the Context, only by the cache being
   // erased.
@@ -150,7 +152,7 @@ class CastRunner final : public fuchsia::component::runner::ComponentRunner,
 
   // Used to fetch & cache the list of CORS exempt HTTP headers to configure
   // each web.Context with.
-  absl::optional<std::vector<std::vector<uint8_t>>> cors_exempt_headers_;
+  std::optional<std::vector<std::vector<uint8_t>>> cors_exempt_headers_;
   chromium::cast::CorsExemptHeaderProviderPtr cors_exempt_headers_provider_;
   std::vector<base::OnceClosure> on_have_cors_exempt_headers_;
 
@@ -163,7 +165,8 @@ class CastRunner final : public fuchsia::component::runner::ComponentRunner,
   bool data_reset_in_progress_ = false;
 
   // True if the cache sentinel file should exist.
-  // TODO(crbug.com/1188780): Remove once an explicit cache flush signal exists.
+  // TODO(crbug.com/40755074): Remove once an explicit cache flush signal
+  // exists.
   bool was_cache_sentinel_created_ = false;
 };
 

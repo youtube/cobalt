@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -15,14 +16,9 @@
 #include "base/scoped_observation.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/common/buildflags.h"
-#include "components/supervised_user/core/common/buildflags.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "ui/gfx/image/image.h"
-
-#if BUILDFLAG(ENABLE_SUPERVISED_USERS)
-#include "chrome/browser/supervised_user/supervised_user_service.h"
+#include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "components/supervised_user/core/browser/supervised_user_service_observer.h"
-#endif
+#include "ui/gfx/image/image.h"
 
 class AvatarMenuObserver;
 class Browser;
@@ -35,9 +31,7 @@ class ProfileListDesktop;
 // data changes, and the view for this model should forward actions
 // back to it in response to user events.
 class AvatarMenu :
-#if BUILDFLAG(ENABLE_SUPERVISED_USERS)
     public SupervisedUserServiceObserver,
-#endif
     public ProfileAttributesStorage::Observer {
  public:
   // Represents an item in the menu.
@@ -59,10 +53,6 @@ class AvatarMenu :
     // A string representing the username of the profile, if signed in.  Empty
     // when not signed in.
     std::u16string username;
-
-    // Whether or not the current profile is signed in. If true, |sync_state| is
-    // expected to be the email of the signed in user.
-    bool signed_in;
 
     // Whether or not the current profile requires sign-in before use.
     bool signin_required;
@@ -136,9 +126,9 @@ class AvatarMenu :
   size_t GetIndexOfItemWithProfilePathForTesting(
       const base::FilePath& path) const;
 
-  // Returns the index of the active profile or `absl::nullopt` if there is no
+  // Returns the index of the active profile or `std::nullopt` if there is no
   // active profile.
-  absl::optional<size_t> GetActiveProfileIndex() const;
+  std::optional<size_t> GetActiveProfileIndex() const;
 
   // This menu is also used for the always-present Mac and Linux system menubar.
   // If the last active browser changes, the menu will need to reference that
@@ -166,10 +156,8 @@ class AvatarMenu :
       const base::FilePath& profile_path) override;
   void OnProfileIsOmittedChanged(const base::FilePath& profile_path) override;
 
-#if BUILDFLAG(ENABLE_SUPERVISED_USERS)
   // SupervisedUserServiceObserver:
   void OnCustodianInfoChanged() override;
-#endif
 
   // Rebuilds the menu and notifies any observers that an update occured.
   void Update();
@@ -177,11 +165,10 @@ class AvatarMenu :
   // The model that provides the list of menu items.
   std::unique_ptr<ProfileListDesktop> profile_list_;
 
-#if BUILDFLAG(ENABLE_SUPERVISED_USERS)
   // Observes changes to a supervised user's custodian info.
-  base::ScopedObservation<SupervisedUserService, SupervisedUserServiceObserver>
+  base::ScopedObservation<supervised_user::SupervisedUserService,
+                          SupervisedUserServiceObserver>
       supervised_user_observation_{this};
-#endif
 
   // The storage that provides the profile attributes.
   base::WeakPtr<ProfileAttributesStorage> profile_storage_;
@@ -190,7 +177,7 @@ class AvatarMenu :
   raw_ptr<AvatarMenuObserver, DanglingUntriaged> observer_;
 
   // Browser in which this avatar menu resides. Weak.
-  raw_ptr<Browser, DanglingUntriaged> browser_;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> browser_;
 };
 
 #endif  // CHROME_BROWSER_PROFILES_AVATAR_MENU_H_

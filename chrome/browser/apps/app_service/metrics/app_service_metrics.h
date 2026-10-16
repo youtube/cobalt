@@ -8,7 +8,7 @@
 #include <map>
 #include <string>
 
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 
 namespace apps {
@@ -73,9 +73,13 @@ enum class DefaultAppName {
   kGoogleMeet = 55,
   kGoogleMaps = 56,
   kGoogleMessages = 57,
+  kGemini = 58,
+  kMall = 59,
+  kSanitizeApp = 60,
+  kGraduationApp = 61,
   // Add any new values above this one, and update kMaxValue to the highest
   // enumerator value.
-  kMaxValue = kGoogleMessages,
+  kMaxValue = kGraduationApp,
 };
 
 // The built-in app's histogram name. This is used for logging so do not change
@@ -83,7 +87,7 @@ enum class DefaultAppName {
 enum class BuiltInAppName {
   kKeyboardShortcutViewer = 0,
   kSettings = 1,
-  kContinueReading = 2,
+  // kContinueReading = 2, obsolete
   kCameraDeprecated = 3,
   // kDiscover = 4, obsolete
   kPluginVm = 5,
@@ -91,26 +95,24 @@ enum class BuiltInAppName {
   kMaxValue = kReleaseNotes,
 };
 
+// Converts an app ID to the corresponding `DefaultAppName`, or nullopt if
+// it doesn't match a known ID.
+std::optional<apps::DefaultAppName> AppIdToName(const std::string& app_id);
+
 void RecordAppLaunch(const std::string& app_id,
                      apps::LaunchSource launch_source);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-void RecordBuiltInAppSearchResult(const std::string& app_id);
-#endif
-
-void RecordAppsPerNotification(int count);
-
 // Converts a preinstalled web app ID to the corresponding `DefaultAppName`, or
 // nullopt if it doesn't match a known ID.
-const absl::optional<apps::DefaultAppName> PreinstalledWebAppIdToName(
+const std::optional<apps::DefaultAppName> PreinstalledWebAppIdToName(
     const std::string& app_id);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // Converts a system web app ID to the corresponding `DefaultAppName`, or
 // nullopt if it doesn't match a known ID.
-const absl::optional<apps::DefaultAppName> SystemWebAppIdToName(
+const std::optional<apps::DefaultAppName> SystemWebAppIdToName(
     const std::string& app_id);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace apps
 

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import {Trie} from './structs/trie.js';
-import {EmojiVariants} from './types.js';
+import type {EmojiVariants} from './types.js';
 
 /**
  * Preprocess a phrase by the following operations:
@@ -22,7 +22,7 @@ export class EmojiPrefixSearch {
   setCollection(collection: EmojiVariants[]) {
     this.clear();
     for (const record of collection) {
-      if (!record.base.string) {
+      if (!record.base.string || !record.base.name) {
         continue;
       }
       const string = record.base.string;
@@ -79,6 +79,9 @@ export class EmojiPrefixSearch {
     token: string,
     weight: number,
   }> {
+    if (!emoji.base.name) {
+      return [];
+    }
     const PRIMARY_NAME_WEIGHT = 1;
     return this.tokenize(sanitize(emoji.base.name))
         .map((token, pos) => ({

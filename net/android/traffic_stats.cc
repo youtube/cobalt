@@ -4,6 +4,7 @@
 
 #include "net/android/traffic_stats.h"
 
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "net/net_jni_headers/AndroidTrafficStats_jni.h"
 
 namespace net::android::traffic_stats {
@@ -16,25 +17,25 @@ enum TrafficStatsError {
 };
 
 bool GetTotalTxBytes(int64_t* bytes) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   *bytes = Java_AndroidTrafficStats_getTotalTxBytes(env);
   return *bytes != ERROR_NOT_SUPPORTED;
 }
 
 bool GetTotalRxBytes(int64_t* bytes) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   *bytes = Java_AndroidTrafficStats_getTotalRxBytes(env);
   return *bytes != ERROR_NOT_SUPPORTED;
 }
 
 bool GetCurrentUidTxBytes(int64_t* bytes) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   *bytes = Java_AndroidTrafficStats_getCurrentUidTxBytes(env);
   return *bytes != ERROR_NOT_SUPPORTED;
 }
 
 bool GetCurrentUidRxBytes(int64_t* bytes) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   *bytes = Java_AndroidTrafficStats_getCurrentUidRxBytes(env);
   return *bytes != ERROR_NOT_SUPPORTED;
 }

@@ -6,16 +6,19 @@ package org.chromium.components.content_capture;
 
 import android.graphics.Rect;
 
+import org.chromium.build.annotations.EnsuresNonNullIf;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * The base class for ContentCaptureData and ContentCaptureFrame.
- */
+/** The base class for ContentCaptureData and ContentCaptureFrame. */
+@NullMarked
 public abstract class ContentCaptureDataBase {
     private final long mId;
-    private Rect mBounds;
-    private ArrayList<ContentCaptureDataBase> mChildren;
+    private final Rect mBounds;
+    private @Nullable ArrayList<ContentCaptureDataBase> mChildren;
 
     public ContentCaptureDataBase(long id, Rect bounds) {
         mId = id;
@@ -26,10 +29,11 @@ public abstract class ContentCaptureDataBase {
         return mBounds;
     }
 
-    public List<ContentCaptureDataBase> getChildren() {
+    public @Nullable List<ContentCaptureDataBase> getChildren() {
         return mChildren;
     }
 
+    @EnsuresNonNullIf("mChildren")
     public boolean hasChildren() {
         return mChildren != null && !mChildren.isEmpty();
     }
@@ -43,9 +47,7 @@ public abstract class ContentCaptureDataBase {
         mChildren.add(data);
     }
 
-    /**
-     * @return the text shall be set to ViewStructure.setText().
-     */
+    /** @return the text shall be set to ViewStructure.setText(). */
     public abstract String getText();
 
     @Override
@@ -57,8 +59,8 @@ public abstract class ContentCaptureDataBase {
         sb.append(getBounds());
         if (hasChildren()) {
             sb.append(" children:");
-            sb.append(getChildren().size());
-            for (ContentCaptureDataBase child : getChildren()) {
+            sb.append(mChildren.size());
+            for (ContentCaptureDataBase child : mChildren) {
                 sb.append(child.toString());
             }
         }

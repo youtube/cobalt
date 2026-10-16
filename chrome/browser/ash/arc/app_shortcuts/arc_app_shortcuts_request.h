@@ -8,10 +8,10 @@
 #include <memory>
 #include <vector>
 
-#include "ash/components/arc/mojom/app.mojom-forward.h"
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/apps/app_service/app_shortcut_item.h"
+#include "chromeos/ash/experiences/arc/mojom/app.mojom-forward.h"
 
 namespace arc {
 
@@ -31,7 +31,7 @@ class ArcAppShortcutsRequest {
 
   ~ArcAppShortcutsRequest();
 
-  // Starts querying app shortcuts for |package_name|. Results are retruned in
+  // Starts querying app shortcuts for |package_name|. Results are returned in
   // |callback_|. It shouldn't be called more than one time for the life cycle
   // of |this|.
   void StartForPackage(const std::string& package_name);

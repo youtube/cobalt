@@ -12,7 +12,7 @@
       "/path/to/tmp/json",
       "ensure-directory",
       "--mode",
-      "0777",
+      "0o777",
       "[CACHE]/builder/perfetto"
     ],
     "infra_step": true,
@@ -62,8 +62,9 @@
       "git",
       "fetch",
       "--tags",
-      "https://android.googlesource.com/platform/external/perfetto",
-      "refs/tags/v13.0"
+      "--force",
+      "https://chromium.googlesource.com/external/github.com/google/perfetto",
+      "refs/tags/upstream/v50.1"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -189,6 +190,31 @@
   {
     "cmd": [
       "python3",
+      "tools/gn",
+      "clean",
+      "[CACHE]/builder/perfetto/out/linux-amd64"
+    ],
+    "cwd": "[CACHE]/builder/perfetto",
+    "luci_context": {
+      "realm": {
+        "name": "perfetto:ci"
+      },
+      "resultdb": {
+        "current_invocation": {
+          "name": "invocations/build:8945511751514863184",
+          "update_token": "token"
+        },
+        "hostname": "rdbhost"
+      }
+    },
+    "name": "linux-amd64.gn clean",
+    "~followup_annotations": [
+      "@@@STEP_NEST_LEVEL@1@@@"
+    ]
+  },
+  {
+    "cmd": [
+      "python3",
       "tools/ninja",
       "-C",
       "[CACHE]/builder/perfetto/out/linux-amd64",
@@ -234,7 +260,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-amd64/stripped/trace_processor_shell",
-      "gs://perfetto-luci-artifacts/v13.0/linux-amd64/trace_processor_shell"
+      "gs://perfetto-luci-artifacts/v50.1/linux-amd64/trace_processor_shell"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -253,7 +279,7 @@
     "name": "linux-amd64.Artifact upload.gsutil upload",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-amd64/trace_processor_shell@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-amd64/trace_processor_shell@@@"
     ]
   },
   {
@@ -270,6 +296,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -287,7 +314,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/trace_processor_shell/linux-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -304,11 +331,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -326,7 +356,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/trace_processor_shell/linux-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -344,7 +374,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-amd64/stripped/traceconv",
-      "gs://perfetto-luci-artifacts/v13.0/linux-amd64/traceconv"
+      "gs://perfetto-luci-artifacts/v50.1/linux-amd64/traceconv"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -363,7 +393,7 @@
     "name": "linux-amd64.Artifact upload.gsutil upload (2)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-amd64/traceconv@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-amd64/traceconv@@@"
     ]
   },
   {
@@ -380,6 +410,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -397,7 +428,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traceconv/linux-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -414,11 +445,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -436,7 +470,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traceconv/linux-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -454,7 +488,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-amd64/stripped/tracebox",
-      "gs://perfetto-luci-artifacts/v13.0/linux-amd64/tracebox"
+      "gs://perfetto-luci-artifacts/v50.1/linux-amd64/tracebox"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -473,7 +507,7 @@
     "name": "linux-amd64.Artifact upload.gsutil upload (3)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-amd64/tracebox@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-amd64/tracebox@@@"
     ]
   },
   {
@@ -490,6 +524,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -507,7 +542,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/tracebox/linux-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -524,11 +559,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -546,7 +584,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/tracebox/linux-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -564,7 +602,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-amd64/stripped/perfetto",
-      "gs://perfetto-luci-artifacts/v13.0/linux-amd64/perfetto"
+      "gs://perfetto-luci-artifacts/v50.1/linux-amd64/perfetto"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -583,7 +621,7 @@
     "name": "linux-amd64.Artifact upload.gsutil upload (4)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-amd64/perfetto@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-amd64/perfetto@@@"
     ]
   },
   {
@@ -600,6 +638,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -617,7 +656,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/perfetto/linux-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -634,11 +673,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -656,7 +698,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/perfetto/linux-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -674,7 +716,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-amd64/stripped/traced",
-      "gs://perfetto-luci-artifacts/v13.0/linux-amd64/traced"
+      "gs://perfetto-luci-artifacts/v50.1/linux-amd64/traced"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -693,7 +735,7 @@
     "name": "linux-amd64.Artifact upload.gsutil upload (5)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-amd64/traced@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-amd64/traced@@@"
     ]
   },
   {
@@ -710,6 +752,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -727,7 +770,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traced/linux-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -744,11 +787,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -766,7 +812,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traced/linux-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -784,7 +830,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-amd64/stripped/traced_probes",
-      "gs://perfetto-luci-artifacts/v13.0/linux-amd64/traced_probes"
+      "gs://perfetto-luci-artifacts/v50.1/linux-amd64/traced_probes"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -803,7 +849,7 @@
     "name": "linux-amd64.Artifact upload.gsutil upload (6)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-amd64/traced_probes@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-amd64/traced_probes@@@"
     ]
   },
   {
@@ -820,6 +866,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -837,7 +884,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traced_probes/linux-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -854,11 +901,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -876,7 +926,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traced_probes/linux-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -910,6 +960,31 @@
       }
     },
     "name": "linux-arm.gn gen",
+    "~followup_annotations": [
+      "@@@STEP_NEST_LEVEL@1@@@"
+    ]
+  },
+  {
+    "cmd": [
+      "python3",
+      "tools/gn",
+      "clean",
+      "[CACHE]/builder/perfetto/out/linux-arm"
+    ],
+    "cwd": "[CACHE]/builder/perfetto",
+    "luci_context": {
+      "realm": {
+        "name": "perfetto:ci"
+      },
+      "resultdb": {
+        "current_invocation": {
+          "name": "invocations/build:8945511751514863184",
+          "update_token": "token"
+        },
+        "hostname": "rdbhost"
+      }
+    },
+    "name": "linux-arm.gn clean",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@1@@@"
     ]
@@ -962,7 +1037,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-arm/stripped/trace_processor_shell",
-      "gs://perfetto-luci-artifacts/v13.0/linux-arm/trace_processor_shell"
+      "gs://perfetto-luci-artifacts/v50.1/linux-arm/trace_processor_shell"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -981,7 +1056,7 @@
     "name": "linux-arm.Artifact upload.gsutil upload",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-arm/trace_processor_shell@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-arm/trace_processor_shell@@@"
     ]
   },
   {
@@ -998,6 +1073,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1015,7 +1091,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/trace_processor_shell/linux-arm\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1032,11 +1108,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1054,7 +1133,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/trace_processor_shell/linux-arm\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1072,7 +1151,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-arm/stripped/traceconv",
-      "gs://perfetto-luci-artifacts/v13.0/linux-arm/traceconv"
+      "gs://perfetto-luci-artifacts/v50.1/linux-arm/traceconv"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -1091,7 +1170,7 @@
     "name": "linux-arm.Artifact upload.gsutil upload (2)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-arm/traceconv@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-arm/traceconv@@@"
     ]
   },
   {
@@ -1108,6 +1187,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1125,7 +1205,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traceconv/linux-arm\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1142,11 +1222,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1164,7 +1247,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traceconv/linux-arm\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1182,7 +1265,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-arm/stripped/tracebox",
-      "gs://perfetto-luci-artifacts/v13.0/linux-arm/tracebox"
+      "gs://perfetto-luci-artifacts/v50.1/linux-arm/tracebox"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -1201,7 +1284,7 @@
     "name": "linux-arm.Artifact upload.gsutil upload (3)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-arm/tracebox@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-arm/tracebox@@@"
     ]
   },
   {
@@ -1218,6 +1301,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1235,7 +1319,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/tracebox/linux-arm\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1252,11 +1336,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1274,7 +1361,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/tracebox/linux-arm\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1292,7 +1379,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-arm/stripped/perfetto",
-      "gs://perfetto-luci-artifacts/v13.0/linux-arm/perfetto"
+      "gs://perfetto-luci-artifacts/v50.1/linux-arm/perfetto"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -1311,7 +1398,7 @@
     "name": "linux-arm.Artifact upload.gsutil upload (4)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-arm/perfetto@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-arm/perfetto@@@"
     ]
   },
   {
@@ -1328,6 +1415,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1345,7 +1433,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/perfetto/linux-arm\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1362,11 +1450,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1384,7 +1475,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/perfetto/linux-arm\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1402,7 +1493,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-arm/stripped/traced",
-      "gs://perfetto-luci-artifacts/v13.0/linux-arm/traced"
+      "gs://perfetto-luci-artifacts/v50.1/linux-arm/traced"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -1421,7 +1512,7 @@
     "name": "linux-arm.Artifact upload.gsutil upload (5)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-arm/traced@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-arm/traced@@@"
     ]
   },
   {
@@ -1438,6 +1529,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1455,7 +1547,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traced/linux-arm\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1472,11 +1564,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1494,7 +1589,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traced/linux-arm\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1512,7 +1607,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-arm/stripped/traced_probes",
-      "gs://perfetto-luci-artifacts/v13.0/linux-arm/traced_probes"
+      "gs://perfetto-luci-artifacts/v50.1/linux-arm/traced_probes"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -1531,7 +1626,7 @@
     "name": "linux-arm.Artifact upload.gsutil upload (6)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-arm/traced_probes@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-arm/traced_probes@@@"
     ]
   },
   {
@@ -1548,6 +1643,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1565,7 +1661,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traced_probes/linux-arm\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1582,11 +1678,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1604,7 +1703,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traced_probes/linux-arm\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1638,6 +1737,31 @@
       }
     },
     "name": "linux-arm64.gn gen",
+    "~followup_annotations": [
+      "@@@STEP_NEST_LEVEL@1@@@"
+    ]
+  },
+  {
+    "cmd": [
+      "python3",
+      "tools/gn",
+      "clean",
+      "[CACHE]/builder/perfetto/out/linux-arm64"
+    ],
+    "cwd": "[CACHE]/builder/perfetto",
+    "luci_context": {
+      "realm": {
+        "name": "perfetto:ci"
+      },
+      "resultdb": {
+        "current_invocation": {
+          "name": "invocations/build:8945511751514863184",
+          "update_token": "token"
+        },
+        "hostname": "rdbhost"
+      }
+    },
+    "name": "linux-arm64.gn clean",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@1@@@"
     ]
@@ -1690,7 +1814,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-arm64/stripped/trace_processor_shell",
-      "gs://perfetto-luci-artifacts/v13.0/linux-arm64/trace_processor_shell"
+      "gs://perfetto-luci-artifacts/v50.1/linux-arm64/trace_processor_shell"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -1709,7 +1833,7 @@
     "name": "linux-arm64.Artifact upload.gsutil upload",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-arm64/trace_processor_shell@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-arm64/trace_processor_shell@@@"
     ]
   },
   {
@@ -1726,6 +1850,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1743,7 +1868,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/trace_processor_shell/linux-arm64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1760,11 +1885,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1782,7 +1910,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/trace_processor_shell/linux-arm64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1800,7 +1928,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-arm64/stripped/traceconv",
-      "gs://perfetto-luci-artifacts/v13.0/linux-arm64/traceconv"
+      "gs://perfetto-luci-artifacts/v50.1/linux-arm64/traceconv"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -1819,7 +1947,7 @@
     "name": "linux-arm64.Artifact upload.gsutil upload (2)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-arm64/traceconv@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-arm64/traceconv@@@"
     ]
   },
   {
@@ -1836,6 +1964,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1853,7 +1982,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traceconv/linux-arm64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1870,11 +1999,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1892,7 +2024,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traceconv/linux-arm64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1910,7 +2042,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-arm64/stripped/tracebox",
-      "gs://perfetto-luci-artifacts/v13.0/linux-arm64/tracebox"
+      "gs://perfetto-luci-artifacts/v50.1/linux-arm64/tracebox"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -1929,7 +2061,7 @@
     "name": "linux-arm64.Artifact upload.gsutil upload (3)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-arm64/tracebox@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-arm64/tracebox@@@"
     ]
   },
   {
@@ -1946,6 +2078,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -1963,7 +2096,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/tracebox/linux-arm64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -1980,11 +2113,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -2002,7 +2138,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/tracebox/linux-arm64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -2020,7 +2156,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-arm64/stripped/perfetto",
-      "gs://perfetto-luci-artifacts/v13.0/linux-arm64/perfetto"
+      "gs://perfetto-luci-artifacts/v50.1/linux-arm64/perfetto"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -2039,7 +2175,7 @@
     "name": "linux-arm64.Artifact upload.gsutil upload (4)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-arm64/perfetto@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-arm64/perfetto@@@"
     ]
   },
   {
@@ -2056,6 +2192,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -2073,7 +2210,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/perfetto/linux-arm64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -2090,11 +2227,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -2112,7 +2252,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/perfetto/linux-arm64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -2130,7 +2270,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-arm64/stripped/traced",
-      "gs://perfetto-luci-artifacts/v13.0/linux-arm64/traced"
+      "gs://perfetto-luci-artifacts/v50.1/linux-arm64/traced"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -2149,7 +2289,7 @@
     "name": "linux-arm64.Artifact upload.gsutil upload (5)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-arm64/traced@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-arm64/traced@@@"
     ]
   },
   {
@@ -2166,6 +2306,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -2183,7 +2324,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traced/linux-arm64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -2200,11 +2341,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -2222,7 +2366,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traced/linux-arm64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -2240,7 +2384,7 @@
       "----",
       "cp",
       "[CACHE]/builder/perfetto/out/linux-arm64/stripped/traced_probes",
-      "gs://perfetto-luci-artifacts/v13.0/linux-arm64/traced_probes"
+      "gs://perfetto-luci-artifacts/v50.1/linux-arm64/traced_probes"
     ],
     "cwd": "[CACHE]/builder/perfetto",
     "infra_step": true,
@@ -2259,7 +2403,7 @@
     "name": "linux-arm64.Artifact upload.gsutil upload (6)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@2@@@",
-      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v13.0/linux-arm64/traced_probes@@@"
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts/v50.1/linux-arm64/traced_probes@@@"
     ]
   },
   {
@@ -2276,6 +2420,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -2293,7 +2438,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traced_probes/linux-arm64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -2310,11 +2455,14 @@
       "-tag",
       "git_revision:",
       "-tag",
-      "git_tag:v13.0",
+      "git_tag:v50.1",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]/builder/perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -2332,7 +2480,7 @@
       "@@@STEP_NEST_LEVEL@2@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traced_probes/linux-arm64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",

@@ -20,6 +20,8 @@ import os
 import sys
 import hashlib
 import subprocess
+import random
+import time
 
 from multiprocessing.pool import ThreadPool
 from collections import namedtuple, defaultdict
@@ -43,7 +45,18 @@ def relpath(path):
 
 
 def download(url, out_file):
-  subprocess.check_call(['curl', '-L', '-s', '-o', out_file, url])
+  MAX_RETRIES = 3
+  cmd = ['curl', '-L', '-s', '-o', out_file, url]
+  for attempt in range(1, MAX_RETRIES + 1):
+    try:
+      subprocess.check_call(cmd)
+      return  # success
+    except subprocess.CalledProcessError as e:
+      if attempt == MAX_RETRIES:
+        raise e
+      sleep_time = random.random() * 5 * attempt
+      print(f"${' '.join(cmd)} failed, retrying in {round(sleep_time)} sec")
+      time.sleep(sleep_time)
 
 
 def list_files(path, scan_new_files=False):
@@ -57,8 +70,8 @@ def list_files(path, scan_new_files=False):
     for fname in files:
       if fname.endswith('.swp'):
         continue  # Temporary files left around if CTRL-C-ing while downloading.
-      if fname == "OWNERS":
-        continue  # OWNERS file should not be uploaded.
+      if fname in ["OWNERS", "README.md"]:
+        continue  # OWNERS or README.md file should not be uploaded.
       fpath = os.path.join(root, fname)
       if not os.path.isfile(fpath) or fname.startswith('.'):
         continue
@@ -129,9 +142,9 @@ def cmd_upload(dir):
   if args.dry_run:
     return 0
   if not args.quiet:
-    print('About to upload %d files:' % len(files_to_upload))
     print('\n'.join(relpath(f.path) for f in files_to_upload))
     print('')
+    print('About to upload %d files' % len(files_to_upload))
     input('Press a key to continue or CTRL-C to abort')
 
   def upload_one_file(fs):
@@ -147,6 +160,27 @@ def cmd_upload(dir):
     return fs
 
   map_concurrently(upload_one_file, files_to_upload)
+  return 0
+
+
+def cmd_clean(dir):
+  all_files = list_files(dir, scan_new_files=True)
+  files_to_clean = []
+  for fs in ThreadPool(args.jobs).imap_unordered(get_file_status, all_files):
+    if fs.status in (FS_NEW_FILE, FS_MODIFIED):
+      files_to_clean.append(fs.path)
+  if len(files_to_clean) == 0:
+    if not args.quiet:
+      print('No modified or new files require cleaning')
+    return 0
+  if args.dry_run:
+    return 0
+  if not args.quiet:
+    print('\n'.join(relpath(f) for f in files_to_clean))
+    print('')
+    print('About to remove %d files' % len(files_to_clean))
+    input('Press a key to continue or CTRL-C to abort')
+  list(map(os.remove, files_to_clean))
   return 0
 
 
@@ -232,12 +266,12 @@ def main():
   parser.add_argument('--dir', default=os.path.join(ROOT_DIR, 'test/data'))
   parser.add_argument('--overwrite', action='store_true')
   parser.add_argument('--bucket', default=BUCKET)
-  parser.add_argument('--jobs', '-j', default=10, type=int)
+  parser.add_argument('--jobs', '-j', default=8, type=int)
   parser.add_argument('--dry-run', '-n', action='store_true')
   parser.add_argument('--quiet', '-q', action='store_true')
   parser.add_argument('--verbose', '-v', action='store_true')
   parser.add_argument('--ignore-new', action='store_true')
-  parser.add_argument('cmd', choices=['status', 'download', 'upload'])
+  parser.add_argument('cmd', choices=['status', 'download', 'upload', 'clean'])
   global args
   args = parser.parse_args()
   logging.basicConfig(
@@ -250,6 +284,8 @@ def main():
     return cmd_download(args.dir, overwrite_locally_modified=args.overwrite)
   if args.cmd == 'upload':
     return cmd_upload(args.dir)
+  if args.cmd == 'clean':
+    return cmd_clean(args.dir)
   print('Unknown command: %s' % args.cmd)
 
 

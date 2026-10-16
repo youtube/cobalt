@@ -7,7 +7,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 
 namespace policy {
 
@@ -26,7 +26,7 @@ class DeviceWiFiAllowedHandler {
  private:
   void OnWiFiPolicyChanged();
 
-  raw_ptr<ash::CrosSettings, ExperimentalAsh> cros_settings_;
+  raw_ptr<ash::CrosSettings, DanglingUntriaged> cros_settings_;
   base::CallbackListSubscription wifi_policy_subscription_;
   base::WeakPtrFactory<DeviceWiFiAllowedHandler> weak_factory_{this};
 };

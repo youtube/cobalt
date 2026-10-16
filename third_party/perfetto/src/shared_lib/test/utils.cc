@@ -21,6 +21,7 @@
 #include "perfetto/public/pb_utils.h"
 #include "perfetto/public/protos/config/data_source_config.pzc.h"
 #include "perfetto/public/protos/config/trace_config.pzc.h"
+#include "perfetto/public/protos/config/track_event/track_event_config.pzc.h"
 #include "perfetto/public/tracing_session.h"
 
 namespace perfetto {
@@ -40,7 +41,7 @@ std::string ToHexChars(uint8_t val) {
 
 }  // namespace
 
-TracingSession TracingSession::Builder::Build() {
+std::vector<uint8_t> TracingSession::Builder::BuildProtoConfig() {
   struct PerfettoPbMsgWriter writer;
   struct PerfettoHeapBuffer* hb = PerfettoHeapBufferCreate(&writer.writer);
 
@@ -67,6 +68,21 @@ TracingSession TracingSession::Builder::Build() {
 
       perfetto_protos_DataSourceConfig_set_cstr_name(&ds_cfg,
                                                      data_source_name_.c_str());
+      if (!enabled_categories_.empty() || !disabled_categories_.empty()) {
+        perfetto_protos_TrackEventConfig te_cfg;
+        perfetto_protos_DataSourceConfig_begin_track_event_config(&ds_cfg,
+                                                                  &te_cfg);
+        for (const std::string& cat : enabled_categories_) {
+          perfetto_protos_TrackEventConfig_set_enabled_categories(
+              &te_cfg, cat.data(), cat.size());
+        }
+        for (const std::string& cat : disabled_categories_) {
+          perfetto_protos_TrackEventConfig_set_disabled_categories(
+              &te_cfg, cat.data(), cat.size());
+        }
+        perfetto_protos_DataSourceConfig_end_track_event_config(&ds_cfg,
+                                                                &te_cfg);
+      }
 
       perfetto_protos_TraceConfig_DataSource_end_config(&data_sources, &ds_cfg);
     }
@@ -74,39 +90,85 @@ TracingSession TracingSession::Builder::Build() {
     perfetto_protos_TraceConfig_end_data_sources(&cfg, &data_sources);
   }
   size_t cfg_size = PerfettoStreamWriterGetWrittenSize(&writer.writer);
-  std::unique_ptr<uint8_t[]> ser(new uint8_t[cfg_size]);
-  PerfettoHeapBufferCopyInto(hb, &writer.writer, ser.get(), cfg_size);
+  std::vector<uint8_t> cfg_buf(cfg_size);
+  PerfettoHeapBufferCopyInto(hb, &writer.writer, cfg_buf.data(), cfg_size);
   PerfettoHeapBufferDestroy(hb, &writer.writer);
+  return cfg_buf;
+}
+
+TracingSession TracingSession::Builder::Build() {
+  std::vector<uint8_t> config = BuildProtoConfig();
 
   struct PerfettoTracingSessionImpl* ts =
       PerfettoTracingSessionCreate(PERFETTO_BACKEND_IN_PROCESS);
 
-  PerfettoTracingSessionSetup(ts, ser.get(), cfg_size);
+  PerfettoTracingSessionSetup(ts, config.data(), config.size());
 
   PerfettoTracingSessionStartBlocking(ts);
 
+  return TracingSession::Adopt(ts);
+}
+
+TracingSession TracingSession::Adopt(
+    struct PerfettoTracingSessionImpl* session) {
   TracingSession ret;
-  ret.session_ = ts;
+  ret.session_ = session;
+  ret.stopped_ = std::make_unique<WaitableEvent>();
+  PerfettoTracingSessionSetStopCb(
+      ret.session_,
+      [](struct PerfettoTracingSessionImpl*, void* arg) {
+        static_cast<WaitableEvent*>(arg)->Notify();
+      },
+      ret.stopped_.get());
   return ret;
 }
 
 TracingSession::TracingSession(TracingSession&& other) noexcept {
   session_ = other.session_;
   other.session_ = nullptr;
+  stopped_ = std::move(other.stopped_);
+  other.stopped_ = nullptr;
 }
 
 TracingSession::~TracingSession() {
   if (!session_) {
     return;
   }
-  if (!stopped_) {
+  if (!stopped_->IsNotified()) {
     PerfettoTracingSessionStopBlocking(session_);
+    stopped_->WaitForNotification();
   }
   PerfettoTracingSessionDestroy(session_);
 }
 
+bool TracingSession::FlushBlocking(uint32_t timeout_ms) {
+  WaitableEvent notification;
+  bool result;
+  auto* cb = new std::function<void(bool)>([&](bool success) {
+    result = success;
+    notification.Notify();
+  });
+  PerfettoTracingSessionFlushAsync(
+      session_, timeout_ms,
+      [](PerfettoTracingSessionImpl*, bool success, void* user_arg) {
+        auto* f = reinterpret_cast<std::function<void(bool)>*>(user_arg);
+        (*f)(success);
+        delete f;
+      },
+      cb);
+  notification.WaitForNotification();
+  return result;
+}
+
+void TracingSession::WaitForStopped() {
+  stopped_->WaitForNotification();
+}
+
+void TracingSession::StopAsync() {
+  PerfettoTracingSessionStopAsync(session_);
+}
+
 void TracingSession::StopBlocking() {
-  stopped_ = true;
   PerfettoTracingSessionStopBlocking(session_);
 }
 

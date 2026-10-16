@@ -33,13 +33,21 @@ struct NTPTile {
   // item. Used for debugging.
   bool from_most_visited = false;
 
+  // The visit count of a Most Visited item. Used for debugging.
+  int visit_count = 0;
+
+  // The last visit time of a Most Visited item. Used for debugging.
+  base::Time last_visit_time;
+
+  // The score of a Most Visited item. Used for tweaking algorithm.
+  double score = -1;
+
   NTPTile();
   NTPTile(const NTPTile&);
   ~NTPTile();
 };
 
 bool operator==(const NTPTile& a, const NTPTile& b);
-bool operator!=(const NTPTile& a, const NTPTile& b);
 
 using NTPTilesVector = std::vector<NTPTile>;
 

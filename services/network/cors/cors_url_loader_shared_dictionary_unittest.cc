@@ -2,23 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "services/network/cors/cors_url_loader.h"
-
+#include "base/feature_list.h"
 #include "mojo/public/cpp/system/data_pipe_utils.h"
 #include "net/cookies/site_for_cookies.h"
+#include "services/network/cors/cors_url_loader.h"
 #include "services/network/cors/cors_url_loader_test_util.h"
 #include "services/network/network_context.h"
 #include "services/network/public/cpp/features.h"
+#include "services/network/public/cpp/loading_params.h"
 #include "services/network/shared_dictionary/shared_dictionary_constants.h"
+#include "services/network/shared_dictionary/shared_dictionary_in_memory.h"
 #include "services/network/shared_dictionary/shared_dictionary_manager.h"
 #include "services/network/shared_dictionary/shared_dictionary_storage.h"
 #include "services/network/shared_dictionary/shared_dictionary_storage_in_memory.h"
+#include "services/network/test/client_security_state_builder.h"
 #include "services/network/test/test_url_loader_client.h"
+#include "url/scheme_host_port.h"
 
 namespace network::cors {
 namespace {
 const std::string kTestData = "hello world";
 const std::string kTestOriginString = "https://origin.test/";
+const std::string kTestInsecureOriginString = "http://origin.test/";
 
 }  // namespace
 
@@ -39,19 +44,39 @@ class CorsURLLoaderSharedDictionaryTest : public CorsURLLoaderTestBase {
       const CorsURLLoaderSharedDictionaryTest&) = delete;
 
  protected:
-  void ResetFactory() {
+  void ResetFactory(bool is_web_secure_context = true) {
     ResetFactoryParams factory_params;
     factory_params.isolation_info = isolation_info_;
+    factory_params.client_security_state =
+        ClientSecurityStateBuilder()
+            .WithIsSecureContext(is_web_secure_context)
+            .Build();
+    CorsURLLoaderTestBase::ResetFactory(isolation_info_.frame_origin(),
+                                        kRendererProcessId, factory_params);
+  }
+  void ResetTrustedFactory() {
+    ResetFactoryParams factory_params;
+    factory_params.is_trusted = true;
     CorsURLLoaderTestBase::ResetFactory(isolation_info_.frame_origin(),
                                         kRendererProcessId, factory_params);
   }
 
-  ResourceRequest CreateResourceRequest() {
+  void ResetInsecureIsolationInfo() {
+    const url::Origin kInsecureOrigin =
+        url::Origin::Create(GURL(kTestInsecureOriginString));
+    isolation_info_ = net::IsolationInfo::Create(
+        net::IsolationInfo::RequestType::kOther, kInsecureOrigin,
+        kInsecureOrigin, net::SiteForCookies::FromOrigin(kInsecureOrigin));
+  }
+
+  ResourceRequest CreateResourceRequest(
+      bool shared_dictionary_writer_enabled = true) {
     ResourceRequest request;
     request.method = "GET";
     request.mode = mojom::RequestMode::kCors;
-    request.url = GURL("https://origin.test/test");
+    request.url = isolation_info_.frame_origin()->GetURL().Resolve("/test");
     request.request_initiator = isolation_info_.frame_origin();
+    request.shared_dictionary_writer_enabled = shared_dictionary_writer_enabled;
     return request;
   }
 
@@ -60,9 +85,8 @@ class CorsURLLoaderSharedDictionaryTest : public CorsURLLoaderTestBase {
     options.struct_size = sizeof(MojoCreateDataPipeOptions);
     options.flags = MOJO_CREATE_DATA_PIPE_FLAG_NONE;
     options.element_num_bytes = 1;
-    options.capacity_num_bytes =
-        network::features::GetDataPipeDefaultAllocationSize(
-            features::DataPipeAllocationSize::kLargerSizeIfPossible);
+    options.capacity_num_bytes = network::GetDataPipeDefaultAllocationSize(
+        network::DataPipeAllocationSize::kLargerSizeIfPossible);
     ASSERT_EQ(MOJO_RESULT_OK, mojo::CreateDataPipe(&options, producer_handle_,
                                                    consumer_handle_));
   }
@@ -76,6 +100,7 @@ class CorsURLLoaderSharedDictionaryTest : public CorsURLLoaderTestBase {
     extra_headers.emplace_back(
         network::shared_dictionary::kUseAsDictionaryHeaderName,
         "match=\"/path*\"");
+    extra_headers.emplace_back("cache-control", "max-age=2592000");
     NotifyLoaderClientOnReceiveResponse(extra_headers,
                                         std::move(consumer_handle_));
   }
@@ -92,8 +117,8 @@ class CorsURLLoaderSharedDictionaryTest : public CorsURLLoaderTestBase {
       bool expect_exists,
       const GURL& dictionary_url = GURL("https://origin.test/test")) {
     ASSERT_TRUE(isolation_info_.frame_origin());
-    absl::optional<SharedDictionaryStorageIsolationKey> isolation_key =
-        SharedDictionaryStorageIsolationKey::MaybeCreate(isolation_info_);
+    std::optional<net::SharedDictionaryIsolationKey> isolation_key =
+        net::SharedDictionaryIsolationKey::MaybeCreate(isolation_info_);
     ASSERT_TRUE(isolation_key);
     scoped_refptr<SharedDictionaryStorage> storage =
         network_context()->GetSharedDictionaryManager()->GetStorage(
@@ -105,28 +130,42 @@ class CorsURLLoaderSharedDictionaryTest : public CorsURLLoaderTestBase {
     }
 
     ASSERT_EQ(1u, dictionary_map.size());
-    EXPECT_EQ(url::Origin::Create(dictionary_url),
+    EXPECT_EQ(url::SchemeHostPort(dictionary_url),
               dictionary_map.begin()->first);
 
     ASSERT_EQ(1u, dictionary_map.begin()->second.size());
-    EXPECT_EQ("/path*", dictionary_map.begin()->second.begin()->first);
+    EXPECT_EQ(std::make_tuple("/path*", std::set<mojom::RequestDestination>()),
+              dictionary_map.begin()->second.begin()->first);
     const auto& dictionary_info =
         dictionary_map.begin()->second.begin()->second;
     EXPECT_EQ(dictionary_url, dictionary_info.url());
-    EXPECT_EQ(shared_dictionary::kDefaultExpiration,
+    EXPECT_EQ(base::FeatureList::IsEnabled(
+                  network::features::kCompressionDictionaryTransport)
+                  ? base::Seconds(2592000)
+                  : shared_dictionary::kMaxExpirationForOriginTrial,
               dictionary_info.expiration());
-    EXPECT_EQ("/path*", dictionary_info.path_pattern());
+    EXPECT_EQ("/path*", dictionary_info.match());
     EXPECT_EQ(kTestData.size(), dictionary_info.size());
-    EXPECT_EQ(kTestData, std::string(dictionary_info.data()->data(),
-                                     dictionary_info.size()));
+    EXPECT_EQ(net::OK, dictionary_info.dictionary()->ReadAll(
+                           base::BindOnce([](int) { NOTREACHED(); })));
+    EXPECT_EQ(kTestData,
+              std::string(dictionary_info.dictionary()->data()->data(),
+                          dictionary_info.size()));
   }
 
   const std::map<
-      url::Origin,
-      std::map<std::string, SharedDictionaryStorageInMemory::DictionaryInfo>>&
+      url::SchemeHostPort,
+      std::map<std::tuple<std::string, std::set<mojom::RequestDestination>>,
+               SharedDictionaryStorageInMemory::DictionaryInfo>>&
   GetInMemoryDictionaryMap(SharedDictionaryStorage* storage) {
     return static_cast<SharedDictionaryStorageInMemory*>(storage)
-        ->GetDictionaryMapForTesting();
+        ->GetDictionaryMap();
+  }
+
+  size_t GetStorageCount() {
+    return network_context()
+        ->GetSharedDictionaryManager()
+        ->GetStorageCountForTesting();
   }
 
   net::IsolationInfo isolation_info_;
@@ -147,9 +186,9 @@ TEST_F(CorsURLLoaderSharedDictionaryTest, SameOriginUrlSameOriginModeRequest) {
   RunUntilComplete();
   EXPECT_EQ(net::OK, client().completion_status().error_code);
 
-  // The response of SameOrigin mode request should not be stored to the
+  // The response of SameOrigin request should be stored to the
   // dictionary storage.
-  CheckDictionaryInStorage(/*expect_exists=*/false);
+  CheckDictionaryInStorage(/*expect_exists=*/true);
 }
 
 TEST_F(CorsURLLoaderSharedDictionaryTest, SameOriginUrlNoCorsModeRequest) {
@@ -167,8 +206,29 @@ TEST_F(CorsURLLoaderSharedDictionaryTest, SameOriginUrlNoCorsModeRequest) {
   RunUntilComplete();
   EXPECT_EQ(net::OK, client().completion_status().error_code);
 
-  // The response of NoCors mode request should not be stored to the dictionary
-  // storage.
+  // The response of NoCors mode same origin request should be stored to
+  // the dictionary storage.
+  CheckDictionaryInStorage(/*expect_exists=*/true);
+}
+
+TEST_F(CorsURLLoaderSharedDictionaryTest, CrossOriginUrlNoCorsModeRequest) {
+  ResetFactory();
+
+  ResourceRequest request = CreateResourceRequest();
+  request.url = GURL("https://crossorigin.test/test");
+  request.mode = mojom::RequestMode::kNoCors;
+  CreateLoaderAndStart(request);
+
+  RunUntilCreateLoaderAndStartCalled();
+
+  CreateDataPipeAndWriteTestData();
+  CallOnReceiveResponseAndOnCompleteAndFinishBody();
+
+  RunUntilComplete();
+  EXPECT_EQ(net::OK, client().completion_status().error_code);
+
+  // The response of NoCors mode cross origin request should not be
+  // stored to the dictionary storage.
   CheckDictionaryInStorage(/*expect_exists=*/false);
 }
 
@@ -211,12 +271,15 @@ TEST_F(CorsURLLoaderSharedDictionaryTest,
 }
 
 TEST_F(CorsURLLoaderSharedDictionaryTest, SameOriginUrlNavigateModeRequest) {
-  ResetFactory();
+  ResetTrustedFactory();
 
   ResourceRequest request = CreateResourceRequest();
   request.mode = mojom::RequestMode::kNavigate;
   request.redirect_mode = mojom::RedirectMode::kManual;
   request.navigation_redirect_chain.push_back(request.url);
+  request.trusted_params = network::ResourceRequest::TrustedParams();
+  request.trusted_params->isolation_info = isolation_info_;
+  request.site_for_cookies = isolation_info_.site_for_cookies();
   CreateLoaderAndStart(request);
   RunUntilCreateLoaderAndStartCalled();
 
@@ -226,9 +289,9 @@ TEST_F(CorsURLLoaderSharedDictionaryTest, SameOriginUrlNavigateModeRequest) {
   RunUntilComplete();
   EXPECT_EQ(net::OK, client().completion_status().error_code);
 
-  // The response of Navigation mode request should not be stored to the
+  // The response of Navigation mode request should be stored to the
   // dictionary storage.
-  CheckDictionaryInStorage(/*expect_exists=*/false);
+  CheckDictionaryInStorage(/*expect_exists=*/true);
 }
 
 TEST_F(CorsURLLoaderSharedDictionaryTest,
@@ -377,6 +440,142 @@ TEST_F(CorsURLLoaderSharedDictionaryTest,
   // When the request was aborted from the network side after OnComplete() is
   // called, the response should be stored to the dictionary storage.
   CheckDictionaryInStorage(/*expect_exists=*/true);
+}
+
+TEST_F(CorsURLLoaderSharedDictionaryTest, InsecureContext) {
+  ResetFactory(/*is_web_secure_context=*/false);
+
+  ResourceRequest request = CreateResourceRequest();
+  EXPECT_EQ(mojom::RequestMode::kCors, request.mode);
+  CreateLoaderAndStart(request);
+  RunUntilCreateLoaderAndStartCalled();
+
+  CreateDataPipeAndWriteTestData();
+  CallOnReceiveResponseAndOnCompleteAndFinishBody();
+
+  RunUntilComplete();
+  EXPECT_EQ(net::OK, client().completion_status().error_code);
+
+  // The response of should be stored to the dictionary storage because the web
+  // context is not secure.
+  CheckDictionaryInStorage(/*expect_exists=*/false);
+}
+
+TEST_F(CorsURLLoaderSharedDictionaryTest, SharedDictionaryWriterDisabled) {
+  ResetFactory();
+
+  ResourceRequest request =
+      CreateResourceRequest(/*shared_dictionary_writer_enabled=*/false);
+  EXPECT_EQ(mojom::RequestMode::kCors, request.mode);
+  CreateLoaderAndStart(request);
+  RunUntilCreateLoaderAndStartCalled();
+
+  CreateDataPipeAndWriteTestData();
+  CallOnReceiveResponseAndOnCompleteAndFinishBody();
+
+  RunUntilComplete();
+  EXPECT_EQ(net::OK, client().completion_status().error_code);
+
+  // The response of should be stored to the dictionary storage because shared
+  // dictionary writer is disabled.
+  CheckDictionaryInStorage(/*expect_exists=*/false);
+}
+
+TEST_F(CorsURLLoaderSharedDictionaryTest, StorageCountForSecureContext) {
+  ResetFactory(/*is_web_secure_context=*/true);
+  // SharedDictionaryStorage should have been created for secure context
+  // factory.
+  EXPECT_EQ(1u, GetStorageCount());
+}
+
+TEST_F(CorsURLLoaderSharedDictionaryTest, StorageCountForUnsecureContext) {
+  ResetFactory(/*is_web_secure_context=*/false);
+  // SharedDictionaryStorage should not have been created for non-secure
+  // context factory.
+  EXPECT_EQ(0u, GetStorageCount());
+}
+
+TEST_F(CorsURLLoaderSharedDictionaryTest, StorageCountForTrustedFactory) {
+  ResetTrustedFactory();
+  // SharedDictionaryStorage should not have been created for trusted factory.
+  EXPECT_EQ(0u, GetStorageCount());
+}
+
+TEST_F(CorsURLLoaderSharedDictionaryTest,
+       StorageCountTopFrameNavigationSecureRequest) {
+  ResetTrustedFactory();
+
+  ResourceRequest request = CreateResourceRequest();
+  request.mode = mojom::RequestMode::kNavigate;
+  request.redirect_mode = mojom::RedirectMode::kManual;
+  request.navigation_redirect_chain.push_back(request.url);
+  request.trusted_params = network::ResourceRequest::TrustedParams();
+  request.trusted_params->isolation_info = isolation_info_;
+  request.site_for_cookies = isolation_info_.site_for_cookies();
+  CreateLoaderAndStart(request);
+
+  // Starting a secure navigation request should create a
+  // SharedDictionaryStorage.
+  EXPECT_EQ(1u, GetStorageCount());
+}
+
+TEST_F(CorsURLLoaderSharedDictionaryTest,
+       StorageCountTopFrameNavigationInsecureRequest) {
+  ResetInsecureIsolationInfo();
+  ResetTrustedFactory();
+
+  ResourceRequest request = CreateResourceRequest();
+  request.mode = mojom::RequestMode::kNavigate;
+  request.redirect_mode = mojom::RedirectMode::kManual;
+  request.navigation_redirect_chain.push_back(request.url);
+  request.trusted_params = network::ResourceRequest::TrustedParams();
+  request.trusted_params->isolation_info = isolation_info_;
+  request.site_for_cookies = isolation_info_.site_for_cookies();
+  CreateLoaderAndStart(request);
+
+  // Starting an insecure navigation request should not create a
+  // SharedDictionaryStorage.
+  EXPECT_EQ(0u, GetStorageCount());
+}
+
+TEST_F(CorsURLLoaderSharedDictionaryTest,
+       StorageCountSubFrameNavigationRequest) {
+  ResetTrustedFactory();
+
+  ResourceRequest request = CreateResourceRequest();
+  request.mode = mojom::RequestMode::kNavigate;
+  request.redirect_mode = mojom::RedirectMode::kManual;
+  request.navigation_redirect_chain.push_back(request.url);
+  request.trusted_params = network::ResourceRequest::TrustedParams();
+  request.trusted_params->isolation_info = isolation_info_;
+  request.trusted_params->client_security_state =
+      ClientSecurityStateBuilder().WithIsSecureContext(true).Build();
+  request.site_for_cookies = isolation_info_.site_for_cookies();
+  CreateLoaderAndStart(request);
+
+  // Starting a navigation request for secure context should create a
+  // SharedDictionaryStorage.
+  EXPECT_EQ(1u, GetStorageCount());
+}
+
+TEST_F(CorsURLLoaderSharedDictionaryTest,
+       StorageCountSubFrameNavigationRequestInsecureContext) {
+  ResetTrustedFactory();
+
+  ResourceRequest request = CreateResourceRequest();
+  request.mode = mojom::RequestMode::kNavigate;
+  request.redirect_mode = mojom::RedirectMode::kManual;
+  request.navigation_redirect_chain.push_back(request.url);
+  request.trusted_params = network::ResourceRequest::TrustedParams();
+  request.trusted_params->isolation_info = isolation_info_;
+  request.trusted_params->client_security_state =
+      ClientSecurityStateBuilder().WithIsSecureContext(false).Build();
+  request.site_for_cookies = isolation_info_.site_for_cookies();
+  CreateLoaderAndStart(request);
+
+  // Starting a navigation request for insecure context should not create a
+  // SharedDictionaryStorage.
+  EXPECT_EQ(0u, GetStorageCount());
 }
 
 }  // namespace network::cors

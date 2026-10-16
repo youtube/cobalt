@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <map>
 #include <memory>
 #include <string>
@@ -22,6 +23,10 @@
 #include "gpu/command_buffer/service/shader_manager.h"
 #include "gpu/gpu_gles2_export.h"
 
+namespace gl {
+class ProgressReporter;
+}
+
 namespace gpu {
 
 class DecoderClient;
@@ -32,7 +37,6 @@ namespace gles2 {
 class FeatureInfo;
 class ProgramCache;
 class ProgramManager;
-class ProgressReporter;
 class Shader;
 class ShaderManager;
 
@@ -76,8 +80,6 @@ class GPU_GLES2_EXPORT Program : public base::RefCounted<Program> {
  public:
   static const int kMaxAttachedShaders = 2;
 
-  enum VaryingsPackingOption { kCountOnlyStaticallyUsed, kCountAll };
-
   struct ProgramOutputInfo {
     ProgramOutputInfo(GLuint _color_name,
                       GLuint _index,
@@ -101,7 +103,7 @@ class GPU_GLES2_EXPORT Program : public base::RefCounted<Program> {
     bool IsSampler() const {
       switch (type) {
         case GL_SAMPLER_2D:
-        case GL_SAMPLER_2D_RECT_ARB:
+        case GL_SAMPLER_2D_RECT_ANGLE:
         case GL_SAMPLER_CUBE:
         case GL_SAMPLER_EXTERNAL_OES:
         case GL_SAMPLER_3D:
@@ -319,7 +321,6 @@ class GPU_GLES2_EXPORT Program : public base::RefCounted<Program> {
 
   // Performs glLinkProgram and related activities.
   bool Link(ShaderManager* manager,
-            VaryingsPackingOption varyings_packing_option,
             DecoderClient* client);
 
   // Performs glValidateProgram and related activities.
@@ -393,7 +394,7 @@ class GPU_GLES2_EXPORT Program : public base::RefCounted<Program> {
 
   // Return false if varyings can't be packed into the max available
   // varying registers.
-  bool CheckVaryingsPacking(VaryingsPackingOption option) const;
+  bool CheckVaryingsPacking() const;
 
   void TransformFeedbackVaryings(GLsizei count, const char* const* varyings,
       GLenum buffer_mode);
@@ -499,9 +500,6 @@ class GPU_GLES2_EXPORT Program : public base::RefCounted<Program> {
   // Updates the program log info from GL
   void UpdateLogInfo();
 
-  // Clears all the uniforms.
-  void ClearUniforms(std::vector<uint8_t>* zero_buffer);
-
   // Updates the draw id uniform location used by ANGLE_multi_draw
   void UpdateDrawIDUniformLocation();
 
@@ -571,8 +569,9 @@ class GPU_GLES2_EXPORT Program : public base::RefCounted<Program> {
   GLuint service_id_;
 
   // Shaders by type of shader.
-  scoped_refptr<Shader> attached_shaders_[kMaxAttachedShaders];
-  scoped_refptr<Shader> shaders_from_last_successful_link_[kMaxAttachedShaders];
+  std::array<scoped_refptr<Shader>, kMaxAttachedShaders> attached_shaders_;
+  std::array<scoped_refptr<Shader>, kMaxAttachedShaders>
+      shaders_from_last_successful_link_;
 
   // True if this program is marked as deleted.
   bool deleted_;
@@ -683,9 +682,6 @@ class GPU_GLES2_EXPORT ProgramManager {
 
   // Makes a program as unused. If deleted the program will be removed.
   void UnuseProgram(ShaderManager* shader_manager, Program* program);
-
-  // Clears the uniforms for this program.
-  void ClearUniforms(Program* program);
 
   // Updates the draw id location for this program for ANGLE_multi_draw
   void UpdateDrawIDUniformLocation(Program* program);

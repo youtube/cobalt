@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 // This file tests the C++ Mojo system core wrappers.
 // TODO(vtl): Maybe rename "CoreCppTest" -> "CoreTest" if/when this gets
 // compiled into a different binary from the C API tests.
@@ -11,6 +16,7 @@
 #include <map>
 #include <utility>
 
+#include "base/containers/contains.h"
 #include "mojo/public/cpp/system/buffer.h"
 #include "mojo/public/cpp/system/data_pipe.h"
 #include "mojo/public/cpp/system/functions.h"
@@ -84,16 +90,16 @@ TEST(CoreCppTest, Basic) {
     handle_to_int[h3] = 3;
 
     EXPECT_EQ(4u, handle_to_int.size());
-    EXPECT_FALSE(handle_to_int.find(h0) == handle_to_int.end());
+    EXPECT_TRUE(base::Contains(handle_to_int, h0));
     EXPECT_EQ(0, handle_to_int[h0]);
-    EXPECT_FALSE(handle_to_int.find(h1) == handle_to_int.end());
+    EXPECT_TRUE(base::Contains(handle_to_int, h1));
     EXPECT_EQ(1, handle_to_int[h1]);
-    EXPECT_FALSE(handle_to_int.find(h2) == handle_to_int.end());
+    EXPECT_TRUE(base::Contains(handle_to_int, h2));
     EXPECT_EQ(2, handle_to_int[h2]);
-    EXPECT_FALSE(handle_to_int.find(h3) == handle_to_int.end());
+    EXPECT_TRUE(base::Contains(handle_to_int, h3));
     EXPECT_EQ(3, handle_to_int[h3]);
-    EXPECT_TRUE(handle_to_int.find(Handle(static_cast<MojoHandle>(13579))) ==
-                handle_to_int.end());
+    EXPECT_FALSE(
+        base::Contains(handle_to_int, Handle(static_cast<MojoHandle>(13579))));
 
     // TODO(vtl): With C++11, support |std::unordered_map|s, etc. (Or figure out
     // how to support the variations of |hash_map|.)
@@ -139,7 +145,7 @@ TEST(CoreCppTest, Basic) {
     EXPECT_EQ(MOJO_RESULT_INVALID_ARGUMENT,
               WriteMessageRaw(h_invalid, nullptr, 0, nullptr, 0,
                               MOJO_WRITE_MESSAGE_FLAG_NONE));
-    char buffer[10] = {0};
+    char buffer[10] = {};
     EXPECT_EQ(MOJO_RESULT_INVALID_ARGUMENT,
               WriteMessageRaw(h_invalid, buffer, sizeof(buffer), nullptr, 0,
                               MOJO_WRITE_MESSAGE_FLAG_NONE));

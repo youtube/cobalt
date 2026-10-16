@@ -4,7 +4,9 @@
 
 #include "chrome/browser/ash/accessibility/dictation_bubble_test_helper.h"
 
-#include "ash/accessibility/accessibility_controller_impl.h"
+#include <string_view>
+
+#include "ash/accessibility/accessibility_controller.h"
 #include "ash/public/cpp/accessibility_controller_enums.h"
 #include "ash/shell.h"
 #include "ash/system/accessibility/dictation_bubble_view.h"
@@ -42,7 +44,7 @@ DictationBubbleIconType DictationBubbleTestHelper::GetVisibleIcon() {
   return DictationBubbleIconType::kHidden;
 }
 
-std::u16string DictationBubbleTestHelper::GetText() {
+std::u16string_view DictationBubbleTestHelper::GetText() {
   return GetController()->dictation_bubble_view_->GetTextForTesting();
 }
 

@@ -4,7 +4,9 @@
 
 #include "quiche/quic/core/crypto/proof_source.h"
 
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
@@ -16,8 +18,9 @@ CryptoBuffers::~CryptoBuffers() {
   }
 }
 
-ProofSource::Chain::Chain(const std::vector<std::string>& certs)
-    : certs(certs) {}
+ProofSource::Chain::Chain(const std::vector<std::string>& certs,
+                          const std::string& trust_anchor_id)
+    : certs(certs), trust_anchor_id(trust_anchor_id) {}
 
 ProofSource::Chain::~Chain() {}
 

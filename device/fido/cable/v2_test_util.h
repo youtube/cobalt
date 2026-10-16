@@ -6,14 +6,15 @@
 #define DEVICE_FIDO_CABLE_V2_TEST_UTIL_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/containers/span.h"
 #include "base/functional/callback_forward.h"
 #include "device/fido/cable/v2_authenticator.h"
 #include "device/fido/cable/v2_constants.h"
 #include "device/fido/cable/v2_discovery.h"
+#include "device/fido/network_context_factory.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace device {
 
@@ -35,7 +36,8 @@ using ContactCallback = base::RepeatingCallback<void(
 // |nullopt| then all contact requests will be rejected with an HTTP 410 status
 // to indicate that the contact ID is disabled.
 std::unique_ptr<network::mojom::NetworkContext> NewMockTunnelServer(
-    absl::optional<ContactCallback> contact_callback);
+    std::optional<ContactCallback> contact_callback,
+    bool supports_connect_signal = false);
 
 namespace authenticator {
 
@@ -47,7 +49,7 @@ class Observer {
   virtual void OnStatus(Platform::Status) = 0;
 
   // See `Platform::OnCompleted`.
-  virtual void OnCompleted(absl::optional<Platform::Error>) = 0;
+  virtual void OnCompleted(std::optional<Platform::Error>) = 0;
 };
 
 // NewMockPlatform returns a |Platform| that implements the makeCredential
@@ -65,9 +67,16 @@ std::unique_ptr<Platform> NewMockPlatform(
 std::unique_ptr<Transaction> NewLateLinkingDevice(
     CtapDeviceResponseCode ctap_error,
     std::unique_ptr<Platform> platform,
-    network::mojom::NetworkContext* network_context,
+    NetworkContextFactory network_context_factory,
     base::span<const uint8_t> qr_secret,
     base::span<const uint8_t, kP256X962Length> peer_identity);
+
+// NewHandshakeErrorDevice returns a caBLEv2 device that produces an invalid
+// caBLEv2 handshake.
+std::unique_ptr<Transaction> NewHandshakeErrorDevice(
+    std::unique_ptr<Platform> platform,
+    NetworkContextFactory network_context_factory,
+    base::span<const uint8_t> qr_secret);
 
 }  // namespace authenticator
 

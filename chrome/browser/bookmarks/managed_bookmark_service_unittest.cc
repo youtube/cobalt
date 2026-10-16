@@ -4,11 +4,11 @@
 
 #include "components/bookmarks/managed/managed_bookmark_service.h"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
@@ -71,7 +71,7 @@ class ManagedBookmarkServiceTest : public testing::Test {
   ManagedBookmarkServiceTest& operator=(const ManagedBookmarkServiceTest&) =
       delete;
 
-  ~ManagedBookmarkServiceTest() override {}
+  ~ManagedBookmarkServiceTest() override = default;
 
   void SetUp() override {
     TestingProfile::Builder profile_builder;
@@ -86,7 +86,7 @@ class ManagedBookmarkServiceTest : public testing::Test {
     prefs_ = profile_->GetTestingPrefService();
     ASSERT_FALSE(prefs_->HasPrefPath(bookmarks::prefs::kManagedBookmarks));
 
-    // TODO(crbug.com/697817): Convert SetManagedPrefs to take a unique_ptr.
+    // TODO(crbug.com/40508978): Convert SetManagedPrefs to take a unique_ptr.
     prefs_->SetManagedPref(bookmarks::prefs::kManagedBookmarks,
                            base::Value(CreateTestTree()));
 
@@ -153,7 +153,7 @@ class ManagedBookmarkServiceTest : public testing::Test {
     if (node->is_folder()) {
       const base::Value::List* children = dict.FindList("children");
       return children &&
-             base::ranges::equal(
+             std::ranges::equal(
                  *children, node->children(),
                  [](const base::Value& child, const auto& child_node) {
                    return child.is_dict() &&
@@ -193,7 +193,7 @@ TEST_F(ManagedBookmarkServiceTest, SwapNodes) {
 
   // These two nodes should just be swapped.
   const BookmarkNode* parent = managed_->managed_node();
-  EXPECT_CALL(observer_, BookmarkNodeMoved(model_.get(), parent, 1, parent, 0));
+  EXPECT_CALL(observer_, BookmarkNodeMoved(parent, 1, parent, 0));
   prefs_->SetManagedPref(
       bookmarks::prefs::kManagedBookmarks,
       base::Value::ToUniquePtrValue(base::Value(updated.Clone())));
@@ -212,7 +212,7 @@ TEST_F(ManagedBookmarkServiceTest, RemoveNode) {
   updated.erase(updated.begin() + 1);
 
   const BookmarkNode* parent = managed_->managed_node();
-  EXPECT_CALL(observer_, BookmarkNodeRemoved(model_.get(), parent, 1, _, _));
+  EXPECT_CALL(observer_, BookmarkNodeRemoved(parent, 1, _, _, _));
   prefs_->SetManagedPref(
       bookmarks::prefs::kManagedBookmarks,
       base::Value::ToUniquePtrValue(base::Value(updated.Clone())));
@@ -229,12 +229,11 @@ TEST_F(ManagedBookmarkServiceTest, CreateNewNodes) {
   base::Value::List updated;
   updated.Append(CreateFolder("Container", CreateTestTree()));
 
-  EXPECT_CALL(observer_, BookmarkNodeAdded(model_.get(), _, _, _)).Times(5);
+  EXPECT_CALL(observer_, BookmarkNodeAdded(_, _, _)).Times(5);
   // The remaining nodes have been pushed to positions 1 and 2; they'll both be
   // removed when at position 1.
   const BookmarkNode* parent = managed_->managed_node();
-  EXPECT_CALL(observer_, BookmarkNodeRemoved(model_.get(), parent, 1, _, _))
-      .Times(2);
+  EXPECT_CALL(observer_, BookmarkNodeRemoved(parent, 1, _, _, _)).Times(2);
   prefs_->SetManagedPref(bookmarks::prefs::kManagedBookmarks,
                          base::Value(updated.Clone()));
   Mock::VerifyAndClearExpectations(&observer_);
@@ -248,8 +247,7 @@ TEST_F(ManagedBookmarkServiceTest, CreateNewNodes) {
 TEST_F(ManagedBookmarkServiceTest, RemoveAllUserBookmarks) {
   // Remove the policy.
   const BookmarkNode* parent = managed_->managed_node();
-  EXPECT_CALL(observer_, BookmarkNodeRemoved(model_.get(), parent, 0, _, _))
-      .Times(2);
+  EXPECT_CALL(observer_, BookmarkNodeRemoved(parent, 0, _, _, _)).Times(2);
   prefs_->RemoveManagedPref(bookmarks::prefs::kManagedBookmarks);
   Mock::VerifyAndClearExpectations(&observer_);
 
@@ -287,18 +285,16 @@ TEST_F(ManagedBookmarkServiceTest, IsDescendantOfManagedNode) {
 TEST_F(ManagedBookmarkServiceTest, RemoveAllDoesntRemoveManaged) {
   EXPECT_EQ(2u, managed_->managed_node()->children().size());
 
-  EXPECT_CALL(observer_, BookmarkNodeAdded(model_.get(),
-                                           model_->bookmark_bar_node(), 0, _));
-  EXPECT_CALL(observer_, BookmarkNodeAdded(model_.get(),
-                                           model_->bookmark_bar_node(), 1, _));
+  EXPECT_CALL(observer_, BookmarkNodeAdded(model_->bookmark_bar_node(), 0, _));
+  EXPECT_CALL(observer_, BookmarkNodeAdded(model_->bookmark_bar_node(), 1, _));
   model_->AddURL(model_->bookmark_bar_node(), 0, u"Test",
                  GURL("http://google.com/"));
   model_->AddFolder(model_->bookmark_bar_node(), 1, u"Test Folder");
   EXPECT_EQ(2u, model_->bookmark_bar_node()->children().size());
   Mock::VerifyAndClearExpectations(&observer_);
 
-  EXPECT_CALL(observer_, BookmarkAllUserNodesRemoved(model_.get(), _));
-  model_->RemoveAllUserBookmarks();
+  EXPECT_CALL(observer_, BookmarkAllUserNodesRemoved(_, _));
+  model_->RemoveAllUserBookmarks(FROM_HERE);
   EXPECT_EQ(2u, managed_->managed_node()->children().size());
   EXPECT_EQ(0u, model_->bookmark_bar_node()->children().size());
   Mock::VerifyAndClearExpectations(&observer_);
@@ -311,7 +307,7 @@ TEST_F(ManagedBookmarkServiceTest, HasDescendantsOfManagedNode) {
       managed_->managed_node()->children().front().get();
   ASSERT_TRUE(managed_node);
 
-  std::vector<const BookmarkNode*> nodes;
+  std::vector<raw_ptr<const BookmarkNode, VectorExperimental>> nodes;
   EXPECT_FALSE(bookmarks::HasDescendantsOf(nodes, managed_->managed_node()));
   nodes.push_back(user_node);
   EXPECT_FALSE(bookmarks::HasDescendantsOf(nodes, managed_->managed_node()));

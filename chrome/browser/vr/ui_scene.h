@@ -11,7 +11,6 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/vr/elements/ui_element.h"
 #include "chrome/browser/vr/elements/ui_element_name.h"
-#include "chrome/browser/vr/sequence.h"
 #include "chrome/browser/vr/vr_ui_export.h"
 #include "third_party/skia/include/core/SkColor.h"
 
@@ -64,8 +63,7 @@ class VR_UI_EXPORT UiScene {
   typedef std::vector<const UiElement*> Elements;
   typedef std::vector<UiElement*> MutableElements;
 
-  std::vector<UiElement*>& GetAllElements();
-  Elements GetElementsToHitTest();
+  std::vector<raw_ptr<UiElement, VectorExperimental>>& GetAllElements();
   Elements GetElementsToDraw();
   bool HasWebXrOverlayElementsToDraw();
   Elements GetWebVrOverlayElementsToDraw();
@@ -80,8 +78,6 @@ class VR_UI_EXPORT UiScene {
   // The callback to call on every new frame. This is used for things we want to
   // do every frame regardless of element or subtree visibility.
   void AddPerFrameCallback(PerFrameCallback callback);
-
-  void AddSequence(std::unique_ptr<Sequence> sequence);
 
   SkiaSurfaceProvider* SurfaceProviderForTesting() { return provider_; }
 
@@ -106,11 +102,10 @@ class VR_UI_EXPORT UiScene {
   // This is used to advance animations to completion on the first frame.
   bool first_frame_ = true;
 
-  std::vector<UiElement*> all_elements_;
+  std::vector<raw_ptr<UiElement, VectorExperimental>> all_elements_;
 
   std::vector<PerFrameCallback> per_frame_callback_;
 
-  std::vector<std::unique_ptr<Sequence>> scheduled_tasks_;
   raw_ptr<SkiaSurfaceProvider, DanglingUntriaged> provider_ = nullptr;
 };
 

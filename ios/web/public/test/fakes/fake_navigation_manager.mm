@@ -3,26 +3,14 @@
 // found in the LICENSE file.
 
 #import "ios/web/public/test/fakes/fake_navigation_manager.h"
-#import "ios/web/public/navigation/navigation_item.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/web/public/navigation/navigation_item.h"
 
 namespace web {
 
-FakeNavigationManager::FakeNavigationManager()
-    : items_index_(-1),
-      pending_item_(nullptr),
-      pending_item_index_(-1),
-      last_committed_item_(nullptr),
-      visible_item_(nullptr),
-      browser_state_(nullptr),
-      load_url_with_params_was_called_(false),
-      load_if_necessary_was_called_(false),
-      reload_was_called_(false) {}
+FakeNavigationManager::FakeNavigationManager() = default;
 
-FakeNavigationManager::~FakeNavigationManager() {}
+FakeNavigationManager::~FakeNavigationManager() = default;
 
 BrowserState* FakeNavigationManager::GetBrowserState() const {
   return browser_state_;
@@ -30,7 +18,6 @@ BrowserState* FakeNavigationManager::GetBrowserState() const {
 
 WebState* FakeNavigationManager::GetWebState() const {
   NOTREACHED();
-  return nullptr;
 }
 
 NavigationItem* FakeNavigationManager::GetVisibleItem() const {
@@ -64,6 +51,7 @@ void FakeNavigationManager::DiscardNonCommittedItems() {
 void FakeNavigationManager::LoadURLWithParams(
     const NavigationManager::WebLoadParams& params) {
   load_url_with_params_was_called_ = true;
+  load_URL_params_ = params;
 }
 
 void FakeNavigationManager::LoadIfNecessary() {
@@ -86,8 +74,9 @@ web::NavigationItem* FakeNavigationManager::GetItemAtIndex(size_t index) const {
 int FakeNavigationManager::GetIndexOfItem(
     const web::NavigationItem* item) const {
   for (size_t index = 0; index < items_.size(); ++index) {
-    if (items_[index].get() == item)
+    if (items_[index].get() == item) {
       return index;
+    }
   }
   return -1;
 }
@@ -119,7 +108,6 @@ bool FakeNavigationManager::CanGoForward() const {
 
 bool FakeNavigationManager::CanGoToOffset(int offset) const {
   NOTREACHED();
-  return false;
 }
 
 void FakeNavigationManager::GoBack() {
@@ -170,15 +158,6 @@ void FakeNavigationManager::Restore(
   NOTREACHED();
 }
 
-bool FakeNavigationManager::IsRestoreSessionInProgress() const {
-  return false;
-}
-
-void FakeNavigationManager::AddRestoreCompletionCallback(
-    base::OnceClosure callback) {
-  NOTREACHED();
-}
-
 // Adds a new navigation item of `transition` type at the end of this
 // navigation manager.
 void FakeNavigationManager::AddItem(const GURL& url,
@@ -195,6 +174,11 @@ void FakeNavigationManager::SetBrowserState(web::BrowserState* browser_state) {
 
 bool FakeNavigationManager::LoadURLWithParamsWasCalled() {
   return load_url_with_params_was_called_;
+}
+
+std::optional<NavigationManager::WebLoadParams>
+FakeNavigationManager::GetLastLoadURLWithParams() {
+  return load_URL_params_;
 }
 
 bool FakeNavigationManager::LoadIfNecessaryWasCalled() {

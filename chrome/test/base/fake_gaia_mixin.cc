@@ -5,15 +5,13 @@
 #include "chrome/test/base/fake_gaia_mixin.h"
 
 #include "base/command_line.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
+#include "chrome/test/supervised_user/child_account_test_utils.h"
 #include "google_apis/gaia/gaia_constants.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/gaia_switches.h"
 #include "google_apis/gaia/gaia_urls.h"
 #include "net/test/embedded_test_server/http_response.h"
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/child_accounts/child_account_test_utils.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 namespace {
 
@@ -24,7 +22,7 @@ constexpr char kGAIAHost[] = "accounts.google.com";
 // static
 const char FakeGaiaMixin::kFakeUserEmail[] = "fake-email@gmail.com";
 const char FakeGaiaMixin::kFakeUserPassword[] = "fake-password";
-const char FakeGaiaMixin::kFakeUserGaiaId[] = "fake-gaia-id";
+const GaiaId::Literal FakeGaiaMixin::kFakeUserGaiaId("fake-gaia-id");
 const char FakeGaiaMixin::kFakeAuthCode[] = "fake-auth-code";
 const char FakeGaiaMixin::kFakeRefreshToken[] = "fake-refresh-token";
 const char FakeGaiaMixin::kEmptyUserServices[] = "[]";
@@ -34,10 +32,12 @@ const int FakeGaiaMixin::kFakeAccessTokenExpiration = 3600;
 const char FakeGaiaMixin::kFakeSIDCookie[] = "fake-SID-cookie";
 const char FakeGaiaMixin::kFakeLSIDCookie[] = "fake-LSID-cookie";
 
-const char FakeGaiaMixin::kEnterpriseUser1[] = "user-1@example.com";
-const char FakeGaiaMixin::kEnterpriseUser1GaiaId[] = "0000111111";
+// LINT.IfChange
+const char FakeGaiaMixin::kEnterpriseUser1[] = "username@example.com";
+const GaiaId::Literal FakeGaiaMixin::kEnterpriseUser1GaiaId("0000111111");
+// LINT.ThenChange(/components/policy/core/common/cloud/test/policy_builder.cc)
 const char FakeGaiaMixin::kEnterpriseUser2[] = "user-2@example.com";
-const char FakeGaiaMixin::kEnterpriseUser2GaiaId[] = "0000222222";
+const GaiaId::Literal FakeGaiaMixin::kEnterpriseUser2GaiaId("0000222222");
 
 const char FakeGaiaMixin::kTestUserinfoToken1[] = "fake-userinfo-token-1";
 const char FakeGaiaMixin::kTestRefreshToken1[] = "fake-refresh-token-1";
@@ -54,7 +54,7 @@ FakeGaiaMixin::FakeGaiaMixin(InProcessBrowserTestMixinHost* host)
 FakeGaiaMixin::~FakeGaiaMixin() = default;
 
 void FakeGaiaMixin::SetupFakeGaiaForLogin(const std::string& user_email,
-                                          const std::string& gaia_id,
+                                          const GaiaId& gaia_id,
                                           const std::string& refresh_token) {
   if (!gaia_id.empty()) {
     fake_gaia_->MapEmailToGaiaId(user_email, gaia_id);
@@ -69,10 +69,14 @@ void FakeGaiaMixin::SetupFakeGaiaForLogin(const std::string& user_email,
   fake_gaia_->IssueOAuthToken(refresh_token, token_info);
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+void FakeGaiaMixin::SetupFakeGaiaForLoginWithDefaults() {
+  SetupFakeGaiaForLogin(FakeGaiaMixin::kFakeUserEmail,
+                        FakeGaiaMixin::kFakeUserGaiaId,
+                        FakeGaiaMixin::kFakeRefreshToken);
+}
 
 void FakeGaiaMixin::SetupFakeGaiaForChildUser(const std::string& user_email,
-                                              const std::string& gaia_id,
+                                              const GaiaId& gaia_id,
                                               const std::string& refresh_token,
                                               bool issue_any_scope_token) {
   if (!gaia_id.empty()) {
@@ -88,7 +92,7 @@ void FakeGaiaMixin::SetupFakeGaiaForChildUser(const std::string& user_email,
   user_info_token.expires_in = kFakeAccessTokenExpiration;
   user_info_token.email = user_email;
   if (initialize_child_id_token()) {
-    user_info_token.id_token = ::ash::test::GetChildAccountOAuthIdToken();
+    user_info_token.id_token = supervised_user::GetChildAccountOAuthIdToken();
   }
   fake_gaia_->IssueOAuthToken(refresh_token, user_info_token);
 
@@ -103,16 +107,18 @@ void FakeGaiaMixin::SetupFakeGaiaForChildUser(const std::string& user_email,
     fake_gaia_->IssueOAuthToken(refresh_token, all_scopes_token);
   }
 
-  if (initialize_fake_merge_session()) {
-    fake_gaia_->SetFakeMergeSessionParams(user_email, kFakeSIDCookie,
-                                          kFakeLSIDCookie);
+  if (initialize_configuration()) {
+    fake_gaia_->SetConfigurationHelper(user_email, kFakeSIDCookie,
+                                       kFakeLSIDCookie);
 
-    FakeGaia::MergeSessionParams merge_session_update;
-    merge_session_update.id_token = ::ash::test::GetChildAccountOAuthIdToken();
-    fake_gaia_->UpdateMergeSessionParams(merge_session_update);
+    FakeGaia::Configuration configuration_update;
+    configuration_update.id_token =
+        supervised_user::GetChildAccountOAuthIdToken();
+    fake_gaia_->UpdateConfiguration(configuration_update);
   }
 }
 
+#if BUILDFLAG(IS_CHROMEOS)
 void FakeGaiaMixin::SetupFakeGaiaForLoginManager() {
   FakeGaia::AccessTokenInfo token_info;
   token_info.scopes.insert(GaiaConstants::kDeviceManagementServiceOAuth);
@@ -128,8 +134,7 @@ void FakeGaiaMixin::SetupFakeGaiaForLoginManager() {
   token_info.email = kEnterpriseUser2;
   fake_gaia_->IssueOAuthToken(kTestRefreshToken2, token_info);
 }
-
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 GURL FakeGaiaMixin::GetFakeGaiaURL(const std::string& relative_url) {
   return gaia_server_.GetURL(kGAIAHost, relative_url);
@@ -162,8 +167,8 @@ void FakeGaiaMixin::SetUpOnMainThread() {
 
   gaia_server_.StartAcceptingConnections();
 
-  if (initialize_fake_merge_session()) {
-    fake_gaia_->SetFakeMergeSessionParams(kFakeUserEmail, kFakeSIDCookie,
-                                          kFakeLSIDCookie);
+  if (initialize_configuration()) {
+    fake_gaia_->SetConfigurationHelper(kFakeUserEmail, kFakeSIDCookie,
+                                       kFakeLSIDCookie);
   }
 }

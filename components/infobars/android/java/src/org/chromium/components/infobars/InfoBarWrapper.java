@@ -12,17 +12,16 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
 
-import org.chromium.components.browser_ui.styles.ChromeColors;
+import androidx.core.content.ContextCompat;
 
-/**
- * Layout that holds an infobar's contents and provides a background color and a top shadow.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** Layout that holds an infobar's contents and provides a background color and a top shadow. */
+@NullMarked
 class InfoBarWrapper extends FrameLayout {
     private final InfoBarUiItem mItem;
 
-    /**
-     * Constructor for inflating from Java.
-     */
+    /** Constructor for inflating from Java. */
     InfoBarWrapper(Context context, InfoBarUiItem item) {
         super(context);
         mItem = item;
@@ -39,8 +38,7 @@ class InfoBarWrapper extends FrameLayout {
         ColorDrawable colorDrawable =
                 (ColorDrawable) layerDrawable.findDrawableByLayerId(R.id.infobar_wrapper_bg_fill);
         colorDrawable.mutate();
-        colorDrawable.setColor(
-                ChromeColors.getSurfaceColor(getContext(), R.dimen.infobar_elevation));
+        colorDrawable.setColor(ContextCompat.getColor(getContext(), R.color.infobar_color));
     }
 
     InfoBarUiItem getItem() {
@@ -49,7 +47,8 @@ class InfoBarWrapper extends FrameLayout {
 
     @Override
     public void onViewAdded(View child) {
-        child.setLayoutParams(new LayoutParams(
-                LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP));
+        child.setLayoutParams(
+                new LayoutParams(
+                        LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.TOP));
     }
 }

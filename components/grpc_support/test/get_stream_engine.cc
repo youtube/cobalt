@@ -41,7 +41,7 @@ namespace {
 class BidirectionalStreamTestURLRequestContextGetter
     : public net::URLRequestContextGetter {
  public:
-  BidirectionalStreamTestURLRequestContextGetter(
+  explicit BidirectionalStreamTestURLRequestContextGetter(
       const scoped_refptr<base::SingleThreadTaskRunner>& task_runner)
       : task_runner_(task_runner) {}
 
@@ -75,7 +75,8 @@ class BidirectionalStreamTestURLRequestContextGetter
       UpdateHostResolverRules();
 
       // Need to enable QUIC for the test server.
-      net::AlternativeService alternative_service(net::kProtoQUIC, "", 443);
+      net::AlternativeService alternative_service(net::NextProto::kProtoQUIC,
+                                                  "", 443);
       url::SchemeHostPort quic_hint_server(
           "https", net::QuicSimpleTestServer::GetHost(), 443);
       request_context_->http_server_properties()->SetQuicAlternativeService(
@@ -110,49 +111,54 @@ class BidirectionalStreamTestURLRequestContextGetter
     if (!host_resolver())
       return;
     host_resolver()->SetRulesFromString(
-        base::StringPrintf("MAP notfound.example.com ~NOTFOUND,"
+        base::StringPrintf("MAP notfound.example.com ^NOTFOUND,"
                            "MAP test.example.com 127.0.0.1:%d",
                            test_server_port_));
   }
-  ~BidirectionalStreamTestURLRequestContextGetter() override {}
+  ~BidirectionalStreamTestURLRequestContextGetter() override = default;
 
   int test_server_port_;
   std::unique_ptr<net::URLRequestContext> request_context_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 };
 
-base::LazyInstance<
-    scoped_refptr<BidirectionalStreamTestURLRequestContextGetter>>
-    ::Leaky g_request_context_getter_ = LAZY_INSTANCE_INITIALIZER;
-bool g_initialized_ = false;
+class TestStreamEngineGetterImpl : public TestStreamEngineGetter {
+ public:
+  explicit TestStreamEngineGetterImpl(int port)
+      : thread_("grpc_support_test_io_thread") {
+    base::Thread::Options options;
+    options.message_pump_type = base::MessagePumpType::IO;
+    bool started = thread_.StartWithOptions(std::move(options));
+    CHECK(started);
+
+    request_context_getter_ =
+        base::MakeRefCounted<BidirectionalStreamTestURLRequestContextGetter>(
+            thread_.task_runner());
+    request_context_getter_->SetTestServerPort(port);
+    engine_.obj = request_context_getter_.get();
+  }
+
+  ~TestStreamEngineGetterImpl() override = default;
+
+  stream_engine* Get() override { return &engine_; }
+
+ private:
+  base::Thread thread_;
+  scoped_refptr<BidirectionalStreamTestURLRequestContextGetter>
+      request_context_getter_;
+  stream_engine engine_ = {};
+};
 
 }  // namespace
 
-void CreateRequestContextGetterIfNecessary() {
-  if (!g_initialized_) {
-    g_initialized_ = true;
-    static base::Thread* test_io_thread_ =
-        new base::Thread("grpc_support_test_io_thread");
-    base::Thread::Options options;
-    options.message_pump_type = base::MessagePumpType::IO;
-    bool started = test_io_thread_->StartWithOptions(std::move(options));
-    DCHECK(started);
+// WARNING: An alternative implementation of Create() exists in
+// //components/cronet/native/test/test_stream_engine.cc. They are never both
+// linked into the same binary.
 
-    g_request_context_getter_.Get() =
-        new BidirectionalStreamTestURLRequestContextGetter(
-            test_io_thread_->task_runner());
-  }
+// static
+std::unique_ptr<TestStreamEngineGetter> TestStreamEngineGetter::Create(
+    int port) {
+  return std::make_unique<TestStreamEngineGetterImpl>(port);
 }
-
-stream_engine* GetTestStreamEngine(int port) {
-  CreateRequestContextGetterIfNecessary();
-  g_request_context_getter_.Get()->SetTestServerPort(port);
-  static stream_engine engine;
-  engine.obj = g_request_context_getter_.Get().get();
-  return &engine;
-}
-
-void StartTestStreamEngine(int port) {}
-void ShutdownTestStreamEngine() {}
 
 }  // namespace grpc_support

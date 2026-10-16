@@ -6,7 +6,7 @@
  * Javascript for ValueControl, served from chrome://bluetooth-internals/.
  */
 
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import {CustomElement} from 'chrome://resources/js/custom_element.js';
 
 import {GattResult, Property} from './device.mojom-webui.js';
@@ -331,7 +331,7 @@ export class ValueControlElement extends CustomElement {
    * @private
    */
   getErrorString_(result) {
-    // TODO(crbug.com/663394): Replace with more descriptive error
+    // TODO(crbug.com/40492643): Replace with more descriptive error
     // messages.
     return Object.keys(GattResult).find(function(key) {
       return GattResult[key] === result;

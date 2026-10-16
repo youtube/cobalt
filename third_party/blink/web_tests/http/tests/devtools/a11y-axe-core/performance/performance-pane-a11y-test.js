@@ -1,9 +1,13 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+import {TestRunner} from 'test_runner';
+import {AxeCoreTestRunner} from 'axe_core_test_runner';
+import {PerformanceTestRunner} from 'performance_test_runner';
+
+import * as Timeline from 'devtools/panels/timeline/timeline.js';
 (async function() {
-  await TestRunner.loadTestModule('axe_core_test_runner');
-  await TestRunner.loadTestModule('performance_test_runner');
   await TestRunner.showPanel('timeline');
 
   const testData = [
@@ -37,15 +41,15 @@
   ];
 
   // create dummy data for test
-  const model = await PerformanceTestRunner.createPerformanceModelWithEvents(testData);
+  const traceEngineData = await PerformanceTestRunner.createTraceEngineDataFromEvents(testData)
+  const mainThreadEvents = traceEngineData.Renderer.processes.get(100).threads.get(1).entries;
 
-  const detailsView = UI.panels.timeline.flameChart.detailsView;
+  const detailsView = Timeline.TimelinePanel.TimelinePanel.instance().flameChart.detailsView;
 
   async function testDetailsView() {
     TestRunner.addResult('Tests accessibility in performance Details view using the axe-core linter');
 
-    // Details pane gets data from the parent TimelineDetails view
-    detailsView.setModel(model, PerformanceTestRunner.mainTrack());
+    detailsView.setModel(null, traceEngineData, mainThreadEvents);
 
     const tabbedPane = detailsView.tabbedPane;
     tabbedPane.selectTab(Timeline.TimelineDetailsView.Tab.Details);
@@ -61,10 +65,12 @@
     const detailsTab = tabbedPane.visibleView;
 
     // update child views with the same test data
-    detailsTab.setModel(model, PerformanceTestRunner.mainTrack());
-    detailsTab.updateContents(Timeline.TimelineSelection.fromRange(
-        model.timelineModel().minimumRecordTime(),
-        model.timelineModel().maximumRecordTime()));
+    detailsTab.setModelWithEvents(null, mainThreadEvents, traceEngineData);
+    detailsTab.updateContents(Timeline.TimelineSelection.TimelineSelection.fromRange(
+      // traceBounds are in microseconds, but fromRange expects milliseconds
+      traceEngineData.Meta.traceBounds.min / 1000,
+      traceEngineData.Meta.traceBounds.max / 1000
+    ));
 
     await AxeCoreTestRunner.runValidation(detailsTab.element);
   }

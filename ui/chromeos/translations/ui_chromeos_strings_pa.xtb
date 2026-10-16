@@ -2,12 +2,14 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="pa">
 <translation id="1000498691615767391">ਖੋਲ੍ਹਣ ਲਈ ਇੱਕ ਫੋਲਡਰ ਚੁਣੋ</translation>
+<translation id="1014208178561091457"><ph name="FILE_NAME" /> ਨੂੰ ਕਾਪੀ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ ਕਿਉਂਕਿ ਇਹ ਇਨਕ੍ਰਿਪਟਡ ਹੈ।</translation>
 <translation id="1047956942837015229"><ph name="COUNT" /> ਆਈਟਮਾਂ ਮਿਟਾ ਰਿਹਾ ਹੈ...</translation>
 <translation id="1049926623896334335">ਸ਼ਬਦ ਦਸਤਾਵੇਜ਼</translation>
 <translation id="1056775291175587022">ਕੋਈ ਨੈੱਟਵਰਕ ਨਹੀਂ</translation>
 <translation id="1056898198331236512">ਚਿਤਾਵਨੀ</translation>
 <translation id="1060368002126861100"><ph name="APP_NAME" /> ਨਾਲ ਫ਼ਾਈਲਾਂ ਖੋਲ੍ਹਣ ਲਈ, ਪਹਿਲਾਂ ਉਹਨਾਂ ਨੂੰ Windows ਫ਼ਾਈਲਾਂ ਦੇ ਫੋਲਡਰ ਵਿੱਚ ਲਿਜਾਓ।</translation>
 <translation id="1062407476771304334">ਬਦਲੋ</translation>
+<translation id="1119383441774809183">ਲਿਖਤ ਸੁਨੇਹੇ ਦਿਖਾਓ</translation>
 <translation id="1119447706177454957">ਅੰਦਰੂਨੀ ਗੜਬੜ</translation>
 <translation id="1120073797882051782">Hangul Romaja</translation>
 <translation id="112387589102719461">ਪ੍ਰੋਗਰਾਮਰ ਡੀਵੋਰਯੈਕ ਕੀ-ਬੋਰਡ ਦੇ ਨਾਲ ਅੰਗਰੇਜ਼ੀ (ਯੂ.ਐੱਸ.)</translation>
@@ -17,6 +19,7 @@
 <translation id="115443833402798225">Hangul Ahnmatae</translation>
 <translation id="1155759005174418845">Catalan</translation>
 <translation id="1168100932582989117">Google ਨੇਮ ਸਰਵਰ</translation>
+<translation id="1170788066030116158">ਫ਼ੋਟੋ ਖਿੱਚਣ ਦੀ ਤਾਰੀਖ</translation>
 <translation id="1172970565351728681">ਲਗਭਗ <ph name="REMAINING_TIME" /> ਬਾਕੀ</translation>
 <translation id="1173894706177603556">ਮੁੜ-ਨਾਮਕਰਨ ਕਰੋ</translation>
 <translation id="1173916544412572294">ਨੈੱਟਵਰਕ <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" />, <ph name="PHONE_NAME" />, <ph name="CONNECTION_STATUS" />, ਸਿਗਨਲ ਦੀ ਤੀਬਰਤਾ <ph name="SIGNAL_STRENGTH" />%, ਫ਼ੋਨ ਦੀ ਬੈਟਰੀ <ph name="BATTERY_STATUS" />%, ਵੇਰਵੇ</translation>
@@ -35,8 +38,10 @@
 <translation id="1280820357415527819">ਮੋਬਾਈਲ ਨੈੱਟਵਰਕਾਂ ਦੀ ਖੋਜ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ</translation>
 <translation id="1293556467332435079">Files</translation>
 <translation id="1297922636971898492">Google Drive ਹੁਣ ਉਪਲਬਧ ਨਹੀਂ ਹੈ। ਅਪਲੋਡਿੰਗ ਸਵੈਚਲਿਤ ਤੌਰ 'ਤੇ ਮੁੜ-ਸ਼ੁਰੂ ਹੋਵੇਗਾ ਜਦੋਂ Google Drive ਵਾਪਸ ਆਉਂਦੀ ਹੋਵੇ।</translation>
+<translation id="1306130176943817227">ਮਿਟਾਇਆ ਨਹੀਂ ਜਾ ਸਕਦਾ। ਆਈਟਮ ਵਰਤੋਂ ਵਿੱਚ ਹੈ।</translation>
 <translation id="1307931752636661898">Linux ਫ਼ਾਈਲਾਂ ਨੂੰ ਦੇਖਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ</translation>
 <translation id="1313405956111467313">ਸਵੈਚਲਿਤ ਪ੍ਰੌਕਸੀ ਸੰਰੂਪਿਤ ਕਰੋ</translation>
+<translation id="134645005685694099">ਫ਼ਾਈਲ ਸਿੰਕ ਨੂੰ ਚਾਲੂ ਰੱਖਣ ਲਈ ਤੁਹਾਡੇ ਡੀਵਾਈਸ ਵਿੱਚ ਲੋੜੀਂਦੀ ਸਟੋਰੇਜ ਜਗ੍ਹਾ ਨਹੀਂ ਹੈ। ਨਵੀਆਂ ਫ਼ਾਈਲਾਂ ਹੁਣ ਸਵੈਚਲਿਤ ਤੌਰ 'ਤੇ ਸਿੰਕ ਨਹੀਂ ਹੋਣਗੀਆਂ।</translation>
 <translation id="1353686479385938207"><ph name="PROVIDER_NAME" />: <ph name="NETWORK_NAME" /></translation>
 <translation id="1358735829858566124">ਫਾਈਲ ਜਾਂ ਡਾਇਰੈਕਟਰੀ ਵਰਤੋਂ ਯੋਗ ਨਹੀਂ ਹੈ।</translation>
 <translation id="1363028406613469049">ਟਰੈਕ</translation>
@@ -52,6 +57,7 @@
 <translation id="1435838927755162558">Parallels Desktop ਨਾਲ ਫੋਲਡਰ ਸਾਂਝਾ ਕਰੋ</translation>
 <translation id="1439919885608649279">ਫੁੱਲਾਂ ਨਾਲ ਵਿਅਕਤੀ</translation>
 <translation id="1458457385801829801"><ph name="TARGET_NAME" /> ਨੂੰ ਬਾਹਰ ਕੱਢੋ</translation>
+<translation id="146691674290220697"><ph name="NUMBER_OF_FILES" /> ਫ਼ਾਈਲਾਂ ਨੂੰ ਕਾਪੀ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ ਕਿਉਂਕਿ ਉਹ ਇਨਕ੍ਰਿਪਟਡ ਹਨ।</translation>
 <translation id="1471718551822868769">ਸਲੋਵਾਕ</translation>
 <translation id="1482884275703521657">ਫਿਨਿਸ਼</translation>
 <translation id="148466539719134488">ਸਵਿਸ</translation>
@@ -59,7 +65,6 @@
 <translation id="1499943022354839699">ਡੀਵੋਰਯੈਕ ਕੀ-ਬੋਰਡ ਦੇ ਨਾਲ ਅੰਗਰੇਜ਼ੀ (ਯੂ.ਐੱਸ.)</translation>
 <translation id="1515909359182093592"><ph name="INPUT_LABEL" /> - ਹੋਸਟ</translation>
 <translation id="1521655867290435174">Google Sheets</translation>
-<translation id="1538729222189715449">Linux ਫ਼ਾਈਲਾਂ ਖੋਲ੍ਹੀਆਂ ਜਾ ਰਹੀਆਂ ਹਨ...</translation>
 <translation id="1547964879613821194">ਕੈਨੇਡੀਅਨ ਅੰਗਰੇਜ਼ੀ</translation>
 <translation id="1556189134700913550">ਸਾਰਿਆਂ ਤੇ ਲਾਗੂ ਕਰੋ</translation>
 <translation id="1561842594491319104">Chrome ਡੀਵਾਈਸਾਂ</translation>
@@ -68,11 +73,11 @@
 <translation id="1577977504532381335">ਪ੍ਰਸ਼ਾਸਕ ਨੀਤੀ ਦੀ ਸਮੀਖਿਆ ਕਰੋ</translation>
 <translation id="158849752021629804">ਘਰੇਲੂ ਨੈੱਟਵਰਕ ਦੀ ਲੋੜ ਹੈ</translation>
 <translation id="1589128298353575783"><ph name="NUMBER_OF_PB" /> PB</translation>
+<translation id="1601786938618212857">ਜ਼ਿਪ ਫ਼ਾਈਲ ਬਣਾਓ</translation>
 <translation id="1620510694547887537">ਕੈਮਰਾ</translation>
 <translation id="162175252992296058">ਯੂ.ਐੱਸ. ਅੰਤਰਰਾਸ਼ਟਰੀ ਕੀ-ਬੋਰਡ ਨਾਲ ਪੁਰਤਗਾਲੀ</translation>
 <translation id="1629521517399325891">ਨੈੱਟਵਰਕ ਪ੍ਰਮਾਣੀਕਰਨ ਲਈ ਵਰਤੋਂਕਾਰ ਪ੍ਰਮਾਣ-ਪੱਤਰ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।</translation>
 <translation id="1641780993263690097">ਚੀਨੀ ਪਿਨਯਿਨ</translation>
-<translation id="1646019627374511909"><ph name="NUMBER_OF_ITEMS" /> ਫ਼ਾਈਲਾਂ ਨੂੰ ਆਫ਼ਲਾਈਨ ਉਪਲਬਧ ਕਰਵਾਇਆ ਜਾ ਰਿਹਾ ਹੈ</translation>
 <translation id="164969095109328410">Chrome ਡੀਵਾਈਸ</translation>
 <translation id="1661207570040737402">ਤੁਸੀਂ ਆਪਣੀ ਸਾਰੀ ਸਾਂਝੀ ਡਰਾਈਵ ਵਾਲੀ Google Workspace ਸਟੋਰੇਜ ਵਰਤ ਲਈ ਹੈ।</translation>
 <translation id="1661867754829461514">ਪਿੰਨ ਲਾਪਤਾ</translation>
@@ -94,6 +99,7 @@
 <translation id="174937106936716857">ਫ਼ਾਈਲਾਂ ਦੀ ਕੁੱਲ ਗਿਣਤੀ</translation>
 <translation id="1755345808328621801">ਇਹ ਫ਼ਾਈਲ Windows ਸਾਫ਼ਟਵੇਅਰ ਵਰਤਣ ਵਾਲੇ PC ਲਈ ਤਿਆਰ ਕੀਤੀ ਗਈ ਹੈ। ਇਹ ਤੁਹਾਡੇ ChromeOS ਨਾਲ ਚਲਣ ਵਾਲੇ ਡੀਵਾਈਸ ਦੇ ਅਨੁਰੂਪ ਨਹੀਂ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਇਸ ਦੇ ਬਦਲਾਅ ਵਜੋਂ ਕਿਸੇ ਅਨੁਕੂਲ ਐਪ ਲਈ 'Chrome ਵੈੱਬ ਸਟੋਰ' ਖੋਜੋ।</translation>
 <translation id="1757915090001272240">ਵਾਈਡ ਲਾਤੀਨੀ</translation>
+<translation id="1761091787730831947"><ph name="VM_NAME" /> ਨਾਲ ਸਾਂਝਾ ਕਰੋ</translation>
 <translation id="1773212559869067373">ਪ੍ਰਮਾਣਿਕਤਾ ਪ੍ਰਮਾਣ-ਪੱਤਰ ਨੂੰ ਸਥਾਨਕ ਰੂਪ ਵਿਚ ਅਸਵੀਕਾਰ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="1775381402323441512">ਵੀਡੀਓ ਜਾਣਕਾਰੀ</translation>
 <translation id="180035236176489073">ਤੁਹਾਨੂੰ ਇਹਨਾਂ ਫ਼ਾਈਲਾਂ ਤੱਕ ਪਹੁੰਚ ਪ੍ਰਾਪਤ ਕਰਨ ਲਈ ਆਨਲਾਈਨ ਹੋਣਾ ਪਵੇਗਾ।</translation>
@@ -101,6 +107,7 @@
 <translation id="1810764548349082891">ਕੋਈ ਪੂਰਵ-ਝਲਕ ਉਪਲਬਧ ਨਹੀਂ</translation>
 <translation id="1812302367230252929">ਅਮਹਾਰੀ ਲਿਪੀਅੰਤਰਨ</translation>
 <translation id="1813278315230285598">ਸੇਵਾਵਾਂ</translation>
+<translation id="181434555916624618">ਫ਼ਿਲਹਾਲ, ਅਜਿਹੇ ਨਤੀਜੇ ਨਹੀਂ ਦਿਖਾਏ ਜਾਣਗੇ, ਜਿਨ੍ਹਾਂ ਵਿੱਚ ਲੋਕ ਸ਼ਾਮਲ ਹੋਣ। ਕੋਈ ਹੋਰ ਉਤਪ੍ਰੇਰਕ ਅਜ਼ਮਾਓ।</translation>
 <translation id="1829129547161959350">ਪੈਂਗਵਿਨ</translation>
 <translation id="183183971458492120">ਜਾਣਕਾਰੀ ਲੋਡ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ...</translation>
 <translation id="1832073788765803750">ਅੱਧੀ ਚੌੜਾਈ ਕਾਟਾਕਾਨਾ</translation>
@@ -108,17 +115,18 @@
 <translation id="1838709767668011582">Google ਸਾਈਟ</translation>
 <translation id="1853795129690976061">ਇਹ ਫੋਲਡਰ Linux ਨਾਲ ਸਾਂਝਾ ਕੀਤਾ ਗਿਆ ਹੈ</translation>
 <translation id="1864756863218646478">ਫਾਈਲ ਨਹੀਂ ਲੱਭੀ ਜਾ ਸਕੀ।</translation>
+<translation id="1877377730633446520">ਇਹ ਲਗਭਗ <ph name="REQUIRED_SPACE" /> ਦੀ ਵਰਤੋਂ ਕਰੇਗਾ। ਫ਼ਿਲਹਾਲ ਤੁਹਾਡੇ ਕੋਲ <ph name="FREE_SPACE" /> ਉਪਲਬਧ ਹੈ।</translation>
 <translation id="1884013283844450420">ਨੈੱਟਵਰਕ <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" />, <ph name="NETWORK_NAME" />, ਕਨੈਕਟ ਕਰੋ</translation>
 <translation id="1920670151694390848">ਮਲਿਆਲਮ ਲਿਪੀਅੰਤਰਨ</translation>
 <translation id="1920798810075583923">ਤਰਬੂਜ਼</translation>
 <translation id="1924372192547904021"><ph name="DRIVE_NAME" /> ਨੂੰ ਫਾਰਮੈਟ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="1931134289871235022">ਸਲੋਵਾਕ</translation>
-<translation id="1933345018156373194">ਜਗ੍ਹਾ ਬਦਲਣਾ ਅਸਫਲ ਰਿਹਾ, ਅਣਕਿਆਸੀ ਗੜਬੜ: <ph name="ERROR_MESSAGE" /></translation>
 <translation id="1936717151811561466">ਫਿਨਿਸ਼</translation>
 <translation id="1942765061641586207">ਚਿੱਤਰ ਰੈਜ਼ੋਲਿਊਸ਼ਨ</translation>
 <translation id="1972984168337863910">ਫ਼ਾਈਲਾਂ ਦੇ ਪ੍ਰਤੀਕਰਮ ਪੈਨਲਾਂ ਦਾ ਵਿਸਤਾਰ ਕਰੋ</translation>
 <translation id="1995337122023280937">ਫ਼ਾਈਲ ਟਿਕਾਣੇ 'ਤੇ ਜਾਓ</translation>
 <translation id="2001796770603320721">'ਡਰਾਈਵ' ਵਿੱਚ ਪ੍ਰਬੰਧਨ ਕਰੋ</translation>
+<translation id="2004942826429452291">ਫ਼ਾਈਲਾਂ ਨੂੰ ਕਲਾਊਡ ਅਤੇ ਇਸ Chromebook 'ਤੇ ਸਟੋਰ ਕੀਤਾ ਜਾਵੇਗਾ।</translation>
 <translation id="2009067268969781306">ਕਿਸੇ ਡਰਾਈਵ ਨੂੰ ਫਾਰਮੈਟ ਕਰਨ ਨਾਲ ਇਸ 'ਤੇ ਸਟੋਰ ਕੀਤਾ ਸਾਰਾ ਡਾਟਾ ਮਿਟ ਜਾਵੇਗਾ। ਇਸ ਕਾਰਵਾਈ ਨੂੰ ਅਣਕੀਤਾ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ।</translation>
 <translation id="2025955442973426285">ਟਿਗਰੀਨਿਆ</translation>
 <translation id="2037845485764049925">ਰੂਸੀ</translation>
@@ -129,7 +137,7 @@
 <translation id="2084108471225856927">ਡੀਵਾਈਸ ਸੈਟਿੰਗਾਂ</translation>
 <translation id="2084809735218147718">ਇਸ਼ਾਰੇ ਨਾਲ ਧੰਨਵਾਦ ਕਰਦਾ ਹੋਇਆ ਵਿਅਕਤੀ</translation>
 <translation id="2088690981887365033">VPN ਨੈੱਟਵਰਕ</translation>
-<translation id="2111134541987263231"><ph name="BEGIN_BOLD" />ਇਨਕੋਗਨਿਟੋ ਵਿੱਚ ਆਗਿਆ ਦਿਓ<ph name="END_BOLD" /> ਨੂੰ ਚਾਲੂ ਕਰੋ</translation>
+<translation id="209653272837065803">ਫ਼ਾਈਲਾਂ ਨੂੰ ਸਿੰਕ ਕਰਨਾ ਜਾਰੀ ਰੱਖਣ ਲਈ ਲੋੜੀਂਦੀ ਸਟੋਰੇਜ ਜਗ੍ਹਾ ਨਹੀਂ ਹੈ</translation>
 <translation id="2114191879048183086"><ph name="NUMBER_OF_ITEMS" /> ਆਈਟਮਾਂ ਨੂੰ ਮਿਟਾ ਦਿੱਤਾ ਜਾਵੇਗਾ ਅਤੇ ਤੁਸੀਂ ਉਨ੍ਹਾਂ ਨੂੰ ਮੁੜ-ਬਹਾਲ ਨਹੀਂ ਕਰ ਸਕੋਗੇ।</translation>
 <translation id="2122305276694332719">ਸਵੈਚਲਿਤ ਤੌਰ 'ਤੇ ਕਿਸੇ ਲੁਕਵੇਂ ਨੈੱਟਵਰਕ ਨਾਲ ਕਨੈਕਟ ਕਰਨਾ ਹੋਰਾਂ ਨੂੰ ਤੁਹਾਡਾ ਡੀਵਾਈਸ ਅਤੇ ਕੁਝ ਨੈੱਟਵਰਕ ਸੈਟਿੰਗਾਂ ਦੇਖਣ ਦਿੰਦਾ ਹੈ ਅਤੇ ਇਸਦੀ ਸਿਫ਼ਾਰਸ਼ ਨਹੀਂ ਕੀਤੀ ਜਾਂਦੀ ਹੈ।</translation>
 <translation id="2125607626296734455">ਖਮੇਰ</translation>
@@ -145,10 +153,11 @@
 <translation id="2198315389084035571">ਸਰਲੀਕ੍ਰਿਤ ਚੀਨੀ</translation>
 <translation id="22085916256174561">ਕੋਰੀਆਈ</translation>
 <translation id="2208919847696382164">Linux ਨਾਲ ਸਥਾਪਤ ਕਰੋ</translation>
+<translation id="2215692307449050019">ਬੈਟਰੀ ਘੱਟ ਹੈ। ਤੁਹਾਡੇ ਪਾਵਰ ਨਾਲ ਕਨੈਕਟ ਹੋਣ 'ਤੇ ਸਿੰਕ ਮੁੜ-ਚਾਲੂ ਹੋ ਜਾਵੇਗਾ।</translation>
 <translation id="2225536596944493418">ਕੀ ਤੁਸੀਂ ਪੱਕਾ <ph name="NUMBER_OF_ITEMS" /> ਆਈਟਮਾਂ ਨੂੰ ਮਿਟਾਉਣਾ ਚਾਹੁੰਦੇ ਹੋ?</translation>
 <translation id="2230062665678605299">"<ph name="FOLDER_NAME" />" ਫੋਲਡਰ ਬਣਾਉਣ ਵਿੱਚ ਅਸਮਰੱਥ। <ph name="ERROR_MESSAGE" /></translation>
-<translation id="2236732657580416950">ਤੁਹਾਡੇ Google Drive ਕੈਸ਼ੇ ਨੂੰ ਕਲੀਅਰ ਕੀਤਾ ਗਿਆ।</translation>
 <translation id="2239068707900391003">ਕੌਫ਼ੀ ਪੀਂਦਾ ਹੋਇਆ ਵਿਅਕਤੀ</translation>
+<translation id="2247561763838186830">ਤੁਸੀਂ ਲੌਗ-ਆਊਟ ਹੋ ਗਏ ਹੋ</translation>
 <translation id="2251368349685848079">ਰੱਦੀ ਵਿੱਚੋਂ ਮੁੜ-ਬਹਾਲ ਕਰੋ</translation>
 <translation id="2278133026967558505">ਸਾਰੀਆਂ ਵੈੱਬਸਾਈਟਾਂ ਅਤੇ URL ਫ਼ਾਈਲ ਤੱਕ ਪਹੁੰਚ ਕਰ ਸਕਦੇ ਹਨ</translation>
 <translation id="2282155092769082568">ਸਵੈ-ਸੰਰੂਪਣ URL:</translation>
@@ -159,14 +168,13 @@
 <translation id="2304820083631266885">ਗ੍ਰਹਿ</translation>
 <translation id="2305020378527873881"><ph name="VOLUME_NAME" /> ਨੂੰ ਕੱਢ ਦਿੱਤਾ ਗਿਆ ਹੈ।</translation>
 <translation id="2307462900900812319">ਨੈੱਟਵਰਕ ਸੰਰੂਪਿਤ ਕਰੋ</translation>
-<translation id="2312704192806647271">{COUNT,plural, =1{ਆਈਡੀ ਵਾਲੀ ਐਕਸਟੈਂਸ਼ਨ <ph name="BEGIN_LIST" /><ph name="END_LIST" /> ਨੂੰ ਲੱਭਿਆ ਨਹੀਂ ਜਾ ਸਕਦਾ ਹੈ। ਆਪਣੇ ਪ੍ਰਸ਼ਾਸਕ ਨੂੰ ਸੰਪਰਕ ਕਰੋ।}one{ਆਈਡੀ ਵਾਲੀ ਐਕਸਟੈਂਸ਼ਨ <ph name="BEGIN_LIST" /><ph name="END_LIST" /> ਨੂੰ ਲੱਭਿਆ ਨਹੀਂ ਜਾ ਸਕਦਾ ਹੈ। ਆਪਣੇ ਪ੍ਰਸ਼ਾਸਕ ਨੂੰ ਸੰਪਰਕ ਕਰੋ।}other{ਆਈਡੀਆਂ ਵਾਲੀਆਂ ਐਕਸਟੈਂਸ਼ਨਾਂ <ph name="BEGIN_LIST" /><ph name="END_LIST" /> ਨੂੰ ਲੱਭਿਆ ਨਹੀਂ ਜਾ ਸਕਦਾ ਹੈ। ਆਪਣੇ ਪ੍ਰਸ਼ਾਸਕ ਨੂੰ ਸੰਪਰਕ ਕਰੋ।}}</translation>
 <translation id="2325650632570794183">ਇਹ ਫ਼ਾਈਲ ਕਿਸਮ ਸਮਰਥਿਤ ਨਹੀਂ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਇੱਕ ਅਜਿਹੀ ਐਪ ਲੱਭਣ ਲਈ 'Chrome ਵੈੱਬ ਸਟੋਰ' 'ਤੇ ਜਾਓ ਜੋ ਇਸ ਕਿਸਮ ਦੀ ਫ਼ਾਈਲ ਖੋਲ੍ਹ ਸਕਦੀ ਹੈ।</translation>
 <translation id="2326539130272988168">ਬੁਲਗਾਰੀਆਈ</translation>
-<translation id="2337715497728194187">Bruschetta ਨਾਲ ਸਾਂਝਾ ਕਰੋ</translation>
+<translation id="233822363739146957">ਤੁਹਾਡੀਆਂ ਸਾਰੀਆਂ ਫ਼ਾਈਲਾਂ ਨੂੰ ਸਿੰਕ ਕਰਨ ਲਈ ਲੋੜੀਂਦੀ ਸਟੋਰੇਜ ਜਗ੍ਹਾ ਨਹੀਂ ਹੈ</translation>
 <translation id="23721837607121582">ਮੋਬਾਈਲ ਪ੍ਰੋਫਾਈਲ ਡਾਊਨਲੋਡ ਕਰੋ, <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" /> ਨੈੱਟਵਰਕ, <ph name="NETWORK_NAME" /></translation>
 <translation id="2377319039870049694">ਸੂਚੀ ਦ੍ਰਿਸ਼ 'ਤੇ ਸਵਿੱਚ ਕਰੋ</translation>
 <translation id="2377590462528165447"><ph name="NUMBER_OF_ITEMS" /> ਫੋਲਡਰ Linux ਨਾਲ ਸਾਂਝੇ ਕੀਤੇ ਗਏ</translation>
-<translation id="2378075407703503998"><ph name="SELCTED_FILE_COUNT" /> ਫਾਈਲਾਂ ਚੁਣੀਆਂ</translation>
+<translation id="2379576081295865700">ਸਟੋਰੇਜ ਜਗ੍ਹਾ ਦੀ ਜਾਂਚ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ… 1 ਆਈਟਮ ਮਿਲੀ</translation>
 <translation id="2383454254762599978">ਰੱਦੀ ਵਿੱਚ ਲਿਜਾਓ</translation>
 <translation id="2387458720915042159">ਪ੍ਰੌਕਸੀ ਕਨੈਕਸ਼ਨ ਕਿਸਮ</translation>
 <translation id="2389832672041313158">ਬਰਮੀ (ਮਿਆਂਮਾਰ)</translation>
@@ -181,6 +189,7 @@
 <translation id="2464089476039395325">HTTP ਪ੍ਰੌਕਸੀ</translation>
 <translation id="2467267713099745100"><ph name="NETWORK_TYPE" /> ਨੈੱਟਵਰਕ, ਬੰਦ</translation>
 <translation id="2468402215065996499">ਤਾਮਾਗੋਚੀ</translation>
+<translation id="2468470447085858632">ਫ਼ਾਈਲ ਸਿੰਕ ਨਾਲ ਆਪਣੀਆਂ Google Drive ਫ਼ਾਈਲਾਂ ਤੱਕ ਆਫ਼ਲਾਈਨ ਪਹੁੰਚ ਕਰੋ</translation>
 <translation id="2470939964922472929">ਗਲਤ ਪਿੰਨ ਬਹੁਤ ਵਾਰ ਦਾਖਲ ਕੀਤਾ ਗਿਆ। ਇੱਕ ਨਵਾਂ ਪਿੰਨ ਸੈੱਟਅੱਪ ਕਰਨ ਲਈ, ਤੁਹਾਡੇ ਕੈਰੀਅਰ ਵੱਲੋਂ ਮੁਹੱਈਆ ਕੀਤੀ 8-ਅੰਕਾਂ ਦੀ ਨਿੱਜੀ ਅਣਬਲਾਕ ਕਰਨ ਵਾਲੀ ਕੁੰਜੀ (PUK) ਦਾਖਲ ਕਰੋ।</translation>
 <translation id="2500392669976258912">ਗੁਜਰਾਤੀ ਧੁਨੀਆਤਮਿਕ</translation>
 <translation id="2515586267016047495">Alt</translation>
@@ -192,7 +201,6 @@
 <translation id="2544853746127077729">ਪ੍ਰਮਾਣੀਕਰਨ ਪ੍ਰਮਾਣ-ਪੱਤਰ ਨੂੰ ਨੈੱਟਵਰਕ ਵੱਲੋਂ ਅਸਵੀਕਾਰ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="255937426064304553">ਅਮਰੀਕਾ ਅੰਤਰਰਾਸ਼ਟਰੀ</translation>
 <translation id="2563185590376525700">ਡੱਡੂ</translation>
-<translation id="2574327434504608656">Bruschetta ਨਾਲ 1 ਫੋਲਡਰ ਸਾਂਝਾ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="2578394532502990878">ਤਮਿਲ ਧੁਨੀਆਤਮਿਕ</translation>
 <translation id="2579959351793446050">ਉੜੀਆ</translation>
 <translation id="2587195714949534472"><ph name="FILE_NAME" /> ਨੂੰ ਸਿੰਕ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ...</translation>
@@ -208,6 +216,7 @@
 <translation id="2718540689505416944">Linux ਨਾਲ ਐਪ ਸਥਾਪਤ ਕਰੋ</translation>
 <translation id="2719020180254996569">ਨੈੱਟਵਰਕ <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" />, <ph name="NETWORK_NAME" />, <ph name="CONNECTION_STATUS" />, ਵੇਰਵੇ</translation>
 <translation id="2724954091494693138">F ਕੀ-ਬੋਰਡ ਦੇ ਨਾਲ ਤੁਰਕੀ</translation>
+<translation id="2732288874651063549"><ph name="VM_NAME" /> ਸਾਂਝਾਕਰਨ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰੋ</translation>
 <translation id="2732839045120506979">ਵੀਅਤਨਾਮੀ VNI</translation>
 <translation id="2735623501230989521">Parallels Desktop ਨੂੰ <ph name="FOLDER_NAME" /> ਫੋਲਡਰ ਵਿਚਲੀਆਂ ਫ਼ਾਈਲਾਂ ਤੱਕ ਪਹੁੰਚ ਕਰਨ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ</translation>
 <translation id="2764206540577097904">ਤੁਸੀਂ ਆਪਣੀ ਸਾਰੀ ਵਿਅਕਤੀਗਤ Google Workspace ਸਟੋਰੇਜ ਵਰਤ ਲਈ ਹੈ।</translation>
@@ -216,6 +225,7 @@
 <translation id="2782104745158847185">Linux ਐਪਲੀਕੇਸ਼ਨ ਨੂੰ ਸਥਾਪਤ ਕਰਨ ਵਿੱਚ ਗੜਬੜ ਹੋ ਗਈ</translation>
 <translation id="2802583107108007218">ਇਨ੍ਹਾਂ ਪ੍ਰਤਿਬੰਧਾਂ ਬਾਰੇ ਹੋਰ ਜਾਣੋ</translation>
 <translation id="2803375539583399270">PIN ਦਾਖਲ ਕਰੋ</translation>
+<translation id="2819519502129272135">ਫ਼ਾਈਲ ਸਿੰਕ ਨੂੰ ਬੰਦ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="2820957248982571256">ਸਕੈਨ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ...</translation>
 <translation id="2830077785865012357">ਚੀਨੀ ਜ਼ੂਯਿਨ</translation>
 <translation id="2843806747483486897">ਪੂਰਵ-ਨਿਰਧਾਰਤ ਬਦਲੋ...</translation>
@@ -229,7 +239,6 @@
 <translation id="290843123675549676">ਮਰਾਠੀ</translation>
 <translation id="2923240520113693977">Estonian</translation>
 <translation id="2938685643439809023">Mongolian</translation>
-<translation id="293972288692056847">{COUNT,plural, =1{ਐਕਸਟੈਂਸ਼ਨ ਨੂੰ ਲੱਭਿਆ ਨਹੀਂ ਜਾ ਸਕਦਾ}one{ਐਕਸਟੈਂਸ਼ਨ ਨੂੰ ਲੱਭਿਆ ਨਹੀਂ ਜਾ ਸਕਦਾ}other{ਐਕਸਟੈਂਸ਼ਨਾਂ ਨੂੰ ਲੱਭਿਆ ਨਹੀਂ ਜਾ ਸਕਦਾ}}</translation>
 <translation id="2943503720238418293">ਵਧੇਰੇ ਛੋਟਾ ਨਾਮ ਵਰਤੋ</translation>
 <translation id="2949781154072577687"><ph name="DRIVE_NAME" /> ਨੂੰ ਫਾਰਮੈਟ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ…</translation>
 <translation id="2951236788251446349">ਜੈਲੀਫ਼ਿਸ਼</translation>
@@ -248,7 +257,6 @@
 <translation id="3083975830683400843">Chromebits</translation>
 <translation id="3085752524577180175">SOCKS ਹੋਸਟ</translation>
 <translation id="3104793765551262433">ਨੈੱਟਵਰਕ <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" />, <ph name="NETWORK_NAME" />, <ph name="SECURITY_STATUS" />, <ph name="CONNECTION_STATUS" />, ਸਿਗਨਲ ਦੀ ਤੀਬਰਤਾ <ph name="SIGNAL_STRENGTH" />%, ਤੁਹਾਡੇ ਪ੍ਰਸ਼ਾਸਕ ਵੱਲੋਂ ਬਲਾਕ ਕੀਤਾ ਗਿਆ, ਵੇਰਵੇ</translation>
-<translation id="3113153474486991170">ਇਸ ਟਿਕਾਣੇ ਤੋਂ "<ph name="PATH" />" ਨੂੰ ਖੋਲ੍ਹਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਖੋਲ੍ਹਣ ਲਈ "ਮੇਰੀਆਂ ਫ਼ਾਈਲਾਂ" ਵਿੱਚ ਕਾਪੀ ਕਰੋ।</translation>
 <translation id="3113592018909187986">ਤੁਹਾਡੇ ਕੋਲ 1 ਕੋਸ਼ਿਸ਼ ਬਾਕੀ ਹੈ। ਤੁਸੀਂ ਨਵੇਂ ਪਿੰਨ ਦਾ ਸੈੱਟ ਅੱਪ ਕਰ ਲੈਣ ਤੱਕ ਇਹ ਨੈੱਟਵਰਕ ਵਰਤ ਨਹੀਂ ਸਕਦੇ।</translation>
 <translation id="3124404833828281817">ਆਪਣੇ ਖਿਆਲਾਂ ਵਿੱਚ ਖੋਇਆ ਵਿਅਕਤੀ</translation>
 <translation id="3126026824346185272">Ctrl</translation>
@@ -268,9 +276,11 @@
 <translation id="3253225298092156258">ਉਪਲਬਧ ਨਹੀਂ</translation>
 <translation id="3254434849914415189"><ph name="FILE_TYPE" /> ਫ਼ਾਈਲਾਂ ਲਈ ਪੂਰਵ-ਨਿਰਧਾਰਤ ਐਪ ਚੁਣੋ:</translation>
 <translation id="3255159654094949700">ਅਰਬੀ</translation>
+<translation id="326396468955264502"><ph name="NUMBER_OF_FILES" /> ਫ਼ਾਈਲਾਂ ਨੂੰ ਕਿਸੇ ਹੋਰ ਥਾਂ 'ਤੇ ਨਹੀਂ ਲਿਜਾਇਆ ਜਾ ਸਕਿਆ ਕਿਉਂਕਿ ਉਹ ਇਨਕ੍ਰਿਪਟਡ ਹਨ।</translation>
 <translation id="3264582393905923483">ਸੰਦਰਭ</translation>
 <translation id="3272909651715601089">"<ph name="PATH" />" ਨੂੰ ਖੋਲ੍ਹਿਆ ਨਹੀਂ ਜਾ ਸਕਦਾ</translation>
 <translation id="3280431534455935878">ਤਿਆਰੀ ਕਰ ਰਿਹਾ ਹੈ</translation>
+<translation id="3280719573299097127">ਤੁਸੀਂ ਮੀਟਰਬੱਧ ਨੈੱਟਵਰਕ 'ਤੇ ਹੋ। ਫ਼ਾਈਲ ਸਿੰਕ ਨੂੰ ਰੋਕ ਦਿੱਤਾ ਗਿਆ ਹੈ।</translation>
 <translation id="3280987981688031357">ਤਵਾ ਰਿਕਾਰਡ</translation>
 <translation id="3290356915286466215">ਅਸੁਰੱਖਿਅਤ</translation>
 <translation id="3291218047831493686">ਸਿਮ ਲਾਕ ਸੈਟਿੰਗ ਨੂੰ ਬਦਲਣ ਲਈ ਇਸ ਨੈੱਟਵਰਕ ਨਾਲ ਕਨੈਕਟ ਕਰੋ</translation>
@@ -285,25 +295,24 @@
 <translation id="3356580349448036450">ਪੂਰਾ</translation>
 <translation id="3358452157379365236">ਗਿਟਾਰ</translation>
 <translation id="3368922792935385530">ਕਨੈਕਟ ਕੀਤਾ</translation>
-<translation id="3372635229069101468"><ph name="BEGIN_BOLD" />ਵੇਰਵੇ<ph name="END_BOLD" /> 'ਤੇ ਕਲਿੱਕ ਕਰੋ</translation>
 <translation id="3382143449143186018">ਇਨਸਕ੍ਰਿਪਟ ਕੀ-ਬੋਰਡ ਨਾਲ ਨੇਪਾਲੀ</translation>
 <translation id="338691029516748599">ਨੈੱਟਵਰਕ <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" />, <ph name="NETWORK_NAME" />, <ph name="SECURITY_STATUS" />, ਸਿਗਨਲ ਦੀ ਤੀਬਰਤਾ <ph name="SIGNAL_STRENGTH" />%, ਤੁਹਾਡੇ ਪ੍ਰਸ਼ਾਸਕ ਵੱਲੋਂ ਪ੍ਰਬੰਧਿਤ ਕੀਤਾ ਜਾਂਦਾ ਹੈ, ਕਨੈਕਟ ਕਰੋ</translation>
 <translation id="3408072735282270043">ਕਿਰਿਆਸ਼ੀਲ ਕਰੋ, <ph name="NETWORK_NAME" /></translation>
 <translation id="3408236822532681288">ਨੀਓ 2 ਕੀ-ਬੋਰਡ ਨਾਲ ਜਰਮਨ (ਜਰਮਨੀ)</translation>
 <translation id="3414856743105198592">ਹਟਾਉਣਯੋਗ ਮੀਡੀਆ ਨੂੰ ਫੌਰਮੈਟ ਕਰਨ ਨਾਲ ਸਾਰਾ ਡਾਟਾ ਮਿਟ ਜਾਏਗਾ। ਕੀ ਤੁਸੀਂ ਜਾਰੀ ਰੱਖਣਾ ਚਾਹੁੰਦੇ ਹੋ?</translation>
-<translation id="3435143625481187092">Bruschetta ਨੂੰ <ph name="FOLDER_NAME" /> ਫੋਲਡਰ ਵਿਚਲੀਆਂ ਫ਼ਾਈਲਾਂ ਤੱਕ ਪਹੁੰਚ ਕਰਨ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ</translation>
 <translation id="3437801641691368414">ਬਣਾਉਣ ਦਾ ਸਮਾਂ</translation>
 <translation id="343907260260897561">ਤਤਕਾਲ ਫ਼ੋਟੋ ਖਿੱਚਣ ਵਾਲਾ ਕੈਮਰਾ</translation>
 <translation id="3455931012307786678">ਇਸਤੋਨੀਆਈ</translation>
 <translation id="3475447146579922140">Google spreadsheet</translation>
 <translation id="3479552764303398839">ਹੁਣ ਨਹੀਂ</translation>
 <translation id="3486821258960016770">ਮੰਗੋਲੀਆਈ</translation>
-<translation id="3495304270784461826"><ph name="COUNT" /> ਅਸ਼ੁੱਧੀਆਂ।</translation>
 <translation id="3509680540198371098">ਨੈੱਟਵਰਕ <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" />, <ph name="NETWORK_NAME" />, <ph name="SECURITY_STATUS" />, <ph name="CONNECTION_STATUS" />, ਸਿਗਨਲ ਦੀ ਤੀਬਰਤਾ <ph name="SIGNAL_STRENGTH" />%, ਵੇਰਵੇ</translation>
 <translation id="3511705761158917664"><ph name="NUMBER_OF_ITEMS" /> ਆਈਟਮਾਂ ਨੂੰ ਸਿੰਕ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ...</translation>
 <translation id="3522708245912499433">ਪੋਰਤੂਗੂਈਸ</translation>
+<translation id="3523225005467146490"><ph name="VM_NAME" /> ਨਾਲ 1 ਫੋਲਡਰ ਸਾਂਝਾ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="3524311639100184459">ਸਾਵਧਾਨ: ਇਹ ਫ਼ਾਈਲਾਂ ਅਸਥਾਈ ਹਨ ਅਤੇ ਡਿਸਕ ਵਿੱਚ ਜਗ੍ਹਾ ਨੂੰ ਖਾਲੀ ਕਰਨ ਲਈ ਸਵੈਚਲਿਤ ਤੌਰ 'ਤੇ ਮਿਟਾਈਆਂ ਜਾ ਸਕਦੀਆਂ ਹਨ।  <ph name="BEGIN_LINK" />ਹੋਰ ਜਾਣੋ<ph name="END_LINK" /></translation>
 <translation id="3527085408025491307">ਫੋਲਡਰ</translation>
+<translation id="3529424493985988200">ਵੇਰਵਿਆਂ ਲਈ ਆਪਣੇ ਪ੍ਰਸ਼ਾਸਕ ਨੂੰ ਸੰਪਰਕ ਕਰੋ।</translation>
 <translation id="3548125359243647069">ਗਲਤ ਪਿੰਨ ਬਹੁਤ ਵਾਰ ਦਾਖਲ ਕੀਤਾ ਗਿਆ।</translation>
 <translation id="3549797760399244642">drive.google.com ਤੇ ਜਾਓ...</translation>
 <translation id="3553048479571901246"><ph name="APP_NAME" /> ਨਾਲ ਫ਼ਾਈਲਾਂ ਖੋਲ੍ਹਣ ਲਈ, ਪਹਿਲਾਂ ਉਹਨਾਂ ਨੂੰ Windows ਫ਼ਾਈਲਾਂ ਦੇ ਫੋਲਡਰ ਵਿੱਚ ਕਾਪੀ ਕਰੋ।</translation>
@@ -320,17 +329,19 @@
 <translation id="3619115746895587757">ਕੈਪੁਚੀਨੋ</translation>
 <translation id="3619593063686672873">ਕੋਈ ਹਾਲੀਆ ਵੀਡੀਓ ਨਹੀਂ</translation>
 <translation id="3634507049637220048">ਨੈੱਟਵਰਕ <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" />, <ph name="NETWORK_NAME" />, <ph name="CONNECTION_STATUS" />, ਤੁਹਾਡੇ ਪ੍ਰਸ਼ਾਸਕ ਵੱਲੋਂ ਪ੍ਰਬੰਧਿਤ ਕੀਤਾ ਜਾਂਦਾ ਹੈ, ਵੇਰਵੇ</translation>
+<translation id="36451918667380448">ਮੋਬਾਈਲ ਨੈੱਟਵਰਕ ਪ੍ਰਦਾਨਕ ਲਾਕ ਹੈ। ਸਹਾਇਤਾ ਲਈ ਆਪਣੇ ਪ੍ਰਦਾਨਕ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।</translation>
 <translation id="3645233063072417428"><ph name="NUMBER_OF_ITEMS" /> ਆਈਟਮਾਂ ਲਿਜਾਈਆਂ ਗਈਆਂ।</translation>
+<translation id="3658269352872031728"><ph name="SELECTED_FILE_COUNT" /> ਫ਼ਾਈਲਾਂ ਚੁਣੀਆਂ ਗਈਆਂ</translation>
 <translation id="3685122418104378273">Google Drive ਸਿੰਕ ਮੋਬਾਈਲ ਡਾਟਾ ਵਰਤਦੇ ਸਮੇਂ, ਬਾਇ ਪੂਰਵ-ਨਿਰਧਾਰਤ ਅਸਮਰਥਿਤ ਹੁੰਦਾ ਹੈ।</translation>
 <translation id="3689865792480713551"><ph name="ACTIVITY_DESCRIPTION" /> ਨੂੰ ਰੱਦ ਕਰੋ।</translation>
 <translation id="3690128548376345212"><ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" /> ਨੈੱਟਵਰਕ, <ph name="NETWORK_NAME" />, ਅਕਿਰਿਆਸ਼ੀਲ ਕੀਤਾ ਗਿਆ, <ph name="CONNECTION_STATUS" />, ਸਿਗਨਲ ਦੀ ਤੀਬਰਤਾ <ph name="SIGNAL_STRENGTH" />%, ਵੇਰਵੇ</translation>
 <translation id="3691184985318546178">ਸਿਨਹਾਲਾ</translation>
+<translation id="3702842351052426940">ਸ਼ਾਇਦ ਤੁਹਾਡੇ ਸਿਮ ਕਾਰਡ ਜਾਂ ਈ-ਸਿਮ ਪ੍ਰੋਫਾਈਲ ਨੂੰ ਅਕਿਰਿਆਸ਼ੀਲ ਕੀਤਾ ਗਿਆ ਹੋਵੇ। ਆਪਣੇ ਸਿਮ ਕਾਰਡ ਜਾਂ ਈ-ਸਿਮ ਪ੍ਰੋਫਾਈਲਾਂ ਨੂੰ ਬਦਲ ਕੇ ਦੇਖੋ।</translation>
 <translation id="3722341589402358578">ਕੋਈ ਗੜਬੜ ਹੋ ਗਈ। ਸ਼ਾਇਦ ਕੁਝ ਆਈਟਮਾਂ ਰੱਦੀ ਵਿੱਚ ਨਹੀਂ ਭੇਜੀਆਂ ਜਾ ਸਕੀਆਂ।</translation>
 <translation id="3726463242007121105">ਇਹ ਡੀਵਾਈਸ ਖੋਲ੍ਹੀ ਨਹੀਂ ਜਾ ਸਕਦੀ ਕਿਉਂਕਿ ਇਸਦਾ ਫਾਈਲਸਿਸਟਮ ਸਮਰਥਿਤ ਨਹੀਂ ਹੈ।</translation>
 <translation id="3727148787322499904">ਇਸ ਸੈਟਿੰਗ ਨੂੰ ਬਦਲਣ ਨਾਲ ਸਭ ਸਾਂਝੇ ਕੀਤੇ ਨੈੱਟਵਰਕ ਪ੍ਰਭਾਵਿਤ ਹੋਣਗੇ</translation>
 <translation id="3737576078404241332">ਸਾਈਡਬਾਰ ਵਿੱਚੋਂ ਹਟਾਓ</translation>
 <translation id="3749289110408117711">ਫਾਈਲ ਨਾਮ</translation>
-<translation id="3780536599611287598">ਤੁਹਾਡੇ ਕੋਲ '<ph name="FOLDER_NAME" />' ਵਿੱਚ ਫ਼ਾਈਲਾਂ ਲਿਜਾਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ।</translation>
 <translation id="3786301125658655746">ਤੁਸੀਂ ਆਫ਼ਲਾਈਨ ਹੋ</translation>
 <translation id="3789841737615482174">ਸਥਾਪਤ ਕਰੋ</translation>
 <translation id="3793469551756281394">ਲਗਭਗ <ph name="REMAINING_TIME_HOUR" /> <ph name="REMAINING_TIME_MINUTE" /> ਬਾਕੀ</translation>
@@ -345,8 +356,8 @@
 <translation id="3822559385185038546">ਇਹ ਪ੍ਰੌਕਸੀ ਤੁਹਾਡੇ ਪ੍ਰਸ਼ਾਸਕ ਵੱਲੋਂ ਲਾਗੂ ਕੀਤੀ ਜਾਂਦੀ ਹੈ</translation>
 <translation id="3830674330436234648">ਕੋਈ ਪਲੇਬੈਕ ਉਪਲਬਧ ਨਹੀਂ</translation>
 <translation id="383652340667548381">Serbian</translation>
+<translation id="3839045880592694915">ਤੁਹਾਡੇ ਕੈਰੀਅਰ ਵੱਲੋਂ ਮੋਡੈਮ ਨਾਲ ਕਨੈਕਟ ਕਰਨ ਦੀ ਆਗਿਆ ਨਹੀਂ ਹੈ। ਹੋਰ ਵੇਰਵਿਆਂ ਲਈ ਆਪਣੇ ਕੈਰੀਅਰ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।</translation>
 <translation id="385051799172605136">ਪਿੱਛੇ</translation>
-<translation id="3851491607336266896">ਕਨੈਕਟ ਕੀਤਾ, ਸੀਮਤ ਕਨੈਕਟੀਵਿਟੀ</translation>
 <translation id="3855472144336161447">ਜਰਮਨ Neo 2</translation>
 <translation id="3858860766373142691">ਨਾਮ</translation>
 <translation id="3866249974567520381">ਵਰਣਨ</translation>
@@ -355,31 +366,31 @@
 <translation id="3906232975181435906">ਮੋਬਾਈਲ ਪ੍ਰੋਫਾਈਲ ਨੂੰ ਸਥਾਪਤ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ, <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" /> ਨੈੱਟਵਰਕ, <ph name="NETWORK_NAME" /></translation>
 <translation id="3924145049010392604">ਮੈਟਾ</translation>
 <translation id="3943857333388298514">ਪੇਸਟ ਕਰੋ</translation>
+<translation id="3950820424414687140">ਸਾਈਨ-ਇਨ ਕਰੋ</translation>
 <translation id="3952872973865944257">ਤੇਲਗੂ ਧੁਨੀਆਤਮਿਕ</translation>
 <translation id="3958548648197196644">ਕੀਵੀ</translation>
+<translation id="397105322502079400">ਅਨੁਮਾਨ ਲਗਾ ਰਿਹਾ ਹੈ...</translation>
 <translation id="3971140002794351170">ਮੋਬਾਈਲ ਪ੍ਰੋਫਾਈਲ ਡਾਊਨਲੋਡ ਕਰੋ, <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" /> ਨੈੱਟਵਰਕ, <ph name="NETWORK_NAME" />, <ph name="NETWORK_PROVIDER_NAME" /></translation>
 <translation id="3973925058222872294">ਅੰਗਰੇਜ਼ੀ (ਯੂ.ਕੇ.)</translation>
 <translation id="3975895378829046965">ਬੰਗਾਲੀ ਧੁਨੀਆਤਮਿਕ</translation>
 <translation id="3999574733850440202">ਹਾਲ ਹੀ ਵਿੱਚ ਖੋਲ੍ਹੀਆਂ ਗਈਆਂ Microsoft ਦੀਆਂ ਫ਼ਾਈਲਾਂ ਨੂੰ OneDrive ਵਿੱਚ ਲਿਜਾਇਆ ਗਿਆ ਹੈ</translation>
 <translation id="4002066346123236978">ਸਿਰਲੇਖ</translation>
 <translation id="4017788180641807848">ਵਰਕਮੈਨ ਕੀ-ਬੋਰਡ ਦੇ ਨਾਲ ਅੰਗਰੇਜ਼ੀ (ਯੂ.ਐੱਸ.)</translation>
-<translation id="4019998208269143058">ਤਤਕਾਲ ਫ਼ਾਈਲਾਂ 'ਤੇ ਪਿੰਨ ਕਰੋ</translation>
 <translation id="4040753847560036377">ਗਲਤ PUK</translation>
 <translation id="4057991113334098539">ਕਿਰਿਆਸ਼ੀਲ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ...</translation>
 <translation id="4092890906744441904">ਆਇਰਸ਼</translation>
+<translation id="4101601646343868113">ਆਪਣੇ ਮੋਬਾਈਲ ਨੈੱਟਵਰਕ ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰੋ ਅਤੇ ਤਸਦੀਕ ਕਰੋ ਕਿ ਤੁਹਾਡਾ ਮੋਬਾਈਲ ਡਾਟਾ ਪਲਾਨ ਕਿਰਿਆਸ਼ੀਲ ਹੈ</translation>
+<translation id="4124731372776320263">Drive ਦੀ 1 ਫ਼ਾਈਲ ਨੂੰ ਸਿੰਕ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ</translation>
 <translation id="4124935795427217608">ਇੱਕ ਸਿੰਗ ਵਾਲਾ ਘੋੜਾ</translation>
 <translation id="4131235941541910880">ਆਪਣੀਆਂ ਬੇਲੋੜੀਆਂ ਆਈਟਮਾਂ ਰੱਦੀ ਵਿੱਚ ਲਿਜਾਓ</translation>
 <translation id="4134804435730168042">ਨੈੱਟਵਰਕ <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" />, <ph name="NETWORK_NAME" />, <ph name="NETWORK_PROVIDER_NAME" />, ਡੀਵਾਈਸ ਸੈੱਟਅੱਪ ਤੋਂ ਬਾਅਦ ਕਿਰਿਆਸ਼ੀਲ ਕਰੋ</translation>
-<translation id="41501027364808384">{COUNT,plural, =1{ਇਨਕੋਗਨਿਟੋ ਵਿੱਚ ਅੱਗੇ ਦਿੱਤੀ ਐਕਸਟੈਂਸ਼ਨ ਨੂੰ ਚਾਲੂ ਕਰੋ:}one{ਇਨਕੋਗਨਿਟੋ ਵਿੱਚ ਅੱਗੇ ਦਿੱਤੀ ਐਕਸਟੈਂਸ਼ਨ ਨੂੰ ਚਾਲੂ ਕਰੋ:}other{ਇਨਕੋਗਨਿਟੋ ਵਿੱਚ ਅੱਗੇ ਦਿੱਤੀਆਂ ਐਕਸਟੈਂਸ਼ਨਾਂ ਨੂੰ ਚਾਲੂ ਕਰੋ:}}</translation>
 <translation id="4153015322587141338">ਫ਼ਾਈਲ 'ਤੇ ਸੱਜਾ-ਕਲਿੱਕ ਕਰੋ ਅਤੇ ਸ਼ੈਲਫ ਵਿੱਚ ਤੁਹਾਡੀਆਂ ਫ਼ਾਈਲਾਂ ਤੱਕ ਤਤਕਾਲ ਪਹੁੰਚ ਕਰਨ ਲਈ "<ph name="PIN_COMMAND" />" ਨੂੰ ਚੁਣੋ।</translation>
 <translation id="4157569377477607576">ਪ੍ਰਸ਼ਾਸਕ ਨੀਤੀ ਇਨ੍ਹਾਂ ਦੀ ਸਿਫ਼ਾਰਸ਼ ਨਹੀਂ ਕਰਦੀ:</translation>
 <translation id="4159731583141908892"><ph name="FILE_NAME" /> ਨੂੰ ਲਿਜਾਇਆ ਗਿਆ।</translation>
 <translation id="4176286497474237543">ਰੱਦੀ ਫੋਲਡਰ ਨੂੰ ਹੁਣੇ ਖਾਲੀ ਕਰੋ</translation>
 <translation id="4179621117429069925">ਇਹ ਆਈਟਮ ਤੁਹਾਡੀ ਰੱਦੀ ਵਿੱਚ ਹੈ</translation>
-<translation id="4181839429935094755">Bruschetta ਨਾਲ <ph name="NUMBER_OF_ITEMS" /> ਫੋਲਡਰ ਸਾਂਝੇ ਕੀਤੇ ਗਏ</translation>
 <translation id="4186579485882418952">ਆਫ਼ਲਾਈਨ ਨੂੰ ਚਾਲੂ ਕਰੋ</translation>
 <translation id="4193154014135846272">Google ਦਸਤਾਵੇਜ਼</translation>
-<translation id="4197674956721858839">Zip ਚੋਣ</translation>
 <translation id="4202378258276439759">ਸਪੇਨੀ (ਲਾਤੀਨੀ ਅਮਰੀਕਾ)</translation>
 <translation id="4202977638116331303">ਜਾਰਜੀਆਈ</translation>
 <translation id="421017592316736757">ਤੁਹਾਨੂੰ ਇਸ ਫ਼ਾਈਲ ਤੱਕ ਪਹੁੰਚ ਪ੍ਰਾਪਤ ਕਰਨ ਲਈ ਆਨਲਾਈਨ ਹੋਣਾ ਪਵੇਗਾ।</translation>
@@ -407,6 +418,7 @@
 <translation id="4387004326333427325">ਪ੍ਰਮਾਣਿਕਰਨ ਪ੍ਰਮਾਣ-ਪੱਤਰ ਨੂੰ ਰਿਮੋਟਲੀ ਅਸਵੀਕਾਰ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="4394214039309501350">ਬਾਹਰੀ ਲਿੰਕ</translation>
 <translation id="4394980935660306080">ਇਸ ਹਫ਼ਤੇ ਦੀ ਸ਼ੁਰੂਆਤ ਵਿੱਚ</translation>
+<translation id="4397435965699247285">OneDrive ਆਫ਼ਲਾਈਨ ਉਪਲਬਧ ਨਹੀਂ ਹੈ</translation>
 <translation id="4398096759193130964">ਆਈਟਮਾਂ ਨੂੰ ਮੁੜ-ਬਹਾਲ ਕਰੋ ਜਾਂ ਇਨ੍ਹਾਂ ਨੂੰ ਰੱਦੀ ਤੋਂ ਬਾਹਰ ਕਿਸੇ ਨਵੇਂ ਫੋਲਡਰ ਵਿੱਚ ਘਸੀਟੋ</translation>
 <translation id="4401287888955153199">ਸਭ ਐਕਸਟ੍ਰੈਕਟ ਕਰੋ</translation>
 <translation id="4410695710508688828">ਐਕਸਟਰੈਕਟ ਕਰਨ ਦੀ ਕਾਰਵਾਈ ਅਸਫਲ ਰਹੀ। <ph name="ERROR_MESSAGE" /></translation>
@@ -416,9 +428,11 @@
 <translation id="4432921877815220091">ਨੈੱਟਵਰਕ <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" />, <ph name="NETWORK_NAME" />, ਡੀਵਾਈਸ ਸੈੱਟਅੱਪ ਤੋਂ ਬਾਅਦ ਕਿਰਿਆਸ਼ੀਲ ਕਰੋ, ਤੁਹਾਡੇ ਪ੍ਰਸ਼ਾਸਕ ਵੱਲੋਂ ਪ੍ਰਬੰਧਿਤ ਕੀਤਾ ਜਾਂਦਾ ਹੈ</translation>
 <translation id="4439427728133035643">ਨੈੱਟਵਰਕ <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" />, <ph name="NETWORK_NAME" />, ਸਿਗਨਲ ਦੀ ਤੀਬਰਤਾ <ph name="SIGNAL_STRENGTH" />%, ਕਨੈਕਟ ਕਰੋ</translation>
 <translation id="4442424173763614572">DNS ਲੁਕਅੱਪ ਅਸਫਲ ਹੋ ਗਿਆ</translation>
+<translation id="4445896958353114391">ਫ਼ਾਈਲਾਂ ਨੂੰ ਸਿੰਕ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ</translation>
 <translation id="4462159676511157176">ਨਾਮ ਸਰਵਰ ਨੂੰ ਵਿਉਂਤਬੱਧ ਕਰੋ</translation>
 <translation id="4465725236958772856">ਨੈੱਟਵਰਕ <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" />, <ph name="NETWORK_NAME" />, ਤੁਹਾਡੇ ਪ੍ਰਸ਼ਾਸਕ ਵੱਲੋਂ ਪ੍ਰਬੰਧਿਤ ਕੀਤਾ ਜਾਂਦਾ ਹੈ, ਕਨੈਕਟ ਕਰੋ</translation>
 <translation id="4470564870223067757">Hangul 2 ਸੈਟ</translation>
+<translation id="4472575034687746823">ਸ਼ੁਰੂਆਤ ਕਰੋ</translation>
 <translation id="4474142134969976028">ਕੋਈ ਮੇਲ ਖਾਂਦਾ ਨਤੀਜਾ ਨਹੀਂ</translation>
 <translation id="4477002475007461989">ਰੋਮਾਨੀਆਈ</translation>
 <translation id="4477219268485577442">ਬਲਗੇਰੀਅਨ ਧੁਨੀਆਤਮਿਕ</translation>
@@ -436,11 +450,11 @@
 <translation id="4599600860674643278">ਫਿਲਟਰ ਰੀਸੈੱਟ ਕੀਤਾ ਗਿਆ।</translation>
 <translation id="4603392156942865207"><ph name="FILE_NAME" /> ਨੂੰ <ph name="FOLDER_NAME" /> ਵਿੱਚ ਕਾਪੀ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ</translation>
 <translation id="4631887759990505102">ਕਲਾਕਾਰ</translation>
+<translation id="4635373743001040938">ਸਟੋਰੇਜ ਜਗ੍ਹਾ ਬਹੁਤ ਜ਼ਿਆਦਾ ਘੱਟ ਸੀ। ਫ਼ਾਈਲ ਸਿੰਕ ਨੂੰ ਬੰਦ ਕੀਤਾ ਗਿਆ ਹੈ।</translation>
 <translation id="4642769377300286600">ਮੋਬਾਈਲ ਪ੍ਰੋਫਾਈਲ ਨੂੰ ਸਥਾਪਤ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ, <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" /> ਨੈੱਟਵਰਕ, <ph name="NETWORK_NAME" />, <ph name="NETWORK_PROVIDER_NAME" /></translation>
 <translation id="4646813851450205600">QWERTY ਕੀ-ਬੋਰਡ ਨਾਲ ਚੈੱਕ</translation>
 <translation id="4656777537938206294">ਫ਼ਾਈਲਾਂ ਨੂੰ ਆਫ਼ਲਾਈਨ ਉਪਲਬਧ ਕਰਵਾਓ</translation>
 <translation id="4658782175094886150">ਬਰਫ਼ੀਲੀ ਥਾਂ 'ਤੇ ਵਿਅਕਤੀ</translation>
-<translation id="466782788172479199">Bruschetta ਨੂੰ ਤੁਹਾਡੀ Google Drive ਵਿਚਲੀਆਂ ਫ਼ਾਈਲਾਂ ਤੱਕ ਪਹੁੰਚ ਕਰਨ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ। ਤਬਦੀਲੀਆਂ ਨੂੰ ਤੁਹਾਡੇ ਹੋਰ ਡੀਵਾਈਸਾਂ ਨਾਲ ਸਿੰਕ ਕੀਤਾ ਜਾਵੇਗਾ।</translation>
 <translation id="4669606053856530811">'<ph name="SOURCE_NAME" />' ਦੇ ਮੈਂਬਰ ਪਹੁੰਚ ਗੁਆ ਦੇਣਗੇ ਜੇਕਰ ਇਹਨਾਂ ਆਈਟਮਾਂ ਨੂੰ ਉਹਨਾਂ ਨਾਲ ਸਾਂਝਾ ਨਹੀਂ ਕੀਤਾ ਜਾਂਦਾ।</translation>
 <translation id="467809019005607715">Google Slides</translation>
 <translation id="4690246192099372265">ਸਵੈਡਿਸ਼</translation>
@@ -467,11 +481,7 @@
 <translation id="4801956050125744859">ਦੋਵੇਂ ਰੱਖੋ</translation>
 <translation id="4804827417948292437">ਐਵੋਕਾਡੋ</translation>
 <translation id="4805966553127040832"><ph name="COUNT" /> ਆਈਟਮਾਂ ਨੂੰ ਮੁੜ-ਬਹਾਲ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ</translation>
-<translation id="4816695657735045067">{COUNT,plural, =1{ਇਨਕੋਗਨਿਟੋ ਵਰਤਣ ਲਈ, ਤੁਹਾਡੀ ਸੰਸਥਾ ਨੂੰ ਐਕਸਟੈਂਸ਼ਨ ਦੀ ਲੋੜ ਪਵੇਗੀ}one{ਇਨਕੋਗਨਿਟੋ ਵਰਤਣ ਲਈ, ਤੁਹਾਡੀ ਸੰਸਥਾ ਨੂੰ ਐਕਸਟੈਂਸ਼ਨ ਦੀ ਲੋੜ ਪਵੇਗੀ}other{ਇਨਕੋਗਨਿਟੋ ਵਰਤਣ ਲਈ, ਤੁਹਾਡੀ ਸੰਸਥਾ ਨੂੰ ਕੁਝ ਐਕਸਟੈਂਸ਼ਨਾਂ ਦੀ ਲੋੜ ਪਵੇਗੀ}}</translation>
-<translation id="4823651846660089135">ਡੀਵਾਈਸ ਸਿਰਫ਼-ਪੜ੍ਹਨਯੋਗ ਹੈ</translation>
 <translation id="4826849268470072925">ਤਮਿਲ ITRANS</translation>
-<translation id="482932175346970750">ਆਪਣੇ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ <ph name="BEGIN_BOLD" />chrome://extensions<ph name="END_BOLD" /> ਟਾਈਪ ਕਰੋ</translation>
-<translation id="4839847978919684242"><ph name="SELCTED_FILES_COUNT" /> ਆਈਟਮਾਂ ਚੁਣੀਆਂ ਗਈਆਂ</translation>
 <translation id="4843566743023903107">Chromebases</translation>
 <translation id="4850886885716139402">ਦੇਖੋ</translation>
 <translation id="485316830061041779">ਜਰਮਨ</translation>
@@ -489,10 +499,11 @@
 <translation id="4935975195727477204">ਗੈਨਜ਼ਾਨੀਆ ਫਲਾਵਰ</translation>
 <translation id="4943368462779413526">ਫੁੱਟਬਾਲ</translation>
 <translation id="4961158930123534723">1 ਫੋਲਡਰ Parallels Desktop ਨਾਲ ਸਾਂਝਾ ਕੀਤਾ ਗਿਆ</translation>
+<translation id="4965874878399872778">ਤੁਹਾਡੀ ਸੰਸਥਾ ਦੀਆਂ ਸੁਰੱਖਿਆ ਨੀਤੀਆਂ ਮੁਤਾਬਕ ਫ਼ਾਈਲਾਂ ਦੀ ਜਾਂਚ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ...</translation>
 <translation id="496656650103537022"><ph name="FILE_NAME" /> ਨੂੰ ਮੁੜ-ਬਹਾਲ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="4969785127455456148">ਐਲਬਮ</translation>
+<translation id="4972330214479971536">ਫ਼ਾਈਲ ਸਿੰਕ ਦਾ ਸੈੱਟਅੱਪ ਪੂਰਾ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ</translation>
 <translation id="4973523518332075481"><ph name="MAX_LENGTH" /> ਜਾਂ ਇਸ ਤੋਂ ਘੱਟ ਅੱਖਰਾਂ ਵਾਲਾ ਕੋਈ ਨਾਮ ਵਰਤੋ</translation>
-<translation id="4973970068702235170">ਜ਼ਿਪ ਕਰਨਾ ਅਸਫਲ ਰਿਹਾ, ਅਣਕਿਆਸੀ ਗੜਬੜ: <ph name="ERROR_MESSAGE" /></translation>
 <translation id="4984616446166309645">ਜਪਾਨੀ</translation>
 <translation id="4987699874727873250">ਅੰਗਰੇਜ਼ੀ (ਭਾਰਤ)</translation>
 <translation id="4988205478593450158">ਕੀ ਤੁਸੀਂ ਪੱਕਾ "<ph name="FILE_NAME" />" ਨੂੰ ਮਿਟਾਉਣਾ ਚਾਹੁੰਦੇ ਹੋ?</translation>
@@ -514,6 +525,7 @@
 <translation id="5102922915594634436">ਸਿੰਕ ਕੀਤੇ ਫੋਲਡਰਾਂ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰੋ</translation>
 <translation id="5109254780565519649">ਕੋਈ ਗੜਬੜ ਹੋ ਗਈ। ਸ਼ਾਇਦ ਕੁਝ ਆਈਟਮਾਂ ਮੁੜ-ਬਹਾਲ ਨਹੀਂ ਹੋਈਆਂ।</translation>
 <translation id="5110329002213341433">ਅੰਗਰੇਜ਼ੀ (ਕੈਨੇਡਾ)</translation>
+<translation id="5119780910075847424">ਸਿੰਕ ਰੋਕਿਆ ਗਿਆ</translation>
 <translation id="5123433949759960244">ਬਾਸਕਟਬਾਲ</translation>
 <translation id="5129662217315786329">Polish</translation>
 <translation id="5144820558584035333">Hangul 3 ਸੈਟ (390)</translation>
@@ -532,6 +544,7 @@
 <translation id="5218183485292899140">ਸਵਿਸ ਫ੍ਰੈਂਚ</translation>
 <translation id="5234764350956374838">ਬਰਖ਼ਾਸਤ ਕਰੋ</translation>
 <translation id="5253070652067921974">ਇਸ ਵੱਲੋਂ ਬਣਾਈ ਗਈ</translation>
+<translation id="5254207638927440400">ਫ਼ਾਈਲ ਨੂੰ ਲਿਜਾਇਆ ਨਹੀਂ ਜਾ ਸਕਦਾ। ਫ਼ਾਈਲ ਵਰਤੋਂ ਵਿੱਚ ਹੈ।</translation>
 <translation id="5257456363153333584">ਡ੍ਰੈਗਨਫਲਾਈ</translation>
 <translation id="5262311848634918433"><ph name="MARKUP_1" />ਕਿਤੋਂ ਵੀ ਫ਼ਾਈਲਾਂ 'ਤੇ ਪਹੁੰਚ ਕਰੋ, ਭਾਵੇਂ ਆਫ਼ਲਾਈਨ ਹੋਵੋ।<ph name="MARKUP_2" />
     Google Drive ਵਿੱਚ ਫ਼ਾਈਲਾਂ ਅੱਪ ਟੂ ਡੇਟ ਹੁੰਦੀਆਂ ਹਨ ਅਤੇ ਕਿਸੇ ਵੀ ਡੀਵਾਈਸ ਤੋਂ ਉਪਲਬਧ ਹੁੰਦੀਆਂ ਹਨ।<ph name="MARKUP_3" />
@@ -541,8 +554,6 @@
     ਸਾਂਝਾ ਕਰੋ, ਬਣਾਓ, ਅਤੇ ਉਹਨਾਂ 'ਤੇ ਸਹਿਯੋਗ ਦਿਓ।<ph name="MARKUP_9" /></translation>
 <translation id="5275973617553375938">Google Drive ਤੋਂ ਰਿਕਵਰ ਕੀਤੀਆਂ ਫਾਈਲਾਂ</translation>
 <translation id="5278111733643988471">ਇਸ ਆਈਟਮ ਨੂੰ ਮੁੜ-ਬਹਾਲ ਕਰਨ ਲਈ, ਇਸਨੂੰ ਰੱਦੀ ਦੇ ਬਾਹਰ ਕਿਸੇ ਨਵੇਂ ਫੋਲਡਰ ਵਿੱਚ ਘਸੀਟੋ। ਇਸ ਆਈਟਮ ਦੇ ਮੂਲ ਫੋਲਡਰ "<ph name="PARENT_FOLDER_NAME" />" ਨੂੰ ਮਿਟਾ ਦਿੱਤਾ ਗਿਆ ਹੈ।</translation>
-<translation id="5283101102242354279">ਇਨਕੋਗਨਿਟੋ ਵਿੱਚ ਐਕਸਟੈਂਸ਼ਨ ਨੂੰ ਚਾਲੂ ਕਰੋ:</translation>
-<translation id="5286194356314741248">ਸਕੈਨ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ</translation>
 <translation id="5288441970121584418">ਬਰਗਰ</translation>
 <translation id="5293615890992542006">ਪ੍ਰਸ਼ਾਸਕ ਨੀਤੀ ਵੱਲੋਂ ਇਸ ਫ਼ਾਈਲ ਨੂੰ ਲਿਜਾਉਣ ਦੀ ਸੁਵਿਧਾ ਨੂੰ ਬਲਾਕ ਕੀਤਾ ਗਿਆ ਹੈ</translation>
 <translation id="5305688511332277257">ਕੋਈ ਇੰਸਟੌਲ ਨਹੀਂ ਕੀਤਾ</translation>
@@ -551,7 +562,6 @@
 <translation id="5323213332664049067">ਲਾਤੀਨੀ ਅਮਰੀਕੀ</translation>
 <translation id="5330145655348521461">ਇਹ ਫਾਈਲਾਂ ਇੱਕ ਵੱਖਰੇ ਡੈਸਕਟਾਪ ਤੇ ਖੁੱਲ੍ਹੀਆਂ ਹੋਈਆਂ ਹਨ। ਇਸਨੂੰ ਦੇਖਣ ਲਈ <ph name="USER_NAME" /> (<ph name="MAIL_ADDRESS" />) 'ਤੇ ਹਲਚਲ ਕਰੋ।</translation>
 <translation id="5330512191124428349">ਜਾਣਕਾਰੀ ਪ੍ਰਾਪਤ ਕਰੋ</translation>
-<translation id="5344246330454251646">Bruschetta ਸਾਂਝਾਕਰਨ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰੋ</translation>
 <translation id="535792325654997756">ਬਿੱਲੀਆਂ ਨਾਲ ਵਿਅਕਤੀ</translation>
 <translation id="5358764674931277">ਫ੍ਰੇਮ ਰੇਟ</translation>
 <translation id="5363339716524495120">ਇਨਪੁੱਟ ਭਾਸ਼ਾ ਚੀਨੀ ਹੈ</translation>
@@ -563,6 +573,7 @@
 <translation id="5422221874247253874">ਐਕਸੈੱਸ ਪੁਆਇੰਟ</translation>
 <translation id="5428105026674456456">ਸਪੇਨਿਸ਼</translation>
 <translation id="5438282218546237410"><ph name="SEARCH_TERM" /> ਲਈ ਕੋਈ ਵੀ ਨਤੀਜੇ ਨਹੀਂ ਹਨ।</translation>
+<translation id="5447680084201416734">ਲੋੜੀਂਦੀ ਸਟੋਰੇਜ ਨਹੀਂ ਹੈ।</translation>
 <translation id="5449551289610225147">ਅਵੈਧ ਪਾਸਵਰਡ</translation>
 <translation id="5459064203055649751">"<ph name="FILENAME" />" ਨਾਮਕ ਫ਼ਾਈਲ ਪਹਿਲਾਂ ਹੀ ਮੌਜੂਦ ਹੈ। ਕੀ ਤੁਸੀਂ ਇਸ ਫ਼ਾਈਲ ਨੂੰ ਮੌਜੂਦਾ ਫ਼ਾਈਲ ਨਾਲ ਬਦਲਣਾ ਚਾਹੁੰਦੇ ਹੋ?</translation>
 <translation id="5463231940765244860">ਦਾਖਲ ਕਰੋ</translation>
@@ -578,16 +589,18 @@
 <translation id="5533102081734025921"><ph name="IMAGE_TYPE" /> ਚਿੱਤਰ</translation>
 <translation id="5534520101572674276">ਆਕਾਰ ਦਾ ਅਨੁਮਾਨ ਲਗਾ ਰਿਹਾ ਹੈ</translation>
 <translation id="554153475311314364">ਯੂਨਾਨੀ ਲਿਪੀਅੰਤਰਨ</translation>
+<translation id="5554171655917412781"><ph name="SELECTED_FOLDERS_COUNT" /> ਫੋਲਡਰ ਚੁਣੇ ਗਏ</translation>
 <translation id="5580591966435005537">ਆਭਾਸੀ ਮਸ਼ੀਨ</translation>
 <translation id="5583640892426849032">ਬੈਕਸਪੇਸ</translation>
 <translation id="5583664733673201137">ਵਿਸ਼ਰਾਮ-ਚਿੰਨ੍ਹ ਚੌੜਾਈ ਪੂਰੀ ਹੈ</translation>
-<translation id="5596627076506792578">ਹੋਰ ਚੋਣਾਂ</translation>
+<translation id="5596627076506792578">ਹੋਰ ਵਿਕਲਪ</translation>
 <translation id="5602622065581044566">ਧੁਨੀਆਤਮਿਕ ਕੀ-ਬੋਰਡ ਦੇ ਨਾਲ ਬੁਲਗਾਰੀਆਈ</translation>
 <translation id="5605830556594064952">US Dvorak</translation>
 <translation id="5618330573454123917">ਇਹ ਫ਼ਾਈਲ Macintosh ਸਾਫ਼ਟਵੇਅਰ ਵਰਤਣ ਵਾਲੇ ਕੰਪਿਊਟਰ ਲਈ ਤਿਆਰ ਕੀਤੀ ਗਈ ਹੈ। ਇਹ ਤੁਹਾਡੇ ChromeOS ਨਾਲ ਚਲਣ ਵਾਲੇ ਡੀਵਾਈਸ ਦੇ ਅਨੁਰੂਪ ਨਹੀਂ ਹੈ। ChromeOS 'ਤੇ ਫ਼ਾਈਲਾਂ ਖੋਲ੍ਹਣ ਬਾਰੇ <ph name="BEGIN_LINK_HELP" />ਹੋਰ ਜਾਣੋ<ph name="END_LINK_HELP" />।</translation>
 <translation id="5625294776298156701">ਤਮਿਲ99 ਕੀ-ਬੋਰਡ ਦੇ ਨਾਲ ਤਮਿਲ</translation>
 <translation id="5633226425545095130">ਇਸ ਆਈਟਮ ਦੀ ਜਗ੍ਹਾ ਬਦਲਣ ਨਾਲ ਇਸਨੂੰ ਹਰ ਉਸ ਵਿਅਕਤੀ ਨਾਲ ਸਾਂਝਾ ਕੀਤਾ ਜਾਵੇਗਾ ਜੋ ਸਾਂਝਾ ਕੀਤੇ ਫੋਲਡਰ '<ph name="DESTINATION_NAME" />' ਨੂੰ ਦੇਖ ਸਕਦੇ ਹਨ।</translation>
 <translation id="5649768706273821470">ਸੁਣਿਆ</translation>
+<translation id="5650895901941743674">ਆਪਣੇ APN ਸੰਰੂਪਣ ਦੀ ਜਾਂਚ ਕਰੋ</translation>
 <translation id="5669691691057771421">ਨਵਾਂ PIN ਦਾਖਲ ਕਰੋ</translation>
 <translation id="5678784840044122290">Linux ਐਪਲੀਕੇਸ਼ਨ ਤੁਹਾਡੇ ਟਰਮੀਨਲ ਵਿੱਚ ਉਪਲਬਧ ਹੋਵੇਗੀ ਅਤੇ ਸ਼ਾਇਦ ਇਹ ਤੁਹਾਡੇ ਲਾਂਚਰ ਵਿੱਚ ਕੋਈ ਪ੍ਰਤੀਕ ਵੀ ਦਿਖਾ ਸਕਦੀ ਹੈ।</translation>
 <translation id="5686799162999241776"><ph name="BEGIN_BOLD" />ਕਿਸੇ ਪੁਰਾਲੇਖ ਜਾਂ ਵਰਚੁਅਲ ਡਿਸਕ ਤੋਂ ਡਿਸਕਨੈਕਟ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ<ph name="END_BOLD" />
@@ -599,7 +612,9 @@
 <translation id="5720028165859493293"><ph name="FILE_NAME" /> ਨੂੰ ਰੱਦੀ ਵਿੱਚ ਲਿਜਾਇਆ ਗਿਆ</translation>
 <translation id="5724172041621205163">ਪੈਟਾਸ਼ੋਟੇ ਕੀ-ਬੋਰਡ ਦੇ ਨਾਲ ਥਾਈ</translation>
 <translation id="57383366388012121">ਪਿਛਲਾ ਮਹੀਨਾ</translation>
+<translation id="575175778971367197">ਫ਼ਿਲਹਾਲ ਇਸ ਫ਼ਾਈਲ ਨੂੰ ਸਿੰਕ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ</translation>
 <translation id="5756666464756035725">ਹੰਗਰੀਆਈ QWERTY</translation>
+<translation id="5760252553414789727"><ph name="SELECTED_FILES_COUNT" /> ਆਈਟਮਾਂ ਚੁਣੀ ਗਈ</translation>
 <translation id="5763377084591234761">ਜਰਮਨ (ਸਵਿਟਜ਼ਰਲੈਂਡ)</translation>
 <translation id="5769519078756170258">ਬਾਹਰ ਰੱਖਣ ਲਈ ਹੋਸਟ ਜਾਂ ਡੋਮੇਨ</translation>
 <translation id="5775750595919327203">ਉਰਦੂ</translation>
@@ -617,12 +632,13 @@
 <translation id="5838451609423551646">ਚੋਣ ਤੋਂ ਸਾਰੇ ਇੰਦਰਾਜ ਹਟਾਏ ਗਏ।</translation>
 <translation id="5838825566232597749">ਅਮਰੀਕੀ ਵਰਕਮੈਨ ਅੰਤਰਰਾਸ਼ਟਰੀ</translation>
 <translation id="5845721951356578987">ਨਰਸ</translation>
+<translation id="5858478190805449225">ਬੈਟਰੀ ਸੇਵਰ ਮੋਡ ਬੰਦ ਹੈ। ਬੈਟਰੀ ਸੇਵਰ ਮੋਡ ਬੰਦ ਹੋਣ 'ਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।</translation>
+<translation id="5860491529813859533">ਚਾਲੂ ਕਰੋ</translation>
 <translation id="5861477046012235702">ਗੇਮਰ</translation>
 <translation id="5864471791310927901">DHCP ਲੁਕਅੱਪ ਅਸਫ਼ਲ ਹੋ ਗਿਆ</translation>
 <translation id="5896749729057314184"><ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" /> ਨੈੱਟਵਰਕ, <ph name="NETWORK_NAME" />, ਅਕਿਰਿਆਸ਼ੀਲ ਕੀਤਾ ਗਿਆ, ਸਿਗਨਲ ਦੀ ਤੀਬਰਤਾ <ph name="SIGNAL_STRENGTH" />%, ਵੇਰਵੇ</translation>
 <translation id="5911887972742538906">ਤੁਹਾਡੀ Linux ਐਪਲੀਕੇਸ਼ਨ ਦੀ ਸਥਾਪਨਾ ਦੌਰਾਨ ਕੋਈ ਗੜਬੜ ਹੋ ਗਈ।</translation>
 <translation id="5912396950572065471">ਫਾਰਮੈਟ</translation>
-<translation id="5913638992615760742">ਕਾਪੀ ਕਰਨ ਦੀ ਕਾਰਵਾਈ ਅਸਫਲ ਰਹੀ, ਅਣਕਿਆਸੀ ਗੜਬੜ: <ph name="ERROR_MESSAGE" /></translation>
 <translation id="5918480239180455431">ਨਵੀਆਂ ਖੋਜ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ ਉਪਲਬਧ ਹਨ</translation>
 <translation id="5926082595146149752">ਸੰਯੁਕਤ ਰਾਜ ਅੰਤਰਰਾਸ਼ਟਰੀ PC ਕੀ-ਬੋਰਡ ਨਾਲ ਡੱਚ (ਨੀਦਰਲੈਂਡ)</translation>
 <translation id="5932901536148835538">Chromebit</translation>
@@ -630,7 +646,6 @@
 <translation id="5955954492236143329"><ph name="NUMBER_OF_ITEMS" /> ਆਈਟਮਾਂ</translation>
 <translation id="5957366693331451795">Chromeboxes</translation>
 <translation id="5982621672636444458">ਵਿਕਲਪ ਕ੍ਰਮਬੱਧ ਕਰੋ</translation>
-<translation id="6007237601604674381">ਮੂਵ ਅਸਫਲ। <ph name="ERROR_MESSAGE" /></translation>
 <translation id="6011074160056912900">ਈਥਰਨੈੱਟ ਨੈੱਟਵਰਕ</translation>
 <translation id="60357267506638014">ਚੈਕ QWERTY</translation>
 <translation id="603895874132768835">ਤੁਸੀਂ ਨਵੇਂ ਪਿੰਨ ਦਾ ਸੈੱਟ ਅੱਪ ਕਰ ਲੈਣ ਤੱਕ ਇਹ ਨੈੱਟਵਰਕ ਵਰਤ ਨਹੀਂ ਸਕਦੇ</translation>
@@ -652,6 +667,8 @@
 <translation id="6164412158936057769">ਤਿਤਲੀਆਂ</translation>
 <translation id="6165508094623778733">ਹੋਰ ਜਾਣੋ</translation>
 <translation id="6170470584681422115">ਸੈਂਡਵਿਚ</translation>
+<translation id="6177854567773392726">ਸਟੋਰੇਜ ਜਗ੍ਹਾ ਦੀ ਜਾਂਚ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ… <ph name="ITEMS_FOUND" /> ਆਈਟਮਾਂ ਮਿਲੀਆਂ</translation>
+<translation id="6181912134988520389"><ph name="VM_NAME" /> ਨੂੰ ਤੁਹਾਡੀ Google Drive ਵਿਚਲੀਆਂ ਫ਼ਾਈਲਾਂ ਤੱਕ ਪਹੁੰਚ ਕਰਨ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ। ਤਬਦੀਲੀਆਂ ਨੂੰ ਤੁਹਾਡੇ ਹੋਰ ਡੀਵਾਈਸਾਂ ਨਾਲ ਸਿੰਕ ਕੀਤਾ ਜਾਵੇਗਾ।</translation>
 <translation id="6187719147498869044">ਹੰਗਰੀਆਈ</translation>
 <translation id="6198252989419008588">PIN ਬਦਲੋ</translation>
 <translation id="6199801702437275229">ਸਪੇਸ ਜਾਣਕਾਰੀ ਦੀ ਉਡੀਕ ਕਰ ਰਿਹਾ ਹੈ...</translation>
@@ -663,6 +680,7 @@
 <translation id="6267547857941397424">ਨੈੱਟਵਰਕ <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" />, <ph name="PHONE_NAME" />, ਸਿਗਨਲ ਦੀ ਤੀਬਰਤਾ <ph name="SIGNAL_STRENGTH" />%, ਫ਼ੋਨ ਦੀ ਬੈਟਰੀ <ph name="BATTERY_STATUS" />%, ਕਨੈਕਟ ਕਰੋ</translation>
 <translation id="6269630227984243955">ਮਲਾਏ</translation>
 <translation id="6271903698064569429">ਫ਼ਾਈਲਾਂ ਨੂੰ ਅੱਪਲੋਡ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ ਕਿਉਂਕਿ "<ph name="SHARED_DRIVE_NAME" />" ਵਿੱਚ ਲੋੜੀਂਦੀ ਸਟੋਰੇਜ ਨਹੀਂ ਹੈ।</translation>
+<translation id="6279140785485544797">ਸ਼ਾਇਦ ਤੁਹਾਡੇ ਮੋਬਾਈਲ ਡਾਟਾ ਪਲਾਨ ਦੀ ਮਿਆਦ ਸਮਾਪਤ ਹੋ ਗਈ ਹੈ। ਸਹਾਇਤਾ ਲਈ ਆਪਣੇ ਕੈਰੀਅਰ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।</translation>
 <translation id="6287852322318138013">ਇਸ ਫ਼ਾਈਲ ਨੂੰ ਖੋਲ੍ਹਣ ਲਈ ਇੱਕ ਐਪ ਚੁਣੋ</translation>
 <translation id="6295542640242147836">ਸਿਮ ਲਾਕ</translation>
 <translation id="6296410173147755564">ਅਵੈਧ PUK</translation>
@@ -672,9 +690,7 @@
 <translation id="6320212353742551423"><ph name="ARCHIVE_TYPE" /> ਪੁਰਾਲੇਖ</translation>
 <translation id="6321303798550928047">ਹੱਥ ਹਿਲਾਉਂਦੇ ਹੋਏ</translation>
 <translation id="6327785803543103246">ਵੈੱਬ ਪ੍ਰੌਕਸੀ autodiscovery</translation>
-<translation id="6337014272874260727">ਤਤਕਾਲ ਫ਼ਾਈਲਾਂ ਤੋਂ ਅਣਪਿੰਨ ਕਰੋ</translation>
 <translation id="6339145975392024142">ਅਮਰੀਕੀ ਅੰਤਰਰਾਸ਼ਟਰੀ (PC)</translation>
-<translation id="6346310558342052870">ਪਹੁੰਚ ਪ੍ਰਤਿਬੰਧਿਤ ਕੀਤੀ ਗਈ</translation>
 <translation id="6356685157277930264">Files ਸੰਬੰਧੀ ਵਿਚਾਰ ਵਾਲੀ ਵਿੰਡੋ</translation>
 <translation id="6358884629796491903">ਡਰੈਗਨ</translation>
 <translation id="636254897931573416">ਡੋੋਮੇਨ ਪਿਛੇਤਰ ਦੇ ਮਿਲਾਨ ਵਾਲਾ ਮੁੱਲ ਅਵੈਧ ਹੈ</translation>
@@ -683,10 +699,13 @@
 <translation id="637062427944097960">ਇਹ ਫਾਈਲ ਇੱਕ ਵੱਖਰੇ ਡੈਸਕਟਾਪ 'ਤੇ ਖੁੱਲੀ ਹੋਈ ਹੈ। ਇਸਨੂੰ ਦੇਖਣ ਲਈ <ph name="USER_NAME" /> (<ph name="MAIL_ADDRESS" />) 'ਤੇ ਹਲਚਲ ਕਰੋ।</translation>
 <translation id="6394388407447716302">ਸਿਰਫ਼ ਪੜ੍ਹਨ ਲਈ</translation>
 <translation id="6395575651121294044"><ph name="NUMBER_OF_FILES" /> ਆਈਟਮਾਂ</translation>
+<translation id="6407769893376380348"><ph name="FILE_NAME" /> ਨੂੰ ਕਿਸੇ ਹੋਰ ਥਾਂ 'ਤੇ ਨਹੀਂ ਲਿਜਾਇਆ ਜਾ ਸਕਿਆ ਕਿਉਂਕਿ ਇਹ ਇਨਕ੍ਰਿਪਟਡ ਹੈ।</translation>
 <translation id="642282551015776456">ਇਹ ਨਾਮ ਫੋਲਡਰ ਨਾਮ ਦੀ ਇੱਕ ਫਾਈਲ ਦੇ ਤੌਰ ਤੇ ਨਹੀਂ ਵਰਤਿਆ ਜਾ ਸਕਦਾ</translation>
 <translation id="6423031066725912715">TCVN ਕੀ-ਬੋਰਡ ਨਾਲ ਵੀਅਤਨਾਮੀ</translation>
 <translation id="6430271654280079150">ਤੁਹਾਡੇ ਕੋਲ 1 ਕੋਸ਼ਿਸ਼ ਬਾਕੀ ਹੈ।</translation>
 <translation id="643243556292470964">ਮਿਟਾਈਆਂ ਗਈਆਂ ਫ਼ਾਈਲਾਂ ਨੂੰ ਹੁਣ ਰੱਦੀ ਵਿੱਚ ਲਿਜਾਇਆ ਗਿਆ ਹੈ</translation>
+<translation id="6438480100790416671">ਸਟੋਰੇਜ ਜਗ੍ਹਾ ਦੀ ਜਾਂਚ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ…</translation>
+<translation id="6451527188465304418">ਤੁਹਾਡੀ ਸੰਸਥਾ ਦੀਆਂ ਸੁਰੱਖਿਆ ਨੀਤੀਆਂ ਮੁਤਾਬਕ ਫ਼ਾਈਲ ਦੀ ਜਾਂਚ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ...</translation>
 <translation id="6485131920355264772">ਸਪੇਸ ਜਾਣਕਾਰੀ ਮੁੜ ਪ੍ਰਾਪਤ ਕਰਨ ਵਿੱਚ ਅਸਫਲ</translation>
 <translation id="6495925982925244349">ਨੈੱਟਵਰਕ <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" />, <ph name="NETWORK_NAME" />, <ph name="SECURITY_STATUS" />, <ph name="CONNECTION_STATUS" />, ਸਿਗਨਲ ਦੀ ਤੀਬਰਤਾ <ph name="SIGNAL_STRENGTH" />%, ਤੁਹਾਡੇ ਪ੍ਰਸ਼ਾਸਕ ਵੱਲੋਂ ਪ੍ਰਬੰਧਿਤ ਕੀਤਾ ਜਾਂਦਾ ਹੈ, ਵੇਰਵੇ</translation>
 <translation id="649877868557234318"><ph name="FILE_NAME" /> ਨੂੰ <ph name="FOLDER_NAME" /> ਵਿੱਚ ਐਕਸਟਰੈਕਟ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ</translation>
@@ -694,11 +713,11 @@
 <translation id="6503285896705205014">ਪ੍ਰਸ਼ਾਸਕ ਨੀਤੀ ਵੱਲੋਂ <ph name="COUNT" /> ਫ਼ਾਈਲਾਂ ਨੂੰ ਕਾਪੀ ਕਰਨ ਦੀ ਸੁਵਿਧਾ ਨੂੰ ਬਲਾਕ ਕੀਤਾ ਗਿਆ ਹੈ</translation>
 <translation id="6509122719576673235">ਨਾਰਵੇਜੀਅਨ</translation>
 <translation id="6528513914570774834">ਇਸ ਡੀਵਾਈਸ ਦੇ ਹੋਰ ਵਰਤੋਂਕਾਰਾਂ ਨੂੰ ਇਸ ਨੈੱਟਵਰਕ ਦੀ ਵਰਤੋਂ ਕਰਨ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ</translation>
-<translation id="653019979737152879"><ph name="FILE_NAME" /> ਨੂੰ ਸਿੰਕ ਕਰ ਰਿਹਾ ਹੈ...</translation>
 <translation id="6549689063733911810">ਹਾਲੀਆ</translation>
 <translation id="6558280019477628686">ਕੋਈ ਗੜਬੜ ਹੋਈ। ਸ਼ਾਇਦ ਕੁਝ ਆਈਟਮਾਂ ਮਿਟਾਈਆਂ ਨਹੀਂ ਗਈਆਂ ਹਨ।</translation>
 <translation id="656398493051028875">"<ph name="FILENAME" />" ਨੂੰ ਮਿਟਾ ਰਿਹਾ ਹੈ...</translation>
 <translation id="6581162200855843583">Google Drive ਲਿੰਕ</translation>
+<translation id="6588648400954570689">ਫ਼ਾਈਲ ਸਿੰਕ ਸੈਟਿੰਗਾਂ</translation>
 <translation id="6594855146910089723">ਇਹ ਫੋਲਡਰ Linux ਅਤੇ Parallels Desktop ਨਾਲ ਸਾਂਝਾ ਕੀਤਾ ਗਿਆ ਹੈ</translation>
 <translation id="6607272825297743757">ਫ਼ਾਈਲ ਜਾਣਕਾਰੀ</translation>
 <translation id="6609332149380188670"><ph name="NUMBER_OF_ITEMS" /> ਫੋਲਡਰ Parallels Desktop ਨਾਲ ਸਾਂਝੇ ਕੀਤੇ ਗਏ</translation>
@@ -713,10 +732,10 @@
 <translation id="6710213216561001401">ਪਿਛਲਾ</translation>
 <translation id="6732801395666424405">ਪ੍ਰਮਾਣ-ਪੱਤਰ ਲੋਡ ਨਹੀਂ ਕੀਤੇ ਗਏ</translation>
 <translation id="6736329909263487977"><ph name="ISSUED_BY" /> [<ph name="ISSUED_TO" />]</translation>
-<translation id="6740270213273127264">Bruschetta ਨਾਲ ਫੋਲਡਰ ਸਾਂਝਾ ਕਰੋ</translation>
 <translation id="6750737795876287924">ਮੌਜੂਦਾ ਡਾਇਰੈਕਟਰੀ</translation>
 <translation id="6751256176799620176">1 ਫੋਲਡਰ ਚੁਣਿਆ ਗਿਆ</translation>
 <translation id="6755827872271341378">ChromeOS Flex ਡੀਵਾਈਸ</translation>
+<translation id="6777029074498310250">ਹੋਰ ਜਾਣਕਾਰੀ ਲਈ <ph name="LINK_BEGIN" />onedrive.live.com<ph name="LINK_END" /> 'ਤੇ ਜਾਓ</translation>
 <translation id="6790428901817661496">ਪਲੇ ਕਰੋ</translation>
 <translation id="6794539005637808366">ਆਈਟਮ ਨੂੰ ਮੁੜ-ਬਹਾਲ ਕਰੋ ਜਾਂ ਇਸਨੂੰ ਰੱਦੀ ਤੋਂ ਬਾਹਰ ਕਿਸੇ ਨਵੇਂ ਫੋਲਡਰ ਵਿੱਚ ਘਸੀਟੋ</translation>
 <translation id="6795884519221689054">ਪਾਂਡਾ</translation>
@@ -755,7 +774,7 @@
 <translation id="6989942356279143254">ਸਵੀਡਿਸ਼</translation>
 <translation id="6990081529015358884">ਤੁਹਾਡਾ ਸਪੇਸ ਖ਼ਤਮ ਹੋਣ ਵਾਲਾ ਹੈ</translation>
 <translation id="6993826899923627728">ਇਹ ਆਈਟਮਾਂ ਤੁਹਾਡੀ ਰੱਦੀ ਵਿੱਚ ਹਨ</translation>
-<translation id="6998711733709403587"><ph name="SELCTED_FOLDERS_COUNT" /> ਫੋਲਡਰ ਚੁਣੇ</translation>
+<translation id="6996593023542748157"><ph name="VM_NAME" /> ਨਾਲ ਫੋਲਡਰ ਸਾਂਝਾ ਕਰੋ</translation>
 <translation id="7008426324576352165">ਅੱਪਲੋਡ ਨੂੰ ਪੂਰਾ ਕਰਨ ਲਈ ਤੁਹਾਡੀ ਸੰਸਥਾ ਨੂੰ ਹੋਰ ਸਟੋਰੇਜ ਦੀ ਲੋੜ ਹੈ।</translation>
 <translation id="7009985720488544166">ਪ੍ਰਸ਼ਾਸਕ ਨੀਤੀ ਵੱਲੋਂ <ph name="COUNT" /> ਫ਼ਾਈਲਾਂ ਨੂੰ ਲਿਜਾਉਣ ਦੀ ਸੁਵਿਧਾ ਨੂੰ ਬਲਾਕ ਕੀਤਾ ਗਿਆ ਹੈ</translation>
 <translation id="7012943028104619157"><ph name="ROOT_TITLE" /> (<ph name="ROOT_SUMMARY" />)</translation>
@@ -770,6 +789,7 @@
 <translation id="7086590977277044826">ਇਨਸਕ੍ਰਿਪਟ ਕੀ-ਬੋਰਡ ਦੇ ਨਾਲ ਤਮਿਲ</translation>
 <translation id="7088615885725309056">ਪੁਰਾਣਾ</translation>
 <translation id="7103992300314999525">ਮੈਸੇਡੋਨੀਅਨ</translation>
+<translation id="7104338189998813914">ਤੁਹਾਡੇ OneDrive ਖਾਤੇ ਤੱਕ ਪਹੁੰਚ ਕਰਨ ਵਿੱਚ ਕੋਈ ਸਮੱਸਿਆ ਹੈ</translation>
 <translation id="7106346894903675391">ਹੋਰ ਸਟੋਰੇਜ ਖਰੀਦੇ...</translation>
 <translation id="7126604456862387217">'&lt;b&gt;<ph name="SEARCH_STRING" />&lt;/b&gt;' - &lt;em&gt;ਡਰਾਈਵ ਖੋਜੋ&lt;/em&gt;</translation>
 <translation id="7135561821015524160">ਕੰਨੜ ਧੁਨੀਆਤਮਿਕ</translation>
@@ -787,9 +807,10 @@
 <translation id="7238643356913091553"><ph name="NETWORK_NAME" />, ਵੇਰਵੇ</translation>
 <translation id="7246947237293279874">FTP ਪ੍ਰੌਕਸੀ</translation>
 <translation id="7248671827512403053">ਐਪਲੀਕੇਸ਼ਨ</translation>
-<translation id="7252604552361840748">ਉੱਪਰ ਦਿੱਤੀ ਐਕਸਟੈਂਸ਼ਨ ਲੱਭੋ</translation>
 <translation id="7256405249507348194">ਬੇਪਛਾਣ ਗੜਬੜ: <ph name="DESC" /></translation>
 <translation id="7268659760406822741">ਉਪਲਬਧ ਸੇਵਾਵਾਂ</translation>
+<translation id="7291818353625820805">ਕੀ ਦੁਹਰਾਉਣ ਲਈ ਕੁੰਜੀਆਂ ਚਾਹੁੰਦੇ ਹੋ? ਕੀਬੋਰਡ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਐਕਸੈਂਟ ਚਿੰਨ੍ਹ ਬੰਦ ਕਰੋ</translation>
+<translation id="729236380049459563">ਫ਼ਾਈਲ ਸਿੰਕ ਚਾਲੂ ਹੈ</translation>
 <translation id="7292816689782057017">ਪ੍ਰਸ਼ਾਸਕ ਨੀਤੀ ਕੁਝ ਟਿਕਾਣਿਆਂ 'ਤੇ ਡਾਊਨਲੋਡ ਕੀਤੀਆਂ ਫ਼ਾਈਲਾਂ ਨੂੰ ਰੱਖਿਅਤ ਕਰਨਾ ਪ੍ਰਤਿਬੰਧਿਤ ਕਰਦੀ ਹੈ।</translation>
 <translation id="7294063083760278948">ਤੇਲਗੂ ਲਿਪੀਅੰਤਰਨ</translation>
 <translation id="7295662345261934369">ਹੋਰਾਂ ਨਾਲ ਸਾਂਝਾ ਕਰੋ</translation>
@@ -797,6 +818,7 @@
 <translation id="7309413087278791451">ਜਰਮਨ (ਬੈਲਜੀਅਮ)</translation>
 <translation id="7339898014177206373">ਨਵੀਂ window</translation>
 <translation id="7343393116438664539">ਵੀਅਤਨਾਮੀ ਟੈਲੈਕਸ</translation>
+<translation id="7347346221088620549">ਇਨਕ੍ਰਿਪਟਡ ਫ਼ਾਈਲ</translation>
 <translation id="7357762654218998920">ਇਹ ਫ਼ਾਈਲ ਦੀ ਕਿਸਮ ਸਮਰਥਿਤ ਨਹੀਂ ਹੈ। ChromeOS 'ਤੇ ਫ਼ਾਈਲਾਂ ਖੋਲ੍ਹਣ ਬਾਰੇ <ph name="BEGIN_LINK_HELP" />ਹੋਰ ਜਾਣੋ<ph name="END_LINK_HELP" />।</translation>
 <translation id="7359359531237882347"><ph name="NUMBER_OF_ITEMS" /> ਆਈਟਮਾਂ ਨੂੰ ਕਾਪੀ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ...</translation>
 <translation id="7375951387215729722"><ph name="COLUMN_NAME" /> ਮੁਤਾਬਕ ਘੱਟਦੇ ਕ੍ਰਮ ਵਿੱਚ ਕ੍ਰਮ-ਬੱਧ ਕੀਤੀ ਫ਼ਾਈਲ ਸੂਚੀ।</translation>
@@ -823,10 +845,11 @@
 <translation id="7547811415869834682">ਡੱਚ</translation>
 <translation id="7551643184018910560">ਸ਼ੈਲਫ ਤੇ ਪਿਨ ਕਰੋ</translation>
 <translation id="7553492409867692754">Linux ਐਪਾਂ ਨੂੰ <ph name="FOLDER_NAME" /> ਫੋਲਡਰ ਵਿਚਲੀਆਂ ਫ਼ਾਈਲਾਂ ਤੱਕ ਪਹੁੰਚ ਕਰਨ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ</translation>
+<translation id="7555339735447658365">ਫ਼ਿਲਹਾਲ ਤੁਸੀਂ ਆਫ਼ਲਾਈਨ ਹੋ। ਤੁਹਾਡੇ ਇੰਟਰਨੈੱਟ ਨਾਲ ਕਨੈਕਟ ਹੋਣ 'ਤੇ ਫ਼ਾਈਲ ਸਿੰਕ ਮੁੜ-ਚਾਲੂ ਹੋ ਜਾਵੇਗਾ</translation>
 <translation id="7589661784326793847">ਕੇਵਲ ਇੱਕ ਸਕਿੰਟ ਠਹਿਰੋ</translation>
-<translation id="7592775719802218421"><ph name="FILE_NAME" /> ਨੂੰ ਆਫ਼ਲਾਈਨ ਉਪਲਬਧ ਕਰਵਾਇਆ ਜਾ ਰਿਹਾ ਹੈ</translation>
 <translation id="7600126690270271294">ਸਰਬੀਆਈ</translation>
 <translation id="7603724359189955920">ਗਰਿੱਡ</translation>
+<translation id="7624010287655004652">ਕਿਸੇ ਹੋਰ ਮੋਬਾਈਲ ਸੇਵਾ ਪ੍ਰਦਾਨਕ ਵੱਲੋਂ ਲਾਕ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="7627790789328695202">ਉਹ, <ph name="FILE_NAME" /> ਪਹਿਲਾਂ ਹੀ ਮੌਜੂਦ ਹੈ। ਇਸਨੂੰ ਮੁੜ-ਨਾਮਕਰਨ ਕਰੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।</translation>
 <translation id="7628656427739290098"><ph name="PERCENT" />% ਪੂਰਾ।</translation>
 <translation id="7649070708921625228">ਸਹਾਇਤਾ</translation>
@@ -841,6 +864,7 @@
 <translation id="76959938259365003">ਰੱਦੀ ਨੂੰ ਖਾਲੀ ਕਰਨਾ ਅਸਫਲ ਰਿਹਾ।</translation>
 <translation id="770015031906360009">Greek</translation>
 <translation id="7705251383879779343"><ph name="FILE_NAME" /> ਨੂੰ ਕਾਪੀ ਕੀਤਾ ਗਿਆ।</translation>
+<translation id="7707941139430559579">ਫ਼ਾਈਲ ਨੂੰ ਲਿਜਾਇਆ ਨਹੀਂ ਜਾ ਸਕਦਾ। <ph name="ERROR_MESSAGE" /></translation>
 <translation id="7708271999969613024">ਇਸ ਨੈੱਟਵਰਕ ਨੂੰ ਵਰਤਣ ਲਈ, ਤੁਹਾਨੂੰ ਕੈਰੀਅਰ ਵੱਲੋਂ ਮੁਹੱਈਆ ਕਰਵਾਈ 8-ਅੰਕਾਂ ਦੀ ਨਿੱਜੀ ਅਣਬਲਾਕਿੰਗ ਕੁੰਜੀ (PUK) ਦਾਖਲ ਕਰਨ ਦੀ ਲੋੜ ਹੋਵੇਗੀ।</translation>
 <translation id="7711920809702896782">ਚਿੱਤਰ ਦੀ ਜਾਣਕਾਰੀ</translation>
 <translation id="7724603315864178912">ਕੱਟੋ</translation>
@@ -862,6 +886,7 @@
 <translation id="7805768142964895445">ਸਥਿਤੀ</translation>
 <translation id="7806708061868529807">ਹਿਬਰੂ</translation>
 <translation id="78104721049218340">ਕੇਦਮਨੀ ਕੀ-ਬੋਰਡ ਨਾਲ ਥਾਈ</translation>
+<translation id="7814857791038398352">Microsoft OneDrive</translation>
 <translation id="7827012282502221009"><ph name="NUMBER_OF_TB" /> TB</translation>
 <translation id="7831491651892296503">ਨੈੱਟਵਰਕ ਦਾ ਸੰਰੂਪਣ ਕਰਨ ਵਿੱਚ ਗੜਬੜ ਹੋਈ</translation>
 <translation id="7839804798877833423">ਇਹਨਾਂ ਫਾਈਲਾਂ ਨੂੰ ਪ੍ਰਾਪਤ ਕਰਨ ਨਾਲ ਇਹ ਲਗਭਗ <ph name="FILE_SIZE" /> ਮੋਬਾਈਲ ਡਾਟਾ ਵਰਤਣਗੀਆਂ।</translation>
@@ -874,9 +899,10 @@
 <translation id="7903984238293908205">ਕਾਟਾਕਾਨਾ</translation>
 <translation id="7908793776359722643">ਕਿਸੇ ਭਾਗ ਨੂੰ ਫਾਰਮੈਟ ਕਰਨ ਨਾਲ ਇਸ 'ਤੇ ਸਟੋਰ ਕੀਤਾ ਸਾਰਾ ਡਾਟਾ ਮਿਟ ਜਾਵੇਗਾ। ਇਸ ਕਾਰਵਾਈ ਨੂੰ ਅਣਕੀਤਾ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ।</translation>
 <translation id="7911118814695487383">Linux</translation>
+<translation id="7920501309908018401">'ਮੇਰੀ ਡਰਾਈਵ' ਵਿੱਚ ਮੌਜੂਦ ਤੁਹਾਡੀਆਂ ਫ਼ਾਈਲਾਂ ਆਪਣੇ ਆਪ ਤੁਹਾਡੇ Chromebook ਨਾਲ ਸਿੰਕ ਹੋ ਜਾਣਗੀਆਂ, ਤਾਂ ਜੋ ਤੁਸੀਂ ਉਨ੍ਹਾਂ ਤੱਕ ਇੰਟਰਨੈੱਟ ਕਨੈਕਸ਼ਨ ਦੇ ਬਿਨਾਂ ਪਹੁੰਚ ਕਰ ਸਕੋ।</translation>
 <translation id="7925247922861151263">AAA ਜਾਂਚ ਅਸਫਲ ਹੋ ਗਈ</translation>
-<translation id="7925686952655276919">ਸਿੰਕ ਕਰਨ ਲਈ ਮੋਬਾਈਲ ਡਾਟਾ ਨਾ ਵਰਤੋ</translation>
 <translation id="7928710562641958568">ਡੀਵਾਈਸ ਹਟਾਓ</translation>
+<translation id="7933875256234974853">Drive ਫ਼ਾਈਲਾਂ ਨੂੰ ਸਿੰਕ ਕਰਨ ਦੀ ਤਿਆਰੀ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ...</translation>
 <translation id="7943385054491506837">US Colemak</translation>
 <translation id="7953739707111622108">ਇਹ ਡੀਵਾਈਸ ਨਹੀਂ ਖੋਲ੍ਹੀ ਜਾ ਸਕਦੀ ਕਿਉਂਕਿ ਇਸਦਾ ਫਾਈਲਸਿਸਟਮ ਪਛਾਣਿਆ ਨਹੀਂ ਗਿਆ ਸੀ।</translation>
 <translation id="7969525169268594403">Slovenian</translation>
@@ -886,6 +912,7 @@
 <translation id="8000066093800657092">ਕੋਈ ਨੈੱਟਵਰਕ ਨਹੀਂ</translation>
 <translation id="8008366997883261463">ਜੈਕ ਰੂਸੈਲ ਟੈਰੀਅਰ</translation>
 <translation id="8028993641010258682">ਆਕਾਰ</translation>
+<translation id="8034974485549318493">ਸ਼ੁਰੂਆਤੀ ਸੈੱਟਅੱਪ ਲਈ, ਤੁਹਾਨੂੰ ਇੰਟਰਨੈੱਟ ਨਾਲ ਕਨੈਕਟ ਕਰਨਾ ਪਵੇਗਾ, ਤਾਂ ਜੋ ਫ਼ਾਈਲਾਂ ਸਿੰਕ ਹੋ ਸਕਣ।</translation>
 <translation id="803771048473350947">ਫਾਈਲ</translation>
 <translation id="8038111231936746805">(ਪੂਰਵ-ਨਿਰਧਾਰਤ)</translation>
 <translation id="8042602468072383151"><ph name="AUDIO_TYPE" /> ਆਡੀਓ</translation>
@@ -896,18 +923,23 @@
 <translation id="8087576439476816834">ਡਾਊਨਲੋਡ ਕਰੋ, <ph name="PROFILE_NAME" /></translation>
 <translation id="8106045200081704138">ਮੇਰੇ ਨਾਲ ਸ਼ੇਅਰ ਕੀਤਾ</translation>
 <translation id="8116072619078571545">ਠੰਡਾ ਪਾਣੀ</translation>
+<translation id="8120392982188717723">ਮੀਟਰਬੱਧ ਨੈੱਟਵਰਕਾਂ 'ਤੇ ਸਿੰਕ ਕਰਨ ਦੀ ਆਗਿਆ ਦਿਓ</translation>
+<translation id="8124093710070495550">ਸਿੰਕ ਸੰਬੰਧੀ ਸਮੱਸਿਆ</translation>
 <translation id="8128733386027980860">ਡੀਵੋਰਯੈਕ ਕੀ-ਬੋਰਡ ਦੇ ਨਾਲ ਅੰਗਰੇਜ਼ੀ (ਯੂ.ਕੇ.)</translation>
 <translation id="8137331602592933310">"<ph name="FILENAME" />" ਤੁਹਾਡੇ ਨਾਲ ਸ਼ੇਅਰ ਕੀਤੀ ਗਈ ਹੈ। ਤੁਸੀਂ ਇਸਨੂੰ ਮਿਟਾ ਨਹੀਂ ਸਕਦੇ ਕਿਉਂਕਿ ਇਹ ਤੁਹਾਡੀ ਨਹੀਂ ਹੈ।</translation>
 <translation id="8138705869659070104">ਡੀਵਾਈਸ ਸੈੱਟਅੱਪ ਤੋਂ ਬਾਅਦ ਕਿਰਿਆਸ਼ੀਲ ਕਰੋ</translation>
 <translation id="813913629614996137">ਸ਼ੁਰੂ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ...</translation>
 <translation id="8147028810663464959">ਅੱਖਰ-ਚਿੰਨ੍ਹ ਦੀ ਚੌੜਾਈ ਪੂਰੀ ਹੈ</translation>
 <translation id="8151638057146502721">ਸੰਰੂਪਿਤ ਕਰੋ</translation>
+<translation id="8154666764013920974">{NUM_ERROR,plural, =1{1 ਗੜਬੜ।}one{# ਗੜਬੜ।}other{# ਗੜਬੜਾਂ।}}</translation>
 <translation id="8154842056504218462">ਸਾਰੇ ਇੰਦਰਾਜ ਚੁਣੇ ਗਏ।</translation>
 <translation id="8157684860301034423">ਐਪ ਜਾਣਕਾਰੀ ਨੂੰ ਮੁੜ-ਪ੍ਰਾਪਤ ਕਰਨਾ ਅਸਫਲ ਰਿਹਾ।</translation>
 <translation id="8175731104491895765">ਫਰਾਂਸੀਸੀ (ਬੈਲਜੀਅਮ)</translation>
+<translation id="8175799081768705361">Drive ਦੀਆਂ <ph name="NUMBER_OF_FILES_SYNCING" /> ਫ਼ਾਈਲਾਂ ਨੂੰ ਸਿੰਕ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ</translation>
 <translation id="8179976553408161302">ਦਰਜ ਕਰੋ</translation>
 <translation id="8193175696669055101">ਡੀਵਾਈਸ ਮਾਡਲ</translation>
 <translation id="8223479393428528563">ਆਫ਼ਲਾਈਨ ਵਰਤੋਂ ਲਈ ਇਹ ਫ਼ਾਈਲਾਂ ਰੱਖਿਅਤ ਕਰਨ ਲਈ, ਵਾਪਸ ਆਨਲਾਈਨ ਜਾਓ, ਫ਼ਾਈਲਾਂ ਤੇ ਸੱਜਾ-ਕਲਿੱਕ ਕਰੋ ਅਤੇ <ph name="OFFLINE_CHECKBOX_NAME" /> ਵਿਕਲਪ ਚੁਣੋ।</translation>
+<translation id="8241139360630443550">ਸਟੋਰੇਜ ਦੇਖੋ</translation>
 <translation id="8249296373107784235">ਰੋਕੋ</translation>
 <translation id="8250690786522693009">ਲਾਤੀਨੀ</translation>
 <translation id="8250920743982581267">ਦਸਤਾਵੇਜ਼</translation>
@@ -918,6 +950,7 @@
 <translation id="8264024885325823677">ਤੁਹਾਡਾ ਪ੍ਰਸ਼ਾਸਕ ਇਸ ਸੈਟਿੰਗ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰਦਾ ਹੈ।</translation>
 <translation id="8269755669432358899">ਫ਼ਾਈਲਾਂ ਦੇ ਪ੍ਰਤੀਕਰਮ ਪੈਨਲਾਂ ਨੂੰ ਸਮੇਟੋ</translation>
 <translation id="8280151743281770066">ਅਰਮੀਨੀਅਨ ਫੋਨੈਟਿਕ</translation>
+<translation id="8285791779547722821">ਇਨਕ੍ਰਿਪਟਡ <ph name="ORIGINAL_MIME_TYPE" /></translation>
 <translation id="8294431847097064396">ਸ੍ਰੋਤ</translation>
 <translation id="8297012244086013755">Hangul 3 ਸੈਟ (ਕੋਈ Shift ਨਹੀਂ)</translation>
 <translation id="8299269255470343364">ਜਾਪਾਨੀ</translation>
@@ -929,14 +962,18 @@
 <translation id="8335837413233998004">ਬੇਲਾਰੂਸੀ</translation>
 <translation id="8336153091935557858">ਕੱਲ੍ਹ <ph name="YESTERDAY_DAYTIME" /></translation>
 <translation id="8342318071240498787">ਸਮਾਨ ਨਾਮ ਵਾਲੀ ਇੱਕ ਫਾਈਲ ਜਾਂ ਡਾਇਰੈਕਟਰੀ ਪਹਿਲਾਂ ਹੀ ਮੌਜੂਦ ਹੈ।</translation>
+<translation id="83651606385705612"><ph name="VM_NAME" /> ਨੂੰ <ph name="FOLDER_NAME" /> ਫੋਲਡਰ ਵਿਚਲੀਆਂ ਫ਼ਾਈਲਾਂ ਤੱਕ ਪਹੁੰਚ ਕਰਨ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ</translation>
 <translation id="8372369524088641025">ਘਟੀਆ WEP ਕੁੰਜੀ</translation>
 <translation id="8372852072747894550">ਯੂਨਾਨੀ</translation>
+<translation id="8377269993083688872">ਈਮੇਲ ਲੇਆਊਟ</translation>
 <translation id="8386903983509584791">ਸਕੈਨ ਪੂਰਾ ਹੋਈ</translation>
 <translation id="8387733224523483503"><ph name="FILE_NAME" /> ਨੂੰ ਐਕਸਟ੍ਰੈਕਟ ਕੀਤਾ ਗਿਆ।</translation>
 <translation id="8395901698320285466">ਮਾਪ</translation>
 <translation id="8404498045299006085">ਸਭ ਰੱਖੋ</translation>
 <translation id="8408068190360279472"><ph name="NETWORK_TYPE" /> ਨੈੱਟਵਰਕ, ਕਨੈਕਟ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ</translation>
 <translation id="8425213833346101688">ਬਦਲੋ</translation>
+<translation id="8428213095426709021">ਸੈਟਿੰਗਾਂ</translation>
+<translation id="8429998526804961548"><ph name="VM_NAME" /> ਨਾਲ <ph name="NUMBER_OF_ITEMS" /> ਫੋਲਡਰ ਸਾਂਝੇ ਕੀਤੇ ਗਏ</translation>
 <translation id="8431909052837336408">ਸਿਮ PIN ਬਦਲੋ</translation>
 <translation id="8437209419043462667">US</translation>
 <translation id="8452135315243592079">ਗੁੰਮ ਸਿਮ ਕਾਰਡ</translation>
@@ -967,12 +1004,13 @@
 <translation id="8569764466147087991">ਖੋਲ੍ਹਣ ਲਈ ਇੱਕ ਫਾਈਲ ਚੁਣੋ</translation>
 <translation id="8577897833047451336">ਕ੍ਰੋਸ਼ੀਅਨ</translation>
 <translation id="8578308463707544055">ਇੰਡੋਨੇਸ਼ੀਆਈ</translation>
-<translation id="8579285237314169903"><ph name="NUMBER_OF_FILES" /> ਆਈਟਮਾਂ ਸਿੰਕ ਕਰ ਰਿਹਾ ਹੈ...</translation>
 <translation id="8600173386174225982">ਫ਼ਾਈਲ ਸੂਚੀ, ਲਘੂ-ਚਿੱਤਰ ਦ੍ਰਿਸ਼ ਵਿੱਚ ਬਦਲ ਗਈ ਹੈ।</translation>
 <translation id="8601932370724196034">Crostini ਈਮੇਜ ਫ਼ਾਈਲ</translation>
 <translation id="8609695766746872526">ਆਈਸਲੈਂਡੀ</translation>
+<translation id="8630384863424041081">ਆਪਣਾ ਸਿਮ ਕਾਰਡ ਪਿੰਨ ਜਾਂ ਤੁਹਾਡੇ ਕੈਰੀਅਰ ਵੱਲੋਂ ਮੁਹੱਈਆ ਕਰਵਾਇਆ ਪੂਰਵ-ਨਿਰਧਾਰਿਤ ਪਿੰਨ ਦਾਖਲ ਕਰੋ। ਸਹਾਇਤਾ ਲਈ ਆਪਣੇ ਕੈਰੀਅਰ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।</translation>
 <translation id="863903787380594467">ਗਲਤ ਪਿੰਨ। ਤੁਹਾਡੇ ਕੋਲ <ph name="RETRIES" /> ਕੋਸ਼ਿਸ਼ਾਂ ਬਾਕੀ ਹਨ।</translation>
 <translation id="8639391553632924850"><ph name="INPUT_LABEL" /> - ਪੋਰਟ</translation>
+<translation id="8656407365183407932">ਤੁਹਾਡੀਆਂ ਆਫ਼ਲਾਈਨ ਫ਼ਾਈਲਾਂ ਨੂੰ ਹਟਾਉਣਾ ਪਿਆ</translation>
 <translation id="8656768832129462377">ਜਾਂਚ ਨਾ ਕਰੋ</translation>
 <translation id="8688591111840995413">ਖਰਾਬ ਪਾਸਵਰਡ</translation>
 <translation id="8698464937041809063">Google ਡਰਾਇੰਗ</translation>
@@ -986,6 +1024,7 @@
 <translation id="8787254343425541995">ਸ਼ੇਅਰ ਕੀਤੇ ਨੈਟਵਰਕਾਂ ਲਈ ਪ੍ਰੌਕਸੀਆਂ ਦੀ ਆਗਿਆ ਦਿਓ</translation>
 <translation id="8790981080411996443">ਬੂਟਿਆਂ ਨੂੰ ਪਾਣੀ ਦਿੰਦੇ ਹੋਏ ਵਿਅਕਤੀ</translation>
 <translation id="8798099450830957504">ਪੂਰਵ-ਨਿਰਧਾਰਤ</translation>
+<translation id="8806832560029769670">{NUM_WARNING,plural, =1{1 ਚਿਤਾਵਨੀ।}one{# ਚਿਤਾਵਨੀ।}other{# ਚਿਤਾਵਨੀਆਂ।}}</translation>
 <translation id="8808686172382650546">ਬਿੱਲੀ</translation>
 <translation id="8810671769985673465">ਜ਼ਿਪ ਕਰਨਾ ਅਸਫਲ ਰਿਹਾ, ਆਈਟਮ ਮੌਜੂਦ ਹੈ: "<ph name="FILE_NAME" />"</translation>
 <translation id="8813284582615685103">ਸਪੇਨੀ (ਸਪੇਨ)</translation>
@@ -1003,9 +1042,12 @@
 <translation id="8919081441417203123">ਡੈਨਿਸ਼</translation>
 <translation id="8949925099261528566">ਕਨੈਕਟ ਕੀਤਾ, ਕੋਈ ਇੰਟਰਨੈੱਟ ਨਹੀਂ</translation>
 <translation id="8965697826696209160">ਕਾਫ਼ੀ ਸਪੇਸ ਨਹੀਂ ਹੈ।</translation>
+<translation id="8970887620466824814">ਕੋਈ ਗੜਬੜ ਹੋ ਗਈ।</translation>
+<translation id="8971742885766657349">ਸਿੰਕ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ - <ph name="PERCENT" />%</translation>
 <translation id="8997962250644902079">ਚੀਨੀ (ਰਵਾਇਤੀ) ਪਿਨਯਿਨ</translation>
 <translation id="8998871447376656508">ਅੱਪਲੋਡ ਨੂੰ ਪੂਰਾ ਕਰਨ ਲਈ ਤੁਹਾਡੀ Google Drive ਵਿੱਚ ਲੋੜੀਂਦੀ ਜਗ੍ਹਾ ਖਾਲੀ ਨਹੀਂ ਹੈ।</translation>
 <translation id="9003940392834790328">ਨੈੱਟਵਰਕ <ph name="NETWORK_COUNT" /> ਵਿੱਚੋਂ <ph name="NETWORK_INDEX" />, <ph name="NETWORK_NAME" />, <ph name="CONNECTION_STATUS" />, ਸਿਗਨਲ ਦੀ ਤੀਬਰਤਾ <ph name="SIGNAL_STRENGTH" />%, ਤੁਹਾਡੇ ਪ੍ਰਸ਼ਾਸਕ ਵੱਲੋਂ ਪ੍ਰਬੰਧਿਤ ਕੀਤਾ ਜਾਂਦਾ ਹੈ, ਵੇਰਵੇ</translation>
+<translation id="9007990314804111233">ਆਪਣੇ Microsoft ਖਾਤੇ ਵਿੱਚ ਸਾਈਨ-ਇਨ ਕਰੋ</translation>
 <translation id="9017798300203431059">ਰੂਸੀ ਧੁਨੀਆਤਮਿਕ</translation>
 <translation id="9034924485347205037">Linux ਫ਼ਾਈਲਾਂ</translation>
 <translation id="9035012421917565900">ਆਈਟਮਾਂ ਨੂੰ '<ph name="DESTINATION_NAME" />' ਵਿੱਚ ਵਾਪਸ ਤਬਦੀਲ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ, ਇਸ ਕਰਕੇ ਤੁਸੀਂ ਇਸ ਕਾਰਵਾਈ ਨੂੰ ਅਣਕੀਤਾ ਕਰਨ ਦੇ ਯੋਗ ਨਹੀਂ ਹੋਵੋਗੇ।</translation>

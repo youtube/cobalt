@@ -9,14 +9,14 @@
  */
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
-import 'chrome://resources/polymer/v3_0/iron-flex-layout/iron-flex-layout-classes.js';
 import '../icons.html.js';
 import '../settings_shared.css.js';
 
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {DefaultBrowserBrowserProxy, DefaultBrowserBrowserProxyImpl, DefaultBrowserInfo} from './default_browser_browser_proxy.js';
+import type {DefaultBrowserBrowserProxy, DefaultBrowserInfo} from './default_browser_browser_proxy.js';
+import {DefaultBrowserBrowserProxyImpl} from './default_browser_browser_proxy.js';
 import {getTemplate} from './default_browser_page.html.js';
 
 const SettingsDefaultBrowserPageElementBase =
@@ -41,10 +41,10 @@ export class SettingsDefaultBrowserPageElement extends
     };
   }
 
-  private isDefault_: boolean;
-  private isSecondaryInstall_: boolean;
-  private isUnknownError_: boolean;
-  private maySetDefaultBrowser_: boolean;
+  declare private isDefault_: boolean;
+  declare private isSecondaryInstall_: boolean;
+  declare private isUnknownError_: boolean;
+  declare private maySetDefaultBrowser_: boolean;
   private browserProxy_: DefaultBrowserBrowserProxy =
       DefaultBrowserBrowserProxyImpl.getInstance();
 

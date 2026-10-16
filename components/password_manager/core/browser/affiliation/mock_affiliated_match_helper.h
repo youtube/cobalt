@@ -16,7 +16,7 @@
 
 namespace password_manager {
 
-// TODO(crbug.com/1432264) Delete this class. Class should not be derived from
+// TODO(crbug.com/40263853) Delete this class. Class should not be derived from
 // the production class.
 class MockAffiliatedMatchHelper : public AffiliatedMatchHelper {
  public:
@@ -29,7 +29,8 @@ class MockAffiliatedMatchHelper : public AffiliatedMatchHelper {
   };
 
   MockAffiliatedMatchHelper();
-  explicit MockAffiliatedMatchHelper(AffiliationService* affiliation_service);
+  explicit MockAffiliatedMatchHelper(
+      affiliations::AffiliationService* affiliation_service);
 
   MockAffiliatedMatchHelper(const MockAffiliatedMatchHelper&) = delete;
   MockAffiliatedMatchHelper& operator=(const MockAffiliatedMatchHelper&) =
@@ -40,9 +41,11 @@ class MockAffiliatedMatchHelper : public AffiliatedMatchHelper {
   // Expects GetAffiliatedAndroidAndWebRealms() to be called with the
   // |expected_observed_form|, and will cause the result callback supplied to
   // GetAffiliatedAndroidAndWebRealms() to be invoked with |results_to_return|.
-  void ExpectCallToGetAffiliatedAndroidRealms(
+  void ExpectCallToGetAffiliatedAndGrouped(
       const PasswordFormDigest& expected_observed_form,
-      const std::vector<std::string>& results_to_return);
+      std::vector<std::string> affiliated_realms,
+      std::vector<std::string> grouped_realms = {},
+      bool repeatedly = false);
 
   // Expects GetGroup() to be called with the
   // |expected_observed_form|, and will cause the result callback supplied to
@@ -67,16 +70,13 @@ class MockAffiliatedMatchHelper : public AffiliatedMatchHelper {
               OnInjectAffiliationAndBrandingInformationCalled,
               ());
 
-  void GetAffiliatedAndroidAndWebRealms(
+  void GetAffiliatedAndGroupedRealms(
       const PasswordFormDigest& observed_form,
       AffiliatedRealmsCallback result_callback) override;
 
-  void GetGroup(const PasswordFormDigest& observed_form,
-                AffiliatedRealmsCallback result_callback) override;
-
   void InjectAffiliationAndBrandingInformation(
-      std::vector<std::unique_ptr<PasswordForm>> forms,
-      PasswordFormsOrErrorCallback result_callback) override;
+      LoginsResult forms,
+      base::OnceCallback<void(LoginsResultOrError)> result_callback) override;
 };
 
 }  // namespace password_manager

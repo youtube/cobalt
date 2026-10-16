@@ -7,10 +7,12 @@
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
 #include "base/threading/thread_restrictions.h"
-#include "build/build_config.h"
 #include "chrome/browser/extensions/extension_apitest.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/render_frame_host.h"
@@ -27,9 +29,7 @@ namespace {
 
 class ExtensionUntrustedWebUITest : public ExtensionApiTest {
  public:
-  ExtensionUntrustedWebUITest() {
-    scoped_feature_list_.InitWithFeatures({features::kReadAnything}, {});
-  }
+  ExtensionUntrustedWebUITest() = default;
 
   ~ExtensionUntrustedWebUITest() override = default;
 
@@ -61,12 +61,12 @@ class ExtensionUntrustedWebUITest : public ExtensionApiTest {
     ASSERT_TRUE(ui_test_utils::NavigateToURL(
         browser(), GURL("chrome-untrusted://api-test/title1.html")));
 
-    content::RenderFrameHost* rfh = browser()
-                                        ->tab_strip_model()
-                                        ->GetActiveWebContents()
-                                        ->GetPrimaryMainFrame();
-    ASSERT_TRUE(rfh);
-    content::ExecuteScriptAsync(rfh, script);
+    content::RenderFrameHost* render_frame_host = browser()
+                                                      ->tab_strip_model()
+                                                      ->GetActiveWebContents()
+                                                      ->GetPrimaryMainFrame();
+    ASSERT_TRUE(render_frame_host);
+    content::ExecuteScriptAsync(render_frame_host, script);
 
     EXPECT_TRUE(catcher.GetNextResult());
   }
@@ -91,33 +91,49 @@ class ExtensionUntrustedWebUITest : public ExtensionApiTest {
       script = "(function(){'use strict';" + script + "}());";
     }
 
-    // Run the test.
+    // Run the test. Navigating to the URL will trigger the read anything
+    // navigation throttle and open the side panel instead of loading read
+    // anything in the main content area.
     EXPECT_TRUE(ui_test_utils::NavigateToURL(
-        browser(),
-        GURL("chrome-untrusted://read-anything-side-panel.top-chrome/")));
-    content::RenderFrameHost* webui = browser()
-                                          ->tab_strip_model()
-                                          ->GetActiveWebContents()
-                                          ->GetPrimaryMainFrame();
-    bool result = content::EvalJs(webui, script).ExtractBool();
-    return (result) ? testing::AssertionSuccess()
-                    : (testing::AssertionFailure() << "Check console output");
-  }
+        browser(), GURL(chrome::kChromeUIUntrustedReadAnythingSidePanelURL)));
+    // Get the side panel entry registry.
+    auto* side_panel_ui = browser()->GetFeatures().side_panel_ui();
+    auto* side_panel_web_contents =
+        side_panel_ui->GetWebContentsForTest(SidePanelEntryId::kReadAnything);
 
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
+    if (!side_panel_web_contents) {
+      return testing::AssertionFailure() << "Failed to navigate to WebUI";
+    }
+    // Wait for the view to load before trying to run the test. This ensures
+    // that chrome.readingMode is set.
+    content::WaitForLoadStop(side_panel_web_contents);
+    // Eval the JS test.
+    bool result =
+        content::EvalJs(side_panel_web_contents, script).ExtractBool();
+    return result ? testing::AssertionSuccess()
+                  : (testing::AssertionFailure() << "Check console output");
+  }
 };
 
 }  // namespace
 
-IN_PROC_BROWSER_TEST_F(ExtensionUntrustedWebUITest, SanityCheckAvailableAPIs) {
-  RunTestOnApiTestPage("sanity_check_available_apis.js");
+IN_PROC_BROWSER_TEST_F(ExtensionUntrustedWebUITest,
+                       ConfidenceCheckAvailableAPIs) {
+  RunTestOnApiTestPage("confidence_check_available_apis.js");
 }
 
+// TODO(crbug.com/417615981): Re-enable this test
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_ConfidenceCheckAvailableAPIsReadAnything \
+  DISABLED_ConfidenceCheckAvailableAPIsReadAnything
+#else
+#define MAYBE_ConfidenceCheckAvailableAPIsReadAnything \
+  ConfidenceCheckAvailableAPIsReadAnything
+#endif
 IN_PROC_BROWSER_TEST_F(ExtensionUntrustedWebUITest,
-                       SanityCheckAvailableAPIsReadAnything) {
+                       MAYBE_ConfidenceCheckAvailableAPIsReadAnything) {
   ASSERT_TRUE(RunTestOnReadAnythingPage(
-      "sanity_check_available_apis_read_anything.js"));
+      "confidence_check_available_apis_read_anything.js"));
 }
 
 // Tests that we can call a function that send a message to the browser and

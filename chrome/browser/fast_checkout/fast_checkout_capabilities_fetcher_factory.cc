@@ -24,7 +24,7 @@ FastCheckoutCapabilitiesFetcherFactory::FastCheckoutCapabilitiesFetcherFactory()
           "FastCheckoutCapabilitiesFetcher",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
               .Build()) {}
@@ -40,9 +40,10 @@ FastCheckoutCapabilitiesFetcherFactory::GetForBrowserContext(
       GetInstance()->GetServiceForBrowserContext(browser_context, true));
 }
 
-KeyedService* FastCheckoutCapabilitiesFetcherFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+FastCheckoutCapabilitiesFetcherFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* browser_context) const {
-  return new FastCheckoutCapabilitiesFetcherImpl(
+  return std::make_unique<FastCheckoutCapabilitiesFetcherImpl>(
       browser_context->GetDefaultStoragePartition()
           ->GetURLLoaderFactoryForBrowserProcess());
 }

@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "extensions/common/mojom/css_origin.mojom-shared.h"
 #include "extensions/common/mojom/host_id.mojom.h"
@@ -47,6 +48,7 @@ class UserScriptInjector : public ScriptInjector,
   mojom::InjectionType script_type() const override;
   blink::mojom::UserActivationOption IsUserGesture() const override;
   mojom::ExecutionWorld GetExecutionWorld() const override;
+  const std::optional<std::string>& GetExecutionWorldId() const override;
   mojom::CSSOrigin GetCssOrigin() const override;
   mojom::CSSInjection::Operation GetCSSInjectionOperation() const override;
   blink::mojom::WantResultOption ExpectsResults() const override;
@@ -69,25 +71,25 @@ class UserScriptInjector : public ScriptInjector,
       mojom::RunLocation run_location,
       std::set<std::string>* injected_stylesheets,
       size_t* num_injected_stylesheets) const override;
-  void OnInjectionComplete(absl::optional<base::Value> execution_result,
+  void OnInjectionComplete(std::optional<base::Value> execution_result,
                            mojom::RunLocation run_location) override;
   void OnWillNotInject(InjectFailureReason reason) override;
 
   // The associated user script. Owned by the UserScriptSet that created this
   // object.
-  const UserScript* script_;
+  raw_ptr<const UserScript, DanglingUntriaged> script_;
 
   // The UserScriptSet that eventually owns the UserScript this
   // UserScriptInjector points to. Outlives `this` unless the UserScriptSet may
   // be destroyed first, and `this` will be destroyed immediately after.
-  UserScriptSet* const user_script_set_;
+  const raw_ptr<UserScriptSet, DanglingUntriaged> user_script_set_;
 
   // The id of the associated user script. We cache this because when we update
-  // the |script_| associated with this injection, the old reference may be
+  // the `script_` associated with this injection, the old reference may be
   // deleted.
   std::string script_id_;
 
-  // The associated host id, preserved for the same reason as |script_id|.
+  // The associated host id, preserved for the same reason as `script_id`.
   mojom::HostID host_id_;
 
   // Indicates whether or not this script is declarative. This influences which

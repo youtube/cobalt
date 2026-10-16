@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 
 #include "base/functional/bind.h"
@@ -16,10 +21,9 @@
 #include "chrome/browser/ash/login/screens/welcome_screen.h"
 #include "chrome/browser/ash/login/test/js_checker.h"
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
-#include "chrome/browser/ash/login/ui/login_display_host.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_notification_types.h"
+#include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/webui/ash/login/oobe_ui.h"
 #include "chrome/browser/ui/webui/ash/login/welcome_screen_handler.h"
 #include "chrome/common/pref_names.h"
@@ -28,7 +32,6 @@
 #include "chromeos/ash/components/system/statistics_provider.h"
 #include "components/language/core/browser/pref_names.h"
 #include "components/prefs/pref_service.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -81,7 +84,7 @@ class LanguageListWaiter : public WelcomeScreen::Observer {
       loop_.Quit();
   }
 
-  raw_ptr<WelcomeScreen, ExperimentalAsh> welcome_screen_;
+  raw_ptr<WelcomeScreen> welcome_screen_;
   base::RunLoop loop_;
 };
 
@@ -99,13 +102,18 @@ struct LocalizationTestParams {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
     // ------------------ Non-Latin setup
     // For a non-Latin keyboard layout like Russian, we expect to see the US
-    // keyboard.
-    {"ru", "xkb:ru::rus", "ru", kUSLayout, "xkb:us::eng"},
-    {"ru", "xkb:us::eng,xkb:ru::rus", "ru", kUSLayout, "xkb:us::eng"},
+    // keyboard and XKB-IMs attached to a given locale.
+    {"ru", "xkb:ru::rus", "ru", kUSLayout,
+     "xkb:us::eng,xkb:ru::rus,[xkb:ru:phonetic:rus]"},
+    {"ru", "xkb:us::eng,xkb:ru::rus", "ru", kUSLayout,
+     "xkb:us::eng,xkb:ru::rus,[xkb:ru:phonetic:rus]"},
 
-    // IMEs do not load at OOBE, so we just expect to see the (Latin) Japanese
-    // keyboard.
-    {"ja", "xkb:jp::jpn", "ja", "xkb:jp::jpn", "xkb:jp::jpn,[xkb:us::eng]"},
+    // Only allowlisted IMEs are available during OOBE, if given locale doesn't
+    // have any allowlisted IMs attached we will see only Latin IM enabled.
+    {"ja", "xkb:jp::jpn", "ja", "xkb:jp::jpn",
+     "xkb:jp::jpn,[nacl_mozc_us,nacl_mozc_jp,xkb:us::eng]"},
+    {"ar", "xkb:us::eng", "ar", "xkb:us::eng", "xkb:us::eng,[vkd_ar]"},
+    {"ko", "xkb:us::eng", "ko", "xkb:us::eng", "xkb:us::eng"},
 
     // We don't use the Icelandic locale but the Icelandic keyboard layout
     // should still be selected when specified as the default.
@@ -127,7 +135,8 @@ struct LocalizationTestParams {
     {"es,en-US,nl", "xkb:be::nld", "es,en-US,nl", "xkb:be::nld",
      "xkb:be::nld,[xkb:es::spa,xkb:latam::spa,xkb:us::eng]"},
 
-    {"ru,de", "xkb:ru::rus", "ru,de", kUSLayout, "xkb:us::eng"},
+    {"ru,de", "xkb:ru::rus", "ru,de", kUSLayout,
+     "xkb:us::eng,xkb:ru::rus,[xkb:ru:phonetic:rus]"},
 
     // ------------------ Regional Locales
     // Synthetic example to test correct merging of different locales.
@@ -143,13 +152,18 @@ struct LocalizationTestParams {
 #else
     // ------------------ Non-Latin setup
     // For a non-Latin keyboard layout like Russian, we expect to see the US
-    // keyboard.
-    {"ru", "xkb:ru::rus", "ru", kUSLayout, "xkb:us::eng"},
-    {"ru", "xkb:us::eng,xkb:ru::rus", "ru", kUSLayout, "xkb:us::eng"},
+    // keyboard and XKB-IMs attached to a given locale.
+    {"ru", "xkb:ru::rus", "ru", kUSLayout,
+     "xkb:us::eng,xkb:ru::rus,[xkb:ru:phonetic:rus]"},
+    {"ru", "xkb:us::eng,xkb:ru::rus", "ru", kUSLayout,
+     "xkb:us::eng,xkb:ru::rus,[xkb:ru:phonetic:rus]"},
 
-    // IMEs do not load at OOBE, so we just expect to see the (Latin) Japanese
-    // keyboard.
-    {"ja", "xkb:jp::jpn", "ja", "xkb:jp::jpn", "xkb:jp::jpn,[xkb:us::eng]"},
+    // Only allowlisted IMEs are available during OOBE, if given locale doesn't
+    // have any allowlisted IMs attached we will see only Latin IM enabled.
+    {"ja", "xkb:jp::jpn", "ja", "xkb:jp::jpn",
+     "xkb:jp::jpn,[nacl_mozc_us,nacl_mozc_jp,xkb:us::eng]"},
+    {"ar", "xkb:us::eng", "ar", "xkb:us::eng", "xkb:us::eng,[vkd_ar]"},
+    {"ko", "xkb:us::eng", "ko", "xkb:us::eng", "xkb:us::eng"},
 
     // We don't use the Icelandic locale but the Icelandic keyboard layout
     // should still be selected when specified as the default.
@@ -171,7 +185,8 @@ struct LocalizationTestParams {
     {"es,en-US,nl", "xkb:be::nld", "es,en-US,nl", "xkb:be::nld",
      "xkb:be::nld,[xkb:es::spa,xkb:latam::spa,xkb:us::eng]"},
 
-    {"ru,de", "xkb:ru::rus", "ru,de", kUSLayout, "xkb:us::eng"},
+    {"ru,de", "xkb:ru::rus", "ru,de", kUSLayout,
+     "xkb:us::eng,xkb:ru::rus,[xkb:ru:phonetic:rus]"},
 
     // ------------------ Regional Locales
     // Synthetic example to test correct merging of different locales.
@@ -320,21 +335,30 @@ std::string OobeLocalizationTest::DumpOptions(const char* select_id) {
   return test::OobeJS().GetString(expression);
 }
 
-std::string TranslateXKB2Extension(const std::string& src) {
+std::string TranslateLocal2Global(const std::string& src) {
   std::string result(src);
-  // Modifies the expected keyboard select control options for the new
-  // extension based xkb id.
-  size_t pos = 0;
-  std::string repl_old = "xkb:";
-  std::string repl_new = extension_ime_util::GetInputMethodIDByEngineID("xkb:");
-  while ((pos = result.find(repl_old, pos)) != std::string::npos) {
-    result.replace(pos, repl_old.length(), repl_new);
-    pos += repl_new.length();
+  const std::vector<std::string> replacements = {
+      "xkb:",
+      "nacl_mozc_",
+      "vkd_",
+  };
+
+  for (const auto& replacement : replacements) {
+    // Modifies the expected keyboard select control options for the new
+    // extension based id.
+    size_t pos = 0;
+    std::string repl_new =
+        extension_ime_util::GetInputMethodIDByEngineID(replacement);
+    while ((pos = result.find(replacement, pos)) != std::string::npos) {
+      result.replace(pos, replacement.length(), repl_new);
+      pos += repl_new.length();
+    }
   }
   return result;
 }
 
 void OobeLocalizationTest::RunLocalizationTest() {
+  WaitForOobeUI();
   const std::string expected_locale(GetParam()->expected_locale);
   const std::string expected_keyboard_layout(
       GetParam()->expected_keyboard_layout);
@@ -342,7 +366,7 @@ void OobeLocalizationTest::RunLocalizationTest() {
       GetParam()->expected_keyboard_select_control);
 
   const std::string expected_keyboard_select =
-      TranslateXKB2Extension(expected_keyboard_select_control);
+      TranslateLocal2Global(expected_keyboard_select_control);
 
   ASSERT_NO_FATAL_FAILURE(LanguageListWaiter().RunUntilLanguageListReady());
 
@@ -357,7 +381,7 @@ void OobeLocalizationTest::RunLocalizationTest() {
       << DumpOptions(kLanguageSelect);
 
   ASSERT_NO_FATAL_FAILURE(VerifyInitialOptions(
-      kKeyboardSelect, TranslateXKB2Extension(expected_keyboard_layout).c_str(),
+      kKeyboardSelect, TranslateLocal2Global(expected_keyboard_layout).c_str(),
       false))
       << "Actual value of " << kKeyboardSelect << ":\n"
       << DumpOptions(kKeyboardSelect);

@@ -10,7 +10,6 @@
 #include "components/safe_browsing/core/browser/safe_browsing_lookup_mechanism.h"
 
 namespace safe_browsing {
-class SafeBrowsingLookupMechanismExperimenter;
 
 // This class is responsible for handling timeouts for running a specific Safe
 // Browsing mechanism lookup. It keeps a timer while the mechanism runs and
@@ -21,15 +20,17 @@ class SafeBrowsingLookupMechanismRunner {
  public:
   using CompleteCheckCallbackWithTimeout = base::OnceCallback<void(
       bool timed_out,
-      absl::optional<std::unique_ptr<
+      std::optional<std::unique_ptr<
           SafeBrowsingLookupMechanism::CompleteCheckResult>> result)>;
 
   // |lookup_mechanism| is the mechanism that the runner will use to perform the
   // lookup. |complete_check_callback| is the callback that will be called if
-  // the run does not complete synchronously. Its |result| parameter will only
-  // be populated if the run did not time out.
+  // the run does not complete synchronously; its |result| parameter will only
+  // be populated if the run did not time out. |performed_check_suffix| is a
+  // suffix used for a metric logging how long the check took to run.
   SafeBrowsingLookupMechanismRunner(
       std::unique_ptr<SafeBrowsingLookupMechanism> lookup_mechanism,
+      const std::string& performed_check_suffix,
       CompleteCheckCallbackWithTimeout complete_check_callback);
   ~SafeBrowsingLookupMechanismRunner();
   SafeBrowsingLookupMechanismRunner(const SafeBrowsingLookupMechanismRunner&) =
@@ -42,13 +43,6 @@ class SafeBrowsingLookupMechanismRunner {
   // synchronously and was found to be safe. In that case, the callback passed
   // through the constructor will not be called.
   SafeBrowsingLookupMechanism::StartCheckResult Run();
-  // Adds a reference from this object to the lookup mechanism experimenter so
-  // that the experimenter does not get destructed until after this object does.
-  void SetLookupMechanismExperimenter(
-      scoped_refptr<SafeBrowsingLookupMechanismExperimenter> experimenter);
-  // Returns how long the run took. Should not be called until after the run has
-  // completed.
-  base::TimeDelta GetRunDuration();
 
  private:
   // The function that the lookup mechanism calls into when its run completes.
@@ -66,6 +60,9 @@ class SafeBrowsingLookupMechanismRunner {
   // The lookup mechanism responsible for running the check and returning the
   // relevant results.
   std::unique_ptr<SafeBrowsingLookupMechanism> lookup_mechanism_;
+  // Suffix used for a metric logging how long the check took to run
+  // (SafeBrowsing.CheckUrl.TimeTaken.*).
+  std::string performed_check_suffix_;
   // The callback passed in through the constructor that should be called either
   // when the mechanism completes or when it times out, unless the run completes
   // synchronously. Its |result| parameter will only be populated if the run did
@@ -74,20 +71,14 @@ class SafeBrowsingLookupMechanismRunner {
   // Timer to abort the SafeBrowsing check if it takes too long.
   std::unique_ptr<base::OneShotTimer> timer_ =
       std::make_unique<base::OneShotTimer>();
+  // The time the run began. Used for metrics only.
+  base::TimeTicks start_lookup_time_;
 
 #if DCHECK_IS_ON()
   // Used only for a DCHECK to confirm that |OnCheckComplete| is called only
   // once.
   bool is_check_complete_ = false;
 #endif
-
-  // The time the run began.
-  base::TimeTicks start_lookup_time_;
-  // The time the run ended.
-  base::TimeTicks end_lookup_time_;
-  // Keep reference to experimenter to avoid it becoming destructed before the
-  // mechanism has completed.
-  scoped_refptr<SafeBrowsingLookupMechanismExperimenter> experimenter_;
 
   base::WeakPtrFactory<SafeBrowsingLookupMechanismRunner> weak_factory_{this};
 };

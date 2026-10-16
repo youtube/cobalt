@@ -13,11 +13,13 @@
 // limitations under the License.
 
 import {defer} from '../base/deferred';
-import {assertExists, reportError, setErrorHandler} from '../base/logging';
 import {
-  ConversionJobName,
-  ConversionJobStatus,
-} from '../common/conversion_jobs';
+  addErrorHandler,
+  assertExists,
+  ErrorDetails,
+  reportError,
+} from '../base/logging';
+import {time} from '../base/time';
 import traceconv from '../gen/traceconv';
 
 const selfWorker = self as {} as Worker;
@@ -25,9 +27,11 @@ const selfWorker = self as {} as Worker;
 // TODO(hjd): The trace ends up being copied too many times due to how
 // blob works. We should reduce the number of copies.
 
-type Format = 'json'|'systrace';
-type Args = ConvertTraceAndDownloadArgs|ConvertTraceAndOpenInLegacyArgs|
-    ConvertTraceToPprofArgs;
+type Format = 'json' | 'systrace';
+type Args =
+  | ConvertTraceAndDownloadArgs
+  | ConvertTraceAndOpenInLegacyArgs
+  | ConvertTraceToPprofArgs;
 
 function updateStatus(status: string) {
   selfWorker.postMessage({
@@ -36,20 +40,19 @@ function updateStatus(status: string) {
   });
 }
 
-function updateJobStatus(name: ConversionJobName, status: ConversionJobStatus) {
-  selfWorker.postMessage({
-    kind: 'updateJobStatus',
-    name,
-    status,
-  });
+function notifyJobCompleted() {
+  selfWorker.postMessage({kind: 'jobCompleted'});
 }
 
 function downloadFile(buffer: Uint8Array, name: string) {
-  selfWorker.postMessage({
-    kind: 'downloadFile',
-    buffer,
-    name,
-  }, [buffer.buffer]);
+  selfWorker.postMessage(
+    {
+      kind: 'downloadFile',
+      buffer,
+      name,
+    },
+    [buffer.buffer],
+  );
 }
 
 function openTraceInLegacy(buffer: Uint8Array) {
@@ -59,7 +62,7 @@ function openTraceInLegacy(buffer: Uint8Array) {
   });
 }
 
-function forwardError(error: string) {
+function forwardError(error: ErrorDetails) {
   selfWorker.postMessage({
     kind: 'error',
     error,
@@ -83,9 +86,10 @@ async function runTraceconv(trace: Blob, args: string[]) {
   await deferredRuntimeInitialized;
   module.FS.mkdir('/fs');
   module.FS.mount(
-      assertExists(module.FS.filesystems.WORKERFS),
-      {blobs: [{name: 'trace.proto', data: trace}]},
-      '/fs');
+    assertExists(module.FS.filesystems.WORKERFS),
+    {blobs: [{name: 'trace.proto', data: trace}]},
+    '/fs',
+  );
   updateStatus('Converting trace');
   module.callMain(args);
   updateStatus('Trace conversion completed');
@@ -96,11 +100,12 @@ interface ConvertTraceAndDownloadArgs {
   kind: 'ConvertTraceAndDownload';
   trace: Blob;
   format: Format;
-  truncate?: 'start'|'end';
+  truncate?: 'start' | 'end';
 }
 
-function isConvertTraceAndDownload(msg: Args):
-    msg is ConvertTraceAndDownloadArgs {
+function isConvertTraceAndDownload(
+  msg: Args,
+): msg is ConvertTraceAndDownloadArgs {
   if (msg.kind !== 'ConvertTraceAndDownload') {
     return false;
   }
@@ -114,11 +119,10 @@ function isConvertTraceAndDownload(msg: Args):
 }
 
 async function ConvertTraceAndDownload(
-    trace: Blob,
-    format: Format,
-    truncate?: 'start'|'end'): Promise<void> {
-  const jobName = format === 'json' ? 'convert_json' : 'convert_systrace';
-  updateJobStatus(jobName, ConversionJobStatus.InProgress);
+  trace: Blob,
+  format: Format,
+  truncate?: 'start' | 'end',
+): Promise<void> {
   const outPath = '/trace.json';
   const args: string[] = [format];
   if (truncate !== undefined) {
@@ -131,18 +135,19 @@ async function ConvertTraceAndDownload(
     downloadFile(fsNodeToBuffer(fsNode), `trace.${format}`);
     module.FS.unlink(outPath);
   } finally {
-    updateJobStatus(jobName, ConversionJobStatus.NotRunning);
+    notifyJobCompleted();
   }
 }
 
 interface ConvertTraceAndOpenInLegacyArgs {
   kind: 'ConvertTraceAndOpenInLegacy';
   trace: Blob;
-  truncate?: 'start'|'end';
+  truncate?: 'start' | 'end';
 }
 
-function isConvertTraceAndOpenInLegacy(msg: Args):
-    msg is ConvertTraceAndOpenInLegacyArgs {
+function isConvertTraceAndOpenInLegacy(
+  msg: Args,
+): msg is ConvertTraceAndOpenInLegacyArgs {
   if (msg.kind !== 'ConvertTraceAndOpenInLegacy') {
     return false;
   }
@@ -150,9 +155,9 @@ function isConvertTraceAndOpenInLegacy(msg: Args):
 }
 
 async function ConvertTraceAndOpenInLegacy(
-trace: Blob, truncate?: 'start'|'end') {
-  const jobName = 'open_in_legacy';
-  updateJobStatus(jobName, ConversionJobStatus.InProgress);
+  trace: Blob,
+  truncate?: 'start' | 'end',
+) {
   const outPath = '/trace.json';
   const args: string[] = ['json'];
   if (truncate !== undefined) {
@@ -160,7 +165,7 @@ trace: Blob, truncate?: 'start'|'end') {
   }
   args.push('/fs/trace.proto', outPath);
   try {
-    const module = await runTraceconv( trace, args);
+    const module = await runTraceconv(trace, args);
     const fsNode = module.FS.lookupPath(outPath).node;
     const data = fsNode.contents.buffer;
     const size = fsNode.usedBytes;
@@ -168,7 +173,7 @@ trace: Blob, truncate?: 'start'|'end') {
     openTraceInLegacy(buffer);
     module.FS.unlink(outPath);
   } finally {
-    updateJobStatus(jobName, ConversionJobStatus.NotRunning);
+    notifyJobCompleted();
   }
 }
 
@@ -176,7 +181,7 @@ interface ConvertTraceToPprofArgs {
   kind: 'ConvertTraceToPprof';
   trace: Blob;
   pid: number;
-  ts: number;
+  ts: time;
 }
 
 function isConvertTraceToPprof(msg: Args): msg is ConvertTraceToPprofArgs {
@@ -186,10 +191,7 @@ function isConvertTraceToPprof(msg: Args): msg is ConvertTraceToPprofArgs {
   return true;
 }
 
-async function ConvertTraceToPprof(
-trace: Blob, pid: number, ts: number) {
-  const jobName = 'convert_pprof';
-  updateJobStatus(jobName, ConversionJobStatus.InProgress);
+async function ConvertTraceToPprof(trace: Blob, pid: number, ts: time) {
   const args = [
     'profile',
     `--pid`,
@@ -201,27 +203,29 @@ trace: Blob, pid: number, ts: number) {
 
   try {
     const module = await runTraceconv(trace, args);
-    const heapDirName =
-        Object.keys(module.FS.lookupPath('/tmp/').node.contents)[0];
-    const heapDirContents =
-        module.FS.lookupPath(`/tmp/${heapDirName}`).node.contents;
+    const heapDirName = Object.keys(
+      module.FS.lookupPath('/tmp/').node.contents,
+    )[0];
+    const heapDirContents = module.FS.lookupPath(`/tmp/${heapDirName}`).node
+      .contents;
     const heapDumpFiles = Object.keys(heapDirContents);
     for (let i = 0; i < heapDumpFiles.length; ++i) {
       const heapDump = heapDumpFiles[i];
-      const fileNode =
-          module.FS.lookupPath(`/tmp/${heapDirName}/${heapDump}`).node;
+      const fileNode = module.FS.lookupPath(
+        `/tmp/${heapDirName}/${heapDump}`,
+      ).node;
       const fileName = `/heap_dump.${i}.${pid}.pb`;
       downloadFile(fsNodeToBuffer(fileNode), fileName);
     }
   } finally {
-    updateJobStatus(jobName, ConversionJobStatus.NotRunning);
+    notifyJobCompleted();
   }
 }
 
 selfWorker.onmessage = (msg: MessageEvent) => {
   self.addEventListener('error', (e) => reportError(e));
   self.addEventListener('unhandledrejection', (e) => reportError(e));
-  setErrorHandler((err: string) => forwardError(err));
+  addErrorHandler((error: ErrorDetails) => forwardError(error));
   const args = msg.data as Args;
   if (isConvertTraceAndDownload(args)) {
     ConvertTraceAndDownload(args.trace, args.format, args.truncate);

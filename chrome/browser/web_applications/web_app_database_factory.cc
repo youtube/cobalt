@@ -5,21 +5,31 @@
 #include "chrome/browser/web_applications/web_app_database_factory.h"
 
 #include "base/feature_list.h"
-#include "chrome/browser/sync/model_type_store_service_factory.h"
+#include "chrome/browser/sync/data_type_store_service_factory.h"
+#include "chrome/browser/web_applications/web_app_install_utils.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/chrome_features.h"
-#include "components/sync/model/model_type_store_service.h"
+#include "components/sync/model/data_type_store_service.h"
 
 namespace web_app {
+
+FakeWebAppDatabaseFactory*
+AbstractWebAppDatabaseFactory::AsFakeWebAppDatabaseFactory() {
+  return nullptr;
+}
 
 WebAppDatabaseFactory::WebAppDatabaseFactory(Profile* profile)
     : profile_(profile) {}
 
 WebAppDatabaseFactory::~WebAppDatabaseFactory() = default;
 
-syncer::OnceModelTypeStoreFactory WebAppDatabaseFactory::GetStoreFactory() {
-  return ModelTypeStoreServiceFactory::GetForProfile(profile_)
+syncer::OnceDataTypeStoreFactory WebAppDatabaseFactory::GetStoreFactory() {
+  return DataTypeStoreServiceFactory::GetForProfile(profile_)
       ->GetStoreFactory();
+}
+
+bool WebAppDatabaseFactory::IsSyncingApps() {
+  return IsSyncEnabledForApps(profile_);
 }
 
 }  // namespace web_app

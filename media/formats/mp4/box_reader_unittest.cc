@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/mp4/box_reader.h"
 
 #include <stdint.h>
@@ -10,6 +15,7 @@
 #include <memory>
 
 #include "base/logging.h"
+#include "build/build_config.h"
 #include "media/base/mock_media_log.h"
 #include "media/formats/mp4/box_definitions.h"
 #include "media/formats/mp4/parse_result.h"
@@ -298,6 +304,116 @@ TEST_F(BoxReaderTest, SkippingUuid) {
   TestTopLevelBox(kData, sizeof(kData), FOURCC_UUID);
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+TEST_F(BoxReaderTest, ReadTopLevelBoxHeaderPartialData) {
+  // 1 MB MDAT box where only the 8-byte header is present in the buffer
+  static const uint8_t kMdatHeaderOnly[] = {
+      0x00, 0x10, 0x00, 0x00,  // box size = 1,048,576 bytes
+      'm',  'd',  'a',  't',
+  };
+
+  FourCC type;
+  size_t box_size = 0;
+  // StartTopLevelBox fails because payload is missing
+  EXPECT_EQ(
+      ParseResult::kNeedMoreData,
+      BoxReader::StartTopLevelBox(kMdatHeaderOnly, sizeof(kMdatHeaderOnly),
+                                  &media_log_, &type, &box_size));
+
+  // ReadTopLevelBoxHeader succeeds because header itself is complete
+  EXPECT_EQ(ParseResult::kOk, BoxReader::ReadTopLevelBoxHeader(
+                                  kMdatHeaderOnly, sizeof(kMdatHeaderOnly),
+                                  &media_log_, &type, &box_size));
+  EXPECT_EQ(FOURCC_MDAT, type);
+  EXPECT_EQ(1048576u, box_size);
+
+  // Incomplete header (< 8 bytes) returns kNeedMoreData
+  EXPECT_EQ(ParseResult::kNeedMoreData,
+            BoxReader::ReadTopLevelBoxHeader(kMdatHeaderOnly, 7, &media_log_,
+                                             &type, &box_size));
+}
+
+TEST_F(BoxReaderTest, ReadTopLevelBoxHeaderLargeSize) {
+  static const uint8_t kHeader[] = {
+      0x00, 0x00, 0x00, 0x01,  // size = 1, i.e. a 64-bit largesize follows
+      'm',  'd',  'a',  't',   // type
+      0x00, 0x00, 0x00, 0x00,  // largesize, high 32 bits
+      0x00, 0x10, 0x00, 0x00,  // largesize, low 32 bits = 1,048,576 bytes
+  };
+
+  FourCC type;
+  size_t box_size = 0;
+  for (size_t size = 8; size < sizeof(kHeader); ++size) {
+    EXPECT_EQ(ParseResult::kNeedMoreData,
+              BoxReader::ReadTopLevelBoxHeader(kHeader, size, &media_log_,
+                                               &type, &box_size))
+        << "size " << size;
+  }
+
+  EXPECT_EQ(ParseResult::kOk,
+            BoxReader::ReadTopLevelBoxHeader(kHeader, sizeof(kHeader),
+                                             &media_log_, &type, &box_size));
+  EXPECT_EQ(FOURCC_MDAT, type);
+  EXPECT_EQ(1048576u, box_size);
+}
+
+TEST_F(BoxReaderTest, ReadTopLevelBoxHeaderSizeZeroIsError) {
+  static const uint8_t kHeader[] = {0x00, 0x00, 0x00, 0x00, 'm', 'd', 'a', 't'};
+
+  EXPECT_MEDIA_LOG(HasSubstr("run to EOS are not supported"));
+  FourCC type;
+  size_t box_size = 0;
+  EXPECT_EQ(ParseResult::kError,
+            BoxReader::ReadTopLevelBoxHeader(kHeader, sizeof(kHeader),
+                                             &media_log_, &type, &box_size));
+}
+
+TEST_F(BoxReaderTest, ReadTopLevelBoxHeaderSizeSmallerThanHeaderIsError) {
+  static const uint8_t kShort[] = {0x00, 0x00, 0x00, 0x04, 'm', 'd', 'a', 't'};
+  static const uint8_t kShortLarge[] = {
+      0x00, 0x00, 0x00, 0x01, 'm',  'd',  'a',  't',
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0c,  // largesize = 12
+  };
+
+  FourCC type;
+  size_t box_size = 0;
+  EXPECT_EQ(ParseResult::kError,
+            BoxReader::ReadTopLevelBoxHeader(kShort, sizeof(kShort),
+                                             &media_log_, &type, &box_size));
+  EXPECT_EQ(ParseResult::kError,
+            BoxReader::ReadTopLevelBoxHeader(kShortLarge, sizeof(kShortLarge),
+                                             &media_log_, &type, &box_size));
+}
+
+TEST_F(BoxReaderTest, ReadTopLevelBoxHeaderSizeAboveInt32MaxIsError) {
+  static const uint8_t kHuge[] = {0xff, 0xff, 0xff, 0xff, 'm', 'd', 'a', 't'};
+  static const uint8_t kHugeLarge[] = {
+      0x00, 0x00, 0x00, 0x01, 'm',  'd',  'a',  't',
+      0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00,  // largesize = 2^31
+  };
+
+  FourCC type;
+  size_t box_size = 0;
+  EXPECT_EQ(ParseResult::kError,
+            BoxReader::ReadTopLevelBoxHeader(kHuge, sizeof(kHuge), &media_log_,
+                                             &type, &box_size));
+  EXPECT_EQ(ParseResult::kError,
+            BoxReader::ReadTopLevelBoxHeader(kHugeLarge, sizeof(kHugeLarge),
+                                             &media_log_, &type, &box_size));
+}
+
+TEST_F(BoxReaderTest, ReadTopLevelBoxHeaderInvalidTypeIsError) {
+  static const uint8_t kHeader[] = {0x00, 0x00, 0x00, 0x10, 'D', 'A', 'L', 'E'};
+
+  EXPECT_MEDIA_LOG(HasSubstr("Invalid top-level ISO BMFF box type DALE"));
+  FourCC type;
+  size_t box_size = 0;
+  EXPECT_EQ(ParseResult::kError,
+            BoxReader::ReadTopLevelBoxHeader(kHeader, sizeof(kHeader),
+                                             &media_log_, &type, &box_size));
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 TEST_F(BoxReaderTest, NestedBoxWithHugeSize) {
   // This data is not a valid 'emsg' box. It is just used as a top-level box
   // as ReadTopLevelBox() has a restricted set of boxes it allows. |kData|
@@ -489,11 +605,11 @@ TEST_F(BoxReaderTest, OutsideOfBoxRead) {
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
 TEST_F(BoxReaderTest, AVCDecoderConfigurationRecordTakenFromMp4) {
   std::vector<uint8_t> test_data{
-      0x1,        // configurationVersion
-      0x64,       // AVCProfileIndication
-      0x0,        // profile_compatibility
-      0xc,        // AVCLevelIndication
-      0xff,       // lengthSizeMinusOne
+      0x1,        // configurationVersion = 1
+      0x64,       // AVCProfileIndication = 100
+      0x0,        // profile_compatibility = 0
+      0xc,        // AVCLevelIndication = 10
+      0xff,       // lengthSizeMinusOne = 3
       0xe1,       // numOfSequenceParameterSets = 1
       0x0, 0x19,  // sequenceParameterSetLength = 25
 
@@ -505,8 +621,10 @@ TEST_F(BoxReaderTest, AVCDecoderConfigurationRecordTakenFromMp4) {
       0x0, 0x6,  // pictureParameterSetLength = 6
       0x68, 0xeb, 0xe3, 0xcb, 0x22, 0xc0,
 
-      // Profile specific params are not supported yet, skip last bytes
-      // 0xfd, 0xf8, 0xf8, 0x0
+      0xfd,  // chroma_format = 1
+      0xf8,  // bit_depth_luma_minus8 = 0
+      0xf8,  // bit_depth_chroma_minus8 = 0
+      0x0,   // numOfSequanceParameterSetExt = 0
   };
 
   AVCDecoderConfigurationRecord record;
@@ -521,11 +639,49 @@ TEST_F(BoxReaderTest, AVCDecoderConfigurationRecordTakenFromMp4) {
   EXPECT_EQ(record.sps_list[0].size(), 25ull);
   EXPECT_EQ(record.pps_list.size(), 1ull);
   EXPECT_EQ(record.pps_list[0].size(), 6ull);
+  EXPECT_EQ(record.chroma_format, 1);
+  EXPECT_EQ(record.bit_depth_luma_minus8, 0);
+  EXPECT_EQ(record.bit_depth_chroma_minus8, 0);
+  EXPECT_EQ(record.sps_ext_list.size(), 0ull);
 
   std::vector<uint8_t> output;
   EXPECT_TRUE(record.Serialize(output));
   EXPECT_EQ(output.size(), test_data.size());
   ASSERT_THAT(output, testing::ElementsAreArray(test_data));
+}
+
+TEST_F(BoxReaderTest, AVCDecoderConfigurationRecordInvalidREXT) {
+  std::vector<uint8_t> test_data{
+      0x1,        // configurationVersion = 1
+      0x64,       // AVCProfileIndication = 100
+      0x0,        // profile_compatibility = 0
+      0xc,        // AVCLevelIndication = 10
+      0xff,       // lengthSizeMinusOne = 3
+      0xe1,       // numOfSequenceParameterSets = 1
+      0x0, 0x19,  // sequenceParameterSetLength = 25
+
+      // sequenceParameterSet
+      0x67, 0x64, 0x0, 0xc, 0xac, 0xd9, 0x41, 0x41, 0xfb, 0x1, 0x10, 0x0, 0x0,
+      0x3, 0x0, 0x10, 0x0, 0x0, 0x3, 0x1, 0x40, 0xf1, 0x42, 0x99, 0x60,
+
+      0x1,       // numOfPictureParameterSets
+      0x0, 0x6,  // pictureParameterSetLength = 6
+      0x68, 0xeb, 0xe3, 0xcb, 0x22, 0xc0,
+
+      0xfe,  // chroma_format = 2
+      0xfc,  // bit_depth_luma_minus8 = 4
+      0xfe,  // bit_depth_chroma_minus8 = 6
+      0x0,   // numOfSequanceParameterSetExt = 0
+  };
+
+  AVCDecoderConfigurationRecord record;
+  EXPECT_TRUE(record.Parse(test_data.data(), test_data.size()));
+
+  // Default values should be used.
+  EXPECT_EQ(record.chroma_format, 0);
+  EXPECT_EQ(record.bit_depth_luma_minus8, 0);
+  EXPECT_EQ(record.bit_depth_chroma_minus8, 0);
+  EXPECT_EQ(record.sps_ext_list.size(), 0ull);
 }
 
 TEST_F(BoxReaderTest, AVCDecoderConfigurationRecordTakenFromStream) {

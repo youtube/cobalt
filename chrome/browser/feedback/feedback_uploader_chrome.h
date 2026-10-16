@@ -9,7 +9,6 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
-#include "build/chromeos_buildflags.h"
 #include "build/config/chromebox_for_meetings/buildflags.h"
 #include "components/feedback/feedback_uploader.h"
 #include "components/signin/public/identity_manager/access_token_info.h"
@@ -30,7 +29,7 @@ class GoogleServiceAuthError;
 
 namespace feedback {
 
-class FeedbackUploaderChrome : public FeedbackUploader {
+class FeedbackUploaderChrome final : public FeedbackUploader {
  public:
   explicit FeedbackUploaderChrome(content::BrowserContext* context);
 
@@ -38,6 +37,8 @@ class FeedbackUploaderChrome : public FeedbackUploader {
   FeedbackUploaderChrome& operator=(const FeedbackUploaderChrome&) = delete;
 
   ~FeedbackUploaderChrome() override;
+
+  base::WeakPtr<FeedbackUploader> AsWeakPtr() override;
 
   class Delegate {
    public:
@@ -80,6 +81,8 @@ class FeedbackUploaderChrome : public FeedbackUploader {
   raw_ptr<Delegate> delegate_ = nullptr;  // Not owned.
 
   raw_ptr<content::BrowserContext> context_ = nullptr;
+
+  base::WeakPtrFactory<FeedbackUploaderChrome> weak_ptr_factory_{this};
 };
 
 }  // namespace feedback

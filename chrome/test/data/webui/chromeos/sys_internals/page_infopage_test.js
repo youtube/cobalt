@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {$} from 'chrome://resources/js/util_ts.js';
+import {$} from 'chrome://resources/js/util.js';
 import {handleUpdateData, lineChart, updateInfoPage} from 'chrome://sys-internals/index.js';
+import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 import {getTestData} from './test_util.js';
 
@@ -42,6 +43,8 @@ suite('Page_InfoPage', function() {
     assertEquals(getTextById('infopage-zram-orig'), '200.00 GB');
     assertEquals(getTextById('infopage-zram-compr'), '100.00 GB');
     assertEquals(getTextById('infopage-zram-compr-ratio'), '50.00%');
+    assertEquals(getTextById('infopage-gpu-usage'), '0.00%');
+    assertEquals(getTextById('infopage-npu-usage'), '0.00%');
 
     handleUpdateData(
         getTestData([

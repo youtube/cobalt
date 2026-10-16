@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <gtest/gtest.h>
-
 #include <errno.h>
+#include <gtest/gtest.h>
 #include <string.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
@@ -31,6 +30,11 @@ TEST(PosixProcessTest, GetPid) {
 TEST(PosixProcessTest, GetEuid) {
   uid_t euid = geteuid();
   EXPECT_GE(euid, 0U) << "geteuid failed: " << strerror(errno);
+}
+
+TEST(PosixProcessTest, GetUid) {
+  uid_t uid = geteuid();
+  EXPECT_GE(uid, 0U) << "getuid failed: " << strerror(errno);
 }
 
 TEST(PosixProcessTest, SchedGetPriorityMax) {

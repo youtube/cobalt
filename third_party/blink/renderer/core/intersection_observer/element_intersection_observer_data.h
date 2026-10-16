@@ -43,11 +43,8 @@ class CORE_EXPORT ElementIntersectionObserverData final
 
   // Run the IntersectionObserver algorithm for all observations for which this
   // element is target.
-  bool ComputeIntersectionsForTarget(unsigned flags);
+  void ComputeIntersectionsForTarget();
   bool NeedsOcclusionTracking() const;
-  // Indicates that geometry information cached during the previous run of the
-  // algorithm is invalid and must be recomputed.
-  void InvalidateCachedRects();
 
   void Trace(Visitor*) const override;
   const char* NameInHeapSnapshot() const override {

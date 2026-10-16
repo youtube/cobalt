@@ -7,13 +7,11 @@
 #include "ash/system/media/quick_settings_media_view_controller.h"
 #include "ash/system/tray/tray_constants.h"
 #include "ash/system/unified/unified_system_tray_controller.h"
+#include "components/global_media_controls/public/constants.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/layout/fill_layout.h"
 
 namespace ash {
-
-namespace {
-constexpr int kContainerHeight = 150;
-}  // namespace
 
 QuickSettingsMediaViewContainer::QuickSettingsMediaViewContainer(
     UnifiedSystemTrayController* controller)
@@ -36,11 +34,17 @@ void QuickSettingsMediaViewContainer::MaybeShowMediaView() {
 }
 
 int QuickSettingsMediaViewContainer::GetExpandedHeight() const {
-  return show_media_view_ ? kContainerHeight : 0;
+  return show_media_view_
+             ? controller_->media_view_controller()->GetMediaViewHeight()
+             : 0;
 }
 
-gfx::Size QuickSettingsMediaViewContainer::CalculatePreferredSize() const {
+gfx::Size QuickSettingsMediaViewContainer::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   return gfx::Size(kTrayMenuWidth, GetExpandedHeight());
 }
+
+BEGIN_METADATA(QuickSettingsMediaViewContainer)
+END_METADATA
 
 }  // namespace ash

@@ -10,16 +10,19 @@
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/permissions/notifications_permission_revocation_config.h"
 #include "chrome/browser/permissions/permission_manager_factory.h"
-#include "chrome/browser/safe_browsing/safe_browsing_service.h"
+#include "chrome/browser/profiles/profile.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/permissions/constants.h"
 #include "components/permissions/permission_manager.h"
-#include "components/permissions/permission_result.h"
 #include "components/permissions/permission_uma_util.h"
 #include "components/permissions/permissions_client.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/browser/db/database_manager.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
+
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+#include "chrome/browser/safe_browsing/safe_browsing_service.h"
+#endif
 
 namespace {
 constexpr char kExcludedKey[] = "exempted";
@@ -36,7 +39,7 @@ OriginStatus GetOriginStatus(Profile* profile, const GURL& origin) {
           ->GetSettingsMap(profile)
           ->GetWebsiteSetting(
               origin, GURL(),
-              ContentSettingsType::PERMISSION_AUTOREVOCATION_DATA, nullptr);
+              ContentSettingsType::PERMISSION_AUTOREVOCATION_DATA);
 
   OriginStatus status;
 
@@ -77,6 +80,7 @@ void SetOriginStatus(Profile* profile,
           base::Value(std::move(dict)));
 }
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 void RevokePermission(const GURL& origin, Profile* profile) {
   permissions::PermissionsClient::Get()
       ->GetSettingsMap(profile)
@@ -92,6 +96,7 @@ void RevokePermission(const GURL& origin, Profile* profile) {
       ContentSettingsType::NOTIFICATIONS,
       permissions::PermissionSourceUI::AUTO_REVOCATION, origin, profile);
 }
+#endif
 }  // namespace
 
 PermissionRevocationRequest::PermissionRevocationRequest(
@@ -136,12 +141,9 @@ void PermissionRevocationRequest::CheckAndRevokeIfBlocklisted() {
   DCHECK(profile_);
   DCHECK(callback_);
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   if (!safe_browsing::IsSafeBrowsingEnabled(*profile_->GetPrefs()) ||
-      IsOriginExemptedFromFutureRevocations(profile_, origin_) ||
-      (!NotificationsPermissionRevocationConfig::
-           IsAbusiveOriginPermissionRevocationEnabled() &&
-       !NotificationsPermissionRevocationConfig::
-           IsDisruptiveOriginPermissionRevocationEnabled())) {
+      IsOriginExemptedFromFutureRevocations(profile_, origin_)){
     NotifyCallback(Outcome::PERMISSION_NOT_REVOKED);
     return;
   }
@@ -157,8 +159,12 @@ void PermissionRevocationRequest::CheckAndRevokeIfBlocklisted() {
       url::Origin::Create(origin_),
       base::BindOnce(&PermissionRevocationRequest::OnSiteReputationReady,
                      weak_factory_.GetWeakPtr()));
+#else
+  NotifyCallback(Outcome::PERMISSION_NOT_REVOKED);
+#endif
 }
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 void PermissionRevocationRequest::OnSiteReputationReady(
     const CrowdDenyPreloadData::SiteReputation* site_reputation) {
   if (crowd_deny_request_start_time_.has_value()) {
@@ -175,8 +181,7 @@ void PermissionRevocationRequest::OnSiteReputationReady(
             IsAbusiveOriginPermissionRevocationEnabled();
         break;
       case CrowdDenyPreloadData::SiteReputation::DISRUPTIVE_BEHAVIOR:
-        should_revoke_permission = NotificationsPermissionRevocationConfig::
-            IsDisruptiveOriginPermissionRevocationEnabled();
+        should_revoke_permission = true;
         break;
       default:
         should_revoke_permission = false;
@@ -218,6 +223,7 @@ void PermissionRevocationRequest::OnSafeBrowsingVerdictReceived(
     NotifyCallback(Outcome::PERMISSION_NOT_REVOKED);
   }
 }
+#endif
 
 void PermissionRevocationRequest::NotifyCallback(Outcome outcome) {
   if (outcome == Outcome::PERMISSION_NOT_REVOKED &&

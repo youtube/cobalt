@@ -16,6 +16,8 @@ class Profile;
 
 namespace app_list {
 
+inline constexpr int kMaxLoggedQueryLengthOnSessionConclusion = 20;
+
 // Records launcher search backend metrics. This includes impression,
 // abandonment, and launch information reported by the AppListNotifier.
 class SearchSessionMetricsManager : ash::AppListNotifier::Observer {

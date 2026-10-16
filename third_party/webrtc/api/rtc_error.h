@@ -11,14 +11,15 @@
 #ifndef API_RTC_ERROR_H_
 #define API_RTC_ERROR_H_
 
-#ifdef WEBRTC_UNIT_TEST
-#include <ostream>
-#endif  // WEBRTC_UNIT_TEST
+#include <stdint.h>
+
+#include <optional>
 #include <string>
+#include <type_traits>
 #include <utility>  // For std::move.
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/system/rtc_export.h"
@@ -96,6 +97,24 @@ enum class RTCErrorDetailType {
   HARDWARE_ENCODER_ERROR,
 };
 
+// Outputs the error as a friendly string. Update this method when adding a new
+// error type.
+//
+// Only intended to be used for logging/diagnostics. The returned char* points
+// to literal strings that live for the whole duration of the program.
+RTC_EXPORT absl::string_view ToString(RTCErrorType error);
+RTC_EXPORT absl::string_view ToString(RTCErrorDetailType error);
+
+template <typename Sink>
+void AbslStringify(Sink& sink, RTCErrorType error) {
+  sink.Append(ToString(error));
+}
+
+template <typename Sink>
+void AbslStringify(Sink& sink, RTCErrorDetailType error_detail) {
+  sink.Append(ToString(error_detail));
+}
+
 // Roughly corresponds to RTCError in the web api. Holds an error type, a
 // message, and possibly additional information specific to that error.
 //
@@ -138,7 +157,7 @@ class RTC_EXPORT RTCError {
 
   RTCErrorDetailType error_detail() const { return error_detail_; }
   void set_error_detail(RTCErrorDetailType detail) { error_detail_ = detail; }
-  absl::optional<uint16_t> sctp_cause_code() const { return sctp_cause_code_; }
+  std::optional<uint16_t> sctp_cause_code() const { return sctp_cause_code_; }
   void set_sctp_cause_code(uint16_t cause_code) {
     sctp_cause_code_ = cause_code;
   }
@@ -147,34 +166,22 @@ class RTC_EXPORT RTCError {
   // error occurred.
   bool ok() const { return type_ == RTCErrorType::NONE; }
 
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const RTCError& error) {
+    sink.Append(ToString(error.type_));
+    if (!error.message_.empty()) {
+      sink.Append(" with message: \"");
+      sink.Append(error.message_);
+      sink.Append("\"");
+    }
+  }
+
  private:
   RTCErrorType type_ = RTCErrorType::NONE;
   std::string message_;
   RTCErrorDetailType error_detail_ = RTCErrorDetailType::NONE;
-  absl::optional<uint16_t> sctp_cause_code_;
+  std::optional<uint16_t> sctp_cause_code_;
 };
-
-// Outputs the error as a friendly string. Update this method when adding a new
-// error type.
-//
-// Only intended to be used for logging/diagnostics. The returned char* points
-// to literal string that lives for the whole duration of the program.
-RTC_EXPORT absl::string_view ToString(RTCErrorType error);
-RTC_EXPORT absl::string_view ToString(RTCErrorDetailType error);
-
-#ifdef WEBRTC_UNIT_TEST
-inline std::ostream& operator<<(  // no-presubmit-check TODO(webrtc:8982)
-    std::ostream& stream,         // no-presubmit-check TODO(webrtc:8982)
-    RTCErrorType error) {
-  return stream << ToString(error);
-}
-
-inline std::ostream& operator<<(  // no-presubmit-check TODO(webrtc:8982)
-    std::ostream& stream,         // no-presubmit-check TODO(webrtc:8982)
-    RTCErrorDetailType error) {
-  return stream << ToString(error);
-}
-#endif  // WEBRTC_UNIT_TEST
 
 // Helper macro that can be used by implementations to create an error with a
 // message and log it. `message` should be a string literal or movable
@@ -308,23 +315,36 @@ class RTCErrorOr {
   // the stack.
   const T& value() const {
     RTC_DCHECK(ok());
-    return value_;
+    return *value_;
   }
   T& value() {
     RTC_DCHECK(ok());
-    return value_;
+    return *value_;
   }
 
   // Moves our current value out of this object and returns it, or DCHECK-fails
   // if !this->ok().
   T MoveValue() {
     RTC_DCHECK(ok());
-    return std::move(value_);
+    return std::move(*value_);
+  }
+
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const RTCErrorOr<T>& error_or) {
+    if (error_or.ok()) {
+      sink.Append("OK");
+      if constexpr (std::is_convertible_v<T, absl::AlphaNum>) {
+        sink.Append(" with value: ");
+        sink.Append(absl::StrCat(error_or.value()));
+      }
+    } else {
+      sink.Append(absl::StrCat(error_or.error()));
+    }
   }
 
  private:
   RTCError error_;
-  T value_;
+  std::optional<T> value_;
 };
 
 }  // namespace webrtc

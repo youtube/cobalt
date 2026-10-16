@@ -51,7 +51,7 @@ class FakePaintPreviewCompositorClient : public PaintPreviewCompositorClient {
   FakePaintPreviewCompositorClient& operator=(
       const FakePaintPreviewCompositorClient&) = delete;
 
-  const absl::optional<base::UnguessableToken>& Token() const override {
+  const std::optional<base::UnguessableToken>& Token() const override {
     return token_;
   }
 
@@ -130,7 +130,7 @@ class FakePaintPreviewCompositorClient : public PaintPreviewCompositorClient {
 
  private:
   mojom::PaintPreviewCompositor::BeginCompositeStatus response_status_;
-  absl::optional<base::UnguessableToken> token_;
+  std::optional<base::UnguessableToken> token_;
   base::OnceClosure disconnect_handler_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 };
@@ -164,10 +164,7 @@ class FakePaintPreviewCompositorService : public PaintPreviewCompositorService {
 
   void SetTimeout() { timeout_ = true; }
 
-  bool HasActiveClients() const override {
-    NOTREACHED();
-    return false;
-  }
+  bool HasActiveClients() const override { NOTREACHED(); }
 
   void SetDisconnectHandler(base::OnceClosure disconnect_handler) override {
     disconnect_handler_ = std::move(disconnect_handler);
@@ -664,7 +661,7 @@ TEST_F(PlayerCompositorDelegateTest, CompressOnClose) {
                      false),
       base::BindOnce(
           [](base::FilePath* out,
-             const absl::optional<base::FilePath>& file_path) {
+             const std::optional<base::FilePath>& file_path) {
             *out = file_path.value();
           },
           base::Unretained(&dir)));
@@ -880,7 +877,7 @@ TEST_F(PlayerCompositorDelegateTest, RequestMainFrameBitmapSuccess) {
 
     base::RunLoop loop;
     player_compositor_delegate.RequestBitmap(
-        absl::nullopt, gfx::Rect(10, 20, 30, 40), 1.0,
+        std::nullopt, gfx::Rect(10, 20, 30, 40), 1.0,
         base::BindOnce(
             [](base::OnceClosure quit,
                mojom::PaintPreviewCompositor::BitmapStatus status,
@@ -962,10 +959,10 @@ TEST_F(PlayerCompositorDelegateTest, CriticalMemoryPressureBeforeStart) {
     // execution the files are required by the service or no bitmap will be
     // created.
     base::RunLoop loop;
-    PlayerCompositorDelegateImpl player_compositor_delegate;
     memory_pressure::test::FakeMemoryPressureMonitor memory_pressure_monitor;
     memory_pressure_monitor.SetAndNotifyMemoryPressure(
         base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+    PlayerCompositorDelegateImpl player_compositor_delegate;
     player_compositor_delegate.SetFakeMemoryPressureMonitor(
         &memory_pressure_monitor);
     player_compositor_delegate.Initialize(

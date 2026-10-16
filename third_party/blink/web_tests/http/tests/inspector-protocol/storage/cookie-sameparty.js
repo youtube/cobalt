@@ -1,4 +1,4 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
     const {page, session, dp} = await testRunner.startBlank(
         `Verifies that the sameParty field will be handled correctly.\n`);
 
@@ -10,20 +10,6 @@
     ];
 
     await dp.Storage.setCookies({cookies});
-
-    // sameParty: true cookies should fail if secure is false. Since this cookie
-    // is expected to fail it needed to be set separately from the others (A
-    // single invalid cookie will prevent the entire group from being set).
-    cookies = [{url: 'http://127.0.0.1', name: 'sameParty_shouldFailToSet', value: 'bar1', sameParty: true, secure: false}];
-    const invalidCookieResult = await dp.Storage.setCookies({cookies});
-
-    const data = await dp.Storage.getCookies();
-
-    for (let cookie of data.result.cookies) {
-        testRunner.log(`${cookie.name}: ${cookie.sameParty}`);
-    }
-
-    testRunner.log(invalidCookieResult);
 
     testRunner.completeTest();
   })

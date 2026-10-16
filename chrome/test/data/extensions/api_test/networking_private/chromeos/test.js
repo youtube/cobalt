@@ -507,6 +507,7 @@ var availableTests = [
                result);
     }));
   },
+
   function requestNetworkScan() {
     // Connected or Connecting networks should be listed first, sorted by type.
     var expected = ['stub_ethernet_guid',
@@ -595,11 +596,22 @@ var availableTests = [
             RoamingState: 'Home',
             SIMLockStatus: {LockEnabled: true, LockType: '', RetriesLeft: 3},
             Scanning: false,
+            LastGoodAPN: {
+              AccessPointName: "default_apn",
+              ApnTypes: ["Default"],
+              Authentication: "CHAP",
+              LocalizedName: "localized test apn",
+              Name: "default_apn",
+              Username: "user name",
+              Password: "password",
+              Source: "Modb",
+            },
           },
           ConnectionState: ConnectionStateType.NOT_CONNECTED,
           GUID: kCellularGuid,
           IPAddressConfigType: chrome.networkingPrivate.IPConfigType.DHCP,
           Metered: true,
+          TrafficCounterResetTime: 0.0,
           Name: 'cellular1',
           NameServersConfigType: chrome.networkingPrivate.IPConfigType.DHCP,
           Source: 'User',

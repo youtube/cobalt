@@ -4,12 +4,9 @@
 
 #include "ui/base/accelerators/accelerator_manager.h"
 
-#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/accelerators/test_accelerator_target.h"
-#include "ui/base/ui_base_features.h"
 #include "ui/events/event.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/dom/dom_code.h"
@@ -24,8 +21,12 @@ Accelerator GetAccelerator(KeyboardCode code, int mask) {
 }
 
 // Possible flags used for accelerators.
-const int kAcceleratorModifiers[] = {EF_SHIFT_DOWN, EF_CONTROL_DOWN,
-                                     EF_ALT_DOWN, EF_COMMAND_DOWN};
+constexpr auto kAcceleratorModifiers = std::to_array<int>({
+    EF_SHIFT_DOWN,
+    EF_CONTROL_DOWN,
+    EF_ALT_DOWN,
+    EF_COMMAND_DOWN,
+});
 
 // Returns a set of flags from id, where id is a bitmask into
 // kAcceleratorModifiers used to determine which flags are set.
@@ -167,66 +168,9 @@ TEST_F(AcceleratorManagerTest, Process) {
   }
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-// TODO(crbug.com/1179893): Remove once the feature is enabled permanently.
-TEST_F(AcceleratorManagerTest, NewMappingWithImprovedShortcutsDisabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures(
-      /*enabled_features=*/{features::kNewShortcutMapping},
-      /*disabled_features=*/{::features::kImprovedKeyboardShortcuts});
-
-  // Test new mapping with a ASCII punctuation shortcut that doesn't involve
-  // shift.
-  TestAcceleratorTarget target;
-  {
-    // ']' + ctrl
-    const Accelerator accelerator(VKEY_OEM_6, EF_CONTROL_DOWN);
-    manager_.Register({accelerator}, AcceleratorManager::kNormalPriority,
-                      &target);
-    KeyEvent event(ui::ET_KEY_PRESSED, ui::VKEY_1, ui::DomCode::NONE,
-                   ui::EF_CONTROL_DOWN, ui::DomKey::Constant<']'>::Character,
-                   base::TimeTicks());
-    const Accelerator trigger(event);
-    EXPECT_TRUE(manager_.IsRegistered(trigger));
-    EXPECT_TRUE(manager_.Process(trigger));
-  }
-
-  // Test new mapping with a ASCII punctuation shortcut that involves shift.
-  {
-    // ']' + ctrl + shift, which produces '}' on US layout.
-    const Accelerator accelerator(VKEY_OEM_6, EF_CONTROL_DOWN | EF_SHIFT_DOWN);
-    manager_.Register({accelerator}, AcceleratorManager::kNormalPriority,
-                      &target);
-    KeyEvent event(ui::ET_KEY_PRESSED, ui::VKEY_1, ui::DomCode::NONE,
-                   ui::EF_CONTROL_DOWN, ui::DomKey::Constant<'}'>::Character,
-                   base::TimeTicks());
-    const Accelerator trigger(event);
-    EXPECT_TRUE(manager_.IsRegistered(trigger));
-    EXPECT_TRUE(manager_.Process(trigger));
-  }
-}
-
-// TODO(crbug.com/1179893): Remove once the feature is enabled permanently.
-TEST_F(AcceleratorManagerTest, NewMappingSuperseded) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(features::kNewShortcutMapping);
-
-  // When kImprovedKeyboardShortcuts is enabled, it takes precedence
-  // over kNewShortcutMapping. Remove this test when kImprovedShortcutMapping
-  // is made permanent.
-  EXPECT_TRUE(::features::IsImprovedKeyboardShortcutsEnabled());
-  EXPECT_FALSE(::features::IsNewShortcutMappingEnabled());
-}
-
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
 #if BUILDFLAG(IS_CHROMEOS)
 
 TEST_F(AcceleratorManagerTest, PositionalShortcuts_AllEqual) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      features::kImprovedKeyboardShortcuts);
-
   // Use a local instance so that the feature is enabled during construction.
   AcceleratorManager manager;
   manager.SetUsePositionalLookup(true);
@@ -236,19 +180,15 @@ TEST_F(AcceleratorManagerTest, PositionalShortcuts_AllEqual) {
   TestAcceleratorTarget target;
   const Accelerator accelerator(VKEY_OEM_6, EF_CONTROL_DOWN);
   manager.Register({accelerator}, AcceleratorManager::kNormalPriority, &target);
-  KeyEvent event(ui::ET_KEY_PRESSED, VKEY_OEM_6, ui::DomCode::BRACKET_RIGHT,
-                 ui::EF_CONTROL_DOWN, ui::DomKey::Constant<']'>::Character,
-                 base::TimeTicks());
+  KeyEvent event(ui::EventType::kKeyPressed, VKEY_OEM_6,
+                 ui::DomCode::BRACKET_RIGHT, ui::EF_CONTROL_DOWN,
+                 ui::DomKey::FromCharacter(']'), base::TimeTicks());
   const Accelerator trigger(event);
   EXPECT_TRUE(manager.IsRegistered(trigger));
   EXPECT_TRUE(manager.Process(trigger));
 }
 
 TEST_F(AcceleratorManagerTest, PositionalShortcuts_MatchingDomCode) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      features::kImprovedKeyboardShortcuts);
-
   // Use a local instance so that the feature is enabled during construction.
   AcceleratorManager manager;
   manager.SetUsePositionalLookup(true);
@@ -259,19 +199,15 @@ TEST_F(AcceleratorManagerTest, PositionalShortcuts_MatchingDomCode) {
   TestAcceleratorTarget target;
   const Accelerator accelerator(VKEY_OEM_6, EF_CONTROL_DOWN);
   manager.Register({accelerator}, AcceleratorManager::kNormalPriority, &target);
-  KeyEvent event(ui::ET_KEY_PRESSED, VKEY_OEM_PLUS, ui::DomCode::BRACKET_RIGHT,
-                 ui::EF_CONTROL_DOWN, ui::DomKey::Constant<']'>::Character,
-                 base::TimeTicks());
+  KeyEvent event(ui::EventType::kKeyPressed, VKEY_OEM_PLUS,
+                 ui::DomCode::BRACKET_RIGHT, ui::EF_CONTROL_DOWN,
+                 ui::DomKey::FromCharacter(']'), base::TimeTicks());
   const Accelerator trigger(event);
   EXPECT_TRUE(manager.IsRegistered(trigger));
   EXPECT_TRUE(manager.Process(trigger));
 }
 
 TEST_F(AcceleratorManagerTest, PositionalShortcuts_NotMatchingDomCode) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      features::kImprovedKeyboardShortcuts);
-
   // Use a local instance so that the feature is enabled during construction.
   AcceleratorManager manager;
   manager.SetUsePositionalLookup(true);
@@ -283,19 +219,15 @@ TEST_F(AcceleratorManagerTest, PositionalShortcuts_NotMatchingDomCode) {
   TestAcceleratorTarget target;
   const Accelerator accelerator(VKEY_OEM_6, EF_CONTROL_DOWN);
   manager.Register({accelerator}, AcceleratorManager::kNormalPriority, &target);
-  KeyEvent event(ui::ET_KEY_PRESSED, VKEY_OEM_6, ui::DomCode::BRACKET_LEFT,
-                 ui::EF_CONTROL_DOWN, ui::DomKey::Constant<']'>::Character,
-                 base::TimeTicks());
+  KeyEvent event(ui::EventType::kKeyPressed, VKEY_OEM_6,
+                 ui::DomCode::BRACKET_LEFT, ui::EF_CONTROL_DOWN,
+                 ui::DomKey::FromCharacter(']'), base::TimeTicks());
   const Accelerator trigger(event);
   EXPECT_FALSE(manager.IsRegistered(trigger));
   EXPECT_FALSE(manager.Process(trigger));
 }
 
 TEST_F(AcceleratorManagerTest, PositionalShortcuts_NonPositionalMatch) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      features::kImprovedKeyboardShortcuts);
-
   // Use a local instance so that the feature is enabled during construction.
   AcceleratorManager manager;
   manager.SetUsePositionalLookup(true);
@@ -307,8 +239,8 @@ TEST_F(AcceleratorManagerTest, PositionalShortcuts_NonPositionalMatch) {
   TestAcceleratorTarget target;
   const Accelerator accelerator(VKEY_Z, EF_CONTROL_DOWN);
   manager.Register({accelerator}, AcceleratorManager::kNormalPriority, &target);
-  KeyEvent event(ui::ET_KEY_PRESSED, VKEY_Z, ui::DomCode::US_Y,
-                 ui::EF_CONTROL_DOWN, ui::DomKey::Constant<']'>::Character,
+  KeyEvent event(ui::EventType::kKeyPressed, VKEY_Z, ui::DomCode::US_Y,
+                 ui::EF_CONTROL_DOWN, ui::DomKey::FromCharacter(']'),
                  base::TimeTicks());
   const Accelerator trigger(event);
   EXPECT_TRUE(manager.IsRegistered(trigger));
@@ -316,10 +248,6 @@ TEST_F(AcceleratorManagerTest, PositionalShortcuts_NonPositionalMatch) {
 }
 
 TEST_F(AcceleratorManagerTest, PositionalShortcuts_NonPositionalNonMatch) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      features::kImprovedKeyboardShortcuts);
-
   // Use a local instance so that the feature is enabled during construction.
   AcceleratorManager manager;
   manager.SetUsePositionalLookup(true);
@@ -330,8 +258,8 @@ TEST_F(AcceleratorManagerTest, PositionalShortcuts_NonPositionalNonMatch) {
   TestAcceleratorTarget target;
   const Accelerator accelerator(VKEY_Z, EF_CONTROL_DOWN);
   manager.Register({accelerator}, AcceleratorManager::kNormalPriority, &target);
-  KeyEvent event(ui::ET_KEY_PRESSED, VKEY_Y, ui::DomCode::US_Z,
-                 ui::EF_CONTROL_DOWN, ui::DomKey::Constant<']'>::Character,
+  KeyEvent event(ui::EventType::kKeyPressed, VKEY_Y, ui::DomCode::US_Z,
+                 ui::EF_CONTROL_DOWN, ui::DomKey::FromCharacter(']'),
                  base::TimeTicks());
   const Accelerator trigger(event);
   EXPECT_FALSE(manager.IsRegistered(trigger));

@@ -37,6 +37,7 @@ class MediaRouterInternalsWebUIMessageHandler
   void HandleGetProviderState(const base::Value::List& args);
   void HandleGetLogs(const base::Value::List& args);
 
+  void HandleGetMirroringStats(const base::Value::List& args);
   void HandleSetMirroringStatsEnabled(const base::Value::List& args);
   void HandleIsMirroringStatsEnabled(const base::Value::List& args);
 
@@ -47,7 +48,7 @@ class MediaRouterInternalsWebUIMessageHandler
 
   // Pointer to the MediaRouter.
   const raw_ptr<const MediaRouter> router_;
-  const raw_ref<MediaRouterDebugger, ExperimentalAsh> debugger_;
+  const raw_ref<MediaRouterDebugger> debugger_;
 
   base::WeakPtrFactory<MediaRouterInternalsWebUIMessageHandler> weak_factory_{
       this};

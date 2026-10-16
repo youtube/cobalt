@@ -1,27 +1,37 @@
 // Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import 'chrome://resources/polymer/v3_0/iron-pages/iron-pages.js';
+
+import 'chrome://customize-chrome-side-panel.top-chrome/shared/sp_heading.js';
+import 'chrome://resources/cr_components/help_bubble/new_badge.js';
+import 'chrome://resources/cr_elements/cr_chip/cr_chip.js';
+import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
+import 'chrome://resources/cr_elements/cr_page_selector/cr_page_selector.js';
+import 'chrome://resources/cr_elements/icons.html.js';
 import './appearance.js';
 import './cards.js';
 import './categories.js';
-import './chrome_colors.js';
+import './customize_toolbar/toolbar.js';
+import './footer.js';
 import './shortcuts.js';
 import './themes.js';
+import './wallpaper_search/wallpaper_search.js';
 
-import {startColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
-import {HelpBubbleMixin, HelpBubbleMixinInterface} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
+import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
-import {getTemplate} from './app.html.js';
-import {AppearanceElement} from './appearance.js';
-import {CategoriesElement} from './categories.js';
-import {ChromeColorsElement} from './chrome_colors.js';
-import {BackgroundCollection, CustomizeChromeSection} from './customize_chrome.mojom-webui.js';
+import {getCss} from './app.css.js';
+import {getHtml} from './app.html.js';
+import type {AppearanceElement} from './appearance.js';
+import type {CategoriesElement} from './categories.js';
+import {CustomizeChromeImpression, recordCustomizeChromeImpression} from './common.js';
+import type {BackgroundCollection, CustomizeChromePageHandlerInterface} from './customize_chrome.mojom-webui.js';
+import {ChromeWebStoreCategory, ChromeWebStoreCollection, CustomizeChromeSection, NewTabPageType} from './customize_chrome.mojom-webui.js';
 import {CustomizeChromeApiProxy} from './customize_chrome_api_proxy.js';
-import {ThemesElement} from './themes.js';
+import type {ThemesElement} from './themes.js';
 
 const SECTION_TO_SELECTOR = {
   [CustomizeChromeSection.kAppearance]: '#appearance',
@@ -36,19 +46,18 @@ export enum CustomizeChromePage {
   OVERVIEW = 'overview',
   CATEGORIES = 'categories',
   THEMES = 'themes',
-  CHROME_COLORS = 'chrome-colors',
+  TOOLBAR = 'toolbar',
+  WALLPAPER_SEARCH = 'wallpaper-search',
 }
 
-const AppElementBase = HelpBubbleMixin(PolymerElement) as
-    {new (): PolymerElement & HelpBubbleMixinInterface};
+const AppElementBase = HelpBubbleMixinLit(CrLitElement);
 
 export interface AppElement {
   $: {
-    overviewPage: HTMLDivElement,
+    overviewPage: HTMLElement,
     categoriesPage: CategoriesElement,
     themesPage: ThemesElement,
     appearanceElement: AppearanceElement,
-    chromeColorsPage: ChromeColorsElement,
   };
 }
 
@@ -57,38 +66,54 @@ export class AppElement extends AppElementBase {
     return 'customize-chrome-app';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
-      page_: {
-        type: String,
-        value: CustomizeChromePage.OVERVIEW,
-      },
-      modulesEnabled_: {
-        type: Boolean,
-        value: () => loadTimeData.getBoolean('modulesEnabled'),
-      },
-      selectedCollection_: {
-        type: Object,
-        value: null,
-      },
+      page_: {type: String},
+      modulesEnabled_: {type: Boolean},
+      selectedCollection_: {type: Object},
+      extensionsCardEnabled_: {type: Boolean},
+      footerEnabled_: {type: Boolean},
+      wallpaperSearchEnabled_: {type: Boolean},
+      newTabPageType_: {type: NewTabPageType},
+      showEditTheme_: {type: Boolean},
     };
   }
 
-  override ready() {
-    super.ready();
-    startColorChangeUpdater();
+  override firstUpdated() {
+    ColorChangeUpdater.forDocument().start();
     this.registerHelpBubble(
         CHANGE_CHROME_THEME_BUTTON_ELEMENT_ID,
         ['#appearanceElement', '#editThemeButton']);
   }
 
-  private page_: CustomizeChromePage;
-  private selectedCollection_: BackgroundCollection|null;
+  protected accessor page_: CustomizeChromePage = CustomizeChromePage.OVERVIEW;
+  protected accessor modulesEnabled_: boolean =
+      loadTimeData.getBoolean('modulesEnabled');
+  protected accessor selectedCollection_: BackgroundCollection|null = null;
+  protected accessor extensionsCardEnabled_: boolean =
+      loadTimeData.getBoolean('extensionsCardEnabled');
+  // TODO(crbug.com/400952431) Footer section is hidden until the first time the
+  // user has a 3P NTP or non-default and non-3P themed 1P NTP
+  protected accessor footerEnabled_: boolean =
+      loadTimeData.getBoolean('footerEnabled');
+  protected accessor wallpaperSearchEnabled_: boolean =
+      loadTimeData.getBoolean('wallpaperSearchEnabled');
+  protected accessor newTabPageType_: NewTabPageType =
+      NewTabPageType.kFirstPartyWebUI;
+  protected accessor showEditTheme_: boolean = true;
   private scrollToSectionListenerId_: number|null = null;
+  private attachedTabStateUpdatedId_: number|null = null;
+  private setThemeEditableId_: number|null = null;
+  private pageHandler_: CustomizeChromePageHandlerInterface =
+      CustomizeChromeApiProxy.getInstance().handler;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -96,61 +121,187 @@ export class AppElement extends AppElementBase {
         CustomizeChromeApiProxy.getInstance()
             .callbackRouter.scrollToSection.addListener(
                 (section: CustomizeChromeSection) => {
+                  if (section === CustomizeChromeSection.kWallpaperSearch) {
+                    this.onWallpaperSearchSelect_();
+                    return;
+                  } else if (section === CustomizeChromeSection.kToolbar) {
+                    this.openToolbarCustomizationPage();
+                    chrome.metricsPrivate.recordUserAction(
+                        'Actions.CustomizeToolbarSidePanel' +
+                        '.OpenedFromOutsideCustomizeChrome');
+                    return;
+                  }
                   const selector = SECTION_TO_SELECTOR[section];
-                  const element = this.shadowRoot!.querySelector(selector);
+                  const element = this.shadowRoot.querySelector(selector);
                   if (!element) {
                     return;
                   }
                   this.page_ = CustomizeChromePage.OVERVIEW;
                   element.scrollIntoView({behavior: 'auto'});
                 });
+
+    this.attachedTabStateUpdatedId_ =
+        CustomizeChromeApiProxy.getInstance()
+            .callbackRouter.attachedTabStateUpdated.addListener(
+                (newTabPageType: NewTabPageType) => {
+                  if (this.newTabPageType_ === newTabPageType) {
+                    return;
+                  }
+
+                  this.newTabPageType_ = newTabPageType;
+
+                  // Since some pages aren't supported in non first party mode,
+                  // change the section back to the overview.
+                  if (!this.isSourceTabFirstPartyNtp_() &&
+                      !this.pageSupportedOnNonFirstPartyNtps()) {
+                    this.page_ = CustomizeChromePage.OVERVIEW;
+                  }
+                });
+    this.pageHandler_.updateAttachedTabState();
+
+    this.setThemeEditableId_ = CustomizeChromeApiProxy.getInstance()
+                                   .callbackRouter.setThemeEditable.addListener(
+                                       (isThemeEditable: boolean) => {
+                                         this.showEditTheme_ = isThemeEditable;
+                                       });
+
     // We wait for load because `scrollIntoView` above requires the page to be
     // laid out.
     window.addEventListener('load', () => {
       CustomizeChromeApiProxy.getInstance().handler.updateScrollToSection();
+      // Install observer to log extension cards impression.
+      const extensionsCardSectionObserver =
+          new IntersectionObserver(entries => {
+            assert(entries.length >= 1);
+            if (entries[0]!.intersectionRatio >= 0.8) {
+              extensionsCardSectionObserver.disconnect();
+              this.dispatchEvent(
+                  new Event('detect-extensions-card-section-impression'));
+              recordCustomizeChromeImpression(
+                  CustomizeChromeImpression.EXTENSIONS_CARD_SECTION_DISPLAYED);
+            }
+          }, {
+            threshold: 1.0,
+          });
+      // Start observing if extension cards are scroll into view.
+      if (this.shadowRoot && this.shadowRoot.querySelector('#extensions')) {
+        extensionsCardSectionObserver.observe(
+            this.shadowRoot.querySelector('#extensions')!);
+      }
     }, {once: true});
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+
     assert(this.scrollToSectionListenerId_);
     CustomizeChromeApiProxy.getInstance().callbackRouter.removeListener(
         this.scrollToSectionListenerId_);
+
+    assert(this.attachedTabStateUpdatedId_);
+    CustomizeChromeApiProxy.getInstance().callbackRouter.removeListener(
+        this.attachedTabStateUpdatedId_);
+
+    assert(this.setThemeEditableId_);
+    CustomizeChromeApiProxy.getInstance().callbackRouter.removeListener(
+        this.setThemeEditableId_);
   }
 
-  private onBackClick_() {
+  protected isSourceTabFirstPartyNtp_(): boolean {
+    return this.newTabPageType_ === NewTabPageType.kFirstPartyWebUI;
+  }
+
+  protected isSourceTabExtension_(): boolean {
+    return this.newTabPageType_ === NewTabPageType.kExtension;
+  }
+
+  protected async onBackClick_() {
     switch (this.page_) {
       case CustomizeChromePage.CATEGORIES:
+      case CustomizeChromePage.TOOLBAR:
         this.page_ = CustomizeChromePage.OVERVIEW;
+        await this.updateComplete;
         this.$.appearanceElement.focusOnThemeButton();
         break;
       case CustomizeChromePage.THEMES:
-      case CustomizeChromePage.CHROME_COLORS:
+      case CustomizeChromePage.WALLPAPER_SEARCH:
         this.page_ = CustomizeChromePage.CATEGORIES;
+        await this.updateComplete;
         this.$.categoriesPage.focusOnBackButton();
         break;
     }
   }
 
-  private onEditThemeClick_() {
+  protected async onEditThemeClick_() {
     this.page_ = CustomizeChromePage.CATEGORIES;
+    await this.updateComplete;
     this.$.categoriesPage.focusOnBackButton();
   }
 
-  private onCollectionSelect_(event: CustomEvent<BackgroundCollection>) {
+  protected async onCollectionSelect_(event:
+                                          CustomEvent<BackgroundCollection>) {
     this.selectedCollection_ = event.detail;
     this.page_ = CustomizeChromePage.THEMES;
+    await this.updateComplete;
     this.$.themesPage.focusOnBackButton();
   }
 
-  private onLocalImageUpload_() {
+  protected async onLocalImageUpload_() {
     this.page_ = CustomizeChromePage.OVERVIEW;
+    await this.updateComplete;
     this.$.appearanceElement.focusOnThemeButton();
   }
 
-  private onChromeColorsSelect_() {
-    this.page_ = CustomizeChromePage.CHROME_COLORS;
-    this.$.chromeColorsPage.focusOnBackButton();
+  protected onWallpaperSearchSelect_() {
+    this.page_ = CustomizeChromePage.WALLPAPER_SEARCH;
+    const page =
+        this.shadowRoot.querySelector('customize-chrome-wallpaper-search');
+    assert(page);
+    page.focusOnBackButton();
+  }
+
+  protected onCouponsButtonClick_() {
+    this.pageHandler_.openChromeWebStoreCategoryPage(
+        ChromeWebStoreCategory.kShopping);
+  }
+
+  protected onWritingButtonClick_() {
+    this.pageHandler_.openChromeWebStoreCollectionPage(
+        ChromeWebStoreCollection.kWritingEssentials);
+  }
+
+  protected onProductivityButtonClick_() {
+    this.pageHandler_.openChromeWebStoreCategoryPage(
+        ChromeWebStoreCategory.kWorkflowPlanning);
+  }
+
+  protected onChromeWebStoreLinkClick_(e: Event) {
+    if ((e.target as HTMLElement).id !== 'chromeWebstoreLink') {
+      // Ignore any clicks that are not directly on the <a> element itself. Note
+      // that the <a> element is part of a localized string, which is why the
+      // listener is added on the parent DOM node.
+      return;
+    }
+
+    this.pageHandler_.openChromeWebStoreHomePage();
+  }
+
+  protected onToolbarCustomizationButtonClick_() {
+    this.openToolbarCustomizationPage();
+    chrome.metricsPrivate.recordUserAction(
+        'Actions.CustomizeToolbarSidePanel.OpenedFromCustomizeChrome');
+  }
+
+  private async openToolbarCustomizationPage() {
+    this.page_ = CustomizeChromePage.TOOLBAR;
+    const page = this.shadowRoot.querySelector('customize-chrome-toolbar');
+    assert(page);
+    await this.updateComplete;
+    page.focusOnBackButton();
+  }
+
+  private pageSupportedOnNonFirstPartyNtps() {
+    return this.page_ === CustomizeChromePage.TOOLBAR;
   }
 }
 

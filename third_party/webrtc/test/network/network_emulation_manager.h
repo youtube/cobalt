@@ -11,18 +11,25 @@
 #ifndef TEST_NETWORK_NETWORK_EMULATION_MANAGER_H_
 #define TEST_NETWORK_NETWORK_EMULATION_MANAGER_H_
 
+#include <cstdint>
+#include <functional>
+#include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "api/array_view.h"
+#include "api/test/network_emulation/cross_traffic.h"
+#include "api/test/network_emulation/network_emulation_interfaces.h"
 #include "api/test/network_emulation_manager.h"
 #include "api/test/simulated_network.h"
 #include "api/test/time_controller.h"
-#include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "rtc_base/ip_address.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/task_utils/repeating_task.h"
 #include "system_wrappers/include/clock.h"
@@ -36,9 +43,7 @@ namespace test {
 
 class NetworkEmulationManagerImpl : public NetworkEmulationManager {
  public:
-  NetworkEmulationManagerImpl(
-      TimeMode mode,
-      EmulatedNetworkStatsGatheringMode stats_gathering_mode);
+  explicit NetworkEmulationManagerImpl(NetworkEmulationManagerConfig config);
   ~NetworkEmulationManagerImpl();
 
   EmulatedNetworkNode* CreateEmulatedNode(BuiltInNetworkBehaviorConfig config,
@@ -76,15 +81,16 @@ class NetworkEmulationManagerImpl : public NetworkEmulationManager {
       std::unique_ptr<CrossTrafficGenerator> generator) override;
   void StopCrossTraffic(CrossTrafficGenerator* generator) override;
 
-  EmulatedNetworkManagerInterface* CreateEmulatedNetworkManagerInterface(
+  EmulatedNetworkManagerInterface* absl_nonnull
+  CreateEmulatedNetworkManagerInterface(
       const std::vector<EmulatedEndpoint*>& endpoints) override;
 
   void GetStats(
-      rtc::ArrayView<EmulatedEndpoint* const> endpoints,
+      ArrayView<EmulatedEndpoint* const> endpoints,
       std::function<void(EmulatedNetworkStats)> stats_callback) override;
 
   void GetStats(
-      rtc::ArrayView<EmulatedNetworkNode* const> nodes,
+      ArrayView<EmulatedNetworkNode* const> nodes,
       std::function<void(EmulatedNetworkNodeStats)> stats_callback) override;
 
   TimeController* time_controller() override { return time_controller_.get(); }
@@ -100,18 +106,19 @@ class NetworkEmulationManagerImpl : public NetworkEmulationManager {
   using CrossTrafficSource =
       std::pair<std::unique_ptr<CrossTrafficGenerator>, RepeatingTaskHandle>;
 
-  absl::optional<rtc::IPAddress> GetNextIPv4Address();
+  std::optional<IPAddress> GetNextIPv4Address();
 
   const TimeMode time_mode_;
   const EmulatedNetworkStatsGatheringMode stats_gathering_mode_;
   const std::unique_ptr<TimeController> time_controller_;
   Clock* const clock_;
+  const bool fake_dtls_handshake_sizes_;
   int next_node_id_;
 
   RepeatingTaskHandle process_task_handle_;
 
   uint32_t next_ip4_address_;
-  std::set<rtc::IPAddress> used_ip_addresses_;
+  std::set<IPAddress> used_ip_addresses_;
 
   // All objects can be added to the manager only when it is idle.
   std::vector<std::unique_ptr<EmulatedEndpoint>> endpoints_;

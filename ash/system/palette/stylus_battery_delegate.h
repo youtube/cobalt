@@ -13,6 +13,10 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/image/image_skia.h"
 
+namespace ui {
+class ColorProvider;
+}
+
 namespace ash {
 
 class ASH_EXPORT StylusBatteryDelegate
@@ -26,7 +30,7 @@ class ASH_EXPORT StylusBatteryDelegate
   ~StylusBatteryDelegate() override;
 
   SkColor GetColorForBatteryLevel() const;
-  gfx::ImageSkia GetBatteryImage() const;
+  gfx::ImageSkia GetBatteryImage(const ui::ColorProvider* color_provider) const;
   gfx::ImageSkia GetBatteryStatusUnknownImage() const;
   void SetBatteryUpdateCallback(Callback battery_update_callback);
   bool IsBatteryCharging() const;
@@ -35,9 +39,10 @@ class ASH_EXPORT StylusBatteryDelegate
   bool IsBatteryStatusEligible() const;
   bool ShouldShowBatteryStatus() const;
 
-  absl::optional<uint8_t> battery_level() const { return battery_level_; }
+  std::optional<uint8_t> battery_level() const { return battery_level_; }
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(StylusBatteryViewTest, AccessibleProperties);
   bool IsBatteryInfoValid(
       const PeripheralBatteryListener::BatteryInfo& battery) const;
 
@@ -51,8 +56,8 @@ class ASH_EXPORT StylusBatteryDelegate
 
   PeripheralBatteryListener::BatteryInfo::ChargeStatus battery_charge_status_ =
       PeripheralBatteryListener::BatteryInfo::ChargeStatus::kUnknown;
-  absl::optional<uint8_t> battery_level_;
-  absl::optional<base::TimeTicks> last_update_timestamp_;
+  std::optional<uint8_t> battery_level_;
+  std::optional<base::TimeTicks> last_update_timestamp_;
   bool last_update_eligible_ = false;
 
   Callback battery_update_callback_;

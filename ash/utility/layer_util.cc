@@ -22,12 +22,13 @@ void CopyCopyOutputResultToLayer(
   DCHECK_EQ(copy_result->destination(),
             viz::CopyOutputResult::Destination::kNativeTextures);
 
-  const gpu::MailboxHolder& plane = copy_result->GetTextureResult()->planes[0];
+  const auto& texture_result = *copy_result->GetTextureResult();
   viz::TransferableResource transferable_resource =
-      viz::TransferableResource::MakeGpu(plane.mailbox, plane.texture_target,
-                                         plane.sync_token, copy_result->size(),
-                                         viz::SinglePlaneFormat::kRGBA_8888,
-                                         /*is_overlay_candidate=*/false);
+      viz::TransferableResource::MakeGpu(
+          texture_result.mailbox, GL_TEXTURE_2D, gpu::SyncToken(),
+          copy_result->size(), viz::SinglePlaneFormat::kRGBA_8888,
+          /*is_overlay_candidate=*/false,
+          viz::TransferableResource::ResourceSource::kUI);
   viz::CopyOutputResult::ReleaseCallbacks release_callbacks =
       copy_result->TakeTextureOwnership();
 
@@ -45,9 +46,9 @@ void CopyToNewLayerOnCopyRequestFinished(
     const gfx::Size& layer_size,
     std::unique_ptr<viz::CopyOutputResult> copy_result) {
   if (!copy_result || copy_result->IsEmpty()) {
-    if (!layer_copy_callback.MaybeValid())
-      return;
-    std::move(layer_copy_callback).Run(nullptr);
+    if (layer_copy_callback) {
+      std::move(layer_copy_callback).Run(nullptr);
+    }
     return;
   }
 

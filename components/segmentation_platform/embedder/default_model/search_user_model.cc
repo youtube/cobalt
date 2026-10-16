@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,6 +16,7 @@
 #include "components/segmentation_platform/public/features.h"
 #include "components/segmentation_platform/public/model_provider.h"
 #include "components/segmentation_platform/public/proto/model_metadata.pb.h"
+#include "services/metrics/public/cpp/ukm_builders.h"
 
 namespace segmentation_platform {
 
@@ -41,9 +42,19 @@ constexpr std::array<MetadataWriter::UMAFeature, 1> kSearchUserUMAFeatures = {
         kOnlySearch.size()),
 };
 
-constexpr char kUkmInputEnabled[] = "ukm-input-enabled";
+#if BUILDFLAG(IS_IOS)
+constexpr UkmEventHash kPageLoadHash = UkmEventHash::FromUnsafeValue(
+    ukm::builders::MainFrameNavigation::kEntryNameHash);
+constexpr UkmMetricHash kNavMetricHash = UkmMetricHash::FromUnsafeValue(
+    ukm::builders::MainFrameNavigation::kDidCommitNameHash);
+#elif !BUILDFLAG(IS_CHROMEOS)
+constexpr UkmEventHash kPageLoadHash =
+    UkmEventHash::FromUnsafeValue(ukm::builders::PageLoad::kEntryNameHash);
+constexpr UkmMetricHash kNavMetricHash = UkmMetricHash::FromUnsafeValue(
+    ukm::builders::PageLoad::kPaintTiming_NavigationToFirstPaintNameHash);
+#endif
 
-std::unique_ptr<ModelProvider> GetSearchUserDefaultModel() {
+std::unique_ptr<DefaultModelProvider> GetSearchUserDefaultModel() {
   if (!base::GetFieldTrialParamByFeatureAsBool(
           features::kSegmentationPlatformSearchUser, kDefaultModelEnabledParam,
           true)) {
@@ -65,13 +76,15 @@ std::unique_ptr<Config> SearchUserModel::GetConfig() {
   config->segmentation_key = kSearchUserKey;
   config->segmentation_uma_name = kSearchUserUmaName;
   config->AddSegmentId(kSearchUserSegmentId, GetSearchUserDefaultModel());
+  config->auto_execute_and_cache = true;
   return config;
 }
 
-SearchUserModel::SearchUserModel() : ModelProvider(kSearchUserSegmentId) {}
+SearchUserModel::SearchUserModel()
+    : DefaultModelProvider(kSearchUserSegmentId) {}
 
-void SearchUserModel::InitAndFetchModel(
-    const ModelUpdatedCallback& model_updated_callback) {
+std::unique_ptr<DefaultModelProvider::ModelConfig>
+SearchUserModel::GetModelConfig() {
   proto::SegmentationModelMetadata search_user_metadata;
   MetadataWriter writer(&search_user_metadata);
   writer.SetDefaultSegmentationMetadataConfig(
@@ -82,26 +95,24 @@ void SearchUserModel::InitAndFetchModel(
   writer.AddUmaFeatures(kSearchUserUMAFeatures.data(),
                         kSearchUserUMAFeatures.size());
 
-  if (base::GetFieldTrialParamByFeatureAsBool(
-          features::kSegmentationPlatformSearchUser, kUkmInputEnabled, false)) {
-    std::string query =
-        "SELECT COUNT(id) FROM metrics WHERE metric_hash = '64BD7CCE5A95BF00'";
-    const std::array<UkmMetricHash, 1> kNavigationMetric = {
-        UkmMetricHash::FromUnsafeValue(7259095400115977984ull)};
-    const std::array<MetadataWriter::SqlFeature::EventAndMetrics, 1>
-        kPageLoadEvent{MetadataWriter::SqlFeature::EventAndMetrics{
-            .event_hash =
-                UkmEventHash::FromUnsafeValue(12426032810838168341ull),
-            .metrics = kNavigationMetric.data(),
-            .metrics_size = kNavigationMetric.size()}};
+// Segmentation Ukm Engine is disabled on CrOS.
+#if !BUILDFLAG(IS_CHROMEOS)
 
-    MetadataWriter::SqlFeature sql_feature{
-        .sql = query.c_str(),
-        .events = kPageLoadEvent.data(),
-        .events_size = kPageLoadEvent.size()};
-    MetadataWriter::SqlFeature features[] = {sql_feature};
-    writer.AddSqlFeatures(features, 1);
-  }
+  std::string query =
+      "SELECT COUNT(id) FROM metrics WHERE metric_hash = '64BD7CCE5A95BF00'";
+  const std::array<UkmMetricHash, 1> kNavigationMetric = {kNavMetricHash};
+  const std::array<MetadataWriter::SqlFeature::EventAndMetrics, 1>
+      kPageLoadEvent{MetadataWriter::SqlFeature::EventAndMetrics{
+          .event_hash = kPageLoadHash,
+          .metrics = kNavigationMetric.data(),
+          .metrics_size = kNavigationMetric.size()}};
+
+  MetadataWriter::SqlFeature sql_feature{.sql = query.c_str(),
+                                         .events = kPageLoadEvent.data(),
+                                         .events_size = kPageLoadEvent.size()};
+  writer.AddSqlFeature(sql_feature);
+
+#endif  //! BUILDFLAG(IS_CHROMEOS)
 
   // Set OutputConfig.
   writer.AddOutputConfigForBinnedClassifier(
@@ -113,19 +124,17 @@ void SearchUserModel::InitAndFetchModel(
       /*top_label_to_ttl_list=*/{}, /*default_ttl=*/7,
       /*time_unit=*/proto::TimeUnit::DAY);
 
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindRepeating(
-                     model_updated_callback, kSearchUserSegmentId,
-                     std::move(search_user_metadata), kSearchUserModelVersion));
+  return std::make_unique<ModelConfig>(std::move(search_user_metadata),
+                                       kSearchUserModelVersion);
 }
 
 void SearchUserModel::ExecuteModelWithInput(
     const ModelProvider::Request& inputs,
     ExecutionCallback callback) {
   // Invalid inputs.
-  if (inputs.size() != kSearchUserUMAFeatures.size()) {
+  if (inputs.size() < kSearchUserUMAFeatures.size()) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+        FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
     return;
   }
   auto search_count = inputs[0];
@@ -133,10 +142,6 @@ void SearchUserModel::ExecuteModelWithInput(
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback),
                                 ModelProvider::Response(1, search_count)));
-}
-
-bool SearchUserModel::ModelAvailable() {
-  return true;
 }
 
 }  // namespace segmentation_platform

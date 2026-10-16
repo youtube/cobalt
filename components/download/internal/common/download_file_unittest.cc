@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 
 #include <memory>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -14,11 +20,12 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_file_util.h"
 #include "build/build_config.h"
@@ -27,6 +34,8 @@
 #include "components/download/public/common/download_file_impl.h"
 #include "components/download/public/common/download_interrupt_reasons.h"
 #include "components/download/public/common/mock_input_stream.h"
+#include "components/services/quarantine/public/mojom/quarantine.mojom.h"
+#include "mojo/public/cpp/bindings/receiver.h"
 #include "net/base/net_errors.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -38,11 +47,13 @@
 using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::DoAll;
+using ::testing::Eq;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::Sequence;
 using ::testing::SetArgPointee;
 using ::testing::StrictMock;
+using ::testing::WithArg;
 
 namespace download {
 namespace {
@@ -66,9 +77,9 @@ int64_t GetBuffersLength(const char** buffers, size_t num_buffer) {
 std::string GetHexEncodedHashValue(crypto::SecureHash* hash_state) {
   if (!hash_state)
     return std::string();
-  std::vector<char> hash_value(hash_state->GetHashLength());
+  std::vector<uint8_t> hash_value(hash_state->GetHashLength());
   hash_state->Finish(&hash_value.front(), hash_value.size());
-  return base::HexEncode(&hash_value.front(), hash_value.size());
+  return base::HexEncode(hash_value);
 }
 
 class MockDownloadDestinationObserver : public DownloadDestinationObserver {
@@ -133,6 +144,18 @@ class TestDownloadFileImpl : public DownloadFileImpl {
 #endif
 };
 
+class MockQuarantine : public quarantine::mojom::Quarantine {
+ public:
+  MOCK_METHOD(void,
+              QuarantineFile,
+              (const base::FilePath& full_path,
+               const GURL& source_url,
+               const GURL& referrer_url,
+               const std::optional<url::Origin>& request_initiator,
+               const std::string& client_guid,
+               quarantine::mojom::Quarantine::QuarantineFileCallback callback));
+};
+
 }  // namespace
 
 class DownloadFileTest : public testing::Test {
@@ -155,12 +178,13 @@ class DownloadFileTest : public testing::Test {
       : observer_(new StrictMock<MockDownloadDestinationObserver>),
         observer_factory_(observer_.get()),
         input_stream_(nullptr),
-        additional_streams_(
-            std::vector<StrictMock<MockInputStream>*>{nullptr, nullptr}),
+        additional_streams_(std::vector<raw_ptr<StrictMock<MockInputStream>>>{
+            nullptr, nullptr}),
         bytes_(-1),
-        bytes_per_sec_(-1) {}
+        bytes_per_sec_(-1),
+        quarantine_remote_(&quarantine_) {}
 
-  ~DownloadFileTest() override {}
+  ~DownloadFileTest() override = default;
 
   void SetUpdateDownloadInfo(
       int64_t bytes,
@@ -181,6 +205,12 @@ class DownloadFileTest : public testing::Test {
     EXPECT_CALL(*(observer_.get()), DestinationUpdate(_, _, _))
         .Times(AnyNumber())
         .WillRepeatedly(Invoke(this, &DownloadFileTest::SetUpdateDownloadInfo));
+    ON_CALL(quarantine_, QuarantineFile(_, _, _, _, _, _))
+        .WillByDefault(WithArg<5>(
+            [](quarantine::mojom::Quarantine::QuarantineFileCallback callback) {
+              std::move(callback).Run(
+                  quarantine::mojom::QuarantineFileResult::OK);
+            }));
     bool result = download_dir_.CreateUniqueTempDir();
     CHECK(result);
   }
@@ -215,6 +245,13 @@ class DownloadFileTest : public testing::Test {
                               -1);
   }
 
+#if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
+  bool CreateDownloadFile(int length, bool needs_obfuscation) {
+    return CreateDownloadFile(length, true, DownloadItem::ReceivedSlices(), -1,
+                              needs_obfuscation);
+  }
+#endif
+
   bool CreateDownloadFile(int length,
                           bool calculate_hash,
                           const DownloadItem::ReceivedSlices& received_slices) {
@@ -225,7 +262,8 @@ class DownloadFileTest : public testing::Test {
   bool CreateDownloadFile(int length,
                           bool calculate_hash,
                           const DownloadItem::ReceivedSlices& received_slices,
-                          int file_offset) {
+                          int file_offset,
+                          bool needs_obfuscation = false) {
     // There can be only one.
     DCHECK(!download_file_);
 
@@ -248,13 +286,17 @@ class DownloadFileTest : public testing::Test {
       while (len > 0) {
         int bytes_to_write = len > data_len ? data_len : len;
         base::AppendToFile(save_info->file_path,
-                           base::StringPiece(kTestData1, bytes_to_write));
+                           std::string_view(kTestData1, bytes_to_write));
         len -= bytes_to_write;
       }
     }
 
     save_info->offset = 0;
     save_info->file_offset = file_offset;
+    if (needs_obfuscation) {
+      save_info->needs_obfuscation = needs_obfuscation;
+      save_info->total_bytes = length;
+    }
 
     download_file_ = std::make_unique<TestDownloadFileImpl>(
         std::move(save_info), download_dir_.GetPath(),
@@ -292,6 +334,11 @@ class DownloadFileTest : public testing::Test {
       EXPECT_EQ(expected_data_, disk_data);
     }
 
+    // Clear `raw_ptr`s before they become dangling pointers after resetting
+    // `download_file_` below.
+    input_stream_ = nullptr;
+    additional_streams_.clear();
+
     // Make sure the Browser and File threads outlive the DownloadFile
     // to satisfy thread checks inside it.
     download_file_.reset();
@@ -309,8 +356,7 @@ class DownloadFileTest : public testing::Test {
     for (size_t i = 0; i < num_chunks; i++) {
       const char* source_data = data_chunks[i];
       size_t length = strlen(source_data);
-      scoped_refptr<net::IOBuffer> data =
-          base::MakeRefCounted<net::IOBuffer>(length);
+      auto data = base::MakeRefCounted<net::IOBufferWithSize>(length);
       memcpy(data->data(), source_data, length);
       EXPECT_CALL(*input_stream, Read(_, _))
           .InSequence(s)
@@ -335,9 +381,9 @@ class DownloadFileTest : public testing::Test {
 
   void VerifyStreamAndSize() {
     ::testing::Mock::VerifyAndClearExpectations(input_stream_);
-    int64_t size;
-    EXPECT_TRUE(base::GetFileSize(download_file_->FullPath(), &size));
-    EXPECT_EQ(expected_data_.size(), static_cast<size_t>(size));
+    std::optional<int64_t> size = base::GetFileSize(download_file_->FullPath());
+    ASSERT_TRUE(size.has_value());
+    EXPECT_EQ(expected_data_.size(), static_cast<size_t>(size.value()));
   }
 
   // TODO(rdsmith): Manage full percentage issues properly.
@@ -415,9 +461,19 @@ class DownloadFileTest : public testing::Test {
         break;
 
       case RENAME_AND_ANNOTATE:
+        // We cannot rebind a mojo::Remote without resetting it. The
+        // real implementation binds a new Remote on every call to
+        // RenameAndAnnotate, but it's simpler to reuse
+        // `quarantine_remote_` in tests.
+        quarantine_remote_.reset();
         download_file_->RenameAndAnnotate(
-            full_path, "12345678-ABCD-1234-DCBA-123456789ABC", GURL(), GURL(),
-            mojo::NullRemote(), std::move(completion_callback));
+            full_path, "12345678-ABCD-1234-DCBA-123456789ABC",
+            GURL("https://source.example.com/"),
+            GURL("https://referrer.example.com/"),
+            /*request_initiator=*/
+            url::Origin::Create(GURL("https://initiator.example.com/")),
+            quarantine_remote_.BindNewPipeAndPassRemote(),
+            std::move(completion_callback));
         break;
     }
   }
@@ -438,7 +494,7 @@ class DownloadFileTest : public testing::Test {
   }
 
   // Prepare a byte stream to write to the file sink.
-  void PrepareStream(StrictMock<MockInputStream>** stream,
+  void PrepareStream(raw_ptr<StrictMock<MockInputStream>>* stream,
                      int64_t offset,
                      bool create_stream,
                      bool will_finish,
@@ -499,12 +555,10 @@ class DownloadFileTest : public testing::Test {
 
   // Stream for sending data into the download file.
   // Owned by download_file_; will be alive for lifetime of download_file_.
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION StrictMock<MockInputStream>* input_stream_;
+  raw_ptr<StrictMock<MockInputStream>> input_stream_;
 
   // Additional streams to test multiple stream write.
-  std::vector<StrictMock<MockInputStream>*> additional_streams_;
+  std::vector<raw_ptr<StrictMock<MockInputStream>>> additional_streams_;
 
   // Sink callback data for stream.
   mojo::SimpleWatcher::ReadyCallback sink_callback_;
@@ -518,6 +572,8 @@ class DownloadFileTest : public testing::Test {
   // Keep track of what data should be saved to the disk file.
   std::string expected_data_;
 
+  MockQuarantine quarantine_;
+
  private:
   void SetRenameResult(base::OnceClosure closure,
                        DownloadInterruptReason* reason_p,
@@ -530,6 +586,8 @@ class DownloadFileTest : public testing::Test {
       *result_path_p = result_path;
     std::move(closure).Run();
   }
+
+  mojo::Receiver<quarantine::mojom::Quarantine> quarantine_remote_;
 
   base::test::TaskEnvironment task_environment_;
 };
@@ -726,8 +784,37 @@ TEST_F(DownloadFileTest, RenameRecognizesSelfConflict) {
   EXPECT_EQ(initial_path.value(), new_path.value());
 }
 
+#if BUILDFLAG(IS_MAC)
+// Test that RenameAndUniquify will remove file hidden flag.
+TEST_F(DownloadFileTest, RenameRemovesHiddenFlag) {
+  ASSERT_TRUE(CreateDownloadFile(true));
+  base::FilePath initial_path(download_file_->FullPath());
+  EXPECT_TRUE(base::PathExists(initial_path));
+  // Set the file hidden.
+  base::stat_wrapper_t stat;
+  base::File::Stat(initial_path, &stat);
+  // Update the file's hidden flags.
+  chflags(initial_path.value().c_str(), stat.st_flags | UF_HIDDEN);
+
+  base::FilePath target_path =
+      initial_path.DirName().Append(FILE_PATH_LITERAL("foo"));
+  base::FilePath new_path;
+  EXPECT_EQ(DOWNLOAD_INTERRUPT_REASON_NONE,
+            RenameAndUniquify(target_path, &new_path));
+  EXPECT_TRUE(base::PathExists(target_path));
+  base::File::Stat(initial_path, &stat);
+  EXPECT_FALSE(stat.st_flags & UF_HIDDEN);
+
+  FinishStream(DOWNLOAD_INTERRUPT_REASON_NONE, true, kEmptyHash);
+  base::RunLoop().RunUntilIdle();
+
+  DestroyDownloadFile(0);
+  EXPECT_EQ(target_path.value(), new_path.value());
+}
+#endif
+
 #if BUILDFLAG(IS_FUCHSIA)
-// TODO(crbug.com/1314071): Re-enable when RenameError works on Fuchsia.
+// TODO(crbug.com/40221273): Re-enable when RenameError works on Fuchsia.
 #define MAYBE_RenameError DISABLED_RenameError
 #else
 #define MAYBE_RenameError RenameError
@@ -780,7 +867,7 @@ void TestRenameCompletionCallback(base::OnceClosure closure,
 }  // namespace
 
 #if BUILDFLAG(IS_FUCHSIA)
-// TODO(crbug.com/1314072): Re-enable when RenameWithErrorRetry works on
+// TODO(crbug.com/40221274): Re-enable when RenameWithErrorRetry works on
 // Fuchsia.
 #define MAYBE_RenameWithErrorRetry DISABLED_RenameWithErrorRetry
 #else
@@ -1116,10 +1203,13 @@ TEST_F(DownloadFileTest, MultipleStreamsFirstStreamWriteAllData) {
   // called.
   EXPECT_FALSE(download_file_->InProgress());
 
-  additional_streams_[0] = new StrictMock<MockInputStream>();
+  // Clear `raw_ptr`s before they become dangling pointers after the
+  // `AddInputStream` call below.
+  input_stream_ = nullptr;
+  additional_streams_.clear();
+
   download_file_->AddInputStream(
-      std::unique_ptr<MockInputStream>(additional_streams_[0]),
-      stream_0_length - 1);
+      std::make_unique<StrictMock<MockInputStream>>(), stream_0_length - 1);
   base::RunLoop().RunUntilIdle();
 
   SourceStreamTestData stream_data_0(0, stream_0_length, true);
@@ -1232,5 +1322,181 @@ TEST_F(DownloadFileTest, SecondStreamReadsOffsetWrittenByFirst) {
   download_file_->Cancel();
   DestroyDownloadFile(0, false);
 }
+
+TEST_F(DownloadFileTest, PropagatesUrlAndInitiatorToQuarantine) {
+  ASSERT_TRUE(CreateDownloadFile(true));
+  base::FilePath initial_path(download_file_->FullPath());
+  base::FilePath path_1(initial_path.InsertBeforeExtensionASCII("_1"));
+
+  EXPECT_CALL(
+      quarantine_,
+      QuarantineFile(
+          _, GURL("https://source.example.com/"),
+          GURL("https://referrer.example.com"),
+          Eq(url::Origin::Create(GURL("https://initiator.example.com/"))), _,
+          _))
+      .WillOnce(WithArg<5>(
+          [](quarantine::mojom::Quarantine::QuarantineFileCallback callback) {
+            std::move(callback).Run(
+                quarantine::mojom::QuarantineFileResult::OK);
+          }));
+  base::FilePath new_path;
+  EXPECT_EQ(DOWNLOAD_INTERRUPT_REASON_NONE,
+            RenameAndAnnotate(path_1, &new_path));
+  EXPECT_EQ(path_1.value(), new_path.value());
+
+  FinishStream(DOWNLOAD_INTERRUPT_REASON_NONE, true, kEmptyHash);
+  base::RunLoop().RunUntilIdle();
+  DestroyDownloadFile(0);
+}
+
+#if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
+class DownloadFileTestWithObfuscation : public DownloadFileTest {
+ protected:
+  // Constants for obfuscation overhead
+  static constexpr size_t kObfuscationHeaderSize = 40;     // bytes
+  static constexpr size_t kObfuscationChunkOverhead = 20;  // bytes per chunk
+
+  void SetUp() override {
+    DownloadFileTest::SetUp();
+    scoped_feature_list_.InitAndEnableFeature(
+        enterprise_obfuscation::kEnterpriseFileObfuscation);
+  }
+
+  size_t CalculateObfuscationOverhead(size_t num_chunks) const {
+    return kObfuscationChunkOverhead * num_chunks + kObfuscationHeaderSize;
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(DownloadFileTestWithObfuscation, ObfuscationEnabled) {
+  size_t length = strlen(kTestData1) + strlen(kTestData2) + strlen(kTestData3);
+  ASSERT_TRUE(CreateDownloadFile(length, true));
+  const char* chunks[] = {kTestData1, kTestData2, kTestData3};
+
+  EXPECT_CALL(*input_stream_, RegisterDataReadyCallback(_))
+      .Times(1)
+      .RetiresOnSaturation();
+
+  // Append dummy data for obfuscated size verification.
+  expected_data_ += std::string(CalculateObfuscationOverhead(3), '\0');
+  AppendDataToFile(chunks, 3);
+
+  // Original file hash should be returned, not the obfuscated hash.
+  FinishStream(DOWNLOAD_INTERRUPT_REASON_NONE, true, kDataHash);
+
+  // Verify that the file content is obfuscated.
+  std::string file_content;
+  ASSERT_TRUE(
+      base::ReadFileToString(download_file_->FullPath(), &file_content));
+  EXPECT_NE(file_content, std::string(kTestData1) + std::string(kTestData2) +
+                              std::string(kTestData3));
+  EXPECT_EQ(file_content.size(), length + CalculateObfuscationOverhead(3));
+
+  download_file_->Cancel();
+  DestroyDownloadFile(0, false);
+}
+
+TEST_F(DownloadFileTestWithObfuscation, ObfuscationWithUnknownFileSize) {
+  size_t length = strlen(kTestData1) + strlen(kTestData2) + strlen(kTestData3);
+  ASSERT_TRUE(CreateDownloadFile(0 /*Unknown file size*/, true));
+  const char* chunks[] = {kTestData1, kTestData2, kTestData3};
+
+  EXPECT_CALL(*input_stream_, RegisterDataReadyCallback(_))
+      .Times(1)
+      .RetiresOnSaturation();
+
+  // Append dummy data for obfuscated size verification.
+  expected_data_ += std::string(CalculateObfuscationOverhead(3), '\0');
+  AppendDataToFile(chunks, 3);
+
+  // For files of unknown sizes, an empty chunk is appended once download
+  // completes.
+  expected_data_ += std::string(kObfuscationChunkOverhead, '\0');
+
+  FinishStream(DOWNLOAD_INTERRUPT_REASON_NONE, true, kDataHash);
+
+  // Verify that the file content is obfuscated, and includes an extra chunk.
+  std::string file_content;
+  ASSERT_TRUE(
+      base::ReadFileToString(download_file_->FullPath(), &file_content));
+  EXPECT_NE(file_content, std::string(kTestData1) + std::string(kTestData2) +
+                              std::string(kTestData3));
+  EXPECT_GT(file_content.size(), length);
+  EXPECT_EQ(file_content.size(), length += CalculateObfuscationOverhead(4));
+
+  download_file_->Cancel();
+  DestroyDownloadFile(0, false);
+}
+
+TEST_F(DownloadFileTestWithObfuscation, ObfuscationDisabled) {
+  scoped_feature_list_.Reset();
+  scoped_feature_list_.InitAndDisableFeature(
+      enterprise_obfuscation::kEnterpriseFileObfuscation);
+
+  int length = strlen(kTestData1) + strlen(kTestData2) + strlen(kTestData3);
+  ASSERT_TRUE(CreateDownloadFile(length, false));
+  const char* chunks[] = {kTestData1, kTestData2, kTestData3};
+
+  EXPECT_CALL(*input_stream_, RegisterDataReadyCallback(_))
+      .Times(1)
+      .RetiresOnSaturation();
+
+  AppendDataToFile(chunks, 3);
+  FinishStream(DOWNLOAD_INTERRUPT_REASON_NONE, true, kDataHash);
+
+  // Verify that the file content is not obfuscated.
+  std::string file_content;
+  ASSERT_TRUE(
+      base::ReadFileToString(download_file_->FullPath(), &file_content));
+  EXPECT_EQ(file_content, std::string(kTestData1) + std::string(kTestData2) +
+                              std::string(kTestData3));
+
+  DestroyDownloadFile(0);
+}
+
+TEST_F(DownloadFileTestWithObfuscation, DeobfuscateAndRename) {
+  size_t length = strlen(kTestData1) + strlen(kTestData2) + strlen(kTestData3);
+  ASSERT_TRUE(CreateDownloadFile(length, true));
+  const char* chunks[] = {kTestData1, kTestData2, kTestData3};
+
+  EXPECT_CALL(*input_stream_, RegisterDataReadyCallback(_))
+      .Times(1)
+      .RetiresOnSaturation();
+
+  expected_data_ += std::string(CalculateObfuscationOverhead(3), '\0');
+  AppendDataToFile(chunks, 3);
+  FinishStream(DOWNLOAD_INTERRUPT_REASON_NONE, true, kDataHash);
+
+  // Deobfuscate the file in place.
+  base::expected<void, enterprise_obfuscation::Error> deobfuscate_result =
+      enterprise_obfuscation::DeobfuscateFileInPlace(
+          download_file_->FullPath());
+  EXPECT_TRUE(deobfuscate_result.has_value());
+
+  EXPECT_CALL(quarantine_, QuarantineFile(_, _, _, _, _, _))
+      .WillOnce(WithArg<5>(
+          [](quarantine::mojom::Quarantine::QuarantineFileCallback callback) {
+            std::move(callback).Run(
+                quarantine::mojom::QuarantineFileResult::OK);
+          }));
+
+  // Test renaming after deobfuscation.
+  base::FilePath initial_path(download_file_->FullPath());
+  base::FilePath new_path(initial_path.InsertBeforeExtensionASCII("_renamed"));
+  DownloadInterruptReason rename_reason = RenameAndAnnotate(new_path, nullptr);
+  EXPECT_EQ(DOWNLOAD_INTERRUPT_REASON_NONE, rename_reason);
+  EXPECT_TRUE(base::PathExists(new_path));
+  EXPECT_FALSE(base::PathExists(initial_path));
+
+  // Verify the final file size after renaming.
+  std::optional<int64_t> final_size = base::GetFileSize(new_path);
+  ASSERT_TRUE(final_size.has_value());
+  EXPECT_EQ(length, static_cast<size_t>(final_size.value()));
+
+  DestroyDownloadFile(0, false);
+}
+#endif
 
 }  // namespace download

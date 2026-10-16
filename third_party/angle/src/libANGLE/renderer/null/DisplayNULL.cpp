@@ -68,9 +68,9 @@ egl::ConfigSet DisplayNULL::generateConfigs()
     config.depthSize             = 24;
     config.level                 = 0;
     config.matchNativePixmap     = EGL_NONE;
-    config.maxPBufferWidth       = 0;
-    config.maxPBufferHeight      = 0;
-    config.maxPBufferPixels      = 0;
+    config.maxPBufferWidth       = 4096;
+    config.maxPBufferHeight      = 4096;
+    config.maxPBufferPixels      = 4096 * 4096;
     config.maxSwapInterval       = 1;
     config.minSwapInterval       = 1;
     config.nativeRenderable      = EGL_TRUE;
@@ -142,11 +142,6 @@ gl::Version DisplayNULL::getMaxSupportedESVersion() const
     return gl::Version(3, 2);
 }
 
-Optional<gl::Version> DisplayNULL::getMaxSupportedDesktopVersion() const
-{
-    return Optional<gl::Version>::Invalid();
-}
-
 gl::Version DisplayNULL::getMaxConformantESVersion() const
 {
     return getMaxSupportedESVersion();
@@ -205,9 +200,9 @@ StreamProducerImpl *DisplayNULL::createStreamProducerD3DTexture(
     return nullptr;
 }
 
-ShareGroupImpl *DisplayNULL::createShareGroup()
+ShareGroupImpl *DisplayNULL::createShareGroup(const egl::ShareGroupState &state)
 {
-    return new ShareGroupNULL();
+    return new ShareGroupNULL(state);
 }
 
 void DisplayNULL::generateExtensions(egl::DisplayExtensions *outExtensions) const

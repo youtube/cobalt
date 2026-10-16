@@ -33,6 +33,9 @@ class CORE_EXPORT HTMLVideoElementExtensions final {
   static void setMaxVideoCapabilities(HTMLVideoElement& video_element,
                                       const String& max_video_capabilities,
                                       ExceptionState& exception_state);
+  static void setMaxVideoResolution(HTMLVideoElement& video_element,
+                                    const String& max_video_resolution,
+                                    ExceptionState& exception_state);
 };
 
 }  // namespace blink

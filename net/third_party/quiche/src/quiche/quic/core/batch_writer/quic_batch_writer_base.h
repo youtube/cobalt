@@ -21,7 +21,7 @@ namespace quic {
 // A derived batch writer must override the FlushImpl() function to send all
 // buffered writes in a batch. It must also override the CanBatch() function
 // to control whether/when a WritePacket() call should flush.
-class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
+class QUICHE_EXPORT QuicBatchWriterBase : public QuicPacketWriter {
  public:
   explicit QuicBatchWriterBase(
       std::unique_ptr<QuicBatchWriterBuffer> batch_buffer);
@@ -32,13 +32,14 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
-                          PerPacketOptions* options) override;
+                          PerPacketOptions* options,
+                          const QuicPacketWriterParams& params) override;
 
   bool IsWriteBlocked() const final { return write_blocked_; }
 
   void SetWritable() final { write_blocked_ = false; }
 
-  absl::optional<int> MessageTooBigErrorCode() const override {
+  std::optional<int> MessageTooBigErrorCode() const override {
     return EMSGSIZE;
   }
 
@@ -50,6 +51,8 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
   bool SupportsReleaseTime() const override { return false; }
 
   bool IsBatchMode() const final { return true; }
+
+  bool SupportsEcn() const override { return false; }
 
   QuicPacketBuffer GetNextWriteLocation(
       const QuicIpAddress& /*self_address*/,
@@ -70,7 +73,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
 
   // Given the release delay in |options| and the state of |batch_buffer_|, get
   // the absolute release time.
-  struct QUIC_NO_EXPORT ReleaseTime {
+  struct QUICHE_EXPORT ReleaseTime {
     // The actual (absolute) release time.
     uint64_t actual_release_time = 0;
     // The difference between |actual_release_time| and ideal release time,
@@ -78,13 +81,13 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
     QuicTime::Delta release_time_offset = QuicTime::Delta::Zero();
   };
   virtual ReleaseTime GetReleaseTime(
-      const PerPacketOptions* /*options*/) const {
+      const QuicPacketWriterParams& /*params*/) const {
     QUICHE_DCHECK(false)
         << "Should not be called since release time is unsupported.";
     return ReleaseTime{0, QuicTime::Delta::Zero()};
   }
 
-  struct QUIC_EXPORT_PRIVATE CanBatchResult {
+  struct QUICHE_EXPORT CanBatchResult {
     CanBatchResult(bool can_batch, bool must_flush)
         : can_batch(can_batch), must_flush(must_flush) {}
     // Whether this write can be batched with existing buffered writes.
@@ -101,9 +104,10 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
                                   const QuicIpAddress& self_address,
                                   const QuicSocketAddress& peer_address,
                                   const PerPacketOptions* options,
+                                  const QuicPacketWriterParams& params,
                                   uint64_t release_time) const = 0;
 
-  struct QUIC_EXPORT_PRIVATE FlushImplResult {
+  struct QUICHE_EXPORT FlushImplResult {
     // The return value of the Flush() interface, which is:
     // - WriteResult(WRITE_STATUS_OK, <bytes_flushed>) if all buffered writes
     //   were sent successfully.
@@ -129,7 +133,8 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
   WriteResult InternalWritePacket(const char* buffer, size_t buf_len,
                                   const QuicIpAddress& self_address,
                                   const QuicSocketAddress& peer_address,
-                                  PerPacketOptions* options);
+                                  PerPacketOptions* options,
+                                  const QuicPacketWriterParams& params);
 
   // Calls FlushImpl() and check its post condition.
   FlushImplResult CheckedFlush();
@@ -139,7 +144,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
 };
 
 // QuicUdpBatchWriter is a batch writer backed by a UDP socket.
-class QUIC_EXPORT_PRIVATE QuicUdpBatchWriter : public QuicBatchWriterBase {
+class QUICHE_EXPORT QuicUdpBatchWriter : public QuicBatchWriterBase {
  public:
   QuicUdpBatchWriter(std::unique_ptr<QuicBatchWriterBuffer> batch_buffer,
                      int fd)

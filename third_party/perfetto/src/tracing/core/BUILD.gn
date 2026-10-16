@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("../../../gn/fuzzer.gni")
 import("../../../gn/perfetto.gni")
 import("../../../gn/test.gni")
 
@@ -30,9 +29,10 @@ source_set("core") {
     "../../base",
   ]
   sources = [
-    "histogram.h",
     "id_allocator.cc",
     "id_allocator.h",
+    "in_process_shared_memory.cc",
+    "in_process_shared_memory.h",
     "null_trace_writer.cc",
     "null_trace_writer.h",
     "patch_list.h",
@@ -46,48 +46,10 @@ source_set("core") {
   ]
 }
 
-source_set("service") {
-  public_deps = [
-    "..:common",
-    "../../../include/perfetto/ext/base",
-    "../../../include/perfetto/ext/tracing/core",
-  ]
-  deps = [
-    ":core",
-    "../../../gn:default_deps",
-    "../../../include/perfetto/tracing",
-    "../../../protos/perfetto/common:zero",
-    "../../../protos/perfetto/config:zero",
-    "../../../protos/perfetto/trace:zero",
-    "../../../protos/perfetto/trace/perfetto:zero",  # For MetatraceWriter.
-    "../../android_stats",
-    "../../base",
-    "../../base:version",
-    "../../protozero/filtering:message_filter",
-  ]
-  sources = [
-    "metatrace_writer.cc",
-    "metatrace_writer.h",
-    "packet_stream_validator.cc",
-    "packet_stream_validator.h",
-    "trace_buffer.cc",
-    "trace_buffer.h",
-    "tracing_service_impl.cc",
-    "tracing_service_impl.h",
-  ]
-  if (is_android && perfetto_build_with_android) {
-    deps += [
-      "../../android_internal:headers",
-      "../../android_internal:lazy_library_loader",
-    ]
-  }
-}
-
 perfetto_unittest_source_set("unittests") {
   testonly = true
   deps = [
     ":core",
-    ":service",
     "../../../gn:default_deps",
     "../../../gn:gtest_and_gmock",
     "../../../protos/perfetto/trace:cpp",
@@ -99,14 +61,12 @@ perfetto_unittest_source_set("unittests") {
     "../../base:test_support",
     "../test:test_support",
   ]
+
   sources = [
-    "histogram_unittest.cc",
     "id_allocator_unittest.cc",
     "null_trace_writer_unittest.cc",
-    "packet_stream_validator_unittest.cc",
     "patch_list_unittest.cc",
     "shared_memory_abi_unittest.cc",
-    "trace_buffer_unittest.cc",
     "trace_packet_unittest.cc",
   ]
 
@@ -116,7 +76,6 @@ perfetto_unittest_source_set("unittests") {
     sources += [
       "shared_memory_arbiter_impl_unittest.cc",
       "trace_writer_impl_unittest.cc",
-      "tracing_service_impl_unittest.cc",
     ]
   }
 }
@@ -132,29 +91,5 @@ perfetto_unittest_source_set("test_support") {
   sources = [
     "trace_writer_for_testing.cc",
     "trace_writer_for_testing.h",
-  ]
-}
-
-if (enable_perfetto_benchmarks) {
-  source_set("benchmarks") {
-    testonly = true
-    deps = [
-      ":core",
-      ":service",
-      "../../../gn:benchmark",
-      "../../../gn:default_deps",
-      "../../../protos/perfetto/trace:zero",
-      "../../../protos/perfetto/trace/ftrace:zero",
-      "../../protozero",
-    ]
-    sources = [ "packet_stream_validator_benchmark.cc" ]
-  }
-}
-
-perfetto_fuzzer_test("packet_stream_validator_fuzzer") {
-  sources = [ "packet_stream_validator_fuzzer.cc" ]
-  deps = [
-    ":service",
-    "../../../gn:default_deps",
   ]
 }

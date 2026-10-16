@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <list>
 #include <mutex>
 #include <vector>
 
@@ -63,7 +64,7 @@ void RemoveUnexpectedRenderedFrames(const std::list<int64_t>& frames_to_render,
   if (removed_rendered_frames > 0) {
     SB_LOG(WARNING)
         << "Removed unexpected timestamps. This can happen during "
-           "seek, since flushed frames are reported to be as rendered frames"
+           "seek, since flushed frames are reported to be as rendered frames "
            "on Android 14+: # of removed timestamps="
         << removed_rendered_frames;
   }
@@ -75,7 +76,7 @@ int64_t VideoFrameTracker::seek_to_time() const {
 }
 
 void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   if (frames_to_be_rendered_.empty()) {
     frames_to_be_rendered_.push_back(timestamp);
@@ -86,6 +87,10 @@ void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
       static_cast<size_t>(max_pending_frames_size_)) {
     // OnFrameRendered() is only available after API level 23.  Cap the size
     // of |frames_to_be_rendered_| in case OnFrameRendered() is not available.
+    SB_LOG(WARNING) << "VideoFrameTracker capacity exceeded ("
+                    << max_pending_frames_size_
+                    << " frames). Evicting oldest frame with timestamp: "
+                    << frames_to_be_rendered_.front();
     frames_to_be_rendered_.pop_front();
   }
 
@@ -112,23 +117,26 @@ void VideoFrameTracker::OnFrameRendered(int64_t frame_timestamp) {
 }
 
 void VideoFrameTracker::Seek(int64_t seek_to_time) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   // Ensure that all dropped frames before seeking are captured.
   UpdateDroppedFrames();
 
   frames_to_be_rendered_.clear();
   seek_to_time_ = seek_to_time;
+  if (ignore_stale_rendered_frames_after_seek_) {
+    awaiting_first_frame_after_seek_ = true;
+  }
 }
 
 int VideoFrameTracker::UpdateAndGetDroppedFrames() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   UpdateDroppedFrames();
   return dropped_frames_;
 }
 
 void VideoFrameTracker::UpdateDroppedFrames() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
 
   {
     std::lock_guard lock(rendered_frames_mutex_);
@@ -158,8 +166,17 @@ void VideoFrameTracker::UpdateDroppedFrames() {
       if (std::abs(*to_render_timestamp - rendered_timestamp) <=
           kMaxAllowedSkew) {
         // This frame was rendered, remove it from frames_to_be_rendered_.
+        awaiting_first_frame_after_seek_ = false;
         to_render_timestamp = frames_to_be_rendered_.erase(to_render_timestamp);
-      } else if (rendered_timestamp - *to_render_timestamp > kMaxAllowedSkew) {
+      } else {
+        // Here we know rendered_timestamp - *to_render_timestamp >
+        // kMaxAllowedSkew, because the while loop condition guarantees
+        // *to_render_timestamp - rendered_timestamp <= kMaxAllowedSkew.
+        if (awaiting_first_frame_after_seek_) {
+          // Ignore stale rendered frame callbacks from flushed pre-seek
+          // frames until the first post-seek frame match is found.
+          break;
+        }
         // The rendered frame is too far ahead. The to_render_timestamp frame
         // was dropped.
         SB_LOG(WARNING) << "Video frame dropped:" << *to_render_timestamp
@@ -168,13 +185,6 @@ void VideoFrameTracker::UpdateDroppedFrames() {
                         << frames_to_be_rendered_.size();
         ++dropped_frames_;
         to_render_timestamp = frames_to_be_rendered_.erase(to_render_timestamp);
-      } else {
-        // The rendered frame is too early to match the next frame to render.
-        // This could happen if a frame is reported to be rendered twice or if
-        // it is rendered more than kMaxAllowedSkew early. In the latter
-        // scenario the frame will be reported dropped in the next iteration of
-        // the outer loop.
-        ++to_render_timestamp;
       }
     }
   }

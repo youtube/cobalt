@@ -8,6 +8,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -36,7 +37,6 @@
 #include "extensions/common/file_util.h"
 #include "extensions/common/manifest.h"
 #include "extensions/common/manifest_url_handlers.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using content::BrowserThread;
 
@@ -57,10 +57,10 @@ class ExtensionAssetsManagerHelper {
   struct PendingInstallInfo {
     base::FilePath unpacked_extension_root;
     base::FilePath local_install_dir;
-    raw_ptr<Profile, ExperimentalAsh> profile;
+    raw_ptr<Profile> profile;
     ExtensionAssetsManager::InstallExtensionCallback callback;
   };
-  typedef std::vector<PendingInstallInfo> PendingInstallList;
+  using PendingInstallList = std::vector<PendingInstallInfo>;
 
   ExtensionAssetsManagerHelper(const ExtensionAssetsManagerHelper&) = delete;
   ExtensionAssetsManagerHelper& operator=(const ExtensionAssetsManagerHelper&) =
@@ -100,7 +100,7 @@ class ExtensionAssetsManagerHelper {
                          PendingInstallList* pending_installs) {
     InstallQueue::iterator it = install_queue_.find(
         InstallQueue::key_type(id, version));
-    DCHECK(it != install_queue_.end());
+    CHECK(it != install_queue_.end());
     pending_installs->swap(it->second);
     install_queue_.erase(it);
   }
@@ -108,14 +108,14 @@ class ExtensionAssetsManagerHelper {
  private:
   friend struct base::DefaultSingletonTraits<ExtensionAssetsManagerHelper>;
 
-  ExtensionAssetsManagerHelper() {}
-  ~ExtensionAssetsManagerHelper() {}
+  ExtensionAssetsManagerHelper() = default;
+  ~ExtensionAssetsManagerHelper() = default;
 
   // Extension ID + version pair.
-  typedef std::pair<std::string, std::string> InstallItem;
+  using InstallItem = std::pair<std::string, std::string>;
 
   // Queue of pending installs in progress.
-  typedef std::map<InstallItem, std::vector<PendingInstallInfo> > InstallQueue;
+  using InstallQueue = std::map<InstallItem, std::vector<PendingInstallInfo>>;
 
   InstallQueue install_queue_;
 };
@@ -175,15 +175,16 @@ void ExtensionAssetsManagerChromeOS::InstallExtension(
 void ExtensionAssetsManagerChromeOS::UninstallExtension(
     const std::string& id,
     const std::string& profile_user_name,
-    const base::FilePath& local_install_dir,
-    const base::FilePath& extension_root,
+    const base::FilePath& extensions_install_dir,
+    const base::FilePath& extension_dir_to_delete,
     const base::FilePath& profile_dir) {
-  if (local_install_dir.IsParent(extension_root)) {
-    file_util::UninstallExtension(profile_dir, local_install_dir, id);
+  if (extensions_install_dir.IsParent(extension_dir_to_delete)) {
+    file_util::UninstallExtension(profile_dir, extensions_install_dir,
+                                  extension_dir_to_delete);
     return;
   }
 
-  if (GetSharedInstallDir().IsParent(extension_root)) {
+  if (GetSharedInstallDir().IsParent(extension_dir_to_delete)) {
     // In some test extensions installed outside local_install_dir emulate
     // previous behavior that just do nothing in this case.
     content::GetUIThreadTaskRunner({})->PostTask(
@@ -230,7 +231,6 @@ bool ExtensionAssetsManagerChromeOS::CleanUpSharedExtensions(
     base::Value::Dict* extension_info = shared_extension_dict.FindDict(id);
     if (!extension_info) {
       NOTREACHED();
-      return false;
     }
     if (!CleanUpExtension(id, *extension_info, live_extension_paths)) {
       return false;
@@ -259,9 +259,9 @@ bool ExtensionAssetsManagerChromeOS::CanShareAssets(
     return false;
   }
 
-  // TODO(crbug.com/1166539): Investigate why do we allow sharing assets in case
-  // of empty update URL and if the empty update URL is not required, update
-  // this to consider only the updates from webstore.
+  // TODO(crbug.com/40742161): Investigate why do we allow sharing assets in
+  // case of empty update URL and if the empty update URL is not required,
+  // update this to consider only the updates from webstore.
   if (!updates_from_webstore_or_empty_update_url)
     return false;
 
@@ -285,7 +285,6 @@ void ExtensionAssetsManagerChromeOS::CheckSharedExtension(
   user_manager::UserManager* user_manager = user_manager::UserManager::Get();
   if (!user_manager) {
     NOTREACHED();
-    return;
   }
 
   if (user_manager->IsUserNonCryptohomeDataEphemeral(
@@ -434,7 +433,6 @@ void ExtensionAssetsManagerChromeOS::MarkSharedExtensionUnused(
   base::Value::Dict* extension_info = shared_extensions_dict.FindDict(id);
   if (!extension_info) {
     NOTREACHED();
-    return;
   }
 
   std::vector<std::string> versions;
@@ -449,18 +447,15 @@ void ExtensionAssetsManagerChromeOS::MarkSharedExtensionUnused(
     base::Value::Dict* version_info = extension_info->FindDict(*it);
     if (!version_info) {
       NOTREACHED();
-      continue;
     }
     base::Value::List* users = version_info->FindList(kSharedExtensionUsers);
     if (!users) {
       NOTREACHED();
-      continue;
     }
     if (users->EraseValue(user_name) && users->empty()) {
       std::string* shared_path = version_info->FindString(kSharedExtensionPath);
       if (!shared_path) {
         NOTREACHED();
-        continue;
       }
       GetExtensionFileTaskRunner()->PostTask(
           FROM_HERE,
@@ -492,7 +487,6 @@ bool ExtensionAssetsManagerChromeOS::CleanUpExtension(
   user_manager::UserManager* user_manager = user_manager::UserManager::Get();
   if (!user_manager) {
     NOTREACHED();
-    return false;
   }
 
   std::vector<std::string> versions;
@@ -506,7 +500,6 @@ bool ExtensionAssetsManagerChromeOS::CleanUpExtension(
     base::Value::Dict* version_info = extension_info.FindDict(*it);
     if (!version_info) {
       NOTREACHED();
-      return false;
     }
     base::Value::List* users_list =
         version_info->FindList(kSharedExtensionUsers);
@@ -514,14 +507,12 @@ bool ExtensionAssetsManagerChromeOS::CleanUpExtension(
         version_info->FindString(kSharedExtensionPath);
     if (!users_list || !shared_path) {
       NOTREACHED();
-      return false;
     }
 
     for (auto iter = users_list->begin(); iter != users_list->end();) {
       const std::string* user_id = iter->GetIfString();
       if (!user_id) {
         NOTREACHED();
-        return false;
       }
       const user_manager::User* user =
           user_manager->FindUser(AccountId::FromUserEmail(*user_id));
@@ -537,7 +528,7 @@ bool ExtensionAssetsManagerChromeOS::CleanUpExtension(
         if (!extension_prefs || extension_prefs->pref_service()->ReadOnly())
           return false;
 
-        absl::optional<ExtensionInfo> info =
+        std::optional<ExtensionInfo> info =
             extension_prefs->GetInstalledExtensionInfo(id);
         if (!info || info->extension_path != base::FilePath(*shared_path)) {
           info = extension_prefs->GetDelayedInstallInfo(id);

@@ -33,7 +33,8 @@
 
 - (instancetype)initWithNativeParameters:
     (const webrtc::RtpEncodingParameters &)nativeParameters {
-  if (self = [super init]) {
+  self = [super init];
+  if (self) {
     if (!nativeParameters.rid.empty()) {
       _rid = [NSString stringForStdString:nativeParameters.rid];
     }
@@ -50,11 +51,12 @@
       _maxFramerate = [NSNumber numberWithInt:*nativeParameters.max_framerate];
     }
     if (nativeParameters.num_temporal_layers) {
-      _numTemporalLayers = [NSNumber numberWithInt:*nativeParameters.num_temporal_layers];
+      _numTemporalLayers =
+          [NSNumber numberWithInt:*nativeParameters.num_temporal_layers];
     }
     if (nativeParameters.scale_resolution_down_by) {
-      _scaleResolutionDownBy =
-          [NSNumber numberWithDouble:*nativeParameters.scale_resolution_down_by];
+      _scaleResolutionDownBy = [NSNumber
+          numberWithDouble:*nativeParameters.scale_resolution_down_by];
     }
     if (nativeParameters.ssrc) {
       _ssrc = [NSNumber numberWithUnsignedLong:*nativeParameters.ssrc];
@@ -74,27 +76,28 @@
   }
   parameters.active = _isActive;
   if (_maxBitrateBps != nil) {
-    parameters.max_bitrate_bps = absl::optional<int>(_maxBitrateBps.intValue);
+    parameters.max_bitrate_bps = std::optional<int>(_maxBitrateBps.intValue);
   }
   if (_minBitrateBps != nil) {
-    parameters.min_bitrate_bps = absl::optional<int>(_minBitrateBps.intValue);
+    parameters.min_bitrate_bps = std::optional<int>(_minBitrateBps.intValue);
   }
   if (_maxFramerate != nil) {
-    parameters.max_framerate = absl::optional<int>(_maxFramerate.intValue);
+    parameters.max_framerate = std::optional<int>(_maxFramerate.intValue);
   }
   if (_numTemporalLayers != nil) {
-    parameters.num_temporal_layers = absl::optional<int>(_numTemporalLayers.intValue);
+    parameters.num_temporal_layers =
+        std::optional<int>(_numTemporalLayers.intValue);
   }
   if (_scaleResolutionDownBy != nil) {
     parameters.scale_resolution_down_by =
-        absl::optional<double>(_scaleResolutionDownBy.doubleValue);
+        std::optional<double>(_scaleResolutionDownBy.doubleValue);
   }
   if (_ssrc != nil) {
-    parameters.ssrc = absl::optional<uint32_t>(_ssrc.unsignedLongValue);
+    parameters.ssrc = std::optional<uint32_t>(_ssrc.unsignedLongValue);
   }
   parameters.bitrate_priority = _bitratePriority;
-  parameters.network_priority =
-      [RTC_OBJC_TYPE(RTCRtpEncodingParameters) nativePriorityFromPriority:_networkPriority];
+  parameters.network_priority = [RTC_OBJC_TYPE(RTCRtpEncodingParameters)
+      nativePriorityFromPriority:_networkPriority];
   parameters.adaptive_ptime = _adaptiveAudioPacketTime;
   return parameters;
 }

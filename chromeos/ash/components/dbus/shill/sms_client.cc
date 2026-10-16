@@ -88,11 +88,13 @@ class SMSReceiveHandler {
 
   SMSClient::GetAllCallback callback_;
   bool sms_received_ = false;
+
+  // Property Set must be first to be destroyed after all properties.
+  std::unique_ptr<dbus::PropertySet> property_set_;
   dbus::Property<uint32_t> state_;
   dbus::Property<std::string> number_;
   dbus::Property<std::string> text_;
   dbus::Property<std::string> timestamp_;
-  std::unique_ptr<dbus::PropertySet> property_set_;
   base::WeakPtrFactory<SMSReceiveHandler> weak_ptr_factory_{this};
 };
 
@@ -128,7 +130,7 @@ class SMSClientImpl : public SMSClient {
     std::move(callback).Run(sms);
   }
 
-  raw_ptr<dbus::Bus, ExperimentalAsh> bus_;
+  raw_ptr<dbus::Bus> bus_;
 
   std::map<dbus::ObjectPath, std::unique_ptr<SMSReceiveHandler>>
       sms_receive_handlers_;

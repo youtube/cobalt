@@ -4,7 +4,6 @@
 <translation id="1002108253973310084">Nakakita ng hindi tugmang bersyon ng protocol. Pakitiyak na na-install mo ang pinakabagong bersyon ng software sa parehong computer at subukan ulit.</translation>
 <translation id="1008557486741366299">Hindi Ngayon</translation>
 <translation id="1201402288615127009">Susunod</translation>
-<translation id="1296511125400541222">Copyright 2023 Ang Mga May-akda ng Chromium. Nakalaan ang Lahat ng Karapatan.</translation>
 <translation id="1297009705180977556">Nagkaroon ng error sa pagkonekta sa <ph name="HOSTNAME" /></translation>
 <translation id="1450760146488584666">Hindi umiiral ang hiniling na bagay.</translation>
 <translation id="1480046233931937785">Mga Credit</translation>
@@ -29,7 +28,7 @@ Kung mayroon nang check ang '<ph name="SERVICE_SCRIPT_NAME" />,' i-uncheck ito a
 <translation id="2329392777730037872">Hindi nabuksan ang <ph name="URL" /> sa client.</translation>
 <translation id="2359808026110333948">Magpatuloy</translation>
 <translation id="2366718077645204424">Hindi maabot ang host. Malamang na dahil ito sa configuration ng network na iyong ginagamit.</translation>
-<translation id="2370754117186920852"><ph name="OPTIONAL_OFFLINE_REASON" />  Huling nakitang naka-online noong <ph name="RELATIVE_TIMESTAMP" />.</translation>
+<translation id="242591256144136845">Copyright 2025 Google LLC. Nakalaan ang Lahat ng Karapatan.</translation>
 <translation id="2504109125669302160">Magbigay ng pahintulot sa 'Accessibility' sa <ph name="PRODUCT_NAME" /></translation>
 <translation id="2509394361235492552">Nakakonekta sa <ph name="HOSTNAME" /></translation>
 <translation id="2540992418118313681">Gusto mo bang ibahagi ang computer na ito upang makita at makontrol ng ibang user?</translation>
@@ -41,6 +40,7 @@ Kung mayroon nang check ang '<ph name="SERVICE_SCRIPT_NAME" />,' i-uncheck ito a
 <translation id="2758123043070977469">Nagkaisyu sa pag-authenticate, mag-log in muli.</translation>
 <translation id="2803375539583399270">Ilagay ang PIN</translation>
 <translation id="2919669478609886916">Kasalukuyan mong ibinabahagi ang machine na ito sa isa pang user. Nais mo bang ituloy ang pagbabahagi?</translation>
+<translation id="2929683002824598593">I-share ang device</translation>
 <translation id="2939145106548231838">Patunayan upang ma-host</translation>
 <translation id="3027681561976217984">Touch mode</translation>
 <translation id="3106379468611574572">Hindi tumutugon ang malayuang computer sa mga kahilingan sa koneksyon. Paki-verify na online ito at subukan ulit.</translation>
@@ -54,7 +54,6 @@ Kung mayroon nang check ang '<ph name="SERVICE_SCRIPT_NAME" />,' i-uncheck ito a
 <translation id="3423542133075182604">Proseso ng Pagre-remote sa Security Key</translation>
 <translation id="3581045510967524389">Hindi makakonekta sa network. Pakitiyak na on-line ang iyong device.</translation>
 <translation id="3596628256176442606">Ini-enable ng serbisyong ito ang mga papasok na koneksyon mula sa mga client ng Chromoting.</translation>
-<translation id="369442766917958684">Naka-offline.</translation>
 <translation id="3695446226812920698">Alamin kung paano</translation>
 <translation id="3776024066357219166">Natapos na ang iyong session sa Remote na Desktop ng Chrome.</translation>
 <translation id="3858860766373142691">Pangalan</translation>
@@ -89,12 +88,12 @@ Kung mayroon nang check ang '<ph name="SERVICE_SCRIPT_NAME" />,' i-uncheck ito a
 <translation id="4808503597364150972">Pakilagay ang iyong PIN para sa <ph name="HOSTNAME" />.</translation>
 <translation id="4812684235631257312">Host</translation>
 <translation id="4867841927763172006">Magpadala ng PrtScn</translation>
-<translation id="4960795469833295568">Copyright 2023 Google LLC. Nakalaan ang Lahat ng Karapatan.</translation>
 <translation id="4974476491460646149">Isinara ang koneksyon para sa <ph name="HOSTNAME" /></translation>
 <translation id="4985296110227979402">Kailangan mo munang i-set up ang iyong computer para sa remote na access</translation>
 <translation id="4987330545941822761">Hindi matukoy ng Remote na Desktop ng Chrome ang browser para lokal na magbukas ng mga URL. Pakipili ito mula sa listahan sa ibaba.</translation>
 <translation id="5064360042339518108"><ph name="HOSTNAME" /> (offline)</translation>
 <translation id="507204348399810022">Sigurado ka bang gusto mong i-disable ang mga malayuang koneksyon sa <ph name="HOSTNAME" />?</translation>
+<translation id="5095424396646120601">Pag-uulat ng Pag-crash</translation>
 <translation id="5170982930780719864">Di-wastong host id.</translation>
 <translation id="5204575267916639804">Mga FAQ</translation>
 <translation id="5222676887888702881">Mag-sign out</translation>
@@ -107,7 +106,6 @@ Kung mayroon nang check ang '<ph name="SERVICE_SCRIPT_NAME" />,' i-uncheck ito a
 <translation id="5601503069213153581">PIN</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5708869785009007625">Kasalukuyang nakabahagi ang iyong desktop kay <ph name="USER" />.</translation>
-<translation id="5750083143895808682">Naka-sign in bilang <ph name="EMAIL_ADDRESS" />.</translation>
 <translation id="579702532610384533">Muling kumonekta</translation>
 <translation id="5810269635982033450">Gumagana ang screen tulad ng trackpad</translation>
 <translation id="5823554426827907568">Humiling si <ph name="CLIENT_USERNAME" /> ng access para makita ang iyong screen at kontrolin ang keyboard at mouse mo. Pindutin ang ''<ph name="IDS_SHARE_CONFIRM_DIALOG_DECLINE" />'' kung hindi mo inaasahan ang kahilingang ito. Kung hindi, piliin ang ''<ph name="IDS_SHARE_CONFIRM_DIALOG_CONFIRM" />'' para payagan ang koneksyon kapag handa na ito.</translation>
@@ -121,10 +119,12 @@ Kung mayroon nang check ang '<ph name="SERVICE_SCRIPT_NAME" />,' i-uncheck ito a
 <translation id="6178645564515549384">Host ng native na pagmemensahe para sa remote na tulong</translation>
 <translation id="618120821413932081">I-update ang resolution ng malayong desktop upang tumugma sa window</translation>
 <translation id="6223301979382383752">Buksan ang Mga Kagustuhan sa Pag-record ng Screen</translation>
+<translation id="6252344563748670011">Nag-request si <ph name="CLIENT_USERNAME" /> ng access para makita ang iyong screen at kontrolin ang keyboard at mouse mo. Gusto mo bang i-share ang iyong device?</translation>
 <translation id="6284412385303060032">Nag-shutdown ang host na tumatakbo sa console logic screen upang masuportahan ang curtain mode sa pamamagitan ng paglipat sa isang host na tumatakbo sa isang user-specific session.</translation>
 <translation id="6542902059648396432">Mag-ulat ng isyu…</translation>
 <translation id="6583902294974160967">Suporta</translation>
 <translation id="6612717000975622067">Magpadala ng Ctrl-Alt-Del</translation>
+<translation id="6625262630437221505">{0,plural, =1{Kung wala kang gagawing pagkilos, awtomatikong magsisimulang mag-share ang iyong device sa loob ng # segundo.}one{Kung wala kang gagawing pagkilos, awtomatikong magsisimulang mag-share ang iyong device sa loob ng # segundo.}other{Kung wala kang gagawing pagkilos, awtomatikong magsisimulang mag-share ang iyong device sa loob ng # na segundo.}}</translation>
 <translation id="6654753848497929428">Ibahagi</translation>
 <translation id="677755392401385740">Sinimulan ang host para sa user: <ph name="HOST_USERNAME" />.</translation>
 <translation id="6902524959760471898">Pantulong na application para magbukas ng URL sa client na <ph name="PRODUCT_NAME" /></translation>
@@ -138,6 +138,7 @@ Kung mayroon nang check ang '<ph name="SERVICE_SCRIPT_NAME" />,' i-uncheck ito a
 <translation id="7067321367069083429">Gumagana ang screen tulad ng touch screen</translation>
 <translation id="7116737094673640201">Welcome sa Remote na Desktop ng Chrome</translation>
 <translation id="7144878232160441200">Subukang muli</translation>
+<translation id="7298392173540380852">Copyright 2025 Ang Mga Gumawa ng Chromium. Nakalaan ang Lahat ng Karapatan.</translation>
 <translation id="7312846573060934304">Naka-offline ang host.</translation>
 <translation id="7319983568955948908">Ihinto ang Pagbabahagi</translation>
 <translation id="7359298090707901886">Hindi magagamit ang napiling browser para magbukas ng mga URL sa lokal na machine.</translation>

@@ -15,6 +15,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTSTYLESET_COBALT_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTSTYLESET_COBALT_H_
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 
@@ -79,6 +80,12 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
     SkString face_name;
     bool face_is_fixed_pitch;
 
+    // CobaltMmapFontCache state: whether the decompressed-SFNT cache lookup
+    // was attempted for this entry, and the resulting cache file path if it
+    // succeeded (empty otherwise). See SkWoff2FontCache_cobalt.h.
+    bool mmap_cache_checked = false;
+    SkString mmap_cache_path;
+
     sk_sp<SkTypeface> typeface;
   };
 
@@ -131,6 +138,27 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
                              int style_index);
 
   int GetClosestStyleIndex(const SkFontStyle& pattern);
+
+  // Only called when the CobaltMmapFontCache feature is enabled. If |entry|
+  // refers to a WOFF2 file, returns a stream of its decompressed SFNT bytes
+  // and generates the face info of |entry| from it (see
+  // GenerateStyleFaceInfo()). That is an mmap-backed stream of the font's
+  // cache file if a valid one exists, and otherwise a stream of the font
+  // decompressed into memory, whose bytes are then written to the cache file
+  // in the background (for later sessions). Returns nullptr for non-WOFF2
+  // entries or on failure; callers must then fall back to the memory-chunk
+  // stream path. Never writes files itself, so it is safe where blocking is
+  // disallowed.
+  std::unique_ptr<SkStreamAsset> OpenDecompressedStream(
+      SkFontStyleSetEntry_Cobalt* entry,
+      int style_index);
+
+  // Creates the typeface of |style| from |stream|, a stream returned by
+  // OpenDecompressedStream() for |style|.
+  void CreateDecompressedTypeface(SkFontStyleSetEntry_Cobalt* style,
+                                  int style_index,
+                                  std::unique_ptr<SkStreamAsset> stream);
+
   void CreateStreamProviderTypeface(
       SkFontStyleSetEntry_Cobalt* style,
       int style_index,

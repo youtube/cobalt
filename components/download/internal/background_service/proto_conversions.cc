@@ -30,7 +30,6 @@ protodb::Entry_State ProtoConversions::RequestStateToProto(Entry::State state) {
   }
 
   NOTREACHED();
-  return protodb::Entry_State_NEW;
 }
 
 Entry::State ProtoConversions::RequestStateFromProto(
@@ -49,7 +48,6 @@ Entry::State ProtoConversions::RequestStateFromProto(
   }
 
   NOTREACHED();
-  return Entry::State::NEW;
 }
 
 protodb::DownloadClient ProtoConversions::DownloadClientToProto(
@@ -82,7 +80,6 @@ protodb::DownloadClient ProtoConversions::DownloadClientToProto(
   }
 
   NOTREACHED();
-  return protodb::DownloadClient::INVALID;
 }
 
 DownloadClient ProtoConversions::DownloadClientFromProto(
@@ -115,7 +112,6 @@ DownloadClient ProtoConversions::DownloadClientFromProto(
   }
 
   NOTREACHED();
-  return DownloadClient::INVALID;
 }
 
 SchedulingParams::NetworkRequirements
@@ -131,7 +127,6 @@ ProtoConversions::NetworkRequirementsFromProto(
   }
 
   NOTREACHED();
-  return SchedulingParams::NetworkRequirements::NONE;
 }
 
 protodb::SchedulingParams_NetworkRequirements
@@ -149,7 +144,6 @@ ProtoConversions::NetworkRequirementsToProto(
   }
 
   NOTREACHED();
-  return protodb::SchedulingParams_NetworkRequirements_NONE;
 }
 
 SchedulingParams::BatteryRequirements
@@ -165,7 +159,6 @@ ProtoConversions::BatteryRequirementsFromProto(
   }
 
   NOTREACHED();
-  return SchedulingParams::BatteryRequirements::BATTERY_INSENSITIVE;
 }
 
 protodb::SchedulingParams_BatteryRequirements
@@ -183,7 +176,6 @@ ProtoConversions::BatteryRequirementsToProto(
   }
 
   NOTREACHED();
-  return protodb::SchedulingParams_BatteryRequirements_BATTERY_INSENSITIVE;
 }
 
 SchedulingParams::Priority ProtoConversions::SchedulingPriorityFromProto(
@@ -200,7 +192,6 @@ SchedulingParams::Priority ProtoConversions::SchedulingPriorityFromProto(
   }
 
   NOTREACHED();
-  return SchedulingParams::Priority::LOW;
 }
 
 protodb::SchedulingParams_Priority ProtoConversions::SchedulingPriorityToProto(
@@ -219,7 +210,6 @@ protodb::SchedulingParams_Priority ProtoConversions::SchedulingPriorityToProto(
   }
 
   NOTREACHED();
-  return protodb::SchedulingParams_Priority_LOW;
 }
 
 SchedulingParams ProtoConversions::SchedulingParamsFromProto(

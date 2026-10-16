@@ -15,7 +15,6 @@ input[type="month" i],
 input[type="time" i],
 input[type="week" i] {
     font-family: monospace;
-    overflow: hidden;
     padding: 0;
     padding-inline-start: 1px;
     cursor: default;
@@ -32,7 +31,6 @@ input::-webkit-datetime-edit {
 input::-internal-datetime-container {
     display: flex;
     align-items: center;
-    -internal-align-self-block: center;
 }
 
 input::-webkit-datetime-edit-fields-wrapper {

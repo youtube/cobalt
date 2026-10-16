@@ -1,7 +1,10 @@
 load("//tensorflow_lite_support/cc/port:build_defs.bzl", "support_py_proto_library")
 
+# Placeholder: load java_lite_proto_library
+# Placeholder: load proto_library
+load("//third_party/protobuf/build_defs:kt_jvm_proto_library.bzl", "kt_jvm_lite_proto_library")
+
 package(
-    default_applicable_licenses = ["//tensorflow_lite_support:license"],
     default_visibility = [
         "//visibility:public",
     ],
@@ -38,7 +41,7 @@ proto_library(
     srcs = ["base_options.proto"],
     deps = [
         ":external_file_proto",
-        "@org_tensorflow//tensorflow/lite/experimental/acceleration/configuration:configuration_proto",
+        "@org_tensorflow//tensorflow/lite/acceleration/configuration:configuration_proto",
     ],
 )
 
@@ -55,7 +58,7 @@ support_py_proto_library(
     api_version = 2,
     proto_deps = [":base_options_proto"],
     py_proto_deps = [
-        "@org_tensorflow//tensorflow/lite/experimental/acceleration/configuration:configuration_proto_external_py",
+        "@org_tensorflow//tensorflow/lite/acceleration/configuration:configuration_proto_external_py",
         "//tensorflow_lite_support/cc/task/core/proto:external_file_py_pb2",
     ],
 )
@@ -99,5 +102,10 @@ cc_proto_library(
 
 java_lite_proto_library(
     name = "base_options_java_proto_lite",
+    deps = [":base_options_proto"],
+)
+
+kt_jvm_lite_proto_library(
+    name = "base_options_kt_proto_lite",
     deps = [":base_options_proto"],
 )

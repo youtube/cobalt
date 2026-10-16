@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/android/shared/toolchain/toolchain.gni")
-
 config("platform_configuration") {
   libs = [
     "EGL",
@@ -30,14 +28,6 @@ config("platform_configuration") {
     "-Wno-sign-compare",
     "-Wno-c++11-narrowing",
   ]
-}
-
-config("size") {
-  cflags = [ "-Os" ]
-}
-
-config("speed") {
-  cflags = [ "-O2" ]
 }
 
 config("pedantic_warnings") {

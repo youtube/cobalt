@@ -10,7 +10,6 @@
 
 #include "base/atomicops.h"
 #include "base/check_op.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
@@ -86,8 +85,6 @@ static constexpr Attribute kAttributes[] = {
 
 }  // namespace
 
-static_assert(std::is_pod<Attribute>::value, "Attribute should be POD.");
-
 std::string GetHostAttributes() {
   std::vector<std::string> result;
   for (const auto& attribute : kAttributes) {
@@ -100,8 +97,9 @@ std::string GetHostAttributes() {
   GetD3DCapabilities(&result);
   result.push_back("Win10+");
 
-  // TODO(crbug.com/1184041): Remove this and/or the entire HostAttributes class
-  // so we can remove //remoting/host:common from //media/gpu's visibility list.
+  // TODO(crbug.com/40752360): Remove this and/or the entire HostAttributes
+  // class so we can remove //remoting/host:common from //media/gpu's visibility
+  // list.
   if (media::InitializeMediaFoundation()) {
     result.push_back("HWEncoder");
   }

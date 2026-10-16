@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/system.h"
+// clang-format on
 
+#include "build/build_config.h"
 #include "starboard/android/shared/accessibility_extension.h"
 #include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
@@ -22,20 +25,40 @@
 #include "starboard/android/shared/graphics.h"
 #include "starboard/android/shared/platform_info.h"
 #include "starboard/android/shared/platform_service.h"
-#include "starboard/android/shared/player_set_max_video_input_size.h"
+#include "starboard/android/shared/player_settings.h"
 #include "starboard/android/shared/system_info_api.h"
 #include "starboard/common/string.h"
+#include "starboard/elf_loader/evergreen_config.h"
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
+#include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/extension/features.h"
 #include "starboard/extension/graphics.h"
+#include "starboard/extension/loader_app_metrics.h"
 #include "starboard/extension/media_session.h"
+#include "starboard/extension/native_stability.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
-#include "starboard/extension/player_set_max_video_input_size.h"
+#include "starboard/extension/player_settings.h"
 #include "starboard/extension/system_info.h"
+#include "starboard/shared/starboard/experimental_features.h"
+#include "starboard/shared/starboard/loader_app_metrics.h"
+#include "starboard/shared/starboard/native_stability.h"
 
 const void* SbSystemGetExtension(const char* name) {
+#if BUILDFLAG(IS_STARBOARD)
+  // Extensions the loader app injects into the Evergreen binary, such as the
+  // installation manager, take precedence over the platform's own.
+  const elf_loader::EvergreenConfig* evergreen_config =
+      elf_loader::EvergreenConfig::GetInstance();
+  if (evergreen_config != nullptr &&
+      evergreen_config->custom_get_extension_ != nullptr) {
+    const void* ext = evergreen_config->custom_get_extension_(name);
+    if (ext != nullptr) {
+      return ext;
+    }
+  }
+#endif
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
     return starboard::GetPlatformServiceApiAndroid();
   }
@@ -59,20 +82,31 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::GetCrashHandlerApi();
   }
+  if (strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
+    return starboard::GetNativeStabilityApi();
+  }
   if (strcmp(name, kCobaltExtensionPlatformInfoName) == 0) {
     return starboard::GetPlatformInfoApi();
   }
-  if (strcmp(name, kStarboardExtensionPlayerSetMaxVideoInputSizeName) == 0) {
-    return starboard::GetPlayerSetMaxVideoInputSizeApi();
+  if (strcmp(name, kStarboardExtensionExperimentalFeaturesConfigurationName) ==
+      0) {
+    return starboard::GetExperimentalFeaturesConfigurationApi();
+  }
+  if (strcmp(name, kStarboardExtensionPlayerSettingsName) == 0) {
+    return starboard::GetPlayerSettingsApi();
   }
   if (strcmp(name, kStarboardExtensionAccessibilityName) == 0) {
     // TODO(b/377052218): Re-enable
     // return starboard::GetAccessibilityApi();
     return NULL;
   }
-
   if (strcmp(name, kStarboardExtensionSystemInfoName) == 0) {
     return starboard::GetSystemInfoApi();
   }
+#if BUILDFLAG(IS_STARBOARD)
+  if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
+    return starboard::GetLoaderAppMetricsApi();
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
   return NULL;
 }

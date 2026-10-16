@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "printing/backend/cups_helper.h"
 
 #include <cups/ppd.h>
@@ -9,8 +14,13 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <optional>
+#include <string_view>
+#include <tuple>
+#include <utility>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_file.h"
@@ -19,6 +29,8 @@
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "printing/backend/cups_deleters.h"
+#include "printing/backend/cups_weak_functions.h"
 #include "printing/backend/print_backend.h"
 #include "printing/backend/print_backend_consts.h"
 #include "printing/mojom/print.mojom.h"
@@ -35,14 +47,6 @@ namespace printing {
 
 // This section contains helper code for PPD parsing for semantic capabilities.
 namespace {
-
-// Function availability can be tested by checking whether its address is not
-// nullptr. Weak symbols remove the need for platform specific build flags and
-// allow for appropriate CUPS usage on platforms with non-uniform version
-// support, namely Linux.
-#define WEAK_CUPS_FN(x) extern "C" __attribute__((weak)) decltype(x) x
-
-WEAK_CUPS_FN(httpConnect2);
 
 // Timeout for establishing a CUPS connection.  It is expected that cupsd is
 // able to start and respond on all systems within this duration.
@@ -73,45 +77,75 @@ int32_t GetCopiesMax(ppd_file_t* ppd) {
   return base::StringToInt(attr->value, &ret) ? ret : kDefaultMaxCopies;
 }
 
-void GetDuplexSettings(ppd_file_t* ppd,
-                       std::vector<mojom::DuplexMode>* duplex_modes,
-                       mojom::DuplexMode* duplex_default) {
+std::pair<std::vector<mojom::DuplexMode>, mojom::DuplexMode> GetDuplexSettings(
+    ppd_file_t* ppd) {
+  std::vector<mojom::DuplexMode> duplex_modes;
+  mojom::DuplexMode duplex_default = mojom::DuplexMode::kUnknownDuplexMode;
+
   ppd_choice_t* duplex_choice = ppdFindMarkedChoice(ppd, kDuplex);
   ppd_option_t* option = ppdFindOption(ppd, kDuplex);
   if (!option)
     option = ppdFindOption(ppd, kBrotherDuplex);
 
   if (!option)
-    return;
+    return std::make_pair(std::move(duplex_modes), duplex_default);
 
   if (!duplex_choice)
     duplex_choice = ppdFindChoice(option, option->defchoice);
 
   if (ppdFindChoice(option, kDuplexNone))
-    duplex_modes->push_back(mojom::DuplexMode::kSimplex);
+    duplex_modes.push_back(mojom::DuplexMode::kSimplex);
 
   if (ppdFindChoice(option, kDuplexNoTumble))
-    duplex_modes->push_back(mojom::DuplexMode::kLongEdge);
+    duplex_modes.push_back(mojom::DuplexMode::kLongEdge);
 
   if (ppdFindChoice(option, kDuplexTumble))
-    duplex_modes->push_back(mojom::DuplexMode::kShortEdge);
+    duplex_modes.push_back(mojom::DuplexMode::kShortEdge);
 
   if (!duplex_choice)
-    return;
+    return std::make_pair(std::move(duplex_modes), duplex_default);
 
   const char* choice = duplex_choice->choice;
   if (EqualsCaseInsensitiveASCII(choice, kDuplexNone)) {
-    *duplex_default = mojom::DuplexMode::kSimplex;
+    duplex_default = mojom::DuplexMode::kSimplex;
   } else if (EqualsCaseInsensitiveASCII(choice, kDuplexTumble)) {
-    *duplex_default = mojom::DuplexMode::kShortEdge;
+    duplex_default = mojom::DuplexMode::kShortEdge;
   } else {
-    *duplex_default = mojom::DuplexMode::kLongEdge;
+    duplex_default = mojom::DuplexMode::kLongEdge;
   }
+  return std::make_pair(std::move(duplex_modes), duplex_default);
 }
 
-void GetResolutionSettings(ppd_file_t* ppd,
-                           std::vector<gfx::Size>* dpis,
-                           gfx::Size* default_dpi) {
+std::optional<gfx::Size> ParseResolutionString(const char* input) {
+  int len = strlen(input);
+  if (len == 0) {
+    VLOG(1) << "Bad PPD resolution choice: null string";
+    return std::nullopt;
+  }
+
+  int n = 0;  // number of chars successfully parsed by sscanf()
+  int dpi_x;
+  int dpi_y;
+  sscanf(input, "%ddpi%n", &dpi_x, &n);
+  if (n == len) {
+    dpi_y = dpi_x;
+  } else {
+    sscanf(input, "%dx%ddpi%n", &dpi_x, &dpi_y, &n);
+    if (n != len) {
+      VLOG(1) << "Bad PPD resolution choice: " << input;
+      return std::nullopt;
+    }
+  }
+  if (dpi_x <= 0 || dpi_y <= 0) {
+    VLOG(1) << "Invalid PPD resolution dimensions: " << dpi_x << " " << dpi_y;
+    return std::nullopt;
+  }
+
+  return gfx::Size(dpi_x, dpi_y);
+}
+
+std::pair<std::vector<gfx::Size>, gfx::Size> GetResolutionSettings(
+    ppd_file_t* ppd) {
   static constexpr const char* kResolutions[] = {
       "Resolution",     "JCLResolution", "SetResolution", "CNRes_PGP",
       "HPPrintQuality", "LXResolution",  "BRResolution"};
@@ -127,50 +161,48 @@ void GetResolutionSettings(ppd_file_t* ppd,
   // found.
 #if BUILDFLAG(IS_MAC)
   constexpr gfx::Size kDefaultMissingDpi(kDefaultMacDpi, kDefaultMacDpi);
-#elif BUILDFLAG(IS_LINUX)
-  constexpr gfx::Size kDefaultMissingDpi(kPixelsPerInch, kPixelsPerInch);
 #else
   constexpr gfx::Size kDefaultMissingDpi(kDefaultPdfDpi, kDefaultPdfDpi);
 #endif
 
-  if (!res) {
-    dpis->push_back(kDefaultMissingDpi);
-    *default_dpi = kDefaultMissingDpi;
-    return;
-  }
-  for (int i = 0; i < res->num_choices; i++) {
-    char* choice = res->choices[i].choice;
-    DCHECK(choice);
-    int len = strlen(choice);
-    if (len == 0) {
-      VLOG(1) << "Bad PPD resolution choice: null string";
-      continue;
-    }
-    int n = 0;  // number of chars successfully parsed by sscanf()
-    int dpi_x;
-    int dpi_y;
-    sscanf(choice, "%ddpi%n", &dpi_x, &n);
-    if (n == len) {
-      dpi_y = dpi_x;
-    } else {
-      sscanf(choice, "%dx%ddpi%n", &dpi_x, &dpi_y, &n);
-      if (n != len) {
-        VLOG(1) << "Bad PPD resolution choice: " << choice;
+  std::vector<gfx::Size> dpis;
+  gfx::Size default_dpi;
+  if (res) {
+    // SAFETY: Required from CUPS.
+    auto choices = UNSAFE_BUFFERS(base::span<const ppd_choice_t>(
+        res->choices, static_cast<size_t>(res->num_choices)));
+    for (const auto& choice : choices) {
+      const char* choice_str = choice.choice;
+      CHECK(choice_str);
+      std::optional<gfx::Size> parsed_size = ParseResolutionString(choice_str);
+      if (!parsed_size.has_value()) {
         continue;
       }
+
+      dpis.push_back(parsed_size.value());
+      if (!strcmp(choice_str, res->defchoice)) {
+        default_dpi = dpis.back();
+      }
     }
-    if (dpi_x <= 0 || dpi_y <= 0) {
-      VLOG(1) << "Invalid PPD resolution dimensions: " << dpi_x << " " << dpi_y;
-      continue;
+  } else {
+    // If there is no resolution option, then check for a standalone
+    // DefaultResolution.
+    ppd_attr_t* attr = ppdFindAttr(ppd, "DefaultResolution", nullptr);
+    if (attr) {
+      CHECK(attr->value);
+      std::optional<gfx::Size> parsed_size = ParseResolutionString(attr->value);
+      if (parsed_size.has_value()) {
+        dpis.push_back(parsed_size.value());
+        default_dpi = parsed_size.value();
+      }
     }
-    dpis->push_back({dpi_x, dpi_y});
-    if (!strcmp(choice, res->defchoice))
-      *default_dpi = dpis->back();
   }
-  if (dpis->empty()) {
-    dpis->push_back(kDefaultMissingDpi);
-    *default_dpi = kDefaultMissingDpi;
+
+  if (dpis.empty()) {
+    dpis.push_back(kDefaultMissingDpi);
+    default_dpi = kDefaultMissingDpi;
   }
+  return std::make_pair(std::move(dpis), default_dpi);
 }
 
 bool GetBasicColorModelSettings(ppd_file_t* ppd,
@@ -370,6 +402,36 @@ bool GetHPColorModeSettings(ppd_file_t* ppd,
   if (mode_choice) {
     *color_is_default =
         EqualsCaseInsensitiveASCII(mode_choice->choice, kHpColorPrint);
+  }
+  return true;
+}
+
+bool GetHpPjlColorAsGrayModeSettings(ppd_file_t* ppd,
+                                     mojom::ColorModel* color_model_for_black,
+                                     mojom::ColorModel* color_model_for_color,
+                                     bool* color_is_default) {
+  // Some HP printers use "HPPJLColorAsGray" attribute in their PPDs.
+  ppd_option_t* color_mode_option = ppdFindOption(ppd, kCUPSHpPjlColorAsGray);
+  if (!color_mode_option) {
+    return false;
+  }
+
+  if (ppdFindChoice(color_mode_option, kHpPjlColorAsGrayYes)) {
+    *color_model_for_black = mojom::ColorModel::kHpPjlColorAsGrayYes;
+  }
+
+  if (ppdFindChoice(color_mode_option, kHpPjlColorAsGrayNo)) {
+    *color_model_for_color = mojom::ColorModel::kHpPjlColorAsGrayNo;
+  }
+
+  ppd_choice_t* marked_choice = ppdFindMarkedChoice(ppd, kCUPSHpPjlColorAsGray);
+  if (!marked_choice) {
+    marked_choice =
+        ppdFindChoice(color_mode_option, color_mode_option->defchoice);
+  }
+  if (marked_choice) {
+    *color_is_default =
+        EqualsCaseInsensitiveASCII(marked_choice->choice, kHpPjlColorAsGrayNo);
   }
   return true;
 }
@@ -678,6 +740,7 @@ bool GetColorModelSettings(ppd_file_t* ppd,
          GetColorModeSettings(ppd, cm_black, cm_color, is_color) ||
          GetHPColorSettings(ppd, cm_black, cm_color, is_color) ||
          GetHPColorModeSettings(ppd, cm_black, cm_color, is_color) ||
+         GetHpPjlColorAsGrayModeSettings(ppd, cm_black, cm_color, is_color) ||
          GetBrotherColorSettings(ppd, cm_black, cm_color, is_color) ||
          GetCanonCNColorModeSettings(ppd, cm_black, cm_color, is_color) ||
          GetCanonCNIJGrayscaleSettings(ppd, cm_black, cm_color, is_color) ||
@@ -701,8 +764,7 @@ const int kDefaultIPPServerPort = 631;
 // functionality.
 HttpConnectionCUPS::HttpConnectionCUPS(const GURL& print_server_url,
                                        http_encryption_t encryption,
-                                       bool blocking)
-    : http_(nullptr) {
+                                       bool blocking) {
   // If we have an empty url, use default print server.
   if (print_server_url.is_empty())
     return;
@@ -711,40 +773,21 @@ HttpConnectionCUPS::HttpConnectionCUPS(const GURL& print_server_url,
   if (port == url::PORT_UNSPECIFIED)
     port = kDefaultIPPServerPort;
 
-  if (httpConnect2) {
-    http_ = httpConnect2(print_server_url.host().c_str(), port,
-                         /*addrlist=*/nullptr, AF_UNSPEC, encryption,
-                         blocking ? 1 : 0, kCupsTimeout.InMilliseconds(),
-                         /*cancel=*/nullptr);
-  } else {
-    // Continue to use deprecated CUPS calls because because older Linux
-    // distribution such as RHEL/CentOS 7 are shipped with CUPS 1.6.
-    http_ =
-        httpConnectEncrypt(print_server_url.host().c_str(), port, encryption);
-  }
-
-  if (!http_) {
-    LOG(ERROR) << "CP_CUPS: Failed connecting to print server: "
-               << print_server_url;
-    return;
-  }
-
-  if (!httpConnect2)
-    httpBlocking(http_, blocking ? 1 : 0);
+  http_ = HttpConnect2(print_server_url.host().c_str(), port,
+                       /*addrlist=*/nullptr, AF_UNSPEC, encryption,
+                       blocking ? 1 : 0, kCupsTimeout.InMilliseconds(),
+                       /*cancel=*/nullptr);
 }
 
-HttpConnectionCUPS::~HttpConnectionCUPS() {
-  if (http_)
-    httpClose(http_);
-}
+HttpConnectionCUPS::~HttpConnectionCUPS() = default;
 
 http_t* HttpConnectionCUPS::http() {
-  return http_;
+  return http_.get();
 }
 
 bool ParsePpdCapabilities(cups_dest_t* dest,
-                          base::StringPiece locale,
-                          base::StringPiece printer_capabilities,
+                          std::string_view locale,
+                          std::string_view printer_capabilities,
                           PrinterSemanticCapsAndDefaults* printer_info) {
   // A file created while in a sandbox will be automatically deleted once all
   // handles to it have been closed.  This precludes the use of multiple
@@ -806,8 +849,8 @@ bool ParsePpdCapabilities(cups_dest_t* dest,
   caps.collate_default = true;
   caps.copies_max = GetCopiesMax(ppd);
 
-  GetDuplexSettings(ppd, &caps.duplex_modes, &caps.duplex_default);
-  GetResolutionSettings(ppd, &caps.dpis, &caps.default_dpi);
+  std::tie(caps.duplex_modes, caps.duplex_default) = GetDuplexSettings(ppd);
+  std::tie(caps.dpis, caps.default_dpi) = GetResolutionSettings(ppd);
 
   mojom::ColorModel cm_black = mojom::ColorModel::kUnknownColorModel;
   mojom::ColorModel cm_color = mojom::ColorModel::kUnknownColorModel;
@@ -828,67 +871,70 @@ bool ParsePpdCapabilities(cups_dest_t* dest,
     VLOG(1) << "Paper list size - " << ppd->num_sizes;
     ppd_option_t* paper_option = ppdFindOption(ppd, kPageSize);
     bool is_default_found = false;
-    for (int i = 0; i < ppd->num_sizes; ++i) {
-      gfx::Size paper_size_microns(
-          ConvertUnit(ppd->sizes[i].width, kPointsPerInch, kMicronsPerInch),
-          ConvertUnit(ppd->sizes[i].length, kPointsPerInch, kMicronsPerInch));
-      if (!paper_size_microns.IsEmpty()) {
-        PrinterSemanticCapsAndDefaults::Paper paper;
-        paper.size_um = paper_size_microns;
-        paper.vendor_id = ppd->sizes[i].name;
+    // SAFETY: Required from CUPS.
+    auto sizes = UNSAFE_BUFFERS(base::span<const ppd_size_t>(
+        ppd->sizes, static_cast<size_t>(ppd->num_sizes)));
+    for (const auto& size : sizes) {
+      const gfx::Size paper_size_um(
+          ConvertUnit(size.width, kPointsPerInch, kMicronsPerInch),
+          ConvertUnit(size.length, kPointsPerInch, kMicronsPerInch));
+      if (!paper_size_um.IsEmpty()) {
+        std::string display_name;
         if (paper_option) {
-          ppd_choice_t* paper_choice =
-              ppdFindChoice(paper_option, ppd->sizes[i].name);
+          ppd_choice_t* paper_choice = ppdFindChoice(paper_option, size.name);
           // Human readable paper name should be UTF-8 encoded, but some PPDs
           // do not follow this standard.
           if (paper_choice && base::IsStringUTF8(paper_choice->text)) {
-            paper.display_name = paper_choice->text;
+            display_name = paper_choice->text;
           }
         }
         int printable_area_left_um =
-            ConvertUnit(ppd->sizes[i].left, kPointsPerInch, kMicronsPerInch);
+            ConvertUnit(size.left, kPointsPerInch, kMicronsPerInch);
         int printable_area_bottom_um =
-            ConvertUnit(ppd->sizes[i].bottom, kPointsPerInch, kMicronsPerInch);
-        // ppd->sizes[i].right is the horizontal distance from the left of the
-        // paper to the right of the printable area.
+            ConvertUnit(size.bottom, kPointsPerInch, kMicronsPerInch);
+        // `size.right` is the horizontal distance from the left of the paper to
+        // the right of the printable area.
         int printable_area_right_um =
-            ConvertUnit(ppd->sizes[i].right, kPointsPerInch, kMicronsPerInch);
-        // ppd->sizes[i].top is the vertical distance from the bottom of the
-        // paper to the top of the printable area.
+            ConvertUnit(size.right, kPointsPerInch, kMicronsPerInch);
+        // `size.top` is the vertical distance from the bottom of the paper to
+        // the top of the printable area.
         int printable_area_top_um =
-            ConvertUnit(ppd->sizes[i].top, kPointsPerInch, kMicronsPerInch);
+            ConvertUnit(size.top, kPointsPerInch, kMicronsPerInch);
 
-        paper.printable_area_um = gfx::Rect(
+        gfx::Rect printable_area_um(
             printable_area_left_um, printable_area_bottom_um,
             /*width=*/printable_area_right_um - printable_area_left_um,
             /*height=*/printable_area_top_um - printable_area_bottom_um);
 
         // Default to the paper size if printable area is empty.
-        // We've seen some drivers have a printable area that goes out of bounds
-        // of the paper size. In those cases, set the printable area to be the
-        // size. (See crbug.com/1412305.)
-        const gfx::Rect size_um_rect = gfx::Rect(paper.size_um);
-        if (paper.printable_area_um.IsEmpty() ||
-            !size_um_rect.Contains(paper.printable_area_um)) {
-          paper.printable_area_um = size_um_rect;
+        // We've seen some drivers have a printable area that goes out of
+        // bounds of the paper size. In those cases, set the printable area to
+        // be the size. (See crbug.com/1412305.)
+        const gfx::Rect size_um_rect = gfx::Rect(paper_size_um);
+        if (printable_area_um.IsEmpty() ||
+            !size_um_rect.Contains(printable_area_um)) {
+          printable_area_um = size_um_rect;
         }
 
+        PrinterSemanticCapsAndDefaults::Paper paper(
+            display_name,
+            /*vendor_id=*/size.name, paper_size_um, printable_area_um);
+
         caps.papers.push_back(paper);
-        if (ppd->sizes[i].marked) {
+        if (size.marked) {
           caps.default_paper = paper;
           is_default_found = true;
         }
       }
     }
     if (!is_default_found) {
-      gfx::Size locale_paper_microns =
-          GetDefaultPaperSizeFromLocaleMicrons(locale);
+      gfx::Size locale_paper_um = GetDefaultPaperSizeFromLocaleMicrons(locale);
       for (const PrinterSemanticCapsAndDefaults::Paper& paper : caps.papers) {
         // Set epsilon to 500 microns to allow tolerance of rounded paper sizes.
         // While the above utility function returns paper sizes in microns, they
         // are still rounded to the nearest millimeter (1000 microns).
         constexpr int kSizeEpsilon = 500;
-        if (SizesEqualWithinEpsilon(paper.size_um, locale_paper_microns,
+        if (SizesEqualWithinEpsilon(paper.size_um(), locale_paper_um,
                                     kSizeEpsilon)) {
           caps.default_paper = paper;
           is_default_found = true;
@@ -907,6 +953,38 @@ bool ParsePpdCapabilities(cups_dest_t* dest,
 
   *printer_info = caps;
   return true;
+}
+
+ScopedHttpPtr HttpConnect2(const char* host,
+                           int port,
+                           http_addrlist_t* addrlist,
+                           int family,
+                           http_encryption_t encryption,
+                           int blocking,
+                           int msec,
+                           int* cancel) {
+  ScopedHttpPtr http;
+  if (httpConnect2) {
+    http.reset(httpConnect2(host, port,
+                            /*addrlist=*/nullptr, AF_UNSPEC, encryption,
+                            blocking ? 1 : 0, kCupsTimeout.InMilliseconds(),
+                            /*cancel=*/nullptr));
+  } else {
+    // Continue to use deprecated CUPS calls because because older Linux
+    // distribution such as RHEL/CentOS 7 are shipped with CUPS 1.6.
+    http.reset(httpConnectEncrypt(host, port, encryption));
+  }
+
+  if (!http) {
+    LOG(ERROR) << "CP_CUPS: Failed connecting to print server: " << host;
+    return nullptr;
+  }
+
+  if (!httpConnect2) {
+    httpBlocking(http.get(), blocking ? 1 : 0);
+  }
+
+  return http;
 }
 
 }  // namespace printing

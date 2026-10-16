@@ -4,6 +4,8 @@
 
 #include "content/test/mock_reduce_accept_language_controller_delegate.h"
 
+#include <string_view>
+
 #include "base/strings/string_split.h"
 #include "content/public/common/origin_util.h"
 #include "net/http/http_util.h"
@@ -13,7 +15,7 @@ namespace content {
 
 namespace {
 
-std::string GetFirstLanguage(base::StringPiece language_list) {
+std::string GetFirstLanguage(std::string_view language_list) {
   auto end = language_list.find(",");
   return std::string(language_list.substr(0, end));
 }
@@ -34,14 +36,14 @@ MockReduceAcceptLanguageControllerDelegate::
 MockReduceAcceptLanguageControllerDelegate::
     ~MockReduceAcceptLanguageControllerDelegate() = default;
 
-absl::optional<std::string>
+std::optional<std::string>
 MockReduceAcceptLanguageControllerDelegate::GetReducedLanguage(
     const url::Origin& origin) {
   const auto& iter = reduce_accept_language_map_.find(origin);
   if (iter != reduce_accept_language_map_.end()) {
-    return absl::make_optional(iter->second);
+    return std::make_optional(iter->second);
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 std::vector<std::string>

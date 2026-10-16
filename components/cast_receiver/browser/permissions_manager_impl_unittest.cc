@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "components/cast_receiver/browser/permissions_manager_impl.h"
+
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
@@ -10,7 +11,7 @@
 
 namespace cast_receiver {
 
-// TODO(crbug.com/1356310): Add tests for ApplicationStateObserver.
+// TODO(crbug.com/40236247): Add tests for ApplicationStateObserver.
 class PermissionsManagerImplTest : public testing::Test {
  public:
   PermissionsManagerImplTest()

@@ -13,8 +13,6 @@ var GuestViewContainer = require('guestViewContainer').GuestViewContainer;
 function ExtensionOptionsImpl(extensionoptionsElement) {
   $Function.call(
       GuestViewContainer, this, extensionoptionsElement, 'extensionoptions');
-
-  new ExtensionOptionsEvents(this);
 };
 
 ExtensionOptionsImpl.prototype.__proto__ = GuestViewContainer.prototype;
@@ -29,6 +27,10 @@ ExtensionOptionsImpl.prototype.setupAttributes = function() {
       new ExtensionOptionsAttributes.ExtensionAttribute(this);
 };
 
+ExtensionOptionsImpl.prototype.setupEvents = function() {
+  new ExtensionOptionsEvents(this);
+};
+
 ExtensionOptionsImpl.prototype.buildContainerParams = function() {
   var params = $Object.create(null);
   for (var i in this.attributes) {
@@ -41,16 +43,17 @@ ExtensionOptionsImpl.prototype.createGuest = function() {
   // Destroy the old guest if one exists.
   this.guest.destroy($Function.bind(this.prepareForReattach, this));
 
-  this.guest.create(this.buildParams(), $Function.bind(function() {
-    if (!this.guest.getId()) {
-      // Fire a createfailed event here rather than in ExtensionOptionsGuest
-      // because the guest will not be created, and cannot fire an event.
-      var createFailedEvent = new Event('createfailed', { bubbles: true });
-      this.dispatchEvent(createFailedEvent);
-    } else {
-      this.attachWindow();
-    }
-  }, this));
+  this.guest.create(
+      this.viewInstanceId, this.buildParams(), $Function.bind(function() {
+        if (!this.guest.getId()) {
+          // Fire a createfailed event here rather than in ExtensionOptionsGuest
+          // because the guest will not be created, and cannot fire an event.
+          var createFailedEvent = new Event('createfailed', {bubbles: true});
+          this.dispatchEvent(createFailedEvent);
+        } else {
+          this.attachWindow();
+        }
+      }, this));
 };
 
 // Exports.

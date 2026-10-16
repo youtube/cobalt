@@ -5,18 +5,22 @@
 #ifndef CONTENT_PUBLIC_BROWSER_NETWORK_SERVICE_INSTANCE_H_
 #define CONTENT_PUBLIC_BROWSER_NETWORK_SERVICE_INSTANCE_H_
 
-#include "base/callback_list.h"
+#include "base/feature_list.h"
 #include "base/functional/callback.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "content/common/content_export.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom-forward.h"
 #include "services/network/public/cpp/network_connection_tracker.h"
+#include "services/network/public/mojom/cert_verifier_service.mojom-forward.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
 
 namespace base {
 class SequencedTaskRunner;
+}
+
+namespace cert_verifier {
+class CertVerifierServiceFactoryImpl;
 }
 
 namespace net {
@@ -24,13 +28,16 @@ class NetworkChangeNotifier;
 }  // namespace net
 
 namespace network {
-class NetworkService;
 namespace mojom {
 class NetworkService;
 }
 }  // namespace network
 
 namespace content {
+
+// If this feature is enabled, the Network Service will run on its own thread
+// when running in-process; otherwise it will run on the IO thread.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kNetworkServiceDedicatedThread);
 
 // Returns a pointer to the NetworkService, creating / re-creating it as needed.
 // NetworkService will be running in-process if
@@ -41,7 +48,8 @@ namespace content {
 CONTENT_EXPORT network::mojom::NetworkService* GetNetworkService();
 
 // Only on ChromeOS since it's only used there.
-#if BUILDFLAG(IS_CHROMEOS)
+// Cobalt: Used on Starboard as well.
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_COBALT)
 // Returns the global NetworkChangeNotifier instance.
 CONTENT_EXPORT net::NetworkChangeNotifier* GetNetworkChangeNotifier();
 #endif
@@ -82,13 +90,9 @@ GetNetworkTaskRunner();
 // Returns a CertVerifierParams that can be placed into a new
 // network::mojom::NetworkContextParams.
 //
-// If the CertVerifierService feature is enabled, the
-// |cert_verifier_creation_params| will be used to configure a new
+// The |cert_verifier_creation_params| will be used to configure a new
 // CertVerifierService, and a pipe to the new CertVerifierService will be placed
 // in the CertVerifierParams.
-//
-// Otherwise, |cert_verifier_creation_params| will just be placed directly into
-// the CertVerifierParams to configure an in-network-service CertVerifier.
 CONTENT_EXPORT network::mojom::CertVerifierServiceRemoteParamsPtr
 GetCertVerifierParams(cert_verifier::mojom::CertVerifierCreationParamsPtr
                           cert_verifier_creation_params);
@@ -111,6 +115,15 @@ CONTENT_EXPORT
 mojo::Remote<cert_verifier::mojom::CertVerifierServiceFactory>&
 GetCertVerifierServiceFactoryRemoteForTesting();
 
+// Returns the |CertVerifierServiceFactoryImpl|. For testing only.
+// Must only be called on the same thread the CertVerifierServiceFactoryImpl
+// storage was created on, which can be either the UI or IO thread depending on
+// the platform. (Note that if the unittest uses a default
+// BrowserTaskEnvironment, both UI and IO sequences share the same thread.)
+CONTENT_EXPORT
+cert_verifier::CertVerifierServiceFactoryImpl*
+GetCertVerifierServiceFactoryForTesting();
+
 // Convenience function to create a NetworkContext from the given set of
 // |params|. Any creation of network contexts should be done through this
 // function.
@@ -118,6 +131,10 @@ GetCertVerifierServiceFactoryRemoteForTesting();
 CONTENT_EXPORT void CreateNetworkContextInNetworkService(
     mojo::PendingReceiver<network::mojom::NetworkContext> context,
     network::mojom::NetworkContextParamsPtr params);
+
+// Shuts down the in-process network service or disconnects from the out-of-
+// process one, allowing it to shut down. Then, restarts it.
+CONTENT_EXPORT void RestartNetworkService();
 
 }  // namespace content
 

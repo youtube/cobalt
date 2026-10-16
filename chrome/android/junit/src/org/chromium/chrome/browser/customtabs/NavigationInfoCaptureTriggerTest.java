@@ -10,33 +10,34 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.tab.Tab;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * Tests for {@link NavigationInfoCaptureTrigger}.
- */
+/** Tests for {@link NavigationInfoCaptureTrigger}. */
 @RunWith(BaseRobolectricTestRunner.class)
+@Batch(Batch.UNIT_TESTS)
 @Config(manifest = Config.NONE)
 public class NavigationInfoCaptureTriggerTest {
-    @Mock
-    private Callback<Tab> mDelegate;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private Callback<Tab> mDelegate;
     private NavigationInfoCaptureTrigger mTrigger;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
 
         mTrigger = new NavigationInfoCaptureTrigger(mDelegate);
     }
@@ -90,9 +91,7 @@ public class NavigationInfoCaptureTriggerTest {
         verifyCaptured(1);
     }
 
-    /**
-     * Tests that the backup onload trigger works.
-     */
+    /** Tests that the backup onload trigger works. */
     @Test
     @Feature({"CustomTabs"})
     public void testBackupOnload() {
@@ -104,9 +103,7 @@ public class NavigationInfoCaptureTriggerTest {
         verifyCaptured(1);
     }
 
-    /**
-     * Tests that pending capture tasks are cancelled when the page navigates.
-     */
+    /** Tests that pending capture tasks are cancelled when the page navigates. */
     @Test
     @Feature({"CustomTabs"})
     public void testCancelOnNavigation() {
@@ -117,9 +114,7 @@ public class NavigationInfoCaptureTriggerTest {
         verifyCaptured(0);
     }
 
-    /**
-     * Tests that navigation resets the state.
-     */
+    /** Tests that navigation resets the state. */
     @Test
     @Feature({"CustomTabs"})
     @SuppressWarnings("unchecked")
@@ -137,9 +132,7 @@ public class NavigationInfoCaptureTriggerTest {
         testDelayedOnload();
     }
 
-    /**
-     * Tests that we capture only on the first FMP.
-     */
+    /** Tests that we capture only on the first FMP. */
     @Test
     @Feature({"CustomTabs"})
     public void testMultipleFmps() {

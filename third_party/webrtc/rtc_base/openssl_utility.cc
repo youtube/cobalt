@@ -33,7 +33,7 @@
 #include "rtc_base/ssl_roots.h"
 #endif  // WEBRTC_EXCLUDE_BUILT_IN_SSL_ROOT_CERTS
 
-namespace rtc {
+namespace webrtc {
 namespace openssl {
 
 // Holds various helper methods.
@@ -42,7 +42,8 @@ namespace {
 // TODO(crbug.com/webrtc/11710): When OS certificate verification is available,
 // and we don't need VerifyPeerCertMatchesHost, don't compile this in order to
 // avoid a dependency on OpenSSL X509 objects (see crbug.com/webrtc/11410).
-void LogCertificates(SSL* ssl, X509* certificate) {
+void LogCertificates([[maybe_unused]] SSL* ssl,
+                     [[maybe_unused]] X509* certificate) {
 // Logging certificates is extremely verbose. So it is disabled by default.
 #ifdef LOG_CERTIFICATES
   BIO* mem = BIO_new(BIO_s_mem());
@@ -271,4 +272,4 @@ CRYPTO_BUFFER_POOL* GetBufferPool() {
 #endif
 
 }  // namespace openssl
-}  // namespace rtc
+}  // namespace webrtc

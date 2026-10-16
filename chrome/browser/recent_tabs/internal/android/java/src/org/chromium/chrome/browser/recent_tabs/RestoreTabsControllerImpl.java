@@ -4,34 +4,43 @@
 
 package org.chromium.chrome.browser.recent_tabs;
 
-import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
+import android.content.Context;
 
-/**
- * Controller for accessing helper functions for the singleton factory instance.
- */
-public class RestoreTabsControllerImpl {
-    private RestoreTabsFeatureHelper mHelper;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.recent_tabs.ForeignSessionHelper.ForeignSession;
+import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+
+import java.util.List;
+
+/** Controller for accessing helper functions for the singleton factory instance. */
+@NullMarked
+public class RestoreTabsControllerImpl implements RestoreTabsController {
     private RestoreTabsCoordinator mRestoreTabsCoordinator;
 
-    public RestoreTabsControllerImpl(Profile profile,
-            RestoreTabsControllerFactory.ControllerListener listener,
-            TabCreatorManager tabCreatorManager) {
-        mHelper = new RestoreTabsFeatureHelperImpl();
-        mRestoreTabsCoordinator = new RestoreTabsCoordinator(profile, listener, tabCreatorManager);
+    public RestoreTabsControllerImpl(
+            Context context,
+            Profile profile,
+            TabCreatorManager tabCreatorManager,
+            BottomSheetController bottomSheetController) {
+        mRestoreTabsCoordinator =
+                new RestoreTabsCoordinator(
+                        context, profile, tabCreatorManager, bottomSheetController);
     }
 
+    @Override
+    @SuppressWarnings("NullAway")
     public void destroy() {
         mRestoreTabsCoordinator.destroy();
         mRestoreTabsCoordinator = null;
-        mHelper = null;
     }
 
-    public RestoreTabsFeatureHelper getFeatureHelper() {
-        return mHelper;
-    }
-
-    public void showBottomSheet() {
-        mRestoreTabsCoordinator.showOptions();
+    @Override
+    public void showHomeScreen(
+            ForeignSessionHelper foreignSessionHelper,
+            List<ForeignSession> sessions,
+            RestoreTabsControllerDelegate delegate) {
+        mRestoreTabsCoordinator.showHomeScreen(foreignSessionHelper, sessions, delegate);
     }
 }

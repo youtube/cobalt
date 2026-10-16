@@ -4,6 +4,8 @@
 
 #include "components/gcm_driver/instance_id/fake_gcm_driver_for_instance_id.h"
 
+#include <algorithm>
+
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
@@ -11,7 +13,6 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/rand_util.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
@@ -54,7 +55,7 @@ FakeGCMDriverForInstanceID::FakeGCMDriverForInstanceID(
     return;
   }
 
-  absl::optional<base::Value> data = base::JSONReader::Read(encoded_data);
+  std::optional<base::Value> data = base::JSONReader::Read(encoded_data);
   DCHECK(data.has_value() && data->is_dict())
       << "Failed to read data from stored FCM tokens file";
 
@@ -100,13 +101,14 @@ bool FakeGCMDriverForInstanceID::HasTokenForAppId(
   // FCM registration tokens on Android should be handled by
   // FakeInstanceIDWithSubtype.
   NOTREACHED();
-#endif  // BUILDFLAG(IS_ANDROID)
+#else
   for (const auto& [key, stored_token] : tokens_) {
     if (token == stored_token && base::StartsWith(key, app_id)) {
       return true;
     }
   }
   return false;
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void FakeGCMDriverForInstanceID::WaitForAppIdBeforeConnection(

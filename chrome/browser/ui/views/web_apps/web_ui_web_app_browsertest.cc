@@ -8,7 +8,7 @@
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
-#include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
+#include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
@@ -27,20 +27,18 @@ constexpr char kWebUIScheme[] = "chrome://";
 
 namespace web_app {
 
-class WebUIWebAppBrowserTest : public WebAppControllerBrowserTest {
+class WebUIWebAppBrowserTest : public WebAppBrowserTestBase {
  public:
   WebUIWebAppBrowserTest() = default;
   ~WebUIWebAppBrowserTest() override = default;
 
   void SetUp() override {
-    features_.InitAndEnableFeature(
-        password_manager::features::kPasswordManagerRedesign);
     ASSERT_TRUE(embedded_test_server()->Start());
-    WebAppControllerBrowserTest::SetUp();
+    WebAppBrowserTestBase::SetUp();
   }
 
   struct App {
-    AppId id;
+    webapps::AppId id;
     std::string start_url;
     raw_ptr<Browser> browser;
     raw_ptr<BrowserView> browser_view;
@@ -52,10 +50,11 @@ class WebUIWebAppBrowserTest : public WebAppControllerBrowserTest {
     std::string start_url = base::StrCat(
         {kWebUIScheme, password_manager::kChromeUIPasswordManagerHost});
 
-    auto web_app_info = std::make_unique<WebAppInstallInfo>();
-    web_app_info->start_url = GURL(start_url);
+    auto web_app_info =
+        WebAppInstallInfo::CreateWithStartUrlForTesting(GURL(start_url));
     web_app_info->user_display_mode = mojom::UserDisplayMode::kStandalone;
-    AppId app_id = test::InstallWebApp(profile, std::move(web_app_info));
+    webapps::AppId app_id =
+        test::InstallWebApp(profile, std::move(web_app_info));
 
     Browser* app_browser = ::web_app::LaunchWebAppBrowser(profile, app_id);
     return App{app_id, start_url, app_browser,

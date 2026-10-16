@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/ui/views/desktop_capture/desktop_media_tab_list.h"
+
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/media/webrtc/desktop_media_list.h"
 #include "chrome/browser/media/webrtc/fake_desktop_media_list.h"
 #include "chrome/browser/ui/views/desktop_capture/desktop_media_picker_views.h"
@@ -27,10 +27,12 @@
 using testing::Return;
 using testing::ReturnRef;
 
-const content::DesktopMediaID kDesktopMediaID0;
-const content::DesktopMediaID kDesktopMediaID1 =
-    content::DesktopMediaID(content::DesktopMediaID::Type::TYPE_WEB_CONTENTS,
-                            1);
+const content::DesktopMediaID kDesktopMediaID0(
+    content::DesktopMediaID::Type::TYPE_WEB_CONTENTS,
+    0);
+const content::DesktopMediaID kDesktopMediaID1(
+    content::DesktopMediaID::Type::TYPE_WEB_CONTENTS,
+    1);
 const std::u16string kSourceName0 = u"source_0";
 const std::u16string kSourceName1 = u"source_1";
 const int kMaxPreviewTitleLength = 500;
@@ -38,10 +40,11 @@ const int kMaxPreviewTitleLength = 500;
 class DesktopMediaTabListTest : public testing::Test {
  public:
   DesktopMediaTabListTest() {
-    picker_views_ = std::make_unique<DesktopMediaPickerViews>();
+    picker_views_ = std::make_unique<DesktopMediaPickerImpl>();
 
     const std::u16string kAppName = u"foo";
-    DesktopMediaPicker::Params picker_params;
+    DesktopMediaPicker::Params picker_params{
+        DesktopMediaPicker::Params::RequestSource::kUnknown};
     picker_params.context = test_helper_.GetContext();
     picker_params.app_name = kAppName;
     picker_params.target_name = kAppName;
@@ -61,7 +64,7 @@ class DesktopMediaTabListTest : public testing::Test {
 
     tab_list_ =
         static_cast<DesktopMediaTabList*>(test_api_.GetSelectedListView());
-    list_ = tab_list_->list_;
+    list_ = tab_list_->table_;
     preview_ = tab_list_->preview_;
     preview_label_ = tab_list_->preview_label_;
 
@@ -103,13 +106,13 @@ class DesktopMediaTabListTest : public testing::Test {
   content::BrowserTaskEnvironment task_environment_;
   views::ScopedViewsTestHelper test_helper_{
       std::make_unique<ChromeTestViewsDelegate<>>()};
-  raw_ptr<FakeDesktopMediaList> media_list_;
-  std::unique_ptr<DesktopMediaPickerViews> picker_views_;
+  raw_ptr<FakeDesktopMediaList, DanglingUntriaged> media_list_;
+  std::unique_ptr<DesktopMediaPickerImpl> picker_views_;
   DesktopMediaPickerViewsTestApi test_api_;
-  raw_ptr<DesktopMediaTabList> tab_list_;
-  raw_ptr<views::ImageView> preview_;
-  raw_ptr<views::TableView> list_;
-  raw_ptr<views::Label> preview_label_;
+  raw_ptr<DesktopMediaTabList, DanglingUntriaged> tab_list_;
+  raw_ptr<views::ImageView, DanglingUntriaged> preview_;
+  raw_ptr<views::TableView, DanglingUntriaged> list_;
+  raw_ptr<views::Label, DanglingUntriaged> preview_label_;
   std::unique_ptr<views::test::WidgetDestroyedWaiter> widget_destroyed_waiter_;
 
   gfx::ImageSkia preview_0_;
@@ -157,15 +160,7 @@ TEST_F(DesktopMediaTabListTest, UpdatedPreview) {
   EXPECT_TRUE(preview_->GetImage().BackedBySameObjectAs(new_preview));
 }
 
-// crbug.com/1284150: flaky on Lacros
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#define MAYBE_IgnorePreviewUpdatesForUnselectedSource \
-  DISABLED_IgnorePreviewUpdatesForUnselectedSource
-#else
-#define MAYBE_IgnorePreviewUpdatesForUnselectedSource \
-  IgnorePreviewUpdatesForUnselectedSource
-#endif
-TEST_F(DesktopMediaTabListTest, MAYBE_IgnorePreviewUpdatesForUnselectedSource) {
+TEST_F(DesktopMediaTabListTest, IgnorePreviewUpdatesForUnselectedSource) {
   test_api_.PressMouseOnSourceAtIndex(0);
 
   // Let the tab list know that the non-selected source #1 has a new preview.

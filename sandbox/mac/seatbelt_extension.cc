@@ -88,7 +88,6 @@ char* SeatbeltExtension::IssueToken(SeatbeltExtension::Type type,
                                           resource.c_str(), 0);
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 

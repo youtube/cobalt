@@ -5,44 +5,82 @@
 #ifndef COMPONENTS_BROWSING_DATA_CORE_PREF_NAMES_H_
 #define COMPONENTS_BROWSING_DATA_CORE_PREF_NAMES_H_
 
+#include "build/build_config.h"
+
 namespace user_prefs {
 class PrefRegistrySyncable;
 }
 
-namespace browsing_data {
+class PrefService;
 
-namespace prefs {
+namespace browsing_data::prefs {
 
-extern const char kBrowsingDataLifetime[];
-extern const char kClearBrowsingDataOnExitDeletionPending[];
-extern const char kClearBrowsingDataOnExitList[];
+// JSON config to periodically delete some browsing data as specified by
+// the BrowsingDataLifetime policy.
+inline constexpr char kBrowsingDataLifetime[] =
+    "browser.clear_data.browsing_data_lifetime";
 
-extern const char kDeleteTimePeriod[];
-extern const char kDeleteTimePeriodBasic[];
+// Boolean set to true while browsing data needs to be deleted per
+// ClearBrowsingDataOnExit policy.
+// TODO (crbug/1026442): Consider setting this pref to true during fast
+// shutdown if the ClearBrowsingDataOnExit policy is set.
+inline constexpr char kClearBrowsingDataOnExitDeletionPending[] =
+    "browser.clear_data.clear_on_exit_pending";
 
-extern const char kDeleteBrowsingHistory[];
-extern const char kDeleteBrowsingHistoryBasic[];
-extern const char kDeleteDownloadHistory[];
-extern const char kDeleteCache[];
-extern const char kDeleteCacheBasic[];
-extern const char kDeleteCookies[];
-extern const char kDeleteCookiesBasic[];
-extern const char kDeletePasswords[];
-extern const char kDeleteFormData[];
-extern const char kDeleteHostedAppsData[];
-extern const char kDeleteSiteSettings[];
+// List of browsing data, specified by the ClearBrowsingDataOnExit policy, to
+// delete just before browser shutdown.
+inline constexpr char kClearBrowsingDataOnExitList[] =
+    "browser.clear_data.clear_on_exit";
 
-extern const char kLastClearBrowsingDataTime[];
-extern const char kClearBrowsingDataHistoryNoticeShownTimes[];
+// Clear browsing data deletion time period.
+inline constexpr char kDeleteTimePeriod[] = "browser.clear_data.time_period";
+inline constexpr char kDeleteTimePeriodBasic[] =
+    "browser.clear_data.time_period_basic";
 
-extern const char kLastClearBrowsingDataTab[];
-extern const char kPreferencesMigratedToBasic[];
+// Clear Browsing Data dialog datatype preferences.
+inline constexpr char kDeleteBrowsingHistory[] =
+    "browser.clear_data.browsing_history";
+inline constexpr char kDeleteBrowsingHistoryBasic[] =
+    "browser.clear_data.browsing_history_basic";
+inline constexpr char kDeleteDownloadHistory[] =
+    "browser.clear_data.download_history";
+inline constexpr char kDeleteCache[] = "browser.clear_data.cache";
+inline constexpr char kDeleteCacheBasic[] = "browser.clear_data.cache_basic";
+inline constexpr char kDeleteCookies[] = "browser.clear_data.cookies";
+inline constexpr char kDeleteCookiesBasic[] =
+    "browser.clear_data.cookies_basic";
+inline constexpr char kDeletePasswords[] = "browser.clear_data.passwords";
+inline constexpr char kDeleteFormData[] = "browser.clear_data.form_data";
+inline constexpr char kDeleteHostedAppsData[] =
+    "browser.clear_data.hosted_apps_data";
+inline constexpr char kDeleteSiteSettings[] =
+    "browser.clear_data.site_settings";
+inline constexpr char kCloseTabs[] = "browser.clear_data.close_tabs";
+
+// Other Clear Browsing Data preferences.
+inline constexpr char kLastClearBrowsingDataTime[] =
+    "browser.last_clear_browsing_data_time";
+inline constexpr char kClearBrowsingDataHistoryNoticeShownTimes[] =
+    "browser.clear_data.history_notice_shown_times";
+inline constexpr char kLastClearBrowsingDataTab[] =
+    "browser.last_clear_browsing_data_tab";
+inline constexpr char kMigratedToQuickDeletePrefValues[] =
+    "browser.migrated_to_quick_delete_pref_values";
 
 // Registers the Clear Browsing Data UI prefs.
 void RegisterBrowserUserPrefs(user_prefs::PrefRegistrySyncable* registry);
 
-}  // namespace prefs
+#if BUILDFLAG(IS_IOS)
+// Migrates the values of the time period and tabs prefs to the new defaults for
+// Quick Delete. For users who have previously changed their time period pref
+// from the default value, then that value is still kept. If the migration has
+// already happened, then no-op.
+// TODO(crbug.com/335387869): When MaybeMigrateToQuickDeletePrefValues is
+// removed, set default value in iOS for the `kDeleteTimePeriod` pref to 15
+// minutes.
+void MaybeMigrateToQuickDeletePrefValues(PrefService* pref_service);
+#endif  // BUILDFLAG(IS_IOS)
 
-}  // namespace browsing_data
+}  // namespace browsing_data::prefs
 
 #endif  // COMPONENTS_BROWSING_DATA_CORE_PREF_NAMES_H_

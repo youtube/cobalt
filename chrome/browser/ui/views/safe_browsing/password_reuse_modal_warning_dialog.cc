@@ -22,6 +22,8 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/image/image.h"
@@ -37,8 +39,9 @@ using views::BoxLayout;
 namespace {
 
 class SafeBrowsingImageView : public NonAccessibleImageView {
+  METADATA_HEADER(SafeBrowsingImageView, NonAccessibleImageView)
+
  public:
-  METADATA_HEADER(SafeBrowsingImageView);
   SafeBrowsingImageView() {
     SetVerticalAlignment(views::ImageView::Alignment::kLeading);
   }
@@ -47,13 +50,13 @@ class SafeBrowsingImageView : public NonAccessibleImageView {
   // NonAccessibleImageView:
   void OnThemeChanged() override {
     NonAccessibleImageView::OnThemeChanged();
-    SetImage(*ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
+    SetImage(ui::ImageModel::FromResourceId(
         GetNativeTheme()->ShouldUseDarkColors() ? IDR_PASSWORD_CHECK_DARK
                                                 : IDR_PASSWORD_CHECK));
   }
 };
 
-BEGIN_METADATA(SafeBrowsingImageView, NonAccessibleImageView)
+BEGIN_METADATA(SafeBrowsingImageView)
 END_METADATA
 
 // Sets up the content containing the title and description for the dialog
@@ -130,24 +133,27 @@ PasswordReuseModalWarningDialog::PasswordReuseModalWarningDialog(
   show_check_passwords = password_type_.account_type() ==
                          ReusedPasswordAccountType::SAVED_PASSWORD;
 #endif
-  SetModalType(ui::MODAL_TYPE_WINDOW);
+  SetModalType(ui::mojom::ModalType::kWindow);
   SetShowIcon(true);
   if (password_type.account_type() !=
           ReusedPasswordAccountType::SAVED_PASSWORD ||
       show_check_passwords) {
-    SetButtons(ui::DIALOG_BUTTON_OK | ui::DIALOG_BUTTON_CANCEL);
+    SetButtons(static_cast<int>(ui::mojom::DialogButton::kOk) |
+               static_cast<int>(ui::mojom::DialogButton::kCancel));
   } else {
-    SetButtons(ui::DIALOG_BUTTON_OK);
+    SetButtons(static_cast<int>(ui::mojom::DialogButton::kOk));
   }
-  SetButtonLabel(ui::DIALOG_BUTTON_OK, GetOkButtonLabel(password_type_));
+  SetButtonLabel(ui::mojom::DialogButton::kOk,
+                 GetOkButtonLabel(password_type_));
   SetButtonLabel(
-      ui::DIALOG_BUTTON_CANCEL,
+      ui::mojom::DialogButton::kCancel,
       l10n_util::GetStringUTF16(IDS_PAGE_INFO_IGNORE_PASSWORD_WARNING_BUTTON));
 
-  // The set_*_callback() methods below need a OnceCallback each and we only have one
-  // (done_callback_), so create a proxy callback that references done_callback_ and use it for each
-  // of the set_*_callback() callbacks. Note that since only one of the three callbacks can ever be
-  // invoked, done_callback_ is still run at most once.
+  // The set_*_callback() methods below need a OnceCallback each and we only
+  // have one (done_callback_), so create a proxy callback that references
+  // done_callback_ and use it for each of the set_*_callback() callbacks. Note
+  // that since only one of the three callbacks can ever be invoked,
+  // done_callback_ is still run at most once.
   auto make_done_callback = [this](safe_browsing::WarningAction value) {
     return base::BindOnce(
         [](OnWarningDone* callback, safe_browsing::WarningAction value) {
@@ -164,8 +170,9 @@ PasswordReuseModalWarningDialog::PasswordReuseModalWarningDialog(
   SetCloseCallback(make_done_callback(WarningAction::CLOSE));
 
   // |service| maybe NULL in tests.
-  if (service_)
+  if (service_) {
     service_->AddObserver(this);
+  }
 
   if (password_type.account_type() ==
       ReusedPasswordAccountType::SAVED_PASSWORD) {
@@ -184,8 +191,9 @@ PasswordReuseModalWarningDialog::PasswordReuseModalWarningDialog(
 }
 
 PasswordReuseModalWarningDialog::~PasswordReuseModalWarningDialog() {
-  if (service_)
+  if (service_) {
     service_->RemoveObserver(this);
+  }
   LogModalWarningDialogLifetime(modal_construction_start_time_);
 }
 
@@ -214,8 +222,9 @@ void PasswordReuseModalWarningDialog::CreateGaiaPasswordReuseModalWarningDialog(
   SetLayoutManager(std::make_unique<views::FillLayout>());
   // Makes message label align with title label.
   const int horizontal_adjustment =
-      provider->GetDistanceMetric(DISTANCE_BUBBLE_HEADER_VECTOR_ICON_SIZE) +
-      provider->GetDistanceMetric(DISTANCE_UNRELATED_CONTROL_HORIZONTAL);
+      provider->GetDistanceMetric(
+          views::DISTANCE_BUBBLE_HEADER_VECTOR_ICON_SIZE) +
+      provider->GetDistanceMetric(views::DISTANCE_UNRELATED_CONTROL_HORIZONTAL);
   if (base::i18n::IsRTL()) {
     message_body_label->SetBorder(views::CreateEmptyBorder(
         gfx::Insets::TLBR(0, 0, 0, horizontal_adjustment)));
@@ -223,12 +232,21 @@ void PasswordReuseModalWarningDialog::CreateGaiaPasswordReuseModalWarningDialog(
     message_body_label->SetBorder(views::CreateEmptyBorder(
         gfx::Insets::TLBR(0, horizontal_adjustment, 0, 0)));
   }
-  AddChildView(message_body_label);
+  AddChildViewRaw(message_body_label);
 }
 
-gfx::Size PasswordReuseModalWarningDialog::CalculatePreferredSize() const {
+gfx::Size PasswordReuseModalWarningDialog::GetMinimumSize() const {
+  // The default GetMinimumSize of `View` will call the layout manager to
+  // calculate under unconstrained conditions when there is a layout manager.
+  // This will cause the minimum value to be calculated incorrectly.
+  return GetPreferredSize(views::SizeBounds(0, 0));
+}
+
+gfx::Size PasswordReuseModalWarningDialog::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   constexpr int kDialogWidth = 400;
-  return gfx::Size(kDialogWidth, GetHeightForWidth(kDialogWidth));
+  return gfx::Size(kDialogWidth, GetLayoutManager()->GetPreferredHeightForWidth(
+                                     this, kDialogWidth));
 }
 
 std::u16string PasswordReuseModalWarningDialog::GetWindowTitle() const {
@@ -251,7 +269,7 @@ ui::ImageModel PasswordReuseModalWarningDialog::GetWindowIcon() {
              : ui::ImageModel::FromVectorIcon(
                    kSecurityIcon, ui::kColorIcon,
                    ChromeLayoutProvider::Get()->GetDistanceMetric(
-                       DISTANCE_BUBBLE_HEADER_VECTOR_ICON_SIZE));
+                       views::DISTANCE_BUBBLE_HEADER_VECTOR_ICON_SIZE));
 }
 
 void PasswordReuseModalWarningDialog::OnGaiaPasswordChanged() {
@@ -260,8 +278,9 @@ void PasswordReuseModalWarningDialog::OnGaiaPasswordChanged() {
 
 void PasswordReuseModalWarningDialog::OnMarkingSiteAsLegitimate(
     const GURL& url) {
-  if (url_.GetWithEmptyPath() == url.GetWithEmptyPath())
+  if (url_.GetWithEmptyPath() == url.GetWithEmptyPath()) {
     GetWidget()->Close();
+  }
 }
 
 void PasswordReuseModalWarningDialog::InvokeActionForTesting(
@@ -277,7 +296,7 @@ void PasswordReuseModalWarningDialog::InvokeActionForTesting(
       Close();
       break;
     default:
-      NOTREACHED_NORETURN();
+      NOTREACHED();
   }
 }
 
@@ -289,7 +308,7 @@ void PasswordReuseModalWarningDialog::WebContentsDestroyed() {
   GetWidget()->Close();
 }
 
-BEGIN_METADATA(PasswordReuseModalWarningDialog, views::DialogDelegateView)
+BEGIN_METADATA(PasswordReuseModalWarningDialog)
 END_METADATA
 
 }  // namespace safe_browsing

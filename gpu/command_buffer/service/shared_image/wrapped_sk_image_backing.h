@@ -15,10 +15,10 @@
 #include "gpu/command_buffer/service/shared_image/shared_image_backing.h"
 #include "third_party/skia/include/core/SkAlphaType.h"
 #include "third_party/skia/include/core/SkColorType.h"
-#include "third_party/skia/include/core/SkPromiseImageTexture.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/core/SkSurfaceProps.h"
-#include "third_party/skia/include/gpu/GrTypes.h"
+#include "third_party/skia/include/gpu/ganesh/GrTypes.h"
+#include "third_party/skia/include/private/chromium/GrPromiseImageTexture.h"
 
 class SkSurface;
 class SkPixmap;
@@ -27,8 +27,8 @@ namespace gpu {
 
 class WrappedSkImageBackingFactory;
 
-// Backing type which holds a Skia allocated image. Can only be accessed by
-// Skia.
+// Holds a Skia Ganesh allocated GrBackendTextures and GrPromiseImageTextures.
+// Can only be accessed by Skia Ganesh backend.
 class WrappedSkImageBacking : public ClearTrackingSharedImageBacking {
  public:
   WrappedSkImageBacking(base::PassKey<WrappedSkImageBackingFactory>,
@@ -38,7 +38,8 @@ class WrappedSkImageBacking : public ClearTrackingSharedImageBacking {
                         const gfx::ColorSpace& color_space,
                         GrSurfaceOrigin surface_origin,
                         SkAlphaType alpha_type,
-                        uint32_t usage,
+                        gpu::SharedImageUsageSet usage,
+                        std::string debug_label,
                         scoped_refptr<SharedContextState> context_state,
                         const bool thread_safe);
 
@@ -50,15 +51,11 @@ class WrappedSkImageBacking : public ClearTrackingSharedImageBacking {
   // Initializes without pixel data.
   bool Initialize(const std::string& debug_label);
 
-  // Initializes with pixel data that is uploaded to texture. If pixel data is
-  // provided and the image format is not ETC1 then |stride| is used. If
-  // |stride| is non-zero then it's used as the stride, otherwise it will create
-  // SkImageInfo from size() and format() and then SkImageInfo::minRowBytes() is
-  // used for the stride. For ETC1 textures pixel data must be provided since
-  // updating compressed textures is not supported.
+  // Initializes with pixel data that is uploaded to texture. For ETC1 textures
+  // pixel data must be provided since updating compressed textures is not
+  // supported.
   bool InitializeWithData(const std::string& debug_label,
-                          base::span<const uint8_t> pixels,
-                          size_t stride);
+                          base::span<const uint8_t> pixels);
 
   // SharedImageBacking implementation.
   SharedImageBackingType GetType() const override;
@@ -81,7 +78,7 @@ class WrappedSkImageBacking : public ClearTrackingSharedImageBacking {
     ~TextureHolder();
 
     GrBackendTexture backend_texture;
-    sk_sp<SkPromiseImageTexture> promise_texture;
+    sk_sp<GrPromiseImageTexture> promise_texture;
   };
 
   SkColorType GetSkColorType(int plane_index);
@@ -89,7 +86,7 @@ class WrappedSkImageBacking : public ClearTrackingSharedImageBacking {
       int final_msaa_count,
       const SkSurfaceProps& surface_props,
       scoped_refptr<SharedContextState> context_state);
-  std::vector<sk_sp<SkPromiseImageTexture>> GetPromiseTextures();
+  std::vector<sk_sp<GrPromiseImageTexture>> GetPromiseTextures();
 
   scoped_refptr<SharedContextState> context_state_;
 

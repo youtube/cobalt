@@ -12,16 +12,16 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/gtest_prod_util.h"
-#include "base/strings/string_piece.h"
 #include "build/build_config.h"
-#include "chrome/common/importer/imported_bookmark_entry.h"
 #include "chrome/utility/importer/importer.h"
 #include "components/favicon_base/favicon_usage_data.h"
+#include "components/user_data_importer/common/imported_bookmark_entry.h"
 
 class GURL;
 
@@ -40,7 +40,7 @@ class FirefoxImporter : public Importer {
   FirefoxImporter& operator=(const FirefoxImporter&) = delete;
 
   // Importer:
-  void StartImport(const importer::SourceProfile& source_profile,
+  void StartImport(const user_data_importer::SourceProfile& source_profile,
                    uint16_t items,
                    ImporterBridge* bridge) override;
 
@@ -61,7 +61,7 @@ class FirefoxImporter : public Importer {
 
   FRIEND_TEST_ALL_PREFIXES(FirefoxImporterTest, ImportBookmarksV25);
   void ImportBookmarks();
-#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_MAC)
   void ImportPasswords();
 #endif
   void ImportHistory();
@@ -104,13 +104,14 @@ class FirefoxImporter : public Importer {
   // Loads the favicons for |bookmarks| from favicons.sqlite database, loads the
   // data, and converts it into FaviconUsageData structures.
   // This function supports newer Firefox profiles (Firefox 55 and later).
-  void LoadFavicons(const std::vector<ImportedBookmarkEntry>& bookmarks,
-                    favicon_base::FaviconUsageDataList* favicons);
+  void LoadFavicons(
+      const std::vector<user_data_importer::ImportedBookmarkEntry>& bookmarks,
+      favicon_base::FaviconUsageDataList* favicons);
 
   // Copies |source_path_|/|base_file_name| to a temporary directory and returns
   // the copy's path. Using the copy is safer, ensures we don't modify Firefox's
   // profile. |base_file_name| must be ASCII. Returns empty path on I/O failure.
-  base::FilePath GetCopiedSourcePath(base::StringPiece base_file_name);
+  base::FilePath GetCopiedSourcePath(std::string_view base_file_name);
 
   base::FilePath source_path_;
   base::FilePath app_path_;

@@ -2,24 +2,31 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/policy/core/common/registry_dict.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/json/json_reader.h"
 #include "base/logging.h"
+#include "base/numerics/byte_conversions.h"
+#include "base/strings/cstring_view.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/sys_byteorder.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "components/policy/core/common/schema.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/registry.h"
+#include "base/win/win_util.h"
 
 using base::win::RegistryKeyIterator;
 using base::win::RegistryValueIterator;
@@ -37,8 +44,8 @@ bool IsKeyNumerical(const std::string& key) {
 
 }  // namespace
 
-absl::optional<base::Value> ConvertRegistryValue(const base::Value& value,
-                                                 const Schema& schema) {
+std::optional<base::Value> ConvertRegistryValue(const base::Value& value,
+                                                const Schema& schema) {
   if (!schema.valid()) {
     return value.Clone();
   }
@@ -49,7 +56,7 @@ absl::optional<base::Value> ConvertRegistryValue(const base::Value& value,
     if (value.is_dict()) {
       base::Value::Dict result;
       for (auto entry : value.GetDict()) {
-        absl::optional<base::Value> converted =
+        std::optional<base::Value> converted =
             ConvertRegistryValue(entry.second, schema.GetProperty(entry.first));
         if (converted.has_value()) {
           result.Set(entry.first, std::move(converted.value()));
@@ -59,7 +66,7 @@ absl::optional<base::Value> ConvertRegistryValue(const base::Value& value,
     } else if (value.is_list()) {
       base::Value::List result;
       for (const auto& entry : value.GetList()) {
-        absl::optional<base::Value> converted =
+        std::optional<base::Value> converted =
             ConvertRegistryValue(entry, schema.GetItems());
         if (converted.has_value()) {
           result.Append(std::move(converted.value()));
@@ -114,7 +121,7 @@ absl::optional<base::Value> ConvertRegistryValue(const base::Value& value,
           if (!IsKeyNumerical(it.first)) {
             continue;
           }
-          absl::optional<base::Value> converted =
+          std::optional<base::Value> converted =
               ConvertRegistryValue(it.second, schema.GetItems());
           if (converted.has_value()) {
             result.Append(std::move(converted.value()));
@@ -128,7 +135,7 @@ absl::optional<base::Value> ConvertRegistryValue(const base::Value& value,
     case base::Value::Type::DICT: {
       // Dictionaries may be encoded as JSON strings.
       if (value.is_string()) {
-        absl::optional<base::Value> result = base::JSONReader::Read(
+        std::optional<base::Value> result = base::JSONReader::Read(
             value.GetString(),
             base::JSONParserOptions::JSON_ALLOW_TRAILING_COMMAS);
         if (result.has_value() && result.value().type() == schema.type()) {
@@ -145,7 +152,7 @@ absl::optional<base::Value> ConvertRegistryValue(const base::Value& value,
 
   LOG(WARNING) << "Failed to convert " << value.type() << " to "
                << schema.type();
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 bool CaseInsensitiveStringCompare::operator()(const std::string& a,
@@ -208,8 +215,8 @@ void RegistryDict::SetValue(const std::string& name, base::Value&& dict) {
   values_[name] = std::move(dict);
 }
 
-absl::optional<base::Value> RegistryDict::RemoveValue(const std::string& name) {
-  absl::optional<base::Value> result;
+std::optional<base::Value> RegistryDict::RemoveValue(const std::string& name) {
+  std::optional<base::Value> result;
   auto entry = values_.find(name);
   if (entry != values_.end()) {
     result = std::move(entry->second);
@@ -250,18 +257,32 @@ void RegistryDict::ReadRegistry(HKEY hive, const std::wstring& root) {
   for (RegistryValueIterator it(hive, root.c_str()); it.Valid(); ++it) {
     const std::string name = base::WideToUTF8(it.Name());
     switch (it.Type()) {
-      case REG_SZ:
       case REG_EXPAND_SZ:
+        if (auto expanded_path = base::win::ExpandEnvironmentVariables(
+                base::wcstring_view(it.Value()))) {
+          SetValue(name, base::Value(base::WideToUTF8(*expanded_path)));
+          continue;
+        }
+        [[fallthrough]];
+      case REG_SZ:
         SetValue(name, base::Value(base::WideToUTF8(it.Value())));
         continue;
       case REG_DWORD_LITTLE_ENDIAN:
       case REG_DWORD_BIG_ENDIAN:
         if (it.ValueSize() == sizeof(DWORD)) {
-          DWORD dword_value = *(reinterpret_cast<const DWORD*>(it.Value()));
-          if (it.Type() == REG_DWORD_BIG_ENDIAN)
-            dword_value = base::NetToHost32(dword_value);
-          else
-            dword_value = base::ByteSwapToLE32(dword_value);
+          auto value =
+              // TODO(crbug.com/40284755): it.Value() should return a
+              // wcstring_view which will be usable as a span directly. The
+              // ValueSize() here is the number of non-NUL *bytes* in the
+              // Value() string, so we cast the Value() to bytes which is what
+              // we want in the end anyway.
+              UNSAFE_TODO(
+                  base::span(reinterpret_cast<const uint8_t*>(it.Value()),
+                             it.ValueSize()))
+                  .first<sizeof(DWORD)>();
+          DWORD dword_value = it.Type() == REG_DWORD_BIG_ENDIAN
+                                  ? base::U32FromBigEndian(value)
+                                  : base::U32FromLittleEndian(value);
           SetValue(name, base::Value(static_cast<int>(dword_value)));
           continue;
         }
@@ -290,7 +311,7 @@ void RegistryDict::ReadRegistry(HKEY hive, const std::wstring& root) {
   }
 }
 
-absl::optional<base::Value> RegistryDict::ConvertToJSON(
+std::optional<base::Value> RegistryDict::ConvertToJSON(
     const Schema& schema) const {
   base::Value::Type type =
       schema.valid() ? schema.type() : base::Value::Type::DICT;
@@ -306,7 +327,7 @@ absl::optional<base::Value> RegistryDict::ConvertToJSON(
         if (matching_schemas.empty())
           matching_schemas.push_back(Schema());
         for (const Schema& subschema : matching_schemas) {
-          absl::optional<base::Value> converted =
+          std::optional<base::Value> converted =
               ConvertRegistryValue(entry->second, subschema);
           if (converted.has_value()) {
             result.Set(entry->first, std::move(converted.value()));
@@ -323,7 +344,7 @@ absl::optional<base::Value> RegistryDict::ConvertToJSON(
         if (matching_schemas.empty())
           matching_schemas.push_back(Schema());
         for (const Schema& subschema : matching_schemas) {
-          absl::optional<base::Value> converted =
+          std::optional<base::Value> converted =
               entry->second->ConvertToJSON(subschema);
           if (converted) {
             result.Set(entry->first, std::move(*converted));
@@ -340,7 +361,7 @@ absl::optional<base::Value> RegistryDict::ConvertToJSON(
            entry != keys_.end(); ++entry) {
         if (!IsKeyNumerical(entry->first))
           continue;
-        absl::optional<base::Value> converted =
+        std::optional<base::Value> converted =
             entry->second->ConvertToJSON(item_schema);
         if (converted)
           result.Append(std::move(*converted));
@@ -349,7 +370,7 @@ absl::optional<base::Value> RegistryDict::ConvertToJSON(
            entry != values_.end(); ++entry) {
         if (!IsKeyNumerical(entry->first))
           continue;
-        absl::optional<base::Value> converted =
+        std::optional<base::Value> converted =
             ConvertRegistryValue(entry->second, item_schema);
         if (converted.has_value())
           result.Append(std::move(*converted));
@@ -360,7 +381,7 @@ absl::optional<base::Value> RegistryDict::ConvertToJSON(
       LOG(WARNING) << "Can't convert registry key to schema type " << type;
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 #endif  // #if BUILDFLAG(IS_WIN)
 }  // namespace policy

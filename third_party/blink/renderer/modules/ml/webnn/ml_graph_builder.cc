@@ -5,58 +5,871 @@
 #include "third_party/blink/renderer/modules/ml/webnn/ml_graph_builder.h"
 
 #include <algorithm>
+#include <variant>
 
+#include "base/containers/contains.h"
+#include "base/containers/enum_set.h"
+#include "base/containers/span.h"
+#include "base/metrics/histogram_macros.h"
+#include "base/notimplemented.h"
 #include "base/numerics/checked_math.h"
+#include "base/types/expected.h"
+#include "base/types/expected_macros.h"
+#include "base/types/pass_key.h"
+#include "mojo/public/cpp/bindings/pending_associated_remote.h"
+#include "services/webnn/public/cpp/operand_descriptor.h"
+#include "services/webnn/public/cpp/supported_tensors.h"
+#include "services/webnn/public/cpp/webnn_errors.h"
+#include "services/webnn/public/cpp/webnn_trace.h"
+#include "services/webnn/public/cpp/webnn_types.h"
+#include "services/webnn/public/mojom/features.mojom-blink.h"
+#include "services/webnn/public/mojom/webnn_context_provider.mojom-blink.h"
+#include "services/webnn/public/mojom/webnn_error.mojom-blink-forward.h"
+#include "services/webnn/public/mojom/webnn_graph.mojom-blink.h"
+#include "services/webnn/public/mojom/webnn_graph_builder.mojom-blink-forward.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_arg_min_max_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_batch_normalization_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_clamp_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_conv_2d_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_conv_transpose_2d_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_cumulative_sum_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_elu_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_gather_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_gemm_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_gru_cell_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_gru_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_hard_sigmoid_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_instance_normalization_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_layer_normalization_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_leaky_relu_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_linear_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_lstm_cell_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_lstm_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_operand_descriptor.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_operator_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_pad_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_pool_2d_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_recurrent_network_activation.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_reduce_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_resample_2d_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_reverse_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_scatter_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_slice_options.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_split_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_ml_transpose_options.h"
-#include "third_party/blink/renderer/core/dom/dom_exception.h"
-#include "third_party/blink/renderer/modules/ml/buildflags.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_ml_triangular_options.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/typed_arrays/dom_array_buffer_view.h"
 #include "third_party/blink/renderer/modules/ml/ml_context.h"
-#include "third_party/blink/renderer/modules/ml/webnn/ml_activation.h"
+#include "third_party/blink/renderer/modules/ml/webnn/ml_constant_operand.h"
+#include "third_party/blink/renderer/modules/ml/webnn/ml_error.h"
 #include "third_party/blink/renderer/modules/ml/webnn/ml_graph.h"
+#include "third_party/blink/renderer/modules/ml/webnn/ml_graph_transform/pipeline.h"
+#include "third_party/blink/renderer/modules/ml/webnn/ml_graph_type_converter.h"
+#include "third_party/blink/renderer/modules/ml/webnn/ml_graph_utils.h"
 #include "third_party/blink/renderer/modules/ml/webnn/ml_operand.h"
+#include "third_party/blink/renderer/modules/ml/webnn/ml_operator.h"
+#include "third_party/blink/renderer/modules/ml/webnn/ml_tensor.h"
+#include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
-
-#if BUILDFLAG(BUILD_WEBNN_WITH_XNNPACK)
-#include "third_party/blink/renderer/modules/ml/webnn/ml_graph_xnnpack.h"
-#endif
-
-#if BUILDFLAG(BUILD_WEBNN_ON_CROS)
-#include "third_party/blink/renderer/modules/ml/webnn/ml_graph_cros.h"
-#endif
-
-#if !BUILDFLAG(IS_CHROMEOS)
-#include "third_party/blink/public/common/features.h"
-#include "third_party/blink/renderer/modules/ml/webnn/ml_graph_mojo.h"
-#endif
+#include "third_party/blink/renderer/platform/bindings/script_state.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_deque.h"
+#include "third_party/blink/renderer/platform/heap/persistent.h"
+#include "third_party/blink/renderer/platform/wtf/functional.h"
 
 namespace blink {
 
+namespace blink_mojom = webnn::mojom::blink;
+
 namespace {
 
-MLGraphBuilder::BackendForTesting* g_backend_for_testing = nullptr;
+// These values are persisted to logs. Entries should not be renumbered or
+// removed and numeric values should never be reused.
+// Please keep in sync with MLGraphOperatorUma in
+// //tools/metrics/histograms/metadata/webnn/enums.xml.
+enum class MLGraphOperatorUma {
+  kGraphBuilt = 0,
+  kAbs = 1,
+  kAdd = 2,
+  kArgMax = 3,
+  kArgMin = 4,
+  kAveragePool2d = 5,
+  kBatchNormalization = 6,
+  kCast = 7,
+  kCeil = 8,
+  kClamp = 9,
+  kConcat = 10,
+  kConv2d = 11,
+  kConvTranspose2d = 12,
+  kCos = 13,
+  kCumulativeSum = 14,
+  kDequantizeLinear = 15,
+  kDiv = 16,
+  kElu = 17,
+  kEqual = 18,
+  kErf = 19,
+  kExp = 20,
+  kExpand = 21,
+  kFloor = 22,
+  kGather = 23,
+  kGatherElements = 24,
+  kGatherNd = 25,
+  kGelu = 26,
+  kGemm = 27,
+  kGreater = 28,
+  kGreaterOrEqual = 29,
+  kGru = 30,
+  kGruCell = 31,
+  kHardSigmoid = 32,
+  kHardSwish = 33,
+  kIdentity = 34,
+  kInstanceNormalization = 35,
+  kL2Pool2d = 36,
+  kLayerNormalization = 37,
+  kLeakyRelu = 38,
+  kLesser = 39,
+  kLesserOrEqual = 40,
+  kLinear = 41,
+  kLog = 42,
+  kLogicalAnd = 43,
+  kLogicalNot = 44,
+  kLogicalOr = 45,
+  kLogicalXor = 46,
+  kLstm = 47,
+  kLstmCell = 48,
+  kMatmul = 49,
+  kMax = 50,
+  kMaxPool2d = 51,
+  kMin = 52,
+  kMul = 53,
+  kNeg = 54,
+  kPad = 55,
+  kPow = 56,
+  kPrelu = 57,
+  kQuantizeLinear = 58,
+  kReciprocal = 59,
+  kReduceL1 = 60,
+  kReduceL2 = 61,
+  kReduceLogSum = 62,
+  kReduceLogSumExp = 63,
+  kReduceMax = 64,
+  kReduceMean = 65,
+  kReduceMin = 66,
+  kReduceProduct = 67,
+  kReduceSum = 68,
+  kReduceSumSquare = 69,
+  kRelu = 70,
+  kResample2d = 71,
+  kReshape = 72,
+  kScatterElements = 73,
+  kScatterNd = 74,
+  kSigmoid = 75,
+  kSign = 76,
+  kSin = 77,
+  kSlice = 78,
+  kSoftmax = 79,
+  kSoftplus = 80,
+  kSoftsign = 81,
+  kSplit = 82,
+  kSqrt = 83,
+  kSub = 84,
+  kTan = 85,
+  kTanh = 86,
+  kTile = 87,
+  kTranspose = 88,
+  kTriangular = 89,
+  kWhere = 90,
+  kReverse = 91,
+  kNotEqual = 92,
+  kMinValue = kGraphBuilt,
+  kMaxValue = kNotEqual,
+};
 
-bool IsFloatingPointType(V8MLOperandType::Enum operand_type) {
-  switch (operand_type) {
-    case V8MLOperandType::Enum::kFloat32:
-    case V8MLOperandType::Enum::kFloat16:
-      return true;
-    case V8MLOperandType::Enum::kInt32:
-    case V8MLOperandType::Enum::kUint32:
-    case V8MLOperandType::Enum::kInt8:
-    case V8MLOperandType::Enum::kUint8:
-      return false;
+using MLGraphOperatorUmaSet = base::EnumSet<MLGraphOperatorUma,
+                                            MLGraphOperatorUma::kMinValue,
+                                            MLGraphOperatorUma::kMaxValue>;
+
+MLGraphOperatorUma GetUmaValueForOperation(
+    const blink_mojom::Operation& operation) {
+  switch (operation.which()) {
+    case blink_mojom::Operation::Tag::kArgMinMax: {
+      switch (operation.get_arg_min_max()->kind) {
+        case blink_mojom::ArgMinMax::Kind::kMax:
+          return MLGraphOperatorUma::kArgMax;
+        case blink_mojom::ArgMinMax::Kind::kMin:
+          return MLGraphOperatorUma::kArgMin;
+      }
+      break;
+    }
+    case blink_mojom::Operation::Tag::kBatchNormalization:
+      return MLGraphOperatorUma::kBatchNormalization;
+    case blink_mojom::Operation::Tag::kClamp:
+      return MLGraphOperatorUma::kClamp;
+    case blink_mojom::Operation::Tag::kConv2d:
+      return MLGraphOperatorUma::kConv2d;
+    case blink_mojom::Operation::Tag::kConcat:
+      return MLGraphOperatorUma::kConcat;
+    case blink_mojom::Operation::Tag::kCumulativeSum:
+      return MLGraphOperatorUma::kCumulativeSum;
+    case blink_mojom::Operation::Tag::kDequantizeLinear:
+      return MLGraphOperatorUma::kDequantizeLinear;
+    case blink_mojom::Operation::Tag::kElementWiseBinary: {
+      switch (operation.get_element_wise_binary()->kind) {
+        case blink_mojom::ElementWiseBinary::Kind::kAdd:
+          return MLGraphOperatorUma::kAdd;
+        case blink_mojom::ElementWiseBinary::Kind::kSub:
+          return MLGraphOperatorUma::kSub;
+        case blink_mojom::ElementWiseBinary::Kind::kMul:
+          return MLGraphOperatorUma::kMul;
+        case blink_mojom::ElementWiseBinary::Kind::kDiv:
+          return MLGraphOperatorUma::kDiv;
+        case blink_mojom::ElementWiseBinary::Kind::kMax:
+          return MLGraphOperatorUma::kMax;
+        case blink_mojom::ElementWiseBinary::Kind::kMin:
+          return MLGraphOperatorUma::kMin;
+        case blink_mojom::ElementWiseBinary::Kind::kPow:
+          return MLGraphOperatorUma::kPow;
+        case blink_mojom::ElementWiseBinary::Kind::kEqual:
+          return MLGraphOperatorUma::kEqual;
+        case blink_mojom::ElementWiseBinary::Kind::kGreater:
+          return MLGraphOperatorUma::kGreater;
+        case blink_mojom::ElementWiseBinary::Kind::kGreaterOrEqual:
+          return MLGraphOperatorUma::kGreaterOrEqual;
+        case blink_mojom::ElementWiseBinary::Kind::kLesser:
+          return MLGraphOperatorUma::kLesser;
+        case blink_mojom::ElementWiseBinary::Kind::kLesserOrEqual:
+          return MLGraphOperatorUma::kLesserOrEqual;
+        case blink_mojom::ElementWiseBinary::Kind::kNotEqual:
+          return MLGraphOperatorUma::kNotEqual;
+        case blink_mojom::ElementWiseBinary::Kind::kLogicalAnd:
+          return MLGraphOperatorUma::kLogicalAnd;
+        case blink_mojom::ElementWiseBinary::Kind::kLogicalOr:
+          return MLGraphOperatorUma::kLogicalOr;
+        case blink_mojom::ElementWiseBinary::Kind::kLogicalXor:
+          return MLGraphOperatorUma::kLogicalXor;
+      }
+      break;
+    }
+    case blink_mojom::Operation::Tag::kElementWiseUnary: {
+      switch (operation.get_element_wise_unary()->kind) {
+        case blink_mojom::ElementWiseUnary::Kind::kAbs:
+          return MLGraphOperatorUma::kAbs;
+        case blink_mojom::ElementWiseUnary::Kind::kCast:
+          return MLGraphOperatorUma::kCast;
+        case blink_mojom::ElementWiseUnary::Kind::kCeil:
+          return MLGraphOperatorUma::kCeil;
+        case blink_mojom::ElementWiseUnary::Kind::kCos:
+          return MLGraphOperatorUma::kCos;
+        case blink_mojom::ElementWiseUnary::Kind::kExp:
+          return MLGraphOperatorUma::kExp;
+        case blink_mojom::ElementWiseUnary::Kind::kFloor:
+          return MLGraphOperatorUma::kFloor;
+        case blink_mojom::ElementWiseUnary::Kind::kIdentity:
+          return MLGraphOperatorUma::kIdentity;
+        case blink_mojom::ElementWiseUnary::Kind::kLog:
+          return MLGraphOperatorUma::kLog;
+        case blink_mojom::ElementWiseUnary::Kind::kLogicalNot:
+          return MLGraphOperatorUma::kLogicalNot;
+        case blink_mojom::ElementWiseUnary::Kind::kNeg:
+          return MLGraphOperatorUma::kNeg;
+        case blink_mojom::ElementWiseUnary::Kind::kReciprocal:
+          return MLGraphOperatorUma::kReciprocal;
+        case blink_mojom::ElementWiseUnary::Kind::kSign:
+          return MLGraphOperatorUma::kSign;
+        case blink_mojom::ElementWiseUnary::Kind::kSin:
+          return MLGraphOperatorUma::kSin;
+        case blink_mojom::ElementWiseUnary::Kind::kSqrt:
+          return MLGraphOperatorUma::kSqrt;
+        case blink_mojom::ElementWiseUnary::Kind::kTan:
+          return MLGraphOperatorUma::kTan;
+        case blink_mojom::ElementWiseUnary::Kind::kErf:
+          return MLGraphOperatorUma::kErf;
+      }
+      break;
+    }
+    case blink_mojom::Operation::Tag::kElu:
+      return MLGraphOperatorUma::kElu;
+    case blink_mojom::Operation::Tag::kExpand:
+      return MLGraphOperatorUma::kExpand;
+    case blink_mojom::Operation::Tag::kGather:
+      return MLGraphOperatorUma::kGather;
+    case blink_mojom::Operation::Tag::kGatherElements:
+      return MLGraphOperatorUma::kGatherElements;
+    case blink_mojom::Operation::Tag::kGatherNd:
+      return MLGraphOperatorUma::kGatherNd;
+    case blink_mojom::Operation::Tag::kGelu:
+      return MLGraphOperatorUma::kGelu;
+    case blink_mojom::Operation::Tag::kGemm:
+      return MLGraphOperatorUma::kGemm;
+    case blink_mojom::Operation::Tag::kGru:
+      return MLGraphOperatorUma::kGru;
+    case blink_mojom::Operation::Tag::kGruCell:
+      return MLGraphOperatorUma::kGruCell;
+    case blink_mojom::Operation::Tag::kHardSigmoid:
+      return MLGraphOperatorUma::kHardSigmoid;
+    case blink_mojom::Operation::Tag::kHardSwish:
+      return MLGraphOperatorUma::kHardSwish;
+    case blink_mojom::Operation::Tag::kInstanceNormalization:
+      return MLGraphOperatorUma::kInstanceNormalization;
+    case blink_mojom::Operation::Tag::kLayerNormalization:
+      return MLGraphOperatorUma::kLayerNormalization;
+    case blink_mojom::Operation::Tag::kLeakyRelu:
+      return MLGraphOperatorUma::kLeakyRelu;
+    case blink_mojom::Operation::Tag::kLinear:
+      return MLGraphOperatorUma::kLinear;
+    case blink_mojom::Operation::Tag::kLstmCell:
+      return MLGraphOperatorUma::kLstmCell;
+    case blink_mojom::Operation::Tag::kLstm:
+      return MLGraphOperatorUma::kLstm;
+    case blink_mojom::Operation::Tag::kMatmul:
+      return MLGraphOperatorUma::kMatmul;
+    case blink_mojom::Operation::Tag::kPad:
+      return MLGraphOperatorUma::kPad;
+    case blink_mojom::Operation::Tag::kPool2d: {
+      switch (operation.get_pool2d()->kind) {
+        case blink_mojom::Pool2d::Kind::kAveragePool2d:
+          return MLGraphOperatorUma::kAveragePool2d;
+        case blink_mojom::Pool2d::Kind::kMaxPool2d:
+          return MLGraphOperatorUma::kMaxPool2d;
+        case blink_mojom::Pool2d::Kind::kL2Pool2d:
+          return MLGraphOperatorUma::kL2Pool2d;
+      }
+      break;
+    }
+    case blink_mojom::Operation::Tag::kPrelu:
+      return MLGraphOperatorUma::kPrelu;
+    case blink_mojom::Operation::Tag::kQuantizeLinear:
+      return MLGraphOperatorUma::kQuantizeLinear;
+    case blink_mojom::Operation::Tag::kReduce: {
+      switch (operation.get_reduce()->kind) {
+        case blink_mojom::Reduce::Kind::kL1:
+          return MLGraphOperatorUma::kReduceL1;
+        case blink_mojom::Reduce::Kind::kL2:
+          return MLGraphOperatorUma::kReduceL2;
+        case blink_mojom::Reduce::Kind::kLogSum:
+          return MLGraphOperatorUma::kReduceLogSum;
+        case blink_mojom::Reduce::Kind::kLogSumExp:
+          return MLGraphOperatorUma::kReduceLogSumExp;
+        case blink_mojom::Reduce::Kind::kMax:
+          return MLGraphOperatorUma::kReduceMax;
+        case blink_mojom::Reduce::Kind::kMean:
+          return MLGraphOperatorUma::kReduceMean;
+        case blink_mojom::Reduce::Kind::kMin:
+          return MLGraphOperatorUma::kReduceMin;
+        case blink_mojom::Reduce::Kind::kProduct:
+          return MLGraphOperatorUma::kReduceProduct;
+        case blink_mojom::Reduce::Kind::kSum:
+          return MLGraphOperatorUma::kReduceSum;
+        case blink_mojom::Reduce::Kind::kSumSquare:
+          return MLGraphOperatorUma::kReduceSumSquare;
+      }
+      break;
+    }
+    case blink_mojom::Operation::Tag::kRelu:
+      return MLGraphOperatorUma::kRelu;
+    case blink_mojom::Operation::Tag::kResample2d:
+      return MLGraphOperatorUma::kResample2d;
+    case blink_mojom::Operation::Tag::kReshape:
+      return MLGraphOperatorUma::kReshape;
+    case blink_mojom::Operation::Tag::kReverse:
+      return MLGraphOperatorUma::kReverse;
+    case blink_mojom::Operation::Tag::kScatterElements:
+      return MLGraphOperatorUma::kScatterElements;
+    case blink_mojom::Operation::Tag::kScatterNd:
+      return MLGraphOperatorUma::kScatterNd;
+    case blink_mojom::Operation::Tag::kSigmoid:
+      return MLGraphOperatorUma::kSigmoid;
+    case blink_mojom::Operation::Tag::kSlice:
+      return MLGraphOperatorUma::kSlice;
+    case blink_mojom::Operation::Tag::kSoftmax:
+      return MLGraphOperatorUma::kSoftmax;
+    case blink_mojom::Operation::Tag::kSoftplus:
+      return MLGraphOperatorUma::kSoftplus;
+    case blink_mojom::Operation::Tag::kSoftsign:
+      return MLGraphOperatorUma::kSoftsign;
+    case blink_mojom::Operation::Tag::kSplit:
+      return MLGraphOperatorUma::kSplit;
+    case blink_mojom::Operation::Tag::kTanh:
+      return MLGraphOperatorUma::kTanh;
+    case blink_mojom::Operation::Tag::kTile:
+      return MLGraphOperatorUma::kTile;
+    case blink_mojom::Operation::Tag::kTranspose:
+      return MLGraphOperatorUma::kTranspose;
+    case blink_mojom::Operation::Tag::kTriangular:
+      return MLGraphOperatorUma::kTriangular;
+    case blink_mojom::Operation::Tag::kWhere:
+      return MLGraphOperatorUma::kWhere;
   }
+}
+
+void RecordOperatorsUsed(const blink_mojom::GraphInfo& graph_info) {
+  static const std::string_view kOperatorHistogram = "WebNN.Operator";
+
+  // Record once per graph that it has been built. This will give us a count
+  // for the total number of built graphs, which will be used to
+  // calculate what percentage of graphs use a given operator.
+  UMA_HISTOGRAM_ENUMERATION(kOperatorHistogram,
+                            MLGraphOperatorUma::kGraphBuilt);
+
+  MLGraphOperatorUmaSet operators_used;
+  for (const auto& operation : graph_info.operations) {
+    MLGraphOperatorUma uma_value = GetUmaValueForOperation(*operation);
+    // For a given operator, record that it has been used only once.
+    if (!operators_used.Has(uma_value)) {
+      UMA_HISTOGRAM_ENUMERATION(kOperatorHistogram, uma_value);
+      operators_used.Put(uma_value);
+    }
+  }
+}
+
+#define THROW_AND_RETURN_TYPE_IF_ERROR(func, return_value) \
+  RETURN_IF_ERROR(func, [&exception_state](String error) { \
+    exception_state.ThrowTypeError(error);                 \
+    return return_value;                                   \
+  });
+
+#define THROW_AND_RETURN_IF_ERROR(func, return_value)                       \
+  RETURN_IF_ERROR(func, [&exception_state](String error) {                  \
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError, \
+                                      error);                               \
+    return return_value;                                                    \
+  });
+
+#define ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(lhs, rexpr)                \
+  ASSIGN_OR_RETURN(lhs, rexpr, [&exception_state](std::string error) { \
+    exception_state.ThrowTypeError(String::FromUTF8(error));           \
+    return nullptr;                                                    \
+  });
+
+constexpr char kGraphAlreadyBuiltError[] =
+    "This MLGraphBuilder has already built a graph.";
+
+webnn::InputOperandLayout BlinkInputOperandLayoutToComponent(
+    blink::V8MLInputOperandLayout::Enum type) {
+  switch (type) {
+    case blink::V8MLInputOperandLayout::Enum::kNchw:
+      return webnn::InputOperandLayout::kNchw;
+    case blink::V8MLInputOperandLayout::Enum::kNhwc:
+      return webnn::InputOperandLayout::kNhwc;
+  }
+}
+
+webnn::Conv2dFilterOperandLayout BlinkConv2dFilterLayoutToComponent(
+    blink::V8MLConv2dFilterOperandLayout::Enum type) {
+  switch (type) {
+    case blink::V8MLConv2dFilterOperandLayout::Enum::kOihw:
+      return webnn::Conv2dFilterOperandLayout::kOihw;
+    case blink::V8MLConv2dFilterOperandLayout::Enum::kHwio:
+      return webnn::Conv2dFilterOperandLayout::kHwio;
+    case blink::V8MLConv2dFilterOperandLayout::Enum::kOhwi:
+      return webnn::Conv2dFilterOperandLayout::kOhwi;
+    case blink::V8MLConv2dFilterOperandLayout::Enum::kIhwo:
+      return webnn::Conv2dFilterOperandLayout::kIhwo;
+  }
+}
+
+webnn::ConvTranspose2dFilterOperandLayout
+BlinkConvTranspose2dFilterLayoutToComponent(
+    blink::V8MLConvTranspose2dFilterOperandLayout::Enum type) {
+  switch (type) {
+    case blink::V8MLConvTranspose2dFilterOperandLayout::Enum::kIohw:
+      return webnn::ConvTranspose2dFilterOperandLayout::kIohw;
+    case blink::V8MLConvTranspose2dFilterOperandLayout::Enum::kHwoi:
+      return webnn::ConvTranspose2dFilterOperandLayout::kHwoi;
+    case blink::V8MLConvTranspose2dFilterOperandLayout::Enum::kOhwi:
+      return webnn::ConvTranspose2dFilterOperandLayout::kOhwi;
+  }
+}
+
+webnn::RoundingType BlinkRoundingTypeToComponent(
+    blink::V8MLRoundingType::Enum type) {
+  switch (type) {
+    case blink::V8MLRoundingType::Enum::kFloor:
+      return webnn::RoundingType::kFloor;
+    case blink::V8MLRoundingType::Enum::kCeil:
+      return webnn::RoundingType::kCeil;
+  }
+}
+
+webnn::Pool2dKind FromMojoPool2dKind(blink_mojom::Pool2d::Kind kind) {
+  switch (kind) {
+    case blink_mojom::Pool2d::Kind::kAveragePool2d:
+      return webnn::Pool2dKind::kAverage;
+    case blink_mojom::Pool2d::Kind::kL2Pool2d:
+      return webnn::Pool2dKind::kL2;
+    case blink_mojom::Pool2d::Kind::kMaxPool2d:
+      return webnn::Pool2dKind::kMax;
+  }
+}
+
+webnn::ReduceKind MojoReduceKindToComponent(blink_mojom::Reduce::Kind kind) {
+  switch (kind) {
+    case blink_mojom::Reduce::Kind::kL1:
+      return webnn::ReduceKind::kL1;
+    case blink_mojom::Reduce::Kind::kL2:
+      return webnn::ReduceKind::kL2;
+    case blink_mojom::Reduce::Kind::kLogSum:
+      return webnn::ReduceKind::kLogSum;
+    case blink_mojom::Reduce::Kind::kLogSumExp:
+      return webnn::ReduceKind::kLogSumExp;
+    case blink_mojom::Reduce::Kind::kMax:
+      return webnn::ReduceKind::kMax;
+    case blink_mojom::Reduce::Kind::kMean:
+      return webnn::ReduceKind::kMean;
+    case blink_mojom::Reduce::Kind::kMin:
+      return webnn::ReduceKind::kMin;
+    case blink_mojom::Reduce::Kind::kProduct:
+      return webnn::ReduceKind::kProduct;
+    case blink_mojom::Reduce::Kind::kSum:
+      return webnn::ReduceKind::kSum;
+    case blink_mojom::Reduce::Kind::kSumSquare:
+      return webnn::ReduceKind::kSumSquare;
+  }
+}
+
+webnn::RecurrentNetworkDirection BlinkRecurrentNetworkDirectionToComponent(
+    blink::V8MLRecurrentNetworkDirection::Enum direction) {
+  switch (direction) {
+    case blink::V8MLRecurrentNetworkDirection::Enum::kForward:
+      return webnn::RecurrentNetworkDirection::kForward;
+    case blink::V8MLRecurrentNetworkDirection::Enum::kBackward:
+      return webnn::RecurrentNetworkDirection::kBackward;
+    case blink::V8MLRecurrentNetworkDirection::Enum::kBoth:
+      return webnn::RecurrentNetworkDirection::kBoth;
+  }
+}
+
+webnn::BatchNormalizationAttributes ConvertToBatchNormalizationAttributes(
+    const blink::MLBatchNormalizationOptions* options) {
+  CHECK(options);
+  webnn::BatchNormalizationAttributes attributes;
+  if (options->hasScale()) {
+    attributes.scale = options->scale()->Descriptor();
+  }
+  if (options->hasBias()) {
+    attributes.bias = options->bias()->Descriptor();
+  }
+  attributes.label = options->label().Utf8();
+  attributes.axis = options->axis();
+  return attributes;
+}
+
+template <typename MLConv2dOptionsType, typename Conv2dAttributesType>
+base::expected<Conv2dAttributesType, String> ConvertToConv2dAttributesBase(
+    const MLConv2dOptionsType* options) {
+  Conv2dAttributesType attributes;
+  CHECK(options);
+  const std::string label = options->label().Utf8();
+  // If padding is not present, the values are assumed to be [0,0,0,0].
+  auto padding = options->getPaddingOr({0, 0, 0, 0});
+  if (padding.size() != 4) {
+    return base::unexpected(
+        String::FromUTF8(webnn::GetErrorLabelPrefix(label)) +
+        "The length of padding should be 4.");
+  }
+  // The order of padding array is [beginning_height, ending_height,
+  // beginning_width, ending_width].
+  attributes.padding = webnn::Padding2d{
+      .beginning =
+          webnn::Size2d<uint32_t>{.height = padding[0], .width = padding[2]},
+      .ending =
+          webnn::Size2d<uint32_t>{.height = padding[1], .width = padding[3]}};
+
+  // If strides is not present, the values are assumed to be [1,1].
+  auto strides = options->getStridesOr({1, 1});
+  if (strides.size() != 2) {
+    return base::unexpected(
+        String::FromUTF8(webnn::GetErrorLabelPrefix(label)) +
+        "The length of strides should be 2.");
+  }
+  attributes.strides =
+      webnn::Size2d<uint32_t>{.height = strides[0], .width = strides[1]};
+
+  // If dilations is not present, the values are assumed to be [1,1].
+  auto dilations = options->getDilationsOr({1, 1});
+  if (dilations.size() != 2) {
+    return base::unexpected(
+        String::FromUTF8(webnn::GetErrorLabelPrefix(label)) +
+        +"The length of dilations should be 2.");
+  }
+  attributes.dilations =
+      webnn::Size2d<uint32_t>{.height = dilations[0], .width = dilations[1]};
+  attributes.groups = options->groups();
+  attributes.input_layout =
+      BlinkInputOperandLayoutToComponent(options->inputLayout().AsEnum());
+  if (options->hasBias()) {
+    attributes.bias_operand = options->bias()->Descriptor();
+  }
+  attributes.label = label;
+
+  return std::move(attributes);
+}
+
+base::expected<webnn::Conv2dAttributes, String> ConvertToConv2dAttributes(
+    const blink::MLConv2dOptions* options) {
+  auto attributes =
+      ConvertToConv2dAttributesBase<blink::MLConv2dOptions,
+                                    webnn::Conv2dAttributes>(options);
+  if (!attributes.has_value()) {
+    return base::unexpected(attributes.error());
+  }
+  attributes.value().filter_layout =
+      BlinkConv2dFilterLayoutToComponent(options->filterLayout().AsEnum());
+
+  return attributes;
+}
+
+base::expected<webnn::ConvTranspose2dAttributes, String>
+ConvertToConvTranspose2dAttributes(
+    const blink::MLConvTranspose2dOptions* options) {
+  auto attributes =
+      ConvertToConv2dAttributesBase<blink::MLConvTranspose2dOptions,
+                                    webnn::ConvTranspose2dAttributes>(options);
+  if (!attributes.has_value()) {
+    return base::unexpected(attributes.error());
+  }
+
+  const std::string& label = attributes.value().label;
+  // If output padding is not present, the values are assumed to be [0,0].
+  const auto output_padding = options->getOutputPaddingOr({0, 0});
+  if (output_padding.size() != 2) {
+    return base::unexpected(
+        String::FromUTF8(webnn::GetErrorLabelPrefix(label)) +
+        "The length of output padding should be 2.");
+  }
+  attributes.value().output_padding = webnn::Size2d<uint32_t>{
+      .height = output_padding[0], .width = output_padding[1]};
+
+  if (options->hasOutputSizes()) {
+    auto output_sizes = options->getOutputSizesOr({});
+    if (output_sizes.size() != 2) {
+      return base::unexpected(
+          String::FromUTF8(webnn::GetErrorLabelPrefix(label)) +
+          "The length of output sizes should be 2.");
+    }
+    attributes.value().output_sizes = webnn::Size2d<uint32_t>{
+        .height = output_sizes[0], .width = output_sizes[1]};
+  }
+
+  attributes.value().filter_layout =
+      BlinkConvTranspose2dFilterLayoutToComponent(
+          options->filterLayout().AsEnum());
+
+  return attributes;
+}
+
+base::expected<webnn::Pool2dAttributes, std::string> ConvertToPool2dAttributes(
+    const blink::MLPool2dOptions* options) {
+  CHECK(options);
+  const std::string label = options->label().Utf8();
+  webnn::Pool2dAttributes attributes;
+  if (options->hasWindowDimensions()) {
+    auto& window_dimensions = options->windowDimensions();
+    if (window_dimensions.size() != 2) {
+      return base::unexpected(webnn::GetErrorLabelPrefix(label) +
+                              "The length of window dimensions should be 2.");
+    }
+    attributes.window_dimensions = webnn::Size2d<uint32_t>{
+        .height = window_dimensions[0], .width = window_dimensions[1]};
+  }
+
+  // If padding is not present, the values are assumed to be [0,0,0,0].
+  auto padding = options->getPaddingOr({0, 0, 0, 0});
+  if (padding.size() != 4) {
+    return base::unexpected(webnn::GetErrorLabelPrefix(label) +
+                            "The length of padding should be 4.");
+  }
+  attributes.padding = webnn::Padding2d{
+      .beginning =
+          webnn::Size2d<uint32_t>{.height = padding[0], .width = padding[2]},
+      .ending =
+          webnn::Size2d<uint32_t>{.height = padding[1], .width = padding[3]}};
+
+  // If strides is not present, the values are assumed to be [1,1].
+  auto strides = options->getStridesOr({1, 1});
+  if (strides.size() != 2) {
+    return base::unexpected(webnn::GetErrorLabelPrefix(label) +
+                            "The length of strides should be 2.");
+  }
+  attributes.strides =
+      webnn::Size2d<uint32_t>{.height = strides[0], .width = strides[1]};
+
+  // If dilations is not present, the values are assumed to be [1,1].
+  auto dilations = options->getDilationsOr({1, 1});
+  if (dilations.size() != 2) {
+    return base::unexpected(webnn::GetErrorLabelPrefix(label) +
+                            "The length of dilations should be 2.");
+  }
+  attributes.dilations =
+      webnn::Size2d<uint32_t>{.height = dilations[0], .width = dilations[1]};
+  attributes.layout =
+      BlinkInputOperandLayoutToComponent(options->layout().AsEnum());
+  attributes.rounding_type =
+      BlinkRoundingTypeToComponent(options->roundingType().AsEnum());
+  if (options->hasOutputSizes()) {
+    // TODO(ningxin.hu@intel.com): report a DevTools warning message if rounding
+    // type is provided but ignored.
+    auto& output_size = options->outputSizes();
+    if (output_size.size() != 2) {
+      return base::unexpected(webnn::GetErrorLabelPrefix(label) +
+                              "The length of output sizes should be 2.");
+    }
+    attributes.output_sizes = webnn::Size2d<uint32_t>{.height = output_size[0],
+                                                      .width = output_size[1]};
+  }
+  attributes.label = label;
+  return attributes;
+}
+
+webnn::GemmAttributes ConvertToGemmAttributes(
+    const blink::MLGemmOptions* options) {
+  CHECK(options);
+  webnn::GemmAttributes attributes;
+  if (options->hasC()) {
+    attributes.c_operand = options->c()->Descriptor();
+  }
+  attributes.alpha = options->alpha();
+  attributes.beta = options->beta();
+  attributes.a_transpose = options->aTranspose();
+  attributes.b_transpose = options->bTranspose();
+  attributes.label = options->label().Utf8();
+  return attributes;
+}
+
+webnn::GruAttributes ConvertToGruAttributes(MLGraphBuilder* builder,
+                                            blink::MLGruOptions* options) {
+  CHECK(options);
+  webnn::GruAttributes attributes;
+
+  if (options->hasBias()) {
+    attributes.bias = options->bias()->Descriptor();
+  }
+  if (options->hasRecurrentBias()) {
+    attributes.recurrent_bias = options->recurrentBias()->Descriptor();
+  }
+  if (options->hasInitialHiddenState()) {
+    attributes.initial_hidden_state =
+        options->initialHiddenState()->Descriptor();
+  }
+  attributes.return_sequence = options->returnSequence();
+  attributes.direction =
+      BlinkRecurrentNetworkDirectionToComponent(options->direction().AsEnum());
+  if (!options->hasActivations()) {
+    // Create a default activation sequence as defined in the spec.
+    options->setActivations(
+        {V8MLRecurrentNetworkActivation(
+             V8MLRecurrentNetworkActivation::Enum::kSigmoid),
+         V8MLRecurrentNetworkActivation(
+             V8MLRecurrentNetworkActivation::Enum::kTanh)});
+  }
+  attributes.activation_count = options->activations().size();
+  attributes.label = options->label().Utf8();
+  return attributes;
+}
+
+webnn::GruCellAttributes ConvertToGruCellAttributes(
+    MLGraphBuilder* builder,
+    blink::MLGruCellOptions* options) {
+  CHECK(options);
+  webnn::GruCellAttributes attributes;
+
+  if (options->hasBias()) {
+    attributes.bias = options->bias()->Descriptor();
+  }
+  if (options->hasRecurrentBias()) {
+    attributes.recurrent_bias = options->recurrentBias()->Descriptor();
+  }
+  if (!options->hasActivations()) {
+    // Create a default activation sequence as defined in the spec.
+    options->setActivations(
+        {V8MLRecurrentNetworkActivation(
+             V8MLRecurrentNetworkActivation::Enum::kSigmoid),
+         V8MLRecurrentNetworkActivation(
+             V8MLRecurrentNetworkActivation::Enum::kTanh)});
+  }
+  attributes.activation_count = options->activations().size();
+  attributes.label = options->label().Utf8();
+  return attributes;
+}
+
+webnn::InstanceNormalizationAttributes ConvertToInstanceNormalizationAttributes(
+    const blink::MLInstanceNormalizationOptions* options) {
+  CHECK(options);
+  webnn::InstanceNormalizationAttributes attributes;
+  if (options->hasScale()) {
+    attributes.scale = options->scale()->Descriptor();
+  }
+  if (options->hasBias()) {
+    attributes.bias = options->bias()->Descriptor();
+  }
+  attributes.layout =
+      BlinkInputOperandLayoutToComponent(options->layout().AsEnum());
+  attributes.label = options->label().Utf8();
+  return attributes;
+}
+
+webnn::LayerNormalizationAttributes ConvertToLayerNormalizationAttributes(
+    const blink::MLLayerNormalizationOptions* options) {
+  CHECK(options);
+  webnn::LayerNormalizationAttributes attributes;
+  if (options->hasScale()) {
+    attributes.scale = options->scale()->Descriptor();
+  }
+  if (options->hasBias()) {
+    attributes.bias = options->bias()->Descriptor();
+  }
+  attributes.label = options->label().Utf8();
+  return attributes;
+}
+
+webnn::LstmAttributes ConvertToLstmAttributes(
+    const blink::MLLstmOptions* options) {
+  CHECK(options);
+  webnn::LstmAttributes attributes;
+
+  if (options->hasBias()) {
+    attributes.bias = options->bias()->Descriptor();
+  }
+  if (options->hasRecurrentBias()) {
+    attributes.recurrent_bias = options->recurrentBias()->Descriptor();
+  }
+  if (options->hasPeepholeWeight()) {
+    attributes.peephole_weight = options->peepholeWeight()->Descriptor();
+  }
+  if (options->hasInitialHiddenState()) {
+    attributes.initial_hidden_state =
+        options->initialHiddenState()->Descriptor();
+  }
+  if (options->hasInitialCellState()) {
+    attributes.initial_cell_state = options->initialCellState()->Descriptor();
+  }
+  attributes.activation_count = options->activations().size();
+  attributes.return_sequence = options->returnSequence();
+  attributes.direction =
+      BlinkRecurrentNetworkDirectionToComponent(options->direction().AsEnum());
+  attributes.label = options->label().Utf8();
+  return attributes;
+}
+
+webnn::LstmCellAttributes ConvertToLstmCellAttributes(
+    const blink::MLLstmCellOptions* options) {
+  CHECK(options);
+  webnn::LstmCellAttributes attributes;
+
+  if (options->hasBias()) {
+    attributes.bias = options->bias()->Descriptor();
+  }
+  if (options->hasRecurrentBias()) {
+    attributes.recurrent_bias = options->recurrentBias()->Descriptor();
+  }
+  if (options->hasPeepholeWeight()) {
+    attributes.peephole_weight = options->peepholeWeight()->Descriptor();
+  }
+  attributes.activation_count = options->activations().size();
+  attributes.label = options->label().Utf8();
+  return attributes;
 }
 
 bool ValidateClampOptions(const MLClampOptions* options,
@@ -64,10 +877,11 @@ bool ValidateClampOptions(const MLClampOptions* options,
   // The generated code of MLClampOptions uses blink::ToRestrictedFloat to
   // convert the min/max value to a single precision float. It will throw on
   // non-finite values.
+  const std::string label = options->label().Utf8();
   if (options->hasMinValue() && options->hasMaxValue()) {
     if (options->minValue() > options->maxValue()) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
+      exception_state.ThrowTypeError(
+          String::FromUTF8(webnn::GetErrorLabelPrefix(label)) +
           String::Format("The min value (%f) should be less than or equal to "
                          "the max value (%f).",
                          options->minValue(), options->maxValue()));
@@ -77,1944 +891,2510 @@ bool ValidateClampOptions(const MLClampOptions* options,
   return true;
 }
 
-// Broadcast the input shapes and return the output shape.
-// If bidirectional is true, its behavior follows the numpy-broadcasting-rule:
-// https://numpy.org/doc/stable/user/basics.broadcasting.html#general-broadcasting-rules.
-// Otherwise, it unidirectionally broadcasts the lhs to the rhs.
-absl::optional<Vector<uint32_t>> BroadcastShapes(
-    const Vector<uint32_t>& dims_lhs,
-    const Vector<uint32_t>& dims_rhs,
-    bool bidirectional = true) {
-  // If bidirectional is true, the rank of the output shape is the maximum rank
-  // of the input shapes. Otherwise it is as the same as the rhs' rank.
-  auto rank_lhs = dims_lhs.size(), rank_rhs = dims_rhs.size();
-  auto rank_output = bidirectional ? std::max(rank_lhs, rank_rhs) : rank_rhs;
-  Vector<uint32_t> dims_output(rank_output);
-  for (wtf_size_t i = 0; i < rank_output; ++i) {
-    auto dim_lhs = i < rank_lhs ? dims_lhs[rank_lhs - i - 1] : 1;
-    DCHECK_GT(dim_lhs, uint32_t(0));
-    auto dim_rhs = i < rank_rhs ? dims_rhs[rank_rhs - i - 1] : 1;
-    DCHECK_GT(dim_rhs, uint32_t(0));
-    // If bidirectional is true, two dimensions are compatible when they are
-    // equal, or one of them is 1. Otherwise, two dimensions are compatible when
-    // they are equal, or the lhs dimension is 1.
-    if (bidirectional) {
-      if (dim_lhs != dim_rhs && dim_lhs != 1 && dim_rhs != 1) {
-        return absl::nullopt;
-      }
-    } else if (dim_lhs != dim_rhs && dim_lhs != 1) {
-      return absl::nullopt;
-    }
-    // If bidirectional is true, for each dimension of the output tensor, its
-    // size is the maximum size along that dimension of the input shapes.
-    // Otherwise, its size is the same as the rhs.
-    dims_output[rank_output - i - 1] =
-        bidirectional ? std::max(dim_lhs, dim_rhs) : dim_rhs;
-  }
-  return dims_output;
+MLOperand* BuildArgMinMax(MLGraphBuilder* builder,
+                          blink_mojom::ArgMinMax::Kind sub_kind,
+                          MLOperand* input,
+                          const uint32_t axis,
+                          MLArgMinMaxOptions* options,
+                          ExceptionState& exception_state) {
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateArgMinMaxAndInferOutput(
+          builder->GetContext()->GetProperties(), input->Descriptor(),
+          options->label().Utf8(), axis,
+          FromBlinkDataType(options->outputDataType().AsEnum()),
+          options->keepDimensions()));
+
+  auto* arg_min_max = MakeGarbageCollected<MLArgMinMaxOperator>(
+      builder, sub_kind, axis, options);
+  MLOperand* output = MLOperand::CreateOutput(
+      builder, std::move(output_descriptor), arg_min_max);
+  arg_min_max->Connect({input}, {output});
+
+  return output;
 }
 
-MLOperand* BuildElementWiseBinary(MLGraphBuilder* builder,
-                                  MLOperator::OperatorKind kind,
-                                  const MLOperand* a,
-                                  const MLOperand* b,
-                                  ExceptionState& exception_state) {
-  if (a->Type() != b->Type()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The input types don't match.");
+MLOperand* BuildElementWiseBinary(
+    const webnn::ContextProperties& context_properties,
+    MLGraphBuilder* builder,
+    blink_mojom::ElementWiseBinary::Kind kind,
+    const webnn::SupportedTensors& tensor_constraint,
+    MLOperand* a,
+    MLOperand* b,
+    MLOperatorOptions* options,
+    ExceptionState& exception_state) {
+  const std::string label = options->label().Utf8();
+  if (!tensor_constraint.Supports(a->Descriptor())) {
+    exception_state.ThrowTypeError(
+        String::FromUTF8(webnn::GetErrorLabelPrefix(label)) +
+        String(NotSupportedArgumentError("a", a->Descriptor(),
+                                         tensor_constraint)));
     return nullptr;
   }
-  absl::optional<Vector<uint32_t>> dims_output =
-      BroadcastShapes(a->Dimensions(), b->Dimensions());
-  if (!dims_output) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
+  if (!tensor_constraint.Supports(b->Descriptor())) {
+    exception_state.ThrowTypeError(
+        String::FromUTF8(webnn::GetErrorLabelPrefix(label)) +
+        String(NotSupportedArgumentError("b", b->Descriptor(),
+                                         tensor_constraint)));
+    return nullptr;
+  }
+
+  if (a->DataType() != b->DataType()) {
+    exception_state.ThrowTypeError(
+        String::FromUTF8(webnn::GetErrorLabelPrefix(label)) +
+        "The input operand data types don't match.");
+    return nullptr;
+  }
+  auto output_shape = webnn::BroadcastShapes(a->Shape(), b->Shape());
+  if (!output_shape) {
+    exception_state.ThrowTypeError(
+        String::FromUTF8(webnn::GetErrorLabelPrefix(label)) +
         "The input shapes are not broadcastable.");
     return nullptr;
   }
-  auto* binary = MakeGarbageCollected<MLOperator>(builder, kind);
-  String error_message;
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      builder, a->Type(), dims_output.value(), binary, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
-    return nullptr;
-  }
+
+  // Logical operator outputs are bools, otherwise output operators are the same
+  // type as input operators.
+  webnn::OperandDataType data_type = IsLogicalBinaryOperator(kind)
+                                         ? webnn::OperandDataType::kUint8
+                                         : a->DataType();
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::OperandDescriptor::Create(context_properties, data_type,
+                                       *output_shape, label));
+
+  auto* binary = MakeGarbageCollected<MLOperator>(
+      builder, /*kind=*/blink_mojom::Operation::Tag::kElementWiseBinary,
+      options, /*sub_kind=*/kind);
+  MLOperand* output =
+      MLOperand::CreateOutput(builder, std::move(output_descriptor), binary);
+
   binary->Connect({a, b}, {output});
   return output;
 }
 
-// Calculate the output size for conv2d based on WebNN spec:
-// https://www.w3.org/TR/webnn/#api-mlgraphbuilder-conv2d
-// Return the calculated output size if no error.
-absl::optional<double> CalculateConv2dOutputSize(
-    const uint32_t input_size,
-    const uint32_t filter_size,
-    const uint32_t beginning_padding,
-    const uint32_t ending_padding,
-    const uint32_t stride,
-    const uint32_t dilation,
-    String& error_message) {
-  // Calculate the dilated filter sizes.
-  auto checked_effective_filter_size =
-      (base::MakeCheckedNum<uint32_t>(filter_size) - 1) * dilation + 1;
-  if (!checked_effective_filter_size.IsValid()) {
-    error_message = "The effective filter size is too large.";
-    return absl::nullopt;
+MLOperand* BuildUnaryOperator(MLGraphBuilder* builder,
+                              ExceptionState& exception_state,
+                              blink_mojom::Operation::Tag kind,
+                              const webnn::SupportedTensors& tensor_constraint,
+                              MLOperand* input,
+                              MLOperatorOptions* options) {
+  // The output tensor of unary operator has the same data type and dimensions
+  // as its input tensor.
+  if (!tensor_constraint.Supports(input->Descriptor())) {
+    exception_state.ThrowTypeError(
+        String::FromUTF8(webnn::GetErrorLabelPrefix(options->label().Utf8())) +
+        String(NotSupportedInputArgumentError(input->Descriptor(),
+                                              tensor_constraint)));
+    return nullptr;
   }
 
-  // Calculate the output size in double precision floating point number that
-  // ensures all dimension values of type uint32_t can be exactly represented.
-  // https://en.wikipedia.org/wiki/Double-precision_floating-point_format#Precision_limitations_on_integer_values
-  // The max value of checked_output_size should be 3 * UINT_MAX + 1,
-  // which is smaller than the max safe integer value for double type.
-  auto checked_output_size =
-      (base::MakeCheckedNum<double>(input_size) -
-       checked_effective_filter_size + beginning_padding + ending_padding) /
-          stride +
-      1;
+  auto* unary = MakeGarbageCollected<MLOperator>(builder, kind, options);
 
-  if (checked_output_size.ValueOrDie() < 0) {
-    error_message = "The input size is too small to fill the window.";
-    return absl::nullopt;
-  }
-
-  // Check if the value is valid for rounding to uint32_t type.
-  if (!checked_output_size.IsValid<uint32_t>()) {
-    error_message = "The output size is too large.";
-    return absl::nullopt;
-  }
-
-  return checked_output_size.ValueOrDie();
+  MLOperand* output =
+      MLOperand::CreateOutput(builder, input->Descriptor(), unary);
+  unary->Connect({input}, {output});
+  return output;
 }
 
-// Calculate the output size for convTranspose2d based on WebNN spec:
-// https://www.w3.org/TR/webnn/#api-mlgraphbuilder-convtranspose2d
-// Return the calculated output size if no error.
-absl::optional<uint32_t> CalculateConvTranspose2dOutputSize(
-    const uint32_t input_size,
-    const uint32_t filter_size,
-    const uint32_t beginning_padding,
-    const uint32_t ending_padding,
-    const uint32_t stride,
-    const uint32_t dilation,
-    const uint32_t output_padding,
-    String& error_message) {
-  // Calculate the dilated filter sizes.
-  auto checked_effective_filter_size =
-      (base::MakeCheckedNum<uint32_t>(filter_size) - 1) * dilation + 1;
-  if (!checked_effective_filter_size.IsValid()) {
-    error_message = "The effective filter size is too large.";
-    return absl::nullopt;
-  }
-  auto checked_output_size =
-      (base::MakeCheckedNum<uint32_t>(input_size) - 1) * stride +
-      checked_effective_filter_size - beginning_padding - ending_padding +
-      output_padding;
-  // Check if the checked_output_size is valid.
-  if (!checked_output_size.IsValid()) {
-    error_message =
-        "The stride is too large or the input size is to small for padding.";
-    return absl::nullopt;
+MLOperand* BuildElementWiseUnaryOperator(
+    MLGraphBuilder* builder,
+    ExceptionState& exception_state,
+    blink_mojom::ElementWiseUnary::Kind kind,
+    const webnn::SupportedTensors& tensor_constraint,
+    MLOperand* input,
+    MLOperatorOptions* options) {
+  const std::string label = options->label().Utf8();
+  if (!tensor_constraint.Supports(input->Descriptor())) {
+    exception_state.ThrowTypeError(
+        String::FromUTF8(webnn::GetErrorLabelPrefix(options->label().Utf8())) +
+        String(webnn::NotSupportedInputArgumentError(input->Descriptor(),
+                                                     tensor_constraint)));
+    return nullptr;
   }
 
-  return checked_output_size.ValueOrDie();
+  auto* unary = MakeGarbageCollected<MLOperator>(
+      builder, /*kind=*/blink_mojom::Operation::Tag::kElementWiseUnary, options,
+      /*sub_kind=*/kind);
+  MLOperand* output =
+      MLOperand::CreateOutput(builder, input->Descriptor(), unary);
+  unary->Connect({input}, {output});
+  return output;
 }
 
-struct FloatSize2D {
-  double height;
-  double width;
-};
+MLOperand* BuildReduce(MLGraphBuilder* builder,
+                       blink_mojom::Reduce::Kind kind,
+                       const webnn::ContextProperties& context_properties,
+                       MLOperand* input,
+                       MLReduceOptions* options,
+                       ExceptionState& exception_state) {
+  const auto axes = options->getAxesOr(CreateAllAxes(input->Rank()));
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateReduceAndInferOutput(
+          context_properties, MojoReduceKindToComponent(kind),
+          input->Descriptor(), options->label().Utf8(), axes,
+          options->keepDimensions()));
 
-// Validate and calculate the output spatial dimensions of conv2d given
-// input sizes, filter sizes, padding, strides and dilations.
-// Return the calculated output sizes in double precision floating point number
-// if no errors.
-absl::optional<FloatSize2D> ValidateAndCalculateConv2dOutputSizes(
-    const uint32_t input_height,
-    const uint32_t input_width,
-    const uint32_t filter_height,
-    const uint32_t filter_width,
-    const Vector<uint32_t>& padding,
-    const Vector<uint32_t>& strides,
-    const Vector<uint32_t>& dilations,
-    const V8MLAutoPad auto_pad,
-    ExceptionState& exception_state) {
-  // Validate padding and get its values.
-  if (padding.size() != 4) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The length of padding should be 4.");
-    return absl::nullopt;
-  }
-  uint32_t padding_beginning_height = padding[0];
-  uint32_t padding_ending_height = padding[1];
-  uint32_t padding_beginning_width = padding[2];
-  uint32_t padding_ending_width = padding[3];
-
-  // Validate strides and get its values.
-  if (strides.size() != 2) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The length of strides should be 2.");
-    return absl::nullopt;
-  }
-  if (base::ranges::any_of(strides, [](uint32_t x) { return x == 0; })) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "All strides should be greater than 0.");
-    return absl::nullopt;
-  }
-  const uint32_t stride_height = strides[0];
-  const uint32_t stride_width = strides[1];
-
-  // Validate dilations and get its values.
-  if (dilations.size() != 2) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The length of dilations should be 2.");
-    return absl::nullopt;
-  }
-  if (base::ranges::any_of(dilations, [](uint32_t x) { return x == 0; })) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "All dilations should be greater than 0.");
-    return absl::nullopt;
-  }
-  const uint32_t dilation_height = dilations[0];
-  const uint32_t dilation_width = dilations[1];
-
-  // When the autoPad is other than "explicit", the values in the
-  // options.padding array are ignored and the explicit padding values need to
-  // be calculated.
-  if (auto_pad != V8MLAutoPad::Enum::kExplicit) {
-    auto padding_sizes_height = MLGraphBuilder::CalculateConv2dPadding(
-        auto_pad.AsEnum(), input_height, filter_height, stride_height,
-        dilation_height);
-    if (!padding_sizes_height) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "Overflow occurred when calculating "
-          "the padding along the height dimension.");
-      return absl::nullopt;
-    }
-    padding_beginning_height = padding_sizes_height->begin;
-    padding_ending_height = padding_sizes_height->end;
-    auto padding_sizes_width = MLGraphBuilder::CalculateConv2dPadding(
-        auto_pad.AsEnum(), input_width, filter_width, stride_width,
-        dilation_width);
-    if (!padding_sizes_width) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "Overflow occurred when calculating "
-          "the padding along the width dimension.");
-      return absl::nullopt;
-    }
-    padding_beginning_width = padding_sizes_width->begin;
-    padding_ending_width = padding_sizes_width->end;
-  }
-
-  String error_message;
-  auto float_output_height = CalculateConv2dOutputSize(
-      input_height, filter_height, padding_beginning_height,
-      padding_ending_height, stride_height, dilation_height, error_message);
-  if (!float_output_height) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "Failed to calculate the output height: " + error_message);
-    return absl::nullopt;
-  }
-
-  auto float_output_width = CalculateConv2dOutputSize(
-      input_width, filter_width, padding_beginning_width, padding_ending_width,
-      stride_width, dilation_width, error_message);
-  if (!float_output_width) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "Failed to calculate the output width: " + error_message);
-    return absl::nullopt;
-  }
-
-  return FloatSize2D({.height = float_output_height.value(),
-                      .width = float_output_width.value()});
-}
-
-struct Size2D {
-  uint32_t height;
-  uint32_t width;
-};
-
-// Validate and calculate the output spatial dimensions of convTranspose2d given
-// input sizes, filter sizes, padding, strides, dilations and output padding.
-// Return the calculated output sizes in double precision floating point number
-// if no errors.
-absl::optional<Size2D> ValidateAndCalculateConvTranspose2dOutputSizes(
-    const uint32_t input_height,
-    const uint32_t input_width,
-    const uint32_t filter_height,
-    const uint32_t filter_width,
-    const Vector<uint32_t>& padding,
-    const Vector<uint32_t>& strides,
-    const Vector<uint32_t>& dilations,
-    const Vector<uint32_t>& output_padding,
-    const V8MLAutoPad auto_pad,
-    ExceptionState& exception_state) {
-  // Validate padding and get its values.
-  if (padding.size() != 4) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The length of padding should be 4.");
-    return absl::nullopt;
-  }
-  uint32_t padding_beginning_height = padding[0];
-  uint32_t padding_ending_height = padding[1];
-  uint32_t padding_beginning_width = padding[2];
-  uint32_t padding_ending_width = padding[3];
-
-  // Validate strides and get its values.
-  if (strides.size() != 2) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The length of strides should be 2.");
-    return absl::nullopt;
-  }
-  if (base::ranges::any_of(strides, [](uint32_t x) { return x == 0; })) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "All strides should be greater than 0.");
-    return absl::nullopt;
-  }
-  const uint32_t stride_height = strides[0];
-  const uint32_t stride_width = strides[1];
-
-  // Validate dilations and get its values.
-  if (dilations.size() != 2) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The length of dilations should be 2.");
-    return absl::nullopt;
-  }
-  if (base::ranges::any_of(dilations, [](uint32_t x) { return x == 0; })) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "All dilations should be greater than 0.");
-    return absl::nullopt;
-  }
-  const uint32_t dilation_height = dilations[0];
-  const uint32_t dilation_width = dilations[1];
-
-  // Validate output padding and get its values.
-  if (output_padding.size() != 2) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "The length of outputPadding should be 2.");
-    return absl::nullopt;
-  }
-  const uint32_t outputPadding_height = output_padding[0];
-  const uint32_t outputPadding_width = output_padding[1];
-  if (outputPadding_height >= stride_height ||
-      outputPadding_width >= stride_width) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The output padding must be smaller than "
-                                      "the stride along the same dimension.");
-    return absl::nullopt;
-  }
-
-  // When the autoPad is other than "explicit", the values in the
-  // options.padding array are ignored and the explicit padding values need to
-  // be calculated.
-  if (auto_pad != V8MLAutoPad::Enum::kExplicit) {
-    auto padding_sizes_height =
-        MLGraphBuilder::CalculateConvTransposed2dPadding(
-            auto_pad.AsEnum(), input_height, filter_height, stride_height,
-            dilation_height, outputPadding_height);
-    if (!padding_sizes_height) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "Overflow occurred when calculating the padding along the height "
-          "dimension.");
-      return absl::nullopt;
-    }
-    padding_beginning_height = padding_sizes_height->begin;
-    padding_ending_height = padding_sizes_height->end;
-    auto padding_sizes_width = MLGraphBuilder::CalculateConvTransposed2dPadding(
-        auto_pad.AsEnum(), input_width, filter_width, stride_width,
-        dilation_width, outputPadding_width);
-    if (!padding_sizes_width) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "Overflow occurred when calculating the padding along the width "
-          "dimension.");
-      return absl::nullopt;
-    }
-    padding_beginning_width = padding_sizes_width->begin;
-    padding_ending_width = padding_sizes_width->end;
-  }
-
-  String error_message;
-  auto output_height = CalculateConvTranspose2dOutputSize(
-      input_height, filter_height, padding_beginning_height,
-      padding_ending_height, stride_height, dilation_height,
-      outputPadding_height, error_message);
-  if (!output_height) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "Failed to calculate the output height: " + error_message);
-    return absl::nullopt;
-  }
-
-  auto output_width = CalculateConvTranspose2dOutputSize(
-      input_width, filter_width, padding_beginning_width, padding_ending_width,
-      stride_width, dilation_width, outputPadding_width, error_message);
-  if (!output_width) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "Failed to calculate the output width: " + error_message);
-    return absl::nullopt;
-  }
-
-  return Size2D(
-      {.height = output_height.value(), .width = output_width.value()});
+  auto* reduce = MakeGarbageCollected<MLOperator>(
+      builder, /*kind=*/blink_mojom::Operation::Tag::kReduce, options,
+      /*sub_kind=*/kind);
+  // According to WebNN spec
+  // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-reduce, the output
+  // tensor of reduce has the same data type as its input.
+  MLOperand* output =
+      MLOperand::CreateOutput(builder, std::move(output_descriptor), reduce);
+  reduce->Connect({input}, {output});
+  return output;
 }
 
 MLOperand* BuildPool2d(MLGraphBuilder* builder,
-                       MLOperator::OperatorKind kind,
-                       const MLOperand* input,
-                       const MLPool2dOptions* options,
+                       blink_mojom::Pool2d::Kind kind,
+                       const webnn::ContextProperties& context_properties,
+                       MLOperand* input,
+                       MLPool2dOptions* options,
                        ExceptionState& exception_state) {
-  // Validate input operand and set its sizes.
-  const auto input_shape = input->Dimensions();
-  if (input_shape.size() != 4) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The input should be a 4-D tensor.");
+  auto pool2d_attributes = ConvertToPool2dAttributes(options);
+  if (!pool2d_attributes.has_value()) {
+    exception_state.ThrowTypeError(String::FromUTF8(pool2d_attributes.error()));
     return nullptr;
   }
-  // The layout option specifies the layout format of the input tensor.
-  uint32_t input_batches, input_channels, input_height, input_width;
-  switch (options->layout().AsEnum()) {
-    case V8MLInputOperandLayout::Enum::kNchw:
-      // "nchw": [batches, channels, height, width]
-      input_batches = input_shape[0];
-      input_channels = input_shape[1];
-      input_height = input_shape[2];
-      input_width = input_shape[3];
-      break;
-    case V8MLInputOperandLayout::Enum::kNhwc:
-      // "nhwc": [batches, height, width, channels]
-      input_batches = input_shape[0];
-      input_height = input_shape[1];
-      input_width = input_shape[2];
-      input_channels = input_shape[3];
-      break;
-  }
 
-  // Validate windowDimensions and get its values. If not present, the window
-  // dimensions are assumed to be the height and width dimensions of the input
-  // shape.
-  uint32_t window_height = input_height;
-  uint32_t window_width = input_width;
-  if (options->hasWindowDimensions()) {
-    if (options->windowDimensions().size() != 2) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "The length of window dimensions should be 2.");
-      return nullptr;
-    }
-    if (std::any_of(options->windowDimensions().begin(),
-                    options->windowDimensions().end(),
-                    [](uint32_t x) { return x == 0; })) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "All window dimensions should be greater than 0.");
-      return nullptr;
-    }
-    window_height = options->windowDimensions()[0];
-    window_width = options->windowDimensions()[1];
-  }
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidatePool2dAndInferOutput(
+          context_properties, input->Descriptor(), pool2d_attributes.value(),
+          FromMojoPool2dKind(kind)));
 
-  // Reuse ValidateAndCalculateConv2dOutputSizes to calculate pool2d output
-  // sizes.
-  const auto output_sizes = ValidateAndCalculateConv2dOutputSizes(
-      input_height, input_width, window_height, window_width,
-      // If padding is not present, the values are assumed to be [0,0,0,0].
-      options->getPaddingOr({0, 0, 0, 0}),
-      // If strides is not present, the values are assumed to be [1,1].
-      options->getStridesOr({1, 1}),
-      // If dilations is not present, the values are assumed to be [1, 1].
-      options->getDilationsOr({1, 1}), options->autoPad(), exception_state);
-  if (!output_sizes) {
-    return nullptr;
-  }
-  const uint32_t floor_output_height =
-      base::ClampFloor<uint32_t>(output_sizes->height);
-  const uint32_t ceil_output_height =
-      base::ClampCeil<uint32_t>(output_sizes->height);
-  const uint32_t floor_output_width =
-      base::ClampFloor<uint32_t>(output_sizes->width);
-  const uint32_t ceil_output_width =
-      base::ClampCeil<uint32_t>(output_sizes->width);
-
-  uint32_t output_height, output_width;
-  if (options->hasOutputSizes()) {
-    // TODO(ningxin.hu@intel.com): report a DevTools warning message if rounding
-    // type is provided but ignored.
-    if (options->outputSizes().size() != 2) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "The length of output sizes should be 2.");
-      return nullptr;
-    }
-    if (base::ranges::any_of(options->outputSizes(),
-                             [](uint32_t x) { return x == 0; })) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "All output sizes should be greater than 0.");
-      return nullptr;
-    }
-    uint32_t user_output_height = options->outputSizes()[0];
-    uint32_t user_output_width = options->outputSizes()[1];
-
-    // Check whether the user supplied output sizes is either floor or ceil
-    // rounding of the calculated output sizes. The backend implementation
-    // should check whether the indicated rounding type is supported.
-    if ((user_output_height == floor_output_height &&
-         user_output_width == floor_output_width) ||
-        (user_output_height == ceil_output_height &&
-         user_output_width == ceil_output_width)) {
-      output_height = user_output_height;
-      output_width = user_output_width;
-    } else {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          (floor_output_height == ceil_output_height &&
-           floor_output_width == ceil_output_width)
-              ? String::Format("The output sizes should be [%u, %u].",
-                               floor_output_height, floor_output_width)
-              : String::Format(
-                    "The output sizes should be either [%u, %u] or [%u, %u].",
-                    floor_output_height, floor_output_width, ceil_output_height,
-                    ceil_output_width));
-      return nullptr;
-    }
-  } else {
-    switch (options->roundingType().AsEnum()) {
-      case V8MLRoundingType::Enum::kFloor:
-        output_height = floor_output_height;
-        output_width = floor_output_width;
-        break;
-      case V8MLRoundingType::Enum::kCeil:
-        output_height = ceil_output_height;
-        output_width = ceil_output_width;
-        break;
-    }
-  }
-  // The layout option specifies the layout format of the output tensor.
-  Vector<uint32_t> output_shape;
-  switch (options->layout().AsEnum()) {
-    case V8MLInputOperandLayout::Enum::kNchw:
-      // "nchw": [batches, channels, height, width]
-      output_shape = {input_batches, input_channels, output_height,
-                      output_width};
-      break;
-    case V8MLInputOperandLayout::Enum::kNhwc:
-      // "nhwc": [batches, height, width, channels]
-      output_shape = {input_batches, output_height, output_width,
-                      input_channels};
-      break;
-  }
   // Create pool2d operator and its output operand. Connect the pool2d operator
   // to its input and output operands.
-  auto* pool2d = MakeGarbageCollected<MLOperator>(builder, kind, options);
-  String error_message;
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      builder, input->Type(), std::move(output_shape), pool2d, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
-    return nullptr;
-  }
+  auto* pool2d = MakeGarbageCollected<MLOperator>(
+      builder, /*kind=*/blink_mojom::Operation::Tag::kPool2d, options,
+      /*sub_kind=*/kind);
+  MLOperand* output =
+      MLOperand::CreateOutput(builder, std::move(output_descriptor), pool2d);
   pool2d->Connect({input}, {output});
   return output;
 }
 
-// The current WebNN spec doesn't define the calculation formula of the output
-// size for resample2d. An issue has been filed to track it -
-// https://github.com/webmachinelearning/webnn/issues/360.
-absl::optional<uint32_t> CalculateResample2dOutputSize(
-    const uint32_t input_size,
-    const float scale,
-    String& error_message) {
-  // Calculate the output size in double precision floating point number that
-  // ensures values of type uint32_t can be exactly represented.
-  // https://en.wikipedia.org/wiki/Double-precision_floating-point_format#Precision_limitations_on_integer_values
-  // The max value of checked_output_size should be 3 * UINT_MAX + 1,
-  // which is smaller than the max safe integer value for double type.
-  auto checked_output_size = base::MakeCheckedNum<double>(input_size) * scale;
+// Determines the input and output resources required for this computational
+// graph by traversing the graph from `named_outputs` to its inputs.
+// This may fail if the graph is not valid.
+base::expected<std::pair<MLGraph::NamedOperandDescriptors,
+                         MLGraph::NamedOperandDescriptors>,
+               String>
+DetermineGraphConstraintsFromOutputs(const MLNamedOperands& named_outputs) {
+  // The outputs should not be empty.
+  if (named_outputs.empty()) {
+    return base::unexpected("At least one output needs to be provided.");
+  }
 
-  // Check if the value is valid for rounding to uint32_t type.
-  if (!checked_output_size.IsValid<uint32_t>()) {
-    error_message = "The scale is too large.";
-    return absl::nullopt;
+  // The queue and visited set of operators that help implement the
+  // breadth-first graph traversal:
+  // https://en.wikipedia.org/wiki/Breadth-first_search
+  HeapDeque<Member<const MLOperator>> operators_queue;
+  HeapHashSet<Member<const MLOperator>> visited_operators;
+
+  MLGraph::NamedOperandDescriptors input_constraints;
+  MLGraph::NamedOperandDescriptors output_constraints;
+
+  // Validate the named outputs, setup corresponding output resource info and
+  // initialize the queue and visited set with their dependent operators.
+  for (const auto& output : named_outputs) {
+    const auto& name = output.first;
+    const auto& operand = output.second;
+    if (operand->Kind() != blink_mojom::Operand::Kind::kOutput) {
+      return base::unexpected(String::Format(
+          "The operand with name \"%s\" is not an output operand.",
+          name.Utf8().c_str()));
+    }
+    // Setup resource info for this output operand.
+    output_constraints.insert(name, operand->Descriptor());
+    visited_operators.insert(operand->Operator());
+    operators_queue.push_back(operand->Operator());
   }
-  const uint32_t output_size =
-      base::ClampFloor<uint32_t>(double(checked_output_size.ValueOrDie()));
-  if (output_size == 0) {
-    error_message = "The scale is too small.";
-    return absl::nullopt;
+
+  // An input MLOperand may be used by more than one MLOperators. This set
+  // ensures an input MLOperand won't be validated multiple times.
+  HeapHashSet<Member<const MLOperand>> visited_input_operands;
+  while (operators_queue.size() > 0) {
+    const auto current_operator = operators_queue.TakeFirst();
+    for (const auto& operand : current_operator->Inputs()) {
+      switch (operand->Kind()) {
+        case blink_mojom::Operand::Kind::kOutput:
+          if (!visited_operators.Contains(operand->Operator())) {
+            visited_operators.insert(operand->Operator());
+            operators_queue.push_back(operand->Operator());
+          }
+          break;
+        case blink_mojom::Operand::Kind::kInput:
+          if (visited_input_operands.Contains(operand)) {
+            continue;
+          }
+          visited_input_operands.insert(operand);
+          if (input_constraints.Contains(operand->Name())) {
+            return base::unexpected(
+                String::Format("The input name \"%s\" is duplicated.",
+                               operand->Name().Utf8().c_str()));
+          }
+          input_constraints.insert(operand->Name(), operand->Descriptor());
+          break;
+        case blink_mojom::Operand::Kind::kConstant:
+          if (visited_input_operands.Contains(operand)) {
+            continue;
+          }
+          visited_input_operands.insert(operand);
+          break;
+      }
+    }
   }
-  return output_size;
+  return std::make_pair(std::move(input_constraints),
+                        std::move(output_constraints));
 }
+
+Vector<webnn::OperandId> GetInputs(const blink_mojom::Operation& operation) {
+  switch (operation.which()) {
+    case blink_mojom::Operation::Tag::kArgMinMax:
+      return {operation.get_arg_min_max()->input_operand_id};
+    case blink_mojom::Operation::Tag::kBatchNormalization: {
+      const auto& batch_normalization = *operation.get_batch_normalization();
+      Vector<webnn::OperandId> inputs;
+      inputs.reserve(3 + batch_normalization.bias_operand_id.has_value() +
+                     batch_normalization.scale_operand_id.has_value());
+
+      inputs.push_back(batch_normalization.input_operand_id);
+      inputs.push_back(batch_normalization.mean_operand_id);
+      inputs.push_back(batch_normalization.variance_operand_id);
+
+      if (batch_normalization.bias_operand_id.has_value()) {
+        inputs.push_back(*batch_normalization.bias_operand_id);
+      }
+      if (batch_normalization.scale_operand_id.has_value()) {
+        inputs.push_back(*batch_normalization.scale_operand_id);
+      }
+      return inputs;
+    }
+    case blink_mojom::Operation::Tag::kClamp:
+      return {operation.get_clamp()->input_operand_id};
+    case blink_mojom::Operation::Tag::kConcat:
+      return operation.get_concat()->input_operand_ids;
+    case blink_mojom::Operation::Tag::kConv2d: {
+      const auto& conv2d = *operation.get_conv2d();
+      Vector<webnn::OperandId> inputs;
+      inputs.reserve(2 + conv2d.bias_operand_id.has_value());
+
+      inputs.push_back(conv2d.input_operand_id);
+      inputs.push_back(conv2d.filter_operand_id);
+
+      if (conv2d.bias_operand_id.has_value()) {
+        inputs.push_back(*conv2d.bias_operand_id);
+      }
+      return inputs;
+    }
+    case blink_mojom::Operation::Tag::kCumulativeSum:
+      return {operation.get_cumulative_sum()->input_operand_id};
+    case blink_mojom::Operation::Tag::kDequantizeLinear:
+      return {operation.get_dequantize_linear()->input_operand_id,
+              operation.get_dequantize_linear()->scale_operand_id,
+              operation.get_dequantize_linear()->zero_point_operand_id};
+    case blink_mojom::Operation::Tag::kElementWiseBinary:
+      return {operation.get_element_wise_binary()->lhs_operand_id,
+              operation.get_element_wise_binary()->rhs_operand_id};
+    case blink_mojom::Operation::Tag::kElu:
+      return {operation.get_elu()->input_operand_id};
+    case blink_mojom::Operation::Tag::kElementWiseUnary:
+      return {operation.get_element_wise_unary()->input_operand_id};
+    case blink_mojom::Operation::Tag::kExpand:
+      return {operation.get_expand()->input_operand_id};
+    case blink_mojom::Operation::Tag::kGather:
+      return {operation.get_gather()->input_operand_id,
+              operation.get_gather()->indices_operand_id};
+    case blink_mojom::Operation::Tag::kGatherElements:
+      return {operation.get_gather_elements()->input_operand_id,
+              operation.get_gather_elements()->indices_operand_id};
+    case blink_mojom::Operation::Tag::kGatherNd:
+      return {operation.get_gather_nd()->input_operand_id,
+              operation.get_gather_nd()->indices_operand_id};
+    case blink_mojom::Operation::Tag::kGelu:
+      return {operation.get_gelu()->input_operand_id};
+    case blink_mojom::Operation::Tag::kGemm: {
+      const auto& gemm = *operation.get_gemm();
+      Vector<webnn::OperandId> inputs;
+      inputs.reserve(2 + gemm.c_operand_id.has_value());
+
+      inputs.push_back(gemm.a_operand_id);
+      inputs.push_back(gemm.b_operand_id);
+
+      if (gemm.c_operand_id.has_value()) {
+        inputs.push_back(*gemm.c_operand_id);
+      }
+      return inputs;
+    }
+    case blink_mojom::Operation::Tag::kGru: {
+      const auto& gru = *operation.get_gru();
+      Vector<webnn::OperandId> inputs;
+      inputs.reserve(3 + gru.bias_operand_id.has_value() +
+                     gru.recurrent_bias_operand_id.has_value() +
+                     gru.initial_hidden_state_operand_id.has_value());
+
+      inputs.push_back(gru.input_operand_id);
+      inputs.push_back(gru.weight_operand_id);
+      inputs.push_back(gru.recurrent_weight_operand_id);
+
+      if (gru.bias_operand_id.has_value()) {
+        inputs.push_back(*gru.bias_operand_id);
+      }
+      if (gru.recurrent_bias_operand_id.has_value()) {
+        inputs.push_back(*gru.recurrent_bias_operand_id);
+      }
+      if (gru.initial_hidden_state_operand_id.has_value()) {
+        inputs.push_back(*gru.initial_hidden_state_operand_id);
+      }
+      return inputs;
+    }
+    case blink_mojom::Operation::Tag::kGruCell: {
+      const auto& gru_cell = *operation.get_gru_cell();
+      Vector<webnn::OperandId> inputs;
+      inputs.reserve(4 + gru_cell.bias_operand_id.has_value() +
+                     gru_cell.recurrent_bias_operand_id.has_value());
+
+      inputs.push_back(gru_cell.input_operand_id);
+      inputs.push_back(gru_cell.weight_operand_id);
+      inputs.push_back(gru_cell.recurrent_weight_operand_id);
+      inputs.push_back(gru_cell.hidden_state_operand_id);
+
+      if (gru_cell.bias_operand_id.has_value()) {
+        inputs.push_back(*gru_cell.bias_operand_id);
+      }
+      if (gru_cell.recurrent_bias_operand_id.has_value()) {
+        inputs.push_back(*gru_cell.recurrent_bias_operand_id);
+      }
+      return inputs;
+    }
+    case blink_mojom::Operation::Tag::kHardSigmoid:
+      return {operation.get_hard_sigmoid()->input_operand_id};
+    case blink_mojom::Operation::Tag::kHardSwish:
+      return {operation.get_hard_swish()->input_operand_id};
+    case blink_mojom::Operation::Tag::kLayerNormalization: {
+      const auto& layer_normalization = *operation.get_layer_normalization();
+      Vector<webnn::OperandId> inputs;
+      inputs.reserve(1 + layer_normalization.bias_operand_id.has_value() +
+                     layer_normalization.scale_operand_id.has_value());
+
+      inputs.push_back(layer_normalization.input_operand_id);
+
+      if (layer_normalization.bias_operand_id.has_value()) {
+        inputs.push_back(*layer_normalization.bias_operand_id);
+      }
+      if (layer_normalization.scale_operand_id.has_value()) {
+        inputs.push_back(*layer_normalization.scale_operand_id);
+      }
+      return inputs;
+    }
+    case blink_mojom::Operation::Tag::kInstanceNormalization: {
+      const auto& instance_normalization =
+          *operation.get_instance_normalization();
+      Vector<webnn::OperandId> inputs;
+      inputs.reserve(1 + instance_normalization.bias_operand_id.has_value() +
+                     instance_normalization.scale_operand_id.has_value());
+
+      inputs.push_back(instance_normalization.input_operand_id);
+
+      if (instance_normalization.bias_operand_id.has_value()) {
+        inputs.push_back(*instance_normalization.bias_operand_id);
+      }
+      if (instance_normalization.scale_operand_id.has_value()) {
+        inputs.push_back(*instance_normalization.scale_operand_id);
+      }
+      return inputs;
+    }
+    case blink_mojom::Operation::Tag::kLeakyRelu:
+      return {operation.get_leaky_relu()->input_operand_id};
+    case blink_mojom::Operation::Tag::kLinear:
+      return {operation.get_linear()->input_operand_id};
+    case blink_mojom::Operation::Tag::kLstm: {
+      const auto& lstm = *operation.get_lstm();
+      Vector<webnn::OperandId> inputs;
+      inputs.reserve(3 + lstm.bias_operand_id.has_value() +
+                     lstm.recurrent_bias_operand_id.has_value() +
+                     lstm.peephole_weight_operand_id.has_value() +
+                     lstm.initial_hidden_state_operand_id.has_value() +
+                     lstm.initial_cell_state_operand_id.has_value());
+
+      inputs.push_back(lstm.input_operand_id);
+      inputs.push_back(lstm.weight_operand_id);
+      inputs.push_back(lstm.recurrent_weight_operand_id);
+
+      if (lstm.bias_operand_id.has_value()) {
+        inputs.push_back(*lstm.bias_operand_id);
+      }
+      if (lstm.recurrent_bias_operand_id.has_value()) {
+        inputs.push_back(*lstm.recurrent_bias_operand_id);
+      }
+      if (lstm.peephole_weight_operand_id.has_value()) {
+        inputs.push_back(*lstm.peephole_weight_operand_id);
+      }
+      if (lstm.initial_hidden_state_operand_id.has_value()) {
+        inputs.push_back(*lstm.initial_hidden_state_operand_id);
+      }
+      if (lstm.initial_cell_state_operand_id.has_value()) {
+        inputs.push_back(*lstm.initial_cell_state_operand_id);
+      }
+      return inputs;
+    }
+    case blink_mojom::Operation::Tag::kLstmCell: {
+      const auto& lstm_cell = *operation.get_lstm_cell();
+      Vector<webnn::OperandId> inputs;
+      inputs.reserve(5 + lstm_cell.bias_operand_id.has_value() +
+                     lstm_cell.recurrent_bias_operand_id.has_value() +
+                     lstm_cell.peephole_weight_operand_id.has_value());
+
+      inputs.push_back(lstm_cell.input_operand_id);
+      inputs.push_back(lstm_cell.weight_operand_id);
+      inputs.push_back(lstm_cell.recurrent_weight_operand_id);
+      inputs.push_back(lstm_cell.hidden_state_operand_id);
+      inputs.push_back(lstm_cell.cell_state_operand_id);
+
+      if (lstm_cell.bias_operand_id.has_value()) {
+        inputs.push_back(*lstm_cell.bias_operand_id);
+      }
+      if (lstm_cell.recurrent_bias_operand_id.has_value()) {
+        inputs.push_back(*lstm_cell.recurrent_bias_operand_id);
+      }
+      if (lstm_cell.peephole_weight_operand_id.has_value()) {
+        inputs.push_back(*lstm_cell.peephole_weight_operand_id);
+      }
+      return inputs;
+    }
+    case blink_mojom::Operation::Tag::kMatmul:
+      return {operation.get_matmul()->a_operand_id,
+              operation.get_matmul()->b_operand_id};
+    case blink_mojom::Operation::Tag::kPad:
+      return {operation.get_pad()->input_operand_id};
+    case blink_mojom::Operation::Tag::kPool2d:
+      return {operation.get_pool2d()->input_operand_id};
+    case blink_mojom::Operation::Tag::kPrelu:
+      return {operation.get_prelu()->input_operand_id,
+              operation.get_prelu()->slope_operand_id};
+    case blink_mojom::Operation::Tag::kQuantizeLinear:
+      return {operation.get_quantize_linear()->input_operand_id,
+              operation.get_quantize_linear()->scale_operand_id,
+              operation.get_quantize_linear()->zero_point_operand_id};
+    case blink_mojom::Operation::Tag::kReduce:
+      return {operation.get_reduce()->input_operand_id};
+    case blink_mojom::Operation::Tag::kRelu:
+      return {operation.get_relu()->input_operand_id};
+    case blink_mojom::Operation::Tag::kResample2d:
+      return {operation.get_resample2d()->input_operand_id};
+    case blink_mojom::Operation::Tag::kReshape:
+      return {operation.get_reshape()->input_operand_id};
+    case blink_mojom::Operation::Tag::kReverse:
+      return {operation.get_reverse()->input_operand_id};
+    case blink_mojom::Operation::Tag::kScatterElements:
+      return {operation.get_scatter_elements()->input_operand_id,
+              operation.get_scatter_elements()->indices_operand_id,
+              operation.get_scatter_elements()->updates_operand_id};
+    case blink_mojom::Operation::Tag::kScatterNd:
+      return {operation.get_scatter_nd()->input_operand_id,
+              operation.get_scatter_nd()->indices_operand_id,
+              operation.get_scatter_nd()->updates_operand_id};
+    case blink_mojom::Operation::Tag::kSigmoid:
+      return {operation.get_sigmoid()->input_operand_id};
+    case blink_mojom::Operation::Tag::kSlice:
+      return {operation.get_slice()->input_operand_id};
+    case blink_mojom::Operation::Tag::kSoftmax:
+      return {operation.get_softmax()->input_operand_id};
+    case blink_mojom::Operation::Tag::kSoftplus:
+      return {operation.get_softplus()->input_operand_id};
+    case blink_mojom::Operation::Tag::kSoftsign:
+      return {operation.get_softsign()->input_operand_id};
+    case blink_mojom::Operation::Tag::kSplit:
+      return {operation.get_split()->input_operand_id};
+    case blink_mojom::Operation::Tag::kTanh:
+      return {operation.get_tanh()->input_operand_id};
+    case blink_mojom::Operation::Tag::kTile:
+      return {operation.get_tile()->input_operand_id};
+    case blink_mojom::Operation::Tag::kTranspose:
+      return {operation.get_transpose()->input_operand_id};
+    case blink_mojom::Operation::Tag::kTriangular:
+      return {operation.get_triangular()->input_operand_id};
+    case blink_mojom::Operation::Tag::kWhere:
+      return {operation.get_where()->condition_operand_id,
+              operation.get_where()->true_value_operand_id,
+              operation.get_where()->false_value_operand_id};
+  }
+}
+
+blink_mojom::GraphInfoPtr BuildWebNNGraphInfo(
+    const MLNamedOperands& named_outputs,
+    const webnn::ContextProperties& context_properties) {
+  // The `GraphInfo` represents an entire information of WebNN graph.
+  auto graph_info = blink_mojom::GraphInfo::New();
+
+  HeapHashMap<Member<const MLOperand>, webnn::OperandId> operand_to_id_map;
+  for (const auto& [name, operand] : named_outputs) {
+    // Create `mojo::Operand` for output operands of graph with the name.
+    auto output_operand =
+        mojo::ConvertTo<blink_mojom::OperandPtr>(operand.Get());
+    output_operand->name = name;
+    webnn::OperandId operand_id =
+        AddOperand(*graph_info, std::move(output_operand));
+    graph_info->output_operands.push_back(operand_id);
+    operand_to_id_map.insert(operand, operand_id);
+  }
+
+  HeapVector<Member<MLOperator>> topologically_sorted_operators =
+      GetOperatorsInTopologicalOrder(named_outputs);
+
+  // Visit the operators in topological order. For each operator,
+  // 1, Create `mojo::Operand` for its input and output operands if needed.
+  // 2, Create `mojo::Operator` with the id of input and output operands.
+  for (const auto& current_operator : topologically_sorted_operators) {
+    for (const auto& operand : current_operator->Inputs()) {
+      if (operand_to_id_map.Contains(operand.Get())) {
+        // The `mojo::Operand` is already converted with the MLOperand, skip it.
+        continue;
+      }
+      switch (operand->Kind()) {
+        case blink_mojom::Operand::Kind::kInput: {
+          // Create `mojo::Operand` for the input MLOperand.
+          //  Build the array of input operands for this graph with the id.
+          webnn::OperandId operand_id = AddOperand(
+              *graph_info,
+              mojo::ConvertTo<blink_mojom::OperandPtr>(operand.Get()));
+          graph_info->input_operands.push_back(operand_id);
+          operand_to_id_map.insert(operand, operand_id);
+          break;
+        }
+        case blink_mojom::Operand::Kind::kConstant: {
+          // Convert `mojo::Operand` for constant operand.
+          webnn::OperandId operand_id = AddOperand(
+              *graph_info,
+              mojo::ConvertTo<blink_mojom::OperandPtr>(operand.Get()));
+          // Build the map of constant operands for this graph with the id.
+          MLConstantOperand const* constant_operand =
+              operand->AsConstantOperand();
+          if (constant_operand->tensor()) {
+            graph_info->id_to_constant_tensor_operand_map.insert(
+                operand_id.value(), constant_operand->tensor()->handle());
+          } else {
+            graph_info->constant_operand_ids_to_handles.insert(
+                operand_id.value(), operand->AsConstantOperand()->handle());
+          }
+          operand_to_id_map.insert(operand, operand_id);
+          break;
+        }
+        case blink_mojom::Operand::Kind::kOutput:
+          // Because the operators are visited in topological order, if this
+          // operand is an intermediate operand, it should already be defined as
+          // an output operand of the dependent operator.
+          NOTREACHED();
+      }
+    }
+    for (const auto& operand : current_operator->Outputs()) {
+      if (operand_to_id_map.Contains(operand.Get())) {
+        // The `mojo::Operand` is already converted with the MLOperand, skip it.
+        continue;
+      }
+
+      // Because the graph's output operands are already converted before, this
+      // operand should be an intermediate operand that connects with two
+      // operators. Create `mojo::Operand` for this operand.
+      webnn::OperandId operand_id = AddOperand(
+          *graph_info, mojo::ConvertTo<blink_mojom::OperandPtr>(operand.Get()));
+      operand_to_id_map.insert(operand, operand_id);
+    }
+    // Create `mojo::Operation` with the id of the input and output operands.
+    SerializeMojoOperation(operand_to_id_map, context_properties,
+                           current_operator.Get(), graph_info.get());
+  }
+
+  return graph_info;
+}
+
+// Manually reshape constant operands if the constant operand is only used in
+// its reshaped form.
+void FoldReshapableConstants(blink_mojom::GraphInfo& graph_info) {
+  // Keep track of new IDs for constant operands.
+  // TODO(crbug.com/413722115): Define hash traits for OperandId.
+  HashMap<webnn::OperandId::underlying_type, webnn::OperandId::underlying_type>
+      constant_id_remappings;
+
+  for (const auto& [initial_constant_id, handle] :
+       graph_info.constant_operand_ids_to_handles) {
+    webnn::OperandId constant_operand_id =
+        webnn::OperandId(initial_constant_id);
+
+    // For each constant operand, keep walking down the dependencies until no
+    // reshape is found.
+    while (true) {
+      // Do not fold if it reshapes to graph output.
+      auto reshape_operation_it = std::ranges::find_if(
+          graph_info.operations,
+          [&constant_operand_id,
+           &graph_info](const blink_mojom::OperationPtr& operation) {
+            return operation->is_reshape() &&
+                   operation->get_reshape()->input_operand_id ==
+                       constant_operand_id &&
+                   !graph_info.output_operands.Contains(
+                       operation->get_reshape()->output_operand_id);
+          });
+
+      // No reshapes depend on this constant. Nothing to do here.
+      if (reshape_operation_it == graph_info.operations.end()) {
+        break;
+      }
+
+      // If the constant is depended on by other operators, we can't fold it.
+      // Note the queried range includes `reshape_operation_it`.
+      //
+      // TODO(crbug.com/364348897): Consider handling the case where a constant
+      // operand is reshaped by multiple identical reshape operators.
+      if (std::ranges::count_if(
+              graph_info.operations,
+              [&constant_operand_id](
+                  const blink_mojom::OperationPtr& operation) {
+                return base::Contains(GetInputs(*operation),
+                                      constant_operand_id);
+              }) > 1) {
+        break;
+      }
+
+      // The reshape is the only operator dependent on the constant. Do constant
+      // folding and update the graph accordingly.
+
+      // Remove the constant and reshape operators, respectively.
+      auto& constant_operand =
+          graph_info.operands.at(constant_operand_id.value());
+
+      webnn::OperandId reshape_output_id =
+          (*reshape_operation_it)->get_reshape()->output_operand_id;
+      auto& reshape_operand = graph_info.operands.at(reshape_output_id.value());
+
+      // Manually reshape the constant and let the list of operations reflect
+      // this.
+      CHECK_EQ(reshape_operand->descriptor.data_type(),
+               constant_operand->descriptor.data_type());
+      constant_operand->descriptor = reshape_operand->descriptor;
+
+      graph_info.operations.erase(reshape_operation_it);
+      // Update graph_info operands to make constant_operand have the reshaped
+      // operand id. The reshape operand becomes an dangling operand.
+      std::swap(graph_info.operands[constant_operand_id.value()],
+                graph_info.operands[reshape_output_id.value()]);
+      constant_id_remappings.Set(initial_constant_id,
+                                 reshape_output_id.value());
+
+      // Prepare for the next iteration of this loop.
+      constant_operand_id = reshape_output_id;
+    }
+  }
+
+  // Update `graph_info.constant_id_to_buffer_map` to reflect the new constant
+  // IDs. This is done after the above loop to avoid mutating this map while
+  // iterating over it.
+  for (const auto& [former_id, new_id] : constant_id_remappings) {
+    auto handle = graph_info.constant_operand_ids_to_handles.Take(former_id);
+    graph_info.constant_operand_ids_to_handles.insert(new_id,
+                                                      std::move(handle));
+  }
+}
+
 }  // namespace
 
 // static
-MLGraphBuilder* MLGraphBuilder::Create(MLContext* context) {
-  return MakeGarbageCollected<MLGraphBuilder>(context);
+MLGraphBuilder* MLGraphBuilder::Create(ScriptState* script_state,
+                                       MLContext* context,
+                                       ExceptionState& exception_state) {
+  if (!script_state->ContextIsValid()) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "Invalid script state");
+    return nullptr;
+  }
+
+  return context->CreateWebNNGraphBuilder(script_state, exception_state);
 }
 
-MLGraphBuilder::MLGraphBuilder(MLContext* context) : ml_context_(context) {}
+MLGraphBuilder::MLGraphBuilder(
+    ExecutionContext* execution_context,
+    MLContext* context,
+    mojo::PendingAssociatedRemote<blink_mojom::WebNNGraphBuilder>
+        pending_remote)
+    : execution_context_(execution_context),
+      ml_context_(context),
+      remote_(execution_context) {
+  CHECK(base::FeatureList::IsEnabled(
+      webnn::mojom::features::kWebMachineLearningNeuralNetwork));
+
+  remote_.Bind(std::move(pending_remote),
+               execution_context->GetTaskRunner(TaskType::kMachineLearning));
+  remote_.set_disconnect_handler(WTF::BindOnce(
+      &MLGraphBuilder::OnConnectionError, WrapWeakPersistent(this)));
+}
 
 MLGraphBuilder::~MLGraphBuilder() = default;
 
 void MLGraphBuilder::Trace(Visitor* visitor) const {
+  visitor->Trace(execution_context_);
   visitor->Trace(ml_context_);
+  visitor->Trace(remote_);
+  visitor->Trace(pending_resolver_);
   ScriptWrappable::Trace(visitor);
 }
 
+ExecutionContext* MLGraphBuilder::GetExecutionContext() const {
+  return execution_context_.Get();
+}
+
 MLContext* MLGraphBuilder::GetContext() const {
-  return ml_context_;
+  return ml_context_.Get();
 }
 
-// static
-absl::optional<MLGraphBuilder::PaddingSizes>
-MLGraphBuilder::CalculateConv2dPadding(V8MLAutoPad::Enum auto_pad,
-                                       const uint32_t input_size,
-                                       const uint32_t filter_size,
-                                       const uint32_t stride,
-                                       const uint32_t dilation) {
-  auto checked_output_size =
-      (base::MakeCheckedNum<uint32_t>(input_size) + stride - 1) / stride;
-  auto checked_dilated_filter_size =
-      (base::MakeCheckedNum<uint32_t>(filter_size) - 1) * dilation + 1;
-  auto checked_needed_input_size =
-      (checked_output_size - 1) * stride + checked_dilated_filter_size;
-  if (!checked_needed_input_size.IsValid()) {
-    return absl::nullopt;
-  }
-  auto checked_total_padding =
-      checked_needed_input_size.ValueOrDie() > input_size
-          ? checked_needed_input_size - input_size
-          : base::MakeCheckedNum<uint32_t>(0);
-  base::CheckedNumeric<uint32_t> checked_padding_begin, checked_padding_end;
-  switch (auto_pad) {
-    case V8MLAutoPad::Enum::kSameUpper:
-      checked_padding_begin = checked_total_padding / 2;
-      checked_padding_end = (checked_total_padding + 1) / 2;
-      break;
-    case V8MLAutoPad::Enum::kSameLower:
-      checked_padding_begin = (checked_total_padding + 1) / 2;
-      checked_padding_end = checked_total_padding / 2;
-      break;
-    case V8MLAutoPad::Enum::kExplicit:
-      // The case has been ruled out before the function be called.
-      NOTREACHED_NORETURN()
-          << "Invalid auto pad value when calculating conv2d padding.";
-  }
-  uint32_t padding_begin, padding_end;
-  if (!checked_padding_begin.AssignIfValid(&padding_begin) ||
-      !checked_padding_end.AssignIfValid(&padding_end)) {
-    return absl::nullopt;
-  }
-  return PaddingSizes({.begin = padding_begin, .end = padding_end});
-}
-
-// static
-absl::optional<MLGraphBuilder::PaddingSizes>
-MLGraphBuilder::CalculateConvTransposed2dPadding(
-    V8MLAutoPad::Enum auto_pad,
-    const uint32_t input_size,
-    const uint32_t filter_size,
-    const uint32_t stride,
-    const uint32_t dilation,
-    const uint32_t output_padding) {
-  auto checked_output_size =
-      base::MakeCheckedNum<uint32_t>(input_size) * stride;
-  auto checked_effective_filter_size =
-      (base::MakeCheckedNum<uint32_t>(filter_size) - 1) * dilation + 1;
-  auto checked_total_padding = stride * (input_size - 1) +
-                               checked_effective_filter_size + output_padding -
-                               checked_output_size;
-  base::CheckedNumeric<uint32_t> checked_padding_begin, checked_padding_end;
-  switch (auto_pad) {
-    case V8MLAutoPad::Enum::kSameUpper:
-      checked_padding_begin = checked_total_padding / 2;
-      checked_padding_end = (checked_total_padding + 1) / 2;
-      break;
-    case V8MLAutoPad::Enum::kSameLower:
-      checked_padding_begin = (checked_total_padding + 1) / 2;
-      checked_padding_end = checked_total_padding / 2;
-      break;
-    case V8MLAutoPad::Enum::kExplicit:
-      // The case has been ruled out before the function be called.
-      NOTREACHED_NORETURN()
-          << "Invalid auto pad value when calculating convTranspose2d padding.";
-  }
-  uint32_t padding_begin, padding_end;
-  if (!checked_padding_begin.AssignIfValid(&padding_begin) ||
-      !checked_padding_end.AssignIfValid(&padding_end)) {
-    return absl::nullopt;
-  }
-  return PaddingSizes({.begin = padding_begin, .end = padding_end});
-}
-
-MLOperand* MLGraphBuilder::input(String name,
+MLOperand* MLGraphBuilder::input(ScriptState* script_state,
+                                 String name,
                                  const MLOperandDescriptor* desc,
                                  ExceptionState& exception_state) {
-  String error_message;
-  // If no dimensions, it represents a scalar. Set dimensions to {1}.
-  Vector<uint32_t> dimensions = desc->getDimensionsOr({1});
-  auto* input_operand = MLOperand::ValidateAndCreateInput(
-      this, desc->type().AsEnum(), std::move(dimensions), std::move(name),
-      error_message);
-  if (!input_operand) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+
+  auto input_operand = MLOperand::ValidateAndCreateInput(
+      ml_context_->GetProperties(), this, desc->dataType().AsEnum(),
+      desc->shape(), std::move(name));
+  if (!input_operand.has_value()) {
+    exception_state.ThrowTypeError(input_operand.error());
     return nullptr;
   }
-  return input_operand;
+
+  return input_operand.value();
 }
 
-MLOperand* MLGraphBuilder::constant(const MLOperandDescriptor* desc,
-                                    NotShared<DOMArrayBufferView> buffer_view,
+MLOperand* MLGraphBuilder::constant(ScriptState* script_state,
+                                    const MLOperandDescriptor* desc,
+                                    AllowSharedBufferSource* buffer,
                                     ExceptionState& exception_state) {
-  String error_message;
-  // If no dimensions, it represents a scalar. Set dimensions to {1}.
-  Vector<uint32_t> dimensions = desc->getDimensionsOr({1});
-  auto* constant_operand = MLOperand::ValidateAndCreateConstant(
-      this, desc->type().AsEnum(), std::move(dimensions), buffer_view.Get(),
-      error_message);
-  if (!constant_operand) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
+  webnn::ScopedTrace scoped_trace("MLGraphBuilder::constant");
+  CHECK(buffer);
+
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor descriptor,
+      webnn::OperandDescriptor::Create(
+          ml_context_->GetProperties(),
+          FromBlinkDataType(desc->dataType().AsEnum()), desc->shape(),
+          webnn::GetErrorLabelPrefix("constant")));
+
+  webnn::OperandDataType data_type = descriptor.data_type();
+  if (buffer->IsArrayBufferViewAllowShared()) {
+    if (GetArrayBufferViewType(data_type) !=
+        buffer->GetAsArrayBufferViewAllowShared().Get()->GetType()) {
+      if (data_type == webnn::OperandDataType::kFloat16 &&
+          buffer->GetAsArrayBufferViewAllowShared().Get()->GetType() ==
+              DOMArrayBufferView::ViewType::kTypeUint16) {
+        // Passing a Uint16Array when the data type is float16 was supported
+        // prior to Float16Array shipping. Maintain this special case to give
+        // developers/frameworks time to migrate their code.
+        // TODO(crbug.com/399459942): Remove this circa 2025Q3.
+        LogConsoleWarning(script_state,
+                          "Passing a Uint16Array instance for a float16 "
+                          "operand is deprecated. Use Float16Array instead.");
+
+      } else {
+        exception_state.ThrowTypeError(
+            "The buffer view type doesn't match the operand data type.");
+        return nullptr;
+      }
+    }
+  }
+
+  base::span<uint8_t> bytes = AsByteSpan(*buffer);
+  if (descriptor.PackedByteLength() != bytes.size()) {
+    exception_state.ThrowTypeError(
+        String::Format("The buffer's byte length (%zu) doesn't match the "
+                       "expected byte length (%zu).",
+                       bytes.size(), descriptor.PackedByteLength()));
     return nullptr;
   }
-  return constant_operand;
+
+  if (!ml_context_->GetProperties().data_type_limits.constant.Has(data_type)) {
+    exception_state.ThrowTypeError(String(webnn::NotSupportedConstantTypeError(
+        data_type, ml_context_->GetProperties().data_type_limits.constant)));
+    return nullptr;
+  }
+
+  auto* constant =
+      MakeGarbageCollected<MLConstantOperand>(this, std::move(descriptor));
+
+  UMA_HISTOGRAM_MEMORY_KB("WebNN.ConstantDataSizeInKB", bytes.size() / 1024);
+  scoped_trace.AddStep(
+      String::Format("copy constant bytes into BigBuffer, size: %zu",
+                     bytes.size())
+          .Utf8()
+          .c_str());
+  mojo_base::BigBuffer constant_data = mojo_base::BigBuffer(bytes);
+  scoped_trace.AddStep("post mojo message: CreatePendingConstant");
+  remote_->CreatePendingConstant(constant->handle(), data_type,
+                                 std::move(constant_data));
+  return constant;
+}
+
+MLOperand* MLGraphBuilder::constant(ScriptState* script_state,
+                                    MLTensor* tensor,
+                                    ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+
+  if (tensor->context() != ml_context_) {
+    exception_state.ThrowTypeError(
+        "The tensor wasn't created with this context.");
+    return nullptr;
+  }
+
+  if (!tensor->IsValid()) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kInvalidStateError,
+        "Tensor has been destroyed or context is lost.");
+    return nullptr;
+  }
+
+  if (!tensor->Usage().Has(webnn::MLTensorUsageFlags::kGraphConstant)) {
+    exception_state.ThrowTypeError(
+        "Tensor was not created by createConstantTensor.");
+    return nullptr;
+  }
+
+  return MakeGarbageCollected<MLConstantOperand>(this, tensor);
+}
+
+MLOperand* MLGraphBuilder::argMin(MLOperand* input,
+                                  const uint32_t axis,
+                                  MLArgMinMaxOptions* options,
+                                  ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+  return BuildArgMinMax(this, blink_mojom::ArgMinMax::Kind::kMin, input, axis,
+                        options, exception_state);
+}
+
+MLOperand* MLGraphBuilder::argMax(MLOperand* input,
+                                  const uint32_t axis,
+                                  MLArgMinMaxOptions* options,
+                                  ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+  return BuildArgMinMax(this, blink_mojom::ArgMinMax::Kind::kMax, input, axis,
+                        options, exception_state);
+}
+
+MLOperand* MLGraphBuilder::batchNormalization(
+    MLOperand* input,
+    MLOperand* mean,
+    MLOperand* variance,
+    MLBatchNormalizationOptions* options,
+    ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+
+  HeapVector<Member<MLOperand>> inputs = {input, mean, variance};
+  // Adding the optional operands into inputs ensures the graph traversal
+  // algorithm GetOperatorsInTopologicalOrder() works. For backends, the
+  // optional operands should be retrieved from the options instead of inputs.
+  if (options->hasScale()) {
+    inputs.push_back(options->scale());
+  }
+  if (options->hasBias()) {
+    inputs.push_back(options->bias());
+  }
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateBatchNormalizationAndInferOutput(
+          ml_context_->GetProperties(), input->Descriptor(), mean->Descriptor(),
+          variance->Descriptor(),
+          ConvertToBatchNormalizationAttributes(options)));
+
+  // Create batchNormalization operator and its output operand. Connect the
+  // batchNormalization operator to its input and output operands.
+  auto* batch_normalization = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kBatchNormalization, options);
+  MLOperand* output = MLOperand::CreateOutput(
+      this, std::move(output_descriptor), batch_normalization);
+  batch_normalization->Connect(std::move(inputs), {output});
+  return output;
 }
 
 MLOperand* MLGraphBuilder::concat(const HeapVector<Member<MLOperand>>& inputs,
                                   const uint32_t axis,
+                                  MLOperatorOptions* options,
                                   ExceptionState& exception_state) {
-  auto* concat =
-      MakeGarbageCollected<MLOperator>(this, MLOperator::OperatorKind::kConcat);
-  if (inputs.empty()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The inputs should not be empty.");
-    return nullptr;
-  }
-  const auto& first_input_shape = inputs[0]->Dimensions();
-  const auto first_input_rank = first_input_shape.size();
-  // According to WebNN spec:
-  // https://www.w3.org/TR/webnn/#dom-mlgraphbuilder-concat-inputs-axis-axis,
-  // the axis that the inputs concatenate along, with the value in the interval
-  // [0, N-1] where N is the rank of input tensors. We just check the first
-  // input rank here because we will check all inputs have same rank in the
-  // following loop.
-  if (axis >= first_input_rank) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "The value of axis should be in the interval [0, N-1] where N is the "
-        "rank of input tensors.");
-    return nullptr;
-  }
-  const auto output_type = inputs[0]->Type();
-  // The loop skips the first input to avoid repeated checks.
-  for (wtf_size_t i = 1; i < inputs.size(); ++i) {
-    if (inputs[i]->Type() != output_type) {
-      exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                        "The input types don't match.");
-      return nullptr;
-    }
-    // According to WebNN spec:
-    // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-concat, all input tensors
-    // must have the same dimension.
-    if (inputs[i]->Dimensions().size() != first_input_rank) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "All input tensors must have the same dimension.");
-      return nullptr;
-    }
-    // According to WebNN spec:
-    // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-concat, all input tensors
-    // must have the same shape, except for the size of the dimension to
-    // concatenate on.
-    for (wtf_size_t dim = 0; dim < first_input_rank; ++dim) {
-      if (dim == axis ||
-          inputs[i]->Dimensions()[dim] == first_input_shape[dim]) {
-        continue;
-      }
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "All input tensors must have the same shape, except for the size of "
-          "the dimension to concatenate on.");
-      return nullptr;
-    }
-  }
-  // Calculate the output shape according to WebNN spec:
-  // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-concat, the output tensor
-  // has the same shape except on the dimension that all the inputs concatenated
-  // along. The size of that dimension is computed as the sum of all the input
-  // sizes of the same dimension.
-  auto axis_size = base::MakeCheckedNum<uint32_t>(0);
-  for (auto& input : inputs) {
-    axis_size += input->Dimensions()[axis];
-  }
-  auto output_shape = first_input_shape;
-  if (!axis_size.AssignIfValid(&output_shape[axis])) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "The concatenated dimension size is too large.");
-    return nullptr;
-  }
-  String error_message;
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      this, output_type, output_shape, concat, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
-    return nullptr;
-  }
-  concat->Connect((HeapVector<Member<const MLOperand>>)inputs, {output});
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  std::vector<webnn::OperandDescriptor> input_component_operands;
+  input_component_operands.reserve(inputs.size());
+  std::ranges::transform(inputs, std::back_inserter(input_component_operands),
+                         [](const auto& input) { return input->Descriptor(); });
+
+  const std::string label = options->label().Utf8();
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateConcatAndInferOutput(
+          ml_context_->GetProperties(), input_component_operands, axis, label));
+
+  auto* concat = MakeGarbageCollected<MLConcatOperator>(this, axis, options);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), concat);
+
+  concat->Connect(inputs, {output});
   return output;
 }
 
-MLOperand* MLGraphBuilder::clamp(const MLOperand* input,
-                                 const MLClampOptions* options,
+MLOperand* MLGraphBuilder::clamp(MLOperand* input,
+                                 MLClampOptions* options,
                                  ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
   if (!ValidateClampOptions(options, exception_state)) {
     return nullptr;
   }
-  auto* clamp = MakeGarbageCollected<MLOperator>(
-      this, MLOperator::OperatorKind::kClamp, options);
+
   // According to WebNN spec
   // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-clamp, the output tensor of
-  // clamp has the same type and dimensions as its input.
-  String error_message;
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      this, input->Type(), input->Dimensions(), clamp, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
-    return nullptr;
-  }
-  clamp->Connect({input}, {output});
-  return output;
+  // clamp has the same data type and dimensions as its input.
+  return BuildUnaryOperator(
+      this, exception_state, blink_mojom::Operation::Tag::kClamp,
+      ml_context_->GetProperties().data_type_limits.clamp_input, input,
+      options);
 }
 
-MLActivation* MLGraphBuilder::clamp(const MLClampOptions* options,
-                                    ExceptionState& exception_state) {
-  if (!ValidateClampOptions(options, exception_state)) {
-    return nullptr;
-  }
-  // Create the clamp operator that would be used as an activation function.
-  return MakeGarbageCollected<MLActivation>(
-      this, MLOperator::OperatorKind::kClamp, options);
-}
-
-MLOperand* MLGraphBuilder::conv2d(const MLOperand* input,
-                                  const MLOperand* filter,
-                                  const MLConv2dOptions* options,
+MLOperand* MLGraphBuilder::conv2d(MLOperand* input,
+                                  MLOperand* filter,
+                                  MLConv2dOptions* options,
                                   ExceptionState& exception_state) {
-  // Validate input operand and set its sizes.
-  const auto input_shape = input->Dimensions();
-  if (input_shape.size() != 4) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The input should be a 4-D tensor.");
-    return nullptr;
-  }
-  // The input layout option specifies the layout format of the input tensor.
-  uint32_t input_batches, input_channels, input_height, input_width;
-  switch (options->inputLayout().AsEnum()) {
-    case V8MLInputOperandLayout::Enum::kNchw:
-      // "nchw": [batches, input_channels, height, width]
-      input_batches = input_shape[0];
-      input_channels = input_shape[1];
-      input_height = input_shape[2];
-      input_width = input_shape[3];
-      break;
-    case V8MLInputOperandLayout::Enum::kNhwc:
-      // "nhwc": [batches, height, width, input_channels]
-      input_batches = input_shape[0];
-      input_height = input_shape[1];
-      input_width = input_shape[2];
-      input_channels = input_shape[3];
-      break;
-  }
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
 
-  // Validate filter operand and set its sizes.
-  if (filter->Type() != input->Type()) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "The filter type doesn't match the input type.");
-    return nullptr;
-  }
-  const auto filter_shape = filter->Dimensions();
-  if (filter_shape.size() != 4) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The filter should be a 4-D tensor.");
-    return nullptr;
-  }
-  // The filter layout specifies the filter layout format.
-  uint32_t filter_height, filter_width, output_channels, filter_input_channels;
-  switch (options->filterLayout().AsEnum()) {
-    case V8MLConv2dFilterOperandLayout::Enum::kHwio:
-      // "hwio": [height, width, input_channels/groups, output_channels]
-      filter_height = filter_shape[0];
-      filter_width = filter_shape[1];
-      filter_input_channels = filter_shape[2];
-      output_channels = filter_shape[3];
-      break;
-    case V8MLConv2dFilterOperandLayout::Enum::kOhwi:
-      // "ohwi": [output_channels, height, width, input_channels/groups]
-      output_channels = filter_shape[0];
-      filter_height = filter_shape[1];
-      filter_width = filter_shape[2];
-      filter_input_channels = filter_shape[3];
-      break;
-    case V8MLConv2dFilterOperandLayout::Enum::kIhwo:
-      // "ihwo": [input_channels/groups, height, width, output_channels]
-      filter_input_channels = filter_shape[0];
-      filter_height = filter_shape[1];
-      filter_width = filter_shape[2];
-      output_channels = filter_shape[3];
-      break;
-    case V8MLConv2dFilterOperandLayout::Enum::kOihw:
-      // "oihw": [output_channels, input_channels/groups, height, width]
-      output_channels = filter_shape[0];
-      filter_input_channels = filter_shape[1];
-      filter_height = filter_shape[2];
-      filter_width = filter_shape[3];
-      break;
-  }
-  // Validate bias operand if it is present.
-  if (options->hasBias()) {
-    const auto bias_shape = options->bias()->Dimensions();
-    if (bias_shape.size() != 1) {
-      exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                        "The bias should be a 1-D tensor.");
-      return nullptr;
-    }
-    if (bias_shape[0] != output_channels) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          String::Format("The bias shape should be [%u].", output_channels));
-      return nullptr;
-    }
-    if (options->bias()->Type() != input->Type()) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "The bias type doesn't match input type.");
-      return nullptr;
-    }
-  }
-  // Validate groups.
-  if (options->groups() == 0) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The groups should be greater than 0.");
-    return nullptr;
-  }
-  if (input_channels % options->groups() != 0 ||
-      filter_input_channels != input_channels / options->groups()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The groups must evenly divide the input "
-                                      "channels to filter input channels.");
-    return nullptr;
-  }
-
-  const auto output_sizes = ValidateAndCalculateConv2dOutputSizes(
-      input_height, input_width, filter_height, filter_width,
-      // If padding is not present, the values are assumed to be [0,0,0,0].
-      options->getPaddingOr({0, 0, 0, 0}),
-      // If strides is not present, the values are assumed to be [1,1].
-      options->getStridesOr({1, 1}),
-      // If dilations is not present, the values are assumed to be [1, 1].
-      options->getDilationsOr({1, 1}), options->autoPad(), exception_state);
-  if (!output_sizes) {
-    return nullptr;
-  }
-  const uint32_t output_height =
-      base::ClampFloor<uint32_t>(output_sizes->height);
-  const uint32_t output_width = base::ClampFloor<uint32_t>(output_sizes->width);
-  // The input layout option specifies the layout format of the output tensor.
-  Vector<uint32_t> output_shape;
-  switch (options->inputLayout().AsEnum()) {
-    case V8MLInputOperandLayout::Enum::kNchw:
-      // "nchw": [batches, output_channels, height, width]
-      output_shape = {input_batches, output_channels, output_height,
-                      output_width};
-      break;
-    case V8MLInputOperandLayout::Enum::kNhwc:
-      // "nhwc": [batches, height, width, output_channels]
-      output_shape = {input_batches, output_height, output_width,
-                      output_channels};
-      break;
-  }
-  // Create conv2d operator and its output operand. Connect the conv2d operator
-  // to its input and output operands.
-  auto* conv2d = MakeGarbageCollected<MLOperator>(
-      this, MLOperator::OperatorKind::kConv2d, options);
-  HeapVector<Member<const MLOperand>> inputs = {input, filter};
+  HeapVector<Member<MLOperand>> inputs = {input, filter};
   if (options->hasBias()) {
     inputs.push_back(options->bias());
   }
-  String error_message;
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      this, input->Type(), std::move(output_shape), conv2d, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  auto conv2d_attributes = ConvertToConv2dAttributes(options);
+  if (!conv2d_attributes.has_value()) {
+    exception_state.ThrowTypeError(conv2d_attributes.error());
     return nullptr;
   }
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateConv2dAndInferOutput(
+          ml_context_->GetProperties(), input->Descriptor(),
+          filter->Descriptor(), conv2d_attributes.value()));
+
+  // Create conv2d operator and its output operand. Connect the conv2d operator
+  // to its input and output operands.
+  auto* conv2d = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kConv2d, options,
+      /*sub_type=*/blink_mojom::Conv2d::Kind::kDirect);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), conv2d);
   conv2d->Connect(std::move(inputs), {output});
   return output;
 }
 
-MLOperand* MLGraphBuilder::convTranspose2d(
-    const MLOperand* input,
-    const MLOperand* filter,
-    const MLConvTranspose2dOptions* options,
-    ExceptionState& exception_state) {
-  // Validate input operand and set its sizes.
-  const auto input_shape = input->Dimensions();
-  if (input_shape.size() != 4) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The input should be a 4-D tensor.");
-    return nullptr;
-  }
-  // The input layout option specifies the layout format of the input tensor.
-  uint32_t input_batches, input_channels, input_height, input_width;
-  switch (options->inputLayout().AsEnum()) {
-    case V8MLInputOperandLayout::Enum::kNchw:
-      // "nchw": [batches, input_channels, height, width]
-      input_batches = input_shape[0];
-      input_channels = input_shape[1];
-      input_height = input_shape[2];
-      input_width = input_shape[3];
-      break;
-    case V8MLInputOperandLayout::Enum::kNhwc:
-      // "nhwc": [batches, height, width, input_channels]
-      input_batches = input_shape[0];
-      input_height = input_shape[1];
-      input_width = input_shape[2];
-      input_channels = input_shape[3];
-      break;
-  }
+MLOperand* MLGraphBuilder::convTranspose2d(MLOperand* input,
+                                           MLOperand* filter,
+                                           MLConvTranspose2dOptions* options,
+                                           ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
 
-  // Validate filter operand and set its sizes.
-  if (filter->Type() != input->Type()) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "The filter type doesn't match the input type.");
-    return nullptr;
-  }
-  const auto filter_shape = filter->Dimensions();
-  if (filter_shape.size() != 4) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The filter should be a 4-D tensor.");
-    return nullptr;
-  }
-  // The filter layout specifies the filter layout format.
-  uint32_t filter_height, filter_width, output_channels, filter_input_channels;
-  switch (options->filterLayout().AsEnum()) {
-    case V8MLConvTranspose2dFilterOperandLayout::Enum::kHwoi:
-      // "hwoi": [height, width, output_channels, input_channels/groups]
-      filter_height = filter_shape[0];
-      filter_width = filter_shape[1];
-      output_channels = filter_shape[2];
-      filter_input_channels = filter_shape[3];
-      break;
-    case V8MLConvTranspose2dFilterOperandLayout::Enum::kOhwi:
-      // "ohwi": [output_channels, height, width, input_channels/groups]
-      output_channels = filter_shape[0];
-      filter_height = filter_shape[1];
-      filter_width = filter_shape[2];
-      filter_input_channels = filter_shape[3];
-      break;
-    case V8MLConvTranspose2dFilterOperandLayout::Enum::kIohw:
-      // "iohw": [input_channels/groups, output_channels, height, width]
-      filter_input_channels = filter_shape[0];
-      output_channels = filter_shape[1];
-      filter_height = filter_shape[2];
-      filter_width = filter_shape[3];
-      break;
-  }
-  // Validate bias operand if it is present.
-  if (options->hasBias()) {
-    const auto bias_shape = options->bias()->Dimensions();
-    if (bias_shape.size() != 1) {
-      exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                        "The bias should be a 1-D tensor.");
-      return nullptr;
-    }
-    if (bias_shape[0] != output_channels) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          String::Format("The bias shape should be [%u].", output_channels));
-      return nullptr;
-    }
-    if (options->bias()->Type() != input->Type()) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "The bias type doesn't match input type.");
-      return nullptr;
-    }
-  }
-  // Validate groups.
-  if (options->groups() == 0) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The groups should be greater than 0.");
-    return nullptr;
-  }
-  if (input_channels % options->groups() != 0 ||
-      filter_input_channels != input_channels / options->groups()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The groups must evenly divide the input "
-                                      "channels to filter input channels.");
-    return nullptr;
-  }
-
-  // Validate and calculate output sizes.
-  uint32_t output_height, output_width;
-  if (options->hasOutputSizes()) {
-    const auto output_sizes = options->getOutputSizesOr({});
-    if (output_sizes.size() != 2) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "The length of outputSizes should be 2.");
-      return nullptr;
-    }
-    output_height = output_sizes[0];
-    output_width = output_sizes[1];
-    if (output_height == 0 || output_width == 0) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "All output sizes should be greater than 0.");
-      return nullptr;
-    }
-    // If strides is not present, the values are assumed to be [1,1].
-    const auto strides = options->getStridesOr({1, 1});
-    const auto calculated_output_sizes =
-        ValidateAndCalculateConvTranspose2dOutputSizes(
-            input_height, input_width, filter_height, filter_width,
-            // If padding is not present, the values are assumed to be
-            // [0,0,0,0].
-            options->getPaddingOr({0, 0, 0, 0}), strides,
-            // If dilations is not present, the values are assumed to be [1, 1].
-            options->getDilationsOr({1, 1}),
-            // Calculate the output sizes without the output padding.
-            {0, 0}, options->autoPad(), exception_state);
-    if (!calculated_output_sizes) {
-      return nullptr;
-    }
-    auto calculated_output_height = calculated_output_sizes->height;
-    auto calculated_output_width = calculated_output_sizes->width;
-    if (output_height < calculated_output_height ||
-        output_height >= calculated_output_height + strides[0]) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "The height of output sizes is invalid.");
-      return nullptr;
-    }
-    if (output_width < calculated_output_width ||
-        output_width >= calculated_output_width + strides[1]) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "The width of output sizes is invalid.");
-      return nullptr;
-    }
-    ml_context_->LogConsoleWarning(
-        "When output sizes are specified, output padding argument is ignored");
-  } else {
-    const auto output_sizes = ValidateAndCalculateConvTranspose2dOutputSizes(
-        input_height, input_width, filter_height, filter_width,
-        // If padding is not present, the values are assumed to be [0,0,0,0].
-        options->getPaddingOr({0, 0, 0, 0}),
-        // If strides is not present, the values are assumed to be [1,1].
-        options->getStridesOr({1, 1}),
-        // If dilations is not present, the values are assumed to be [1, 1].
-        options->getDilationsOr({1, 1}),
-        // If outputPadding is not present, the values are assumed to be [0, 0].
-        options->getOutputPaddingOr({0, 0}), options->autoPad(),
-        exception_state);
-    if (!output_sizes) {
-      return nullptr;
-    }
-    output_height = output_sizes->height;
-    output_width = output_sizes->width;
-  }
-  // The input layout option specifies the layout format of the output tensor.
-  Vector<uint32_t> output_shape;
-  switch (options->inputLayout().AsEnum()) {
-    case V8MLInputOperandLayout::Enum::kNchw:
-      // "nchw": [batches, output_channels, height, width]
-      output_shape = {input_batches, output_channels, output_height,
-                      output_width};
-      break;
-    case V8MLInputOperandLayout::Enum::kNhwc:
-      // "nhwc": [batches, height, width, output_channels]
-      output_shape = {input_batches, output_height, output_width,
-                      output_channels};
-      break;
-  }
-  // Create convTranspose2d operator and its output operand. Connect the
-  // convTranspose2d operator to its input and output operands.
-  auto* convTranspose2d = MakeGarbageCollected<MLOperator>(
-      this, MLOperator::OperatorKind::kConvTranspose2d, options);
-  HeapVector<Member<const MLOperand>> inputs = {input, filter};
+  HeapVector<Member<MLOperand>> inputs = {input, filter};
   if (options->hasBias()) {
     inputs.push_back(options->bias());
   }
-  String error_message;
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      this, input->Type(), std::move(output_shape), convTranspose2d,
-      error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  auto convTranspose2d_attributes = ConvertToConvTranspose2dAttributes(options);
+  if (!convTranspose2d_attributes.has_value()) {
+    exception_state.ThrowTypeError(convTranspose2d_attributes.error());
     return nullptr;
   }
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateConvTranspose2dAndInferOutput(
+          ml_context_->GetProperties(), input->Descriptor(),
+          filter->Descriptor(), convTranspose2d_attributes.value()));
+
+  // Create convTranspose2d operator and its output operand. Connect the
+  // convTranspose2d operator to its input and output operands.
+  auto* convTranspose2d = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kConv2d, options,
+      /*sub_type=*/blink_mojom::Conv2d::Kind::kTransposed);
+  MLOperand* output = MLOperand::CreateOutput(
+      this, std::move(output_descriptor), convTranspose2d);
   convTranspose2d->Connect(std::move(inputs), {output});
   return output;
 }
 
-#define BUILD_ELEMENTWISE_BINARY_OP(op, op_kind)                              \
-  MLOperand* MLGraphBuilder::op(const MLOperand* a, const MLOperand* b,       \
-                                ExceptionState& exception_state) {            \
-    return BuildElementWiseBinary(this, MLOperator::OperatorKind::op_kind, a, \
-                                  b, exception_state);                        \
-  }
+MLOperand* MLGraphBuilder::cumulativeSum(MLOperand* input,
+                                         const uint32_t axis,
+                                         MLCumulativeSumOptions* options,
+                                         ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
 
-BUILD_ELEMENTWISE_BINARY_OP(add, kAdd)
-BUILD_ELEMENTWISE_BINARY_OP(sub, kSub)
-BUILD_ELEMENTWISE_BINARY_OP(mul, kMul)
-BUILD_ELEMENTWISE_BINARY_OP(div, kDiv)
-BUILD_ELEMENTWISE_BINARY_OP(min, kMin)
-BUILD_ELEMENTWISE_BINARY_OP(max, kMax)
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateCumulativeSumAndInferOutput(ml_context_->GetProperties(),
+                                                 input->Descriptor(), axis,
+                                                 options->label().Utf8()));
 
-MLOperand* MLGraphBuilder::elu(const MLOperand* input,
-                               const MLEluOptions* options,
-                               ExceptionState& exception_state) {
-  // The current spec doesn't specify the operand type constraints of elu. An
-  // issue has been filed to track it:
-  // https://github.com/webmachinelearning/webnn/issues/283.
-  if (!IsFloatingPointType(input->Type())) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "The type of input must be one of the floating point types.");
-    return nullptr;
-  }
-  auto* elu = MakeGarbageCollected<MLOperator>(
-      this, MLOperator::OperatorKind::kElu, options);
-  // According to WebNN spec
-  // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-elu, the output tensor of
-  // elu has the same type and dimensions as its input.
-  String error_message;
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      this, input->Type(), input->Dimensions(), elu, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
-    return nullptr;
-  }
-  elu->Connect({input}, {output});
+  // Create cumulativeSum operator and its output operand. Connect the
+  // cumulativeSum operator to its input and output operands.
+  auto* cumulativeSum =
+      MakeGarbageCollected<MLCumulativeSumOperator>(this, axis, options);
+  MLOperand* output = MLOperand::CreateOutput(
+      this, std::move(output_descriptor), cumulativeSum);
+  cumulativeSum->Connect({input}, {output});
+
   return output;
 }
 
-MLActivation* MLGraphBuilder::elu(const MLEluOptions* options,
-                                  ExceptionState& exception_state) {
-  // Create the elu operator that would be used as an activation
-  // function.
-  return MakeGarbageCollected<MLActivation>(
-      this, MLOperator::OperatorKind::kElu, options);
+// Macro to define the function for an elementwise binary op. `op_camel` is the
+// name of the op in camel case. `op_snake` is the name of the op in snake case.
+// `op_kind` is the corresponding `ElementWiseBinary::Kind` enum. We need to
+// separately specify the camel case and the snake case name because the
+// function name is in camel case, while the corresponding `DataTypeLimits`
+// field is in snake case.
+#define BUILD_ELEMENTWISE_BINARY_OP(op_camel, op_snake, op_kind)              \
+  MLOperand* MLGraphBuilder::op_camel(MLOperand* a, MLOperand* b,             \
+                                      MLOperatorOptions* options,             \
+                                      ExceptionState& exception_state) {      \
+    THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);          \
+    THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs({a, b}), nullptr);          \
+    return BuildElementWiseBinary(                                            \
+        ml_context_->GetProperties(), this,                                   \
+        blink_mojom::ElementWiseBinary::Kind::op_kind,                        \
+        ml_context_->GetProperties().data_type_limits.op_snake##_input, a, b, \
+        options, exception_state);                                            \
+  }
+
+BUILD_ELEMENTWISE_BINARY_OP(add, add, kAdd)
+BUILD_ELEMENTWISE_BINARY_OP(sub, sub, kSub)
+BUILD_ELEMENTWISE_BINARY_OP(mul, mul, kMul)
+BUILD_ELEMENTWISE_BINARY_OP(div, div, kDiv)
+BUILD_ELEMENTWISE_BINARY_OP(min, min, kMin)
+BUILD_ELEMENTWISE_BINARY_OP(max, max, kMax)
+BUILD_ELEMENTWISE_BINARY_OP(pow, pow, kPow)
+BUILD_ELEMENTWISE_BINARY_OP(equal, equal, kEqual)
+BUILD_ELEMENTWISE_BINARY_OP(greater, greater, kGreater)
+BUILD_ELEMENTWISE_BINARY_OP(lesser, lesser, kLesser)
+BUILD_ELEMENTWISE_BINARY_OP(greaterOrEqual, greater_or_equal, kGreaterOrEqual)
+BUILD_ELEMENTWISE_BINARY_OP(lesserOrEqual, lesser_or_equal, kLesserOrEqual)
+BUILD_ELEMENTWISE_BINARY_OP(notEqual, not_equal, kNotEqual)
+BUILD_ELEMENTWISE_BINARY_OP(logicalAnd, logical_and, kLogicalAnd)
+BUILD_ELEMENTWISE_BINARY_OP(logicalOr, logical_or, kLogicalOr)
+BUILD_ELEMENTWISE_BINARY_OP(logicalXor, logical_xor, kLogicalXor)
+
+#define BUILD_ELEMENTWISE_UNARY_OP(op, op_kind)                               \
+  MLOperand* MLGraphBuilder::op(MLOperand* input, MLOperatorOptions* options, \
+                                ExceptionState& exception_state) {            \
+    THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);          \
+    THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);            \
+    return BuildElementWiseUnaryOperator(                                     \
+        this, exception_state, blink_mojom::ElementWiseUnary::Kind::op_kind,  \
+        ml_context_->GetProperties().data_type_limits.op##_input, input,      \
+        options);                                                             \
+  }
+
+BUILD_ELEMENTWISE_UNARY_OP(abs, kAbs)
+BUILD_ELEMENTWISE_UNARY_OP(ceil, kCeil)
+BUILD_ELEMENTWISE_UNARY_OP(cos, kCos)
+BUILD_ELEMENTWISE_UNARY_OP(exp, kExp)
+BUILD_ELEMENTWISE_UNARY_OP(floor, kFloor)
+BUILD_ELEMENTWISE_UNARY_OP(log, kLog)
+BUILD_ELEMENTWISE_UNARY_OP(neg, kNeg)
+BUILD_ELEMENTWISE_UNARY_OP(sign, kSign)
+BUILD_ELEMENTWISE_UNARY_OP(sin, kSin)
+BUILD_ELEMENTWISE_UNARY_OP(tan, kTan)
+BUILD_ELEMENTWISE_UNARY_OP(erf, kErf)
+BUILD_ELEMENTWISE_UNARY_OP(identity, kIdentity)
+BUILD_ELEMENTWISE_UNARY_OP(reciprocal, kReciprocal)
+BUILD_ELEMENTWISE_UNARY_OP(sqrt, kSqrt)
+
+MLOperand* MLGraphBuilder::logicalNot(MLOperand* input,
+                                      MLOperatorOptions* options,
+                                      ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+  return BuildElementWiseUnaryOperator(
+      this, exception_state, blink_mojom::ElementWiseUnary::Kind::kLogicalNot,
+      ml_context_->GetProperties().data_type_limits.logical_not_input, input,
+      options);
 }
 
-MLOperand* MLGraphBuilder::gemm(const MLOperand* a,
-                                const MLOperand* b,
-                                const MLGemmOptions* options,
+MLOperand* MLGraphBuilder::cast(MLOperand* input,
+                                const V8MLOperandDataType output_data_type,
+                                MLOperatorOptions* options,
                                 ExceptionState& exception_state) {
-  if (a->Type() != b->Type()) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "The types of first two inputs don't match.");
-    return nullptr;
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateCastAndInferOutput(
+          ml_context_->GetProperties(), input->Descriptor(),
+          FromBlinkDataType(output_data_type.AsEnum()),
+          options->label().Utf8()));
+
+  auto* cast = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kElementWiseUnary, options,
+      /*sub_kind=*/blink_mojom::ElementWiseUnary::Kind::kCast);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), cast);
+
+  cast->Connect({input}, {output});
+  return output;
+}
+
+MLOperand* MLGraphBuilder::dequantizeLinear(MLOperand* input,
+                                            MLOperand* scale,
+                                            MLOperand* zeroPoint,
+                                            MLOperatorOptions* options,
+                                            ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  HeapVector<Member<MLOperand>> inputs = {input, scale, zeroPoint};
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateDequantizeLinearAndInferOutput(
+          ml_context_->GetProperties(), input->Descriptor(),
+          scale->Descriptor(), zeroPoint->Descriptor(),
+          options->label().Utf8()));
+
+  auto* dequantize_linear = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kDequantizeLinear, options);
+  MLOperand* output = MLOperand::CreateOutput(
+      this, std::move(output_descriptor), dequantize_linear);
+  dequantize_linear->Connect(std::move(inputs), {output});
+  return output;
+}
+
+#define BUILD_REDUCE_OP(op, op_kind)                                        \
+  MLOperand* MLGraphBuilder::op(MLOperand* input, MLReduceOptions* options, \
+                                ExceptionState& exception_state) {          \
+    THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);        \
+    THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);          \
+    return BuildReduce(this, blink_mojom::Reduce::Kind::op_kind,            \
+                       ml_context_->GetProperties(), input, options,        \
+                       exception_state);                                    \
   }
-  // According to WebNN spec:
-  // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-gemm, the first input 2-D
-  // tensor with shape [M, K] if aTranspose is false, or [K, M] if aTranspose is
-  // true.
-  auto shape_a = a->Dimensions();
-  if (shape_a.size() != 2) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The first input must be a 2-D tensor.");
-    return nullptr;
-  }
-  if (options->aTranspose()) {
-    shape_a.Reverse();
-  }
-  // The second input 2-D tensor with shape [K, N] if bTranspose is false, or
-  // [N, K] if bTranspose is true.
-  auto shape_b = b->Dimensions();
-  if (shape_b.size() != 2) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The second input must be a 2-D tensor.");
-    return nullptr;
-  }
-  if (options->bTranspose()) {
-    shape_b.Reverse();
-  }
-  // The number of columns in the first matrix must be equal to the number of
-  // rows in the second matrix.
-  if (shape_a[1] != shape_b[0]) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        String::Format(
-            "The number of columns (%u) in the %sfirst matrix isn't equal to "
-            "the number of rows (%u) in the %ssecond matrix.",
-            shape_a[1], options->aTranspose() ? "transposed " : "", shape_b[0],
-            options->bTranspose() ? "transposed " : ""));
-    return nullptr;
-  };
-  // The output is 2-D tensor of shape [M, N].
-  Vector<uint32_t> output_shape = {shape_a[0], shape_b[1]};
-  // The third input tensor c is either a scalar, or of the shape that is
-  // unidirectionally broadcastable to the output shape [M, N].
-  if (options->hasC()) {
-    const auto* c = options->c();
-    if (c->Type() != a->Type()) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "The third input type doesn't match other inputs' type.");
-      return nullptr;
-    }
-    const auto shape_c = options->c()->Dimensions();
-    if (shape_c.size() > 2) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "The third input tensor should be either a scalar or a 2-D tensor.");
-      return nullptr;
-    }
-    if (!BroadcastShapes(shape_c, output_shape, false)) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "The third input tensor isn't unidirectionally broadcastable to the "
-          "output tensor.");
-      return nullptr;
-    }
-  }
-  auto* gemm = MakeGarbageCollected<MLOperator>(
-      this, MLOperator::OperatorKind::kGemm, options);
-  HeapVector<Member<const MLOperand>> inputs = {a, b};
+
+BUILD_REDUCE_OP(reduceL1, kL1)
+BUILD_REDUCE_OP(reduceL2, kL2)
+BUILD_REDUCE_OP(reduceLogSum, kLogSum)
+BUILD_REDUCE_OP(reduceLogSumExp, kLogSumExp)
+BUILD_REDUCE_OP(reduceMax, kMax)
+BUILD_REDUCE_OP(reduceMean, kMean)
+BUILD_REDUCE_OP(reduceMin, kMin)
+BUILD_REDUCE_OP(reduceProduct, kProduct)
+BUILD_REDUCE_OP(reduceSum, kSum)
+BUILD_REDUCE_OP(reduceSumSquare, kSumSquare)
+
+MLOperand* MLGraphBuilder::elu(MLOperand* input,
+                               MLEluOptions* options,
+                               ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+  const std::string label = options->label().Utf8();
+
+  // According to WebNN spec
+  // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-elu, the output tensor of
+  // elu has the same data type and dimensions as its input.
+  return BuildUnaryOperator(
+      this, exception_state, blink_mojom::Operation::Tag::kElu,
+      ml_context_->GetProperties().data_type_limits.elu_input, input, options);
+}
+
+MLOperand* MLGraphBuilder::expand(MLOperand* input,
+                                  const Vector<uint32_t>& new_shape,
+                                  MLOperatorOptions* options,
+                                  ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateExpandAndInferOutput(ml_context_->GetProperties(),
+                                          input->Descriptor(), new_shape,
+                                          options->label().Utf8()));
+
+  auto* expand = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kExpand, options);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), expand);
+
+  expand->Connect({input}, {output});
+  return output;
+}
+
+MLOperand* MLGraphBuilder::gather(MLOperand* input,
+                                  MLOperand* indices,
+                                  MLGatherOptions* options,
+                                  ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+
+  HeapVector<Member<MLOperand>> inputs = {input, indices};
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateGatherAndInferOutput(
+          ml_context_->GetProperties(), input->Descriptor(),
+          indices->Descriptor(), options->axis(), options->label().Utf8()));
+
+  auto* gather = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kGather, options);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), gather);
+
+  gather->Connect(std::move(inputs), {output});
+  return output;
+}
+
+MLOperand* MLGraphBuilder::gatherElements(MLOperand* input,
+                                          MLOperand* indices,
+                                          MLGatherOptions* options,
+                                          ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+
+  HeapVector<Member<MLOperand>> inputs = {input, indices};
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateGatherElementsAndInferOutput(
+          ml_context_->GetProperties(), input->Descriptor(),
+          indices->Descriptor(), options->axis(), options->label().Utf8()));
+
+  auto* gather_elements = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kGatherElements, options);
+  MLOperand* output = MLOperand::CreateOutput(
+      this, std::move(output_descriptor), gather_elements);
+
+  gather_elements->Connect(std::move(inputs), {output});
+  return output;
+}
+
+MLOperand* MLGraphBuilder::gatherND(MLOperand* input,
+                                    MLOperand* indices,
+                                    MLOperatorOptions* options,
+                                    ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+
+  HeapVector<Member<MLOperand>> inputs = {input, indices};
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateGatherNDAndInferOutput(
+          ml_context_->GetProperties(), input->Descriptor(),
+          indices->Descriptor(), options->label().Utf8()));
+
+  auto* gather_nd = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kGatherNd, options);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), gather_nd);
+
+  gather_nd->Connect(std::move(inputs), {output});
+  return output;
+}
+
+MLOperand* MLGraphBuilder::gelu(MLOperand* input,
+                                MLOperatorOptions* options,
+                                ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  // According to WebNN spec
+  // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-gelu, the output tensor of
+  // gelu has the same data type and dimensions as its input. And the input data
+  // type must be one of the floating point types.
+  return BuildUnaryOperator(
+      this, exception_state, blink_mojom::Operation::Tag::kGelu,
+      ml_context_->GetProperties().data_type_limits.gelu_input, input, options);
+}
+
+MLOperand* MLGraphBuilder::gemm(MLOperand* a,
+                                MLOperand* b,
+                                MLGemmOptions* options,
+                                ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+
+  HeapVector<Member<MLOperand>> inputs = {a, b};
   if (options->hasC()) {
     inputs.push_back(options->c());
   }
-  String error_message;
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      this, a->Type(), std::move(output_shape), gemm, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
-    return nullptr;
-  }
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateGemmAndInferOutput(ml_context_->GetProperties(),
+                                        a->Descriptor(), b->Descriptor(),
+                                        ConvertToGemmAttributes(options)));
+
+  auto* gemm = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kGemm, options);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), gemm);
+
   gemm->Connect(std::move(inputs), {output});
   return output;
 }
 
-MLOperand* MLGraphBuilder::hardSwish(const MLOperand* input,
-                                     ExceptionState& exception_state) {
-  // The input type must be one of the floating point types. Although this
-  // constraint is not specified in current WebNN spec, there is a feature
-  // request for that: https://github.com/webmachinelearning/webnn/issues/283
-  if (!IsFloatingPointType(input->Type())) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "The input type must be one of the floating point types.");
-    return nullptr;
+HeapVector<Member<MLOperand>> MLGraphBuilder::gru(
+    MLOperand* input,
+    MLOperand* weight,
+    MLOperand* recurrent_weight,
+    const uint32_t steps,
+    const uint32_t hidden_size,
+    MLGruOptions* options,
+    ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(),
+                            HeapVector<Member<MLOperand>>());
+
+  HeapVector<Member<MLOperand>> inputs = {input, weight, recurrent_weight};
+  if (options->hasBias()) {
+    inputs.push_back(options->bias());
   }
-  auto* hard_swish = MakeGarbageCollected<MLOperator>(
-      this, MLOperator::OperatorKind::kHardSwish);
+  if (options->hasRecurrentBias()) {
+    inputs.push_back(options->recurrentBias());
+  }
+  if (options->hasInitialHiddenState()) {
+    inputs.push_back(options->initialHiddenState());
+  }
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs),
+                                 HeapVector<Member<MLOperand>>());
+
+  auto validated_outputs = webnn::ValidateGruAndInferOutput(
+      ml_context_->GetProperties(), input->Descriptor(), weight->Descriptor(),
+      recurrent_weight->Descriptor(), steps, hidden_size,
+      ConvertToGruAttributes(this, options));
+  if (!validated_outputs.has_value()) {
+    exception_state.ThrowTypeError(String::FromUTF8(validated_outputs.error()));
+    return {};
+  }
+  auto* gru =
+      MakeGarbageCollected<MLGruOperator>(this, steps, hidden_size, options);
+
+  HeapVector<Member<MLOperand>> outputs;
+  for (const auto& validated_output : validated_outputs.value()) {
+    outputs.push_back(MLOperand::CreateOutput(this, validated_output, gru));
+  }
+
+  gru->Connect(std::move(inputs), outputs);
+  return outputs;
+}
+
+MLOperand* MLGraphBuilder::gruCell(MLOperand* input,
+                                   MLOperand* weight,
+                                   MLOperand* recurrent_weight,
+                                   MLOperand* hidden_state,
+                                   const uint32_t hidden_size,
+                                   MLGruCellOptions* options,
+                                   ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+
+  HeapVector<Member<MLOperand>> inputs = {input, weight, recurrent_weight,
+                                          hidden_state};
+  if (options->hasBias()) {
+    inputs.push_back(options->bias());
+  }
+  if (options->hasRecurrentBias()) {
+    inputs.push_back(options->recurrentBias());
+  }
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor validated_output,
+      webnn::ValidateGruCellAndInferOutput(
+          ml_context_->GetProperties(), input->Descriptor(),
+          weight->Descriptor(), recurrent_weight->Descriptor(),
+          hidden_state->Descriptor(), hidden_size,
+          ConvertToGruCellAttributes(this, options)));
+
+  auto* gru_cell =
+      MakeGarbageCollected<MLGruCellOperator>(this, hidden_size, options);
+
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(validated_output), gru_cell);
+
+  gru_cell->Connect(std::move(inputs), {output});
+  return output;
+}
+
+MLOperand* MLGraphBuilder::hardSigmoid(MLOperand* input,
+                                       MLHardSigmoidOptions* options,
+                                       ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  // According to WebNN spec
+  // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-hardsigmoid, the output
+  // tensor of softplus has the same type and dimensions as its input.
+  return BuildUnaryOperator(
+      this, exception_state, blink_mojom::Operation::Tag::kHardSigmoid,
+      ml_context_->GetProperties().data_type_limits.hard_sigmoid_input, input,
+      options);
+}
+
+MLOperand* MLGraphBuilder::hardSwish(MLOperand* input,
+                                     MLOperatorOptions* options,
+                                     ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
   // According to WebNN spec
   // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-hard-swish, the output
-  // tensor of hard-swish has the same type and dimensions as its input.
-  String error_message;
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      this, input->Type(), input->Dimensions(), hard_swish, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
-    return nullptr;
+  // tensor of hard-swish has the same data type and dimensions as its input.
+  return BuildUnaryOperator(
+      this, exception_state, blink_mojom::Operation::Tag::kHardSwish,
+      ml_context_->GetProperties().data_type_limits.hard_swish_input, input,
+      options);
+}
+
+MLOperand* MLGraphBuilder::instanceNormalization(
+    MLOperand* input,
+    MLInstanceNormalizationOptions* options,
+    ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+
+  HeapVector<Member<MLOperand>> inputs = {input};
+  // Adding the optional operands into inputs ensures the graph traversal
+  // algorithm GetOperatorsInTopologicalOrder() works. For backends, the
+  // optional operands should be retrieved from the options instead of inputs.
+  if (options->hasScale()) {
+    inputs.push_back(options->scale());
   }
-  hard_swish->Connect({input}, {output});
+  if (options->hasBias()) {
+    inputs.push_back(options->bias());
+  }
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateInstanceNormalizationAndInferOutput(
+          ml_context_->GetProperties(), input->Descriptor(),
+          ConvertToInstanceNormalizationAttributes(options)));
+
+  auto* instance_normalization = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kInstanceNormalization, options);
+
+  MLOperand* output = MLOperand::CreateOutput(
+      this, std::move(output_descriptor), instance_normalization);
+
+  instance_normalization->Connect(std::move(inputs), {output});
   return output;
 }
 
-MLActivation* MLGraphBuilder::hardSwish(ExceptionState& exception_state) {
-  // Create the hard-swish operator that would be used as an activation
-  // function.
-  return MakeGarbageCollected<MLActivation>(
-      this, MLOperator::OperatorKind::kHardSwish);
+MLOperand* MLGraphBuilder::layerNormalization(
+    MLOperand* input,
+    MLLayerNormalizationOptions* options,
+    ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+
+  HeapVector<Member<MLOperand>> inputs = {input};
+  // Adding the optional operands into inputs ensures the graph traversal
+  // algorithm GetOperatorsInTopologicalOrder() works. For backends, the
+  // optional operands should be retrieved from the options instead of inputs.
+  if (options->hasScale()) {
+    inputs.push_back(options->scale());
+  }
+  if (options->hasBias()) {
+    inputs.push_back(options->bias());
+  }
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  // TODO(crbug.com/1273291): Figure out whether the `axes` should be required,
+  // tracked by issue: https://github.com/webmachinelearning/webnn/issues/487
+  const Vector<uint32_t> axes =
+      options->getAxesOr(CreateLayerNormalizationDefaultAxes(input->Rank()));
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateLayerNormalizationAndInferOutput(
+          ml_context_->GetProperties(), input->Descriptor(), axes,
+          ConvertToLayerNormalizationAttributes(options)));
+
+  auto* layer_normalization = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kLayerNormalization, options);
+
+  MLOperand* output = MLOperand::CreateOutput(
+      this, std::move(output_descriptor), layer_normalization);
+
+  layer_normalization->Connect(std::move(inputs), {output});
+  return output;
 }
 
-MLOperand* MLGraphBuilder::leakyRelu(const MLOperand* input,
-                                     const MLLeakyReluOptions* options,
+MLOperand* MLGraphBuilder::leakyRelu(MLOperand* input,
+                                     MLLeakyReluOptions* options,
                                      ExceptionState& exception_state) {
-  auto* leaky_relu = MakeGarbageCollected<MLOperator>(
-      this, MLOperator::OperatorKind::kLeakyRelu, options);
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
   // According to WebNN spec
-  // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-relu, the output tensor of
-  // relu has the same type and dimensions as its input.
-  String error_message;
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      this, input->Type(), input->Dimensions(), leaky_relu, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
-    return nullptr;
+  // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-leakyrelu, the output
+  // tensor of leaky relu has the same type and dimensions as its input.
+  return BuildUnaryOperator(
+      this, exception_state, blink_mojom::Operation::Tag::kLeakyRelu,
+      ml_context_->GetProperties().data_type_limits.leaky_relu_input, input,
+      options);
+}
+
+MLOperand* MLGraphBuilder::linear(MLOperand* input,
+                                  MLLinearOptions* options,
+                                  ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  // The current spec doesn't specify the operand data type constraints of
+  // linear. An issue has been filed to track it:
+  // https://github.com/webmachinelearning/webnn/issues/283.
+  //
+  // According to WebNN spec
+  // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-linear, the output tensor
+  // of linear has the same type and dimensions as its input.
+  return BuildUnaryOperator(
+      this, exception_state, blink_mojom::Operation::Tag::kLinear,
+      ml_context_->GetProperties().data_type_limits.linear_input, input,
+      options);
+}
+
+HeapVector<Member<MLOperand>> MLGraphBuilder::lstm(
+    MLOperand* input,
+    MLOperand* weight,
+    MLOperand* recurrent_weight,
+    const uint32_t steps,
+    const uint32_t hidden_size,
+    MLLstmOptions* options,
+    ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(),
+                            HeapVector<Member<MLOperand>>());
+
+  HeapVector<Member<MLOperand>> inputs = {input, weight, recurrent_weight};
+  if (options->hasBias()) {
+    inputs.push_back(options->bias());
   }
-  leaky_relu->Connect({input}, {output});
+  if (options->hasRecurrentBias()) {
+    inputs.push_back(options->recurrentBias());
+  }
+  if (options->hasPeepholeWeight()) {
+    inputs.push_back(options->peepholeWeight());
+  }
+  if (options->hasInitialHiddenState()) {
+    inputs.push_back(options->initialHiddenState());
+  }
+  if (options->hasInitialCellState()) {
+    inputs.push_back(options->initialCellState());
+  }
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs),
+                                 HeapVector<Member<MLOperand>>());
+
+  if (!options->hasActivations()) {
+    // Create a default activation sequence as defined in the spec.
+    options->setActivations(
+        {V8MLRecurrentNetworkActivation(
+             V8MLRecurrentNetworkActivation::Enum::kSigmoid),
+         V8MLRecurrentNetworkActivation(
+             V8MLRecurrentNetworkActivation::Enum::kTanh),
+         V8MLRecurrentNetworkActivation(
+             V8MLRecurrentNetworkActivation::Enum::kTanh)});
+  }
+
+  auto validated_outputs = webnn::ValidateLstmAndInferOutput(
+      ml_context_->GetProperties(), input->Descriptor(), weight->Descriptor(),
+      recurrent_weight->Descriptor(), steps, hidden_size,
+      ConvertToLstmAttributes(options));
+  if (!validated_outputs.has_value()) {
+    exception_state.ThrowTypeError(String::FromUTF8(validated_outputs.error()));
+    return {};
+  }
+
+  auto* lstm =
+      MakeGarbageCollected<MLLstmOperator>(this, steps, hidden_size, options);
+
+  HeapVector<Member<MLOperand>> outputs;
+  for (const auto& validated_output : validated_outputs.value()) {
+    outputs.push_back(MLOperand::CreateOutput(this, validated_output, lstm));
+  }
+
+  lstm->Connect(std::move(inputs), outputs);
+  return outputs;
+}
+
+HeapVector<Member<MLOperand>> MLGraphBuilder::lstmCell(
+    MLOperand* input,
+    MLOperand* weight,
+    MLOperand* recurrent_weight,
+    MLOperand* hidden_state,
+    MLOperand* cell_state,
+    const uint32_t hidden_size,
+    MLLstmCellOptions* options,
+    ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(),
+                            HeapVector<Member<MLOperand>>());
+
+  HeapVector<Member<MLOperand>> inputs = {input, weight, recurrent_weight,
+                                          hidden_state, cell_state};
+  if (options->hasBias()) {
+    inputs.push_back(options->bias());
+  }
+  if (options->hasRecurrentBias()) {
+    inputs.push_back(options->recurrentBias());
+  }
+  if (options->hasPeepholeWeight()) {
+    inputs.push_back(options->peepholeWeight());
+  }
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs),
+                                 HeapVector<Member<MLOperand>>());
+
+  if (!options->hasActivations()) {
+    // Create a default activation sequence as defined in the spec.
+    options->setActivations(
+        {V8MLRecurrentNetworkActivation(
+             V8MLRecurrentNetworkActivation::Enum::kSigmoid),
+         V8MLRecurrentNetworkActivation(
+             V8MLRecurrentNetworkActivation::Enum::kTanh),
+         V8MLRecurrentNetworkActivation(
+             V8MLRecurrentNetworkActivation::Enum::kTanh)});
+  }
+
+  auto validated_outputs = webnn::ValidateLstmCellAndInferOutput(
+      ml_context_->GetProperties(), input->Descriptor(), weight->Descriptor(),
+      recurrent_weight->Descriptor(), hidden_state->Descriptor(),
+      cell_state->Descriptor(), hidden_size,
+      ConvertToLstmCellAttributes(options));
+  if (!validated_outputs.has_value()) {
+    exception_state.ThrowTypeError(String::FromUTF8(validated_outputs.error()));
+    return {};
+  }
+
+  auto* lstm_cell =
+      MakeGarbageCollected<MLLstmCellOperator>(this, hidden_size, options);
+
+  HeapVector<Member<MLOperand>> outputs;
+  CHECK_EQ(validated_outputs->size(), 2u);
+  outputs.reserve(2);
+  for (const auto& validated_output : validated_outputs.value()) {
+    outputs.push_back(
+        MLOperand::CreateOutput(this, validated_output, lstm_cell));
+  }
+
+  lstm_cell->Connect(std::move(inputs), outputs);
+  return outputs;
+}
+
+MLOperand* MLGraphBuilder::matmul(MLOperand* a,
+                                  MLOperand* b,
+                                  MLOperatorOptions* options,
+                                  ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+
+  HeapVector<Member<MLOperand>> inputs = {a, b};
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateMatmulAndInferOutput(ml_context_->GetProperties(),
+                                          a->Descriptor(), b->Descriptor(),
+                                          options->label().Utf8()));
+
+  // Create matmul operator and its output operand. Connect the matmul operator
+  // to its input and output operands.
+  auto* matmul = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kMatmul, options);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), matmul);
+
+  matmul->Connect(std::move(inputs), {output});
   return output;
 }
 
-MLActivation* MLGraphBuilder::leakyRelu(const MLLeakyReluOptions* options,
-                                        ExceptionState& exception_state) {
-  // Create the leakyRelu operator that would be used as an activation
-  // function.
-  return MakeGarbageCollected<MLActivation>(
-      this, MLOperator::OperatorKind::kLeakyRelu, options);
-}
-
-MLOperand* MLGraphBuilder::pad(const MLOperand* input,
+MLOperand* MLGraphBuilder::pad(ScriptState* script_state,
+                               MLOperand* input,
                                const Vector<uint32_t>& beginning_padding,
                                const Vector<uint32_t>& ending_padding,
-                               const MLPadOptions* options,
+                               MLPadOptions* options,
                                ExceptionState& exception_state) {
-  const auto input_rank = input->Dimensions().size();
-  if (beginning_padding.size() != input_rank) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The length of beginningPadding must be "
-                                      "equal to the rank of the input tensor.");
-    return nullptr;
-  }
-  if (ending_padding.size() != input_rank) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The length of endingPadding must be "
-                                      "equal to the rank of the input tensor.");
-    return nullptr;
-  }
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  const std::string label = options->label().Utf8();
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidatePadAndInferOutput(ml_context_->GetProperties(),
+                                       input->Descriptor(), beginning_padding,
+                                       ending_padding, label));
 
   if (options->mode().AsEnum() != V8MLPaddingMode::Enum::kConstant &&
       fabs(options->value() - 0.0f) > std::numeric_limits<float>::epsilon()) {
-    ml_context_->LogConsoleWarning(
-        "The pad value is ignored unless the options.mode is set to "
-        "constant.");
-  }
-
-  // Each dimension of the output tensor can be calculated as follow:
-  // output_size = beginning_padding + input_size + ending_padding.
-  Vector<uint32_t> output_shape(input_rank);
-  for (wtf_size_t i = 0; i < input_rank; i++) {
-    auto checked_output_size =
-        base::MakeCheckedNum<uint32_t>(input->Dimensions()[i]) +
-        beginning_padding[i] + ending_padding[i];
-    if (!checked_output_size.AssignIfValid(&output_shape[i])) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          String::Format("The padding of dimension (%u) is too large.", i));
-      return nullptr;
-    }
+    LogConsoleWarning(
+        script_state,
+        String::FromUTF8(webnn::GetErrorLabelPrefix(label)) +
+            String::Format(
+                "The pad value is ignored unless the options.mode is set to "
+                "constant."));
   }
 
   auto* pad = MakeGarbageCollected<MLPadOperator>(this, beginning_padding,
                                                   ending_padding, options);
-  String error_message;
   // According to WebNN spec
   // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-pad, the output
-  // tensor of pad has the same type as its input.
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      this, input->Type(), std::move(output_shape), pad, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
-    return nullptr;
-  }
+  // tensor of pad has the same data type as its input.
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), pad);
+
   pad->Connect({input}, {output});
   return output;
 }
 
-MLOperand* MLGraphBuilder::averagePool2d(const MLOperand* input,
-                                         const MLPool2dOptions* options,
+MLOperand* MLGraphBuilder::averagePool2d(MLOperand* input,
+                                         MLPool2dOptions* options,
                                          ExceptionState& exception_state) {
-  return BuildPool2d(this, MLOperator::OperatorKind::kAveragePool2d, input,
-                     options, exception_state);
-}
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
 
-MLOperand* MLGraphBuilder::maxPool2d(const MLOperand* input,
-                                     const MLPool2dOptions* options,
-                                     ExceptionState& exception_state) {
-  return BuildPool2d(this, MLOperator::OperatorKind::kMaxPool2d, input, options,
+  return BuildPool2d(this, blink_mojom::Pool2d::Kind::kAveragePool2d,
+                     ml_context_->GetProperties(), input, options,
                      exception_state);
 }
 
-MLOperand* MLGraphBuilder::prelu(const MLOperand* input,
-                                 const MLOperand* slope,
+MLOperand* MLGraphBuilder::l2Pool2d(MLOperand* input,
+                                    MLPool2dOptions* options,
+                                    ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  return BuildPool2d(this, blink_mojom::Pool2d::Kind::kL2Pool2d,
+                     ml_context_->GetProperties(), input, options,
+                     exception_state);
+}
+
+MLOperand* MLGraphBuilder::maxPool2d(MLOperand* input,
+                                     MLPool2dOptions* options,
+                                     ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  return BuildPool2d(this, blink_mojom::Pool2d::Kind::kMaxPool2d,
+                     ml_context_->GetProperties(), input, options,
+                     exception_state);
+}
+
+MLOperand* MLGraphBuilder::prelu(MLOperand* input,
+                                 MLOperand* slope,
+                                 MLOperatorOptions* options,
                                  ExceptionState& exception_state) {
-  if (input->Type() != slope->Type()) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "The type of slope doesn't match the type of input.");
-    return nullptr;
-  }
-  if (!IsFloatingPointType(input->Type())) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "The type of input and slope must be one of the floating point types.");
-    return nullptr;
-  }
-  // BroadcastShape unidirectionally broadcasts the slope->Dimensions() to the
-  // input->Dimensions().
-  if (!BroadcastShapes(slope->Dimensions(), input->Dimensions(), false)) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "The shape of slope is not broadcastable to the shape of input.");
-    return nullptr;
-  }
-  auto* prelu =
-      MakeGarbageCollected<MLOperator>(this, MLOperator::OperatorKind::kPRelu);
-  String error_message;
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      this, input->Type(), input->Dimensions(), prelu, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
-    return nullptr;
-  }
-  prelu->Connect({input, slope}, {output});
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+
+  HeapVector<Member<MLOperand>> inputs = {input, slope};
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidatePreluAndInferOutput(
+          ml_context_->GetProperties(), input->Descriptor(),
+          slope->Descriptor(), options->label().Utf8()));
+
+  auto* prelu = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kPrelu, options);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), prelu);
+
+  prelu->Connect(std::move(inputs), {output});
   return output;
 }
 
-MLOperand* MLGraphBuilder::relu(const MLOperand* input,
+MLOperand* MLGraphBuilder::quantizeLinear(MLOperand* input,
+                                          MLOperand* scale,
+                                          MLOperand* zeroPoint,
+                                          MLOperatorOptions* options,
+                                          ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  HeapVector<Member<MLOperand>> inputs = {input, scale, zeroPoint};
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateQuantizeLinearAndInferOutput(
+          ml_context_->GetProperties(), input->Descriptor(),
+          scale->Descriptor(), zeroPoint->Descriptor(),
+          options->label().Utf8()));
+
+  auto* quantize_linear = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kQuantizeLinear, options);
+  MLOperand* output = MLOperand::CreateOutput(
+      this, std::move(output_descriptor), quantize_linear);
+  quantize_linear->Connect(std::move(inputs), {output});
+  return output;
+}
+
+MLOperand* MLGraphBuilder::relu(MLOperand* input,
+                                MLOperatorOptions* options,
                                 ExceptionState& exception_state) {
-  auto* relu =
-      MakeGarbageCollected<MLOperator>(this, MLOperator::OperatorKind::kRelu);
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
   // According to WebNN spec
   // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-relu, the output tensor of
-  // relu has the same type and dimensions as its input.
-  String error_message;
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      this, input->Type(), input->Dimensions(), relu, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
+  // relu has the same data type and dimensions as its input.
+  return BuildUnaryOperator(
+      this, exception_state, blink_mojom::Operation::Tag::kRelu,
+      ml_context_->GetProperties().data_type_limits.relu_input, input, options);
+}
+
+MLOperand* MLGraphBuilder::reshape(MLOperand* input,
+                                   const Vector<uint32_t>& new_shape,
+                                   MLOperatorOptions* options,
+                                   ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  const std::string label = options->label().Utf8();
+
+  if (!ml_context_->GetProperties().data_type_limits.reshape_input.Supports(
+          input->Descriptor())) {
+    exception_state.ThrowTypeError(
+        String::FromUTF8(webnn::GetErrorLabelPrefix(label)) +
+        String(NotSupportedInputArgumentError(
+            input->Descriptor(),
+            ml_context_->GetProperties().data_type_limits.reshape_input)));
     return nullptr;
   }
-  relu->Connect({input}, {output});
-  return output;
-}
 
-MLActivation* MLGraphBuilder::relu(ExceptionState& exception_state) {
-  // Create the relu operator that would be used as an activation function.
-  return MakeGarbageCollected<MLActivation>(this,
-                                            MLOperator::OperatorKind::kRelu);
-}
-
-MLOperand* MLGraphBuilder::reshape(
-    const MLOperand* input,
-    const Vector<absl::optional<uint32_t>>& new_shape,
-    ExceptionState& exception_state) {
-  absl::optional<wtf_size_t> null_dim_index = absl::nullopt;
+  // Setting the initial number of elements to 1 would cover the 0-D scalar with
+  // empty dimensions.
   base::CheckedNumeric<size_t> checked_newshape_number_of_elements = 1;
-  Vector<uint32_t> output_shape;
-  if (new_shape.size() == 0) {
-    // The empty new shape means reshaping to scalar, set output shape to {1}.
-    output_shape = {1};
-  } else {
-    output_shape.resize(new_shape.size());
-    // According to WebNN spec:
-    // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-reshape, only one
-    // component of new shape can be the special value of null.
-    for (wtf_size_t i = 0; i < new_shape.size(); ++i) {
-      auto dim = new_shape[i];
-      if (!dim) {
-        if (null_dim_index) {
-          exception_state.ThrowDOMException(
-              DOMExceptionCode::kDataError,
-              "Only one component of new shape can be null.");
-          return nullptr;
-        }
-        null_dim_index = i;
-      } else {
-        if (dim.value() == 0) {
-          exception_state.ThrowDOMException(
-              DOMExceptionCode::kDataError,
-              "The value of new shape should not be 0.");
-          return nullptr;
-        }
-        checked_newshape_number_of_elements *= dim.value();
-        output_shape[i] = dim.value();
-      }
+  Vector<uint32_t> output_shape(new_shape.size());
+  for (wtf_size_t i = 0; i < new_shape.size(); ++i) {
+    auto dim = new_shape[i];
+    if (dim == 0) {
+      exception_state.ThrowTypeError(
+          String::FromUTF8(webnn::GetErrorLabelPrefix(label)) +
+          "The value of new shape should not be 0.");
+      return nullptr;
     }
+    checked_newshape_number_of_elements *= dim;
+    output_shape[i] = dim;
   }
   size_t newshape_number_of_elements;
   if (!checked_newshape_number_of_elements.AssignIfValid(
           &newshape_number_of_elements)) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
+    exception_state.ThrowTypeError(
+        String::FromUTF8(webnn::GetErrorLabelPrefix(label)) +
         "The number of elements implied by new shape is too large.");
     return nullptr;
   }
   DCHECK_NE(newshape_number_of_elements, size_t(0));
-  if (null_dim_index) {
-    // The size of the dimension with the value of null is computed so that the
-    // total size remains constant.
-    if (input->NumberOfElements() % newshape_number_of_elements != size_t(0)) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          String::Format(
-              "The number of elements (%zu) in the input tensor can't be "
-              "divided evenly by the number of elements (%zu) implied by new "
-              "shape.",
-              input->NumberOfElements(), newshape_number_of_elements));
-      return nullptr;
-    }
-    // Check whether the quotient of type size_t is in the range of dimension of
-    // type uint32_t.
-    if (!base::CheckDiv(input->NumberOfElements(), newshape_number_of_elements)
-             .AssignIfValid(&output_shape[null_dim_index.value()])) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "The size of dimension with the value null is too large.");
-      return nullptr;
-    }
-  } else {
-    // The number of elements implied by new shape must be the same as the
-    // number of elements in the input tensor.
-    if (input->NumberOfElements() != newshape_number_of_elements) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          String::Format(
-              "The number of elements (%zu) implied by new shape doesn't match "
-              "the number of elements (%zu) in the input tensor.",
-              newshape_number_of_elements, input->NumberOfElements()));
-      return nullptr;
-    }
-  }
-  auto* reshape = MakeGarbageCollected<MLOperator>(
-      this, MLOperator::OperatorKind::kReshape);
-  String error_message;
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      this, input->Type(), std::move(output_shape), reshape, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
+  // The number of elements implied by new shape must be the same as the
+  // number of elements in the input tensor.
+  if (input->NumberOfElements() != newshape_number_of_elements) {
+    exception_state.ThrowTypeError(
+        String::FromUTF8(webnn::GetErrorLabelPrefix(label)) +
+        String::Format(
+            "The number of elements (%zu) implied by new shape doesn't match "
+            "the number of elements (%zu) in the input tensor.",
+            newshape_number_of_elements, input->NumberOfElements()));
     return nullptr;
   }
+
+  // The output tensor byte length is valid because the data type and element
+  // count are the same as input.
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::OperandDescriptor::Create(ml_context_->GetProperties(),
+                                       input->DataType(), output_shape, label));
+
+  auto* reshape = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kReshape, options);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), reshape);
+
   reshape->Connect({input}, {output});
   return output;
 }
 
-MLOperand* MLGraphBuilder::resample2d(const MLOperand* input,
-                                      const MLResample2dOptions* options,
+MLOperand* MLGraphBuilder::resample2d(ScriptState* script_state,
+                                      MLOperand* input,
+                                      MLResample2dOptions* options,
                                       ExceptionState& exception_state) {
-  // According to WebNN spec:
-  // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-resample2d, the input
-  // must be a 4-D tensor.
-  const auto input_shape = input->Dimensions();
-  if (input_shape.size() != 4) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The input must be a 4-D tensor.");
-    return nullptr;
-  }
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
 
-  const auto axes = options->getAxesOr({2, 3});
-  if (axes.size() != 2) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The length of axes should be 2.");
-    return nullptr;
-  } else if (!((axes[0] == 0 && axes[1] == 1) ||
-               (axes[0] == 1 && axes[1] == 2) ||
-               (axes[0] == 2 && axes[1] == 3))) {
-    // According to WebNN spec:
-    // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-resample2d,
-    // the valid values in the sequence are [0, 1], [1, 2] or [2, 3].
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The values of axes are invalid.");
-    return nullptr;
-  }
-
-  Vector<uint32_t> output_shape(input_shape);
+  const std::string label = options->label().Utf8();
+  std::variant<base::span<const float>, base::span<const uint32_t>>
+      scales_or_sizes;
+  Vector<float> default_scales = {1.0, 1.0};
   if (options->hasSizes()) {
     if (options->hasScales()) {
-      ml_context_->LogConsoleWarning(
-          "When sizes and scales are both specified, scales argument is "
-          "ignored.");
+      LogConsoleWarning(script_state,
+                        String::FromUTF8(webnn::GetErrorLabelPrefix(label)) +
+                            "When sizes and scales are both "
+                            "specified, scales argument is "
+                            "ignored.");
     }
-    if (options->sizes().size() != 2) {
-      exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                        "The length of sizes should be 2.");
-      return nullptr;
-    } else if (std::any_of(options->sizes().begin(), options->sizes().end(),
-                           [](uint32_t x) { return x == 0; })) {
-      exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                        "All sizes should be greater than 0.");
-      return nullptr;
-    }
-    output_shape[axes[0]] = options->sizes()[0];
-    output_shape[axes[1]] = options->sizes()[1];
+    scales_or_sizes = options->sizes();
   } else {
-    const auto scales = options->getScalesOr({1.0f, 1.0f});
-    if (scales.size() != 2) {
-      exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                        "The length of scales should be 2.");
-      return nullptr;
-    } else if (std::any_of(scales.begin(), scales.end(),
-                           [](float x) { return x <= 0.0f; })) {
-      exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                        "All scales should be greater than 0.");
-      return nullptr;
-    }
-    String error_message;
-    auto output_height = CalculateResample2dOutputSize(
-        input_shape[axes[0]], scales[0], error_message);
-    if (!output_height) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "Failed to calculate the output height: " + error_message);
-      return nullptr;
-    }
-    output_shape[axes[0]] = output_height.value();
+    scales_or_sizes = options->hasScales() ? options->scales() : default_scales;
+  }
 
-    auto output_width = CalculateResample2dOutputSize(input_shape[axes[1]],
-                                                      scales[1], error_message);
-    if (!output_width) {
-      exception_state.ThrowDOMException(
-          DOMExceptionCode::kDataError,
-          "Failed to calculate the output width: " + error_message);
-      return nullptr;
-    }
-    output_shape[axes[1]] = output_width.value();
-  }
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateResample2dAndInferOutput(
+          ml_context_->GetProperties(), input->Descriptor(), scales_or_sizes,
+          options->getAxesOr({2, 3}), label));
+
+  // Create resample2d operator and its output operand. Connect the resample2d
+  // operator to its input and output operands.
   auto* resample2d = MakeGarbageCollected<MLOperator>(
-      this, MLOperator::OperatorKind::kResample2d, options);
-  String error_message;
-  // According to WebNN spec
-  // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-resample2d, the output
-  // tensor of resample2d has the same type as its input.
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      this, input->Type(), std::move(output_shape), resample2d, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
-    return nullptr;
-  }
+      this, blink_mojom::Operation::Tag::kResample2d, options);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), resample2d);
+
   resample2d->Connect({input}, {output});
   return output;
 }
 
-MLOperand* MLGraphBuilder::sigmoid(const MLOperand* input,
+MLOperand* MLGraphBuilder::reverse(MLOperand* input,
+                                   MLReverseOptions* options,
                                    ExceptionState& exception_state) {
-  auto* sigmoid = MakeGarbageCollected<MLOperator>(
-      this, MLOperator::OperatorKind::kSigmoid);
-  // According to WebNN spec
-  // https://webmachinelearning.github.io/webnn/#api-mlgraphbuilder-sigmoid, the
-  // output tensor of sigmoid has the same type and dimensions as its input.
-  // And the input type must be one of the floating point types.
-  if (!IsFloatingPointType(input->Type())) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "The input type must be one of the floating point types.");
-    return nullptr;
-  }
-  String error_message;
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      this, input->Type(), input->Dimensions(), sigmoid, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
-    return nullptr;
-  }
-  sigmoid->Connect({input}, {output});
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  Vector<uint32_t> axes = options->getAxesOr(CreateAllAxes(input->Rank()));
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateReverseAndInferOutput(ml_context_->GetProperties(),
+                                           input->Descriptor(), axes,
+                                           options->label().Utf8()));
+
+  auto* reverse =
+      MakeGarbageCollected<MLReverseOperator>(this, std::move(axes), options);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), reverse);
+
+  reverse->Connect({input}, {output});
   return output;
 }
 
-MLActivation* MLGraphBuilder::sigmoid(ExceptionState& exception_state) {
-  // Create the sigmoid operator that would be used as an activation function.
-  return MakeGarbageCollected<MLActivation>(this,
-                                            MLOperator::OperatorKind::kSigmoid);
+MLOperand* MLGraphBuilder::scatterElements(MLOperand* input,
+                                           MLOperand* indices,
+                                           MLOperand* updates,
+                                           MLScatterOptions* options,
+                                           ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+
+  HeapVector<Member<MLOperand>> inputs = {input, indices, updates};
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateScatterElementsAndInferOutput(
+          ml_context_->GetProperties(), input->Descriptor(),
+          indices->Descriptor(), updates->Descriptor(), options->axis(),
+          options->label().Utf8()));
+
+  auto* scatter_elements = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kScatterElements, options);
+  MLOperand* output = MLOperand::CreateOutput(
+      this, std::move(output_descriptor), scatter_elements);
+
+  scatter_elements->Connect(std::move(inputs), {output});
+  return output;
 }
 
-MLOperand* MLGraphBuilder::softmax(const MLOperand* input,
+MLOperand* MLGraphBuilder::scatterND(MLOperand* input,
+                                     MLOperand* indices,
+                                     MLOperand* updates,
+                                     MLOperatorOptions* options,
+                                     ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+
+  HeapVector<Member<MLOperand>> inputs = {input, indices, updates};
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateScatterNDAndInferOutput(
+          ml_context_->GetProperties(), input->Descriptor(),
+          indices->Descriptor(), updates->Descriptor(),
+          options->label().Utf8()));
+
+  auto* scatter_nd = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kScatterNd, options);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), scatter_nd);
+
+  scatter_nd->Connect(std::move(inputs), {output});
+  return output;
+}
+
+MLOperand* MLGraphBuilder::sigmoid(MLOperand* input,
+                                   MLOperatorOptions* options,
                                    ExceptionState& exception_state) {
-  // According to WebNN spec:
-  // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-softmax, The input must be
-  // a 2-D tensor.
-  if (input->Dimensions().size() != 2) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      "The input must be a 2-D tensor.");
-    return nullptr;
-  }
-  // The input type must be one of the floating point types.
-  if (!IsFloatingPointType(input->Type())) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "The input type must be one of the floating point types.");
-    return nullptr;
-  }
-  auto* softmax = MakeGarbageCollected<MLOperator>(
-      this, MLOperator::OperatorKind::kSoftmax);
-  // The output tensor has the same shape as the input tensor.
-  String error_message;
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      this, input->Type(), input->Dimensions(), softmax, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
-    return nullptr;
-  }
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  // According to WebNN spec
+  // https://webmachinelearning.github.io/webnn/#api-mlgraphbuilder-sigmoid, the
+  // output tensor of sigmoid has the same data type and dimensions as its
+  // input. And the input data type must be one of the floating point types.
+  return BuildUnaryOperator(
+      this, exception_state, blink_mojom::Operation::Tag::kSigmoid,
+      ml_context_->GetProperties().data_type_limits.sigmoid_input, input,
+      options);
+}
+
+MLOperand* MLGraphBuilder::slice(MLOperand* input,
+                                 const Vector<uint32_t>& starts,
+                                 const Vector<uint32_t>& sizes,
+                                 MLSliceOptions* options,
+                                 ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  webnn::SliceAttributes attributes;
+  attributes.sizes.assign(sizes.begin(), sizes.end());
+  attributes.starts.assign(starts.begin(), starts.end());
+  Vector<uint32_t> strides =
+      options->getStridesOr(CreateSliceDefaultStrides(input->Rank()));
+  attributes.strides.assign(strides.begin(), strides.end());
+  attributes.label = options->label().Utf8();
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateSliceAndInferOutput(ml_context_->GetProperties(),
+                                         input->Descriptor(), attributes));
+
+  auto* slice = MakeGarbageCollected<MLSliceOperator>(this, starts, sizes,
+                                                      strides, options);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), slice);
+
+  slice->Connect({input}, {output});
+  return output;
+}
+
+MLOperand* MLGraphBuilder::softmax(MLOperand* input,
+                                   uint32_t axis,
+                                   MLOperatorOptions* options,
+                                   ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateSoftmaxAndInferOutput(ml_context_->GetProperties(),
+                                           input->Descriptor(), axis,
+                                           options->label().Utf8()));
+
+  auto* softmax = MakeGarbageCollected<MLSoftmaxOperator>(this, axis, options);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), softmax);
+
   softmax->Connect({input}, {output});
   return output;
 }
 
-MLOperand* MLGraphBuilder::transpose(const MLOperand* input,
-                                     const MLTransposeOptions* options,
+MLOperand* MLGraphBuilder::softmax(MLOperand* input,
+                                   MLOperatorOptions* options,
+                                   ExceptionState& exception_state) {
+  // This is to emulate the deprecated 2-D softmax until all Chrome channels
+  // support the latest version.
+  if (input->Rank() != 2) {
+    exception_state.ThrowTypeError(
+        String::FromUTF8(webnn::GetErrorLabelPrefix(options->label().Utf8())) +
+        "The input must be a 2-D tensor.");
+    return nullptr;
+  }
+  return softmax(input, /*axis=*/1, options, exception_state);
+}
+
+MLOperand* MLGraphBuilder::softplus(MLOperand* input,
+                                    MLOperatorOptions* options,
+                                    ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  // According to WebNN spec
+  // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-softplus, the output
+  // tensor of softplus has the same type and dimensions as its input.
+  return BuildUnaryOperator(
+      this, exception_state, blink_mojom::Operation::Tag::kSoftplus,
+      ml_context_->GetProperties().data_type_limits.softplus_input, input,
+      options);
+}
+
+MLOperand* MLGraphBuilder::softsign(MLOperand* input,
+                                    MLOperatorOptions* options,
+                                    ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  // According to WebNN spec
+  // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-softsign, the output tensor
+  // of softsign has the same data type and dimensions as its input.
+  return BuildUnaryOperator(
+      this, exception_state, blink_mojom::Operation::Tag::kSoftsign,
+      ml_context_->GetProperties().data_type_limits.softsign_input, input,
+      options);
+}
+
+HeapVector<Member<MLOperand>> MLGraphBuilder::split(
+    MLOperand* input,
+    const uint32_t splits,
+    MLSplitOptions* options,
+    ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(),
+                            HeapVector<Member<MLOperand>>());
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input),
+                                 HeapVector<Member<MLOperand>>());
+
+  auto validated_outputs = webnn::ValidateSplitAndInferOutput(
+      ml_context_->GetProperties(), input->Descriptor(),
+      {.splits = splits,
+       .axis = options->axis(),
+       .label = options->label().Utf8()});
+  if (!validated_outputs.has_value()) {
+    exception_state.ThrowTypeError(String::FromUTF8(validated_outputs.error()));
+    return {};
+  }
+
+  auto* split = MakeGarbageCollected<MLSplitOperator>(this, splits, options);
+  HeapVector<Member<MLOperand>> outputs;
+  for (const auto& validated_output : validated_outputs.value()) {
+    outputs.push_back(MLOperand::CreateOutput(this, validated_output, split));
+  }
+  split->Connect({input}, outputs);
+  return outputs;
+}
+
+HeapVector<Member<MLOperand>> MLGraphBuilder::split(
+    MLOperand* input,
+    const Vector<uint32_t>& splits,
+    MLSplitOptions* options,
+    ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(),
+                            HeapVector<Member<MLOperand>>());
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input),
+                                 HeapVector<Member<MLOperand>>());
+
+  auto validated_outputs = webnn::ValidateSplitAndInferOutput(
+      ml_context_->GetProperties(), input->Descriptor(),
+      {.splits = splits,
+       .axis = options->axis(),
+       .label = options->label().Utf8()});
+  if (!validated_outputs.has_value()) {
+    exception_state.ThrowTypeError(String::FromUTF8(validated_outputs.error()));
+    return {};
+  }
+
+  auto* split = MakeGarbageCollected<MLSplitOperator>(this, splits, options);
+  HeapVector<Member<MLOperand>> outputs;
+  for (const auto& validated_output : validated_outputs.value()) {
+    outputs.push_back(MLOperand::CreateOutput(this, validated_output, split));
+  }
+  split->Connect({input}, outputs);
+  return outputs;
+}
+
+MLOperand* MLGraphBuilder::tanh(MLOperand* input,
+                                MLOperatorOptions* options,
+                                ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  // The input data type must be one of the floating point types.
+  // The current spec doesn't specify the operand data type constraints of tanh,
+  // an issue has been filed to track it-
+  // https://github.com/webmachinelearning/webnn/issues/283.
+  //
+  // According to WebNN spec
+  // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-tanh, the output tensor of
+  // tanh has the same data type and dimensions as its input.
+  return BuildUnaryOperator(
+      this, exception_state, blink_mojom::Operation::Tag::kTanh,
+      ml_context_->GetProperties().data_type_limits.tanh_input, input, options);
+}
+
+MLOperand* MLGraphBuilder::tile(MLOperand* input,
+                                const Vector<uint32_t>& repetitions,
+                                MLOperatorOptions* options,
+                                ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateTileAndInferOutput(ml_context_->GetProperties(),
+                                        input->Descriptor(), repetitions,
+                                        options->label().Utf8()));
+
+  auto* tile = MakeGarbageCollected<MLTileOperator>(this, repetitions, options);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), tile);
+
+  tile->Connect({input}, {output});
+  return output;
+}
+
+MLOperand* MLGraphBuilder::transpose(MLOperand* input,
+                                     MLTransposeOptions* options,
                                      ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
   // According to WebNN spec:
   // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-transpose,
   // When permutation is not specified, it’s set to [N-1, ..., 0], where N is
   // the rank of the input tensor.
-  auto input_rank = input->Dimensions().size();
-  Vector<uint32_t> default_permutation(input_rank);
-  for (wtf_size_t i = 0; i < input_rank - 1; i++) {
-    default_permutation[i] = input_rank - 1 - i;
-  }
   const Vector<uint32_t> permutation =
-      options->getPermutationOr(std::move(default_permutation));
-  if (permutation.size() != input_rank) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "The number of values in permutation must be the same as the rank "
-        "of the input tensor.");
-    return nullptr;
-  }
+      options->getPermutationOr(CreateDefaultPermutation(input->Rank()));
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateTransposeAndInferOutput(ml_context_->GetProperties(),
+                                             input->Descriptor(), permutation,
+                                             options->label().Utf8()));
 
-  if (base::ranges::any_of(permutation, [input_rank](uint32_t axis) {
-        return base::MakeStrictNum(axis) >= input_rank;
-      })) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        String::Format(
-            "The values in permutation must be within the range from 0 "
-            "to (%u).",
-            input_rank - 1));
-    return nullptr;
-  }
-
-  if (permutation.size() !=
-      std::set<uint32_t>(permutation.begin(), permutation.end()).size()) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kDataError,
-        "Two or more values are same in the permutation sequence.");
-    return nullptr;
-  }
-
-  Vector<uint32_t> output_shape(input_rank);
-  for (wtf_size_t i = 0; i < input_rank; ++i) {
-    output_shape[i] = input->Dimensions()[permutation[i]];
-  }
   auto* transpose = MakeGarbageCollected<MLOperator>(
-      this, MLOperator::OperatorKind::kTranspose, options);
-  String error_message;
+      this, blink_mojom::Operation::Tag::kTranspose, options);
   // According to WebNN spec
   // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-transpose, the output
-  // tensor of transpose has the same type as its input.
-  auto* output = MLOperand::ValidateAndCreateOutput(
-      this, input->Type(), std::move(output_shape), transpose, error_message);
-  if (!output) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kDataError,
-                                      error_message);
-    return nullptr;
-  }
+  // tensor of transpose has the same data type as its input.
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), transpose);
+
   transpose->Connect({input}, {output});
   return output;
 }
 
-ScriptPromise MLGraphBuilder::build(ScriptState* script_state,
-                                    const MLNamedOperands& named_outputs,
-                                    ExceptionState& exception_state) {
+MLOperand* MLGraphBuilder::triangular(MLOperand* input,
+                                      MLTriangularOptions* options,
+                                      ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInput(input), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateTriangularAndInferOutput(ml_context_->GetProperties(),
+                                              input->Descriptor(),
+                                              options->label().Utf8()));
+
+  auto* triangular = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kTriangular, options);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), triangular);
+
+  triangular->Connect({input}, {output});
+  return output;
+}
+
+MLOperand* MLGraphBuilder::where(MLOperand* condition,
+                                 MLOperand* true_value,
+                                 MLOperand* false_value,
+                                 MLOperatorOptions* options,
+                                 ExceptionState& exception_state) {
+  THROW_AND_RETURN_IF_ERROR(ValidateGraphBuilderState(), nullptr);
+
+  HeapVector<Member<MLOperand>> inputs = {condition, true_value, false_value};
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(inputs), nullptr);
+
+  ASSIGN_OR_THROW_AND_RETURN_IF_ERROR(
+      webnn::OperandDescriptor output_descriptor,
+      webnn::ValidateWhereAndInferOutput(
+          ml_context_->GetProperties(), condition->Descriptor(),
+          true_value->Descriptor(), false_value->Descriptor(),
+          options->label().Utf8()));
+
+  auto* where = MakeGarbageCollected<MLOperator>(
+      this, blink_mojom::Operation::Tag::kWhere, options);
+  MLOperand* output =
+      MLOperand::CreateOutput(this, std::move(output_descriptor), where);
+  where->Connect(std::move(inputs), {output});
+  return output;
+}
+
+ScriptPromise<MLGraph> MLGraphBuilder::build(ScriptState* script_state,
+                                             MLNamedOperands& named_outputs,
+                                             ExceptionState& exception_state) {
+  webnn::ScopedTrace scoped_trace("MLGraphBuilder::build");
+  base::expected<void, String> validation_result = ValidateGraphBuilderState();
+  if (!validation_result.has_value()) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      validation_result.error());
+    return EmptyPromise();
+  }
+
+  HeapVector<Member<MLOperand>> outputs(named_outputs.size());
+  std::ranges::transform(
+      named_outputs, outputs.begin(),
+      [](const auto& named_output) { return named_output.second; });
+  THROW_AND_RETURN_TYPE_IF_ERROR(ValidateInputs(outputs),
+                                 ScriptPromise<MLGraph>());
+
+  for (const auto& named_output : named_outputs) {
+    if (!ml_context_->GetProperties().data_type_limits.output().Has(
+            named_output.second->DataType())) {
+      exception_state.ThrowTypeError(String(webnn::NotSupportedOutputTypeError(
+          named_output.first.Utf8(), named_output.second->DataType(),
+          ml_context_->GetProperties().data_type_limits.output())));
+      return EmptyPromise();
+    }
+  }
+
   if (!script_state->ContextIsValid()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       "Invalid script state");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+  scoped_trace.AddStep("DetermineGraphConstraintsFromOutputs");
+  auto graph_constraints = DetermineGraphConstraintsFromOutputs(named_outputs);
+  if (!graph_constraints.has_value()) {
+    exception_state.ThrowTypeError(graph_constraints.error());
+    return EmptyPromise();
+  }
+
+  // MLGraphTransformPipeline may change the operators topological order and
+  // alter named outputs. BuildWebNNGraphInfo should sort the operators by
+  // itself again before serialization.
+  scoped_trace.AddStep("MLGraphTransformPipeline");
+  auto* pipeline = MakeGarbageCollected<MLGraphTransformPipeline>(this);
+  pipeline->Run(named_outputs);
+
+  // Check the named_outputs descriptors are equal to the original's
+  // descriptors.
+  const auto& output_constraints = graph_constraints->second;
+  CHECK_EQ(named_outputs.size(), output_constraints.size());
+  for (const auto& [name, operand] : named_outputs) {
+    const auto& constraint = output_constraints.at(name);
+    // TODO(crbug.com/406666712): Change to `CHECK_EQ(operand->Descriptor(),
+    // *constraint)` once we fix the `webnn::OperandDescriptor`.
+    CHECK(operand->Descriptor() == *constraint);
+  }
+
+  scoped_trace.AddStep("BuildWebNNGraphInfo");
+  blink_mojom::GraphInfoPtr graph_info =
+      BuildWebNNGraphInfo(named_outputs, ml_context_->GetProperties());
+
+  // Set `has_built_` after all inputs have been validated.
+  has_built_ = true;
+
+  scoped_trace.AddStep("FoldReshapableConstants");
+  FoldReshapableConstants(*graph_info);
+
+  scoped_trace.AddStep("RecordOperatorsUsed");
+  RecordOperatorsUsed(*graph_info);
+
+  pending_resolver_ = MakeGarbageCollected<ScriptPromiseResolver<MLGraph>>(
       script_state, exception_state.GetContext());
-  auto promise = resolver->Promise();
 
-  if (g_backend_for_testing) {
-    g_backend_for_testing->BuildGraphAsyncImpl(ml_context_, named_outputs,
-                                               resolver);
-    return promise;
-  }
-
-#if BUILDFLAG(BUILD_WEBNN_WITH_XNNPACK)
-  if (ml_context_->GetDevicePreference() == V8MLDevicePreference::Enum::kAuto ||
-      ml_context_->GetDevicePreference() == V8MLDevicePreference::Enum::kCpu) {
-    MLGraphXnnpack::ValidateAndBuildAsync(ml_context_, named_outputs, resolver);
-    return promise;
-  }
-#endif
-
-#if BUILDFLAG(BUILD_WEBNN_ON_CROS)
-  // On ChromeOS, ML model inferencing is off-loaded to ModelLoader service.
-  if (ml_context_->GetDevicePreference() == V8MLDevicePreference::Enum::kAuto ||
-      ml_context_->GetDevicePreference() == V8MLDevicePreference::Enum::kCpu) {
-    MLGraphCrOS::ValidateAndBuildAsync(ml_context_, named_outputs, resolver);
-    return promise;
-  }
-#endif
-
-#if !BUILDFLAG(IS_CHROMEOS)
-  // The runtime enable feature is used to disable the cross process hardware
-  // acceleration by default.
-  if (base::FeatureList::IsEnabled(
-          blink::features::kEnableMachineLearningNeuralNetworkService)) {
-    // Reject unsupported error on unimplemented platform when getting
-    // `WebNNContext` mojo interface with BrowserInterfaceBroker's
-    // GetInterface() method before creating `WebNNGraph` message pipe.
-    MLGraphMojo::ValidateAndBuildAsync(ml_context_, named_outputs, resolver);
-    return promise;
-  }
-#endif
-
-  resolver->Reject(MakeGarbageCollected<DOMException>(
-      DOMExceptionCode::kNotSupportedError, "Not implemented"));
-  return promise;
+  scoped_trace.AddStep("post mojo message: CreateGraph");
+  remote_->CreateGraph(
+      std::move(graph_info),
+      WTF::BindOnce(&MLGraphBuilder::DidCreateWebNNGraph, WrapPersistent(this),
+                    WrapPersistent(pending_resolver_.Get()),
+                    *std::move(graph_constraints)));
+  return pending_resolver_->Promise();
 }
 
-MLGraph* MLGraphBuilder::buildSync(const MLNamedOperands& named_outputs,
-                                   ExceptionState& exception_state) {
-  if (g_backend_for_testing) {
-    return g_backend_for_testing->BuildGraphSyncImpl(ml_context_, named_outputs,
-                                                     exception_state);
+void MLGraphBuilder::DidCreateWebNNGraph(
+    ScriptPromiseResolver<blink::MLGraph>* resolver,
+    std::pair<MLGraph::NamedOperandDescriptors,
+              MLGraph::NamedOperandDescriptors> input_and_output_constraints,
+    base::expected<blink_mojom::CreateGraphSuccessPtr, blink_mojom::ErrorPtr>
+        result) {
+  CHECK(has_built_);
+
+  pending_resolver_.Clear();
+
+  ScriptState* script_state = resolver->GetScriptState();
+  if (!script_state->ContextIsValid()) {
+    return;
   }
 
-#if BUILDFLAG(BUILD_WEBNN_WITH_XNNPACK)
-  if (ml_context_->GetDevicePreference() == V8MLDevicePreference::Enum::kAuto ||
-      ml_context_->GetDevicePreference() == V8MLDevicePreference::Enum::kCpu) {
-    return MLGraphXnnpack::ValidateAndBuildSync(ml_context_, named_outputs,
-                                                exception_state);
+  if (!result.has_value()) {
+    const auto& create_graph_error = result.error();
+    resolver->RejectWithDOMException(
+        WebNNErrorCodeToDOMExceptionCode(create_graph_error->code),
+        create_graph_error->message);
+    return;
   }
-#endif
 
-  exception_state.ThrowDOMException(DOMExceptionCode::kNotSupportedError,
-                                    "Not implemented");
-  return nullptr;
+  auto& success = result.value();
+  Vector<V8MLDeviceType> devices;
+  for (const auto& device : success->devices) {
+    switch (device) {
+      case blink_mojom::Device::kCpu:
+        devices.push_back(V8MLDeviceType::Enum::kCpu);
+        break;
+      case blink_mojom::Device::kGpu:
+        devices.push_back(V8MLDeviceType::Enum::kGpu);
+        break;
+      case blink_mojom::Device::kNpu:
+        devices.push_back(V8MLDeviceType::Enum::kNpu);
+        break;
+    }
+  }
+  auto* graph = MakeGarbageCollected<MLGraph>(
+      resolver->GetExecutionContext(), ml_context_,
+      std::move(success->graph_remote),
+      std::move(input_and_output_constraints.first),
+      std::move(input_and_output_constraints.second), std::move(devices),
+      base::PassKey<MLGraphBuilder>());
+  ml_context_->OnGraphCreated(graph);
+
+  resolver->Resolve(graph);
 }
 
-// static
-void MLGraphBuilder::SetBackendForTesting(
-    MLGraphBuilder::BackendForTesting* backend_for_testing) {
-  g_backend_for_testing = backend_for_testing;
+void MLGraphBuilder::OnConnectionError() {
+  remote_.reset();
+
+  if (pending_resolver_) {
+    pending_resolver_->RejectWithDOMException(
+        DOMExceptionCode::kInvalidStateError, "Context is lost.");
+    pending_resolver_.Clear();
+  }
+}
+
+base::expected<void, String> MLGraphBuilder::ValidateGraphBuilderState() const {
+  if (has_built_) {
+    return base::unexpected(kGraphAlreadyBuiltError);
+  }
+  if (!remote_.is_bound()) {
+    return base::unexpected("Context is lost.");
+  }
+  return base::ok();
+}
+
+// As specified in https://www.w3.org/TR/webnn/#mlgraphbuilder-validate-operand.
+base::expected<void, String> MLGraphBuilder::ValidateInput(
+    const MLOperand* input) {
+  CHECK(input);
+  if (input->Builder() != this) {
+    return base::unexpected("Invalid input: Created from another builder.");
+  }
+  return base::ok();
+}
+
+base::expected<void, String> MLGraphBuilder::ValidateInputs(
+    const HeapVector<Member<MLOperand>>& inputs) {
+  for (const MLOperand* input_to_validate : inputs) {
+    RETURN_IF_ERROR(ValidateInput(input_to_validate));
+  }
+  return base::ok();
 }
 
 }  // namespace blink

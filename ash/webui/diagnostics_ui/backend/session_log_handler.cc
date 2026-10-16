@@ -26,6 +26,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/shell_dialogs/select_file_policy.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 
 namespace ash {
 namespace diagnostics {
@@ -85,9 +86,8 @@ void SessionLogHandler::RegisterMessages() {
                           weak_ptr_));
 }
 
-void SessionLogHandler::FileSelected(const base::FilePath& path,
-                                     int index,
-                                     void* params) {
+void SessionLogHandler::FileSelected(const ui::SelectedFileInfo& file,
+                                     int index) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(session_log_handler_sequence_checker_);
   task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
@@ -96,8 +96,16 @@ void SessionLogHandler::FileSelected(const base::FilePath& path,
           // base::Unretained safe here because ~DiagnosticsLogController is
           // called during shutdown of ash::Shell and will out-live
           // SessionLogHandler.
-          base::Unretained(DiagnosticsLogController::Get()), path),
-      base::BindOnce(&SessionLogHandler::OnSessionLogCreated, weak_ptr_, path));
+          base::Unretained(DiagnosticsLogController::Get()), file.path()),
+      base::BindOnce(&SessionLogHandler::OnSessionLogCreated, weak_ptr_,
+                     file.path()));
+  select_file_dialog_.reset();
+}
+
+void SessionLogHandler::FileSelectionCanceled() {
+  RejectJavascriptCallback(save_session_log_callback_id_,
+                           /*response=*/false);
+  save_session_log_callback_id_ = "";
   select_file_dialog_.reset();
 }
 
@@ -114,13 +122,6 @@ void SessionLogHandler::OnSessionLogCreated(const base::FilePath& file_path,
 
   if (log_created_closure_)
     std::move(log_created_closure_).Run();
-}
-
-void SessionLogHandler::FileSelectionCanceled(void* params) {
-  RejectJavascriptCallback(save_session_log_callback_id_,
-                           /*response=*/false);
-  save_session_log_callback_id_ = "";
-  select_file_dialog_.reset();
 }
 
 TelemetryLog* SessionLogHandler::GetTelemetryLog() const {
@@ -160,7 +161,7 @@ void SessionLogHandler::HandleSaveSessionLogRequest(
   content::WebContents* web_contents = web_ui()->GetWebContents();
   gfx::NativeWindow owning_window =
       web_contents ? web_contents->GetTopLevelNativeWindow()
-                   : gfx::kNullNativeWindow;
+                   : gfx::NativeWindow();
 
   // Early return if the select file dialog is already active.
   if (select_file_dialog_)
@@ -173,8 +174,7 @@ void SessionLogHandler::HandleSaveSessionLogRequest(
       /*default_path=*/base::FilePath(kDefaultSessionLogFileName),
       /*file_types=*/nullptr,
       /*file_type_index=*/0,
-      /*default_extension=*/base::FilePath::StringType(), owning_window,
-      /*params=*/nullptr);
+      /*default_extension=*/base::FilePath::StringType(), owning_window);
 }
 
 void SessionLogHandler::HandleInitialize(const base::Value::List& args) {

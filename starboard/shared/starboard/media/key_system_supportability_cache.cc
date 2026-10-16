@@ -19,9 +19,8 @@
 #include <mutex>
 #include <string>
 
-#include "starboard/common/log.h"
-
 #include "starboard/common/check_op.h"
+#include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/media.h"
 
@@ -130,6 +129,7 @@ void KeySystemSupportabilityCache::CacheKeySystemSupportability(
 
   if (strlen(key_system) == 0) {
     SB_LOG(WARNING) << "Rejected empty key system as it's always supported.";
+    return;
   }
 
   GetContainer<SbMediaAudioCodec>()->CacheKeySystemSupportability(

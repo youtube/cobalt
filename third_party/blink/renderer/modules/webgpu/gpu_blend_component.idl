@@ -4,10 +4,12 @@
 
 // https://gpuweb.github.io/gpuweb/
 
+// We omit default values in this dictionary and instead implement the default
+// value behavior in C++ code to detect whether those are set explicitly.
 dictionary GPUBlendComponent {
-    GPUBlendFactor srcFactor = "one";
-    GPUBlendFactor dstFactor = "zero";
-    GPUBlendOperation operation = "add";
+    GPUBlendFactor srcFactor;
+    GPUBlendFactor dstFactor;
+    GPUBlendOperation operation;
 };
 
 enum GPUBlendFactor {
@@ -24,6 +26,10 @@ enum GPUBlendFactor {
     "src-alpha-saturated",
     "constant",
     "one-minus-constant",
+    "src1",
+    "one-minus-src1",
+    "src1-alpha",
+    "one-minus-src1-alpha",
 };
 
 enum GPUBlendOperation {

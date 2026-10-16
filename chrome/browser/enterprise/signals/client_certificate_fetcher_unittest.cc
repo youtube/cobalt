@@ -4,7 +4,11 @@
 
 #include "chrome/browser/enterprise/signals/client_certificate_fetcher.h"
 
+#include <vector>
+
+#include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/test/test_future.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
@@ -14,18 +18,39 @@
 #include "net/cert/x509_certificate.h"
 #include "net/ssl/client_cert_identity_test_util.h"
 #include "net/ssl/client_cert_store.h"
+#include "net/ssl/ssl_cert_request_info.h"
 #include "net/test/cert_test_util.h"
 #include "net/test/test_data_directory.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace enterprise_signals {
 namespace {
 const char kRequestingUrl[] = "https://www.example.com";
 
+class MockProfileNetworkContextServiceWrapper
+    : public ProfileNetworkContextServiceWrapper {
+ public:
+  MockProfileNetworkContextServiceWrapper() = default;
+  ~MockProfileNetworkContextServiceWrapper() override = default;
+
+  MOCK_METHOD(std::unique_ptr<net::ClientCertStore>,
+              CreateClientCertStore,
+              (),
+              (override));
+  MOCK_METHOD(void,
+              FlushCachedClientCertIfNeeded,
+              (const net::HostPortPair&,
+               const scoped_refptr<net::X509Certificate>&),
+              (override));
+};
+
 class MockClientCertStore : public net::ClientCertStore {
  public:
-  void GetClientCerts(const net::SSLCertRequestInfo& cert_request_info,
-                      ClientCertListCallback callback) override {
+  void GetClientCerts(
+      scoped_refptr<const net::SSLCertRequestInfo> cert_request_info,
+      ClientCertListCallback callback) override {
     callback_ = std::move(callback);
   }
 
@@ -47,6 +72,11 @@ class FetchCertificateCallbackWrapper {
   int callbacks_called_{0};
   std::unique_ptr<net::ClientCertIdentity> cert_;
 };
+
+// Matcher to compare two net::X509Certificates
+MATCHER_P(CertEqualsIncludingChain, cert, "") {
+  return arg->EqualsIncludingChain(cert.get());
+}
 
 }  // namespace
 
@@ -90,24 +120,37 @@ class ClientCertificateFetcherTest : public testing::Test {
         base::Value(std::move(root)));
   }
 
-  base::Value CreateFilterValue(const std::string& issuer,
-                                const std::string& subject) {
+  base::Value::Dict CreateFilterValue(const std::string& issuer,
+                                      const std::string& subject) {
     EXPECT_FALSE(issuer.empty() && subject.empty());
 
-    base::Value filter(base::Value::Type::DICT);
+    base::Value::Dict filter;
     if (!issuer.empty()) {
-      base::Value issuer_value(base::Value::Type::DICT);
-      issuer_value.SetStringKey("CN", issuer);
-      filter.SetKey("ISSUER", std::move(issuer_value));
+      base::Value::Dict issuer_value;
+      issuer_value.Set("CN", issuer);
+      filter.Set("ISSUER", std::move(issuer_value));
     }
 
     if (!subject.empty()) {
-      base::Value subject_value(base::Value::Type::DICT);
-      subject_value.SetStringKey("CN", subject);
-      filter.SetKey("SUBJECT", std::move(subject_value));
+      base::Value::Dict subject_value;
+      subject_value.Set("CN", subject);
+      filter.Set("SUBJECT", std::move(subject_value));
     }
 
     return filter;
+  }
+
+  void CreateFetcher(std::unique_ptr<MockClientCertStore> mock_store) {
+    auto mock_network_context_service_wrapper = std::make_unique<
+        testing::StrictMock<MockProfileNetworkContextServiceWrapper>>();
+    mock_network_context_service_wrapper_ =
+        mock_network_context_service_wrapper.get();
+
+    EXPECT_CALL(*mock_network_context_service_wrapper, CreateClientCertStore())
+        .WillOnce(testing::Return(testing::ByMove(std::move(mock_store))));
+
+    fetcher_ = std::make_unique<ClientCertificateFetcher>(
+        std::move(mock_network_context_service_wrapper), profile());
   }
 
   TestingProfile* profile() { return profile_; }
@@ -116,19 +159,22 @@ class ClientCertificateFetcherTest : public testing::Test {
     return client_certs_;
   }
 
- private:
   content::BrowserTaskEnvironment task_environment_;
-  raw_ptr<TestingProfile> profile_;
-  std::unique_ptr<TestingProfileManager> profile_manager_;
 
+  std::unique_ptr<TestingProfileManager> profile_manager_;
+  raw_ptr<TestingProfile> profile_;
+
+  std::unique_ptr<ClientCertificateFetcher> fetcher_;
+  raw_ptr<MockProfileNetworkContextServiceWrapper>
+      mock_network_context_service_wrapper_;
   std::vector<scoped_refptr<net::X509Certificate>> client_certs_;
 };
 
 TEST_F(ClientCertificateFetcherTest, NoCertStoreImmediatelyCallsBack) {
-  ClientCertificateFetcher fetcher(nullptr, profile());
+  CreateFetcher(nullptr);
   FetchCertificateCallbackWrapper wrapper;
 
-  fetcher.FetchAutoSelectedCertificateForUrl(
+  fetcher_->FetchAutoSelectedCertificateForUrl(
       GURL(kRequestingUrl),
       base::BindOnce(
           &FetchCertificateCallbackWrapper::OnFetchCertificateFinished,
@@ -138,20 +184,35 @@ TEST_F(ClientCertificateFetcherTest, NoCertStoreImmediatelyCallsBack) {
   EXPECT_EQ(nullptr, wrapper.cert_);
 }
 
+TEST_F(ClientCertificateFetcherTest, EmptyUrl) {
+  CreateFetcher(std::make_unique<MockClientCertStore>());
+
+  base::test::TestFuture<std::unique_ptr<net::ClientCertIdentity>> test_future;
+  fetcher_->FetchAutoSelectedCertificateForUrl(GURL(),
+                                               test_future.GetCallback());
+
+  EXPECT_EQ(test_future.Get(), nullptr);
+}
+
 TEST_F(ClientCertificateFetcherTest, NoMatchingCertStoreCallsBackNull) {
   std::unique_ptr<MockClientCertStore> cert_store =
       std::make_unique<MockClientCertStore>();
 
   // Keep a raw pointer to simulate running the callback.
   MockClientCertStore* cert_store_ptr = cert_store.get();
-  ClientCertificateFetcher fetcher(std::move(cert_store), profile());
+  CreateFetcher(std::move(cert_store));
   FetchCertificateCallbackWrapper wrapper;
 
-  fetcher.FetchAutoSelectedCertificateForUrl(
-      GURL(kRequestingUrl),
-      base::BindOnce(
-          &FetchCertificateCallbackWrapper::OnFetchCertificateFinished,
-          base::Unretained(&wrapper)));
+  GURL url(kRequestingUrl);
+  EXPECT_CALL(*mock_network_context_service_wrapper_,
+              FlushCachedClientCertIfNeeded(
+                  net::HostPortPair::FromURL(url),
+                  scoped_refptr<net::X509Certificate>(nullptr)));
+
+  fetcher_->FetchAutoSelectedCertificateForUrl(
+      url, base::BindOnce(
+               &FetchCertificateCallbackWrapper::OnFetchCertificateFinished,
+               base::Unretained(&wrapper)));
 
   net::ClientCertIdentityList certs;
   cert_store_ptr->SimulateCallback(std::move(certs));
@@ -171,14 +232,20 @@ TEST_F(ClientCertificateFetcherTest, ReturnsFirstCertIfMatching) {
 
   // Keep a raw pointer to simulate running the callback.
   MockClientCertStore* cert_store_ptr = cert_store.get();
-  ClientCertificateFetcher fetcher(std::move(cert_store), profile());
+  CreateFetcher(std::move(cert_store));
   FetchCertificateCallbackWrapper wrapper;
 
-  fetcher.FetchAutoSelectedCertificateForUrl(
-      GURL(kRequestingUrl),
-      base::BindOnce(
-          &FetchCertificateCallbackWrapper::OnFetchCertificateFinished,
-          base::Unretained(&wrapper)));
+  GURL url(kRequestingUrl);
+  EXPECT_CALL(*mock_network_context_service_wrapper_,
+              FlushCachedClientCertIfNeeded(
+                  net::HostPortPair::FromURL(url),
+                  CertEqualsIncludingChain(net::ImportCertFromFile(
+                      net::GetTestCertsDirectory(), "client_1.pem"))));
+
+  fetcher_->FetchAutoSelectedCertificateForUrl(
+      url, base::BindOnce(
+               &FetchCertificateCallbackWrapper::OnFetchCertificateFinished,
+               base::Unretained(&wrapper)));
 
   net::ClientCertIdentityList certs;
   cert_store_ptr->SimulateCallback(GetDefaultClientCertList());
@@ -200,14 +267,20 @@ TEST_F(ClientCertificateFetcherTest, ReturnsSecondCertIfMatching) {
 
   // Keep a raw pointer to simulate running the callback.
   MockClientCertStore* cert_store_ptr = cert_store.get();
-  ClientCertificateFetcher fetcher(std::move(cert_store), profile());
+  CreateFetcher(std::move(cert_store));
   FetchCertificateCallbackWrapper wrapper;
 
-  fetcher.FetchAutoSelectedCertificateForUrl(
-      GURL(kRequestingUrl),
-      base::BindOnce(
-          &FetchCertificateCallbackWrapper::OnFetchCertificateFinished,
-          base::Unretained(&wrapper)));
+  GURL url(kRequestingUrl);
+  EXPECT_CALL(*mock_network_context_service_wrapper_,
+              FlushCachedClientCertIfNeeded(
+                  net::HostPortPair::FromURL(url),
+                  CertEqualsIncludingChain(net::ImportCertFromFile(
+                      net::GetTestCertsDirectory(), "client_2.pem"))));
+
+  fetcher_->FetchAutoSelectedCertificateForUrl(
+      url, base::BindOnce(
+               &FetchCertificateCallbackWrapper::OnFetchCertificateFinished,
+               base::Unretained(&wrapper)));
 
   net::ClientCertIdentityList certs;
   cert_store_ptr->SimulateCallback(GetDefaultClientCertList());
@@ -229,14 +302,19 @@ TEST_F(ClientCertificateFetcherTest, ReturnsNoCertIfNoFiltersMatch) {
 
   // Keep a raw pointer to simulate running the callback.
   MockClientCertStore* cert_store_ptr = cert_store.get();
-  ClientCertificateFetcher fetcher(std::move(cert_store), profile());
+  CreateFetcher(std::move(cert_store));
   FetchCertificateCallbackWrapper wrapper;
 
-  fetcher.FetchAutoSelectedCertificateForUrl(
-      GURL(kRequestingUrl),
-      base::BindOnce(
-          &FetchCertificateCallbackWrapper::OnFetchCertificateFinished,
-          base::Unretained(&wrapper)));
+  GURL url(kRequestingUrl);
+  EXPECT_CALL(*mock_network_context_service_wrapper_,
+              FlushCachedClientCertIfNeeded(
+                  net::HostPortPair::FromURL(url),
+                  scoped_refptr<net::X509Certificate>(nullptr)));
+
+  fetcher_->FetchAutoSelectedCertificateForUrl(
+      url, base::BindOnce(
+               &FetchCertificateCallbackWrapper::OnFetchCertificateFinished,
+               base::Unretained(&wrapper)));
 
   net::ClientCertIdentityList certs;
   cert_store_ptr->SimulateCallback(GetDefaultClientCertList());
@@ -251,14 +329,19 @@ TEST_F(ClientCertificateFetcherTest, ReturnsNoCertIfNoFilters) {
 
   // Keep a raw pointer to simulate running the callback.
   MockClientCertStore* cert_store_ptr = cert_store.get();
-  ClientCertificateFetcher fetcher(std::move(cert_store), profile());
+  CreateFetcher(std::move(cert_store));
   FetchCertificateCallbackWrapper wrapper;
 
-  fetcher.FetchAutoSelectedCertificateForUrl(
-      GURL(kRequestingUrl),
-      base::BindOnce(
-          &FetchCertificateCallbackWrapper::OnFetchCertificateFinished,
-          base::Unretained(&wrapper)));
+  GURL url(kRequestingUrl);
+  EXPECT_CALL(*mock_network_context_service_wrapper_,
+              FlushCachedClientCertIfNeeded(
+                  net::HostPortPair::FromURL(url),
+                  scoped_refptr<net::X509Certificate>(nullptr)));
+
+  fetcher_->FetchAutoSelectedCertificateForUrl(
+      url, base::BindOnce(
+               &FetchCertificateCallbackWrapper::OnFetchCertificateFinished,
+               base::Unretained(&wrapper)));
 
   net::ClientCertIdentityList certs;
   cert_store_ptr->SimulateCallback(GetDefaultClientCertList());

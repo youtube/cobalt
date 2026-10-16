@@ -22,11 +22,11 @@ import java.util.Set;
  * browsers.
  */
 public class TestBrowserInstaller {
+    public static final String COMPONENT_CLASS = "com.component.class.name";
+
     Set<String> mInstalledBrowsers = new HashSet<String>();
 
-    /**
-     * Changes the installed browsers to the passed-in list.
-     */
+    /** Changes the installed browsers to the passed-in list. */
     public void setInstalledModernBrowsers(String defaultBrowserPackage, String[] newPackages) {
         uninstallAllBrowsers();
 
@@ -38,24 +38,18 @@ public class TestBrowserInstaller {
         }
     }
 
-    /**
-     * Changes the installed browser to a browser with the passed-in package and version name.
-     */
+    /** Changes the installed browser to a browser with the passed-in package and version name. */
     public void setInstalledBrowserWithVersion(String browser, String versionName) {
         uninstallAllBrowsers();
         installBrowserWithVersion(browser, versionName);
     }
 
-    /**
-     * Installs browser with the passed-in package name and large version name.
-     */
+    /** Installs browser with the passed-in package name and large version name. */
     public void installModernBrowser(String packageName) {
         installBrowserWithVersion(packageName, "10000.0.0.0");
     }
 
-    /**
-     * Installs browser with the passed-in package name and version name.
-     */
+    /** Installs browser with the passed-in package name and version name. */
     public void installBrowserWithVersion(String packageName, String versionName) {
         if (mInstalledBrowsers.contains(packageName)) return;
 
@@ -67,18 +61,14 @@ public class TestBrowserInstaller {
         mInstalledBrowsers.add(packageName);
     }
 
-    /**
-     * Uninstalls all browsers.
-     */
+    /** Uninstalls all browsers. */
     public void uninstallAllBrowsers() {
         while (!mInstalledBrowsers.isEmpty()) {
             uninstallBrowser(mInstalledBrowsers.iterator().next());
         }
     }
 
-    /**
-     * Uninstalls browser with the given package name.
-     */
+    /** Uninstalls browser with the given package name. */
     public void uninstallBrowser(String packageName) {
         if (!mInstalledBrowsers.contains(packageName)) return;
 
@@ -97,6 +87,7 @@ public class TestBrowserInstaller {
     private static ResolveInfo newResolveInfo(String packageName) {
         ActivityInfo activityInfo = new ActivityInfo();
         activityInfo.packageName = packageName;
+        activityInfo.name = COMPONENT_CLASS;
         ResolveInfo resolveInfo = new ResolveInfo();
         resolveInfo.activityInfo = activityInfo;
         return resolveInfo;

@@ -10,8 +10,8 @@ import android.app.Instrumentation.ActivityMonitor;
 import android.content.ComponentName;
 import android.content.Intent;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.LargeTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
@@ -28,52 +28,63 @@ import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.chrome.browser.app.metrics.LaunchCauseMetrics;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
-import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.share.ShareHelper;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
-import org.chromium.chrome.test.util.ChromeTabUtils;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 
-/**
- * Instrumentation tests for Share intents.
- */
+/** Instrumentation tests for Share intents. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Batch(Batch.PER_CLASS)
 public class ShareIntentTest {
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @Test
     @LargeTest
     public void testDirectShareIntent() throws Exception {
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mActivityTestRule.startOnBlankPage();
 
         ComponentName target = new ComponentName("test.package", "test.activity");
         ActivityMonitor monitor =
-                InstrumentationRegistry.getInstrumentation().addMonitor(target.getClassName(),
-                        new Instrumentation.ActivityResult(Activity.RESULT_OK, null), true);
-        ThreadUtils.runOnUiThreadBlocking(() -> {
-            ShareHelper.setLastShareComponentName(Profile.getLastUsedRegularProfile(), target);
-            mActivityTestRule.getActivity().onMenuOrKeyboardAction(R.id.direct_share_menu_id, true);
-        });
+                InstrumentationRegistry.getInstrumentation()
+                        .addMonitor(
+                                target.getClassName(),
+                                new Instrumentation.ActivityResult(Activity.RESULT_OK, null),
+                                true);
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ShareHelper.setLastShareComponentName(
+                            ProfileManager.getLastUsedRegularProfile(), target);
+                    mActivityTestRule
+                            .getActivity()
+                            .onMenuOrKeyboardAction(R.id.direct_share_menu_id, true);
+                });
         CriteriaHelper.pollUiThread(
-                () -> { Criteria.checkThat(monitor.getHits(), Matchers.is(1)); });
+                () -> {
+                    Criteria.checkThat(monitor.getHits(), Matchers.is(1));
+                });
     }
 
     @Test
     @LargeTest
-    public void testReceiveShareIntent() throws Exception {
+    public void testReceiveShareIntent() {
         String url = mActivityTestRule.getTestServer().getURL("/content/test/data/hello.html");
         Intent intent = new Intent(Intent.ACTION_SEND);
         intent.setType("text/plain");
         intent.putExtra(Intent.EXTRA_TEXT, "This is a share:\n" + url);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.setPackage(ContextUtils.getApplicationContext().getPackageName());
-        mActivityTestRule.startActivityCompletely(intent);
-        ChromeTabUtils.waitForTabPageLoaded(mActivityTestRule.getActivity().getActivityTab(), url);
-        Assert.assertEquals(1,
+        mActivityTestRule.startWithIntent(
+                intent,
+                WebPageStation.newBuilder().withEntryPoint().withExpectedUrlSubstring(url).build());
+        Assert.assertEquals(
+                1,
                 RecordHistogram.getHistogramValueCountForTesting(
                         LaunchCauseMetrics.LAUNCH_CAUSE_HISTOGRAM,
                         LaunchCauseMetrics.LaunchCause.SHARE_INTENT));

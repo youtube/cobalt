@@ -95,6 +95,8 @@ int main(int argc, char *argv[])
     ShBuiltInResources resources;
     GenerateResources(&resources);
 
+    bool printActiveVariables = false;
+
     argc--;
     argv++;
     for (; (argc >= 1) && (failCode == ESuccess); argc--, argv++)
@@ -110,7 +112,7 @@ int main(int argc, char *argv[])
                     compileOptions.objectCode = true;
                     break;
                 case 'u':
-                    compileOptions.variables = true;
+                    printActiveVariables = true;
                     break;
                 case 's':
                     if (argv[0][2] == '=')
@@ -157,16 +159,6 @@ int main(int argc, char *argv[])
                                     resources.FragmentPrecisionHigh = 1;
                                 }
                                 break;
-                            case 'd':
-                                if (argv[0][4] == 'c')
-                                {
-                                    spec = SH_GL_COMPATIBILITY_SPEC;
-                                }
-                                else
-                                {
-                                    spec = SH_GL_CORE_SPEC;
-                                }
-                                break;
                             default:
                                 failCode = EFailUsage;
                         }
@@ -195,7 +187,6 @@ int main(int argc, char *argv[])
                             case 'v':
                                 output = SH_SPIRV_VULKAN_OUTPUT;
                                 compileOptions.initializeUninitializedLocals = true;
-                                compileOptions.variables                     = true;
                                 break;
                             case 'h':
                                 if (argv[0][4] == '1' && argv[0][5] == '1')
@@ -349,7 +340,6 @@ int main(int argc, char *argv[])
                 {
                     case SH_HLSL_3_0_OUTPUT:
                     case SH_HLSL_4_1_OUTPUT:
-                    case SH_HLSL_4_0_FL9_3_OUTPUT:
                         compileOptions.selectViewInNvGLSLVertexShader = false;
                         break;
                     default:
@@ -380,7 +370,7 @@ int main(int argc, char *argv[])
                     LogMsg("END", "COMPILER", numCompiles, "OBJ CODE");
                     printf("\n\n");
                 }
-                if (compiled && compileOptions.variables)
+                if (compiled && printActiveVariables)
                 {
                     LogMsg("BEGIN", "COMPILER", numCompiles, "VARIABLES");
                     PrintActiveVariables(compiler);
@@ -457,8 +447,6 @@ void usage()
         "       -s=w     : use WebGL 1.0 spec\n"
         "       -s=wn    : use WebGL 1.0 spec with no highp support in fragment shaders\n"
         "       -s=w2    : use WebGL 2.0 spec\n"
-        "       -s=d     : use Desktop Core spec (in development)\n"
-        "       -s=dc    : use Desktop Compatibility spec (in development)\n"
         "       -b=e     : output GLSL ES code (this is by default)\n"
         "       -b=g     : output GLSL code (compatibility profile)\n"
         "       -b=g[NUM]: output GLSL code (NUM can be 130, 140, 150, 330, 400, 410, 420, 430, "
@@ -927,7 +915,9 @@ static void PrintSpirv(const sh::BinaryBlob &blob)
     spvtools::SpirvTools spirvTools(SPV_ENV_VULKAN_1_1);
 
     std::string readableSpirv;
-    spirvTools.Disassemble(blob, &readableSpirv, 0);
+    spirvTools.Disassemble(blob, &readableSpirv,
+                           SPV_BINARY_TO_TEXT_OPTION_COMMENT | SPV_BINARY_TO_TEXT_OPTION_INDENT |
+                               SPV_BINARY_TO_TEXT_OPTION_NESTED_INDENT);
 
     puts(readableSpirv.c_str());
 #endif

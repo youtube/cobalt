@@ -6,9 +6,12 @@
 
 #include <hb.h>
 
+#include <algorithm>
+
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
+#include "cc/paint/paint_canvas.h"
 #include "third_party/blink/renderer/platform/fonts/font.h"
+#include "third_party/blink/renderer/platform/fonts/plain_text_node.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/caching_word_shaper.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_view.h"
@@ -19,14 +22,18 @@
 namespace blink {
 
 namespace {
-template <typename T, size_t E>
-std::ostream& operator<<(std::ostream& out, const base::span<T, E>& c) {
-#if DCHECK_IS_ON()
-  for (auto&& e : c)
-    out << e << " ";
-#endif
-  return out;
+
+// A helper for FillGlyphsSlow().
+inline const ShapeResult* GetShapeResult(
+    const Member<const ShapeResult>& item) {
+  return item.Get();
 }
+
+// A helper for FillGlyphsSlow().
+inline const ShapeResult* GetShapeResult(const PlainTextItem& item) {
+  return item.GetShapeResult();
+}
+
 }  // namespace
 
 ShapeResultBloberizer::ShapeResultBloberizer(
@@ -68,7 +75,7 @@ void ShapeResultBloberizer::SetText(const StringView& text,
     cluster_ends_.Shrink(0);
   }
 
-  DVLOG(4) << "   Cluster ends: " << base::make_span(cluster_ends_);
+  DVLOG(4) << "   Cluster ends: " << base::span(cluster_ends_);
 
   cluster_ends_offset_ = from;
   current_text_ = text;
@@ -90,12 +97,11 @@ void ShapeResultBloberizer::CommitText() {
   DCHECK(!current_text_.IsNull());
 
   DVLOG(4) << "   CommitText from: " << from << " to: " << to;
-  DVLOG(4) << "   CommitText glyphs: "
-           << base::make_span(
-                  pending_glyphs_.end() - current_character_indexes_.size(),
-                  pending_glyphs_.end());
+  DVLOG(4)
+      << "   CommitText glyphs: "
+      << base::span(pending_glyphs_).last(current_character_indexes_.size());
   DVLOG(4) << "   CommitText cluster starts: "
-           << base::make_span(current_character_indexes_);
+           << base::span(current_character_indexes_);
 
   wtf_size_t pending_utf8_original_size = pending_utf8_.size();
   wtf_size_t pending_utf8_character_indexes_original_size =
@@ -110,25 +116,25 @@ void ShapeResultBloberizer::CommitText() {
   unsigned size = to - from;
   Vector<uint32_t, 256> pending_utf8_character_index_from_character_index(size);
   if (current_text_.Is8Bit()) {
-    const LChar* latin1 = current_text_.Characters8();
+    const LChar* latin1 = UNSAFE_TODO(current_text_.Characters8());
     wtf_size_t utf8_size = pending_utf8_.size();
     for (unsigned i = from; i < to;) {
       pending_utf8_character_index_from_character_index[i - from] = utf8_size;
 
-      LChar cp = latin1[i++];
+      LChar cp = UNSAFE_TODO(latin1[i++]);
       pending_utf8_.Grow(utf8_size + U8_LENGTH(cp));
-      U8_APPEND_UNSAFE(pending_utf8_.begin(), utf8_size, cp);
+      UNSAFE_TODO(U8_APPEND_UNSAFE(pending_utf8_.begin(), utf8_size, cp));
     }
   } else {
-    const UChar* utf16 = current_text_.Characters16();
+    const UChar* utf16 = UNSAFE_TODO(current_text_.Characters16());
     wtf_size_t utf8_size = pending_utf8_.size();
     for (unsigned i = from; i < to;) {
       pending_utf8_character_index_from_character_index[i - from] = utf8_size;
 
       UChar32 cp;
-      U16_NEXT_OR_FFFD(utf16, i, current_text_length, cp);
+      UNSAFE_TODO(U16_NEXT_OR_FFFD(utf16, i, current_text_length, cp));
       pending_utf8_.Grow(utf8_size + U8_LENGTH(cp));
-      U8_APPEND_UNSAFE(pending_utf8_.begin(), utf8_size, cp);
+      UNSAFE_TODO(U8_APPEND_UNSAFE(pending_utf8_.begin(), utf8_size, cp));
     }
   }
 
@@ -141,14 +147,13 @@ void ShapeResultBloberizer::CommitText() {
   current_character_indexes_.Shrink(0);
 
   DVLOG(4) << "  CommitText appended UTF-8: \""
-           << std::string(&pending_utf8_[pending_utf8_original_size],
-                          pending_utf8_.end())
+           << std::string(
+                  &pending_utf8_[pending_utf8_original_size],
+                  UNSAFE_TODO(pending_utf8_.data() + pending_utf8_.size()))
            << "\"";
   DVLOG(4) << "  CommitText UTF-8 indexes: "
-           << base::make_span(
-                  &pending_utf8_character_indexes_
-                      [pending_utf8_character_indexes_original_size],
-                  pending_utf8_character_indexes_.end());
+           << base::span(pending_utf8_character_indexes_)
+                  .subspan(pending_utf8_character_indexes_original_size);
 }
 
 void ShapeResultBloberizer::CommitPendingRun() {
@@ -162,8 +167,9 @@ void ShapeResultBloberizer::CommitPendingRun() {
     builder_rotation_ = pending_canvas_rotation_;
   }
 
-  if (UNLIKELY(!current_character_indexes_.empty()))
+  if (!current_character_indexes_.empty()) [[unlikely]] {
     CommitText();
+  }
 
   SkFont run_font =
       pending_font_data_->PlatformData().CreateSkFont(&font_description_);
@@ -188,20 +194,19 @@ void ShapeResultBloberizer::CommitPendingRun() {
   if (text_size) {
     DVLOG(4) << "  CommitPendingRun text: \""
              << std::string(pending_utf8_.begin(), pending_utf8_.end()) << "\"";
-    DVLOG(4) << "  CommitPendingRun glyphs: "
-             << base::make_span(pending_glyphs_);
+    DVLOG(4) << "  CommitPendingRun glyphs: " << base::span(pending_glyphs_);
     DVLOG(4) << "  CommitPendingRun indexes: "
-             << base::make_span(pending_utf8_character_indexes_);
+             << base::span(pending_utf8_character_indexes_);
     DCHECK_EQ(pending_utf8_character_indexes_.size(), run_size);
-    base::ranges::copy(pending_utf8_character_indexes_, buffer.clusters);
-    base::ranges::copy(pending_utf8_, buffer.utf8text);
+    std::ranges::copy(pending_utf8_character_indexes_, buffer.clusters);
+    std::ranges::copy(pending_utf8_, buffer.utf8text);
 
     pending_utf8_.Shrink(0);
     pending_utf8_character_indexes_.Shrink(0);
   }
 
-  base::ranges::copy(pending_glyphs_, buffer.glyphs);
-  base::ranges::copy(pending_offsets_, buffer.pos);
+  std::ranges::copy(pending_glyphs_, buffer.glyphs);
+  std::ranges::copy(pending_offsets_, buffer.pos);
   pending_glyphs_.Shrink(0);
   pending_offsets_.Shrink(0);
 }
@@ -370,7 +375,8 @@ class ClusterCallbackContext {
     for (unsigned j = 0; j < graphemes_in_cluster; ++j) {
       // Do not put emphasis marks on space, separator, and control
       // characters.
-      if (Character::CanReceiveTextEmphasis(text[character_index])) {
+      if (Character::CanReceiveTextEmphasis(
+              text.CodepointAt(character_index))) {
         bloberizer->AddEmphasisMark(emphasis_data, canvas_rotation,
                                     glyph_center,
                                     advance_so_far + glyph_advance_x / 2);
@@ -408,13 +414,13 @@ class ClusterStarts {
 
   void Finish(unsigned from, unsigned to) {
     std::sort(cluster_starts_.begin(), cluster_starts_.end());
-    DCHECK_EQ(base::ranges::adjacent_find(cluster_starts_),
+    DCHECK_EQ(std::ranges::adjacent_find(cluster_starts_),
               cluster_starts_.end());
-    DVLOG(4) << "  Cluster starts: " << base::make_span(cluster_starts_);
+    DVLOG(4) << "  Cluster starts: " << base::span(cluster_starts_);
     if (!cluster_starts_.empty()) {
       // 'from' may point inside a cluster; the least seen index may be larger.
       DCHECK_LE(from, *cluster_starts_.begin());
-      DCHECK_LT(*(cluster_starts_.end() - 1), to);
+      DCHECK_LT(*(UNSAFE_TODO(cluster_starts_.end() - 1)), to);
     }
     cluster_starts_.push_back(to);
   }
@@ -446,54 +452,82 @@ ShapeResultBloberizer::FillGlyphs::FillGlyphs(
 
   DVLOG(4) << "FillGlyphs slow path";
 
-  float advance = 0;
   auto results = result_buffer.results_;
+  FillGlyphsSlow(run_info.run.ToStringView(), run_info.run.Direction(), results,
+                 run_info.from, run_info.to);
+}
 
-  if (UNLIKELY(type_ == Type::kEmitText)) {
+ShapeResultBloberizer::FillGlyphs::FillGlyphs(
+    const FontDescription& font_description,
+    const PlainTextNode& node,
+    const Type type)
+    : ShapeResultBloberizer(font_description, type) {
+  DCHECK(!node.ContainsRtlItems());
+  const unsigned to = node.TextContent().length();
+  if (CanUseFastPath(0, to, to, node.HasVerticalOffsets())) {
+    DVLOG(4) << "FillGlyphs fast path";
+    DCHECK_NE(type_, ShapeResultBloberizer::Type::kTextIntercepts);
+    DCHECK_NE(type_, ShapeResultBloberizer::Type::kEmitText);
+    float advance = 0;
+    for (const auto& item : node.ItemList()) {
+      advance = FillFastHorizontalGlyphs(item.GetShapeResult(), advance);
+    }
+    advance_ = advance;
+    return;
+  }
+
+  FillGlyphsSlow(node.TextContent(), node.BaseDirection(), node.ItemList(), 0,
+                 to);
+}
+
+template <typename ShapeList>
+void ShapeResultBloberizer::FillGlyphs::FillGlyphsSlow(StringView text,
+                                                       TextDirection direction,
+                                                       const ShapeList& list,
+                                                       unsigned from,
+                                                       unsigned to) {
+  if (type_ == Type::kEmitText) [[unlikely]] {
     unsigned word_offset = 0;
     ClusterStarts cluster_starts;
-    for (const auto& word_result : results) {
-      word_result->ForEachGlyph(advance, run_info.from, run_info.to,
-                                word_offset, ClusterStarts::Accumulate,
+    for (const auto& item : list) {
+      const ShapeResult* word_result = GetShapeResult(item);
+      word_result->ForEachGlyph(0, from, to, word_offset,
+                                ClusterStarts::Accumulate,
                                 static_cast<void*>(&cluster_starts));
       word_offset += word_result->NumCharacters();
     }
-    cluster_starts.Finish(run_info.from, run_info.to);
-    SetText(run_info.run.ToStringView(), run_info.from, run_info.to,
-            cluster_starts.Data());
+    cluster_starts.Finish(from, to);
+    SetText(text, from, to, cluster_starts.Data());
   }
 
-  if (run_info.run.Rtl()) {
-    unsigned word_offset = run_info.run.length();
-    for (unsigned j = 0; j < results.size(); j++) {
-      unsigned resolved_index = results.size() - 1 - j;
-      const scoped_refptr<const ShapeResult>& word_result =
-          results[resolved_index];
+  float advance = 0;
+  if (IsRtl(direction)) {
+    unsigned word_offset = text.length();
+    for (const auto& item : base::Reversed(list)) {
+      const ShapeResult* word_result = GetShapeResult(item);
       unsigned word_characters = word_result->NumCharacters();
       word_offset -= word_characters;
-      DVLOG(4) << " FillGlyphs RTL run from: " << run_info.from
-               << " to: " << run_info.to << " offset: " << word_offset
-               << " length: " << word_characters;
-      advance =
-          FillGlyphsForResult(word_result.get(), run_info.run.ToStringView(),
-                              run_info.from, run_info.to, advance, word_offset);
+      DVLOG(4) << " FillGlyphs RTL run from: " << from << " to: " << to
+               << " offset: " << word_offset << " length: " << word_characters;
+      advance = FillGlyphsForResult(word_result, text, from, to, advance,
+                                    word_offset);
     }
   } else {
     unsigned word_offset = 0;
-    for (const auto& word_result : results) {
+    for (const auto& item : list) {
+      const ShapeResult* word_result = GetShapeResult(item);
       unsigned word_characters = word_result->NumCharacters();
-      DVLOG(4) << " FillGlyphs LTR run from: " << run_info.from
-               << " to: " << run_info.to << " offset: " << word_offset
-               << " length: " << word_characters;
-      advance =
-          FillGlyphsForResult(word_result.get(), run_info.run.ToStringView(),
-                              run_info.from, run_info.to, advance, word_offset);
+      DVLOG(4) << " FillGlyphs LTR run from: " << from << " to: " << to
+               << " offset: " << word_offset << " length: " << word_characters;
+      advance = FillGlyphsForResult(word_result, text, from, to, advance,
+                                    word_offset);
       word_offset += word_characters;
     }
   }
 
-  if (UNLIKELY(type_ == Type::kEmitText))
+  if (type_ == Type::kEmitText) [[unlikely]] {
     CommitText();
+  }
 
   advance_ = advance;
 }
@@ -522,7 +556,7 @@ ShapeResultBloberizer::FillGlyphsNG::FillGlyphsNG(
 
   DVLOG(4) << "FillGlyphsNG slow path";
   unsigned run_offset = 0;
-  if (UNLIKELY(type_ == Type::kEmitText)) {
+  if (type_ == Type::kEmitText) [[unlikely]] {
     ClusterStarts cluster_starts;
     result->ForEachGlyph(initial_advance, from, to, run_offset,
                          ClusterStarts::Accumulate,
@@ -536,48 +570,9 @@ ShapeResultBloberizer::FillGlyphsNG::FillGlyphsNG(
       result->ForEachGlyph(initial_advance, from, to, run_offset,
                            AddGlyphToBloberizer, static_cast<void*>(&context));
 
-  if (UNLIKELY(type_ == Type::kEmitText))
+  if (type_ == Type::kEmitText) [[unlikely]] {
     CommitText();
-}
-
-ShapeResultBloberizer::FillTextEmphasisGlyphs::FillTextEmphasisGlyphs(
-    const FontDescription& font_description,
-    const TextRunPaintInfo& run_info,
-    const ShapeResultBuffer& result_buffer,
-    const GlyphData& emphasis)
-    : ShapeResultBloberizer(font_description, Type::kNormal) {
-  gfx::PointF glyph_center =
-      emphasis.font_data->BoundsForGlyph(emphasis.glyph).CenterPoint();
-
-  float advance = 0;
-  auto results = result_buffer.results_;
-
-  if (run_info.run.Rtl()) {
-    unsigned word_offset = run_info.run.length();
-    for (unsigned j = 0; j < results.size(); j++) {
-      unsigned resolved_index = results.size() - 1 - j;
-      const scoped_refptr<const ShapeResult>& word_result =
-          results[resolved_index];
-      word_offset -= word_result->NumCharacters();
-      StringView text = run_info.run.ToStringView();
-      ClusterCallbackContext context = {this, text, emphasis, glyph_center};
-      advance = word_result->ForEachGraphemeClusters(
-          text, advance, run_info.from, run_info.to, word_offset,
-          AddEmphasisMarkToBloberizer, static_cast<void*>(&context));
-    }
-  } else {  // Left-to-right.
-    unsigned word_offset = 0;
-    for (const auto& word_result : results) {
-      StringView text = run_info.run.ToStringView();
-      ClusterCallbackContext context = {this, text, emphasis, glyph_center};
-      advance = word_result->ForEachGraphemeClusters(
-          text, advance, run_info.from, run_info.to, word_offset,
-          AddEmphasisMarkToBloberizer, static_cast<void*>(&context));
-      word_offset += word_result->NumCharacters();
-    }
   }
-
-  advance_ = advance;
 }
 
 ShapeResultBloberizer::FillTextEmphasisGlyphsNG::FillTextEmphasisGlyphsNG(
@@ -629,7 +624,7 @@ float ShapeResultBloberizer::FillFastHorizontalGlyphs(
   for (unsigned i = 0; i < results.size(); ++i) {
     const auto& word_result =
         IsLtr(text_direction) ? results[i] : results[results.size() - 1 - i];
-    advance = FillFastHorizontalGlyphs(word_result.get(), advance);
+    advance = FillFastHorizontalGlyphs(word_result.Get(), advance);
   }
 
   return advance;
@@ -643,6 +638,62 @@ float ShapeResultBloberizer::FillFastHorizontalGlyphs(const ShapeResult* result,
   return result->ForEachGlyph(initial_advance,
                               &AddFastHorizontalGlyphToBloberizer,
                               static_cast<void*>(this));
+}
+
+void DrawTextBlobs(const ShapeResultBloberizer::BlobBuffer& blobs,
+                   cc::PaintCanvas& canvas,
+                   const gfx::PointF& point,
+                   const cc::PaintFlags& flags,
+                   cc::NodeId node_id) {
+  for (const auto& blob_info : blobs) {
+    DCHECK(blob_info.blob);
+    cc::PaintCanvasAutoRestore auto_restore(&canvas, false);
+    switch (blob_info.rotation) {
+      case CanvasRotationInVertical::kRegular:
+        break;
+      case CanvasRotationInVertical::kRotateCanvasUpright: {
+        canvas.save();
+
+        SkMatrix m;
+        m.setSinCos(-1, 0, point.x(), point.y());
+        canvas.concat(SkM44(m));
+        break;
+      }
+      case CanvasRotationInVertical::kRotateCanvasUprightOblique: {
+        canvas.save();
+
+        SkMatrix m;
+        m.setSinCos(-1, 0, point.x(), point.y());
+        // TODO(yosin): We should use angle specified in CSS instead of
+        // constant value -15deg.
+        // Note: We draw glyph in right-top corner upper.
+        // See CSS "transform: skew(0, -15deg)"
+        SkMatrix skew_y;
+        constexpr SkScalar kSkewY = -0.2679491924311227;  // tan(-15deg)
+        skew_y.setSkew(0, kSkewY, point.x(), point.y());
+        m.preConcat(skew_y);
+        canvas.concat(SkM44(m));
+        break;
+      }
+      case CanvasRotationInVertical::kOblique: {
+        // TODO(yosin): We should use angle specified in CSS instead of
+        // constant value 15deg.
+        // Note: We draw glyph in right-top corner upper.
+        // See CSS "transform: skew(0, -15deg)"
+        canvas.save();
+        SkMatrix skew_x;
+        constexpr SkScalar kSkewX = 0.2679491924311227;  // tan(15deg)
+        skew_x.setSkew(kSkewX, 0, point.x(), point.y());
+        canvas.concat(SkM44(skew_x));
+        break;
+      }
+    }
+    if (node_id != cc::kInvalidNodeId) {
+      canvas.drawTextBlob(blob_info.blob, point.x(), point.y(), node_id, flags);
+    } else {
+      canvas.drawTextBlob(blob_info.blob, point.x(), point.y(), flags);
+    }
+  }
 }
 
 }  // namespace blink

@@ -8,8 +8,8 @@
 
 #include "base/trace_event/trace_event.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/public/platform/web_string.h"
@@ -46,18 +46,18 @@ MIDIDispatcher::MIDIDispatcher(ExecutionContext* execution_context)
 MIDIDispatcher::~MIDIDispatcher() = default;
 
 void MIDIDispatcher::SendMIDIData(uint32_t port,
-                                  const uint8_t* data,
-                                  wtf_size_t length,
+                                  base::span<const uint8_t> data,
                                   base::TimeTicks timestamp) {
-  if ((kMaxUnacknowledgedBytesSent - unacknowledged_bytes_sent_) < length) {
+  if ((kMaxUnacknowledgedBytesSent - unacknowledged_bytes_sent_) <
+      data.size()) {
     // TODO(toyoshim): buffer up the data to send at a later time.
     // For now we're just dropping these bytes on the floor.
     return;
   }
 
-  unacknowledged_bytes_sent_ += length;
+  unacknowledged_bytes_sent_ += data.size();
   Vector<uint8_t> v;
-  v.Append(data, length);
+  v.AppendSpan(data);
   midi_session_->SendData(port, std::move(v), timestamp);
 }
 
@@ -140,10 +140,11 @@ void MIDIDispatcher::DataReceived(uint32_t port,
   DCHECK(!data.empty());
 
   if (initialized_)
-    client_->DidReceiveMIDIData(port, &data[0], data.size(), timestamp);
+    client_->DidReceiveMIDIData(port, data, timestamp);
 }
 
 void MIDIDispatcher::Trace(Visitor* visitor) const {
+  visitor->Trace(client_);
   visitor->Trace(midi_session_);
   visitor->Trace(receiver_);
   visitor->Trace(midi_session_provider_);

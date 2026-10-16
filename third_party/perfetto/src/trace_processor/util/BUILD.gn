@@ -61,10 +61,10 @@ source_set("gzip") {
   }
 }
 
-source_set("stack_traces_util") {
+source_set("build_id") {
   sources = [
-    "stack_traces_util.cc",
-    "stack_traces_util.h",
+    "build_id.cc",
+    "build_id.h",
   ]
   deps = [
     "../../../gn:default_deps",
@@ -72,10 +72,38 @@ source_set("stack_traces_util") {
   ]
 }
 
+source_set("profiler_util") {
+  sources = [
+    "profiler_util.cc",
+    "profiler_util.h",
+  ]
+  deps = [
+    "../../../gn:default_deps",
+    "../../../include/perfetto/ext/base:base",
+    "../../../protos/perfetto/trace/profiling:zero",
+    "../storage:storage",
+  ]
+}
+
 source_set("protozero_to_text") {
   sources = [
     "protozero_to_text.cc",
     "protozero_to_text.h",
+  ]
+  deps = [
+    ":descriptors",
+    "../../../gn:default_deps",
+    "../../../protos/perfetto/common:zero",
+    "../../../protos/perfetto/trace/track_event:zero",
+    "../../base",
+    "../../protozero",
+  ]
+}
+
+source_set("protozero_to_json") {
+  sources = [
+    "protozero_to_json.cc",
+    "protozero_to_json.h",
   ]
   deps = [
     ":descriptors",
@@ -148,7 +176,10 @@ source_set("zip_reader") {
   ]
   deps = [
     ":gzip",
+    ":trace_blob_view_reader",
+    ":util",
     "../../../gn:default_deps",
+    "../../../include/perfetto/trace_processor:storage",
     "../../base",
   ]
   if (enable_perfetto_zlib) {
@@ -161,6 +192,14 @@ source_set("glob") {
     "glob.cc",
     "glob.h",
   ]
+  deps = [
+    "../../../gn:default_deps",
+    "../../base",
+  ]
+}
+
+source_set("regex") {
+  sources = [ "regex.h" ]
   deps = [
     "../../../gn:default_deps",
     "../../base",
@@ -211,9 +250,49 @@ source_set("profile_builder") {
     "../../../protos/third_party/pprof:zero",
     "../../base",
     "../containers",
+    "../db/column",
     "../storage",
     "../tables",
     "../types",
+  ]
+}
+
+source_set("trace_blob_view_reader") {
+  sources = [
+    "trace_blob_view_reader.cc",
+    "trace_blob_view_reader.h",
+  ]
+  deps = [
+    "../../../gn:default_deps",
+    "../../../include/perfetto/ext/base",
+    "../../../include/perfetto/trace_processor:storage",
+  ]
+}
+
+source_set("trace_type") {
+  sources = [
+    "trace_type.cc",
+    "trace_type.h",
+  ]
+  deps = [
+    "../../../gn:default_deps",
+    "../../../include/perfetto/ext/base",
+    "../../../protos/perfetto/trace:non_minimal_zero",
+    "../../protozero",
+    "../importers/android_bugreport:android_dumpstate_event",
+    "../importers/android_bugreport:android_log_event",
+    "../importers/perf_text:perf_text_sample_line_parser",
+  ]
+}
+
+source_set("winscope_proto_mapping") {
+  sources = [ "winscope_proto_mapping.h" ]
+  deps = [
+    "../../../gn:default_deps",
+    "../../../include/perfetto/ext/base:base",
+    "../db",
+    "../storage:storage",
+    "../tables",
   ]
 }
 
@@ -224,9 +303,11 @@ source_set("unittests") {
     "glob_unittest.cc",
     "proto_profiler_unittest.cc",
     "proto_to_args_parser_unittest.cc",
+    "protozero_to_json_unittests.cc",
     "protozero_to_text_unittests.cc",
     "sql_argument_unittest.cc",
     "streaming_line_reader_unittest.cc",
+    "trace_blob_view_reader_unittest.cc",
     "zip_reader_unittest.cc",
   ]
   testonly = true
@@ -237,8 +318,10 @@ source_set("unittests") {
     ":gzip",
     ":proto_profiler",
     ":proto_to_args_parser",
+    ":protozero_to_json",
     ":protozero_to_text",
     ":sql_argument",
+    ":trace_blob_view_reader",
     ":zip_reader",
     "..:gen_cc_test_messages_descriptor",
     "../../../gn:default_deps",
@@ -248,13 +331,21 @@ source_set("unittests") {
     "../../../protos/perfetto/trace/interned_data:zero",
     "../../../protos/perfetto/trace/profiling:zero",
     "../../../protos/perfetto/trace/track_event:zero",
+    "../../base:test_support",
     "../../protozero",
     "../../protozero:testing_messages_zero",
     "../importers/proto:gen_cc_track_event_descriptor",
     "../importers/proto:minimal",
+    "../importers/proto:packet_sequence_state_generation_hdr",
     "../storage",
     "../types",
   ]
+  if (perfetto_build_standalone) {
+    deps += [
+      "../../../protos/perfetto/metrics/chrome:lite",
+      "../metrics:gen_cc_all_chrome_metrics_descriptor",
+    ]
+  }
   if (enable_perfetto_zlib) {
     sources += [ "gzip_utils_unittest.cc" ]
     deps += [ "../../../gn:zlib" ]

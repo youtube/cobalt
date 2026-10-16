@@ -17,16 +17,27 @@
 
 #include <cinttypes>
 
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <initializer_list>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
 #include <vector>
 
+#include "perfetto/base/logging.h"
 #include "perfetto/ext/base/base64.h"
 #include "perfetto/ext/base/endian.h"
 #include "perfetto/ext/base/http/sha1.h"
+#include "perfetto/ext/base/paged_memory.h"
 #include "perfetto/ext/base/string_utils.h"
 #include "perfetto/ext/base/string_view.h"
+#include "perfetto/ext/base/unix_socket.h"
 
-namespace perfetto {
-namespace base {
+namespace perfetto::base {
 
 namespace {
 constexpr size_t kMaxPayloadSize = 64 * 1024 * 1024;
@@ -52,24 +63,50 @@ HttpServer::HttpServer(TaskRunner* task_runner, HttpRequestHandler* req_handler)
     : task_runner_(task_runner), req_handler_(req_handler) {}
 HttpServer::~HttpServer() = default;
 
-void HttpServer::Start(int port) {
-  std::string ipv4_addr = "127.0.0.1:" + std::to_string(port);
-  std::string ipv6_addr = "[::1]:" + std::to_string(port);
-
-  sock4_ = UnixSocket::Listen(ipv4_addr, this, task_runner_, SockFamily::kInet,
+void HttpServer::ListenOnIpV4(const std::string& ip_addr) {
+  PERFETTO_LOG("[HTTP] Starting HTTP server on %s", ip_addr.c_str());
+  sock4_ = UnixSocket::Listen(ip_addr, this, task_runner_, SockFamily::kInet,
                               SockType::kStream);
   bool ipv4_listening = sock4_ && sock4_->is_listening();
   if (!ipv4_listening) {
-    PERFETTO_PLOG("Failed to listen on IPv4 socket");
+    PERFETTO_PLOG("Failed to listen on IPv4 socket: \"%s\"", ip_addr.c_str());
     sock4_.reset();
   }
+}
 
-  sock6_ = UnixSocket::Listen(ipv6_addr, this, task_runner_, SockFamily::kInet6,
+void HttpServer::ListenOnIpV6(const std::string& ip_addr) {
+  PERFETTO_LOG("[HTTP] Starting HTTP server on %s", ip_addr.c_str());
+  sock6_ = UnixSocket::Listen(ip_addr, this, task_runner_, SockFamily::kInet6,
                               SockType::kStream);
   bool ipv6_listening = sock6_ && sock6_->is_listening();
   if (!ipv6_listening) {
-    PERFETTO_PLOG("Failed to listen on IPv6 socket");
+    PERFETTO_PLOG("Failed to listen on IPv6 socket: \"%s\"", ip_addr.c_str());
     sock6_.reset();
+  }
+}
+
+void HttpServer::Start(const std::string& listen_ip, int port) {
+  // On some poorly configured machines, localhost does *not* resolve to both
+  // [::1] even though IPv6 is present. On such machines, we can end up in a
+  // situation where the client expects us to use IPv6 (as inside G3, we
+  // unconditionally use IPv6) even though we are not binding to [::1] because
+  // getaddrinfo does not return it.
+  //
+  // Work around this by always binding to both regardless of what getaddrinfo
+  // returns.
+  if (listen_ip == "localhost") {
+    ListenOnIpV4("127.0.0.1:" + std::to_string(port));
+    ListenOnIpV6("[::1]:" + std::to_string(port));
+    return;
+  }
+  std::string port_str = std::to_string(port);
+  std::vector<NetAddrInfo> addr_infos = GetNetAddrInfo(listen_ip, port_str);
+  for (NetAddrInfo& info : addr_infos) {
+    if (info.family == SockFamily::kInet) {
+      ListenOnIpV4(info.ip_port);
+    } else if (info.family == SockFamily::kInet6) {
+      ListenOnIpV6(info.ip_port);
+    }
   }
 }
 
@@ -199,9 +236,12 @@ size_t HttpServer::ParseOneHttpRequest(HttpServerConnection* conn) {
         if (IsOriginAllowed(hdr_value))
           conn->origin_allowed_ = hdr_value.ToStdString();
       } else if (hdr_name.CaseInsensitiveEq("connection")) {
-        conn->keepalive_ = hdr_value.CaseInsensitiveEq("keep-alive");
-        http_req.is_websocket_handshake =
-            hdr_value.CaseInsensitiveEq("upgrade");
+        auto values = SplitString(hdr_value.ToStdString(), ",");
+        for (auto& value : values) {
+          value = ToLower(TrimWhitespace(value));
+        }
+        conn->keepalive_ = Contains(values, "keep-alive");
+        http_req.is_websocket_handshake = Contains(values, "upgrade");
       }
     }
   }
@@ -361,8 +401,6 @@ size_t HttpServer::ParseOneWebsocketFrame(HttpServerConnection* conn) {
 
   uint8_t h0 = *(rd++);
   uint8_t h1 = *(rd++);
-  const bool fin = !!(h0 & 0x80);  // This bit is set if this frame is the last
-                                   // data to complete this message.
   const uint8_t opcode = h0 & 0x0F;
 
   const bool has_mask = !!(h1 & 0x80);
@@ -407,13 +445,8 @@ size_t HttpServer::ParseOneWebsocketFrame(HttpServerConnection* conn) {
   memcpy(mask, rd, sizeof(mask));
   rd += sizeof(mask);
 
-  PERFETTO_DLOG(
-      "[HTTP] Websocket fin=%d opcode=%u, payload_len=%zu (avail=%zu), "
-      "mask=%02x%02x%02x%02x",
-      fin, opcode, payload_len, avail(), mask[0], mask[1], mask[2], mask[3]);
-
   if (avail() < payload_len)
-    return 0;  // Not enouh data to read the payload.
+    return 0;  // Not enough data to read the payload.
   uint8_t* const payload_start = rd;
 
   // Unmask the payload.
@@ -577,5 +610,4 @@ HttpRequestHandler::~HttpRequestHandler() = default;
 void HttpRequestHandler::OnWebsocketMessage(const WebsocketMessage&) {}
 void HttpRequestHandler::OnHttpConnectionClosed(HttpServerConnection*) {}
 
-}  // namespace base
-}  // namespace perfetto
+}  // namespace perfetto::base

@@ -17,7 +17,6 @@ const char* NetLogEventTypeToString(NetLogEventType type) {
 #undef EVENT_TYPE
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 

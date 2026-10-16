@@ -16,23 +16,18 @@
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 
 // Testing fixture for navigation_manager_util.h functions.
 class NavigationManagerUtilTest : public PlatformTest {
  protected:
   NavigationManagerUtilTest() {
-    manager_ = std::make_unique<NavigationManagerImpl>();
-    manager_->SetBrowserState(&browser_state_);
     WKWebView* mock_web_view = OCMClassMock([WKWebView class]);
     mock_wk_list_ = [[CRWFakeBackForwardList alloc] init];
     OCMStub([mock_web_view backForwardList]).andReturn(mock_wk_list_);
     delegate_.SetWebViewNavigationProxy(mock_web_view);
-    manager_->SetDelegate(&delegate_);
+    manager_ =
+        std::make_unique<NavigationManagerImpl>(&browser_state_, &delegate_);
   }
 
   std::unique_ptr<NavigationManagerImpl> manager_;
@@ -49,13 +44,14 @@ TEST_F(NavigationManagerUtilTest, GetCommittedItemWithUniqueID) {
   // Start with NavigationManager that only has a pending item.
   std::unique_ptr<NavigationContextImpl> context =
       NavigationContextImpl::CreateNavigationContext(
-          /*web_state=*/nullptr, GURL::EmptyGURL(),
+          /*web_state=*/nullptr, GURL(),
           /*has_user_gesture=*/false, ui::PAGE_TRANSITION_TYPED,
           /*is_renderer_initiated=*/false);
   manager_->AddPendingItem(
       GURL("http://chromium.org"), Referrer(), ui::PAGE_TRANSITION_TYPED,
       web::NavigationInitiationType::BROWSER_INITIATED,
-      /*is_post_navigation=*/false, web::HttpsUpgradeType::kNone);
+      /*is_post_navigation=*/false, /*is_error_navigation=*/false,
+      web::HttpsUpgradeType::kNone);
   NavigationItem* item = manager_->GetPendingItem();
   int unique_id = item->GetUniqueID();
   context->SetNavigationItemUniqueID(item->GetUniqueID());

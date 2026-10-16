@@ -16,7 +16,10 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
+import android.content.ContentResolver;
 import android.content.Context;
+import android.provider.Settings;
+import android.text.TextUtils;
 import androidx.annotation.GuardedBy;
 import com.google.android.gms.ads.identifier.AdvertisingIdClient;
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
@@ -28,45 +31,74 @@ import java.util.concurrent.Executors;
 
 /** A class for managing the IfA for CoAT. https://developer.android.com/training/articles/ad-id */
 public class AdvertisingId {
-  private final Context context;
-  private final ExecutorService singleThreadExecutor;
+  private final Context mContext;
+  private final ExecutorService mSingleThreadExecutor;
 
-  @GuardedBy("advertisingIdInfoLock")
-  private volatile AdvertisingIdClient.Info advertisingIdInfo;
+  @GuardedBy("mAdvertisingIdInfoLock")
+  private volatile AdvertisingIdClient.Info mAdvertisingIdInfo;
 
-  // Controls access to advertisingIdInfo
-  private final Object advertisingIdInfoLock = new Object();
+  // Controls access to mAdvertisingIdInfo
+  private final Object mAdvertisingIdInfoLock = new Object();
 
   public AdvertisingId(Context context) {
-    this.context = context;
-    this.singleThreadExecutor = Executors.newSingleThreadExecutor();
-    this.advertisingIdInfo = null;
+    mContext = context;
+    mSingleThreadExecutor = Executors.newSingleThreadExecutor();
+    mAdvertisingIdInfo = null;
     refresh();
   }
 
+  public void shutdown() {
+    mSingleThreadExecutor.shutdown();
+  }
+
   public void refresh() {
-    singleThreadExecutor.execute(
+    mSingleThreadExecutor.execute(
         () -> {
           try {
             // The following statement may be slow.
-            AdvertisingIdClient.Info info = AdvertisingIdClient.getAdvertisingIdInfo(context);
-            synchronized (advertisingIdInfoLock) {
-              advertisingIdInfo = info;
+            AdvertisingIdClient.Info info = AdvertisingIdClient.getAdvertisingIdInfo(mContext);
+            synchronized (mAdvertisingIdInfoLock) {
+              mAdvertisingIdInfo = info;
             }
             Log.i(TAG, "Successfully retrieved Advertising ID (IfA).");
           } catch (IOException
               | GooglePlayServicesNotAvailableException
               | GooglePlayServicesRepairableException e) {
-            Log.e(TAG, "Failed to retrieve Advertising ID (IfA).");
+            AdvertisingIdClient.Info info = getAdvertisingIdInfoFromSettings();
+            if (info == null) {
+              Log.e(TAG, "Failed to retrieve Advertising ID (IfA).");
+              return;
+            }
+            synchronized (mAdvertisingIdInfoLock) {
+              mAdvertisingIdInfo = info;
+            }
+            Log.i(TAG, "Retrieved Advertising ID (IfA) from system settings.");
           }
         });
   }
 
+  // Devices without Google Play Services can publish the IfA in secure settings instead.
+  private AdvertisingIdClient.Info getAdvertisingIdInfoFromSettings() {
+    ContentResolver resolver = mContext.getContentResolver();
+    try {
+      String id = Settings.Secure.getString(resolver, "advertising_id");
+      if (TextUtils.isEmpty(id)) {
+        return null;
+      }
+      boolean limitAdTracking = Settings.Secure.getInt(resolver, "limit_ad_tracking", 0) != 0;
+      return new AdvertisingIdClient.Info(id, limitAdTracking);
+    } catch (SecurityException e) {
+      // The device may not let apps read these settings.
+      Log.w(TAG, "Failed to read Advertising ID (IfA) from system settings.", e);
+      return null;
+    }
+  }
+
   public String getId() {
     String result = "";
-    synchronized (advertisingIdInfoLock) {
-      if (advertisingIdInfo != null) {
-        result = advertisingIdInfo.getId();
+    synchronized (mAdvertisingIdInfoLock) {
+      if (mAdvertisingIdInfo != null) {
+        result = mAdvertisingIdInfo.getId();
       }
     }
     refresh();
@@ -76,9 +108,9 @@ public class AdvertisingId {
 
   public boolean isLimitAdTrackingEnabled() {
     boolean result = false;
-    synchronized (advertisingIdInfoLock) {
-      if (advertisingIdInfo != null) {
-        result = advertisingIdInfo.isLimitAdTrackingEnabled();
+    synchronized (mAdvertisingIdInfoLock) {
+      if (mAdvertisingIdInfo != null) {
+        result = mAdvertisingIdInfo.isLimitAdTrackingEnabled();
       }
     }
     refresh();

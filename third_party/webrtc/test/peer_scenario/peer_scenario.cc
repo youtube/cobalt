@@ -15,6 +15,7 @@
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
 #include "test/logging/file_log_writer.h"
+#include "test/network/network_emulation_manager.h"
 #include "test/testsupport/file_utils.h"
 #include "test/time_controller/real_time_controller.h"
 #include "test/time_controller/simulated_time_controller.h"
@@ -55,13 +56,13 @@ PeerScenario::PeerScenario(
     std::unique_ptr<LogWriterFactoryInterface> log_writer_manager,
     TimeMode mode)
     : log_writer_manager_(std::move(log_writer_manager)),
-      net_(mode, EmulatedNetworkStatsGatheringMode::kDefault),
+      net_({.time_mode = mode}),
       signaling_thread_(net_.time_controller()->GetMainThread()) {}
 
 PeerScenarioClient* PeerScenario::CreateClient(
     PeerScenarioClient::Config config) {
   return CreateClient(
-      std::string("client_") + rtc::ToString(peer_clients_.size() + 1), config);
+      std::string("client_") + absl::StrCat(peer_clients_.size() + 1), config);
 }
 
 PeerScenarioClient* PeerScenario::CreateClient(
@@ -101,7 +102,7 @@ void PeerScenario::AttachVideoQualityAnalyzer(VideoQualityAnalyzer* analyzer,
                                               PeerScenarioClient* receiver) {
   video_quality_pairs_.emplace_back(clock(), analyzer);
   auto pair = &video_quality_pairs_.back();
-  send_track->AddOrUpdateSink(&pair->capture_tap_, rtc::VideoSinkWants());
+  send_track->AddOrUpdateSink(&pair->capture_tap_, VideoSinkWants());
   receiver->AddVideoReceiveSink(send_track->id(), &pair->decode_tap_);
 }
 

@@ -21,58 +21,44 @@ ContextEGL::ContextEGL(const gl::State &state,
 
 ContextEGL::~ContextEGL() {}
 
-angle::Result ContextEGL::onMakeCurrent(const gl::Context *context)
+void ContextEGL::acquireExternalContext(const gl::Context *context)
 {
-    // If this context is wrapping an external native context, save state from
-    // that external context when first making this context current.
-    if (!mIsCurrent && context->isExternal())
-    {
-        if (!mExtState)
-        {
-            mExtState        = std::make_unique<ExternalContextState>();
-            const auto &caps = getCaps();
-            mExtState->textureBindings.resize(
-                static_cast<size_t>(caps.maxCombinedTextureImageUnits));
-        }
-        getStateManager()->syncFromNativeContext(getNativeExtensions(), mExtState.get());
+    ASSERT(context->isExternal());
 
-        // Use current FBO as the default framebuffer when the external context is current.
-        // First save the current ID of the default framebuffer to restore in
-        // onUnMakeCurrent().
-        gl::Framebuffer *framebuffer = mState.getDefaultFramebuffer();
-        auto framebufferGL           = GetImplAs<FramebufferGL>(framebuffer);
-        mPrevDefaultFramebufferID    = framebufferGL->getFramebufferID();
-        framebufferGL->updateDefaultFramebufferID(mExtState->framebufferBinding);
+    if (!mExtState)
+    {
+        mExtState        = std::make_unique<ExternalContextState>();
+        const auto &caps = getCaps();
+        mExtState->textureBindings.resize(static_cast<size_t>(caps.maxCombinedTextureImageUnits));
     }
-    mIsCurrent = true;
-    return ContextGL::onMakeCurrent(context);
+
+    getStateManager()->syncFromNativeContext(getNativeExtensions(), mExtState.get());
+
+    // Use current FBO as the default framebuffer when the external context is current.
+    // First save the current ID of the default framebuffer to restore in
+    // onUnMakeCurrent().
+    gl::Framebuffer *framebuffer = mState.getDefaultFramebuffer();
+    auto framebufferGL           = GetImplAs<FramebufferGL>(framebuffer);
+    mPrevDefaultFramebufferID    = framebufferGL->getFramebufferID();
+    framebufferGL->updateDefaultFramebufferID(mExtState->framebufferBinding);
 }
 
-angle::Result ContextEGL::onUnMakeCurrent(const gl::Context *context)
+void ContextEGL::releaseExternalContext(const gl::Context *context)
 {
-    mIsCurrent = false;
+    ASSERT(context->isExternal());
+    ASSERT(mExtState);
 
-    if (context->saveAndRestoreState())
+    getStateManager()->restoreNativeContext(getNativeExtensions(), mExtState.get());
+
+    // If the default framebuffer exists, update its ID (note that there can
+    // be multiple consecutive onUnMakeCurrent() calls in destruction, and
+    // the default FBO will have been unset by the first one).
+    gl::Framebuffer *framebuffer = mState.getDefaultFramebuffer();
+    if (framebuffer)
     {
-        ASSERT(context->isExternal());
-        ASSERT(mExtState);
-        getStateManager()->restoreNativeContext(getNativeExtensions(), mExtState.get());
+        auto framebufferGL = GetImplAs<FramebufferGL>(framebuffer);
+        framebufferGL->updateDefaultFramebufferID(mPrevDefaultFramebufferID);
     }
-
-    if (context->isExternal())
-    {
-        // If the default framebuffer exists, update its ID (note that there can
-        // be multiple consecutive onUnMakeCurrent() calls in destruction, and
-        // the default FBO will have been unset by the first one).
-        gl::Framebuffer *framebuffer = mState.getDefaultFramebuffer();
-        if (framebuffer)
-        {
-            auto framebufferGL = GetImplAs<FramebufferGL>(framebuffer);
-            framebufferGL->updateDefaultFramebufferID(mPrevDefaultFramebufferID);
-        }
-    }
-
-    return ContextGL::onUnMakeCurrent(context);
 }
 
 EGLContext ContextEGL::getContext() const

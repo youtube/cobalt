@@ -13,7 +13,7 @@
 #include "base/memory/raw_ptr.h"
 #include "components/renderer_context_menu/render_view_context_menu_proxy.h"
 #include "ui/base/models/image_model.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/menus/simple_menu_model.h"
 
 class PrefService;
 class Profile;
@@ -79,8 +79,7 @@ class MockRenderViewContextMenu : public ui::SimpleMenuModel::Delegate,
   void RemoveSeparatorBeforeMenuItem(int command_id) override;
   void AddSpellCheckServiceItem(bool is_checked) override;
   void AddAccessibilityLabelsServiceItem(bool is_checked) override;
-  void AddPdfOcrMenuItem(bool is_checked) override;
-  content::RenderViewHost* GetRenderViewHost() const override;
+  content::RenderFrameHost* GetRenderFrameHost() const override;
   content::BrowserContext* GetBrowserContext() const override;
   content::WebContents* GetWebContents() const override;
 

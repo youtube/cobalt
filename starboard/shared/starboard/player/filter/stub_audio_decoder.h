@@ -31,7 +31,8 @@ namespace starboard {
 
 class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
-  explicit StubAudioDecoder(const AudioStreamInfo& audio_stream_info);
+  StubAudioDecoder(JobQueue* job_queue,
+                   const AudioStreamInfo& audio_stream_info);
   ~StubAudioDecoder() { Reset(); }
 
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
@@ -39,7 +40,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void Decode(const InputBuffers& input_buffer,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
-  scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
+  std::optional<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;
 
  private:
@@ -58,7 +59,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
 
   std::unique_ptr<JobThread> decoder_thread_;
   std::mutex decoded_audios_mutex_;
-  std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
+  std::queue<DecodedAudio> decoded_audios_;
   scoped_refptr<InputBuffer> last_input_buffer_;
   std::optional<int> frames_per_input_;
   // Used to determine when to send multiple DecodedAudios in DecodeOneBuffer().

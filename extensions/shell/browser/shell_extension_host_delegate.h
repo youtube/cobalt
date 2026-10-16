@@ -6,6 +6,7 @@
 #define EXTENSIONS_SHELL_BROWSER_SHELL_EXTENSION_HOST_DELEGATE_H_
 
 #include "extensions/browser/extension_host_delegate.h"
+#include "extensions/common/extension_id.h"
 
 namespace extensions {
 
@@ -23,9 +24,8 @@ class ShellExtensionHostDelegate : public ExtensionHostDelegate {
   // ExtensionHostDelegate implementation.
   void OnExtensionHostCreated(content::WebContents* web_contents) override;
   void OnMainFrameCreatedForBackgroundPage(ExtensionHost* host) override;
-  content::JavaScriptDialogManager* GetJavaScriptDialogManager() override;
   void CreateTab(std::unique_ptr<content::WebContents> web_contents,
-                 const std::string& extension_id,
+                 const ExtensionId& extension_id,
                  WindowOpenDisposition disposition,
                  const blink::mojom::WindowFeatures& window_features,
                  bool user_gesture) override;
@@ -34,7 +34,7 @@ class ShellExtensionHostDelegate : public ExtensionHostDelegate {
                                  content::MediaResponseCallback callback,
                                  const Extension* extension) override;
   bool CheckMediaAccessPermission(content::RenderFrameHost* render_frame_host,
-                                  const GURL& security_origin,
+                                  const url::Origin& security_origin,
                                   blink::mojom::MediaStreamType type,
                                   const Extension* extension) override;
   content::PictureInPictureResult EnterPictureInPicture(

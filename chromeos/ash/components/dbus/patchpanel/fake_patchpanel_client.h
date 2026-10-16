@@ -26,6 +26,31 @@ class COMPONENT_EXPORT(PATCHPANEL) FakePatchPanelClient
   void GetDevices(GetDevicesCallback callback) override;
   void AddObserver(Observer* observer) override;
   void RemoveObserver(Observer* observer) override;
+  void NotifyAndroidInteractiveState(bool interactive) override;
+  void NotifyAndroidWifiMulticastLockChange(bool is_held) override;
+  void NotifySocketConnectionEvent(
+      const patchpanel::SocketConnectionEvent& msg) override;
+  void NotifyARCVPNSocketConnectionEvent(
+      const patchpanel::SocketConnectionEvent& msg) override;
+  void TagSocket(int socket_fd,
+                 std::optional<int> network_id,
+                 std::optional<VpnRoutingPolicy> vpn_policy,
+                 TagSocketCallback callback) override;
+  void SetFeatureFlag(patchpanel::SetFeatureFlagRequest::FeatureFlag flag,
+                      bool enabled) override;
+  void WaitForServiceToBeAvailable(
+      dbus::ObjectProxy::WaitForServiceToBeAvailableCallback callback) override;
+
+  // Record of count of calling NotifyAndroidInteractiveState for testing
+  // purpose.
+  int GetAndroidInteractiveStateNotifyCount();
+  // Record of count of calling NotifyAndroidWifiMulticastLockChange for
+  // testing purpose.
+  int GetAndroidWifiMulticastLockChangeNotifyCount();
+
+  void set_tag_socket_success_for_testing(bool success) {
+    tag_socket_success_ = success;
+  }
 
  protected:
   friend class PatchPanelClient;
@@ -40,6 +65,12 @@ class COMPONENT_EXPORT(PATCHPANEL) FakePatchPanelClient
 
   // List of observers.
   base::ObserverList<Observer> observer_list_;
+
+  int notify_android_interactive_state_count_ = 0;
+
+  int notify_android_wifi_multicast_lock_change_count_ = 0;
+
+  bool tag_socket_success_ = true;
 };
 
 }  // namespace ash

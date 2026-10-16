@@ -4,7 +4,9 @@
 
 #include "chrome/installer/setup/setup_install_details.h"
 
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/command_line.h"
 #include "base/win/registry.h"
@@ -16,29 +18,28 @@
 #include "chrome/installer/util/initial_preferences.h"
 #include "chrome/installer/util/initial_preferences_constants.h"
 #include "chrome/installer/util/util_constants.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
 const install_static::InstallConstants* FindInstallMode(
     const base::CommandLine& command_line) {
   // Search for a mode whose switch is on the command line.
-  for (int i = 1; i < install_static::NUM_INSTALL_MODES; ++i) {
+  for (size_t i = 1; i < install_static::kInstallModes.size(); ++i) {
     const install_static::InstallConstants& mode =
         install_static::kInstallModes[i];
     if (command_line.HasSwitch(mode.install_switch))
       return &mode;
   }
   // The first mode is always the default if all else fails.
-  return &install_static::kInstallModes[0];
+  return &install_static::kInstallModes.front();
 }
 
 // Returns the value of `switch_name` from `command_line` if it is present, or
 // nullopt otherwise.
-absl::optional<std::wstring> GetSwitchValue(
+std::optional<std::wstring> GetSwitchValue(
     const base::CommandLine& command_line,
-    base::StringPiece switch_name) {
-  absl::optional<std::wstring> result;
+    std::string_view switch_name) {
+  std::optional<std::wstring> result;
   if (command_line.HasSwitch(switch_name))
     result = command_line.GetSwitchValueNative(switch_name);
   return result;
@@ -88,7 +89,7 @@ std::unique_ptr<install_static::PrimaryInstallDetails> MakeInstallDetails(
   std::wstring update_ap;
   std::wstring update_cohort_name;
 
-  absl::optional<std::wstring> channel_from_cmd_line =
+  std::optional<std::wstring> channel_from_cmd_line =
       GetSwitchValue(command_line, installer::switches::kChannel);
 
   auto channel = install_static::DetermineChannel(

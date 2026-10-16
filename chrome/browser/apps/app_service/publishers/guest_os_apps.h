@@ -10,9 +10,9 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
-#include "chrome/browser/apps/app_service/app_icon/icon_key_util.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_forward.h"
 #include "chrome/browser/apps/app_service/publishers/app_publisher.h"
+#include "chrome/browser/ash/crostini/crostini_util.h"
 #include "chrome/browser/ash/guest_os/guest_os_mime_types_service.h"
 #include "chrome/browser/ash/guest_os/guest_os_mime_types_service_factory.h"
 #include "chrome/browser/ash/guest_os/guest_os_registry_service.h"
@@ -40,9 +40,7 @@ class GuestOSApps : public KeyedService,
 
   void InitializeForTesting();
 
- private:
-  friend class PublisherHost;  // It calls Initialize().
-
+ protected:
   // Returns false if this kind of GuestOS isn't supported, e.g. missing
   // hardware capabilities. This prevents the app publisher from being
   // registered at all.
@@ -53,41 +51,48 @@ class GuestOSApps : public KeyedService,
 
   virtual void Initialize();
 
-  // apps::AppPublisher overrides.
-  void GetCompressedIconData(const std::string& app_id,
-                             int32_t size_in_dip,
-                             ui::ResourceScaleFactor scale_factor,
-                             LoadIconCallback callback) override;
-
-  // GuestOsRegistryService::Observer overrides.
-  void OnRegistryUpdated(
-      guest_os::GuestOsRegistryService* registry_service,
-      guest_os::VmType vm_type,
-      const std::vector<std::string>& updated_apps,
-      const std::vector<std::string>& removed_apps,
-      const std::vector<std::string>& inserted_apps) override;
-
-  AppPtr CreateApp(
-      const guest_os::GuestOsRegistryService::Registration& registration,
-      bool generate_new_icon_key);
+  // Returns launch args where files in the intent are converted to URLs.
+  std::vector<guest_os::LaunchArg> ArgsFromIntent(const apps::Intent* intent);
 
   // CreateApp calls this to override App defaults with per-OS values.
   virtual void CreateAppOverrides(
       const guest_os::GuestOsRegistryService::Registration& registration,
       App* app) {}
 
- protected:
   const raw_ptr<Profile> profile() const { return profile_; }
   const raw_ptr<guest_os::GuestOsRegistryService> registry() const {
     return registry_;
   }
 
  private:
+  friend class PublisherHost;  // It calls Initialize().
+
+  // apps::AppPublisher overrides.
+  void GetCompressedIconData(const std::string& app_id,
+                             int32_t size_in_dip,
+                             ui::ResourceScaleFactor scale_factor,
+                             LoadIconCallback callback) final;
+  void LaunchAppWithParams(AppLaunchParams&& params,
+                           LaunchCallback callback) final;
+
+  // GuestOsRegistryService::Observer overrides.
+  void OnRegistryUpdated(guest_os::GuestOsRegistryService* registry_service,
+                         guest_os::VmType vm_type,
+                         const std::vector<std::string>& updated_apps,
+                         const std::vector<std::string>& removed_apps,
+                         const std::vector<std::string>& inserted_apps) final;
+  void OnAppLastLaunchTimeUpdated(guest_os::VmType vm_type,
+                                  const std::string& app_id,
+                                  const base::Time& last_launch_time) override;
+
+  AppPtr CreateApp(
+      const guest_os::GuestOsRegistryService::Registration& registration,
+      bool generate_new_icon_key);
+
   const raw_ptr<Profile> profile_;
   raw_ptr<guest_os::GuestOsRegistryService> registry_;
   base::ScopedObservation<guest_os::GuestOsRegistryService, GuestOSApps>
       registry_observation_{this};
-  apps_util::IncrementingIconKeyFactory icon_key_factory_;
 };
 
 // Create a file intent filter with mime type conditions for App Service.

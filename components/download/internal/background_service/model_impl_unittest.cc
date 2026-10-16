@@ -42,6 +42,7 @@ class DownloadServiceModelImplTest : public testing::Test {
     store_ = store.get();
     model_ = std::make_unique<ModelImpl>(std::move(store));
   }
+  void TearDown() override { store_ = nullptr; }
 
  protected:
   test::MockModelClient client_;

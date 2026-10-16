@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "content/test/ppapi_unittest.h"
 
 #include <stdint.h>
 
 #include "content/public/common/content_plugin_info.h"
 #include "content/public/renderer/ppapi_gfx_conversion.h"
+#include "content/public/test/unittest_test_suite.h"
 #include "content/renderer/pepper/host_globals.h"
 #include "content/renderer/pepper/pepper_plugin_instance_impl.h"
 #include "content/renderer/pepper/plugin_module.h"
@@ -93,8 +99,9 @@ void PpapiUnittest::SetUp() {
   CHECK(module_->renderer_ppapi_host());
 
   // Initialize the mock instance.
-  instance_ =
-      PepperPluginInstanceImpl::Create(nullptr, module(), nullptr, GURL());
+  instance_ = PepperPluginInstanceImpl::Create(
+      nullptr, module(), nullptr, GURL(),
+      UnitTestTestSuite::MainThreadIsolateForUnitTestSuite());
 }
 
 void PpapiUnittest::TearDown() {

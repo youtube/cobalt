@@ -6,7 +6,6 @@
   {
     "namespace": "virtualKeyboardPrivate",
     "compiler_options": {
-      "modernised_enums": true,
       "implemented_in": "extensions/browser/api/virtual_keyboard_private/virtual_keyboard_private_api.h"
     },
     "platforms": ["chromeos"],
@@ -226,7 +225,7 @@
       {
         "name": "openSettings",
         "type": "function",
-        "description": "Opens chrome://os-settings/osLanguages page.",
+        "description": "Opens chrome://os-settings/osLanguages/input page.",
         "parameters": []
       },
       {

@@ -5,14 +5,13 @@
 #ifndef UI_OZONE_PUBLIC_PLATFORM_MENU_UTILS_H_
 #define UI_OZONE_PUBLIC_PLATFORM_MENU_UTILS_H_
 
-#include <string>
+#include <stdint.h>
 
 #include "base/component_export.h"
-#include "ui/events/keycodes/keyboard_codes_posix.h"
 
 namespace ui {
 
-enum class DomCode;
+enum class DomCode : uint32_t;
 
 // Platform-specific functions related to menus.
 class COMPONENT_EXPORT(OZONE_BASE) PlatformMenuUtils {
@@ -25,10 +24,6 @@ class COMPONENT_EXPORT(OZONE_BASE) PlatformMenuUtils {
   // Returns a bitmask of EventFlags showing the state of Alt, Shift and Ctrl
   // keys that came with the most recent UI event.
   virtual int GetCurrentKeyModifiers() const;
-
-  // Converts the keyboard code into a keysym label compatible with DBus menu
-  // protocol.
-  virtual std::string ToDBusKeySym(KeyboardCode code) const;
 };
 
 }  // namespace ui

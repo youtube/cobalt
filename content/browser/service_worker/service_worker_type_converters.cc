@@ -30,7 +30,6 @@ TypeConverter<blink::mojom::ServiceWorkerState,
       return blink::mojom::ServiceWorkerState::kRedundant;
   }
   NOTREACHED() << status;
-  return blink::mojom::ServiceWorkerState::kParsed;
 }
 
 }  // namespace mojo

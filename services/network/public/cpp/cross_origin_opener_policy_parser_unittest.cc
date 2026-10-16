@@ -19,36 +19,37 @@ namespace network {
 TEST(CrossOriginOpenerPolicyTest, Parse) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
-      {features::kCrossOriginOpenerPolicy, features::kCoopRestrictProperties},
+      {
+          features::kCrossOriginOpenerPolicy,
+          features::kCoopNoopenerAllowPopups,
+      },
       {});
 
   using mojom::CrossOriginOpenerPolicyValue;
   constexpr auto kSameOrigin = CrossOriginOpenerPolicyValue::kSameOrigin;
   constexpr auto kSameOriginAllowPopups =
       CrossOriginOpenerPolicyValue::kSameOriginAllowPopups;
-  constexpr auto kRestrictProperties =
-      CrossOriginOpenerPolicyValue::kRestrictProperties;
   constexpr auto kUnsafeNone = CrossOriginOpenerPolicyValue::kUnsafeNone;
   constexpr auto kSameOriginPlusCoep =
       CrossOriginOpenerPolicyValue::kSameOriginPlusCoep;
-  constexpr auto kRestrictPropertiesPlusCoep =
-      CrossOriginOpenerPolicyValue::kRestrictPropertiesPlusCoep;
   constexpr auto kCoepNone = mojom::CrossOriginEmbedderPolicyValue::kNone;
   constexpr auto kCoepCorp =
       mojom::CrossOriginEmbedderPolicyValue::kRequireCorp;
+  constexpr auto kNoopenerAllowPopups =
+      CrossOriginOpenerPolicyValue::kNoopenerAllowPopups;
 
-  const auto kNoHeader = absl::optional<std::string>();
+  const auto kNoHeader = std::optional<std::string>();
   const auto kNoEndpoint = kNoHeader;
 
   const struct {
-    absl::optional<std::string> raw_coop_string;
+    std::optional<std::string> raw_coop_string;
     mojom::CrossOriginEmbedderPolicyValue coep_value;
-    absl::optional<std::string> raw_coop_report_only_string;
+    std::optional<std::string> raw_coop_report_only_string;
     mojom::CrossOriginEmbedderPolicyValue coep_report_only_value;
-    absl::optional<std::string> expected_endpoint;
+    std::optional<std::string> expected_endpoint;
     CrossOriginOpenerPolicyValue expected_policy;
     CrossOriginOpenerPolicyValue expected_soap_by_default_policy;
-    absl::optional<std::string> expected_endpoint_report_only;
+    std::optional<std::string> expected_endpoint_report_only;
     CrossOriginOpenerPolicyValue expected_policy_report_only;
   } kTestCases[] = {
       {"same-origin", kCoepNone, kNoHeader, kCoepNone, kNoEndpoint, kSameOrigin,
@@ -56,8 +57,6 @@ TEST(CrossOriginOpenerPolicyTest, Parse) {
       {"same-origin-allow-popups", kCoepNone, kNoHeader, kCoepNone, kNoEndpoint,
        kSameOriginAllowPopups, kSameOriginAllowPopups, kNoEndpoint,
        kUnsafeNone},
-      {"restrict-properties", kCoepNone, kNoHeader, kCoepNone, kNoEndpoint,
-       kRestrictProperties, kRestrictProperties, kNoEndpoint, kUnsafeNone},
       {"unsafe-none", kCoepNone, kNoHeader, kCoepNone, kNoEndpoint, kUnsafeNone,
        kUnsafeNone, kNoEndpoint, kUnsafeNone},
 
@@ -190,21 +189,8 @@ TEST(CrossOriginOpenerPolicyTest, Parse) {
       // reporting Same-origin with reporting COEP
       {kNoHeader, kCoepNone, "same-origin", kCoepCorp, kNoEndpoint, kUnsafeNone,
        kSameOriginAllowPopups, kNoEndpoint, kSameOriginPlusCoep},
-      // restrict-properties with COEP
-      {"restrict-properties", kCoepCorp, kNoHeader, kCoepNone, kNoEndpoint,
-       kRestrictPropertiesPlusCoep, kRestrictPropertiesPlusCoep, kNoEndpoint,
-       kUnsafeNone},
-      // restrict-properties with report only COEP
-      {"restrict-properties", kCoepNone, kNoHeader, kCoepCorp, kNoEndpoint,
-       kRestrictProperties, kRestrictProperties, kNoEndpoint, kUnsafeNone},
-      // reporting restrict-properties with COEP
-      {kNoHeader, kCoepCorp, "restrict-properties", kCoepNone, kNoEndpoint,
-       kUnsafeNone, kSameOriginAllowPopups, kNoEndpoint,
-       kRestrictPropertiesPlusCoep},
-      // reporting restrict-properties with reporting COEP
-      {kNoHeader, kCoepNone, "restrict-properties", kCoepCorp, kNoEndpoint,
-       kUnsafeNone, kSameOriginAllowPopups, kNoEndpoint,
-       kRestrictPropertiesPlusCoep},
+      {"noopener-allow-popups", kCoepNone, kNoHeader, kCoepNone, kNoEndpoint,
+       kNoopenerAllowPopups, kNoopenerAllowPopups, kNoEndpoint, kUnsafeNone},
   };
 
   for (const auto& test_case : kTestCases) {
@@ -258,10 +244,10 @@ TEST(CrossOriginOpenerPolicyTest, Default) {
   // Then we have no policy enforced by default:
   network::CrossOriginOpenerPolicy parsed_policy =
       ParseCrossOriginOpenerPolicy(*headers);
-  EXPECT_EQ(absl::nullopt, parsed_policy.reporting_endpoint);
+  EXPECT_EQ(std::nullopt, parsed_policy.reporting_endpoint);
   EXPECT_EQ(mojom::CrossOriginOpenerPolicyValue::kUnsafeNone,
             parsed_policy.value);
-  EXPECT_EQ(absl::nullopt, parsed_policy.report_only_reporting_endpoint);
+  EXPECT_EQ(std::nullopt, parsed_policy.report_only_reporting_endpoint);
   EXPECT_EQ(mojom::CrossOriginOpenerPolicyValue::kUnsafeNone,
             parsed_policy.report_only_value);
 }
@@ -281,10 +267,10 @@ TEST(CrossOriginOpenerPolicyTest, DefaultWithCOOPByDefault) {
   // policy reported on by default:
   network::CrossOriginOpenerPolicy parsed_policy =
       ParseCrossOriginOpenerPolicy(*headers);
-  EXPECT_EQ(absl::nullopt, parsed_policy.reporting_endpoint);
+  EXPECT_EQ(std::nullopt, parsed_policy.reporting_endpoint);
   EXPECT_EQ(mojom::CrossOriginOpenerPolicyValue::kSameOriginAllowPopups,
             parsed_policy.value);
-  EXPECT_EQ(absl::nullopt, parsed_policy.report_only_reporting_endpoint);
+  EXPECT_EQ(std::nullopt, parsed_policy.report_only_reporting_endpoint);
   EXPECT_EQ(mojom::CrossOriginOpenerPolicyValue::kUnsafeNone,
             parsed_policy.report_only_value);
 }

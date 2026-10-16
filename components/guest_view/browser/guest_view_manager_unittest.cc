@@ -7,9 +7,13 @@
 #include <memory>
 #include <utility>
 
+#include "base/test/scoped_feature_list.h"
 #include "components/guest_view/browser/guest_view.h"
 #include "components/guest_view/browser/guest_view_manager_delegate.h"
 #include "components/guest_view/browser/test_guest_view_manager.h"
+#include "content/public/browser/guest_page_holder.h"
+#include "content/public/browser/site_instance.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/web_contents_tester.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -23,15 +27,16 @@ namespace {
 
 class StubGuestView : public GuestView<StubGuestView> {
  public:
-  explicit StubGuestView(WebContents* owner_web_contents,
+  explicit StubGuestView(content::RenderFrameHost* owner_rfh,
                          std::unique_ptr<WebContents> guest_web_contents)
-      : GuestView<StubGuestView>(owner_web_contents) {
+      : GuestView<StubGuestView>(owner_rfh) {
+    EXPECT_FALSE(base::FeatureList::IsEnabled(features::kGuestViewMPArch));
     WebContentsObserver::Observe(guest_web_contents.get());
     TakeGuestContentsOwnership(std::move(guest_web_contents));
   }
 
-  explicit StubGuestView(WebContents* owner_web_contents)
-      : GuestView<StubGuestView>(owner_web_contents) {}
+  explicit StubGuestView(content::RenderFrameHost* owner_rfh)
+      : GuestView<StubGuestView>(owner_rfh) {}
 
   StubGuestView(const StubGuestView&) = delete;
   StubGuestView& operator=(const StubGuestView&) = delete;
@@ -39,11 +44,28 @@ class StubGuestView : public GuestView<StubGuestView> {
   ~StubGuestView() override = default;
 
   static const char Type[];
+  static const GuestViewHistogramValue HistogramValue =
+      GuestViewHistogramValue::kInvalid;
 
   void AssignNewGuestContents(std::unique_ptr<WebContents> guest_web_contents) {
+    EXPECT_FALSE(base::FeatureList::IsEnabled(features::kGuestViewMPArch));
     ClearOwnedGuestContents();
     WebContentsObserver::Observe(guest_web_contents.get());
     TakeGuestContentsOwnership(std::move(guest_web_contents));
+  }
+
+  void AssignNewGuestPage() {
+    EXPECT_TRUE(base::FeatureList::IsEnabled(features::kGuestViewMPArch));
+    ClearOwnedGuestPage();
+
+    std::unique_ptr<content::GuestPageHolder> guest_page_holder =
+        content::GuestPageHolder::Create(
+            owner_web_contents(),
+            content::SiteInstance::Create(browser_context()),
+            GetGuestPageHolderDelegateWeakPtr());
+
+    SetGuestPageHolder(guest_page_holder.get());
+    TakeGuestPageOwnership(std::move(guest_page_holder));
   }
 
   // Stub implementations of GuestViewBase's pure virtual methods:
@@ -55,22 +77,37 @@ class StubGuestView : public GuestView<StubGuestView> {
     ADD_FAILURE();
     return 0;
   }
-  void MaybeRecreateGuestContents(WebContents* embedder_web_contents) override {
+  void MaybeRecreateGuestContents(
+      content::RenderFrameHost* outer_contents_frame) override {
     ADD_FAILURE();
   }
-  void CreateWebContents(std::unique_ptr<GuestViewBase> owned_this,
-                         const base::Value::Dict& create_params,
-                         WebContentsCreatedCallback callback) override {
+  void CreateInnerPage(std::unique_ptr<GuestViewBase> owned_this,
+                       scoped_refptr<content::SiteInstance> site_instance,
+                       const base::Value::Dict& create_params,
+                       GuestPageCreatedCallback callback) override {
     ADD_FAILURE();
+  }
+
+  bool GuestHandleContextMenu(
+      content::RenderFrameHost& render_frame_host,
+      const content::ContextMenuParams& params) override {
+    return false;
   }
 };
 
 const char StubGuestView::Type[] = "stubguestview";
 
-class GuestViewManagerTest : public content::RenderViewHostTestHarness {
+class GuestViewManagerTest : public content::RenderViewHostTestHarness,
+                             public testing::WithParamInterface<bool> {
  public:
+  static std::string DescribeParams(
+      const testing::TestParamInfo<ParamType>& info) {
+    return info.param ? "MPArch" : "InnerWebContents";
+  }
+
   GuestViewManagerTest() {
-    GuestViewManager::set_factory_for_testing(&factory_);
+    scoped_feature_list_.InitWithFeatureState(features::kGuestViewMPArch,
+                                              GetParam());
   }
 
   GuestViewManagerTest(const GuestViewManagerTest&) = delete;
@@ -79,31 +116,44 @@ class GuestViewManagerTest : public content::RenderViewHostTestHarness {
   ~GuestViewManagerTest() override = default;
 
   TestGuestViewManager* CreateManager() {
-    return static_cast<TestGuestViewManager*>(
-        GuestViewManager::CreateWithDelegate(
-            browser_context(), std::make_unique<GuestViewManagerDelegate>()));
+    return factory_.GetOrCreateTestGuestViewManager(
+        browser_context(), std::make_unique<GuestViewManagerDelegate>());
   }
 
   std::unique_ptr<WebContents> CreateWebContents() {
     return WebContentsTester::CreateTestWebContents(browser_context(), nullptr);
   }
 
-  std::unique_ptr<StubGuestView> CreateGuest(WebContents* owner_web_contents) {
-    return std::make_unique<StubGuestView>(owner_web_contents,
-                                           CreateWebContents());
+  std::unique_ptr<StubGuestView> CreateGuest(
+      content::RenderFrameHost* owner_rfh) {
+    if (base::FeatureList::IsEnabled(features::kGuestViewMPArch)) {
+      std::unique_ptr<StubGuestView> guest =
+          std::make_unique<StubGuestView>(owner_rfh);
+      guest->AssignNewGuestPage();
+      return guest;
+    } else {
+      return std::make_unique<StubGuestView>(owner_rfh, CreateWebContents());
+    }
   }
 
  private:
   TestGuestViewManagerFactory factory_;
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 }  // namespace
 
-TEST_F(GuestViewManagerTest, AddRemove) {
+INSTANTIATE_TEST_SUITE_P(/* no prefix */,
+                         GuestViewManagerTest,
+                         testing::Bool(),
+                         GuestViewManagerTest::DescribeParams);
+
+TEST_P(GuestViewManagerTest, AddRemove) {
   TestGuestViewManager* manager = CreateManager();
 
   std::unique_ptr<WebContents> owned_owner_web_contents(CreateWebContents());
-  WebContents* owner_web_contents = owned_owner_web_contents.get();
+  content::RenderFrameHost* owner_rfh =
+      owned_owner_web_contents->GetPrimaryMainFrame();
 
   EXPECT_EQ(0, manager->last_instance_id_removed());
 
@@ -111,11 +161,11 @@ TEST_F(GuestViewManagerTest, AddRemove) {
   EXPECT_TRUE(manager->CanUseGuestInstanceID(2));
   EXPECT_TRUE(manager->CanUseGuestInstanceID(3));
 
-  std::unique_ptr<StubGuestView> guest1(CreateGuest(owner_web_contents));
+  std::unique_ptr<StubGuestView> guest1(CreateGuest(owner_rfh));
   // The test assumes assigned IDs start at 1.
   ASSERT_EQ(guest1->guest_instance_id(), 1);
-  std::unique_ptr<StubGuestView> guest2(CreateGuest(owner_web_contents));
-  std::unique_ptr<StubGuestView> guest3(CreateGuest(owner_web_contents));
+  std::unique_ptr<StubGuestView> guest2(CreateGuest(owner_rfh));
+  std::unique_ptr<StubGuestView> guest3(CreateGuest(owner_rfh));
 
   manager->AddGuest(guest1.get());
   manager->AddGuest(guest2.get());
@@ -146,8 +196,8 @@ TEST_F(GuestViewManagerTest, AddRemove) {
   EXPECT_EQ(0u, manager->GetNumRemovedInstanceIDs());
 
   std::unique_ptr<StubGuestView> guest4(
-      std::make_unique<StubGuestView>(owner_web_contents));
-  std::unique_ptr<StubGuestView> guest5(CreateGuest(owner_web_contents));
+      std::make_unique<StubGuestView>(owner_rfh));
+  std::unique_ptr<StubGuestView> guest5(CreateGuest(owner_rfh));
   EXPECT_TRUE(manager->CanUseGuestInstanceID(4));
   EXPECT_TRUE(manager->CanUseGuestInstanceID(5));
   // Suppose a GuestView (id=4) is created, but never initialized with a guest
@@ -166,16 +216,17 @@ TEST_F(GuestViewManagerTest, AddRemove) {
 // This covers the case where a guest needs to recreate its guest WebContents
 // before attachment. In this case, the same guest instance ID will be
 // associated with different WebContents over time.
-TEST_F(GuestViewManagerTest, ReuseIdForRecreatedGuestPage) {
+TEST_P(GuestViewManagerTest, ReuseIdForRecreatedGuestPage) {
   TestGuestViewManager* manager = CreateManager();
 
   std::unique_ptr<WebContents> owned_owner_web_contents(CreateWebContents());
-  WebContents* owner_web_contents = owned_owner_web_contents.get();
+  content::RenderFrameHost* owner_rfh =
+      owned_owner_web_contents->GetPrimaryMainFrame();
 
   EXPECT_EQ(0, manager->last_instance_id_removed());
   ASSERT_TRUE(manager->CanUseGuestInstanceID(1));
 
-  std::unique_ptr<StubGuestView> guest1(CreateGuest(owner_web_contents));
+  std::unique_ptr<StubGuestView> guest1(CreateGuest(owner_rfh));
   manager->AddGuest(guest1.get());
   EXPECT_EQ(1U, manager->GetCurrentGuestCount());
 
@@ -184,7 +235,11 @@ TEST_F(GuestViewManagerTest, ReuseIdForRecreatedGuestPage) {
   EXPECT_EQ(0, manager->last_instance_id_removed());
   ASSERT_TRUE(manager->CanUseGuestInstanceID(1));
 
-  guest1->AssignNewGuestContents(CreateWebContents());
+  if (base::FeatureList::IsEnabled(features::kGuestViewMPArch)) {
+    guest1->AssignNewGuestPage();
+  } else {
+    guest1->AssignNewGuestContents(CreateWebContents());
+  }
 
   manager->AddGuest(guest1.get());
   EXPECT_EQ(1U, manager->GetCurrentGuestCount());

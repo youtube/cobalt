@@ -16,7 +16,7 @@ cases = [
   ["http://f: /c",                           [":","","","","",""]],
   ["http://f:\\n/c",                         [":","","","","",""]],
   ["http://f:fifty-two/c",                   [":","","","","",""]],
-  ["http://f:999999/c",                      [":","","0","","",""]],
+  ["http://f:999999/c",                      [":","","","","",""]],
   ["http://f: 21 / b ? d # e ",              [":","","","","",""]],
   ["",                                       ["http:","example.org","","/foo/bar","",""]],
   ["  \\t",                                  ["http:","example.org","","/foo/bar","",""]],
@@ -38,7 +38,11 @@ cases = [
   ["//",                                     [":","","","","",""]],
   ["::",                                     ["http:","example.org","","/foo/::","",""]],
   ["::23",                                   ["http:","example.org","","/foo/::23","",""]],
-  ["foo://",                                 ["foo:","","","//","",""]],
+
+  // Fails unless kStandardCompliantNonSpecialSchemeURLParsing is enabled.
+  // See https://crbug.com/40063064.
+  ["foo://",                                 ["foo:","","","","",""]],
+
   ["http://a:b@c:29/d",                      ["http:","c","29","/d","",""]],
   ["http::@c:29",                            ["http:","example.org","","/foo/:@c:29","",""]],
   ["http://&a:foo(b]c@d:2/",                 ["http:","d","2","/","",""]],
@@ -49,16 +53,20 @@ cases = [
   ["http:\\\\\\\\a\\\\b:c\\\\d@foo.com\\\\", ["http:","a","","/b:c/d@foo.com/","",""]],
   ["foo:/",                                  ["foo:","","","/","",""]],
   ["foo:/bar.com/",                          ["foo:","","","/bar.com/","",""]],
-  ["foo://///////",                          ["foo:","","","/////////","",""]],
-  ["foo://///////bar.com/",                  ["foo:","","","/////////bar.com/","",""]],
-  ["foo:////://///",                         ["foo:","","","////://///","",""]],
+
+  // Fails unless kStandardCompliantNonSpecialSchemeURLParsing is enabled.
+  // See https://crbug.com/40063064.
+  ["foo://///////",                          ["foo:","","","///////","",""]],
+  ["foo://///////bar.com/",                  ["foo:","","","///////bar.com/","",""]],
+  ["foo:////://///",                         ["foo:","","","//://///","",""]],
+
   ["c:/foo",                                 ["c:","","","/foo","",""]],
   ["//foo/bar",                              ["http:","foo","","/bar","",""]],
   ["http://foo/path;a??e#f#g",               ["http:","foo","","/path;a","??e","#f#g"]],
   ["http://foo/abcd?efgh?ijkl",              ["http:","foo","","/abcd","?efgh?ijkl",""]],
   ["http://foo/abcd#foo?bar",                ["http:","foo","","/abcd","","#foo?bar"]],
   ["[61:24:74]:98",                          ["http:","example.org","","/foo/[61:24:74]:98","",""]],
-  ["http://[61:27]:98",                      [":","","0","","",""]],
+  ["http://[61:27]:98",                      [":","","","","",""]],
   ["http:[61:27]/:foo",                      ["http:","example.org","","/foo/[61:27]/:foo","",""]],
   ["http://[1::2]:3:4",                      [":","","","","",""]],
   ["http://2001::1",                         [":","","","","",""]],

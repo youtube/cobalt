@@ -6,10 +6,6 @@
 
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // Margin on either side of the content.
@@ -74,7 +70,7 @@ const CGFloat kButtonSpacing = 8;
 
 - (instancetype)initWithStyle:(UITableViewCellStyle)style
               reuseIdentifier:(NSString*)reuseIdentifier {
-  if (self = [super initWithStyle:style reuseIdentifier:reuseIdentifier]) {
+  if ((self = [super initWithStyle:style reuseIdentifier:reuseIdentifier])) {
     _titleLabel = [[UILabel alloc] init];
     _titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     _titleLabel.textColor = [UIColor colorNamed:kTextPrimaryColor];

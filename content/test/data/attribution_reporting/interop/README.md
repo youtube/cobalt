@@ -5,7 +5,7 @@ implemented matches the intended behavior of the Attribution Reporting API.
 
 See https://wicg.github.io/attribution-reporting-api/ for the draft specification.
 
-See //content/browser/attribution_reporting/attribution_interop_unittest.cc
+See //content/browser/attribution_reporting/interop/interop_unittest.cc
 for the tests.
 
 These tests are purposefully not implemented as web platform tests, so that
@@ -22,80 +22,7 @@ directory. Each test file can optionally specify the parameters in the
 # Configuration format
 
 The JSON schema is as follows. All the fields are required in "default_config.json"
-and optional in "api_config" field.
-
-```jsonc
-{
-  // Positive integer that controls how many sources can be in the storage per
-  // source origin. Formatted as a base-10 string.
-  "max_sources_per_origin": "1024",
-
-  // Positive integer that controls the maximum number of distinct destinations
-  // covered by pending sources for a given (source site, reporting origin).
-  // Formatted as a base-10 string.
-  "max_destinations_per_source_site_reporting_origin": "100",
-
-  // Positive integer that controls the rate-limiting time window in days for
-  // attribution. Formatted as a base-10 string.
-  "rate_limit_time_window": "30",
-
-  // Positive integer that controls the maximum number of distinct reporting
-  // origins that can register sources for a given (source site, destination site)
-  // per rate-limit window. Formatted as a base-10 string.
-  "rate_limit_max_source_registration_reporting_origins": "100",
-
-  // Positive integer that controls the maximum number of distinct reporting
-  // origins that can create attributions for a given (source site, destination site)
-  // per rate-limit window. Formatted as a base-10 string.
-  "rate_limit_max_attribution_reporting_origins": "10",
-
-  // Positive integer that controls the maximum number of attributions for a
-  // given (source site, destination site, reporting origin) per rate-limit window.
-  // Formatted as a base-10 string.
-  "rate_limit_max_attributions": "100",
-
-  // Positive integer that controls the valid range of trigger data for triggers
-  // that are attributed to a navigation source. Formatted as a base-10 string.
-  "navigation_source_trigger_data_cardinality": "8",
-
-  // Positive integer that controls the valid range of trigger data for triggers
-  // that are attributed to an event source. Formatted as a base-10 string.
-  "event_source_trigger_data_cardinality": "2",
-
-  // A string that encodes either "inf" or a double greater than or equal to 0.
-  // This controls the randomized response mechanism for event-level reports by
-  // adjusting the flip probability.
-  "randomized_response_epsilon": "14",
-
-  // Positive integer that controls how many event-level reports can be in the
-  // storage per destination. Formatted as a base-10 string.
-  "max_event_level_reports_per_destination": "1024",
-
-  // Positive integer that controls how many times a navigation source can create
-  // an event-level report. Formatted as a base-10 string.
-  "max_attributions_per_navigation_source": "3",
-
-  // Positive integer that controls how many times an event source can create
-  // an event-level report. Formatted as a base-10 string.
-  "max_attributions_per_event_source": "1",
-
-  // Positive integer that controls how many aggregatable reports can be in the
-  // storage per destination. Formatted as a base-10 string.
-  "max_aggregatable_reports_per_destination": "1024",
-
-  // Positive integer that controls the maximum sum of the contributions across
-  // all buckets per source. Formatted as a base-10 string.
-  "aggregatable_budget_per_source": "65536",
-
-  // Non-negative integer that controls the minimum delay in minutes to deliver
-  // an aggregatable report. Formatted as a base-10 string.
-  "aggregatable_report_min_delay": "10",
-
-  // Non-negative integer that controls the span in minutes to deliver an
-  // aggregatable report. Formatted as a base-10 string.
-  "aggregatable_report_delay_span": "50",
-}
-```
+and optional in "api_config" field. See the schema in "default_config.json".
 
 # Test case format
 
@@ -111,210 +38,72 @@ and triggers.
 
   // Required input.
   "input": {
-    // List of zero or more sources to register.
-    "sources": [
+    // List of zero or more registrations.
+    "registrations": [
       {
-        // Required time at which to register the source in milliseconds since
+        // Required time at which to register in milliseconds since
         // the UNIX epoch formatted as a base-10 string.
         "timestamp": "123",
 
         "registration_request": {
-          // Required URL specified in the attributionsrc registration.
-          "attribution_src_url": "https://reporting.example",
+          // Required origin on which to register.
+          "context_origin": "https://context.example",
 
-          // Required origin on which to register the source.
-          "source_origin": "https://source.example",
+          // A structured dictionary indicating which registrations the
+          // responses are eligible for.
+          // https://github.com/WICG/attribution-reporting-api/blob/main/EVENT.md#registration-requests
+          "Attribution-Reporting-Eligible": "navigation-source",
 
-          // Required source type, either "navigation" or "event",
-          // corresponding to whether the source is registered on click or
-          // view, respectively.
-          "source_type": "navigation"
+          // Whether the request originated from a fenced frame.
+          // Defaults to false.
+          // https://github.com/WICG/attribution-reporting-api/blob/main/EVENT.md#verbose-debugging-reports
+          "fenced": false
         },
 
-        // List of URLs and the corresponding responses. Currently only allows
-        // one.
+        // List of URLs and the corresponding responses.
         "responses": [
           {
             // Required URL from which the response was sent.
             "url": "https://reporting.example",
 
-            // Whether the source will be processed with debug permission
+            // Whether the registration will be processed with debug permission
             // enabled. Defaults to false.
             "debug_permission": true,
 
-            "response": {
-              // Required dictionary data to register a source.
-              "Attribution-Reporting-Register-Source": {
-                // Required uint64 formatted as a base-10 string.
-                "source_event_id": "123456789",
+            // Optional for the first response in the list, but required for all
+            // subsequent ones. If absent, defaults to the registration's
+            // timestamp.
+            "timestamp": "456",
 
-                // Required site on which the source will be attributed.
-                "destination": "https://destination.example",
+            // If present and non-null, the source's randomized response,
+            // consisting of zero of more fake reports. Defaults to null. Length
+            // must be <= the source's max_event_level_reports. Ignored for
+            // triggers.
+            "randomized_response": [
+              {
+                // The fake report's trigger data. Must be a uint32 exactly
+                // matching a value in the source's trigger specs.
+                "trigger_data": 1,
 
-                // Optional int64 in seconds formatted as a base-10 string.
-                // Defaults to 30 days.
-                "expiry": "86400",
-
-                // Optional int64 formatted as a base-10 string.
-                // Defaults to 0.
-                "priority": "-456",
-
-                // Optional dictionary of filters and corresponding values.
-                // Defaults to empty.
-                "filter_data": {
-                  "a": ["b", "c"],
-                  "d": []
-                },
-
-                // Optional uint64 formatted as a base-10 string. Defaults to
-                // null.
-                "debug_key": "987",
-
-                // Optional dictionary of aggregation key identifiers and
-                // corresponding key pieces.
-                "aggregation_keys": {
-                  // Value is uint128 formatted as a base-16 string.
-                  "a": "0x1"
-                },
-
-                // Optional int64 in seconds formatted as a base-10 string.
-                // Default to expiry.
-                "event_report_window": "86400000",
-
-                // Optional int64 in seconds formatted as a base-10 string.
-                // Default to expiry.
-                "aggregatable_report_window": "86400000"
+                // The fake report's report window index. Must be a non-negative
+                // integer less than the source's number of report windows.
+                "report_window_index": 0
               }
-            }
-          }
-        ]
-      }
-    ],
+            ],
 
-    // List of zero or more triggers to register.
-    "triggers": [
-      {
-        // Required time at which to register the trigger in milliseconds
-        // since the UNIX epoch.
-        "timestamp": "123",
+            // If present and non-null, the lookback days that would create null
+            // aggregatable reports. Defaults to null. Ignored for sources.
+            "null_aggregatable_reports_days": [1, 5]
 
-        "registration_request": {
-          // Required URL from which the response was sent.
-          "attribution_src_url": "https://reporting.example",
-
-          // Required origin on which the trigger is being registered.
-          "destination_origin": "https://destination.example"
-        },
-
-        // List of URLs and the corresponding responses. Currently only allows
-        // one.
-        "responses": [
-          {
-            // Required URL from which the response was sent.
-            "url": "https://reporting.example",
-
-            // Whether the trigger will be processed with debug permission
-            // enabled. Defaults to false.
-            "debug_permission": true,
-
+            // Exactly one of the registration fields must be present. See
+            // https://github.com/WICG/attribution-reporting-api for the
+            // complete schema.
             "response": {
-              "Attribution-Reporting-Register-Trigger": {
-                // Optional list of zero or more event trigger data.
-                "event_trigger_data": [
-                  {
-                    // Optional uint64 formatted as a base-10 string.
-                    // Defaults to 0.
-                    "trigger_data": "3",
+              "Attribution-Reporting-Register-Source": { ... },
 
-                    // Optional int64 formatted as a base-10 string.
-                    // Defaults to 0.
-                    "priority": "-456",
+              "Attribution-Reporting-Register-Trigger": { ... },
 
-                    // Optional uint64 formatted as a base-10 string. Defaults to
-                    // null.
-                    "deduplication_key": "654",
-
-                    // Optional dictionary of filters and corresponding values.
-                    // Defaults to empty.
-                    "filters": {
-                      "a": ["b", "c"],
-                      "d": []
-                    },
-
-                    // Optional dictionary of negated filters and corresponding
-                    // values. Defaults to empty.
-                    "not_filters": {
-                      "x": ["y"],
-                      "z": []
-                    }
-                  }
-                ],
-
-                // Optional list of zero or more aggregatable trigger data.
-                "aggregatable_trigger_data": [
-                  {
-                    // Required uint128 formatted as a base-16 string.
-                    "key_piece": "0x10",
-
-                    // Required list of key identifiers.
-                    "source_keys": ["a"],
-
-                    // Optional dictionary of filters and corresponding values.
-                    // Defaults to empty.
-                    "filters": {
-                      "a": ["b", "c"],
-                      "d": []
-                    },
-
-                    // Optional dictionary of negated filters and corresponding
-                    // values. Defaults to empty.
-                    "not_filters": {
-                      "x": ["y"],
-                      "z": []
-                    }
-                  }
-                ],
-
-                // Optional dictionary of key identifiers and corresponding
-                // values.
-                "aggregatable_values": {
-                  "a": 123
-                },
-
-                // Optional uint64 formatted as a base-10 string. Defaults to
-                // null.
-                "debug_key": "789",
-
-                // Optional dictionary of filters and corresponding values.
-                // Defaults to empty.
-                "filters": {
-                  "a": ["b", "c"],
-                  "d": []
-                },
-
-                // Optional list of zero or more aggregatable dedup keys.
-                "aggregatable_deduplication_keys": [
-                  {
-                    // Optional uint64 formatted as a base-10 string. Defaults to
-                    // null.
-                    "deduplication_key": "654",
-
-                    // Optional dictionary of filters and corresponding values.
-                    // Defaults to empty.
-                    "filters": {
-                      "a": ["b", "c"],
-                      "d": []
-                    },
-
-                    // Optional dictionary of negated filters and corresponding
-                    // values. Defaults to empty.
-                    "not_filters": {
-                      "x": ["y"],
-                      "z": []
-                    }
-                  }
-                ],
-              }
+              "Attribution-Reporting-Info": "..."
             }
           }
         ]
@@ -324,8 +113,7 @@ and triggers.
 
   // Expected output.
   "output": {
-    // Optional list of event-level results. Omitted if empty.
-    "event_level_results": [
+    "reports": [
       {
         // URL to which the report would have been sent.
         "report_url": "https://reporting.example/.well-known/attribution-reporting/report-event-attribution",
@@ -334,78 +122,7 @@ and triggers.
         // the UNIX epoch.
         "report_time": "123",
 
-        "payload": {
-          // The attribution destination on which the trigger was registered.
-          "attribution_destination": "https://destination.example",
-
-          // uint64 event id formatted as a base-10 string set on the source.
-          "source_event_id": "123456789",
-
-          // Coarse uint64 data formatted as a base-10 string set on the
-          // trigger.
-          "trigger_data": "7",
-
-          // Whether this source was associated with a navigation.
-          "source_type": "navigation",
-
-          // Decimal number between 0 and 1 indicating how often noise is
-          // applied.
-          "randomized_trigger_rate": 0.0024263,
-
-          // Debug key set on the source. Omitted if not set.
-          "source_debug_key": "123",
-
-          // Debug key set on the trigger. Omitted if not set.
-          "trigger_debug_key": "789"
-        }
-      }
-    ],
-
-    // Optional list of aggregatable results. Omitted if empty.
-    "aggregatable_results": [
-      {
-        // Upper bound time at which the report would have been sent in
-        // milliseconds since the UNIX epoch.
-        "report_time": "123",
-
-        // URL to which the report would have been sent.
-        "report_url": "https://reporting.example/.well-known/attribution-reporting/report-aggregate-attribution",
-
-        "payload": {
-          // The attribution destination on which the trigger was registered.
-          "attribution_destination": "https://destination.example",
-
-          // List of aggregatable histograms.
-          "histograms": [
-            {
-              // uint128 formatted as a base-16 string.
-              "key": "0x1",
-
-              // uint32 value.
-              "value": 123
-            }
-          ],
-
-          // Debug key set on the source. Omitted if not set.
-          "source_debug_key": "123",
-
-          // Debug key set on the trigger. Omitted if not set.
-          "trigger_debug_key": "789"
-        }
-      }
-    ],
-
-    "verbose_debug_reports": [
-      {
-        // Upper bound time at which the report would have been sent in
-        // milliseconds since the UNIX epoch.
-        "report_time": "123",
-
-        // URL to which the report would have been sent.
-        "report_url": "https://reporting.example/.well-known/attribution-reporting/debug/verbose"
-
-        // The body of the report.
-        "payload": [...]
+        "payload": ...
       }
     ]
   }

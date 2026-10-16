@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
+#include "base/observer_list_types.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/ash/login/saml/password_sync_token_fetcher.h"
@@ -73,7 +74,7 @@ class PasswordSyncTokenLoginChecker
   std::unique_ptr<PasswordSyncTokenFetcher> password_sync_token_fetcher_;
   const AccountId account_id_;
   const std::string sync_token_;
-  raw_ptr<net::BackoffEntry, ExperimentalAsh> retry_backoff_ = nullptr;
+  raw_ptr<net::BackoffEntry> retry_backoff_ = nullptr;
   base::OneShotTimer recheck_timer_;
 
   base::WeakPtrFactory<PasswordSyncTokenLoginChecker> weak_ptr_factory_{this};

@@ -9,29 +9,30 @@
  */
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
 import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
-import 'chrome://resources/polymer/v3_0/paper-tooltip/paper-tooltip.js';
+import 'chrome://resources/cr_elements/cr_tooltip/cr_tooltip.js';
 import '../settings_shared.css.js';
 import '../i18n_setup.js';
 import './chooser_exception_list_entry.js';
 
-import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
+import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {ListPropertyUpdateMixin} from 'chrome://resources/cr_elements/list_property_update_mixin.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
-import {PaperTooltipElement} from 'chrome://resources/polymer/v3_0/paper-tooltip/paper-tooltip.js';
+import type {CrTooltipElement} from 'chrome://resources/cr_elements/cr_tooltip/cr_tooltip.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {TooltipMixin} from '../tooltip_mixin.js';
 
 import {getTemplate} from './chooser_exception_list.html.js';
-import {ChooserType, ContentSettingsTypes} from './constants.js';
+import type {ContentSettingsTypes} from './constants.js';
+import {ChooserType} from './constants.js';
 import {SiteSettingsMixin} from './site_settings_mixin.js';
-import {ChooserException, RawChooserException, SiteException} from './site_settings_prefs_browser_proxy.js';
+import type {ChooserException, RawChooserException, SiteException} from './site_settings_prefs_browser_proxy.js';
 
 export interface ChooserExceptionListElement {
   $: {
     confirmResetSettings: CrDialogElement,
-    tooltip: PaperTooltipElement,
+    tooltip: CrTooltipElement,
   };
 }
 
@@ -87,12 +88,12 @@ export class ChooserExceptionListElement extends
     };
   }
 
-  chooserExceptions: ChooserException[];
-  chooserType: ChooserType;
-  private emptyListMessage_: string;
-  private hasIncognito_: boolean;
-  private resetPermissionsMessage_: string;
-  private tooltipText_: string;
+  declare chooserExceptions: ChooserException[];
+  declare chooserType: ChooserType;
+  declare private emptyListMessage_: string;
+  declare private hasIncognito_: boolean;
+  declare private resetPermissionsMessage_: string;
+  declare private tooltipText_: string;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -161,6 +162,14 @@ export class ChooserExceptionListElement extends
         this.emptyListMessage_ = this.i18n('noBluetoothDevicesFound');
         this.resetPermissionsMessage_ = this.i18n('resetBluetoothConfirmation');
         break;
+      // <if expr="is_chromeos">
+      case ChooserType.SMART_CARD_READERS_DEVICES:
+        this.emptyListMessage_ =
+            this.i18n('siteSettingsNoSmartCardReadersFound');
+        this.resetPermissionsMessage_ =
+            this.i18n('siteSettingsResetSmartCardConfirmation');
+        break;
+      // </if>
       default:
         this.emptyListMessage_ = '';
         this.resetPermissionsMessage_ = '';
@@ -182,8 +191,8 @@ export class ChooserExceptionListElement extends
    */
   private onShowTooltip_(e: CustomEvent<{target: HTMLElement, text: string}>) {
     this.tooltipText_ = e.detail.text;
-    // paper-tooltip normally determines the target from the |for| property,
-    // which is a selector. Here paper-tooltip is being reused by multiple
+    // cr-tooltip normally determines the target from the |for| property,
+    // which is a selector. Here cr-tooltip is being reused by multiple
     // potential targets.
     this.showTooltipAtTarget(this.$.tooltip, e.detail.target);
   }

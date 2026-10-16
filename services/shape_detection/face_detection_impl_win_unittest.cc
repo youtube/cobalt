@@ -59,25 +59,23 @@ class FaceDetectionImplWinTest : public testing::Test {
     return face_service;
   }
 
-  std::unique_ptr<SkBitmap> LoadTestImage() {
+  SkBitmap LoadTestImage() {
     // Load image data from test directory.
     base::FilePath image_path;
-    EXPECT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &image_path));
+    EXPECT_TRUE(
+        base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &image_path));
     image_path = image_path.Append(FILE_PATH_LITERAL("services"))
                      .Append(FILE_PATH_LITERAL("test"))
                      .Append(FILE_PATH_LITERAL("data"))
                      .Append(FILE_PATH_LITERAL("mona_lisa.jpg"));
     EXPECT_TRUE(base::PathExists(image_path));
-    std::string image_data;
-    EXPECT_TRUE(base::ReadFileToString(image_path, &image_data));
+    std::optional<std::vector<uint8_t>> image_data =
+        base::ReadFileToBytes(image_path);
 
-    std::unique_ptr<SkBitmap> image = gfx::JPEGCodec::Decode(
-        reinterpret_cast<const uint8_t*>(image_data.data()), image_data.size());
-    if (image) {
-      const gfx::Size size(image->width(), image->height());
-      const uint32_t num_bytes = size.GetArea() * 4 /* bytes per pixel */;
-      EXPECT_EQ(num_bytes, image->computeByteSize());
-    }
+    SkBitmap image = gfx::JPEGCodec::Decode(image_data.value());
+    const gfx::Size size(image.width(), image.height());
+    const uint32_t num_bytes = size.GetArea() * 4 /* bytes per pixel */;
+    EXPECT_EQ(num_bytes, image.computeByteSize());
 
     return image;
   }
@@ -90,13 +88,12 @@ class FaceDetectionImplWinTest : public testing::Test {
 
 TEST_F(FaceDetectionImplWinTest, ScanOneFace) {
   mojo::Remote<mojom::FaceDetection> face_detector = ConnectToFaceDetector();
-  std::unique_ptr<SkBitmap> image = LoadTestImage();
-  ASSERT_TRUE(image);
+  SkBitmap image = LoadTestImage();
 
   base::RunLoop run_loop;
   uint32_t num_faces = 0;
   face_detector->Detect(
-      *image,
+      image,
       base::BindOnce(&DetectCallback, run_loop.QuitClosure(), &num_faces));
   run_loop.Run();
   EXPECT_EQ(1u, num_faces);

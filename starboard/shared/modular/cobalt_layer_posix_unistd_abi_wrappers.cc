@@ -52,10 +52,22 @@ uid_t geteuid() {
   return __abi_wrap_geteuid();
 }
 
+uid_t __abi_wrap_getuid();
+
+uid_t getuid() {
+  return __abi_wrap_getuid();
+}
+
 int __abi_wrap_access(const char* path, int amode);
 
 int access(const char* path, int amode) {
   return __abi_wrap_access(path, amode);
+}
+
+int __abi_wrap_isatty(int fd);
+
+int isatty(int fd) {
+  return __abi_wrap_isatty(fd);
 }
 
 int __abi_wrap_fchown(int fd, uid_t owner, gid_t group);
@@ -63,4 +75,23 @@ int __abi_wrap_fchown(int fd, uid_t owner, gid_t group);
 int fchown(int fd, uid_t owner, gid_t group) {
   return __abi_wrap_fchown(fd, owner, group);
 }
+
+int __abi_wrap_unlinkat(int fildes, const char* path, int flag);
+
+int unlinkat(int fildes, const char* path, int flag) {
+  return __abi_wrap_unlinkat(fildes, path, flag);
+}
+
+ssize_t __abi_wrap_pread(int fd, void* buf, size_t size, off_t ofs);
+
+ssize_t pread(int fd, void* buf, size_t size, off_t ofs) {
+  return __abi_wrap_pread(fd, buf, size, ofs);
+}
+
+ssize_t __abi_wrap_pwrite(int fd, const void* buf, size_t size, off_t ofs);
+
+ssize_t pwrite(int fd, const void* buf, size_t size, off_t ofs) {
+  return __abi_wrap_pwrite(fd, buf, size, ofs);
+}
+
 }  // extern "C"

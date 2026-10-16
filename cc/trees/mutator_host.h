@@ -12,7 +12,6 @@
 #include "cc/paint/element_id.h"
 #include "cc/trees/layer_tree_mutator.h"
 #include "cc/trees/mutator_host_client.h"
-#include "ui/gfx/geometry/box_f.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/vector2d_f.h"
 
@@ -26,7 +25,7 @@ class ScrollTree;
 
 // Used as the return value of GetAnimationScales() to indicate that there is
 // no active transform animation or the scale cannot be computed.
-constexpr float kInvalidScale = 0.f;
+inline constexpr float kInvalidScale = 0.f;
 
 // A MutatorHost owns all the animation and mutation effects.
 // There is just one MutatorHost for LayerTreeHost on main renderer thread
@@ -54,6 +53,8 @@ class MutatorHost {
 
   virtual void PushPropertiesTo(MutatorHost* host_impl,
                                 const PropertyTrees& property_trees) = 0;
+
+  virtual void RemoveStaleTimelines() = 0;
 
   virtual void SetScrollAnimationDurationForTesting(
       base::TimeDelta duration) = 0;
@@ -120,18 +121,24 @@ class MutatorHost {
       const gfx::PointF& current_offset,
       base::TimeDelta delayed_by,
       base::TimeDelta animation_start_offset) = 0;
-  virtual bool ImplOnlyScrollAnimationUpdateTarget(
+  virtual std::optional<gfx::PointF> ImplOnlyScrollAnimationUpdateTarget(
       const gfx::Vector2dF& scroll_delta,
       const gfx::PointF& max_scroll_offset,
       base::TimeTicks frame_monotonic_time,
-      base::TimeDelta delayed_by) = 0;
+      base::TimeDelta delayed_by,
+      ElementId element_id) = 0;
 
-  virtual void ScrollAnimationAbort() = 0;
+  virtual void ScrollAnimationAbort(ElementId element_id) = 0;
 
-  // If there is an ongoing scroll animation on Impl, return the ElementId of
-  // the scroller. Otherwise returns an invalid ElementId.
-  virtual ElementId ImplOnlyScrollAnimatingElement() const = 0;
-  virtual void ImplOnlyScrollAnimatingElementRemoved() = 0;
+  // Returns whether there is an ongoing scroll animation on Impl.
+  virtual bool HasImplOnlyScrollAnimatingElement() const = 0;
+  // Returns whether there is an ongoing auto-scroll animation on Impl.
+  virtual bool HasImplOnlyAutoScrollAnimatingElement() const = 0;
+  // Returns whether there is an ongoing scroll animation on the element
+  // with the given id.
+  virtual bool ElementHasImplOnlyScrollAnimation(ElementId) const = 0;
+  // Discard animations on elements that have been removed from the layer tree.
+  virtual void HandleRemovedScrollAnimatingElements(bool commits_to_active) = 0;
 
   virtual size_t MainThreadAnimationsCount() const = 0;
   virtual bool HasInvalidationAnimation() const = 0;
@@ -150,17 +157,20 @@ class MutatorHost {
   virtual base::TimeDelta MinimumTickInterval() const = 0;
 
   using TrackedAnimationSequenceId = size_t;
-  struct PendingThroughputTrackerInfo {
+  struct PendingCompositorMetricsTrackerInfo {
     // Id of a tracked animation sequence.
     TrackedAnimationSequenceId id = 0u;
+
     // True means the tracking for |id| is pending to start and false means
     // the tracking is pending to stop.
     bool start = false;
   };
-  // Takes info of throughput trackers that are pending start or stop.
-  using PendingThroughputTrackerInfos =
-      std::vector<PendingThroughputTrackerInfo>;
-  virtual PendingThroughputTrackerInfos TakePendingThroughputTrackerInfos() = 0;
+
+  // Takes info of compositor metrics trackers that are pending start or stop.
+  using PendingCompositorMetricsTrackerInfos =
+      std::vector<PendingCompositorMetricsTrackerInfo>;
+  virtual PendingCompositorMetricsTrackerInfos
+  TakePendingCompositorMetricsTrackerInfos() = 0;
 };
 
 class MutatorEvents {

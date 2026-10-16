@@ -4,6 +4,7 @@
 
 #include "chromeos/ash/services/bluetooth_config/device_pairing_handler_impl.h"
 
+#include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chromeos/ash/services/bluetooth_config/device_conversion_util.h"
 #include "components/device_event_log/device_event_log.h"
@@ -114,7 +115,7 @@ void DevicePairingHandlerImpl::PerformPairDevice(const std::string& device_id) {
 }
 
 void DevicePairingHandlerImpl::PerformFinishCurrentPairingRequest(
-    absl::optional<device::ConnectionFailureReason> failure_reason,
+    std::optional<device::ConnectionFailureReason> failure_reason,
     base::TimeDelta duration) {
   // Reset state.
   is_canceling_pairing_ = false;
@@ -136,7 +137,7 @@ void DevicePairingHandlerImpl::CancelPairing() {
         << "Could not cancel pairing for device to due device no longer being "
            "found, identifier: "
         << current_pairing_device_id();
-    FinishCurrentPairingRequest(device::ConnectionFailureReason::kAuthFailed);
+    FinishCurrentPairingRequest(device::ConnectionFailureReason::kNotFound);
     return;
   }
 
@@ -151,7 +152,7 @@ void DevicePairingHandlerImpl::OnRequestPinCode(const std::string& pin_code) {
     BLUETOOTH_LOG(ERROR)
         << "OnRequestPinCode failed due to device no longer being "
         << "found, identifier: " << current_pairing_device_id();
-    FinishCurrentPairingRequest(device::ConnectionFailureReason::kFailed);
+    FinishCurrentPairingRequest(device::ConnectionFailureReason::kNotFound);
     return;
   }
 
@@ -166,7 +167,7 @@ void DevicePairingHandlerImpl::OnRequestPasskey(const std::string& passkey) {
     BLUETOOTH_LOG(ERROR)
         << "OnRequestPasskey failed due to device no longer being "
         << "found, identifier: " << current_pairing_device_id();
-    FinishCurrentPairingRequest(device::ConnectionFailureReason::kFailed);
+    FinishCurrentPairingRequest(device::ConnectionFailureReason::kNotFound);
     return;
   }
 
@@ -194,7 +195,7 @@ void DevicePairingHandlerImpl::OnConfirmPairing(bool confirmed) {
     BLUETOOTH_LOG(ERROR)
         << "OnConfirmPairing failed due to device no longer being "
         << "found, identifier: " << current_pairing_device_id();
-    FinishCurrentPairingRequest(device::ConnectionFailureReason::kFailed);
+    FinishCurrentPairingRequest(device::ConnectionFailureReason::kNotFound);
     return;
   }
 
@@ -246,11 +247,11 @@ void DevicePairingHandlerImpl::AuthorizePairing(
 }
 
 void DevicePairingHandlerImpl::OnDeviceConnect(
-    absl::optional<device::BluetoothDevice::ConnectErrorCode> error_code) {
+    std::optional<device::BluetoothDevice::ConnectErrorCode> error_code) {
   if (!error_code.has_value()) {
     BLUETOOTH_LOG(EVENT) << "Device " << current_pairing_device_id()
                          << " successfully paired";
-    FinishCurrentPairingRequest(absl::nullopt);
+    FinishCurrentPairingRequest(std::nullopt);
     return;
   }
 
@@ -295,7 +296,7 @@ void DevicePairingHandlerImpl::HandlePairingFailed(
         << ": Pairing finished with an error code, but device "
         << "is connected. Handling like pairing succeeded. Error code: "
         << error_code;
-    FinishCurrentPairingRequest(absl::nullopt);
+    FinishCurrentPairingRequest(std::nullopt);
     return;
   }
 
@@ -304,42 +305,7 @@ void DevicePairingHandlerImpl::HandlePairingFailed(
   BLUETOOTH_LOG(ERROR) << current_pairing_device_id()
                        << ": Pairing failed with error code: " << error_code;
 
-  using ErrorCode = device::BluetoothDevice::ConnectErrorCode;
-  switch (error_code) {
-    case ErrorCode::ERROR_AUTH_CANCELED:
-      FinishCurrentPairingRequest(
-          device::ConnectionFailureReason::kAuthCanceled);
-      return;
-    case ErrorCode::ERROR_AUTH_FAILED:
-      FinishCurrentPairingRequest(device::ConnectionFailureReason::kAuthFailed);
-      return;
-    case ErrorCode::ERROR_AUTH_REJECTED:
-      FinishCurrentPairingRequest(
-          device::ConnectionFailureReason::kAuthRejected);
-      return;
-    case ErrorCode::ERROR_AUTH_TIMEOUT:
-      FinishCurrentPairingRequest(
-          device::ConnectionFailureReason::kAuthTimeout);
-      return;
-
-    case ErrorCode::ERROR_FAILED:
-      FinishCurrentPairingRequest(device::ConnectionFailureReason::kFailed);
-      return;
-    case ErrorCode::ERROR_INPROGRESS:
-      FinishCurrentPairingRequest(device::ConnectionFailureReason::kInprogress);
-      return;
-    case ErrorCode::ERROR_UNKNOWN:
-      FinishCurrentPairingRequest(
-          device::ConnectionFailureReason::kUnknownError);
-      return;
-    case ErrorCode::ERROR_UNSUPPORTED_DEVICE:
-      FinishCurrentPairingRequest(
-          device::ConnectionFailureReason::kUnsupportedDevice);
-      return;
-    default:
-      BLUETOOTH_LOG(ERROR) << "Error code is invalid.";
-      break;
-  }
+  FinishCurrentPairingRequest(GetConnectionFailureReason(error_code));
 }
 
 device::BluetoothDevice* DevicePairingHandlerImpl::FindDevice(

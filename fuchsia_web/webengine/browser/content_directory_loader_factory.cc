@@ -2,13 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "fuchsia_web/webengine/browser/content_directory_loader_factory.h"
 
+#include <fuchsia/io/cpp/fidl.h>
 #include <lib/fdio/directory.h>
 #include <lib/fdio/fd.h>
 
 #include <algorithm>
 #include <memory>
+#include <string_view>
 #include <utility>
 
 #include "base/command_line.h"
@@ -18,7 +25,6 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/task/task_traits.h"
@@ -52,8 +58,8 @@ constexpr char kFallbackMimeType[] = "application/octet-stream";
 // |charset|: The resource's character set. Optional. If omitted, the browser
 //            will assume the charset to be "text/plain" by default.
 scoped_refptr<net::HttpResponseHeaders> CreateHeaders(
-    base::StringPiece mime_type,
-    const absl::optional<std::string>& charset) {
+    std::string_view mime_type,
+    const std::optional<std::string>& charset) {
   constexpr char kXFrameOptions[] = "X-Frame-Options";
   constexpr char kXFrameOptionsValue[] = "DENY";
   constexpr char kCacheControl[] = "Cache-Control";
@@ -86,11 +92,12 @@ bool GetRangeForRequest(const net::HttpRequestHeaders& headers,
                         size_t max_length,
                         size_t* start,
                         size_t* length) {
-  std::string range_header;
+  std::optional<std::string> range_header =
+      headers.GetHeader(net::HttpRequestHeaders::kRange);
   net::HttpByteRange byte_range;
-  if (headers.GetHeader(net::HttpRequestHeaders::kRange, &range_header)) {
+  if (range_header) {
     std::vector<net::HttpByteRange> ranges;
-    if (net::HttpUtil::ParseRangeHeader(range_header, &ranges) &&
+    if (net::HttpUtil::ParseRangeHeader(*range_header, &ranges) &&
         ranges.size() == 1) {
       byte_range = ranges[0];
     } else {
@@ -174,13 +181,13 @@ class ContentDirectoryURLLoader final : public network::mojom::URLLoader {
     auto response = network::mojom::URLResponseHead::New();
 
     // Read the charset and MIME type from the optional _metadata file.
-    absl::optional<std::string> charset;
-    absl::optional<std::string> mime_type;
+    std::optional<std::string> charset;
+    std::optional<std::string> mime_type;
     base::MemoryMappedFile metadata_mmap;
     if (MapFile(std::move(metadata_channel), &metadata_mmap)) {
-      absl::optional<base::Value> metadata_parsed = base::JSONReader::Read(
-          base::StringPiece(reinterpret_cast<char*>(metadata_mmap.data()),
-                            metadata_mmap.length()));
+      std::optional<base::Value> metadata_parsed = base::JSONReader::Read(
+          std::string_view(reinterpret_cast<char*>(metadata_mmap.data()),
+                           metadata_mmap.length()));
 
       if (metadata_parsed && metadata_parsed->is_dict()) {
         const auto& dict = metadata_parsed->GetDict();
@@ -198,8 +205,8 @@ class ContentDirectoryURLLoader final : public network::mojom::URLLoader {
     // from the file's contents.
     if (!mime_type) {
       if (!net::SniffMimeType(
-              base::StringPiece(reinterpret_cast<char*>(mmap_.data()),
-                                std::min(mmap_.length(), kMaxBytesToSniff)),
+              std::string_view(reinterpret_cast<char*>(mmap_.data()),
+                               std::min(mmap_.length(), kMaxBytesToSniff)),
               request.url, {} /* type_hint */,
               net::ForceSniffFileUrlsForHtml::kDisabled,
               &mime_type.emplace())) {
@@ -236,14 +243,14 @@ class ContentDirectoryURLLoader final : public network::mojom::URLLoader {
     }
 
     client_->OnReceiveResponse(std::move(response), std::move(consumer_handle),
-                               absl::nullopt);
+                               std::nullopt);
 
     // Start reading the contents of |mmap_| into the response DataPipe.
     body_writer_ =
         std::make_unique<mojo::DataPipeProducer>(std::move(producer_handle));
     body_writer_->Write(
         std::make_unique<mojo::StringDataSource>(
-            base::StringPiece(
+            std::string_view(
                 reinterpret_cast<char*>(mmap_.data() + start_offset),
                 content_length),
             mojo::StringDataSource::AsyncWritingMode::
@@ -257,11 +264,9 @@ class ContentDirectoryURLLoader final : public network::mojom::URLLoader {
       const std::vector<std::string>& removed_headers,
       const net::HttpRequestHeaders& modified_request_headers,
       const net::HttpRequestHeaders& modified_cors_exempt_request_headers,
-      const absl::optional<GURL>& new_url) override {}
+      const std::optional<GURL>& new_url) override {}
   void SetPriority(net::RequestPriority priority,
                    int32_t intra_priority_value) override {}
-  void PauseReadingBodyFromNet() override {}
-  void ResumeReadingBodyFromNet() override {}
 
  private:
   // Called when body_writer_->Write() has completed asynchronously.
@@ -304,11 +309,11 @@ net::Error OpenFileFromDirectory(
           .Append(relative_file_path);
 
   const zx_status_t status =
-      fdio_open(absolute_file_path.value().c_str(),
-                static_cast<uint32_t>(fuchsia::io::OpenFlags::RIGHT_READABLE),
-                file_request.TakeChannel().release());
+      fdio_open3(absolute_file_path.value().c_str(),
+                 static_cast<uint64_t>(fuchsia::io::PERM_READABLE),
+                 file_request.TakeChannel().release());
   if (status != ZX_OK) {
-    ZX_DLOG(WARNING, status) << "fdio_open";
+    ZX_DLOG(WARNING, status) << "fdio_open3";
     return net::ERR_FILE_NOT_FOUND;
   }
 
@@ -366,7 +371,7 @@ void ContentDirectoryLoaderFactory::CreateLoaderAndStart(
 
   // Fuchsia paths do not support the notion of absolute paths, so strip the
   // leading slash from the URL's path fragment.
-  base::StringPiece requested_path = request.url.path_piece();
+  std::string_view requested_path = request.url.path_piece();
   DCHECK(base::StartsWith(requested_path, "/"));
   requested_path.remove_prefix(1);
 

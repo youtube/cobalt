@@ -4,10 +4,10 @@
 
 #include "net/dns/fuzzed_host_resolver_util.h"
 
+#include <fuzzer/FuzzedDataProvider.h>
 #include <stdint.h>
 
-#include <fuzzer/FuzzedDataProvider.h>
-
+#include <algorithm>
 #include <limits>
 #include <memory>
 #include <string>
@@ -20,7 +20,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
-#include "base/ranges/algorithm.h"
 #include "base/task/single_thread_task_runner.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_once_callback.h"
@@ -304,8 +303,11 @@ class FuzzedMdnsSocket : public DatagramServerSocket {
   }
   void UseNonBlockingIO() override {}
   int SetDoNotFragment() override { return OK; }
+  int SetRecvTos() override { return OK; }
+  int SetTos(DiffServCodePoint dscp, EcnCodePoint ecn) override { return OK; }
   void SetMsgConfirm(bool confirm) override {}
   const NetLogWithSource& NetLog() const override { return net_log_; }
+  DscpAndEcn GetLastTos() const override { return {DSCP_DEFAULT, ECN_DEFAULT}; }
 
  private:
   void CompleteRecv(CompletionOnceCallback callback,
@@ -322,7 +324,7 @@ class FuzzedMdnsSocket : public DatagramServerSocket {
     if (data_provider_->ConsumeBool()) {
       std::string data =
           data_provider_->ConsumeRandomLengthString(buffer_length);
-      base::ranges::copy(data, buffer->data());
+      std::ranges::copy(data, buffer->data());
       *out_address =
           IPEndPoint(FuzzIPAddress(data_provider_), FuzzPort(data_provider_));
       return data.size();
@@ -364,7 +366,7 @@ class FuzzedMdnsSocketFactory : public MDnsSocketFactory {
 class FuzzedHostResolverManager : public HostResolverManager {
  public:
   // |data_provider| and |net_log| must outlive the FuzzedHostResolver.
-  // TODO(crbug.com/971411): Fuzz system DNS config changes through a non-null
+  // TODO(crbug.com/40630884): Fuzz system DNS config changes through a non-null
   // SystemDnsConfigChangeNotifier.
   FuzzedHostResolverManager(const HostResolver::ManagerOptions& options,
                             NetLog* net_log,
@@ -412,6 +414,7 @@ class FuzzedHostResolverManager : public HostResolverManager {
   // HostResolverManager implementation:
   int StartGloballyReachableCheck(const IPAddress& dest,
                                   const NetLogWithSource& net_log,
+                                  ClientSocketFactory* client_socket_factory,
                                   CompletionOnceCallback callback) override {
     int reachable_rv = is_globally_reachable_ ? OK : ERR_FAILED;
     if (start_globally_reachable_async_) {

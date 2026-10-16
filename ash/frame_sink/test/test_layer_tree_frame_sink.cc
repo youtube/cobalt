@@ -4,7 +4,9 @@
 
 #include "ash/frame_sink/test/test_layer_tree_frame_sink.h"
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
+
+#include "gpu/ipc/client/client_shared_image_interface.h"
 
 namespace ash {
 
@@ -12,7 +14,7 @@ TestLayerTreeFrameSink::TestLayerTreeFrameSink()
     : LayerTreeFrameSink(/*context_provider=*/nullptr,
                          /*worker_context_provider_wrapper=*/nullptr,
                          /*compositor_task_runner=*/nullptr,
-                         /*gpu_memory_buffer_manager=*/nullptr) {}
+                         /*shared_image_interface=*/nullptr) {}
 
 TestLayerTreeFrameSink::~TestLayerTreeFrameSink() = default;
 
@@ -31,13 +33,6 @@ void TestLayerTreeFrameSink::DidNotProduceFrame(const viz::BeginFrameAck& ack,
   latest_frame_skipped_reason_ = reason;
 }
 
-void TestLayerTreeFrameSink::DidAllocateSharedBitmap(
-    base::ReadOnlySharedMemoryRegion region,
-    const viz::SharedBitmapId& id) {}
-
-void TestLayerTreeFrameSink::DidDeleteSharedBitmap(
-    const viz::SharedBitmapId& id) {}
-
 void TestLayerTreeFrameSink::GetFrameResourcesToReturn(
     std::vector<viz::ReturnedResource>& return_resources) {
   for (auto resource : resources_in_use_) {
@@ -45,7 +40,7 @@ void TestLayerTreeFrameSink::GetFrameResourcesToReturn(
   }
 }
 
-absl::optional<cc::FrameSkippedReason>
+std::optional<cc::FrameSkippedReason>
 TestLayerTreeFrameSink::GetLatestFrameSkippedReason() const {
   return latest_frame_skipped_reason_;
 }

@@ -5,11 +5,7 @@
 #ifndef EXTENSIONS_BROWSER_EXTENSION_PROTOCOLS_H_
 #define EXTENSIONS_BROWSER_EXTENSION_PROTOCOLS_H_
 
-#include <memory>
-#include <string>
-
 #include "base/functional/callback.h"
-#include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 
 namespace base {
@@ -40,7 +36,6 @@ void SetExtensionProtocolTestHandler(ExtensionProtocolTestHandler* handler);
 mojo::PendingRemote<network::mojom::URLLoaderFactory>
 CreateExtensionNavigationURLLoaderFactory(
     content::BrowserContext* browser_context,
-    ukm::SourceIdObj ukm_source_id,
     bool is_web_view_request);
 
 // Creates a new network::mojom::URLLoaderFactory implementation suitable for
@@ -60,7 +55,7 @@ CreateExtensionServiceWorkerScriptURLLoaderFactory(
 
 // Creates a network::mojom::URLLoaderFactory implementation suitable for
 // handling subresource requests for extension URLs for the frame identified by
-// |render_process_id| and |render_frame_id|.
+// `render_process_id` and `render_frame_id`.
 // This function can also be used to make a factory for other non-subresource
 // requests to extension URLs, such as for the service worker script when
 // starting a service worker. In that case, render_frame_id will be

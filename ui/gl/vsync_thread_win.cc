@@ -7,75 +7,81 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
+#include "base/memory/stack_allocated.h"
+#include "base/notreached.h"
 #include "base/power_monitor/power_monitor.h"
+#include "base/synchronization/lock_subtle.h"
 #include "base/time/time.h"
 #include "base/trace_event/typed_macros.h"
-#include "ui/gl/gl_angle_util_win.h"
-#include "ui/gl/vsync_observer.h"
+#include "base/win/windows_version.h"
+#include "ui/gl/direct_composition_support.h"
+#include "ui/gl/gl_features.h"
+#include "ui/gl/vsync_thread_win_dcomp.h"
+#include "ui/gl/vsync_thread_win_dxgi.h"
 
 namespace gl {
 namespace {
-Microsoft::WRL::ComPtr<IDXGIOutput> DXGIOutputFromMonitor(
-    HMONITOR monitor,
-    const Microsoft::WRL::ComPtr<ID3D11Device>& d3d11_device) {
-  Microsoft::WRL::ComPtr<IDXGIDevice> dxgi_device;
-  if (FAILED(d3d11_device.As(&dxgi_device))) {
-    DLOG(ERROR) << "Failed to retrieve DXGI device";
-    return nullptr;
-  }
-
-  Microsoft::WRL::ComPtr<IDXGIAdapter> dxgi_adapter;
-  if (FAILED(dxgi_device->GetAdapter(&dxgi_adapter))) {
-    DLOG(ERROR) << "Failed to retrieve DXGI adapter";
-    return nullptr;
-  }
-
-  size_t i = 0;
-  while (true) {
-    Microsoft::WRL::ComPtr<IDXGIOutput> output;
-    if (FAILED(dxgi_adapter->EnumOutputs(i++, &output)))
-      break;
-
-    DXGI_OUTPUT_DESC desc = {};
-    if (FAILED(output->GetDesc(&desc))) {
-      DLOG(ERROR) << "DXGI output GetDesc failed";
-      return nullptr;
-    }
-
-    if (desc.Monitor == monitor)
-      return output;
-  }
-
-  return nullptr;
-}
+// Whether the current thread holds the `VSyncThreadWin` lock.
+thread_local bool g_current_thread_holds_lock = false;
 }  // namespace
 
 // static
 VSyncThreadWin* VSyncThreadWin::GetInstance() {
-  return base::Singleton<VSyncThreadWin>::get();
+  static VSyncThreadWin* vsync_thread = []() -> VSyncThreadWin* {
+    if (features::UseCompositorClockVSyncInterval()) {
+      return new VSyncThreadWinDComp();
+    } else {
+      Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device(
+          GetDirectCompositionD3D11Device());
+      if (!d3d11_device) {
+        return nullptr;
+      }
+      Microsoft::WRL::ComPtr<IDXGIDevice> dxgi_device;
+      CHECK_EQ(d3d11_device.As(&dxgi_device), S_OK);
+      return new VSyncThreadWinDXGI(std::move(dxgi_device));
+    }
+  }();
+  return vsync_thread;
 }
 
-VSyncThreadWin::VSyncThreadWin()
-    : vsync_thread_("GpuVSyncThread"),
-      vsync_provider_(gfx::kNullAcceleratedWidget),
-      d3d11_device_(QueryD3D11DeviceObjectFromANGLE()) {
-  DCHECK(d3d11_device_);
+class VSyncThreadWin::AutoVSyncThreadLock {
+  STACK_ALLOCATED();
 
-  is_suspended_ =
-      base::PowerMonitor::AddPowerSuspendObserverAndReturnSuspendedState(this);
+ public:
+  AutoVSyncThreadLock(VSyncThreadWin* vsync_thread)
+      EXCLUSIVE_LOCK_FUNCTION(vsync_thread->lock_) {
+    if (g_current_thread_holds_lock) {
+      vsync_thread->lock_.AssertAcquired();
+    } else {
+      auto_lock_.emplace(
+          vsync_thread->lock_,
+          // This lock is used to satisfy a mutual exclusion guarantee verified
+          // by a SEQUENCE_CHECKER in `observers_`.
+          base::subtle::LockTracking::kEnabled);
+      g_current_thread_holds_lock = true;
+    }
+  }
 
+  ~AutoVSyncThreadLock() UNLOCK_FUNCTION() {
+    DCHECK(g_current_thread_holds_lock);
+    if (auto_lock_.has_value()) {
+      g_current_thread_holds_lock = false;
+    }
+  }
+
+ private:
+  std::optional<base::AutoLock> auto_lock_;
+};
+
+VSyncThreadWin::VSyncThreadWin() : vsync_thread_("GpuVSyncThread") {
+  is_suspended_ = base::PowerMonitor::GetInstance()
+                      ->AddPowerSuspendObserverAndReturnSuspendedState(this);
   vsync_thread_.StartWithOptions(
       base::Thread::Options(base::ThreadType::kDisplayCritical));
 }
 
 VSyncThreadWin::~VSyncThreadWin() {
-  {
-    base::AutoLock auto_lock(lock_);
-    observers_.clear();
-  }
-  vsync_thread_.Stop();
-
-  base::PowerMonitor::RemovePowerSuspendObserver(this);
+  NOTREACHED();
 }
 
 void VSyncThreadWin::PostTaskIfNeeded() {
@@ -93,71 +99,58 @@ void VSyncThreadWin::PostTaskIfNeeded() {
 }
 
 void VSyncThreadWin::AddObserver(VSyncObserver* obs) {
-  base::AutoLock auto_lock(lock_);
-  observers_.insert(obs);
+  AutoVSyncThreadLock auto_lock(this);
+  observers_.AddObserver(obs);
   PostTaskIfNeeded();
 }
 
 void VSyncThreadWin::RemoveObserver(VSyncObserver* obs) {
-  base::AutoLock auto_lock(lock_);
-  observers_.erase(obs);
+  AutoVSyncThreadLock auto_lock(this);
+  observers_.RemoveObserver(obs);
 }
 
 void VSyncThreadWin::OnSuspend() {
-  base::AutoLock auto_lock(lock_);
+  AutoVSyncThreadLock auto_lock(this);
   is_suspended_ = true;
 }
 
 void VSyncThreadWin::OnResume() {
-  base::AutoLock auto_lock(lock_);
+  AutoVSyncThreadLock auto_lock(this);
   is_suspended_ = false;
   PostTaskIfNeeded();
 }
 
 void VSyncThreadWin::WaitForVSync() {
-  base::TimeTicks vsync_phase;
   base::TimeDelta vsync_interval;
-  const bool get_vsync_params_succeeded =
-      vsync_provider_.GetVSyncParametersIfAvailable(&vsync_phase,
-                                                    &vsync_interval);
-  DCHECK(get_vsync_params_succeeded);
 
-  // From Raymond Chen's blog "How do I get a handle to the primary monitor?"
-  // https://devblogs.microsoft.com/oldnewthing/20141106-00/?p=43683
-  const HMONITOR monitor = MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY);
-  if (primary_monitor_ != monitor) {
-    primary_monitor_ = monitor;
-    primary_output_ = DXGIOutputFromMonitor(monitor, d3d11_device_);
-  }
+  const base::TimeTicks wait_for_vsync_start_time = base::TimeTicks::Now();
+  bool wait_succeeded = WaitForVSyncImpl(&vsync_interval);
+  const base::TimeDelta wait_for_vsync_elapsed_time =
+      base::TimeTicks::Now() - wait_for_vsync_start_time;
 
-  const base::TimeTicks wait_for_vblank_start_time = base::TimeTicks::Now();
-  const bool wait_for_vblank_succeeded =
-      primary_output_ && SUCCEEDED(primary_output_->WaitForVBlank());
-
-  // WaitForVBlank returns very early instead of waiting until vblank when the
-  // monitor goes to sleep.  We use 1ms as a threshold for the duration of
-  // WaitForVBlank and fallback to Sleep() if it returns before that.  This
-  // could happen during normal operation for the first call after the vsync
-  // thread becomes non-idle, but it shouldn't happen often.
+  // WaitForVBlank and DCompositionWaitForCompositorClock returns very early
+  // instead of waiting until vblank when the monitor goes to sleep or is
+  // unplugged (nothing to present due to desktop occlusion). We use 1ms as
+  // a threshhold for the duration of the wait functions and fallback to
+  // Sleep() if it returns before that. This could happen during normal
+  // operation for the first call after the vsync thread becomes non-idle,
+  // but it shouldn't happen often.
   constexpr auto kVBlankIntervalThreshold = base::Milliseconds(1);
-  const base::TimeDelta wait_for_vblank_elapsed_time =
-      base::TimeTicks::Now() - wait_for_vblank_start_time;
-  if (!wait_for_vblank_succeeded ||
-      wait_for_vblank_elapsed_time < kVBlankIntervalThreshold) {
-    TRACE_EVENT("gpu", "WaitForVSync Sleep");
+  if (!wait_succeeded ||
+      wait_for_vsync_elapsed_time < kVBlankIntervalThreshold) {
+    TRACE_EVENT0("gpu", "WaitForVSync Sleep");
     base::Time::ActivateHighResolutionTimer(true);
     Sleep(static_cast<DWORD>(vsync_interval.InMillisecondsRoundedUp()));
     base::Time::ActivateHighResolutionTimer(false);
   }
 
-  base::AutoLock auto_lock(lock_);
+  AutoVSyncThreadLock auto_lock(this);
   DCHECK(is_vsync_task_posted_);
   is_vsync_task_posted_ = false;
   PostTaskIfNeeded();
 
   const base::TimeTicks vsync_time = base::TimeTicks::Now();
-  for (auto* obs : observers_)
-    obs->OnVSync(vsync_time, vsync_interval);
+  observers_.Notify(&VSyncObserver::OnVSync, vsync_time, vsync_interval);
 }
 
 }  // namespace gl

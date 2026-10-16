@@ -23,9 +23,6 @@ using base::TimeTicks;
 namespace translate {
 namespace {
 
-const int kTrue = 1;
-const int kFalse = 0;
-
 class MetricsRecorder {
  public:
   explicit MetricsRecorder(const char* key) : key_(key) {
@@ -37,44 +34,43 @@ class MetricsRecorder {
   MetricsRecorder(const MetricsRecorder&) = delete;
   MetricsRecorder& operator=(const MetricsRecorder&) = delete;
 
-  void CheckLanguageVerification(int expected_model_disabled,
-                                 int expected_model_only,
+  void CheckLanguageVerification(int expected_model_only,
                                  int expected_unknown,
                                  int expected_model_agree,
                                  int expected_model_disagree,
                                  int expected_trust_model,
-                                 int expected_model_complement_sub_code) {
+                                 int expected_model_complement_sub_code,
+                                 int expected_no_page_content,
+                                 int expected_model_not_available) {
     ASSERT_EQ(metrics_internal::kTranslateLanguageDetectionLanguageVerification,
               key_);
 
     Snapshot();
 
-    EXPECT_EQ(expected_model_disabled,
-              GetCountWithoutSnapshot(
-                  DEPRECATED_LANGUAGE_VERIFICATION_MODEL_DISABLED));
-    EXPECT_EQ(expected_model_only,
-              GetCountWithoutSnapshot(LANGUAGE_VERIFICATION_MODEL_ONLY));
-    EXPECT_EQ(expected_unknown,
-              GetCountWithoutSnapshot(LANGUAGE_VERIFICATION_MODEL_UNKNOWN));
+    // EXPECT_EQ(expected_model_disabled,
+    //           GetCountWithoutSnapshot(kModelDisabled)); -- obsolete
+    EXPECT_EQ(expected_model_only, GetCountWithoutSnapshot(static_cast<int>(
+                                       LanguageVerificationType::kModelOnly)));
+    EXPECT_EQ(expected_unknown, GetCountWithoutSnapshot(static_cast<int>(
+                                    LanguageVerificationType::kModelUnknown)));
     EXPECT_EQ(expected_model_agree,
-              GetCountWithoutSnapshot(LANGUAGE_VERIFICATION_MODEL_AGREES));
-    EXPECT_EQ(expected_model_disagree,
-              GetCountWithoutSnapshot(LANGUAGE_VERIFICATION_MODEL_DISAGREES));
-    EXPECT_EQ(expected_trust_model,
-              GetCountWithoutSnapshot(LANGUAGE_VERIFICATION_MODEL_OVERRIDES));
-    EXPECT_EQ(expected_model_complement_sub_code,
               GetCountWithoutSnapshot(
-                  LANGUAGE_VERIFICATION_MODEL_COMPLEMENTS_COUNTRY));
-  }
-
-  void CheckScheme(int expected_http, int expected_https, int expected_others) {
-    ASSERT_EQ(metrics_internal::kTranslatePageScheme, key_);
-
-    Snapshot();
-
-    EXPECT_EQ(expected_http, GetCountWithoutSnapshot(SCHEME_HTTP));
-    EXPECT_EQ(expected_https, GetCountWithoutSnapshot(SCHEME_HTTPS));
-    EXPECT_EQ(expected_others, GetCountWithoutSnapshot(SCHEME_OTHERS));
+                  static_cast<int>(LanguageVerificationType::kModelAgrees)));
+    EXPECT_EQ(expected_model_disagree,
+              GetCountWithoutSnapshot(
+                  static_cast<int>(LanguageVerificationType::kModelDisagrees)));
+    EXPECT_EQ(expected_trust_model,
+              GetCountWithoutSnapshot(
+                  static_cast<int>(LanguageVerificationType::kModelOverrides)));
+    EXPECT_EQ(expected_model_complement_sub_code,
+              GetCountWithoutSnapshot(static_cast<int>(
+                  LanguageVerificationType::kModelComplementsCountry)));
+    EXPECT_EQ(expected_no_page_content,
+              GetCountWithoutSnapshot(
+                  static_cast<int>(LanguageVerificationType::kNoPageContent)));
+    EXPECT_EQ(expected_model_not_available,
+              GetCountWithoutSnapshot(static_cast<int>(
+                  LanguageVerificationType::kModelNotAvailable)));
   }
 
   void CheckTotalCount(int count) {
@@ -82,24 +78,26 @@ class MetricsRecorder {
     EXPECT_EQ(count, GetTotalCount());
   }
 
+  void CheckCount(HistogramBase::Sample32 value, int expected) {
+    if (!samples_) {
+      Snapshot();
+    }
+    EXPECT_EQ(expected, GetCountWithoutSnapshot(value));
+  }
+
   void CheckValueInLogs(double value) {
     Snapshot();
     ASSERT_TRUE(samples_.get());
     for (std::unique_ptr<SampleCountIterator> i = samples_->Iterator();
          !i->Done(); i->Next()) {
-      HistogramBase::Sample min;
+      HistogramBase::Sample32 min;
       int64_t max;
-      HistogramBase::Count count;
+      HistogramBase::Count32 count;
       i->Get(&min, &max, &count);
       if (min <= value && value <= max && count >= 1)
         return;
     }
     EXPECT_FALSE(true);
-  }
-
-  HistogramBase::Count GetCount(HistogramBase::Sample value) {
-    Snapshot();
-    return GetCountWithoutSnapshot(value);
   }
 
  private:
@@ -110,19 +108,19 @@ class MetricsRecorder {
     samples_ = histogram->SnapshotSamples();
   }
 
-  HistogramBase::Count GetCountWithoutSnapshot(HistogramBase::Sample value) {
+  HistogramBase::Count32 GetCountWithoutSnapshot(HistogramBase::Sample32 value) {
     if (!samples_)
       return 0;
-    HistogramBase::Count count = samples_->GetCount(value);
+    HistogramBase::Count32 count = samples_->GetCount(value);
     if (!base_samples_)
       return count;
     return count - base_samples_->GetCount(value);
   }
 
-  HistogramBase::Count GetTotalCount() {
+  HistogramBase::Count32 GetTotalCount() {
     if (!samples_)
       return 0;
-    HistogramBase::Count count = samples_->TotalCount();
+    HistogramBase::Count32 count = samples_->TotalCount();
     if (!base_samples_)
       return count;
     return count - base_samples_->TotalCount();
@@ -137,21 +135,25 @@ TEST(TranslateMetricsTest, ReportLanguageVerification) {
   MetricsRecorder recorder(
       metrics_internal::kTranslateLanguageDetectionLanguageVerification);
 
-  recorder.CheckLanguageVerification(0, 0, 0, 0, 0, 0, 0);
-  ReportLanguageVerification(DEPRECATED_LANGUAGE_VERIFICATION_MODEL_DISABLED);
-  recorder.CheckLanguageVerification(1, 0, 0, 0, 0, 0, 0);
-  ReportLanguageVerification(LANGUAGE_VERIFICATION_MODEL_ONLY);
-  recorder.CheckLanguageVerification(1, 1, 0, 0, 0, 0, 0);
-  ReportLanguageVerification(LANGUAGE_VERIFICATION_MODEL_UNKNOWN);
-  recorder.CheckLanguageVerification(1, 1, 1, 0, 0, 0, 0);
-  ReportLanguageVerification(LANGUAGE_VERIFICATION_MODEL_AGREES);
-  recorder.CheckLanguageVerification(1, 1, 1, 1, 0, 0, 0);
-  ReportLanguageVerification(LANGUAGE_VERIFICATION_MODEL_DISAGREES);
-  recorder.CheckLanguageVerification(1, 1, 1, 1, 1, 0, 0);
-  ReportLanguageVerification(LANGUAGE_VERIFICATION_MODEL_OVERRIDES);
-  recorder.CheckLanguageVerification(1, 1, 1, 1, 1, 1, 0);
-  ReportLanguageVerification(LANGUAGE_VERIFICATION_MODEL_COMPLEMENTS_COUNTRY);
-  recorder.CheckLanguageVerification(1, 1, 1, 1, 1, 1, 1);
+  // ReportLanguageVerification(kModelDisabled); -- obsolete
+  recorder.CheckLanguageVerification(0, 0, 0, 0, 0, 0, 0, 0);
+  ReportLanguageVerification(LanguageVerificationType::kModelOnly);
+  recorder.CheckLanguageVerification(1, 0, 0, 0, 0, 0, 0, 0);
+  ReportLanguageVerification(LanguageVerificationType::kModelUnknown);
+  recorder.CheckLanguageVerification(1, 1, 0, 0, 0, 0, 0, 0);
+  ReportLanguageVerification(LanguageVerificationType::kModelAgrees);
+  recorder.CheckLanguageVerification(1, 1, 1, 0, 0, 0, 0, 0);
+  ReportLanguageVerification(LanguageVerificationType::kModelDisagrees);
+  recorder.CheckLanguageVerification(1, 1, 1, 1, 0, 0, 0, 0);
+  ReportLanguageVerification(LanguageVerificationType::kModelOverrides);
+  recorder.CheckLanguageVerification(1, 1, 1, 1, 1, 0, 0, 0);
+  ReportLanguageVerification(
+      LanguageVerificationType::kModelComplementsCountry);
+  recorder.CheckLanguageVerification(1, 1, 1, 1, 1, 1, 0, 0);
+  ReportLanguageVerification(LanguageVerificationType::kNoPageContent);
+  recorder.CheckLanguageVerification(1, 1, 1, 1, 1, 1, 1, 0);
+  ReportLanguageVerification(LanguageVerificationType::kModelNotAvailable);
+  recorder.CheckLanguageVerification(1, 1, 1, 1, 1, 1, 1, 1);
 }
 
 TEST(TranslateMetricsTest, ReportTimeToBeReady) {
@@ -178,40 +180,6 @@ TEST(TranslateMetricsTest, ReportTimeToTranslate) {
   recorder.CheckTotalCount(1);
 }
 
-TEST(TranslateMetricsTest, ReportUserActionDuration) {
-  MetricsRecorder recorder(metrics_internal::kTranslateUserActionDuration);
-  recorder.CheckTotalCount(0);
-  TimeTicks begin = TimeTicks::Now();
-  TimeTicks end = begin + base::Seconds(3776);
-  ReportUserActionDuration(begin, end);
-  recorder.CheckValueInLogs(3776000.0);
-  recorder.CheckTotalCount(1);
-}
-
-TEST(TranslateMetricsTest, ReportPageScheme) {
-  MetricsRecorder recorder(metrics_internal::kTranslatePageScheme);
-  recorder.CheckScheme(0, 0, 0);
-  ReportPageScheme("http");
-  recorder.CheckScheme(1, 0, 0);
-  ReportPageScheme("https");
-  recorder.CheckScheme(1, 1, 0);
-  ReportPageScheme("ftp");
-  recorder.CheckScheme(1, 1, 1);
-}
-
-TEST(TranslateMetricsTest, ReportSimilarLanguageMatch) {
-  MetricsRecorder recorder(metrics_internal::kTranslateSimilarLanguageMatch);
-  recorder.CheckTotalCount(0);
-  EXPECT_EQ(0, recorder.GetCount(kTrue));
-  EXPECT_EQ(0, recorder.GetCount(kFalse));
-  ReportSimilarLanguageMatch(true);
-  EXPECT_EQ(1, recorder.GetCount(kTrue));
-  EXPECT_EQ(0, recorder.GetCount(kFalse));
-  ReportSimilarLanguageMatch(false);
-  EXPECT_EQ(1, recorder.GetCount(kTrue));
-  EXPECT_EQ(1, recorder.GetCount(kFalse));
-}
-
 TEST(TranslateMetricsTest, ReportTranslatedLanguageDetectionContentLength) {
   MetricsRecorder recorder(
       metrics_internal::kTranslatedLanguageDetectionContentLength);
@@ -219,6 +187,25 @@ TEST(TranslateMetricsTest, ReportTranslatedLanguageDetectionContentLength) {
   ReportTranslatedLanguageDetectionContentLength(12345);
   recorder.CheckValueInLogs(12345);
   recorder.CheckTotalCount(1);
+}
+
+TEST(TranslateMetricsTest, ReportCompactInfobarEvent) {
+  MetricsRecorder recorder(metrics_internal::kTranslateCompactInfobarEvent);
+  recorder.CheckTotalCount(0);
+  ReportCompactInfobarEvent(InfobarEvent::INFOBAR_IMPRESSION);
+  ReportCompactInfobarEvent(InfobarEvent::INFOBAR_IMPRESSION);
+  ReportCompactInfobarEvent(InfobarEvent::INFOBAR_IMPRESSION);
+  ReportCompactInfobarEvent(InfobarEvent::INFOBAR_REVERT);
+  ReportCompactInfobarEvent(InfobarEvent::INFOBAR_REVERT);
+  ReportCompactInfobarEvent(
+      InfobarEvent::INFOBAR_SNACKBAR_AUTO_ALWAYS_IMPRESSION);
+
+  recorder.CheckTotalCount(6);
+  recorder.CheckCount(static_cast<int>(InfobarEvent::INFOBAR_IMPRESSION), 3);
+  recorder.CheckCount(static_cast<int>(InfobarEvent::INFOBAR_REVERT), 2);
+  recorder.CheckCount(
+      static_cast<int>(InfobarEvent::INFOBAR_SNACKBAR_AUTO_ALWAYS_IMPRESSION),
+      1);
 }
 
 }  // namespace

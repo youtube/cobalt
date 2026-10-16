@@ -12,13 +12,15 @@ import android.webkit.WebViewRenderProcessClient;
 import androidx.annotation.RequiresApi;
 
 import org.chromium.android_webview.AwRenderProcess;
+import org.chromium.android_webview.common.Lifetime;
 
 import java.util.concurrent.Executor;
 
+@Lifetime.WebView
 @RequiresApi(Build.VERSION_CODES.Q)
 class WebViewRenderProcessClientAdapter extends SharedWebViewRendererClientAdapter {
-    private Executor mExecutor;
-    private WebViewRenderProcessClient mWebViewRenderProcessClient;
+    private final Executor mExecutor;
+    private final WebViewRenderProcessClient mWebViewRenderProcessClient;
 
     public WebViewRenderProcessClientAdapter(
             Executor executor, WebViewRenderProcessClient webViewRenderProcessClient) {

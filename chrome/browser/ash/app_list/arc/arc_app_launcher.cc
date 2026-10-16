@@ -31,21 +31,20 @@ ArcAppLauncher::ArcAppLauncher(content::BrowserContext* context,
 
   std::unique_ptr<ArcAppListPrefs::AppInfo> app_info = prefs->GetApp(app_id_);
   if (!app_info ||
-      !MaybeLaunchApp(app_id, *app_info, apps::Readiness::kUnknown))
-    prefs->AddObserver(this);
+      !MaybeLaunchApp(app_id, *app_info, apps::Readiness::kUnknown)) {
+    arc_app_list_prefs_observer_.Observe(prefs);
+  }
 
   auto* profile = Profile::FromBrowserContext(context_);
   DCHECK(
       apps::AppServiceProxyFactory::IsAppServiceAvailableForProfile(profile));
-  Observe(&apps::AppServiceProxyFactory::GetForProfile(profile)
-               ->AppRegistryCache());
+  app_registry_cache_observer_.Observe(
+      &apps::AppServiceProxyFactory::GetForProfile(profile)
+           ->AppRegistryCache());
 }
 
 ArcAppLauncher::~ArcAppLauncher() {
   if (!app_launched_) {
-    ArcAppListPrefs* prefs = ArcAppListPrefs::Get(context_);
-    if (prefs)
-      prefs->RemoveObserver(this);
     VLOG(2) << "App " << app_id_ << "was not launched.";
   }
 }
@@ -60,6 +59,10 @@ void ArcAppLauncher::OnAppStatesChanged(
     const std::string& app_id,
     const ArcAppListPrefs::AppInfo& app_info) {
   MaybeLaunchApp(app_id, app_info, apps::Readiness::kUnknown);
+}
+
+void ArcAppLauncher::OnArcAppListPrefsDestroyed() {
+  arc_app_list_prefs_observer_.Reset();
 }
 
 void ArcAppLauncher::OnAppUpdate(const apps::AppUpdate& update) {
@@ -81,7 +84,7 @@ void ArcAppLauncher::OnAppUpdate(const apps::AppUpdate& update) {
 
 void ArcAppLauncher::OnAppRegistryCacheWillBeDestroyed(
     apps::AppRegistryCache* cache) {
-  Observe(nullptr);
+  app_registry_cache_observer_.Reset();
 }
 
 bool ArcAppLauncher::MaybeLaunchApp(const std::string& app_id,
@@ -110,14 +113,17 @@ bool ArcAppLauncher::MaybeLaunchApp(const std::string& app_id,
           readiness = update.Readiness();
         });
   }
-  if (readiness != apps::Readiness::kReady) {
+  // Launch requests disabled by local settings should go through to App service
+  // This is to ensure that the blocked app dialog is shown.
+  if (readiness != apps::Readiness::kReady &&
+      readiness != apps::Readiness::kDisabledByLocalSettings) {
     return false;
   }
 
   ArcAppListPrefs* prefs = ArcAppListPrefs::Get(context_);
   DCHECK(prefs && prefs->GetApp(app_id_));
-  prefs->RemoveObserver(this);
-  Observe(nullptr);
+  app_registry_cache_observer_.Reset();
+  arc_app_list_prefs_observer_.Reset();
 
   if (launch_intent_) {
     proxy->LaunchAppWithIntent(

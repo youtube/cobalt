@@ -4,35 +4,49 @@
 
 package org.chromium.content.app;
 
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.build.annotations.MainDex;
+import android.os.IBinder;
+
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
  * This class is used to initialize all types of process. It corresponds to
- * content/public/app/content_main.h which is not used in Android as it has
- * the different initialization process.
+ * content/public/app/content_main.h which is not used in Android as it has the different
+ * initialization process.
  *
- * TODO(michaelbai): Refactorying the BrowserProcessMain.java and the
- * ChildProcessService.java to start ContentMain, and run the process
- * specific initialization code in ContentMainRunner::Initialize.
- *
- **/
+ * <p>TODO(michaelbai): Refactorying the BrowserProcessMain.java and the ChildProcessService.java to
+ * start ContentMain, and run the process specific initialization code in
+ * ContentMainRunner::Initialize.
+ */
 @JNINamespace("content")
-@MainDex
+@NullMarked
 public class ContentMain {
+    /**
+     * Sets a global set of IBinder refs in native code.
+     *
+     * @param binderBox A reference to a binder box which contains other binders packed by the
+     *     parent process.
+     */
+    public static void setBindersFromParent(@Nullable IBinder binderBox) {
+        ContentMainJni.get().setBindersFromParent(binderBox);
+    }
+
     /**
      * Start the ContentMainRunner in native side.
      *
-     * @param startMinimalBrowser Whether to start only a minimal browser
-     *     process environment.
-     **/
+     * @param startMinimalBrowser Whether to start only a minimal browser process environment.
+     */
     public static int start(boolean startMinimalBrowser) {
         return ContentMainJni.get().start(startMinimalBrowser);
     }
 
     @NativeMethods
     interface Natives {
+        void setBindersFromParent(@Nullable IBinder binderBox);
+
         int start(boolean startMinimalBrowser);
     }
 }

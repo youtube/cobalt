@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/notreached.h"
 #include "base/threading/platform_thread.h"
@@ -61,15 +62,22 @@ blink::WebSandboxSupport* PpapiBlinkPlatformImpl::GetSandboxSupport() {
 #endif
 }
 
-uint64_t PpapiBlinkPlatformImpl::VisitedLinkHash(const char* canonical_url,
-                                                 size_t length) {
+uint64_t PpapiBlinkPlatformImpl::VisitedLinkHash(
+    std::string_view canonical_url) {
   NOTREACHED();
-  return 0;
 }
 
 bool PpapiBlinkPlatformImpl::IsLinkVisited(uint64_t link_hash) {
   NOTREACHED();
-  return false;
+}
+
+// PPAPI does not support partitioned :visited links. Since per-origin
+// salts are only used in the partitioned :visited link hashtable, PPAPI clients
+// do not need to take any action if a per-origin salt is received.
+void PpapiBlinkPlatformImpl::AddOrUpdateVisitedLinkSalt(
+    const url::Origin& origin,
+    uint64_t salt) {
+  NOTREACHED();
 }
 
 blink::WebString PpapiBlinkPlatformImpl::DefaultLocale() {

@@ -6,6 +6,7 @@
 #define ASH_STYLE_ROUNDED_LABEL_WIDGET_H_
 
 #include <string>
+#include <variant>
 
 #include "base/memory/raw_ptr.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -22,15 +23,18 @@ class RoundedLabelWidget : public views::Widget {
   struct InitParams {
     InitParams();
     InitParams(InitParams&& other);
+    ~InitParams();
 
     std::string name;
     int horizontal_padding;
     int vertical_padding;
     int rounding_dp;
     int preferred_height;
-    int message_id;
-    raw_ptr<aura::Window, ExperimentalAsh> parent;
-    bool hide_in_mini_view;
+    // A message string or the string ID.
+    // TODO(zxdan): change back to message ID if test string is no longer
+    // needed.
+    std::variant<std::u16string, int> message;
+    raw_ptr<aura::Window> parent;
     bool disable_default_visibility_animation = false;
   };
 

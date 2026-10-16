@@ -31,7 +31,6 @@ std::string Offliner::RequestStatusToString(RequestStatus request_status) {
       return "REQUEST_COORDINATOR_TIMED_OUT";
     case Offliner::RequestStatus::DEPRECATED_LOADING_NOT_STARTED:
       NOTREACHED();
-      return "DEPRECATED_LOADING_NOT_STARTED";
     case Offliner::RequestStatus::LOADING_FAILED_NO_RETRY:
       return "LOADING_FAILED_NO_RETRY";
     case Offliner::RequestStatus::LOADING_FAILED_NO_NEXT:

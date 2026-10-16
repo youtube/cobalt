@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/gtest_prod_util.h"
+#include "base/memory/raw_ptr.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/animation/bounds_animator.h"
 #include "ui/views/animation/bounds_animator_observer.h"
@@ -21,10 +22,10 @@ class PaymentRequestBrowserTestBase;
 // left to right. It manages the animation and lifetime of views that are
 // pushed and popped on it. To use this class, add it to a view hierarchy, and
 // call Push/Pop to animate views in and out.
-class ViewStack : public views::BoundsAnimatorObserver,
-                  public views::View {
+class ViewStack : public views::BoundsAnimatorObserver, public views::View {
+  METADATA_HEADER(ViewStack, views::View)
+
  public:
-  METADATA_HEADER(ViewStack);
   ViewStack();
   ViewStack(const ViewStack&) = delete;
   ViewStack& operator=(const ViewStack&) = delete;
@@ -60,8 +61,8 @@ class ViewStack : public views::BoundsAnimatorObserver,
   views::View* top() { return stack_.back(); }
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(
-      ViewStackTest, TestPopStateRemovesChildViewAndCleansUpState);
+  FRIEND_TEST_ALL_PREFIXES(ViewStackTest,
+                           TestPopStateRemovesChildViewAndCleansUpState);
   FRIEND_TEST_ALL_PREFIXES(ViewStackTest, TestDeletingViewCleansUpState);
   FRIEND_TEST_ALL_PREFIXES(ViewStackTest, TestInitialStateAddedAsChildView);
   FRIEND_TEST_ALL_PREFIXES(ViewStackTest, TestPushStateAddsViewToChildren);
@@ -72,8 +73,8 @@ class ViewStack : public views::BoundsAnimatorObserver,
   // Marks all views, except the topmost, as invisible.
   void HideCoveredViews();
 
-  void UpdateAnimatorBounds(
-      views::BoundsAnimator* animator, const gfx::Rect& target);
+  void UpdateAnimatorBounds(views::BoundsAnimator* animator,
+                            const gfx::Rect& target);
 
   // views::BoundsAnimatorObserver:
   void OnBoundsAnimatorProgressed(views::BoundsAnimator* animator) override {}
@@ -84,7 +85,7 @@ class ViewStack : public views::BoundsAnimatorObserver,
 
   // Should be the last member, because views need to be destroyed before other
   // members, and members are destroyed in reverse order of their creation.
-  std::vector<views::View*> stack_;
+  std::vector<raw_ptr<views::View, VectorExperimental>> stack_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_PAYMENTS_VIEW_STACK_H_

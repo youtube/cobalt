@@ -34,6 +34,7 @@ std::unique_ptr<Config> CreateTestConfig() {
   config->segmentation_uma_name = "test_key";
   config->segment_selection_ttl = base::Days(28);
   config->unknown_selection_ttl = base::Days(14);
+  config->auto_execute_and_cache = true;
   config->AddSegmentId(
       proto::SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_SHARE);
   return config;
@@ -44,19 +45,25 @@ std::unique_ptr<Config> CreateTestConfig(const std::string& client_key,
   auto config = std::make_unique<Config>();
   config->segmentation_key = client_key;
   config->segmentation_uma_name = client_key;
+  config->auto_execute_and_cache = true;
   config->segment_selection_ttl = base::Days(28);
   config->unknown_selection_ttl = base::Days(14);
   config->AddSegmentId(segment_id);
   return config;
 }
 
-proto::OutputConfig GetTestOutputConfigForBinaryClassifier() {
+proto::OutputConfig GetTestOutputConfigForBinaryClassifier(
+    bool ignore_previous_model_ttl) {
   proto::SegmentationModelMetadata model_metadata;
   MetadataWriter writer(&model_metadata);
 
   writer.AddOutputConfigForBinaryClassifier(
       /*threshold=*/0.5, /*positive_label=*/kShowShare,
       /*negative_label=*/kNotShowShare);
+
+  if (ignore_previous_model_ttl) {
+    writer.SetIgnorePreviousModelTTLInOutputConfig();
+  }
 
   writer.AddPredictedResultTTLInOutputConfig({{kShowShare, kShowShareTTL}},
                                              kDefaultTTL, proto::TimeUnit::DAY);
@@ -75,14 +82,22 @@ proto::OutputConfig GetTestOutputConfigForBinnedClassifier() {
 
 proto::OutputConfig GetTestOutputConfigForMultiClassClassifier(
     int top_k_outputs,
-    absl::optional<float> threshold) {
+    std::optional<float> threshold) {
   proto::SegmentationModelMetadata model_metadata;
   MetadataWriter writer(&model_metadata);
 
   std::array<const char*, 4> labels{kShareUser, kNewTabUser, kVoiceUser,
                                     kShoppingUser};
-  writer.AddOutputConfigForMultiClassClassifier(labels.begin(), labels.size(),
-                                                top_k_outputs, threshold);
+  writer.AddOutputConfigForMultiClassClassifier(labels, top_k_outputs,
+                                                threshold);
+  return model_metadata.output_config();
+}
+
+proto::OutputConfig GetTestOutputConfigForGenericPredictor(
+    const std::vector<std::string>& labels) {
+  proto::SegmentationModelMetadata model_metadata;
+  MetadataWriter writer(&model_metadata);
+  writer.AddOutputConfigForGenericPredictor(labels);
   return model_metadata.output_config();
 }
 

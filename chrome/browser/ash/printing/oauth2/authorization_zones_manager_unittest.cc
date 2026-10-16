@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -19,14 +20,13 @@
 #include "chrome/browser/ash/printing/oauth2/test_authorization_server.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/printing/uri.h"
-#include "components/sync/model/model_type_store.h"
+#include "components/sync/model/data_type_store.h"
 #include "components/sync/protocol/entity_data.h"
-#include "components/sync/test/mock_model_type_change_processor.h"
-#include "components/sync/test/model_type_store_test_util.h"
+#include "components/sync/test/data_type_store_test_util.h"
+#include "components/sync/test/mock_data_type_local_change_processor.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace ash::printing::oauth2 {
@@ -84,8 +84,7 @@ class PrintingOAuth2AuthorizationZonesManagerTest : public testing::Test {
             base::Unretained(this)),
         std::move(client_ids_database),
         mock_processor_.CreateForwardingProcessor(),
-        syncer::ModelTypeStoreTestUtil::FactoryForForwardingStore(
-            store_.get()));
+        syncer::DataTypeStoreTestUtil::FactoryForForwardingStore(store_.get()));
   }
 
   // Wait for `auth_zones_manager_` to be completely initialized. It is done
@@ -164,7 +163,7 @@ class PrintingOAuth2AuthorizationZonesManagerTest : public testing::Test {
                                    CallbackResult results_to_report) {
     EXPECT_CALL(*auth_zone, InitAuthorization(scope, testing::_))
         .WillOnce(
-            [&results_to_report](const std::string&, StatusCallback callback) {
+            [results_to_report](const std::string&, StatusCallback callback) {
               std::move(callback).Run(results_to_report.status,
                                       std::move(results_to_report.data));
             });
@@ -174,7 +173,7 @@ class PrintingOAuth2AuthorizationZonesManagerTest : public testing::Test {
                                      const GURL& redirect_url,
                                      CallbackResult results_to_report) {
     EXPECT_CALL(*auth_zone, FinishAuthorization(redirect_url, testing::_))
-        .WillOnce([&results_to_report](const GURL&, StatusCallback callback) {
+        .WillOnce([results_to_report](const GURL&, StatusCallback callback) {
           std::move(callback).Run(results_to_report.status,
                                   std::move(results_to_report.data));
         });
@@ -186,8 +185,8 @@ class PrintingOAuth2AuthorizationZonesManagerTest : public testing::Test {
                                         CallbackResult results_to_report) {
     EXPECT_CALL(*auth_zone,
                 GetEndpointAccessToken(ipp_endpoint, scope, testing::_))
-        .WillOnce([&results_to_report](const chromeos::Uri&, const std::string&,
-                                       StatusCallback callback) {
+        .WillOnce([results_to_report](const chromeos::Uri&, const std::string&,
+                                      StatusCallback callback) {
           std::move(callback).Run(results_to_report.status,
                                   std::move(results_to_report.data));
         });
@@ -211,14 +210,14 @@ class PrintingOAuth2AuthorizationZonesManagerTest : public testing::Test {
     return auth_zone;
   }
 
-  raw_ptr<testing::NiceMock<MockClientIdsDatabase>, ExperimentalAsh>
+  raw_ptr<testing::NiceMock<MockClientIdsDatabase>, DanglingUntriaged>
       client_ids_database_;
-  std::map<GURL, AuthZoneMock*> auth_zones_;
+  std::map<GURL, raw_ptr<AuthZoneMock, CtnExperimental>> auth_zones_;
   content::BrowserTaskEnvironment task_environment_;
   TestingProfile profile_;
-  testing::NiceMock<syncer::MockModelTypeChangeProcessor> mock_processor_;
-  std::unique_ptr<syncer::ModelTypeStore> store_ =
-      syncer::ModelTypeStoreTestUtil::CreateInMemoryStoreForTest();
+  testing::NiceMock<syncer::MockDataTypeLocalChangeProcessor> mock_processor_;
+  std::unique_ptr<syncer::DataTypeStore> store_ =
+      syncer::DataTypeStoreTestUtil::CreateInMemoryStoreForTest();
   base::RunLoop bridge_initialization_;
   std::unique_ptr<AuthorizationZonesManager> auth_zones_manager_;
 };
@@ -326,13 +325,13 @@ TEST_F(PrintingOAuth2AuthorizationZonesManagerTest,
   syncer::EntityChangeList data_change_list;
   data_change_list.push_back(syncer::EntityChange::CreateAdd(
       url_2.spec(), ToEntityData(url_2.spec())));
-  data_change_list.push_back(syncer::EntityChange::CreateDelete(url_1.spec()));
-  syncer::ModelTypeSyncBridge* bridge =
-      auth_zones_manager_->GetModelTypeSyncBridge();
+  data_change_list.push_back(
+      syncer::EntityChange::CreateDelete(url_1.spec(), syncer::EntityData()));
+  syncer::DataTypeSyncBridge* bridge =
+      auth_zones_manager_->GetDataTypeSyncBridge();
 
-  absl::optional<syncer::ModelError> error =
-      bridge->ApplyIncrementalSyncChanges(bridge->CreateMetadataChangeList(),
-                                          std::move(data_change_list));
+  std::optional<syncer::ModelError> error = bridge->ApplyIncrementalSyncChanges(
+      bridge->CreateMetadataChangeList(), std::move(data_change_list));
   EXPECT_FALSE(error);
 
   // Check if |url_1| is gone.

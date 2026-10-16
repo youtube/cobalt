@@ -5,6 +5,8 @@
 #include "quiche/quic/test_tools/web_transport_resets_backend.h"
 
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/tools/web_transport_test_visitors.h"
@@ -36,7 +38,7 @@ class ResetsVisitor : public WebTransportVisitor {
  public:
   ResetsVisitor(WebTransportSession* session) : session_(session) {}
 
-  void OnSessionReady(const spdy::Http2HeaderBlock& /*headers*/) override {}
+  void OnSessionReady() override {}
   void OnSessionClosed(WebTransportSessionError /*error_code*/,
                        const std::string& /*error_message*/) override {}
 
@@ -101,7 +103,7 @@ void BidirectionalEchoVisitorWithLogging::OnStopSendingReceived(
 }  // namespace
 
 QuicSimpleServerBackend::WebTransportResponse WebTransportResetsBackend(
-    const spdy::Http2HeaderBlock& /*request_headers*/,
+    const quiche::HttpHeaderBlock& /*request_headers*/,
     WebTransportSession* session) {
   QuicSimpleServerBackend::WebTransportResponse response;
   response.response_headers[":status"] = "200";

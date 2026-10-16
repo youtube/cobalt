@@ -2,27 +2,36 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 
+#include <cstring>
 #include <string>
 #include <tuple>
+#include <vector>
 
+#include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/memory_mapped_file.h"
 #include "base/files/scoped_temp_dir.h"
-#include "base/functional/bind.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "sql/database.h"
 #include "sql/statement.h"
+#include "sql/statement_id.h"
 #include "sql/test/scoped_error_expecter.h"
 #include "sql/test/test_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/sqlite/sqlite3.h"
 
 #if BUILDFLAG(IS_APPLE)
-#include "base/mac/backup_util.h"
+#include "base/apple/backup_util.h"
 #endif
 
 // Test that certain features are/are-not enabled in our SQLite.
@@ -37,6 +46,7 @@ using sql::test::ExecuteWithResults;
 
 class SQLiteFeaturesTest : public testing::Test {
  public:
+  SQLiteFeaturesTest() : db_(sql::test::kTestTag) {}
   ~SQLiteFeaturesTest() override = default;
 
   void SetUp() override {
@@ -79,27 +89,12 @@ TEST_F(SQLiteFeaturesTest, NoFTS2) {
   EXPECT_TRUE(expecter.SawExpectedErrors());
 }
 
-// fts3 is exposed in WebSQL.
-TEST_F(SQLiteFeaturesTest, FTS3) {
-  EXPECT_TRUE(db_.Execute("CREATE VIRTUAL TABLE foo USING fts3(x)"));
-}
-
-// Originally history used fts2, which Chromium patched to treat "foo*" as a
-// prefix search, though the icu tokenizer would return it as two tokens {"foo",
-// "*"}.  Test that fts3 works correctly.
-TEST_F(SQLiteFeaturesTest, FTS3_Prefix) {
-  db_.Close();
-  sql::Database db({.enable_virtual_tables_discouraged = true});
-  ASSERT_TRUE(db.Open(db_path_));
-
-  static constexpr char kCreateSql[] =
-      "CREATE VIRTUAL TABLE foo USING fts3(x, tokenize icu)";
-  ASSERT_TRUE(db.Execute(kCreateSql));
-
-  ASSERT_TRUE(db.Execute("INSERT INTO foo (x) VALUES ('test')"));
-
-  EXPECT_EQ("test",
-            ExecuteWithResult(&db, "SELECT x FROM foo WHERE x MATCH 'te*'"));
+// Do not include fts3 support.
+TEST_F(SQLiteFeaturesTest, NoFTS3) {
+  sql::test::ScopedErrorExpecter expecter;
+  expecter.ExpectError(SQLITE_ERROR);
+  EXPECT_FALSE(db_.Execute("CREATE VIRTUAL TABLE foo USING fts3(x)"));
+  EXPECT_TRUE(expecter.SawExpectedErrors());
 }
 
 // Verify that Chromium's SQLite is compiled with HAVE_USLEEP defined.  With
@@ -627,19 +622,19 @@ TEST_F(SQLiteFeaturesTest, TimeMachine) {
   ASSERT_TRUE(base::PathExists(journal_path));
 
   // Not excluded to start.
-  EXPECT_FALSE(base::mac::GetBackupExclusion(db_path_));
-  EXPECT_FALSE(base::mac::GetBackupExclusion(journal_path));
+  EXPECT_FALSE(base::apple::GetBackupExclusion(db_path_));
+  EXPECT_FALSE(base::apple::GetBackupExclusion(journal_path));
 
   // Exclude the main database file.
-  EXPECT_TRUE(base::mac::SetBackupExclusion(db_path_));
+  EXPECT_TRUE(base::apple::SetBackupExclusion(db_path_));
 
-  EXPECT_TRUE(base::mac::GetBackupExclusion(db_path_));
-  EXPECT_FALSE(base::mac::GetBackupExclusion(journal_path));
+  EXPECT_TRUE(base::apple::GetBackupExclusion(db_path_));
+  EXPECT_FALSE(base::apple::GetBackupExclusion(journal_path));
 
   EXPECT_TRUE(db_.Open(db_path_));
   ASSERT_TRUE(db_.Execute("INSERT INTO t VALUES (1)"));
-  EXPECT_TRUE(base::mac::GetBackupExclusion(db_path_));
-  EXPECT_TRUE(base::mac::GetBackupExclusion(journal_path));
+  EXPECT_TRUE(base::apple::GetBackupExclusion(db_path_));
+  EXPECT_TRUE(base::apple::GetBackupExclusion(journal_path));
 
   // TODO(shess): In WAL mode this will touch -wal and -shm files.  -shm files
   // could be always excluded.

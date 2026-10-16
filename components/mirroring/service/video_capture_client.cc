@@ -5,12 +5,12 @@
 #include "components/mirroring/service/video_capture_client.h"
 
 #include "base/functional/bind.h"
+#include "base/memory/read_only_shared_memory_region.h"
 #include "base/task/bind_post_task.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_frame_pool.h"
-#include "media/base/video_util.h"
 #include "media/capture/mojom/video_capture_buffer.mojom.h"
 #include "media/capture/mojom/video_capture_types.mojom.h"
 
@@ -20,7 +20,7 @@ namespace {
 
 // Required by mojom::VideoCaptureHost interface. Can be any nonzero value.
 const base::UnguessableToken& DeviceId() {
-  // TODO(https://crbug.com/1406986): Investigate whether there's a better way
+  // TODO(crbug.com/40252974): Investigate whether there's a better way
   // to accomplish this (without using UnguessableToken::Deserialize).
   static const base::UnguessableToken device_id(
       base::UnguessableToken::Deserialize(1, 1).value());
@@ -29,7 +29,7 @@ const base::UnguessableToken& DeviceId() {
 
 // Required by mojom::VideoCaptureHost interface. Can be any nonzero value.
 const base::UnguessableToken& SessionId() {
-  // TODO(https://crbug.com/1406986): Investigate whether there's a better way
+  // TODO(crbug.com/40252974): Investigate whether there's a better way
   // to accomplish this (without using UnguessableToken::Deserialize).
   static const base::UnguessableToken session_id(
       base::UnguessableToken::Deserialize(1, 1).value());
@@ -71,8 +71,9 @@ void VideoCaptureClient::Stop() {
 void VideoCaptureClient::Pause() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(2) << __func__;
-  if (frame_deliver_callback_.is_null())
+  if (frame_deliver_callback_.is_null()) {
     return;
+  }
   frame_deliver_callback_.Reset();
   video_capture_host_->Pause(DeviceId());
 }
@@ -90,8 +91,9 @@ void VideoCaptureClient::Resume(FrameDeliverCallback deliver_callback) {
 
 void VideoCaptureClient::RequestRefreshFrame() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (frame_deliver_callback_.is_null())
+  if (frame_deliver_callback_.is_null()) {
     return;
+  }
   video_capture_host_->RequestRefreshFrame(DeviceId());
 }
 
@@ -136,8 +138,9 @@ void VideoCaptureClient::OnStateChanged(
     }
   } else {
     DVLOG(2) << __func__ << " Failed with an error.";
-    if (!error_callback_.is_null())
+    if (!error_callback_.is_null()) {
       std::move(error_callback_).Run();
+    }
   }
 }
 
@@ -164,18 +167,9 @@ void VideoCaptureClient::OnNewBuffer(
   DCHECK(insert_result.second);
 }
 
-void VideoCaptureClient::OnBufferReady(
-    media::mojom::ReadyBufferPtr buffer,
-    std::vector<media::mojom::ReadyBufferPtr> scaled_buffers) {
+void VideoCaptureClient::OnBufferReady(media::mojom::ReadyBufferPtr buffer) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(3) << __func__ << ": buffer_id=" << buffer->buffer_id;
-
-  // Scaled buffers are currently ignored by VideoCaptureClient.
-  for (media::mojom::ReadyBufferPtr& scaled_buffer : scaled_buffers) {
-    video_capture_host_->ReleaseBuffer(DeviceId(), scaled_buffer->buffer_id,
-                                       media::VideoCaptureFeedback());
-  }
-  scaled_buffers.clear();
 
   bool consume_buffer = !frame_deliver_callback_.is_null();
   if (buffer->info->pixel_format != media::PIXEL_FORMAT_NV12 &&
@@ -193,15 +187,17 @@ void VideoCaptureClient::OnBufferReady(
 
   base::TimeTicks reference_time = *buffer->info->metadata.reference_time;
 
-  if (first_frame_ref_time_.is_null())
+  if (first_frame_ref_time_.is_null()) {
     first_frame_ref_time_ = reference_time;
+  }
 
   // If the timestamp is not prepared, we use reference time to make a rough
   // estimate. e.g. ThreadSafeCaptureOracle::DidCaptureFrame().
-  // TODO(crbug.com/618407): Fix upstream capturers to always set timestamp and
-  // reference time.
-  if (buffer->info->timestamp.is_zero())
+  // TODO(crbug.com/40472286): Fix upstream capturers to always set timestamp
+  // and reference time.
+  if (buffer->info->timestamp.is_zero()) {
     buffer->info->timestamp = reference_time - first_frame_ref_time_;
+  }
 
   // Used by chrome/browser/media/cast_mirroring_performance_browsertest.cc
   TRACE_EVENT_INSTANT2("cast_perf_test", "OnBufferReceived",
@@ -220,7 +216,8 @@ void VideoCaptureClient::OnBufferReady(
 #if BUILDFLAG(IS_MAC)
     frame = media::VideoFrame::WrapUnacceleratedIOSurface(
         buffer_iter->second->get_gpu_memory_buffer_handle().Clone(),
-        buffer->info->visible_rect, buffer->info->timestamp);
+        buffer->info->visible_rect, buffer->info->visible_rect.size(),
+        buffer->info->timestamp);
     buffer_finished_callback =
         base::BindPostTaskToCurrentDefault(base::BindOnce(
             &VideoCaptureClient::OnClientBufferFinished,
@@ -245,23 +242,28 @@ void VideoCaptureClient::OnBufferReady(
             &VideoCaptureClient::OnClientBufferFinished,
             weak_factory_.GetWeakPtr(), buffer->buffer_id, std::move(mapping)));
   } else {
-    base::ReadOnlySharedMemoryMapping mapping =
-        buffer_iter->second->get_read_only_shmem_region().Map();
+    // Duplicate base::ReadOnlySharedMemoryRegion here because there is no
+    // guarantee on lifetime between |client_buffers_| and |frame|.
+    base::ReadOnlySharedMemoryRegion shm_region =
+        buffer_iter->second->get_read_only_shmem_region().Duplicate();
+    base::ReadOnlySharedMemoryMapping mapping = shm_region.Map();
     const size_t frame_allocation_size = media::VideoFrame::AllocationSize(
         buffer->info->pixel_format, buffer->info->coded_size);
     if (mapping.IsValid() && mapping.size() >= frame_allocation_size) {
-      // TODO(https://crbug.com/1316810): This code should not be casting
-      // const-ness away from ReadOnlySharedMemoryRegion...
       frame = media::VideoFrame::WrapExternalData(
           buffer->info->pixel_format, buffer->info->coded_size,
           buffer->info->visible_rect, buffer->info->visible_rect.size(),
-          const_cast<uint8_t*>(mapping.GetMemoryAs<uint8_t>()),
-          frame_allocation_size, buffer->info->timestamp);
+          mapping.GetMemoryAs<uint8_t>(), frame_allocation_size,
+          buffer->info->timestamp);
+      if (frame) {
+        frame->BackWithOwnedSharedMemory(std::move(shm_region),
+                                         std::move(mapping));
+      }
     }
-    buffer_finished_callback =
-        base::BindPostTaskToCurrentDefault(base::BindOnce(
-            &VideoCaptureClient::OnClientBufferFinished,
-            weak_factory_.GetWeakPtr(), buffer->buffer_id, std::move(mapping)));
+    buffer_finished_callback = base::BindPostTaskToCurrentDefault(
+        base::BindOnce(&VideoCaptureClient::OnClientBufferFinished,
+                       weak_factory_.GetWeakPtr(), buffer->buffer_id,
+                       base::ReadOnlySharedMemoryMapping()));
   }
 
   if (!frame) {
@@ -281,14 +283,15 @@ void VideoCaptureClient::OnBufferReady(
   // Streaming.
   // https://crbug.com/1206325
   if (frame->format() == media::PIXEL_FORMAT_NV12) {
-    if (!nv12_to_i420_pool_)
+    if (!nv12_to_i420_pool_) {
       nv12_to_i420_pool_ = std::make_unique<media::VideoFramePool>();
+    }
     scoped_refptr<media::VideoFrame> new_frame =
         nv12_to_i420_pool_->CreateFrame(
             media::PIXEL_FORMAT_I420, frame->coded_size(),
             frame->visible_rect(), frame->natural_size(), frame->timestamp());
     media::EncoderStatus status =
-        media::ConvertAndScaleFrame(*frame, *new_frame, nv12_to_i420_tmp_buf_);
+        frame_converter_.ConvertAndScale(*frame, *new_frame);
     if (!status.is_ok()) {
       LOG(DFATAL) << "Unable to convert frame to I420.";
       OnStateChanged(media::mojom::VideoCaptureResult::NewErrorCode(
@@ -299,8 +302,7 @@ void VideoCaptureClient::OnBufferReady(
   }
 
   frame->set_metadata(buffer->info->metadata);
-  if (buffer->info->color_space)
-    frame->set_color_space(*buffer->info->color_space);
+  frame->set_color_space(buffer->info->color_space);
 
   frame->set_timestamp(frame->timestamp() + accumulated_time_);
   last_timestamp_ = frame->timestamp();
@@ -313,11 +315,16 @@ void VideoCaptureClient::OnBufferDestroyed(int32_t buffer_id) {
   DVLOG(3) << __func__ << ": buffer_id=" << buffer_id;
 
   const auto& buffer_iter = client_buffers_.find(buffer_id);
-  if (buffer_iter != client_buffers_.end())
+  if (buffer_iter != client_buffers_.end()) {
     client_buffers_.erase(buffer_iter);
+  }
 }
 
-void VideoCaptureClient::OnNewCropVersion(uint32_t crop_version) {}
+void VideoCaptureClient::OnFrameDropped(
+    media::VideoCaptureFrameDropReason reason) {}
+
+void VideoCaptureClient::OnNewSubCaptureTargetVersion(
+    uint32_t sub_capture_target_version) {}
 
 void VideoCaptureClient::OnClientBufferFinished(int buffer_id,
                                                 MappingKeepAlive mapping) {

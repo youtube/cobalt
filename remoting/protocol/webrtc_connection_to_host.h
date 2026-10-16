@@ -49,6 +49,7 @@ class WebrtcConnectionToHost : public ConnectionToHost,
                scoped_refptr<TransportContext> transport_context,
                HostEventCallback* event_callback) override;
   void Disconnect(ErrorCode error) override;
+  void ApplyNetworkSettings(const NetworkSettings& settings) override;
   const SessionConfig& config() override;
   ClipboardStub* clipboard_forwarder() override;
   HostStub* host_stub() override;
@@ -62,15 +63,17 @@ class WebrtcConnectionToHost : public ConnectionToHost,
   // WebrtcTransport::EventHandler interface.
   void OnWebrtcTransportConnecting() override;
   void OnWebrtcTransportConnected() override;
-  void OnWebrtcTransportError(ErrorCode error) override;
+  void OnWebrtcTransportError(ErrorCode error,
+                              std::string_view error_details,
+                              const base::Location& error_location) override;
   void OnWebrtcTransportProtocolChanged() override;
   void OnWebrtcTransportIncomingDataChannel(
       const std::string& name,
       std::unique_ptr<MessagePipe> pipe) override;
   void OnWebrtcTransportMediaStreamAdded(
-      rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override;
+      webrtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override;
   void OnWebrtcTransportMediaStreamRemoved(
-      rtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override;
+      webrtc::scoped_refptr<webrtc::MediaStreamInterface> stream) override;
   void OnWebrtcTransportRouteChanged(const TransportRoute& route) override;
 
   // ChannelDispatcherBase::EventHandler interface.
@@ -112,7 +115,7 @@ class WebrtcConnectionToHost : public ConnectionToHost,
 
   // Internal state of the connection.
   State state_ = INITIALIZING;
-  ErrorCode error_ = OK;
+  ErrorCode error_ = ErrorCode::OK;
 };
 
 }  // namespace remoting::protocol

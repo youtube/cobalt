@@ -6,7 +6,6 @@
 #define IOS_WEB_PUBLIC_NAVIGATION_NAVIGATION_MANAGER_H_
 
 #import <Foundation/Foundation.h>
-
 #include <stddef.h>
 
 #include <memory>
@@ -46,22 +45,22 @@ class NavigationManager {
     Referrer referrer;
 
     // The transition type for the load. Defaults to PAGE_TRANSITION_LINK.
-    ui::PageTransition transition_type;
+    ui::PageTransition transition_type = ui::PAGE_TRANSITION_LINK;
 
     // True for renderer-initiated navigations. This is
     // important for tracking whether to display pending URLs.
-    bool is_renderer_initiated;
+    bool is_renderer_initiated = false;
 
     // Any extra HTTP headers to add to the load.
-    NSDictionary<NSString*, NSString*>* extra_headers;
+    NSDictionary<NSString*, NSString*>* extra_headers = nil;
 
     // Any post data to send with the load. When setting this, you should
     // generally set a Content-Type header as well.
-    NSData* post_data;
+    NSData* post_data = nil;
 
     // Indicates the type of the HTTPS upgrade applied on the navigation, if
     // any.
-    HttpsUpgradeType https_upgrade_type;
+    HttpsUpgradeType https_upgrade_type = HttpsUpgradeType::kNone;
 
     // Create a new WebLoadParams with the given URL and defaults for all other
     // parameters.
@@ -118,7 +117,7 @@ class NavigationManager {
 
   // Returns the number of items in the NavigationManager, excluding
   // pending entries.
-  // TODO(crbug.com/533848): Update to return size_t.
+  // TODO(crbug.com/40436539): Update to return size_t.
   virtual int GetItemCount() const = 0;
 
   // Returns the committed NavigationItem at `index`.
@@ -130,12 +129,12 @@ class NavigationManager {
   // Returns the index of the last committed item or -1 if the last
   // committed item correspond to a new navigation  or session restoration is
   // in-progress.
-  // TODO(crbug.com/533848): Update to return size_t.
+  // TODO(crbug.com/40436539): Update to return size_t.
   virtual int GetLastCommittedItemIndex() const = 0;
 
   // Returns the index of the pending item or -1 if the pending item
   // corresponds to a new navigation.
-  // TODO(crbug.com/533848): Update to return size_t.
+  // TODO(crbug.com/40436539): Update to return size_t.
   virtual int GetPendingItemIndex() const = 0;
 
   // Navigation relative to the current item.
@@ -146,18 +145,18 @@ class NavigationManager {
   virtual void GoForward() = 0;
 
   // Navigates to the specified absolute index.
-  // TODO(crbug.com/533848): Update to use size_t.
+  // TODO(crbug.com/40436539): Update to use size_t.
   virtual void GoToIndex(int index) = 0;
 
   // Reloads the visible item under the specified ReloadType. If
   // `check_for_repost` is true and the current item has POST data the user is
   // prompted to see if they really want to reload the page. Pass in true if the
   // reload is explicitly initiated by the user.
-  // TODO(crbug.com/700958): implement the logic for `check_for_repost`.
+  // TODO(crbug.com/41307037): implement the logic for `check_for_repost`.
   virtual void Reload(ReloadType reload_type, bool check_for_repost) = 0;
 
   // Reloads the visible item under the specified UserAgentType.
-  // TODO(crbug.com/738020): combine both Reload() implementations.
+  // TODO(crbug.com/40528091): combine both Reload() implementations.
   virtual void ReloadWithUserAgentType(UserAgentType user_agent_type) = 0;
 
   // Returns a list of all non-redirected NavigationItems whose index precedes
@@ -171,17 +170,6 @@ class NavigationManager {
   // This takes ownership of `items` (must be moved).
   virtual void Restore(int last_committed_item_index,
                        std::vector<std::unique_ptr<NavigationItem>> items) = 0;
-
-  // Returns true after session restoration has started, until the first
-  // post-restore navigation is started.
-  virtual bool IsRestoreSessionInProgress() const = 0;
-
-  // Registers a callback to be run when session restoration is completed.
-  // If there is no in-progress session restoration, the callback is run
-  // immediately.
-  // TODO(crbug.com/904502): This API is only needed for clearing cookies.
-  // Remove after //ios/web exposes a proper cookie clearing API.
-  virtual void AddRestoreCompletionCallback(base::OnceClosure callback) = 0;
 };
 
 }  // namespace web

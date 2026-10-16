@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/player.h"
+// clang-format on
 
 #include "starboard/shared/media_session/playback_state.h"
 #include "starboard/shared/starboard/player/player_internal.h"
-
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER
-#include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
 void SbPlayerDestroy(SbPlayer player) {
   if (!SbPlayerIsValid(player)) {

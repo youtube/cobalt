@@ -6,13 +6,19 @@
 #define UI_VIEWS_CONTROLS_BUTTON_BUTTON_H_
 
 #include <memory>
+#include <optional>
 #include <utility>
+#include <variant>
 
+#include "base/callback_list.h"
 #include "base/functional/bind.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
+#include "ui/actions/actions.h"
+#include "ui/base/metadata/metadata_types.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/events/event_constants.h"
 #include "ui/gfx/animation/throb_animation.h"
 #include "ui/native_theme/native_theme.h"
@@ -23,19 +29,26 @@
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/metadata/view_factory.h"
 #include "ui/views/painter.h"
+#include "ui/views/view.h"
+
+namespace ui {
+class Event;
+}  // namespace ui
 
 namespace views {
+
 namespace test {
 class ButtonTestApi;
 }
 
 class Button;
 class ButtonController;
-class Event;
 
 // A View representing a button. A Button is focusable by default and will
 // be part of the focus chain.
 class VIEWS_EXPORT Button : public View, public AnimationDelegateViews {
+  METADATA_HEADER(Button, View)
+
  public:
   // Button states for various button sub-types.
   enum ButtonState {
@@ -80,9 +93,10 @@ class VIEWS_EXPORT Button : public View, public AnimationDelegateViews {
   };
 
   // PressedCallback wraps a one-arg callback type with multiple constructors to
-  // allow callers to specify a RepeatingClosure if they don't care about the
-  // callback arg.
-  // TODO(crbug.com/772945): Re-evaluate if this class can/should be converted
+  // allow callers to specify a OnceClosure or RepeatingClosure if they don't
+  // care about the callback arg.
+  //
+  // TODO(crbug.com/41348855): Re-evaluate if this class can/should be converted
   // to a type alias + various helpers or overloads to support the
   // RepeatingClosure case.
   class VIEWS_EXPORT PressedCallback {
@@ -92,20 +106,28 @@ class VIEWS_EXPORT Button : public View, public AnimationDelegateViews {
     // Allow providing callbacks that expect either zero or one args, since many
     // callers don't care about the argument and can avoid adapter functions
     // this way.
+    PressedCallback(base::OnceClosure closure);       // NOLINT
     PressedCallback(Callback callback = Callback());  // NOLINT
     PressedCallback(base::RepeatingClosure closure);  // NOLINT
-    PressedCallback(const PressedCallback&);
     PressedCallback(PressedCallback&&);
-    PressedCallback& operator=(const PressedCallback&);
     PressedCallback& operator=(PressedCallback&&);
     ~PressedCallback();
 
-    explicit operator bool() const { return !!callback_; }
+    // Returns true if `callback_` holds a non-null callback, regardless if the
+    // callback is once or repeating.
+    explicit operator bool() const;
 
-    void Run(const ui::Event& event) { callback_.Run(event); }
+    // Precondition:
+    // `operator bool()` must be true (i.e. callback_ must be a non-null
+    // callback).
+    //
+    // Postcondition:
+    // If `callback_` holds a `base::OnceClosure`, `operator bool()` will be
+    // false.
+    void Run(const ui::Event& event);
 
    private:
-    Callback callback_;
+    std::variant<base::OnceClosure, base::RepeatingClosure, Callback> callback_;
   };
 
   // This is used to ensure that multiple overlapping elements anchored on this
@@ -126,8 +148,6 @@ class VIEWS_EXPORT Button : public View, public AnimationDelegateViews {
       ButtonState::STATE_NORMAL, ButtonState::STATE_HOVERED,
       ButtonState::STATE_PRESSED, ButtonState::STATE_DISABLED};
 
-  METADATA_HEADER(Button);
-
   Button(const Button&) = delete;
   Button& operator=(const Button&) = delete;
 
@@ -138,9 +158,6 @@ class VIEWS_EXPORT Button : public View, public AnimationDelegateViews {
 
   static ButtonState GetButtonStateFrom(ui::NativeTheme::State state);
 
-  void SetTooltipText(const std::u16string& tooltip_text);
-  std::u16string GetTooltipText() const;
-
   // Tag is now a property. These accessors are deprecated. Use GetTag() and
   // SetTag() below or even better, use SetID()/GetID() from the ancestor.
   int tag() const { return tag_; }
@@ -150,6 +167,14 @@ class VIEWS_EXPORT Button : public View, public AnimationDelegateViews {
 
   void AdjustAccessibleName(std::u16string& new_name,
                             ax::mojom::NameFrom& name_from) override;
+
+  // Button uses the tooltip text in `AdjustAccessibleName` to provide an
+  // alternative accessible name if there is no existing accessible name.
+  // However, some button subclasses have a custom locally cached tooltip text
+  // that should be used instead. Views that follow this pattern should override
+  // this method to provide an alternative accessible name if they cache a
+  // custom tooltip text that is different from the one cached in View.
+  virtual std::u16string GetAlternativeAccessibleName() const;
 
   // Get/sets the current display state of the button.
   ButtonState GetState() const;
@@ -189,7 +214,7 @@ class VIEWS_EXPORT Button : public View, public AnimationDelegateViews {
   void SetHotTracked(bool is_hot_tracked);
   bool IsHotTracked() const;
 
-  // TODO(crbug/1266066): These property accessors and tag_ field should be
+  // TODO(crbug.com/40801855): These property accessors and tag_ field should be
   // removed and use SetID()/GetID from the ancestor View class.
   void SetTag(int value);
   int GetTag() const;
@@ -201,12 +226,14 @@ class VIEWS_EXPORT Button : public View, public AnimationDelegateViews {
 
   // Menus, bubbles, and IPH should call this when they anchor. This ensures
   // that highlighting is handled correctly with multiple anchored elements.
-  // TODO(crbug/1428097): Migrate callers of SetHighlighted to this function,
-  // where appropriate.
+  // TODO(crbug.com/40262104): Migrate callers of SetHighlighted to this
+  // function, where appropriate.
   ScopedAnchorHighlight AddAnchorHighlight();
 
   base::CallbackListSubscription AddStateChangedCallback(
       PropertyChangedCallback callback);
+  base::CallbackListSubscription AddAnchorCountChangedCallback(
+      base::RepeatingCallback<void(size_t)> callback);
 
   // Overridden from View:
   bool OnMousePressed(const ui::MouseEvent& event) override;
@@ -221,19 +248,18 @@ class VIEWS_EXPORT Button : public View, public AnimationDelegateViews {
   void OnGestureEvent(ui::GestureEvent* event) override;
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
   bool SkipDefaultKeyEventProcessing(const ui::KeyEvent& event) override;
-  std::u16string GetTooltipText(const gfx::Point& p) const override;
   void ShowContextMenu(const gfx::Point& p,
-                       ui::MenuSourceType source_type) override;
+                       ui::mojom::MenuSourceType source_type) override;
   void OnDragDone() override;
   // Instead of overriding this, subclasses that want custom painting should use
   // PaintButtonContents.
   void OnPaint(gfx::Canvas* canvas) final;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
   void VisibilityChanged(View* starting_from, bool is_visible) override;
   void ViewHierarchyChanged(
       const ViewHierarchyChangedDetails& details) override;
   void OnFocus() override;
   void OnBlur() override;
+  std::unique_ptr<ActionViewInterface> GetActionViewInterface() override;
 
   // Overridden from views::AnimationDelegateViews:
   void AnimationProgressed(const gfx::Animation* animation) override;
@@ -272,6 +298,8 @@ class VIEWS_EXPORT Button : public View, public AnimationDelegateViews {
 
   // Called when the tooltip is set.
   virtual void OnSetTooltipText(const std::u16string& tooltip_text);
+
+  void OnTooltipTextChanged(const std::u16string& old_tooltip_text) override;
 
   // Invoked from SetState() when SetState() is passed a value that differs from
   // the current node_data. Button's implementation of StateChanged() does
@@ -316,20 +344,28 @@ class VIEWS_EXPORT Button : public View, public AnimationDelegateViews {
 
   base::WeakPtr<Button> GetWeakPtr();
 
+  virtual void OnEnabledChanged();
+
+  virtual void UpdateAccessibleCheckedState();
+
+  // Sets the |default_action_verb_| for accessibility. Subclasses may
+  // call this method to set their specific default action verb.
+  void SetDefaultActionVerb(ax::mojom::DefaultActionVerb verb);
+  // Called whenever the state impacting default action verb changes.
+  void UpdateAccessibleDefaultActionVerb();
+
  private:
   friend class test::ButtonTestApi;
   friend class ScopedAnchorHighlight;
   FRIEND_TEST_ALL_PREFIXES(BlueButtonTest, Border);
 
-  void OnEnabledChanged();
-
   void ReleaseAnchorHighlight();
-
-  // The text shown in a tooltip.
-  std::u16string tooltip_text_;
 
   // The button's listener. Notified when clicked.
   PressedCallback callback_;
+
+  // Callbacks called when the anchor count changes.
+  base::RepeatingCallbackList<void(size_t)> anchor_count_changed_callbacks_;
 
   // The id tag associated with this button. Used to disambiguate buttons.
   // TODO(pbos): See if this can be removed, e.g. by replacing with SetID().
@@ -379,7 +415,24 @@ class VIEWS_EXPORT Button : public View, public AnimationDelegateViews {
 
   size_t anchor_count_ = 0;
 
+  ax::mojom::DefaultActionVerb default_action_verb_ =
+      ax::mojom::DefaultActionVerb::kPress;
+
   base::WeakPtrFactory<Button> weak_ptr_factory_{this};
+};
+
+class VIEWS_EXPORT ButtonActionViewInterface : public BaseActionViewInterface {
+ public:
+  explicit ButtonActionViewInterface(Button* action_view);
+  ~ButtonActionViewInterface() override = default;
+
+  // BaseActionViewInterface:
+  void ActionItemChangedImpl(actions::ActionItem* action_item) override;
+  void LinkActionInvocationToView(
+      base::RepeatingClosure invoke_action_callback) override;
+
+ private:
+  raw_ptr<Button> action_view_;
 };
 
 BEGIN_VIEW_BUILDER(VIEWS_EXPORT, Button, View)

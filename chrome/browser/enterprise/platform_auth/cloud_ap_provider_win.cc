@@ -2,19 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/enterprise/platform_auth/cloud_ap_provider_win.h"
 
-#include <stdint.h>
-#include <windows.h>  // Must precede lmjoin.h.
+#include <objbase.h>
+
+#include <windows.h>
 
 #include <lmcons.h>
 #include <lmjoin.h>
-#include <objbase.h>
 #include <proofofpossessioncookieinfo.h>
+#include <stdint.h>
 #include <windows.security.authentication.web.core.h>
 #include <wrl/client.h>
 
 #include <memory>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -180,6 +187,43 @@ ComPtr<IProofOfPossessionCookieInfoManager> MakeCookieInfoManager(
   return SUCCEEDED(hresult) ? manager : nullptr;
 }
 
+void ParseCookieInfo(const ProofOfPossessionCookieInfo* cookie_info,
+                     const DWORD cookie_info_count,
+                     net::HttpRequestHeaders& auth_headers) {
+  net::cookie_util::ParsedRequestCookies parsed_cookies;
+
+  // If the auth cookie name begins with 'x-ms-', attach the cookie as a
+  // new header. Otherwise, append it to the existing list of cookies.
+  static constexpr std::string_view kHeaderPrefix("x-ms-");
+  for (DWORD i = 0; i < cookie_info_count; ++i) {
+    const ProofOfPossessionCookieInfo& cookie = cookie_info[i];
+    auto ascii_cookie_name = base::WideToASCII(cookie.name);
+    if (base::StartsWith(ascii_cookie_name, kHeaderPrefix,
+                         base::CompareCase::INSENSITIVE_ASCII)) {
+      // Removing cookie attributes from the value before setting it as a
+      // header.
+      std::string ascii_cookie_value = base::WideToASCII(cookie.data);
+      std::string::size_type cookie_attributes_position =
+          ascii_cookie_value.find(";");
+      if (cookie_attributes_position != std::string::npos) {
+        ascii_cookie_value =
+            ascii_cookie_value.substr(0, cookie_attributes_position);
+      }
+      auth_headers.SetHeader(std::move(ascii_cookie_name),
+                             std::move(ascii_cookie_value));
+    } else {
+      parsed_cookies.emplace_back(std::move(ascii_cookie_name),
+                                  base::WideToASCII(cookie.data));
+    }
+  }
+
+  if (parsed_cookies.size() > 0) {
+    auth_headers.SetHeader(
+        net::HttpRequestHeaders::kCookie,
+        net::cookie_util::SerializeRequestCookieLine(parsed_cookies));
+  }
+}
+
 // Returns the proof-of-possession cookies and headers for the interactive
 // user to authenticate to the IdP/STS at `url`.
 net::HttpRequestHeaders GetAuthData(const GURL& url) {
@@ -199,38 +243,7 @@ net::HttpRequestHeaders GetAuthData(const GURL& url) {
                                      &cookie_info_count, &cookie_info);
     if (SUCCEEDED(hresult)) {
       DCHECK(!cookie_info_count || cookie_info);
-      net::cookie_util::ParsedRequestCookies parsed_cookies;
-      if (base::FeatureList::IsEnabled(
-              enterprise_auth::kCloudApAuthAttachAsHeader)) {
-        // If the auth cookie name begins with 'x-ms-', attach the cookie as a
-        // new header. Otherwise, append it to the existing list of cookies.
-        static constexpr base::StringPiece kHeaderPrefix("x-ms-");
-        for (DWORD i = 0; i < cookie_info_count; ++i) {
-          const ProofOfPossessionCookieInfo& cookie = cookie_info[i];
-          auto ascii_name = base::WideToASCII(cookie.name);
-          if (base::StartsWith(ascii_name, kHeaderPrefix,
-                               base::CompareCase::INSENSITIVE_ASCII)) {
-            auth_headers.SetHeader(std::move(ascii_name),
-                                   base::WideToASCII(cookie.data));
-          } else {
-            parsed_cookies.emplace_back(std::move(ascii_name),
-                                        base::WideToASCII(cookie.data));
-          }
-        }
-      } else {
-        // Append all auth cookies to the existing set of cookies.
-        for (DWORD i = 0; i < cookie_info_count; ++i) {
-          const ProofOfPossessionCookieInfo& cookie = cookie_info[i];
-          parsed_cookies.emplace_back(base::WideToASCII(cookie.name),
-                                      base::WideToASCII(cookie.data));
-        }
-      }
-      if (parsed_cookies.size() > 0) {
-        auth_headers.SetHeader(
-            net::HttpRequestHeaders::kCookie,
-            net::cookie_util::SerializeRequestCookieLine(parsed_cookies));
-      }
-
+      ParseCookieInfo(cookie_info, cookie_info_count, auth_headers);
       if (cookie_info)
         FreeProofOfPossessionCookieInfoArray(cookie_info, cookie_info_count);
     }
@@ -383,6 +396,10 @@ CloudApProviderWin::CloudApProviderWin() = default;
 
 CloudApProviderWin::~CloudApProviderWin() = default;
 
+bool CloudApProviderWin::SupportsOriginFiltering() {
+  return true;
+}
+
 void CloudApProviderWin::FetchOrigins(FetchOriginsCallback on_fetch_complete) {
   // The strategy is as follows:
   // 1. See if the ProofOfPossessionCookieInfoManager can be instantiated. If
@@ -410,7 +427,8 @@ void CloudApProviderWin::FetchOrigins(FetchOriginsCallback on_fetch_complete) {
 void CloudApProviderWin::GetData(
     const GURL& url,
     PlatformAuthProviderManager::GetDataCallback callback) {
-  get_data_subscription_ = on_get_data_callback_list_.Add(std::move(callback));
+  get_data_subscriptions_.push_back(
+      on_get_data_callback_list_.Add(std::move(callback)));
   if (!base::ThreadPool::CreateCOMSTATaskRunner(
            {base::TaskPriority::USER_BLOCKING,
             base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN, base::MayBlock()})
@@ -429,12 +447,19 @@ void CloudApProviderWin::OnGetDataCallback(
 
 // static
 void CloudApProviderWin::SetSupportLevelForTesting(
-    absl::optional<SupportLevel> level) {
+    std::optional<SupportLevel> level) {
   delete std::exchange(support_level_for_testing_, nullptr);
   if (!level)
     return;
   support_level_for_testing_ = new SupportLevel;
   *support_level_for_testing_ = level.value();
+}
+
+void CloudApProviderWin::ParseCookieInfoForTesting(
+    const ProofOfPossessionCookieInfo* cookie_info,
+    const DWORD cookie_info_count,
+    net::HttpRequestHeaders& auth_headers) {
+  ParseCookieInfo(cookie_info, cookie_info_count, auth_headers);
 }
 
 }  // namespace enterprise_auth

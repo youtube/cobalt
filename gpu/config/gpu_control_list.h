@@ -12,14 +12,14 @@
 #include <unordered_map>
 #include <vector>
 
-#include "base/memory/raw_ptr.h"
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_span.h"
 #include "base/values.h"
 #include "gpu/config/gpu_info.h"
 #include "gpu/gpu_export.h"
 
 namespace gpu {
-struct GpuControlListData;
 struct GPUInfo;
 
 class GPU_EXPORT GpuControlList {
@@ -68,6 +68,8 @@ class GPU_EXPORT GpuControlList {
     kMultiGpuCategoryPrimary,
     // This entry applies if this is a secondary GPU on the system.
     kMultiGpuCategorySecondary,
+    // This entry applies if this is the NPU on the system.
+    kMultiGpuCategoryNpu,
     // This entry applies if this is the active GPU on the system.
     kMultiGpuCategoryActive,
     // This entry applies if this is any of the GPUs on the system.
@@ -76,9 +78,10 @@ class GPU_EXPORT GpuControlList {
   };
 
   enum GLType {
-    kGLTypeGL,     // This is default on MacOSX, Linux, ChromeOS
-    kGLTypeGLES,   // This is default on Android
-    kGLTypeANGLE,  // This is default on Windows
+    kGLTypeGLES,
+    kGLTypeANGLE_GL,
+    kGLTypeANGLE_GLES,
+    kGLTypeANGLE_VULKAN,
     kGLTypeNone
   };
 
@@ -154,10 +157,7 @@ class GPU_EXPORT GpuControlList {
   };
 
   struct GPU_EXPORT MachineModelInfo {
-    size_t machine_model_name_size;
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #global-scope
-    RAW_PTR_EXCLUSION const char* const* machine_model_names;
+    base::raw_span<const char* const> machine_model_names;
     Version machine_model_version;
 
     bool Contains(const GPUInfo& gpu_info) const;
@@ -180,14 +180,10 @@ class GPU_EXPORT GpuControlList {
     SupportedOrNot subpixel_font_rendering;
 
     // Return true if GL_VERSION string does not fit the entry info
-    // on GL type and GL version.
+    // on GL version.
     bool GLVersionInfoMismatch(const std::string& gl_version_string) const;
 
     bool Contains(const GPUInfo& gpu_info) const;
-
-    // Return the default GL type, depending on the OS.
-    // See GLType declaration.
-    static GLType GetDefaultGLType();
   };
 
   struct GPU_EXPORT Device {
@@ -195,33 +191,44 @@ class GPU_EXPORT GpuControlList {
     uint32_t revision = 0u;
   };
 
+  struct GPU_EXPORT IntelConditions {
+    base::raw_span<const IntelGpuSeriesType> intel_gpu_series_list;
+    Version intel_gpu_generation;
+
+    bool Contains(const std::vector<GPUInfo::GPUDevice>& candidates,
+                  const GPUInfo& gpu_info) const;
+  };
+
   struct GPU_EXPORT Conditions {
     OsType os_type;
     Version os_version;
     uint32_t vendor_id;
-    size_t device_size;
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #global-scope
-    RAW_PTR_EXCLUSION const Device* devices;
+    // TODO(367764863) Rewrite to base::raw_span.
+    RAW_PTR_EXCLUSION base::span<const Device> devices;
     MultiGpuCategory multi_gpu_category;
     MultiGpuStyle multi_gpu_style;
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #global-scope
+    // RAW_PTR_EXCLUSION: since these pointers only ever point to other
+    // globals, and `Conditions` itself is used to construct globals, using
+    // raw_ptr would add additional (unnecessary) complexity with
+    // `NoDestructor`.
     RAW_PTR_EXCLUSION const DriverInfo* driver_info;
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #global-scope
     RAW_PTR_EXCLUSION const GLStrings* gl_strings;
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #global-scope
     RAW_PTR_EXCLUSION const MachineModelInfo* machine_model_info;
-    size_t intel_gpu_series_list_size;
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #global-scope
-    RAW_PTR_EXCLUSION const IntelGpuSeriesType* intel_gpu_series_list;
-    Version intel_gpu_generation;
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #global-scope
+    RAW_PTR_EXCLUSION const IntelConditions* intel_conditions;
     RAW_PTR_EXCLUSION const More* more;
+
+    Conditions(OsType os_type,
+               Version os_version,
+               uint32_t vendor_id,
+               base::span<const Device> devices,
+               MultiGpuCategory multi_gpu_category,
+               MultiGpuStyle multi_gpu_style,
+               const DriverInfo* driver_info,
+               const GLStrings* gl_strings,
+               const MachineModelInfo* machine_model_info,
+               const IntelConditions* intel_conditions,
+               const More* more);
+    Conditions(const Conditions& other);
 
     bool Contains(OsType os_type,
                   const std::string& os_version,
@@ -235,27 +242,22 @@ class GPU_EXPORT GpuControlList {
   struct GPU_EXPORT Entry {
     uint32_t id;
     const char* description;
-    size_t feature_size;
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #reinterpret-cast-trivial-type, #global-scope
-    RAW_PTR_EXCLUSION const int* features;
-    size_t disabled_extension_size;
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #reinterpret-cast-trivial-type, #global-scope
-    RAW_PTR_EXCLUSION const char* const* disabled_extensions;
-    size_t disabled_webgl_extension_size;
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #reinterpret-cast-trivial-type, #global-scope
-    RAW_PTR_EXCLUSION const char* const* disabled_webgl_extensions;
-    size_t cr_bug_size;
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #reinterpret-cast-trivial-type, #global-scope
-    RAW_PTR_EXCLUSION const uint32_t* cr_bugs;
+    // `Entry` is used extensively in
+    // `gen/gpu/config/software_rendering_list_autogen.cc`, where making these
+    // `raw_span` would cause a warning:
+    //
+    // > declaration requires an exit-time destructor
+    //
+    // These only seem to be set in files generated by
+    // gpu/config/process_json.py, which only ever sets them to point at
+    // statically-allocated data which is never freed. Thus these can never
+    // dangle, so making them raw_span is unnecessary.
+    RAW_PTR_EXCLUSION base::span<const int> features;
+    RAW_PTR_EXCLUSION base::span<const char* const> disabled_extensions;
+    RAW_PTR_EXCLUSION base::span<const char* const> disabled_webgl_extensions;
+    RAW_PTR_EXCLUSION base::span<const uint32_t> cr_bugs;
     Conditions conditions;
-    size_t exception_size;
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #reinterpret-cast-trivial-type, #global-scope
-    RAW_PTR_EXCLUSION const Conditions* exceptions;
+    RAW_PTR_EXCLUSION base::span<const Conditions> exceptions;
 
     bool Contains(OsType os_type,
                   const std::string& os_version,
@@ -275,7 +277,7 @@ class GPU_EXPORT GpuControlList {
         const std::string& control_list_logging_name) const;
   };
 
-  explicit GpuControlList(const GpuControlListData& data);
+  explicit GpuControlList(base::span<const GpuControlList::Entry> data);
   virtual ~GpuControlList();
 
   // Collects system information and combines them with gpu_info and control
@@ -343,39 +345,39 @@ class GPU_EXPORT GpuControlList {
                                    size_t total_entries);
 
  private:
+  // Returns kGLTypeNone if gl_renderer is empty.
+  // Returns kGLTypeGLES if gl_renderer isn't in the format of ANGLE(_,_,_).
+  // Returns kGLTypeANGLE_VULKAN or kGLTypeANGLE_GLES otherwise.
+  static GLType ProcessANGLEGLRenderer(const std::string& gl_renderer,
+                                       std::string* vendor = nullptr,
+                                       std::string* renderer = nullptr,
+                                       std::string* version = nullptr);
+
   friend class GpuControlListEntryTest;
   friend class VersionInfoTest;
+  friend class GpuControlListTest;
 
   // Gets the current OS type.
   static OsType GetOsType();
 
-  size_t entry_count_;
-  raw_ptr<const Entry> entries_;
-  // This records all the entries that are appliable to the current user
+  // These always point to built-in arrays of constants, so raw_ptr doesn't
+  // add any protection but costs some overhead.
+  base::raw_span<const Entry> entries_;
+
+  // This records all the entries that are applicable to the current user
   // machine.  It is updated everytime MakeDecision() is called and is used
   // later by GetDecisionEntries().
   std::vector<uint32_t> active_entries_;
 
-  uint32_t max_entry_id_;
+  uint32_t max_entry_id_ = 0;
 
-  bool needs_more_info_;
+  bool needs_more_info_ = false;
 
   // The features a GpuControlList recognizes and handles.
   FeatureMap feature_map_;
 
-  bool control_list_logging_enabled_;
+  bool control_list_logging_enabled_ = false;
   std::string control_list_logging_name_;
-};
-
-struct GPU_EXPORT GpuControlListData {
-  size_t entry_count;
-  raw_ptr<const GpuControlList::Entry> entries;
-
-  GpuControlListData() : entry_count(0u), entries(nullptr) {}
-
-  GpuControlListData(size_t a_entry_count,
-                     const GpuControlList::Entry* a_entries)
-      : entry_count(a_entry_count), entries(a_entries) {}
 };
 
 }  // namespace gpu

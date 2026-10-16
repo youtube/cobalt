@@ -4,13 +4,18 @@
 
 package org.chromium.components.webxr;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.content_public.browser.LoadUrlParams;
+
 /**
- * Interface used by ArOverlayDelegate to communicate with the underlying
- * compositor. Used to implement WebXR's DOM Overlay mode correctly.
+ * Interface used by ArOverlayDelegate to communicate with the underlying compositor. Used to
+ * implement WebXR's DOM Overlay mode correctly.
  */
+@NullMarked
 public interface VrCompositorDelegate {
-    /**
-     * Enables/disables immersive VR mode in the compositor.
-     */
+    /** Enables/disables immersive VR mode in the compositor. */
     void setOverlayImmersiveVrMode(boolean enabled);
+
+    /** Opens a new tab in the current browser. */
+    void openNewTab(LoadUrlParams url);
 }

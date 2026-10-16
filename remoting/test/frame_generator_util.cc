@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "remoting/test/frame_generator_util.h"
 
 #include "base/base_paths.h"
+#include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
@@ -31,13 +37,12 @@ void CopyPixelsToBuffer(const SkBitmap& src,
 }
 }  // namespace
 
-namespace remoting {
-namespace test {
+namespace remoting::test {
 
 std::unique_ptr<webrtc::DesktopFrame> LoadDesktopFrameFromPng(
     const char* name) {
   base::FilePath file_path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &file_path);
+  base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &file_path);
   file_path = file_path.AppendASCII("remoting");
   file_path = file_path.AppendASCII("test");
   file_path = file_path.AppendASCII("data");
@@ -48,9 +53,8 @@ std::unique_ptr<webrtc::DesktopFrame> LoadDesktopFrameFromPng(
     LOG(FATAL) << "Failed to read " << file_path.MaybeAsASCII()
                << ". Please run remoting/test/data/download.sh";
   }
-  SkBitmap bitmap;
-  gfx::PNGCodec::Decode(reinterpret_cast<const uint8_t*>(file_content.data()),
-                        file_content.size(), &bitmap);
+  SkBitmap bitmap = gfx::PNGCodec::Decode(base::as_byte_span(file_content));
+  CHECK(!bitmap.isNull());
   std::unique_ptr<webrtc::DesktopFrame> frame(new webrtc::BasicDesktopFrame(
       webrtc::DesktopSize(bitmap.width(), bitmap.height())));
   CopyPixelsToBuffer(bitmap, frame->data(), frame->stride());
@@ -69,5 +73,4 @@ void DrawRect(webrtc::DesktopFrame* frame,
   }
 }
 
-}  // namespace test
-}  // namespace remoting
+}  // namespace remoting::test

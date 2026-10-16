@@ -6,10 +6,11 @@
  * Helper functions for implementing an incremental search field. See
  * <settings-subpage-search> for a simple implementation.
  */
-import {assertNotReached} from '//resources/js/assert_ts.js';
-import {dedupingMixin, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {assertNotReached} from '//resources/js/assert.js';
+import type {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {dedupingMixin} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {CrInputElement} from '../cr_input/cr_input.js';
+import type {CrInputElement} from '../cr_input/cr_input.js';
 
 
 type Constructor<T> = new (...args: any[]) => T;
@@ -36,14 +37,13 @@ export const CrSearchFieldMixin = dedupingMixin(
             hasSearchText: {
               type: Boolean,
               reflectToAttribute: true,
-              value: false,
             },
           };
         }
 
-        label: string;
-        clearLabel: string;
-        hasSearchText: boolean;
+        declare label: string;
+        declare clearLabel: string;
+        declare hasSearchText: boolean;
         private effectiveValue_: string = '';
         private searchDelayTimer_: number = -1;
 

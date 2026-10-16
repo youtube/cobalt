@@ -6,30 +6,50 @@
 
 #include "base/functional/bind.h"
 #include "base/metrics/histogram.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "components/omnibox/browser/autocomplete_classifier.h"
 #include "components/omnibox/browser/autocomplete_controller_emitter.h"
+#include "components/omnibox/browser/autocomplete_enums.h"
 #include "components/omnibox/browser/autocomplete_match.h"
+#include "components/omnibox/browser/autocomplete_match_type.h"
 #include "components/omnibox/browser/omnibox_client.h"
 #include "components/omnibox/browser/omnibox_edit_model.h"
+#include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/browser/omnibox_popup_selection.h"
 #include "components/omnibox/browser/omnibox_popup_view.h"
+#include "components/omnibox/browser/page_classification_functions.h"
+#include "components/omnibox/common/omnibox_feature_configs.h"
+#include "components/search_engines/template_url_starter_pack_data.h"
 #include "ui/gfx/geometry/rect.h"
 
-OmniboxController::OmniboxController(OmniboxEditModel* omnibox_edit_model,
-                                     OmniboxClient* client)
-    : omnibox_edit_model_(omnibox_edit_model),
-      client_(client),
-      autocomplete_controller_(new AutocompleteController(
+OmniboxController::OmniboxController(
+    OmniboxView* view,
+    std::unique_ptr<OmniboxClient> client,
+    base::TimeDelta autocomplete_stop_timer_duration)
+    : client_(std::move(client)),
+      autocomplete_controller_(std::make_unique<AutocompleteController>(
           client_->CreateAutocompleteProviderClient(),
-          AutocompleteClassifier::DefaultOmniboxProviders())) {
-  autocomplete_controller_->AddObserver(this);
+          AutocompleteClassifier::DefaultOmniboxProviders(),
+          autocomplete_stop_timer_duration)),
+      edit_model_(std::make_unique<OmniboxEditModel>(
+          /*omnibox_controller=*/this,
+          view)) {
+  // Directly observe omnibox's `AutocompleteController` instance - i.e., when
+  // `view` is provided in the constructor. In the case of realbox - i.e., when
+  // `view` is not provided in the constructor - `RealboxHandler` directly
+  // observes the `AutocompleteController` instance itself.
+  if (view) {
+    autocomplete_controller_->AddObserver(this);
+  }
 
-  AutocompleteControllerEmitter* emitter =
-      client_->GetAutocompleteControllerEmitter();
-  if (emitter)
+  // Register the `AutocompleteController` with `AutocompleteControllerEmitter`.
+  if (auto* emitter = client_->GetAutocompleteControllerEmitter()) {
     autocomplete_controller_->AddObserver(emitter);
+  }
 }
+
+constexpr bool is_ios = !!BUILDFLAG(IS_IOS);
 
 OmniboxController::~OmniboxController() = default;
 
@@ -43,41 +63,71 @@ void OmniboxController::StartAutocomplete(
   autocomplete_controller_->Start(input);
 }
 
+void OmniboxController::StopAutocomplete(bool clear_result) const {
+  TRACE_EVENT0("omnibox", "OmniboxController::StopAutocomplete");
+  autocomplete_controller_->Stop(clear_result
+                                     ? AutocompleteStopReason::kClobbered
+                                     : AutocompleteStopReason::kInteraction);
+}
+
+void OmniboxController::StartZeroSuggestPrefetch() {
+  TRACE_EVENT0("omnibox", "OmniboxController::StartZeroSuggestPrefetch");
+  auto page_classification =
+      client_->GetPageClassification(/*is_prefetch=*/true);
+
+  GURL current_url = client_->GetURL();
+  std::u16string text = base::UTF8ToUTF16(current_url.spec());
+
+  if (omnibox::IsNTPPage(page_classification) || !is_ios) {
+    text.clear();
+  }
+
+  AutocompleteInput input(text, page_classification,
+                          client_->GetSchemeClassifier());
+  input.set_current_url(current_url);
+  input.set_current_title(client_->GetTitle());
+  input.set_focus_type(metrics::OmniboxFocusType::INTERACTION_FOCUS);
+  autocomplete_controller_->StartPrefetch(input);
+}
+
 void OmniboxController::OnResultChanged(AutocompleteController* controller,
                                         bool default_match_changed) {
   TRACE_EVENT0("omnibox", "OmniboxController::OnResultChanged");
   DCHECK(controller == autocomplete_controller_.get());
 
-  const bool was_open = omnibox_edit_model_->PopupIsOpen();
+  const bool popup_was_open = edit_model_->PopupIsOpen();
   if (default_match_changed) {
     // The default match has changed, we need to let the OmniboxEditModel know
     // about new inline autocomplete text (blue highlight).
-    if (auto* match = result().default_match()) {
-      current_match_ = *match;
-      omnibox_edit_model_->OnCurrentMatchChanged();
+    if (autocomplete_controller_->result().default_match()) {
+      edit_model_->OnCurrentMatchChanged();
     } else {
-      InvalidateCurrentMatch();
-      omnibox_edit_model_->OnPopupResultChanged();
-      omnibox_edit_model_->OnPopupDataChanged(
+      edit_model_->OnPopupResultChanged();
+      edit_model_->OnPopupDataChanged(
           std::u16string(),
           /*is_temporary_text=*/false, std::u16string(), std::u16string(),
           std::u16string(), false, std::u16string(), AutocompleteMatch());
     }
   } else {
-    omnibox_edit_model_->OnPopupResultChanged();
+    edit_model_->OnPopupResultChanged();
   }
 
-  if (was_open && !omnibox_edit_model_->PopupIsOpen()) {
+  const bool popup_is_open = edit_model_->PopupIsOpen();
+  if (popup_was_open != popup_is_open) {
+    client_->OnPopupVisibilityChanged(popup_is_open);
+  }
+
+  if (popup_was_open && !popup_is_open) {
     // Accept the temporary text as the user text, because it makes little sense
     // to have temporary text when the popup is closed.
-    omnibox_edit_model_->AcceptTemporaryTextAsUserText();
+    edit_model_->AcceptTemporaryTextAsUserText();
     // Closing the popup can change the default suggestion. This usually occurs
     // when it's unclear whether the input represents a search or URL; e.g.,
     // 'a.com/b c' or when title autocompleting. Clear the additional text to
     // avoid suggesting the omnibox contains a URL suggestion when that may no
     // longer be the case; i.e. when the default suggestion changed from a URL
     // to a search suggestion upon closing the popup.
-    omnibox_edit_model_->ClearAdditionalText();
+    edit_model_->ClearAdditionalText();
   }
 
   // Note: The client outlives |this|, so bind a weak pointer to the callback
@@ -85,27 +135,49 @@ void OmniboxController::OnResultChanged(AutocompleteController* controller,
   // `should_preload` is set to `controller->done()` as prerender may only want
   // to start preloading a result after all Autocomplete results are ready.
   client_->OnResultChanged(
-      result(), default_match_changed, /*should_preload=*/controller->done(),
+      autocomplete_controller_->result(), default_match_changed,
+      /*should_preload=*/controller->done(),
       base::BindRepeating(&OmniboxController::SetRichSuggestionBitmap,
                           weak_ptr_factory_.GetWeakPtr()));
 }
 
-void OmniboxController::InvalidateCurrentMatch() {
-  current_match_ = AutocompleteMatch();
-}
-
 void OmniboxController::ClearPopupKeywordMode() const {
   TRACE_EVENT0("omnibox", "OmniboxController::ClearPopupKeywordMode");
-  if (omnibox_edit_model_->PopupIsOpen()) {
-    OmniboxPopupSelection selection = omnibox_edit_model_->GetPopupSelection();
+  if (edit_model_->PopupIsOpen()) {
+    OmniboxPopupSelection selection = edit_model_->GetPopupSelection();
     if (selection.state == OmniboxPopupSelection::KEYWORD_MODE) {
       selection.state = OmniboxPopupSelection::NORMAL;
-      omnibox_edit_model_->SetPopupSelection(selection);
+      edit_model_->SetPopupSelection(selection);
     }
   }
 }
 
+std::u16string OmniboxController::GetHeaderForSuggestionGroup(
+    omnibox::GroupId suggestion_group_id) const {
+  return autocomplete_controller_->result().GetHeaderForSuggestionGroup(
+      suggestion_group_id);
+}
+
+bool OmniboxController::IsSuggestionHidden(
+    const AutocompleteMatch& match) const {
+  if (OmniboxFieldTrial::IsStarterPackExpansionEnabled() &&
+      match.from_keyword) {
+    const TemplateURL* turl =
+        match.GetTemplateURL(client_->GetTemplateURLService(), false);
+    if (turl &&
+        turl->starter_pack_id() == TemplateURLStarterPackData::kGemini) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void OmniboxController::SetRichSuggestionBitmap(int result_index,
+                                                const GURL& icon_url,
                                                 const SkBitmap& bitmap) {
-  omnibox_edit_model_->SetPopupRichSuggestionBitmap(result_index, bitmap);
+  if (!icon_url.is_empty()) {
+    edit_model_->SetIconBitmap(icon_url, bitmap);
+  } else {
+    edit_model_->SetPopupRichSuggestionBitmap(result_index, bitmap);
+  }
 }

@@ -13,13 +13,15 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/task/single_thread_task_runner.h"
-#include "services/device/usb/jni_headers/ChromeUsbDevice_jni.h"
 #include "services/device/usb/usb_configuration_android.h"
 #include "services/device/usb/usb_descriptors.h"
 #include "services/device/usb/usb_device_handle_android.h"
 #include "services/device/usb/usb_interface_android.h"
 #include "services/device/usb/usb_service_android.h"
 #include "services/device/usb/webusb_descriptors.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "services/device/usb/jni_headers/ChromeUsbDevice_jni.h"
 
 using base::android::ConvertJavaStringToUTF16;
 using base::android::JavaObjectArrayReader;
@@ -85,7 +87,7 @@ void UsbDeviceAndroid::RequestPermission(ResultCallback callback) {
 void UsbDeviceAndroid::Open(OpenCallback callback) {
   scoped_refptr<UsbDeviceHandle> device_handle;
   if (service_) {
-    JNIEnv* env = base::android::AttachCurrentThread();
+    JNIEnv* env = jni_zero::AttachCurrentThread();
     ScopedJavaLocalRef<jobject> connection =
         service_->OpenDevice(env, j_object_);
     if (!connection.is_null()) {

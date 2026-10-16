@@ -16,23 +16,23 @@ void MetricsReporter::Mark(const std::string& name) {
 
 void MetricsReporter::Measure(const std::string& start_mark,
                               MeasureCallback callback) {
-  MeasureInternal(start_mark, absl::nullopt, std::move(callback));
+  MeasureInternal(start_mark, std::nullopt, std::move(callback));
 }
 
 void MetricsReporter::Measure(const std::string& start_mark,
                               const std::string& end_mark,
                               MeasureCallback callback) {
-  return MeasureInternal(start_mark, absl::make_optional(end_mark),
+  return MeasureInternal(start_mark, std::make_optional(end_mark),
                          std::move(callback));
 }
 
 void MetricsReporter::MeasureInternal(const std::string& start_mark,
-                                      absl::optional<std::string> end_mark,
+                                      std::optional<std::string> end_mark,
                                       MeasureCallback callback) {
   const base::TimeTicks end_time =
       end_mark ? marks_[*end_mark] : base::TimeTicks::Now();
 
-  if (marks_.count(start_mark)) {
+  if (marks_.contains(start_mark)) {
     std::move(callback).Run(end_time - marks_[start_mark]);
     return;
   }
@@ -43,7 +43,7 @@ void MetricsReporter::MeasureInternal(const std::string& start_mark,
       base::BindOnce(
           [](MeasureCallback callback, base::TimeTicks end_time,
              std::string start_mark,
-             absl::optional<base::TimeDelta> start_time_since_epoch) {
+             std::optional<base::TimeDelta> start_time_since_epoch) {
             if (!start_time_since_epoch) {
               LOG(WARNING) << "Mark \"" << start_mark << "\" does not exists.";
               return;
@@ -57,22 +57,21 @@ void MetricsReporter::MeasureInternal(const std::string& start_mark,
 
 void MetricsReporter::HasMark(const std::string& name,
                               HasMarkCallback callback) {
-  if (marks_.count(name)) {
+  if (marks_.contains(name)) {
     std::move(callback).Run(true);
     return;
   }
 
-  page_->OnGetMark(
-      name,
-      base::BindOnce(
-          [](HasMarkCallback callback, absl::optional<base::TimeDelta> time) {
-            std::move(callback).Run(time.has_value() ? true : false);
-          },
-          std::move(callback)));
+  page_->OnGetMark(name, base::BindOnce(
+                             [](HasMarkCallback callback,
+                                std::optional<base::TimeDelta> time) {
+                               std::move(callback).Run(time.has_value());
+                             },
+                             std::move(callback)));
 }
 
 bool MetricsReporter::HasLocalMark(const std::string& name) {
-  return marks_.count(name) > 0;
+  return marks_.contains(name);
 }
 
 void MetricsReporter::ClearMark(const std::string& name) {
@@ -94,9 +93,9 @@ void MetricsReporter::OnPageRemoteCreated(
 
 void MetricsReporter::OnGetMark(const std::string& name,
                                 OnGetMarkCallback callback) {
-  std::move(callback).Run(marks_.count(name)
-                              ? absl::make_optional(marks_[name].since_origin())
-                              : absl::nullopt);
+  std::move(callback).Run(marks_.contains(name)
+                              ? std::make_optional(marks_[name].since_origin())
+                              : std::nullopt);
 }
 
 void MetricsReporter::OnClearMark(const std::string& name) {

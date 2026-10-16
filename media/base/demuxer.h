@@ -8,9 +8,11 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/base/container_names.h"
 #include "media/base/data_source.h"
 #include "media/base/demuxer_stream.h"
@@ -20,20 +22,26 @@
 #include "media/base/media_track.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/ranges.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
 class MediaTracks;
 
+// WARNING: These values are reported to metrics. Entries should not be
+// renumbered and numeric values should not be reused. When adding new entries,
+// also update media::mojom::RendererType & tools/metrics/histograms/enums.xml.
 enum class DemuxerType {
-  kMockDemuxer,
-  kFFmpegDemuxer,
-  kChunkDemuxer,
-  kMediaUrlDemuxer,
-  kFrameInjectingDemuxer,
-  kStreamProviderDemuxer,
-  kManifestDemuxer,
+  kUnknownDemuxer = 0,
+  kMockDemuxer = 1,
+  kFFmpegDemuxer = 2,
+  kChunkDemuxer = 3,
+  // kMediaUrlDemuxer = 4,     // Deprecated
+  kFrameInjectingDemuxer = 5,
+  kStreamProviderDemuxer = 6,
+  kManifestDemuxer = 7,
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  kUrlPlayerDemuxer = 8,  // URL player placeholder demuxer.
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 class MEDIA_EXPORT DemuxerHost {
@@ -76,17 +84,9 @@ class MEDIA_EXPORT Demuxer : public MediaResource {
   using MediaTracksUpdatedCB =
       base::RepeatingCallback<void(std::unique_ptr<MediaTracks>)>;
 
-  // Called once the demuxer has finished enabling or disabling tracks. The type
-  // argument is required because the vector may be empty.
+  // Called once the demuxer has finished enabling or disabling tracks.
   using TrackChangeCB =
-      base::OnceCallback<void(DemuxerStream::Type type,
-                              const std::vector<DemuxerStream*>&)>;
-
-  enum DemuxerTypes {
-    kChunkDemuxer,
-    kFFmpegDemuxer,
-    kMediaUrlDemuxer,
-  };
+      base::OnceCallback<void(const std::vector<DemuxerStream*>&)>;
 
   Demuxer();
 
@@ -94,6 +94,11 @@ class MEDIA_EXPORT Demuxer : public MediaResource {
   Demuxer& operator=(const Demuxer&) = delete;
 
   ~Demuxer() override;
+
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Receives encrypted init data from the platform URL player. No-op default.
+  virtual void SetEncryptedMediaInitDataCB(EncryptedMediaInitDataCB cb);
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Returns the name of the demuxer for logging purpose.
   virtual std::string GetDisplayName() const = 0;
@@ -170,26 +175,31 @@ class MEDIA_EXPORT Demuxer : public MediaResource {
   // Implementations where this is not meaningful will return an empty value.
   // Implementations that do provide values should always provide a value,
   // returning CONTAINER_UNKNOWN in cases where the container is not known.
-  virtual absl::optional<container_names::MediaContainerName>
+  virtual std::optional<container_names::MediaContainerName>
   GetContainerForMetrics() const = 0;
 
   // The |track_ids| vector has either 1 track, or is empty, indicating that
   // all tracks should be disabled. |change_completed_cb| is fired after the
   // demuxer streams are disabled, however this callback should then notify
   // the appropriate renderer in order for tracks to be switched fully.
-  virtual void OnEnabledAudioTracksChanged(
-      const std::vector<MediaTrack::Id>& track_ids,
-      base::TimeDelta curr_time,
-      TrackChangeCB change_completed_cb) = 0;
 
-  virtual void OnSelectedVideoTrackChanged(
-      const std::vector<MediaTrack::Id>& track_ids,
-      base::TimeDelta curr_time,
-      TrackChangeCB change_completed_cb) = 0;
+  // TODO(crbug.com/41393620): No more than one video track may be enabled at
+  // once, per the VideoTrack w3c spec. Due to our renderer implementation, only
+  // one audio track is supported, but this restriction isn't necessarily a
+  // permanent one. We should either decide to always stick with one audio
+  // track and switch `track_ids` to an std::optional container, or to support
+  // multiple audio tracks.
+  virtual void OnTracksChanged(DemuxerStream::Type track_type,
+                               const std::vector<MediaTrack::Id>& track_ids,
+                               base::TimeDelta curr_time,
+                               TrackChangeCB change_completed_cb) = 0;
 
   // Allows a demuxer to change behavior based on the playback rate, including
   // but not limited to changing the amount of buffer space.
   virtual void SetPlaybackRate(double rate) = 0;
+
+  // Allow canChangeType to be disabled.
+  virtual void DisableCanChangeType();
 };
 
 }  // namespace media

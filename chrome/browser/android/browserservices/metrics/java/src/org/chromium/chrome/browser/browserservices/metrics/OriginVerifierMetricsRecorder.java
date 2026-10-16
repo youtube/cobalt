@@ -7,18 +7,23 @@ package org.chromium.chrome.browser.browserservices.metrics;
 import androidx.annotation.IntDef;
 
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/**
- * Class to record Uma related to Origin Verifier
- */
+/** Class to record Uma related to Origin Verifier */
+@NullMarked
 public class OriginVerifierMetricsRecorder {
-    @IntDef({VerificationResult.ONLINE_SUCCESS, VerificationResult.ONLINE_FAILURE,
-            VerificationResult.OFFLINE_SUCCESS, VerificationResult.OFFLINE_FAILURE,
-            VerificationResult.HTTPS_FAILURE, VerificationResult.REQUEST_FAILURE,
-            VerificationResult.CACHED_SUCCESS})
+    @IntDef({
+        VerificationResult.ONLINE_SUCCESS,
+        VerificationResult.ONLINE_FAILURE,
+        VerificationResult.OFFLINE_SUCCESS,
+        VerificationResult.OFFLINE_FAILURE,
+        VerificationResult.HTTPS_FAILURE,
+        VerificationResult.REQUEST_FAILURE,
+        VerificationResult.CACHED_SUCCESS
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface VerificationResult {
         // Don't reuse values or reorder values. If you add something new, change NUM_ENTRIES as

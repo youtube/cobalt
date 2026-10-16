@@ -7,12 +7,15 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/check.h"
 #include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/test/task_environment.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -29,8 +32,8 @@
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "services/network/resource_scheduler/resource_scheduler.h"
+#include "services/network/test/test_url_loader_network_observer.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class GURL;
 
@@ -50,6 +53,7 @@ struct CorsErrorStatus;
 class MockDevToolsObserver;
 class NetworkContext;
 class NetworkService;
+class PrefetchMatchingURLLoaderFactory;
 class TestURLLoaderClient;
 
 namespace cors {
@@ -152,6 +156,9 @@ class CorsURLLoaderTestBase : public testing::Test {
     bool skip_cors_enabled_scheme_check;
 
     net::IsolationInfo isolation_info;
+
+    mojo::PendingRemote<mojom::URLLoaderNetworkServiceObserver>
+        url_loader_network_observer;
   };
 
   void CreateLoaderAndStart(
@@ -248,7 +255,7 @@ class CorsURLLoaderTestBase : public testing::Test {
     DCHECK(url_loader_);
     url_loader_->FollowRedirect(removed_headers, modified_headers,
                                 modified_cors_exempt_headers,
-                                /*new_url=*/absl::nullopt);
+                                /*new_url=*/std::nullopt);
   }
 
   void AddHostHeaderAndFollowRedirect() {
@@ -257,7 +264,7 @@ class CorsURLLoaderTestBase : public testing::Test {
     modified_headers.SetHeader(net::HttpRequestHeaders::kHost, "bar.test");
     url_loader_->FollowRedirect(/*removed_headers=*/{}, modified_headers,
                                 /*modified_cors_exempt_headers=*/{},
-                                /*new_url=*/absl::nullopt);
+                                /*new_url=*/std::nullopt);
   }
 
   // Methods for interacting with `TestURLLoaderClient`.
@@ -284,7 +291,7 @@ class CorsURLLoaderTestBase : public testing::Test {
                                   const mojom::CorsDomainMatchMode mode);
 
   // Resets `cors_url_loader_factory_` with the given parameters.
-  void ResetFactory(absl::optional<url::Origin> initiator,
+  void ResetFactory(std::optional<url::Origin> initiator,
                     uint32_t process_id,
                     const ResetFactoryParams& params = ResetFactoryParams());
 
@@ -312,9 +319,9 @@ class CorsURLLoaderTestBase : public testing::Test {
 
   static net::RedirectInfo CreateRedirectInfo(
       int status_code,
-      base::StringPiece method,
+      std::string_view method,
       const GURL& url,
-      base::StringPiece referrer = base::StringPiece(),
+      std::string_view referrer = std::string_view(),
       net::ReferrerPolicy referrer_policy = net::ReferrerPolicy::NO_REFERRER,
       net::SiteForCookies site_for_cookies = net::SiteForCookies());
 
@@ -327,8 +334,11 @@ class CorsURLLoaderTestBase : public testing::Test {
   std::unique_ptr<NetworkContext> network_context_;
   mojo::Remote<mojom::NetworkContext> network_context_remote_;
 
+  // Owner for the CorsURLLoaderFactory. Otherwise ignored by this class.
+  std::unique_ptr<PrefetchMatchingURLLoaderFactory> factory_owner_;
+
   // `CorsURLLoaderFactory` instance under test.
-  std::unique_ptr<mojom::URLLoaderFactory> cors_url_loader_factory_;
+  raw_ptr<mojom::URLLoaderFactory> cors_url_loader_factory_;
   mojo::Remote<mojom::URLLoaderFactory> cors_url_loader_factory_remote_;
 
   // The URL loader factory used inside `CorsURLLoader`.
@@ -344,8 +354,6 @@ class CorsURLLoaderTestBase : public testing::Test {
 
   // TestURLLoaderClient that records callback activities.
   std::unique_ptr<TestURLLoaderClient> test_cors_loader_client_;
-
-  ResourceScheduler::ClientId last_issued_resource_scheduler_client_id_{765};
 
   // Holds for allowed origin access lists.
   OriginAccessList origin_access_list_;

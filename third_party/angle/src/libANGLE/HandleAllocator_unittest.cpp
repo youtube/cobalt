@@ -6,6 +6,8 @@
 // Unit tests for HandleAllocator.
 //
 
+#include <unordered_set>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -90,7 +92,8 @@ TEST(HandleAllocatorTest, Reallocation)
     EXPECT_EQ(finalResult, 1);
 }
 
-// The following test covers reserving a handle with max uint value. See http://anglebug.com/1052
+// The following test covers reserving a handle with max uint value. See
+// http://anglebug.com/42260058
 TEST(HandleAllocatorTest, ReserveMaxUintHandle)
 {
     gl::HandleAllocator allocator;
@@ -148,6 +151,32 @@ TEST(HandleAllocatorTest, Reset)
         EXPECT_EQ(4u, allocator.allocate());
         allocator.reset();
     }
+}
+
+// Tests the reset method of custom allocator works as expected.
+TEST(HandleAllocatorTest, ResetAndReallocate)
+{
+    // Allocates handles - [1, 3]
+    gl::HandleAllocator allocator(3);
+    const std::unordered_set<GLuint> expectedHandles = {1, 2, 3};
+    std::unordered_set<GLuint> handles;
+
+    EXPECT_EQ(allocator.anyHandleAvailableForAllocation(), true);
+    handles.insert(allocator.allocate());
+    handles.insert(allocator.allocate());
+    handles.insert(allocator.allocate());
+    EXPECT_EQ(expectedHandles, handles);
+    EXPECT_EQ(allocator.anyHandleAvailableForAllocation(), false);
+
+    // Reset the allocator
+    allocator.reset();
+
+    EXPECT_EQ(allocator.anyHandleAvailableForAllocation(), true);
+    handles.insert(allocator.allocate());
+    handles.insert(allocator.allocate());
+    handles.insert(allocator.allocate());
+    EXPECT_EQ(expectedHandles, handles);
+    EXPECT_EQ(allocator.anyHandleAvailableForAllocation(), false);
 }
 
 // Covers a particular bug with reserving and allocating sub ranges.

@@ -6,9 +6,9 @@
 #define UI_BASE_DRAGDROP_OS_EXCHANGE_DATA_PROVIDER_MAC_H_
 
 #include <memory>
+#include <string_view>
 
 #include "base/component_export.h"
-#include "base/mac/scoped_nsobject.h"
 #import "ui/base/clipboard/clipboard_util_mac.h"
 #include "ui/base/dragdrop/os_exchange_data.h"
 #include "ui/base/dragdrop/os_exchange_data_provider.h"
@@ -38,32 +38,32 @@ class COMPONENT_EXPORT(UI_BASE) OSExchangeDataProviderMac
   CreateProviderWrappingPasteboard(NSPasteboard* pasteboard);
 
   // Overridden from OSExchangeDataProvider:
-  void MarkOriginatedFromRenderer() override;
-  bool DidOriginateFromRenderer() const override;
+  void MarkRendererTaintedFromOrigin(const url::Origin& origin) override;
+  bool IsRendererTainted() const override;
+  std::optional<url::Origin> GetRendererTaintedOrigin() const override;
   void MarkAsFromPrivileged() override;
   bool IsFromPrivileged() const override;
-  void SetString(const std::u16string& data) override;
-  void SetURL(const GURL& url, const std::u16string& title) override;
+  void SetString(std::u16string_view data) override;
+  void SetURL(const GURL& url, std::u16string_view title) override;
   void SetFilename(const base::FilePath& path) override;
   void SetFilenames(const std::vector<FileInfo>& filenames) override;
   void SetPickledData(const ClipboardFormatType& format,
                       const base::Pickle& data) override;
-  bool GetString(std::u16string* data) const override;
-  bool GetURLAndTitle(FilenameToURLPolicy policy,
-                      GURL* url,
-                      std::u16string* title) const override;
-  bool GetFilename(base::FilePath* path) const override;
-  bool GetFilenames(std::vector<FileInfo>* filenames) const override;
-  bool GetPickledData(const ClipboardFormatType& format,
-                      base::Pickle* data) const override;
+  std::optional<std::u16string> GetString() const override;
+  std::optional<UrlInfo> GetURLAndTitle(
+      FilenameToURLPolicy policy) const override;
+  std::optional<std::vector<GURL>> GetURLs(
+      FilenameToURLPolicy policy) const override;
+  std::optional<std::vector<FileInfo>> GetFilenames() const override;
+  std::optional<base::Pickle> GetPickledData(
+      const ClipboardFormatType& format) const override;
   bool HasString() const override;
   bool HasURL(FilenameToURLPolicy policy) const override;
   bool HasFile() const override;
   bool HasCustomFormat(const ClipboardFormatType& format) const override;
   void SetFileContents(const base::FilePath& filename,
                        const std::string& file_contents) override;
-  bool GetFileContents(base::FilePath* filename,
-                       std::string* file_contents) const override;
+  std::optional<FileContentsInfo> GetFileContents() const override;
   bool HasFileContents() const override;
   void SetDragImage(const gfx::ImageSkia& image,
                     const gfx::Vector2d& cursor_offset) override;

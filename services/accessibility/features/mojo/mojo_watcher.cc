@@ -197,11 +197,18 @@ MojoWatcher::~MojoWatcher() {
 }
 
 void MojoWatcher::OnIsolateWillDestroy() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (persistent_wrap_) {
     // May be null if this is during shutdown.
     persistent_wrap_->OnIsolateWillDestroy();
   }
   Cancel(nullptr);
+  // Stop observing the V8 isolate. Cancel() will clear `persistent_wrap_` and
+  // allow garbage collection to clear this instance.
+  StopObserving();
+
+  // Reset the callback not to keep the Isolate in MojoWatchCallback.
+  callback_ = nullptr;
 }
 
 gin::ObjectTemplateBuilder MojoWatcher::GetObjectTemplateBuilder(
@@ -290,7 +297,7 @@ MojoResult MojoWatcher::Watch(mojo::Handle handle,
     // notify with `ready_result`. Post a notification manually.
     // Safe to use base::Unretained because the persistent_wrap_ adds another
     // ref that won't be cleared until this method executes.
-    DCHECK(persistent_wrap_);
+    CHECK(persistent_wrap_);
     persistent_wrap->ScheduleRunReadyCallback(ready_result);
     return MOJO_RESULT_OK;
   }
@@ -369,7 +376,7 @@ void MojoWatcher::RunReadyCallback(MojoResult result) {
   }
 
   if (arm_result == MOJO_RESULT_FAILED_PRECONDITION) {
-    DCHECK(persistent_wrap_);
+    CHECK(persistent_wrap_);
     persistent_wrap_->ScheduleRunReadyCallback(ready_result);
     return;
   }
@@ -377,7 +384,9 @@ void MojoWatcher::RunReadyCallback(MojoResult result) {
 
 void MojoWatcher::CallCallbackWithResult(MojoResult result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  callback_->Call(result);
+  if (callback_) {
+    callback_->Call(result);
+  }
 }
 
 void MojoWatcher::CallCallbackFromTaskRunner(

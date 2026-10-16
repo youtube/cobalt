@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "components/page_load_metrics/browser/observers/ad_metrics/frame_tree_data.h"
 
 #include <algorithm>
@@ -47,7 +48,7 @@ unsigned int GetFullFrameDepth(content::RenderFrameHost* rfh) {
 
 }  // namespace
 
-FrameTreeData::FrameTreeData(FrameTreeNodeId root_frame_tree_node_id,
+FrameTreeData::FrameTreeData(content::FrameTreeNodeId root_frame_tree_node_id,
                              int heavy_ad_network_threshold_noise)
     : root_frame_tree_node_id_(root_frame_tree_node_id),
       frame_size_(gfx::Size()),
@@ -59,8 +60,6 @@ void FrameTreeData::MaybeUpdateFrameDepth(
     content::RenderFrameHost* render_frame_host) {
   if (!render_frame_host)
     return;
-  // TODO(https://crbug.com/1317527): Current logic may not work with Portals'
-  // activation. Revisit later to make sure that the logic below works.
   DCHECK_GE(GetFullFrameDepth(render_frame_host), root_frame_depth_);
   if (GetFullFrameDepth(render_frame_host) - root_frame_depth_ > frame_depth_)
     frame_depth_ = GetFullFrameDepth(render_frame_host) - root_frame_depth_;
@@ -140,12 +139,11 @@ FrameTreeData::GetCreativeOriginStatusWithThrottling() const {
     // We expect the above values to cover all cases.
     default:
       NOTREACHED();
-      return OriginStatusWithThrottling::kUnknownAndUnthrottled;
   }
 }
 
 void FrameTreeData::SetFirstEligibleToPaint(
-    absl::optional<base::TimeDelta> time_stamp) {
+    std::optional<base::TimeDelta> time_stamp) {
   if (time_stamp.has_value()) {
     // If the ad frame tree hasn't already received an earlier paint
     // eligibility stamp, mark it as eligible to paint. Since multiple frames
@@ -165,7 +163,7 @@ void FrameTreeData::SetFirstEligibleToPaint(
 }
 
 bool FrameTreeData::SetEarliestFirstContentfulPaint(
-    absl::optional<base::TimeDelta> time_stamp) {
+    std::optional<base::TimeDelta> time_stamp) {
   if (!time_stamp.has_value() || time_stamp.value().is_zero())
     return false;
 
@@ -175,6 +173,14 @@ bool FrameTreeData::SetEarliestFirstContentfulPaint(
 
   earliest_first_contentful_paint_ = time_stamp;
   return true;
+}
+
+void FrameTreeData::SetEarliestFirstContentfulPaintSinceTopNavStart(
+    base::TimeDelta time_since_top_nav_start) {
+  if (!earliest_fcp_since_top_nav_start_ ||
+      earliest_fcp_since_top_nav_start_ > time_since_top_nav_start) {
+    earliest_fcp_since_top_nav_start_ = time_since_top_nav_start;
+  }
 }
 
 void FrameTreeData::UpdateFrameVisibility() {

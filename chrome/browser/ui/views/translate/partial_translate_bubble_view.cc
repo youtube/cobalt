@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/translate/partial_translate_bubble_view.h"
 
 #include <stddef.h>
+
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -25,11 +26,13 @@
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/translate/translate_service.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/browser_actions.h"
+#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/translate/partial_translate_bubble_model.h"
 #include "chrome/browser/ui/translate/partial_translate_bubble_ui_action_logger.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
-#include "chrome/browser/ui/views/controls/md_text_button_with_down_arrow.h"
 #include "chrome/browser/ui/views/translate/translate_icon_view.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/generated_resources.h"
@@ -50,6 +53,8 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/combobox_model.h"
 #include "ui/base/models/simple_combobox_model.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/paint_vector_icon.h"
@@ -63,6 +68,7 @@
 #include "ui/views/controls/button/image_button_factory.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/button/md_text_button.h"
+#include "ui/views/controls/button/md_text_button_with_down_arrow.h"
 #include "ui/views/controls/button/menu_button.h"
 #include "ui/views/controls/combobox/combobox.h"
 #include "ui/views/controls/highlight_path_generator.h"
@@ -83,21 +89,6 @@
 
 namespace {
 
-// Container for |advanced_view_|. When the text on the "Translate"/"Done"
-// button changes a layout is required.
-class AdvancedViewContainer : public views::View {
- public:
-  METADATA_HEADER(AdvancedViewContainer);
-  AdvancedViewContainer() = default;
-  AdvancedViewContainer(const AdvancedViewContainer&) = delete;
-  AdvancedViewContainer& operator=(const AdvancedViewContainer&) = delete;
-
-  void ChildPreferredSizeChanged(views::View* child) override { Layout(); }
-};
-
-BEGIN_METADATA(AdvancedViewContainer, views::View)
-END_METADATA
-
 bool UseGoogleTranslateBranding() {
   // Only use Google Translate branding in Chrome branded builds.
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -116,10 +107,7 @@ std::unique_ptr<views::View> CreateWordmarkView() {
   const int translate_icon_id = IDR_TRANSLATE_TAB_WORDMARK;
   std::unique_ptr<views::ImageView> translate_icon =
       std::make_unique<views::ImageView>();
-  gfx::ImageSkia* translate_icon_image =
-      ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
-          translate_icon_id);
-  translate_icon->SetImage(*translate_icon_image);
+  translate_icon->SetImage(ui::ImageModel::FromResourceId(translate_icon_id));
   view->AddChildView(std::move(translate_icon));
 
   return view;
@@ -136,6 +124,10 @@ PartialTranslateBubbleView::~PartialTranslateBubbleView() {
   // is referred by Combobox's destructor. Before destroying the models,
   // removing the child views is needed.
   RemoveAllChildViews();
+
+  if (action_item_.get()) {
+    action_item_.get()->SetIsShowingBubble(false);
+  }
 }
 
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(PartialTranslateBubbleView, kIdentifier);
@@ -176,7 +168,7 @@ void PartialTranslateBubbleView::TabSelectedAt(int index) {
       ShowTranslated();
       break;
     default:
-      NOTREACHED_NORETURN();
+      NOTREACHED();
   }
 }
 
@@ -196,6 +188,10 @@ void PartialTranslateBubbleView::Init() {
   AddAccelerator(ui::Accelerator(ui::VKEY_RETURN, ui::EF_NONE));
 
   UpdateChildVisibilities();
+
+  if (action_item_.get()) {
+    action_item_->SetIsShowingBubble(true);
+  }
 }
 
 views::View* PartialTranslateBubbleView::GetInitiallyFocusedView() {
@@ -247,8 +243,9 @@ void PartialTranslateBubbleView::WindowClosing() {
   // We have to reset the controller reference to the view here, not in our
   // destructor, because we'll be destroyed asynchronously and the shown state
   // will be checked before then.
-  if (on_closing_)
+  if (on_closing_) {
     std::move(on_closing_).Run();
+  }
 }
 
 bool PartialTranslateBubbleView::AcceleratorPressed(
@@ -281,10 +278,12 @@ bool PartialTranslateBubbleView::AcceleratorPressed(
   return BubbleDialogDelegateView::AcceleratorPressed(accelerator);
 }
 
-gfx::Size PartialTranslateBubbleView::CalculatePreferredSize() const {
+gfx::Size PartialTranslateBubbleView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   int width = 0;
-  for (const views::View* child : children())
+  for (const views::View* child : children()) {
     width = std::max(width, child->GetPreferredSize().width());
+  }
   return gfx::Size(width, GetCurrentView()->GetPreferredSize().height());
 }
 
@@ -315,7 +314,7 @@ void PartialTranslateBubbleView::ShowOptionsMenu(views::Button* source) {
   gfx::Rect screen_bounds = source->GetAnchorBoundsInScreen();
   options_menu_runner_->RunMenuAt(source->GetWidget(), nullptr, screen_bounds,
                                   views::MenuAnchorPosition::kTopRight,
-                                  ui::MENU_SOURCE_MOUSE);
+                                  ui::mojom::MenuSourceType::kMouse);
 }
 
 void PartialTranslateBubbleView::ExecuteCommand(int command_id,
@@ -336,7 +335,7 @@ void PartialTranslateBubbleView::ExecuteCommand(int command_id,
       break;
 
     default:
-      NOTREACHED_NORETURN();
+      NOTREACHED();
   }
 }
 
@@ -362,23 +361,28 @@ void PartialTranslateBubbleView::SetViewState(
 }
 
 PartialTranslateBubbleView::PartialTranslateBubbleView(
+    base::WeakPtr<actions::ActionItem> action_item,
     views::View* anchor_view,
     std::unique_ptr<PartialTranslateBubbleModel> model,
     content::WebContents* web_contents,
     base::OnceClosure on_closing)
-    : LocationBarBubbleDelegateView(anchor_view, web_contents),
+    : LocationBarBubbleDelegateView(anchor_view,
+                                    web_contents,
+                                    /*autosize=*/true),
       model_(std::move(model)),
       on_closing_(std::move(on_closing)),
-      web_contents_(web_contents) {
+      web_contents_(web_contents),
+      action_item_(action_item) {
   UpdateInsets(PartialTranslateBubbleModel::VIEW_STATE_WAITING);
 
   previous_source_language_index_ = model_->GetSourceLanguageIndex();
   previous_target_language_index_ = model_->GetTargetLanguageIndex();
 
-  if (web_contents)  // web_contents can be null in unit_tests.
+  if (web_contents) {  // web_contents can be null in unit_tests.
     mouse_handler_ =
         std::make_unique<WebContentMouseHandler>(this, web_contents);
-  SetButtons(ui::DIALOG_BUTTON_NONE);
+  }
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
   SetFootnoteView(CreateWordmarkView());
   SetProperty(views::kElementIdentifierKey, kIdentifier);
 }
@@ -400,7 +404,7 @@ views::View* PartialTranslateBubbleView::GetCurrentView() const {
     case PartialTranslateBubbleModel::VIEW_STATE_TARGET_LANGUAGE:
       return advanced_view_target_;
   }
-  NOTREACHED_NORETURN();
+  NOTREACHED();
 }
 
 void PartialTranslateBubbleView::ShowTranslated() {
@@ -442,7 +446,6 @@ void PartialTranslateBubbleView::ConfirmAdvancedOptions() {
     }
   } else {
     SwitchView(PartialTranslateBubbleModel::VIEW_STATE_AFTER_TRANSLATE);
-    SizeToContents();
     if (from_source_language_view) {
       translate::ReportPartialTranslateBubbleUiAction(
           translate::PartialTranslateBubbleUiEvent::
@@ -480,12 +483,9 @@ void PartialTranslateBubbleView::TargetLanguageChanged() {
 }
 
 void PartialTranslateBubbleView::UpdateChildVisibilities() {
-  for (views::View* view : children())
+  for (views::View* view : children()) {
     view->SetVisible(view == GetCurrentView());
-
-  // BoxLayout only considers visible children, so ensure any newly visible
-  // child views are positioned correctly.
-  Layout();
+  }
 }
 
 std::unique_ptr<views::View> PartialTranslateBubbleView::CreateEmptyPane() {
@@ -531,7 +531,7 @@ std::unique_ptr<views::View> PartialTranslateBubbleView::CreateView() {
       views::CreateEmptyBorder(gfx::Insets::VH(2, 20)));
   tabbed_pane_->GetTabAt(1)->SetBorder(
       views::CreateEmptyBorder(gfx::Insets::VH(2, 20)));
-  tabbed_pane_->set_listener(this);
+  tabbed_pane_->SetListener(this);
 
   auto* padding_view =
       tab_view_top_row_->AddChildView(std::make_unique<views::View>());
@@ -551,7 +551,8 @@ std::unique_ptr<views::View> PartialTranslateBubbleView::CreateView() {
                                views::MaximumFlexSizeRule::kPreferred));
   padding_view->SetProperty(
       views::kFlexBehaviorKey,
-      views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
+      views::FlexSpecification(views::LayoutOrientation::kHorizontal,
+                               views::MinimumFlexSizeRule::kScaleToZero,
                                views::MaximumFlexSizeRule::kUnbounded)
           .WithOrder(2));
   options_menu->SetProperty(views::kElementIdentifierKey, kOptionsMenuButton);
@@ -591,8 +592,8 @@ std::unique_ptr<views::View> PartialTranslateBubbleView::CreateView() {
   return view;
 }
 
-// TODO(crbug/301568): Revise this later to show a specific message for each
-// error.
+// TODO(crbug.com/40335010): Revise this later to show a specific message for
+// each error.
 std::unique_ptr<views::View> PartialTranslateBubbleView::CreateViewError() {
   auto full_page_button = std::make_unique<views::MdTextButton>(
       base::BindRepeating(&PartialTranslateBubbleView::TranslateFullPage,
@@ -628,7 +629,8 @@ std::unique_ptr<views::View> PartialTranslateBubbleView::CreateViewErrorNoTitle(
   error_message_label->SetProperty(views::kElementIdentifierKey, kErrorMessage);
   error_message_label->SetProperty(
       views::kFlexBehaviorKey,
-      views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
+      views::FlexSpecification(views::LayoutOrientation::kHorizontal,
+                               views::MinimumFlexSizeRule::kScaleToZero,
                                views::MaximumFlexSizeRule::kUnbounded));
 
   title_row->AddChildView(std::move(error_message_label));
@@ -721,8 +723,9 @@ PartialTranslateBubbleView::CreateViewAdvancedSource() {
   source_language_combobox->SetCallback(
       base::BindRepeating(&PartialTranslateBubbleView::SourceLanguageChanged,
                           base::Unretained(this)));
-  source_language_combobox->SetAccessibleName(l10n_util::GetStringUTF16(
-      IDS_TRANSLATE_BUBBLE_SOURCE_LANG_COMBOBOX_ACCNAME));
+  source_language_combobox->GetViewAccessibility().SetName(
+      l10n_util::GetStringUTF16(
+          IDS_TRANSLATE_BUBBLE_SOURCE_LANG_COMBOBOX_ACCNAME));
   source_language_combobox_ = source_language_combobox.get();
 
   auto advanced_reset_button = std::make_unique<views::MdTextButton>(
@@ -769,8 +772,9 @@ PartialTranslateBubbleView::CreateViewAdvancedTarget() {
   target_language_combobox->SetCallback(
       base::BindRepeating(&PartialTranslateBubbleView::TargetLanguageChanged,
                           base::Unretained(this)));
-  target_language_combobox->SetAccessibleName(l10n_util::GetStringUTF16(
-      IDS_TRANSLATE_BUBBLE_TARGET_LANG_COMBOBOX_ACCNAME));
+  target_language_combobox->GetViewAccessibility().SetName(
+      l10n_util::GetStringUTF16(
+          IDS_TRANSLATE_BUBBLE_TARGET_LANG_COMBOBOX_ACCNAME));
   target_language_combobox_ = target_language_combobox.get();
 
   auto advanced_reset_button = std::make_unique<views::MdTextButton>(
@@ -807,9 +811,8 @@ std::unique_ptr<views::View> PartialTranslateBubbleView::CreateViewAdvanced(
   const int horizontal_spacing =
       provider->GetDistanceMetric(views::DISTANCE_RELATED_CONTROL_HORIZONTAL);
 
-  auto view = std::make_unique<AdvancedViewContainer>();
-  auto* layout = view->SetLayoutManager(std::make_unique<views::BoxLayout>());
-  layout->set_between_child_spacing(horizontal_spacing);
+  auto view = std::make_unique<views::BoxLayoutView>();
+  view->SetBetweenChildSpacing(horizontal_spacing);
 
   std::unique_ptr<views::ImageView> language_icon = CreateTranslateIcon();
   if (!UseGoogleTranslateBranding()) {
@@ -823,14 +826,15 @@ std::unique_ptr<views::View> PartialTranslateBubbleView::CreateViewAdvanced(
     icon_view->SetProperty(views::kMarginsKey,
                            gfx::Insets::VH(vertical_spacing, 0));
   }
-  auto* form_view = view->AddChildView(std::make_unique<views::View>());
+  auto* form_view = view->AddChildView(
+      views::Builder<views::BoxLayoutView>()
+          .SetOrientation(views::BoxLayout::Orientation::kVertical)
+          .SetBetweenChildSpacing(vertical_spacing)
+          .Build());
   // Stretch |form_view| to fit the rest of bubble's width. Note that because no
   // other view has flex set, the flex argument here can be any positive
   // integer.
-  layout->SetFlexForView(form_view, 1);
-  form_view->SetLayoutManager(std::make_unique<views::BoxLayout>(
-      views::BoxLayout::Orientation::kVertical, gfx::Insets(),
-      vertical_spacing));
+  view->SetFlexForView(form_view, 1);
 
   language_title_label->SetProperty(
       views::kMarginsKey,
@@ -838,8 +842,8 @@ std::unique_ptr<views::View> PartialTranslateBubbleView::CreateViewAdvanced(
                         horizontal_spacing * 4));
   language_title_label->SetProperty(views::kCrossAxisAlignmentKey,
                                     views::LayoutAlignment::kStart);
-  auto* title_row = form_view->AddChildView(std::make_unique<views::View>());
-  title_row->SetLayoutManager(std::make_unique<views::FlexLayout>());
+  auto* title_row =
+      form_view->AddChildView(std::make_unique<views::FlexLayoutView>());
   auto* title_label = title_row->AddChildView(std::move(language_title_label));
   auto* padding_view = title_row->AddChildView(std::make_unique<views::View>());
   title_row->AddChildView(CreateCloseButton());
@@ -852,7 +856,8 @@ std::unique_ptr<views::View> PartialTranslateBubbleView::CreateViewAdvanced(
   // when the bubble expands.
   padding_view->SetProperty(
       views::kFlexBehaviorKey,
-      views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
+      views::FlexSpecification(views::LayoutOrientation::kHorizontal,
+                               views::MinimumFlexSizeRule::kScaleToZero,
                                views::MaximumFlexSizeRule::kUnbounded)
           .WithOrder(2));
 
@@ -878,10 +883,7 @@ PartialTranslateBubbleView::CreateTranslateIcon() {
   const int language_icon_id = IDR_TRANSLATE_BUBBLE_ICON;
   std::unique_ptr<views::ImageView> language_icon =
       std::make_unique<views::ImageView>();
-  gfx::ImageSkia* language_icon_image =
-      ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
-          language_icon_id);
-  language_icon->SetImage(*language_icon_image);
+  language_icon->SetImage(ui::ImageModel::FromResourceId(language_icon_id));
   return language_icon;
 }
 
@@ -897,7 +899,7 @@ PartialTranslateBubbleView::CreateOptionsMenuButton() {
   InstallCircleHighlightPathGenerator(tab_translate_options_button.get());
   std::u16string translate_options_button_label(
       l10n_util::GetStringUTF16(IDS_TRANSLATE_BUBBLE_OPTIONS_MENU_BUTTON));
-  tab_translate_options_button->SetAccessibleName(
+  tab_translate_options_button->GetViewAccessibility().SetName(
       translate_options_button_label);
   tab_translate_options_button->SetTooltipText(translate_options_button_label);
   tab_translate_options_button->SetRequestFocusOnPress(true);
@@ -951,11 +953,13 @@ void PartialTranslateBubbleView::SetWindowTitle(
 
 void PartialTranslateBubbleView::ComputeLargestViewStateWidth() {
   for (views::View* view : children()) {
-    if (view == translate_view_)
+    if (view == translate_view_) {
       continue;
+    }
     int width = view->GetPreferredSize().width();
-    if (width > largest_view_state_width_)
+    if (width > largest_view_state_width_) {
       largest_view_state_width_ = width;
+    }
   }
 }
 
@@ -996,7 +1000,6 @@ void PartialTranslateBubbleView::SwitchView(
   }
 
   UpdateChildVisibilities();
-  SizeToContents();
 }
 
 void PartialTranslateBubbleView::UpdateTextForViewState(
@@ -1051,29 +1054,15 @@ void PartialTranslateBubbleView::AnnounceForAccessibility(
     std::u16string full_text = l10n_util::GetStringFUTF16(
         IDS_CONCAT_TWO_STRINGS_WITH_COMMA, base_text, model_->GetTargetText());
 
-#if BUILDFLAG(IS_MAC)
-    partial_text_label_->GetViewAccessibility().OverrideName(full_text);
-    partial_text_label_->NotifyAccessibilityEvent(ax::mojom::Event::kAlert,
-                                                  true);
-#else
     if (target_language_changed_) {
       partial_text_label_->GetViewAccessibility().AnnounceText(full_text);
     } else {
       partial_text_label_->GetViewAccessibility().AnnounceText(base_text);
     }
-#endif
   } else if (view_state == PartialTranslateBubbleModel::VIEW_STATE_ERROR) {
-#if BUILDFLAG(IS_MAC)
-    partial_text_label_->GetViewAccessibility().OverrideName(
-        l10n_util::GetStringUTF16(
-            IDS_TRANSLATE_BUBBLE_COULD_NOT_TRANSLATE_TITLE));
-    partial_text_label_->NotifyAccessibilityEvent(ax::mojom::Event::kAlert,
-                                                  true);
-#else
     partial_text_label_->GetViewAccessibility().AnnounceText(
         l10n_util::GetStringUTF16(
             IDS_TRANSLATE_BUBBLE_COULD_NOT_TRANSLATE_TITLE));
-#endif
   }
 }
 void PartialTranslateBubbleView::SwitchTabForViewState(
@@ -1085,9 +1074,9 @@ void PartialTranslateBubbleView::SwitchTabForViewState(
     // other than user interaction, |this| needs to unregister from listening
     // to the tabbed pane events otherwise it'll trigger an additional
     // translation as if the user had clicked the tabs.
-    tabbed_pane_->set_listener(nullptr);
+    tabbed_pane_->SetListener(nullptr);
     tabbed_pane_->SelectTabAt(1, false);
-    tabbed_pane_->set_listener(this);
+    tabbed_pane_->SetListener(this);
   } else if (view_state ==
                  PartialTranslateBubbleModel::VIEW_STATE_BEFORE_TRANSLATE &&
              tabbed_pane_->GetSelectedTabIndex() != 0) {
@@ -1099,7 +1088,7 @@ void PartialTranslateBubbleView::SwitchToErrorView(
     translate::TranslateErrors error_type) {
   SwitchView(PartialTranslateBubbleModel::VIEW_STATE_ERROR);
   model_->SetError(error_type);
-  // TODO(crbug/1314825): Record the error when Partial Translate-specific
+  // TODO(crbug.com/40221545): Record the error when Partial Translate-specific
   // metrics are added.
 }
 
@@ -1118,7 +1107,7 @@ void PartialTranslateBubbleView::UpdateAdvancedView() {
         changed ? IDS_TRANSLATE_BUBBLE_ACCEPT : IDS_DONE));
     advanced_reset_button_target_->SetEnabled(changed);
   }
-  Layout();
+  DeprecatedLayoutImmediately();
 }
 
 void PartialTranslateBubbleView::UpdateInsets(
@@ -1165,3 +1154,6 @@ void PartialTranslateBubbleView::SetTextAlignmentForLocaleTextDirection(
         gfx::HorizontalAlignment::ALIGN_RIGHT);
   }
 }
+
+BEGIN_METADATA(PartialTranslateBubbleView)
+END_METADATA

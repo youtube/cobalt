@@ -6,9 +6,9 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_PEERCONNECTION_WEBRTC_DECODING_INFO_HANDLER_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/functional/callback_forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/platform/peerconnection/audio_codec_factory.h"
 #include "third_party/blink/renderer/platform/peerconnection/video_codec_factory.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
@@ -27,7 +27,7 @@ class PLATFORM_EXPORT WebrtcDecodingInfoHandler {
   // instances.
   WebrtcDecodingInfoHandler(
       std::unique_ptr<webrtc::VideoDecoderFactory> video_decoder_factory,
-      rtc::scoped_refptr<webrtc::AudioDecoderFactory> audio_decoder_factory);
+      webrtc::scoped_refptr<webrtc::AudioDecoderFactory> audio_decoder_factory);
   // Not copyable or movable.
   WebrtcDecodingInfoHandler(const WebrtcDecodingInfoHandler&) = delete;
   WebrtcDecodingInfoHandler& operator=(const WebrtcDecodingInfoHandler&) =
@@ -42,14 +42,14 @@ class PLATFORM_EXPORT WebrtcDecodingInfoHandler {
   using OnMediaCapabilitiesDecodingInfoCallback =
       base::OnceCallback<void(bool, bool)>;
   void DecodingInfo(
-      const absl::optional<webrtc::SdpAudioFormat> sdp_audio_format,
-      const absl::optional<webrtc::SdpVideoFormat> sdp_video_format,
+      const std::optional<webrtc::SdpAudioFormat> sdp_audio_format,
+      const std::optional<webrtc::SdpVideoFormat> sdp_video_format,
       const bool video_spatial_scalability,
       OnMediaCapabilitiesDecodingInfoCallback callback) const;
 
  private:
   std::unique_ptr<webrtc::VideoDecoderFactory> video_decoder_factory_;
-  rtc::scoped_refptr<webrtc::AudioDecoderFactory> audio_decoder_factory_;
+  webrtc::scoped_refptr<webrtc::AudioDecoderFactory> audio_decoder_factory_;
   // List of supported audio codecs.
   HashSet<String> supported_audio_codecs_;
 };

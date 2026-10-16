@@ -43,14 +43,10 @@ IN_PROC_BROWSER_TEST_F(IFrameTest, InEmptyFrame) {
 // by an iframe, which is destroyed before the chooser is closed, does not
 // result in a use-after-free condition.
 //
-// TODO(alexmos): Investigate if there's a way to get this test working in
-// Lacros. It seems that the crosapi::mojom::SelectFile interface used by
-// SelectFileDialogLacros is unavailable in tests.
 // Note: This test is disabled temporarily to track down a memory leak reported
 // by the ASan bots. It will be enabled once the root cause is found.
-// TODO(crbug.com/1434874): Re-enable this test
-#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
-    BUILDFLAG(IS_CHROMEOS_LACROS)
+// TODO(crbug.com/40904458): Re-enable this test
+#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER)
 #define MAYBE_FileChooserInDestroyedSubframe \
   DISABLED_FileChooserInDestroyedSubframe
 #else
@@ -72,11 +68,10 @@ IN_PROC_BROWSER_TEST_F(IFrameTest, MAYBE_FileChooserInDestroyedSubframe) {
   EXPECT_TRUE(frame);
   EXPECT_EQ(frame->GetSiteInstance(),
             tab->GetPrimaryMainFrame()->GetSiteInstance());
-  EXPECT_TRUE(
-      ExecuteScript(frame, "document.getElementById('fileinput').click();"));
-  EXPECT_TRUE(ExecuteScript(tab->GetPrimaryMainFrame(),
-                            "document.body.removeChild("
-                            "document.querySelectorAll('iframe')[0])"));
+  EXPECT_TRUE(ExecJs(frame, "document.getElementById('fileinput').click();"));
+  EXPECT_TRUE(ExecJs(tab->GetPrimaryMainFrame(),
+                     "document.body.removeChild("
+                     "document.querySelectorAll('iframe')[0])"));
   ASSERT_EQ(nullptr, ChildFrameAt(tab->GetPrimaryMainFrame(), 0));
 
   // On ASan bots, this test should succeed without reporting use-after-free

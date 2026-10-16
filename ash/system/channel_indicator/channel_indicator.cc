@@ -14,15 +14,20 @@
 #include "base/memory/weak_ptr.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
+#include "base/version_info/channel.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "components/session_manager/session_manager_types.h"
 #include "components/version_info/channel.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/models/image_model.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/image_view.h"
@@ -43,41 +48,8 @@ constexpr int kBorderInset = 6;
 // Size of the vector icon.
 constexpr int kVectorIconSize = 16;
 
-// Insets in the layout manager.
-constexpr int kLayoutManagerInset = 2;
-
-// Icon background minimum size, see the declaration of (pure-virtual)
-// `GetMinimumSize` in ui/views/painter.h for details.
-constexpr int kIconBackgroundMinimumDimension = 20;
-
-// CirclePainter - for rendering a perfectly circular background for the channel
-// indicator icon.
-class CirclePainter : public views::Painter {
- public:
-  CirclePainter(SkColor color, size_t diameter)
-      : color_(color), diameter_(diameter) {}
-  CirclePainter(const CirclePainter&) = delete;
-  CirclePainter& operator=(const CirclePainter&) = delete;
-  ~CirclePainter() override = default;
-
- private:
-  // views::Painter:
-  gfx::Size GetMinimumSize() const override {
-    return gfx::Size(kIconBackgroundMinimumDimension,
-                     kIconBackgroundMinimumDimension);
-  }
-
-  void Paint(gfx::Canvas* canvas, const gfx::Size& size) override {
-    gfx::RectF bounds{gfx::SizeF(size)};
-    cc::PaintFlags flags;
-    flags.setAntiAlias(true);
-    flags.setColor(color_);
-    canvas->DrawCircle(bounds.CenterPoint(), diameter_ / 2.f, flags);
-  }
-
-  const SkColor color_;
-  const size_t diameter_;
-};
+// Insets for the channel indicator icon's background.
+constexpr int kIconBackgroundInset = 2;
 
 }  // namespace
 
@@ -89,27 +61,19 @@ ChannelIndicatorView::ChannelIndicatorView(Shelf* shelf,
       session_observer_(this) {
   shell_observer_.Observe(Shell::Get());
   SetVisible(false);
+
+  // Set role before calling the `Update` method to ensure
+  // `AccessibilityPaintChecks` pass.
+  GetViewAccessibility().SetRole(ax::mojom::Role::kLabelText);
+
   Update();
 }
 
 ChannelIndicatorView::~ChannelIndicatorView() = default;
 
-void ChannelIndicatorView::GetAccessibleNodeData(ui::AXNodeData* node_data) {
-  node_data->role = ax::mojom::Role::kLabelText;
-  node_data->SetName(GetAccessibleName());
-}
-
 views::View* ChannelIndicatorView::GetTooltipHandlerForPoint(
     const gfx::Point& point) {
   return GetLocalBounds().Contains(point) ? this : nullptr;
-}
-
-std::u16string ChannelIndicatorView::GetTooltipText(const gfx::Point& p) const {
-  return tooltip_;
-}
-
-const char* ChannelIndicatorView::GetClassName() const {
-  return "ChannelIndicatorView";
 }
 
 void ChannelIndicatorView::OnThemeChanged() {
@@ -119,14 +83,14 @@ void ChannelIndicatorView::OnThemeChanged() {
       session_manager::SessionState::ACTIVE) {
     // User is logged in, set image view colors.
     if (image_view()) {
-      SetBackground(
-          views::CreateBackgroundFromPainter(std::make_unique<CirclePainter>(
-              channel_indicator_utils::GetBgColor(channel_),
-              IsHorizontalAlignment() ? GetLocalBounds().width()
-                                      : GetLocalBounds().height())));
-      image_view()->SetImage(gfx::CreateVectorIcon(
-          channel_indicator_utils::GetVectorIcon(channel_), kVectorIconSize,
-          channel_indicator_utils::GetFgColor(channel_)));
+      image_view()->SetBackground(views::CreateRoundedRectBackground(
+          channel_indicator_utils::GetBgColorJelly(channel_),
+          (IsHorizontalAlignment() ? GetLocalBounds().width()
+                                   : GetLocalBounds().height()) /
+              2.0f));
+      image_view()->SetImage(ui::ImageModel::FromVectorIcon(
+          channel_indicator_utils::GetVectorIcon(channel_),
+          channel_indicator_utils::GetFgColorJelly(channel_), kVectorIconSize));
     }
     return;
   }
@@ -134,9 +98,10 @@ void ChannelIndicatorView::OnThemeChanged() {
   // User is not logged in, set label colors.
   if (label()) {
     label()->SetBackground(views::CreateRoundedRectBackground(
-        channel_indicator_utils::GetBgColor(channel_),
+        channel_indicator_utils::GetBgColorJelly(channel_),
         kIndicatorBgCornerRadius));
-    label()->SetEnabledColor(channel_indicator_utils::GetFgColor(channel_));
+    label()->SetEnabledColor(
+        channel_indicator_utils::GetFgColorJelly(channel_));
   }
 }
 
@@ -150,10 +115,11 @@ void ChannelIndicatorView::Update() {
 
   SetImageOrText();
   SetVisible(true);
-  SetTooltip();
+  SetTooltipText(l10n_util::GetStringUTF16(
+      channel_indicator_utils::GetChannelNameStringResourceID(
+          channel_, /*append_channel=*/true)));
 
-  DCHECK(channel_indicator_utils::IsDisplayableChannel(channel_));
-  SetAccessibleName(l10n_util::GetStringUTF16(
+  GetViewAccessibility().SetName(l10n_util::GetStringUTF16(
       channel_indicator_utils::GetChannelNameStringResourceID(
           channel_, /*append_channel=*/true)));
 }
@@ -176,18 +142,19 @@ void ChannelIndicatorView::SetImageOrText() {
     SetBorder(views::CreateEmptyBorder(IsHorizontalAlignment()
                                            ? gfx::Insets::VH(kBorderInset, 0)
                                            : gfx::Insets::VH(0, kBorderInset)));
-
-    box_layout_->set_inside_border_insets(
-        gfx::Insets::VH(kLayoutManagerInset, kLayoutManagerInset));
-    SetBackground(
-        views::CreateBackgroundFromPainter(std::make_unique<CirclePainter>(
-            channel_indicator_utils::GetBgColor(channel_),
-            IsHorizontalAlignment() ? GetLocalBounds().width()
-                                    : GetLocalBounds().height())));
-    image_view()->SetImage(gfx::CreateVectorIcon(
-        channel_indicator_utils::GetVectorIcon(channel_), kVectorIconSize,
-        channel_indicator_utils::GetFgColor(channel_)));
+    image_view()->SetBorder(
+        views::CreateEmptyBorder(gfx::Insets(kIconBackgroundInset)));
+    image_view()->SetBackground(views::CreateRoundedRectBackground(
+        channel_indicator_utils::GetBgColorJelly(channel_),
+        (IsHorizontalAlignment() ? GetLocalBounds().width()
+                                 : GetLocalBounds().height()) /
+            2.0f));
+    image_view()->SetImage(ui::ImageModel::FromVectorIcon(
+        channel_indicator_utils::GetVectorIcon(channel_),
+        channel_indicator_utils::GetFgColorJelly(channel_), kVectorIconSize));
     PreferredSizeChanged();
+    image_view()->GetViewAccessibility().SetName(
+        GetViewAccessibility().GetCachedName());
     return;
   }
 
@@ -202,14 +169,15 @@ void ChannelIndicatorView::SetImageOrText() {
   // where side-shelf isn't possible (for now at least!), so nothing here is
   // adjusted for shelf alignment.
   DCHECK(IsHorizontalAlignment());
-  SetBackground(nullptr);
   box_layout_->set_inside_border_insets(gfx::Insets());
   SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(kBorderInset, 0)));
   label()->SetBorder(
       views::CreateEmptyBorder(gfx::Insets::VH(0, kBorderInset)));
   label()->SetBackground(views::CreateRoundedRectBackground(
-      channel_indicator_utils::GetBgColor(channel_), kIndicatorBgCornerRadius));
-  label()->SetEnabledColor(channel_indicator_utils::GetFgColor(channel_));
+      channel_indicator_utils::GetBgColorJelly(channel_),
+      kIndicatorBgCornerRadius));
+  label()->SetEnabledColor(channel_indicator_utils::GetFgColorJelly(channel_));
+
   label()->SetText(l10n_util::GetStringUTF16(
       channel_indicator_utils::GetChannelNameStringResourceID(
           channel_,
@@ -224,20 +192,13 @@ void ChannelIndicatorView::OnAccessibleNameChanged(
   // If icon is showing, set it on the image view.
   if (image_view()) {
     DCHECK(!label());
-    image_view()->SetAccessibleName(new_name);
+    image_view()->GetViewAccessibility().SetName(new_name);
     return;
   }
 
   // Otherwise set it on the label.
   if (label())
-    label()->SetAccessibleName(new_name);
-}
-
-void ChannelIndicatorView::SetTooltip() {
-  DCHECK(channel_indicator_utils::IsDisplayableChannel(channel_));
-  tooltip_ = l10n_util::GetStringUTF16(
-      channel_indicator_utils::GetChannelNameStringResourceID(
-          channel_, /*append_channel=*/true));
+    label()->GetViewAccessibility().SetName(new_name);
 }
 
 void ChannelIndicatorView::OnSessionStateChanged(
@@ -268,12 +229,15 @@ bool ChannelIndicatorView::IsImageViewVisibleForTesting() {
 
 std::u16string ChannelIndicatorView::GetAccessibleNameString() const {
   if (image_view())
-    return image_view()->GetAccessibleName();
+    return image_view()->GetViewAccessibility().GetCachedName();
 
   if (label())
-    return label()->GetAccessibleName();
+    return label()->GetViewAccessibility().GetCachedName();
 
-  return base::EmptyString16();
+  return std::u16string();
 }
+
+BEGIN_METADATA(ChannelIndicatorView)
+END_METADATA
 
 }  // namespace ash

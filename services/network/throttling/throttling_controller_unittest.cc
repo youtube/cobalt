@@ -60,19 +60,17 @@ class ThrottlingControllerTestHelper {
       MockTransaction mock_transaction = kSimpleGET_Transaction)
       : completion_callback_(base::BindRepeating(&TestCallback::Run,
                                                  base::Unretained(&callback_))),
-        mock_transaction_(mock_transaction),
-        buffer_(base::MakeRefCounted<net::IOBuffer>(64)),
+        mock_transaction_(mock_transaction, "http://dot.com"),
+        buffer_(base::MakeRefCounted<net::IOBufferWithSize>(64)),
         net_log_with_source_(
             net::NetLogWithSource::Make(net::NetLog::Get(),
                                         net::NetLogSourceType::URL_REQUEST)),
         profile_id_(base::UnguessableToken::Create()) {
     mock_transaction_.test_mode = TEST_MODE_SYNC_NET_START;
-    mock_transaction_.url = "http://dot.com";
-    AddMockTransaction(&mock_transaction_);
 
-    std::unique_ptr<net::HttpTransaction> network_transaction;
-    network_layer_.CreateTransaction(net::DEFAULT_PRIORITY,
-                                     &network_transaction);
+    auto network_transaction =
+        network_layer_.CreateTransaction(net::DEFAULT_PRIORITY);
+    CHECK(network_transaction);
     transaction_ = std::make_unique<ThrottlingNetworkTransaction>(
         std::move(network_transaction));
   }
@@ -97,8 +95,8 @@ class ThrottlingControllerTestHelper {
     if (with_upload) {
       upload_data_stream_ =
           std::make_unique<net::ChunkedUploadDataStream>(kUploadIdentifier);
-      upload_data_stream_->AppendData(kUploadData, std::size(kUploadData),
-                                      true);
+      upload_data_stream_->AppendData(
+          base::byte_span_with_nul_from_cstring(kUploadData), true);
       request_->upload_data_stream = upload_data_stream_.get();
     }
 
@@ -123,7 +121,7 @@ class ThrottlingControllerTestHelper {
     return interceptor->IsOffline();
   }
 
-  bool HasStarted() { return !!transaction_->request_; }
+  bool HasStarted() { return transaction_->started_; }
 
   bool HasFailed() { return transaction_->failed_; }
 
@@ -136,9 +134,7 @@ class ThrottlingControllerTestHelper {
                                                           completion_callback_);
   }
 
-  ~ThrottlingControllerTestHelper() {
-    RemoveMockTransaction(&mock_transaction_);
-  }
+  ~ThrottlingControllerTestHelper() = default;
 
   TestCallback* callback() { return &callback_; }
   ThrottlingNetworkTransaction* transaction() { return transaction_.get(); }
@@ -153,10 +149,10 @@ class ThrottlingControllerTestHelper {
   MockNetworkLayer network_layer_;
   TestCallback callback_;
   net::CompletionRepeatingCallback completion_callback_;
-  MockTransaction mock_transaction_;
+  net::ScopedMockTransaction mock_transaction_;
+  std::unique_ptr<net::ChunkedUploadDataStream> upload_data_stream_;
   std::unique_ptr<ThrottlingNetworkTransaction> transaction_;
   scoped_refptr<net::IOBuffer> buffer_;
-  std::unique_ptr<net::ChunkedUploadDataStream> upload_data_stream_;
   std::unique_ptr<MockHttpRequest> request_;
   std::unique_ptr<network::ScopedThrottlingToken> throttling_token_;
   const net::NetLogWithSource net_log_with_source_;
@@ -349,7 +345,8 @@ TEST(ThrottlingControllerTest, DownloadBufferSizeIsNotModifiedIfNotThrottled) {
   int rv = helper.Start(false);
   EXPECT_EQ(rv, net::OK);
 
-  auto large_data_buffer = base::MakeRefCounted<net::IOBuffer>(kLargeDataSize);
+  auto large_data_buffer =
+      base::MakeRefCounted<net::IOBufferWithSize>(kLargeDataSize);
   rv = helper.Read(large_data_buffer.get(), kLargeDataSize);
   EXPECT_EQ(rv, net::ERR_IO_PENDING);
   helper.FastForwardUntilNoTasksRemain();
@@ -372,7 +369,8 @@ TEST(ThrottlingControllerTest, DownloadIsStreamed) {
   EXPECT_EQ(callback->run_count(), 1);
   EXPECT_GE(callback->value(), net::OK);
 
-  auto large_data_buffer = base::MakeRefCounted<net::IOBuffer>(kLargeDataSize);
+  auto large_data_buffer =
+      base::MakeRefCounted<net::IOBufferWithSize>(kLargeDataSize);
   helper.Read(large_data_buffer.get(), kLargeDataSize);
   EXPECT_EQ(rv, net::ERR_IO_PENDING);
   EXPECT_EQ(callback->run_count(), 1);

@@ -18,7 +18,6 @@ const char* SchedulingPriorityToString(SchedulingPriority priority) {
       return "Low";
   }
   NOTREACHED();
-  return "";
 }
 
 }  // namespace gpu

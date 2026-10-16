@@ -6,6 +6,7 @@
 
 #include "ash/login/ui/lock_contents_view_constants.h"
 #include "ash/login/ui/login_tooltip_view.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/views/layout/box_layout.h"
 
@@ -33,9 +34,14 @@ ManagementBubble::ManagementBubble(const std::u16string& message,
   set_positioning_strategy(PositioningStrategy::kShowAbove);
 }
 
-gfx::Size ManagementBubble::CalculatePreferredSize() const {
+gfx::Size ManagementBubble::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   return gfx::Size(kManagementBubbleWidth,
-                   GetHeightForWidth(kManagementBubbleWidth));
+                   GetLayoutManager()->GetPreferredHeightForWidth(
+                       this, kManagementBubbleWidth));
 }
+
+BEGIN_METADATA(ManagementBubble)
+END_METADATA
 
 }  // namespace ash

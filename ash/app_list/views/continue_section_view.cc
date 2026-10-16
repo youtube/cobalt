@@ -19,6 +19,7 @@
 #include "ash/app_list/views/app_list_toast_view.h"
 #include "ash/app_list/views/app_list_view_util.h"
 #include "ash/app_list/views/continue_task_view.h"
+#include "ash/public/cpp/resources/grit/ash_public_unscaled_resources.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
@@ -29,6 +30,7 @@
 #include "extensions/common/constants.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/resource/resource_bundle.h"
 #include "ui/compositor/layer.h"
 #include "ui/views/animation/animation_builder.h"
 #include "ui/views/layout/flex_layout.h"
@@ -87,6 +89,7 @@ ContinueSectionView::ContinueSectionView(AppListViewDelegate* view_delegate,
       .SetOrientation(views::LayoutOrientation::kVertical)
       .SetDefault(views::kFlexBehaviorKey,
                   views::FlexSpecification(
+                      views::LayoutOrientation::kHorizontal,
                       views::MinimumFlexSizeRule::kScaleToMinimumSnapToZero,
                       views::MaximumFlexSizeRule::kUnbounded));
 
@@ -174,15 +177,6 @@ bool ContinueSectionView::ShouldShowPrivacyNotice() const {
 }
 
 bool ContinueSectionView::ShouldShowFilesSection() const {
-  // TODO(hongyulong): each admin template or each file is a continue task view
-  // in the continue task container view. If we set this container visible, the
-  // admin template and the file will show up at the same time. I think we may
-  // need to separate the visibility for admin template and file in the
-  // container view. Otherwise, when we have a admin template, and if
-  // `IsPrivacyNoticeAccepted` and `WasPrivacyNoticeShown` all return false,
-  // the file, privacy toast, admin template will co-exist unexpectedly.
-  // Thus, we need to make some changes for the condition in another CL after
-  // fully consideration.
   return (HasDesksAdminTemplates() || HasMinimumFilesToShow()) &&
          (nudge_controller_->IsPrivacyNoticeAccepted() ||
           nudge_controller_->WasPrivacyNoticeShown()) &&
@@ -193,7 +187,7 @@ void ContinueSectionView::SetShownInBackground(bool shown_in_background) {
   // If the privacy notice becomes inactive when it is shown in background, stop
   // the privacy notice shown timer to restart the count on the next show.
   if (shown_in_background && privacy_notice_shown_timer_.IsRunning()) {
-    privacy_notice_shown_timer_.AbandonAndStop();
+    privacy_notice_shown_timer_.Stop();
     return;
   }
 
@@ -346,7 +340,9 @@ void ContinueSectionView::MaybeCreatePrivacyNotice() {
                          &ContinueSectionView::OnPrivacyToastAcknowledged,
                          base::Unretained(this)))
           .SetStyleForTabletMode(tablet_mode_)
-          .SetThemingIcons(&kContinueFilesDarkIcon, &kContinueFilesLightIcon)
+          .SetIcon(
+              ui::ResourceBundle::GetSharedInstance().GetThemedLottieImageNamed(
+                  IDR_APP_LIST_CONTINUE_SECTION_NOTICE_IMAGE))
           .SetIconSize(tablet_mode_ ? kPrivacyIconSizeTablet
                                     : kPrivacyIconSizeClamshell)
           .SetIconBackground(true)
@@ -355,6 +351,10 @@ void ContinueSectionView::MaybeCreatePrivacyNotice() {
       views::kFlexBehaviorKey,
       views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToMinimum,
                                views::MaximumFlexSizeRule::kScaleToMaximum));
+  if (available_width_) {
+    privacy_toast_->SetAvailableWidth(*available_width_);
+  }
+
   if (!tablet_mode_)
     privacy_toast_->UpdateInteriorMargins(kPrivacyToastInteriorMarginClamshell);
 }
@@ -389,7 +389,7 @@ void ContinueSectionView::UpdateElementsVisibility() {
       RemoveChildViewT(privacy_toast_.get());
       privacy_toast_ = nullptr;
       nudge_controller_->SetPrivacyNoticeShown(false);
-      privacy_notice_shown_timer_.AbandonAndStop();
+      privacy_notice_shown_timer_.Stop();
     }
     return;
   }
@@ -473,7 +473,7 @@ void ContinueSectionView::OnAppListVisibilityChanged(bool shown,
   // When hiding the launcher, stop the privacy notice shown timer to restart
   // the count on the next show.
   if (!shown && privacy_notice_shown_timer_.IsRunning())
-    privacy_notice_shown_timer_.AbandonAndStop();
+    privacy_notice_shown_timer_.Stop();
 
   if (shown)
     MaybeCreatePrivacyNotice();
@@ -483,7 +483,16 @@ void ContinueSectionView::OnAppListVisibilityChanged(bool shown,
     PreferredSizeChanged();
 }
 
-BEGIN_METADATA(ContinueSectionView, views::View)
+void ContinueSectionView::ConfigureLayoutForAvailableWidth(
+    int available_width) {
+  available_width_ = available_width;
+
+  if (privacy_toast_) {
+    privacy_toast_->SetAvailableWidth(available_width);
+  }
+}
+
+BEGIN_METADATA(ContinueSectionView)
 END_METADATA
 
 }  // namespace ash

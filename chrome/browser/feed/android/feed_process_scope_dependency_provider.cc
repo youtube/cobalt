@@ -6,7 +6,6 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/logging.h"
-#include "chrome/browser/feed/android/jni_headers/FeedProcessScopeDependencyProvider_jni.h"
 #include "chrome/browser/feed/android/jni_translation.h"
 #include "chrome/browser/feed/feed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -14,8 +13,10 @@
 #include "components/feed/core/proto/v2/ui.pb.h"
 #include "components/feed/core/v2/public/feed_api.h"
 #include "components/feed/core/v2/public/feed_service.h"
-#include "components/feed/core/v2/public/feed_stream_surface.h"
 #include "components/variations/variations_ids_provider.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/browser/feed/android/jni_headers/FeedProcessScopeDependencyProvider_jni.h"
 
 namespace feed {
 namespace android {
@@ -42,15 +43,15 @@ static void JNI_FeedProcessScopeDependencyProvider_ProcessViewAction(
       action_data_string, ToNativeLoggingParameters(env, logging_parameters));
 }
 
-static base::android::ScopedJavaLocalRef<jstring>
-JNI_FeedProcessScopeDependencyProvider_GetSessionId(JNIEnv* env) {
+static std::string JNI_FeedProcessScopeDependencyProvider_GetSessionId(
+    JNIEnv* env) {
   std::string session;
   FeedApi* feed_stream_api = GetFeedApi();
   if (feed_stream_api) {
     session = feed_stream_api->GetSessionId();
   }
 
-  return base::android::ConvertUTF8ToJavaString(env, session);
+  return session;
 }
 
 static base::android::ScopedJavaLocalRef<jintArray>
@@ -59,8 +60,34 @@ JNI_FeedProcessScopeDependencyProvider_GetExperimentIds(JNIEnv* env) {
       variations::VariationsIdsProvider::GetInstance();
   DCHECK(variations_ids_provider != nullptr);
 
-  return base::android::ToJavaIntArray(
-      env, variations_ids_provider->GetVariationsVectorForWebPropertiesKeys());
+  // Include the experiment IDs from Finch.
+  std::vector<int> experiment_ids =
+      variations_ids_provider->GetVariationsVectorForWebPropertiesKeys();
+
+  // Include the synthetic experiment IDs sent by the server.
+  FeedService* service = FeedServiceFactory::GetForBrowserContext(
+      ProfileManager::GetLastUsedProfile());
+  if (service) {
+    const Experiments& experiments = service->GetExperiments();
+    for (const auto& e : experiments) {
+      for (const auto& g : e.second) {
+        experiment_ids.push_back(g.experiment_id);
+      }
+    }
+  }
+
+  return base::android::ToJavaIntArray(env, experiment_ids);
+}
+
+static base::android::ScopedJavaLocalRef<jbyteArray>
+JNI_FeedProcessScopeDependencyProvider_GetFeedLaunchCuiMetadata(JNIEnv* env) {
+  std::string feed_launch_cui_metadata;
+  FeedService* service = FeedServiceFactory::GetForBrowserContext(
+      ProfileManager::GetLastUsedProfile());
+  if (service) {
+    feed_launch_cui_metadata = service->GetFeedLaunchCuiMetadata();
+  }
+  return base::android::ToJavaByteArray(env, feed_launch_cui_metadata);
 }
 
 }  // namespace android

@@ -7,10 +7,8 @@
 #include "ui/base/class_property.h"
 #include "ui/views/view.h"
 
-DEFINE_EXPORTED_UI_CLASS_PROPERTY_TYPE(VIEWS_EXPORT, views::View*)
-
 namespace views {
 
-DEFINE_UI_CLASS_PROPERTY_KEY(views::View*, kHostViewKey, NULL)
+DEFINE_UI_CLASS_PROPERTY_KEY(views::View*, kHostViewKey, nullptr)
 
 }  // namespace views

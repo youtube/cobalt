@@ -5,6 +5,7 @@
 #include "ash/system/camera/autozoom_controller_impl.h"
 
 #include "ash/constants/ash_pref_names.h"
+#include "ash/public/cpp/system/anchored_nudge_manager.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "media/capture/video/chromeos/camera_hal_dispatcher_impl.h"
@@ -70,7 +71,8 @@ void AutozoomControllerImpl::Toggle() {
   SetState(state_ == cros::mojom::CameraAutoFramingState::OFF
                ? cros::mojom::CameraAutoFramingState::ON_SINGLE
                : cros::mojom::CameraAutoFramingState::OFF);
-  SystemNudgeController::RecordNudgeAction(NudgeCatalogName::kAutozoom);
+  AnchoredNudgeManager::Get()->MaybeRecordNudgeAction(
+      NudgeCatalogName::kAutozoom);
 }
 
 void AutozoomControllerImpl::AddObserver(AutozoomObserver* observer) {

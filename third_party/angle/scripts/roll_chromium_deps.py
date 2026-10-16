@@ -29,35 +29,35 @@ def FindSrcDirPath():
     # Special cased for ANGLE.
     return os.path.dirname(os.path.abspath(os.path.join(__file__, '..')))
 
-
 ANGLE_CHROMIUM_DEPS = [
     'build',
     'buildtools',
-    'buildtools/clang_format/script',
     'buildtools/linux64',
     'buildtools/mac',
-    'buildtools/third_party/libc++/trunk',
-    'buildtools/third_party/libc++abi/trunk',
-    'buildtools/third_party/libunwind/trunk',
+    'buildtools/reclient',
     'buildtools/win',
     'testing',
     'third_party/abseil-cpp',
     'third_party/android_build_tools',
-    'third_party/android_build_tools/aapt2',
+    'third_party/android_build_tools/aapt2/cipd',
     'third_party/android_build_tools/art',
     'third_party/android_build_tools/bundletool',
-    'third_party/android_build_tools/lint',
-    'third_party/android_build_tools/manifest_merger',
+    'third_party/android_build_tools/error_prone/cipd',
+    'third_party/android_build_tools/error_prone_javac/cipd',
+    'third_party/android_build_tools/lint/cipd',
+    'third_party/android_build_tools/manifest_merger/cipd',
+    'third_party/android_build_tools/nullaway/cipd',
     'third_party/android_deps',
-    'third_party/android_ndk',
     'third_party/android_platform',
     'third_party/android_sdk',
-    'third_party/android_sdk/androidx_browser/src',
     'third_party/android_sdk/public',
-    'third_party/android_system_sdk',
+    'third_party/android_system_sdk/cipd',
+    'third_party/android_toolchain/ndk',
     'third_party/bazel',
     'third_party/catapult',
+    'third_party/clang-format/script',
     'third_party/colorama/src',
+    'third_party/cpu_features/src',
     'third_party/depot_tools',
     'third_party/flatbuffers/src',
     'third_party/fuchsia-sdk/sdk',
@@ -66,7 +66,12 @@ ANGLE_CHROMIUM_DEPS = [
     'third_party/jdk/extras',
     'third_party/jinja2',
     'third_party/kotlin_stdlib',
+    'third_party/libc++/src',
+    'third_party/libc++abi/src',
+    'third_party/libdrm/src',
     'third_party/libjpeg_turbo',
+    'third_party/libunwind/src',
+    'third_party/llvm-libc/src',
     'third_party/markupsafe',
     'third_party/nasm',
     'third_party/ninja',
@@ -75,13 +80,15 @@ ANGLE_CHROMIUM_DEPS = [
     'third_party/Python-Markdown',
     'third_party/qemu-linux-x64',
     'third_party/qemu-mac-x64',
-    'third_party/r8',
-    'third_party/r8/d8',
+    'third_party/r8/cipd',
+    'third_party/r8/d8/cipd',
     'third_party/requests/src',
+    'third_party/rust',
+    'third_party/siso/cipd',
     'third_party/six',
-    'third_party/turbine',
+    'third_party/turbine/cipd',
     'third_party/zlib',
-    'tools/android/errorprone_plugin',
+    'tools/android',
     'tools/clang',
     'tools/clang/dsymutil',
     'tools/luci-go',
@@ -91,6 +98,7 @@ ANGLE_CHROMIUM_DEPS = [
     'tools/perf',
     'tools/protoc_wrapper',
     'tools/python',
+    'tools/rust',
     'tools/skia_goldctl/linux',
     'tools/skia_goldctl/mac_amd64',
     'tools/skia_goldctl/mac_arm64',
@@ -309,6 +317,9 @@ def BuildDepsentryDict(deps_dict):
                 dep = {'url': dep}
             if dep.get('dep_type') == 'cipd':
                 result[path] = CipdDepsEntry(path, dep['packages'])
+            elif dep.get('dep_type') == 'gcs':
+                # Ignore GCS deps - there aren't any that we want to sync yet
+                continue
             else:
                 if '@' not in dep['url']:
                     continue

@@ -13,6 +13,7 @@
 #include "components/services/storage/public/mojom/storage_usage_info.mojom.h"
 #include "components/services/storage/shared_storage/async_shared_storage_database_impl.h"
 #include "components/services/storage/shared_storage/shared_storage_options.h"
+#include "net/base/schemeful_site.h"
 #include "storage/browser/quota/special_storage_policy.h"
 #include "url/gurl.h"
 
@@ -144,6 +145,29 @@ void SharedStorageManager::Delete(
                     GetOperationResultCallback(std::move(callback)));
 }
 
+void SharedStorageManager::BatchUpdate(
+    url::Origin context_origin,
+    std::vector<network::mojom::SharedStorageModifierMethodWithOptionsPtr>
+        methods_with_options,
+    base::OnceCallback<void(BatchUpdateResult)> callback) {
+  DCHECK(callback);
+  DCHECK(database_);
+  database_->BatchUpdate(
+      std::move(context_origin), std::move(methods_with_options),
+      base::BindOnce(
+          [](base::WeakPtr<SharedStorageManager> manager,
+             base::OnceCallback<void(BatchUpdateResult)> callback,
+             BatchUpdateResult result) {
+            if (manager) {
+              // Only report the overall result, as we treat the entire batch as
+              // a single atomic unit.
+              manager->OnOperationResult(result.overall_result);
+            }
+            std::move(callback).Run(std::move(result));
+          },
+          weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+}
+
 void SharedStorageManager::Length(url::Origin context_origin,
                                   base::OnceCallback<void(int)> callback) {
   DCHECK(callback);
@@ -186,11 +210,32 @@ void SharedStorageManager::Entries(
 
 void SharedStorageManager::Clear(
     url::Origin context_origin,
-    base::OnceCallback<void(OperationResult)> callback) {
+    base::OnceCallback<void(OperationResult)> callback,
+    DataClearSource source) {
   DCHECK(callback);
   DCHECK(database_);
   database_->Clear(std::move(context_origin),
-                   GetOperationResultCallback(std::move(callback)));
+                   GetOperationResultCallback(std::move(callback)), source);
+}
+
+void SharedStorageManager::BytesUsed(url::Origin context_origin,
+                                     base::OnceCallback<void(int)> callback) {
+  DCHECK(callback);
+  DCHECK(database_);
+  auto new_callback = base::BindOnce(
+      [](base::WeakPtr<SharedStorageManager> manager,
+         base::OnceCallback<void(int)> callback, int bytes_used) {
+        OperationResult result = (bytes_used != -1)
+                                     ? OperationResult::kSuccess
+                                     : OperationResult::kSqlError;
+        if (manager) {
+          manager->OnOperationResult(result);
+        }
+        std::move(callback).Run(bytes_used);
+      },
+      weak_ptr_factory_.GetWeakPtr(), std::move(callback));
+
+  database_->BytesUsed(std::move(context_origin), std::move(new_callback));
 }
 
 void SharedStorageManager::PurgeMatchingOrigins(
@@ -214,18 +259,18 @@ void SharedStorageManager::FetchOrigins(
 }
 
 void SharedStorageManager::MakeBudgetWithdrawal(
-    url::Origin context_origin,
+    net::SchemefulSite context_site,
     double bits_debit,
     base::OnceCallback<void(OperationResult)> callback) {
   DCHECK(callback);
   DCHECK(database_);
   database_->MakeBudgetWithdrawal(
-      std::move(context_origin), bits_debit,
+      std::move(context_site), bits_debit,
       GetOperationResultCallback(std::move(callback)));
 }
 
 void SharedStorageManager::GetRemainingBudget(
-    url::Origin context_origin,
+    net::SchemefulSite context_site,
     base::OnceCallback<void(BudgetResult)> callback) {
   DCHECK(callback);
   DCHECK(database_);
@@ -238,7 +283,7 @@ void SharedStorageManager::GetRemainingBudget(
       },
       weak_ptr_factory_.GetWeakPtr(), std::move(callback));
 
-  database_->GetRemainingBudget(std::move(context_origin),
+  database_->GetRemainingBudget(std::move(context_site),
                                 std::move(new_callback));
 }
 
@@ -272,7 +317,7 @@ void SharedStorageManager::GetMetadata(
         if (manager) {
           // We'll count it as failure if any of the operation results failed.
           OperationResult op_result =
-              (metadata.length != -1 &&
+              (metadata.length != -1 && metadata.bytes_used != -1 &&
                (metadata.time_result == OperationResult::kSuccess ||
                 metadata.time_result == OperationResult::kNotFound) &&
                metadata.budget_result == OperationResult::kSuccess)
@@ -362,7 +407,7 @@ void SharedStorageManager::OverrideDatabaseForTesting(
 }
 
 void SharedStorageManager::GetNumBudgetEntriesForTesting(
-    url::Origin context_origin,
+    net::SchemefulSite context_site,
     base::OnceCallback<void(int)> callback) {
   DCHECK(callback);
   DCHECK(database_);
@@ -380,7 +425,7 @@ void SharedStorageManager::GetNumBudgetEntriesForTesting(
 
   static_cast<AsyncSharedStorageDatabaseImpl*>(database_.get())
       ->GetNumBudgetEntriesForTesting(  // IN-TEST
-          std::move(context_origin), std::move(new_callback));
+          std::move(context_site), std::move(new_callback));
 }
 
 void SharedStorageManager::GetTotalNumBudgetEntriesForTesting(
@@ -476,6 +521,8 @@ void SharedStorageManager::OnStalePurged(OperationResult result) {
 void SharedStorageManager::RecordShutdownMetrics() {
   base::UmaHistogramCounts1000("Storage.SharedStorage.OnShutdown.NumSqlErrors",
                                operation_sql_error_count_);
+  base::UmaHistogramBoolean("Storage.SharedStorage.OnShutdown.HasSqlErrors",
+                            operation_sql_error_count_ > 0);
   base::UmaHistogramBoolean(
       "Storage.SharedStorage.OnShutdown.RecoveryFromInitFailureAttempted",
       tried_to_recover_from_init_failure_);

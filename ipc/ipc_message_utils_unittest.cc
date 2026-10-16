@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "ipc/ipc_message_utils.h"
 
 #include <stddef.h>
@@ -84,21 +89,23 @@ TEST(IPCMessageUtilsTest, ParameterValidation) {
   ASSERT_FALSE(ParamTraits<base::FilePath>::Read(&message, &iter, &bad_path));
 }
 
-
-TEST(IPCMessageUtilsTest, StackVector) {
-  static const size_t stack_capacity = 5;
-  base::StackVector<double, stack_capacity> stack_vector;
-  for (size_t i = 0; i < 2 * stack_capacity; i++)
-    stack_vector->push_back(i * 2.0);
+TEST(IPCMessageUtilsTest, InlinedVector) {
+  static constexpr size_t stack_capacity = 5;
+  absl::InlinedVector<double, stack_capacity> inlined_vector;
+  for (size_t i = 0; i < 2 * stack_capacity; i++) {
+    inlined_vector.push_back(i * 2.0);
+  }
 
   IPC::Message msg(1, 2, IPC::Message::PRIORITY_NORMAL);
-  IPC::WriteParam(&msg, stack_vector);
+  IPC::WriteParam(&msg, inlined_vector);
 
-  base::StackVector<double, stack_capacity> output;
+  absl::InlinedVector<double, stack_capacity> output;
   base::PickleIterator iter(msg);
   EXPECT_TRUE(IPC::ReadParam(&msg, &iter, &output));
-  for (size_t i = 0; i < 2 * stack_capacity; i++)
-    EXPECT_EQ(stack_vector[i], output[i]);
+  ASSERT_EQ(inlined_vector.size(), output.size());
+  for (size_t i = 0; i < 2 * stack_capacity; i++) {
+    EXPECT_EQ(inlined_vector[i], output[i]);
+  }
 }
 
 TEST(IPCMessageUtilsTest, MojoChannelHandle) {
@@ -115,7 +122,7 @@ TEST(IPCMessageUtilsTest, MojoChannelHandle) {
 }
 
 TEST(IPCMessageUtilsTest, OptionalUnset) {
-  absl::optional<int> opt;
+  std::optional<int> opt;
   base::Pickle pickle;
   IPC::WriteParam(&pickle, opt);
 
@@ -123,14 +130,14 @@ TEST(IPCMessageUtilsTest, OptionalUnset) {
   IPC::LogParam(opt, &log);
   EXPECT_EQ("(unset)", log);
 
-  absl::optional<int> unserialized_opt;
+  std::optional<int> unserialized_opt;
   base::PickleIterator iter(pickle);
   EXPECT_TRUE(IPC::ReadParam(&pickle, &iter, &unserialized_opt));
   EXPECT_FALSE(unserialized_opt);
 }
 
 TEST(IPCMessageUtilsTest, OptionalSet) {
-  absl::optional<int> opt(10);
+  std::optional<int> opt(10);
   base::Pickle pickle;
   IPC::WriteParam(&pickle, opt);
 
@@ -138,7 +145,7 @@ TEST(IPCMessageUtilsTest, OptionalSet) {
   IPC::LogParam(opt, &log);
   EXPECT_EQ("10", log);
 
-  absl::optional<int> unserialized_opt;
+  std::optional<int> unserialized_opt;
   base::PickleIterator iter(pickle);
   EXPECT_TRUE(IPC::ReadParam(&pickle, &iter, &unserialized_opt));
   EXPECT_TRUE(unserialized_opt);

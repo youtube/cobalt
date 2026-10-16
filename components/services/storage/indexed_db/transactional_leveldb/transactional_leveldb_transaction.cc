@@ -8,6 +8,7 @@
 
 #include "base/check_op.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/string_util.h"
 #include "base/trace_event/trace_event.h"
 #include "components/services/storage/indexed_db/scopes/leveldb_scope.h"
@@ -19,9 +20,7 @@
 #include "third_party/leveldatabase/src/include/leveldb/db.h"
 #include "third_party/leveldatabase/src/include/leveldb/iterator.h"
 
-using base::StringPiece;
-
-namespace content {
+namespace content::indexed_db {
 
 TransactionalLevelDBTransaction::TransactionalLevelDBTransaction(
     TransactionalLevelDBDatabase* db,
@@ -33,23 +32,22 @@ TransactionalLevelDBTransaction::TransactionalLevelDBTransaction(
 
 TransactionalLevelDBTransaction::~TransactionalLevelDBTransaction() = default;
 
-leveldb::Status TransactionalLevelDBTransaction::Put(const StringPiece& key,
+leveldb::Status TransactionalLevelDBTransaction::Put(std::string_view key,
                                                      std::string* value) {
   leveldb::Status s = scope_->Put(leveldb_env::MakeSlice(key), *value);
   EvictLoadedIterators();
   return s;
 }
 
-leveldb::Status TransactionalLevelDBTransaction::Remove(
-    const StringPiece& key) {
+leveldb::Status TransactionalLevelDBTransaction::Remove(std::string_view key) {
   leveldb::Status s = scope_->Delete(leveldb_env::MakeSlice(key));
   EvictLoadedIterators();
   return s;
 }
 
 leveldb::Status TransactionalLevelDBTransaction::RemoveRange(
-    const StringPiece& begin,
-    const StringPiece& end,
+    std::string_view begin,
+    std::string_view end,
     LevelDBScopeDeletionMode deletion_mode) {
   // The renderer-side code always issues range deletions even in the case of
   // single key, so handle that case here to avoid doing sub-optimal range
@@ -66,7 +64,7 @@ leveldb::Status TransactionalLevelDBTransaction::RemoveRange(
   return s;
 }
 
-leveldb::Status TransactionalLevelDBTransaction::Get(const StringPiece& key,
+leveldb::Status TransactionalLevelDBTransaction::Get(std::string_view key,
                                                      std::string* value,
                                                      bool* found) {
   *found = false;
@@ -74,8 +72,8 @@ leveldb::Status TransactionalLevelDBTransaction::Get(const StringPiece& key,
   DCHECK(!finished_);
   const std::vector<uint8_t>& prefix = db_->scopes()->metadata_key_prefix();
   DCHECK(!base::StartsWith(
-      key, base::StringPiece(reinterpret_cast<const char*>(prefix.data()),
-                             prefix.size())));
+      key, std::string_view(reinterpret_cast<const char*>(prefix.data()),
+                            prefix.size())));
 #endif
   leveldb::Status s = scope_->WriteChangesAndUndoLog();
   if (!s.ok() && !s.IsNotFound())
@@ -89,13 +87,14 @@ leveldb::Status TransactionalLevelDBTransaction::Commit(bool sync_on_commit) {
 
   finished_ = true;
   return db_->scopes()->Commit(std::move(scope_), sync_on_commit,
+                               /*on_commit_complete=*/base::OnceClosure(),
                                std::move(commit_cleanup_complete_callback_));
 }
 
-leveldb::Status TransactionalLevelDBTransaction::Rollback() {
+void TransactionalLevelDBTransaction::Rollback() {
   DCHECK(!finished_);
   finished_ = true;
-  return scope_->Rollback();
+  scope_->Rollback();
 }
 
 std::unique_ptr<TransactionalLevelDBIterator>
@@ -109,10 +108,6 @@ TransactionalLevelDBTransaction::CreateIterator(leveldb::Status& s) {
       weak_factory_.GetWeakPtr(), db_->DefaultReadOptions());
   loaded_iterators_.insert(it.get());
   return it;
-}
-
-uint64_t TransactionalLevelDBTransaction::GetTransactionSize() const {
-  return scope_->GetMemoryUsage() + scope_->GetApproximateBytesWritten();
 }
 
 leveldb::Status TransactionalLevelDBTransaction::ForceWriteChangesAndUndoLog() {
@@ -146,8 +141,8 @@ void TransactionalLevelDBTransaction::EvictLoadedIterators() {
   if (loaded_iterators_.empty())
     return;
   is_evicting_all_loaded_iterators_ = true;
-  base::flat_set<TransactionalLevelDBIterator*> to_be_evicted =
-      std::move(loaded_iterators_);
+  base::flat_set<raw_ptr<TransactionalLevelDBIterator, CtnExperimental>>
+      to_be_evicted = std::move(loaded_iterators_);
   for (TransactionalLevelDBIterator* iter : to_be_evicted) {
     iter->EvictLevelDBIterator();
   }
@@ -162,14 +157,14 @@ LevelDBDirectTransaction::LevelDBDirectTransaction(
 
 LevelDBDirectTransaction::~LevelDBDirectTransaction() = default;
 
-leveldb::Status LevelDBDirectTransaction::Put(const StringPiece& key,
+leveldb::Status LevelDBDirectTransaction::Put(std::string_view key,
                                               const std::string* value) {
   DCHECK(!IsFinished());
   write_batch_->Put(key, *value);
   return leveldb::Status::OK();
 }
 
-leveldb::Status LevelDBDirectTransaction::Get(const StringPiece& key,
+leveldb::Status LevelDBDirectTransaction::Get(std::string_view key,
                                               std::string* value,
                                               bool* found) {
   *found = false;
@@ -177,15 +172,15 @@ leveldb::Status LevelDBDirectTransaction::Get(const StringPiece& key,
   DCHECK(!IsFinished());
   const std::vector<uint8_t>& prefix = db_->scopes()->metadata_key_prefix();
   DCHECK(!base::StartsWith(
-      key, base::StringPiece(reinterpret_cast<const char*>(prefix.data()),
-                             prefix.size())));
+      key, std::string_view(reinterpret_cast<const char*>(prefix.data()),
+                            prefix.size())));
 #endif
   leveldb::Status s = db_->Get(key, value, found);
   DCHECK(s.ok() || !*found);
   return s;
 }
 
-void LevelDBDirectTransaction::Remove(const StringPiece& key) {
+void LevelDBDirectTransaction::Remove(std::string_view key) {
   DCHECK(!IsFinished());
   write_batch_->Remove(key);
 }
@@ -200,4 +195,4 @@ leveldb::Status LevelDBDirectTransaction::Commit() {
   return s;
 }
 
-}  // namespace content
+}  // namespace content::indexed_db

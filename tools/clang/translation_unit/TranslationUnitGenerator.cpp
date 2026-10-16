@@ -64,7 +64,8 @@ class IncludeFinderPPCallbacks : public clang::PPCallbacks {
                           clang::OptionalFileEntryRef file,
                           llvm::StringRef search_path,
                           llvm::StringRef relative_path,
-                          const clang::Module* imported,
+                          const clang::Module* SuggestedModule,
+                          bool ModuleImported,
                           clang::SrcMgr::CharacteristicKind /*file_type*/
                           ) override;
   void EndOfMainFile() override;
@@ -131,7 +132,8 @@ void IncludeFinderPPCallbacks::FileChanged(
       current_files_.push(last_inclusion_directive_);
     } else {
       current_files_.push(std::string(
-          source_manager_->getFileEntryForID(source_manager_->getMainFileID())
+          source_manager_
+              ->getFileEntryRefForID(source_manager_->getMainFileID())
               ->getName()));
     }
   } else if (reason == ExitFile) {
@@ -144,14 +146,6 @@ void IncludeFinderPPCallbacks::AddFile(const string& path) {
   source_file_paths_->insert(path);
 }
 
-template <typename T>
-static T* getValueOrNull(llvm::ErrorOr<T*> maybe_val) {
-  if (maybe_val) {
-    return *maybe_val;
-  }
-  return nullptr;
-}
-
 void IncludeFinderPPCallbacks::InclusionDirective(
     clang::SourceLocation hash_loc,
     const clang::Token& include_tok,
@@ -161,18 +155,23 @@ void IncludeFinderPPCallbacks::InclusionDirective(
     clang::OptionalFileEntryRef file,
     llvm::StringRef search_path,
     llvm::StringRef relative_path,
-    const clang::Module* imported,
+    const clang::Module* SuggestedModule,
+    bool ModuleImported,
     clang::SrcMgr::CharacteristicKind /*file_type*/
 ) {
   if (!file)
     return;
 
   assert(!current_files_.top().empty());
-  const clang::DirectoryEntry* const search_path_entry = getValueOrNull(
-      source_manager_->getFileManager().getDirectory(search_path));
-  const clang::DirectoryEntry* const current_file_parent_entry =
-      (*source_manager_->getFileManager().getFile(current_files_.top().c_str()))
-          ->getDir();
+  const clang::OptionalDirectoryEntryRef search_path_entry =
+      source_manager_->getFileManager().getOptionalDirectoryRef(search_path);
+  const clang::OptionalFileEntryRef current_file_entry =
+      source_manager_->getFileManager().getOptionalFileRef(
+          current_files_.top().c_str());
+  const clang::OptionalDirectoryEntryRef current_file_parent_entry =
+      current_file_entry
+          ? clang::OptionalDirectoryEntryRef(current_file_entry->getDir())
+          : clang::OptionalDirectoryEntryRef(std::nullopt);
 
   // If the include file was found relatively to the current file's parent
   // directory or a search path, we need to normalize it. This is necessary
@@ -216,8 +215,9 @@ string IncludeFinderPPCallbacks::DoubleSlashSystemHeaders(
 }
 
 void IncludeFinderPPCallbacks::EndOfMainFile() {
-  const clang::FileEntry* main_file =
-      source_manager_->getFileEntryForID(source_manager_->getMainFileID());
+  clang::OptionalFileEntryRef main_file =
+      source_manager_->getFileEntryRefForID(source_manager_->getMainFileID());
+  assert(main_file.has_value());
 
   SmallVector<char, 100> main_source_file_real_path;
   SmallVector<char, 100> main_file_name_real_path;

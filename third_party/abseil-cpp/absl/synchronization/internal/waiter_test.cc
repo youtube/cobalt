@@ -44,7 +44,7 @@ extern "C" int __clock_gettime(clockid_t c, struct timespec* ts);
 extern "C" int clock_gettime(clockid_t c, struct timespec* ts) {
   if (c == CLOCK_MONOTONIC &&
       !absl::synchronization_internal::KernelTimeout::SupportsSteadyClock()) {
-    absl::SharedBitGen gen;
+    thread_local absl::BitGen gen;  // NOLINT
     ts->tv_sec = absl::Uniform(gen, 0, 1'000'000'000);
     ts->tv_nsec = absl::Uniform(gen, 0, 1'000'000'000);
     return 0;
@@ -72,7 +72,7 @@ class WaiterTest : public ::testing::Test {
 
 TYPED_TEST_SUITE_P(WaiterTest);
 
-constexpr absl::Duration slop = absl::Milliseconds(10);
+absl::Duration WithTolerance(absl::Duration d) { return d * 0.95; }
 
 TYPED_TEST_P(WaiterTest, WaitNoTimeout) {
   absl::synchronization_internal::ThreadPool tp(1);
@@ -90,7 +90,7 @@ TYPED_TEST_P(WaiterTest, WaitNoTimeout) {
   EXPECT_TRUE(
       waiter.Wait(absl::synchronization_internal::KernelTimeout::Never()));
   absl::Duration waited = absl::Now() - start;
-  EXPECT_GE(waited, absl::Seconds(2) - slop);
+  EXPECT_GE(waited, WithTolerance(absl::Seconds(2)));
 }
 
 TYPED_TEST_P(WaiterTest, WaitDurationWoken) {
@@ -107,8 +107,11 @@ TYPED_TEST_P(WaiterTest, WaitDurationWoken) {
   EXPECT_TRUE(waiter.Wait(
       absl::synchronization_internal::KernelTimeout(absl::Seconds(10))));
   absl::Duration waited = absl::Now() - start;
-  EXPECT_GE(waited, absl::Milliseconds(500) - slop);
+  EXPECT_GE(waited, WithTolerance(absl::Milliseconds(500)));
+#ifndef _MSC_VER
+  // Skip on MSVC due to flakiness.
   EXPECT_LT(waited, absl::Seconds(2));
+#endif
 }
 
 TYPED_TEST_P(WaiterTest, WaitTimeWoken) {
@@ -125,7 +128,7 @@ TYPED_TEST_P(WaiterTest, WaitTimeWoken) {
   EXPECT_TRUE(waiter.Wait(absl::synchronization_internal::KernelTimeout(
       start + absl::Seconds(10))));
   absl::Duration waited = absl::Now() - start;
-  EXPECT_GE(waited, absl::Milliseconds(500) - slop);
+  EXPECT_GE(waited, WithTolerance(absl::Milliseconds(500)));
   EXPECT_LT(waited, absl::Seconds(2));
 }
 
@@ -135,7 +138,7 @@ TYPED_TEST_P(WaiterTest, WaitDurationReached) {
   EXPECT_FALSE(waiter.Wait(
       absl::synchronization_internal::KernelTimeout(absl::Milliseconds(500))));
   absl::Duration waited = absl::Now() - start;
-  EXPECT_GE(waited, absl::Milliseconds(500) - slop);
+  EXPECT_GE(waited, WithTolerance(absl::Milliseconds(500)));
   EXPECT_LT(waited, absl::Seconds(1));
 }
 
@@ -145,7 +148,7 @@ TYPED_TEST_P(WaiterTest, WaitTimeReached) {
   EXPECT_FALSE(waiter.Wait(absl::synchronization_internal::KernelTimeout(
       start + absl::Milliseconds(500))));
   absl::Duration waited = absl::Now() - start;
-  EXPECT_GE(waited, absl::Milliseconds(500) - slop);
+  EXPECT_GE(waited, WithTolerance(absl::Milliseconds(500)));
   EXPECT_LT(waited, absl::Seconds(1));
 }
 

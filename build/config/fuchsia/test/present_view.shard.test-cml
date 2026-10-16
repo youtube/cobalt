@@ -14,7 +14,7 @@
   ],
   offer: [
     {
-      protocol: "fuchsia.logger.LogSink",
+      dictionary: "diagnostics",
       from: "parent",
       to: [
         "#isolated_a11y_manager",
@@ -27,7 +27,6 @@
       protocol: [
         "fuchsia.ui.composition.Allocator",
         "fuchsia.ui.composition.Flatland",
-        "fuchsia.ui.scenic.Scenic",
       ],
     },
     {

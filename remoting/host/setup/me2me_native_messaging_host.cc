@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -30,7 +31,6 @@
 #include "remoting/host/native_messaging/log_message_handler.h"
 #include "remoting/host/pin_hash.h"
 #include "remoting/protocol/pairing_registry.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "remoting/host/win/elevated_native_messaging_host.h"
@@ -54,12 +54,12 @@ const char* kSupportedFeatures[] = {
 
 // Helper to extract the "config" part of a message as a base::Value::Dict.
 // Returns nullptr on failure, and logs an error message.
-absl::optional<base::Value::Dict> ConfigDictionaryFromMessage(
+std::optional<base::Value::Dict> ConfigDictionaryFromMessage(
     base::Value::Dict message) {
   if (base::Value::Dict* config_dict = message.FindDict("config")) {
     return std::move(*config_dict);
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 }  // namespace
@@ -92,21 +92,20 @@ void Me2MeNativeMessagingHost::OnMessage(const std::string& message) {
   DCHECK(task_runner()->BelongsToCurrentThread());
 
   base::Value::Dict response;
-  absl::optional<base::Value> message_value = base::JSONReader::Read(message);
-  if (!message_value || !message_value->is_dict()) {
+  std::optional<base::Value::Dict> message_dict =
+      base::JSONReader::ReadDict(message);
+  if (!message_dict) {
     OnError("Received a message that's not a dictionary.");
     return;
   }
 
-  base::Value::Dict& message_dict = message_value->GetDict();
-
   // If the client supplies an ID, it will expect it in the response. This
   // might be a string or a number, so cope with both.
-  if (const base::Value* id = message_dict.Find("id")) {
+  if (const base::Value* id = message_dict->Find("id")) {
     response.Set("id", id->Clone());
   }
 
-  const std::string* type = message_dict.FindString("type");
+  const std::string* type = message_dict->FindString("type");
   if (!type) {
     OnError("'type' not found");
     return;
@@ -115,41 +114,41 @@ void Me2MeNativeMessagingHost::OnMessage(const std::string& message) {
   response.Set("type", *type + "Response");
 
   if (*type == "hello") {
-    ProcessHello(std::move(message_dict), std::move(response));
+    ProcessHello(std::move(*message_dict), std::move(response));
   } else if (*type == "clearPairedClients") {
-    ProcessClearPairedClients(std::move(message_dict), std::move(response));
+    ProcessClearPairedClients(std::move(*message_dict), std::move(response));
   } else if (*type == "deletePairedClient") {
-    ProcessDeletePairedClient(std::move(message_dict), std::move(response));
+    ProcessDeletePairedClient(std::move(*message_dict), std::move(response));
   } else if (*type == "getHostName") {
-    ProcessGetHostName(std::move(message_dict), std::move(response));
+    ProcessGetHostName(std::move(*message_dict), std::move(response));
   } else if (*type == "getPinHash") {
-    ProcessGetPinHash(std::move(message_dict), std::move(response));
+    ProcessGetPinHash(std::move(*message_dict), std::move(response));
   } else if (*type == "generateKeyPair") {
-    ProcessGenerateKeyPair(std::move(message_dict), std::move(response));
+    ProcessGenerateKeyPair(std::move(*message_dict), std::move(response));
   } else if (*type == "updateDaemonConfig") {
-    ProcessUpdateDaemonConfig(std::move(message_dict), std::move(response));
+    ProcessUpdateDaemonConfig(std::move(*message_dict), std::move(response));
   } else if (*type == "getDaemonConfig") {
-    ProcessGetDaemonConfig(std::move(message_dict), std::move(response));
+    ProcessGetDaemonConfig(std::move(*message_dict), std::move(response));
   } else if (*type == "getPairedClients") {
-    ProcessGetPairedClients(std::move(message_dict), std::move(response));
+    ProcessGetPairedClients(std::move(*message_dict), std::move(response));
   } else if (*type == "getUsageStatsConsent") {
-    ProcessGetUsageStatsConsent(std::move(message_dict), std::move(response));
+    ProcessGetUsageStatsConsent(std::move(*message_dict), std::move(response));
   } else if (*type == "startDaemon") {
-    ProcessStartDaemon(std::move(message_dict), std::move(response));
+    ProcessStartDaemon(std::move(*message_dict), std::move(response));
   } else if (*type == "stopDaemon") {
-    ProcessStopDaemon(std::move(message_dict), std::move(response));
+    ProcessStopDaemon(std::move(*message_dict), std::move(response));
   } else if (*type == "getDaemonState") {
-    ProcessGetDaemonState(std::move(message_dict), std::move(response));
+    ProcessGetDaemonState(std::move(*message_dict), std::move(response));
   } else if (*type == "getHostClientId") {
-    ProcessGetHostClientId(std::move(message_dict), std::move(response));
+    ProcessGetHostClientId(std::move(*message_dict), std::move(response));
   } else if (*type == "getCredentialsFromAuthCode") {
-    ProcessGetCredentialsFromAuthCode(std::move(message_dict),
+    ProcessGetCredentialsFromAuthCode(std::move(*message_dict),
                                       std::move(response), true);
   } else if (*type == "getRefreshTokenFromAuthCode") {
-    ProcessGetCredentialsFromAuthCode(std::move(message_dict),
+    ProcessGetCredentialsFromAuthCode(std::move(*message_dict),
                                       std::move(response), false);
   } else if (*type == "it2mePermissionCheck") {
-    ProcessIt2mePermissionCheck(std::move(message_dict), std::move(response));
+    ProcessIt2mePermissionCheck(std::move(*message_dict), std::move(response));
   } else {
     OnError("Unsupported request type: " + *type);
   }
@@ -293,7 +292,7 @@ void Me2MeNativeMessagingHost::ProcessUpdateDaemonConfig(
     }
   }
 
-  absl::optional<base::Value::Dict> config_dict =
+  std::optional<base::Value::Dict> config_dict =
       ConfigDictionaryFromMessage(std::move(message));
   if (!config_dict) {
     OnError("'config' dictionary not found");
@@ -360,13 +359,13 @@ void Me2MeNativeMessagingHost::ProcessStartDaemon(base::Value::Dict message,
     }
   }
 
-  absl::optional<bool> consent = message.FindBool("consent");
+  std::optional<bool> consent = message.FindBool("consent");
   if (!consent) {
     OnError("'consent' not found.");
     return;
   }
 
-  absl::optional<base::Value::Dict> config_dict =
+  std::optional<base::Value::Dict> config_dict =
       ConfigDictionaryFromMessage(std::move(message));
   if (!config_dict) {
     OnError("'config' dictionary not found");
@@ -481,7 +480,7 @@ void Me2MeNativeMessagingHost::ProcessIt2mePermissionCheck(
 
 void Me2MeNativeMessagingHost::SendConfigResponse(
     base::Value::Dict response,
-    absl::optional<base::Value::Dict> config) {
+    std::optional<base::Value::Dict> config) {
   DCHECK(task_runner()->BelongsToCurrentThread());
 
   if (config) {
@@ -606,7 +605,6 @@ Me2MeNativeMessagingHost::DelegateToElevatedHost(base::Value::Dict message) {
 Me2MeNativeMessagingHost::DelegationResult
 Me2MeNativeMessagingHost::DelegateToElevatedHost(base::Value::Dict message) {
   NOTREACHED();
-  return DELEGATION_FAILED;
 }
 
 #endif  // !BUILDFLAG(IS_WIN)

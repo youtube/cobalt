@@ -2,20 +2,29 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "build/build_config.h"
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
 
 #include "third_party/blink/renderer/platform/wtf/stack_util.h"
 
+#include "build/build_config.h"
 #include "base/notreached.h"
 #include "third_party/blink/renderer/platform/wtf/threading.h"
 
 #if BUILDFLAG(IS_WIN)
+#include <windows.h>
+
 #include <intrin.h>
 #include <stddef.h>
-#include <windows.h>
 #include <winnt.h>
 #elif defined(__GLIBC__)
 extern "C" void* __libc_stack_end;  // NOLINT
+#endif
+
+#if defined(ADDRESS_SANITIZER)
+#include <sanitizer/asan_interface.h>
 #endif
 
 namespace WTF {
@@ -96,7 +105,12 @@ size_t GetUnderestimatedStackSize() {
 #endif
 }
 
-void* GetStackStart() {
+namespace {
+
+// A pointer to current thread's stack beginning.
+thread_local void* thread_stack_start = nullptr;
+
+void* GetStackStartImpl() {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || \
     BUILDFLAG(IS_FREEBSD) || BUILDFLAG(IS_FUCHSIA)
   pthread_attr_t attr;
@@ -127,7 +141,6 @@ void* GetStackStart() {
 #else
   NOTREACHED() << "pthread_getattr_np() failed for stack end and no "
                   "glibc __libc_stack_end is present.";
-  return nullptr;
 #endif
 #elif BUILDFLAG(IS_APPLE)
   return pthread_get_stackaddr_np(pthread_self());
@@ -151,6 +164,35 @@ void* GetStackStart() {
 #else
 #error Unsupported getStackStart on this platform.
 #endif
+}
+
+}  // namespace
+
+void* GetStackStart() {
+  if (!thread_stack_start) {
+    thread_stack_start = GetStackStartImpl();
+  }
+  return thread_stack_start;
+}
+
+bool IsOnStack(void* address) {
+#if defined(ADDRESS_SANITIZER)
+  // If the address is part of a fake frame, then it is definitely on the stack.
+  if (__asan_addr_is_in_fake_stack(__asan_get_current_fake_stack(), address,
+                                   nullptr, nullptr)) {
+    return true;
+  }
+  // Fall through as there is still a regular stack present even when running
+  // with ASAN fake stacks.
+#endif  // defined(ADDRESS_SANITIZER)
+#if __has_feature(safe_stack)
+  if (__builtin___get_unsafe_stack_ptr() <= address &&
+      address <= __builtin___get_unsafe_stack_top()) {
+    return true;
+  }
+#endif  // __has_feature(safe_stack)
+  return (GetCurrentStackPosition() <= reinterpret_cast<uintptr_t>(address)) &&
+         (address <= GetStackStart());
 }
 
 uintptr_t GetCurrentStackPosition() {

@@ -23,12 +23,12 @@ namespace extensions {
 
 class BluetoothManifestPermission : public ManifestPermission {
  public:
-  typedef std::set<std::string> BluetoothUuidSet;
+  using BluetoothUuidSet = std::set<std::string>;
   BluetoothManifestPermission();
   ~BluetoothManifestPermission() override;
 
-  // Tries to construct the info based on |value|, as it would have appeared in
-  // the manifest. Sets |error| and returns an empty scoped_ptr on failure.
+  // Tries to construct the info based on `value`, as it would have appeared in
+  // the manifest. Sets `error` and returns an empty scoped_ptr on failure.
   static std::unique_ptr<BluetoothManifestPermission> FromValue(
       const base::Value& value,
       std::u16string* error);

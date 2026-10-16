@@ -3,14 +3,21 @@
 // found in the LICENSE file.
 
 #include "base/android/meminfo_dump_provider.h"
+
 #include <jni.h>
+
 #include "base/android/jni_android.h"
 #include "base/logging.h"
 #include "base/time/time.h"
 #include "base/trace_event/base_tracing.h"
 
 #if BUILDFLAG(ENABLE_BASE_TRACING)
-#include "base/base_jni_headers/MemoryInfoBridge_jni.h"
+#include "base/memory_jni/MemoryInfoBridge_jni.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/memory_jni/CobaltMemoryInfoBridge_jni.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 #endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
 namespace base::android {
@@ -53,7 +60,7 @@ bool MeminfoDumpProvider::OnMemoryDump(
   // would confuse data in UMA. In particular, the background/foreground session
   // filter would no longer be accurate.
   if (stale_data && args.level_of_detail !=
-                        base::trace_event::MemoryDumpLevelOfDetail::DETAILED) {
+                        base::trace_event::MemoryDumpLevelOfDetail::kDetailed) {
     return true;
   }
 
@@ -95,6 +102,14 @@ bool MeminfoDumpProvider::OnMemoryDump(
                   static_cast<uint64_t>(other_private_dirty_kb) * 1024);
   dump->AddScalar(kPssMetricName, "bytes",
                   static_cast<uint64_t>(other_pss_kb) * 1024);
+
+#if BUILDFLAG(IS_COBALT)
+  int graphics_kb = Java_CobaltMemoryInfoBridge_getGraphicsMemoryKb(env, memory_info);
+  if (graphics_kb > 0) {
+    dump->AddScalar(kGraphicsMetricName, "bytes",
+                    static_cast<uint64_t>(graphics_kb) * 1024);
+  }
+#endif
 
   return true;
 #else   // BUILDFLAG(ENABLE_BASE_TRACING)

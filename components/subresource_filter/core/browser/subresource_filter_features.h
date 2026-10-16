@@ -7,12 +7,12 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/feature_list.h"
 #include "base/memory/ref_counted.h"
 #include "base/metrics/field_trial_params.h"
-#include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "components/subresource_filter/core/common/activation_list.h"
 #include "components/subresource_filter/core/common/activation_scope.h"
@@ -103,7 +103,6 @@ struct Configuration {
   Configuration& operator=(Configuration&&);
 
   bool operator==(const Configuration& rhs) const;
-  bool operator!=(const Configuration& rhs) const;
 
   void AddToValue(base::trace_event::TracedValue*) const;
   std::unique_ptr<base::trace_event::TracedValue> ToTracedValue() const;
@@ -144,7 +143,7 @@ class ConfigurationList : public base::RefCountedThreadSafe<ConfigurationList> {
   // Returns the lexicographically greatest flavor string that is prescribed by
   // any of the configurations. The caller must hold a reference to this
   // instance while using the returned string piece.
-  base::StringPiece lexicographically_greatest_ruleset_flavor() const {
+  std::string_view lexicographically_greatest_ruleset_flavor() const {
     return lexicographically_greatest_ruleset_flavor_;
   }
 
@@ -159,7 +158,7 @@ class ConfigurationList : public base::RefCountedThreadSafe<ConfigurationList> {
   ~ConfigurationList();
 
   const std::vector<Configuration> configs_by_decreasing_priority_;
-  const base::StringPiece lexicographically_greatest_ruleset_flavor_;
+  const std::string_view lexicographically_greatest_ruleset_flavor_;
 };
 
 // Retrieves all currently enabled subresource filtering configurations. The
@@ -192,7 +191,7 @@ BASE_DECLARE_FEATURE(kFilterAdsOnAbusiveSites);
 BASE_DECLARE_FEATURE(kAdsInterventionsEnforced);
 
 // The maximum duration that an ads intervention is active for.
-// TODO(crbug.com/1131971): This currently is the default delay.
+// TODO(crbug.com/40721691): This currently is the default delay.
 // We should move to an approach where each intervention has a duration that is
 // attainable separately as a parameter for that intervention. Right now this is
 // overridden explicitly in a switch for interventions that require a different

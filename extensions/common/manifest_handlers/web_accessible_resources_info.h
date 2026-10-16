@@ -44,7 +44,7 @@ struct WebAccessibleResourcesInfo : public Extension::ManifestData {
     // List of extension ids allowed to access resources.
     base::flat_set<ExtensionId> extension_ids;
 
-    // Optionally true to require dynamic urls from sites not in |matches|.
+    // Optionally true to require dynamic urls from sites not in `matches`.
     bool use_dynamic_url;
 
     // True if "*" is defined as an extension id in the manifest.
@@ -52,10 +52,16 @@ struct WebAccessibleResourcesInfo : public Extension::ManifestData {
   };
 
   // Returns true if the specified resource is web accessible.
-  static bool IsResourceWebAccessible(
+  static bool IsResourceWebAccessible(const Extension* extension,
+                                      const std::string& relative_path,
+                                      const url::Origin* initiator_origin);
+
+  // Returns true if the specified resource is web accessible. For redirects.
+  static bool IsResourceWebAccessibleRedirect(
       const Extension* extension,
-      const std::string& relative_path,
-      const absl::optional<url::Origin>& initiator_origin);
+      const GURL& target_url,
+      const std::optional<url::Origin>& initiator_origin,
+      const GURL& upstream_url);
 
   // Returns true when 'web_accessible_resources' are defined for the extension.
   static bool HasWebAccessibleResources(const Extension* extension);

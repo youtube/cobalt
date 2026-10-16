@@ -12,26 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/player.h"
+// clang-format on
+
 #include <memory>
 #include <string>
 #include <utility>
-
-#include "starboard/player.h"
 
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
+#include "starboard/player.h"
 #include "starboard/shared/media_session/playback_state.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
-
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER
-#include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
 using ::starboard::MimeType;
 
@@ -124,10 +123,16 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
 
   const int64_t kDefaultBitRate = 0;
   if (audio_codec != kSbMediaAudioCodecNone) {
-    const MimeType audio_mime_type(audio_mime);
-    if (!MediaIsAudioSupported(
-            audio_codec, strlen(audio_mime) > 0 ? &audio_mime_type : nullptr,
-            kDefaultBitRate)) {
+    auto audio_mime_type = MimeType::Create(audio_mime);
+    if (strlen(audio_mime) > 0 && !audio_mime_type) {
+      SB_LOG(ERROR) << "Invalid audio mime type: " << audio_mime;
+      player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                        "Invalid audio mime type.");
+      return kSbPlayerInvalid;
+    }
+    if (!MediaIsAudioSupported(audio_codec,
+                               audio_mime_type ? &*audio_mime_type : nullptr,
+                               kDefaultBitRate)) {
       SB_LOG(ERROR) << "Unsupported audio codec "
                     << starboard::GetMediaAudioCodecName(audio_codec) << ".";
       player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
@@ -146,9 +151,15 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
   const int kDefaultFrameHeight = 0;
   const int kDefaultFrameRate = 0;
   if (video_codec != kSbMediaVideoCodecNone) {
-    const MimeType video_mime_type(video_mime);
+    auto video_mime_type = MimeType::Create(video_mime);
+    if (strlen(video_mime) > 0 && !video_mime_type) {
+      SB_LOG(ERROR) << "Invalid video mime type: " << video_mime;
+      player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+                        "Invalid video mime type.");
+      return kSbPlayerInvalid;
+    }
     if (!MediaIsVideoSupported(
-            video_codec, strlen(video_mime) > 0 ? &video_mime_type : nullptr,
+            video_codec, video_mime_type ? &*video_mime_type : nullptr,
             kDefaultProfile, kDefaultLevel, kDefaultColorDepth,
             kSbMediaPrimaryIdUnspecified, kSbMediaTransferIdUnspecified,
             kSbMediaMatrixIdUnspecified, kDefaultFrameWidth,
@@ -203,14 +214,14 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
       std::make_unique<starboard::FilterBasedPlayerWorkerHandler>(
           creation_param, provider);
 
-  SbPlayer player = starboard::SbPlayerPrivateImpl::CreateInstance(
+  auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
-  starboard::VideoDmpWriter::OnPlayerCreate(player, audio_codec, video_codec,
-                                            drm_system, &audio_stream_info);
+  starboard::VideoDmpWriter::OnPlayerCreate(
+      player.get(), audio_codec, video_codec, drm_system, &audio_stream_info);
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
-  return player;
+  return player.release();
 }

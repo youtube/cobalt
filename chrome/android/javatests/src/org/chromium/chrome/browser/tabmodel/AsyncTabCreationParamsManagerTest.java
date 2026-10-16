@@ -4,21 +4,21 @@
 
 package org.chromium.chrome.browser.tabmodel;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+
+import androidx.test.annotation.UiThreadTest;
 import androidx.test.filters.SmallTest;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import org.chromium.base.test.UiThreadTest;
 import org.chromium.base.test.util.Batch;
 import org.chromium.chrome.browser.app.tabmodel.AsyncTabParamsManagerSingleton;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.content_public.browser.LoadUrlParams;
 
-/**
- * Tests that the AsyncTabCreationParamsManager works as expected.
- */
+/** Tests that the AsyncTabCreationParamsManager works as expected. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @Batch(Batch.UNIT_TESTS)
 public class AsyncTabCreationParamsManagerTest {
@@ -33,10 +33,9 @@ public class AsyncTabCreationParamsManagerTest {
         subject.add(11684, asyncParams);
 
         AsyncTabParams retrievedParams = subject.remove(11684);
-        Assert.assertEquals(
-                "Removed incorrect parameters from the map", asyncParams, retrievedParams);
+        assertEquals("Removed incorrect parameters from the map", asyncParams, retrievedParams);
 
         AsyncTabParams failedParams = subject.remove(11684);
-        Assert.assertNull("Removed same parameters twice", failedParams);
+        assertNull("Removed same parameters twice", failedParams);
     }
 }

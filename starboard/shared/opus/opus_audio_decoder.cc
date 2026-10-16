@@ -19,6 +19,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/shared/starboard/media/media_tracing.h"
 
 namespace starboard {
 
@@ -42,15 +43,34 @@ static const VorbisLayout vorbis_mappings[8] = {
     {5, 3, {0, 6, 1, 2, 3, 4, 5, 7}}, /* 8: 7.1 surround */
 };
 
+constexpr int kMinimumBuffersToDecode = 2;
+constexpr int kMaxOpusFramesPerAU = 9'600;
+
 }  // namespace
 
-OpusAudioDecoder::OpusAudioDecoder(const AudioStreamInfo& audio_stream_info)
-    : audio_stream_info_(audio_stream_info) {
-  InitializeCodec();
+std::unique_ptr<OpusAudioDecoder> OpusAudioDecoder::Create(
+    JobQueue* job_queue,
+    const AudioStreamInfo& audio_stream_info) {
+  OpusMSDecoder* decoder = CreateOpusMultistreamDecoder(audio_stream_info);
+  if (!decoder) {
+    return nullptr;
+  }
+
+  return std::make_unique<OpusAudioDecoder>(
+      PassKey<OpusAudioDecoder>(), job_queue, audio_stream_info, decoder);
 }
 
+OpusAudioDecoder::OpusAudioDecoder(PassKey<OpusAudioDecoder>,
+                                   JobQueue* job_queue,
+                                   const AudioStreamInfo& audio_stream_info,
+                                   OpusMSDecoder* decoder)
+    : JobOwner(job_queue),
+      decoder_(decoder),
+      audio_stream_info_(audio_stream_info),
+      frames_per_au_(kMaxOpusFramesPerAU) {}
+
 OpusAudioDecoder::~OpusAudioDecoder() {
-  if (is_valid()) {
+  if (decoder_) {
     opus_multistream_decoder_ctl(decoder_, OPUS_RESET_STATE);
   }
   TeardownCodec();
@@ -58,7 +78,7 @@ OpusAudioDecoder::~OpusAudioDecoder() {
 
 void OpusAudioDecoder::Initialize(const OutputCB& output_cb,
                                   const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
   SB_DCHECK(error_cb);
@@ -70,10 +90,14 @@ void OpusAudioDecoder::Initialize(const OutputCB& output_cb,
 
 void OpusAudioDecoder::Decode(const InputBuffers& input_buffers,
                               const ConsumedCB& consumed_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(pending_audio_buffers_.empty());
   SB_DCHECK(output_cb_);
+
+  MEDIA_TRACE_EVENT("starboard", "OpusAudioDecoder::Decode", "timestamp",
+                    input_buffers.front()->timestamp(), "size",
+                    input_buffers.size());
 
   if (stream_ended_) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
@@ -94,8 +118,96 @@ void OpusAudioDecoder::Decode(const InputBuffers& input_buffers,
   }
 }
 
+void OpusAudioDecoder::WriteEndOfStream() {
+  SB_CHECK(BelongsToCurrentThread());
+  SB_DCHECK(output_cb_);
+
+  // Opus has no dependent frames so we needn't flush the decoder.  Set the
+  // flag to ensure that Decode() is not called when the stream is ended.
+  stream_ended_ = true;
+  if (!pending_audio_buffers_.empty()) {
+    return;
+  }
+
+  // Put EOS into the queue.
+  decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
+
+  Schedule(output_cb_);
+}
+
+std::optional<DecodedAudio> OpusAudioDecoder::Read(int* samples_per_second) {
+  SB_CHECK(BelongsToCurrentThread());
+  SB_DCHECK(output_cb_);
+  SB_DCHECK(!decoded_audios_.empty());
+
+  std::optional<DecodedAudio> result;
+  if (!decoded_audios_.empty()) {
+    result = std::move(decoded_audios_.front());
+    decoded_audios_.pop();
+  }
+  *samples_per_second = audio_stream_info_.samples_per_second;
+  return result;
+}
+
+void OpusAudioDecoder::Reset() {
+  SB_CHECK(BelongsToCurrentThread());
+
+  if (decoder_) {
+    int error = opus_multistream_decoder_ctl(decoder_, OPUS_RESET_STATE);
+    if (error != OPUS_OK) {
+      SB_LOG(ERROR) << "Failed to reset OpusAudioDecoder with error: "
+                    << opus_strerror(error);
+
+      // If fail to reset opus decoder, re-create it.
+      TeardownCodec();
+      decoder_ = CreateOpusMultistreamDecoder(audio_stream_info_);
+    }
+  }
+
+  frames_per_au_ = kMaxOpusFramesPerAU;
+  stream_ended_ = false;
+  while (!decoded_audios_.empty()) {
+    decoded_audios_.pop();
+  }
+  pending_audio_buffers_.clear();
+  consumed_cb_ = nullptr;
+
+  CancelPendingJobs();
+}
+
+OpusMSDecoder* OpusAudioDecoder::CreateOpusMultistreamDecoder(
+    const AudioStreamInfo& audio_stream_info) {
+  int error;
+  int channels = audio_stream_info.number_of_channels;
+  if (channels > 8 || channels < 1) {
+    SB_LOG(ERROR) << "Can't create decoder with " << channels << " channels";
+    return nullptr;
+  }
+
+  OpusMSDecoder* decoder = opus_multistream_decoder_create(
+      audio_stream_info.samples_per_second, channels,
+      vorbis_mappings[channels - 1].nb_streams,
+      vorbis_mappings[channels - 1].nb_coupled_streams,
+      vorbis_mappings[channels - 1].mapping, &error);
+  if (error != OPUS_OK) {
+    SB_LOG(ERROR) << "Failed to create decoder with error: "
+                  << opus_strerror(error);
+    return nullptr;
+  }
+  SB_CHECK(decoder);
+
+  return decoder;
+}
+
+void OpusAudioDecoder::TeardownCodec() {
+  if (decoder_) {
+    opus_multistream_decoder_destroy(decoder_);
+    decoder_ = nullptr;
+  }
+}
+
 void OpusAudioDecoder::DecodePendingBuffers() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!pending_audio_buffers_.empty());
   SB_DCHECK(consumed_cb_);
 
@@ -121,21 +233,21 @@ void OpusAudioDecoder::DecodePendingBuffers() {
 
 bool OpusAudioDecoder::DecodeInternal(
     const scoped_refptr<InputBuffer>& input_buffer) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
   SB_DCHECK(output_cb_);
   SB_DCHECK(!stream_ended_ || !pending_audio_buffers_.empty());
 
-  scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-      audio_stream_info_.number_of_channels, GetSampleType(),
-      kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
-      audio_stream_info_.number_of_channels * frames_per_au_ *
-          GetBytesPerSample(GetSampleType()));
+  DecodedAudio decoded_audio(audio_stream_info_.number_of_channels,
+                             GetSampleType(), input_buffer->timestamp(),
+                             audio_stream_info_.number_of_channels *
+                                 frames_per_au_ *
+                                 GetBytesPerSample(GetSampleType()));
 
   const char kDecodeFunctionName[] = "opus_multistream_decode_float";
   int decoded_frames = opus_multistream_decode_float(
       decoder_, static_cast<const unsigned char*>(input_buffer->data()),
-      input_buffer->size(), reinterpret_cast<float*>(decoded_audio->data()),
+      input_buffer->size(), reinterpret_cast<float*>(decoded_audio.data()),
       frames_per_au_, 0);
   if (decoded_frames == OPUS_BUFFER_TOO_SMALL &&
       frames_per_au_ < kMaxOpusFramesPerAU) {
@@ -159,110 +271,20 @@ bool OpusAudioDecoder::DecodeInternal(
   }
 
   frames_per_au_ = decoded_frames;
-  decoded_audio->ShrinkTo(audio_stream_info_.number_of_channels *
-                          frames_per_au_ * GetBytesPerSample(GetSampleType()));
+  decoded_audio.ShrinkTo(audio_stream_info_.number_of_channels *
+                         frames_per_au_ * GetBytesPerSample(GetSampleType()));
   const auto& sample_info = input_buffer->audio_sample_info();
-  decoded_audio->AdjustForDiscardedDurations(
+  decoded_audio.AdjustForDiscardedDurations(
       audio_stream_info_.samples_per_second,
       sample_info.discarded_duration_from_front,
       sample_info.discarded_duration_from_back);
-  decoded_audios_.push(decoded_audio);
+  decoded_audios_.push(std::move(decoded_audio));
   output_cb_();
   return true;
 }
 
-void OpusAudioDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_);
-
-  // Opus has no dependent frames so we needn't flush the decoder.  Set the
-  // flag to ensure that Decode() is not called when the stream is ended.
-  stream_ended_ = true;
-  if (!pending_audio_buffers_.empty()) {
-    return;
-  }
-
-  // Put EOS into the queue.
-  decoded_audios_.push(new DecodedAudio);
-
-  Schedule(output_cb_);
-}
-
-void OpusAudioDecoder::InitializeCodec() {
-  int error;
-  int channels = audio_stream_info_.number_of_channels;
-  if (channels > 8 || channels < 1) {
-    SB_LOG(ERROR) << "Can't create decoder with " << channels << " channels";
-    return;
-  }
-
-  decoder_ = opus_multistream_decoder_create(
-      audio_stream_info_.samples_per_second, channels,
-      vorbis_mappings[channels - 1].nb_streams,
-      vorbis_mappings[channels - 1].nb_coupled_streams,
-      vorbis_mappings[channels - 1].mapping, &error);
-  if (error != OPUS_OK) {
-    SB_LOG(ERROR) << "Failed to create decoder with error: "
-                  << opus_strerror(error);
-    decoder_ = NULL;
-    return;
-  }
-  SB_DCHECK(decoder_);
-}
-
-void OpusAudioDecoder::TeardownCodec() {
-  if (is_valid()) {
-    opus_multistream_decoder_destroy(decoder_);
-    decoder_ = NULL;
-  }
-}
-
-scoped_refptr<DecodedAudio> OpusAudioDecoder::Read(int* samples_per_second) {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_);
-  SB_DCHECK(!decoded_audios_.empty());
-
-  scoped_refptr<DecodedAudio> result;
-  if (!decoded_audios_.empty()) {
-    result = decoded_audios_.front();
-    decoded_audios_.pop();
-  }
-  *samples_per_second = audio_stream_info_.samples_per_second;
-  return result;
-}
-
-void OpusAudioDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
-
-  if (is_valid()) {
-    int error = opus_multistream_decoder_ctl(decoder_, OPUS_RESET_STATE);
-    if (error != OPUS_OK) {
-      SB_LOG(ERROR) << "Failed to reset OpusAudioDecoder with error: "
-                    << opus_strerror(error);
-
-      // If fail to reset opus decoder, re-create it.
-      TeardownCodec();
-      InitializeCodec();
-    }
-  }
-
-  frames_per_au_ = kMaxOpusFramesPerAU;
-  stream_ended_ = false;
-  while (!decoded_audios_.empty()) {
-    decoded_audios_.pop();
-  }
-  pending_audio_buffers_.clear();
-  consumed_cb_ = nullptr;
-
-  CancelPendingJobs();
-}
-
-bool OpusAudioDecoder::is_valid() const {
-  return decoder_ != NULL;
-}
-
 SbMediaAudioSampleType OpusAudioDecoder::GetSampleType() const {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   return kSbMediaAudioSampleTypeFloat32;
 }
 

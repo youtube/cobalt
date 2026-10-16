@@ -5,13 +5,14 @@
 #ifndef ASH_SYSTEM_PRIVACY_PRIVACY_INDICATORS_CONTROLLER_H_
 #define ASH_SYSTEM_PRIVACY_PRIVACY_INDICATORS_CONTROLLER_H_
 
+#include <optional>
 #include <string>
 
 #include "ash/ash_export.h"
 #include "base/functional/callback_forward.h"
+#include "base/timer/timer.h"
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
 #include "media/capture/video/chromeos/camera_hal_dispatcher_impl.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/message_center/public/cpp/notification_delegate.h"
 
 namespace ash {
@@ -26,49 +27,32 @@ class ASH_EXPORT PrivacyIndicatorsNotificationDelegate
     : public message_center::NotificationDelegate {
  public:
   explicit PrivacyIndicatorsNotificationDelegate(
-      absl::optional<base::RepeatingClosure> launch_app_callback =
-          absl::nullopt,
-      absl::optional<base::RepeatingClosure> launch_settings_callback =
-          absl::nullopt);
+      std::optional<base::RepeatingClosure> launch_settings_callback =
+          std::nullopt);
 
   PrivacyIndicatorsNotificationDelegate(
       const PrivacyIndicatorsNotificationDelegate&) = delete;
   PrivacyIndicatorsNotificationDelegate& operator=(
       const PrivacyIndicatorsNotificationDelegate&) = delete;
 
-  const absl::optional<base::RepeatingClosure>& launch_app_callback() const {
-    return launch_app_callback_;
-  }
-  const absl::optional<base::RepeatingClosure>& launch_settings_callback()
+  const std::optional<base::RepeatingClosure>& launch_settings_callback()
       const {
     return launch_settings_callback_;
   }
 
-  // Sets the value for `launch_app_callback_`/`launch_settings_callback_`. Also
-  // update the button indices.
-  void SetLaunchAppCallback(const base::RepeatingClosure& launch_app_callback);
   void SetLaunchSettingsCallback(
       const base::RepeatingClosure& launch_settings_callback);
 
   // message_center::NotificationDelegate:
-  void Click(const absl::optional<int>& button_index,
-             const absl::optional<std::u16string>& reply) override;
+  void Click(const std::optional<int>& button_index,
+             const std::optional<std::u16string>& reply) override;
 
  protected:
   ~PrivacyIndicatorsNotificationDelegate() override;
 
  private:
-  // Updates the indices of notification buttons.
-  void UpdateButtonIndices();
-
-  // Callbacks for clicking the launch app and launch settings buttons.
-  absl::optional<base::RepeatingClosure> launch_app_callback_;
-  absl::optional<base::RepeatingClosure> launch_settings_callback_;
-
-  // Button indices in the notification for launch app/launch settings.
-  // Will be null if the particular button does not exist in the notification.
-  absl::optional<int> launch_app_button_index_;
-  absl::optional<int> launch_settings_button_index_;
+  // Callback for clicking the launch settings button.
+  std::optional<base::RepeatingClosure> launch_settings_callback_;
 };
 
 // This enum contains all the sources that use privacy indicators. This enum is
@@ -93,7 +77,7 @@ struct PrivacyIndicatorsAppInfo {
   PrivacyIndicatorsAppInfo& operator=(PrivacyIndicatorsAppInfo&&) = default;
   ~PrivacyIndicatorsAppInfo();
 
-  absl::optional<std::u16string> app_name;
+  std::optional<std::u16string> app_name;
   scoped_refptr<PrivacyIndicatorsNotificationDelegate> delegate;
 };
 
@@ -126,7 +110,7 @@ class ASH_EXPORT PrivacyIndicatorsController
   // indicate its usage via the tray item indicator dot and the notification.
   void UpdatePrivacyIndicators(
       const std::string& app_id,
-      absl::optional<std::u16string> app_name,
+      std::optional<std::u16string> app_name,
       bool is_camera_used,
       bool is_microphone_used,
       scoped_refptr<PrivacyIndicatorsNotificationDelegate> delegate,
@@ -158,9 +142,41 @@ class ASH_EXPORT PrivacyIndicatorsController
     return apps_using_microphone_;
   }
 
+  // A minimum delay before privacy indicator disappears.
+  static constexpr base::TimeDelta kPrivacyIndicatorsMinimumHoldDuration =
+      base::Seconds(4);
+  // A delay before the privacy indicator disappears if they were previously
+  // used longer than `kPrivacyIndicatorsMinimumHoldDuration`.
+  static constexpr base::TimeDelta kPrivacyIndicatorsHoldAfterUseDuration =
+      base::Seconds(1);
+
  private:
   // Updates privacy indicators after camera mute state changed.
   void UpdateForCameraMuteStateChanged();
+
+  // `indicators_hiding_delay_timer_` is triggering this function when the timer
+  // expires.
+  void TriggerPrivacyIndicators(
+      bool is_camera_used,
+      bool is_microphone_used,
+      bool is_new_app,
+      bool was_camera_in_use,
+      bool was_microphone_in_use,
+      const std::string& app_id,
+      std::optional<std::u16string> app_name,
+      scoped_refptr<PrivacyIndicatorsNotificationDelegate> delegate);
+
+  // If neither camera nor microphone is in use, calculates the delay for the
+  // hiding timer.
+  base::TimeDelta CalculateIndicatorsDelayTime() const;
+
+  // If another app is using a camera and the new app tries to use the same
+  // camera but fails, returns true to indicate that the privacy indicators
+  // should be skipped.
+  bool ShouldSkipShowPrivacyIndicators(bool is_camera_used,
+                                       bool is_microphone_used,
+                                       bool is_new_app,
+                                       bool was_camera_in_use) const;
 
   // Stores the app(s) info that are currently accessing camera/microphone. The
   // key represents the app id.
@@ -174,12 +190,23 @@ class ASH_EXPORT PrivacyIndicatorsController
   // otherwise need an asynchronous call.
   bool camera_muted_by_hardware_switch_ = false;
   bool camera_muted_by_software_switch_ = false;
+
+  // The time when the privacy indicator was active.
+  base::TimeTicks privacy_indicator_time_;
+
+  // The most recent state when the privacy indicator was active.
+  std::pair<bool /*camera_state*/, bool /*microphone_state*/>
+      recent_active_state_ = {false, false};
+
+  // A timer to delay hiding a privacy indicator.
+  base::OneShotTimer indicator_hiding_delay_timer_;
 };
 
 // Update `PrivacyIndicatorsTrayItemView` screen share status across all status
 // area widgets.
-void ASH_EXPORT
-UpdatePrivacyIndicatorsScreenShareStatus(bool is_screen_sharing);
+void ASH_EXPORT UpdatePrivacyIndicatorsScreenShareStatus(
+    bool is_screen_sharing,
+    bool is_remote_screen_sharing_notification);
 
 }  // namespace ash
 

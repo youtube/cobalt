@@ -6,12 +6,12 @@
 #define EXTENSIONS_BROWSER_API_WEB_REQUEST_WEB_REQUEST_EVENT_DETAILS_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/values.h"
 #include "extensions/browser/extension_api_frame_id_map.h"
 #include "extensions/common/extension_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/origin.h"
 
 namespace net {
@@ -55,7 +55,7 @@ class WebRequestEventDetails {
 
   // Sets the following key:
   // - requestBody (on demand)
-  // Takes ownership of |request_body_data| in |*request|.
+  // Takes ownership of `request_body_data` in |*request|.
   void SetRequestBody(WebRequestInfo* request);
 
   // Sets the following key:
@@ -90,7 +90,7 @@ class WebRequestEventDetails {
   }
 
   // Create an event dictionary that contains all required keys, and also the
-  // extra keys as specified by the |extra_info_spec| filter. If the listener
+  // extra keys as specified by the `extra_info_spec` filter. If the listener
   // this event will be dispatched to doesn't have permission for the initiator
   // then the initiator will not be populated.
   // This can be called from any thread.
@@ -107,11 +107,11 @@ class WebRequestEventDetails {
   // The details that are always included in a webRequest event object.
   base::Value::Dict dict_;
 
-  // Extra event details: Only included when |extra_info_spec_| matches.
-  absl::optional<base::Value::Dict> request_body_;
-  absl::optional<base::Value::List> request_headers_;
-  absl::optional<base::Value::List> response_headers_;
-  absl::optional<url::Origin> initiator_;
+  // Extra event details: Only included when `extra_info_spec_` matches.
+  std::optional<base::Value::Dict> request_body_;
+  std::optional<base::Value::List> request_headers_;
+  std::optional<base::Value::List> response_headers_;
+  std::optional<url::Origin> initiator_;
 
   int extra_info_spec_;
 

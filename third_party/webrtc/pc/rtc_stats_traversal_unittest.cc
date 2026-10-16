@@ -11,9 +11,14 @@
 #include "pc/rtc_stats_traversal.h"
 
 #include <memory>
+#include <string>
 #include <vector>
 
+#include "api/scoped_refptr.h"
+#include "api/stats/rtc_stats.h"
+#include "api/stats/rtc_stats_report.h"
 #include "api/stats/rtcstats_objects.h"
+#include "api/units/timestamp.h"
 #include "test/gtest.h"
 
 // This file contains tests for TakeReferencedStats().
@@ -47,7 +52,7 @@ class RTCStatsTraversalTest : public ::testing::Test {
     for (const RTCStats* start_node : start_nodes) {
       start_ids.push_back(start_node->id());
     }
-    result_ = webrtc::TakeReferencedStats(initial_report_, start_ids);
+    result_ = ::webrtc::TakeReferencedStats(initial_report_, start_ids);
   }
 
   void EXPECT_VISITED(const RTCStats* stats) {
@@ -69,8 +74,8 @@ class RTCStatsTraversalTest : public ::testing::Test {
   }
 
  protected:
-  rtc::scoped_refptr<RTCStatsReport> initial_report_;
-  rtc::scoped_refptr<RTCStatsReport> result_;
+  scoped_refptr<RTCStatsReport> initial_report_;
+  scoped_refptr<RTCStatsReport> result_;
   // Raw pointers to stats owned by the reports.
   RTCTransportStats* transport_;
   RTCIceCandidatePairStats* candidate_pair_;

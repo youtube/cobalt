@@ -141,8 +141,7 @@ class MockExecutive(object):
             timeout_seconds=None,
             error_handler=None,
             return_exit_code=False,
-            return_stderr=True,
-            ignore_stderr=False,
+            stderr=STDOUT,
             decode_output=True,
             debug_logging=True):
         self._append_call(args, cwd=cwd, input=input, env=env)
@@ -180,7 +179,7 @@ class MockExecutive(object):
             error_handler(script_error)
 
         output = self._output
-        if return_stderr:
+        if stderr == self.STDOUT:
             output += self._stderr
         if decode_output:
             output = six.ensure_text(output)
@@ -263,9 +262,15 @@ class MockExecutive(object):
 
     @contextlib.contextmanager
     def patch_builtins(self):
+        # `mozprocess` subclasses `subprocess.Popen`, so patch in a real type,
+        # not just a callable.
+        class MockPopen:
+            def __new__(cls, *args, **kwargs):
+                return self.popen(*args, **kwargs)
+
         with contextlib.ExitStack() as stack:
             stack.enter_context(patch('subprocess.run', self._run_mock))
-            stack.enter_context(patch('subprocess.Popen', self.popen))
+            stack.enter_context(patch('subprocess.Popen', MockPopen))
             yield
 
 

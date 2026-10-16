@@ -8,7 +8,6 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "content/public/browser/web_ui.h"
-#include "ui/gfx/native_widget_types.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
 
 namespace crostini {
@@ -29,14 +28,9 @@ class CrostiniFileSelector : public ui::SelectFileDialog::Listener {
       base::OnceCallback<void(void)> cancelled_callback);
 
  private:
-  // Returns handle to browser window or NULL if it can't be found
-  gfx::NativeWindow GetBrowserWindow();
+  void FileSelected(const ui::SelectedFileInfo& file, int index) override;
 
-  void FileSelected(const base::FilePath& path,
-                    int index,
-                    void* params) override;
-
-  void FileSelectionCanceled(void* params) override;
+  void FileSelectionCanceled() override;
 
   raw_ptr<content::WebUI> web_ui_;
   base::OnceCallback<void(const base::FilePath&)> selected_callback_;

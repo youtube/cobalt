@@ -194,7 +194,8 @@ class ShillDeviceClientImpl : public ShillDeviceClient {
   TestInterface* GetTestInterface() override { return nullptr; }
 
  private:
-  typedef std::map<std::string, ShillClientHelper*> HelperMap;
+  typedef std::map<std::string, raw_ptr<ShillClientHelper, CtnExperimental>>
+      HelperMap;
 
   // Returns the corresponding ShillClientHelper for the profile.
   ShillClientHelper* GetHelper(const dbus::ObjectPath& device_path) {
@@ -214,7 +215,7 @@ class ShillDeviceClientImpl : public ShillDeviceClient {
     return helper;
   }
 
-  raw_ptr<dbus::Bus, ExperimentalAsh> bus_;
+  raw_ptr<dbus::Bus> bus_;
   HelperMap helpers_;
 };
 

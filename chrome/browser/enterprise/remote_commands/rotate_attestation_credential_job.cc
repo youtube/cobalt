@@ -10,6 +10,7 @@
 #include "base/json/json_writer.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
+#include "chrome/browser/enterprise/connectors/device_trust/device_trust_features.h"
 #include "chrome/browser/enterprise/connectors/device_trust/key_management/browser/commands/key_rotation_command.h"
 
 namespace enterprise_commands {
@@ -42,6 +43,15 @@ std::string CreatePayload(KeyRotationResult result) {
   return payload;
 }
 
+std::string CreateUnsupportedPayload() {
+  base::Value::Dict root_dict;
+  root_dict.Set(kResultFieldName, "unsupported");
+
+  std::string payload;
+  base::JSONWriter::Write(root_dict, &payload);
+  return payload;
+}
+
 bool IsSuccess(KeyRotationResult result) {
   return result == enterprise_connectors::DeviceTrustKeyManager::
                        KeyRotationResult::SUCCESS;
@@ -65,15 +75,12 @@ RotateAttestationCredentialJob::GetType() const {
 
 bool RotateAttestationCredentialJob::ParseCommandPayload(
     const std::string& command_payload) {
-  absl::optional<base::Value> root(base::JSONReader::Read(command_payload));
+  std::optional<base::Value::Dict> root =
+      base::JSONReader::ReadDict(command_payload);
   if (!root)
     return false;
 
-  if (!root->is_dict())
-    return false;
-
-  std::string* nonce_ptr = root->GetDict().FindString(kNoncePathField);
-
+  std::string* nonce_ptr = root->FindString(kNoncePathField);
   if (nonce_ptr && !nonce_ptr->empty()) {
     nonce_ = *nonce_ptr;
     return true;
@@ -83,6 +90,14 @@ bool RotateAttestationCredentialJob::ParseCommandPayload(
 
 void RotateAttestationCredentialJob::RunImpl(
     CallbackWithResult result_callback) {
+  if (!enterprise_connectors::IsKeyRotationEnabled()) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(result_callback), policy::ResultType::kFailure,
+                       CreateUnsupportedPayload()));
+    return;
+  }
+
   DCHECK(nonce_.has_value());
 
   key_manager_->RotateKey(

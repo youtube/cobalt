@@ -33,8 +33,7 @@ class DeviceEventRouterImpl : public DeviceEventRouter {
  public:
   explicit DeviceEventRouterImpl(
       SystemNotificationManager* notification_manager)
-      : DeviceEventRouter(notification_manager, base::Seconds(0)),
-        external_storage_disabled(false) {}
+      : DeviceEventRouter(notification_manager, base::Seconds(0)) {}
 
   DeviceEventRouterImpl(const DeviceEventRouterImpl&) = delete;
   DeviceEventRouterImpl& operator=(const DeviceEventRouterImpl&) = delete;
@@ -52,16 +51,8 @@ class DeviceEventRouterImpl : public DeviceEventRouter {
     events.push_back(event);
   }
 
-  // DeviceEventRouter overrides.
-  bool IsExternalStorageDisabled() override {
-    return external_storage_disabled;
-  }
-
   // List of dispatched events.
   std::vector<DeviceEvent> events;
-
-  // Flag returned by |IsExternalStorageDisabled|.
-  bool external_storage_disabled;
 };
 
 }  // namespace
@@ -109,7 +100,7 @@ TEST_F(DeviceEventRouterTest, AddAndRemoveDevice) {
   device_event_router->OnDiskRemoved(disk1_unmounted);
   device_event_router->OnDeviceRemoved("/device/test");
   ASSERT_EQ(1u, device_event_router->events.size());
-  EXPECT_EQ(file_manager_private::DEVICE_EVENT_TYPE_REMOVED,
+  EXPECT_EQ(file_manager_private::DeviceEventType::kRemoved,
             device_event_router->events[0].type);
   EXPECT_EQ("/device/test", device_event_router->events[0].device_path);
 }
@@ -127,10 +118,10 @@ TEST_F(DeviceEventRouterTest, HardUnplugged) {
   device_event_router->OnDeviceRemoved(kTestDevicePath);
   base::RunLoop().RunUntilIdle();
   ASSERT_EQ(2u, device_event_router->events.size());
-  EXPECT_EQ(file_manager_private::DEVICE_EVENT_TYPE_HARD_UNPLUGGED,
+  EXPECT_EQ(file_manager_private::DeviceEventType::kHardUnplugged,
             device_event_router->events[0].type);
   EXPECT_EQ("/device/test", device_event_router->events[0].device_path);
-  EXPECT_EQ(file_manager_private::DEVICE_EVENT_TYPE_REMOVED,
+  EXPECT_EQ(file_manager_private::DeviceEventType::kRemoved,
             device_event_router->events[1].type);
   EXPECT_EQ("/device/test", device_event_router->events[1].device_path);
 }
@@ -146,7 +137,7 @@ TEST_F(DeviceEventRouterTest, HardUnplugReadOnlyVolume) {
   device_event_router->OnDeviceRemoved(kTestDevicePath);
   base::RunLoop().RunUntilIdle();
   ASSERT_EQ(1u, device_event_router->events.size());
-  EXPECT_EQ(file_manager_private::DEVICE_EVENT_TYPE_REMOVED,
+  EXPECT_EQ(file_manager_private::DeviceEventType::kRemoved,
             device_event_router->events[0].type);
   EXPECT_EQ("/device/test", device_event_router->events[0].device_path);
   // Should not warn hard unplug because the volumes are read-only.
@@ -164,7 +155,7 @@ TEST_F(DeviceEventRouterTest, HardUnpluggedNotMounted) {
   device_event_router->OnDeviceRemoved(kTestDevicePath);
   base::RunLoop().RunUntilIdle();
   ASSERT_EQ(1u, device_event_router->events.size());
-  EXPECT_EQ(file_manager_private::DEVICE_EVENT_TYPE_REMOVED,
+  EXPECT_EQ(file_manager_private::DeviceEventType::kRemoved,
             device_event_router->events[0].type);
   EXPECT_EQ("/device/test", device_event_router->events[0].device_path);
   // Should not warn hard unplug because the volumes are not mounted.

@@ -37,14 +37,19 @@ class CommerceTabHelper
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
 
+  void DidStopLoading() override;
+
   void DidFinishLoad(content::RenderFrameHost* render_frame_host,
                      const GURL& validated_url) override;
+
+  void OnWebContentsFocused(content::RenderWidgetHost* host) override;
 
   void WebContentsDestroyed() override;
 
   void SetShoppingServiceForTesting(KeyedService* service);
 
  private:
+  friend class CommerceTabHelperTest;
   friend class content::WebContentsUserData<CommerceTabHelper>;
 
   CommerceTabHelper(content::WebContents* contents,

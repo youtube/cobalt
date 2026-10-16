@@ -11,11 +11,13 @@
 #include "content/browser/media/session/media_session_impl.h"
 #include "content/browser/web_contents/web_contents_android.h"
 #include "content/browser/web_contents/web_contents_impl.h"
-#include "content/public/android/content_jni_headers/MediaSessionImpl_jni.h"
 #include "content/public/browser/media_session.h"
 #include "services/media_session/public/cpp/media_image.h"
 #include "services/media_session/public/cpp/media_position.h"
 #include "services/media_session/public/mojom/audio_focus.mojom.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "content/public/android/content_jni_headers/MediaSessionImpl_jni.h"
 
 namespace content {
 
@@ -34,30 +36,15 @@ MediaSessionAndroid::MediaSessionAndroid(MediaSessionImpl* session)
   DCHECK(media_session_);
 
   JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> j_media_session =
+  j_media_session_ =
       Java_MediaSessionImpl_create(env, reinterpret_cast<intptr_t>(this));
-  j_media_session_ = JavaObjectWeakGlobalRef(env, j_media_session);
-
-  WebContentsImpl* contents =
-      static_cast<WebContentsImpl*>(media_session_->web_contents());
-  if (contents) {
-    web_contents_android_ = contents->GetWebContentsAndroid();
-    DCHECK(web_contents_android_);
-    web_contents_android_->SetMediaSession(j_media_session);
-  }
 
   session->AddObserver(observer_receiver_.BindNewPipeAndPassRemote());
 }
 
 MediaSessionAndroid::~MediaSessionAndroid() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> j_local_session = j_media_session_.get(env);
-
-  // The Java object will tear down after this call.
-  if (!j_local_session.is_null())
-    Java_MediaSessionImpl_mediaSessionDestroyed(env, j_local_session);
-
-  j_media_session_.reset();
+  Java_MediaSessionImpl_mediaSessionDestroyed(env, j_media_session_);
 }
 
 // static
@@ -68,10 +55,11 @@ ScopedJavaLocalRef<jobject> JNI_MediaSessionImpl_GetMediaSessionFromWebContents(
   if (!contents)
     return ScopedJavaLocalRef<jobject>();
 
-  MediaSessionImpl* session = MediaSessionImpl::Get(contents);
-  DCHECK(session);
-  return MediaSessionAndroid::JavaObjectGetter::GetJavaObject(
-      session->GetMediaSessionAndroid());
+  MediaSessionImpl* session =
+      static_cast<MediaSessionImpl*>(MediaSessionImpl::GetIfExists(contents));
+  return session ? MediaSessionAndroid::JavaObjectGetter::GetJavaObject(
+                       session->GetMediaSessionAndroid())
+                 : nullptr;
 }
 
 void MediaSessionAndroid::MediaSessionInfoChanged(
@@ -100,7 +88,7 @@ void MediaSessionAndroid::MediaSessionInfoChanged(
 }
 
 void MediaSessionAndroid::MediaSessionMetadataChanged(
-    const absl::optional<media_session::MediaMetadata>& metadata) {
+    const std::optional<media_session::MediaMetadata>& metadata) {
   ScopedJavaLocalRef<jobject> j_local_session = GetJavaObject();
   if (j_local_session.is_null())
     return;
@@ -157,7 +145,7 @@ void MediaSessionAndroid::MediaSessionImagesChanged(
 }
 
 void MediaSessionAndroid::MediaSessionPositionChanged(
-    const absl::optional<media_session::MediaPosition>& position) {
+    const std::optional<media_session::MediaPosition>& position) {
   ScopedJavaLocalRef<jobject> j_local_session = GetJavaObject();
   if (j_local_session.is_null())
     return;
@@ -230,7 +218,7 @@ void MediaSessionAndroid::RequestSystemAudioFocus(
 
 ScopedJavaLocalRef<jobject> MediaSessionAndroid::GetJavaObject() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  return j_media_session_.get(env);
+  return j_media_session_.AsLocalRef(env);
 }
 
 }  // namespace content

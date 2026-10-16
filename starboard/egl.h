@@ -24,17 +24,17 @@
 //
 // # EGL Version
 //
-// This API has the ability to support EGL 1.5, however it is not required to
-// support anything beyond EGL 1.4. The user is responsible for ensuring that
-// the functions from EGL 1.5 they are calling from the interface are valid.
+// This API requires support for EGL 1.5.
 
 #ifndef STARBOARD_EGL_H_
 #define STARBOARD_EGL_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/log.h"
-#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {

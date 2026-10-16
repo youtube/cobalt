@@ -2,11 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from __future__ import print_function
-
 import os
 import sys
-from typing import Any, List
+from typing import Any
 import unittest
 
 from gpu_tests import common_typing as ct
@@ -14,19 +12,7 @@ from gpu_tests import gpu_integration_test
 
 test_harness_script = r"""
   function VerifyHardwareAccelerated(feature) {
-    feature += ': '
-    var list = document.querySelector('info-view').shadowRoot.querySelector(
-        '.feature-status-list');
-    for (var i=0; i < list.childElementCount; i++) {
-      var span_list = list.children[i].getElementsByTagName('span');
-      var feature_str = span_list[0].textContent;
-      var value_str = span_list[1].textContent;
-      if ((feature_str == feature) &&
-          (value_str == 'Hardware accelerated')) {
-        return true;
-      }
-    }
-    return false;
+    return getGPUInfo('feature-status-list', feature) === 'enabled';
   };
 """
 
@@ -61,10 +47,11 @@ class HardwareAcceleratedFeatureIntegrationTest(
 
   @classmethod
   def GenerateGpuTests(cls, options: ct.ParsedCmdArgs) -> ct.TestGenerator:
-    tests = ('WebGL', 'Canvas')
+    tests = ('webgl', '2d_canvas')
     for feature in tests:
-      yield ('HardwareAcceleratedFeature_%s_accelerated' %
-             safe_feature_name(feature), 'chrome://gpu', [feature])
+      safe_name = safe_feature_name(feature)
+      yield (f'HardwareAcceleratedFeature_{safe_name}_accelerated',
+             'chrome://gpu', [feature])
 
   def RunActualGpuTest(self, test_path: str, args: ct.TestArgs) -> None:
     feature = args[0]
@@ -75,10 +62,10 @@ class HardwareAcceleratedFeatureIntegrationTest(
         'VerifyHardwareAccelerated({{ feature }})', feature=feature):
       print('Test failed. Printing page contents:')
       print(tab.EvaluateJavaScript('document.body.innerHTML'))
-      self.fail('%s not hardware accelerated' % feature)
+      self.fail(f'{feature} not hardware accelerated')
 
   @classmethod
-  def ExpectationsFiles(cls) -> List[str]:
+  def ExpectationsFiles(cls) -> list[str]:
     return [
         os.path.join(
             os.path.dirname(os.path.abspath(__file__)), 'test_expectations',

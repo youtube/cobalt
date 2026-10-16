@@ -7,6 +7,7 @@
 
 #include <memory.h>
 
+#include <optional>
 #include <utility>
 
 #include "ash/webui/system_apps/public/system_web_app_type.h"
@@ -15,13 +16,12 @@
 #include "base/one_shot_event.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
-#include "chrome/browser/ash/system_web_apps/types/system_web_app_background_task_info.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/web_applications/web_contents/web_app_url_loader.h"
+#include "chromeos/ash/experiences/system_web_apps/types/system_web_app_background_task_info.h"
 #include "components/prefs/pref_change_registrar.h"
+#include "components/webapps/browser/web_contents/web_app_url_loader.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class Profile;
 
@@ -73,7 +73,7 @@ class SystemWebAppBackgroundTask {
     return web_contents_.get();
   }
 
-  absl::optional<base::TimeDelta> period_for_testing() const { return period_; }
+  std::optional<base::TimeDelta> period_for_testing() const { return period_; }
 
   unsigned long opened_count_for_testing() const { return opened_count_; }
 
@@ -85,13 +85,13 @@ class SystemWebAppBackgroundTask {
     return polling_since_time_;
   }
 
-  web_app::WebAppUrlLoader* UrlLoaderForTesting() {
+  webapps::WebAppUrlLoader* UrlLoaderForTesting() {
     return web_app_url_loader_.get();
   }
 
   // Set the url loader for testing. Takes ownership of the argument.
   void SetUrlLoaderForTesting(
-      std::unique_ptr<web_app::WebAppUrlLoader> loader) {
+      std::unique_ptr<webapps::WebAppUrlLoader> loader) {
     web_app_url_loader_ = std::move(loader);
   }
 
@@ -115,19 +115,18 @@ class SystemWebAppBackgroundTask {
   void MaybeOpenPage();
 
   void NavigateBackgroundPage();
-  void OnLoaderReady(web_app::WebAppUrlLoader::Result);
-  void OnPageReady(web_app::WebAppUrlLoader::Result);
+  void OnPageReady(webapps::WebAppUrlLoaderResult);
 
   void CloseWebContents(content::WebContents* contents);
 
   raw_ptr<Profile> profile_;
   SystemWebAppType app_type_;
   std::unique_ptr<content::WebContents> web_contents_;
-  std::unique_ptr<web_app::WebAppUrlLoader> web_app_url_loader_;
+  std::unique_ptr<webapps::WebAppUrlLoader> web_app_url_loader_;
   std::unique_ptr<base::OneShotTimer> timer_;
   TimerState state_;
   GURL url_;
-  absl::optional<base::TimeDelta> period_;
+  std::optional<base::TimeDelta> period_;
   unsigned long opened_count_ = 0U;
   unsigned long timer_activated_count_ = 0U;
   bool open_immediately_ = false;

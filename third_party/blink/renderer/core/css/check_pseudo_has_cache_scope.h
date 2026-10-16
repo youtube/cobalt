@@ -152,7 +152,7 @@ constexpr CheckPseudoHasResult kCheckPseudoHasResultSomeChildrenChecked = 1
 // :has(<argument-selector>) checking result on each element.
 // - hashmap[<element>] = <result>
 using ElementCheckPseudoHasResultMap =
-    HeapHashMap<Member<const Element>, CheckPseudoHasResult>;
+    GCedHeapHashMap<Member<const Element>, CheckPseudoHasResult>;
 using CheckPseudoHasResultCache =
     HeapHashMap<String, Member<ElementCheckPseudoHasResultMap>>;
 
@@ -176,15 +176,15 @@ using CheckPseudoHasResultCache =
 // filter for each element.
 // - hashmap[<element>] = <filter>
 using ElementCheckPseudoHasFastRejectFilterMap =
-    HeapHashMap<Member<const Element>,
-                std::unique_ptr<CheckPseudoHasFastRejectFilter>>;
+    GCedHeapHashMap<Member<const Element>,
+                    std::unique_ptr<CheckPseudoHasFastRejectFilter>>;
 using CheckPseudoHasFastRejectFilterCache =
     HeapHashMap<CheckPseudoHasArgumentTraversalType,
                 Member<ElementCheckPseudoHasFastRejectFilterMap>>;
 
 // CheckPseudoHasCacheScope is the stack-allocated scoping class for :has()
 // pseudo class checking result cache and :has() pseudo class checking fast
-// reject filter cache.
+// reject filter cache. It also manages checking for recursive :has().
 //
 // This class has hashmap to hold the checking result and filter, so the
 // lifecycle of the caches follow the lifecycle of the CheckPseudoHasCacheScope
@@ -225,7 +225,13 @@ class CORE_EXPORT CheckPseudoHasCacheScope {
   STACK_ALLOCATED();
 
  public:
-  explicit CheckPseudoHasCacheScope(Document*);
+  // If within_selector_checking is false, we are just setting up the cache for
+  // later convenience. However, if it is true, we are actually within matching
+  // a selector, and document->IsInPseudoHasChecking() will return true while
+  // this object is in scope. This is used to make sure we do not run :has()
+  // within :has(), which isn't allowed. (It is typically disallowed by parsing,
+  // but it can be constructed through nesting.)
+  CheckPseudoHasCacheScope(Document* document, bool within_selector_checking);
   ~CheckPseudoHasCacheScope();
 
   // Context provides getter and setter of the following cache items.
@@ -284,8 +290,8 @@ class CORE_EXPORT CheckPseudoHasCacheScope {
   };
 
  private:
-  static ElementCheckPseudoHasResultMap& GetResultMap(const Document*,
-                                                      const CSSSelector*);
+  static ElementCheckPseudoHasResultMap&
+  GetResultMap(const Document*, const CSSSelector*, const ContainerNode* scope);
   static ElementCheckPseudoHasFastRejectFilterMap& GetFastRejectFilterMap(
       const Document*,
       CheckPseudoHasArgumentTraversalType);
@@ -300,6 +306,7 @@ class CORE_EXPORT CheckPseudoHasCacheScope {
   CheckPseudoHasFastRejectFilterCache fast_reject_filter_cache_;
 
   Document* document_;
+  const bool within_selector_checking_;
 };
 
 }  // namespace blink

@@ -22,12 +22,11 @@
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/input/input_device_capabilities.h"
 #include "third_party/blink/renderer/core/layout/adjust_for_absolute_zoom.h"
-#include "third_party/blink/renderer/core/layout/geometry/physical_offset.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/map_coordinates_flags.h"
 #include "third_party/blink/renderer/core/pointer_type_names.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/blink/renderer/platform/geometry/physical_offset.h"
 #include "third_party/blink/renderer/platform/widget/frame_widget.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
@@ -130,7 +129,7 @@ MouseEvent* CreateMouseOrPointerEvent(
                                   ? underlying_event->PlatformTimeStamp()
                                   : base::TimeTicks::Now();
   MouseEvent::SyntheticEventType synthetic_type = MouseEvent::kPositionless;
-  if (const auto* mouse_event = DynamicTo<MouseEvent>(underlying_event)) {
+  if (IsA<MouseEvent>(underlying_event)) {
     synthetic_type = MouseEvent::kRealOrIndistinguishable;
   }
   if (creation_scope == SimulatedClickCreationScope::kFromAccessibility) {

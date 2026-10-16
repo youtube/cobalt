@@ -5,6 +5,8 @@
 #ifndef V8_BASE_CONTAINER_UTILS_H_
 #define V8_BASE_CONTAINER_UTILS_H_
 
+#include <stddef.h>
+
 #include <algorithm>
 #include <iterator>
 #include <optional>
@@ -78,6 +80,24 @@ inline size_t count_if(const C& container, const P& predicate) {
 template <typename C, typename P>
 inline bool all_of(const C& container, const P& predicate) {
   return std::all_of(std::begin(container), std::end(container), predicate);
+}
+template <typename C>
+inline bool all_of(const C& container) {
+  return std::all_of(
+      std::begin(container), std::end(container),
+      [](const auto& value) { return static_cast<bool>(value); });
+}
+
+// Helper for std::any_of.
+template <typename C, typename P>
+inline bool any_of(const C& container, const P& predicate) {
+  return std::any_of(std::begin(container), std::end(container), predicate);
+}
+template <typename C>
+inline bool any_of(const C& container) {
+  return std::any_of(
+      std::begin(container), std::end(container),
+      [](const auto& value) { return static_cast<bool>(value); });
 }
 
 // Helper for std::none_of.

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/exo/wayland/clients/blur.h"
 
 #include <algorithm>
@@ -13,7 +18,8 @@
 #include "third_party/skia/include/core/SkImage.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/effects/SkImageFilters.h"
-#include "third_party/skia/include/gpu/GrDirectContext.h"
+#include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
+#include "third_party/skia/include/gpu/ganesh/SkImageGanesh.h"
 #include "ui/gl/gl_bindings.h"
 
 namespace exo {
@@ -33,7 +39,7 @@ const int kGridSize = 4;
 // Create grid image for |size| and |cell_size|.
 sk_sp<SkImage> CreateGridImage(const gfx::Size& size,
                                const gfx::Size& cell_size) {
-  sk_sp<SkSurface> surface(SkSurface::MakeRaster(
+  sk_sp<SkSurface> surface(SkSurfaces::Raster(
       SkImageInfo::MakeN32(size.width(), size.height(), kOpaque_SkAlphaType)));
   SkCanvas* canvas = surface->getCanvas();
   canvas->clear(SK_ColorWHITE);
@@ -185,9 +191,18 @@ void Blur::Run(double sigma_x,
       SkIRect subset;
       SkIPoint offset;
       sk_sp<SkImage> blur_image = content_surfaces.back()->makeImageSnapshot();
-      sk_sp<SkImage> blurred_image = blur_image->makeWithFilter(
-          gr_context_.get(), blur_filter.get(), blur_image->bounds(),
-          blur_image->bounds(), &subset, &offset);
+
+      sk_sp<SkImage> blurred_image;
+      if (gr_context_.get()) {
+        blurred_image = SkImages::MakeWithFilter(
+            gr_context_.get(), blur_image, blur_filter.get(), blur_image->bounds(),
+            blur_image->bounds(), &subset, &offset);
+      } else {
+        blurred_image =
+            SkImages::MakeWithFilter(blur_image, blur_filter.get(), blur_image->bounds(),
+                                     blur_image->bounds(), &subset, &offset);
+      }
+
       SkCanvas* canvas = buffer->sk_surface->getCanvas();
       canvas->save();
       SkSize size = SkSize::Make(size_.width(), size_.height());

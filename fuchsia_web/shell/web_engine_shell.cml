@@ -8,12 +8,10 @@
     // component, it's a useful way to be able to launch the component from a
     // host tool and have it run somewhere it can get the capabilities it needs
     // to function correctly.
-    // TODO(crbug.com/1410937): Run as a non-test component.
+    // TODO(crbug.com/42050572): Run as a non-test component.
     "//build/config/fuchsia/test/chromium_system_test_facet.shard.test-cml",
-    "//build/config/fuchsia/test/elf_test_ambient_exec_runner.shard.test-cml",
+    "//build/config/fuchsia/test/elf_test_runner.shard.test-cml",
     "sys/component/realm_builder_absolute.shard.cml",
-
-    "syslog/client.shard.cml",
   ],
   program: {
     binary: "web_engine_shell_exec",
@@ -28,11 +26,6 @@
         // Required to display the View in Scene Manager unless running in
         // `--headless` mode.
         "fuchsia.element.GraphicalPresenter",
-
-        // Required to display the View in Root Presenter unless running in
-        // `--headless` mode.
-        // TODO(crbug.com/1402457): Remove after transition is complete.
-        "fuchsia.ui.policy.Presenter",
       ],
       availability: "optional",
     },
@@ -65,23 +58,25 @@
         "fuchsia.fonts.Provider",
         "fuchsia.hwinfo.Product",
         "fuchsia.intl.PropertyProvider",
-        // "fuchsia.logger/LogSink", is included by the shard above.
+        // "fuchsia.logger/LogSink", is included by the RealmBuilder shard
         "fuchsia.memorypressure.Provider",
         "fuchsia.process.Launcher",
         "fuchsia.sysmem.Allocator",
+        "fuchsia.sysmem2.Allocator",
       ],
-      // TODO(crbug.com/1421351): Make required when `--use-context-provider`.
+      // TODO(crbug.com/42050582): Make required when `--use-context-provider`.
       availability: "optional",
     },
     {
       protocol: [
         // Allows CPU scheduling profiles to be applied to threads to
         // tune their performance, especially for media rendering.
-        // TODO(crbug.com/1224707): Migrate to `fuchsia.scheduler`.
+        // TODO(crbug.com/42050308): Migrate to `fuchsia.scheduler`.
         "fuchsia.media.ProfileProvider",
+        "fuchsia.scheduler.RoleManager",
 
         // Optionally used by the tracing service.
-        // TODO(crbug.com/1364196): Offer only when enabled.
+        // TODO(crbug.com/42050521): Offer only when enabled.
         "fuchsia.tracing.perfetto.ProducerConnector",
       ],
       availability: "optional",
@@ -107,13 +102,13 @@
         // Required by `fuchsia.web/ContextFeatureFlags.HARDWARE_VIDEO_DECODER`.
         "fuchsia.mediacodec.CodecFactory",
       ],
-      // TODO(crbug.com/1421351): Make required when `--use-context-provider`.
+      // TODO(crbug.com/42050582): Make required when `--use-context-provider`.
       availability: "optional",
     },
     {
       // Required by `fuchsia.web/ContextFeatureFlags.WIDEVINE_CDM` if the value
       // of the GN arg `enable_widevine` at is true.
-      // TODO(crbug.com/1379411): Use a shard to conditionally `use` based on
+      // TODO(crbug.com/40875562): Use a shard to conditionally `use` based on
       // the build-time config.
       protocol: "fuchsia.media.drm.Widevine",
       availability: "optional",
@@ -125,8 +120,6 @@
         "fuchsia.accessibility.semantics.SemanticsManager",
         "fuchsia.ui.composition.Allocator",
         "fuchsia.ui.composition.Flatland",
-        // TODO(crbug.com/1427170): Remove Scenic after migration is complete.
-        "fuchsia.ui.scenic.Scenic",
       ],
       availability: "optional",
     },
@@ -157,18 +150,13 @@
 
     // Offered for use by the relaunched
     // `fuchsia_web/shell/web_engine_shell_for_web_instance_host.cml`
-    // TODO(crbug.com/1410937): Remove when running as a non-test component and
+    // TODO(crbug.com/42050572): Remove when running as a non-test component and
     // thus the relaunch is no longer needed.
     {
       protocol: [
         // Required to display the View in Scene Manager unless running in
         // `--headless` mode.
         "fuchsia.element.GraphicalPresenter",
-
-        // Required to display the View in Root Presenter unless running in
-        // `--headless` mode.
-        // TODO(crbug.com/1402457): Remove after transition is complete.
-        "fuchsia.ui.policy.Presenter",
       ],
       from: "parent",
       to: "#realm_builder",
@@ -203,6 +191,14 @@
       availability: "optional",
     },
     {
+      // Holds ICU time zone data files.
+      // See:
+      // https://fuchsia.dev/fuchsia-src/concepts/process/namespaces?typical_directory_structure
+      directory: "tzdata-icu",
+      from: "parent",
+      to: "#realm_builder",
+    },
+    {
       // Required by `fuchsia.web/ContextFeatureFlags.NETWORK`.
       directory: "root-ssl-certificates",
       from: "parent",
@@ -220,6 +216,7 @@
         "fuchsia.memorypressure.Provider",
         "fuchsia.process.Launcher",
         "fuchsia.sysmem.Allocator",
+        "fuchsia.sysmem2.Allocator",
       ],
       from: "parent",
       to: "#realm_builder",
@@ -228,11 +225,12 @@
       protocol: [
         // Allows CPU scheduling profiles to be applied to threads to
         // tune their performance, especially for media rendering.
-        // TODO(crbug.com/1224707): Migrate to `fuchsia.scheduler`.
+        // TODO(crbug.com/42050308): Migrate to `fuchsia.scheduler`.
         "fuchsia.media.ProfileProvider",
+        "fuchsia.scheduler.RoleManager",
 
         // Optionally used by the tracing service.
-        // TODO(crbug.com/1364196): Offer only when enabled.
+        // TODO(crbug.com/42050521): Offer only when enabled.
         "fuchsia.tracing.perfetto.ProducerConnector",
       ],
       from: "parent",
@@ -266,7 +264,7 @@
     {
       // Required by `fuchsia.web/ContextFeatureFlags.WIDEVINE_CDM` if the value
       // of the GN arg `enable_widevine` at is true.
-      // TODO(crbug.com/1379411): Use a shard to conditionally `offer` based on
+      // TODO(crbug.com/40875562): Use a shard to conditionally `offer` based on
       // the build-time config.
       protocol: "fuchsia.media.drm.Widevine",
       from: "parent",
@@ -280,8 +278,6 @@
         "fuchsia.accessibility.semantics.SemanticsManager",
         "fuchsia.ui.composition.Allocator",
         "fuchsia.ui.composition.Flatland",
-        // TODO(crbug.com/1427170): Remove Scenic after migration is complete.
-        "fuchsia.ui.scenic.Scenic",
       ],
       from: "parent",
       to: "#realm_builder",
@@ -304,7 +300,7 @@
     },
   ],
   facets: {
-    // TODO(crbug.com/1410937): Remove when converting to a non-test component.
+    // TODO(crbug.com/42050572): Remove when converting to a non-test component.
     "fuchsia.test": {
       "deprecated-allowed-packages": [
         "web_engine",

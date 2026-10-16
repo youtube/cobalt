@@ -139,8 +139,8 @@ TEST_F(SetCharacterDataCommandTest, CombinedText) {
 
   ASSERT_TRUE(text_node->GetLayoutObject());
   EXPECT_EQ(R"DUMP(
-LayoutNGBlockFlow DIV id="sample" (editable)
-  +--LayoutNGTextCombine (anonymous)
+LayoutBlockFlow DIV id="sample" (editable)
+  +--LayoutTextCombine (anonymous)
   |  +--LayoutText #text ""
 )DUMP",
             ToSimpleLayoutTree(sample_layout_object));
@@ -152,8 +152,8 @@ LayoutNGBlockFlow DIV id="sample" (editable)
 
   ASSERT_TRUE(text_node->GetLayoutObject());
   EXPECT_EQ(R"DUMP(
-LayoutNGBlockFlow DIV id="sample" (editable)
-  +--LayoutNGTextCombine (anonymous)
+LayoutBlockFlow DIV id="sample" (editable)
+  +--LayoutTextCombine (anonymous)
   |  +--LayoutText #text "text"
 )DUMP",
             ToSimpleLayoutTree(sample_layout_object));
@@ -163,8 +163,8 @@ LayoutNGBlockFlow DIV id="sample" (editable)
 
   ASSERT_TRUE(text_node->GetLayoutObject());
   EXPECT_EQ(R"DUMP(
-LayoutNGBlockFlow DIV id="sample" (editable)
-  +--LayoutNGTextCombine (anonymous)
+LayoutBlockFlow DIV id="sample" (editable)
+  +--LayoutTextCombine (anonymous)
   |  +--LayoutText #text ""
 )DUMP",
             ToSimpleLayoutTree(sample_layout_object));

@@ -45,10 +45,6 @@ hue-slider {
 }
 
 eye-dropper {
-  background-image: url(eye_dropper_icon.svg);
-  background-origin: content-box;
-  background-repeat: no-repeat;
-  background-size: contain;
   border-radius: 2px;
   box-sizing: border-box;
   height: 32px;
@@ -168,7 +164,7 @@ format-toggler:hover {
   background-color: #F7F7F7;
 }
 
-#up-down-icon {
+.icon-container {
   display: flex;
   align-items: center;
 }
@@ -192,36 +188,6 @@ channel-label {
   width: 172px;
 }
 
-system-color-picker {
-  border-radius: 2px;
-  border: 1px solid #CECECE;
-  height: 10px;
-  line-height: 10px;
-  margin-bottom: 2%;
-  margin-left: auto;
-  margin-right: auto;
-  margin-top: 4%;
-  overflow: hidden;
-  padding: 6px;
-  position: relative;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  width: 200px;
-}
-
-system-color-picker.hidden {
-  display: none;
-}
-
-system-color-picker:not(.selected):hover {
-  background-color: #F7F7F7;
-}
-
-system-color-picker.selected {
-  background-color: #CECECE;
-}
-
 @media (forced-colors: active) {
   color-viewer {
     forced-color-adjust: none;
@@ -233,6 +199,9 @@ system-color-picker.selected {
   }
   color-selection-ring {
     forced-color-adjust: none;
+  }
+  color-selection-ring:focus {
+    color: Highlight;
   }
   color-picker {
     border: 1px solid WindowText;
@@ -258,10 +227,6 @@ system-color-picker.selected {
     border: 1px solid #858585;
   }
 
-  eye-dropper {
-    background-image: url(eye_dropper_icon_dark.svg);
-  }
-
   eye-dropper.selected {
     background-color: #454545;
   }
@@ -285,16 +250,4 @@ system-color-picker.selected {
     fill: #FFFFFF;
   }
 
-  system-color-picker {
-    border: 1px solid #858585;
-  }
-
-  system-color-picker:not(.selected):hover {
-    border: 1px solid #ACACAC;
-    background-color: #545454;
-  }
-
-  system-color-picker.selected {
-    background-color: #545454;
-  }
  }

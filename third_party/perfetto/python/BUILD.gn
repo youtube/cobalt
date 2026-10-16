@@ -24,10 +24,9 @@ perfetto_py_library("trace_processor_table_generator") {
 
 perfetto_py_library("trace_processor_stdlib_docs") {
   sources = [
-    "generators/stdlib_docs/parse.py",
-    "generators/stdlib_docs/stdlib.py",
-    "generators/stdlib_docs/utils.py",
-    "generators/stdlib_docs/validate.py",
+    "generators/sql_processing/docs_extractor.py",
+    "generators/sql_processing/docs_parse.py",
+    "generators/sql_processing/utils.py",
   ]
 }
 
@@ -48,7 +47,14 @@ perfetto_py_binary("trace_processor_py_example") {
   main = "example.py"
 }
 
-perfetto_py_library("trace_processor_py") {
+perfetto_py_library("common") {
+  sources = [
+    "perfetto/common/exceptions.py",
+    "perfetto/common/query_result_iterator.py",
+  ]
+}
+
+perfetto_py_library("trace_processor_py_no_resolvers") {
   sources = [
     "perfetto/trace_processor/__init__.py",
     "perfetto/trace_processor/api.py",
@@ -63,10 +69,18 @@ perfetto_py_library("trace_processor_py") {
     "..:trace_processor_shell",
   ]
   deps = [
+    ":common",
     ":trace_uri_resolver",
     "../gn:pandas_py",
     "../gn:protobuf_py",
     "../gn:tp_vendor_py",
+  ]
+}
+
+perfetto_py_library("trace_processor_py") {
+  deps = [
+    ":trace_processor_py_no_resolvers",
+    "../gn:tp_resolvers_py",
   ]
 }
 
@@ -108,5 +122,13 @@ perfetto_py_library("batch_trace_processor") {
     ":trace_processor_py",
     "../gn:pandas_py",
     "../gn:tp_vendor_py",
+  ]
+}
+
+perfetto_py_library("sql_processing") {
+  sources = [
+    "generators/sql_processing/docs_extractor.py",
+    "generators/sql_processing/docs_parse.py",
+    "generators/sql_processing/utils.py",
   ]
 }

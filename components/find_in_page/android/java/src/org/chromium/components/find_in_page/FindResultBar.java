@@ -4,6 +4,8 @@
 
 package org.chromium.components.find_in_page;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ObjectAnimator;
@@ -20,10 +22,11 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import org.chromium.base.MathUtils;
-import org.chromium.ui.KeyboardVisibilityDelegate;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.WindowAndroid;
-import org.chromium.ui.interpolators.BakedBezierInterpolator;
+import org.chromium.ui.interpolators.Interpolators;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,6 +38,7 @@ import java.util.List;
  * The view that shows the positions of the find in page matches and allows scrubbing
  * between the entries.
  */
+@NullMarked
 public class FindResultBar extends View {
     private static final int VISIBILITY_ANIMATION_DURATION_MS = 200;
 
@@ -53,12 +57,12 @@ public class FindResultBar extends View {
     private final int mMinGapBetweenStacks;
     private final int mStackedResultHeight;
 
-    private FindInPageBridge mFindInPageBridge;
+    private @Nullable FindInPageBridge mFindInPageBridge;
     private final WindowAndroid mWindowAndroid;
 
     private int mRectsVersion = -1;
     private RectF[] mMatches = new RectF[0];
-    private RectF mActiveMatch;
+    private @Nullable RectF mActiveMatch;
 
     private ArrayList<Tickmark> mTickmarks = new ArrayList<Tickmark>(0);
     private int mBarHeightForWhichTickmarksWereCached = -1;
@@ -71,14 +75,15 @@ public class FindResultBar extends View {
 
     private boolean mWaitingForActivateAck;
 
-    private static Comparator<RectF> sComparator = new Comparator<RectF>() {
-        @Override
-        public int compare(RectF a, RectF b) {
-            int top = Float.compare(a.top, b.top);
-            if (top != 0) return top;
-            return Float.compare(a.left, b.left);
-        }
-    };
+    private static final Comparator<RectF> sComparator =
+            new Comparator<RectF>() {
+                @Override
+                public int compare(RectF a, RectF b) {
+                    int top = Float.compare(a.top, b.top);
+                    if (top != 0) return top;
+                    return Float.compare(a.left, b.left);
+                }
+            };
 
     /**
      * Creates an instance of a {@link FindResultBar}. Also adds it to a parent {@link FrameLayout}
@@ -88,7 +93,10 @@ public class FindResultBar extends View {
      * @param windowAndroid The WindowAndroid hosting the WebContents under search.
      * @param findInPageBridge Facilitator for user interactions.
      */
-    public FindResultBar(Context context, FrameLayout parent, WindowAndroid windowAndroid,
+    public FindResultBar(
+            Context context,
+            FrameLayout parent,
+            WindowAndroid windowAndroid,
             FindInPageBridge findInPageBridge) {
         super(context);
 
@@ -100,8 +108,9 @@ public class FindResultBar extends View {
         mActiveColor = context.getColor(R.color.find_result_bar_active_color);
         mActiveBorderColor = context.getColor(R.color.find_result_bar_active_border_color);
         mBarTouchWidth = res.getDimensionPixelSize(R.dimen.find_result_bar_touch_width);
-        mBarDrawWidth = res.getDimensionPixelSize(R.dimen.find_result_bar_draw_width)
-                + res.getDimensionPixelSize(R.dimen.find_result_bar_separator_width);
+        mBarDrawWidth =
+                res.getDimensionPixelSize(R.dimen.find_result_bar_draw_width)
+                        + res.getDimensionPixelSize(R.dimen.find_result_bar_separator_width);
         mResultMinHeight = res.getDimensionPixelSize(R.dimen.find_result_bar_result_min_height);
         mActiveMinHeight = res.getDimensionPixelSize(R.dimen.find_result_bar_active_min_height);
         mBarVerticalPadding = res.getDimensionPixelSize(R.dimen.find_result_bar_vertical_padding);
@@ -120,14 +129,15 @@ public class FindResultBar extends View {
 
         mFindInPageBridge = findInPageBridge;
 
-        parent.addView(this,
+        parent.addView(
+                this,
                 new FrameLayout.LayoutParams(
                         mBarTouchWidth, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.END));
         setTranslationX(MathUtils.flipSignIf(mBarTouchWidth, LocalizationUtils.isLayoutRtl()));
 
         mVisibilityAnimation = ObjectAnimator.ofFloat(this, TRANSLATION_X, 0);
         mVisibilityAnimation.setDuration(VISIBILITY_ANIMATION_DURATION_MS);
-        mVisibilityAnimation.setInterpolator(BakedBezierInterpolator.FADE_IN_CURVE);
+        mVisibilityAnimation.setInterpolator(Interpolators.LINEAR_OUT_SLOW_IN_INTERPOLATOR);
 
         mWindowAndroid = windowAndroid;
         if (windowAndroid == null) {
@@ -144,23 +154,29 @@ public class FindResultBar extends View {
             mVisibilityAnimation.cancel();
         }
 
-        mVisibilityAnimation = ObjectAnimator.ofFloat(this, TRANSLATION_X,
-                MathUtils.flipSignIf(mBarTouchWidth, LocalizationUtils.isLayoutRtl()));
+        mVisibilityAnimation =
+                ObjectAnimator.ofFloat(
+                        this,
+                        TRANSLATION_X,
+                        MathUtils.flipSignIf(mBarTouchWidth, LocalizationUtils.isLayoutRtl()));
         mVisibilityAnimation.setDuration(VISIBILITY_ANIMATION_DURATION_MS);
-        mVisibilityAnimation.setInterpolator(BakedBezierInterpolator.FADE_OUT_CURVE);
+        mVisibilityAnimation.setInterpolator(Interpolators.FAST_OUT_LINEAR_IN_INTERPOLATOR);
         mWindowAndroid.startAnimationOverContent(mVisibilityAnimation);
-        mVisibilityAnimation.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                super.onAnimationEnd(animation);
+        mVisibilityAnimation.addListener(
+                new AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationEnd(Animator animation) {
+                        super.onAnimationEnd(animation);
 
-                if (getParent() != null) ((ViewGroup) getParent()).removeView(FindResultBar.this);
-            }
-        });
+                        if (getParent() != null) {
+                            ((ViewGroup) getParent()).removeView(FindResultBar.this);
+                        }
+                    }
+                });
     }
 
     /** Setup the tickmarks to draw using the rects of the find results. */
-    public void setMatchRects(int version, RectF[] rects, RectF activeRect) {
+    public void setMatchRects(int version, RectF[] rects, @Nullable RectF activeRect) {
         if (mRectsVersion != version) {
             mRectsVersion = version;
             assert rects != null;
@@ -191,12 +207,15 @@ public class FindResultBar extends View {
     @Override
     @SuppressLint("ClickableViewAccessibility")
     public boolean onTouchEvent(MotionEvent event) {
-        if (!mDismissing && mTickmarks.size() > 0 && mTickmarks.size() == mMatches.length
-                && !mWaitingForActivateAck && event.getAction() != MotionEvent.ACTION_CANCEL) {
+        if (!mDismissing
+                && mTickmarks.size() > 0
+                && mTickmarks.size() == mMatches.length
+                && !mWaitingForActivateAck
+                && event.getAction() != MotionEvent.ACTION_CANCEL) {
             // We decided it's more important to get the keyboard out of the
             // way asap; the user can compensate if their next MotionEvent
             // scrolls somewhere unintended.
-            KeyboardVisibilityDelegate.getInstance().hideKeyboard(this);
+            mWindowAndroid.getKeyboardDelegate().hideKeyboard(this);
 
             // Identify which drawn tickmark is closest to the user's finger.
             int closest =
@@ -224,6 +243,7 @@ public class FindResultBar extends View {
             // it will activate whatever find result is currently closest to
             // that point (which will usually be the same one).
             mWaitingForActivateAck = true;
+            assumeNonNull(mFindInPageBridge);
             mFindInPageBridge.activateNearestFindResult(
                     mMatches[closest].centerX(), mMatches[closest].centerY());
         }
@@ -235,6 +255,7 @@ public class FindResultBar extends View {
         super.onSizeChanged(w, h, oldw, oldh);
         // Check for new rects, as they may move if the document size changes.
         if (!mDismissing && mMatches.length > 0) {
+            assumeNonNull(mFindInPageBridge);
             mFindInPageBridge.requestFindMatchRects(mRectsVersion);
         }
     }
@@ -247,8 +268,10 @@ public class FindResultBar extends View {
         mFillPaint.setColor(mBackgroundColor);
         mStrokePaint.setColor(mBackgroundBorderColor);
         canvas.drawRect(leftMargin, 0, leftMargin + mBarDrawWidth, getHeight(), mFillPaint);
-        float lineX = LocalizationUtils.isLayoutRtl() ? leftMargin + mBarDrawWidth - 0.5f
-                                                      : leftMargin + 0.5f;
+        float lineX =
+                LocalizationUtils.isLayoutRtl()
+                        ? leftMargin + mBarDrawWidth - 0.5f
+                        : leftMargin + 0.5f;
         canvas.drawLine(lineX, 0, lineX, getHeight(), mStrokePaint);
 
         if (mMatches.length == 0) {
@@ -331,9 +354,10 @@ public class FindResultBar extends View {
                     lastGroupEnd - (cn - 1) * mStackedResultHeight - mResultMinHeight;
             float maxStart = cluster.get(0).mTop;
             float start = Math.round(MathUtils.clamp(preferredStart, minStart, maxStart));
-            float scale = start >= preferredStart
-                    ? 1.0f
-                    : (lastGroupEnd - start) / (lastGroupEnd - preferredStart);
+            float scale =
+                    start >= preferredStart
+                            ? 1.0f
+                            : (lastGroupEnd - start) / (lastGroupEnd - preferredStart);
             float spacing =
                     cn == 1 ? 0 : (lastGroupEnd - start - scale * mResultMinHeight) / (cn - 1);
             for (int j = 0; j < cn; j++) {
@@ -350,8 +374,10 @@ public class FindResultBar extends View {
     private Tickmark tickmarkForRect(RectF r, boolean active) {
         // Ratio of results bar height to page height
         float vScale = mBarHeightForWhichTickmarksWereCached - 2 * mBarVerticalPadding;
-        Tickmark tickmark = new Tickmark(
-                r.top * vScale + mBarVerticalPadding, r.bottom * vScale + mBarVerticalPadding);
+        Tickmark tickmark =
+                new Tickmark(
+                        r.top * vScale + mBarVerticalPadding,
+                        r.bottom * vScale + mBarVerticalPadding);
         return expandTickmarkToMinHeight(tickmark, active);
     }
 
@@ -369,16 +395,20 @@ public class FindResultBar extends View {
     private class Tickmark implements Comparable<Tickmark> {
         float mTop;
         float mBottom;
+
         Tickmark(float top, float bottom) {
             this.mTop = top;
             this.mBottom = bottom;
         }
+
         float height() {
             return mBottom - mTop;
         }
+
         float centerY() {
             return (mTop + mBottom) * 0.5f;
         }
+
         RectF toRectF() {
             int leftMargin = getLeftMargin();
             RectF rect = new RectF(leftMargin, mTop, leftMargin + mBarDrawWidth, mBottom);
@@ -386,6 +416,7 @@ public class FindResultBar extends View {
             rect.offset(LocalizationUtils.isLayoutRtl() ? -0.5f : 0.5f, 0);
             return rect;
         }
+
         @Override
         public int compareTo(Tickmark other) {
             return Float.compare(centerY(), other.centerY());

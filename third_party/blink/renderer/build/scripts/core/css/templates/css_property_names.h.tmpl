@@ -5,6 +5,8 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSS_PROPERTY_NAMES_H_
 
 #include <stddef.h>
+
+#include "base/check_op.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -32,6 +34,10 @@ const CSSPropertyID kCSSPropertyAliasList[] = {
 
 const CSSPropertyID kCSSComputableProperties[] = {
 {{computable_properties}}
+};
+
+inline constexpr CSSPropertyID kCSSIncludesCurrentColorProperties[] = {
+  {{includes_currentcolor_properties}}
 };
 
 // The lowest CSSPropertyID excluding kInvalid and kVariable.
@@ -65,12 +71,12 @@ static_assert((static_cast<size_t>(1) << kCSSPropertyIDBitLength) >
                   static_cast<size_t>(kLastUnresolvedCSSProperty),
               "kCSSPropertyIDBitLength has enough bits");
 
-static_assert(CSSPropertyID::kColor == kFirstHighPriorityCSSProperty,
-              "CSSPropertyID::kColor is the first high-priority property");
-static_assert(CSSPropertyID::kZoom == kLastHighPriorityCSSProperty,
-              "CSSPropertyID::kZoom is the last high-priority property");
+// These are basically just change-detector tests, so that we do not
+// accidentally add new high-priority properties or break the code generator.
+static_assert(CSSPropertyID::kColorScheme == kFirstHighPriorityCSSProperty);
+static_assert(CSSPropertyID::kZoom == kLastHighPriorityCSSProperty);
 static_assert((static_cast<int>(kLastHighPriorityCSSProperty) -
-               static_cast<int>(kFirstHighPriorityCSSProperty)) == 31,
+               static_cast<int>(kFirstHighPriorityCSSProperty)) == 41,
               "There should a low number of high-priority properties");
 
 inline int GetCSSPropertyIDIndex(CSSPropertyID id) {
@@ -115,9 +121,6 @@ inline CSSPropertyID ResolveCSSPropertyID(CSSPropertyID id)
   return ConvertToCSSPropertyID(int_id);
 }
 
-CSSPropertyID CORE_EXPORT UnresolvedCSSPropertyID(const ExecutionContext*,
-                                                  const WTF::String&);
-
 CSSPropertyID CORE_EXPORT CssPropertyID(const ExecutionContext*,
                                         const WTF::String&);
 
@@ -146,17 +149,5 @@ class CSSPropertyIDList {
 mojom::blink::CSSSampleId CORE_EXPORT GetCSSSampleId(CSSPropertyID id);
 
 }  // namespace blink
-
-// Even though these hash traits are not affected by code generation,
-// it's important to define them in the same file as CSSPropertyID to avoid
-// hard-to-diagnose problems from neglecting to include said traits.
-// See https://crbug.com/1246970.
-namespace WTF {
-template <>
-struct HashTraits<blink::CSSPropertyID>
-    : EnumHashTraits<blink::CSSPropertyID,
-                     blink::CSSPropertyID::kInvalid,
-                     blink::kNumCSSPropertyIDs> {};
-}  // namespace WTF
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSS_PROPERTY_NAMES_H_

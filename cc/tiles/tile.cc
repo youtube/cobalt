@@ -25,7 +25,7 @@ Tile::Tile(TileManager* tile_manager,
            int source_frame_number,
            int flags)
     : tile_manager_(tile_manager),
-      tiling_(info.tiling.get()),
+      tiling_(info.tiling),
       content_rect_(info.content_rect),
       enclosing_layer_rect_(info.enclosing_layer_rect),
       raster_transform_(info.raster_transform),
@@ -34,11 +34,7 @@ Tile::Tile(TileManager* tile_manager,
       flags_(flags),
       tiling_i_index_(info.tiling_i_index),
       tiling_j_index_(info.tiling_j_index),
-      required_for_activation_(false),
-      required_for_draw_(false),
-      is_solid_color_analysis_performed_(false),
       can_use_lcd_text_(info.can_use_lcd_text),
-      raster_task_scheduled_with_checker_images_(false),
       id_(tile_manager->GetUniqueTileId()) {
   raster_rects_.emplace_back(info.content_rect, info.raster_transform);
 }
@@ -47,6 +43,7 @@ Tile::~Tile() {
   TRACE_EVENT_OBJECT_DELETED_WITH_ID(
       TRACE_DISABLED_BY_DEFAULT("cc.debug"),
       "cc::Tile", this);
+  deleted_ = true;
   tile_manager_->Release(this);
 }
 

@@ -6,7 +6,6 @@
 #define ASH_HUD_DISPLAY_FPS_GRAPH_PAGE_VIEW_H_
 
 #include "base/memory/raw_ptr.h"
-#include "time.h"
 
 #include "ash/hud_display/graph.h"
 #include "ash/hud_display/graph_page_view_base.h"
@@ -32,9 +31,9 @@ class FPSGraphPageView : public GraphPageViewBase,
                          public ui::CompositorObserver,
                          public views::WidgetObserver,
                          public aura::WindowObserver {
- public:
-  METADATA_HEADER(FPSGraphPageView);
+  METADATA_HEADER(FPSGraphPageView, GraphPageViewBase)
 
+ public:
   explicit FPSGraphPageView(const base::TimeDelta refresh_interval);
   FPSGraphPageView(const FPSGraphPageView&) = delete;
   FPSGraphPageView& operator=(const FPSGraphPageView&) = delete;
@@ -79,7 +78,7 @@ class FPSGraphPageView : public GraphPageViewBase,
   // Active display refresh rate.
   Graph refresh_rate_;
 
-  raw_ptr<ReferenceLines, ExperimentalAsh> reference_lines_;  // not owned
+  raw_ptr<ReferenceLines> reference_lines_;  // not owned
 
   float frame_rate_for_last_half_second_;
 

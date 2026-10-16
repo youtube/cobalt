@@ -10,9 +10,9 @@
 #include "ash/constants/ash_switches.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
-#include "chrome/browser/ash/login/test/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/login/test/session_manager_state_waiter.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_browser_test.h"
+#include "chrome/browser/ash/policy/test_support/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -88,8 +88,8 @@ class BrowserCleanupHandlerTest : public policy::DevicePolicyCrosBrowserTest {
   void RunBrowserCleanupHandler() {
     base::RunLoop run_loop;
     auto success_check_callback = base::BindLambdaForTesting(
-        [&](const absl::optional<std::string>& error) {
-          EXPECT_EQ(error, absl::nullopt);
+        [&](const std::optional<std::string>& error) {
+          EXPECT_EQ(error, std::nullopt);
           run_loop.QuitClosure().Run();
         });
 

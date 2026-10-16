@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "components/safe_browsing/core/common/safebrowsing_referral_methods.h"
 #include "components/security_interstitials/content/settings_page_helper.h"
 
 namespace content {
@@ -18,7 +19,7 @@ namespace security_interstitials {
 // This class is used to open a Chrome setting page in a security interstitial.
 // The implementation is different on desktop platforms and on Android. On
 // desktop, it opens a new tab and navigation to chrome://settings/*.
-// TODO(crbug.com/1130721): On Android, it creates an intent to launch a
+// TODO(crbug.com/40720989): On Android, it creates an intent to launch a
 // Settings activity.
 class ChromeSettingsPageHelper : public SettingsPageHelper {
  public:
@@ -30,11 +31,16 @@ class ChromeSettingsPageHelper : public SettingsPageHelper {
   ChromeSettingsPageHelper(const ChromeSettingsPageHelper&) = delete;
   ChromeSettingsPageHelper& operator=(const ChromeSettingsPageHelper&) = delete;
 
-  // SettingsPageHelper:
+  // SettingsPageHelper::
   void OpenEnhancedProtectionSettings(
       content::WebContents* web_contents) const override;
   void OpenEnhancedProtectionSettingsWithIph(
-      content::WebContents* web_contents) const override;
+      content::WebContents* web_contents,
+      safe_browsing::SafeBrowsingSettingReferralMethod referral_method)
+      const override;
+#if BUILDFLAG(IS_ANDROID)
+  void OpenAdvancedProtectionSettings(content::WebContents&) override;
+#endif  // BUILDFLAG(IS_ANDROID)
 };
 
 }  // namespace security_interstitials

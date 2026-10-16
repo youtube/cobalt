@@ -4,18 +4,14 @@ rootWebArea
 ++++++ruby description='ruby text' descriptionFrom=rubyAnnotation
 ++++++++staticText name='ruby base'
 ++++++++++inlineTextBox name='ruby base'
-++++++++rubyAnnotation ignored invisible
-++++++++++staticText ignored invisible name='('
 ++++++++rubyAnnotation ignored
-++++++++++staticText ignored name='ruby text'
-++++++++rubyAnnotation ignored invisible
-++++++++++staticText ignored invisible name=')'
+++++++++++staticText ignored
 ++++++paragraph
 ++++++++ruby description='ruby text' descriptionFrom=rubyAnnotation
 ++++++++++staticText name='ruby base'
 ++++++++++++inlineTextBox name='ruby base'
 ++++++++++rubyAnnotation ignored
-++++++++++++staticText ignored name='ruby text'
+++++++++++++staticText ignored
 ++++++paragraph
 ++++++++staticText name='Hi! '
 ++++++++++inlineTextBox name='Hi! '
@@ -23,4 +19,11 @@ rootWebArea
 ++++++++++staticText name='ruby base'
 ++++++++++++inlineTextBox name='ruby base'
 ++++++++++rubyAnnotation ignored
-++++++++++++staticText ignored name='ruby text'
+++++++++++++staticText ignored
+++++++paragraph
+++++++++ruby description='ruby text' descriptionFrom=rubyAnnotation
+++++++++++staticText name='ruby base'
+++++++++++++inlineTextBox name='ruby '
+++++++++++++inlineTextBox name='base'
+++++++++++rubyAnnotation ignored
+++++++++++++staticText ignored

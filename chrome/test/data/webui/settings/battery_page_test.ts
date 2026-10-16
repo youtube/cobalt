@@ -4,9 +4,13 @@
 
 import 'chrome://settings/settings.js';
 
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {BATTERY_SAVER_MODE_PREF, BatterySaverModeState, PerformanceBrowserProxyImpl, PerformanceMetricsProxyImpl, SettingsBatteryPageElement} from 'chrome://settings/settings.js';
+import type {CrCollapseElement, SettingsRadioGroupElement} from 'chrome://settings/lazy_load.js';
+import type {ControlledRadioButtonElement, SettingsBatteryPageElement, SettingsToggleButtonElement} from 'chrome://settings/settings.js';
+import {BATTERY_SAVER_MODE_PREF, BatterySaverModeState, PerformanceBrowserProxyImpl, PerformanceMetricsProxyImpl} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestPerformanceBrowserProxy} from './test_performance_browser_proxy.js';
 import {TestPerformanceMetricsProxy} from './test_performance_metrics_proxy.js';
@@ -17,6 +21,7 @@ suite('BatteryPage', function() {
   let performanceMetricsProxy: TestPerformanceMetricsProxy;
 
   setup(function() {
+    loadTimeData.overrideValues({isBatterySaverModeManagedByOS: false});
     performanceBrowserProxy = new TestPerformanceBrowserProxy();
     PerformanceBrowserProxyImpl.setInstance(performanceBrowserProxy);
 
@@ -36,7 +41,7 @@ suite('BatteryPage', function() {
       },
     });
     document.body.appendChild(batteryPage);
-    flush();
+    return microtasksFinished();
   });
 
   test('testBatterySaverModeEnabledOnBattery', function() {
@@ -44,16 +49,20 @@ suite('BatteryPage', function() {
         BATTERY_SAVER_MODE_PREF, BatterySaverModeState.ENABLED_ON_BATTERY);
     flush();
     assertTrue(
-        batteryPage.$.toggleButton.checked,
+        batteryPage.shadowRoot!
+            .querySelector<SettingsToggleButtonElement>(
+                '#toggleButton')!.checked,
         'toggle should be checked when battery saver mode is enabled on ' +
             'battery');
     assertTrue(
-        batteryPage.$.radioGroupCollapse.opened,
+        batteryPage.shadowRoot!
+            .querySelector<CrCollapseElement>('#radioGroupCollapse')!.opened,
         'collapse should be open when battery saver mode is enabled on ' +
             'battery');
     assertEquals(
         String(BatterySaverModeState.ENABLED_ON_BATTERY),
-        batteryPage.$.radioGroup.selected,
+        batteryPage.shadowRoot!
+            .querySelector<SettingsRadioGroupElement>('#radioGroup')!.selected,
         'selected radio button should be enabled on battery');
   });
 
@@ -62,16 +71,20 @@ suite('BatteryPage', function() {
         BATTERY_SAVER_MODE_PREF, BatterySaverModeState.ENABLED_BELOW_THRESHOLD);
     flush();
     assertTrue(
-        batteryPage.$.toggleButton.checked,
+        batteryPage.shadowRoot!
+            .querySelector<SettingsToggleButtonElement>(
+                '#toggleButton')!.checked,
         'toggle should be checked when battery saver mode is enabled below ' +
             'threshold');
     assertTrue(
-        batteryPage.$.radioGroupCollapse.opened,
+        batteryPage.shadowRoot!
+            .querySelector<CrCollapseElement>('#radioGroupCollapse')!.opened,
         'collapse should be open when battery saver mode is enabled below ' +
             'threshold');
     assertEquals(
         String(BatterySaverModeState.ENABLED_BELOW_THRESHOLD),
-        batteryPage.$.radioGroup.selected,
+        batteryPage.shadowRoot!
+            .querySelector<SettingsRadioGroupElement>('#radioGroup')!.selected,
         'selected radio button should be enabled below threshold');
   });
 
@@ -79,10 +92,13 @@ suite('BatteryPage', function() {
     batteryPage.setPrefValue(
         BATTERY_SAVER_MODE_PREF, BatterySaverModeState.DISABLED);
     assertFalse(
-        batteryPage.$.toggleButton.checked,
+        batteryPage.shadowRoot!
+            .querySelector<SettingsToggleButtonElement>(
+                '#toggleButton')!.checked,
         'toggle should be unchecked when battery saver mode is disabled');
     assertFalse(
-        batteryPage.$.radioGroupCollapse.opened,
+        batteryPage.shadowRoot!
+            .querySelector<CrCollapseElement>('#radioGroupCollapse')!.opened,
         'collapse should be closed when battery saver mode is disabled');
   });
 
@@ -90,19 +106,23 @@ suite('BatteryPage', function() {
     batteryPage.setPrefValue(
         BATTERY_SAVER_MODE_PREF, BatterySaverModeState.DISABLED);
 
-    batteryPage.$.toggleButton.click();
+    batteryPage.shadowRoot!
+        .querySelector<SettingsToggleButtonElement>('#toggleButton')!.click();
     let state = await performanceMetricsProxy.whenCalled(
         'recordBatterySaverModeChanged');
     assertEquals(BatterySaverModeState.ENABLED_BELOW_THRESHOLD, state);
 
     performanceMetricsProxy.reset();
-    batteryPage.$.enabledOnBatteryButton.click();
+    batteryPage.shadowRoot!
+        .querySelector<ControlledRadioButtonElement>(
+            '#enabledOnBatteryButton')!.click();
     state = await performanceMetricsProxy.whenCalled(
         'recordBatterySaverModeChanged');
     assertEquals(BatterySaverModeState.ENABLED_ON_BATTERY, state);
 
     performanceMetricsProxy.reset();
-    batteryPage.$.toggleButton.click();
+    batteryPage.shadowRoot!
+        .querySelector<SettingsToggleButtonElement>('#toggleButton')!.click();
     state = await performanceMetricsProxy.whenCalled(
         'recordBatterySaverModeChanged');
     assertEquals(BatterySaverModeState.DISABLED, state);

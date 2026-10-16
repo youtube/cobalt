@@ -8,8 +8,8 @@
 #include <bitset>
 #include <cstdint>
 #include <string>
+#include <utility>
 
-#include "base/strings/string_piece.h"
 #include "sandbox/sandbox_export.h"
 
 namespace sandbox {

@@ -10,9 +10,9 @@
 #include <memory>
 #include <vector>
 
-#include "ash/components/arc/mojom/wallpaper.mojom.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/image_decoder/image_decoder.h"
+#include "chromeos/ash/experiences/arc/mojom/wallpaper.mojom.h"
 #include "components/keyed_service/core/keyed_service.h"
 
 namespace content {
@@ -80,7 +80,7 @@ class ArcWallpaperService : public KeyedService, public mojom::WallpaperHost {
   // -1 to reset wallpaper cache at Android side.
   void NotifyWallpaperChangedAndReset(int android_id);
 
-  const raw_ptr<ArcBridgeService, ExperimentalAsh>
+  const raw_ptr<ArcBridgeService>
       arc_bridge_service_;  // Owned by ArcServiceManager.
   std::unique_ptr<DecodeRequest> decode_request_;
   std::unique_ptr<DecodeRequestSender> decode_request_sender_;

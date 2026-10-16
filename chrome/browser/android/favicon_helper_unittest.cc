@@ -17,6 +17,7 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/codec/png_codec.h"
+#include "ui/gfx/image/image_unittest_util.h"
 #include "url/gurl.h"
 
 using ::testing::_;
@@ -28,13 +29,11 @@ CreateTestBitmapResult(GURL url, int size, SkColor color = SK_ColorRED) {
   result.expired = false;
 
   // Create bitmap and fill with |color|.
-  scoped_refptr<base::RefCountedBytes> data(new base::RefCountedBytes());
-  SkBitmap bitmap;
-  bitmap.allocN32Pixels(size, size);
-  bitmap.eraseColor(color);
-  gfx::PNGCodec::EncodeBGRASkBitmap(bitmap, false, &data->data());
+  std::optional<std::vector<uint8_t>> data = gfx::PNGCodec::EncodeBGRASkBitmap(
+      gfx::test::CreateBitmap(size, color), /*discard_transparency=*/false);
 
-  result.bitmap_data = data;
+  result.bitmap_data =
+      base::MakeRefCounted<base::RefCountedBytes>(std::move(data).value());
   result.pixel_size = gfx::Size(size, size);
   result.icon_url = url;
   result.icon_type = favicon_base::IconType::kFavicon;

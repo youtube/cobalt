@@ -8,14 +8,10 @@ import androidx.annotation.NonNull;
 
 import java.util.Objects;
 
-/**
- * A model class with info about the components.
- */
+/** A model class with info about the components. */
 public class ComponentInfo {
-    @NonNull
-    private final String mComponentName;
-    @NonNull
-    private final String mComponentVersion;
+    @NonNull private final String mComponentName;
+    @NonNull private final String mComponentVersion;
 
     public ComponentInfo(@NonNull String name, @NonNull String version) {
         mComponentName = name;
@@ -37,14 +33,13 @@ public class ComponentInfo {
         }
 
         ComponentInfo item2 = (ComponentInfo) obj;
-        return (mComponentName).equals(item2.mComponentName)
-                && (mComponentVersion).equals(item2.mComponentVersion);
+        return mComponentName.equals(item2.mComponentName)
+                && mComponentVersion.equals(item2.mComponentVersion);
     }
 
     @Override
     public String toString() {
-        return "Name : " + mComponentName + " - "
-                + "Version : " + mComponentVersion;
+        return "Name : " + mComponentName + " - " + "Version : " + mComponentVersion;
     }
 
     @Override

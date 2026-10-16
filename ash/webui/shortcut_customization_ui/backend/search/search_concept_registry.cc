@@ -4,23 +4,15 @@
 
 #include "ash/webui/shortcut_customization_ui/backend/search/search_concept_registry.h"
 
-#include <iterator>
-#include <map>
 #include <string>
 #include <vector>
 
-#include "ash/constants/ash_features.h"
-#include "ash/public/mojom/accelerator_info.mojom-shared.h"
 #include "ash/public/mojom/accelerator_info.mojom.h"
-#include "ash/webui/shortcut_customization_ui/backend/accelerator_layout_table.h"
-#include "ash/webui/shortcut_customization_ui/backend/search/search.mojom.h"
 #include "ash/webui/shortcut_customization_ui/backend/search/search_concept.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/utf_string_conversions.h"
 #include "chromeos/ash/components/local_search_service/public/cpp/local_search_service_proxy.h"
 #include "chromeos/ash/components/local_search_service/shared_structs.h"
 
@@ -113,12 +105,15 @@ local_search_service::Data SearchConceptRegistry::SearchConceptToData(
       /*id=*/base::StrCat({search_concept.id, "-description"}),
       /*content=*/search_concept.accelerator_layout_info->description);
 
-  // Only text accelerators should become searchable LSS Content.
+  // All SearchConcepts should contain at least one AcceleratorInfo.
   DCHECK(search_concept.accelerator_infos.size() > 0);
-  // Text accelerators should only have one entry in accelerator_infos.
+
+  // Get the first AcceleratorInfo to check if it's a text accelerator. Note
+  // that text accelerators should only have one entry in accelerator_infos.
   const mojom::AcceleratorInfoPtr& first_accelerator_info =
       search_concept.accelerator_infos.at(0);
 
+  // Only text accelerators should become searchable LSS Content.
   if (first_accelerator_info->layout_properties->is_text_accelerator()) {
     // Content->id needs to be unique across the entire index,
     // so we prefix it with the SearchConcept's id.

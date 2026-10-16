@@ -4,19 +4,20 @@
 //
 // Unit tests for event trace controller.
 
+#include "base/win/event_trace_controller.h"
+
 #include <objbase.h>
 
-#include <initguid.h>  // NOLINT - has to be last
+#include <initguid.h>
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/logging.h"
 #include "base/process/process_handle.h"
+#include "base/strings/string_number_conversions_win.h"
 #include "base/strings/string_util.h"
-#include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
-#include "base/win/event_trace_controller.h"
 #include "base/win/event_trace_provider.h"
 #include "base/win/scoped_handle.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -105,7 +106,7 @@ namespace {
 class EtwTraceControllerTest : public testing::Test {
  public:
   EtwTraceControllerTest()
-      : session_name_(StringPrintf(L"TestSession-%d", GetCurrentProcId())) {}
+      : session_name_(L"TestSession-" + NumberToWString(GetCurrentProcId())) {}
 
   void SetUp() override {
     EtwTraceProperties ignore;

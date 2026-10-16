@@ -6,12 +6,10 @@
 
 #include <utility>
 
+#include "base/containers/span_reader.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/sys_byteorder.h"
 #include "net/base/net_errors.h"
-#include "net/url_request/url_request_context.h"
-#include "net/url_request/url_request_context_getter.h"
 #include "services/network/p2p/socket_tcp.h"
 #include "services/network/p2p/socket_udp.h"
 #include "services/network/proxy_resolving_client_socket_factory.h"
@@ -39,7 +37,6 @@ static SocketErrorCode MapNetErrorToSocketErrorCode(int net_err) {
   switch (net_err) {
     case net::OK:
       NOTREACHED();
-      return SocketErrorCode::ERR_OTHER;
     case net::ERR_MSG_TOO_BIG:
       return SocketErrorCode::ERR_MSG_TOO_BIG;
     case net::ERR_ADDRESS_UNREACHABLE:
@@ -80,24 +77,18 @@ P2PSocket::~P2PSocket() = default;
 // static
 bool P2PSocket::GetStunPacketType(base::span<const uint8_t> data,
                                   StunMessageType* type) {
-  if (data.size() < kStunHeaderSize) {
+  // See https://www.rfc-editor.org/rfc/rfc5389.html#section-6
+  auto reader = base::SpanReader(data);
+  uint16_t message_type, length;
+  uint32_t cookie;
+  if (data.size() < kStunHeaderSize ||            //
+      !reader.ReadU16BigEndian(message_type) ||   //
+      !reader.ReadU16BigEndian(length) ||         //
+      length != data.size() - kStunHeaderSize ||  //
+      !reader.ReadU32BigEndian(cookie) ||         //
+      cookie != kStunMagicCookie) {
     return false;
   }
-
-  uint32_t cookie =
-      base::NetToHost32(*reinterpret_cast<const uint32_t*>(data.data() + 4));
-  if (cookie != kStunMagicCookie) {
-    return false;
-  }
-
-  uint16_t length =
-      base::NetToHost16(*reinterpret_cast<const uint16_t*>(data.data() + 2));
-  if (length != data.size() - kStunHeaderSize) {
-    return false;
-  }
-
-  int message_type =
-      base::NetToHost16(*reinterpret_cast<const uint16_t*>(data.data()));
 
   // Verify that the type is known:
   switch (message_type) {
@@ -144,12 +135,13 @@ std::unique_ptr<P2PSocket> P2PSocket::Create(
     const net::NetworkTrafficAnnotationTag& traffic_annotation,
     net::NetLog* net_log,
     ProxyResolvingClientSocketFactory* proxy_resolving_socket_factory,
-    P2PMessageThrottler* throttler) {
+    P2PMessageThrottler* throttler,
+    std::optional<base::UnguessableToken> devtools_token) {
   switch (type) {
     case P2P_SOCKET_UDP:
-      return std::make_unique<P2PSocketUdp>(delegate, std::move(client),
-                                            std::move(socket), throttler,
-                                            traffic_annotation, net_log);
+      return std::make_unique<P2PSocketUdp>(
+          delegate, std::move(client), std::move(socket), throttler,
+          traffic_annotation, net_log, devtools_token);
     case P2P_SOCKET_TCP_CLIENT:
     case P2P_SOCKET_SSLTCP_CLIENT:
     case P2P_SOCKET_TLS_CLIENT:
@@ -166,7 +158,6 @@ std::unique_ptr<P2PSocket> P2PSocket::Create(
   }
 
   NOTREACHED();
-  return nullptr;
 }
 
 mojo::PendingRemote<mojom::P2PSocketClient>

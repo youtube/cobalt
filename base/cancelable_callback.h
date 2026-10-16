@@ -16,7 +16,9 @@
 // THREAD-SAFETY:
 //
 // Cancelable callback objects must be created on, posted to, cancelled on, and
-// destroyed on the same SequencedTaskRunner.
+// destroyed on the same SequencedTaskRunner. The wrapper returned by callback()
+// must also be run on this SequencedTaskRunner, but it may be destroyed on any
+// sequence; see comments on callback().
 //
 //
 // EXAMPLE USAGE:
@@ -79,9 +81,7 @@ class CancelableCallbackImpl {
   }
 
   // Returns true if the wrapped callback has been cancelled.
-  bool IsCancelled() const {
-    return callback_.is_null();
-  }
+  bool IsCancelled() const { return callback_.is_null(); }
 
   // Sets |callback| as the closure that may be cancelled. |callback| may not
   // be null. Outstanding and any previously wrapped callbacks are cancelled.
@@ -92,10 +92,16 @@ class CancelableCallbackImpl {
     callback_ = std::move(callback);
   }
 
-  // Returns a callback that can be disabled by calling Cancel().
+  // Returns a callback that can be disabled by calling Cancel(). This returned
+  // callback may only run on the bound SequencedTaskRunner (where
+  // CancelableCallback was constructed), but it may be destroyed on any
+  // sequence. This means the callback may be handed off to other task runners,
+  // e.g. via PostTaskAndReply[WithResult](), to post tasks back on the original
+  // bound sequence.
   CallbackType callback() const {
-    if (!callback_)
+    if (!callback_) {
       return CallbackType();
+    }
     CallbackType forwarder;
     MakeForwarder(&forwarder);
     return forwarder;

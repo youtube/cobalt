@@ -86,10 +86,5 @@ TEST(LogTest, StreamOperator_OptionalEmpty) {
   EXPECT_EQ(ss_absent.str(), "(nullopt)");
 }
 
-TEST(LogTest, ToString) {
-  EXPECT_EQ(to_string(true), "true");
-  EXPECT_EQ(to_string(false), "false");
-}
-
 }  // namespace
 }  // namespace starboard

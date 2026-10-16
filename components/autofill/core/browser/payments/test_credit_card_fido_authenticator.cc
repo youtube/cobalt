@@ -7,8 +7,8 @@
 #include <string>
 #include <utility>
 
-#include "components/autofill/core/browser/autofill_client.h"
-#include "components/autofill/core/browser/autofill_driver.h"
+#include "components/autofill/core/browser/foundations/autofill_client.h"
+#include "components/autofill/core/browser/foundations/autofill_driver.h"
 #include "third_party/blink/public/mojom/webauthn/authenticator.mojom.h"
 
 namespace autofill {
@@ -21,15 +21,15 @@ TestCreditCardFidoAuthenticator::TestCreditCardFidoAuthenticator(
 TestCreditCardFidoAuthenticator::~TestCreditCardFidoAuthenticator() = default;
 
 void TestCreditCardFidoAuthenticator::Authenticate(
-    const CreditCard* card,
+    CreditCard card,
     base::WeakPtr<Requester> requester,
     base::Value::Dict request_options,
-    absl::optional<std::string> context_token) {
+    std::optional<std::string> context_token) {
   authenticate_invoked_ = true;
-  card_ = *card;
+  card_ = std::move(card);
   context_token_ = context_token;
   CreditCardFidoAuthenticator::Authenticate(
-      card, requester, std::move(request_options), context_token);
+      *card_, requester, std::move(request_options), context_token);
 }
 
 void TestCreditCardFidoAuthenticator::GetAssertion(
@@ -57,6 +57,8 @@ void TestCreditCardFidoAuthenticator::GetAssertion(
     blink::mojom::GetAssertionAuthenticatorResponsePtr response =
         blink::mojom::GetAssertionAuthenticatorResponse::New();
     response->info = blink::mojom::CommonCredentialInfo::New();
+    response->extensions =
+        blink::mojom::AuthenticationExtensionsClientOutputs::New();
     fido_authenticator->OnDidGetAssertion(
         blink::mojom::AuthenticatorStatus::SUCCESS, std::move(response),
         /*dom_exception_details=*/nullptr);
@@ -92,7 +94,7 @@ std::vector<uint8_t> TestCreditCardFidoAuthenticator::GetCredentialId() {
 
 std::vector<uint8_t> TestCreditCardFidoAuthenticator::GetChallenge() {
   if (request_options_) {
-    return request_options_->challenge;
+    return *request_options_->challenge;
   } else {
     DCHECK(creation_options_);
     return creation_options_->challenge;
@@ -122,7 +124,7 @@ bool TestCreditCardFidoAuthenticator::IsUserOptedIn() {
 
 void TestCreditCardFidoAuthenticator::Reset() {
   is_user_verifiable_ = false;
-  is_user_opted_in_ = absl::nullopt;
+  is_user_opted_in_ = std::nullopt;
   opt_out_called_ = false;
   authenticate_invoked_ = false;
   card_ = CreditCard();

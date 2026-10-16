@@ -20,17 +20,17 @@
 namespace webrtc {
 namespace jni {
 
-class JNILogSink : public rtc::LogSink {
+class JNILogSink : public LogSink {
  public:
   JNILogSink(JNIEnv* env, const JavaRef<jobject>& j_logging);
   ~JNILogSink() override;
 
   void OnLogMessage(const std::string& msg) override;
   void OnLogMessage(const std::string& msg,
-                    rtc::LoggingSeverity severity,
+                    LoggingSeverity severity,
                     const char* tag) override;
   void OnLogMessage(absl::string_view msg,
-                    rtc::LoggingSeverity severity,
+                    LoggingSeverity severity,
                     const char* tag) override;
 
  private:

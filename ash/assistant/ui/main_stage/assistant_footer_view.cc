@@ -15,6 +15,7 @@
 #include "ash/constants/ash_features.h"
 #include "base/functional/bind.h"
 #include "base/time/time.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/callback_layer_animation_observer.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animation_element.h"
@@ -52,16 +53,9 @@ AssistantFooterView::~AssistantFooterView() {
   AssistantState::Get()->RemoveObserver(this);
 }
 
-const char* AssistantFooterView::GetClassName() const {
-  return "AssistantFooterView";
-}
-
-gfx::Size AssistantFooterView::CalculatePreferredSize() const {
-  return gfx::Size(INT_MAX, GetHeightForWidth(INT_MAX));
-}
-
-int AssistantFooterView::GetHeightForWidth(int width) const {
-  return kPreferredHeightDip;
+gfx::Size AssistantFooterView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
+  return gfx::Size(INT_MAX, kPreferredHeightDip);
 }
 
 void AssistantFooterView::InitLayout() {
@@ -167,5 +161,8 @@ bool AssistantFooterView::OnAnimationEnded(
   // Return false to prevent the observer from destroying itself.
   return false;
 }
+
+BEGIN_METADATA(AssistantFooterView)
+END_METADATA
 
 }  // namespace ash

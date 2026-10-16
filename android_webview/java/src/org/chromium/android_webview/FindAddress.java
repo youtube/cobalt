@@ -6,30 +6,35 @@ package org.chromium.android_webview;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 import java.util.Locale;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Java implementation of legacy WebView.findAddress algorithm.
- */
+/** Java implementation of legacy WebView.findAddress algorithm. */
 @VisibleForTesting
+@NullMarked
 public class FindAddress {
     static class ZipRange {
         int mLow;
         int mHigh;
         int mException1;
         int mException2;
+
         ZipRange(int low, int high, int exception1, int exception2) {
             mLow = low;
             mHigh = high;
             mException1 = exception1;
             mException2 = exception1;
         }
+
         boolean matches(String zipCode) {
             int prefix = Integer.parseInt(zipCode.substring(0, 2));
-            return (mLow <= prefix && prefix <= mHigh) || prefix == mException1
+            return (mLow <= prefix && prefix <= mHigh)
+                    || prefix == mException1
                     || prefix == mException2;
         }
     }
@@ -44,80 +49,81 @@ public class FindAddress {
     private static final int MAX_ADDRESS_LINES = 5;
 
     // No words in an address are longer than this many characters.
-    private static final int kMaxAddressNameWordLength = 25;
+    private static final int MAX_ADDRESS_NAME_WORD_LENGTH = 25;
 
     // Location name should be in the first MAX_LOCATION_NAME_DISTANCE words
     private static final int MAX_LOCATION_NAME_DISTANCE = 5;
 
     private static final ZipRange[] sStateZipCodeRanges = {
-            new ZipRange(99, 99, -1, -1), // AK Alaska.
-            new ZipRange(35, 36, -1, -1), // AL Alabama.
-            new ZipRange(71, 72, -1, -1), // AR Arkansas.
-            new ZipRange(96, 96, -1, -1), // AS American Samoa.
-            new ZipRange(85, 86, -1, -1), // AZ Arizona.
-            new ZipRange(90, 96, -1, -1), // CA California.
-            new ZipRange(80, 81, -1, -1), // CO Colorado.
-            new ZipRange(6, 6, -1, -1), // CT Connecticut.
-            new ZipRange(20, 20, -1, -1), // DC District of Columbia.
-            new ZipRange(19, 19, -1, -1), // DE Delaware.
-            new ZipRange(32, 34, -1, -1), // FL Florida.
-            new ZipRange(96, 96, -1, -1), // FM Federated States of Micronesia.
-            new ZipRange(30, 31, -1, -1), // GA Georgia.
-            new ZipRange(96, 96, -1, -1), // GU Guam.
-            new ZipRange(96, 96, -1, -1), // HI Hawaii.
-            new ZipRange(50, 52, -1, -1), // IA Iowa.
-            new ZipRange(83, 83, -1, -1), // ID Idaho.
-            new ZipRange(60, 62, -1, -1), // IL Illinois.
-            new ZipRange(46, 47, -1, -1), // IN Indiana.
-            new ZipRange(66, 67, 73, -1), // KS Kansas.
-            new ZipRange(40, 42, -1, -1), // KY Kentucky.
-            new ZipRange(70, 71, -1, -1), // LA Louisiana.
-            new ZipRange(1, 2, -1, -1), // MA Massachusetts.
-            new ZipRange(20, 21, -1, -1), // MD Maryland.
-            new ZipRange(3, 4, -1, -1), // ME Maine.
-            new ZipRange(96, 96, -1, -1), // MH Marshall Islands.
-            new ZipRange(48, 49, -1, -1), // MI Michigan.
-            new ZipRange(55, 56, -1, -1), // MN Minnesota.
-            new ZipRange(63, 65, -1, -1), // MO Missouri.
-            new ZipRange(96, 96, -1, -1), // MP Northern Mariana Islands.
-            new ZipRange(38, 39, -1, -1), // MS Mississippi.
-            new ZipRange(55, 56, -1, -1), // MT Montana.
-            new ZipRange(27, 28, -1, -1), // NC North Carolina.
-            new ZipRange(58, 58, -1, -1), // ND North Dakota.
-            new ZipRange(68, 69, -1, -1), // NE Nebraska.
-            new ZipRange(3, 4, -1, -1), // NH New Hampshire.
-            new ZipRange(7, 8, -1, -1), // NJ New Jersey.
-            new ZipRange(87, 88, 86, -1), // NM New Mexico.
-            new ZipRange(88, 89, 96, -1), // NV Nevada.
-            new ZipRange(10, 14, 0, 6), // NY New York.
-            new ZipRange(43, 45, -1, -1), // OH Ohio.
-            new ZipRange(73, 74, -1, -1), // OK Oklahoma.
-            new ZipRange(97, 97, -1, -1), // OR Oregon.
-            new ZipRange(15, 19, -1, -1), // PA Pennsylvania.
-            new ZipRange(6, 6, 0, 9), // PR Puerto Rico.
-            new ZipRange(96, 96, -1, -1), // PW Palau.
-            new ZipRange(2, 2, -1, -1), // RI Rhode Island.
-            new ZipRange(29, 29, -1, -1), // SC South Carolina.
-            new ZipRange(57, 57, -1, -1), // SD South Dakota.
-            new ZipRange(37, 38, -1, -1), // TN Tennessee.
-            new ZipRange(75, 79, 87, 88), // TX Texas.
-            new ZipRange(84, 84, -1, -1), // UT Utah.
-            new ZipRange(22, 24, 20, -1), // VA Virginia.
-            new ZipRange(6, 9, -1, -1), // VI Virgin Islands.
-            new ZipRange(5, 5, -1, -1), // VT Vermont.
-            new ZipRange(98, 99, -1, -1), // WA Washington.
-            new ZipRange(53, 54, -1, -1), // WI Wisconsin.
-            new ZipRange(24, 26, -1, -1), // WV West Virginia.
-            new ZipRange(82, 83, -1, -1) // WY Wyoming.
+        new ZipRange(99, 99, -1, -1), // AK Alaska.
+        new ZipRange(35, 36, -1, -1), // AL Alabama.
+        new ZipRange(71, 72, -1, -1), // AR Arkansas.
+        new ZipRange(96, 96, -1, -1), // AS American Samoa.
+        new ZipRange(85, 86, -1, -1), // AZ Arizona.
+        new ZipRange(90, 96, -1, -1), // CA California.
+        new ZipRange(80, 81, -1, -1), // CO Colorado.
+        new ZipRange(6, 6, -1, -1), // CT Connecticut.
+        new ZipRange(20, 20, -1, -1), // DC District of Columbia.
+        new ZipRange(19, 19, -1, -1), // DE Delaware.
+        new ZipRange(32, 34, -1, -1), // FL Florida.
+        new ZipRange(96, 96, -1, -1), // FM Federated States of Micronesia.
+        new ZipRange(30, 31, -1, -1), // GA Georgia.
+        new ZipRange(96, 96, -1, -1), // GU Guam.
+        new ZipRange(96, 96, -1, -1), // HI Hawaii.
+        new ZipRange(50, 52, -1, -1), // IA Iowa.
+        new ZipRange(83, 83, -1, -1), // ID Idaho.
+        new ZipRange(60, 62, -1, -1), // IL Illinois.
+        new ZipRange(46, 47, -1, -1), // IN Indiana.
+        new ZipRange(66, 67, 73, -1), // KS Kansas.
+        new ZipRange(40, 42, -1, -1), // KY Kentucky.
+        new ZipRange(70, 71, -1, -1), // LA Louisiana.
+        new ZipRange(1, 2, -1, -1), // MA Massachusetts.
+        new ZipRange(20, 21, -1, -1), // MD Maryland.
+        new ZipRange(3, 4, -1, -1), // ME Maine.
+        new ZipRange(96, 96, -1, -1), // MH Marshall Islands.
+        new ZipRange(48, 49, -1, -1), // MI Michigan.
+        new ZipRange(55, 56, -1, -1), // MN Minnesota.
+        new ZipRange(63, 65, -1, -1), // MO Missouri.
+        new ZipRange(96, 96, -1, -1), // MP Northern Mariana Islands.
+        new ZipRange(38, 39, -1, -1), // MS Mississippi.
+        new ZipRange(55, 56, -1, -1), // MT Montana.
+        new ZipRange(27, 28, -1, -1), // NC North Carolina.
+        new ZipRange(58, 58, -1, -1), // ND North Dakota.
+        new ZipRange(68, 69, -1, -1), // NE Nebraska.
+        new ZipRange(3, 4, -1, -1), // NH New Hampshire.
+        new ZipRange(7, 8, -1, -1), // NJ New Jersey.
+        new ZipRange(87, 88, 86, -1), // NM New Mexico.
+        new ZipRange(88, 89, 96, -1), // NV Nevada.
+        new ZipRange(10, 14, 0, 6), // NY New York.
+        new ZipRange(43, 45, -1, -1), // OH Ohio.
+        new ZipRange(73, 74, -1, -1), // OK Oklahoma.
+        new ZipRange(97, 97, -1, -1), // OR Oregon.
+        new ZipRange(15, 19, -1, -1), // PA Pennsylvania.
+        new ZipRange(6, 6, 0, 9), // PR Puerto Rico.
+        new ZipRange(96, 96, -1, -1), // PW Palau.
+        new ZipRange(2, 2, -1, -1), // RI Rhode Island.
+        new ZipRange(29, 29, -1, -1), // SC South Carolina.
+        new ZipRange(57, 57, -1, -1), // SD South Dakota.
+        new ZipRange(37, 38, -1, -1), // TN Tennessee.
+        new ZipRange(75, 79, 87, 88), // TX Texas.
+        new ZipRange(84, 84, -1, -1), // UT Utah.
+        new ZipRange(22, 24, 20, -1), // VA Virginia.
+        new ZipRange(6, 9, -1, -1), // VI Virgin Islands.
+        new ZipRange(5, 5, -1, -1), // VT Vermont.
+        new ZipRange(98, 99, -1, -1), // WA Washington.
+        new ZipRange(53, 54, -1, -1), // WI Wisconsin.
+        new ZipRange(24, 26, -1, -1), // WV West Virginia.
+        new ZipRange(82, 83, -1, -1) // WY Wyoming.
     };
 
     // Newlines
     private static final String NL = "\n\u000B\u000C\r\u0085\u2028\u2029";
 
     // Space characters
-    private static final String SP = "\u0009\u0020\u00A0\u1680\u2000\u2001"
-            + "\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F"
-            + "\u205F\u3000";
+    private static final String SP =
+            "\u0009\u0020\u00A0\u1680\u2000\u2001"
+                    + "\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F"
+                    + "\u205F\u3000";
 
     // Whitespace
     private static final String WS = SP + NL;
@@ -148,98 +154,147 @@ public class FindAddress {
     // House numbers are a repetition of |HOUSE_COMPONENT|, separated by -, and followed by
     // a delimiter character.
     private static final Pattern sHouseNumberRe =
-            Pattern.compile(HOUSE_COMPONENT + "(?:-" + HOUSE_COMPONENT + ")*" + HOUSE_END,
+            Pattern.compile(
+                    HOUSE_COMPONENT + "(?:-" + HOUSE_COMPONENT + ")*" + HOUSE_END,
                     Pattern.CASE_INSENSITIVE);
 
     // XXX: do we want to accept whitespace other than 0x20 in state names?
-    private static final Pattern sStateRe = Pattern.compile("(?:"
-                    + "(ak|alaska)|"
-                    + "(al|alabama)|"
-                    + "(ar|arkansas)|"
-                    + "(as|american[" + SP + "]+samoa)|"
-                    + "(az|arizona)|"
-                    + "(ca|california)|"
-                    + "(co|colorado)|"
-                    + "(ct|connecticut)|"
-                    + "(dc|district[" + SP + "]+of[" + SP + "]+columbia)|"
-                    + "(de|delaware)|"
-                    + "(fl|florida)|"
-                    + "(fm|federated[" + SP + "]+states[" + SP + "]+of[" + SP + "]+micronesia)|"
-                    + "(ga|georgia)|"
-                    + "(gu|guam)|"
-                    + "(hi|hawaii)|"
-                    + "(ia|iowa)|"
-                    + "(id|idaho)|"
-                    + "(il|illinois)|"
-                    + "(in|indiana)|"
-                    + "(ks|kansas)|"
-                    + "(ky|kentucky)|"
-                    + "(la|louisiana)|"
-                    + "(ma|massachusetts)|"
-                    + "(md|maryland)|"
-                    + "(me|maine)|"
-                    + "(mh|marshall[" + SP + "]+islands)|"
-                    + "(mi|michigan)|"
-                    + "(mn|minnesota)|"
-                    + "(mo|missouri)|"
-                    + "(mp|northern[" + SP + "]+mariana[" + SP + "]+islands)|"
-                    + "(ms|mississippi)|"
-                    + "(mt|montana)|"
-                    + "(nc|north[" + SP + "]+carolina)|"
-                    + "(nd|north[" + SP + "]+dakota)|"
-                    + "(ne|nebraska)|"
-                    + "(nh|new[" + SP + "]+hampshire)|"
-                    + "(nj|new[" + SP + "]+jersey)|"
-                    + "(nm|new[" + SP + "]+mexico)|"
-                    + "(nv|nevada)|"
-                    + "(ny|new[" + SP + "]+york)|"
-                    + "(oh|ohio)|"
-                    + "(ok|oklahoma)|"
-                    + "(or|oregon)|"
-                    + "(pa|pennsylvania)|"
-                    + "(pr|puerto[" + SP + "]+rico)|"
-                    + "(pw|palau)|"
-                    + "(ri|rhode[" + SP + "]+island)|"
-                    + "(sc|south[" + SP + "]+carolina)|"
-                    + "(sd|south[" + SP + "]+dakota)|"
-                    + "(tn|tennessee)|"
-                    + "(tx|texas)|"
-                    + "(ut|utah)|"
-                    + "(va|virginia)|"
-                    + "(vi|virgin[" + SP + "]+islands)|"
-                    + "(vt|vermont)|"
-                    + "(wa|washington)|"
-                    + "(wi|wisconsin)|"
-                    + "(wv|west[" + SP + "]+virginia)|"
-                    + "(wy|wyoming)"
-                    + ")" + WORD_END,
-            Pattern.CASE_INSENSITIVE);
+    private static final Pattern sStateRe =
+            Pattern.compile(
+                    "(?:"
+                            + "(ak|alaska)|"
+                            + "(al|alabama)|"
+                            + "(ar|arkansas)|"
+                            + "(as|american["
+                            + SP
+                            + "]+samoa)|"
+                            + "(az|arizona)|"
+                            + "(ca|california)|"
+                            + "(co|colorado)|"
+                            + "(ct|connecticut)|"
+                            + "(dc|district["
+                            + SP
+                            + "]+of["
+                            + SP
+                            + "]+columbia)|"
+                            + "(de|delaware)|"
+                            + "(fl|florida)|"
+                            + "(fm|federated["
+                            + SP
+                            + "]+states["
+                            + SP
+                            + "]+of["
+                            + SP
+                            + "]+micronesia)|"
+                            + "(ga|georgia)|"
+                            + "(gu|guam)|"
+                            + "(hi|hawaii)|"
+                            + "(ia|iowa)|"
+                            + "(id|idaho)|"
+                            + "(il|illinois)|"
+                            + "(in|indiana)|"
+                            + "(ks|kansas)|"
+                            + "(ky|kentucky)|"
+                            + "(la|louisiana)|"
+                            + "(ma|massachusetts)|"
+                            + "(md|maryland)|"
+                            + "(me|maine)|"
+                            + "(mh|marshall["
+                            + SP
+                            + "]+islands)|"
+                            + "(mi|michigan)|"
+                            + "(mn|minnesota)|"
+                            + "(mo|missouri)|"
+                            + "(mp|northern["
+                            + SP
+                            + "]+mariana["
+                            + SP
+                            + "]+islands)|"
+                            + "(ms|mississippi)|"
+                            + "(mt|montana)|"
+                            + "(nc|north["
+                            + SP
+                            + "]+carolina)|"
+                            + "(nd|north["
+                            + SP
+                            + "]+dakota)|"
+                            + "(ne|nebraska)|"
+                            + "(nh|new["
+                            + SP
+                            + "]+hampshire)|"
+                            + "(nj|new["
+                            + SP
+                            + "]+jersey)|"
+                            + "(nm|new["
+                            + SP
+                            + "]+mexico)|"
+                            + "(nv|nevada)|"
+                            + "(ny|new["
+                            + SP
+                            + "]+york)|"
+                            + "(oh|ohio)|"
+                            + "(ok|oklahoma)|"
+                            + "(or|oregon)|"
+                            + "(pa|pennsylvania)|"
+                            + "(pr|puerto["
+                            + SP
+                            + "]+rico)|"
+                            + "(pw|palau)|"
+                            + "(ri|rhode["
+                            + SP
+                            + "]+island)|"
+                            + "(sc|south["
+                            + SP
+                            + "]+carolina)|"
+                            + "(sd|south["
+                            + SP
+                            + "]+dakota)|"
+                            + "(tn|tennessee)|"
+                            + "(tx|texas)|"
+                            + "(ut|utah)|"
+                            + "(va|virginia)|"
+                            + "(vi|virgin["
+                            + SP
+                            + "]+islands)|"
+                            + "(vt|vermont)|"
+                            + "(wa|washington)|"
+                            + "(wi|wisconsin)|"
+                            + "(wv|west["
+                            + SP
+                            + "]+virginia)|"
+                            + "(wy|wyoming)"
+                            + ")"
+                            + WORD_END,
+                    Pattern.CASE_INSENSITIVE);
 
-    private static final Pattern sLocationNameRe = Pattern.compile("(?:"
-                    + "alley|annex|arcade|ave[.]?|avenue|alameda|bayou|"
-                    + "beach|bend|bluffs?|bottom|boulevard|branch|bridge|"
-                    + "brooks?|burgs?|bypass|broadway|camino|camp|canyon|"
-                    + "cape|causeway|centers?|circles?|cliffs?|club|common|"
-                    + "corners?|course|courts?|coves?|creek|crescent|crest|"
-                    + "crossing|crossroad|curve|circulo|dale|dam|divide|"
-                    + "drives?|estates?|expressway|extensions?|falls?|ferry|"
-                    + "fields?|flats?|fords?|forest|forges?|forks?|fort|"
-                    + "freeway|gardens?|gateway|glens?|greens?|groves?|"
-                    + "harbors?|haven|heights|highway|hills?|hollow|inlet|"
-                    + "islands?|isle|junctions?|keys?|knolls?|lakes?|land|"
-                    + "landing|lane|lights?|loaf|locks?|lodge|loop|mall|"
-                    + "manors?|meadows?|mews|mills?|mission|motorway|mount|"
-                    + "mountains?|neck|orchard|oval|overpass|parks?|"
-                    + "parkways?|pass|passage|path|pike|pines?|plains?|"
-                    + "plaza|points?|ports?|prairie|privada|radial|ramp|"
-                    + "ranch|rapids?|rd[.]?|rest|ridges?|river|roads?|route|"
-                    + "row|rue|run|shoals?|shores?|skyway|springs?|spurs?|"
-                    + "squares?|station|stravenue|stream|st[.]?|streets?|"
-                    + "summit|speedway|terrace|throughway|trace|track|"
-                    + "trafficway|trail|tunnel|turnpike|underpass|unions?|"
-                    + "valleys?|viaduct|views?|villages?|ville|vista|walks?|"
-                    + "wall|ways?|wells?|xing|xrd)" + WORD_END,
-            Pattern.CASE_INSENSITIVE);
+    private static final Pattern sLocationNameRe =
+            Pattern.compile(
+                    "(?:"
+                            + "alley|annex|arcade|ave[.]?|avenue|alameda|bayou|"
+                            + "beach|bend|bluffs?|bottom|boulevard|branch|bridge|"
+                            + "brooks?|burgs?|bypass|broadway|camino|camp|canyon|"
+                            + "cape|causeway|centers?|circles?|cliffs?|club|common|"
+                            + "corners?|course|courts?|coves?|creek|crescent|crest|"
+                            + "crossing|crossroad|curve|circulo|dale|dam|divide|"
+                            + "drives?|estates?|expressway|extensions?|falls?|ferry|"
+                            + "fields?|flats?|fords?|forest|forges?|forks?|fort|"
+                            + "freeway|gardens?|gateway|glens?|greens?|groves?|"
+                            + "harbors?|haven|heights|highway|hills?|hollow|inlet|"
+                            + "islands?|isle|junctions?|keys?|knolls?|lakes?|land|"
+                            + "landing|lane|lights?|loaf|locks?|lodge|loop|mall|"
+                            + "manors?|meadows?|mews|mills?|mission|motorway|mount|"
+                            + "mountains?|neck|orchard|oval|overpass|parks?|"
+                            + "parkways?|pass|passage|path|pike|pines?|plains?|"
+                            + "plaza|points?|ports?|prairie|privada|radial|ramp|"
+                            + "ranch|rapids?|rd[.]?|rest|ridges?|river|roads?|route|"
+                            + "row|rue|run|shoals?|shores?|skyway|springs?|spurs?|"
+                            + "squares?|station|stravenue|stream|st[.]?|streets?|"
+                            + "summit|speedway|terrace|throughway|trace|track|"
+                            + "trafficway|trail|tunnel|turnpike|underpass|unions?|"
+                            + "valleys?|viaduct|views?|villages?|ville|vista|walks?|"
+                            + "wall|ways?|wells?|xing|xrd)"
+                            + WORD_END,
+                    Pattern.CASE_INSENSITIVE);
 
     private static final Pattern sSuffixedNumberRe =
             Pattern.compile("(\\d+)(st|nd|rd|th)", Pattern.CASE_INSENSITIVE);
@@ -278,15 +333,14 @@ public class FindAddress {
     }
 
     /**
-     * Attempt to match a house number beginnning at position offset
-     * in content.  The house number must be followed by a word
-     * delimiter or the end of the string, and if offset is non-zero,
+     * Attempt to match a house number beginnning at position offset in content. The house number
+     * must be followed by a word delimiter or the end of the string, and if offset is non-zero,
      * then it must also be preceded by a word delimiter.
      *
      * @return a MatchResult if a valid house number was found.
      */
     @VisibleForTesting
-    public static MatchResult matchHouseNumber(String content, int offset) {
+    public static @Nullable MatchResult matchHouseNumber(String content, int offset) {
         if (offset > 0 && HOUSE_PRE_DELIM.indexOf(content.charAt(offset - 1)) == -1) return null;
         Matcher matcher = sHouseNumberRe.matcher(content).region(offset, content.length());
         if (matcher.lookingAt()) {
@@ -297,31 +351,27 @@ public class FindAddress {
     }
 
     /**
-     * Attempt to match a US state beginnning at position offset in
-     * content.  The matching state must be followed by a word
-     * delimiter or the end of the string, and if offset is non-zero,
-     * then it must also be preceded by a word delimiter.
+     * Attempt to match a US state beginnning at position offset in content. The matching state must
+     * be followed by a word delimiter or the end of the string, and if offset is non-zero, then it
+     * must also be preceded by a word delimiter.
      *
-     * @return a MatchResult if a valid US state (or two letter code)
-     * was found.
+     * @return a MatchResult if a valid US state (or two letter code) was found.
      */
     @VisibleForTesting
-    public static MatchResult matchState(String content, int offset) {
+    public static @Nullable MatchResult matchState(String content, int offset) {
         if (offset > 0 && WORD_DELIM.indexOf(content.charAt(offset - 1)) == -1) return null;
         Matcher stateMatcher = sStateRe.matcher(content).region(offset, content.length());
         return stateMatcher.lookingAt() ? stateMatcher.toMatchResult() : null;
     }
 
     /**
-     * Test whether zipCode matches the U.S. zip code format (ddddd or
-     * ddddd-dddd) and is within the expected range, given that
-     * stateMatch is a match of sStateRe.
+     * Test whether zipCode matches the U.S. zip code format (ddddd or ddddd-dddd) and is within the
+     * expected range, given that stateMatch is a match of sStateRe.
      *
-     * @return true if zipCode is a valid zip code, is legal for the
-     * matched state, and is followed by a word delimiter or the end
-     * of the string.
+     * @return true if zipCode is a valid zip code, is legal for the matched state, and is followed
+     *     by a word delimiter or the end of the string.
      */
-    private static boolean isValidZipCode(String zipCode, MatchResult stateMatch) {
+    private static boolean isValidZipCode(String zipCode, @Nullable MatchResult stateMatch) {
         if (stateMatch == null) return false;
         // Work out the index of the state, based on which group matched.
         int stateIndex = stateMatch.groupCount();
@@ -394,7 +444,7 @@ public class FindAddress {
                 // No more words in the input sequence.
                 return -content.length();
             }
-            if (matcher.end() - matcher.start() > kMaxAddressNameWordLength) {
+            if (matcher.end() - matcher.start() > MAX_ADDRESS_NAME_WORD_LENGTH) {
                 // Word is too long to be part of an address. Fail.
                 return -matcher.end();
             }
@@ -477,7 +527,7 @@ public class FindAddress {
      * @return The first valid address, or null if no address was matched.
      */
     @VisibleForTesting
-    public static String findAddress(String content) {
+    public static @Nullable String findAddress(String content) {
         Matcher houseNumberMatcher = sHouseNumberRe.matcher(content);
         int start = 0;
         while (houseNumberMatcher.find(start)) {

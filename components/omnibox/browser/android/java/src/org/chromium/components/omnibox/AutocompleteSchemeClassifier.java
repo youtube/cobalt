@@ -4,13 +4,14 @@
 
 package org.chromium.components.omnibox;
 
-import org.chromium.base.annotations.CalledByNative;
+import org.jni_zero.CalledByNative;
 
-/**
- * Dumb wrapper around the pointer to the C++ class AutocompleteSchemeClassifier.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** Dumb wrapper around the pointer to the C++ class AutocompleteSchemeClassifier. */
+@NullMarked
 public class AutocompleteSchemeClassifier {
-    private long mNativePtr;
+    private final long mNativePtr;
 
     protected AutocompleteSchemeClassifier(long nativePtr) {
         this.mNativePtr = nativePtr;

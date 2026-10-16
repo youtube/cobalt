@@ -30,7 +30,6 @@ struct EnumTraits<viz::mojom::OverlayStrategy, viz::OverlayStrategy> {
         break;
     }
     NOTREACHED();
-    return viz::mojom::OverlayStrategy::kFullscreen;
   }
 
   static bool FromMojom(viz::mojom::OverlayStrategy reason,

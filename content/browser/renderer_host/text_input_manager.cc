@@ -8,6 +8,7 @@
 
 #include "base/numerics/clamped_math.h"
 #include "base/observer_list.h"
+#include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/browser/renderer_host/render_widget_host_view_base.h"
@@ -35,14 +36,12 @@ bool ShouldUpdateTextInputState(const ui::mojom::TextInputState& old_state,
   return true;
 #else
   NOTREACHED();
-  return true;
 #endif
 }
 
 }  // namespace
 
-TextInputManager::TextInputManager(bool should_do_learning)
-    : active_view_(nullptr), should_do_learning_(should_do_learning) {}
+TextInputManager::TextInputManager() : active_view_(nullptr) {}
 
 TextInputManager::~TextInputManager() {
   // If there is an active view, we should unregister it first so that the
@@ -90,10 +89,10 @@ gfx::Range TextInputManager::GetAutocorrectRange() const {
   return gfx::Range();
 }
 
-absl::optional<ui::GrammarFragment> TextInputManager::GetGrammarFragment(
+std::optional<ui::GrammarFragment> TextInputManager::GetGrammarFragment(
     gfx::Range range) const {
   if (!active_view_)
-    return absl::nullopt;
+    return std::nullopt;
 
   for (const auto& ime_text_span_info :
        text_input_state_map_.at(active_view_)->ime_text_spans_info) {
@@ -108,7 +107,7 @@ absl::optional<ui::GrammarFragment> TextInputManager::GetGrammarFragment(
       }
     }
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 const TextInputManager::SelectionRegion* TextInputManager::GetSelectionRegion(
@@ -124,6 +123,23 @@ TextInputManager::GetCompositionRangeInfo() const {
   return active_view_ ? &composition_range_info_map_.at(active_view_) : nullptr;
 }
 
+#if BUILDFLAG(IS_WIN)
+const blink::mojom::ProximateCharacterRangeBounds*
+TextInputManager::GetProximateCharacterBoundsInfo(
+    const RenderWidgetHostViewBase& view) const {
+  // TODO(crbug.com/355578906): Remove const_cast<RenderWidgetHostViewBase*>,
+  // which is needed because TextInputManager::ViewMap has mutable
+  // `RenderWidgetHostViewBase*` keys and the two RenderWidgetHostViewAura
+  // callers are const methods passing (*this).
+  // - RenderWidgetHostViewAura::GetProximateCharacterBounds
+  // - RenderWidgetHostViewAura::GetProximateCharacterIndexFromPoint
+  const auto found = proximate_character_bounds_map_.find(
+      const_cast<RenderWidgetHostViewBase*>(&view));
+  return found != proximate_character_bounds_map_.end() ? found->second.get()
+                                                        : nullptr;
+}
+#endif  // BUILDFLAG(IS_WIN)
+
 const TextInputManager::TextSelection* TextInputManager::GetTextSelection(
     RenderWidgetHostViewBase* view) const {
   DCHECK(!view || IsRegistered(view));
@@ -135,28 +151,28 @@ const TextInputManager::TextSelection* TextInputManager::GetTextSelection(
   return (view && IsRegistered(view)) ? &text_selection_map_.at(view) : nullptr;
 }
 
-const absl::optional<gfx::Rect> TextInputManager::GetTextControlBounds() const {
+const std::optional<gfx::Rect> TextInputManager::GetTextControlBounds() const {
   const ui::mojom::TextInputState* state = GetTextInputState();
   if (!active_view_ || !state || !state->edit_context_control_bounds)
-    return absl::nullopt;
+    return std::nullopt;
 
   auto control_bounds = state->edit_context_control_bounds.value();
   auto new_top_left =
       active_view_->TransformPointToRootCoordSpace(control_bounds.origin());
-  return absl::optional<gfx::Rect>(
+  return std::optional<gfx::Rect>(
       gfx::Rect(new_top_left, control_bounds.size()));
 }
 
-const absl::optional<gfx::Rect> TextInputManager::GetTextSelectionBounds()
+const std::optional<gfx::Rect> TextInputManager::GetTextSelectionBounds()
     const {
   const ui::mojom::TextInputState* state = GetTextInputState();
   if (!active_view_ || !state || !state->edit_context_selection_bounds)
-    return absl::nullopt;
+    return std::nullopt;
 
   auto selection_bounds = state->edit_context_selection_bounds.value();
   auto new_top_left =
       active_view_->TransformPointToRootCoordSpace(selection_bounds.origin());
-  return absl::optional<gfx::Rect>(
+  return std::optional<gfx::Rect>(
       gfx::Rect(new_top_left, selection_bounds.size()));
 }
 
@@ -189,12 +205,13 @@ void TextInputManager::UpdateTextInputState(
       "ime", "TextInputManager::UpdateTextInputState", "changed", changed,
       "text_input_state - type, selection, composition, "
       "show_ime_if_needed, control_bounds",
-      std::to_string(text_input_state.type) + ", " +
+      base::NumberToString(text_input_state.type) + ", " +
           text_input_state.selection.ToString() + ", " +
           (text_input_state.composition.has_value()
                ? text_input_state.composition->ToString()
                : "") +
-          ", " + std::to_string(text_input_state.show_ime_if_needed) + ", " +
+          ", " + base::NumberToString(text_input_state.show_ime_if_needed) +
+          ", " +
           (text_input_state.edit_context_control_bounds.has_value()
                ? text_input_state.edit_context_control_bounds->ToString()
                : ""));
@@ -233,6 +250,18 @@ void TextInputManager::UpdateTextInputState(
 
   NotifyObserversAboutInputStateUpdate(view, changed);
 }
+
+#if BUILDFLAG(IS_WIN)
+void TextInputManager::UpdateProximateCharacterBounds(
+    RenderWidgetHostViewBase& view,
+    blink::mojom::ProximateCharacterRangeBoundsPtr proximate_bounds) {
+  if (!proximate_bounds) {
+    proximate_character_bounds_map_.erase(&view);
+    return;
+  }
+  proximate_character_bounds_map_[&view] = std::move(proximate_bounds);
+}
+#endif  // BUILDFLAG(IS_WIN)
 
 void TextInputManager::ImeCancelComposition(RenderWidgetHostViewBase* view) {
   DCHECK(IsRegistered(view));
@@ -346,22 +375,27 @@ void TextInputManager::NotifySelectionBoundsChanged(
 void TextInputManager::ImeCompositionRangeChanged(
     RenderWidgetHostViewBase* view,
     const gfx::Range& range,
-    const std::vector<gfx::Rect>& character_bounds) {
+    const std::optional<std::vector<gfx::Rect>>& character_bounds) {
   DCHECK(IsRegistered(view));
-  composition_range_info_map_[view].character_bounds.clear();
 
-  // The values for the bounds should be converted to root view's coordinates
-  // before being stored.
-  for (auto rect : character_bounds) {
-    composition_range_info_map_[view].character_bounds.emplace_back(gfx::Rect(
-        view->TransformPointToRootCoordSpace(rect.origin()), rect.size()));
+  if (character_bounds.has_value()) {
+    composition_range_info_map_[view].character_bounds.clear();
+
+    // The values for the bounds should be converted to root view's coordinates
+    // before being stored.
+    for (auto& rect : character_bounds.value()) {
+      composition_range_info_map_[view].character_bounds.emplace_back(
+          view->TransformPointToRootCoordSpace(rect.origin()), rect.size());
+    }
+
+    composition_range_info_map_[view].range.set_start(range.start());
+    composition_range_info_map_[view].range.set_end(range.end());
   }
 
-  composition_range_info_map_[view].range.set_start(range.start());
-  composition_range_info_map_[view].range.set_end(range.end());
-
-  for (auto& observer : observer_list_)
-    observer.OnImeCompositionRangeChanged(this, view);
+  for (auto& observer : observer_list_) {
+    observer.OnImeCompositionRangeChanged(this, view,
+                                          character_bounds.has_value());
+  }
 }
 
 void TextInputManager::SelectionChanged(RenderWidgetHostViewBase* view,
@@ -389,6 +423,9 @@ void TextInputManager::Unregister(RenderWidgetHostViewBase* view) {
   selection_region_map_.erase(view);
   composition_range_info_map_.erase(view);
   text_selection_map_.erase(view);
+#if BUILDFLAG(IS_WIN)
+  proximate_character_bounds_map_.erase(view);
+#endif  // BUILDFLAG(IS_WIN)
 
   if (active_view_ == view) {
     active_view_ = nullptr;

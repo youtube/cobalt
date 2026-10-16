@@ -21,8 +21,7 @@
   .photo-row-info {
     box-sizing: border-box;
     color: var(--cros-text-color-secondary);
-    font: var(--cros-body-2-font);
-    font-weight: 500;
+    font: var(--cros-button-2-font);
     margin: 0;
     padding: calc(var(--personalization-app-grid-item-spacing) / 2);
     width: 100%;
@@ -30,7 +29,7 @@
 
   .location {
     color: var(--cros-text-color-disabled);
-    font-weight: 400;
+    font: var(--cros-body-2-font);
     padding-inline-start: 12px;
   }
 
@@ -65,8 +64,13 @@
         </template>
         <div class="photos">
           <template is="dom-repeat" items="[[row]]" as="photo">
+            <div hidden id$="[[getPhotoDescriptionId_(photo)]]">
+              <p>[[getPhotoDate_(photo)]]</p>
+              <p>[[photo.location]]</p>
+            </div>
             <wallpaper-grid-item
                 aria-label$="[[getPhotoAriaLabel_(photo)]]"
+                aria-describedby$="[[getPhotoDescriptionId_(photo)]]"
                 aria-posinset$="[[getPhotoAriaIndex_(photo.index)]]"
                 class="photo"
                 colindex$="[[index]]"

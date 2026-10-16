@@ -4,11 +4,12 @@
 
 #include "quiche/quic/core/quic_crypto_stream.h"
 
+#include <algorithm>
+#include <optional>
 #include <string>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/frames/quic_crypto_frame.h"
 #include "quiche/quic/core/quic_connection.h"
@@ -59,9 +60,7 @@ QuicByteCount QuicCryptoStream::CryptoMessageFramingOverhead(
   }
   return QuicPacketCreator::StreamFramePacketOverhead(
       version, connection_id.length(), 0, /*include_version=*/true,
-      /*include_diversification_nonce=*/true,
-      VersionHasIetfInvariantHeader(version) ? PACKET_4BYTE_PACKET_NUMBER
-                                             : PACKET_1BYTE_PACKET_NUMBER,
+      /*include_diversification_nonce=*/true, PACKET_4BYTE_PACKET_NUMBER,
       retry_token_length_length, length_length,
       /*offset=*/0);
 }

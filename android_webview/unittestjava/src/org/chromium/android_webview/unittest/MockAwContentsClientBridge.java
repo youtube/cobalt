@@ -4,10 +4,13 @@
 
 package org.chromium.android_webview.unittest;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
+
 import org.chromium.android_webview.AwContentsClientBridge;
 import org.chromium.android_webview.ClientCertLookupTable;
-import org.chromium.base.annotations.CalledByNative;
 
+/** Used by android_webview/browser/aw_contents_client_bridge_unittest.cc */
 class MockAwContentsClientBridge extends AwContentsClientBridge {
 
     private int mId;
@@ -18,8 +21,12 @@ class MockAwContentsClientBridge extends AwContentsClientBridge {
     }
 
     @Override
-    protected void selectClientCertificate(final int id, final String[] keyTypes,
-            byte[][] encodedPrincipals, final String host, final int port) {
+    protected void selectClientCertificate(
+            final int id,
+            final String[] keyTypes,
+            byte[][] encodedPrincipals,
+            final String host,
+            final int port) {
         mId = id;
         mKeyTypes = keyTypes;
     }
@@ -30,7 +37,7 @@ class MockAwContentsClientBridge extends AwContentsClientBridge {
     }
 
     @CalledByNative
-    private String[] getKeyTypes() {
+    private @JniType("std::vector<std::string>") String[] getKeyTypes() {
         return mKeyTypes;
     }
 
@@ -41,6 +48,6 @@ class MockAwContentsClientBridge extends AwContentsClientBridge {
 
     @CalledByNative
     private byte[][] createTestCertChain() {
-        return new byte[][]{{1}};
+        return new byte[][] {{1}};
     }
 }

@@ -4,75 +4,53 @@
 
 package org.chromium.base.test.util;
 
-import android.content.Context;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-import android.text.TextUtils;
-
 import org.junit.runners.model.FrameworkMethod;
 
 import org.chromium.base.Log;
-import org.chromium.base.SysUtils;
 
-/**
- * Checks if any restrictions exist and skip the test if it meets those restrictions.
- */
-public class RestrictionSkipCheck extends SkipCheck {
+import java.util.HashMap;
+import java.util.Map;
 
-    private static final String TAG = "base_test";
-
-    private final Context mTargetContext;
-
-    public RestrictionSkipCheck(Context targetContext) {
-        mTargetContext = targetContext;
+/** Checks if any restrictions exist and skip the test if it meets those restrictions. */
+public final class RestrictionSkipCheck extends SkipCheck {
+    public interface RestrictionHandler {
+        boolean shouldSkip();
     }
 
-    protected Context getTargetContext() {
-        return mTargetContext;
+    private static final String TAG = "RestrictionSkipCheck";
+
+    private final Map<String, RestrictionHandler> mRestrictionHandlers = new HashMap<>();
+
+    public void addHandler(String restrictionValue, RestrictionHandler handler) {
+        mRestrictionHandlers.put(restrictionValue, handler);
     }
 
     @Override
     public boolean shouldSkip(FrameworkMethod frameworkMethod) {
         if (frameworkMethod == null) return true;
 
-        for (Restriction restriction : AnnotationProcessingUtils.getAnnotations(
-                     frameworkMethod.getMethod(), Restriction.class)) {
+        for (Restriction restriction :
+                AnnotationProcessingUtils.getAnnotations(
+                        frameworkMethod.getMethod(), Restriction.class)) {
             for (String restrictionVal : restriction.value()) {
-                if (restrictionApplies(restrictionVal)) {
-                    Log.i(TAG, "Test " + frameworkMethod.getDeclaringClass().getName() + "#"
-                            + frameworkMethod.getName() + " skipped because of restriction "
-                            + restriction);
+                RestrictionHandler handler = mRestrictionHandlers.get(restrictionVal);
+                if (handler == null) {
+                    throw new IllegalStateException(
+                            "Unknown value for @Restriction: "
+                                    + restrictionVal
+                                    + "\nDid you perhaps use the wrong @RunWith?");
+                }
+                if (handler.shouldSkip()) {
+                    Log.i(
+                            TAG,
+                            "Test %s#%s skipped because of restriction %s",
+                            frameworkMethod.getDeclaringClass().getName(),
+                            frameworkMethod.getName(),
+                            restriction);
                     return true;
                 }
             }
         }
         return false;
-    }
-
-    protected boolean restrictionApplies(String restriction) {
-        if (TextUtils.equals(restriction, Restriction.RESTRICTION_TYPE_LOW_END_DEVICE)
-                && !SysUtils.isLowEndDevice()) {
-            return true;
-        }
-        if (TextUtils.equals(restriction, Restriction.RESTRICTION_TYPE_NON_LOW_END_DEVICE)
-                && SysUtils.isLowEndDevice()) {
-            return true;
-        }
-        if (TextUtils.equals(restriction, Restriction.RESTRICTION_TYPE_INTERNET)
-                && !isNetworkAvailable()) {
-            return true;
-        }
-        if (TextUtils.equals(restriction, Restriction.RESTRICTION_TYPE_HAS_CAMERA)
-                && !SysUtils.hasCamera(mTargetContext)) {
-            return true;
-        }
-        return false;
-    }
-
-    private boolean isNetworkAvailable() {
-        final ConnectivityManager connectivityManager = (ConnectivityManager)
-                mTargetContext.getSystemService(Context.CONNECTIVITY_SERVICE);
-        final NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 }

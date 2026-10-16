@@ -7,10 +7,11 @@
 
 #include <stddef.h>
 
+#include <optional>
 #include <string>
 
 #include "base/debug/crash_logging.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "extensions/common/extension_id.h"
 
 namespace extensions {
 
@@ -29,6 +30,8 @@ struct PortContext {
     FrameContext();
     explicit FrameContext(int routing_id);
 
+    auto operator<=>(const FrameContext&) const = default;
+
     // The routing id of the frame context.
     // This may be MSG_ROUTING_NONE if the context is process-wide and isn't
     // tied to a specific RenderFrame.
@@ -39,25 +42,32 @@ struct PortContext {
     WorkerContext();
     WorkerContext(int thread_id,
                   int64_t version_id,
-                  const std::string& extension_id);
+                  int render_process_id,
+                  const ExtensionId& extension_id);
+
+    auto operator<=>(const WorkerContext&) const = default;
 
     int thread_id;
     int64_t version_id;
-    std::string extension_id;
+    int render_process_id;
+    ExtensionId extension_id;
   };
+
+  auto operator<=>(const PortContext&) const = default;
 
   static PortContext ForFrame(int routing_id);
   static PortContext ForWorker(int thread_id,
                                int64_t version_id,
-                               const std::string& extension_id);
+                               int render_process_id,
+                               const ExtensionId& extension_id);
   static PortContext ForNativeHost();
 
   bool is_for_render_frame() const { return frame.has_value(); }
   bool is_for_service_worker() const { return worker.has_value(); }
   bool is_for_native_host() const { return !frame && !worker; }
 
-  absl::optional<FrameContext> frame;
-  absl::optional<WorkerContext> worker;
+  std::optional<FrameContext> frame;
+  std::optional<WorkerContext> worker;
 };
 
 namespace debug {
@@ -68,7 +78,7 @@ class ScopedPortContextCrashKeys {
   ~ScopedPortContextCrashKeys();
 
  private:
-  absl::optional<base::debug::ScopedCrashKeyString> extension_id_;
+  std::optional<base::debug::ScopedCrashKeyString> extension_id_;
 };
 
 }  // namespace debug

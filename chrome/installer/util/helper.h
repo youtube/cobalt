@@ -9,19 +9,28 @@
 
 #include "base/files/file_path.h"
 
+namespace base {
+class Version;
+}
+
 namespace installer {
 
 class InitialPreferences;
 
-// This function returns the install path for Chrome depending on whether it's
-// a system wide install or a user specific install.
-// Returns the install path stored at
-// Software\Google\Update\ClientState\{appguid}\UninstallString
-// under HKLM if |system_install| is true, HKCU otherwise. If no path was stored
-// in the registry, returns (%ProgramFiles%\[Company\]Product\Application) if
-// |system_install| is true, otherwise returns user specific location
-// (%LOCALAPPDATA%\[Company\]Product\Application).
-base::FilePath GetChromeInstallPath(bool system_install);
+// Returns the install directory for an existing per-user or per-machine
+// install; or an empty path if Chrome is not installed at the given level. In
+// particular: if Chrome is installed at the level specified by `system_install`
+// (as indicated by the presence of a valid version value), the install path
+// derived from the value in the Windows registry at
+// [HKLM|HKCU]\Software\Google\Update\ClientState\{appguid}\UninstallString is
+// returned if it is absolute and exists. Otherwise, the path
+// ([%ProgramFiles%|%LOCALAPPDATA%]\[Company\]Product\Application) is returned,
+// provided that the expanded variable yields an absolute path that exists.
+base::FilePath GetInstalledDirectory(bool system_install);
+
+// Returns the default install directory for either a per-user or a per-machine
+// install.
+base::FilePath GetDefaultChromeInstallPath(bool system_install);
 
 // Returns a path to the directory holding chrome.exe for either a system wide
 // or user specific install. The returned path will be one of:
@@ -31,6 +40,18 @@ base::FilePath GetChromeInstallPath(bool system_install);
 // - The default path for a new installation based on the binary's bitness.
 base::FilePath GetChromeInstallPathWithPrefs(bool system_install,
                                              const InitialPreferences& prefs);
+
+// Returns the path that seemingly contains an installation at `system_level` of
+// `version`, including the version directory (e.g., ...\Chromium\W.X.Y.Z).
+base::FilePath FindInstallPath(bool system_install,
+                               const base::Version& version);
+
+// Returns true if the current process seems to be properly installed. "Properly
+// installed" means that there is a Chrome at the current level (per-machine or
+// per-user) and install mode registered with the updater, and the current
+// process appears to reside in that Chrome's installation directory.
+bool IsCurrentProcessInstalled();
+
 }  // namespace installer
 
 #endif  // CHROME_INSTALLER_UTIL_HELPER_H_

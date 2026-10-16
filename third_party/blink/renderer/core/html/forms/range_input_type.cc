@@ -39,7 +39,6 @@
 #include "third_party/blink/renderer/core/accessibility/ax_object_cache.h"
 #include "third_party/blink/renderer/core/dom/events/scoped_event_queue.h"
 #include "third_party/blink/renderer/core/dom/events/simulated_click_options.h"
-#include "third_party/blink/renderer/core/dom/node_computed_style.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
 #include "third_party/blink/renderer/core/events/mouse_event.h"
@@ -55,12 +54,13 @@
 #include "third_party/blink/renderer/core/html/shadow/shadow_element_names.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
+#include "third_party/blink/renderer/core/layout/flex/layout_flexible_box.h"
 #include "third_party/blink/renderer/core/layout/layout_block.h"
-#include "third_party/blink/renderer/core/layout/ng/flex/layout_ng_flexible_box.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
+#include "third_party/blink/renderer/platform/text/text_direction.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 
 namespace blink {
@@ -98,8 +98,31 @@ void RangeInputType::CountUsage() {
   CountUsageIfVisible(WebFeature::kInputTypeRange);
 }
 
-const AtomicString& RangeInputType::FormControlType() const {
-  return input_type_names::kRange;
+void RangeInputType::DidRecalcStyle(const StyleRecalcChange) {
+  if (const ComputedStyle* style = GetElement().GetComputedStyle()) {
+    if (RuntimeEnabledFeatures::
+            NonStandardAppearanceValueSliderVerticalEnabled() &&
+        style->EffectiveAppearance() == AppearanceValue::kSliderVertical) {
+      UseCounter::Count(GetElement().GetDocument(),
+                        WebFeature::kInputTypeRangeVerticalAppearance);
+    } else {
+      bool is_horizontal = style->IsHorizontalWritingMode();
+      bool is_ltr = style->IsLeftToRightDirection();
+      if (is_horizontal && is_ltr) {
+        UseCounter::Count(GetElement().GetDocument(),
+                          WebFeature::kInputTypeRangeHorizontalLtr);
+      } else if (is_horizontal && !is_ltr) {
+        UseCounter::Count(GetElement().GetDocument(),
+                          WebFeature::kInputTypeRangeHorizontalRtl);
+      } else if (is_ltr) {
+        UseCounter::Count(GetElement().GetDocument(),
+                          WebFeature::kInputTypeRangeVerticalLtr);
+      } else {
+        UseCounter::Count(GetElement().GetDocument(),
+                          WebFeature::kInputTypeRangeVerticalRtl);
+      }
+    }
+  }
 }
 
 double RangeInputType::ValueAsDouble() const {
@@ -167,14 +190,14 @@ void RangeInputType::HandleMouseDownEvent(MouseEvent& event) {
   SliderThumbElement* thumb = GetSliderThumbElement();
   if (target_node == thumb)
     return;
-  thumb->DragFrom(LayoutPoint(event.AbsoluteLocation()));
+  thumb->DragFrom(PhysicalOffset::FromPointFFloor(event.AbsoluteLocation()));
 }
 
 void RangeInputType::HandleKeydownEvent(KeyboardEvent& event) {
   if (GetElement().IsDisabledFormControl())
     return;
 
-  const String& key = event.key();
+  const AtomicString key(event.key());
 
   const Decimal current = ParseToNumberOrNaN(GetElement().Value());
   DCHECK(current.IsFinite());
@@ -191,27 +214,39 @@ void RangeInputType::HandleKeydownEvent(KeyboardEvent& event) {
   const Decimal big_step =
       std::max((step_range.Maximum() - step_range.Minimum()) / 10, step);
 
-  TextDirection dir = TextDirection::kLtr;
-  if (GetElement().GetLayoutObject()) {
-    dir = ComputedTextDirection();
+  bool is_up = false;
+  bool is_down = false;
+  WritingDirectionMode writing_direction = {WritingMode::kHorizontalTb,
+                                            TextDirection::kLtr};
+  if (const auto* style = GetElement().GetComputedStyle()) {
+    writing_direction = style->GetWritingDirection();
+    // `appearance: slider-vertical` is equivalent to `writing-mode:
+    // vertical-rl; direction: rtl`.
+    if (RuntimeEnabledFeatures::
+            NonStandardAppearanceValueSliderVerticalEnabled() &&
+        writing_direction.IsHorizontal() &&
+        style->EffectiveAppearance() == AppearanceValue::kSliderVertical) {
+      writing_direction = {WritingMode::kVerticalRl, TextDirection::kRtl};
+    }
   }
+  const PhysicalToLogical<const AtomicString*> key_mapper(
+      writing_direction, &keywords::kArrowUp, &keywords::kArrowRight,
+      &keywords::kArrowDown, &keywords::kArrowLeft);
+  is_up = key == *key_mapper.InlineEnd() || key == *key_mapper.LineOver();
+  is_down = key == *key_mapper.InlineStart() || key == *key_mapper.LineUnder();
 
   Decimal new_value;
-  if (key == "ArrowUp") {
+  if (is_up) {
     new_value = current + step;
-  } else if (key == "ArrowDown") {
+  } else if (is_down) {
     new_value = current - step;
-  } else if (key == "ArrowLeft") {
-    new_value = dir == TextDirection::kRtl ? current + step : current - step;
-  } else if (key == "ArrowRight") {
-    new_value = dir == TextDirection::kRtl ? current - step : current + step;
-  } else if (key == "PageUp") {
+  } else if (key == keywords::kPageUp) {
     new_value = current + big_step;
-  } else if (key == "PageDown") {
+  } else if (key == keywords::kPageDown) {
     new_value = current - big_step;
-  } else if (key == "Home") {
+  } else if (key == keywords::kHome) {
     new_value = step_range.Minimum();
-  } else if (key == "End") {
+  } else if (key == keywords::kEnd) {
     new_value = step_range.Maximum();
   } else {
     return;  // Did not match any key binding.
@@ -249,7 +284,12 @@ void RangeInputType::CreateShadowSubtree() {
 
 LayoutObject* RangeInputType::CreateLayoutObject(const ComputedStyle&) const {
   // TODO(crbug.com/1131352): input[type=range] should not use flexbox.
-  return MakeGarbageCollected<LayoutNGFlexibleBox>(&GetElement());
+  return MakeGarbageCollected<LayoutFlexibleBox>(&GetElement());
+}
+
+void RangeInputType::AdjustStyle(ComputedStyleBuilder& builder) {
+  builder.SetInlineBlockBaselineEdge(EInlineBlockBaselineEdge::kBorderBox);
+  InputTypeView::AdjustStyle(builder);
 }
 
 Decimal RangeInputType::ParseToNumber(const String& src,
@@ -292,8 +332,8 @@ void RangeInputType::DidSetValue(const String&, bool value_changed) {
     GetElement().UpdateView();
 }
 
-ControlPart RangeInputType::AutoAppearance() const {
-  return kSliderHorizontalPart;
+AppearanceValue RangeInputType::AutoAppearance() const {
+  return AppearanceValue::kSliderHorizontal;
 }
 
 void RangeInputType::UpdateView() {
@@ -316,6 +356,11 @@ void RangeInputType::WarnIfValueIsInvalid(const String& value) const {
       "The specified value %s cannot be parsed, or is out of range.", value);
 }
 
+String RangeInputType::ValueNotEqualText(const Decimal& value) const {
+  return GetLocale().QueryString(IDS_FORM_VALIDATION_VALUE_NOT_EQUAL,
+                                 LocalizeValue(Serialize(value)));
+}
+
 String RangeInputType::RangeOverflowText(const Decimal& maximum) const {
   return GetLocale().QueryString(IDS_FORM_VALIDATION_RANGE_OVERFLOW,
                                  LocalizeValue(Serialize(maximum)));
@@ -324,6 +369,13 @@ String RangeInputType::RangeOverflowText(const Decimal& maximum) const {
 String RangeInputType::RangeUnderflowText(const Decimal& minimum) const {
   return GetLocale().QueryString(IDS_FORM_VALIDATION_RANGE_UNDERFLOW,
                                  LocalizeValue(Serialize(minimum)));
+}
+
+String RangeInputType::RangeInvalidText(const Decimal& minimum,
+                                        const Decimal& maximum) const {
+  return GetLocale().QueryString(IDS_FORM_VALIDATION_RANGE_REVERSED,
+                                 LocalizeValue(Serialize(minimum)),
+                                 LocalizeValue(Serialize(maximum)));
 }
 
 void RangeInputType::DisabledAttributeChanged() {

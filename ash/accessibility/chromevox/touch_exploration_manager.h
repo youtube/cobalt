@@ -72,9 +72,6 @@ class ASH_EXPORT TouchExplorationManager
                                uint32_t changed_metrics) override;
 
   // TouchAccessibilityEnablerDelegate overrides:
-  void OnTwoFingerTouchStart() override;
-  void OnTwoFingerTouchStop() override;
-  void PlaySpokenFeedbackToggleCountdown(int tick_count) override;
   void PlayTouchTypeEarcon() override;
   void ToggleSpokenFeedback() override;
 
@@ -98,9 +95,9 @@ class ASH_EXPORT TouchExplorationManager
 
   std::unique_ptr<TouchExplorationController> touch_exploration_controller_;
   std::unique_ptr<TouchAccessibilityEnabler> touch_accessibility_enabler_;
-  raw_ptr<RootWindowController, ExperimentalAsh> root_window_controller_;
-  raw_ptr<CrasAudioHandler, ExperimentalAsh> audio_handler_;
-  raw_ptr<aura::Window, ExperimentalAsh> observing_window_;
+  raw_ptr<RootWindowController> root_window_controller_;
+  raw_ptr<CrasAudioHandler> audio_handler_;
+  raw_ptr<aura::Window> observing_window_;
   display::ScopedDisplayObserver display_observer_{this};
 };
 

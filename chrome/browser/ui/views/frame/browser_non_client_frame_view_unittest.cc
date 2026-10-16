@@ -7,7 +7,6 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
@@ -39,7 +38,7 @@ class BrowserNonClientFrameViewTest : public TestWithBrowserView {
 
  protected:
   // Owned by the browser view.
-  raw_ptr<BrowserNonClientFrameView> frame_view_ = nullptr;
+  raw_ptr<BrowserNonClientFrameView, DanglingUntriaged> frame_view_ = nullptr;
 };
 
 class BrowserNonClientFrameViewPopupTest
@@ -49,7 +48,7 @@ class BrowserNonClientFrameViewPopupTest
       : BrowserNonClientFrameViewTest(Browser::TYPE_POPUP) {}
 };
 
-// TODO(crbug.com/998369): Flaky on Linux TSAN and ASAN.
+// TODO(crbug.com/41478509): Flaky on Linux TSAN and ASAN.
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && \
     (defined(ADDRESS_SANITIZER) || defined(THREAD_SANITIZER))
 #define MAYBE_HitTestPopupTopChrome DISABLED_HitTestPopupTopChrome
@@ -75,7 +74,7 @@ class BrowserNonClientFrameViewTabbedTest
       : BrowserNonClientFrameViewTest(Browser::TYPE_NORMAL) {}
 };
 
-// TODO(crbug.com/1011339): Flaky on Linux TSAN.
+// TODO(crbug.com/40101869): Flaky on Linux TSAN.
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && defined(THREAD_SANITIZER)
 #define MAYBE_HitTestTabstrip DISABLED_HitTestTabstrip
 #else

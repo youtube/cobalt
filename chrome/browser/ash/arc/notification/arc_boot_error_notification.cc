@@ -7,8 +7,8 @@
 #include <memory>
 #include <utility>
 
-#include "ash/components/arc/arc_browser_context_keyed_service_factory_base.h"
 #include "ash/public/cpp/notification_utils.h"
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/utf_string_conversions.h"
@@ -21,9 +21,10 @@
 #include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
+#include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
+#include "chromeos/ash/experiences/arc/arc_browser_context_keyed_service_factory_base.h"
 #include "components/user_manager/user_manager.h"
 #include "content/public/browser/browser_thread.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -46,11 +47,18 @@ void ShowLowDiskSpaceErrorNotification(content::BrowserContext* context) {
   if (g_browser_process->platform_part()
           ->browser_policy_connector_ash()
           ->IsDeviceEnterpriseManaged() &&
-      user_manager::UserManager::Get()->GetUsers().size() > 1) {
+      user_manager::UserManager::Get()->GetPersistedUsers().size() > 1) {
     LOG(WARNING) << "ARC booting is aborted due to low disk space, but the "
                  << "notification was suppressed on a managed device.";
     return;
   }
+
+  if (ash::demo_mode::IsDeviceInDemoMode()) {
+    LOG(WARNING) << "ARC booting is aborted due to low disk space, but the "
+                 << "notification was suppressed on a demo mode device.";
+    return;
+  }
+
   message_center::ButtonInfo storage_settings(
       l10n_util::GetStringUTF16(IDS_LOW_DISK_NOTIFICATION_BUTTON));
   message_center::RichNotificationData optional_fields;
@@ -73,7 +81,7 @@ void ShowLowDiskSpaceErrorNotification(content::BrowserContext* context) {
       notifier_id, optional_fields,
       base::MakeRefCounted<message_center::HandleNotificationClickDelegate>(
           base::BindRepeating(
-              [](Profile* profile, absl::optional<int> button_index) {
+              [](Profile* profile, std::optional<int> button_index) {
                 if (button_index) {
                   DCHECK_EQ(0, *button_index);
                   chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
@@ -83,7 +91,7 @@ void ShowLowDiskSpaceErrorNotification(content::BrowserContext* context) {
               profile)),
       kNotificationStorageFullIcon,
       message_center::SystemNotificationWarningLevel::CRITICAL_WARNING);
-  NotificationDisplayService::GetForProfile(profile)->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile)->Display(
       NotificationHandler::Type::TRANSIENT, notification,
       /*metadata=*/nullptr);
 }

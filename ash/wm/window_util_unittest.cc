@@ -7,13 +7,17 @@
 #include "ash/public/cpp/presentation_time_recorder.h"
 #include "ash/shell.h"
 #include "ash/test/ash_test_base.h"
+#include "ash/wm/tablet_mode/tablet_mode_controller.h"
+#include "ash/wm/test/fake_window_state.h"
 #include "ash/wm/window_positioning_utils.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_state_delegate.h"
 #include "ash/wm/wm_event.h"
 #include "base/containers/contains.h"
+#include "base/memory/raw_ptr.h"
 #include "ui/aura/test/test_windows.h"
 #include "ui/aura/window.h"
+#include "ui/compositor/layer.h"
 #include "ui/display/screen.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/wm/core/window_util.h"
@@ -25,146 +29,76 @@ namespace {
 
 std::string GetAdjustedBounds(const gfx::Rect& visible,
                               gfx::Rect to_be_adjusted) {
-  AdjustBoundsToEnsureMinimumWindowVisibility(visible, &to_be_adjusted);
+  AdjustBoundsToEnsureMinimumWindowVisibility(
+      visible, /*client_controlled=*/false, &to_be_adjusted);
   return to_be_adjusted.ToString();
 }
-
-class FakeWindowState : public WindowState::State {
- public:
-  FakeWindowState() = default;
-
-  FakeWindowState(const FakeWindowState&) = delete;
-  FakeWindowState& operator=(const FakeWindowState&) = delete;
-
-  ~FakeWindowState() override = default;
-
-  // WindowState::State overrides:
-  void OnWMEvent(WindowState* window_state, const WMEvent* event) override {
-    if (event->type() == WM_EVENT_MINIMIZE)
-      was_visible_on_minimize_ = window_state->window()->IsVisible();
-  }
-  chromeos::WindowStateType GetType() const override {
-    return chromeos::WindowStateType::kNormal;
-  }
-  void AttachState(WindowState* window_state,
-                   WindowState::State* previous_state) override {}
-  void DetachState(WindowState* window_state) override {}
-
-  bool was_visible_on_minimize() { return was_visible_on_minimize_; }
-
- private:
-  bool was_visible_on_minimize_ = true;
-};
-
-class FakeWindowStateDelegate : public WindowStateDelegate {
- public:
-  FakeWindowStateDelegate() = default;
-
-  FakeWindowStateDelegate(const FakeWindowStateDelegate&) = delete;
-  FakeWindowStateDelegate& operator=(const FakeWindowStateDelegate&) = delete;
-
-  // WindowStateDelegate overrides:
-  bool ToggleFullscreen(WindowState* window_state) override { return false; }
-  void ToggleLockedFullscreen(WindowState* window_state) override {
-    toggle_locked_fullscreen_count_++;
-  }
-  std::unique_ptr<PresentationTimeRecorder> OnDragStarted(
-      int component) override {
-    return nullptr;
-  }
-
-  int toggle_locked_fullscreen_count() {
-    return toggle_locked_fullscreen_count_;
-  }
-
- private:
-  int toggle_locked_fullscreen_count_ = 0;
-};
 
 }  // namespace
 
 using WindowUtilTest = AshTestBase;
 
-TEST_F(WindowUtilTest, CenterWindow) {
-  UpdateDisplay("500x400, 600x400");
-  std::unique_ptr<aura::Window> window(
-      CreateTestWindowInShellWithBounds(gfx::Rect(12, 20, 100, 100)));
-
-  WindowState* window_state = WindowState::Get(window.get());
-  EXPECT_FALSE(window_state->bounds_changed_by_user());
-
-  CenterWindow(window.get());
-  // Centring window is considered as a user's action.
-  EXPECT_TRUE(window_state->bounds_changed_by_user());
-  EXPECT_EQ("200,126 100x100", window->bounds().ToString());
-  EXPECT_EQ("200,126 100x100", window->GetBoundsInScreen().ToString());
-  window->SetBoundsInScreen(gfx::Rect(600, 0, 100, 100), GetSecondaryDisplay());
-  CenterWindow(window.get());
-  EXPECT_EQ("250,126 100x100", window->bounds().ToString());
-  EXPECT_EQ("750,126 100x100", window->GetBoundsInScreen().ToString());
-}
-
 TEST_F(WindowUtilTest, AdjustBoundsToEnsureMinimumVisibility) {
-  const gfx::Rect visible_bounds(0, 0, 100, 100);
+  constexpr gfx::Rect kVisibleBounds(0, 0, 100, 100);
 
   EXPECT_EQ("0,0 90x90",
-            GetAdjustedBounds(visible_bounds, gfx::Rect(0, 0, 90, 90)));
+            GetAdjustedBounds(kVisibleBounds, gfx::Rect(0, 0, 90, 90)));
   EXPECT_EQ("0,0 100x100",
-            GetAdjustedBounds(visible_bounds, gfx::Rect(0, 0, 150, 150)));
+            GetAdjustedBounds(kVisibleBounds, gfx::Rect(0, 0, 150, 150)));
   EXPECT_EQ("-50,0 100x100",
-            GetAdjustedBounds(visible_bounds, gfx::Rect(-50, -50, 150, 150)));
-  EXPECT_EQ("-75,10 100x100",
-            GetAdjustedBounds(visible_bounds, gfx::Rect(-100, 10, 150, 150)));
-  EXPECT_EQ("75,75 100x100",
-            GetAdjustedBounds(visible_bounds, gfx::Rect(100, 100, 150, 150)));
+            GetAdjustedBounds(kVisibleBounds, gfx::Rect(-50, -50, 150, 150)));
+  EXPECT_EQ("-55,10 100x100",
+            GetAdjustedBounds(kVisibleBounds, gfx::Rect(-100, 10, 150, 150)));
+  EXPECT_EQ("55,55 100x100",
+            GetAdjustedBounds(kVisibleBounds, gfx::Rect(100, 100, 150, 150)));
 
   // For windows that have smaller dimensions than kMinimumOnScreenArea,
   // we should adjust bounds accordingly, leaving no white space.
   EXPECT_EQ("50,80 20x20",
-            GetAdjustedBounds(visible_bounds, gfx::Rect(50, 80, 20, 20)));
+            GetAdjustedBounds(kVisibleBounds, gfx::Rect(50, 80, 20, 20)));
   EXPECT_EQ("80,50 20x20",
-            GetAdjustedBounds(visible_bounds, gfx::Rect(80, 50, 20, 20)));
+            GetAdjustedBounds(kVisibleBounds, gfx::Rect(80, 50, 20, 20)));
   EXPECT_EQ("0,50 20x20",
-            GetAdjustedBounds(visible_bounds, gfx::Rect(0, 50, 20, 20)));
+            GetAdjustedBounds(kVisibleBounds, gfx::Rect(0, 50, 20, 20)));
   EXPECT_EQ("50,0 20x20",
-            GetAdjustedBounds(visible_bounds, gfx::Rect(50, 0, 20, 20)));
+            GetAdjustedBounds(kVisibleBounds, gfx::Rect(50, 0, 20, 20)));
   EXPECT_EQ("50,80 20x20",
-            GetAdjustedBounds(visible_bounds, gfx::Rect(50, 100, 20, 20)));
+            GetAdjustedBounds(kVisibleBounds, gfx::Rect(50, 100, 20, 20)));
   EXPECT_EQ("80,50 20x20",
-            GetAdjustedBounds(visible_bounds, gfx::Rect(100, 50, 20, 20)));
+            GetAdjustedBounds(kVisibleBounds, gfx::Rect(100, 50, 20, 20)));
   EXPECT_EQ("0,50 20x20",
-            GetAdjustedBounds(visible_bounds, gfx::Rect(-10, 50, 20, 20)));
+            GetAdjustedBounds(kVisibleBounds, gfx::Rect(-10, 50, 20, 20)));
   EXPECT_EQ("50,0 20x20",
-            GetAdjustedBounds(visible_bounds, gfx::Rect(50, -10, 20, 20)));
+            GetAdjustedBounds(kVisibleBounds, gfx::Rect(50, -10, 20, 20)));
 
-  const gfx::Rect visible_bounds_right(200, 50, 100, 100);
+  constexpr gfx::Rect kVisibleBoundsRight(200, 50, 100, 100);
 
-  EXPECT_EQ("210,60 90x90", GetAdjustedBounds(visible_bounds_right,
-                                              gfx::Rect(210, 60, 90, 90)));
-  EXPECT_EQ("210,60 100x100", GetAdjustedBounds(visible_bounds_right,
+  EXPECT_EQ("210,60 90x90",
+            GetAdjustedBounds(kVisibleBoundsRight, gfx::Rect(210, 60, 90, 90)));
+  EXPECT_EQ("210,60 100x100", GetAdjustedBounds(kVisibleBoundsRight,
                                                 gfx::Rect(210, 60, 150, 150)));
-  EXPECT_EQ("125,50 100x100",
-            GetAdjustedBounds(visible_bounds_right, gfx::Rect(0, 0, 150, 150)));
-  EXPECT_EQ("275,50 100x100", GetAdjustedBounds(visible_bounds_right,
+  EXPECT_EQ("145,50 100x100",
+            GetAdjustedBounds(kVisibleBoundsRight, gfx::Rect(0, 0, 150, 150)));
+  EXPECT_EQ("255,50 100x100", GetAdjustedBounds(kVisibleBoundsRight,
                                                 gfx::Rect(300, 20, 150, 150)));
   EXPECT_EQ(
-      "125,125 100x100",
-      GetAdjustedBounds(visible_bounds_right, gfx::Rect(-100, 150, 150, 150)));
+      "145,105 100x100",
+      GetAdjustedBounds(kVisibleBoundsRight, gfx::Rect(-100, 150, 150, 150)));
 
-  const gfx::Rect visible_bounds_left(-200, -50, 100, 100);
-  EXPECT_EQ("-190,-40 90x90", GetAdjustedBounds(visible_bounds_left,
+  constexpr gfx::Rect kVisibleBoundsLeft(-200, -50, 100, 100);
+  EXPECT_EQ("-190,-40 90x90", GetAdjustedBounds(kVisibleBoundsLeft,
                                                 gfx::Rect(-190, -40, 90, 90)));
   EXPECT_EQ(
       "-190,-40 100x100",
-      GetAdjustedBounds(visible_bounds_left, gfx::Rect(-190, -40, 150, 150)));
+      GetAdjustedBounds(kVisibleBoundsLeft, gfx::Rect(-190, -40, 150, 150)));
   EXPECT_EQ(
       "-250,-40 100x100",
-      GetAdjustedBounds(visible_bounds_left, gfx::Rect(-250, -40, 150, 150)));
+      GetAdjustedBounds(kVisibleBoundsLeft, gfx::Rect(-250, -40, 150, 150)));
   EXPECT_EQ(
-      "-275,-50 100x100",
-      GetAdjustedBounds(visible_bounds_left, gfx::Rect(-400, -60, 150, 150)));
-  EXPECT_EQ("-125,0 100x100",
-            GetAdjustedBounds(visible_bounds_left, gfx::Rect(0, 0, 150, 150)));
+      "-255,-50 100x100",
+      GetAdjustedBounds(kVisibleBoundsLeft, gfx::Rect(-400, -60, 150, 150)));
+  EXPECT_EQ("-145,0 100x100",
+            GetAdjustedBounds(kVisibleBoundsLeft, gfx::Rect(0, 0, 150, 150)));
 }
 
 TEST_F(WindowUtilTest, MoveWindowToDisplay) {
@@ -231,7 +165,8 @@ TEST_F(WindowUtilTest, EnsureTransientRoots) {
   // neither of them get removed when running EnsureTransientRoots.
   auto window1 = CreateTestWindow();
   auto window2 = CreateTestWindow();
-  std::vector<aura::Window*> window_list = {window1.get(), window2.get()};
+  std::vector<raw_ptr<aura::Window, VectorExperimental>> window_list = {
+      window1.get(), window2.get()};
   EnsureTransientRoots(&window_list);
   ASSERT_EQ(2u, window_list.size());
 
@@ -282,15 +217,52 @@ TEST_F(WindowUtilTest, EnsureTransientRoots) {
 TEST_F(WindowUtilTest,
        MinimizeAndHideWithoutAnimationMinimizesArcWindowsBeforeHiding) {
   auto window = CreateTestWindow();
-  auto* state = new FakeWindowState();
+  auto* state = new FakeWindowState(chromeos::WindowStateType::kNormal);
   WindowState::Get(window.get())
       ->SetStateObject(std::unique_ptr<WindowState::State>(state));
 
-  std::vector<aura::Window*> windows = {window.get()};
+  std::vector<raw_ptr<aura::Window, VectorExperimental>> windows = {
+      window.get()};
   MinimizeAndHideWithoutAnimation(windows);
 
   EXPECT_FALSE(window->IsVisible());
   EXPECT_TRUE(state->was_visible_on_minimize());
+}
+
+TEST_F(WindowUtilTest, SortWindowsBottomToTop) {
+  auto window1 = CreateTestWindow();
+  auto window2 = CreateTestWindow();
+  auto window3 = CreateTestWindow();
+
+  EXPECT_EQ(
+      (std::vector<aura::Window*>{window1.get(), window2.get(), window3.get()}),
+      SortWindowsBottomToTop({window3.get(), window1.get(), window2.get()}));
+
+  EXPECT_EQ((std::vector<aura::Window*>{window2.get(), window3.get()}),
+            SortWindowsBottomToTop({window3.get(), window2.get()}));
+
+  EXPECT_EQ((std::vector<aura::Window*>{window1.get(), window2.get()}),
+            SortWindowsBottomToTop({window2.get(), window1.get()}));
+
+  EXPECT_EQ((std::vector<aura::Window*>{window2.get()}),
+            SortWindowsBottomToTop({window2.get()}));
+
+  // Add some children to window2:
+  std::unique_ptr<aura::Window> window21 =
+      std::make_unique<aura::Window>(nullptr, aura::client::WINDOW_TYPE_NORMAL);
+  window21->Init(ui::LAYER_NOT_DRAWN);
+  std::unique_ptr<aura::Window> window22 =
+      std::make_unique<aura::Window>(nullptr, aura::client::WINDOW_TYPE_NORMAL);
+  window22->Init(ui::LAYER_NOT_DRAWN);
+
+  window2->AddChild(window21.get());
+  window2->AddChild(window22.get());
+
+  EXPECT_EQ(
+      (std::vector<aura::Window*>{window1.get(), window2.get(), window21.get(),
+                                  window22.get(), window3.get()}),
+      SortWindowsBottomToTop({window21.get(), window22.get(), window3.get(),
+                              window1.get(), window2.get()}));
 }
 
 TEST_F(WindowUtilTest, InteriorTargeter) {
@@ -309,8 +281,9 @@ TEST_F(WindowUtilTest, InteriorTargeter) {
   ui::EventTarget* root_target = window->GetRootWindow();
   auto* targeter = root_target->GetEventTargeter();
   {
-    ui::MouseEvent mouse(ui::ET_MOUSE_MOVED, gfx::Point(0, 0), gfx::Point(0, 0),
-                         ui::EventTimeForNow(), ui::EF_NONE, ui::EF_NONE);
+    ui::MouseEvent mouse(ui::EventType::kMouseMoved, gfx::Point(0, 0),
+                         gfx::Point(0, 0), ui::EventTimeForNow(), ui::EF_NONE,
+                         ui::EF_NONE);
     EXPECT_EQ(child, targeter->FindTargetForEvent(root_target, &mouse));
   }
 
@@ -318,8 +291,9 @@ TEST_F(WindowUtilTest, InteriorTargeter) {
   // its parent.
   WindowState::Get(window.get())->Restore();
   {
-    ui::MouseEvent mouse(ui::ET_MOUSE_MOVED, gfx::Point(0, 0), gfx::Point(0, 0),
-                         ui::EventTimeForNow(), ui::EF_NONE, ui::EF_NONE);
+    ui::MouseEvent mouse(ui::EventType::kMouseMoved, gfx::Point(0, 0),
+                         gfx::Point(0, 0), ui::EventTimeForNow(), ui::EF_NONE,
+                         ui::EF_NONE);
     EXPECT_EQ(window.get(), targeter->FindTargetForEvent(root_target, &mouse));
   }
 }
@@ -374,6 +348,40 @@ TEST_F(WindowUtilTest, PinWindow_TabletMode) {
   EXPECT_TRUE(WindowState::Get(window.get())->IsPinned());
   EXPECT_TRUE(WindowState::Get(window.get())->IsTrustedPinned());
   EXPECT_EQ(window_state_delegate_ptr->toggle_locked_fullscreen_count(), 3);
+}
+
+TEST_F(WindowUtilTest, ShouldRoundThumbnailWindow) {
+  const float rounding = 30.f;
+  auto backdrop_view = std::make_unique<views::View>();
+  backdrop_view->SetPaintToLayer();
+  backdrop_view->layer()->SetRoundedCornerRadius(
+      {rounding, rounding, rounding, rounding});
+
+  // Note that `SetPosition` does nothing since this view is floating. For this
+  // test this is fine, but if we need to have a position, we need to attach
+  // this view to a views tree.
+  backdrop_view->SetBounds(0, 0, 300, 200);
+  ASSERT_EQ(gfx::Rect(300, 200), backdrop_view->GetBoundsInScreen());
+
+  // If the thumbnail covers the backdrop completely, it should be rounded as
+  // well.
+  EXPECT_TRUE(ShouldRoundThumbnailWindow(backdrop_view.get(),
+                                         gfx::RectF(300.f, 200.f)));
+
+  // If the thumbnail is completely within the backdrop's bounds including
+  // rounding, it doesn't need to be rounded.
+  EXPECT_FALSE(ShouldRoundThumbnailWindow(backdrop_view.get(),
+                                          gfx::RectF(0.f, 30.f, 300.f, 140.f)));
+  EXPECT_FALSE(ShouldRoundThumbnailWindow(backdrop_view.get(),
+                                          gfx::RectF(30.f, 0.f, 240.f, 200.f)));
+
+  // The thumbnail partially covers the part of the backdrop that will not get
+  // drawn. We should round the thumbnail as well in this case, otherwise the
+  // corner will be drawn over the rounding.
+  EXPECT_TRUE(ShouldRoundThumbnailWindow(backdrop_view.get(),
+                                         gfx::RectF(0.f, 15.f, 300.f, 170.f)));
+  EXPECT_TRUE(ShouldRoundThumbnailWindow(backdrop_view.get(),
+                                         gfx::RectF(15.f, 0.f, 270.f, 200.f)));
 }
 
 }  // namespace window_util

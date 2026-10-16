@@ -21,6 +21,7 @@
 #include "base/command_line.h"
 #include "base/json/values_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "ui/compositor/layer.h"
@@ -85,7 +86,7 @@ class TestNudgeAnimationObserver : public HomeButton::NudgeAnimationObserver {
  private:
   base::RunLoop animation_run_loop_;
   base::RunLoop label_run_loop_;
-  const raw_ptr<HomeButton, ExperimentalAsh> home_button_;
+  const raw_ptr<HomeButton> home_button_;
 
   // Counts the number of started/ended animations.
   int started_animation_count_ = 0;
@@ -142,9 +143,9 @@ class LauncherNudgeControllerTest : public AshTestBase {
     test_api_->RunMessageLoopUntilAnimationsDone();
   }
 
-  raw_ptr<LauncherNudgeController, ExperimentalAsh> nudge_controller_;
+  raw_ptr<LauncherNudgeController, DanglingUntriaged> nudge_controller_;
   std::unique_ptr<TestNudgeAnimationObserver> observer_;
-  raw_ptr<ScrollableShelfView, ExperimentalAsh> scrollable_shelf_view_ =
+  raw_ptr<ScrollableShelfView, DanglingUntriaged> scrollable_shelf_view_ =
       nullptr;
   std::unique_ptr<ShelfViewTestAPI> test_api_;
 };
@@ -161,14 +162,14 @@ TEST_F(LauncherNudgeControllerTest, DisableNudgeForGuestSession) {
 TEST_F(LauncherNudgeControllerTest, NoNudgeWhenSkippedByCommandLineFlag) {
   // Unit tests run with a scoped command line, so directly set the flag.
   base::CommandLine::ForCurrentProcess()->AppendSwitch(switches::kAshNoNudges);
-  SimulateUserLogin("user@gmail.com");
+  SimulateUserLogin({"user@gmail.com"});
   EXPECT_FALSE(nudge_controller_->IsRecheckTimerRunningForTesting());
   EXPECT_EQ(0, GetNudgeShownCount());
 }
 
 TEST_F(LauncherNudgeControllerTest, DisableNudgeForExistingUser) {
   // Simulate a existing user logging in.
-  SimulateUserLogin("user@gmail.com");
+  SimulateUserLogin({"user@gmail.com"});
   ASSERT_FALSE(Shell::Get()->session_controller()->IsUserFirstLogin());
 
   // Do not show the nudge to an existing user.
@@ -318,7 +319,7 @@ TEST_F(LauncherNudgeControllerTest,
   ClearLogin();
 
   // Log in again.
-  SimulateUserLogin("user@gmail.com");
+  SimulateUserLogin({"user@gmail.com"});
   AdvanceClock(small_delta);
 
   // Even if the nudge interval has passed since the first log in, the nudge has

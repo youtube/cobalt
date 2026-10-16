@@ -5,16 +5,31 @@
 #ifndef PDF_UI_THUMBNAIL_H_
 #define PDF_UI_THUMBNAIL_H_
 
+#include "base/functional/callback.h"
 #include "base/values.h"
 #include "ui/gfx/geometry/size.h"
 
+namespace gfx {
+class SizeF;
+}
+
 namespace chrome_pdf {
+
+class Thumbnail;
+
+using SendThumbnailCallback = base::OnceCallback<void(Thumbnail)>;
 
 class Thumbnail final {
  public:
-  Thumbnail(const gfx::Size& page_size, float device_pixel_ratio);
-  Thumbnail(Thumbnail&& other);
-  Thumbnail& operator=(Thumbnail&& other);
+  // This is the equivalent to Thumbnail(...).image_size(), without the need to
+  // allocate memory for `image_data_`.
+  static gfx::Size CalculateImageSize(const gfx::SizeF& page_size,
+                                      float device_pixel_ratio);
+
+  // `page_size` is in points.
+  Thumbnail(const gfx::SizeF& page_size, float device_pixel_ratio);
+  Thumbnail(Thumbnail&& other) noexcept;
+  Thumbnail& operator=(Thumbnail&& other) noexcept;
   ~Thumbnail();
 
   float device_pixel_ratio() const { return device_pixel_ratio_; }

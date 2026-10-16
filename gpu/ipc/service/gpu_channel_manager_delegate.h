@@ -43,8 +43,7 @@ class GpuChannelManagerDelegate {
   virtual void DidDestroyOffscreenContext(const GURL& active_url) = 0;
 
   // Tells the delegate that a context was lost.
-  virtual void DidLoseContext(bool offscreen,
-                              error::ContextLostReason reason,
+  virtual void DidLoseContext(error::ContextLostReason reason,
                               const GURL& active_url) = 0;
 
   // Tells the delegate to cache the given blob information in persistent
@@ -62,14 +61,10 @@ class GpuChannelManagerDelegate {
                                const blink::WebGPUExecutionContextToken& token,
                                GetIsolationKeyCallback cb) = 0;
 
-  // Cleanly exits the GPU process in response to an error. `synthetic_loss` is
-  // true iff the context loss event was generated internally by Chrome rather
-  // than being a true backend context loss.  In most cases this will not exit
-  // with in-process GPU as that would also exit the browser (in some cases the
-  // delegate might cause a deliberate crash if it determines that the context
-  // loss is irrecoverable and that crashing is better than entering a context
-  // loss loop). This can only be called from the GPU thread.
-  virtual void MaybeExitOnContextLost(bool synthetic_loss) = 0;
+  // Cleanly exits the GPU process in response to an error. This can only be
+  // called from the GPU thread.
+  virtual void MaybeExitOnContextLost(
+      error::ContextLostReason context_lost_reason) = 0;
 
   // Returns true if the GPU process is exiting. This can be called from any
   // thread.

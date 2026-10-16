@@ -14,7 +14,7 @@
 -- limitations under the License.
 --
 
--- Creates a span view for counters that may be global or associated with a 
+-- Creates a span view for counters that may be global or associated with a
 -- process, assuming that in the latter case we don't actually care about the
 -- process (probably because it's always system_server). We may want to erase
 -- this distinction for example when merging system properties and atrace
@@ -23,12 +23,12 @@
 -- It also does another type of merging: it merges together temporally adjacent
 -- identical values.
 
+--TODO(simonmacm) remove when not referenced internally
 DROP VIEW IF EXISTS {{table_name}}_span;
-CREATE VIEW {{table_name}}_span AS
+CREATE PERFETTO VIEW {{table_name}}_span AS
 SELECT
   ts,
-  LEAD(ts, 1, (SELECT end_ts + 1 FROM trace_bounds))
-  OVER(ORDER BY ts) - ts AS dur,
+  LEAD(ts, 1, trace_end()) OVER(ORDER BY ts) - ts AS dur,
   CAST(value AS INT) AS {{table_name}}_val
 FROM (
     SELECT ts, value, LAG(value) OVER (ORDER BY ts) AS lag_value

@@ -14,20 +14,27 @@
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 
+#include <algorithm>
+#include <cctype>
 #include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/path_service.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkWoff2FontCache_cobalt.h"
 #include "include/core/SkData.h"
 #include "include/core/SkGraphics.h"
 #include "include/core/SkStream.h"
 #include "include/core/SkString.h"
+#include "skia/ext/font_utils.h"
 #include "src/base/SkTSearch.h"
 #include "src/core/SkTraceEvent.h"
 #include "starboard/configuration_constants.h"
@@ -37,6 +44,22 @@
 const char* ROBOTO_SCRIPT = "latn";
 
 namespace {
+// Unicode Standard Latin Block Boundaries (see
+// https://www.unicode.org/charts/):
+// - Basic Latin (ASCII): 0x0000 - 0x007F
+// - Latin-1 Supplement: 0x0080 - 0x00FF
+// - Latin Extended-A:   0x0100 - 0x017F
+// - Latin Extended-B:   0x0180 - 0x024F
+// - Latin Extended Additional: 0x1E00 - 0x1EFF
+inline constexpr SkUnichar kLatinExtendedBEnd = 0x024F;
+inline constexpr SkUnichar kLatinExtendedAdditionalStart = 0x1E00;
+inline constexpr SkUnichar kLatinExtendedAdditionalEnd = 0x1EFF;
+
+bool IsLatinOrAscii(SkUnichar character) {
+  return (character <= kLatinExtendedBEnd) ||
+         (character >= kLatinExtendedAdditionalStart &&
+          character <= kLatinExtendedAdditionalEnd);
+}
 std::string GetSystemLanguageScript() {
   char buffer[ULOC_LANG_CAPACITY];
   UErrorCode icu_result = U_ZERO_ERROR;
@@ -128,6 +151,9 @@ SkFontMgr_Cobalt::SkFontMgr_Cobalt(
   GeneratePriorityOrderedFallbackFamilies(priority_fallback_families);
   FindDefaultFamily(default_families);
   initial_families_ = default_families_;
+  if (sk_woff2_cache_cobalt::IsMmapFontCacheEnabled()) {
+    ScheduleMmapFontCacheCleanup();
+  }
 }
 
 void SkFontMgr_Cobalt::PurgeCaches() {
@@ -214,9 +240,10 @@ sk_sp<SkFontStyleSet> SkFontMgr_Cobalt::onMatchFamily(
   }
 
   SkAutoAsciiToLC family_name_to_lc(family_name);
+  std::string name_string(family_name_to_lc.lc(), family_name_to_lc.length());
 
-  NameToStyleSetMap::const_iterator family_iterator = name_to_family_map_.find(
-      std::string(family_name_to_lc.lc(), family_name_to_lc.length()));
+  NameToStyleSetMap::const_iterator family_iterator =
+      name_to_family_map_.find(name_string);
   if (family_iterator != name_to_family_map_.end()) {
     return sk_sp(SkRef(family_iterator->second));
   }
@@ -227,18 +254,17 @@ sk_sp<SkFontStyleSet> SkFontMgr_Cobalt::onMatchFamily(
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onMatchFamilyStyle(
     const char family_name[],
     const SkFontStyle& style) const {
-  sk_sp<SkTypeface> typeface = NULL;
-
-  if (family_name != NULL) {
-    sk_sp<SkFontStyleSet> family(matchFamily(family_name));
-    typeface = family->matchStyle(style);
+  if (family_name == nullptr || *family_name == '\0') {
+    return default_families_.empty() ? nullptr
+                                     : default_families_[0]->matchStyle(style);
   }
 
-  if (typeface == NULL) {
-    typeface = default_families_[0]->matchStyle(style);
+  sk_sp<SkFontStyleSet> family(matchFamily(family_name));
+  if (family) {
+    return family->matchStyle(style);
   }
 
-  return typeface;
+  return nullptr;
 }
 
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onMatchFaceStyle(
@@ -253,7 +279,7 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onMatchFaceStyle(
       return families_[i]->MatchStyleWithoutLocking(style);
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onMatchFamilyStyleCharacter(
@@ -262,6 +288,10 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onMatchFamilyStyleCharacter(
     const char* bcp47[],
     int bcp47_count,
     SkUnichar character) const {
+  if (!font_character_map::IsCharacterValid(character)) {
+    return nullptr;
+  }
+
   // Remove const from the manager. SkFontMgr_Cobalt modifies its internals
   // within FindFamilyStyleCharacter().
   SkFontMgr_Cobalt* font_manager = const_cast<SkFontMgr_Cobalt*>(this);
@@ -270,7 +300,40 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onMatchFamilyStyleCharacter(
   // expects the mutex to already be locked.
   SkAutoMutexExclusive scoped_mutex(family_mutex_);
 
-  // Search the fallback families for ones matching the requested language.
+  // 1. If family_name is provided, check if that family supports the character.
+  if (family_name != nullptr && *family_name != '\0') {
+    SkAutoAsciiToLC family_name_to_lc(family_name);
+    std::string name_string(family_name_to_lc.lc(), family_name_to_lc.length());
+    NameToStyleSetMap::const_iterator family_iterator =
+        name_to_family_map_.find(name_string);
+    if (family_iterator != name_to_family_map_.end()) {
+      SkFontStyleSet_Cobalt* family = family_iterator->second;
+      if (family && family->ContainsCharacter(style, character)) {
+        sk_sp<SkTypeface> typeface = family->MatchStyleWithoutLocking(style);
+        if (typeface) {
+          return typeface;
+        }
+      }
+    }
+  }
+
+  // 2. Prioritize default_families_[0] (primary system UI font) for Latin/ASCII
+  // characters before checking non-Latin language fallback fonts. This prevents
+  // Latin text from mistakenly rendering with Arabic, Hebrew, or other
+  // non-Latin fallback fonts that happen to contain basic Latin glyphs with
+  // incompatible metrics.
+  const bool is_latin_or_ascii = IsLatinOrAscii(character);
+  if (is_latin_or_ascii && !default_families_.empty()) {
+    if (default_families_[0]->ContainsCharacter(style, character)) {
+      sk_sp<SkTypeface> typeface =
+          default_families_[0]->MatchStyleWithoutLocking(style);
+      if (typeface) {
+        return typeface;
+      }
+    }
+  }
+
+  // 3. Search the fallback families for ones matching the requested language.
   // They are given priority over other fallback families in checking for
   // character support.
   for (int bcp47_index = bcp47_count; bcp47_index-- > 0;) {
@@ -287,13 +350,25 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onMatchFamilyStyleCharacter(
     }
   }
 
-  // Try to find character among all fallback families with no language
+  // 4. If character is non-Latin, check default_families_[0] (e.g. for Greek,
+  // Cyrillic) before unconstrained fallback search.
+  if (!is_latin_or_ascii && !default_families_.empty()) {
+    if (default_families_[0]->ContainsCharacter(style, character)) {
+      sk_sp<SkTypeface> typeface =
+          default_families_[0]->MatchStyleWithoutLocking(style);
+      if (typeface) {
+        return typeface;
+      }
+    }
+  }
+
+  // 5. Try to find character among all fallback families with no language
   // requirement. This will select the first encountered family that contains
   // the character.
   sk_sp<SkTypeface> matching_typeface =
       font_manager->FindFamilyStyleCharacter(style, SkString(), character);
 
-  // If no family was found that supports the character, then just fall back
+  // 6. If no family was found that supports the character, then just fall back
   // to the first default family.
   return matching_typeface
              ? matching_typeface
@@ -572,6 +647,21 @@ bool SkFontMgr_Cobalt::CheckIfFamilyMatchesLocaleScript(
   return true;
 }
 
+void SkFontMgr_Cobalt::ScheduleMmapFontCacheCleanup() {
+  DCHECK(sk_woff2_cache_cobalt::IsMmapFontCacheEnabled());
+  // This runs in the constructor, before the font manager is shared with other
+  // threads, so the styles can be read without locking |family_mutex_|. The
+  // list only holds paths; the cleanup task does all of the file I/O.
+  std::vector<std::string> font_file_paths;
+  for (const sk_sp<SkFontStyleSet_Cobalt>& family : families_) {
+    for (const sk_sp<SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt>& style :
+         family->styles_) {
+      font_file_paths.emplace_back(style->font_file_path.c_str());
+    }
+  }
+  sk_woff2_cache_cobalt::ScheduleCacheCleanup(std::move(font_file_paths));
+}
+
 sk_sp<SkTypeface> SkFontMgr_Cobalt::FindFamilyStyleCharacter(
     const SkFontStyle& style,
     const SkString& language_tag,
@@ -643,7 +733,7 @@ SkFontMgr_Cobalt::StyleSetArray* SkFontMgr_Cobalt::GetMatchingFallbackFamilies(
 
 // static
 sk_sp<SkFontMgr_Cobalt> SkFontMgr_Cobalt::GetDefault() {
-  sk_sp<SkFontMgr> font_mgr = SkFontMgr::RefDefault();
+  sk_sp<SkFontMgr> font_mgr(skia::DefaultFontMgr());
   if (!font_mgr) {
     return nullptr;
   }
@@ -652,4 +742,27 @@ sk_sp<SkFontMgr_Cobalt> SkFontMgr_Cobalt::GetDefault() {
   // Instead, we just use a static_cast. This is safe as long as we are sure
   // that the singleton is a SkFontMgr_Cobalt. In Cobalt, this is the case.
   return sk_ref_sp(static_cast<SkFontMgr_Cobalt*>(font_mgr.get()));
+}
+
+sk_sp<SkFontMgr> SkFontMgr_New_Cobalt() {
+  base::FilePath cobalt_font_directory;
+  CHECK(base::PathService::Get(base::DIR_EXE, &cobalt_font_directory));
+  cobalt_font_directory =
+      cobalt_font_directory.Append(FILE_PATH_LITERAL("fonts"));
+
+  base::FilePath system_font_config_directory;
+  base::PathService::Get(base::DIR_SYSTEM_FONTS_CONFIGURATION,
+                         &system_font_config_directory);
+
+  base::FilePath system_font_files_directory;
+  base::PathService::Get(base::DIR_SYSTEM_FONTS, &system_font_files_directory);
+
+  skia_private::TArray<SkString, true> default_families;
+  default_families.push_back(SkString("sans-serif"));
+
+  return sk_make_sp<SkFontMgr_Cobalt>(
+      cobalt_font_directory.value().c_str(),
+      cobalt_font_directory.value().c_str(),
+      system_font_config_directory.value().c_str(),
+      system_font_files_directory.value().c_str(), default_families);
 }

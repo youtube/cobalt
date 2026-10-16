@@ -22,7 +22,7 @@
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h"
 #include "include/core/SkStream.h"
 #include "include/core/SkString.h"
-#include "third_party/skia/src/ports/SkFontHost_FreeType_common.h"
+#include "third_party/skia/src/ports/SkTypeface_FreeType.h"
 
 class SkFontMgr_Cobalt;
 
@@ -79,7 +79,10 @@ class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
       SkFontStyle style,
       bool is_fixed_pitch,
       const SkString& family_name,
-      scoped_refptr<font_character_map::CharacterMap> character_map);
+      scoped_refptr<font_character_map::CharacterMap> character_map,
+      bool disable_synthetic_bolding = false,
+      const ComputedVariationPosition& computed_variation_position =
+          ComputedVariationPosition());
 
   void onGetFontDescriptor(SkFontDescriptor* descriptor,
                            bool* serialize) const override;

@@ -4,17 +4,16 @@
 
 #include "chrome/browser/ash/file_system_provider/logging_observer.h"
 
-namespace ash {
-namespace file_system_provider {
+namespace ash::file_system_provider {
 
-LoggingObserver::LoggingObserver() {}
-LoggingObserver::~LoggingObserver() {}
+LoggingObserver::LoggingObserver() = default;
+LoggingObserver::~LoggingObserver() = default;
 
 void LoggingObserver::OnProvidedFileSystemMount(
     const ProvidedFileSystemInfo& file_system_info,
     MountContext context,
     base::File::Error error) {
-  mounts.push_back(Event(file_system_info, context, error));
+  mounts.emplace_back(file_system_info, context, error);
 }
 
 void LoggingObserver::OnProvidedFileSystemUnmount(
@@ -22,8 +21,7 @@ void LoggingObserver::OnProvidedFileSystemUnmount(
     base::File::Error error) {
   // TODO(mtomasz): Split these events, as mount context doesn't make sense
   // for unmounting.
-  unmounts.push_back(Event(file_system_info, MOUNT_CONTEXT_USER, error));
+  unmounts.emplace_back(file_system_info, MOUNT_CONTEXT_USER, error);
 }
 
-}  // namespace file_system_provider
-}  // namespace ash
+}  // namespace ash::file_system_provider

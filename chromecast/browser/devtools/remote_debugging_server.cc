@@ -24,7 +24,6 @@
 #include "content/public/browser/devtools_socket_factory.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/content_switches.h"
-#include "content/public/common/user_agent.h"
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
@@ -90,7 +89,7 @@ class TCPServerSocketFactory : public content::DevToolsSocketFactory {
     std::unique_ptr<net::ServerSocket> socket(
         new net::TCPServerSocket(nullptr, net::NetLogSource()));
 
-    if (socket->Listen(endpoint_, kBackLog, /*ipv6_only=*/absl::nullopt) !=
+    if (socket->Listen(endpoint_, kBackLog, /*ipv6_only=*/std::nullopt) !=
         net::OK) {
       return nullptr;
     }

@@ -5,10 +5,12 @@
 #include <stdint.h>
 
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/check_op.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
@@ -46,8 +48,8 @@ const char kMsg[] = "please start tls!";
 const size_t kMsgSize = strlen(kMsg);
 
 // Message sent over the tls connection.
-const char kSecretMsg[] = "here is secret.";
-const size_t kSecretMsgSize = strlen(kSecretMsg);
+constexpr std::string_view kSecretMsg = "here is secret.";
+constexpr size_t kSecretMsgSize = kSecretMsg.size();
 
 class TLSClientSocketTestBase {
  public:
@@ -105,15 +107,17 @@ class TLSClientSocketTestBase {
     std::string received_contents;
     while (received_contents.size() < num_bytes) {
       base::RunLoop().RunUntilIdle();
-      std::vector<char> buffer(num_bytes);
-      uint32_t read_size = static_cast<uint32_t>(num_bytes);
-      MojoResult result = handle->get().ReadData(buffer.data(), &read_size,
-                                                 MOJO_READ_DATA_FLAG_NONE);
+      std::string buffer(num_bytes, '\0');
+      size_t actually_read_bytes = 0;
+      MojoResult result = handle->get().ReadData(
+          MOJO_READ_DATA_FLAG_NONE, base::as_writable_byte_span(buffer),
+          actually_read_bytes);
       if (result == MOJO_RESULT_SHOULD_WAIT)
         continue;
       if (result != MOJO_RESULT_OK)
         return received_contents;
-      received_contents.append(buffer.data(), read_size);
+      received_contents.append(
+          std::string_view(buffer).substr(0, actually_read_bytes));
     }
     return received_contents;
   }
@@ -154,14 +158,14 @@ class TLSClientSocketTestBase {
     base::RunLoop run_loop;
     int net_error = net::ERR_FAILED;
     factory_->CreateTCPConnectedSocket(
-        absl::nullopt /* local_addr */, remote_addr_list,
+        std::nullopt /* local_addr */, remote_addr_list,
         nullptr /* tcp_connected_socket_options */,
         TRAFFIC_ANNOTATION_FOR_TESTS, std::move(receiver),
         pre_tls_observer()->GetObserverRemote(),
         base::BindLambdaForTesting(
             [&](int result,
-                const absl::optional<net::IPEndPoint>& actual_local_addr,
-                const absl::optional<net::IPEndPoint>& peer_addr,
+                const std::optional<net::IPEndPoint>& actual_local_addr,
+                const std::optional<net::IPEndPoint>& peer_addr,
                 mojo::ScopedDataPipeConsumerHandle receive_pipe_handle,
                 mojo::ScopedDataPipeProducerHandle send_pipe_handle) {
               net_error = result;
@@ -185,8 +189,8 @@ class TLSClientSocketTestBase {
         std::move(receiver), mojo::NullRemote() /* observer */,
         base::BindLambdaForTesting(
             [&](int result,
-                const absl::optional<net::IPEndPoint>& actual_local_addr,
-                const absl::optional<net::IPEndPoint>& peer_addr,
+                const std::optional<net::IPEndPoint>& actual_local_addr,
+                const std::optional<net::IPEndPoint>& peer_addr,
                 mojo::ScopedDataPipeConsumerHandle receive_pipe_handle,
                 mojo::ScopedDataPipeProducerHandle send_pipe_handle) {
               net_error = result;
@@ -227,10 +231,10 @@ class TLSClientSocketTestBase {
             [](net::CompletionOnceCallback cb,
                mojo::ScopedDataPipeConsumerHandle* consumer_handle_out,
                mojo::ScopedDataPipeProducerHandle* producer_handle_out,
-               absl::optional<net::SSLInfo>* ssl_info_out, int result,
+               std::optional<net::SSLInfo>* ssl_info_out, int result,
                mojo::ScopedDataPipeConsumerHandle receive_pipe_handle,
                mojo::ScopedDataPipeProducerHandle send_pipe_handle,
-               const absl::optional<net::SSLInfo>& ssl_info) {
+               const std::optional<net::SSLInfo>& ssl_info) {
               *consumer_handle_out = std::move(receive_pipe_handle);
               *producer_handle_out = std::move(send_pipe_handle);
               *ssl_info_out = ssl_info;
@@ -282,7 +286,7 @@ class TLSClientSocketTestBase {
     return &post_tls_send_handle_;
   }
 
-  const absl::optional<net::SSLInfo>& ssl_info() { return ssl_info_; }
+  const std::optional<net::SSLInfo>& ssl_info() { return ssl_info_; }
 
   net::MockClientSocketFactory* mock_client_socket_factory() {
     return &mock_client_socket_factory_;
@@ -303,7 +307,7 @@ class TLSClientSocketTestBase {
   mojo::ScopedDataPipeProducerHandle post_tls_send_handle_;
 
   // SSLInfo obtained from UpgradeToTLS.
-  absl::optional<net::SSLInfo> ssl_info_;
+  std::optional<net::SSLInfo> ssl_info_;
 
   net::MockClientSocketFactory mock_client_socket_factory_;
   std::unique_ptr<net::URLRequestContext> url_request_context_;
@@ -355,9 +359,11 @@ TEST_P(TLSClientSocketTest, UpgradeToTLS) {
   ASSERT_EQ(net::OK, callback.WaitForResult());
   ResetSocket(&client_socket);
 
-  uint32_t num_bytes = strlen(kMsg);
-  EXPECT_EQ(MOJO_RESULT_OK, post_tls_send_handle()->get().WriteData(
-                                &kMsg, &num_bytes, MOJO_WRITE_DATA_FLAG_NONE));
+  size_t actually_written_bytes = 0;
+  EXPECT_EQ(MOJO_RESULT_OK,
+            post_tls_send_handle()->get().WriteData(
+                base::byte_span_from_cstring(kMsg), MOJO_WRITE_DATA_FLAG_NONE,
+                actually_written_bytes));
   EXPECT_EQ(kMsg, Read(post_tls_recv_handle(), kMsgSize));
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(ssl_socket.ConnectDataConsumed());
@@ -398,9 +404,11 @@ TEST_P(TLSClientSocketTest, ClosePipesRunUntilIdleAndUpgradeToTLS) {
   ASSERT_EQ(net::OK, callback.WaitForResult());
   ResetSocket(&client_socket);
 
-  uint32_t num_bytes = strlen(kMsg);
-  EXPECT_EQ(MOJO_RESULT_OK, post_tls_send_handle()->get().WriteData(
-                                &kMsg, &num_bytes, MOJO_WRITE_DATA_FLAG_NONE));
+  size_t actually_written_bytes = 0;
+  EXPECT_EQ(MOJO_RESULT_OK,
+            post_tls_send_handle()->get().WriteData(
+                base::byte_span_from_cstring(kMsg), MOJO_WRITE_DATA_FLAG_NONE,
+                actually_written_bytes));
   EXPECT_EQ(kMsg, Read(post_tls_recv_handle(), kMsgSize));
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(ssl_socket.ConnectDataConsumed());
@@ -442,7 +450,7 @@ TEST_P(TLSClientSocketTest, UpgradeToTLSTwice) {
     auto upgrade2_callback = base::BindLambdaForTesting(
         [&](int result, mojo::ScopedDataPipeConsumerHandle receive_pipe_handle,
             mojo::ScopedDataPipeProducerHandle send_pipe_handle,
-            const absl::optional<net::SSLInfo>& ssl_info) {
+            const std::optional<net::SSLInfo>& ssl_info) {
           net_error = result;
           run_loop.Quit();
         });
@@ -505,7 +513,7 @@ TEST_P(TLSClientSocketTest, UpgradeToTLSWithCustomSSLConfig) {
   auto upgrade_callback = base::BindLambdaForTesting(
       [&](int result, mojo::ScopedDataPipeConsumerHandle receive_pipe_handle,
           mojo::ScopedDataPipeProducerHandle send_pipe_handle,
-          const absl::optional<net::SSLInfo>& ssl_info) {
+          const std::optional<net::SSLInfo>& ssl_info) {
         net_error = result;
         run_loop.Quit();
       });
@@ -547,9 +555,11 @@ TEST_P(TLSClientSocketTest, ReadWriteBeforeUpgradeToTLS) {
 
   EXPECT_EQ(kMsg, Read(pre_tls_recv_handle(), kMsgSize));
 
-  uint32_t num_bytes = kMsgSize;
-  EXPECT_EQ(MOJO_RESULT_OK, pre_tls_send_handle()->get().WriteData(
-                                &kMsg, &num_bytes, MOJO_WRITE_DATA_FLAG_NONE));
+  size_t actually_written_bytes = 0;
+  EXPECT_EQ(MOJO_RESULT_OK,
+            pre_tls_send_handle()->get().WriteData(
+                base::byte_span_from_cstring(kMsg), MOJO_WRITE_DATA_FLAG_NONE,
+                actually_written_bytes));
 
   net::HostPortPair host_port_pair("example.org", 443);
   pre_tls_recv_handle()->reset();
@@ -561,10 +571,10 @@ TEST_P(TLSClientSocketTest, ReadWriteBeforeUpgradeToTLS) {
   ASSERT_EQ(net::OK, callback.WaitForResult());
   ResetSocket(&client_socket);
 
-  num_bytes = strlen(kSecretMsg);
   EXPECT_EQ(MOJO_RESULT_OK,
-            post_tls_send_handle()->get().WriteData(&kSecretMsg, &num_bytes,
-                                                    MOJO_WRITE_DATA_FLAG_NONE));
+            post_tls_send_handle()->get().WriteData(
+                base::as_byte_span(kSecretMsg), MOJO_WRITE_DATA_FLAG_NONE,
+                actually_written_bytes));
   EXPECT_EQ(kSecretMsg, Read(post_tls_recv_handle(), kSecretMsgSize));
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(ssl_socket.ConnectDataConsumed());
@@ -601,10 +611,11 @@ TEST_P(TLSClientSocketTest, ReadErrorAfterUpgradeToTLS) {
   ASSERT_EQ(net::OK, callback.WaitForResult());
   ResetSocket(&client_socket);
 
-  uint32_t num_bytes = strlen(kSecretMsg);
+  size_t actually_written_bytes = 0;
   EXPECT_EQ(MOJO_RESULT_OK,
-            post_tls_send_handle()->get().WriteData(&kSecretMsg, &num_bytes,
-                                                    MOJO_WRITE_DATA_FLAG_NONE));
+            post_tls_send_handle()->get().WriteData(
+                base::as_byte_span(kSecretMsg), MOJO_WRITE_DATA_FLAG_NONE,
+                actually_written_bytes));
   EXPECT_EQ(kSecretMsg, Read(post_tls_recv_handle(), kSecretMsgSize));
   EXPECT_EQ(net::ERR_CONNECTION_CLOSED,
             post_tls_observer()->WaitForReadError());
@@ -642,10 +653,11 @@ TEST_P(TLSClientSocketTest, WriteErrorAfterUpgradeToTLS) {
   ASSERT_EQ(net::OK, callback.WaitForResult());
   ResetSocket(&client_socket);
 
-  uint32_t num_bytes = strlen(kSecretMsg);
+  size_t actually_written_bytes = 0;
   EXPECT_EQ(MOJO_RESULT_OK,
-            post_tls_send_handle()->get().WriteData(&kSecretMsg, &num_bytes,
-                                                    MOJO_WRITE_DATA_FLAG_NONE));
+            post_tls_send_handle()->get().WriteData(
+                base::as_byte_span(kSecretMsg), MOJO_WRITE_DATA_FLAG_NONE,
+                actually_written_bytes));
   EXPECT_EQ(net::ERR_CONNECTION_CLOSED,
             post_tls_observer()->WaitForWriteError());
 
@@ -690,10 +702,11 @@ TEST_P(TLSClientSocketTest, ReadFromPreTlsDataPipeAfterUpgradeToTLS) {
   ASSERT_EQ(net::OK, callback.WaitForResult());
   ResetSocket(&client_socket);
 
-  uint32_t num_bytes = strlen(kSecretMsg);
+  size_t actually_written_bytes = 0;
   EXPECT_EQ(MOJO_RESULT_OK,
-            post_tls_send_handle()->get().WriteData(&kSecretMsg, &num_bytes,
-                                                    MOJO_WRITE_DATA_FLAG_NONE));
+            post_tls_send_handle()->get().WriteData(
+                base::as_byte_span(kSecretMsg), MOJO_WRITE_DATA_FLAG_NONE,
+                actually_written_bytes));
   EXPECT_EQ(kSecretMsg, Read(post_tls_recv_handle(), kSecretMsgSize));
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(ssl_socket.ConnectDataConsumed());
@@ -729,19 +742,21 @@ TEST_P(TLSClientSocketTest, WriteToPreTlsDataPipeAfterUpgradeToTLS) {
                tls_socket.BindNewPipeAndPassReceiver(), callback.callback());
   base::RunLoop().RunUntilIdle();
 
-  uint32_t num_bytes = strlen(kMsg);
-  EXPECT_EQ(MOJO_RESULT_OK, pre_tls_send_handle()->get().WriteData(
-                                &kMsg, &num_bytes, MOJO_WRITE_DATA_FLAG_NONE));
+  size_t actually_written_bytes = 0;
+  EXPECT_EQ(MOJO_RESULT_OK,
+            pre_tls_send_handle()->get().WriteData(
+                base::byte_span_from_cstring(kMsg), MOJO_WRITE_DATA_FLAG_NONE,
+                actually_written_bytes));
 
   // Reset pre-tls send pipe now and UpgradeToTLS should complete.
   pre_tls_send_handle()->reset();
   ASSERT_EQ(net::OK, callback.WaitForResult());
   ResetSocket(&client_socket);
 
-  num_bytes = strlen(kSecretMsg);
   EXPECT_EQ(MOJO_RESULT_OK,
-            post_tls_send_handle()->get().WriteData(&kSecretMsg, &num_bytes,
-                                                    MOJO_WRITE_DATA_FLAG_NONE));
+            post_tls_send_handle()->get().WriteData(
+                base::as_byte_span(kSecretMsg), MOJO_WRITE_DATA_FLAG_NONE,
+                actually_written_bytes));
   EXPECT_EQ(kSecretMsg, Read(post_tls_recv_handle(), kSecretMsgSize));
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(ssl_socket.ConnectDataConsumed());
@@ -777,9 +792,11 @@ TEST_P(TLSClientSocketTest, ReadAndWritePreTlsDataPipeAfterUpgradeToTLS) {
   UpgradeToTLS(&client_socket, host_port_pair,
                tls_socket.BindNewPipeAndPassReceiver(), callback.callback());
   EXPECT_EQ(kMsg, Read(pre_tls_recv_handle(), kMsgSize));
-  uint32_t num_bytes = strlen(kMsg);
-  EXPECT_EQ(MOJO_RESULT_OK, pre_tls_send_handle()->get().WriteData(
-                                &kMsg, &num_bytes, MOJO_WRITE_DATA_FLAG_NONE));
+  size_t actually_written_bytes = 0;
+  EXPECT_EQ(MOJO_RESULT_OK,
+            pre_tls_send_handle()->get().WriteData(
+                base::byte_span_from_cstring(kMsg), MOJO_WRITE_DATA_FLAG_NONE,
+                actually_written_bytes));
 
   // Reset pre-tls pipes now and UpgradeToTLS should complete.
   pre_tls_recv_handle()->reset();
@@ -787,10 +804,10 @@ TEST_P(TLSClientSocketTest, ReadAndWritePreTlsDataPipeAfterUpgradeToTLS) {
   ASSERT_EQ(net::OK, callback.WaitForResult());
   ResetSocket(&client_socket);
 
-  num_bytes = strlen(kSecretMsg);
   EXPECT_EQ(MOJO_RESULT_OK,
-            post_tls_send_handle()->get().WriteData(&kSecretMsg, &num_bytes,
-                                                    MOJO_WRITE_DATA_FLAG_NONE));
+            post_tls_send_handle()->get().WriteData(
+                base::as_byte_span(kSecretMsg), MOJO_WRITE_DATA_FLAG_NONE,
+                actually_written_bytes));
   EXPECT_EQ(kSecretMsg, Read(post_tls_recv_handle(), kSecretMsgSize));
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(ssl_socket.ConnectDataConsumed());
@@ -861,9 +878,11 @@ TEST_P(TLSClientSocketTest, WriteErrorBeforeUpgradeToTLS) {
   mojo::Remote<mojom::TLSClientSocket> tls_socket;
   UpgradeToTLS(&client_socket, host_port_pair,
                tls_socket.BindNewPipeAndPassReceiver(), callback.callback());
-  uint32_t num_bytes = strlen(kMsg);
-  EXPECT_EQ(MOJO_RESULT_OK, pre_tls_send_handle()->get().WriteData(
-                                &kMsg, &num_bytes, MOJO_WRITE_DATA_FLAG_NONE));
+  size_t actually_written_bytes = 0;
+  EXPECT_EQ(MOJO_RESULT_OK,
+            pre_tls_send_handle()->get().WriteData(
+                base::byte_span_from_cstring(kMsg), MOJO_WRITE_DATA_FLAG_NONE,
+                actually_written_bytes));
 
   EXPECT_EQ(net::ERR_CONNECTION_CLOSED,
             pre_tls_observer()->WaitForWriteError());
@@ -934,9 +953,11 @@ TEST_F(TLSCLientSocketProxyTest, UpgradeToTLS) {
   ASSERT_EQ(net::OK, callback.WaitForResult());
   ResetSocket(&client_socket);
 
-  uint32_t num_bytes = strlen(kMsg);
-  EXPECT_EQ(MOJO_RESULT_OK, post_tls_send_handle()->get().WriteData(
-                                &kMsg, &num_bytes, MOJO_WRITE_DATA_FLAG_NONE));
+  size_t actually_written_bytes = 0;
+  EXPECT_EQ(MOJO_RESULT_OK,
+            post_tls_send_handle()->get().WriteData(
+                base::byte_span_from_cstring(kMsg), MOJO_WRITE_DATA_FLAG_NONE,
+                actually_written_bytes));
   EXPECT_EQ(kMsg, Read(post_tls_recv_handle(), kMsgSize));
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(ssl_socket.ConnectDataConsumed());
@@ -1009,10 +1030,11 @@ TEST_P(TLSClientSocketIoModeTest, MultipleWriteToTLSSocket) {
   for (int j = 0; j < kNumIterations; ++j) {
     // Write multiple times.
     for (size_t i = 0; i < kSecretMsgSize; ++i) {
-      uint32_t num_bytes = 1;
+      size_t actually_written_bytes = 0;
       EXPECT_EQ(MOJO_RESULT_OK,
                 post_tls_send_handle()->get().WriteData(
-                    &kSecretMsg[i], &num_bytes, MOJO_WRITE_DATA_FLAG_NONE));
+                    base::as_byte_span(kSecretMsg).subspan(i, 1u),
+                    MOJO_WRITE_DATA_FLAG_NONE, actually_written_bytes));
       // Flush the 1 byte write.
       base::RunLoop().RunUntilIdle();
     }
@@ -1139,11 +1161,12 @@ class TLSClientSocketTestWithEmbeddedTestServerBase
   void TestTlsSocket() {
     ASSERT_TRUE(tls_socket_.is_bound());
     const char kTestMsg[] = "GET /secret HTTP/1.1\r\n\r\n";
-    uint32_t num_bytes = strlen(kTestMsg);
+    size_t actually_written_bytes = 0;
     const char kResponse[] = "HTTP/1.1 200 OK\n\n";
     EXPECT_EQ(MOJO_RESULT_OK,
               post_tls_send_handle()->get().WriteData(
-                  &kTestMsg, &num_bytes, MOJO_WRITE_DATA_FLAG_NONE));
+                  base::byte_span_from_cstring(kTestMsg),
+                  MOJO_WRITE_DATA_FLAG_NONE, actually_written_bytes));
     EXPECT_EQ(kResponse, Read(post_tls_recv_handle(), strlen(kResponse)));
   }
 

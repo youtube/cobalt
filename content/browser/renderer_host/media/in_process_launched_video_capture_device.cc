@@ -13,10 +13,11 @@
 #include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/token.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
-#include "content/common/buildflags.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/common/buildflags.h"
 #include "media/capture/mojom/video_capture_types.mojom.h"
 #include "media/media_buildflags.h"
 
@@ -26,12 +27,12 @@
 
 namespace {
 
-void StopAndReleaseDeviceOnDeviceThread(media::VideoCaptureDevice* device,
-                                        base::OnceClosure done_cb) {
-  SCOPED_UMA_HISTOGRAM_TIMER("Media.VideoCaptureManager.StopDeviceTime");
+void StopAndReleaseDeviceOnDeviceThread(
+    std::unique_ptr<media::VideoCaptureDevice> device,
+    base::OnceClosure done_cb) {
   device->StopAndDeAllocate();
   DVLOG(3) << "StopAndReleaseDeviceOnDeviceThread";
-  delete device;
+  device.reset();
   std::move(done_cb).Run();
 }
 
@@ -48,10 +49,9 @@ InProcessLaunchedVideoCaptureDevice::InProcessLaunchedVideoCaptureDevice(
 InProcessLaunchedVideoCaptureDevice::~InProcessLaunchedVideoCaptureDevice() {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   DCHECK(device_);
-  media::VideoCaptureDevice* device_ptr = device_.release();
   device_task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&StopAndReleaseDeviceOnDeviceThread, device_ptr,
+      base::BindOnce(&StopAndReleaseDeviceOnDeviceThread, std::move(device_),
                      base::DoNothingWithBoundArgs(device_task_runner_)));
 }
 
@@ -116,21 +116,24 @@ void InProcessLaunchedVideoCaptureDevice::ResumeDevice() {
                                 base::Unretained(device_.get())));
 }
 
-void InProcessLaunchedVideoCaptureDevice::Crop(
-    const base::Token& crop_id,
-    uint32_t crop_version,
-    base::OnceCallback<void(media::mojom::CropRequestResult)> callback) {
+void InProcessLaunchedVideoCaptureDevice::ApplySubCaptureTarget(
+    media::mojom::SubCaptureTargetType type,
+    const base::Token& target,
+    uint32_t sub_capture_target_version,
+    base::OnceCallback<void(media::mojom::ApplySubCaptureTargetResult)>
+        callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   // Unretained() is safe to use here because |device| would be null if it
   // was scheduled for shutdown and destruction, and because this task is
   // guaranteed to run before the task that destroys the |device|.
   //
   // Explicitly bind the callback to the I/O thread since the VideoCaptureDevice
-  // Crop method runs the callback on an unspecified thread.
+  // ApplySubCaptureTarget method runs the callback on an unspecified thread.
   device_task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&media::VideoCaptureDevice::Crop,
-                     base::Unretained(device_.get()), crop_id, crop_version,
+      base::BindOnce(&media::VideoCaptureDevice::ApplySubCaptureTarget,
+                     base::Unretained(device_.get()), type, target,
+                     sub_capture_target_version,
                      base::BindPostTask(content::GetIOThreadTaskRunner({}),
                                         std::move(callback))));
 }
@@ -176,8 +179,7 @@ void InProcessLaunchedVideoCaptureDevice::
                                             base::OnceClosure done_cb) {
   DCHECK(device_task_runner_->BelongsToCurrentThread());
 #if defined(ENABLE_SCREEN_CAPTURE) && !BUILDFLAG(IS_ANDROID)
-  DesktopCaptureDevice* desktop_device =
-      static_cast<DesktopCaptureDevice*>(device);
+  auto* desktop_device = static_cast<DesktopCaptureDevice*>(device);
   desktop_device->SetNotificationWindowId(window_id);
   VLOG(2) << "Screen capture notification window passed on device thread.";
 #endif

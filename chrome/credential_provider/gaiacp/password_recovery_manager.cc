@@ -2,26 +2,31 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/credential_provider/gaiacp/password_recovery_manager.h"
 
 #include <windows.h>
 #include <winternl.h>
 
-#include <lm.h>  // Needed for LSA_UNICODE_STRING
+#include <lm.h>
 #include <process.h>
 
-#define _NTDEF_  // Prevent redefition errors, must come after <winternl.h>
-#include <ntsecapi.h>  // For POLICY_ALL_ACCESS types
+#include <algorithm>
+#include <string_view>
 
 #include "base/base64.h"
 #include "base/containers/span.h"
-#include "base/cxx17_backports.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/win/ntsecapi_shim.h"
 #include "chrome/credential_provider/common/gcp_strings.h"
 #include "chrome/credential_provider/gaiacp/gcp_utils.h"
 #include "chrome/credential_provider/gaiacp/logging.h"
@@ -97,7 +102,7 @@ bool Base64DecodeCryptographicKey(const std::string& cryptographic_key,
 
 // Callback to log password encryption/decryption errors.
 static int LogBoringSSLError(const char* str, size_t len, void* ctx) {
-  LOGFN(ERROR) << base::StringPiece(str, len);
+  LOGFN(ERROR) << std::string_view(str, len);
   return 1;
 }
 
@@ -110,17 +115,16 @@ bool PadSecret(const std::string& secret, std::string* out) {
   std::memcpy(&padded_secret[padded_length - secret.size()], secret.data(),
               secret.size());
 
-  base::Value pwd_padding_dict(base::Value::Type::DICT);
-  pwd_padding_dict.SetStringKey(kPaddedPassword, padded_secret);
-  pwd_padding_dict.SetIntKey(kPasswordLength, secret.size());
+  auto pwd_padding_dict =
+      base::Value::Dict()
+          .Set(kPaddedPassword, padded_secret)
+          .Set(kPasswordLength, static_cast<int>(secret.size()));
   SecurelyClearString(padded_secret);
 
   auto result = base::JSONWriter::Write(pwd_padding_dict, out);
-  const std::string* password_value =
-      pwd_padding_dict.FindStringKey(kPaddedPassword);
-  if (password_value)
-    SecurelyClearString(*const_cast<std::string*>(password_value));
-
+  if (auto* password_value = pwd_padding_dict.FindString(kPaddedPassword)) {
+    SecurelyClearString(*password_value);
+  }
   return result;
 }
 
@@ -128,15 +132,15 @@ bool PadSecret(const std::string& secret, std::string* out) {
 // find padded secret. It then removes the padding and returns original secret.
 bool UnpadSecret(const std::string& serialized_padded_secret,
                  std::string* out) {
-  absl::optional<base::Value> pwd_padding_dict = base::JSONReader::Read(
+  std::optional<base::Value::Dict> pwd_padding = base::JSONReader::ReadDict(
       serialized_padded_secret, base::JSON_ALLOW_TRAILING_COMMAS);
-  if (!pwd_padding_dict.has_value() || !pwd_padding_dict->is_dict()) {
+  if (!pwd_padding) {
     LOGFN(ERROR) << "Failed to deserialize given secret from json.";
     return false;
   }
 
-  auto* padded_secret = pwd_padding_dict->FindStringKey(kPaddedPassword);
-  auto pwd_length = pwd_padding_dict->FindIntKey(kPasswordLength);
+  auto* padded_secret = pwd_padding->FindString(kPaddedPassword);
+  auto pwd_length = pwd_padding->FindInt(kPasswordLength);
 
   auto result = true;
   if (!padded_secret || !pwd_length.has_value()) {
@@ -145,14 +149,14 @@ bool UnpadSecret(const std::string& serialized_padded_secret,
     out->assign(&(*padded_secret)[padded_secret->size() - *pwd_length],
                 *pwd_length);
   }
-  SecurelyClearDictionaryValueWithKey(&pwd_padding_dict, kPaddedPassword);
+  SecurelyClearDictionaryValueWithKey(pwd_padding, kPaddedPassword);
 
   return result;
 }
 
 // Encrypts the given |secret| with the provided |public_key|. Returns a vector
 // of uint8_t as the encrypted secret.
-absl::optional<std::vector<uint8_t>> PublicKeyEncrypt(
+std::optional<std::vector<uint8_t>> PublicKeyEncrypt(
     const std::string& public_key,
     const std::string& secret) {
   CBS pub_key_cbs;
@@ -161,13 +165,13 @@ absl::optional<std::vector<uint8_t>> PublicKeyEncrypt(
   bssl::UniquePtr<EVP_PKEY> pub_key(EVP_parse_public_key(&pub_key_cbs));
   if (!pub_key || CBS_len(&pub_key_cbs)) {
     ERR_print_errors_cb(&LogBoringSSLError, /*unused*/ nullptr);
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   RSA* rsa = EVP_PKEY_get0_RSA(pub_key.get());
   if (!rsa) {
     ERR_print_errors_cb(&LogBoringSSLError, /*unused*/ nullptr);
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Generate a random session key and random nonce.
@@ -181,7 +185,7 @@ absl::optional<std::vector<uint8_t>> PublicKeyEncrypt(
                    session_key_with_nonce, sizeof(session_key_with_nonce),
                    RSA_PKCS1_OAEP_PADDING)) {
     ERR_print_errors_cb(&LogBoringSSLError, /*unused*/ nullptr);
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::string session_key(session_key_with_nonce,
@@ -191,9 +195,9 @@ absl::optional<std::vector<uint8_t>> PublicKeyEncrypt(
   crypto::Aead aead(crypto::Aead::AES_256_GCM);
   aead.Init(&session_key);
   aead.Seal(secret,
-            base::StringPiece(reinterpret_cast<const char*>(
-                                  &session_key_with_nonce[kSessionKeyLength]),
-                              kNonceLength),
+            std::string_view(reinterpret_cast<const char*>(
+                                 &session_key_with_nonce[kSessionKeyLength]),
+                             kNonceLength),
             /*ad=*/"", &sealed_secret);
 
   ciphertext.insert(ciphertext.end(), sealed_secret.data(),
@@ -202,8 +206,8 @@ absl::optional<std::vector<uint8_t>> PublicKeyEncrypt(
 }
 
 // Decrypts the provided |ciphertext| with the given |private_key|. Returns
-// an absl::optional<std::string> as the decrypted secret.
-absl::optional<std::string> PrivateKeyDecrypt(
+// an std::optional<std::string> as the decrypted secret.
+std::optional<std::string> PrivateKeyDecrypt(
     const std::string& private_key,
     base::span<const uint8_t> ciphertext) {
   CBS priv_key_cbs;
@@ -212,18 +216,18 @@ absl::optional<std::string> PrivateKeyDecrypt(
   bssl::UniquePtr<EVP_PKEY> priv_key(EVP_parse_private_key(&priv_key_cbs));
   if (!priv_key || CBS_len(&priv_key_cbs)) {
     ERR_print_errors_cb(&LogBoringSSLError, /*unused*/ nullptr);
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   RSA* rsa = EVP_PKEY_get0_RSA(priv_key.get());
   if (!rsa) {
     LOGFN(ERROR) << "No RSA is found in EVP_PKEY_get0_RSA";
-    return absl::nullopt;
+    return std::nullopt;
   }
   const size_t rsa_size = RSA_size(rsa);
   if (ciphertext.size() < rsa_size) {
     LOGFN(ERROR) << "Incorrect RSA size for given cipher text";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Decrypt the encrypted session key using given provided key.
@@ -233,7 +237,7 @@ absl::optional<std::string> PrivateKeyDecrypt(
                    session_key_with_nonce.data(), session_key_with_nonce.size(),
                    ciphertext.data(), rsa_size, RSA_PKCS1_OAEP_PADDING)) {
     ERR_print_errors_cb(&LogBoringSSLError, /*unused*/ nullptr);
-    return absl::nullopt;
+    return std::nullopt;
   }
   session_key_with_nonce.resize(session_key_with_nonce_len);
 
@@ -244,11 +248,11 @@ absl::optional<std::string> PrivateKeyDecrypt(
   crypto::Aead aead(crypto::Aead::AES_256_GCM);
   aead.Init(&session_key);
   aead.Open(
-      base::StringPiece(reinterpret_cast<const char*>(&ciphertext[rsa_size]),
-                        ciphertext.size() - rsa_size),
-      base::StringPiece(reinterpret_cast<const char*>(
-                            &session_key_with_nonce[kSessionKeyLength]),
-                        kNonceLength),
+      std::string_view(reinterpret_cast<const char*>(&ciphertext[rsa_size]),
+                       ciphertext.size() - rsa_size),
+      std::string_view(reinterpret_cast<const char*>(
+                           &session_key_with_nonce[kSessionKeyLength]),
+                       kNonceLength),
       /*ad=*/"", &plaintext);
 
   return plaintext;
@@ -264,15 +268,14 @@ HRESULT EncryptUserPasswordUsingEscrowService(
     const std::string& device_id,
     const std::wstring& password,
     const base::TimeDelta& request_timeout,
-    absl::optional<base::Value>* encrypted_data) {
-  DCHECK(encrypted_data);
-  DCHECK(!(*encrypted_data));
+    std::optional<base::Value::Dict>& encrypted_data) {
+  DCHECK(!encrypted_data);
 
   std::string resource_id;
   std::string public_key;
   base::Value::Dict request_dict;
   request_dict.Set(kGenerateKeyPairRequestDeviceIdParameterName, device_id);
-  absl::optional<base::Value> request_result;
+  std::optional<base::Value::Dict> request_result;
 
   // Fetch the results and extract the |resource_id| for the key and the
   // |public_key| to be used for encryption.
@@ -287,7 +290,7 @@ HRESULT EncryptUserPasswordUsingEscrowService(
     return E_FAIL;
   }
 
-  if (!request_result.has_value() ||
+  if (!request_result ||
       !ExtractKeysFromDict(
           *request_result,
           {
@@ -314,41 +317,35 @@ HRESULT EncryptUserPasswordUsingEscrowService(
 
   auto opt = PublicKeyEncrypt(decoded_public_key, padded_password);
   SecurelyClearString(padded_password);
-  if (opt == absl::nullopt)
+  if (opt == std::nullopt) {
     return E_FAIL;
+  }
 
-  encrypted_data->emplace(base::Value(base::Value::Type::DICT));
-  (*encrypted_data)->SetStringKey(kUserPasswordLsaStoreIdKey, resource_id);
+  std::string cipher_text = base::Base64Encode(*opt);
 
-  std::string cipher_text;
-  base::Base64Encode(
-      base::StringPiece(reinterpret_cast<const char*>(opt->data()),
-                        opt->size()),
-      &cipher_text);
-  (*encrypted_data)
-      ->SetStringKey(kUserPasswordLsaStoreEncryptedPasswordKey, cipher_text);
+  encrypted_data =
+      base::Value::Dict()
+          .Set(kUserPasswordLsaStoreIdKey, resource_id)
+          .Set(kUserPasswordLsaStoreEncryptedPasswordKey, cipher_text);
 
   return hr;
 }
 
-// Given the |encrypted_data| which would contain the resource id of the
+// Given the |encrypted_data_dict| which would contain the resource id of the
 // encryption key and the encrypted password, recovers the |decrypted_password|
 // by getting the private key from the escrow service and decrypting the
 // password. |access_token| is used to authorize the request on the escrow
 // service.
 HRESULT DecryptUserPasswordUsingEscrowService(
     const std::string& access_token,
-    const absl::optional<base::Value>& encrypted_data,
+    const base::Value::Dict& encrypted_data_dict,
     const base::TimeDelta& request_timeout,
     std::wstring* decrypted_password) {
-  if (!encrypted_data)
-    return E_FAIL;
   DCHECK(decrypted_password);
-  DCHECK(encrypted_data && encrypted_data->is_dict());
   const std::string* resource_id =
-      encrypted_data->FindStringKey(kUserPasswordLsaStoreIdKey);
+      encrypted_data_dict.FindString(kUserPasswordLsaStoreIdKey);
   const std::string* encoded_cipher_text =
-      encrypted_data->FindStringKey(kUserPasswordLsaStoreEncryptedPasswordKey);
+      encrypted_data_dict.FindString(kUserPasswordLsaStoreEncryptedPasswordKey);
 
   if (!resource_id) {
     LOGFN(ERROR) << "No password resource id found to restore";
@@ -361,7 +358,7 @@ HRESULT DecryptUserPasswordUsingEscrowService(
   }
 
   std::string private_key;
-  absl::optional<base::Value> request_result;
+  std::optional<base::Value::Dict> request_result;
 
   // Fetch the results and extract the |private_key| to be used for decryption.
   HRESULT hr = WinHttpUrlFetcher::BuildRequestAndFetchResultFromHttpService(
@@ -376,7 +373,7 @@ HRESULT DecryptUserPasswordUsingEscrowService(
     return E_FAIL;
   }
 
-  if (!request_result.has_value() ||
+  if (!request_result ||
       !ExtractKeysFromDict(
           *request_result,
           {
@@ -397,12 +394,12 @@ HRESULT DecryptUserPasswordUsingEscrowService(
     return E_FAIL;
   }
 
-  auto decrypted_secret =
-      PrivateKeyDecrypt(decoded_private_key,
-                        base::as_bytes(base::make_span(decoded_cipher_text)));
+  auto decrypted_secret = PrivateKeyDecrypt(
+      decoded_private_key, base::as_byte_span(decoded_cipher_text));
 
-  if (decrypted_secret == absl::nullopt)
+  if (decrypted_secret == std::nullopt) {
     return E_FAIL;
+  }
 
   std::string unpadded;
   UnpadSecret(*decrypted_secret, &unpadded);
@@ -442,7 +439,6 @@ PasswordRecoveryManager::~PasswordRecoveryManager() = default;
 HRESULT PasswordRecoveryManager::ClearUserRecoveryPassword(
     const std::wstring& sid) {
   auto policy = ScopedLsaPolicy::Create(POLICY_ALL_ACCESS);
-
   if (!policy) {
     HRESULT hr = HRESULT_FROM_WIN32(::GetLastError());
     LOGFN(ERROR) << "ScopedLsaPolicy::Create hr=" << putHR(hr);
@@ -470,7 +466,6 @@ HRESULT PasswordRecoveryManager::StoreWindowsPasswordIfNeeded(
   std::string device_id = base::WideToUTF8(machine_guid);
 
   auto policy = ScopedLsaPolicy::Create(POLICY_ALL_ACCESS);
-
   if (!policy) {
     hr = HRESULT_FROM_WIN32(::GetLastError());
     LOGFN(ERROR) << "ScopedLsaPolicy::Create hr=" << putHR(hr);
@@ -484,13 +479,13 @@ HRESULT PasswordRecoveryManager::StoreWindowsPasswordIfNeeded(
     return S_OK;
   }
 
-  absl::optional<base::Value> encrypted_dict;
+  std::optional<base::Value::Dict> encrypted_dict;
   hr = EncryptUserPasswordUsingEscrowService(access_token, device_id, password,
                                              encryption_key_request_timeout_,
-                                             &encrypted_dict);
+                                             encrypted_dict);
   if (SUCCEEDED(hr)) {
     std::string lsa_value;
-    if (base::JSONWriter::Write(encrypted_dict.value(), &lsa_value)) {
+    if (base::JSONWriter::Write(*encrypted_dict, &lsa_value)) {
       std::wstring lsa_value16 = base::UTF8ToWide(lsa_value);
       hr = policy->StorePrivateData(store_key.c_str(), lsa_value16.c_str());
       SecurelyClearString(lsa_value16);
@@ -508,7 +503,7 @@ HRESULT PasswordRecoveryManager::StoreWindowsPasswordIfNeeded(
     }
 
     SecurelyClearDictionaryValueWithKey(
-        &encrypted_dict, kUserPasswordLsaStoreEncryptedPasswordKey);
+        encrypted_dict, kUserPasswordLsaStoreEncryptedPasswordKey);
   } else {
     LOGFN(ERROR) << "EncryptUserPasswordUsingEscrowService hr=" << putHR(hr);
     return E_FAIL;
@@ -526,7 +521,6 @@ HRESULT PasswordRecoveryManager::RecoverWindowsPasswordIfPossible(
   DCHECK(recovered_password);
 
   auto policy = ScopedLsaPolicy::Create(POLICY_ALL_ACCESS);
-
   if (!policy) {
     HRESULT hr = HRESULT_FROM_WIN32(::GetLastError());
     LOGFN(ERROR) << "ScopedLsaPolicy::Create hr=" << putHR(hr);
@@ -543,24 +537,25 @@ HRESULT PasswordRecoveryManager::RecoverWindowsPasswordIfPossible(
     LOGFN(ERROR) << "RetrievePrivateData hr=" << putHR(hr);
 
   std::string json_string = base::WideToUTF8(password_lsa_data);
-  absl::optional<base::Value> encrypted_dict =
-      base::JSONReader::Read(json_string, base::JSON_ALLOW_TRAILING_COMMAS);
+  std::optional<base::Value::Dict> encrypted_dict =
+      base::JSONReader::ReadDict(json_string, base::JSON_ALLOW_TRAILING_COMMAS);
   SecurelyClearString(json_string);
   SecurelyClearBuffer(password_lsa_data, sizeof(password_lsa_data));
 
-  std::wstring decrypted_password;
-  hr = DecryptUserPasswordUsingEscrowService(access_token, encrypted_dict,
-                                             decryption_key_request_timeout_,
-                                             &decrypted_password);
-
   if (encrypted_dict) {
-    SecurelyClearDictionaryValueWithKey(
-        &encrypted_dict, kUserPasswordLsaStoreEncryptedPasswordKey);
-  }
+    std::wstring decrypted_password;
+    hr = DecryptUserPasswordUsingEscrowService(access_token, *encrypted_dict,
+                                               decryption_key_request_timeout_,
+                                               &decrypted_password);
 
-  if (SUCCEEDED(hr))
-    *recovered_password = decrypted_password;
-  SecurelyClearString(decrypted_password);
+    SecurelyClearDictionaryValueWithKey(
+        encrypted_dict, kUserPasswordLsaStoreEncryptedPasswordKey);
+
+    if (SUCCEEDED(hr)) {
+      *recovered_password = decrypted_password;
+    }
+    SecurelyClearString(decrypted_password);
+  }
 
   LOGFN(VERBOSE) << "Decrypted the secret for sid=" << sid;
 

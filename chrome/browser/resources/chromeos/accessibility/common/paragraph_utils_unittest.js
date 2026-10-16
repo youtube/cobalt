@@ -2,18 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-GEN_INCLUDE(['../select_to_speak/select_to_speak_e2e_test_base.js']);
+GEN_INCLUDE(['../select_to_speak/mv2/select_to_speak_e2e_test_base.js']);
 
 /**
  * Test fixture for paragraph_utils.js.
  */
-SelectToSpeakParagraphUnitTest = class extends SelectToSpeakE2ETest {
-  /** @override */
-  async setUpDeferred() {
-    await super.setUpDeferred();
-    await importModule('ParagraphUtils', '/common/paragraph_utils.js');
-  }
-};
+SelectToSpeakParagraphUnitTest = class extends SelectToSpeakE2ETest {};
 
 AX_TEST_F(
     'SelectToSpeakParagraphUnitTest', 'GetFirstBlockAncestor', function() {
@@ -536,6 +530,50 @@ AX_TEST_F(
       const result = ParagraphUtils.buildNodeGroup(
           [inline1, inline2], 0, {splitOnLanguage: false});
       assertEquals('Hello, world! ', result.text);
+    });
+
+AX_TEST_F(
+    'SelectToSpeakParagraphUnitTest', 'BuildNodeGroupWithAndroidClickable',
+    function() {
+      const root = {role: 'application'};
+      const listRoot = {role: 'list', parent: root, root};
+      const clickableContainer =
+          {role: 'genericContainer', parent: listRoot, root, clickable: true};
+      const text1 =
+          {role: 'staticText', parent: clickableContainer, root, name: 'text1'};
+      const text2 =
+          {role: 'staticText', parent: clickableContainer, root, name: 'text2'};
+
+      const result = ParagraphUtils.buildNodeGroup(
+          [text1, text2], 0, {splitOnLanguage: false});
+      assertEquals('text1 text2 ', result.text);
+      assertEquals(clickableContainer, result.blockParent);
+    });
+
+AX_TEST_F(
+    'SelectToSpeakParagraphUnitTest',
+    'BuildNodeGroupWithMultipleAndroidClickables', function() {
+      const root = {role: 'application'};
+      const container = {role: 'genericContainer', parent: root, root};
+      const button1 = {
+        role: 'button',
+        parent: container,
+        root,
+        clickable: true,
+        name: 'button1',
+      };
+      const button2 = {
+        role: 'button',
+        parent: container,
+        root,
+        clickable: true,
+        name: 'button2',
+      };
+
+      const result = ParagraphUtils.buildNodeGroup(
+          [button1, button2], 0, {splitOnLanguage: false});
+      assertEquals('button1 ', result.text);
+      assertEquals(button1, result.blockParent);
     });
 
 AX_TEST_F(

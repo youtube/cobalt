@@ -8,9 +8,14 @@
 #include <memory>
 
 #include "ash/wm/splitview/split_view_controller.h"
+#include "ash/wm/splitview/split_view_types.h"
 #include "ash/wm/window_state.h"
 #include "base/memory/raw_ptr.h"
-#include "ui/gfx/geometry/rect.h"
+#include "base/memory/weak_ptr.h"
+
+namespace gfx {
+class Rect;
+}  // namespace gfx
 
 namespace ash {
 class TabletModeWindowManager;
@@ -31,7 +36,7 @@ class TabletModeWindowState : public WindowState::State {
   // |creator::WindowStateDestroyed()| to inform that the window mode was
   // reverted to the old window manager.
   TabletModeWindowState(aura::Window* window,
-                        TabletModeWindowManager* creator,
+                        base::WeakPtr<TabletModeWindowManager> creator,
                         bool snap,
                         bool animate_bounds_on_attach,
                         bool entering_tablet_mode);
@@ -45,7 +50,6 @@ class TabletModeWindowState : public WindowState::State {
   // method is not supposed to be called for client-controlled windows (e.g.
   // ARC++) as the bounds change with `SetBoundsDirect` is not ack'ed by the
   // client. (b/264962634)
-  // TODO(sammiequon): Consolidate with `UpdateBounds`.
   static void UpdateWindowPosition(
       WindowState* window_state,
       WindowState::BoundsChangeAnimationType animation_type);
@@ -78,11 +82,11 @@ class TabletModeWindowState : public WindowState::State {
                     chromeos::WindowStateType new_state_type,
                     bool animate);
 
-  // If `target_state` is PRIMARY/SECONDARY_SNAPPED and the window can be
-  // snapped, returns `target_state`. Otherwise depending on the capabilities
-  // of the window either returns `WindowStateType::kMaximized` or
+  // If `target_state` is PRIMARY/SECONDARY_SNAPPED or TRUSTED_PINNED/PINNED,
+  // returns `target_state`. Otherwise depending on the capabilities of the
+  // window either returns `WindowStateType::kMaximized` or
   // `WindowStateType::kNormal`.
-  chromeos::WindowStateType GetSnappedWindowStateType(
+  chromeos::WindowStateType AdjustStateForTabletMode(
       WindowState* window_state,
       chromeos::WindowStateType target_state);
 
@@ -93,16 +97,16 @@ class TabletModeWindowState : public WindowState::State {
                     bool animate);
 
   // Handles Alt+[ if `snap_position` is
-  // `SplitViewController::SnapPosition::kPrimary`; handles // Alt+] if
-  // `snap_position` is `SplitViewController::SnapPosition::kSecondary`.
-  void CycleTabletSnap(WindowState* window_state,
-                       SplitViewController::SnapPosition snap_position);
+  // `SnapPosition::kPrimary`; handles // Alt+] if
+  // `snap_position` is `SnapPosition::kSecondary`.
+  void CycleTabletSnap(WindowState* window_state, SnapPosition snap_position);
 
   // Tries to snap the window in tablet split view if possible. Shows a toast if
   // it cannot be snapped.
   void DoTabletSnap(WindowState* window_state,
                     WMEventType snap_event_type,
-                    float snap_ratio);
+                    float snap_ratio,
+                    WindowSnapActionSource snap_action_source);
 
   // Called by `WM_EVENT_RESTORE`, or a `WM_EVENT_NORMAL` that is restoring.
   // Restores to the state in `window_states`'s restore history.
@@ -113,10 +117,11 @@ class TabletModeWindowState : public WindowState::State {
   std::unique_ptr<WindowState::State> old_state_;
 
   // The window whose WindowState owns this instance.
-  raw_ptr<aura::Window, ExperimentalAsh> window_;
+  raw_ptr<aura::Window> window_;
 
-  // The creator which needs to be informed when this state goes away.
-  raw_ptr<TabletModeWindowManager, ExperimentalAsh> creator_;
+  // The creator which needs to be informed when this state goes away. Use a
+  // weak ptr since `creator_` can be destroyed before `this`.
+  base::WeakPtr<TabletModeWindowManager> const creator_;
 
   // The state type to be established in AttachState(), unless
   // previous_state->GetType() is MAXIMIZED, MINIMIZED, FULLSCREEN, PINNED, or

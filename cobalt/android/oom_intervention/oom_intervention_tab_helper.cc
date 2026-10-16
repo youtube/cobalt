@@ -57,7 +57,7 @@ OomInterventionTabHelper::~OomInterventionTabHelper() = default;
 
 void OomInterventionTabHelper::OnHighMemoryUsage() {
   near_oom_detected_time_ = base::TimeTicks::Now();
-  renderer_detection_timer_.AbandonAndStop();
+  renderer_detection_timer_.Stop();
 }
 
 void OomInterventionTabHelper::WebContentsDestroyed() {
@@ -199,7 +199,7 @@ void OomInterventionTabHelper::OnNearOomDetected() {
       FROM_HERE, detection_window,
       base::BindOnce(&OomInterventionTabHelper::
                          OnDetectionWindowElapsedWithoutHighMemoryUsage,
-                     weak_ptr_factory_.GetWeakPtr()));
+                     weak_factory_.GetWeakPtr()));
 }
 
 void OomInterventionTabHelper::
@@ -211,7 +211,7 @@ void OomInterventionTabHelper::
 
 void OomInterventionTabHelper::ResetInterventionState() {
   near_oom_detected_time_.reset();
-  renderer_detection_timer_.AbandonAndStop();
+  renderer_detection_timer_.Stop();
 }
 
 void OomInterventionTabHelper::ResetInterfaces() {

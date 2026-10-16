@@ -5,12 +5,13 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_TRANSPORT_PARAMETERS_H_
 #define QUICHE_QUIC_CORE_CRYPTO_TRANSPORT_PARAMETERS_H_
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_data_writer.h"
@@ -25,7 +26,7 @@ namespace quic {
 // exchanged during the TLS handshake. This struct is a mirror of the struct in
 // the "Transport Parameter Encoding" section of draft-ietf-quic-transport.
 // This struct currently uses the values from draft 29.
-struct QUIC_EXPORT_PRIVATE TransportParameters {
+struct QUICHE_EXPORT TransportParameters {
   // The identifier used to differentiate transport parameters.
   enum TransportParameterId : uint64_t;
   // A map used to specify custom parameters.
@@ -33,7 +34,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // Represents an individual QUIC transport parameter that only encodes a
   // variable length integer. Can only be created inside the constructor for
   // TransportParameters.
-  class QUIC_EXPORT_PRIVATE IntegerParameter {
+  class QUICHE_EXPORT IntegerParameter {
    public:
     // Forbid constructing and copying apart from TransportParameters.
     IntegerParameter() = delete;
@@ -54,7 +55,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
     // |error_details|.
     bool Read(QuicDataReader* reader, std::string* error_details);
     // operator<< allows easily logging integer transport parameters.
-    friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    friend QUICHE_EXPORT std::ostream& operator<<(
         std::ostream& os, const IntegerParameter& param);
 
    private:
@@ -86,7 +87,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
   // Represents the preferred_address transport parameter that a server can
   // send to clients.
-  struct QUIC_EXPORT_PRIVATE PreferredAddress {
+  struct QUICHE_EXPORT PreferredAddress {
     PreferredAddress();
     PreferredAddress(const PreferredAddress& other) = default;
     PreferredAddress(PreferredAddress&& other) = default;
@@ -101,7 +102,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
     // Allows easily logging.
     std::string ToString() const;
-    friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    friend QUICHE_EXPORT std::ostream& operator<<(
         std::ostream& os, const TransportParameters& params);
   };
 
@@ -109,7 +110,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // mechanism ported to QUIC+TLS. It is exchanged using transport parameter ID
   // 0x4752 and will eventually be deprecated in favor of
   // draft-ietf-quic-version-negotiation.
-  struct QUIC_EXPORT_PRIVATE LegacyVersionInformation {
+  struct QUICHE_EXPORT LegacyVersionInformation {
     LegacyVersionInformation();
     LegacyVersionInformation(const LegacyVersionInformation& other) = default;
     LegacyVersionInformation& operator=(const LegacyVersionInformation& other) =
@@ -132,14 +133,14 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
     // Allows easily logging.
     std::string ToString() const;
-    friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    friend QUICHE_EXPORT std::ostream& operator<<(
         std::ostream& os,
         const LegacyVersionInformation& legacy_version_information);
   };
 
   // Version information used for version downgrade prevention and compatible
   // version negotiation. See draft-ietf-quic-version-negotiation-05.
-  struct QUIC_EXPORT_PRIVATE VersionInformation {
+  struct QUICHE_EXPORT VersionInformation {
     VersionInformation();
     VersionInformation(const VersionInformation& other) = default;
     VersionInformation& operator=(const VersionInformation& other) = default;
@@ -159,7 +160,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
     // Allows easily logging.
     std::string ToString() const;
-    friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    friend QUICHE_EXPORT std::ostream& operator<<(
         std::ostream& os, const VersionInformation& version_information);
   };
 
@@ -176,15 +177,15 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   Perspective perspective;
 
   // Google QUIC downgrade prevention mechanism sent over QUIC+TLS.
-  absl::optional<LegacyVersionInformation> legacy_version_information;
+  std::optional<LegacyVersionInformation> legacy_version_information;
 
   // IETF downgrade prevention and compatible version negotiation, see
   // draft-ietf-quic-version-negotiation.
-  absl::optional<VersionInformation> version_information;
+  std::optional<VersionInformation> version_information;
 
   // The value of the Destination Connection ID field from the first
   // Initial packet sent by the client.
-  absl::optional<QuicConnectionId> original_destination_connection_id;
+  std::optional<QuicConnectionId> original_destination_connection_id;
 
   // Maximum idle timeout expressed in milliseconds.
   IntegerParameter max_idle_timeout_ms;
@@ -222,9 +223,11 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // delay sending acknowledgments.
   IntegerParameter max_ack_delay;
 
-  // Minimum amount of time in microseconds by which the endpoint will
-  // delay sending acknowledgments. Used to enable sender control of ack delay.
-  IntegerParameter min_ack_delay_us;
+  // There is no "default" value for this. If it is not nullopt, it should be
+  // sent regardless of the default value. Even if the incoming value matches
+  // the default, it indicates readiness to receive ACK_FREQUENCY and
+  // IMMEDIATE_ACK frames.
+  std::optional<uint64_t> min_ack_delay_us_draft10;
 
   // Indicates lack of support for connection migration.
   bool disable_active_migration;
@@ -238,25 +241,32 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
   // The value that the endpoint included in the Source Connection ID field of
   // the first Initial packet it sent.
-  absl::optional<QuicConnectionId> initial_source_connection_id;
+  std::optional<QuicConnectionId> initial_source_connection_id;
 
   // The value that the server included in the Source Connection ID field of a
   // Retry packet it sent.
-  absl::optional<QuicConnectionId> retry_source_connection_id;
+  std::optional<QuicConnectionId> retry_source_connection_id;
 
   // Indicates support for the DATAGRAM frame and the maximum frame size that
   // the sender accepts. See draft-ietf-quic-datagram.
   IntegerParameter max_datagram_frame_size;
 
+  // Indicates support for the RESET_STREAM_AT frame.
+  bool reliable_stream_reset;
+
   // Google-specific transport parameter that carries an estimate of the
   // initial round-trip time in microseconds.
   IntegerParameter initial_round_trip_time_us;
 
+  // Data length for TransportParameterId::kDiscard. Negative values means the
+  // parameter is not set.
+  int32_t discard_length = -1;
+
   // Google internal handshake message.
-  absl::optional<std::string> google_handshake_message;
+  std::optional<std::string> google_handshake_message;
 
   // Google-specific connection options.
-  absl::optional<QuicTagVector> google_connection_options;
+  std::optional<QuicTagVector> google_connection_options;
 
   // Validates whether transport parameters are valid according to
   // the specification. If the transport parameters are not valid, this method
@@ -268,15 +278,15 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
   // Allows easily logging transport parameters.
   std::string ToString() const;
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+  friend QUICHE_EXPORT std::ostream& operator<<(
       std::ostream& os, const TransportParameters& params);
 };
 
 // Serializes a TransportParameters struct into the format for sending it in a
 // TLS extension. The serialized bytes are written to |*out|. Returns if the
 // parameters are valid and serialization succeeded.
-QUIC_EXPORT_PRIVATE bool SerializeTransportParameters(
-    const TransportParameters& in, std::vector<uint8_t>* out);
+QUICHE_EXPORT bool SerializeTransportParameters(const TransportParameters& in,
+                                                std::vector<uint8_t>* out);
 
 // Parses bytes from the quic_transport_parameters TLS extension and writes the
 // parsed parameters into |*out|. Input is read from |in| for |in_len| bytes.
@@ -284,9 +294,11 @@ QUIC_EXPORT_PRIVATE bool SerializeTransportParameters(
 // This method returns true if the input was successfully parsed.
 // On failure, this method will write a human-readable error message to
 // |error_details|.
-QUIC_EXPORT_PRIVATE bool ParseTransportParameters(
-    ParsedQuicVersion version, Perspective perspective, const uint8_t* in,
-    size_t in_len, TransportParameters* out, std::string* error_details);
+QUICHE_EXPORT bool ParseTransportParameters(ParsedQuicVersion version,
+                                            Perspective perspective,
+                                            const uint8_t* in, size_t in_len,
+                                            TransportParameters* out,
+                                            std::string* error_details);
 
 // Serializes |in| and |application_data| in a deterministic format so that
 // multiple calls to SerializeTransportParametersForTicket with the same inputs
@@ -296,15 +308,14 @@ QUIC_EXPORT_PRIVATE bool ParseTransportParameters(
 // accepted: Early data will only be accepted if the inputs to this function
 // match what they were on the connection that issued an early data capable
 // ticket.
-QUIC_EXPORT_PRIVATE bool SerializeTransportParametersForTicket(
+QUICHE_EXPORT bool SerializeTransportParametersForTicket(
     const TransportParameters& in, const std::vector<uint8_t>& application_data,
     std::vector<uint8_t>* out);
 
 // Removes reserved values from custom_parameters and versions.
 // The resulting value can be reliably compared with an original or other
 // deserialized value.
-QUIC_EXPORT_PRIVATE void DegreaseTransportParameters(
-    TransportParameters& parameters);
+QUICHE_EXPORT void DegreaseTransportParameters(TransportParameters& parameters);
 
 }  // namespace quic
 

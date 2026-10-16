@@ -12,14 +12,13 @@
 #include "mojo/core/platform_handle_dispatcher.h"
 #include "mojo/core/ports/event.h"
 #include "mojo/core/shared_buffer_dispatcher.h"
-#include "third_party/abseil-cpp/absl/base/attributes.h"
 
 namespace mojo {
 namespace core {
 
 namespace {
 
-ABSL_CONST_INIT thread_local bool is_extracting_handles_from_message = false;
+constinit thread_local bool is_extracting_handles_from_message = false;
 
 }  // namespace
 
@@ -114,12 +113,12 @@ MojoResult Dispatcher::EndWriteData(uint32_t num_bytes_written) {
   return MOJO_RESULT_INVALID_ARGUMENT;
 }
 
-MojoResult Dispatcher::AttachMessagePipe(base::StringPiece name,
+MojoResult Dispatcher::AttachMessagePipe(std::string_view name,
                                          ports::PortRef remote_peer_port) {
   return MOJO_RESULT_INVALID_ARGUMENT;
 }
 
-MojoResult Dispatcher::ExtractMessagePipe(base::StringPiece name,
+MojoResult Dispatcher::ExtractMessagePipe(std::string_view name,
                                           MojoHandle* message_pipe_handle) {
   return MOJO_RESULT_INVALID_ARGUMENT;
 }

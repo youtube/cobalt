@@ -4,23 +4,22 @@
 
 #include "components/ukm/ios/ukm_url_recorder.h"
 
+#include <optional>
+
 #include "base/functional/bind.h"
 #import "base/test/ios/wait_util.h"
 #include "components/ukm/test_ukm_recorder.h"
 #import "ios/web/public/navigation/navigation_manager.h"
+#import "ios/web/public/test/fakes/fake_navigation_context.h"
 #import "ios/web/public/test/web_test_with_web_state.h"
 #import "ios/web/public/web_state.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "services/metrics/public/cpp/ukm_source.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
+namespace ukm {
 namespace {
 
 std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
@@ -76,17 +75,23 @@ class UkmUrlRecorderTest : public web::WebTestWithWebState {
         });
   }
 
+  void MaybeRecordUrl(web::NavigationContext* context, const GURL& url) {
+    internal::SourceUrlRecorderWebStateObserver* observer =
+        GetSourceUrlRecorderForWebStateForWebState(web_state());
+    observer->MaybeRecordUrl(context, url);
+  }
+
   testing::AssertionResult RecordedUrl(
       ukm::SourceId source_id,
       GURL expected_url,
-      absl::optional<GURL> expected_initial_url) {
+      std::optional<GURL> expected_initial_url) {
     auto* source = test_ukm_recorder_.GetSourceForSourceId(source_id);
     if (!source)
       return testing::AssertionFailure() << "No URL recorded";
     if (source->url() != expected_url)
       return testing::AssertionFailure()
              << "Url was " << source->url() << ", expected: " << expected_url;
-    absl::optional<GURL> initial_url;
+    std::optional<GURL> initial_url;
     if (source->urls().size() > 1u)
       initial_url = source->urls().front();
     if (expected_initial_url != initial_url) {
@@ -121,7 +126,7 @@ TEST_F(UkmUrlRecorderTest, Basic) {
   GURL url = server_.GetURL("/title1.html");
   EXPECT_TRUE(LoadUrlAndWait(url));
   ukm::SourceId source_id = ukm::GetSourceIdForWebStateDocument(web_state());
-  EXPECT_TRUE(RecordedUrl(source_id, url, absl::nullopt));
+  EXPECT_TRUE(RecordedUrl(source_id, url, std::nullopt));
 }
 
 // Tests that subframe URLs do not get recorded.
@@ -130,7 +135,7 @@ TEST_F(UkmUrlRecorderTest, IgnoreUrlInSubframe) {
   GURL subframe_url = server_.GetURL("/title1.html");
   EXPECT_TRUE(LoadUrlAndWait(main_url));
   ukm::SourceId source_id = ukm::GetSourceIdForWebStateDocument(web_state());
-  EXPECT_TRUE(RecordedUrl(source_id, main_url, absl::nullopt));
+  EXPECT_TRUE(RecordedUrl(source_id, main_url, std::nullopt));
   EXPECT_TRUE(DidNotRecordUrl(subframe_url));
 }
 
@@ -149,3 +154,37 @@ TEST_F(UkmUrlRecorderTest, InitialUrl) {
   ukm::SourceId source_id = ukm::GetSourceIdForWebStateDocument(web_state());
   EXPECT_TRUE(RecordedUrl(source_id, target_url, redirect_url));
 }
+
+// Checks that if a NavigationContext is erroneously reused, its reuse is
+// handled gracefully by the UKM recorder. See crbug.com/346017703.
+TEST_F(UkmUrlRecorderTest, ReusedNavigationContext) {
+  EXPECT_EQ(0u, test_ukm_recorder_.sources_count());
+
+  web::FakeNavigationContext context_1;
+  const int64_t navigation_id_1 = context_1.GetNavigationId();
+  const GURL url_1("https://example.com#foo");
+  context_1.SetIsSameDocument(false);
+  context_1.SetUrl(url_1);
+
+  MaybeRecordUrl(&context_1, url_1);
+  EXPECT_EQ(1u, test_ukm_recorder_.sources_count());
+
+  web::FakeNavigationContext context_2;
+  const int64_t navigation_id_2 = context_2.GetNavigationId();
+  const GURL url_2("https://example.com#bar");
+  context_2.SetIsSameDocument(false);
+  context_2.SetUrl(url_2);
+
+  EXPECT_NE(navigation_id_1, navigation_id_2);
+
+  MaybeRecordUrl(&context_2, url_2);
+  EXPECT_EQ(2u, test_ukm_recorder_.sources_count());
+
+  // If a NavigationContext is reused, UKM recorder should not crash on
+  // receiving the same navigation id, hence also the UKM source id, again.
+  // Instead no new source should be added to the UKM recorder.
+  MaybeRecordUrl(&context_1, url_1);
+  EXPECT_EQ(2u, test_ukm_recorder_.sources_count());
+}
+
+}  // namespace ukm

@@ -6,7 +6,8 @@
  * @fileoverview Behavior for policy controlled settings prefs.
  */
 
-import {dedupingMixin, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import type {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {dedupingMixin} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 type Constructor<T> = new (...args: any[]) => T;
 
@@ -27,8 +28,8 @@ export const CrPolicyPrefMixin = dedupingMixin(
           };
         }
 
-        noExtensionIndicator: boolean;
-        pref: chrome.settingsPrivate.PrefObject;
+        declare noExtensionIndicator: boolean;
+        declare pref: chrome.settingsPrivate.PrefObject;
 
         /**
          * Is the |pref| controlled by something that prevents user control of

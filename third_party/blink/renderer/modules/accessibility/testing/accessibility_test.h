@@ -43,7 +43,8 @@ class AccessibilityTest : public RenderingTest {
   // Returns the object with the accessibility focus.
   AXObject* GetAXFocusedObject() const;
 
-  AXObject* GetAXObjectByElementId(const char* id) const;
+  AXObject* GetAXObjectByElementId(const char* id,
+                                   PseudoId = kPseudoIdNone) const;
 
   std::string PrintAXTree() const;
 
@@ -55,7 +56,6 @@ class AccessibilityTest : public RenderingTest {
                                         const AXObject* root,
                                         size_t level) const;
 
-  ScopedAccessibilityExposeHTMLElementForTest expose_html_element{true};
   ScopedAccessibilityUseAXPositionForDocumentMarkersForTest use_ax_position{
       true};
 };

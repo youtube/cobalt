@@ -70,15 +70,14 @@ class WebRtcCaptureFromElementBrowserTest
     WebRtcContentBrowserTestBase::SetUpCommandLine(command_line);
 
     // Allow <video>/<audio>.play() when not initiated by user gesture.
-    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+    command_line->AppendSwitchASCII(
         switches::kAutoplayPolicy,
         switches::autoplay::kNoUserGestureRequiredPolicy);
     // Allow experimental canvas features.
-    base::CommandLine::ForCurrentProcess()->AppendSwitch(
+    command_line->AppendSwitch(
         switches::kEnableExperimentalWebPlatformFeatures);
     // Allow window.internals for simulating context loss.
-    base::CommandLine::ForCurrentProcess()->AppendSwitch(
-        switches::kExposeInternalsForTesting);
+    command_line->AppendSwitch(switches::kExposeInternalsForTesting);
   }
 };
 
@@ -88,19 +87,33 @@ IN_PROC_BROWSER_TEST_F(WebRtcCaptureFromElementBrowserTest,
                   kCanvasCaptureColorTestHtmlFile);
 }
 
+#if BUILDFLAG(IS_WIN) && defined(ARCH_CPU_ARM64)
+#define MAYBE_VerifyCanvasWebGLCaptureOpaqueColor \
+  DISABLED_VerifyCanvasWebGLCaptureOpaqueColor
+#else
+#define MAYBE_VerifyCanvasWebGLCaptureOpaqueColor \
+  VerifyCanvasWebGLCaptureOpaqueColor
+#endif  // BUILDFLAG(IS_WIN) && defined(ARCH_CPU_ARM64)
 IN_PROC_BROWSER_TEST_F(WebRtcCaptureFromElementBrowserTest,
-                       VerifyCanvasWebGLCaptureOpaqueColor) {
+                       MAYBE_VerifyCanvasWebGLCaptureOpaqueColor) {
   MakeTypicalCall("testCanvasWebGLCaptureOpaqueColors(true);",
                   kCanvasCaptureColorTestHtmlFile);
 }
 
+#if BUILDFLAG(IS_WIN) && defined(ARCH_CPU_ARM64)
+#define MAYBE_VerifyCanvasWebGLCaptureAlphaColor \
+  DISABLED_VerifyCanvasWebGLCaptureAlphaColor
+#else
+#define MAYBE_VerifyCanvasWebGLCaptureAlphaColor \
+  VerifyCanvasWebGLCaptureAlphaColor
+#endif  // BUILDFLAG(IS_WIN) && defined(ARCH_CPU_ARM64)
 IN_PROC_BROWSER_TEST_F(WebRtcCaptureFromElementBrowserTest,
-                       VerifyCanvasWebGLCaptureAlphaColor) {
+                       MAYBE_VerifyCanvasWebGLCaptureAlphaColor) {
   MakeTypicalCall("testCanvasWebGLCaptureAlphaColors(true);",
                   kCanvasCaptureColorTestHtmlFile);
 }
 
-// TODO(https://crbug.com/1350300): Flaky.
+// TODO(crbug.com/40856408): Flaky.
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
 #define MAYBE_VerifyCanvasCapture2DFrames DISABLED_VerifyCanvasCapture2DFrames
 #else
@@ -111,15 +124,10 @@ IN_PROC_BROWSER_TEST_F(WebRtcCaptureFromElementBrowserTest,
   MakeTypicalCall("testCanvasCapture(draw2d);", kCanvasCaptureTestHtmlFile);
 }
 
-// TODO(https://crbug.com/1335032): Flaky.
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-#define MAYBE_VerifyCanvasCaptureWebGLFrames \
-  DISABLED_VerifyCanvasCaptureWebGLFrames
-#else
-#define MAYBE_VerifyCanvasCaptureWebGLFrames VerifyCanvasCaptureWebGLFrames
-#endif
+// TODO(crbug.com/40846825): Flaky on mac, windows, and linux.
+// TODO(crbug.com/362833242): Flaky on Android.
 IN_PROC_BROWSER_TEST_F(WebRtcCaptureFromElementBrowserTest,
-                       MAYBE_VerifyCanvasCaptureWebGLFrames) {
+                       DISABLED_VerifyCanvasCaptureWebGLFrames) {
   MakeTypicalCall("testCanvasCapture(drawWebGL);", kCanvasCaptureTestHtmlFile);
 }
 
@@ -133,7 +141,7 @@ IN_PROC_BROWSER_TEST_F(WebRtcCaptureFromElementBrowserTest,
                   kCanvasCaptureTestHtmlFile);
 }
 
-// TODO(crbug.com/1334909): Fix and re-enable.
+// TODO(crbug.com/40846743): Fix and re-enable.
 IN_PROC_BROWSER_TEST_F(WebRtcCaptureFromElementBrowserTest,
                        DISABLED_VerifyCanvasCaptureBitmapRendererFrames) {
   MakeTypicalCall("testCanvasCapture(drawBitmapRenderer);",

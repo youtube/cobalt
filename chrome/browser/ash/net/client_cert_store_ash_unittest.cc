@@ -13,6 +13,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
 #include "chrome/browser/certificate_provider/certificate_provider.h"
@@ -51,7 +52,7 @@ void SaveIdentitiesAndQuitCallback(net::ClientCertIdentityList* out_identities,
 
 class ClientCertStoreAshTest : public ::testing::Test {
  public:
-  ClientCertStoreAshTest() {}
+  ClientCertStoreAshTest() = default;
 
   void SetUp() override {
     ASSERT_TRUE(user1_.constructed_successfully());
@@ -93,7 +94,7 @@ TEST_F(ClientCertStoreAshTest, RequestWaitsForNSSInitAndSucceeds) {
   net::ClientCertIdentityList selected_identities;
   base::RunLoop run_loop;
   store.GetClientCerts(
-      *request_all,
+      request_all,
       base::BindOnce(SaveIdentitiesAndQuitCallback, &selected_identities,
                      run_loop.QuitClosure()));
 
@@ -130,7 +131,7 @@ TEST_F(ClientCertStoreAshTest, RequestsAfterNSSInitSucceed) {
   base::RunLoop run_loop;
   net::ClientCertIdentityList selected_identities;
   store.GetClientCerts(
-      *request_all,
+      request_all,
       base::BindOnce(SaveIdentitiesAndQuitCallback, &selected_identities,
                      run_loop.QuitClosure()));
   run_loop.Run();
@@ -175,7 +176,7 @@ TEST_F(ClientCertStoreAshTest, Filter) {
   const struct FilterTest {
     bool use_system_slot;
     std::string username_hash;
-    std::vector<net::X509Certificate*> results;
+    std::vector<raw_ptr<net::X509Certificate, VectorExperimental>> results;
   } kTests[] = {
       {false,
        user1_.username_hash(),
@@ -204,7 +205,7 @@ TEST_F(ClientCertStoreAshTest, Filter) {
     base::RunLoop run_loop;
     net::ClientCertIdentityList selected_identities;
     store.GetClientCerts(
-        *request_all,
+        request_all,
         base::BindOnce(SaveIdentitiesAndQuitCallback, &selected_identities,
                        run_loop.QuitClosure()));
     run_loop.Run();
@@ -249,8 +250,8 @@ TEST_F(ClientCertStoreAshTest, CertRequestMatching) {
   base::RunLoop run_loop;
   net::ClientCertIdentityList selected_identities;
   store.GetClientCerts(
-      *request, base::BindOnce(SaveIdentitiesAndQuitCallback,
-                               &selected_identities, run_loop.QuitClosure()));
+      request, base::BindOnce(SaveIdentitiesAndQuitCallback,
+                              &selected_identities, run_loop.QuitClosure()));
   run_loop.Run();
 
   ASSERT_EQ(1u, selected_identities.size());

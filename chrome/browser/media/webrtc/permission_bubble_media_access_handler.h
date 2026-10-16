@@ -29,12 +29,12 @@ class PermissionBubbleMediaAccessHandler
   ~PermissionBubbleMediaAccessHandler() override;
 
   // MediaAccessHandler implementation.
-  bool SupportsStreamType(content::WebContents* web_contents,
+  bool SupportsStreamType(content::RenderFrameHost* render_frame_host,
                           const blink::mojom::MediaStreamType type,
                           const extensions::Extension* extension) override;
   bool CheckMediaAccessPermission(
       content::RenderFrameHost* render_frame_host,
-      const GURL& security_origin,
+      const url::Origin& security_origin,
       blink::mojom::MediaStreamType type,
       const extensions::Extension* extension) override;
   void HandleRequest(content::WebContents* web_contents,
@@ -55,7 +55,8 @@ class PermissionBubbleMediaAccessHandler
   using RequestsMap = std::map<int64_t, PendingAccessRequest>;
   using RequestsMaps = std::map<content::WebContents*, RequestsMap>;
 
-  void ProcessQueuedAccessRequest(content::WebContents* web_contents);
+  void ProcessQueuedAccessRequest(
+      MayBeDangling<content::WebContents> web_contents);
   void OnMediaStreamRequestResponse(
       content::WebContents* web_contents,
       int64_t request_id,
@@ -76,7 +77,7 @@ class PermissionBubbleMediaAccessHandler
   // This method uses StreamDevicesSetPtr (movable) and forwards the data
   // to OnAccessRequestResponse when calling the callback.
   void OnAccessRequestResponseForBinding(
-      content::WebContents* web_contents,
+      MayBeDangling<content::WebContents> web_contents,
       int64_t request_id,
       blink::mojom::StreamDevicesSetPtr stream_devices_set,
       blink::mojom::MediaStreamRequestResult result,

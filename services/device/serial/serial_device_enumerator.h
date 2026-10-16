@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/observer_list.h"
@@ -15,7 +16,6 @@
 #include "base/unguessable_token.h"
 #include "services/device/public/mojom/serial.mojom.h"
 #include "services/device/serial/serial_io_handler.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class FilePath;
@@ -30,6 +30,8 @@ class SerialDeviceEnumerator {
    public:
     virtual void OnPortAdded(const mojom::SerialPortInfo& port) = 0;
     virtual void OnPortRemoved(const mojom::SerialPortInfo& port) = 0;
+    virtual void OnPortConnectedStateChanged(
+        const mojom::SerialPortInfo& port) = 0;
   };
 
   static std::unique_ptr<SerialDeviceEnumerator> Create(
@@ -42,7 +44,7 @@ class SerialDeviceEnumerator {
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
-  absl::optional<base::FilePath> GetPathFromToken(
+  std::optional<base::FilePath> GetPathFromToken(
       const base::UnguessableToken& token,
       bool use_alternate_path);
 
@@ -52,6 +54,8 @@ class SerialDeviceEnumerator {
   // passed to RemovePort() must have previously been added.
   void AddPort(mojom::SerialPortInfoPtr port);
   void RemovePort(base::UnguessableToken token);
+  void UpdatePortConnectedState(base::UnguessableToken token,
+                                bool is_connected);
 
   SEQUENCE_CHECKER(sequence_checker_);
 

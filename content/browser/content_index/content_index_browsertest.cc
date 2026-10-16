@@ -8,13 +8,13 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
-#include "base/test/scoped_feature_list.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/content_index_context.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test.h"
 #include "content/public/test/content_browser_test_utils.h"
 #include "content/shell/browser/shell.h"
@@ -51,6 +51,13 @@ class ContentIndexTest : public ContentBrowserTest {
     ASSERT_TRUE(context_);
   }
 
+  void TearDownOnMainThread() override {
+    context_ = nullptr;
+    provider_ = nullptr;
+    shell_ = nullptr;
+    ContentBrowserTest::TearDownOnMainThread();
+  }
+
   void SetUpCommandLine(base::CommandLine* command_line) override {
     command_line->AppendSwitch(
         switches::kEnableExperimentalWebPlatformFeatures);
@@ -83,9 +90,9 @@ class ContentIndexTest : public ContentBrowserTest {
 
  private:
   std::unique_ptr<net::EmbeddedTestServer> https_server_;
-  raw_ptr<ShellContentIndexProvider, DanglingUntriaged> provider_;
-  raw_ptr<ContentIndexContext, DanglingUntriaged> context_;
-  raw_ptr<Shell, DanglingUntriaged> shell_;
+  raw_ptr<ShellContentIndexProvider> provider_ = nullptr;
+  raw_ptr<ContentIndexContext> context_ = nullptr;
+  raw_ptr<Shell> shell_ = nullptr;
 };
 
 IN_PROC_BROWSER_TEST_F(ContentIndexTest, GetIcons) {
@@ -125,8 +132,9 @@ IN_PROC_BROWSER_TEST_F(ContentIndexTest, GetIcons) {
     ASSERT_NE(registration_data.first, -1);
     auto icons = GetIcons(registration_data.first, "id3");
     ASSERT_EQ(icons.size(), 2u);
-    if (icons[0].height() > icons[1].height())
+    if (icons[0].height() > icons[1].height()) {
       std::swap(icons[0], icons[1]);
+    }
 
     ASSERT_FALSE(icons[0].isNull());
     EXPECT_EQ(icons[0].width(), 24);
@@ -164,28 +172,6 @@ IN_PROC_BROWSER_TEST_F(ContentIndexTest, BestIconIsChosen) {
         type: 'image/jpg',
       },
     ]))");
-}
-
-class ContentIndexOfflineCapabilityTest : public ContentIndexTest {
-  void SetUp() override {
-    feature_list_.InitFromCommandLine("ContentIndexCheckOffline", "");
-    ContentIndexTest::SetUp();
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(ContentIndexOfflineCapabilityTest,
-                       CheckOfflineCapability) {
-  // Registering content should still work if the url is offline-capable.
-  RunScript("addContent('id1', [{src: '/single_face.jpg'}], 'forcesuccess')");
-
-  // Registering content should fail if the url is not offline-capable.
-  std::string result = RunScriptWithResult(
-      "addContent('id2', [{src: '/single_face.jpg'}], 'forcefail')");
-  EXPECT_EQ(result,
-            "TypeError - The provided launch URL is not offline-capable.");
 }
 
 }  // namespace

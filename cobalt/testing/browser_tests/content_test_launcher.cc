@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "content/public/test/test_launcher.h"
-
 #include "base/base_paths.h"
 #include "base/command_line.h"
 #include "base/i18n/icu_util.h"
@@ -27,13 +25,15 @@
 #include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/content_test_suite_base.h"
+#include "content/public/test/test_launcher.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/buildflags.h"
 #include "ui/base/ui_base_switches.h"
 
-#if BUILDFLAG(IS_WIN)
-#include "base/win/win_util.h"
-#endif  // BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "starboard/common/command_line.h"             // nogncheck
+#include "starboard/tvos/shared/application_darwin.h"  // nogncheck
+#endif
 
 namespace content {
 
@@ -57,7 +57,21 @@ class ContentBrowserTestSuite : public ContentTestSuiteBase {
 #if BUILDFLAG(IS_ANDROID)
     RegisterInProcessThreads();
 #endif
+
+#if BUILDFLAG(IS_IOS_TVOS)
+    // Some tests indirectly invoke starboard::Application::Get(), and on tvOS
+    // the Application instance needs to be created manually from the Cobalt
+    // layer.
+    starboard_application_ = std::make_unique<starboard::ApplicationDarwin>(
+        std::make_unique<starboard::CommandLine>(
+            base::CommandLine::ForCurrentProcess()->argv()));
+#endif
   }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+ private:
+  std::unique_ptr<starboard::ApplicationDarwin> starboard_application_;
+#endif
 };
 
 class ContentTestLauncherDelegate : public TestLauncherDelegate {
@@ -75,7 +89,7 @@ class ContentTestLauncherDelegate : public TestLauncherDelegate {
   }
 
   std::string GetUserDataDirectoryCommandLineSwitch() override {
-    return switches::kContentShellDataPath;
+    return switches::kContentShellUserDataDir;
   }
 
  protected:
@@ -95,11 +109,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-#if BUILDFLAG(IS_WIN)
-  // Load and pin user32.dll to avoid having to load it once tests start while
-  // on the main thread loop where blocking calls are disallowed.
-  base::win::PinUser32();
-#endif  // BUILDFLAG(IS_WIN)
   content::ContentTestLauncherDelegate launcher_delegate;
-  return LaunchTests(&launcher_delegate, parallel_jobs, argc, argv);
+  return LaunchTests(&launcher_delegate, parallel_jobs, argc,
+                     const_cast<char**>(argv));
 }

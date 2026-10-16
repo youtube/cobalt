@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_ASH_CROSTINI_CROSTINI_DISK_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -13,7 +14,6 @@
 #include "chrome/browser/ash/crostini/crostini_types.mojom.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chromeos/ash/components/dbus/vm_concierge/concierge_service.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace crostini {
 
@@ -33,21 +33,21 @@ struct CrostiniDiskInfo {
 
 namespace disk {
 
-constexpr int64_t kGiB = 1024 * 1024 * 1024;
-constexpr int64_t kDiskHeadroomBytes = 1 * kGiB;
-constexpr int64_t kMinimumDiskSizeBytes = 2 * kGiB;
-constexpr int64_t kRecommendedDiskSizeBytes = 10 * kGiB;
+inline constexpr int64_t kGiB = 1024 * 1024 * 1024;
+inline constexpr int64_t kDiskHeadroomBytes = 1 * kGiB;
+inline constexpr int64_t kMinimumDiskSizeBytes = 2 * kGiB;
+inline constexpr int64_t kRecommendedDiskSizeBytes = 10 * kGiB;
 
 // A number which influences the interval size and number of ticks selected for
 // a given range. At 400 >400 GiB gets 1 GiB ticks, smaller sizes get smaller
 // intervals. 400 is arbitrary, chosen because it keeps ticks at least 1px each
 // on sliders and feels nice.
-constexpr int kGranularityFactor = 400;
+inline constexpr int kGranularityFactor = 400;
 
 // The size of the download for the VM image.
 // As of 2020-01-10 the Termina files.zip is ~90MiB and the squashfs container
 // is ~330MiB.
-constexpr int64_t kDownloadSizeBytes = 450ll * 1024 * 1024;  // 450 MiB
+inline constexpr int64_t kDownloadSizeBytes = 450ll * 1024 * 1024;  // 450 MiB
 
 using OnceDiskInfoCallback =
     base::OnceCallback<void(std::unique_ptr<CrostiniDiskInfo> info)>;
@@ -66,7 +66,7 @@ void GetDiskInfo(OnceDiskInfoCallback callback,
 void OnAmountOfFreeDiskSpace(OnceDiskInfoCallback callback,
                              Profile* profile,
                              std::string vm_name,
-                             absl::optional<int64_t> free_space);
+                             std::optional<int64_t> free_space);
 
 // Combined callback for EnsureConciergeRunning or EnsureVmRunning which passes
 // off to the next step in the chain. For getting full disk info, the VM must be
@@ -93,17 +93,14 @@ void OnListVmDisks(
     OnceDiskInfoCallback callback,
     std::string vm_name,
     int64_t free_space,
-    absl::optional<vm_tools::concierge::ListVmDisksResponse> response);
+    std::optional<vm_tools::concierge::ListVmDisksResponse> response);
 
 // Given a minimum, currently selected and maximum value, constructs a range of
 // DiskSliderTicks spanning from min to max. Ensures that one of the ticks
 // matches the current value and will write the index of that value to
 // out_default_index.
-std::vector<crostini::mojom::DiskSliderTickPtr> GetTicks(
-    int64_t min,
-    int64_t current,
-    int64_t max,
-    int* out_default_index);
+std::vector<crostini::mojom::DiskSliderTickPtr>
+GetTicks(int64_t min, int64_t current, int64_t max, int* out_default_index);
 
 // Requests the disk for |vm_name| to be resized to |size_bytes|.
 // Once complete |callback| is called with true (succeeded resizing) or false
@@ -117,7 +114,7 @@ void ResizeCrostiniDisk(Profile* profile,
 // crostini_disk or tests.
 void OnResize(
     base::OnceCallback<void(bool)> callback,
-    absl::optional<vm_tools::concierge::ResizeDiskImageResponse> response);
+    std::optional<vm_tools::concierge::ResizeDiskImageResponse> response);
 
 // Splits the range between |min_size| and |available_space| into enough
 // evenly-spaced intervals you can use them as ticks on a slider. Will return an

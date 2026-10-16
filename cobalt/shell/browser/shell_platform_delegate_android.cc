@@ -16,12 +16,12 @@
 
 #include <jni.h>
 
-#include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
+#include "base/functional/bind.h"
 #include "base/notreached.h"
-#include "base/strings/string_piece.h"
+#include "base/task/single_thread_task_runner.h"
 #include "cobalt/shell/android/cobalt_shell_jni_headers/Shell_jni.h"
 #include "cobalt/shell/android/shell_manager.h"
 #include "cobalt/shell/browser/shell.h"
@@ -30,7 +30,6 @@
 #include "content/public/common/content_switches.h"
 
 using base::android::AttachCurrentThread;
-using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 
@@ -38,18 +37,23 @@ namespace content {
 
 struct ShellPlatformDelegate::ShellData {
   base::android::ScopedJavaGlobalRef<jobject> java_object;
+  uint64_t manager_generation = 0;
 };
 
 struct ShellPlatformDelegate::PlatformData {};
 
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
 
-void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
+void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
+                                       bool is_visible) {
+  is_visible_ = is_visible;
   // |platform_| is not used on this platform.
 }
 
 ShellPlatformDelegate::~ShellPlatformDelegate() {
-  DestroyShellManager();
+  if (!skip_for_testing_) {
+    DestroyShellManager();
+  }
 }
 
 void ShellPlatformDelegate::CreatePlatformWindow(
@@ -57,8 +61,19 @@ void ShellPlatformDelegate::CreatePlatformWindow(
     const gfx::Size& initial_size) {
   DCHECK(!base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
+  shell_data.manager_generation = GetShellManagerGeneration();
 
   shell_data.java_object.Reset(CreateShellView(shell));
+  if (shell_data.java_object.is_null()) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(
+                       [](base::WeakPtr<Shell> shell) {
+                         if (shell) {
+                           shell->Close();
+                         }
+                       },
+                       shell->GetWeakPtr()));
+  }
 }
 
 void ShellPlatformDelegate::CleanUp(Shell* shell) {
@@ -66,7 +81,7 @@ void ShellPlatformDelegate::CleanUp(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  RemoveShellView(shell_data.java_object);
+  RemoveShellView(shell_data.java_object, shell_data.manager_generation);
 
   if (!shell_data.java_object.is_null()) {
     Java_Shell_onNativeDestroyed(env, shell_data.java_object);
@@ -79,44 +94,42 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   JNIEnv* env = AttachCurrentThread();
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
+  if (shell_data.java_object.is_null()) {
+    return;
+  }
 
   Java_Shell_initFromNativeTabContents(
+      env, shell_data.java_object, shell->web_contents()->GetJavaWebContents());
+}
+
+void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
+  JNIEnv* env = AttachCurrentThread();
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+  if (shell_data.java_object.is_null()) {
+    return;
+  }
+
+  Java_Shell_loadSplashScreenNativeTabContents(
+      env, shell_data.java_object,
+      shell->splash_screen_web_contents()->GetJavaWebContents());
+}
+
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {
+  JNIEnv* env = AttachCurrentThread();
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+  if (shell_data.java_object.is_null()) {
+    return;
+  }
+
+  Java_Shell_updateNativeTabContents(
       env, shell_data.java_object, shell->web_contents()->GetJavaWebContents());
 }
 
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
                                              const gfx::Size& content_size) {
   shell->web_contents()->GetRenderWidgetHostView()->SetSize(content_size);
-}
-
-void ShellPlatformDelegate::EnableUIControl(Shell* shell,
-                                            UIControl control,
-                                            bool is_enabled) {
-  JNIEnv* env = AttachCurrentThread();
-  DCHECK(base::Contains(shell_data_map_, shell));
-  ShellData& shell_data = shell_data_map_[shell];
-
-  if (shell_data.java_object.is_null()) {
-    return;
-  }
-  Java_Shell_enableUiControl(env, shell_data.java_object, control, is_enabled);
-}
-
-void ShellPlatformDelegate::SetAddressBarURL(Shell* shell, const GURL& url) {
-  JNIEnv* env = AttachCurrentThread();
-  DCHECK(base::Contains(shell_data_map_, shell));
-  ShellData& shell_data = shell_data_map_[shell];
-
-  ScopedJavaLocalRef<jstring> j_url = ConvertUTF8ToJavaString(env, url.spec());
-  Java_Shell_onUpdateUrl(env, shell_data.java_object, j_url);
-}
-
-void ShellPlatformDelegate::SetIsLoading(Shell* shell, bool loading) {
-  JNIEnv* env = AttachCurrentThread();
-  DCHECK(base::Contains(shell_data_map_, shell));
-  ShellData& shell_data = shell_data_map_[shell];
-
-  Java_Shell_setIsLoading(env, shell_data.java_object, loading);
 }
 
 void ShellPlatformDelegate::SetTitle(Shell* shell,
@@ -128,6 +141,22 @@ bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
   return false;  // Shell destroys itself.
 }
 
+void ShellPlatformDelegate::CreatePlatformWindowInternal(
+    Shell* shell,
+    const gfx::Size& initial_size) {}
+
+void ShellPlatformDelegate::RevealShell(Shell* shell) {
+  if (shell && shell->web_contents()) {
+    shell->web_contents()->WasShown();
+  }
+}
+
+void ShellPlatformDelegate::ConcealShell(Shell* shell) {
+  if (shell && shell->web_contents()) {
+    shell->web_contents()->WasHidden();
+  }
+}
+
 void ShellPlatformDelegate::ToggleFullscreenModeForTab(
     Shell* shell,
     WebContents* web_contents,
@@ -135,6 +164,9 @@ void ShellPlatformDelegate::ToggleFullscreenModeForTab(
   JNIEnv* env = AttachCurrentThread();
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
+  if (shell_data.java_object.is_null()) {
+    return;
+  }
 
   Java_Shell_toggleFullscreenModeForTab(env, shell_data.java_object,
                                         enter_fullscreen);
@@ -146,6 +178,9 @@ bool ShellPlatformDelegate::IsFullscreenForTabOrPending(
   JNIEnv* env = AttachCurrentThread();
   DCHECK(base::Contains(shell_data_map_, shell));
   const ShellData& shell_data = shell_data_map_.find(shell)->second;
+  if (shell_data.java_object.is_null()) {
+    return false;
+  }
 
   return Java_Shell_isFullscreenForTabOrPending(env, shell_data.java_object);
 }
@@ -155,17 +190,28 @@ void ShellPlatformDelegate::SetOverlayMode(Shell* shell,
   JNIEnv* env = base::android::AttachCurrentThread();
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
+  if (shell_data.java_object.is_null()) {
+    return;
+  }
 
-  return Java_Shell_setOverlayMode(env, shell_data.java_object,
-                                   use_overlay_mode);
+  Java_Shell_setOverlayMode(env, shell_data.java_object, use_overlay_mode);
 }
 
 void ShellPlatformDelegate::LoadProgressChanged(Shell* shell, double progress) {
   JNIEnv* env = AttachCurrentThread();
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
+  if (shell_data.java_object.is_null()) {
+    return;
+  }
 
   Java_Shell_onLoadProgressChanged(env, shell_data.java_object, progress);
+}
+
+// static
+void JNI_Shell_LoadSplashScreenWebContents(JNIEnv* env, jlong shellPtr) {
+  Shell* shell = reinterpret_cast<Shell*>(shellPtr);
+  shell->LoadSplashScreenWebContents();
 }
 
 // static

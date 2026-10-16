@@ -12,6 +12,7 @@
   ],
   "sign": [
     "remoting_core.dll",
+    "remoting_crashpad_handler.exe",
     "remoting_desktop.exe",
     "remoting_host.exe",
     "remoting_native_messaging_host.exe",
@@ -28,6 +29,7 @@
     "switches": [
       "-cultures:en-us",
       "-sw1076",
+      "-sice:ICE61",
       "-sice:ICE80"
     ]
   }

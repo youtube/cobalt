@@ -15,26 +15,65 @@
 #ifndef COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 #define COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 
-#include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "base/memory/weak_ptr.h"
+#include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "content/public/browser/web_contents_observer.h"
 
-#include "components/js_injection/browser/js_communication_host.h"
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/system.h"
+#endif
 
 namespace cobalt {
 
+// This class is used to observe WebContents lifecycles within
+// CobaltContentBrowserClient. Its primary purpose is to dispatch web events.
+// Most WebContentsObserver functionalities should be implemented in
+// cobalt/shell/browser/shell.{h,cc} instead. This class should only contain
+// logic essential for the browser client's core responsibilities.
 class CobaltWebContentsObserver : public content::WebContentsObserver {
  public:
   CobaltWebContentsObserver(content::WebContents* web_contents);
 
-  void PrimaryMainDocumentElementAvailable() override;
+  CobaltWebContentsObserver(const CobaltWebContentsObserver&) = delete;
+  CobaltWebContentsObserver& operator=(const CobaltWebContentsObserver&) =
+      delete;
+
+  ~CobaltWebContentsObserver() override;
+
+ public:
+  void DidStartNavigation(
+      content::NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
-  void DidStopLoading() override;
+  void OnVisibilityChanged(content::Visibility visibility) override;
+  virtual void RaisePlatformError(int64_t navigation_id,
+                                  const std::string& url);
+  virtual void SetStartupDiagnosisInfo(const char* key, const char* value);
+
+ protected:
+  void SetTimerForTestInternal(std::unique_ptr<base::OneShotTimer> timer);
 
  private:
-  void RegisterInjectedJavaScript();
-
-  std::unique_ptr<js_injection::JsCommunicationHost> js_communication_host_;
+  void OnNavigationTimeout(int64_t navigation_id, const std::string& url);
+  std::unique_ptr<base::OneShotTimer> timeout_timer_;
+  base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
+  int64_t latest_navigation_id_ = 0;
+  base::TimeTicks navigation_start_ticks_;
+  bool has_recorded_startup_navigation_ = false;
+#if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_STARBOARD)
+  int platform_error_raised_count_ = 0;
+#endif  // BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_STARBOARD)
+  class PlatformErrorBridge;
+  PlatformErrorBridge* pending_platform_error_bridge_ = nullptr;
+  static void HandlePlatformErrorResponse(
+      SbSystemPlatformErrorResponse response,
+      void* user_data);
+  void OnPlatformErrorResponse(SbSystemPlatformErrorResponse response,
+                               int64_t navigation_id);
+  bool is_platform_error_showing_ = false;
+#endif  // BUILDFLAG(IS_STARBOARD)
 };
 
 }  // namespace cobalt

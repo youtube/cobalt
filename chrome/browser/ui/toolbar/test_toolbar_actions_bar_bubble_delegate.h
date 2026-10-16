@@ -9,6 +9,7 @@
 #include <string>
 
 #include "chrome/browser/ui/toolbar/toolbar_actions_bar_bubble_delegate.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/ui_base_types.h"
 
 // A test delegate for a bubble to hang off the toolbar actions bar.
@@ -41,14 +42,8 @@ class TestToolbarActionsBarBubbleDelegate {
     info_->text = learn_more;
     info_->is_learn_more = true;
   }
-  void set_item_list_text(const std::u16string& item_list) {
-    item_list_ = item_list;
-  }
-  void set_default_dialog_button(ui::DialogButton default_button) {
+  void set_default_dialog_button(ui::mojom::DialogButton default_button) {
     default_button_ = default_button;
-  }
-  void set_close_on_deactivate(bool close_on_deactivate) {
-    close_on_deactivate_ = close_on_deactivate;
   }
   void set_extra_view_info(
       std::unique_ptr<ToolbarActionsBarBubbleDelegate::ExtraViewInfo> info) {
@@ -76,16 +71,12 @@ class TestToolbarActionsBarBubbleDelegate {
   std::u16string action_;
   std::u16string dismiss_;
   std::u16string learn_more_;
-  std::u16string item_list_;
 
   // The id to associate with this bubble, if any.
   std::string action_id_;
 
   // The default button for the bubble.
-  ui::DialogButton default_button_;
-
-  // Whether to close the bubble on deactivation.
-  bool close_on_deactivate_;
+  ui::mojom::DialogButton default_button_;
 
   // Information about the extra view to show, if any.
   std::unique_ptr<ToolbarActionsBarBubbleDelegate::ExtraViewInfo> info_;

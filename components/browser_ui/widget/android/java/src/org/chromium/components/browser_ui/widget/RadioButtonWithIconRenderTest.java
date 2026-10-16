@@ -11,11 +11,17 @@ import android.view.View;
 
 import androidx.test.filters.SmallTest;
 
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
+import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.params.BaseJUnit4RunnerDelegate;
 import org.chromium.base.test.params.ParameterAnnotations.ClassParameter;
 import org.chromium.base.test.params.ParameterAnnotations.UseRunnerDelegate;
@@ -24,23 +30,26 @@ import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.components.browser_ui.widget.test.R;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
-import org.chromium.ui.test.util.BlankUiTestActivityTestCase;
+import org.chromium.ui.test.util.BlankUiTestActivity;
 import org.chromium.ui.test.util.NightModeTestUtils;
 import org.chromium.ui.test.util.RenderTestRule;
 
 import java.util.List;
 
-/**
- * Render test for {@link RadioButtonWithDescription} with the icon.
- */
+/** Render test for {@link RadioButtonWithDescription} with the icon. */
 @RunWith(ParameterizedRunner.class)
 @UseRunnerDelegate(BaseJUnit4RunnerDelegate.class)
 @Batch(Batch.UNIT_TESTS)
-public class RadioButtonWithIconRenderTest extends BlankUiTestActivityTestCase {
+public class RadioButtonWithIconRenderTest {
     @ClassParameter
-    private static List<ParameterSet> sClassParams =
+    private static final List<ParameterSet> sClassParams =
             new NightModeTestUtils.NightModeParams().getParameters();
+
+    @ClassRule
+    public static final BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
+            new BaseActivityTestRule<>(BlankUiTestActivity.class);
+
+    private static Activity sActivity;
 
     private static final int REVISION = 3;
     private static final String REVISION_DESCRIPTION =
@@ -69,23 +78,37 @@ public class RadioButtonWithIconRenderTest extends BlankUiTestActivityTestCase {
         mRenderTestRule.setNightModeEnabled(nightModeEnabled);
     }
 
-    @Override
-    public void setUpTest() throws Exception {
-        super.setUpTest();
-        Activity activity = getActivity();
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            View content = LayoutInflater.from(activity).inflate(
-                    R.layout.radio_button_with_icon_render_test, null, false);
-            activity.setContentView(content);
+    @BeforeClass
+    public static void setupSuite() {
+        sActivity = sActivityTestRule.launchActivity(null);
+    }
 
-            mLayout = content.findViewById(R.id.test_radio_button_layout);
-            mLayout.setBackgroundColor(mFakeBgColor);
+    @AfterClass
+    public static void tearDownSuite() {
+        NightModeTestUtils.tearDownNightModeForBlankUiTestActivity();
+    }
 
-            mRadioButtonWithIcon1 = content.findViewById(R.id.icon_primary_only);
-            mRadioButtonWithIcon2 = content.findViewById(R.id.icon_primary_description);
-            mRadioButtonWithIcon3 = content.findViewById(R.id.icon_bg_override);
-            mRadioButtonWithIcon4 = content.findViewById(R.id.icon_disabled);
-        });
+    @Before
+    public void setUp() throws Exception {
+        Activity activity = sActivity;
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    View content =
+                            LayoutInflater.from(activity)
+                                    .inflate(
+                                            R.layout.radio_button_with_icon_render_test,
+                                            null,
+                                            false);
+                    activity.setContentView(content);
+
+                    mLayout = content.findViewById(R.id.test_radio_button_layout);
+                    mLayout.setBackgroundColor(mFakeBgColor);
+
+                    mRadioButtonWithIcon1 = content.findViewById(R.id.icon_primary_only);
+                    mRadioButtonWithIcon2 = content.findViewById(R.id.icon_primary_description);
+                    mRadioButtonWithIcon3 = content.findViewById(R.id.icon_bg_override);
+                    mRadioButtonWithIcon4 = content.findViewById(R.id.icon_disabled);
+                });
 
         Assert.assertNotNull(mLayout);
         Assert.assertNotNull(mRadioButtonWithIcon1);

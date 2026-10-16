@@ -7,57 +7,57 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
+#include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/display/scoped_display_for_new_windows.h"
 #include "ui/display/screen.h"
 #include "ui/display/screen_base.h"
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "ash/shell.h"
-#include "ui/display/test/display_manager_test_api.h"
-#endif
-
-#if BUILDFLAG(IS_MAC)
-#include "ui/display/mac/test/virtual_display_mac_util.h"
-#endif
+#include "ui/display/test/virtual_display_util.h"
 
 namespace web_app {
 namespace {
 constexpr const char kExampleURL[] = "http://example.org/";
 }
 
-class WebAppInteractiveUiTest : public WebAppControllerBrowserTest {};
+class WebAppInteractiveUiTest : public WebAppBrowserTestBase {};
 
-// Disabled everywhere except ChromeOS and Mac because those are the only
-// platforms with functional display mocking at the moment. While a partial
+// Disabled everywhere except ChromeOS, Mac and Windows because those are the
+// only platforms with functional display mocking at the moment. While a partial
 // solution is possible using display::Screen::SetScreenInstance on other
 // platforms, window placement doesn't work right with a faked Screen
-// instance.
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS_ASH)
-#define MAYBE_TabOpensOnCorrectDisplay TabOpensOnCorrectDisplay
+// instance. See: //docs/ui/display/multiscreen_testing.md
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
+#define MAYBE_TabOpensOnCorrectDisplayMultiScreen \
+  TabOpensOnCorrectDisplayMultiScreen
 #else
-#define MAYBE_TabOpensOnCorrectDisplay DISABLED_TabOpensOnCorrectDisplay
+#define MAYBE_TabOpensOnCorrectDisplayMultiScreen \
+  DISABLED_TabOpensOnCorrectDisplayMultiScreen
 #endif
+#if BUILDFLAG(IS_WIN)
+// TODO(crbug.com/371121282): Re-enable the test.
+// TODO(crbug.com/365126887): Re-enable the test.
+#undef MAYBE_TabOpensOnCorrectDisplayMultiScreen
+#define MAYBE_TabOpensOnCorrectDisplayMultiScreen \
+  DISABLED_TabOpensOnCorrectDisplayMultiScreen
+#endif  // BUILDFLAG(IS_WIN)
 // Tests that PWAs that open in a tab open tabs on the correct display.
 IN_PROC_BROWSER_TEST_F(WebAppInteractiveUiTest,
-                       MAYBE_TabOpensOnCorrectDisplay) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  display::test::DisplayManagerTestApi(ash::Shell::Get()->display_manager())
-      .UpdateDisplay("801x802,802x802");
-#elif BUILDFLAG(IS_MAC)
-  if (!display::test::VirtualDisplayMacUtil::IsAPIAvailable()) {
-    GTEST_SKIP() << "Skipping test for unsupported MacOS version.";
+                       MAYBE_TabOpensOnCorrectDisplayMultiScreen) {
+  std::unique_ptr<display::test::VirtualDisplayUtil> virtual_display_util;
+  if (display::Screen::GetScreen()->GetNumDisplays() < 2) {
+    if ((virtual_display_util = display::test::VirtualDisplayUtil::TryCreate(
+             display::Screen::GetScreen()))) {
+      virtual_display_util->AddDisplay(
+          display::test::VirtualDisplayUtil::k1024x768);
+    } else {
+      GTEST_SKIP() << "Skipping test; unavailable multi-screen support.";
+    }
   }
-  display::test::VirtualDisplayMacUtil virtual_display_mac_util;
-  virtual_display_mac_util.AddDisplay(
-      1, display::test::VirtualDisplayMacUtil::k1920x1080);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
   // Install test app.
-  const AppId app_id = InstallPWA(GURL(kExampleURL));
+  const webapps::AppId app_id = InstallPWA(GURL(kExampleURL));
 
   // Figure out what display the original tabbed browser was created on, as well
   // as what the display Id is for a second display.

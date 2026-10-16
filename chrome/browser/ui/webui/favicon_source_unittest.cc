@@ -54,30 +54,28 @@ class MockHistoryUiFaviconRequestHandler
   MockHistoryUiFaviconRequestHandler() = default;
   ~MockHistoryUiFaviconRequestHandler() override = default;
 
-  MOCK_METHOD4(
-      GetRawFaviconForPageURL,
-      void(const GURL& page_url,
-           int desired_size_in_pixel,
-           favicon_base::FaviconRawBitmapCallback callback,
-           favicon::HistoryUiFaviconRequestOrigin request_origin_for_uma));
+  MOCK_METHOD4(GetRawFaviconForPageURL,
+               void(const GURL& page_url,
+                    int desired_size_in_pixel,
+                    bool fallback_to_host,
+                    favicon_base::FaviconRawBitmapCallback callback));
 
-  MOCK_METHOD3(
-      GetFaviconImageForPageURL,
-      void(const GURL& page_url,
-           favicon_base::FaviconImageCallback callback,
-           favicon::HistoryUiFaviconRequestOrigin request_origin_for_uma));
+  MOCK_METHOD2(GetFaviconImageForPageURL,
+               void(const GURL& page_url,
+                    favicon_base::FaviconImageCallback callback));
 };
 
 class TestFaviconSource : public FaviconSource {
  public:
   TestFaviconSource(chrome::FaviconUrlFormat format,
                     Profile* profile,
-                    ui::NativeTheme* theme)
-      : FaviconSource(profile, format), theme_(theme) {}
+                    ui::NativeTheme* theme,
+                    bool serve_untrusted = false)
+      : FaviconSource(profile, format, serve_untrusted), theme_(theme) {}
 
-  ~TestFaviconSource() override {}
+  ~TestFaviconSource() override = default;
 
-  MOCK_METHOD2(LoadIconBytes, base::RefCountedMemory*(float, int));
+  MOCK_METHOD(base::RefCountedMemory*, LoadIconBytes, (float, int));
 
  protected:
   // FaviconSource:
@@ -92,28 +90,28 @@ class TestFaviconSource : public FaviconSource {
 
 class FaviconSourceTestBase : public testing::Test {
  public:
-  explicit FaviconSourceTestBase(chrome::FaviconUrlFormat format)
-      : source_(format, &profile_, &theme_) {
+  explicit FaviconSourceTestBase(chrome::FaviconUrlFormat format,
+                                 bool serve_untrusted = false)
+      : source_(format, &profile_, &theme_, serve_untrusted) {
+    Init();
+  }
+
+  void Init() {
     // Setup testing factories for main dependencies.
-    BrowserContextKeyedServiceFactory::TestingFactory
-        history_ui_favicon_request_handler_factory =
-            base::BindRepeating([](content::BrowserContext*) {
-              return base::WrapUnique<KeyedService>(
-                  new NiceMock<MockHistoryUiFaviconRequestHandler>());
-            });
     mock_history_ui_favicon_request_handler_ =
         static_cast<NiceMock<MockHistoryUiFaviconRequestHandler>*>(
             HistoryUiFaviconRequestHandlerFactory::GetInstance()
                 ->SetTestingFactoryAndUse(
-                    &profile_, history_ui_favicon_request_handler_factory));
-    BrowserContextKeyedServiceFactory::TestingFactory favicon_service_factory =
-        base::BindRepeating([](content::BrowserContext*) {
-          return static_cast<std::unique_ptr<KeyedService>>(
-              std::make_unique<NiceMock<favicon::MockFaviconService>>());
-        });
+                    &profile_, base::BindOnce([](content::BrowserContext*) {
+                      return base::WrapUnique<KeyedService>(
+                          new NiceMock<MockHistoryUiFaviconRequestHandler>());
+                    })));
     mock_favicon_service_ = static_cast<NiceMock<favicon::MockFaviconService>*>(
         FaviconServiceFactory::GetInstance()->SetTestingFactoryAndUse(
-            &profile_, favicon_service_factory));
+            &profile_, base::BindOnce([](content::BrowserContext*) {
+              return static_cast<std::unique_ptr<KeyedService>>(
+                  std::make_unique<NiceMock<favicon::MockFaviconService>>());
+            })));
 
     // Setup TestWebContents.
     test_web_contents_ =
@@ -129,11 +127,9 @@ class FaviconSourceTestBase : public testing::Test {
           std::move(callback).Run(favicon_base::FaviconRawBitmapResult());
           return kDummyTaskId;
         });
-    ON_CALL(*mock_history_ui_favicon_request_handler_,
-            GetRawFaviconForPageURL(_, _, _, _))
-        .WillByDefault([](auto, auto,
-                          favicon_base::FaviconRawBitmapCallback callback,
-                          auto) {
+    ON_CALL(*mock_history_ui_favicon_request_handler_, GetRawFaviconForPageURL)
+        .WillByDefault([](auto, auto, auto,
+                          favicon_base::FaviconRawBitmapCallback callback) {
           std::move(callback).Run(favicon_base::FaviconRawBitmapResult());
         });
 
@@ -166,12 +162,6 @@ class FaviconSourceTestWithLegacyFormat : public FaviconSourceTestBase {
       : FaviconSourceTestBase(chrome::FaviconUrlFormat::kFaviconLegacy) {}
 };
 
-class FaviconSourceTestWithFavicon2Format : public FaviconSourceTestBase {
- public:
-  FaviconSourceTestWithFavicon2Format()
-      : FaviconSourceTestBase(chrome::FaviconUrlFormat::kFavicon2) {}
-};
-
 TEST_F(FaviconSourceTestWithLegacyFormat, DarkDefault) {
   SetDarkMode(true);
   EXPECT_CALL(*source(), LoadIconBytes(_, IDR_DEFAULT_FAVICON_DARK));
@@ -198,16 +188,6 @@ TEST_F(FaviconSourceTestWithLegacyFormat,
   source()->StartDataRequest(
       GURL(base::StrCat({kDummyPrefix, "size/16@1x/https://www.google.com"})),
       test_web_contents_getter_, base::DoNothing());
-}
-
-TEST_F(FaviconSourceTestWithLegacyFormat,
-       ShouldRecordFaviconResourceHistogram_NonExtensionOrigin) {
-  base::HistogramTester tester;
-  source()->StartDataRequest(
-      GURL(base::StrCat({kDummyPrefix, "size/16@1x/https://www.google.com"})),
-      test_web_contents_getter_, base::DoNothing());
-  tester.ExpectBucketCount("Extensions.FaviconResourceRequested",
-                           extensions::Manifest::TYPE_EXTENSION, 0);
 }
 
 TEST_F(FaviconSourceTestWithLegacyFormat, ShouldNotQueryIfDesiredSizeTooLarge) {
@@ -237,22 +217,20 @@ TEST_F(FaviconSourceTestWithLegacyFormat, ShouldNotQueryIfInvalidScaleFactor) {
       test_web_contents_getter_, base::DoNothing());
 }
 
-TEST_F(FaviconSourceTestWithLegacyFormat,
-       ShouldRecordFaviconResourceHistogram_ExtensionOrigin) {
-  scoped_refptr<const extensions::Extension> extension =
-      extensions::ExtensionBuilder("one").Build();
-  extensions::ExtensionRegistry::Get(&profile_)->AddEnabled(extension);
-  content::WebContentsTester::For(test_web_contents_.get())
-      ->SetLastCommittedURL(extension->url());
-  base::HistogramTester tester;
-  source()->StartDataRequest(
-      GURL(base::StrCat({kDummyPrefix, "size/16@1x/https://www.google.com"})),
-      test_web_contents_getter_, base::DoNothing());
-  tester.ExpectBucketCount("Extensions.FaviconResourceRequested",
-                           extensions::Manifest::TYPE_EXTENSION, 1);
-}
+class FaviconSourceTestWithFavicon2Format
+    : public FaviconSourceTestBase,
+      public testing::WithParamInterface<bool> {
+ public:
+  FaviconSourceTestWithFavicon2Format()
+      : FaviconSourceTestBase(chrome::FaviconUrlFormat::kFavicon2,
+                              /*serve_untrusted=*/GetParam()) {}
+};
 
-TEST_F(FaviconSourceTestWithFavicon2Format,
+INSTANTIATE_TEST_SUITE_P(,
+                         FaviconSourceTestWithFavicon2Format,
+                         /*serve_untrusted=*/testing::Bool());
+
+TEST_P(FaviconSourceTestWithFavicon2Format,
        ShouldNotRecordFaviconResourceHistogram) {
   base::HistogramTester tester;
   source()->StartDataRequest(
@@ -265,21 +243,21 @@ TEST_F(FaviconSourceTestWithFavicon2Format,
   EXPECT_EQ(0, samples->TotalCount());
 }
 
-TEST_F(FaviconSourceTestWithFavicon2Format, DarkDefault) {
+TEST_P(FaviconSourceTestWithFavicon2Format, DarkDefault) {
   SetDarkMode(true);
   EXPECT_CALL(*source(), LoadIconBytes(_, IDR_DEFAULT_FAVICON_DARK));
   source()->StartDataRequest(GURL(kDummyPrefix), test_web_contents_getter_,
                              base::DoNothing());
 }
 
-TEST_F(FaviconSourceTestWithFavicon2Format, LightDefault) {
+TEST_P(FaviconSourceTestWithFavicon2Format, LightDefault) {
   SetDarkMode(false);
   EXPECT_CALL(*source(), LoadIconBytes(_, IDR_DEFAULT_FAVICON));
   source()->StartDataRequest(GURL(kDummyPrefix), test_web_contents_getter_,
                              base::DoNothing());
 }
 
-TEST_F(FaviconSourceTestWithFavicon2Format, LightOverride) {
+TEST_P(FaviconSourceTestWithFavicon2Format, LightOverride) {
   SetDarkMode(true);
   EXPECT_CALL(*source(), LoadIconBytes(_, IDR_DEFAULT_FAVICON));
   source()->StartDataRequest(
@@ -289,7 +267,7 @@ TEST_F(FaviconSourceTestWithFavicon2Format, LightOverride) {
       test_web_contents_getter_, base::DoNothing());
 }
 
-TEST_F(FaviconSourceTestWithFavicon2Format,
+TEST_P(FaviconSourceTestWithFavicon2Format,
        ShouldNotQueryHistoryUiFaviconRequestHandlerIfNotAllowed) {
   content::WebContentsTester::For(test_web_contents_.get())
       ->SetLastCommittedURL(GURL(chrome::kChromeUIHistoryURL));
@@ -306,7 +284,7 @@ TEST_F(FaviconSourceTestWithFavicon2Format,
       test_web_contents_getter_, base::DoNothing());
 }
 
-TEST_F(FaviconSourceTestWithFavicon2Format,
+TEST_P(FaviconSourceTestWithFavicon2Format,
        ShouldNotQueryHistoryUiFaviconRequestHandlerIfHasNotHistoryUiOrigin) {
   content::WebContentsTester::For(test_web_contents_.get())
       ->SetLastCommittedURL(GURL("chrome://non-history-url"));
@@ -323,7 +301,7 @@ TEST_F(FaviconSourceTestWithFavicon2Format,
       test_web_contents_getter_, base::DoNothing());
 }
 
-TEST_F(
+TEST_P(
     FaviconSourceTestWithFavicon2Format,
     ShouldQueryHistoryUiFaviconRequestHandlerIfHasHistoryUiOriginAndAllowed) {
   content::WebContentsTester::For(test_web_contents_.get())
@@ -341,7 +319,25 @@ TEST_F(
       test_web_contents_getter_, base::DoNothing());
 }
 
-TEST_F(FaviconSourceTestWithFavicon2Format,
+TEST_P(
+    FaviconSourceTestWithFavicon2Format,
+    ShouldQueryHistoryUiFaviconRequestHandlerIfHasDataSharingOriginAndAllowed) {
+  content::WebContentsTester::For(test_web_contents_.get())
+      ->SetLastCommittedURL(GURL(chrome::kChromeUIUntrustedDataSharingURL));
+
+  EXPECT_CALL(*mock_history_ui_favicon_request_handler_,
+              GetRawFaviconForPageURL(GURL("https://www.google.com"), _, _, _))
+      .Times(1);
+
+  source()->StartDataRequest(
+      GURL(base::StrCat(
+          {kDummyPrefix,
+           "?size=16&scaleFactor=1x&pageUrl=https%3A%2F%2Fwww.google."
+           "com&allowGoogleServerFallback=1"})),
+      test_web_contents_getter_, base::DoNothing());
+}
+
+TEST_P(FaviconSourceTestWithFavicon2Format,
        ShouldNotQueryIfDesiredSizeTooLarge) {
   EXPECT_CALL(*mock_history_ui_favicon_request_handler_,
               GetRawFaviconForPageURL)
@@ -357,7 +353,7 @@ TEST_F(FaviconSourceTestWithFavicon2Format,
       test_web_contents_getter_, base::DoNothing());
 }
 
-TEST_F(FaviconSourceTestWithFavicon2Format,
+TEST_P(FaviconSourceTestWithFavicon2Format,
        ShouldNotQueryIfInvalidScaleFactor) {
   EXPECT_CALL(*mock_history_ui_favicon_request_handler_,
               GetRawFaviconForPageURL)
@@ -371,4 +367,11 @@ TEST_F(FaviconSourceTestWithFavicon2Format,
           {kDummyPrefix,
            "?size=16&scaleFactor=-2x&pageUrl=https%3A%2F%2Fwww.google.com"})),
       test_web_contents_getter_, base::DoNothing());
+}
+
+TEST_P(FaviconSourceTestWithFavicon2Format, ValidateGetSource) {
+  bool serveUntrusted = GetParam();
+  EXPECT_EQ(serveUntrusted ? chrome::kChromeUIUntrustedFavicon2URL
+                           : chrome::kChromeUIFavicon2Host,
+            source()->GetSource());
 }

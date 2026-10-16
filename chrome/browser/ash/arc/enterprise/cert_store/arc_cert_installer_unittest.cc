@@ -7,12 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "ash/components/arc/mojom/policy.mojom.h"
-#include "ash/components/arc/session/arc_bridge_service.h"
-#include "ash/components/arc/session/arc_service_manager.h"
-#include "ash/components/arc/session/arc_session_runner.h"
-#include "ash/components/arc/test/fake_arc_session.h"
-#include "ash/components/arc/test/fake_policy_instance.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
@@ -22,6 +16,12 @@
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
 #include "chrome/browser/ash/arc/test/test_arc_session_manager.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chromeos/ash/experiences/arc/mojom/policy.mojom.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
+#include "chromeos/ash/experiences/arc/session/arc_session_runner.h"
+#include "chromeos/ash/experiences/arc/test/fake_arc_session.h"
+#include "chromeos/ash/experiences/arc/test/fake_policy_instance.h"
 #include "components/policy/core/common/remote_commands/remote_commands_queue.h"
 #include "content/public/test/browser_task_environment.h"
 #include "crypto/rsa_private_key.h"
@@ -84,7 +84,7 @@ void AddCert(const std::string& cn, std::vector<CertDescription>* certs) {
       key->key(), net::x509_util::DIGEST_SHA256, cn, 1, base::Time::UnixEpoch(),
       base::Time::UnixEpoch(), {}, &der_cert));
   cert = net::x509_util::CreateCERTCertificateFromBytes(
-      reinterpret_cast<const uint8_t*>(der_cert.data()), der_cert.size());
+      base::as_byte_span(der_cert));
   ASSERT_TRUE(cert);
   certs->emplace_back(key.release(), cert.release(),
                       keymanagement::mojom::ChapsSlot::kUser, kLabel, kId);
@@ -155,10 +155,10 @@ class ArcCertInstallerTest : public testing::Test {
   const std::unique_ptr<arc::ArcServiceManager> arc_service_manager_;
   std::unique_ptr<arc::ArcSessionManager> arc_session_manager_;
   const std::unique_ptr<TestingProfile> profile_;
-  raw_ptr<arc::ArcPolicyBridge, ExperimentalAsh> arc_policy_bridge_;
+  raw_ptr<arc::ArcPolicyBridge> arc_policy_bridge_;
   std::unique_ptr<arc::MockPolicyInstance> policy_instance_;
 
-  raw_ptr<policy::RemoteCommandsQueue, ExperimentalAsh> queue_;
+  raw_ptr<policy::RemoteCommandsQueue, DanglingUntriaged> queue_;
   std::unique_ptr<ArcCertInstaller> installer_;
   MockRemoteCommandsQueueObserver observer_;
 };

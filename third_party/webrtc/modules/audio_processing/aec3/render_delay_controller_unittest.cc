@@ -11,16 +11,19 @@
 #include "modules/audio_processing/aec3/render_delay_controller.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "api/audio/echo_canceller3_config.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
-#include "modules/audio_processing/aec3/block_processor.h"
-#include "modules/audio_processing/aec3/decimator.h"
+#include "modules/audio_processing/aec3/block.h"
+#include "modules/audio_processing/aec3/delay_estimate.h"
 #include "modules/audio_processing/aec3/render_delay_buffer.h"
-#include "modules/audio_processing/logging/apm_data_dumper.h"
 #include "modules/audio_processing/test/echo_canceller_test_tools.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/random.h"
 #include "rtc_base/strings/string_builder.h"
 #include "test/gtest.h"
@@ -29,7 +32,7 @@ namespace webrtc {
 namespace {
 
 std::string ProduceDebugText(int sample_rate_hz) {
-  rtc::StringBuilder ss;
+  StringBuilder ss;
   ss << "Sample rate: " << sample_rate_hz;
   return ss.Release();
 }
@@ -38,14 +41,14 @@ std::string ProduceDebugText(int sample_rate_hz,
                              size_t delay,
                              size_t num_render_channels,
                              size_t num_capture_channels) {
-  rtc::StringBuilder ss;
+  StringBuilder ss;
   ss << ProduceDebugText(sample_rate_hz) << ", Delay: " << delay
      << ", Num render channels: " << num_render_channels
      << ", Num capture channels: " << num_capture_channels;
   return ss.Release();
 }
 
-constexpr size_t kDownSamplingFactors[] = {2, 4, 8};
+constexpr size_t kDownSamplingFactors[] = {4, 8};
 
 }  // namespace
 
@@ -85,7 +88,7 @@ TEST(RenderDelayController, DISABLED_BasicApiCalls) {
   for (size_t num_capture_channels : {1, 2, 4}) {
     for (size_t num_render_channels : {1, 2, 8}) {
       Block capture_block(/*num_bands=*/1, num_capture_channels);
-      absl::optional<DelayEstimate> delay_blocks;
+      std::optional<DelayEstimate> delay_blocks;
       for (size_t num_matched_filters = 4; num_matched_filters <= 10;
            num_matched_filters++) {
         for (auto down_sampling_factor : kDownSamplingFactors) {
@@ -140,7 +143,7 @@ TEST(RenderDelayController, DISABLED_Alignment) {
             Block render_block(NumBandsForRate(rate), num_render_channels);
 
             for (size_t delay_samples : {15, 50, 150, 200, 800, 4000}) {
-              absl::optional<DelayEstimate> delay_blocks;
+              std::optional<DelayEstimate> delay_blocks;
               SCOPED_TRACE(ProduceDebugText(rate, delay_samples,
                                             num_render_channels,
                                             num_capture_channels));
@@ -203,7 +206,7 @@ TEST(RenderDelayController, DISABLED_NonCausalAlignment) {
             Block capture_block(NumBandsForRate(rate), num_capture_channels);
 
             for (int delay_samples : {-15, -50, -150, -200}) {
-              absl::optional<DelayEstimate> delay_blocks;
+              std::optional<DelayEstimate> delay_blocks;
               SCOPED_TRACE(ProduceDebugText(rate, -delay_samples,
                                             num_render_channels,
                                             num_capture_channels));
@@ -259,7 +262,7 @@ TEST(RenderDelayController, DISABLED_AlignmentWithJitter) {
           for (auto rate : {16000, 32000, 48000}) {
             Block render_block(NumBandsForRate(rate), num_render_channels);
             for (size_t delay_samples : {15, 50, 300, 800}) {
-              absl::optional<DelayEstimate> delay_blocks;
+              std::optional<DelayEstimate> delay_blocks;
               SCOPED_TRACE(ProduceDebugText(rate, delay_samples,
                                             num_render_channels,
                                             num_capture_channels));

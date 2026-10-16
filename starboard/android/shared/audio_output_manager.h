@@ -17,33 +17,37 @@
 
 #include <jni.h>
 
-#include "base/android/jni_android.h"
-#include "base/android/scoped_java_ref.h"
+#include <optional>
+
 #include "base/memory/singleton.h"
 #include "starboard/media.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
 class AudioOutputManager {
  public:
+  static void SetSeamlessAudioSwitching(bool enable);
+
   // Returns the singleton.
   static AudioOutputManager* GetInstance();
 
-  base::android::ScopedJavaLocalRef<jobject> CreateAudioTrackBridge(
+  jni_zero::ScopedJavaLocalRef<jobject> CreateAudioTrackBridge(
       JNIEnv* env,
       int sample_type,
       int sample_rate,
       int channel_count,
+      int max_samples_per_write,
       int preferred_buffer_size_in_bytes,
-      int tunnel_mode_audio_session_id,
+      std::optional<int> tunnel_mode_audio_session_id,
       jboolean is_web_audio);
 
   void DestroyAudioTrackBridge(JNIEnv* env,
-                               base::android::ScopedJavaLocalRef<jobject>& obj);
+                               jni_zero::ScopedJavaLocalRef<jobject>& obj);
 
   bool GetOutputDeviceInfo(JNIEnv* env,
                            jint index,
-                           base::android::ScopedJavaLocalRef<jobject>& obj);
+                           jni_zero::ScopedJavaLocalRef<jobject>& obj);
 
   int GetMinBufferSize(JNIEnv* env,
                        jint sample_type,
@@ -55,11 +59,22 @@ class AudioOutputManager {
                                int channels,
                                int sampling_frequency_hz);
 
-  bool GetAndResetHasAudioDeviceChanged(JNIEnv* env);
-
-  int GenerateTunnelModeAudioSessionId(JNIEnv* env, int numberOfChannels);
+  std::optional<int> GenerateTunnelModeAudioSessionId(JNIEnv* env,
+                                                      int numberOfChannels);
 
   bool HasPassthroughSupportFor(JNIEnv* env, int encoding);
+
+  // Returns whether audio in |encoding| (an Android AudioFormat encoding) with
+  // |sample_rate| and |channel_count| can be played directly, without going
+  // through the software mixer and resampler of the Android audio framework.
+  // When |require_hw_av_sync| is true, the query is made with FLAG_HW_AV_SYNC,
+  // as used by tunnel mode.  Always returns false on Android API levels lower
+  // than 29.
+  bool GetDirectPlaybackSupport(JNIEnv* env,
+                                int encoding,
+                                int sample_rate,
+                                int channel_count,
+                                bool require_hw_av_sync);
 
   bool GetAudioConfiguration(JNIEnv* env,
                              int index,
@@ -78,7 +93,7 @@ class AudioOutputManager {
   friend struct base::DefaultSingletonTraits<AudioOutputManager>;
 
   // Java AudioOutputManager instance.
-  base::android::ScopedJavaGlobalRef<jobject> j_audio_output_manager_;
+  jni_zero::ScopedJavaGlobalRef<jobject> j_audio_output_manager_;
 };
 
 }  // namespace starboard

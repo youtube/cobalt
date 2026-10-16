@@ -10,24 +10,31 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/memory_pressure_listener.h"
+#include "base/memory/post_delayed_memory_reduction_task.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/tick_clock.h"
 #include "base/timer/timer.h"
+#include "base/trace_event/memory_dump_provider.h"
+#include "base/trace_event/memory_dump_request_args.h"
 #include "components/viz/client/viz_client_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/pre_freeze_background_memory_trimmer.h"
+#endif
 
 namespace viz {
 
 class FrameEvictionManagerClient {
  public:
-  virtual ~FrameEvictionManagerClient() {}
+  virtual ~FrameEvictionManagerClient() = default;
   virtual void EvictCurrentFrame() = 0;
 };
 
@@ -37,7 +44,8 @@ class FrameEvictionManagerClient {
 // between a small set of tabs faster. The limit is a soft limit, because
 // clients can lock their frame to prevent it from being discarded, e.g. if the
 // tab is visible, or while capturing a screenshot.
-class VIZ_CLIENT_EXPORT FrameEvictionManager {
+class VIZ_CLIENT_EXPORT FrameEvictionManager
+    : public base::trace_event::MemoryDumpProvider {
  public:
   // Pauses frame eviction within its scope.
   class VIZ_CLIENT_EXPORT ScopedPause {
@@ -75,6 +83,10 @@ class VIZ_CLIENT_EXPORT FrameEvictionManager {
   // Purges all unlocked frames, allowing us to reclaim resources.
   void PurgeAllUnlockedFrames();
 
+  // Chosen arbitrarily, didn't show regressions in metrics during a field trial
+  // in 2023. Should ideally be higher than a common time to switch between
+  // tabs. The reasoning is that if a tab isn't switched to in this delay, then
+  // it's unlikeky to soon be.
   static constexpr base::TimeDelta kPeriodicCullingDelay = base::Minutes(5);
 
  private:
@@ -82,10 +94,15 @@ class VIZ_CLIENT_EXPORT FrameEvictionManager {
   FRIEND_TEST_ALL_PREFIXES(FrameEvictionManagerTest, PeriodicCulling);
 
   FrameEvictionManager();
-  ~FrameEvictionManager();
+  ~FrameEvictionManager() override;
 
+  void StartFrameCullingTimer();
   void CullUnlockedFrames(size_t saved_frame_limit);
+#if BUILDFLAG(IS_ANDROID)
+  void CullOldUnlockedFrames(base::MemoryReductionTaskContext task_type);
+#else
   void CullOldUnlockedFrames();
+#endif
 
   void PurgeMemory(int percentage);
 
@@ -99,6 +116,9 @@ class VIZ_CLIENT_EXPORT FrameEvictionManager {
   void SetOverridesForTesting(
       scoped_refptr<base::SingleThreadTaskRunner> task_runner,
       const base::TickClock* clock);
+
+  bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
+                    base::trace_event::ProcessMemoryDump* pmd) override;
 
   // Listens for system under pressure notifications and adjusts number of
   // cached frames accordingly.
@@ -115,9 +135,9 @@ class VIZ_CLIENT_EXPORT FrameEvictionManager {
   int pause_count_ = 0;
 
   // Argument of the last CullUnlockedFrames call while paused.
-  absl::optional<size_t> pending_unlocked_frame_limit_;
+  std::optional<size_t> pending_unlocked_frame_limit_;
 
-  base::RepeatingTimer idle_frames_culling_timer_;
+  base::OneShotDelayedBackgroundTimer idle_frame_culling_timer_;
   raw_ptr<const base::TickClock> clock_ = base::DefaultTickClock::GetInstance();
 };
 

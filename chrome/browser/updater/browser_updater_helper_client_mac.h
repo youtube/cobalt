@@ -8,7 +8,6 @@
 #import <Foundation/Foundation.h>
 
 #include "base/functional/callback_forward.h"
-#include "base/mac/scoped_nsobject.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
@@ -35,7 +34,7 @@ class BrowserUpdaterHelperClientMac
 
  private:
   SEQUENCE_CHECKER(sequence_checker_);
-  base::scoped_nsobject<NSXPCConnection> xpc_connection_;
+  NSXPCConnection* __strong xpc_connection_;
 
   void SetupSystemUpdaterDone(base::OnceCallback<void(int)> callback,
                               int result);

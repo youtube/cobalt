@@ -5,6 +5,7 @@
 assert(is_fuchsia)
 
 import("//gpu/vulkan/features.gni")
+import("//ui/gl/features.gni")
 
 assert(enable_vulkan)
 
@@ -66,17 +67,16 @@ source_set("flatland") {
     "//ui/base",
     "//ui/base/cursor",
     "//ui/base/ime/fuchsia",
-    "//ui/display/fake",
     "//ui/events:dom_keycode_converter",
     "//ui/events/ozone/layout",
     "//ui/ozone:ozone_base",
     "//ui/ozone/common",
-    "//ui/ozone/platform/scenic/mojom",
+    "//ui/ozone/platform/flatland/mojom",
   ]
 
   public_deps = [
+    "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.element:fuchsia.element_hlcpp",
     "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.composition:fuchsia.ui.composition_hlcpp",
-    "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.gfx:fuchsia.ui.gfx_hlcpp",
     "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.input3:fuchsia.ui.input3_cpp",
     "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.pointer:fuchsia.ui.pointer_cpp",
     "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.pointer:fuchsia.ui.pointer_cpp_hlcpp_conversion",
@@ -85,10 +85,13 @@ source_set("flatland") {
     "//ui/platform_window",
   ]
 
-  data_deps = [
-    "//third_party/angle:libEGL",
-    "//third_party/angle:libGLESv2",
-  ]
+  data_deps = []
+  if (!use_static_angle) {
+    data_deps += [
+      "//third_party/angle:libEGL",
+      "//third_party/angle:libGLESv2",
+    ]
+  }
 }
 
 source_set("flatland_unittests") {
@@ -105,6 +108,7 @@ source_set("flatland_unittests") {
     "//base/test:test_support",
     "//testing/gtest",
     "//third_party/fuchsia-sdk/sdk/pkg/scenic_cpp_testing",
+    "//ui/display:test_support",
     "//ui/events:test_support",
     "//ui/ozone:platform",
     "//ui/ozone:test_support",

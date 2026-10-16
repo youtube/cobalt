@@ -10,6 +10,7 @@
 
 #include "base/metrics/histogram_functions.h"
 #include "base/timer/elapsed_timer.h"
+#include "base/trace_event/trace_event.h"
 #include "skia/ext/image_operations.h"
 #include "third_party/blink/public/platform/web_data.h"
 #include "third_party/blink/public/web/web_image.h"
@@ -67,6 +68,7 @@ void ImageDecoderImpl::DecodeImage(mojo_base::BigBuffer encoded_data,
                                    int64_t max_size_in_bytes,
                                    const gfx::Size& desired_image_frame_size,
                                    DecodeImageCallback callback) {
+  TRACE_EVENT0("ui", "ImageDecoderImpl::DecodeImage");
   base::ElapsedTimer timer;
 
   if (encoded_data.size() == 0) {
@@ -79,9 +81,8 @@ void ImageDecoderImpl::DecodeImage(mojo_base::BigBuffer encoded_data,
   if (codec == mojom::ImageCodec::kPng) {
     // Our PNG decoding is using libpng.
     if (encoded_data.size()) {
-      SkBitmap decoded_png;
-      if (gfx::PNGCodec::Decode(encoded_data.data(), encoded_data.size(),
-                                &decoded_png)) {
+      SkBitmap decoded_png = gfx::PNGCodec::Decode(encoded_data);
+      if (!decoded_png.isNull()) {
         decoded_image = decoded_png;
       }
     }
@@ -89,8 +90,7 @@ void ImageDecoderImpl::DecodeImage(mojo_base::BigBuffer encoded_data,
 #endif  // BUILDFLAG(IS_CHROMEOS)
   if (codec == mojom::ImageCodec::kDefault) {
     decoded_image = blink::WebImage::FromData(
-        blink::WebData(reinterpret_cast<const char*>(encoded_data.data()),
-                       encoded_data.size()),
+        blink::WebData(base::as_byte_span(encoded_data)),
         desired_image_frame_size);
   }
 
@@ -104,13 +104,14 @@ void ImageDecoderImpl::DecodeAnimation(mojo_base::BigBuffer encoded_data,
                                        bool shrink_to_fit,
                                        int64_t max_size_in_bytes,
                                        DecodeAnimationCallback callback) {
+  TRACE_EVENT0("ui", "ImageDecoderImpl::DecodeAnimation");
   if (encoded_data.size() == 0) {
     std::move(callback).Run(std::vector<mojom::AnimationFramePtr>());
     return;
   }
 
-  auto frames = blink::WebImage::AnimationFromData(blink::WebData(
-      reinterpret_cast<const char*>(encoded_data.data()), encoded_data.size()));
+  auto frames = blink::WebImage::AnimationFromData(
+      blink::WebData(base::as_byte_span(encoded_data)));
   if (frames.size() == 0) {
     std::move(callback).Run({});
     return;

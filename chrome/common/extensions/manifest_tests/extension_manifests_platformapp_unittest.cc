@@ -17,11 +17,29 @@
 
 namespace extensions {
 
+namespace {
+
+static constexpr char kBackgroundDisallowedWarning[] =
+    "'background' is only allowed for extensions, legacy packaged "
+    "apps, hosted apps, login screen extensions, and chromeos "
+    "system extensions, but this is a packaged app.";
+
+static constexpr char kBackgroundScriptsDisallowedWarning[] =
+    "'background.scripts' is only allowed for extensions, legacy packaged "
+    "apps, hosted apps, login screen extensions, and chromeos system "
+    "extensions, but this is a packaged app.";
+
+static constexpr char kBackgroundPageDisallowedWarning[] =
+    "'background.page' is only allowed for extensions, legacy packaged "
+    "apps, hosted apps, login screen extensions, and chromeos system "
+    "extensions, but this is a packaged app.";
+
+}  // namespace
+
 namespace errors = manifest_errors;
 namespace keys = manifest_keys;
 
-class PlatformAppsManifestTest : public ChromeManifestTest {
-};
+using PlatformAppsManifestTest = ChromeManifestTest;
 
 TEST_F(PlatformAppsManifestTest, PlatformApps) {
   scoped_refptr<Extension> extension =
@@ -39,7 +57,7 @@ TEST_F(PlatformAppsManifestTest, PlatformApps) {
   extension = LoadAndExpectSuccess("incognito_valid_platform_app.json");
   EXPECT_FALSE(IncognitoInfo::IsSplitMode(extension.get()));
 
-  Testcase error_testcases[] = {
+  const Testcase error_testcases[] = {
       Testcase("init_invalid_platform_app_2.json",
                errors::kBackgroundRequiredForPlatformApps),
       Testcase("init_invalid_platform_app_3.json",
@@ -47,45 +65,41 @@ TEST_F(PlatformAppsManifestTest, PlatformApps) {
                    errors::kInvalidManifestVersionUnsupported, "either 2 or 3",
                    "apps")),
   };
-  RunTestcases(error_testcases, std::size(error_testcases), EXPECT_TYPE_ERROR);
+  RunTestcases(error_testcases, EXPECT_TYPE_ERROR);
 
-  Testcase warning_testcases[] = {
+  const Testcase warning_testcases[] = {
       Testcase(
           "init_invalid_platform_app_1.json",
           "'app.launch' is only allowed for legacy packaged apps and hosted "
           "apps, but this is a packaged app."),
-      Testcase("init_invalid_platform_app_4.json",
-               "'background' is only allowed for extensions, legacy packaged "
-               "apps, hosted apps, login screen extensions, and chromeos "
-               "system extensions, but this is a packaged app."),
-      Testcase("init_invalid_platform_app_5.json",
-               "'background' is only allowed for extensions, legacy packaged "
-               "apps, hosted apps, login screen extensions, and chromeos "
-               "system extensions, but this is a packaged app."),
       Testcase("incognito_invalid_platform_app.json",
                "'incognito' is only allowed for extensions and legacy packaged "
                "apps, "
                "but this is a packaged app."),
   };
-  RunTestcases(warning_testcases, std::size(warning_testcases),
-               EXPECT_TYPE_WARNING);
+  RunTestcases(warning_testcases, EXPECT_TYPE_WARNING);
+
+  LoadAndExpectWarnings(
+      "init_invalid_platform_app_4.json",
+      {kBackgroundDisallowedWarning, kBackgroundScriptsDisallowedWarning});
+  LoadAndExpectWarnings(
+      "init_invalid_platform_app_5.json",
+      {kBackgroundDisallowedWarning, kBackgroundPageDisallowedWarning});
 }
 
 TEST_F(PlatformAppsManifestTest, PlatformAppContentSecurityPolicy) {
   // Normal platform apps can't specify a CSP value.
-  Testcase warning_testcases[] = {
-    Testcase(
-        "init_platform_app_csp_warning_1.json",
-        "'content_security_policy' is only allowed for extensions, legacy "
-            "packaged apps, and login screen extensions, but this is a "
-            "packaged app."),
-    Testcase(
-        "init_platform_app_csp_warning_2.json",
-        "'app.content_security_policy' is not allowed for specified extension "
-            "ID.")
-  };
-  RunTestcases(warning_testcases, std::size(warning_testcases),
-               EXPECT_TYPE_WARNING);
+  const Testcase warning_testcases[] = {
+      Testcase(
+          "init_platform_app_csp_warning_1.json",
+          "'content_security_policy' is only allowed for extensions, legacy "
+          "packaged apps, and login screen extensions, but this is a "
+          "packaged app."),
+      Testcase("init_platform_app_csp_warning_2.json",
+               "'app.content_security_policy' is not allowed for specified "
+               "extension "
+               "ID.")};
+  RunTestcases(warning_testcases, EXPECT_TYPE_WARNING);
 
   // Allowlisted ones can (this is the ID corresponding to the base 64 encoded
   // key in the init_platform_app_csp.json manifest.)
@@ -122,7 +136,7 @@ TEST_F(PlatformAppsManifestTest, CertainApisRequirePlatformApps) {
   // testing. The requirements are that (1) it be a valid platform app, and (2)
   // it contain no permissions dictionary.
   std::string error;
-  absl::optional<base::Value::Dict> platform_app_manifest =
+  std::optional<base::Value::Dict> platform_app_manifest =
       LoadManifest("init_valid_platform_app.json", &error);
   ASSERT_TRUE(platform_app_manifest);
 

@@ -13,26 +13,26 @@ class TabStrip;
 //
 // TabStripObserver
 //
-//  Objects implement this interface when they wish to be notified of changes
+//  An object implements this interface when it wishes to be notified of changes
 //  to the TabStrip.
 //
-//  Register your TabStripObserver with the TabStrip using its
-//  Add/RemoveObserver methods.
+//  Register a TabStripObserver with the TabStrip using its SetTabStripObserver
+//  method.
 //
 ////////////////////////////////////////////////////////////////////////////////
 class CHROME_VIEWS_EXPORT TabStripObserver {
  public:
-  // Sent when a new tab has been added at |index|.
+  // Sent when a new tab has been added at `index`.
   virtual void OnTabAdded(int index);
 
-  // Sent when the tab at |from_index| has been moved to |to_index|.
+  // Sent when the tab at `from_index` has been moved to `to_index`.
   virtual void OnTabMoved(int from_index, int to_index);
 
-  // Sent when the tab at |index| has been removed.
+  // Sent when the tab at `index` has been removed.
   virtual void OnTabRemoved(int index);
 
  protected:
-  virtual ~TabStripObserver() {}
+  virtual ~TabStripObserver() = default;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_TAB_STRIP_OBSERVER_H_

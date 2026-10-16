@@ -10,17 +10,13 @@
 
 #import "RTCDefaultShader.h"
 
-#if TARGET_OS_IPHONE
 #import <OpenGLES/ES3/gl.h>
-#else
-#import <OpenGL/gl3.h>
-#endif
 
 #import "RTCOpenGLDefines.h"
 #import "RTCShader.h"
 #import "base/RTCLogging.h"
 
-#include "absl/types/optional.h"
+#include <optional>
 
 static const int kYTextureUnit = 0;
 static const int kUTextureUnit = 1;
@@ -29,51 +25,45 @@ static const int kUvTextureUnit = 1;
 
 // Fragment shader converts YUV values from input textures into a final RGB
 // pixel. The conversion formula is from http://www.fourcc.org/fccyvrgb.php.
-static const char kI420FragmentShaderSource[] =
-  SHADER_VERSION
-  "precision highp float;"
-  FRAGMENT_SHADER_IN " vec2 v_texcoord;\n"
-  "uniform lowp sampler2D s_textureY;\n"
-  "uniform lowp sampler2D s_textureU;\n"
-  "uniform lowp sampler2D s_textureV;\n"
-  FRAGMENT_SHADER_OUT
-  "void main() {\n"
-  "    float y, u, v, r, g, b;\n"
-  "    y = " FRAGMENT_SHADER_TEXTURE "(s_textureY, v_texcoord).r;\n"
-  "    u = " FRAGMENT_SHADER_TEXTURE "(s_textureU, v_texcoord).r;\n"
-  "    v = " FRAGMENT_SHADER_TEXTURE "(s_textureV, v_texcoord).r;\n"
-  "    u = u - 0.5;\n"
-  "    v = v - 0.5;\n"
-  "    r = y + 1.403 * v;\n"
-  "    g = y - 0.344 * u - 0.714 * v;\n"
-  "    b = y + 1.770 * u;\n"
-  "    " FRAGMENT_SHADER_COLOR " = vec4(r, g, b, 1.0);\n"
-  "  }\n";
+static const char kI420FragmentShaderSource[] = SHADER_VERSION
+    "precision highp float;" FRAGMENT_SHADER_IN " vec2 v_texcoord;\n"
+    "uniform lowp sampler2D s_textureY;\n"
+    "uniform lowp sampler2D s_textureU;\n"
+    "uniform lowp sampler2D s_textureV;\n" FRAGMENT_SHADER_OUT "void main() {\n"
+    "    float y, u, v, r, g, b;\n"
+    "    y = " FRAGMENT_SHADER_TEXTURE "(s_textureY, v_texcoord).r;\n"
+    "    u = " FRAGMENT_SHADER_TEXTURE "(s_textureU, v_texcoord).r;\n"
+    "    v = " FRAGMENT_SHADER_TEXTURE "(s_textureV, v_texcoord).r;\n"
+    "    u = u - 0.5;\n"
+    "    v = v - 0.5;\n"
+    "    r = y + 1.403 * v;\n"
+    "    g = y - 0.344 * u - 0.714 * v;\n"
+    "    b = y + 1.770 * u;\n"
+    "    " FRAGMENT_SHADER_COLOR " = vec4(r, g, b, 1.0);\n"
+    "  }\n";
 
-static const char kNV12FragmentShaderSource[] =
-  SHADER_VERSION
-  "precision mediump float;"
-  FRAGMENT_SHADER_IN " vec2 v_texcoord;\n"
-  "uniform lowp sampler2D s_textureY;\n"
-  "uniform lowp sampler2D s_textureUV;\n"
-  FRAGMENT_SHADER_OUT
-  "void main() {\n"
-  "    mediump float y;\n"
-  "    mediump vec2 uv;\n"
-  "    y = " FRAGMENT_SHADER_TEXTURE "(s_textureY, v_texcoord).r;\n"
-  "    uv = " FRAGMENT_SHADER_TEXTURE "(s_textureUV, v_texcoord).ra -\n"
-  "        vec2(0.5, 0.5);\n"
-  "    " FRAGMENT_SHADER_COLOR " = vec4(y + 1.403 * uv.y,\n"
-  "                                     y - 0.344 * uv.x - 0.714 * uv.y,\n"
-  "                                     y + 1.770 * uv.x,\n"
-  "                                     1.0);\n"
-  "  }\n";
+static const char kNV12FragmentShaderSource[] = SHADER_VERSION
+    "precision mediump float;" FRAGMENT_SHADER_IN " vec2 v_texcoord;\n"
+    "uniform lowp sampler2D s_textureY;\n"
+    "uniform lowp sampler2D s_textureUV;\n" FRAGMENT_SHADER_OUT
+    "void main() {\n"
+    "    mediump float y;\n"
+    "    mediump vec2 uv;\n"
+    "    y = " FRAGMENT_SHADER_TEXTURE "(s_textureY, v_texcoord).r;\n"
+    "    uv = " FRAGMENT_SHADER_TEXTURE "(s_textureUV, v_texcoord).ra -\n"
+    "        vec2(0.5, 0.5);\n"
+    "    " FRAGMENT_SHADER_COLOR " = vec4(y + 1.403 * uv.y,\n"
+    "                                     y - 0.344 * uv.x - 0.714 * uv.y,\n"
+    "                                     y + 1.770 * uv.x,\n"
+    "                                     1.0);\n"
+    "  }\n";
 
 @implementation RTCDefaultShader {
   GLuint _vertexBuffer;
   GLuint _vertexArray;
-  // Store current rotation and only upload new vertex data when rotation changes.
-  absl::optional<RTCVideoRotation> _currentRotation;
+  // Store current rotation and only upload new vertex data when rotation
+  // changes.
+  std::optional<RTCVideoRotation> _currentRotation;
 
   GLuint _i420Program;
   GLuint _nv12Program;
@@ -139,12 +129,10 @@ static const char kNV12FragmentShaderSource[] =
     RTCLog(@"Failed to setup vertex buffer");
     return NO;
   }
-#if !TARGET_OS_IPHONE
-  glBindVertexArray(_vertexArray);
-#endif
+
   glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
   if (!_currentRotation || rotation != *_currentRotation) {
-    _currentRotation = absl::optional<RTCVideoRotation>(rotation);
+    _currentRotation = std::optional<RTCVideoRotation>(rotation);
     RTCSetVertexData(*_currentRotation);
   }
   return YES;

@@ -7,6 +7,7 @@
 
 #include "ash/shelf/shelf_layout_manager.h"
 #include "base/memory/raw_ptr.h"
+#include "base/run_loop.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace ash {
@@ -25,7 +26,7 @@ class HotseatStateWatcher : public ShelfLayoutManagerObserver {
   void WaitUntilStateChanged();
 
  private:
-  raw_ptr<ShelfLayoutManager, ExperimentalAsh> shelf_layout_manager_;
+  raw_ptr<ShelfLayoutManager> shelf_layout_manager_;
   std::vector<HotseatState> state_changes_;
   base::RunLoop run_loop_;
 };

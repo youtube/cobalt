@@ -18,3 +18,4 @@
 ++++++++++[static] name=' '
 ++++++++++[spin button] name='AM/PM Breakfast' xml-roles:spinbutton current=1.000000 minimum=1.000000 maximum=2.000000
 ++++++[push button] name='Show time picker' xml-roles:button
+++++[combo box] selectable-text text-input-type:time

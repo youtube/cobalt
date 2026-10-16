@@ -9,11 +9,13 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "components/content_capture/common/content_capture_features.h"
+#include "content/public/browser/web_contents.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "components/content_capture/android/jni_headers/ContentCaptureData_jni.h"
 #include "components/content_capture/android/jni_headers/ContentCaptureFrame_jni.h"
 #include "components/content_capture/android/jni_headers/OnscreenContentProvider_jni.h"
-#include "components/content_capture/common/content_capture_features.h"
-#include "content/public/browser/web_contents.h"
 
 using base::android::AttachCurrentThread;
 using base::android::ConvertUTF16ToJavaString;
@@ -75,11 +77,9 @@ ScopedJavaLocalRef<jobjectArray> ToJavaArrayOfContentCaptureFrame(
     JNIEnv* env,
     const ContentCaptureSession& session,
     int offset_y) {
-  ScopedJavaLocalRef<jclass> object_clazz =
-      base::android::GetClass(env, "java/lang/Object");
   jobjectArray joa =
-      env->NewObjectArray(session.size(), object_clazz.obj(), nullptr);
-  jni_generator::CheckException(env);
+      env->NewObjectArray(session.size(), jni_zero::g_object_class, nullptr);
+  base::android::CheckException(env);
 
   for (size_t i = 0; i < session.size(); ++i) {
     ScopedJavaLocalRef<jobject> item =
@@ -111,6 +111,26 @@ OnscreenContentProviderAndroid::OnscreenContentProviderAndroid(
 }
 
 OnscreenContentProviderAndroid::~OnscreenContentProviderAndroid() = default;
+
+void OnscreenContentProviderAndroid::FlushCaptureContent(
+    const ContentCaptureSession& parent_session,
+    const ContentCaptureFrame& data) {
+  JNIEnv* env = AttachCurrentThread();
+  DCHECK(java_ref_.obj());
+
+  auto* web_contents = GetWebContents();
+  DCHECK(web_contents);
+  const int offset_y = Java_OnscreenContentProvider_getOffsetY(
+      env, java_ref_, web_contents->GetJavaWebContents());
+  ScopedJavaLocalRef<jobject> jdata =
+      ToJavaObjectOfContentCaptureFrame(env, data, offset_y);
+  if (jdata.is_null()) {
+    return;
+  }
+  Java_OnscreenContentProvider_flushCaptureContent(
+      env, java_ref_,
+      ToJavaArrayOfContentCaptureFrame(env, parent_session, offset_y), jdata);
+}
 
 void OnscreenContentProviderAndroid::DidCaptureContent(
     const ContentCaptureSession& parent_session,
@@ -211,10 +231,6 @@ void OnscreenContentProviderAndroid::DidUpdateFavicon(
 }
 
 bool OnscreenContentProviderAndroid::ShouldCapture(const GURL& url) {
-  // Capture all urls for experiment, the url will be checked
-  // before the content is sent to the consumers.
-  if (features::ShouldTriggerContentCaptureForExperiment())
-    return true;
   JNIEnv* env = AttachCurrentThread();
   return Java_OnscreenContentProvider_shouldCapture(
       env, java_ref_, ConvertUTF8ToJavaString(env, url.spec()));

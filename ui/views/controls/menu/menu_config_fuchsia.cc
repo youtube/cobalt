@@ -6,6 +6,6 @@
 
 namespace views {
 
-void MenuConfig::Init() {}
+void MenuConfig::InitPlatform() {}
 
 }  // namespace views

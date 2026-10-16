@@ -5,9 +5,11 @@
 #include "chrome/browser/safe_browsing/tailored_security/chrome_tailored_security_service.h"
 
 #include "base/metrics/histogram_functions.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/browser/tailored_security_service/tailored_security_notification_result.h"
@@ -63,18 +65,35 @@ content::WebContents* GetWebContentsForProfile(Profile* profile) {
 
 ChromeTailoredSecurityService::ChromeTailoredSecurityService(Profile* profile)
     : TailoredSecurityService(IdentityManagerFactory::GetForProfile(profile),
+                              SyncServiceFactory::GetForProfile(profile),
                               profile->GetPrefs()),
-      profile_(profile) {
+      profile_(profile),
+      retry_handler_(std::make_unique<MessageRetryHandler>(
+          profile_,
+          prefs::kTailoredSecuritySyncFlowRetryState,
+          prefs::kTailoredSecurityNextSyncFlowTimestamp,
+          kRetryAttemptStartupDelay,
+          kRetryNextAttemptDelay,
+          kWaitingPeriodInterval,
+          base::BindOnce(&ChromeTailoredSecurityService::
+                             TailoredSecurityTimestampUpdateCallback,
+                         base::Unretained(this)),
+          "SafeBrowsing.TailoredSecurity.ShouldRetryOutcome",
+          prefs::kAccountTailoredSecurityUpdateTimestamp,
+          prefs::kEnhancedProtectionEnabledViaTailoredSecurity)) {
   AddObserver(this);
+  if (HistorySyncEnabledForUser() &&
+      !SafeBrowsingPolicyHandler::IsSafeBrowsingProtectionLevelSetByPolicy(
+          prefs())) {
+    retry_handler_->StartRetryTimer();
+  }
 }
 
 ChromeTailoredSecurityService::~ChromeTailoredSecurityService() {
   RemoveObserver(this);
 #if BUILDFLAG(IS_ANDROID)
-  TabModelList::RemoveObserver(this);
-  if (observed_tab_model_) {
-    observed_tab_model_->RemoveObserver(this);
-  }
+  RemoveTabModelObserver();
+  RemoveTabModelListObserver();
 #endif
 }
 
@@ -83,37 +102,26 @@ void ChromeTailoredSecurityService::OnSyncNotificationMessageRequest(
 #if BUILDFLAG(IS_ANDROID)
   content::WebContents* web_contents = GetWebContentsForProfile(profile_);
   if (!web_contents) {
-    if (base::FeatureList::IsEnabled(
-            safe_browsing::kTailoredSecurityObserverRetries)) {
-      AddTabModelListObserver();
-      base::UmaHistogramBoolean(
-          "SafeBrowsing.TailoredSecurity.IsRecoveryTriggered",
-          kRetryMechanismTriggered);
-      return;
-    }
-    if (is_enabled) {
-      RecordEnabledNotificationResult(
-          TailoredSecurityNotificationResult::kNoWebContentsAvailable);
-    }
-    return;
-  }
-  if (base::FeatureList::IsEnabled(
-          safe_browsing::kTailoredSecurityObserverRetries)) {
+    RegisterObserver();
     base::UmaHistogramBoolean(
         "SafeBrowsing.TailoredSecurity.IsRecoveryTriggered",
-        kRetryMechanismNotTriggered);
+        kRetryMechanismTriggered);
+    return;
   }
+  base::UmaHistogramBoolean("SafeBrowsing.TailoredSecurity.IsRecoveryTriggered",
+                            kRetryMechanismNotTriggered);
 
   // Since the Android UX is a notice, we simply set Safe Browsing state.
   SetSafeBrowsingState(profile_->GetPrefs(),
                        is_enabled ? SafeBrowsingState::ENHANCED_PROTECTION
                                   : SafeBrowsingState::STANDARD_PROTECTION,
-                       /*is_esb_enabled_in_sync=*/is_enabled);
+                       /*is_esb_enabled_by_account_integration=*/is_enabled);
   message_ = std::make_unique<TailoredSecurityConsentedModalAndroid>(
       web_contents, is_enabled,
       base::BindOnce(&ChromeTailoredSecurityService::MessageDismissed,
                      // Unretained is safe because |this| owns |message_|.
-                     base::Unretained(this)));
+                     base::Unretained(this)),
+      /*is_requested_by_synced_esb=*/false);
 #else
   Browser* browser = chrome::FindBrowserWithProfile(profile_);
   if (!browser) {
@@ -128,13 +136,17 @@ void ChromeTailoredSecurityService::OnSyncNotificationMessageRequest(
       RecordEnabledNotificationResult(
           TailoredSecurityNotificationResult::kNoBrowserWindowAvailable);
     }
+    return;
   }
   SetSafeBrowsingState(profile_->GetPrefs(),
                        is_enabled ? SafeBrowsingState::ENHANCED_PROTECTION
                                   : SafeBrowsingState::STANDARD_PROTECTION,
-                       /*is_esb_enabled_in_sync=*/is_enabled);
+                       /*is_esb_enabled_by_account_integration=*/is_enabled);
   DisplayDesktopDialog(browser, is_enabled);
 #endif
+  retry_handler_->SaveRetryState(
+      MessageRetryHandler::RetryState::NO_RETRY_NEEDED);
+
   if (is_enabled) {
     RecordEnabledNotificationResult(TailoredSecurityNotificationResult::kShown);
   }
@@ -143,25 +155,22 @@ void ChromeTailoredSecurityService::OnSyncNotificationMessageRequest(
 #if BUILDFLAG(IS_ANDROID)
 void ChromeTailoredSecurityService::DidAddTab(TabAndroid* tab,
                                               TabModel::TabLaunchType type) {
-  if (observed_tab_model_) {
-    observed_tab_model_->RemoveObserver(this);
-    observed_tab_model_ = nullptr;
-  }
-
+  // Stop observing because we can rely on the callback to start observing later
+  // if it is needed.
+  RemoveTabModelObserver();
+  RemoveTabModelListObserver();
   TailoredSecurityTimestampUpdateCallback();
 }
 
-void ChromeTailoredSecurityService::AddTabModelListObserver() {
-  TabModelList::AddObserver(this);
-}
-
-void ChromeTailoredSecurityService::OnTabModelAdded() {
-  if (AddTabModelObserver()) {
-    TabModelList::RemoveObserver(this);
+void ChromeTailoredSecurityService::OnTabModelAdded(TabModel* tab_model) {
+  if (observed_tab_model_) {
+    return;
   }
+
+  AddTabModelObserver();
 }
 
-void ChromeTailoredSecurityService::OnTabModelRemoved() {
+void ChromeTailoredSecurityService::OnTabModelRemoved(TabModel* tab_model) {
   if (!observed_tab_model_) {
     return;
   }
@@ -169,15 +178,31 @@ void ChromeTailoredSecurityService::OnTabModelRemoved() {
   for (const TabModel* remaining_model : TabModelList::models()) {
     // We want to make sure our tab model is still not in the
     // tab model list, because we don't want to delete it
-    // prematurely
+    // prematurely.
     if (observed_tab_model_ == remaining_model) {
       return;
     }
   }
-  observed_tab_model_ = nullptr;
+  RemoveTabModelObserver();
 }
 
-bool ChromeTailoredSecurityService::AddTabModelObserver() {
+void ChromeTailoredSecurityService::RegisterObserver() {
+  AddTabModelObserver();
+  AddTabModelListObserver();
+}
+
+void ChromeTailoredSecurityService::AddTabModelListObserver() {
+  if (observing_tab_model_list_) {
+    return;
+  }
+  TabModelList::AddObserver(this);
+  observing_tab_model_list_ = true;
+}
+
+void ChromeTailoredSecurityService::AddTabModelObserver() {
+  if (observed_tab_model_) {
+    return;
+  }
   for (TabModel* tab_model : TabModelList::models()) {
     if (tab_model->GetProfile() != profile_) {
       continue;
@@ -186,9 +211,21 @@ bool ChromeTailoredSecurityService::AddTabModelObserver() {
     // Saving the tab_model so we can stop observing the tab
     // model after we start a new tailored security logic sequence.
     observed_tab_model_ = tab_model;
-    return true;
+    return;
   }
-  return false;
+}
+
+void ChromeTailoredSecurityService::RemoveTabModelListObserver() {
+  observing_tab_model_list_ = false;
+  TabModelList::RemoveObserver(this);
+}
+
+void ChromeTailoredSecurityService::RemoveTabModelObserver() {
+  if (!observed_tab_model_) {
+    return;
+  }
+  observed_tab_model_->RemoveObserver(this);
+  observed_tab_model_ = nullptr;
 }
 
 void ChromeTailoredSecurityService::MessageDismissed() {

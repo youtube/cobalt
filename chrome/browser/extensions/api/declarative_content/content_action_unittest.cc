@@ -11,7 +11,6 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/values_test_util.h"
 #include "base/values.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_service_test_base.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/extensions/test_extension_environment.h"
@@ -20,10 +19,13 @@
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_action.h"
 #include "extensions/browser/extension_action_manager.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/user_script_manager.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/api/declarative/declarative_constants.h"
 #include "extensions/common/api/extension_action/action_info.h"
+#include "extensions/common/api/extension_action/action_info_test_util.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
 #include "mojo/public/cpp/base/big_buffer.h"
@@ -32,6 +34,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/image/image.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
 namespace {
@@ -64,7 +68,7 @@ class RequestContentScriptTest : public ExtensionServiceTestBase {
         static_cast<TestExtensionSystem*>(ExtensionSystem::Get(profile()));
 
     extension_system->CreateUserScriptManager();
-    service()->AddExtension(extension());
+    ExtensionRegistrar::Get(profile())->AddExtension(extension());
     extension_system->SetReady();
     base::RunLoop().RunUntilIdle();
   }
@@ -119,7 +123,7 @@ TEST(DeclarativeContentActionTest, ShowActionWithoutAction) {
           .SetManifest(std::move(manifest))
           .SetLocation(ManifestLocation::kComponent)
           .Build();
-  env.GetExtensionService()->AddExtension(extension.get());
+  env.GetExtensionRegistrar()->AddExtension(extension.get());
 
   TestingProfile profile;
   base::HistogramTester histogram_tester;
@@ -146,10 +150,11 @@ TEST_P(ParameterizedDeclarativeContentActionTest, ShowAction) {
   scoped_refptr<const Extension> extension =
       ExtensionBuilder("extension")
           .SetAction(GetParam())
+          .SetManifestVersion(GetManifestVersionForActionType(GetParam()))
           .SetLocation(ManifestLocation::kInternal)
           .Build();
 
-  env.GetExtensionService()->AddExtension(extension.get());
+  env.GetExtensionRegistrar()->AddExtension(extension.get());
 
   std::string error;
   TestingProfile profile;
@@ -170,12 +175,12 @@ TEST_P(ParameterizedDeclarativeContentActionTest, ShowAction) {
   auto* action_manager = ExtensionActionManager::Get(env.profile());
   ExtensionAction* action = action_manager->GetExtensionAction(*extension);
   ASSERT_TRUE(action);
-  if (GetParam() == ActionInfo::TYPE_BROWSER) {
-    EXPECT_EQ(ActionInfo::TYPE_BROWSER, action->action_type());
+  if (GetParam() == ActionInfo::Type::kBrowser) {
+    EXPECT_EQ(ActionInfo::Type::kBrowser, action->action_type());
     // Switch the default so we properly see the action toggling.
     action->SetIsVisible(ExtensionAction::kDefaultTabId, false);
   } else {
-    EXPECT_EQ(ActionInfo::TYPE_PAGE, action->action_type());
+    EXPECT_EQ(ActionInfo::Type::kPage, action->action_type());
   }
 
   std::unique_ptr<content::WebContents> contents = env.MakeTab();
@@ -207,8 +212,8 @@ TEST_P(ParameterizedDeclarativeContentActionTest, ShowAction) {
 
 INSTANTIATE_TEST_SUITE_P(All,
                          ParameterizedDeclarativeContentActionTest,
-                         testing::Values(ActionInfo::TYPE_BROWSER,
-                                         ActionInfo::TYPE_PAGE));
+                         testing::Values(ActionInfo::Type::kBrowser,
+                                         ActionInfo::Type::kPage));
 
 TEST(DeclarativeContentActionTest, SetIcon) {
   enum Mode { Base64, Mojo, MojoHuge };
@@ -269,9 +274,6 @@ TEST(DeclarativeContentActionTest, SetIcon) {
     ContentAction::SetAllowInvisibleIconsForTest(true);
     EXPECT_EQ("", error);
     ASSERT_TRUE(result.get());
-    EXPECT_THAT(histogram_tester.GetAllSamples(
-                    "Extensions.DeclarativeSetIconWasVisible"),
-                testing::ElementsAre(base::Bucket(1, 1)));
     histogram_tester.ExpectUniqueSample(
         "Extensions.DeclarativeContentActionCreated",
         ContentActionType::kSetIcon, 1);
@@ -326,9 +328,6 @@ TEST(DeclarativeContentActionTest, SetInvisibleIcon) {
   ContentAction::SetAllowInvisibleIconsForTest(true);
   EXPECT_EQ("The specified icon is not sufficiently visible", error);
   EXPECT_FALSE(result);
-  EXPECT_THAT(
-      histogram_tester.GetAllSamples("Extensions.DeclarativeSetIconWasVisible"),
-      testing::ElementsAre(base::Bucket(0, 1)));
   histogram_tester.ExpectTotalCount(
       "Extensions.DeclarativeContentActionCreated", 0);
 }

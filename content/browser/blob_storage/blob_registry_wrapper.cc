@@ -32,11 +32,6 @@ class BindingDelegate : public storage::BlobRegistryImpl::Delegate {
   bool CanAccessDataForOrigin(const url::Origin& origin) override {
     return security_policy_handle_.CanAccessDataForOrigin(origin);
   }
-  file_access::ScopedFileAccessDelegate::RequestFilesAccessIOCallback
-  GetAccessCallback() override {
-    // TODO (b/262203074) create actual callback
-    return base::NullCallback();
-  }
 
  private:
   ChildProcessSecurityPolicyImpl::Handle security_policy_handle_;
@@ -46,24 +41,7 @@ class BindingDelegate : public storage::BlobRegistryImpl::Delegate {
 
 // static
 scoped_refptr<BlobRegistryWrapper> BlobRegistryWrapper::Create(
-    scoped_refptr<ChromeBlobStorageContext> blob_storage_context,
-    base::WeakPtr<storage::BlobUrlRegistry> blob_url_registry) {
-  DCHECK(
-      !base::FeatureList::IsEnabled(net::features::kSupportPartitionedBlobUrl));
-  scoped_refptr<BlobRegistryWrapper> result(new BlobRegistryWrapper());
-  GetIOThreadTaskRunner({})->PostTask(
-      FROM_HERE,
-      base::BindOnce(&BlobRegistryWrapper::InitializeOnIOThreadDeprecated,
-                     result, std::move(blob_storage_context),
-                     std::move(blob_url_registry)));
-  return result;
-}
-
-// static
-scoped_refptr<BlobRegistryWrapper> BlobRegistryWrapper::Create(
     scoped_refptr<ChromeBlobStorageContext> blob_storage_context) {
-  DCHECK(
-      base::FeatureList::IsEnabled(net::features::kSupportPartitionedBlobUrl));
   scoped_refptr<BlobRegistryWrapper> result(new BlobRegistryWrapper());
   GetIOThreadTaskRunner({})->PostTask(
       FROM_HERE, base::BindOnce(&BlobRegistryWrapper::InitializeOnIOThread,
@@ -71,8 +49,7 @@ scoped_refptr<BlobRegistryWrapper> BlobRegistryWrapper::Create(
   return result;
 }
 
-BlobRegistryWrapper::BlobRegistryWrapper() {
-}
+BlobRegistryWrapper::BlobRegistryWrapper() = default;
 
 void BlobRegistryWrapper::Bind(
     int process_id,
@@ -85,23 +62,10 @@ void BlobRegistryWrapper::Bind(
               process_id)));
 }
 
-BlobRegistryWrapper::~BlobRegistryWrapper() {}
-
-void BlobRegistryWrapper::InitializeOnIOThreadDeprecated(
-    scoped_refptr<ChromeBlobStorageContext> blob_storage_context,
-    base::WeakPtr<storage::BlobUrlRegistry> blob_url_registry) {
-  DCHECK(
-      !base::FeatureList::IsEnabled(net::features::kSupportPartitionedBlobUrl));
-  DCHECK_CURRENTLY_ON(BrowserThread::IO);
-  blob_registry_ = std::make_unique<storage::BlobRegistryImpl>(
-      blob_storage_context->context()->AsWeakPtr(),
-      std::move(blob_url_registry), GetUIThreadTaskRunner({}));
-}
+BlobRegistryWrapper::~BlobRegistryWrapper() = default;
 
 void BlobRegistryWrapper::InitializeOnIOThread(
     scoped_refptr<ChromeBlobStorageContext> blob_storage_context) {
-  DCHECK(
-      base::FeatureList::IsEnabled(net::features::kSupportPartitionedBlobUrl));
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   blob_registry_ = std::make_unique<storage::BlobRegistryImpl>(
       blob_storage_context->context()->AsWeakPtr());

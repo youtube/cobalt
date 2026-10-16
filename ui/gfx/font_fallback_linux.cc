@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/354829279): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/gfx/font_fallback_linux.h"
 
 #include <fontconfig/fontconfig.h>
@@ -9,6 +14,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/containers/lru_cache.h"
 #include "base/files/file_path.h"
@@ -16,8 +22,8 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
-#include "base/strings/string_piece.h"
 #include "base/trace_event/trace_event.h"
+#include "skia/ext/font_utils.h"
 #include "third_party/icu/source/common/unicode/uchar.h"
 #include "third_party/icu/source/common/unicode/utf16.h"
 #include "third_party/skia/include/core/SkFontMgr.h"
@@ -92,7 +98,7 @@ sk_sp<SkTypeface> GetSkTypefaceFromPathAndIndex(const base::FilePath& font_path,
   if (entry != cache->end())
     return sk_sp<SkTypeface>(entry->second);
 
-  sk_sp<SkFontMgr> font_mgr = SkFontMgr::RefDefault();
+  sk_sp<SkFontMgr> font_mgr = skia::DefaultFontMgr();
   std::string filename = font_path.AsUTF8Unsafe();
   sk_sp<SkTypeface> typeface =
       font_mgr->makeFromFile(filename.c_str(), ttc_index);
@@ -222,7 +228,7 @@ void ClearAllFontFallbackCachesForTesting() {
 
 bool GetFallbackFont(const Font& font,
                      const std::string& locale,
-                     base::StringPiece16 text,
+                     std::u16string_view text,
                      Font* result) {
   TRACE_EVENT0("fonts", "gfx::GetFallbackFont");
 

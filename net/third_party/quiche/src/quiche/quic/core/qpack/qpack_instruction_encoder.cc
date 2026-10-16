@@ -5,6 +5,7 @@
 #include "quiche/quic/core/qpack/qpack_instruction_encoder.h"
 
 #include <limits>
+#include <string>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -15,8 +16,10 @@
 
 namespace quic {
 
-QpackInstructionEncoder::QpackInstructionEncoder()
-    : use_huffman_(false),
+QpackInstructionEncoder::QpackInstructionEncoder(
+    HuffmanEncoding huffman_encoding)
+    : huffman_encoding_(huffman_encoding),
+      use_huffman_(false),
       string_length_(0),
       byte_(0),
       state_(State::kOpcode),
@@ -142,16 +145,17 @@ void QpackInstructionEncoder::DoStartString(absl::string_view name,
       (field_->type == QpackInstructionFieldType::kName) ? name : value;
   string_length_ = string_to_write.size();
 
-  size_t encoded_size = http2::HuffmanSize(string_to_write);
-  use_huffman_ = encoded_size < string_length_;
+  if (huffman_encoding_ == HuffmanEncoding::kEnabled) {
+    size_t encoded_size = http2::HuffmanSize(string_to_write);
+    use_huffman_ = encoded_size < string_length_;
 
-  if (use_huffman_) {
-    QUICHE_DCHECK_EQ(0, byte_ & (1 << field_->param));
-    byte_ |= (1 << field_->param);
+    if (use_huffman_) {
+      QUICHE_DCHECK_EQ(0, byte_ & (1 << field_->param));
+      byte_ |= (1 << field_->param);
 
-    string_length_ = encoded_size;
+      string_length_ = encoded_size;
+    }
   }
-
   state_ = State::kVarintEncode;
 }
 
@@ -164,7 +168,7 @@ void QpackInstructionEncoder::DoWriteString(absl::string_view name,
   absl::string_view string_to_write =
       (field_->type == QpackInstructionFieldType::kName) ? name : value;
   if (use_huffman_) {
-    http2::HuffmanEncodeFast(string_to_write, string_length_, output);
+    http2::HuffmanEncode(string_to_write, string_length_, output);
   } else {
     absl::StrAppend(output, string_to_write);
   }

@@ -84,6 +84,15 @@ class BitSetT final
             mBitsCopy.reset(index);
         }
 
+        // bits could contain bit that earlier than mCurrentBit. Since mBitCopy can't have bits
+        // earlier than mCurrentBit, the & operation will mask out earlier bits anyway.
+        void resetLaterBits(const BitSetT &bits)
+        {
+            BitSetT maskedBits = ~Mask(mCurrentBit + 1);
+            maskedBits &= bits;
+            mBitsCopy &= ~maskedBits;
+        }
+
         void setLaterBit(std::size_t index)
         {
             ASSERT(index > mCurrentBit);
@@ -110,9 +119,6 @@ class BitSetT final
     constexpr explicit BitSetT(BitsT value);
     constexpr explicit BitSetT(std::initializer_list<ParamT> init);
 
-    constexpr BitSetT(const BitSetT &other);
-    constexpr BitSetT &operator=(const BitSetT &other);
-
     constexpr bool operator==(const BitSetT &other) const;
     constexpr bool operator!=(const BitSetT &other) const;
 
@@ -125,6 +131,15 @@ class BitSetT final
     constexpr bool any() const;
     constexpr bool none() const;
     constexpr std::size_t count() const;
+
+    // Returns true iff there are unset bits prior
+    // to the most significant bit set. For example:
+    // 0b0000 - false
+    // 0b0001 - false
+    // 0b0011 - false
+    // 0b0010 - true
+    // 0b0101 - true
+    constexpr bool hasGaps() const;
 
     constexpr static std::size_t size() { return N; }
 
@@ -196,17 +211,6 @@ constexpr BitSetT<N, BitsT, ParamT>::BitSetT(std::initializer_list<ParamT> init)
 }
 
 template <size_t N, typename BitsT, typename ParamT>
-constexpr BitSetT<N, BitsT, ParamT>::BitSetT(const BitSetT &other) : mBits(other.mBits)
-{}
-
-template <size_t N, typename BitsT, typename ParamT>
-constexpr BitSetT<N, BitsT, ParamT> &BitSetT<N, BitsT, ParamT>::operator=(const BitSetT &other)
-{
-    mBits = other.mBits;
-    return *this;
-}
-
-template <size_t N, typename BitsT, typename ParamT>
 constexpr bool BitSetT<N, BitsT, ParamT>::operator==(const BitSetT &other) const
 {
     return mBits == other.mBits;
@@ -255,6 +259,13 @@ template <size_t N, typename BitsT, typename ParamT>
 constexpr std::size_t BitSetT<N, BitsT, ParamT>::count() const
 {
     return gl::BitCount(mBits);
+}
+
+template <size_t N, typename BitsT, typename ParamT>
+constexpr bool BitSetT<N, BitsT, ParamT>::hasGaps() const
+{
+    ASSERT(mBits == (mBits & Mask(N).bits()));
+    return (mBits != Mask(N).bits()) && ((mBits & (mBits + 1)) != 0);
 }
 
 template <size_t N, typename BitsT, typename ParamT>
@@ -461,6 +472,7 @@ using BitSet16 = BitSetT<N, uint16_t>;
 
 template <size_t N>
 using BitSet32 = BitSetT<N, uint32_t>;
+static_assert(std::is_trivially_copyable<BitSet32<32>>(), "must be memcpy-able");
 
 template <size_t N>
 using BitSet64 = BitSetT<N, uint64_t>;
@@ -513,9 +525,8 @@ class BitSetArray final
     using param_type = BaseBitSet::param_type;
 
     constexpr BitSetArray();
+    constexpr explicit BitSetArray(uint64_t value);
     constexpr explicit BitSetArray(std::initializer_list<param_type> init);
-
-    constexpr BitSetArray(const BitSetArray<N> &other);
 
     class Reference final
     {
@@ -641,7 +652,7 @@ class BitSetArray final
     Iterator end() const { return Iterator(*this, kArraySize); }
     constexpr unsigned long to_ulong() const
     {
-        // TODO(anglebug.com/5628): Handle serializing more than kDefaultBitSetSize
+        // TODO(anglebug.com/42264163): Handle serializing more than kDefaultBitSetSize
         for (std::size_t index = 1; index < kArraySize; index++)
         {
             ASSERT(mBaseBitSetArray[index].none());
@@ -650,7 +661,6 @@ class BitSetArray final
     }
 
     // Assignment operators
-    constexpr BitSetArray &operator=(const BitSetArray &other);
     constexpr BitSetArray &operator&=(const BitSetArray &other);
     constexpr BitSetArray &operator|=(const BitSetArray &other);
     constexpr BitSetArray &operator^=(const BitSetArray &other);
@@ -707,12 +717,38 @@ class BitSetArray final
 
     std::array<BaseBitSet, kArraySize> mBaseBitSetArray;
 };
+static_assert(std::is_trivially_copyable<BitSetArray<32>>(), "must be memcpy-able");
 
 template <std::size_t N>
 constexpr BitSetArray<N>::BitSetArray()
 {
     static_assert(N > priv::kDefaultBitSetSize, "BitSetArray type can't support requested size.");
     reset();
+}
+
+template <std::size_t N>
+constexpr BitSetArray<N>::BitSetArray(uint64_t value)
+{
+    reset();
+
+    if (priv::kDefaultBitSetSize < 64)
+    {
+        size_t i = 0;
+        for (; i < kArraySize - 1; ++i)
+        {
+            value_type elemValue =
+                value & priv::BaseBitSetType::Mask(priv::kDefaultBitSetSize).bits();
+            mBaseBitSetArray[i] = priv::BaseBitSetType(elemValue);
+            value >>= priv::kDefaultBitSetSize;
+        }
+        value_type elemValue = value & kLastElementMask;
+        mBaseBitSetArray[i]  = priv::BaseBitSetType(elemValue);
+    }
+    else
+    {
+        value_type elemValue = value & priv::BaseBitSetType::Mask(priv::kDefaultBitSetSize).bits();
+        mBaseBitSetArray[0]  = priv::BaseBitSetType(elemValue);
+    }
 }
 
 template <std::size_t N>
@@ -725,15 +761,6 @@ constexpr BitSetArray<N>::BitSetArray(std::initializer_list<param_type> init)
         size_t index  = element >> kShiftForDivision;
         size_t offset = element & kDefaultBitSetSizeMinusOne;
         mBaseBitSetArray[index].set(offset, true);
-    }
-}
-
-template <size_t N>
-constexpr BitSetArray<N>::BitSetArray(const BitSetArray<N> &other)
-{
-    for (std::size_t index = 0; index < kArraySize; index++)
-    {
-        mBaseBitSetArray[index] = other.mBaseBitSetArray[index];
     }
 }
 
@@ -795,16 +822,6 @@ template <std::size_t N>
 std::size_t BitSetArray<N>::Iterator::operator*() const
 {
     return (mIndex * priv::kDefaultBitSetSize) + *mCurrentIterator;
-}
-
-template <std::size_t N>
-constexpr BitSetArray<N> &BitSetArray<N>::operator=(const BitSetArray<N> &other)
-{
-    for (std::size_t index = 0; index < kArraySize; index++)
-    {
-        mBaseBitSetArray[index] = other.mBaseBitSetArray[index];
-    }
-    return *this;
 }
 
 template <std::size_t N>

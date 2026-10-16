@@ -19,8 +19,15 @@ PasswordManagerInternalsUI::PasswordManagerInternalsUI(content::WebUI* web_ui)
       chrome::kChromeUIPasswordManagerInternalsHost);
   web_ui->AddMessageHandler(std::make_unique<autofill::InternalsUIHandler>(
       "setup-password-manager-internals",
+      /*call_on_load_argument=*/base::Value(false),
       base::BindRepeating(&password_manager::PasswordManagerLogRouterFactory::
                               GetForBrowserContext)));
 }
 
 PasswordManagerInternalsUI::~PasswordManagerInternalsUI() = default;
+
+PasswordManagerInternalsUIConfig::PasswordManagerInternalsUIConfig()
+    : DefaultWebUIConfig(content::kChromeUIScheme,
+                         chrome::kChromeUIPasswordManagerInternalsHost) {}
+
+PasswordManagerInternalsUIConfig::~PasswordManagerInternalsUIConfig() = default;

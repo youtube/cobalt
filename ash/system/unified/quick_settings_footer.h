@@ -11,6 +11,7 @@
 #include "ash/system/unified/power_button.h"
 #include "base/memory/raw_ptr.h"
 #include "components/prefs/pref_change_registrar.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/view.h"
 
 class PrefRegistrySimple;
@@ -25,7 +26,10 @@ class UnifiedSystemTrayController;
 // is a Jellyroll `PillButton` component that has a different icon label spacing
 // and right padding than `BatteryInfoViewBase`. It updates by observing
 // `PowerStatus`.
-class QsBatteryInfoViewBase : public PillButton, public PowerStatus::Observer {
+class ASH_EXPORT QsBatteryInfoViewBase : public PillButton,
+                                         public PowerStatus::Observer {
+  METADATA_HEADER(QsBatteryInfoViewBase, PillButton)
+
  public:
   explicit QsBatteryInfoViewBase(UnifiedSystemTrayController* controller,
                                  const Type type = Type::kFloatingWithoutIcon,
@@ -34,21 +38,30 @@ class QsBatteryInfoViewBase : public PillButton, public PowerStatus::Observer {
   QsBatteryInfoViewBase& operator=(const QsBatteryInfoViewBase&) = delete;
   ~QsBatteryInfoViewBase() override;
 
-  // Updates the subclass view's ui when `OnPowerStatusChanged`.
+  // Updates the subclass view's ui including button text/background color, text
+  // content, icons, etc.It can be applied to changes such as theme change,
+  // power status change,etc.
   virtual void Update() = 0;
+  // Updates battery icon and text with battery saver mode check.
+  void UpdateIconAndText(bool bsm_active = false);
+  // Builds the battery icon image.
+  void ConfigureIcon(bool bsm_active = false);
 
  private:
-  // views::View:
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
   void ChildPreferredSizeChanged(views::View* child) override;
   void ChildVisibilityChanged(views::View* child) override;
 
   // PowerStatus::Observer:
   void OnPowerStatusChanged() override;
+
+  // PillButton:
+  void OnThemeChanged() override;
 };
 
 // A view that shows battery status.
-class QsBatteryLabelView : public QsBatteryInfoViewBase {
+class ASH_EXPORT QsBatteryLabelView : public QsBatteryInfoViewBase {
+  METADATA_HEADER(QsBatteryLabelView, QsBatteryInfoViewBase)
+
  public:
   explicit QsBatteryLabelView(UnifiedSystemTrayController* controller);
   QsBatteryLabelView(const QsBatteryLabelView&) = delete;
@@ -56,16 +69,15 @@ class QsBatteryLabelView : public QsBatteryInfoViewBase {
   ~QsBatteryLabelView() override;
 
  private:
-  // PillButton:
-  void OnThemeChanged() override;
-
   // QsBatteryInfoViewBase:
   void Update() override;
 };
 
 // A view that shows battery icon and charging state when smart charging is
 // enabled.
-class QsBatteryIconView : public QsBatteryInfoViewBase {
+class ASH_EXPORT QsBatteryIconView : public QsBatteryInfoViewBase {
+  METADATA_HEADER(QsBatteryIconView, QsBatteryInfoViewBase)
+
  public:
   explicit QsBatteryIconView(UnifiedSystemTrayController* controller);
   QsBatteryIconView(const QsBatteryIconView&) = delete;
@@ -73,21 +85,15 @@ class QsBatteryIconView : public QsBatteryInfoViewBase {
   ~QsBatteryIconView() override;
 
  private:
-  // PillButton:
-  void OnThemeChanged() override;
-
   // QsBatteryInfoViewBase:
   void Update() override;
-
-  // Builds the battery icon image.
-  void ConfigureIcon();
 };
 
 // The footer view shown on the the bottom of the `QuickSettingsView`.
 class ASH_EXPORT QuickSettingsFooter : public views::View {
- public:
-  METADATA_HEADER(QuickSettingsFooter);
+  METADATA_HEADER(QuickSettingsFooter, views::View)
 
+ public:
   explicit QuickSettingsFooter(UnifiedSystemTrayController* controller);
   QuickSettingsFooter(const QuickSettingsFooter&) = delete;
   QuickSettingsFooter& operator=(const QuickSettingsFooter&) = delete;
@@ -105,12 +111,16 @@ class ASH_EXPORT QuickSettingsFooter : public views::View {
   // pref.
   void UpdateSettingsButtonState();
 
+  // Creates the container to carry the battery and settings button if there's
+  // any.
+  views::View* CreateEndContainer();
+
   // Owned.
-  raw_ptr<IconButton, ExperimentalAsh> settings_button_ = nullptr;
+  raw_ptr<IconButton> settings_button_ = nullptr;
 
   // Owned by views hierarchy.
-  raw_ptr<PowerButton, ExperimentalAsh> power_button_ = nullptr;
-  raw_ptr<PillButton, ExperimentalAsh> sign_out_button_ = nullptr;
+  raw_ptr<PowerButton> power_button_ = nullptr;
+  raw_ptr<PillButton> sign_out_button_ = nullptr;
 
   // The registrar used to watch prefs changes.
   PrefChangeRegistrar local_state_pref_change_registrar_;

@@ -2,25 +2,62 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "sql/statement.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include "base/check.h"
+#include "base/check_op.h"
 #include "base/containers/span.h"
 #include "base/dcheck_is_on.h"
+#include "base/location.h"
 #include "base/logging.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/sequence_checker.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/threading/scoped_blocking_call.h"
 #include "base/time/time.h"
+#include "base/timer/elapsed_timer.h"
+#include "base/trace_event/base_tracing.h"
+#include "sql/database.h"
 #include "sql/sqlite_result_code.h"
 #include "sql/sqlite_result_code_values.h"
 #include "third_party/sqlite/sqlite3.h"
 
 namespace sql {
+
+// static
+int64_t Statement::TimeToSqlValue(base::Time time) {
+  return time.ToDeltaSinceWindowsEpoch().InMicroseconds();
+}
+
+std::string GetSqlStatementStringForTracing(sqlite3_stmt* stmt) {
+  // See https://www.sqlite.org/c3ref/expanded_sql.html
+  // The SQLITE_OMIT_TRACE compile-time option causes sqlite3_expanded_sql() to
+  // always return NULL. Chromium is typically built with SQLITE_OMIT_TRACE
+  // defined, but conditionally expanding the statement allows us to make
+  // one-off builds that produce traces with visible expanded statements.
+#if defined(SQLITE_OMIT_TRACE)
+  return sqlite3_sql(stmt);
+#else
+  return sqlite3_expanded_sql(stmt);
+#endif
+}
 
 // This empty constructor initializes our reference with an empty one so that
 // we don't have to null-check the ref_ to see if the statement is valid: we
@@ -72,11 +109,49 @@ SqliteResultCode Statement::StepInternal() {
   if (!CheckValid())
     return SqliteResultCode::kError;
 
-  absl::optional<base::ScopedBlockingCall> scoped_blocking_call;
+  base::ElapsedTimer timer;
+  if (!time_spent_stepping_) {
+    time_spent_stepping_ = base::TimeDelta();
+    TRACE_EVENT_BEGIN("sql", "Database::Statement",
+                      ref_->database()->GetTracingNamedTrack(),
+                      timer.start_time(), "statement",
+                      GetSqlStatementStringForTracing(ref_->stmt()));
+  }
+
+  std::optional<base::ScopedBlockingCall> scoped_blocking_call;
   ref_->InitScopedBlockingCall(FROM_HERE, &scoped_blocking_call);
 
   auto sqlite_result_code = ToSqliteResultCode(sqlite3_step(ref_->stmt()));
+
+  auto elapsed = timer.Elapsed();
+  ref_->database()->RecordTimingHistogram("Sql.Statement.StepTime.", elapsed);
+  *time_spent_stepping_ += elapsed;
+
   return CheckSqliteResultCode(sqlite_result_code);
+}
+
+void Statement::ReportQueryExecutionMetrics() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  // Retrieve and reset to zero the count of VM steps required to execute the
+  // query. The reported UMA metric can be used to identify expensive database
+  // based on their SQLite queries cost in VM steps.
+  const int kResetVMStepsToZero = 1;
+  const int vm_steps = sqlite3_stmt_status(
+      ref_->stmt(), SQLITE_STMTSTATUS_VM_STEP, kResetVMStepsToZero);
+  const Database* database = ref_->database();
+  if (vm_steps > 0 && !database->histogram_tag().empty()) {
+    const std::string histogram_name =
+        "Sql.Statement." + database->histogram_tag() + ".VMSteps";
+    base::UmaHistogramCounts10000(histogram_name, vm_steps);
+  }
+
+  if (time_spent_stepping_) {
+    TRACE_EVENT_END("sql", database->GetTracingNamedTrack(), "statement",
+                    GetSqlStatementStringForTracing(ref_->stmt()));
+    database->RecordTimingHistogram("Sql.Statement.ExecutionTime.",
+                                    *time_spent_stepping_);
+  }
 }
 
 bool Statement::Run() {
@@ -103,9 +178,12 @@ bool Statement::Step() {
 void Statement::Reset(bool clear_bound_vars) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  absl::optional<base::ScopedBlockingCall> scoped_blocking_call;
+  std::optional<base::ScopedBlockingCall> scoped_blocking_call;
   ref_->InitScopedBlockingCall(FROM_HERE, &scoped_blocking_call);
   if (is_valid()) {
+    // Reports the execution cost for this SQL statement.
+    ReportQueryExecutionMetrics();
+
     if (clear_bound_vars)
       sqlite3_clear_bindings(ref_->stmt());
 
@@ -126,6 +204,8 @@ void Statement::Reset(bool clear_bound_vars) {
   run_called_ = false;
   step_called_ = false;
 #endif  // DCHECK_IS_ON()
+
+  time_spent_stepping_ = std::nullopt;
 }
 
 bool Statement::Succeeded() const {
@@ -228,7 +308,7 @@ void Statement::BindTime(int param_index, base::Time val) {
   DCHECK_GE(param_index, 0);
   DCHECK_LT(param_index, sqlite3_bind_parameter_count(ref_->stmt()))
       << "Invalid parameter index";
-  int64_t int_value = val.ToDeltaSinceWindowsEpoch().InMicroseconds();
+  int64_t int_value = TimeToSqlValue(val);
   int sqlite_result_code =
       sqlite3_bind_int64(ref_->stmt(), param_index + 1, int_value);
   DCHECK_EQ(sqlite_result_code, SQLITE_OK);
@@ -283,7 +363,7 @@ void Statement::BindCString(int param_index, const char* val) {
   DCHECK_EQ(sqlite_result_code, SQLITE_OK);
 }
 
-void Statement::BindString(int param_index, base::StringPiece value) {
+void Statement::BindString(int param_index, std::string_view value) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
 #if DCHECK_IS_ON()
@@ -298,8 +378,8 @@ void Statement::BindString(int param_index, base::StringPiece value) {
   DCHECK_LT(param_index, sqlite3_bind_parameter_count(ref_->stmt()))
       << "Invalid parameter index";
 
-  // base::StringPiece::data() may return null for empty pieces. In particular,
-  // this may happen when the StringPiece is created from the default
+  // std::string_view::data() may return null for empty pieces. In particular,
+  // this may happen when the std::string_view is created from the default
   // constructor.
   //
   // However, sqlite3_bind_text() always interprets a nullptr data argument as a
@@ -319,7 +399,7 @@ void Statement::BindString(int param_index, base::StringPiece value) {
   DCHECK_EQ(sqlite_result_code, SQLITE_OK);
 }
 
-void Statement::BindString16(int param_index, base::StringPiece16 value) {
+void Statement::BindString16(int param_index, std::u16string_view value) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   return BindString(param_index, base::UTF16ToUTF8(value));
@@ -489,7 +569,7 @@ base::TimeDelta Statement::ColumnTimeDelta(int column_index) {
   return base::Microseconds(int_value);
 }
 
-std::string Statement::ColumnString(int column_index) {
+std::string_view Statement::ColumnStringView(int column_index) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
 #if DCHECK_IS_ON()
@@ -498,7 +578,7 @@ std::string Statement::ColumnString(int column_index) {
 #endif  // DCHECK_IS_ON()
 
   if (!CheckValid())
-    return std::string();
+    return std::string_view();
   DCHECK_GE(column_index, 0);
   DCHECK_LT(column_index, sqlite3_data_count(ref_->stmt()))
       << "Invalid column index";
@@ -506,29 +586,18 @@ std::string Statement::ColumnString(int column_index) {
   const char* string_buffer = reinterpret_cast<const char*>(
       sqlite3_column_text(ref_->stmt(), column_index));
   int size = sqlite3_column_bytes(ref_->stmt(), column_index);
+  DCHECK(size == 0 || string_buffer != nullptr)
+      << "sqlite3_column_text() returned a null buffer for a non-empty string";
 
-  std::string result;
-  if (string_buffer && size > 0)
-    result.assign(string_buffer, size);
-  return result;
+  return std::string_view(string_buffer, base::checked_cast<size_t>(size));
+}
+
+std::string Statement::ColumnString(int column_index) {
+  return std::string(ColumnStringView(column_index));
 }
 
 std::u16string Statement::ColumnString16(int column_index) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-#if DCHECK_IS_ON()
-  DCHECK(!run_called_) << __func__ << " can be used after Step(), not Run()";
-  DCHECK(step_called_) << __func__ << " can only be used after Step()";
-#endif  // DCHECK_IS_ON()
-
-  if (!CheckValid())
-    return std::u16string();
-  DCHECK_GE(column_index, 0);
-  DCHECK_LT(column_index, sqlite3_data_count(ref_->stmt()))
-      << "Invalid column index";
-
-  std::string string = ColumnString(column_index);
-  return string.empty() ? std::u16string() : base::UTF8ToUTF16(string);
+  return base::UTF8ToUTF16(ColumnStringView(column_index));
 }
 
 base::span<const uint8_t> Statement::ColumnBlob(int column_index) {
@@ -550,8 +619,8 @@ base::span<const uint8_t> Statement::ColumnBlob(int column_index) {
   DCHECK(result_size == 0 || result_buffer != nullptr)
       << "sqlite3_column_blob() returned a null buffer for a non-empty BLOB";
 
-  return base::make_span(static_cast<const uint8_t*>(result_buffer),
-                         base::checked_cast<size_t>(result_size));
+  return base::span(static_cast<const uint8_t*>(result_buffer),
+                    base::checked_cast<size_t>(result_size));
 }
 
 bool Statement::ColumnBlobAsString(int column_index, std::string* result) {

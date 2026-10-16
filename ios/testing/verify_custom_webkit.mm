@@ -9,16 +9,12 @@
 
 #import "base/command_line.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // The switch used when running with custom WebKit frameworks.
 const char kRunWithCustomWebKit[] = "run-with-custom-webkit";
 
-}
+}  // namespace
 
 bool IsCustomWebKitLoadedIfRequested() {
   if (!base::CommandLine::ForCurrentProcess()->HasSwitch(

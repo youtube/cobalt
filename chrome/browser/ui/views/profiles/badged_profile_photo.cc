@@ -32,8 +32,9 @@ constexpr int kBadgedProfilePhotoHeight = BadgedProfilePhoto::kImageSize;
 // A custom ImageView that removes the part where the badge will be placed
 // including the (transparent) border.
 class CustomImageView : public views::ImageView {
+  METADATA_HEADER(CustomImageView, views::ImageView)
+
  public:
-  METADATA_HEADER(CustomImageView);
   CustomImageView() = default;
   CustomImageView(const CustomImageView&) = delete;
   CustomImageView& operator=(const CustomImageView&) = delete;
@@ -43,7 +44,7 @@ class CustomImageView : public views::ImageView {
   void OnPaint(gfx::Canvas* canvas) override;
 };
 
-BEGIN_METADATA(CustomImageView, views::ImageView)
+BEGIN_METADATA(CustomImageView)
 END_METADATA
 
 void CustomImageView::OnPaint(gfx::Canvas* canvas) {
@@ -58,7 +59,9 @@ void CustomImageView::OnPaint(gfx::Canvas* canvas) {
   ImageView::OnPaint(canvas);
 }
 
-class BadgeView : public ::views::ImageView {
+class BadgeView : public views::ImageView {
+  METADATA_HEADER(BadgeView, views::ImageView)
+
  public:
   explicit BadgeView(BadgedProfilePhoto::BadgeType badge_type)
       : badge_type_(badge_type) {
@@ -88,8 +91,8 @@ class BadgeView : public ::views::ImageView {
         break;
       case BadgedProfilePhoto::BADGE_TYPE_SYNC_PAUSED:
         SetImage(ui::ImageModel::FromVectorIcon(
-            kSyncPausedCircleIcon,
-            ui::kColorButtonBackgroundProminent, kBadgeIconSize));
+            kSyncPausedCircleIcon, ui::kColorButtonBackgroundProminent,
+            kBadgeIconSize));
         break;
       case BadgedProfilePhoto::BADGE_TYPE_SYNC_DISABLED:
         SetImage(ui::ImageModel::FromVectorIcon(
@@ -100,7 +103,7 @@ class BadgeView : public ::views::ImageView {
             kSyncPausedCircleIcon, ui::kColorIcon, kBadgeIconSize));
         break;
       case BadgedProfilePhoto::BADGE_TYPE_NONE:
-        NOTREACHED_NORETURN();
+        NOTREACHED();
     }
     SizeToPreferredSize();
   }
@@ -108,6 +111,9 @@ class BadgeView : public ::views::ImageView {
  private:
   const BadgedProfilePhoto::BadgeType badge_type_;
 };
+
+BEGIN_METADATA(BadgeView)
+END_METADATA
 
 }  // namespace
 
@@ -123,16 +129,18 @@ BadgedProfilePhoto::BadgedProfilePhoto(BadgeType badge_type,
   views::ImageView* profile_photo_view = badge_type == BADGE_TYPE_NONE
                                              ? new views::ImageView()
                                              : new CustomImageView();
-  profile_photo_view->SetImage(*profile_photo_circular.ToImageSkia());
+  profile_photo_view->SetImage(
+      ui::ImageModel::FromImage(profile_photo_circular));
   profile_photo_view->SizeToPreferredSize();
-  AddChildView(profile_photo_view);
+  AddChildViewRaw(profile_photo_view);
 
-  if (badge_type != BADGE_TYPE_NONE)
+  if (badge_type != BADGE_TYPE_NONE) {
     AddChildView(std::make_unique<BadgeView>(badge_type));
+  }
 
   SetPreferredSize(
       gfx::Size(kBadgedProfilePhotoWidth, kBadgedProfilePhotoHeight));
 }
 
-BEGIN_METADATA(BadgedProfilePhoto, views::View)
+BEGIN_METADATA(BadgedProfilePhoto)
 END_METADATA

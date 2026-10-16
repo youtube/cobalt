@@ -16,6 +16,10 @@ const char kAgentId[] = "agentId";
 // policy https://chromeenterprise.google/policies/?policy=AllowScreenLock.
 const char kAllowScreenLock[] = "allowScreenLock";
 
+// Name of the signal indicating the state of antivirus software on the
+// device.
+const char kAntivirusState[] = "antivirusState";
+
 // Name of the signal for getting information about the browser version.
 const char kBrowserVersion[] = "browserVersion";
 
@@ -124,9 +128,8 @@ const char kSiteIsolationEnabled[] = "siteIsolationEnabled";
 // the device.
 const char kSystemDnsServers[] = "systemDnsServers";
 
-// Name of the signal for getting information about whether third party
-// blocking is enabled on the device.
-const char kThirdPartyBlockingEnabled[] = "thirdPartyBlockingEnabled";
+// Name of the signal for the trigger which generated the device signals.
+const char kTrigger[] = "trigger";
 
 // Name of the signal for getting information about the managed user's
 // enrollment domain.

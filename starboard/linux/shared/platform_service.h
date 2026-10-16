@@ -65,7 +65,7 @@ typedef struct CobaltPlatformServiceApi {
   // service is not currently able to accept data, and otherwise will be set to
   // false.
   void* (*Send)(PlatformServiceImpl* service,
-                void* data,
+                const void* data,
                 uint64_t length,
                 uint64_t* output_length,
                 bool* invalid_state);

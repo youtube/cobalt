@@ -4,8 +4,10 @@
 
 #include "components/ui_devtools/views/window_element.h"
 
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/to_string.h"
 #include "components/ui_devtools/protocol.h"
 #include "components/ui_devtools/ui_element_delegate.h"
 #include "components/ui_devtools/views/devtools_event_util.h"
@@ -23,8 +25,8 @@ namespace {
 
 int GetIndexOfChildInParent(aura::Window* window) {
   const aura::Window::Windows& siblings = window->parent()->children();
-  auto it = base::ranges::find(siblings, window);
-  DCHECK(it != siblings.end());
+  auto it = std::ranges::find(siblings, window);
+  CHECK(it != siblings.end());
   return std::distance(siblings.begin(), it);
 }
 
@@ -47,7 +49,7 @@ WindowElement::~WindowElement() {
 // Handles removing window_.
 void WindowElement::OnWindowHierarchyChanging(
     const aura::WindowObserver::HierarchyChangeParams& params) {
-  if (params.target == window_) {
+  if (params.target == window_.get()) {
     parent()->RemoveChild(this);
     delete this;
   }
@@ -56,7 +58,8 @@ void WindowElement::OnWindowHierarchyChanging(
 // Handles adding window_.
 void WindowElement::OnWindowHierarchyChanged(
     const aura::WindowObserver::HierarchyChangeParams& params) {
-  if (window_ == params.new_parent && params.receiver == params.new_parent) {
+  if (window_.get() == params.new_parent &&
+      params.receiver == params.new_parent) {
     AddChild(new WindowElement(params.target, delegate(), this));
   }
 }
@@ -100,7 +103,7 @@ void WindowElement::SetVisible(bool visible) {
 
 std::vector<std::string> WindowElement::GetAttributes() const {
   return {"name", window_->GetName(), "active",
-          ::wm::IsActiveWindow(window_) ? "true" : "false"};
+          base::ToString(::wm::IsActiveWindow(window_))};
 }
 
 std::pair<gfx::NativeWindow, gfx::Rect>
@@ -123,7 +126,7 @@ int UIElement::FindUIElementIdForBackendElement<aura::Window>(
           element) {
     return node_id_;
   }
-  for (auto* child : children_) {
+  for (ui_devtools::UIElement* child : children_) {
     int ui_element_id = child->FindUIElementIdForBackendElement(element);
     if (ui_element_id)
       return ui_element_id;

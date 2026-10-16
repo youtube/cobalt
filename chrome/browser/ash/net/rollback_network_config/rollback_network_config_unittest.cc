@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ash/net/rollback_network_config/rollback_network_config.h"
+
 #include <string>
 #include <utility>
 
@@ -10,14 +12,13 @@
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
-#include "chrome/browser/ash/net/rollback_network_config/rollback_network_config.h"
 #include "chrome/browser/ash/net/rollback_network_config/rollback_onc_util.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash_factory.h"
 #include "chrome/browser/ash/policy/core/device_policy_builder.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
-#include "chrome/browser/ash/settings/device_settings_cache.h"
+#include "chrome/browser/ash/settings/cros_settings_holder.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
+#include "chrome/browser/ash/settings/scoped_test_device_settings_service.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
@@ -28,6 +29,7 @@
 #include "chromeos/ash/components/network/network_handler_test_helper.h"
 #include "chromeos/ash/components/network/network_state.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
+#include "chromeos/ash/components/settings/device_settings_cache.h"
 #include "components/onc/onc_constants.h"
 #include "components/onc/onc_pref_names.h"
 #include "components/ownership/mock_owner_key_util.h"
@@ -214,25 +216,25 @@ void SetPropertiesForExistingNetwork(const std::string& guid,
 
 base::Value::Dict GetProperties(const std::string userhash,
                                 const std::string& guid) {
-  base::test::TestFuture<const std::string&, absl::optional<base::Value::Dict>,
-                         absl::optional<std::string>>
+  base::test::TestFuture<const std::string&, std::optional<base::Value::Dict>,
+                         std::optional<std::string>>
       result;
   managed_network_configuration_handler()->GetProperties(
       userhash, GetServicePath(guid), result.GetCallback());
-  absl::optional<base::Value::Dict> properties = std::get<1>(result.Take());
+  std::optional<base::Value::Dict> properties = std::get<1>(result.Take());
   EXPECT_TRUE(properties.has_value());
   return std::move(properties.value());
 }
 
 base::Value::Dict GetManagedProperties(const std::string userhash,
                                        const std::string& guid) {
-  base::test::TestFuture<const std::string&, absl::optional<base::Value::Dict>,
-                         absl::optional<std::string>>
+  base::test::TestFuture<const std::string&, std::optional<base::Value::Dict>,
+                         std::optional<std::string>>
       result;
   managed_network_configuration_handler()->GetManagedProperties(
       userhash, GetServicePath(guid), result.GetCallback());
 
-  absl::optional<base::Value::Dict> properties = std::get<1>(result.Take());
+  std::optional<base::Value::Dict> properties = std::get<1>(result.Take());
   EXPECT_TRUE(properties.has_value());
   return std::move(properties.value());
 }
@@ -354,7 +356,8 @@ class RollbackNetworkConfigTest : public testing::Test {
   NetworkHandlerTestHelper network_handler_test_helper_;
   ScopedStubInstallAttributes scoped_stub_install_attributes_;
   ScopedTestDeviceSettingsService scoped_device_settings_;
-  ScopedTestCrosSettings scoped_cros_settings_{RegisterPrefs(&local_state_)};
+  CrosSettingsHolder cros_settings_holder_{ash::DeviceSettingsService::Get(),
+                                           RegisterPrefs(&local_state_)};
   policy::DevicePolicyBuilder device_policy_;
 
   std::unique_ptr<RollbackNetworkConfig> rollback_network_config_;

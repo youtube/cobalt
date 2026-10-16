@@ -9,6 +9,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "chromeos/ash/components/dbus/concierge/fake_concierge_client.h"
 #include "chromeos/ash/components/dbus/vm_applications/apps.pb.h"
+#include "components/user_manager/scoped_user_manager.h"
 
 class TestingProfile;
 
@@ -17,10 +18,6 @@ namespace test {
 class ScopedRunningOnChromeOS;
 }  // namespace test
 }  // namespace base
-
-namespace user_manager {
-class ScopedUserManager;
-}  // namespace user_manager
 
 namespace plugin_vm {
 
@@ -69,7 +66,7 @@ class PluginVmTestHelper {
  private:
   void UpdateRegistry();
 
-  raw_ptr<TestingProfile, ExperimentalAsh> testing_profile_;
+  raw_ptr<TestingProfile> testing_profile_;
   vm_tools::apps::ApplicationList current_apps_;
   std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
   base::test::ScopedFeatureList scoped_feature_list_;

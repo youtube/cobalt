@@ -14,7 +14,7 @@
 
 #include "starboard/common/log.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/elf_loader/evergreen_info.h"  // nogncheck
 #endif
 #include "starboard/system.h"
@@ -27,7 +27,7 @@ void SbLogRawDumpStack(int frames_to_skip) {
   void* stack[256];
   int count = SbSystemGetStack(stack, SB_ARRAY_SIZE_INT(stack));
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
   EvergreenInfo evergreen_info;
   bool valid_evergreen_info = GetEvergreenInfo(&evergreen_info);
 #endif
@@ -35,9 +35,12 @@ void SbLogRawDumpStack(int frames_to_skip) {
   for (int i = 1 + frames_to_skip; i < count; ++i) {
     char symbol[512];
     void* address = stack[i];
+    // Subtract one as return address of function may be in the next function
+    // when a function is annotated as noreturn.
+    const void* symbol_address = static_cast<const char*>(stack[i]) - 1;
     bool result =
-        SbSystemSymbolize(stack[i], symbol, SB_ARRAY_SIZE_INT(symbol));
-#if SB_IS(EVERGREEN_COMPATIBLE)
+        SbSystemSymbolize(symbol_address, symbol, SB_ARRAY_SIZE_INT(symbol));
+#if BUILDFLAG(IS_STARBOARD)
     if (!result && valid_evergreen_info &&
         IS_EVERGREEN_ADDRESS(stack[i], evergreen_info)) {
       address = reinterpret_cast<void*>(reinterpret_cast<uint64_t>(stack[i]) -

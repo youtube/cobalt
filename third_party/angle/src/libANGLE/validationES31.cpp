@@ -26,6 +26,11 @@ namespace gl
 {
 using namespace err;
 
+void RecordVersionErrorES31(const Context *context, angle::EntryPoint entryPoint)
+{
+    ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kEntryPointRequiresES31);
+}
+
 namespace
 {
 
@@ -110,7 +115,7 @@ bool ValidateProgramResourceProperty(const Context *context,
         case GL_REFERENCED_BY_TESS_CONTROL_SHADER_EXT:
         case GL_REFERENCED_BY_TESS_EVALUATION_SHADER_EXT:
         case GL_IS_PER_PATCH_EXT:
-            return context->getExtensions().tessellationShaderEXT ||
+            return context->getExtensions().tessellationShaderAny() ||
                    context->getClientVersion() >= ES_3_2;
 
         case GL_LOCATION_INDEX_EXT:
@@ -285,32 +290,32 @@ bool ValidateProgramResourceIndex(const Program *programObject,
                                   GLenum programInterface,
                                   GLuint index)
 {
+    const ProgramExecutable &executable = programObject->getExecutable();
     switch (programInterface)
     {
         case GL_PROGRAM_INPUT:
-            return (index <
-                    static_cast<GLuint>(programObject->getState().getProgramInputs().size()));
+            return index < executable.getProgramInputs().size();
 
         case GL_PROGRAM_OUTPUT:
-            return (index < static_cast<GLuint>(programObject->getOutputResourceCount()));
+            return index < executable.getOutputVariables().size();
 
         case GL_UNIFORM:
-            return (index < static_cast<GLuint>(programObject->getActiveUniformCount()));
+            return index < executable.getUniforms().size();
 
         case GL_BUFFER_VARIABLE:
-            return (index < static_cast<GLuint>(programObject->getActiveBufferVariableCount()));
+            return index < executable.getBufferVariables().size();
 
         case GL_SHADER_STORAGE_BLOCK:
-            return (index < static_cast<GLuint>(programObject->getActiveShaderStorageBlockCount()));
+            return index < executable.getShaderStorageBlocks().size();
 
         case GL_UNIFORM_BLOCK:
-            return (index < programObject->getActiveUniformBlockCount());
+            return index < executable.getUniformBlocks().size();
 
         case GL_ATOMIC_COUNTER_BUFFER:
-            return (index < programObject->getActiveAtomicCounterBufferCount());
+            return index < executable.getAtomicCounterBuffers().size();
 
         case GL_TRANSFORM_FEEDBACK_VARYING:
-            return (index < static_cast<GLuint>(programObject->getTransformFeedbackVaryingCount()));
+            return index < executable.getLinkedTransformFeedbackVaryings().size();
 
         default:
             UNREACHABLE();
@@ -325,11 +330,24 @@ bool ValidateProgramUniformBase(const Context *context,
                                 UniformLocation location,
                                 GLsizei count)
 {
+    Program *programObject = GetValidProgram(context, entryPoint, program);
+    if (programObject == nullptr)
+    {
+        // Error already generated.
+        return false;
+    }
+
     const LinkedUniform *uniform = nullptr;
-    Program *programObject       = GetValidProgram(context, entryPoint, program);
-    return ValidateUniformCommonBase(context, entryPoint, programObject, location, count,
-                                     &uniform) &&
-           ValidateUniformValue(context, entryPoint, valueType, uniform->type);
+    if (!ValidateUniformCommonBase(context, entryPoint, programObject, location, count, &uniform))
+    {
+        // Error already generated.
+        return false;
+    }
+    if (uniform == nullptr)
+    {
+        return true;  // no-op
+    }
+    return ValidateUniformValue(context, entryPoint, valueType, uniform->getType());
 }
 
 bool ValidateProgramUniformMatrixBase(const Context *context,
@@ -340,27 +358,34 @@ bool ValidateProgramUniformMatrixBase(const Context *context,
                                       GLsizei count,
                                       GLboolean transpose)
 {
+    Program *programObject = GetValidProgram(context, entryPoint, program);
+    if (programObject == nullptr)
+    {
+        // Error already generated.
+        return false;
+    }
+
     const LinkedUniform *uniform = nullptr;
-    Program *programObject       = GetValidProgram(context, entryPoint, program);
-    return ValidateUniformCommonBase(context, entryPoint, programObject, location, count,
-                                     &uniform) &&
-           ValidateUniformMatrixValue(context, entryPoint, valueType, uniform->type);
+    if (!ValidateUniformCommonBase(context, entryPoint, programObject, location, count, &uniform))
+    {
+        // Error already generated.
+        return false;
+    }
+    if (uniform == nullptr)
+    {
+        return true;  // no-op
+    }
+    return ValidateUniformMatrixValue(context, entryPoint, valueType, uniform->getType());
 }
 
 bool ValidateVertexAttribFormatCommon(const Context *context,
                                       angle::EntryPoint entryPoint,
                                       GLuint relativeOffset)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     const Caps &caps = context->getCaps();
     if (relativeOffset > static_cast<GLuint>(caps.maxVertexAttribRelativeOffset))
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kRelativeOffsetTooLarge);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kRelativeOffsetTooLarge);
         return false;
     }
 
@@ -368,7 +393,7 @@ bool ValidateVertexAttribFormatCommon(const Context *context,
     // An INVALID_OPERATION error is generated if the default vertex array object is bound.
     if (context->getState().getVertexArrayId().value == 0)
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kDefaultVertexArray);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kDefaultVertexArray);
         return false;
     }
 
@@ -383,13 +408,6 @@ bool ValidateGetBooleani_v(const Context *context,
                            GLuint index,
                            const GLboolean *data)
 {
-    if (context->getClientVersion() < ES_3_1 && !context->getExtensions().drawBuffersIndexedAny())
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION,
-                                 kES31OrDrawBuffersIndexedExtensionNotAvailable);
-        return false;
-    }
-
     if (!ValidateIndexedStateQuery(context, entryPoint, target, index, nullptr))
     {
         return false;
@@ -406,10 +424,9 @@ bool ValidateGetBooleani_vRobustANGLE(const Context *context,
                                       const GLsizei *length,
                                       const GLboolean *data)
 {
-    if (context->getClientVersion() < ES_3_1 && !context->getExtensions().drawBuffersIndexedAny())
+    if (context->getClientVersion() < ES_3_1)
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION,
-                                 kES31OrDrawBuffersIndexedExtensionNotAvailable);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kES31Required);
         return false;
     }
 
@@ -439,12 +456,6 @@ bool ValidateDrawIndirectBase(const Context *context,
                               PrimitiveMode mode,
                               const void *indirect)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     // Here the third parameter 1 is only to pass the count validation.
     if (!ValidateDrawBase(context, entryPoint, mode))
     {
@@ -457,20 +468,20 @@ bool ValidateDrawIndirectBase(const Context *context,
     // DRAW_INDIRECT_BUFFER or to any enabled vertex array.
     if (state.getVertexArrayId().value == 0)
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kDefaultVertexArray);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kDefaultVertexArray);
         return false;
     }
 
     if (context->getStateCache().hasAnyActiveClientAttrib())
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kClientDataInVertexArray);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kClientDataInVertexArray);
         return false;
     }
 
     Buffer *drawIndirectBuffer = state.getTargetBuffer(BufferBinding::DrawIndirect);
     if (!drawIndirectBuffer)
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kDrawIndirectBufferNotBound);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kDrawIndirectBufferNotBound);
         return false;
     }
 
@@ -479,7 +490,7 @@ bool ValidateDrawIndirectBase(const Context *context,
     GLint64 offset = reinterpret_cast<GLint64>(indirect);
     if ((static_cast<GLuint>(offset) % sizeof(GLuint)) != 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kInvalidIndirectOffset);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kInvalidIndirectOffset);
         return false;
     }
 
@@ -503,8 +514,7 @@ bool ValidateDrawArraysIndirect(const Context *context,
             if (!ValidateTransformFeedbackPrimitiveMode(
                     context, entryPoint, curTransformFeedback->getPrimitiveMode(), mode))
             {
-                context->validationError(entryPoint, GL_INVALID_OPERATION,
-                                         kInvalidDrawModeTransformFeedback);
+                ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kInvalidDrawModeTransformFeedback);
                 return false;
             }
         }
@@ -512,8 +522,7 @@ bool ValidateDrawArraysIndirect(const Context *context,
         {
             // An INVALID_OPERATION error is generated if transform feedback is active and not
             // paused.
-            context->validationError(entryPoint, GL_INVALID_OPERATION,
-                                     kUnsupportedDrawModeForTransformFeedback);
+            ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kUnsupportedDrawModeForTransformFeedback);
             return false;
         }
     }
@@ -529,7 +538,7 @@ bool ValidateDrawArraysIndirect(const Context *context,
     if (!checkedSum.IsValid() ||
         checkedSum.ValueOrDie() > static_cast<size_t>(drawIndirectBuffer->getSize()))
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kParamOverflow);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kParamOverflow);
         return false;
     }
 
@@ -552,7 +561,7 @@ bool ValidateDrawElementsIndirect(const Context *context,
     Buffer *elementArrayBuffer = vao->getElementArrayBuffer();
     if (!elementArrayBuffer)
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kMustHaveElementArrayBinding);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kMustHaveElementArrayBinding);
         return false;
     }
 
@@ -567,7 +576,7 @@ bool ValidateDrawElementsIndirect(const Context *context,
     if (!checkedSum.IsValid() ||
         checkedSum.ValueOrDie() > static_cast<size_t>(drawIndirectBuffer->getSize()))
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kParamOverflow);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kParamOverflow);
         return false;
     }
 
@@ -579,23 +588,17 @@ bool ValidateMultiDrawIndirectBase(const Context *context,
                                    GLsizei drawcount,
                                    GLsizei stride)
 {
-    if (!context->getExtensions().multiDrawIndirectEXT)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kExtensionNotEnabled);
-        return false;
-    }
-
     // An INVALID_VALUE error is generated if stride is neither 0 nor a multiple of 4.
     if ((stride & 3) != 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kInvalidDrawBufferValue);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kInvalidDrawBufferValue);
         return false;
     }
 
     // An INVALID_VALUE error is generated if drawcount is not positive.
     if (drawcount <= 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kInvalidValueNonPositive);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kInvalidValueNonPositive);
         return false;
     }
 
@@ -744,11 +747,24 @@ bool ValidateProgramUniform1ivBase(const Context *context,
                                    GLsizei count,
                                    const GLint *value)
 {
+    Program *programObject = GetValidProgram(context, entryPoint, program);
+    if (programObject == nullptr)
+    {
+        // Error already generated.
+        return false;
+    }
+
     const LinkedUniform *uniform = nullptr;
-    Program *programObject       = GetValidProgram(context, entryPoint, program);
-    return ValidateUniformCommonBase(context, entryPoint, programObject, location, count,
-                                     &uniform) &&
-           ValidateUniform1ivValue(context, entryPoint, uniform->type, count, value);
+    if (!ValidateUniformCommonBase(context, entryPoint, programObject, location, count, &uniform))
+    {
+        // Error already generated.
+        return false;
+    }
+    if (uniform == nullptr)
+    {
+        return true;  // no-op
+    }
+    return ValidateUniform1ivValue(context, entryPoint, uniform->getType(), count, value);
 }
 
 bool ValidateProgramUniform2ivBase(const Context *context,
@@ -980,12 +996,6 @@ bool ValidateGetTexLevelParameterfv(const Context *context,
                                     GLenum pname,
                                     const GLfloat *params)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateGetTexLevelParameterBase(context, entryPoint, target, level, pname, nullptr);
 }
 
@@ -1009,12 +1019,6 @@ bool ValidateGetTexLevelParameteriv(const Context *context,
                                     GLenum pname,
                                     const GLint *params)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateGetTexLevelParameterBase(context, entryPoint, target, level, pname, nullptr);
 }
 
@@ -1040,12 +1044,6 @@ bool ValidateTexStorage2DMultisample(const Context *context,
                                      GLsizei height,
                                      GLboolean fixedSampleLocations)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateTexStorage2DMultisampleBase(context, entryPoint, target, samples, internalFormat,
                                                width, height);
 }
@@ -1061,12 +1059,6 @@ bool ValidateTexStorageMem2DMultisampleEXT(const Context *context,
                                            MemoryObjectID memory,
                                            GLuint64 offset)
 {
-    if (!context->getExtensions().memoryObjectEXT)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kExtensionNotEnabled);
-        return false;
-    }
-
     UNIMPLEMENTED();
     return false;
 }
@@ -1077,12 +1069,6 @@ bool ValidateGetMultisamplefv(const Context *context,
                               GLuint index,
                               const GLfloat *val)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateGetMultisamplefvBase(context, entryPoint, pname, index, val);
 }
 
@@ -1104,12 +1090,6 @@ bool ValidateFramebufferParameteri(const Context *context,
                                    GLenum pname,
                                    GLint param)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateFramebufferParameteriBase(context, entryPoint, target, pname, param);
 }
 
@@ -1119,12 +1099,6 @@ bool ValidateGetFramebufferParameteriv(const Context *context,
                                        GLenum pname,
                                        const GLint *params)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateGetFramebufferParameterivBase(context, entryPoint, target, pname, params);
 }
 
@@ -1146,21 +1120,16 @@ bool ValidateGetProgramResourceIndex(const Context *context,
                                      GLenum programInterface,
                                      const GLchar *name)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     Program *programObject = GetValidProgram(context, entryPoint, program);
     if (programObject == nullptr)
     {
+        // Error already generated.
         return false;
     }
 
     if (!ValidateNamedProgramInterface(programInterface))
     {
-        context->validationError(entryPoint, GL_INVALID_ENUM, kInvalidProgramInterface);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kInvalidProgramInterface);
         return false;
     }
 
@@ -1174,34 +1143,28 @@ bool ValidateBindVertexBuffer(const Context *context,
                               GLintptr offset,
                               GLsizei stride)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     if (!context->isBufferGenerated(buffer))
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kObjectNotGenerated);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kObjectNotGenerated);
         return false;
     }
 
     const Caps &caps = context->getCaps();
     if (bindingIndex >= static_cast<GLuint>(caps.maxVertexAttribBindings))
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kExceedsMaxVertexAttribBindings);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kExceedsMaxVertexAttribBindings);
         return false;
     }
 
     if (offset < 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kNegativeOffset);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kNegativeOffset);
         return false;
     }
 
     if (stride < 0 || stride > caps.maxVertexAttribStride)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kExceedsMaxVertexAttribStride);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kExceedsMaxVertexAttribStride);
         return false;
     }
 
@@ -1209,7 +1172,7 @@ bool ValidateBindVertexBuffer(const Context *context,
     // An INVALID_OPERATION error is generated if the default vertex array object is bound.
     if (context->getState().getVertexArrayId().value == 0)
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kDefaultVertexArray);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kDefaultVertexArray);
         return false;
     }
 
@@ -1221,16 +1184,10 @@ bool ValidateVertexBindingDivisor(const Context *context,
                                   GLuint bindingIndex,
                                   GLuint divisor)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     const Caps &caps = context->getCaps();
     if (bindingIndex >= static_cast<GLuint>(caps.maxVertexAttribBindings))
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kExceedsMaxVertexAttribBindings);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kExceedsMaxVertexAttribBindings);
         return false;
     }
 
@@ -1238,7 +1195,7 @@ bool ValidateVertexBindingDivisor(const Context *context,
     // An INVALID_OPERATION error is generated if the default vertex array object is bound.
     if (context->getState().getVertexArrayId().value == 0)
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kDefaultVertexArray);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kDefaultVertexArray);
         return false;
     }
 
@@ -1281,30 +1238,24 @@ bool ValidateVertexAttribBinding(const Context *context,
                                  GLuint attribIndex,
                                  GLuint bindingIndex)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     // [OpenGL ES 3.1] Section 10.3.1 page 243:
     // An INVALID_OPERATION error is generated if the default vertex array object is bound.
     if (context->getState().getVertexArrayId().value == 0)
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kDefaultVertexArray);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kDefaultVertexArray);
         return false;
     }
 
     const Caps &caps = context->getCaps();
     if (attribIndex >= static_cast<GLuint>(caps.maxVertexAttributes))
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kIndexExceedsMaxVertexAttribute);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kIndexExceedsMaxVertexAttribute);
         return false;
     }
 
     if (bindingIndex >= static_cast<GLuint>(caps.maxVertexAttribBindings))
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kExceedsMaxVertexAttribBindings);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kExceedsMaxVertexAttribBindings);
         return false;
     }
 
@@ -1320,33 +1271,28 @@ bool ValidateGetProgramResourceName(const Context *context,
                                     const GLsizei *length,
                                     const GLchar *name)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     Program *programObject = GetValidProgram(context, entryPoint, program);
     if (programObject == nullptr)
     {
+        // Error already generated.
         return false;
     }
 
     if (!ValidateNamedProgramInterface(programInterface))
     {
-        context->validationError(entryPoint, GL_INVALID_ENUM, kInvalidProgramInterface);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kInvalidProgramInterface);
         return false;
     }
 
     if (!ValidateProgramResourceIndex(programObject, programInterface, index))
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kInvalidProgramResourceIndex);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kInvalidProgramResourceIndex);
         return false;
     }
 
     if (bufSize < 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kNegativeBufferSize);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kNegativeBufSize);
         return false;
     }
 
@@ -1359,36 +1305,29 @@ bool ValidateDispatchCompute(const Context *context,
                              GLuint numGroupsY,
                              GLuint numGroupsZ)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     const State &state                  = context->getState();
-    const ProgramExecutable *executable = state.getProgramExecutable();
+    const ProgramExecutable *executable = state.getLinkedProgramExecutable(context);
 
     if (executable == nullptr || !executable->hasLinkedShaderStage(ShaderType::Compute))
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION,
-                                 kNoActiveProgramWithComputeShader);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kNoActiveProgramWithComputeShader);
         return false;
     }
 
     const Caps &caps = context->getCaps();
     if (numGroupsX > static_cast<GLuint>(caps.maxComputeWorkGroupCount[0]))
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kExceedsComputeWorkGroupCountX);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kExceedsComputeWorkGroupCountX);
         return false;
     }
     if (numGroupsY > static_cast<GLuint>(caps.maxComputeWorkGroupCount[1]))
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kExceedsComputeWorkGroupCountY);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kExceedsComputeWorkGroupCountY);
         return false;
     }
     if (numGroupsZ > static_cast<GLuint>(caps.maxComputeWorkGroupCount[2]))
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kExceedsComputeWorkGroupCountZ);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kExceedsComputeWorkGroupCountZ);
         return false;
     }
 
@@ -1399,38 +1338,31 @@ bool ValidateDispatchComputeIndirect(const Context *context,
                                      angle::EntryPoint entryPoint,
                                      GLintptr indirect)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     const State &state                  = context->getState();
     const ProgramExecutable *executable = state.getProgramExecutable();
 
     if (executable == nullptr || !executable->hasLinkedShaderStage(ShaderType::Compute))
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION,
-                                 kNoActiveProgramWithComputeShader);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kNoActiveProgramWithComputeShader);
         return false;
     }
 
     if (indirect < 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kNegativeOffset);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kNegativeOffset);
         return false;
     }
 
     if ((indirect & (sizeof(GLuint) - 1)) != 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kOffsetMustBeMultipleOfUint);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kOffsetMustBeMultipleOfUint);
         return false;
     }
 
     Buffer *dispatchIndirectBuffer = state.getTargetBuffer(BufferBinding::DispatchIndirect);
     if (!dispatchIndirectBuffer)
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kDispatchIndirectBufferNotBound);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kDispatchIndirectBufferNotBound);
         return false;
     }
 
@@ -1439,7 +1371,7 @@ bool ValidateDispatchComputeIndirect(const Context *context,
     if (!checkedSum.IsValid() ||
         checkedSum.ValueOrDie() > static_cast<GLuint64>(dispatchIndirectBuffer->getSize()))
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kInsufficientBufferSize);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kInsufficientBufferSize);
         return false;
     }
 
@@ -1456,34 +1388,28 @@ bool ValidateBindImageTexture(const Context *context,
                               GLenum access,
                               GLenum format)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     GLuint maxImageUnits = static_cast<GLuint>(context->getCaps().maxImageUnits);
     if (unit >= maxImageUnits)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kExceedsMaxImageUnits);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kExceedsMaxImageUnits);
         return false;
     }
 
     if (level < 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kNegativeLevel);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kNegativeLevel);
         return false;
     }
 
     if (layer < 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kNegativeLayer);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kNegativeLayer);
         return false;
     }
 
     if (access != GL_READ_ONLY && access != GL_WRITE_ONLY && access != GL_READ_WRITE)
     {
-        context->validationError(entryPoint, GL_INVALID_ENUM, kInvalidImageAccess);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kInvalidImageAccess);
         return false;
     }
 
@@ -1504,7 +1430,7 @@ bool ValidateBindImageTexture(const Context *context,
         case GL_RGBA8_SNORM:
             break;
         default:
-            context->validationError(entryPoint, GL_INVALID_VALUE, kInvalidImageFormat);
+            ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kInvalidImageFormat);
             return false;
     }
 
@@ -1514,15 +1440,26 @@ bool ValidateBindImageTexture(const Context *context,
 
         if (tex == nullptr)
         {
-            context->validationError(entryPoint, GL_INVALID_VALUE, kMissingTextureName);
+            ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kMissingTextureName);
             return false;
         }
 
         if (!tex->getImmutableFormat() && tex->getType() != gl::TextureType::Buffer)
         {
-            context->validationError(entryPoint, GL_INVALID_OPERATION,
-                                     kTextureIsNeitherImmutableNorTextureBuffer);
+            ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION,
+                                   kTextureIsNeitherImmutableNorTextureBuffer);
             return false;
+        }
+
+        if (context->getExtensions().textureStorageCompressionEXT &&
+            tex->getType() != gl::TextureType::Buffer)
+        {
+            if (tex->getImageCompressionRate(context) != GL_SURFACE_COMPRESSION_FIXED_RATE_NONE_EXT)
+            {
+                ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE,
+                                       kTextureFixedCompressedNotSupportBindImageTexture);
+                return false;
+            }
         }
     }
 
@@ -1535,27 +1472,22 @@ bool ValidateGetProgramResourceLocation(const Context *context,
                                         GLenum programInterface,
                                         const GLchar *name)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     Program *programObject = GetValidProgram(context, entryPoint, program);
     if (programObject == nullptr)
     {
+        // Error already generated.
         return false;
     }
 
     if (!programObject->isLinked())
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kProgramNotLinked);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kProgramNotLinked);
         return false;
     }
 
     if (!ValidateLocationProgramInterface(programInterface))
     {
-        context->validationError(entryPoint, GL_INVALID_ENUM, kInvalidProgramInterface);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kInvalidProgramInterface);
         return false;
     }
     return true;
@@ -1572,48 +1504,43 @@ bool ValidateGetProgramResourceiv(const Context *context,
                                   const GLsizei *length,
                                   const GLint *params)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     Program *programObject = GetValidProgram(context, entryPoint, program);
     if (programObject == nullptr)
     {
+        // Error already generated.
         return false;
     }
+
     if (!ValidateProgramInterface(programInterface))
     {
-        context->validationError(entryPoint, GL_INVALID_ENUM, kInvalidProgramInterface);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kInvalidProgramInterface);
         return false;
     }
     if (propCount <= 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kInvalidPropCount);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kInvalidPropCount);
         return false;
     }
     if (bufSize < 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kNegativeBufSize);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kNegativeBufSize);
         return false;
     }
     if (!ValidateProgramResourceIndex(programObject, programInterface, index))
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kInvalidProgramResourceIndex);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kInvalidProgramResourceIndex);
         return false;
     }
     for (GLsizei i = 0; i < propCount; i++)
     {
         if (!ValidateProgramResourceProperty(context, entryPoint, props[i]))
         {
-            context->validationError(entryPoint, GL_INVALID_ENUM, kInvalidProgramResourceProperty);
+            ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kInvalidProgramResourceProperty);
             return false;
         }
         if (!ValidateProgramResourcePropertyByInterface(props[i], programInterface))
         {
-            context->validationError(entryPoint, GL_INVALID_OPERATION,
-                                     kInvalidPropertyForProgramInterface);
+            ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kInvalidPropertyForProgramInterface);
             return false;
         }
     }
@@ -1627,21 +1554,16 @@ bool ValidateGetProgramInterfaceiv(const Context *context,
                                    GLenum pname,
                                    const GLint *params)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     Program *programObject = GetValidProgram(context, entryPoint, program);
     if (programObject == nullptr)
     {
+        // Error already generated.
         return false;
     }
 
     if (!ValidateProgramInterface(programInterface))
     {
-        context->validationError(entryPoint, GL_INVALID_ENUM, kInvalidProgramInterface);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kInvalidProgramInterface);
         return false;
     }
 
@@ -1653,13 +1575,13 @@ bool ValidateGetProgramInterfaceiv(const Context *context,
             break;
 
         default:
-            context->validationError(entryPoint, GL_INVALID_ENUM, kInvalidPname);
+            ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kInvalidPname);
             return false;
     }
 
     if (pname == GL_MAX_NAME_LENGTH && programInterface == GL_ATOMIC_COUNTER_BUFFER)
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kAtomicCounterResourceName);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kAtomicCounterResourceName);
         return false;
     }
 
@@ -1673,8 +1595,7 @@ bool ValidateGetProgramInterfaceiv(const Context *context,
                 break;
 
             default:
-                context->validationError(entryPoint, GL_INVALID_OPERATION,
-                                         kMaxActiveVariablesInterface);
+                ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kMaxActiveVariablesInterface);
                 return false;
         }
     }
@@ -1700,7 +1621,7 @@ bool ValidateGenProgramPipelinesBase(const Context *context,
                                      GLsizei n,
                                      const ProgramPipelineID *pipelines)
 {
-    return ValidateGenOrDelete(context, entryPoint, n);
+    return ValidateGenOrDelete(context, entryPoint, n, pipelines);
 }
 
 bool ValidateDeleteProgramPipelinesBase(const Context *context,
@@ -1708,7 +1629,7 @@ bool ValidateDeleteProgramPipelinesBase(const Context *context,
                                         GLsizei n,
                                         const ProgramPipelineID *pipelines)
 {
-    return ValidateGenOrDelete(context, entryPoint, n);
+    return ValidateGenOrDelete(context, entryPoint, n, pipelines);
 }
 
 bool ValidateBindProgramPipelineBase(const Context *context,
@@ -1717,7 +1638,7 @@ bool ValidateBindProgramPipelineBase(const Context *context,
 {
     if (!context->isProgramPipelineGenerated({pipeline}))
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kObjectNotGenerated);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kObjectNotGenerated);
         return false;
     }
 
@@ -1747,7 +1668,7 @@ bool ValidateUseProgramStagesBase(const Context *context,
         knownShaderBits |= GL_GEOMETRY_SHADER_BIT;
     }
 
-    if (context->getClientVersion() >= ES_3_2 || context->getExtensions().tessellationShaderEXT)
+    if (context->getClientVersion() >= ES_3_2 || context->getExtensions().tessellationShaderAny())
     {
         knownShaderBits |= GL_TESS_CONTROL_SHADER_BIT;
         knownShaderBits |= GL_TESS_EVALUATION_SHADER_BIT;
@@ -1755,16 +1676,16 @@ bool ValidateUseProgramStagesBase(const Context *context,
 
     if ((stages & ~knownShaderBits) && (stages != GL_ALL_SHADER_BITS))
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kUnrecognizedShaderStageBit);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kUnrecognizedShaderStageBit);
         return false;
     }
 
     // GL_INVALID_OPERATION is generated if pipeline is not a name previously returned from a call
     // to glGenProgramPipelines or if such a name has been deleted by a call to
     // glDeleteProgramPipelines.
-    if (!context->isProgramPipelineGenerated({pipeline}))
+    if ((pipeline.value == 0) || (!context->isProgramPipelineGenerated({pipeline})))
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kObjectNotGenerated);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kObjectNotGenerated);
         return false;
     }
 
@@ -1779,7 +1700,7 @@ bool ValidateUseProgramStagesBase(const Context *context,
     Program *program = context->getProgramNoResolveLink(programId);
     if (!program)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kProgramDoesNotExist);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kProgramDoesNotExist);
         return false;
     }
 
@@ -1790,7 +1711,7 @@ bool ValidateUseProgramStagesBase(const Context *context,
     program->resolveLink(context);
     if (!program->isSeparable())
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kProgramNotSeparable);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kProgramNotSeparable);
         return false;
     }
 
@@ -1798,7 +1719,7 @@ bool ValidateUseProgramStagesBase(const Context *context,
     // successfully linked.
     if (!program->isLinked())
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kProgramNotLinked);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kProgramNotLinked);
         return false;
     }
 
@@ -1813,9 +1734,9 @@ bool ValidateActiveShaderProgramBase(const Context *context,
     // An INVALID_OPERATION error is generated if pipeline is not a name returned from a previous
     // call to GenProgramPipelines or if such a name has since been deleted by
     // DeleteProgramPipelines.
-    if (!context->isProgramPipelineGenerated({pipeline}))
+    if ((pipeline.value == 0) || (!context->isProgramPipelineGenerated({pipeline})))
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kObjectNotGenerated);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kObjectNotGenerated);
         return false;
     }
 
@@ -1823,14 +1744,14 @@ bool ValidateActiveShaderProgramBase(const Context *context,
     // program or shader object.
     if ((programId.value != 0) && !context->isProgram(programId) && !context->isShader(programId))
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kProgramDoesNotExist);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kProgramDoesNotExist);
         return false;
     }
 
     // An INVALID_OPERATION error is generated if program is the name of a shader object.
     if (context->isShader(programId))
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kExpectedProgramName);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kExpectedProgramName);
         return false;
     }
 
@@ -1839,7 +1760,7 @@ bool ValidateActiveShaderProgramBase(const Context *context,
     Program *program = context->getProgramNoResolveLink(programId);
     if ((programId.value != 0) && !program->isLinked())
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kProgramNotLinked);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kProgramNotLinked);
         return false;
     }
 
@@ -1855,7 +1776,7 @@ bool ValidateCreateShaderProgramvBase(const Context *context,
     switch (type)
     {
         case ShaderType::InvalidEnum:
-            context->validationError(entryPoint, GL_INVALID_ENUM, kInvalidShaderType);
+            ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kInvalidShaderType);
             return false;
         case ShaderType::Vertex:
         case ShaderType::Fragment:
@@ -1865,16 +1786,16 @@ bool ValidateCreateShaderProgramvBase(const Context *context,
             if (!context->getExtensions().geometryShaderAny() &&
                 context->getClientVersion() < ES_3_2)
             {
-                context->validationError(entryPoint, GL_INVALID_ENUM, kInvalidShaderType);
+                ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kInvalidShaderType);
                 return false;
             }
             break;
         case ShaderType::TessControl:
         case ShaderType::TessEvaluation:
-            if (!context->getExtensions().tessellationShaderEXT &&
+            if (!context->getExtensions().tessellationShaderAny() &&
                 context->getClientVersion() < ES_3_2)
             {
-                context->validationError(entryPoint, GL_INVALID_ENUM, kInvalidShaderType);
+                ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kInvalidShaderType);
                 return false;
             }
             break;
@@ -1885,7 +1806,7 @@ bool ValidateCreateShaderProgramvBase(const Context *context,
     // GL_INVALID_VALUE is generated if count is negative.
     if (count < 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kNegativeCount);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kNegativeCount);
         return false;
     }
 
@@ -1913,7 +1834,7 @@ bool ValidateGetProgramPipelineivBase(const Context *context,
     // DeleteProgramPipelines.
     if ((pipeline.value == 0) || (!context->isProgramPipelineGenerated(pipeline)))
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kProgramPipelineDoesNotExist);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kProgramPipelineDoesNotExist);
         return false;
     }
 
@@ -1934,11 +1855,11 @@ bool ValidateGetProgramPipelineivBase(const Context *context,
                    context->getClientVersion() >= ES_3_2;
         case GL_TESS_CONTROL_SHADER:
         case GL_TESS_EVALUATION_SHADER:
-            return context->getExtensions().tessellationShaderEXT ||
+            return context->getExtensions().tessellationShaderAny() ||
                    context->getClientVersion() >= ES_3_2;
 
         default:
-            context->validationError(entryPoint, GL_INVALID_ENUM, kInvalidPname);
+            ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kInvalidPname);
             return false;
     }
 
@@ -1949,14 +1870,12 @@ bool ValidateValidateProgramPipelineBase(const Context *context,
                                          angle::EntryPoint entryPoint,
                                          ProgramPipelineID pipeline)
 {
-    if (pipeline.value == 0)
+    // An INVALID_OPERATION error is generated if pipeline is not a name returned from a previous
+    // call to GenProgramPipelines or if such a name has since been deleted by
+    // DeleteProgramPipelines.
+    if ((pipeline.value == 0) || (!context->isProgramPipelineGenerated(pipeline)))
     {
-        return false;
-    }
-
-    if (!context->isProgramPipelineGenerated(pipeline))
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kProgramPipelineDoesNotExist);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kProgramPipelineDoesNotExist);
         return false;
     }
 
@@ -1972,13 +1891,19 @@ bool ValidateGetProgramPipelineInfoLogBase(const Context *context,
 {
     if (bufSize < 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kNegativeBufferSize);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kNegativeBufSize);
+        return false;
+    }
+
+    if (bufSize > 0 && infoLog == nullptr)
+    {
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kProgramPipelineInfoLogNULL);
         return false;
     }
 
     if (!context->isProgramPipelineGenerated(pipeline))
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kProgramPipelineDoesNotExist);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kProgramPipelineDoesNotExist);
         return false;
     }
 
@@ -1990,12 +1915,6 @@ bool ValidateActiveShaderProgram(const Context *context,
                                  ProgramPipelineID pipelinePacked,
                                  ShaderProgramID programPacked)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateActiveShaderProgramBase(context, entryPoint, pipelinePacked, programPacked);
 }
 
@@ -2003,12 +1922,6 @@ bool ValidateBindProgramPipeline(const Context *context,
                                  angle::EntryPoint entryPoint,
                                  ProgramPipelineID pipelinePacked)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateBindProgramPipelineBase(context, entryPoint, pipelinePacked);
 }
 
@@ -2018,12 +1931,6 @@ bool ValidateCreateShaderProgramv(const Context *context,
                                   GLsizei count,
                                   const GLchar *const *strings)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateCreateShaderProgramvBase(context, entryPoint, typePacked, count, strings);
 }
 
@@ -2032,12 +1939,6 @@ bool ValidateDeleteProgramPipelines(const Context *context,
                                     GLsizei n,
                                     const ProgramPipelineID *pipelinesPacked)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateDeleteProgramPipelinesBase(context, entryPoint, n, pipelinesPacked);
 }
 
@@ -2046,12 +1947,6 @@ bool ValidateGenProgramPipelines(const Context *context,
                                  GLsizei n,
                                  const ProgramPipelineID *pipelinesPacked)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateGenProgramPipelinesBase(context, entryPoint, n, pipelinesPacked);
 }
 
@@ -2062,12 +1957,6 @@ bool ValidateGetProgramPipelineInfoLog(const Context *context,
                                        const GLsizei *length,
                                        const GLchar *infoLog)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateGetProgramPipelineInfoLogBase(context, entryPoint, pipelinePacked, bufSize,
                                                  length, infoLog);
 }
@@ -2078,12 +1967,6 @@ bool ValidateGetProgramPipelineiv(const Context *context,
                                   GLenum pname,
                                   const GLint *params)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateGetProgramPipelineivBase(context, entryPoint, pipelinePacked, pname, params);
 }
 
@@ -2091,12 +1974,6 @@ bool ValidateIsProgramPipeline(const Context *context,
                                angle::EntryPoint entryPoint,
                                ProgramPipelineID pipelinePacked)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateIsProgramPipelineBase(context, entryPoint, pipelinePacked);
 }
 
@@ -2106,12 +1983,6 @@ bool ValidateProgramUniform1f(const Context *context,
                               UniformLocation locationPacked,
                               GLfloat v0)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform1fBase(context, entryPoint, programPacked, locationPacked, v0);
 }
 
@@ -2122,12 +1993,6 @@ bool ValidateProgramUniform1fv(const Context *context,
                                GLsizei count,
                                const GLfloat *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform1fvBase(context, entryPoint, programPacked, locationPacked, count,
                                          value);
 }
@@ -2138,12 +2003,6 @@ bool ValidateProgramUniform1i(const Context *context,
                               UniformLocation locationPacked,
                               GLint v0)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform1iBase(context, entryPoint, programPacked, locationPacked, v0);
 }
 
@@ -2154,12 +2013,6 @@ bool ValidateProgramUniform1iv(const Context *context,
                                GLsizei count,
                                const GLint *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform1ivBase(context, entryPoint, programPacked, locationPacked, count,
                                          value);
 }
@@ -2170,12 +2023,6 @@ bool ValidateProgramUniform1ui(const Context *context,
                                UniformLocation locationPacked,
                                GLuint v0)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform1uiBase(context, entryPoint, programPacked, locationPacked, v0);
 }
 
@@ -2186,12 +2033,6 @@ bool ValidateProgramUniform1uiv(const Context *context,
                                 GLsizei count,
                                 const GLuint *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform1uivBase(context, entryPoint, programPacked, locationPacked, count,
                                           value);
 }
@@ -2203,12 +2044,6 @@ bool ValidateProgramUniform2f(const Context *context,
                               GLfloat v0,
                               GLfloat v1)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform2fBase(context, entryPoint, programPacked, locationPacked, v0, v1);
 }
 
@@ -2219,12 +2054,6 @@ bool ValidateProgramUniform2fv(const Context *context,
                                GLsizei count,
                                const GLfloat *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform2fvBase(context, entryPoint, programPacked, locationPacked, count,
                                          value);
 }
@@ -2236,12 +2065,6 @@ bool ValidateProgramUniform2i(const Context *context,
                               GLint v0,
                               GLint v1)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform2iBase(context, entryPoint, programPacked, locationPacked, v0, v1);
 }
 
@@ -2252,12 +2075,6 @@ bool ValidateProgramUniform2iv(const Context *context,
                                GLsizei count,
                                const GLint *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform2ivBase(context, entryPoint, programPacked, locationPacked, count,
                                          value);
 }
@@ -2269,12 +2086,6 @@ bool ValidateProgramUniform2ui(const Context *context,
                                GLuint v0,
                                GLuint v1)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform2uiBase(context, entryPoint, programPacked, locationPacked, v0,
                                          v1);
 }
@@ -2286,12 +2097,6 @@ bool ValidateProgramUniform2uiv(const Context *context,
                                 GLsizei count,
                                 const GLuint *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform2uivBase(context, entryPoint, programPacked, locationPacked, count,
                                           value);
 }
@@ -2304,12 +2109,6 @@ bool ValidateProgramUniform3f(const Context *context,
                               GLfloat v1,
                               GLfloat v2)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform3fBase(context, entryPoint, programPacked, locationPacked, v0, v1,
                                         v2);
 }
@@ -2321,12 +2120,6 @@ bool ValidateProgramUniform3fv(const Context *context,
                                GLsizei count,
                                const GLfloat *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform3fvBase(context, entryPoint, programPacked, locationPacked, count,
                                          value);
 }
@@ -2339,12 +2132,6 @@ bool ValidateProgramUniform3i(const Context *context,
                               GLint v1,
                               GLint v2)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform3iBase(context, entryPoint, programPacked, locationPacked, v0, v1,
                                         v2);
 }
@@ -2356,12 +2143,6 @@ bool ValidateProgramUniform3iv(const Context *context,
                                GLsizei count,
                                const GLint *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform3ivBase(context, entryPoint, programPacked, locationPacked, count,
                                          value);
 }
@@ -2374,12 +2155,6 @@ bool ValidateProgramUniform3ui(const Context *context,
                                GLuint v1,
                                GLuint v2)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform3uiBase(context, entryPoint, programPacked, locationPacked, v0, v1,
                                          v2);
 }
@@ -2391,12 +2166,6 @@ bool ValidateProgramUniform3uiv(const Context *context,
                                 GLsizei count,
                                 const GLuint *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform3uivBase(context, entryPoint, programPacked, locationPacked, count,
                                           value);
 }
@@ -2410,12 +2179,6 @@ bool ValidateProgramUniform4f(const Context *context,
                               GLfloat v2,
                               GLfloat v3)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform4fBase(context, entryPoint, programPacked, locationPacked, v0, v1,
                                         v2, v3);
 }
@@ -2427,12 +2190,6 @@ bool ValidateProgramUniform4fv(const Context *context,
                                GLsizei count,
                                const GLfloat *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform4fvBase(context, entryPoint, programPacked, locationPacked, count,
                                          value);
 }
@@ -2446,12 +2203,6 @@ bool ValidateProgramUniform4i(const Context *context,
                               GLint v2,
                               GLint v3)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform4iBase(context, entryPoint, programPacked, locationPacked, v0, v1,
                                         v2, v3);
 }
@@ -2463,12 +2214,6 @@ bool ValidateProgramUniform4iv(const Context *context,
                                GLsizei count,
                                const GLint *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform4ivBase(context, entryPoint, programPacked, locationPacked, count,
                                          value);
 }
@@ -2482,12 +2227,6 @@ bool ValidateProgramUniform4ui(const Context *context,
                                GLuint v2,
                                GLuint v3)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform4uiBase(context, entryPoint, programPacked, locationPacked, v0, v1,
                                          v2, v3);
 }
@@ -2499,12 +2238,6 @@ bool ValidateProgramUniform4uiv(const Context *context,
                                 GLsizei count,
                                 const GLuint *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniform4uivBase(context, entryPoint, programPacked, locationPacked, count,
                                           value);
 }
@@ -2517,12 +2250,6 @@ bool ValidateProgramUniformMatrix2fv(const Context *context,
                                      GLboolean transpose,
                                      const GLfloat *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniformMatrix2fvBase(context, entryPoint, programPacked, locationPacked,
                                                count, transpose, value);
 }
@@ -2535,12 +2262,6 @@ bool ValidateProgramUniformMatrix2x3fv(const Context *context,
                                        GLboolean transpose,
                                        const GLfloat *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniformMatrix2x3fvBase(context, entryPoint, programPacked, locationPacked,
                                                  count, transpose, value);
 }
@@ -2553,12 +2274,6 @@ bool ValidateProgramUniformMatrix2x4fv(const Context *context,
                                        GLboolean transpose,
                                        const GLfloat *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniformMatrix2x4fvBase(context, entryPoint, programPacked, locationPacked,
                                                  count, transpose, value);
 }
@@ -2571,12 +2286,6 @@ bool ValidateProgramUniformMatrix3fv(const Context *context,
                                      GLboolean transpose,
                                      const GLfloat *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniformMatrix3fvBase(context, entryPoint, programPacked, locationPacked,
                                                count, transpose, value);
 }
@@ -2589,12 +2298,6 @@ bool ValidateProgramUniformMatrix3x2fv(const Context *context,
                                        GLboolean transpose,
                                        const GLfloat *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniformMatrix3x2fvBase(context, entryPoint, programPacked, locationPacked,
                                                  count, transpose, value);
 }
@@ -2607,12 +2310,6 @@ bool ValidateProgramUniformMatrix3x4fv(const Context *context,
                                        GLboolean transpose,
                                        const GLfloat *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniformMatrix3x4fvBase(context, entryPoint, programPacked, locationPacked,
                                                  count, transpose, value);
 }
@@ -2625,12 +2322,6 @@ bool ValidateProgramUniformMatrix4fv(const Context *context,
                                      GLboolean transpose,
                                      const GLfloat *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniformMatrix4fvBase(context, entryPoint, programPacked, locationPacked,
                                                count, transpose, value);
 }
@@ -2643,12 +2334,6 @@ bool ValidateProgramUniformMatrix4x2fv(const Context *context,
                                        GLboolean transpose,
                                        const GLfloat *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniformMatrix4x2fvBase(context, entryPoint, programPacked, locationPacked,
                                                  count, transpose, value);
 }
@@ -2661,12 +2346,6 @@ bool ValidateProgramUniformMatrix4x3fv(const Context *context,
                                        GLboolean transpose,
                                        const GLfloat *value)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateProgramUniformMatrix4x3fvBase(context, entryPoint, programPacked, locationPacked,
                                                  count, transpose, value);
 }
@@ -2677,12 +2356,6 @@ bool ValidateUseProgramStages(const Context *context,
                               GLbitfield stages,
                               ShaderProgramID programPacked)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateUseProgramStagesBase(context, entryPoint, pipelinePacked, stages, programPacked);
 }
 
@@ -2690,12 +2363,6 @@ bool ValidateValidateProgramPipeline(const Context *context,
                                      angle::EntryPoint entryPoint,
                                      ProgramPipelineID pipelinePacked)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     return ValidateValidateProgramPipelineBase(context, entryPoint, pipelinePacked);
 }
 
@@ -2703,12 +2370,6 @@ bool ValidateMemoryBarrier(const Context *context,
                            angle::EntryPoint entryPoint,
                            GLbitfield barriers)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     if (barriers == GL_ALL_BARRIER_BITS)
     {
         return true;
@@ -2728,7 +2389,7 @@ bool ValidateMemoryBarrier(const Context *context,
 
     if (barriers == 0 || (barriers & ~supported_barrier_bits) != 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kInvalidMemoryBarrierBit);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kInvalidMemoryBarrierBit);
         return false;
     }
 
@@ -2739,12 +2400,6 @@ bool ValidateMemoryBarrierByRegion(const Context *context,
                                    angle::EntryPoint entryPoint,
                                    GLbitfield barriers)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
     if (barriers == GL_ALL_BARRIER_BITS)
     {
         return true;
@@ -2756,37 +2411,27 @@ bool ValidateMemoryBarrierByRegion(const Context *context,
                                         GL_TEXTURE_FETCH_BARRIER_BIT | GL_UNIFORM_BARRIER_BIT;
     if (barriers == 0 || (barriers & ~supported_barrier_bits) != 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kInvalidMemoryBarrierBit);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kInvalidMemoryBarrierBit);
         return false;
     }
 
     return true;
 }
 
-bool ValidateSampleMaski(const Context *context,
+bool ValidateSampleMaski(const PrivateState &state,
+                         ErrorSet *errors,
                          angle::EntryPoint entryPoint,
                          GLuint maskNumber,
                          GLbitfield mask)
 {
-    if (context->getClientVersion() < ES_3_1)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
-        return false;
-    }
-
-    return ValidateSampleMaskiBase(context, entryPoint, maskNumber, mask);
+    return ValidateSampleMaskiBase(state, errors, entryPoint, maskNumber, mask);
 }
 
-bool ValidateMinSampleShadingOES(const Context *context,
+bool ValidateMinSampleShadingOES(const PrivateState &state,
+                                 ErrorSet *errors,
                                  angle::EntryPoint entryPoint,
                                  GLfloat value)
 {
-    if (!context->getExtensions().sampleShadingOES)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kExtensionNotEnabled);
-        return false;
-    }
-
     return true;
 }
 
@@ -2813,33 +2458,21 @@ bool ValidateFramebufferTextureCommon(const Context *context,
         // three-dimensional or two-dimensional array texture.
         if (tex == nullptr)
         {
-            context->validationError(entryPoint, GL_INVALID_VALUE, kInvalidTextureName);
+            ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kInvalidTextureName);
             return false;
         }
 
         if (!ValidMipLevel(context, tex->getType(), level))
         {
-            context->validationError(entryPoint, GL_INVALID_VALUE, kInvalidMipLevel);
+            ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kInvalidMipLevel);
             return false;
         }
 
-        // GLES spec 3.1, Section 9.2.8 "Attaching Texture Images to a Framebuffer"
-        // If textarget is TEXTURE_2D_MULTISAMPLE, then level must be zero.
-        if (tex->getType() == TextureType::_2DMultisample && level != 0)
-        {
-            context->validationError(entryPoint, GL_INVALID_VALUE, kLevelNotZero);
-            return false;
-        }
-
-        // [OES_texture_storage_multisample_2d_array] Section 9.2.2 "Attaching Images to Framebuffer
-        // Objects"
-        // If texture is a two-dimensional multisample array texture, then level must be zero.
-        if (context->getExtensions().textureStorageMultisample2dArrayOES &&
-            tex->getType() == TextureType::_2DMultisampleArray && level != 0)
-        {
-            context->validationError(entryPoint, GL_INVALID_VALUE, kLevelNotZero);
-            return false;
-        }
+        // GLES spec 3.2, Section 9.2.8 "Attaching Texture Images to a Framebuffer"
+        // * If textarget is TEXTURE_2D_MULTISAMPLE, then level must be zero.
+        // * If texture is a two-dimensional multisample array texture, then level must be zero.
+        // Already validated in ValidMipLevel.
+        ASSERT(level == 0 || !IsMultisampled(tex->getType()));
     }
 
     if (!ValidateFramebufferTextureBase(context, entryPoint, target, attachment, texture, level))
@@ -2857,13 +2490,6 @@ bool ValidateFramebufferTextureEXT(const Context *context,
                                    TextureID texture,
                                    GLint level)
 {
-    if (!context->getExtensions().geometryShaderEXT)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION,
-                                 kGeometryShaderExtensionNotEnabled);
-        return false;
-    }
-
     return ValidateFramebufferTextureCommon(context, entryPoint, target, attachment, texture,
                                             level);
 }
@@ -2875,55 +2501,8 @@ bool ValidateFramebufferTextureOES(const Context *context,
                                    TextureID texture,
                                    GLint level)
 {
-    if (!context->getExtensions().geometryShaderOES)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION,
-                                 kGeometryShaderExtensionNotEnabled);
-        return false;
-    }
-
     return ValidateFramebufferTextureCommon(context, entryPoint, target, attachment, texture,
                                             level);
-}
-
-// GL_OES_texture_storage_multisample_2d_array
-bool ValidateTexStorage3DMultisampleOES(const Context *context,
-                                        angle::EntryPoint entryPoint,
-                                        TextureType target,
-                                        GLsizei samples,
-                                        GLenum sizedinternalformat,
-                                        GLsizei width,
-                                        GLsizei height,
-                                        GLsizei depth,
-                                        GLboolean fixedsamplelocations)
-{
-    if (!context->getExtensions().textureStorageMultisample2dArrayOES)
-    {
-        context->validationError(entryPoint, GL_INVALID_ENUM, kMultisampleArrayExtensionRequired);
-        return false;
-    }
-
-    if (target != TextureType::_2DMultisampleArray)
-    {
-        context->validationError(entryPoint, GL_INVALID_ENUM,
-                                 kTargetMustBeTexture2DMultisampleArrayOES);
-        return false;
-    }
-
-    if (width < 1 || height < 1 || depth < 1)
-    {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kNegativeSize);
-        return false;
-    }
-
-    if (depth > context->getCaps().maxArrayTextureLayers)
-    {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kTextureDepthOutOfRange);
-        return false;
-    }
-
-    return ValidateTexStorageMultisample(context, entryPoint, target, samples, sizedinternalformat,
-                                         width, height);
 }
 
 bool ValidateTexStorageMem3DMultisampleEXT(const Context *context,
@@ -2938,12 +2517,6 @@ bool ValidateTexStorageMem3DMultisampleEXT(const Context *context,
                                            MemoryObjectID memory,
                                            GLuint64 offset)
 {
-    if (!context->getExtensions().memoryObjectEXT)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kExtensionNotEnabled);
-        return false;
-    }
-
     UNIMPLEMENTED();
     return false;
 }
@@ -2954,31 +2527,30 @@ bool ValidateGetProgramResourceLocationIndexEXT(const Context *context,
                                                 GLenum programInterface,
                                                 const char *name)
 {
-    if (!context->getExtensions().blendFuncExtendedEXT)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kExtensionNotEnabled);
-        return false;
-    }
     if (context->getClientVersion() < ES_3_1)
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kES31Required);
         return false;
     }
     if (programInterface != GL_PROGRAM_OUTPUT)
     {
-        context->validationError(entryPoint, GL_INVALID_ENUM, kProgramInterfaceMustBeProgramOutput);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kProgramInterfaceMustBeProgramOutput);
         return false;
     }
+
     Program *programObject = GetValidProgram(context, entryPoint, program);
-    if (!programObject)
+    if (programObject == nullptr)
     {
+        // Error already generated.
         return false;
     }
+
     if (!programObject->isLinked())
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kProgramNotLinked);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kProgramNotLinked);
         return false;
     }
+
     return true;
 }
 
@@ -2989,13 +2561,6 @@ bool ValidateTexBufferOES(const Context *context,
                           GLenum internalformat,
                           BufferID bufferPacked)
 {
-    if (!context->getExtensions().textureBufferOES)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION,
-                                 kTextureBufferExtensionNotAvailable);
-        return false;
-    }
-
     return ValidateTexBufferBase(context, entryPoint, target, internalformat, bufferPacked);
 }
 
@@ -3007,13 +2572,6 @@ bool ValidateTexBufferRangeOES(const Context *context,
                                GLintptr offset,
                                GLsizeiptr size)
 {
-    if (!context->getExtensions().textureBufferOES)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION,
-                                 kTextureBufferExtensionNotAvailable);
-        return false;
-    }
-
     return ValidateTexBufferRangeBase(context, entryPoint, target, internalformat, bufferPacked,
                                       offset, size);
 }
@@ -3025,13 +2583,6 @@ bool ValidateTexBufferEXT(const Context *context,
                           GLenum internalformat,
                           BufferID bufferPacked)
 {
-    if (!context->getExtensions().textureBufferEXT)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION,
-                                 kTextureBufferExtensionNotAvailable);
-        return false;
-    }
-
     return ValidateTexBufferBase(context, entryPoint, target, internalformat, bufferPacked);
 }
 
@@ -3043,13 +2594,6 @@ bool ValidateTexBufferRangeEXT(const Context *context,
                                GLintptr offset,
                                GLsizeiptr size)
 {
-    if (!context->getExtensions().textureBufferEXT)
-    {
-        context->validationError(entryPoint, GL_INVALID_OPERATION,
-                                 kTextureBufferExtensionNotAvailable);
-        return false;
-    }
-
     return ValidateTexBufferRangeBase(context, entryPoint, target, internalformat, bufferPacked,
                                       offset, size);
 }
@@ -3062,7 +2606,7 @@ bool ValidateTexBufferBase(const Context *context,
 {
     if (target != TextureType::Buffer)
     {
-        context->validationError(entryPoint, GL_INVALID_ENUM, kTextureBufferTarget);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kTextureBufferTarget);
         return false;
     }
 
@@ -3099,9 +2643,20 @@ bool ValidateTexBufferBase(const Context *context,
         case GL_RGBA16UI:
         case GL_RGBA32UI:
             break;
+        case GL_R16_EXT:
+        case GL_RG16_EXT:
+        case GL_RGBA16_EXT:
+        {
+            if (!context->getExtensions().textureNorm16EXT)
+            {
+                ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kTextureBufferInternalFormat);
+                return false;
+            }
+            break;
+        }
 
         default:
-            context->validationError(entryPoint, GL_INVALID_ENUM, kTextureBufferInternalFormat);
+            ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kTextureBufferInternalFormat);
             return false;
     }
 
@@ -3109,7 +2664,7 @@ bool ValidateTexBufferBase(const Context *context,
     {
         if (!context->isBufferGenerated(bufferPacked))
         {
-            context->validationError(entryPoint, GL_INVALID_OPERATION, kTextureBufferInvalidBuffer);
+            ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kTextureBufferInvalidBuffer);
             return false;
         }
     }
@@ -3129,29 +2684,62 @@ bool ValidateTexBufferRangeBase(const Context *context,
 
     if (offset < 0 || (offset % caps.textureBufferOffsetAlignment) != 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kTextureBufferOffsetAlignment);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kTextureBufferOffsetAlignment);
         return false;
     }
     if (size <= 0)
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kTextureBufferSize);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kTextureBufferSize);
         return false;
     }
     const Buffer *buffer = context->getBuffer(bufferPacked);
 
     if (!buffer)
     {
-        context->validationError(entryPoint, GL_INVALID_OPERATION, kBufferNotBound);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kBufferNotBound);
         return false;
     }
 
     if (offset + size > buffer->getSize())
     {
-        context->validationError(entryPoint, GL_INVALID_VALUE, kTextureBufferSizeOffset);
+        ANGLE_VALIDATION_ERROR(GL_INVALID_VALUE, kTextureBufferSizeOffset);
         return false;
     }
 
     return ValidateTexBufferBase(context, entryPoint, target, internalformat, bufferPacked);
+}
+
+bool ValidatePatchParameteriBase(const PrivateState &state,
+                                 ErrorSet *errors,
+                                 angle::EntryPoint entryPoint,
+                                 GLenum pname,
+                                 GLint value)
+{
+    if (state.getClientVersion() < ES_3_1)
+    {
+        errors->validationError(entryPoint, GL_INVALID_OPERATION, kES31Required);
+        return false;
+    }
+
+    if (pname != GL_PATCH_VERTICES)
+    {
+        errors->validationError(entryPoint, GL_INVALID_ENUM, kInvalidPname);
+        return false;
+    }
+
+    if (value <= 0)
+    {
+        errors->validationError(entryPoint, GL_INVALID_VALUE, kInvalidValueNonPositive);
+        return false;
+    }
+
+    if (value > state.getCaps().maxPatchVertices)
+    {
+        errors->validationError(entryPoint, GL_INVALID_VALUE, kInvalidValueExceedsMaxPatchSize);
+        return false;
+    }
+
+    return true;
 }
 
 }  // namespace gl

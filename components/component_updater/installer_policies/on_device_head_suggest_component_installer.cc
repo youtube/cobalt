@@ -4,6 +4,7 @@
 
 #include "components/component_updater/installer_policies/on_device_head_suggest_component_installer.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -13,7 +14,6 @@
 #include "base/functional/callback.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/path_service.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/values.h"
 #include "components/component_updater/component_installer.h"
@@ -38,22 +38,23 @@ std::string GetNormalizedLocale(const std::string& raw_locale) {
   std::string locale, locale_constraint;
   // Both incognito and non-incognito will use a same model so it's okay to
   // fetch the param from either feature.
-  if (OmniboxFieldTrial::IsOnDeviceHeadSuggestEnabledForIncognito())
+  if (OmniboxFieldTrial::IsOnDeviceHeadSuggestEnabledForIncognito()) {
     locale_constraint =
         OmniboxFieldTrial::OnDeviceHeadModelLocaleConstraint(true);
-  else if (OmniboxFieldTrial::IsOnDeviceHeadSuggestEnabledForNonIncognito())
+  } else if (OmniboxFieldTrial::IsOnDeviceHeadSuggestEnabledForNonIncognito()) {
     locale_constraint =
         OmniboxFieldTrial::OnDeviceHeadModelLocaleConstraint(false);
+  }
 
   locale = raw_locale;
-  for (const auto c : "-_")
-    locale.erase(std::remove(locale.begin(), locale.end(), c), locale.end());
+  std::erase_if(locale, [](const auto c) { return base::Contains("-_", c); });
 
-  base::ranges::transform(locale, locale.begin(),
-                          [](char c) { return base::ToUpperASCII(c); });
+  std::ranges::transform(locale, locale.begin(),
+                         [](char c) { return base::ToUpperASCII(c); });
 
-  if (!locale_constraint.empty())
+  if (!locale_constraint.empty()) {
     locale += locale_constraint;
+  }
 
   VLOG(1) << "On Device Head Component will fetch model for locale: " << locale;
 
@@ -74,8 +75,9 @@ bool OnDeviceHeadSuggestInstallerPolicy::VerifyInstallation(
     const base::FilePath& install_dir) const {
   const std::string* name = manifest.FindString("name");
 
-  if (!name || *name != ("OnDeviceHeadSuggest" + accept_locale_))
+  if (!name || *name != ("OnDeviceHeadSuggest" + accept_locale_)) {
     return false;
+  }
 
   bool is_successful = base::PathExists(install_dir);
   VLOG(1) << "On Device head model "
@@ -108,8 +110,9 @@ void OnDeviceHeadSuggestInstallerPolicy::ComponentReady(
     const base::FilePath& install_dir,
     base::Value::Dict manifest) {
   auto* listener = OnDeviceModelUpdateListener::GetInstance();
-  if (listener)
+  if (listener) {
     listener->OnHeadModelUpdate(install_dir);
+  }
 }
 
 base::FilePath OnDeviceHeadSuggestInstallerPolicy::GetRelativeInstallDir()
@@ -137,7 +140,7 @@ void RegisterOnDeviceHeadSuggestComponent(ComponentUpdateService* cus,
   // Ideally we should only check if the feature is enabled for non-incognito or
   // incognito, but whether the browser is currently on incognito or not is not
   // available yet during component registration on iOS platform.
-  if (OmniboxFieldTrial::IsOnDeviceHeadSuggestEnabledForAnyMode()) {
+  if (OmniboxFieldTrial::IsOnDeviceHeadSuggestEnabledForLocale(locale)) {
     auto installer = base::MakeRefCounted<ComponentInstaller>(
         std::make_unique<OnDeviceHeadSuggestInstallerPolicy>(locale));
     installer->Register(cus, base::OnceClosure());

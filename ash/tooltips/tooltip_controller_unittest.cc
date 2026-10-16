@@ -39,10 +39,10 @@ namespace {
 views::Widget* CreateNewWidgetWithBoundsOn(int display,
                                            const gfx::Rect& bounds) {
   views::Widget* widget = new views::Widget;
-  views::Widget::InitParams params;
-  params.type = views::Widget::InitParams::TYPE_WINDOW_FRAMELESS;
+  views::Widget::InitParams params(
+      views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+      views::Widget::InitParams::TYPE_WINDOW_FRAMELESS);
   params.accept_events = true;
-  params.ownership = views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
   params.parent =
       Shell::Get()->GetContainer(Shell::GetAllRootWindows().at(display),
                                  desks_util::GetActiveDeskContainerId());
@@ -61,18 +61,13 @@ void AddViewToWidgetAndResize(views::Widget* widget, views::View* view) {
     widget->SetContentsView(std::make_unique<views::View>());
 
   views::View* contents_view = widget->GetContentsView();
-  contents_view->AddChildView(view);
+  contents_view->AddChildViewRaw(view);
   view->SetBounds(contents_view->width(), 0, 100, 100);
   gfx::Rect contents_view_bounds = contents_view->bounds();
   contents_view_bounds.Union(view->bounds());
   contents_view->SetBoundsRect(contents_view_bounds);
   widget->SetBounds(gfx::Rect(widget->GetWindowBoundsInScreen().origin(),
                               contents_view_bounds.size()));
-}
-
-TooltipController* GetController() {
-  return static_cast<TooltipController*>(
-      ::wm::GetTooltipClient(Shell::GetPrimaryRootWindow()));
 }
 
 }  // namespace
@@ -88,7 +83,8 @@ class TooltipControllerTest : public AshTestBase {
 
   void SetUp() override {
     AshTestBase::SetUp();
-    helper_ = std::make_unique<TooltipControllerTestHelper>(GetController());
+    helper_ = std::make_unique<TooltipControllerTestHelper>(
+        Shell::GetPrimaryRootWindow());
   }
 
  protected:

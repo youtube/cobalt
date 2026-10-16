@@ -4,8 +4,13 @@
 
 #include "quiche/quic/core/tls_client_handshaker.h"
 
+#include <algorithm>
 #include <cstring>
+#include <limits>
+#include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -15,6 +20,7 @@
 #include "quiche/quic/core/crypto/transport_parameters.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_hostname_utils.h"
 #include "quiche/common/quiche_text_utils.h"
@@ -44,7 +50,7 @@ TlsClientHandshaker::TlsClientHandshaker(
                           crypto_config->tls_signature_algorithms()->c_str());
   }
   if (crypto_config->proof_source() != nullptr) {
-    const ClientProofSource::CertAndKey* cert_and_key =
+    std::shared_ptr<const ClientProofSource::CertAndKey> cert_and_key =
         crypto_config->proof_source()->GetCertAndKey(server_id.host());
     if (cert_and_key != nullptr) {
       QUIC_DVLOG(1) << "Setting client cert and key for " << server_id.host();
@@ -52,6 +58,14 @@ TlsClientHandshaker::TlsClientHandshaker(
                                    cert_and_key->private_key.private_key());
     }
   }
+  if (!crypto_config->preferred_groups().empty()) {
+    SSL_set1_group_ids(ssl(), crypto_config->preferred_groups().data(),
+                       crypto_config->preferred_groups().size());
+  }
+
+  // Make sure we use the right ALPS codepoint.
+  SSL_set_alps_use_new_codepoint(ssl(),
+                                 crypto_config->alps_use_new_codepoint());
 }
 
 TlsClientHandshaker::~TlsClientHandshaker() {}
@@ -82,14 +96,19 @@ bool TlsClientHandshaker::CryptoConnect() {
 
   // Set the SNI to send, if any.
   SSL_set_connect_state(ssl());
+  const bool allow_invalid_sni_for_test =
+      GetQuicFlag(quic_client_allow_invalid_sni_for_test);
   if (QUIC_DLOG_INFO_IS_ON() &&
       !QuicHostnameUtils::IsValidSNI(server_id_.host())) {
     QUIC_DLOG(INFO) << "Client configured with invalid hostname \""
-                    << server_id_.host() << "\", not sending as SNI";
+                    << server_id_.host() << "\", "
+                    << (allow_invalid_sni_for_test
+                            ? "sending it anyway for test."
+                            : "not sending as SNI.");
   }
   if (!server_id_.host().empty() &&
       (QuicHostnameUtils::IsValidSNI(server_id_.host()) ||
-       allow_invalid_sni_for_tests_) &&
+       allow_invalid_sni_for_test) &&
       SSL_set_tlsext_host_name(ssl(), server_id_.host().c_str()) != 1) {
     return false;
   }
@@ -111,6 +130,7 @@ bool TlsClientHandshaker::CryptoConnect() {
     cached_state_ = session_cache_->Lookup(
         server_id_, session()->GetClock()->WallNow(), SSL_get_SSL_CTX(ssl()));
   }
+  session_cache_lookup_done_ = true;
   if (cached_state_) {
     SSL_set_session(ssl(), cached_state_->tls_session.get());
     if (!cached_state_->token.empty()) {
@@ -129,6 +149,26 @@ bool TlsClientHandshaker::CryptoConnect() {
     CloseConnection(QUIC_HANDSHAKE_FAILED,
                     "Client failed to set ECHConfigList");
     return false;
+  }
+
+  // Configure TLS Trust Anchor IDs
+  // (https://tlswg.org/tls-trust-anchor-ids/draft-ietf-tls-trust-anchor-ids.html),
+  // if set.
+  if (GetQuicReloadableFlag(enable_tls_trust_anchor_ids)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(enable_tls_trust_anchor_ids, 2, 2);
+#if defined(BORINGSSL_API_VERSION) && BORINGSSL_API_VERSION >= 36
+    if (!tls_connection_.ssl_config().trust_anchor_ids.empty()) {
+      if (!SSL_set1_requested_trust_anchors(
+              ssl(),
+              reinterpret_cast<const uint8_t*>(
+                  tls_connection_.ssl_config().trust_anchor_ids.data()),
+              tls_connection_.ssl_config().trust_anchor_ids.size())) {
+        CloseConnection(QUIC_HANDSHAKE_FAILED,
+                        "Client failed to set TLS Trust Anchor IDs");
+        return false;
+      }
+    }
+#endif
   }
 
   // Start the handshake.
@@ -230,12 +270,12 @@ bool TlsClientHandshaker::SetTransportParameters() {
   params.perspective = Perspective::IS_CLIENT;
   params.legacy_version_information =
       TransportParameters::LegacyVersionInformation();
-  params.legacy_version_information.value().version =
+  params.legacy_version_information->version =
       CreateQuicVersionLabel(session()->supported_versions().front());
   params.version_information = TransportParameters::VersionInformation();
   const QuicVersionLabel version = CreateQuicVersionLabel(session()->version());
-  params.version_information.value().chosen_version = version;
-  params.version_information.value().other_versions.push_back(version);
+  params.version_information->chosen_version = version;
+  params.version_information->other_versions.push_back(version);
 
   if (!handshaker_delegate()->FillTransportParameters(&params)) {
     return false;
@@ -276,15 +316,14 @@ bool TlsClientHandshaker::ProcessTransportParameters(
       *received_transport_params_);
 
   if (received_transport_params_->legacy_version_information.has_value()) {
-    if (received_transport_params_->legacy_version_information.value()
-            .version !=
+    if (received_transport_params_->legacy_version_information->version !=
         CreateQuicVersionLabel(session()->connection()->version())) {
       *error_details = "Version mismatch detected";
       return false;
     }
     if (CryptoUtils::ValidateServerHelloVersions(
-            received_transport_params_->legacy_version_information.value()
-                .supported_versions,
+            received_transport_params_->legacy_version_information
+                ->supported_versions,
             session()->connection()->server_supported_versions(),
             error_details) != QUIC_NO_ERROR) {
       QUICHE_DCHECK(!error_details->empty());
@@ -293,15 +332,13 @@ bool TlsClientHandshaker::ProcessTransportParameters(
   }
   if (received_transport_params_->version_information.has_value()) {
     if (!CryptoUtils::ValidateChosenVersion(
-            received_transport_params_->version_information.value()
-                .chosen_version,
+            received_transport_params_->version_information->chosen_version,
             session()->version(), error_details)) {
       QUICHE_DCHECK(!error_details->empty());
       return false;
     }
     if (!CryptoUtils::CryptoUtils::ValidateServerVersions(
-            received_transport_params_->version_information.value()
-                .other_versions,
+            received_transport_params_->version_information->other_versions,
             session()->version(),
             session()->client_original_supported_versions(), error_details)) {
       QUICHE_DCHECK(!error_details->empty());
@@ -326,6 +363,13 @@ bool TlsClientHandshaker::ProcessTransportParameters(
 }
 
 int TlsClientHandshaker::num_sent_client_hellos() const { return 0; }
+
+bool TlsClientHandshaker::ResumptionAttempted() const {
+  // Don't call this method if the session cache lookup hasn't completed yet.
+  QUIC_BUG_IF(quic_tls_client_resumption_attempted,
+              !session_cache_lookup_done_);
+  return cached_state_ != nullptr;
+}
 
 bool TlsClientHandshaker::IsResumption() const {
   QUIC_BUG_IF(quic_bug_12736_1, !one_rtt_keys_available());
@@ -359,6 +403,10 @@ bool TlsClientHandshaker::ExportKeyingMaterial(absl::string_view label,
                                                size_t result_len,
                                                std::string* result) {
   return ExportKeyingMaterialForLabel(label, context, result_len, result);
+}
+
+bool TlsClientHandshaker::MatchedTrustAnchorIdForTesting() const {
+  return matched_trust_anchor_id_;
 }
 
 bool TlsClientHandshaker::encryption_established() const {
@@ -470,6 +518,7 @@ void TlsClientHandshaker::OnHandshakeConfirmed() {
     return;
   }
   state_ = HANDSHAKE_CONFIRMED;
+  handshaker_delegate()->OnTlsHandshakeConfirmed();
   handshaker_delegate()->DiscardOldEncryptionKey(ENCRYPTION_HANDSHAKE);
   handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_HANDSHAKE);
 }
@@ -478,6 +527,10 @@ QuicAsyncStatus TlsClientHandshaker::VerifyCertChain(
     const std::vector<std::string>& certs, std::string* error_details,
     std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
     std::unique_ptr<ProofVerifierCallback> callback) {
+#if defined(BORINGSSL_API_VERSION) && BORINGSSL_API_VERSION >= 36
+  matched_trust_anchor_id_ = SSL_peer_matched_trust_anchor(ssl());
+#endif
+
   const uint8_t* ocsp_response_raw;
   size_t ocsp_response_len;
   SSL_get0_ocsp_response(ssl(), &ocsp_response_raw, &ocsp_response_len);
@@ -505,7 +558,7 @@ void TlsClientHandshaker::FinishHandshake() {
 
   QUICHE_CHECK(!SSL_in_early_data(ssl()));
 
-  QUIC_LOG(INFO) << "Client: handshake finished";
+  QUIC_DLOG(INFO) << "Client: handshake finished";
 
   std::string error_details;
   if (!ProcessTransportParameters(&error_details)) {
@@ -548,12 +601,11 @@ void TlsClientHandshaker::FinishHandshake() {
   SSL_get0_peer_application_settings(ssl(), &alps_data, &alps_length);
   if (alps_length > 0) {
     auto error = session()->OnAlpsData(alps_data, alps_length);
-    if (error) {
+    if (error.has_value()) {
       // Calling CloseConnection() is safe even in case OnAlpsData() has
       // already closed the connection.
-      CloseConnection(
-          QUIC_HANDSHAKE_FAILED,
-          absl::StrCat("Error processing ALPS data: ", error.value()));
+      CloseConnection(QUIC_HANDSHAKE_FAILED,
+                      absl::StrCat("Error processing ALPS data: ", *error));
       return;
     }
   }
@@ -603,7 +655,7 @@ bool TlsClientHandshaker::ShouldCloseConnectionOnUnexpectedError(
 }
 
 void TlsClientHandshaker::HandleZeroRttReject() {
-  QUIC_LOG(INFO) << "0-RTT handshake attempted but was rejected by the server";
+  QUIC_DLOG(INFO) << "0-RTT handshake attempted but was rejected by the server";
   QUICHE_DCHECK(session_cache_);
   // Disable encrytion to block outgoing data until 1-RTT keys are available.
   encryption_established_ = false;

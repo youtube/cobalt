@@ -13,40 +13,88 @@
 // limitations under the License.
 
 import m from 'mithril';
+import {channelChanged, getNextChannel, setChannel} from '../core/channels';
+import {Anchor} from '../widgets/anchor';
+import {HotkeyGlyphs} from '../widgets/hotkey_glyphs';
+import {assetSrc} from '../base/assets';
 
-import {channelChanged, getNextChannel, setChannel} from '../common/channels';
-
-import {globals} from './globals';
-import {createPage} from './pages';
-
-
-export const HomePage = createPage({
+export class Hints implements m.ClassComponent {
   view() {
     return m(
-        '.page.home-page',
+      '.home-page-hints',
+      m('.tagline', 'New!'),
+      m(
+        'ul',
         m(
-            '.home-page-center',
-            m('.home-page-title', 'Perfetto'),
-            m(`img.logo[src=${globals.root}assets/logo-3d.png]`),
-            m(
-                'div.channel-select',
-                m('div',
-                  'Feeling adventurous? Try our bleeding edge Canary version'),
-                m(
-                    'fieldset',
-                    mkChan('stable'),
-                    mkChan('canary'),
-                    m('.highlight'),
-                    ),
-                m(`.home-page-reload${channelChanged() ? '.show' : ''}`,
-                  'You need to reload the page for the changes to have effect'),
-                ),
-            ),
-        m('a.privacy',
-          {href: 'https://policies.google.com/privacy', target: '_blank'},
-          'Privacy policy'));
-  },
-});
+          'li',
+          'New updated ',
+          m(
+            Anchor,
+            {
+              href: 'https://perfetto.dev/docs/visualization/perfetto-ui#tabs-v2',
+            },
+            'tabs',
+          ),
+          ' are extensible and user friendly.',
+        ),
+        m(
+          'li',
+          'Use ',
+          m(HotkeyGlyphs, {hotkey: 'W'}),
+          m(HotkeyGlyphs, {hotkey: 'A'}),
+          m(HotkeyGlyphs, {hotkey: 'S'}),
+          m(HotkeyGlyphs, {hotkey: 'D'}),
+          ' to navigate the trace.',
+        ),
+        m(
+          'li',
+          'Try the ',
+          m(
+            Anchor,
+            {
+              href: 'https://perfetto.dev/docs/visualization/perfetto-ui#command-palette',
+            },
+            'command palette,',
+          ),
+          ' press ',
+          m(HotkeyGlyphs, {hotkey: '!Mod+Shift+P'}),
+          '.',
+        ),
+      ),
+    );
+  }
+}
+
+export class HomePage implements m.ClassComponent {
+  view() {
+    return m(
+      '.page.home-page',
+      m(
+        '.home-page-center',
+        m(
+          '.home-page-title',
+          m(`img.logo[src=${assetSrc('assets/logo-3d.png')}]`),
+          'Perfetto',
+        ),
+        m(Hints),
+        m(
+          '.channel-select',
+          m('', 'Feeling adventurous? Try our bleeding edge Canary version'),
+          m('fieldset', mkChan('stable'), mkChan('canary'), m('.highlight')),
+          m(
+            `.home-page-reload${channelChanged() ? '.show' : ''}`,
+            'You need to reload the page for the changes to have effect',
+          ),
+        ),
+      ),
+      m(
+        'a.privacy',
+        {href: 'https://policies.google.com/privacy', target: '_blank'},
+        'Privacy policy',
+      ),
+    );
+  }
+}
 
 function mkChan(chan: string) {
   const checked = getNextChannel() === chan ? '[checked=true]' : '';

@@ -7,14 +7,18 @@
 
 #include <memory>
 
+#include "base/cancelable_callback.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "chrome/browser/ui/profile_picker.h"
+#include "chrome/browser/shell_integration.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
+#include "chrome/browser/ui/views/profiles/profile_management_flow_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_management_flow_controller_impl.h"
 #include "chrome/browser/ui/views/profiles/profile_management_types.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_web_contents_host.h"
 
+struct CoreAccountInfo;
 enum class IntroChoice;
 class Profile;
 
@@ -36,26 +40,35 @@ class FirstRunFlowControllerDice : public ProfileManagementFlowControllerImpl {
   ~FirstRunFlowControllerDice() override;
 
   // ProfileManagementFlowControllerImpl:
-  void Init(StepSwitchFinishedCallback step_switch_finished_callback) override;
+  void Init() override;
   void CancelPostSignInFlow() override;
+  void PickProfile(const base::FilePath& profile_path,
+                   ProfilePicker::ProfilePickingArgs args) override;
 
  protected:
+  // ProfileManagementFlowControllerImpl
   bool PreFinishWithBrowser() override;
-
-  std::unique_ptr<ProfilePickerDiceSignInProvider> CreateDiceSignInProvider()
-      override;
-
+  // `account_info` may not be set as the primary account yet.
   std::unique_ptr<ProfilePickerSignedInFlowController>
   CreateSignedInFlowController(
       Profile* signed_in_profile,
-      std::unique_ptr<content::WebContents> contents,
-      FinishFlowCallback flow_finished_callback) override;
+      const CoreAccountInfo& account_info,
+      std::unique_ptr<content::WebContents> contents) override;
+  base::queue<ProfileManagementFlowController::Step> RegisterPostIdentitySteps(
+      PostHostClearedCallback post_host_cleared_callback) override;
 
  private:
   void HandleIntroSigninChoice(IntroChoice choice);
 
+  // Run the `finish_flow_callback_` if it's not empty.
+  void RunFinishFlowCallback();
+
   const raw_ptr<Profile> profile_;
   ProfilePicker::FirstRunExitedCallback first_run_exited_callback_;
+
+  // The callback that will finish the flow and open the browser.
+  base::OnceClosure finish_flow_callback_;
+
   base::WeakPtrFactory<FirstRunFlowControllerDice> weak_ptr_factory_{this};
 };
 

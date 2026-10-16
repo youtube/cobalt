@@ -2,18 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {FilePath} from 'chrome://resources/mojo/mojo/public/mojom/base/file_path.mojom-webui.js';
-import {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
+import {FullscreenPreviewState} from 'chrome://resources/ash/common/personalization/wallpaper_state.js';
+import {isNonEmptyArray, isNonEmptyFilePath} from 'chrome://resources/ash/common/sea_pen/sea_pen_utils.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import type {FilePath} from 'chrome://resources/mojo/mojo/public/mojom/base/file_path.mojom-webui.js';
+import type {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
 
-import {CurrentWallpaper, GooglePhotosAlbum, GooglePhotosEnablementState, GooglePhotosPhoto, WallpaperCollection, WallpaperImage, WallpaperLayout, WallpaperProviderInterface, WallpaperType} from '../../personalization_app.mojom-webui.js';
+import type {CurrentWallpaper, GooglePhotosAlbum, GooglePhotosPhoto, WallpaperCollection, WallpaperImage, WallpaperProviderInterface} from '../../personalization_app.mojom-webui.js';
+import {GooglePhotosEnablementState, WallpaperLayout, WallpaperType} from '../../personalization_app.mojom-webui.js';
 import {setErrorAction} from '../personalization_actions.js';
-import {PersonalizationStore} from '../personalization_store.js';
-import {isNonEmptyArray} from '../utils.js';
+import type {PersonalizationStore} from '../personalization_store.js';
 
-import {DisplayableImage} from './constants.js';
-import {isDefaultImage, isFilePath, isGooglePhotosPhoto, isImageAMatchForKey, isImageEqualToSelected, isWallpaperImage} from './utils.js';
+import type {DisplayableImage} from './constants.js';
+import {isDefaultImage, isGooglePhotosPhoto, isImageAMatchForKey, isImageEqualToSelected, isWallpaperImage} from './utils.js';
 import * as action from './wallpaper_actions.js';
 import {DailyRefreshType} from './wallpaper_state.js';
 
@@ -270,6 +272,9 @@ export async function getDefaultImageThumbnail(
     store: PersonalizationStore): Promise<void> {
   store.dispatch(action.beginLoadDefaultImageThubmnailAction());
   const {data} = await provider.getDefaultImageThumbnail();
+  if (data.url.length === 0) {
+    console.error('Failed to load default image thumbnail');
+  }
   store.dispatch(action.setDefaultImageThumbnailAction(data));
 }
 
@@ -353,6 +358,8 @@ export async function selectWallpaper(
   const shouldPreview = tabletMode && !isDefaultImage(image);
   if (shouldPreview) {
     provider.makeTransparent();
+    store.dispatch(
+        action.setFullscreenStateAction(FullscreenPreviewState.LOADING));
   }
   store.endBatchUpdate();
   const {success} = await (() => {
@@ -361,7 +368,7 @@ export async function selectWallpaper(
           image.unitId, /*preview_mode=*/ shouldPreview);
     } else if (isDefaultImage(image)) {
       return provider.selectDefaultImage();
-    } else if (isFilePath(image)) {
+    } else if (isNonEmptyFilePath(image)) {
       return provider.selectLocalImage(
           image, layout, /*preview_mode=*/ shouldPreview);
     } else if (isGooglePhotosPhoto(image)) {
@@ -374,14 +381,11 @@ export async function selectWallpaper(
   })();
   store.beginBatchUpdate();
   store.dispatch(action.endSelectImageAction(image, success));
-  // Delay opening full screen preview until done loading. This looks better if
-  // the image load takes a long time, otherwise the user will see the old
-  // wallpaper image for a while.
-  if (success && shouldPreview) {
-    store.dispatch(action.setFullscreenEnabledAction(/*enabled=*/ true));
-  }
   if (!success) {
     console.warn('Error setting wallpaper');
+    store.dispatch(action.setFullscreenStateAction(FullscreenPreviewState.OFF));
+    store.dispatch(
+        action.setAttributionAction(store.data.wallpaper.attribution));
     store.dispatch(
         action.setSelectedImageAction(store.data.wallpaper.currentSelected));
   }
@@ -503,6 +507,7 @@ export async function updateDailyRefreshWallpaper(
   if (success) {
     store.dispatch(action.setUpdatedDailyRefreshImageAction());
   } else {
+    const currentAttribution = store.data.wallpaper.attribution;
     const currentWallpaper = store.data.wallpaper.currentSelected;
     const dailyRefresh = store.data.wallpaper.dailyRefresh;
     // Displays error if daily refresh is activated for Google Photos album
@@ -513,6 +518,7 @@ export async function updateDailyRefreshWallpaper(
     // online wallpaper collections.
     if (!!dailyRefresh && dailyRefresh.type == DailyRefreshType.GOOGLE_PHOTOS) {
       store.dispatch(action.setUpdatedDailyRefreshImageAction());
+      store.dispatch(action.setAttributionAction(currentAttribution));
       store.dispatch(action.setSelectedImageAction(currentWallpaper));
       store.dispatch(setErrorAction(
           {message: loadTimeData.getString('googlePhotosError')}));
@@ -521,17 +527,27 @@ export async function updateDailyRefreshWallpaper(
 }
 
 /** Confirm and set preview wallpaper as actual wallpaper. */
-export async function confirmPreviewWallpaper(
-    provider: WallpaperProviderInterface): Promise<void> {
-  await provider.confirmPreviewWallpaper();
+export function confirmPreviewWallpaper(provider: WallpaperProviderInterface):
+    void {
   provider.makeOpaque();
+  provider.confirmPreviewWallpaper();
 }
 
 /** Cancel preview wallpaper and show the previous wallpaper. */
-export async function cancelPreviewWallpaper(
-    provider: WallpaperProviderInterface): Promise<void> {
-  await provider.cancelPreviewWallpaper();
+export function cancelPreviewWallpaper(provider: WallpaperProviderInterface):
+    void {
   provider.makeOpaque();
+  provider.cancelPreviewWallpaper();
+}
+
+export async function getShouldShowTimeOfDayWallpaperDialog(
+    provider: WallpaperProviderInterface, store: PersonalizationStore) {
+  const {shouldShowDialog} =
+      await provider.shouldShowTimeOfDayWallpaperDialog();
+
+  // Dispatch action to set the should show dialog boolean.
+  store.dispatch(
+      action.setShouldShowTimeOfDayWallpaperDialog(shouldShowDialog));
 }
 
 /**

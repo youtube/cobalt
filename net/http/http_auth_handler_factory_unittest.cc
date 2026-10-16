@@ -341,13 +341,13 @@ TEST(HttpAuthHandlerFactoryTest, LogCreateAuthHandlerResults) {
   SSLInfo null_ssl_info;
   RecordingNetLogObserver net_log_observer;
 
-  net::NetLogCaptureMode capture_modes[] = {
-      NetLogCaptureMode::kDefault, NetLogCaptureMode::kIncludeSensitive};
+  NetLogCaptureMode capture_modes[] = {NetLogCaptureMode::kDefault,
+                                       NetLogCaptureMode::kIncludeSensitive};
 
   struct TestCase {
     int expected_net_error;
     const char* challenge;
-    const net::HttpAuth::Target auth_target;
+    const HttpAuth::Target auth_target;
     const char* expected_scheme;
   } test_cases[] = {
       // Challenges that result in success results.
@@ -385,7 +385,7 @@ TEST(HttpAuthHandlerFactoryTest, LogCreateAuthHandlerResults) {
       const std::string* scheme = entries[0].params.FindString("scheme");
       ASSERT_NE(nullptr, scheme);
       EXPECT_STRCASEEQ(test_case.expected_scheme, scheme->data());
-      absl::optional<int> net_error = entries[0].params.FindInt("net_error");
+      std::optional<int> net_error = entries[0].params.FindInt("net_error");
       if (test_case.expected_net_error) {
         ASSERT_TRUE(net_error.has_value());
         EXPECT_EQ(test_case.expected_net_error, net_error.value());
@@ -399,7 +399,7 @@ TEST(HttpAuthHandlerFactoryTest, LogCreateAuthHandlerResults) {
         ASSERT_EQ(nullptr, challenge);
       } else {
         ASSERT_NE(nullptr, challenge);
-        EXPECT_EQ(net::NetLogStringValue(test_case.challenge).GetString(),
+        EXPECT_EQ(NetLogStringValue(test_case.challenge).GetString(),
                   challenge->data());
       }
 

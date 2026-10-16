@@ -4,11 +4,18 @@
 
 package org.chromium.components.content_capture;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
+import android.os.Build;
+
+import androidx.annotation.RequiresApi;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.content_capture.PlatformSession.PlatformSessionData;
 
-/**
- * The task to remove the platform session
- */
+/** The task to remove the platform session */
+@NullMarked
+@RequiresApi(Build.VERSION_CODES.Q)
 class SessionRemovedTask extends NotificationTask {
     public SessionRemovedTask(FrameSession session, PlatformSession platformSession) {
         super(session, platformSession);
@@ -21,11 +28,12 @@ class SessionRemovedTask extends NotificationTask {
 
     private void removeSession() {
         log("SessionRemovedTask.removeSession");
+        assumeNonNull(mSession);
         PlatformSessionData removedPlatformSessionData =
                 mPlatformSession.getFrameIdToPlatformSessionData().remove(mSession.get(0).getId());
         if (removedPlatformSessionData == null) return;
-        PlatformAPIWrapper.getInstance().destroyContentCaptureSession(
-                removedPlatformSessionData.contentCaptureSession);
+        PlatformAPIWrapper.getInstance()
+                .destroyContentCaptureSession(removedPlatformSessionData.contentCaptureSession);
         PlatformSessionData parentPlatformSessionData =
                 mPlatformSession.getRootPlatformSessionData();
         // We need to notify the view disappeared through the removed session's parent,
@@ -36,8 +44,9 @@ class SessionRemovedTask extends NotificationTask {
                     mPlatformSession.getFrameIdToPlatformSessionData().get(mSession.get(1).getId());
         }
         if (parentPlatformSessionData == null) return;
-        PlatformAPIWrapper.getInstance().notifyViewDisappeared(
-                parentPlatformSessionData.contentCaptureSession,
-                removedPlatformSessionData.autofillId);
+        PlatformAPIWrapper.getInstance()
+                .notifyViewDisappeared(
+                        parentPlatformSessionData.contentCaptureSession,
+                        removedPlatformSessionData.autofillId);
     }
 }

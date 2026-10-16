@@ -24,14 +24,14 @@ import java.util.function.Consumer;
  */
 @RequiresApi(api = VERSION_CODES.S)
 public class ScrollCaptureCallbackImpl implements ScrollCaptureCallback {
-    private ScrollCaptureCallbackDelegate mDelegate;
+    private final ScrollCaptureCallbackDelegate mDelegate;
 
     public ScrollCaptureCallbackImpl(EntryManagerWrapper entryManagerWrapper) {
         mDelegate = new ScrollCaptureCallbackDelegate(entryManagerWrapper);
     }
 
     @Override
-    // TODO(crbug.com/1231201): work out why this is causing a lint error
+    // TODO(crbug.com/40779510): work out why this is causing a lint error
     @SuppressWarnings("Override")
     public void onScrollCaptureSearch(
             @NonNull CancellationSignal cancellationSignal, @NonNull Consumer<Rect> onReady) {
@@ -40,25 +40,34 @@ public class ScrollCaptureCallbackImpl implements ScrollCaptureCallback {
     }
 
     @Override
-    // TODO(crbug.com/1231201): work out why this is causing a lint error
+    // TODO(crbug.com/40779510): work out why this is causing a lint error
     @SuppressWarnings("Override")
-    public void onScrollCaptureStart(@NonNull ScrollCaptureSession session,
-            @NonNull CancellationSignal signal, @NonNull Runnable onReady) {
+    public void onScrollCaptureStart(
+            @NonNull ScrollCaptureSession session,
+            @NonNull CancellationSignal signal,
+            @NonNull Runnable onReady) {
         mDelegate.onScrollCaptureStart(signal, onReady);
     }
 
     @Override
-    // TODO(crbug.com/1231201): work out why this is causing a lint error
+    // TODO(crbug.com/40779510): work out why this is causing a lint error
     @SuppressWarnings("Override")
-    public void onScrollCaptureImageRequest(@NonNull ScrollCaptureSession session,
-            @NonNull CancellationSignal signal, @NonNull Rect captureArea,
+    public void onScrollCaptureImageRequest(
+            @NonNull ScrollCaptureSession session,
+            @NonNull CancellationSignal signal,
+            @NonNull Rect captureArea,
             @NonNull Consumer<Rect> onComplete) {
         mDelegate.onScrollCaptureImageRequest(
-                session.getSurface(), signal, captureArea, (r) -> { onComplete.accept(r); });
+                session.getSurface(),
+                signal,
+                captureArea,
+                (r) -> {
+                    onComplete.accept(r);
+                });
     }
 
     @Override
-    // TODO(crbug.com/1231201): work out why this is causing a lint error
+    // TODO(crbug.com/40779510): work out why this is causing a lint error
     @SuppressWarnings("Override")
     public void onScrollCaptureEnd(@NonNull Runnable onReady) {
         mDelegate.onScrollCaptureEnd(onReady);

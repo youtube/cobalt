@@ -112,8 +112,11 @@ class BluetoothProfileServiceProviderImpl
     dbus::MessageReader array_reader(NULL);
     if (!reader.PopObjectPath(&device_path) || !reader.PopFileDescriptor(&fd) ||
         !reader.PopArray(&array_reader)) {
-      LOG(WARNING) << "NewConnection called with incorrect paramters: "
+      LOG(WARNING) << "NewConnection called with incorrect parameters: "
                    << method_call->ToString();
+      std::move(response_sender)
+          .Run(dbus::ErrorResponse::FromMethodCall(
+              method_call, DBUS_ERROR_INVALID_ARGS, "Incorrect parameters."));
       return;
     }
 
@@ -153,8 +156,11 @@ class BluetoothProfileServiceProviderImpl
     dbus::MessageReader reader(method_call);
     dbus::ObjectPath device_path;
     if (!reader.PopObjectPath(&device_path)) {
-      LOG(WARNING) << "RequestDisconnection called with incorrect paramters: "
+      LOG(WARNING) << "RequestDisconnection called with incorrect parameters: "
                    << method_call->ToString();
+      std::move(response_sender)
+          .Run(dbus::ErrorResponse::FromMethodCall(
+              method_call, DBUS_ERROR_INVALID_ARGS, "Incorrect parameters."));
       return;
     }
 
@@ -256,7 +262,6 @@ BluetoothProfileServiceProvider* BluetoothProfileServiceProvider::Create(
   }
 #if defined(USE_REAL_DBUS_CLIENTS)
   LOG(FATAL) << "Fake is unavailable if USE_REAL_DBUS_CLIENTS is defined.";
-  return nullptr;
 #else
   return new FakeBluetoothProfileServiceProvider(object_path, delegate);
 #endif  // defined(USE_REAL_DBUS_CLIENTS)

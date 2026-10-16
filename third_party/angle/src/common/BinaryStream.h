@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "common/PackedEnums.h"
 #include "common/angleutils.h"
 #include "common/mathutil.h"
 
@@ -57,14 +58,31 @@ class BinaryInputStream : angle::NonCopyable
         *outValue = readInt<IntT>();
     }
 
-    template <class IntT, class VectorElementT>
-    void readIntVector(std::vector<VectorElementT> *param)
+    template <class T>
+    void readVector(std::vector<T> *param)
     {
+        static_assert(std::is_trivially_copyable<T>(), "must be memcpy-able");
+        ASSERT(param->empty());
         size_t size = readInt<size_t>();
-        for (size_t index = 0; index < size; ++index)
+        if (size > 0)
         {
-            param->push_back(readInt<IntT>());
+            param->resize(size);
+            readBytes(reinterpret_cast<uint8_t *>(param->data()), param->size() * sizeof(T));
         }
+    }
+
+    template <typename E, typename T>
+    void readPackedEnumMap(angle::PackedEnumMap<E, T> *param)
+    {
+        static_assert(std::is_trivially_copyable<T>(), "must be memcpy-able");
+        readBytes(reinterpret_cast<uint8_t *>(param->data()), param->size() * sizeof(T));
+    }
+
+    template <class T>
+    void readStruct(T *param)
+    {
+        static_assert(std::is_trivially_copyable<T>(), "must be memcpy-able");
+        readBytes(reinterpret_cast<uint8_t *>(param), sizeof(T));
     }
 
     template <class EnumT>
@@ -90,6 +108,7 @@ class BinaryInputStream : angle::NonCopyable
     void readBool(bool *outValue) { *outValue = readBool(); }
 
     void readBytes(unsigned char outArray[], size_t count) { read<unsigned char>(outArray, count); }
+    const unsigned char *getBytes(size_t count) { return read<unsigned char>(nullptr, count); }
 
     std::string readString()
     {
@@ -162,7 +181,7 @@ class BinaryInputStream : angle::NonCopyable
     size_t mLength;
 
     template <typename T>
-    void read(T *v, size_t num)
+    const uint8_t *read(T *v, size_t num)
     {
         static_assert(std::is_fundamental<T>::value, "T must be a fundamental type.");
 
@@ -171,7 +190,7 @@ class BinaryInputStream : angle::NonCopyable
         if (!checkedLength.IsValid())
         {
             mError = true;
-            return;
+            return nullptr;
         }
 
         angle::CheckedNumeric<size_t> checkedOffset(mOffset);
@@ -180,11 +199,17 @@ class BinaryInputStream : angle::NonCopyable
         if (!checkedOffset.IsValid() || checkedOffset.ValueOrDie() > mLength)
         {
             mError = true;
-            return;
+            return nullptr;
         }
 
-        memcpy(v, mData + mOffset, checkedLength.ValueOrDie());
+        const uint8_t *srcBytes = mData + mOffset;
+        if (v != nullptr)
+        {
+            memcpy(v, srcBytes, checkedLength.ValueOrDie());
+        }
         mOffset = checkedOffset.ValueOrDie();
+
+        return srcBytes;
     }
 
     template <typename T>
@@ -226,14 +251,31 @@ class BinaryOutputStream : angle::NonCopyable
         }
     }
 
-    template <class IntT>
-    void writeIntVector(const std::vector<IntT> &param)
+    template <class T>
+    void writeVector(const std::vector<T> &param)
     {
+        static_assert(std::is_trivially_copyable<T>(), "must be memcpy-able");
         writeInt(param.size());
-        for (IntT element : param)
+        if (param.size() > 0)
         {
-            writeIntOrNegOne(element);
+            writeBytes(reinterpret_cast<const uint8_t *>(param.data()), param.size() * sizeof(T));
         }
+    }
+
+    template <typename E, typename T>
+    void writePackedEnumMap(const angle::PackedEnumMap<E, T> &param)
+    {
+        static_assert(std::is_trivially_copyable<T>(), "must be memcpy-able");
+        writeBytes(reinterpret_cast<const uint8_t *>(param.data()), param.size() * sizeof(T));
+    }
+
+    template <class T>
+    void writeStruct(const T &param)
+    {
+        static_assert(!std::is_pointer<T>::value,
+                      "Must pass in a struct, not the pointer to struct");
+        static_assert(std::is_trivially_copyable<T>(), "must be memcpy-able");
+        writeBytes(reinterpret_cast<const uint8_t *>(&param), sizeof(T));
     }
 
     template <class EnumT>
@@ -247,6 +289,13 @@ class BinaryOutputStream : angle::NonCopyable
     {
         writeInt(v.length());
         write(v.c_str(), v.length());
+    }
+
+    void writeString(const char *v)
+    {
+        size_t len = strlen(v);
+        writeInt(len);
+        write(v, len);
     }
 
     void writeBytes(const unsigned char *bytes, size_t count) { write(bytes, count); }

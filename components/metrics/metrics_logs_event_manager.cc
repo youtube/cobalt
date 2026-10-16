@@ -4,6 +4,8 @@
 
 #include "components/metrics/metrics_logs_event_manager.h"
 
+#include <string_view>
+
 namespace metrics {
 
 // static
@@ -22,7 +24,7 @@ MetricsLogsEventManager::ScopedNotifyLogType::ScopedNotifyLogType(
 MetricsLogsEventManager::ScopedNotifyLogType::~ScopedNotifyLogType() {
   DCHECK(instance_exists_);
   if (logs_event_manager_)
-    logs_event_manager_->NotifyLogType(absl::nullopt);
+    logs_event_manager_->NotifyLogType(std::nullopt);
   instance_exists_ = false;
 }
 
@@ -37,23 +39,23 @@ void MetricsLogsEventManager::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
-void MetricsLogsEventManager::NotifyLogCreated(base::StringPiece log_hash,
-                                               base::StringPiece log_data,
-                                               base::StringPiece log_timestamp,
+void MetricsLogsEventManager::NotifyLogCreated(std::string_view log_hash,
+                                               std::string_view log_data,
+                                               std::string_view log_timestamp,
                                                CreateReason reason) {
   for (Observer& observer : observers_)
     observer.OnLogCreated(log_hash, log_data, log_timestamp, reason);
 }
 
 void MetricsLogsEventManager::NotifyLogEvent(LogEvent event,
-                                             base::StringPiece log_hash,
-                                             base::StringPiece message) {
+                                             std::string_view log_hash,
+                                             std::string_view message) {
   for (Observer& observer : observers_)
     observer.OnLogEvent(event, log_hash, message);
 }
 
 void MetricsLogsEventManager::NotifyLogType(
-    absl::optional<MetricsLog::LogType> log_type) {
+    std::optional<MetricsLog::LogType> log_type) {
   for (Observer& observer : observers_)
     observer.OnLogType(log_type);
 }

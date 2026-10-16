@@ -2,20 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromecast/net/io_buffer_pool.h"
 
 #include <new>
 
 #include "base/bits.h"
 #include "base/memory/aligned_memory.h"
+#include "base/memory/raw_ptr.h"
 #include "base/synchronization/lock.h"
 
 namespace chromecast {
 
 // The IOBufferPool allocates IOBuffers and the associated data as a single
 // contiguous buffer. The buffer is laid out like this:
-// |------------Wrapper----------|---data buffer---|
-// |--IOBuffer--|--Internal ptr--|---data buffer---|
+// |------------Wrapper----------|---data area---|
+// |--IOBuffer--|--Internal ptr--|---data area---|
 //
 // The contiguous buffer is allocated as a character array, and then a Wrapper
 // instance is placement-newed into it. We return a pointer to the IOBuffer
@@ -39,18 +45,18 @@ namespace chromecast {
 
 class IOBufferPool::Internal {
  public:
-  Internal(size_t buffer_size, size_t max_buffers, bool threadsafe);
+  Internal(size_t data_area_size, size_t max_buffers, bool threadsafe);
 
   Internal(const Internal&) = delete;
   Internal& operator=(const Internal&) = delete;
 
   size_t num_allocated() const {
-    base::AutoLockMaybe lock(lock_ptr_);
+    base::AutoLockMaybe lock(lock_ptr_.get());
     return num_allocated_;
   }
 
   size_t num_free() const {
-    base::AutoLockMaybe lock(lock_ptr_);
+    base::AutoLockMaybe lock(lock_ptr_.get());
     return num_free_;
   }
 
@@ -67,19 +73,20 @@ class IOBufferPool::Internal {
 
   static constexpr size_t kAlignment = 16;
 
-  static void* AllocateAlignedSpace(size_t buffer_size);
+  static Storage* AllocateStorageUnionAndDataArea(size_t data_area_size);
+  static char* DataAreaFromStorageUnion(Storage* ptr);
 
   ~Internal();
 
   void Reclaim(Wrapper* wrapper);
 
-  const size_t buffer_size_;
+  const size_t data_area_size_;
   const size_t max_buffers_;
 
   mutable base::Lock lock_;
-  base::Lock* const lock_ptr_;
+  const raw_ptr<base::Lock> lock_ptr_;
 
-  Storage* free_buffers_;
+  raw_ptr<Storage> free_buffers_;
   size_t num_allocated_;
   size_t num_free_;
 
@@ -88,7 +95,7 @@ class IOBufferPool::Internal {
 
 class IOBufferPool::Internal::Buffer : public net::IOBuffer {
  public:
-  explicit Buffer(char* data) : net::IOBuffer(data) {}
+  Buffer(char* data, size_t size) : net::IOBuffer(base::span(data, size)) {}
 
   Buffer(const Buffer&) = delete;
   Buffer& operator=(const Buffer&) = delete;
@@ -96,14 +103,14 @@ class IOBufferPool::Internal::Buffer : public net::IOBuffer {
  private:
   friend class Wrapper;
 
-  ~Buffer() override { data_ = nullptr; }
+  ~Buffer() override = default;
   static void operator delete(void* ptr);
 };
 
 class IOBufferPool::Internal::Wrapper {
  public:
-  Wrapper(char* data, IOBufferPool::Internal* pool)
-      : buffer_(data), pool_(pool) {}
+  Wrapper(char* data, size_t size, IOBufferPool::Internal* pool)
+      : buffer_(data, size), pool_(pool) {}
 
   Wrapper(const Wrapper&) = delete;
   Wrapper& operator=(const Wrapper&) = delete;
@@ -130,10 +137,10 @@ void IOBufferPool::Internal::Buffer::operator delete(void* ptr) {
   wrapper->Reclaim();
 }
 
-IOBufferPool::Internal::Internal(size_t buffer_size,
+IOBufferPool::Internal::Internal(size_t data_area_size,
                                  size_t max_buffers,
                                  bool threadsafe)
-    : buffer_size_(buffer_size),
+    : data_area_size_(data_area_size),
       max_buffers_(max_buffers),
       lock_ptr_(threadsafe ? &lock_ : nullptr),
       free_buffers_(nullptr),
@@ -144,22 +151,34 @@ IOBufferPool::Internal::Internal(size_t buffer_size,
 
 IOBufferPool::Internal::~Internal() {
   while (free_buffers_) {
-    char* data = reinterpret_cast<char*>(free_buffers_);
+    char* data = reinterpret_cast<char*>(free_buffers_.get());
     free_buffers_ = free_buffers_->next;
     base::AlignedFree(data);
   }
 }
 
+// Allocates aligned space for a `union Storage` plus an additional data
+// area of `data_area_size` bytes with the same alignment.
 // static
-void* IOBufferPool::Internal::AllocateAlignedSpace(size_t buffer_size) {
+IOBufferPool::Internal::Storage*
+IOBufferPool::Internal::AllocateStorageUnionAndDataArea(size_t data_area_size) {
   size_t kAlignedStorageSize = base::bits::AlignUp(sizeof(Storage), kAlignment);
-  return base::AlignedAlloc(kAlignedStorageSize + buffer_size, kAlignment);
+  return reinterpret_cast<Storage*>(
+      base::AlignedAlloc(kAlignedStorageSize + data_area_size, kAlignment));
+}
+
+// Returns a pointer to the data area that follows a `union Storage`.
+// static
+char* IOBufferPool::Internal::DataAreaFromStorageUnion(
+    IOBufferPool::Internal::Storage* ptr) {
+  size_t kAlignedStorageSize = base::bits::AlignUp(sizeof(Storage), kAlignment);
+  return reinterpret_cast<char*>(ptr) + kAlignedStorageSize;
 }
 
 void IOBufferPool::Internal::Preallocate(size_t num_buffers) {
   // We assume that this is uncontended in normal usage, so just lock for the
   // entire method.
-  base::AutoLockMaybe lock(lock_ptr_);
+  base::AutoLockMaybe lock(lock_ptr_.get());
   if (num_buffers > max_buffers_) {
     num_buffers = max_buffers_;
   }
@@ -170,8 +189,7 @@ void IOBufferPool::Internal::Preallocate(size_t num_buffers) {
   num_free_ += num_extra_buffers;
   num_allocated_ += num_extra_buffers;
   while (num_extra_buffers > 0) {
-    void* ptr = AllocateAlignedSpace(buffer_size_);
-    Storage* storage = reinterpret_cast<Storage*>(ptr);
+    Storage* storage = AllocateStorageUnionAndDataArea(data_area_size_);
     storage->next = free_buffers_;
     free_buffers_ = storage;
 
@@ -183,7 +201,7 @@ void IOBufferPool::Internal::Preallocate(size_t num_buffers) {
 void IOBufferPool::Internal::OwnerDestroyed() {
   bool deletable;
   {
-    base::AutoLockMaybe lock(lock_ptr_);
+    base::AutoLockMaybe lock(lock_ptr_.get());
     --refs_;  // Remove the owner's ref.
     deletable = (refs_ == 0);
   }
@@ -194,12 +212,12 @@ void IOBufferPool::Internal::OwnerDestroyed() {
 }
 
 scoped_refptr<net::IOBuffer> IOBufferPool::Internal::GetBuffer() {
-  char* ptr = nullptr;
+  Storage* ptr = nullptr;
 
   {
-    base::AutoLockMaybe lock(lock_ptr_);
+    base::AutoLockMaybe lock(lock_ptr_.get());
     if (free_buffers_) {
-      ptr = reinterpret_cast<char*>(free_buffers_);
+      ptr = free_buffers_;
       free_buffers_ = free_buffers_->next;
       --num_free_;
     } else {
@@ -211,12 +229,12 @@ scoped_refptr<net::IOBuffer> IOBufferPool::Internal::GetBuffer() {
   }
 
   if (!ptr) {
-    ptr = static_cast<char*>(AllocateAlignedSpace(buffer_size_));
+    ptr = AllocateStorageUnionAndDataArea(data_area_size_);
   }
 
-  size_t kAlignedStorageSize = base::bits::AlignUp(sizeof(Storage), kAlignment);
-  char* data = ptr + kAlignedStorageSize;
-  Wrapper* wrapper = new (ptr) Wrapper(data, this);
+  char* data_area = DataAreaFromStorageUnion(ptr);
+  Wrapper* wrapper =
+      new (static_cast<void*>(ptr)) Wrapper(data_area, data_area_size_, this);
   return scoped_refptr<net::IOBuffer>(wrapper->buffer());
 }
 
@@ -224,7 +242,7 @@ void IOBufferPool::Internal::Reclaim(Wrapper* wrapper) {
   Storage* storage = reinterpret_cast<Storage*>(wrapper);
   bool deletable;
   {
-    base::AutoLockMaybe lock(lock_ptr_);
+    base::AutoLockMaybe lock(lock_ptr_.get());
     storage->next = free_buffers_;
     free_buffers_ = storage;
     ++num_free_;
@@ -243,7 +261,7 @@ IOBufferPool::IOBufferPool(size_t buffer_size,
     : buffer_size_(buffer_size),
       max_buffers_(max_buffers),
       threadsafe_(threadsafe),
-      internal_(new Internal(buffer_size, max_buffers, threadsafe)) {}
+      internal_(new Internal(buffer_size_, max_buffers_, threadsafe_)) {}
 
 IOBufferPool::IOBufferPool(size_t buffer_size)
     : IOBufferPool(buffer_size, static_cast<size_t>(-1)) {}

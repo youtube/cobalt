@@ -20,15 +20,18 @@
 #include "third_party/blink/renderer/core/css/media_list.h"
 
 #include <memory>
+
+#include "third_party/blink/renderer/core/css/css_style_rule.h"
 #include "third_party/blink/renderer/core/css/css_style_sheet.h"
 #include "third_party/blink/renderer/core/css/media_query_exp.h"
 #include "third_party/blink/renderer/core/css/media_query_set_owner.h"
 #include "third_party/blink/renderer/core/css/parser/media_query_parser.h"
+#include "third_party/blink/renderer/core/css/style_sheet_contents.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 namespace blink {
@@ -61,9 +64,8 @@ MediaQuerySet::MediaQuerySet(const MediaQuerySet&) = default;
 MediaQuerySet::MediaQuerySet(HeapVector<Member<const MediaQuery>> queries)
     : queries_(std::move(queries)) {}
 
-MediaQuerySet* MediaQuerySet::Create(
-    const String& media_string,
-    const ExecutionContext* execution_context) {
+MediaQuerySet* MediaQuerySet::Create(const String& media_string,
+                                     ExecutionContext* execution_context) {
   if (media_string.empty()) {
     return MediaQuerySet::Create();
   }
@@ -77,7 +79,7 @@ void MediaQuerySet::Trace(Visitor* visitor) const {
 
 const MediaQuerySet* MediaQuerySet::CopyAndAdd(
     const String& query_string,
-    const ExecutionContext* execution_context) const {
+    ExecutionContext* execution_context) const {
   // To "parse a media query" for a given string means to follow "the parse
   // a media query list" steps and return "null" if more than one media query
   // is returned, or else the returned media query.
@@ -108,7 +110,7 @@ const MediaQuerySet* MediaQuerySet::CopyAndAdd(
 
 const MediaQuerySet* MediaQuerySet::CopyAndRemove(
     const String& query_string_to_remove,
-    const ExecutionContext* execution_context) const {
+    ExecutionContext* execution_context) const {
   // To "parse a media query" for a given string means to follow "the parse
   // a media query list" steps and return "null" if more than one media query
   // is returned, or else the returned media query.
@@ -172,15 +174,13 @@ String MediaList::mediaText(ExecutionContext* execution_context) const {
   return MediaTextInternal();
 }
 
-void MediaList::setMediaText(const ExecutionContext* execution_context,
+void MediaList::setMediaText(ExecutionContext* execution_context,
                              const String& value) {
   CSSStyleSheet::RuleMutationScope mutation_scope(parent_rule_);
 
   Owner()->SetMediaQueries(MediaQuerySet::Create(value, execution_context));
 
-  if (parent_style_sheet_) {
-    parent_style_sheet_->DidMutate(CSSStyleSheet::Mutation::kSheet);
-  }
+  NotifyMutation();
 }
 
 String MediaList::item(unsigned index) const {
@@ -192,7 +192,7 @@ String MediaList::item(unsigned index) const {
   return String();
 }
 
-void MediaList::deleteMedium(const ExecutionContext* execution_context,
+void MediaList::deleteMedium(ExecutionContext* execution_context,
                              const String& medium,
                              ExceptionState& exception_state) {
   CSSStyleSheet::RuleMutationScope mutation_scope(parent_rule_);
@@ -200,17 +200,17 @@ void MediaList::deleteMedium(const ExecutionContext* execution_context,
   const MediaQuerySet* new_media_queries =
       Queries()->CopyAndRemove(medium, execution_context);
   if (!new_media_queries) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kNotFoundError,
-                                      "Failed to delete '" + medium + "'.");
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kNotFoundError,
+        WTF::StrCat({"Failed to delete '", medium, "'."}));
     return;
   }
   Owner()->SetMediaQueries(new_media_queries);
-  if (parent_style_sheet_) {
-    parent_style_sheet_->DidMutate(CSSStyleSheet::Mutation::kSheet);
-  }
+
+  NotifyMutation();
 }
 
-void MediaList::appendMedium(const ExecutionContext* execution_context,
+void MediaList::appendMedium(ExecutionContext* execution_context,
                              const String& medium) {
   CSSStyleSheet::RuleMutationScope mutation_scope(parent_rule_);
 
@@ -221,9 +221,7 @@ void MediaList::appendMedium(const ExecutionContext* execution_context,
   }
   Owner()->SetMediaQueries(new_media_queries);
 
-  if (parent_style_sheet_) {
-    parent_style_sheet_->DidMutate(CSSStyleSheet::Mutation::kSheet);
-  }
+  NotifyMutation();
 }
 
 const MediaQuerySet* MediaList::Queries() const {
@@ -239,6 +237,22 @@ void MediaList::Trace(Visitor* visitor) const {
 MediaQuerySetOwner* MediaList::Owner() const {
   return parent_rule_ ? parent_rule_->GetMediaQuerySetOwner()
                       : parent_style_sheet_.Get();
+}
+
+void MediaList::NotifyMutation() {
+  if (parent_rule_ && parent_rule_->parentStyleSheet()) {
+    StyleSheetContents* parent_contents =
+        parent_rule_->parentStyleSheet()->Contents();
+    if (parent_rule_->GetType() == CSSRule::kStyleRule) {
+      parent_contents->NotifyRuleChanged(
+          static_cast<CSSStyleRule*>(parent_rule_.Get())->GetStyleRule());
+    } else {
+      parent_contents->NotifyDiffUnrepresentable();
+    }
+  }
+  if (parent_style_sheet_) {
+    parent_style_sheet_->DidMutate(CSSStyleSheet::Mutation::kSheet);
+  }
 }
 
 }  // namespace blink

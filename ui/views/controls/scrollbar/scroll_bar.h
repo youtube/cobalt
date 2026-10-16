@@ -6,11 +6,12 @@
 #define UI_VIEWS_CONTROLS_SCROLLBAR_SCROLL_BAR_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
+#include "ui/menus/simple_menu_model.h"
 #include "ui/views/animation/scroll_animator.h"
 #include "ui/views/context_menu_controller.h"
 #include "ui/views/controls/button/image_button.h"
@@ -78,9 +79,9 @@ class VIEWS_EXPORT ScrollBar : public View,
                                public ScrollDelegate,
                                public ContextMenuController,
                                public ui::SimpleMenuModel::Delegate {
- public:
-  METADATA_HEADER(ScrollBar);
+  METADATA_HEADER(ScrollBar, View)
 
+ public:
   // An enumeration of different amounts of incremental scroll, representing
   // events sent from different parts of the UI/keyboard.
   enum class ScrollAmount {
@@ -93,13 +94,18 @@ class VIEWS_EXPORT ScrollBar : public View,
     kNextPage,
   };
 
+  // Whether the scrollbar is horizontal or vertical.
+  enum class Orientation : bool {
+    kHorizontal,
+    kVertical,
+  };
+
   ScrollBar(const ScrollBar&) = delete;
   ScrollBar& operator=(const ScrollBar&) = delete;
 
   ~ScrollBar() override;
 
-  // Returns whether this scrollbar is horizontal.
-  bool IsHorizontal() const;
+  Orientation GetOrientation() const;
 
   void set_controller(ScrollBarController* controller) {
     controller_ = controller;
@@ -134,15 +140,17 @@ class VIEWS_EXPORT ScrollBar : public View,
   bool OnKeyPressed(const ui::KeyEvent& event) override;
   bool OnMouseWheel(const ui::MouseWheelEvent& event) override;
   void OnGestureEvent(ui::GestureEvent* event) override;
+  void OnThemeChanged() override;
 
   // ScrollDelegate:
   bool OnScroll(float dx, float dy) override;
   void OnFlingScrollEnded() override;
 
   // ContextMenuController:
-  void ShowContextMenuForViewImpl(View* source,
-                                  const gfx::Point& point,
-                                  ui::MenuSourceType source_type) override;
+  void ShowContextMenuForViewImpl(
+      View* source,
+      const gfx::Point& point,
+      ui::mojom::MenuSourceType source_type) override;
 
   // ui::SimpleMenuModel::Delegate:
   bool IsCommandIdChecked(int id) const override;
@@ -187,7 +195,7 @@ class VIEWS_EXPORT ScrollBar : public View,
   // Create new scrollbar, either horizontal or vertical. These are protected
   // since you need to be creating either a NativeScrollBar or a
   // ImageScrollBar.
-  explicit ScrollBar(bool is_horiz);
+  explicit ScrollBar(Orientation orientation);
 
   BaseScrollBarThumb* GetThumb() const;
 
@@ -244,7 +252,7 @@ class VIEWS_EXPORT ScrollBar : public View,
   ScrollAmount DetermineScrollAmountByKeyCode(
       const ui::KeyboardCode& keycode) const;
 
-  absl::optional<int> GetDesiredScrollOffset(ScrollAmount amount);
+  std::optional<int> GetDesiredScrollOffset(ScrollAmount amount);
 
   // The size of the scrolled contents, in pixels.
   int contents_size_ = 0;
@@ -264,7 +272,7 @@ class VIEWS_EXPORT ScrollBar : public View,
   // was invoked.
   int context_menu_mouse_position_ = 0;
 
-  const bool is_horiz_;
+  const Orientation orientation_;
 
   raw_ptr<BaseScrollBarThumb> thumb_ = nullptr;
 
@@ -293,8 +301,8 @@ class VIEWS_EXPORT ScrollBar : public View,
     kScrollInProgress,
 
     // The contents will keep scrolling for a while if the events sequence ends
-    // with ui::ET_SCROLL_FLING_START. Set the status to kScrollInEnding if it
-    // happens, and set it to kScrollEnded while the scroll really ended.
+    // with ui::EventType::kScrollFlingStart. Set the status to kScrollInEnding
+    // if it happens, and set it to kScrollEnded while the scroll really ended.
     kScrollInEnding,
     kScrollEnded,
   };

@@ -5,12 +5,14 @@
 #ifndef IOS_WEB_PUBLIC_WEB_STATE_DELEGATE_H_
 #define IOS_WEB_PUBLIC_WEB_STATE_DELEGATE_H_
 
-#include <set>
-
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 
+#include <set>
+
 #include "base/functional/callback.h"
+#include "build/blink_buildflags.h"
+#import "ios/web/public/navigation/form_warning_type.h"
 #import "ios/web/public/permissions/permissions.h"
 #import "ios/web/public/web_state.h"
 
@@ -52,11 +54,12 @@ class WebStateDelegate {
   // method is not implemented then WebState will repost the form.
   virtual void ShowRepostFormWarningDialog(
       WebState* source,
+      FormWarningType warning_type,
       base::OnceCallback<void(bool)> callback);
 
   // Returns a pointer to a service to manage dialogs. May return nullptr in
   // which case dialogs aren't shown.
-  // TODO(crbug.com/622084): Find better place for this method.
+  // TODO(crbug.com/40473860): Find better place for this method.
   virtual JavaScriptDialogPresenter* GetJavaScriptDialogPresenter(
       WebState* source);
 
@@ -69,7 +72,7 @@ class WebStateDelegate {
   virtual void HandlePermissionsDecisionRequest(
       WebState* source,
       NSArray<NSNumber*>* permissions,
-      WebStatePermissionDecisionHandler handler) API_AVAILABLE(ios(15.0));
+      WebStatePermissionDecisionHandler handler);
 
   // Called when a request receives an authentication challenge specified by
   // `protection_space`, and is unable to respond using cached credentials.
@@ -102,11 +105,18 @@ class WebStateDelegate {
   // more info.
   virtual id<CRWResponderInputView> GetResponderInputView(WebState* source);
 
+  // Provides an opportunity to the delegate to react to the creation of the web
+  // view.
+  virtual void OnNewWebViewCreated(WebState* source);
+
  protected:
   virtual ~WebStateDelegate();
 
  private:
   friend class WebStateImpl;
+#if BUILDFLAG(USE_BLINK)
+  friend class ContentWebState;
+#endif
 
   // Called when `this` becomes the WebStateDelegate for `source`.
   void Attach(WebState* source);

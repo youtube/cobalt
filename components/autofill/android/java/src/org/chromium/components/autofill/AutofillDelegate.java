@@ -4,13 +4,12 @@
 
 package org.chromium.components.autofill;
 
-/**
- * An interface to handle the touch interaction with an autofill popup or keyboard accessory.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** An interface to handle the touch interaction with an autofill popup or keyboard accessory. */
+@NullMarked
 public interface AutofillDelegate {
-    /**
-     * Informs the controller the AutofillPopup or AutofillKeyboardAccessory was hidden.
-     */
+    /** Informs the controller the AutofillPopup or AutofillKeyboardAccessory was hidden. */
     public void dismissed();
 
     /**

@@ -20,7 +20,7 @@
 #include "url/gurl.h"
 #include "url/origin.h"
 
-using PermissionStatus =
+using FederatedIdentityPermissionStatus =
     content::FederatedIdentityApiPermissionContextDelegate::PermissionStatus;
 
 class FederatedIdentityApiPermissionContextTest : public testing::Test {
@@ -42,8 +42,8 @@ class FederatedIdentityApiPermissionContextTest : public testing::Test {
   Profile* profile() { return &profile_; }
 
  protected:
-  base::raw_ptr<FederatedIdentityApiPermissionContext> context_;
-  base::raw_ptr<HostContentSettingsMap> host_content_settings_map_;
+  raw_ptr<FederatedIdentityApiPermissionContext, DanglingUntriaged> context_;
+  raw_ptr<HostContentSettingsMap, DanglingUntriaged> host_content_settings_map_;
 
   ContentSetting GetContentSetting(const GURL& rp_url) {
     return host_content_settings_map_->GetContentSetting(
@@ -83,6 +83,6 @@ TEST_F(FederatedIdentityApiPermissionContextTest,
   CookieSettingsFactory::GetForProfile(profile())->SetThirdPartyCookieSetting(
       kRpUrl, ContentSetting::CONTENT_SETTING_ALLOW);
 
-  EXPECT_EQ(PermissionStatus::GRANTED,
+  EXPECT_EQ(FederatedIdentityPermissionStatus::GRANTED,
             context_->GetApiPermissionStatus(url::Origin::Create(kRpUrl)));
 }

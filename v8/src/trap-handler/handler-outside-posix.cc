@@ -15,7 +15,8 @@
 // 2. Any changes must be reviewed by someone from the crash reporting
 //    or security team. Se OWNERS for suggested reviewers.
 //
-// For more information, see https://goo.gl/yMeyUY.
+// For more information, see:
+// https://docs.google.com/document/d/17y4kxuHFrVxAiuCP_FFtFA2HP5sNPsCD10KEx17Hz6M
 //
 // For the code that runs in the signal handler itself, see handler-inside.cc.
 
@@ -45,7 +46,14 @@ bool RegisterDefaultTrapHandler() {
 
   struct sigaction action;
   action.sa_sigaction = HandleSignal;
-  action.sa_flags = SA_SIGINFO;
+  // Use SA_ONSTACK so that iff an alternate signal stack was registered via
+  // sigaltstack, that one is used for handling the signal instead of the
+  // default stack. This can be useful if for example the stack pointer is
+  // corrupted or a stack overflow is triggered as that may cause the trap
+  // handler to crash if it runs on the default stack. We assume that other
+  // parts, e.g. Asan or the v8 sandbox testing infrastructure, will register
+  // the alternate stack if necessary.
+  action.sa_flags = SA_SIGINFO | SA_ONSTACK;
   sigemptyset(&action.sa_mask);
   // {sigaction} installs a new custom segfault handler. On success, it returns
   // 0. If we get a nonzero value, we report an error to the caller by returning

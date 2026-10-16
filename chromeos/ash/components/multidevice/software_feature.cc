@@ -48,7 +48,6 @@ SoftwareFeature FromCryptAuthFeature(
   }
 
   NOTREACHED();
-  return SoftwareFeature::kBetterTogetherHost;
 }
 
 cryptauth::SoftwareFeature ToCryptAuthFeature(
@@ -90,7 +89,6 @@ cryptauth::SoftwareFeature ToCryptAuthFeature(
   }
 
   NOTREACHED();
-  return cryptauth::SoftwareFeature::BETTER_TOGETHER_HOST;
 }
 
 std::ostream& operator<<(std::ostream& stream, const SoftwareFeature& feature) {

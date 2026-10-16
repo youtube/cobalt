@@ -4,11 +4,11 @@
 
 package org.chromium.components.payments;
 
-import androidx.annotation.NonNull;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.url.GURL;
 
 /**
@@ -23,6 +23,7 @@ import org.chromium.url.GURL;
  *   bridge.destroy();
  */
 @JNINamespace("payments")
+@NullMarked
 public class CSPCheckerBridge {
     // Performs the CSP checks.
     private final CSPChecker mImpl;
@@ -34,7 +35,7 @@ public class CSPCheckerBridge {
      * Initializes the CSP checker bridge.
      * @param cspChecker The object that will perform the CSP checks.
      */
-    public CSPCheckerBridge(@NonNull CSPChecker cspChecker) {
+    public CSPCheckerBridge(CSPChecker cspChecker) {
         mImpl = cspChecker;
         mNativeBridge = CSPCheckerBridgeJni.get().createNativeCSPChecker(this);
     }
@@ -64,17 +65,23 @@ public class CSPCheckerBridge {
     @CalledByNative
     public void allowConnectToSource(
             GURL url, GURL urlBeforeRedirects, boolean didFollowRedirect, int callbackId) {
-        mImpl.allowConnectToSource(url, urlBeforeRedirects, didFollowRedirect, (Boolean result) -> {
-            if (mNativeBridge != 0) {
-                CSPCheckerBridgeJni.get().onResult(mNativeBridge, callbackId, result);
-            }
-        });
+        mImpl.allowConnectToSource(
+                url,
+                urlBeforeRedirects,
+                didFollowRedirect,
+                (Boolean result) -> {
+                    if (mNativeBridge != 0) {
+                        CSPCheckerBridgeJni.get().onResult(mNativeBridge, callbackId, result);
+                    }
+                });
     }
 
     @NativeMethods
     public interface Natives {
         long createNativeCSPChecker(CSPCheckerBridge bridge);
+
         void onResult(long nativeCSPCheckerAndroid, int callbackId, boolean result);
+
         void destroy(long nativeCSPCheckerAndroid);
     }
 }

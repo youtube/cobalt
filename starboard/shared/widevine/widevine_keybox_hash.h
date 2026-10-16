@@ -15,9 +15,8 @@
 #ifndef STARBOARD_SHARED_WIDEVINE_WIDEVINE_KEYBOX_HASH_H_
 #define STARBOARD_SHARED_WIDEVINE_WIDEVINE_KEYBOX_HASH_H_
 
+#include <cstdint>
 #include <string>
-
-#include "starboard/types.h"
 
 namespace starboard {
 

@@ -5,9 +5,8 @@
 module printing.mojom;
 
 // Print job color mode values.
-[Stable, Extensible]
 enum ColorModel {
-  [Default] kUnknownColorModel,
+  kUnknownColorModel,
   kGray,
   kColor,
   kCMYK,
@@ -38,28 +37,48 @@ enum ColorModel {
   kSharpARCModeCMBW,            // Used in Sharp printer PPDs.
   kXeroxXRXColorAutomatic,      // Used in Xerox printer PPDs.
   kXeroxXRXColorBW,             // Used in Xerox printer PPDs.
-  kColorModelLast = kXeroxXRXColorBW,  // Obsolete, do not use
-  [MinVersion=1] kCanonCNColorModeColor,       // Used in Canon printer PPDs.
-  [MinVersion=1] kCanonCNColorModeMono,        // Used in Canon printer PPDs.
-  [MinVersion=1] kCanonCNIJGrayScaleOne,       // Used in Canon printer PPDs.
-  [MinVersion=1] kCanonCNIJGrayScaleZero,      // Used in Canon printer PPDs.
+  kCanonCNColorModeColor,       // Used in Canon printer PPDs.
+  kCanonCNColorModeMono,        // Used in Canon printer PPDs.
+  kCanonCNIJGrayScaleOne,       // Used in Canon printer PPDs.
+  kCanonCNIJGrayScaleZero,      // Used in Canon printer PPDs.
   // Used in Konica Minolta printer PPDs.
-  [MinVersion=1] kKonicaMinoltaSelectColorColor,
-  [MinVersion=1] kKonicaMinoltaSelectColorGrayscale,
-  [MinVersion=1] kOkiOKControlColor,           // Used in Oki printer PPDs.
-  [MinVersion=1] kOkiOKControlGray,            // Used in Oki printer PPDs.
+  kKonicaMinoltaSelectColorColor,
+  kKonicaMinoltaSelectColorGrayscale,
+  kOkiOKControlColor,           // Used in Oki printer PPDs.
+  kOkiOKControlGray,            // Used in Oki printer PPDs.
   // Used in Xerox printer PPDs.
-  [MinVersion=1] kXeroxXROutputColorPrintAsColor,
-  [MinVersion=1] kXeroxXROutputColorPrintAsGrayscale,
+  kXeroxXROutputColorPrintAsColor,
+  kXeroxXROutputColorPrintAsGrayscale,
+  kHpPjlColorAsGrayNo,   // Used in HP printer PPDs.
+  kHpPjlColorAsGrayYes,  // Used in HP printer PPDs.
+};
+
+// Print job quality values (from rfc8011).
+[EnableIf=is_chromeos]
+enum Quality {
+  kUnknownQuality = -1,
+  kDraft = 3,
+  kNormal = 4,
+  kHigh = 5
 };
 
 // Print job duplex mode values.
-[Stable, Extensible]
 enum DuplexMode {
-  [Default] kUnknownDuplexMode = -1,
+  kUnknownDuplexMode = -1,
   kSimplex,
   kLongEdge,
   kShortEdge,
+};
+
+// Print job print scaling values.
+[EnableIf=is_chromeos]
+enum PrintScalingType {
+  kUnknownPrintScalingType = -1,
+  kAuto,
+  kAutoFit,
+  kFit,
+  kFill,
+  kNone,
 };
 
 // Struct that holds margin and content area sizes of a page. Units are
@@ -77,7 +96,7 @@ struct PageSizeMargins {
 enum PageOrientation { kUpright, kRotateLeft, kRotateRight };
 
 // Describes whether to reduce/enlarge/retain the print contents to fit the
-// printable area. (This is used only by plugin printing).
+// printable area.
 enum PrintScalingOption {
   // Prints the upper left of a page without scaling. Crop the page contents
   // that don't fit on the paper.
@@ -90,15 +109,21 @@ enum PrintScalingOption {
   kSourceSize,
   // Reduces or enlarges each page to fit the selected printer paper size.
   kFitToPaper,
+  // Center each page on paper. If the page is larger than the selected printer
+  // paper size, it will be scaled down to fit. Note that the page will never be
+  // scaled *up*. If it's not larger than the paper, it will just be centered.
+  kCenterShrinkToFitPaper,
 };
 
 // Document type that Skia graphics library generates.
 enum SkiaDocumentType {
   // PDF document type.
   kPDF,
-  // MultiPictureDocument type. kMSKP is an experimental, fragile, and
-  // diagnostic-only document type.
+  // MultiPictureDocument type
   kMSKP,
+  // XPS document type.
+  [EnableIf=is_win]
+  kXPS,
 };
 
 // Metafile data type encapsulated by a player.
@@ -106,6 +131,14 @@ enum MetafileDataType {
   kPDF,
   [EnableIf=is_win]
   kEMF,
+  [EnableIf=is_win]
+  kPostScriptEmf,
+};
+
+// What kind of document outline to generate.
+enum GenerateDocumentOutline {
+  kNone,
+  kFromAccessibilityTreeHeaders,
 };
 
 // What kind of margins to use.
@@ -119,18 +152,18 @@ enum MarginType {
 
 // Allowed printing modes as a bitmask.
 // This is used in pref file and should never change.
-[Stable, Extensible, EnableIf=is_chromeos]
+[EnableIf=is_chromeos]
 enum ColorModeRestriction {
-  [Default] kUnset = 0x0,
+  kUnset = 0x0,
   kMonochrome = 0x1,
   kColor = 0x2,
 };
 
 // Allowed duplex modes as a bitmask.
 // This is used in pref file and should never change.
-[Stable, Extensible, EnableIf=is_chromeos]
+[EnableIf=is_chromeos]
 enum DuplexModeRestriction {
-  [Default] kUnset = 0x0,
+  kUnset = 0x0,
   kSimplex = 0x1,
   kLongEdge = 0x2,
   kShortEdge = 0x4,
@@ -139,9 +172,9 @@ enum DuplexModeRestriction {
 
 // Allowed PIN printing modes.
 // This is used in pref file and should never change.
-[Stable, Extensible, EnableIf=is_chromeos]
+[EnableIf=is_chromeos]
 enum PinModeRestriction {
-  [Default] kUnset = 0,
+  kUnset = 0,
   kPin = 1,
   kNoPin = 2,
 };
@@ -157,15 +190,13 @@ enum ResultCode {
   kCanceled,
 };
 
-// Matches print_preview.PrinterType in
-// chrome/browser/resources/print_preview/data/destination_match.ts
-[Stable, Extensible]
+// Matches print_preview.PrinterType in:
+// chrome/browser/resources/print_preview/data/destination.ts and
+// chrome/browser/resources/ash/print_preview/data/destination_cros.ts
 enum PrinterType {
-  kPrivetDeprecated,
   kExtension,
   kPdf,
   kLocal,
-  kCloudDeprecated
 };
 
 [EnableIf=is_win]
@@ -186,14 +217,13 @@ struct PageRange {
 // Corresponds to the 'client-info' IPP attribute.
 // For optional fields, missing values correspond to the 'no-value' IPP
 // out-of-band value.
-[Stable, EnableIf=is_chromeos]
+[EnableIf=is_chromeos]
 struct IppClientInfo {
-  [Stable, Extensible]
   enum ClientType {
     kApplication = 3,
     kOperatingSystem = 4,
     kDriver = 5,
-    [Default] kOther = 6,
+    kOther = 6,
   };
   ClientType client_type;
   string client_name;

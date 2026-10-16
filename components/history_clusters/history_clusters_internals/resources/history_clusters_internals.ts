@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {$, getRequiredElement} from 'chrome://resources/js/util_ts.js';
+import {$, getRequiredElement} from 'chrome://resources/js/util.js';
 
 import {HistoryClustersInternalsBrowserProxy} from './history_clusters_internals_browser_proxy.js';
 
@@ -27,23 +27,6 @@ function dumpFileWithJsonContents(contents: string, filename: string) {
 function onLogMessagesDump() {
   const data = logMessages.join('\n');
   dumpFileWithJsonContents(data, 'history_clusters_internals_logs_dump.json');
-}
-
-/**
- * The callback to button#visits-dump to save the visits to a file.
- */
-function onVisitsDumpRequested() {
-  getProxy().getHandler().getVisitsJson().then(onVisitsJsonReady);
-}
-
-/**
- * The callback when the visits JSON string has been prepared.
- */
-function onVisitsJsonReady(resp: {visitsJson: string}) {
-  const data = resp.visitsJson;
-  const filename = 'history_clusters_visits_dump.json';
-
-  dumpFileWithJsonContents(data, filename);
 }
 
 /**
@@ -81,8 +64,6 @@ function initialize() {
 
   getRequiredElement('log-messages-dump')
       .addEventListener('click', onLogMessagesDump);
-  getRequiredElement('visits-dump')
-      .addEventListener('click', onVisitsDumpRequested);
   getRequiredElement('context-clusters-dump')
       .addEventListener('click', onContextClustersDumpRequest);
   getRequiredElement('print-keyword-bag-state')

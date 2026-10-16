@@ -10,10 +10,16 @@
 #include <vector>
 
 #include "base/component_export.h"
-#include "base/mac/scoped_nsobject.h"
 #include "base/memory/ref_counted.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/file_info.h"
+
+@interface URLAndTitle : NSObject
+
+@property(readonly) NSString* URL;
+@property(readonly) NSString* title;
+
+@end
 
 namespace ui {
 
@@ -27,7 +33,7 @@ class COMPONENT_EXPORT(UI_BASE_CLIPBOARD) UniquePasteboard
  private:
   friend class base::RefCounted<UniquePasteboard>;
   ~UniquePasteboard();
-  base::scoped_nsobject<NSPasteboard> pasteboard_;
+  __strong NSPasteboard* pasteboard_;
 };
 
 namespace clipboard_util {
@@ -45,14 +51,12 @@ void AddDataToPasteboard(NSPasteboard* pboard, NSPasteboardItem* item);
 
 // For a given pasteboard, reads and extracts the URLs to be found on it. If
 // `include_files` is set, then any file references on the pasteboard will be
-// returned as file URLs. The two out-parameter arrays are guaranteed to be the
-// same length when this function completes. Returns true if at least one URL
-// was successfully read, and false otherwise.
+// returned as file URLs. Returns an array of URLAndTitle objects each holding
+// a URL and title pair read from the pasteboard. If no URLs were successfully
+// read, the array will be empty.
 COMPONENT_EXPORT(UI_BASE_CLIPBOARD)
-bool URLsAndTitlesFromPasteboard(NSPasteboard* pboard,
-                                 bool include_files,
-                                 NSArray<NSString*>** urls,
-                                 NSArray<NSString*>** titles);
+NSArray<URLAndTitle*>* URLsAndTitlesFromPasteboard(NSPasteboard* pboard,
+                                                   bool include_files);
 
 // For a given pasteboard, extracts the files found on it.
 COMPONENT_EXPORT(UI_BASE_CLIPBOARD)

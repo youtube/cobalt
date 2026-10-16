@@ -9,6 +9,7 @@ import android.view.View;
 
 import androidx.annotation.StringRes;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.download.home.empty.EmptyProperties.State;
 import org.chromium.chrome.browser.download.home.filter.FilterCoordinator;
 import org.chromium.chrome.browser.download.home.filter.Filters.FilterType;
@@ -22,6 +23,7 @@ import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import java.util.Collection;
 
 /** A class that determines whether an empty view should be shown and inserts into the model. */
+@NullMarked
 public class EmptyCoordinator implements OfflineItemFilterObserver, FilterCoordinator.Observer {
     private final OfflineItemFilterSource mSource;
 
@@ -74,19 +76,17 @@ public class EmptyCoordinator implements OfflineItemFilterObserver, FilterCoordi
     }
 
     private void calculateState() {
-        @State
-        int state;
+        @State int state;
         if (!mSource.areItemsAvailable()) {
             state = State.LOADING;
         } else if (mSource.getItems().isEmpty()) {
             state = State.EMPTY;
 
-            @StringRes
-            int textId;
+            @StringRes int textId;
             if (mShowingPrefetch) {
                 textId = R.string.download_manager_prefetch_tab_empty;
             } else {
-                textId = R.string.download_manager_no_downloads;
+                textId = R.string.download_manager_no_downloads_empty_state;
             }
 
             mModel.set(EmptyProperties.EMPTY_TEXT_RES_ID, textId);

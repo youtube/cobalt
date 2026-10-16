@@ -23,7 +23,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTest,
 }
 
 #if BUILDFLAG(IS_MAC)
-// Fails on MAC: http://crbug.com/480370
+// TODO(crbug.com/40415216): Fails on MAC.
 #define MAYBE_ExtensionFullscreenAccessPass \
     DISABLED_ExtensionFullscreenAccessPass
 #else
@@ -46,24 +46,20 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTest, MAYBE_ExtensionFullscreenAccessPass) {
 IN_PROC_BROWSER_TEST_F(ExtensionApiTest,
                        MAYBE_FocusWindowDoesNotExitFullscreen) {
   browser()->exclusive_access_manager()->context()->EnterFullscreen(
-      GURL(), EXCLUSIVE_ACCESS_BUBBLE_TYPE_BROWSER_FULLSCREEN_EXIT_INSTRUCTION,
+      url::Origin(),
+      EXCLUSIVE_ACCESS_BUBBLE_TYPE_BROWSER_FULLSCREEN_EXIT_INSTRUCTION,
       display::kInvalidDisplayId);
   ASSERT_TRUE(browser()->window()->IsFullscreen());
   ASSERT_TRUE(RunExtensionTest("window_update/focus")) << message_;
   ASSERT_TRUE(browser()->window()->IsFullscreen());
 }
 
-#if BUILDFLAG(IS_MAC)
-// Fails flakily on Mac: http://crbug.com/308041
-#define MAYBE_UpdateWindowSizeExitsFullscreen \
-    DISABLED_UpdateWindowSizeExitsFullscreen
-#else
-#define MAYBE_UpdateWindowSizeExitsFullscreen UpdateWindowSizeExitsFullscreen
-#endif  // BUILDFLAG(IS_MAC)
+// Fails flakily: crbug.com/335640705.
 IN_PROC_BROWSER_TEST_F(ExtensionApiTest,
-                       MAYBE_UpdateWindowSizeExitsFullscreen) {
+                       DISABLED_UpdateWindowSizeExitsFullscreen) {
   browser()->exclusive_access_manager()->context()->EnterFullscreen(
-      GURL(), EXCLUSIVE_ACCESS_BUBBLE_TYPE_BROWSER_FULLSCREEN_EXIT_INSTRUCTION,
+      url::Origin(),
+      EXCLUSIVE_ACCESS_BUBBLE_TYPE_BROWSER_FULLSCREEN_EXIT_INSTRUCTION,
       display::kInvalidDisplayId);
   ASSERT_TRUE(RunExtensionTest("window_update/sizing")) << message_;
   ASSERT_FALSE(browser()->window()->IsFullscreen());

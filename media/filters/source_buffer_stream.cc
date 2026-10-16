@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/filters/source_buffer_stream.h"
 
 #include <algorithm>
@@ -11,7 +16,6 @@
 #include <string>
 
 #include "base/functional/bind.h"
-#include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/demuxer_memory_limit.h"
 #include "media/base/media_switches.h"
@@ -81,7 +85,6 @@ std::string StatusToString(const SourceBufferStreamStatus& status) {
       return "kEndOfStream";
   }
   NOTREACHED();
-  return "";
 }
 
 // Helper method for logging, converts a range into a readable string.
@@ -141,19 +144,6 @@ std::string BufferQueueMetadataToLogString(
   return result.str();
 }
 
-SourceBufferRange::GapPolicy TypeToGapPolicy(SourceBufferStreamType type) {
-  switch (type) {
-    case SourceBufferStreamType::kAudio:
-    case SourceBufferStreamType::kVideo:
-      return SourceBufferRange::NO_GAPS_ALLOWED;
-    case SourceBufferStreamType::kText:
-      return SourceBufferRange::ALLOW_GAPS;
-  }
-
-  NOTREACHED();
-  return SourceBufferRange::NO_GAPS_ALLOWED;
-}
-
 }  // namespace
 
 SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
@@ -180,26 +170,12 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
       highest_output_buffer_timestamp_(kNoTimestamp),
       max_interbuffer_distance_(
           base::Milliseconds(kMinimumInterbufferDistanceInMs)),
-      memory_limit_(
-          GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
-                                           &video_config)) {
+      memory_limit_(GetDemuxerStreamVideoMemoryLimit(DemuxerType::kChunkDemuxer,
+                                                     &video_config)) {
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(video_config);
   DVLOG(2) << __func__ << ": video_buffer_size= " << memory_limit_;
 }
-
-SourceBufferStream::SourceBufferStream(const TextTrackConfig& text_config,
-                                       MediaLog* media_log)
-    : media_log_(media_log),
-      text_track_config_(text_config),
-      seek_buffer_timestamp_(kNoTimestamp),
-      coded_frame_group_start_pts_(kNoTimestamp),
-      range_for_next_append_(ranges_.end()),
-      highest_output_buffer_timestamp_(kNoTimestamp),
-      max_interbuffer_distance_(
-          base::Milliseconds(kMinimumInterbufferDistanceInMs)),
-      memory_limit_(
-          GetDemuxerStreamAudioMemoryLimit(nullptr /*audio_config*/)) {}
 
 SourceBufferStream::~SourceBufferStream() = default;
 
@@ -374,7 +350,7 @@ void SourceBufferStream::Append(const BufferQueue& buffers) {
     }
 
     range_for_next_append_ = AddToRanges(std::make_unique<SourceBufferRange>(
-        TypeToGapPolicy(GetType()), *buffers_for_new_range,
+        SourceBufferRange::NO_GAPS_ALLOWED, *buffers_for_new_range,
         new_range_start_time,
         base::BindRepeating(&SourceBufferStream::GetMaxInterbufferDistance,
                             base::Unretained(this))));
@@ -606,7 +582,7 @@ void SourceBufferStream::RemoveInternal(base::TimeDelta start,
     }
 
     if (range == selected_range_ && !range->HasNextBufferPosition())
-      SetSelectedRange(NULL);
+      SetSelectedRange(nullptr);
 
     // If the current range now is completely covered by the removal
     // range then delete it and move on.
@@ -642,7 +618,7 @@ void SourceBufferStream::RemoveInternal(base::TimeDelta start,
 }
 
 void SourceBufferStream::ResetSeekState() {
-  SetSelectedRange(NULL);
+  SetSelectedRange(nullptr);
   track_buffer_.clear();
   config_change_pending_ = false;
   highest_output_buffer_timestamp_ = kNoTimestamp;
@@ -1027,7 +1003,7 @@ size_t SourceBufferStream::FreeBuffers(size_t total_bytes_to_free,
   std::unique_ptr<SourceBufferRange> new_range_for_append;
 
   while (!ranges_.empty() && bytes_freed < total_bytes_to_free) {
-    SourceBufferRange* current_range = NULL;
+    SourceBufferRange* current_range = nullptr;
     BufferQueue buffers;
     size_t bytes_deleted = 0;
 
@@ -1073,7 +1049,7 @@ size_t SourceBufferStream::FreeBuffers(size_t total_bytes_to_free,
 
       // Create a new range containing these buffers.
       new_range_for_append = std::make_unique<SourceBufferRange>(
-          TypeToGapPolicy(GetType()), buffers, kNoTimestamp,
+          SourceBufferRange::NO_GAPS_ALLOWED, buffers, kNoTimestamp,
           base::BindRepeating(&SourceBufferStream::GetMaxInterbufferDistance,
                               base::Unretained(this)));
 
@@ -1331,9 +1307,7 @@ void SourceBufferStream::PrepareRangesForNextAppend(
   //      with incorrect timestamps. Removing a frame may break decode
   //      dependencies and there are no downsides to just keeping it (other than
   //      some throw-away decoder work).
-  //   B. Type is text. TODO(chcunningham): Implement text splicing. See
-  //      http://crbug.com/661408
-  //   C. Type is audio and overlapped duration is 0. We've encountered Vorbis
+  //   B. Type is audio and overlapped duration is 0. We've encountered Vorbis
   //      streams containing zero-duration buffers (i.e. no real overlap). For
   //      non-zero duration removing overlapped frames is important to preserve
   //      A/V sync (see AudioClock).
@@ -1341,7 +1315,6 @@ void SourceBufferStream::PrepareRangesForNextAppend(
       highest_timestamp_in_append_sequence_ ==
           new_buffers.front()->timestamp() &&
       (GetType() == SourceBufferStreamType::kVideo ||
-       GetType() == SourceBufferStreamType::kText ||
        last_appended_buffer_duration_ == base::TimeDelta());
 
   // Finally do the deletion of overlap.
@@ -1533,7 +1506,7 @@ void SourceBufferStream::OnSetDuration(base::TimeDelta duration) {
 
     if (!deleted_buffers.empty()) {
       // Truncation removed current position. Clear selected range.
-      SetSelectedRange(NULL);
+      SetSelectedRange(nullptr);
     }
   }
 }
@@ -1799,10 +1772,6 @@ const VideoDecoderConfig& SourceBufferStream::GetCurrentVideoDecoderConfig() {
   return video_configs_[current_config_index_];
 }
 
-const TextTrackConfig& SourceBufferStream::GetCurrentTextTrackConfig() {
-  return text_track_config_;
-}
-
 base::TimeDelta SourceBufferStream::GetMaxInterbufferDistance() const {
   return max_interbuffer_distance_;
 }
@@ -1838,6 +1807,21 @@ bool SourceBufferStream::UpdateAudioConfig(const AudioDecoderConfig& config,
   DVLOG(2) << "New audio config - index: " << append_config_index_;
   audio_configs_.resize(audio_configs_.size() + 1);
   audio_configs_[append_config_index_] = config;
+
+  if (memory_limit_overridden_) {
+    DVLOG(2)
+        << __func__
+        << ": Skipping updating memory limit as memory limit was overridden.";
+  } else {
+    // Dynamically increase |memory_limit_| on audio config changes.
+    size_t new_memory_limit = GetDemuxerStreamAudioMemoryLimit(&config);
+    if (new_memory_limit > memory_limit_) {
+      DVLOG(2) << __func__ << ": Increase memory limit from " << memory_limit_
+               << " to " << new_memory_limit << ".";
+      memory_limit_ = new_memory_limit;
+    }
+  }
+
   return true;
 }
 
@@ -1873,13 +1857,20 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
   video_configs_.resize(video_configs_.size() + 1);
   video_configs_[append_config_index_] = config;
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Dynamically increase |memory_limit_| when video resolution goes up.
-  memory_limit_ = std::max(
-      memory_limit_,
-      GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
-                                       &config));
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (memory_limit_overridden_) {
+    DVLOG(2)
+        << __func__
+        << ": Skipping updating memory limit as memory limit was overridden.";
+  } else {
+    // Dynamically increase |memory_limit_| on video config changes.
+    size_t new_memory_limit =
+        GetDemuxerStreamVideoMemoryLimit(DemuxerType::kChunkDemuxer, &config);
+    if (new_memory_limit > memory_limit_) {
+      DVLOG(2) << __func__ << ": Increase memory limit from " << memory_limit_
+               << " to " << new_memory_limit << ".";
+      memory_limit_ = new_memory_limit;
+    }
+  }
 
   return true;
 }
@@ -1935,9 +1926,15 @@ void SourceBufferStream::SetSelectedRangeIfNeeded(
     return;
   }
 
+  auto* range = FindExistingRangeFor(seek_timestamp)->get();
+  if (!range->CanSeekTo(seek_timestamp)) {
+    DVLOG(2) << __func__ << " " << GetStreamTypeName()
+             << " couldn't find range seekable to timestamp";
+    return;
+  }
+
   DCHECK(track_buffer_.empty());
-  SeekAndSetSelectedRange(FindExistingRangeFor(seek_timestamp)->get(),
-                          seek_timestamp);
+  SeekAndSetSelectedRange(range, seek_timestamp);
 }
 
 base::TimeDelta SourceBufferStream::FindNewSelectedRangeSeekTimestamp(
@@ -1998,20 +1995,15 @@ std::string SourceBufferStream::GetStreamTypeName() const {
       return "AUDIO";
     case SourceBufferStreamType::kVideo:
       return "VIDEO";
-    case SourceBufferStreamType::kText:
-      return "TEXT";
   }
   NOTREACHED();
-  return "";
 }
 
 SourceBufferStreamType SourceBufferStream::GetType() const {
   if (!audio_configs_.empty())
     return SourceBufferStreamType::kAudio;
-  if (!video_configs_.empty())
-    return SourceBufferStreamType::kVideo;
-  DCHECK_NE(text_track_config_.kind(), kTextNone);
-  return SourceBufferStreamType::kText;
+  DCHECK(!video_configs_.empty());
+  return SourceBufferStreamType::kVideo;
 }
 
 void SourceBufferStream::DeleteAndRemoveRange(RangeList::iterator* itr) {
@@ -2020,7 +2012,7 @@ void SourceBufferStream::DeleteAndRemoveRange(RangeList::iterator* itr) {
   DCHECK(*itr != ranges_.end());
   if ((*itr)->get() == selected_range_) {
     DVLOG(1) << __func__ << " deleting selected range.";
-    SetSelectedRange(NULL);
+    SetSelectedRange(nullptr);
   }
 
   if (*itr == range_for_next_append_) {

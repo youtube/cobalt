@@ -16,13 +16,17 @@
 #define STARBOARD_ANDROID_SHARED_AUDIO_RENDERER_PASSTHROUGH_H_
 
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <vector>
 
-#include "starboard/android/shared/audio_track_bridge.h"
+#include "starboard/android/shared/audio_track.h"
 #include "starboard/android/shared/drm_system.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/result.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -45,12 +49,36 @@ class AudioRendererPassthrough : public AudioRenderer,
                                  public MediaTimeProvider,
                                  private JobQueue::JobOwner {
  public:
-  AudioRendererPassthrough(const AudioStreamInfo& audio_stream_info,
-                           SbDrmSystem drm_system,
-                           bool enable_flush_during_seek);
+  using AudioTrackFactory = std::function<std::unique_ptr<AudioTrack>(
+      SbMediaAudioCodingType coding_type,
+      std::optional<SbMediaAudioSampleType> sample_type,
+      int channels,
+      int sampling_frequency_hz,
+      int preferred_buffer_size_in_bytes,
+      std::optional<int> tunnel_mode_audio_session_id,
+      bool is_web_audio)>;
+
+  static NonNullResult<std::unique_ptr<AudioRendererPassthrough>> Create(
+      JobQueue* job_queue,
+      const AudioStreamInfo& audio_stream_info,
+      SbDrmSystem drm_system,
+      bool enable_flush_during_seek);
+
+  static std::unique_ptr<AudioRendererPassthrough> CreateForTesting(
+      JobQueue* job_queue,
+      const AudioStreamInfo& audio_stream_info,
+      std::unique_ptr<AudioDecoder> decoder,
+      AudioTrackFactory audio_track_factory);
+
+  AudioRendererPassthrough(PassKey<AudioRendererPassthrough>,
+                           JobQueue* job_queue,
+                           const AudioStreamInfo& audio_stream_info,
+                           std::unique_ptr<AudioDecoder> decoder,
+                           AudioTrackFactory audio_track_factory);
   ~AudioRendererPassthrough() override;
 
-  bool is_valid() const { return decoder_ != nullptr; }
+  static int ParseAc3SyncframeAudioSampleCountForTesting(
+      const std::vector<uint8_t>& buffer);
 
   // AudioRenderer methods
   void Initialize(const ErrorCB& error_cb,
@@ -74,6 +102,10 @@ class AudioRendererPassthrough : public AudioRenderer,
                               bool* is_eos_played,
                               bool* is_underflow,
                               double* playback_rate) override;
+  int64_t GetAudioWriteHead() override { return 0; }
+  int64_t AdjustTimestampToAudioClock(int64_t timestamp) override {
+    return timestamp;
+  }
 
  private:
   struct AudioTrackState {
@@ -87,6 +119,7 @@ class AudioRendererPassthrough : public AudioRenderer,
   void CreateAudioTrackAndStartProcessing();
   void FlushAudioTrackAndStopProcessing(int64_t seek_to_time);
   void UpdateStatusAndWriteData(const AudioTrackState previous_state);
+  void ReportCapabilityChanged();
   void OnDecoderConsumed();
   void OnDecoderOutput();
 
@@ -96,7 +129,7 @@ class AudioRendererPassthrough : public AudioRenderer,
   // TODO: Revisit to encapsulate the AudioDecoder as a SbDrmSystemPrivate
   //       instead.  This would need to turn SbDrmSystemPrivate::Decrypt() into
   //       asynchronous, which comes with extra risks.
-  std::unique_ptr<AudioDecoder> decoder_;
+  const std::unique_ptr<AudioDecoder> decoder_;
 
   // The following three variables are set in Initialize().
   ErrorCB error_cb_;
@@ -120,21 +153,24 @@ class AudioRendererPassthrough : public AudioRenderer,
   double volume_ = 1.0;
   bool paused_ = true;
   double playback_rate_ = 1.0;
-  std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
+  std::queue<DecodedAudio> decoded_audios_;
 
   // The following variable group is only accessed on |audio_track_thread_|, or
   // after |audio_track_thread_| is destroyed (in Seek()).
-  scoped_refptr<DecodedAudio> decoded_audio_writing_in_progress_;
+  std::optional<DecodedAudio> decoded_audio_writing_in_progress_;
   int decoded_audio_writing_offset_ = 0;
-  JobQueue::JobToken update_status_and_write_data_token_;
+  JobQueue::JobToken update_status_and_write_data_token_ =
+      JobQueue::JobToken::kUnscheduled;
   int64_t total_frames_written_on_audio_track_thread_ = 0;
 
   std::atomic_bool audio_track_paused_{true};
 
-  // |audio_track_thread_| must be declared after |audio_track_bridge_| to
-  // ensure the thread completes all tasks before |audio_track_bridge_| is
+  const AudioTrackFactory audio_track_factory_;
+
+  // |audio_track_thread_| must be declared after |audio_track_| to
+  // ensure the thread completes all tasks before |audio_track_| is
   // invalidated.
-  std::unique_ptr<AudioTrackBridge> audio_track_bridge_;
+  std::unique_ptr<AudioTrack> audio_track_;
   std::unique_ptr<JobThread> audio_track_thread_;
 };
 

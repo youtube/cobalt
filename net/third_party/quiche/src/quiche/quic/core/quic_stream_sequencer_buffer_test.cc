@@ -7,7 +7,9 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <list>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -745,6 +747,28 @@ TEST_F(QuicStreamSequencerBufferTest, PeekContinously) {
   // First block is still there.
   EXPECT_TRUE(buffer_->PeekRegion(0, &iov));
   EXPECT_EQ(source1, IovecToStringPiece(iov));
+}
+
+TEST_F(QuicStreamSequencerBufferTest, PeekRegionWithBufferWrapsAround) {
+  ResetMaxCapacityBytes(kBlockSizeBytes * 8);
+  std::string source1(kBlockSizeBytes, 'a');
+  buffer_->OnStreamData(0, source1, &written_, &error_details_);
+
+  iovec iov;
+  EXPECT_TRUE(buffer_->PeekRegion(0, &iov));
+  EXPECT_EQ(source1, IovecToStringPiece(iov));
+  // Consume half of the block.
+  size_t consumed_bytes = kBlockSizeBytes - 4 * 1024;
+  buffer_->MarkConsumed(consumed_bytes);
+
+  // Buffer much more data so that the last bytes are stored into the start of
+  // the first block, which also contains the first unread bytes.
+  std::string source2(max_capacity_bytes_ - 4 * 1024 - 1, 'b');
+  buffer_->OnStreamData(kBlockSizeBytes, source2, &written_, &error_details_);
+  EXPECT_EQ(max_capacity_bytes_ - 1, buffer_->ReadableBytes());
+
+  EXPECT_TRUE(buffer_->PeekRegion(consumed_bytes, &iov));
+  EXPECT_EQ(std::string(4 * 1024, 'a'), IovecToStringPiece(iov));
 }
 
 TEST_F(QuicStreamSequencerBufferTest, MarkConsumedInOneBlock) {

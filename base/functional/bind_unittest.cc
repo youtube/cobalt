@@ -2,20 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/functional/bind.h"
 
 #include <functional>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
 #include "base/allocator/partition_alloc_features.h"
 #include "base/allocator/partition_alloc_support.h"
-#include "base/allocator/partition_allocator/dangling_raw_ptr_checks.h"
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
-#include "base/allocator/partition_allocator/partition_alloc_for_testing.h"  // nogncheck
 #include "base/functional/callback.h"
-#include "base/functional/disallow_unretained.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
@@ -26,6 +28,10 @@
 #include "base/test/gtest_util.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
+#include "partition_alloc/buildflags.h"
+#include "partition_alloc/dangling_raw_ptr_checks.h"
+#include "partition_alloc/partition_alloc_for_testing.h"
+#include "partition_alloc/partition_root.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -38,24 +44,6 @@ using ::testing::StrictMock;
 
 namespace base {
 namespace {
-
-class AllowsUnretained {};
-
-class BansUnretained {
- public:
-  DISALLOW_UNRETAINED();
-};
-
-class BansUnretainedInPrivate {
-  DISALLOW_UNRETAINED();
-};
-
-class DerivedButBaseBansUnretained : public BansUnretained {};
-
-static_assert(internal::TypeSupportsUnretainedV<AllowsUnretained>);
-static_assert(!internal::TypeSupportsUnretainedV<BansUnretained>);
-static_assert(!internal::TypeSupportsUnretainedV<BansUnretainedInPrivate>);
-static_assert(!internal::TypeSupportsUnretainedV<DerivedButBaseBansUnretained>);
 
 class NoRef {
  public:
@@ -448,7 +436,7 @@ TEST_F(BindTest, OnceCallbackBasicTest) {
   // After running via the rvalue-reference, the value of the OnceCallback
   // is undefined. The implementation simply clears the instance after the
   // invocation.
-  EXPECT_TRUE(c0.is_null());
+  EXPECT_TRUE(c0.is_null());  // NOLINT(bugprone-use-after-move)
 
   c0 = BindOnce(&Sum, 2, 3, 5, 7, 11);
 
@@ -540,7 +528,7 @@ TEST_F(BindTest, IgnoreResultForRepeatingCallback) {
   std::string s;
   RepeatingCallback<int(int)> cb = BindRepeating(
       [](std::string* s, int i) {
-        *s += "Run" + base::NumberToString(i);
+        *s += "Run" + NumberToString(i);
         return 5;
       },
       &s);
@@ -553,7 +541,7 @@ TEST_F(BindTest, IgnoreResultForOnceCallback) {
   std::string s;
   OnceCallback<int(int)> cb = BindOnce(
       [](std::string* s, int i) {
-        *s += "Run" + base::NumberToString(i);
+        *s += "Run" + NumberToString(i);
         return 5;
       },
       &s);
@@ -586,26 +574,26 @@ TEST_F(BindTest, BindOnceWithNonConstRef) {
 
   // Everything past here following will make a copy of the argument. The copy
   // will be mutated and leave `v` unmodified.
-  auto cb3 = BindOnce(SetFromRef, base::OwnedRef(v));
+  auto cb3 = BindOnce(SetFromRef, OwnedRef(v));
   std::move(cb3).Run();
   EXPECT_EQ(v, 1);
 
   int& ref = v;
-  auto cb4 = BindOnce(SetFromRef, base::OwnedRef(ref));
+  auto cb4 = BindOnce(SetFromRef, OwnedRef(ref));
   std::move(cb4).Run();
   EXPECT_EQ(v, 1);
 
   const int cv = 1;
-  auto cb5 = BindOnce(SetFromRef, base::OwnedRef(cv));
+  auto cb5 = BindOnce(SetFromRef, OwnedRef(cv));
   std::move(cb5).Run();
   EXPECT_EQ(cv, 1);
 
   const int& cref = v;
-  auto cb6 = BindOnce(SetFromRef, base::OwnedRef(cref));
+  auto cb6 = BindOnce(SetFromRef, OwnedRef(cref));
   std::move(cb6).Run();
   EXPECT_EQ(cref, 1);
 
-  auto cb7 = BindOnce(SetFromRef, base::OwnedRef(1));
+  auto cb7 = BindOnce(SetFromRef, OwnedRef(1));
   std::move(cb7).Run();
 }
 
@@ -627,26 +615,26 @@ TEST_F(BindTest, BindRepeatingWithNonConstRef) {
 
   // Everything past here following will make a copy of the argument. The copy
   // will be mutated and leave `v` unmodified.
-  auto cb3 = BindRepeating(SetFromRef, base::OwnedRef(v));
+  auto cb3 = BindRepeating(SetFromRef, OwnedRef(v));
   std::move(cb3).Run();
   EXPECT_EQ(v, 1);
 
   int& ref = v;
-  auto cb4 = BindRepeating(SetFromRef, base::OwnedRef(ref));
+  auto cb4 = BindRepeating(SetFromRef, OwnedRef(ref));
   std::move(cb4).Run();
   EXPECT_EQ(v, 1);
 
   const int cv = 1;
-  auto cb5 = BindRepeating(SetFromRef, base::OwnedRef(cv));
+  auto cb5 = BindRepeating(SetFromRef, OwnedRef(cv));
   std::move(cb5).Run();
   EXPECT_EQ(cv, 1);
 
   const int& cref = v;
-  auto cb6 = BindRepeating(SetFromRef, base::OwnedRef(cref));
+  auto cb6 = BindRepeating(SetFromRef, OwnedRef(cref));
   std::move(cb6).Run();
   EXPECT_EQ(cref, 1);
 
-  auto cb7 = BindRepeating(SetFromRef, base::OwnedRef(1));
+  auto cb7 = BindRepeating(SetFromRef, OwnedRef(1));
   std::move(cb7).Run();
 }
 
@@ -954,9 +942,7 @@ struct RepeatingTestConfig {
   using ClosureType = RepeatingClosure;
 
   template <typename F, typename... Args>
-  static CallbackType<internal::MakeUnboundRunType<F, Args...>> Bind(
-      F&& f,
-      Args&&... args) {
+  static auto Bind(F&& f, Args&&... args) {
     return BindRepeating(std::forward<F>(f), std::forward<Args>(args)...);
   }
 };
@@ -967,9 +953,7 @@ struct OnceTestConfig {
   using ClosureType = OnceClosure;
 
   template <typename F, typename... Args>
-  static CallbackType<internal::MakeUnboundRunType<F, Args...>> Bind(
-      F&& f,
-      Args&&... args) {
+  static auto Bind(F&& f, Args&&... args) {
     return BindOnce(std::forward<F>(f), std::forward<Args>(args)...);
   }
 };
@@ -1314,16 +1298,25 @@ TEST_F(BindTest, BindMoveOnlyVector) {
   v.push_back(std::make_unique<int>(12345));
 
   // Early binding should work:
-  base::RepeatingCallback<MoveOnlyVector()> bound_cb =
-      base::BindRepeating(&AcceptAndReturnMoveOnlyVector, Passed(&v));
+  RepeatingCallback<MoveOnlyVector()> bound_cb =
+      BindRepeating(&AcceptAndReturnMoveOnlyVector, Passed(&v));
   MoveOnlyVector intermediate_result = bound_cb.Run();
   VerifyVector(intermediate_result);
 
   // As should passing it as an argument to Run():
-  base::RepeatingCallback<MoveOnlyVector(MoveOnlyVector)> unbound_cb =
-      base::BindRepeating(&AcceptAndReturnMoveOnlyVector);
+  RepeatingCallback<MoveOnlyVector(MoveOnlyVector)> unbound_cb =
+      BindRepeating(&AcceptAndReturnMoveOnlyVector);
   MoveOnlyVector final_result = unbound_cb.Run(std::move(intermediate_result));
   VerifyVector(final_result);
+}
+
+// Using Passed() on a functor should not cause a compile error.
+TEST_F(BindTest, PassedFunctor) {
+  struct S {
+    void operator()() const {}
+  };
+
+  BindRepeating(Passed(S())).Run();
 }
 
 // Argument copy-constructor usage for non-reference copy-only parameters.
@@ -1483,29 +1476,23 @@ TEST_F(BindTest, ArgumentCopiesAndMoves) {
   EXPECT_EQ(0, move_assigns);
 }
 
+TEST_F(BindTest, RepeatingWithoutPassed) {
+  // It should be possible to use a move-only type with `BindRepeating` without
+  // `Passed` if running the callback does not require copying the instance.
+  struct S {
+    S() = default;
+    S(S&&) = default;
+    S& operator=(S&&) = default;
+  } s;
+  BindRepeating([](const S&) {}, std::move(s));
+}
+
 TEST_F(BindTest, CapturelessLambda) {
-  EXPECT_FALSE(internal::IsCallableObject<void>::value);
-  EXPECT_FALSE(internal::IsCallableObject<int>::value);
-  EXPECT_FALSE(internal::IsCallableObject<void (*)()>::value);
-  EXPECT_FALSE(internal::IsCallableObject<void (NoRef::*)()>::value);
-
-  auto f = []() {};
-  EXPECT_TRUE(internal::IsCallableObject<decltype(f)>::value);
-
-  int i = 0;
-  auto g = [i]() { (void)i; };
-  EXPECT_TRUE(internal::IsCallableObject<decltype(g)>::value);
-
-  auto h = [](int, double) { return 'k'; };
-  EXPECT_TRUE(
-      (std::is_same<char(int, double),
-                    internal::ExtractCallableRunType<decltype(h)>>::value));
-
   EXPECT_EQ(42, BindRepeating([] { return 42; }).Run());
   EXPECT_EQ(42, BindRepeating([](int i) { return i * 7; }, 6).Run());
 
   int x = 1;
-  base::RepeatingCallback<void(int)> cb =
+  RepeatingCallback<void(int)> cb =
       BindRepeating([](int* x, int i) { *x *= i; }, Unretained(&x));
   cb.Run(6);
   EXPECT_EQ(6, x);
@@ -1527,9 +1514,7 @@ TEST_F(BindTest, EmptyFunctor) {
     int operator()() const { return 42; }
   };
 
-  EXPECT_TRUE(internal::IsCallableObject<NonEmptyFunctor>::value);
-  EXPECT_TRUE(internal::IsCallableObject<EmptyFunctor>::value);
-  EXPECT_TRUE(internal::IsCallableObject<EmptyFunctorConst>::value);
+  EXPECT_EQ(42, BindLambdaForTesting(NonEmptyFunctor()).Run());
   EXPECT_EQ(42, BindOnce(EmptyFunctor()).Run());
   EXPECT_EQ(42, BindOnce(EmptyFunctorConst()).Run());
   EXPECT_EQ(42, BindRepeating(EmptyFunctorConst()).Run());
@@ -1596,56 +1581,51 @@ TEST_F(BindTest, OnceCallback) {
   // Check if Callback variants have declarations of conversions as expected.
   // Copy constructor and assignment of RepeatingCallback.
   static_assert(
-      std::is_constructible<RepeatingClosure, const RepeatingClosure&>::value,
+      std::is_constructible_v<RepeatingClosure, const RepeatingClosure&>,
       "RepeatingClosure should be copyable.");
-  static_assert(
-      std::is_assignable<RepeatingClosure, const RepeatingClosure&>::value,
-      "RepeatingClosure should be copy-assignable.");
+  static_assert(std::is_assignable_v<RepeatingClosure, const RepeatingClosure&>,
+                "RepeatingClosure should be copy-assignable.");
 
   // Move constructor and assignment of RepeatingCallback.
-  static_assert(
-      std::is_constructible<RepeatingClosure, RepeatingClosure&&>::value,
-      "RepeatingClosure should be movable.");
-  static_assert(std::is_assignable<RepeatingClosure, RepeatingClosure&&>::value,
+  static_assert(std::is_constructible_v<RepeatingClosure, RepeatingClosure&&>,
+                "RepeatingClosure should be movable.");
+  static_assert(std::is_assignable_v<RepeatingClosure, RepeatingClosure&&>,
                 "RepeatingClosure should be move-assignable");
 
   // Conversions from OnceCallback to RepeatingCallback.
-  static_assert(
-      !std::is_constructible<RepeatingClosure, const OnceClosure&>::value,
-      "OnceClosure should not be convertible to RepeatingClosure.");
-  static_assert(
-      !std::is_assignable<RepeatingClosure, const OnceClosure&>::value,
-      "OnceClosure should not be convertible to RepeatingClosure.");
+  static_assert(!std::is_constructible_v<RepeatingClosure, const OnceClosure&>,
+                "OnceClosure should not be convertible to RepeatingClosure.");
+  static_assert(!std::is_assignable_v<RepeatingClosure, const OnceClosure&>,
+                "OnceClosure should not be convertible to RepeatingClosure.");
 
   // Destructive conversions from OnceCallback to RepeatingCallback.
-  static_assert(!std::is_constructible<RepeatingClosure, OnceClosure&&>::value,
+  static_assert(!std::is_constructible_v<RepeatingClosure, OnceClosure&&>,
                 "OnceClosure should not be convertible to RepeatingClosure.");
-  static_assert(!std::is_assignable<RepeatingClosure, OnceClosure&&>::value,
+  static_assert(!std::is_assignable_v<RepeatingClosure, OnceClosure&&>,
                 "OnceClosure should not be convertible to RepeatingClosure.");
 
   // Copy constructor and assignment of OnceCallback.
-  static_assert(!std::is_constructible<OnceClosure, const OnceClosure&>::value,
+  static_assert(!std::is_constructible_v<OnceClosure, const OnceClosure&>,
                 "OnceClosure should not be copyable.");
-  static_assert(!std::is_assignable<OnceClosure, const OnceClosure&>::value,
+  static_assert(!std::is_assignable_v<OnceClosure, const OnceClosure&>,
                 "OnceClosure should not be copy-assignable");
 
   // Move constructor and assignment of OnceCallback.
-  static_assert(std::is_constructible<OnceClosure, OnceClosure&&>::value,
+  static_assert(std::is_constructible_v<OnceClosure, OnceClosure&&>,
                 "OnceClosure should be movable.");
-  static_assert(std::is_assignable<OnceClosure, OnceClosure&&>::value,
+  static_assert(std::is_assignable_v<OnceClosure, OnceClosure&&>,
                 "OnceClosure should be move-assignable.");
 
   // Conversions from RepeatingCallback to OnceCallback.
-  static_assert(
-      std::is_constructible<OnceClosure, const RepeatingClosure&>::value,
-      "RepeatingClosure should be convertible to OnceClosure.");
-  static_assert(std::is_assignable<OnceClosure, const RepeatingClosure&>::value,
+  static_assert(std::is_constructible_v<OnceClosure, const RepeatingClosure&>,
+                "RepeatingClosure should be convertible to OnceClosure.");
+  static_assert(std::is_assignable_v<OnceClosure, const RepeatingClosure&>,
                 "RepeatingClosure should be convertible to OnceClosure.");
 
   // Destructive conversions from RepeatingCallback to OnceCallback.
-  static_assert(std::is_constructible<OnceClosure, RepeatingClosure&&>::value,
+  static_assert(std::is_constructible_v<OnceClosure, RepeatingClosure&&>,
                 "RepeatingClosure should be convertible to OnceClosure.");
-  static_assert(std::is_assignable<OnceClosure, RepeatingClosure&&>::value,
+  static_assert(std::is_assignable_v<OnceClosure, RepeatingClosure&&>,
                 "RepeatingClosure should be covretible to OnceClosure.");
 
   OnceClosure cb = BindOnce(&VoidPolymorphic<>::Run);
@@ -1659,7 +1639,7 @@ TEST_F(BindTest, OnceCallback) {
   cb = cb3;
   std::move(cb).Run();
 
-  cb = std::move(cb2);
+  cb = std::move(cb2);  // NOLINT(bugprone-use-after-move)
 
   OnceCallback<void(int)> cb4 =
       BindOnce(&VoidPolymorphic<std::unique_ptr<int>, int>::Run,
@@ -1701,12 +1681,12 @@ TEST_F(BindTest, WindowsCallingConventions) {
 
   MethodHolder obj;
   auto stdcall_method_cb =
-      BindRepeating(&MethodHolder::Func, base::Unretained(&obj), 1);
+      BindRepeating(&MethodHolder::Func, Unretained(&obj), 1);
   EXPECT_EQ(1, stdcall_method_cb.Run());
 
   const MethodHolder const_obj;
   auto stdcall_const_method_cb =
-      BindRepeating(&MethodHolder::ConstFunc, base::Unretained(&const_obj), 1);
+      BindRepeating(&MethodHolder::ConstFunc, Unretained(&const_obj), 1);
   EXPECT_EQ(-1, stdcall_const_method_cb.Run());
 }
 #endif
@@ -1754,15 +1734,12 @@ TEST_F(BindTest, UnwrapPassed) {
 }
 
 TEST_F(BindTest, BindNoexcept) {
-  EXPECT_EQ(42, base::BindOnce(&Noexcept).Run());
-  EXPECT_EQ(
-      42,
-      base::BindOnce(&BindTest::NoexceptMethod, base::Unretained(this)).Run());
-  EXPECT_EQ(
-      42, base::BindOnce(&BindTest::ConstNoexceptMethod, base::Unretained(this))
-              .Run());
-  EXPECT_EQ(42, base::BindOnce(NoexceptFunctor()).Run());
-  EXPECT_EQ(42, base::BindOnce(ConstNoexceptFunctor()).Run());
+  EXPECT_EQ(42, BindOnce(&Noexcept).Run());
+  EXPECT_EQ(42, BindOnce(&BindTest::NoexceptMethod, Unretained(this)).Run());
+  EXPECT_EQ(42,
+            BindOnce(&BindTest::ConstNoexceptMethod, Unretained(this)).Run());
+  EXPECT_EQ(42, BindOnce(NoexceptFunctor()).Run());
+  EXPECT_EQ(42, BindOnce(ConstNoexceptFunctor()).Run());
 }
 
 int PingPong(int* i_ptr) {
@@ -1773,14 +1750,87 @@ TEST_F(BindTest, BindAndCallbacks) {
   int i = 123;
   raw_ptr<int> p = &i;
 
-  auto callback = base::BindOnce(PingPong, base::Unretained(p));
+  auto callback = BindOnce(PingPong, Unretained(p));
   int res = std::move(callback).Run();
   EXPECT_EQ(123, res);
 }
 
+TEST_F(BindTest, ConvertibleArgs) {
+  // Create two types S and T, such that you can convert a T to an S, but you
+  // cannot construct an S from a T.
+  struct T;
+  class S {
+    friend struct T;
+    explicit S(const T&) {}
+  };
+  struct T {
+    // NOLINTNEXTLINE(google-explicit-constructor)
+    operator S() const { return S(*this); }
+  };
+  static_assert(!std::is_constructible_v<S, T>);
+  static_assert(std::is_convertible_v<T, S>);
+
+  // Ensure it's possible to pass a T to a function expecting an S.
+  void (*foo)(S) = +[](S) {};
+  const T t;
+  auto callback = BindOnce(foo, t);
+  std::move(callback).Run();
+}
+
+TEST_F(BindTest, OverloadedOperator) {
+  // Bind should be able to pick the correct `operator()()` to invoke on a
+  // functor from the supplied args.
+  struct S {
+    int operator()(int x) { return x; }
+    std::string operator()(std::string s) { return s; }
+  } s;
+
+  EXPECT_EQ(42, BindOnce(s, 42).Run());
+  EXPECT_EQ("Hello", BindOnce(s, "Hello").Run());
+}
+
+TEST_F(BindTest, OverloadedOperatorQualifiers) {
+  // Bind should be able to pick the correct `operator()()` to invoke on a
+  // functor when the only difference between the overloads is their qualifiers.
+  struct S {
+    int operator()() const& { return 1; }
+    int operator()() && { return 2; }
+  } s;
+
+  // `BindRepeating()` normally stores a value and passes a const ref to the
+  // invoked method, regardless of whether lvalue or rvalue was originally
+  // provided.
+  EXPECT_EQ(1, BindRepeating(s).Run());
+  EXPECT_EQ(1, BindRepeating(S()).Run());
+
+  // The exception is if `Passed()` is used, which tells `BindRepeating()` to
+  // move the specified argument during invocation.
+  EXPECT_EQ(2, BindRepeating(Passed(S())).Run());
+
+  // `BindOnce()` also stores a value, but it always moves that value during
+  // invocation, regardless of whether lvalue or rvalue was originally provided.
+  EXPECT_EQ(2, BindOnce(s).Run());
+  EXPECT_EQ(2, BindOnce(S()).Run());
+}
+
+TEST_F(BindTest, OverloadedOperatorInexactMatch) {
+  // The Bind machinery guesses signatures for overloaded `operator()()`s based
+  // on the decay_t<>s of the bound args. But as long as all args are bound and
+  // are convertible to exactly one overload's params, everything should work,
+  // even if the guess is slightly incorrect.
+  struct S {
+    int operator()(int x) { return x; }
+    // Machinery will guess that param type here is `std::string`.
+    std::string operator()(const std::string& s) { return s; }
+  } s;
+
+  EXPECT_EQ(42, BindOnce(s, 42).Run());
+  EXPECT_EQ("Hello", BindOnce(s, "Hello").Run());
+}
+
 }  // namespace
 
-// This simulates a race weak pointer that, unlike our `base::WeakPtr<>`,
+// This simulates a race weak pointer that, unlike our `WeakPtr<>`,
 // may become invalidated between `operator bool()` is tested and `Lock()`
 // is called in the implementation of `Unwrap()`.
 template <typename T>
@@ -1812,43 +1862,44 @@ namespace {
 TEST_F(BindTest, BindRacyWeakPtrTest) {
   MockRacyWeakPtr<NoRef> weak(&no_ref_);
 
-  RepeatingClosure cb = base::BindRepeating(&NoRef::VoidMethod0, weak);
+  RepeatingClosure cb = BindRepeating(&NoRef::VoidMethod0, weak);
   cb.Run();
 }
 
 // Test null callbacks cause a DCHECK.
 TEST(BindDeathTest, NullCallback) {
-  base::RepeatingCallback<void(int)> null_cb;
+  RepeatingCallback<void(int)> null_cb;
   ASSERT_TRUE(null_cb.is_null());
-  EXPECT_CHECK_DEATH(base::BindRepeating(null_cb, 42));
+  EXPECT_CHECK_DEATH(BindRepeating(null_cb, 42));
 }
 
 TEST(BindDeathTest, NullFunctionPointer) {
   void (*null_function)(int) = nullptr;
-  EXPECT_DCHECK_DEATH(base::BindRepeating(null_function, 42));
+  EXPECT_DCHECK_DEATH(BindRepeating(null_function, 42));
 }
 
 TEST(BindDeathTest, NullCallbackWithoutBoundArgs) {
-  base::OnceCallback<void(int)> null_cb;
+  OnceCallback<void(int)> null_cb;
   ASSERT_TRUE(null_cb.is_null());
-  EXPECT_CHECK_DEATH(base::BindOnce(std::move(null_cb)));
+  EXPECT_CHECK_DEATH(BindOnce(std::move(null_cb)));
 }
 
 TEST(BindDeathTest, BanFirstOwnerOfRefCountedType) {
   StrictMock<HasRef> has_ref;
   EXPECT_DCHECK_DEATH({
     EXPECT_CALL(has_ref, HasAtLeastOneRef()).WillOnce(Return(false));
-    base::BindOnce(&HasRef::VoidMethod0, &has_ref);
+    BindOnce(&HasRef::VoidMethod0, &has_ref);
   });
 
   EXPECT_DCHECK_DEATH({
     raw_ptr<HasRef> rawptr(&has_ref);
     EXPECT_CALL(has_ref, HasAtLeastOneRef()).WillOnce(Return(false));
-    base::BindOnce(&HasRef::VoidMethod0, rawptr);
+    BindOnce(&HasRef::VoidMethod0, rawptr);
   });
 }
 
-#if BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
+#if PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT) && \
+    PA_BUILDFLAG(USE_RAW_PTR_BACKUP_REF_IMPL)
 
 void HandleOOM(size_t unused_size) {
   LOG(FATAL) << "Out of memory";
@@ -1857,16 +1908,11 @@ void HandleOOM(size_t unused_size) {
 // Basic set of options to mostly only enable `BackupRefPtr::kEnabled`.
 // This avoids the boilerplate of having too much options enabled for simple
 // testing purpose.
-static constexpr partition_alloc::PartitionOptions
-    kOnlyEnableBackupRefPtrOptions = {
-        partition_alloc::PartitionOptions::AlignedAlloc::kDisallowed,
-        partition_alloc::PartitionOptions::ThreadCache::kDisabled,
-        partition_alloc::PartitionOptions::Quarantine::kDisallowed,
-        partition_alloc::PartitionOptions::Cookie::kAllowed,
-        partition_alloc::PartitionOptions::BackupRefPtr::kEnabled,
-        partition_alloc::PartitionOptions::BackupRefPtrZapping::kEnabled,
-        partition_alloc::PartitionOptions::UseConfigurablePool::kNo,
-};
+static constexpr auto kOnlyEnableBackupRefPtrOptions = [] {
+  partition_alloc::PartitionOptions opts;
+  opts.backup_ref_ptr = partition_alloc::PartitionOptions::kEnabled;
+  return opts;
+}();
 
 class BindUnretainedDanglingInternalFixture : public BindTest {
  public:
@@ -1897,7 +1943,7 @@ class BindUnretainedDanglingInternalFixture : public BindTest {
   }
   template <typename T, RawPtrTraits Traits>
   void Free(raw_ptr<T, Traits>& ptr) {
-    allocator_.root()->Free(ptr);
+    allocator_.root()->Free(ptr.ExtractAsDangling());
   }
 
  private:
@@ -1941,14 +1987,14 @@ class ClassWithWeakPtr {
 
 TEST_F(BindUnretainedDanglingTest, UnretainedNoDanglingPtr) {
   raw_ptr<int> p = Alloc<int>(3);
-  auto callback = base::BindOnce(PingPong, base::Unretained(p));
+  auto callback = BindOnce(PingPong, Unretained(p));
   EXPECT_EQ(std::move(callback).Run(), 3);
   Free(p);
 }
 
 TEST_F(BindUnretainedDanglingTest, UnsafeDanglingPtr) {
   raw_ptr<int> p = Alloc<int>(3);
-  auto callback = base::BindOnce(MayBeDanglingCheckFn, base::UnsafeDangling(p));
+  auto callback = BindOnce(MayBeDanglingCheckFn, UnsafeDangling(p));
   Free(p);
   EXPECT_EQ(std::move(callback).Run(), true);
 }
@@ -1956,8 +2002,8 @@ TEST_F(BindUnretainedDanglingTest, UnsafeDanglingPtr) {
 TEST_F(BindUnretainedDanglingTest, UnsafeDanglingPtrWithDummyTrait) {
   raw_ptr<int, RawPtrTraits::kDummyForTest> p =
       Alloc<int, RawPtrTraits::kDummyForTest>(3);
-  auto callback = base::BindOnce(MayBeDanglingAndDummyTraitCheckFn,
-                                 base::UnsafeDangling(p));
+  auto callback =
+      BindOnce(MayBeDanglingAndDummyTraitCheckFn, UnsafeDangling(p));
   Free(p);
   EXPECT_EQ(std::move(callback).Run(), true);
 }
@@ -1966,8 +2012,8 @@ TEST_F(BindUnretainedDanglingTest,
        UnsafeDanglingPtrWithDummyAndDanglingTraits) {
   raw_ptr<int, RawPtrTraits::kDummyForTest | RawPtrTraits::kMayDangle> p =
       Alloc<int, RawPtrTraits::kDummyForTest | RawPtrTraits::kMayDangle>(3);
-  auto callback = base::BindOnce(MayBeDanglingAndDummyTraitCheckFn,
-                                 base::UnsafeDangling(p));
+  auto callback =
+      BindOnce(MayBeDanglingAndDummyTraitCheckFn, UnsafeDangling(p));
   Free(p);
   EXPECT_EQ(std::move(callback).Run(), true);
 }
@@ -1975,16 +2021,15 @@ TEST_F(BindUnretainedDanglingTest,
 TEST_F(BindUnretainedDanglingTest, UnsafeDanglingPtrNoRawPtrReceiver) {
   std::unique_ptr<ClassWithWeakPtr> r = std::make_unique<ClassWithWeakPtr>();
   int val = 0;
-  auto callback =
-      base::BindOnce(&ClassWithWeakPtr::RawPtrArg,
-                     base::UnsafeDangling(r.get()), base::Unretained(&val));
+  auto callback = BindOnce(&ClassWithWeakPtr::RawPtrArg,
+                           UnsafeDangling(r.get()), Unretained(&val));
   std::move(callback).Run();
   EXPECT_EQ(val, 123);
 }
 
 TEST_F(BindUnretainedDanglingTest, UnsafeDanglingUntriagedPtr) {
   raw_ptr<int> p = Alloc<int>(3);
-  auto callback = base::BindOnce(PtrCheckFn, base::UnsafeDanglingUntriaged(p));
+  auto callback = BindOnce(PtrCheckFn, UnsafeDanglingUntriaged(p));
   Free(p);
   EXPECT_EQ(std::move(callback).Run(), true);
 }
@@ -1992,8 +2037,8 @@ TEST_F(BindUnretainedDanglingTest, UnsafeDanglingUntriagedPtr) {
 TEST_F(BindUnretainedDanglingTest, UnretainedWeakReceiverValidNoDangling) {
   raw_ptr<int> p = Alloc<int>(3);
   std::unique_ptr<ClassWithWeakPtr> r = std::make_unique<ClassWithWeakPtr>();
-  auto callback = base::BindOnce(&ClassWithWeakPtr::RawPtrArg, r->GetWeakPtr(),
-                                 base::Unretained(p));
+  auto callback =
+      BindOnce(&ClassWithWeakPtr::RawPtrArg, r->GetWeakPtr(), Unretained(p));
   std::move(callback).Run();
   EXPECT_EQ(*p, 123);
   Free(p);
@@ -2003,8 +2048,8 @@ TEST_F(BindUnretainedDanglingTest, UnretainedRefWeakReceiverValidNoDangling) {
   raw_ptr<int> p = Alloc<int>(3);
   int& ref = *p;
   std::unique_ptr<ClassWithWeakPtr> r = std::make_unique<ClassWithWeakPtr>();
-  auto callback = base::BindOnce(&ClassWithWeakPtr::RawRefArg, r->GetWeakPtr(),
-                                 std::ref(ref));
+  auto callback =
+      BindOnce(&ClassWithWeakPtr::RawRefArg, r->GetWeakPtr(), std::ref(ref));
   std::move(callback).Run();
   EXPECT_EQ(*p, 123);
   Free(p);
@@ -2013,8 +2058,8 @@ TEST_F(BindUnretainedDanglingTest, UnretainedRefWeakReceiverValidNoDangling) {
 TEST_F(BindUnretainedDanglingTest, UnretainedWeakReceiverInvalidNoDangling) {
   raw_ptr<int> p = Alloc<int>(3);
   std::unique_ptr<ClassWithWeakPtr> r = std::make_unique<ClassWithWeakPtr>();
-  auto callback = base::BindOnce(&ClassWithWeakPtr::RawPtrArg, r->GetWeakPtr(),
-                                 base::Unretained(p));
+  auto callback =
+      BindOnce(&ClassWithWeakPtr::RawPtrArg, r->GetWeakPtr(), Unretained(p));
   r.reset();
   Free(p);
   std::move(callback).Run();
@@ -2026,8 +2071,8 @@ TEST_F(BindUnretainedDanglingTest, UnretainedRefWeakReceiverInvalidNoDangling) {
   raw_ptr<int> p = Alloc<int>(3);
   int& ref = *p;
   std::unique_ptr<ClassWithWeakPtr> r = std::make_unique<ClassWithWeakPtr>();
-  auto callback = base::BindOnce(&ClassWithWeakPtr::RawRefArg, r->GetWeakPtr(),
-                                 std::ref(ref));
+  auto callback =
+      BindOnce(&ClassWithWeakPtr::RawRefArg, r->GetWeakPtr(), std::ref(ref));
   r.reset();
   Free(p);
   std::move(callback).Run();
@@ -2038,8 +2083,7 @@ TEST_F(BindUnretainedDanglingTest, UnretainedRefWeakReceiverInvalidNoDangling) {
 TEST_F(BindUnretainedDanglingTest, UnretainedRefUnsafeDangling) {
   raw_ptr<int> p = Alloc<int>(3);
   int& ref = *p;
-  auto callback =
-      base::BindOnce(RefCheckFn, base::UnsafeDangling(base::raw_ref<int>(ref)));
+  auto callback = BindOnce(RefCheckFn, UnsafeDangling(raw_ref<int>(ref)));
   Free(p);
   EXPECT_EQ(std::move(callback).Run(), true);
   // Should reach this point without crashing; there is a dangling pointer, but
@@ -2049,8 +2093,8 @@ TEST_F(BindUnretainedDanglingTest, UnretainedRefUnsafeDangling) {
 TEST_F(BindUnretainedDanglingTest, UnretainedRefUnsafeDanglingUntriaged) {
   raw_ptr<int> p = Alloc<int>(3);
   int& ref = *p;
-  auto callback = base::BindOnce(
-      RefCheckFn, base::UnsafeDanglingUntriaged(base::raw_ref<const int>(ref)));
+  auto callback =
+      BindOnce(RefCheckFn, UnsafeDanglingUntriaged(raw_ref<const int>(ref)));
   Free(p);
   EXPECT_EQ(std::move(callback).Run(), true);
   // Should reach this point without crashing; there is a dangling pointer, but
@@ -2066,7 +2110,7 @@ int FuncWithRefArgument(int& i_ptr) {
 
 TEST_F(BindUnretainedDanglingDeathTest, UnretainedDanglingPtr) {
   raw_ptr<int> p = Alloc<int>(3);
-  auto callback = base::BindOnce(PingPong, base::Unretained(p));
+  auto callback = BindOnce(PingPong, Unretained(p));
   Free(p);
   EXPECT_DEATH(std::move(callback).Run(), "");
 }
@@ -2074,7 +2118,7 @@ TEST_F(BindUnretainedDanglingDeathTest, UnretainedDanglingPtr) {
 TEST_F(BindUnretainedDanglingDeathTest, UnretainedRefDanglingPtr) {
   raw_ptr<int> p = Alloc<int>(3);
   int& ref = *p;
-  auto callback = base::BindOnce(FuncWithRefArgument, std::ref(ref));
+  auto callback = BindOnce(FuncWithRefArgument, std::ref(ref));
   Free(p);
   EXPECT_DEATH(std::move(callback).Run(), "");
 }
@@ -2083,8 +2127,7 @@ TEST_F(BindUnretainedDanglingDeathTest,
        UnretainedRefWithManualUnretainedDanglingPtr) {
   raw_ptr<int> p = Alloc<int>(3);
   int& ref = *p;
-  auto callback = base::BindOnce(FuncWithRefArgument,
-                                 base::Unretained(base::raw_ref<int>(ref)));
+  auto callback = BindOnce(FuncWithRefArgument, Unretained(raw_ref<int>(ref)));
   Free(p);
   EXPECT_DEATH(std::move(callback).Run(), "");
 }
@@ -2092,15 +2135,16 @@ TEST_F(BindUnretainedDanglingDeathTest,
 TEST_F(BindUnretainedDanglingDeathTest, UnretainedWeakReceiverDangling) {
   raw_ptr<int> p = Alloc<int>(3);
   std::unique_ptr<ClassWithWeakPtr> r = std::make_unique<ClassWithWeakPtr>();
-  auto callback = base::BindOnce(&ClassWithWeakPtr::RawPtrArg, r->GetWeakPtr(),
-                                 base::Unretained(p));
+  auto callback =
+      BindOnce(&ClassWithWeakPtr::RawPtrArg, r->GetWeakPtr(), Unretained(p));
   Free(p);
   EXPECT_DEATH(std::move(callback).Run(), "");
 }
 
 #endif  // defined(GTEST_HAS_DEATH_TEST) && !BUILDFLAG(IS_ANDROID)
 
-#endif  // BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
+#endif  // PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT) &&
+        // PA_BUILDFLAG(USE_RAW_PTR_BACKUP_REF_IMPL)
 
 }  // namespace
 }  // namespace base

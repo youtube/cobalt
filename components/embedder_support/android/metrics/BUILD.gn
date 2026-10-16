@@ -4,6 +4,7 @@
 
 import("//build/config/android/config.gni")
 import("//build/config/android/rules.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 assert(is_android, "This component can only be depended on for android builds")
 
@@ -28,6 +29,7 @@ static_library("metrics") {
     "//components/metrics:content",
     "//components/metrics:net",
     "//components/metrics:ui",
+    "//components/metrics/dwa",
     "//components/prefs",
     "//components/ukm",
     "//components/variations:variations",
@@ -60,14 +62,14 @@ android_library("java") {
 
   deps = [
     "//base:base_java",
-    "//base:jni_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/jni_zero:jni_zero_java",
   ]
   srcjar_deps = [
     ":java_enum_srcjar",
     ":java_features_srcjar",
+    ":jni",
   ]
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
 }
 
 generate_jni("jni") {
@@ -84,6 +86,7 @@ source_set("unit_tests") {
     ":metrics",
     "//base/test:test_support",
     "//components/metrics",
+    "//components/metrics:content",
     "//components/prefs:test_support",
     "//content/test:test_support",
     "//testing/gtest",
@@ -97,6 +100,6 @@ java_group("test_support_java") {
   testonly = true
   deps = [
     ":java",
-    "//components/version_info/android:version_constants_java",
+    "//base/version_info/android:version_constants_java",
   ]
 }

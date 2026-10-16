@@ -2,8 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "mojo/public/cpp/system/invitation.h"
 
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "base/base_paths.h"
@@ -11,12 +18,12 @@
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
-#include "base/strings/string_piece.h"
 #include "base/test/bind.h"
 #include "base/test/multiprocess_test.h"
 #include "base/test/task_environment.h"
@@ -31,7 +38,6 @@
 #include "mojo/public/cpp/system/wait.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_IOS)
 #include "mojo/public/cpp/platform/named_platform_channel.h"
@@ -74,7 +80,7 @@ const char kTransportTypeChannel[] = "channel";
 const char kTransportTypeChannelServer[] = "channel-server";
 #endif
 
-// TODO(https://crbug.com/1428561): Flaky on Tsan.
+// TODO(crbug.com/40900578): Flaky on Tsan.
 #if defined(THREAD_SANITIZER)
 #define MAYBE_InvitationCppTest DISABLED_InvitationCppTest
 #else
@@ -102,7 +108,7 @@ class MAYBE_InvitationCppTest
         base::GetMultiProcessTestChildBaseCommandLine());
 
     base::LaunchOptions launch_options;
-    absl::optional<PlatformChannel> channel;
+    std::optional<PlatformChannel> channel;
     PlatformChannelEndpoint channel_endpoint;
     PlatformChannelServerEndpoint server_endpoint;
     switch (transport_type) {
@@ -228,7 +234,7 @@ class MAYBE_InvitationCppTest
   }
 
   static void WriteMessage(const ScopedMessagePipeHandle& pipe,
-                           base::StringPiece message) {
+                           std::string_view message) {
     CHECK_EQ(MOJO_RESULT_OK,
              WriteMessageRaw(pipe.get(), message.data(), message.size(),
                              nullptr, 0, MOJO_WRITE_MESSAGE_FLAG_NONE));
@@ -417,7 +423,7 @@ TEST_P(MAYBE_InvitationCppTest, MAYBE_ProcessErrors) {
   base::RunLoop error_loop;
   actual_error_callback =
       base::BindLambdaForTesting([&](const std::string& error_message) {
-        EXPECT_NE(error_message.find(kErrorMessage), std::string::npos);
+        EXPECT_TRUE(base::Contains(error_message, kErrorMessage));
         error_loop.Quit();
       });
   EXPECT_EQ(MOJO_RESULT_OK,
@@ -426,7 +432,7 @@ TEST_P(MAYBE_InvitationCppTest, MAYBE_ProcessErrors) {
   error_loop.Run();
   EXPECT_EQ(MOJO_RESULT_OK, MojoDestroyMessage(message));
 
-  // TODO(https://crbug.com/846833): Once we can rework the C++ invitation API
+  // TODO(crbug.com/40578072): Once we can rework the C++ invitation API
   // to also notify on disconnect, this test should cover that too. For now we
   // just tell the process to exit and wait for it to do.
   WriteMessage(pipe, kDisconnectMessage);

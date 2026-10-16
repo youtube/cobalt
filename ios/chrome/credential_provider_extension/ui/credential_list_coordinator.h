@@ -10,6 +10,7 @@
 @class ASCredentialServiceIdentifier;
 @protocol CredentialResponseHandler;
 @protocol CredentialStore;
+@class PasskeyRequestDetails;
 @class ReauthenticationHandler;
 @class UIViewController;
 
@@ -36,6 +37,9 @@
 
 // Stops the credential list.
 - (void)stop;
+
+// Set the request parameters for passkeys.
+- (void)setPasskeyRequestDetails:(PasskeyRequestDetails*)passkeyRequestDetails;
 
 @end
 

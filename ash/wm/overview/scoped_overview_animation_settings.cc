@@ -10,7 +10,6 @@
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/time/time.h"
-#include "chromeos/constants/chromeos_features.h"
 #include "ui/aura/window.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animation_observer.h"
@@ -31,8 +30,14 @@ constexpr base::TimeDelta kCloseScale = base::Milliseconds(100);
 constexpr base::TimeDelta kFadeInDelay = base::Milliseconds(83);
 constexpr base::TimeDelta kFadeIn = base::Milliseconds(167);
 
+// The time duration for informed restore dialog to fade in.
+constexpr base::TimeDelta kShowInformedRestoreDialog = base::Milliseconds(800);
+
 // The time duration for widgets to fade out.
 constexpr base::TimeDelta kFadeOut = base::Milliseconds(100);
+
+// The time duration for birch bar to fade out.
+constexpr base::TimeDelta kBirchBarFadeOut = base::Milliseconds(50);
 
 constexpr base::TimeDelta kFromHomeLauncherDelay = base::Milliseconds(250);
 constexpr base::TimeDelta kHomeLauncherTransition = base::Milliseconds(350);
@@ -44,6 +49,8 @@ constexpr base::TimeDelta kDropTargetFade = base::Milliseconds(250);
 // stops.
 constexpr base::TimeDelta kFadeInOnWindowDrag = base::Milliseconds(350);
 
+constexpr base::TimeDelta kWindowRestoreDuration = base::Milliseconds(350);
+
 base::TimeDelta GetAnimationDuration(OverviewAnimationType animation_type) {
   switch (animation_type) {
     case OVERVIEW_ANIMATION_NONE:
@@ -52,10 +59,10 @@ base::TimeDelta GetAnimationDuration(OverviewAnimationType animation_type) {
       return kFadeIn;
     case OVERVIEW_ANIMATION_EXIT_OVERVIEW_MODE_FADE_OUT:
       return kFadeOut;
+    case OVERVIEW_ANIMATION_SHOW_INFORMED_RESTORE_DIALOG_ON_ENTER:
+      return kShowInformedRestoreDialog;
     case OVERVIEW_ANIMATION_LAYOUT_OVERVIEW_ITEMS_ON_EXIT:
-      return chromeos::features::IsJellyrollEnabled()
-                 ? kWindowRestoreDurationCrOSNext
-                 : kTransition;
+      return kWindowRestoreDuration;
     case OVERVIEW_ANIMATION_LAYOUT_OVERVIEW_ITEMS_ON_ENTER:
     case OVERVIEW_ANIMATION_LAYOUT_OVERVIEW_ITEMS_IN_OVERVIEW:
     case OVERVIEW_ANIMATION_RESTORE_WINDOW:
@@ -77,9 +84,9 @@ base::TimeDelta GetAnimationDuration(OverviewAnimationType animation_type) {
       return kFadeInOnWindowDrag;
     case OVERVIEW_ANIMATION_EXIT_OVERVIEW_MODE_SAVED_DESK_GRID_FADE_OUT:
       return kFadeOut;
+    case OVERVIEW_ANIMATION_EXIT_OVERVIEW_MODE_BIRCH_BAR_FADE_OUT:
+      return kBirchBarFadeOut;
   }
-  NOTREACHED();
-  return base::TimeDelta();
 }
 
 void ReportCloseSmoothness(int smoothness) {
@@ -119,12 +126,13 @@ ScopedOverviewAnimationSettings::ScopedOverviewAnimationSettings(
       animation_settings_->SetPreemptionStrategy(
           ui::LayerAnimator::REPLACE_QUEUED_ANIMATIONS);
       break;
+    case OVERVIEW_ANIMATION_SHOW_INFORMED_RESTORE_DIALOG_ON_ENTER:
+      animation_settings_->SetTweenType(gfx::Tween::EASE_IN_OUT_EMPHASIZED);
+      animation_settings_->SetPreemptionStrategy(
+          ui::LayerAnimator::REPLACE_QUEUED_ANIMATIONS);
+      break;
     case OVERVIEW_ANIMATION_LAYOUT_OVERVIEW_ITEMS_ON_EXIT:
-      if (chromeos::features::IsJellyrollEnabled()) {
-        animation_settings_->SetTweenType(gfx::Tween::ACCEL_20_DECEL_100);
-      } else {
-        animation_settings_->SetTweenType(gfx::Tween::EASE_OUT);
-      }
+      animation_settings_->SetTweenType(gfx::Tween::ACCEL_20_DECEL_100);
       animation_settings_->SetPreemptionStrategy(
           ui::LayerAnimator::IMMEDIATELY_ANIMATE_TO_NEW_TARGET);
       break;
@@ -180,13 +188,18 @@ ScopedOverviewAnimationSettings::ScopedOverviewAnimationSettings(
       animation_settings_->SetPreemptionStrategy(
           ui::LayerAnimator::IMMEDIATELY_ANIMATE_TO_NEW_TARGET);
       break;
+    case OVERVIEW_ANIMATION_EXIT_OVERVIEW_MODE_BIRCH_BAR_FADE_OUT:
+      animation_settings_->SetTweenType(gfx::Tween::LINEAR);
+      animation_settings_->SetPreemptionStrategy(
+          ui::LayerAnimator::IMMEDIATELY_ANIMATE_TO_NEW_TARGET);
+      break;
   }
   animation_settings_->SetTransitionDuration(
       GetAnimationDuration(animation_type));
   if (animation_type == OVERVIEW_ANIMATION_CLOSING_OVERVIEW_ITEM ||
       animation_type == OVERVIEW_ANIMATION_CLOSE_OVERVIEW_ITEM) {
     close_reporter_.emplace(animation_settings_->GetAnimator(),
-                            metrics_util::ForSmoothness(
+                            metrics_util::ForSmoothnessV3(
                                 base::BindRepeating(&ReportCloseSmoothness)));
   }
 }

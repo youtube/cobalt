@@ -35,11 +35,12 @@ class LocalDeviceDataProviderImpl : public LocalDeviceDataProvider {
       const std::vector<::nearby::internal::SharedCredential>&
           new_shared_credentials) override;
   std::string GetDeviceId() override;
-  ::nearby::internal::Metadata GetDeviceMetadata() override;
+  ::nearby::internal::DeviceIdentityMetaData GetDeviceMetadata() override;
   std::string GetAccountName() override;
   void SaveUserRegistrationInfo(const std::string& display_name,
                                 const std::string& image_url) override;
-  bool IsUserRegistrationInfoSaved() override;
+  bool IsRegistrationCompleteAndUserInfoSaved() override;
+  void SetRegistrationComplete(bool complete) override;
 
  private:
   // Creates a device name of the form "<given name>'s <device type>."
@@ -47,7 +48,10 @@ class LocalDeviceDataProviderImpl : public LocalDeviceDataProvider {
   // just the device type.
   std::string GetDeviceName() const;
 
-  raw_ptr<PrefService, ExperimentalAsh> pref_service_ = nullptr;
+  std::optional<std::string> FetchAndDecodeDeviceId();
+  void EncodeAndPersistDeviceId(std::string raw_device_id_bytes);
+
+  const raw_ptr<PrefService> pref_service_;
   const raw_ptr<signin::IdentityManager> identity_manager_;
 };
 

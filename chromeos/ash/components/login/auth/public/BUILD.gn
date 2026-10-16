@@ -2,9 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
-
-assert(is_chromeos_ash, "Non-Chrome-OS builds must not depend on //ash")
+assert(is_chromeos, "Non-Chrome-OS builds must not depend on //chromeos/ash")
 
 component("authpublic") {
   defines = [ "IS_CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH_PUBLIC_IMPL" ]
@@ -17,6 +15,7 @@ component("authpublic") {
     "//ash/constants",
     "//base",
     "//chromeos/ash/components/cryptohome",
+    "//chromeos/ash/components/cryptohome:public",
     "//chromeos/ash/components/dbus/userdataauth:userdataauth_proto",
     "//components/account_id",
     "//components/prefs",
@@ -33,6 +32,7 @@ component("authpublic") {
     "auth_failure.h",
     "auth_session_intent.h",
     "auth_session_status.h",
+    "auth_types.h",
     "authentication_error.cc",
     "authentication_error.h",
     "cryptohome_key_constants.cc",

@@ -12,12 +12,14 @@
 #include "base/location.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/device_event_log/device_event_log.h"
-#include "services/device/usb/jni_headers/ChromeUsbService_jni.h"
 #include "services/device/usb/usb_device_android.h"
 
-using base::android::AttachCurrentThread;
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "services/device/usb/jni_headers/ChromeUsbService_jni.h"
+
 using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
+using jni_zero::AttachCurrentThread;
 
 namespace device {
 
@@ -73,7 +75,9 @@ void UsbServiceAndroid::DevicePermissionRequestComplete(
     jint device_id,
     jboolean granted) {
   const auto it = devices_by_id_.find(device_id);
-  DCHECK(it != devices_by_id_.end());
+  if (it == devices_by_id_.end()) {
+    return;
+  }
   it->second->PermissionGranted(env, granted);
 }
 

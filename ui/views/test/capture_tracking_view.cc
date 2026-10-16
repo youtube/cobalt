@@ -4,6 +4,8 @@
 
 #include "ui/views/test/capture_tracking_view.h"
 
+#include "ui/base/metadata/metadata_impl_macros.h"
+
 namespace views::test {
 
 CaptureTrackingView::CaptureTrackingView() = default;
@@ -18,5 +20,8 @@ bool CaptureTrackingView::OnMousePressed(const ui::MouseEvent& event) {
 void CaptureTrackingView::OnMouseCaptureLost() {
   got_capture_lost_ = true;
 }
+
+BEGIN_METADATA(CaptureTrackingView)
+END_METADATA
 
 }  // namespace views::test

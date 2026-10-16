@@ -5,7 +5,8 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_PAYMENTS_REQUESTS_UNMASK_CARD_REQUEST_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_PAYMENTS_REQUESTS_UNMASK_CARD_REQUEST_H_
 
-#include "components/autofill/core/browser/payments/payments_client.h"
+#include "components/autofill/core/browser/payments/payments_autofill_client.h"
+#include "components/autofill/core/browser/payments/payments_request_details.h"
 #include "components/autofill/core/browser/payments/payments_requests/payments_request.h"
 
 namespace autofill {
@@ -14,16 +15,15 @@ namespace payments {
 class UnmaskCardRequest : public PaymentsRequest {
  public:
   UnmaskCardRequest(
-      const PaymentsClient::UnmaskRequestDetails& request_details,
+      const UnmaskRequestDetails& request_details,
       const bool full_sync_enabled,
-      base::OnceCallback<void(AutofillClient::PaymentsRpcResult,
-                              PaymentsClient::UnmaskResponseDetails&)>
-          callback);
+      base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult,
+                              const UnmaskResponseDetails&)> callback);
   UnmaskCardRequest(const UnmaskCardRequest&) = delete;
   UnmaskCardRequest& operator=(const UnmaskCardRequest&) = delete;
   ~UnmaskCardRequest() override;
 
-  const PaymentsClient::UnmaskResponseDetails& GetResponseDetailsForTesting() {
+  const UnmaskResponseDetails& GetResponseDetailsForTesting() {
     return response_details_;
   }
 
@@ -33,8 +33,11 @@ class UnmaskCardRequest : public PaymentsRequest {
   std::string GetRequestContent() override;
   void ParseResponse(const base::Value::Dict& response) override;
   bool IsResponseComplete() override;
-  void RespondToDelegate(AutofillClient::PaymentsRpcResult result) override;
+  void RespondToDelegate(
+      PaymentsAutofillClient::PaymentsRpcResult result) override;
   bool IsRetryableFailure(const std::string& error_code) override;
+  std::string GetHistogramName() const override;
+  std::optional<base::TimeDelta> GetTimeout() const override;
 
  private:
   // Returns whether the response contains all the information of the virtual
@@ -45,12 +48,12 @@ class UnmaskCardRequest : public PaymentsRequest {
   // perform an authentication for a virtual card.
   bool CanPerformVirtualCardAuth();
 
-  PaymentsClient::UnmaskRequestDetails request_details_;
+  UnmaskRequestDetails request_details_;
   const bool full_sync_enabled_;
-  base::OnceCallback<void(AutofillClient::PaymentsRpcResult,
-                          PaymentsClient::UnmaskResponseDetails&)>
+  base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult,
+                          const UnmaskResponseDetails&)>
       callback_;
-  PaymentsClient::UnmaskResponseDetails response_details_;
+  UnmaskResponseDetails response_details_;
 };
 
 }  // namespace payments

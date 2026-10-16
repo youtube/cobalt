@@ -7,11 +7,17 @@
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/extensions/extension_view_host_factory.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/actions/chrome_actions.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_util.h"
 #include "chrome/common/extensions/api/side_panel.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
@@ -19,10 +25,13 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
-#include "extensions/common/extension_features.h"
 #include "extensions/common/manifest_handlers/icons_handler.h"
+#include "extensions/common/permissions/api_permission.h"
+#include "extensions/common/permissions/permissions_data.h"
+#include "ui/actions/actions.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/layout.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/view.h"
 
@@ -30,42 +39,41 @@ namespace extensions {
 
 namespace {
 
-int GetCurrentTabId(Browser* browser) {
-  return ExtensionTabUtil::GetTabId(
-      browser->tab_strip_model()->GetActiveWebContents());
-}
-
 bool IsSidePanelEnabled(const api::side_panel::PanelOptions& options) {
   return options.enabled.has_value() && *options.enabled &&
          options.path.has_value();
 }
 
-bool HasGlobalSidePanel(content::BrowserContext* context,
-                        const Extension& extension) {
-  auto options = SidePanelService::Get(context)->GetOptions(
-      extension, /*tab_id=*/absl::nullopt);
-  return IsSidePanelEnabled(options);
+GURL GetSidePanelURL(const Extension& extension,
+                     const api::side_panel::PanelOptions& options) {
+  // A side panel URL can be either an external HTTP/HTTPS URL or an extension
+  // URL.
+  GURL absolute_url = GURL(*options.path);
+  if (absolute_url.SchemeIs(url::kHttpScheme) ||
+      absolute_url.SchemeIs(url::kHttpsScheme)) {
+    return absolute_url;
+  }
+  return extension.GetResourceURL(*options.path);
 }
 
 }  // namespace
 
 ExtensionSidePanelCoordinator::ExtensionSidePanelCoordinator(
     Profile* profile,
-    Browser* browser,
-    content::WebContents* web_contents,
+    BrowserWindowInterface* browser,
+    tabs::TabInterface* tab_interface,
     const Extension* extension,
-    SidePanelRegistry* registry)
+    SidePanelRegistry* registry,
+    bool for_tab)
     : profile_(profile),
       browser_(browser),
-      web_contents_(web_contents),
+      tab_interface_(tab_interface),
       extension_(extension),
-      registry_(registry) {
-  DCHECK(base::FeatureList::IsEnabled(
-      extensions_features::kExtensionSidePanelIntegration));
-
-  // Only one of `browser` or `web_contents` should be defined when constructing
-  // this class.
-  DCHECK(browser != nullptr ^ web_contents != nullptr);
+      registry_(registry),
+      for_tab_(for_tab) {
+  // Only one of `browser` or `tab_interface` should be defined when
+  // constructing this class.
+  DCHECK(browser != nullptr ^ tab_interface != nullptr);
 
   // The registry should always be available for this class.
   DCHECK(registry_);
@@ -76,24 +84,29 @@ ExtensionSidePanelCoordinator::ExtensionSidePanelCoordinator(
     scoped_service_observation_.Observe(service);
     LoadExtensionIcon();
     if (IsGlobalCoordinator()) {
-      browser_->tab_strip_model()->AddObserver(this);
+      UpdateActionItemIcon();
     }
 
     auto options =
         IsGlobalCoordinator()
-            ? service->GetOptions(*extension, /*tab_id=*/absl::nullopt)
+            ? service->GetOptions(*extension, /*tab_id=*/std::nullopt)
             : service->GetSpecificOptionsForTab(
-                  *extension, ExtensionTabUtil::GetTabId(web_contents));
+                  *extension,
+                  ExtensionTabUtil::GetTabId(tab_interface_->GetContents()));
     if (IsSidePanelEnabled(options)) {
-      side_panel_url_ = extension->GetResourceURL(*options.path);
+      side_panel_url_ = GetSidePanelURL(*extension, options);
       CreateAndRegisterEntry();
     }
   }
+
+  if (tab_interface_) {
+    tab_subscriptions_.push_back(tab_interface_->RegisterWillDiscardContents(
+        base::BindRepeating(&ExtensionSidePanelCoordinator::WillDiscardContents,
+                            weak_factory_.GetWeakPtr())));
+  }
 }
 
-ExtensionSidePanelCoordinator::~ExtensionSidePanelCoordinator() {
-  DeregisterEntry();
-}
+ExtensionSidePanelCoordinator::~ExtensionSidePanelCoordinator() = default;
 
 content::WebContents*
 ExtensionSidePanelCoordinator::GetHostWebContentsForTesting() const {
@@ -113,22 +126,8 @@ bool ExtensionSidePanelCoordinator::IsGlobalCoordinator() const {
   return browser_ != nullptr;
 }
 
-bool ExtensionSidePanelCoordinator::IsDisabledForTab(int tab_id) const {
-  auto options =
-      SidePanelService::Get(profile_)->GetOptions(*extension_, tab_id);
-  return options.enabled.has_value() && !(*options.enabled);
-}
-
 void ExtensionSidePanelCoordinator::DeregisterEntry() {
   registry_->Deregister(GetEntryKey());
-  global_entry_view_.reset();
-}
-
-void ExtensionSidePanelCoordinator::DeregisterGlobalEntryAndCacheView() {
-  CHECK(IsGlobalCoordinator());
-  if (GetEntry()) {
-    global_entry_view_ = registry_->DeregisterAndReturnView(GetEntryKey());
-  }
 }
 
 void ExtensionSidePanelCoordinator::OnPanelOptionsChanged(
@@ -145,32 +144,11 @@ void ExtensionSidePanelCoordinator::OnPanelOptionsChanged(
       updated_options.enabled.has_value() && !(*updated_options.enabled);
   SidePanelEntry* entry = GetEntry();
 
-  // PanelOptions changes for the current tab can also affect the global
-  // SidePanelEntry. Handle such cases here.
-  if (IsGlobalCoordinator() &&
-      GetCurrentTabId(browser_) == updated_options.tab_id) {
-    if (!entry && should_enable_entry &&
-        HasGlobalSidePanel(profile_, *extension_)) {
-      // We create an entry if:
-      //  - The side panel is being enabled/no longer being disabled for this
-      //    tab
-      //  - The extension has a global side panel specified
-      //  - There is currently no global entry registered
-      CreateAndRegisterEntry();
-    } else if (should_disable_entry) {
-      // if the side panel is being disabled for this tab and there exists an
-      // entry, deregister it and keep its view.
-      DeregisterGlobalEntryAndCacheView();
-    }
-
-    return;
-  }
-
   // Ignore changes that don't pertain to this tab id.
-  absl::optional<int> tab_id =
-      IsGlobalCoordinator()
-          ? absl::nullopt
-          : absl::make_optional(ExtensionTabUtil::GetTabId(web_contents_));
+  std::optional<int> tab_id =
+      IsGlobalCoordinator() ? std::nullopt
+                            : std::make_optional(ExtensionTabUtil::GetTabId(
+                                  tab_interface_->GetContents()));
   if (tab_id != updated_options.tab_id) {
     return;
   }
@@ -178,10 +156,7 @@ void ExtensionSidePanelCoordinator::OnPanelOptionsChanged(
   // Update the URL if the path was specified.
   GURL previous_url = side_panel_url_;
   if (updated_options.path.has_value()) {
-    side_panel_url_ = extension_->GetResourceURL(*updated_options.path);
-    if (previous_url != side_panel_url_) {
-      global_entry_view_.reset();
-    }
+    side_panel_url_ = GetSidePanelURL(*extension_, updated_options);
   }
 
   // Deregister the SidePanelEntry if `enabled` is false.
@@ -190,11 +165,8 @@ void ExtensionSidePanelCoordinator::OnPanelOptionsChanged(
     return;
   }
 
-  bool enabled_for_current_tab =
-      !IsGlobalCoordinator() || !IsDisabledForTab(GetCurrentTabId(browser_));
-  bool should_create_entry = !entry && should_enable_entry &&
-                             enabled_for_current_tab &&
-                             !side_panel_url_.is_empty();
+  bool should_create_entry =
+      !entry && should_enable_entry && !side_panel_url_.is_empty();
   if (should_create_entry) {
     // Create a global entry if the extension has not disabled its side panel
     // for the current tab.
@@ -226,35 +198,6 @@ void ExtensionSidePanelCoordinator::OnViewDestroying() {
   scoped_view_observation_.Reset();
 }
 
-void ExtensionSidePanelCoordinator::OnTabStripModelChanged(
-    TabStripModel* tab_strip_model,
-    const TabStripModelChange& change,
-    const TabStripSelectionChange& selection) {
-  CHECK(IsGlobalCoordinator());
-  // Registering/deregistering an entry should only happen if the active tab
-  // changes and the extension has specified a global side panel.
-  if (!selection.active_tab_changed() ||
-      !HasGlobalSidePanel(profile_, *extension_)) {
-    return;
-  }
-
-  bool disabled_for_old_tab =
-      IsDisabledForTab(ExtensionTabUtil::GetTabId(selection.old_contents));
-  bool disabled_for_new_tab =
-      IsDisabledForTab(ExtensionTabUtil::GetTabId(selection.new_contents));
-
-  if (!disabled_for_old_tab && disabled_for_new_tab) {
-    // If we switch to a tab where the extension's global side panel is
-    // disabled, deregister the entry but keep its view.
-    DeregisterGlobalEntryAndCacheView();
-  } else if (disabled_for_old_tab && !disabled_for_new_tab) {
-    // If we switch to a tab where the extension's global side panel is enabled,
-    // re-register the entry.
-    DCHECK(!GetEntry());
-    CreateAndRegisterEntry();
-  }
-}
-
 void ExtensionSidePanelCoordinator::CreateAndRegisterEntry() {
   // The extension icon should be initialized in the constructor, so this should
   // not be null.
@@ -265,20 +208,16 @@ void ExtensionSidePanelCoordinator::CreateAndRegisterEntry() {
   // is always deregistered when this class is destroyed, so CreateView can't be
   // called after the destruction of `this`.
   registry_->Register(std::make_unique<SidePanelEntry>(
-      GetEntryKey(), base::UTF8ToUTF16(extension_->short_name()),
-      ui::ImageModel::FromImage(extension_icon_->image()),
+      GetEntryKey(),
       base::BindRepeating(&ExtensionSidePanelCoordinator::CreateView,
-                          base::Unretained(this))));
+                          base::Unretained(this)),
+      SidePanelEntry::kSidePanelDefaultContentWidth));
 }
 
-std::unique_ptr<views::View> ExtensionSidePanelCoordinator::CreateView() {
-  if (global_entry_view_) {
-    DCHECK(host_);
-    return std::move(global_entry_view_);
-  }
-
+std::unique_ptr<views::View> ExtensionSidePanelCoordinator::CreateView(
+    SidePanelEntryScope& scope) {
   host_ = ExtensionViewHostFactory::CreateSidePanelHost(
-      side_panel_url_, browser_, web_contents_);
+      *extension_, side_panel_url_, browser_, tab_interface_);
 
   // `host_` could be null if `side_panel_url_` is invalid or if the extension
   // is not currently enabled. The latter can happen when the extension has
@@ -299,9 +238,11 @@ std::unique_ptr<views::View> ExtensionSidePanelCoordinator::CreateView() {
       &ExtensionSidePanelCoordinator::HandleCloseExtensionSidePanel,
       base::Unretained(this)));
 
-  auto extension_view = std::make_unique<ExtensionViewViews>(host_.get());
+  auto extension_view =
+      std::make_unique<ExtensionViewViews>(profile_, host_.get());
   extension_view->SetVisible(true);
 
+  scoped_view_observation_.Reset();
   scoped_view_observation_.Observe(extension_view.get());
   return extension_view;
 }
@@ -309,28 +250,21 @@ std::unique_ptr<views::View> ExtensionSidePanelCoordinator::CreateView() {
 void ExtensionSidePanelCoordinator::HandleCloseExtensionSidePanel(
     ExtensionHost* host) {
   DCHECK_EQ(host, host_.get());
-  Browser* browser = IsGlobalCoordinator()
-                         ? browser_.get()
-                         : chrome::FindBrowserWithWebContents(web_contents_);
+  BrowserWindowInterface* browser = GetBrowser();
   DCHECK(browser);
 
-  auto* coordinator =
-      BrowserView::GetBrowserViewForBrowser(browser)->side_panel_coordinator();
+  auto* coordinator = browser->GetFeatures().side_panel_coordinator();
 
   // If the SidePanelEntry for this extension is showing when window.close() is
   // called, close the side panel. Otherwise, clear the entry's cached view.
   SidePanelEntry* entry = GetEntry();
   DCHECK(entry);
 
-  if (coordinator->IsSidePanelEntryShowing(entry)) {
+  if (coordinator->IsSidePanelEntryShowing(entry->key(), for_tab_)) {
     coordinator->Close();
   } else {
     entry->ClearCachedView();
   }
-
-  // Closing the panel or removing the view should synchronously result in
-  // the extension view being destroyed, which destroys `host_`.
-  DCHECK(!host_);
 }
 
 void ExtensionSidePanelCoordinator::NavigateIfNecessary() {
@@ -343,7 +277,7 @@ void ExtensionSidePanelCoordinator::NavigateIfNecessary() {
   if (side_panel_url_ != host_contents->GetLastCommittedURL()) {
     // Since the navigation happens automatically when the URL is changed from
     // an API call, this counts as a top level navigation.
-    // TODO(crbug.com/1378048): Investigate if LoadURLWithParams() is needed
+    // TODO(crbug.com/40243760): Investigate if LoadURLWithParams() is needed
     // here, and which params should be used.
     host_contents->GetController().LoadURL(side_panel_url_, content::Referrer(),
                                            ui::PAGE_TRANSITION_AUTO_TOPLEVEL,
@@ -361,13 +295,40 @@ void ExtensionSidePanelCoordinator::LoadExtensionIcon() {
       /*observer=*/nullptr);
 
   // Triggers actual image loading with all supported scale factors.
-  // TODO(crbug.com/1442996): This is a temporary fix since the combobox and its
-  // drop down menu currently do not automatically get an image's representation
-  // when they are shown. Remove this when the aforementioend crbug has been
-  // fixed.
-  for (auto scale_factor : ui::GetSupportedResourceScaleFactors()) {
-    extension_icon_->image_skia().GetRepresentation(scale_factor);
+  // TODO(crbug.com/40910886): This is a temporary fix since the combobox and
+  // its drop down menu currently do not automatically get an image's
+  // representation when they are shown. Remove this when the aforementioned
+  // crbug has been fixed.
+  extension_icon_->image_skia().EnsureRepsForSupportedScales();
+}
+
+void ExtensionSidePanelCoordinator::UpdateActionItemIcon() {
+  CHECK(IsGlobalCoordinator());
+  std::optional<actions::ActionId> extension_action_id =
+      actions::ActionIdMap::StringToActionId(GetEntryKey().ToString());
+  CHECK(extension_action_id.has_value());
+  BrowserActions* browser_actions = browser_->GetActions();
+  actions::ActionItem* action_item = actions::ActionManager::Get().FindAction(
+      extension_action_id.value(), browser_actions->root_action_item());
+  if (action_item) {
+    action_item->SetImage(ui::ImageModel::FromImage(extension_icon_->image()));
   }
+}
+
+void ExtensionSidePanelCoordinator::WillDiscardContents(
+    tabs::TabInterface* tab,
+    content::WebContents* old_contents,
+    content::WebContents* new_contents) {
+  DeregisterEntry();
+
+  // As this is a tab that is about to be discarded there are not yet any panel
+  // options. The entry will be reregistered in OnPanelOptionsChanged if
+  // necessary.
+}
+
+BrowserWindowInterface* ExtensionSidePanelCoordinator::GetBrowser() {
+  return IsGlobalCoordinator() ? browser_.get()
+                               : tab_interface_->GetBrowserWindowInterface();
 }
 
 }  // namespace extensions

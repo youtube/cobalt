@@ -61,6 +61,9 @@ class TouchpadScrollScreen : public BaseScreen {
   // Get user synced preferences for touchpad scroll direction.
   bool GetNaturalScrollPrefValue();
 
+  std::string RetrieveChoobeSubtitle();
+
+  bool initial_pref_value_;
   bool ignore_pref_sync_for_testing_ = false;
 
   base::WeakPtr<TouchpadScrollScreenView> view_;
@@ -69,7 +72,7 @@ class TouchpadScrollScreen : public BaseScreen {
 
 }  // namespace ash
 
-// TODO(https://crbug.com/1164001): remove after the //chrome/browser/chromeos
+// TODO(crbug.com/40163357): remove after the //chrome/browser/chromeos
 // source migration is finished.
 namespace chromeos {
 using ::ash ::TouchpadScrollScreen;

@@ -5,6 +5,8 @@
 #ifndef UI_PLATFORM_WINDOW_WIN_WIN_WINDOW_H_
 #define UI_PLATFORM_WINDOW_WIN_WIN_WINDOW_H_
 
+#include <windows.h>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -13,8 +15,6 @@
 #include "ui/platform_window/platform_window.h"
 #include "ui/platform_window/platform_window_delegate.h"
 #include "ui/platform_window/win/win_window_export.h"
-
-#include <windows.h>
 
 namespace ui {
 class WinCursor;
@@ -74,7 +74,6 @@ class WIN_WINDOW_EXPORT WinWindow : public PlatformWindow,
                       const gfx::ImageSkia& app_icon) override;
   void SizeConstraintsChanged() override;
   bool IsAnimatingClosed() const override;
-  bool IsTranslucentWindowOpacitySupported() const override;
 
   bool IsFullscreen() const;
 

@@ -14,7 +14,7 @@
 
 namespace quic {
 
-struct QUIC_EXPORT_PRIVATE QuicStopSendingFrame
+struct QUICHE_EXPORT QuicStopSendingFrame
     : public QuicInlinedFrame<QuicStopSendingFrame> {
   QuicStopSendingFrame();
   QuicStopSendingFrame(QuicControlFrameId control_frame_id,
@@ -23,8 +23,11 @@ struct QUIC_EXPORT_PRIVATE QuicStopSendingFrame
   QuicStopSendingFrame(QuicControlFrameId control_frame_id,
                        QuicStreamId stream_id, QuicResetStreamError error);
 
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+  friend QUICHE_EXPORT std::ostream& operator<<(
       std::ostream& os, const QuicStopSendingFrame& frame);
+
+  bool operator==(const QuicStopSendingFrame& rhs) const;
+  bool operator!=(const QuicStopSendingFrame& rhs) const;
 
   QuicFrameType type;
 

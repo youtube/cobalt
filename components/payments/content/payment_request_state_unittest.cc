@@ -12,9 +12,12 @@
 #include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
-#include "components/autofill/core/browser/autofill_test_utils.h"
-#include "components/autofill/core/browser/data_model/autofill_profile.h"
-#include "components/autofill/core/browser/test_personal_data_manager.h"
+#include "components/autofill/core/browser/country_type.h"
+#include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
+#include "components/autofill/core/browser/data_manager/test_personal_data_manager.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_profile_test_api.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/payments/content/payment_app_factory.h"
 #include "components/payments/content/payment_app_service.h"
 #include "components/payments/content/payment_request_spec.h"
@@ -64,14 +67,15 @@ class PaymentRequestStateTest : public testing::Test,
       : num_on_selected_information_changed_called_(0),
         test_payment_request_delegate_(/*task_executor=*/nullptr,
                                        &test_personal_data_manager_),
-        journey_logger_(test_payment_request_delegate_.IsOffTheRecord(),
-                        ukm::UkmRecorder::GetNewSourceID()),
+        journey_logger_(ukm::UkmRecorder::GetNewSourceID()),
         address_(autofill::test::GetFullProfile()) {
     web_contents_ = web_contents_factory_.CreateWebContents(&context_);
 
-    test_personal_data_manager_.SetAutofillProfileEnabled(true);
-    test_personal_data_manager_.SetAutofillWalletImportEnabled(true);
-    test_personal_data_manager_.AddProfile(address_);
+    test_personal_data_manager_.test_address_data_manager()
+        .SetAutofillProfileEnabled(true);
+    test_personal_data_manager_.test_payments_data_manager()
+        .SetAutofillWalletImportEnabled(true);
+    test_personal_data_manager_.address_data_manager().AddProfile(address_);
   }
   ~PaymentRequestStateTest() override = default;
 
@@ -473,9 +477,7 @@ TEST_F(PaymentRequestStateTest, JaLatnShippingAddress) {
 
   // Select an address, nothing should happen until the normalization is
   // completed and the merchant has validated the address.
-  autofill::AutofillProfile profile(
-      base::Uuid::GenerateRandomV4().AsLowercaseString(),
-      "https://example.test");
+  autofill::AutofillProfile profile(AddressCountryCode("JP"));
   autofill::test::SetProfileInfo(&profile, "Jon", "V.", "Doe",
                                  "jon.doe@exampl.com", "Example Inc",
                                  "Roppongi", "6 Chrome-10-1", "Tokyo", "",
@@ -510,6 +512,27 @@ TEST_F(PaymentRequestStateTest, JaLatnShippingAddress) {
   EXPECT_EQ("Example Inc", selected_shipping_address()->organization);
   EXPECT_EQ("Jon V. Doe", selected_shipping_address()->recipient);
   EXPECT_EQ("+81363849000", selected_shipping_address()->phone);
+}
+
+// Tests that the home and work profiles are filtered out from showing in the
+// shipping profiles.
+TEST_F(PaymentRequestStateTest, FilteredHomeWorkAddressProfiles) {
+  autofill::AutofillProfile profile1 = autofill::test::GetFullProfile();
+  test_api(profile1).set_record_type(
+      autofill::AutofillProfile::RecordType::kAccountHome);
+
+  autofill::AutofillProfile profile2 = autofill::test::GetFullProfile2();
+  test_api(profile2).set_record_type(
+      autofill::AutofillProfile::RecordType::kAccountWork);
+
+  test_personal_data_manager_.address_data_manager().AddProfile(profile1);
+  test_personal_data_manager_.address_data_manager().AddProfile(profile2);
+
+  RecreateStateWithOptions(mojom::PaymentOptions::New());
+
+  EXPECT_EQ(state()->shipping_profiles().size(), 1U);
+  EXPECT_EQ(state()->shipping_profiles()[0]->record_type(),
+            autofill::AutofillProfile::RecordType::kLocalOrSyncable);
 }
 
 }  // namespace

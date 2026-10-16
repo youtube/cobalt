@@ -10,14 +10,15 @@
 import 'chrome://resources/cr_elements/cr_tree/cr_tree.js';
 import 'chrome://resources/cr_elements/cr_tree/cr_tree_item.js';
 
-import {CrTreeElement} from 'chrome://resources/cr_elements/cr_tree/cr_tree.js';
-import {CrTreeItemElement} from 'chrome://resources/cr_elements/cr_tree/cr_tree_item.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {String16} from 'chrome://resources/mojo/mojo/public/mojom/base/string16.mojom-webui.js';
+import type {CrTreeElement} from 'chrome://resources/cr_elements/cr_tree/cr_tree.js';
+import type {CrTreeItemElement} from 'chrome://resources/cr_elements/cr_tree/cr_tree_item.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import type {String16} from 'chrome://resources/mojo/mojo/public/mojom/base/string16.mojom-webui.js';
 
 import {DescriptorPanel, renderClassCodeWithDescription} from './descriptor_panel.js';
-import {UsbAlternateInterfaceInfo, UsbConfigurationInfo, UsbDeviceInfo, UsbDeviceRemote, UsbEndpointInfo, UsbInterfaceInfo, UsbTransferDirection, UsbTransferType} from './usb_device.mojom-webui.js';
-import {UsbDeviceManagerRemote} from './usb_manager.mojom-webui.js';
+import type {UsbAlternateInterfaceInfo, UsbConfigurationInfo, UsbDeviceInfo, UsbEndpointInfo, UsbInterfaceInfo} from './usb_device.mojom-webui.js';
+import {UsbDeviceRemote, UsbTransferDirection, UsbTransferType} from './usb_device.mojom-webui.js';
+import type {UsbDeviceManagerRemote} from './usb_manager.mojom-webui.js';
 
 /**
  * Page that contains a tab header and a tab panel displaying devices table.
@@ -49,8 +50,8 @@ export class DevicesPage {
     assert(rowTemplate);
 
     for (const device of devices) {
-      const clone =
-          document.importNode(rowTemplate.content, true) as DocumentFragment;
+      const clone: DocumentFragment =
+          document.importNode(rowTemplate.content, true);
 
       const td = clone.querySelectorAll('td');
 
@@ -125,8 +126,7 @@ class DevicePage {
     const tabTemplate =
         this.root.querySelector<HTMLTemplateElement>('#tab-template');
     assert(tabTemplate);
-    const tabClone =
-        document.importNode(tabTemplate.content, true) as DocumentFragment;
+    const tabClone = document.importNode(tabTemplate.content, true);
 
     const tab = tabClone.querySelector<HTMLElement>('div[slot=\'tab\']');
     assert(tab);
@@ -145,8 +145,7 @@ class DevicePage {
     const tabPanelTemplate = this.root.querySelector<HTMLTemplateElement>(
         '#device-tabpanel-template');
     assert(tabPanelTemplate);
-    const tabPanelClone =
-        document.importNode(tabPanelTemplate.content, true) as DocumentFragment;
+    const tabPanelClone = document.importNode(tabPanelTemplate.content, true);
 
     /**
      * Root of the WebContents tree of current device.
@@ -239,7 +238,7 @@ function renderDeviceTree(device: UsbDeviceInfo, root: CrTreeElement) {
 
   if (device.webusbLandingPage) {
     const urlItem =
-        customTreeItem(`WebUSB Landing Page: ${device.webusbLandingPage!.url}`);
+        customTreeItem(`WebUSB Landing Page: ${device.webusbLandingPage.url}`);
     root.add(urlItem);
 
     urlItem.labelElement.addEventListener(

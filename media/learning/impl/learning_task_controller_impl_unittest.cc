@@ -4,6 +4,7 @@
 
 #include "media/learning/impl/learning_task_controller_impl.h"
 
+#include <array>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -24,7 +25,7 @@ class LearningTaskControllerImplTest : public testing::Test {
         : DistributionReporter(task) {}
 
     // protected => public
-    const absl::optional<std::set<int>>& feature_indices() const {
+    const std::optional<std::set<int>>& feature_indices() const {
       return DistributionReporter::feature_indices();
     }
 
@@ -134,21 +135,21 @@ class LearningTaskControllerImplTest : public testing::Test {
   }
 
   void AddExample(const LabelledExample& example,
-                  absl::optional<ukm::SourceId> source_id = absl::nullopt) {
+                  std::optional<ukm::SourceId> source_id = std::nullopt) {
     base::UnguessableToken id = base::UnguessableToken::Create();
-    controller_->BeginObservation(id, example.features, absl::nullopt,
+    controller_->BeginObservation(id, example.features, std::nullopt,
                                   source_id);
     controller_->CompleteObservation(
         id, ObservationCompletion(example.target_value, example.weight));
   }
 
   void VerifyPrediction(const FeatureVector& features,
-                        absl::optional<TargetHistogram> expectation) {
-    absl::optional<TargetHistogram> observed_prediction;
+                        std::optional<TargetHistogram> expectation) {
+    std::optional<TargetHistogram> observed_prediction;
     controller_->PredictDistribution(
         features, base::BindOnce(
-                      [](absl::optional<TargetHistogram>* test_storage,
-                         const absl::optional<TargetHistogram>& predicted) {
+                      [](std::optional<TargetHistogram>* test_storage,
+                         const std::optional<TargetHistogram>& predicted) {
                         *test_storage = predicted;
                       },
                       &observed_prediction));
@@ -165,8 +166,8 @@ class LearningTaskControllerImplTest : public testing::Test {
   const TargetValue predicted_target_;
   const TargetValue not_predicted_target_;
 
-  raw_ptr<FakeDistributionReporter> reporter_raw_ = nullptr;
-  raw_ptr<FakeTrainer> trainer_raw_ = nullptr;
+  raw_ptr<FakeDistributionReporter, DanglingUntriaged> reporter_raw_ = nullptr;
+  raw_ptr<FakeTrainer, DanglingUntriaged> trainer_raw_ = nullptr;
 
   LearningTask task_;
   std::unique_ptr<LearningTaskControllerImpl> controller_;
@@ -233,13 +234,23 @@ TEST_F(LearningTaskControllerImplTest, FeatureProviderIsUsed) {
 }
 
 TEST_F(LearningTaskControllerImplTest, FeatureSubsetsWork) {
-  const char* feature_names[] = {
-      "feature0", "feature1", "feature2", "feature3", "feature4",  "feature5",
-      "feature6", "feature7", "feature8", "feature9", "feature10", "feature11",
-  };
-  const int num_features = sizeof(feature_names) / sizeof(feature_names[0]);
-  for (int i = 0; i < num_features; i++)
-    task_.feature_descriptions.push_back({feature_names[i]});
+  auto feature_names = std::to_array<const char*>({
+      "feature0",
+      "feature1",
+      "feature2",
+      "feature3",
+      "feature4",
+      "feature5",
+      "feature6",
+      "feature7",
+      "feature8",
+      "feature9",
+      "feature10",
+      "feature11",
+  });
+  for (const char* feature_name : feature_names) {
+    task_.feature_descriptions.push_back({feature_name});
+  }
   const size_t subset_size = 4;
   task_.feature_subset_size = subset_size;
   CreateController();
@@ -250,8 +261,9 @@ TEST_F(LearningTaskControllerImplTest, FeatureSubsetsWork) {
 
   // Train a model.  Each feature will have a unique value.
   LabelledExample example;
-  for (int i = 0; i < num_features; i++)
+  for (size_t i = 0; i < feature_names.size(); i++) {
     example.features.push_back(FeatureValue(i));
+  }
   AddExample(example);
 
   // Verify that all feature names in |subset| are present in the task.
@@ -280,9 +292,9 @@ TEST_F(LearningTaskControllerImplTest, FeatureSubsetsWork) {
 TEST_F(LearningTaskControllerImplTest, PredictDistribution) {
   CreateController();
 
-  // Predictions should be absl::nullopt until we have a model.
+  // Predictions should be std::nullopt until we have a model.
   LabelledExample example;
-  VerifyPrediction(example.features, absl::nullopt);
+  VerifyPrediction(example.features, std::nullopt);
 
   AddExample(example);
   TargetHistogram expected_histogram;

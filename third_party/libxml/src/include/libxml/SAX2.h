@@ -12,8 +12,6 @@
 #ifndef __XML_SAX2_H__
 #define __XML_SAX2_H__
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <libxml/xmlversion.h>
 #include <libxml/parser.h>
 
@@ -97,16 +95,15 @@ XMLPUBFUN void
 		xmlSAX2StartDocument		(void *ctx);
 XMLPUBFUN void
 		xmlSAX2EndDocument		(void *ctx);
-#if defined(LIBXML_SAX1_ENABLED) || defined(LIBXML_HTML_ENABLED) || \
-    defined(LIBXML_WRITER_ENABLED) || defined(LIBXML_LEGACY_ENABLED)
+XML_DEPRECATED
 XMLPUBFUN void
 		xmlSAX2StartElement		(void *ctx,
 						 const xmlChar *fullname,
 						 const xmlChar **atts);
+XML_DEPRECATED
 XMLPUBFUN void
 		xmlSAX2EndElement		(void *ctx,
 						 const xmlChar *name);
-#endif /* LIBXML_SAX1_ENABLED or LIBXML_HTML_ENABLED or LIBXML_LEGACY_ENABLED */
 XMLPUBFUN void
 		xmlSAX2StartElementNs		(void *ctx,
 						 const xmlChar *localname,

@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/ffmpeg/ffmpeg_common.h"
 
 #include "base/hash/sha1.h"
 #include "base/logging.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -14,6 +20,7 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/encryption_scheme.h"
 #include "media/base/media_util.h"
+#include "media/base/supported_types.h"
 #include "media/base/video_aspect_ratio.h"
 #include "media/base/video_color_space.h"
 #include "media/base/video_decoder_config.h"
@@ -31,6 +38,11 @@
 namespace media {
 
 namespace {
+
+// TODO(crbug.com/379418979): Remove after M133 is stable.
+BASE_FEATURE(kStrictFFmpegCodecs,
+             "StrictFFmpegCodecs",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 EncryptionScheme GetEncryptionScheme(const AVStream* stream) {
   AVDictionaryEntry* key =
@@ -52,15 +64,34 @@ VideoColorSpace GetGuessedColorSpace(const VideoColorSpace& color_space) {
       color_space.GuessGfxColorSpace());
 }
 
-}  // namespace
-
-// Alignment requirement by FFmpeg for input and output buffers. This need to
-// be updated to match FFmpeg when it changes.
-#if defined(ARCH_CPU_ARM_FAMILY)
-static const int kFFmpegBufferAddressAlignment = 16;
+const char* GetAllowedVideoDecoders() {
+  // This should match the configured lists in //third_party/ffmpeg.
+#if BUILDFLAG(USE_PROPRIETARY_CODECS) && BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)
+  return "h264";
 #else
-static const int kFFmpegBufferAddressAlignment = 32;
+  return "";
 #endif
+}
+
+void ApplyCodecContextSecuritySettings(AVCodecContext* codec_context) {
+  // Future versions of ffmpeg may copy the allow list from the format
+  // context.
+  if (!codec_context->codec_whitelist) {
+    // Note: FFmpeg will try to free this string, so we must duplicate it.
+    codec_context->codec_whitelist =
+        av_strdup(codec_context->codec_type == AVMEDIA_TYPE_AUDIO
+                      ? GetAllowedAudioDecoders()
+                      : GetAllowedVideoDecoders());
+  }
+
+  // Note: This is security sensitive. FFmpeg may not always continue safely
+  // in the presence of errors. See https://crbug.com/379418979
+  if (base::FeatureList::IsEnabled(kStrictFFmpegCodecs)) {
+    codec_context->err_recognition |= AV_EF_EXPLODE;
+  }
+}
+
+}  // namespace
 
 // Allows faster SIMD YUV convert. Also, FFmpeg overreads/-writes occasionally.
 // See video_get_buffer() in libavcodec/utils.c.
@@ -232,22 +263,22 @@ AVCodecID VideoCodecToCodecID(VideoCodec video_codec) {
 static VideoCodecProfile ProfileIDToVideoCodecProfile(int profile) {
   // Clear out the CONSTRAINED & INTRA flags which are strict subsets of the
   // corresponding profiles with which they're used.
-  profile &= ~FF_PROFILE_H264_CONSTRAINED;
-  profile &= ~FF_PROFILE_H264_INTRA;
+  profile &= ~AV_PROFILE_H264_CONSTRAINED;
+  profile &= ~AV_PROFILE_H264_INTRA;
   switch (profile) {
-    case FF_PROFILE_H264_BASELINE:
+    case AV_PROFILE_H264_BASELINE:
       return H264PROFILE_BASELINE;
-    case FF_PROFILE_H264_MAIN:
+    case AV_PROFILE_H264_MAIN:
       return H264PROFILE_MAIN;
-    case FF_PROFILE_H264_EXTENDED:
+    case AV_PROFILE_H264_EXTENDED:
       return H264PROFILE_EXTENDED;
-    case FF_PROFILE_H264_HIGH:
+    case AV_PROFILE_H264_HIGH:
       return H264PROFILE_HIGH;
-    case FF_PROFILE_H264_HIGH_10:
+    case AV_PROFILE_H264_HIGH_10:
       return H264PROFILE_HIGH10PROFILE;
-    case FF_PROFILE_H264_HIGH_422:
+    case AV_PROFILE_H264_HIGH_422:
       return H264PROFILE_HIGH422PROFILE;
-    case FF_PROFILE_H264_HIGH_444_PREDICTIVE:
+    case AV_PROFILE_H264_HIGH_444_PREDICTIVE:
       return H264PROFILE_HIGH444PREDICTIVEPROFILE;
     default:
       DVLOG(1) << "Unknown profile id: " << profile;
@@ -258,23 +289,23 @@ static VideoCodecProfile ProfileIDToVideoCodecProfile(int profile) {
 static int VideoCodecProfileToProfileID(VideoCodecProfile profile) {
   switch (profile) {
     case H264PROFILE_BASELINE:
-      return FF_PROFILE_H264_BASELINE;
+      return AV_PROFILE_H264_BASELINE;
     case H264PROFILE_MAIN:
-      return FF_PROFILE_H264_MAIN;
+      return AV_PROFILE_H264_MAIN;
     case H264PROFILE_EXTENDED:
-      return FF_PROFILE_H264_EXTENDED;
+      return AV_PROFILE_H264_EXTENDED;
     case H264PROFILE_HIGH:
-      return FF_PROFILE_H264_HIGH;
+      return AV_PROFILE_H264_HIGH;
     case H264PROFILE_HIGH10PROFILE:
-      return FF_PROFILE_H264_HIGH_10;
+      return AV_PROFILE_H264_HIGH_10;
     case H264PROFILE_HIGH422PROFILE:
-      return FF_PROFILE_H264_HIGH_422;
+      return AV_PROFILE_H264_HIGH_422;
     case H264PROFILE_HIGH444PREDICTIVEPROFILE:
-      return FF_PROFILE_H264_HIGH_444_PREDICTIVE;
+      return AV_PROFILE_H264_HIGH_444_PREDICTIVE;
     default:
       DVLOG(1) << "Unknown VideoCodecProfile: " << profile;
   }
-  return FF_PROFILE_UNKNOWN;
+  return AV_PROFILE_UNKNOWN;
 }
 
 SampleFormat AVSampleFormatToSampleFormat(AVSampleFormat sample_format,
@@ -351,10 +382,10 @@ bool AVCodecContextToAudioDecoderConfig(const AVCodecContext* codec_context,
       // The spec for AC3/EAC3 audio is ETSI TS 102 366. According to sections
       // F.3.1 and F.5.1 in that spec the sample_format for AC3/EAC3 must be 16.
       sample_format = kSampleFormatS16;
+      break;
 #else
       NOTREACHED();
 #endif
-      break;
 #if BUILDFLAG(ENABLE_PLATFORM_MPEG_H_AUDIO)
     case AudioCodec::kMpegHAudio:
       channel_layout = CHANNEL_LAYOUT_BITSTREAM;
@@ -375,10 +406,10 @@ bool AVCodecContextToAudioDecoderConfig(const AVCodecContext* codec_context,
   // AVStream occasionally has invalid extra data. See http://crbug.com/517163
   if ((codec_context->extradata_size == 0) !=
       (codec_context->extradata == nullptr)) {
-    LOG(ERROR) << __func__
-               << (codec_context->extradata == nullptr ? " NULL" : " Non-NULL")
-               << " extra data cannot have size of "
-               << codec_context->extradata_size << ".";
+    DLOG(ERROR) << __func__
+                << (codec_context->extradata == nullptr ? " NULL" : " Non-NULL")
+                << " extra data cannot have size of "
+                << codec_context->extradata_size << ".";
     return false;
   }
 
@@ -407,11 +438,11 @@ bool AVCodecContextToAudioDecoderConfig(const AVCodecContext* codec_context,
 
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
   if (codec == AudioCodec::kAAC) {
-    config->set_aac_extra_data(extra_data);
-
     // TODO(dalecurtis): Just use the profile from the codec context if ffmpeg
     // ever starts supporting xHE-AAC.
-    if (codec_context->profile == FF_PROFILE_UNKNOWN) {
+    // FFmpeg provides the (defined_profile - 1) for AVCodecContext::profile
+    if (codec_context->profile == AV_PROFILE_UNKNOWN ||
+        codec_context->profile == mp4::AAC::kXHeAAcType - 1) {
       // Errors aren't fatal here, so just drop any MediaLog messages.
       NullMediaLog media_log;
       mp4::AAC aac_parser;
@@ -421,10 +452,10 @@ bool AVCodecContextToAudioDecoderConfig(const AVCodecContext* codec_context,
   }
 #endif
 
-  // Verify that AudioConfig.bits_per_channel was calculated correctly for
+  // Verify that AudioConfig.bytes_per_channel was calculated correctly for
   // codecs that have |sample_fmt| set by FFmpeg.
-  DCHECK_EQ(av_get_bytes_per_sample(codec_context->sample_fmt) * 8,
-            config->bits_per_channel());
+  DCHECK_EQ(av_get_bytes_per_sample(codec_context->sample_fmt),
+            config->bytes_per_channel());
   return true;
 }
 
@@ -437,6 +468,7 @@ AVStreamToAVCodecContext(const AVStream* stream) {
     return nullptr;
   }
 
+  ApplyCodecContextSecuritySettings(codec_context.get());
   return codec_context;
 }
 
@@ -476,6 +508,7 @@ void AudioDecoderConfigToAVCodecContext(const AudioDecoderConfig& config,
     memset(codec_context->extradata + config.extra_data().size(), '\0',
            AV_INPUT_BUFFER_PADDING_SIZE);
   }
+  ApplyCodecContextSecuritySettings(codec_context);
 }
 
 bool AVStreamToVideoDecoderConfig(const AVStream* stream,
@@ -526,8 +559,11 @@ bool AVStreamToVideoDecoderConfig(const AVStream* stream,
                       codec_context->color_range == AVCOL_RANGE_JPEG
                           ? gfx::ColorSpace::RangeID::FULL
                           : gfx::ColorSpace::RangeID::LIMITED);
-
+  VideoPixelFormat pixel_format =
+      AVPixelFormatToVideoPixelFormat(codec_context->pix_fmt);
   VideoDecoderConfig::AlphaMode alpha_mode = GetAlphaMode(stream);
+  VideoChromaSampling chroma_sampling =
+      VideoPixelFormatToChromaSampling(pixel_format);
 
   switch (codec) {
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
@@ -551,7 +587,7 @@ bool AVStreamToVideoDecoderConfig(const AVStream* stream,
 #if BUILDFLAG(ENABLE_PLATFORM_HEVC)
     case VideoCodec::kHEVC: {
       int hevc_profile = -1;
-      // We need to parse extradata each time, because we wont add ffmpeg
+      // We need to parse extradata each time, because we won't add ffmpeg
       // hevc decoder & parser to chromium and codec_context->profile
       // should always be FF_PROFILE_UNKNOWN (-99) here
       if (codec_context->extradata && codec_context->extradata_size) {
@@ -569,6 +605,7 @@ bool AVStreamToVideoDecoderConfig(const AVStream* stream,
           }
           hdr_metadata = hevc_config.GetHDRMetadata();
           alpha_mode = hevc_config.GetAlphaMode();
+          chroma_sampling = hevc_config.GetChromaSampling();
 #endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
         }
       }
@@ -622,16 +659,16 @@ bool AVStreamToVideoDecoderConfig(const AVStream* stream,
       break;
     case VideoCodec::kVP9:
       switch (codec_context->profile) {
-        case FF_PROFILE_VP9_0:
+        case AV_PROFILE_VP9_0:
           profile = VP9PROFILE_PROFILE0;
           break;
-        case FF_PROFILE_VP9_1:
+        case AV_PROFILE_VP9_1:
           profile = VP9PROFILE_PROFILE1;
           break;
-        case FF_PROFILE_VP9_2:
+        case AV_PROFILE_VP9_2:
           profile = VP9PROFILE_PROFILE2;
           break;
-        case FF_PROFILE_VP9_3:
+        case AV_PROFILE_VP9_3:
           profile = VP9PROFILE_PROFILE3;
           break;
         default:
@@ -660,15 +697,6 @@ bool AVStreamToVideoDecoderConfig(const AVStream* stream,
       profile = ProfileIDToVideoCodecProfile(codec_context->profile);
   }
 
-  void* display_matrix =
-      av_stream_get_side_data(stream, AV_PKT_DATA_DISPLAYMATRIX, nullptr);
-
-  VideoTransformation video_transformation = VideoTransformation();
-  if (display_matrix) {
-    video_transformation = VideoTransformation::FromFFmpegDisplayMatrix(
-        static_cast<int32_t*>(display_matrix));
-  }
-
   if (!color_space.IsSpecified()) {
     // VP9 frames may have color information, but that information cannot
     // express new color spaces, like HDR. For that reason, color space
@@ -688,20 +716,21 @@ bool AVStreamToVideoDecoderConfig(const AVStream* stream,
       color_space = (natural_size.height() < 720) ? VideoColorSpace::REC601()
                                                   : VideoColorSpace::REC709();
     }
-  } else if (codec_context->codec_id == AV_CODEC_ID_H264 &&
+  } else if ((codec_context->codec_id == AV_CODEC_ID_HEVC ||
+              codec_context->codec_id == AV_CODEC_ID_H264) &&
              codec_context->colorspace == AVCOL_SPC_RGB &&
-             AVPixelFormatToVideoPixelFormat(codec_context->pix_fmt) ==
-                 PIXEL_FORMAT_I420) {
-    // Some H.264 videos contain a VUI that specifies a color matrix of GBR,
-    // when they are actually ordinary YUV. Only 4:2:0 formats are checked,
-    // because GBR is reasonable for 4:4:4 content. See crbug.com/1067377.
+             chroma_sampling != VideoChromaSampling::k444) {
+    // Some H.264/H.265 videos contain a VUI that specifies a color matrix of
+    // GBR, when they are actually ordinary YUV. Default to BT.709 if the format
+    // is not 4:4:4 as GBR is only reasonable for 4:4:4 content. See
+    // crbug.com/40682932, crbug.com/341266991, crbug.com/342003180, and
+    // crbug.com/343014700.
     color_space = VideoColorSpace::REC709();
   } else if (codec_context->codec_id == AV_CODEC_ID_HEVC &&
              (color_space.primaries == VideoColorSpace::PrimaryID::INVALID ||
               color_space.transfer == VideoColorSpace::TransferID::INVALID ||
               color_space.matrix == VideoColorSpace::MatrixID::INVALID) &&
-             AVPixelFormatToVideoPixelFormat(codec_context->pix_fmt) ==
-                 PIXEL_FORMAT_I420) {
+             pixel_format == PIXEL_FORMAT_I420) {
     // Some HEVC SDR content encoded by the Adobe Premiere HW HEVC encoder has
     // invalid primaries but valid transfer and matrix, and some HEVC SDR
     // content encoded by web camera has invalid primaries and transfer, this
@@ -724,41 +753,102 @@ bool AVStreamToVideoDecoderConfig(const AVStream* stream,
     extra_data.assign(codec_context->extradata,
                       codec_context->extradata + codec_context->extradata_size);
   }
+
+  VideoTransformation video_transformation = VideoTransformation();
+  for (int i = 0; i < stream->codecpar->nb_coded_side_data; ++i) {
+    const auto& side_data = stream->codecpar->coded_side_data[i];
+    switch (side_data.type) {
+      case AV_PKT_DATA_DISPLAYMATRIX: {
+        CHECK_EQ(side_data.size, sizeof(int32_t) * 3 * 3);
+        video_transformation = VideoTransformation::FromFFmpegDisplayMatrix(
+            reinterpret_cast<int32_t*>(side_data.data));
+        break;
+      }
+      case AV_PKT_DATA_MASTERING_DISPLAY_METADATA: {
+        AVMasteringDisplayMetadata* mdcv =
+            reinterpret_cast<AVMasteringDisplayMetadata*>(side_data.data);
+        gfx::HdrMetadataSmpteSt2086 smpte_st_2086;
+        if (mdcv->has_primaries) {
+          smpte_st_2086.primaries = {
+              static_cast<float>(av_q2d(mdcv->display_primaries[0][0])),
+              static_cast<float>(av_q2d(mdcv->display_primaries[0][1])),
+              static_cast<float>(av_q2d(mdcv->display_primaries[1][0])),
+              static_cast<float>(av_q2d(mdcv->display_primaries[1][1])),
+              static_cast<float>(av_q2d(mdcv->display_primaries[2][0])),
+              static_cast<float>(av_q2d(mdcv->display_primaries[2][1])),
+              static_cast<float>(av_q2d(mdcv->white_point[0])),
+              static_cast<float>(av_q2d(mdcv->white_point[1])),
+          };
+        }
+        if (mdcv->has_luminance) {
+          smpte_st_2086.luminance_max = av_q2d(mdcv->max_luminance);
+          smpte_st_2086.luminance_min = av_q2d(mdcv->min_luminance);
+        }
+
+        // TODO(crbug.com/40268540): Consider rejecting metadata that
+        // does not specify all values.
+        if (mdcv->has_primaries || mdcv->has_luminance) {
+          hdr_metadata.smpte_st_2086 = smpte_st_2086;
+        }
+        break;
+      }
+      case AV_PKT_DATA_CONTENT_LIGHT_LEVEL: {
+        AVContentLightMetadata* clli =
+            reinterpret_cast<AVContentLightMetadata*>(side_data.data);
+        hdr_metadata.cta_861_3 =
+            gfx::HdrMetadataCta861_3(clli->MaxCLL, clli->MaxFALL);
+        break;
+      }
+#if BUILDFLAG(ENABLE_PLATFORM_DOLBY_VISION)
+      case AV_PKT_DATA_DOVI_CONF: {
+        AVDOVIDecoderConfigurationRecord* dovi =
+            reinterpret_cast<AVDOVIDecoderConfigurationRecord*>(side_data.data);
+        VideoType type;
+        type.codec = VideoCodec::kDolbyVision;
+        type.level = dovi->dv_level;
+        type.color_space = color_space;
+        type.hdr_metadata_type = gfx::HdrMetadataType::kNone;
+        switch (dovi->dv_profile) {
+          case 0:
+            type.profile = VideoCodecProfile::DOLBYVISION_PROFILE0;
+            break;
+          case 5:
+            type.profile = VideoCodecProfile::DOLBYVISION_PROFILE5;
+            break;
+          case 7:
+            type.profile = VideoCodecProfile::DOLBYVISION_PROFILE7;
+            break;
+          case 8:
+            type.profile = VideoCodecProfile::DOLBYVISION_PROFILE8;
+            break;
+          case 9:
+            type.profile = VideoCodecProfile::DOLBYVISION_PROFILE9;
+            break;
+          default:
+            type.profile = VideoCodecProfile::VIDEO_CODEC_PROFILE_UNKNOWN;
+            break;
+        }
+        // Treat dolby vision contents as dolby vision codec only if the
+        // device support clear DV decoding, otherwise use the original
+        // HEVC or AVC codec and profile.
+        if (media::IsDecoderSupportedVideoType(type)) {
+          codec = type.codec;
+          profile = type.profile;
+        }
+        break;
+      }
+#endif  // BUILDFLAG(ENABLE_PLATFORM_DOLBY_VISION)
+      default:
+        break;
+    }
+  }
+
   // TODO(tmathmeyer) ffmpeg can't provide us with an actual video rotation yet.
   config->Initialize(codec, profile, alpha_mode, color_space,
                      video_transformation, coded_size, visible_rect,
                      natural_size, extra_data, GetEncryptionScheme(stream));
   // Set the aspect ratio explicitly since our version hasn't been rounded.
   config->set_aspect_ratio(aspect_ratio);
-
-  if (stream->nb_side_data) {
-    for (int i = 0; i < stream->nb_side_data; ++i) {
-      AVPacketSideData side_data = stream->side_data[i];
-      if (side_data.type != AV_PKT_DATA_MASTERING_DISPLAY_METADATA)
-        continue;
-
-      AVMasteringDisplayMetadata* metadata =
-          reinterpret_cast<AVMasteringDisplayMetadata*>(side_data.data);
-      if (metadata->has_primaries) {
-        hdr_metadata.color_volume_metadata.primaries = {
-            static_cast<float>(av_q2d(metadata->display_primaries[0][0])),
-            static_cast<float>(av_q2d(metadata->display_primaries[0][1])),
-            static_cast<float>(av_q2d(metadata->display_primaries[1][0])),
-            static_cast<float>(av_q2d(metadata->display_primaries[1][1])),
-            static_cast<float>(av_q2d(metadata->display_primaries[2][0])),
-            static_cast<float>(av_q2d(metadata->display_primaries[2][1])),
-            static_cast<float>(av_q2d(metadata->white_point[0])),
-            static_cast<float>(av_q2d(metadata->white_point[1])),
-        };
-      }
-      if (metadata->has_luminance) {
-        hdr_metadata.color_volume_metadata.luminance_max =
-            av_q2d(metadata->max_luminance);
-        hdr_metadata.color_volume_metadata.luminance_min =
-            av_q2d(metadata->min_luminance);
-      }
-    }
-  }
 
   if (hdr_metadata.IsValid()) {
     config->set_hdr_metadata(hdr_metadata);
@@ -790,6 +880,7 @@ void VideoDecoderConfigToAVCodecContext(
     memset(codec_context->extradata + config.extra_data().size(), '\0',
            AV_INPUT_BUFFER_PADDING_SIZE);
   }
+  ApplyCodecContextSecuritySettings(codec_context);
 }
 
 ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout, int channels) {
@@ -798,12 +889,18 @@ ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout, int channels) {
       return CHANNEL_LAYOUT_MONO;
     case AV_CH_LAYOUT_STEREO:
       return CHANNEL_LAYOUT_STEREO;
+    case AV_CH_LAYOUT_2POINT1:
+      return CHANNEL_LAYOUT_2POINT1;
     case AV_CH_LAYOUT_2_1:
       return CHANNEL_LAYOUT_2_1;
     case AV_CH_LAYOUT_SURROUND:
       return CHANNEL_LAYOUT_SURROUND;
+    case AV_CH_LAYOUT_3POINT1:
+      return CHANNEL_LAYOUT_3_1;
     case AV_CH_LAYOUT_4POINT0:
       return CHANNEL_LAYOUT_4_0;
+    case AV_CH_LAYOUT_4POINT1:
+      return CHANNEL_LAYOUT_4_1;
     case AV_CH_LAYOUT_2_2:
       return CHANNEL_LAYOUT_2_2;
     case AV_CH_LAYOUT_QUAD:
@@ -816,20 +913,6 @@ ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout, int channels) {
       return CHANNEL_LAYOUT_5_0_BACK;
     case AV_CH_LAYOUT_5POINT1_BACK:
       return CHANNEL_LAYOUT_5_1_BACK;
-    case AV_CH_LAYOUT_7POINT0:
-      return CHANNEL_LAYOUT_7_0;
-    case AV_CH_LAYOUT_7POINT1:
-      return CHANNEL_LAYOUT_7_1;
-    case AV_CH_LAYOUT_7POINT1_WIDE:
-      return CHANNEL_LAYOUT_7_1_WIDE;
-    case AV_CH_LAYOUT_STEREO_DOWNMIX:
-      return CHANNEL_LAYOUT_STEREO_DOWNMIX;
-    case AV_CH_LAYOUT_2POINT1:
-      return CHANNEL_LAYOUT_2POINT1;
-    case AV_CH_LAYOUT_3POINT1:
-      return CHANNEL_LAYOUT_3_1;
-    case AV_CH_LAYOUT_4POINT1:
-      return CHANNEL_LAYOUT_4_1;
     case AV_CH_LAYOUT_6POINT0:
       return CHANNEL_LAYOUT_6_0;
     case AV_CH_LAYOUT_6POINT0_FRONT:
@@ -842,14 +925,25 @@ ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout, int channels) {
       return CHANNEL_LAYOUT_6_1_BACK;
     case AV_CH_LAYOUT_6POINT1_FRONT:
       return CHANNEL_LAYOUT_6_1_FRONT;
+    case AV_CH_LAYOUT_7POINT0:
+      return CHANNEL_LAYOUT_7_0;
     case AV_CH_LAYOUT_7POINT0_FRONT:
       return CHANNEL_LAYOUT_7_0_FRONT;
-#ifdef AV_CH_LAYOUT_7POINT1_WIDE_BACK
+    case AV_CH_LAYOUT_7POINT1:
+      return CHANNEL_LAYOUT_7_1;
+    case AV_CH_LAYOUT_7POINT1_WIDE:
+      return CHANNEL_LAYOUT_7_1_WIDE;
     case AV_CH_LAYOUT_7POINT1_WIDE_BACK:
       return CHANNEL_LAYOUT_7_1_WIDE_BACK;
-#endif
     case AV_CH_LAYOUT_OCTAGONAL:
       return CHANNEL_LAYOUT_OCTAGONAL;
+    case AV_CH_LAYOUT_STEREO_DOWNMIX:
+      return CHANNEL_LAYOUT_STEREO_DOWNMIX;
+    case AV_CH_FRONT_CENTER | AV_CH_LOW_FREQUENCY:
+      return CHANNEL_LAYOUT_1_1;
+    case AV_CH_FRONT_LEFT | AV_CH_FRONT_RIGHT | AV_CH_LOW_FREQUENCY |
+        AV_CH_BACK_CENTER:
+      return CHANNEL_LAYOUT_3_1_BACK;
     default:
       // FFmpeg channel_layout is 0 for .wav and .mp3.  Attempt to guess layout
       // based on the channel count.
@@ -867,6 +961,7 @@ VideoPixelFormat AVPixelFormatToVideoPixelFormat(AVPixelFormat pixel_format) {
   switch (pixel_format) {
     case AV_PIX_FMT_YUV444P:
     case AV_PIX_FMT_YUVJ444P:
+    case AV_PIX_FMT_GBRP:
       return PIXEL_FORMAT_I444;
 
     case AV_PIX_FMT_YUV420P:
@@ -880,58 +975,38 @@ VideoPixelFormat AVPixelFormatToVideoPixelFormat(AVPixelFormat pixel_format) {
     case AV_PIX_FMT_YUVA420P:
       return PIXEL_FORMAT_I420A;
 
+    // Default to 10-bit pixel formats for 9-bits since they are non-standard
+    // and were never seen in the wild.
     case AV_PIX_FMT_YUV420P9LE:
-      return PIXEL_FORMAT_YUV420P9;
     case AV_PIX_FMT_YUV420P10LE:
       return PIXEL_FORMAT_YUV420P10;
     case AV_PIX_FMT_YUV420P12LE:
       return PIXEL_FORMAT_YUV420P12;
 
     case AV_PIX_FMT_YUV422P9LE:
-      return PIXEL_FORMAT_YUV422P9;
     case AV_PIX_FMT_YUV422P10LE:
       return PIXEL_FORMAT_YUV422P10;
     case AV_PIX_FMT_YUV422P12LE:
       return PIXEL_FORMAT_YUV422P12;
 
     case AV_PIX_FMT_YUV444P9LE:
-      return PIXEL_FORMAT_YUV444P9;
+    case AV_PIX_FMT_GBRP9LE:
     case AV_PIX_FMT_YUV444P10LE:
+    case AV_PIX_FMT_GBRP10LE:
       return PIXEL_FORMAT_YUV444P10;
     case AV_PIX_FMT_YUV444P12LE:
+    case AV_PIX_FMT_GBRP12LE:
       return PIXEL_FORMAT_YUV444P12;
 
-    case AV_PIX_FMT_P016LE:
-      return PIXEL_FORMAT_P016LE;
-
     default:
-      DVLOG(1) << "Unsupported AVPixelFormat: " << pixel_format;
+      // FFmpeg knows more pixel formats than Chromium cares about.
+      DVLOG(1) << "Unsupported pixel format: " << pixel_format;
+      return PIXEL_FORMAT_UNKNOWN;
   }
-  return PIXEL_FORMAT_UNKNOWN;
-}
-
-VideoColorSpace AVColorSpaceToColorSpace(AVColorSpace color_space,
-                                         AVColorRange color_range) {
-  // TODO(hubbe): make this better
-  if (color_range == AVCOL_RANGE_JPEG)
-    return VideoColorSpace::JPEG();
-
-  switch (color_space) {
-    case AVCOL_SPC_UNSPECIFIED:
-      break;
-    case AVCOL_SPC_BT709:
-      return VideoColorSpace::REC709();
-    case AVCOL_SPC_SMPTE170M:
-    case AVCOL_SPC_BT470BG:
-      return VideoColorSpace::REC601();
-    default:
-      DVLOG(1) << "Unknown AVColorSpace: " << color_space;
-  }
-  return VideoColorSpace();
 }
 
 std::string AVErrorToString(int errnum) {
-  char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
+  char errbuf[AV_ERROR_MAX_STRING_SIZE] = {};
   av_strerror(errnum, errbuf, AV_ERROR_MAX_STRING_SIZE);
   return std::string(errbuf);
 }
@@ -941,6 +1016,20 @@ int32_t HashCodecName(const char* codec_name) {
   int32_t hash;
   memcpy(&hash, base::SHA1HashString(codec_name).substr(0, 4).c_str(), 4);
   return hash;
+}
+
+const char* GetAllowedAudioDecoders() {
+  static const base::NoDestructor<std::string> kAllowedAudioCodecs([]() {
+    // This should match the configured lists in //third_party/ffmpeg.
+    std::string allowed_decoders(
+        "vorbis,libopus,flac,pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,"
+        "mp3,pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw");
+#if BUILDFLAG(USE_PROPRIETARY_CODECS)
+    allowed_decoders += ",aac";
+#endif
+    return allowed_decoders;
+  }());
+  return kAllowedAudioCodecs->c_str();
 }
 
 }  // namespace media

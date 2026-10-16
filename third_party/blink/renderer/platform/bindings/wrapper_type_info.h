@@ -31,7 +31,10 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_BINDINGS_WRAPPER_TYPE_INFO_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_BINDINGS_WRAPPER_TYPE_INFO_H_
 
+#include <type_traits>
+
 #include "base/check_op.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "gin/public/wrapper_info.h"
 #include "third_party/blink/renderer/platform/bindings/v8_interface_bridge_base.h"
 #include "third_party/blink/renderer/platform/heap/visitor.h"
@@ -41,19 +44,30 @@
 
 namespace blink {
 
-class CustomWrappable;
 class DOMWrapperWorld;
 class ScriptWrappable;
 
-static const int kV8DOMWrapperTypeIndex =
-    static_cast<int>(gin::kWrapperInfoIndex);
-static const int kV8DOMWrapperObjectIndex =
-    static_cast<int>(gin::kEncodedValueIndex);
-static const int kV8DefaultWrapperInternalFieldCount =
-    static_cast<int>(gin::kNumberOfInternalFields);
-// The value of the following field isn't used (only its presence), hence no
-// corresponding Index constant exists for it.
-static const int kV8PrototypeInternalFieldcount = 1;
+static constexpr v8::CppHeapPointerTag kDOMWrappersTag =
+    v8::CppHeapPointerTag::kDefaultTag;
+
+// LINT.IfChange(ScriptWrappableStartTag)
+constexpr std::underlying_type_t<v8::CppHeapPointerTag>
+    kScriptWrappableStartTag = 256;
+// LINT.ThenChange(third_party/blink/renderer/bindings/scripts/web_idl/idl_compiler.py:ScriptWrappableStartTag)
+
+constexpr v8::CppHeapPointerTagRange kScriptWrappableTagRange(
+    static_cast<v8::CppHeapPointerTag>(kScriptWrappableStartTag),
+    v8::CppHeapPointerTag::kLastTag);
+
+enum class CppHeapExternalTag : std::underlying_type_t<v8::CppHeapPointerTag> {
+  kFirst = 1,
+  kWrappableTaskStateTag = kFirst,
+
+  kLastTag = kWrappableTaskStateTag
+};
+
+static_assert(static_cast<std::underlying_type_t<v8::CppHeapPointerTag>>(
+                  CppHeapExternalTag::kLastTag) < kScriptWrappableStartTag);
 
 // This struct provides a way to store a bunch of information that is helpful
 // when unwrapping v8 objects. Each v8 bindings class has exactly one static
@@ -77,25 +91,12 @@ struct PLATFORM_EXPORT WrapperTypeInfo final {
     kCustomWrappableId,
   };
 
-  enum ActiveScriptWrappableInheritance {
-    kNotInheritFromActiveScriptWrappable,
-    kInheritFromActiveScriptWrappable,
-  };
-
   enum IdlDefinitionKind {
-    kIdlInterface,
+    kIdlInterface,  // includes callback interfaces
     kIdlNamespace,
-    kIdlCallbackInterface,
-    kIdlBufferSourceType,
-    kIdlObservableArray,
-    kIdlSyncIterator,
-    kCustomWrappableKind,
+    // iterators, observably arrays, buffer sources, internal script functions.
+    kIdlOtherType,
   };
-
-  static const WrapperTypeInfo* Unwrap(v8::Local<v8::Value> type_info_wrapper) {
-    return reinterpret_cast<const WrapperTypeInfo*>(
-        v8::External::Cast(*type_info_wrapper)->Value());
-  }
 
   bool Equals(const WrapperTypeInfo* that) const { return this == that; }
 
@@ -109,9 +110,8 @@ struct PLATFORM_EXPORT WrapperTypeInfo final {
     return false;
   }
 
-  void ConfigureWrapper(v8::TracedReference<v8::Object>* wrapper) const {
-    if (wrapper_class_id != kNoInternalFieldClassId)
-      wrapper->SetWrapperClassId(wrapper_class_id);
+  bool SupportsDroppingWrapper() const {
+    return wrapper_class_id != kNoInternalFieldClassId;
   }
 
   // Returns a v8::Template of interface object, namespace object, or the
@@ -119,10 +119,7 @@ struct PLATFORM_EXPORT WrapperTypeInfo final {
   //
   // - kIdlInterface: v8::FunctionTemplate of interface object
   // - kIdlNamespace: v8::ObjectTemplate of namespace object
-  // - kIdlCallbackInterface: v8::FunctionTemplate of legacy callback
-  //       interface object
-  // - kIdlSyncIterator: v8::FunctionTemplate of default iterator object
-  // - kCustomWrappableKind: v8::FunctionTemplate
+  // - kIdlOtherType: v8::FunctionTemplate
   v8::Local<v8::Template> GetV8ClassTemplate(
       v8::Isolate* isolate,
       const DOMWrapperWorld& world) const;
@@ -142,9 +139,13 @@ struct PLATFORM_EXPORT WrapperTypeInfo final {
         interface_template, bindings::V8InterfaceBridgeBase::FeatureSelector());
   }
 
-  bool IsActiveScriptWrappable() const {
-    return active_script_wrappable_inheritance ==
-           kInheritFromActiveScriptWrappable;
+  static bool HasLegacyInternalFieldsSet(v8::Local<v8::Object> object) {
+    for (int i = 0, n = object->InternalFieldCount(); i < n; ++i) {
+      if (object->GetAlignedPointerFromInternalField(i)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // This field must be the first member of the struct WrapperTypeInfo.
@@ -156,71 +157,49 @@ struct PLATFORM_EXPORT WrapperTypeInfo final {
   bindings::V8InterfaceBridgeBase::InstallContextDependentPropertiesFuncType
       install_context_dependent_props_func;
   const char* interface_name;
-  const WrapperTypeInfo* parent_class;
+  // RAW_PTR_EXCLUSION: #global-scope, #reinterpret-cast-trivial-type
+  RAW_PTR_EXCLUSION const WrapperTypeInfo* parent_class;
+
+  // When wrapping, we provide `this_tag` to v8's type checking.
+  // When unwrapping, we provide `this_tag` and `max_subclass_tag` as the valid
+  // range of tags for the object  being unwrapped. The bindings generator is
+  // responsible for ensuring the subclass tags are a contiguous range
+  // (`this_tag', `max_subclass_tag`].
+  v8::CppHeapPointerTag this_tag;
+  v8::CppHeapPointerTag max_subclass_tag;
+
   unsigned wrapper_type_prototype : 2;  // WrapperTypePrototype
   unsigned wrapper_class_id : 2;        // WrapperClassId
-  unsigned                              // ActiveScriptWrappableInheritance
-      active_script_wrappable_inheritance : 1;
-  unsigned idl_definition_kind : 3;  // IdlDefinitionKind
+  unsigned idl_definition_kind : 2;     // IdlDefinitionKind
+
+  // This is a special case only used by V8WindowProperties::WrapperTypeInfo().
+  // WindowProperties is part of Window's prototype object's prototype chain,
+  // but not part of Window's interface object prototype chain. When this bit is
+  // set, V8PerContextData::ConstructorForTypeSlowCase() skips over this type
+  // when constructing the interface object's prototype chain.
+  bool is_skipped_in_interface_object_prototype_chain : 1;
 };
 
-template <typename T, int offset>
-inline T* GetInternalField(const v8::TracedReference<v8::Object>& global) {
-  DCHECK_LT(offset, v8::Object::InternalFieldCount(global));
-  return reinterpret_cast<T*>(
-      v8::Object::GetAlignedPointerFromInternalField(global, offset));
-}
-
-template <typename T, int offset>
-inline T* GetInternalField(v8::Local<v8::Object> wrapper) {
-  DCHECK_LT(offset, wrapper->InternalFieldCount());
-  return reinterpret_cast<T*>(
-      wrapper->GetAlignedPointerFromInternalField(offset));
-}
-
-template <typename T, int offset>
-inline T* GetInternalField(v8::Object* wrapper) {
-  DCHECK_LT(offset, wrapper->InternalFieldCount());
-  return reinterpret_cast<T*>(
-      wrapper->GetAlignedPointerFromInternalField(offset));
-}
-
-// The return value can be null if |wrapper| is a global proxy, which points to
-// nothing while a navigation.
-inline ScriptWrappable* ToScriptWrappable(
+// `ToAnyScriptWrappable()` is only for use in cases where the subtype of
+// ScriptWrappable is unknown and any subtype must be permitted.
+// `ToScriptWrappable()` should be used whenever possible for stronger type
+// enforcement.
+// The return value may be null.
+inline ScriptWrappable* ToAnyScriptWrappable(
+    v8::Isolate* isolate,
     const v8::TracedReference<v8::Object>& wrapper) {
-  return GetInternalField<ScriptWrappable, kV8DOMWrapperObjectIndex>(wrapper);
+  return v8::Object::Unwrap<ScriptWrappable>(isolate, wrapper,
+                                             kScriptWrappableTagRange);
 }
 
-inline ScriptWrappable* ToScriptWrappable(v8::Local<v8::Object> wrapper) {
-  return GetInternalField<ScriptWrappable, kV8DOMWrapperObjectIndex>(wrapper);
+inline ScriptWrappable* ToAnyScriptWrappable(v8::Isolate* isolate,
+                                             v8::Local<v8::Object> wrapper) {
+  return v8::Object::Unwrap<ScriptWrappable>(isolate, wrapper,
+                                             kScriptWrappableTagRange);
 }
 
-inline ScriptWrappable* ToScriptWrappable(v8::Object* wrapper) {
-  return GetInternalField<ScriptWrappable, kV8DOMWrapperObjectIndex>(wrapper);
-}
-
-inline CustomWrappable* ToCustomWrappable(v8::Local<v8::Object> wrapper) {
-  return GetInternalField<CustomWrappable, kV8DOMWrapperObjectIndex>(wrapper);
-}
-
-inline void* ToUntypedWrappable(
-    const v8::TracedReference<v8::Object>& wrapper) {
-  return GetInternalField<void, kV8DOMWrapperObjectIndex>(wrapper);
-}
-
-inline void* ToUntypedWrappable(v8::Local<v8::Object> wrapper) {
-  return GetInternalField<void, kV8DOMWrapperObjectIndex>(wrapper);
-}
-
-inline const WrapperTypeInfo* ToWrapperTypeInfo(
-    const v8::TracedReference<v8::Object>& wrapper) {
-  return GetInternalField<WrapperTypeInfo, kV8DOMWrapperTypeIndex>(wrapper);
-}
-
-inline const WrapperTypeInfo* ToWrapperTypeInfo(v8::Local<v8::Object> wrapper) {
-  return GetInternalField<WrapperTypeInfo, kV8DOMWrapperTypeIndex>(wrapper);
-}
+PLATFORM_EXPORT const WrapperTypeInfo* ToWrapperTypeInfo(
+    v8::Local<v8::Object> wrapper);
 
 }  // namespace blink
 

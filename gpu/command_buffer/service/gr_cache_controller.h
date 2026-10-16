@@ -6,8 +6,9 @@
 #define GPU_COMMAND_BUFFER_SERVICE_GR_CACHE_CONTROLLER_H_
 
 #include "base/cancelable_callback.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/time/time.h"
 #include "gpu/gpu_gles2_export.h"
 
 namespace gpu {
@@ -39,6 +40,8 @@ class GPU_GLES2_EXPORT GrCacheController {
   // Meant to be used by the GrCacheControllerTest.
   GrCacheController(SharedContextState* context_state,
                     scoped_refptr<base::SingleThreadTaskRunner> task_runner);
+  void PerformDeferredCleanupThrottled();
+  void PerformDeferredCleanup();
   void PurgeGrCache(uint64_t idle_id);
 
   // The |current_idle_id_| is used to avoid continuously posting tasks to clear
@@ -48,10 +51,10 @@ class GPU_GLES2_EXPORT GrCacheController {
   // cache.
   uint64_t current_idle_id_ = 0u;
   base::CancelableOnceClosure purge_gr_cache_cb_;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION SharedContextState* context_state_;
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  raw_ptr<SharedContextState> context_state_;
+  const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+
+  base::TimeTicks last_cleanup_timestamp_;
 };
 
 }  // namespace raster

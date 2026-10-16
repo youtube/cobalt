@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/audio_sink.h"
+// clang-format on
 
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
@@ -27,9 +29,15 @@ SbAudioSink SbAudioSinkCreate(
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frames_func,
     void* context) {
+  // 1P Cobalt audio sink implementation only supports interleaved frames.
+  if (audio_frame_storage_type != kSbMediaAudioFrameStorageTypeInterleaved) {
+    SB_LOG(WARNING) << "Invalid audio frame storage type "
+                    << audio_frame_storage_type;
+    return kSbAudioSinkInvalid;
+  }
+
   return starboard::SbAudioSinkImpl::Create(
-      channels, sampling_frequency_hz, audio_sample_type,
-      audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
-      update_source_status_func, consume_frames_func, NULL /*error_func*/,
-      context);
+      channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
+      frame_buffers_size_in_frames, update_source_status_func,
+      consume_frames_func, NULL /*error_func*/, context);
 }

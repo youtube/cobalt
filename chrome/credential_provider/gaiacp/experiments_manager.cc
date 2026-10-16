@@ -2,8 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/credential_provider/gaiacp/experiments_manager.h"
 
+#include <string_view>
 #include <vector>
 
 #include "base/files/file.h"
@@ -71,36 +77,35 @@ bool ExperimentsManager::ReloadExperiments(const std::wstring& sid) {
   experiments_file->Read(0, buffer.data(), buffer.size());
   experiments_file.reset();
 
-  absl::optional<base::Value> experiments_data =
-      base::JSONReader::Read(base::StringPiece(buffer.data(), buffer.size()),
-                             base::JSON_ALLOW_TRAILING_COMMAS);
-  if (!experiments_data || !experiments_data->is_dict()) {
+  std::optional<base::Value::Dict> experiments_data =
+      base::JSONReader::ReadDict(std::string_view(buffer.data(), buffer.size()),
+                                 base::JSON_ALLOW_TRAILING_COMMAS);
+  if (!experiments_data) {
     LOGFN(ERROR) << "Failed to read experiments data from file!";
     return false;
   }
 
-  const base::Value* experiments_value =
-      experiments_data->FindListKey(kResponseExperimentsKeyName);
+  const base::Value::List* experiments_value =
+      experiments_data->FindList(kResponseExperimentsKeyName);
   if (!experiments_value) {
     LOGFN(ERROR) << "User experiments not found!";
     return false;
   }
 
-  if (experiments_value->is_list()) {
-    for (const auto& item : experiments_value->GetList()) {
-      auto* f = item.FindStringKey(kResponseFeatureKeyName);
-      auto* v = item.FindStringKey(kResponseValueKeyName);
-      if (!f || !v) {
-        LOGFN(WARNING) << "Either feature or value are not found!";
-      }
-
-      experiments_to_values_[*f].second[base::WideToUTF8(sid)] = *v;
+  for (const auto& item : *experiments_value) {
+    const auto& item_dict = item.GetDict();
+    auto* f = item_dict.FindString(kResponseFeatureKeyName);
+    auto* v = item_dict.FindString(kResponseValueKeyName);
+    if (!f || !v) {
+      LOGFN(WARNING) << "Either feature or value are not found!";
     }
+
+    experiments_to_values_[*f].second[base::WideToUTF8(sid)] = *v;
   }
   return true;
 }
 
-// TODO(crbug.com/1143829): Reload experiments if they were fetched by ESA.
+// TODO(crbug.com/40155245): Reload experiments if they were fetched by ESA.
 void ExperimentsManager::ReloadAllExperiments() {
   std::map<std::wstring, UserTokenHandleInfo> sid_to_gaia_id;
   HRESULT hr = GetUserTokenHandles(&sid_to_gaia_id);

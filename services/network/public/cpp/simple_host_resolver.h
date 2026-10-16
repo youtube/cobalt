@@ -5,10 +5,11 @@
 #ifndef SERVICES_NETWORK_PUBLIC_CPP_SIMPLE_HOST_RESOLVER_H_
 #define SERVICES_NETWORK_PUBLIC_CPP_SIMPLE_HOST_RESOLVER_H_
 
+#include <optional>
+
 #include "base/component_export.h"
 #include "base/functional/callback_forward.h"
 #include "services/network/public/mojom/host_resolver.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 class AddressList;
@@ -38,12 +39,21 @@ class NetworkContext;
 // Deleting a SimpleHostResolver cancels outstanding resolve requests.
 class COMPONENT_EXPORT(NETWORK_CPP) SimpleHostResolver {
  public:
+  using NetworkContextFactory =
+      base::RepeatingCallback<mojom::NetworkContext*()>;
+
   using ResolveHostCallback = base::OnceCallback<void(
       int result,
       const net::ResolveErrorInfo& resolve_error_info,
-      const absl::optional<net::AddressList>& resolved_addresses,
-      const absl::optional<net::HostResolverEndpointResults>&
+      const std::optional<net::AddressList>& resolved_addresses,
+      const std::optional<net::HostResolverEndpointResults>&
           endpoint_results_with_metadata)>;
+
+  // Creates a SimpleHostResolver using the |network_context_factory|.
+  // Use this if the associated network context might change over time (for
+  // instance, when getting it from StoragePartition).
+  static std::unique_ptr<SimpleHostResolver> Create(
+      NetworkContextFactory network_context_factory);
 
   // Creates a SimpleHostResolver from the given |network_context|.
   // |network_context| must outlive SimpleHostResolver.

@@ -10,12 +10,10 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/memory/read_only_shared_memory_region.h"
 #include "base/test/task_environment.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/mock_audio_manager.h"
 #include "media/audio/test_audio_thread.h"
-#include "media/base/media_switches.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -124,10 +122,7 @@ class AudioServiceInputStreamTest : public testing::Test {
  public:
   AudioServiceInputStreamTest()
       : audio_manager_(std::make_unique<media::TestAudioThread>(false)),
-        stream_factory_(&audio_manager_,
-                        /*aecdump_recording_manager=*/nullptr,
-                        /*run_audio_processing=*/
-                        media::IsChromeWideEchoCancellationEnabled()),
+        stream_factory_(&audio_manager_, /*aecdump_recording_manager=*/nullptr),
         stream_factory_receiver_(
             &stream_factory_,
             remote_stream_factory_.BindNewPipeAndPassReceiver()) {}
@@ -155,8 +150,7 @@ class AudioServiceInputStreamTest : public testing::Test {
         remote_stream.InitWithNewPipeAndPassReceiver(), client_.MakeRemote(),
         observer_.MakeRemote(), log_.MakeRemote(), kDefaultDeviceId,
         media::AudioParameters::UnavailableDeviceParams(),
-        kDefaultSharedMemoryCount, enable_agc,
-        base::ReadOnlySharedMemoryRegion(), nullptr,
+        kDefaultSharedMemoryCount, enable_agc, nullptr,
         base::BindOnce(&AudioServiceInputStreamTest::OnCreated,
                        base::Unretained(this)));
     return remote_stream;
@@ -169,8 +163,7 @@ class AudioServiceInputStreamTest : public testing::Test {
         remote_stream.InitWithNewPipeAndPassReceiver(), client_.MakeRemote(),
         observer_.MakeRemote(), mojo::NullRemote(), kDefaultDeviceId,
         media::AudioParameters::UnavailableDeviceParams(),
-        kDefaultSharedMemoryCount, false, base::ReadOnlySharedMemoryRegion(),
-        nullptr,
+        kDefaultSharedMemoryCount, false, nullptr,
         base::BindOnce(&AudioServiceInputStreamTest::OnCreated,
                        base::Unretained(this)));
     return remote_stream;
@@ -183,8 +176,7 @@ class AudioServiceInputStreamTest : public testing::Test {
         remote_stream.InitWithNewPipeAndPassReceiver(), client_.MakeRemote(),
         mojo::NullRemote(), log_.MakeRemote(), kDefaultDeviceId,
         media::AudioParameters::UnavailableDeviceParams(),
-        kDefaultSharedMemoryCount, false, base::ReadOnlySharedMemoryRegion(),
-        nullptr,
+        kDefaultSharedMemoryCount, false, nullptr,
         base::BindOnce(&AudioServiceInputStreamTest::OnCreated,
                        base::Unretained(this)));
     return remote_stream;
@@ -198,9 +190,9 @@ class AudioServiceInputStreamTest : public testing::Test {
 
   MockLog& log() { return log_; }
 
-  void OnCreated(media::mojom::ReadOnlyAudioDataPipePtr ptr,
+  void OnCreated(media::mojom::ReadWriteAudioDataPipePtr ptr,
                  bool initially_muted,
-                 const absl::optional<base::UnguessableToken>& stream_id) {
+                 const std::optional<base::UnguessableToken>& stream_id) {
     EXPECT_EQ(stream_id.has_value(), !!ptr);
     CreatedCallback(!!ptr, initially_muted);
   }

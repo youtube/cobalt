@@ -15,14 +15,15 @@ RecoveryInstallGlobalErrorFactory::RecoveryInstallGlobalErrorFactory()
           "RecoveryInstallGlobalError",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
               .Build()) {
   DependsOn(GlobalErrorServiceFactory::GetInstance());
 }
 
-RecoveryInstallGlobalErrorFactory::~RecoveryInstallGlobalErrorFactory() {}
+RecoveryInstallGlobalErrorFactory::~RecoveryInstallGlobalErrorFactory() =
+    default;
 
 // static
 RecoveryInstallGlobalError*
@@ -34,13 +35,16 @@ RecoveryInstallGlobalErrorFactory::GetForProfile(Profile* profile) {
 // static
 RecoveryInstallGlobalErrorFactory*
 RecoveryInstallGlobalErrorFactory::GetInstance() {
-  return base::Singleton<RecoveryInstallGlobalErrorFactory>::get();
+  static base::NoDestructor<RecoveryInstallGlobalErrorFactory> instance;
+  return instance.get();
 }
 
-KeyedService* RecoveryInstallGlobalErrorFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+RecoveryInstallGlobalErrorFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-  return new RecoveryInstallGlobalError(static_cast<Profile*>(context));
+  return std::make_unique<RecoveryInstallGlobalError>(
+      static_cast<Profile*>(context));
 #else
   return NULL;
 #endif

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "gpu/command_buffer/client/dawn_client_serializer.h"
 
 #include "base/numerics/checked_math.h"
@@ -34,6 +39,12 @@ size_t DawnClientSerializer::GetMaximumAllocationSize() const {
   return transfer_buffer_->GetMaxSize();
 }
 
+#if DCHECK_IS_ON()
+void DawnClientSerializer::OnSerializeError() {
+  NOTREACHED() << "DawnClientSerializer error";
+}
+#endif
+
 void* DawnClientSerializer::GetCmdSpace(size_t size) {
   // Note: Dawn will never call this function with |size| >
   // GetMaximumAllocationSize().
@@ -46,7 +57,7 @@ void* DawnClientSerializer::GetCmdSpace(size_t size) {
   const bool overflows_remaining_space =
       size > static_cast<size_t>(buffer_.size() - put_offset_);
 
-  if (LIKELY(buffer_.valid() && !overflows_remaining_space)) {
+  if (buffer_.valid() && !overflows_remaining_space) [[likely]] {
     // If the buffer is valid and has sufficient space, return the
     // pointer and increment the offset.
     uint8_t* ptr = static_cast<uint8_t*>(buffer_.address());
@@ -86,13 +97,22 @@ void DawnClientSerializer::Commit() {
     TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("gpu.dawn"),
                  "DawnClientSerializer::Flush", "bytes", put_offset_);
 
-    TRACE_EVENT_WITH_FLOW0(
-        TRACE_DISABLED_BY_DEFAULT("gpu.dawn"), "DawnCommands",
-        (static_cast<uint64_t>(buffer_.shm_id()) << 32) + buffer_.offset(),
-        TRACE_EVENT_FLAG_FLOW_OUT);
+    bool is_tracing = false;
+    TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("gpu.dawn"),
+                                       &is_tracing);
+    uint64_t trace_id;
+    if (is_tracing) {
+      trace_id = base::RandUint64();
+      TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("gpu.dawn"),
+                             "DawnCommands", trace_id,
+                             TRACE_EVENT_FLAG_FLOW_OUT);
+    } else {
+      trace_id = 0;
+    }
 
     buffer_.Shrink(put_offset_);
-    helper_->DawnCommands(buffer_.shm_id(), buffer_.offset(), put_offset_);
+    helper_->DawnCommands(trace_id >> 32, trace_id & 0xFFFF'FFFF,
+                          buffer_.shm_id(), buffer_.offset(), put_offset_);
     put_offset_ = 0;
     buffer_.Release();
 
@@ -113,7 +133,7 @@ void DawnClientSerializer::Disconnect() {
     auto transfer_buffer = std::move(transfer_buffer_);
     // Wait for commands to finish before we free shared memory that
     // the GPU process is using.
-    // TODO(crbug.com/1231599): This Finish may not be necessary if the
+    // TODO(crbug.com/40779774): This Finish may not be necessary if the
     // shared memory is not immediately freed. Investigate this and
     // consider optimization.
     helper_->Finish();

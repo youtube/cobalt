@@ -9,12 +9,12 @@
 
 #include <iosfwd>
 #include <memory>
+#include <string_view>
 #include <type_traits>
 
 #include "base/base_export.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 
 namespace base {
 namespace debug {
@@ -88,7 +88,7 @@ BASE_EXPORT CrashKeyString* AllocateCrashKeyString(const char name[],
 // if AllocateCrashKeyString() returned null. If |value| is longer than the
 // size with which the key was allocated, it will be truncated.
 BASE_EXPORT void SetCrashKeyString(CrashKeyString* crash_key,
-                                   base::StringPiece value);
+                                   std::string_view value);
 
 // Clears any value that was stored in |crash_key|. The |crash_key| may be
 // null.
@@ -99,9 +99,9 @@ BASE_EXPORT void OutputCrashKeysToStream(std::ostream& out);
 
 // A scoper that sets the specified key to value for the lifetime of the
 // object, and clears it on destruction.
-class BASE_EXPORT ScopedCrashKeyString {
+class BASE_EXPORT [[nodiscard]] ScopedCrashKeyString {
  public:
-  ScopedCrashKeyString(CrashKeyString* crash_key, base::StringPiece value);
+  ScopedCrashKeyString(CrashKeyString* crash_key, std::string_view value);
   ScopedCrashKeyString(ScopedCrashKeyString&& other);
   ~ScopedCrashKeyString();
 
@@ -120,13 +120,20 @@ class BASE_EXPORT ScopedCrashKeyString {
 
 // Internal helpers for the SCOPED_CRASH_KEY_... helper macros defined below.
 //
-// The static_assert that checks the length of |key_name| is a compile-time
-// equivalent of the DCHECK in crash_reporter::internal::CrashKeyStringImpl::Set
-// that restricts the name of a crash key to 40 characters.
+// The first static_assert that checks the length of |key_name| is a
+// compile-time equivalent of the DCHECK in
+// crash_reporter::internal::CrashKeyStringImpl::Set that restricts the name of
+// a crash key to 40 characters.
+//
+// The second static_assert that checks for reserved characters is a compile
+// time equivalent of the DCHECK in base::debug::AllocateCrashKeyString.
 #define SCOPED_CRASH_KEY_STRING_INTERNAL2(category, name, nonce, data,  \
                                           key_size)                     \
   static_assert(::std::size(category "-" name) < 40,                    \
                 "Crash key names must be shorter than 40 characters."); \
+  static_assert(::std::string_view(category "-" name).find(':') ==      \
+                    ::std::string_view::npos,                           \
+                "Crash key names must not contain the ':' character."); \
   ::base::debug::ScopedCrashKeyString scoped_crash_key_helper##nonce(   \
       [] {                                                              \
         static auto* const key = ::base::debug::AllocateCrashKeyString( \
@@ -165,7 +172,7 @@ class BASE_EXPORT ScopedCrashKeyString {
                                    ::base::debug::CrashKeySize::Size1024)
 
 #define SCOPED_CRASH_KEY_BOOL(category, name, data)                       \
-  static_assert(std::is_same<std::decay_t<decltype(data)>, bool>::value,  \
+  static_assert(std::is_same_v<std::decay_t<decltype(data)>, bool>,       \
                 "SCOPED_CRASH_KEY_BOOL must be passed a boolean value."); \
   SCOPED_CRASH_KEY_STRING32(category, name, (data) ? "true" : "false")
 
@@ -184,7 +191,7 @@ class CrashKeyImplementation {
   virtual ~CrashKeyImplementation() = default;
 
   virtual CrashKeyString* Allocate(const char name[], CrashKeySize size) = 0;
-  virtual void Set(CrashKeyString* crash_key, base::StringPiece value) = 0;
+  virtual void Set(CrashKeyString* crash_key, std::string_view value) = 0;
   virtual void Clear(CrashKeyString* crash_key) = 0;
   virtual void OutputCrashKeysToStream(std::ostream& out) = 0;
 };

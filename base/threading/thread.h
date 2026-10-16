@@ -12,10 +12,10 @@
 
 #include "base/base_export.h"
 #include "base/check.h"
+#include "base/compiler_specific.h"
 #include "base/functional/callback.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/message_loop/message_pump_type.h"
-#include "base/message_loop/timer_slack.h"
 #include "base/sequence_checker.h"
 #include "base/synchronization/atomic_flag.h"
 #include "base/synchronization/lock.h"
@@ -61,14 +61,13 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
  public:
   class BASE_EXPORT Delegate {
    public:
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
 
     virtual scoped_refptr<SingleThreadTaskRunner> GetDefaultTaskRunner() = 0;
 
     // Binds a RunLoop::Delegate and task runner CurrentDefaultHandle to the
-    // thread. The underlying MessagePump will have its |timer_slack| set to the
-    // specified amount.
-    virtual void BindToCurrentThread(TimerSlack timer_slack) = 0;
+    // thread.
+    virtual void BindToCurrentThread() = 0;
   };
 
   struct BASE_EXPORT Options {
@@ -89,9 +88,6 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
     // An unbound Delegate that will be bound to the thread. Ownership
     // of |delegate| will be transferred to the thread.
     std::unique_ptr<Delegate> delegate = nullptr;
-
-    // Specifies timer slack for thread message loop.
-    TimerSlack timer_slack = TIMER_SLACK_NONE;
 
     // Used to create the MessagePump for the MessageLoop. The callback is Run()
     // on the thread. If message_pump_factory.is_null(), then a MessagePump
@@ -246,7 +242,7 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   }
 
   // Returns the name of this thread (for display in debugger too).
-  const std::string& thread_name() const { return name_; }
+  const std::string& thread_name() const LIFETIME_BOUND { return name_; }
 
   // Returns the thread ID.  Should not be called before the first Start*()
   // call.  Keeps on returning the same ID even after a Stop() call. The next
@@ -264,8 +260,9 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // Called just prior to starting the message loop
   virtual void Init() {}
 
-  // Called to start the run loop
-  virtual void Run(RunLoop* run_loop);
+  // Called to start the run loop. Inhibit tail calls to this function so that
+  // the caller will be on the stack for profiling and crash analysis.
+  NOT_TAIL_CALLED virtual void Run(RunLoop* run_loop);
 
   // Called just after the message loop ends
   virtual void CleanUp() {}
@@ -322,13 +319,8 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // The thread's Delegate and RunLoop are valid only while the thread is
   // alive. Set by the created thread.
   std::unique_ptr<Delegate> delegate_;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION RunLoop* run_loop_ = nullptr;
 
-  // Stores Options::timer_slack_ until the sequence manager has been bound to
-  // a thread.
-  TimerSlack timer_slack_ = TIMER_SLACK_NONE;
+  raw_ptr<RunLoop> run_loop_ = nullptr;
 
   // The name of the thread.  Used for debugging purposes.
   const std::string name_;

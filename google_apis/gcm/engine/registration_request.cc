@@ -8,6 +8,7 @@
 
 #include <utility>
 
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/metrics/histogram.h"
@@ -47,26 +48,45 @@ const char kDeviceRegistrationError[] = "PHONE_REGISTRATION_ERROR";
 const char kAuthenticationFailed[] = "AUTHENTICATION_FAILED";
 const char kInvalidSender[] = "INVALID_SENDER";
 const char kInvalidParameters[] = "INVALID_PARAMETERS";
-const char kInternalServerError[] = "InternalServerError";
+const char kInternalServerError[] = "INTERNAL_SERVER_ERROR";
 const char kQuotaExceeded[] = "QUOTA_EXCEEDED";
 const char kTooManyRegistrations[] = "TOO_MANY_REGISTRATIONS";
+const char kTooManySubscribers[] = "TOO_MANY_SUBSCRIBERS";
+const char kInvalidTargetVersion[] = "INVALID_TARGET_VERSION";
+const char kFisAuthError[] = "FIS_AUTH_ERROR";
 
 // Gets correct status from the error message.
 RegistrationRequest::Status GetStatusFromError(const std::string& error) {
-  if (error.find(kDeviceRegistrationError) != std::string::npos)
+  if (base::Contains(error, kDeviceRegistrationError)) {
     return RegistrationRequest::DEVICE_REGISTRATION_ERROR;
-  if (error.find(kAuthenticationFailed) != std::string::npos)
+  }
+  if (base::Contains(error, kAuthenticationFailed)) {
     return RegistrationRequest::AUTHENTICATION_FAILED;
-  if (error.find(kInvalidSender) != std::string::npos)
+  }
+  if (base::Contains(error, kInvalidSender)) {
     return RegistrationRequest::INVALID_SENDER;
-  if (error.find(kInvalidParameters) != std::string::npos)
+  }
+  if (base::Contains(error, kInvalidParameters)) {
     return RegistrationRequest::INVALID_PARAMETERS;
-  if (error.find(kInternalServerError) != std::string::npos)
+  }
+  if (base::Contains(error, kInternalServerError)) {
     return RegistrationRequest::INTERNAL_SERVER_ERROR;
-  if (error.find(kQuotaExceeded) != std::string::npos)
+  }
+  if (base::Contains(error, kQuotaExceeded)) {
     return RegistrationRequest::QUOTA_EXCEEDED;
-  if (error.find(kTooManyRegistrations) != std::string::npos)
+  }
+  if (base::Contains(error, kTooManyRegistrations)) {
     return RegistrationRequest::TOO_MANY_REGISTRATIONS;
+  }
+  if (base::Contains(error, kTooManySubscribers)) {
+    return RegistrationRequest::TOO_MANY_SUBSCRIBERS;
+  }
+  if (base::Contains(error, kInvalidTargetVersion)) {
+    return RegistrationRequest::INVALID_TARGET_VERSION;
+  }
+  if (base::Contains(error, kFisAuthError)) {
+    return RegistrationRequest::FIS_AUTH_ERROR;
+  }
   // Should not be reached, unless the server adds new error types.
   return RegistrationRequest::UNKNOWN_ERROR;
 }
@@ -82,6 +102,8 @@ bool ShouldRetryWithStatus(RegistrationRequest::Status status) {
     case RegistrationRequest::NO_RESPONSE_BODY:
     case RegistrationRequest::RESPONSE_PARSING_FAILED:
     case RegistrationRequest::INTERNAL_SERVER_ERROR:
+    case RegistrationRequest::TOO_MANY_SUBSCRIBERS:
+    case RegistrationRequest::FIS_AUTH_ERROR:
       return true;
     case RegistrationRequest::SUCCESS:
     case RegistrationRequest::INVALID_PARAMETERS:
@@ -89,6 +111,7 @@ bool ShouldRetryWithStatus(RegistrationRequest::Status status) {
     case RegistrationRequest::QUOTA_EXCEEDED:
     case RegistrationRequest::TOO_MANY_REGISTRATIONS:
     case RegistrationRequest::REACHED_MAX_RETRIES:
+    case RegistrationRequest::INVALID_TARGET_VERSION:
       return false;
   }
   return false;

@@ -593,7 +593,7 @@ void RemoteDeviceImpl::ReadCharacteristicImpl(
 
   LOG(ERROR) << __func__ << " failed";
   auto it = handle_to_characteristic_read_cbs_.find(characteristic->handle());
-  DCHECK(it != handle_to_characteristic_read_cbs_.end());
+  CHECK(it != handle_to_characteristic_read_cbs_.end());
   DCHECK(!it->second.empty());
   std::move(it->second.front()).Run(false, {});
   it->second.pop();
@@ -614,7 +614,7 @@ void RemoteDeviceImpl::WriteCharacteristicImpl(
 
   LOG(ERROR) << __func__ << " failed";
   auto it = handle_to_characteristic_write_cbs_.find(characteristic->handle());
-  DCHECK(it != handle_to_characteristic_write_cbs_.end());
+  CHECK(it != handle_to_characteristic_write_cbs_.end());
   DCHECK(!it->second.empty());
   std::move(it->second.front()).Run(false);
   it->second.pop();
@@ -632,7 +632,7 @@ void RemoteDeviceImpl::ReadDescriptorImpl(
 
   LOG(ERROR) << __func__ << " failed";
   auto it = handle_to_descriptor_read_cbs_.find(descriptor->handle());
-  DCHECK(it != handle_to_descriptor_read_cbs_.end());
+  CHECK(it != handle_to_descriptor_read_cbs_.end());
   DCHECK(!it->second.empty());
   std::move(it->second.front()).Run(false, {});
   it->second.pop();
@@ -651,7 +651,7 @@ void RemoteDeviceImpl::WriteDescriptorImpl(
 
   LOG(ERROR) << __func__ << " failed";
   auto it = handle_to_descriptor_write_cbs_.find(descriptor->handle());
-  DCHECK(it != handle_to_descriptor_write_cbs_.end());
+  CHECK(it != handle_to_descriptor_write_cbs_.end());
   DCHECK(!it->second.empty());
   std::move(it->second.front()).Run(false);
   it->second.pop();

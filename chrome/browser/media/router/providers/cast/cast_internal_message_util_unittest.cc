@@ -77,9 +77,7 @@ void ExpectInvalidCastInternalMessage(const std::string& message_str,
 
 class CastInternalMessageUtilDeathTest : public testing::Test {
  public:
-  void SetUp() override {
-    testing::FLAGS_gtest_death_test_style = "threadsafe";
-  }
+  void SetUp() override { GTEST_FLAG_SET(death_test_style, "threadsafe"); }
 };
 
 }  // namespace
@@ -348,7 +346,7 @@ TEST(CastInternalMessageUtilTest, CreateReceiverActionCastMessage) {
            "displayStatus": null,
            "friendlyName": "friendly name 1",
            "isActiveInput": null,
-           "label": "yYH_HCL9CKJFmvKJ9m3Une2cS8s",
+           "label": "Pr2CqqG4_NOPcVV6oKbocxyAik0",
            "receiverType": "cast",
            "volume": null
         }
@@ -373,7 +371,7 @@ TEST(CastInternalMessageUtilTest, CreateReceiverActionStopMessage) {
            "displayStatus": null,
            "friendlyName": "friendly name 1",
            "isActiveInput": null,
-           "label": "yYH_HCL9CKJFmvKJ9m3Une2cS8s",
+           "label": "Pr2CqqG4_NOPcVV6oKbocxyAik0",
            "receiverType": "cast",
            "volume": null
         }
@@ -407,7 +405,7 @@ TEST(CastInternalMessageUtilTest, CreateNewSessionMessage) {
          "displayStatus": null,
          "friendlyName": "friendly name 1",
          "isActiveInput": null,
-         "label": "yYH_HCL9CKJFmvKJ9m3Une2cS8s",
+         "label": "Pr2CqqG4_NOPcVV6oKbocxyAik0",
          "receiverType": "cast",
          "volume": null
       },
@@ -445,7 +443,7 @@ TEST(CastInternalMessageUtilTest, CreateNewSessionMessageWithUniversalAppId) {
          "displayStatus": null,
          "friendlyName": "friendly name 1",
          "isActiveInput": null,
-         "label": "yYH_HCL9CKJFmvKJ9m3Une2cS8s",
+         "label": "Pr2CqqG4_NOPcVV6oKbocxyAik0",
          "receiverType": "cast",
          "volume": null
       },
@@ -485,7 +483,7 @@ TEST(CastInternalMessageUtilTest, CreateUpdateSessionMessage) {
          "displayStatus": null,
          "friendlyName": "friendly name 1",
          "isActiveInput": null,
-         "label": "yYH_HCL9CKJFmvKJ9m3Une2cS8s",
+         "label": "Pr2CqqG4_NOPcVV6oKbocxyAik0",
          "receiverType": "cast",
          "volume": null
       },
@@ -518,9 +516,10 @@ TEST(CastInternalMessageUtilTest, CreateAppMessage) {
   std::string client_id = "clientId";
   base::Value::Dict message_body;
   message_body.Set("foo", base::Value("bar"));
-  cast::channel::CastMessage cast_message = cast_channel::CreateCastMessage(
-      "urn:x-cast:com.google.foo", base::Value(std::move(message_body)),
-      "sourceId", "transportId");
+  openscreen::cast::proto::CastMessage cast_message =
+      cast_channel::CreateCastMessage("urn:x-cast:com.google.foo",
+                                      base::Value(std::move(message_body)),
+                                      "sourceId", "transportId");
 
   auto message = CreateAppMessage(session_id, client_id, cast_message);
   EXPECT_THAT(message, IsPresentationConnectionMessage(R"({

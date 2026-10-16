@@ -8,11 +8,14 @@
 #include <iosfwd>
 #include <string>
 
+#include "base/component_export.h"
+#include "base/containers/span.h"
 #include "build/build_config.h"
 #include "ui/gfx/geometry/insets_f.h"
 #include "ui/gfx/geometry/outsets_f.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/size_f.h"
 #include "ui/gfx/geometry/vector2d_f.h"
 
@@ -23,13 +26,14 @@ typedef struct CGRect CGRect;
 namespace gfx {
 
 // A floating version of gfx::Rect.
-class GEOMETRY_EXPORT RectF {
+class COMPONENT_EXPORT(GEOMETRY) RectF {
  public:
   constexpr RectF() = default;
   constexpr RectF(float width, float height) : size_(width, height) {}
   constexpr RectF(float x, float y, float width, float height)
       : origin_(x, y), size_(width, height) {}
   constexpr explicit RectF(const SizeF& size) : size_(size) {}
+  constexpr explicit RectF(const Size& size) : size_(size) {}
   constexpr RectF(const PointF& origin, const SizeF& size)
       : origin_(origin), size_(size) {}
 
@@ -188,8 +192,11 @@ class GEOMETRY_EXPORT RectF {
   // Transpose x and y axis.
   void Transpose();
 
-  // Splits |this| in two halves, |left_half| and |right_half|.
-  void SplitVertically(RectF* left_half, RectF* right_half) const;
+  // Splits `this` in two halves, `left_half` and `right_half`.
+  void SplitVertically(RectF& left_half, RectF& right_half) const;
+
+  // Splits `this` in two halves, `top_half` and `bottom_half`.
+  void SplitHorizontally(RectF& top_half, RectF& bottom_half) const;
 
   // Returns true if this rectangle shares an entire edge (i.e., same width or
   // same height) with the given rectangle, and the rectangles do not overlap.
@@ -238,18 +245,12 @@ class GEOMETRY_EXPORT RectF {
                           float tolerance_x,
                           float tolerance_y) const;
 
+  friend constexpr bool operator==(const RectF&, const RectF&) = default;
+
  private:
   PointF origin_;
   SizeF size_;
 };
-
-constexpr bool operator==(const RectF& lhs, const RectF& rhs) {
-  return lhs.origin() == rhs.origin() && lhs.size() == rhs.size();
-}
-
-constexpr bool operator!=(const RectF& lhs, const RectF& rhs) {
-  return !(lhs == rhs);
-}
 
 inline RectF operator+(const RectF& lhs, const Vector2dF& rhs) {
   return RectF(lhs.x() + rhs.x(), lhs.y() + rhs.y(),
@@ -265,14 +266,24 @@ inline RectF operator+(const Vector2dF& lhs, const RectF& rhs) {
   return rhs + lhs;
 }
 
-GEOMETRY_EXPORT RectF IntersectRects(const RectF& a, const RectF& b);
-GEOMETRY_EXPORT RectF UnionRects(const RectF& a, const RectF& b);
-GEOMETRY_EXPORT RectF UnionRectsEvenIfEmpty(const RectF& a, const RectF& b);
-GEOMETRY_EXPORT RectF SubtractRects(const RectF& a, const RectF& b);
+COMPONENT_EXPORT(GEOMETRY) RectF IntersectRects(const RectF& a, const RectF& b);
+COMPONENT_EXPORT(GEOMETRY) RectF UnionRects(const RectF& a, const RectF& b);
+COMPONENT_EXPORT(GEOMETRY) RectF UnionRects(base::span<const RectF> rects);
+COMPONENT_EXPORT(GEOMETRY)
+RectF UnionRectsEvenIfEmpty(const RectF& a, const RectF& b);
+COMPONENT_EXPORT(GEOMETRY) RectF SubtractRects(const RectF& a, const RectF& b);
 
 inline RectF ScaleRect(const RectF& r, float x_scale, float y_scale) {
   return RectF(r.x() * x_scale, r.y() * y_scale,
        r.width() * x_scale, r.height() * y_scale);
+}
+
+inline RectF ScaleRect(const RectF& r, const SizeF& size) {
+  return ScaleRect(r, size.width(), size.height());
+}
+
+inline RectF ScaleRect(const RectF& r, const Size& size) {
+  return ScaleRect(r, SizeF(size));
 }
 
 inline RectF ScaleRect(const RectF& r, float scale) {
@@ -289,16 +300,17 @@ inline RectF TransposeRect(const RectF& r) {
 // points", except that we consider points on the right/bottom edges of the
 // rect to be outside the rect.  So technically one or both points will not be
 // contained within the rect, because they will appear on one of these edges.
-GEOMETRY_EXPORT RectF BoundingRect(const PointF& p1, const PointF& p2);
+COMPONENT_EXPORT(GEOMETRY)
+RectF BoundingRect(const PointF& p1, const PointF& p2);
 
 // Return a maximum rectangle in which any point is covered by either a or b.
-GEOMETRY_EXPORT RectF MaximumCoveredRect(const RectF& a, const RectF& b);
+COMPONENT_EXPORT(GEOMETRY)
+RectF MaximumCoveredRect(const RectF& a, const RectF& b);
 
 // Returns the rect in |dest_rect| corresponding to |r] in |src_rect| when
 // |src_rect| is mapped to |dest_rect|.
-GEOMETRY_EXPORT RectF MapRect(const RectF& r,
-                              const RectF& src_rect,
-                              const RectF& dest_rect);
+COMPONENT_EXPORT(GEOMETRY)
+RectF MapRect(const RectF& r, const RectF& src_rect, const RectF& dest_rect);
 
 // This is declared here for use in gtest-based unit tests but is defined in
 // the //ui/gfx:test_support target. Depend on that to use this in your unit

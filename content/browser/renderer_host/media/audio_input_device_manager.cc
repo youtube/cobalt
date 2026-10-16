@@ -14,7 +14,6 @@
 #include "base/observer_list.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "content/browser/renderer_host/media/media_stream_manager.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -48,7 +47,6 @@ const char* TypeToString(blink::mojom::MediaStreamType type) {
     default:
       NOTREACHED();
   }
-  return "INVALID";
 }
 
 std::string GetOpenLogString(const base::UnguessableToken& session_id,
@@ -121,7 +119,7 @@ base::UnguessableToken AudioInputDeviceManager::Open(
     audio_system_->GetAssociatedOutputDeviceID(
         device.id, base::BindOnce(&AudioInputDeviceManager::OpenedOnIOThread,
                                   base::Unretained(this), session_id, device,
-                                  absl::optional<media::AudioParameters>()));
+                                  std::optional<media::AudioParameters>()));
   } else {
     // TODO(tommi): As is, we hit this code path when device.type is
     // MEDIA_GUM_TAB_AUDIO_CAPTURE and the device id is not a device that
@@ -161,8 +159,8 @@ void AudioInputDeviceManager::Close(const base::UnguessableToken& session_id) {
 void AudioInputDeviceManager::OpenedOnIOThread(
     const base::UnguessableToken& session_id,
     const blink::MediaStreamDevice& device,
-    const absl::optional<media::AudioParameters>& input_params,
-    const absl::optional<std::string>& matched_output_device_id) {
+    const std::optional<media::AudioParameters>& input_params,
+    const std::optional<std::string>& matched_output_device_id) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   DCHECK(GetDevice(session_id) == devices_.end());
   DCHECK(!input_params || input_params->IsValid());

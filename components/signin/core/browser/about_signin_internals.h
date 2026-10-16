@@ -26,7 +26,7 @@
 #include "components/signin/public/identity_manager/scope_set.h"
 
 namespace signin {
-struct AccountsInCookieJarInfo;
+class AccountsInCookieJarInfo;
 }
 
 class PrefRegistrySimple;
@@ -71,8 +71,8 @@ class AboutSigninInternals : public KeyedService,
 
   // Each instance of SigninInternalsUI adds itself as an observer to be
   // notified of all updates that AboutSigninInternals receives.
-  void AddSigninObserver(Observer* observer);
-  void RemoveSigninObserver(Observer* observer);
+  void AddObserver(Observer* observer);
+  void RemoveObserver(Observer* observer);
 
   // Pulls all signin values that have been persisted in the user prefs.
   void RefreshSigninPrefs();
@@ -117,8 +117,8 @@ class AboutSigninInternals : public KeyedService,
     // Called when the token is invalidated.
     void Invalidate();
 
-    std::string consumer_id;    // service that requested the token.
-    signin::ScopeSet scopes;    // Scoped that are requested.
+    std::string consumer_id;  // service that requested the token.
+    signin::ScopeSet scopes;  // Scoped that are requested.
     base::Time request_time;
     base::Time receive_time;
     base::Time expiration_time;
@@ -197,7 +197,7 @@ class AboutSigninInternals : public KeyedService,
   void OnAccessTokenRequestCompleted(const CoreAccountId& account_id,
                                      const std::string& consumer_id,
                                      const signin::ScopeSet& scopes,
-                                     GoogleServiceAuthError error,
+                                     const GoogleServiceAuthError& error,
                                      base::Time expiration_time) override;
   void OnAccessTokenRemovedFromCache(const CoreAccountId& account_id,
                                      const signin::ScopeSet& scopes) override;
@@ -215,6 +215,11 @@ class AboutSigninInternals : public KeyedService,
   void OnPrimaryAccountChanged(
       const signin::PrimaryAccountChangeEvent& event) override;
 
+  // Notifies that the value of `field` is changed. This function will update
+  // the corresponding field in `signin_status_` and the underlying prefs.
+  //
+  // If `value` is empty, then this function will clear the prefs and reset
+  // the corresponding entry in `signin_status_`.
   void NotifyTimedSigninFieldValueChanged(
       const signin_internals_util::TimedSigninStatusField& field,
       const std::string& value);
@@ -245,7 +250,7 @@ class AboutSigninInternals : public KeyedService,
   raw_ptr<SigninErrorController> signin_error_controller_;
 
   // Weak pointer to the AccountReconcilor.
-  raw_ptr<AccountReconcilor> account_reconcilor_;
+  raw_ptr<AccountReconcilor, DanglingUntriaged> account_reconcilor_;
 
   // Encapsulates the actual signin and token related values.
   // Most of the values are mirrored in the prefs for persistence.
@@ -254,6 +259,25 @@ class AboutSigninInternals : public KeyedService,
   signin::AccountConsistencyMethod account_consistency_;
 
   base::ObserverList<Observer>::Unchecked signin_observers_;
+
+  // Used to keep track of observerations.
+  base::ScopedObservation<signin::IdentityManager,
+                          signin::IdentityManager::Observer>
+      identity_manager_observeration_{this};
+
+  base::ScopedObservation<signin::IdentityManager,
+                          signin::IdentityManager::DiagnosticsObserver>
+      diganostics_observeration_{this};
+
+  base::ScopedObservation<SigninClient, content_settings::Observer>
+      client_observeration_{this};
+
+  base::ScopedObservation<SigninErrorController,
+                          SigninErrorController::Observer>
+      signin_error_observeration_{this};
+
+  base::ScopedObservation<AccountReconcilor, AccountReconcilor::Observer>
+      account_reconcilor_observeration_{this};
 };
 
 #endif  // COMPONENTS_SIGNIN_CORE_BROWSER_ABOUT_SIGNIN_INTERNALS_H_

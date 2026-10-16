@@ -24,6 +24,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -34,7 +35,6 @@
 #include "media/base/audio_parameters.h"
 #include "media/base/media_log.h"
 #include "media/base/multi_channel_resampler.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
@@ -42,6 +42,12 @@ class AudioBus;
 
 class MEDIA_EXPORT AudioRendererAlgorithm {
  public:
+  enum class FillBufferMode {
+    kPassthrough,
+    kResampler,
+    kWSOLA,
+  };
+
   AudioRendererAlgorithm(MediaLog* media_log);
   AudioRendererAlgorithm(MediaLog* media_log,
                          AudioRendererAlgorithmParameters params);
@@ -61,7 +67,7 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
   // mask changes.
   //
   // E.g., If |channel_mask| is [true, false] only the first channel will be
-  // used to construct the playback rate adapated signal. This is useful if
+  // used to construct the playback rate adapted signal. This is useful if
   // channel upmixing has been performed prior to this point.
   void SetChannelMask(std::vector<bool> channel_mask);
 
@@ -89,7 +95,7 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
   // Sets a target queue latency. This target will be clamped and stored in
   // |playback_threshold_|. It may also cause an increase in |capacity_|. A
   // value of nullopt indicates the algorithm should restore the default value.
-  void SetLatencyHint(absl::optional<base::TimeDelta> latency_hint);
+  void SetLatencyHint(std::optional<base::TimeDelta> latency_hint);
 
   // Sets a flag indicating whether apply pitch adjustments when playing back
   // at rates other than 1.0. Concretely, we use WSOLA when this is true, and
@@ -134,17 +140,24 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
   // correspond to the audio input (some samples may be duplicated or skipped).
   double DelayInFrames(double playback_rate) const;
 
+  // Returns the timestamp of the first AudioBuffer in `audio_buffer_` if any
+  // buffers exist.
+  std::optional<base::TimeDelta> FrontTimestamp() const;
+
   // Returns the samples per second for this audio stream.
   int samples_per_second() const { return samples_per_second_; }
 
   std::vector<bool> channel_mask_for_testing() { return channel_mask_; }
 
+  FillBufferMode last_mode_for_testing() { return last_mode_; }
+
+  // WSOLA is a non-linear operation, so in order for AudioClock to be correct
+  // we need to expose the actual rate of input frames consumed. This is updated
+  // after every call to FillBuffer().
+  double effective_playback_rate() const { return effective_playback_rate_; }
+
  private:
-  enum class FillBufferMode {
-    kPassthrough,
-    kResampler,
-    kWSOLA,
-  };
+  FillBufferMode ChooseBufferMode(double playback_rate);
 
   // Remove buffered data that will be outdated if we switch fill mode.
   void SetFillBufferMode(FillBufferMode mode);
@@ -201,6 +214,12 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
                       int requested_frames,
                       double playback_rate);
 
+  // Uses the WSOLA algorithm to speed up or slowdown audio.
+  int RunWsolaAndFill(AudioBus* dest,
+                      int dest_offset,
+                      int requested_frames,
+                      double playback_rate);
+
   // Called by |resampler_| to get more audio data.
   void OnResamplerRead(int frame_delay, AudioBus* audio_bus);
 
@@ -223,7 +242,7 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
 
   // Hint to adjust |playback_threshold_| as a means of controlling playback
   // start latency. See SetLatencyHint();
-  absl::optional<base::TimeDelta> latency_hint_;
+  std::optional<base::TimeDelta> latency_hint_;
 
   // Whether to apply pitch adjusments or not when playing back at rates other
   // than 1.0. In other words, we use WSOLA to preserve pitch when this is on,
@@ -325,6 +344,8 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
   // The initial and maximum capacity calculated by Initialize().
   int64_t initial_capacity_;
   int64_t max_capacity_;
+
+  double effective_playback_rate_ = 0;
 
   FillBufferMode last_mode_ = FillBufferMode::kPassthrough;
 };

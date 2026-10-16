@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "vp9_video_rate_control_wrapper.h"
 
 #include "third_party/libvpx/source/libvpx/vp9/ratectrl_rtc.h"
@@ -53,6 +58,8 @@ template <>
 libvpx::VP9RateControlRtcConfig VP9RateControl::ConvertControlConfig(
     const RateControlConfig& config) {
   libvpx::VP9RateControlRtcConfig rc_config;
+  rc_config.is_screen = config.content_type ==
+                        VideoEncodeAccelerator::Config::ContentType::kDisplay;
   rc_config.width = config.width;
   rc_config.height = config.height;
   rc_config.target_bandwidth = config.target_bandwidth;

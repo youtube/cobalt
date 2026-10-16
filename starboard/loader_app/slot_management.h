@@ -16,8 +16,20 @@
 #define STARBOARD_LOADER_APP_SLOT_MANAGEMENT_H_
 
 #include <string>
+#include <vector>
+
+#include "starboard/elf_loader/elf_loader_constants.h"
 
 namespace loader_app {
+
+// Compares the Evergreen versions v1 and v2. Returns 1 if v1 is newer than v2;
+// returns -1 if v1 is older than v2; returns 0 if v1 is the same as v2, or if
+// either of them is invalid.
+// TODO: b/489518648 - The visiblity of this formerly private helper has been
+// increased so that it can be exposed to unit tests. The tests should be
+// rewritten to test the behavior via public APIs.
+int CompareEvergreenVersion(const std::vector<char>& v1,
+                            const std::vector<char>& v2);
 
 // Interface for loading a library.
 class LibraryLoader {
@@ -25,13 +37,12 @@ class LibraryLoader {
   virtual ~LibraryLoader() {}
 
   // Load the library with the provided full path to |library_path| and
-  // |content_path|. If |use_compression| is true the library is assumed
-  // to be compressed. If |use_memory_mapped_file| is true the library
-  // would be loaded as a memory mapped file. The |use_compression| and
-  // |use_memory_mapped_file|  are not compatible and can't be both enabled.
+  // |content_path|. |compression_type| specifies the compression format.
+  // If |use_memory_mapped_file| is true the library would be loaded as a memory
+  // mapped file. Compression and memory mapping are not compatible.
   virtual bool Load(const std::string& library_path,
                     const std::string& content_path,
-                    bool use_compression,
+                    elf_loader::CompressionType compression_type,
                     bool use_memory_mapped_file) = 0;
 
   // Resolve a symbol by name.

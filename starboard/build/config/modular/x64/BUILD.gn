@@ -26,7 +26,4 @@ config("x64") {
     "//starboard/build/config/sabi",
     ":sabi_flags",
   ]
-
-  cflags = [ "-isystem" +
-             rebase_path("//third_party/musl/arch/x86_64", root_build_dir) ]
 }

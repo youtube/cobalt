@@ -9,12 +9,16 @@ import android.os.Build;
 import android.view.View;
 import android.view.ViewStructure;
 
+import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.content_public.browser.RenderCoordinates;
 import org.chromium.content_public.browser.WebContents;
 
@@ -23,25 +27,23 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * This class receives captured content from native and forwards to ContetnCaptureConsumer.
- */
+/** This class receives captured content from native and forwards to ContentCaptureConsumer. */
 @JNINamespace("content_capture")
+@NullMarked
 public class OnscreenContentProvider {
     private static final String TAG = "ContentCapture";
-    private static Boolean sDump;
-
     private long mNativeOnscreenContentProviderAndroid;
 
-    private ArrayList<ContentCaptureConsumer> mContentCaptureConsumers =
-            new ArrayList<ContentCaptureConsumer>();
+    private final ArrayList<ContentCaptureConsumer> mContentCaptureConsumers = new ArrayList<>();
 
     private WeakReference<WebContents> mWebContents;
 
     public OnscreenContentProvider(
-            Context context, View view, ViewStructure structure, WebContents webContents) {
-        mWebContents = new WeakReference<WebContents>(webContents);
-        if (sDump == null) sDump = ContentCaptureFeatures.isDumpForTestingEnabled();
+            Context context,
+            View view,
+            @Nullable ViewStructure structure,
+            WebContents webContents) {
+        mWebContents = new WeakReference<>(webContents);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ContentCaptureConsumer consumer =
@@ -49,9 +51,6 @@ public class OnscreenContentProvider {
             if (consumer != null) {
                 mContentCaptureConsumers.add(consumer);
             }
-        }
-        if (ContentCaptureFeatures.shouldTriggerContentCaptureForExperiment()) {
-            mContentCaptureConsumers.add(new ExperimentContentCaptureConsumer());
         }
         if (!mContentCaptureConsumers.isEmpty()) {
             createNativeObject();
@@ -91,10 +90,24 @@ public class OnscreenContentProvider {
     }
 
     public void onWebContentsChanged(WebContents current) {
-        mWebContents = new WeakReference<WebContents>(current);
+        mWebContents = new WeakReference<>(current);
         if (mNativeOnscreenContentProviderAndroid != 0) {
-            OnscreenContentProviderJni.get().onWebContentsChanged(
-                    mNativeOnscreenContentProviderAndroid, current);
+            OnscreenContentProviderJni.get()
+                    .onWebContentsChanged(mNativeOnscreenContentProviderAndroid, current);
+        }
+    }
+
+    @CalledByNative
+    private void flushCaptureContent(Object[] session, ContentCaptureFrame data) {
+        FrameSession frameSession = toFrameSession(session);
+        String[] urls = buildUrls(frameSession, data);
+        for (ContentCaptureConsumer consumer : mContentCaptureConsumers) {
+            if (consumer.shouldCapture(urls)) {
+                consumer.onContentCaptureFlushed(frameSession, data);
+            }
+        }
+        if (ContentCaptureFeatures.isDumpForTestingEnabled()) {
+            Log.i(TAG, "Flushed Capturing Content");
         }
     }
 
@@ -107,7 +120,9 @@ public class OnscreenContentProvider {
                 consumer.onContentCaptured(frameSession, data);
             }
         }
-        if (sDump.booleanValue()) Log.i(TAG, "Captured Content: %s", data);
+        if (ContentCaptureFeatures.isDumpForTestingEnabled()) {
+            Log.i(TAG, "Captured Content: %s", data);
+        }
     }
 
     @CalledByNative
@@ -119,7 +134,9 @@ public class OnscreenContentProvider {
                 consumer.onContentUpdated(frameSession, data);
             }
         }
-        if (sDump.booleanValue()) Log.i(TAG, "Updated Content: %s", data);
+        if (ContentCaptureFeatures.isDumpForTestingEnabled()) {
+            Log.i(TAG, "Updated Content: %s", data);
+        }
     }
 
     @CalledByNative
@@ -131,7 +148,7 @@ public class OnscreenContentProvider {
                 consumer.onContentRemoved(frameSession, data);
             }
         }
-        if (sDump.booleanValue()) {
+        if (ContentCaptureFeatures.isDumpForTestingEnabled()) {
             Log.i(TAG, "Removed Content: %s", frameSession.get(0) + " " + Arrays.toString(data));
         }
     }
@@ -145,7 +162,9 @@ public class OnscreenContentProvider {
                 consumer.onSessionRemoved(frameSession);
             }
         }
-        if (sDump.booleanValue()) Log.i(TAG, "Removed Session: %s", frameSession.get(0));
+        if (ContentCaptureFeatures.isDumpForTestingEnabled()) {
+            Log.i(TAG, "Removed Session: %s", frameSession.get(0));
+        }
     }
 
     @CalledByNative
@@ -156,7 +175,9 @@ public class OnscreenContentProvider {
                 consumer.onTitleUpdated(mainFrame);
             }
         }
-        if (sDump.booleanValue()) Log.i(TAG, "Updated Title: %s", mainFrame.getTitle());
+        if (ContentCaptureFeatures.isDumpForTestingEnabled()) {
+            Log.i(TAG, "Updated Title: %s", mainFrame.getTitle());
+        }
     }
 
     @CalledByNative
@@ -167,7 +188,9 @@ public class OnscreenContentProvider {
                 consumer.onFaviconUpdated(mainFrame);
             }
         }
-        if (sDump.booleanValue()) Log.i(TAG, "Updated Favicon: %s", mainFrame.getFavicon());
+        if (ContentCaptureFeatures.isDumpForTestingEnabled()) {
+            Log.i(TAG, "Updated Favicon: %s", mainFrame.getFavicon());
+        }
     }
 
     @CalledByNative
@@ -190,7 +213,7 @@ public class OnscreenContentProvider {
         return frameSession;
     }
 
-    private String[] buildUrls(FrameSession session, ContentCaptureFrame data) {
+    private String[] buildUrls(@Nullable FrameSession session, @Nullable ContentCaptureFrame data) {
         ArrayList<String> urls = new ArrayList<String>();
         if (session != null) {
             for (ContentCaptureFrame d : session) {
@@ -203,12 +226,12 @@ public class OnscreenContentProvider {
         return result;
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.NONE)
     public List<ContentCaptureConsumer> getConsumersForTesting() {
         return mContentCaptureConsumers;
     }
 
     @VisibleForTesting(otherwise = VisibleForTesting.NONE)
+    @RequiresApi(Build.VERSION_CODES.Q)
     public void removePlatformConsumerForTesting() {
         for (ContentCaptureConsumer consumer : mContentCaptureConsumers) {
             if (consumer instanceof PlatformContentCaptureConsumer) {
@@ -219,10 +242,13 @@ public class OnscreenContentProvider {
     }
 
     @NativeMethods
-    interface Natives {
-        long init(OnscreenContentProvider caller, WebContents webContents);
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+    public interface Natives {
+        long init(OnscreenContentProvider caller, @Nullable WebContents webContents);
+
         void onWebContentsChanged(
-                long nativeOnscreenContentProviderAndroid, WebContents webContents);
+                long nativeOnscreenContentProviderAndroid, @Nullable WebContents webContents);
+
         void destroy(long nativeOnscreenContentProviderAndroid);
     }
 }

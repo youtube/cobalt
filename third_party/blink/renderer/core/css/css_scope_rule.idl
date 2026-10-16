@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 [
-    Exposed=Window,
-    RuntimeEnabled=CSSScope
-] interface CSSScopeRule : CSSConditionRule {
-    // TODO(crbug.com/1315532): Spec.
+    Exposed=Window
+] interface CSSScopeRule : CSSGroupingRule {
+    readonly attribute CSSOMString? start;
+    readonly attribute CSSOMString? end;
 };

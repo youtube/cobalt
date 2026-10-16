@@ -29,10 +29,7 @@ bool FocusgroupController::HandleArrowKeyboardEvent(KeyboardEvent* event,
   DCHECK(frame);
   DCHECK(frame->DomWindow());
   ExecutionContext* context = frame->DomWindow()->GetExecutionContext();
-  DCHECK(RuntimeEnabledFeatures::FocusgroupEnabled(context) ||
-         RuntimeEnabledFeatures::CSSTogglesEnabled(context));
-  // TODO(https://crbug.com/1250716): Test
-  // RuntimeEnabledFeatures::FocusgroupEnabled(context) elsewhere?
+  DCHECK(RuntimeEnabledFeatures::FocusgroupEnabled(context));
 
   FocusgroupDirection direction = utils::FocusgroupDirectionForEvent(event);
   if (direction == FocusgroupDirection::kNone)
@@ -455,21 +452,20 @@ bool FocusgroupController::AdvanceInGrid(Element* initial_element,
     // 1. Move to the next cell in the appropriate |direction|.
     Element* previous = current;
     switch (direction) {
-      case FocusgroupDirection::kBackwardHorizontal:
+      case FocusgroupDirection::kBackwardInline:
         current = helper->PreviousCellInRow(current);
         break;
-      case FocusgroupDirection::kForwardHorizontal:
+      case FocusgroupDirection::kForwardInline:
         current = helper->NextCellInRow(current);
         break;
-      case FocusgroupDirection::kBackwardVertical:
+      case FocusgroupDirection::kBackwardBlock:
         current = helper->PreviousCellInColumn(current);
         break;
-      case FocusgroupDirection::kForwardVertical:
+      case FocusgroupDirection::kForwardBlock:
         current = helper->NextCellInColumn(current);
         break;
       default:
         NOTREACHED();
-        break;
     }
 
     // 2. If no next cell was found, attempt to wrap/flow.
@@ -509,9 +505,9 @@ Element* FocusgroupController::WrapOrFlowInGrid(
   FocusgroupFlags flags = helper->Root()->GetFocusgroupFlags();
 
   switch (direction) {
-    case FocusgroupDirection::kBackwardHorizontal:
+    case FocusgroupDirection::kBackwardInline:
       // This is only possible when on the first cell within a row.
-      if (flags & FocusgroupFlags::kWrapHorizontally) {
+      if (flags & FocusgroupFlags::kWrapInline) {
         // Wrapping backward in a row means that we should move the focus to the
         // last cell in the same row.
         Element* row = helper->RowForCell(element);
@@ -530,9 +526,9 @@ Element* FocusgroupController::WrapOrFlowInGrid(
       }
       break;
 
-    case FocusgroupDirection::kForwardHorizontal:
+    case FocusgroupDirection::kForwardInline:
       // This is only possible when on the last cell within a row.
-      if (flags & FocusgroupFlags::kWrapHorizontally) {
+      if (flags & FocusgroupFlags::kWrapInline) {
         // Wrapping forward in a row means that we should move the focus to the
         // first cell of the same row.
         Element* row = helper->RowForCell(element);
@@ -551,9 +547,9 @@ Element* FocusgroupController::WrapOrFlowInGrid(
       }
       break;
 
-    case FocusgroupDirection::kBackwardVertical:
+    case FocusgroupDirection::kBackwardBlock:
       // This is only possible when on the first cell within a column.
-      if (flags & FocusgroupFlags::kWrapVertically) {
+      if (flags & FocusgroupFlags::kWrapBlock) {
         // Wrapping backward in a column means that we should move the focus to
         // the last cell in the same column.
         unsigned cell_index = helper->ColumnIndexForCell(element);
@@ -570,9 +566,9 @@ Element* FocusgroupController::WrapOrFlowInGrid(
       }
       break;
 
-    case FocusgroupDirection::kForwardVertical:
+    case FocusgroupDirection::kForwardBlock:
       // This is only possible when on the last cell within a column.
-      if (flags & FocusgroupFlags::kWrapVertically) {
+      if (flags & FocusgroupFlags::kWrapBlock) {
         // Wrapping forward in a column means that we should move the focus to
         // first cell in the same column.
         unsigned cell_index = helper->ColumnIndexForCell(element);
@@ -590,7 +586,6 @@ Element* FocusgroupController::WrapOrFlowInGrid(
       break;
     default:
       NOTREACHED();
-      break;
   }
 
   return nullptr;

@@ -4,29 +4,35 @@
 
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_style_test_utils.h"
 
+#include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
+#include "third_party/blink/renderer/bindings/core/v8/native_value_traits_impl.h"
+#include "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h"
+#include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/bindings/script_state.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+#include "v8/include/v8-local-handle.h"
+
 namespace blink {
 
-void SetFillStyleString(BaseRenderingContext2D* ctx,
+void SetFillStyleString(Canvas2DRecorderContext* ctx,
                         ScriptState* script_state,
                         const String& string) {
   NonThrowableExceptionState exception_state;
-  ctx->setFillStyle(
-      script_state->GetIsolate(),
-      ToV8Traits<IDLString>::ToV8(script_state, string).ToLocalChecked(),
-      exception_state);
+  ctx->setFillStyle(script_state->GetIsolate(),
+                    ToV8Traits<IDLString>::ToV8(script_state, string),
+                    exception_state);
 }
 
-void SetStrokeStyleString(BaseRenderingContext2D* ctx,
+void SetStrokeStyleString(Canvas2DRecorderContext* ctx,
                           ScriptState* script_state,
                           const String& string) {
   NonThrowableExceptionState exception_state;
-  ctx->setStrokeStyle(
-      script_state->GetIsolate(),
-      ToV8Traits<IDLString>::ToV8(script_state, string).ToLocalChecked(),
-      exception_state);
+  ctx->setStrokeStyle(script_state->GetIsolate(),
+                      ToV8Traits<IDLString>::ToV8(script_state, string),
+                      exception_state);
 }
 
-String GetStrokeStyleAsString(BaseRenderingContext2D* ctx,
+String GetStrokeStyleAsString(Canvas2DRecorderContext* ctx,
                               ScriptState* script_state) {
   NonThrowableExceptionState exception_state;
   auto* isolate = script_state->GetIsolate();
@@ -35,7 +41,7 @@ String GetStrokeStyleAsString(BaseRenderingContext2D* ctx,
                                                    exception_state);
 }
 
-String GetFillStyleAsString(BaseRenderingContext2D* ctx,
+String GetFillStyleAsString(Canvas2DRecorderContext* ctx,
                             ScriptState* script_state) {
   NonThrowableExceptionState exception_state;
   auto result = ctx->fillStyle(script_state);

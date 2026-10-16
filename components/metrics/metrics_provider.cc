@@ -41,11 +41,14 @@ void MetricsProvider::OnClientStateCleared() {}
 void MetricsProvider::OnAppEnterBackground() {
 }
 
+void MetricsProvider::OnPageLoadStarted() {}
+
 bool MetricsProvider::HasIndependentMetrics() {
   return false;
 }
 
 void MetricsProvider::ProvideIndependentMetrics(
+    base::OnceClosure serialize_log_callback,
     base::OnceCallback<void(bool)> done_callback,
     ChromeUserMetricsExtension* uma_proto,
     base::HistogramSnapshotManager* snapshot_manager) {

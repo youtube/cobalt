@@ -10,7 +10,6 @@
 #include "components/segmentation_platform/internal/execution/model_execution_status.h"
 #include "components/segmentation_platform/internal/scheduler/model_execution_scheduler.h"
 #include "components/segmentation_platform/public/proto/segmentation_platform.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace segmentation_platform {
 
@@ -38,12 +37,6 @@ class SegmentSelector : public ModelExecutionScheduler::Observer {
   // Client API. Returns the selected segment from the last session
   // asynchronously. If none, returns empty result.
   virtual void GetSelectedSegment(SegmentSelectionCallback callback) = 0;
-
-  // Client API. Runs models and selects a segment on demand. Returns empty
-  // result on failure.
-  virtual void GetSelectedSegmentOnDemand(
-      scoped_refptr<InputContext> input_context,
-      SegmentSelectionCallback callback) = 0;
 
   // Client API. Returns the cached selected segment from the last session
   // synchronously.

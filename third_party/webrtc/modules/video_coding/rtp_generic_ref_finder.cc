@@ -10,8 +10,16 @@
 
 #include "modules/video_coding/rtp_generic_ref_finder.h"
 
+#include <cstddef>
+#include <memory>
 #include <utility>
 
+#include "api/video/encoded_frame.h"
+#include "api/video/video_codec_constants.h"
+#include "modules/rtp_rtcp/source/frame_object.h"
+#include "modules/rtp_rtcp/source/rtp_video_header.h"
+#include "modules/video_coding/codecs/interface/common_constants.h"
+#include "modules/video_coding/rtp_frame_reference_finder.h"
 #include "rtc_base/logging.h"
 
 namespace webrtc {
@@ -19,6 +27,13 @@ namespace webrtc {
 RtpFrameReferenceFinder::ReturnVector RtpGenericFrameRefFinder::ManageFrame(
     std::unique_ptr<RtpFrameObject> frame,
     const RTPVideoHeader::GenericDescriptorInfo& descriptor) {
+  RtpFrameReferenceFinder::ReturnVector res;
+  if (descriptor.spatial_index >= kMaxSpatialLayers) {
+    RTC_LOG(LS_WARNING) << "Spatial index " << descriptor.spatial_index
+                        << " is unsupported.";
+    return res;
+  }
+
   // Frame IDs are unwrapped in the RtpVideoStreamReceiver, no need to unwrap
   // them here.
   frame->SetId(descriptor.frame_id);
@@ -26,7 +41,6 @@ RtpFrameReferenceFinder::ReturnVector RtpGenericFrameRefFinder::ManageFrame(
   if (descriptor.temporal_index != kNoTemporalIdx)
     frame->SetTemporalIndex(descriptor.temporal_index);
 
-  RtpFrameReferenceFinder::ReturnVector res;
   if (EncodedFrame::kMaxFrameReferences < descriptor.dependencies.size()) {
     RTC_LOG(LS_WARNING) << "Too many dependencies in generic descriptor.";
     return res;

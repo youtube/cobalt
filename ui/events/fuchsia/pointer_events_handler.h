@@ -9,12 +9,12 @@
 
 #include <array>
 #include <functional>
+#include <optional>
 #include <vector>
 
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/events/event.h"
 #include "ui/events/events_export.h"
 
@@ -94,7 +94,7 @@ class EVENTS_EXPORT PointerEventsHandler {
   // parameters to correctly map to logical view coordinates. The "nullopt"
   // state represents the absence of view parameters, early in the protocol
   // lifecycle.
-  absl::optional<fuchsia_ui_pointer::ViewParameters> touch_view_parameters_;
+  std::optional<fuchsia_ui_pointer::ViewParameters> touch_view_parameters_;
 
   // Mouse State ---------------------------------------------------------------
   // Channel for mouse events from Scenic.
@@ -110,11 +110,11 @@ class EVENTS_EXPORT PointerEventsHandler {
   // 11, as defined in ui/events/event_constants.h.
   //
   // The high level algorithm for any given mouse and button is:
-  //   if !mouse_down[id] && !button then: change = ET_MOUSE_MOVED
-  //   if !mouse_down[id] &&  button then: change = ET_MOUSE_PRESSED;
+  //   if !mouse_down[id] && !button then: change = EventType::kMouseMoved
+  //   if !mouse_down[id] &&  button then: change = EventType::kMousePressed;
   //       mouse_down[id] |= button // sets button bit to 1
-  //   if  mouse_down[id] &&  button then: change = ET_MOUSE_DRAGGED
-  //   if  mouse_down[id] && !button then: change = ET_MOUSE_RELEASED;
+  //   if  mouse_down[id] &&  button then: change = EventType::kMouseDragged
+  //   if  mouse_down[id] && !button then: change = EventType::kMouseReleased;
   //       mouse_down[id] ^= button // sets button bit to 0
   base::flat_map<MouseDeviceId, /*pressed_buttons_flags=*/int> mouse_down_;
 
@@ -128,7 +128,7 @@ class EVENTS_EXPORT PointerEventsHandler {
   // parameters to correctly map to logical view coordinates. The "nullopt"
   // state represents the absence of view parameters, early in the protocol
   // lifecycle.
-  absl::optional<fuchsia_ui_pointer::ViewParameters> mouse_view_parameters_;
+  std::optional<fuchsia_ui_pointer::ViewParameters> mouse_view_parameters_;
 };
 
 }  // namespace ui

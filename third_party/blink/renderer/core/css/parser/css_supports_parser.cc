@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/core/css/parser/css_supports_parser.h"
 
 #include "third_party/blink/renderer/core/css/css_identifier_value.h"
+#include "third_party/blink/renderer/core/css/parser/at_rule_descriptor_parser.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_impl.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_token_stream.h"
 #include "third_party/blink/renderer/core/css/parser/css_selector_parser.h"
@@ -26,94 +27,39 @@ CSSSupportsParser::Result CSSSupportsParser::ConsumeSupportsCondition(
   return supports_parser.ConsumeSupportsCondition(stream);
 }
 
+//
+// Every non-static Consume function should:
+//
+//  1. Assume that the calling function already consumed whitespace.
+//  2. Clean up trailing whitespace if a supported condition was consumed.
+//  3. Otherwise, leave the stream untouched.
+//
+
 // <supports-condition> = not <supports-in-parens>
 //                   | <supports-in-parens> [ and <supports-in-parens> ]*
 //                   | <supports-in-parens> [ or <supports-in-parens> ]*
 CSSSupportsParser::Result CSSSupportsParser::ConsumeSupportsCondition(
     CSSParserTokenStream& stream) {
   // not <supports-in-parens>
-  stream.ConsumeWhitespace();
   if (ConsumeIfIdent(stream, "not")) {
-    Result result = ConsumeSupportsInParens(stream);
-    stream.ConsumeWhitespace();
-    return !result;
+    return !ConsumeSupportsInParens(stream);
   }
 
   // <supports-in-parens> [ and <supports-in-parens> ]*
   // | <supports-in-parens> [ or <supports-in-parens> ]*
   Result result = ConsumeSupportsInParens(stream);
 
-  stream.ConsumeWhitespace();
   if (AtIdent(stream.Peek(), "and")) {
-    stream.ConsumeWhitespace();
     while (ConsumeIfIdent(stream, "and")) {
       result = result & ConsumeSupportsInParens(stream);
-      stream.ConsumeWhitespace();
     }
   } else if (AtIdent(stream.Peek(), "or")) {
-    stream.ConsumeWhitespace();
     while (ConsumeIfIdent(stream, "or")) {
       result = result | ConsumeSupportsInParens(stream);
-      stream.ConsumeWhitespace();
     }
   }
 
   return result;
-}
-
-bool CSSSupportsParser::IsSupportsInParens(const CSSParserToken& token) {
-  // All three productions for <supports-in-parens> must start with either a
-  // left parenthesis or a function.
-  return token.GetType() == kLeftParenthesisToken ||
-         token.GetType() == kFunctionToken;
-}
-
-bool CSSSupportsParser::IsEnclosedSupportsCondition(
-    const CSSParserToken& first_token,
-    const CSSParserToken& second_token) {
-  return (first_token.GetType() == kLeftParenthesisToken) &&
-         (AtIdent(second_token, "not") ||
-          second_token.GetType() == kLeftParenthesisToken ||
-          second_token.GetType() == kFunctionToken);
-}
-
-bool CSSSupportsParser::IsSupportsSelectorFn(
-    const CSSParserToken& first_token,
-    const CSSParserToken& second_token) {
-  return (first_token.GetType() == kFunctionToken &&
-          first_token.FunctionId() == CSSValueID::kSelector);
-}
-
-bool CSSSupportsParser::IsFontTechFn(const CSSParserToken& first_token,
-                                     const CSSParserToken& second_token) {
-  return (first_token.GetType() == kFunctionToken &&
-          first_token.FunctionId() == CSSValueID::kFontTech);
-}
-
-bool CSSSupportsParser::IsFontFormatFn(const CSSParserToken& first_token,
-                                       const CSSParserToken& second_token) {
-  return (first_token.GetType() == kFunctionToken &&
-          first_token.FunctionId() == CSSValueID::kFontFormat);
-}
-
-bool CSSSupportsParser::IsSupportsDecl(const CSSParserToken& first_token,
-                                       const CSSParserToken& second_token) {
-  return first_token.GetType() == kLeftParenthesisToken &&
-         second_token.GetType() == kIdentToken;
-}
-
-bool CSSSupportsParser::IsSupportsFeature(const CSSParserToken& first_token,
-                                          const CSSParserToken& second_token) {
-  return IsSupportsSelectorFn(first_token, second_token) ||
-         IsSupportsDecl(first_token, second_token) ||
-         (RuntimeEnabledFeatures::SupportsFontFormatTechEnabled() &&
-          (IsFontFormatFn(first_token, second_token) ||
-           IsFontTechFn(first_token, second_token)));
-}
-
-bool CSSSupportsParser::IsGeneralEnclosed(const CSSParserToken& first_token) {
-  return first_token.GetType() == kLeftParenthesisToken ||
-         first_token.GetType() == kFunctionToken;
 }
 
 // <supports-in-parens> = ( <supports-condition> )
@@ -121,168 +67,336 @@ bool CSSSupportsParser::IsGeneralEnclosed(const CSSParserToken& first_token) {
 //                    | <general-enclosed>
 CSSSupportsParser::Result CSSSupportsParser::ConsumeSupportsInParens(
     CSSParserTokenStream& stream) {
-  CSSParserToken first_token = stream.Peek();
-  if (!IsSupportsInParens(first_token)) {
-    return Result::kParseFailure;
-  }
-
-  CSSParserTokenStream::BlockGuard guard(stream);
-  stream.ConsumeWhitespace();
-
   // ( <supports-condition> )
-  if (IsEnclosedSupportsCondition(first_token, stream.Peek())) {
+  if (stream.Peek().GetType() == kLeftParenthesisToken) {
+    CSSParserTokenStream::RestoringBlockGuard guard(stream);
+    stream.ConsumeWhitespace();
     Result result = ConsumeSupportsCondition(stream);
-    return stream.AtEnd() ? result : Result::kParseFailure;
+    if (result == Result::kSupported && guard.Release()) {
+      stream.ConsumeWhitespace();
+      return result;
+    }
+    // Otherwise, fall through.
+    //
+    // Note that even when the result is kParseFailure, we still want to fall
+    // through here, in case it's valid as <general-enclosed>. If it's not,
+    // we'll gain back the kParseFailure at the end of this function.
   }
 
   // <supports-feature>
-  if (IsSupportsFeature(first_token, stream.Peek())) {
-    Result result = ConsumeSupportsFeature(first_token, stream);
-    return stream.AtEnd() ? result : Result::kParseFailure;
+  if (ConsumeSupportsFeature(stream)) {
+    return Result::kSupported;
   }
 
   // <general-enclosed>
-  return ConsumeGeneralEnclosed(first_token, stream);
+  if (ConsumeGeneralEnclosed(stream)) {
+    // <general-enclosed> evaluates to kUnsupported, even when parsed
+    // successfully.
+    return Result::kUnsupported;
+  }
+
+  return Result::kParseFailure;
 }
 
 // https://drafts.csswg.org/css-conditional-4/#at-supports-ext
 // <supports-feature> = <supports-selector-fn> | <supports-font-tech-fn>
-//                    | <supports-font-format-fn> | <supports-decl>
-CSSSupportsParser::Result CSSSupportsParser::ConsumeSupportsFeature(
-    const CSSParserToken& first_token,
-    CSSParserTokenStream& stream) {
+//                    | <supports-font-format-fn> | <supports-at-rule-fn>
+//                    | <supports-decl>
+//
+// <supports-at-rule-fn> is currently only documented here:
+// https://github.com/w3c/csswg-drafts/issues/2463#issuecomment-1016720310
+bool CSSSupportsParser::ConsumeSupportsFeature(CSSParserTokenStream& stream) {
   // <supports-selector-fn>
-  if (IsSupportsSelectorFn(first_token, stream.Peek())) {
-    return ConsumeSupportsSelectorFn(first_token, stream);
+  if (ConsumeSupportsSelectorFn(stream)) {
+    return true;
   }
-
   // <supports-font-tech-fn>
-  if (IsFontTechFn(first_token, stream.Peek()) &&
-      RuntimeEnabledFeatures::SupportsFontFormatTechEnabled()) {
-    return ConsumeFontTechFn(first_token, stream);
+  if (ConsumeFontTechFn(stream)) {
+    return true;
   }
-
   // <supports-font-format-fn>
-  if (IsFontFormatFn(first_token, stream.Peek()) &&
-      RuntimeEnabledFeatures::SupportsFontFormatTechEnabled()) {
-    return ConsumeFontFormatFn(first_token, stream);
+  if (ConsumeFontFormatFn(stream)) {
+    return true;
   }
-
+  // <supports-at-rule-fn>
+  if (ConsumeAtRuleFn(stream)) {
+    return true;
+  }
+  if (parser_.GetMode() == CSSParserMode::kUASheetMode) {
+    if (ConsumeBlinkFeatureFn(stream)) {
+      return true;
+    }
+  }
   // <supports-decl>
-  return ConsumeSupportsDecl(first_token, stream);
+  return ConsumeSupportsDecl(stream);
 }
 
 // <supports-selector-fn> = selector( <complex-selector> )
-CSSSupportsParser::Result CSSSupportsParser::ConsumeSupportsSelectorFn(
-    const CSSParserToken& first_token,
+bool CSSSupportsParser::ConsumeSupportsSelectorFn(
     CSSParserTokenStream& stream) {
-  DCHECK(IsSupportsSelectorFn(first_token, stream.Peek()));
-  auto block = stream.ConsumeUntilPeekedTypeIs<kRightParenthesisToken>();
-  if (CSSSelectorParser::SupportsComplexSelector(block, parser_.GetContext())) {
-    return Result::kSupported;
+  if (stream.Peek().FunctionId() != CSSValueID::kSelector) {
+    return false;
   }
-  return Result::kUnsupported;
+  CSSParserTokenStream::RestoringBlockGuard guard(stream);
+  stream.ConsumeWhitespace();
+
+  if (CSSSelectorParser::SupportsComplexSelector(stream,
+                                                 parser_.GetContext()) &&
+      guard.Release()) {
+    stream.ConsumeWhitespace();
+    return true;
+  }
+  return false;
 }
 
-CSSSupportsParser::Result CSSSupportsParser::ConsumeFontFormatFn(
-    const CSSParserToken& first_token,
-    CSSParserTokenStream& stream) {
-  DCHECK(IsFontFormatFn(first_token, stream.Peek()));
-  DCHECK(RuntimeEnabledFeatures::SupportsFontFormatTechEnabled());
-
-  auto format_block = stream.ConsumeUntilPeekedTypeIs<kRightParenthesisToken>();
-
-  // Parse errors inside the parentheses are treated as kUnsupported to
-  // simulate parsing the font-tech function as <general-enclosed>. In
-  // other words: even if this block is not understood as font-tech, it
-  // can be parsed as <general-enclosed> and result in false.
+bool CSSSupportsParser::ConsumeFontFormatFn(CSSParserTokenStream& stream) {
+  if (stream.Peek().FunctionId() != CSSValueID::kFontFormat) {
+    return false;
+  }
+  CSSParserTokenStream::RestoringBlockGuard guard(stream);
+  stream.ConsumeWhitespace();
 
   CSSIdentifierValue* consumed_value =
-      css_parsing_utils::ConsumeFontFormatIdent(format_block);
+      css_parsing_utils::ConsumeFontFormatIdent(stream);
 
-  if (!consumed_value) {
-    return Result::kUnsupported;
+  if (consumed_value &&
+      css_parsing_utils::IsSupportedKeywordFormat(
+          consumed_value->GetValueID()) &&
+      guard.Release()) {
+    stream.ConsumeWhitespace();
+    return true;
   }
 
-  CSSSupportsParser::Result parse_result = Result::kUnsupported;
-
-  parse_result =
-      css_parsing_utils::IsSupportedKeywordFormat(consumed_value->GetValueID())
-          ? Result::kSupported
-          : Result::kUnsupported;
-
-  format_block.ConsumeWhitespace();
-  if (!format_block.AtEnd()) {
-    return Result::kUnsupported;
-  }
-
-  return parse_result;
+  return false;
 }
 
-CSSSupportsParser::Result CSSSupportsParser::ConsumeFontTechFn(
-    const CSSParserToken& first_token,
-    CSSParserTokenStream& stream) {
-  DCHECK(IsFontTechFn(first_token, stream.Peek()));
-  DCHECK(RuntimeEnabledFeatures::SupportsFontFormatTechEnabled());
-  auto technology_block =
-      stream.ConsumeUntilPeekedTypeIs<kRightParenthesisToken>();
-
-  // Parse errors inside the parentheses are treated as kUnsupported to
-  // simulate parsing the font-tech function as <general-enclosed>. In
-  // other words: even if this block is not understood as font-tech, it
-  // can be parsed as <general-enclosed> and result in false.
+bool CSSSupportsParser::ConsumeFontTechFn(CSSParserTokenStream& stream) {
+  if (stream.Peek().FunctionId() != CSSValueID::kFontTech) {
+    return false;
+  }
+  CSSParserTokenStream::RestoringBlockGuard guard(stream);
+  stream.ConsumeWhitespace();
 
   CSSIdentifierValue* consumed_value =
-      css_parsing_utils::ConsumeFontTechIdent(technology_block);
+      css_parsing_utils::ConsumeFontTechIdent(stream);
 
-  if (!consumed_value) {
-    return Result::kUnsupported;
+  if (consumed_value &&
+      css_parsing_utils::IsSupportedKeywordTech(consumed_value->GetValueID()) &&
+      guard.Release()) {
+    stream.ConsumeWhitespace();
+    return true;
   }
 
-  CSSSupportsParser::Result parse_result = Result::kUnsupported;
+  return false;
+}
 
-  parse_result =
-      css_parsing_utils::IsSupportedKeywordTech(consumed_value->GetValueID())
-          ? Result::kSupported
-          : Result::kUnsupported;
-
-  technology_block.ConsumeWhitespace();
-  if (!technology_block.AtEnd()) {
-    return Result::kUnsupported;
+// <supports-at-rule-fn> = at-rule( <at-rule> [ ; <descriptor> : <value> ]? )
+bool CSSSupportsParser::ConsumeAtRuleFn(CSSParserTokenStream& stream) {
+  if (!RuntimeEnabledFeatures::CSSSupportsAtRuleFunctionEnabled()) {
+    return false;
   }
 
-  return parse_result;
+  if (stream.Peek().FunctionId() != CSSValueID::kAtRule) {
+    return false;
+  }
+  CSSParserTokenStream::RestoringBlockGuard guard(stream);
+  stream.ConsumeWhitespace();
+
+  if (stream.Peek().GetType() != kAtKeywordToken) {
+    return false;
+  }
+  CSSParserToken name_token = stream.ConsumeIncludingWhitespace();
+  const StringView name = name_token.Value();
+  const CSSAtRuleID at_rule_id = CssAtRuleID(name);
+  if (at_rule_id == CSSAtRuleID::kCSSAtRuleInvalid) {
+    return false;
+  }
+
+  if (stream.AtEnd()) {
+    return guard.Release();
+  }
+
+  StyleRule::RuleType rule_type;
+  switch (at_rule_id) {
+    case CSSAtRuleID::kCSSAtRuleInvalid:
+    case CSSAtRuleID::kCount:
+      NOTREACHED();
+    case CSSAtRuleID::kCSSAtRuleViewTransition:
+      rule_type = StyleRule::kViewTransition;
+      break;
+    case CSSAtRuleID::kCSSAtRuleContainer:
+      rule_type = StyleRule::kContainer;
+      break;
+    case CSSAtRuleID::kCSSAtRuleMedia:
+      rule_type = StyleRule::kMedia;
+      break;
+    case CSSAtRuleID::kCSSAtRuleSupports:
+      rule_type = StyleRule::kSupports;
+      break;
+    case CSSAtRuleID::kCSSAtRuleStartingStyle:
+      rule_type = StyleRule::kStartingStyle;
+      break;
+    case CSSAtRuleID::kCSSAtRuleFontFace:
+      rule_type = StyleRule::kFontFace;
+      break;
+    case CSSAtRuleID::kCSSAtRuleFontPaletteValues:
+      rule_type = StyleRule::kFontPaletteValues;
+      break;
+    case CSSAtRuleID::kCSSAtRuleFontFeatureValues:
+      rule_type = StyleRule::kFontFeatureValues;
+      break;
+    case CSSAtRuleID::kCSSAtRuleWebkitKeyframes:
+    case CSSAtRuleID::kCSSAtRuleKeyframes:
+      rule_type = StyleRule::kKeyframes;
+      break;
+    case CSSAtRuleID::kCSSAtRuleLayer:
+      rule_type = StyleRule::kLayerBlock;
+      break;
+    case CSSAtRuleID::kCSSAtRulePage:
+      rule_type = StyleRule::kPage;
+      break;
+    case CSSAtRuleID::kCSSAtRuleProperty:
+      rule_type = StyleRule::kProperty;
+      break;
+    case CSSAtRuleID::kCSSAtRuleScope:
+      rule_type = StyleRule::kScope;
+      break;
+    case CSSAtRuleID::kCSSAtRuleCounterStyle:
+      rule_type = StyleRule::kCounterStyle;
+      break;
+    case CSSAtRuleID::kCSSAtRuleFunction:
+      rule_type = StyleRule::kFunction;
+      break;
+    case CSSAtRuleID::kCSSAtRuleMixin:
+      rule_type = StyleRule::kMixin;
+      break;
+    case CSSAtRuleID::kCSSAtRuleApplyMixin:
+      rule_type = StyleRule::kApplyMixin;
+      break;
+    case CSSAtRuleID::kCSSAtRulePositionTry:
+      rule_type = StyleRule::kPositionTry;
+      break;
+    case CSSAtRuleID::kCSSAtRuleCharset:
+      rule_type = StyleRule::kCharset;
+      break;
+    case CSSAtRuleID::kCSSAtRuleImport:
+      rule_type = StyleRule::kImport;
+      break;
+    case CSSAtRuleID::kCSSAtRuleNamespace:
+      rule_type = StyleRule::kNamespace;
+      break;
+    case CSSAtRuleID::kCSSAtRuleStylistic:
+    case CSSAtRuleID::kCSSAtRuleStyleset:
+    case CSSAtRuleID::kCSSAtRuleCharacterVariant:
+    case CSSAtRuleID::kCSSAtRuleSwash:
+    case CSSAtRuleID::kCSSAtRuleOrnaments:
+    case CSSAtRuleID::kCSSAtRuleAnnotation:
+      rule_type = StyleRule::kFontFeature;
+      break;
+    case CSSAtRuleID::kCSSAtRuleTopLeftCorner:
+    case CSSAtRuleID::kCSSAtRuleTopLeft:
+    case CSSAtRuleID::kCSSAtRuleTopCenter:
+    case CSSAtRuleID::kCSSAtRuleTopRight:
+    case CSSAtRuleID::kCSSAtRuleTopRightCorner:
+    case CSSAtRuleID::kCSSAtRuleBottomLeftCorner:
+    case CSSAtRuleID::kCSSAtRuleBottomLeft:
+    case CSSAtRuleID::kCSSAtRuleBottomCenter:
+    case CSSAtRuleID::kCSSAtRuleBottomRight:
+    case CSSAtRuleID::kCSSAtRuleBottomRightCorner:
+    case CSSAtRuleID::kCSSAtRuleLeftTop:
+    case CSSAtRuleID::kCSSAtRuleLeftMiddle:
+    case CSSAtRuleID::kCSSAtRuleLeftBottom:
+    case CSSAtRuleID::kCSSAtRuleRightTop:
+    case CSSAtRuleID::kCSSAtRuleRightMiddle:
+    case CSSAtRuleID::kCSSAtRuleRightBottom:
+      rule_type = StyleRule::kPageMargin;
+      break;
+  };
+
+  // Parse an optional descriptor.
+  if (stream.Peek().GetType() != kSemicolonToken) {
+    return false;
+  }
+  stream.ConsumeIncludingWhitespace();
+
+  // The descriptor ID.
+  if (stream.Peek().GetType() != kIdentToken) {
+    return false;
+  }
+  AtRuleDescriptorID descriptor_id = stream.Peek().ParseAsAtRuleDescriptorID();
+  AtomicString variable_name = (descriptor_id == AtRuleDescriptorID::Variable
+                                    ? stream.Peek().Value().ToAtomicString()
+                                    : g_null_atom);
+  if (descriptor_id == AtRuleDescriptorID::Invalid) {
+    return false;
+  }
+  stream.ConsumeIncludingWhitespace();
+
+  // Colon.
+  if (stream.Peek().GetType() != kColonToken) {
+    return false;
+  }
+  stream.ConsumeIncludingWhitespace();
+
+  // The descriptor value.
+  HeapVector<CSSPropertyValue, 64> parsed_descriptors;
+  bool ok = AtRuleDescriptorParser::ParseDescriptorValue(
+      rule_type, descriptor_id, variable_name, stream, *parser_.GetContext(),
+      parsed_descriptors);
+
+  return ok && guard.Release();
 }
 
 // <supports-decl> = ( <declaration> )
-CSSSupportsParser::Result CSSSupportsParser::ConsumeSupportsDecl(
-    const CSSParserToken& first_token,
-    CSSParserTokenStream& stream) {
-  if (!IsSupportsDecl(first_token, stream.Peek())) {
-    return Result::kParseFailure;
+bool CSSSupportsParser::ConsumeSupportsDecl(CSSParserTokenStream& stream) {
+  if (stream.Peek().GetType() != kLeftParenthesisToken) {
+    return false;
   }
-  if (parser_.ConsumeSupportsDeclaration(stream)) {
-    return Result::kSupported;
+  CSSParserTokenStream::RestoringBlockGuard guard(stream);
+  stream.ConsumeWhitespace();
+
+  if (stream.Peek().GetType() == kIdentToken &&
+      parser_.ConsumeSupportsDeclaration(stream) && guard.Release()) {
+    stream.ConsumeWhitespace();
+    return true;
   }
-  return Result::kUnsupported;
+  return false;
 }
 
-// <general-enclosed> = [ <function-token> <any-value> ) ]
-//                  | ( <ident> <any-value> )
-CSSSupportsParser::Result CSSSupportsParser::ConsumeGeneralEnclosed(
-    const CSSParserToken& first_token,
-    CSSParserTokenStream& stream) {
-  if (IsGeneralEnclosed(first_token)) {
-    auto block = stream.ConsumeUntilPeekedTypeIs<kRightParenthesisToken>();
-    // TODO(crbug.com/1269284): We should allow empty values here.
-    if (!ConsumeAnyValue(block) || !block.AtEnd()) {
-      return Result::kParseFailure;
-    }
-
-    stream.ConsumeWhitespace();
-    return Result::kUnsupported;
+// <general-enclosed> = [ <function-token> <any-value>? ) ]
+//                  | ( <any-value>? )
+bool CSSSupportsParser::ConsumeGeneralEnclosed(CSSParserTokenStream& stream) {
+  if (stream.Peek().GetType() != kLeftParenthesisToken &&
+      stream.Peek().GetType() != kFunctionToken) {
+    return false;
   }
-  return Result::kParseFailure;
+
+  CSSParserTokenStream::RestoringBlockGuard guard(stream);
+  ConsumeAnyValue(stream);
+  if (guard.Release()) {
+    stream.ConsumeWhitespace();
+    return true;
+  }
+  return false;
+}
+
+bool CSSSupportsParser::ConsumeBlinkFeatureFn(CSSParserTokenStream& stream) {
+  if (stream.Peek().FunctionId() != CSSValueID::kBlinkFeature) {
+    return false;
+  }
+  CSSParserTokenStream::RestoringBlockGuard guard(stream);
+  stream.ConsumeWhitespace();
+
+  if (stream.Peek().GetType() == kIdentToken) {
+    const CSSParserToken& feature_name = stream.ConsumeIncludingWhitespace();
+    if (RuntimeEnabledFeatures::IsFeatureEnabledFromString(
+            feature_name.Value().Utf8()) &&
+        guard.Release()) {
+      stream.ConsumeWhitespace();
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace blink

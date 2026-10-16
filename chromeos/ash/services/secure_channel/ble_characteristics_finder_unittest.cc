@@ -4,12 +4,14 @@
 
 #include "chromeos/ash/services/secure_channel/ble_characteristics_finder.h"
 
+#include <algorithm>
 #include <memory>
 
+#include "base/compiler_specific.h"
+#include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
@@ -87,7 +89,8 @@ std::string EidToString(const std::vector<uint8_t>& eid_value_read) {
   std::string output;
   char* string_contents_ptr =
       base::WriteInto(&output, eid_value_read.size() + 1);
-  memcpy(string_contents_ptr, eid_value_read.data(), eid_value_read.size());
+  UNSAFE_TODO(memcpy(string_contents_ptr, eid_value_read.data(),
+                     eid_value_read.size()));
   return output;
 }
 
@@ -176,10 +179,10 @@ class SecureChannelBluetoothLowEnergyCharacteristicFinderTest
         .WillByDefault(Invoke(
             [read_success, correct_eid](
                 BluetoothRemoteGattCharacteristic::ValueCallback& callback) {
-              absl::optional<BluetoothGattService::GattErrorCode> error_code;
+              std::optional<BluetoothGattService::GattErrorCode> error_code;
               std::vector<uint8_t> value;
               if (read_success) {
-                error_code = absl::nullopt;
+                error_code = std::nullopt;
                 value =
                     correct_eid ? GetCorrectEidValue() : GetIncorrectEidValue();
               } else {
@@ -261,10 +264,8 @@ class SecureChannelBluetoothLowEnergyCharacteristicFinderTest
   }
 
   std::vector<BluetoothRemoteGattService*> GetRawServiceList() {
-    std::vector<BluetoothRemoteGattService*> service_list_raw;
-    base::ranges::transform(services_, std::back_inserter(service_list_raw),
-                            &std::unique_ptr<BluetoothRemoteGattService>::get);
-    return service_list_raw;
+    return base::ToVector(services_,
+                          &std::unique_ptr<BluetoothRemoteGattService>::get);
   }
 
   void CallGattServicesDiscovered() {
@@ -280,7 +281,7 @@ class SecureChannelBluetoothLowEnergyCharacteristicFinderTest
   std::vector<std::unique_ptr<BluetoothRemoteGattService>> services_;
   std::vector<std::unique_ptr<MockBluetoothGattCharacteristic>>
       all_mock_characteristics_;
-  raw_ptr<FakeBackgroundEidGenerator, ExperimentalAsh>
+  raw_ptr<FakeBackgroundEidGenerator, DanglingUntriaged>
       fake_background_eid_generator_;
   RemoteAttribute remote_service_;
   RemoteAttribute to_peripheral_char_;

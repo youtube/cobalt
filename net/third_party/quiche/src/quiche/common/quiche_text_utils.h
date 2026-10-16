@@ -5,23 +5,43 @@
 #ifndef QUICHE_COMMON_QUICHE_TEXT_UTILS_H_
 #define QUICHE_COMMON_QUICHE_TEXT_UTILS_H_
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <string>
 
+#include "absl/base/optimization.h"
+#include "absl/container/fixed_array.h"
 #include "absl/hash/hash.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace quiche {
 
 struct QUICHE_EXPORT StringPieceCaseHash {
   size_t operator()(absl::string_view data) const {
-    std::string lower = absl::AsciiStrToLower(data);
-    absl::Hash<absl::string_view> hasher;
-    return hasher(lower);
+    // The longest request header name currently in Chromium source is 37
+    // characters. The longest response header is 35 characters. We'd like to
+    // size our inline storage to be a multiple of a cache line but not less
+    // than 37.
+    constexpr size_t kLongestExpectedHeaderName = 37;
+    constexpr size_t kCacheLineSize = ABSL_CACHELINE_SIZE;
+    constexpr size_t kInlineStorage =
+        ((kLongestExpectedHeaderName + kCacheLineSize - 1) / kCacheLineSize) *
+        kCacheLineSize;
+    // This implementation of ascii_tolower is functionally equivalent to
+    // absl::ascii_tolower but is easier for the compiler to vectorize.
+    constexpr auto ascii_tolower = [](char c) {
+      return (c >= 'A' && c <= 'Z') ? c | 32 : c;
+    };
+    ABSL_CACHELINE_ALIGNED absl::FixedArray<char, kInlineStorage> lower(
+        data.size());
+    std::transform(data.begin(), data.end(), lower.begin(), ascii_tolower);
+    return absl::HashOf(lower);
   }
 };
 
@@ -50,7 +70,7 @@ class QUICHE_EXPORT QuicheTextUtils {
 
   // Decodes a base64-encoded |input|.  Returns nullopt when the input is
   // invalid.
-  static absl::optional<std::string> Base64Decode(absl::string_view input);
+  static std::optional<std::string> Base64Decode(absl::string_view input);
 
   // Returns a string containing hex and ASCII representations of |binary|,
   // side-by-side in the style of hexdump. Non-printable characters will be

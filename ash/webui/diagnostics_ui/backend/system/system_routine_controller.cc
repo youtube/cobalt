@@ -2,7 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ash/webui/diagnostics_ui/backend/system/system_routine_controller.h"
+
+#include <optional>
 
 #include "ash/constants/ash_features.h"
 #include "ash/system/diagnostics/diagnostics_log_controller.h"
@@ -26,7 +33,6 @@
 #include "chromeos/ash/services/cros_healthd/public/mojom/nullable_primitives.mojom.h"
 #include "content/public/browser/device_service.h"
 #include "services/device/public/mojom/wake_lock_provider.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash::diagnostics {
 
@@ -76,7 +82,6 @@ mojom::StandardRoutineResult TestStatusToResult(
     case healthd::DiagnosticRoutineStatusEnum::kCancelling:
     case healthd::DiagnosticRoutineStatusEnum::kUnknown:
       NOTREACHED();
-      return mojom::StandardRoutineResult::kExecutionError;
   }
 }
 
@@ -322,6 +327,7 @@ void SystemRoutineController::ExecuteRoutine(mojom::RoutineType routine_type) {
     case mojom::RoutineType::kMemory:
       AcquireWakeLock();
       diagnostics_service_->RunMemoryRoutine(
+          std::nullopt,
           base::BindOnce(&SystemRoutineController::OnRoutineStarted,
                          weak_factory_.GetWeakPtr(), routine_type));
       memory_routine_start_timestamp_ = base::Time::Now();
@@ -613,7 +619,7 @@ void SystemRoutineController::OnPowerRoutineJsonParsed(
     return;
   }
 
-  absl::optional<double> charge_percent_opt =
+  std::optional<double> charge_percent_opt =
       routine_type == mojom::RoutineType::kBatteryCharge
           ? result_details_dict->FindDouble(kChargePercentKey)
           : result_details_dict->FindDouble(kDischargePercentKey);

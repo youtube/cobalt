@@ -16,7 +16,6 @@
 #include "base/time/clock.h"
 #include "base/time/time.h"
 #include "base/values.h"
-#include "chrome/browser/extensions/chrome_app_sorting.h"
 #include "chrome/browser/extensions/test_extension_system.h"
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/browser/prefs/pref_service_syncable_util.h"
@@ -39,6 +38,10 @@
 #include "extensions/common/manifest_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "chrome/browser/extensions/chrome_app_sorting.h"
+#endif
+
 using content::BrowserThread;
 using extensions::mojom::ManifestLocation;
 
@@ -52,7 +55,7 @@ class TestExtensionPrefs::IncrementalClock : public base::Clock {
   IncrementalClock(const IncrementalClock&) = delete;
   IncrementalClock& operator=(const IncrementalClock&) = delete;
 
-  ~IncrementalClock() override {}
+  ~IncrementalClock() override = default;
 
   base::Time Now() const override {
     current_time_ += base::Seconds(10);
@@ -77,8 +80,7 @@ TestExtensionPrefs::TestExtensionPrefs(
   RecreateExtensionPrefs();
 }
 
-TestExtensionPrefs::~TestExtensionPrefs() {
-}
+TestExtensionPrefs::~TestExtensionPrefs() = default;
 
 ExtensionPrefs* TestExtensionPrefs::prefs() {
   return ExtensionPrefs::Get(&profile_);
@@ -121,9 +123,12 @@ void TestExtensionPrefs::RecreateExtensionPrefs() {
   factory.SetUserPrefsFile(preferences_file_, task_runner_.get());
   factory.set_extension_prefs(
       new ExtensionPrefStore(extension_pref_value_map_.get(), false));
-  pref_service_ = factory.CreateSyncable(pref_registry_.get());
+  // Don't replace `pref_service_` until after re-assigning the `ExtensionPrefs`
+  // testing instance to avoid a dangling pointer.
+  std::unique_ptr<sync_preferences::PrefServiceSyncable> new_pref_service =
+      factory.CreateSyncable(pref_registry_.get());
   std::unique_ptr<ExtensionPrefs> prefs(ExtensionPrefs::Create(
-      &profile_, pref_service_.get(), temp_dir_.GetPath(),
+      &profile_, new_pref_service.get(), temp_dir_.GetPath(),
       extension_pref_value_map_.get(), extensions_disabled_,
       std::vector<EarlyExtensionPrefsObserver*>(),
       // Guarantee that no two extensions get the same installation time
@@ -131,6 +136,7 @@ void TestExtensionPrefs::RecreateExtensionPrefs() {
       clock_.get()));
   ExtensionPrefsFactory::GetInstance()->SetInstanceForTesting(&profile_,
                                                               std::move(prefs));
+  pref_service_ = std::move(new_pref_service);
   // Hack: After recreating ExtensionPrefs, the AppSorting also needs to be
   // recreated. (ExtensionPrefs is never recreated in non-test code.)
   static_cast<TestExtensionSystem*>(ExtensionSystem::Get(&profile_))
@@ -178,12 +184,13 @@ scoped_refptr<Extension> TestExtensionPrefs::AddExtensionWithManifestAndFlags(
   scoped_refptr<Extension> extension =
       Extension::Create(path, location, manifest, extra_flags, &errors);
   EXPECT_TRUE(extension.get()) << errors;
-  if (!extension.get())
+  if (!extension.get()) {
     return nullptr;
+  }
 
   EXPECT_TRUE(crx_file::id_util::IdIsValid(extension->id()));
   prefs()->OnExtensionInstalled(extension.get(),
-                                Extension::ENABLED,
+                                /*disable_reasons=*/{},
                                 syncer::StringOrdinal::CreateInitialOrdinal(),
                                 std::string());
   return extension;
@@ -197,7 +204,7 @@ std::string TestExtensionPrefs::AddExtensionAndReturnId(
 
 void TestExtensionPrefs::AddExtension(const Extension* extension) {
   prefs()->OnExtensionInstalled(extension,
-                                Extension::ENABLED,
+                                /*disable_reasons=*/{},
                                 syncer::StringOrdinal::CreateInitialOrdinal(),
                                 std::string());
 }
@@ -214,8 +221,13 @@ void TestExtensionPrefs::set_extensions_disabled(bool extensions_disabled) {
 }
 
 ChromeAppSorting* TestExtensionPrefs::app_sorting() {
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   return static_cast<ChromeAppSorting*>(
       ExtensionSystem::Get(&profile_)->app_sorting());
+#else
+  // Android doesn't support Chrome Apps, hence has no app sorting.
+  NOTREACHED();
+#endif
 }
 
 void TestExtensionPrefs::AddDefaultManifestKeys(const std::string& name,

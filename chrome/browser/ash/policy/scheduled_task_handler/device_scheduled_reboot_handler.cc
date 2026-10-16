@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "ash/constants/ash_features.h"
@@ -16,6 +17,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/rand_util.h"
 #include "base/system/sys_info.h"
 #include "base/values.h"
 #include "chrome/browser/ash/policy/scheduled_task_handler/scheduled_task_util.h"
@@ -24,7 +26,6 @@
 #include "chromeos/ash/components/settings/timezone_settings.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "components/user_manager/user_manager.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/cros_system_api/dbus/power_manager/dbus-constants.h"
 
 namespace policy {
@@ -114,7 +115,7 @@ void DeviceScheduledRebootHandler::SetRebootDelayForTest(
   reboot_delay_for_testing_ = reboot_delay;
 }
 
-absl::optional<ScheduledTaskExecutor::ScheduledTaskData>
+std::optional<ScheduledTaskExecutor::ScheduledTaskData>
 DeviceScheduledRebootHandler::GetScheduledRebootDataForTest() const {
   return scheduled_reboot_data_;
 }
@@ -138,18 +139,14 @@ void DeviceScheduledRebootHandler::OnRebootTimerExpired() {
 
   // If the device is on the sign-in screen, skip reboot only if the grace
   // period is applied.
-  if (!skip_reboot_ && !user_manager::UserManager::Get()->IsUserLoggedIn() &&
-      base::FeatureList::IsEnabled(
-          ash::features::kDeviceForceScheduledReboot)) {
+  if (!skip_reboot_ && !user_manager::UserManager::Get()->IsUserLoggedIn()) {
     RebootDevice(kRebootDescriptionOnTimerExpired);
     return;
   }
 
-  // If the device is not in the kiosk mode or on the sign-in screen, check if
-  // the |kDeviceForceScheduledReboot| feature flag is enabled and if we should
-  // not skip reboot due to grace period applied.
-  if (!skip_reboot_ && base::FeatureList::IsEnabled(
-                           ash::features::kDeviceForceScheduledReboot)) {
+  // If the device is not in the kiosk mode or on the sign-in screen, check we
+  // should not skip reboot due to grace period applied.
+  if (!skip_reboot_) {
     // Schedule post reboot notification for the user in session.
     notifications_scheduler_->SchedulePostRebootNotification();
     RebootDevice(kRebootDescriptionOnTimerExpired);
@@ -177,7 +174,7 @@ void DeviceScheduledRebootHandler::OnScheduledRebootDataChanged() {
 
   // Keep any old policy timers running if a new policy is ill-formed and can't
   // be used to set a new timer.
-  absl::optional<ScheduledTaskExecutor::ScheduledTaskData>
+  std::optional<ScheduledTaskExecutor::ScheduledTaskData>
       scheduled_reboot_data =
           scheduled_task_util::ParseScheduledTask(*value, kTaskTimeFieldName);
   if (!scheduled_reboot_data) {
@@ -219,7 +216,7 @@ void DeviceScheduledRebootHandler::OnRebootTimerStartResult(
     notifications_scheduler_->CancelRebootNotifications(
         RebootNotificationsScheduler::Requester::kScheduledRebootPolicy);
     skip_reboot_ = false;
-    scheduled_reboot_data_ = absl::nullopt;
+    scheduled_reboot_data_ = std::nullopt;
     return;
   }
 
@@ -227,16 +224,13 @@ void DeviceScheduledRebootHandler::OnRebootTimerStartResult(
       get_boot_time_callback_.Run(),
       scheduled_task_executor_->GetScheduledTaskTime());
 
-  // If the flag is enabled, schedule reboot notification and dialog.
-  if (base::FeatureList::IsEnabled(
-          ash::features::kDeviceForceScheduledReboot)) {
-    if (!skip_reboot_) {
-      notifications_scheduler_->SchedulePendingRebootNotifications(
-          base::BindOnce(&DeviceScheduledRebootHandler::OnRebootButtonClicked,
-                         base::Unretained(this)),
-          scheduled_task_executor_->GetScheduledTaskTime(),
-          RebootNotificationsScheduler::Requester::kScheduledRebootPolicy);
-    }
+  // Schedule reboot notification and dialog.
+  if (!skip_reboot_) {
+    notifications_scheduler_->SchedulePendingRebootNotifications(
+        base::BindOnce(&DeviceScheduledRebootHandler::OnRebootButtonClicked,
+                       base::Unretained(this)),
+        scheduled_task_executor_->GetScheduledTaskTime(),
+        RebootNotificationsScheduler::Requester::kScheduledRebootPolicy);
   }
 }
 
@@ -245,14 +239,13 @@ void DeviceScheduledRebootHandler::ResetState() {
       RebootNotificationsScheduler::Requester::kScheduledRebootPolicy);
   scheduled_task_executor_->Reset();
   skip_reboot_ = false;
-  scheduled_reboot_data_ = absl::nullopt;
+  scheduled_reboot_data_ = std::nullopt;
 }
 
 const base::TimeDelta DeviceScheduledRebootHandler::GetExternalDelay() const {
   return reboot_delay_for_testing_.has_value()
              ? reboot_delay_for_testing_.value()
-             : scheduled_task_util::GenerateRandomDelay(
-                   ash::features::kDeviceForceScheduledRebootMaxDelay.Get());
+             : base::RandTimeDeltaUpTo(base::Minutes(2));
 }
 
 void DeviceScheduledRebootHandler::RebootDevice(

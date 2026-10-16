@@ -10,6 +10,8 @@
 #include <lib/fidl/cpp/interface_handle.h>
 #include <lib/sys/cpp/component_context.h>
 
+#include <string_view>
+
 #include "base/files/file_enumerator.h"
 #include "base/fuchsia/filtered_service_directory.h"
 #include "base/fuchsia/fuchsia_logging.h"
@@ -20,7 +22,7 @@ namespace base {
 
 TestComponentContextForProcess::TestComponentContextForProcess(
     InitialState initial_state) {
-  // TODO(https://crbug.com/1038786): Migrate to sys::ComponentContextProvider
+  // TODO(crbug.com/42050058): Migrate to sys::ComponentContextProvider
   // once it provides access to an sys::OutgoingDirectory or PseudoDir through
   // which to publish additional_services().
 
@@ -57,12 +59,13 @@ TestComponentContextForProcess::TestComponentContextForProcess(
       std::make_unique<sys::ComponentContext>(
           std::move(incoming_services), published_root_directory.NewRequest()));
 
-  // Connect to the "/svc" directory of the |published_root_directory| and wrap
+  // Open the "/svc" directory of the |published_root_directory| and wrap
   // that into a ServiceDirectory.
   fidl::InterfaceHandle<::fuchsia::io::Directory> published_services;
-  status = fdio_service_connect_at(
-      published_root_directory.channel().get(), "svc",
-      published_services.NewRequest().TakeChannel().release());
+  status =
+      fdio_open3_at(published_root_directory.channel().get(), "svc",
+                    uint64_t{fuchsia::io::PERM_READABLE},
+                    published_services.NewRequest().TakeChannel().release());
   ZX_CHECK(status == ZX_OK, status) << "fdio_service_connect_at() to /svc";
   published_services_ =
       std::make_shared<sys::ServiceDirectory>(std::move(published_services));
@@ -78,16 +81,16 @@ sys::OutgoingDirectory* TestComponentContextForProcess::additional_services() {
   return context_services_->outgoing_directory();
 }
 
-void TestComponentContextForProcess::AddService(
-    const base::StringPiece service) {
+void TestComponentContextForProcess::AddService(std::string_view service) {
   zx_status_t status = context_services_->AddService(service);
   ZX_CHECK(status == ZX_OK, status) << "AddService(" << service << ") failed";
 }
 
 void TestComponentContextForProcess::AddServices(
-    base::span<const base::StringPiece> services) {
-  for (auto service : services)
+    base::span<const std::string_view> services) {
+  for (auto service : services) {
     AddService(service);
+  }
 }
 
 fidl::UnownedClientEnd<fuchsia_io::Directory>

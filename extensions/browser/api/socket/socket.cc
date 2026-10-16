@@ -6,6 +6,7 @@
 
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
+#include "base/numerics/safe_conversions.h"
 #include "extensions/browser/api/api_resource_manager.h"
 #include "net/base/address_list.h"
 #include "net/base/io_buffer.h"
@@ -30,7 +31,7 @@ ApiResourceManager<Socket>::GetFactoryInstance() {
 }
 
 Socket::Socket(const std::string& owner_extension_id)
-    : ApiResource(owner_extension_id), is_connected_(false) {}
+    : ApiResource(owner_extension_id) {}
 
 Socket::~Socket() {
   // Derived destructors should make sure the socket has been closed.
@@ -38,7 +39,7 @@ Socket::~Socket() {
 }
 
 void Socket::Write(scoped_refptr<net::IOBuffer> io_buffer,
-                   int byte_count,
+                   size_t byte_count,
                    net::CompletionOnceCallback callback) {
   DCHECK(!callback.is_null());
   write_queue_.emplace(io_buffer, byte_count, std::move(callback));
@@ -53,10 +54,13 @@ void Socket::WriteData() {
   WriteRequest& request = write_queue_.front();
 
   DCHECK(request.byte_count >= request.bytes_written);
-  io_buffer_write_ = base::MakeRefCounted<net::WrappedIOBuffer>(
-      request.io_buffer->data() + request.bytes_written);
+  auto span = request.io_buffer->span()
+                  .first(request.byte_count)
+                  .subspan(request.bytes_written);
+  io_buffer_write_ =
+      base::MakeRefCounted<net::WrappedIOBuffer>(std::move(span));
   int result = WriteImpl(
-      io_buffer_write_.get(), request.byte_count - request.bytes_written,
+      io_buffer_write_.get(), io_buffer_write_->size(),
       base::BindOnce(&Socket::OnWriteComplete, base::Unretained(this)));
 
   if (result != net::ERR_IO_PENDING)
@@ -69,13 +73,13 @@ void Socket::OnWriteComplete(int result) {
   WriteRequest& request = write_queue_.front();
 
   if (result >= 0) {
-    request.bytes_written += result;
+    request.bytes_written += static_cast<size_t>(result);
     if (request.bytes_written < request.byte_count) {
       WriteData();
       return;
     }
     DCHECK(request.bytes_written == request.byte_count);
-    result = request.bytes_written;
+    result = base::checked_cast<int>(request.bytes_written);
   }
 
   std::move(request.callback).Run(result);
@@ -104,7 +108,7 @@ void Socket::Listen(const std::string& address,
 
 void Socket::Accept(AcceptCompletionCallback callback) {
   std::move(callback).Run(net::ERR_FAILED, mojo::NullRemote() /* socket */,
-                          absl::nullopt, mojo::ScopedDataPipeConsumerHandle(),
+                          std::nullopt, mojo::ScopedDataPipeConsumerHandle(),
                           mojo::ScopedDataPipeProducerHandle());
 }
 
@@ -135,12 +139,11 @@ void Socket::IPEndPointToStringAndPort(const net::IPEndPoint& address,
 }
 
 Socket::WriteRequest::WriteRequest(scoped_refptr<net::IOBuffer> io_buffer,
-                                   int byte_count,
+                                   size_t byte_count,
                                    net::CompletionOnceCallback callback)
     : io_buffer(io_buffer),
       byte_count(byte_count),
-      callback(std::move(callback)),
-      bytes_written(0) {}
+      callback(std::move(callback)) {}
 
 Socket::WriteRequest::WriteRequest(WriteRequest&& other) = default;
 

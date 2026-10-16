@@ -278,14 +278,8 @@ bool Signals::WillSignalReraiseAutonomously(const siginfo_t* siginfo) {
 }
 
 // static
-void Signals::RestoreHandlerAndReraiseSignalOnReturn(
-    const siginfo_t* siginfo,
-    const struct sigaction* old_action) {
-  // Failures in this function should _exit(kFailureExitCode). This is a quick
-  // and quiet failure. This function runs in signal handler context, and it’s
-  // difficult to safely be loud from a signal handler.
-  constexpr int kFailureExitCode = 191;
-
+bool Signals::RestoreOrResetHandler(int sig,
+                                    const struct sigaction* old_action) {
   struct sigaction default_action;
   sigemptyset(&default_action.sa_mask);
   default_action.sa_flags = 0;
@@ -297,9 +291,25 @@ void Signals::RestoreHandlerAndReraiseSignalOnReturn(
   // Try to restore restore_action. If that fails and restore_action was
   // old_action, the problem may have been that old_action was bogus, so try to
   // set the default action.
-  const int sig = siginfo->si_signo;
   if (sigaction(sig, restore_action, nullptr) != 0 && old_action &&
       sigaction(sig, &default_action, nullptr) != 0) {
+    return false;
+  }
+  return true;
+}
+
+// static
+void Signals::RestoreHandlerAndReraiseSignalOnReturn(
+    const siginfo_t* siginfo,
+    const struct sigaction* old_action) {
+  // Failures in this function should _exit(kFailureExitCode). This is a quick
+  // and quiet failure. This function runs in signal handler context, and it’s
+  // difficult to safely be loud from a signal handler.
+  constexpr int kFailureExitCode = 191;
+
+  const int sig = siginfo->si_signo;
+
+  if (!RestoreOrResetHandler(sig, old_action)) {
     _exit(kFailureExitCode);
   }
 
@@ -308,8 +318,16 @@ void Signals::RestoreHandlerAndReraiseSignalOnReturn(
   // signals that do not re-raise autonomously), such as signals delivered via
   // kill() and asynchronous hardware faults such as SEGV_MTEAERR, which would
   // otherwise be lost when re-raising the signal via raise().
-// TODO: (cobalt b/406511608) Re-enable once we use crashpad in hermetic builds.
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
+
+  // TODO: b/406511608 - Cobalt: Re-enable if we decide to install Crashpad
+  // signal handlers from the Cobalt layer in hermetic builds. For now in
+  // hermetic builds, we properly re-raise signals with siginfo in Starboard
+  // toolchain-built loader app, from which the Crashpad signal handlers are
+  // actually installed, and bypass the syscall in the Cobalt layer where it
+  // 1) is not needed and 2) introduces compiler errors.
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) || \
+    BUILDFLAG(IS_STARBOARD_TOOLCHAIN)
   int retval = syscall(SYS_rt_tgsigqueueinfo,
                        getpid(),
                        syscall(SYS_gettid),
@@ -327,6 +345,9 @@ void Signals::RestoreHandlerAndReraiseSignalOnReturn(
   if (errno != EPERM) {
     _exit(kFailureExitCode);
   }
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) || \
+        // BUILDFLAG(IS_STARBOARD_TOOLCHAIN)
+
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) ||
         // BUILDFLAG(IS_CHROMEOS)
 

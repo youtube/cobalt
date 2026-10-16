@@ -4,11 +4,12 @@
 
 #include "chrome/browser/web_applications/web_app_origin_association_task.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
-#include "base/task/single_thread_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/browser_process.h"
 #include "components/webapps/services/web_app_origin_association/public/mojom/web_app_origin_association_parser.mojom.h"
 #include "components/webapps/services/web_app_origin_association/web_app_origin_association_fetcher.h"
@@ -63,14 +64,14 @@ void WebAppOriginAssociationManager::Task::FetchAssociationFile(
 }
 
 void WebAppOriginAssociationManager::Task::OnAssociationFileFetched(
-    std::unique_ptr<std::string> file_content) {
+    std::optional<std::string> file_content) {
   if (!file_content || file_content->empty()) {
     MaybeStartNextScopeExtension();
     return;
   }
 
   owner_->GetParser()->ParseWebAppOriginAssociation(
-      *file_content,
+      *file_content, GetCurrentScopeExtension().origin,
       base::BindOnce(&WebAppOriginAssociationManager::Task::OnAssociationParsed,
                      weak_ptr_factory_.GetWeakPtr()));
 }
@@ -84,8 +85,16 @@ void WebAppOriginAssociationManager::Task::OnAssociationParsed(
   }
 
   auto& scope_extension = GetCurrentScopeExtension();
-  for (auto& associated_app : association->apps) {
+  for (webapps::mojom::AssociatedWebAppPtr& associated_app :
+       association->apps) {
     if (associated_app->web_app_identity == web_app_identity_) {
+      // Must drop the fragments and queries per `scope` rules
+      // https://w3c.github.io/manifest/#scope-member
+      GURL::Replacements replacements;
+      replacements.ClearRef();
+      replacements.ClearQuery();
+      scope_extension.scope =
+          associated_app->scope.ReplaceComponents(replacements);
       result_.insert(scope_extension);
       scope_extension.Reset();
       // Only information in the first valid app is saved.
@@ -112,7 +121,7 @@ void WebAppOriginAssociationManager::Task::MaybeStartNextScopeExtension() {
 void WebAppOriginAssociationManager::Task::Finalize() {
   ScopeExtensions result = std::move(result_);
   result_.clear();
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback_), std::move(result)));
   owner_->OnTaskCompleted();
 }

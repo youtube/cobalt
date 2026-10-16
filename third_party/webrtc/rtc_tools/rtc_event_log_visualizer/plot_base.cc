@@ -11,9 +11,17 @@
 #include "rtc_tools/rtc_event_log_visualizer/plot_base.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdio>
 #include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
+#include "absl/strings/string_view.h"
 #include "rtc_base/checks.h"
+#include "rtc_tools/rtc_event_log_visualizer/proto/chart.pb.h"
+#include "rtc_tools/rtc_event_log_visualizer/proto/chart_enums.pb.h"
 
 namespace webrtc {
 
@@ -80,6 +88,10 @@ void Plot::SetId(const std::string& id) {
   id_ = id;
 }
 
+void Plot::SetId(absl::string_view id) {
+  id_ = id;
+}
+
 void Plot::AppendTimeSeries(TimeSeries&& time_series) {
   series_list_.emplace_back(std::move(time_series));
 }
@@ -94,7 +106,7 @@ void Plot::AppendTimeSeriesIfNotEmpty(TimeSeries&& time_series) {
   }
 }
 
-void Plot::PrintPythonCode() const {
+void Plot::PrintPythonCode(absl::string_view figure_output_path) const {
   // Write python commands to stdout. Intended program usage is
   // ./event_log_visualizer event_log160330.dump | python
 
@@ -233,15 +245,26 @@ void Plot::PrintPythonCode() const {
   if (!series_list_.empty() || !interval_list_.empty()) {
     printf("handles, labels = plt.gca().get_legend_handles_labels()\n");
     printf("for lp in legend_patches:\n");
-    printf("   handles.append(lp)\n");
-    printf("   labels.append(lp.get_label())\n");
+    printf("  handles.append(lp)\n");
+    printf("  labels.append(lp.get_label())\n");
     printf("plt.legend(handles, labels, loc=\'best\', fontsize=\'small\')\n");
+  }
+  if (!figure_output_path.empty()) {
+    printf("figure_output_dir = \"%.*s\"\n",
+           static_cast<int>(figure_output_path.size()),
+           figure_output_path.data());
+    printf("if not os.path.exists(figure_output_dir):\n");
+    printf("  os.makedirs(figure_output_dir)\n");
+    printf(
+        "figure_filename = os.path.join(figure_output_dir, "
+        "fig.canvas.get_default_filename())\n");
+    printf("fig.canvas.print_png(figure_filename)\n");
   }
 }
 
-void Plot::ExportProtobuf(webrtc::analytics::Chart* chart) const {
+void Plot::ExportProtobuf(analytics::Chart* chart) const {
   for (size_t i = 0; i < series_list_.size(); i++) {
-    webrtc::analytics::DataSet* data_set = chart->add_data_sets();
+    analytics::DataSet* data_set = chart->add_data_sets();
     for (const auto& point : series_list_[i].points) {
       data_set->add_x_values(point.x);
     }
@@ -250,15 +273,15 @@ void Plot::ExportProtobuf(webrtc::analytics::Chart* chart) const {
     }
 
     if (series_list_[i].line_style == LineStyle::kBar) {
-      data_set->set_style(webrtc::analytics::ChartStyle::BAR_CHART);
+      data_set->set_style(analytics::ChartStyle::BAR_CHART);
     } else if (series_list_[i].line_style == LineStyle::kLine) {
-      data_set->set_style(webrtc::analytics::ChartStyle::LINE_CHART);
+      data_set->set_style(analytics::ChartStyle::LINE_CHART);
     } else if (series_list_[i].line_style == LineStyle::kStep) {
-      data_set->set_style(webrtc::analytics::ChartStyle::LINE_STEP_CHART);
+      data_set->set_style(analytics::ChartStyle::LINE_STEP_CHART);
     } else if (series_list_[i].line_style == LineStyle::kNone) {
-      data_set->set_style(webrtc::analytics::ChartStyle::SCATTER_CHART);
+      data_set->set_style(analytics::ChartStyle::SCATTER_CHART);
     } else {
-      data_set->set_style(webrtc::analytics::ChartStyle::UNDEFINED);
+      data_set->set_style(analytics::ChartStyle::UNDEFINED);
     }
 
     if (series_list_[i].point_style == PointStyle::kHighlight)
@@ -277,18 +300,22 @@ void Plot::ExportProtobuf(webrtc::analytics::Chart* chart) const {
   chart->set_id(id_);
 
   for (const auto& kv : yaxis_tick_labels_) {
-    webrtc::analytics::TickLabel* tick = chart->add_yaxis_tick_labels();
+    analytics::TickLabel* tick = chart->add_yaxis_tick_labels();
     tick->set_value(kv.first);
     tick->set_label(kv.second);
   }
 }
 
-void PlotCollection::PrintPythonCode(bool shared_xaxis) const {
+void PlotCollection::PrintPythonCode(
+    bool shared_xaxis,
+    absl::string_view figure_output_path) const {
   printf("import matplotlib.pyplot as plt\n");
   printf("plt.rcParams.update({'figure.max_open_warning': 0})\n");
   printf("import matplotlib.patches as mpatches\n");
   printf("import matplotlib.patheffects as pe\n");
   printf("import colorsys\n");
+  printf("import os\n");
+  printf("plt.rcParams['figure.figsize'] = [10, 3]\n");
   for (size_t i = 0; i < plots_.size(); i++) {
     printf("plt.figure(%zu)\n", i);
     if (shared_xaxis) {
@@ -299,16 +326,17 @@ void PlotCollection::PrintPythonCode(bool shared_xaxis) const {
         printf("plt.subplot(111, sharex=axis0)\n");
       }
     }
-    plots_[i]->PrintPythonCode();
+    plots_[i]->PrintPythonCode(figure_output_path);
   }
-  printf("plt.show()\n");
+  if (figure_output_path.empty()) {
+    printf("plt.show()\n");
+  }
 }
 
 void PlotCollection::ExportProtobuf(
-    webrtc::analytics::ChartCollection* collection) const {
+    analytics::ChartCollection* collection) const {
   for (const auto& plot : plots_) {
-    webrtc::analytics::Chart* protobuf_representation =
-        collection->add_charts();
+    analytics::Chart* protobuf_representation = collection->add_charts();
     plot->ExportProtobuf(protobuf_representation);
   }
   if (calltime_to_utc_ms_) {
@@ -318,6 +346,12 @@ void PlotCollection::ExportProtobuf(
 
 Plot* PlotCollection::AppendNewPlot() {
   plots_.push_back(std::make_unique<Plot>());
+  return plots_.back().get();
+}
+
+Plot* PlotCollection::AppendNewPlot(absl::string_view chart_id) {
+  plots_.push_back(std::make_unique<Plot>());
+  plots_.back()->SetId(chart_id);
   return plots_.back().get();
 }
 

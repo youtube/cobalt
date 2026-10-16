@@ -1,3 +1,1 @@
-monorail: {
-  component: "UI>Browser>NewTabPage"
-}
+mixins: "//chrome/browser/resources/new_tab_page/COMMON_METADATA"

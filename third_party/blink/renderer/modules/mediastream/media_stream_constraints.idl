@@ -2,23 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// https://w3c.github.io/mediacapture-screen-share/#systemaudiopreferenceenum
-enum SystemAudioPreferenceEnum {
-  "include",
-  "exclude"
-};
+enum DisplayMediaIncludeOrExclude { "include", "exclude" };
 
-// https://w3c.github.io/mediacapture-screen-share/#selfcapturepreferenceenum
-enum SelfCapturePreferenceEnum {
-  "include",
-  "exclude"
-};
-
-// https://w3c.github.io/mediacapture-screen-share/#surfaceswitchingpreferenceenum
-enum SurfaceSwitchingPreferenceEnum {
-  "include",
-  "exclude"
-};
+typedef DisplayMediaIncludeOrExclude SystemAudioPreferenceEnum;
+typedef DisplayMediaIncludeOrExclude SelfCapturePreferenceEnum;
+typedef DisplayMediaIncludeOrExclude SurfaceSwitchingPreferenceEnum;
+typedef DisplayMediaIncludeOrExclude MonitorTypeSurfacesEnum;
 
 // https://w3c.github.io/mediacapture-main/#idl-def-mediastreamconstraints
 // The name differs from the spec because the name MediaStreamConstraints
@@ -27,8 +16,6 @@ enum SurfaceSwitchingPreferenceEnum {
 dictionary UserMediaStreamConstraints {
     (boolean or MediaTrackConstraints) video = false;
     (boolean or MediaTrackConstraints) audio = false;
-    // TODO(crbug.com/1382520): Remove the controller.
-    [RuntimeEnabled = CaptureController] CaptureController controller;
 };
 
 // https://www.w3.org/TR/screen-capture/#dom-displaymediastreamoptions
@@ -38,9 +25,6 @@ dictionary DisplayMediaStreamOptions {
 
     // https://wicg.github.io/prefer-current-tab/#prefer-current-tab
     boolean preferCurrentTab = false;
-    [
-      RuntimeEnabled = GetDisplayMediaSetAutoSelectAllScreens
-    ] boolean autoSelectAllScreens = false;
 
     // https://w3c.github.io/mediacapture-screen-share/#dom-displaymediastreamoptions-controller
     [
@@ -50,6 +34,7 @@ dictionary DisplayMediaStreamOptions {
     SelfCapturePreferenceEnum selfBrowserSurface;
     SystemAudioPreferenceEnum systemAudio;
     SurfaceSwitchingPreferenceEnum surfaceSwitching;
+    MonitorTypeSurfacesEnum monitorTypeSurfaces;
 };
 
 // This dictionnary is used internally to hold all members from
@@ -61,9 +46,13 @@ dictionary MediaStreamConstraints {
     (boolean or MediaTrackConstraints) video = false;
     (boolean or MediaTrackConstraints) audio = false;
     boolean preferCurrentTab = false;
-    boolean autoSelectAllScreens = false;
     CaptureController controller;
     SelfCapturePreferenceEnum selfBrowserSurface;
     SystemAudioPreferenceEnum systemAudio;
     SurfaceSwitchingPreferenceEnum surfaceSwitching;
+    MonitorTypeSurfacesEnum monitorTypeSurfaces;
+};
+
+dictionary AudioOutputOptions {
+  DOMString deviceId = "";
 };

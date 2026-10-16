@@ -18,7 +18,8 @@
 #ifndef STARBOARD_COMMON_POINTER_ARITHMETIC_H_
 #define STARBOARD_COMMON_POINTER_ARITHMETIC_H_
 
-#include "starboard/types.h"
+#include <cstddef>
+#include <cstdint>
 
 namespace starboard {
 
@@ -36,7 +37,7 @@ inline uint8_t* AsPointer(uintptr_t integer_value) {
 // Returns the the smallest value that is greater than or equal to value, but
 // aligned to alignment.
 template <typename T>
-T AlignUp(T value, T alignment) {
+constexpr T AlignUp(T value, T alignment) {
   T decremented_value = value - 1;
   return decremented_value + alignment - (decremented_value % alignment);
 }
@@ -50,7 +51,7 @@ T* AlignUp(T* value, uintptr_t alignment) {
 // Returns the the largest value that is less than or equal to value, but
 // aligned to alignment.
 template <typename T>
-T AlignDown(T value, T alignment) {
+constexpr T AlignDown(T value, T alignment) {
   return value / alignment * alignment;
 }
 
@@ -59,10 +60,15 @@ T* AlignDown(T* value, uintptr_t alignment) {
   return reinterpret_cast<T*>(AlignDown(AsInteger(value), alignment));
 }
 
-// Helper method for subclasses to determine if a given address or value
-// is aligned or not.
+// Determines if a given integer value is aligned to the specified alignment.
 template <typename T>
-static bool IsAligned(T value, size_t alignment) {
+constexpr bool IsAligned(T value, size_t alignment) {
+  return value % alignment == 0;
+}
+
+// Overload to determine if a given pointer or address is aligned.
+template <typename T>
+static bool IsAligned(T* value, size_t alignment) {
   return AsInteger(value) % alignment == 0;
 }
 

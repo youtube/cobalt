@@ -7,11 +7,11 @@ package org.chromium.chrome.browser.feed;
 import android.app.Activity;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.Nullable;
 
 import org.chromium.base.ActivityState;
-import org.chromium.base.ApplicationState;
 import org.chromium.base.ApplicationStatus;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.feed.componentinterfaces.SurfaceCoordinator;
 
 import java.lang.annotation.Retention;
@@ -21,13 +21,19 @@ import java.lang.annotation.RetentionPolicy;
  * Manages the lifecycle of a feed surface represented by {@link FeedSurfaceCoordinator} associated
  * with an Activity.
  */
-public class FeedSurfaceLifecycleManager implements ApplicationStatus.ActivityStateListener,
-                                                    ApplicationStatus.ApplicationStateListener {
+@NullMarked
+public class FeedSurfaceLifecycleManager implements ApplicationStatus.ActivityStateListener {
     /** The different states that the Stream can be in its lifecycle. */
     // TODO(chili): Clean up unused SHOWN/HIDDEN states.
-    @IntDef({SurfaceState.NOT_SPECIFIED, SurfaceState.CREATED, SurfaceState.SHOWN,
-            SurfaceState.ACTIVE, SurfaceState.INACTIVE, SurfaceState.HIDDEN,
-            SurfaceState.DESTROYED})
+    @IntDef({
+        SurfaceState.NOT_SPECIFIED,
+        SurfaceState.CREATED,
+        SurfaceState.SHOWN,
+        SurfaceState.ACTIVE,
+        SurfaceState.INACTIVE,
+        SurfaceState.HIDDEN,
+        SurfaceState.DESTROYED
+    })
     @Retention(RetentionPolicy.SOURCE)
     protected @interface SurfaceState {
         int NOT_SPECIFIED = -1;
@@ -57,22 +63,12 @@ public class FeedSurfaceLifecycleManager implements ApplicationStatus.ActivitySt
         mCoordinator = coordinator;
     }
 
-    /**
-     * Notifies the feed that it should show if it can.
-     */
+    /** Notifies the feed that it should show if it can. */
     protected void start() {
         mSurfaceState = SurfaceState.CREATED;
         show();
 
-        ApplicationStatus.registerApplicationStateListener(this);
         ApplicationStatus.registerStateListenerForActivity(this, mActivity);
-    }
-
-    @Override
-    public void onApplicationStateChange(@ApplicationState int newState) {
-        if (newState == ApplicationState.HAS_STOPPED_ACTIVITIES) {
-            mCoordinator.onApplicationStopped();
-        }
     }
 
     @Override
@@ -117,7 +113,8 @@ public class FeedSurfaceLifecycleManager implements ApplicationStatus.ActivitySt
 
     /** Calls {@link FeedSurfaceCoordinator#onSurfaceClosed()} ()}. */
     protected void hide() {
-        if (mSurfaceState == SurfaceState.HIDDEN || mSurfaceState == SurfaceState.CREATED
+        if (mSurfaceState == SurfaceState.HIDDEN
+                || mSurfaceState == SurfaceState.CREATED
                 || mSurfaceState == SurfaceState.DESTROYED) {
             return;
         }
@@ -130,16 +127,13 @@ public class FeedSurfaceLifecycleManager implements ApplicationStatus.ActivitySt
         mCoordinator.onSurfaceClosed();
     }
 
-    /**
-     * Clears any dependencies. The coordinator will be destroyed by its owner.
-     */
+    /** Clears any dependencies. The coordinator will be destroyed by its owner. */
     protected void destroy() {
         if (mSurfaceState == SurfaceState.DESTROYED) return;
 
         // Make sure the feed is hidden before setting it to destroyed state.
         hide();
         mSurfaceState = SurfaceState.DESTROYED;
-        ApplicationStatus.unregisterApplicationStateListener(this);
         ApplicationStatus.unregisterActivityStateListener(this);
     }
 
@@ -150,8 +144,7 @@ public class FeedSurfaceLifecycleManager implements ApplicationStatus.ActivitySt
      * @return The saved feed instance state, or null if it is not previously
      *         saved.
      */
-    @Nullable
-    protected String restoreInstanceState() {
+    protected @Nullable String restoreInstanceState() {
         return null;
     }
 }

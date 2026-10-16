@@ -11,8 +11,11 @@ namespace switches {
 
 TRACING_EXPORT extern const char kEnableBackgroundTracing[];
 TRACING_EXPORT extern const char kTraceConfigFile[];
+TRACING_EXPORT extern const char kTracePerfettoConfigFile[];
 TRACING_EXPORT extern const char kTraceStartup[];
+TRACING_EXPORT extern const char kTraceConfigHandle[];
 TRACING_EXPORT extern const char kEnableTracing[];
+TRACING_EXPORT extern const char kTraceBufferHandle[];
 TRACING_EXPORT extern const char kTraceStartupDuration[];
 TRACING_EXPORT extern const char kTraceStartupFile[];
 TRACING_EXPORT extern const char kEnableTracingOutput[];
@@ -20,10 +23,9 @@ TRACING_EXPORT extern const char kTraceStartupRecordMode[];
 TRACING_EXPORT extern const char kTraceStartupFormat[];
 TRACING_EXPORT extern const char kEnableTracingFormat[];
 TRACING_EXPORT extern const char kTraceStartupOwner[];
-TRACING_EXPORT extern const char kTraceStartupEnablePrivacyFiltering[];
 TRACING_EXPORT extern const char kPerfettoDisableInterning[];
 TRACING_EXPORT extern const char kTraceToConsole[];
-TRACING_EXPORT extern const char kBackgroundTracingOutputFile[];
+TRACING_EXPORT extern const char kBackgroundTracingOutputPath[];
 TRACING_EXPORT extern const char kTraceSmbSize[];
 TRACING_EXPORT extern const char kDefaultTraceBufferSizeLimitInKb[];
 

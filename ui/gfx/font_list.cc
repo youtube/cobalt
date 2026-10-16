@@ -5,12 +5,14 @@
 #include "ui/gfx/font_list.h"
 
 #include <ostream>
+#include <unordered_set>
 
 #include "base/lazy_instance.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
+#include "skia/ext/font_utils.h"
 #include "third_party/skia/include/core/SkFontMgr.h"
 #include "third_party/skia/include/core/SkTypeface.h"
 #include "ui/gfx/font_list_impl.h"
@@ -26,10 +28,12 @@ base::LazyInstance<scoped_refptr<gfx::FontListImpl>>::Leaky g_default_impl =
     LAZY_INSTANCE_INITIALIZER;
 bool g_default_impl_initialized = false;
 
+#if !BUILDFLAG(IS_MAC)
 bool IsFontFamilyAvailable(const std::string& family, SkFontMgr* font_manager) {
   return !!sk_sp<SkTypeface>(
       font_manager->matchFamilyStyle(family.c_str(), SkFontStyle()));
 }
+#endif
 
 }  // namespace
 
@@ -64,8 +68,9 @@ bool FontList::ParseDescription(const std::string& description,
   // The size takes the form "<INT>px".
   std::string size_string = styles.back();
   styles.pop_back();
-  if (!base::EndsWith(size_string, "px", base::CompareCase::SENSITIVE))
+  if (!size_string.ends_with("px")) {
     return false;
+  }
   size_string.resize(size_string.size() - 2);
   if (!base::StringToInt(size_string, size_pixels_out) ||
       *size_pixels_out <= 0)
@@ -131,8 +136,7 @@ FontList& FontList::operator=(const FontList& other) {
 void FontList::SetDefaultFontDescription(const std::string& font_description) {
   // The description string must end with "px" for size in pixel, or must be
   // the empty string, which specifies to use a single default font.
-  DCHECK(font_description.empty() ||
-         base::EndsWith(font_description, "px", base::CompareCase::SENSITIVE));
+  DCHECK(font_description.empty() || font_description.ends_with("px"));
 
   g_default_font_description.Get() = font_description;
   g_default_impl_initialized = false;
@@ -241,11 +245,32 @@ std::string FontList::FirstAvailableOrFirst(const std::string& font_name_list) {
     return std::string();
   if (families.size() == 1)
     return families[0];
-  sk_sp<SkFontMgr> fm(SkFontMgr::RefDefault());
+  sk_sp<SkFontMgr> fm(skia::DefaultFontMgr());
+#if BUILDFLAG(IS_MAC)
+  // We'd like to avoid SkFontMgr::matchFamilyStyle(), which opens a font
+  // download dialog for available-but-not-installed fonts.
+
+  // `available_size` is usually 200+. We make a hash set of available family
+  // names in order to avoid at worst `available_size * families.size()` string
+  // comparisons.
+  const int available_size = fm->countFamilies();
+  std::unordered_set<std::string> availables;
+  for (int i = 0; i < available_size; ++i) {
+    SkString name;
+    fm->getFamilyName(i, &name);
+    availables.emplace(name.data(), name.size());
+  }
+  for (const auto& family : families) {
+    if (availables.contains(family)) {
+      return family;
+    }
+  }
+#else
   for (const auto& family : families) {
     if (IsFontFamilyAvailable(family, fm.get()))
       return family;
   }
+#endif
   return families[0];
 }
 

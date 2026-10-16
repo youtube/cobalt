@@ -21,9 +21,9 @@
 namespace variations {
 class VariationsIdsProviderTest : public ::testing::Test {
  public:
-  VariationsIdsProviderTest() {}
+  VariationsIdsProviderTest() = default;
 
-  ~VariationsIdsProviderTest() override {}
+  ~VariationsIdsProviderTest() override = default;
 
   void TearDown() override { testing::ClearAllVariationIDs(); }
 
@@ -159,7 +159,7 @@ TEST_F(VariationsIdsProviderTest, LowEntropySourceValue_Valid) {
   VariationsIdsProvider provider(
       VariationsIdsProvider::Mode::kUseSignedInState);
 
-  absl::optional<int> valid_low_entropy_source_value = 5;
+  std::optional<int> valid_low_entropy_source_value = 5;
   provider.SetLowEntropySourceValue(valid_low_entropy_source_value);
   provider.InitVariationIDsCacheIfNeeded();
   variations::mojom::VariationsHeadersPtr headers =
@@ -191,7 +191,7 @@ TEST_F(VariationsIdsProviderTest, LowEntropySourceValue_Null) {
   VariationsIdsProvider provider(
       VariationsIdsProvider::Mode::kUseSignedInState);
 
-  absl::optional<int> null_low_entropy_source_value = absl::nullopt;
+  std::optional<int> null_low_entropy_source_value = std::nullopt;
   provider.SetLowEntropySourceValue(null_low_entropy_source_value);
 
   // Valid experiment ids.

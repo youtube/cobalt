@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_H_
 #define STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_H_
 
+#include <memory>
+
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -25,14 +27,11 @@ namespace starboard {
 class FfmpegVideoDecoder : public VideoDecoder {
  public:
   // Create a video decoder for the currently loaded ffmpeg library.
-  static FfmpegVideoDecoder* Create(
+  static std::unique_ptr<FfmpegVideoDecoder> Create(
       SbMediaVideoCodec video_codec,
       SbPlayerOutputMode output_mode,
       SbDecodeTargetGraphicsContextProvider*
           decode_target_graphics_context_provider);
-
-  // Returns true if the video decoder is initialized successfully.
-  virtual bool is_valid() const = 0;
 };
 
 }  // namespace starboard

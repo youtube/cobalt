@@ -10,6 +10,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "api/array_view.h"
 #include "api/video/video_frame_type.h"
 #include "modules/rtp_rtcp/source/rtp_format.h"
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
@@ -19,7 +20,7 @@
 
 namespace webrtc {
 void FuzzOneInput(const uint8_t* data, size_t size) {
-  test::FuzzDataHelper fuzz_input(rtc::MakeArrayView(data, size));
+  test::FuzzDataHelper fuzz_input(webrtc::MakeArrayView(data, size));
 
   RtpPacketizer::PayloadSizeLimits limits;
   limits.max_payload_len = 1200;

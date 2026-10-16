@@ -8,15 +8,16 @@
 
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
-#include "media/capture/video/android/capture_jni_headers/VideoCaptureFactory_jni.h"
 #include "media/capture/video/android/video_capture_device_android.h"
 
-using base::android::AttachCurrentThread;
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "media/capture/video/android/capture_jni_headers/VideoCaptureFactory_jni.h"
+
 using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
+using jni_zero::AttachCurrentThread;
 
 namespace media {
 
@@ -30,6 +31,7 @@ VideoCaptureDeviceFactoryAndroid::createVideoCaptureAndroid(
 }
 
 VideoCaptureDeviceFactoryAndroid::VideoCaptureDeviceFactoryAndroid() = default;
+
 VideoCaptureDeviceFactoryAndroid::~VideoCaptureDeviceFactoryAndroid() = default;
 
 VideoCaptureErrorOrDevice VideoCaptureDeviceFactoryAndroid::CreateDevice(
@@ -135,7 +137,7 @@ void VideoCaptureDeviceFactoryAndroid::GetDevicesInfo(
   // Remove old entries from |supported_formats_cache_| if necessary.
   if (supported_formats_cache_.size() > devices_info.size()) {
     base::EraseIf(supported_formats_cache_, [&devices_info](const auto& entry) {
-      return base::ranges::none_of(
+      return std::ranges::none_of(
           devices_info, [&entry](const VideoCaptureDeviceInfo& info) {
             return entry.first == info.descriptor.device_id;
           });
@@ -145,7 +147,7 @@ void VideoCaptureDeviceFactoryAndroid::GetDevicesInfo(
   // Remove old entries from |zooms_cache_| if necessary.
   if (zooms_cache_.size() > devices_info.size()) {
     base::EraseIf(zooms_cache_, [&devices_info](const auto& entry) {
-      return base::ranges::none_of(
+      return std::ranges::none_of(
           devices_info, [&entry](const VideoCaptureDeviceInfo& info) {
             return entry.first == info.descriptor.device_id;
           });
@@ -180,7 +182,7 @@ VideoCaptureFormats VideoCaptureDeviceFactoryAndroid::GetSupportedFormats(
         pixel_format = PIXEL_FORMAT_I420;
         break;
       default:
-        // TODO(crbug.com/792260): break here and let the enumeration continue
+        // TODO(crbug.com/40553340): break here and let the enumeration continue
         // with UNKNOWN pixel format because the platform doesn't know until
         // capture, but some unrelated tests timeout https://crbug.com/644910.
         continue;

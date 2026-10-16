@@ -14,6 +14,7 @@
 #include "ash/public/cpp/notification_utils.h"
 #include "ash/public/cpp/vm_camera_mic_constants.h"
 #include "ash/system/privacy/privacy_indicators_controller.h"
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -26,11 +27,12 @@
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ash/borealis/borealis_util.h"
 #include "chrome/browser/ash/plugin_vm/plugin_vm_util.h"
+#include "chrome/browser/ash/video_conference/video_conference_ash_feature_client.h"
 #include "chrome/browser/notifications/notification_display_service.h"
+#include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
-#include "chrome/browser/ui/webui/settings/ash/app_management/app_management_uma.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
+#include "chrome/browser/ui/webui/ash/settings/app_management/app_management_uma.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -158,11 +160,37 @@ class VmCameraMicManager::VmInfo : public message_center::NotificationObserver {
   int name_id() const { return name_id_; }
   NotificationType notification_type() const { return notifications_.active; }
 
-  void SetMicActive(bool active) { OnDeviceUpdated(DeviceType::kMic, active); }
+  void SetMicActive(bool active) {
+    OnDeviceUpdated(DeviceType::kMic, active);
+
+    if (features::IsVideoConferenceEnabled()) {
+      VideoConferenceAshFeatureClient* vc_ash_feature_client =
+          VideoConferenceAshFeatureClient::Get();
+      // Only calls `OnVmDeviceUpdated()` if `VideoConferenceAshFeatureClient`
+      // has initialized, otherwise it will be handled at
+      // `VideoConferenceAshFeatureClient` initialization.
+      if (vc_ash_feature_client) {
+        vc_ash_feature_client->OnVmDeviceUpdated(vm_type_, DeviceType::kMic,
+                                                 active);
+      }
+    }
+  }
 
   void SetCameraAccessing(bool accessing) {
     camera_accessing_ = accessing;
     OnCameraUpdated();
+
+    if (features::IsVideoConferenceEnabled()) {
+      VideoConferenceAshFeatureClient* vc_ash_feature_client =
+          VideoConferenceAshFeatureClient::Get();
+      // Only calls `OnVmDeviceUpdated()` if `VideoConferenceAshFeatureClient`
+      // has initialized, otherwise it will be handled at
+      // `VideoConferenceAshFeatureClient` initialization.
+      if (vc_ash_feature_client) {
+        vc_ash_feature_client->OnVmDeviceUpdated(vm_type_, DeviceType::kCamera,
+                                                 accessing);
+      }
+    }
   }
   void SetCameraPrivacyIsOn(bool on) {
     camera_privacy_is_on_ = on;
@@ -210,13 +238,15 @@ class VmCameraMicManager::VmInfo : public message_center::NotificationObserver {
 
     auto app_name = l10n_util::GetStringUTF16(name_id_);
     auto delegate = base::MakeRefCounted<PrivacyIndicatorsNotificationDelegate>(
-        /*launch_app=*/absl::nullopt,
         /*launch_settings=*/base::BindRepeating(
             &VmCameraMicManager::VmInfo::OpenSettings,
             weak_ptr_factory_.GetWeakPtr()));
 
+    // Privacy indicators is only enabled when Video Conference is disabled.
+    bool privacy_indicators_enabled = !features::IsVideoConferenceEnabled();
+
     if (notifications_.active != kNoNotification) {
-      if (features::IsPrivacyIndicatorsEnabled()) {
+      if (privacy_indicators_enabled) {
         PrivacyIndicatorsController::Get()->UpdatePrivacyIndicators(
             /*app_id=*/GetNotificationId(vm_type_, notifications_.active),
             app_name, /*is_camera_used=*/false, /*is_microphone_used=*/false,
@@ -227,7 +257,8 @@ class VmCameraMicManager::VmInfo : public message_center::NotificationObserver {
     }
 
     if (new_notification != kNoNotification) {
-      if (features::IsPrivacyIndicatorsEnabled()) {
+      // Privacy indicator is only enabled when Video Conference is disabled.
+      if (privacy_indicators_enabled) {
         PrivacyIndicatorsController::Get()->UpdatePrivacyIndicators(
             /*app_id=*/GetNotificationId(vm_type_, new_notification), app_name,
             /*is_camera_used=*/
@@ -268,7 +299,7 @@ class VmCameraMicManager::VmInfo : public message_center::NotificationObserver {
   }
 
   void OpenNotification(NotificationType type) const {
-    CHECK(!features::IsPrivacyIndicatorsEnabled());
+    CHECK(features::IsVideoConferenceEnabled());
     CHECK_NE(type, kNoNotification);
 
     const gfx::VectorIcon* source_icon = nullptr;
@@ -312,16 +343,16 @@ class VmCameraMicManager::VmInfo : public message_center::NotificationObserver {
         base::MakeRefCounted<message_center::ThunkNotificationDelegate>(
             weak_ptr_factory_.GetMutableWeakPtr()));
 
-    NotificationDisplayService::GetForProfile(profile_)->Display(
+    NotificationDisplayServiceFactory::GetForProfile(profile_)->Display(
         NotificationHandler::Type::TRANSIENT, notification,
         /*metadata=*/nullptr);
   }
 
   void CloseNotification(NotificationType type) const {
-    CHECK(!features::IsPrivacyIndicatorsEnabled());
+    CHECK(features::IsVideoConferenceEnabled());
     CHECK_NE(type, kNoNotification);
 
-    NotificationDisplayService::GetForProfile(profile_)->Close(
+    NotificationDisplayServiceFactory::GetForProfile(profile_)->Close(
         NotificationHandler::Type::TRANSIENT,
         GetNotificationId(vm_type_, type));
   }
@@ -329,8 +360,8 @@ class VmCameraMicManager::VmInfo : public message_center::NotificationObserver {
   // message_center::NotificationObserver:
   //
   // This open the settings page if the button is clicked on the notification.
-  void Click(const absl::optional<int>& button_index,
-             const absl::optional<std::u16string>& reply) override {
+  void Click(const std::optional<int>& button_index,
+             const std::optional<std::u16string>& reply) override {
     OpenSettings();
   }
 
@@ -354,7 +385,7 @@ class VmCameraMicManager::VmInfo : public message_center::NotificationObserver {
     }
   }
 
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
+  const raw_ptr<Profile, LeakedDanglingUntriaged> profile_;
   const VmType vm_type_;
   const int name_id_;
   base::RepeatingClosure notification_changed_callback_;
@@ -419,8 +450,8 @@ void VmCameraMicManager::OnPrimaryUserSessionStarted(Profile* primary_profile) {
   }
 }
 
-// The class is supposed to be used as a singleton with `base::NoDestructor`, so
-// we do not do clean up (e.g. deregister as observers) here.
+// The class is supposed to be used as a singleton with `base::NoDestructor`,
+// so we do not do clean up (e.g. deregister as observers) here.
 VmCameraMicManager::~VmCameraMicManager() = default;
 
 void VmCameraMicManager::MaybeSubscribeToCameraService(
@@ -438,7 +469,8 @@ void VmCameraMicManager::MaybeSubscribeToCameraService(
   auto privacy_switch_state = cros::mojom::CameraPrivacySwitchState::UNKNOWN;
   auto device_id_to_privacy_switch_state =
       camera->AddCameraPrivacySwitchObserver(this);
-  // TODO(b/255249223): Handle multiple cameras with privacy controls properly.
+  // TODO(b/255249223): Handle multiple cameras with privacy controls
+  // properly.
   for (const auto& it : device_id_to_privacy_switch_state) {
     cros::mojom::CameraPrivacySwitchState state = it.second;
     if (state == cros::mojom::CameraPrivacySwitchState::ON) {
@@ -469,6 +501,18 @@ bool VmCameraMicManager::IsDeviceActive(DeviceType device) const {
     if (notification_type[static_cast<size_t>(device)]) {
       return true;
     }
+  }
+  return false;
+}
+
+bool VmCameraMicManager::IsDeviceActive(VmType vm, DeviceType device) const {
+  auto it = vm_info_map_.find(vm);
+  if (it == vm_info_map_.end()) {
+    return false;
+  }
+  const NotificationType& notification_type = it->second.notification_type();
+  if (notification_type[static_cast<size_t>(device)]) {
+    return true;
   }
   return false;
 }

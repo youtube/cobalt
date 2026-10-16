@@ -27,10 +27,11 @@
 #include "media/filters/source_buffer_parse_warnings.h"
 #include "media/filters/source_buffer_state.h"
 #include "media/filters/source_buffer_stream.h"
-
-class MEDIA_EXPORT SourceBufferStream;
+#include "media/filters/stream_parser_factory.h"
 
 namespace media {
+
+class SourceBufferStream;
 
 class AudioDecoderConfig;
 class VideoDecoderConfig;
@@ -39,11 +40,6 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
  public:
   using BufferQueue = base::circular_deque<scoped_refptr<StreamParserBuffer>>;
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  ChunkDemuxerStream(const std::string& mime_type,
-                     Type type,
-                     MediaTrack::Id media_track_id);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id);
   ChunkDemuxerStream() = delete;
 
@@ -134,15 +130,11 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   bool UpdateVideoConfig(const VideoDecoderConfig& config,
                          bool allow_codec_change,
                          MediaLog* media_log);
-  void UpdateTextConfig(const TextTrackConfig& config, MediaLog* media_log);
 
   void MarkEndOfStream();
   void UnmarkEndOfStream();
 
   // DemuxerStream methods.
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  std::string mime_type() const override;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   void Read(uint32_t count, ReadCB read_cb) override;
   Type type() const override;
   StreamLiveness liveness() const override;
@@ -152,10 +144,6 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 
   bool IsEnabled() const;
   void SetEnabled(bool enabled, base::TimeDelta timestamp);
-
-  // Returns the text track configuration.  It is an error to call this method
-  // if type() != TEXT.
-  TextTrackConfig text_track_config();
 
   // Sets the memory limit, in bytes, on the SourceBufferStream.
   void SetStreamMemoryLimit(size_t memory_limit);
@@ -195,7 +183,6 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   GetPendingBuffers_Locked() EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  const std::string mime_type_;
   base::TimeDelta write_head_ GUARDED_BY(lock_);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -261,7 +248,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   std::vector<DemuxerStream*> GetAllStreams() override;
   base::TimeDelta GetStartTime() const override;
   int64_t GetMemoryUsage() const override;
-  absl::optional<container_names::MediaContainerName> GetContainerForMetrics()
+  std::optional<container_names::MediaContainerName> GetContainerForMetrics()
       const override;
   void AbortPendingReads() override;
 
@@ -285,13 +272,32 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // the caller must provide valid, supported decoder configs; those overloads'
   // usage indicates that we intend to append WebCodecs encoded audio or video
   // chunks for this ID.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // We pass a default parameter |mime_type| to the standard AddId() call,
+  // as this allows us to easily pass on the value instead of duplicating
+  // existing code.
+  [[nodiscard]] Status AddId(const std::string& id,
+                             const std::string& content_type,
+                             const std::string& codecs,
+                             std::string_view mime_type = "");
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] Status AddId(const std::string& id,
                              const std::string& content_type,
                              const std::string& codecs);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] Status AddId(const std::string& id,
                              std::unique_ptr<AudioDecoderConfig> audio_config);
   [[nodiscard]] Status AddId(const std::string& id,
                              std::unique_ptr<VideoDecoderConfig> video_config);
+
+  // `AddAutoDetectedCodecsId` operates similarly to the `AddId` methods, except
+  // that it creates parsers which are capable of auto-detecting the codecs
+  // present. It is used internally by the HLS demuxer.
+#if BUILDFLAG(ENABLE_HLS_DEMUXER)
+  [[nodiscard]] Status AddAutoDetectedCodecsId(
+      const std::string& id,
+      RelaxedParserSupportedType mime_type);
+#endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Special version of AddId() that retains the |mime_type| from the web app.
@@ -325,15 +331,14 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // buffered, returns base::TimeDelta().
   base::TimeDelta GetHighestPresentationTimestamp(const std::string& id) const;
 
-  void OnEnabledAudioTracksChanged(const std::vector<MediaTrack::Id>& track_ids,
-                                   base::TimeDelta curr_time,
-                                   TrackChangeCB change_completed_cb) override;
-
-  void OnSelectedVideoTrackChanged(const std::vector<MediaTrack::Id>& track_ids,
-                                   base::TimeDelta curr_time,
-                                   TrackChangeCB change_completed_cb) override;
+  void OnTracksChanged(DemuxerStream::Type track_type,
+                       const std::vector<MediaTrack::Id>& track_ids,
+                       base::TimeDelta curr_time,
+                       TrackChangeCB change_completed_cb) override;
 
   void SetPlaybackRate(double rate) override {}
+
+  void DisableCanChangeType() override;
 
   // Appends media data to the source buffer's stream parser associated with
   // `id`. No parsing is done, just buffering the media data for future parsing
@@ -345,9 +350,18 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // per the MSE specification. App could use a back-off and retry strategy or
   // otherwise alter their behavior to attempt to buffer media for further
   // playback.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // `data` is borrowed by the stream parser and must remain valid until
+  // `release_runner` is destroyed. A null `release_runner` means `data` is not
+  // retained for the parser, which must therefore copy it.
+  [[nodiscard]] bool AppendToParseBuffer(
+      const std::string& id,
+      base::span<const uint8_t> data,
+      base::ScopedClosureRunner release_runner = base::ScopedClosureRunner());
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] bool AppendToParseBuffer(const std::string& id,
-                                         const uint8_t* data,
-                                         size_t length);
+                                         base::span<const uint8_t> data);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Tells the stream parser for the source buffer associated with `id` to parse
   // more of the data previously sent to it from this object's
@@ -414,6 +428,14 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   void ChangeType(const std::string& id,
                   const std::string& content_type,
                   const std::string& codecs);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Starboard-specific implementations of CanChangeType() and ChangeType()
+  // that accept in the full mime_type string from the web app.
+  bool CanChangeType(const std::string& id, 
+                     const std::string& target_mime_type);
+  void ChangeType(const std::string& id, const std::string& target_mime_type);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // If the buffer is full, attempts to try to free up space, as specified in
   // the "Coded Frame Eviction Algorithm" in the Media Source Extensions Spec.
@@ -497,16 +519,20 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // Helper for AddId's creation of FrameProcessor, and
   // SourceBufferState creation, initialization and tracking in
   // source_state_map_.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // The Starboard implementation of AddIdInternal() also accepts |mime_type|
+  // to pass to the SourceBufferState.
   ChunkDemuxer::Status AddIdInternal(
       const std::string& id,
       std::unique_ptr<media::StreamParser> stream_parser,
-      std::string expected_codecs);
-
-  // Helper for vide and audio track changing.
-  void FindAndEnableProperTracks(const std::vector<MediaTrack::Id>& track_ids,
-                                 base::TimeDelta curr_time,
-                                 DemuxerStream::Type track_type,
-                                 TrackChangeCB change_completed_cb);
+      std::optional<std::string_view> expected_codecs,
+      std::string_view mime_type = "");
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+  ChunkDemuxer::Status AddIdInternal(
+      const std::string& id,
+      std::unique_ptr<media::StreamParser> stream_parser,
+      std::optional<std::string_view> expected_codecs);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void ChangeState_Locked(State new_state);
 
@@ -531,9 +557,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // ChunkDemuxer.
   ChunkDemuxerStream* CreateDemuxerStream(const std::string& source_id,
                                           DemuxerStream::Type type);
-
-  void OnNewTextTrack(ChunkDemuxerStream* text_stream,
-                      const TextTrackConfig& config);
 
   // Returns true if |source_id| is valid, false otherwise.
   bool IsValidId_Locked(const std::string& source_id) const;
@@ -580,7 +603,10 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   State state_ = WAITING_FOR_INIT;
   bool cancel_next_seek_ = false;
 
-  raw_ptr<DemuxerHost> host_ = nullptr;
+  // Found dangling on `linux-rel` in
+  // `benchmarks.system_health_smoke_test.SystemHealthBenchmarkSmokeTest.
+  // system_health.memory_desktop/browse:media:youtubetv:2019`.
+  raw_ptr<DemuxerHost, DanglingUntriaged> host_ = nullptr;
   base::OnceClosure open_cb_;
   const base::RepeatingClosure progress_cb_;
   EncryptedMediaInitDataCB encrypted_media_init_data_cb_;
@@ -599,7 +625,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
       std::vector<std::unique_ptr<ChunkDemuxerStream>>;
   OwnedChunkDemuxerStreamVector audio_streams_;
   OwnedChunkDemuxerStreamVector video_streams_;
-  OwnedChunkDemuxerStreamVector text_streams_;
 
   // Keep track of which ids still remain uninitialized so that we transition
   // into the INITIALIZED only after all ids/SourceBuffers got init segment.
@@ -626,11 +651,10 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // in a shut down state, so reading from them will return EOS.
   std::vector<std::unique_ptr<ChunkDemuxerStream>> removed_streams_;
 
-  std::map<MediaTrack::Id, ChunkDemuxerStream*> track_id_to_demux_stream_map_;
+  std::map<MediaTrack::Id, raw_ptr<ChunkDemuxerStream, CtnExperimental>>
+      track_id_to_demux_stream_map_;
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  std::map<std::string, std::string> id_to_mime_map_;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+  bool supports_change_type_ = true;
 };
 
 }  // namespace media

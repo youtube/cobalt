@@ -8,13 +8,28 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <complex>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "api/audio_codecs/audio_decoder.h"
+#include "api/audio_codecs/audio_encoder.h"
 #include "api/audio_codecs/opus/audio_decoder_opus.h"
 #include "api/audio_codecs/opus/audio_encoder_opus.h"
+#include "api/audio_codecs/opus/audio_encoder_opus_config.h"
+#include "api/environment/environment.h"
+#include "api/environment/environment_factory.h"
 #include "common_audio/include/audio_util.h"
 #include "common_audio/window_generator.h"
 #include "modules/audio_coding/codecs/opus/test/lapped_transform.h"
 #include "modules/audio_coding/neteq/tools/audio_loop.h"
-#include "test/field_trial.h"
+#include "rtc_base/buffer.h"
+#include "test/explicit_key_value_config.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 
@@ -46,9 +61,9 @@ class PowerRatioEstimator : public LappedTransform::Callback {
  protected:
   void ProcessAudioBlock(const std::complex<float>* const* input,
                          size_t num_input_channels,
-                         size_t num_freq_bins,
-                         size_t num_output_channels,
-                         std::complex<float>* const* output) override {
+                         size_t /* num_freq_bins */,
+                         size_t /* num_output_channels */,
+                         std::complex<float>* const* /* output */) override {
     float low_pow = 0.f;
     float high_pow = 0.f;
     for (size_t i = 0u; i < num_input_channels; ++i) {
@@ -76,7 +91,7 @@ float EncodedPowerRatio(AudioEncoder* encoder,
   // Encode and decode.
   uint32_t rtp_timestamp = 0u;
   constexpr size_t kBufferSize = 500;
-  rtc::Buffer encoded(kBufferSize);
+  Buffer encoded(kBufferSize);
   std::vector<int16_t> decoded(kOutputBlockSizeSamples);
   std::vector<float> decoded_float(kOutputBlockSizeSamples);
   AudioDecoder::SpeechType speech_type = AudioDecoder::kSpeech;
@@ -103,27 +118,28 @@ float EncodedPowerRatio(AudioEncoder* encoder,
 
 // TODO(ivoc): Remove this test, WebRTC-AdjustOpusBandwidth is obsolete.
 TEST(BandwidthAdaptationTest, BandwidthAdaptationTest) {
-  test::ScopedFieldTrials override_field_trials(
-      "WebRTC-AdjustOpusBandwidth/Enabled/");
+  const Environment env =
+      CreateEnvironment(std::make_unique<test::ExplicitKeyValueConfig>(
+          "WebRTC-AdjustOpusBandwidth/Enabled/"));
 
   constexpr float kMaxNarrowbandRatio = 0.0035f;
   constexpr float kMinWidebandRatio = 0.01f;
 
   // Create encoder.
   AudioEncoderOpusConfig enc_config;
-  enc_config.bitrate_bps = absl::optional<int>(7999);
+  enc_config.bitrate_bps = std::optional<int>(7999);
   enc_config.num_channels = kNumChannels;
-  constexpr int payload_type = 17;
-  auto encoder = AudioEncoderOpus::MakeAudioEncoder(enc_config, payload_type);
+  auto encoder =
+      AudioEncoderOpus::MakeAudioEncoder(env, enc_config, {.payload_type = 17});
 
   // Create decoder.
   AudioDecoderOpus::Config dec_config;
   dec_config.num_channels = kNumChannels;
-  auto decoder = AudioDecoderOpus::MakeAudioDecoder(dec_config);
+  auto decoder = AudioDecoderOpus::MakeAudioDecoder(env, dec_config);
 
   // Open speech file.
   const std::string kInputFileName =
-      webrtc::test::ResourcePath("audio_coding/speech_mono_32_48kHz", "pcm");
+      test::ResourcePath("audio_coding/speech_mono_32_48kHz", "pcm");
   test::AudioLoop audio_loop;
   EXPECT_EQ(kSampleRateHz, encoder->SampleRateHz());
   ASSERT_TRUE(audio_loop.Init(kInputFileName, kMaxLoopLengthSamples,

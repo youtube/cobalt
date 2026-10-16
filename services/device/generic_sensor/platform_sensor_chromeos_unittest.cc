@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "services/device/generic_sensor/platform_sensor_chromeos.h"
 
 #include <memory>
@@ -30,6 +35,8 @@ constexpr char kGyroscopeChannels[][10] = {"anglvel_x", "anglvel_y",
                                            "anglvel_z"};
 constexpr char kMagnetometerChannels[][10] = {"magn_x", "magn_y", "magn_z"};
 constexpr char kGravityChannels[][10] = {"gravity_x", "gravity_y", "gravity_z"};
+
+constexpr double kScaleValueLightSensor = device::kAlsRoundingMultiple;
 
 constexpr double kScaleValue = 10.0;
 
@@ -78,7 +85,7 @@ class PlatformSensorChromeOSTestBase {
   mojo::PendingReceiver<chromeos::sensors::mojom::SensorDevice>
       pending_receiver_;
 
-  absl::optional<uint32_t> custom_reason_code_;
+  std::optional<uint32_t> custom_reason_code_;
 
   base::test::SingleThreadTaskEnvironment task_environment;
 };
@@ -95,11 +102,11 @@ class PlatformSensorChromeOSOneChannelTest
 
     sensor_ = base::MakeRefCounted<PlatformSensorChromeOS>(
         kFakeDeviceId, type, provider_->GetSensorReadingBuffer(type),
-        provider_.get(),
+        provider_->AsWeakPtr(),
         base::BindOnce(
             &PlatformSensorChromeOSOneChannelTest::OnSensorDeviceDisconnect,
             base::Unretained(this)),
-        kScaleValue, std::move(sensor_device_remote_));
+        kScaleValueLightSensor, std::move(sensor_device_remote_));
 
     EXPECT_EQ(sensor_->GetReportingMode(),
               type == mojom::SensorType::AMBIENT_LIGHT
@@ -129,16 +136,15 @@ class PlatformSensorChromeOSOneChannelTest
         return reading.als;
       default:
         LOG(FATAL) << "Invalid type: " << GetParam().first;
-        return reading.als;
     }
   }
 
   void GetRoundedSensorReadingSingle(SensorReadingSingle* reading_single) {
-    reading_single->value = kFakeSampleData * kScaleValue;
+    reading_single->value = kFakeSampleData * kScaleValueLightSensor;
     reading_single->timestamp =
         base::Nanoseconds(kFakeTimestampData).InSecondsF();
 
-    // No need to do rounding for these types of sensors.
+    RoundIlluminanceReading(reading_single);
   }
 
   void WaitForAndCheckReading(
@@ -309,7 +315,6 @@ class PlatformSensorChromeOSAxesTest
         return reading.magn;
       default:
         LOG(FATAL) << "Invalid type: " << GetParam().first;
-        return reading.accel;
     }
   }
 
@@ -328,10 +333,10 @@ class PlatformSensorChromeOSAxesTest
         RoundGyroscopeReading(reading_xyz);
         break;
       case mojom::SensorType::MAGNETOMETER:
+        RoundMagnetometerReading(reading_xyz);
         break;
       default:
         LOG(FATAL) << "Invalid type: " << GetParam().first;
-        break;
     }
   }
 

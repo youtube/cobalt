@@ -15,15 +15,19 @@ found in the LICENSE file.
         <attr name="emptyErrorMessage" format="string" />
     </declare-styleable>
 
-    <declare-styleable name="MostVisitedTilesGridLayout">
-        <attr name="minHorizontalSpacing" format="dimension"/>
-    </declare-styleable>
-
     <declare-styleable name="ExploreSitesTileView">
         <attr name="iconCornerRadius" format="dimension"/>
     </declare-styleable>
 
     <declare-styleable name="ManageAccountDevicesLinkView">
         <attr name="showLink" format="boolean" />
+    </declare-styleable>
+
+    <declare-styleable name="HubToolbarView">
+        <attr name="newTabButtonStyle" format="reference" />
+    </declare-styleable>
+
+     <declare-styleable name="TabGroupColorPickerContainer">
+        <attr name="colorPickerButtonStyle" format="reference" />
     </declare-styleable>
 </resources>

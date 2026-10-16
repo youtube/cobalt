@@ -2,23 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
+import 'chrome://resources/cr_elements/cr_collapse/cr_collapse.js';
 import 'chrome://resources/cr_elements/cr_expand_button/cr_expand_button.js';
+import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import 'chrome://resources/polymer/v3_0/iron-collapse/iron-collapse.js';
+import 'chrome://resources/cr_elements/icons.html.js';
 import './shared_style.css.js';
 import './checkup_list_item.js';
 
-import {PrefsMixin} from 'chrome://resources/cr_components/settings_prefs/prefs_mixin.js';
-import {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
+import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
+import type {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './checkup_details_section.html.js';
-import {CheckupListItemElement} from './checkup_list_item.js';
-import {CredentialsChangedListener, PasswordCheckInteraction, PasswordManagerImpl} from './password_manager_proxy.js';
-import {CheckupSubpage, Page, Route, RouteObserverMixin, Router} from './router.js';
+import type {CheckupListItemElement} from './checkup_list_item.js';
+import type {CredentialsChangedListener} from './password_manager_proxy.js';
+import {PasswordCheckInteraction, PasswordManagerImpl} from './password_manager_proxy.js';
+import type {Route} from './router.js';
+import {CheckupSubpage, Page, RouteObserverMixin, Router} from './router.js';
 
 export class ReusedPasswordInfo {
   constructor(credentials: chrome.passwordsPrivate.PasswordUiEntry[]) {
@@ -63,9 +67,15 @@ export class CheckupDetailsSectionElement extends
     return {
       pageTitle_: String,
 
+      pageSubtitle_: String,
+
       insecurityType_: {
         type: String,
         observer: 'updateShownCredentials_',
+      },
+
+      groups_: {
+        type: Array,
       },
 
       allInsecureCredentials_: {
@@ -82,13 +92,22 @@ export class CheckupDetailsSectionElement extends
         type: Array,
       },
 
+      mutedCompromisedCredentials_: {
+        type: Array,
+      },
+
+      activeListItem_: {
+        type: Object,
+        value: null,
+      },
+
       /**
        * The ids of insecure credentials for which user clicked "Change
        * Password" button
        */
       clickedChangePasswordIds_: {
         type: Object,
-        value: new Set(),
+        value: () => new Set(),
       },
 
       isMutingDisabled_: {
@@ -99,18 +118,20 @@ export class CheckupDetailsSectionElement extends
     };
   }
 
-  private pageTitle_: string;
-  private insecurityType_: CheckupSubpage|undefined;
-  private groups_: chrome.passwordsPrivate.CredentialGroup[] = [];
-  private allInsecureCredentials_: chrome.passwordsPrivate.PasswordUiEntry[];
-  private shownInsecureCredentials_: chrome.passwordsPrivate.PasswordUiEntry[];
-  private credentialsWithReusedPassword_: ReusedPasswordInfo[];
-  private mutedCompromisedCredentials_:
+  declare private pageTitle_: string;
+  declare private pageSubtitle_: string;
+  declare private insecurityType_: CheckupSubpage|undefined;
+  declare private groups_: chrome.passwordsPrivate.CredentialGroup[];
+  declare private allInsecureCredentials_:
       chrome.passwordsPrivate.PasswordUiEntry[];
-  private activeListItem_: CheckupListItemElement|null;
-  private clickedChangePasswordIds_: Set<number>;
-  private isMutingDisabled_: boolean;
-  private activeCredential_: chrome.passwordsPrivate.PasswordUiEntry|undefined;
+  declare private shownInsecureCredentials_:
+      chrome.passwordsPrivate.PasswordUiEntry[];
+  declare private credentialsWithReusedPassword_: ReusedPasswordInfo[];
+  declare private mutedCompromisedCredentials_:
+      chrome.passwordsPrivate.PasswordUiEntry[];
+  declare private activeListItem_: CheckupListItemElement|null;
+  declare private clickedChangePasswordIds_: Set<number>;
+  declare private isMutingDisabled_: boolean;
   private insecureCredentialsChangedListener_: CredentialsChangedListener|null =
       null;
 
@@ -141,7 +162,9 @@ export class CheckupDetailsSectionElement extends
     this.insecurityType_ = route.details as unknown as CheckupSubpage;
     // Focus back button when it's not direct navigation.
     if (oldRoute !== undefined) {
-      this.$.backButton.focus();
+      setTimeout(() => {  // Async to allow page to load.
+        this.$.backButton.focus();
+      });
     }
   }
 
@@ -157,6 +180,16 @@ export class CheckupDetailsSectionElement extends
         cred => cred.compromisedInfo!.compromiseTypes.some(type => {
           return this.getInsecurityType_().includes(type);
         }));
+    const insuecureCredentialsSorter =
+        (lhs: chrome.passwordsPrivate.PasswordUiEntry,
+         rhs: chrome.passwordsPrivate.PasswordUiEntry) => {
+          if ((this.getCurrentGroup_(lhs.id)?.name || '') >
+              (this.getCurrentGroup_(rhs.id)?.name || '')) {
+            return 1;
+          }
+          return -1;
+        };
+
     if (this.isCompromisedType()) {
       // Compromised credentials can be muted. Show muted credentials
       // separately.
@@ -165,6 +198,7 @@ export class CheckupDetailsSectionElement extends
       this.shownInsecureCredentials_ = insecureCredentialsForThisType.filter(
           cred => !cred.compromisedInfo!.isMuted);
     } else {
+      insecureCredentialsForThisType.sort(insuecureCredentialsSorter);
       this.shownInsecureCredentials_ = insecureCredentialsForThisType;
     }
 
@@ -174,7 +208,8 @@ export class CheckupDetailsSectionElement extends
       this.credentialsWithReusedPassword_ =
           await Promise.all(allReusedCredentials.map(
               async(credentials): Promise<ReusedPasswordInfo> => {
-                const reuseInfo = new ReusedPasswordInfo(credentials.entries);
+                const reuseInfo = new ReusedPasswordInfo(
+                    credentials.entries.sort(insuecureCredentialsSorter));
                 await reuseInfo.init();
                 return reuseInfo;
               }));
@@ -189,6 +224,14 @@ export class CheckupDetailsSectionElement extends
     this.pageTitle_ = await PluralStringProxyImpl.getInstance().getPluralString(
         this.insecurityType_.concat('Passwords'),
         this.shownInsecureCredentials_.length);
+    if (this.insecurityType_ === CheckupSubpage.COMPROMISED) {
+      this.pageSubtitle_ =
+          await PluralStringProxyImpl.getInstance().getPluralString(
+              `${this.insecurityType_}PasswordsTitle`,
+              this.shownInsecureCredentials_.length);
+    } else {
+      this.pageSubtitle_ = this.i18n(`${this.insecurityType_}PasswordsTitle`);
+    }
   }
 
   private getInsecurityType_(): chrome.passwordsPrivate.CompromiseType[] {
@@ -204,11 +247,6 @@ export class CheckupDetailsSectionElement extends
       case CheckupSubpage.WEAK:
         return [chrome.passwordsPrivate.CompromiseType.WEAK];
     }
-  }
-
-  private getSubTitle_() {
-    assert(this.insecurityType_);
-    return this.i18n(`${this.insecurityType_}PasswordsTitle`);
   }
 
   private getDescription_() {
@@ -239,7 +277,7 @@ export class CheckupDetailsSectionElement extends
         PasswordCheckInteraction.SHOW_PASSWORD);
   }
 
-  private async onMenuEditPasswordClick_() {
+  private onMenuEditPasswordClick_() {
     this.activeListItem_?.showEditDialog();
     this.$.moreActionsMenu.close();
     this.activeListItem_ = null;
@@ -247,7 +285,7 @@ export class CheckupDetailsSectionElement extends
         PasswordCheckInteraction.EDIT_PASSWORD);
   }
 
-  private async onMenuDeletePasswordClick_() {
+  private onMenuDeletePasswordClick_() {
     this.activeListItem_?.showDeleteDialog();
     this.$.moreActionsMenu.close();
     this.activeListItem_ = null;

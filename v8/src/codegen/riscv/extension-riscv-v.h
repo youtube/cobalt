@@ -68,7 +68,6 @@ class AssemblerRISCVV : public AssemblerRiscvBase {
 #undef SegInstr
 
       // RVV Vector Arithmetic Instruction
-
       void vmv_vv(VRegister vd, VRegister vs1);
   void vmv_vx(VRegister vd, Register rs1);
   void vmv_vi(VRegister vd, uint8_t simm5);
@@ -282,8 +281,8 @@ class AssemblerRISCVV : public AssemblerRiscvBase {
   DEFINE_OPFWF(vfwsub, VFWSUB_W_FUNCT6)
 
   // Vector Widening Floating-Point Reduction Instructions
-  DEFINE_OPFVV(vfwredusum, VFWREDUSUM_FUNCT6)
-  DEFINE_OPFVV(vfwredosum, VFWREDOSUM_FUNCT6)
+  DEFINE_OPFRED(vfwredusum, VFWREDUSUM_FUNCT6)
+  DEFINE_OPFRED(vfwredosum, VFWREDOSUM_FUNCT6)
 
   // Vector Widening Floating-Point Multiply
   DEFINE_OPFVV(vfwmul, VFWMUL_FUNCT6)
@@ -404,6 +403,18 @@ class AssemblerRISCVV : public AssemblerRiscvBase {
   void vfirst_m(Register rd, VRegister vs2, MaskType mask = NoMask);
 
   void vcpop_m(Register rd, VRegister vs2, MaskType mask = NoMask);
+
+  void vmslt_vi(VRegister vd, VRegister vs1, int8_t imm5,
+                MaskType mask = NoMask) {
+    DCHECK(imm5 >= -15 && imm5 <= 16);
+    vmsle_vi(vd, vs1, imm5 - 1, mask);
+  }
+
+  void vmsltu_vi(VRegister vd, VRegister vs1, int8_t imm5,
+                 MaskType mask = NoMask) {
+    DCHECK(imm5 >= 1 && imm5 <= 16);
+    vmsleu_vi(vd, vs1, imm5 - 1, mask);
+  }
 
  protected:
   void vsetvli(Register rd, Register rs1, VSew vsew, Vlmul vlmul,

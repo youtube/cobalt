@@ -28,6 +28,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "third_party/blink/renderer/platform/audio/up_sampler.h"
 
 #include <memory>
@@ -140,8 +145,12 @@ void UpSampler::Process(const float* source_p,
 }
 
 void UpSampler::Reset() {
-  direct_convolver_.reset();
-  simple_fft_convolver_.reset();
+  if (direct_convolver_) {
+    direct_convolver_->Reset();
+  }
+  if (simple_fft_convolver_) {
+    simple_fft_convolver_->Reset();
+  }
   input_buffer_.Zero();
 }
 

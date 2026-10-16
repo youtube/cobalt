@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "dbus/property.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -156,11 +162,11 @@ class PropertyTest : public testing::Test {
   }
 
   base::test::SingleThreadTaskEnvironment task_environment_;
-  absl::optional<base::ScopedDisallowBlocking> disallow_blocking_;
+  std::optional<base::ScopedDisallowBlocking> disallow_blocking_;
   std::unique_ptr<base::RunLoop> run_loop_;
   std::unique_ptr<base::Thread> dbus_thread_;
   scoped_refptr<Bus> bus_;
-  raw_ptr<ObjectProxy> object_proxy_;
+  raw_ptr<ObjectProxy, AcrossTasksDanglingUntriaged> object_proxy_;
   std::unique_ptr<Properties> properties_;
   std::unique_ptr<TestService> test_service_;
   // Properties updated.
@@ -328,7 +334,7 @@ TEST(PropertyTestStatic, ReadWriteStringMap) {
 
   writer.OpenVariant("a{ss}", &variant_writer);
   variant_writer.OpenArray("{ss}", &variant_array_writer);
-  const char* items[] = {"One", "Two", "Three", "Four"};
+  auto items = std::to_array<const char*>({"One", "Two", "Three", "Four"});
   for (unsigned i = 0; i < std::size(items); ++i) {
     variant_array_writer.OpenDictEntry(&struct_entry_writer);
     struct_entry_writer.AppendString(items[i]);
@@ -379,7 +385,7 @@ TEST(PropertyTestStatic, ReadWriteNetAddressArray) {
   for (uint16_t i = 0; i < 5; ++i) {
     variant_array_writer.OpenStruct(&struct_entry_writer);
     ip_bytes[4] = 0x30 + i;
-    struct_entry_writer.AppendArrayOfBytes(ip_bytes, std::size(ip_bytes));
+    struct_entry_writer.AppendArrayOfBytes(ip_bytes);
     struct_entry_writer.AppendUint16(i);
     variant_array_writer.CloseContainer(&struct_entry_writer);
   }
@@ -404,10 +410,12 @@ TEST(PropertyTestStatic, ReadWriteNetAddressArray) {
 TEST(PropertyTestStatic, SerializeNetAddressArray) {
   std::vector<std::pair<std::vector<uint8_t>, uint16_t>> test_list;
 
-  uint8_t ip_bytes[] = {0x54, 0x65, 0x73, 0x74, 0x30};
+  auto ip_bytes = std::to_array<uint8_t>({0x54, 0x65, 0x73, 0x74, 0x30});
   for (uint16_t i = 0; i < 5; ++i) {
     ip_bytes[4] = 0x30 + i;
-    std::vector<uint8_t> bytes(ip_bytes, ip_bytes + std::size(ip_bytes));
+    std::vector<uint8_t> bytes(
+        ip_bytes.data(),
+        base::span<uint8_t>(ip_bytes).subspan(std::size(ip_bytes)).data());
     test_list.push_back(make_pair(bytes, 16));
   }
 
@@ -432,8 +440,9 @@ TEST(PropertyTestStatic, ReadWriteStringToByteVectorMapVariantWrapped) {
   writer.OpenVariant("a{sv}", &variant_writer);
   variant_writer.OpenArray("{sv}", &dict_writer);
 
-  const char* keys[] = {"One", "Two", "Three", "Four"};
-  const std::vector<uint8_t> values[] = {{1}, {1, 2}, {1, 2, 3}, {1, 2, 3, 4}};
+  auto keys = std::to_array<const char*>({"One", "Two", "Three", "Four"});
+  const auto values = std::to_array<std::vector<uint8_t>>(
+      {{1}, {1, 2}, {1, 2, 3}, {1, 2, 3, 4}});
   for (unsigned i = 0; i < std::size(keys); ++i) {
     MessageWriter entry_writer(nullptr);
     dict_writer.OpenDictEntry(&entry_writer);
@@ -442,7 +451,7 @@ TEST(PropertyTestStatic, ReadWriteStringToByteVectorMapVariantWrapped) {
 
     MessageWriter value_varient_writer(nullptr);
     entry_writer.OpenVariant("ay", &value_varient_writer);
-    value_varient_writer.AppendArrayOfBytes(values[i].data(), values[i].size());
+    value_varient_writer.AppendArrayOfBytes(values[i]);
     entry_writer.CloseContainer(&value_varient_writer);
 
     dict_writer.CloseContainer(&entry_writer);
@@ -469,14 +478,15 @@ TEST(PropertyTestStatic, ReadWriteStringToByteVectorMap) {
   writer.OpenVariant("a{say}", &variant_writer);
   variant_writer.OpenArray("{say}", &dict_writer);
 
-  const char* keys[] = {"One", "Two", "Three", "Four"};
-  const std::vector<uint8_t> values[] = {{1}, {1, 2}, {1, 2, 3}, {1, 2, 3, 4}};
+  auto keys = std::to_array<const char*>({"One", "Two", "Three", "Four"});
+  const auto values = std::to_array<std::vector<uint8_t>>(
+      {{1}, {1, 2}, {1, 2, 3}, {1, 2, 3, 4}});
   for (unsigned i = 0; i < std::size(keys); ++i) {
     MessageWriter entry_writer(nullptr);
     dict_writer.OpenDictEntry(&entry_writer);
 
     entry_writer.AppendString(keys[i]);
-    entry_writer.AppendArrayOfBytes(values[i].data(), values[i].size());
+    entry_writer.AppendArrayOfBytes(values[i]);
 
     dict_writer.CloseContainer(&entry_writer);
   }
@@ -520,8 +530,9 @@ TEST(PropertyTestStatic, ReadWriteUInt16ToByteVectorMapVariantWrapped) {
   writer.OpenVariant("a{qv}", &variant_writer);
   variant_writer.OpenArray("{qv}", &dict_writer);
 
-  const uint16_t keys[] = {11, 12, 13, 14};
-  const std::vector<uint8_t> values[] = {{1}, {1, 2}, {1, 2, 3}, {1, 2, 3, 4}};
+  const auto keys = std::to_array<uint16_t>({11, 12, 13, 14});
+  const auto values = std::to_array<std::vector<uint8_t>>(
+      {{1}, {1, 2}, {1, 2, 3}, {1, 2, 3, 4}});
   for (unsigned i = 0; i < std::size(keys); ++i) {
     MessageWriter entry_writer(nullptr);
     dict_writer.OpenDictEntry(&entry_writer);
@@ -530,7 +541,7 @@ TEST(PropertyTestStatic, ReadWriteUInt16ToByteVectorMapVariantWrapped) {
 
     MessageWriter value_varient_writer(nullptr);
     entry_writer.OpenVariant("ay", &value_varient_writer);
-    value_varient_writer.AppendArrayOfBytes(values[i].data(), values[i].size());
+    value_varient_writer.AppendArrayOfBytes(values[i]);
     entry_writer.CloseContainer(&value_varient_writer);
 
     dict_writer.CloseContainer(&entry_writer);
@@ -557,14 +568,15 @@ TEST(PropertyTestStatic, ReadWriteUInt16ToByteVectorMap) {
   writer.OpenVariant("a{qay}", &variant_writer);
   variant_writer.OpenArray("{qay}", &dict_writer);
 
-  const uint16_t keys[] = {11, 12, 13, 14};
-  const std::vector<uint8_t> values[] = {{1}, {1, 2}, {1, 2, 3}, {1, 2, 3, 4}};
+  const auto keys = std::to_array<uint16_t>({11, 12, 13, 14});
+  const auto values = std::to_array<std::vector<uint8_t>>(
+      {{1}, {1, 2}, {1, 2, 3}, {1, 2, 3, 4}});
   for (unsigned i = 0; i < std::size(keys); ++i) {
     MessageWriter entry_writer(nullptr);
     dict_writer.OpenDictEntry(&entry_writer);
 
     entry_writer.AppendUint16(keys[i]);
-    entry_writer.AppendArrayOfBytes(values[i].data(), values[i].size());
+    entry_writer.AppendArrayOfBytes(values[i]);
 
     dict_writer.CloseContainer(&entry_writer);
   }

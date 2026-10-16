@@ -19,34 +19,32 @@ class CachingWordShaperTest : public FontTestBase {
  protected:
   void SetUp() override {
     font_description.SetComputedSize(12.0);
-    font_description.SetLocale(LayoutLocale::Get("en"));
+    font_description.SetLocale(LayoutLocale::Get(AtomicString("en")));
     ASSERT_EQ(USCRIPT_LATIN, font_description.GetScript());
     font_description.SetGenericFamily(FontDescription::kStandardFamily);
 
-    font = Font(font_description);
-    ASSERT_TRUE(font.CanShapeWordByWord());
-    cache = std::make_unique<ShapeCache>();
+    cache = MakeGarbageCollected<ShapeCache>();
   }
 
   FontCachePurgePreventer font_cache_purge_preventer;
   FontDescription font_description;
-  Font font;
-  std::unique_ptr<ShapeCache> cache;
+  Persistent<ShapeCache> cache;
   unsigned start_index = 0;
   unsigned num_glyphs = 0;
   hb_script_t script = HB_SCRIPT_INVALID;
 };
 
-static inline const ShapeResultTestInfo* TestInfo(
-    scoped_refptr<const ShapeResult>& result) {
-  return static_cast<const ShapeResultTestInfo*>(result.get());
+static inline const ShapeResultTestInfo* TestInfo(const ShapeResult* result) {
+  return static_cast<const ShapeResultTestInfo*>(result);
 }
 
 TEST_F(CachingWordShaperTest, LatinLeftToRightByWord) {
-  TextRun text_run(reinterpret_cast<const LChar*>("ABC DEF."), 8);
+  Font* font = MakeGarbageCollected<Font>(font_description);
 
-  scoped_refptr<const ShapeResult> result;
-  CachingWordShapeIterator iterator(cache.get(), text_run, &font);
+  TextRun text_run(base::byte_span_from_cstring("ABC DEF."));
+
+  const ShapeResult* result = nullptr;
+  CachingWordShapeIterator iterator(cache.Get(), text_run, font);
   ASSERT_TRUE(iterator.Next(&result));
   ASSERT_TRUE(
       TestInfo(result)->RunInfoForTesting(0, start_index, num_glyphs, script));
@@ -72,12 +70,14 @@ TEST_F(CachingWordShaperTest, LatinLeftToRightByWord) {
 }
 
 TEST_F(CachingWordShaperTest, CommonAccentLeftToRightByWord) {
-  const UChar kStr[] = {0x2F, 0x301, 0x2E, 0x20, 0x2E, 0x0};
-  TextRun text_run(kStr, 5);
+  Font* font = MakeGarbageCollected<Font>(font_description);
+
+  const UChar kStr[] = {0x2F, 0x301, 0x2E, 0x20, 0x2E};
+  TextRun text_run{base::span(kStr)};
 
   unsigned offset = 0;
-  scoped_refptr<const ShapeResult> result;
-  CachingWordShapeIterator iterator(cache.get(), text_run, &font);
+  const ShapeResult* result = nullptr;
+  CachingWordShapeIterator iterator(cache.Get(), text_run, font);
   ASSERT_TRUE(iterator.Next(&result));
   ASSERT_TRUE(
       TestInfo(result)->RunInfoForTesting(0, start_index, num_glyphs, script));
@@ -107,17 +107,18 @@ TEST_F(CachingWordShaperTest, CommonAccentLeftToRightByWord) {
 }
 
 TEST_F(CachingWordShaperTest, SegmentCJKByCharacter) {
+  Font* font = MakeGarbageCollected<Font>(font_description);
+
   const UChar kStr[] = {0x56FD, 0x56FD,  // CJK Unified Ideograph
                         'a',    'b',
                         0x56FD,  // CJK Unified Ideograph
                         'x',    'y',    'z',
-                        0x3042,  // HIRAGANA LETTER A
-                        0x56FD,  // CJK Unified Ideograph
-                        0x0};
-  TextRun text_run(kStr, 10);
+                        0x3042,   // HIRAGANA LETTER A
+                        0x56FD};  // CJK Unified Ideograph
+  TextRun text_run{base::span(kStr)};
 
-  scoped_refptr<const ShapeResult> word_result;
-  CachingWordShapeIterator iterator(cache.get(), text_run, &font);
+  const ShapeResult* word_result = nullptr;
+  CachingWordShapeIterator iterator(cache.Get(), text_run, font);
 
   ASSERT_TRUE(iterator.Next(&word_result));
   EXPECT_EQ(1u, word_result->NumCharacters());
@@ -142,17 +143,18 @@ TEST_F(CachingWordShaperTest, SegmentCJKByCharacter) {
 }
 
 TEST_F(CachingWordShaperTest, SegmentCJKAndCommon) {
-  const UChar kStr[] = {'a',    'b',
-                        0xFF08,  // FULLWIDTH LEFT PARENTHESIS (script=common)
-                        0x56FD,  // CJK Unified Ideograph
-                        0x56FD,  // CJK Unified Ideograph
-                        0x56FD,  // CJK Unified Ideograph
-                        0x3002,  // IDEOGRAPHIC FULL STOP (script=common)
-                        0x0};
-  TextRun text_run(kStr, 7);
+  Font* font = MakeGarbageCollected<Font>(font_description);
 
-  scoped_refptr<const ShapeResult> word_result;
-  CachingWordShapeIterator iterator(cache.get(), text_run, &font);
+  const UChar kStr[] = {'a',    'b',
+                        0xFF08,   // FULLWIDTH LEFT PARENTHESIS (script=common)
+                        0x56FD,   // CJK Unified Ideograph
+                        0x56FD,   // CJK Unified Ideograph
+                        0x56FD,   // CJK Unified Ideograph
+                        0x3002};  // IDEOGRAPHIC FULL STOP (script=common)
+  TextRun text_run{base::span(kStr)};
+
+  const ShapeResult* word_result = nullptr;
+  CachingWordShapeIterator iterator(cache.Get(), text_run, font);
 
   ASSERT_TRUE(iterator.Next(&word_result));
   EXPECT_EQ(2u, word_result->NumCharacters());
@@ -170,16 +172,17 @@ TEST_F(CachingWordShaperTest, SegmentCJKAndCommon) {
 }
 
 TEST_F(CachingWordShaperTest, SegmentCJKAndInherit) {
-  const UChar kStr[] = {
-      0x304B,  // HIRAGANA LETTER KA
-      0x304B,  // HIRAGANA LETTER KA
-      0x3009,  // COMBINING KATAKANA-HIRAGANA VOICED SOUND MARK
-      0x304B,  // HIRAGANA LETTER KA
-      0x0};
-  TextRun text_run(kStr, 4);
+  Font* font = MakeGarbageCollected<Font>(font_description);
 
-  scoped_refptr<const ShapeResult> word_result;
-  CachingWordShapeIterator iterator(cache.get(), text_run, &font);
+  const UChar kStr[] = {
+      0x304B,   // HIRAGANA LETTER KA
+      0x304B,   // HIRAGANA LETTER KA
+      0x3009,   // COMBINING KATAKANA-HIRAGANA VOICED SOUND MARK
+      0x304B};  // HIRAGANA LETTER KA
+  TextRun text_run{base::span(kStr)};
+
+  const ShapeResult* word_result = nullptr;
+  CachingWordShapeIterator iterator(cache.Get(), text_run, font);
 
   ASSERT_TRUE(iterator.Next(&word_result));
   EXPECT_EQ(1u, word_result->NumCharacters());
@@ -194,12 +197,14 @@ TEST_F(CachingWordShaperTest, SegmentCJKAndInherit) {
 }
 
 TEST_F(CachingWordShaperTest, SegmentCJKAndNonCJKCommon) {
-  const UChar kStr[] = {0x56FD,  // CJK Unified Ideograph
-                        ' ', 0x0};
-  TextRun text_run(kStr, 2);
+  Font* font = MakeGarbageCollected<Font>(font_description);
 
-  scoped_refptr<const ShapeResult> word_result;
-  CachingWordShapeIterator iterator(cache.get(), text_run, &font);
+  const UChar kStr[] = {0x56FD,  // CJK Unified Ideograph
+                        ' '};
+  TextRun text_run{base::span(kStr)};
+
+  const ShapeResult* word_result = nullptr;
+  CachingWordShapeIterator iterator(cache.Get(), text_run, font);
 
   ASSERT_TRUE(iterator.Next(&word_result));
   EXPECT_EQ(1u, word_result->NumCharacters());
@@ -211,6 +216,8 @@ TEST_F(CachingWordShaperTest, SegmentCJKAndNonCJKCommon) {
 }
 
 TEST_F(CachingWordShaperTest, SegmentEmojiSequences) {
+  Font* font = MakeGarbageCollected<Font>(font_description);
+
   std::vector<std::string> test_strings = {
       // A family followed by a couple with heart emoji sequence,
       // the latter including a variation selector.
@@ -231,8 +238,8 @@ TEST_F(CachingWordShaperTest, SegmentEmojiSequences) {
   for (auto test_string : test_strings) {
     String emoji_string = String::FromUTF8(test_string);
     TextRun text_run(emoji_string);
-    scoped_refptr<const ShapeResult> word_result;
-    CachingWordShapeIterator iterator(cache.get(), text_run, &font);
+    const ShapeResult* word_result = nullptr;
+    CachingWordShapeIterator iterator(cache.Get(), text_run, font);
 
     ASSERT_TRUE(iterator.Next(&word_result));
     EXPECT_EQ(emoji_string.length(), word_result->NumCharacters())
@@ -243,15 +250,17 @@ TEST_F(CachingWordShaperTest, SegmentEmojiSequences) {
 }
 
 TEST_F(CachingWordShaperTest, SegmentEmojiExtraZWJPrefix) {
+  Font* font = MakeGarbageCollected<Font>(font_description);
+
   // A ZWJ, followed by a family and a heart-kiss sequence.
   const UChar kStr[] = {0x200D, 0xD83D, 0xDC68, 0x200D, 0xD83D, 0xDC69,
                         0x200D, 0xD83D, 0xDC67, 0x200D, 0xD83D, 0xDC66,
                         0xD83D, 0xDC69, 0x200D, 0x2764, 0xFE0F, 0x200D,
-                        0xD83D, 0xDC8B, 0x200D, 0xD83D, 0xDC68, 0x0};
-  TextRun text_run(kStr, 23);
+                        0xD83D, 0xDC8B, 0x200D, 0xD83D, 0xDC68};
+  TextRun text_run{base::span(kStr)};
 
-  scoped_refptr<const ShapeResult> word_result;
-  CachingWordShapeIterator iterator(cache.get(), text_run, &font);
+  const ShapeResult* word_result = nullptr;
+  CachingWordShapeIterator iterator(cache.Get(), text_run, font);
 
   ASSERT_TRUE(iterator.Next(&word_result));
   EXPECT_EQ(1u, word_result->NumCharacters());
@@ -263,6 +272,8 @@ TEST_F(CachingWordShaperTest, SegmentEmojiExtraZWJPrefix) {
 }
 
 TEST_F(CachingWordShaperTest, SegmentEmojiSubdivisionFlags) {
+  Font* font = MakeGarbageCollected<Font>(font_description);
+
   // Subdivision flags for Wales, Scotland, England.
   const UChar kStr[] = {0xD83C, 0xDFF4, 0xDB40, 0xDC67, 0xDB40, 0xDC62, 0xDB40,
                         0xDC77, 0xDB40, 0xDC6C, 0xDB40, 0xDC73, 0xDB40, 0xDC7F,
@@ -270,10 +281,10 @@ TEST_F(CachingWordShaperTest, SegmentEmojiSubdivisionFlags) {
                         0xDC73, 0xDB40, 0xDC63, 0xDB40, 0xDC74, 0xDB40, 0xDC7F,
                         0xD83C, 0xDFF4, 0xDB40, 0xDC67, 0xDB40, 0xDC62, 0xDB40,
                         0xDC65, 0xDB40, 0xDC6E, 0xDB40, 0xDC67, 0xDB40, 0xDC7F};
-  TextRun text_run(kStr, std::size(kStr));
+  TextRun text_run{base::span(kStr)};
 
-  scoped_refptr<const ShapeResult> word_result;
-  CachingWordShapeIterator iterator(cache.get(), text_run, &font);
+  const ShapeResult* word_result = nullptr;
+  CachingWordShapeIterator iterator(cache.Get(), text_run, font);
 
   ASSERT_TRUE(iterator.Next(&word_result));
   EXPECT_EQ(42u, word_result->NumCharacters());
@@ -282,14 +293,15 @@ TEST_F(CachingWordShaperTest, SegmentEmojiSubdivisionFlags) {
 }
 
 TEST_F(CachingWordShaperTest, SegmentCJKCommon) {
-  const UChar kStr[] = {0xFF08,  // FULLWIDTH LEFT PARENTHESIS (script=common)
-                        0xFF08,  // FULLWIDTH LEFT PARENTHESIS (script=common)
-                        0xFF08,  // FULLWIDTH LEFT PARENTHESIS (script=common)
-                        0x0};
-  TextRun text_run(kStr, 3);
+  Font* font = MakeGarbageCollected<Font>(font_description);
 
-  scoped_refptr<const ShapeResult> word_result;
-  CachingWordShapeIterator iterator(cache.get(), text_run, &font);
+  const UChar kStr[] = {0xFF08,   // FULLWIDTH LEFT PARENTHESIS (script=common)
+                        0xFF08,   // FULLWIDTH LEFT PARENTHESIS (script=common)
+                        0xFF08};  // FULLWIDTH LEFT PARENTHESIS (script=common)
+  TextRun text_run{base::span(kStr)};
+
+  const ShapeResult* word_result = nullptr;
+  CachingWordShapeIterator iterator(cache.Get(), text_run, font);
 
   ASSERT_TRUE(iterator.Next(&word_result));
   EXPECT_EQ(3u, word_result->NumCharacters());
@@ -298,12 +310,14 @@ TEST_F(CachingWordShaperTest, SegmentCJKCommon) {
 }
 
 TEST_F(CachingWordShaperTest, SegmentCJKCommonAndNonCJK) {
-  const UChar kStr[] = {0xFF08,  // FULLWIDTH LEFT PARENTHESIS (script=common)
-                        'a', 'b', 0x0};
-  TextRun text_run(kStr, 3);
+  Font* font = MakeGarbageCollected<Font>(font_description);
 
-  scoped_refptr<const ShapeResult> word_result;
-  CachingWordShapeIterator iterator(cache.get(), text_run, &font);
+  const UChar kStr[] = {0xFF08,  // FULLWIDTH LEFT PARENTHESIS (script=common)
+                        'a', 'b'};
+  TextRun text_run{base::span(kStr)};
+
+  const ShapeResult* word_result = nullptr;
+  CachingWordShapeIterator iterator(cache.Get(), text_run, font);
 
   ASSERT_TRUE(iterator.Next(&word_result));
   EXPECT_EQ(1u, word_result->NumCharacters());
@@ -315,13 +329,14 @@ TEST_F(CachingWordShaperTest, SegmentCJKCommonAndNonCJK) {
 }
 
 TEST_F(CachingWordShaperTest, SegmentCJKSmallFormVariants) {
-  const UChar kStr[] = {0x5916,  // CJK UNIFIED IDEOGRPAH
-                        0xFE50,  // SMALL COMMA
-                        0x0};
-  TextRun text_run(kStr, 2);
+  Font* font = MakeGarbageCollected<Font>(font_description);
 
-  scoped_refptr<const ShapeResult> word_result;
-  CachingWordShapeIterator iterator(cache.get(), text_run, &font);
+  const UChar kStr[] = {0x5916,   // CJK UNIFIED IDEOGRPAH
+                        0xFE50};  // SMALL COMMA
+  TextRun text_run{base::span(kStr)};
+
+  const ShapeResult* word_result = nullptr;
+  CachingWordShapeIterator iterator(cache.Get(), text_run, font);
 
   ASSERT_TRUE(iterator.Next(&word_result));
   EXPECT_EQ(2u, word_result->NumCharacters());
@@ -330,13 +345,14 @@ TEST_F(CachingWordShaperTest, SegmentCJKSmallFormVariants) {
 }
 
 TEST_F(CachingWordShaperTest, SegmentHangulToneMark) {
-  const UChar kStr[] = {0xC740,  // HANGUL SYLLABLE EUN
-                        0x302E,  // HANGUL SINGLE DOT TONE MARK
-                        0x0};
-  TextRun text_run(kStr, 2);
+  Font* font = MakeGarbageCollected<Font>(font_description);
 
-  scoped_refptr<const ShapeResult> word_result;
-  CachingWordShapeIterator iterator(cache.get(), text_run, &font);
+  const UChar kStr[] = {0xC740,   // HANGUL SYLLABLE EUN
+                        0x302E};  // HANGUL SINGLE DOT TONE MARK
+  TextRun text_run{base::span(kStr)};
+
+  const ShapeResult* word_result = nullptr;
+  CachingWordShapeIterator iterator(cache.Get(), text_run, font);
 
   ASSERT_TRUE(iterator.Next(&word_result));
   EXPECT_EQ(2u, word_result->NumCharacters());
@@ -345,14 +361,15 @@ TEST_F(CachingWordShaperTest, SegmentHangulToneMark) {
 }
 
 TEST_F(CachingWordShaperTest, GlyphBoundsWithSpaces) {
-  CachingWordShaper shaper(font);
+  Font* font = MakeGarbageCollected<Font>(font_description);
+  CachingWordShaper shaper(*font);
 
-  TextRun periods(reinterpret_cast<const LChar*>(".........."), 10);
+  TextRun periods(base::byte_span_from_cstring(".........."));
   gfx::RectF periods_glyph_bounds;
   float periods_width = shaper.Width(periods, &periods_glyph_bounds);
 
   TextRun periods_and_spaces(
-      reinterpret_cast<const LChar*>(". . . . . . . . . ."), 19);
+      base::byte_span_from_cstring(". . . . . . . . . ."));
   gfx::RectF periods_and_spaces_glyph_bounds;
   float periods_and_spaces_width =
       shaper.Width(periods_and_spaces, &periods_and_spaces_glyph_bounds);

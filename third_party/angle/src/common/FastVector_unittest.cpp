@@ -208,6 +208,27 @@ TEST(FastVector, Resize)
     EXPECT_EQ(2u, vec.size());
 }
 
+// Test resetWithRawData on the vector
+TEST(FastVector, resetWithRawData)
+{
+    FastVector<int, 5> vec;
+    int data[] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+
+    vec.resetWithRawData(9, reinterpret_cast<uint8_t *>(&data[0]));
+    EXPECT_EQ(9u, vec.size());
+    for (size_t i = 0; i < vec.size(); i++)
+    {
+        EXPECT_EQ(vec[i], data[i]);
+    }
+
+    vec.resetWithRawData(4, reinterpret_cast<uint8_t *>(&data[0]));
+    EXPECT_EQ(4u, vec.size());
+    for (size_t i = 0; i < vec.size(); i++)
+    {
+        EXPECT_EQ(vec[i], data[i]);
+    }
+}
+
 // Test iterating over the vector
 TEST(FastVector, Iteration)
 {
@@ -343,72 +364,6 @@ TEST(FlatUnorderedSet, Comparison)
     testSet1.insert(5);
     testSet1.insert(10);
     EXPECT_TRUE(testSet0 == testSet1);
-}
-
-// Basic functionality for FastIntegerSet
-TEST(FastIntegerSet, BasicUsage)
-{
-    FastIntegerSet testMap;
-    EXPECT_TRUE(testMap.empty());
-
-    testMap.insert(5);
-    EXPECT_TRUE(testMap.contains(5));
-    EXPECT_FALSE(testMap.contains(6));
-    EXPECT_FALSE(testMap.empty());
-
-    testMap.clear();
-    EXPECT_TRUE(testMap.empty());
-
-    for (int i = 0; i < 10; ++i)
-    {
-        testMap.insert(i);
-    }
-
-    for (int i = 0; i < 10; ++i)
-    {
-        EXPECT_TRUE(testMap.contains(i));
-    }
-}
-
-// Basic functionality for FastIntegerMap
-TEST(FastIntegerMap, BasicUsage)
-{
-    using KeyValuePair             = std::pair<int, std::string>;
-    std::set<KeyValuePair> entries = {KeyValuePair(17, "testing"), KeyValuePair(63, "fast"),
-                                      KeyValuePair(97, "integer"), KeyValuePair(256, "map")};
-
-    FastIntegerMap<std::string> testMap;
-    EXPECT_TRUE(testMap.empty());
-
-    std::string str;
-    testMap.insert(entries.begin()->first, entries.begin()->second);
-    EXPECT_TRUE(testMap.contains(entries.begin()->first));
-    EXPECT_FALSE(testMap.contains(entries.rbegin()->first));
-    EXPECT_FALSE(testMap.empty());
-    EXPECT_EQ(testMap.size(), 1u);
-    EXPECT_TRUE(testMap.get(entries.begin()->first, &str));
-    EXPECT_EQ(entries.begin()->second, str);
-    EXPECT_FALSE(testMap.get(1, &str));
-
-    testMap.clear();
-    EXPECT_TRUE(testMap.empty());
-    EXPECT_EQ(testMap.size(), 0u);
-
-    for (KeyValuePair entry : entries)
-    {
-        testMap.insert(entry.first, entry.second);
-    }
-    EXPECT_EQ(testMap.size(), 4u);
-
-    for (KeyValuePair entry : entries)
-    {
-        EXPECT_TRUE(testMap.get(entry.first, &str));
-        EXPECT_EQ(entry.second, str);
-    }
-
-    testMap.clear();
-    EXPECT_TRUE(testMap.empty());
-    EXPECT_EQ(testMap.size(), 0u);
 }
 
 // Basic usage tests of fast map.

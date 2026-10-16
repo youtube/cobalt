@@ -14,7 +14,12 @@ static constexpr ProcessHandle kCurrentProcessHandle =
     std::numeric_limits<ProcessHandle>::max();
 
 Process::Process(ProcessHandle handle) : process_(handle) {
+#if BUILDFLAG(IS_COBALT)
+  DCHECK(handle == kNullProcessHandle || handle == kCurrentProcessHandle ||
+         handle == GetCurrentProcId());
+#else
   DCHECK(handle == kNullProcessHandle || handle == kCurrentProcessHandle);
+#endif
 }
 
 Process::Process(Process&& other) : process_(other.process_) {
@@ -36,9 +41,11 @@ Process Process::Current() {
 
 // static
 Process Process::Open(ProcessId pid) {
+#if !BUILDFLAG(IS_COBALT)
   if (pid == GetCurrentProcId()) {
     return Current();
   }
+#endif
   return Process(pid);
 }
 
@@ -85,7 +92,11 @@ Time Process::CreationTime() const {
 }
 
 bool Process::is_current() const {
-  return Handle() == kCurrentProcessHandle;
+#if BUILDFLAG(IS_COBALT)
+  return process_ == kCurrentProcessHandle || process_ == GetCurrentProcId();
+#else
+  return process_ == kCurrentProcessHandle;
+#endif
 }
 
 void Process::Close() {
@@ -102,15 +113,15 @@ bool Process::WaitForExitWithTimeout(TimeDelta timeout, int* exit_code) const {
 
 void Process::Exited(int exit_code) const {}
 
-bool Process::IsProcessBackgrounded() const {
+Process::Priority Process::GetPriority() const {
+  return Priority::kUserBlocking;
+}
+
+bool Process::SetPriority(Priority priority) {
   return false;
 }
 
-bool Process::SetProcessBackgrounded(bool value) {
-  return false;
-}
-
-int Process::GetPriority() const {
+int Process::GetOSPriority() const {
   return -1;
 }
 

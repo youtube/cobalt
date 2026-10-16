@@ -15,16 +15,14 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 
-/**
- * Tests for {@link Origin}.
- */
+/** Tests for {@link Origin}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class OriginTest {
     @Test
     @SmallTest
     public void testTransformation() {
-        Assert.assertEquals(Uri.parse("http://example.com:123/").getPort(), 123);
+        Assert.assertEquals(123, Uri.parse("http://example.com:123/").getPort());
 
         // Unlike origin.cc, the returned Uri has a port of -1 if it is the default port for the
         // scheme.

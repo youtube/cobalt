@@ -17,10 +17,13 @@
 #include "src/profiling/symbolizer/filesystem.h"
 
 #include "perfetto/base/build_config.h"
+#include "build/build_config.h"
 
 #if !PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
 #if PERFETTO_BUILDFLAG(PERFETTO_LOCAL_SYMBOLIZER)
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <fts.h>
+#endif
 #include <sys/stat.h>
 #endif
 
@@ -30,7 +33,7 @@
 
 namespace perfetto {
 namespace profiling {
-#if PERFETTO_BUILDFLAG(PERFETTO_LOCAL_SYMBOLIZER)
+#if PERFETTO_BUILDFLAG(PERFETTO_LOCAL_SYMBOLIZER) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 bool WalkDirectories(std::vector<std::string> dirs, FileCallback fn) {
   std::vector<char*> dir_cstrs;
   dir_cstrs.reserve(dirs.size());
@@ -51,24 +54,9 @@ bool WalkDirectories(std::vector<std::string> dirs, FileCallback fn) {
   return true;
 }
 
-size_t GetFileSize(const std::string& file_path) {
-  base::ScopedFile fd(base::OpenFile(file_path, O_RDONLY | O_CLOEXEC));
-  if (!fd) {
-    PERFETTO_PLOG("Failed to get file size %s", file_path.c_str());
-    return 0;
-  }
-  struct stat buf;
-  if (fstat(*fd, &buf) == -1) {
-    return 0;
-  }
-  return static_cast<size_t>(buf.st_size);
-}
 #else
 bool WalkDirectories(std::vector<std::string>, FileCallback) {
   return false;
-}
-size_t GetFileSize(const std::string&) {
-  return 0;
 }
 #endif
 

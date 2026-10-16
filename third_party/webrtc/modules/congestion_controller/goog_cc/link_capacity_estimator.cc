@@ -10,7 +10,9 @@
 #include "modules/congestion_controller/goog_cc/link_capacity_estimator.h"
 
 #include <algorithm>
+#include <cmath>
 
+#include "api/units/data_rate.h"
 #include "rtc_base/numerics/safe_minmax.h"
 
 namespace webrtc {
@@ -57,7 +59,7 @@ void LinkCapacityEstimator::Update(DataRate capacity_sample, double alpha) {
       (1 - alpha) * deviation_kbps_ + alpha * error_kbps * error_kbps / norm;
   // 0.4 ~= 14 kbit/s at 500 kbit/s
   // 2.5f ~= 35 kbit/s at 500 kbit/s
-  deviation_kbps_ = rtc::SafeClamp(deviation_kbps_, 0.4f, 2.5f);
+  deviation_kbps_ = SafeClamp(deviation_kbps_, 0.4f, 2.5f);
 }
 
 bool LinkCapacityEstimator::has_estimate() const {

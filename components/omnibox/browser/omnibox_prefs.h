@@ -12,27 +12,6 @@ class PrefService;
 
 namespace omnibox {
 
-// Reflects the omnibox::GroupId enum values for the Polaris zero-prefix
-// suggestions in //third_party/omnibox_proto/groups.proto for reporting in UMA.
-//
-// This enum is tied directly to the `GroupId` UMA enum in
-// //tools/metrics/histograms/enums.xml and should always reflect it (do not
-// change one without changing the other).
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class UMAGroupId {
-  kUnknown = 0,
-  kInvalid,
-  kPreviousSearchRelated,
-  kPreviousSearchRelatedEntityChips,
-  kTrends,
-  kTrendsEntityChips,
-  kRelatedQueries,
-  kVisitedDocRelated,
-
-  kMaxValue = kVisitedDocRelated
-};
-
 // These values are persisted to prefs. They cannot be freely changed.
 enum SuggestionGroupVisibility {
   // When DEFAULT is returned, the group's visibility should be controlled by
@@ -49,41 +28,70 @@ enum SuggestionGroupVisibility {
 };
 
 // Histograms being recorded when visibility of suggestion group IDs change.
-extern const char kGroupIdToggledOffHistogram[];
-extern const char kGroupIdToggledOnHistogram[];
+inline constexpr char kGroupIdToggledOffHistogram[] =
+    "Omnibox.GroupId.ToggledOff";
+inline constexpr char kGroupIdToggledOnHistogram[] =
+    "Omnibox.GroupId.ToggledOn";
 
 // Alphabetical list of preference names specific to the omnibox component.
-// Keep alphabetized, and document each in the .cc file.
-extern const char kDocumentSuggestEnabled[];
-extern const char kIntranetRedirectBehavior[];
-extern const char kKeywordSpaceTriggeringEnabled[];
-extern const char kSuggestionGroupVisibility[];
-extern const char kPreventUrlElisionsInOmnibox[];
-extern const char kZeroSuggestCachedResults[];
-extern const char kZeroSuggestCachedResultsWithURL[];
+// Keep alphabetized, and document each.
 
+// Enum specifying the active behavior for the intranet redirect detector.
+// The browser pref kDNSInterceptionChecksEnabled also impacts the redirector.
+// Values are defined in omnibox::IntranetRedirectorBehavior.
+inline constexpr char kIntranetRedirectBehavior[] =
+    "browser.intranet_redirect_behavior";
+
+// Boolean that controls whether scoped search mode can be triggered by <space>.
+inline constexpr char kKeywordSpaceTriggeringEnabled[] =
+    "omnibox.keyword_space_triggering_enabled";
+
+// Boolean that specifies whether to show the LensOverlay entry point.
+inline constexpr char kShowGoogleLensShortcut[] =
+    "omnibox.show_google_lens_shortcut";
+
+// Boolean that specifies whether to always show full URLs in the omnibox.
+inline constexpr char kPreventUrlElisionsInOmnibox[] =
+    "omnibox.prevent_url_elisions";
+
+// A cache of NTP zero suggest results using a JSON dictionary serialized into a
+// string.
+inline constexpr char kZeroSuggestCachedResults[] = "zerosuggest.cachedresults";
+
+// A cache of SRP/Web zero suggest results using a JSON dictionary serialized
+// into a string keyed off the page URL.
+inline constexpr char kZeroSuggestCachedResultsWithURL[] =
+    "zerosuggest.cachedresults_with_url";
+
+// Booleans that specify whether various IPH suggestions have been dismissed.
+inline constexpr char kDismissedGeminiIph[] = "omnibox.dismissed_gemini_iph";
+inline constexpr char kDismissedFeaturedEnterpriseSiteSearchIphPrefName[] =
+    "omnibox.dismissed_featured_enterprise_search_iph";
+inline constexpr char kDismissedHistoryEmbeddingsSettingsPromo[] =
+    "omnibox.dismissed_history_embeddings_settings_promo";
+inline constexpr char kDismissedHistoryScopePromo[] =
+    "omnibox.dismissed_history_scope_promo";
+inline constexpr char kDismissedHistoryEmbeddingsScopePromo[] =
+    "omnibox.dismissed_history_embeddings_scope_promo";
+
+// How many times the various IPH suggestions were shown.
+inline constexpr char kShownCountGeminiIph[] = "omnibox.shown_count_gemini_iph";
+inline constexpr char kShownCountFeaturedEnterpriseSiteSearchIph[] =
+    "omnibox.shown_count_featured_enterprise_search_iph";
+inline constexpr char kShownCountHistoryEmbeddingsSettingsPromo[] =
+    "omnibox.shown_count_history_embeddings_settings_promo";
+inline constexpr char kShownCountHistoryScopePromo[] =
+    "omnibox.shown_count_history_scope_promo";
+inline constexpr char kShownCountHistoryEmbeddingsScopePromo[] =
+    "omnibox.shown_count_history_embeddings_scope_promo";
+inline constexpr char kFocusedSrpWebCount[] = "omnibox.focused_srp_web_count";
+inline constexpr char kAIModeSearchSuggestSettings[] =
+    "omnibox.ai_mode_search_suggest_settings";
+inline constexpr char kAIModeSettings[] = "omnibox.ai_mode_settings";
+
+// Many of the prefs defined above are registered locally where they're used.
+// New prefs should be added here and ordered the same as they're defined above.
 void RegisterProfilePrefs(PrefRegistrySimple* registry);
-
-// Returns the stored visibility preference for |suggestion_group_id|.
-// If |suggestion_group_id| has never been manually hidden or shown by the user,
-// this method returns SuggestionGroupVisibility::DEFAULT.
-//
-// Warning: UI code should use AutocompleteResult::IsSuggestionGroupHidden()
-// instead, which passes the server-provided group ID to this method and takes
-// the server-provided hint on default visibility of the group into account.
-SuggestionGroupVisibility GetUserPreferenceForSuggestionGroupVisibility(
-    PrefService* prefs,
-    int suggestion_group_id);
-
-// Sets the stored visibility preference for |suggestion_group_id| to
-// |visibility|.
-//
-// Warning: UI code should use AutocompleteResult::SetSuggestionGroupHidden()
-// instead, which passes the server-provided group ID to this method.
-void SetUserPreferenceForSuggestionGroupVisibility(
-    PrefService* prefs,
-    int suggestion_group_id,
-    SuggestionGroupVisibility visibility);
 
 // Updates the ZPS dictionary preference to cache the given |response| value
 // using the |page_url| as the cache key.
@@ -96,6 +104,9 @@ void SetUserPreferenceForZeroSuggestCachedResponse(PrefService* prefs,
 std::string GetUserPreferenceForZeroSuggestCachedResponse(
     PrefService* prefs,
     const std::string& page_url);
+
+// Returns true if the MIA is allowed per the policy.
+bool IsMiaAllowedByPolicy(PrefService* prefs);
 
 }  // namespace omnibox
 

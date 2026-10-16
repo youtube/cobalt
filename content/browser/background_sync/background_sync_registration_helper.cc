@@ -19,7 +19,7 @@ BackgroundSyncRegistrationHelper::BackgroundSyncRegistrationHelper(
     BackgroundSyncContextImpl* background_sync_context,
     RenderProcessHost* render_process_host)
     : background_sync_context_(background_sync_context),
-      render_process_host_id_(render_process_host->GetID()) {
+      render_process_host_id_(render_process_host->GetDeprecatedID()) {
   DCHECK(background_sync_context_);
 }
 
@@ -74,7 +74,7 @@ void BackgroundSyncRegistrationHelper::OnRegisterResult(
     std::unique_ptr<BackgroundSyncRegistration> result) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  // TODO(crbug.com/932591): Use blink::mojom::BackgroundSyncError
+  // TODO(crbug.com/40614176): Use blink::mojom::BackgroundSyncError
   // directly.
   if (status != BACKGROUND_SYNC_STATUS_OK) {
     std::move(callback).Run(

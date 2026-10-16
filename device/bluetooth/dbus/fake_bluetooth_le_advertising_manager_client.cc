@@ -4,9 +4,10 @@
 
 #include "device/bluetooth/dbus/fake_bluetooth_le_advertising_manager_client.h"
 
+#include <algorithm>
+
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
 #include "base/task/single_thread_task_runner.h"
 #include "dbus/bus.h"
 #include "dbus/message.h"
@@ -34,7 +35,32 @@ FakeBluetoothLEAdvertisingManagerClient::
 
 void FakeBluetoothLEAdvertisingManagerClient::Init(
     dbus::Bus* bus,
-    const std::string& bluetooth_service_name) {}
+    const std::string& bluetooth_service_name) {
+  InitializeProperties();
+}
+
+BluetoothLEAdvertisingManagerClient::Properties*
+FakeBluetoothLEAdvertisingManagerClient::GetProperties(
+    const dbus::ObjectPath& object_path) {
+  return properties_.get();
+}
+
+void FakeBluetoothLEAdvertisingManagerClient::InitializeProperties() {
+  properties_ = std::make_unique<Properties>(
+      nullptr,
+      bluetooth_advertising_manager::kBluetoothAdvertisingManagerInterface,
+      base::BindRepeating(
+          &FakeBluetoothLEAdvertisingManagerClient::OnPropertyChanged,
+          weak_ptr_factory_.GetWeakPtr(),
+          /*object_path=*/dbus::ObjectPath("")));
+}
+
+void FakeBluetoothLEAdvertisingManagerClient::OnPropertyChanged(
+    const dbus::ObjectPath& object_path,
+    const std::string& property_name) {
+  DVLOG(2) << "Bluetooth Advertising Manager Client property changed: "
+           << object_path.value() << ": " << property_name;
+}
 
 void FakeBluetoothLEAdvertisingManagerClient::AddObserver(Observer* observer) {}
 
@@ -85,7 +111,7 @@ void FakeBluetoothLEAdvertisingManagerClient::UnregisterAdvertisement(
 
   auto service_iter = service_provider_map_.find(advertisement_object_path);
   auto reg_iter =
-      base::ranges::find(currently_registered_, advertisement_object_path);
+      std::ranges::find(currently_registered_, advertisement_object_path);
 
   if (service_iter == service_provider_map_.end()) {
     std::move(error_callback)

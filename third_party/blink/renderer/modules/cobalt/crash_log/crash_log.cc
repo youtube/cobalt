@@ -14,6 +14,9 @@
 
 #include "third_party/blink/renderer/modules/cobalt/crash_log/crash_log.h"
 
+#include "base/check.h"
+#include "base/compiler_specific.h"
+#include "base/debug/alias.h"
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom-blink.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -32,11 +35,11 @@ CrashLog::CrashLog(LocalDOMWindow& window)
 
 void CrashLog::ContextDestroyed() {}
 
-ScriptPromise CrashLog::setString(ScriptState* script_state,
-                                  const String& key,
-                                  const String& value,
-                                  ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+ScriptPromise<IDLBoolean> CrashLog::setString(ScriptState* script_state,
+                                              const String& key,
+                                              const String& value,
+                                              ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(
       script_state, exception_state.GetContext());
 
   EnsureReceiverIsBound();
@@ -49,11 +52,20 @@ ScriptPromise CrashLog::setString(ScriptState* script_state,
   return resolver->Promise();
 }
 
-void CrashLog::OnSetString(ScriptPromiseResolver* resolver, bool result) {
+void CrashLog::OnSetString(ScriptPromiseResolver<IDLBoolean>* resolver,
+                           bool result) {
   resolver->Resolve(result);
 }
 
-void CrashLog::triggerCrash() {
+NOINLINE NOT_TAIL_CALLED void CrashLog::triggerCrash() {
+  // Borrowed from blink::internal::CrashIntentionally(), which can't be used
+  // here because of blink's visibility model.
+  //
+  // Linker's ICF feature may merge this function with other functions with the
+  // same definition and it may confuse the crash report processing system.
+  static int static_variable_to_make_this_function_unique = 0;
+  base::debug::Alias(&static_variable_to_make_this_function_unique);
+
   CHECK(false) << "Intentionally triggered crash";
 }
 

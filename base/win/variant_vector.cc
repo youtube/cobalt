@@ -2,7 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/win/variant_vector.h"
+
+#include <optional>
 
 #include "base/check_op.h"
 #include "base/notreached.h"
@@ -10,7 +17,6 @@
 #include "base/process/memory.h"
 #include "base/win/scoped_safearray.h"
 #include "base/win/scoped_variant.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 namespace win {
@@ -22,13 +28,14 @@ template <VARTYPE ElementVartype>
 int CompareAgainstSafearray(const std::vector<ScopedVariant>& vector,
                             const ScopedSafearray& safearray,
                             bool ignore_case) {
-  absl::optional<ScopedSafearray::LockScope<ElementVartype>> lock_scope =
+  std::optional<ScopedSafearray::LockScope<ElementVartype>> lock_scope =
       safearray.CreateLockScope<ElementVartype>();
   // If we fail to create a lock scope, then arbitrarily treat |this| as
   // greater. This should only happen when the SAFEARRAY fails to be locked,
   // so we cannot compare the contents of the SAFEARRAY.
-  if (!lock_scope)
+  if (!lock_scope) {
     return 1;
+  }
 
   // Create a temporary VARIANT which does not own its contents, and is
   // populated with values from the |lock_scope| so it can be compared against.
@@ -43,17 +50,20 @@ int CompareAgainstSafearray(const std::vector<ScopedVariant>& vector,
                                                        *scope_iter);
     int compare_result = vector_iter->Compare(non_owning_temp, ignore_case);
     // If there is a difference in values, return the difference.
-    if (compare_result)
+    if (compare_result) {
       return compare_result;
+    }
   }
   // There are more elements in |vector|, so |vector| is
   // greater than |safearray|.
-  if (vector_iter != vector.end())
+  if (vector_iter != vector.end()) {
     return 1;
+  }
   // There are more elements in |safearray|, so |vector| is
   // less than |safearray|.
-  if (scope_iter != lock_scope->end())
+  if (scope_iter != lock_scope->end()) {
     return -1;
+  }
   return 0;
 }
 
@@ -74,14 +84,6 @@ VariantVector& VariantVector::operator=(VariantVector&& other) {
 
 VariantVector::~VariantVector() {
   Reset();
-}
-
-bool VariantVector::operator==(const VariantVector& other) const {
-  return !Compare(other);
-}
-
-bool VariantVector::operator!=(const VariantVector& other) const {
-  return !VariantVector::operator==(other);
 }
 
 void VariantVector::Reset() {
@@ -165,7 +167,6 @@ VARIANT VariantVector::ReleaseAsSafearrayVariant() {
     // outside the typemask like VT_ARRAY or VT_BYREF.
     default:
       NOTREACHED();
-      break;
   }
 
   // CreateAndPopulateSafearray handles resetting |this| to VT_EMPTY because it
@@ -175,12 +176,14 @@ VARIANT VariantVector::ReleaseAsSafearrayVariant() {
 
 int VariantVector::Compare(const VARIANT& other, bool ignore_case) const {
   // If the element variant types are different, compare against the types.
-  if (Type() != (V_VT(&other) & VT_TYPEMASK))
+  if (Type() != (V_VT(&other) & VT_TYPEMASK)) {
     return (Type() < (V_VT(&other) & VT_TYPEMASK)) ? (-1) : 1;
+  }
 
   // Both have an empty variant type so they are the same.
-  if (Type() == VT_EMPTY)
+  if (Type() == VT_EMPTY) {
     return 0;
+  }
 
   int compare_result = 0;
   if (V_ISARRAY(&other)) {
@@ -189,35 +192,41 @@ int VariantVector::Compare(const VARIANT& other, bool ignore_case) const {
     compare_result = vector_[0].Compare(other, ignore_case);
     // If the first element is equal to |other|, and |vector_|
     // has more than one element, then |vector_| is greater.
-    if (!compare_result && Size() > 1)
+    if (!compare_result && Size() > 1) {
       compare_result = 1;
+    }
   }
   return compare_result;
 }
 
 int VariantVector::Compare(const VariantVector& other, bool ignore_case) const {
   // If the element variant types are different, compare against the types.
-  if (Type() != other.Type())
+  if (Type() != other.Type()) {
     return (Type() < other.Type()) ? (-1) : 1;
+  }
 
   // Both have an empty variant type so they are the same.
-  if (Type() == VT_EMPTY)
+  if (Type() == VT_EMPTY) {
     return 0;
+  }
 
   auto iter1 = vector_.begin();
   auto iter2 = other.vector_.begin();
   for (; (iter1 != vector_.end()) && (iter2 != other.vector_.end());
        ++iter1, ++iter2) {
     int compare_result = iter1->Compare(*iter2, ignore_case);
-    if (compare_result)
+    if (compare_result) {
       return compare_result;
+    }
   }
   // There are more elements in |this|, so |this| is greater than |other|.
-  if (iter1 != vector_.end())
+  if (iter1 != vector_.end()) {
     return 1;
+  }
   // There are more elements in |other|, so |this| is less than |other|.
-  if (iter2 != other.vector_.end())
+  if (iter2 != other.vector_.end()) {
     return -1;
+  }
   return 0;
 }
 
@@ -225,12 +234,14 @@ int VariantVector::Compare(SAFEARRAY* safearray, bool ignore_case) const {
   VARTYPE safearray_vartype;
   // If we fail to get the element variant type for the SAFEARRAY, then
   // arbitrarily treat |this| as greater.
-  if (FAILED(SafeArrayGetVartype(safearray, &safearray_vartype)))
+  if (FAILED(SafeArrayGetVartype(safearray, &safearray_vartype))) {
     return 1;
+  }
 
   // If the element variant types are different, compare against the types.
-  if (Type() != safearray_vartype)
+  if (Type() != safearray_vartype) {
     return (Type() < safearray_vartype) ? (-1) : 1;
+  }
 
   ScopedSafearray scoped_safearray(safearray);
   int compare_result = 0;
@@ -308,8 +319,6 @@ int VariantVector::Compare(SAFEARRAY* safearray, bool ignore_case) const {
     // outside the typemask like VT_ARRAY or VT_BYREF.
     default:
       NOTREACHED();
-      compare_result = 1;
-      break;
   }
 
   scoped_safearray.Release();
@@ -329,7 +338,7 @@ SAFEARRAY* VariantVector::CreateAndPopulateSafearray() {
                                       (Size() * kElementSize));
   }
 
-  absl::optional<ScopedSafearray::LockScope<ElementVartype>> lock_scope =
+  std::optional<ScopedSafearray::LockScope<ElementVartype>> lock_scope =
       scoped_safearray.CreateLockScope<ElementVartype>();
   DCHECK(lock_scope);
 

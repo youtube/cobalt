@@ -13,13 +13,13 @@
 #include "base/check_op.h"
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/message_loop/message_pump_type.h"
-#include "base/message_loop/timer_slack.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 
 namespace base {
 
+class IOWatcher;
 class TimeTicks;
 
 class BASE_EXPORT MessagePump {
@@ -31,6 +31,15 @@ class BASE_EXPORT MessagePump {
 
   // Returns true if the MessagePumpForUI has been overidden.
   static bool IsMessagePumpForUIFactoryOveridden();
+
+  static void InitializeFeatures();
+
+  // Manage the state of |kAlignWakeUps| and the leeway of the process.
+  static void OverrideAlignWakeUpsState(bool enabled, TimeDelta leeway);
+  static void ResetAlignWakeUpsState();
+  static bool GetAlignWakeUpsEnabled();
+  static TimeDelta GetLeewayIgnoringThreadOverride();
+  static TimeDelta GetLeewayForCurrentThread();
 
   // Creates the default MessagePump based on |type|. Caller owns return value.
   static std::unique_ptr<MessagePump> Create(MessagePumpType type);
@@ -58,15 +67,16 @@ class BASE_EXPORT MessagePump {
       // delayed tasks.
       TimeTicks delayed_run_time;
 
+      // |leeway| determines the preferred time range for scheduling
+      // work. A larger leeway provides more freedom to schedule work at
+      // an optimal time for power consumption. This field is ignored
+      // for immediate work.
+      TimeDelta leeway;
+
       // A recent view of TimeTicks::Now(). Only valid if |delayed_run_time|
       // isn't null nor max. MessagePump impls should use remaining_delay()
       // instead of resampling Now() if they wish to sleep for a TimeDelta.
       TimeTicks recent_now;
-
-      // If true, native messages should be processed before executing more work
-      // from the Delegate. This is an optional hint; not all message pumps
-      // implement this.
-      bool yield_to_native = false;
     };
 
     // Executes an immediate task or a ripe delayed task. Returns information
@@ -80,10 +90,7 @@ class BASE_EXPORT MessagePump {
     virtual NextWorkInfo DoWork() = 0;
 
     // Called from within Run just before the message pump goes to sleep.
-    // Returns true to indicate that idle work was done; in which case Run()
-    // should resume with calling DoWork(). Returning false means the pump
-    // should now wait.
-    virtual bool DoIdleWork() = 0;
+    virtual void DoIdleWork() = 0;
 
     class ScopedDoWorkItem {
      public:
@@ -135,9 +142,9 @@ class BASE_EXPORT MessagePump {
     // Called before a unit of work is executed. This allows reports
     // about individual units of work to be produced. The unit of work ends when
     // the returned ScopedDoWorkItem goes out of scope.
-    // TODO(crbug.com/851163): Place calls for all platforms. Without this, some
-    // state like the top-level "ThreadController active" trace event will not
-    // be correct when work is performed.
+    // TODO(crbug.com/40580088): Place calls for all platforms. Without this,
+    // some state like the top-level "ThreadController active" trace event will
+    // not be correct when work is performed.
     [[nodiscard]] ScopedDoWorkItem BeginWorkItem() {
       return ScopedDoWorkItem(this);
     }
@@ -146,6 +153,11 @@ class BASE_EXPORT MessagePump {
     // that the message pump is idle (out of application work and ideally out of
     // native work -- if it can tell).
     virtual void BeforeWait() = 0;
+
+    // May be called when starting to process native work and it is guaranteed
+    // that DoWork() will be called again before sleeping. Allows the delegate
+    // to skip unnecessary ScheduleWork() calls.
+    virtual void BeginNativeWorkBeforeDoWork() = 0;
 
     // Returns the nesting level at which the Delegate is currently running.
     virtual int RunDepth() = 0;
@@ -185,7 +197,7 @@ class BASE_EXPORT MessagePump {
   //     if (did_native_work || next_work_info.is_immediate())
   //       continue;
   //
-  //     bool did_idle_work = delegate_->DoIdleWork();
+  //     delegate_->DoIdleWork();
   //     if (should_quit_)
   //       break;
   //
@@ -247,14 +259,46 @@ class BASE_EXPORT MessagePump {
   //
   // It isn't necessary to call this during normal execution, as the pump wakes
   // up as requested by the return value of DoWork().
-  // TODO(crbug.com/885371): Determine if this must be called to ensure that
+  // TODO(crbug.com/40594269): Determine if this must be called to ensure that
   // delayed tasks run when a message pump outside the control of Run is
   // entered.
   virtual void ScheduleDelayedWork(
       const Delegate::NextWorkInfo& next_work_info) = 0;
 
-  // Sets the timer slack to the specified value.
-  virtual void SetTimerSlack(TimerSlack timer_slack);
+  // Returns an adjusted |run_time| based on alignment policies of the pump.
+  virtual TimeTicks AdjustDelayedRunTime(TimeTicks earliest_time,
+                                         TimeTicks run_time,
+                                         TimeTicks latest_time);
+
+  // Requests the pump to handle either the likely imminent creation (`true`) or
+  // destruction (`false`) of a native nested loop in which application tasks
+  // are desired to be run. The pump should override and return `true` if it
+  // supports this call and has scheduled work in response. The default
+  // implementation returns `false` and does nothing.
+  virtual bool HandleNestedNativeLoopWithApplicationTasks(
+      bool application_tasks_desired);
+
+  // If the MessagePump implementation supports async IO event handling, this
+  // returns a valid IOWatcher implementation to use. Otherwise returns null.
+  virtual IOWatcher* GetIOWatcher();
+
+  // May cause the message pump to busy loop for the specified duration. May not
+  // work for all message pump types, and is only an upper bound of busy looping
+  // time. This may be used to avoid sleeping when a short wait is
+  // expected. This is exposed here rather than being internal to allow setting
+  // it depending on the context (e.g. on some threads only, or only when the
+  // thread is expected to benefit from it).
+  void SetBusyLoop(base::TimeDelta max_busy_loop_time) {
+    max_busy_loop_time_ = max_busy_loop_time;
+  }
+
+ protected:
+  base::TimeDelta max_busy_loop_time_;
+
+ private:
+  // TODO(crbug.com/379190028): Individual MessagePump subclasses should own and
+  // initialize their own IOWatcher.
+  std::unique_ptr<IOWatcher> io_watcher_;
 };
 
 }  // namespace base

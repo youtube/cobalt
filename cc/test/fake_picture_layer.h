@@ -12,26 +12,26 @@
 
 #include "base/memory/ref_counted.h"
 #include "cc/layers/picture_layer.h"
-#include "cc/layers/recording_source.h"
+
+namespace base {
+class WaitableEvent;
+}
 
 namespace cc {
+
+class RasterSource;
+
 class FakePictureLayer : public PictureLayer {
  public:
   static scoped_refptr<FakePictureLayer> Create(ContentLayerClient* client) {
     return base::WrapRefCounted(new FakePictureLayer(client));
   }
 
-  static scoped_refptr<FakePictureLayer> CreateWithRecordingSource(
-      ContentLayerClient* client,
-      std::unique_ptr<RecordingSource> source) {
-    return base::WrapRefCounted(
-        new FakePictureLayer(client, std::move(source)));
-  }
-
   // Layer implementation.
   std::unique_ptr<LayerImpl> CreateLayerImpl(
       LayerTreeImpl* tree_impl) const override;
   bool Update() override;
+  bool RequiresSetNeedsDisplayOnHdrHeadroomChange() const override;
 
   int update_count() const { return update_count_; }
   void reset_update_count() { update_count_ = 0; }
@@ -40,20 +40,30 @@ class FakePictureLayer : public PictureLayer {
     always_update_resources_ = always_update_resources;
   }
 
+  void set_reraster_on_hdr_change(bool reraster_on_hdr_change) {
+    reraster_on_hdr_change_ = reraster_on_hdr_change;
+  }
+
   void set_fixed_tile_size(gfx::Size fixed_tile_size) {
     fixed_tile_size_ = fixed_tile_size;
   }
 
+  void set_playback_allowed_event(base::WaitableEvent* event) {
+    playback_allowed_event_ = event;
+  }
+
  private:
   explicit FakePictureLayer(ContentLayerClient* client);
-  FakePictureLayer(ContentLayerClient* client,
-                   std::unique_ptr<RecordingSource> source);
   ~FakePictureLayer() override;
+
+  scoped_refptr<RasterSource> CreateRasterSource() const override;
 
   int update_count_ = 0;
   bool always_update_resources_ = false;
+  bool reraster_on_hdr_change_ = false;
 
   gfx::Size fixed_tile_size_;
+  raw_ptr<base::WaitableEvent> playback_allowed_event_ = nullptr;
 };
 
 }  // namespace cc

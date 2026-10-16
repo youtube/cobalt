@@ -624,6 +624,8 @@ const char* GetMediaVideoCodecName(SbMediaVideoCodec codec) {
       return "vp8";
     case kSbMediaVideoCodecVp9:
       return "vp9";
+    case kSbMediaVideoCodecAv2:
+      return "av2";
   }
   SB_NOTREACHED();
   return "invalid";
@@ -802,18 +804,6 @@ const char* GetMediaAudioSampleTypeName(SbMediaAudioSampleType sample_type) {
       return "float32";
     case kSbMediaAudioSampleTypeInt16Deprecated:
       return "int16";
-  }
-  SB_NOTREACHED();
-  return "Invalid";
-}
-
-const char* GetMediaAudioStorageTypeName(
-    SbMediaAudioFrameStorageType storage_type) {
-  switch (storage_type) {
-    case kSbMediaAudioFrameStorageTypeInterleaved:
-      return "interleaved";
-    case kSbMediaAudioFrameStorageTypePlanar:
-      return "planar";
   }
   SB_NOTREACHED();
   return "Invalid";

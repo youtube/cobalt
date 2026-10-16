@@ -4,12 +4,31 @@
 
 #include "media/cast/common/openscreen_conversion_helpers.h"
 
+#include <iterator>
+
+#include "base/logging.h"
+#include "base/strings/string_number_conversions.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/video_codecs.h"
 #include "media/cast/cast_config.h"
 #include "third_party/openscreen/src/platform/base/span.h"
 
 namespace media::cast {
+
+namespace {
+
+using media::mojom::RemotingSinkAudioCapability;
+using media::mojom::RemotingSinkVideoCapability;
+
+}  // namespace
+
+openscreen::Clock::time_point ToOpenscreenTimePoint(
+    std::optional<base::TimeTicks> ticks) {
+  if (!ticks) {
+    return openscreen::Clock::time_point::min();
+  }
+  return ToOpenscreenTimePoint(*ticks);
+}
 
 openscreen::Clock::time_point ToOpenscreenTimePoint(base::TimeTicks ticks) {
   static_assert(sizeof(openscreen::Clock::time_point::rep) >=
@@ -56,78 +75,56 @@ base::TimeDelta ToTimeDelta(openscreen::Clock::duration tp) {
 
 const openscreen::cast::EncodedFrame ToOpenscreenEncodedFrame(
     const SenderEncodedFrame& encoded_frame) {
+  // Open Screen does not permit nullptr data properties. We also cannot set it
+  // here, since it needs to be owned outside of `encoded_frame.`
+  CHECK(encoded_frame.data.data());
   return openscreen::cast::EncodedFrame(
-      encoded_frame.dependency, encoded_frame.frame_id,
-      encoded_frame.referenced_frame_id, encoded_frame.rtp_timestamp,
+      encoded_frame.is_key_frame
+          ? openscreen::cast::EncodedFrame::Dependency::kKeyFrame
+          : openscreen::cast::EncodedFrame::Dependency::kDependent
+
+      ,
+      encoded_frame.frame_id, encoded_frame.referenced_frame_id,
+      encoded_frame.rtp_timestamp,
       ToOpenscreenTimePoint(encoded_frame.reference_time),
       std::chrono::milliseconds(encoded_frame.new_playout_delay_ms),
+      ToOpenscreenTimePoint(encoded_frame.capture_begin_time),
+      ToOpenscreenTimePoint(encoded_frame.capture_end_time),
       openscreen::ByteView(
           reinterpret_cast<const uint8_t*>(encoded_frame.data.data()),
           encoded_frame.data.size()));
 }
 
-openscreen::cast::AudioCodec ToOpenscreenAudioCodec(media::cast::Codec codec) {
+openscreen::cast::AudioCodec ToOpenscreenAudioCodec(media::AudioCodec codec) {
   switch (codec) {
-    case Codec::kAudioRemote:
+    case media::AudioCodec::kUnknown:
       return openscreen::cast::AudioCodec::kNotSpecified;
-    case Codec::kAudioOpus:
+    case media::AudioCodec::kOpus:
       return openscreen::cast::AudioCodec::kOpus;
-    case Codec::kAudioAac:
+    case media::AudioCodec::kAAC:
       return openscreen::cast::AudioCodec::kAac;
     default:
       NOTREACHED();
-      return openscreen::cast::AudioCodec::kNotSpecified;
   }
 }
 
-openscreen::cast::VideoCodec ToOpenscreenVideoCodec(media::cast::Codec codec) {
+openscreen::cast::VideoCodec ToOpenscreenVideoCodec(media::VideoCodec codec) {
   switch (codec) {
-    case Codec::kVideoRemote:
+    case media::VideoCodec::kUnknown:
       return openscreen::cast::VideoCodec::kNotSpecified;
-    case Codec::kVideoVp8:
+    case media::VideoCodec::kVP8:
       return openscreen::cast::VideoCodec::kVp8;
-    case Codec::kVideoH264:
-      return openscreen::cast::VideoCodec::kH264;
-    case Codec::kVideoVp9:
+    case media::VideoCodec::kVP9:
       return openscreen::cast::VideoCodec::kVp9;
-    case Codec::kVideoAv1:
+    case media::VideoCodec::kAV1:
       return openscreen::cast::VideoCodec::kAv1;
+    case media::VideoCodec::kH264:
+      return openscreen::cast::VideoCodec::kH264;
+    case media::VideoCodec::kHEVC:
+      return openscreen::cast::VideoCodec::kHevc;
     default:
       NOTREACHED();
-      return openscreen::cast::VideoCodec::kNotSpecified;
   }
-}
-
-Codec ToCodec(openscreen::cast::AudioCodec codec) {
-  switch (codec) {
-    case openscreen::cast::AudioCodec::kNotSpecified:
-      return Codec::kAudioRemote;
-    case openscreen::cast::AudioCodec::kOpus:
-      return Codec::kAudioOpus;
-    case openscreen::cast::AudioCodec::kAac:
-      return Codec::kAudioAac;
-  }
-  NOTREACHED();
-  return Codec::kUnknown;
-}
-
-Codec ToCodec(openscreen::cast::VideoCodec codec) {
-  switch (codec) {
-    case openscreen::cast::VideoCodec::kNotSpecified:
-      return Codec::kVideoRemote;
-    case openscreen::cast::VideoCodec::kVp8:
-      return Codec::kVideoVp8;
-    case openscreen::cast::VideoCodec::kH264:
-      return Codec::kVideoH264;
-    case openscreen::cast::VideoCodec::kVp9:
-      return Codec::kVideoVp9;
-    case openscreen::cast::VideoCodec::kAv1:
-      return Codec::kVideoAv1;
-    case openscreen::cast::VideoCodec::kHevc:
-      return Codec::kUnknown;
-  }
-  NOTREACHED();
-  return Codec::kUnknown;
 }
 
 AudioCodec ToAudioCodec(openscreen::cast::AudioCodec codec) {
@@ -141,7 +138,6 @@ AudioCodec ToAudioCodec(openscreen::cast::AudioCodec codec) {
       return AudioCodec::kAAC;
   }
   NOTREACHED();
-  return AudioCodec::kUnknown;
 }
 
 VideoCodec ToVideoCodec(openscreen::cast::VideoCodec codec) {
@@ -161,7 +157,6 @@ VideoCodec ToVideoCodec(openscreen::cast::VideoCodec codec) {
       return VideoCodec::kHEVC;
   }
   NOTREACHED();
-  return VideoCodec::kUnknown;
 }
 
 openscreen::IPAddress ToOpenscreenIPAddress(const net::IPAddress& address) {
@@ -173,7 +168,7 @@ openscreen::IPAddress ToOpenscreenIPAddress(const net::IPAddress& address) {
 openscreen::cast::AudioCaptureConfig ToOpenscreenAudioConfig(
     const FrameSenderConfig& config) {
   return openscreen::cast::AudioCaptureConfig{
-      .codec = media::cast::ToOpenscreenAudioCodec(config.codec),
+      .codec = ToOpenscreenAudioCodec(config.audio_codec()),
       .channels = config.channels,
       .bit_rate = config.max_bitrate,
       .sample_rate = config.rtp_timebase,
@@ -190,7 +185,7 @@ openscreen::cast::VideoCaptureConfig ToOpenscreenVideoConfig(
   // NOTE: currently we only support a frame rate of 30FPS, so casting
   // directly to an integer is fine.
   return openscreen::cast::VideoCaptureConfig{
-      .codec = media::cast::ToOpenscreenVideoCodec(config.codec),
+      .codec = ToOpenscreenVideoCodec(config.video_codec()),
       .max_frame_rate =
           openscreen::SimpleFraction{static_cast<int>(config.max_frame_rate),
                                      1},
@@ -200,6 +195,61 @@ openscreen::cast::VideoCaptureConfig ToOpenscreenVideoConfig(
       .target_playout_delay =
           std::chrono::milliseconds(config.max_playout_delay.InMilliseconds()),
       .codec_parameter = std::string()};
+}
+
+RemotingSinkAudioCapability ToRemotingAudioCapability(
+    openscreen::cast::AudioCapability capability) {
+  switch (capability) {
+    case openscreen::cast::AudioCapability::kBaselineSet:
+      return RemotingSinkAudioCapability::CODEC_BASELINE_SET;
+
+    case openscreen::cast::AudioCapability::kAac:
+      return RemotingSinkAudioCapability::CODEC_AAC;
+
+    case openscreen::cast::AudioCapability::kOpus:
+      return RemotingSinkAudioCapability::CODEC_OPUS;
+  }
+}
+
+RemotingSinkVideoCapability ToRemotingVideoCapability(
+    openscreen::cast::VideoCapability capability) {
+  switch (capability) {
+    case openscreen::cast::VideoCapability::kSupports4k:
+      return RemotingSinkVideoCapability::SUPPORT_4K;
+
+    case openscreen::cast::VideoCapability::kH264:
+      return RemotingSinkVideoCapability::CODEC_H264;
+
+    case openscreen::cast::VideoCapability::kVp8:
+      return RemotingSinkVideoCapability::CODEC_VP8;
+
+    case openscreen::cast::VideoCapability::kVp9:
+      return RemotingSinkVideoCapability::CODEC_VP9;
+
+    case openscreen::cast::VideoCapability::kHevc:
+      return RemotingSinkVideoCapability::CODEC_HEVC;
+
+    case openscreen::cast::VideoCapability::kAv1:
+      return RemotingSinkVideoCapability::CODEC_AV1;
+  }
+}
+
+// Convert the sink capabilities to media::mojom::RemotingSinkMetadata.
+media::mojom::RemotingSinkMetadata ToRemotingSinkMetadata(
+    const openscreen::cast::RemotingCapabilities& capabilities,
+    std::string_view friendly_name) {
+  media::mojom::RemotingSinkMetadata sink_metadata;
+  sink_metadata.friendly_name = friendly_name;
+
+  std::transform(capabilities.audio.begin(), capabilities.audio.end(),
+                 std::back_insert_iterator(sink_metadata.audio_capabilities),
+                 ToRemotingAudioCapability);
+
+  std::transform(capabilities.video.begin(), capabilities.video.end(),
+                 std::back_insert_iterator(sink_metadata.video_capabilities),
+                 ToRemotingVideoCapability);
+
+  return sink_metadata;
 }
 
 }  // namespace media::cast

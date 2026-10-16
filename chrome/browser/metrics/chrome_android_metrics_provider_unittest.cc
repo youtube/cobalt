@@ -6,7 +6,9 @@
 
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
 #include "chrome/browser/flags/android/chrome_session_state.h"
+#include "components/metrics/android_metrics_helper.h"
 #include "components/prefs/testing_pref_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/metrics_proto/chrome_user_metrics_extension.pb.h"
@@ -32,6 +34,7 @@ class ChromeAndroidMetricsProviderTest
     // In case the test played with the activity type, restore it to what it
     // was before the test.
     SetInitialActivityTypeForTesting(orig_activity_type_);
+    ChromeAndroidMetricsProvider::ResetGlobalStateForTesting();
   }
 
   ActivityType activity_type() const { return GetParam(); }
@@ -43,6 +46,7 @@ class ChromeAndroidMetricsProviderTest
   ChromeAndroidMetricsProvider metrics_provider_;
   metrics::ChromeUserMetricsExtension uma_proto_;
   const ActivityType orig_activity_type_;
+  base::test::TaskEnvironment task_environment_;
 };
 
 }  // namespace
@@ -60,11 +64,11 @@ TEST_F(ChromeAndroidMetricsProviderTest,
 }
 
 TEST_F(ChromeAndroidMetricsProviderTest,
-       ProvideCurrentSessionData_HasMultipleUserProfiles) {
-  metrics_provider_.ProvideCurrentSessionData(&uma_proto_);
+       OnDidCreateMetricsLog_HasMultipleUserProfiles) {
+  metrics_provider_.OnDidCreateMetricsLog();
   histogram_tester_.ExpectTotalCount("Android.MultipleUserProfilesState", 1);
   // Caches value, test a second time.
-  metrics_provider_.ProvideCurrentSessionData(&uma_proto_);
+  metrics_provider_.OnDidCreateMetricsLog();
   histogram_tester_.ExpectTotalCount("Android.MultipleUserProfilesState", 2);
 }
 
@@ -75,6 +79,28 @@ TEST_F(ChromeAndroidMetricsProviderTest,
   // Caches value, test a second time.
   metrics_provider_.ProvidePreviousSessionData(&uma_proto_);
   histogram_tester_.ExpectTotalCount("Android.MultipleUserProfilesState", 2);
+}
+
+TEST_F(ChromeAndroidMetricsProviderTest,
+       OnDidCreateMetricsLog_AndroidMetricsHelper) {
+  metrics_provider_.OnDidCreateMetricsLog();
+  histogram_tester_.ExpectTotalCount("Android.VersionCode", 1);
+  histogram_tester_.ExpectTotalCount("Android.CpuAbiBitnessSupport", 1);
+}
+
+TEST_F(ChromeAndroidMetricsProviderTest,
+       ProvidePreviousSessionData_AndroidMetricsHelper) {
+  metrics_provider_.ProvidePreviousSessionData(&uma_proto_);
+  histogram_tester_.ExpectTotalCount("Android.VersionCode", 0);
+  histogram_tester_.ExpectTotalCount("Android.CpuAbiBitnessSupport", 1);
+}
+
+TEST_F(ChromeAndroidMetricsProviderTest,
+       ProvidePreviousSessionDataWithSavedLocalState_AndroidMetricsHelper) {
+  metrics::AndroidMetricsHelper::SaveLocalState(&pref_service_, 588700002);
+  metrics_provider_.ProvidePreviousSessionData(&uma_proto_);
+  histogram_tester_.ExpectTotalCount("Android.VersionCode", 1);
+  histogram_tester_.ExpectTotalCount("Android.CpuAbiBitnessSupport", 1);
 }
 
 TEST_F(ChromeAndroidMetricsProviderTest,
@@ -213,14 +239,16 @@ TEST_P(ChromeAndroidMetricsProviderTest, InitialTab) {
 
 // Tests initial transition from kPreFirstTab to !kPreFirstTab.
 TEST_P(ChromeAndroidMetricsProviderTest, TabSwitching) {
-  // kPreFirstTab -> kPreFirstTab is not a valid scenario. Early exit.
-  if (activity_type() == ActivityType::kPreFirstTab)
-    return;
-
   const auto first_activity_type = activity_type();
   const auto second_activity_type =
       static_cast<ActivityType>((static_cast<int>(first_activity_type) + 1) %
                                 static_cast<int>(ActivityType::kMaxValue));
+
+  // Transition to kPreFirstTab is not a valid scenario. Early exit.
+  if (first_activity_type == ActivityType::kPreFirstTab ||
+      second_activity_type == ActivityType::kPreFirstTab) {
+    return;
+  }
 
   // Validating startup, so seed the activity type to kPreFirstTab,
   SetInitialActivityTypeForTesting(ActivityType::kPreFirstTab);
@@ -260,4 +288,5 @@ INSTANTIATE_TEST_SUITE_P(All,
                                          ActivityType::kTrustedWebActivity,
                                          ActivityType::kWebapp,
                                          ActivityType::kWebApk,
-                                         ActivityType::kPreFirstTab));
+                                         ActivityType::kPreFirstTab,
+                                         ActivityType::kAuthTab));

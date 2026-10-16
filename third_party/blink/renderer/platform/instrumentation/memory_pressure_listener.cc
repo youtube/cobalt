@@ -4,12 +4,12 @@
 
 #include "third_party/blink/renderer/platform/instrumentation/memory_pressure_listener.h"
 
-#include "base/allocator/partition_allocator/memory_reclaimer.h"
 #include "base/feature_list.h"
 #include "base/synchronization/lock.h"
 #include "base/system/sys_info.h"
 #include "base/trace_event/common/trace_event_common.h"
 #include "build/build_config.h"
+#include "partition_alloc/memory_reclaimer.h"
 #include "third_party/blink/public/common/device_memory/approximated_device_memory.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/web/blink.h"
@@ -29,6 +29,23 @@
 
 namespace blink {
 
+#if BUILDFLAG(IS_COBALT)
+namespace {
+const char* MemoryPressureLevelToString(
+    base::MemoryPressureListener::MemoryPressureLevel level) {
+  switch (level) {
+    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE:
+      return "NONE";
+    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
+      return "MODERATE";
+    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL:
+      return "CRITICAL";
+  }
+  return "UNKNOWN";
+}
+}  // namespace
+#endif  // BUILDFLAG(IS_COBALT)
+
 // Function defined in third_party/blink/public/web/blink.h.
 void DecommitFreeableMemory() {
   CHECK(IsMainThread());
@@ -47,6 +64,17 @@ bool MemoryPressureListenerRegistry::
     IsLowEndDeviceOrPartialLowEndModeEnabled() {
   return is_low_end_device_ ||
          base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled();
+}
+
+bool MemoryPressureListenerRegistry::
+    IsLowEndDeviceOrPartialLowEndModeEnabledIncludingCanvasFontCache() {
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
+  return is_low_end_device_ ||
+         base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled(
+             blink::features::kPartialLowEndModeExcludeCanvasFontCache);
+#else
+  return IsLowEndDeviceOrPartialLowEndModeEnabled();
+#endif
 }
 
 // static
@@ -113,8 +141,9 @@ void MemoryPressureListenerRegistry::OnMemoryPressure(
   TRACE_EVENT1("blink", "MemoryPressureListenerRegistry::onMemoryPressure",
                "level", level);
 #if BUILDFLAG(IS_COBALT)
-  LOG(INFO) << "Blink handling OnMemoryPressure";
-#endif
+  LOG(INFO) << "Blink handling OnMemoryPressure, level: " << level
+            << " (" << MemoryPressureLevelToString(level) << ")";
+#endif  // BUILDFLAG(IS_COBALT)
   CHECK(IsMainThread());
   for (auto& client : clients_)
     client->OnMemoryPressure(level);

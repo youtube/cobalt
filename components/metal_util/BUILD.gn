@@ -6,10 +6,6 @@ assert(is_apple)
 
 import("//testing/test.gni")
 
-source_set("metal_util_types") {
-  sources = [ "types.h" ]
-}
-
 component("metal_util") {
   output_name = "metal"
 
@@ -23,8 +19,6 @@ component("metal_util") {
     "metal_util_export.h",
   ]
 
-  public_deps = [ ":metal_util_types" ]
-
   deps = [
     "//base",
     "//components/crash/core/common:crash_key",
@@ -34,12 +28,9 @@ component("metal_util") {
 
   frameworks = [
     "IOSurface.framework",
-    "QuartzCore.framework",
-  ]
-
-  weak_frameworks = [
     "Metal.framework",
     "MetalKit.framework",
+    "QuartzCore.framework",
   ]
 
   if (is_mac) {

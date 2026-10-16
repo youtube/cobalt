@@ -4,18 +4,15 @@
 
 #include "quiche/quic/core/frames/quic_ack_frame.h"
 
+#include <ostream>
+#include <utility>
+
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_interval.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 
 namespace quic {
-
-namespace {
-
-const QuicPacketCount kMaxPrintRange = 128;
-
-}  // namespace
 
 bool IsAwaitingPacket(const QuicAckFrame& ack_frame,
                       QuicPacketNumber packet_number,
@@ -158,28 +155,15 @@ QuicPacketCount PacketNumberQueue::LastIntervalLength() const {
   return packet_number_intervals_.rbegin()->Length();
 }
 
-// Largest min...max range for packet numbers where we print the numbers
-// explicitly. If bigger than this, we print as a range  [a,d] rather
-// than [a b c d]
-
 std::ostream& operator<<(std::ostream& os, const PacketNumberQueue& q) {
   for (const QuicInterval<QuicPacketNumber>& interval : q) {
-    // Print as a range if there is a pathological condition.
-    if ((interval.min() >= interval.max()) ||
-        (interval.max() - interval.min() > kMaxPrintRange)) {
-      // If min>max, it's really a bug, so QUIC_BUG it to
-      // catch it in development.
-      QUIC_BUG_IF(quic_bug_12614_2, interval.min() >= interval.max())
-          << "Ack Range minimum (" << interval.min() << "Not less than max ("
-          << interval.max() << ")";
-      // print range as min...max rather than full list.
-      // in the event of a bug, the list could be very big.
-      os << interval.min() << "..." << (interval.max() - 1) << " ";
+    QUIC_BUG_IF(quic_bug_12614_2, interval.min() >= interval.max())
+        << "Ack Range minimum (" << interval.min() << "Not less than max ("
+        << interval.max() << ")";
+    if (interval.min() == interval.max() - 1) {
+      os << interval.min() << " ";
     } else {
-      for (QuicPacketNumber packet_number = interval.min();
-           packet_number < interval.max(); ++packet_number) {
-        os << packet_number << " ";
-      }
+      os << interval.min() << "..." << (interval.max() - 1) << " ";
     }
   }
   return os;

@@ -14,20 +14,23 @@ import 'chrome://resources/cr_elements/icons.html.js';
 import 'chrome://resources/cr_elements/policy/cr_policy_indicator.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
 import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
-import 'chrome://resources/polymer/v3_0/iron-flex-layout/iron-flex-layout-classes.js';
 import '../controls/settings_toggle_button.js';
+// <if expr="not chromeos_ash">
 import './sync_account_control.js';
+// </if>
 import '../icons.html.js';
 import '../settings_page/settings_animated_pages.js';
 import '../settings_page/settings_subpage.js';
 import '../settings_shared.css.js';
 
-import {ProfileInfo, ProfileInfoBrowserProxyImpl} from '/shared/settings/people_page/profile_info_browser_proxy.js';
-import {StoredAccount, SyncBrowserProxy, SyncBrowserProxyImpl, SyncStatus} from '/shared/settings/people_page/sync_browser_proxy.js';
+import type {ProfileInfo} from '/shared/settings/people_page/profile_info_browser_proxy.js';
+import {ProfileInfoBrowserProxyImpl} from '/shared/settings/people_page/profile_info_browser_proxy.js';
+import type {StoredAccount, SyncBrowserProxy, SyncStatus} from '/shared/settings/people_page/sync_browser_proxy.js';
+import {SignedInState, SyncBrowserProxyImpl} from '/shared/settings/people_page/sync_browser_proxy.js';
 // <if expr="chromeos_ash">
 import {convertImageSequenceToPng} from 'chrome://resources/ash/common/cr_picture/png.js';
 // </if>
-import {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
+import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
 import {getImage} from 'chrome://resources/js/icon.js';
@@ -36,11 +39,15 @@ import {isChromeOS} from 'chrome://resources/js/platform.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {BaseMixin} from '../base_mixin.js';
-import {FocusConfig} from '../focus_config.js';
+import type {FocusConfig} from '../focus_config.js';
 import {loadTimeData} from '../i18n_setup.js';
-import {PageVisibility} from '../page_visibility.js';
+import type {PageVisibility} from '../page_visibility.js';
 import {routes} from '../route.js';
-import {RouteObserverMixin, Router} from '../router.js';
+import {Router} from '../router.js';
+
+// <if expr="not chromeos_ash">
+import {RouteObserverMixin} from '../router.js';
+// </if>
 
 // <if expr="chromeos_ash">
 import {AccountManagerBrowserProxyImpl} from './account_manager_browser_proxy.js';
@@ -55,8 +62,14 @@ export interface SettingsPeoplePageElement {
   };
 }
 
+// <if expr="not chromeos_ash">
 const SettingsPeoplePageElementBase =
     RouteObserverMixin(WebUiListenerMixin(BaseMixin(PolymerElement)));
+// </if>
+// <if expr="chromeos_ash">
+const SettingsPeoplePageElementBase =
+    WebUiListenerMixin(BaseMixin(PolymerElement));
+// </if>
 
 export class SettingsPeoplePageElement extends SettingsPeoplePageElementBase {
   static get is() {
@@ -89,6 +102,19 @@ export class SettingsPeoplePageElement extends SettingsPeoplePageElementBase {
         type: Boolean,
         value() {
           return loadTimeData.getBoolean('signinAllowed');
+        },
+      },
+
+      /**
+       * This property stores whether the profile is a Dasherless profiles,
+       * which is associated with a non-Dasher account. Some UIs related to
+       * sign in and sync service will be different because they are not
+       * available for these profiles.
+       */
+      isDasherlessProfile_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('isDasherlessProfile');
         },
       },
 
@@ -157,9 +183,10 @@ export class SettingsPeoplePageElement extends SettingsPeoplePageElementBase {
         type: Boolean,
         value: false,
       },
-      // </if>
 
       showSignoutDialog_: Boolean,
+      // </if>
+
 
       focusConfig_: {
         type: Object,
@@ -183,23 +210,24 @@ export class SettingsPeoplePageElement extends SettingsPeoplePageElementBase {
     };
   }
 
-  prefs: any;
-  private signinAllowed_: boolean;
-  syncStatus: SyncStatus|null;
-  pageVisibility: PageVisibility;
-  private authToken_: string;
-  private profileIconUrl_: string;
-  private isProfileActionable_: boolean;
-  private profileName_: string;
+  declare prefs: any;
+  declare private signinAllowed_: boolean;
+  declare private isDasherlessProfile_: boolean;
+  declare syncStatus: SyncStatus|null;
+  declare pageVisibility: PageVisibility;
+  declare private authToken_: string;
+  declare private profileIconUrl_: string;
+  declare private isProfileActionable_: boolean;
+  declare private profileName_: string;
 
   // <if expr="not chromeos_ash">
-  storedAccounts: StoredAccount[]|null;
-  private shouldShowGoogleAccount_: boolean;
-  private showImportDataDialog_: boolean;
+  declare storedAccounts: StoredAccount[]|null;
+  declare private shouldShowGoogleAccount_: boolean;
+  declare private showImportDataDialog_: boolean;
+  declare private showSignoutDialog_: boolean;
   // </if>
 
-  private showSignoutDialog_: boolean;
-  private focusConfig_: FocusConfig;
+  declare private focusConfig_: FocusConfig;
 
   private syncBrowserProxy_: SyncBrowserProxy =
       SyncBrowserProxyImpl.getInstance();
@@ -243,36 +271,28 @@ export class SettingsPeoplePageElement extends SettingsPeoplePageElementBase {
     // </if>
   }
 
+  // <if expr="not chromeos_ash">
   override currentRouteChanged() {
-    // <if expr="not chromeos_ash">
     this.showImportDataDialog_ =
         Router.getInstance().getCurrentRoute() === routes.IMPORT_DATA;
-    // </if>
 
     if (Router.getInstance().getCurrentRoute() === routes.SIGN_OUT) {
       // If the sync status has not been fetched yet, optimistically display
       // the sign-out dialog. There is another check when the sync status is
       // fetched. The dialog will be closed when the user is not signed in.
-      if (this.syncStatus && !this.syncStatus.signedIn) {
+      if (this.syncStatus && !this.isSyncing_()) {
         Router.getInstance().navigateToPreviousRoute();
       } else {
         this.showSignoutDialog_ = true;
       }
     }
   }
+  // </if>
 
   private getEditPersonAssocControl_(): Element {
     return this.signinAllowed_ ?
         this.shadowRoot!.querySelector('#edit-profile')! :
         this.shadowRoot!.querySelector('#profile-row')!;
-  }
-
-  private getSyncAndGoogleServicesSubtext_(): string {
-    if (this.syncStatus && this.syncStatus.hasError &&
-        this.syncStatus.statusText) {
-      return this.syncStatus.statusText;
-    }
-    return '';
   }
 
   /**
@@ -317,7 +337,7 @@ export class SettingsPeoplePageElement extends SettingsPeoplePageElementBase {
     // shown. They should be recorder only once, the first time
     // |this.syncStatus| is set.
     const shouldRecordSigninImpression = !this.syncStatus && syncStatus &&
-        this.signinAllowed_ && !syncStatus.signedIn;
+        this.signinAllowed_ && !this.isSyncing_();
 
     this.syncStatus = syncStatus;
 
@@ -333,7 +353,7 @@ export class SettingsPeoplePageElement extends SettingsPeoplePageElementBase {
       return false;
     }
 
-    return (this.storedAccounts!.length > 0 || !!this.syncStatus!.signedIn) &&
+    return (this.storedAccounts!.length > 0 || this.isSyncing_()) &&
         !this.syncStatus!.hasError;
   }
   // </if>
@@ -342,8 +362,8 @@ export class SettingsPeoplePageElement extends SettingsPeoplePageElementBase {
     // <if expr="chromeos_ash">
     if (loadTimeData.getBoolean('isAccountManagerEnabled')) {
       // Post-SplitSettings. The browser C++ code loads OS settings in a window.
-      // Don't use window.open() because that creates an extra empty tab.
-      window.location.href = 'chrome://os-settings/accountManager';
+      OpenWindowProxyImpl.getInstance().openUrl(
+          loadTimeData.getString('osSettingsAccountsPageUrl'));
     }
     // </if>
     // <if expr="not chromeos_ash">
@@ -351,6 +371,7 @@ export class SettingsPeoplePageElement extends SettingsPeoplePageElementBase {
     // </if>
   }
 
+  // <if expr="not chromeos_ash">
   private onDisconnectDialogClosed_() {
     this.showSignoutDialog_ = false;
 
@@ -358,6 +379,7 @@ export class SettingsPeoplePageElement extends SettingsPeoplePageElementBase {
       Router.getInstance().navigateToPreviousRoute();
     }
   }
+  // </if>
 
   private onSyncClick_() {
     // Users can go to sync subpage regardless of sync status.
@@ -401,6 +423,11 @@ export class SettingsPeoplePageElement extends SettingsPeoplePageElementBase {
    */
   private getIconImageSet_(iconUrl: string): string {
     return getImage(iconUrl);
+  }
+
+  private isSyncing_() {
+    return !!this.syncStatus &&
+        this.syncStatus.signedInState === SignedInState.SYNCING;
   }
 }
 

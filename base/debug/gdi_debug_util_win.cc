@@ -3,22 +3,25 @@
 // found in the LICENSE file.
 #include "base/debug/gdi_debug_util_win.h"
 
-#include <algorithm>
-#include <cmath>
+#include <windows.h>
+#include <winternl.h>
 
 #include <TlHelp32.h>
 #include <psapi.h>
 #include <stddef.h>
-#include <windows.h>
-#include <winternl.h>
+
+#include <algorithm>
+#include <cmath>
+#include <optional>
 
 #include "base/debug/alias.h"
 #include "base/logging.h"
+#include "base/notreached.h"
 #include "base/process/process.h"
+#include "base/win/scoped_gdi_object.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/win_util.h"
 #include "base/win/windows_version.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
@@ -177,8 +180,9 @@ GetGdiTableEntries(const base::Process& process) {
   using GdiTableEntryVector =
       std::vector<GdiTableEntry<typename ProcessType::NativePointerType>>;
   HMODULE ntdll = GetModuleHandle(L"ntdll.dll");
-  if (!ntdll)
+  if (!ntdll) {
     return GdiTableEntryVector();
+  }
 
   static auto query_information_process_func =
       reinterpret_cast<typename ProcessType::QueryInformationProcessFunc*>(
@@ -225,7 +229,8 @@ GetGdiTableEntries(const base::Process& process) {
   // Entry Count
   // 32-bit: 65792
   // 64-bit: 65706ish
-  // So we'll take a look at 65536 entries since that's the maximum handle count.
+  // So we'll take a look at 65536 entries since that's the maximum handle
+  // count.
   constexpr int kGdiTableEntryCount = 65536;
   GdiTableEntryVector entries;
   entries.resize(kGdiTableEntryCount);
@@ -250,8 +255,9 @@ base::debug::GdiHandleCounts CountHandleTypesFromTable(
     const std::vector<GdiTableEntry<PointerType>>& gdi_table) {
   base::debug::GdiHandleCounts counts{};
   for (const auto& entry : gdi_table) {
-    if (entry.wProcessId != pid)
+    if (entry.wProcessId != pid) {
       continue;
+    }
 
     switch (entry.wType & 0x7F) {
       case GdiHandleType::kDC:
@@ -287,11 +293,12 @@ base::debug::GdiHandleCounts CountHandleTypesFromTable(
 }
 
 template <typename ProcessType>
-absl::optional<base::debug::GdiHandleCounts> CollectGdiHandleCountsImpl(
+std::optional<base::debug::GdiHandleCounts> CollectGdiHandleCountsImpl(
     DWORD pid) {
   base::Process process = base::Process::OpenWithExtraPrivileges(pid);
-  if (!process.IsValid())
-    return absl::nullopt;
+  if (!process.IsValid()) {
+    return std::nullopt;
+  }
 
   std::vector<GdiTableEntry<typename ProcessType::NativePointerType>>
       gdi_entries = GetGdiTableEntries<ProcessType>(process);
@@ -300,7 +307,7 @@ absl::optional<base::debug::GdiHandleCounts> CollectGdiHandleCountsImpl(
 
 // Returns the GDI Handle counts from the GDI Shared handle table. Empty on
 // failure.
-absl::optional<base::debug::GdiHandleCounts> CollectGdiHandleCounts(DWORD pid) {
+std::optional<base::debug::GdiHandleCounts> CollectGdiHandleCounts(DWORD pid) {
   if (base::win::OSInfo::GetInstance()->IsWowX86OnAMD64()) {
     return CollectGdiHandleCountsImpl<WowProcessTypes>(pid);
   }
@@ -349,11 +356,10 @@ NOINLINE void CrashIfCannotAllocateSmallBitmap(BITMAPINFOHEADER* header,
   base::debug::Alias(&small_data);
   header->biWidth = 5;
   header->biHeight = -5;
-  HBITMAP small_bitmap =
+  base::win::ScopedGDIObject<HBITMAP> small_bitmap(
       CreateDIBSection(nullptr, reinterpret_cast<BITMAPINFO*>(&header), 0,
-                       &small_data, shared_section, 0);
-  CHECK(small_bitmap != nullptr);
-  DeleteObject(small_bitmap);
+                       &small_data, shared_section, 0));
+  CHECK(small_bitmap.is_valid());
 }
 
 NOINLINE void GetProcessMemoryInfo(PROCESS_MEMORY_COUNTERS_EX* pmc) {
@@ -368,7 +374,7 @@ NOINLINE DWORD GetNumGdiHandles() {
   if (num_gdi_handles == 0) {
     DWORD get_gui_resources_error = GetLastError();
     base::debug::Alias(&get_gui_resources_error);
-    CHECK(false);
+    NOTREACHED();
   }
   return num_gdi_handles;
 }
@@ -398,12 +404,11 @@ void CollectChildGDIUsageAndDie(DWORD parent_pid) {
   GetFirstProcess(snapshot, &proc_entry);
 
   do {
-    base::win::ScopedHandle process(
-        OpenProcess(PROCESS_QUERY_INFORMATION,
-                    FALSE,
-                    proc_entry.th32ProcessID));
-    if (!process.is_valid())
+    base::win::ScopedHandle process(OpenProcess(
+        PROCESS_QUERY_INFORMATION, FALSE, proc_entry.th32ProcessID));
+    if (!process.is_valid()) {
       continue;
+    }
 
     DWORD num_gdi_handles = GetGuiResources(process.get(), GR_GDIOBJECTS);
     DWORD num_user_handles = GetGuiResources(process.get(), GR_USEROBJECTS);
@@ -414,8 +419,9 @@ void CollectChildGDIUsageAndDie(DWORD parent_pid) {
     total_gdi_count += num_gdi_handles;
     total_peak_gdi_count = std::max(total_peak_gdi_count, num_gdi_handles);
 
-    if (parent_pid != proc_entry.th32ParentProcessID)
+    if (parent_pid != proc_entry.th32ParentProcessID) {
       continue;
+    }
 
     // Compute sum and peak counts for child processes.
     ++child_count;
@@ -425,7 +431,7 @@ void CollectChildGDIUsageAndDie(DWORD parent_pid) {
   } while (Process32Next(snapshot, &proc_entry));
 
   CloseHandle(snapshot);
-  CHECK(false);
+  NOTREACHED();
 }
 
 }  // namespace
@@ -460,7 +466,7 @@ void CollectGDIUsageAndDie(BITMAPINFOHEADER* header, HANDLE shared_section) {
   base::debug::Alias(&num_global_gdi_handles);
   base::debug::Alias(&num_global_user_handles);
 
-  absl::optional<GdiHandleCounts> optional_handle_counts =
+  std::optional<GdiHandleCounts> optional_handle_counts =
       CollectGdiHandleCounts(GetCurrentProcessId());
   bool handle_counts_set = optional_handle_counts.has_value();
   GdiHandleCounts handle_counts =
@@ -504,7 +510,7 @@ void CollectGDIUsageAndDie(BITMAPINFOHEADER* header, HANDLE shared_section) {
 }
 
 GdiHandleCounts GetGDIHandleCountsInCurrentProcessForTesting() {
-  absl::optional<GdiHandleCounts> handle_counts =
+  std::optional<GdiHandleCounts> handle_counts =
       CollectGdiHandleCounts(GetCurrentProcessId());
   DCHECK(handle_counts.has_value());
   return handle_counts.value_or(GdiHandleCounts());

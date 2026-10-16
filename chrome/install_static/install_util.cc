@@ -2,19 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/install_static/install_util.h"
+
+#include <windows.h>
 
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <windows.h>
 
 #include <algorithm>
 #include <limits>
 #include <memory>
+#include <ranges>
 #include <sstream>
 
 #include "base/compiler_specific.h"
+#include "base/version_info/channel.h"
 #include "build/branding_buildflags.h"
 #include "chrome/chrome_elf/nt_registry/nt_registry.h"
 #include "chrome/install_static/buildflags.h"
@@ -23,7 +31,6 @@
 #include "chrome/install_static/policy_path_parser.h"
 #include "chrome/install_static/user_data_dir.h"
 #include "components/nacl/common/buildflags.h"
-#include "components/version_info/channel.h"
 
 namespace install_static {
 
@@ -32,7 +39,6 @@ enum class ProcessType {
   OTHER_PROCESS,
   BROWSER_PROCESS,
 #if BUILDFLAG(ENABLE_NACL)
-  NACL_BROKER_PROCESS,
   NACL_LOADER_PROCESS,
 #endif
   CRASHPAD_HANDLER_PROCESS,
@@ -48,9 +54,6 @@ const wchar_t kRegValueChromeStatsSample[] = L"UsageStatsInSample";
 // The constants defined in this file are also defined in chrome/installer and
 // other places. we need to unify them.
 const wchar_t kHeadless[] = L"CHROME_HEADLESS";
-const wchar_t kShowRestart[] = L"CHROME_CRASHED";
-const wchar_t kRestartInfo[] = L"CHROME_RESTART";
-const wchar_t kRtlLocale[] = L"RIGHT_TO_LEFT";
 
 const wchar_t kCrashpadHandler[] = L"crashpad-handler";
 const wchar_t kFallbackHandler[] = L"fallback-handler";
@@ -81,7 +84,6 @@ constexpr wchar_t kRegValueUsageStats[] = L"usagestats";
 constexpr wchar_t kMetricsReportingEnabled[] = L"MetricsReportingEnabled";
 
 #if BUILDFLAG(ENABLE_NACL)
-constexpr wchar_t kNaClBrokerProcess[] = L"nacl-broker";
 constexpr wchar_t kNaClLoaderProcess[] = L"nacl-loader";
 #endif
 
@@ -261,8 +263,6 @@ ProcessType GetProcessType(const std::wstring& process_type) {
   if (process_type.empty())
     return ProcessType::BROWSER_PROCESS;
 #if BUILDFLAG(ENABLE_NACL)
-  if (process_type == kNaClBrokerProcess)
-    return ProcessType::NACL_BROKER_PROCESS;
   if (process_type == kNaClLoaderProcess)
     return ProcessType::NACL_LOADER_PROCESS;
 #endif
@@ -279,7 +279,6 @@ bool ProcessNeedsProfileDir(ProcessType process_type) {
   switch (process_type) {
     case ProcessType::BROWSER_PROCESS:
 #if BUILDFLAG(ENABLE_NACL)
-    case ProcessType::NACL_BROKER_PROCESS:
     case ProcessType::NACL_LOADER_PROCESS:
 #endif
       return true;
@@ -293,6 +292,27 @@ bool ProcessNeedsProfileDir(ProcessType process_type) {
   }
   assert(false);
   return false;
+}
+
+// Returns the user's temporary directory, or an empty string in case of
+// failure.
+std::wstring GetTempDir() {
+  constexpr DWORD kBufferLength = MAX_PATH + 1U;
+  wchar_t temp_path[kBufferLength];
+  DWORD temp_path_len = ::GetTempPath(kBufferLength, temp_path);
+  if (temp_path_len == 0 || temp_path_len > kBufferLength) {
+    return {};
+  }
+
+  std::wstring temp_dir(temp_path, temp_path_len);
+
+  // Strip the trailing slashes if any to duplicate //base method behavior.
+  while (!temp_dir.empty() &&
+         (temp_dir.back() == '\\' || temp_dir.back() == '/')) {
+    temp_dir.pop_back();
+  }
+
+  return temp_dir;
 }
 
 }  // namespace
@@ -364,6 +384,25 @@ std::wstring GetElevationServiceDisplayName() {
   return GetBaseAppName() + kElevationServiceDisplayName;
 }
 
+const CLSID& GetTracingServiceClsid() {
+  return InstallDetails::Get().tracing_service_clsid();
+}
+
+const IID& GetTracingServiceIid() {
+  return InstallDetails::Get().tracing_service_iid();
+}
+
+std::wstring GetTracingServiceName() {
+  std::wstring name = GetTracingServiceDisplayName();
+  name.erase(std::remove_if(name.begin(), name.end(), isspace), name.end());
+  return name;
+}
+
+std::wstring GetTracingServiceDisplayName() {
+  static constexpr wchar_t kTracingServiceDisplayName[] = L" Tracing Service";
+  return GetBaseAppName() + kTracingServiceDisplayName;
+}
+
 std::wstring GetBaseAppName() {
   return InstallDetails::Get().mode().base_app_name;
 }
@@ -372,12 +411,20 @@ const wchar_t* GetBaseAppId() {
   return InstallDetails::Get().base_app_id();
 }
 
-const wchar_t* GetProgIdPrefix() {
-  return InstallDetails::Get().mode().prog_id_prefix;
+const wchar_t* GetBrowserProgIdPrefix() {
+  return InstallDetails::Get().mode().browser_prog_id_prefix;
 }
 
-const wchar_t* GetProgIdDescription() {
-  return InstallDetails::Get().mode().prog_id_description;
+const wchar_t* GetBrowserProgIdDescription() {
+  return InstallDetails::Get().mode().browser_prog_id_description;
+}
+
+const wchar_t* GetPDFProgIdPrefix() {
+  return InstallDetails::Get().mode().pdf_prog_id_prefix;
+}
+
+const wchar_t* GetPDFProgIdDescription() {
+  return InstallDetails::Get().mode().pdf_prog_id_description;
 }
 
 std::wstring GetActiveSetupPath() {
@@ -394,12 +441,16 @@ bool SupportsSetAsDefaultBrowser() {
   return InstallDetails::Get().mode().supports_set_as_default_browser;
 }
 
-bool SupportsRetentionExperiments() {
-  return InstallDetails::Get().mode().supports_retention_experiments;
+int GetAppIconResourceIndex() {
+  return InstallDetails::Get().mode().app_icon_resource_index;
 }
 
-int GetIconResourceIndex() {
-  return InstallDetails::Get().mode().app_icon_resource_index;
+int GetHTMLIconResourceIndex() {
+  return InstallDetails::Get().mode().html_doc_icon_resource_index;
+}
+
+int GetPDFIconResourceIndex() {
+  return InstallDetails::Get().mode().pdf_doc_icon_resource_index;
 }
 
 const wchar_t* GetSandboxSidPrefix() {
@@ -505,9 +556,8 @@ bool ReportingIsEnforcedByPolicy(bool* crash_reporting_enabled) {
 
 void InitializeProcessType() {
   assert(g_process_type == ProcessType::UNINITIALIZED);
-  std::wstring process_type =
-      GetSwitchValueFromCommandLine(::GetCommandLine(), kProcessType);
-  g_process_type = GetProcessType(process_type);
+  g_process_type = GetProcessType(
+      GetCommandLineSwitchValue(::GetCommandLine(), kProcessType));
 }
 
 bool IsProcessTypeInitialized() {
@@ -793,22 +843,38 @@ std::vector<std::wstring> TokenizeCommandLineToArray(
   return result;
 }
 
-std::wstring GetSwitchValueFromCommandLine(const std::wstring& command_line,
-                                           const std::wstring& switch_name) {
-  static constexpr wchar_t kSwitchTerminator[] = L"--";
+std::optional<std::wstring> GetCommandLineSwitch(
+    const std::wstring& command_line,
+    std::wstring_view switch_name) {
   assert(!command_line.empty());
   assert(!switch_name.empty());
 
-  std::vector<std::wstring> as_array = TokenizeCommandLineToArray(command_line);
-  std::wstring switch_with_equal = L"--" + switch_name + L"=";
-  auto end = std::find(as_array.cbegin(), as_array.cend(), kSwitchTerminator);
-  for (auto scan = as_array.cbegin(); scan != end; ++scan) {
-    const std::wstring& arg = *scan;
-    if (arg.compare(0, switch_with_equal.size(), switch_with_equal) == 0)
-      return arg.substr(switch_with_equal.size());
+  std::vector<std::wstring> switches = TokenizeCommandLineToArray(command_line);
+
+  // Stop scanning if lone '--' switch prefix is found.
+  auto cend = std::ranges::find(switches, L"--");
+
+  std::wstring switch_with_prefix = L"--" + std::wstring(switch_name);
+  for (auto it = switches.cbegin(); it != cend; ++it) {
+    if (it->starts_with(switch_with_prefix)) {
+      if (it->length() == switch_with_prefix.length()) {
+        return std::wstring();
+      }
+      if ((*it)[switch_with_prefix.length()] == L'=') {
+        return it->substr(switch_with_prefix.length() + 1);
+      }
+    }
   }
 
-  return std::wstring();
+  return std::nullopt;
+}
+
+std::wstring GetCommandLineSwitchValue(const std::wstring& command_line,
+                                       std::wstring_view switch_name) {
+  assert(!command_line.empty());
+  assert(!switch_name.empty());
+  return GetCommandLineSwitch(command_line, switch_name)
+      .value_or(std::wstring());
 }
 
 bool RecursiveDirectoryCreate(const std::wstring& full_path) {
@@ -854,6 +920,45 @@ bool RecursiveDirectoryCreate(const std::wstring& full_path) {
     }
   }
   return true;
+}
+
+std::wstring CreateUniqueTempDirectory(std::wstring_view prefix) {
+  std::wstring temp_dir = GetTempDir();
+  if (temp_dir.empty()) {
+    Trace(L"Failed to retrieve temporary directory");
+    return {};
+  }
+
+  // The following code uses std::to_wstring() which is banned in Chrome,
+  // however, since the //base alternative is not available here, we use it as
+  // the last resort. Please DO NOT copy/paste this code outside install_static!
+  temp_dir.push_back(L'\\');
+  temp_dir.append(prefix);
+  temp_dir.append(kProductPathName, kProductPathNameLength);
+  temp_dir.append(std::to_wstring(::GetCurrentProcessId()));
+  temp_dir.append(std::to_wstring(::GetTickCount()));
+  size_t temp_dir_length = temp_dir.length();
+
+  // Try to create a new temporary directory. If the one exists, keep trying
+  // adding a randomized suffix to the path until we reach some limit.
+  for (int count = 0; count < 50; ++count) {
+    if (::CreateDirectory(temp_dir.c_str(), /*lpSecurityAttributes*/ nullptr)) {
+      return temp_dir;
+    }
+
+    // Seed the rand() once.
+    [[maybe_unused]] static bool once = []() {
+      srand(::GetTickCount());
+      return true;
+    }();
+
+    temp_dir.erase(temp_dir_length);
+    temp_dir.append(std::to_wstring(rand()));
+  }
+
+  Trace(L"Failed to create unique temporary directory %ls", temp_dir.c_str());
+
+  return {};
 }
 
 // This function takes these inputs rather than accessing the module's

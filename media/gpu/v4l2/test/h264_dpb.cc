@@ -7,6 +7,10 @@
 namespace media {
 namespace v4l2_test {
 
+H264SliceMetadata::H264SliceMetadata() = default;
+
+H264SliceMetadata::H264SliceMetadata(const H264SliceMetadata&) = default;
+
 int H264DPB::CountRefPics() {
   int ret = 0;
   for (auto& i : *this) {
@@ -133,6 +137,17 @@ void H264DPB::UnmarkLongTermPicsGreaterThanFrameIndex(const int index) {
       i.second.ref = false;
     }
   }
+}
+
+std::set<int> H264DPB::GetHeldCaptureIds() const {
+  std::set<int> dpb_ids;
+  for (auto& i : *this) {
+    if (i.second.ref || !i.second.outputted) {
+      dpb_ids.insert(i.second.capture_queue_buffer_id);
+    }
+  }
+
+  return dpb_ids;
 }
 
 }  // namespace v4l2_test

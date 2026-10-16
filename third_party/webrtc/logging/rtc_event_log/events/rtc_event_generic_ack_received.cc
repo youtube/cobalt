@@ -10,9 +10,13 @@
 
 #include "logging/rtc_event_log/events/rtc_event_generic_ack_received.h"
 
+#include <cstdint>
+#include <memory>
+#include <optional>
 #include <vector>
 
 #include "absl/memory/memory.h"
+#include "api/rtc_event_log/rtc_event.h"
 #include "rtc_base/time_utils.h"
 
 namespace webrtc {
@@ -22,7 +26,7 @@ RtcEventGenericAckReceived::CreateLogs(
     int64_t packet_number,
     const std::vector<AckedPacket>& acked_packets) {
   std::vector<std::unique_ptr<RtcEventGenericAckReceived>> result;
-  int64_t time_us = rtc::TimeMicros();
+  int64_t time_us = TimeMicros();
   result.reserve(acked_packets.size());
   for (const AckedPacket& packet : acked_packets) {
     result.emplace_back(new RtcEventGenericAckReceived(
@@ -36,7 +40,7 @@ RtcEventGenericAckReceived::RtcEventGenericAckReceived(
     int64_t timestamp_us,
     int64_t packet_number,
     int64_t acked_packet_number,
-    absl::optional<int64_t> receive_acked_packet_time_ms)
+    std::optional<int64_t> receive_acked_packet_time_ms)
     : RtcEvent(timestamp_us),
       packet_number_(packet_number),
       acked_packet_number_(acked_packet_number),

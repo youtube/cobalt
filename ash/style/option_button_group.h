@@ -7,20 +7,22 @@
 
 #include "ash/ash_export.h"
 #include "ash/style/option_button_base.h"
+#include "base/memory/raw_ptr.h"
 
 namespace ash {
 
 // OptionButtonGroup is a menu component with a group of option buttons with the
 // vertical layout.
 class ASH_EXPORT OptionButtonGroup : public views::View {
- public:
-  METADATA_HEADER(OptionButtonGroup);
+  METADATA_HEADER(OptionButtonGroup, views::View)
 
+ public:
   explicit OptionButtonGroup(int group_width);
   OptionButtonGroup(int group_width,
                     const gfx::Insets& inside_border_insets,
                     int between_child_spacing,
-                    const gfx::Insets& option_button_padding);
+                    const gfx::Insets& option_button_padding,
+                    int image_label_spacing);
   OptionButtonGroup(const OptionButtonGroup&) = delete;
   OptionButtonGroup& operator=(const OptionButtonGroup&) = delete;
   ~OptionButtonGroup() override;
@@ -50,7 +52,10 @@ class ASH_EXPORT OptionButtonGroup : public views::View {
   // The padding insets of the buttons.
   const gfx::Insets button_padding_;
 
-  std::vector<OptionButtonBase*> buttons_;
+  // The padding between the icon and label.
+  const int image_label_spacing_;
+
+  std::vector<raw_ptr<OptionButtonBase, VectorExperimental>> buttons_;
   base::CallbackListSubscription enabled_changed_subscription_;
 };
 

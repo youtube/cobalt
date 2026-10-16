@@ -4,15 +4,36 @@
 
 #include "components/permissions/permission_uma_util.h"
 
+#include <memory>
+
 #include "base/files/scoped_temp_dir.h"
+#include "base/functional/callback_helpers.h"
+#include "base/memory/ptr_util.h"
 #include "base/strings/strcat.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
+#include "base/test/simple_test_clock.h"
+#include "base/time/clock.h"
+#include "base/time/time.h"
+#include "base/values.h"
+#include "components/content_settings/core/browser/content_settings_uma_util.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
 #include "components/content_settings/core/common/content_settings_types.h"
+#include "components/content_settings/core/common/features.h"
+#include "components/permissions/constants.h"
+#include "components/permissions/permission_request.h"
+#include "components/permissions/permission_request_data.h"
 #include "components/permissions/permission_request_manager.h"
 #include "components/permissions/permission_util.h"
+#include "components/permissions/request_type.h"
+#include "components/permissions/resolvers/content_setting_permission_resolver.h"
+#include "components/permissions/test/mock_permission_prompt_factory.h"
+#include "components/permissions/test/mock_permission_request.h"
+#include "components/permissions/test/permission_request_observer.h"
 #include "components/permissions/test/test_permissions_client.h"
+#include "components/ukm/content/source_url_recorder.h"
+#include "components/ukm/test_ukm_recorder.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_task_environment.h"
@@ -20,8 +41,10 @@
 #include "content/public/test/test_browser_context.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/test/test_render_frame_host.h"
+#include "services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 
 namespace permissions {
 
@@ -41,62 +64,52 @@ constexpr const char* kGeolocationPermissionsPolicyActionHistogramName =
     "Permissions.Action.Geolocation.CrossOriginFrame."
     "TopLevelHeaderPolicy";
 
-blink::ParsedPermissionsPolicy CreatePermissionsPolicy(
-    blink::mojom::PermissionsPolicyFeature feature,
+network::ParsedPermissionsPolicy CreatePermissionsPolicy(
+    network::mojom::PermissionsPolicyFeature feature,
     const std::vector<std::string>& origins,
     bool matches_all_origins = false) {
-  std::vector<blink::OriginWithPossibleWildcards> allow_origins;
+  std::vector<network::OriginWithPossibleWildcards> allow_origins;
   for (const auto& origin : origins) {
-    allow_origins.emplace_back(url::Origin::Create(GURL(origin)),
-                               /*has_subdomain_wildcard=*/false);
+    allow_origins.emplace_back(
+        *network::OriginWithPossibleWildcards::FromOrigin(
+            url::Origin::Create(GURL(origin))));
   }
-  return {{feature, allow_origins, /*self_if_matches=*/absl::nullopt,
+  return {{feature, allow_origins, /*self_if_matches=*/std::nullopt,
            matches_all_origins,
            /*matches_opaque_src*/ false}};
-}
-
-PermissionRequestManager* SetupRequestManager(
-    content::WebContents* web_contents) {
-  PermissionRequestManager::CreateForWebContents(web_contents);
-  return PermissionRequestManager::FromWebContents(web_contents);
 }
 
 struct PermissionsDelegationTestConfig {
   ContentSettingsType type;
   PermissionAction action;
-  absl::optional<blink::mojom::PermissionsPolicyFeature> feature_overriden;
+  std::optional<network::mojom::PermissionsPolicyFeature> feature_overriden;
 
   bool matches_all_origins;
   std::vector<std::string> origins;
 
   // Expected resulting permissions policy configuration.
-  absl::optional<PermissionHeaderPolicyForUMA> expected_configuration;
+  std::optional<PermissionHeaderPolicyForUMA> expected_configuration;
 };
 
-// Wrapper class so that we can pass a closure to the PermissionRequest
-// ctor, to handle all dtor paths (avoid crash in dtor of WebContent)
-class PermissionRequestWrapper {
- public:
-  explicit PermissionRequestWrapper(permissions::RequestType type,
-                                    const char* url) {
-    const bool user_gesture = true;
-    auto decided = [](ContentSetting, bool, bool) {};
-    request_ = std::make_unique<permissions::PermissionRequest>(
-        GURL(url), type, user_gesture, base::BindRepeating(decided),
-        base::BindOnce(&PermissionRequestWrapper::DeleteThis,
-                       base::Unretained(this)));
-  }
+#if !BUILDFLAG(IS_ANDROID)
+ContentSettingsForOneType GetRevokedUnusedPermissions(
+    HostContentSettingsMap* hcsm) {
+  return hcsm->GetSettingsForOneType(
+      ContentSettingsType::REVOKED_UNUSED_SITE_PERMISSIONS);
+}
+#endif
 
-  PermissionRequestWrapper(const PermissionRequestWrapper&) = delete;
-  PermissionRequestWrapper& operator=(const PermissionRequestWrapper&) = delete;
-
-  permissions::PermissionRequest* request() { return request_.get(); }
-
- private:
-  void DeleteThis() { delete this; }
-
-  std::unique_ptr<permissions::PermissionRequest> request_;
-};
+std::unique_ptr<permissions::PermissionRequest> CreateRequest(
+    permissions::RequestType type,
+    const char* url) {
+  return std::make_unique<permissions::PermissionRequest>(
+      std::make_unique<PermissionRequestData>(
+          std::make_unique<ContentSettingPermissionResolver>(
+              RequestTypeToContentSettingsType(type).value()),
+          /*user_gesture=*/true, GURL(url)),
+      base::BindRepeating(
+          [](ContentSetting, bool, bool, const PermissionRequestData&) {}));
+}
 
 }  // namespace
 
@@ -104,20 +117,30 @@ class PermissionsDelegationUmaUtilTest
     : public content::RenderViewHostTestHarness,
       public testing::WithParamInterface<PermissionsDelegationTestConfig> {
  protected:
-  void SetUp() override { RenderViewHostTestHarness::SetUp(); }
+  void SetUp() override {
+    RenderViewHostTestHarness::SetUp();
 
-  content::RenderFrameHost* GetMainFrameAndNavigate(const char* origin) {
-    content::RenderFrameHost* result = web_contents()->GetPrimaryMainFrame();
-    content::RenderFrameHostTester::For(result)
+    auto* main_frame = web_contents()->GetPrimaryMainFrame();
+    content::RenderFrameHostTester::For(main_frame)
         ->InitializeRenderFrameIfNeeded();
-    SimulateNavigation(&result, GURL(origin));
-    return result;
+
+    SimulateNavigation(&main_frame, GURL(kTopLevelUrl));
+
+    PermissionRequestManager::CreateForWebContents(web_contents());
+    manager_ = PermissionRequestManager::FromWebContents(web_contents());
+    prompt_factory_ = std::make_unique<MockPermissionPromptFactory>(manager_);
+  }
+
+  void TearDown() override {
+    prompt_factory_ = nullptr;
+    manager_ = nullptr;
+    content::RenderViewHostTestHarness::TearDown();
   }
 
   content::RenderFrameHost* AddChildFrameWithPermissionsPolicy(
       content::RenderFrameHost* parent,
       const char* origin,
-      blink::ParsedPermissionsPolicy policy) {
+      network::ParsedPermissionsPolicy policy) {
     content::RenderFrameHost* result =
         content::RenderFrameHostTester::For(parent)->AppendChildWithPolicy(
             "", policy);
@@ -130,7 +153,7 @@ class PermissionsDelegationUmaUtilTest
   // The permissions policy is invariant and required the page to be
   // refreshed
   void RefreshAndSetPermissionsPolicy(content::RenderFrameHost** rfh,
-                                      blink::ParsedPermissionsPolicy policy) {
+                                      network::ParsedPermissionsPolicy policy) {
     content::RenderFrameHost* current = *rfh;
     auto navigation = content::NavigationSimulator::CreateRendererInitiated(
         current->GetLastCommittedURL(), current);
@@ -147,8 +170,23 @@ class PermissionsDelegationUmaUtilTest
     *rfh = navigation_simulator->GetFinalRenderFrameHost();
   }
 
+  void AddRequest(content::RenderFrameHost* rfh,
+                  std::unique_ptr<PermissionRequest> request) {
+    permissions::PermissionRequestObserver observer(web_contents());
+    manager_->AddRequest(rfh, std::move(request));
+    observer.Wait();
+  }
+
+  content::RenderFrameHost* primary_main_frame() {
+    return web_contents()->GetPrimaryMainFrame();
+  }
+
+ protected:
+  raw_ptr<PermissionRequestManager> manager_;
+
  private:
   TestPermissionsClient permissions_client_;
+  std::unique_ptr<MockPermissionPromptFactory> prompt_factory_;
 };
 
 class PermissionUmaUtilTest : public testing::Test {
@@ -242,31 +280,31 @@ TEST_F(PermissionUmaUtilTest, ScopedRevocationReporter) {
 TEST_F(PermissionUmaUtilTest, CrowdDenyVersionTest) {
   base::HistogramTester histograms;
 
-  const absl::optional<base::Version> empty_version;
+  const std::optional<base::Version> empty_version;
   PermissionUmaUtil::RecordCrowdDenyVersionAtAbuseCheckTime(empty_version);
   histograms.ExpectBucketCount(
       "Permissions.CrowdDeny.PreloadData.VersionAtAbuseCheckTime", 0, 1);
 
-  const absl::optional<base::Version> valid_version =
+  const std::optional<base::Version> valid_version =
       base::Version({2020, 10, 11, 1234});
   PermissionUmaUtil::RecordCrowdDenyVersionAtAbuseCheckTime(valid_version);
   histograms.ExpectBucketCount(
       "Permissions.CrowdDeny.PreloadData.VersionAtAbuseCheckTime", 20201011, 1);
 
-  const absl::optional<base::Version> valid_old_version =
+  const std::optional<base::Version> valid_old_version =
       base::Version({2019, 10, 10, 1234});
   PermissionUmaUtil::RecordCrowdDenyVersionAtAbuseCheckTime(valid_old_version);
   histograms.ExpectBucketCount(
       "Permissions.CrowdDeny.PreloadData.VersionAtAbuseCheckTime", 1, 1);
 
-  const absl::optional<base::Version> valid_future_version =
+  const std::optional<base::Version> valid_future_version =
       base::Version({2021, 1, 1, 1234});
   PermissionUmaUtil::RecordCrowdDenyVersionAtAbuseCheckTime(
       valid_future_version);
   histograms.ExpectBucketCount(
       "Permissions.CrowdDeny.PreloadData.VersionAtAbuseCheckTime", 20210101, 1);
 
-  const absl::optional<base::Version> invalid_version =
+  const std::optional<base::Version> invalid_version =
       base::Version({2020, 10, 11});
   PermissionUmaUtil::RecordCrowdDenyVersionAtAbuseCheckTime(valid_version);
   histograms.ExpectBucketCount(
@@ -323,29 +361,131 @@ TEST_F(PermissionUmaUtilTest, MetricsAreRecordedWhenAutoDSEPermissionReverted) {
 
 TEST_F(PermissionsDelegationUmaUtilTest, UsageAndPromptInTopLevelFrame) {
   base::HistogramTester histograms;
-  auto* main_frame = GetMainFrameAndNavigate(kTopLevelUrl);
+  auto* main_frame = primary_main_frame();
   histograms.ExpectTotalCount(kGeolocationUsageHistogramName, 0);
 
-  auto* permission_request_manager = SetupRequestManager(web_contents());
-  PermissionRequestWrapper* request_owner =
-      new PermissionRequestWrapper(RequestType::kGeolocation, kTopLevelUrl);
-  permission_request_manager->AddRequest(main_frame, request_owner->request());
+  AddRequest(main_frame,
+             CreateRequest(RequestType::kGeolocation, kTopLevelUrl));
+
   PermissionUmaUtil::RecordPermissionsUsageSourceAndPolicyConfiguration(
       ContentSettingsType::GEOLOCATION, main_frame);
   EXPECT_THAT(histograms.GetAllSamples(kGeolocationUsageHistogramName),
               testing::ElementsAre(base::Bucket(0, 1)));
+
   PermissionUmaUtil::PermissionPromptResolved(
-      {request_owner->request()}, web_contents(), PermissionAction::GRANTED,
+      manager_->Requests(), web_contents(), PermissionAction::GRANTED,
       /*time_to_decision*/ base::TimeDelta(),
       PermissionPromptDisposition::NOT_APPLICABLE,
-      /* ui_reason*/ absl::nullopt,
-      /*predicted_grant_likelihood*/ absl::nullopt,
-      /*prediction_decision_held_back*/ absl::nullopt,
-      /*ignored_reason*/ absl::nullopt, /*did_show_prompt*/ false,
+      /* ui_reason*/ std::nullopt,
+      /*variants*/ {},
+      /*predicted_grant_likelihood*/ std::nullopt,
+      /*permission_request_relevance*/ std::nullopt,
+      /*prediction_decision_held_back*/ std::nullopt,
+      /*ignored_reason*/ std::nullopt, /*did_show_prompt*/ false,
       /*did_click_managed*/ false,
       /*did_click_learn_more*/ false);
   histograms.ExpectTotalCount(kGeolocationPermissionsPolicyActionHistogramName,
                               0);
+}
+
+TEST_F(PermissionUmaUtilTest, LhsIndicatorsShowTest) {
+  base::HistogramTester histograms;
+
+  PermissionUmaUtil::RecordActivityIndicator(
+      {ContentSettingsType::MEDIASTREAM_CAMERA},
+      /*blocked=*/false,
+      /*blocked_system_level=*/false,
+      /*click=*/false);
+  histograms.ExpectBucketCount(
+      "Permissions.ActivityIndicator.LHS.VideoCapture.Show",
+      ActivityIndicatorState::kInUse, 1);
+
+  PermissionUmaUtil::RecordActivityIndicator(
+      {ContentSettingsType::MEDIASTREAM_CAMERA},
+      /*blocked=*/true,
+      /*blocked_system_level=*/false,
+      /*click=*/false);
+  histograms.ExpectBucketCount(
+      "Permissions.ActivityIndicator.LHS.VideoCapture.Show",
+      ActivityIndicatorState::kBlockedOnSiteLevel, 1);
+
+  PermissionUmaUtil::RecordActivityIndicator(
+      {ContentSettingsType::MEDIASTREAM_CAMERA},
+      /*blocked=*/true,
+      /*blocked_system_level=*/true,
+      /*click=*/false);
+  histograms.ExpectBucketCount(
+      "Permissions.ActivityIndicator.LHS.VideoCapture.Show",
+      ActivityIndicatorState::kBlockedOnSystemLevel, 1);
+
+  PermissionUmaUtil::RecordActivityIndicator(
+      {ContentSettingsType::MEDIASTREAM_MIC},
+      /*blocked=*/false,
+      /*blocked_system_level=*/false,
+      /*click=*/false);
+  histograms.ExpectBucketCount(
+      "Permissions.ActivityIndicator.LHS.AudioCapture.Show",
+      ActivityIndicatorState::kInUse, 1);
+
+  PermissionUmaUtil::RecordActivityIndicator(
+      {ContentSettingsType::MEDIASTREAM_MIC,
+       ContentSettingsType::MEDIASTREAM_CAMERA},
+      /*blocked=*/false,
+      /*blocked_system_level=*/false,
+      /*click=*/false);
+  histograms.ExpectBucketCount(
+      "Permissions.ActivityIndicator.LHS.AudioAndVideoCapture.Show",
+      ActivityIndicatorState::kInUse, 1);
+}
+
+TEST_F(PermissionUmaUtilTest, LhsIndicatorsClickTest) {
+  base::HistogramTester histograms;
+
+  PermissionUmaUtil::RecordActivityIndicator(
+      {ContentSettingsType::MEDIASTREAM_CAMERA},
+      /*blocked=*/false,
+      /*blocked_system_level=*/false,
+      /*click=*/true);
+  histograms.ExpectBucketCount(
+      "Permissions.ActivityIndicator.LHS.VideoCapture.Click",
+      ActivityIndicatorState::kInUse, 1);
+
+  PermissionUmaUtil::RecordActivityIndicator(
+      {ContentSettingsType::MEDIASTREAM_CAMERA},
+      /*blocked=*/true,
+      /*blocked_system_level=*/false,
+      /*click=*/true);
+  histograms.ExpectBucketCount(
+      "Permissions.ActivityIndicator.LHS.VideoCapture.Click",
+      ActivityIndicatorState::kBlockedOnSiteLevel, 1);
+
+  PermissionUmaUtil::RecordActivityIndicator(
+      {ContentSettingsType::MEDIASTREAM_CAMERA},
+      /*blocked=*/true,
+      /*blocked_system_level=*/true,
+      /*click=*/true);
+  histograms.ExpectBucketCount(
+      "Permissions.ActivityIndicator.LHS.VideoCapture.Click",
+      ActivityIndicatorState::kBlockedOnSystemLevel, 1);
+
+  PermissionUmaUtil::RecordActivityIndicator(
+      {ContentSettingsType::MEDIASTREAM_MIC},
+      /*blocked=*/false,
+      /*blocked_system_level=*/false,
+      /*click=*/true);
+  histograms.ExpectBucketCount(
+      "Permissions.ActivityIndicator.LHS.AudioCapture.Click",
+      ActivityIndicatorState::kInUse, 1);
+
+  PermissionUmaUtil::RecordActivityIndicator(
+      {ContentSettingsType::MEDIASTREAM_MIC,
+       ContentSettingsType::MEDIASTREAM_CAMERA},
+      /*blocked=*/false,
+      /*blocked_system_level=*/false,
+      /*click=*/true);
+  histograms.ExpectBucketCount(
+      "Permissions.ActivityIndicator.LHS.AudioAndVideoCapture.Click",
+      ActivityIndicatorState::kInUse, 1);
 }
 
 TEST_F(PermissionUmaUtilTest, PageInfoPermissionReallowedTest) {
@@ -423,21 +563,194 @@ TEST_F(PermissionUmaUtilTest, PageInfoPermissionReallowedTest) {
       1);
 }
 
+#if !BUILDFLAG(IS_ANDROID)
+TEST_F(PermissionUmaUtilTest, RecordPermissionRegrantForUnusedSites) {
+  const GURL origin = GURL("https://example1.com:443");
+  content::TestBrowserContext browser_context;
+  base::HistogramTester histograms;
+  ContentSettingsType content_type = ContentSettingsType::GEOLOCATION;
+  std::string permission_string =
+      PermissionUtil::GetPermissionString(content_type);
+  base::SimpleTestClock clock;
+  base::Time now(base::Time::Now());
+  clock.SetNow(now);
+  HostContentSettingsMap* hcsm =
+      PermissionsClient::Get()->GetSettingsMap(&browser_context);
+  hcsm->SetClockForTesting(&clock);
+
+  std::string prefix = "Settings.SafetyCheck.UnusedSitePermissionsRegrantDays";
+
+  // Record regrant before permission has been revoked.
+  PermissionUmaUtil::RecordPermissionRegrantForUnusedSites(
+      origin, content_type, PermissionSourceUI::PROMPT, &browser_context, now);
+  histograms.ExpectTotalCount(prefix + "Prompt." + permission_string, 0);
+  histograms.ExpectTotalCount(prefix + "Prompt.All", 0);
+
+  // Create a revoked permission.
+  auto dict = base::Value::Dict().Set(
+      permissions::kRevokedKey,
+      base::Value::List().Append(static_cast<int32_t>(content_type)));
+  // Set expiration to five days before the clean-up threshold to mimic that the
+  // permission was revoked five days ago.
+  base::Time past(now - base::Days(5));
+  content_settings::ContentSettingConstraints constraint(past);
+  constraint.set_lifetime(
+      content_settings::features::
+          kSafetyCheckUnusedSitePermissionsRevocationCleanUpThreshold.Get());
+  hcsm->SetWebsiteSettingDefaultScope(
+      origin, origin, ContentSettingsType::REVOKED_UNUSED_SITE_PERMISSIONS,
+      base::Value(dict.Clone()), constraint);
+
+  // Regrant another permission through the prompt.
+  PermissionUmaUtil::RecordPermissionRegrantForUnusedSites(
+      origin, ContentSettingsType::NOTIFICATIONS, PermissionSourceUI::PROMPT,
+      &browser_context, now);
+  histograms.ExpectTotalCount(prefix + "Prompt." +
+                                  PermissionUtil::GetPermissionString(
+                                      ContentSettingsType::NOTIFICATIONS),
+                              0);
+  histograms.ExpectTotalCount(prefix + "Prompt.All", 0);
+
+  // Regrant the geolocation permission through the prompt.
+  PermissionUmaUtil::RecordPermissionRegrantForUnusedSites(
+      origin, content_type, PermissionSourceUI::PROMPT, &browser_context, now);
+  histograms.ExpectBucketCount(prefix + "Prompt." + permission_string, 5, 1);
+  histograms.ExpectBucketCount(prefix + "Prompt.All", 5, 1);
+
+  // Regrant the geolocation permission through site settings.
+  PermissionUmaUtil::RecordPermissionRegrantForUnusedSites(
+      origin, content_type, PermissionSourceUI::SITE_SETTINGS, &browser_context,
+      now);
+  histograms.ExpectBucketCount(prefix + "Settings." + permission_string, 5, 1);
+  histograms.ExpectBucketCount(prefix + "Settings.All", 5, 1);
+}
+
+TEST_F(PermissionUmaUtilTest, GetDaysSinceUnusedSitePermissionRevocation) {
+  base::test::ScopedFeatureList scoped_feature;
+  scoped_feature.InitAndEnableFeature(
+      content_settings::features::kSafetyCheckUnusedSitePermissions);
+
+  content::TestBrowserContext browser_context;
+  base::SimpleTestClock clock;
+  base::Time now(base::Time::Now());
+  clock.SetNow(now);
+  HostContentSettingsMap* hcsm =
+      PermissionsClient::Get()->GetSettingsMap(&browser_context);
+
+  const GURL url = GURL("https://example1.com:443");
+  const ContentSettingsType type = ContentSettingsType::GEOLOCATION;
+  content_settings::ContentSettingConstraints constraint(clock.Now());
+  constraint.set_track_last_visit_for_autoexpiration(true);
+
+  std::optional<uint32_t> days_since_revocation;
+
+  // Permission has not yet been revoked, so shouldn't return a number of days
+  // since revocation.
+  days_since_revocation =
+      PermissionUmaUtil::GetDaysSinceUnusedSitePermissionRevocation(
+          url, ContentSettingsType::GEOLOCATION, now, hcsm);
+  ASSERT_FALSE(days_since_revocation.has_value());
+
+  hcsm->SetContentSettingDefaultScope(
+      url, url, type, ContentSetting::CONTENT_SETTING_ALLOW, constraint);
+  EXPECT_EQ(GetRevokedUnusedPermissions(hcsm).size(), 0u);
+
+  // Travel 70 days through time such that the granted permission would be
+  // revoked.
+  clock.Advance(base::Days(70));
+  // Revoke permission.
+  content_settings::ContentSettingConstraints expiration_constraint(
+      clock.Now());
+  expiration_constraint.set_lifetime(base::Days(30));
+  auto dict = base::Value::Dict().Set(
+      permissions::kRevokedKey, base::Value::List().Append(static_cast<int32_t>(
+                                    ContentSettingsType::GEOLOCATION)));
+  hcsm->SetWebsiteSettingCustomScope(
+      ContentSettingsPattern::FromURLNoWildcard(url),
+      ContentSettingsPattern::Wildcard(),
+      ContentSettingsType::REVOKED_UNUSED_SITE_PERMISSIONS,
+      base::Value(std::move(dict)), expiration_constraint);
+  EXPECT_EQ(GetRevokedUnusedPermissions(hcsm).size(), 1u);
+
+  days_since_revocation =
+      PermissionUmaUtil::GetDaysSinceUnusedSitePermissionRevocation(
+          url, ContentSettingsType::GEOLOCATION, clock.Now(), hcsm);
+  ASSERT_TRUE(days_since_revocation.has_value());
+  EXPECT_EQ(days_since_revocation.value(), 0u);
+
+  // Forward the clock for five days, which would be the number of days since
+  // revocation.
+  clock.Advance(base::Days(5));
+
+  days_since_revocation =
+      PermissionUmaUtil::GetDaysSinceUnusedSitePermissionRevocation(
+          url, ContentSettingsType::GEOLOCATION, clock.Now(), hcsm);
+  ASSERT_TRUE(days_since_revocation.has_value());
+  EXPECT_EQ(days_since_revocation.value(), 5u);
+}
+#endif
+
+// Inside your PermissionRecorderTest test fixture from earlier
+TEST_F(PermissionsDelegationUmaUtilTest, SiteLevelAndOSPromptVariantsTest) {
+  std::vector<ElementAnchoredBubbleVariant> variant_vector = {
+      ElementAnchoredBubbleVariant::kAsk};
+
+#if BUILDFLAG(IS_MAC)
+  variant_vector.push_back(ElementAnchoredBubbleVariant::kOsPrompt);
+  variant_vector.push_back(ElementAnchoredBubbleVariant::kOsSystemSettings);
+#endif
+
+  std::optional<std::vector<ElementAnchoredBubbleVariant>> variants =
+      variant_vector;
+
+  ukm::InitializeSourceUrlRecorderForWebContents(web_contents());
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
+
+  auto* main_frame = primary_main_frame();
+
+  AddRequest(main_frame,
+             CreateRequest(RequestType::kCameraStream, kTopLevelUrl));
+
+  PermissionUmaUtil::PermissionPromptResolved(
+      {manager_->Requests()}, web_contents(), PermissionAction::GRANTED,
+      /*time_to_decision*/ base::TimeDelta(),
+      PermissionPromptDisposition::ELEMENT_ANCHORED_BUBBLE,
+      /* ui_reason*/ std::nullopt, variants,
+      /*predicted_grant_likelihood*/ std::nullopt,
+      /*permission_request_relevance*/ std::nullopt,
+      /*prediction_decision_held_back*/ std::nullopt,
+      /*ignored_reason*/ std::nullopt, /*did_show_prompt*/ true,
+      /*did_click_managed*/ false,
+      /*did_click_learn_more*/ false);
+
+  const auto entries = ukm_recorder.GetEntriesByName("Permission");
+  ASSERT_EQ(1u, entries.size());
+  const auto* entry = entries.back().get();
+  EXPECT_EQ(*ukm_recorder.GetEntryMetric(entry, "SiteLevelScreen"),
+            static_cast<int64_t>(ElementAnchoredBubbleVariant::kAsk));
+#if BUILDFLAG(IS_MAC)
+  EXPECT_EQ(*ukm_recorder.GetEntryMetric(entry, "OsPromptScreen"),
+            static_cast<int64_t>(ElementAnchoredBubbleVariant::kOsPrompt));
+  EXPECT_EQ(
+      *ukm_recorder.GetEntryMetric(entry, "OsSystemSettingsScreen"),
+      static_cast<int64_t>(ElementAnchoredBubbleVariant::kOsSystemSettings));
+#endif
+}
+
 TEST_F(PermissionsDelegationUmaUtilTest, SameOriginFrame) {
   base::HistogramTester histograms;
-  auto* main_frame = GetMainFrameAndNavigate(kTopLevelUrl);
+  auto* main_frame = primary_main_frame();
   auto* child_frame = AddChildFrameWithPermissionsPolicy(
       main_frame, kSameOriginFrameUrl,
       CreatePermissionsPolicy(
-          blink::mojom::PermissionsPolicyFeature::kGeolocation,
+          network::mojom::PermissionsPolicyFeature::kGeolocation,
           {std::string(kTopLevelUrl), std::string(kSameOriginFrameUrl)},
           /*matches_all_origins*/ true));
   histograms.ExpectTotalCount(kGeolocationUsageHistogramName, 0);
 
-  auto* permission_request_manager = SetupRequestManager(web_contents());
-  PermissionRequestWrapper* request_owner = new PermissionRequestWrapper(
-      RequestType::kGeolocation, kSameOriginFrameUrl);
-  permission_request_manager->AddRequest(child_frame, request_owner->request());
+  AddRequest(child_frame,
+             CreateRequest(RequestType::kGeolocation, kSameOriginFrameUrl));
+
   PermissionUmaUtil::RecordPermissionsUsageSourceAndPolicyConfiguration(
       ContentSettingsType::GEOLOCATION, child_frame);
   EXPECT_THAT(histograms.GetAllSamples(kGeolocationUsageHistogramName),
@@ -445,13 +758,15 @@ TEST_F(PermissionsDelegationUmaUtilTest, SameOriginFrame) {
   histograms.ExpectTotalCount(kGeolocationPermissionsPolicyUsageHistogramName,
                               0);
   PermissionUmaUtil::PermissionPromptResolved(
-      {request_owner->request()}, web_contents(), PermissionAction::GRANTED,
+      manager_->Requests(), web_contents(), PermissionAction::GRANTED,
       /*time_to_decision*/ base::TimeDelta(),
       PermissionPromptDisposition::NOT_APPLICABLE,
-      /* ui_reason*/ absl::nullopt,
-      /*predicted_grant_likelihood*/ absl::nullopt,
-      /*prediction_decision_held_back*/ absl::nullopt,
-      /*ignored_reason*/ absl::nullopt, /*did_show_prompt*/ false,
+      /* ui_reason*/ std::nullopt,
+      /*variants*/ {},
+      /*predicted_grant_likelihood*/ std::nullopt,
+      /*permission_request_relevance*/ std::nullopt,
+      /*prediction_decision_held_back*/ std::nullopt,
+      /*ignored_reason*/ std::nullopt, /*did_show_prompt*/ false,
       /*did_click_managed*/ false,
       /*did_click_learn_more*/ false);
   histograms.ExpectTotalCount(kGeolocationPermissionsPolicyActionHistogramName,
@@ -468,9 +783,9 @@ TEST_P(PermissionsDelegationUmaUtilTest, TopLevelFrame) {
                     permission_string, ".TopLevelHeaderPolicy"});
 
   base::HistogramTester histograms;
-  auto* main_frame = GetMainFrameAndNavigate(kTopLevelUrl);
+  auto* main_frame = primary_main_frame();
   auto feature = PermissionUtil::GetPermissionsPolicyFeature(type);
-  blink::ParsedPermissionsPolicy top_policy;
+  network::ParsedPermissionsPolicy top_policy;
   if (feature.has_value() &&
       (GetParam().matches_all_origins || !GetParam().origins.empty())) {
     top_policy = CreatePermissionsPolicy(
@@ -480,14 +795,7 @@ TEST_P(PermissionsDelegationUmaUtilTest, TopLevelFrame) {
         GetParam().origins, GetParam().matches_all_origins);
   }
 
-  if (!top_policy.empty()) {
-    RefreshAndSetPermissionsPolicy(&main_frame, top_policy);
-  }
-
-  histograms.ExpectTotalCount(kPermissionsPolicyHeaderHistogramName, 0);
-
-  PermissionUmaUtil::RecordTopLevelPermissionsHeaderPolicyOnNavigation(
-      main_frame);
+  RefreshAndSetPermissionsPolicy(&main_frame, top_policy);
   EXPECT_THAT(
       histograms.GetAllSamples(kPermissionsPolicyHeaderHistogramName),
       testing::ElementsAre(base::Bucket(
@@ -500,7 +808,7 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Values(
         PermissionsDelegationTestConfig{
             ContentSettingsType::GEOLOCATION, PermissionAction::GRANTED,
-            /*feature_overriden*/ absl::nullopt,
+            /*feature_overriden*/ std::nullopt,
             /*matches_all_origins*/ true,
             /*origins*/ {},
             PermissionHeaderPolicyForUMA::FEATURE_ALLOWLIST_IS_WILDCARD},
@@ -508,7 +816,7 @@ INSTANTIATE_TEST_SUITE_P(
         PermissionsDelegationTestConfig{
             ContentSettingsType::GEOLOCATION,
             PermissionAction::GRANTED,
-            /*feature_overriden*/ absl::nullopt,
+            /*feature_overriden*/ std::nullopt,
             /*matches_all_origins*/ false,
             {std::string(kTopLevelUrl)},
             PermissionHeaderPolicyForUMA::
@@ -516,7 +824,7 @@ INSTANTIATE_TEST_SUITE_P(
 
         PermissionsDelegationTestConfig{
             ContentSettingsType::GEOLOCATION, PermissionAction::GRANTED,
-            /*feature_overriden*/ absl::nullopt,
+            /*feature_overriden*/ std::nullopt,
             /*matches_all_origins*/ false,
             /*origins*/ {},
             PermissionHeaderPolicyForUMA::HEADER_NOT_PRESENT_OR_INVALID},
@@ -524,8 +832,8 @@ INSTANTIATE_TEST_SUITE_P(
         PermissionsDelegationTestConfig{
             ContentSettingsType::GEOLOCATION,
             PermissionAction::GRANTED,
-            absl::make_optional<blink::mojom::PermissionsPolicyFeature>(
-                blink::mojom::PermissionsPolicyFeature::kCamera),
+            std::make_optional<network::mojom::PermissionsPolicyFeature>(
+                network::mojom::PermissionsPolicyFeature::kCamera),
             /*matches_all_origins*/ false,
             {std::string(kTopLevelUrl)},
             PermissionHeaderPolicyForUMA::FEATURE_NOT_PRESENT},
@@ -533,7 +841,7 @@ INSTANTIATE_TEST_SUITE_P(
         PermissionsDelegationTestConfig{
             ContentSettingsType::GEOLOCATION,
             PermissionAction::GRANTED,
-            /*feature_overriden*/ absl::nullopt,
+            /*feature_overriden*/ std::nullopt,
             /*matches_all_origins*/ false,
             {std::string(kCrossOriginFrameUrl)},
             PermissionHeaderPolicyForUMA::
@@ -564,9 +872,9 @@ TEST_P(CrossFramePermissionsDelegationUmaUtilTest, CrossOriginFrame) {
        ".CrossOriginFrame.TopLevelHeaderPolicy"});
 
   base::HistogramTester histograms;
-  auto* main_frame = GetMainFrameAndNavigate(kTopLevelUrl);
+  auto* main_frame = primary_main_frame();
   auto feature = PermissionUtil::GetPermissionsPolicyFeature(type);
-  blink::ParsedPermissionsPolicy top_policy;
+  network::ParsedPermissionsPolicy top_policy;
   if (feature.has_value() &&
       (GetParam().matches_all_origins || !GetParam().origins.empty())) {
     top_policy = CreatePermissionsPolicy(
@@ -581,7 +889,7 @@ TEST_P(CrossFramePermissionsDelegationUmaUtilTest, CrossOriginFrame) {
   }
 
   // Add nested subframes A(B(C))
-  blink::ParsedPermissionsPolicy empty_policy;
+  network::ParsedPermissionsPolicy empty_policy;
   auto* child_frame = AddChildFrameWithPermissionsPolicy(
       main_frame, kCrossOriginFrameUrl,
       feature.has_value()
@@ -613,19 +921,20 @@ TEST_P(CrossFramePermissionsDelegationUmaUtilTest, CrossOriginFrame) {
     histograms.ExpectTotalCount(kPermissionsPolicyUsageHistogramName, 0);
   }
 
-  auto* permission_request_manager = SetupRequestManager(web_contents());
-  PermissionRequestWrapper* request_owner = new PermissionRequestWrapper(
-      permissions::ContentSettingsTypeToRequestType(type),
-      kCrossOriginFrameUrl2);
-  permission_request_manager->AddRequest(child_frame, request_owner->request());
+  AddRequest(child_frame,
+             CreateRequest(permissions::ContentSettingsTypeToRequestType(type),
+                           kCrossOriginFrameUrl2));
+
   PermissionUmaUtil::PermissionPromptResolved(
-      {request_owner->request()}, web_contents(), GetParam().action,
+      manager_->Requests(), web_contents(), GetParam().action,
       /*time_to_decision*/ base::TimeDelta(),
       PermissionPromptDisposition::NOT_APPLICABLE,
-      /* ui_reason*/ absl::nullopt,
-      /*predicted_grant_likelihood*/ absl::nullopt,
-      /*prediction_decision_held_back*/ absl::nullopt,
-      /*ignored_reason*/ absl::nullopt, /*did_show_prompt*/ false,
+      /* ui_reason*/ std::nullopt,
+      /*variants*/ {},
+      /*predicted_grant_likelihood*/ std::nullopt,
+      /*permission_request_relevance*/ std::nullopt,
+      /*prediction_decision_held_back*/ std::nullopt,
+      /*ignored_reason*/ std::nullopt, /*did_show_prompt*/ false,
       /*did_click_managed*/ false,
       /*did_click_learn_more*/ false);
   if (feature.has_value()) {
@@ -648,7 +957,7 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Values(
         PermissionsDelegationTestConfig{
             ContentSettingsType::GEOLOCATION, PermissionAction::GRANTED,
-            /*feature_overriden*/ absl::nullopt,
+            /*feature_overriden*/ std::nullopt,
             /*matches_all_origins*/ true,
             /*origins*/ {},
             PermissionHeaderPolicyForUMA::FEATURE_ALLOWLIST_IS_WILDCARD},
@@ -656,7 +965,7 @@ INSTANTIATE_TEST_SUITE_P(
         PermissionsDelegationTestConfig{
             ContentSettingsType::GEOLOCATION,
             PermissionAction::DENIED,
-            /*feature_overriden*/ absl::nullopt,
+            /*feature_overriden*/ std::nullopt,
             /*matches_all_origins*/ false,
             {std::string(kTopLevelUrl), std::string(kCrossOriginFrameUrl),
              std::string(kCrossOriginFrameUrl2)},
@@ -665,7 +974,7 @@ INSTANTIATE_TEST_SUITE_P(
 
         PermissionsDelegationTestConfig{
             ContentSettingsType::GEOLOCATION, PermissionAction::GRANTED,
-            /*feature_overriden*/ absl::nullopt,
+            /*feature_overriden*/ std::nullopt,
             /*matches_all_origins*/ false,
             /*origins*/ {},
             PermissionHeaderPolicyForUMA::HEADER_NOT_PRESENT_OR_INVALID},
@@ -673,8 +982,8 @@ INSTANTIATE_TEST_SUITE_P(
         PermissionsDelegationTestConfig{
             ContentSettingsType::GEOLOCATION,
             PermissionAction::GRANTED,
-            absl::make_optional<blink::mojom::PermissionsPolicyFeature>(
-                blink::mojom::PermissionsPolicyFeature::kCamera),
+            std::make_optional<network::mojom::PermissionsPolicyFeature>(
+                network::mojom::PermissionsPolicyFeature::kCamera),
             /*matches_all_origins*/ false,
             {std::string(kTopLevelUrl), std::string(kCrossOriginFrameUrl)},
             PermissionHeaderPolicyForUMA::FEATURE_NOT_PRESENT},
@@ -682,17 +991,135 @@ INSTANTIATE_TEST_SUITE_P(
         PermissionsDelegationTestConfig{
             ContentSettingsType::GEOLOCATION,
             PermissionAction::DENIED,
-            /*feature_overriden*/ absl::nullopt,
+            /*feature_overriden*/ std::nullopt,
             /*matches_all_origins*/ false,
             {std::string(kTopLevelUrl), std::string(kCrossOriginFrameUrl)},
             PermissionHeaderPolicyForUMA::
-                FEATURE_ALLOWLIST_DOES_NOT_MATCH_ORIGIN},
+                FEATURE_ALLOWLIST_DOES_NOT_MATCH_ORIGIN}));
 
-        PermissionsDelegationTestConfig{
-            ContentSettingsType::ACCESSIBILITY_EVENTS, PermissionAction::DENIED,
-            /*feature_overriden*/ absl::nullopt,
-            /*matches_all_origins*/ true,
-            /*origins*/ {},
-            /*expected_configuration*/ absl::nullopt}));
+class UkmRecorderPermissionUmaUtilTest
+    : public content::RenderViewHostTestHarness {
+ public:
+  void SetUp() override { content::RenderViewHostTestHarness::SetUp(); }
 
+  class UkmRecorderTestPermissionsClient : public TestPermissionsClient {
+   public:
+    UkmRecorderTestPermissionsClient() = default;
+
+    void SetSimulatedHasSourceId(bool source_id) {
+      simulated_has_source_id_ = source_id;
+    }
+
+    void GetUkmSourceId(ContentSettingsType permission_type,
+                        content::BrowserContext* browser_context,
+                        content::WebContents* web_contents,
+                        const GURL& requesting_origin,
+                        GetUkmSourceIdCallback callback) override {
+      // Short circuit and return a null SourceId.
+      if (!simulated_has_source_id_) {
+        std::move(callback).Run(std::nullopt);
+      } else {
+        ukm::SourceId fake_source_id =
+            ukm::ConvertToSourceId(1, ukm::SourceIdType::NOTIFICATION_ID);
+        std::move(callback).Run(fake_source_id);
+      }
+    }
+
+   private:
+    bool simulated_has_source_id_ = false;
+  };
+
+  UkmRecorderTestPermissionsClient permissions_client_;
+};
+
+TEST_F(UkmRecorderPermissionUmaUtilTest,
+       NotificationRevocationHistogramDidRecordUkmTest) {
+  base::HistogramTester histograms;
+  content::TestBrowserContext browser_context;
+  ukm::InitializeSourceUrlRecorderForWebContents(web_contents());
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
+
+  permissions_client_.SetSimulatedHasSourceId(true);
+  const GURL origin(kTopLevelUrl);
+  PermissionUmaUtil::PermissionRevoked(
+      ContentSettingsType::NOTIFICATIONS,
+      permissions::PermissionSourceUI::ANDROID_SETTINGS, origin,
+      &browser_context);
+
+  histograms.ExpectBucketCount("Permissions.Action.Notifications",
+                               static_cast<int64_t>(PermissionAction::REVOKED),
+                               1);
+  histograms.ExpectBucketCount(
+      "Permissions.Revocation.Notifications.DidRecordUkm", 1, 1);
+  const auto entries = ukm_recorder.GetEntriesByName("Permission");
+  ASSERT_EQ(1u, entries.size());
+  const auto* entry = entries.back().get();
+  EXPECT_EQ(*ukm_recorder.GetEntryMetric(entry, "Action"),
+            static_cast<int64_t>(PermissionAction::REVOKED));
+}
+
+TEST_F(UkmRecorderPermissionUmaUtilTest,
+       NotificationRevocationHistogramDroppedUkmTest) {
+  base::HistogramTester histograms;
+  content::TestBrowserContext browser_context;
+  ukm::InitializeSourceUrlRecorderForWebContents(web_contents());
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
+
+  permissions_client_.SetSimulatedHasSourceId(false);
+  const GURL origin(kTopLevelUrl);
+  PermissionUmaUtil::PermissionRevoked(
+      ContentSettingsType::NOTIFICATIONS,
+      permissions::PermissionSourceUI::ANDROID_SETTINGS, origin,
+      &browser_context);
+
+  histograms.ExpectBucketCount("Permissions.Action.Notifications",
+                               static_cast<int64_t>(PermissionAction::REVOKED),
+                               1);
+
+  histograms.ExpectBucketCount(
+      "Permissions.Revocation.Notifications.DidRecordUkm", 0, 1);
+  const auto entries = ukm_recorder.GetEntriesByName("Permission");
+  EXPECT_EQ(0u, entries.size());
+}
+
+TEST_F(UkmRecorderPermissionUmaUtilTest,
+       NotificationUsageHistogramDidRecordUkmTest) {
+  base::HistogramTester histograms;
+  content::TestBrowserContext browser_context;
+  ukm::InitializeSourceUrlRecorderForWebContents(web_contents());
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
+
+  permissions_client_.SetSimulatedHasSourceId(true);
+  PermissionUmaUtil::RecordPermissionUsage(ContentSettingsType::NOTIFICATIONS,
+                                           &browser_context, web_contents(),
+                                           GURL(kTopLevelUrl));
+
+  histograms.ExpectBucketCount("Permissions.Usage.Notifications.DidRecordUkm",
+                               1, 1);
+  const auto entries = ukm_recorder.GetEntriesByName("PermissionUsage");
+  ASSERT_EQ(1u, entries.size());
+  const auto* entry = entries.back().get();
+  EXPECT_EQ(*ukm_recorder.GetEntryMetric(entry, "PermissionType"),
+            content_settings_uma_util::ContentSettingTypeToHistogramValue(
+                ContentSettingsType::NOTIFICATIONS));
+}
+
+TEST_F(UkmRecorderPermissionUmaUtilTest,
+       NotificationUsageHistogramDroppedUkmTest) {
+  base::HistogramTester histograms;
+  content::TestBrowserContext browser_context;
+
+  ukm::InitializeSourceUrlRecorderForWebContents(web_contents());
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
+
+  permissions_client_.SetSimulatedHasSourceId(false);
+  PermissionUmaUtil::RecordPermissionUsage(ContentSettingsType::NOTIFICATIONS,
+                                           &browser_context, web_contents(),
+                                           GURL(kTopLevelUrl));
+
+  histograms.ExpectBucketCount("Permissions.Usage.Notifications.DidRecordUkm",
+                               0, 1);
+  const auto entries = ukm_recorder.GetEntriesByName("PermissionUsage");
+  ASSERT_EQ(0u, entries.size());
+}
 }  // namespace permissions

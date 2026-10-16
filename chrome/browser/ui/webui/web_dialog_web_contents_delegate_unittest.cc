@@ -24,9 +24,9 @@
 #include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
 
+using content::BrowserContext;
 using content::OpenURLParams;
 using content::Referrer;
-using content::BrowserContext;
 using content::WebContents;
 using content::WebContentsTester;
 using ui::WebDialogWebContentsDelegate;
@@ -66,8 +66,9 @@ class WebDialogWebContentsDelegateTest : public BrowserWithTestWindowTest {
 TEST_F(WebDialogWebContentsDelegateTest, DoNothingMethodsTest) {
   // None of the following calls should do anything.
   history::HistoryAddPageArgs should_add_args(
-      GURL(), base::Time::Now(), 0, 0, GURL(), history::RedirectList(),
-      ui::PAGE_TRANSITION_TYPED, false, history::SOURCE_SYNCED, false, true);
+      GURL(), base::Time::Now(), 0, 0, std::nullopt, GURL(),
+      history::RedirectList(), ui::PAGE_TRANSITION_TYPED, false,
+      history::SOURCE_SYNCED, false, true);
   test_web_contents_delegate_->NavigationStateChanged(
       nullptr, content::InvalidateTypes(0));
   test_web_contents_delegate_->ActivateContents(nullptr);
@@ -81,9 +82,11 @@ TEST_F(WebDialogWebContentsDelegateTest, DoNothingMethodsTest) {
 
 TEST_F(WebDialogWebContentsDelegateTest, OpenURLFromTabTest) {
   test_web_contents_delegate_->OpenURLFromTab(
-      nullptr, OpenURLParams(GURL(url::kAboutBlankURL), Referrer(),
-                             WindowOpenDisposition::NEW_FOREGROUND_TAB,
-                             ui::PAGE_TRANSITION_LINK, false));
+      nullptr,
+      OpenURLParams(GURL(url::kAboutBlankURL), Referrer(),
+                    WindowOpenDisposition::NEW_FOREGROUND_TAB,
+                    ui::PAGE_TRANSITION_LINK, false),
+      /*navigation_handle_callback=*/{});
   // This should create a new foreground tab in the existing browser.
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
   EXPECT_EQ(1U, chrome::GetTotalBrowserCount());
@@ -110,7 +113,8 @@ TEST_F(WebDialogWebContentsDelegateTest, DetachTest) {
   test_web_contents_delegate_->OpenURLFromTab(
       nullptr,
       OpenURLParams(url, Referrer(), WindowOpenDisposition::NEW_FOREGROUND_TAB,
-                    ui::PAGE_TRANSITION_LINK, false));
+                    ui::PAGE_TRANSITION_LINK, false),
+      /*navigation_handle_callback=*/{});
   test_web_contents_delegate_->AddNewContents(
       nullptr, nullptr, url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
       blink::mojom::WindowFeatures(), false, nullptr);

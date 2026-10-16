@@ -5,9 +5,8 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_AUTOFILL_ERROR_DIALOG_CONTEXT_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_AUTOFILL_ERROR_DIALOG_CONTEXT_H_
 
+#include <optional>
 #include <string>
-
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace autofill {
 
@@ -26,8 +25,32 @@ enum class AutofillErrorDialogType {
   kVirtualCardNotEligibleError = 2,
   // Default value, should never be used.
   kTypeUnknown = 3,
+  // Error shown when the server returns a permanent error for unmasking a
+  // masked server card.
+  kMaskedServerCardRiskBasedUnmaskingPermanentError = 4,
+  // Error shown when the card cannot be verified because Google Payments
+  // servers can't be reached.
+  kMaskedServerCardRiskBasedUnmaskingNetworkError = 5,
+  // Error shown when the server returns a temporary error for unmasking a
+  // server IBAN.
+  kMaskedServerIbanUnmaskingTemporaryError = 6,
+  // Error shown when the server returns result for credit card upload as
+  // unsuccessful.
+  kCreditCardUploadError = 7,
+  // Error shown when the server cannot enroll the virtual card.
+  kVirtualCardEnrollmentTemporaryError = 8,
+  // Error shown when the server returns a temporary error for unmasking a
+  // runtime retrieval enrolled card.
+  kCardInfoRetrievalTemporaryError = 9,
+  // Error shown when the server returns a permanent error for unmasking a
+  // runtime retrieval enrolled card.
+  kCardInfoRetrievalPermanentError = 10,
+  // Error shown when the server returns a temporary error for a BNPL flow.
+  kBnplTemporaryError = 11,
+  // Error shown when the server returns a permanent error for a BNPL flow.
+  kBnplPermanentError = 12,
   // kMaxValue is required for logging histograms.
-  kMaxValue = kTypeUnknown,
+  kMaxValue = kBnplPermanentError,
 };
 
 // The context for the autofill error dialog.
@@ -35,13 +58,29 @@ struct AutofillErrorDialogContext {
   // Returns an AutofillErrorDialogContext that is type
   // kVirtualCardPermanentError if `is_permanent_error` is true, and type
   // kVirtualCardTemporaryError if `is_permanent_error` is false.
-  static AutofillErrorDialogContext WithPermanentOrTemporaryError(
+  static AutofillErrorDialogContext WithVirtualCardPermanentOrTemporaryError(
+      bool is_permanent_error);
+
+  // Returns an AutofillErrorDialogContext that is type
+  // kCardInfoRetrievalPermanentError if `is_permanent_error` is true, and type
+  // kCardInfoRetrievalTemporaryError if `is_permanent_error` is false.
+  static AutofillErrorDialogContext
+  WithCardInfoRetrievalPermanentOrTemporaryError(bool is_permanent_error);
+
+  // Returns an AutofillErrorDialogContext that is type
+  // kBnplPermanentError if `is_permanent_error` is true, and type
+  // kBnplTemporaryError if `is_permanent_error` is false.
+  static AutofillErrorDialogContext WithBnplPermanentOrTemporaryError(
       bool is_permanent_error);
 
   AutofillErrorDialogContext();
   AutofillErrorDialogContext(const AutofillErrorDialogContext& other);
+  AutofillErrorDialogContext(AutofillErrorDialogContext&& other);
   AutofillErrorDialogContext& operator=(const AutofillErrorDialogContext&);
+  AutofillErrorDialogContext& operator=(AutofillErrorDialogContext&&);
   ~AutofillErrorDialogContext();
+
+  bool operator==(const AutofillErrorDialogContext& other_context) const;
 
   // The type of autofill error dialog that will be displayed.
   AutofillErrorDialogType type = AutofillErrorDialogType::kTypeUnknown;
@@ -51,14 +90,14 @@ struct AutofillErrorDialogContext {
   // related to the error to the user. This should be preferred for the title of
   // the autofill error dialog if a value is present. The language is based on
   // the client's locale.
-  absl::optional<std::string> server_returned_title;
+  std::optional<std::string> server_returned_title;
 
   // Autofill error dialog description returned from the server. Present in
   // situations where the server returns an error, and wants to display a
   // detailed description related to the error to the user. This should be
   // preferred for the description of the autofill error dialog if a value is
   // present. The language is based on the client's locale.
-  absl::optional<std::string> server_returned_description;
+  std::optional<std::string> server_returned_description;
 };
 
 }  // namespace autofill

@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_RENDERER_COBALT_RENDERER_FRAME_OBSERVER_H_
-#define COBALT_RENDERER_COBALT_RENDERER_FRAME_OBSERVER_H_
+#ifndef COBALT_RENDERER_COBALT_RENDER_FRAME_OBSERVER_H_
+#define COBALT_RENDERER_COBALT_RENDER_FRAME_OBSERVER_H_
 
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_frame_observer.h"
 #include "starboard/extension/graphics.h"
+#include "third_party/blink/public/platform/web_content_settings_client.h"
 
 namespace cobalt {
 
 // Enables Cobalt-specific responses to notifications of changes to the frame.
-class CobaltRenderFrameObserver : public content::RenderFrameObserver {
+class CobaltRenderFrameObserver : public content::RenderFrameObserver,
+                                  public blink::WebContentSettingsClient {
  public:
   explicit CobaltRenderFrameObserver(content::RenderFrame* render_frame);
   ~CobaltRenderFrameObserver() override;
@@ -34,20 +36,17 @@ class CobaltRenderFrameObserver : public content::RenderFrameObserver {
   void DidMeaningfulLayout(
       blink::WebMeaningfulLayout meaningful_layout) override;
 
+  // blink::WebContentSettingsClient implementation.
+  bool AllowRunningInsecureContent(bool enabled_per_settings,
+                                   const blink::WebURL& url) override;
+
  private:
   // content::RenderFrameObserver impl.
 
   // Overridden so that the observer has the same lifetime as the RenderFrame.
   void OnDestruct() override;
-
-#if defined(RUN_BROWSER_TESTS)
-  // Overridden for Cobalt-specific responses to this particular notification.
-  // See blink::WebLocalFrameClient.DidClearWindowObject() for details about
-  // when it's sent.
-  void DidClearWindowObject() override;
-#endif  // defined(RUN_BROWSER_TESTS)
 };
 
 }  // namespace cobalt
 
-#endif  // COBALT_RENDERER_COBALT_RENDERER_FRAME_OBSERVER_H_
+#endif  // COBALT_RENDERER_COBALT_RENDER_FRAME_OBSERVER_H_

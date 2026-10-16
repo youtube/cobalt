@@ -6,6 +6,7 @@
 #define CONTENT_BROWSER_INDEXED_DB_INDEXED_DB_EXTERNAL_OBJECT_STORAGE_H_
 
 #include <stdint.h>
+
 #include <map>
 #include <string>
 #include <vector>
@@ -14,10 +15,10 @@
 #include "components/services/storage/public/mojom/blob_storage_context.mojom.h"
 #include "content/browser/indexed_db/indexed_db_external_object.h"
 #include "content/browser/indexed_db/indexed_db_leveldb_coding.h"
+#include "content/browser/indexed_db/status.h"
 #include "storage/common/file_system/file_system_mount_option.h"
-#include "third_party/leveldatabase/src/include/leveldb/status.h"
 
-namespace content {
+namespace content::indexed_db {
 
 // This file contains all of the classes & types used to store external objects
 // (such as blobs) in IndexedDB. Currently it is messy because this is
@@ -41,8 +42,8 @@ enum class BlobWriteResult {
 // |kRunPhaseTwoAndReturnResult|.  The WriteBlobToFileResult is a more granular
 // error in the case something goes wrong.
 using BlobWriteCallback =
-    base::OnceCallback<leveldb::Status(BlobWriteResult,
-                                       storage::mojom::WriteBlobToFileResult)>;
+    base::OnceCallback<Status(BlobWriteResult,
+                              storage::mojom::WriteBlobToFileResult)>;
 
 // This object represents a change in the database involving adding or removing
 // external objects. if external_objects() is empty, then objects are to be
@@ -85,6 +86,6 @@ using BlobFilesCleanedCallback = base::RepeatingClosure;
 using ReportOutstandingBlobsCallback =
     base::RepeatingCallback<void(/*outstanding_blobs=*/bool)>;
 
-}  // namespace content
+}  // namespace content::indexed_db
 
 #endif  // CONTENT_BROWSER_INDEXED_DB_INDEXED_DB_EXTERNAL_OBJECT_STORAGE_H_

@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/drm.h"
+// clang-format on
 
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
@@ -32,6 +34,8 @@ void SbDrmGenerateSessionUpdateRequest(SbDrmSystem drm_system,
     return;
   }
 
-  drm_system->GenerateSessionUpdateRequest(ticket, type, initialization_data,
-                                           initialization_data_size);
+  drm_system->GenerateSessionUpdateRequest(
+      ticket, type,
+      std::string_view(static_cast<const char*>(initialization_data),
+                       initialization_data_size));
 }

@@ -4,6 +4,7 @@
 
 #include "extensions/browser/api/declarative_net_request/indexed_rule.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/check_op.h"
@@ -12,7 +13,6 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/types/optional_util.h"
@@ -20,13 +20,13 @@
 #include "extensions/browser/api/declarative_net_request/constants.h"
 #include "extensions/browser/api/declarative_net_request/utils.h"
 #include "extensions/common/api/declarative_net_request.h"
+#include "extensions/common/extension_features.h"
 #include "net/http/http_util.h"
 #include "third_party/re2/src/re2/re2.h"
 #include "url/gurl.h"
 #include "url/url_constants.h"
 
-namespace extensions {
-namespace declarative_net_request {
+namespace extensions::declarative_net_request {
 
 namespace {
 
@@ -36,6 +36,7 @@ namespace dnr_api = extensions::api::declarative_net_request;
 constexpr char kAnchorCharacter = '|';
 constexpr char kSeparatorCharacter = '^';
 constexpr char kWildcardCharacter = '*';
+constexpr int kLargeRegexUMALimit = 1024 * 100;
 
 // Returns true if bitmask |sub| is a subset of |super|.
 constexpr bool IsSubset(unsigned sub, unsigned super) {
@@ -50,7 +51,7 @@ class UrlFilterParser {
 
   // This sets the |url_pattern_type|, |anchor_left|, |anchor_right| and
   // |url_pattern| fields on the |indexed_rule_|.
-  static void Parse(absl::optional<std::string> url_filter,
+  static void Parse(std::optional<std::string> url_filter,
                     IndexedRule* indexed_rule) {
     DCHECK(indexed_rule);
     UrlFilterParser(url_filter ? std::move(*url_filter) : std::string(),
@@ -93,8 +94,9 @@ class UrlFilterParser {
     indexed_rule_->url_pattern_type = flat_rule::UrlPatternType_SUBSTRING;
     size_t left_index = index_;
     while (index_ < url_filter_len_ && !IsAtRightAnchor()) {
-      if (IsAtSeparatorOrWildcard())
+      if (IsAtSeparatorOrWildcard()) {
         indexed_rule_->url_pattern_type = flat_rule::UrlPatternType_WILDCARDED;
+      }
       ++index_;
     }
     // Note: Empty url patterns are supported.
@@ -133,9 +135,10 @@ class UrlFilterParser {
 
 bool IsCaseSensitive(const dnr_api::Rule& parsed_rule) {
   // If case sensitivity is not explicitly specified, rules are considered case
-  // sensitive by default.
-  if (!parsed_rule.condition.is_url_filter_case_sensitive)
-    return true;
+  // insensitive by default.
+  if (!parsed_rule.condition.is_url_filter_case_sensitive) {
+    return false;
+  }
 
   return *parsed_rule.condition.is_url_filter_case_sensitive;
 }
@@ -148,8 +151,9 @@ uint8_t GetOptionsMask(const dnr_api::Rule& parsed_rule) {
     mask |= flat_rule::OptionFlag_IS_ALLOWLIST;
   }
 
-  if (!IsCaseSensitive(parsed_rule))
+  if (!IsCaseSensitive(parsed_rule)) {
     mask |= flat_rule::OptionFlag_IS_CASE_INSENSITIVE;
+  }
 
   switch (parsed_rule.condition.domain_type) {
     case dnr_api::DomainType::kFirstParty:
@@ -174,14 +178,15 @@ uint8_t GetActivationTypes(const dnr_api::Rule& parsed_rule) {
 // Returns a bitmask of flat_rule::RequestMethod corresponding to passed
 // `request_methods`.
 uint16_t GetRequestMethodsMask(
-    const absl::optional<std::vector<dnr_api::RequestMethod>>&
-        request_methods) {
+    const std::optional<std::vector<dnr_api::RequestMethod>>& request_methods) {
   uint16_t mask = flat_rule::RequestMethod_NONE;
-  if (!request_methods)
+  if (!request_methods) {
     return mask;
+  }
 
-  for (const auto request_method : *request_methods)
+  for (const auto request_method : *request_methods) {
     mask |= GetRequestMethod(request_method);
+  }
   return mask;
 }
 
@@ -194,12 +199,13 @@ ParseResult ComputeRequestMethods(const dnr_api::Rule& rule,
   uint16_t exclude_request_method_mask =
       GetRequestMethodsMask(rule.condition.excluded_request_methods);
 
-  if (include_request_method_mask & exclude_request_method_mask)
+  if (include_request_method_mask & exclude_request_method_mask) {
     return ParseResult::ERROR_REQUEST_METHOD_DUPLICATED;
+  }
 
-  if (include_request_method_mask != flat_rule::RequestMethod_NONE)
+  if (include_request_method_mask != flat_rule::RequestMethod_NONE) {
     *request_methods_mask = include_request_method_mask;
-  else if (exclude_request_method_mask != flat_rule::RequestMethod_NONE) {
+  } else if (exclude_request_method_mask != flat_rule::RequestMethod_NONE) {
     *request_methods_mask =
         flat_rule::RequestMethod_ANY & ~exclude_request_method_mask;
   } else {
@@ -212,13 +218,15 @@ ParseResult ComputeRequestMethods(const dnr_api::Rule& rule,
 // Returns a bitmask of flat_rule::ElementType corresponding to passed
 // |resource_types|.
 uint16_t GetResourceTypesMask(
-    const absl::optional<std::vector<dnr_api::ResourceType>>& resource_types) {
+    const std::optional<std::vector<dnr_api::ResourceType>>& resource_types) {
   uint16_t mask = flat_rule::ElementType_NONE;
-  if (!resource_types)
+  if (!resource_types) {
     return mask;
+  }
 
-  for (const auto resource_type : *resource_types)
+  for (const auto resource_type : *resource_types) {
     mask |= GetElementType(resource_type);
+  }
   return mask;
 }
 
@@ -239,8 +247,9 @@ ParseResult ComputeElementTypes(const dnr_api::Rule& rule,
     return ParseResult::ERROR_NO_APPLICABLE_RESOURCE_TYPES;
   }
 
-  if (include_element_type_mask & exclude_element_type_mask)
+  if (include_element_type_mask & exclude_element_type_mask) {
     return ParseResult::ERROR_RESOURCE_TYPE_DUPLICATED;
+  }
 
   if (rule.action.type == dnr_api::RuleActionType::kAllowAllRequests) {
     // For allowAllRequests rule, the resourceTypes key must always be specified
@@ -253,12 +262,13 @@ ParseResult ComputeElementTypes(const dnr_api::Rule& rule,
     }
   }
 
-  if (include_element_type_mask != flat_rule::ElementType_NONE)
+  if (include_element_type_mask != flat_rule::ElementType_NONE) {
     *element_types = include_element_type_mask;
-  else if (exclude_element_type_mask != flat_rule::ElementType_NONE)
+  } else if (exclude_element_type_mask != flat_rule::ElementType_NONE) {
     *element_types = flat_rule::ElementType_ANY & ~exclude_element_type_mask;
-  else
+  } else {
     *element_types = url_pattern_index::kDefaultFlatElementTypesMask;
+  }
 
   return ParseResult::SUCCESS;
 }
@@ -266,18 +276,20 @@ ParseResult ComputeElementTypes(const dnr_api::Rule& rule,
 // Lower-cases and sorts |domains|, as required by the url_pattern_index
 // component and stores the result in |output|. Returns false in case of
 // failure, when one of the input strings contains non-ascii characters.
-bool CanonicalizeDomains(absl::optional<std::vector<std::string>> domains,
+bool CanonicalizeDomains(std::optional<std::vector<std::string>> domains,
                          std::vector<std::string>* output) {
   DCHECK(output);
   DCHECK(output->empty());
 
-  if (!domains)
+  if (!domains) {
     return true;
+  }
 
   // Convert to lower case as required by the url_pattern_index component.
   for (const std::string& domain : *domains) {
-    if (!base::IsStringASCII(domain))
+    if (!base::IsStringASCII(domain)) {
       return false;
+    }
 
     output->push_back(base::ToLowerASCII(domain));
   }
@@ -295,47 +307,55 @@ bool IsRedirectUrlRelative(const std::string& redirect_url) {
   return !redirect_url.empty() && redirect_url[0] == '/';
 }
 
-bool IsValidTransformScheme(const absl::optional<std::string>& scheme) {
-  if (!scheme)
+bool IsValidTransformScheme(const std::optional<std::string>& scheme) {
+  if (!scheme) {
     return true;
+  }
 
-  for (size_t i = 0; i < std::size(kAllowedTransformSchemes); ++i) {
-    if (*scheme == kAllowedTransformSchemes[i])
+  for (auto* kAllowedTransformScheme : kAllowedTransformSchemes) {
+    if (*scheme == kAllowedTransformScheme) {
       return true;
+    }
   }
   return false;
 }
 
-bool IsValidPort(const absl::optional<std::string>& port) {
-  if (!port || port->empty())
+bool IsValidPort(const std::optional<std::string>& port) {
+  if (!port || port->empty()) {
     return true;
+  }
 
   unsigned port_num = 0;
   return base::StringToUint(*port, &port_num) && port_num <= 65535;
 }
 
-bool IsEmptyOrStartsWith(const absl::optional<std::string>& str,
+bool IsEmptyOrStartsWith(const std::optional<std::string>& str,
                          char starts_with) {
   return !str || str->empty() || str->at(0) == starts_with;
 }
 
 // Validates the given url |transform|.
 ParseResult ValidateTransform(const dnr_api::URLTransform& transform) {
-  if (!IsValidTransformScheme(transform.scheme))
+  if (!IsValidTransformScheme(transform.scheme)) {
     return ParseResult::ERROR_INVALID_TRANSFORM_SCHEME;
+  }
 
-  if (!IsValidPort(transform.port))
+  if (!IsValidPort(transform.port)) {
     return ParseResult::ERROR_INVALID_TRANSFORM_PORT;
+  }
 
-  if (!IsEmptyOrStartsWith(transform.query, '?'))
+  if (!IsEmptyOrStartsWith(transform.query, '?')) {
     return ParseResult::ERROR_INVALID_TRANSFORM_QUERY;
+  }
 
-  if (!IsEmptyOrStartsWith(transform.fragment, '#'))
+  if (!IsEmptyOrStartsWith(transform.fragment, '#')) {
     return ParseResult::ERROR_INVALID_TRANSFORM_FRAGMENT;
+  }
 
   // Only one of |query| or |query_transform| should be specified.
-  if (transform.query && transform.query_transform)
+  if (transform.query && transform.query_transform) {
     return ParseResult::ERROR_QUERY_AND_TRANSFORM_BOTH_SPECIFIED;
+  }
 
   return ParseResult::SUCCESS;
 }
@@ -348,19 +368,22 @@ ParseResult ParseRedirect(dnr_api::Redirect redirect,
 
   if (redirect.url) {
     GURL redirect_url = GURL(*redirect.url);
-    if (!redirect_url.is_valid())
+    if (!redirect_url.is_valid()) {
       return ParseResult::ERROR_INVALID_REDIRECT_URL;
+    }
 
-    if (redirect_url.SchemeIs(url::kJavaScriptScheme))
+    if (redirect_url.SchemeIs(url::kJavaScriptScheme)) {
       return ParseResult::ERROR_JAVASCRIPT_REDIRECT;
+    }
 
     indexed_rule->redirect_url = std::move(*redirect.url);
     return ParseResult::SUCCESS;
   }
 
   if (redirect.extension_path) {
-    if (!IsRedirectUrlRelative(*redirect.extension_path))
+    if (!IsRedirectUrlRelative(*redirect.extension_path)) {
       return ParseResult::ERROR_INVALID_EXTENSION_PATH;
+    }
 
     GURL redirect_url = base_url.Resolve(*redirect.extension_path);
 
@@ -368,8 +391,9 @@ ParseResult ParseRedirect(dnr_api::Redirect redirect,
     DCHECK_EQ(base_url.DeprecatedGetOriginAsURL(),
               redirect_url.DeprecatedGetOriginAsURL());
 
-    if (!redirect_url.is_valid())
+    if (!redirect_url.is_valid()) {
       return ParseResult::ERROR_INVALID_EXTENSION_PATH;
+    }
 
     indexed_rule->redirect_url = redirect_url.spec();
     return ParseResult::SUCCESS;
@@ -381,8 +405,9 @@ ParseResult ParseRedirect(dnr_api::Redirect redirect,
   }
 
   if (redirect.regex_substitution) {
-    if (redirect.regex_substitution->empty())
+    if (redirect.regex_substitution->empty()) {
       return ParseResult::ERROR_INVALID_REGEX_SUBSTITUTION;
+    }
 
     indexed_rule->regex_substitution = std::move(*redirect.regex_substitution);
     return ParseResult::SUCCESS;
@@ -409,36 +434,114 @@ uint8_t GetActionTypePriority(dnr_api::RuleActionType action_type) {
       break;
   }
   NOTREACHED();
-  return 0;
 }
 
 void RecordLargeRegexUMA(bool is_large_regex) {
   UMA_HISTOGRAM_BOOLEAN(kIsLargeRegexHistogram, is_large_regex);
 }
 
-ParseResult ValidateHeaders(
+void RecordRegexRuleSizeUMA(int program_size) {
+  // Max reported size at 100KB.
+  UMA_HISTOGRAM_COUNTS_100000(kRegexRuleSizeHistogram, program_size);
+}
+
+void RecordRuleSizeForLargeRegex(const std::string& regex_string,
+                                 bool is_case_sensitive,
+                                 bool require_capturing) {
+  re2::RE2::Options large_regex_options =
+      CreateRE2Options(is_case_sensitive, require_capturing);
+
+  // Record the size of regex rules that exceed the 2Kb limit, with any rules
+  // exceeding 100Kb recorded as 100Kb. Note that these rules are not enabled.
+  large_regex_options.set_max_mem(kLargeRegexUMALimit);
+  re2::RE2 regex(regex_string, large_regex_options);
+  if (regex.error_code() == re2::RE2::ErrorPatternTooLarge) {
+    RecordRegexRuleSizeUMA(kLargeRegexUMALimit);
+  } else if (regex.ok()) {
+    RecordRegexRuleSizeUMA(regex.ProgramSize());
+  }
+}
+
+// Validates the parsed `regex_filter` and `regex_substitution` and returns a
+// ParseResult.
+ParseResult ValidateRegex(
+    bool is_case_sensitive,
+    const std::optional<std::string>& regex_filter,
+    const std::optional<std::string>& regex_substitution) {
+  if (!regex_filter.has_value()) {
+    return regex_substitution.has_value()
+               ? ParseResult::ERROR_REGEX_SUBSTITUTION_WITHOUT_FILTER
+               : ParseResult::SUCCESS;
+  }
+
+  if (regex_filter->empty()) {
+    return ParseResult::ERROR_EMPTY_REGEX_FILTER;
+  }
+
+  if (!base::IsStringASCII(*regex_filter)) {
+    return ParseResult::ERROR_NON_ASCII_REGEX_FILTER;
+  }
+
+  bool require_capturing = regex_substitution.has_value();
+
+  // TODO(karandeepb): Regex compilation can be expensive. Also, these need to
+  // be compiled again once the ruleset is loaded, which means duplicate work.
+  // We should maintain a global cache of compiled regexes.
+  re2::RE2 regex(*regex_filter,
+                 CreateRE2Options(is_case_sensitive, require_capturing));
+
+  if (regex.error_code() == re2::RE2::ErrorPatternTooLarge) {
+    RecordLargeRegexUMA(true);
+    RecordRuleSizeForLargeRegex(*regex_filter, is_case_sensitive,
+                                require_capturing);
+
+    return ParseResult::ERROR_REGEX_TOO_LARGE;
+  }
+
+  if (!regex.ok()) {
+    return ParseResult::ERROR_INVALID_REGEX_FILTER;
+  }
+
+  std::string error;
+  if (regex_substitution &&
+      !regex.CheckRewriteString(*regex_substitution, &error)) {
+    return ParseResult::ERROR_INVALID_REGEX_SUBSTITUTION;
+  }
+
+  RecordRegexRuleSizeUMA(regex.ProgramSize());
+  RecordLargeRegexUMA(false);
+
+  return ParseResult::SUCCESS;
+}
+
+ParseResult ValidateHeadersForModification(
     const std::vector<dnr_api::ModifyHeaderInfo>& headers,
     bool are_request_headers) {
   if (headers.empty()) {
-    return are_request_headers ? ParseResult::ERROR_EMPTY_REQUEST_HEADERS_LIST
-                               : ParseResult::ERROR_EMPTY_RESPONSE_HEADERS_LIST;
+    return are_request_headers
+               ? ParseResult::ERROR_EMPTY_MODIFY_REQUEST_HEADERS_LIST
+               : ParseResult::ERROR_EMPTY_MODIFY_RESPONSE_HEADERS_LIST;
   }
 
   for (const auto& header_info : headers) {
-    if (!net::HttpUtil::IsValidHeaderName(header_info.header))
-      return ParseResult::ERROR_INVALID_HEADER_NAME;
+    if (!net::HttpUtil::IsValidHeaderName(header_info.header)) {
+      return ParseResult::ERROR_INVALID_HEADER_TO_MODIFY_NAME;
+    }
 
     if (are_request_headers &&
         header_info.operation == dnr_api::HeaderOperation::kAppend) {
       DCHECK(
-          base::ranges::none_of(header_info.header, base::IsAsciiUpper<char>));
-      if (!base::Contains(kDNRRequestHeaderAppendAllowList, header_info.header))
+          std::ranges::none_of(header_info.header, base::IsAsciiUpper<char>));
+      if (!base::Contains(kDNRRequestHeaderAppendAllowList,
+                          header_info.header)) {
         return ParseResult::ERROR_APPEND_INVALID_REQUEST_HEADER;
+      }
     }
 
     if (header_info.value) {
-      if (!net::HttpUtil::IsValidHeaderValue(*header_info.value))
-        return ParseResult::ERROR_INVALID_HEADER_VALUE;
+      if (!net::HttpUtil::IsValidHeaderValue(*header_info.value)) {
+        return ParseResult::ERROR_INVALID_HEADER_TO_MODIFY_VALUE;
+      }
 
       // Check that a remove operation must not specify a value.
       if (header_info.operation == dnr_api::HeaderOperation::kRemove) {
@@ -449,6 +552,16 @@ ParseResult ValidateHeaders(
       // Check that an append or set operation must specify a value.
       return ParseResult::ERROR_HEADER_VALUE_NOT_SPECIFIED;
     }
+
+    // Validate the regex filter and substitution inside `header_info` if they
+    // exist.
+    ParseResult validate_regex_result =
+        ValidateRegex(/*is_case_sensitive=*/false, header_info.regex_filter,
+                      header_info.regex_substitution);
+
+    if (validate_regex_result != ParseResult::SUCCESS) {
+      return validate_regex_result;
+    }
   }
 
   return ParseResult::SUCCESS;
@@ -456,11 +569,85 @@ ParseResult ValidateHeaders(
 
 void ParseTabIds(const std::vector<int>* input_tab_ids,
                  base::flat_set<int>& output_tab_ids) {
-  if (!input_tab_ids)
+  if (!input_tab_ids) {
     return;
+  }
 
   output_tab_ids =
       base::flat_set<int>(input_tab_ids->begin(), input_tab_ids->end());
+}
+
+ParseResult ValidateMatchingResponseHeaderValues(
+    const dnr_api::HeaderInfo& header_info) {
+  auto validate_header_values = [](const std::vector<std::string>& values) {
+    return std::ranges::all_of(values, [](const std::string& value) {
+      return net::HttpUtil::IsValidHeaderValue(value);
+    });
+  };
+
+  if (header_info.values && !validate_header_values(*header_info.values)) {
+    return ParseResult::ERROR_INVALID_MATCHING_RESPONSE_HEADER_VALUE;
+  }
+
+  if (header_info.excluded_values &&
+      !validate_header_values(*header_info.excluded_values)) {
+    return ParseResult::ERROR_INVALID_MATCHING_RESPONSE_HEADER_VALUE;
+  }
+
+  return ParseResult::SUCCESS;
+}
+
+ParseResult ValidateResponseHeadersForMatching(
+    const std::vector<dnr_api::HeaderInfo>& response_headers,
+    const std::vector<dnr_api::HeaderInfo>& excluded_response_headers) {
+  // Track the set of response headers to match. This is used to make sure that
+  // the header is not matched in `excluded_response_headers` in name only.
+  std::set<std::string> response_header_names;
+
+  for (const auto& header_info : response_headers) {
+    if (!net::HttpUtil::IsValidHeaderName(header_info.header)) {
+      return ParseResult::ERROR_INVALID_MATCHING_RESPONSE_HEADER_NAME;
+    }
+
+    ParseResult result = ValidateMatchingResponseHeaderValues(header_info);
+    if (result != ParseResult::SUCCESS) {
+      return result;
+    }
+
+    response_header_names.insert(header_info.header);
+  }
+
+  for (const auto& header_info : excluded_response_headers) {
+    if (!net::HttpUtil::IsValidHeaderName(header_info.header)) {
+      return ParseResult::ERROR_INVALID_MATCHING_EXCLUDED_RESPONSE_HEADER_NAME;
+    }
+
+    ParseResult result = ValidateMatchingResponseHeaderValues(header_info);
+    if (result != ParseResult::SUCCESS) {
+      return result;
+    }
+
+    // Return an error if a rule tries to match on the existence AND
+    // non-existence of a header.
+    if (!header_info.values.has_value() &&
+        !header_info.excluded_values.has_value() &&
+        base::Contains(response_header_names, header_info.header)) {
+      return ParseResult::ERROR_MATCHING_RESPONSE_HEADER_DUPLICATED;
+    }
+  }
+
+  return ParseResult::SUCCESS;
+}
+
+// For each ModifyHeaderInfo in `header_infos`, if its `regex_options` is
+// specified, populate it with default values for any unspecified fields.
+void PopulateHeaderRegexOptions(
+    std::vector<dnr_api::ModifyHeaderInfo>& header_infos) {
+  for (auto& header_info : header_infos) {
+    if (auto& options = header_info.regex_options) {
+      options->match_all = options->match_all.value_or(false);
+    }
+  }
 }
 
 }  // namespace
@@ -477,29 +664,34 @@ ParseResult IndexedRule::CreateIndexedRule(dnr_api::Rule parsed_rule,
                                            IndexedRule* indexed_rule) {
   DCHECK(indexed_rule);
 
-  if (parsed_rule.id < kMinValidID)
+  if (parsed_rule.id < kMinValidID) {
     return ParseResult::ERROR_INVALID_RULE_ID;
+  }
 
   int priority =
       parsed_rule.priority ? *parsed_rule.priority : kDefaultPriority;
-  if (priority < kMinValidPriority)
+  if (priority < kMinValidPriority) {
     return ParseResult::ERROR_INVALID_RULE_PRIORITY;
+  }
 
   const bool is_redirect_rule =
       parsed_rule.action.type == dnr_api::RuleActionType::kRedirect;
 
   if (is_redirect_rule) {
-    if (!parsed_rule.action.redirect)
+    if (!parsed_rule.action.redirect) {
       return ParseResult::ERROR_INVALID_REDIRECT;
+    }
 
     ParseResult result = ParseRedirect(std::move(*parsed_rule.action.redirect),
                                        base_url, indexed_rule);
-    if (result != ParseResult::SUCCESS)
+    if (result != ParseResult::SUCCESS) {
       return result;
+    }
   }
 
-  if (parsed_rule.condition.domains && parsed_rule.condition.domains->empty())
+  if (parsed_rule.condition.domains && parsed_rule.condition.domains->empty()) {
     return ParseResult::ERROR_EMPTY_DOMAINS_LIST;
+  }
 
   if (parsed_rule.condition.initiator_domains &&
       parsed_rule.condition.initiator_domains->empty()) {
@@ -521,8 +713,9 @@ ParseResult IndexedRule::CreateIndexedRule(dnr_api::Rule parsed_rule,
     return ParseResult::ERROR_EMPTY_REQUEST_METHODS_LIST;
   }
 
-  if (parsed_rule.condition.tab_ids && parsed_rule.condition.tab_ids->empty())
+  if (parsed_rule.condition.tab_ids && parsed_rule.condition.tab_ids->empty()) {
     return ParseResult::ERROR_EMPTY_TAB_IDS_LIST;
+  }
 
   bool is_session_scoped_ruleset = ruleset_id == kSessionRulesetID;
   if (!is_session_scoped_ruleset && (parsed_rule.condition.tab_ids ||
@@ -530,53 +723,26 @@ ParseResult IndexedRule::CreateIndexedRule(dnr_api::Rule parsed_rule,
     return ParseResult::ERROR_TAB_IDS_ON_NON_SESSION_RULE;
   }
 
-  if (parsed_rule.condition.url_filter && parsed_rule.condition.regex_filter)
+  if (parsed_rule.condition.url_filter && parsed_rule.condition.regex_filter) {
     return ParseResult::ERROR_MULTIPLE_FILTERS_SPECIFIED;
+  }
 
-  const bool is_regex_rule = !!parsed_rule.condition.regex_filter;
+  ParseResult validate_regex_result = ValidateRegex(
+      IsCaseSensitive(parsed_rule), parsed_rule.condition.regex_filter,
+      indexed_rule->regex_substitution);
 
-  if (!is_regex_rule && indexed_rule->regex_substitution)
-    return ParseResult::ERROR_REGEX_SUBSTITUTION_WITHOUT_FILTER;
-
-  if (is_regex_rule) {
-    if (parsed_rule.condition.regex_filter->empty())
-      return ParseResult::ERROR_EMPTY_REGEX_FILTER;
-
-    if (!base::IsStringASCII(*parsed_rule.condition.regex_filter))
-      return ParseResult::ERROR_NON_ASCII_REGEX_FILTER;
-
-    bool require_capturing = indexed_rule->regex_substitution.has_value();
-
-    // TODO(karandeepb): Regex compilation can be expensive. Also, these need to
-    // be compiled again once the ruleset is loaded, which means duplicate work.
-    // We should maintain a global cache of compiled regexes.
-    re2::RE2 regex(
-        *parsed_rule.condition.regex_filter,
-        CreateRE2Options(IsCaseSensitive(parsed_rule), require_capturing));
-
-    if (regex.error_code() == re2::RE2::ErrorPatternTooLarge) {
-      RecordLargeRegexUMA(true);
-      return ParseResult::ERROR_REGEX_TOO_LARGE;
-    }
-
-    if (!regex.ok())
-      return ParseResult::ERROR_INVALID_REGEX_FILTER;
-
-    std::string error;
-    if (indexed_rule->regex_substitution &&
-        !regex.CheckRewriteString(*indexed_rule->regex_substitution, &error)) {
-      return ParseResult::ERROR_INVALID_REGEX_SUBSTITUTION;
-    }
-
-    RecordLargeRegexUMA(false);
+  if (validate_regex_result != ParseResult::SUCCESS) {
+    return validate_regex_result;
   }
 
   if (parsed_rule.condition.url_filter) {
-    if (parsed_rule.condition.url_filter->empty())
+    if (parsed_rule.condition.url_filter->empty()) {
       return ParseResult::ERROR_EMPTY_URL_FILTER;
+    }
 
-    if (!base::IsStringASCII(*parsed_rule.condition.url_filter))
+    if (!base::IsStringASCII(*parsed_rule.condition.url_filter)) {
       return ParseResult::ERROR_NON_ASCII_URL_FILTER;
+    }
   }
 
   indexed_rule->action_type = parsed_rule.action.type;
@@ -589,15 +755,17 @@ ParseResult IndexedRule::CreateIndexedRule(dnr_api::Rule parsed_rule,
   {
     ParseResult result =
         ComputeRequestMethods(parsed_rule, &indexed_rule->request_methods);
-    if (result != ParseResult::SUCCESS)
+    if (result != ParseResult::SUCCESS) {
       return result;
+    }
   }
 
   {
     ParseResult result =
         ComputeElementTypes(parsed_rule, &indexed_rule->element_types);
-    if (result != ParseResult::SUCCESS)
+    if (result != ParseResult::SUCCESS) {
       return result;
+    }
   }
 
   if (parsed_rule.condition.domains &&
@@ -656,7 +824,7 @@ ParseResult IndexedRule::CreateIndexedRule(dnr_api::Rule parsed_rule,
                 indexed_rule->tab_ids);
     ParseTabIds(base::OptionalToPtr(parsed_rule.condition.excluded_tab_ids),
                 indexed_rule->excluded_tab_ids);
-    if (base::ranges::any_of(
+    if (std::ranges::any_of(
             indexed_rule->tab_ids, [indexed_rule](int included_tab_id) {
               return base::Contains(indexed_rule->excluded_tab_ids,
                                     included_tab_id);
@@ -672,7 +840,34 @@ ParseResult IndexedRule::CreateIndexedRule(dnr_api::Rule parsed_rule,
     }
   }
 
-  if (is_regex_rule) {
+  if (IsResponseHeaderMatchingEnabled()) {
+    if (parsed_rule.condition.response_headers) {
+      if (parsed_rule.condition.response_headers->empty()) {
+        return ParseResult::ERROR_EMPTY_RESPONSE_HEADER_MATCHING_LIST;
+      }
+
+      indexed_rule->response_headers =
+          std::move(*parsed_rule.condition.response_headers);
+    }
+
+    if (parsed_rule.condition.excluded_response_headers) {
+      if (parsed_rule.condition.excluded_response_headers->empty()) {
+        return ParseResult::ERROR_EMPTY_EXCLUDED_RESPONSE_HEADER_MATCHING_LIST;
+      }
+
+      indexed_rule->excluded_response_headers =
+          std::move(*parsed_rule.condition.excluded_response_headers);
+    }
+
+    ParseResult result = ValidateResponseHeadersForMatching(
+        indexed_rule->response_headers,
+        indexed_rule->excluded_response_headers);
+    if (result != ParseResult::SUCCESS) {
+      return result;
+    }
+  }
+
+  if (parsed_rule.condition.regex_filter.has_value()) {
     indexed_rule->url_pattern_type =
         url_pattern_index::flat::UrlPatternType_REGEXP;
     indexed_rule->url_pattern = std::move(*parsed_rule.condition.regex_filter);
@@ -692,32 +887,46 @@ ParseResult IndexedRule::CreateIndexedRule(dnr_api::Rule parsed_rule,
   }
 
   // Lower-case case-insensitive patterns as required by url pattern index.
-  if (indexed_rule->options & flat_rule::OptionFlag_IS_CASE_INSENSITIVE)
+  if (indexed_rule->options & flat_rule::OptionFlag_IS_CASE_INSENSITIVE) {
     indexed_rule->url_pattern = base::ToLowerASCII(indexed_rule->url_pattern);
+  }
 
   if (parsed_rule.action.type == dnr_api::RuleActionType::kModifyHeaders) {
     if (!parsed_rule.action.request_headers &&
-        !parsed_rule.action.response_headers)
-      return ParseResult::ERROR_NO_HEADERS_SPECIFIED;
+        !parsed_rule.action.response_headers) {
+      return ParseResult::ERROR_NO_HEADERS_TO_MODIFY_SPECIFIED;
+    }
 
     if (parsed_rule.action.request_headers) {
-      indexed_rule->request_headers =
-          std::move(*parsed_rule.action.request_headers);
+      if (!indexed_rule->response_headers.empty() ||
+          !indexed_rule->excluded_response_headers.empty()) {
+        return ParseResult::
+            ERROR_RESPONSE_HEADER_RULE_CANNOT_MODIFY_REQUEST_HEADERS;
+      }
 
-      ParseResult result = ValidateHeaders(indexed_rule->request_headers,
-                                           true /* are_request_headers */);
-      if (result != ParseResult::SUCCESS)
+      indexed_rule->request_headers_to_modify =
+          std::move(*parsed_rule.action.request_headers);
+      PopulateHeaderRegexOptions(indexed_rule->request_headers_to_modify);
+
+      ParseResult result = ValidateHeadersForModification(
+          indexed_rule->request_headers_to_modify,
+          /*are_request_headers=*/true);
+      if (result != ParseResult::SUCCESS) {
         return result;
+      }
     }
 
     if (parsed_rule.action.response_headers) {
-      indexed_rule->response_headers =
+      indexed_rule->response_headers_to_modify =
           std::move(*parsed_rule.action.response_headers);
+      PopulateHeaderRegexOptions(indexed_rule->response_headers_to_modify);
 
-      ParseResult result = ValidateHeaders(indexed_rule->response_headers,
-                                           false /* are_request_headers */);
-      if (result != ParseResult::SUCCESS)
+      ParseResult result = ValidateHeadersForModification(
+          indexed_rule->response_headers_to_modify,
+          /*are_request_headers=*/false);
+      if (result != ParseResult::SUCCESS) {
         return result;
+      }
     }
   }
 
@@ -740,5 +949,4 @@ uint64_t ComputeIndexedRulePriority(int parsed_rule_priority,
          GetActionTypePriority(action_type);
 }
 
-}  // namespace declarative_net_request
-}  // namespace extensions
+}  // namespace extensions::declarative_net_request

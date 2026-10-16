@@ -4,15 +4,20 @@
 
 #include "chrome/updater/util/win_util.h"
 
+#include <objbase.h>
+
+#include <windows.h>
+
 #include <regstr.h>
 #include <shellapi.h>
 #include <shlobj.h>
-#include <windows.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -21,183 +26,150 @@
 #include "base/path_service.h"
 #include "base/process/launch.h"
 #include "base/process/process.h"
+#include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/system/sys_info.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/test/bind.h"
+#include "base/test/gmock_expected_support.h"
+#include "base/test/task_environment.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/platform_thread.h"
+#include "base/uuid.h"
 #include "base/win/atl.h"
 #include "base/win/registry.h"
+#include "base/win/scoped_com_initializer.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/scoped_localalloc.h"
+#include "base/win/win_util.h"
 #include "chrome/updater/test/integration_tests_impl.h"
-#include "chrome/updater/test_scope.h"
+#include "chrome/updater/test/test_scope.h"
+#include "chrome/updater/test/unit_test_util.h"
+#include "chrome/updater/test/unit_test_util_win.h"
 #include "chrome/updater/updater_branding.h"
 #include "chrome/updater/updater_version.h"
-#include "chrome/updater/util/unittest_util.h"
-#include "chrome/updater/util/unittest_util_win.h"
+#include "chrome/updater/win/scoped_impersonation.h"
 #include "chrome/updater/win/test/test_executables.h"
 #include "chrome/updater/win/test/test_strings.h"
 #include "chrome/updater/win/win_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-namespace updater {
+namespace updater::test {
 
 namespace {
 
-// Allows access to all authenticated users on the machine.
-CSecurityDesc GetEveryoneDaclSecurityDescriptor(ACCESS_MASK accessmask) {
-  CSecurityDesc sd;
-  CDacl dacl;
-  dacl.AddAllowedAce(Sids::System(), accessmask);
-  dacl.AddAllowedAce(Sids::Admins(), accessmask);
-  dacl.AddAllowedAce(Sids::Interactive(), accessmask);
-
-  sd.SetDacl(dacl);
-  sd.MakeAbsolute();
-  return sd;
-}
+constexpr char kTestAppID[] = "{D07D2B56-F583-4631-9E8E-9942F63765BE}";
 
 }  // namespace
 
-TEST(WinUtil, GetDownloadProgress) {
-  EXPECT_EQ(GetDownloadProgress(0, 50), 0);
-  EXPECT_EQ(GetDownloadProgress(12, 50), 24);
-  EXPECT_EQ(GetDownloadProgress(25, 50), 50);
-  EXPECT_EQ(GetDownloadProgress(50, 50), 100);
-  EXPECT_EQ(GetDownloadProgress(50, 50), 100);
-  EXPECT_EQ(GetDownloadProgress(0, -1), -1);
-  EXPECT_EQ(GetDownloadProgress(-1, -1), -1);
-  EXPECT_EQ(GetDownloadProgress(50, 0), -1);
-}
+class WinUtilServiceNameTest : public ::testing::TestWithParam<std::string> {
+ protected:
+  base::Version version() const { return base::Version(GetParam()); }
+};
 
-TEST(WinUtil, GetServiceDisplayName) {
+INSTANTIATE_TEST_SUITE_P(WinUtilServiceNameTestCases,
+                         WinUtilServiceNameTest,
+                         ::testing::Values(kUpdaterVersion,
+                                           "1.2.3.4",
+                                           "199.28537.11717"));
+
+TEST_P(WinUtilServiceNameTest, GetServiceName) {
   for (const bool is_internal_service : {true, false}) {
-    EXPECT_EQ(base::StrCat({base::ASCIIToWide(PRODUCT_FULLNAME_STRING), L" ",
+    EXPECT_EQ(base::StrCat({base::UTF8ToWide(PRODUCT_FULLNAME_STRING),
                             is_internal_service ? kWindowsInternalServiceName
                                                 : kWindowsServiceName,
-                            L" ", kUpdaterVersionUtf16}),
-              GetServiceDisplayName(is_internal_service));
-  }
-}
-
-TEST(WinUtil, GetServiceName) {
-  for (const bool is_internal_service : {true, false}) {
-    EXPECT_EQ(base::StrCat({base::ASCIIToWide(PRODUCT_FULLNAME_STRING),
-                            is_internal_service ? kWindowsInternalServiceName
-                                                : kWindowsServiceName,
-                            kUpdaterVersionUtf16}),
-              GetServiceName(is_internal_service));
+                            base::UTF8ToWide(version().GetString())}),
+              GetServiceName(is_internal_service, version()));
   }
 }
 
 TEST(WinUtil, BuildMsiCommandLine) {
-  EXPECT_STREQ(L"", BuildMsiCommandLine(std::wstring(L"arg1 arg2 arg3"), {},
-                                        base::FilePath(L"NotMsi.exe"))
-                        .c_str());
-  EXPECT_STREQ(
+  EXPECT_EQ(L"", BuildMsiCommandLine(std::wstring(L"arg1 arg2 arg3"), {},
+                                     base::FilePath(L"NotMsi.exe")));
+  EXPECT_EQ(
       L"msiexec arg1 arg2 arg3 REBOOT=ReallySuppress /qn /i \"c:\\my "
       L"path\\YesMsi.msi\" /log \"c:\\my path\\YesMsi.msi.log\"",
       BuildMsiCommandLine(std::wstring(L"arg1 arg2 arg3"), {},
-                          base::FilePath(L"c:\\my path\\YesMsi.msi"))
-          .c_str());
-  EXPECT_STREQ(
+                          base::FilePath(L"c:\\my path\\YesMsi.msi")));
+  EXPECT_EQ(
       L"msiexec arg1 arg2 arg3 INSTALLERDATA=\"c:\\my path\\installer data "
       L"file.dat\" REBOOT=ReallySuppress /qn /i \"c:\\my "
       L"path\\YesMsi.msi\" /log \"c:\\my path\\YesMsi.msi.log\"",
       BuildMsiCommandLine(
           std::wstring(L"arg1 arg2 arg3"),
           base::FilePath(L"c:\\my path\\installer data file.dat"),
-          base::FilePath(L"c:\\my path\\YesMsi.msi"))
-          .c_str());
+          base::FilePath(L"c:\\my path\\YesMsi.msi")));
 }
 
 TEST(WinUtil, BuildExeCommandLine) {
-  EXPECT_STREQ(L"", BuildExeCommandLine(std::wstring(L"arg1 arg2 arg3"), {},
-                                        base::FilePath(L"NotExe.msi"))
-                        .c_str());
-  EXPECT_STREQ(L"\"c:\\my path\\YesExe.exe\" arg1 arg2 arg3",
-               BuildExeCommandLine(std::wstring(L"arg1 arg2 arg3"), {},
-                                   base::FilePath(L"c:\\my path\\YesExe.exe"))
-                   .c_str());
-  EXPECT_STREQ(
+  EXPECT_EQ(L"", BuildExeCommandLine(std::wstring(L"arg1 arg2 arg3"), {},
+                                     base::FilePath(L"NotExe.msi")));
+  EXPECT_EQ(L"\"c:\\my path\\YesExe.exe\" arg1 arg2 arg3",
+            BuildExeCommandLine(std::wstring(L"arg1 arg2 arg3"), {},
+                                base::FilePath(L"c:\\my path\\YesExe.exe")));
+  EXPECT_EQ(
       L"\"c:\\my path\\YesExe.exe\" arg1 arg2 arg3 --installerdata=\"c:\\my "
       L"path\\installer data file.dat\"",
       BuildExeCommandLine(
           std::wstring(L"arg1 arg2 arg3"),
           base::FilePath(L"c:\\my path\\installer data file.dat"),
-          base::FilePath(L"c:\\my path\\YesExe.exe"))
-          .c_str());
+          base::FilePath(L"c:\\my path\\YesExe.exe")));
 }
 
 TEST(WinUtil, ShellExecuteAndWait) {
-  HResultOr<DWORD> result =
-      ShellExecuteAndWait(base::FilePath(L"NonExistent.Exe"), {}, {});
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND));
+  EXPECT_THAT(ShellExecuteAndWait(base::FilePath(L"NonExistent.Exe"), {}, {}),
+              base::test::ErrorIs(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)));
 
-  result = ShellExecuteAndWait(
-      GetTestProcessCommandLine(GetTestScope(), test::GetTestName())
-          .GetProgram(),
-      {}, {});
-  ASSERT_TRUE(result.has_value());
-  EXPECT_EQ(result.value(), DWORD{0});
+  EXPECT_THAT(
+      ShellExecuteAndWait(GetTestProcessCommandLine(GetUpdaterScopeForTesting(),
+                                                    test::GetTestName())
+                              .GetProgram(),
+                          {}, {}),
+      base::test::ValueIs(DWORD{0}));
 }
 
 TEST(WinUtil, RunElevated) {
-  // TODO(crbug.com/1314521): Click on UAC prompts in Updater tests that require
-  // elevation
-  if (!::IsUserAnAdmin())
+  if (!::IsUserAnAdmin()) {
     return;
-
-  const base::CommandLine test_process_cmd_line =
-      GetTestProcessCommandLine(GetTestScope(), test::GetTestName());
-  HResultOr<DWORD> result =
-      RunElevated(test_process_cmd_line.GetProgram(),
-                  test_process_cmd_line.GetArgumentsString());
-  ASSERT_TRUE(result.has_value());
-  EXPECT_EQ(result.value(), DWORD{0});
+  }
+  const base::CommandLine test_process_cmd_line = GetTestProcessCommandLine(
+      GetUpdaterScopeForTesting(), test::GetTestName());
+  EXPECT_THAT(RunElevated(test_process_cmd_line.GetProgram(),
+                          test_process_cmd_line.GetArgumentsString()),
+              base::test::ValueIs(DWORD{0}));
 }
 
-TEST(WinUtil, RunDeElevated_Exe) {
-  if (!::IsUserAnAdmin() || !IsUACOn())
-    return;
-
+TEST(WinUtil, RunDeElevatedCmdLine_Exe) {
   // Create a shared event to be waited for in this process and signaled in the
   // test process to confirm that the test process is running at medium
   // integrity.
-  // The event is created with a security descriptor that allows the medium
-  // integrity process to signal it.
-  const std::wstring event_name =
-      base::StrCat({L"WinUtil.RunDeElevated-",
-                    base::NumberToWString(::GetCurrentProcessId())});
-  CSecurityAttributes sa(GetEveryoneDaclSecurityDescriptor(GENERIC_ALL));
-  base::WaitableEvent event(base::win::ScopedHandle(
-      ::CreateEvent(&sa, FALSE, FALSE, event_name.c_str())));
-  ASSERT_NE(event.handle(), nullptr);
+  test::EventHolder event_holder(IsElevatedWithUACOn()
+                                     ? CreateEveryoneWaitableEventForTest()
+                                     : test::CreateWaitableEventForTest());
+  ASSERT_NE(event_holder.event.handle(), nullptr);
 
-  base::CommandLine test_process_cmd_line =
-      GetTestProcessCommandLine(GetTestScope(), test::GetTestName());
-  test_process_cmd_line.AppendSwitchNative(kTestEventToSignalIfMediumIntegrity,
-                                           event_name);
+  base::CommandLine test_process_cmd_line = GetTestProcessCommandLine(
+      GetUpdaterScopeForTesting(), test::GetTestName());
+  test_process_cmd_line.AppendSwitchNative(
+      IsElevatedWithUACOn() ? kTestEventToSignalIfMediumIntegrity
+                            : kTestEventToSignal,
+      event_holder.name);
   EXPECT_HRESULT_SUCCEEDED(
-      RunDeElevated(test_process_cmd_line.GetProgram().value(),
-                    test_process_cmd_line.GetArgumentsString()));
-  EXPECT_TRUE(event.TimedWait(TestTimeouts::action_max_timeout()));
+      RunDeElevatedCmdLine(test_process_cmd_line.GetCommandLineString()));
+  EXPECT_TRUE(event_holder.event.TimedWait(TestTimeouts::action_max_timeout()));
 
-  EXPECT_TRUE(test::WaitFor(base::BindLambdaForTesting([&]() {
-    return test::FindProcesses(kTestProcessExecutableName).empty();
-  })));
+  EXPECT_TRUE(test::WaitFor(
+      [] { return test::FindProcesses(kTestProcessExecutableName).empty(); }));
 }
 
 TEST(WinUtil, GetOSVersion) {
-  absl::optional<OSVERSIONINFOEX> rtl_os_version = GetOSVersion();
-  ASSERT_NE(rtl_os_version, absl::nullopt);
+  std::optional<OSVERSIONINFOEX> rtl_os_version = GetOSVersion();
+  ASSERT_NE(rtl_os_version, std::nullopt);
 
   // Compare to the version from `::GetVersionEx`.
   OSVERSIONINFOEX os = {};
@@ -220,8 +192,8 @@ TEST(WinUtil, GetOSVersion) {
 }
 
 TEST(WinUtil, CompareOSVersions_SameAsCurrent) {
-  absl::optional<OSVERSIONINFOEX> this_os = GetOSVersion();
-  ASSERT_NE(this_os, absl::nullopt);
+  std::optional<OSVERSIONINFOEX> this_os = GetOSVersion();
+  ASSERT_NE(this_os, std::nullopt);
 
   EXPECT_TRUE(CompareOSVersions(this_os.value(), VER_EQUAL));
   EXPECT_TRUE(CompareOSVersions(this_os.value(), VER_GREATER_EQUAL));
@@ -231,8 +203,8 @@ TEST(WinUtil, CompareOSVersions_SameAsCurrent) {
 }
 
 TEST(WinUtil, CompareOSVersions_NewBuildNumber) {
-  absl::optional<OSVERSIONINFOEX> prior_os = GetOSVersion();
-  ASSERT_NE(prior_os, absl::nullopt);
+  std::optional<OSVERSIONINFOEX> prior_os = GetOSVersion();
+  ASSERT_NE(prior_os, std::nullopt);
   ASSERT_GT(prior_os->dwBuildNumber, 0UL);
   --prior_os->dwBuildNumber;
 
@@ -244,8 +216,8 @@ TEST(WinUtil, CompareOSVersions_NewBuildNumber) {
 }
 
 TEST(WinUtil, CompareOSVersions_NewMajor) {
-  absl::optional<OSVERSIONINFOEX> prior_os = GetOSVersion();
-  ASSERT_NE(prior_os, absl::nullopt);
+  std::optional<OSVERSIONINFOEX> prior_os = GetOSVersion();
+  ASSERT_NE(prior_os, std::nullopt);
   ASSERT_GT(prior_os->dwMajorVersion, 0UL);
   --prior_os->dwMajorVersion;
 
@@ -257,8 +229,8 @@ TEST(WinUtil, CompareOSVersions_NewMajor) {
 }
 
 TEST(WinUtil, CompareOSVersions_NewMinor) {
-  absl::optional<OSVERSIONINFOEX> prior_os = GetOSVersion();
-  ASSERT_NE(prior_os, absl::nullopt);
+  std::optional<OSVERSIONINFOEX> prior_os = GetOSVersion();
+  ASSERT_NE(prior_os, std::nullopt);
 
   // This test only runs if the current OS has a minor version.
   if (prior_os->dwMinorVersion >= 1) {
@@ -273,8 +245,8 @@ TEST(WinUtil, CompareOSVersions_NewMinor) {
 }
 
 TEST(WinUtil, CompareOSVersions_NewMajorWithLowerMinor) {
-  absl::optional<OSVERSIONINFOEX> prior_os = GetOSVersion();
-  ASSERT_NE(prior_os, absl::nullopt);
+  std::optional<OSVERSIONINFOEX> prior_os = GetOSVersion();
+  ASSERT_NE(prior_os, std::nullopt);
   ASSERT_GT(prior_os->dwMajorVersion, 0UL);
   --prior_os->dwMajorVersion;
   ++prior_os->dwMinorVersion;
@@ -287,8 +259,8 @@ TEST(WinUtil, CompareOSVersions_NewMajorWithLowerMinor) {
 }
 
 TEST(WinUtil, CompareOSVersions_OldMajor) {
-  absl::optional<OSVERSIONINFOEX> prior_os = GetOSVersion();
-  ASSERT_NE(prior_os, absl::nullopt);
+  std::optional<OSVERSIONINFOEX> prior_os = GetOSVersion();
+  ASSERT_NE(prior_os, std::nullopt);
   ++prior_os->dwMajorVersion;
 
   EXPECT_FALSE(CompareOSVersions(prior_os.value(), VER_EQUAL));
@@ -299,8 +271,8 @@ TEST(WinUtil, CompareOSVersions_OldMajor) {
 }
 
 TEST(WinUtil, CompareOSVersions_OldMajorWithHigherMinor) {
-  absl::optional<OSVERSIONINFOEX> prior_os = GetOSVersion();
-  ASSERT_NE(prior_os, absl::nullopt);
+  std::optional<OSVERSIONINFOEX> prior_os = GetOSVersion();
+  ASSERT_NE(prior_os, std::nullopt);
 
   // This test only runs if the current OS has a minor version.
   if (prior_os->dwMinorVersion >= 1) {
@@ -316,9 +288,7 @@ TEST(WinUtil, CompareOSVersions_OldMajorWithHigherMinor) {
 }
 
 TEST(WinUtil, IsCOMCallerAdmin) {
-  HResultOr<bool> is_com_caller_admin = IsCOMCallerAdmin();
-  ASSERT_TRUE(is_com_caller_admin.has_value());
-  EXPECT_EQ(is_com_caller_admin.value(), ::IsUserAnAdmin());
+  EXPECT_THAT(IsCOMCallerAdmin(), base::test::ValueIs(::IsUserAnAdmin()));
 }
 
 TEST(WinUtil, EnableSecureDllLoading) {
@@ -330,7 +300,7 @@ TEST(WinUtil, EnableProcessHeapMetadataProtection) {
 }
 
 TEST(WinUtil, CreateSecureTempDir) {
-  absl::optional<base::ScopedTempDir> temp_dir = CreateSecureTempDir();
+  std::optional<base::ScopedTempDir> temp_dir = CreateSecureTempDir();
   EXPECT_TRUE(temp_dir);
   EXPECT_TRUE(temp_dir->IsValid());
 }
@@ -338,26 +308,26 @@ TEST(WinUtil, CreateSecureTempDir) {
 TEST(WinUtil, SignalShutdownEvent) {
   {
     const base::ScopedClosureRunner reset_shutdown_event(
-        SignalShutdownEvent(GetTestScope()));
+        SignalShutdownEvent(GetUpdaterScopeForTesting()));
 
     // Expect that the legacy GoogleUpdate shutdown event is signaled.
-    EXPECT_TRUE(IsShutdownEventSignaled(GetTestScope()))
+    EXPECT_TRUE(IsShutdownEventSignaled(GetUpdaterScopeForTesting()))
         << "Unexpected shutdown event not signaled";
   }
 
   // Expect that the legacy GoogleUpdate shutdown event is invalid now.
-  EXPECT_FALSE(IsShutdownEventSignaled(GetTestScope()))
+  EXPECT_FALSE(IsShutdownEventSignaled(GetUpdaterScopeForTesting()))
       << "Unexpected shutdown event signaled";
 }
 
 TEST(WinUtil, StopProcessesUnderPath) {
   base::FilePath exe_dir;
   ASSERT_TRUE(base::PathService::Get(base::DIR_EXE, &exe_dir));
-  exe_dir = exe_dir.AppendASCII(test::GetTestName());
+  exe_dir = exe_dir.AppendUTF8(test::GetTestName());
 
-  base::CommandLine command_line =
-      GetTestProcessCommandLine(GetTestScope(), test::GetTestName());
-  command_line.AppendSwitchASCII(
+  base::CommandLine command_line = GetTestProcessCommandLine(
+      GetUpdaterScopeForTesting(), test::GetTestName());
+  command_line.AppendSwitchUTF8(
       updater::kTestSleepSecondsSwitch,
       base::NumberToString(TestTimeouts::action_timeout().InSeconds() / 4));
 
@@ -415,8 +385,8 @@ TEST(WinUtil, IsGuid) {
 }
 
 TEST(WinUtil, ForEachRegistryRunValueWithPrefix) {
-  constexpr int kRunEntries = 6;
-  const std::wstring kRunEntryPrefix(base::ASCIIToWide(test::GetTestName()));
+  static constexpr int kRunEntries = 6;
+  const std::wstring kRunEntryPrefix(base::UTF8ToWide(test::GetTestName()));
 
   base::win::RegKey key;
   ASSERT_EQ(key.Open(HKEY_CURRENT_USER, REGSTR_PATH_RUN, KEY_READ | KEY_WRITE),
@@ -432,18 +402,17 @@ TEST(WinUtil, ForEachRegistryRunValueWithPrefix) {
   int count_entries = 0;
   ForEachRegistryRunValueWithPrefix(
       kRunEntryPrefix,
-      base::BindLambdaForTesting([&key, &count_entries, kRunEntryPrefix](
-                                     const std::wstring& run_name) {
+      [&key, &count_entries, kRunEntryPrefix](const std::wstring& run_name) {
         EXPECT_TRUE(base::StartsWith(run_name, kRunEntryPrefix));
         ++count_entries;
         EXPECT_EQ(key.DeleteValue(run_name.c_str()), ERROR_SUCCESS);
-      }));
+      });
   EXPECT_EQ(count_entries, kRunEntries);
 }
 
 TEST(WinUtil, DeleteRegValue) {
-  constexpr int kRegValues = 6;
-  const std::wstring kRegValuePrefix(base::ASCIIToWide(test::GetTestName()));
+  static constexpr int kRegValues = 6;
+  const std::wstring kRegValuePrefix(base::UTF8ToWide(test::GetTestName()));
 
   base::win::RegKey key;
   ASSERT_EQ(key.Open(HKEY_CURRENT_USER, REGSTR_PATH_RUN, KEY_READ | KEY_WRITE),
@@ -467,8 +436,8 @@ TEST(WinUtil, ForEachServiceWithPrefix) {
     return;
   }
 
-  constexpr int kNumServices = 6;
-  const std::wstring kServiceNamePrefix(base::ASCIIToWide(test::GetTestName()));
+  static constexpr int kNumServices = 6;
+  const std::wstring kServiceNamePrefix(base::UTF8ToWide(test::GetTestName()));
 
   for (int count = 0; count < kNumServices; ++count) {
     std::wstring service_name(kServiceNamePrefix);
@@ -480,12 +449,11 @@ TEST(WinUtil, ForEachServiceWithPrefix) {
   int count_entries = 0;
   ForEachServiceWithPrefix(
       kServiceNamePrefix, kServiceNamePrefix,
-      base::BindLambdaForTesting([&count_entries, kServiceNamePrefix](
-                                     const std::wstring& service_name) {
+      [&count_entries, kServiceNamePrefix](const std::wstring& service_name) {
         EXPECT_TRUE(base::StartsWith(service_name, kServiceNamePrefix));
         ++count_entries;
         EXPECT_TRUE(DeleteService(service_name));
-      }));
+      });
   EXPECT_EQ(count_entries, kNumServices);
 }
 
@@ -494,8 +462,8 @@ TEST(WinUtil, DeleteService) {
     return;
   }
 
-  constexpr int kNumServices = 6;
-  const std::wstring kServiceNamePrefix(base::ASCIIToWide(test::GetTestName()));
+  static constexpr int kNumServices = 6;
+  const std::wstring kServiceNamePrefix(base::UTF8ToWide(test::GetTestName()));
 
   for (int count = 0; count < kNumServices; ++count) {
     std::wstring service_name(kServiceNamePrefix);
@@ -510,8 +478,189 @@ TEST(WinUtil, LogClsidEntries) {
   CLSID clsid = {};
   EXPECT_HRESULT_SUCCEEDED(
       ::CLSIDFromProgID(L"InternetExplorer.Application", &clsid));
-
   LogClsidEntries(clsid);
 }
 
-}  // namespace updater
+TEST(WinUtil, GetAppAPValue) {
+  std::string ap(GetAppAPValue(GetUpdaterScopeForTesting(), kTestAppID));
+  EXPECT_EQ(ap, "");
+
+  base::win::RegKey client_state_key(CreateAppClientStateKey(
+      GetUpdaterScopeForTesting(), base::UTF8ToWide(kTestAppID)));
+  EXPECT_EQ(client_state_key.WriteValue(kRegValueAP, L"TestAP"), ERROR_SUCCESS);
+
+  ap = GetAppAPValue(GetUpdaterScopeForTesting(), kTestAppID);
+  EXPECT_EQ(ap, "TestAP");
+
+  DeleteAppClientStateKey(GetUpdaterScopeForTesting(),
+                          base::UTF8ToWide(kTestAppID));
+}
+
+struct WinUtilGetRegKeyContentsTestCase {
+  const std::wstring reg_key;
+  const std::wstring expected_substring;
+};
+
+class WinUtilGetRegKeyContentsTest
+    : public ::testing::TestWithParam<WinUtilGetRegKeyContentsTestCase> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    WinUtilGetRegKeyContentsTestCases,
+    WinUtilGetRegKeyContentsTest,
+    ::testing::ValuesIn(std::vector<WinUtilGetRegKeyContentsTestCase>{
+        {L"HKLM\\SOFTWARE\\Classes\\CLSID\\{00020424-0000-0000-C000-"
+         L"000000000046}",
+         L"{00020424-0000-0000-C000-000000000046}"},
+        {L"HKLM\\SOFTWARE\\WOW6432Node\\Classes\\CLSID\\{00020424-0000-0000-"
+         L"C000-000000000046}",
+         L"{00020424-0000-0000-C000-000000000046}"},
+        {L"HKCR\\CLSID\\{00020424-0000-0000-C000-000000000046}",
+         L"{00020424-0000-0000-C000-000000000046}"},
+        {L"HKCR\\WOW6432Node\\CLSID\\{00020424-0000-0000-C000-000000000046}",
+         L"{00020424-0000-0000-C000-000000000046}"},
+    }));
+
+TEST_P(WinUtilGetRegKeyContentsTest, TestCases) {
+  std::optional<std::wstring> contents = GetRegKeyContents(GetParam().reg_key);
+  ASSERT_TRUE(contents);
+  ASSERT_NE(contents->find(GetParam().expected_substring), std::wstring::npos);
+}
+
+TEST(WinUtil, GetTextForSystemError) {
+  EXPECT_EQ(GetTextForSystemError(2),
+            L"The system cannot find the file specified. ");
+  EXPECT_EQ(GetTextForSystemError(0x80070002),
+            L"The system cannot find the file specified. ");
+  EXPECT_EQ(GetTextForSystemError(12007),
+            L"The server name or address could not be resolved ");
+  EXPECT_EQ(GetTextForSystemError(0x80072ee7),
+            L"The server name or address could not be resolved ");
+  EXPECT_EQ(GetTextForSystemError(-2147012889),
+            L"The server name or address could not be resolved ");
+  EXPECT_EQ(
+      GetTextForSystemError(MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, 0x200)),
+      L"0x80040200");
+}
+
+TEST(WinUtil, GetLoggedOnUserToken) {
+  if (!::IsUserAnAdmin() || !IsUACOn()) {
+    return;
+  }
+
+  ASSERT_TRUE(::IsUserAnAdmin());
+  HResultOr<ScopedKernelHANDLE> token = GetLoggedOnUserToken();
+  ASSERT_TRUE(token.has_value());
+
+  ScopedImpersonation impersonate;
+  ASSERT_TRUE(SUCCEEDED(impersonate.Impersonate(token.value().get())));
+  ASSERT_FALSE(::IsUserAnAdmin());
+}
+
+TEST(WinUtil, IsAuditMode) {
+  if (!::IsUserAnAdmin()) {
+    GTEST_SKIP();
+  }
+  ASSERT_FALSE(IsAuditMode());
+  ASSERT_EQ(base::win::RegKey(HKEY_LOCAL_MACHINE, kSetupStateKey, KEY_SET_VALUE)
+                .WriteValue(L"ImageState", L"IMAGE_STATE_UNDEPLOYABLE"),
+            ERROR_SUCCESS);
+  ASSERT_TRUE(IsAuditMode());
+  ASSERT_EQ(base::win::RegKey(HKEY_LOCAL_MACHINE, kSetupStateKey, KEY_SET_VALUE)
+                .DeleteValue(L"ImageState"),
+            ERROR_SUCCESS);
+}
+
+TEST(WinUtil, OemInstallState) {
+  if (!::IsUserAnAdmin()) {
+    GTEST_SKIP();
+  }
+  ASSERT_EQ(base::win::RegKey(HKEY_LOCAL_MACHINE, kSetupStateKey, KEY_SET_VALUE)
+                .WriteValue(L"ImageState", L"IMAGE_STATE_UNDEPLOYABLE"),
+            ERROR_SUCCESS);
+  ASSERT_TRUE(SetOemInstallState());
+  ASSERT_TRUE(IsOemInstalling());
+
+  DWORD oem_install_time_minutes = 0;
+  ASSERT_EQ(
+      base::win::RegKey(HKEY_LOCAL_MACHINE, CLIENTS_KEY,
+                        Wow6432(KEY_QUERY_VALUE))
+          .ReadValueDW(kRegValueOemInstallTimeMin, &oem_install_time_minutes),
+      ERROR_SUCCESS);
+
+  // Rewind to 71 hours and 58 minutes before now.
+  ASSERT_EQ(
+      base::win::RegKey(HKEY_LOCAL_MACHINE, CLIENTS_KEY, Wow6432(KEY_SET_VALUE))
+          .WriteValue(
+              kRegValueOemInstallTimeMin,
+              (base::Minutes(oem_install_time_minutes + 2) - kMinOemModeTime)
+                  .InMinutes()),
+      ERROR_SUCCESS);
+  ASSERT_TRUE(IsOemInstalling());
+
+  // Rewind to 72 hours and 2 minutes before now.
+  ASSERT_EQ(
+      base::win::RegKey(HKEY_LOCAL_MACHINE, CLIENTS_KEY, Wow6432(KEY_SET_VALUE))
+          .WriteValue(
+              kRegValueOemInstallTimeMin,
+              (base::Minutes(oem_install_time_minutes - 2) - kMinOemModeTime)
+                  .InMinutes()),
+      ERROR_SUCCESS);
+  ASSERT_FALSE(IsOemInstalling());
+
+  ASSERT_TRUE(ResetOemInstallState());
+  ASSERT_EQ(base::win::RegKey(HKEY_LOCAL_MACHINE, kSetupStateKey, KEY_SET_VALUE)
+                .DeleteValue(L"ImageState"),
+            ERROR_SUCCESS);
+}
+
+TEST(WinUtil, StringFromGuid) {
+  GUID guid = {0};
+  EXPECT_HRESULT_SUCCEEDED(::CoCreateGuid(&guid));
+  EXPECT_EQ(base::win::WStringFromGUID(guid), StringFromGuid(guid));
+}
+
+TEST(WinUtil, SetEulaAccepted) {
+  // This will set `eulaaccepted=0` in the registry.
+  EXPECT_TRUE(
+      SetEulaAccepted(GetUpdaterScopeForTesting(), /*eula_accepted=*/false));
+  DWORD eula_accepted = 0;
+  const HKEY root = UpdaterScopeToHKeyRoot(GetUpdaterScopeForTesting());
+  EXPECT_EQ(base::win::RegKey(root, UPDATER_KEY, Wow6432(KEY_READ))
+                .ReadValueDW(L"eulaaccepted", &eula_accepted),
+            ERROR_SUCCESS);
+  EXPECT_EQ(eula_accepted, 0ul);
+
+  // This will delete the `eulaaccepted` value in the registry.
+  EXPECT_TRUE(
+      SetEulaAccepted(GetUpdaterScopeForTesting(), /*eula_accepted=*/true));
+  EXPECT_FALSE(base::win::RegKey(root, UPDATER_KEY, Wow6432(KEY_READ))
+                   .HasValue(L"eulaaccepted"));
+}
+
+TEST(WinUtil, IsServicePresent_IsServiceEnabled) {
+  if (!::IsUserAnAdmin()) {
+    GTEST_SKIP();
+  }
+
+  GUID random_guid = {0};
+  EXPECT_HRESULT_SUCCEEDED(::CoCreateGuid(&random_guid));
+  const std::wstring service_name = base::StrCat(
+      {base::UTF8ToWide(test::GetTestName()), StringFromGuid(random_guid)});
+
+  EXPECT_FALSE(IsServicePresent(service_name));
+  EXPECT_FALSE(IsServiceEnabled(service_name));
+
+  ASSERT_TRUE(CreateService(service_name, service_name, L"C:\\temp\\temp.exe"));
+  EXPECT_TRUE(IsServicePresent(service_name));
+  EXPECT_TRUE(IsServiceEnabled(service_name));
+
+  EXPECT_TRUE(DisableService(service_name));
+  EXPECT_TRUE(IsServicePresent(service_name));
+  EXPECT_FALSE(IsServiceEnabled(service_name));
+
+  EXPECT_TRUE(DeleteService(service_name));
+  EXPECT_FALSE(IsServicePresent(service_name));
+  EXPECT_FALSE(IsServiceEnabled(service_name));
+}
+
+}  // namespace updater::test

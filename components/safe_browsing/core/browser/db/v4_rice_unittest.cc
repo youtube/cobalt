@@ -6,14 +6,13 @@
 #include "base/logging.h"
 #include "testing/platform_test.h"
 
-using ::google::protobuf::int32;
 using ::google::protobuf::RepeatedField;
 
 namespace safe_browsing {
 
 class V4RiceTest : public PlatformTest {
  public:
-  V4RiceTest() {}
+  V4RiceTest() = default;
 
   struct RiceDecodingTestInfo {
     uint32_t rice_parameter;
@@ -153,56 +152,44 @@ TEST_F(V4RiceTest, TestDecoderGetNextValueWithInterestingValues) {
   }
 }
 
-#if defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
-// This test hits a NOTREACHED so it is a release mode only test.
 TEST_F(V4RiceTest, TestDecoderIntegersWithNoData) {
-  RepeatedField<int32> out;
+  RepeatedField<int32_t> out;
   EXPECT_EQ(ENCODED_DATA_UNEXPECTED_EMPTY_FAILURE,
             V4RiceDecoder::DecodeIntegers(3, 5, 1, "", &out));
 }
-#endif
 
-#if defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
-// This test hits a NOTREACHED so it is a release mode only test.
 TEST_F(V4RiceTest, TestDecoderIntegersWithNegativeNumEntries) {
-  RepeatedField<int32> out;
+  RepeatedField<int32_t> out;
   EXPECT_EQ(NUM_ENTRIES_NEGATIVE_FAILURE,
             V4RiceDecoder::DecodeIntegers(3, 5, -1, "", &out));
 }
-#endif
 
-#if defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
-// This test hits a NOTREACHED so it is a release mode only test.
 TEST_F(V4RiceTest, TestDecoderIntegersWithNonPositiveRiceParameter) {
-  RepeatedField<int32> out;
+  RepeatedField<int32_t> out;
   EXPECT_EQ(RICE_PARAMETER_NON_POSITIVE_FAILURE,
             V4RiceDecoder::DecodeIntegers(3, 0, 1, "a", &out));
 
   EXPECT_EQ(RICE_PARAMETER_NON_POSITIVE_FAILURE,
             V4RiceDecoder::DecodeIntegers(3, -1, 1, "a", &out));
 }
-#endif
 
-#if defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
-// This test hits a NOTREACHED so it is a release mode only test.
 TEST_F(V4RiceTest, TestDecoderIntegersWithOverflowValues) {
-  RepeatedField<int32> out;
+  RepeatedField<int32_t> out;
   EXPECT_EQ(DECODED_INTEGER_OVERFLOW_FAILURE,
             V4RiceDecoder::DecodeIntegers(
                 5, 28, 3,
                 "\xbf\xa8\x3f\xfb\xfc\xfb\x5e\x27\xe6\xc3\x1d\xc6\x38", &out));
 }
-#endif
 
 TEST_F(V4RiceTest, TestDecoderIntegersWithOneValue) {
-  RepeatedField<int32> out;
+  RepeatedField<int32_t> out;
   EXPECT_EQ(DECODE_SUCCESS, V4RiceDecoder::DecodeIntegers(3, 2, 0, "", &out));
   EXPECT_EQ(1, out.size());
   EXPECT_EQ(3, out.Get(0));
 }
 
 TEST_F(V4RiceTest, TestDecoderIntegersWithMultipleValues) {
-  RepeatedField<int32> out;
+  RepeatedField<int32_t> out;
   EXPECT_EQ(DECODE_SUCCESS,
             V4RiceDecoder::DecodeIntegers(5, 2, 2, "\xf7\x2", &out));
   EXPECT_EQ(3, out.size());
@@ -211,26 +198,18 @@ TEST_F(V4RiceTest, TestDecoderIntegersWithMultipleValues) {
   EXPECT_EQ(29, out.Get(2));
 }
 
-#if defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
-// This test hits a NOTREACHED so it is a release mode only test.
 TEST_F(V4RiceTest, TestDecoderPrefixesWithNoData) {
   std::vector<uint32_t> out;
   EXPECT_EQ(ENCODED_DATA_UNEXPECTED_EMPTY_FAILURE,
             V4RiceDecoder::DecodePrefixes(3, 5, 1, "", &out));
 }
-#endif
 
-#if defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
-// This test hits a NOTREACHED so it is a release mode only test.
 TEST_F(V4RiceTest, TestDecoderPrefixesWithNegativeNumEntries) {
   std::vector<uint32_t> out;
   EXPECT_EQ(NUM_ENTRIES_NEGATIVE_FAILURE,
             V4RiceDecoder::DecodePrefixes(3, 5, -1, "", &out));
 }
-#endif
 
-#if defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
-// This test hits a NOTREACHED so it is a release mode only test.
 TEST_F(V4RiceTest, TestDecoderPrefixesWithNonPositiveRiceParameter) {
   std::vector<uint32_t> out;
   EXPECT_EQ(RICE_PARAMETER_NON_POSITIVE_FAILURE,
@@ -239,7 +218,6 @@ TEST_F(V4RiceTest, TestDecoderPrefixesWithNonPositiveRiceParameter) {
   EXPECT_EQ(RICE_PARAMETER_NON_POSITIVE_FAILURE,
             V4RiceDecoder::DecodePrefixes(3, -1, 1, "a", &out));
 }
-#endif
 
 TEST_F(V4RiceTest, TestDecoderPrefixesWithOneValue) {
   std::vector<uint32_t> out;
@@ -263,8 +241,6 @@ TEST_F(V4RiceTest, TestDecoderPrefixesWithMultipleValues) {
   }
 }
 
-#if defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
-// This test hits a NOTREACHED so it is a release mode only test.
 TEST_F(V4RiceTest, TestDecoderPrefixesWithOverflowValues) {
   std::vector<uint32_t> out;
   EXPECT_EQ(DECODED_INTEGER_OVERFLOW_FAILURE,
@@ -272,6 +248,5 @@ TEST_F(V4RiceTest, TestDecoderPrefixesWithOverflowValues) {
                 5, 28, 3,
                 "\xbf\xa8\x3f\xfb\xfc\xfb\x5e\x27\xe6\xc3\x1d\xc6\x38", &out));
 }
-#endif
 
 }  // namespace safe_browsing

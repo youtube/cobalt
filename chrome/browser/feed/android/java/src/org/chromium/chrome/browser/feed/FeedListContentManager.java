@@ -11,9 +11,10 @@ import android.view.ViewGroup;
 import android.view.ViewGroup.LayoutParams;
 import android.widget.FrameLayout;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.Px;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.xsurface.ListContentManager;
 import org.chromium.chrome.browser.xsurface.ListContentManagerObserver;
 import org.chromium.chrome.browser.xsurface.LoggingParameters;
@@ -30,10 +31,9 @@ import java.util.Map;
  * Implementation of ListContentManager that manages a list of feed contents that are supported by
  * either native view or external surface controlled view.
  */
+@NullMarked
 public class FeedListContentManager implements ListContentManager {
-    /**
-     * Encapsulates the content of an item stored and managed by ListContentManager.
-     */
+    /** Encapsulates the content of an item stored and managed by ListContentManager. */
     public abstract static class FeedContent {
         private final String mKey;
         private final boolean mIsFullSpan;
@@ -48,14 +48,10 @@ public class FeedListContentManager implements ListContentManager {
             mIsFullSpan = isFullSpan;
         }
 
-        /**
-         * Returns true if the content is supported by the native view.
-         */
+        /** Returns true if the content is supported by the native view. */
         public abstract boolean isNativeView();
 
-        /**
-         * Returns the key which should uniquely identify the content in the list.
-         */
+        /** Returns the key which should uniquely identify the content in the list. */
         public String getKey() {
             return mKey;
         }
@@ -64,15 +60,12 @@ public class FeedListContentManager implements ListContentManager {
             return mIsFullSpan;
         }
 
-        @Nullable
-        public LoggingParameters getLoggingParameters() {
+        public @Nullable LoggingParameters getLoggingParameters() {
             return null;
         }
     }
 
-    /**
-     * For the content that is supported by external surface controlled view.
-     */
+    /** For the content that is supported by external surface controlled view. */
     public static class ExternalViewContent extends FeedContent {
         private final byte[] mData;
         private final LoggingParameters mLoggingParameters;
@@ -97,27 +90,32 @@ public class FeedListContentManager implements ListContentManager {
         }
 
         @Override
-        @Nullable
-        public LoggingParameters getLoggingParameters() {
+        public @Nullable LoggingParameters getLoggingParameters() {
             return mLoggingParameters;
         }
     }
 
-    /**
-     * For the content that is supported by the native view.
-     */
+    /** For the content that is supported by the native view. */
     public static class NativeViewContent extends FeedContent {
-        private View mNativeView;
+        private @Nullable View mNativeView;
         private int mResId;
         // An unique ID for this NativeViewContent. This is initially 0, and assigned by
         // FeedListContentManager when needed.
         private int mViewType;
-        @Px
-        private int mLateralPaddingsPx;
+        @Px private final int mLateralPaddingsPx;
 
         /** Holds an inflated native view. */
         public NativeViewContent(@Px int lateralPaddingsPx, String key, View nativeView) {
             super(key, true);
+            assert nativeView != null;
+            mNativeView = nativeView;
+            mLateralPaddingsPx = lateralPaddingsPx;
+        }
+
+        /** Holds an inflated native view. */
+        public NativeViewContent(
+                @Px int lateralPaddingsPx, String key, View nativeView, boolean isFullSpan) {
+            super(key, isFullSpan);
             assert nativeView != null;
             mNativeView = nativeView;
             mLateralPaddingsPx = lateralPaddingsPx;
@@ -130,9 +128,7 @@ public class FeedListContentManager implements ListContentManager {
             mLateralPaddingsPx = lateralPaddingsPx;
         }
 
-        /**
-         * Returns the native view if the content is supported by it. Null otherwise.
-         */
+        /** Returns the native view if the content is supported by it. Null otherwise. */
         public View getNativeView(ViewGroup parent) {
             Context context = parent.getContext();
             if (mNativeView == null) {
@@ -146,13 +142,15 @@ public class FeedListContentManager implements ListContentManager {
             UiUtils.removeViewFromParent(mNativeView);
 
             FrameLayout enclosingLayout = new FrameLayout(parent.getContext());
-            FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(
-                    new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+            FrameLayout.LayoutParams layoutParams =
+                    new FrameLayout.LayoutParams(
+                            new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
             enclosingLayout.setLayoutParams(layoutParams);
 
             // Set the left and right paddings.
-            enclosingLayout.setPadding(/* left */ mLateralPaddingsPx, /* top */ 0,
-                    /* right */ mLateralPaddingsPx, /* bottom */ 0);
+            enclosingLayout.setPadding(
+                    /* left= */ mLateralPaddingsPx, /* top= */ 0,
+                    /* right= */ mLateralPaddingsPx, /* bottom= */ 0);
 
             // Do not clip children. This ensures that the negative margin use in the feed header
             // does not subsequently cause the IPH bubble to be clipped.
@@ -200,9 +198,7 @@ public class FeedListContentManager implements ListContentManager {
         return mFeedContentList.get(index);
     }
 
-    /**
-     * Returns a list of all contents
-     */
+    /** Returns a list of all contents */
     public List<FeedContent> getContentList() {
         return mFeedContentList;
     }
@@ -302,11 +298,12 @@ public class FeedListContentManager implements ListContentManager {
      * Replaces content in the range [index, index+count) with the content in {@code
      * newContentList}. For content that already exists in the range, it is moved rather than
      * removed and then inserted.
-     * @param index Index of first item to replace.
+     *
+     * @param rangeStart Index of first item to replace.
      * @param count Number of items to replace.
      * @param newContentList List of content to insert.
      * @return Whether content has changed. Returns false if the new content matches the replaced
-     *         content.
+     *     content.
      */
     public boolean replaceRange(int rangeStart, int count, List<FeedContent> newContentList) {
         boolean hasContentChange = false;
@@ -324,7 +321,7 @@ public class FeedListContentManager implements ListContentManager {
         }
 
         // 3) Removes those existing contents that do not appear in the new list.
-        for (int i = rangeStart + count - 1; i >= rangeStart;) {
+        for (int i = rangeStart + count - 1; i >= rangeStart; ) {
             // Find out how many contiguous items need to be removed, and then remove them in one
             // call.
             int rmIndex = i;
@@ -348,7 +345,7 @@ public class FeedListContentManager implements ListContentManager {
 
         // 4) Iterates through the new list to add the new content or move the existing content
         //    if needed.
-        for (int i = 0; i < newContentList.size();) {
+        for (int i = 0; i < newContentList.size(); ) {
             FeedContent content = newContentList.get(i);
 
             // If this is an existing content, moves it to new position, offset by header count.
@@ -448,8 +445,7 @@ public class FeedListContentManager implements ListContentManager {
         mObservers.remove(observer);
     }
 
-    @Nullable
-    private NativeViewContent findNativeViewByType(int viewType) {
+    private @Nullable NativeViewContent findNativeViewByType(int viewType) {
         // Note: since there's relatively few native views, they're mostly at the front, a linear
         // search isn't terrible. This function is also called infrequently.
         for (int i = 0; i < mFeedContentList.size(); i++) {

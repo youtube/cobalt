@@ -2,15 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/events/event_modifiers.h"
 
+#include <array>
+
 #include "ui/events/event.h"
+#include "ui/events/event_constants.h"
 
 namespace ui {
 
 namespace {
 
-static const int kEventFlagFromModifiers[] = {
+constexpr auto kEventFlagFromModifiers = std::to_array<int>({
     EF_NONE,                  // MODIFIER_NONE,
     EF_SHIFT_DOWN,            // MODIFIER_SHIFT
     EF_CONTROL_DOWN,          // MODIFIER_CONTROL
@@ -24,12 +32,15 @@ static const int kEventFlagFromModifiers[] = {
     EF_RIGHT_MOUSE_BUTTON,    // MODIFIER_RIGHT_MOUSE_BUTTON
     EF_BACK_MOUSE_BUTTON,     // MODIFIER_BACK_MOUSE_BUTTON
     EF_FORWARD_MOUSE_BUTTON,  // MODIFIER_FORWARD_MOUSE_BUTTON
-};
+    EF_FUNCTION_DOWN,         // MODIFIER_FUNCTION
+});
 
 }  // namespace
 
 EventModifiers::EventModifiers() {
-  memset(modifiers_down_, 0, sizeof(modifiers_down_));
+  memset(
+      modifiers_down_.data(), 0,
+      (modifiers_down_.size() * sizeof(decltype(modifiers_down_)::value_type)));
 }
 EventModifiers::~EventModifiers() {}
 
@@ -112,6 +123,8 @@ int EventModifiers::GetModifierFromEventFlag(int flag) {
       return MODIFIER_ALTGR;
     case EF_MOD3_DOWN:
       return MODIFIER_MOD3;
+    case EF_FUNCTION_DOWN:
+      return MODIFIER_FUNCTION;
     case EF_CAPS_LOCK_ON:
       return MODIFIER_CAPS_LOCK;
     case EF_LEFT_MOUSE_BUTTON:

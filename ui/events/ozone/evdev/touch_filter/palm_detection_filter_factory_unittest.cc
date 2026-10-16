@@ -10,13 +10,11 @@
 #include "base/test/gtest_util.h"
 #include "base/test/scoped_chromeos_version_info.h"
 #include "base/test/scoped_feature_list.h"
-#include "build/chromeos_buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/events/ozone/evdev/event_device_info.h"
 #include "ui/events/ozone/evdev/event_device_test_util.h"
 #include "ui/events/ozone/evdev/touch_filter/heuristic_stylus_palm_detection_filter.h"
 #include "ui/events/ozone/evdev/touch_filter/neural_stylus_palm_detection_filter.h"
-#include "ui/events/ozone/evdev/touch_filter/neural_stylus_palm_report_filter.h"
 #include "ui/events/ozone/evdev/touch_filter/open_palm_detection_filter.h"
 #include "ui/events/ozone/evdev/touch_filter/palm_detection_filter.h"
 #include "ui/events/ozone/evdev/touch_filter/shared_palm_detection_filter_state.h"
@@ -57,7 +55,7 @@ class PalmDetectionFilterFactoryTest : public testing::Test {
 class PalmDetectionFilterFactoryDeathTest
     : public PalmDetectionFilterFactoryTest {};
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 TEST_F(PalmDetectionFilterFactoryTest, RadiusesFromLSBRelease) {
   {
     base::test::ScopedChromeOSVersionInfo version(
@@ -145,35 +143,6 @@ TEST_F(PalmDetectionFilterFactoryTest, HeuristicTimesSet) {
       static_cast<HeuristicStylusPalmDetectionFilter*>(palm_filter.get());
   EXPECT_EQ(base::Seconds(0.8), heuristic_filter->CancelTime());
   EXPECT_EQ(base::Seconds(15.327), heuristic_filter->HoldTime());
-}
-TEST_F(PalmDetectionFilterFactoryTest, NeuralReportNoNeuralDetectSet) {
-  scoped_feature_list_->InitWithFeatures(
-      {ui::kEnableNeuralStylusReportFilter},
-      {ui::kEnableHeuristicPalmDetectionFilter,
-       ui::kEnableNeuralPalmDetectionFilter});
-  std::unique_ptr<PalmDetectionFilter> palm_filter = CreatePalmDetectionFilter(
-      nocturne_touchscreen_info_, &shared_palm_state_);
-  ASSERT_EQ(OpenPalmDetectionFilter::kFilterName,
-            palm_filter->FilterNameForTesting());
-  palm_filter =
-      CreatePalmDetectionFilter(nocturne_stylus_info_, &shared_palm_state_);
-  ASSERT_EQ(NeuralStylusReportFilter::kFilterName,
-            palm_filter->FilterNameForTesting());
-}
-
-TEST_F(PalmDetectionFilterFactoryTest, NeuralReportNeuralDetectSet) {
-  scoped_feature_list_->InitWithFeatures(
-      {ui::kEnableNeuralStylusReportFilter,
-       ui::kEnableNeuralPalmDetectionFilter},
-      {ui::kEnableHeuristicPalmDetectionFilter});
-  std::unique_ptr<PalmDetectionFilter> palm_filter = CreatePalmDetectionFilter(
-      nocturne_touchscreen_info_, &shared_palm_state_);
-  ASSERT_EQ(NeuralStylusPalmDetectionFilter::kFilterName,
-            palm_filter->FilterNameForTesting());
-  palm_filter =
-      CreatePalmDetectionFilter(nocturne_stylus_info_, &shared_palm_state_);
-  ASSERT_EQ(NeuralStylusReportFilter::kFilterName,
-            palm_filter->FilterNameForTesting());
 }
 
 TEST_F(PalmDetectionFilterFactoryTest, NeuralBeatsHeuristic) {

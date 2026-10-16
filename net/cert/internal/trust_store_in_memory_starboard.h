@@ -15,52 +15,41 @@
 #ifndef NET_CERT_INTERNAL_TRUST_STORE_IN_MEMORY_STARBOARD_H_
 #define NET_CERT_INTERNAL_TRUST_STORE_IN_MEMORY_STARBOARD_H_
 
+#include <string_view>
 #include <unordered_set>
 
-#include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
-#include "net/cert/pki/trust_store_in_memory.h"
+#include "net/cert/internal/platform_trust_store.h"
+#include "third_party/boringssl/src/pki/trust_store_in_memory.h"
 
 namespace net {
 
-// Wrapper around TrustStoreInMemory to lazily load trusted root certificates.
-class NET_EXPORT TrustStoreInMemoryStarboard : public TrustStore {
+// Wrapper around TrustStoreInMemory to eagerly load trusted root certificates.
+class NET_EXPORT TrustStoreInMemoryStarboard : public PlatformTrustStore {
  public:
   TrustStoreInMemoryStarboard();
   ~TrustStoreInMemoryStarboard() override;
-
-  // TrustStore implementation:
-  void SyncGetIssuersOf(const ParsedCertificate* cert,
-                        ParsedCertificateList* issuers) override;
-  CertificateTrust GetTrust(const ParsedCertificate* cert,
-                                    base::SupportsUserData* debug_data) override;
-
-  // Returns true if the trust store contains the given ParsedCertificate
-  // (matches by DER).
-  bool Contains(const ParsedCertificate* cert) const {
-    base::AutoLock scoped_lock(load_mutex_);
-    return underlying_trust_store_.Contains(cert);
-  }
-
- private:
   TrustStoreInMemoryStarboard(const TrustStoreInMemoryStarboard&) = delete;
   TrustStoreInMemoryStarboard& operator=(const TrustStoreInMemoryStarboard&) =
       delete;
 
-  TrustStoreInMemory underlying_trust_store_;
+  // TrustStore implementation:
+  void SyncGetIssuersOf(const bssl::ParsedCertificate* cert,
+                        bssl::ParsedCertificateList* issuers) override;
+  bssl::CertificateTrust GetTrust(const bssl::ParsedCertificate* cert) override;
 
-  // Given a certificate's canonical name, try to load this cert from trusted
-  // certs on disk if it is found.
-  std::shared_ptr<const ParsedCertificate> TryLoadCert(
-      const base::StringPiece& cert_name) const;
+  // net::PlatformTrustStore implementation:
+  std::vector<net::PlatformTrustStore::CertWithTrust> GetAllUserAddedCerts()
+      override;
 
-  // The memory trust store can be accessed by multiple threads, in Chromium,
-  // the synchronization issue is solved by initializing trust store at startup
-  // and passing constant reference to consumers. Cobalt loads certs lazily and
-  // therefore guards the underlying_trust_store_ with mutex.
-  mutable base::Lock load_mutex_;
+  // Returns true if the trust store contains the given ParsedCertificate
+  // (matches by DER).
+  bool Contains(const bssl::ParsedCertificate* cert) const {
+    return underlying_trust_store_.Contains(cert);
+  }
 
-  const std::unordered_set<std::string> trusted_cert_names_on_disk_;
+ private:
+  bssl::TrustStoreInMemory underlying_trust_store_;
 };
 
 }  // namespace net

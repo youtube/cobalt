@@ -26,7 +26,6 @@
 #include "ui/aura/window_tracker.h"
 #include "ui/base/clipboard/file_info.h"
 #include "ui/base/data_transfer_policy/data_transfer_endpoint.h"
-#include "ui/base/data_transfer_policy/data_transfer_endpoint_serializer.h"
 #include "ui/base/dragdrop/drag_drop_types.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/base/dragdrop/os_exchange_data.h"
@@ -87,16 +86,14 @@ DndAction DragOperationToDndAction(DragOperation op) {
       return DndAction::kAsk;
     default:
       NOTREACHED() << op;
-      return DndAction::kNone;
   }
-  NOTREACHED();
 }
 
 }  // namespace
 
 // Internal representation of a drag icon surface. Used when a non-null surface
 // is passed in wl_data_device::start_drag requests.
-// TODO(crbug.com/1119385): Rework icon implementation to avoid frame copies.
+// TODO(crbug.com/40145458): Rework icon implementation to avoid frame copies.
 class DragDropOperation::IconSurface final : public SurfaceTreeHost,
                                              public ScopedSurface {
  public:
@@ -150,7 +147,7 @@ class DragDropOperation::IconSurface final : public SurfaceTreeHost,
     operation_->OnDragIconCaptured(scoped_bitmap.GetOutScopedBitmap());
   }
 
-  const raw_ptr<DragDropOperation, ExperimentalAsh> operation_;
+  const raw_ptr<DragDropOperation> operation_;
   base::WeakPtrFactory<IconSurface> weak_ptr_factory_{this};
 };
 
@@ -204,36 +201,30 @@ DragDropOperation::DragDropOperation(
 
   int num_additional_callbacks = 0;
 
-  // TODO(crbug.com/1298033): Move DTE retrieval into
-  // DataSource::GetDataForPreferredMimeTypes()
-  // Lacros sends additional metadata, in a custom MIME type, to sync drag
-  // source metadata. Hence, the number of callbacks is incremented by one.
-  if (endpoint_type == ui::EndpointType::kLacros)
-    ++num_additional_callbacks;
+  // TODO(crbug.com/40061238): Remove this once the issue is fixed.
+  std::string callbacks;
 
   // When the icon is present, we increment the number of callbacks so we can
   // wait for the icon to be captured as well.
   if (icon) {
     icon_ = std::make_unique<IconSurface>(icon, this);
     ++num_additional_callbacks;
+    callbacks += "icon,";
   }
 
   auto start_op_callback =
       base::BindOnce(&DragDropOperation::ScheduleStartDragDropOperation,
                      weak_ptr_factory_.GetWeakPtr());
 
+  // TODO(crbug.com/40061238): Remove these when the issue is fixed.
+  start_drag_drop_timer_.Start(FROM_HERE, base::Seconds(2), this,
+                               &DragDropOperation::DragDataReadTimeout);
+  LOG(ERROR) << "Starting data read for drag operation: additonal callbacks:"
+             << callbacks;
+
   counter_ =
       base::BarrierClosure(DataSource::kMaxDataTypes + num_additional_callbacks,
                            std::move(start_op_callback));
-
-  // TODO(crbug.com/1298033): Move DTE retrieval into
-  // DataSource::GetDataForPreferredMimeTypes()
-  if (endpoint_type == ui::EndpointType::kLacros) {
-    source->ReadDataTransferEndpoint(
-        base::BindOnce(&DragDropOperation::OnDataTransferEndpointRead,
-                       weak_ptr_factory_.GetWeakPtr()),
-        counter_);
-  }
 
   source->GetDataForPreferredMimeTypes(
       base::BindOnce(&DragDropOperation::OnTextRead,
@@ -258,28 +249,18 @@ DragDropOperation::~DragDropOperation() {
   if (source_)
     source_->get()->Cancelled();
 
-  if (drag_drop_controller_->IsDragDropInProgress() && started_by_this_object_)
+  if (drag_drop_controller_->IsDragDropInProgress() && started_) {
     drag_drop_controller_->DragCancel();
+  }
 
   if (extended_drag_source_)
     ResetExtendedDragSource();
 }
 
 void DragDropOperation::AbortIfPending() {
-  if (!started_by_this_object_)
+  if (!started_) {
     delete this;
-}
-
-void DragDropOperation::OnDataTransferEndpointRead(const std::string& mime_type,
-                                                   std::u16string data) {
-  DCHECK(os_exchange_data_);
-
-  std::string utf8_json = base::UTF16ToUTF8(data);
-  auto drag_source_dte = ui::ConvertJsonToDataTransferEndpoint(utf8_json);
-
-  os_exchange_data_->SetSource(std::move(drag_source_dte));
-
-  counter_.Run();
+  }
 }
 
 void DragDropOperation::OnTextRead(const std::string& mime_type,
@@ -307,7 +288,7 @@ void DragDropOperation::OnFilenamesRead(
     const std::string& mime_type,
     const std::vector<uint8_t>& data) {
   DCHECK(os_exchange_data_);
-  os_exchange_data_->SetFilenames(data_exchange_delegate->GetFilenames(
+  os_exchange_data_->SetFilenames(source_->get()->GetFilenames(
       data_exchange_delegate->GetDataTransferEndpointType(source), data));
   mime_type_ = mime_type;
   counter_.Run();
@@ -326,9 +307,9 @@ void DragDropOperation::OnFileContentsRead(const std::string& mime_type,
 void DragDropOperation::OnWebCustomDataRead(const std::string& mime_type,
                                             const std::vector<uint8_t>& data) {
   DCHECK(os_exchange_data_);
-  base::Pickle pickle(reinterpret_cast<const char*>(data.data()), data.size());
+  base::Pickle pickle = base::Pickle::WithUnownedBuffer(data);
   os_exchange_data_->SetPickledData(
-      ui::ClipboardFormatType::WebCustomDataType(), pickle);
+      ui::ClipboardFormatType::DataTransferCustomType(), pickle);
   mime_type_ = mime_type;
   counter_.Run();
 }
@@ -354,6 +335,8 @@ void DragDropOperation::OnDragIconCaptured(const SkBitmap& icon_bitmap) {
 }
 
 void DragDropOperation::ScheduleStartDragDropOperation() {
+  start_drag_drop_timer_.Stop();
+
   // StartDragAndDrop uses a nested run loop. When restarting, we a) don't want
   // to interrupt the callers task for an arbitrary period of time and b) want
   // to let any nested run loops that are currently running to have a chance to
@@ -377,7 +360,7 @@ void DragDropOperation::StartDragDropOperation() {
 
   base::WeakPtr<DragDropOperation> weak_ptr = weak_ptr_factory_.GetWeakPtr();
 
-  started_by_this_object_ = true;
+  started_ = true;
   gfx::Point drag_start_point = gfx::ToFlooredPoint(drag_start_point_);
 
   // This triggers a nested run loop that terminates when the drag and drop
@@ -428,13 +411,15 @@ void DragDropOperation::StartDragDropOperation() {
 }
 
 void DragDropOperation::OnDragStarted() {
-  if (!started_by_this_object_)
+  if (!started_) {
     delete this;
+  }
 }
 
 void DragDropOperation::OnDragActionsChanged(int actions) {
-  if (!started_by_this_object_)
+  if (!started_) {
     return;
+  }
 
   DndAction dnd_action = DragOperationsToPreferredDndAction(actions);
   // We send a mime type along with the action to indicate to the application
@@ -444,7 +429,7 @@ void DragDropOperation::OnDragActionsChanged(int actions) {
   if (dnd_action != DndAction::kNone)
     source_->get()->Target(mime_type_);
   else
-    source_->get()->Target(absl::nullopt);
+    source_->get()->Target(std::nullopt);
 
   source_->get()->Action(dnd_action);
 }
@@ -469,7 +454,12 @@ void DragDropOperation::OnSurfaceDestroying(Surface* surface) {
 void DragDropOperation::OnDataSourceDestroying(DataSource* source) {
   DCHECK_EQ(source, source_->get());
   source_.reset();
+  LOG(ERROR) << "DataSource was destroyed by client";
   delete this;
+}
+
+void DragDropOperation::DragDataReadTimeout() {
+  LOG(ERROR) << "DragDataReadTimeout";
 }
 
 }  // namespace exo

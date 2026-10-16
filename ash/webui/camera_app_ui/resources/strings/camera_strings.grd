@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <grit base_dir="." current_release="1" latest_public_release="0"
-      output_all_resource_defines="false" enc_check="möl" source_lang_id="en">
+      enc_check="möl" source_lang_id="en">
   <outputs>
     <output filename="grit/ash_camera_app_strings.h" type="rc_header">
       <emit emit_type='prepend'></emit>
@@ -186,9 +186,6 @@
       <message desc="Label for the help button." name="IDS_HELP_BUTTON">
         Help
       </message>
-      <message desc="Label for the dismissing button in the dialog." name="IDS_DIALOG_CANCEL_BUTTON">
-        Cancel
-      </message>
       <message desc="Label for the gallery button." name="IDS_GALLERY_BUTTON">
         Go to Gallery
       </message>
@@ -277,6 +274,10 @@
         Your camera is currently unavailable.
         Please check if the camera is properly connected.
       </message>
+      <message desc="Error message shown when it was impossible to open the camera due to the admin policy." name="IDS_ERROR_MSG_DISABLED_CAMERA">
+        The camera app is managed by your administrator.
+        For details, contact the administrator.
+      </message>
       <message desc="Error message shown when failing to start recording video." name="IDS_ERROR_MSG_RECORD_START_FAILED">
         Unable to start recording
       </message>
@@ -284,16 +285,43 @@
         Microphone
       </message>
       <message desc="Label for the copy button of the barcode url chip." name="IDS_BARCODE_COPY_LINK_BUTTON">
-        Copy link address
+        Copy link address <ph name="url">$1<ex>https://www.google.com</ex></ph>
       </message>
       <message desc="Label for the copy button of the barcode text chip." name="IDS_BARCODE_COPY_TEXT_BUTTON">
-        Copy text
+        Copy detected text
       </message>
-      <message desc="Label for detected link on the barcode chip." name="IDS_BARCODE_LINK_DETECTED">
-        Link detected. <ph name="hostname">$1<ex>www.google.com</ex></ph>
+      <message desc="Speech spoken when content is copied." name="IDS_COPIED_DETECTED_CONTENT">
+        Copied <ph name="content">$1<ex>detected content</ex></ph>
       </message>
-      <message desc="Label for detected text on the barcode chip." name="IDS_BARCODE_TEXT_DETECTED">
+      <message desc="Description of the text detected chip." name="IDS_TEXT_DETECTED_DESCRIPTION">
+        Copy to verify the content.
+      </message>
+      <message desc="Description of the expandable text detected chip." name="IDS_TEXT_DETECTED_DESCRIPTION_EXPANDABLE">
+        Copy to verify the content or expand to stop scanning.
+      </message>
+      <message desc="Label for the expand button of the text detected chip." name="IDS_LABEL_EXPAND_DETECTED_CONTENT_BUTTON">
+        Expand dialog and stop scanning
+      </message>
+      <message desc="Label for the collapse button of the text detected chip." name="IDS_LABEL_COLLAPSE_DETECTED_CONTENT_BUTTON">
+        Collapse dialog and start scanning
+      </message>
+      <message desc="Label for the barcode container when text is detected under scan mode." name="IDS_LABEL_BARCODE_TEXT">
         Text detected.
+      </message>
+      <message desc="Text showing on the barcode chip when link is detected under scan mode." name="IDS_BARCODE_LINK_CHIPTEXT">
+        Open <ph name="url">$1<ex>https://www.google.com</ex></ph>
+      </message>
+      <message desc="Label for the barcode container when url is detected under scan mode." name="IDS_LABEL_BARCODE_URL">
+        URL detected.
+      </message>
+      <message desc="Text showing on the barcode chip when wifi is detected under scan mode." name="IDS_BARCODE_WIFI_CHIPTEXT">
+        Join "<ph name="wifiname">$1<ex>wifi network name</ex></ph>"
+      </message>
+      <message desc="Label for the barcode chip when wifi is detected under scan mode." name="IDS_LABEL_BARCODE_WIFI">
+        Wi-Fi network detected.
+      </message>
+      <message desc="Label for the barcode chip when wifi is detected under scan mode." name="IDS_LABEL_BARCODE_WIFI_CHIP">
+        Join <ph name="wifiname">$1<ex>wifi network name</ex></ph>
       </message>
       <message desc="Label for the button of expert mode options." name="IDS_EXPERT_MODE_BUTTON">
         Expert mode
@@ -309,9 +337,6 @@
       </message>
       <message desc="Label for expert mode option: custom video parameters." name="IDS_EXPERT_CUSTOM_VIDEO_PARAMETERS">
         Custom video parameters
-      </message>
-      <message desc="Label for expert mode option: Multi-stream video recording." name="IDS_EXPERT_MULTISTREAM_RECORDING">
-        Multistream video recording
       </message>
       <message desc="Label for expert mode option: enable video FPS picker for builtin camera." name="IDS_EXPERT_ENABLE_FPS_PICKER_FOR_BUILTIN">
         Enable video FPS picker
@@ -488,6 +513,9 @@ If your feedback is about image or video quality, please attach a sample photo o
       <message desc="Message indicating App is busy for processing image." name="IDS_MSG_PROCESSING_IMAGE">
         Processing image...
       </message>
+      <message desc="Message indicating App is busy for processing video." name="IDS_MSG_PROCESSING_VIDEO">
+        Processing video...
+      </message>
       <message desc="Label for button saving result document photo in PDF format." name="IDS_LABEL_SAVE_PDF_DOCUMENT">
         Save as PDF
       </message>
@@ -591,7 +619,7 @@ If your feedback is about image or video quality, please attach a sample photo o
         Full resolution
       </message>
       <message desc="Label of the option to specify the medium resolution in the resolution settings" name="IDS_LABEL_MEDIUM_RESOLUTION">
-        Medium resolution
+        Medium
       </message>
       <message desc="Label of the option to select other aspect ratio rather than the common ones (4:3, 16:9)." name="IDS_LABEL_OTHER_ASPECT_RATIO">
         Others
@@ -673,6 +701,15 @@ If your feedback is about image or video quality, please attach a sample photo o
       </message>
       <message desc="Label for the button that opens actions menu in the document scanning feature view." name="IDS_DOC_SCAN_MENU_BUTTON">
         Actions
+      </message>
+      <message desc="Toast message notifying preview OCR scanning is available." name="IDS_NEW_PREVIEW_OCR_TOAST">
+        Now you can directly copy text in your photo
+      </message>
+      <message desc="Text of the settings checkbox to toggle preview OCR scanning." name="IDS_PREVIEW_OCR_OPTION">
+        Text detection in preview
+      </message>
+      <message desc="Description of the settings checkbox to toggle preview OCR scanning." name="IDS_PREVIEW_OCR_OPTION_DESCRIPTION">
+        Displays text and button to copy
       </message>
     </messages>
   </release>

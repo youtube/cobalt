@@ -4,17 +4,20 @@
 
 #include "media/muxers/webm_muxer.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
+#include <string_view>
 
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/ranges/algorithm.h"
+#include "base/test/bind.h"
 #include "base/test/task_environment.h"
+#include "base/time/time.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/audio_parameters.h"
 #include "media/base/channel_layout.h"
@@ -23,7 +26,6 @@
 #include "media/base/mock_media_log.h"
 #include "media/base/stream_parser.h"
 #include "media/base/stream_parser_buffer.h"
-#include "media/base/text_track_config.h"
 #include "media/base/video_codecs.h"
 #include "media/base/video_frame.h"
 #include "media/formats/webm/webm_stream_parser.h"
@@ -68,7 +70,8 @@ class WebmMuxerTest : public TestWithParam<TestParams> {
             GetParam().num_audio_tracks,
             std::make_unique<LiveWebmMuxerDelegate>(
                 base::BindRepeating(&WebmMuxerTest::WriteCallback,
-                                    base::Unretained(this))))) {
+                                    base::Unretained(this))),
+            std::nullopt)) {
     EXPECT_EQ(webm_muxer_->delegate_->Position(), 0);
     const mkvmuxer::int64 kRandomNewPosition = 333;
     EXPECT_EQ(webm_muxer_->delegate_->Position(kRandomNewPosition), -1);
@@ -78,9 +81,9 @@ class WebmMuxerTest : public TestWithParam<TestParams> {
   WebmMuxerTest(const WebmMuxerTest&) = delete;
   WebmMuxerTest& operator=(const WebmMuxerTest&) = delete;
 
-  MOCK_METHOD(void, WriteCallback, (base::StringPiece));
+  MOCK_METHOD(void, WriteCallback, (base::span<const uint8_t>));
 
-  void SaveEncodedDataLen(const base::StringPiece& encoded_data) {
+  void SaveEncodedDataLen(base::span<const uint8_t> encoded_data) {
     last_encoded_length_ = encoded_data.size();
     accumulated_position_ += encoded_data.size();
   }
@@ -111,69 +114,44 @@ class WebmMuxerTest : public TestWithParam<TestParams> {
     return video_track->colour();
   }
 
+  void PutAudio(
+      const AudioParameters& params,
+      scoped_refptr<DecoderBuffer> encoded_data,
+      std::optional<media::AudioEncoder::CodecDescription> codec_description) {
+    webm_muxer_->PutFrame(
+        Muxer::EncodedFrame{std::move(params), std::move(codec_description),
+                            std::move(encoded_data)},
+        now_);
+    now_ = now_ + base::Milliseconds(10);
+  }
+
+  void PutVideo(
+      const Muxer::VideoParameters& params,
+      scoped_refptr<DecoderBuffer> encoded_data,
+      std::optional<media::VideoEncoder::CodecDescription> codec_description) {
+    webm_muxer_->PutFrame(
+        Muxer::EncodedFrame{std::move(params), std::move(codec_description),
+                            std::move(encoded_data)},
+        now_);
+    now_ = now_ + base::Milliseconds(30);
+  }
+
   std::unique_ptr<WebmMuxer> webm_muxer_;
 
   size_t last_encoded_length_ = 0;
   int64_t accumulated_position_ = 0;
+  base::TimeDelta now_ = base::Seconds(0);
 };
 
 // Checks that the WriteCallback is called with appropriate params when
 // WebmMuxer::Write() method is called.
 TEST_P(WebmMuxerTest, Write) {
-  const base::StringPiece encoded_data("abcdefghijklmnopqrstuvwxyz");
+  const std::string_view encoded_data("abcdefghijklmnopqrstuvwxyz");
 
-  EXPECT_CALL(*this, WriteCallback(encoded_data));
+  EXPECT_CALL(*this, WriteCallback(base::as_byte_span(encoded_data)));
   WebmMuxerWrite(encoded_data.data(), encoded_data.size());
 
   EXPECT_EQ(GetWebmMuxerPosition(), static_cast<int64_t>(encoded_data.size()));
-}
-
-TEST_P(WebmMuxerTest,
-       HandlesMuxerErrorInPassingEncodedFramesWithAudioThenVideo) {
-  auto video_params =
-      GetVideoParameters(VideoFrame::CreateBlackFrame(gfx::Size(160, 80)));
-  const std::string encoded_data("abcdefghijklmnopqrstuvwxyz");
-  media::AudioParameters audio_params(
-      media::AudioParameters::Format::AUDIO_PCM_LOW_LATENCY,
-      ChannelLayoutConfig::Mono(),
-      /*sample_rate=*/48000,
-      /*frames_per_buffer=*/480);
-  // Force an error in libwebm and expect OnEncodedVideo to fail.
-  webm_muxer_->ForceOneLibWebmErrorForTesting();
-  base::TimeTicks now = base::TimeTicks::Now();
-  bool audio_success =
-      !GetParam().num_audio_tracks ||
-      webm_muxer_->OnEncodedAudio(audio_params, encoded_data, now);
-  bool video_success =
-      !GetParam().num_video_tracks ||
-      webm_muxer_->OnEncodedVideo(video_params, encoded_data, std::string(),
-                                  now + base::Milliseconds(1),
-                                  /*is_key_frame=*/true);
-  EXPECT_FALSE(audio_success && video_success);
-}
-
-TEST_P(WebmMuxerTest,
-       HandlesMuxerErrorInPassingEncodedFramesWithVideoThenAudio) {
-  auto video_params =
-      GetVideoParameters(VideoFrame::CreateBlackFrame(gfx::Size(160, 80)));
-  const std::string encoded_data("abcdefghijklmnopqrstuvwxyz");
-  media::AudioParameters audio_params(
-      media::AudioParameters::Format::AUDIO_PCM_LOW_LATENCY,
-      ChannelLayoutConfig::Mono(),
-      /*sample_rate=*/48000,
-      /*frames_per_buffer=*/480);
-  // Force an error in libwebm and expect OnEncodedVideo to fail.
-  webm_muxer_->ForceOneLibWebmErrorForTesting();
-  base::TimeTicks now = base::TimeTicks::Now();
-  bool video_success =
-      !GetParam().num_video_tracks ||
-      webm_muxer_->OnEncodedVideo(video_params, encoded_data, std::string(),
-                                  now + base::Milliseconds(1),
-                                  /*is_key_frame=*/true);
-  bool audio_success =
-      !GetParam().num_audio_tracks ||
-      webm_muxer_->OnEncodedAudio(audio_params, encoded_data, now);
-  EXPECT_FALSE(audio_success && video_success);
 }
 
 // This test sends two frames and checks that the WriteCallback is called with
@@ -185,19 +163,20 @@ TEST_P(WebmMuxerTest, OnEncodedVideoTwoFrames) {
   const gfx::Size frame_size(160, 80);
   const scoped_refptr<VideoFrame> video_frame =
       VideoFrame::CreateBlackFrame(frame_size);
-  const std::string encoded_data("abcdefghijklmnopqrstuvwxyz");
+  const auto encoded_data = media::DecoderBuffer::CopyFrom(
+      base::as_byte_span("abcdefghijklmnopqrstuvwxyz"));
+  encoded_data->set_is_key_frame(true);
 
   EXPECT_CALL(*this, WriteCallback(_))
       .Times(AtLeast(1))
       .WillRepeatedly(
           WithArgs<0>(Invoke(this, &WebmMuxerTest::SaveEncodedDataLen)));
-  EXPECT_TRUE(webm_muxer_->OnEncodedVideo(
-      GetVideoParameters(video_frame), encoded_data, std::string(),
-      base::TimeTicks::Now(), false /* keyframe */));
+  PutVideo(GetVideoParameters(video_frame), std::move(encoded_data),
+           std::nullopt);
 
   // First time around WriteCallback() is pinged a number of times to write the
   // Matroska header, but at the end it dumps |encoded_data|.
-  EXPECT_EQ(last_encoded_length_, encoded_data.size());
+  EXPECT_EQ(last_encoded_length_, encoded_data->size());
   EXPECT_EQ(GetWebmMuxerPosition(), accumulated_position_);
   EXPECT_GE(GetWebmMuxerPosition(), static_cast<int64_t>(last_encoded_length_));
   EXPECT_EQ(GetWebmSegmentMode(), mkvmuxer::Segment::kLive);
@@ -207,17 +186,17 @@ TEST_P(WebmMuxerTest, OnEncodedVideoTwoFrames) {
       .Times(AtLeast(1))
       .WillRepeatedly(
           WithArgs<0>(Invoke(this, &WebmMuxerTest::SaveEncodedDataLen)));
-  EXPECT_TRUE(webm_muxer_->OnEncodedVideo(
-      GetVideoParameters(video_frame), encoded_data, std::string(),
-      base::TimeTicks::Now(), false /* keyframe */));
+  encoded_data->set_is_key_frame(false);
+  PutVideo(GetVideoParameters(video_frame), std::move(encoded_data),
+           std::nullopt);
 
   // The second time around the callbacks should include a SimpleBlock header,
   // namely the track index, a timestamp and a flags byte, for a total of 6B.
-  EXPECT_EQ(last_encoded_length_, encoded_data.size());
+  EXPECT_EQ(last_encoded_length_, encoded_data->size());
   EXPECT_EQ(GetWebmMuxerPosition(), accumulated_position_);
   const uint32_t kSimpleBlockSize = 6u;
   EXPECT_EQ(static_cast<int64_t>(begin_of_second_block + kSimpleBlockSize +
-                                 encoded_data.size()),
+                                 encoded_data->size()),
             accumulated_position_);
 }
 
@@ -230,17 +209,20 @@ TEST_P(WebmMuxerTest, OnEncodedVideoTwoAlphaFrames) {
   const gfx::Size frame_size(160, 80);
   const scoped_refptr<VideoFrame> video_frame =
       VideoFrame::CreateTransparentFrame(frame_size);
-  const std::string encoded_data("abcdefghijklmnopqrstuvwxyz");
-  const std::string alpha_encoded_data("ijklmnopqrstuvwxyz");
+  const auto encoded_data = media::DecoderBuffer::CopyFrom(
+      base::as_byte_span("abcdefghijklmnopqrstuvwxyz"));
+  const uint8_t alpha_data[] = "ijklmnopqrstuvwxyz";
+  encoded_data->WritableSideData().alpha_data =
+      base::HeapArray<uint8_t>::CopiedFrom(alpha_data);
 
   InSequence s;
   EXPECT_CALL(*this, WriteCallback(_))
       .Times(AtLeast(1))
       .WillRepeatedly(
           WithArgs<0>(Invoke(this, &WebmMuxerTest::SaveEncodedDataLen)));
-  EXPECT_TRUE(webm_muxer_->OnEncodedVideo(
-      GetVideoParameters(video_frame), encoded_data, alpha_encoded_data,
-      base::TimeTicks::Now(), true /* keyframe */));
+  encoded_data->set_is_key_frame(true);
+  PutVideo(GetVideoParameters(video_frame), std::move(encoded_data),
+           std::nullopt);
 
   EXPECT_EQ(GetWebmMuxerPosition(), accumulated_position_);
   EXPECT_GE(GetWebmMuxerPosition(), static_cast<int64_t>(last_encoded_length_));
@@ -251,9 +233,9 @@ TEST_P(WebmMuxerTest, OnEncodedVideoTwoAlphaFrames) {
       .Times(AtLeast(1))
       .WillRepeatedly(
           WithArgs<0>(Invoke(this, &WebmMuxerTest::SaveEncodedDataLen)));
-  EXPECT_TRUE(webm_muxer_->OnEncodedVideo(
-      GetVideoParameters(video_frame), encoded_data, alpha_encoded_data,
-      base::TimeTicks::Now(), false /* keyframe */));
+  encoded_data->set_is_key_frame(false);
+  PutVideo(GetVideoParameters(video_frame), std::move(encoded_data),
+           std::nullopt);
 
   EXPECT_EQ(GetWebmMuxerPosition(), accumulated_position_);
   // Alpha introduces additional elements to be written, see
@@ -261,9 +243,10 @@ TEST_P(WebmMuxerTest, OnEncodedVideoTwoAlphaFrames) {
   const uint32_t kBlockGroupSize = 2u;
   const uint32_t kSimpleBlockSize = 6u;
   const uint32_t kAdditionsSize = 13u;
-  EXPECT_EQ(static_cast<int64_t>(begin_of_second_block + kBlockGroupSize +
-                                 kSimpleBlockSize + encoded_data.size() +
-                                 kAdditionsSize + alpha_encoded_data.size()),
+  EXPECT_EQ(static_cast<int64_t>(
+                begin_of_second_block + kBlockGroupSize + kSimpleBlockSize +
+                encoded_data->size() + kAdditionsSize +
+                encoded_data->side_data()->alpha_data.as_span().size_bytes()),
             accumulated_position_);
 }
 
@@ -277,18 +260,18 @@ TEST_P(WebmMuxerTest, OnEncodedAudioTwoFrames) {
       media::AudioParameters::Format::AUDIO_PCM_LOW_LATENCY,
       ChannelLayoutConfig::Mono(), sample_rate, frames_per_buffer);
 
-  const std::string encoded_data("abcdefghijklmnopqrstuvwxyz");
+  const auto encoded_data = media::DecoderBuffer::CopyFrom(
+      base::as_byte_span("abcdefghijklmnopqrstuvwxyz"));
 
   EXPECT_CALL(*this, WriteCallback(_))
       .Times(AtLeast(1))
       .WillRepeatedly(
           WithArgs<0>(Invoke(this, &WebmMuxerTest::SaveEncodedDataLen)));
-  EXPECT_TRUE(webm_muxer_->OnEncodedAudio(audio_params, encoded_data,
-                                          base::TimeTicks::Now()));
+  PutAudio(audio_params, std::move(encoded_data), std::nullopt);
 
   // First time around WriteCallback() is pinged a number of times to write the
   // Matroska header, but at the end it dumps |encoded_data|.
-  EXPECT_EQ(last_encoded_length_, encoded_data.size());
+  EXPECT_EQ(last_encoded_length_, encoded_data->size());
   EXPECT_EQ(GetWebmMuxerPosition(), accumulated_position_);
   EXPECT_GE(GetWebmMuxerPosition(), static_cast<int64_t>(last_encoded_length_));
   EXPECT_EQ(GetWebmSegmentMode(), mkvmuxer::Segment::kLive);
@@ -298,24 +281,26 @@ TEST_P(WebmMuxerTest, OnEncodedAudioTwoFrames) {
       .Times(AtLeast(1))
       .WillRepeatedly(
           WithArgs<0>(Invoke(this, &WebmMuxerTest::SaveEncodedDataLen)));
-  EXPECT_TRUE(webm_muxer_->OnEncodedAudio(audio_params, encoded_data,
-                                          base::TimeTicks::Now()));
+  PutAudio(audio_params, std::move(encoded_data), std::nullopt);
 
   // The second time around the callbacks should include a SimpleBlock header,
   // namely the track index, a timestamp and a flags byte, for a total of 6B.
-  EXPECT_EQ(last_encoded_length_, encoded_data.size());
+  EXPECT_EQ(last_encoded_length_, encoded_data->size());
   EXPECT_EQ(GetWebmMuxerPosition(), accumulated_position_);
   const uint32_t kSimpleBlockSize = 6u;
   EXPECT_EQ(static_cast<int64_t>(begin_of_second_block + kSimpleBlockSize +
-                                 encoded_data.size()),
+                                 encoded_data->size()),
             accumulated_position_);
 }
 
 TEST_P(WebmMuxerTest, ColorSpaceREC709IsPropagatedToTrack) {
+  const auto encoded_data =
+      media::DecoderBuffer::CopyFrom(base::as_byte_span("abab"));
+  encoded_data->set_is_key_frame(true);
   Muxer::VideoParameters params(gfx::Size(1, 1), 0, media::VideoCodec::kVP9,
-                                gfx::ColorSpace::CreateREC709());
-  webm_muxer_->OnEncodedVideo(params, "abab", {}, base::TimeTicks::Now(),
-                              true /* keyframe */);
+                                gfx::ColorSpace::CreateREC709(),
+                                media::kNoTransformation);
+  PutVideo(params, std::move(encoded_data), std::nullopt);
   mkvmuxer::Colour* colour = GetVideoTrackColor();
   EXPECT_EQ(colour->primaries(), mkvmuxer::Colour::kIturBt709P);
   EXPECT_EQ(colour->transfer_characteristics(), mkvmuxer::Colour::kIturBt709Tc);
@@ -324,13 +309,16 @@ TEST_P(WebmMuxerTest, ColorSpaceREC709IsPropagatedToTrack) {
 }
 
 TEST_P(WebmMuxerTest, ColorSpaceExtendedSRGBIsPropagatedToTrack) {
+  const auto encoded_data =
+      media::DecoderBuffer::CopyFrom(base::as_byte_span("banana"));
+  encoded_data->set_is_key_frame(true);
   Muxer::VideoParameters params(
       gfx::Size(1, 1), 0, media::VideoCodec::kVP9,
       gfx::ColorSpace(
           gfx::ColorSpace::PrimaryID::BT709, gfx::ColorSpace::TransferID::SRGB,
-          gfx::ColorSpace::MatrixID::BT709, gfx::ColorSpace::RangeID::LIMITED));
-  webm_muxer_->OnEncodedVideo(params, "banana", {}, base::TimeTicks::Now(),
-                              true /* keyframe */);
+          gfx::ColorSpace::MatrixID::BT709, gfx::ColorSpace::RangeID::LIMITED),
+      kNoTransformation);
+  PutVideo(params, std::move(encoded_data), std::nullopt);
   mkvmuxer::Colour* colour = GetVideoTrackColor();
   EXPECT_EQ(colour->primaries(), mkvmuxer::Colour::kIturBt709P);
   EXPECT_EQ(colour->transfer_characteristics(), mkvmuxer::Colour::kIec6196621);
@@ -339,14 +327,17 @@ TEST_P(WebmMuxerTest, ColorSpaceExtendedSRGBIsPropagatedToTrack) {
 }
 
 TEST_P(WebmMuxerTest, ColorSpaceHDR10IsPropagatedToTrack) {
+  const auto encoded_data =
+      media::DecoderBuffer::CopyFrom(base::as_byte_span("latte"));
+  encoded_data->set_is_key_frame(true);
   Muxer::VideoParameters params(
       gfx::Size(1, 1), 0, media::VideoCodec::kVP9,
       gfx::ColorSpace(gfx::ColorSpace::PrimaryID::BT2020,
                       gfx::ColorSpace::TransferID::PQ,
                       gfx::ColorSpace::MatrixID::BT2020_NCL,
-                      gfx::ColorSpace::RangeID::LIMITED));
-  webm_muxer_->OnEncodedVideo(params, "cafebabe", {}, base::TimeTicks::Now(),
-                              true /* keyframe */);
+                      gfx::ColorSpace::RangeID::LIMITED),
+      media::kNoTransformation);
+  PutVideo(params, std::move(encoded_data), std::nullopt);
   mkvmuxer::Colour* colour = GetVideoTrackColor();
   EXPECT_EQ(colour->primaries(), mkvmuxer::Colour::kIturBt2020);
   EXPECT_EQ(colour->transfer_characteristics(), mkvmuxer::Colour::kSmpteSt2084);
@@ -356,70 +347,19 @@ TEST_P(WebmMuxerTest, ColorSpaceHDR10IsPropagatedToTrack) {
 }
 
 TEST_P(WebmMuxerTest, ColorSpaceFullRangeHDR10IsPropagatedToTrack) {
+  const auto encoded_data =
+      media::DecoderBuffer::CopyFrom(base::as_byte_span("beatles"));
+  encoded_data->set_is_key_frame(true);
   Muxer::VideoParameters params(
       gfx::Size(1, 1), 0, media::VideoCodec::kVP9,
       gfx::ColorSpace(gfx::ColorSpace::PrimaryID::BT2020,
                       gfx::ColorSpace::TransferID::PQ,
                       gfx::ColorSpace::MatrixID::BT2020_NCL,
-                      gfx::ColorSpace::RangeID::FULL));
-  webm_muxer_->OnEncodedVideo(params, "beatles", {}, base::TimeTicks::Now(),
-                              true /* keyframe */);
+                      gfx::ColorSpace::RangeID::FULL),
+      media::kNoTransformation);
+  PutVideo(params, std::move(encoded_data), std::nullopt);
   mkvmuxer::Colour* colour = GetVideoTrackColor();
   EXPECT_EQ(colour->range(), mkvmuxer::Colour::kFullRange);
-}
-
-// This test verifies that when video data comes before audio data, we save the
-// encoded video frames and add it to the video track when audio data arrives.
-TEST_P(WebmMuxerTest, VideoIsStoredWhileWaitingForAudio) {
-  // This test is only relevant if we have both kinds of tracks.
-  if (GetParam().num_video_tracks == 0 || GetParam().num_audio_tracks == 0)
-    return;
-
-  // First send a video keyframe.
-  const gfx::Size frame_size(160, 80);
-  const scoped_refptr<VideoFrame> video_frame =
-      VideoFrame::CreateBlackFrame(frame_size);
-  const std::string encoded_video("thisisanencodedvideopacket");
-
-  // Timestamp: 0 (video origin)
-  webm_muxer_->OnEncodedVideo(GetVideoParameters(video_frame), encoded_video,
-                              std::string(), base::TimeTicks(),
-                              true /* keyframe */);
-
-  // Timestamp: video origin + X
-  webm_muxer_->OnEncodedVideo(
-      GetVideoParameters(video_frame), encoded_video, std::string(),
-      base::TimeTicks() + base::Milliseconds(1), false /* keyframe */);
-
-  // Timestamp: video origin + X + Y
-  webm_muxer_->OnEncodedVideo(
-      GetVideoParameters(video_frame), encoded_video, std::string(),
-      base::TimeTicks() + base::Milliseconds(2), false /* keyframe */);
-
-  const int sample_rate = 48000;
-  const int frames_per_buffer = 480;
-  media::AudioParameters audio_params(
-      media::AudioParameters::Format::AUDIO_PCM_LOW_LATENCY,
-      ChannelLayoutConfig::Mono(), sample_rate, frames_per_buffer);
-  const std::string encoded_audio("thisisanencodedaudiopacket");
-
-  // Timestamped frames should come as:
-  // [video origin, video origin + X, video origin + X + Y, audio origin]
-  Sequence s;
-  EXPECT_CALL(*this, WriteCallback(Eq(encoded_video))).Times(1).InSequence(s);
-  EXPECT_CALL(*this, WriteCallback(Eq(encoded_video))).Times(1).InSequence(s);
-  EXPECT_CALL(*this, WriteCallback(Eq(encoded_video))).Times(1).InSequence(s);
-  EXPECT_CALL(*this, WriteCallback(Eq(encoded_audio))).Times(1).InSequence(s);
-
-  // We'll also get lots of other header-related stuff.
-  EXPECT_CALL(*this, WriteCallback(
-                         AllOf(Not(Eq(encoded_video)), Not(Eq(encoded_audio)))))
-      .Times(AnyNumber());
-
-  // Timestamp: 0 (audio origin)
-  webm_muxer_->OnEncodedAudio(audio_params, encoded_audio,
-                              base::TimeTicks() + base::Milliseconds(3));
-  webm_muxer_.reset();
 }
 
 const TestParams kTestCases[] = {
@@ -438,6 +378,11 @@ const TestParams kTestCases[] = {
     {VideoCodec::kAV1, AudioCodec::kOpus, 1, 0},
     {VideoCodec::kAV1, AudioCodec::kOpus, 0, 1},
     {VideoCodec::kAV1, AudioCodec::kOpus, 1, 1},
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+    {VideoCodec::kHEVC, AudioCodec::kOpus, 1, 0},
+    {VideoCodec::kHEVC, AudioCodec::kOpus, 0, 1},
+    {VideoCodec::kHEVC, AudioCodec::kOpus, 1, 1},
+#endif
 };
 
 INSTANTIATE_TEST_SUITE_P(All, WebmMuxerTest, ValuesIn(kTestCases));
@@ -445,14 +390,19 @@ INSTANTIATE_TEST_SUITE_P(All, WebmMuxerTest, ValuesIn(kTestCases));
 class WebmMuxerTestUnparametrized : public testing::Test {
  public:
   WebmMuxerTestUnparametrized()
-      : environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME),
-        webm_muxer_(std::make_unique<WebmMuxer>(
-            AudioCodec::kOpus,
-            /*has_audio=*/true,
-            /*has_video=*/true,
-            std::make_unique<LiveWebmMuxerDelegate>(base::BindRepeating(
-                &WebmMuxerTestUnparametrized::SaveChunkAndInvokeWriteCallback,
-                base::Unretained(this))))) {}
+      : environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
+
+  void CreateMuxer(
+      bool has_video,
+      bool has_audio,
+      std::optional<base::TimeDelta> max_data_output_interval = std::nullopt) {
+    webm_muxer_ = std::make_unique<WebmMuxer>(
+        AudioCodec::kOpus, has_video, has_audio,
+        std::make_unique<LiveWebmMuxerDelegate>(base::BindRepeating(
+            &WebmMuxerTestUnparametrized::SaveChunkAndInvokeWriteCallback,
+            base::Unretained(this))),
+        max_data_output_interval);
+  }
 
   bool Parse() {
     if (got_video_) {
@@ -470,7 +420,6 @@ class WebmMuxerTestUnparametrized : public testing::Test {
                             base::Unretained(this)),
         base::BindRepeating(&WebmMuxerTestUnparametrized::OnNewBuffers,
                             base::Unretained(this)),
-        /*ignore_text_tracks=*/true,
         base::BindRepeating(
             &WebmMuxerTestUnparametrized::OnEncryptedMediaInitData,
             base::Unretained(this)),
@@ -479,7 +428,7 @@ class WebmMuxerTestUnparametrized : public testing::Test {
         base::BindRepeating(&WebmMuxerTestUnparametrized::OnEndMediaSegment,
                             base::Unretained(this)),
         &media_log_);
-    if (!parser.AppendToParseBuffer(muxed_data_.data(), muxed_data_.size())) {
+    if (!parser.AppendToParseBuffer(base::span(muxed_data_))) {
       return false;
     }
 
@@ -491,26 +440,66 @@ class WebmMuxerTestUnparametrized : public testing::Test {
            parser.Parse(muxed_data_.size());
   }
 
-  void AddVideoAtOffset(int system_timestamp_offset_ms, bool is_key_frame) {
+  bool AddVideoAtOffset(int system_timestamp_offset_ms, bool is_key_frame) {
     Muxer::VideoParameters params(gfx::Size(1, 1), 0, media::VideoCodec::kVP8,
-                                  gfx::ColorSpace());
-    webm_muxer_->OnEncodedVideo(
-        params, "video_at_offset", "",
-        base::TimeTicks() + base::Milliseconds(system_timestamp_offset_ms),
-        is_key_frame);
+                                  gfx::ColorSpace(), media::kNoTransformation);
+    auto buffer =
+        media::DecoderBuffer::CopyFrom(base::as_byte_span("video_at_offset"));
+    buffer->set_is_key_frame(is_key_frame);
+    bool result = webm_muxer_->PutFrame(
+        Muxer::EncodedFrame{std::move(params), std::nullopt, buffer},
+        base::Milliseconds(system_timestamp_offset_ms));
     got_video_ = true;
+    return result;
   }
 
-  void AddAudioAtOffsetWithDuration(int system_timestamp_offset_ms,
+  bool AddVideoWithTransformation(VideoTransformation transformation) {
+    Muxer::VideoParameters params(gfx::Size(1, 1), 0, media::VideoCodec::kVP8,
+                                  gfx::ColorSpace(), transformation);
+    auto buffer =
+        media::DecoderBuffer::CopyFrom(base::as_byte_span("video_at_offset"));
+    buffer->set_is_key_frame(true);
+    bool result = webm_muxer_->PutFrame(
+        Muxer::EncodedFrame{std::move(params), std::nullopt, buffer},
+        base::TimeDelta());
+    got_video_ = true;
+    return result;
+  }
+
+  bool AddAudioAtOffsetWithDuration(int system_timestamp_offset_ms,
                                     int duration_ms) {
     int frame_rate_hz = 48000;
     int frames_per_buffer = frame_rate_hz * duration_ms / 1000;
     media::AudioParameters audio_params(
         media::AudioParameters::Format::AUDIO_PCM_LOW_LATENCY,
         ChannelLayoutConfig::Mono(), frame_rate_hz, frames_per_buffer);
-    webm_muxer_->OnEncodedAudio(
-        audio_params, "audio_at_offset",
-        base::TimeTicks() + base::Milliseconds(system_timestamp_offset_ms));
+    auto buffer =
+        media::DecoderBuffer::CopyFrom(base::as_byte_span("audio_at_offset"));
+    buffer->set_is_key_frame(true);
+    return webm_muxer_->PutFrame(
+        Muxer::EncodedFrame{std::move(audio_params), std::nullopt, buffer},
+        base::Milliseconds(system_timestamp_offset_ms));
+  }
+
+  mkvmuxer::Projection* GetVideoTrackTransformation() const {
+    mkvmuxer::VideoTrack* const video_track =
+        reinterpret_cast<mkvmuxer::VideoTrack*>(
+            webm_muxer_->segment_.GetTrackByNumber(
+                webm_muxer_->video_track_index_));
+    return video_track->projection();
+  }
+
+  void RunTransformationTest(VideoTransformation transformation,
+                             double pitch,
+                             double yaw,
+                             double roll) {
+    SCOPED_TRACE(transformation.ToString());
+    CreateMuxer(true, true);
+    AddVideoWithTransformation(transformation);
+    mkvmuxer::Projection* projection = GetVideoTrackTransformation();
+    EXPECT_EQ(projection->pose_pitch(), pitch);
+    EXPECT_EQ(projection->pose_yaw(), yaw);
+    EXPECT_EQ(projection->pose_roll(), roll);
   }
 
   MOCK_METHOD(void, OnWrite, ());
@@ -522,10 +511,7 @@ class WebmMuxerTestUnparametrized : public testing::Test {
  protected:
   // media::StreamParser callbacks.
   void OnInit(const media::StreamParser::InitParameters&) {}
-  bool OnNewConfig(std::unique_ptr<media::MediaTracks> tracks,
-                   const media::StreamParser::TextTrackConfigMap&) {
-    return true;
-  }
+  bool OnNewConfig(std::unique_ptr<media::MediaTracks> tracks) { return true; }
   bool OnNewBuffers(const media::StreamParser::BufferQueueMap& map) {
     for (const auto& [track_id, queue] : map) {
       for (const auto& stream_parser_buffer : queue) {
@@ -542,9 +528,9 @@ class WebmMuxerTestUnparametrized : public testing::Test {
  private:
   static constexpr int kSentinelVideoBufferTimestampMs = 1000000;
 
-  void SaveChunkAndInvokeWriteCallback(base::StringPiece chunk) {
+  void SaveChunkAndInvokeWriteCallback(base::span<const uint8_t> chunk) {
     OnWrite();
-    base::ranges::copy(chunk, std::back_inserter(muxed_data_));
+    std::ranges::copy(chunk, std::back_inserter(muxed_data_));
   }
 
   // Muxed data gets saved here. The content is guaranteed to be finalized first
@@ -558,66 +544,62 @@ class WebmMuxerTestUnparametrized : public testing::Test {
   bool got_video_ = false;
 };
 
-TEST_F(WebmMuxerTestUnparametrized, MuxerCompensatesForPausedTimeWithVideo) {
-  AddVideoAtOffset(123, /*is_key_frame=*/true);
-  webm_muxer_->Pause();
-  environment_.FastForwardBy(base::Milliseconds(200));
-  webm_muxer_->Resume();
-  AddVideoAtOffset(123 + 266, /*is_key_frame=*/false);
-  EXPECT_TRUE(Parse());
-  EXPECT_THAT(buffer_timestamps_ms_,
-              ElementsAre(Pair(1, ElementsAre(0, /*266 - 200=*/66))));
+TEST_F(WebmMuxerTestUnparametrized, HoldsAudioFramesBeforeVideo) {
+  CreateMuxer(true, true);
+  EXPECT_CALL(*this, OnWrite).Times(0);
+  AddAudioAtOffsetWithDuration(0, 10);
+  AddAudioAtOffsetWithDuration(10, 10);
+  Mock::VerifyAndClearExpectations(this);
 }
 
-TEST_F(WebmMuxerTestUnparametrized, MuxerCompensatesForPausedTimeWithAudio) {
-  AddAudioAtOffsetWithDuration(234, 10);
-  webm_muxer_->Pause();
-  environment_.FastForwardBy(base::Milliseconds(666));
-  webm_muxer_->Resume();
-  AddAudioAtOffsetWithDuration(234 + 686, 10);
-  EXPECT_TRUE(Parse());
-  EXPECT_THAT(buffer_timestamps_ms_,
-              ElementsAre(Pair(1, ElementsAre(0, /*686 - 666=*/20))));
+TEST_F(WebmMuxerTestUnparametrized, HoldsVideoFramesBeforeAudio) {
+  CreateMuxer(true, true);
+  EXPECT_CALL(*this, OnWrite).Times(0);
+  AddVideoAtOffset(0, /*is_key_frame=*/true);
+  AddVideoAtOffset(10, /*is_key_frame=*/false);
+  Mock::VerifyAndClearExpectations(this);
 }
 
-TEST_F(WebmMuxerTestUnparametrized,
-       MuxerCompensatesForPausedTimeWithAudioAndVideo) {
-  AddAudioAtOffsetWithDuration(234, 10);
-  AddVideoAtOffset(234 + 1, /*is_key_frame=*/true);
-  webm_muxer_->Pause();
-  environment_.FastForwardBy(base::Milliseconds(300));
-  webm_muxer_->Resume();
-  AddAudioAtOffsetWithDuration(234 + 321, 10);
-  AddVideoAtOffset(234 + 315, /*is_key_frame=*/false);
-  EXPECT_TRUE(Parse());
-  EXPECT_THAT(buffer_timestamps_ms_,
-              UnorderedElementsAre(Pair(1, ElementsAre(0, /*321 - 300=*/21)),
-                                   Pair(2, ElementsAre(1, /*315 - 300=*/15))));
+TEST_F(WebmMuxerTestUnparametrized, HoldsAudioFramesUntilVideo) {
+  CreateMuxer(true, true);
+  AddAudioAtOffsetWithDuration(0, 10);
+  AddAudioAtOffsetWithDuration(10, 10);
+  AddVideoAtOffset(20, /*is_key_frame=*/true);
+  ASSERT_TRUE(Parse());
+  EXPECT_THAT(buffer_timestamps_ms_, ElementsAre(Pair(1, ElementsAre(0, 10)),
+                                                 Pair(2, ElementsAre(20))));
 }
 
-TEST_F(WebmMuxerTestUnparametrized,
-       MuxerCompensatesForPausedTimeBeforeAudioVideo) {
-  webm_muxer_->Pause();
-  environment_.FastForwardBy(base::Milliseconds(100));
-  webm_muxer_->Resume();
-  AddAudioAtOffsetWithDuration(50, 10);
-  AddVideoAtOffset(65, /*is_key_frame=*/true);
-  AddAudioAtOffsetWithDuration(60, 10);
-  AddVideoAtOffset(70, /*is_key_frame=*/false);
-  EXPECT_TRUE(Parse());
-  EXPECT_THAT(buffer_timestamps_ms_,
-              UnorderedElementsAre(Pair(1, ElementsAre(0, 10)),
-                                   Pair(2, ElementsAre(15, 20))));
+TEST_F(WebmMuxerTestUnparametrized, HoldsVideoFramesUntilAudio) {
+  CreateMuxer(true, true);
+  AddVideoAtOffset(0, /*is_key_frame=*/true);
+  AddVideoAtOffset(10, /*is_key_frame=*/false);
+  AddAudioAtOffsetWithDuration(20, 10);
+  ASSERT_TRUE(Parse());
+  EXPECT_THAT(buffer_timestamps_ms_, ElementsAre(Pair(1, ElementsAre(0, 10)),
+                                                 Pair(2, ElementsAre(20))));
+}
+
+TEST_F(WebmMuxerTestUnparametrized, EmitsVideoRightAway) {
+  CreateMuxer(/*has_video=*/true, /*has_audio=*/false);
+  EXPECT_CALL(*this, OnWrite).Times(AtLeast(1));
+  AddVideoAtOffset(10, /*is_key_frame=*/true);
+  ASSERT_TRUE(Parse());
+  EXPECT_THAT(buffer_timestamps_ms_, ElementsAre(Pair(1, ElementsAre(10))));
+}
+
+TEST_F(WebmMuxerTestUnparametrized, EmitsAudioRightAway) {
+  CreateMuxer(/*has_video=*/false, /*has_audio=*/true);
+  EXPECT_CALL(*this, OnWrite).Times(AtLeast(1));
+  AddAudioAtOffsetWithDuration(20, 10);
+  ASSERT_TRUE(Parse());
+  EXPECT_THAT(buffer_timestamps_ms_, ElementsAre(Pair(1, ElementsAre(20))));
 }
 
 TEST_F(WebmMuxerTestUnparametrized, HoldsDataUntilDurationExpiry) {
-  webm_muxer_->SetMaximumDurationToForceDataOutput(base::Milliseconds(200));
+  CreateMuxer(true, true, base::Milliseconds(200));
   AddVideoAtOffset(0, /*is_key_frame=*/true);
   AddAudioAtOffsetWithDuration(0, 10);
-  // Mute video. The muxer will hold on to audio data after this until the max
-  // data output duration is expired.
-  webm_muxer_->SetLiveAndEnabled(/*track_live_and_enabled=*/false,
-                                 /*is_video=*/true);
   EXPECT_CALL(*this, OnWrite).Times(0);
   AddAudioAtOffsetWithDuration(10, 10);
   AddAudioAtOffsetWithDuration(20, 10);
@@ -628,19 +610,15 @@ TEST_F(WebmMuxerTestUnparametrized, HoldsDataUntilDurationExpiry) {
   EXPECT_CALL(*this, OnWrite).Times(AtLeast(1));
   AddAudioAtOffsetWithDuration(50, 10);
   Mock::VerifyAndClearExpectations(this);
-  // Stop mock dispatch from happening too late in the WebmMuxer's destructor.
-  webm_muxer_ = nullptr;
+  ASSERT_TRUE(Parse());
 }
 
 TEST_F(WebmMuxerTestUnparametrized, DurationExpiryLimitedByMaxFrequency) {
-  webm_muxer_->SetMaximumDurationToForceDataOutput(base::Milliseconds(
-      50));  // This value is below the minimum limit of 100 ms.
+  CreateMuxer(true, true,
+              base::Milliseconds(
+                  50));  // This value is below the minimum limit of 100 ms.
   AddVideoAtOffset(0, /*is_key_frame=*/true);
   AddAudioAtOffsetWithDuration(0, 10);
-  // Mute video. The muxer will hold on to audio data after this until the max
-  // data output duration is expired.
-  webm_muxer_->SetLiveAndEnabled(/*track_live_and_enabled=*/false,
-                                 /*is_video=*/true);
   EXPECT_CALL(*this, OnWrite).Times(0);
   AddAudioAtOffsetWithDuration(10, 10);
   AddAudioAtOffsetWithDuration(20, 10);
@@ -651,8 +629,54 @@ TEST_F(WebmMuxerTestUnparametrized, DurationExpiryLimitedByMaxFrequency) {
   EXPECT_CALL(*this, OnWrite).Times(AtLeast(1));
   AddAudioAtOffsetWithDuration(50, 10);
   Mock::VerifyAndClearExpectations(this);
-  // Stop mock dispatch from happening too late in the WebmMuxer's destructor.
-  webm_muxer_ = nullptr;
+  ASSERT_TRUE(Parse());
+}
+
+TEST_F(WebmMuxerTestUnparametrized, ForwardsAudioMuxingError) {
+  CreateMuxer(/*has_video=*/false, /*has_audio=*/true);
+  webm_muxer_->ForceOneLibWebmErrorForTesting();
+  ASSERT_FALSE(AddAudioAtOffsetWithDuration(0, 10));
+}
+
+TEST_F(WebmMuxerTestUnparametrized, ForwardsVideoMuxingError) {
+  CreateMuxer(/*has_video=*/true, /*has_audio=*/false);
+  webm_muxer_->ForceOneLibWebmErrorForTesting();
+  ASSERT_FALSE(AddVideoAtOffset(0, /*is_key_frame=*/true));
+}
+
+TEST_F(WebmMuxerTestUnparametrized, ForwardsAudioVideoMuxingError) {
+  CreateMuxer(/*has_video=*/true, /*has_audio=*/true);
+  webm_muxer_->ForceOneLibWebmErrorForTesting();
+  // This returns true since no attempt to write happens before the audio
+  // sample.
+  ASSERT_TRUE(AddVideoAtOffset(0, /*is_key_frame=*/true));
+  ASSERT_FALSE(AddAudioAtOffsetWithDuration(0, 10));
+}
+
+TEST_F(WebmMuxerTestUnparametrized, Transformations) {
+  RunTransformationTest(VideoTransformation(VIDEO_ROTATION_0, false), 0.0, 0.0,
+                        0.0);
+
+  RunTransformationTest(VideoTransformation(VIDEO_ROTATION_0, true), 0.0, 180.0,
+                        0.0);
+
+  RunTransformationTest(VideoTransformation(VIDEO_ROTATION_90, false), 0.0, 0.0,
+                        -90.0);
+
+  RunTransformationTest(VideoTransformation(VIDEO_ROTATION_90, true), 0.0,
+                        180.0, 90.0);
+
+  RunTransformationTest(VideoTransformation(VIDEO_ROTATION_180, false), 0.0,
+                        0.0, 180.0);
+
+  RunTransformationTest(VideoTransformation(VIDEO_ROTATION_180, true), 0.0,
+                        180.0, 180.0);
+
+  RunTransformationTest(VideoTransformation(VIDEO_ROTATION_270, false), 0.0,
+                        0.0, 90.0);
+
+  RunTransformationTest(VideoTransformation(VIDEO_ROTATION_270, true), 0.0,
+                        180.0, -90.0);
 }
 
 }  // namespace media

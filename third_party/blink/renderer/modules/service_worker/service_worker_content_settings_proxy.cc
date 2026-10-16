@@ -27,7 +27,6 @@ bool ServiceWorkerContentSettingsProxy::AllowStorageAccessSync(
     return result;
   } else if (storage_type == StorageType::kFileSystem) {
     NOTREACHED();
-    return false;
   } else {
     // TODO(shuagga@microsoft.com): Revisit this default in the future.
     return true;

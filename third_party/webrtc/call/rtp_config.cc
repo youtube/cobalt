@@ -10,10 +10,17 @@
 
 #include "call/rtp_config.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
+#include <iterator>
+#include <optional>
+#include <string>
+#include <vector>
 
 #include "absl/algorithm/container.h"
 #include "api/array_view.h"
+#include "api/rtp_headers.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
 
@@ -41,7 +48,7 @@ std::string LntfConfig::ToString() const {
 
 std::string NackConfig::ToString() const {
   char buf[1024];
-  rtc::SimpleStringBuilder ss(buf);
+  SimpleStringBuilder ss(buf);
   ss << "{rtp_history_ms: " << rtp_history_ms;
   ss << '}';
   return ss.str();
@@ -49,7 +56,7 @@ std::string NackConfig::ToString() const {
 
 std::string UlpfecConfig::ToString() const {
   char buf[1024];
-  rtc::SimpleStringBuilder ss(buf);
+  SimpleStringBuilder ss(buf);
   ss << "{ulpfec_payload_type: " << ulpfec_payload_type;
   ss << ", red_payload_type: " << red_payload_type;
   ss << ", red_rtx_payload_type: " << red_rtx_payload_type;
@@ -63,6 +70,30 @@ bool UlpfecConfig::operator==(const UlpfecConfig& other) const {
          red_rtx_payload_type == other.red_rtx_payload_type;
 }
 
+std::string RtpStreamConfig::ToString() const {
+  char buf[1024];
+  SimpleStringBuilder ss(buf);
+  ss << "{ssrc: " << ssrc;
+  ss << ", rid: " << rid;
+  ss << ", payload_name: " << payload_name;
+  ss << ", payload_type: " << payload_type;
+  ss << ", raw_payload: " << (raw_payload ? "true" : "false");
+  if (rtx.has_value()) {
+    ss << ", rtx: " << rtx->ToString();
+  }
+  ss << '}';
+  return ss.str();
+}
+
+std::string RtpStreamConfig::Rtx::ToString() const {
+  char buf[1024];
+  SimpleStringBuilder ss(buf);
+  ss << "{ssrc: " << ssrc;
+  ss << ", payload_type: " << payload_type;
+  ss << '}';
+  return ss.str();
+}
+
 RtpConfig::RtpConfig() = default;
 RtpConfig::RtpConfig(const RtpConfig&) = default;
 RtpConfig::~RtpConfig() = default;
@@ -73,7 +104,7 @@ RtpConfig::Flexfec::~Flexfec() = default;
 
 std::string RtpConfig::ToString() const {
   char buf[2 * 1024];
-  rtc::SimpleStringBuilder ss(buf);
+  SimpleStringBuilder ss(buf);
   ss << "{ssrcs: [";
   for (size_t i = 0; i < ssrcs.size(); ++i) {
     ss << ssrcs[i];
@@ -107,6 +138,14 @@ std::string RtpConfig::ToString() const {
   ss << ", payload_type: " << payload_type;
   ss << ", raw_payload: " << (raw_payload ? "true" : "false");
 
+  ss << ", stream_configs: [";
+  for (size_t i = 0; i < stream_configs.size(); ++i) {
+    ss << stream_configs[i].ToString();
+    if (i != stream_configs.size() - 1)
+      ss << ", ";
+  }
+  ss << ']';
+
   ss << ", flexfec: {payload_type: " << flexfec.payload_type;
   ss << ", ssrc: " << flexfec.ssrc;
   ss << ", protected_media_ssrcs: [";
@@ -129,7 +168,7 @@ RtpConfig::Rtx::~Rtx() = default;
 
 std::string RtpConfig::Rtx::ToString() const {
   char buf[1024];
-  rtc::SimpleStringBuilder ss(buf);
+  SimpleStringBuilder ss(buf);
   ss << "{ssrcs: [";
   for (size_t i = 0; i < ssrcs.size(); ++i) {
     ss << ssrcs[i];
@@ -155,12 +194,12 @@ bool RtpConfig::IsFlexfecSsrc(uint32_t ssrc) const {
   return flexfec.payload_type != -1 && ssrc == flexfec.ssrc;
 }
 
-absl::optional<uint32_t> RtpConfig::GetRtxSsrcAssociatedWithMediaSsrc(
+std::optional<uint32_t> RtpConfig::GetRtxSsrcAssociatedWithMediaSsrc(
     uint32_t media_ssrc) const {
   RTC_DCHECK(IsMediaSsrc(media_ssrc));
   // If we don't use RTX there is no association.
   if (rtx.ssrcs.empty())
-    return absl::nullopt;
+    return std::nullopt;
   // If we use RTX there MUST be an association ssrcs[i] <-> rtx.ssrcs[i].
   RTC_DCHECK_EQ(ssrcs.size(), rtx.ssrcs.size());
   return FindAssociatedSsrc(media_ssrc, ssrcs, rtx.ssrcs);
@@ -189,7 +228,7 @@ uint32_t RtpConfig::GetMediaSsrcAssociatedWithFlexfecSsrc(
   return media_ssrc;
 }
 
-absl::optional<std::string> RtpConfig::GetRidForSsrc(uint32_t ssrc) const {
+std::optional<std::string> RtpConfig::GetRidForSsrc(uint32_t ssrc) const {
   auto it = std::find(ssrcs.begin(), ssrcs.end(), ssrc);
   if (it != ssrcs.end()) {
     size_t ssrc_index = std::distance(ssrcs.begin(), it);
@@ -197,7 +236,34 @@ absl::optional<std::string> RtpConfig::GetRidForSsrc(uint32_t ssrc) const {
       return rids[ssrc_index];
     }
   }
-  return absl::nullopt;
+  return std::nullopt;
+}
+
+RtpStreamConfig RtpConfig::GetStreamConfig(size_t index) const {
+  // GetStreamConfig function usually returns stream_configs[index], but if
+  // stream_configs is not initialized (i.e., index >= stream_configs.size()),
+  // it creates and returns an RtpStreamConfig using fields such as ssrcs, rids,
+  // payload_name, and payload_type from RtpConfig.
+  RTC_DCHECK_LT(index, ssrcs.size());
+  if (index < stream_configs.size()) {
+    return stream_configs[index];
+  }
+  RtpStreamConfig stream_config;
+  stream_config.ssrc = ssrcs[index];
+  if (index < rids.size()) {
+    stream_config.rid = rids[index];
+  }
+  stream_config.payload_name = payload_name;
+  stream_config.payload_type = payload_type;
+  stream_config.raw_payload = raw_payload;
+  if (!rtx.ssrcs.empty()) {
+    RTC_DCHECK_EQ(ssrcs.size(), rtx.ssrcs.size());
+    auto& stream_config_rtx = stream_config.rtx.emplace();
+    stream_config_rtx.ssrc = rtx.ssrcs[index];
+    stream_config_rtx.payload_type = rtx.payload_type;
+  }
+
+  return stream_config;
 }
 
 }  // namespace webrtc

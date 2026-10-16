@@ -5,7 +5,13 @@
 #ifndef COMPONENTS_WEBAUTHN_ANDROID_INTERNAL_AUTHENTICATOR_ANDROID_H_
 #define COMPONENTS_WEBAUTHN_ANDROID_INTERNAL_AUTHENTICATOR_ANDROID_H_
 
-#include "base/android/jni_weak_ref.h"
+#include <jni.h>
+
+#include <cstdint>
+#include <string>
+#include <vector>
+
+#include "base/android/scoped_java_ref.h"
 #include "components/webauthn/core/browser/internal_authenticator.h"
 #include "content/public/browser/global_routing_id.h"
 #include "third_party/blink/public/mojom/webauthn/authenticator.mojom.h"
@@ -17,6 +23,8 @@ class Origin;
 namespace content {
 class RenderFrameHost;
 }  // namespace content
+
+namespace webauthn {
 
 // Implementation of the public InternalAuthenticator interface.
 // This class is meant only for trusted and internal components of Chrome to
@@ -39,9 +47,8 @@ class InternalAuthenticatorAndroid : public webauthn::InternalAuthenticator {
   void MakeCredential(
       blink::mojom::PublicKeyCredentialCreationOptionsPtr options,
       blink::mojom::Authenticator::MakeCredentialCallback callback) override;
-  void GetAssertion(
-      blink::mojom::PublicKeyCredentialRequestOptionsPtr options,
-      blink::mojom::Authenticator::GetAssertionCallback callback) override;
+  void GetAssertion(blink::mojom::PublicKeyCredentialRequestOptionsPtr options,
+                    GetAssertionCallback callback) override;
   void IsUserVerifyingPlatformAuthenticatorAvailable(
       blink::mojom::Authenticator::
           IsUserVerifyingPlatformAuthenticatorAvailableCallback callback)
@@ -80,12 +87,13 @@ class InternalAuthenticatorAndroid : public webauthn::InternalAuthenticator {
   base::android::ScopedJavaGlobalRef<jobject> java_internal_authenticator_ref_;
   blink::mojom::Authenticator::MakeCredentialCallback
       make_credential_response_callback_;
-  blink::mojom::Authenticator::GetAssertionCallback
-      get_assertion_response_callback_;
+  GetAssertionCallback get_assertion_response_callback_;
   blink::mojom::Authenticator::
       IsUserVerifyingPlatformAuthenticatorAvailableCallback is_uvpaa_callback_;
   webauthn::GetMatchingCredentialIdsCallback
       get_matching_credential_ids_callback_;
 };
+
+}  // namespace webauthn
 
 #endif  // COMPONENTS_WEBAUTHN_ANDROID_INTERNAL_AUTHENTICATOR_ANDROID_H_

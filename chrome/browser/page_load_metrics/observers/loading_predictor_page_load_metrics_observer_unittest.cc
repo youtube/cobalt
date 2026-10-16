@@ -30,7 +30,7 @@ class MockResourcePrefetchPredictor : public ResourcePrefetchPredictor {
   MOCK_CONST_METHOD1(IsUrlPrefetchable, bool(const GURL& main_frame_url));
   MOCK_CONST_METHOD1(IsUrlPreconnectable, bool(const GURL& main_frame_url));
 
-  ~MockResourcePrefetchPredictor() override {}
+  ~MockResourcePrefetchPredictor() override = default;
 };
 
 class LoadingPredictorPageLoadMetricsObserverTest
@@ -50,7 +50,7 @@ class LoadingPredictorPageLoadMetricsObserverTest
     collector_ = std::make_unique<LoadingDataCollector>(predictor_.get(),
                                                         nullptr, config);
     predictors::LoadingPredictorTabHelper::CreateForWebContents(web_contents());
-    timing_.navigation_start = base::Time::FromDoubleT(1);
+    timing_.navigation_start = base::Time::FromSecondsSinceUnixEpoch(1);
     timing_.parse_timing->parse_start = base::Milliseconds(10);
     timing_.paint_timing->first_paint = base::Seconds(2);
     timing_.paint_timing->first_contentful_paint = base::Seconds(3);

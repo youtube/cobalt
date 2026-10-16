@@ -16,13 +16,12 @@
 #include "net/base/filename_util.h"
 #include "storage/browser/file_system/file_system_url.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "extensions/browser/api/extensions_api_client.h"
 #include "extensions/browser/api/file_handlers/non_native_file_system_delegate.h"
 #endif
 
-namespace extensions {
-namespace app_file_handler_util {
+namespace extensions::app_file_handler_util {
 
 namespace {
 
@@ -31,13 +30,15 @@ bool GetIsDirectoryFromFileInfo(const base::FilePath& path) {
   return GetFileInfo(path, &file_info) && file_info.is_directory;
 }
 
+}  // namespace
+
 // The callback parameter contains the result and is required to support
 // both native local directories to avoid UI thread and non native local
 // path directories for the IsNonNativeLocalPathDirectory API.
-void EntryIsDirectory(content::BrowserContext* context,
-                      const base::FilePath& path,
-                      base::OnceCallback<void(bool)> callback) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+void GetIsDirectoryForLocalPath(content::BrowserContext* context,
+                                const base::FilePath& path,
+                                base::OnceCallback<void(bool)> callback) {
+#if BUILDFLAG(IS_CHROMEOS)
   NonNativeFileSystemDelegate* delegate =
       ExtensionsAPIClient::Get()->GetNonNativeFileSystemDelegate();
   if (delegate && delegate->IsUnderNonNativeLocalPath(context, path)) {
@@ -50,8 +51,6 @@ void EntryIsDirectory(content::BrowserContext* context,
       FROM_HERE, {base::MayBlock()},
       base::BindOnce(&GetIsDirectoryFromFileInfo, path), std::move(callback));
 }
-
-}  // namespace
 
 IsDirectoryCollector::IsDirectoryCollector(content::BrowserContext* context)
     : context_(context), left_(0) {}
@@ -78,7 +77,7 @@ void IsDirectoryCollector::CollectForEntriesPaths(
   }
 
   for (size_t i = 0; i < paths.size(); ++i) {
-    EntryIsDirectory(
+    GetIsDirectoryForLocalPath(
         context_, paths[i],
         base::BindOnce(&IsDirectoryCollector::OnIsDirectoryCollected,
                        weak_ptr_factory_.GetWeakPtr(), i));
@@ -87,8 +86,9 @@ void IsDirectoryCollector::CollectForEntriesPaths(
 
 void IsDirectoryCollector::OnIsDirectoryCollected(size_t index,
                                                   bool is_directory) {
-  if (is_directory)
+  if (is_directory) {
     result_->insert(paths_[index]);
+  }
   if (!--left_) {
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback_), std::move(result_)));
@@ -99,5 +99,4 @@ void IsDirectoryCollector::OnIsDirectoryCollected(size_t index,
   }
 }
 
-}  // namespace app_file_handler_util
-}  // namespace extensions
+}  // namespace extensions::app_file_handler_util

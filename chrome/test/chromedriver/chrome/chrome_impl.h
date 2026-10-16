@@ -7,24 +7,54 @@
 
 #include <list>
 #include <memory>
+#include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
 #include "base/values.h"
+#include "chrome/test/chromedriver/chrome/browser_info.h"
 #include "chrome/test/chromedriver/chrome/chrome.h"
+#include "chrome/test/chromedriver/chrome/devtools_http_client.h"
 #include "chrome/test/chromedriver/chrome/mobile_device.h"
-#include "chrome/test/chromedriver/net/sync_websocket_factory.h"
 
 class DevToolsClient;
-class DevToolsClientImpl;
 class DevToolsEventListener;
-class DevToolsHttpClient;
-class PageTracker;
+class TabTracker;
 class Status;
 class WebView;
 class WebViewImpl;
-class WebViewsInfo;
-struct BrowserInfo;
+
+namespace internal {
+struct Position {
+  int left = 0;
+  int top = 0;
+};
+
+struct Size {
+  int width = 0;
+  int height = 0;
+};
+
+struct Window {
+  int id;
+  std::string state;
+  int left;
+  int top;
+  int width;
+  int height;
+};
+
+struct WindowBounds {
+  WindowBounds();
+  ~WindowBounds();
+  std::optional<Position> position;
+  std::optional<Size> size;
+  std::optional<std::string> state;
+  base::Value::Dict ToDict() const;
+  bool Matches(const Window& window) const;
+};
+}  // namespace internal
 
 class ChromeImpl : public Chrome {
  public:
@@ -33,13 +63,22 @@ class ChromeImpl : public Chrome {
   Status GetAsDesktop(ChromeDesktopImpl** desktop) override;
   const BrowserInfo* GetBrowserInfo() const override;
   bool HasCrashedWebView() override;
+  int GetWebViewCount() const override;
   Status GetWebViewIdForFirstTab(std::string* web_view_id,
                                  bool w3c_complaint) override;
-  Status GetWebViewIds(std::list<std::string>* web_view_ids,
-                       bool w3c_compliant) override;
+  Status GetTopLevelWebViewIds(std::list<std::string>* web_view_ids,
+                               bool w3c_compliant) override;
   Status GetWebViewById(const std::string& id, WebView** web_view) override;
+  Status GetActivePageByWebViewId(const std::string& id,
+                                  WebView** active_page_view,
+                                  bool wait_for_page) override;
+  Status NewHiddenTarget(const std::string& target_id,
+                         bool w3c_compliant,
+                         std::string* window_handle) override;
   Status NewWindow(const std::string& target_id,
                    WindowType type,
+                   bool is_background,
+                   bool w3c_compliant,
                    std::string* window_handle) override;
   Status GetWindowRect(const std::string& id, WindowRect* rect) override;
   Status SetWindowRect(const std::string& target_id,
@@ -57,46 +96,41 @@ class ChromeImpl : public Chrome {
   bool HasTouchScreen() const override;
   std::string page_load_strategy() const override;
   Status Quit() override;
-  DevToolsClient* Client() const;
+  DevToolsClient* Client() const override;
 
  protected:
-  ChromeImpl(std::unique_ptr<DevToolsHttpClient> http_client,
+  ChromeImpl(BrowserInfo browser_info,
+             std::set<WebViewInfo::Type> window_types,
              std::unique_ptr<DevToolsClient> websocket_client,
              std::vector<std::unique_ptr<DevToolsEventListener>>
                  devtools_event_listeners,
-             absl::optional<MobileDevice> mobile_device,
-             SyncWebSocketFactory socket_factory,
-             std::string page_load_strategy);
+             std::optional<MobileDevice> mobile_device,
+             std::string page_load_strategy,
+             bool autoaccept_beforeunload,
+             bool enable_extension_targets);
 
   virtual Status QuitImpl() = 0;
-
-  Status CreateClient(const std::string& id,
-                      std::unique_ptr<DevToolsClientImpl>* client);
-  Status CloseFrontends(const std::string& for_client_id);
   Status CloseTarget(const std::string& id);
 
-  struct Window {
-    int id;
-    std::string state;
-    int left;
-    int top;
-    int width;
-    int height;
-  };
-  virtual Status GetWindow(const std::string& target_id, Window* window);
-  Status ParseWindow(const base::Value::Dict& params, Window* window);
-  Status ParseWindowBounds(const base::Value::Dict& params, Window* window);
-  Status GetWindowBounds(int window_id, Window* window);
-  Status SetWindowBounds(Window* window,
+  bool IsBrowserWindow(const WebViewInfo& view) const;
+
+  virtual Status GetWindow(const std::string& tab_target_id,
+                           internal::Window& window);
+  Status ParseWindow(const base::Value::Dict& params, internal::Window& window);
+  Status ParseWindowBounds(const base::Value::Dict& params,
+                           internal::Window& window);
+  Status GetWindowBounds(int window_id, internal::Window& window);
+  Status SetWindowBounds(internal::Window window,
                          const std::string& target_id,
-                         std::unique_ptr<base::Value::Dict> bounds);
-  Status GetWebViewsInfo(WebViewsInfo* views_info);
+                         const internal::WindowBounds& bounds);
 
   bool quit_ = false;
-  absl::optional<MobileDevice> mobile_device_;
-  SyncWebSocketFactory socket_factory_;
-  std::unique_ptr<DevToolsHttpClient> devtools_http_client_;
+  std::optional<MobileDevice> mobile_device_;
+  BrowserInfo browser_info_;
+  std::set<WebViewInfo::Type> window_types_;
   std::unique_ptr<DevToolsClient> devtools_websocket_client_;
+  bool autoaccept_beforeunload_ = false;
+  std::vector<std::unique_ptr<DevToolsEventListener>> devtools_event_listeners_;
 
  private:
   static Status PermissionNameToChromePermissions(
@@ -106,11 +140,11 @@ class ChromeImpl : public Chrome {
 
   Status UpdateWebViews(const WebViewsInfo& views_info, bool w3c_compliant);
 
-  // Web views in this list are in the same order as they are opened.
+  // Tab views in this list are in the same order as they are opened.
   std::list<std::unique_ptr<WebViewImpl>> web_views_;
-  std::unique_ptr<PageTracker> page_tracker_;
-  std::vector<std::unique_ptr<DevToolsEventListener>> devtools_event_listeners_;
+  std::unique_ptr<TabTracker> tab_tracker_;
   std::string page_load_strategy_;
+  bool enable_extension_targets_;
 };
 
 #endif  // CHROME_TEST_CHROMEDRIVER_CHROME_CHROME_IMPL_H_

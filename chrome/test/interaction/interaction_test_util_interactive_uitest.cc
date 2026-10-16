@@ -17,6 +17,7 @@
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/expect_call_in_scope.h"
 #include "ui/base/interaction/interaction_sequence.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/interaction/interaction_test_util_views.h"
 
@@ -73,7 +74,7 @@ IN_PROC_BROWSER_TEST_F(InteractionTestUtilInteractiveUitest,
 
   auto open_context_menu = base::BindLambdaForTesting([&]() {
     tab->ShowContextMenu(tab->bounds().CenterPoint(),
-                         ui::MenuSourceType::MENU_SOURCE_MOUSE);
+                         ui::mojom::MenuSourceType::kMouse);
   });
 
   auto set_up = base::BindLambdaForTesting(
@@ -110,6 +111,13 @@ IN_PROC_BROWSER_TEST_F(InteractionTestUtilInteractiveUitest,
                        .SetElementID(TabMenuModel::kAddToNewGroupItemIdentifier)
                        .SetType(ui::InteractionSequence::StepType::kShown)
                        .SetStartCallback(std::move(click_menu_item))
+#if BUILDFLAG(IS_MAC)
+                       // On Mac, we are trapped in a system-owned run loop
+                       // where tasks can't be posted, so any response to a
+                       // native context menu showing must be immediate.
+                       .SetStepStartMode(
+                           ui::InteractionSequence::StepStartMode::kImmediate)
+#endif
                        .Build())
           .AddStep(ui::InteractionSequence::StepBuilder()
                        .SetElementID(TabMenuModel::kAddToNewGroupItemIdentifier)

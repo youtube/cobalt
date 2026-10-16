@@ -83,4 +83,32 @@ void ChooserController::OpenPermissionPreferences() const {
   NOTREACHED();
 }
 
+void ChooserController::OpenBluetoothPermissionHelpUrl() const {
+  NOTREACHED();
+}
+
+bool ChooserController::ShouldShowAdapterOffView() const {
+  return false;
+}
+
+int ChooserController::GetAdapterOffMessageId() const {
+  NOTREACHED();
+}
+
+int ChooserController::GetTurnAdapterOnLinkTextMessageId() const {
+  NOTREACHED();
+}
+
+bool ChooserController::ShouldShowAdapterUnauthorizedView() const {
+  return false;
+}
+
+int ChooserController::GetBluetoothUnauthorizedMessageId() const {
+  NOTREACHED();
+}
+
+int ChooserController::GetAuthorizeBluetoothLinkTextMessageId() const {
+  NOTREACHED();
+}
+
 }  // namespace permissions

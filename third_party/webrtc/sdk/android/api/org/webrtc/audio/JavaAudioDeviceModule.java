@@ -386,11 +386,12 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
   }
 
   @Override
-  public long getNativeAudioDeviceModulePointer() {
+  public long getNative(long webrtcEnvRef) {
     synchronized (nativeLock) {
       if (nativeAudioDeviceModule == 0) {
         nativeAudioDeviceModule = nativeCreateAudioDeviceModule(context, audioManager, audioInput,
-            audioOutput, inputSampleRate, outputSampleRate, useStereoInput, useStereoOutput);
+            audioOutput, webrtcEnvRef, inputSampleRate, outputSampleRate, useStereoInput,
+            useStereoOutput);
       }
       return nativeAudioDeviceModule;
     }
@@ -418,6 +419,12 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
     audioInput.setMicrophoneMute(mute);
   }
 
+  @Override
+  public boolean setNoiseSuppressorEnabled(boolean enabled) {
+    Logging.d(TAG, "setNoiseSuppressorEnabled: " + enabled);
+    return audioInput.setNoiseSuppressorEnabled(enabled);
+  }
+
   /**
    * Start to prefer a specific {@link AudioDeviceInfo} device for recording. Typically this should
    * only be used if a client gives an explicit option for choosing a physical device to record
@@ -426,11 +433,12 @@ public class JavaAudioDeviceModule implements AudioDeviceModule {
    */
   @RequiresApi(Build.VERSION_CODES.M)
   public void setPreferredInputDevice(AudioDeviceInfo preferredInputDevice) {
-    Logging.d(TAG, "setPreferredInputDevice: " + preferredInputDevice);
+    Logging.d(TAG, "setPreferredInputDevice: " + preferredInputDevice.getId());
     audioInput.setPreferredDevice(preferredInputDevice);
   }
 
   private static native long nativeCreateAudioDeviceModule(Context context,
       AudioManager audioManager, WebRtcAudioRecord audioInput, WebRtcAudioTrack audioOutput,
-      int inputSampleRate, int outputSampleRate, boolean useStereoInput, boolean useStereoOutput);
+      long webrtcEnvRef, int inputSampleRate, int outputSampleRate, boolean useStereoInput,
+      boolean useStereoOutput);
 }

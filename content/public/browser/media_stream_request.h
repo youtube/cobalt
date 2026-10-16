@@ -28,15 +28,16 @@ struct CONTENT_EXPORT MediaStreamRequest {
   MediaStreamRequest(int render_process_id,
                      int render_frame_id,
                      int page_request_id,
-                     const GURL& security_origin,
+                     const url::Origin& url_origin,
                      bool user_gesture,
                      blink::MediaStreamRequestType request_type,
-                     const std::string& requested_audio_device_id,
-                     const std::string& requested_video_device_id,
+                     const std::vector<std::string>& requested_audio_device_ids,
+                     const std::vector<std::string>& requested_video_device_ids,
                      blink::mojom::MediaStreamType audio_type,
                      blink::mojom::MediaStreamType video_type,
                      bool disable_local_echo,
-                     bool request_pan_tilt_zoom_permission);
+                     bool request_pan_tilt_zoom_permission,
+                     bool captured_surface_control_active);
 
   MediaStreamRequest(const MediaStreamRequest& other);
 
@@ -56,8 +57,12 @@ struct CONTENT_EXPORT MediaStreamRequest {
   // identifying this request. This is used for cancelling request.
   int page_request_id;
 
+  // TODO(crbug.com/40944449): Remove security_origin.
   // The WebKit security origin for the current request (e.g. "html5rocks.com").
   GURL security_origin;
+
+  // The Origin of the current request.
+  url::Origin url_origin;
 
   // Set to true if the call was made in the context of a user gesture.
   bool user_gesture;
@@ -69,8 +74,8 @@ struct CONTENT_EXPORT MediaStreamRequest {
   blink::MediaStreamRequestType request_type;
 
   // Stores the requested raw device id for physical audio or video devices.
-  std::string requested_audio_device_id;
-  std::string requested_video_device_id;
+  std::vector<std::string> requested_audio_device_ids;
+  std::vector<std::string> requested_video_device_ids;
 
   // Flag to indicate if the request contains audio.
   blink::mojom::MediaStreamType audio_type;
@@ -89,6 +94,11 @@ struct CONTENT_EXPORT MediaStreamRequest {
   // whereas this flag hooks into a standardized option.
   bool suppress_local_audio_playback = false;
 
+  // Flag for window or screen share to indicate if audio originating from the
+  // document that called getDisplayMedia should be removed from the
+  // captured system audio.
+  bool restrict_own_audio = false;
+
   // If audio is requested, |exclude_system_audio| can indicate that
   // system-audio should nevertheless not be offered to the user.
   bool exclude_system_audio = false;
@@ -97,14 +107,22 @@ struct CONTENT_EXPORT MediaStreamRequest {
   // tabs offered to the user.
   bool exclude_self_browser_surface = false;
 
+  // Flag to indicate whether monitor type surfaces (screens) should be offered
+  // to the user.
+  bool exclude_monitor_type_surfaces = false;
+
   // Flag to indicate a preference for which display surface type (screen,
-  // windows, or tabs) should be most prominently offered to the user. The
-  // browser may disregard this preference.
+  // windows, or tabs) should be most prominently offered to the user.
   blink::mojom::PreferredDisplaySurface preferred_display_surface =
       blink::mojom::PreferredDisplaySurface::NO_PREFERENCE;
 
   // Flag to indicate whether the request is for PTZ use.
   bool request_pan_tilt_zoom_permission;
+
+  // Indicates whether Captured Surface Control APIs (sendWheel, setZoomLevel)
+  // have previously been used on the capture-session associated with this
+  // request. This is only relevant for tab-sharing sessions.
+  bool captured_surface_control_active;
 };
 
 // Interface used by the content layer to notify chrome about changes in the
@@ -113,7 +131,8 @@ struct CONTENT_EXPORT MediaStreamRequest {
 class MediaStreamUI {
  public:
   using SourceCallback =
-      base::RepeatingCallback<void(const DesktopMediaID& media_id)>;
+      base::RepeatingCallback<void(const DesktopMediaID& media_id,
+                                   bool captured_surface_control_active)>;
   using StateChangeCallback = base::RepeatingCallback<void(
       const DesktopMediaID& media_id,
       blink::mojom::MediaStreamStateChange new_state)>;
@@ -144,7 +163,8 @@ class MediaStreamUI {
   virtual void OnDeviceStoppedForSourceChange(
       const std::string& label,
       const DesktopMediaID& old_media_id,
-      const DesktopMediaID& new_media_id) = 0;
+      const DesktopMediaID& new_media_id,
+      bool captured_surface_control_active) = 0;
 
   virtual void OnDeviceStopped(const std::string& label,
                                const DesktopMediaID& media_id) = 0;
@@ -155,7 +175,7 @@ class MediaStreamUI {
   //   but the cropped-to region ended up having zero pixels.
   // * Nullopt indicates that cropping stopped.
   virtual void OnRegionCaptureRectChanged(
-      const absl::optional<gfx::Rect>& region_capture_rect) {}
+      const std::optional<gfx::Rect>& region_capture_rect) {}
 
 #if !BUILDFLAG(IS_ANDROID)
   // Focuses the display surface represented by |media_id|.

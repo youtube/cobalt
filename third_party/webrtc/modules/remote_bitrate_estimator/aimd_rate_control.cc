@@ -10,22 +10,23 @@
 
 #include "modules/remote_bitrate_estimator/aimd_rate_control.h"
 
-#include <inttypes.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <optional>
 #include <string>
 
-#include "absl/strings/match.h"
+#include "api/field_trials_view.h"
+#include "api/transport/bandwidth_usage.h"
 #include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
+#include "api/units/data_size.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "modules/remote_bitrate_estimator/include/bwe_defines.h"
-#include "modules/remote_bitrate_estimator/overuse_detector.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/numerics/safe_minmax.h"
 
 namespace webrtc {
 namespace {
@@ -79,21 +80,11 @@ AimdRateControl::AimdRateControl(const FieldTrialsView& key_value_config,
       rtt_(kDefaultRtt),
       send_side_(send_side),
       no_bitrate_increase_in_alr_(
-          key_value_config.IsEnabled("WebRTC-DontIncreaseDelayBasedBweInAlr")),
-      initial_backoff_interval_("initial_backoff_interval"),
-      link_capacity_fix_("link_capacity_fix") {
+          key_value_config.IsEnabled("WebRTC-DontIncreaseDelayBasedBweInAlr")) {
   ParseFieldTrial(
-      {&disable_estimate_bounded_increase_},
+      {&disable_estimate_bounded_increase_,
+       &use_current_estimate_as_min_upper_bound_},
       key_value_config.Lookup("WebRTC-Bwe-EstimateBoundedIncrease"));
-  // E.g
-  // WebRTC-BweAimdRateControlConfig/initial_backoff_interval:100ms/
-  ParseFieldTrial({&initial_backoff_interval_, &link_capacity_fix_},
-                  key_value_config.Lookup("WebRTC-BweAimdRateControlConfig"));
-  if (initial_backoff_interval_) {
-    RTC_LOG(LS_INFO) << "Using aimd rate control with initial back-off interval"
-                        " "
-                     << ToString(*initial_backoff_interval_) << ".";
-  }
   RTC_LOG(LS_INFO) << "Using aimd rate control with back off factor " << beta_;
 }
 
@@ -142,18 +133,9 @@ bool AimdRateControl::TimeToReduceFurther(Timestamp at_time,
 }
 
 bool AimdRateControl::InitialTimeToReduceFurther(Timestamp at_time) const {
-  if (!initial_backoff_interval_) {
-    return ValidEstimate() &&
-           TimeToReduceFurther(at_time,
-                               LatestEstimate() / 2 - DataRate::BitsPerSec(1));
-  }
-  // TODO(terelius): We could use the RTT (clamped to suitable limits) instead
-  // of a fixed bitrate_reduction_interval.
-  if (time_last_bitrate_decrease_.IsInfinite() ||
-      at_time - time_last_bitrate_decrease_ >= *initial_backoff_interval_) {
-    return true;
-  }
-  return false;
+  return ValidEstimate() &&
+         TimeToReduceFurther(at_time,
+                             LatestEstimate() / 2 - DataRate::BitsPerSec(1));
 }
 
 DataRate AimdRateControl::LatestEstimate() const {
@@ -171,7 +153,7 @@ DataRate AimdRateControl::Update(const RateControlInput& input,
   // TODO(bugs.webrtc.org/9379): The comment above doesn't match to the code.
   if (!bitrate_is_initialized_) {
     const TimeDelta kInitializationTime = TimeDelta::Seconds(5);
-    RTC_DCHECK_LE(kBitrateWindowMs, kInitializationTime.ms());
+    RTC_DCHECK_LE(kBitrateWindow, kInitializationTime);
     if (time_first_throughput_estimate_.IsInfinite()) {
       if (input.estimated_throughput)
         time_first_throughput_estimate_ = at_time;
@@ -202,7 +184,7 @@ void AimdRateControl::SetEstimate(DataRate bitrate, Timestamp at_time) {
 }
 
 void AimdRateControl::SetNetworkStateEstimate(
-    const absl::optional<NetworkStateEstimate>& estimate) {
+    const std::optional<NetworkStateEstimate>& estimate) {
   network_estimate_ = estimate;
 }
 
@@ -240,7 +222,7 @@ TimeDelta AimdRateControl::GetExpectedBandwidthPeriod() const {
 
 void AimdRateControl::ChangeBitrate(const RateControlInput& input,
                                     Timestamp at_time) {
-  absl::optional<DataRate> new_bitrate;
+  std::optional<DataRate> new_bitrate;
   DataRate estimated_throughput =
       input.estimated_throughput.value_or(latest_estimated_throughput_);
   if (input.estimated_throughput)
@@ -306,7 +288,11 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
       // Set bit rate to something slightly lower than the measured throughput
       // to get rid of any self-induced delay.
       decreased_bitrate = estimated_throughput * beta_;
-      if (decreased_bitrate > current_bitrate_ && !link_capacity_fix_) {
+      if (decreased_bitrate > DataRate::KilobitsPerSec(5)) {
+        decreased_bitrate -= DataRate::KilobitsPerSec(5);
+      }
+
+      if (decreased_bitrate > current_bitrate_) {
         // TODO(terelius): The link_capacity estimate may be based on old
         // throughput measurements. Relying on them may lead to unnecessary
         // BWE drops.
@@ -350,7 +336,10 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
 DataRate AimdRateControl::ClampBitrate(DataRate new_bitrate) const {
   if (!disable_estimate_bounded_increase_ && network_estimate_ &&
       network_estimate_->link_capacity_upper.IsFinite()) {
-    DataRate upper_bound = network_estimate_->link_capacity_upper;
+    DataRate upper_bound =
+        use_current_estimate_as_min_upper_bound_
+            ? std::max(network_estimate_->link_capacity_upper, current_bitrate_)
+            : network_estimate_->link_capacity_upper;
     new_bitrate = std::min(upper_bound, new_bitrate);
   }
   if (network_estimate_ && network_estimate_->link_capacity_lower.IsFinite() &&

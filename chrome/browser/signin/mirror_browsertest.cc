@@ -40,6 +40,7 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/request_handler_util.h"
+#include "services/network/public/cpp/resource_request.h"
 #include "third_party/blink/public/common/loader/url_loader_throttle.h"
 #include "url/gurl.h"
 
@@ -80,7 +81,8 @@ class ThrottleContentBrowserClient : public ChromeContentBrowserClient {
       content::BrowserContext* browser_context,
       const base::RepeatingCallback<content::WebContents*()>& wc_getter,
       content::NavigationUIData* navigation_ui_data,
-      int frame_tree_node_id) override {
+      content::FrameTreeNodeId frame_tree_node_id,
+      std::optional<int64_t> navigation_id) override {
     std::vector<std::unique_ptr<blink::URLLoaderThrottle>> throttles;
     if (request.url == watch_url_)
       throttles.push_back(std::make_unique<HeaderModifyingThrottle>());
@@ -95,38 +97,9 @@ class ThrottleContentBrowserClient : public ChromeContentBrowserClient {
 class MirrorBrowserTest : public InProcessBrowserTest {
  protected:
   MirrorBrowserTest() {
-    // TODO(crbug.com/1394910): Use HTTPS URLs in tests to avoid having to
+    // TODO(crbug.com/40248833): Use HTTPS URLs in tests to avoid having to
     // disable this feature.
     feature_list_.InitAndDisableFeature(features::kHttpsUpgrades);
-  }
-  void RunExtensionConsentTest(extensions::WebAuthFlow::Partition partition,
-                               bool expects_header) {
-    net::EmbeddedTestServer https_server(net::EmbeddedTestServer::TYPE_HTTPS);
-    https_server.AddDefaultHandlers(GetChromeTestDataDir());
-    const std::string kAuthPath = "/auth";
-    net::test_server::HttpRequest::HeaderMap headers;
-    base::RunLoop run_loop;
-    https_server.RegisterRequestMonitor(base::BindLambdaForTesting(
-        [&](const net::test_server::HttpRequest& request) {
-          if (request.GetURL().path() != kAuthPath)
-            return;
-
-          headers = request.headers;
-          run_loop.Quit();
-        }));
-    ASSERT_TRUE(https_server.Start());
-
-    auto web_auth_flow = std::make_unique<extensions::WebAuthFlow>(
-        nullptr, browser()->profile(),
-        https_server.GetURL("google.com", kAuthPath),
-        extensions::WebAuthFlow::INTERACTIVE, partition);
-
-    web_auth_flow->Start();
-    run_loop.Run();
-    EXPECT_EQ(!!headers.count(signin::kChromeConnectedHeader), expects_header);
-
-    web_auth_flow.release()->DetachDelegateAndDelete();
-    base::RunLoop().RunUntilIdle();
   }
 
  private:
@@ -268,35 +241,6 @@ IN_PROC_BROWSER_TEST_F(MirrorBrowserTest, MirrorRequestHeader) {
 
     header_map.clear();
   }
-}
-
-// These tests should be removed once `features::kWebAuthFlowInBrowserTab` is
-// launched.
-class MirrorBrowserTestWithWebAuthFlowInBrowserTabOff
-    : public MirrorBrowserTest {
- public:
-  MirrorBrowserTestWithWebAuthFlowInBrowserTabOff() {
-    scoped_feature_list_.InitAndDisableFeature(
-        features::kWebAuthFlowInBrowserTab);
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-// Verifies that requests originated from chrome.identity.launchWebAuthFlow()
-// API don't have Mirror headers attached.
-// This is a regression test for crbug.com/1077504.
-IN_PROC_BROWSER_TEST_F(MirrorBrowserTestWithWebAuthFlowInBrowserTabOff,
-                       NoMirrorExtensionConsent_LaunchWebAuthFlow) {
-  RunExtensionConsentTest(extensions::WebAuthFlow::LAUNCH_WEB_AUTH_FLOW, false);
-}
-
-// Verifies that requests originated from chrome.identity.getAuthToken()
-// API have Mirror headers attached.
-IN_PROC_BROWSER_TEST_F(MirrorBrowserTestWithWebAuthFlowInBrowserTabOff,
-                       MirrorExtensionConsent_GetAuthToken) {
-  RunExtensionConsentTest(extensions::WebAuthFlow::GET_AUTH_TOKEN, true);
 }
 
 }  // namespace

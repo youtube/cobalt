@@ -1,6 +1,6 @@
 <histogram-configuration>
 
-  <!-- Second level Comment 1 -->
+<!-- Second level Comment 1 -->
 
 <histograms>
 
@@ -11,41 +11,26 @@
 
 <histogram name="Foo.Bar" units="xxxxxxxxxxxxxxxxxxyyyyyyyyyyyyyyyyyyyyyyzzzz"
     expires_after="M85">
-  <summary>Foo</summary>
   <owner>person@chromium.org</owner>
   <component>Component</component>
-</histogram>
-
-<histogram name="Test.TokenHistogram{TestToken}" units="microseconds"
-    expires_after="M85">
-  <obsolete>
-    Removed 6/2020.
-  </obsolete>
-  <owner>person@chromium.org</owner>
-  <summary>
-    Summary 2
-  </summary>
-  <token key="TestToken" variants="TestToken"/>
-</histogram>
-
-<histogram name="Test.Histogram" units="microseconds" expires_after="M85">
-  <obsolete>
-    Removed 6/2020.
-  </obsolete>
-  <owner>person@chromium.org</owner>
-  <summary>
-    Summary 2
-  </summary>
+  <summary>Foo</summary>
 </histogram>
 
 <histogram name="Test.EnumHistogram" enum="TestEnum" expires_after="M81">
   <owner>uma@chromium.org</owner>
-  <obsolete>
-    Obsolete message
-  </obsolete>
-  <summary>
-    A enum histogram.
-  </summary>
+  <summary>A enum histogram.</summary>
+</histogram>
+
+<histogram name="Test.Histogram" units="microseconds" expires_after="M85">
+  <owner>person@chromium.org</owner>
+  <summary>Summary 2</summary>
+</histogram>
+
+<histogram name="Test.TokenHistogram{TestToken}" units="microseconds"
+    expires_after="M85">
+  <owner>person@chromium.org</owner>
+  <summary>Summary 2</summary>
+  <token key="TestToken" variants="TestToken"/>
 </histogram>
 
 </histograms>

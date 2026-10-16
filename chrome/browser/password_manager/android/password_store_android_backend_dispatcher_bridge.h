@@ -24,9 +24,6 @@ namespace password_manager {
 // thread.
 class PasswordStoreAndroidBackendDispatcherBridge {
  public:
-  using SyncingAccount =
-      PasswordStoreAndroidBackendReceiverBridge::SyncingAccount;
-  using Account = PasswordStoreAndroidBackendReceiverBridge::Account;
   using JobId = PasswordStoreAndroidBackendReceiverBridge::JobId;
 
   virtual ~PasswordStoreAndroidBackendDispatcherBridge() = default;
@@ -41,73 +38,79 @@ class PasswordStoreAndroidBackendDispatcherBridge {
   // Triggers an asynchronous request to retrieve all stored passwords. The
   // registered `Consumer` is notified with `OnCompleteWithLogins` via the
   // receiver bridge when the job with the given JobId succeeds.
-  // `syncing_account` is used to decide which storage to use. If
-  // `syncing_account` is absl::nullopt local storage will be used.
-  virtual void GetAllLogins(JobId job_id, Account account) = 0;
+  // `account` is used to decide which storage to use. If
+  // `account` is empty, the local storage will be used.
+  virtual void GetAllLogins(JobId job_id, std::string account) = 0;
+
+  // Triggers an asynchronous request to retrieve all stored passwords with
+  // branding info (App display name and icon). The registered `Consumer` is
+  // notified with `OnCompleteWithBrandedLogins` via the receiver bridge when
+  // the job with the given JobId succeeds. `account` is used to decide which
+  // storage to use. If `account` is empty, the local storage will be used.
+  virtual void GetAllLoginsWithBrandingInfo(JobId job_id,
+                                            std::string account) = 0;
 
   // Triggers an asynchronous request to retrieve all autofillable
   // (non-blocklisted) passwords. The registered `Consumer` is notified with
   // `OnCompleteWithLogins` via the receiver bridge when the job with the
-  // given JobId succeeds. `syncing_account` is used to decide which storage
-  // to use. If `syncing_account` is absl::nullopt local storage will be used.
-  virtual void GetAutofillableLogins(JobId job_id, Account account) = 0;
+  // given JobId succeeds. `account` is used to decide which storage
+  // to use. If `account` is empty, the local storage will be used.
+  virtual void GetAutofillableLogins(JobId job_id, std::string account) = 0;
 
   // Triggers an asynchronous request to retrieve stored passwords with
   // matching |signon_realm|. The returned results must be validated (e.g
   // matching "sample.com" also returns logins for "not-sample.com").
   // The registered `Consumer` is notified with `OnCompleteWithLogins` via the
   // receiver bridge when the job with the given JobId succeeds.
-  // `syncing_account` is used to decide which storage to use. If
-  // `syncing_account` is absl::nullopt local storage will be used.
+  // `account` is used to decide which storage to use. If
+  // `account` is empty the local storage will be used.
   virtual void GetLoginsForSignonRealm(JobId job_id,
                                        const std::string& signon_realm,
-                                       Account account) = 0;
+                                       std::string account) = 0;
+
+  // Triggers an asynchronous request to retrieve stored affiliated passwords
+  // matching |signon_realm| or affiliated with |signon_realm| or grouped with
+  // |signon_realm|. The registered `Consumer` is notified with
+  // `OnCompleteWithLogins` via the receiver bridge when the job with the given
+  // JobId succeeds. `account` is used to decide which storage to use.
+  // If `account` is empty the local storage will be used.
+  virtual void GetAffiliatedLoginsForSignonRealm(
+      JobId job_id,
+      const std::string& signon_realm,
+      std::string account) = 0;
 
   // Triggers an asynchronous request to add |form| to store. The
   // registered `Consumer` is notified with `OnLoginsChanged` via the receiver
-  // bridge when the job with the given JobId succeeds. `syncing_account` is
-  // used to decide which storage to use. If `syncing_account` is absl::nullopt
+  // bridge when the job with the given JobId succeeds. `account` is
+  // used to decide which storage to use. If `account` is empty, the
   // local storage will be used.
   virtual void AddLogin(JobId job_id,
                         const PasswordForm& form,
-                        Account account) = 0;
+                        std::string account) = 0;
 
   // Triggers an asynchronous request to update |form| in store. The
   // registered `Consumer` is notified with `OnLoginsChanged` via the receiver
-  // bridge when the job with the given JobId succeeds. `syncing_account` is
-  // used to decide which storage to use. If `syncing_account` is absl::nullopt
+  // bridge when the job with the given JobId succeeds. `account` is
+  // used to decide which storage to use. If `account` is empty, the
   // local storage will be used.
   virtual void UpdateLogin(JobId job_id,
                            const PasswordForm& form,
-                           Account account) = 0;
+                           std::string account) = 0;
 
   // Triggers an asynchronous request to remove |form| from store. The
   // registered `Consumer` is notified with `OnLoginsChanged` via the receiver
-  // bridge when the job with the given JobId succeeds. `syncing_account` is
-  // used to decide which storage to use. If `syncing_account` is absl::nullopt
+  // bridge when the job with the given JobId succeeds. `account` is
+  // used to decide which storage to use. If `account` is empty, the
   // local storage will be used.
   virtual void RemoveLogin(JobId job_id,
                            const PasswordForm& form,
-                           Account account) = 0;
-
-  // Displays a notification when a store backend request finishes with an
-  // unrecoverable error. TODO(crbug.com/1344576) Remove when not required
-  // anymore.
-  // This method interacts with the UI but should also be called on the
-  // background thread as native bridge does not have JNIEnv for the UI thread.
-  // Operation will be actually be executed on the UI thread by the Java bridge.
-  virtual void ShowErrorNotification() = 0;
+                           std::string account) = 0;
 
   // Factory function for creating the bridge. Implementation is pulled in by
   // including an implementation or by defining it explicitly in tests.
-  // Ensure `CanCreateBackend` returns true before calling this method.
+  // Ensure `password_manager_android_util::IsUpmBackendForAccountAvailable`
+  // returns true before calling this method.
   static std::unique_ptr<PasswordStoreAndroidBackendDispatcherBridge> Create();
-
-  // Method that checks whether a backend can be created or whether `Create`
-  // would fail. It returns true iff all nontransient prerequisistes are
-  // fulfilled. E.g. if the backend requires a minimum GMS version this method
-  // would return false.
-  static bool CanCreateBackend();
 };
 
 }  // namespace password_manager

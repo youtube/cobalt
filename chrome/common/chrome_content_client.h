@@ -8,6 +8,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/files/file_path.h"
@@ -64,7 +65,8 @@ class ChromeContentClient : public content::ContentClient {
   std::u16string GetLocalizedString(int message_id) override;
   std::u16string GetLocalizedString(int message_id,
                                     const std::u16string& replacement) override;
-  base::StringPiece GetDataResource(
+  bool HasDataResource(int resource_id) const override;
+  std::string_view GetDataResource(
       int resource_id,
       ui::ResourceScaleFactor scale_factor) override;
   base::RefCountedMemory* GetDataResourceBytes(int resource_id) override;
@@ -72,6 +74,8 @@ class ChromeContentClient : public content::ContentClient {
   gfx::Image& GetNativeImageNamed(int resource_id) override;
   std::string GetProcessTypeNameInEnglish(int type) override;
   blink::OriginTrialPolicy* GetOriginTrialPolicy() override;
+  bool IsFilePickerAllowedForCrossOriginSubframe(
+      const url::Origin& origin) override;
 #if BUILDFLAG(IS_ANDROID)
   media::MediaDrmBridgeClient* GetMediaDrmBridgeClient() override;
 #endif  // BUILDFLAG(IS_ANDROID)

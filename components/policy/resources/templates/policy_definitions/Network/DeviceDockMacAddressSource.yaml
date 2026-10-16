@@ -25,8 +25,9 @@ items:
   name: DockNicMacAddress
   value: 3
 owners:
-- lamzin@google.com
 - bkersting@google.com
+- chungsheng@google.com
+- byronlee@chromium.org
 - chromeos-oem-services@google.com
 schema:
   enum:
@@ -38,3 +39,4 @@ supported_on:
 - chrome_os:75-
 tags: []
 type: int-enum
+generate_device_proto: False

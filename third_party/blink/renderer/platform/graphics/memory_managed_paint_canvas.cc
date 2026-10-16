@@ -4,18 +4,34 @@
 
 #include "third_party/blink/renderer/platform/graphics/memory_managed_paint_canvas.h"
 
+#include "base/memory/ptr_util.h"
+
 namespace blink {
 
-MemoryManagedPaintCanvas::MemoryManagedPaintCanvas(const gfx::Size& size,
-                                                   Client* client)
-    : cc::InspectableRecordPaintCanvas(size), client_(client) {
-  DCHECK(client);
-}
+MemoryManagedPaintCanvas::MemoryManagedPaintCanvas(const gfx::Size& size)
+    : cc::InspectableRecordPaintCanvas(size) {}
+
+MemoryManagedPaintCanvas::MemoryManagedPaintCanvas(
+    CreateChildCanvasTag,
+    const MemoryManagedPaintCanvas& parent)
+    : cc::InspectableRecordPaintCanvas(CreateChildCanvasTag(), parent) {}
 
 MemoryManagedPaintCanvas::~MemoryManagedPaintCanvas() = default;
 
+std::unique_ptr<MemoryManagedPaintCanvas>
+MemoryManagedPaintCanvas::CreateChildCanvas() {
+  // Using `new` to access a non-public constructor.
+  auto canvas = base::WrapUnique(
+      new MemoryManagedPaintCanvas(CreateChildCanvasTag(), *this));
+  if (!IsDrawLinesAsPathsEnabled()) {
+    canvas->DisableLineDrawingAsPaths();
+  }
+  return canvas;
+}
+
 cc::PaintRecord MemoryManagedPaintCanvas::ReleaseAsRecord() {
   cached_image_ids_.clear();
+  image_bytes_used_ = 0;
   return cc::InspectableRecordPaintCanvas::ReleaseAsRecord();
 }
 
@@ -43,11 +59,15 @@ void MemoryManagedPaintCanvas::drawImageRect(
 }
 
 void MemoryManagedPaintCanvas::UpdateMemoryUsage(const cc::PaintImage& image) {
-  if (cached_image_ids_.Contains(image.GetContentIdForFrame(0u)))
+  if (image.IsDeferredPaintRecord()) {
     return;
+  }
+  if (cached_image_ids_.Contains(image.GetContentIdForFrame(0u))) {
+    return;
+  }
 
   cached_image_ids_.insert(image.GetContentIdForFrame(0u));
-  client_->DidPinImage(image.GetSkImageInfo().computeMinByteSize());
+  image_bytes_used_ += image.GetSkImageInfo().computeMinByteSize();
 }
 
 bool MemoryManagedPaintCanvas::IsCachingImage(

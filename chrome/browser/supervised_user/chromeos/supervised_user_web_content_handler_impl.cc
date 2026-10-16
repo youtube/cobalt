@@ -7,38 +7,35 @@
 #include "base/functional/bind.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
+#include "chrome/browser/supervised_user/chromeos/chromeos_utils.h"
 #include "chrome/browser/supervised_user/chromeos/supervised_user_favicon_request_handler.h"
 #include "chrome/browser/supervised_user/supervised_user_browser_utils.h"
 #include "chrome/browser/supervised_user/supervised_user_settings_service_factory.h"
 #include "chrome/browser/ui/chrome_pages.h"
-#include "chrome/grit/generated_resources.h"
+#include "chromeos/crosapi/mojom/parent_access.mojom.h"
 #include "components/favicon/core/large_icon_service.h"
 #include "components/supervised_user/core/browser/supervised_user_settings_service.h"
+#include "components/supervised_user/core/browser/supervised_user_utils.h"
 #include "components/supervised_user/core/common/features.h"
+#include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "content/public/browser/web_contents.h"
-#include "ui/base/l10n/l10n_util.h"
-#include "ui/gfx/image/image_skia.h"
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/crosapi/crosapi_ash.h"
-#include "chrome/browser/ash/crosapi/crosapi_manager.h"
-#include "chrome/browser/ash/crosapi/parent_access_ash.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 namespace {
 
-supervised_user::WebContentHandler::LocalApprovalResult
-ChromeOSResultToLocalApprovalResult(
+supervised_user::LocalApprovalResult ChromeOSResultToLocalApprovalResult(
     crosapi::mojom::ParentAccessResult::Tag result) {
   switch (result) {
     case crosapi::mojom::ParentAccessResult::Tag::kApproved:
-      return supervised_user::WebContentHandler::LocalApprovalResult::kApproved;
+      return supervised_user::LocalApprovalResult::kApproved;
     case crosapi::mojom::ParentAccessResult::Tag::kDeclined:
-      return supervised_user::WebContentHandler::LocalApprovalResult::kDeclined;
+      return supervised_user::LocalApprovalResult::kDeclined;
     case crosapi::mojom::ParentAccessResult::Tag::kCanceled:
-      return supervised_user::WebContentHandler::LocalApprovalResult::kCanceled;
+      return supervised_user::LocalApprovalResult::kCanceled;
     case crosapi::mojom::ParentAccessResult::Tag::kError:
-      return supervised_user::WebContentHandler::LocalApprovalResult::kError;
+      return supervised_user::LocalApprovalResult::kError;
+    case crosapi::mojom::ParentAccessResult::Tag::kDisabled:
+      // Disabled is not a possible result for Local Web Approvals.
+      NOTREACHED();
   }
 }
 
@@ -60,17 +57,15 @@ void HandleChromeOSErrorResult(
       return;
     case crosapi::mojom::ParentAccessErrorResult::Type::kNone:
       NOTREACHED();
-      return;
   }
 }
-
 }  // namespace
 
 SupervisedUserWebContentHandlerImpl::SupervisedUserWebContentHandlerImpl(
     content::WebContents* web_contents,
     const GURL& url,
     favicon::LargeIconService& large_icon_service,
-    int frame_id,
+    content::FrameTreeNodeId frame_id,
     int64_t interstitial_navigation_id)
     : ChromeSupervisedUserWebContentHandlerBase(web_contents,
                                                 frame_id,
@@ -96,8 +91,9 @@ SupervisedUserWebContentHandlerImpl::~SupervisedUserWebContentHandlerImpl() =
 void SupervisedUserWebContentHandlerImpl::RequestLocalApproval(
     const GURL& url,
     const std::u16string& child_display_name,
+    const supervised_user::UrlFormatter& url_formatter,
+    const supervised_user::FilteringBehaviorReason& filtering_behavior_reason,
     ApprovalRequestInitiatedCallback callback) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
   CHECK(web_contents_);
   supervised_user::SupervisedUserSettingsService* settings_service =
       SupervisedUserSettingsServiceFactory::GetForKey(
@@ -105,30 +101,23 @@ void SupervisedUserWebContentHandlerImpl::RequestLocalApproval(
               ->GetProfileKey());
 
   crosapi::mojom::ParentAccess* parent_access =
-      crosapi::CrosapiManager::Get()->crosapi_ash()->parent_access_ash();
+      supervised_user::GetParentAccessApi();
   CHECK(parent_access);
+  GURL target_url = url_formatter.FormatUrl(url);
 
+  // TODO(b/322484529): Standardize the url formatting for local approvals
+  // across platforms.
   parent_access->GetWebsiteParentApproval(
-      url.GetWithEmptyPath(), child_display_name,
-      favicon_handler_->GetFaviconOrFallback(),
+      target_url.GetWithEmptyPath(), child_display_name,
+      // Receiver does not need multi-resolution image. Pass single-resolution
+      // ImageSkia for compatibility with mojo interface.
+      gfx::ImageSkia::CreateFrom1xBitmap(
+          favicon_handler_->GetFaviconOrFallback()),
       base::BindOnce(
           &SupervisedUserWebContentHandlerImpl::OnLocalApprovalRequestCompleted,
-          weak_ptr_factory_.GetWeakPtr(), std::ref(*settings_service), url,
-          base::TimeTicks::Now()));
+          weak_ptr_factory_.GetWeakPtr(), std::ref(*settings_service),
+          target_url, base::TimeTicks::Now()));
   std::move(callback).Run(true);
-#else   // Local Web approvals not yet supported on Lacros.
-  NOTREACHED_NORETURN();
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-}
-
-void SupervisedUserWebContentHandlerImpl::ShowFeedback(GURL url,
-                                                       std::u16string reason) {
-  std::string message = l10n_util::GetStringFUTF8(
-      IDS_BLOCK_INTERSTITIAL_DEFAULT_FEEDBACK_TEXT, reason);
-  chrome::ShowFeedbackPage(
-      url, &profile_.get(), chrome::kFeedbackSourceSupervisedUserInterstitial,
-      message, std::string() /* description_placeholder_text */,
-      std::string() /* category_tag */, std::string() /* extra_diagnostics */);
 }
 
 void SupervisedUserWebContentHandlerImpl::OnLocalApprovalRequestCompleted(
@@ -138,7 +127,8 @@ void SupervisedUserWebContentHandlerImpl::OnLocalApprovalRequestCompleted(
     crosapi::mojom::ParentAccessResultPtr result) {
   WebContentHandler::OnLocalApprovalRequestCompleted(
       settings_service, url, start_time,
-      ChromeOSResultToLocalApprovalResult(result->which()));
+      ChromeOSResultToLocalApprovalResult(result->which()),
+      /*local_approval_error_type=*/std::nullopt);
 
   if (result->is_error()) {
     HandleChromeOSErrorResult(result->get_error()->type);

@@ -10,7 +10,7 @@
 
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
@@ -36,15 +36,14 @@
 #include "extensions/common/manifest_constants.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/policy/active_directory/active_directory_policy_manager.h"
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/ash/policy/core/device_cloud_policy_manager_ash.h"
 #include "chrome/browser/ash/policy/core/device_cloud_policy_store_ash.h"
 #include "chrome/browser/ash/policy/core/device_local_account.h"
 #include "chrome/browser/ash/policy/core/device_local_account_policy_service.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
@@ -56,7 +55,7 @@ namespace policy {
 
 namespace {
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 Value::Dict GetIdentityFieldsFromPolicy(
     const enterprise_management::PolicyData* policy) {
   Value::Dict identity_fields;
@@ -82,8 +81,7 @@ Value::Dict GetIdentityFieldsFromPolicy(
 
   return identity_fields;
 }
-
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace
 
@@ -91,7 +89,7 @@ ChromePolicyConversionsClient::ChromePolicyConversionsClient(
     content::BrowserContext* context) {
   DCHECK(context);
   profile_ = Profile::FromBrowserContext(
-      chrome::GetBrowserContextRedirectedInIncognito(context));
+      GetBrowserContextRedirectedInIncognito(context));
 }
 
 ChromePolicyConversionsClient::~ChromePolicyConversionsClient() = default;
@@ -125,12 +123,13 @@ Value::List ChromePolicyConversionsClient::GetExtensionPolicies(
 
   const bool for_signin_screen =
       policy_domain == POLICY_DOMAIN_SIGNIN_EXTENSIONS;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  Profile* extension_profile =
-      for_signin_screen ? ash::ProfileHelper::GetSigninProfile() : profile_;
-#else   // BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
+  Profile* extension_profile = for_signin_screen
+                                   ? ash::ProfileHelper::GetSigninProfile()
+                                   : profile_.get();
+#else   // BUILDFLAG(IS_CHROMEOS)
   Profile* extension_profile = profile_;
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   const extensions::ExtensionRegistry* registry =
       extensions::ExtensionRegistry::Get(extension_profile);
@@ -178,7 +177,7 @@ Value::List ChromePolicyConversionsClient::GetExtensionPolicies(
   return policies;
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 Value::List ChromePolicyConversionsClient::GetDeviceLocalAccountPolicies() {
   Value::List policies;
   // DeviceLocalAccount policies are only available for affiliated users and for
@@ -274,14 +273,6 @@ Value::Dict ChromePolicyConversionsClient::GetIdentityFields() {
   if (connector->IsDeviceEnterpriseManaged()) {
     identity_fields.Set("enrollment_domain",
                         connector->GetEnterpriseEnrollmentDomain());
-
-    if (connector->IsActiveDirectoryManaged()) {
-      Value::Dict active_directory_info = GetIdentityFieldsFromPolicy(
-          connector->GetDeviceActiveDirectoryPolicyManager()
-              ->store()
-              ->policy());
-      identity_fields.Merge(std::move(active_directory_info));
-    }
 
     if (connector->IsCloudManaged()) {
       Value::Dict cloud_info = GetIdentityFieldsFromPolicy(

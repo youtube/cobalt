@@ -28,7 +28,7 @@ views::WebView* FindWebViewWithContentsRecursive(
     return web_view;
   }
 
-  for (auto* const child_view : from_view->children()) {
+  for (views::View* const child_view : from_view->children()) {
     auto* const result = FindWebViewWithContentsRecursive(child_view, contents);
     if (result) {
       return result;
@@ -72,7 +72,7 @@ std::unique_ptr<HelpBubble> FloatingWebUIHelpBubbleFactory::CreateBubble(
   internal::HelpBubbleAnchorParams anchor;
   anchor.view = GetWebViewForElement(element);
   anchor.rect = element->GetScreenBounds();
-  auto result = CreateBubbleImpl(element, anchor, std::move(params));
+  auto result = CreateBubbleImpl(element, anchor, std::move(params), nullptr);
   element->AsA<TrackedElementWebUI>()->handler()->OnFloatingHelpBubbleCreated(
       element->identifier(), result.get());
   return result;

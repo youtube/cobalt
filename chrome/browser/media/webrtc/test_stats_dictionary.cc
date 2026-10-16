@@ -5,10 +5,10 @@
 #include "chrome/browser/media/webrtc/test_stats_dictionary.h"
 
 #include <memory>
+#include <optional>
 
 #include "base/check.h"
 #include "base/json/json_writer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 
@@ -65,8 +65,7 @@ TestStatsDictionary::TestStatsDictionary(TestStatsReportDictionary* report,
 TestStatsDictionary::TestStatsDictionary(
     const TestStatsDictionary& other) = default;
 
-TestStatsDictionary::~TestStatsDictionary() {
-}
+TestStatsDictionary::~TestStatsDictionary() = default;
 
 bool TestStatsDictionary::IsBoolean(const std::string& key) const {
   bool value;
@@ -138,7 +137,7 @@ std::vector<std::string> TestStatsDictionary::GetSequenceString(
 
 bool TestStatsDictionary::GetBoolean(
     const std::string& key, bool* out) const {
-  if (absl::optional<bool> value = stats_->FindBool(key)) {
+  if (std::optional<bool> value = stats_->FindBool(key)) {
     *out = *value;
     return true;
   }
@@ -147,7 +146,7 @@ bool TestStatsDictionary::GetBoolean(
 
 bool TestStatsDictionary::GetNumber(
     const std::string& key, double* out) const {
-  if (absl::optional<double> value = stats_->FindDouble(key)) {
+  if (std::optional<double> value = stats_->FindDouble(key)) {
     *out = *value;
     return true;
   }
@@ -162,7 +161,7 @@ bool TestStatsDictionary::GetSequenceBoolean(
     return false;
   std::vector<bool> sequence;
   for (const base::Value& arg : *list) {
-    absl::optional<bool> bool_value = arg.GetIfBool();
+    std::optional<bool> bool_value = arg.GetIfBool();
     if (!bool_value.has_value())
       return false;
     sequence.push_back(*bool_value);
@@ -180,7 +179,7 @@ bool TestStatsDictionary::GetSequenceNumber(
 
   out->clear();
   for (const base::Value& element : *number_sequence) {
-    absl::optional<double> double_value = element.GetIfDouble();
+    std::optional<double> double_value = element.GetIfDouble();
     if (!double_value)
       return false;
 

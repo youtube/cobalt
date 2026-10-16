@@ -9,11 +9,20 @@
 
 #include "components/safe_browsing/core/common/proto/client_model.pb.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace safe_browsing::visual_utils {
+
+// Enum used to represent the result of the function |CanExtractVisualFeatures|.
+enum class CanExtractVisualFeaturesResult {
+  kCanExtractVisualFeatures = 0,
+  kUserNotOptedIn = 1,
+  kOffTheRecord = 2,
+  kBelowMinFrame = 3,
+  kAboveZoomLevel = 4,
+  kMaxValue = kAboveZoomLevel,
+};
 
 // Computes the BlurredImage for the given input image. This involves
 // downsampling the image to a certain fixed resolution, then blurring
@@ -29,16 +38,18 @@ std::unique_ptr<SkBitmap> BlockMeanAverage(const SkBitmap& image,
                                            int block_size);
 
 // Whether we can extract visual features from a page with a given size and zoom
-// level.
+// level. For password protection, the safe browsing preference that allows the
+// extraction are extended reporting and enhanced safe browsing, whereas for
+// client side detection, it's just enhanced safe browsing.
 #if BUILDFLAG(IS_ANDROID)
-bool CanExtractVisualFeatures(bool is_extended_reporting,
-                              bool is_off_the_record,
-                              gfx::Size size);
+CanExtractVisualFeaturesResult CanExtractVisualFeatures(bool is_user_opted_in,
+                                                        bool is_off_the_record,
+                                                        gfx::Size size);
 #else
-bool CanExtractVisualFeatures(bool is_extended_reporting,
-                              bool is_off_the_record,
-                              gfx::Size size,
-                              double zoom_level);
+CanExtractVisualFeaturesResult CanExtractVisualFeatures(bool is_user_opted_in,
+                                                        bool is_off_the_record,
+                                                        gfx::Size size,
+                                                        double zoom_level);
 #endif
 
 // Extract a VisualFeatures proto from the given `bitmap`.

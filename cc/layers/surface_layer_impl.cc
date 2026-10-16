@@ -18,6 +18,7 @@
 #include "cc/trees/occlusion.h"
 #include "components/viz/common/quads/solid_color_draw_quad.h"
 #include "components/viz/common/quads/surface_draw_quad.h"
+#include "ui/gfx/geometry/vector2d_conversions.h"
 
 namespace cc {
 
@@ -59,6 +60,10 @@ SurfaceLayerImpl::~SurfaceLayerImpl() {
   // the right thing already.
 }
 
+mojom::LayerType SurfaceLayerImpl::GetLayerType() const {
+  return mojom::LayerType::kSurface;
+}
+
 std::unique_ptr<LayerImpl> SurfaceLayerImpl::CreateLayerImpl(
     LayerTreeImpl* tree_impl) const {
   return SurfaceLayerImpl::Create(tree_impl, id(),
@@ -66,7 +71,7 @@ std::unique_ptr<LayerImpl> SurfaceLayerImpl::CreateLayerImpl(
 }
 
 void SurfaceLayerImpl::SetRange(const viz::SurfaceRange& surface_range,
-                                absl::optional<uint32_t> deadline_in_frames) {
+                                std::optional<uint32_t> deadline_in_frames) {
   if (surface_range_ == surface_range &&
       deadline_in_frames_ == deadline_in_frames) {
     return;
@@ -120,6 +125,21 @@ void SurfaceLayerImpl::SetIsReflection(bool is_reflection) {
   NoteLayerPropertyChanged();
 }
 
+void SurfaceLayerImpl::SetOverrideChildPaintFlags(
+    bool override_child_paint_flags) {
+  if (override_child_paint_flags_ == override_child_paint_flags) {
+    return;
+  }
+
+  override_child_paint_flags_ = override_child_paint_flags;
+  NoteLayerPropertyChanged();
+}
+
+void SurfaceLayerImpl::ResetStateForUpdateSubmissionStateCallback() {
+  will_draw_needs_reset_ = true;
+  NoteLayerPropertyChanged();
+}
+
 void SurfaceLayerImpl::PushPropertiesTo(LayerImpl* layer) {
   LayerImpl::PushPropertiesTo(layer);
   SurfaceLayerImpl* layer_impl = static_cast<SurfaceLayerImpl*>(layer);
@@ -131,6 +151,12 @@ void SurfaceLayerImpl::PushPropertiesTo(LayerImpl* layer) {
   layer_impl->SetSurfaceHitTestable(surface_hit_testable_);
   layer_impl->SetHasPointerEventsNone(has_pointer_events_none_);
   layer_impl->SetIsReflection(is_reflection_);
+  layer_impl->SetOverrideChildPaintFlags(override_child_paint_flags_);
+
+  if (layer_impl->IsActive() && will_draw_needs_reset_) {
+    layer_impl->will_draw_ = false;
+    will_draw_needs_reset_ = false;
+  }
 }
 
 bool SurfaceLayerImpl::WillDraw(
@@ -160,7 +186,8 @@ bool SurfaceLayerImpl::WillDraw(
   return will_draw;
 }
 
-void SurfaceLayerImpl::AppendQuads(viz::CompositorRenderPass* render_pass,
+void SurfaceLayerImpl::AppendQuads(const AppendQuadsContext& context,
+                                   viz::CompositorRenderPass* render_pass,
                                    AppendQuadsData* append_quads_data) {
   AppendRainbowDebugBorder(render_pass);
 
@@ -191,6 +218,10 @@ void SurfaceLayerImpl::AppendQuads(viz::CompositorRenderPass* render_pass,
                  surface_range_, background_color(),
                  stretch_content_to_fill_bounds_);
     quad->is_reflection = is_reflection_;
+    if (override_child_paint_flags()) {
+      quad->override_child_filter_quality = GetFilterQuality();
+      quad->override_child_dynamic_range_limit = GetDynamicRangeLimit();
+    }
     // Add the primary surface ID as a dependency.
     append_quads_data->activation_dependencies.push_back(surface_range_.end());
     if (deadline_in_frames_) {
@@ -211,6 +242,24 @@ void SurfaceLayerImpl::AppendQuads(viz::CompositorRenderPass* render_pass,
   // Unless the client explicitly specifies otherwise, don't block on
   // |surface_range_| more than once.
   deadline_in_frames_ = 0u;
+
+  if (!base::FeatureList::IsEnabled(
+          features::kAlignSurfaceLayerImplToPixelGrid)) {
+    return;
+  }
+
+  // Don't allow DrawQuads to align on non-pixel boundaries.
+  gfx::Vector2dF quad_rect_offset = quad_rect.OffsetFromOrigin();
+  gfx::PointF rect_offset_in_target =
+      shared_quad_state->quad_to_target_transform.MapPoint(
+          gfx::PointF(quad_rect_offset.x(), quad_rect_offset.x()));
+  gfx::Vector2dF adjustment =
+      gfx::Vector2dF(rect_offset_in_target.x(), rect_offset_in_target.y()) -
+      gfx::Vector2dF(gfx::ToRoundedVector2d(gfx::Vector2dF(
+          rect_offset_in_target.x(), rect_offset_in_target.y())));
+  if (!adjustment.IsZero()) {
+    shared_quad_state->quad_to_target_transform.PostTranslate(-adjustment);
+  }
 }
 
 bool SurfaceLayerImpl::is_surface_layer() const {
@@ -243,15 +292,14 @@ void SurfaceLayerImpl::AppendRainbowDebugBorder(
   float border_width = DebugColors::SurfaceLayerBorderWidth(
       layer_tree_impl() ? layer_tree_impl()->device_scale_factor() : 1);
 
-  SkColor4f colors[] = {
-      {1.0f, 0.0f, 0.0f, 0.5f},     // Red.
-      {1.0f, 0.65f, 0.0f, 0.5f},    // Orange.
-      {1.0f, 1.0f, 0.0f, 0.5f},     // Yellow.
-      {0.0f, 0.5f, 0.0f, 0.5f},     // Green.
-      {0.0f, 0.0f, 1.0f, 0.50f},    // Blue.
-      {0.93f, 0.51f, 0.93f, 0.5f},  // Violet.
-  };
-  const int kNumColors = std::size(colors);
+  auto colors = std::to_array<SkColor4f>({
+      SkColor4f(1.0f, 0.0f, 0.0f, 0.5f),     // Red.
+      SkColor4f(1.0f, 0.65f, 0.0f, 0.5f),    // Orange.
+      SkColor4f(1.0f, 1.0f, 0.0f, 0.5f),     // Yellow.
+      SkColor4f(0.0f, 0.5f, 0.0f, 0.5f),     // Green.
+      SkColor4f(0.0f, 0.0f, 1.0f, 0.50f),    // Blue.
+      SkColor4f(0.93f, 0.51f, 0.93f, 0.5f),  // Violet.
+  });
 
   const int kStripeWidth = 300;
   const int kStripeHeight = 300;
@@ -277,13 +325,13 @@ void SurfaceLayerImpl::AppendRainbowDebugBorder(
       bool force_anti_aliasing_off = false;
       auto* top_quad =
           render_pass->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
-      top_quad->SetNew(shared_quad_state, top, top, colors[i % kNumColors],
+      top_quad->SetNew(shared_quad_state, top, top, colors[i % colors.size()],
                        force_anti_aliasing_off);
 
       auto* bottom_quad =
           render_pass->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
       bottom_quad->SetNew(shared_quad_state, bottom, bottom,
-                          colors[kNumColors - 1 - (i % kNumColors)],
+                          colors[colors.size() - 1 - (i % colors.size())],
                           force_anti_aliasing_off);
 
       if (contents_opaque()) {
@@ -293,7 +341,7 @@ void SurfaceLayerImpl::AppendRainbowDebugBorder(
             render_pass->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
         // The inner fill is more transparent then the border.
         static const float kFillOpacity = 0.1f;
-        SkColor4f fill_color = colors[i % kNumColors];
+        SkColor4f fill_color = colors[i % colors.size()];
         fill_color.fA *= kFillOpacity;
         gfx::Rect fill_rect(x, 0, width, bounds().height());
         solid_quad->SetNew(shared_quad_state, fill_rect, fill_rect, fill_color,
@@ -305,13 +353,13 @@ void SurfaceLayerImpl::AppendRainbowDebugBorder(
       auto* left_quad =
           render_pass->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
       left_quad->SetNew(shared_quad_state, left, left,
-                        colors[kNumColors - 1 - (i % kNumColors)],
+                        colors[colors.size() - 1 - (i % colors.size())],
                         force_anti_aliasing_off);
 
       auto* right_quad =
           render_pass->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
       right_quad->SetNew(shared_quad_state, right, right,
-                         colors[i % kNumColors], force_anti_aliasing_off);
+                         colors[i % colors.size()], force_anti_aliasing_off);
     }
   }
 }
@@ -319,10 +367,6 @@ void SurfaceLayerImpl::AppendRainbowDebugBorder(
 void SurfaceLayerImpl::AsValueInto(base::trace_event::TracedValue* dict) const {
   LayerImpl::AsValueInto(dict);
   dict->SetString("surface_range", surface_range_.ToString());
-}
-
-const char* SurfaceLayerImpl::LayerTypeAsString() const {
-  return "cc::SurfaceLayerImpl";
 }
 
 }  // namespace cc

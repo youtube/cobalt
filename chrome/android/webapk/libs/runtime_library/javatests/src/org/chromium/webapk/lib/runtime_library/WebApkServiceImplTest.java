@@ -12,7 +12,6 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.IBinder;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
 
@@ -24,9 +23,7 @@ import org.junit.runner.RunWith;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.CallbackHelper;
 
-/**
- * Instrumentation tests for {@link org.chromium.webapk.WebApkServiceImpl}.
- */
+/** Instrumentation tests for {@link org.chromium.webapk.WebApkServiceImpl}. */
 @RunWith(BaseJUnit4ClassRunner.class)
 public class WebApkServiceImplTest {
     private static final String APK_WITH_WEBAPK_SERVICE_PACKAGE =
@@ -39,16 +36,12 @@ public class WebApkServiceImplTest {
     private Context mContext;
     private Context mTargetContext;
 
-    /**
-     * The target app's uid.
-     */
+    /** The target app's uid. */
     private int mTargetUid;
 
-    /**
-     * CallbackHelper which blocks till the service is connected.
-     */
-    private static class ServiceConnectionWaiter
-            extends CallbackHelper implements ServiceConnection {
+    /** CallbackHelper which blocks till the service is connected. */
+    private static class ServiceConnectionWaiter extends CallbackHelper
+            implements ServiceConnection {
         private IWebApkApi mApi;
 
         public IWebApkApi api() {
@@ -68,13 +61,11 @@ public class WebApkServiceImplTest {
     @Before
     public void setUp() {
         mContext = ApplicationProvider.getApplicationContext();
-        mTargetContext = InstrumentationRegistry.getTargetContext();
+        mTargetContext = ApplicationProvider.getApplicationContext();
         mTargetUid = getUid(mTargetContext);
     }
 
-    /**
-     * Test that an application which is not allowed to use the WebAPK service actually cannot.
-     */
+    /** Test that an application which is not allowed to use the WebAPK service actually cannot. */
     @Test
     @SmallTest
     public void testApiFailsIfNoPermission() throws Exception {
@@ -87,9 +78,7 @@ public class WebApkServiceImplTest {
         }
     }
 
-    /**
-     * Test that an application which is allowed to use the WebAPK service actually can.
-     */
+    /** Test that an application which is allowed to use the WebAPK service actually can. */
     @Test
     @SmallTest
     public void testApiWorksIfHasPermission() throws Exception {
@@ -104,35 +93,35 @@ public class WebApkServiceImplTest {
         }
     }
 
-    /**
-     * Returns the uid for {@link context}.
-     */
+    /** Returns the uid for {@link context}. */
     private static int getUid(Context context) {
         PackageManager packageManager = context.getPackageManager();
         ApplicationInfo appInfo;
         try {
-            appInfo = packageManager.getApplicationInfo(
-                    context.getPackageName(), PackageManager.GET_META_DATA);
+            appInfo =
+                    packageManager.getApplicationInfo(
+                            context.getPackageName(), PackageManager.GET_META_DATA);
             return appInfo.uid;
         } catch (Exception e) {
-            Assert.fail();
+            throw new RuntimeException(e);
         }
-        return -1;
     }
 
     /**
      * Binds to the WebAPK service and blocks till the service is connected.
+     *
      * @param context The context for the application containing the WebAPK service to bind to.
      * @param authorizedUid The uid of the only application allowed to use the WebAPK service's
-     *        methods.
+     *     methods.
      * @param smallIconId The real small icon id.
      * @return IWebApkApi to use to communicate with the service.
      */
     private static IWebApkApi bindService(Context context, int authorizedUid, int smallIconId)
             throws Exception {
         Intent intent = new Intent();
-        intent.setComponent(new ComponentName(
-                APK_WITH_WEBAPK_SERVICE_PACKAGE, WEBAPK_SERVICE_IMPL_WRAPPER_CLASS_NAME));
+        intent.setComponent(
+                new ComponentName(
+                        APK_WITH_WEBAPK_SERVICE_PACKAGE, WEBAPK_SERVICE_IMPL_WRAPPER_CLASS_NAME));
         intent.putExtra(WebApkServiceImpl.KEY_SMALL_ICON_ID, smallIconId);
         intent.putExtra(WebApkServiceImpl.KEY_HOST_BROWSER_UID, authorizedUid);
 

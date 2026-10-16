@@ -24,244 +24,81 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_TEXT_TEXT_RUN_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_TEXT_TEXT_RUN_H_
 
-#include <unicode/utf16.h>
-
 #include "base/check_op.h"
 #include "base/containers/span.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/text/tab_size.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_view.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
-#include "third_party/skia/include/core/SkRefCnt.h"
 
 namespace blink {
 
+// TextRun instances are immutable.
 class PLATFORM_EXPORT TextRun final {
   DISALLOW_NEW();
 
  public:
-  enum ExpansionBehaviorFlags {
-    kForbidTrailingExpansion = 0 << 0,
-    kAllowTrailingExpansion = 1 << 0,
-    kForbidLeadingExpansion = 0 << 1,
-    kAllowLeadingExpansion = 1 << 1,
-  };
+  // For all constructors, the contents of the specified string must
+  // outlive the created TextRun instance.
 
-  typedef unsigned ExpansionBehavior;
+  explicit TextRun(base::span<const LChar> c) : TextRun(StringView(c)) {}
 
-  TextRun(const LChar* c,
-          unsigned len,
-          float xpos = 0,
-          float expansion = 0,
-          ExpansionBehavior expansion_behavior = kAllowTrailingExpansion |
-                                                 kForbidLeadingExpansion,
-          TextDirection direction = TextDirection::kLtr,
-          bool directional_override = false)
-      : characters_length_(len),
-        len_(len),
-        xpos_(xpos),
-        expansion_(expansion),
-        expansion_behavior_(expansion_behavior),
-        is_8bit_(true),
-        allow_tabs_(false),
-        direction_(static_cast<unsigned>(direction)),
-        directional_override_(directional_override),
-        disable_spacing_(false),
-        normalize_space_(false),
-        tab_size_(0) {
-    data_.characters8 = c;
-  }
+  explicit TextRun(base::span<const UChar> c) : TextRun(StringView(c)) {}
 
-  TextRun(const UChar* c,
-          unsigned len,
-          float xpos = 0,
-          float expansion = 0,
-          ExpansionBehavior expansion_behavior = kAllowTrailingExpansion |
-                                                 kForbidLeadingExpansion,
-          TextDirection direction = TextDirection::kLtr,
-          bool directional_override = false)
-      : characters_length_(len),
-        len_(len),
-        xpos_(xpos),
-        expansion_(expansion),
-        expansion_behavior_(expansion_behavior),
-        is_8bit_(false),
-        allow_tabs_(false),
-        direction_(static_cast<unsigned>(direction)),
-        directional_override_(directional_override),
-        disable_spacing_(false),
-        normalize_space_(false),
-        tab_size_(0) {
-    data_.characters16 = c;
-  }
-
+  TextRun(const StringView& string)
+      : TextRun(string, TextDirection::kLtr, false, false) {}
   TextRun(const StringView& string,
-          float xpos = 0,
-          float expansion = 0,
-          ExpansionBehavior expansion_behavior = kAllowTrailingExpansion |
-                                                 kForbidLeadingExpansion,
-          TextDirection direction = TextDirection::kLtr,
-          bool directional_override = false)
-      : characters_length_(string.length()),
-        len_(string.length()),
-        xpos_(xpos),
-        expansion_(expansion),
-        expansion_behavior_(expansion_behavior),
-        allow_tabs_(false),
+          TextDirection direction,
+          bool directional_override = false,
+          bool normalize_space = false)
+      : text_(string),
         direction_(static_cast<unsigned>(direction)),
         directional_override_(directional_override),
-        disable_spacing_(false),
-        normalize_space_(false),
-        tab_size_(0) {
-    if (!characters_length_) {
-      is_8bit_ = true;
-      data_.characters8 = nullptr;
-    } else if (string.Is8Bit()) {
-      data_.characters8 = string.Characters8();
-      is_8bit_ = true;
-    } else {
-      data_.characters16 = string.Characters16();
-      is_8bit_ = false;
-    }
-  }
+        normalize_space_(normalize_space) {}
 
-  TextRun SubRun(unsigned start_offset, unsigned length) const {
-    DCHECK_LT(start_offset, len_);
+  // TextRun supports move construction, but supports neither copy construction,
+  // copy assignment, nor move assignment.
 
-    TextRun result = *this;
+  TextRun(const TextRun&) = delete;
+  TextRun& operator=(const TextRun&) = delete;
+  TextRun(TextRun&&) = default;
+  TextRun& operator=(TextRun&&) = delete;
 
-    if (Is8Bit()) {
-      result.SetText(Data8(start_offset), length);
-      return result;
-    }
-    result.SetText(Data16(start_offset), length);
-    return result;
+  // direction - An optional TextDirection of the new TextRun. If this is not
+  //             specified, the new TextRun inherits the TextDirection of
+  //             `this`.
+  TextRun SubRun(unsigned start_offset,
+                 unsigned length,
+                 std::optional<TextDirection> direction = std::nullopt) const {
+    return TextRun(StringView(text_, start_offset, length),
+                   direction.value_or(Direction()), directional_override_,
+                   normalize_space_);
   }
 
   // Returns the start index of a sub run if it was created by |SubRun|.
   // std::numeric_limits<unsigned>::max() if not a sub run.
   unsigned IndexOfSubRun(const TextRun&) const;
 
-  UChar operator[](unsigned i) const {
-    SECURITY_DCHECK(i < len_);
-    return Is8Bit() ? data_.characters8[i] : data_.characters16[i];
-  }
-  const LChar* Data8(unsigned i) const {
-    SECURITY_DCHECK(i < len_);
-    DCHECK(Is8Bit());
-    return &data_.characters8[i];
-  }
-  const UChar* Data16(unsigned i) const {
-    SECURITY_DCHECK(i < len_);
-    DCHECK(!Is8Bit());
-    return &data_.characters16[i];
-  }
+  UChar operator[](unsigned i) const { return text_[i]; }
 
-  // Prefer Span8() and Span16() to Characters8() and Characters16().
-  base::span<const LChar> Span8() const {
-    DCHECK(Is8Bit());
-    return {data_.characters8, len_};
-  }
-  base::span<const UChar> Span16() const {
-    DCHECK(!Is8Bit());
-    return {data_.characters16, len_};
-  }
+  base::span<const LChar> Span8() const { return text_.Span8(); }
+  base::span<const UChar> Span16() const { return text_.Span16(); }
 
-  const LChar* Characters8() const {
-    DCHECK(Is8Bit());
-    return data_.characters8;
-  }
-  const UChar* Characters16() const {
-    DCHECK(!Is8Bit());
-    return data_.characters16;
-  }
+  const StringView& ToStringView() const { return text_; }
 
-  StringView ToStringView() const {
-    return Is8Bit() ? StringView(data_.characters8, len_)
-                    : StringView(data_.characters16, len_);
-  }
-
-  UChar32 CodepointAt(unsigned i) const {
-    SECURITY_DCHECK(i < len_);
-    if (Is8Bit())
-      return (*this)[i];
-    UChar32 codepoint;
-    U16_GET(Characters16(), 0, i, len_, codepoint);
-    return codepoint;
-  }
-
-  UChar32 CodepointAtAndNext(unsigned& i) const {
-    SECURITY_DCHECK(i < len_);
-    if (Is8Bit())
-      return (*this)[i++];
-    UChar32 codepoint;
-    U16_NEXT(Characters16(), i, len_, codepoint);
-    return codepoint;
-  }
-
-  const void* Bytes() const { return data_.bytes_; }
-
-  bool Is8Bit() const { return is_8bit_; }
-  unsigned length() const { return len_; }
-  unsigned CharactersLength() const { return characters_length_; }
+  bool Is8Bit() const { return text_.Is8Bit(); }
+  unsigned length() const { return text_.length(); }
 
   bool NormalizeSpace() const { return normalize_space_; }
-  void SetNormalizeSpace(bool normalize_space) {
-    normalize_space_ = normalize_space;
-  }
 
-  void SetText(const LChar* c, unsigned len) {
-    data_.characters8 = c;
-    len_ = len;
-    is_8bit_ = true;
-  }
-  void SetText(const UChar* c, unsigned len) {
-    data_.characters16 = c;
-    len_ = len;
-    is_8bit_ = false;
-  }
-  void SetText(const String&);
-  void SetCharactersLength(unsigned characters_length) {
-    characters_length_ = characters_length;
-  }
-
-  void SetExpansionBehavior(ExpansionBehavior behavior) {
-    expansion_behavior_ = behavior;
-  }
-
-  bool AllowTabs() const { return allow_tabs_; }
-  TabSize GetTabSize() const { return tab_size_; }
-  void SetTabSize(bool, TabSize);
-
-  float XPos() const { return xpos_; }
-  void SetXPos(float x_pos) { xpos_ = x_pos; }
-  float Expansion() const { return expansion_; }
-  void SetExpansion(float expansion) { expansion_ = expansion; }
-  bool AllowsLeadingExpansion() const {
-    return expansion_behavior_ & kAllowLeadingExpansion;
-  }
-  bool AllowsTrailingExpansion() const {
-    return expansion_behavior_ & kAllowTrailingExpansion;
-  }
   TextDirection Direction() const {
     return static_cast<TextDirection>(direction_);
   }
   bool Rtl() const { return Direction() == TextDirection::kRtl; }
   bool Ltr() const { return Direction() == TextDirection::kLtr; }
   bool DirectionalOverride() const { return directional_override_; }
-  bool SpacingDisabled() const { return disable_spacing_; }
-
-  void DisableSpacing() { disable_spacing_ = true; }
-  void SetDirection(TextDirection direction) {
-    direction_ = static_cast<unsigned>(direction);
-  }
-  void SetDirectionFromText();
-  void SetDirectionalOverride(bool override) {
-    directional_override_ = override;
-  }
 
   // Up-converts to UTF-16 as needed and normalizes spaces and Unicode control
   // characters as per the CSS Text Module Level 3 specification.
@@ -269,38 +106,13 @@ class PLATFORM_EXPORT TextRun final {
   String NormalizedUTF16() const;
 
  private:
-  union {
-    const LChar* characters8;
-    const UChar* characters16;
-    const void* bytes_;
-  } data_;
-  // Marks the end of the characters buffer.  Default equals to m_len.
-  unsigned characters_length_;
-  unsigned len_;
+  const StringView text_;
 
-  // m_xpos is the x position relative to the left start of the text line, not
-  // relative to the left start of the containing block. In the case of right
-  // alignment or center alignment, left start of the text line is not the same
-  // as left start of the containing block.
-  float xpos_;
-
-  float expansion_;
-  ExpansionBehavior expansion_behavior_ : 2;
-  unsigned is_8bit_ : 1;
-  unsigned allow_tabs_ : 1;
-  unsigned direction_ : 1;
+  const unsigned direction_ : 1;
   // Was this direction set by an override character.
   unsigned directional_override_ : 1;
-  unsigned disable_spacing_ : 1;
-  unsigned text_justify_ : 2;
-  unsigned normalize_space_ : 1;
-  TabSize tab_size_;
+  const unsigned normalize_space_ : 1;
 };
-
-inline void TextRun::SetTabSize(bool allow, TabSize size) {
-  allow_tabs_ = allow;
-  tab_size_ = size;
-}
 
 }  // namespace blink
 

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "base/debug/stack_trace.h"
 
 #include <errno.h>
@@ -19,6 +24,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <array>
 #include <map>
 #include <memory>
 #include <ostream>
@@ -26,7 +32,11 @@
 #include <tuple>
 #include <vector>
 
+#include "base/containers/heap_array.h"
+#include "base/containers/span.h"
+#include "base/containers/span_writer.h"
 #include "base/memory/raw_ptr.h"
+#include "base/strings/cstring_view.h"
 #include "build/build_config.h"
 
 // Controls whether `dladdr(...)` is used to print the callstack. This is
@@ -60,12 +70,14 @@
 #endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#include <sys/prctl.h>
+
 #include "base/debug/proc_maps_linux.h"
 #endif
 
 #include "base/cfi_buildflags.h"
-#include "base/cxx17_backports.h"
 #include "base/debug/debugger.h"
+#include "base/debug/debugging_buildflags.h"
 #include "base/debug/stack_trace.h"
 #include "base/files/scoped_file.h"
 #include "base/logging.h"
@@ -81,13 +93,12 @@
 #include "base/third_party/symbolize/symbolize.h"  // nogncheck
 
 #if BUILDFLAG(ENABLE_STACK_TRACE_LINE_NUMBERS)
-#include "base/debug/dwarf_line_no.h"
+#include "base/debug/dwarf_line_no.h"  // nogncheck
 #endif
 
 #endif
 
-namespace base {
-namespace debug {
+namespace base::debug {
 
 namespace {
 
@@ -162,13 +173,12 @@ class BacktraceOutputHandler {
 };
 
 #if defined(HAVE_BACKTRACE)
-void OutputPointer(void* pointer, BacktraceOutputHandler* handler) {
+void OutputPointer(const void* pointer, BacktraceOutputHandler* handler) {
   // This should be more than enough to store a 64-bit number in hex:
   // 16 hex digits + 1 for null-terminator.
-  char buf[17] = { '\0' };
+  char buf[17] = {'\0'};
   handler->HandleOutput("0x");
-  internal::itoa_r(reinterpret_cast<intptr_t>(pointer),
-                   buf, sizeof(buf), 16, 12);
+  internal::itoa_r(reinterpret_cast<intptr_t>(pointer), 16, 12, buf);
   handler->HandleOutput(buf);
 }
 
@@ -177,8 +187,8 @@ void OutputValue(size_t value, BacktraceOutputHandler* handler) {
   // Max unsigned 64-bit number in decimal has 20 digits (18446744073709551615).
   // Hence, 30 digits should be more than enough to represent it in decimal
   // (including the null-terminator).
-  char buf[30] = { '\0' };
-  internal::itoa_r(static_cast<intptr_t>(value), buf, sizeof(buf), 10, 1);
+  char buf[30] = {'\0'};
+  internal::itoa_r(static_cast<intptr_t>(value), 10, 1, buf);
   handler->HandleOutput(buf);
 }
 #endif  // defined(HAVE_DLADDR) || defined(USE_SYMBOLIZE)
@@ -190,43 +200,50 @@ void OutputFrameId(size_t frame_id, BacktraceOutputHandler* handler) {
 }
 #endif  // defined(USE_SYMBOLIZE)
 
-void ProcessBacktrace(void* const* trace,
-                      size_t size,
-                      const char* prefix_string,
+void ProcessBacktrace(span<const void* const> traces,
+                      cstring_view prefix_string,
                       BacktraceOutputHandler* handler) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
   // stack dumping signal handler). NO malloc or stdio is allowed here.
 
+  // Don't exceed kMaxTraces or GetDwarfCompileUnitOffsets can go OOB.
+  traces = traces.first(std::min(traces.size(), StackTrace::kMaxTraces));
+
 #if defined(USE_SYMBOLIZE)
 #if BUILDFLAG(ENABLE_STACK_TRACE_LINE_NUMBERS)
-  uint64_t* cu_offsets =
-      static_cast<uint64_t*>(alloca(sizeof(uint64_t) * size));
-  GetDwarfCompileUnitOffsets(trace, cu_offsets, size);
+  std::array<uint64_t, StackTrace::kMaxTraces> cu_offsets = {};
+  GetDwarfCompileUnitOffsets(traces.data(), cu_offsets.data(), traces.size());
 #endif
 
-  for (size_t i = 0; i < size; ++i) {
-    if (prefix_string)
-      handler->HandleOutput(prefix_string);
+  for (size_t i = 0; i < traces.size(); ++i) {
+    if (!prefix_string.empty()) {
+      handler->HandleOutput(prefix_string.c_str());
+    }
 
     OutputFrameId(i, handler);
     handler->HandleOutput(" ");
-    OutputPointer(trace[i], handler);
+    OutputPointer(traces[i], handler);
     handler->HandleOutput(" ");
 
-    char buf[1024] = {'\0'};
+    std::array<char, 1024> buf = {};
 
-    // Subtract by one as return address of function may be in the next
-    // function when a function is annotated as noreturn.
-    void* address = static_cast<char*>(trace[i]) - 1;
-    if (google::Symbolize(address, buf, sizeof(buf))) {
-      handler->HandleOutput(buf);
+    // Subtract by one as return address of function may be in the next function
+    // when a function is annotated as noreturn.
+    //
+    // SAFETY: The pointer here is not dereferenced, it is a program counter and
+    // it is used to look up an object file/function. It is treated as a
+    // `uintptr_t` inside Symbolize().
+    const void* address =
+        UNSAFE_BUFFERS(static_cast<const char*>(traces[i]) - 1);
+    if (google::Symbolize(const_cast<void*>(address), buf.data(), buf.size())) {
+      handler->HandleOutput(buf.data());
 #if BUILDFLAG(ENABLE_STACK_TRACE_LINE_NUMBERS)
       // Only output the source line number if the offset was found. Otherwise,
       // it takes far too long in debug mode when there are lots of symbols.
-      if (GetDwarfSourceLineNumber(address, cu_offsets[i], &buf[0],
-                                   sizeof(buf))) {
+      if (GetDwarfSourceLineNumber(address, cu_offsets[i], buf.data(),
+                                   buf.size())) {
         handler->HandleOutput(" [");
-        handler->HandleOutput(buf);
+        handler->HandleOutput(buf.data());
         handler->HandleOutput("]");
       }
 #endif
@@ -241,40 +258,51 @@ void ProcessBacktrace(void* const* trace,
 
   // Below part is async-signal unsafe (uses malloc), so execute it only
   // when we are not executing the signal handler.
-  if (in_signal_handler == 0 && IsValueInRangeForNumericType<int>(size)) {
+  if (in_signal_handler == 0 &&
+      IsValueInRangeForNumericType<int>(traces.size())) {
 #if defined(HAVE_DLADDR)
     Dl_info dl_info;
-    for (size_t i = 0; i < size; ++i) {
-      if (prefix_string) {
-        handler->HandleOutput(prefix_string);
+    for (size_t i = 0; i < traces.size(); ++i) {
+      if (!prefix_string.empty()) {
+        handler->HandleOutput(prefix_string.c_str());
       }
 
       OutputValue(i, handler);
       handler->HandleOutput(" ");
 
-      const bool dl_info_found = dladdr(trace[i], &dl_info) != 0;
+      const bool dl_info_found = dladdr(traces[i], &dl_info) != 0;
       if (dl_info_found) {
-        const char* last_sep = strrchr(dl_info.dli_fname, '/');
-        const char* basename = last_sep ? last_sep + 1 : dl_info.dli_fname;
-        handler->HandleOutput(basename);
+        // SAFETY: dl_info::dli_fname is a NUL-terminated cstring.
+        auto dli_fname = UNSAFE_BUFFERS(base::cstring_view(dl_info.dli_fname));
+        if (size_t last_sep = dli_fname.rfind('/');
+            last_sep != base::cstring_view::npos) {
+          dli_fname.remove_prefix(last_sep + 1u);
+        }
+        handler->HandleOutput(dli_fname.c_str());
       } else {
         handler->HandleOutput("???");
       }
       handler->HandleOutput(" ");
-      OutputPointer(trace[i], handler);
+      OutputPointer(traces[i], handler);
 
       handler->HandleOutput("\n");
     }
     printed = true;
 #else   // defined(HAVE_DLADDR)
-    std::unique_ptr<char*, FreeDeleter> trace_symbols(
-        backtrace_symbols(trace, static_cast<int>(size)));
-    if (trace_symbols.get()) {
-      for (size_t i = 0; i < size; ++i) {
-        std::string trace_symbol = trace_symbols.get()[i];
+    auto trace_symbols =
+        // SAFETY: backtrace_symbols returns an allocated array of the same size
+        // as the input array, which is traces.size().
+        UNSAFE_BUFFERS(base::HeapArray<char*, FreeDeleter>::FromOwningPointer(
+            backtrace_symbols(const_cast<void* const*>(traces.data()),
+                              static_cast<int>(traces.size())),
+            traces.size()));
+    if (!trace_symbols.empty()) {
+      for (char* s : trace_symbols) {
+        auto trace_symbol = std::string(s);
         DemangleSymbols(&trace_symbol);
-        if (prefix_string)
-          handler->HandleOutput(prefix_string);
+        if (!prefix_string.empty()) {
+          handler->HandleOutput(prefix_string.c_str());
+        }
         handler->HandleOutput(trace_symbol.c_str());
         handler->HandleOutput("\n");
       }
@@ -285,9 +313,9 @@ void ProcessBacktrace(void* const* trace,
   }
 
   if (!printed) {
-    for (size_t i = 0; i < size; ++i) {
+    for (const void* const trace : traces) {
       handler->HandleOutput(" [");
-      OutputPointer(trace[i], handler);
+      OutputPointer(trace, handler);
       handler->HandleOutput("]\n");
     }
   }
@@ -302,7 +330,7 @@ void PrintToStderr(const char* output) {
 }
 
 #if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
 void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // We have seen rare cases on AMD linux where the default signal handler
   // either does not run or a thread (Probably an AMD driver thread) prevents
@@ -321,7 +349,8 @@ void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // See: https://man7.org/linux/man-pages/man2/exit_group.2.html
   syscall(SYS_exit_group, EXIT_FAILURE);
 }
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) ||
+        // BUILDFLAG(IS_CHROMEOS)
 #endif // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
@@ -362,75 +391,81 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   in_signal_handler = 1;
 #endif
 
-  if (BeingDebugged())
+  if (BeingDebugged()) {
     BreakDebugger();
+  }
 
   PrintToStderr("Received signal ");
-  char buf[1024] = { 0 };
-  internal::itoa_r(signal, buf, sizeof(buf), 10, 0);
+  char buf[1024] = {0};
+  internal::itoa_r(signal, 10, 0, buf);
   PrintToStderr(buf);
   if (signal == SIGBUS) {
-    if (info->si_code == BUS_ADRALN)
+    if (info->si_code == BUS_ADRALN) {
       PrintToStderr(" BUS_ADRALN ");
-    else if (info->si_code == BUS_ADRERR)
+    } else if (info->si_code == BUS_ADRERR) {
       PrintToStderr(" BUS_ADRERR ");
-    else if (info->si_code == BUS_OBJERR)
+    } else if (info->si_code == BUS_OBJERR) {
       PrintToStderr(" BUS_OBJERR ");
-    else
+    } else {
       PrintToStderr(" <unknown> ");
+    }
   } else if (signal == SIGFPE) {
-    if (info->si_code == FPE_FLTDIV)
+    if (info->si_code == FPE_FLTDIV) {
       PrintToStderr(" FPE_FLTDIV ");
-    else if (info->si_code == FPE_FLTINV)
+    } else if (info->si_code == FPE_FLTINV) {
       PrintToStderr(" FPE_FLTINV ");
-    else if (info->si_code == FPE_FLTOVF)
+    } else if (info->si_code == FPE_FLTOVF) {
       PrintToStderr(" FPE_FLTOVF ");
-    else if (info->si_code == FPE_FLTRES)
+    } else if (info->si_code == FPE_FLTRES) {
       PrintToStderr(" FPE_FLTRES ");
-    else if (info->si_code == FPE_FLTSUB)
+    } else if (info->si_code == FPE_FLTSUB) {
       PrintToStderr(" FPE_FLTSUB ");
-    else if (info->si_code == FPE_FLTUND)
+    } else if (info->si_code == FPE_FLTUND) {
       PrintToStderr(" FPE_FLTUND ");
-    else if (info->si_code == FPE_INTDIV)
+    } else if (info->si_code == FPE_INTDIV) {
       PrintToStderr(" FPE_INTDIV ");
-    else if (info->si_code == FPE_INTOVF)
+    } else if (info->si_code == FPE_INTOVF) {
       PrintToStderr(" FPE_INTOVF ");
-    else
+    } else {
       PrintToStderr(" <unknown> ");
+    }
   } else if (signal == SIGILL) {
-    if (info->si_code == ILL_BADSTK)
+    if (info->si_code == ILL_BADSTK) {
       PrintToStderr(" ILL_BADSTK ");
-    else if (info->si_code == ILL_COPROC)
+    } else if (info->si_code == ILL_COPROC) {
       PrintToStderr(" ILL_COPROC ");
-    else if (info->si_code == ILL_ILLOPN)
+    } else if (info->si_code == ILL_ILLOPN) {
       PrintToStderr(" ILL_ILLOPN ");
-    else if (info->si_code == ILL_ILLADR)
+    } else if (info->si_code == ILL_ILLADR) {
       PrintToStderr(" ILL_ILLADR ");
-    else if (info->si_code == ILL_ILLTRP)
+    } else if (info->si_code == ILL_ILLTRP) {
       PrintToStderr(" ILL_ILLTRP ");
-    else if (info->si_code == ILL_PRVOPC)
+    } else if (info->si_code == ILL_PRVOPC) {
       PrintToStderr(" ILL_PRVOPC ");
-    else if (info->si_code == ILL_PRVREG)
+    } else if (info->si_code == ILL_PRVREG) {
       PrintToStderr(" ILL_PRVREG ");
-    else
+    } else {
       PrintToStderr(" <unknown> ");
+    }
   } else if (signal == SIGSEGV) {
-    if (info->si_code == SEGV_MAPERR)
+    if (info->si_code == SEGV_MAPERR) {
       PrintToStderr(" SEGV_MAPERR ");
-    else if (info->si_code == SEGV_ACCERR)
+    } else if (info->si_code == SEGV_ACCERR) {
       PrintToStderr(" SEGV_ACCERR ");
+    }
 #if defined(ARCH_CPU_X86_64) && \
     (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS))
-    else if (info->si_code == SI_KERNEL)
+    else if (info->si_code == SI_KERNEL) {
       PrintToStderr(" SI_KERNEL");
+    }
 #endif
-    else
+    else {
       PrintToStderr(" <unknown> ");
+    }
   }
-  if (signal == SIGBUS || signal == SIGFPE ||
-      signal == SIGILL || signal == SIGSEGV) {
-    internal::itoa_r(reinterpret_cast<intptr_t>(info->si_addr),
-                     buf, sizeof(buf), 16, 12);
+  if (signal == SIGBUS || signal == SIGFPE || signal == SIGILL ||
+      signal == SIGSEGV) {
+    internal::itoa_r(reinterpret_cast<intptr_t>(info->si_addr), 16, 12, buf);
     PrintToStderr(buf);
   }
   PrintToStderr("\n");
@@ -460,56 +495,39 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #if ARCH_CPU_X86_FAMILY
   ucontext_t* context = reinterpret_cast<ucontext_t*>(void_context);
-  const struct {
+  auto gregs = base::span(context->uc_mcontext.gregs);
+
+  struct Register {
     const char* label;
     greg_t value;
-  } registers[] = {
-#if ARCH_CPU_32_BITS
-    { "  gs: ", context->uc_mcontext.gregs[REG_GS] },
-    { "  fs: ", context->uc_mcontext.gregs[REG_FS] },
-    { "  es: ", context->uc_mcontext.gregs[REG_ES] },
-    { "  ds: ", context->uc_mcontext.gregs[REG_DS] },
-    { " edi: ", context->uc_mcontext.gregs[REG_EDI] },
-    { " esi: ", context->uc_mcontext.gregs[REG_ESI] },
-    { " ebp: ", context->uc_mcontext.gregs[REG_EBP] },
-    { " esp: ", context->uc_mcontext.gregs[REG_ESP] },
-    { " ebx: ", context->uc_mcontext.gregs[REG_EBX] },
-    { " edx: ", context->uc_mcontext.gregs[REG_EDX] },
-    { " ecx: ", context->uc_mcontext.gregs[REG_ECX] },
-    { " eax: ", context->uc_mcontext.gregs[REG_EAX] },
-    { " trp: ", context->uc_mcontext.gregs[REG_TRAPNO] },
-    { " err: ", context->uc_mcontext.gregs[REG_ERR] },
-    { "  ip: ", context->uc_mcontext.gregs[REG_EIP] },
-    { "  cs: ", context->uc_mcontext.gregs[REG_CS] },
-    { " efl: ", context->uc_mcontext.gregs[REG_EFL] },
-    { " usp: ", context->uc_mcontext.gregs[REG_UESP] },
-    { "  ss: ", context->uc_mcontext.gregs[REG_SS] },
-#elif ARCH_CPU_64_BITS
-    { "  r8: ", context->uc_mcontext.gregs[REG_R8] },
-    { "  r9: ", context->uc_mcontext.gregs[REG_R9] },
-    { " r10: ", context->uc_mcontext.gregs[REG_R10] },
-    { " r11: ", context->uc_mcontext.gregs[REG_R11] },
-    { " r12: ", context->uc_mcontext.gregs[REG_R12] },
-    { " r13: ", context->uc_mcontext.gregs[REG_R13] },
-    { " r14: ", context->uc_mcontext.gregs[REG_R14] },
-    { " r15: ", context->uc_mcontext.gregs[REG_R15] },
-    { "  di: ", context->uc_mcontext.gregs[REG_RDI] },
-    { "  si: ", context->uc_mcontext.gregs[REG_RSI] },
-    { "  bp: ", context->uc_mcontext.gregs[REG_RBP] },
-    { "  bx: ", context->uc_mcontext.gregs[REG_RBX] },
-    { "  dx: ", context->uc_mcontext.gregs[REG_RDX] },
-    { "  ax: ", context->uc_mcontext.gregs[REG_RAX] },
-    { "  cx: ", context->uc_mcontext.gregs[REG_RCX] },
-    { "  sp: ", context->uc_mcontext.gregs[REG_RSP] },
-    { "  ip: ", context->uc_mcontext.gregs[REG_RIP] },
-    { " efl: ", context->uc_mcontext.gregs[REG_EFL] },
-    { " cgf: ", context->uc_mcontext.gregs[REG_CSGSFS] },
-    { " erf: ", context->uc_mcontext.gregs[REG_ERR] },
-    { " trp: ", context->uc_mcontext.gregs[REG_TRAPNO] },
-    { " msk: ", context->uc_mcontext.gregs[REG_OLDMASK] },
-    { " cr2: ", context->uc_mcontext.gregs[REG_CR2] },
-#endif  // ARCH_CPU_32_BITS
   };
+  const auto registers = std::to_array<Register>({
+#if ARCH_CPU_32_BITS
+      {"  gs: ", gregs[REG_GS]},     {"  fs: ", gregs[REG_FS]},
+      {"  es: ", gregs[REG_ES]},     {"  ds: ", gregs[REG_DS]},
+      {" edi: ", gregs[REG_EDI]},    {" esi: ", gregs[REG_ESI]},
+      {" ebp: ", gregs[REG_EBP]},    {" esp: ", gregs[REG_ESP]},
+      {" ebx: ", gregs[REG_EBX]},    {" edx: ", gregs[REG_EDX]},
+      {" ecx: ", gregs[REG_ECX]},    {" eax: ", gregs[REG_EAX]},
+      {" trp: ", gregs[REG_TRAPNO]}, {" err: ", gregs[REG_ERR]},
+      {"  ip: ", gregs[REG_EIP]},    {"  cs: ", gregs[REG_CS]},
+      {" efl: ", gregs[REG_EFL]},    {" usp: ", gregs[REG_UESP]},
+      {"  ss: ", gregs[REG_SS]},
+#elif ARCH_CPU_64_BITS
+      {"  r8: ", gregs[REG_R8]},     {"  r9: ", gregs[REG_R9]},
+      {" r10: ", gregs[REG_R10]},    {" r11: ", gregs[REG_R11]},
+      {" r12: ", gregs[REG_R12]},    {" r13: ", gregs[REG_R13]},
+      {" r14: ", gregs[REG_R14]},    {" r15: ", gregs[REG_R15]},
+      {"  di: ", gregs[REG_RDI]},    {"  si: ", gregs[REG_RSI]},
+      {"  bp: ", gregs[REG_RBP]},    {"  bx: ", gregs[REG_RBX]},
+      {"  dx: ", gregs[REG_RDX]},    {"  ax: ", gregs[REG_RAX]},
+      {"  cx: ", gregs[REG_RCX]},    {"  sp: ", gregs[REG_RSP]},
+      {"  ip: ", gregs[REG_RIP]},    {" efl: ", gregs[REG_EFL]},
+      {" cgf: ", gregs[REG_CSGSFS]}, {" erf: ", gregs[REG_ERR]},
+      {" trp: ", gregs[REG_TRAPNO]}, {" msk: ", gregs[REG_OLDMASK]},
+      {" cr2: ", gregs[REG_CR2]},
+#endif  // ARCH_CPU_32_BITS
+  });
 
 #if ARCH_CPU_32_BITS
   const int kRegisterPadding = 8;
@@ -519,12 +537,12 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
 
   for (size_t i = 0; i < std::size(registers); i++) {
     PrintToStderr(registers[i].label);
-    internal::itoa_r(registers[i].value, buf, sizeof(buf),
-                     16, kRegisterPadding);
+    internal::itoa_r(registers[i].value, 16, kRegisterPadding, buf);
     PrintToStderr(buf);
 
-    if ((i + 1) % 4 == 0)
+    if ((i + 1) % 4 == 0) {
       PrintToStderr("\n");
+    }
   }
   PrintToStderr("\n");
 #endif  // ARCH_CPU_X86_FAMILY
@@ -532,24 +550,16 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
 
   PrintToStderr("[end of stack trace]\n");
 
-#if BUILDFLAG(IS_MAC)
   if (::signal(signal, SIG_DFL) == SIG_ERR) {
     _exit(EXIT_FAILURE);
   }
-#elif !BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-  // For all operating systems but Linux we do not reraise the signal that
-  // brought us here but terminate the process immediately.
-  // Otherwise various tests break on different operating systems, see
-  // https://code.google.com/p/chromium/issues/detail?id=551681 amongst others.
+
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   PrintToStderr(
       "Calling _exit(EXIT_FAILURE). Core file will not be generated.\n");
   _exit(EXIT_FAILURE);
-#else   // BUILDFLAG(IS_LINUX)
-
-  // After leaving this handler control flow returns to the point where the
-  // signal was raised, raising the current signal once again but executing the
-  // default handler instead of this one.
-
+#else
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
   // Set an alarm to trigger in case the default handler does not terminate
   // the process. See 'AlarmSignalHandler' for more details.
   struct sigaction action;
@@ -564,7 +574,43 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // shorter than chrome's process watchdog timer.
   constexpr unsigned int kAlarmSignalDelaySeconds = 5;
   alarm(kAlarmSignalDelaySeconds);
-#endif  // !BUILDFLAG(IS_LINUX)
+
+  // The following is mostly from
+  // third_party/crashpad/crashpad/util/posix/signals.cc as re-raising signals
+  // is complicated.
+
+  // If we can raise a signal with siginfo on this platform, do so. This ensures
+  // that we preserve the siginfo information for asynchronous signals (i.e.
+  // signals that do not re-raise autonomously), such as signals delivered via
+  // kill() and asynchronous hardware faults such as SEGV_MTEAERR, which would
+  // otherwise be lost when re-raising the signal via raise().
+  long retval = syscall(SYS_rt_tgsigqueueinfo, getpid(), syscall(SYS_gettid),
+                        info->si_signo, info);
+  if (retval == 0) {
+    return;
+  }
+
+  // Kernels without commit 66dd34ad31e5 ("signal: allow to send any siginfo to
+  // itself"), which was first released in kernel version 3.9, did not permit a
+  // process to send arbitrary signals to itself, and will reject the
+  // rt_tgsigqueueinfo syscall with EPERM. If that happens, follow the non-Linux
+  // code path. Any other errno is unexpected and will cause us to exit.
+  if (errno != EPERM) {
+    _exit(EXIT_FAILURE);
+  }
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) ||
+        // BUILDFLAG(IS_CHROMEOS)
+
+  // Explicitly re-raise the signal even if it might have re-raised itself on
+  // return. Because signal handlers normally execute with their signal blocked,
+  // this raise() cannot immediately deliver the signal. Delivery is deferred
+  // until the signal handler returns and the signal becomes unblocked. The
+  // re-raised signal will appear with the same context as where it was
+  // initially triggered.
+  if (raise(signal) != 0) {
+    _exit(EXIT_FAILURE);
+  }
+#endif
 }
 
 class PrintBacktraceOutputHandler : public BacktraceOutputHandler {
@@ -584,8 +630,7 @@ class PrintBacktraceOutputHandler : public BacktraceOutputHandler {
 
 class StreamBacktraceOutputHandler : public BacktraceOutputHandler {
  public:
-  explicit StreamBacktraceOutputHandler(std::ostream* os) : os_(os) {
-  }
+  explicit StreamBacktraceOutputHandler(std::ostream* os) : os_(os) {}
 
   StreamBacktraceOutputHandler(const StreamBacktraceOutputHandler&) = delete;
   StreamBacktraceOutputHandler& operator=(const StreamBacktraceOutputHandler&) =
@@ -655,10 +700,7 @@ class SandboxSymbolizeHelper {
  private:
   friend struct DefaultSingletonTraits<SandboxSymbolizeHelper>;
 
-  SandboxSymbolizeHelper()
-      : is_initialized_(false) {
-    Init();
-  }
+  SandboxSymbolizeHelper() { Init(); }
 
   ~SandboxSymbolizeHelper() {
     UnregisterCallback();
@@ -704,15 +746,22 @@ class SandboxSymbolizeHelper {
   // address into |base_address|, copies the object file name into
   // |out_file_name|, and attempts to open the object file.  If the object
   // file is opened successfully, returns the file descriptor.  Otherwise,
-  // returns -1.  |out_file_name_size| is the size of the file name buffer
-  // (including the null terminator).
+  // returns -1.
   // IMPORTANT: This function must be async-signal-safe because it can be
   // called from a signal handler (symbolizing stack frames for a crash).
   static int OpenObjectFileContainingPc(uint64_t pc,
                                         uint64_t& start_address,
                                         uint64_t& base_address,
-                                        char* file_path,
+                                        char* file_path_ptr,
                                         size_t file_path_size) {
+    auto file_path =
+        // SAFETY: This function is given as a function pointer to
+        // google::InstallSymbolizeOpenObjectFileCallback. It provides
+        // `file_path_size` as the size of the string in `file_path_ptr`,
+        // including a NUL terminator. Via code inspection we can see that
+        // `file_path_ptr` can be null, in which case `file_path_size` is zero.
+        UNSAFE_BUFFERS(base::span(file_path_ptr, file_path_size));
+
     // This method can only be called after the singleton is instantiated.
     // This is ensured by the following facts:
     // * This is the only static method in this class, it is private, and
@@ -728,13 +777,13 @@ class SandboxSymbolizeHelper {
     // NOLINTNEXTLINE(modernize-loop-convert)
     for (size_t i = 0; i < instance->regions_.size(); ++i) {
       const MappedMemoryRegion& region = instance->regions_[i];
+      // We overwrite the file_path with the if `pc` is within a
+      // MemoryMappedRegion.
       if (region.start <= pc && pc < region.end) {
         start_address = region.start;
         base_address = region.base;
-        if (file_path && file_path_size > 0) {
-          strncpy(file_path, region.path.c_str(), file_path_size);
-          // Ensure null termination.
-          file_path[file_path_size - 1] = '\0';
+        if (!file_path.empty()) {
+          strlcpy(file_path, region.path);
         }
         return instance->GetFileDescriptor(region.path.c_str());
       }
@@ -742,13 +791,51 @@ class SandboxSymbolizeHelper {
     return -1;
   }
 
+  // This class is copied from
+  // third_party/crashpad/crashpad/util/linux/scoped_pr_set_dumpable.h.
+  // It aims at ensuring the process is dumpable before opening /proc/self/mem.
+  // If the process is already dumpable, this class doesn't do anything.
+  class ScopedPrSetDumpable {
+   public:
+    // Uses `PR_SET_DUMPABLE` to make the current process dumpable.
+    //
+    // Restores the dumpable flag to its original value on destruction. If the
+    // original value couldn't be determined, the destructor attempts to
+    // restore the flag to 0 (non-dumpable).
+    explicit ScopedPrSetDumpable() {
+      int result = prctl(PR_GET_DUMPABLE, 0, 0, 0, 0);
+      was_dumpable_ = result > 0;
+
+      if (!was_dumpable_) {
+        std::ignore = prctl(PR_SET_DUMPABLE, 1, 0, 0, 0);
+      }
+    }
+
+    ScopedPrSetDumpable(const ScopedPrSetDumpable&) = delete;
+    ScopedPrSetDumpable& operator=(const ScopedPrSetDumpable&) = delete;
+
+    ~ScopedPrSetDumpable() {
+      if (!was_dumpable_) {
+        std::ignore = prctl(PR_SET_DUMPABLE, 0, 0, 0, 0);
+      }
+    }
+
+   private:
+    bool was_dumpable_;
+  };
+
   // Set the base address for each memory region by reading ELF headers in
   // process memory.
   void SetBaseAddressesForMemoryRegions() {
-    base::ScopedFD mem_fd(
-        HANDLE_EINTR(open("/proc/self/mem", O_RDONLY | O_CLOEXEC)));
-    if (!mem_fd.is_valid())
-      return;
+    base::ScopedFD mem_fd;
+    {
+      ScopedPrSetDumpable s;
+      mem_fd = base::ScopedFD(
+          HANDLE_EINTR(open("/proc/self/mem", O_RDONLY | O_CLOEXEC)));
+      if (!mem_fd.is_valid()) {
+        return;
+      }
+    }
 
     auto safe_memcpy = [&mem_fd](void* dst, uintptr_t src, size_t size) {
       return HANDLE_EINTR(pread(mem_fd.get(), dst, size,
@@ -856,8 +943,7 @@ class SandboxSymbolizeHelper {
           if (fd >= 0) {
             modules_.emplace(region.path, base::ScopedFD(fd));
           } else {
-            LOG(WARNING) << "Failed to open file: " << region.path
-                         << "\n  Error: " << strerror(errno);
+            PLOG(WARNING) << "Failed to open file: " << region.path;
           }
         }
       }
@@ -893,7 +979,7 @@ class SandboxSymbolizeHelper {
   }
 
   // Set to true upon successful initialization.
-  bool is_initialized_;
+  bool is_initialized_ = false;
 
 #if !defined(OFFICIAL_BUILD) || !defined(NO_UNWIND_TABLES)
   // Mapping from file name to file descriptor.  Includes file descriptors
@@ -969,57 +1055,70 @@ bool SetStackDumpFirstChanceCallback(bool (*handler)(int, siginfo_t*, void*)) {
 }
 #endif
 
-size_t CollectStackTrace(void** trace, size_t count) {
+size_t CollectStackTrace(span<const void*> trace) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
   // stack dumping signal handler). NO malloc or stdio is allowed here.
 
 #if defined(NO_UNWIND_TABLES) && BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
   // If we do not have unwind tables, then try tracing using frame pointers.
-  return base::debug::TraceStackFramePointers(const_cast<const void**>(trace),
-                                              count, 0);
+  return base::debug::TraceStackFramePointers(trace, 0);
 #elif defined(HAVE_BACKTRACE)
   // Though the backtrace API man page does not list any possible negative
   // return values, we take no chance.
   return base::saturated_cast<size_t>(
-      backtrace(trace, base::saturated_cast<int>(count)));
+      backtrace(const_cast<void**>(trace.data()),
+                base::saturated_cast<int>(trace.size())));
 #else
   return 0;
 #endif
 }
 
-void StackTrace::PrintWithPrefix(const char* prefix_string) const {
+// static
+void StackTrace::PrintMessageWithPrefix(cstring_view prefix_string,
+                                        cstring_view message) {
+  // NOTE: This code MUST be async-signal safe (it's used by in-process
+  // stack dumping signal handler). NO malloc or stdio is allowed here.
+  if (!prefix_string.empty()) {
+    PrintToStderr(prefix_string.c_str());
+  }
+  PrintToStderr(message.c_str());
+}
+
+void StackTrace::PrintWithPrefixImpl(cstring_view prefix_string) const {
 // NOTE: This code MUST be async-signal safe (it's used by in-process
 // stack dumping signal handler). NO malloc or stdio is allowed here.
-
 #if defined(HAVE_BACKTRACE)
   PrintBacktraceOutputHandler handler;
-  ProcessBacktrace(trace_, count_, prefix_string, &handler);
+  ProcessBacktrace(addresses(), prefix_string, &handler);
 #endif
 }
 
 #if defined(HAVE_BACKTRACE)
-void StackTrace::OutputToStreamWithPrefix(std::ostream* os,
-                                          const char* prefix_string) const {
+void StackTrace::OutputToStreamWithPrefixImpl(
+    std::ostream* os,
+    cstring_view prefix_string) const {
   StreamBacktraceOutputHandler handler(os);
-  ProcessBacktrace(trace_, count_, prefix_string, &handler);
+  ProcessBacktrace(addresses(), prefix_string, &handler);
 }
 #endif
 
 namespace internal {
 
 // NOTE: code from sandbox/linux/seccomp-bpf/demo.cc.
-char* itoa_r(intptr_t i, char* buf, size_t sz, int base, size_t padding) {
+// Modified to use bounds-checked containers.
+void itoa_r(intptr_t i, int base, size_t padding, base::span<char> buf) {
   // Make sure we can write at least one NUL byte.
-  size_t n = 1;
-  if (n > sz)
-    return nullptr;
-
-  if (base < 2 || base > 16) {
-    buf[0] = '\000';
-    return nullptr;
+  if (buf.empty()) {
+    return;
   }
 
-  char* start = buf;
+  if (base < 2 || base > 16) {
+    buf[0u] = '\000';
+    return;
+  }
+
+  auto writer = base::SpanWriter(buf);
+  size_t start = 0u;
 
   uintptr_t j = static_cast<uintptr_t>(i);
 
@@ -1029,47 +1128,42 @@ char* itoa_r(intptr_t i, char* buf, size_t sz, int base, size_t padding) {
     j = static_cast<uintptr_t>(-(i + 1)) + 1;
 
     // Make sure we can write the '-' character.
-    if (++n > sz) {
-      buf[0] = '\000';
-      return nullptr;
+    if (!writer.Write('-')) {
+      buf[0u] = '\000';
+      return;
     }
-    *start++ = '-';
+    start += 1u;  // The number starts after the sign.
   }
 
   // Loop until we have converted the entire number. Output at least one
   // character (i.e. '0').
-  char* ptr = start;
+  constexpr std::string_view digits = "0123456789abcdef";
   do {
-    // Make sure there is still enough space left in our output buffer.
-    if (++n > sz) {
-      buf[0] = '\000';
-      return nullptr;
-    }
-
     // Output the next digit.
-    *ptr++ = "0123456789abcdef"[j % static_cast<uintptr_t>(base)];
+    if (!writer.Write(digits[j % static_cast<uintptr_t>(base)])) {
+      buf[0] = '\000';
+      return;
+    }
     j /= static_cast<uintptr_t>(base);
 
-    if (padding > 0)
+    if (padding > 0) {
       padding--;
+    }
   } while (j > 0 || padding > 0);
 
   // Terminate the output with a NUL character.
-  *ptr = '\000';
-
-  // Conversion to ASCII actually resulted in the digits being in reverse
-  // order. We can't easily generate them in forward order, as we can't tell
-  // the number of characters needed until we are done converting.
-  // So, now, we reverse the string (except for the possible "-" sign).
-  while (--ptr > start) {
-    char ch = *ptr;
-    *ptr = *start;
-    *start++ = ch;
+  if (!writer.Write('\000')) {
+    buf[0] = '\000';
+    return;
   }
-  return buf;
+
+  // Conversion to ASCII actually resulted in the digits being in reverse order.
+  // We can't easily generate them in forward order, as we can't tell the number
+  // of characters needed until we are done converting. So, now, we reverse the
+  // string (except for the possible "-" sign and the NUL terminator).
+  std::ranges::reverse(buf.first(writer.num_written() - 1u).subspan(start));
 }
 
 }  // namespace internal
 
-}  // namespace debug
-}  // namespace base
+}  // namespace base::debug

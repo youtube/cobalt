@@ -4,9 +4,11 @@
 
 #include "third_party/blink/renderer/core/timing/time_clamper.h"
 
-#include "testing/gtest/include/gtest/gtest.h"
-
+#include <array>
 #include <cmath>
+
+#include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 namespace blink {
 namespace {
@@ -14,7 +16,12 @@ const int64_t kIntervalInMicroseconds =
     TimeClamper::kFineResolutionMicroseconds;
 }
 
-TEST(TimeClamperTest, TimeStampsAreNonNegative) {
+class TimeClamperTest : public testing::Test {
+ protected:
+  test::TaskEnvironment task_environment_;
+};
+
+TEST_F(TimeClamperTest, TimeStampsAreNonNegative) {
   TimeClamper clamper;
   EXPECT_GE(
       clamper.ClampTimeResolution(base::TimeDelta(), true).InMicroseconds(),
@@ -28,7 +35,7 @@ TEST(TimeClamperTest, TimeStampsAreNonNegative) {
       0.f);
 }
 
-TEST(TimeClamperTest, TimeStampsIncreaseByFixedAmount) {
+TEST_F(TimeClamperTest, TimeStampsIncreaseByFixedAmount) {
   TimeClamper clamper;
   int64_t prev =
       clamper.ClampTimeResolution(base::TimeDelta(), true).InMicroseconds();
@@ -47,7 +54,7 @@ TEST(TimeClamperTest, TimeStampsIncreaseByFixedAmount) {
   }
 }
 
-TEST(TimeClamperTest, ClampingIsDeterministic) {
+TEST_F(TimeClamperTest, ClampingIsDeterministic) {
   TimeClamper clamper;
   for (int64_t time_microseconds = 0;
        time_microseconds < kIntervalInMicroseconds * 100;
@@ -62,7 +69,7 @@ TEST(TimeClamperTest, ClampingIsDeterministic) {
   }
 }
 
-TEST(TimeClamperTest, ClampingNegativeNumbersIsConsistent) {
+TEST_F(TimeClamperTest, ClampingNegativeNumbersIsConsistent) {
   TimeClamper clamper;
   for (int64_t time_microseconds = -kIntervalInMicroseconds * 100;
        time_microseconds < kIntervalInMicroseconds * 100;
@@ -77,7 +84,7 @@ TEST(TimeClamperTest, ClampingNegativeNumbersIsConsistent) {
   }
 }
 
-TEST(TimeClamperTest, ClampingIsPerInstance) {
+TEST_F(TimeClamperTest, ClampingIsPerInstance) {
   TimeClamper clamper1;
   TimeClamper clamper2;
   int64_t time_microseconds = kIntervalInMicroseconds / 2;
@@ -96,6 +103,22 @@ TEST(TimeClamperTest, ClampingIsPerInstance) {
   }
 }
 
+TEST_F(TimeClamperTest, OverflowHandling) {
+  // Tests that when starting with base::TimeDelta::Min(), the
+  // smallest possible value, we won't overflow.
+  for (bool cross_origin : {true, false}) {
+    for (int ii = 0; ii < 10000; ++ii) {  // For testing TimeClamper::secret_.
+      TimeClamper clamper;
+      int64_t clamped =
+          clamper.ClampTimeResolution(base::TimeDelta::Min(), cross_origin)
+              .InMicroseconds();
+      ASSERT_LT(clamped, 0);  // Should still be negative.
+      // Can't be smaller than the smallest allowed time.
+      ASSERT_GE(clamped, base::TimeDelta::Min().InMicroseconds());
+    }
+  }
+}
+
 void UniformityTest(int64_t time_microseconds,
                     int interval,
                     bool cross_origin_isolated_capability) {
@@ -103,7 +126,7 @@ void UniformityTest(int64_t time_microseconds,
   const int kBuckets = 5;
   const int kSampleCount = 10000;
   const int kTimeStep = interval / kBuckets;
-  int histogram[kBuckets] = {0};
+  std::array<int, kBuckets> histogram = {};
   TimeClamper clamper;
 
   // This test ensures the jitter thresholds are approximately uniformly
@@ -143,7 +166,7 @@ void UniformityTest(int64_t time_microseconds,
   EXPECT_LT(chi_squared, 24.322);
 }
 
-TEST(TimeClamperTest, ClampingIsUniform) {
+TEST_F(TimeClamperTest, ClampingIsUniform) {
   UniformityTest(299792458238, 5, true);
   UniformityTest(29979245823800, 5, true);
   UniformityTest(1616533323846260, 5, true);

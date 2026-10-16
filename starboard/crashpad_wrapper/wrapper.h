@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_CRASHPAD_WRAPPER_WRAPPER_H_
-#define THIRD_PARTY_CRASHPAD_WRAPPER_WRAPPER_H_
+#ifndef STARBOARD_CRASHPAD_WRAPPER_WRAPPER_H_
+#define STARBOARD_CRASHPAD_WRAPPER_WRAPPER_H_
 
 #include <string>
 
 #include "starboard/elf_loader/evergreen_info.h"  // nogncheck
+#include "starboard/extension/native_stability.h"
 
 namespace crashpad {
 
@@ -41,6 +42,11 @@ extern const char kCrashpadCertScopeKey[];
 // upload.
 void InstallCrashpadHandler(const std::string& ca_certificates_path);
 
+// The implementation of InstallCrashpadHandler() shared by all platforms. A
+// platform that needs some setup first runs it in InstallCrashpadHandler(),
+// then calls this.
+void InstallCrashpadHandlerImpl(const std::string& ca_certificates_path);
+
 bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info);
 
 // Associates the given value with the given key in Crashpad's map of
@@ -48,6 +54,14 @@ bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info);
 // key. Returns true on success and false on failure.
 bool InsertCrashpadAnnotation(const char* key, const char* value);
 
+// Captures CPU context and triggers a non-crashing dump report.
+void DumpWithoutCrashingWrapper();
+
+// Reads up to |max_num_reports| stability reports (crashes and hangs)
+// currently stored in the local Crashpad database (both pending and completed).
+// Returns the number of reports read, or -1 on failure.
+int ReadReports(SbNativeStabilityReport* reports, int max_num_reports);
+
 }  // namespace crashpad
 
-#endif  // THIRD_PARTY_CRASHPAD_WRAPPER_WRAPPER_H_
+#endif  // STARBOARD_CRASHPAD_WRAPPER_WRAPPER_H_

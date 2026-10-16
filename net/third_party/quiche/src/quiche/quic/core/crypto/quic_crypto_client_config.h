@@ -32,7 +32,7 @@ class ProofVerifyDetails;
 
 // QuicResumptionState stores the state a client needs for performing connection
 // resumption.
-struct QUIC_EXPORT_PRIVATE QuicResumptionState {
+struct QUICHE_EXPORT QuicResumptionState {
   // |tls_session| holds the cryptographic state necessary for a resumption. It
   // includes the ALPN negotiated on the connection where the ticket was
   // received.
@@ -56,7 +56,7 @@ struct QUIC_EXPORT_PRIVATE QuicResumptionState {
 
 // SessionCache is an interface for managing storing and retrieving
 // QuicResumptionState structs.
-class QUIC_EXPORT_PRIVATE SessionCache {
+class QUICHE_EXPORT SessionCache {
  public:
   virtual ~SessionCache() {}
 
@@ -97,12 +97,12 @@ class QUIC_EXPORT_PRIVATE SessionCache {
 // QuicCryptoClientConfig contains crypto-related configuration settings for a
 // client. Note that this object isn't thread-safe. It's designed to be used on
 // a single thread at a time.
-class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
+class QUICHE_EXPORT QuicCryptoClientConfig : public QuicCryptoConfig {
  public:
   // A CachedState contains the information that the client needs in order to
   // perform a 0-RTT handshake with a server. This information can be reused
   // over several connections to the same server.
-  class QUIC_EXPORT_PRIVATE CachedState {
+  class QUICHE_EXPORT CachedState {
    public:
     // Enum to track if the server config is valid or not. If it is not valid,
     // it specifies why it is invalid.
@@ -227,7 +227,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   };
 
   // Used to filter server ids for partial config deletion.
-  class QUIC_EXPORT_PRIVATE ServerIdFilter {
+  class QUICHE_EXPORT ServerIdFilter {
    public:
     virtual ~ServerIdFilter() {}
 
@@ -239,7 +239,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   explicit QuicCryptoClientConfig(
       std::unique_ptr<ProofVerifier> proof_verifier);
   QuicCryptoClientConfig(std::unique_ptr<ProofVerifier> proof_verifier,
-                         std::unique_ptr<SessionCache> session_cache);
+                         std::shared_ptr<SessionCache> session_cache);
   QuicCryptoClientConfig(const QuicCryptoClientConfig&) = delete;
   QuicCryptoClientConfig& operator=(const QuicCryptoClientConfig&) = delete;
   ~QuicCryptoClientConfig();
@@ -337,6 +337,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
 
   ProofVerifier* proof_verifier() const;
   SessionCache* session_cache() const;
+  void set_session_cache(std::shared_ptr<SessionCache> session_cache);
   ClientProofSource* proof_source() const;
   void set_proof_source(std::unique_ptr<ClientProofSource> proof_source);
   SSL_CTX* ssl_ctx() const;
@@ -354,6 +355,18 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // suffix will be used to initialize the cached state for this server.
   void AddCanonicalSuffix(const std::string& suffix);
 
+  // The groups to use for key exchange in the TLS handshake.
+  const std::vector<uint16_t>& preferred_groups() const {
+    return preferred_groups_;
+  }
+
+  // Sets the preferred groups that will be used in the TLS handshake. Values
+  // in the |preferred_groups| vector are NamedGroup enum codepoints from
+  // https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.7.
+  void set_preferred_groups(const std::vector<uint16_t>& preferred_groups) {
+    preferred_groups_ = preferred_groups;
+  }
+
   // Saves the |user_agent_id| that will be passed in QUIC's CHLO message.
   void set_user_agent_id(const std::string& user_agent_id) {
     user_agent_id_ = user_agent_id;
@@ -367,7 +380,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     tls_signature_algorithms_ = std::move(signature_algorithms);
   }
 
-  const absl::optional<std::string>& tls_signature_algorithms() const {
+  const std::optional<std::string>& tls_signature_algorithms() const {
     return tls_signature_algorithms_;
   }
 
@@ -390,7 +403,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   bool pad_full_hello() const { return pad_full_hello_; }
   void set_pad_full_hello(bool new_value) { pad_full_hello_ = new_value; }
 
-  SessionCache* mutable_session_cache() { return session_cache_.get(); }
+  bool alps_use_new_codepoint() const { return alps_use_new_codepoint_; }
+  void set_alps_use_new_codepoint(bool new_value) {
+    alps_use_new_codepoint_ = new_value;
+  }
+
+  const QuicSSLConfig& ssl_config() const { return ssl_config_; }
+  QuicSSLConfig& ssl_config() { return ssl_config_; }
 
  private:
   // Sets the members to reasonable, default values.
@@ -428,10 +447,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   std::vector<std::string> canonical_suffixes_;
 
   std::unique_ptr<ProofVerifier> proof_verifier_;
-  std::unique_ptr<SessionCache> session_cache_;
+  std::shared_ptr<SessionCache> session_cache_;
   std::unique_ptr<ClientProofSource> proof_source_;
 
   bssl::UniquePtr<SSL_CTX> ssl_ctx_;
+
+  // The groups to use for key exchange in the TLS handshake.
+  std::vector<uint16_t> preferred_groups_;
 
   // The |user_agent_id_| passed in QUIC's CHLO message.
   std::string user_agent_id_;
@@ -445,7 +467,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
 
   // If set, configure the client to use the specified signature algorithms, via
   // SSL_set1_sigalgs_list. TLS only.
-  absl::optional<std::string> tls_signature_algorithms_;
+  std::optional<std::string> tls_signature_algorithms_;
 
   // In QUIC, technically, client hello should be fully padded.
   // However, fully padding on slow network connection (e.g. 50kbps) can add
@@ -460,6 +482,12 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // other means of verifying the client.
   bool pad_inchoate_hello_ = true;
   bool pad_full_hello_ = true;
+
+  // Set whether ALPS uses the new codepoint or not.
+  bool alps_use_new_codepoint_ = false;
+
+  // Configs applied to BoringSSL's SSL object. TLS only.
+  QuicSSLConfig ssl_config_;
 };
 
 }  // namespace quic

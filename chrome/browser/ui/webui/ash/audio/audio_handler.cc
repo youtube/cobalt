@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/webui/ash/audio/audio_handler.h"
+
 #include <string>
 #include <tuple>
 #include <utility>
@@ -9,7 +11,6 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/chrome_pages.h"
-#include "chrome/browser/ui/webui/ash/audio/audio_handler.h"
 
 namespace ash {
 
@@ -35,7 +36,7 @@ void AudioHandler::GetActiveOutputDeviceName(
   if (output_device) {
     std::move(callback).Run(output_device->display_name);
   } else {
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
   }
 }
 
@@ -48,13 +49,13 @@ void AudioHandler::GetActiveInputDeviceName(
   if (input_device) {
     std::move(callback).Run(input_device->display_name);
   } else {
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
   }
 }
 
 void AudioHandler::OpenFeedbackDialog() {
   chrome::OpenFeedbackDialog(chrome::FindBrowserWithActiveWindow(),
-                             chrome::kFeedbackSourceMdSettingsAboutPage);
+                             feedback::kFeedbackSourceMdSettingsAboutPage);
 }
 
 void AudioHandler::OnAudioNodesChanged() {

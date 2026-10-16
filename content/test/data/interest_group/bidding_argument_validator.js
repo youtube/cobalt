@@ -20,8 +20,8 @@ function generateBid(
       'adCost': 3,
       'bidCurrency':
           interestGroup.owner.startsWith("https://a.test") ? 'USD' : 'CAD',
-      'render': ad.renderUrl,
-      'adComponents': [interestGroup.adComponents[0].renderUrl]
+      'render': ad.renderURL,
+      'adComponents': [interestGroup.adComponents[0].renderURL]
   };
 }
 
@@ -40,7 +40,7 @@ function validateInterestGroup(interestGroup) {
   if (!interestGroup)
     throw 'No interest group';
 
-  if (Object.keys(interestGroup).length !== 12) {
+  if (Object.keys(interestGroup).length !== 18) {
     throw 'Wrong number of interestGroupFields ' +
         JSON.stringify(interestGroup);
   }
@@ -50,9 +50,15 @@ function validateInterestGroup(interestGroup) {
   if (!interestGroup.owner.startsWith('https://a.test'))
     throw 'Missing a.test in owner ' + interestGroup.owner;
 
+  // Note that this field is deprecated.
   if (interestGroup.useBiddingSignalsPrioritization !== true) {
     throw 'Incorrect useBiddingSignalsPrioritization ' +
         interestGroup.useBiddingSignalsPrioritization;
+  }
+
+  if (interestGroup.enableBiddingSignalsPrioritization !== true) {
+    throw 'Incorrect enableBiddingSignalsPrioritization ' +
+        interestGroup.enableBiddingSignalsPrioritization;
   }
 
   if (Object.keys(interestGroup.priorityVector).length !== 2 ||
@@ -62,22 +68,45 @@ function validateInterestGroup(interestGroup) {
         JSON.stringify(interestGroup.priorityVector);
   }
 
+  if (!interestGroup.biddingLogicURL.startsWith('https://a.test') ||
+      !interestGroup.biddingLogicURL.endsWith(
+          '/bidding_argument_validator.js')) {
+    throw 'Incorrect biddingLogicURL ' + interestGroup.biddingLogicURL;
+  }
+
   if (!interestGroup.biddingLogicUrl.startsWith('https://a.test') ||
       !interestGroup.biddingLogicUrl.endsWith(
           '/bidding_argument_validator.js')) {
     throw 'Incorrect biddingLogicUrl ' + interestGroup.biddingLogicUrl;
   }
 
-  if (!interestGroup.updateUrl.startsWith('https://a.test') ||
-      !interestGroup.updateUrl.endsWith('/not_found_update_url.json')) {
+  if (!interestGroup.updateURL.startsWith('https://a.test') ||
+      !interestGroup.updateURL.endsWith('/not_found_update_url.json')) {
+    throw 'Incorrect updateURL ' + interestGroup.updateURL;
+  }
+
+  if (interestGroup.updateUrl !== interestGroup.updateURL) {
     throw 'Incorrect updateUrl ' + interestGroup.updateUrl;
   }
 
-  // TODO(https://crbug.com/1420080): Remove this block and decrease number of
+  // TODO(crbug.com/40258629): Remove this block and decrease number of
   // expected keys above when removing support for dailyUpdateUrl.
   if (!interestGroup.dailyUpdateUrl.startsWith('https://a.test') ||
       !interestGroup.dailyUpdateUrl.endsWith('/not_found_update_url.json')) {
     throw 'Incorrect dailyUpdateUrl ' + interestGroup.dailyUpdateUrl;
+  }
+
+  if (interestGroup.executionMode !== 'compatibility')
+    throw 'Incorrect executionMode ' + interestGroup.executionMode;
+
+  if (!interestGroup.trustedBiddingSignalsURL.startsWith('https://a.test') ||
+      (!interestGroup.trustedBiddingSignalsURL.includes(
+          'trusted_bidding_signals.json') &&
+       // TODO(mmenke): Remove this once v1 format is no longer supported.
+       !interestGroup.trustedBiddingSignalsURL.includes(
+          'trusted_bidding_signals_v1.json'))) {
+    throw 'Incorrect trustedBiddingSignalsURL ' +
+        interestGroup.trustedBiddingSignalsURL;
   }
 
   if (!interestGroup.trustedBiddingSignalsUrl.startsWith('https://a.test') ||
@@ -97,6 +126,11 @@ function validateInterestGroup(interestGroup) {
         trustedBiddingSignalsKeysJson;
   }
 
+  if (interestGroup.trustedBiddingSignalsSlotSizeMode != 'none') {
+    throw 'Incorrect trustedBiddingSignalsSlotSizeMode ' +
+        interestGroup.trustedBiddingSignalsSlotSizeMode;
+  }
+
   // If userBiddingSignals is passed as a JSON string instead of an object,
   // stringify() will wrap it in another layer of quotes, causing the test to
   // fail. The order of properties produced by stringify() isn't guaranteed by
@@ -109,6 +143,8 @@ function validateInterestGroup(interestGroup) {
 
   if (interestGroup.ads.length !== 1)
     throw 'Wrong ads.length ' + interestGroup.ads.length;
+  if (interestGroup.ads[0].renderURL !== 'https://example.com/render')
+    throw 'Wrong ads[0].renderURL ' + interestGroup.ads[0].renderURL;
   if (interestGroup.ads[0].renderUrl !== 'https://example.com/render')
     throw 'Wrong ads[0].renderUrl ' + interestGroup.ads[0].renderUrl;
   const adMetadataJSON = JSON.stringify(interestGroup.ads[0].metadata);
@@ -117,6 +153,11 @@ function validateInterestGroup(interestGroup) {
 
   if (interestGroup.adComponents.length !== 1)
     throw 'Wrong adComponents.length ' + interestGroup.adComponents.length;
+  if (interestGroup.adComponents[0].renderURL !==
+        'https://example.com/render-component') {
+    throw 'Wrong adComponents[0].renderURL ' +
+        interestGroup.adComponents[0].renderURL;
+  }
   if (interestGroup.adComponents[0].renderUrl !==
         'https://example.com/render-component') {
     throw 'Wrong adComponents[0].renderUrl ' +
@@ -143,13 +184,15 @@ function validatePerBuyerSignals(perBuyerSignals) {
 function validateDirectFromSellerSignals(directFromSellerSignals) {
   const perBuyerSignalsJSON =
       JSON.stringify(directFromSellerSignals.perBuyerSignals);
-  if (perBuyerSignalsJSON !== '{"json":"for","buyer":[1]}') {
+  if (perBuyerSignalsJSON !== '{"json":"for","buyer":[1]}' &&
+      perBuyerSignalsJSON !== '{"buyer":[1],"json":"for"}') {
     throw 'Wrong directFromSellerSignals.perBuyerSignals ' +
         perBuyerSignalsJSON;
   }
   const auctionSignalsJSON =
       JSON.stringify(directFromSellerSignals.auctionSignals);
-  if (auctionSignalsJSON !== '{"json":"for","all":["parties"]}') {
+  if (auctionSignalsJSON !== '{"json":"for","all":["parties"]}' &&
+      auctionSignalsJSON !== '{"all":["parties"],"json":"for"}') {
     throw 'Wrong directFromSellerSignals.auctionSignals ' +
         auctionSignalsJSON;
   }
@@ -171,7 +214,7 @@ function validateBrowserSignals(browserSignals, isGenerateBid) {
     throw 'Wrong topLevelSeller ' + browserSignals.topLevelSeller;
 
   if (isGenerateBid) {
-    if (Object.keys(browserSignals).length !== 5) {
+    if (Object.keys(browserSignals).length !== 13) {
       throw 'Wrong number of browser signals fields ' +
           JSON.stringify(browserSignals);
     }
@@ -181,8 +224,64 @@ function validateBrowserSignals(browserSignals, isGenerateBid) {
       throw 'Wrong bidCount ' + bidCount;
     if (browserSignals.prevWins.length !== 0)
       throw 'Wrong prevWins ' + JSON.stringify(browserSignals.prevWins);
+    if (browserSignals.prevWinsMs.length !== 0)
+      throw 'Wrong prevWinsMs ' + JSON.stringify(browserSignals.prevWinsMs);
+    if (browserSignals.adComponentsLimit !== 40)
+      throw 'Wrong adComponentsLimit ' + browserSignals.adComponentsLimit;
+    if (browserSignals.forDebuggingOnlyInCooldownOrLockout)
+      throw 'Wrong forDebuggingOnlyInCooldownOrLockout ' +
+          browserSignals.forDebuggingOnlyInCooldownOrLockout;
+    if (browserSignals.forDebuggingOnlySampling)
+      throw 'Wrong forDebuggingOnlySampling ' +
+          browserSignals.forDebuggingOnlySampling;
+    if (browserSignals.multiBidLimit !== 1)
+      throw 'Wrong multiBidLimit ' + browserSignals.multiBidLimit;
+    if (!('viewCounts' in browserSignals))
+      throw 'viewCounts unexpectedly not in browserSignals';
+    if (!('clickCounts' in browserSignals))
+      throw 'clickCounts unexpectedly not in browserSignals';
+    if (browserSignals.viewCounts.pastHour !== 0) {
+      throw 'Wrong browserSignals.viewCounts.pastHour ' +
+          browserSignals.viewCounts.pastHour;
+    }
+    if (browserSignals.viewCounts.pastDay !== 0) {
+      throw 'Wrong browserSignals.viewCounts.pastDay ' +
+          browserSignals.viewCounts.pastDay;
+    }
+    if (browserSignals.viewCounts.pastWeek !== 0) {
+      throw 'Wrong browserSignals.viewCounts.pastWeek ' +
+          browserSignals.viewCounts.pastWeek;
+    }
+    if (browserSignals.viewCounts.past30Days !== 0) {
+      throw 'Wrong browserSignals.viewCounts.past30Days ' +
+          browserSignals.viewCounts.past30Days;
+    }
+    if (browserSignals.viewCounts.past90Days !== 0) {
+      throw 'Wrong browserSignals.viewCounts.past90Days ' +
+          browserSignals.viewCounts.past90Days;
+    }
+    if (browserSignals.clickCounts.pastHour !== 0) {
+      throw 'Wrong browserSignals.clickCounts.pastHour ' +
+          browserSignals.clickCounts.pastHour;
+    }
+    if (browserSignals.clickCounts.pastDay !== 0) {
+      throw 'Wrong browserSignals.clickCounts.pastDay ' +
+          browserSignals.clickCounts.pastDay;
+    }
+    if (browserSignals.clickCounts.pastWeek !== 0) {
+      throw 'Wrong browserSignals.clickCounts.pastWeek ' +
+          browserSignals.clickCounts.pastWeek;
+    }
+    if (browserSignals.clickCounts.past30Days !== 0) {
+      throw 'Wrong browserSignals.clickCounts.past30Days ' +
+          browserSignals.clickCounts.past30Days;
+    }
+    if (browserSignals.clickCounts.past90Days !== 0) {
+      throw 'Wrong browserSignals.clickCounts.past90Days ' +
+          browserSignals.clickCounts.past90Days;
+    }
   } else {
-    if (Object.keys(browserSignals).length !== 13) {
+    if (Object.keys(browserSignals).length !== 16) {
       throw 'Wrong number of browser signals fields ' +
           JSON.stringify(browserSignals);
     }
@@ -190,6 +289,8 @@ function validateBrowserSignals(browserSignals, isGenerateBid) {
       throw 'Wrong interestGroupOwner ' + browserSignals.interestGroupOwner;
     if (browserSignals.interestGroupName !== 'cars')
       throw 'Wrong interestGroupName ' + browserSignals.interestGroupName;
+    if (browserSignals.renderURL !== "https://example.com/render")
+      throw 'Wrong renderURL ' + browserSignals.renderURL;
     if (browserSignals.renderUrl !== "https://example.com/render")
       throw 'Wrong renderUrl ' + browserSignals.renderUrl;
     if (browserSignals.bid !== 2)
@@ -206,6 +307,8 @@ function validateBrowserSignals(browserSignals, isGenerateBid) {
     }
     if (browserSignals.adCost !== 3)
       throw 'Wrong adCost ' + browserSignals.adCost;
+    if (browserSignals.reportingTimeout !== 2000)
+      throw 'Wrong reportingTimeout ' + browserSignals.reportingTimeout;
   }
 }
 

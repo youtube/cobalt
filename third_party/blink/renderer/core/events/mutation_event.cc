@@ -22,7 +22,14 @@
 
 #include "third_party/blink/renderer/core/events/mutation_event.h"
 
+#include "third_party/blink/renderer/core/dom/document.h"
+#include "third_party/blink/renderer/core/dom/events/event_dispatcher.h"
 #include "third_party/blink/renderer/core/event_interface_names.h"
+#include "third_party/blink/renderer/core/events/event_util.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/frame/web_feature.h"
+#include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -67,6 +74,30 @@ void MutationEvent::initMutationEvent(const AtomicString& type,
 
 const AtomicString& MutationEvent::InterfaceName() const {
   return event_interface_names::kMutationEvent;
+}
+
+DispatchEventResult MutationEvent::DispatchEvent(EventDispatcher& dispatcher) {
+  Event& event = dispatcher.GetEvent();
+  if (event.isTrusted()) {
+    Document& document = dispatcher.GetNode().GetDocument();
+    ExecutionContext* context = document.GetExecutionContext();
+
+    // If Mutation Events are disabled, we should never dispatch trusted ones.
+    CHECK(document.SupportsLegacyDOMMutations());
+    CHECK(RuntimeEnabledFeatures::MutationEventsEnabled(context));
+    CHECK(!document.ShouldSuppressMutationEvents());
+
+    auto info = event_util::IsDOMMutationEventType(type());
+    CHECK(info.is_mutation_event);
+
+    // Only count events that have listeners:
+    if (document.HasListenerType(info.listener_type)) {
+      UseCounter::Count(context, info.event_fired_feature);
+      UseCounter::Count(context, WebFeature::kAnyMutationEventFired);
+    }
+  }
+
+  return Event::DispatchEvent(dispatcher);
 }
 
 void MutationEvent::Trace(Visitor* visitor) const {

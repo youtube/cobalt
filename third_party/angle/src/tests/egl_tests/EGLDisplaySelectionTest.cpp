@@ -116,7 +116,7 @@ class EGLDisplaySelectionTestMultiDisplay : public EGLDisplaySelectionTestNoFixt
         GLenum platformType = GetParam().getRenderer();
         GLenum deviceType   = GetParam().getDeviceType();
 
-        std::vector<EGLint> displayAttributes;
+        std::vector<EGLAttrib> displayAttributes;
         displayAttributes.push_back(EGL_PLATFORM_ANGLE_TYPE_ANGLE);
         displayAttributes.push_back(platformType);
         displayAttributes.push_back(EGL_PLATFORM_ANGLE_MAX_VERSION_MAJOR_ANGLE);
@@ -129,9 +129,9 @@ class EGLDisplaySelectionTestMultiDisplay : public EGLDisplaySelectionTestNoFixt
         displayAttributes.push_back(powerPreference);
         displayAttributes.push_back(EGL_NONE);
 
-        *display = eglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE,
-                                            reinterpret_cast<void *>(mOSWindow->getNativeDisplay()),
-                                            displayAttributes.data());
+        *display = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE,
+                                         reinterpret_cast<void *>(mOSWindow->getNativeDisplay()),
+                                         displayAttributes.data());
         ASSERT_TRUE(*display != EGL_NO_DISPLAY);
 
         EGLint majorVersion, minorVersion;
@@ -145,7 +145,7 @@ class EGLDisplaySelectionTestMultiDisplay : public EGLDisplaySelectionTestNoFixt
     {
         GLenum deviceType = GetParam().getDeviceType();
 
-        std::vector<EGLint> displayAttributes;
+        std::vector<EGLAttrib> displayAttributes;
         displayAttributes.push_back(EGL_PLATFORM_ANGLE_TYPE_ANGLE);
         displayAttributes.push_back(platformType);
         displayAttributes.push_back(EGL_PLATFORM_ANGLE_MAX_VERSION_MAJOR_ANGLE);
@@ -156,9 +156,9 @@ class EGLDisplaySelectionTestMultiDisplay : public EGLDisplaySelectionTestNoFixt
         displayAttributes.push_back(deviceType);
         displayAttributes.push_back(EGL_NONE);
 
-        *display = eglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE,
-                                            reinterpret_cast<void *>(mOSWindow->getNativeDisplay()),
-                                            displayAttributes.data());
+        *display = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE,
+                                         reinterpret_cast<void *>(mOSWindow->getNativeDisplay()),
+                                         displayAttributes.data());
         ASSERT_TRUE(*display != EGL_NO_DISPLAY);
 
         EGLint majorVersion, minorVersion;
@@ -458,8 +458,8 @@ TEST_P(EGLDisplaySelectionTestMultiDisplay, BackendDefaultVulkan)
 #endif
     ANGLE_SKIP_TEST_IF(missingBackends);
 
-    // http://anglebug.com/6999
-    ANGLE_SKIP_TEST_IF(IsOSX());
+    // http://anglebug.com/42265471
+    ANGLE_SKIP_TEST_IF(IsMac());
 
     runMultiDisplayBackendDefault(EGL_PLATFORM_ANGLE_TYPE_VULKAN_ANGLE, IsVulkan);
 }
@@ -484,7 +484,7 @@ class EGLDisplaySelectionTestDeviceId : public EGLDisplaySelectionTestNoFixture
         EGLAttrib high = ((deviceId >> 32) & 0xFFFFFFFF);
         EGLAttrib low  = (deviceId & 0xFFFFFFFF);
 
-        std::vector<EGLint> displayAttributes;
+        std::vector<EGLAttrib> displayAttributes;
         displayAttributes.push_back(EGL_PLATFORM_ANGLE_TYPE_ANGLE);
         displayAttributes.push_back(platformType);
         displayAttributes.push_back(EGL_PLATFORM_ANGLE_MAX_VERSION_MAJOR_ANGLE);
@@ -504,9 +504,9 @@ class EGLDisplaySelectionTestDeviceId : public EGLDisplaySelectionTestNoFixture
         }
         displayAttributes.push_back(EGL_NONE);
 
-        *display = eglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE,
-                                            reinterpret_cast<void *>(mOSWindow->getNativeDisplay()),
-                                            displayAttributes.data());
+        *display = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE,
+                                         reinterpret_cast<void *>(mOSWindow->getNativeDisplay()),
+                                         displayAttributes.data());
         ASSERT_TRUE(*display != EGL_NO_DISPLAY);
 
         EGLint majorVersion, minorVersion;

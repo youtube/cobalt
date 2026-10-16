@@ -3,92 +3,192 @@
 # found in the LICENSE file.
 
 import("//mojo/public/tools/bindings/mojom.gni")
-import("//testing/libfuzzer/fuzzer_test.gni")
+import("//testing/test.gni")
 
 mojom("mojom") {
   sources = [
-    "registration_type.mojom",
+    "debug_types.mojom",
+    "os_registration_error.mojom",
+    "registration_eligibility.mojom",
     "source_registration_error.mojom",
+    "source_registration_time_config.mojom",
+    "trigger_data_matching.mojom",
     "trigger_registration_error.mojom",
   ]
   webui_module_path = "/"
-  use_typescript_sources = true
 
   # Used by Blink, so requires legacy JS bindings.
   generate_legacy_js_bindings = true
   generate_java = true
+
+  disallow_interfaces = true
+}
+
+component("features") {
+  sources = [
+    "features.cc",
+    "features.h",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  public_deps = [ "//base" ]
+
+  defines = [ "IS_ATTRIBUTION_REPORTING_FEATURES_IMPL" ]
 }
 
 component("attribution_reporting") {
   sources = [
+    "aggregatable_debug_reporting_config.cc",
+    "aggregatable_debug_reporting_config.h",
     "aggregatable_dedup_key.cc",
     "aggregatable_dedup_key.h",
+    "aggregatable_filtering_id_max_bytes.cc",
+    "aggregatable_filtering_id_max_bytes.h",
+    "aggregatable_named_budget_candidate.cc",
+    "aggregatable_named_budget_candidate.h",
+    "aggregatable_named_budget_defs.cc",
+    "aggregatable_named_budget_defs.h",
+    "aggregatable_trigger_config.cc",
+    "aggregatable_trigger_config.h",
     "aggregatable_trigger_data.cc",
     "aggregatable_trigger_data.h",
+    "aggregatable_utils.cc",
+    "aggregatable_utils.h",
     "aggregatable_values.cc",
     "aggregatable_values.h",
     "aggregation_keys.cc",
     "aggregation_keys.h",
+    "attribution_scopes_data.cc",
+    "attribution_scopes_data.h",
+    "attribution_scopes_set.cc",
+    "attribution_scopes_set.h",
+    "attribution_src_request_status.h",
     "constants.h",
+    "debug_types.cc",
+    "debug_types.h",
     "destination_set.cc",
     "destination_set.h",
+    "eligibility.cc",
+    "eligibility.h",
+    "event_level_epsilon.cc",
+    "event_level_epsilon.h",
+    "event_report_windows.cc",
+    "event_report_windows.h",
     "event_trigger_data.cc",
     "event_trigger_data.h",
     "filters.cc",
     "filters.h",
+    "max_event_level_reports.cc",
+    "max_event_level_reports.h",
     "os_registration.cc",
     "os_registration.h",
     "parsing_utils.cc",
     "parsing_utils.h",
+    "privacy_math.cc",
+    "privacy_math.h",
+    "registrar.h",
+    "registrar_info.cc",
+    "registrar_info.h",
+    "registration_header_error.cc",
+    "registration_header_error.h",
+    "registration_info.cc",
+    "registration_info.h",
     "source_registration.cc",
     "source_registration.h",
     "source_type.cc",
     "source_type.h",
     "suitable_origin.cc",
     "suitable_origin.h",
+    "trigger_config.cc",
+    "trigger_config.h",
     "trigger_registration.cc",
     "trigger_registration.h",
   ]
 
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
   public_deps = [
+    ":features",
     ":mojom",
     ":source_type_mojom",
     "//base",
     "//components/aggregation_service",
-    "//components/aggregation_service:mojom",
     "//net",
     "//url",
   ]
 
-  deps = [ "//services/network/public/cpp" ]
+  deps = [
+    ":is_origin_suitable",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom:mojom_headers",
+  ]
 
   defines = [ "IS_ATTRIBUTION_REPORTING_IMPL" ]
+}
+
+component("is_origin_suitable") {
+  sources = [
+    "is_origin_suitable.cc",
+    "is_origin_suitable.h",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  deps = [
+    "//services/network/public/cpp",
+    "//url",
+  ]
+
+  defines = [ "IS_ATTRIBUTION_REPORTING_IS_ORIGIN_SUITABLE_IMPL" ]
 }
 
 source_set("unit_tests") {
   testonly = true
 
   sources = [
+    "aggregatable_debug_reporting_config_unittest.cc",
     "aggregatable_dedup_key_unittest.cc",
+    "aggregatable_filtering_id_max_bytes_unittest.cc",
+    "aggregatable_named_budget_candidate_unittest.cc",
+    "aggregatable_named_budget_defs_unittest.cc",
+    "aggregatable_trigger_config_unittest.cc",
     "aggregatable_trigger_data_unittest.cc",
+    "aggregatable_utils_unittest.cc",
     "aggregatable_values_unittest.cc",
     "aggregation_keys_unittest.cc",
+    "attribution_scopes_data_unittest.cc",
+    "attribution_scopes_set_unittest.cc",
     "destination_set_unittest.cc",
+    "eligibility_unittest.cc",
+    "event_level_epsilon_unittest.cc",
+    "event_report_windows_unittest.cc",
     "event_trigger_data_unittest.cc",
+    "filters_fuzztest.cc",
     "filters_unittest.cc",
+    "max_event_level_reports_unittest.cc",
     "os_registration_unittest.cc",
     "parsing_utils_unittest.cc",
+    "privacy_math_unittest.cc",
+    "registrar_info_unittest.cc",
+    "registration_header_error_unittest.cc",
+    "registration_info_unittest.cc",
     "source_registration_unittest.cc",
     "suitable_origin_unittest.cc",
+    "trigger_config_unittest.cc",
     "trigger_registration_unittest.cc",
   ]
 
   deps = [
     ":attribution_reporting",
+    ":fuzzer_support",
     ":test_support",
     "//base",
+    "//base/test:fuzztest_support",
     "//base/test:test_support",
+    "//services/network/public/mojom:mojom_headers",
     "//testing/gtest",
+    "//third_party/fuzztest",
   ]
 }
 
@@ -108,60 +208,21 @@ source_set("test_support") {
   deps = [ "//base" ]
 }
 
-fuzzer_test("parse_os_header_fuzzer") {
-  sources = [ "parse_os_header_fuzzer.cc" ]
-  deps = [
-    ":attribution_reporting",
-    "//base",
-    "//base:i18n",
-  ]
-
-  seed_corpus =
-      "//components/attribution_reporting/parse_os_header_fuzzer_corpus/"
-}
-
-fuzzer_test("source_registration_fuzzer") {
-  sources = [ "source_registration_fuzzer.cc" ]
-  deps = [
-    ":attribution_reporting",
-    "//base",
-    "//base:i18n",
-    "//testing/libfuzzer/proto:json_proto",
-    "//testing/libfuzzer/proto:json_proto_converter",
-    "//third_party/libprotobuf-mutator",
-  ]
-  seed_corpus =
-      "//components/attribution_reporting/source_registration_fuzzer_corpus"
-}
-
-fuzzer_test("trigger_registration_fuzzer") {
-  sources = [ "trigger_registration_fuzzer.cc" ]
-  deps = [
-    ":attribution_reporting",
-    "//base",
-    "//base:i18n",
-    "//testing/libfuzzer/proto:json_proto",
-    "//testing/libfuzzer/proto:json_proto_converter",
-    "//third_party/libprotobuf-mutator",
-  ]
-  seed_corpus =
-      "//components/attribution_reporting/trigger_registration_fuzzer_corpus"
-}
-
 mojom("registration_mojom") {
   sources = [ "registration.mojom" ]
 
   generate_java = true
   webui_module_path = "/"
-  use_typescript_sources = true
+  disallow_interfaces = true
 
   # Used by Blink, so requires legacy JS bindings.
   generate_legacy_js_bindings = true
 
   deps = [
-    "//components/aggregation_service:mojom",
+    ":mojom",
     "//mojo/public/mojom/base",
     "//services/network/public/mojom:mojom_schemeful_site",
+    "//url/mojom:url_mojom_gurl",
     "//url/mojom:url_mojom_origin",
   ]
 
@@ -173,12 +234,9 @@ mojom("registration_mojom") {
     {
       types = [
         {
-          mojom = "attribution_reporting.mojom.DebugKey"
-          cpp = "uint64_t"
-        },
-        {
-          mojom = "attribution_reporting.mojom.TriggerDedupKey"
-          cpp = "uint64_t"
+          mojom = "attribution_reporting.mojom.AggregatableValuesValue"
+          cpp = "::attribution_reporting::AggregatableValuesValue"
+          forward_declaration = "namespace attribution_reporting { class AggregatableValuesValue; }"
         },
         {
           mojom = "attribution_reporting.mojom.SuitableOrigin"
@@ -240,6 +298,12 @@ mojom("registration_mojom") {
               "namespace attribution_reporting { struct AggregatableDedupKey; }"
         },
         {
+          mojom = "attribution_reporting.mojom.AggregatableValues"
+          cpp = "::attribution_reporting::AggregatableValues"
+          forward_declaration =
+              "namespace attribution_reporting { class AggregatableValues; }"
+        },
+        {
           mojom = "attribution_reporting.mojom.TriggerRegistration"
           cpp = "::attribution_reporting::TriggerRegistration"
           forward_declaration =
@@ -256,6 +320,69 @@ mojom("registration_mojom") {
           forward_declaration =
               "namespace attribution_reporting { class DestinationSet; }"
         },
+        {
+          mojom = "attribution_reporting.mojom.OsRegistration"
+          cpp = "::std::vector<::attribution_reporting::OsRegistrationItem>"
+          move_only = true
+        },
+        {
+          mojom = "attribution_reporting.mojom.OsRegistrationItem"
+          cpp = "::attribution_reporting::OsRegistrationItem"
+          forward_declaration =
+              "namespace attribution_reporting { struct OsRegistrationItem; }"
+        },
+        {
+          mojom = "attribution_reporting.mojom.EventReportWindows"
+          cpp = "::attribution_reporting::EventReportWindows"
+          forward_declaration =
+              "namespace attribution_reporting { class EventReportWindows; }"
+        },
+        {
+          mojom = "attribution_reporting.mojom.TriggerDataSet"
+          cpp = "::attribution_reporting::TriggerDataSet"
+          forward_declaration =
+              "namespace attribution_reporting { class TriggerDataSet; }"
+        },
+        {
+          mojom = "attribution_reporting.mojom.SourceAggregatableDebugReportingConfig"
+          cpp =
+              "::attribution_reporting::SourceAggregatableDebugReportingConfig"
+          forward_declaration = "namespace attribution_reporting { class SourceAggregatableDebugReportingConfig; }"
+        },
+        {
+          mojom = "attribution_reporting.mojom.AggregatableDebugReportingConfig"
+          cpp = "::attribution_reporting::AggregatableDebugReportingConfig"
+          forward_declaration = "namespace attribution_reporting { struct AggregatableDebugReportingConfig; }"
+        },
+        {
+          mojom = "attribution_reporting.mojom.AggregatableDebugReportingContribution"
+          cpp =
+              "::attribution_reporting::AggregatableDebugReportingContribution"
+          forward_declaration = "namespace attribution_reporting { class AggregatableDebugReportingContribution; }"
+        },
+        {
+          mojom = "attribution_reporting.mojom.AttributionScopesSet"
+          cpp = "::attribution_reporting::AttributionScopesSet"
+          forward_declaration =
+              "namespace attribution_reporting { class AttributionScopesSet; }"
+        },
+        {
+          mojom = "attribution_reporting.mojom.AttributionScopesData"
+          cpp = "::attribution_reporting::AttributionScopesData"
+          default_constructible = false
+          forward_declaration =
+              "namespace attribution_reporting { class AttributionScopesData; }"
+        },
+        {
+          mojom = "attribution_reporting.mojom.AggregatableNamedBudgetDefs"
+          cpp = "::attribution_reporting::AggregatableNamedBudgetDefs"
+          forward_declaration = "namespace attribution_reporting { class AggregatableNamedBudgetDefs; }"
+        },
+        {
+          mojom = "attribution_reporting.mojom.AggregatableNamedBudgetCandidate"
+          cpp = "::attribution_reporting::AggregatableNamedBudgetCandidate"
+          forward_declaration = "namespace attribution_reporting { class AggregatableNamedBudgetCandidate; }"
+        },
       ]
       traits_headers = [ "registration_mojom_traits.h" ]
       traits_public_deps = [ ":registration_mojom_traits" ]
@@ -271,13 +398,14 @@ component("registration_mojom_traits") {
     "registration_mojom_traits.h",
   ]
 
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
   defines = [ "IS_ATTRIBUTION_REPORTING_REGISTRATION_MOJOM_TRAITS_IMPL" ]
 
   public_deps = [
     ":attribution_reporting",
     ":registration_mojom_shared",
     "//base",
-    "//components/aggregation_service:mojom_shared",
     "//mojo/public/cpp/base:shared_typemap_traits",
     "//net",
     "//services/network/public/mojom",
@@ -286,8 +414,93 @@ component("registration_mojom_traits") {
   ]
 }
 
+mojom("registration_header_error_mojom") {
+  sources = [ "registration_header_error.mojom" ]
+
+  generate_java = true
+
+  deps = [ ":mojom" ]
+
+  export_class_attribute_blink = "PLATFORM_EXPORT"
+  export_define_blink = "BLINK_PLATFORM_IMPLEMENTATION=1"
+  export_header_blink = "third_party/blink/renderer/platform/platform_export.h"
+
+  cpp_typemaps = [
+    {
+      types = [
+        {
+          mojom = "attribution_reporting.mojom.RegistrationHeaderError"
+          cpp = "::attribution_reporting::RegistrationHeaderError"
+          forward_declaration = "namespace attribution_reporting { struct RegistrationHeaderError; }"
+
+          # Avoid expensive copies by forcing Mojo methods to take the type by
+          # value, not const ref
+          move_only = true
+        },
+        {
+          mojom = "attribution_reporting.mojom.RegistrationHeaderErrorDetails"
+          cpp = "::attribution_reporting::RegistrationHeaderErrorDetails"
+        },
+      ]
+      traits_headers = [ "registration_header_error_mojom_traits.h" ]
+      traits_public_deps = [ ":registration_header_error_mojom_traits" ]
+    },
+  ]
+
+  blink_cpp_typemaps = cpp_typemaps
+}
+
+component("registration_header_error_mojom_traits") {
+  sources = [
+    "registration_header_error_mojom_traits.cc",
+    "registration_header_error_mojom_traits.h",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  defines =
+      [ "IS_ATTRIBUTION_REPORTING_REGISTRATION_HEADER_ERROR_MOJOM_TRAITS_IMPL" ]
+
+  public_deps = [
+    ":attribution_reporting",
+    ":registration_header_error_mojom_shared",
+    "//base",
+    "//mojo/public/cpp/bindings",
+  ]
+}
+
 mojom("source_type_mojom") {
   sources = [ "source_type.mojom" ]
   webui_module_path = "/"
-  use_typescript_sources = true
+  disallow_interfaces = true
+  generate_java = false
+}
+
+source_set("fuzzer_support") {
+  testonly = true
+
+  sources = [
+    "fuzz_utils.cc",
+    "fuzz_utils.h",
+  ]
+
+  public_deps = [
+    ":attribution_reporting",
+    "//third_party/fuzztest",
+  ]
+}
+
+mojom("data_host_mojom") {
+  sources = [ "data_host.mojom" ]
+
+  generate_java = true
+
+  deps = [
+    ":registration_header_error_mojom",
+    ":registration_mojom",
+  ]
+
+  export_class_attribute_blink = "PLATFORM_EXPORT"
+  export_define_blink = "BLINK_PLATFORM_IMPLEMENTATION=1"
+  export_header_blink = "third_party/blink/renderer/platform/platform_export.h"
 }

@@ -32,6 +32,11 @@ void ScreenOrientationProvider::BindScreenOrientation(
   receivers_.Bind(rfh, std::move(receiver));
 }
 
+bool ScreenOrientationProvider::IsOrientationLockSupported() const {
+  return delegate_ &&
+         delegate_->ScreenOrientationProviderSupported(web_contents());
+}
+
 void ScreenOrientationProvider::LockOrientation(
     device::mojom::ScreenOrientationLockType orientation,
     LockOrientationCallback callback) {
@@ -41,8 +46,7 @@ void ScreenOrientationProvider::LockOrientation(
   // Record new pending lock request.
   pending_callback_ = std::move(callback);
 
-  if (!delegate_ ||
-      !delegate_->ScreenOrientationProviderSupported(web_contents())) {
+  if (!IsOrientationLockSupported()) {
     NotifyLockResult(ScreenOrientationLockResult::
                          SCREEN_ORIENTATION_LOCK_RESULT_ERROR_NOT_AVAILABLE);
     return;
@@ -56,7 +60,9 @@ void ScreenOrientationProvider::LockOrientation(
                            SCREEN_ORIENTATION_LOCK_RESULT_ERROR_CANCELED);
       return;
     }
-    if (!static_cast<WebContentsImpl*>(web_contents())->IsFullscreen()) {
+    if (!static_cast<WebContentsImpl*>(web_contents())->IsFullscreen() &&
+        static_cast<WebContentsImpl*>(web_contents())->GetDisplayMode() !=
+            blink::mojom::DisplayMode::kFullscreen) {
       NotifyLockResult(
           ScreenOrientationLockResult::
               SCREEN_ORIENTATION_LOCK_RESULT_ERROR_FULLSCREEN_REQUIRED);
@@ -216,7 +222,6 @@ ScreenOrientationProvider::GetNaturalLockType() const {
   }
 
   NOTREACHED();
-  return device::mojom::ScreenOrientationLockType::DEFAULT;
 }
 
 bool ScreenOrientationProvider::LockMatchesCurrentOrientation(

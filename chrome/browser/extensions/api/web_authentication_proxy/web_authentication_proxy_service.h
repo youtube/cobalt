@@ -5,6 +5,9 @@
 #ifndef CHROME_BROWSER_EXTENSIONS_API_WEB_AUTHENTICATION_PROXY_WEB_AUTHENTICATION_PROXY_SERVICE_H_
 #define CHROME_BROWSER_EXTENSIONS_API_WEB_AUTHENTICATION_PROXY_WEB_AUTHENTICATION_PROXY_SERVICE_H_
 
+#include <optional>
+#include <variant>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
@@ -20,7 +23,6 @@
 #include "extensions/browser/extension_registry_observer.h"
 #include "extensions/common/extension.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 class BrowserContext;
@@ -42,6 +44,9 @@ class WebAuthenticationProxyRegistrar : public KeyedService,
                                         public ExtensionRegistryObserver,
                                         public ProfileObserver {
  public:
+  explicit WebAuthenticationProxyRegistrar(Profile* profile);
+  ~WebAuthenticationProxyRegistrar() override;
+
   // Sets the active request proxy. `profile` must be associated with this
   // instance (i.e. the regular profile or an associated off-the-record
   // profile). `extension` must be an enabled extension.
@@ -80,10 +85,6 @@ class WebAuthenticationProxyRegistrar : public KeyedService,
   using PassKey = base::PassKey<WebAuthenticationProxyRegistrar>;
   friend class WebAuthenticationProxyRegistrarFactory;
 
-  explicit WebAuthenticationProxyRegistrar(Profile* profile);
-
-  ~WebAuthenticationProxyRegistrar() override;
-
   // ExtensionRegistryObserver:
   void OnExtensionUnloaded(content::BrowserContext* browser_context,
                            const Extension* extension,
@@ -96,7 +97,7 @@ class WebAuthenticationProxyRegistrar : public KeyedService,
   // The extension that is currently acting as the WebAuthn request proxy, if
   // any. An extension becomes the active proxy by calling `attach()`. It
   // unregisters by calling `detach()` or getting unloaded.
-  absl::optional<ExtensionId> active_regular_proxy_;
+  std::optional<ExtensionId> active_regular_proxy_;
 
   // Set if `active_regular_proxy_` is a spanning mode extension which should
   // attach to associated incognito profiles too.
@@ -105,7 +106,7 @@ class WebAuthenticationProxyRegistrar : public KeyedService,
   // A split mode extension that is the current proxy for the associated
   // incognito profile. If set, `attach_regular_proxy_contexts_` must be false.
   // But `active_regular_proxy_` may still be true.
-  absl::optional<ExtensionId> active_otr_split_proxy_;
+  std::optional<ExtensionId> active_otr_split_proxy_;
 
   raw_ptr<Profile> profile_ = nullptr;
   raw_ptr<ExtensionRegistry> extension_registry_ = nullptr;
@@ -131,7 +132,7 @@ class WebAuthenticationProxyRegistrarFactory
   ~WebAuthenticationProxyRegistrarFactory() override;
 
   // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 
@@ -144,7 +145,14 @@ class WebAuthenticationProxyService
     : public content::WebAuthenticationRequestProxy,
       public KeyedService {
  public:
-  using RespondCallback = base::OnceCallback<void(absl::optional<std::string>)>;
+  // Use
+  // WebAuthenticationProxyServiceFactory::BuildServiceInstanceForBrowserContext
+  // instead.
+  explicit WebAuthenticationProxyService(
+      content::BrowserContext* browser_context);
+  ~WebAuthenticationProxyService() override;
+
+  using RespondCallback = base::OnceCallback<void(std::optional<std::string>)>;
 
   // Returns the service instance for the given BrowserContext, if a proxy is
   // currently attached, and nulltpr otherwise. References to this class should
@@ -163,7 +171,7 @@ class WebAuthenticationProxyService
   // Injects the result for the `onCreateRequest` extension API event with
   // `EventId` matching the one in `details`.
   //
-  // On completion, `callback` is invoked with an error or `absl::nullopt` on
+  // On completion, `callback` is invoked with an error or `std::nullopt` on
   // success.
   void CompleteCreateRequest(
       const api::web_authentication_proxy::CreateResponseDetails& details,
@@ -172,7 +180,7 @@ class WebAuthenticationProxyService
   // Injects the result for the `onGetRequest` extension API event with
   // `EventId` matching the one in `details`.
   //
-  // On completion, `callback` is invoked with an error or `absl::nullopt` on
+  // On completion, `callback` is invoked with an error or `std::nullopt` on
   // success.
   void CompleteGetRequest(
       const api::web_authentication_proxy::GetResponseDetails& details,
@@ -206,12 +214,6 @@ class WebAuthenticationProxyService
   void CancelRequest(RequestId request_id) override;
 
  private:
-  friend class WebAuthenticationProxyServiceFactory;
-
-  explicit WebAuthenticationProxyService(
-      content::BrowserContext* browser_context);
-  ~WebAuthenticationProxyService() override;
-
   void CancelPendingCallbacks();
   RequestId NewRequestId();
   void OnParseCreateResponse(
@@ -228,10 +230,10 @@ class WebAuthenticationProxyService
   raw_ptr<ExtensionRegistry> extension_registry_ = nullptr;
 
   // The active proxy extension for this instance's profile, if any.
-  absl::optional<ExtensionId> active_proxy_;
+  std::optional<ExtensionId> active_proxy_;
 
   using CallbackType =
-      absl::variant<IsUvpaaCallback, CreateCallback, GetCallback>;
+      std::variant<IsUvpaaCallback, CreateCallback, GetCallback>;
   std::map<RequestId, CallbackType> pending_callbacks_;
 
   SEQUENCE_CHECKER(sequence_checker_);
@@ -255,7 +257,7 @@ class WebAuthenticationProxyServiceFactory : public ProfileKeyedServiceFactory {
   ~WebAuthenticationProxyServiceFactory() override;
 
   // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 

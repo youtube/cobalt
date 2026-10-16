@@ -9,9 +9,9 @@
 namespace webapps {
 
 bool IsSuccess(InstallResultCode code) {
-  // TODO(crbug.com/1296447): enumerate all the constants instead of the default
-  // clause to prevent accidentally implicitly returning false on any newly
-  // added value.
+  // TODO(crbug.com/40821686): enumerate all the constants instead of the
+  // default clause to prevent accidentally implicitly returning false on any
+  // newly added value.
   switch (code) {
     case InstallResultCode::kSuccessNewInstall:
     case InstallResultCode::kSuccessAlreadyInstalled:
@@ -85,6 +85,12 @@ std::ostream& operator<<(std::ostream& os, InstallResultCode code) {
       return os << "kIconDownloadingFailed";
     case InstallResultCode::kCancelledDueToMainFrameNavigation:
       return os << "kCancelledDueToMainFrameNavigation";
+    case InstallResultCode::kNoValidIconsInManifest:
+      return os << "kNoValidIconsInManifest";
+    case InstallResultCode::kNoCustomManifestId:
+      return os << "kNoCustomManifestId";
+    case InstallResultCode::kManifestIdMismatch:
+      return os << "kManifestIdMismatch";
   }
 }
 

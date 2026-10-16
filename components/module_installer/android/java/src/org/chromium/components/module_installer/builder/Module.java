@@ -8,32 +8,35 @@ import android.content.Context;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.BundleUtils;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.StrictModeContext;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.library_loader.LibraryLoader;
-import org.chromium.build.annotations.MainDex;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.module_installer.engine.InstallEngine;
 import org.chromium.components.module_installer.engine.InstallListener;
-import org.chromium.components.module_installer.util.Timer;
 
 /**
  * Represents a feature module. Can be used to install the module, access its interface, etc. See
  * {@link ModuleInterface} for how to conveniently create an instance of the module class for a
- * specific feature module. The @MainDex annotation supports module use in the renderer process.
+ * specific feature module.
  *
  * @param <T> The interface of the module
  */
 @JNINamespace("module_installer")
-@MainDex
+@NullMarked
 public class Module<T> {
     private final String mName;
     private final Class<T> mInterfaceClass;
     private final String mImplClassName;
-    private T mImpl;
-    private InstallEngine mInstaller;
+    private @Nullable ModuleDescriptor mModuleDescriptor;
+    private @Nullable Context mContext;
+    private @Nullable T mImpl;
+    private @Nullable InstallEngine mInstaller;
     private boolean mIsNativeLoaded;
 
     /**
@@ -53,9 +56,7 @@ public class Module<T> {
     @VisibleForTesting
     public InstallEngine getInstallEngine() {
         if (mInstaller == null) {
-            try (Timer timer = new Timer()) {
-                mInstaller = new ModuleEngine(mImplClassName);
-            }
+            mInstaller = new ModuleEngine(mImplClassName);
         }
         return mInstaller;
     }
@@ -65,32 +66,20 @@ public class Module<T> {
         mInstaller = engine;
     }
 
-    /**
-     * Returns true if the module is currently installed and can be accessed.
-     */
+    /** Returns true if the module is currently installed and can be accessed. */
     public boolean isInstalled() {
-        try (Timer timer = new Timer()) {
-            return getInstallEngine().isInstalled(mName);
-        }
+        return getInstallEngine().isInstalled(mName);
     }
 
-    /**
-     * Requests install of the module.
-     */
+    /** Requests install of the module. */
     public void install(InstallListener listener) {
-        try (Timer timer = new Timer()) {
-            assert !isInstalled();
-            getInstallEngine().install(mName, listener);
-        }
+        assert !isInstalled();
+        getInstallEngine().install(mName, listener);
     }
 
-    /**
-     * Requests deferred install of the module.
-     */
+    /** Requests deferred install of the module. */
     public void installDeferred() {
-        try (Timer timer = new Timer()) {
-            getInstallEngine().installDeferred(mName);
-        }
+        getInstallEngine().installDeferred(mName);
     }
 
     /**
@@ -98,37 +87,46 @@ public class Module<T> {
      * installed.
      */
     public T getImpl() {
-        try (Timer timer = new Timer()) {
-            if (mImpl != null) return mImpl;
-            assert isInstalled();
-
-            ModuleDescriptor moduleDescriptor = loadModuleDescriptor(mName);
-            if (moduleDescriptor.getLoadNativeOnGetImpl()) {
-                // Load the module's native code and/or resources if they are present, and the
-                // Chrome native library itself has been loaded.
-                ensureNativeLoaded();
-            }
-
-            Object impl = instantiateReflectively(mName, mImplClassName);
-            try {
-                mImpl = mInterfaceClass.cast(impl);
-            } catch (ClassCastException e) {
-                ClassLoader interfaceClassLoader = mInterfaceClass.getClassLoader();
-                ClassLoader implClassLoader = impl.getClass().getClassLoader();
-                throw new RuntimeException("Failure casting " + mName
-                                + " module class, interface ClassLoader: " + interfaceClassLoader
-                                + " (parent " + interfaceClassLoader.getParent() + ")"
-                                + ", impl ClassLoader: " + implClassLoader + " (parent "
-                                + implClassLoader.getParent() + ")"
-                                + ", equal: " + interfaceClassLoader.equals(implClassLoader)
-                                + " (parents equal: "
-                                + interfaceClassLoader.getParent().equals(
-                                        implClassLoader.getParent())
-                                + ")",
-                        e);
-            }
-            return mImpl;
+        T ret = mImpl;
+        if (ret != null) {
+            return ret;
         }
+        assert isInstalled();
+        ModuleDescriptor moduleDescriptor = getModuleDescriptor();
+        if (moduleDescriptor.getLoadNativeOnGetImpl()) {
+            // Load the module's native code and/or resources if they are present, and the
+            // Chrome native library itself has been loaded.
+            ensureNativeLoaded();
+        }
+
+        Object impl = instantiateReflectively(mImplClassName);
+        try {
+            ret = mInterfaceClass.cast(impl);
+            mImpl = ret;
+        } catch (ClassCastException e) {
+            ClassLoader interfaceClassLoader = mInterfaceClass.getClassLoader();
+            ClassLoader implClassLoader = impl.getClass().getClassLoader();
+            throw new RuntimeException(
+                    "Failure casting "
+                            + mName
+                            + " module class, interface ClassLoader: "
+                            + interfaceClassLoader
+                            + " (parent "
+                            + interfaceClassLoader.getParent()
+                            + ")"
+                            + ", impl ClassLoader: "
+                            + implClassLoader
+                            + " (parent "
+                            + implClassLoader.getParent()
+                            + ")"
+                            + ", equal: "
+                            + interfaceClassLoader.equals(implClassLoader)
+                            + " (parents equal: "
+                            + interfaceClassLoader.getParent().equals(implClassLoader.getParent())
+                            + ")",
+                    e);
+        }
+        return ret;
     }
 
     /**
@@ -139,7 +137,7 @@ public class Module<T> {
         // Can only initialize native once per lifetime of Chrome.
         if (mIsNativeLoaded) return;
         assert LibraryLoader.getInstance().isInitialized();
-        ModuleDescriptor moduleDescriptor = loadModuleDescriptor(mName);
+        ModuleDescriptor moduleDescriptor = getModuleDescriptor();
         String[] libraries = moduleDescriptor.getLibraries();
         String[] paks = moduleDescriptor.getPaks();
         if (libraries.length > 0 || paks.length > 0) {
@@ -155,31 +153,46 @@ public class Module<T> {
      * module. For APKs, returns an empty descriptor since APKs won't have
      * descriptors packaged into them.
      *
-     * @param name The module's name.
      * @return The module's {@link ModuleDescriptor}.
      */
-    private static ModuleDescriptor loadModuleDescriptor(String name) {
-        if (!BundleUtils.isBundle()) {
-            return new ModuleDescriptor() {
-                @Override
-                public String[] getLibraries() {
-                    return new String[0];
-                }
+    private ModuleDescriptor getModuleDescriptor() {
+        ModuleDescriptor ret = mModuleDescriptor;
+        if (ret == null) {
+            if (BundleUtils.isBundle()) {
+                ret =
+                        (ModuleDescriptor)
+                                instantiateReflectively(
+                                        "org.chromium.components.module_installer.builder.ModuleDescriptor_"
+                                                + mName);
+            } else {
+                ret =
+                        new ModuleDescriptor() {
+                            @Override
+                            public String[] getLibraries() {
+                                return new String[0];
+                            }
 
-                @Override
-                public String[] getPaks() {
-                    return new String[0];
-                }
+                            @Override
+                            public String[] getPaks() {
+                                return new String[0];
+                            }
 
-                @Override
-                public boolean getLoadNativeOnGetImpl() {
-                    return false;
-                }
-            };
+                            @Override
+                            public boolean getLoadNativeOnGetImpl() {
+                                return false;
+                            }
+                        };
+            }
+            mModuleDescriptor = ret;
         }
+        return ret;
+    }
 
-        return (ModuleDescriptor) instantiateReflectively(
-                name, "org.chromium.components.module_installer.builder.ModuleDescriptor_" + name);
+    /** Returns the Context associated with the module. */
+    public @Nullable Context getContext() {
+        // Ensure mContext is initialized.
+        getImpl();
+        return mContext;
     }
 
     /**
@@ -188,17 +201,23 @@ public class Module<T> {
      * Ignores strict mode violations since accessing code in a module may cause its DEX file to be
      * loaded and on some devices that can cause such a violation.
      *
-     * @param moduleName The module's name.
      * @param className The object's class name.
      * @return The object.
      */
-    private static Object instantiateReflectively(String moduleName, String className) {
-        Context context = ContextUtils.getApplicationContext();
-        if (BundleUtils.isIsolatedSplitInstalled(moduleName)) {
-            context = BundleUtils.createIsolatedSplitContext(context, moduleName);
+    private Object instantiateReflectively(String className) {
+        Context context = mContext;
+        if (context == null) {
+            context = ContextUtils.getApplicationContext();
+            String moduleName = mName;
+            if (BundleUtils.isIsolatedSplitInstalled(moduleName)) {
+                context = BundleUtils.createIsolatedSplitContext(moduleName);
+            }
         }
         try (StrictModeContext ignored = StrictModeContext.allowDiskReads()) {
-            return context.getClassLoader().loadClass(className).newInstance();
+            Object ret = context.getClassLoader().loadClass(className).newInstance();
+            // Cache only if reflection succeeded since the module might not have been installed.
+            mContext = context;
+            return ret;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

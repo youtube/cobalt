@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/vr/test/xr_browser_test.h"
+
 #include <cstring>
 
 #include "base/base_paths.h"
@@ -18,17 +20,24 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/vr/test/xr_browser_test.h"
-#include "chrome/test/base/in_process_browser_test.h"
-#include "chrome/test/base/ui_test_utils.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/test/base/chrome_test_utils.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test_utils.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/path_utils.h"
+#include "chrome/browser/android/tab_android.h"
+#include "chrome/browser/ui/android/tab_model/tab_model.h"
+#include "chrome/browser/ui/android/tab_model/tab_model_list.h"
+#else
+#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_tabstrip.h"
+#endif
 namespace vr {
 
 constexpr base::TimeDelta XrBrowserTestBase::kPollCheckIntervalShort;
@@ -41,11 +50,17 @@ constexpr char XrBrowserTestBase::kOpenXrConfigPathVal[];
 constexpr char XrBrowserTestBase::kTestFileDir[];
 constexpr char XrBrowserTestBase::kSwitchIgnoreRuntimeRequirements[];
 const std::vector<std::string> XrBrowserTestBase::kRequiredTestSwitches{
+#if BUILDFLAG(IS_WIN)
     "enable-gpu", "enable-pixel-output-in-tests",
-    "run-through-xr-wrapper-script"};
+    "run-through-xr-wrapper-script", "enable-unsafe-swiftshader"
+#endif
+};
 const std::vector<std::pair<std::string, std::string>>
     XrBrowserTestBase::kRequiredTestSwitchesWithValues{
-        std::pair<std::string, std::string>("test-launcher-jobs", "1")};
+#if BUILDFLAG(IS_WIN)
+        std::pair<std::string, std::string>("test-launcher-jobs", "1")
+#endif
+    };
 
 XrBrowserTestBase::XrBrowserTestBase() : env_(base::Environment::Create()) {
   enable_features_.push_back(features::kLogJsConsoleMessages);
@@ -74,6 +89,9 @@ std::string WideToUTF8IfNecessary(base::FilePath::StringType input) {
 // is "test", the returned string should be out/Debug/test.
 std::string MakeExecutableRelative(const char* path) {
   base::FilePath executable_path;
+#if BUILDFLAG(IS_ANDROID)
+  NOTREACHED();
+#else
   EXPECT_TRUE(
       base::PathService::Get(base::BasePathKey::FILE_EXE, &executable_path));
   executable_path = executable_path.DirName();
@@ -84,6 +102,7 @@ std::string MakeExecutableRelative(const char* path) {
       base::MakeAbsoluteFilePath(
           executable_path.Append(base::FilePath(UTF8ToWideIfNecessary(path))))
           .value());
+#endif
 }
 
 void XrBrowserTestBase::SetUp() {
@@ -121,6 +140,9 @@ void XrBrowserTestBase::SetUp() {
   XR_CONDITIONAL_SKIP_PRETEST(runtime_requirements_, ignored_requirements_,
                               &test_skipped_at_startup_)
 
+  // OpenXr on Android cannot use the environment variable as the loader cannot
+  // read it on Android at present.
+#if !BUILDFLAG(IS_ANDROID)
   // Set the environment variable to use the mock OpenXR client.
   // If the kOpenXrConfigPathEnvVar environment variable is set, the OpenXR
   // loader will look for the OpenXR runtime specified in that json file. The
@@ -130,6 +152,7 @@ void XrBrowserTestBase::SetUp() {
   ASSERT_TRUE(env_->SetVar(kOpenXrConfigPathEnvVar,
                            MakeExecutableRelative(kOpenXrConfigPathVal)))
       << "Failed to set OpenXR JSON location environment variable";
+#endif
 
   // Set any command line flags that subclasses have set, e.g. enabling features
   // or specific runtimes.
@@ -141,9 +164,20 @@ void XrBrowserTestBase::SetUp() {
     cmd_line->AppendSwitchASCII(switches::kEnableBlinkFeatures, blink_feature);
   }
 
+#if defined(MEMORY_SANITIZER)
+  // Surprisingly enough, there is no constant for this.
+  // TODO(crbug.com/40564748): Once generic wrapper scripts for tests are
+  // supported, move the logic to avoid passing --enable-gpu to GN.
+  if (cmd_line->HasSwitch("enable-gpu")) {
+    LOG(WARNING) << "Ignoring --enable-gpu switch, which is incompatible with "
+                    "MSan builds.";
+    cmd_line->RemoveSwitch("enable-gpu");
+  }
+#endif
+
   scoped_feature_list_.InitWithFeatures(enable_features_, disable_features_);
 
-  InProcessBrowserTest::SetUp();
+  PlatformBrowserTest::SetUp();
 }
 
 void XrBrowserTestBase::TearDown() {
@@ -152,7 +186,7 @@ void XrBrowserTestBase::TearDown() {
     // so can result in hitting a DCHECK.
     return;
   }
-  InProcessBrowserTest::TearDown();
+  PlatformBrowserTest::TearDown();
 }
 
 XrBrowserTestBase::RuntimeType XrBrowserTestBase::GetRuntimeType() const {
@@ -178,13 +212,60 @@ net::EmbeddedTestServer* XrBrowserTestBase::GetEmbeddedServer() {
 }
 
 content::WebContents* XrBrowserTestBase::GetCurrentWebContents() {
-  return browser()->tab_strip_model()->GetActiveWebContents();
+#if !BUILDFLAG(IS_ANDROID)
+  // `chrome_test_utils::GetActiveWebContents()` doesn't properly account for
+  // the presence of an incognito browser, and only looks in the browser
+  // returned by the base class, which doesn't get overridden by the incognito
+  // browser.
+  if (incognito_) {
+    Browser* incognito_browser = chrome::FindTabbedBrowser(
+        browser()->profile()->GetPrimaryOTRProfile(/*create_if_needed=*/false),
+        /*match_original_profiles=*/false);
+    return incognito_browser->tab_strip_model()->GetActiveWebContents();
+  }
+#endif
+  return chrome_test_utils::GetActiveWebContents(this);
+}
+
+void XrBrowserTestBase::SetIncognito() {
+  incognito_ = true;
+  OpenNewTab(url::kAboutBlankURL);
+}
+
+void XrBrowserTestBase::OpenNewTab(const std::string& url) {
+  OpenNewTab(url, incognito_);
+}
+
+void XrBrowserTestBase::OpenNewTab(const std::string& url, bool incognito) {
+#if BUILDFLAG(IS_ANDROID)
+  auto* profile = chrome_test_utils::GetProfile(this);
+  if (incognito) {
+    profile = profile->GetPrimaryOTRProfile(/*create_if_needed=*/true);
+  }
+
+  TabModel* tab_model =
+      TabModelList::GetTabModelForWebContents(GetCurrentWebContents());
+  TabAndroid* first_tab = TabAndroid::FromWebContents(GetCurrentWebContents());
+  std::unique_ptr<content::WebContents> contents =
+      content::WebContents::Create(content::WebContents::CreateParams(profile));
+  EXPECT_TRUE(content::NavigateToURL(contents.get(), GURL(url)));
+  // TabModel takes ownership of the WebContents, so we release it here.
+  tab_model->CreateTab(first_tab, contents.release(), true);
+#else
+  if (incognito) {
+    OpenURLOffTheRecord(browser()->profile(), GURL(url));
+  } else {
+    // -1 is a special index value used to append to the end of the tab list.
+    chrome::AddTabAt(browser(), GURL(url), /*index=*/-1, /*foreground=*/true);
+  }
+#endif
 }
 
 void XrBrowserTestBase::LoadFileAndAwaitInitialization(
     const std::string& test_name) {
+  OnBeforeLoadFile();
   GURL url = GetUrlForFile(test_name);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  ASSERT_TRUE(content::NavigateToURL(GetCurrentWebContents(), url));
   ASSERT_TRUE(PollJavaScriptBoolean("isInitializationComplete()",
                                     kPollTimeoutMedium,
                                     GetCurrentWebContents()))
@@ -206,7 +287,7 @@ void XrBrowserTestBase::RunJavaScriptOrFail(
     return;
   }
 
-  ASSERT_TRUE(content::ExecuteScript(web_contents, js_expression))
+  ASSERT_TRUE(content::ExecJs(web_contents, js_expression))
       << "Failed to run given JavaScript: " << js_expression;
 }
 

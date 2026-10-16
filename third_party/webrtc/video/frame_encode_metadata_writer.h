@@ -11,15 +11,23 @@
 #ifndef VIDEO_FRAME_ENCODE_METADATA_WRITER_H_
 #define VIDEO_FRAME_ENCODE_METADATA_WRITER_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <list>
+#include <optional>
 #include <vector>
 
-#include "absl/types/optional.h"
+#include "api/rtp_packet_infos.h"
+#include "api/video/color_space.h"
 #include "api/video/encoded_image.h"
+#include "api/video/video_bitrate_allocation.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_rotation.h"
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
 #include "modules/video_coding/include/video_codec_interface.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 
@@ -34,7 +42,8 @@ class FrameEncodeMetadataWriter {
 
   void OnEncodeStarted(const VideoFrame& frame);
 
-  void FillTimingInfo(size_t simulcast_svc_idx, EncodedImage* encoded_image);
+  void FillMetadataAndTimingInfo(size_t simulcast_svc_idx,
+                                 EncodedImage* encoded_image);
 
   void UpdateBitstream(const CodecSpecificInfo* codec_specific_info,
                        EncodedImage* encoded_image);
@@ -44,7 +53,7 @@ class FrameEncodeMetadataWriter {
  private:
   // For non-internal-source encoders, returns encode started time and fixes
   // capture timestamp for the frame, if corrupted by the encoder.
-  absl::optional<int64_t> ExtractEncodeStartTimeAndFillMetadata(
+  std::optional<int64_t> ExtractEncodeStartTimeAndFillMetadata(
       size_t simulcast_svc_idx,
       EncodedImage* encoded_image) RTC_EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
@@ -54,7 +63,8 @@ class FrameEncodeMetadataWriter {
     int64_t ntp_time_ms = 0;
     int64_t timestamp_us = 0;
     VideoRotation rotation = kVideoRotation_0;
-    absl::optional<ColorSpace> color_space;
+    std::optional<ColorSpace> color_space;
+    bool is_steady_state_refresh_frame = false;
     RtpPacketInfos packet_infos;
   };
   struct TimingFramesLayerInfo {

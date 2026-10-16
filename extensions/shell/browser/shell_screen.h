@@ -26,7 +26,7 @@ class ShellDesktopControllerAura;
 class ShellScreen : public display::ScreenBase,
                     public aura::WindowTreeHostObserver {
  public:
-  // Creates a screen occupying |size| physical pixels. |desktop_controller|
+  // Creates a screen occupying `size` physical pixels. `desktop_controller`
   // can be null in tests.
   ShellScreen(ShellDesktopControllerAura* desktop_controller,
               const gfx::Size& size);
@@ -47,8 +47,7 @@ class ShellScreen : public display::ScreenBase,
       gfx::NativeWindow window) const override;
 
  private:
-  const raw_ptr<ShellDesktopControllerAura, ExperimentalAsh>
-      desktop_controller_;
+  const raw_ptr<ShellDesktopControllerAura> desktop_controller_;
 };
 
 }  // namespace extensions

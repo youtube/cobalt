@@ -26,7 +26,6 @@
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "net/base/network_change_notifier.h"
 #include "net/proxy_resolution/proxy_config.h"
 #include "net/proxy_resolution/proxy_config_service.h"
@@ -37,13 +36,11 @@
 #endif
 
 #if BUILDFLAG(IS_APPLE)
-#include "base/mac/scoped_nsautorelease_pool.h"
+#include "base/apple/scoped_nsautorelease_pool.h"
 #endif
 
 namespace {
 
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
 #if BUILDFLAG(IS_LINUX)
 // Flag to specifies which network interfaces to ignore. Interfaces should
 // follow as a comma seperated list.
@@ -147,7 +144,7 @@ class NetWatcher :
 
 int main(int argc, char* argv[]) {
 #if BUILDFLAG(IS_APPLE)
-  base::mac::ScopedNSAutoreleasePool pool;
+  base::apple::ScopedNSAutoreleasePool pool;
 #endif
   base::AtExitManager exit_manager;
   base::CommandLine::Init(argc, argv);

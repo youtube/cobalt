@@ -20,7 +20,7 @@ namespace jni {
 
 ScopedJavaLocalRef<jobject> CreateJavaNativeCapturerObserver(
     JNIEnv* env,
-    rtc::scoped_refptr<AndroidVideoTrackSource> native_source) {
+    scoped_refptr<AndroidVideoTrackSource> native_source) {
   return Java_NativeCapturerObserver_Constructor(
       env, NativeToJavaPointer(native_source.release()));
 }

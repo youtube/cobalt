@@ -6,14 +6,16 @@
 
 #import <Foundation/Foundation.h>
 
+#import <optional>
 #import <utility>
 
+#import "base/apple/foundation_util.h"
 #import "base/check_op.h"
+#import "base/containers/contains.h"
 #import "base/files/file_path.h"
 #import "base/files/file_util.h"
 #import "base/functional/bind.h"
 #import "base/location.h"
-#import "base/mac/foundation_util.h"
 #import "base/memory/weak_ptr.h"
 #import "base/notreached.h"
 #import "base/observer_list.h"
@@ -26,17 +28,13 @@
 #import "ios/net/cookies/ns_http_system_cookie_store.h"
 #import "ios/net/cookies/system_cookie_util.h"
 #import "ios/net/ios_net_buildflags.h"
-#import "net/base/mac/url_conversions.h"
+#import "net/base/apple/url_conversions.h"
+#import "net/cookies/cookie_access_params.h"
 #import "net/cookies/cookie_constants.h"
 #import "net/cookies/cookie_util.h"
 #import "net/cookies/parsed_cookie.h"
 #import "net/log/net_log.h"
-#import "third_party/abseil-cpp/absl/types/optional.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace net {
 
@@ -62,10 +60,10 @@ class NotificationTrampoline {
   void NotifyCookiesChanged();
 
  private:
-  NotificationTrampoline();
-  ~NotificationTrampoline();
+  NotificationTrampoline() = default;
+  ~NotificationTrampoline() = default;
 
-  base::ObserverList<CookieNotificationObserver>::Unchecked observer_list_;
+  base::ObserverList<CookieNotificationObserver, true> observer_list_;
 
   static NotificationTrampoline* g_notification_trampoline;
 };
@@ -73,8 +71,9 @@ class NotificationTrampoline {
 #pragma mark NotificationTrampoline implementation
 
 NotificationTrampoline* NotificationTrampoline::GetInstance() {
-  if (!g_notification_trampoline)
+  if (!g_notification_trampoline) {
     g_notification_trampoline = new NotificationTrampoline;
+  }
   return g_notification_trampoline;
 }
 
@@ -87,14 +86,9 @@ void NotificationTrampoline::RemoveObserver(CookieNotificationObserver* obs) {
 }
 
 void NotificationTrampoline::NotifyCookiesChanged() {
-  for (auto& observer : observer_list_)
+  for (auto& observer : observer_list_) {
     observer.OnSystemCookiesChanged();
-}
-
-NotificationTrampoline::NotificationTrampoline() {
-}
-
-NotificationTrampoline::~NotificationTrampoline() {
+  }
 }
 
 // Global instance of NotificationTrampoline.
@@ -120,8 +114,9 @@ void OnlyCookiesWithName(const net::CookieAccessResultList& cookies,
                          const std::string& name,
                          net::CookieList* filtered) {
   for (const auto& cookie_with_access_result : cookies) {
-    if (cookie_with_access_result.cookie.Name() == name)
+    if (cookie_with_access_result.cookie.Name() == name) {
       filtered->push_back(cookie_with_access_result.cookie);
+    }
   }
 }
 
@@ -168,7 +163,7 @@ std::unique_ptr<CookieChangeSubscription>
 CookieStoreIOS::CookieChangeDispatcherIOS::AddCallbackForCookie(
     const GURL& gurl,
     const std::string& name,
-    const absl::optional<net::CookiePartitionKey>& cookie_partition_key,
+    const std::optional<net::CookiePartitionKey>& cookie_partition_key,
     CookieChangeCallback callback) {
   // iOS does not support Partitioned cookies.
   DCHECK(!cookie_partition_key);
@@ -178,7 +173,7 @@ CookieStoreIOS::CookieChangeDispatcherIOS::AddCallbackForCookie(
 std::unique_ptr<CookieChangeSubscription>
 CookieStoreIOS::CookieChangeDispatcherIOS::AddCallbackForUrl(
     const GURL& gurl,
-    const absl::optional<net::CookiePartitionKey>& cookie_partition_key,
+    const std::optional<net::CookiePartitionKey>& cookie_partition_key,
     CookieChangeCallback callback) {
   // iOS does not support Partitioned cookies.
   DCHECK(!cookie_partition_key);
@@ -204,11 +199,6 @@ CookieStoreIOS::CookieStoreIOS(
                      std::move(system_cookie_store),
                      net_log) {}
 
-CookieStoreIOS::CookieStoreIOS(NSHTTPCookieStorage* ns_cookie_store,
-                               NetLog* net_log)
-    : CookieStoreIOS(std::make_unique<NSHTTPSystemCookieStore>(ns_cookie_store),
-                     net_log) {}
-
 CookieStoreIOS::~CookieStoreIOS() {
   NotificationTrampoline::GetInstance()->RemoveObserver(this);
 
@@ -232,7 +222,7 @@ void CookieStoreIOS::SetCanonicalCookieAsync(
     const GURL& source_url,
     const net::CookieOptions& options,
     SetCookiesCallback callback,
-    absl::optional<net::CookieAccessResult> cookie_access_result) {
+    std::optional<net::CookieAccessResult> cookie_access_result) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // If cookies are not allowed, a CookieStoreIOS subclass should be used
@@ -252,11 +242,11 @@ void CookieStoreIOS::SetCanonicalCookieAsync(
     access_result = *cookie_access_result;
   }
 
-  if (cookie->IsSecure() &&
+  if (cookie->SecureAttribute() &&
       access_scheme == CookieAccessScheme::kNonCryptographic) {
     if (!callback.is_null()) {
       access_result.status.AddExclusionReason(
-          net::CookieInclusionStatus::EXCLUDE_SECURE_ONLY);
+          net::CookieInclusionStatus::ExclusionReason::EXCLUDE_SECURE_ONLY);
       std::move(callback).Run(access_result);
     }
     return;
@@ -273,9 +263,15 @@ void CookieStoreIOS::SetCanonicalCookieAsync(
 
   if (!callback.is_null()) {
     access_result.status.AddExclusionReason(
-        net::CookieInclusionStatus::EXCLUDE_FAILURE_TO_STORE);
+        net::CookieInclusionStatus::ExclusionReason::EXCLUDE_FAILURE_TO_STORE);
     std::move(callback).Run(access_result);
   }
+}
+
+void CookieStoreIOS::SetUnsafeCanonicalCookieForTestAsync(
+    std::unique_ptr<CanonicalCookie> cookie,
+    SetCookiesCallback callback) {
+  NOTIMPLEMENTED() << "Implement this if necessary.";
 }
 
 void CookieStoreIOS::GetCookieListWithOptionsAsync(
@@ -289,7 +285,7 @@ void CookieStoreIOS::GetCookieListWithOptionsAsync(
   // instead.
   DCHECK(SystemCookiesAllowed());
 
-  // TODO(crbug.com/1225444): Include cookie partition key when/if iOS supports
+  // TODO(crbug.com/40188414): Include cookie partition key when/if iOS supports
   // it.
 
   // TODO(mkwst): If/when iOS supports Same-Site cookies, we'll need to pass
@@ -307,8 +303,8 @@ void CookieStoreIOS::GetAllCookiesAsync(GetAllCookiesCallback callback) {
   // instead.
   DCHECK(SystemCookiesAllowed());
 
-  // TODO(crbug.com/459154): If/when iOS supports Same-Site cookies, we'll need
-  // to pass options in here as well.
+  // TODO(crbug.com/40406003): If/when iOS supports Same-Site cookies, we'll
+  // need to pass options in here as well.
   system_store_->GetAllCookiesAsync(
       base::BindOnce(&CookieStoreIOS::RunGetAllCookiesCallbackOnSystemCookies,
                      weak_factory_.GetWeakPtr(), std::move(callback)));
@@ -482,8 +478,8 @@ void CookieStoreIOS::DeleteCookiesMatchingInfoAsync(
             bool delegate_treats_url_as_trustworthy = false;
             net::CookieAccessParams params = {
                 net::CookieAccessSemantics::UNKNOWN,
-                delegate_treats_url_as_trustworthy,
-                net::CookieSamePartyStatus::kNoSamePartyEnforcement};
+                net::CookieScopeSemantics::UNKNOWN,
+                delegate_treats_url_as_trustworthy};
             return delete_info.Matches(cc, params);
           },
           std::move(delete_info)),
@@ -502,8 +498,9 @@ void CookieStoreIOS::DeleteCookiesMatchingPredicateAsync(
   system_store_->GetAllCookiesAsync(
       base::BindOnce(^(NSArray<NSHTTPCookie*>* cookies) {
         if (!weak_system_store) {
-          if (!shared_callback.is_null())
+          if (!shared_callback.is_null()) {
             std::move(shared_callback).Run(0);
+          }
           return;
         }
         int to_delete_count = 0;
@@ -512,8 +509,9 @@ void CookieStoreIOS::DeleteCookiesMatchingPredicateAsync(
               weak_system_store->GetCookieCreationTime(cookie);
           std::unique_ptr<net::CanonicalCookie> canonical_cookie =
               CanonicalCookieFromSystemCookie(cookie, creation_time);
-          if (!canonical_cookie)
+          if (!canonical_cookie) {
             continue;
+          }
           if (shared_predicate.Run(*std::move(canonical_cookie))) {
             weak_system_store->DeleteCookieAsync(
                 cookie, SystemCookieStore::SystemCookieCallback());
@@ -521,8 +519,9 @@ void CookieStoreIOS::DeleteCookiesMatchingPredicateAsync(
           }
         }
 
-        if (!shared_callback.is_null())
+        if (!shared_callback.is_null()) {
           std::move(shared_callback).Run(to_delete_count);
+        }
       }));
 }
 
@@ -536,8 +535,9 @@ void CookieStoreIOS::OnSystemCookiesChanged() {
   }
 
   // Do not schedule a flush if one is already scheduled.
-  if (!flush_closure_.IsCancelled())
+  if (!flush_closure_.IsCancelled()) {
     return;
+  }
 
   flush_closure_.Reset(base::BindOnce(&CookieStoreIOS::FlushStore,
                                       weak_factory_.GetWeakPtr(),
@@ -551,7 +551,7 @@ CookieChangeDispatcher& CookieStoreIOS::GetChangeDispatcher() {
 }
 
 void CookieStoreIOS::SetCookieableSchemes(
-    const std::vector<std::string>& schemes,
+    std::vector<std::string> schemes,
     SetCookieableSchemesCallback callback) {
   // Not supported on iOS.
   std::move(callback).Run(false);
@@ -570,7 +570,7 @@ std::unique_ptr<CookieChangeSubscription> CookieStoreIOS::AddCallbackForCookie(
     hook_map_[key] = std::make_unique<CookieChangeCallbackList>();
   }
 
-  DCHECK(hook_map_.find(key) != hook_map_.end());
+  DCHECK(base::Contains(hook_map_, key));
   auto subscription =
       std::make_unique<Subscription>(hook_map_[key]->Add(std::move(callback)));
   all_subscriptions_.Append(subscription.get());
@@ -622,14 +622,15 @@ void CookieStoreIOS::RunCallbacksForCookies(
     const std::vector<net::CanonicalCookie>& cookies,
     net::CookieChangeCause cause) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (cookies.empty())
+  if (cookies.empty()) {
     return;
+  }
 
   std::pair<GURL, std::string> key(url, name);
   CookieChangeCallbackList* callbacks = hook_map_[key].get();
   for (const auto& cookie : cookies) {
     DCHECK_EQ(name, cookie.Name());
-    // TODO(crbug.com/978172): Support CookieAccessSemantics values on iOS and
+    // TODO(crbug.com/40633505): Support CookieAccessSemantics values on iOS and
     // use it to check IncludeForRequestURL before notifying?
     callbacks->Notify(
         net::CookieChangeInfo(cookie, net::CookieAccessResult(), cause));
@@ -670,29 +671,33 @@ void CookieStoreIOS::UpdateCachesFromCookieMonster() {
 void CookieStoreIOS::UpdateCachesAfterSet(SetCookiesCallback callback,
                                           net::CookieAccessResult result) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (result.status.IsInclude())
+  if (result.status.IsInclude()) {
     UpdateCachesFromCookieMonster();
-  if (!callback.is_null())
+  }
+  if (!callback.is_null()) {
     std::move(callback).Run(result);
+  }
 }
 
 void CookieStoreIOS::UpdateCachesAfterDelete(DeleteCallback callback,
                                              uint32_t num_deleted) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   UpdateCachesFromCookieMonster();
-  if (!callback.is_null())
+  if (!callback.is_null()) {
     std::move(callback).Run(num_deleted);
+  }
 }
 
 void CookieStoreIOS::UpdateCachesAfterClosure(base::OnceClosure callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   UpdateCachesFromCookieMonster();
-  if (!callback.is_null())
+  if (!callback.is_null()) {
     std::move(callback).Run();
+  }
 }
 
-net::CookieList
-CookieStoreIOS::CanonicalCookieListFromSystemCookies(NSArray* cookies) {
+net::CookieList CookieStoreIOS::CanonicalCookieListFromSystemCookies(
+    NSArray* cookies) {
   net::CookieList cookie_list;
   cookie_list.reserve([cookies count]);
   for (NSHTTPCookie* cookie in cookies) {

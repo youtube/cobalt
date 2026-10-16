@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {page, dp} = await testRunner.startBlank(
       'Test that an untrustworthy attributionsrc triggers an issue when the img is preloaded.');
 
   await dp.Audits.enable();
 
-  const issue = dp.Audits.onceIssueAdded();
-
-  await page.navigate(
+  page.navigate(
       'https://devtools.test:8443/inspector-protocol/attribution-reporting/resources/preload.html');
 
-  testRunner.log((await issue).params.issue, 'Issue reported: ', ['violatingNodeId']);
+  const issue = await dp.Audits.onceIssueAdded();
+
+  testRunner.log(issue.params.issue, 'Issue reported: ', ['violatingNodeId']);
   testRunner.completeTest();
 })

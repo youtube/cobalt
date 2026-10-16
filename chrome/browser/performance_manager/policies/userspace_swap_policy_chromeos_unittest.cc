@@ -5,8 +5,10 @@
 #include "chrome/browser/performance_manager/policies/userspace_swap_policy_chromeos.h"
 
 #include "base/allocator/buildflags.h"
+#include "base/compiler_specific.h"
 #include "base/memory/raw_ptr.h"
 #include "base/system/sys_info.h"
+#include "base/time/time.h"
 #include "chrome/browser/performance_manager/policies/policy_features.h"
 #include "chromeos/ash/components/memory/userspace_swap/userspace_swap.h"
 #include "components/performance_manager/graph/graph_impl.h"
@@ -40,7 +42,7 @@ class MockUserspaceSwapPolicy : public UserspaceSwapPolicy {
   MockUserspaceSwapPolicy(const MockUserspaceSwapPolicy&) = delete;
   MockUserspaceSwapPolicy& operator=(const MockUserspaceSwapPolicy&) = delete;
 
-  ~MockUserspaceSwapPolicy() override {}
+  ~MockUserspaceSwapPolicy() override = default;
 
   MOCK_METHOD0(SwapNodesOnGraph, void(void));
   MOCK_METHOD1(InitializeProcessNode, bool(const ProcessNode*));
@@ -52,8 +54,7 @@ class MockUserspaceSwapPolicy : public UserspaceSwapPolicy {
   MOCK_METHOD1(IsPageNodeAudible, bool(const PageNode*));
   MOCK_METHOD1(IsPageNodeVisible, bool(const PageNode*));
   MOCK_METHOD1(IsPageNodeLoading, bool(const PageNode*));
-  MOCK_METHOD1(GetTimeSinceLastVisibilityChange,
-               base::TimeDelta(const PageNode*));
+  MOCK_METHOD1(GetLastVisibilityChangeTime, base::TimeTicks(const PageNode*));
 
   // Allow our mock to dispatch to default implementations.
   bool DefaultIsEligibleToSwap(const ProcessNode* process_node,
@@ -80,7 +81,7 @@ class MockUserspaceSwapPolicy : public UserspaceSwapPolicy {
     // Create a simple starting config that can be modified as needed for tests.
     // NOTE: We only initialize the configuration options which are used by the
     // policy.
-    memset(&test_config_, 0, sizeof(test_config_));
+    UNSAFE_TODO(memset(&test_config_, 0, sizeof(test_config_)));
 
     test_config_.enabled = true;
     test_config_.graph_walk_frequency = base::Seconds(10);
@@ -102,12 +103,15 @@ class UserspaceSwapPolicyTest : public ::testing::Test {
   UserspaceSwapPolicyTest(const UserspaceSwapPolicyTest&) = delete;
   UserspaceSwapPolicyTest& operator=(const UserspaceSwapPolicyTest&) = delete;
 
-  ~UserspaceSwapPolicyTest() override {}
+  ~UserspaceSwapPolicyTest() override = default;
 
   void SetUp() override {
     if (!base::SysInfo::IsRunningOnChromeOS()) {
       GTEST_SKIP() << "Skip test on chromeos-linux";
     }
+
+    graph_ = std::make_unique<TestGraphImpl>();
+    graph_->SetUp();
 
     CreateAndPassMockPolicy();
 
@@ -127,6 +131,10 @@ class UserspaceSwapPolicyTest : public ::testing::Test {
   }
 
   void TearDown() override {
+    if (!base::SysInfo::IsRunningOnChromeOS()) {
+      // Also skip TearDown() if SetUp() was skipped.
+      return;
+    }
     base::RunLoop().RunUntilIdle();
 
     policy_ = nullptr;
@@ -134,7 +142,8 @@ class UserspaceSwapPolicyTest : public ::testing::Test {
     page_node_.reset();
     process_node_.reset();
     system_node_.reset();
-    graph_.TearDown();
+    graph_->TearDown();
+    graph_ = nullptr;
   }
 
   void CreateAndPassMockPolicy() {
@@ -154,7 +163,7 @@ class UserspaceSwapPolicyTest : public ::testing::Test {
                                               std::forward<Args>(args)...);
   }
 
-  TestGraphImpl* graph() { return &graph_; }
+  TestGraphImpl* graph() { return graph_.get(); }
   content::BrowserTaskEnvironment* browser_env() { return &browser_env_; }
   TestNodeWrapper<ProcessNodeImpl>& process_node() { return process_node_; }
   TestNodeWrapper<PageNodeImpl>& page_node() { return page_node_; }
@@ -171,9 +180,8 @@ class UserspaceSwapPolicyTest : public ::testing::Test {
 
  private:
   content::BrowserTaskEnvironment browser_env_;
-  TestGraphImpl graph_;
-  raw_ptr<MockUserspaceSwapPolicy, ExperimentalAsh> policy_ =
-      nullptr;  // Not owned.
+  std::unique_ptr<TestGraphImpl> graph_;
+  raw_ptr<MockUserspaceSwapPolicy> policy_ = nullptr;  // Not owned.
 
   TestNodeWrapper<ProcessNodeImpl> process_node_;
   TestNodeWrapper<PageNodeImpl> page_node_;
@@ -370,8 +378,8 @@ TEST_F(UserspaceSwapPolicyTest, ValidateProcessSwapFrequency) {
       .WillRepeatedly(Return(false));
   EXPECT_CALL(*policy(), IsPageNodeVisible(page_node().get()))
       .WillRepeatedly(Return(false));
-  EXPECT_CALL(*policy(), GetTimeSinceLastVisibilityChange(page_node().get()))
-      .WillRepeatedly(Return(base::TimeDelta::Max()));
+  EXPECT_CALL(*policy(), GetLastVisibilityChangeTime(page_node().get()))
+      .WillRepeatedly(Return(base::TimeTicks::Max()));
 
   EXPECT_CALL(*policy(), SwapNodesOnGraph())
       .WillRepeatedly(

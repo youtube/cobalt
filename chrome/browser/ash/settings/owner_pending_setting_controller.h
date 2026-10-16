@@ -11,8 +11,8 @@
 #include "base/scoped_observation.h"
 #include "base/sequence_checker.h"
 #include "base/values.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "components/ownership/owner_settings_service.h"
 
 class PrefService;
@@ -53,12 +53,12 @@ class OwnerPendingSettingController
   // owner, and it will cause a pending write to be buffered and written later
   // if the device has no owner yet. It will write a warning and skip if the
   // device already has an owner, and |profile| is not that owner.
-  void Set(Profile* profile, const base::Value& value);
+  void Set(Profile* profile, base::Value value);
 
   // Returns the latest value - regardless of whether this has been successfully
   // signed and persisted, or if it is still stored as a pending write. Can
-  // return absl::nullopt if there is no pending write and no signed value.
-  absl::optional<base::Value> GetValue() const;
+  // return std::nullopt if there is no pending write and no signed value.
+  std::optional<base::Value> GetValue() const;
 
   // Add an observer |callback| for changes to the setting.
   [[nodiscard]] base::CallbackListSubscription AddObserver(
@@ -77,6 +77,7 @@ class OwnerPendingSettingController
 
   // ownership::OwnerSettingsService::Observer implementation:
   void OnSignedPolicyStored(bool success) override;
+  void OnServiceShutdown() override;
 
   // Clears any value waiting to be written (from storage in local state).
   void ClearPendingValue();
@@ -90,12 +91,12 @@ class OwnerPendingSettingController
   // Delegates immediately to SetWithService if |service| is ready, otherwise
   // runs SetWithService asynchronously once |service| is ready.
   void SetWithServiceAsync(ownership::OwnerSettingsService* service,
-                           const base::Value& value);
+                           base::Value value);
 
   // Callback used by SetWithServiceAsync.
   void SetWithServiceCallback(
       const base::WeakPtr<ownership::OwnerSettingsService>& service,
-      const base::Value value,
+      const base::Value& value,
       bool is_owner);
 
   // Uses |service| to write the latest value, as long as |service| belongs
@@ -112,8 +113,8 @@ class OwnerPendingSettingController
 
   SEQUENCE_CHECKER(sequence_checker_);
 
-  raw_ptr<PrefService, DanglingUntriaged | ExperimentalAsh> local_state_;
-  absl::optional<base::Value> value_notified_to_observers_;
+  raw_ptr<PrefService> local_state_;
+  std::optional<base::Value> value_notified_to_observers_;
   base::RepeatingClosureList callback_list_;
   base::CallbackListSubscription setting_subscription_;
 
@@ -144,10 +145,10 @@ class OwnerPendingSettingController
 
   // Return the value waiting to be written (stored in local_state), if one
   // exists.
-  absl::optional<base::Value> GetPendingValue() const;
+  std::optional<base::Value> GetPendingValue() const;
 
   // Return the value signed and stored in CrosSettings, if one exists.
-  absl::optional<base::Value> GetSignedStoredValue() const;
+  std::optional<base::Value> GetSignedStoredValue() const;
 
   // Returns whether pending value should be used when determining the value
   // of `GetValue`.

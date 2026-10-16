@@ -5,7 +5,9 @@
 #ifndef COMPONENTS_SAFE_BROWSING_CORE_BROWSER_DB_HASH_PREFIX_MAP_H_
 #define COMPONENTS_SAFE_BROWSING_CORE_BROWSER_DB_HASH_PREFIX_MAP_H_
 
+#include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 #include "base/files/memory_mapped_file.h"
@@ -61,6 +63,9 @@ enum ApplyUpdateResult {
   // There was a failure trying to map the file.
   MMAP_FAILURE = 12,
 
+  // The hash prefixes were not sorted when reading from dis.
+  READ_FAILURE_NOT_SORTED = 13,
+
   // Memory space for histograms is determined by the max.  ALWAYS
   // ADD NEW VALUES BEFORE THIS ONE.
   APPLY_UPDATE_RESULT_MAX
@@ -69,7 +74,7 @@ enum ApplyUpdateResult {
 // The sorted list of hash prefixes.
 using HashPrefixes = std::string;
 
-using HashPrefixesView = base::StringPiece;
+using HashPrefixesView = std::string_view;
 using HashPrefixMapView = std::unordered_map<PrefixSize, HashPrefixesView>;
 
 // Set a common sense limit on the store file size we try to read.
@@ -78,97 +83,66 @@ constexpr size_t kMaxStoreSizeBytes = 50 * 1000 * 1000;
 
 // Stores the list of sorted hash prefixes, by size.
 // For instance: {4: ["abcd", "bcde", "cdef", "gggg"], 5: ["fffff"]}
+// Maps will be stored a separate file for hash prefix lists of each
+// prefix size. These will be mapped into memory on initialization.
 class HashPrefixMap {
  public:
-  virtual ~HashPrefixMap() = default;
+  explicit HashPrefixMap(
+      const base::FilePath& store_path,
+      scoped_refptr<base::SequencedTaskRunner> task_runner = nullptr,
+      size_t buffer_size = 1024 * 512);
+
+  virtual ~HashPrefixMap();
 
   // Clears the underlying map.
-  virtual void Clear() = 0;
+  void Clear();
 
   // Returns a read-only view of the data stored in this map.
-  virtual HashPrefixMapView view() const = 0;
+  HashPrefixMapView view() const;
 
   // Appends |prefix| to the prefix list of size |size|.
-  virtual void Append(PrefixSize size, HashPrefixesView prefix) = 0;
+  void Append(PrefixSize size, HashPrefixesView prefix);
 
-  // Reserves space for the prefix list of size |size|.
-  virtual void Reserve(PrefixSize size, size_t capacity) = 0;
+  // Reads the map from disk.
+  ApplyUpdateResult ReadFromDisk(const V4StoreFileFormat& file_format);
 
-  // Reads and writes the map from disk.
-  virtual ApplyUpdateResult ReadFromDisk(
-      const V4StoreFileFormat& file_format) = 0;
-  virtual bool WriteToDisk(V4StoreFileFormat* file_format) = 0;
+  class WriteSession {
+   public:
+    WriteSession(const WriteSession&) = delete;
+    WriteSession& operator=(const WriteSession&) = delete;
+    virtual ~WriteSession() = default;
+
+   protected:
+    WriteSession() = default;
+  };
+
+  // Write the map to disk. Returns null in case of error, or a session instance
+  // that must be kept alive until `file_format` is committed to disk.
+  // Implementations may lend some internal state to `file_format` so that it
+  // can be written to disk with minimal overhead.
+  std::unique_ptr<WriteSession> WriteToDisk(V4StoreFileFormat* file_format);
 
   // Returns true if the data in this map is valid and can be used.
-  virtual ApplyUpdateResult IsValid() const = 0;
+  ApplyUpdateResult IsValid() const;
 
   // Returns a hash prefix if it matches the prefixes stored in this map.
-  virtual HashPrefixStr GetMatchingHashPrefix(base::StringPiece full_hash) = 0;
+  HashPrefixStr GetMatchingHashPrefix(std::string_view full_hash);
 
   // Migrates the file format between the different types of HashPrefixMap.
-  enum class MigrateResult { kSuccess, kFailure, kNotNeeded };
-  virtual MigrateResult MigrateFileFormat(const base::FilePath& store_path,
-                                          V4StoreFileFormat* file_format) = 0;
+  enum class MigrateResult { kUnknown, kSuccess, kFailure, kNotNeeded };
+  MigrateResult MigrateFileFormat(const base::FilePath& store_path,
+                                  V4StoreFileFormat* file_format);
 
   // Collects debug information about the prefixes in the map.
-  virtual void GetPrefixInfo(
-      google::protobuf::RepeatedPtrField<
-          DatabaseManagerInfo::DatabaseInfo::StoreInfo::PrefixSet>*
-          prefix_sets) = 0;
-};
-
-// An in-memory implementation of HashPrefixMap.
-class InMemoryHashPrefixMap : public HashPrefixMap {
- public:
-  InMemoryHashPrefixMap();
-  ~InMemoryHashPrefixMap() override;
-
-  // HashPrefixMap implementation:
-  void Clear() override;
-  HashPrefixMapView view() const override;
-  void Append(PrefixSize size, HashPrefixesView prefix) override;
-  void Reserve(PrefixSize size, size_t capacity) override;
-  ApplyUpdateResult ReadFromDisk(const V4StoreFileFormat& file_format) override;
-  bool WriteToDisk(V4StoreFileFormat* file_format) override;
-  ApplyUpdateResult IsValid() const override;
-  HashPrefixStr GetMatchingHashPrefix(base::StringPiece full_hash) override;
-  MigrateResult MigrateFileFormat(const base::FilePath& store_path,
-                                  V4StoreFileFormat* file_format) override;
   void GetPrefixInfo(google::protobuf::RepeatedPtrField<
                      DatabaseManagerInfo::DatabaseInfo::StoreInfo::PrefixSet>*
-                         prefix_sets) override;
-
- private:
-  std::unordered_map<PrefixSize, HashPrefixes> map_;
-};
-
-// A HashPrefixMap which will write separate files for hash prefix lists of each
-// prefix size. These will be mapped into memory on initialization.
-class MmapHashPrefixMap : public HashPrefixMap {
- public:
-  explicit MmapHashPrefixMap(const base::FilePath& store_path,
-                             size_t buffer_size = 1024 * 512);
-  ~MmapHashPrefixMap() override;
-
-  // HashPrefixMap implementation:
-  void Clear() override;
-  HashPrefixMapView view() const override;
-  void Append(PrefixSize size, HashPrefixesView prefix) override;
-  void Reserve(PrefixSize size, size_t capacity) override;
-  ApplyUpdateResult ReadFromDisk(const V4StoreFileFormat& file_format) override;
-  bool WriteToDisk(V4StoreFileFormat* file_format) override;
-  ApplyUpdateResult IsValid() const override;
-  HashPrefixStr GetMatchingHashPrefix(base::StringPiece full_hash) override;
-  MigrateResult MigrateFileFormat(const base::FilePath& store_path,
-                                  V4StoreFileFormat* file_format) override;
-  void GetPrefixInfo(google::protobuf::RepeatedPtrField<
-                     DatabaseManagerInfo::DatabaseInfo::StoreInfo::PrefixSet>*
-                         prefix_sets) override;
+                         prefix_sets);
 
   static base::FilePath GetPath(const base::FilePath& store_path,
                                 const std::string& extension);
 
   const std::string& GetExtensionForTesting(PrefixSize size);
+  void ClearAndWaitForTesting();
 
  private:
   class BufferedFileWriter;
@@ -177,12 +151,15 @@ class MmapHashPrefixMap : public HashPrefixMap {
     FileInfo(const base::FilePath& store_path, PrefixSize size);
     ~FileInfo();
 
-    bool Initialize(const HashFile& hash_file);
+    // `initialize_after_write` will control some extra logging for
+    // investigating https://crbug.com/393395944.
+    // TODO(crbug.com/393395944): Remove `initialize_after_write`.
+    bool Initialize(const HashFile& hash_file, bool initialize_after_write);
     bool Finalize(HashFile* hash_file);
 
     HashPrefixesView GetView() const;
     bool IsReadable() const { return file_.IsValid(); }
-    HashPrefixStr Matches(base::StringPiece full_hash) const;
+    HashPrefixStr Matches(std::string_view full_hash) const;
     BufferedFileWriter* GetOrCreateWriter(size_t buffer_size);
 
     const std::string& GetExtensionForTesting() const;
@@ -193,12 +170,13 @@ class MmapHashPrefixMap : public HashPrefixMap {
 
     base::MemoryMappedFile file_;
     std::unique_ptr<BufferedFileWriter> writer_;
-    std::vector<uint32_t> offsets_;
   };
 
   FileInfo& GetFileInfo(PrefixSize size);
+  void ClearOnTaskRunner();
 
   base::FilePath store_path_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
   std::unordered_map<PrefixSize, FileInfo> map_;
   size_t buffer_size_;
 };

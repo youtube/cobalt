@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "android_webview/browser/lifecycle/aw_contents_lifecycle_notifier.h"
 
 #include "base/memory/raw_ptr.h"
@@ -99,6 +104,7 @@ class AwContentsLifecycleNotifierTest : public testing::Test {
  protected:
   // testing::Test.
   void SetUp() override {
+    AwContentsLifecycleNotifier::InitForTesting();
     observer_ = std::make_unique<TestWebViewAppObserver>();
     callback_ = std::make_unique<TestOnLoseForegroundCallback>(observer_.get());
     notifier_ = std::make_unique<TestAwContentsLifecycleNotifier>(

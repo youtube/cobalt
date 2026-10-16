@@ -11,7 +11,6 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "base/strings/string_piece.h"
 #include "base/test/mock_callback.h"
 #include "build/build_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -23,6 +22,7 @@
 #include "ui/events/types/event_type.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/render_text.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/editable_combobox/editable_combobox.h"
@@ -38,6 +38,8 @@ using ::testing::StrictMock;
 
 class EditablePasswordComboboxTest : public ViewsTestBase {
  public:
+  static constexpr int kComboboxId = 123;
+
   EditablePasswordComboboxTest() = default;
 
   EditablePasswordComboboxTest(const EditablePasswordComboboxTest&) = delete;
@@ -50,29 +52,32 @@ class EditablePasswordComboboxTest : public ViewsTestBase {
   void TearDown() override;
 
  protected:
-  size_t GetItemCount() const {
-    return combobox_->GetMenuModelForTesting()->GetItemCount();
+  size_t GetItemCount() {
+    return combobox()->GetMenuModelForTesting()->GetItemCount();
   }
 
-  std::u16string GetItemAt(size_t index) const {
-    return combobox_->GetItemTextForTesting(index);
+  std::u16string GetItemAt(size_t index) {
+    return combobox()->GetItemTextForTesting(index);
   }
 
   // Clicks the eye button to reveal or obscure the password.
   void ClickEye() {
-    ToggleImageButton* eye = combobox_->GetEyeButtonForTesting();
+    ToggleImageButton* eye = combobox()->GetEyeButtonForTesting();
     generator_->MoveMouseTo(eye->GetBoundsInScreen().CenterPoint());
     generator_->ClickLeftButton();
   }
 
-  EditablePasswordCombobox* combobox() { return combobox_.get(); }
+  EditablePasswordCombobox* combobox() {
+    return static_cast<EditablePasswordCombobox*>(
+        widget_->GetContentsView()->GetViewByID(kComboboxId));
+  }
+
   base::MockCallback<Button::PressedCallback::Callback>* eye_mock_callback() {
     return &eye_callback_;
   }
 
  private:
-  raw_ptr<Widget> widget_ = nullptr;
-  raw_ptr<EditablePasswordCombobox> combobox_ = nullptr;
+  std::unique_ptr<Widget> widget_;
   base::MockCallback<Button::PressedCallback::Callback> eye_callback_;
 
   // Used for simulating eye button clicks.
@@ -92,20 +97,22 @@ void EditablePasswordComboboxTest::SetUp() {
       Button::PressedCallback(eye_callback_.Get()));
   // Set dummy tooltips and name to avoid running into a11y-related DCHECKs.
   combobox->SetPasswordIconTooltips(u"Show password", u"Hide password");
-  combobox->SetAccessibleName(u"Password field");
+  combobox->GetViewAccessibility().SetName(u"Password field");
+  combobox->SetID(kComboboxId);
 
-  widget_ = new Widget();
+  widget_ = std::make_unique<Widget>();
   Widget::InitParams params =
-      CreateParams(Widget::InitParams::TYPE_WINDOW_FRAMELESS);
+      CreateParams(Widget::InitParams::CLIENT_OWNS_WIDGET,
+                   Widget::InitParams::TYPE_WINDOW_FRAMELESS);
   params.bounds = gfx::Rect(0, 0, 1000, 1000);
   combobox->SetBoundsRect(gfx::Rect(0, 0, 500, 40));
 
   widget_->Init(std::move(params));
   View* container = widget_->SetContentsView(std::make_unique<View>());
-  combobox_ = container->AddChildView(std::move(combobox));
+  container->AddChildView(std::move(combobox));
 
   generator_ =
-      std::make_unique<ui::test::EventGenerator>(GetRootWindow(widget_));
+      std::make_unique<ui::test::EventGenerator>(GetRootWindow(widget_.get()));
 
   widget_->Show();
 

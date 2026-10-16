@@ -5,8 +5,9 @@
 #ifndef MEDIA_MUXERS_OUTPUT_POSITION_TRACKER_H_
 #define MEDIA_MUXERS_OUTPUT_POSITION_TRACKER_H_
 
+#include <string_view>
+
 #include "base/sequence_checker.h"
-#include "base/strings/string_piece.h"
 #include "media/base/media_export.h"
 #include "media/muxers/muxer.h"
 
@@ -23,7 +24,7 @@ class MEDIA_EXPORT OutputPositionTracker {
   OutputPositionTracker(const OutputPositionTracker&) = delete;
   OutputPositionTracker& operator=(const OutputPositionTracker&) = delete;
 
-  void WriteString(base::StringPiece data);
+  void WriteSpan(base::span<const uint8_t> data);
   uint32_t GetCurrentPos() const;
 
  private:

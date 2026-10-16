@@ -6,15 +6,21 @@ package org.chromium.chrome.browser.download;
 
 import androidx.annotation.IntDef;
 
+import org.chromium.build.annotations.NullMarked;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/**
- * Status of a download item.
- */
-@IntDef({DownloadStatus.IN_PROGRESS, DownloadStatus.COMPLETE, DownloadStatus.FAILED,
-        DownloadStatus.CANCELLED, DownloadStatus.INTERRUPTED})
+/** Status of a download item. */
+@IntDef({
+    DownloadStatus.IN_PROGRESS,
+    DownloadStatus.COMPLETE,
+    DownloadStatus.FAILED,
+    DownloadStatus.CANCELLED,
+    DownloadStatus.INTERRUPTED
+})
 @Retention(RetentionPolicy.SOURCE)
+@NullMarked
 public @interface DownloadStatus {
     int IN_PROGRESS = 0;
     int COMPLETE = 1;

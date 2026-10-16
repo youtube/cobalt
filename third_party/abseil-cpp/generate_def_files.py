@@ -27,9 +27,15 @@ import sys
 import tempfile
 import time
 
-# Matches a mangled symbol that has 'absl' in it, this should be a good
-# enough heuristic to select Abseil symbols to list in the .def file.
-ABSL_SYM_RE = re.compile(r'0* [BT] (?P<symbol>(\?+)[^\?].*absl.*)')
+assert sys.platform != 'win32', \
+  "This doesn't work on Windows due to https://crbug.com/3790230222"
+
+# Matches mangled symbols containing 'absl' or starting with 'Absl'. This is
+# a good enough heuristic to select Abseil symbols to list in the .def file.
+# See https://learn.microsoft.com/en-us/cpp/build/reference/decorated-names,
+# which describes decorations under different calling conventions. We mostly
+# just attempt to handle any leading underscore for C names (as in __cdecl).
+ABSL_SYM_RE = r'0* [BT] (?P<symbol>[?]+[^?].*absl.*|_?Absl.*)'
 if sys.platform == 'win32':
   # Typical dumpbin /symbol lines look like this:
   # 04B 0000000C SECT14 notype       Static       | ?$S1@?1??SetCurrent
@@ -40,10 +46,10 @@ if sys.platform == 'win32':
   # This regex is identical inside the () characters except for the ? after .*,
   # which is needed to prevent greedily grabbing the undecorated version of the
   # symbols.
-  ABSL_SYM_RE = '.*External     \| (?P<symbol>(\?+)[^\?].*?absl.*?) \(.*'
+  ABSL_SYM_RE = r'.*External     \| (?P<symbol>[?]+[^?].*?absl.*?|_?Absl.*?)($| \(.*)'
   # Typical exported symbols in dumpbin /directives look like:
   #    /EXPORT:?kHexChar@numbers_internal@absl@@3QBDB,DATA
-  ABSL_EXPORTED_RE = '.*/EXPORT:(.*),.*'
+  ABSL_EXPORTED_RE = r'.*/EXPORT:(.*),.*'
 
 
 def _DebugOrRelease(is_debug):
@@ -64,6 +70,7 @@ def _GenerateDefFile(cpu, is_debug, extra_gn_args=[], suffix=None):
       'symbol_level = 0',
       'target_cpu = "{}"'.format(cpu),
       'target_os = "win"',
+      'use_remoteexec = true',
   ]
   gn_args.extend(extra_gn_args)
 
@@ -76,12 +83,13 @@ def _GenerateDefFile(cpu, is_debug, extra_gn_args=[], suffix=None):
     symbol_dumper = ['dumpbin', '/symbols']
     import shutil
     if not shutil.which('dumpbin'):
-      logging.error('dumpbin not found. Run tools\win\setenv.bat.')
+      logging.error('dumpbin not found. Run tools\\win\\setenv.bat.')
       exit(1)
-  with tempfile.TemporaryDirectory() as out_dir:
+  cwd = os.getcwd()
+  with tempfile.TemporaryDirectory(dir=os.path.join(cwd, 'out')) as out_dir:
     logging.info('[%s - %s] Creating tmp out dir in %s', cpu, flavor, out_dir)
     subprocess.check_call([gn, 'gen', out_dir, '--args=' + ' '.join(gn_args)],
-                          cwd=os.getcwd())
+                          cwd=cwd)
     logging.info('[%s - %s] gn gen completed', cpu, flavor)
     subprocess.check_call(
         [autoninja, '-C', out_dir, 'third_party/abseil-cpp:absl_component_deps'],
@@ -135,6 +143,10 @@ def _GenerateDefFile(cpu, is_debug, extra_gn_args=[], suffix=None):
           # crbug.com/1201277.
           if symbol.startswith('??_G'):
             continue
+          # Strip any leading underscore for C names (as in __cdecl). It's only
+          # there on x86, but the x86 toolchain falls over when you include it!
+          if cpu == 'x86' and symbol.startswith('_'):
+            symbol = symbol[1:]
           absl_symbols.add(symbol)
 
     logging.info('[%s - %s] Found %d absl symbols.', cpu, flavor, len(absl_symbols))

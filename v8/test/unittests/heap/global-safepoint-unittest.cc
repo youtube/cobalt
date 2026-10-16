@@ -6,12 +6,14 @@
 #include "src/base/platform/platform.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
-#include "src/heap/parked-scope.h"
+#include "src/heap/parked-scope-inl.h"
 #include "src/heap/safepoint.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if V8_CAN_CREATE_SHARED_HEAP_BOOL
+// In multi-cage mode we create one cage per isolate
+// and we don't share objects between cages.
+#if V8_CAN_CREATE_SHARED_HEAP_BOOL && !COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL
 
 namespace v8 {
 namespace internal {
@@ -19,39 +21,6 @@ namespace internal {
 using GlobalSafepointTest = TestJSSharedMemoryWithNativeContext;
 
 namespace {
-
-class IsolateWithContextWrapper {
- public:
-  IsolateWithContextWrapper()
-      : isolate_wrapper_(kNoCounters),
-        isolate_scope_(isolate_wrapper_.isolate()),
-        handle_scope_(isolate_wrapper_.isolate()),
-        context_(v8::Context::New(isolate_wrapper_.isolate())),
-        context_scope_(context_) {}
-
-  v8::Isolate* v8_isolate() const { return isolate_wrapper_.isolate(); }
-  Isolate* isolate() const { return reinterpret_cast<Isolate*>(v8_isolate()); }
-
- private:
-  IsolateWrapper isolate_wrapper_;
-  v8::Isolate::Scope isolate_scope_;
-  v8::HandleScope handle_scope_;
-  v8::Local<v8::Context> context_;
-  v8::Context::Scope context_scope_;
-};
-
-class ParkingThread : public v8::base::Thread {
- public:
-  explicit ParkingThread(const Options& options) : v8::base::Thread(options) {}
-
-  void ParkedJoin(const ParkedScope& scope) {
-    USE(scope);
-    Join();
-  }
-
- private:
-  using base::Thread::Join;
-};
 
 class InfiniteLooperThread final : public ParkingThread {
  public:
@@ -135,10 +104,7 @@ TEST_F(GlobalSafepointTest, Interrupt) {
     sema_execute_complete.ParkedWait(local_isolate);
   }
 
-  ParkedScope parked(local_isolate);
-  for (auto& thread : threads) {
-    thread->ParkedJoin(parked);
-  }
+  ParkingThread::ParkedJoinAll(local_isolate, threads);
 }
 
 }  // namespace internal

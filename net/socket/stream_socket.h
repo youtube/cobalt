@@ -7,13 +7,16 @@
 
 #include <stdint.h>
 
+#include <optional>
+#include <string_view>
+
 #include "base/functional/bind.h"
+#include "base/notreached.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_export.h"
 #include "net/dns/public/resolve_error_info.h"
 #include "net/socket/next_proto.h"
 #include "net/socket/socket.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
@@ -109,9 +112,6 @@ class NET_EXPORT StreamSocket : public Socket {
   // Write() methods had been called, not the underlying transport's.
   virtual bool WasEverUsed() const = 0;
 
-  // Returns true if ALPN was negotiated during the connection of this socket.
-  virtual bool WasAlpnNegotiated() const = 0;
-
   // Returns the protocol negotiated via ALPN for this socket, or
   // kProtoUnknown will be returned if ALPN is not applicable.
   virtual NextProto GetNegotiatedProtocol() const = 0;
@@ -119,7 +119,7 @@ class NET_EXPORT StreamSocket : public Socket {
   // Get data received from peer in ALPS TLS extension.
   // Returns a (possibly empty) value if a TLS version supporting ALPS was used
   // and ALPS was negotiated, nullopt otherwise.
-  virtual absl::optional<base::StringPiece> GetPeerApplicationSettings() const;
+  virtual std::optional<std::string_view> GetPeerApplicationSettings() const;
 
   // Gets the SSL connection information of the socket.  Returns false if
   // SSL was not used by this socket.
@@ -146,7 +146,7 @@ class NET_EXPORT StreamSocket : public Socket {
   // retagged with a different tag. Sockets wrapping multiplexed sockets
   // (e.g. sockets who proxy through a QUIC or Spdy stream) cannot be tagged as
   // the tag would inadvertently affect other streams; calling ApplySocketTag()
-  // in this case will result in CHECK(false).
+  // in this case will result in NOTREACHED().
   virtual void ApplySocketTag(const SocketTag& tag) = 0;
 };
 

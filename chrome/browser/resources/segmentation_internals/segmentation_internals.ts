@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 import {getTrustedHTML} from 'chrome://resources/js/static_types.js';
-import {getRequiredElement} from 'chrome://resources/js/util_ts.js';
+import {getRequiredElement} from 'chrome://resources/js/util.js';
 
-import {ClientInfo, SegmentInfo} from './segmentation_internals.mojom-webui.js';
+import type {ClientInfo, SegmentInfo} from './segmentation_internals.mojom-webui.js';
 import {SegmentationInternalsBrowserProxy} from './segmentation_internals_browser_proxy.js';
 
 function getProxy(): SegmentationInternalsBrowserProxy {
@@ -34,7 +34,8 @@ function addSegmentInfoToParent(
   targetDiv.textContent = 'Segment Id: ' + String(info.segmentName);
   div.appendChild(targetDiv);
   const resultDiv = document.createElement('div');
-  resultDiv.textContent = 'Result: ' + String(info.predictionResult);
+  resultDiv.textContent = 'Result: ' + String(info.predictionResult) +
+      ' Time: ' + String(info.predictionTimestamp.internalValue);
   div.appendChild(resultDiv);
   const buttonDiv = document.createElement('div');
   if (info.canExecuteSegment) {

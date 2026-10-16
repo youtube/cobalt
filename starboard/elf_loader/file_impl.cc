@@ -43,15 +43,17 @@ FileImpl::~FileImpl() {
 bool FileImpl::Open(const char* name) {
   SB_DLOG(INFO) << "Loading: " << name;
   name_ = name;
-  file_ = open(name, O_RDONLY, S_IRUSR | S_IWUSR);
-  if (!file_) {
+  // Don't use the 2-arg open() since _FORTIFY_SOURCE rewrites it to __open_2,
+  // which bypasses -Wl,--wrap=open.
+  file_ = open(name, O_RDONLY, 0);
+  if (file_ < 0) {
     return false;
   }
   return true;
 }
 
 bool FileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
-  if (!file_) {
+  if (file_ < 0) {
     return false;
   }
   int64_t ret = lseek(file_, offset, SEEK_SET);
@@ -71,7 +73,7 @@ bool FileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
 }
 
 void FileImpl::Close() {
-  if (file_) {
+  if (file_ >= 0) {
     close(file_);
   }
 }

@@ -15,8 +15,9 @@
 #ifndef STARBOARD_LOADER_APP_MEMORY_TRACKER_THREAD_H_
 #define STARBOARD_LOADER_APP_MEMORY_TRACKER_THREAD_H_
 
+#include <cstdint>
+
 #include "starboard/common/thread.h"
-#include "starboard/types.h"
 
 namespace loader_app {
 

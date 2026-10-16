@@ -7,28 +7,36 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+#include <algorithm>
 #include <string>
 #include <utility>
 
 #include "base/compiler_specific.h"
 #include "base/containers/contains.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/threading/platform_thread.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_timestamp_helper.h"
 #include "media/media_buildflags.h"
 #include "services/audio/device_listener_output_stream.h"
-#include "services/audio/stream_monitor.h"
 
 namespace audio {
 
 namespace {
+
+// Requests data before reading in OutputController::OnMoreData, which may
+// reduce audio output latency but may increase the probability of audio
+// glitches.
+BASE_FEATURE(kAudioOutputControllerRequestBeforeRead,
+             "AudioOutputControllerRequestBeforeRead",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Time in seconds between two successive measurements of audio power levels.
 constexpr base::TimeDelta kPowerMonitorLogInterval = base::Seconds(15);
@@ -86,7 +94,7 @@ OutputController::ErrorStatisticsTracker::~ErrorStatisticsTracker() {
     controller_->SendLogMessage("StopStream => (duration=%" PRId64 " sec)",
                                 duration.InSeconds());
     controller_->SendLogMessage("StopStream => (error_during_callback=%s)",
-                                error_during_callback_ ? "true" : "false");
+                                base::ToString(error_during_callback_).c_str());
   }
 }
 
@@ -134,7 +142,9 @@ OutputController::OutputController(
       state_(kEmpty),
       sync_reader_(sync_reader),
       power_monitor_(params.sample_rate(),
-                     base::Milliseconds(kPowerMeasurementTimeConstantMillis)) {
+                     base::Milliseconds(kPowerMeasurementTimeConstantMillis)),
+      request_before_read_(base::FeatureList::IsEnabled(
+          kAudioOutputControllerRequestBeforeRead)) {
   DCHECK(audio_manager);
   DCHECK(handler_);
   DCHECK(sync_reader_);
@@ -284,8 +294,10 @@ void OutputController::StartStream() {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(state_ == kCreated || state_ == kPaused);
 
-  // Ask for first packet.
-  sync_reader_->RequestMoreData(base::TimeDelta(), base::TimeTicks(), {});
+  if (!request_before_read_) {
+    // Ask for first packet.
+    sync_reader_->RequestMoreData(base::TimeDelta(), base::TimeTicks(), {});
+  }
 
   state_ = kPlaying;
   SendLogMessage("%s => (state=%s)", __func__, StateToString(state_));
@@ -401,13 +413,19 @@ int OutputController::OnMoreData(base::TimeDelta delay,
                                  const media::AudioGlitchInfo& glitch_info,
                                  media::AudioBus* dest,
                                  bool is_mixing) {
-  TRACE_EVENT_BEGIN2("audio", "OutputController::OnMoreData", "glitches",
-                     glitch_info.count, "glitch_duration (ms)",
-                     glitch_info.duration.InMillisecondsF());
+  TRACE_EVENT("audio", "OutputController::OnMoreData", "this",
+              static_cast<void*>(this), "delay_timestamp (ms)",
+              (delay_timestamp - base::TimeTicks()).InMillisecondsF(),
+              "playout_delay (ms)", delay.InMillisecondsF());
+  glitch_info.MaybeAddTraceEvent();
 
   stats_tracker_->OnMoreDataCalled();
 
-  sync_reader_->Read(dest, is_mixing);
+  if (request_before_read_) {
+    sync_reader_->RequestMoreData(delay, delay_timestamp, glitch_info);
+  }
+
+  const bool received_data = sync_reader_->Read(dest, is_mixing);
 
   const base::TimeTicks reference_time = delay_timestamp + delay;
 
@@ -425,10 +443,12 @@ int OutputController::OnMoreData(base::TimeDelta delay,
 
   const int frames =
       dest->is_bitstream_format() ? dest->GetBitstreamFrames() : dest->frames();
-  delay +=
-      media::AudioTimestampHelper::FramesToTime(frames, params_.sample_rate());
+  if (!request_before_read_) {
+    delay += media::AudioTimestampHelper::FramesToTime(frames,
+                                                       params_.sample_rate());
 
-  sync_reader_->RequestMoreData(delay, delay_timestamp, glitch_info);
+    sync_reader_->RequestMoreData(delay, delay_timestamp, glitch_info);
+  }
 
 #if !BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
   constexpr bool is_bitstream = false;
@@ -436,7 +456,9 @@ int OutputController::OnMoreData(base::TimeDelta delay,
   const bool is_bitstream = params_.IsBitstreamFormat();
 #endif
 
-  if (will_monitor_audio_levels() && !is_bitstream) {
+  // Skip scanning `dest` when it's zero'ed to due to timeout glitches. This
+  // gives more accurate results from `power_monitor_`.
+  if (will_monitor_audio_levels() && received_data && !is_bitstream) {
     // Note: this code path should never be hit when using bitstream streams.
     // Scan doesn't expect compressed audio, so it may go out of bounds trying
     // to read |frames| frames of PCM data.
@@ -450,9 +472,6 @@ int OutputController::OnMoreData(base::TimeDelta delay,
     }
   }
 
-  TRACE_EVENT_END2("audio", "OutputController::OnMoreData", "timestamp (ms)",
-                   (delay_timestamp - base::TimeTicks()).InMillisecondsF(),
-                   "delay (ms)", delay.InMillisecondsF());
   return frames;
 }
 
@@ -520,8 +539,8 @@ void OutputController::StopSnooping(Snooper* snooper) {
 
   // The list will only update on this thread, and only be read on the realtime
   // audio thread.
-  const auto it = base::ranges::find(snoopers_, snooper);
-  DCHECK(it != snoopers_.end());
+  const auto it = std::ranges::find(snoopers_, snooper);
+  CHECK(it != snoopers_.end());
   // We also don't care about ordering, so swap and pop rather than erase.
   base::AutoLock lock(snooper_lock_);
   *it = snoopers_.back();
@@ -552,7 +571,7 @@ void OutputController::ToggleLocalOutput() {
   disable_local_output_ = !disable_local_output_;
 
   SendLogMessage("%s({disable_local_output=%s} [state=%s])", __func__,
-                 disable_local_output_ ? "true" : "false",
+                 base::ToString(disable_local_output_).c_str(),
                  StateToString(state_));
 
   // If there is an active |stream_|, close it and re-create either: 1) a fake
@@ -585,6 +604,17 @@ void OutputController::ProcessDeviceChange() {
 std::pair<float, bool> OutputController::ReadCurrentPowerAndClip() {
   DCHECK(will_monitor_audio_levels());
   return power_monitor_.ReadCurrentPowerAndClip();
+}
+
+void OutputController::SwitchAudioOutputDeviceId(
+    const std::string& new_output_device_id) {
+  DCHECK(task_runner_->BelongsToCurrentThread());
+  if (output_device_id_ == new_output_device_id) {
+    return;
+  }
+
+  output_device_id_ = new_output_device_id;
+  ProcessDeviceChange();
 }
 
 }  // namespace audio

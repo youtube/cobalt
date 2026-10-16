@@ -12,6 +12,7 @@
 #include "ash/public/cpp/test/shell_test_api.h"
 #include "ash/shell.h"
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/rand_util.h"
@@ -21,7 +22,7 @@
 #include "chrome/browser/ash/login/login_manager_test.h"
 #include "chrome/browser/ash/login/test/login_manager_mixin.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
-#include "chrome/browser/ui/ash/chrome_shell_delegate.h"
+#include "chrome/browser/ui/ash/shell_delegate/chrome_shell_delegate.h"
 #include "chrome/common/chrome_switches.h"
 #include "content/public/test/browser_test.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
@@ -153,7 +154,7 @@ class TestAshTraceDestinationIO : public hud_display::AshTraceDestinationIO {
   int fstat(base::PlatformFile fd, struct stat* statbuf) override {
     LOG(INFO) << "TestAshTraceDestinationIO::fstat(): Called.";
     AssertRegistry();
-    memset(statbuf, 0, sizeof(struct stat));
+    UNSAFE_TODO(memset(statbuf, 0, sizeof(struct stat)));
     return CanWriteFile(fd) ? 0 : -1;
   }
 
@@ -178,10 +179,12 @@ class TestAshTraceDestinationIO : public hud_display::AshTraceDestinationIO {
     CHECK_EQ(test_ash_trace_destination_io_registry->id(), registry_id_);
   }
 
-  raw_ptr<const TestAshTraceDestinationIORegistry, ExperimentalAsh> registry_;
+  raw_ptr<const TestAshTraceDestinationIORegistry, LeakedDanglingUntriaged>
+      registry_;
   const uint64_t registry_id_;
 
-  raw_ptr<TestAshTraceDestinationIORegistry::IOStatus, ExperimentalAsh> status_;
+  raw_ptr<TestAshTraceDestinationIORegistry::IOStatus, LeakedDanglingUntriaged>
+      status_;
 };
 
 // Keeps track of all test TracingSession objects.
@@ -326,13 +329,13 @@ class TestTracingSession : public perfetto::TracingSession {
     CHECK_EQ(test_tracing_session_registry->id(), registry_id_);
   }
 
-  raw_ptr<const TestTracingSessionRegistry, ExperimentalAsh> registry_;
+  raw_ptr<const TestTracingSessionRegistry> registry_;
   const uint64_t registry_id_;
 
   std::function<void()> on_start_callback_;  // nocheck
   std::function<void()> on_stop_callback_;   // nocheck
 
-  raw_ptr<TestTracingSessionRegistry::SessionStatus, ExperimentalAsh> status_;
+  raw_ptr<TestTracingSessionRegistry::SessionStatus> status_;
 };
 
 // Generates TraceDestination on the ThreadPool (IO-enabled sequence runner)
@@ -400,7 +403,7 @@ class TestAshTracingManagerObserver
   }
 
  private:
-  const raw_ref<hud_display::AshTracingManager, ExperimentalAsh> manager_;
+  const raw_ref<hud_display::AshTracingManager> manager_;
   Condition condition_;
 
   std::unique_ptr<base::RunLoop> run_loop_;

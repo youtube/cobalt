@@ -52,7 +52,15 @@ FILE *__fdopen(int fd, const char *mode)
 	f->seek = __stdio_seek;
 	f->close = __stdio_close;
 
+#if defined(STARBOARD)
+	f->cond_mutex = (StarboardPthreadCondMutex){
+		.lock = 0,  // Starboard apps are typicall multithreaded, require locking.
+		.mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP,
+		.cond = PTHREAD_COND_INITIALIZER
+	};
+#else
 	if (!libc.threaded) f->lock = -1;
+#endif
 
 	/* Add new FILE to open file list */
 	return __ofl_add(f);

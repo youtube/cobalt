@@ -1,16 +1,16 @@
-// Copyright (c) 2019, Google Inc.
+// Copyright 2019 The BoringSSL Authors
 //
-// Permission to use, copy, modify, and/or distribute this software for any
-// purpose with or without fee is hereby granted, provided that the above
-// copyright notice and this permission notice appear in all copies.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-// SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-// OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-// CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package subprocess
 
@@ -21,11 +21,12 @@ import (
 	"fmt"
 )
 
-// The following structures reflect the JSON of ACVP hash tests. See
+// The following structures reflect the JSON of ACVP ECDSA tests. See
 // https://pages.nist.gov/ACVP/draft-fussell-acvp-ecdsa.html#name-test-vectors
 
 type ecdsaTestVectorSet struct {
 	Groups []ecdsaTestGroup `json:"testGroups"`
+	Algorithm string        `json:"algorithm"`
 	Mode   string           `json:"mode"`
 }
 
@@ -72,10 +73,14 @@ type ecdsa struct {
 	primitives map[string]primitive
 }
 
-func (e *ecdsa) Process(vectorSet []byte, m Transactable) (interface{}, error) {
+func (e *ecdsa) Process(vectorSet []byte, m Transactable) (any, error) {
 	var parsed ecdsaTestVectorSet
 	if err := json.Unmarshal(vectorSet, &parsed); err != nil {
 		return nil, err
+	}
+
+	if parsed.Algorithm == "DetECDSA" && parsed.Mode != "sigGen" {
+		return nil, fmt.Errorf("DetECDSA only specifies sigGen mode")
 	}
 
 	var ret []ecdsaTestGroupResponse
@@ -83,6 +88,8 @@ func (e *ecdsa) Process(vectorSet []byte, m Transactable) (interface{}, error) {
 	// https://pages.nist.gov/ACVP/draft-fussell-acvp-ecdsa.html#name-test-vectors
 	// for details about the tests.
 	for _, group := range parsed.Groups {
+		group := group
+
 		if _, ok := e.curves[group.Curve]; !ok {
 			return nil, fmt.Errorf("curve %q in test group %d not supported", group.Curve, group.ID)
 		}
@@ -93,20 +100,23 @@ func (e *ecdsa) Process(vectorSet []byte, m Transactable) (interface{}, error) {
 		var sigGenPrivateKey []byte
 
 		for _, test := range group.Tests {
+			test := test
+
 			var testResp ecdsaTestResponse
+			testResp.ID = test.ID
 
 			switch parsed.Mode {
 			case "keyGen":
 				if group.SecretGenerationMode != "testing candidates" {
 					return nil, fmt.Errorf("invalid secret generation mode in test group %d: %q", group.ID, group.SecretGenerationMode)
 				}
-				result, err := m.Transact(e.algo+"/"+"keyGen", 3, []byte(group.Curve))
-				if err != nil {
-					return nil, fmt.Errorf("key generation failed for test case %d/%d: %s", group.ID, test.ID, err)
-				}
-				testResp.DHex = hex.EncodeToString(result[0])
-				testResp.QxHex = hex.EncodeToString(result[1])
-				testResp.QyHex = hex.EncodeToString(result[2])
+				m.TransactAsync(e.algo+"/"+"keyGen", 3, [][]byte{[]byte(group.Curve)}, func(result [][]byte) error {
+					testResp.DHex = hex.EncodeToString(result[0])
+					testResp.QxHex = hex.EncodeToString(result[1])
+					testResp.QyHex = hex.EncodeToString(result[2])
+					response.Tests = append(response.Tests, testResp)
+					return nil
+				})
 
 			case "keyVer":
 				qx, err := hex.DecodeString(test.QxHex)
@@ -117,23 +127,27 @@ func (e *ecdsa) Process(vectorSet []byte, m Transactable) (interface{}, error) {
 				if err != nil {
 					return nil, fmt.Errorf("failed to decode qy in test case %d/%d: %s", group.ID, test.ID, err)
 				}
-				result, err := m.Transact(e.algo+"/"+"keyVer", 1, []byte(group.Curve), qx, qy)
-				if err != nil {
-					return nil, fmt.Errorf("key verification failed for test case %d/%d: %s", group.ID, test.ID, err)
-				}
-				// result[0] should be a single byte: zero if false, one if true
-				switch {
-				case bytes.Equal(result[0], []byte{00}):
-					f := false
-					testResp.Passed = &f
-				case bytes.Equal(result[0], []byte{01}):
-					t := true
-					testResp.Passed = &t
-				default:
-					return nil, fmt.Errorf("key verification returned unexpected result: %q", result[0])
-				}
+				m.TransactAsync(e.algo+"/"+"keyVer", 1, [][]byte{[]byte(group.Curve), qx, qy}, func(result [][]byte) error {
+					// result[0] should be a single byte: zero if false, one if true
+					switch {
+					case bytes.Equal(result[0], []byte{00}):
+						f := false
+						testResp.Passed = &f
+					case bytes.Equal(result[0], []byte{01}):
+						t := true
+						testResp.Passed = &t
+					default:
+						return fmt.Errorf("key verification returned unexpected result: %q", result[0])
+					}
+					response.Tests = append(response.Tests, testResp)
+					return nil
+				})
 
 			case "sigGen":
+				if group.ComponentTest && parsed.Algorithm == "DetECDSA" {
+					return nil, fmt.Errorf("DetECDSA does not support component tests")
+				}
+
 				p := e.primitives[group.HashAlgo]
 				h, ok := p.(*hashPrimitive)
 				if !ok {
@@ -142,7 +156,13 @@ func (e *ecdsa) Process(vectorSet []byte, m Transactable) (interface{}, error) {
 
 				if len(sigGenPrivateKey) == 0 {
 					// Ask the subprocess to generate a key for this test group.
-					result, err := m.Transact(e.algo+"/"+"keyGen", 3, []byte(group.Curve))
+					cmd := e.algo + "/keyGen"
+					if e.algo == "DetECDSA" {
+						// Use "ECDSA/keyGen" for DetECDSA to avoid the module wrapper needing to support a second
+						// keyGen command for DetECDSA.
+						cmd = "ECDSA/keyGen"
+					}
+					result, err := m.Transact(cmd, 3, []byte(group.Curve))
 					if err != nil {
 						return nil, fmt.Errorf("key generation failed for test case %d/%d: %s", group.ID, test.ID, err)
 					}
@@ -163,12 +183,12 @@ func (e *ecdsa) Process(vectorSet []byte, m Transactable) (interface{}, error) {
 					}
 					op += "/componentTest"
 				}
-				result, err := m.Transact(op, 2, []byte(group.Curve), sigGenPrivateKey, []byte(group.HashAlgo), msg)
-				if err != nil {
-					return nil, fmt.Errorf("signature generation failed for test case %d/%d: %s", group.ID, test.ID, err)
-				}
-				testResp.RHex = hex.EncodeToString(result[0])
-				testResp.SHex = hex.EncodeToString(result[1])
+				m.TransactAsync(op, 2, [][]byte{[]byte(group.Curve), sigGenPrivateKey, []byte(group.HashAlgo), msg}, func(result [][]byte) error {
+					testResp.RHex = hex.EncodeToString(result[0])
+					testResp.SHex = hex.EncodeToString(result[1])
+					response.Tests = append(response.Tests, testResp)
+					return nil
+				})
 
 			case "sigVer":
 				p := e.primitives[group.HashAlgo]
@@ -197,31 +217,34 @@ func (e *ecdsa) Process(vectorSet []byte, m Transactable) (interface{}, error) {
 				if err != nil {
 					return nil, fmt.Errorf("failed to decode S in test case %d/%d: %s", group.ID, test.ID, err)
 				}
-				result, err := m.Transact(e.algo+"/"+"sigVer", 1, []byte(group.Curve), []byte(group.HashAlgo), msg, qx, qy, r, s)
-				if err != nil {
-					return nil, fmt.Errorf("signature verification failed for test case %d/%d: %s", group.ID, test.ID, err)
-				}
-				// result[0] should be a single byte: zero if false, one if true
-				switch {
-				case bytes.Equal(result[0], []byte{00}):
-					f := false
-					testResp.Passed = &f
-				case bytes.Equal(result[0], []byte{01}):
-					t := true
-					testResp.Passed = &t
-				default:
-					return nil, fmt.Errorf("signature verification returned unexpected result: %q", result[0])
-				}
+				m.TransactAsync(e.algo+"/"+"sigVer", 1, [][]byte{[]byte(group.Curve), []byte(group.HashAlgo), msg, qx, qy, r, s}, func(result [][]byte) error {
+					// result[0] should be a single byte: zero if false, one if true
+					switch {
+					case bytes.Equal(result[0], []byte{00}):
+						f := false
+						testResp.Passed = &f
+					case bytes.Equal(result[0], []byte{01}):
+						t := true
+						testResp.Passed = &t
+					default:
+						return fmt.Errorf("signature verification returned unexpected result: %q", result[0])
+					}
+					response.Tests = append(response.Tests, testResp)
+					return nil
+				})
 
 			default:
 				return nil, fmt.Errorf("invalid mode %q in ECDSA vector set", parsed.Mode)
 			}
-
-			testResp.ID = test.ID
-			response.Tests = append(response.Tests, testResp)
 		}
 
-		ret = append(ret, response)
+		m.Barrier(func() {
+			ret = append(ret, response)
+		})
+	}
+
+	if err := m.Flush(); err != nil {
+		return nil, err
 	}
 
 	return ret, nil

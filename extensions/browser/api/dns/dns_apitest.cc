@@ -37,10 +37,10 @@ constexpr char kAddress[] = "9.8.7.6";
 class DnsApiTest : public ShellApiTest {
  public:
   DnsApiTest() {
-    // Enable kSplitHostCacheByNetworkIsolationKey so the test can verify that
-    // the correct NetworkAnonymizationKey was used for the DNS lookup.
+    // Enable kPartitionConnectionsByNetworkIsolationKey so the test can verify
+    // that the correct NetworkAnonymizationKey was used for the DNS lookup.
     scoped_feature_list_.InitAndEnableFeature(
-        net::features::kSplitHostCacheByNetworkIsolationKey);
+        net::features::kPartitionConnectionsByNetworkIsolationKey);
   }
 
  private:
@@ -61,7 +61,7 @@ IN_PROC_BROWSER_TEST_F(DnsApiTest, DnsResolveIPLiteral) {
   resolve_function->set_extension(empty_extension.get());
   resolve_function->set_has_callback(true);
 
-  absl::optional<base::Value> result(RunFunctionAndReturnSingleResult(
+  std::optional<base::Value> result(RunFunctionAndReturnSingleResult(
       resolve_function.get(), "[\"127.0.0.1\"]", browser_context()));
   const base::Value::Dict& dict = result->GetDict();
 
@@ -83,7 +83,7 @@ IN_PROC_BROWSER_TEST_F(DnsApiTest, DnsResolveHostname) {
   resolve_function->set_has_callback(true);
 
   std::string function_arguments = base::StringPrintf(R"(["%s"])", kHostname);
-  absl::optional<base::Value> result(RunFunctionAndReturnSingleResult(
+  std::optional<base::Value> result(RunFunctionAndReturnSingleResult(
       resolve_function.get(), function_arguments, browser_context()));
   const base::Value::Dict& dict = result->GetDict();
 

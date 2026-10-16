@@ -5,11 +5,19 @@
 #ifndef CHROME_BROWSER_ENTERPRISE_CONNECTORS_DEVICE_TRUST_COMMON_COMMON_TYPES_H_
 #define CHROME_BROWSER_ENTERPRISE_CONNECTORS_DEVICE_TRUST_COMMON_COMMON_TYPES_H_
 
+#include <optional>
 #include <string>
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
-
 namespace enterprise_connectors {
+
+// Represents the various policy levels for the Device Trust connector.
+enum class DTCPolicyLevel {
+  // For CBCM-managed browsers.
+  kBrowser = 0,
+
+  // For managed users logged-in to the profile.
+  kUser = 1,
+};
 
 // Various possible outcomes to the attestation step in the overarching Device
 // Trust connector attestation flow. These values are persisted to logs and
@@ -27,7 +35,8 @@ enum class DTAttestationResult {
   kEmptySerializedResponse = 8,
   kSuccess = 9,
   kFailedToSerializeSignals = 10,
-  kMaxValue = kFailedToSerializeSignals,
+  kSuccessNoSignature = 11,
+  kMaxValue = kSuccessNoSignature,
 };
 
 // Enum representing all possible errors that may cause the generation of a
@@ -39,9 +48,12 @@ enum class DeviceTrustError {
   kFailedToCreateResponse
 };
 
-// Used to convert an error `result` to a string. This function will return an
-// empty string if `result` represents `kSuccess`.
-const std::string AttestationResultToString(DTAttestationResult result);
+// Used to convert an attestation `error` to a string. This function will return
+// an empty string if `error` represents a success.
+const std::string AttestationErrorToString(DTAttestationResult error);
+
+// Returns true if `result` corresponds to one of the successful results.
+bool IsSuccessAttestationResult(DTAttestationResult result);
 
 // Used to convert `error` to a string representation.
 const std::string DeviceTrustErrorToString(DeviceTrustError error);
@@ -57,8 +69,8 @@ struct AttestationResponse {
 // a device identity attestation request.
 struct DeviceTrustResponse {
   std::string challenge_response{};
-  absl::optional<DeviceTrustError> error = absl::nullopt;
-  absl::optional<DTAttestationResult> attestation_result = absl::nullopt;
+  std::optional<DeviceTrustError> error = std::nullopt;
+  std::optional<DTAttestationResult> attestation_result = std::nullopt;
 };
 
 }  // namespace enterprise_connectors

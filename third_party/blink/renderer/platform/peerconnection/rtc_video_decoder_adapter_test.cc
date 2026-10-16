@@ -2,15 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "third_party/blink/renderer/platform/peerconnection/rtc_video_decoder_adapter.h"
+
+#include <stdint.h>
+
 #include <memory>
 #include <utility>
 #include <vector>
 
-#include <stdint.h>
-
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/gmock_callback_support.h"
@@ -31,9 +34,13 @@
 #include "media/video/mock_gpu_video_accelerator_factories.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/renderer/platform/peerconnection/rtc_video_decoder_adapter.h"
+#include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/platform/scheduler/test/renderer_scheduler_test_support.h"
+#include "third_party/blink/renderer/platform/peerconnection/resolution_monitor.h"
+#include "third_party/blink/renderer/platform/webrtc/webrtc_video_utils.h"
 #include "third_party/webrtc/api/video_codecs/video_codec.h"
 #include "third_party/webrtc/api/video_codecs/vp9_profile.h"
+#include "third_party/webrtc/modules/video_coding/include/video_error_codes.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -48,6 +55,30 @@ using ::testing::StrictMock;
 namespace blink {
 
 namespace {
+
+class FakeResolutionMonitor : public ResolutionMonitor {
+ public:
+  explicit FakeResolutionMonitor(bool pass_resolution_monitor,
+                                 const webrtc::SdpVideoFormat& format)
+      : pass_resolution_monitor_(pass_resolution_monitor),
+        codec_(WebRtcToMediaVideoCodec(
+            webrtc::PayloadStringToCodecType(format.name))) {}
+  ~FakeResolutionMonitor() override = default;
+
+  std::optional<gfx::Size> GetResolution(
+      const media::DecoderBuffer& buffer) override {
+    if (pass_resolution_monitor_) {
+      return gfx::Size(1280, 720);
+    } else {
+      return gfx::Size(1, 1);
+    }
+  }
+  media::VideoCodec codec() const override { return codec_; }
+
+ private:
+  const bool pass_resolution_monitor_;
+  const media::VideoCodec codec_;
+};
 
 class MockVideoDecoder : public media::VideoDecoder {
  public:
@@ -116,26 +147,30 @@ class RTCVideoDecoderAdapterWrapper : public webrtc::VideoDecoder {
  public:
   static std::unique_ptr<RTCVideoDecoderAdapterWrapper> Create(
       media::GpuVideoAcceleratorFactories* gpu_factories,
-      const webrtc::SdpVideoFormat& format) {
+      const webrtc::SdpVideoFormat& format,
+      bool pass_resolution_monitor) {
     auto wrapper = base::WrapUnique(new RTCVideoDecoderAdapterWrapper);
     bool result = false;
     base::WaitableEvent waiter(base::WaitableEvent::ResetPolicy::MANUAL,
                                base::WaitableEvent::InitialState::NOT_SIGNALED);
     wrapper->task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(
-            [](std::unique_ptr<RTCVideoDecoderAdapter>*
-                   rtc_video_decoder_adapter,
-               media::GpuVideoAcceleratorFactories* gpu_factories,
-               const webrtc::SdpVideoFormat& format,
-               base::WaitableEvent* waiter, bool* result) {
-              *rtc_video_decoder_adapter =
-                  RTCVideoDecoderAdapter::Create(gpu_factories, format);
-              *result = !!(*rtc_video_decoder_adapter);
-              waiter->Signal();
-            },
-            &wrapper->rtc_video_decoder_adapter_, gpu_factories, format,
-            &waiter, &result));
+        FROM_HERE, base::BindOnce(
+                       [](std::unique_ptr<RTCVideoDecoderAdapter>*
+                              rtc_video_decoder_adapter,
+                          media::GpuVideoAcceleratorFactories* gpu_factories,
+                          const webrtc::SdpVideoFormat& format,
+                          bool pass_resolution_monitor,
+                          base::WaitableEvent* waiter, bool* result) {
+                         *rtc_video_decoder_adapter =
+                             RTCVideoDecoderAdapter::Create(
+                                 gpu_factories, format,
+                                 std::make_unique<FakeResolutionMonitor>(
+                                     pass_resolution_monitor, format));
+                         *result = !!(*rtc_video_decoder_adapter);
+                         waiter->Signal();
+                       },
+                       &wrapper->rtc_video_decoder_adapter_, gpu_factories,
+                       format, pass_resolution_monitor, &waiter, &result));
     waiter.Wait();
     return result ? std::move(wrapper) : nullptr;
   }
@@ -240,7 +275,7 @@ class RTCVideoDecoderAdapterWrapper : public webrtc::VideoDecoder {
 
 }  // namespace
 
-class RTCVideoDecoderAdapterTest : public ::testing::TestWithParam<bool> {
+class RTCVideoDecoderAdapterTest : public ::testing::Test {
  public:
   RTCVideoDecoderAdapterTest(const RTCVideoDecoderAdapterTest&) = delete;
   RTCVideoDecoderAdapterTest& operator=(const RTCVideoDecoderAdapterTest&) =
@@ -281,8 +316,6 @@ class RTCVideoDecoderAdapterTest : public ::testing::TestWithParam<bool> {
 #if BUILDFLAG(IS_WIN)
     enable_features.emplace_back(::media::kD3D11Vp9kSVCHWDecoding);
 #endif
-    if (GetParam())
-      enable_features.emplace_back(features::kWebRtcDecoderAdapterSyncDecode);
     if (!enable_features.empty())
       feature_list_.InitWithFeatures(enable_features, {});
   }
@@ -293,10 +326,6 @@ class RTCVideoDecoderAdapterTest : public ::testing::TestWithParam<bool> {
   }
 
  protected:
-  bool SyncDecodingIsEnabled() const {
-    return base::FeatureList::IsEnabled(
-        features::kWebRtcDecoderAdapterSyncDecode);
-  }
   bool BasicSetup() {
     if (!CreateAndInitialize())
       return false;
@@ -313,7 +342,8 @@ class RTCVideoDecoderAdapterTest : public ::testing::TestWithParam<bool> {
     return true;
   }
 
-  bool CreateAndInitialize(bool init_cb_result = true) {
+  bool CreateAndInitialize(bool init_cb_result = true,
+                           bool pass_resolution_monitor = true) {
     EXPECT_CALL(*video_decoder_, Initialize_(_, _, _, _, _, _))
         .WillOnce(
             DoAll(SaveArg<0>(&vda_config_), SaveArg<4>(&output_cb_),
@@ -321,8 +351,8 @@ class RTCVideoDecoderAdapterTest : public ::testing::TestWithParam<bool> {
                       init_cb_result ? media::DecoderStatus::Codes::kOk
                                      : media::DecoderStatus::Codes::kFailed)));
 
-    adapter_wrapper_ =
-        RTCVideoDecoderAdapterWrapper::Create(&gpu_factories_, sdp_format_);
+    adapter_wrapper_ = RTCVideoDecoderAdapterWrapper::Create(
+        &gpu_factories_, sdp_format_, pass_resolution_monitor);
     return !!adapter_wrapper_;
   }
 
@@ -350,7 +380,7 @@ class RTCVideoDecoderAdapterTest : public ::testing::TestWithParam<bool> {
     } else {
       input_image._frameType = webrtc::VideoFrameType::kVideoFrameDelta;
     }
-    input_image.SetTimestamp(timestamp);
+    input_image.SetRtpTimestamp(timestamp);
     return adapter_wrapper_->Decode(input_image, false, 0);
   }
 
@@ -363,14 +393,13 @@ class RTCVideoDecoderAdapterTest : public ::testing::TestWithParam<bool> {
 
   void FinishDecodeOnMediaThread(uint32_t timestamp) {
     DCHECK(media_thread_.task_runner()->BelongsToCurrentThread());
-    gpu::MailboxHolder mailbox_holders[media::VideoFrame::kMaxPlanes];
-    mailbox_holders[0].mailbox = gpu::Mailbox::GenerateForSharedImage();
-    scoped_refptr<media::VideoFrame> frame =
-        media::VideoFrame::WrapNativeTextures(
-            media::PIXEL_FORMAT_ARGB, mailbox_holders,
-            media::VideoFrame::ReleaseMailboxCB(), gfx::Size(640, 360),
-            gfx::Rect(640, 360), gfx::Size(640, 360),
-            base::Microseconds(timestamp));
+    scoped_refptr<gpu::ClientSharedImage> shared_image =
+        gpu::ClientSharedImage::CreateForTesting();
+    scoped_refptr<media::VideoFrame> frame = media::VideoFrame::WrapSharedImage(
+        media::PIXEL_FORMAT_ARGB, shared_image, gpu::SyncToken(),
+        media::VideoFrame::ReleaseMailboxCB(), gfx::Size(640, 360),
+        gfx::Rect(640, 360), gfx::Size(640, 360),
+        base::Microseconds(timestamp));
     output_cb_.Run(std::move(frame));
   }
 
@@ -382,7 +411,7 @@ class RTCVideoDecoderAdapterTest : public ::testing::TestWithParam<bool> {
     input_image.SetEncodedData(
         webrtc::EncodedImageBuffer::Create(data, sizeof(data)));
     input_image._frameType = webrtc::VideoFrameType::kVideoFrameKey;
-    input_image.SetTimestamp(timestamp);
+    input_image.SetRtpTimestamp(timestamp);
     webrtc::ColorSpace webrtc_color_space;
     webrtc_color_space.set_primaries_from_uint8(1);
     webrtc_color_space.set_transfer_from_uint8(1);
@@ -400,7 +429,7 @@ class RTCVideoDecoderAdapterTest : public ::testing::TestWithParam<bool> {
     input_image.SetEncodedData(
         webrtc::EncodedImageBuffer::Create(data, sizeof(data)));
     input_image._frameType = webrtc::VideoFrameType::kVideoFrameKey;
-    input_image.SetTimestamp(timestamp);
+    input_image.SetRtpTimestamp(timestamp);
     // Input image only has 1 spatial layer, but non-zero spatial index.
     input_image.SetSpatialIndex(kSpatialIndex);
     input_image.SetSpatialLayerFrameSize(kSpatialIndex, sizeof(data));
@@ -450,7 +479,8 @@ class RTCVideoDecoderAdapterTest : public ::testing::TestWithParam<bool> {
   base::Thread media_thread_;
 
   // Owned by |rtc_video_decoder_adapter_|.
-  StrictMock<MockVideoDecoder>* video_decoder_ = nullptr;
+  raw_ptr<StrictMock<MockVideoDecoder>, DanglingUntriaged> video_decoder_ =
+      nullptr;
 
   StrictMock<base::MockCallback<
       base::RepeatingCallback<void(const webrtc::VideoFrame&)>>>
@@ -469,31 +499,35 @@ class RTCVideoDecoderAdapterTest : public ::testing::TestWithParam<bool> {
   int spatial_index_;
 };
 
-TEST_P(RTCVideoDecoderAdapterTest, Create_UnknownFormat) {
+TEST_F(RTCVideoDecoderAdapterTest, Create_UnknownFormat) {
   ASSERT_FALSE(RTCVideoDecoderAdapterWrapper::Create(
-      &gpu_factories_, webrtc::SdpVideoFormat(webrtc::CodecTypeToPayloadString(
-                           webrtc::kVideoCodecGeneric))));
+      &gpu_factories_,
+      webrtc::SdpVideoFormat(
+          webrtc::CodecTypeToPayloadString(webrtc::kVideoCodecGeneric)),
+      /*pass_resolution_monitor=*/true));
 }
 
-TEST_P(RTCVideoDecoderAdapterTest, Create_UnsupportedFormat) {
+TEST_F(RTCVideoDecoderAdapterTest, Create_UnsupportedFormat) {
   EXPECT_CALL(gpu_factories_, IsDecoderConfigSupported(_))
       .WillRepeatedly(
           Return(media::GpuVideoAcceleratorFactories::Supported::kFalse));
   ASSERT_FALSE(RTCVideoDecoderAdapterWrapper::Create(
-      &gpu_factories_, webrtc::SdpVideoFormat(webrtc::CodecTypeToPayloadString(
-                           webrtc::kVideoCodecVP9))));
+      &gpu_factories_,
+      webrtc::SdpVideoFormat(
+          webrtc::CodecTypeToPayloadString(webrtc::kVideoCodecVP9)),
+      /*pass_resolution_monitor=*/true));
 }
 
-TEST_P(RTCVideoDecoderAdapterTest, Lifecycle) {
+TEST_F(RTCVideoDecoderAdapterTest, Lifecycle) {
   ASSERT_TRUE(BasicSetup());
   ASSERT_TRUE(BasicTeardown());
 }
 
-TEST_P(RTCVideoDecoderAdapterTest, InitializationFailure) {
+TEST_F(RTCVideoDecoderAdapterTest, InitializationFailure) {
   ASSERT_FALSE(CreateAndInitialize(false));
 }
 
-TEST_P(RTCVideoDecoderAdapterTest, Decode) {
+TEST_F(RTCVideoDecoderAdapterTest, Decode) {
   ASSERT_TRUE(BasicSetup());
 
   EXPECT_CALL(*video_decoder_, Decode_(_, _))
@@ -507,7 +541,7 @@ TEST_P(RTCVideoDecoderAdapterTest, Decode) {
   media_thread_.FlushForTesting();
 }
 
-TEST_P(RTCVideoDecoderAdapterTest, Decode_Error) {
+TEST_F(RTCVideoDecoderAdapterTest, Decode_Error) {
   ASSERT_TRUE(BasicSetup());
 
   EXPECT_CALL(*video_decoder_, Decode_(_, _))
@@ -520,7 +554,7 @@ TEST_P(RTCVideoDecoderAdapterTest, Decode_Error) {
   ASSERT_EQ(Decode(1), WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE);
 }
 
-TEST_P(RTCVideoDecoderAdapterTest, Decode_Hang_Short) {
+TEST_F(RTCVideoDecoderAdapterTest, Decode_Hang_Short) {
   ASSERT_TRUE(BasicSetup());
 
   // Ignore Decode() calls.
@@ -543,7 +577,7 @@ TEST_P(RTCVideoDecoderAdapterTest, Decode_Hang_Short) {
   FAIL();
 }
 
-TEST_P(RTCVideoDecoderAdapterTest, Decode_Hang_Long) {
+TEST_F(RTCVideoDecoderAdapterTest, Decode_Hang_Long) {
   ASSERT_TRUE(BasicSetup());
 
   // Ignore Decode() calls.
@@ -561,7 +595,7 @@ TEST_P(RTCVideoDecoderAdapterTest, Decode_Hang_Long) {
   FAIL();
 }
 
-TEST_P(RTCVideoDecoderAdapterTest, ReinitializesForHDRColorSpaceInitially) {
+TEST_F(RTCVideoDecoderAdapterTest, ReinitializesForHDRColorSpaceInitially) {
   SetSdpFormat(webrtc::SdpVideoFormat(
       "VP9", {{webrtc::kVP9FmtpProfileId,
                webrtc::VP9ProfileToString(webrtc::VP9Profile::kProfile2)}}));
@@ -572,8 +606,8 @@ TEST_P(RTCVideoDecoderAdapterTest, ReinitializesForHDRColorSpaceInitially) {
   // Decode() is expected to be called for EOS flush as well.
   EXPECT_CALL(*video_decoder_, Decode_(_, _))
       .Times(3)
-      .WillRepeatedly(
-          base::test::RunOnceCallback<1>(media::DecoderStatus::Codes::kOk));
+      .WillRepeatedly(base::test::RunOnceCallbackRepeatedly<1>(
+          media::DecoderStatus::Codes::kOk));
   EXPECT_CALL(decoded_cb_, Run(_)).Times(2);
 
   // First Decode() should cause a reinitialize as new color space is given.
@@ -597,7 +631,7 @@ TEST_P(RTCVideoDecoderAdapterTest, ReinitializesForHDRColorSpaceInitially) {
   media_thread_.FlushForTesting();
 }
 
-TEST_P(RTCVideoDecoderAdapterTest, HandlesReinitializeFailure) {
+TEST_F(RTCVideoDecoderAdapterTest, HandlesReinitializeFailure) {
   SetSdpFormat(webrtc::SdpVideoFormat(
       "VP9", {{webrtc::kVP9FmtpProfileId,
                webrtc::VP9ProfileToString(webrtc::VP9Profile::kProfile2)}}));
@@ -619,7 +653,7 @@ TEST_P(RTCVideoDecoderAdapterTest, HandlesReinitializeFailure) {
             WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE);
 }
 
-TEST_P(RTCVideoDecoderAdapterTest, HandlesFlushFailure) {
+TEST_F(RTCVideoDecoderAdapterTest, HandlesFlushFailure) {
   SetSdpFormat(webrtc::SdpVideoFormat(
       "VP9", {{webrtc::kVP9FmtpProfileId,
                webrtc::VP9ProfileToString(webrtc::VP9Profile::kProfile2)}}));
@@ -636,7 +670,7 @@ TEST_P(RTCVideoDecoderAdapterTest, HandlesFlushFailure) {
             WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE);
 }
 
-TEST_P(RTCVideoDecoderAdapterTest, DecoderCountIsIncrementedByDecode) {
+TEST_F(RTCVideoDecoderAdapterTest, DecoderCountIsIncrementedByDecode) {
   // If the count is nonzero, then fail immediately -- the test isn't sane.
   ASSERT_EQ(GetCurrentDecoderCount(), 0);
 
@@ -660,7 +694,7 @@ TEST_P(RTCVideoDecoderAdapterTest, DecoderCountIsIncrementedByDecode) {
   EXPECT_EQ(GetCurrentDecoderCount(), 0);
 }
 
-TEST_P(RTCVideoDecoderAdapterTest, FallsBackForLowResolution) {
+TEST_F(RTCVideoDecoderAdapterTest, FallsBackForLowResolution) {
   // Make sure that low-resolution decoders fall back if there are too many.
   webrtc::VideoDecoder::Settings decoder_settings;
   decoder_settings.set_codec_type(webrtc::kVideoCodecVP9);
@@ -671,28 +705,16 @@ TEST_P(RTCVideoDecoderAdapterTest, FallsBackForLowResolution) {
 
   // Creating a decoder should not increment the count, since we haven't sent
   // anything to decode.
-  ASSERT_TRUE(CreateAndInitialize(true));
-  // Initialize the codec with something below the threshold.
-  int width = sqrt(RTCVideoDecoderAdapter::kMinResolution);
-  int height = RTCVideoDecoderAdapter::kMinResolution / width - 1;
-  decoder_settings.set_max_render_resolution({width, height});
+  ASSERT_TRUE(CreateAndInitialize(true, false));
   EXPECT_TRUE(adapter_wrapper_->Configure(decoder_settings));
 
   // The first decode should fail.  It shouldn't forward the decode call to the
   // underlying decoder.
   EXPECT_CALL(*video_decoder_, Decode_(_, _)).Times(0);
-  // The check about the number of concurrent instances decoding small
-  // resolutions is executed on media thread and its check failure is notified
-  // on the second frame.
-  if (SyncDecodingIsEnabled()) {
-    EXPECT_EQ(Decode(0), WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE);
-    media_thread_.FlushForTesting();
-  } else {
-    ASSERT_EQ(Decode(0), WEBRTC_VIDEO_CODEC_OK);
-    media_thread_.FlushForTesting();
-    EXPECT_EQ(Decode(1), WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE);
-    media_thread_.FlushForTesting();
-  }
+  // A fallback is caused when a number of concurrent instances are decoding
+  // small resolutions.
+  EXPECT_EQ(Decode(0), WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE);
+
   // It should not increment the count, else more decoders might fall back.
   const auto max_decoder_instances =
       RTCVideoDecoderAdapter::kMaxDecoderInstances;
@@ -708,7 +730,26 @@ TEST_P(RTCVideoDecoderAdapterTest, FallsBackForLowResolution) {
   EXPECT_EQ(GetCurrentDecoderCount(), 0);
 }
 
-TEST_P(RTCVideoDecoderAdapterTest, DoesNotFallBackForHighResolution) {
+#if BUILDFLAG(RTC_USE_H265)
+TEST_F(RTCVideoDecoderAdapterTest, DoesNotFailForH256LowResolution) {
+  // Make sure that low-resolution decode does not fail for H.265.
+  SetSdpFormat(webrtc::SdpVideoFormat(
+      webrtc::CodecTypeToPayloadString(webrtc::kVideoCodecH265)));
+  ASSERT_TRUE(CreateAndInitialize(true, false));
+  webrtc::VideoDecoder::Settings settings;
+  settings.set_codec_type(webrtc::kVideoCodecH265);
+  ASSERT_TRUE(adapter_wrapper_->Configure(settings));
+  ASSERT_EQ(RegisterDecodeCompleteCallback(), WEBRTC_VIDEO_CODEC_OK);
+
+  EXPECT_CALL(*video_decoder_, Decode_(_, _)).Times(1);
+
+  ASSERT_EQ(Decode(0), WEBRTC_VIDEO_CODEC_OK);
+
+  media_thread_.FlushForTesting();
+}
+#endif
+
+TEST_F(RTCVideoDecoderAdapterTest, DoesNotFallBackForHighResolution) {
   // Make sure that high-resolution decoders don't fall back.
   webrtc::VideoDecoder::Settings decoder_settings;
   decoder_settings.set_codec_type(webrtc::kVideoCodecVP9);
@@ -719,11 +760,7 @@ TEST_P(RTCVideoDecoderAdapterTest, DoesNotFallBackForHighResolution) {
 
   // Creating a decoder should not increment the count, since we haven't sent
   // anything to decode.
-  ASSERT_TRUE(CreateAndInitialize(true));
-  // Initialize the codec with something above the threshold.
-  int width = sqrt(RTCVideoDecoderAdapter::kMinResolution);
-  int height = RTCVideoDecoderAdapter::kMinResolution / width + 1;
-  decoder_settings.set_max_render_resolution({width, height});
+  ASSERT_TRUE(CreateAndInitialize(true, true));
   EXPECT_TRUE(adapter_wrapper_->Configure(decoder_settings));
 
   // The first decode should increment the count and succeed.
@@ -740,7 +777,7 @@ TEST_P(RTCVideoDecoderAdapterTest, DoesNotFallBackForHighResolution) {
     DecrementCurrentDecoderCount();
 }
 
-TEST_P(RTCVideoDecoderAdapterTest, DecodesImageWithSingleSpatialLayer) {
+TEST_F(RTCVideoDecoderAdapterTest, DecodesImageWithSingleSpatialLayer) {
   ASSERT_TRUE(BasicSetup());
   webrtc::EncodedImage input_image = GetEncodedImageWithSingleSpatialLayer(0);
   scoped_refptr<media::DecoderBuffer> decoder_buffer;
@@ -757,11 +794,13 @@ TEST_P(RTCVideoDecoderAdapterTest, DecodesImageWithSingleSpatialLayer) {
 
   // Check the side data was not set as there was only 1 spatial layer.
   ASSERT_TRUE(decoder_buffer);
-  EXPECT_EQ(0u, decoder_buffer->side_data_size());
+  if (decoder_buffer->side_data()) {
+    EXPECT_TRUE(decoder_buffer->side_data()->spatial_layers.empty());
+  }
 }
 
 #if BUILDFLAG(IS_WIN)
-TEST_P(RTCVideoDecoderAdapterTest, UseD3D11ToDecodeVP9kSVCStream) {
+TEST_F(RTCVideoDecoderAdapterTest, UseD3D11ToDecodeVP9kSVCStream) {
   video_decoder_->SetDecoderType(media::VideoDecoderType::kD3D11);
   ASSERT_TRUE(BasicSetup());
   SetSpatialIndex(2);
@@ -775,15 +814,12 @@ TEST_P(RTCVideoDecoderAdapterTest, UseD3D11ToDecodeVP9kSVCStream) {
   FinishDecode(0);
   media_thread_.FlushForTesting();
 }
-#endif
-
+#elif !(defined(ARCH_CPU_X86_FAMILY) && BUILDFLAG(IS_CHROMEOS))
 // ChromeOS has the ability to decode VP9 kSVC Stream. Other cases should
 // fallback to sw decoder.
-#if !(defined(ARCH_CPU_X86_FAMILY) && BUILDFLAG(IS_CHROMEOS))
-TEST_P(RTCVideoDecoderAdapterTest,
+TEST_F(RTCVideoDecoderAdapterTest,
        FallbackToSWSinceDecodeVP9kSVCStreamWithoutD3D11) {
   ASSERT_TRUE(BasicSetup());
-  EXPECT_FALSE(base::FeatureList::IsEnabled(media::kVp9kSVCHWDecoding));
   SetSpatialIndex(2);
   // kTesting will represent hw decoders for other use cases mentioned above.
   EXPECT_CALL(*video_decoder_, Decode_(_, _)).Times(0);
@@ -792,9 +828,47 @@ TEST_P(RTCVideoDecoderAdapterTest,
 
   media_thread_.FlushForTesting();
 }
-#endif
+#endif  // BUILDFLAG(IS_WIN)
 
-INSTANTIATE_TEST_SUITE_P(RTCVideoDecoderAdapterTest,
-                         RTCVideoDecoderAdapterTest,
-                         ::testing::Values(false, true));
+TEST_F(RTCVideoDecoderAdapterTest, FallbackToSWInAV1SVC) {
+  SetSdpFormat(webrtc::SdpVideoFormat(
+      webrtc::CodecTypeToPayloadString(webrtc::kVideoCodecAV1)));
+  ASSERT_TRUE(CreateAndInitialize());
+  webrtc::VideoDecoder::Settings settings;
+  settings.set_codec_type(webrtc::kVideoCodecAV1);
+  ASSERT_TRUE(adapter_wrapper_->Configure(settings));
+  ASSERT_EQ(RegisterDecodeCompleteCallback(), WEBRTC_VIDEO_CODEC_OK);
+
+  SetSpatialIndex(2);
+  // kTesting will represent hw decoders for other use cases mentioned above.
+  EXPECT_CALL(*video_decoder_, Decode_(_, _)).Times(0);
+
+  ASSERT_EQ(Decode(0), WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE);
+
+  media_thread_.FlushForTesting();
+}
+
+TEST_F(RTCVideoDecoderAdapterTest, CanReadSharedFrameBuffer) {
+  ASSERT_TRUE(BasicSetup());
+
+  EXPECT_CALL(*video_decoder_, Decode_(_, _))
+      .WillOnce(
+          base::test::RunOnceCallback<1>(media::DecoderStatus::Codes::kOk));
+
+  ASSERT_EQ(Decode(0), WEBRTC_VIDEO_CODEC_OK);
+
+  scoped_refptr<base::SingleThreadTaskRunner> main_thread =
+      blink::scheduler::GetSingleThreadTaskRunnerForTesting();
+
+  EXPECT_CALL(decoded_cb_, Run).WillOnce([&](const webrtc::VideoFrame& frame) {
+    main_thread->PostTask(FROM_HERE, base::BindOnce(
+                                         [](const webrtc::VideoFrame& frame) {
+                                           frame.video_frame_buffer()->ToI420();
+                                         },
+                                         frame));
+  });
+  FinishDecode(0);
+  media_thread_.FlushForTesting();
+}
+
 }  // namespace blink

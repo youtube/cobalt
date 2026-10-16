@@ -4,10 +4,12 @@
 
 #include "base/containers/intrusive_heap.h"
 
+#include <array>
+
 #include "base/check_op.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/rand_util.h"
 #include "base/test/bind.h"
@@ -30,10 +32,12 @@ void ExpectHeap(const H& heap) {
     size_t left = intrusive_heap::LeftIndex(i);
     size_t right = left + 1;
 
-    if (left < heap.size())
+    if (left < heap.size()) {
       EXPECT_FALSE(less(heap[i], heap[left]));
-    if (right < heap.size())
+    }
+    if (right < heap.size()) {
       EXPECT_FALSE(less(heap[i], heap[right]));
+    }
 
     intrusive_heap::CheckInvalidOrEqualTo(handle_access.GetHeapHandle(&heap[i]),
                                           i);
@@ -59,8 +63,9 @@ void ExpectCanonical(const IntrusiveHeapInt& heap) {
   // 7 4 6 1 3 2 5 0
   std::vector<int> expected{7, 4, 6, 1, 3, 2, 5, 0};
   std::vector<int> actual;
-  for (const auto& element : heap)
+  for (const auto& element : heap) {
     actual.push_back(element.value());
+  }
   ASSERT_THAT(actual, testing::ContainerEq(expected));
 }
 
@@ -69,7 +74,7 @@ void ExpectCanonical(const IntrusiveHeapInt& heap) {
 void MakeCanonical(IntrusiveHeapInt* heap) {
   static constexpr int kInts[] = {CANONICAL_ELEMENTS};
   heap->clear();
-  heap->insert(kInts, kInts + std::size(kInts));
+  heap->insert_range(kInts);
   ExpectCanonical(*heap);
 }
 
@@ -143,8 +148,8 @@ void DoGrowingOperation(IntrusiveHeap<T>* heap) {
 // Used to determine whether or not the "take" operations can be used.
 template <typename T>
 struct NotMovable {
-  static constexpr bool value = !std::is_nothrow_move_constructible<T>::value &&
-                                std::is_copy_constructible<T>::value;
+  static constexpr bool value = !std::is_nothrow_move_constructible_v<T> &&
+                                std::is_copy_constructible_v<T>;
 };
 
 // Invokes "take" if the type is movable, otherwise invokes erase.
@@ -231,8 +236,9 @@ void DoSameSizeOperation(IntrusiveHeap<T>* heap) {
 
   size_t old_size = heap->size();
   size_t index = static_cast<size_t>(base::RandInt(0, old_size - 1));
-  if (op == kReplaceTop)
+  if (op == kReplaceTop) {
     index = 0;
+  }
   int new_value = base::RandInt(0, 1000);
   typename IntrusiveHeap<T>::const_iterator it;
 
@@ -308,16 +314,16 @@ void MoveStressTest() {
   EXPECT_EQ(4u, heap2.size());
   EXPECT_FALSE(heap2.empty());
   ExpectHeap(heap2);
-  EXPECT_EQ(0u, heap.size());
-  EXPECT_TRUE(heap.empty());
+  EXPECT_EQ(0u, heap.size());  // NOLINT(bugprone-use-after-move)
+  EXPECT_TRUE(heap.empty());   // NOLINT(bugprone-use-after-move)
   ExpectHeap(heap);
 
   heap = std::move(heap2);
   EXPECT_EQ(4u, heap.size());
   EXPECT_FALSE(heap.empty());
   ExpectHeap(heap);
-  EXPECT_EQ(0u, heap2.size());
-  EXPECT_TRUE(heap2.empty());
+  EXPECT_EQ(0u, heap2.size());  // NOLINT(bugprone-use-after-move)
+  EXPECT_TRUE(heap2.empty());   // NOLINT(bugprone-use-after-move)
   ExpectHeap(heap2);
 }
 
@@ -357,7 +363,7 @@ void CopyStressTest() {
 template <typename T>
 void GeneralStressTest() {
   std::vector<int> vector{2, 4, 6, 8};
-  IntrusiveHeap<T> heap(vector.begin(), vector.end());
+  IntrusiveHeap<T> heap(base::from_range, vector);
   EXPECT_EQ(4u, heap.size());
   EXPECT_FALSE(heap.empty());
   ExpectHeap(heap);
@@ -403,7 +409,7 @@ void GeneralStressTest() {
 
   // Insert several more elements.
   std::vector<int> elements({13, 17, 19, 23, 29, 31, 37, 41});
-  heap.insert(elements.begin(), elements.end());
+  heap.insert_range(elements);
   EXPECT_EQ(11u, heap.size());
   ExpectHeap(heap);
 
@@ -458,19 +464,20 @@ class Value : public InternalHeapHandleStorage {
  public:
   explicit Value(int value) : value_(value) {}
   Value() : value_(-1) {}
-  Value(Value&& other) noexcept
-      : InternalHeapHandleStorage(std::move(other)),
-        value_(std::exchange(other.value_, -1)) {}
+  Value(Value&& other) noexcept : value_(std::exchange(other.value_, -1)) {
+    InternalHeapHandleStorage::operator=(std::move(other));
+  }
   Value(const Value& other) : value_(other.value_) {
     HeapHandle h = other.GetHeapHandle();
-    if (h.IsValid())
+    if (h.IsValid()) {
       SetHeapHandle(h);
+    }
   }
-  ~Value() override {}
+  ~Value() override = default;
 
   Value& operator=(Value&& other) noexcept {
-    InternalHeapHandleStorage::operator=(std::move(other));
     value_ = std::exchange(other.value_, -1);
+    InternalHeapHandleStorage::operator=(std::move(other));
     return *this;
   }
   Value& operator=(const Value& other) {
@@ -482,11 +489,7 @@ class Value : public InternalHeapHandleStorage {
   void set_value(int value) { value_ = value; }
 
   bool operator==(const Value& rhs) const { return value_ == rhs.value_; }
-  bool operator!=(const Value& rhs) const { return value_ != rhs.value_; }
-  bool operator<=(const Value& rhs) const { return value_ <= rhs.value_; }
-  bool operator>=(const Value& rhs) const { return value_ >= rhs.value_; }
-  bool operator<(const Value& rhs) const { return value_ < rhs.value_; }
-  bool operator>(const Value& rhs) const { return value_ > rhs.value_; }
+  auto operator<=>(const Value& rhs) const { return value_ <=> rhs.value_; }
 
  private:
   int value_;
@@ -516,37 +519,38 @@ DEFINE_VALUE_TYPE(Value_dMc, delete, default, delete)
 // default-constructors, move-operations and copy-operations.
 template <typename ValueType, bool D, bool M, bool C>
 void ValidateValueType() {
-  static_assert(std::is_default_constructible<ValueType>::value == D, "oops");
-  static_assert(std::is_move_constructible<ValueType>::value == M, "oops");
-  static_assert(std::is_move_assignable<ValueType>::value == M, "oops");
-  static_assert(std::is_copy_constructible<ValueType>::value == C, "oops");
-  static_assert(std::is_copy_assignable<ValueType>::value == C, "oops");
+  static_assert(std::is_default_constructible_v<ValueType> == D, "oops");
+  static_assert(std::is_move_constructible_v<ValueType> == M, "oops");
+  static_assert(std::is_move_assignable_v<ValueType> == M, "oops");
+  static_assert(std::is_copy_constructible_v<ValueType> == C, "oops");
+  static_assert(std::is_copy_assignable_v<ValueType> == C, "oops");
 }
 
 // A small test element that provides its own HeapHandle storage and implements
 // the contract expected of the DefaultHeapHandleAccessor.
 struct TestElement {
   int key;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #reinterpret-cast-trivial-type
-  RAW_PTR_EXCLUSION HeapHandle* handle;
+  raw_ptr<HeapHandle> handle;
 
   // Make this a min-heap by return > instead of <.
   bool operator<(const TestElement& other) const { return key > other.key; }
 
   void SetHeapHandle(HeapHandle h) {
-    if (handle)
+    if (handle) {
       *handle = h;
+    }
   }
 
   void ClearHeapHandle() {
-    if (handle)
+    if (handle) {
       handle->reset();
+    }
   }
 
   HeapHandle GetHeapHandle() const {
-    if (handle)
+    if (handle) {
       return *handle;
+    }
     return HeapHandle::Invalid();
   }
 };
@@ -566,15 +570,23 @@ TEST(IntrusiveHeapTest, Constructors) {
   }
 
   {
-    // Constructor with iterators.
+    // Constructor from range.
     std::vector<int> ints{CANONICAL_ELEMENTS};
-    IntrusiveHeapInt heap(ints.begin(), ints.end());
+    IntrusiveHeapInt heap(base::from_range, ints);
     ExpectCanonical(heap);
 
     // Move constructor.
     IntrusiveHeapInt heap2(std::move(heap));
-    EXPECT_TRUE(heap.empty());
+    EXPECT_TRUE(heap.empty());  // NOLINT(bugprone-use-after-move)
     ExpectCanonical(heap2);
+  }
+
+  {
+    // Constructor with iterators.
+    std::vector<int> ints{CANONICAL_ELEMENTS};
+    // SAFETY: begin/end always provides a valid iterator pair.
+    auto heap = UNSAFE_BUFFERS(IntrusiveHeapInt(ints.begin(), ints.end()));
+    ExpectCanonical(heap);
   }
 
   {
@@ -590,7 +602,7 @@ TEST(IntrusiveHeapTest, Assignment) {
   // Move assignment.
   IntrusiveHeapInt heap2;
   heap2 = std::move(heap);
-  EXPECT_TRUE(heap.empty());
+  EXPECT_TRUE(heap.empty());  // NOLINT(bugprone-use-after-move)
   ExpectCanonical(heap2);
 }
 
@@ -610,10 +622,24 @@ TEST(IntrusiveHeapTest, ElementAccess) {
   EXPECT_EQ(heap.front(), heap[0]);
   EXPECT_EQ(heap.back(), heap[7]);
   EXPECT_EQ(heap.top(), heap[0]);
-  for (size_t i = 0; i < heap.size(); ++i) {
-    EXPECT_EQ(heap[i], heap.at(i));
-    EXPECT_EQ(heap[i], heap.data()[i]);
-  }
+
+  // Canonical heap is stored as: 7 4 6 1 3 2 5 0
+  EXPECT_EQ(heap[0].value(), 7);
+  EXPECT_EQ(heap[1].value(), 4);
+  EXPECT_EQ(heap[2].value(), 6);
+  EXPECT_EQ(heap[3].value(), 1);
+  EXPECT_EQ(heap[4].value(), 3);
+  EXPECT_EQ(heap[5].value(), 2);
+  EXPECT_EQ(heap[6].value(), 5);
+  EXPECT_EQ(heap[7].value(), 0);
+  EXPECT_EQ(heap.at(0).value(), 7);
+  EXPECT_EQ(heap.at(1).value(), 4);
+  EXPECT_EQ(heap.at(2).value(), 6);
+  EXPECT_EQ(heap.at(3).value(), 1);
+  EXPECT_EQ(heap.at(4).value(), 3);
+  EXPECT_EQ(heap.at(5).value(), 2);
+  EXPECT_EQ(heap.at(6).value(), 5);
+  EXPECT_EQ(heap.at(7).value(), 0);
 }
 
 TEST(IntrusiveHeapTest, SizeManagement) {
@@ -630,18 +656,39 @@ TEST(IntrusiveHeapTest, Iterators) {
   IntrusiveHeapInt heap;
   MakeCanonical(&heap);
 
-  size_t i = 0;
-  for (auto it = heap.begin(); it != heap.end(); ++it) {
-    EXPECT_EQ(i, heap.ToIndex(it));
-    EXPECT_EQ(&(*it), heap.data() + i);
-    ++i;
+  // Canonical heap is stored as: 7 4 6 1 3 2 5 0
+  {
+    auto it = heap.begin();
+    EXPECT_EQ(heap.ToIndex(it), 0u);
+    EXPECT_EQ(it->value(), 7);
+    EXPECT_NE(it, heap.end());
+    ++it;
+    EXPECT_EQ(heap.ToIndex(it), 1u);
+    EXPECT_EQ(it->value(), 4);
+    EXPECT_NE(it, heap.end());
+    it += 6u;
+    EXPECT_EQ(heap.ToIndex(it), 7u);
+    EXPECT_EQ(it->value(), 0);
+    EXPECT_NE(it, heap.end());
+    ++it;
+    EXPECT_EQ(it, heap.end());
   }
 
-  i = heap.size() - 1;
-  for (auto rit = heap.rbegin(); rit != heap.rend(); ++rit) {
-    EXPECT_EQ(i, heap.ToIndex(rit));
-    EXPECT_EQ(&(*rit), heap.data() + i);
-    --i;
+  {
+    auto it = heap.rbegin();
+    EXPECT_EQ(heap.ToIndex(it), 7u);
+    EXPECT_EQ(it->value(), 0);
+    EXPECT_NE(it, heap.rend());
+    ++it;
+    EXPECT_EQ(heap.ToIndex(it), 6u);
+    EXPECT_EQ(it->value(), 5);
+    EXPECT_NE(it, heap.rend());
+    it += 6u;
+    EXPECT_EQ(heap.ToIndex(it), 0u);
+    EXPECT_EQ(it->value(), 7);
+    EXPECT_NE(it, heap.rend());
+    ++it;
+    EXPECT_EQ(it, heap.rend());
   }
 }
 
@@ -769,8 +816,11 @@ TEST(IntrusiveHeapTest, MinDuplicates) {
 TEST(IntrusiveHeapTest, InsertAscending) {
   IntrusiveHeap<TestElement> heap;
 
-  for (int i = 0; i < 50; i++)
-    heap.insert({i, nullptr});
+  std::array<TestElement, 50> arr = {};
+  for (int i = 0; i < 50; i++) {
+    arr[i].key = i;
+  }
+  heap.insert_range(arr);
 
   EXPECT_EQ(0, heap.top().key);
   EXPECT_EQ(50u, heap.size());
@@ -779,8 +829,9 @@ TEST(IntrusiveHeapTest, InsertAscending) {
 TEST(IntrusiveHeapTest, InsertDescending) {
   IntrusiveHeap<TestElement> heap;
 
-  for (int i = 0; i < 50; i++)
+  for (int i = 0; i < 50; i++) {
     heap.insert({50 - i, nullptr});
+  }
 
   EXPECT_EQ(1, heap.top().key);
   EXPECT_EQ(50u, heap.size());
@@ -857,8 +908,9 @@ TEST(IntrusiveHeapTest, Pop) {
 TEST(IntrusiveHeapTest, PopMany) {
   IntrusiveHeap<TestElement> heap;
 
-  for (int i = 0; i < 500; i++)
+  for (int i = 0; i < 500; i++) {
     heap.insert({i, nullptr});
+  }
 
   EXPECT_FALSE(heap.empty());
   EXPECT_EQ(500u, heap.size());
@@ -900,13 +952,15 @@ TEST(IntrusiveHeapTest, Erase) {
 TEST(IntrusiveHeapTest, ReplaceTop) {
   IntrusiveHeap<TestElement> heap;
 
-  for (int i = 0; i < 500; i++)
+  for (int i = 0; i < 500; i++) {
     heap.insert({500 - i, nullptr});
+  }
 
   EXPECT_EQ(1, heap.top().key);
 
-  for (int i = 0; i < 500; i++)
+  for (int i = 0; i < 500; i++) {
     heap.ReplaceTop({1000 + i, nullptr});
+  }
 
   EXPECT_EQ(1000, heap.top().key);
 }
@@ -921,8 +975,9 @@ TEST(IntrusiveHeapTest, ReplaceTopWithNonLeafNode) {
 
   EXPECT_EQ(0, heap.top().key);
 
-  for (int i = 0; i < 50; i++)
+  for (int i = 0; i < 50; i++) {
     heap.ReplaceTop({100 + i, nullptr});
+  }
 
   for (int i = 0; i < 50; i++) {
     EXPECT_EQ((100 + i), heap.top().key);
@@ -936,7 +991,7 @@ TEST(IntrusiveHeapTest, ReplaceTopWithNonLeafNode) {
 }
 
 TEST(IntrusiveHeapTest, ReplaceTopCheckAllFinalPositions) {
-  HeapHandle index[100];
+  std::array<HeapHandle, 100> index;
   HeapHandle top_index;
 
   for (int j = -1; j <= 201; j += 2) {
@@ -960,7 +1015,7 @@ TEST(IntrusiveHeapTest, ReplaceTopCheckAllFinalPositions) {
 
 TEST(IntrusiveHeapTest, ReplaceUp) {
   IntrusiveHeap<TestElement> heap;
-  HeapHandle index[10];
+  std::array<HeapHandle, 10> index;
 
   for (size_t i = 0; i < 10; i++) {
     heap.insert({static_cast<int>(i) * 2, &index[i]});
@@ -979,7 +1034,7 @@ TEST(IntrusiveHeapTest, ReplaceUp) {
 
 TEST(IntrusiveHeapTest, ReplaceUpButDoesntMove) {
   IntrusiveHeap<TestElement> heap;
-  HeapHandle index[10];
+  std::array<HeapHandle, 10> index;
 
   for (size_t i = 0; i < 10; i++) {
     heap.insert({static_cast<int>(i) * 2, &index[i]});
@@ -998,7 +1053,7 @@ TEST(IntrusiveHeapTest, ReplaceUpButDoesntMove) {
 
 TEST(IntrusiveHeapTest, ReplaceDown) {
   IntrusiveHeap<TestElement> heap;
-  HeapHandle index[10];
+  std::array<HeapHandle, 10> index;
 
   for (size_t i = 0; i < 10; i++) {
     heap.insert({static_cast<int>(i) * 2, &index[i]});
@@ -1017,7 +1072,7 @@ TEST(IntrusiveHeapTest, ReplaceDown) {
 
 TEST(IntrusiveHeapTest, ReplaceDownButDoesntMove) {
   IntrusiveHeap<TestElement> heap;
-  HeapHandle index[10];
+  std::array<HeapHandle, 10> index;
 
   for (size_t i = 0; i < 10; i++) {
     heap.insert({static_cast<int>(i) * 2, &index[i]});
@@ -1035,7 +1090,7 @@ TEST(IntrusiveHeapTest, ReplaceDownButDoesntMove) {
 }
 
 TEST(IntrusiveHeapTest, ReplaceCheckAllFinalPositions) {
-  HeapHandle index[100];
+  std::array<HeapHandle, 100> index;
 
   for (int j = -1; j <= 201; j += 2) {
     IntrusiveHeap<TestElement> heap;
@@ -1057,11 +1112,12 @@ TEST(IntrusiveHeapTest, ReplaceCheckAllFinalPositions) {
 }
 
 TEST(IntrusiveHeapTest, At) {
-  HeapHandle index[10];
+  std::array<HeapHandle, 10> index;
   IntrusiveHeap<TestElement> heap;
 
-  for (int i = 0; i < 10; i++)
+  for (int i = 0; i < 10; i++) {
     heap.insert({static_cast<int>(i ^ (i + 1)), &index[i]});
+  }
 
   for (int i = 0; i < 10; i++) {
     EXPECT_EQ(heap.at(index[i]).key, i ^ (i + 1));
@@ -1074,11 +1130,12 @@ bool IsEven(int i) {
 }
 
 TEST(IntrusiveHeapTest, EraseIf) {
-  HeapHandle index[10];
+  std::array<HeapHandle, 10> index;
   IntrusiveHeap<TestElement> heap;
 
-  for (int i = 0; i < 10; i++)
+  for (int i = 0; i < 10; i++) {
     heap.insert({i, &index[i]});
+  }
   ASSERT_EQ(heap.size(), 10u);
 
   // Remove all even elements.
@@ -1086,8 +1143,9 @@ TEST(IntrusiveHeapTest, EraseIf) {
   ASSERT_EQ(heap.size(), 5u);
 
   // Handles were correctly updated.
-  for (int i = 0; i < 10; i++)
+  for (int i = 0; i < 10; i++) {
     EXPECT_EQ(IsEven(i), !index[i].IsValid());
+  }
 
   // Now iterate over all elements of the heap and check their handles.
   for (size_t i = 0; i < heap.size(); i++) {
@@ -1128,7 +1186,7 @@ TEST(IntrusiveHeapTest, EraseIf_Reentrancy) {
 
   // The task that will post a new element inside the heap upon destruction of
   // the first.
-  OnceClosure insert_task = BindLambdaForTesting([&]() {
+  OnceClosure insert_task = BindLambdaForTesting([&] {
     // Insert a null callback so it can be differentiated.
     heap.insert(OnceClosure());
   });

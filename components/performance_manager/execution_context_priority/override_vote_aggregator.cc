@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "components/performance_manager/execution_context_priority/override_vote_aggregator.h"
+#include "components/performance_manager/public/execution_context_priority/override_vote_aggregator.h"
 
 namespace performance_manager {
 namespace execution_context_priority {
@@ -47,7 +47,7 @@ void OverrideVoteAggregator::OnVoteSubmitted(
 
   // Remember the previous chosen vote before adding the new vote. There could
   // be none if the this the first vote submitted for |execution_context|.
-  absl::optional<Vote> old_chosen_vote;
+  std::optional<Vote> old_chosen_vote;
   if (vote_data.HasChosenVote())
     old_chosen_vote = vote_data.GetChosenVote();
 
@@ -150,11 +150,11 @@ void OverrideVoteAggregator::VoteData::RemoveVote(VoterType voter_type) {
   switch (voter_type) {
     case VoterType::kDefault:
       DCHECK(default_vote_.has_value());
-      default_vote_ = absl::nullopt;
+      default_vote_ = std::nullopt;
       break;
     case VoterType::kOverride:
       DCHECK(override_vote_.has_value());
-      override_vote_ = absl::nullopt;
+      override_vote_ = std::nullopt;
       break;
   }
 }
@@ -173,7 +173,7 @@ const Vote& OverrideVoteAggregator::VoteData::GetChosenVote() const {
 OverrideVoteAggregator::VoteDataMap::iterator
 OverrideVoteAggregator::GetVoteData(const ExecutionContext* execution_context) {
   auto it = vote_data_map_.find(execution_context);
-  DCHECK(it != vote_data_map_.end());
+  CHECK(it != vote_data_map_.end());
   return it;
 }
 

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,15 +14,17 @@
 
 #include <map>
 #include <sstream>
+#include <string_view>
 #include <utility>
 
+#include "base/containers/contains.h"
+#include "base/containers/heap_array.h"
 #include "base/containers/queue.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
@@ -44,7 +51,7 @@ class TestMessage : public UserMessage {
  public:
   static const TypeInfo kUserMessageTypeInfo;
 
-  TestMessage(const base::StringPiece& payload)
+  TestMessage(const std::string_view& payload)
       : UserMessage(&kUserMessageTypeInfo), payload_(payload) {}
   ~TestMessage() override = default;
 
@@ -56,14 +63,14 @@ class TestMessage : public UserMessage {
 
 const UserMessage::TypeInfo TestMessage::kUserMessageTypeInfo = {};
 
-ScopedMessage NewUserMessageEvent(const base::StringPiece& payload,
+ScopedMessage NewUserMessageEvent(const std::string_view& payload,
                                   size_t num_ports) {
   auto event = std::make_unique<UserMessageEvent>(num_ports);
   event->AttachMessage(std::make_unique<TestMessage>(payload));
   return event;
 }
 
-bool MessageEquals(const ScopedMessage& message, const base::StringPiece& s) {
+bool MessageEquals(const ScopedMessage& message, const std::string_view& s) {
   return message->GetMessage<TestMessage>()->payload() == s;
 }
 
@@ -402,7 +409,7 @@ class PortsTest : public testing::Test, public MessageRouter {
     base::AutoLock global_lock(global_lock_);
     base::AutoLock lock(lock_);
     // Drop messages from nodes that have been removed.
-    if (nodes_.find(from_node->name()) == nodes_.end()) {
+    if (!base::Contains(nodes_, from_node->name())) {
       from_node->ClosePortsInEvent(event.get());
       return;
     }
@@ -415,9 +422,9 @@ class PortsTest : public testing::Test, public MessageRouter {
 
     // Serialize and de-serialize all forwarded events.
     size_t buf_size = event->GetSerializedSize();
-    std::unique_ptr<char[]> buf(new char[buf_size]);
-    event->Serialize(buf.get());
-    ScopedEvent copy = Event::Deserialize(buf.get(), buf_size);
+    auto buf = base::HeapArray<char>::Uninit(buf_size);
+    event->Serialize(buf.data());
+    ScopedEvent copy = Event::Deserialize(buf.data(), buf.size());
     // This should always succeed unless serialization or deserialization
     // is broken. In that case, the loss of events should cause a test failure.
     ASSERT_TRUE(copy);
@@ -441,8 +448,9 @@ class PortsTest : public testing::Test, public MessageRouter {
     base::AutoLock lock(lock_);
 
     // Drop messages from nodes that have been removed.
-    if (nodes_.find(from_node->name()) == nodes_.end())
+    if (!base::Contains(nodes_, from_node->name())) {
       return;
+    }
 
     for (const auto& entry : nodes_) {
       TestNode* node = entry.second;
@@ -460,7 +468,7 @@ class PortsTest : public testing::Test, public MessageRouter {
   base::Lock global_lock_;
 
   base::Lock lock_;
-  std::map<NodeName, TestNode*> nodes_;
+  std::map<NodeName, raw_ptr<TestNode, CtnExperimental>> nodes_;
 };
 
 }  // namespace
@@ -1521,8 +1529,8 @@ TEST_F(PortsTest, MergePortsFailsGracefully) {
   EXPECT_EQ(OK, node1.node().InitializePort(Y, node0.name(), X.name(),
                                             node0.name(), X.name()));
 
-  // Block the merge from proceeding until we can do something stupid with port
-  // C. This avoids the test logic racing with async merge logic.
+  // Block the merge from proceeding until we can do something with port C. This
+  // avoids the test logic racing with async merge logic.
   node1.BlockOnEvent(Event::Type::kMergePort);
 
   // Initiate the merge between B and C.

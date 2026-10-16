@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <utility>
 #include <vector>
@@ -17,20 +18,31 @@
 #include "base/time/time.h"
 #include "chrome/browser/predictors/loading_data_collector.h"
 #include "chrome/browser/predictors/preconnect_manager.h"
+#include "chrome/browser/predictors/predictors_traffic_annotations.h"
 #include "chrome/browser/predictors/prefetch_manager.h"
 #include "chrome/browser/predictors/resource_prefetch_predictor.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/features.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
 class Profile;
 
+namespace features {
+
+BASE_DECLARE_FEATURE(kSuppressesLoadingPredictorOnSlowNetwork);
+
+extern const base::FeatureParam<base::TimeDelta>
+    kSuppressesLoadingPredictorOnSlowNetworkThreshold;
+
+}  // namespace features
+
 namespace predictors {
 
 class ResourcePrefetchPredictor;
 class LoadingStatsCollector;
+class PrewarmHttpDiskCacheManager;
 
 // Entry point for the Loading predictor.
 // From a high-level request (GURL and motivation) and a database of historical
@@ -59,11 +71,12 @@ class LoadingPredictor : public KeyedService,
   // over local predictions to trigger actions, such as prefetch and/or
   // preconnect. Returns true if no more preconnect actions should be taken by
   // the caller.
-  bool PrepareForPageLoad(const GURL& url,
-                          HintOrigin origin,
-                          bool preconnectable = false,
-                          absl::optional<PreconnectPrediction>
-                              preconnect_prediction = absl::nullopt);
+  bool PrepareForPageLoad(
+      const std::optional<url::Origin>& initiator_origin,
+      const GURL& url,
+      HintOrigin origin,
+      bool preconnectable = false,
+      std::optional<PreconnectPrediction> preconnect_prediction = std::nullopt);
 
   // Indicates that a page load hint is no longer active.
   void CancelPageLoadHint(const GURL& url);
@@ -79,11 +92,11 @@ class LoadingPredictor : public KeyedService,
 
   // KeyedService:
   void Shutdown() override;
+  bool WasShutdown() { return shutdown_; }
 
   // OnNavigationStarted is invoked when navigation |navigation_id| with
-  // |main_frame_url| has started navigating. It returns whether any actions
-  // were taken, such as preconnecting to known resource hosts, at that time.
-  bool OnNavigationStarted(NavigationId navigation_id,
+  // |main_frame_url| has started navigating.
+  void OnNavigationStarted(NavigationId navigation_id,
                            ukm::SourceId ukm_source_id,
                            const GURL& main_frame_url,
                            base::TimeTicks creation_time);
@@ -115,18 +128,36 @@ class LoadingPredictor : public KeyedService,
     return active_hints_;
   }
 
-  // May start a preconnect for |url|, if the current profile settings allow to
-  // perform preresolve and preconnect actions.
-  void PreconnectURLIfAllowed(
+  // May start a preconnect for `url`, if the current profile settings allow to
+  // perform preresolve and preconnect actions. When `traffic_annotation` is
+  // set, it will use the value over the default
+  // `kLoadingPredictorPreconnectTrafficAnnotation`, later passed on to //net.
+  // Virtual for testing.
+  virtual void PreconnectURLIfAllowed(
       const GURL& url,
       bool allow_credentials,
-      const net::NetworkAnonymizationKey& network_anonymization_key);
+      const net::NetworkAnonymizationKey& network_anonymization_key,
+      const net::NetworkTrafficAnnotationTag& traffic_annotation =
+          kLoadingPredictorPreconnectTrafficAnnotation,
+      const content::StoragePartitionConfig* storage_partition_config =
+          nullptr);
+
+  void MaybePrewarmResources(const std::optional<url::Origin>& initiator_origin,
+                             const GURL& top_frame_main_resource_url);
+
+  bool IsLCPPTestingEnabled() const { return is_lcpp_testing_enabled_; }
 
  private:
   // Stores the information necessary to keep track of the active navigations.
   struct NavigationInfo {
     GURL main_frame_url;
     base::TimeTicks creation_time;
+  };
+
+  struct PreconnectData {
+    url::Origin last_origin_;
+    base::TimeTicks last_preconnect_time_;
+    base::TimeTicks last_preresolve_time_;
   };
 
   // Cancels an active hint, from its iterator inside |active_hints_|. If the
@@ -136,20 +167,21 @@ class LoadingPredictor : public KeyedService,
       std::map<GURL, base::TimeTicks>::iterator hint_it);
   void CleanupAbandonedHintsAndNavigations(NavigationId navigation_id);
 
-  // May start preconnect and preresolve jobs according to |prediction| for
-  // |url| with a given hint |origin|.
+  // May start preconnect and preresolve jobs according to `prediction` for
+  // `url`.
   //
-  // When LoadingPredictorPrefetch is enabled, starts prefetch
-  // jobs if |prediction| has prefetch requests.
-  void MaybeAddPreconnect(const GURL& url,
-                          PreconnectPrediction prediction,
-                          HintOrigin origin);
-  // If a preconnect or prefetch exists for |url|, stop it.
+  // When LoadingPredictorPrefetch is enabled, starts prefetch jobs if
+  // `prediction` has prefetch requests.
+  void MaybeAddPreconnect(const GURL& url, PreconnectPrediction prediction);
+  // If a preconnect or prefetch exists for `url`, stop it.
   void MaybeRemovePreconnect(const GURL& url);
 
-  // May start a preconnect or a preresolve for |url|. |preconnectable|
-  // indicates if preconnect is possible.
-  void HandleOmniboxHint(const GURL& url, bool preconnectable);
+  // May start a preconnect or a preresolve for `url`. `preconnectable`
+  // indicates if preconnect is possible, or only preresolve will be performed.
+  bool HandleHintByOrigin(const GURL& url,
+                          bool preconnectable,
+                          bool only_allow_https,
+                          PreconnectData& preconnect_data);
 
   // For testing.
   void set_mock_resource_prefetch_predictor(
@@ -169,27 +201,36 @@ class LoadingPredictor : public KeyedService,
     loading_data_collector_ = std::move(loading_data_collector);
   }
 
+  // For LCPP testing.
+  void EnableLCPPTesting() { is_lcpp_testing_enabled_ = true; }
+
   LoadingPredictorConfig config_;
-  raw_ptr<Profile> profile_;
+  raw_ptr<Profile, DanglingUntriaged> profile_;
   std::unique_ptr<ResourcePrefetchPredictor> resource_prefetch_predictor_;
   std::unique_ptr<LoadingStatsCollector> stats_collector_;
   std::unique_ptr<LoadingDataCollector> loading_data_collector_;
   std::unique_ptr<PreconnectManager> preconnect_manager_;
   std::unique_ptr<PrefetchManager> prefetch_manager_;
+  std::unique_ptr<PrewarmHttpDiskCacheManager> prewarm_http_disk_cache_manager_;
   std::map<GURL, base::TimeTicks> active_hints_;
   std::map<NavigationId, NavigationInfo> active_navigations_;
   std::map<GURL, std::set<NavigationId>> active_urls_to_navigations_;
   bool shutdown_ = false;
   size_t total_hints_activated_ = 0;
 
-  url::Origin last_omnibox_origin_;
-  base::TimeTicks last_omnibox_preconnect_time_;
-  base::TimeTicks last_omnibox_preresolve_time_;
+  PreconnectData omnibox_preconnect_data_;
+
+  PreconnectData bookmark_bar_preconnect_data_;
+
+  PreconnectData new_tab_page_preconnect_data_;
+
+  bool is_lcpp_testing_enabled_ = false;
 
   friend class LoadingPredictorTest;
   friend class LoadingPredictorPreconnectTest;
   friend class LoadingPredictorTabHelperTest;
   friend class LoadingPredictorTabHelperTestCollectorTest;
+  friend class LCPPTimingPredictorTestBase;
   FRIEND_TEST_ALL_PREFIXES(LoadingPredictorTest,
                            TestMainFrameResponseCancelsHint);
   FRIEND_TEST_ALL_PREFIXES(LoadingPredictorTest,
@@ -205,6 +246,12 @@ class LoadingPredictor : public KeyedService,
   FRIEND_TEST_ALL_PREFIXES(LoadingPredictorTest,
                            TestDontTrackNonPrefetchableUrls);
   FRIEND_TEST_ALL_PREFIXES(LoadingPredictorTest, TestDontPredictOmniboxHints);
+  FRIEND_TEST_ALL_PREFIXES(LoadingPredictorPreconnectTest,
+                           TestHandleHintWithOpaqueOrigins);
+  FRIEND_TEST_ALL_PREFIXES(LoadingPredictorPreconnectTest,
+                           TestHandleHintWhenOnlyHttpsAllowed);
+  FRIEND_TEST_ALL_PREFIXES(LoadingPredictorPreconnectTest,
+                           TestHandleHintPreresolveWhenOnlyHttpsAllowed);
 
   base::WeakPtrFactory<LoadingPredictor> weak_factory_{this};
 };

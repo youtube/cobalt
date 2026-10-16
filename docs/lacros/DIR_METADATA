@@ -1,6 +1,0 @@
-team_email: "lacros-team@google.com"
-os: LACROS
-monorail {
-  project: "chromium"
-  component: "OS>LaCrOs"
-}

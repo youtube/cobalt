@@ -32,7 +32,6 @@ WebGPUDecoder* WebGPUDecoder::Create(
       dawn_cache_options, isolation_key_provider);
 #else
   NOTREACHED();
-  return nullptr;
 #endif
 }
 

@@ -4,6 +4,8 @@
 
 #include "extensions/common/manifest_handlers/csp_info.h"
 
+#include <string_view>
+
 #include "base/strings/stringprintf.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/values_test_util.h"
@@ -21,7 +23,7 @@ namespace {
 namespace errors = manifest_errors;
 namespace keys = manifest_keys;
 
-std::string GetInvalidManifestKeyError(base::StringPiece key) {
+std::string GetInvalidManifestKeyError(std::string_view key) {
   return ErrorUtils::FormatErrorMessage(errors::kInvalidManifestKey, key);
 }
 
@@ -94,7 +96,7 @@ TEST_F(CSPInfoUnitTest, SandboxedPages) {
   EXPECT_EQ(kDefaultSandboxedPageCSP, CSPInfo::GetResourceContentSecurityPolicy(
                                           extension7.get(), "/test"));
 
-  Testcase testcases[] = {
+  const Testcase testcases[] = {
       Testcase("sandboxed_pages_invalid_1.json",
                errors::kInvalidSandboxedPagesList),
       Testcase("sandboxed_pages_invalid_2.json", errors::kInvalidSandboxedPage),
@@ -104,7 +106,7 @@ TEST_F(CSPInfoUnitTest, SandboxedPages) {
                GetInvalidManifestKeyError(keys::kSandboxedPagesCSP)),
       Testcase("sandboxed_pages_invalid_5.json",
                GetInvalidManifestKeyError(keys::kSandboxedPagesCSP))};
-  RunTestcases(testcases, std::size(testcases), EXPECT_TYPE_ERROR);
+  RunTestcases(testcases, EXPECT_TYPE_ERROR);
 }
 
 TEST_F(CSPInfoUnitTest, CSPStringKey) {
@@ -115,7 +117,7 @@ TEST_F(CSPInfoUnitTest, CSPStringKey) {
             CSPInfo::GetExtensionPagesCSP(extension.get()));
 
   // Manifest V2 extensions bypass the main world CSP in their isolated worlds.
-  const std::string* isolated_world_csp =
+  std::optional<std::string> isolated_world_csp =
       CSPInfo::GetIsolatedWorldCSP(*extension);
   ASSERT_TRUE(isolated_world_csp);
   EXPECT_TRUE(isolated_world_csp->empty());
@@ -126,7 +128,7 @@ TEST_F(CSPInfoUnitTest, CSPStringKey) {
 }
 
 TEST_F(CSPInfoUnitTest, CSPDictionary_ExtensionPages) {
-  struct {
+  static constexpr struct {
     const char* file_name;
     const char* csp;
   } cases[] = {{"csp_dictionary_valid_1.json", "default-src 'none'"},
@@ -142,7 +144,7 @@ TEST_F(CSPInfoUnitTest, CSPDictionary_ExtensionPages) {
     EXPECT_EQ(test_case.csp, CSPInfo::GetExtensionPagesCSP(extension.get()));
   }
 
-  Testcase testcases[] = {
+  const Testcase testcases[] = {
       Testcase("csp_invalid_2.json",
                GetInvalidManifestKeyError(
                    keys::kContentSecurityPolicy_ExtensionPagesPath)),
@@ -160,11 +162,16 @@ TEST_F(CSPInfoUnitTest, CSPDictionary_ExtensionPages) {
                    keys::kContentSecurityPolicy_ExtensionPagesPath,
                    "'unsafe-eval'", "worker-src")),
   };
-  RunTestcases(testcases, std::size(testcases), EXPECT_TYPE_ERROR);
+  RunTestcases(testcases, EXPECT_TYPE_ERROR);
 }
 
 // Tests the requirements for object-src specifications.
 TEST_F(CSPInfoUnitTest, ObjectSrcRequirements) {
+  enum class ManifestVersion {
+    kMV2,
+    kMV3,
+  };
+
   static constexpr char kManifestV3Template[] =
       R"({
            "name": "Test Extension",
@@ -183,103 +190,103 @@ TEST_F(CSPInfoUnitTest, ObjectSrcRequirements) {
            "content_security_policy": "%s"
          })";
 
-  auto get_manifest = [](const char* manifest_template, const char* input) {
+  auto get_manifest = [](ManifestVersion version, const char* input) {
     return base::test::ParseJsonDict(
-        base::StringPrintf(manifest_template, input));
+        version == ManifestVersion::kMV2
+            ? base::StringPrintf(kManifestV2Template, input)
+            : base::StringPrintf(kManifestV3Template, input));
   };
 
-  struct {
-    const char* manifest_template;
+  static constexpr struct {
+    ManifestVersion version;
     const char* csp;
-  } passing_testcases[] = {
+  } kPassingTestcases[] = {
       // object-src doesn't need to be explicitly specified in manifest V3.
-      {kManifestV3Template, "script-src 'self'"},
-      {kManifestV3Template, "default-src 'self'"},
+      {ManifestVersion::kMV3, "script-src 'self'"},
+      {ManifestVersion::kMV3, "default-src 'self'"},
       // Secure object-src specifications are allowed.
-      {kManifestV3Template, "script-src 'self'; object-src 'self'"},
-      {kManifestV3Template, "script-src 'self'; object-src 'none'"},
-      {kManifestV3Template,
-       ("script-src 'self'; object-src 'self'; frame-src 'self'; "
-        "default-src https://google.com")},
+      {ManifestVersion::kMV3, "script-src 'self'; object-src 'self'"},
+      {ManifestVersion::kMV3, "script-src 'self'; object-src 'none'"},
+      {ManifestVersion::kMV3,
+       ("script-src 'self'; object-src 'self'; frame-src 'self'; default-src "
+        "https://google.com")},
       // Even though the object-src in the example below is effectively
       // https://google.com (because it falls back to the default-src), we
       // still allow it so that developers don't need to explicitly specify an
       // object-src just because they specified a default-src. The minimum CSP
       // (which includes `object-src 'self'`) still kicks in and prevents any
       // insecure use.
-      {kManifestV3Template,
+      {ManifestVersion::kMV3,
        "script-src 'self'; default-src https://google.com"},
 
       // In Manifest V2, object-src must be specified (if it's omitted, we add
-      // it; see `warning_testcases` below).
+      // it; see `kWarningTestcases` below).
       // Note: in MV2, our parsing will implicitly also add a trailing semicolon
       // if one isn't provided, so we always add one here so that the final CSP
       // matches.
-      {kManifestV2Template, "script-src 'self'; object-src 'self';"},
-      {kManifestV2Template, "script-src 'self'; object-src 'none';"},
-      {kManifestV2Template,
-       ("script-src 'self'; object-src 'self'; frame-src 'self'; "
-        "default-src https://google.com;")},
+      {ManifestVersion::kMV2, "script-src 'self'; object-src 'self';"},
+      {ManifestVersion::kMV2, "script-src 'self'; object-src 'none';"},
+      {ManifestVersion::kMV2,
+       ("script-src 'self'; object-src 'self'; frame-src 'self'; default-src "
+        "https://google.com;")},
       // Manifest V2 allows (secure) remote object-src specifications.
-      {kManifestV2Template,
+      {ManifestVersion::kMV2,
        "script-src 'self'; object-src https://google.com;"},
-      {kManifestV2Template,
+      {ManifestVersion::kMV2,
        "script-src 'self'; default-src https://google.com;"},
   };
 
-  for (const auto& testcase : passing_testcases) {
+  for (const auto& testcase : kPassingTestcases) {
     SCOPED_TRACE(testcase.csp);
-    ManifestData manifest_data(
-        get_manifest(testcase.manifest_template, testcase.csp));
+    ManifestData manifest_data(get_manifest(testcase.version, testcase.csp));
     scoped_refptr<const Extension> extension =
         LoadAndExpectSuccess(manifest_data);
     ASSERT_TRUE(extension);
     EXPECT_EQ(testcase.csp, CSPInfo::GetExtensionPagesCSP(extension.get()));
   }
 
-  struct {
-    const char* manifest_template;
+  static constexpr struct {
+    ManifestVersion version;
     const char* csp;
     const char* expected_error;
-  } failing_testcases[] = {
+  } kFailingTestcases[] = {
       // If an object-src *is* specified, it must be secure and must not allow
       // remotely-hosted code (in MV3).
-      {kManifestV3Template, "script-src 'self'; object-src https://google.com",
+      {ManifestVersion::kMV3,
+       "script-src 'self'; object-src https://google.com",
        "*Insecure CSP value \"https://google.com\" in directive 'object-src'."},
   };
 
-  for (const auto& testcase : failing_testcases) {
+  for (const auto& testcase : kFailingTestcases) {
     SCOPED_TRACE(testcase.csp);
-    ManifestData manifest_data(
-        get_manifest(testcase.manifest_template, testcase.csp));
+    ManifestData manifest_data(get_manifest(testcase.version, testcase.csp));
     LoadAndExpectError(manifest_data, testcase.expected_error);
   }
 
-  struct {
-    const char* manifest_template;
+  static constexpr struct {
+    ManifestVersion version;
     const char* csp;
     const char* expected_warning;
     const char* effective_csp;
-  } warning_testcases[] = {
+  } kWarningTestcases[] = {
       // In MV2, if an object-src is not provided, we will warn and synthesize
       // one.
-      {kManifestV2Template, "script-src 'self'",
+      {ManifestVersion::kMV2, "script-src 'self'",
        ("'content_security_policy': CSP directive 'object-src' must be "
         "specified (either explicitly, or implicitly via 'default-src') "
         "and must allowlist only secure resources."),
        "script-src 'self'; object-src 'self';"},
       // Similarly, if an insecure (e.g. http) object-src is provided, we simply
       // ignore it.
-      {kManifestV2Template, "script-src 'self'; object-src http://google.com",
+      {ManifestVersion::kMV2, "script-src 'self'; object-src http://google.com",
        ("'content_security_policy': Ignored insecure CSP value "
         "\"http://google.com\" in directive 'object-src'."),
        "script-src 'self'; object-src;"}};
 
-  for (const auto& testcase : warning_testcases) {
+  for (const auto& testcase : kWarningTestcases) {
     // Special case: In MV2, if the developer doesn't provide an object-src, we
     // insert one ('self') and emit a warning.
-    ManifestData manifest_data(
-        get_manifest(testcase.manifest_template, testcase.csp));
+    ManifestData manifest_data(get_manifest(testcase.version, testcase.csp));
     scoped_refptr<const Extension> extension =
         LoadAndExpectWarning(manifest_data, testcase.expected_warning);
     ASSERT_TRUE(extension);
@@ -338,7 +345,7 @@ TEST_F(CSPInfoUnitTest, CSPDictionary_Sandbox) {
                   extension.get(), test_case.resource_path));
   }
 
-  Testcase testcases[] = {
+  const Testcase testcases[] = {
       {"sandbox_both_keys.json", errors::kSandboxPagesCSPKeyNotAllowed},
       {"sandbox_csp_with_dictionary.json",
        errors::kSandboxPagesCSPKeyNotAllowed},
@@ -348,7 +355,7 @@ TEST_F(CSPInfoUnitTest, CSPDictionary_Sandbox) {
       {"unsandboxed_csp.json",
        GetInvalidManifestKeyError(
            keys::kContentSecurityPolicy_SandboxedPagesPath)}};
-  RunTestcases(testcases, std::size(testcases), EXPECT_TYPE_ERROR);
+  RunTestcases(testcases, EXPECT_TYPE_ERROR);
 }
 
 // Ensures that using a dictionary for the keys::kContentSecurityPolicy manifest
@@ -368,10 +375,14 @@ TEST_F(CSPInfoUnitTest, CSPDictionaryMandatoryForV3) {
         LoadAndExpectSuccess(filename, mojom::ManifestLocation::kInternal);
     ASSERT_TRUE(extension);
 
-    const std::string* isolated_world_csp =
+    std::optional<std::string> isolated_world_csp =
         CSPInfo::GetIsolatedWorldCSP(*extension);
     ASSERT_TRUE(isolated_world_csp);
-    EXPECT_EQ(CSPHandler::GetMinimumMV3CSPForTesting(), *isolated_world_csp);
+    std::string expected_csp = base::StringPrintf(
+        "script-src 'self' 'wasm-unsafe-eval' 'inline-speculation-rules' "
+        "%s; object-src 'self';",
+        extension->dynamic_url().spec().c_str());
+    EXPECT_EQ(expected_csp, *isolated_world_csp);
 
     EXPECT_EQ(kDefaultSandboxedPageCSP,
               CSPInfo::GetSandboxContentSecurityPolicy(extension.get()));
@@ -392,11 +403,14 @@ TEST_F(CSPInfoUnitTest, CSPDictionaryMandatoryForV3) {
         LoadAndExpectSuccess(filename, mojom::ManifestLocation::kUnpacked);
     ASSERT_TRUE(extension);
 
-    const std::string* isolated_world_csp =
+    std::optional<std::string> isolated_world_csp =
         CSPInfo::GetIsolatedWorldCSP(*extension);
     ASSERT_TRUE(isolated_world_csp);
-    EXPECT_EQ(CSPHandler::GetMinimumUnpackedMV3CSPForTesting(),
-              *isolated_world_csp);
+    std::string expected_csp = base::StringPrintf(
+        "script-src 'self' 'wasm-unsafe-eval' 'inline-speculation-rules' "
+        "http://localhost:* http://127.0.0.1:* %s; object-src 'self';",
+        extension->dynamic_url().spec().c_str());
+    EXPECT_EQ(expected_csp, *isolated_world_csp);
 
     EXPECT_EQ(kDefaultSandboxedPageCSP,
               CSPInfo::GetSandboxContentSecurityPolicy(extension.get()));

@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/video_frame_cadence_pattern_generator.h"
+#include "starboard/shared/starboard/player/filter/video_frame_rate_estimator.h"
 
 #include <initializer_list>
 #include <list>
 
 #include "starboard/common/ref_counted.h"
+#include "starboard/shared/starboard/player/filter/video_frame_cadence_pattern_generator.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
-#include "starboard/shared/starboard/player/filter/video_frame_rate_estimator.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

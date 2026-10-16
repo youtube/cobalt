@@ -310,11 +310,8 @@ ResourceLoadTiming* PerformanceTiming::GetResourceLoadTiming() const {
   return loader->GetResponse().GetResourceLoadTiming();
 }
 
-std::unique_ptr<TracedValue> PerformanceTiming::GetNavigationTracingData() {
-  auto data = std::make_unique<TracedValue>();
-  data->SetString("navigationId",
-                  IdentifiersFactory::LoaderId(GetDocumentLoader()));
-  return data;
+void PerformanceTiming::WriteInto(perfetto::TracedDictionary& dict) const {
+  dict.Add("navigationId", IdentifiersFactory::LoaderId(GetDocumentLoader()));
 }
 
 // static
@@ -329,14 +326,14 @@ uint64_t PerformanceTiming::GetNamedAttribute(const AtomicString& name) const {
   return (this->*fn)();
 }
 
-ScriptValue PerformanceTiming::toJSONForBinding(
+ScriptObject PerformanceTiming::toJSONForBinding(
     ScriptState* script_state) const {
   V8ObjectBuilder result(script_state);
   for (const auto& name_attribute_pair : GetAttributeMapping()) {
     result.AddNumber(name_attribute_pair.key,
                      (this->*(name_attribute_pair.value))());
   }
-  return result.GetScriptValue();
+  return result.ToScriptObject();
 }
 
 uint64_t PerformanceTiming::MonotonicTimeToIntegerMilliseconds(

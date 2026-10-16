@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "net/quic/quic_chromium_packet_writer.h"
 
 #include <string>
@@ -67,10 +72,26 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
           "QuicChromiumClientStream classes for references."
     )");
 
+EcnCodePoint QuicheEcnToChromiumEcn(const quic::QuicEcnCodepoint codepoint) {
+  switch (codepoint) {
+    case quic::ECN_NOT_ECT:
+      return ECN_NOT_ECT;
+    case quic::ECN_ECT1:
+      return ECN_ECT1;
+    case quic::ECN_ECT0:
+      return ECN_ECT0;
+    case quic::ECN_CE:
+      return ECN_CE;
+    default:
+      break;
+  }
+  NOTREACHED();
+}
+
 }  // namespace
 
 QuicChromiumPacketWriter::ReusableIOBuffer::ReusableIOBuffer(size_t capacity)
-    : IOBuffer(capacity), capacity_(capacity) {}
+    : IOBufferWithSize(capacity), capacity_(capacity) {}
 
 QuicChromiumPacketWriter::ReusableIOBuffer::~ReusableIOBuffer() = default;
 
@@ -93,7 +114,11 @@ QuicChromiumPacketWriter::QuicChromiumPacketWriter(
       &QuicChromiumPacketWriter::OnWriteComplete, weak_factory_.GetWeakPtr());
 }
 
-QuicChromiumPacketWriter::~QuicChromiumPacketWriter() = default;
+QuicChromiumPacketWriter::~QuicChromiumPacketWriter() {
+  UMA_HISTOGRAM_ENUMERATION(
+      "Net.QuicSession.OutgoingEcn",
+      static_cast<EcnPermutations>(outgoing_ecn_history_));
+}
 
 void QuicChromiumPacketWriter::set_force_write_blocked(
     bool force_write_blocked) {
@@ -103,16 +128,16 @@ void QuicChromiumPacketWriter::set_force_write_blocked(
 }
 
 void QuicChromiumPacketWriter::SetPacket(const char* buffer, size_t buf_len) {
-  if (UNLIKELY(!packet_)) {
+  if (!packet_) [[unlikely]] {
     packet_ = base::MakeRefCounted<ReusableIOBuffer>(
         std::max(buf_len, static_cast<size_t>(quic::kMaxOutgoingPacketSize)));
     RecordNotReusableReason(NOT_REUSABLE_NULLPTR);
   }
-  if (UNLIKELY(packet_->capacity() < buf_len)) {
+  if (packet_->capacity() < buf_len) [[unlikely]] {
     packet_ = base::MakeRefCounted<ReusableIOBuffer>(buf_len);
     RecordNotReusableReason(NOT_REUSABLE_TOO_SMALL);
   }
-  if (UNLIKELY(!packet_->HasOneRef())) {
+  if (!packet_->HasOneRef()) [[unlikely]] {
     packet_ = base::MakeRefCounted<ReusableIOBuffer>(
         std::max(buf_len, static_cast<size_t>(quic::kMaxOutgoingPacketSize)));
     RecordNotReusableReason(NOT_REUSABLE_REF_COUNT);
@@ -123,17 +148,25 @@ void QuicChromiumPacketWriter::SetPacket(const char* buffer, size_t buf_len) {
 quic::WriteResult QuicChromiumPacketWriter::WritePacket(
     const char* buffer,
     size_t buf_len,
-    const quic::QuicIpAddress& self_address,
+    const quiche::QuicheIpAddress& self_address,
     const quic::QuicSocketAddress& peer_address,
-    quic::PerPacketOptions* /*options*/) {
-  DCHECK(!IsWriteBlocked());
+    quic::PerPacketOptions* /*options*/,
+    const quic::QuicPacketWriterParams& params) {
+  CHECK(!IsWriteBlocked());
   SetPacket(buffer, buf_len);
+  EcnCodePoint new_ecn = QuicheEcnToChromiumEcn(params.ecn_codepoint);
+  outgoing_ecn_history_ |= (1 << static_cast<uint8_t>(new_ecn));
+  if (new_ecn != outgoing_ecn_) {
+    socket_->SetTos(DSCP_NO_CHANGE, new_ecn);
+    outgoing_ecn_ = new_ecn;
+  }
   return WritePacketToSocketImpl();
 }
 
 void QuicChromiumPacketWriter::WritePacketToSocket(
     scoped_refptr<ReusableIOBuffer> packet) {
-  DCHECK(!force_write_blocked_);
+  CHECK(!force_write_blocked_);
+  CHECK(!IsWriteBlocked());
   packet_ = std::move(packet);
   quic::WriteResult result = WritePacketToSocketImpl();
   if (result.error_code != ERR_IO_PENDING)
@@ -146,6 +179,9 @@ quic::WriteResult QuicChromiumPacketWriter::WritePacketToSocketImpl() {
   base::TimeTicks now = base::TimeTicks::Now();
 #endif
 
+  // When the connection is closed, the socket is cleaned up. If socket is
+  // invalidated, packets should not be written to the socket.
+  CHECK(socket_);
   int rv = socket_->Write(packet_.get(), packet_->size(), write_callback_,
                           kTrafficAnnotation);
 
@@ -186,9 +222,12 @@ quic::WriteResult QuicChromiumPacketWriter::WritePacketToSocketImpl() {
 
 void QuicChromiumPacketWriter::RetryPacketAfterNoBuffers() {
   DCHECK_GT(retry_count_, 0);
-  quic::WriteResult result = WritePacketToSocketImpl();
-  if (result.error_code != ERR_IO_PENDING)
-    OnWriteComplete(result.error_code);
+  if (socket_) {
+    quic::WriteResult result = WritePacketToSocketImpl();
+    if (result.error_code != ERR_IO_PENDING) {
+      OnWriteComplete(result.error_code);
+    }
+  }
 }
 
 bool QuicChromiumPacketWriter::IsWriteBlocked() const {
@@ -199,7 +238,7 @@ void QuicChromiumPacketWriter::SetWritable() {
   write_in_progress_ = false;
 }
 
-absl::optional<int> QuicChromiumPacketWriter::MessageTooBigErrorCode() const {
+std::optional<int> QuicChromiumPacketWriter::MessageTooBigErrorCode() const {
   return ERR_MSG_TOO_BIG;
 }
 
@@ -268,14 +307,39 @@ bool QuicChromiumPacketWriter::IsBatchMode() const {
   return false;
 }
 
+bool QuicChromiumPacketWriter::SupportsEcn() const {
+  return true;
+}
+
 quic::QuicPacketBuffer QuicChromiumPacketWriter::GetNextWriteLocation(
-    const quic::QuicIpAddress& self_address,
+    const quiche::QuicheIpAddress& self_address,
     const quic::QuicSocketAddress& peer_address) {
   return {nullptr, nullptr};
 }
 
 quic::WriteResult QuicChromiumPacketWriter::Flush() {
   return quic::WriteResult(quic::WRITE_STATUS_OK, 0);
+}
+
+bool QuicChromiumPacketWriter::OnSocketClosed(DatagramClientSocket* socket) {
+  if (socket_ == socket) {
+    socket_ = nullptr;
+    return true;
+  }
+  return false;
+}
+
+void QuicChromiumPacketWriter::RegisterQuicConnectionClosePayload(
+    base::span<uint8_t> payload) {
+  if (socket_) {
+    socket_->RegisterQuicConnectionClosePayload(payload);
+  }
+}
+
+void QuicChromiumPacketWriter::UnregisterQuicConnectionClosePayload() {
+  if (socket_) {
+    socket_->UnregisterQuicConnectionClosePayload();
+  }
 }
 
 }  // namespace net

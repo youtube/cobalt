@@ -22,7 +22,8 @@ namespace segmentation_platform {
 // work and write the tests only in the unit test class.
 class DefaultModelTestBase : public testing::Test {
  public:
-  explicit DefaultModelTestBase(std::unique_ptr<ModelProvider> model_provider);
+  explicit DefaultModelTestBase(
+      std::unique_ptr<DefaultModelProvider> model_provider);
   ~DefaultModelTestBase() override;
 
   void SetUp() override;
@@ -43,7 +44,7 @@ class DefaultModelTestBase : public testing::Test {
                                 ModelProvider::Response expected_result);
 
   // Executes the model with inputs and return the output.
-  absl::optional<ModelProvider::Response> ExecuteWithInput(
+  std::optional<ModelProvider::Response> ExecuteWithInput(
       const ModelProvider::Request& inputs);
 
   // Executes the model with inputs, applies classifier and checks against
@@ -62,7 +63,7 @@ class DefaultModelTestBase : public testing::Test {
       const ModelProvider::Request& inputs,
       std::string sub_segment_key,
       std::string sub_segment_name) {
-    absl::optional<ModelProvider::Response> result =
+    std::optional<ModelProvider::Response> result =
         DefaultModelTestBase::ExecuteWithInput(inputs);
     ASSERT_TRUE(result);
     EXPECT_EQ(sub_segment_name,
@@ -71,25 +72,20 @@ class DefaultModelTestBase : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
-  std::unique_ptr<ModelProvider> model_;
-  absl::optional<proto::SegmentationModelMetadata> fetched_metadata_;
+  std::unique_ptr<DefaultModelProvider> model_;
+  std::optional<proto::SegmentationModelMetadata> fetched_metadata_;
 
  private:
-  void OnInitFinishedCallback(base::RepeatingClosure closure,
-                              proto::SegmentId target,
-                              proto::SegmentationModelMetadata metadata,
-                              int64_t);
-
   void OnFinishedExpectExecutionWithInput(
       base::RepeatingClosure closure,
       bool expected_error,
       ModelProvider::Response expected_result,
-      const absl::optional<ModelProvider::Response>& result);
+      const std::optional<ModelProvider::Response>& result);
 
   void OnFinishedExecuteWithInput(
       base::RepeatingClosure closure,
-      absl::optional<ModelProvider::Response>* output,
-      const absl::optional<ModelProvider::Response>& result);
+      std::optional<ModelProvider::Response>* output,
+      const std::optional<ModelProvider::Response>& result);
 };
 
 }  // namespace segmentation_platform

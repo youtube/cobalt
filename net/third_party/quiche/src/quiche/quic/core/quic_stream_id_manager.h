@@ -19,12 +19,14 @@ class QuicStreamIdManagerPeer;
 }  // namespace test
 
 // This class manages the stream ids for IETF QUIC.
-class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
+class QUICHE_EXPORT QuicStreamIdManager {
  public:
-  class QUIC_EXPORT_PRIVATE DelegateInterface {
+  class QUICHE_EXPORT DelegateInterface {
    public:
     virtual ~DelegateInterface() = default;
 
+    // Returns true if a MAX_STREAMS frame can be sent.
+    virtual bool CanSendMaxStreams() = 0;
     // Send a MAX_STREAMS frame.
     virtual void SendMaxStreams(QuicStreamCount stream_count,
                                 bool unidirectional) = 0;
@@ -91,6 +93,11 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   // Returns true if |id| is still available.
   bool IsAvailableStream(QuicStreamId id) const;
 
+  // Once called, the incoming max streams limit will never be increased.
+  void StopIncreasingIncomingMaxStreams() {
+    stop_increasing_incoming_max_streams_ = true;
+  }
+
   QuicStreamCount incoming_initial_max_open_streams() const {
     return incoming_initial_max_open_streams_;
   }
@@ -117,13 +124,13 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
     return outgoing_stream_count_;
   }
 
- private:
-  friend class test::QuicSessionPeer;
-  friend class test::QuicStreamIdManagerPeer;
-
   // Check whether the MAX_STREAMS window has opened up enough and, if so,
   // generate and send a MAX_STREAMS frame.
   void MaybeSendMaxStreamsFrame();
+
+ private:
+  friend class test::QuicSessionPeer;
+  friend class test::QuicStreamIdManagerPeer;
 
   // Get what should be the first incoming/outgoing stream ID that
   // this stream id manager will manage, taking into account directionality and
@@ -178,7 +185,11 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   absl::flat_hash_set<QuicStreamId> available_streams_;
 
   QuicStreamId largest_peer_created_stream_id_;
+
+  // If true, then the stream limit will never be increased.
+  bool stop_increasing_incoming_max_streams_;
 };
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_STREAM_ID_MANAGER_H_

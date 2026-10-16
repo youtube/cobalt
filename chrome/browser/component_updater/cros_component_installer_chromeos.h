@@ -6,25 +6,20 @@
 #define CHROME_BROWSER_COMPONENT_UPDATER_CROS_COMPONENT_INSTALLER_CHROMEOS_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/containers/flat_map.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/component_updater/cros_component_manager.h"
+#include "base/memory/weak_ptr.h"
+#include "components/component_updater/ash/component_manager_ash.h"
 #include "components/component_updater/component_installer.h"
 #include "components/component_updater/component_updater_service.h"
 #include "components/update_client/update_client.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace component_updater {
-
-// A command-line switch that can also be set from chrome://flags for opting in
-// or out of DCHECK binaries for Lacros (where available).
-extern const char kPreferDcheckSwitch[];
-extern const char kPreferDcheckOptIn[];
-extern const char kPreferDcheckOptOut[];
 
 // The name of the directory under DIR_COMPONENT_USER that cros component
 // installers puts all of the installed components.
@@ -40,9 +35,9 @@ struct ComponentConfig {
   const char* name;
   // ComponentInstallerPolicy to use.
   enum class PolicyType {
-    kEnvVersion,  // Checks env_version, see below.
-    kLacros,      // Uses special lacros compatibility rules.
-    kDemoApp,     // Adds demo-mode-specific install attributes
+    kEnvVersion,       // Checks env_version, see below.
+    kDemoApp,          // Adds demo-mode-specific install attributes
+    kGrowthCampaigns,  // Adds growth campaigns install attributes
   };
   PolicyType policy_type;
   // This is used for ABI compatibility checks. It is compared against the
@@ -83,9 +78,10 @@ class CrOSComponentInstallerPolicy : public ComponentInstallerPolicy {
   base::FilePath GetRelativeInstallDir() const override;
   void GetHash(std::vector<uint8_t>* hash) const override;
   std::string GetName() const override;
+  bool AllowUpdates() const override;
 
  protected:
-  const raw_ptr<CrOSComponentInstaller, DanglingUntriaged | ExperimentalAsh>
+  const raw_ptr<CrOSComponentInstaller, DanglingUntriaged>
       cros_component_installer_;
 
  private:
@@ -119,25 +115,6 @@ class EnvVersionInstallerPolicy : public CrOSComponentInstallerPolicy {
   const std::string env_version_;
 };
 
-// An installer policy for Lacros components, which have unusual version
-// compatibility rules. See ComponentReady() implementation.
-class LacrosInstallerPolicy : public CrOSComponentInstallerPolicy {
- public:
-  LacrosInstallerPolicy(const ComponentConfig& config,
-                        CrOSComponentInstaller* cros_component_installer);
-  LacrosInstallerPolicy(const LacrosInstallerPolicy&) = delete;
-  LacrosInstallerPolicy& operator=(const LacrosInstallerPolicy&) = delete;
-  ~LacrosInstallerPolicy() override;
-
-  // ComponentInstallerPolicy:
-  void ComponentReady(const base::Version& version,
-                      const base::FilePath& path,
-                      base::Value::Dict manifest) override;
-  update_client::InstallerAttributes GetInstallerAttributes() const override;
-
-  static void SetAshVersionForTest(const char* version);
-};
-
 // An installer policy for the ChromeOS Demo Mode app, which includes special
 // system-sourced installer attributes in the request to receive customized
 // app versions
@@ -156,8 +133,29 @@ class DemoAppInstallerPolicy : public CrOSComponentInstallerPolicy {
   update_client::InstallerAttributes GetInstallerAttributes() const override;
 };
 
+// An installer policy for the ChromeOS growth campaigns, which includes special
+// system-sourced installer attributes in the request to receive customized
+// campaigns versions.
+class GrowthCampaignsInstallerPolicy : public CrOSComponentInstallerPolicy {
+ public:
+  GrowthCampaignsInstallerPolicy(
+      const ComponentConfig& config,
+      CrOSComponentInstaller* cros_component_installer);
+  GrowthCampaignsInstallerPolicy(const GrowthCampaignsInstallerPolicy&) =
+      delete;
+  GrowthCampaignsInstallerPolicy& operator=(
+      const GrowthCampaignsInstallerPolicy&) = delete;
+  ~GrowthCampaignsInstallerPolicy() override;
+
+  // ComponentInstallerPolicy:
+  void ComponentReady(const base::Version& version,
+                      const base::FilePath& path,
+                      base::Value::Dict manifest) override;
+  update_client::InstallerAttributes GetInstallerAttributes() const override;
+};
+
 // This class contains functions used to register and install a component.
-class CrOSComponentInstaller : public CrOSComponentManager {
+class CrOSComponentInstaller : public ComponentManagerAsh {
  public:
   CrOSComponentInstaller(std::unique_ptr<MetadataTable> metadata_table,
                          ComponentUpdateService* component_updater);
@@ -165,15 +163,18 @@ class CrOSComponentInstaller : public CrOSComponentManager {
   CrOSComponentInstaller(const CrOSComponentInstaller&) = delete;
   CrOSComponentInstaller& operator=(const CrOSComponentInstaller&) = delete;
 
-  // CrOSComponentManager:
+  // ComponentManagerAsh:
   void SetDelegate(Delegate* delegate) override;
   void Load(const std::string& name,
             MountPolicy mount_policy,
             UpdatePolicy update_policy,
             LoadCallback load_callback) override;
   bool Unload(const std::string& name) override;
+  void GetVersion(const std::string& name,
+                  base::OnceCallback<void(const base::Version&)>
+                      version_callback) const override;
   void RegisterCompatiblePath(const std::string& name,
-                              const base::FilePath& path) override;
+                              CompatibleComponentInfo info) override;
   void RegisterInstalled() override;
 
   void UnregisterCompatiblePath(const std::string& name) override;
@@ -195,7 +196,7 @@ class CrOSComponentInstaller : public CrOSComponentManager {
     LoadInfo();
     ~LoadInfo();
     // If null, then the request is pending.
-    absl::optional<bool> success;
+    std::optional<bool> success;
     // Only populated on success.
     base::FilePath path;
     // Only populated if request is pending. Includes all subsequent callbacks
@@ -206,9 +207,6 @@ class CrOSComponentInstaller : public CrOSComponentManager {
   // Removes the load cache entry for `component_name`. Currently this is done
   // to avoid dispatching loads for old component versions. This can occur when
   // the old version has loaded successfully and is now in the load cache.
-  // TODO(crbug.com/1352867): The load cache is an implementation detail and
-  // should not be exposed in the public API for this class. Remove this once we
-  // have a more comprehensive solution for all CrOS components.
   void RemoveLoadCacheEntry(const std::string& component_name);
 
   // Test-only method for introspection.
@@ -258,7 +256,13 @@ class CrOSComponentInstaller : public CrOSComponentManager {
   // point).
   void FinishLoad(LoadCallback load_callback,
                   const std::string& name,
-                  absl::optional<base::FilePath> result);
+                  std::optional<base::FilePath> result);
+
+  // Calls `version_callback` and pass in the parameter `result` (component
+  // version).
+  void FinishGetVersion(
+      base::OnceCallback<void(const base::Version&)> version_callback,
+      std::optional<std::string> result) const;
 
   // Registers component |configs| to be updated.
   void RegisterN(const std::vector<ComponentConfig>& configs);
@@ -274,11 +278,11 @@ class CrOSComponentInstaller : public CrOSComponentManager {
   // Repeatedly calls DispatchLoadCallback with failure parameters.
   void DispatchFailedLoads(std::vector<LoadCallback> callbacks);
 
-  // Maps from a compatible component name to its installed path.
-  base::flat_map<std::string, base::FilePath> compatible_components_;
+  // Maps from a compatible component name to its info.
+  base::flat_map<std::string, CompatibleComponentInfo> compatible_components_;
 
   // A weak pointer to a Delegate for emitting D-Bus signal.
-  raw_ptr<Delegate, ExperimentalAsh> delegate_ = nullptr;
+  raw_ptr<Delegate> delegate_ = nullptr;
 
   // Table storing metadata (installs, usage, etc.).
   std::unique_ptr<MetadataTable> metadata_table_;
@@ -287,7 +291,9 @@ class CrOSComponentInstaller : public CrOSComponentManager {
   // results.
   std::map<std::string, LoadInfo> load_cache_;
 
-  const raw_ptr<ComponentUpdateService, ExperimentalAsh> component_updater_;
+  const raw_ptr<ComponentUpdateService> component_updater_;
+
+  base::WeakPtrFactory<CrOSComponentInstaller> weak_factory_{this};
 };
 
 }  // namespace component_updater

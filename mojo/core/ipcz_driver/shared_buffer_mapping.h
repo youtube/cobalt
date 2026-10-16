@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef MOJO_CORE_IPCZ_DRIVER_SHARED_BUFFER_MAPPING_H_
 #define MOJO_CORE_IPCZ_DRIVER_SHARED_BUFFER_MAPPING_H_
 
@@ -33,7 +38,7 @@ class MOJO_SYSTEM_IMPL_EXPORT SharedBufferMapping
   size_t size() const { return mapping_->size(); }
 
   base::span<uint8_t> bytes() const {
-    return base::make_span(static_cast<uint8_t*>(memory()), size());
+    return base::span(static_cast<uint8_t*>(memory()), size());
   }
 
   static scoped_refptr<SharedBufferMapping> Create(

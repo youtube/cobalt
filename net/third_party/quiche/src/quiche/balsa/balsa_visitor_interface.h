@@ -6,6 +6,7 @@
 #define QUICHE_BALSA_BALSA_VISITOR_INTERFACE_H_
 
 #include <cstddef>
+#include <memory>
 
 #include "absl/strings/string_view.h"
 #include "quiche/balsa/balsa_enums.h"
@@ -50,14 +51,6 @@ class QUICHE_EXPORT BalsaVisitorInterface {
   virtual void OnHeaderInput(absl::string_view input) = 0;
 
   // Summary:
-  //   BalsaFrame passes each header through this function as soon as it is
-  //   parsed.
-  // Argument:
-  //   key - the header name.
-  //   value - the associated header value.
-  virtual void OnHeader(absl::string_view key, absl::string_view value) = 0;
-
-  // Summary:
   //   BalsaFrame passes the raw trailer data through this function. This is not
   //   cleaned up in any way.  Note that trailers only occur in a message if
   //   there was a chunked encoding, and not always then.
@@ -76,15 +69,12 @@ class QUICHE_EXPORT BalsaVisitorInterface {
   virtual void ProcessHeaders(const BalsaHeaders& headers) = 0;
 
   // Summary:
-  //   Since the BalsaFrame already has to parse the trailer, it might as well
-  //   pass the parsed and cleaned-up results to whatever might need it.  This
-  //   function exists for that purpose-- parsed trailer is passed into this
-  //   function. This will not be called if the trailer_ object is not set in
-  //   the framer, even if trailer exists in request/response.
+  //   Called when the trailers are framed and processed. This callback is only
+  //   called when the trailers option is set in the framer.
   // Arguments:
-  //   trailer - contains the parsed headers in the order in which
-  //             they occurred in the trailer.
-  virtual void ProcessTrailers(const BalsaHeaders& trailer) = 0;
+  //   trailers - contains the parsed headers in the order in which they
+  //              occurred in the trailers.
+  virtual void OnTrailers(std::unique_ptr<BalsaHeaders> trailers) = 0;
 
   // Summary:
   //   Called when the first line of the message is parsed, in this case, for a
@@ -131,7 +121,7 @@ class QUICHE_EXPORT BalsaVisitorInterface {
   // Arguments:
   //   headers - contains the parsed headers in the order in which they occurred
   //             in the interim response.
-  virtual void OnInterimHeaders(BalsaHeaders headers) = 0;
+  virtual void OnInterimHeaders(std::unique_ptr<BalsaHeaders> headers) = 0;
 
   // Summary:
   //   Called when the 100 Continue headers are framed and processed. This

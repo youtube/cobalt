@@ -17,33 +17,30 @@ import androidx.test.filters.SmallTest;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.browserservices.ui.controller.CurrentPageVerifier.VerificationStatus;
-import org.chromium.chrome.browser.browserservices.ui.controller.trustedwebactivity.ClientPackageNameProvider;
 import org.chromium.chrome.browser.customtabs.CustomTabIntentDataProvider;
 import org.chromium.chrome.browser.customtabs.content.CustomTabActivityTabProvider;
 import org.chromium.chrome.browser.customtabs.content.TabObserverRegistrar;
 import org.chromium.chrome.browser.customtabs.content.TabObserverRegistrar.CustomTabTabObserver;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.test.util.browser.Features;
 import org.chromium.components.embedder_support.util.Origin;
 import org.chromium.content_public.browser.NavigationHandle;
+import org.chromium.content_public.browser.Page;
 import org.chromium.url.GURL;
 
 import java.util.Collections;
 
-/**
- * Tests for {@link CurrentPageVerifier}.
- */
+/** Tests for {@link CurrentPageVerifier}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @SuppressWarnings("DoNotMock") // Mocking GURL
 public class CurrentPageVerifierTest {
@@ -55,23 +52,13 @@ public class CurrentPageVerifierTest {
 
     public static final String PACKAGE_NAME = "package.name";
 
-    @Rule
-    public TestRule mFeaturesProcessor = new Features.JUnitProcessor();
-
-    @Mock
-    TabObserverRegistrar mTabObserverRegistrar;
-    @Mock
-    ActivityLifecycleDispatcher mLifecycleDispatcher;
-    @Mock
-    CustomTabActivityTabProvider mTabProvider;
-    @Mock
-    CustomTabIntentDataProvider mIntentDataProvider;
-    @Mock
-    Tab mTab;
-    @Mock
-    ClientPackageNameProvider mClientPackageNameProvider;
-    @Captor
-    ArgumentCaptor<CustomTabTabObserver> mTabObserverCaptor;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock TabObserverRegistrar mTabObserverRegistrar;
+    @Mock ActivityLifecycleDispatcher mLifecycleDispatcher;
+    @Mock CustomTabActivityTabProvider mTabProvider;
+    @Mock CustomTabIntentDataProvider mIntentDataProvider;
+    @Mock Tab mTab;
+    @Captor ArgumentCaptor<CustomTabTabObserver> mTabObserverCaptor;
 
     TestVerifier mVerifierDelegate = new TestVerifier();
 
@@ -79,16 +66,19 @@ public class CurrentPageVerifierTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         when(mTabProvider.getTab()).thenReturn(mTab);
-        when(mClientPackageNameProvider.get()).thenReturn(PACKAGE_NAME);
         doNothing()
                 .when(mTabObserverRegistrar)
                 .registerActivityTabObserver(mTabObserverCaptor.capture());
         when(mIntentDataProvider.getTrustedWebActivityAdditionalOrigins())
                 .thenReturn(Collections.singletonList("https://www.origin2.com/"));
-        mCurrentPageVerifier = new CurrentPageVerifier(mLifecycleDispatcher, mTabObserverRegistrar,
-                mTabProvider, mIntentDataProvider, mVerifierDelegate);
+        mCurrentPageVerifier =
+                new CurrentPageVerifier(
+                        mTabProvider,
+                        mIntentDataProvider,
+                        mVerifierDelegate,
+                        mTabObserverRegistrar,
+                        mLifecycleDispatcher);
         // TODO(peconn): Add check on permission updated being updated.
     }
 
@@ -177,7 +167,7 @@ public class CurrentPageVerifierTest {
 
     private void setInitialUrl(String url) {
         when(mIntentDataProvider.getUrlToLoad()).thenReturn(url);
-        // TODO(crbug/783819): Pass in GURL.
+        // TODO(crbug.com/40549331): Pass in GURL.
         GURL gurl = createMockGurl(url);
         when(mTab.getUrl()).thenReturn(gurl);
     }
@@ -186,16 +176,30 @@ public class CurrentPageVerifierTest {
         GURL gurl = createMockGurl(url);
         when(mTab.getUrl()).thenReturn(gurl);
         NavigationHandle navigation =
-                NavigationHandle.createForTesting(gurl, false /* isRendererInitiated */,
-                        0 /* pageTransition */, false /* hasUserGesture */);
+                NavigationHandle.createForTesting(
+                        gurl,
+                        /* isRendererInitiated= */ false,
+                        /* transition= */ 0,
+                        /* hasUserGesture= */ false);
         for (CustomTabTabObserver tabObserver : mTabObserverCaptor.getAllValues()) {
             tabObserver.onDidStartNavigationInPrimaryMainFrame(mTab, navigation);
         }
 
-        navigation.didFinish(gurl, false /* isErrorPage */, true /* hasCommitted */,
-                false /* isFragmentNavigation */, false /* isDownload */,
-                false /* isValidSearchFormUrl */, 0 /* pageTransition */, 0 /* errorCode*/,
-                200 /* httpStatusCode*/, false /* isExternalProtocol */);
+        navigation.didFinish(
+                gurl,
+                /* isErrorPage= */ false,
+                /* hasCommitted= */ true,
+                /* isPrimaryMainFrameFragmentNavigation= */ false,
+                /* isDownload= */ false,
+                /* isValidSearchFormUrl= */ false,
+                /* transition= */ 0,
+                /* errorCode= */ 0,
+                /* httpStatuscode= */ 200,
+                /* isExternalProtocol= */ false,
+                /* isPdf= */ false,
+                /* mimeType= */ "",
+                /* isSaveableNavigation= */ false,
+                Page.createForTesting());
         for (CustomTabTabObserver tabObserver : mTabObserverCaptor.getAllValues()) {
             tabObserver.onDidFinishNavigationInPrimaryMainFrame(mTab, navigation);
         }

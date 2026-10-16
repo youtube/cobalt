@@ -8,8 +8,7 @@
 #include "chromeos/ash/components/phonehub/phone_model_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 TEST(PhoneStatusModelTest, NormalCase) {
   PhoneStatusModel success(PhoneStatusModel::MobileStatus::kSimWithReception,
@@ -76,7 +75,7 @@ TEST(PhoneStatusModelTest, ReceptionWithNoMetdata) {
   // available, the status is set back to no reception.
   PhoneStatusModel no_connection_metadata(
       PhoneStatusModel::MobileStatus::kSimWithReception,
-      /*mobile_connection_metadata=*/absl::nullopt,
+      /*mobile_connection_metadata=*/std::nullopt,
       PhoneStatusModel::ChargingState::kNotCharging,
       PhoneStatusModel::BatterySaverState::kOff,
       /*battery_percentage=*/100u);
@@ -84,5 +83,4 @@ TEST(PhoneStatusModelTest, ReceptionWithNoMetdata) {
             no_connection_metadata.mobile_status());
 }
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub

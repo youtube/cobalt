@@ -8,13 +8,14 @@
 #include <string>
 #include <utility>
 
-#include "ash/components/arc/session/arc_bridge_service.h"
-#include "ash/components/arc/session/arc_service_manager.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_list_prefs.h"
 #include "chrome/browser/ash/app_list/search/arc/arc_app_shortcut_search_result.h"
+#include "chrome/browser/ash/app_list/search/types.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chromeos/ash/components/string_matching/tokenized_string.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
 
 namespace app_list {
 
@@ -26,7 +27,8 @@ ArcAppShortcutsSearchProvider::ArcAppShortcutsSearchProvider(
     int max_results,
     Profile* profile,
     AppListControllerDelegate* list_controller)
-    : max_results_(max_results),
+    : SearchProvider(SearchCategory::kAppShortcuts),
+      max_results_(max_results),
       profile_(profile),
       list_controller_(list_controller) {}
 

@@ -10,17 +10,9 @@ examples.
 Chrome has a [multi-process
 architecture](https://www.chromium.org/developers/design-documents/multi-process-architecture)
 and each process is heavily multi-threaded. In this document we will go over the
-basic threading system shared by each process. The main goal is to keep the main
-thread (a.k.a. "UI" thread in the browser process) and IO thread (each process's
-thread for receiving
-[IPC](https://en.wikipedia.org/wiki/Inter-process_communication))
-responsive.  This means offloading any blocking I/O or other expensive
-operations to other threads. Our approach is to use message passing as the way
-of communicating between threads. We discourage locking and thread-safe objects.
-Instead, objects live on only one (often virtual -- we'll get to that later!)
-thread and we pass messages between those threads for communication. Absent
-external requirements about latency or workload, Chrome attempts to be a [highly
-concurrent, but not necessarily
+basic threading system shared by each process. Our primary goal is to keep the
+browser highly responsive. Absent external requirements about latency or
+workload, Chrome attempts to be a [highly concurrent, but not necessarily
 parallel](https://stackoverflow.com/questions/1050222/what-is-the-difference-between-concurrency-and-parallelism#:~:text=Concurrency%20is%20when%20two%20or,e.g.%2C%20on%20a%20multicore%20processor.),
 system.
 
@@ -31,7 +23,36 @@ found
 This documentation assumes familiarity with computer science
 [threading concepts](https://en.wikipedia.org/wiki/Thread_(computing)).
 
-### Nomenclature
+### Quick start guide
+
+ * Do not perform expensive computation or blocking IO on the main thread
+   (a.k.a. “UI” thread in the browser process) or IO thread (each
+   process's thread for receiving IPC). A busy UI / IO thread can cause
+   user-visible latency, so prefer running that work on the
+   [thread pool](#direct-posting-to-the-thread-pool).
+ * Always avoid reading/writing to the same place in memory from separate
+   threads or sequences. This will lead to
+   [data races](https://en.wikipedia.org/wiki/Race_condition#Data_race)!
+   Prefer passing messages across sequences instead. Alternatives to message
+   passing like using locks is discouraged.
+ * If you need to orchestrate multiple objects that live on different
+   sequences, be careful about object lifetimes.
+    * To prevent accidental data races, prefer for most classes to be used
+      exclusively on a single sequence. You should use utilities like
+      [SEQUENCE_CHECKER][4] or [base::SequenceBound][5] to help enforce this
+      constraint.
+    * As a rule of thumb, avoid [base::Unretained][1]. [weak pointers][2] can
+      usually be substituted.
+    * Explicit ownership via `std::unique_ptr` is preferred.
+    * [scoped_refptrs][3] can be used for objects that have multiple owners
+      across multiple sequences. This is usually the wrong design pattern and is
+      discouraged for new code.
+
+[1]: https://source.chromium.org/chromium/chromium/src/+/main:base/functional/bind.h;l=169;drc=ef1375f2c9fffa0d9cd664b43b0035c09fb70e99
+[2]: https://source.chromium.org/chromium/chromium/src/+/main:base/memory/weak_ptr.h
+[3]: https://source.chromium.org/chromium/chromium/src/+/main:base/memory/scoped_refptr.h
+[4]: https://source.chromium.org/chromium/chromium/src/+/main:base/sequence_checker.h
+[5]: https://source.chromium.org/chromium/chromium/src/+/main:base/threading/sequence_bound.h
 
 ## Core Concepts
  * **Task**: A unit of work to be processed. Effectively a function pointer with
@@ -268,7 +289,7 @@ The preferred way of posting to the current (virtual) thread is via
 ```cpp
 // The task will run on the current (virtual) thread's default task queue.
 base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-    FROM_HERE, base::BindOnce(&Task);
+    FROM_HERE, base::BindOnce(&Task));
 ```
 
 Note that `SequencedTaskRunner::GetCurrentDefault()` returns the default queue for the
@@ -813,12 +834,12 @@ in the main function:
 
 ```cpp
 // This initializes and starts ThreadPoolInstance with default params.
-base::ThreadPoolInstance::CreateAndStartWithDefaultParams(“process_name”);
+base::ThreadPoolInstance::CreateAndStartWithDefaultParams("process_name");
 // The base/task/thread_pool.h API can now be used with base::ThreadPool trait.
 // Tasks will be scheduled as they are posted.
 
 // This initializes ThreadPoolInstance.
-base::ThreadPoolInstance::Create(“process_name”);
+base::ThreadPoolInstance::Create("process_name");
 // The base/task/thread_pool.h API can now be used with base::ThreadPool trait. No
 // threads will be created and no tasks will be scheduled until after Start() is
 // called.
@@ -938,7 +959,7 @@ Sample workaround when inner task processing is needed:
 ```
 
 Please be SURE your task is reentrant (nestable) and all global variables
-are stable and accessible before before using
+are stable and accessible before using
 CurrentThread::ScopedAllowApplicationTasksInNativeNestedLoop.
 
 ## APIs for general use

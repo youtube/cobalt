@@ -6,18 +6,6 @@
 
 /**
  * Launches the PaymentRequest UI that does not require a shipping address.
- */
-function buy() {
-  buyWithMethods([
-    {
-      supportedMethods: 'basic-card',
-      data: {supportedNetworks: ['visa', 'mastercard']},
-    },
-  ]);
-}
-
-/**
- * Launches the PaymentRequest UI that does not require a shipping address.
  * @param {String} methodData - An array of payment method objects.
  * @return {string} - The error message, if any.
  */
@@ -52,7 +40,7 @@ async function buyWithMethods(methodData) {
 }
 
 // TODO: Migrate tests using no_shipping.js to triggerPaymentRequest/getResult.
-var gShowPromise = null;
+let gShowPromise = null;
 
 /**
  * Launches the PaymentRequest UI that does not require a shipping address.
@@ -61,7 +49,7 @@ var gShowPromise = null;
  *     constructor.
  */
 function triggerPaymentRequest(methodData) {
-  let request = new PaymentRequest(methodData, {
+  const request = new PaymentRequest(methodData, {
     total: {label: 'Total', amount: {currency: 'USD', value: '5.00'}},
     displayItems: [
       {
@@ -81,7 +69,7 @@ function triggerPaymentRequest(methodData) {
  */
 async function getResult() {
   try {
-    let response = await gShowPromise;
+    const response = await gShowPromise;
     return await response.complete('success');
   } catch (e) {
     return e.message;

@@ -26,6 +26,7 @@ namespace predictors {
 // Currently manages:
 //  - HostRedirectTable - key: host, value: RedirectData
 //  - OriginTable - key: host, value: OriginData
+//  - LcppTable - key: host, value: LcppData
 class ResourcePrefetchPredictorTables : public sqlite_proto::TableManager {
  public:
   ResourcePrefetchPredictorTables(const ResourcePrefetchPredictorTables&) =

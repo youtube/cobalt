@@ -8,7 +8,7 @@
 // Each Parse*() function promises these invariants:
 // 1. they attempt to parse as much JSON as possible (returning
 //    all relevant data that can be reasonably extracted),
-// 2. they return absl::nullopt on irrecoverable parse error, and
+// 2. they return std::nullopt on irrecoverable parse error, and
 // 3. they never return a non-nullopt value that unwraps into an empty
 //    container.
 //
@@ -18,14 +18,14 @@
 #ifndef CHROMEOS_PRINTING_PPD_METADATA_PARSER_H_
 #define CHROMEOS_PRINTING_PPD_METADATA_PARSER_H_
 
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/component_export.h"
 #include "base/containers/flat_map.h"
-#include "base/strings/string_piece_forward.h"
 #include "base/version.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace chromeos {
 
@@ -36,8 +36,8 @@ struct Restrictions {
   Restrictions(const Restrictions&);
   Restrictions& operator=(const Restrictions&);
 
-  absl::optional<base::Version> min_milestone;
-  absl::optional<base::Version> max_milestone;
+  std::optional<base::Version> min_milestone;
+  std::optional<base::Version> max_milestone;
 };
 
 struct COMPONENT_EXPORT(CHROMEOS_PRINTING) ReverseIndexLeaf {
@@ -103,38 +103,38 @@ using ParsedReverseIndex = base::flat_map<std::string, ReverseIndexLeaf>;
 
 // Parses |locales_json| and returns a list of locales.
 COMPONENT_EXPORT(CHROMEOS_PRINTING)
-absl::optional<std::vector<std::string>> ParseLocales(
-    base::StringPiece locales_json);
+std::optional<std::vector<std::string>> ParseLocales(
+    std::string_view locales_json);
 
 // Parses |manufacturers_json| and returns the parsed map type.
 COMPONENT_EXPORT(CHROMEOS_PRINTING)
-absl::optional<ParsedManufacturers> ParseManufacturers(
-    base::StringPiece manufacturers_json);
+std::optional<ParsedManufacturers> ParseManufacturers(
+    std::string_view manufacturers_json);
 
 // Parses |printers_json| and returns the parsed map type.
 COMPONENT_EXPORT(CHROMEOS_PRINTING)
-absl::optional<ParsedPrinters> ParsePrinters(base::StringPiece printers_json);
+std::optional<ParsedPrinters> ParsePrinters(std::string_view printers_json);
 
 // Parses |forward_index_json| and returns the parsed map type.
 COMPONENT_EXPORT(CHROMEOS_PRINTING)
-absl::optional<ParsedIndex> ParseForwardIndex(
-    base::StringPiece forward_index_json);
+std::optional<ParsedIndex> ParseForwardIndex(
+    std::string_view forward_index_json);
 
 // Parses |usb_index_json| and returns a map of USB product IDs to
 // effective-make-and-model strings.
 COMPONENT_EXPORT(CHROMEOS_PRINTING)
-absl::optional<ParsedUsbIndex> ParseUsbIndex(base::StringPiece usb_index_json);
+std::optional<ParsedUsbIndex> ParseUsbIndex(std::string_view usb_index_json);
 
 // Parses |usb_vendor_id_map_json| and returns a map of USB vendor IDs
 // to manufacturer names.
 COMPONENT_EXPORT(CHROMEOS_PRINTING)
-absl::optional<ParsedUsbVendorIdMap> ParseUsbVendorIdMap(
-    base::StringPiece usb_vendor_id_map_json);
+std::optional<ParsedUsbVendorIdMap> ParseUsbVendorIdMap(
+    std::string_view usb_vendor_id_map_json);
 
 // Parses |reverse_index_json| and returns the parsed map type.
 COMPONENT_EXPORT(CHROMEOS_PRINTING)
-absl::optional<ParsedReverseIndex> ParseReverseIndex(
-    base::StringPiece reverse_index_json);
+std::optional<ParsedReverseIndex> ParseReverseIndex(
+    std::string_view reverse_index_json);
 
 }  // namespace chromeos
 #endif  // CHROMEOS_PRINTING_PPD_METADATA_PARSER_H_

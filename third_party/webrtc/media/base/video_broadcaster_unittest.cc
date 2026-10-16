@@ -11,20 +11,23 @@
 #include "media/base/video_broadcaster.h"
 
 #include <limits>
+#include <optional>
 
-#include "absl/types/optional.h"
+#include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_rotation.h"
+#include "api/video/video_sink_interface.h"
 #include "api/video/video_source_interface.h"
+#include "api/video_track_source_constraints.h"
 #include "media/base/fake_video_renderer.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
-using cricket::FakeVideoRenderer;
-using rtc::VideoBroadcaster;
-using rtc::VideoSinkWants;
-using FrameSize = rtc::VideoSinkWants::FrameSize;
+using ::webrtc::FakeVideoRenderer;
+using ::webrtc::VideoBroadcaster;
+using ::webrtc::VideoSinkWants;
+using FrameSize = webrtc::VideoSinkWants::FrameSize;
 
 using ::testing::AllOf;
 using ::testing::Eq;
@@ -32,7 +35,7 @@ using ::testing::Field;
 using ::testing::Mock;
 using ::testing::Optional;
 
-class MockSink : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
+class MockSink : public webrtc::VideoSinkInterface<webrtc::VideoFrame> {
  public:
   void OnFrame(const webrtc::VideoFrame&) override {}
 
@@ -47,7 +50,7 @@ TEST(VideoBroadcasterTest, frame_wanted) {
   EXPECT_FALSE(broadcaster.frame_wanted());
 
   FakeVideoRenderer sink;
-  broadcaster.AddOrUpdateSink(&sink, rtc::VideoSinkWants());
+  broadcaster.AddOrUpdateSink(&sink, webrtc::VideoSinkWants());
   EXPECT_TRUE(broadcaster.frame_wanted());
 
   broadcaster.RemoveSink(&sink);
@@ -59,12 +62,12 @@ TEST(VideoBroadcasterTest, OnFrame) {
 
   FakeVideoRenderer sink1;
   FakeVideoRenderer sink2;
-  broadcaster.AddOrUpdateSink(&sink1, rtc::VideoSinkWants());
-  broadcaster.AddOrUpdateSink(&sink2, rtc::VideoSinkWants());
+  broadcaster.AddOrUpdateSink(&sink1, webrtc::VideoSinkWants());
+  broadcaster.AddOrUpdateSink(&sink2, webrtc::VideoSinkWants());
   static int kWidth = 100;
   static int kHeight = 50;
 
-  rtc::scoped_refptr<webrtc::I420Buffer> buffer(
+  webrtc::scoped_refptr<webrtc::I420Buffer> buffer(
       webrtc::I420Buffer::Create(kWidth, kHeight));
   // Initialize, to avoid warnings on use of initialized values.
   webrtc::I420Buffer::SetBlack(buffer.get());
@@ -84,7 +87,7 @@ TEST(VideoBroadcasterTest, OnFrame) {
   EXPECT_EQ(1, sink1.num_rendered_frames());
   EXPECT_EQ(2, sink2.num_rendered_frames());
 
-  broadcaster.AddOrUpdateSink(&sink1, rtc::VideoSinkWants());
+  broadcaster.AddOrUpdateSink(&sink1, webrtc::VideoSinkWants());
   broadcaster.OnFrame(frame);
   EXPECT_EQ(2, sink1.num_rendered_frames());
   EXPECT_EQ(3, sink2.num_rendered_frames());
@@ -218,7 +221,7 @@ TEST(VideoBroadcasterTest, SinkWantsBlackFrames) {
   wants2.black_frames = false;
   broadcaster.AddOrUpdateSink(&sink2, wants2);
 
-  rtc::scoped_refptr<webrtc::I420Buffer> buffer(
+  webrtc::scoped_refptr<webrtc::I420Buffer> buffer(
       webrtc::I420Buffer::Create(100, 200));
   // Makes it not all black.
   buffer->InitializeData();
@@ -297,21 +300,21 @@ TEST(VideoBroadcasterTest, ForwardsConstraintsToSink) {
 
   EXPECT_CALL(sink, OnConstraintsChanged(AllOf(
                         Field(&webrtc::VideoTrackSourceConstraints::min_fps,
-                              Eq(absl::nullopt)),
+                              Eq(std::nullopt)),
                         Field(&webrtc::VideoTrackSourceConstraints::max_fps,
-                              Eq(absl::nullopt)))));
+                              Eq(std::nullopt)))));
   broadcaster.ProcessConstraints(
-      webrtc::VideoTrackSourceConstraints{absl::nullopt, absl::nullopt});
+      webrtc::VideoTrackSourceConstraints{std::nullopt, std::nullopt});
   Mock::VerifyAndClearExpectations(&sink);
 
   EXPECT_CALL(
       sink,
       OnConstraintsChanged(AllOf(
           Field(&webrtc::VideoTrackSourceConstraints::min_fps,
-                Eq(absl::nullopt)),
+                Eq(std::nullopt)),
           Field(&webrtc::VideoTrackSourceConstraints::max_fps, Optional(3)))));
   broadcaster.ProcessConstraints(
-      webrtc::VideoTrackSourceConstraints{absl::nullopt, 3});
+      webrtc::VideoTrackSourceConstraints{std::nullopt, 3});
   Mock::VerifyAndClearExpectations(&sink);
 
   EXPECT_CALL(
@@ -319,9 +322,9 @@ TEST(VideoBroadcasterTest, ForwardsConstraintsToSink) {
       OnConstraintsChanged(AllOf(
           Field(&webrtc::VideoTrackSourceConstraints::min_fps, Optional(2)),
           Field(&webrtc::VideoTrackSourceConstraints::max_fps,
-                Eq(absl::nullopt)))));
+                Eq(std::nullopt)))));
   broadcaster.ProcessConstraints(
-      webrtc::VideoTrackSourceConstraints{2, absl::nullopt});
+      webrtc::VideoTrackSourceConstraints{2, std::nullopt});
   Mock::VerifyAndClearExpectations(&sink);
 
   EXPECT_CALL(
@@ -332,11 +335,12 @@ TEST(VideoBroadcasterTest, ForwardsConstraintsToSink) {
   broadcaster.ProcessConstraints(webrtc::VideoTrackSourceConstraints{2, 3});
 }
 
-TEST(VideoBroadcasterTest, AppliesMaxOfSinkWantsRequestedResolution) {
+TEST(VideoBroadcasterTest, AppliesMaxOfSinkWantsScaleResolutionDownTo) {
   VideoBroadcaster broadcaster;
 
   FakeVideoRenderer sink1;
   VideoSinkWants wants1;
+  wants1.is_active = true;
   wants1.requested_resolution = FrameSize(640, 360);
 
   broadcaster.AddOrUpdateSink(&sink1, wants1);
@@ -344,6 +348,7 @@ TEST(VideoBroadcasterTest, AppliesMaxOfSinkWantsRequestedResolution) {
 
   FakeVideoRenderer sink2;
   VideoSinkWants wants2;
+  wants2.is_active = true;
   wants2.requested_resolution = FrameSize(650, 350);
   broadcaster.AddOrUpdateSink(&sink2, wants2);
   EXPECT_EQ(FrameSize(650, 360), *broadcaster.wants().requested_resolution);
@@ -372,7 +377,7 @@ TEST(VideoBroadcasterTest, AnyActive) {
   EXPECT_EQ(false, broadcaster.wants().is_active);
 }
 
-TEST(VideoBroadcasterTest, AnyActiveWithoutRequestedResolution) {
+TEST(VideoBroadcasterTest, AnyActiveWithoutScaleResolutionDownTo) {
   VideoBroadcaster broadcaster;
 
   FakeVideoRenderer sink1;
@@ -400,8 +405,9 @@ TEST(VideoBroadcasterTest, AnyActiveWithoutRequestedResolution) {
 }
 
 // This verifies that the VideoSinkWants from a Sink that is_active = false
-// is ignored IF there is an active sink using new api (Requested_Resolution).
-// The uses resolution_alignment for verification.
+// is ignored IF there is an active sink using requested_resolution (controlled
+// via new API scale_resolution_down_to). The uses resolution_alignment for
+// verification.
 TEST(VideoBroadcasterTest, IgnoreInactiveSinkIfNewApiUsed) {
   VideoBroadcaster broadcaster;
 

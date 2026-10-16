@@ -9,13 +9,12 @@
 
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
+#include "base/memory/scoped_refptr.h"
+#include "build/build_config.h"
+#include "chrome/browser/web_applications/test/fake_web_contents_manager.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
-#include "components/sync/test/mock_model_type_change_processor.h"
+#include "components/sync/test/mock_data_type_local_change_processor.h"
 #include "testing/gmock/include/gmock/gmock.h"
-
-#if BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/web_applications/web_app_run_on_os_login_manager.h"
-#endif
 
 class KeyedService;
 class Profile;
@@ -27,20 +26,62 @@ class BrowserContext;
 namespace web_app {
 
 class AbstractWebAppDatabaseFactory;
-class WebAppRegistrar;
-class OsIntegrationManager;
-class WebAppInstallFinalizer;
 class ExternallyManagedAppManager;
-class WebAppInstallManager;
-class WebAppPolicyManager;
+class FileUtilsWrapper;
+class IsolatedWebAppInstallationManager;
+class IsolatedWebAppUpdateManager;
+class OsIntegrationManager;
+class PreinstalledWebAppManager;
+class WebAppCommandManager;
+class WebAppCommandScheduler;
 class WebAppIconManager;
-class WebAppTranslationManager;
+class WebAppInstallFinalizer;
+class WebAppInstallManager;
+class WebAppOriginAssociationManager;
+class WebAppPolicyManager;
 class WebAppRegistrarMutable;
 class WebAppSyncBridge;
+class WebAppTranslationManager;
 class WebAppUiManager;
-class WebAppCommandManager;
-class PreinstalledWebAppManager;
+class WebContentsManager;
 
+#if BUILDFLAG(IS_CHROMEOS)
+class WebAppRunOnOsLoginManager;
+#endif
+
+// This is a tool that allows unit tests (enabled by default) and browser tests
+// (disabled by default) to use a 'fake' version of the WebAppProvider system.
+// This means that most of the dependencies are faked out. Specifically:
+// * The database is in-memory.
+// * Integration with Chrome Sync is off.
+// * OS integration (saving shortcuts on disk, etc) doesn't execute, but does
+//   save its 'expected' state to the database.
+// * All access to `WebContents` is redirected to the `FakeWebContentsManager`
+//   (accessible via `GetFakeWebContentsManager()`), which stores & returns
+//   results for any interaction here.
+//
+// Other features & notes:
+// * FakeWebAppProvider is used by default in unit tests, as the
+//   `TestingProfile` hardcodes the usage of this fake version in the
+//   `KeyedServiceFactory` for the profile,
+// * The system in NOT 'started' by default, which means commands and other
+//   operations will not run. This allows tests to do any customization they may
+//   want by calling `FakeWebAppProvider::Get()` and interacting with this
+//   object before the system is started.
+//   * Generally the system is then started by calling
+//     `web_app::test::AwaitStartWebAppProviderAndSubsystems(profile());`, which
+//     waits for the system to be `ready()`, but also for any external install
+//     managers to finish startup as well.
+// * To use this in browser tests, you must use the FakeWebAppProviderCreator
+//   below.
+//
+// Future improvements:
+// * TODO(http://b/257529391): Isolate the extensions system dependency to
+//   allow faking that as well.
+// * TODO(http://b/279198384): Make better default for external manager behavior
+//   in unittests. Perhaps don't start them by default unless they specified.
+// * TODO(http://b/279198562): Create a `FakeWebAppCommandScheduler`, allowing
+//   external systems to fully fake out usage of this system if they desire.
 class FakeWebAppProvider : public WebAppProvider {
  public:
   // Used by the TestingProfile in unit tests.
@@ -57,13 +98,10 @@ class FakeWebAppProvider : public WebAppProvider {
   explicit FakeWebAppProvider(Profile* profile);
   ~FakeWebAppProvider() override;
 
-  // |run_subsystem_startup_tasks| is true by default as browser test clients
-  // will generally want to construct their FakeWebAppProvider to behave as it
-  // would in a production browser.
-  //
-  // |run_subsystem_startup_tasks| is false by default for FakeWebAppProvider
-  // if it's a part of TestingProfile (see BuildDefault() method above).
-  void SetRunSubsystemStartupTasks(bool run_subsystem_startup_tasks);
+  // |run_system_on_start| is false by default, and must be set to true here
+  // BEFORE WebAppProvider::Start is called to allow the system to start
+  // normally. Otherwise, StartWithSubsystems must be called.
+  void SetStartSystemOnStart(bool run_system_on_start);
 
   // The PreinstalledWebAppManager waits for some dependencies (extensions and
   // device initialization) on startup, and then processes the preinstalled apps
@@ -71,12 +109,32 @@ class FakeWebAppProvider : public WebAppProvider {
   // by default for unit tests, and can be enabled by setting this flag to true.
   void SetSynchronizePreinstalledAppsOnStartup(bool synchronize_on_startup);
 
+  // Call when the unit tets wants to trigger OS integration, removing the
+  // ScopedSuppressOsHooks in FakeOsIntegrationManager (allowing the
+  // OsIntegrationTestOverrideBlockingRegistration to work correctly).
+  void UseRealOsIntegrationManager();
+
+  enum class AutomaticIwaUpdateStrategy {
+    kDefault,
+    kForceDisabled,
+    kForceEnabled,
+  };
+
+  // The `IsolatedWebAppUpdateManager` will check for updates of all installed
+  // Isolated Web Apps on startup and in regular time intervals. This is
+  // disabled (`kForceDisabled`) by default for unit tests, and can be enabled
+  // by setting this flag to `kForceEnabled`. Setting this flag to `kDefault`
+  // will retain the default behavior of the `IsolatedWebAppUpdateManager`.
+  void SetEnableAutomaticIwaUpdates(
+      AutomaticIwaUpdateStrategy automatic_iwa_update_strategy);
+
   // NB: If you replace the Registrar, you also have to replace the SyncBridge
   // accordingly.
-  void SetRegistrar(std::unique_ptr<WebAppRegistrar> registrar);
+  void SetRegistrar(std::unique_ptr<WebAppRegistrarMutable> registrar);
   void SetDatabaseFactory(
       std::unique_ptr<AbstractWebAppDatabaseFactory> database_factory);
   void SetSyncBridge(std::unique_ptr<WebAppSyncBridge> sync_bridge);
+  void SetFileUtils(scoped_refptr<FileUtilsWrapper> file_utils);
   void SetIconManager(std::unique_ptr<WebAppIconManager> icon_manager);
   void SetTranslationManager(
       std::unique_ptr<WebAppTranslationManager> translation_manager);
@@ -91,16 +149,24 @@ class FakeWebAppProvider : public WebAppProvider {
   void SetWebAppUiManager(std::unique_ptr<WebAppUiManager> ui_manager);
   void SetWebAppPolicyManager(
       std::unique_ptr<WebAppPolicyManager> web_app_policy_manager);
+  void SetIsolatedWebAppInstallationManager(
+      std::unique_ptr<IsolatedWebAppInstallationManager>
+          isolated_web_app_installation_manager);
+  void SetIsolatedWebAppUpdateManager(
+      std::unique_ptr<IsolatedWebAppUpdateManager> iwa_update_manager);
 #if BUILDFLAG(IS_CHROMEOS)
   void SetWebAppRunOnOsLoginManager(std::unique_ptr<WebAppRunOnOsLoginManager>
                                         web_app_run_on_os_login_manager);
 #endif
   void SetCommandManager(std::unique_ptr<WebAppCommandManager> command_manager);
+  void SetScheduler(std::unique_ptr<WebAppCommandScheduler> scheduler);
   void SetPreinstalledWebAppManager(
       std::unique_ptr<PreinstalledWebAppManager> preinstalled_web_app_manager);
   void SetOriginAssociationManager(
       std::unique_ptr<WebAppOriginAssociationManager>
           origin_association_manager);
+  void SetWebContentsManager(
+      std::unique_ptr<WebContentsManager> web_contents_manager);
 
   // These getters can be called at any time: no
   // WebAppProvider::CheckIsConnected() check performed. See
@@ -114,16 +180,13 @@ class FakeWebAppProvider : public WebAppProvider {
   WebAppUiManager& GetUiManager() const;
   WebAppInstallManager& GetInstallManager() const;
   OsIntegrationManager& GetOsIntegrationManager() const;
-#if BUILDFLAG(IS_CHROMEOS)
-  WebAppRunOnOsLoginManager& GetWebAppRunOnOsLoginManager() const;
-#endif
 
   // Starts this WebAppProvider and its subsystems. It does not wait for systems
   // to be ready.
   void StartWithSubsystems();
 
   // Create and set default fake subsystems.
-  void SetDefaultFakeSubsystems();
+  void CreateFakeSubsystems();
 
   // Used to verify shutting down of WebAppUiManager.
   void ShutDownUiManagerForTesting();
@@ -135,10 +198,19 @@ class FakeWebAppProvider : public WebAppProvider {
   // FakeWebAppProvider::Shutdown() as part of test teardown.
   void Shutdown() override;
 
-  syncer::MockModelTypeChangeProcessor& processor() { return mock_processor_; }
+  FakeWebAppProvider* AsFakeWebAppProviderForTesting() override;
+
+  FakeWebContentsManager* GetFakeWebContentsManager() const;
+
+  syncer::MockDataTypeLocalChangeProcessor& processor() {
+    return mock_processor_;
+  }
 
  private:
-  void CheckNotStarted() const;
+  // CHECK that `Start()` has not been called on this provider, and also
+  // disconnect so that clients are forced to call `Start()` before accessing
+  // any subsystems.
+  void CheckNotStartedAndDisconnect(std::string optional_message = "");
 
   // WebAppProvider:
   void StartImpl() override;
@@ -146,11 +218,19 @@ class FakeWebAppProvider : public WebAppProvider {
   // If true, when Start()ed the FakeWebAppProvider will call
   // WebAppProvider::StartImpl() and fire startup tasks like a real
   // WebAppProvider.
-  bool run_subsystem_startup_tasks_ = true;
+  bool run_system_on_start_ = false;
   // If true, preinstalled apps will be processed & installed (or uninstalled)
   // after the system starts.
   bool synchronize_preinstalled_app_on_startup_ = false;
-  testing::NiceMock<syncer::MockModelTypeChangeProcessor> mock_processor_;
+  // If `kForceEnabled`, the `IsolatedWebAppUpdateManager` will automatically
+  // search for updates of installed Isolated Web Apps on startup and in regular
+  // time intervals. If `kForceDisabled`, then it will not automatically search
+  // for updates. If `kDefault`, then it will use its default behavior to
+  // determine whether to search for updates (e.g., based feature flags).
+  AutomaticIwaUpdateStrategy automatic_iwa_update_strategy_ =
+      AutomaticIwaUpdateStrategy::kForceDisabled;
+
+  ::testing::NiceMock<syncer::MockDataTypeLocalChangeProcessor> mock_processor_;
 };
 
 // Used in BrowserTests to ensure that the WebAppProvider that is create on
@@ -161,6 +241,9 @@ class FakeWebAppProviderCreator {
   using CreateWebAppProviderCallback =
       base::RepeatingCallback<std::unique_ptr<KeyedService>(Profile* profile)>;
 
+  // Uses FakeWebAppProvider::BuildDefault to build the FakeWebAppProvider.
+  FakeWebAppProviderCreator();
+  // Uses the given callback to create the FakeWebAppProvider.
   explicit FakeWebAppProviderCreator(CreateWebAppProviderCallback callback);
   ~FakeWebAppProviderCreator();
 

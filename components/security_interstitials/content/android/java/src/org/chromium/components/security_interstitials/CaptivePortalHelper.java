@@ -8,23 +8,22 @@ import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.Network;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ContextUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /** Helper class for captive portal related methods on Android. */
 @JNINamespace("security_interstitials")
+@NullMarked
 public class CaptivePortalHelper {
     private static final String DEFAULT_PORTAL_CHECK_URL =
             "http://connectivitycheck.gstatic.com/generate_204";
-
-    public static void setCaptivePortalCertificateForTesting(String spkiHash) {
-        CaptivePortalHelperJni.get().setCaptivePortalCertificateForTesting(spkiHash);
-    }
 
     public static void setOSReportsCaptivePortalForTesting(boolean osReportsCaptivePortal) {
         CaptivePortalHelperJni.get().setOSReportsCaptivePortalForTesting(osReportsCaptivePortal);
@@ -75,7 +74,6 @@ public class CaptivePortalHelper {
 
     @NativeMethods
     interface Natives {
-        void setCaptivePortalCertificateForTesting(String spkiHash);
         void setOSReportsCaptivePortalForTesting(boolean osReportsCaptivePortal);
     }
 }

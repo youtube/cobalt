@@ -4,12 +4,17 @@
 
 #include "services/network/public/cpp/source_stream_to_data_pipe.h"
 
+#include <optional>
+
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "base/test/bind.h"
 #include "base/test/task_environment.h"
+#include "net/base/net_errors.h"
 #include "net/filter/mock_source_stream.h"
+#include "net/filter/source_stream_type.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace network {
 
@@ -40,6 +45,34 @@ struct SourceStreamToDataPipeTestParam {
   const uint32_t pipe_capacity;
   const net::MockSourceStream::Mode mode;
   const ReadResultType read_result_type;
+};
+
+class DummyPendingSourceStream : public net::SourceStream {
+ public:
+  DummyPendingSourceStream()
+      : net::SourceStream(net::SourceStreamType::kNone) {}
+  ~DummyPendingSourceStream() override = default;
+
+  DummyPendingSourceStream(const DummyPendingSourceStream&) = delete;
+  DummyPendingSourceStream& operator=(const DummyPendingSourceStream&) = delete;
+
+  // SourceStream implementation
+  int Read(net::IOBuffer* dest_buffer,
+           int buffer_size,
+           net::CompletionOnceCallback callback) override {
+    callback_ = std::move(callback);
+    return net::ERR_IO_PENDING;
+  }
+  std::string Description() const override { return ""; }
+  bool MayHaveMoreBytes() const override { return true; }
+
+  net::CompletionOnceCallback TakeCompletionCallback() {
+    CHECK(callback_);
+    return std::move(callback_);
+  }
+
+ private:
+  net::CompletionOnceCallback callback_;
 };
 
 }  // namespace
@@ -83,10 +116,11 @@ class SourceStreamToDataPipeTest
   int ReadPipe(std::string* output) {
     MojoResult result = MOJO_RESULT_OK;
     while (result == MOJO_RESULT_OK || result == MOJO_RESULT_SHOULD_WAIT) {
-      char buffer[16];
-      uint32_t read_size = sizeof(buffer);
-      result =
-          consumer_end().ReadData(buffer, &read_size, MOJO_READ_DATA_FLAG_NONE);
+      std::string buffer(16, '\0');
+      size_t read_size = 0;
+      result = consumer_end().ReadData(MOJO_READ_DATA_FLAG_NONE,
+                                       base::as_writable_byte_span(buffer),
+                                       read_size);
       if (result == MOJO_RESULT_FAILED_PRECONDITION)
         break;
       if (result == MOJO_RESULT_SHOULD_WAIT) {
@@ -94,7 +128,7 @@ class SourceStreamToDataPipeTest
         CompleteReadsIfAsync();
       } else {
         EXPECT_EQ(result, MOJO_RESULT_OK);
-        output->append(buffer, read_size);
+        output->append(std::string_view(buffer).substr(0, read_size));
       }
     }
     EXPECT_TRUE(CallbackResult().has_value());
@@ -107,16 +141,16 @@ class SourceStreamToDataPipeTest
 
   void CloseConsumerHandle() { consumer_end_.reset(); }
   void RunUntilIdle() { task_environment_.RunUntilIdle(); }
-  absl::optional<int> CallbackResult() { return callback_result_; }
+  std::optional<int> CallbackResult() { return callback_result_; }
 
  private:
   void FinishedReading(int result) { callback_result_ = result; }
 
   base::test::TaskEnvironment task_environment_;
+  std::unique_ptr<SourceStreamToDataPipe> adapter_;  // owned by `adapter_`.
   raw_ptr<net::MockSourceStream> source_;
-  std::unique_ptr<SourceStreamToDataPipe> adapter_;
   mojo::ScopedDataPipeConsumerHandle consumer_end_;
-  absl::optional<int> callback_result_;
+  std::optional<int> callback_result_;
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -181,10 +215,11 @@ TEST_P(SourceStreamToDataPipeTest, Error) {
 }
 
 TEST_P(SourceStreamToDataPipeTest, ConsumerClosed) {
-  const char message[] = "a";
+  const std::string message(GetParam().pipe_capacity, 'a');
 
   Init();
-  source()->AddReadResult(message, sizeof(message) - 1, net::OK,
+  source()->set_expect_all_input_consumed(false);
+  source()->AddReadResult(message.data(), message.size(), net::OK,
                           GetParam().mode);
   adapter()->Start(callback());
 
@@ -212,4 +247,33 @@ TEST_P(SourceStreamToDataPipeTest, MayHaveMoreBytes) {
   EXPECT_EQ(ReadPipe(&output), net::OK);
   EXPECT_EQ(output, message);
 }
+
+TEST(SourceStreamToDataPipeCallbackTest, CompletionCallbackAfterDestructed) {
+  base::test::TaskEnvironment task_environment;
+
+  std::unique_ptr<DummyPendingSourceStream> source =
+      std::make_unique<DummyPendingSourceStream>();
+  DummyPendingSourceStream* source_ptr = source.get();
+  const MojoCreateDataPipeOptions data_pipe_options{
+      sizeof(MojoCreateDataPipeOptions), MOJO_CREATE_DATA_PIPE_FLAG_NONE, 1, 1};
+  mojo::ScopedDataPipeProducerHandle producer_end;
+  mojo::ScopedDataPipeConsumerHandle consumer_end;
+  CHECK_EQ(MOJO_RESULT_OK, mojo::CreateDataPipe(&data_pipe_options,
+                                                producer_end, consumer_end));
+
+  std::unique_ptr<SourceStreamToDataPipe> adapter =
+      std::make_unique<SourceStreamToDataPipe>(std::move(source),
+                                               std::move(producer_end));
+  bool callback_called = false;
+  adapter->Start(
+      base::BindLambdaForTesting([&](int result) { callback_called = true; }));
+  net::CompletionOnceCallback callback = source_ptr->TakeCompletionCallback();
+  adapter.reset();
+
+  // Test that calling `callback` after deleting `adapter` must not cause UAF
+  // (crbug.com/1511085).
+  std::move(callback).Run(net::ERR_FAILED);
+  EXPECT_FALSE(callback_called);
+}
+
 }  // namespace network

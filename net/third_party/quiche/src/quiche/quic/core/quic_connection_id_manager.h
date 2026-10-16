@@ -12,8 +12,8 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
 #include "quiche/quic/core/frames/quic_retire_connection_id_frame.h"
@@ -31,7 +31,7 @@ namespace test {
 class QuicConnectionIdManagerPeer;
 }  // namespace test
 
-struct QUIC_EXPORT_PRIVATE QuicConnectionIdData {
+struct QUICHE_EXPORT QuicConnectionIdData {
   QuicConnectionIdData(const QuicConnectionId& connection_id,
                        uint64_t sequence_number,
                        const StatelessResetToken& stateless_reset_token);
@@ -43,7 +43,7 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionIdData {
 
 // Used by QuicSelfIssuedConnectionIdManager
 // and QuicPeerIssuedConnectionIdManager.
-class QUIC_EXPORT_PRIVATE QuicConnectionIdManagerVisitorInterface {
+class QUICHE_EXPORT QuicConnectionIdManagerVisitorInterface {
  public:
   virtual ~QuicConnectionIdManagerVisitorInterface() = default;
   virtual void OnPeerIssuedConnectionIdRetired() = 0;
@@ -54,7 +54,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionIdManagerVisitorInterface {
       const QuicConnectionId& connection_id) = 0;
 };
 
-class QUIC_EXPORT_PRIVATE QuicPeerIssuedConnectionIdManager {
+class QUICHE_EXPORT QuicPeerIssuedConnectionIdManager {
  public:
   // QuicPeerIssuedConnectionIdManager should be instantiated only when a peer
   // issued-non empty connection ID is received.
@@ -68,7 +68,8 @@ class QUIC_EXPORT_PRIVATE QuicPeerIssuedConnectionIdManager {
   ~QuicPeerIssuedConnectionIdManager();
 
   QuicErrorCode OnNewConnectionIdFrame(const QuicNewConnectionIdFrame& frame,
-                                       std::string* error_detail);
+                                       std::string* error_detail,
+                                       bool* is_duplicate_frame);
 
   bool HasUnusedConnectionId() const {
     return !unused_connection_id_data_.empty();
@@ -120,7 +121,7 @@ class QUIC_EXPORT_PRIVATE QuicPeerIssuedConnectionIdManager {
   uint64_t max_new_connection_id_frame_retire_prior_to_ = 0u;
 };
 
-class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
+class QUICHE_EXPORT QuicSelfIssuedConnectionIdManager {
  public:
   QuicSelfIssuedConnectionIdManager(
       size_t active_connection_id_limit,
@@ -132,7 +133,7 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
 
   virtual ~QuicSelfIssuedConnectionIdManager();
 
-  absl::optional<QuicNewConnectionIdFrame>
+  std::optional<QuicNewConnectionIdFrame>
   MaybeIssueNewConnectionIdForPreferredAddress();
 
   QuicErrorCode OnRetireConnectionIdFrame(
@@ -154,7 +155,7 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
   // connection ID with a new probing/migration path when client uses
   // non-empty connection ID.
   bool HasConnectionIdToConsume() const;
-  absl::optional<QuicConnectionId> ConsumeOneConnectionId();
+  std::optional<QuicConnectionId> ConsumeOneConnectionId();
 
   // Returns true if the given connection ID is issued by the
   // QuicSelfIssuedConnectionIdManager and not retired locally yet. Called to
@@ -165,7 +166,7 @@ class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
   friend class test::QuicConnectionIdManagerPeer;
 
   // Issue a new connection ID. Can return nullopt.
-  absl::optional<QuicNewConnectionIdFrame> MaybeIssueNewConnectionId();
+  std::optional<QuicNewConnectionIdFrame> MaybeIssueNewConnectionId();
 
   // This should be set to the min of:
   // (1) # of active connection IDs that peer can maintain.

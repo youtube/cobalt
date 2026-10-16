@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.download.home.view;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
@@ -12,6 +14,8 @@ import android.widget.ImageView;
 
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.download.internal.R;
 
 /**
@@ -19,10 +23,11 @@ import org.chromium.chrome.browser.download.internal.R;
  * is changed. The widget represents three distinct states : selected, in selection mode and not
  * selected. The caller can define the UI behavior at each of these states by subclassing this view.
  */
+@NullMarked
 public class SelectionView extends FrameLayout {
     private final ImageView mCheck;
     private final ImageView mCircle;
-    private final AnimatedVectorDrawableCompat mCheckDrawable;
+    private final @Nullable AnimatedVectorDrawableCompat mCheckDrawable;
 
     private boolean mIsSelected;
     private boolean mInSelectionMode;
@@ -34,8 +39,9 @@ public class SelectionView extends FrameLayout {
         LayoutInflater.from(context).inflate(R.layout.list_selection_handle_view, this, true);
         mCheck = findViewById(R.id.check);
         mCircle = findViewById(R.id.circle);
-        mCheckDrawable = AnimatedVectorDrawableCompat.create(
-                context, R.drawable.ic_check_googblue_24dp_animated);
+        mCheckDrawable =
+                AnimatedVectorDrawableCompat.create(
+                        context, R.drawable.ic_check_googblue_24dp_animated);
     }
 
     @Override
@@ -69,9 +75,9 @@ public class SelectionView extends FrameLayout {
             mCircle.setVisibility(GONE);
 
             mCheck.setImageDrawable(mCheckDrawable);
-            mCheck.getBackground().setLevel(
-                    getResources().getInteger(R.integer.list_item_level_selected));
-            if (mShowSelectedAnimation) mCheckDrawable.start();
+            mCheck.getBackground()
+                    .setLevel(getResources().getInteger(R.integer.list_item_level_selected));
+            if (mShowSelectedAnimation) assumeNonNull(mCheckDrawable).start();
         } else if (mInSelectionMode) {
             mCheck.setVisibility(GONE);
             mCircle.setVisibility(VISIBLE);

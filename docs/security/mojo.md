@@ -189,7 +189,7 @@ the browser process to:
     definition of proper defanging varies per platform.
 1.  Prepend its own parent directory to the basename, e.g. ~/Downloads.
 
-> TODO(https://crbug.com/779196): Even better would be to implement a C++ type
+> TODO(crbug.com/41352236): Even better would be to implement a C++ type
 > performs the appropriate sanitizations and recommend its usage directly here.
 
 
@@ -398,6 +398,8 @@ enforce that the input data is valid. Common ones to watch out for:
 *   Time types: use `mojo_base.mojom.TimeDelta` /
     `mojo_base.mojom.TimeTicks` / `mojo_base.mojom.Time`, not `int64` /
     `uint64` / `double` / et cetera.
+    *   In WebUI, use `mojo_base.mojom.JSTime` for times coming from Javascript
+        Date objects.
 *   URLs: use `url.mojom.Url`, not `string`.
 *   `array<uint8>` or `string` and `memcpy()`: use a Mojo struct and statically
     define the serialized fields. While `memcpy()` may be tempting for its
@@ -551,20 +553,7 @@ struct TokenManager {
 };
 ```
 
-There are some known exceptions to this rule because mojo does not handle
-optional primitives.
-
-**_Allowed because mojo has no support for optional primitives_**
-```c++
-  struct Foo {
-    int32 x;
-    bool has_x;  // does the value of `x` have meaning?
-    int32 y;
-    bool has_y;  // does the value of `y` have meaning?
-  };
-```
-
-Another common case where we tolerate imperfect message semantics is
+A known exception where we tolerate imperfect message semantics is
 with weakly typed integer [bitfields](#handling-bitfields).
 
 ### Handling bitfields
@@ -596,6 +585,9 @@ struct Person {
   uint32 vehicle_bitfield;
 };
 ```
+In both cases, consider typemapping these mojo types to your preferred C++ construct
+(e.g. `base::StrongAlias<...>`, `base::EnumSet<...>`, etc.) to improve downstream
+readability and type safety.
 
 ### Avoid object lifetime issues with self-owned receivers
 

@@ -10,19 +10,19 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
-#include "base/containers/cxx20_erase.h"
 #include "base/containers/span.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "chrome/services/cups_proxy/ipp_attribute_validator.h"
 #include "chrome/services/cups_proxy/public/cpp/cups_util.h"
 #include "net/http/http_util.h"
 #include "printing/backend/cups_ipp_helper.h"
+#include "printing/backend/cups_weak_functions.h"
 
 namespace cups_proxy {
 namespace {
@@ -88,7 +88,6 @@ size_t GetAttributeValuesSize(const ipp_parser::mojom::IppAttributePtr& attr) {
   }
 
   NOTREACHED();
-  return 0;
 }
 
 // Returns true if |data| starts with the full |prefix|, false otherwise.
@@ -104,15 +103,15 @@ bool StartsWith(base::span<uint8_t const> data,
 // Verifies that |method|, |endpoint|, and |http_version| form a valid HTTP
 // request-line. On success, returns a wrapper obj containing the verified
 // request-line.
-absl::optional<HttpRequestLine> IppValidator::ValidateHttpRequestLine(
-    base::StringPiece method,
-    base::StringPiece endpoint,
-    base::StringPiece http_version) {
+std::optional<HttpRequestLine> IppValidator::ValidateHttpRequestLine(
+    std::string_view method,
+    std::string_view endpoint,
+    std::string_view http_version) {
   if (method != "POST") {
-    return absl::nullopt;
+    return std::nullopt;
   }
   if (http_version != "HTTP/1.1") {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Empty endpoint is allowed.
@@ -124,19 +123,19 @@ absl::optional<HttpRequestLine> IppValidator::ValidateHttpRequestLine(
   // Ensure endpoint is a known printer.
   auto printer_id = ParseEndpointForPrinterId(std::string(endpoint));
   if (!printer_id.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   auto printer = delegate_->GetPrinter(*printer_id);
   if (!printer.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return HttpRequestLine{std::string(method), std::string(endpoint),
                          std::string(http_version)};
 }
 
-absl::optional<std::vector<ipp_converter::HttpHeader>>
+std::optional<std::vector<ipp_converter::HttpHeader>>
 IppValidator::ValidateHttpHeaders(
     const size_t http_content_length,
     const base::flat_map<std::string, std::string>& headers) {
@@ -144,14 +143,14 @@ IppValidator::ValidateHttpHeaders(
   for (const auto& header : headers) {
     if (!net::HttpUtil::IsValidHeaderName(header.first) ||
         !net::HttpUtil::IsValidHeaderValue(header.second)) {
-      return absl::nullopt;
+      return std::nullopt;
     }
   }
 
   std::vector<ipp_converter::HttpHeader> ret(headers.begin(), headers.end());
 
   // Update the ContentLength.
-  base::EraseIf(ret, [](const ipp_converter::HttpHeader& header) {
+  std::erase_if(ret, [](const ipp_converter::HttpHeader& header) {
     return header.first == "Content-Length";
   });
   ret.push_back({"Content-Length", base::NumberToString(http_content_length)});
@@ -322,7 +321,7 @@ IppValidator::IppValidator(CupsProxyServiceDelegate* const delegate)
 
 IppValidator::~IppValidator() = default;
 
-absl::optional<IppRequest> IppValidator::ValidateIppRequest(
+std::optional<IppRequest> IppValidator::ValidateIppRequest(
     ipp_parser::mojom::IppRequestPtr to_validate) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // Build ipp message.
@@ -330,20 +329,20 @@ absl::optional<IppRequest> IppValidator::ValidateIppRequest(
   printing::ScopedIppPtr ipp =
       printing::WrapIpp(ValidateIppMessage(std::move(to_validate->ipp)));
   if (ipp == nullptr) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Validate ipp data.
   // TODO(crbug/894607): Validate ippData (pdf).
   if (!ValidateIppData(to_validate->data)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Build request line.
   auto request_line = ValidateHttpRequestLine(
       to_validate->method, to_validate->endpoint, to_validate->http_version);
   if (!request_line.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Build headers; must happen after ipp message/data since it requires the
@@ -352,7 +351,7 @@ absl::optional<IppRequest> IppValidator::ValidateIppRequest(
       ippLength(ipp.get()) + to_validate->data.size();
   auto headers = ValidateHttpHeaders(http_content_length, to_validate->headers);
   if (!headers.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Marshall request
@@ -367,7 +366,7 @@ absl::optional<IppRequest> IppValidator::ValidateIppRequest(
       ret.request_line.method, ret.request_line.endpoint,
       ret.request_line.http_version, ret.headers, ret.ipp.get(), ret.ipp_data);
   if (!request_buffer.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   ret.buffer = std::move(*request_buffer);

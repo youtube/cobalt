@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "ui/views/controls/webview/web_dialog_view.h"
+
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
@@ -24,7 +26,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
-#include "ui/views/controls/webview/web_dialog_view.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/views/view_tracker.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
@@ -52,8 +54,9 @@ class WidgetResizeWaiter : public views::WidgetObserver {
 
   void OnWidgetBoundsChanged(views::Widget* widget,
                              const gfx::Rect& bounds) override {
-    if (bounds.size() != old_size_)
+    if (bounds.size() != old_size_) {
       run_loop_.Quit();
+    }
   }
 
  private:
@@ -63,9 +66,11 @@ class WidgetResizeWaiter : public views::WidgetObserver {
   base::RunLoop run_loop_;
 };
 
+}  // namespace
+
 class WebDialogBrowserTest : public InProcessBrowserTest {
  public:
-  WebDialogBrowserTest() {}
+  WebDialogBrowserTest() = default;
 
   WebDialogBrowserTest(const WebDialogBrowserTest&) = delete;
   WebDialogBrowserTest& operator=(const WebDialogBrowserTest&) = delete;
@@ -99,7 +104,7 @@ void WebDialogBrowserTest::SetUpOnMainThread() {
   auto view = std::make_unique<views::WebDialogView>(
       browser()->profile(), delegate,
       std::make_unique<ChromeWebContentsHandler>());
-  view->SetOwnedByWidget(true);
+  view->SetOwnedByWidget(views::WidgetDelegate::OwnedByWidgetPassKey());
   gfx::NativeView parent_view =
       browser()->tab_strip_model()->GetActiveWebContents()->GetNativeView();
   view_ = view.get();
@@ -111,15 +116,14 @@ void WebDialogBrowserTest::SetUpOnMainThread() {
 }
 
 void WebDialogBrowserTest::SimulateEscapeKey() {
-  ui::KeyEvent escape_event(ui::ET_KEY_PRESSED, ui::VKEY_ESCAPE, ui::EF_NONE);
+  ui::KeyEvent escape_event(ui::EventType::kKeyPressed, ui::VKEY_ESCAPE,
+                            ui::EF_NONE);
   if (view_->GetFocusManager()->OnKeyEvent(escape_event)) {
     ASSERT_TRUE(ui_test_utils::SendKeyPressToWindowSync(
         view_->GetWidget()->GetNativeWindow(), ui::VKEY_ESCAPE, false, false,
         false, false));
   }
 }
-
-}  // namespace
 
 // Windows has some issues resizing windows. An off by one problem, and a
 // minimum size that seems too big. See http://crbug.com/52602.
@@ -129,14 +133,14 @@ void WebDialogBrowserTest::SimulateEscapeKey() {
 #define MAYBE_SizeWindow SizeWindow
 #endif
 IN_PROC_BROWSER_TEST_F(WebDialogBrowserTest, MAYBE_SizeWindow) {
-  bool centered_in_window = false;
 #if BUILDFLAG(IS_MAC)
   // On macOS 11 (and presumably later) the new mechanism for sheets, which are
   // used for window modals like this dialog, always centers them within the
   // parent window regardless of the requested origin. The size is still
   // honored.
-  if (base::mac::IsAtLeastOS11())
-    centered_in_window = true;
+  bool centered_in_window = true;
+#else
+  bool centered_in_window = false;
 #endif
 
   gfx::Rect set_bounds = view_->GetWidget()->GetClientAreaBoundsInScreen();
@@ -269,11 +273,11 @@ IN_PROC_BROWSER_TEST_F(WebDialogBrowserTest, CloseParentWindow) {
   // Open a second browser window so we don't trigger shutdown.
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL(url::kAboutBlankURL), WindowOpenDisposition::NEW_WINDOW,
-      ui_test_utils::BROWSER_TEST_NONE);
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
 
   // TestWebDialogDelegate defaults to window-modal, so closing the browser
   // Window (as opposed to closing merely the tab) should close the dialog.
-  EXPECT_EQ(ui::MODAL_TYPE_WINDOW,
+  EXPECT_EQ(ui::mojom::ModalType::kWindow,
             view_->GetWidget()->widget_delegate()->GetModalType());
 
   // Close the parent window. Tear down may happen asynchronously.
@@ -290,7 +294,7 @@ IN_PROC_BROWSER_TEST_F(WebDialogBrowserTest, CloseDialogOnEscapeEnabled) {
   // Open a second browser window so we don't trigger shutdown.
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL(url::kAboutBlankURL), WindowOpenDisposition::NEW_WINDOW,
-      ui_test_utils::BROWSER_TEST_NONE);
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
 
   // If ShouldCloseDialogOnEscape() is true, pressing Escape should close the
   // dialog.
@@ -306,7 +310,7 @@ IN_PROC_BROWSER_TEST_F(WebDialogBrowserTest, CloseDialogOnEscapeDisabled) {
   // Open a second browser window so we don't trigger shutdown.
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL(url::kAboutBlankURL), WindowOpenDisposition::NEW_WINDOW,
-      ui_test_utils::BROWSER_TEST_NONE);
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
 
   // If ShouldCloseDialogOnEscape() is false, pressing Escape does nothing.
   delegate_->SetCloseOnEscape(false);

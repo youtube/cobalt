@@ -26,68 +26,86 @@
 
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_ellipse.h"
 
-#include <cmath>
+#include "third_party/blink/renderer/core/layout/hit_test_location.h"
 #include "third_party/blink/renderer/core/svg/svg_circle_element.h"
 #include "third_party/blink/renderer/core/svg/svg_ellipse_element.h"
-#include "third_party/blink/renderer/core/svg/svg_length_context.h"
+#include "third_party/blink/renderer/core/svg/svg_length_functions.h"
 
 namespace blink {
 
+namespace {
+
+bool GeometryPropertiesChanged(const ComputedStyle& old_style,
+                               const ComputedStyle& new_style) {
+  return old_style.Rx() != new_style.Rx() || old_style.Ry() != new_style.Ry() ||
+         old_style.Cx() != new_style.Cx() || old_style.Cy() != new_style.Cy() ||
+         old_style.R() != new_style.R();
+}
+
+}  // namespace
+
 LayoutSVGEllipse::LayoutSVGEllipse(SVGGeometryElement* node)
-    : LayoutSVGShape(node, kSimple) {}
+    : LayoutSVGShape(node) {}
 
 LayoutSVGEllipse::~LayoutSVGEllipse() = default;
 
-void LayoutSVGEllipse::UpdateShapeFromElement() {
+void LayoutSVGEllipse::StyleDidChange(StyleDifference diff,
+                                      const ComputedStyle* old_style) {
+  NOT_DESTROYED();
+  LayoutSVGShape::StyleDidChange(diff, old_style);
+
+  if (old_style && GeometryPropertiesChanged(*old_style, StyleRef())) {
+    SetNeedsShapeUpdate();
+  }
+}
+
+bool LayoutSVGEllipse::CalculateGeometryDependsOnViewport() const {
+  const ComputedStyle& style = StyleRef();
+  if (style.Cx().HasPercent() || style.Cy().HasPercent()) {
+    return true;
+  }
+  if (IsA<SVGCircleElement>(*GetElement())) {
+    return style.R().HasPercent();
+  }
+  return style.Rx().HasPercent() || style.Ry().HasPercent();
+}
+
+gfx::RectF LayoutSVGEllipse::UpdateShapeFromElement() {
   NOT_DESTROYED();
 
-  stroke_bounding_box_ = gfx::RectF();
-  use_path_fallback_ = false;
+  // Reset shape state.
+  ClearPath();
+  SetGeometryType(GeometryType::kEmpty);
+  SetGeometryDependsOnViewport(CalculateGeometryDependsOnViewport());
 
+  // This will always update/reset |center_| and |radii_|.
   CalculateRadiiAndCenter();
   DCHECK_GE(radius_x_, 0);
   DCHECK_GE(radius_y_, 0);
 
-  fill_bounding_box_.SetRect(center_.x() - radius_x_, center_.y() - radius_y_,
-                             radius_x_ * 2, radius_y_ * 2);
-
   if (radius_x_ && radius_y_) {
-    // Fall back to LayoutSVGShape and path-based hit detection if the ellipse
-    // has a non-scaling or discontinuous stroke.
-    // However, only use LayoutSVGShape bounding-box calculations for the
-    // non-scaling stroke case, since the computation below should be accurate
-    // for the other cases.
-    if (HasNonScalingStroke()) {
-      LayoutSVGShape::UpdateShapeFromElement();
-      use_path_fallback_ = true;
-      return;
-    }
-    if (!HasContinuousStroke()) {
-      CreatePath();
-      use_path_fallback_ = true;
-    }
+    const bool is_circle = radius_x_ == radius_y_;
+    SetGeometryType(is_circle ? GeometryType::kCircle : GeometryType::kEllipse);
   }
-
-  if (!use_path_fallback_)
-    ClearPath();
-
-  stroke_bounding_box_ = CalculateStrokeBoundingBox();
+  const gfx::RectF bounding_box(center_.x() - radius_x_,
+                                center_.y() - radius_y_, radius_x_ * 2,
+                                radius_y_ * 2);
+  return bounding_box;
 }
 
 void LayoutSVGEllipse::CalculateRadiiAndCenter() {
   NOT_DESTROYED();
   DCHECK(GetElement());
-  SVGLengthContext length_context(GetElement());
+  const SVGViewportResolver viewport_resolver(*this);
   const ComputedStyle& style = StyleRef();
-  center_ = gfx::PointAtOffsetFromOrigin(
-      length_context.ResolveLengthPair(style.Cx(), style.Cy(), style));
+  center_ =
+      PointForLengthPair(style.Cx(), style.Cy(), viewport_resolver, style);
 
   if (IsA<SVGCircleElement>(*GetElement())) {
-    radius_x_ = radius_y_ =
-        length_context.ValueForLength(style.R(), style, SVGLengthMode::kOther);
+    radius_x_ = radius_y_ = ValueForLength(style.R(), viewport_resolver, style);
   } else {
-    gfx::Vector2dF radii =
-        length_context.ResolveLengthPair(style.Rx(), style.Ry(), style);
+    const gfx::Vector2dF radii =
+        VectorForLengthPair(style.Rx(), style.Ry(), viewport_resolver, style);
     radius_x_ = radii.x();
     radius_y_ = radii.y();
     if (style.Rx().IsAuto())
@@ -102,6 +120,16 @@ void LayoutSVGEllipse::CalculateRadiiAndCenter() {
   radius_y_ = std::max(radius_y_, 0.f);
 }
 
+bool LayoutSVGEllipse::CanUseStrokeHitTestFastPath() const {
+  // Non-scaling-stroke needs special handling.
+  if (HasNonScalingStroke()) {
+    return false;
+  }
+  // We can compute intersections with continuous strokes on circles
+  // without using a Path.
+  return GetGeometryType() == GeometryType::kCircle && HasContinuousStroke();
+}
+
 bool LayoutSVGEllipse::ShapeDependentStrokeContains(
     const HitTestLocation& location) {
   NOT_DESTROYED();
@@ -110,15 +138,11 @@ bool LayoutSVGEllipse::ShapeDependentStrokeContains(
   if (!radius_x_ || !radius_y_)
     return false;
 
-  // The optimized check below for circles does not support non-circular and
-  // the cases that we set use_path_fallback_ in UpdateShapeFromElement().
-  if (use_path_fallback_ || radius_x_ != radius_y_)
+  if (!CanUseStrokeHitTestFastPath()) {
+    EnsurePath();
     return LayoutSVGShape::ShapeDependentStrokeContains(location);
-
-  const gfx::PointF& point = location.TransformedPoint();
-  const gfx::Vector2dF center_offset = center_ - point;
-  const float half_stroke_width = StrokeWidth() / 2;
-  return std::abs(center_offset.Length() - radius_x_) <= half_stroke_width;
+  }
+  return location.IntersectsCircleStroke(center_, radius_x_, StrokeWidth());
 }
 
 bool LayoutSVGEllipse::ShapeDependentFillContains(
@@ -129,16 +153,7 @@ bool LayoutSVGEllipse::ShapeDependentFillContains(
   DCHECK_GE(radius_y_, 0);
   if (!radius_x_ || !radius_y_)
     return false;
-
-  const gfx::PointF& point = location.TransformedPoint();
-  const gfx::PointF center =
-      gfx::PointF(center_.x() - point.x(), center_.y() - point.y());
-
-  // This works by checking if the point satisfies the ellipse equation.
-  // (x/rX)^2 + (y/rY)^2 <= 1
-  const float xr_x = center.x() / radius_x_;
-  const float yr_y = center.y() / radius_y_;
-  return xr_x * xr_x + yr_y * yr_y <= 1.0;
+  return location.IntersectsEllipse(center_, gfx::SizeF(radius_x_, radius_y_));
 }
 
 bool LayoutSVGEllipse::HasContinuousStroke() const {

@@ -12,47 +12,44 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.url.GURL;
 
 import java.util.concurrent.Callable;
 
-/**
- * Tests for ChromeDownloadDelegate class.
- */
+/** Tests for ChromeDownloadDelegate class. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class ChromeDownloadDelegateTest {
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @Before
     public void setUp() throws InterruptedException {
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mActivityTestRule.startOnBlankPage();
     }
 
-    /**
-     * Mock class for test.
-     */
+    /** Mock class for test. */
     static class MockChromeDownloadDelegate extends ChromeDownloadDelegate {
         public MockChromeDownloadDelegate(Tab tab) {
             super(tab);
         }
 
         @Override
-        protected void onDownloadStartNoStream(DownloadInfo downloadInfo) {
-        }
+        protected void onDownloadStartNoStream(DownloadInfo downloadInfo) {}
     }
 
     /**
-     * Test to make sure {@link ChromeDownloadDelegate#shouldInterceptContextMenuDownload}
-     * returns true only for ".dd" or ".dm" extensions with http/https scheme.
+     * Test to make sure {@link ChromeDownloadDelegate#shouldInterceptContextMenuDownload} returns
+     * true only for ".dd" or ".dm" extensions with http/https scheme.
      */
     @Test
     @SmallTest
@@ -60,8 +57,10 @@ public class ChromeDownloadDelegateTest {
     public void testShouldInterceptContextMenuDownload() {
         final Tab tab = mActivityTestRule.getActivity().getActivityTab();
         mActivityTestRule.loadUrl("about:blank");
-        ChromeDownloadDelegate delegate = TestThreadUtils.runOnUiThreadBlockingNoException(
-                (Callable<ChromeDownloadDelegate>) () -> new MockChromeDownloadDelegate(tab));
+        ChromeDownloadDelegate delegate =
+                ThreadUtils.runOnUiThreadBlocking(
+                        (Callable<ChromeDownloadDelegate>)
+                                () -> new MockChromeDownloadDelegate(tab));
         Assert.assertFalse(
                 delegate.shouldInterceptContextMenuDownload(new GURL("file://test/test.html")));
         Assert.assertFalse(

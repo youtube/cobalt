@@ -13,23 +13,11 @@
 
 namespace translate {
 
-namespace {
-
-// Parameter for TranslateSubFrames feature to determine whether language
-// detection should include the sub frames (or just the main frame).
-const char kDetectLanguageInSubFrames[] = "detect_language_in_sub_frames";
-
-}  // namespace
-
 const char kSecurityOrigin[] = "https://translate.googleapis.com/";
 
-BASE_FEATURE(kTranslateSubFrames,
-             "TranslateSubFrames",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // The feature is explicitly disabled on Webview and Weblayer.
-// TODO(crbug.com/1292622): Enable the feature on Webview.
-// TODO(crbug.com/1247836): Enable the feature on WebLayer.
+// TODO(crbug.com/40819484): Enable the feature on Webview.
+// TODO(crbug.com/40790180): Enable the feature on WebLayer.
 BASE_FEATURE(kTFLiteLanguageDetectionEnabled,
              "TFLiteLanguageDetectionEnabled",
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN) || \
@@ -39,37 +27,6 @@ BASE_FEATURE(kTFLiteLanguageDetectionEnabled,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
-
-BASE_FEATURE(kTFLiteLanguageDetectionIgnoreEnabled,
-             "TFLiteLanguageDetectionIgnoreEnabled",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kIOSForceTranslateEnabled,
-             "IOSForceTranslateEnabled",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kDesktopPartialTranslate,
-             "DesktopPartialTranslate",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-const base::FeatureParam<int>
-    kDesktopPartialTranslateTextSelectionMaxCharacters{
-        &kDesktopPartialTranslate,
-        "DesktopPartialTranslateTextSelectionMaxCharacters", 500};
-const base::FeatureParam<int> kDesktopPartialTranslateBubbleShowDelayMs{
-    &kDesktopPartialTranslate, "DesktopPartialTranslateBubbleShowDelayMs", 500};
-
-BASE_FEATURE(kRetryLanguageDetection,
-             "RetryLanguageDetection",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kSkipLanguageDetectionOnEmptyContent,
-             "SkipLanguageDetectionOnEmptyContent",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-#if !BUILDFLAG(IS_WIN)
-BASE_FEATURE(kMmapLanguageDetectionModel,
-             "MmapLanguageDetectionModel",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
 
 GURL GetTranslateSecurityOrigin() {
   std::string security_origin(kSecurityOrigin);
@@ -81,30 +38,8 @@ GURL GetTranslateSecurityOrigin() {
   return GURL(security_origin);
 }
 
-bool IsSubFrameTranslationEnabled() {
-  return base::FeatureList::IsEnabled(kTranslateSubFrames);
-}
-
-bool IsSubFrameLanguageDetectionEnabled() {
-  return base::FeatureList::IsEnabled(kTranslateSubFrames) &&
-         base::GetFieldTrialParamByFeatureAsBool(
-             kTranslateSubFrames, kDetectLanguageInSubFrames, true);
-}
-
-bool IsForceTranslateEnabled() {
-#if BUILDFLAG(IS_IOS)
-  return base::FeatureList::IsEnabled(kIOSForceTranslateEnabled);
-#else
-  return true;
-#endif
-}
-
 bool IsTFLiteLanguageDetectionEnabled() {
   return base::FeatureList::IsEnabled(kTFLiteLanguageDetectionEnabled);
-}
-
-bool IsTFLiteLanguageDetectionIgnoreEnabled() {
-  return base::FeatureList::IsEnabled(kTFLiteLanguageDetectionIgnoreEnabled);
 }
 
 float GetTFLiteLanguageDetectionThreshold() {

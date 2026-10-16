@@ -64,11 +64,12 @@ class CORE_EXPORT SVGAnimateElement : public SVGAnimationElement {
   SMILAnimationValue CreateAnimationValue() const final;
   void ClearAnimationValue() final;
 
+  AnimationMode CalculateAnimationMode() override;
   bool CalculateToAtEndOfDurationValue(
       const String& to_at_end_of_duration_string) final;
-  bool CalculateFromAndToValues(const String& from_string,
+  void CalculateFromAndToValues(const String& from_string,
                                 const String& to_string) final;
-  bool CalculateFromAndByValues(const String& from_string,
+  void CalculateFromAndByValues(const String& from_string,
                                 const String& by_string) final;
   void CalculateAnimationValue(SMILAnimationValue&,
                                float percentage,
@@ -123,7 +124,7 @@ class CORE_EXPORT SVGAnimateElement : public SVGAnimationElement {
   AnimatedPropertyType type_;
   CSSPropertyID css_property_id_;
 
-  bool IsAnimatingSVGDom() const { return target_property_; }
+  bool IsAnimatingSVGDom() const { return target_property_ != nullptr; }
   bool IsAnimatingCSSProperty() const {
     return css_property_id_ != CSSPropertyID::kInvalid;
   }

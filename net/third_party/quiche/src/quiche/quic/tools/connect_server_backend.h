@@ -42,10 +42,10 @@ class ConnectServerBackend : public QuicSimpleServerBackend {
   bool InitializeBackend(const std::string& backend_url) override;
   bool IsBackendInitialized() const override;
   void SetSocketFactory(SocketFactory* socket_factory) override;
-  void FetchResponseFromBackend(const spdy::Http2HeaderBlock& request_headers,
+  void FetchResponseFromBackend(const quiche::HttpHeaderBlock& request_headers,
                                 const std::string& request_body,
                                 RequestHandler* request_handler) override;
-  void HandleConnectHeaders(const spdy::Http2HeaderBlock& request_headers,
+  void HandleConnectHeaders(const quiche::HttpHeaderBlock& request_headers,
                             RequestHandler* request_handler) override;
   void HandleConnectData(absl::string_view data, bool data_complete,
                          RequestHandler* request_handler) override;
@@ -58,10 +58,12 @@ class ConnectServerBackend : public QuicSimpleServerBackend {
   const absl::flat_hash_set<QuicServerId> acceptable_connect_udp_targets_;
   const std::string server_label_;
 
-  SocketFactory* socket_factory_;  // unowned
-  absl::flat_hash_map<QuicStreamId, std::unique_ptr<ConnectTunnel>>
+  SocketFactory* socket_factory_ = nullptr;  // unowned
+  absl::flat_hash_map<std::pair<QuicConnectionId, QuicStreamId>,
+                      std::unique_ptr<ConnectTunnel>>
       connect_tunnels_;
-  absl::flat_hash_map<QuicStreamId, std::unique_ptr<ConnectUdpTunnel>>
+  absl::flat_hash_map<std::pair<QuicConnectionId, QuicStreamId>,
+                      std::unique_ptr<ConnectUdpTunnel>>
       connect_udp_tunnels_;
 };
 

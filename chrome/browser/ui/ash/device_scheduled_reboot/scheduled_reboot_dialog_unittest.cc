@@ -1,9 +1,10 @@
 // Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+#include "chrome/browser/ui/ash/device_scheduled_reboot/scheduled_reboot_dialog.h"
+
 #include <memory>
 
-#include "chrome/browser/ui/ash/device_scheduled_reboot/scheduled_reboot_dialog.h"
 #include "chrome/browser/ui/views/chrome_constrained_window_views_client.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "content/public/test/browser_task_environment.h"
@@ -18,14 +19,14 @@ class ScheduledRebootDialogTest : public views::ViewsTestBase {
             std::make_unique<content::BrowserTaskEnvironment>(
                 content::BrowserTaskEnvironment::MainThreadType::UI,
                 content::BrowserTaskEnvironment::TimeSource::MOCK_TIME))) {}
-  ~ScheduledRebootDialogTest() override {}
+  ~ScheduledRebootDialogTest() override = default;
 
   void SetUp() override {
     views::ViewsTestBase::SetUp();
     SetConstrainedWindowViewsClient(CreateChromeConstrainedWindowViewsClient());
     views::Widget::InitParams params =
-        CreateParams(views::Widget::InitParams::TYPE_WINDOW);
-    params.ownership = views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
+        CreateParams(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+                     views::Widget::InitParams::TYPE_WINDOW);
     parent_widget_.Init(std::move(params));
     parent_widget_.Show();
   }
@@ -48,7 +49,7 @@ class ScheduledRebootDialogTest : public views::ViewsTestBase {
 void ScheduledRebootDialogTest::CreateViewAndShow() {
   base::Time deadline = base::Time::Now() + base::Minutes(5);
   dialog_ = std::make_unique<ScheduledRebootDialog>(
-      deadline, parent_widget_.GetNativeView(), base::NullCallback());
+      deadline, parent_widget_.GetNativeView(), base::DoNothing());
   views::DialogDelegate* dialog_model = dialog_->GetDialogDelegate();
   EXPECT_NE(dialog_model, nullptr);
   views::test::WidgetVisibleWaiter(dialog_model->GetWidget()).Wait();

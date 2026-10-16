@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "gpu/command_buffer/service/memory_program_cache.h"
 
 #include <stddef.h>
@@ -9,11 +14,12 @@
 
 #include <memory>
 
+#include "base/containers/heap_array.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
-#include "gpu/command_buffer/common/activity_flags.h"
 #include "gpu/command_buffer/common/gles2_cmd_format.h"
+#include "gpu/command_buffer/common/shm_count.h"
 #include "gpu/command_buffer/service/gl_utils.h"
 #include "gpu/command_buffer/service/gpu_service_test.h"
 #include "gpu/command_buffer/service/shader_manager.h"
@@ -83,12 +89,16 @@ class MemoryProgramCacheTest : public GpuServiceTest, public DecoderClient {
       : cache_(new MemoryProgramCache(kCacheSizeBytes,
                                       kDisableGpuDiskCache,
                                       kDisableCachingForTransformFeedback,
-                                      &activity_flags_)),
+                                      &use_shader_cache_shm_count_)),
         shader_manager_(nullptr),
         vertex_shader_(nullptr),
         fragment_shader_(nullptr),
         shader_cache_count_(0) {}
-  ~MemoryProgramCacheTest() override { shader_manager_.Destroy(false); }
+  ~MemoryProgramCacheTest() override {
+    vertex_shader_ = nullptr;
+    fragment_shader_ = nullptr;
+    shader_manager_.Destroy(false);
+  }
 
   void OnConsoleMessage(int32_t id, const std::string& message) override {}
   void CacheBlob(gpu::GpuDiskCacheType type,
@@ -101,16 +111,17 @@ class MemoryProgramCacheTest : public GpuServiceTest, public DecoderClient {
   void OnFenceSyncRelease(uint64_t release) override {}
   void OnDescheduleUntilFinished() override {}
   void OnRescheduleAfterFinished() override {}
-  void OnSwapBuffers(uint64_t swap_id, uint32_t flags) override {}
   void ScheduleGrContextCleanup() override {}
   void HandleReturnData(base::span<const uint8_t> data) override {}
+  bool ShouldYield() override { return false; }
 
   int32_t shader_cache_count() { return shader_cache_count_; }
   const std::string& shader_cache_shader() { return shader_cache_shader_; }
 
  protected:
   void SetUp() override {
-    GpuServiceTest::SetUpWithGLVersion("3.0", "GL_ARB_get_program_binary");
+    GpuServiceTest::SetUpWithGLVersion("OpenGL ES 3.0",
+                                       "GL_OES_get_program_binary");
 
     vertex_shader_ = shader_manager_.CreateShader(kVertexShaderClientId,
                                                   kVertexShaderServiceId,
@@ -201,9 +212,10 @@ class MemoryProgramCacheTest : public GpuServiceTest, public DecoderClient {
                 .WillOnce(SetArgPointee<2>(GL_FALSE));
   }
 
-  GpuProcessActivityFlags activity_flags_;
+  GpuProcessShmCount use_shader_cache_shm_count_;
   std::unique_ptr<MemoryProgramCache> cache_;
   ShaderManager shader_manager_;
+  // These shaders are owned by |shader_manager_|.
   raw_ptr<Shader> vertex_shader_;
   raw_ptr<Shader> fragment_shader_;
   int32_t shader_cache_count_;
@@ -504,7 +516,7 @@ TEST_F(MemoryProgramCacheTest, LoadFailIfTransformFeedbackCachingDisabled) {
   // Forcibly reset the program cache so we can disable caching of
   // programs which include transform feedback varyings.
   cache_.reset(new MemoryProgramCache(kCacheSizeBytes, kDisableGpuDiskCache,
-                                      true, &activity_flags_));
+                                      true, &use_shader_cache_shm_count_));
   varyings_.push_back("test");
   cache_->SaveLinkedProgram(kProgramId, vertex_shader_, fragment_shader_,
                             nullptr, varyings_, GL_INTERLEAVED_ATTRIBS, this);
@@ -537,14 +549,12 @@ TEST_F(MemoryProgramCacheTest, MemoryProgramCacheEviction) {
   fragment_shader_->set_source("al sdfkjdk");
   TestHelper::SetShaderStates(gl_.get(), fragment_shader_, true);
 
-  std::unique_ptr<char[]> bigTestBinary =
-      std::unique_ptr<char[]>(new char[kEvictingBinaryLength]);
+  auto bigTestBinary = base::HeapArray<char>::Uninit(kEvictingBinaryLength);
   for (size_t i = 0; i < kEvictingBinaryLength; ++i) {
     bigTestBinary[i] = i % 250;
   }
-  ProgramBinaryEmulator emulator2(kEvictingBinaryLength,
-                                  kFormat,
-                                  bigTestBinary.get());
+  ProgramBinaryEmulator emulator2(kEvictingBinaryLength, kFormat,
+                                  bigTestBinary.data());
 
   SetExpectationsForSaveLinkedProgram(kEvictingProgramId, &emulator2);
   cache_->SaveLinkedProgram(kEvictingProgramId, vertex_shader_,

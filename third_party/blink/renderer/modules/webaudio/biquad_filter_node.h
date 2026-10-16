@@ -38,6 +38,7 @@ namespace blink {
 class BaseAudioContext;
 class BiquadFilterOptions;
 class ExceptionState;
+class V8BiquadFilterType;
 
 class BiquadFilterNode final : public AudioNode {
   DEFINE_WRAPPERTYPEINFO();
@@ -65,13 +66,13 @@ class BiquadFilterNode final : public AudioNode {
 
   void Trace(Visitor*) const override;
 
-  String type() const;
-  void setType(const String&);
+  V8BiquadFilterType type() const;
+  void setType(const V8BiquadFilterType&);
 
-  AudioParam* frequency() { return frequency_; }
-  AudioParam* q() { return q_; }
-  AudioParam* gain() { return gain_; }
-  AudioParam* detune() { return detune_; }
+  AudioParam* frequency() { return frequency_.Get(); }
+  AudioParam* q() { return q_.Get(); }
+  AudioParam* gain() { return gain_.Get(); }
+  AudioParam* detune() { return detune_.Get(); }
 
   // Get the magnitude and phase response of the filter at the given
   // set of frequencies (in Hz). The phase response is in radians.

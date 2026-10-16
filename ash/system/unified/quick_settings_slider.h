@@ -29,9 +29,9 @@ namespace ash {
 // input/output device in `AudioDetailedView`. `kRadioInactive` slider will be
 // used for the inactive device in `AudioDetailedView`.
 class ASH_EXPORT QuickSettingsSlider : public views::Slider {
- public:
-  METADATA_HEADER(QuickSettingsSlider);
+  METADATA_HEADER(QuickSettingsSlider, views::Slider)
 
+ public:
   // Represents the style of the slider.
   enum class Style {
     // Represents the slider where the full part is a rounded corner rectangle
@@ -40,10 +40,17 @@ class ASH_EXPORT QuickSettingsSlider : public views::Slider {
     // parts are center-aligned horizontally. The ends of both parts have fully
     // rounded corners.
     kDefault,
+    // Same style as `kDefault`, except for the thumb and trough are in gray for
+    // the muted default sliders.
+    kDefaultMuted,
     // Represents the style where both the full part and the empty part of the
     // slider have a height of `kFullSliderThickness`. The ends are fully
     // rounded.
     kRadioActive,
+    // Same style as `kRadioActive`, except for the thumb and trough are in
+    // gray for the muted radio sliders. Only the active radio sliders will have
+    // the muted state.
+    kRadioActiveMuted,
     // Represents the style where the full part and the empty part also have the
     // same height of `kFullSliderThickness`, except that the ends are not fully
     // rounded but have a radius of `kInactiveRadioSliderRoundedRadius`.
@@ -67,24 +74,36 @@ class ASH_EXPORT QuickSettingsSlider : public views::Slider {
   gfx::Rect GetInactiveRadioSliderRect();
   int GetInactiveRadioSliderRoundedCornerRadius();
 
+  void SetIsToggleableVolumeSlider(bool is_toggleable_volume_slider);
+
+  bool is_toggleable_volume_slider() { return is_toggleable_volume_slider_; }
+
  private:
   // views::Slider:
   SkColor GetThumbColor() const override;
   SkColor GetTroughColor() const override;
+  void AddedToWidget() override;
+  void UpdateAccessibleValue() override;
 
   // views::View:
   void OnPaint(gfx::Canvas* canvas) override;
   void OnThemeChanged() override;
 
+  // The style of the slider.
   Style slider_style_;
+
+  // Indicates if the slider can be toggled to mute/unmute volume. Used for
+  // additional accessibility warnings to make sure a user cannot accidentally
+  // turn off volume.
+  bool is_toggleable_volume_slider_ = false;
 };
 
 // A slider that ignores inputs. This will be used in the
 // `UnifiedKeyboardBrightnessView` and `UnifiedKeyboardBacklightToggleView`.
 class ASH_EXPORT ReadOnlySlider : public QuickSettingsSlider {
- public:
-  METADATA_HEADER(ReadOnlySlider);
+  METADATA_HEADER(ReadOnlySlider, QuickSettingsSlider)
 
+ public:
   explicit ReadOnlySlider(Style slider_style);
   ReadOnlySlider(const ReadOnlySlider&) = delete;
   ReadOnlySlider& operator=(const ReadOnlySlider&) = delete;

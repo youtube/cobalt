@@ -11,6 +11,7 @@
 #include "ash/shelf/shelf.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
+#include "ash/system/notification_center/notification_center_tray.h"
 #include "ash/system/privacy/privacy_indicators_controller.h"
 #include "ash/system/status_area_widget.h"
 #include "ash/system/unified/unified_system_tray.h"
@@ -21,7 +22,9 @@
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/compositor/layer.h"
 #include "ui/gfx/animation/linear_animation.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/layout/box_layout.h"
 
@@ -39,8 +42,8 @@ constexpr char kCountAppsAccessCameraHistogramName[] =
     "Ash.PrivacyIndicators.NumberOfAppsAccessingCamera";
 constexpr char kCountAppsAccessMicrophoneHistogramName[] =
     "Ash.PrivacyIndicators.NumberOfAppsAccessingMicrophone";
-constexpr char kRepeatedShowsHistogramName[] =
-    "Ash.PrivacyIndicators.NumberOfRepeatedShows";
+constexpr char kVisibilityDurationHistogramName[] =
+    "Ash.PrivacyIndicators.IndicatorShowsDuration";
 
 // Update the state of accessing camera and microphone using the
 // `PrivacyIndicatorsController`.
@@ -74,11 +77,13 @@ int GetExpectedSizeInShrinkAnimation(bool for_longer_side, double progress) {
 // screen share.
 std::u16string GetExpectedTooltipText(std::u16string cam_mic_status,
                                       std::u16string screen_share_status) {
-  if (cam_mic_status.empty())
+  if (cam_mic_status.empty()) {
     return screen_share_status;
+  }
 
-  if (screen_share_status.empty())
+  if (screen_share_status.empty()) {
     return cam_mic_status;
+  }
 
   return l10n_util::GetStringFUTF16(IDS_PRIVACY_INDICATORS_VIEW_TOOLTIP,
                                     {cam_mic_status, screen_share_status},
@@ -89,7 +94,9 @@ std::u16string GetExpectedTooltipText(std::u16string cam_mic_status,
 
 namespace ash {
 
-class PrivacyIndicatorsTrayItemViewTest : public AshTestBase {
+class PrivacyIndicatorsTrayItemViewTest
+    : public AshTestBase,
+      public testing::WithParamInterface<bool> {
  public:
   PrivacyIndicatorsTrayItemViewTest()
       : AshTestBase(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
@@ -99,15 +106,8 @@ class PrivacyIndicatorsTrayItemViewTest : public AshTestBase {
       const PrivacyIndicatorsTrayItemViewTest&) = delete;
   ~PrivacyIndicatorsTrayItemViewTest() override = default;
 
-  // AshTestBase:
-  void SetUp() override {
-    scoped_feature_list_.InitAndEnableFeature(features::kPrivacyIndicators);
-
-    AshTestBase::SetUp();
-  }
-
   std::u16string GetTooltipText() {
-    return privacy_indicators_view()->GetTooltipText(gfx::Point());
+    return privacy_indicators_view()->GetRenderedTooltipText(gfx::Point());
   }
 
   views::BoxLayout* GetLayoutManager(
@@ -137,7 +137,17 @@ class PrivacyIndicatorsTrayItemViewTest : public AshTestBase {
   PrivacyIndicatorsTrayItemView* privacy_indicators_view() const {
     return Shell::GetPrimaryRootWindowController()
         ->GetStatusAreaWidget()
-        ->unified_system_tray()
+        ->notification_center_tray()
+        ->privacy_indicators_view();
+  }
+
+  PrivacyIndicatorsTrayItemView* GetSecondaryDisplayPrivacyIndicatorsView()
+      const {
+    auto* status_area_widget =
+        Shell::GetRootWindowControllerWithDisplayId(GetSecondaryDisplay().id())
+            ->GetStatusAreaWidget();
+
+    return status_area_widget->notification_center_tray()
         ->privacy_indicators_view();
   }
 
@@ -166,9 +176,6 @@ class PrivacyIndicatorsTrayItemViewTest : public AshTestBase {
   gfx::LinearAnimation* shorter_side_shrink_animation() {
     return privacy_indicators_view()->shorter_side_shrink_animation_.get();
   }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 TEST_F(PrivacyIndicatorsTrayItemViewTest, IconsVisibility) {
@@ -198,6 +205,9 @@ TEST_F(PrivacyIndicatorsTrayItemViewTest, IconsVisibility) {
   UpdateCameraAndMicrophoneUsage(
       /*is_camera_used=*/false,
       /*is_microphone_used=*/false);
+  // Fast forward by the minimum duration the privacy indicator should be held.
+  task_environment()->FastForwardBy(
+      ash::PrivacyIndicatorsController::kPrivacyIndicatorsMinimumHoldDuration);
   EXPECT_FALSE(privacy_indicators_view()->GetVisible());
 }
 
@@ -314,7 +324,7 @@ TEST_F(PrivacyIndicatorsTrayItemViewTest, TooltipText) {
       /*is_camera_used=*/true,
       /*is_microphone_used=*/false);
   EXPECT_EQ(GetExpectedTooltipText(/*cam_mic_status=*/l10n_util::GetStringUTF16(
-                                       IDS_PRIVACY_NOTIFICATION_TITLE_CAMERA),
+                                       IDS_PRIVACY_INDICATORS_STATUS_CAMERA),
                                    /*screen_share_status=*/std::u16string()),
             GetTooltipText());
 
@@ -322,7 +332,7 @@ TEST_F(PrivacyIndicatorsTrayItemViewTest, TooltipText) {
       /*is_camera_used=*/false,
       /*is_microphone_used=*/true);
   EXPECT_EQ(GetExpectedTooltipText(/*cam_mic_status=*/l10n_util::GetStringUTF16(
-                                       IDS_PRIVACY_NOTIFICATION_TITLE_MIC),
+                                       IDS_PRIVACY_INDICATORS_STATUS_MIC),
                                    /*screen_share_status=*/std::u16string()),
             GetTooltipText());
 
@@ -331,13 +341,15 @@ TEST_F(PrivacyIndicatorsTrayItemViewTest, TooltipText) {
       /*is_microphone_used=*/true);
   EXPECT_EQ(
       GetExpectedTooltipText(/*cam_mic_status=*/l10n_util::GetStringUTF16(
-                                 IDS_PRIVACY_NOTIFICATION_TITLE_CAMERA_AND_MIC),
+                                 IDS_PRIVACY_INDICATORS_STATUS_CAMERA_AND_MIC),
                              /*screen_share_status=*/std::u16string()),
       GetTooltipText());
 
   UpdateCameraAndMicrophoneUsage(
       /*is_camera_used=*/false,
       /*is_microphone_used=*/false);
+  task_environment()->FastForwardBy(
+      ash::PrivacyIndicatorsController::kPrivacyIndicatorsMinimumHoldDuration);
   EXPECT_EQ(GetExpectedTooltipText(/*cam_mic_status=*/std::u16string(),
                                    /*screen_share_status=*/std::u16string()),
             GetTooltipText());
@@ -351,25 +363,146 @@ TEST_F(PrivacyIndicatorsTrayItemViewTest, TooltipText) {
             GetTooltipText());
 }
 
-TEST_F(PrivacyIndicatorsTrayItemViewTest, ShelfAlignmentChanged) {
-  auto* privacy_indicators_view =
-      GetPrimaryUnifiedSystemTray()->privacy_indicators_view();
+TEST_F(PrivacyIndicatorsTrayItemViewTest, TooltipTextAccessibility) {
+  ui::AXNodeData data;
+  privacy_indicators_view()->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
+  EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+            GetTooltipText());
+  EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kDescription),
+            GetTooltipText());
+  EXPECT_EQ(GetExpectedTooltipText(/*cam_mic_status=*/std::u16string(),
+                                   /*screen_share_status=*/std::u16string()),
+            GetTooltipText());
 
+  data = ui::AXNodeData();
+  UpdateCameraAndMicrophoneUsage(
+      /*is_camera_used=*/true,
+      /*is_microphone_used=*/false);
+  privacy_indicators_view()->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
+  EXPECT_NE(data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+            GetTooltipText());
+  EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kDescription),
+            GetTooltipText());
+  EXPECT_EQ(GetExpectedTooltipText(/*cam_mic_status=*/l10n_util::GetStringUTF16(
+                                       IDS_PRIVACY_INDICATORS_STATUS_CAMERA),
+                                   /*screen_share_status=*/std::u16string()),
+            GetTooltipText());
+
+  data = ui::AXNodeData();
+  UpdateCameraAndMicrophoneUsage(
+      /*is_camera_used=*/false,
+      /*is_microphone_used=*/true);
+  privacy_indicators_view()->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
+  EXPECT_NE(data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+            GetTooltipText());
+  EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kDescription),
+            GetTooltipText());
+  EXPECT_EQ(GetExpectedTooltipText(/*cam_mic_status=*/l10n_util::GetStringUTF16(
+                                       IDS_PRIVACY_INDICATORS_STATUS_MIC),
+                                   /*screen_share_status=*/std::u16string()),
+            GetTooltipText());
+
+  data = ui::AXNodeData();
+  UpdateCameraAndMicrophoneUsage(
+      /*is_camera_used=*/true,
+      /*is_microphone_used=*/true);
+  privacy_indicators_view()->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
+  EXPECT_NE(data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+            GetTooltipText());
+  EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kDescription),
+            GetTooltipText());
+  EXPECT_EQ(
+      GetExpectedTooltipText(/*cam_mic_status=*/l10n_util::GetStringUTF16(
+                                 IDS_PRIVACY_INDICATORS_STATUS_CAMERA_AND_MIC),
+                             /*screen_share_status=*/std::u16string()),
+      GetTooltipText());
+
+  data = ui::AXNodeData();
+  UpdateCameraAndMicrophoneUsage(
+      /*is_camera_used=*/false,
+      /*is_microphone_used=*/false);
+  task_environment()->FastForwardBy(
+      ash::PrivacyIndicatorsController::kPrivacyIndicatorsMinimumHoldDuration);
+  privacy_indicators_view()->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
+  EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+            GetTooltipText());
+  EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kDescription),
+            GetTooltipText());
+  EXPECT_EQ(GetExpectedTooltipText(/*cam_mic_status=*/std::u16string(),
+                                   /*screen_share_status=*/std::u16string()),
+            GetTooltipText());
+
+  data = ui::AXNodeData();
+  privacy_indicators_view()->UpdateScreenShareStatus(
+      /*is_screen_sharing=*/true);
+  privacy_indicators_view()->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
+  EXPECT_NE(data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+            GetTooltipText());
+  EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kDescription),
+            GetTooltipText());
+  EXPECT_EQ(GetExpectedTooltipText(
+                /*cam_mic_status=*/std::u16string(),
+                /*screen_share_status=*/l10n_util::GetStringUTF16(
+                    IDS_ASH_STATUS_TRAY_SCREEN_SHARE_TITLE)),
+            GetTooltipText());
+}
+
+TEST_F(PrivacyIndicatorsTrayItemViewTest, ShelfAlignmentChanged) {
+  auto* view = privacy_indicators_view();
   GetPrimaryShelf()->SetAlignment(ShelfAlignment::kLeft);
   EXPECT_EQ(views::BoxLayout::Orientation::kVertical,
-            GetLayoutManager(privacy_indicators_view)->GetOrientation());
+            GetLayoutManager(view)->GetOrientation());
 
   GetPrimaryShelf()->SetAlignment(ShelfAlignment::kBottom);
   EXPECT_EQ(views::BoxLayout::Orientation::kHorizontal,
-            GetLayoutManager(privacy_indicators_view)->GetOrientation());
+            GetLayoutManager(view)->GetOrientation());
 
   GetPrimaryShelf()->SetAlignment(ShelfAlignment::kRight);
   EXPECT_EQ(views::BoxLayout::Orientation::kVertical,
-            GetLayoutManager(privacy_indicators_view)->GetOrientation());
+            GetLayoutManager(view)->GetOrientation());
 
   GetPrimaryShelf()->SetAlignment(ShelfAlignment::kBottomLocked);
   EXPECT_EQ(views::BoxLayout::Orientation::kHorizontal,
-            GetLayoutManager(privacy_indicators_view)->GetOrientation());
+            GetLayoutManager(view)->GetOrientation());
+}
+
+// Tests that the privacy indicators tray item is visible when its show
+// animation finishes running after the notification center tray has been
+// hidden. This test was added in response to b/283091001.
+TEST_F(PrivacyIndicatorsTrayItemViewTest,
+       ShowAnimationAfterNotificationCenterTrayHidden) {
+  // Verify that the privacy indicators are hidden and not animating.
+  ASSERT_FALSE(privacy_indicators_view()->GetVisible());
+  ASSERT_EQ(PrivacyIndicatorsTrayItemView::AnimationState::kIdle,
+            animation_state());
+
+  // Show the notification center tray.
+  GetPrimaryNotificationCenterTray()->SetVisiblePreferred(true);
+  ASSERT_TRUE(GetPrimaryNotificationCenterTray()->IsDrawn());
+  ASSERT_EQ(GetPrimaryNotificationCenterTray()->layer()->opacity(), 1.0f);
+
+  // Hide the notification center tray.
+  GetPrimaryNotificationCenterTray()->SetVisiblePreferred(false);
+  ASSERT_FALSE(GetPrimaryNotificationCenterTray()->IsDrawn());
+  ASSERT_EQ(GetPrimaryNotificationCenterTray()->layer()->opacity(), 0.0f);
+
+  // Show privacy indicators and let the animation end.
+  UpdateCameraAndMicrophoneUsage(
+      /*is_camera_used=*/true,
+      /*is_microphone_used=*/true);
+  SimulateAnimationEnded();
+  ASSERT_EQ(PrivacyIndicatorsTrayItemView::AnimationState::kIdle,
+            animation_state());
+
+  // Verify that the privacy indicators tray item is visible.
+  EXPECT_TRUE(privacy_indicators_view()->IsDrawn());
+  EXPECT_EQ(privacy_indicators_view()->layer()->opacity(), 1.0f);
 }
 
 TEST_F(PrivacyIndicatorsTrayItemViewTest, VisibilityAnimation) {
@@ -383,6 +516,7 @@ TEST_F(PrivacyIndicatorsTrayItemViewTest, VisibilityAnimation) {
   double progress = 0.5;
 
   // Firstly, expand animation will be performed.
+  expand_animation()->Start();
   AnimateToValue(expand_animation(), progress);
   EXPECT_EQ(PrivacyIndicatorsTrayItemView::AnimationState::kExpand,
             animation_state());
@@ -456,6 +590,7 @@ TEST_F(PrivacyIndicatorsTrayItemViewTest, SideShelfVisibilityAnimation) {
   double progress = 0.5;
 
   // Firstly, expand animation will be performed.
+  expand_animation()->Start();
   AnimateToValue(expand_animation(), progress);
   EXPECT_EQ(PrivacyIndicatorsTrayItemView::AnimationState::kExpand,
             animation_state());
@@ -521,6 +656,7 @@ TEST_F(PrivacyIndicatorsTrayItemViewTest, StateChangeDuringAnimation) {
   double progress = 0.5;
 
   // Firstly, expand animation will be performed.
+  expand_animation()->Start();
   AnimateToValue(expand_animation(), progress);
 
   // Update state in mid animation, shouldn't crash anything.
@@ -584,18 +720,73 @@ TEST_F(PrivacyIndicatorsTrayItemViewTest, MultipleAppsAccess) {
   UpdateCameraAndMicrophoneUsage(
       /*is_camera_used=*/false,
       /*is_microphone_used=*/false, /*app_id=*/"app_id2");
+  // Fast forward by the minimum duration the privacy indicator should be held.
+  task_environment()->FastForwardBy(
+      ash::PrivacyIndicatorsController::kPrivacyIndicatorsMinimumHoldDuration);
   EXPECT_TRUE(privacy_indicators_view()->GetVisible());
 
   UpdateCameraAndMicrophoneUsage(
       /*is_camera_used=*/false,
       /*is_microphone_used=*/false, /*app_id=*/"app_id3");
+  // Fast forward by the minimum duration the privacy indicator should be held.
+  task_environment()->FastForwardBy(
+      ash::PrivacyIndicatorsController::kPrivacyIndicatorsMinimumHoldDuration);
   EXPECT_TRUE(privacy_indicators_view()->GetVisible());
 
   // Indicator should hide when removing all apps.
   UpdateCameraAndMicrophoneUsage(
       /*is_camera_used=*/false,
       /*is_microphone_used=*/false);
+  // Fast forward by the minimum duration the privacy indicator should be held.
+  task_environment()->FastForwardBy(
+      ash::PrivacyIndicatorsController::kPrivacyIndicatorsMinimumHoldDuration);
   EXPECT_FALSE(privacy_indicators_view()->GetVisible());
+}
+
+// TODO(crbug.com/402479687): Re-enable test when flakiness is fixed.
+#if BUILDFLAG(IS_LINUX) || defined(MEMORY_SANITIZER)
+#define MAYBE_HidingDelayTimerEnabledWithMultipleAppsAccess DISABLED_HidingDelayTimerEnabledWithMultipleAppsAccess
+#else
+#define MAYBE_HidingDelayTimerEnabledWithMultipleAppsAccess HidingDelayTimerEnabledWithMultipleAppsAccess
+#endif
+TEST_F(PrivacyIndicatorsTrayItemViewTest,
+       MAYBE_HidingDelayTimerEnabledWithMultipleAppsAccess) {
+  EXPECT_FALSE(privacy_indicators_view()->GetVisible());
+
+  UpdateCameraAndMicrophoneUsage(
+      /*is_camera_used=*/true,
+      /*is_microphone_used=*/false);
+  // Fast forward by the minimum duration the privacy indicator should be held.
+  task_environment()->FastForwardBy(
+      ash::PrivacyIndicatorsController::kPrivacyIndicatorsMinimumHoldDuration);
+  EXPECT_TRUE(privacy_indicators_view()->GetVisible());
+  EXPECT_TRUE(camera_icon()->GetVisible());
+  EXPECT_FALSE(microphone_icon()->GetVisible());
+
+  // When a new app accessing cam, we will show the icons according to the
+  // access state of that particular app.
+  UpdateCameraAndMicrophoneUsage(
+      /*is_camera_used=*/true,
+      /*is_microphone_used=*/true, /*app_id=*/"app_id2");
+  EXPECT_TRUE(privacy_indicators_view()->GetVisible());
+  EXPECT_TRUE(camera_icon()->GetVisible());
+  EXPECT_TRUE(microphone_icon()->GetVisible());
+
+  // Indicator should still show app 2 after removing app 2 not app 1.
+  UpdateCameraAndMicrophoneUsage(
+      /*is_camera_used=*/false,
+      /*is_microphone_used=*/false, /*app_id=*/"app_id2");
+  EXPECT_TRUE(privacy_indicators_view()->GetVisible());
+  EXPECT_TRUE(camera_icon()->GetVisible());
+  EXPECT_TRUE(microphone_icon()->GetVisible());
+
+  // When the app retries, the visibility remains the same.
+  UpdateCameraAndMicrophoneUsage(
+      /*is_camera_used=*/true,
+      /*is_microphone_used=*/true, /*app_id=*/"app_id2");
+  EXPECT_TRUE(privacy_indicators_view()->GetVisible());
+  EXPECT_TRUE(camera_icon()->GetVisible());
+  EXPECT_TRUE(microphone_icon()->GetVisible());
 }
 
 TEST_F(PrivacyIndicatorsTrayItemViewTest, RecordShowTypeMetrics) {
@@ -643,23 +834,35 @@ TEST_F(PrivacyIndicatorsTrayItemViewTest, RecordShowTypeMetrics) {
       PrivacyIndicatorsTrayItemView::Type::kAllUsed);
 }
 
-TEST_F(PrivacyIndicatorsTrayItemViewTest, RecordShowPerSessionMetrics) {
+// TODO(crbug.com/373996845): Re-enable test.
+#if defined(ADDRESS_SANITIZER)
+#define MAYBE_RecordShowPerSessionMetrics DISABLED_RecordShowPerSessionMetrics
+#else
+#define MAYBE_RecordShowPerSessionMetrics RecordShowPerSessionMetrics
+#endif
+TEST_F(PrivacyIndicatorsTrayItemViewTest, MAYBE_RecordShowPerSessionMetrics) {
   // Set up 2 displays. Note that only one instance should be recorded for the
   // primary display when session changes.
   UpdateDisplay("100x200,300x400");
   int expected_count = 1;
 
   // Show the indicator in the given `show_count` number of times.
-  auto trigger_show_indicator = [](int show_count) {
-    // Update the state of camera/microphone access so that the indicators on
-    // all displays show, then hide for `show_count` times.
-    for (auto i = 0; i < show_count; i++) {
-      UpdateCameraAndMicrophoneUsage(/*is_camera_used=*/true,
-                                     /*is_microphone_used=*/true);
-      UpdateCameraAndMicrophoneUsage(/*is_camera_used=*/false,
-                                     /*is_microphone_used=*/false);
-    }
-  };
+  auto trigger_show_indicator =
+      [](int show_count, base::test::TaskEnvironment* task_environment) {
+        // Update the state of camera/microphone access so that the indicators
+        // on all displays show, then hide for `show_count` times.
+        for (auto i = 0; i < show_count; i++) {
+          UpdateCameraAndMicrophoneUsage(/*is_camera_used=*/true,
+                                         /*is_microphone_used=*/true);
+          UpdateCameraAndMicrophoneUsage(/*is_camera_used=*/false,
+                                         /*is_microphone_used=*/false);
+          // Fast forward by the minimum duration the privacy indicator should
+          // be held.
+          task_environment->FastForwardBy(
+              ash::PrivacyIndicatorsController::
+                  kPrivacyIndicatorsMinimumHoldDuration);
+        }
+      };
 
   base::HistogramTester histograms;
 
@@ -667,7 +870,7 @@ TEST_F(PrivacyIndicatorsTrayItemViewTest, RecordShowPerSessionMetrics) {
       session_manager::SessionState::ACTIVE);
 
   int expected_sample = 1;
-  trigger_show_indicator(expected_sample);
+  trigger_show_indicator(expected_sample, task_environment());
 
   // After session changed, metrics should be recorded.
   GetSessionControllerClient()->SetSessionState(
@@ -676,7 +879,7 @@ TEST_F(PrivacyIndicatorsTrayItemViewTest, RecordShowPerSessionMetrics) {
                                expected_sample, expected_count);
 
   expected_sample = 6;
-  trigger_show_indicator(expected_sample);
+  trigger_show_indicator(expected_sample, task_environment());
 
   // After session changed, metrics should be recorded.
   GetSessionControllerClient()->SetSessionState(
@@ -685,7 +888,7 @@ TEST_F(PrivacyIndicatorsTrayItemViewTest, RecordShowPerSessionMetrics) {
                                expected_sample, expected_count);
 
   expected_sample = 10;
-  trigger_show_indicator(expected_sample);
+  trigger_show_indicator(expected_sample, task_environment());
 
   // After session changed, metrics should be recorded.
   GetSessionControllerClient()->SetSessionState(
@@ -718,54 +921,64 @@ TEST_F(PrivacyIndicatorsTrayItemViewTest, RecordAppAccessSimultaneously) {
   histograms.ExpectBucketCount(kCountAppsAccessMicrophoneHistogramName, 2, 1);
 }
 
-TEST_F(PrivacyIndicatorsTrayItemViewTest, RecordRepeatedShows) {
+TEST_F(PrivacyIndicatorsTrayItemViewTest, RecordVisibilityDuration) {
   // Set up 2 displays. Note that only one instance should be recorded for the
-  // primary display when session changes.
+  // primary display.
   UpdateDisplay("100x200,300x400");
 
   base::HistogramTester histograms;
 
-  int expected_sample = 6;
+  auto start_time = base::Time::Now();
 
-  // Makes the view flicker (show then hide) for `expected_sample` of times.
-  // Metric should be recorded for this repeated shows.
-  for (auto i = 0; i < expected_sample; i++) {
-    UpdateCameraAndMicrophoneUsage(/*is_camera_used=*/true,
-                                   /*is_microphone_used=*/true);
-    UpdateCameraAndMicrophoneUsage(/*is_camera_used=*/false,
-                                   /*is_microphone_used=*/false);
-    task_environment()->FastForwardBy(base::Milliseconds(80));
-  }
+  UpdateCameraAndMicrophoneUsage(
+      /*is_camera_used=*/true,
+      /*is_microphone_used=*/false);
   task_environment()->FastForwardBy(base::Milliseconds(100));
 
-  histograms.ExpectBucketCount(kRepeatedShowsHistogramName, expected_sample, 1);
+  UpdateCameraAndMicrophoneUsage(
+      /*is_camera_used=*/false,
+      /*is_microphone_used=*/false);
+  // Fast forward by the minimum duration the privacy indicator should be held.
+  task_environment()->FastForwardBy(
+      ash::PrivacyIndicatorsController::kPrivacyIndicatorsMinimumHoldDuration);
+  auto expected_sample1 = base::Time::Now() - start_time;
+  histograms.ExpectTimeBucketCount(kVisibilityDurationHistogramName,
+                                   expected_sample1, 1);
 
-  // Makes one more flickering after 100ms. This flicker should not count
-  // towards the previous ones.
-  UpdateCameraAndMicrophoneUsage(/*is_camera_used=*/true,
-                                 /*is_microphone_used=*/true);
-  UpdateCameraAndMicrophoneUsage(/*is_camera_used=*/false,
-                                 /*is_microphone_used=*/false);
-  task_environment()->FastForwardBy(base::Milliseconds(100));
+  start_time = base::Time::Now();
 
-  histograms.ExpectBucketCount(kRepeatedShowsHistogramName, expected_sample + 1,
-                               0);
+  UpdateCameraAndMicrophoneUsage(
+      /*is_camera_used=*/true,
+      /*is_microphone_used=*/false);
+  task_environment()->FastForwardBy(base::Minutes(10));
 
-  // Make sure it works again.
-  expected_sample = 8;
+  UpdateCameraAndMicrophoneUsage(
+      /*is_camera_used=*/false,
+      /*is_microphone_used=*/false);
+  // Fast forward by the minimum duration the privacy indicator should be held.
+  task_environment()->FastForwardBy(
+      ash::PrivacyIndicatorsController::kPrivacyIndicatorsMinimumHoldDuration);
+  histograms.ExpectTimeBucketCount(kVisibilityDurationHistogramName,
+                                   base::Time::Now() - start_time, 1);
 
-  // Makes the view flicker (show then hide) for `expected_sample` of times.
-  // Metric should be recorded for this repeated shows.
-  for (auto i = 0; i < expected_sample; i++) {
-    UpdateCameraAndMicrophoneUsage(/*is_camera_used=*/true,
-                                   /*is_microphone_used=*/true);
-    UpdateCameraAndMicrophoneUsage(/*is_camera_used=*/false,
-                                   /*is_microphone_used=*/false);
-    task_environment()->FastForwardBy(base::Milliseconds(80));
-  }
-  task_environment()->FastForwardBy(base::Milliseconds(100));
+  // No new entries for previous bucket.
+  histograms.ExpectTimeBucketCount(kVisibilityDurationHistogramName,
+                                   expected_sample1, 1);
+}
 
-  histograms.ExpectBucketCount(kRepeatedShowsHistogramName, expected_sample, 1);
+TEST_F(PrivacyIndicatorsTrayItemViewTest, IndicatorVisisbilityOnSecondDisplay) {
+  // Update usage when there's one display.
+  UpdateCameraAndMicrophoneUsage(
+      /*is_camera_used=*/true,
+      /*is_microphone_used=*/false);
+
+  ASSERT_TRUE(privacy_indicators_view()->GetVisible());
+
+  // Now set up 2 displays. The indicator should show on both displays.
+  UpdateDisplay("100x200,300x400");
+
+  EXPECT_TRUE(privacy_indicators_view()->GetVisible());
+  EXPECT_TRUE(GetSecondaryDisplayPrivacyIndicatorsView()->GetVisible());
 }
 
 }  // namespace ash

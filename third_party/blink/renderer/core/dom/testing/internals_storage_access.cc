@@ -3,9 +3,10 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/core/dom/testing/internals_storage_access.h"
+
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
-#include "third_party/blink/public/mojom/storage_access/storage_access_automation.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/test/mojom/storage_access/storage_access_automation.test-mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -13,7 +14,7 @@
 namespace blink {
 
 // static
-ScriptPromise InternalsStorageAccess::setStorageAccess(
+ScriptPromise<IDLUndefined> InternalsStorageAccess::setStorageAccess(
     ScriptState* script_state,
     Internals&,
     const String& origin,
@@ -26,16 +27,16 @@ ScriptPromise InternalsStorageAccess::setStorageAccess(
       storage_access_automation.BindNewPipeAndPassReceiver());
   DCHECK(storage_access_automation.is_bound());
 
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
-  ScriptPromise promise = resolver->Promise();
+  auto promise = resolver->Promise();
   auto* raw_storage_access_automation = storage_access_automation.get();
   raw_storage_access_automation->SetStorageAccess(
       origin, embedding_origin, blocked,
       WTF::BindOnce(
           // While we only really need |resolver|, we also take the
           // mojo::Remote<> so that it remains alive after this function exits.
-          [](ScriptPromiseResolver* resolver,
+          [](ScriptPromiseResolver<IDLUndefined>* resolver,
              mojo::Remote<test::mojom::blink::StorageAccessAutomation>,
              bool success) {
             if (success)

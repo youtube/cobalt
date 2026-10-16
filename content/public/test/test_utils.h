@@ -17,13 +17,10 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/global_routing_id.h"
-#include "content/public/browser/notification_details.h"
-#include "content/public/browser/notification_observer.h"
-#include "content/public/browser/notification_registrar.h"
-#include "content/public/browser/notification_source.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "third_party/blink/public/common/fetch/fetch_api_request_headers_map.h"
-#include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom.h"
+#include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-forward.h"
+#include "third_party/blink/public/mojom/loader/referrer.mojom-forward.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include <jni.h>
@@ -31,7 +28,6 @@
 
 namespace base {
 class CommandLine;
-class Value;
 }  // namespace base
 
 // A collection of functions designed for use with unit and browser tests.
@@ -78,13 +74,6 @@ void RunAllTasksUntilIdle();
 // RunAllPendingInMessageLoop() above).
 base::OnceClosure GetDeferredQuitTaskForRunLoop(base::RunLoop* run_loop);
 
-// Executes the specified JavaScript in the specified frame, and runs a nested
-// MessageLoop. When the result is available, it is returned.
-// This should not be used; the use of the ExecuteScript functions in
-// browser_test_utils is preferable.
-base::Value ExecuteScriptAndGetValue(RenderFrameHost* render_frame_host,
-                                     const std::string& script);
-
 // Returns true if all sites are isolated. Typically used to bail from a test
 // that is incompatible with --site-per-process.
 bool AreAllSitesIsolatedForTesting();
@@ -97,12 +86,10 @@ bool AreAllSitesIsolatedForTesting();
 bool IsOriginAgentClusterEnabledForOrigin(SiteInstance* site_instance,
                                           const url::Origin& origin);
 
-// Returns true if default SiteInstances are enabled. Typically used in a test
-// to mark expectations specific to default SiteInstances.
-bool AreDefaultSiteInstancesEnabled();
-
 // Returns true if the process model only allows a SiteInstance to contain
 // a single site.
+// TODO(crbug.com/390571607, yangsharon): Rename this function and use for
+// default SiteInstanceGroups.
 bool AreStrictSiteInstancesEnabled();
 
 // Returns true if a test needs to register an origin for isolation to ensure
@@ -121,25 +108,29 @@ void IsolateAllSitesForTesting(base::CommandLine* command_line);
 // Whether same-site navigations might result in a change of RenderFrameHosts -
 // this will happen when ProactivelySwapBrowsingInstance, RenderDocument or
 // back-forward cache is enabled on same-site main frame navigations. Note that
-// not even if this returns true, not all same-site main frame navigations will
+// even if this returns true, not all same-site main frame navigations will
 // result in a change of RenderFrameHosts, e.g. if RenderDocument is disabled
 // but BFCache is enabled, this will return true but only same-site navigations
 // from pages that are BFCache-eligible will result in a RenderFrameHost change.
 bool CanSameSiteMainFrameNavigationsChangeRenderFrameHosts();
 
-// Whether same-site navigations will always result in a change of
-// RenderFrameHosts, which will happen when RenderDocument is enabled. Different
-// from `CanSameSiteMainFrameNavigationsChangeRenderFrameHosts()`, this means
-// all same-site navigations will trigger a RenderFrameHost change, instead of
-// only a subset that satisfies some conditions, e.g. BFCache eligibilty.
-bool WillSameSiteNavigationsChangeRenderFrameHosts();
+// Whether same-site navigations will result in a change of RenderFrameHosts,
+// which will happen when RenderDocument is enabled. Due to the various levels
+// of the feature, the result may differ depending on whether the
+// RenderFrameHost is a main/local root/non-local-root frame.
+bool WillSameSiteNavigationChangeRenderFrameHosts(bool is_main_frame,
+                                                  bool is_local_root = true);
 
 // Whether same-site navigations might result in a change of SiteInstances -
 // this will happen when ProactivelySwapBrowsingInstance or back-forward cache
 // is enabled on same-site main frame navigations.
-// Note that unlike CanSameSiteMainFrameNavigationsChangeRenderFrameHosts()
+// Note that unlike WillSameSiteNavigationChangeRenderFrameHosts()
 // above, this will not be true when RenderDocument for main-frame is enabled.
 bool CanSameSiteMainFrameNavigationsChangeSiteInstances();
+
+// Returns true if navigation queueing is fully enabled, where we will queue new
+// navigations that happen when there is an existing pending commit navigation.
+bool IsNavigationQueueingEnabled();
 
 // Makes sure that navigations that start in |rfh| won't result in a proactive
 // BrowsingInstance swap (note they might still result in a normal
@@ -163,6 +154,10 @@ WebContents* CreateAndAttachInnerContents(RenderFrameHost* rfh);
 
 // Spins a run loop until IsDocumentOnLoadCompletedInPrimaryMainFrame() is true.
 void AwaitDocumentOnLoadCompleted(WebContents* web_contents);
+
+// Sets the focused frame of `web_contents` to the `rfh` for tests that rely on
+// the focused frame not being null.
+void FocusWebContentsOnFrame(WebContents* web_contents, RenderFrameHost* rfh);
 
 // Helper class to Run and Quit the message loop. Run and Quit can only happen
 // once per instance. Make a new instance for each use. Calling Quit after Run
@@ -222,102 +217,7 @@ class MessageLoopRunner : public base::RefCountedThreadSafe<MessageLoopRunner> {
   base::ThreadChecker thread_checker_;
 };
 
-// A WindowedNotificationObserver allows code to wait until a condition is met.
-// Simple conditions are specified by providing a |notification_type| and a
-// |source|. When a notification of the expected type from the expected source
-// is received, the condition is met.
-// More complex conditions can be specified by providing a |notification_type|
-// and a |callback|. The callback is called whenever the notification is fired.
-// If the callback returns |true|, the condition is met. Otherwise, the
-// condition is not yet met and the callback will be invoked again every time a
-// notification of the expected type is received until the callback returns
-// |true|. For convenience, two callback types are defined, one that is provided
-// with the notification source and details, and one that is not.
-//
-// This helper class exists to avoid the following common pattern in tests:
-//   PerformAction()
-//   WaitForCompletionNotification()
-// The pattern leads to flakiness as there is a window between PerformAction
-// returning and the observers getting registered, where a notification will be
-// missed.
-//
-// Rather, one can do this:
-//   WindowedNotificationObserver signal(...)
-//   PerformAction()
-//   signal.Wait()
-class WindowedNotificationObserver : public NotificationObserver {
- public:
-  // Callback invoked on notifications. Should return |true| when the condition
-  // being waited for is met. For convenience, there is a choice between two
-  // callback types, one that is provided with the notification source and
-  // details, and one that is not.
-  using ConditionTestCallback =
-      base::RepeatingCallback<bool(const NotificationSource&,
-                                   const NotificationDetails&)>;
-  using ConditionTestCallbackWithoutSourceAndDetails =
-      base::RepeatingCallback<bool(void)>;
-
-  // Set up to wait for a simple condition. The condition is met when a
-  // notification of the given |notification_type| from the given |source| is
-  // received. To accept notifications from all sources, specify
-  // NotificationService::AllSources() as |source|.
-  WindowedNotificationObserver(int notification_type,
-                               const NotificationSource& source);
-
-  // Set up to wait for a complex condition. The condition is met when
-  // |callback| returns |true|. The callback is invoked whenever a notification
-  // of |notification_type| from any source is received.
-  WindowedNotificationObserver(int notification_type,
-                               ConditionTestCallback callback);
-  WindowedNotificationObserver(
-      int notification_type,
-      ConditionTestCallbackWithoutSourceAndDetails callback);
-
-  WindowedNotificationObserver(const WindowedNotificationObserver&) = delete;
-  WindowedNotificationObserver& operator=(const WindowedNotificationObserver&) =
-      delete;
-
-  ~WindowedNotificationObserver() override;
-
-  // Adds an additional notification type to wait for. The condition will be met
-  // if any of the registered notification types from their respective sources
-  // is received.
-  void AddNotificationType(int notification_type,
-                           const NotificationSource& source);
-
-  // Wait until the specified condition is met. If the condition is already met
-  // (that is, the expected notification has already been received or the
-  // given callback returns |true| already), Wait() returns immediately.
-  void Wait();
-
-  // Returns NotificationService::AllSources() if we haven't observed a
-  // notification yet.
-  const NotificationSource& source() const {
-    return source_;
-  }
-
-  const NotificationDetails& details() const {
-    return details_;
-  }
-
-  // NotificationObserver:
-  void Observe(int type,
-               const NotificationSource& source,
-               const NotificationDetails& details) override;
-
- private:
-  bool seen_ = false;
-  NotificationRegistrar registrar_;
-
-  ConditionTestCallback callback_;
-
-  NotificationSource source_;
-  NotificationDetails details_;
-  base::RunLoop run_loop_;
-};
-
-// Helper to wait for loading to stop on a WebContents.  It should be preferred
-// to uses of WindowedNotificationObserver for NOTIFICATION_LOAD_STOP.
+// Helper to wait for loading to stop on a WebContents.
 //
 // This helper class exists to avoid the following common pattern in tests:
 //   PerformAction()
@@ -373,7 +273,7 @@ class InProcessUtilityThreadHelper : public BrowserChildProcessObserver {
   void BrowserChildProcessHostDisconnected(
       const ChildProcessData& data) override;
 
-  absl::optional<base::RunLoop> run_loop_;
+  std::optional<base::RunLoop> run_loop_;
 };
 
 // This observer keeps tracks of whether a given RenderFrameHost has received
@@ -392,7 +292,7 @@ class RenderFrameDeletedObserver : public WebContentsObserver {
   // Overridden WebContentsObserver methods.
   void RenderFrameDeleted(RenderFrameHost* render_frame_host) override;
 
-  // TODO(1267073): Add [[nodiscard]]
+  // TODO(crbug.com/40204325): Add [[nodiscard]]
   // Returns true if the frame was deleted before the timeout.
   bool WaitUntilDeleted();
   bool deleted() const;
@@ -564,6 +464,15 @@ class ScopedContentBrowserClientSetting final {
  private:
   const raw_ptr<ContentBrowserClient> old_client_;
 };
+
+// Blocks the current execution until the frame submitted via the browser's
+// compositor is presented on the screen.
+void WaitForBrowserCompositorFramePresented(WebContents* web_contents);
+
+// Forces the browser to submit a compositor frame, even if nothing has changed
+// in the viewport. Use `WaitForBrowserCompositorFramePresented()` to wait for
+// the frame's presentation.
+void ForceNewCompositorFrameFromBrowser(WebContents* web_contents);
 
 }  // namespace content
 

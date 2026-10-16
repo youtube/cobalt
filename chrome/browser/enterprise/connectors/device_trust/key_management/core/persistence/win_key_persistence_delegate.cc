@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "base/memory/scoped_refptr.h"
 #include "base/no_destructor.h"
 #include "base/syslog_logging.h"
 #include "chrome/browser/enterprise/connectors/device_trust/key_management/core/ec_signing_key.h"
@@ -36,7 +37,7 @@ std::unique_ptr<crypto::UnexportableSigningKey> CreateSigningKey(
   std::unique_ptr<crypto::UnexportableKeyProvider> provider;
 
   if (trust_level == BPKUR::CHROME_BROWSER_HW_KEY) {
-    provider = crypto::GetUnexportableKeyProvider();
+    provider = crypto::GetUnexportableKeyProvider(/*config=*/{});
   } else if (trust_level == BPKUR::CHROME_BROWSER_OS_KEY) {
     provider = std::make_unique<ECSigningKeyProvider>();
   }
@@ -96,7 +97,9 @@ bool WinKeyPersistenceDelegate::StoreKeyPair(
                        "the signing key storage.");
 }
 
-std::unique_ptr<SigningKeyPair> WinKeyPersistenceDelegate::LoadKeyPair() {
+scoped_refptr<SigningKeyPair> WinKeyPersistenceDelegate::LoadKeyPair(
+    KeyStorageType type,
+    LoadPersistedKeyResult* result) {
   base::win::RegKey key;
   std::wstring signingkey_name;
   std::wstring trustlevel_name;
@@ -108,7 +111,9 @@ std::unique_ptr<SigningKeyPair> WinKeyPersistenceDelegate::LoadKeyPair() {
                   KeyPersistenceError::kOpenPersistenceStorageFailed,
                   "Device trust key rotation failed. Failed to open the "
                   "signing key storage for reading.");
-    return nullptr;
+    // TODO(b/301587025): Pipe error returned from opening the registry key for
+    // better logging.
+    return ReturnLoadKeyError(LoadPersistedKeyResult::kNotFound, result);
   }
 
   DWORD trust_level_dw;
@@ -118,14 +123,14 @@ std::unique_ptr<SigningKeyPair> WinKeyPersistenceDelegate::LoadKeyPair() {
                   KeyPersistenceError::kKeyPairMissingTrustLevel,
                   "Device trust key rotation failed. Failed to get the trust "
                   "level details from the signing key storage.");
-    return nullptr;
+    return ReturnLoadKeyError(LoadPersistedKeyResult::kNotFound, result);
   }
 
   std::unique_ptr<crypto::UnexportableKeyProvider> provider;
   KeyTrustLevel trust_level = BPKUR::KEY_TRUST_LEVEL_UNSPECIFIED;
   if (trust_level_dw == BPKUR::CHROME_BROWSER_HW_KEY) {
     trust_level = BPKUR::CHROME_BROWSER_HW_KEY;
-    provider = crypto::GetUnexportableKeyProvider();
+    provider = crypto::GetUnexportableKeyProvider(/*config=*/{});
   } else if (trust_level_dw == BPKUR::CHROME_BROWSER_OS_KEY) {
     trust_level = BPKUR::CHROME_BROWSER_OS_KEY;
     provider = std::make_unique<ECSigningKeyProvider>();
@@ -134,17 +139,17 @@ std::unique_ptr<SigningKeyPair> WinKeyPersistenceDelegate::LoadKeyPair() {
                   KeyPersistenceError::kInvalidTrustLevel,
                   "Device trust key rotation failed. Invalid trust level for "
                   "the signing key.");
-
-    return nullptr;
+    return ReturnLoadKeyError(LoadPersistedKeyResult::kMalformedKey, result);
   }
 
   std::vector<uint8_t> wrapped;
-  DWORD type = REG_NONE;
+  DWORD reg_type = REG_NONE;
   DWORD size = 0;
-  res = key.ReadValue(signingkey_name.c_str(), nullptr, &size, &type);
-  if (res == ERROR_SUCCESS && type == REG_BINARY) {
+  res = key.ReadValue(signingkey_name.c_str(), nullptr, &size, &reg_type);
+  if (res == ERROR_SUCCESS && reg_type == REG_BINARY) {
     wrapped.resize(size);
-    res = key.ReadValue(signingkey_name.c_str(), wrapped.data(), &size, &type);
+    res = key.ReadValue(signingkey_name.c_str(), wrapped.data(), &size,
+                        &reg_type);
   }
   if (res != ERROR_SUCCESS) {
     RecordFailure(
@@ -152,14 +157,15 @@ std::unique_ptr<SigningKeyPair> WinKeyPersistenceDelegate::LoadKeyPair() {
         KeyPersistenceError::kKeyPairMissingSigningKey,
         "Device trust key rotation failed. Failed to get the signing key "
         "details from the signing key storage.");
-    return nullptr;
+    return ReturnLoadKeyError(LoadPersistedKeyResult::kNotFound, result);
+  }
 
-  } else if (type != REG_BINARY) {
+  if (reg_type != REG_BINARY) {
     RecordFailure(
         KeyPersistenceOperation::kLoadKeyPair,
         KeyPersistenceError::kInvalidSigningKey,
         "Device trust key rotation failed. The signing key type is incorrect.");
-    return nullptr;
+    return ReturnLoadKeyError(LoadPersistedKeyResult::kMalformedKey, result);
   }
 
   auto signing_key = provider->FromWrappedSigningKeySlowly(wrapped);
@@ -169,13 +175,17 @@ std::unique_ptr<SigningKeyPair> WinKeyPersistenceDelegate::LoadKeyPair() {
         KeyPersistenceError::kCreateSigningKeyFromWrappedFailed,
         "Device trust key rotation failed. Failure creating a signing key "
         "object from the signing key details.");
-    return nullptr;
+    return ReturnLoadKeyError(LoadPersistedKeyResult::kMalformedKey, result);
   }
 
-  return std::make_unique<SigningKeyPair>(std::move(signing_key), trust_level);
+  if (result) {
+    *result = LoadPersistedKeyResult::kSuccess;
+  }
+  return base::MakeRefCounted<SigningKeyPair>(std::move(signing_key),
+                                              trust_level);
 }
 
-std::unique_ptr<SigningKeyPair> WinKeyPersistenceDelegate::CreateKeyPair() {
+scoped_refptr<SigningKeyPair> WinKeyPersistenceDelegate::CreateKeyPair() {
   // Attempt to create a TPM signing key.
   KeyPersistenceDelegate::KeyTrustLevel trust_level =
       BPKUR::CHROME_BROWSER_HW_KEY;
@@ -200,7 +210,18 @@ std::unique_ptr<SigningKeyPair> WinKeyPersistenceDelegate::CreateKeyPair() {
     return nullptr;
   }
 
-  return std::make_unique<SigningKeyPair>(std::move(signing_key), trust_level);
+  return base::MakeRefCounted<SigningKeyPair>(std::move(signing_key),
+                                              trust_level);
+}
+
+bool WinKeyPersistenceDelegate::PromoteTemporaryKeyPair() {
+  // TODO(b/290068551): Implement this method.
+  return true;
+}
+
+bool WinKeyPersistenceDelegate::DeleteKeyPair(KeyStorageType type) {
+  // TODO(b/290068551): Implement this method.
+  return true;
 }
 
 }  // namespace enterprise_connectors

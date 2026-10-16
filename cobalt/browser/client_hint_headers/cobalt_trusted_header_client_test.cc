@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_header_client.h"
 
+#include <optional>
 #include <tuple>
 
 #include "base/test/task_environment.h"
@@ -24,12 +25,12 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_request_headers.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -63,13 +64,13 @@ class CobaltTrustedHeaderClientTest : public ::testing::Test {
 TEST_F(CobaltTrustedHeaderClientTest, OnBeforeSendHeadersAddsHeaders) {
   mojo::Remote<network::mojom::TrustedHeaderClient> remote;
 
-  CobaltTrustedHeaderClient client(remote.BindNewPipeAndPassReceiver());
+  mojo::MakeSelfOwnedReceiver(std::make_unique<CobaltTrustedHeaderClient>(),
+                              remote.BindNewPipeAndPassReceiver());
 
   net::HttpRequestHeaders initial_headers;
   initial_headers.SetHeader("Existing-Header", "Existing-Value");
 
-  base::test::TestFuture<int32_t,
-                         const absl::optional<net::HttpRequestHeaders>&>
+  base::test::TestFuture<int32_t, const std::optional<net::HttpRequestHeaders>&>
       future;
   remote->OnBeforeSendHeaders(initial_headers, future.GetCallback());
 
@@ -80,13 +81,15 @@ TEST_F(CobaltTrustedHeaderClientTest, OnBeforeSendHeadersAddsHeaders) {
   ASSERT_TRUE(headers_optional.has_value());
   const auto& modified_headers = headers_optional.value();
 
-  std::string existing_value;
-  ASSERT_TRUE(modified_headers.GetHeader("Existing-Header", &existing_value));
-  EXPECT_EQ("Existing-Value", existing_value);
+  std::optional<std::string> existing_value =
+      modified_headers.GetHeader("Existing-Header");
+  ASSERT_TRUE(existing_value.has_value());
+  EXPECT_EQ("Existing-Value", existing_value.value());
 
-  std::string value;
-  ASSERT_TRUE(modified_headers.GetHeader("Cobalt-Client-Hint-Header", &value));
-  EXPECT_EQ("Value", value);
+  std::optional<std::string> value =
+      modified_headers.GetHeader("Cobalt-Client-Hint-Header");
+  ASSERT_TRUE(value.has_value());
+  EXPECT_EQ("Value", value.value());
 }
 
 }  // namespace browser

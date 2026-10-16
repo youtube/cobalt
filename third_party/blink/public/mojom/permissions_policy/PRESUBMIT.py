@@ -10,9 +10,6 @@ for more details about the presubmit API built into gcl.
 import os
 
 
-USE_PYTHON3 = True
-
-
 def _dynamic_import(module_dir, module_name):
     import sys
 
@@ -86,6 +83,7 @@ def uma_histogram_checks_factory(mojom_file,
         end_marker = '^};'
         presubmit_error = _import_update_histogram_enum(
             input_api).CheckPresubmitErrors(
+                'tools/metrics/histograms/metadata/blink/enums.xml',
                 histogram_enum_name=histogram_enum_name,
                 update_script_name=update_script_file,
                 source_enum_path=source_path,
@@ -94,8 +92,7 @@ def uma_histogram_checks_factory(mojom_file,
                 strip_k_prefix=True)
         if presubmit_error:
             return [
-                output_api.PresubmitPromptWarning(presubmit_error,
-                                                  items=[source_path])
+                output_api.PresubmitError(presubmit_error, items=[source_path])
             ]
         return []
 
@@ -147,7 +144,7 @@ def json5_config_checks_factory(mojom_source_path, json5_config_path,
             list(mojom_missing_enums)) if mojom_missing_enums else ""
 
         return [] if json5_enums == mojom_enums else [
-            output_api.PresubmitPromptWarning(
+            output_api.PresubmitError(
                 "{} and {} are out of sync: {}{}".format(
                     json5_config_path, mojom_source_path, json5_messages,
                     mojom_messages),
@@ -159,23 +156,9 @@ def json5_config_checks_factory(mojom_source_path, json5_config_path,
 
 checks = [
     uma_histogram_checks_factory(
-        mojom_file="permissions_policy_feature.mojom",
-        enum_name="PermissionsPolicyFeature",
-        update_script_file="update_permissions_policy_enum.py",
-        histogram_enum_name='FeaturePolicyFeature'),
-    uma_histogram_checks_factory(
         mojom_file="document_policy_feature.mojom",
         enum_name="DocumentPolicyFeature",
         update_script_file="update_document_policy_enum.py"),
-    json5_config_checks_factory(
-        mojom_source_path=os.path.join('third_party', 'blink', 'public',
-                                       'mojom', 'permissions_policy',
-                                       'permissions_policy_feature.mojom'),
-        json5_config_path=os.path.join('third_party', 'blink', 'renderer',
-                                       'core', 'permissions_policy',
-                                       'permissions_policy_features.json5'),
-        enum_name="PermissionsPolicyFeature",
-        ignore_enums={'NotFound'}),
     json5_config_checks_factory(
         mojom_source_path=os.path.join('third_party', 'blink', 'public',
                                        'mojom', 'permissions_policy',

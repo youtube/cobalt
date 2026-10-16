@@ -24,16 +24,19 @@ class Event final : public _cl_event, public Object
   public:
     // Front end entry functions, only called from OpenCL entry points
 
-    cl_int setUserEventStatus(cl_int executionStatus);
+    angle::Result setUserEventStatus(cl_int executionStatus);
 
-    cl_int getInfo(EventInfo name, size_t valueSize, void *value, size_t *valueSizeRet) const;
+    angle::Result getInfo(EventInfo name,
+                          size_t valueSize,
+                          void *value,
+                          size_t *valueSizeRet) const;
 
-    cl_int setCallback(cl_int commandExecCallbackType, EventCB pfnNotify, void *userData);
+    angle::Result setCallback(cl_int commandExecCallbackType, EventCB pfnNotify, void *userData);
 
-    cl_int getProfilingInfo(ProfilingInfo name,
-                            size_t valueSize,
-                            void *value,
-                            size_t *valueSizeRet);
+    angle::Result getProfilingInfo(ProfilingInfo name,
+                                   size_t valueSize,
+                                   void *value,
+                                   size_t *valueSizeRet);
 
   public:
     ~Event() override;
@@ -49,23 +52,23 @@ class Event final : public _cl_event, public Object
 
     void callback(cl_int commandStatus);
 
+    angle::Result initBackend(const rx::CLEventImpl::CreateFunc &createFunc);
+    bool isUserEvent() const { return mCommandType == CL_COMMAND_USER; }
+
     static EventPtrs Cast(cl_uint numEvents, const cl_event *eventList);
 
   private:
     using CallbackData = std::pair<EventCB, void *>;
     using Callbacks    = std::vector<CallbackData>;
 
-    Event(Context &context, cl_int &errorCode);
+    Event(Context &context);
 
-    Event(CommandQueue &queue,
-          cl_command_type commandType,
-          const rx::CLEventImpl::CreateFunc &createFunc,
-          cl_int &errorCode);
+    Event(CommandQueue &queue, cl_command_type commandType);
 
     const ContextPtr mContext;
     const CommandQueuePtr mCommandQueue;
     const cl_command_type mCommandType;
-    const rx::CLEventImpl::Ptr mImpl;
+    rx::CLEventImpl::Ptr mImpl;
 
     bool mStatusWasChanged = false;
 

@@ -45,7 +45,7 @@ void ClickButton(views::BubbleDialogDelegate* crash_bubble_delegate,
                  views::Button* button) {
   crash_bubble_delegate->ResetViewShownTimeStampForTesting();
   gfx::Point center(button->width() / 2, button->height() / 2);
-  const ui::MouseEvent event(ui::ET_MOUSE_PRESSED, center, center,
+  const ui::MouseEvent event(ui::EventType::kMousePressed, center, center,
                              ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
                              ui::EF_LEFT_MOUSE_BUTTON);
   button->OnMousePressed(event);
@@ -167,7 +167,7 @@ IN_PROC_BROWSER_TEST_F(ExitTypeServiceTest, RestoreFromCrashBubble) {
   GetExitTypeService()->AddCrashAckCallback(run_loop.QuitClosure());
   run_loop.Run();
   EXPECT_TRUE(IsSessionServiceSavingEnabled());
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   const bool restores_to_initial_browser = false;
 #else
   const bool restores_to_initial_browser = true;
@@ -204,8 +204,16 @@ IN_PROC_BROWSER_TEST_F(ExitTypeServiceTest, PRE_CloseCrashBubbleEnablesSaving) {
       ->SetWaitingForUserToAckCrashForTest(true);
 }
 
+// TODO(crbug.com/40927197): Re-enable test that flakily times out
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_CloseCrashBubbleEnablesSaving \
+  DISABLED_CloseCrashBubbleEnablesSaving
+#else
+#define MAYBE_CloseCrashBubbleEnablesSaving CloseCrashBubbleEnablesSaving
+#endif
 // Closes the crash bubble, which should enable saving.
-IN_PROC_BROWSER_TEST_F(ExitTypeServiceTest, CloseCrashBubbleEnablesSaving) {
+IN_PROC_BROWSER_TEST_F(ExitTypeServiceTest,
+                       MAYBE_CloseCrashBubbleEnablesSaving) {
   ASSERT_EQ(ExitType::kCrashed, GetLastSessionExitType());
   EXPECT_FALSE(IsSessionServiceSavingEnabled());
 

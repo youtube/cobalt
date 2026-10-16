@@ -5,11 +5,10 @@
 // Test to ensure that labels and descriptions that come from elsewhere in the
 // tree are updated when the related content changes.
 
-// TODO(aleventhal) why are neither of these working?
-//function findById(id) {
-  //return rootNode.domQuerySelector("#" + id);
-  //return rootNode.find({ htmlAttributes: { id }});
-//}
+// TODO(aleventhal) why isn't this working?
+// function findById(id) {
+// TODO(accessibility): Verify that the following line really works.
+// return rootNode.find({ htmlId: id });
 
 var allTests = [
   function testUpdateRelatedNamesAndDescriptions() {
@@ -46,4 +45,4 @@ var allTests = [
   },
 ];
 
-setUpAndRunTests(allTests, "tree_change_indirect.html");
+setUpAndRunTabsTests(allTests, "tree_change_indirect.html");

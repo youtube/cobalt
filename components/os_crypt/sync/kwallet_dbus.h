@@ -5,14 +5,16 @@
 #ifndef COMPONENTS_OS_CRYPT_SYNC_KWALLET_DBUS_H_
 #define COMPONENTS_OS_CRYPT_SYNC_KWALLET_DBUS_H_
 
+#include <stdint.h>
+
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/component_export.h"
-#include "base/memory/raw_ptr.h"
-#include "base/memory/ref_counted.h"
+#include "base/containers/span.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/nix/xdg_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace dbus {
 class Bus;
@@ -82,20 +84,6 @@ class COMPONENT_EXPORT(OS_CRYPT) KWalletDBus {
                                         const std::string& app_name,
                                         Type* entry_type_ptr);
 
-  // Read the entry key from the current folder.
-  [[nodiscard]] virtual Error ReadEntry(int wallet_handle,
-                                        const std::string& folder_name,
-                                        const std::string& key,
-                                        const std::string& app_name,
-                                        std::vector<uint8_t>* bytes_ptr);
-
-  // Return the list of keys of all entries in this folder.
-  [[nodiscard]] virtual Error EntryList(
-      int wallet_handle,
-      const std::string& folder_name,
-      const std::string& app_name,
-      std::vector<std::string>* entry_list_ptr);
-
   // Remove the entry key from the current folder.
   // |*return_code_ptr| is 0 on success.
   [[nodiscard]] virtual Error RemoveEntry(int wallet_handle,
@@ -103,16 +91,6 @@ class COMPONENT_EXPORT(OS_CRYPT) KWalletDBus {
                                           const std::string& key,
                                           const std::string& app_name,
                                           int* return_code_ptr);
-
-  // Write a binary entry to the current folder.
-  // |*return_code_ptr| is 0 on success.
-  [[nodiscard]] virtual Error WriteEntry(int wallet_handle,
-                                         const std::string& folder_name,
-                                         const std::string& key,
-                                         const std::string& app_name,
-                                         const uint8_t* data,
-                                         size_t length,
-                                         int* return_code_ptr);
 
   // Determine if the folder |folder_name| exists in the wallet.
   [[nodiscard]] virtual Error HasFolder(int handle,
@@ -141,7 +119,7 @@ class COMPONENT_EXPORT(OS_CRYPT) KWalletDBus {
       const std::string& folder_name,
       const std::string& key,
       const std::string& app_name,
-      absl::optional<std::string>* const password_ptr);
+      std::optional<std::string>* const password_ptr);
 
   // Close the wallet. The wallet will only be closed if it is open but not in
   // use (rare), or if it is forced closed.
@@ -153,8 +131,8 @@ class COMPONENT_EXPORT(OS_CRYPT) KWalletDBus {
  private:
   // DBus handle for communication with klauncher and kwalletd.
   scoped_refptr<dbus::Bus> session_bus_;
-  // Object proxy for kwalletd. We do not own this.
-  raw_ptr<dbus::ObjectProxy> kwallet_proxy_;
+  // Object proxy for kwalletd.
+  scoped_refptr<dbus::ObjectProxy> kwallet_proxy_;
 
   // KWallet DBus name.
   std::string dbus_service_name_;

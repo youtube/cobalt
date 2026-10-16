@@ -4,8 +4,6 @@
 
 package org.chromium.ui.widget;
 
-import android.animation.AnimatorInflater;
-import android.animation.StateListAnimator;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.TypedArray;
@@ -18,6 +16,8 @@ import androidx.annotation.StyleRes;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.appcompat.widget.AppCompatButton;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.R;
 
 /**
@@ -41,8 +41,9 @@ import org.chromium.ui.R;
  *
  * See {@link R.styleable#ButtonCompat ButtonCompat Attributes}.
  */
+@NullMarked
 public class ButtonCompat extends AppCompatButton {
-    private RippleBackgroundHelper mRippleBackgroundHelper;
+    private final RippleBackgroundHelper mRippleBackgroundHelper;
 
     /**
      * Constructor for programmatically creating a {@link ButtonCompat}.
@@ -54,20 +55,22 @@ public class ButtonCompat extends AppCompatButton {
         this(context, null, themeOverlay);
     }
 
-    /**
-     * Constructor for inflating from XMLs.
-     */
+    /** Constructor for inflating from XMLs. */
     public ButtonCompat(Context context, AttributeSet attrs) {
         this(context, attrs, R.style.FilledButtonThemeOverlay);
     }
 
-    private ButtonCompat(Context context, AttributeSet attrs, @StyleRes int themeOverlay) {
+    private ButtonCompat(
+            Context context, @Nullable AttributeSet attrs, @StyleRes int themeOverlay) {
         super(new ContextThemeWrapper(context, themeOverlay), attrs, android.R.attr.buttonStyle);
 
-        TypedArray a = getContext().obtainStyledAttributes(
-                attrs, R.styleable.ButtonCompat, android.R.attr.buttonStyle, 0);
-        int buttonColorId = a.getResourceId(
-                R.styleable.ButtonCompat_buttonColor, R.color.blue_when_enabled_list);
+        TypedArray a =
+                getContext()
+                        .obtainStyledAttributes(
+                                attrs, R.styleable.ButtonCompat, android.R.attr.buttonStyle, 0);
+        int buttonColorId =
+                a.getResourceId(
+                        R.styleable.ButtonCompat_buttonColor, R.color.blue_when_enabled_list);
 
         int rippleColorId = a.getResourceId(R.styleable.ButtonCompat_rippleColor, -1);
         if (rippleColorId == -1) {
@@ -76,28 +79,37 @@ public class ButtonCompat extends AppCompatButton {
             // means a text button, which should have a blue ripple while a filled button should
             // have a white ripple.
             boolean isBgTransparent = getContext().getColor(buttonColorId) == Color.TRANSPARENT;
-            rippleColorId = isBgTransparent ? R.color.text_button_ripple_color_list_baseline
-                                            : R.color.filled_button_ripple_color;
+            rippleColorId =
+                    isBgTransparent
+                            ? R.color.text_button_ripple_color_list_baseline
+                            : R.color.filled_button_ripple_color;
         }
 
         int borderColorId =
                 a.getResourceId(R.styleable.ButtonCompat_borderColor, android.R.color.transparent);
-        int borderWidthId = a.getResourceId(R.styleable.ButtonCompat_borderWidth,
-                R.dimen.default_ripple_background_border_size);
-        boolean buttonRaised = a.getBoolean(R.styleable.ButtonCompat_buttonRaised, true);
-        int verticalInset = a.getDimensionPixelSize(R.styleable.ButtonCompat_verticalInset,
-                getResources().getDimensionPixelSize(R.dimen.button_bg_vertical_inset));
+        int borderWidthId =
+                a.getResourceId(
+                        R.styleable.ButtonCompat_buttonBorderWidth,
+                        R.dimen.default_ripple_background_border_size);
+        int verticalInset =
+                a.getDimensionPixelSize(
+                        R.styleable.ButtonCompat_verticalInset,
+                        getResources().getDimensionPixelSize(R.dimen.button_bg_vertical_inset));
 
         final int defaultRadius =
                 getResources().getDimensionPixelSize(R.dimen.button_compat_corner_radius);
-        final int topStartRippleRadius = a.getDimensionPixelSize(
-                R.styleable.ButtonCompat_rippleCornerRadiusTopStart, defaultRadius);
-        final int topEndRippleRadius = a.getDimensionPixelSize(
-                R.styleable.ButtonCompat_rippleCornerRadiusTopEnd, defaultRadius);
-        final int bottomStartRippleRadius = a.getDimensionPixelSize(
-                R.styleable.ButtonCompat_rippleCornerRadiusBottomStart, defaultRadius);
-        final int bottomEndRippleRadius = a.getDimensionPixelSize(
-                R.styleable.ButtonCompat_rippleCornerRadiusBottomEnd, defaultRadius);
+        final int topStartRippleRadius =
+                a.getDimensionPixelSize(
+                        R.styleable.ButtonCompat_rippleCornerRadiusTopStart, defaultRadius);
+        final int topEndRippleRadius =
+                a.getDimensionPixelSize(
+                        R.styleable.ButtonCompat_rippleCornerRadiusTopEnd, defaultRadius);
+        final int bottomStartRippleRadius =
+                a.getDimensionPixelSize(
+                        R.styleable.ButtonCompat_rippleCornerRadiusBottomStart, defaultRadius);
+        final int bottomEndRippleRadius =
+                a.getDimensionPixelSize(
+                        R.styleable.ButtonCompat_rippleCornerRadiusBottomEnd, defaultRadius);
 
         // If this attribute is not set, the text will keep the color set by android:textAppearance.
         // This would have been handled in #super().
@@ -110,57 +122,45 @@ public class ButtonCompat extends AppCompatButton {
 
         float[] radii;
         if (getLayoutDirection() == LAYOUT_DIRECTION_RTL) {
-            radii = new float[] {topEndRippleRadius, topEndRippleRadius, topStartRippleRadius,
-                    topStartRippleRadius, bottomStartRippleRadius, bottomStartRippleRadius,
-                    bottomEndRippleRadius, bottomEndRippleRadius};
+            radii =
+                    new float[] {
+                        topEndRippleRadius,
+                        topEndRippleRadius,
+                        topStartRippleRadius,
+                        topStartRippleRadius,
+                        bottomStartRippleRadius,
+                        bottomStartRippleRadius,
+                        bottomEndRippleRadius,
+                        bottomEndRippleRadius
+                    };
         } else {
-            radii = new float[] {topStartRippleRadius, topStartRippleRadius, topEndRippleRadius,
-                    topEndRippleRadius, bottomEndRippleRadius, bottomEndRippleRadius,
-                    bottomStartRippleRadius, bottomStartRippleRadius};
+            radii =
+                    new float[] {
+                        topStartRippleRadius,
+                        topStartRippleRadius,
+                        topEndRippleRadius,
+                        topEndRippleRadius,
+                        bottomEndRippleRadius,
+                        bottomEndRippleRadius,
+                        bottomStartRippleRadius,
+                        bottomStartRippleRadius
+                    };
         }
 
         a.recycle();
-        mRippleBackgroundHelper = new RippleBackgroundHelper(this, buttonColorId, rippleColorId,
-                radii, borderColorId, borderWidthId, verticalInset);
-        setRaised(buttonRaised);
+        mRippleBackgroundHelper =
+                new RippleBackgroundHelper(
+                        this,
+                        buttonColorId,
+                        rippleColorId,
+                        radii,
+                        borderColorId,
+                        borderWidthId,
+                        verticalInset);
     }
 
-    /**
-     * Sets the background color of the button.
-     */
+    /** Sets the background color of the button. */
     public void setButtonColor(ColorStateList buttonColorList) {
         mRippleBackgroundHelper.setBackgroundColor(buttonColorList);
-    }
-
-    /**
-    * Sets whether the button is raised (has a shadow), or flat (has no shadow).
-    * Note that this function (setStateListAnimator) can not be called more than once due to
-    * incompatibilities in older android versions, crbug.com/608248.
-    */
-    private void setRaised(boolean raised) {
-        // All buttons are flat on pre-L devices.
-
-        if (raised) {
-            // Use the StateListAnimator from the Widget.Material.Button style to animate the
-            // elevation when the button is pressed.
-            TypedArray a = getContext().obtainStyledAttributes(null,
-                    new int[]{android.R.attr.stateListAnimator}, 0,
-                    android.R.style.Widget_Material_Button);
-            int stateListAnimatorId = a.getResourceId(0, 0);
-            a.recycle();
-
-            // stateListAnimatorId could be 0 on custom or future builds of Android, or when
-            // using a framework like Xposed. Handle these cases gracefully by simply not using
-            // a StateListAnimator.
-            StateListAnimator stateListAnimator = null;
-            if (stateListAnimatorId != 0) {
-                stateListAnimator = AnimatorInflater.loadStateListAnimator(getContext(),
-                        stateListAnimatorId);
-            }
-            setStateListAnimator(stateListAnimator);
-        } else {
-            setElevation(0f);
-            setStateListAnimator(null);
-        }
     }
 }

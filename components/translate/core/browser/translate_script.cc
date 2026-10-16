@@ -9,7 +9,6 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/strings/escape.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
@@ -51,10 +50,10 @@ const char TranslateScript::kJavascriptLoaderCallbackQueryValue[] =
 TranslateScript::TranslateScript()
     : expiration_delay_(base::Days(kExpirationDelayDays)) {}
 
-TranslateScript::~TranslateScript() {}
+TranslateScript::~TranslateScript() = default;
 
 void TranslateScript::Request(RequestCallback callback, bool is_incognito) {
-  script_fetch_start_time_ = base::Time::Now().ToJsTime();
+  script_fetch_start_time_ = base::Time::Now().InMillisecondsFSinceUnixEpoch();
 
   DCHECK(data_.empty()) << "Do not fetch the script if it is already fetched";
   callback_list_.AddUnsafe(std::move(callback));
@@ -84,12 +83,14 @@ GURL TranslateScript::GetTranslateScriptURL() {
   if (command_line.HasSwitch(translate::switches::kTranslateScriptURL)) {
     translate_script_url = GURL(command_line.GetSwitchValueASCII(
         translate::switches::kTranslateScriptURL));
-    if (!translate_script_url.is_valid() ||
-        !translate_script_url.query().empty()) {
+    if (!translate_script_url.is_valid()) {
       LOG(WARNING) << "The following translate URL specified at the "
                    << "command-line is invalid: "
                    << translate_script_url.spec();
       translate_script_url = GURL();
+    } else {
+      LOG(WARNING) << "Using custom translate URL: "
+                   << translate_script_url.spec();
     }
   }
 
@@ -131,12 +132,13 @@ void TranslateScript::OnScriptFetchComplete(bool success,
     std::map<std::string, std::string> params;
     base::StringAppendF(
         &data_, "var gtTimeInfo = {'fetchStart': %0.f, 'fetchEnd': %0.f};\n",
-        script_fetch_start_time_, base::Time::Now().ToJsTime());
+        script_fetch_start_time_,
+        base::Time::Now().InMillisecondsFSinceUnixEpoch());
     base::StringAppendF(&data_, "var serverParams = '%s';\n",
                         server_params.c_str());
 
     GURL security_origin = translate::GetTranslateSecurityOrigin();
-    base::StringAppendF(&data_, "var securityOrigin = '%s';",
+    base::StringAppendF(&data_, "var securityOrigin = '%s';\n",
                         security_origin.spec().c_str());
 
     // Load embedded translate.js.
@@ -153,13 +155,13 @@ void TranslateScript::OnScriptFetchComplete(bool success,
 #endif  // BUILDFLAG(IS_IOS)
 
     // Wrap |data| in try/catch block to handle unexpected script errors.
-    const char* format =
+    static constexpr char kFormat[] =
         "try {"
         "  %s;"
         "} catch (error) {"
         "  cr.googleTranslate.onTranslateElementError(error);"
         "};";
-    base::StringAppendF(&data_, format, data.c_str());
+    base::StringAppendF(&data_, kFormat, data.c_str());
 
     // We'll expire the cached script after some time, to make sure long
     // running browsers still get fixes that might get pushed with newer

@@ -4,8 +4,9 @@
 
 #include "chromeos/printing/ppd_metadata_parser.h"
 
+#include <string_view>
+
 #include "base/json/json_reader.h"
-#include "base/strings/string_piece.h"
 #include "chromeos/printing/ppd_metadata_matchers.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -25,11 +26,11 @@ using ::testing::Pair;
 using ::testing::StrEq;
 using ::testing::UnorderedElementsAre;
 
-constexpr base::StringPiece kInvalidJson = "blah blah invalid JSON";
+constexpr std::string_view kInvalidJson = "blah blah invalid JSON";
 
 // Verifies that ParseLocales() can parse locales metadata.
 TEST(PpdMetadataParserTest, CanParseLocales) {
-  constexpr base::StringPiece kLocalesJson = R"(
+  constexpr std::string_view kLocalesJson = R"(
   {
     "locales": [ "de", "en", "es", "jp" ]
   }
@@ -48,7 +49,7 @@ TEST(PpdMetadataParserTest, CanPartiallyParseLocales) {
   // The values "0.0" and "78" are gibberish that ParseLocales() shall
   // ignore; however, these don't structurally foul the JSON, so it can
   // still return the other locales.
-  constexpr base::StringPiece kLocalesJson = R"(
+  constexpr std::string_view kLocalesJson = R"(
   {
     "locales": [ 0.0, "de", 78, "en", "es", "jp" ]
   }
@@ -61,13 +62,13 @@ TEST(PpdMetadataParserTest, CanPartiallyParseLocales) {
               ElementsAre(StrEq("de"), StrEq("en"), StrEq("es"), StrEq("jp")));
 }
 
-// Verifies that ParseLocales() returns absl::nullopt rather than an
+// Verifies that ParseLocales() returns std::nullopt rather than an
 // empty container.
 TEST(PpdMetadataParserTest, ParseLocalesDoesNotReturnEmptyContainer) {
   // The values "0.0" and "78" are gibberish that ParseLocales() shall
   // ignore; while the JSON is still well-formed, the parsed list of
   // locales contains no values.
-  constexpr base::StringPiece kLocalesJson = R"(
+  constexpr std::string_view kLocalesJson = R"(
   {
     "locales": [ 0.0, 78 ]
   }
@@ -76,7 +77,7 @@ TEST(PpdMetadataParserTest, ParseLocalesDoesNotReturnEmptyContainer) {
   EXPECT_FALSE(ParseLocales(kLocalesJson).has_value());
 }
 
-// Verifies that ParseLocales() returns absl::nullopt on irrecoverable
+// Verifies that ParseLocales() returns std::nullopt on irrecoverable
 // parse error.
 TEST(PpdMetadataParserTest, ParseLocalesFailsGracefully) {
   EXPECT_FALSE(ParseLocales(kInvalidJson).has_value());
@@ -84,7 +85,7 @@ TEST(PpdMetadataParserTest, ParseLocalesFailsGracefully) {
 
 // Verifies that ParseManufacturers() can parse manufacturers metadata.
 TEST(PpdMetadataParserTest, CanParseManufacturers) {
-  constexpr base::StringPiece kManufacturersJson = R"(
+  constexpr std::string_view kManufacturersJson = R"(
   {
     "filesMap": {
       "Andante": "andante-en.json",
@@ -107,7 +108,7 @@ TEST(PpdMetadataParserTest, CanParseManufacturers) {
 TEST(PpdMetadataParserTest, CanPartiallyParseManufacturers) {
   // Contains an embedded dictionary keyed on "Dearie me."
   // ParseManufacturers() shall ignore this.
-  constexpr base::StringPiece kManufacturersJson = R"(
+  constexpr std::string_view kManufacturersJson = R"(
   {
     "filesMap": {
       "Dearie me": {
@@ -129,13 +130,13 @@ TEST(PpdMetadataParserTest, CanPartiallyParseManufacturers) {
                   Pair(StrEq("Sostenuto"), StrEq("sostenuto-en.json"))));
 }
 
-// Verifies that ParseManufacturers() returns absl::nullopt rather than
+// Verifies that ParseManufacturers() returns std::nullopt rather than
 // an empty container.
 TEST(PpdMetadataParserTest, ParseManufacturersDoesNotReturnEmptyContainer) {
   // Contains an embedded dictionary keyed on "Dearie me."
   // ParseManufacturers() shall ignore this, but in doing so shall leave
   // its ParsedManufacturers return value empty.
-  constexpr base::StringPiece kManufacturersJson = R"(
+  constexpr std::string_view kManufacturersJson = R"(
   {
     "filesMap": {
       "Dearie me": {
@@ -149,7 +150,7 @@ TEST(PpdMetadataParserTest, ParseManufacturersDoesNotReturnEmptyContainer) {
   EXPECT_FALSE(ParseManufacturers(kManufacturersJson).has_value());
 }
 
-// Verifies that ParseManufacturers() returns absl::nullopt on
+// Verifies that ParseManufacturers() returns std::nullopt on
 // irrecoverable parse error.
 TEST(PpdMetadataParserTest, ParseManufacturersFailsGracefully) {
   EXPECT_FALSE(ParseManufacturers(kInvalidJson).has_value());
@@ -157,7 +158,7 @@ TEST(PpdMetadataParserTest, ParseManufacturersFailsGracefully) {
 
 // Verifies that ParsePrinters() can parse printers metadata.
 TEST(PpdMetadataParserTest, CanParsePrinters) {
-  constexpr base::StringPiece kPrintersJson = R"(
+  constexpr std::string_view kPrintersJson = R"(
   {
     "printers": [ {
       "emm": "d 547b",
@@ -182,7 +183,7 @@ TEST(PpdMetadataParserTest, CanParsePrinters) {
 TEST(PpdMetadataParserTest, CanPartiallyParsePrinters) {
   // Contains an extra value keyed on "hello" in an otherwise valid leaf
   // value in Printers metadata. ParsePrinters() shall ignore this.
-  constexpr base::StringPiece kPrintersJson = R"(
+  constexpr std::string_view kPrintersJson = R"(
   {
     "printers": [ {
       "emm": "d 552",
@@ -211,7 +212,7 @@ TEST(PpdMetadataParserTest, CanParsePrintersWithRestrictions) {
   // *  a printer with a minimum milestone,
   // *  a printer with a maximum milestone, and
   // *  a printer with both minimum and maximum milestones.
-  constexpr base::StringPiece kPrintersJson = R"(
+  constexpr std::string_view kPrintersJson = R"(
   {
     "printers": [ {
       "emm": "d 121",
@@ -256,7 +257,7 @@ TEST(PpdMetadataParserTest, CanParsePrintersWithRestrictions) {
 // malformed restrictions.
 TEST(PpdMetadataParserTest, CanParsePrintersWithMalformedRestrictions) {
   // Specifies a printer with invalid restrictions.
-  constexpr base::StringPiece kPrintersJson = R"(
+  constexpr std::string_view kPrintersJson = R"(
   {
     "printers": [ {
       "emm": "d 368",
@@ -278,14 +279,14 @@ TEST(PpdMetadataParserTest, CanParsePrintersWithMalformedRestrictions) {
                 Field(&ParsedPrinter::restrictions, UnboundedRestrictions()))));
 }
 
-// Verifies that ParsePrinters() returns absl::nullopt rather than an
+// Verifies that ParsePrinters() returns std::nullopt rather than an
 // empty container.
 TEST(PpdMetadataParserTest, ParsePrintersDoesNotReturnEmptyContainer) {
   // No printers are specified in this otherwise valid JSON dictionary.
   EXPECT_FALSE(ParsePrinters("{}").has_value());
 }
 
-// Verifies that ParsePrinters() returns absl::nullopt on irrecoverable
+// Verifies that ParsePrinters() returns std::nullopt on irrecoverable
 // parse error.
 TEST(PpdMetadataParserTest, ParsePrintersFailsGracefully) {
   EXPECT_FALSE(ParsePrinters(kInvalidJson).has_value());
@@ -293,7 +294,7 @@ TEST(PpdMetadataParserTest, ParsePrintersFailsGracefully) {
 
 // Verifies that ParseForwardIndex() can parse forward index metadata.
 TEST(PpdMetadataParserTest, CanParseForwardIndex) {
-  constexpr base::StringPiece kJsonForwardIndex = R"({
+  constexpr std::string_view kJsonForwardIndex = R"({
   "ppdIndex": {
     "der wanderer": {
       "ppdMetadata": [ {
@@ -336,7 +337,7 @@ TEST(PpdMetadataParserTest, CanParseForwardIndex) {
 TEST(PpdMetadataParserTest, CanPartiallyParseForwardIndex) {
   // Uses the same value as the CanParseForwardIndex test, but
   // with garbage values mixed in.
-  constexpr base::StringPiece kJsonForwardIndex = R"({
+  constexpr std::string_view kJsonForwardIndex = R"({
   "ppdIndex": {
     "garbage": "unused value",
     "more garbage": [ "more", "unused", "values" ],
@@ -383,7 +384,7 @@ TEST(PpdMetadataParserTest, CanPartiallyParseForwardIndex) {
 // Verifies that ParseForwardIndex() can parse forward index metadata
 // in which leaf values have multiple ppdMetadata key-value pairs.
 TEST(PpdMetadataParserTest, CanParseForwardIndexWithMultiplePpdMetadataLeafs) {
-  constexpr base::StringPiece kJsonForwardIndex = R"({
+  constexpr std::string_view kJsonForwardIndex = R"({
   "ppdIndex": {
     "rastlose liebe": {
       "ppdMetadata": [ {
@@ -412,7 +413,7 @@ TEST(PpdMetadataParserTest, CanParseForwardIndexWithRestrictions) {
   // *  a PPD metadata leaf with a minimum milestone,
   // *  a PPD metadata leaf with a maximum milestone, and
   // *  a PPD metadata leaf with both minimum and maximum milestones.
-  constexpr base::StringPiece kJsonForwardIndex = R"({
+  constexpr std::string_view kJsonForwardIndex = R"({
   "ppdIndex": {
     "nähe des geliebten": {
       "ppdMetadata": [ {
@@ -475,7 +476,7 @@ TEST(PpdMetadataParserTest, CanParseForwardIndexWithMalformedRestrictions) {
   // *  a PPD metadata leaf with a malformed maximum milestone, and
   // *  a PPD metadata leaf with malformed minimum and maximum
   //    milestones.
-  constexpr base::StringPiece kJsonForwardIndex = R"({
+  constexpr std::string_view kJsonForwardIndex = R"({
   "ppdIndex": {
     "nähe des geliebten": {
       "ppdMetadata": [ {
@@ -535,7 +536,7 @@ TEST(PpdMetadataParserTest, CanParseForwardIndexWithMalformedRestrictions) {
 // specifying PPD licenses.
 TEST(PpdMetadataParserTest, CanParseForwardIndexWithLicenses) {
   // Specifies two PPDs, each with a license associated.
-  constexpr base::StringPiece kJsonForwardIndex = R"({
+  constexpr std::string_view kJsonForwardIndex = R"({
   "ppdIndex": {
     "der fischer": {
       "ppdMetadata": [ {
@@ -569,12 +570,12 @@ TEST(PpdMetadataParserTest, CanParseForwardIndexWithLicenses) {
                               StrEq("two two six license")))))));
 }
 
-// Verifies that ParseForwardIndex() returns absl::nullopt rather than
+// Verifies that ParseForwardIndex() returns std::nullopt rather than
 // an empty container.
 TEST(PpdMetadataParserTest, ParseForwardIndexDoesNotReturnEmptyContainer) {
   // Specifies a forward index that is valid JSON but which has
   // no PPDs whose leaf values are non-empty.
-  constexpr base::StringPiece kJsonForwardIndex = R"({
+  constexpr std::string_view kJsonForwardIndex = R"({
   "ppdIndex": {
     "der könig in thule": {
       "ppdMetadata": [ {
@@ -587,7 +588,7 @@ TEST(PpdMetadataParserTest, ParseForwardIndexDoesNotReturnEmptyContainer) {
   EXPECT_FALSE(ParseForwardIndex(kJsonForwardIndex).has_value());
 }
 
-// Verifies that ParseForwardIndex() returns absl::nullopt on
+// Verifies that ParseForwardIndex() returns std::nullopt on
 // irrecoverable parse error.
 TEST(PpdMetadataParserTest, ParseForwardIndexFailsGracefully) {
   EXPECT_FALSE(ParseForwardIndex(kInvalidJson).has_value());
@@ -595,7 +596,7 @@ TEST(PpdMetadataParserTest, ParseForwardIndexFailsGracefully) {
 
 // Verifies that ParseUsbIndex() can parse USB index metadata.
 TEST(PpdMetadataParserTest, CanParseUsbIndex) {
-  constexpr base::StringPiece kJsonUsbIndex = R"({
+  constexpr std::string_view kJsonUsbIndex = R"({
   "usbIndex": {
     "1": {
       "effectiveMakeAndModel": "d 541"
@@ -614,7 +615,7 @@ TEST(PpdMetadataParserTest, CanParseUsbIndex) {
 // Verifies that ParseUsbIndex() can parse USB index metadata and return
 // a partial ParsedUsbIndex even when it encounters garbage values.
 TEST(PpdMetadataParserTest, CanPartiallyParseUsbIndex) {
-  constexpr base::StringPiece kJsonUsbIndex = R"({
+  constexpr std::string_view kJsonUsbIndex = R"({
   "usbIndex": {
     "garbage key": {
       "effectiveMakeAndModel": "garbage value"
@@ -633,25 +634,25 @@ TEST(PpdMetadataParserTest, CanPartiallyParseUsbIndex) {
                                             Pair(10, StrEq("d 504")))));
 }
 
-// Verifies that ParseUsbIndex() returns absl::nullopt rather than an
+// Verifies that ParseUsbIndex() returns std::nullopt rather than an
 // empty container.
 TEST(PpdMetadataParserTest, ParseUsbIndexDoesNotReturnEmptyContainer) {
-  constexpr base::StringPiece kEmptyJsonUsbIndex = R"({
+  constexpr std::string_view kEmptyJsonUsbIndex = R"({
   "usbIndex": { }
 })";
-  ASSERT_THAT(base::JSONReader::Read(kEmptyJsonUsbIndex), Ne(absl::nullopt));
-  EXPECT_THAT(ParseUsbIndex(kEmptyJsonUsbIndex), Eq(absl::nullopt));
+  ASSERT_THAT(base::JSONReader::Read(kEmptyJsonUsbIndex), Ne(std::nullopt));
+  EXPECT_THAT(ParseUsbIndex(kEmptyJsonUsbIndex), Eq(std::nullopt));
 
-  constexpr base::StringPiece kJsonUsbIndexWithBadStringKeys = R"({
+  constexpr std::string_view kJsonUsbIndexWithBadStringKeys = R"({
   "usbIndex": {
     "non-integral key": { }
   }
 })";
   ASSERT_THAT(base::JSONReader::Read(kJsonUsbIndexWithBadStringKeys),
-              Ne(absl::nullopt));
-  EXPECT_THAT(ParseUsbIndex(kJsonUsbIndexWithBadStringKeys), Eq(absl::nullopt));
+              Ne(std::nullopt));
+  EXPECT_THAT(ParseUsbIndex(kJsonUsbIndexWithBadStringKeys), Eq(std::nullopt));
 
-  constexpr base::StringPiece kJsonUsbIndexWithoutEmmAtLeaf = R"({
+  constexpr std::string_view kJsonUsbIndexWithoutEmmAtLeaf = R"({
   "usbIndex": {
     "1": {
       "some key that is not ``effectiveMakeAndModel''": "d 504"
@@ -659,10 +660,10 @@ TEST(PpdMetadataParserTest, ParseUsbIndexDoesNotReturnEmptyContainer) {
   }
 })";
   ASSERT_THAT(base::JSONReader::Read(kJsonUsbIndexWithoutEmmAtLeaf),
-              Ne(absl::nullopt));
-  EXPECT_THAT(ParseUsbIndex(kJsonUsbIndexWithoutEmmAtLeaf), Eq(absl::nullopt));
+              Ne(std::nullopt));
+  EXPECT_THAT(ParseUsbIndex(kJsonUsbIndexWithoutEmmAtLeaf), Eq(std::nullopt));
 
-  constexpr base::StringPiece kJsonUsbIndexWithEmptyEmmAtLeaf = R"({
+  constexpr std::string_view kJsonUsbIndexWithEmptyEmmAtLeaf = R"({
   "usbIndex": {
     "1": {
       "effectiveMakeAndModel": ""
@@ -670,20 +671,19 @@ TEST(PpdMetadataParserTest, ParseUsbIndexDoesNotReturnEmptyContainer) {
   }
 })";
   ASSERT_THAT(base::JSONReader::Read(kJsonUsbIndexWithEmptyEmmAtLeaf),
-              Ne(absl::nullopt));
-  EXPECT_THAT(ParseUsbIndex(kJsonUsbIndexWithEmptyEmmAtLeaf),
-              Eq(absl::nullopt));
+              Ne(std::nullopt));
+  EXPECT_THAT(ParseUsbIndex(kJsonUsbIndexWithEmptyEmmAtLeaf), Eq(std::nullopt));
 }
 
-// Verifies that ParseUsbIndex() returns absl::nullopt on irrecoverable
+// Verifies that ParseUsbIndex() returns std::nullopt on irrecoverable
 // parse error.
 TEST(PpdMetadataParserTest, ParseUsbIndexFailsGracefully) {
-  EXPECT_THAT(ParseUsbIndex(kInvalidJson), Eq(absl::nullopt));
+  EXPECT_THAT(ParseUsbIndex(kInvalidJson), Eq(std::nullopt));
 }
 
 // Verifies that ParseUsbvendorIdMap() can parse USB vendor ID maps.
 TEST(PpdMetadataParserTest, CanParseUsbVendorIdMap) {
-  constexpr base::StringPiece kJsonUsbVendorIdMap = R"({
+  constexpr std::string_view kJsonUsbVendorIdMap = R"({
   "entries": [ {
     "vendorId": 1111,
     "vendorName": "One One One One"
@@ -708,7 +708,7 @@ TEST(PpdMetadataParserTest, CanParseUsbVendorIdMap) {
 TEST(PpdMetadataParserTest, CanPartiallyParseUsbVendorIdMap) {
   // This USB vendor ID map has garbage values in it.
   // ParseUsbVendorIdMap() shall ignore these.
-  constexpr base::StringPiece kJsonUsbVendorIdMap = R"({
+  constexpr std::string_view kJsonUsbVendorIdMap = R"({
   "garbage key": "garbage value",
   "entries": [
     "garbage value",
@@ -732,25 +732,25 @@ TEST(PpdMetadataParserTest, CanPartiallyParseUsbVendorIdMap) {
                   Pair(3333, StrEq("Three Three Three Three")))));
 }
 
-// Verifies that ParseUsbvendorIdMap() returns absl::nullopt rather
+// Verifies that ParseUsbvendorIdMap() returns std::nullopt rather
 // than an empty container.
 TEST(PpdMetadataParserTest, ParseUsbVendorIdMapDoesNotReturnEmptyContainer) {
   // Defines a USB vendor ID map that is empty; it's valid JSON, but
   // has no values worth returning.
-  constexpr base::StringPiece kJsonUsbVendorIdMap = "{}";
+  constexpr std::string_view kJsonUsbVendorIdMap = "{}";
 
-  EXPECT_THAT(ParseUsbVendorIdMap(kJsonUsbVendorIdMap), Eq(absl::nullopt));
+  EXPECT_THAT(ParseUsbVendorIdMap(kJsonUsbVendorIdMap), Eq(std::nullopt));
 }
 
-// Verifies that ParseUsbvendorIdMap() returns absl::nullopt on
+// Verifies that ParseUsbvendorIdMap() returns std::nullopt on
 // irrecoverable parse error.
 TEST(PpdMetadataParserTest, ParseUsbVendorIdMapFailsGracefully) {
-  EXPECT_THAT(ParseUsbVendorIdMap(kInvalidJson), Eq(absl::nullopt));
+  EXPECT_THAT(ParseUsbVendorIdMap(kInvalidJson), Eq(std::nullopt));
 }
 
 // Verifies that ParseReverseIndex() can parse reverse index metadata.
 TEST(PpdMetadataParserTest, CanParseReverseIndex) {
-  constexpr base::StringPiece kReverseIndexJson = R"(
+  constexpr std::string_view kReverseIndexJson = R"(
   {
     "reverseIndex": {
       "Die Forelle D 550d": {
@@ -780,7 +780,7 @@ TEST(PpdMetadataParserTest, CanParseReverseIndex) {
 TEST(PpdMetadataParserTest, CanPartiallyParseReverseIndex) {
   // Contains two unexpected values (keyed on "Dearie me" and "to go").
   // ParseReverseIndex() shall ignore these.
-  constexpr base::StringPiece kReverseIndexJson = R"(
+  constexpr std::string_view kReverseIndexJson = R"(
   {
     "reverseIndex": {
       "Dearie me": "one doesn't expect",
@@ -807,13 +807,13 @@ TEST(PpdMetadataParserTest, CanPartiallyParseReverseIndex) {
                                 ReverseIndexLeafLike("suwaka", "zogegi"))));
 }
 
-// Verifies that ParseReverseIndex() returns absl::nullopt rather than
+// Verifies that ParseReverseIndex() returns std::nullopt rather than
 // an empty container.
 TEST(PpdMetadataParserTest, ParseReverseIndexDoesNotReturnEmptyContainer) {
   // Contains two unexpected values (keyed on "Dearie me" and "to go").
   // ParseReverseIndex() shall ignore this, but in doing so shall make the
   // returned ParsedReverseIndex empty.
-  constexpr base::StringPiece kReverseIndexJson = R"(
+  constexpr std::string_view kReverseIndexJson = R"(
   {
     "reverseIndex": {
       "Dearie me": "one doesn't expect",
@@ -825,7 +825,7 @@ TEST(PpdMetadataParserTest, ParseReverseIndexDoesNotReturnEmptyContainer) {
   EXPECT_FALSE(ParseReverseIndex(kReverseIndexJson).has_value());
 }
 
-// Verifies that ParseReverseIndex() returns absl::nullopt on
+// Verifies that ParseReverseIndex() returns std::nullopt on
 // irrecoverable parse error.
 TEST(PpdMetadataParserTest, ParseReverseIndexFailsGracefully) {
   EXPECT_FALSE(ParseReverseIndex(kInvalidJson).has_value());

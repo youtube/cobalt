@@ -11,6 +11,7 @@
 #include <string>
 
 #include "base/compiler_specific.h"
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "media/base/stream_parser.h"
 #include "third_party/blink/public/platform/web_source_buffer.h"
@@ -43,8 +44,14 @@ class PLATFORM_EXPORT WebSourceBufferImpl : public WebSourceBuffer {
   double HighestPresentationTimestamp() override;
   bool EvictCodedFrames(double currentPlaybackTime,
                         size_t newDataSize) override;
-  [[nodiscard]] bool AppendToParseBuffer(const unsigned char* data,
-                                         size_t length) override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  [[nodiscard]] bool AppendToParseBuffer(
+      base::span<const unsigned char> data,
+      base::ScopedClosureRunner release_runner) override;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+  [[nodiscard]] bool AppendToParseBuffer(
+      base::span<const unsigned char> data) override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] media::StreamParser::ParseStatus RunSegmentParserLoop(
       double* timestamp_offset) override;
   bool AppendChunks(
@@ -52,10 +59,15 @@ class PLATFORM_EXPORT WebSourceBufferImpl : public WebSourceBuffer {
       double* timestamp_offset) override;
   void ResetParserState() override;
   void Remove(double start, double end) override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  bool CanChangeType(const WebString& mime_type) override;
+  void ChangeType(const WebString& mime_type) override;
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
   bool CanChangeType(const WebString& content_type,
                      const WebString& codecs) override;
   void ChangeType(const WebString& content_type,
                   const WebString& codecs) override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   bool SetTimestampOffset(double offset) override;
   void SetAppendWindowStart(double start) override;
   void SetAppendWindowEnd(double end) override;
@@ -75,9 +87,10 @@ class PLATFORM_EXPORT WebSourceBufferImpl : public WebSourceBuffer {
   void NotifyParseWarning(const media::SourceBufferParseWarning warning);
 
   std::string id_;
-  media::ChunkDemuxer* demuxer_;  // Owned by WebMediaPlayerImpl.
+  // Owned by WebMediaPlayerImpl.
+  raw_ptr<media::ChunkDemuxer, DanglingUntriaged> demuxer_;
 
-  WebSourceBufferClient* client_;
+  raw_ptr<WebSourceBufferClient> client_;
 
   // Controls the offset applied to timestamps when processing appended media
   // segments. It is initially 0, which indicates that no offset is being

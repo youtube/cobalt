@@ -6,8 +6,11 @@
 
 #include "base/lazy_instance.h"
 #include "base/memory/scoped_refptr.h"
-#include "extensions/browser/extension_prefs_scope.h"
 #include "extensions/browser/pref_names.h"
+#include "extensions/common/api/types.h"
+#include "extensions/common/extension_id.h"
+
+using extensions::api::types::ChromeSettingScope;
 
 namespace extensions {
 
@@ -32,7 +35,7 @@ ContentSettingsService::GetFactoryInstance() {
 }
 
 void ContentSettingsService::OnExtensionRegistered(
-    const std::string& extension_id,
+    const ExtensionId& extension_id,
     const base::Time& install_time,
     bool is_enabled) {
   content_settings_store_->RegisterExtension(
@@ -40,30 +43,30 @@ void ContentSettingsService::OnExtensionRegistered(
 }
 
 void ContentSettingsService::OnExtensionPrefsLoaded(
-    const std::string& extension_id,
+    const ExtensionId& extension_id,
     const ExtensionPrefs* prefs) {
   const base::Value::List* content_settings =
       prefs->ReadPrefAsList(extension_id, pref_names::kPrefContentSettings);
   if (content_settings) {
     content_settings_store_->SetExtensionContentSettingFromList(
-        extension_id, *content_settings, kExtensionPrefsScopeRegular);
+        extension_id, *content_settings, ChromeSettingScope::kRegular);
   }
   content_settings = prefs->ReadPrefAsList(
       extension_id, pref_names::kPrefIncognitoContentSettings);
   if (content_settings) {
     content_settings_store_->SetExtensionContentSettingFromList(
         extension_id, *content_settings,
-        kExtensionPrefsScopeIncognitoPersistent);
+        ChromeSettingScope::kIncognitoPersistent);
   }
 }
 
 void ContentSettingsService::OnExtensionPrefsDeleted(
-    const std::string& extension_id) {
+    const ExtensionId& extension_id) {
   content_settings_store_->UnregisterExtension(extension_id);
 }
 
 void ContentSettingsService::OnExtensionStateChanged(
-    const std::string& extension_id,
+    const ExtensionId& extension_id,
     bool state) {
   content_settings_store_->SetExtensionState(extension_id, state);
 }

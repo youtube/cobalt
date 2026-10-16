@@ -9,6 +9,7 @@
 
 #include <AudioToolbox/AudioToolbox.h>
 
+#include "base/apple/scoped_typeref.h"
 #include "base/memory/free_deleter.h"
 #include "media/base/audio_bus.h"
 #include "media/base/audio_decoder.h"
@@ -17,8 +18,8 @@
 
 namespace media {
 
-class AudioBufferMemoryPool;
 class AudioDiscardHelper;
+class LimitingAudioQueue;
 class MediaLog;
 
 // Audio decoder based on macOS's AudioToolbox API. The AudioToolbox
@@ -50,9 +51,13 @@ class MEDIA_EXPORT AudioToolboxAudioDecoder : public AudioDecoder {
     static void Release(AudioConverterRef converter);
   };
   using ScopedAudioConverterRef =
-      base::ScopedTypeRef<AudioConverterRef, ScopedAudioConverterRefTraits>;
+      base::apple::ScopedTypeRef<AudioConverterRef,
+                                 ScopedAudioConverterRefTraits>;
 
-  bool CreateAACDecoder(const AudioDecoderConfig& config);
+  bool CreateDecoder(const AudioDecoderConfig& config);
+
+  void OnOutputReady(DecoderBuffer::TimeInfo time_info,
+                     scoped_refptr<AudioBuffer> output_buffer);
 
   std::unique_ptr<MediaLog> media_log_;
 
@@ -71,8 +76,7 @@ class MEDIA_EXPORT AudioToolboxAudioDecoder : public AudioDecoder {
 
   std::unique_ptr<AudioDiscardHelper> discard_helper_;
 
-  // Pool which helps avoid thrashing memory when returning audio buffers.
-  scoped_refptr<AudioBufferMemoryPool> pool_;
+  std::unique_ptr<LimitingAudioQueue> limiter_queue_;
 
   // Staging structures for receiving decoded data.
   std::unique_ptr<AudioBus> output_bus_;

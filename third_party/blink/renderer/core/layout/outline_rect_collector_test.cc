@@ -7,10 +7,12 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 namespace blink {
 
 TEST(OutlineRectCollectorTest, Empty) {
+  test::TaskEnvironment task_environment;
   UnionOutlineRectCollector u;
   VectorOutlineRectCollector v;
 
@@ -19,6 +21,7 @@ TEST(OutlineRectCollectorTest, Empty) {
 }
 
 TEST(OutlineRectCollectorTest, AddRect) {
+  test::TaskEnvironment task_environment;
   Vector<Vector<PhysicalRect>> tests = {
       Vector<PhysicalRect>{
           PhysicalRect(-1, -1, 10, 10), PhysicalRect(10, 20, 30, 40),
@@ -52,20 +55,23 @@ TEST(OutlineRectCollectorTest, AddRect) {
 }
 
 TEST(OutlineRectCollectorTest, CombineWithOffset) {
+  test::TaskEnvironment task_environment;
   UnionOutlineRectCollector u;
   VectorOutlineRectCollector v;
 
   u.AddRect(PhysicalRect(10, 20, 30, 40));
   v.AddRect(PhysicalRect(10, 20, 30, 40));
 
-  OutlineRectCollector* u_descendant = u.ForDescendantCollector();
-  OutlineRectCollector* v_descendant = v.ForDescendantCollector();
+  std::unique_ptr<OutlineRectCollector> u_descendant =
+      u.ForDescendantCollector();
+  std::unique_ptr<OutlineRectCollector> v_descendant =
+      v.ForDescendantCollector();
 
   u_descendant->AddRect(PhysicalRect(10, 20, 30, 40));
   v_descendant->AddRect(PhysicalRect(10, 20, 30, 40));
 
-  u.Combine(u_descendant, PhysicalOffset(15, -25));
-  v.Combine(v_descendant, PhysicalOffset(15, -25));
+  u.Combine(u_descendant.get(), PhysicalOffset(15, -25));
+  v.Combine(v_descendant.get(), PhysicalOffset(15, -25));
 
   PhysicalRect union_result = u.Rect();
   VectorOf<PhysicalRect> vector_result = v.TakeRects();
@@ -106,13 +112,15 @@ TEST_F(OutlineRectCollectorRenderingTest, CombineWithAncestor) {
   u.AddRect(PhysicalRect(10, 20, 30, 40));
   v.AddRect(PhysicalRect(10, 20, 30, 40));
 
-  OutlineRectCollector* u_descendant = u.ForDescendantCollector();
-  OutlineRectCollector* v_descendant = v.ForDescendantCollector();
+  std::unique_ptr<OutlineRectCollector> u_descendant =
+      u.ForDescendantCollector();
+  std::unique_ptr<OutlineRectCollector> v_descendant =
+      v.ForDescendantCollector();
 
   u_descendant->AddRect(PhysicalRect(10, 20, 30, 40));
   v_descendant->AddRect(PhysicalRect(10, 20, 30, 40));
 
-  u.Combine(u_descendant, *child, parent, PhysicalOffset(15, -25));
+  u.Combine(u_descendant.get(), *child, parent, PhysicalOffset(15, -25));
   // The mapped rect should be:
   // x:
   // 10 (physical rect in add rect)
@@ -127,7 +135,7 @@ TEST_F(OutlineRectCollectorRenderingTest, CombineWithAncestor) {
   // = 20
   //
   // width and height should be unchanged.
-  v.Combine(v_descendant, *child, parent, PhysicalOffset(15, -25));
+  v.Combine(v_descendant.get(), *child, parent, PhysicalOffset(15, -25));
 
   PhysicalRect union_result = u.Rect();
   VectorOf<PhysicalRect> vector_result = v.TakeRects();

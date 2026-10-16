@@ -2,6 +2,10 @@
    Use of this source code is governed by a BSD-style license that can be
    found in the LICENSE file. */
 
+/* Rules in this and other mediaControls*.css files override rules from html.css
+   and other UA sheets regardless of specificity. See comment in
+   StyleResolver::MatchUARules(). */
+
 video::-internal-media-interstitial {
     width: inherit;
     height: inherit;
@@ -107,7 +111,7 @@ video::-internal-media-remoting-toast-message {
 }
 
 video::-internal-media-remoting-cast-icon {
-    background-image: -webkit-image-set(
+    background-image: image-set(
       url(default_100_percent/mediaremoting_cast.png) 1x,
       url(default_200_percent/mediaremoting_cast.png) 2x);
 }

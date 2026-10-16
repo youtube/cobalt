@@ -15,7 +15,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "components/gcm_driver/gcm_app_handler.h"
 #include "components/gcm_driver/gcm_client.h"
 #include "components/gcm_driver/gcm_connection_observer.h"
@@ -139,12 +139,12 @@ class HeartbeatScheduler : public gcm::GCMAppHandler,
   // Callback invoked via a delay to send a heartbeat.
   base::CancelableOnceClosure heartbeat_callback_;
 
-  raw_ptr<CloudPolicyClient, ExperimentalAsh> cloud_policy_client_;
+  raw_ptr<CloudPolicyClient> cloud_policy_client_;
 
-  raw_ptr<CloudPolicyStore, ExperimentalAsh> cloud_policy_store_;
+  raw_ptr<CloudPolicyStore> cloud_policy_store_;
 
   // The GCMDriver used to send heartbeat messages.
-  const raw_ptr<gcm::GCMDriver, ExperimentalAsh> gcm_driver_;
+  const raw_ptr<gcm::GCMDriver> gcm_driver_;
 
   // The GCM registration ID - if empty, we are not registered yet.
   std::string registration_id_;

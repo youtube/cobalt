@@ -2,25 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import './strings.m.js';
+import '/strings.m.js';
 
 import {sendWithPromise} from 'chrome://resources/ash/common/cr.m.js';
 import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
 import {$} from 'chrome://resources/ash/common/util.js';
-
-/**
- * The different types of power consumer types. Should be kept in sync with the
- * PowerConsumerType in ProcessDataCollector.
- * @enum {number}
- */
-const PowerConsumerType = {
-  SCREEN: 0,
-  KEYBOARD: 1,
-  CROSTINI: 2,
-  ARC: 3,
-  CHROME: 4,
-  SYSTEM: 5,
-};
 
 const devicePixelRatio = window.devicePixelRatio;
 
@@ -73,7 +59,7 @@ function plotLineGraph(
   }
 
   for (let count = 0; count < plots.length; count++) {
-    if (plots[count].data.length != size) {
+    if (plots[count].data.length !== size) {
       throw new Error('Mismatch in time and plot data.');
     }
   }
@@ -323,7 +309,7 @@ function plotLineGraph(
           intervalStart = Math.max(i - 1, 0);
         }
 
-        if (i == size - 1) {
+        if (i === size - 1) {
           // If this is the last sample, just draw missing rect.
           drawMissingRect(intervalStart, i);
         }
@@ -385,7 +371,7 @@ function plotLineGraph(
       return;
     }
 
-    if (width == size) {
+    if (width === size) {
       drawTimeGuide(Math.round(x - xOrigin));
     } else {
       drawTimeGuide(Math.round((x - xOrigin) / (width - 1) * (size - 1)));
@@ -500,13 +486,13 @@ function addTimeDataSample(
     plots, tData, absTime, sampleArray, sampleTime, previousSampleTime,
     systemResumedArray) {
   for (let i = 0; i < plots.length; i++) {
-    if (plots[i].data.length != tData.length) {
+    if (plots[i].data.length !== tData.length) {
       throw new Error('Mismatch in time and plot data.');
     }
   }
 
   let time;
-  if (tData.length == 0) {
+  if (tData.length === 0) {
     time = new Date(sampleTime);
     absTime[0] = sampleTime;
     tData[0] = time.toLocaleTimeString();
@@ -637,7 +623,7 @@ function showBatteryChargeData({powerSupplyData, systemResumedData}) {
         [dischargeRate, movingAverage, binnedAverage], powerSupplyData[i].time,
         powerSupplyData[j].time, systemResumedData);
   }
-  if (minDischargeRate == maxDischargeRate) {
+  if (minDischargeRate === maxDischargeRate) {
     // This means that all the samples had the same value. Hence, offset the
     // extremes by a bit so that the plot looks good.
     minDischargeRate -= 1;
@@ -700,7 +686,7 @@ function showStateOccupancyData(
   let absTime;
   for (let cpu = 0; cpu < timeInStateData.length; cpu++) {
     const cpuData = timeInStateData[cpu];
-    if (cpuData.length == 0) {
+    if (cpuData.length === 0) {
       cpuPlots[cpu] = {plots: [], tData: []};
       continue;
     }
@@ -729,7 +715,7 @@ function showStateOccupancyData(
     }
     // If stateCount is 0, then it means the CPU has been offline
     // throughout. Just add a single plot for such a case.
-    if (stateCount == 0) {
+    if (stateCount === 0) {
       plots.push({name: null, data: [], color: null});
       stateCount = 1;  // Some invalid state!
     }
@@ -823,11 +809,6 @@ function showCpuFreqData({freqStateData, systemResumedData}) {
       'frequencyStateOccupancyPercentageHeader', 'MHz', 'cpu-freq-plots-div');
 }
 
-function showProcessUsageData(processUsageData) {
-  // TODO(crbug.com/851767): Add the code to create a suitable UI for this
-  // information.
-}
-
 function requestBatteryChargeData() {
   sendWithPromise('requestBatteryChargeData').then(showBatteryChargeData);
 }
@@ -838,10 +819,6 @@ function requestCpuIdleData() {
 
 function requestCpuFreqData() {
   sendWithPromise('requestCpuFreqData').then(showCpuFreqData);
-}
-
-function requestProcessUsageData() {
-  sendWithPromise('requestProcessUsageData').then(showProcessUsageData);
 }
 
 /**

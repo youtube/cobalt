@@ -8,40 +8,85 @@
 
 #include <memory>
 #include <set>
+#include <string_view>
 #include <tuple>
 
+#include "base/feature_list.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "components/database_utils/url_converter.h"
+#include "components/os_crypt/async/common/encryptor.h"
 #include "components/search_engines/search_terms_data.h"
 #include "components/search_engines/template_url.h"
 #include "components/webdata/common/web_database.h"
 #include "sql/statement.h"
 #include "sql/transaction.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "url/gurl.h"
 
-using base::Time;
+using ::base::Time;
+using ::country_codes::CountryId;
 
-// static
-const char KeywordTable::kDefaultSearchProviderKey[] =
-    "Default Search Provider ID";
+namespace features {
+BASE_FEATURE(kKeywordTableHashVerification,
+             "KeywordTableHashVerification",
+// Only enable this hash checking feature on Windows. This because the value of
+// OSCrypt::IsEncryptionAvailable can vary and is platform specific. E.g.
+// os_crypt_posix.cc historically returned 'false' for IsEncryptionAvailable. On
+// Linux, OSCrypt::IsEncryptionAvailable can return `false` if v11 encryption is
+// not available, but data could still be encrypted with v10 encryption, and the
+// backend can change for various reasons including command line options or
+// desktop window manager.
+#if BUILDFLAG(IS_WIN)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif  // BUILDFLAG(IS_WIN)
+);
+
+}  // namespace features
 
 namespace {
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class HashValidationStatus {
+  // The hash was verified successfully.
+  kSuccess = 0,
+  // Decryption of the encrypted hash failed.
+  kDecryptFailed = 1,
+  // The decrypted hash was invalid e.g. too short or too long.
+  kInvalidHash = 2,
+  // The decrypted hash did not match the expected value.
+  kIncorrectHash = 3,
+  // The hash was not verified as decryption services are not available.
+  kNotVerifiedNoCrypto = 4,
+  // The hash was not verified as verification is disabled.
+  kNotVerifiedFeatureDisabled = 5,
+  kMaxValue = kNotVerifiedFeatureDisabled,
+};
+
 // Keys used in the meta table.
-const char kBuiltinKeywordVersion[] = "Builtin Keyword Version";
-const char kStarterPackKeywordVersion[] = "Starter Pack Keyword Version";
+constexpr char kBuiltinKeywordDataVersion[] = "Builtin Keyword Version";
+constexpr char kBuiltinKeywordMilestone[] = "Builtin Keyword Milestone";
+constexpr char kBuiltinKeywordCountry[] = "Builtin Keyword Country";
+constexpr char kStarterPackKeywordVersion[] = "Starter Pack Keyword Version";
+
+// Version that added the url_hash column. Used in several places in this code.
+constexpr int kAddedHashColumn = 137;
 
 const std::string ColumnsForVersion(int version, bool concatenated) {
-  std::vector<base::StringPiece> columns;
+  std::vector<std::string_view> columns;
 
   columns.push_back("id");
   columns.push_back("short_name");
@@ -117,61 +162,15 @@ const std::string ColumnsForVersion(int version, bool concatenated) {
     // Column added in version 112.
     columns.push_back("enforced_by_policy");
   }
-
+  if (version >= 122) {
+    // Column added in version 122.
+    columns.push_back("featured_by_policy");
+  }
+  if (version >= kAddedHashColumn) {
+    // Column added in version 137.
+    columns.push_back("url_hash");
+  }
   return base::JoinString(columns, std::string(concatenated ? " || " : ", "));
-}
-
-// Inserts the data from |data| into |s|.  |s| is assumed to have slots for all
-// the columns in the keyword table.  |id_column| is the slot number to bind
-// |data|'s |id| to; |starting_column| is the slot number of the first of a
-// contiguous set of slots to bind all the other fields to.
-void BindURLToStatement(const TemplateURLData& data,
-                        sql::Statement* s,
-                        int id_column,
-                        int starting_column) {
-  // Serialize |alternate_urls| to JSON.
-  // TODO(beaudoin): Check what it would take to use a new table to store
-  // alternate_urls while keeping backups and table signature in a good state.
-  // See: crbug.com/153520
-  base::Value::List alternate_urls_value;
-  for (size_t i = 0; i < data.alternate_urls.size(); ++i)
-    alternate_urls_value.Append(data.alternate_urls[i]);
-  std::string alternate_urls;
-  base::JSONWriter::Write(alternate_urls_value, &alternate_urls);
-
-  s->BindInt64(id_column, data.id);
-  s->BindString16(starting_column, data.short_name());
-  s->BindString16(starting_column + 1, data.keyword());
-  s->BindString(starting_column + 2,
-                data.favicon_url.is_valid()
-                    ? database_utils::GurlToDatabaseUrl(data.favicon_url)
-                    : std::string());
-  s->BindString(starting_column + 3, data.url());
-  s->BindBool(starting_column + 4, data.safe_for_autoreplace);
-  s->BindString(starting_column + 5,
-                data.originating_url.is_valid()
-                    ? database_utils::GurlToDatabaseUrl(data.originating_url)
-                    : std::string());
-  s->BindTime(starting_column + 6, data.date_created);
-  s->BindInt(starting_column + 7, data.usage_count);
-  s->BindString(starting_column + 8,
-                base::JoinString(data.input_encodings, ";"));
-  s->BindString(starting_column + 9, data.suggestions_url);
-  s->BindInt(starting_column + 10, data.prepopulate_id);
-  s->BindBool(starting_column + 11, data.created_by_policy);
-  s->BindTime(starting_column + 12, data.last_modified);
-  s->BindString(starting_column + 13, data.sync_guid);
-  s->BindString(starting_column + 14, alternate_urls);
-  s->BindString(starting_column + 15, data.image_url);
-  s->BindString(starting_column + 16, data.search_url_post_params);
-  s->BindString(starting_column + 17, data.suggestions_url_post_params);
-  s->BindString(starting_column + 18, data.image_url_post_params);
-  s->BindString(starting_column + 19, data.new_tab_url);
-  s->BindTime(starting_column + 20, data.last_visited);
-  s->BindBool(starting_column + 21, data.created_from_play_api);
-  s->BindInt(starting_column + 22, static_cast<int>(data.is_active));
-  s->BindInt(starting_column + 23, data.starter_pack_id);
-  s->BindBool(starting_column + 24, data.enforced_by_policy);
 }
 
 WebDatabaseTable::TypeKey GetKey() {
@@ -186,7 +185,7 @@ WebDatabaseTable::TypeKey GetKey() {
 KeywordTable::KeywordTable() {
 }
 
-KeywordTable::~KeywordTable() {}
+KeywordTable::~KeywordTable() = default;
 
 KeywordTable* KeywordTable::FromWebDatabase(WebDatabase* db) {
   return static_cast<KeywordTable*>(db->GetTable(GetKey()));
@@ -197,8 +196,8 @@ WebDatabaseTable::TypeKey KeywordTable::GetTypeKey() const {
 }
 
 bool KeywordTable::CreateTablesIfNecessary() {
-  return db_->DoesTableExist("keywords") ||
-         db_->Execute(
+  return db()->DoesTableExist("keywords") ||
+         db()->Execute(
              "CREATE TABLE keywords ("
              "id INTEGER PRIMARY KEY,"
              "short_name VARCHAR NOT NULL,"
@@ -225,7 +224,9 @@ bool KeywordTable::CreateTablesIfNecessary() {
              "created_from_play_api INTEGER DEFAULT 0, "
              "is_active INTEGER DEFAULT 0, "
              "starter_pack_id INTEGER DEFAULT 0, "
-             "enforced_by_policy INTEGER DEFAULT 0)");
+             "enforced_by_policy INTEGER DEFAULT 0, "
+             "featured_by_policy INTEGER DEFAULT 0, "
+             "url_hash BLOB)");
 }
 
 bool KeywordTable::MigrateToVersion(int version,
@@ -257,13 +258,17 @@ bool KeywordTable::MigrateToVersion(int version,
       return MigrateToVersion103AddStarterPackIdColumn();
     case 112:
       return MigrateToVersion112AddEnforcedByPolicyColumn();
+    case 122:
+      return MigrateToVersion122AddSiteSearchPolicyColumns();
+    case 137:
+      return MigrateToVersion137AddHashColumn();
   }
 
   return true;
 }
 
 bool KeywordTable::PerformOperations(const Operations& operations) {
-  sql::Transaction transaction(db_);
+  sql::Transaction transaction(db());
   if (!transaction.Begin())
     return false;
 
@@ -290,16 +295,17 @@ bool KeywordTable::PerformOperations(const Operations& operations) {
 }
 
 bool KeywordTable::GetKeywords(Keywords* keywords) {
-  std::string query("SELECT " + GetKeywordColumns() +
-                    " FROM keywords ORDER BY id ASC");
-  sql::Statement s(db_->GetUniqueStatement(query.c_str()));
+  const std::string query = base::StrCat(
+      {"SELECT ", GetKeywordColumns(), " FROM keywords ORDER BY id ASC"});
+  sql::Statement s(db()->GetUniqueStatement(query));
 
   std::set<TemplateURLID> bad_entries;
   while (s.Step()) {
-    keywords->push_back(TemplateURLData());
-    if (!GetKeywordDataFromStatement(s, &keywords->back())) {
+    const auto data = GetKeywordDataFromStatement(s);
+    if (data) {
+      keywords->emplace_back(std::move(*data));
+    } else {
       bad_entries.insert(s.ColumnInt64(0));
-      keywords->pop_back();
     }
   }
   bool succeeded = s.Succeeded();
@@ -308,33 +314,39 @@ bool KeywordTable::GetKeywords(Keywords* keywords) {
   return succeeded;
 }
 
-bool KeywordTable::SetDefaultSearchProviderID(int64_t id) {
-  return meta_table_->SetValue(kDefaultSearchProviderKey, id);
+bool KeywordTable::SetBuiltinKeywordDataVersion(int version) {
+  return meta_table()->SetValue(kBuiltinKeywordDataVersion, version);
 }
 
-int64_t KeywordTable::GetDefaultSearchProviderID() {
-  int64_t value = kInvalidTemplateURLID;
-  meta_table_->GetValue(kDefaultSearchProviderKey, &value);
-  return value;
-}
-
-bool KeywordTable::SetBuiltinKeywordVersion(int version) {
-  return meta_table_->SetValue(kBuiltinKeywordVersion, version);
-}
-
-int KeywordTable::GetBuiltinKeywordVersion() {
+int KeywordTable::GetBuiltinKeywordDataVersion() {
   int version = 0;
-  return meta_table_->GetValue(kBuiltinKeywordVersion, &version) ? version : 0;
+  return meta_table()->GetValue(kBuiltinKeywordDataVersion, &version) ? version
+                                                                      : 0;
+}
+
+bool KeywordTable::ClearBuiltinKeywordMilestone() {
+  return meta_table()->DeleteKey(kBuiltinKeywordMilestone);
+}
+
+bool KeywordTable::SetBuiltinKeywordCountry(CountryId country_id) {
+  return meta_table()->SetValue(kBuiltinKeywordCountry, country_id.Serialize());
+}
+
+CountryId KeywordTable::GetBuiltinKeywordCountry() {
+  int country_id = 0;
+  return meta_table()->GetValue(kBuiltinKeywordCountry, &country_id)
+             ? CountryId::Deserialize(country_id)
+             : CountryId();
 }
 
 bool KeywordTable::SetStarterPackKeywordVersion(int version) {
-  return meta_table_->SetValue(kStarterPackKeywordVersion, version);
+  return meta_table()->SetValue(kStarterPackKeywordVersion, version);
 }
 
 int KeywordTable::GetStarterPackKeywordVersion() {
   int version = 0;
-  return meta_table_->GetValue(kStarterPackKeywordVersion, &version) ? version
-                                                                     : 0;
+  return meta_table()->GetValue(kStarterPackKeywordVersion, &version) ? version
+                                                                      : 0;
 }
 
 // static
@@ -343,13 +355,15 @@ std::string KeywordTable::GetKeywordColumns() {
 }
 
 bool KeywordTable::MigrateToVersion53AddNewTabURLColumn() {
-  return db_->Execute("ALTER TABLE keywords ADD COLUMN new_tab_url "
-                      "VARCHAR DEFAULT ''");
+  return db()->Execute(
+      "ALTER TABLE keywords ADD COLUMN new_tab_url "
+      "VARCHAR DEFAULT ''");
 }
 
 bool KeywordTable::MigrateToVersion59RemoveExtensionKeywords() {
-  return db_->Execute("DELETE FROM keywords "
-                      "WHERE url LIKE 'chrome-extension://%'");
+  return db()->Execute(
+      "DELETE FROM keywords "
+      "WHERE url LIKE 'chrome-extension://%'");
 }
 
 // SQLite does not support DROP COLUMN operation. So A new table is created
@@ -357,13 +371,12 @@ bool KeywordTable::MigrateToVersion59RemoveExtensionKeywords() {
 // of the old table is copied into it. After that, the old table is dropped and
 // the new table is renamed to it.
 bool KeywordTable::MigrateToVersion68RemoveShowInDefaultListColumn() {
-  sql::Transaction transaction(db_);
-  std::string query_str =
-      std::string("INSERT INTO temp_keywords SELECT " +
-                  ColumnsForVersion(68, false) + " FROM keywords");
-  const char* clone_query = query_str.c_str();
+  sql::Transaction transaction(db());
+  const std::string query_str =
+      base::StrCat({"INSERT INTO temp_keywords SELECT ",
+                    ColumnsForVersion(68, false), " FROM keywords"});
   return transaction.Begin() &&
-         db_->Execute(
+         db()->Execute(
              "CREATE TABLE temp_keywords ("
              "id INTEGER PRIMARY KEY,"
              "short_name VARCHAR NOT NULL,"
@@ -389,14 +402,15 @@ bool KeywordTable::MigrateToVersion68RemoveShowInDefaultListColumn() {
              "instant_url_post_params VARCHAR,"
              "image_url_post_params VARCHAR,"
              "new_tab_url VARCHAR)") &&
-         db_->Execute(clone_query) && db_->Execute("DROP TABLE keywords") &&
-         db_->Execute("ALTER TABLE temp_keywords RENAME TO keywords") &&
+         db()->Execute(query_str) && db()->Execute("DROP TABLE keywords") &&
+         db()->Execute("ALTER TABLE temp_keywords RENAME TO keywords") &&
          transaction.Commit();
 }
 
 bool KeywordTable::MigrateToVersion69AddLastVisitedColumn() {
-  return db_->Execute("ALTER TABLE keywords ADD COLUMN last_visited "
-                      "INTEGER DEFAULT 0");
+  return db()->Execute(
+      "ALTER TABLE keywords ADD COLUMN last_visited "
+      "INTEGER DEFAULT 0");
 }
 
 // SQLite does not support DROP COLUMN operation. So a new table is created
@@ -404,13 +418,12 @@ bool KeywordTable::MigrateToVersion69AddLastVisitedColumn() {
 // table is copied into it. After that, the old table is dropped and the new
 // table is renamed to it.
 bool KeywordTable::MigrateToVersion76RemoveInstantColumns() {
-  sql::Transaction transaction(db_);
-  std::string query_str =
-      std::string("INSERT INTO temp_keywords SELECT " +
-                  ColumnsForVersion(76, false) + " FROM keywords");
-  const char* clone_query = query_str.c_str();
+  sql::Transaction transaction(db());
+  const std::string query_str =
+      base::StrCat({"INSERT INTO temp_keywords SELECT ",
+                    ColumnsForVersion(76, false), " FROM keywords"});
   return transaction.Begin() &&
-         db_->Execute(
+         db()->Execute(
              "CREATE TABLE temp_keywords ("
              "id INTEGER PRIMARY KEY,"
              "short_name VARCHAR NOT NULL,"
@@ -434,19 +447,19 @@ bool KeywordTable::MigrateToVersion76RemoveInstantColumns() {
              "image_url_post_params VARCHAR,"
              "new_tab_url VARCHAR,"
              "last_visited INTEGER DEFAULT 0)") &&
-         db_->Execute(clone_query) && db_->Execute("DROP TABLE keywords") &&
-         db_->Execute("ALTER TABLE temp_keywords RENAME TO keywords") &&
+         db()->Execute(query_str) && db()->Execute("DROP TABLE keywords") &&
+         db()->Execute("ALTER TABLE temp_keywords RENAME TO keywords") &&
          transaction.Commit();
 }
 
 bool KeywordTable::MigrateToVersion77IncreaseTimePrecision() {
-  sql::Transaction transaction(db_);
+  sql::Transaction transaction(db());
   if (!transaction.Begin())
     return false;
 
-  std::string query(
-      "SELECT id, date_created, last_modified, last_visited FROM keywords");
-  sql::Statement s(db_->GetUniqueStatement(query.c_str()));
+  static constexpr char kQuery[] =
+      "SELECT id, date_created, last_modified, last_visited FROM keywords";
+  sql::Statement s(db()->GetUniqueStatement(kQuery));
   std::vector<std::tuple<TemplateURLID, Time, Time, Time>> updates;
   while (s.Step()) {
     updates.emplace_back(std::make_tuple(s.ColumnInt64(0), s.ColumnTime(1),
@@ -455,8 +468,8 @@ bool KeywordTable::MigrateToVersion77IncreaseTimePrecision() {
   if (!s.Succeeded())
     return false;
 
-  for (auto tuple : updates) {
-    sql::Statement update_statement(db_->GetCachedStatement(
+  for (const auto& tuple : updates) {
+    sql::Statement update_statement(db()->GetCachedStatement(
         SQL_FROM_HERE,
         "UPDATE keywords SET date_created = ?, last_modified = ?, last_visited "
         "= ? WHERE id = ? "));
@@ -472,93 +485,260 @@ bool KeywordTable::MigrateToVersion77IncreaseTimePrecision() {
 }
 
 bool KeywordTable::MigrateToVersion82AddCreatedFromPlayApiColumn() {
-  return db_->Execute(
+  return db()->Execute(
       "ALTER TABLE keywords ADD COLUMN created_from_play_api INTEGER DEFAULT "
       "0");
 }
 
 bool KeywordTable::MigrateToVersion97AddIsActiveColumn() {
-  return db_->Execute(
+  return db()->Execute(
       "ALTER TABLE keywords ADD COLUMN is_active INTEGER DEFAULT 0");
 }
 
 bool KeywordTable::MigrateToVersion103AddStarterPackIdColumn() {
-  return db_->Execute(
+  return db()->Execute(
       "ALTER TABLE keywords ADD COLUMN starter_pack_id INTEGER DEFAULT 0");
 }
 
 bool KeywordTable::MigrateToVersion112AddEnforcedByPolicyColumn() {
-  return db_->Execute(
+  return db()->Execute(
       "ALTER TABLE keywords ADD COLUMN enforced_by_policy INTEGER DEFAULT 0");
 }
 
-// static
-bool KeywordTable::GetKeywordDataFromStatement(sql::Statement& s,
-                                               TemplateURLData* data) {
-  DCHECK(data);
+bool KeywordTable::MigrateToVersion122AddSiteSearchPolicyColumns() {
+  return db()->Execute(
+      "ALTER TABLE keywords ADD COLUMN featured_by_policy INTEGER DEFAULT 0");
+}
 
-  data->SetShortName(s.ColumnString16(1));
-  data->SetKeyword(s.ColumnString16(2));
+bool KeywordTable::MigrateToVersion137AddHashColumn() {
+  sql::Transaction transaction(db());
+
+  if (!transaction.Begin() ||
+      !db()->Execute("ALTER TABLE keywords ADD COLUMN url_hash BLOB")) {
+    return false;
+  }
+
+  bool all_rows_migrated = true;
+  absl::Cleanup record_histogram = [&all_rows_migrated] {
+    base::UmaHistogramBoolean("Search.KeywordTable.MigrationSuccess.V137",
+                              all_rows_migrated);
+  };
+
+  // If there is no platform encryption, nothing left to do, since the
+  // `url_hash` column will just be NULL.
+  if (!base::FeatureList::IsEnabled(features::kKeywordTableHashVerification) ||
+      !encryptor()->IsEncryptionAvailable()) {
+    return transaction.Commit();
+  }
+
+  // Read in all the urls and ids and create hashes for each one.
+  sql::Statement query_statement(db()->GetCachedStatement(
+      SQL_FROM_HERE, base::StrCat({"SELECT id, url FROM keywords"})));
+
+  while (query_statement.Step()) {
+    TemplateURLData data;
+    data.id = query_statement.ColumnInt64(0);
+    const auto maybe_url = query_statement.ColumnString(1);
+
+    // Due to past bugs, there might be persisted entries with empty URLs. Avoid
+    // reading these out. GetKeywords() will delete these entries when they are
+    // read after migration.
+    if (maybe_url.empty()) {
+      all_rows_migrated = false;
+      continue;
+    }
+
+    data.SetURL(maybe_url);
+    const auto url_hash = data.GenerateHash();
+    const auto encrypted_hash = encryptor()->EncryptString(
+        std::string(url_hash.begin(), url_hash.end()));
+    if (!encrypted_hash) {
+      all_rows_migrated = false;
+      continue;
+    }
+
+    // Update each row in turn with the generated hash.
+    sql::Statement update_statement(db()->GetCachedStatement(
+        SQL_FROM_HERE, "UPDATE keywords SET url_hash=? WHERE id=?"));
+
+    update_statement.BindBlob(0, *encrypted_hash);
+    update_statement.BindInt64(1, data.id);
+
+    if (!update_statement.Run()) {
+      all_rows_migrated = false;
+      continue;
+    }
+  }
+
+  return transaction.Commit();
+}
+
+std::optional<TemplateURLData> KeywordTable::GetKeywordDataFromStatement(
+    sql::Statement& s) {
+  TemplateURLData data;
+
+  data.SetShortName(s.ColumnString16(1));
+  data.SetKeyword(s.ColumnString16(2));
   // Due to past bugs, we might have persisted entries with empty URLs.  Avoid
   // reading these out.  (GetKeywords() will delete these entries on return.)
   // NOTE: This code should only be needed as long as we might be reading such
   // potentially-old data and can be removed afterward.
-  if (s.ColumnString(4).empty())
-    return false;
-  data->SetURL(s.ColumnString(4));
-  data->suggestions_url = s.ColumnString(10);
-  data->image_url = s.ColumnString(16);
-  data->new_tab_url = s.ColumnString(20);
-  data->search_url_post_params = s.ColumnString(17);
-  data->suggestions_url_post_params = s.ColumnString(18);
-  data->image_url_post_params = s.ColumnString(19);
-  data->favicon_url = GURL(s.ColumnString(3));
-  data->originating_url = GURL(s.ColumnString(6));
-  data->safe_for_autoreplace = s.ColumnBool(5);
-  data->input_encodings = base::SplitString(
-      s.ColumnString(9), ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
-  data->id = s.ColumnInt64(0);
-  data->date_created = s.ColumnTime(7);
-  data->last_modified = s.ColumnTime(13);
-  data->created_by_policy = s.ColumnBool(12);
-  data->created_from_play_api = s.ColumnBool(22);
-  data->usage_count = s.ColumnInt(8);
-  data->prepopulate_id = s.ColumnInt(11);
-  data->sync_guid = s.ColumnString(14);
-  data->is_active = static_cast<TemplateURLData::ActiveStatus>(s.ColumnInt(23));
-  data->starter_pack_id = s.ColumnInt(24);
-  data->enforced_by_policy = s.ColumnBool(25);
+  if (s.ColumnStringView(4).empty()) {
+    return std::nullopt;
+  }
+  data.SetURL(s.ColumnString(4));
+  data.suggestions_url = s.ColumnString(10);
+  data.image_url = s.ColumnString(16);
+  data.new_tab_url = s.ColumnString(20);
+  data.search_url_post_params = s.ColumnString(17);
+  data.suggestions_url_post_params = s.ColumnString(18);
+  data.image_url_post_params = s.ColumnString(19);
+  data.favicon_url = GURL(s.ColumnStringView(3));
+  data.originating_url = GURL(s.ColumnStringView(6));
+  data.safe_for_autoreplace = s.ColumnBool(5);
+  data.input_encodings = base::SplitString(
+      s.ColumnStringView(9), ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  data.id = s.ColumnInt64(0);
+  data.date_created = s.ColumnTime(7);
+  data.last_modified = s.ColumnTime(13);
+  data.policy_origin =
+      static_cast<TemplateURLData::PolicyOrigin>(s.ColumnInt(12));
+  // TODO(b:322513019): support other regulatory programs.
+  data.regulatory_origin = s.ColumnBool(22)
+                               ? RegulatoryExtensionType::kAndroidEEA
+                               : RegulatoryExtensionType::kDefault;
+  data.usage_count = s.ColumnInt(8);
+  data.prepopulate_id = s.ColumnInt(11);
+  data.sync_guid = s.ColumnString(14);
+  data.is_active = static_cast<TemplateURLData::ActiveStatus>(s.ColumnInt(23));
+  data.starter_pack_id = s.ColumnInt(24);
+  data.enforced_by_policy = s.ColumnBool(25);
+  data.featured_by_policy = s.ColumnBool(26);
 
-  data->alternate_urls.clear();
-  absl::optional<base::Value> value(base::JSONReader::Read(s.ColumnString(15)));
+  std::optional<base::Value> value(
+      base::JSONReader::Read(s.ColumnStringView(15)));
   if (value && value->is_list()) {
     for (const base::Value& alternate_url : value->GetList()) {
       if (alternate_url.is_string()) {
-        data->alternate_urls.push_back(alternate_url.GetString());
+        data.alternate_urls.push_back(alternate_url.GetString());
       }
     }
   }
 
-  data->last_visited = s.ColumnTime(21);
+  data.last_visited = s.ColumnTime(21);
 
-  return true;
+  HashValidationStatus status = HashValidationStatus::kSuccess;
+  absl::Cleanup record_histogram = [&status] {
+    base::UmaHistogramEnumeration("Search.KeywordTable.HashValidationStatus",
+                                  status);
+  };
+
+  if (!base::FeatureList::IsEnabled(features::kKeywordTableHashVerification)) {
+    status = HashValidationStatus::kNotVerifiedFeatureDisabled;
+  } else if (!encryptor()->IsDecryptionAvailable()) {
+    status = HashValidationStatus::kNotVerifiedNoCrypto;
+  } else {
+    const auto hash = encryptor()->DecryptData(s.ColumnBlob(27));
+    if (!hash) {
+      status = HashValidationStatus::kDecryptFailed;
+      return std::nullopt;
+    }
+
+    const auto expected_hash = data.GenerateHash();
+
+    if (expected_hash.size() != hash->size()) {
+      status = HashValidationStatus::kInvalidHash;
+      return std::nullopt;
+    }
+
+    if (!std::ranges::equal(hash.value(), expected_hash, [](char c, uint8_t b) {
+          return static_cast<uint8_t>(c) == b;
+        })) {
+      status = HashValidationStatus::kIncorrectHash;
+      return std::nullopt;
+    }
+  }
+
+  return data;
+}
+
+void KeywordTable::BindURLToStatement(const TemplateURLData& data,
+                                      sql::Statement* s,
+                                      int id_column,
+                                      int starting_column) {
+  // Serialize |alternate_urls| to JSON.
+  // TODO(crbug.com/40950727): Check what it would take to use a new table to
+  // store alternate_urls while keeping backups and table signature in a good
+  // state.
+  base::Value::List alternate_urls_value;
+  for (const auto& alternate_url : data.alternate_urls) {
+    alternate_urls_value.Append(alternate_url);
+  }
+  std::string alternate_urls;
+  base::JSONWriter::Write(alternate_urls_value, &alternate_urls);
+
+  s->BindInt64(id_column, data.id);
+  s->BindString16(starting_column, data.short_name());
+  s->BindString16(starting_column + 1, data.keyword());
+  s->BindString(starting_column + 2,
+                data.favicon_url.is_valid()
+                    ? database_utils::GurlToDatabaseUrl(data.favicon_url)
+                    : std::string());
+  s->BindString(starting_column + 3, data.url());
+  s->BindBool(starting_column + 4, data.safe_for_autoreplace);
+  s->BindString(starting_column + 5,
+                data.originating_url.is_valid()
+                    ? database_utils::GurlToDatabaseUrl(data.originating_url)
+                    : std::string());
+  s->BindTime(starting_column + 6, data.date_created);
+  s->BindInt(starting_column + 7, data.usage_count);
+  s->BindString(starting_column + 8,
+                base::JoinString(data.input_encodings, ";"));
+  s->BindString(starting_column + 9, data.suggestions_url);
+  s->BindInt(starting_column + 10, data.prepopulate_id);
+  s->BindInt(starting_column + 11, static_cast<int>(data.policy_origin));
+  s->BindTime(starting_column + 12, data.last_modified);
+  s->BindString(starting_column + 13, data.sync_guid);
+  s->BindString(starting_column + 14, alternate_urls);
+  s->BindString(starting_column + 15, data.image_url);
+  s->BindString(starting_column + 16, data.search_url_post_params);
+  s->BindString(starting_column + 17, data.suggestions_url_post_params);
+  s->BindString(starting_column + 18, data.image_url_post_params);
+  s->BindString(starting_column + 19, data.new_tab_url);
+  s->BindTime(starting_column + 20, data.last_visited);
+  // TODO(b:322513019): support other regulatory programs.
+  s->BindBool(starting_column + 21,
+              data.regulatory_origin == RegulatoryExtensionType::kAndroidEEA);
+  s->BindInt(starting_column + 22, static_cast<int>(data.is_active));
+  s->BindInt(starting_column + 23, data.starter_pack_id);
+  s->BindBool(starting_column + 24, data.enforced_by_policy);
+  s->BindBool(starting_column + 25, data.featured_by_policy);
+  if (encryptor()->IsEncryptionAvailable()) {
+    const auto url_hash = data.GenerateHash();
+    const auto encrypted_hash = encryptor()->EncryptString(
+        std::string(url_hash.begin(), url_hash.end()));
+    CHECK(encrypted_hash);
+    s->BindBlob(starting_column + 26, *encrypted_hash);
+  } else {
+    s->BindNull(starting_column + 26);
+  }
 }
 
 bool KeywordTable::AddKeyword(const TemplateURLData& data) {
   DCHECK(data.id);
-  std::string query(
-      "INSERT INTO keywords (" + GetKeywordColumns() +
-      ") "
-      "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-  sql::Statement s(db_->GetCachedStatement(SQL_FROM_HERE, query.c_str()));
-  BindURLToStatement(data, &s, 0, 1);
+  const std::string query = base::StrCat(
+      {"INSERT INTO keywords (", GetKeywordColumns(),
+       ") "
+       "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"});
+  sql::Statement s(db()->GetCachedStatement(SQL_FROM_HERE, query));
+  BindURLToStatement(data, &s, /*id_column=*/0, /*starting_column=*/1);
 
   return s.Run();
 }
 
 bool KeywordTable::RemoveKeyword(TemplateURLID id) {
   DCHECK(id);
-  sql::Statement s(db_->GetCachedStatement(
+  sql::Statement s(db()->GetCachedStatement(
       SQL_FROM_HERE, "DELETE FROM keywords WHERE id = ?"));
   s.BindInt64(0, id);
 
@@ -567,7 +747,7 @@ bool KeywordTable::RemoveKeyword(TemplateURLID id) {
 
 bool KeywordTable::UpdateKeyword(const TemplateURLData& data) {
   DCHECK(data.id);
-  sql::Statement s(db_->GetCachedStatement(
+  sql::Statement s(db()->GetCachedStatement(
       SQL_FROM_HERE,
       "UPDATE keywords SET short_name=?, keyword=?, favicon_url=?, url=?, "
       "safe_for_autoreplace=?, originating_url=?, date_created=?, "
@@ -576,19 +756,19 @@ bool KeywordTable::UpdateKeyword(const TemplateURLData& data) {
       "image_url=?, search_url_post_params=?, suggest_url_post_params=?, "
       "image_url_post_params=?, new_tab_url=?, last_visited=?, "
       "created_from_play_api=?, is_active=?, starter_pack_id=?, "
-      "enforced_by_policy=? WHERE id=?"));
-  BindURLToStatement(data, &s, 25, 0);  // "25" binds id() as the last item.
-
+      "enforced_by_policy=?, featured_by_policy=?, url_hash=? WHERE id=?"));
+  // "27" binds id() as the last item.
+  BindURLToStatement(data, &s, /*id_column=*/27, /*starting_column=*/0);
   return s.Run();
 }
 
 bool KeywordTable::GetKeywordAsString(TemplateURLID id,
                                       const std::string& table_name,
                                       std::string* result) {
-  std::string query("SELECT " +
-      ColumnsForVersion(WebDatabase::kCurrentVersionNumber, true) +
-      " FROM " + table_name + " WHERE id=?");
-  sql::Statement s(db_->GetUniqueStatement(query.c_str()));
+  const std::string query = base::StrCat(
+      {"SELECT ", ColumnsForVersion(WebDatabase::kCurrentVersionNumber, true),
+       " FROM ", table_name, " WHERE id=?"});
+  sql::Statement s(db()->GetUniqueStatement(query));
   s.BindInt64(0, id);
 
   if (!s.Step()) {

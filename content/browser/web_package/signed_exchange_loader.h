@@ -6,12 +6,14 @@
 #define CONTENT_BROWSER_WEB_PACKAGE_SIGNED_EXCHANGE_LOADER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/functional/callback.h"
 #include "base/unguessable_token.h"
 #include "content/browser/web_package/signed_exchange_error.h"
 #include "content/common/content_export.h"
+#include "content/public/browser/frame_tree_node_id.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -23,7 +25,6 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/origin.h"
 
 namespace blink {
@@ -31,7 +32,6 @@ class URLLoaderThrottle;
 }  // namespace blink
 
 namespace net {
-class NetworkAnonymizationKey;
 class SourceStream;
 }  // namespace net
 
@@ -74,8 +74,7 @@ class CONTENT_EXPORT SignedExchangeLoader final
       std::unique_ptr<SignedExchangeReporter> reporter,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       URLLoaderThrottlesGetter url_loader_throttles_getter,
-      const net::NetworkAnonymizationKey& network_anonymization_key,
-      int frame_tree_node_id,
+      FrameTreeNodeId frame_tree_node_id,
       const std::string& accept_langs,
       bool keep_entry_for_prefetch_cache);
 
@@ -90,7 +89,7 @@ class CONTENT_EXPORT SignedExchangeLoader final
   void OnReceiveResponse(
       network::mojom::URLResponseHeadPtr response_head,
       mojo::ScopedDataPipeConsumerHandle body,
-      absl::optional<mojo_base::BigBuffer> cached_metadata) override;
+      std::optional<mojo_base::BigBuffer> cached_metadata) override;
   void OnReceiveRedirect(
       const net::RedirectInfo& redirect_info,
       network::mojom::URLResponseHeadPtr response_head) override;
@@ -105,18 +104,16 @@ class CONTENT_EXPORT SignedExchangeLoader final
       const std::vector<std::string>& removed_headers,
       const net::HttpRequestHeaders& modified_headers,
       const net::HttpRequestHeaders& modified_cors_exempt_headers,
-      const absl::optional<GURL>& new_url) override;
+      const std::optional<GURL>& new_url) override;
   void SetPriority(net::RequestPriority priority,
                    int intra_priority_value) override;
-  void PauseReadingBodyFromNet() override;
-  void ResumeReadingBodyFromNet() override;
 
   void ConnectToClient(
       mojo::PendingRemote<network::mojom::URLLoaderClient> client);
 
-  const absl::optional<GURL>& fallback_url() const { return fallback_url_; }
+  const std::optional<GURL>& fallback_url() const { return fallback_url_; }
 
-  const absl::optional<GURL>& inner_request_url() const {
+  const std::optional<GURL>& inner_request_url() const {
     return inner_request_url_;
   }
 
@@ -174,20 +171,20 @@ class CONTENT_EXPORT SignedExchangeLoader final
   const uint32_t url_loader_options_;
   const bool should_redirect_on_failure_;
 
-  absl::optional<net::SSLInfo> ssl_info_;
+  std::optional<net::SSLInfo> ssl_info_;
 
-  absl::optional<GURL> fallback_url_;
-  absl::optional<GURL> inner_request_url_;
+  std::optional<GURL> fallback_url_;
+  std::optional<GURL> inner_request_url_;
 
   struct OuterResponseLengthInfo {
     int64_t encoded_data_length;
     int64_t decoded_body_length;
   };
   // Set when URLLoaderClient::OnComplete() is called.
-  absl::optional<OuterResponseLengthInfo> outer_response_length_info_;
+  std::optional<OuterResponseLengthInfo> outer_response_length_info_;
 
   // Set when |body_data_pipe_adapter_| finishes loading the decoded body.
-  absl::optional<int> decoded_body_read_result_;
+  std::optional<int> decoded_body_read_result_;
 
   // Keep the signed exchange info to be stored to
   // PrefetchedSignedExchangeCache.

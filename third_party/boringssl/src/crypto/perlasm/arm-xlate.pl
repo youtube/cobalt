@@ -1,10 +1,17 @@
 #! /usr/bin/env perl
 # Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
-# this file except in compliance with the License.  You can obtain a copy
-# in the file LICENSE in the source distribution or at
-# https://www.openssl.org/source/license.html
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 use strict;
 
@@ -153,9 +160,9 @@ sub expand_line {
 
 my ($arch_defines, $target_defines);
 if ($flavour =~ /32/) {
-    $arch_defines = "defined(__ARMEL__)";
+    $arch_defines = "defined(OPENSSL_ARM)";
 } elsif ($flavour =~ /64/) {
-    $arch_defines = "defined(__AARCH64EL__)";
+    $arch_defines = "defined(OPENSSL_AARCH64)";
 } else {
     die "unknown architecture: $flavour";
 }
@@ -177,19 +184,10 @@ print <<___;
 // This file is generated from a similarly-named Perl script in the BoringSSL
 // source tree. Do not edit by hand.
 
-#if !defined(__has_feature)
-#define __has_feature(x) 0
-#endif
-#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
-#define OPENSSL_NO_ASM
-#endif
+#include <openssl/asm_base.h>
 
 #if !defined(OPENSSL_NO_ASM) && $arch_defines && $target_defines
 ___
-
-print "#if defined(BORINGSSL_PREFIX)\n";
-print "#include <boringssl_prefix_symbols_asm.h>\n";
-print "#endif\n";
 
 while(my $line=<>) {
 
@@ -260,10 +258,6 @@ while(my $line=<>) {
 
 print <<___;
 #endif  // !OPENSSL_NO_ASM && $arch_defines && $target_defines
-#if defined(__ELF__)
-// See https://www.airs.com/blog/archives/518.
-.section .note.GNU-stack,"",\%progbits
-#endif
 ___
 
 close STDOUT or die "error closing STDOUT: $!";

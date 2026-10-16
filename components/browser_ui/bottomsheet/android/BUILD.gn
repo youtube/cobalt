@@ -4,6 +4,7 @@
 
 import("//build/config/android/rules.gni")
 import("//chrome/android/features/android_library_factory_tmpl.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 android_library("java") {
   sources = [
@@ -12,13 +13,16 @@ android_library("java") {
     "java/src/org/chromium/components/browser_ui/bottomsheet/BottomSheetControllerProvider.java",
     "java/src/org/chromium/components/browser_ui/bottomsheet/BottomSheetObserver.java",
     "java/src/org/chromium/components/browser_ui/bottomsheet/EmptyBottomSheetObserver.java",
+    "java/src/org/chromium/components/browser_ui/bottomsheet/ExpandedSheetHelper.java",
   ]
 
   deps = [
     ":java_resources",
     "//base:base_java",
+    "//components/browser_ui/styles/android:java",
     "//components/browser_ui/widget/android:java",
     "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_java",
   ]
   resources_package = "org.chromium.components.browser_ui.bottomsheet"
@@ -27,6 +31,7 @@ android_library("java") {
 android_resources("java_resources") {
   sources = [
     "java/res/layout/bottom_sheet.xml",
+    "java/res/layout/bottom_sheet_handlebar.xml",
     "java/res/values/dimens.xml",
   ]
 
@@ -39,6 +44,7 @@ android_library("manager_java") {
 
   deps = [
     ":java",
+    "//components/browser_ui/desktop_windowing/android:java",
     "//components/browser_ui/widget/android:java",
     "//ui/android:ui_full_java",
   ]
@@ -50,8 +56,14 @@ android_library_factory("factory_java") {
   deps = [
     ":java",
     ":manager_java",
+    "//base:base_java",
+    "//components/browser_ui/desktop_windowing/android:java",
     "//components/browser_ui/widget/android:java",
     "//ui/android:ui_full_java",
     "//ui/android:ui_utils_java",
   ]
+}
+
+generate_jni("jni") {
+  sources = [ "java/src/org/chromium/components/browser_ui/bottomsheet/BottomSheetControllerProvider.java" ]
 }

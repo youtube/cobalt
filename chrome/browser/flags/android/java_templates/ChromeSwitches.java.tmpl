@@ -30,6 +30,9 @@ public abstract class ChromeSwitches {{
     /** Don't restore persistent state from saved files on startup. */
     public static final String NO_RESTORE_STATE = "no-restore-state";
 
+    /** Prevents all IPHs from showing. */
+    public static final String DISABLE_ALL_IPH = "propagate-iph-for-testing";
+
     /** Disable the First Run Experience. */
     public static final String DISABLE_FIRST_RUN_EXPERIENCE = "disable-fre";
 
@@ -76,6 +79,11 @@ public abstract class ChromeSwitches {{
      * Disable native initialization for testing.
      */
     public static final String DISABLE_NATIVE_INITIALIZATION = "disable-native-initialization";
+
+    /**
+     * Force the app to turn off windowOptOutEdgeToEdgeEnforcement.
+     */
+    public static final String DISABLE_OPT_OUT_EDGE_TO_EDGE = "disable-opt-out-edge-to-edge";
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // Native Switches
@@ -160,13 +168,12 @@ public abstract class ChromeSwitches {{
     public static final String FEED_HEADER_MENU_IPH_TRIGGER_CONFIG =
             "feed-header-menu-iph-trigger-config";
 
-    /** Disable the default browser promo. */
-    public static final String DISABLE_DEFAULT_BROWSER_PROMO =
-            "disable-default-browser-promo";
-
     /** Debug Chime notifications. */
     public static final String DEBUG_CHIME_NOTIFICATION =
             "debug-chime-notification";
+
+    /** b/323252296: Force enable Revenue Stats tracking for testing purposes. */
+    public static final String FORCE_REVENUE_STATS_REPORTING = "force-revenue-stats-reporting";
 
 {NATIVE_STRINGS}
 

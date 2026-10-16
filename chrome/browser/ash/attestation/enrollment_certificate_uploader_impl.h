@@ -90,9 +90,10 @@ class EnrollmentCertificateUploaderImpl : public EnrollmentCertificateUploader {
   // Run all callbacks with |status|.
   void RunCallbacks(Status status);
 
-  raw_ptr<policy::CloudPolicyClient, ExperimentalAsh> policy_client_;
-  raw_ptr<AttestationFlow, ExperimentalAsh> attestation_flow_ = nullptr;
+  raw_ptr<policy::CloudPolicyClient, DanglingUntriaged> policy_client_;
   std::unique_ptr<AttestationFlow> default_attestation_flow_;
+  raw_ptr<AttestationFlow> attestation_flow_ = nullptr;
+
   // Callbacks to run when a certificate is uploaded (or we fail to).
   std::queue<UploadCallback> callbacks_;
   // Values for retries.

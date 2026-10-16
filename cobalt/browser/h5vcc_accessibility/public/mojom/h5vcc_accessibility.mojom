@@ -16,11 +16,12 @@ module h5vcc_accessibility.mojom;
 
 // TODO(b/407584333): Move the H5vccAccessibilityClient interface definition under third_party/blink/renderer/modules/cobalt since this interface is implemented in the renderer.
 interface H5vccAccessibilityClient {
-  NotifyTextToSpeechChange();
+  NotifyTextToSpeechChange(bool enabled);
 };
 
 // The browser process must provide an implementation of this interface so that
-// the renderer process can implement the H5vccAccessibility Blink API.
+// the renderer process can implement the H5vccAccessibility Blink interface with this
+// H5vccAccessibilityBrowser interface.
 interface H5vccAccessibilityBrowser {
   // Return whether text-to-speech is enabled on the device.
   [Sync]

@@ -5,19 +5,16 @@
 vmiura@chromium.org
 geofflang@chromium.org
 fserb@chromium.org
-rockot@google.com
-rjkroege@chromium.org
 zmo@chromium.org
+blundell@chromium.org
 
 # ANGLE team
-jonahr@chromium.org
 syoussefi@chromium.org
 ynovikov@chromium.org
 
 # Canvas team
 aaronhk@chromium.org
 jpgravel@chromium.org
-juanmihd@chromium.org
 junov@chromium.org
 yiyix@chromium.org
 
@@ -30,11 +27,9 @@ boliu@chromium.org
 ccameron@chromium.org
 fangzhoug@chromium.org
 hitawala@chromium.org
-khaslett@chromium.org
 kylechar@chromium.org
 magchen@chromium.org
-penghuang@chromium.org
-petermcneeley@chromium.org
+petermcneeley@google.com
 sunnyps@chromium.org
 vasilyt@chromium.org
 vikassoni@chromium.org
@@ -43,11 +38,9 @@ vikassoni@chromium.org
 alanbaker@google.com
 amaiorano@google.com
 bajones@chromium.org
-bclayton@chromium.org
 cwallez@chromium.org
 dneto@google.com
 dsinclair@chromium.org
-enga@chromium.org
 gman@chromium.org
 jrprice@google.com
 kainino@chromium.org
@@ -59,33 +52,18 @@ shrekshao@google.com
 senorblanco@chromium.org
 
 # Skia
-brianosman@google.com
-bsalomon@google.com
-djsollen@google.com
 egdaniel@google.com
 fmalita@chromium.org
-jcgregorio@chromium.org
 
 # Skia Core / eSkia
 bungeman@chromium.org
 jlavrova@google.com
-scroggo@google.com
-tdenniston@google.com
-wrightgeorge@google.com
 
 # Skia GPU
-jvanverth@chromium.org
+jvanverth@google.com
 michaelludwig@google.com
 robertphillips@google.com
 
 # Skia Infra
 borenet@google.com
-erikrose@google.com
-lovisolo@google.com
 rmistry@chromium.org
-
-# SkSL
-armansito@chromium.org
-ethannicholas@chromium.org
-herb@google.com
-johnstiles@google.com

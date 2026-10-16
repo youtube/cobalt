@@ -4,30 +4,21 @@
 
 #include "chrome/browser/profiles/profile_metrics.h"
 
+#include <string>
 #include <vector>
 
 #include "base/check_op.h"
-#include "base/files/file_path.h"
+#include "base/containers/flat_map.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/notreached.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
-#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/common/chrome_constants.h"
-#include "components/keyed_service/core/keyed_service_factory.h"
-#include "components/keyed_service/core/refcounted_keyed_service_factory.h"
 #include "components/profile_metrics/counts.h"
-#include "components/signin/core/browser/signin_header_helper.h"
-#include "content/public/browser/browser_thread.h"
-
-#if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/ui/browser_finder.h"
-#endif
 
 namespace {
 
@@ -36,12 +27,6 @@ constexpr base::TimeDelta kProfileActivityThreshold =
     base::Days(28);  // Should be integral number of weeks.
 #endif
 
-enum class ProfileType {
-  ORIGINAL = 0,  // Refers to the original/default profile
-  SECONDARY,     // Refers to a user-created profile
-  kMaxValue = SECONDARY
-};
-
 // Enum for getting net counts for adding and deleting users.
 enum class ProfileNetUserCounts {
   ADD_NEW_USER = 0,  // Total count of add new user
@@ -49,24 +34,43 @@ enum class ProfileNetUserCounts {
   kMaxValue = PROFILE_DELETED
 };
 
-ProfileType GetProfileType(const base::FilePath& profile_path) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  ProfileType metric = ProfileType::SECONDARY;
-  ProfileManager* manager = g_browser_process->profile_manager();
-  base::FilePath user_data_dir;
-  // In unittests, we do not always have a profile_manager so check.
-  if (manager) {
-    user_data_dir = manager->user_data_dir();
-  }
-  if (profile_path == user_data_dir.AppendASCII(chrome::kInitialProfile)) {
-    metric = ProfileType::ORIGINAL;
-  }
-  return metric;
-}
+// Count of profiles sharing a particular name.
+struct ProfileCountByName {
+  explicit ProfileCountByName(bool is_managed)
+      : managed_count(is_managed ? 1 : 0),
+        non_managed_count(is_managed ? 0 : 1) {}
 
-int GetTotalKeyedServiceCount(Profile* profile) {
-  return KeyedServiceFactory::GetServicesCount(profile) +
-         RefcountedKeyedServiceFactory::GetServicesCount(profile);
+  ProfileCountByName(const ProfileCountByName&) = default;
+  ProfileCountByName& operator=(const ProfileCountByName&) = default;
+
+  int managed_count = 0;
+  int non_managed_count = 0;
+};
+
+base::flat_map<std::u16string, ProfileCountByName> GetProfilesByGaiaName(
+    const ProfileAttributesStorage& storage) {
+  base::flat_map<std::u16string, ProfileCountByName> profile_counts_by_name;
+  for (const auto* entry : storage.GetAllProfilesAttributes()) {
+    const std::u16string gaia_name = entry->GetGAIAGivenName();
+    if (gaia_name.empty()) {
+      continue;
+    }
+
+    const bool is_managed = entry->UserAcceptedAccountManagement();
+    auto it = profile_counts_by_name.find(gaia_name);
+    if (it == profile_counts_by_name.end()) {
+      profile_counts_by_name.emplace(gaia_name, is_managed);
+      continue;
+    }
+
+    ProfileCountByName& count = it->second;
+    if (is_managed) {
+      ++count.managed_count;
+    } else {
+      ++count.non_managed_count;
+    }
+  }
+  return profile_counts_by_name;
 }
 
 }  // namespace
@@ -173,9 +177,24 @@ void ProfileMetrics::CountProfileInformation(ProfileAttributesStorage* storage,
 }
 
 void ProfileMetrics::LogNumberOfProfiles(ProfileAttributesStorage* storage) {
+  CHECK(storage);
   profile_metrics::Counts counts;
   CountProfileInformation(storage, &counts);
   profile_metrics::LogProfileMetricsCounts(counts);
+
+  // Records whether some profiles have primary accounts with the same first
+  // name.
+  base::flat_map<std::u16string, ProfileCountByName> profile_counts_by_name =
+      GetProfilesByGaiaName(*storage);
+  for (const auto& [name, count] : profile_counts_by_name) {
+    GaiaNameShareStatus name_shared = GaiaNameShareStatus::kNotShared;
+    if (count.non_managed_count > 1) {
+      name_shared = GaiaNameShareStatus::kSharedNonManaged;
+    } else if (count.non_managed_count + count.managed_count > 1) {
+      name_shared = GaiaNameShareStatus::kSharedManaged;
+    }
+    base::UmaHistogramEnumeration("Profile.GaiaNameShareStatus", name_shared);
+  }
 }
 
 void ProfileMetrics::LogProfileAddNewUser(ProfileAdd metric) {
@@ -188,13 +207,6 @@ void ProfileMetrics::LogProfileAddNewUser(ProfileAdd metric) {
 void ProfileMetrics::LogProfileAddSignInFlowOutcome(
     ProfileSignedInFlowOutcome outcome) {
   base::UmaHistogramEnumeration("Profile.AddSignInFlowOutcome", outcome);
-}
-
-// static
-void ProfileMetrics::LogLacrosPrimaryProfileFirstRunOutcome(
-    ProfileSignedInFlowOutcome outcome) {
-  base::UmaHistogramEnumeration("Profile.LacrosPrimaryProfileFirstRunOutcome",
-                                outcome);
 }
 
 void ProfileMetrics::LogProfileAvatarSelection(size_t icon_index) {
@@ -392,77 +404,9 @@ void ProfileMetrics::LogProfileDeleteUser(ProfileDelete metric) {
   }
 }
 
-void ProfileMetrics::LogProfileSwitchGaia(ProfileGaia metric) {
-  if (metric == GAIA_OPT_IN)
-    LogProfileAvatarSelection(SIZE_MAX);
-  base::UmaHistogramEnumeration("Profile.SwitchGaiaPhotoSettings", metric,
-                                NUM_PROFILE_GAIA_METRICS);
-}
-
-void ProfileMetrics::LogProfileSyncInfo(ProfileSync metric) {
-  DCHECK(metric < NUM_PROFILE_SYNC_METRICS);
-  base::UmaHistogramEnumeration("Profile.SyncCustomize", metric,
-                                NUM_PROFILE_SYNC_METRICS);
-}
-
-#if BUILDFLAG(IS_ANDROID)
-void ProfileMetrics::LogProfileAndroidAccountManagementMenu(
-    ProfileAndroidAccountManagementMenu metric,
-    signin::GAIAServiceType gaia_service) {
-  // The first parameter to the histogram needs to be literal, because of the
-  // optimized implementation of |base::UmaHistogramEnumeration|. Do not attempt
-  // to refactor.
-  switch (gaia_service) {
-    case signin::GAIA_SERVICE_TYPE_NONE:
-      base::UmaHistogramEnumeration(
-          "Profile.AndroidAccountManagementMenu.NonGAIA", metric,
-          NUM_PROFILE_ANDROID_ACCOUNT_MANAGEMENT_MENU_METRICS);
-      break;
-    case signin::GAIA_SERVICE_TYPE_SIGNOUT:
-      base::UmaHistogramEnumeration(
-          "Profile.AndroidAccountManagementMenu.GAIASignout", metric,
-          NUM_PROFILE_ANDROID_ACCOUNT_MANAGEMENT_MENU_METRICS);
-      break;
-    case signin::GAIA_SERVICE_TYPE_INCOGNITO:
-      base::UmaHistogramEnumeration(
-          "Profile.AndroidAccountManagementMenu.GAIASignoutIncognito", metric,
-          NUM_PROFILE_ANDROID_ACCOUNT_MANAGEMENT_MENU_METRICS);
-      break;
-    case signin::GAIA_SERVICE_TYPE_ADDSESSION:
-      base::UmaHistogramEnumeration(
-          "Profile.AndroidAccountManagementMenu.GAIAAddSession", metric,
-          NUM_PROFILE_ANDROID_ACCOUNT_MANAGEMENT_MENU_METRICS);
-      break;
-    case signin::GAIA_SERVICE_TYPE_SIGNUP:
-      base::UmaHistogramEnumeration(
-          "Profile.AndroidAccountManagementMenu.GAIASignup", metric,
-          NUM_PROFILE_ANDROID_ACCOUNT_MANAGEMENT_MENU_METRICS);
-      break;
-    case signin::GAIA_SERVICE_TYPE_DEFAULT:
-      base::UmaHistogramEnumeration(
-          "Profile.AndroidAccountManagementMenu.GAIADefault", metric,
-          NUM_PROFILE_ANDROID_ACCOUNT_MANAGEMENT_MENU_METRICS);
-      break;
-  }
-}
-#endif  // BUILDFLAG(IS_ANDROID)
-
 void ProfileMetrics::LogProfileLaunch(Profile* profile) {
   if (profile->IsChild()) {
     base::RecordAction(
         base::UserMetricsAction("ManagedMode_NewManagedUserWindow"));
   }
-}
-
-void ProfileMetrics::LogProfileUpdate(const base::FilePath& profile_path) {
-  base::UmaHistogramEnumeration("Profile.Update", GetProfileType(profile_path));
-}
-
-void ProfileMetrics::LogSystemProfileKeyedServicesCount(Profile* profile) {
-  DCHECK(profile->IsSystemProfile());
-
-  std::string histogram_name = "Profile.KeyedService.Count.SystemProfile";
-  histogram_name += profile->IsOffTheRecord() ? "OTR-M-107" : "Original-M-107";
-  base::UmaHistogramCounts1000(histogram_name,
-                               GetTotalKeyedServiceCount(profile));
 }

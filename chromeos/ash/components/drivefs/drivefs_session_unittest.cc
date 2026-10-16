@@ -33,8 +33,8 @@ constexpr char kExpectedMountPath[] = "/media/drivefsroot/mountdir";
 constexpr char kExpectedDataDir[] = "/path/to/profile/GCache/v2/salt-g-ID";
 constexpr char kExpectedMyFilesDir[] = "/path/to/profile/MyFiles";
 
-static const absl::optional<base::TimeDelta> kEmptyDelay;
-static const absl::optional<base::TimeDelta> kDefaultDelay = base::Seconds(5);
+static const std::optional<base::TimeDelta> kEmptyDelay;
+static const std::optional<base::TimeDelta> kDefaultDelay = base::Seconds(5);
 
 using testing::_;
 using testing::Invoke;
@@ -191,12 +191,9 @@ class MockDriveFsConnection : public DriveFsConnection,
   }
 
  private:
-  mojom::DriveFs* GetForwardingInterface() override {
-    NOTREACHED();
-    return nullptr;
-  }
+  mojom::DriveFs* GetForwardingInterface() override { NOTREACHED(); }
 
-  raw_ptr<mojom::DriveFsDelegate, ExperimentalAsh> delegate_ = nullptr;
+  raw_ptr<mojom::DriveFsDelegate, DanglingUntriaged> delegate_ = nullptr;
   base::OnceClosure on_disconnected_;
 };
 
@@ -227,7 +224,13 @@ class DriveFsSessionForTest : public DriveFsSession {
                       const std::string& app_id,
                       const std::vector<std::string>& scopes,
                       GetAccessTokenCallback callback) override {}
+  void GetAccessTokenWithExpiry(
+      const std::string& client_id,
+      const std::string& app_id,
+      const std::vector<std::string>& scopes,
+      GetAccessTokenWithExpiryCallback callback) override {}
   void OnSyncingStatusUpdate(mojom::SyncingStatusPtr status) override {}
+  void OnItemProgress(mojom::ProgressEventPtr item_progress) override {}
   void OnFilesChanged(std::vector<mojom::FileChangePtr> changes) override {}
   void OnError(mojom::DriveErrorPtr error) override {}
   void OnTeamDrivesListReady(
@@ -249,6 +252,9 @@ class DriveFsSessionForTest : public DriveFsSession {
       mojom::DriveFsDelegate::GetMachineRootIDCallback callback) override {}
   void PersistMachineRootID(const std::string& id) override {}
   void OnMirrorSyncingStatusUpdate(mojom::SyncingStatusPtr status) override {}
+  void OnNotificationReceived(
+      mojom::DriveFsNotificationPtr notification) override {}
+  void OnMirrorSyncError(mojom::MirrorSyncErrorListPtr error_list) override {}
 };
 
 class DriveFsSessionTest : public ::testing::Test,
@@ -261,10 +267,10 @@ class DriveFsSessionTest : public ::testing::Test,
 
  protected:
   MOCK_METHOD1(OnMounted, void(const base::FilePath& path));
-  MOCK_METHOD1(OnUnmounted, void(absl::optional<base::TimeDelta> delay));
+  MOCK_METHOD1(OnUnmounted, void(std::optional<base::TimeDelta> delay));
   MOCK_METHOD2(OnMountFailed,
                void(MountFailure failure,
-                    absl::optional<base::TimeDelta> delay));
+                    std::optional<base::TimeDelta> delay));
 
   void StartMounting() {
     DCHECK(!holder_);
@@ -310,9 +316,9 @@ class DriveFsSessionTest : public ::testing::Test,
   base::test::TaskEnvironment task_environment_;
 
   struct PointerHolder {
-    raw_ptr<MockDiskMounter, ExperimentalAsh> mounter = nullptr;
-    raw_ptr<MockDriveFsConnection, ExperimentalAsh> connection = nullptr;
-    raw_ptr<mojom::DriveFsDelegate, ExperimentalAsh> delegate = nullptr;
+    raw_ptr<MockDiskMounter, DanglingUntriaged> mounter = nullptr;
+    raw_ptr<MockDriveFsConnection, DanglingUntriaged> connection = nullptr;
+    raw_ptr<mojom::DriveFsDelegate, DanglingUntriaged> delegate = nullptr;
   };
   base::MockOneShotTimer timer_;
   std::unique_ptr<PointerHolder> holder_;

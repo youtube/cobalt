@@ -37,21 +37,14 @@ base::FilePath GetSentinelFilePath() {
 }  // namespace
 
 class FirstRunTest : public testing::Test {
- public:
-  FirstRunTest(const FirstRunTest&) = delete;
-  FirstRunTest& operator=(const FirstRunTest&) = delete;
-
  protected:
-  FirstRunTest() : user_data_dir_override_(chrome::DIR_USER_DATA) {}
-  ~FirstRunTest() override {}
-
   void TearDown() override {
     first_run::ResetCachedSentinelDataForTesting();
     Test::TearDown();
   }
 
  private:
-  base::ScopedPathOverride user_data_dir_override_;
+  base::ScopedPathOverride user_data_dir_override_{chrome::DIR_USER_DATA};
 };
 
 TEST_F(FirstRunTest, SetupInitialPrefsFromInstallPrefs_NoVariationsSeed) {
@@ -133,7 +126,9 @@ TEST_F(FirstRunTest, GetFirstRunSentinelCreationTime_NotCreated) {
   base::File::Info info;
   ASSERT_FALSE(base::GetFileInfo(GetSentinelFilePath(), &info));
 
-  EXPECT_EQ(0, first_run::GetFirstRunSentinelCreationTime().ToDoubleT());
+  EXPECT_EQ(
+      0,
+      first_run::GetFirstRunSentinelCreationTime().InSecondsFSinceUnixEpoch());
 }
 
 TEST_F(FirstRunTest, CreateSentinelIfNeeded) {
@@ -281,14 +276,8 @@ TEST_F(FirstRunTest, MAYBE_InitialPrefsUsedIfReadable) {
   base::ScopedPathOverride override(base::DIR_EXE, GetTestDataPath("initial"));
   std::unique_ptr<installer::InitialPreferences> prefs =
       first_run::LoadInitialPrefs();
-#if BUILDFLAG(IS_FUCHSIA)
-  // Initial preferences are not supported on Fuchsia and will thus return a
-  // null result.
-  ASSERT_FALSE(prefs);
-#else
   ASSERT_TRUE(prefs);
   EXPECT_EQ(prefs->GetFirstRunTabs()[0], "https://www.chromium.org/initial");
-#endif
 }
 
 #if BUILDFLAG(IS_MAC)
@@ -304,14 +293,8 @@ TEST_F(FirstRunTest, MAYBE_LegacyInitialPrefsUsedIfNewFileIsNotPresent) {
   std::unique_ptr<installer::InitialPreferences> prefs =
       first_run::LoadInitialPrefs();
 
-#if BUILDFLAG(IS_FUCHSIA)
-  // Initial preferences are not supported on Fuchsia and will thus return a
-  // null result.
-  ASSERT_FALSE(prefs);
-#else
   ASSERT_TRUE(prefs);
   EXPECT_EQ(prefs->GetFirstRunTabs()[0], "https://www.chromium.org/legacy");
-#endif
 }
 
 }  // namespace first_run

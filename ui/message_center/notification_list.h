@@ -11,6 +11,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
@@ -27,10 +28,6 @@ class Image;
 }
 
 namespace message_center {
-
-namespace test {
-class NotificationListTest;
-}
 
 class Notification;
 class NotificationDelegate;
@@ -70,7 +67,8 @@ class MESSAGE_CENTER_EXPORT NotificationList {
 
   // Auto-sorted set. Matches the order in which Notifications are shown in
   // Notification Center.
-  using Notifications = std::set<Notification*, ComparePriorityTimestampSerial>;
+  using Notifications = std::set<raw_ptr<Notification, SetExperimental>,
+                                 ComparePriorityTimestampSerial>;
   using OwnedNotifications =
       std::map<std::unique_ptr<Notification>,
                NotificationState,
@@ -86,6 +84,19 @@ class MESSAGE_CENTER_EXPORT NotificationList {
   NotificationList& operator=(const NotificationList&) = delete;
 
   virtual ~NotificationList();
+
+  int size() const { return notifications_.size(); }
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // Returns the notification IDs prioritized for removal as follows:
+  // 1. Lower priority notifications are removed before higher priority ones.
+  // 2. For notifications with equal priority, older ones are removed first.
+  // 3. The most recent notifications are kept.
+  // NOTE:
+  // 1. This function is used only if the notification limit feature is enabled.
+  // 2. The returned array's size could be less than `count`.
+  std::vector<std::string> GetTopKRemovableNotificationIds(size_t count) const;
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   // Makes a message "read". Collects the set of ids whose state have changed
   // and set to |udpated_ids|. NULL if updated ids don't matter.

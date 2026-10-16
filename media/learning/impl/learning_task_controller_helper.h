@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 
 #include "base/component_export.h"
 #include "base/functional/callback.h"
@@ -17,7 +18,6 @@
 #include "media/learning/common/learning_task_controller.h"
 #include "media/learning/impl/feature_provider.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 namespace learning {
@@ -33,8 +33,7 @@ class LearningTaskControllerHelperTest;
 // Since both the mojo LearningTaskController and LearningTaskControllerImpl
 // will need to do almost exactly the same thing, this class handles the common
 // logic for them.
-class COMPONENT_EXPORT(LEARNING_IMPL) LearningTaskControllerHelper
-    : public base::SupportsWeakPtr<LearningTaskControllerHelper> {
+class COMPONENT_EXPORT(LEARNING_IMPL) LearningTaskControllerHelper final {
  public:
   // Callback to add labelled examples as training data.
   using AddExampleCB =
@@ -45,12 +44,12 @@ class COMPONENT_EXPORT(LEARNING_IMPL) LearningTaskControllerHelper
                                AddExampleCB add_example_cb,
                                SequenceBoundFeatureProvider feature_provider =
                                    SequenceBoundFeatureProvider());
-  virtual ~LearningTaskControllerHelper();
+  ~LearningTaskControllerHelper();
 
   // See LearningTaskController::BeginObservation.
   void BeginObservation(base::UnguessableToken id,
                         FeatureVector features,
-                        absl::optional<ukm::SourceId> source_id);
+                        std::optional<ukm::SourceId> source_id);
   void CompleteObservation(base::UnguessableToken id,
                            const ObservationCompletion& completion);
   void CancelObservation(base::UnguessableToken id);
@@ -110,6 +109,8 @@ class COMPONENT_EXPORT(LEARNING_IMPL) LearningTaskControllerHelper
 
   // Callback to which we'll send finished examples.
   AddExampleCB add_example_cb_;
+
+  base::WeakPtrFactory<LearningTaskControllerHelper> weak_ptr_factory_{this};
 
   friend class LearningTaskControllerHelperTest;
 };

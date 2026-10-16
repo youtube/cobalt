@@ -5,31 +5,33 @@
 #ifndef CONTENT_BROWSER_PRIVATE_AGGREGATION_PRIVATE_AGGREGATION_BUDGET_KEY_H_
 #define CONTENT_BROWSER_PRIVATE_AGGREGATION_PRIVATE_AGGREGATION_BUDGET_KEY_H_
 
+#include <optional>
+
 #include "base/time/time.h"
+#include "content/browser/private_aggregation/private_aggregation_caller_api.h"
 #include "content/common/content_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/origin.h"
 
 namespace content {
 
 // Represents all information needed to record the budget usage against the
-// right counter. Note that the budget limits are enforced against not per-key,
-// but per-origin per-day per-API. That is, they are enforced against a set of
-// budget keys with contiguous time windows spanning one 24-hour period (and
-// identical `origin` and `api` fields). See
-// `PrivateAggregationBudgeter::kBudgetScopeDuration`.
+// right counter. Note that the budget limits are not enforced per-key, but
+// instead per-site per-API per-10 min and per-site per-API per-day. That is,
+// they are enforced against two sets of budget keys with contiguous time
+// windows  -- one spanning a 10 min period and one spanning a 24 hour period
+// (both with identical `site` and `api` fields). See
+// `PrivateAggregationBudgeter::kSmallerScopeValues.budget_scope_duration` and
+// `PrivateAggregationBudgeter::kLargerScopeValues.budget_scope_duration`.
 class CONTENT_EXPORT PrivateAggregationBudgetKey {
  public:
-  enum class Api { kFledge, kSharedStorage };
-
-  // Represents a period of time for which budget usage is recorded. This
-  // interval includes the `start_time()` instant but excludes the end time
-  // (`start_time() + kDuration`) instant. (But note the `base::Time::Min()`
-  // `start_time()` caveat below.) No instant is included in multiple time
-  // windows.
+  // Represents the smallest period of time for which budget usage is recorded.
+  // This interval includes the `start_time()` instant, but excludes the end
+  // time (`start_time() + kDuration`) instant. (But note the
+  // `base::Time::Min()` start time caveat below.) No instant is included in
+  // multiple time windows.
   class CONTENT_EXPORT TimeWindow {
    public:
-    static constexpr base::TimeDelta kDuration = base::Hours(1);
+    static constexpr base::TimeDelta kDuration = base::Minutes(1);
 
     // Constructs the window that the `api_invocation_time` lies within.
     // `base::Time::Max()` is disallowed.
@@ -41,8 +43,9 @@ class CONTENT_EXPORT PrivateAggregationBudgetKey {
     base::Time start_time() const { return start_time_; }
 
    private:
-    // Must be 'on the hour' in UTC, or `base::Time::Min()` for the window that
-    // includes `base::Time::Min()` (as its start time cannot be represented.)
+    // Must be 'on the minute' in UTC, or `base::Time::Min()` for the window
+    // that includes `base::Time::Min()` (as its start time cannot be
+    // represented).
     base::Time start_time_;
 
     // When adding new members, the corresponding `operator==()` definition in
@@ -57,27 +60,32 @@ class CONTENT_EXPORT PrivateAggregationBudgetKey {
   PrivateAggregationBudgetKey& operator=(PrivateAggregationBudgetKey&& other) =
       default;
 
-  // Returns `absl::nullopt` if `origin` is not potentially trustworthy.
-  static absl::optional<PrivateAggregationBudgetKey>
-  Create(url::Origin origin, base::Time api_invocation_time, Api api);
+  // Returns `std::nullopt` if `origin` is not potentially trustworthy.
+  static std::optional<PrivateAggregationBudgetKey> Create(
+      url::Origin origin,
+      base::Time api_invocation_time,
+      PrivateAggregationCallerApi caller_api);
 
   // Skips validity checks
-  static PrivateAggregationBudgetKey
-  CreateForTesting(url::Origin origin, base::Time api_invocation_time, Api api);
+  static PrivateAggregationBudgetKey CreateForTesting(
+      url::Origin origin,
+      base::Time api_invocation_time,
+      PrivateAggregationCallerApi caller_api);
 
   const url::Origin& origin() const { return origin_; }
   TimeWindow time_window() const { return time_window_; }
-  Api api() const { return api_; }
+  PrivateAggregationCallerApi caller_api() const { return caller_api_; }
 
  private:
   PrivateAggregationBudgetKey(url::Origin origin,
                               base::Time api_invocation_time,
-                              Api api);
+                              PrivateAggregationCallerApi caller_api);
 
-  // `origin_` must be potentially trustworthy.
+  // `origin_` must be potentially trustworthy. Even though the budget is scoped
+  // per-site, we store the origin to support deleting the data by origin later.
   url::Origin origin_;
   TimeWindow time_window_;
-  Api api_;
+  PrivateAggregationCallerApi caller_api_;
 
   // When adding new members, the corresponding `operator==()` definition in
   // `private_aggregation_test_utils.h` should also be updated.

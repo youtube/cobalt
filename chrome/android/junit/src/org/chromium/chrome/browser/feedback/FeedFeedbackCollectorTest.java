@@ -20,11 +20,9 @@ import android.os.Looper;
 
 import androidx.annotation.Nullable;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
@@ -39,7 +37,6 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
-import org.chromium.chrome.test.util.browser.Features;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 
@@ -48,24 +45,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Test for {@link FeedFeedbackCollector}.
- */
+/** Test for {@link FeedFeedbackCollector}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 @LooperMode(LooperMode.Mode.LEGACY)
 public class FeedFeedbackCollectorTest {
-    @Rule
-    public MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
     // Enable the Features class, so we can override command line switches in the test.
-    @Rule
-    public TestRule mFeaturesProcessorRule = new Features.JUnitProcessor();
-    @Mock
-    private Activity mActivity;
-    @Mock
-    private Profile mProfile;
-    @Mock
-    private CoreAccountInfo mAccountInfo;
+    @Mock private Activity mActivity;
+    @Mock private Profile mProfile;
+    @Mock private CoreAccountInfo mAccountInfo;
 
     // Test constants.
     private static final String CATEGORY_TAG = "category_tag";
@@ -93,12 +82,22 @@ public class FeedFeedbackCollectorTest {
     }
 
     private static class EmptyFeedFeedbackCollector extends FeedFeedbackCollector {
-        EmptyFeedFeedbackCollector(Activity activity, Profile profile, @Nullable String url,
-                @Nullable String categoryTag, @Nullable String description,
+        EmptyFeedFeedbackCollector(
+                Activity activity,
+                Profile profile,
+                @Nullable String url,
+                @Nullable String categoryTag,
+                @Nullable String description,
                 @Nullable ScreenshotSource screenshotSource,
-                @Nullable Map<String, String> feedContext, Callback<FeedbackCollector> callback) {
-            super(activity, categoryTag, description, screenshotSource,
-                    new FeedFeedbackCollector.InitParams(profile, url, feedContext), callback,
+                @Nullable Map<String, String> feedContext,
+                Callback<FeedbackCollector> callback) {
+            super(
+                    activity,
+                    categoryTag,
+                    description,
+                    screenshotSource,
+                    new FeedFeedbackCollector.InitParams(profile, url, feedContext),
+                    callback,
                     null);
         }
 
@@ -118,20 +117,15 @@ public class FeedFeedbackCollectorTest {
         IdentityServicesProvider.setInstanceForTests(mock(IdentityServicesProvider.class));
         when(IdentityServicesProvider.get().getIdentityManager(any()))
                 .thenReturn(mock(IdentityManager.class));
-        when(IdentityServicesProvider.get().getIdentityManager(any()).getPrimaryAccountInfo(
-                     anyInt()))
+        when(IdentityServicesProvider.get()
+                        .getIdentityManager(any())
+                        .getPrimaryAccountInfo(anyInt()))
                 .thenReturn(mAccountInfo);
-    }
-
-    @After
-    public void tearDown() {
-        IdentityServicesProvider.setInstanceForTests(null);
     }
 
     @Test
     @Feature({"Feed"})
-    public void
-    testFeedSynchronousData() {
+    public void testFeedSynchronousData() {
         @SuppressWarnings("unchecked")
         Callback<FeedbackCollector> callback = mock(Callback.class);
         Map<String, String> feedContext = new HashMap<String, String>();
@@ -141,18 +135,29 @@ public class FeedFeedbackCollectorTest {
         feedContext.put(CARD_TITLE, THE_TITLE);
 
         FeedFeedbackCollector collector =
-                new EmptyFeedFeedbackCollector(mActivity, mProfile, null, CATEGORY_TAG, DESCRIPTION,
-                        null, feedContext, (result) -> callback.onResult(result));
+                new EmptyFeedFeedbackCollector(
+                        mActivity,
+                        mProfile,
+                        null,
+                        CATEGORY_TAG,
+                        DESCRIPTION,
+                        null,
+                        feedContext,
+                        (result) -> callback.onResult(result));
 
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
         verify(callback, times(1)).onResult(collector);
 
-        ThreadUtils.runOnUiThreadBlocking(() -> {
-            verifySynchronousSources(collector.getBundle());
-            assertFalse(collector.getBundle().containsKey(
-                    FeedbackContextFeedbackSource.FEEDBACK_CONTEXT_KEY));
-            assertEquals(CATEGORY_TAG, collector.getCategoryTag());
-            assertEquals(DESCRIPTION, collector.getDescription());
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    verifySynchronousSources(collector.getBundle());
+                    assertFalse(
+                            collector
+                                    .getBundle()
+                                    .containsKey(
+                                            FeedbackContextFeedbackSource.FEEDBACK_CONTEXT_KEY));
+                    assertEquals(CATEGORY_TAG, collector.getCategoryTag());
+                    assertEquals(DESCRIPTION, collector.getDescription());
+                });
     }
 }

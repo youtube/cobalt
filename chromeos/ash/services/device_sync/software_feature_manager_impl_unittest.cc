@@ -240,14 +240,15 @@ class DeviceSyncSoftwareFeatureManagerImplTest
   }
 
   void OnError(NetworkRequestError error) {
-    if (error == kErrorSettingSoftwareFeatureNetworkRequestError)
+    if (error == kErrorSettingSoftwareFeatureNetworkRequestError) {
       result_ = Result::kErrorSettingSoftwareFeature;
-    else if (error == kErrorSettingFeatureStatusNetworkRequestError)
+    } else if (error == kErrorSettingFeatureStatusNetworkRequestError) {
       result_ = Result::kErrorSettingFeatureStatus;
-    else if (error == kErrorFindingEligibleNetworkRequestError)
+    } else if (error == kErrorFindingEligibleNetworkRequestError) {
       result_ = Result::kErrorFindingEligible;
-    else
+    } else {
       NOTREACHED();
+    }
   }
 
   void InvokeSetSoftwareFeatureCallback() {
@@ -321,11 +322,11 @@ class DeviceSyncSoftwareFeatureManagerImplTest
 
   // Set when a CryptAuthClient function returns. If empty, no callback has been
   // invoked.
-  absl::optional<Result> result_;
+  std::optional<Result> result_;
 
   // The code passed to the error callback; varies depending on what
   // CryptAuthClient function is invoked.
-  absl::optional<NetworkRequestError> error_code_;
+  std::optional<NetworkRequestError> error_code_;
 
   // For SetSoftwareFeatureState() tests.
   cryptauth::ToggleEasyUnlockRequest last_toggle_request_;

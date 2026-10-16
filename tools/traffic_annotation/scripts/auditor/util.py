@@ -45,9 +45,9 @@ def import_compiled_proto(build_path) -> Any:
     return traffic_annotation_pb2
   except ImportError as e:
     logger.critical(
-      "Failed to import the compiled traffic annotation proto. Make sure "+ \
-      "Chrome is built in '{}' before running this script.".format(
-        build_path))
+      "Failed to import the compiled traffic annotation proto. Make sure "
+      "you're on Linux or Windows and Chrome is built in '{}' before "
+      "running this script.".format(build_path))
     raise
 
 
@@ -57,15 +57,17 @@ def get_current_platform(build_path: Optional[Path] = None) -> str:
   current_platform: str = platform.system().lower()
 
   if current_platform == "linux" and build_path is not None:
-    # It could be an Android build directory, being compiled from a Linux host.
-    # Look for a target_os="android" line in args.gn.
+    # Other OS builds can be cross-compiled from Linux. Look for a
+    # target_os="foo" line in args.gn.
     try:
       gn_args = (build_path / "args.gn").read_text(encoding="utf-8")
-      pattern = re.compile(r"^\s*target_os\s*=\s*\"(android|chromeos)\"\s*$",
-                           re.MULTILINE)
+      pattern = re.compile(
+          r"^\s*target_os\s*=\s*\"(android|chromeos|win)\"\s*$", re.MULTILINE)
       match = pattern.search(gn_args)
       if match:
         current_platform = match.group(1)
+        if current_platform == "win":
+          current_platform = "windows"
 
     except (ValueError, OSError) as e:
       logger.info(e)
@@ -120,7 +122,8 @@ def merge_string_field(src: Message, dst: Message, field: str):
       setattr(dst, field, getattr(src, field))
 
 
-def fill_proto_with_bogus(proto: Message, field_numbers: List[int]):
+def fill_proto_with_bogus(unique_id: str, proto: Message,
+                          field_numbers: List[int]):
   """Fill proto with bogus values for the fields identified by field_numbers.
   Uses reflection to fill the proto with the right types."""
   descriptor = proto.DESCRIPTOR
@@ -136,15 +139,22 @@ def fill_proto_with_bogus(proto: Message, field_numbers: List[int]):
 
     if field.type == FieldDescriptor.TYPE_STRING and not repeated:
       setattr(proto, field.name, "[Archived]")
+    elif field.type == FieldDescriptor.TYPE_STRING and repeated:
+      getattr(proto, field.name).append("[Archived]")
     elif field.type == FieldDescriptor.TYPE_ENUM and not repeated:
       # Assume the 2nd value in the enum is reasonable, since the 1st is
       # UNSPECIFIED.
       setattr(proto, field.name, field.enum_type.values[1].number)
     elif field.type == FieldDescriptor.TYPE_MESSAGE and repeated:
       getattr(proto, field.name).add()
+    elif field.type == FieldDescriptor.TYPE_MESSAGE:
+      # Non-repeated message, nothing to do.
+      pass
     else:
-      raise NotImplementedError("Unimplemented proto field type {} ({})".format(
-          field.type, "repeated" if repeated else "non-repeated"))
+      raise NotImplementedError(
+          "Unimplemented proto field {} of type {} ({}) in {}".format(
+              field.name, field.type,
+              "repeated" if repeated else "non-repeated", unique_id))
 
 
 def extract_annotation_id(line: str) -> Optional[UniqueId]:
@@ -187,11 +197,21 @@ def policy_to_text(chrome_policy: Iterable[Message]) -> str:
           # Skip the policy_options field.
           continue
         writer = text_format.TextWriter(as_utf8=True)
-        text_format.PrintField(subfield,
-                               subvalue,
-                               writer,
-                               as_one_line=True,
-                               use_short_repeated_primitives=True)
+        if subfield.label == FieldDescriptor.LABEL_REPEATED:
+          # text_format.PrintField needs repeated fields passed in
+          # one-at-a-time.
+          for repeated_value in subvalue:
+            text_format.PrintField(subfield,
+                                   repeated_value,
+                                   writer,
+                                   as_one_line=True,
+                                   use_short_repeated_primitives=True)
+        else:
+          text_format.PrintField(subfield,
+                                 subvalue,
+                                 writer,
+                                 as_one_line=True,
+                                 use_short_repeated_primitives=True)
         items.append(writer.getvalue().strip())
   # We wrote an extra comma at the end, remove it before returning.
   return ", ".join(items)
@@ -240,6 +260,7 @@ def write_annotations_tsv_file(file_path: Path, annotations: List["Annotation"],
         Destination.WEBSITE: "Website",
         Destination.GOOGLE_OWNED_SERVICE: "Google",
         Destination.LOCAL: "Local",
+        Destination.PROXIED_GOOGLE_OWNED_SERVICE: "Proxied to Google",
         Destination.OTHER: "Other",
     }
     if (semantics.destination == Destination.OTHER
@@ -248,7 +269,9 @@ def write_annotations_tsv_file(file_path: Path, annotations: List["Annotation"],
     elif semantics.destination in destination_names:
       line += "\t{}".format(destination_names[semantics.destination])
     else:
-      raise ValueError("Invalid value for the semantics.destination field")
+      raise ValueError(
+          "Invalid value for the semantics.destination field: {}".format(
+              semantics.destination))
 
     # Policy.
     policy = annotation.proto.policy
@@ -271,9 +294,9 @@ def write_annotations_tsv_file(file_path: Path, annotations: List["Annotation"],
     # Comments.
     line += "\t{}".format(escape_for_tsv(annotation.proto.comments))
     # Source.
-    source = annotation.proto.source
     code_search_link = "https://cs.chromium.org/chromium/src/"
-    line += "\t{}{}?l={}".format(code_search_link, source.file, source.line)
+    line += "\t{}{}?l={}".format(code_search_link, annotation.file.as_posix(),
+                                 annotation.line)
     lines.append(line)
 
   lines.sort()

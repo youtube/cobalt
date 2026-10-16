@@ -2,11 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "gpu/command_buffer/service/gr_shader_cache.h"
 
 #include <thread>
 
 #include "base/base64.h"
+#include "base/command_line.h"
+#include "base/test/scoped_feature_list.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace gpu {
@@ -34,6 +42,12 @@ TEST_F(GrShaderCacheTest, DoesNotCacheForIncognito) {
   int32_t incognito_client_id = 2;
   auto key = SkData::MakeWithCString(kShaderKey);
   auto shader = SkData::MakeWithCString(kShader);
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt's single-process bypasses Chromium's multi-process GpuClient IPC routing,
+  // meaning `client_ids_to_cache_on_disk_` is not populated. Cobalt overrides the
+  // cache restriction by checking the command-line flag. 
+  base::CommandLine::ForCurrentProcess()->AppendSwitch("incognito");
+#endif
   {
     GrShaderCache::ScopedCacheUse cache_use(&cache_, incognito_client_id);
     EXPECT_EQ(cache_.load(*key), nullptr);
@@ -42,6 +56,9 @@ TEST_F(GrShaderCacheTest, DoesNotCacheForIncognito) {
   EXPECT_EQ(disk_cache_.size(), 0u);
 
   int32_t regular_client_id = 3;
+#if BUILDFLAG(IS_COBALT)
+  base::CommandLine::ForCurrentProcess()->RemoveSwitch("incognito");
+#endif
   cache_.CacheClientIdOnDisk(regular_client_id);
   {
     GrShaderCache::ScopedCacheUse cache_use(&cache_, regular_client_id);
@@ -69,8 +86,7 @@ TEST_F(GrShaderCacheTest, LoadedFromDisk) {
   std::string key_str(static_cast<const char*>(key->data()), key->size());
   std::string shader_str(static_cast<const char*>(shader->data()),
                          shader->size());
-  std::string encoded_key;
-  base::Base64Encode(key_str, &encoded_key);
+  std::string encoded_key = base::Base64Encode(key_str);
   cache_.PopulateCache(encoded_key, shader_str);
   {
     GrShaderCache::ScopedCacheUse cache_use(&cache_, regular_client_id);
@@ -131,6 +147,36 @@ TEST_F(GrShaderCacheTest, MemoryPressure) {
   cache_.PurgeMemory(
       base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
   EXPECT_EQ(cache_.num_cache_entries(), 0u);
+}
+
+TEST_F(GrShaderCacheTest, AggressiveCacheAndMemoryPressure) {
+  base::test::ScopedFeatureList feature_list{
+      ::features::kAggressiveShaderCacheLimits};
+  int32_t regular_client_id = 3;
+  cache_.CacheClientIdOnDisk(regular_client_id);
+
+  auto key = SkData::MakeWithCopy(kShaderKey, strlen(kShaderKey));
+  auto shader = SkData::MakeUninitialized(kCacheLimit);
+  {
+    GrShaderCache::ScopedCacheUse cache_use(&cache_, regular_client_id);
+    EXPECT_EQ(cache_.load(*key), nullptr);
+    cache_.store(*key, *shader);
+  }
+  EXPECT_EQ(cache_.num_cache_entries(), 1u);
+
+  // Moderate memory pressure is ignored
+  cache_.PurgeMemory(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
+  EXPECT_EQ(cache_.num_cache_entries(), 1u);
+
+  // But not critical, except on Android
+  cache_.PurgeMemory(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_EQ(cache_.num_cache_entries(), 1u);
+#else
+  EXPECT_EQ(cache_.num_cache_entries(), 0u);
+#endif
 }
 
 TEST_F(GrShaderCacheTest, StoringSameEntry) {

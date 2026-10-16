@@ -5,6 +5,7 @@ the Fetch specification.
 
 See also:
 
-* [The specification](https://wicg.github.io/local-network-access/)
-* [The repository](https://github.com/WICG/local-network-access/)
-* [Open issues](https://github.com/WICG/local-network-access/issues/)
+* [Explainer](https://github.com/explainers-by-googlers/local-network-access)
+
+Local Network Access replaced [Private Network
+Access](https://wicg.github.io/local-network-access/).

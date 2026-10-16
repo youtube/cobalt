@@ -44,6 +44,7 @@ default_targets = [
 # line).
 gn_args = ' '.join([
     'enable_perfetto_ipc=true',
+    'enable_perfetto_zlib=false',
     'is_debug=false',
     'is_perfetto_build_generator=true',
     'is_perfetto_embedder=true',
@@ -75,6 +76,11 @@ define_allowlist = r'^(PERFETTO.*|GOOGLE_PROTOBUF.*)$'
 
 # Includes which will be removed from the generated source.
 includes_to_remove = r'^(gtest).*$'
+
+# From //gn:default_config (since "gn desc" doesn't describe configs).
+default_includes = [
+    'include',
+]
 
 default_cflags = [
     # Since we're expanding header files into the generated source file, some
@@ -322,7 +328,7 @@ class AmalgamatedProject(object):
       self._add_header(target_name, header)
 
   def _get_include_dirs(self, target_name):
-    include_dirs = set()
+    include_dirs = set(default_includes)
     for target_name in self._iterate_target_and_deps(target_name):
       target = self.desc[target_name]
       if 'include_dirs' in target:
@@ -332,17 +338,17 @@ class AmalgamatedProject(object):
 
   def _add_source_included_header(self, include_dirs, allowed_files,
                                   header_name):
-    if header_name in self._processed_headers:
-      return
-    if header_name in self._processed_source_headers:
-      return
-    self._processed_source_headers.add(header_name)
     for include_dir in include_dirs:
       rel_path = os.path.join(include_dir, header_name)
       full_path = os.path.join(gn_utils.repo_root(), rel_path)
       if os.path.exists(full_path):
         if not rel_path in allowed_files:
           return
+        if full_path in self._processed_headers:
+          return
+        if full_path in self._processed_source_headers:
+          return
+        self._processed_source_headers.add(full_path)
         with open(full_path) as f:
           self.source.append('// %s begin header: %s' %
                              (tool_name, normalize_path(full_path)))
@@ -372,15 +378,15 @@ class AmalgamatedProject(object):
                 source_name,
                 self._process_source_includes(include_dirs, deps, f)))
       except Error as e:
-        raise Error('Failed adding source %s: %s' % (source_name, e.message))
+        raise Error('Failed adding source %s: %s' % (source_name, e))
 
   def _add_header_included_header(self, include_dirs, header_name):
-    if header_name in self._processed_headers:
-      return
-    self._processed_headers.add(header_name)
     for include_dir in include_dirs:
       full_path = os.path.join(gn_utils.repo_root(), include_dir, header_name)
       if os.path.exists(full_path):
+        if full_path in self._processed_headers:
+          return
+        self._processed_headers.add(full_path)
         with open(full_path) as f:
           self.header.append('// %s begin header: %s' %
                              (tool_name, normalize_path(full_path)))
@@ -392,11 +398,11 @@ class AmalgamatedProject(object):
     raise Error('Header file %s not found. %s' % (header_name, msg))
 
   def _add_header(self, target_name, header_name):
-    if header_name in self._processed_headers:
-      return
-    self._processed_headers.add(header_name)
     include_dirs = self._get_include_dirs(target_name)
     full_path = os.path.join(gn_utils.repo_root(), header_name)
+    if full_path in self._processed_headers:
+      return
+    self._processed_headers.add(full_path)
     if not os.path.exists(full_path):
       if self._compute_deps_only:
         return
@@ -407,7 +413,7 @@ class AmalgamatedProject(object):
       try:
         self.header.extend(self._process_header_includes(include_dirs, f))
       except Error as e:
-        raise Error('Failed adding header %s: %s' % (header_name, e.message))
+        raise Error('Failed adding header %s: %s' % (header_name, e))
 
   def _patch_source(self, source_name, lines):
     result = []
@@ -596,9 +602,8 @@ def main():
   if args.check:
     output = os.path.join(tempfile.mkdtemp(), 'perfetto_amalgamated')
 
-  out = gn_utils.prepare_out_directory(args.gn_args,
-                                       args.out,
-                                       system_buildtools=args.system_buildtools)
+  out = gn_utils.prepare_out_directory(
+      args.gn_args, args.out, system_buildtools=args.system_buildtools)
   if not args.quiet:
     print('Building project...')
   try:
@@ -608,8 +613,8 @@ def main():
     # dependencies get generated. However if we are just dumping dependency
     # information this can be skipped, allowing cross-platform operation.
     if not args.dump_deps:
-      gn_utils.build_targets(out, targets,
-                             system_buildtools=args.system_buildtools)
+      gn_utils.build_targets(
+          out, targets, system_buildtools=args.system_buildtools)
     source_deps = gn_utils.compute_source_dependencies(out,
                                                        args.system_buildtools)
     project = AmalgamatedProject(
@@ -633,8 +638,8 @@ def main():
       if not args.quiet:
         sys.stdout.write('Building amalgamated project...')
         sys.stdout.flush()
-      subprocess.check_call(project.get_build_command(output,
-                                                      args.system_buildtools))
+      subprocess.check_call(
+          project.get_build_command(output, args.system_buildtools))
       if not args.quiet:
         print('done')
   finally:

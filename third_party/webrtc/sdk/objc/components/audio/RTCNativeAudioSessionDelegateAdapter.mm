@@ -20,7 +20,8 @@
 
 - (instancetype)initWithObserver:(webrtc::AudioSessionObserver *)observer {
   RTC_DCHECK(observer);
-  if (self = [super init]) {
+  self = [super init];
+  if (self) {
     _observer = observer;
   }
   return self;
@@ -28,7 +29,8 @@
 
 #pragma mark - RTC_OBJC_TYPE(RTCAudioSessionDelegate)
 
-- (void)audioSessionDidBeginInterruption:(RTC_OBJC_TYPE(RTCAudioSession) *)session {
+- (void)audioSessionDidBeginInterruption:
+    (RTC_OBJC_TYPE(RTCAudioSession) *)session {
   _observer->OnInterruptionBegin();
 }
 
@@ -39,7 +41,8 @@
 
 - (void)audioSessionDidChangeRoute:(RTC_OBJC_TYPE(RTCAudioSession) *)session
                             reason:(AVAudioSessionRouteChangeReason)reason
-                     previousRoute:(AVAudioSessionRouteDescription *)previousRoute {
+                     previousRoute:
+                         (AVAudioSessionRouteDescription *)previousRoute {
   switch (reason) {
     case AVAudioSessionRouteChangeReasonUnknown:
     case AVAudioSessionRouteChangeReasonNewDeviceAvailable:
@@ -64,7 +67,8 @@
   }
 }
 
-- (void)audioSessionMediaServerTerminated:(RTC_OBJC_TYPE(RTCAudioSession) *)session {
+- (void)audioSessionMediaServerTerminated:
+    (RTC_OBJC_TYPE(RTCAudioSession) *)session {
 }
 
 - (void)audioSessionMediaServerReset:(RTC_OBJC_TYPE(RTCAudioSession) *)session {
@@ -75,10 +79,12 @@
   _observer->OnCanPlayOrRecordChange(canPlayOrRecord);
 }
 
-- (void)audioSessionDidStartPlayOrRecord:(RTC_OBJC_TYPE(RTCAudioSession) *)session {
+- (void)audioSessionDidStartPlayOrRecord:
+    (RTC_OBJC_TYPE(RTCAudioSession) *)session {
 }
 
-- (void)audioSessionDidStopPlayOrRecord:(RTC_OBJC_TYPE(RTCAudioSession) *)session {
+- (void)audioSessionDidStopPlayOrRecord:
+    (RTC_OBJC_TYPE(RTCAudioSession) *)session {
 }
 
 - (void)audioSession:(RTC_OBJC_TYPE(RTCAudioSession) *)audioSession

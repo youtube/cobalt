@@ -4,28 +4,30 @@
 
 #include "base/json/json_parser.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iterator>
+#include <memory>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/json/json_reader.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversion_utils.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/third_party/icu/icu_utf.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/types/pass_key.h"
 
-namespace base {
-namespace internal {
+namespace base::internal {
 
 namespace {
 
@@ -56,10 +58,9 @@ std::string ErrorCodeToString(JSONParser::JsonParseError error_code) {
     case JSONParser::JSON_UNREPRESENTABLE_NUMBER:
       return JSONParser::kUnrepresentableNumber;
     case JSONParser::JSON_PARSE_ERROR_COUNT:
-      break;
+      NOTREACHED();
   }
   NOTREACHED();
-  return std::string();
 }
 
 const int32_t kExtendedASCIIStart = 0x80;
@@ -68,28 +69,14 @@ constexpr base_icu::UChar32 kUnicodeReplacementPoint = 0xFFFD;
 // UnprefixedHexStringToInt acts like |HexStringToInt|, but enforces that the
 // input consists purely of hex digits. I.e. no "0x" nor "OX" prefix is
 // permitted.
-bool UnprefixedHexStringToInt(StringPiece input, int* output) {
-  for (size_t i = 0; i < input.size(); i++) {
-    if (!IsHexDigit(input[i])) {
+bool UnprefixedHexStringToInt(std::string_view input, int* output) {
+  for (char i : input) {
+    if (!IsHexDigit(i)) {
       return false;
     }
   }
   return HexStringToInt(input, output);
 }
-
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class ChromiumJsonExtension {
-  kCComment,
-  kCppComment,
-  kXEscape,
-  kVerticalTabEscape,
-  kControlCharacter,
-  kMaxValue = kControlCharacter,
-};
-
-const char kExtensionHistogramName[] =
-    "Security.JSONParser.ChromiumExtensionUsage";
 
 }  // namespace
 
@@ -125,7 +112,7 @@ JSONParser::JSONParser(int options, size_t max_depth)
 
 JSONParser::~JSONParser() = default;
 
-absl::optional<Value> JSONParser::Parse(StringPiece input) {
+std::optional<Value> JSONParser::Parse(std::string_view input) {
   input_ = input;
   index_ = 0;
   // Line and column counting is 1-based, but |index_| is 0-based. For example,
@@ -152,14 +139,15 @@ absl::optional<Value> JSONParser::Parse(StringPiece input) {
   ConsumeIfMatch("\xEF\xBB\xBF");
 
   // Parse the first and any nested tokens.
-  absl::optional<Value> root(ParseNextToken());
-  if (!root)
-    return absl::nullopt;
+  std::optional<Value> root(ParseNextToken());
+  if (!root) {
+    return std::nullopt;
+  }
 
   // Make sure the input stream is at an end.
   if (GetNextToken() != T_END_OF_INPUT) {
     ReportError(JSON_UNEXPECTED_DATA_AFTER_ROOT, 0);
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return root;
@@ -182,92 +170,62 @@ int JSONParser::error_column() const {
   return error_column_;
 }
 
-// StringBuilder ///////////////////////////////////////////////////////////////
-
-JSONParser::StringBuilder::StringBuilder() : StringBuilder(nullptr) {}
-
-JSONParser::StringBuilder::StringBuilder(const char* pos)
-    : pos_(pos), length_(0) {}
-
-JSONParser::StringBuilder::~StringBuilder() = default;
-
-JSONParser::StringBuilder& JSONParser::StringBuilder::operator=(
-    StringBuilder&& other) = default;
-
-void JSONParser::StringBuilder::Append(base_icu::UChar32 point) {
-  DCHECK(IsValidCodepoint(point));
-
-  if (point < kExtendedASCIIStart) {
-    if (!string_) {
-      DCHECK_EQ(static_cast<char>(point), pos_[length_]);
-      ++length_;
-    } else {
-      string_->push_back(static_cast<char>(point));
-    }
-  } else {
-    Convert();
-    if (UNLIKELY(point == kUnicodeReplacementPoint)) {
-      string_->append(kUnicodeReplacementString);
-    } else {
-      WriteUnicodeCharacter(point, &*string_);
-    }
-  }
-}
-
-void JSONParser::StringBuilder::Convert() {
-  if (string_)
-    return;
-  string_.emplace(pos_, length_);
-}
-
-std::string JSONParser::StringBuilder::DestructiveAsString() {
-  if (string_)
-    return std::move(*string_);
-  return std::string(pos_, length_);
-}
-
 // JSONParser private //////////////////////////////////////////////////////////
 
-absl::optional<StringPiece> JSONParser::PeekChars(size_t count) {
-  if (index_ + count > input_.length())
-    return absl::nullopt;
-  // Using StringPiece::substr() is significantly slower (according to
-  // base_perftests) than constructing a substring manually.
-  return StringPiece(input_.data() + index_, count);
+std::optional<std::string_view> JSONParser::PeekChars(size_t count) {
+  if (count > input_.length() - index_) {
+    return std::nullopt;
+  }
+  // Using string_view::substr() was historically significantly slower
+  // (according to base_perftests) than constructing a substring manually.
+  //
+  // TODO(crbug.com/40284755): Is this still the case? Ideally the bounds check
+  // performed by substr would be deleted by the optimizer for being redundant
+  // with the runtime check above. However, to do so, the compiler would need
+  // to know `index_ <= input_.length()` is a class invariant. If we
+  // restructured the code so that we only stored the remaining data, that
+  // would avoid this, but it would prevent rewinding (the places in this file
+  // which look at `input_[index_ - 1]`.)
+  return UNSAFE_BUFFERS(std::string_view(input_.data() + index_, count));
 }
 
-absl::optional<char> JSONParser::PeekChar() {
-  absl::optional<StringPiece> chars = PeekChars(1);
-  if (chars)
+std::optional<char> JSONParser::PeekChar() {
+  std::optional<std::string_view> chars = PeekChars(1);
+  if (chars) {
     return (*chars)[0];
-  return absl::nullopt;
+  }
+  return std::nullopt;
 }
 
-absl::optional<StringPiece> JSONParser::ConsumeChars(size_t count) {
-  absl::optional<StringPiece> chars = PeekChars(count);
-  if (chars)
+std::optional<std::string_view> JSONParser::ConsumeChars(size_t count) {
+  std::optional<std::string_view> chars = PeekChars(count);
+  if (chars) {
     index_ += count;
+  }
   return chars;
 }
 
-absl::optional<char> JSONParser::ConsumeChar() {
-  absl::optional<StringPiece> chars = ConsumeChars(1);
-  if (chars)
+std::optional<char> JSONParser::ConsumeChar() {
+  std::optional<std::string_view> chars = ConsumeChars(1);
+  if (chars) {
     return (*chars)[0];
-  return absl::nullopt;
+  }
+  return std::nullopt;
 }
 
 const char* JSONParser::pos() {
   CHECK_LE(index_, input_.length());
-  return input_.data() + index_;
+  // SAFETY: Checked above.
+  return UNSAFE_BUFFERS(input_.data() + index_);
 }
 
 JSONParser::Token JSONParser::GetNextToken() {
   EatWhitespaceAndComments();
 
-  absl::optional<char> c = PeekChar();
-  if (!c)
+  std::optional<char> c = PeekChar();
+  if (!c) {
     return T_END_OF_INPUT;
+  }
 
   switch (*c) {
     case '{':
@@ -308,7 +266,7 @@ JSONParser::Token JSONParser::GetNextToken() {
 }
 
 void JSONParser::EatWhitespaceAndComments() {
-  while (absl::optional<char> c = PeekChar()) {
+  while (std::optional<char> c = PeekChar()) {
     switch (*c) {
       case '\r':
       case '\n':
@@ -323,8 +281,9 @@ void JSONParser::EatWhitespaceAndComments() {
         ConsumeChar();
         break;
       case '/':
-        if (!EatComment())
+        if (!EatComment()) {
           return;
+        }
         break;
       default:
         return;
@@ -333,15 +292,14 @@ void JSONParser::EatWhitespaceAndComments() {
 }
 
 bool JSONParser::EatComment() {
-  absl::optional<StringPiece> comment_start = PeekChars(2);
-  if (!comment_start)
+  std::optional<std::string_view> comment_start = PeekChars(2);
+  if (!comment_start) {
     return false;
+  }
 
   const bool comments_allowed = options_ & JSON_ALLOW_COMMENTS;
 
   if (comment_start == "//") {
-    UmaHistogramEnumeration(kExtensionHistogramName,
-                            ChromiumJsonExtension::kCppComment);
     if (!comments_allowed) {
       ReportError(JSON_UNEXPECTED_TOKEN, 0);
       return false;
@@ -349,14 +307,13 @@ bool JSONParser::EatComment() {
 
     ConsumeChars(2);
     // Single line comment, read to newline.
-    while (absl::optional<char> c = PeekChar()) {
-      if (c == '\n' || c == '\r')
+    while (std::optional<char> c = PeekChar()) {
+      if (c == '\n' || c == '\r') {
         return true;
+      }
       ConsumeChar();
     }
   } else if (comment_start == "/*") {
-    UmaHistogramEnumeration(kExtensionHistogramName,
-                            ChromiumJsonExtension::kCComment);
     if (!comments_allowed) {
       ReportError(JSON_UNEXPECTED_TOKEN, 0);
       return false;
@@ -365,7 +322,7 @@ bool JSONParser::EatComment() {
     ConsumeChars(2);
     char previous_char = '\0';
     // Block comment, read until end marker.
-    while (absl::optional<char> c = PeekChar()) {
+    while (std::optional<char> c = PeekChar()) {
       if (previous_char == '*' && c == '/') {
         // EatWhitespaceAndComments will inspect pos(), which will still be on
         // the last / of the comment, so advance once more (which may also be
@@ -382,11 +339,11 @@ bool JSONParser::EatComment() {
   return false;
 }
 
-absl::optional<Value> JSONParser::ParseNextToken() {
+std::optional<Value> JSONParser::ParseNextToken() {
   return ParseToken(GetNextToken());
 }
 
-absl::optional<Value> JSONParser::ParseToken(Token token) {
+std::optional<Value> JSONParser::ParseToken(Token token) {
   switch (token) {
     case T_OBJECT_BEGIN:
       return ConsumeDictionary();
@@ -402,53 +359,54 @@ absl::optional<Value> JSONParser::ParseToken(Token token) {
       return ConsumeLiteral();
     default:
       ReportError(JSON_UNEXPECTED_TOKEN, 0);
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 
-absl::optional<Value> JSONParser::ConsumeDictionary() {
+std::optional<Value> JSONParser::ConsumeDictionary() {
   if (ConsumeChar() != '{') {
     ReportError(JSON_UNEXPECTED_TOKEN, 0);
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   StackMarker depth_check(max_depth_, &stack_depth_);
   if (depth_check.IsTooDeep()) {
     ReportError(JSON_TOO_MUCH_NESTING, -1);
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  std::vector<std::pair<std::string, Value>> values;
+  std::vector<std::pair<std::string, std::unique_ptr<Value>>> values;
 
   Token token = GetNextToken();
   while (token != T_OBJECT_END) {
     if (token != T_STRING) {
       ReportError(JSON_UNQUOTED_DICTIONARY_KEY, 0);
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     // First consume the key.
-    StringBuilder key;
-    if (!ConsumeStringRaw(&key)) {
-      return absl::nullopt;
+    std::optional<std::string> key = ConsumeStringRaw();
+    if (!key) {
+      return std::nullopt;
     }
 
     // Read the separator.
     token = GetNextToken();
     if (token != T_OBJECT_PAIR_SEPARATOR) {
       ReportError(JSON_SYNTAX_ERROR, 0);
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     // The next token is the value. Ownership transfers to |dict|.
     ConsumeChar();
-    absl::optional<Value> value = ParseNextToken();
+    std::optional<Value> value = ParseNextToken();
     if (!value) {
       // ReportError from deeper level.
-      return absl::nullopt;
+      return std::nullopt;
     }
 
-    values.emplace_back(key.DestructiveAsString(), std::move(*value));
+    values.emplace_back(std::move(*key),
+                        std::make_unique<Value>(std::move(*value)));
 
     token = GetNextToken();
     if (token == T_LIST_SEPARATOR) {
@@ -456,42 +414,41 @@ absl::optional<Value> JSONParser::ConsumeDictionary() {
       token = GetNextToken();
       if (token == T_OBJECT_END && !(options_ & JSON_ALLOW_TRAILING_COMMAS)) {
         ReportError(JSON_TRAILING_COMMA, 0);
-        return absl::nullopt;
+        return std::nullopt;
       }
     } else if (token != T_OBJECT_END) {
       ReportError(JSON_SYNTAX_ERROR, 0);
-      return absl::nullopt;
+      return std::nullopt;
     }
   }
 
   ConsumeChar();  // Closing '}'.
   // Reverse |dict_storage| to keep the last of elements with the same key in
   // the input.
-  ranges::reverse(values);
-  return Value(Value::Dict(std::make_move_iterator(values.begin()),
-                           std::make_move_iterator(values.end())));
+  std::ranges::reverse(values);
+  return Value(Value::Dict(PassKey<JSONParser>(), std::move(values)));
 }
 
-absl::optional<Value> JSONParser::ConsumeList() {
+std::optional<Value> JSONParser::ConsumeList() {
   if (ConsumeChar() != '[') {
     ReportError(JSON_UNEXPECTED_TOKEN, 0);
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   StackMarker depth_check(max_depth_, &stack_depth_);
   if (depth_check.IsTooDeep()) {
     ReportError(JSON_TOO_MUCH_NESTING, -1);
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   Value::List list;
 
   Token token = GetNextToken();
   while (token != T_ARRAY_END) {
-    absl::optional<Value> item = ParseToken(token);
+    std::optional<Value> item = ParseToken(token);
     if (!item) {
       // ReportError from deeper level.
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     list.Append(std::move(*item));
@@ -502,11 +459,11 @@ absl::optional<Value> JSONParser::ConsumeList() {
       token = GetNextToken();
       if (token == T_ARRAY_END && !(options_ & JSON_ALLOW_TRAILING_COMMAS)) {
         ReportError(JSON_TRAILING_COMMA, 0);
-        return absl::nullopt;
+        return std::nullopt;
       }
     } else if (token != T_ARRAY_END) {
       ReportError(JSON_SYNTAX_ERROR, 0);
-      return absl::nullopt;
+      return std::nullopt;
     }
   }
 
@@ -515,190 +472,224 @@ absl::optional<Value> JSONParser::ConsumeList() {
   return Value(std::move(list));
 }
 
-absl::optional<Value> JSONParser::ConsumeString() {
-  StringBuilder string;
-  if (!ConsumeStringRaw(&string))
-    return absl::nullopt;
-  return Value(string.DestructiveAsString());
+std::optional<Value> JSONParser::ConsumeString() {
+  std::optional<std::string> string = ConsumeStringRaw();
+  if (!string) {
+    return std::nullopt;
+  }
+  return Value(std::move(*string));
 }
 
-bool JSONParser::ConsumeStringRaw(StringBuilder* out) {
+std::optional<std::string> JSONParser::ConsumeStringRaw() {
   if (ConsumeChar() != '"') {
     ReportError(JSON_UNEXPECTED_TOKEN, 0);
-    return false;
+    return std::nullopt;
   }
 
-  // StringBuilder will internally build a StringPiece unless a UTF-16
-  // conversion occurs, at which point it will perform a copy into a
-  // std::string.
-  StringBuilder string(pos());
+  std::string string;
+  for (;;) {
+    auto [result, consumed] = ConsumeStringPart();
+    switch (result) {
+      case StringResult::kError:
+        return std::nullopt;
 
-  while (absl::optional<char> c = PeekChar()) {
-    base_icu::UChar32 next_char = 0;
-    if (static_cast<unsigned char>(*c) < kExtendedASCIIStart) {
-      // Fast path for ASCII.
-      next_char = *c;
-    } else if (!ReadUnicodeCharacter(input_.data(), input_.length(), &index_,
-                                     &next_char) ||
-               !IsValidCodepoint(next_char)) {
-      if ((options_ & JSON_REPLACE_INVALID_CHARACTERS) == 0) {
-        ReportError(JSON_UNSUPPORTED_ENCODING, 0);
-        return false;
+      case StringResult::kDone:
+        // This is the last time we're appending, so pre-reserve the desired
+        // size, to prevent `+=` from overallocating. (In other cases, the
+        // overallocating is desirable for amortization.) In particular,
+        // the common case is that `string` is empty and we return in one step.
+        string.reserve(string.size() + consumed.size());
+        string += consumed;
+        return std::move(string);
+
+      case StringResult::kReplacementCharacter:
+        string += consumed;
+        string += kUnicodeReplacementString;
+        break;  // Keep parsing.
+
+      case StringResult::kEscape:
+        string += consumed;
+        std::optional<char> escape_char = ConsumeChar();
+        if (!escape_char) {
+          ReportError(JSON_INVALID_ESCAPE, -1);
+          return std::nullopt;
+        }
+
+        switch (*escape_char) {
+          // Allowed esape sequences:
+          case 'x': {  // UTF-8 sequence.
+            // UTF-8 \x escape sequences are not allowed in the spec, but they
+            // are supported here for backwards-compatiblity with the old
+            // parser.
+            if (!(options_ & JSON_ALLOW_X_ESCAPES)) {
+              ReportError(JSON_INVALID_ESCAPE, -1);
+              return std::nullopt;
+            }
+
+            std::optional<std::string_view> escape_sequence = ConsumeChars(2);
+            if (!escape_sequence) {
+              ReportError(JSON_INVALID_ESCAPE, -3);
+              return std::nullopt;
+            }
+
+            int hex_digit = 0;
+            if (!UnprefixedHexStringToInt(*escape_sequence, &hex_digit)) {
+              ReportError(JSON_INVALID_ESCAPE, -3);
+              return std::nullopt;
+            }
+
+            // A two-character hex sequence is at most 0xff and all codepoints
+            // up to 0xff are valid.
+            DCHECK_LE(hex_digit, 0xff);
+            DCHECK(IsValidCharacter(hex_digit));
+            WriteUnicodeCharacter(hex_digit, &string);
+            break;
+          }
+          case 'u': {  // UTF-16 sequence.
+            // UTF units are of the form \uXXXX.
+            base_icu::UChar32 code_point;
+            if (!DecodeUTF16(&code_point)) {
+              ReportError(JSON_INVALID_ESCAPE, -1);
+              return std::nullopt;
+            }
+            WriteUnicodeCharacter(code_point, &string);
+            break;
+          }
+          case '"':
+            string.push_back('"');
+            break;
+          case '\\':
+            string.push_back('\\');
+            break;
+          case '/':
+            string.push_back('/');
+            break;
+          case 'b':
+            string.push_back('\b');
+            break;
+          case 'f':
+            string.push_back('\f');
+            break;
+          case 'n':
+            string.push_back('\n');
+            break;
+          case 'r':
+            string.push_back('\r');
+            break;
+          case 't':
+            string.push_back('\t');
+            break;
+          case 'v':  // Not listed as valid escape sequence in the RFC.
+            if (!(options_ & JSON_ALLOW_VERT_TAB)) {
+              ReportError(JSON_INVALID_ESCAPE, -1);
+              return std::nullopt;
+            }
+            string.push_back('\v');
+            break;
+          // All other escape squences are illegal.
+          default:
+            ReportError(JSON_INVALID_ESCAPE, -1);
+            return std::nullopt;
+        }
+        break;  // Keep parsing.
+    }
+  }
+}
+
+std::pair<JSONParser::StringResult, std::string_view>
+JSONParser::ConsumeStringPart() {
+  const size_t start_index = index_;
+  while (std::optional<char> c = PeekChar()) {
+    // Handle non-ASCII characters, which never trigger any special handling
+    // beyond needing to be valid UTF-8. ASCII characters will be handled
+    // separately below.
+    if (static_cast<unsigned char>(*c) >= kExtendedASCIIStart) {
+      base_icu::UChar32 next_char = 0;
+      size_t last_index = index_;
+      if (!ReadUnicodeCharacter(input_.data(), input_.length(), &index_,
+                                &next_char)) {
+        if ((options_ & JSON_REPLACE_INVALID_CHARACTERS) == 0) {
+          ReportError(JSON_UNSUPPORTED_ENCODING, 0);
+          // No need to return consumed data.
+          return {StringResult::kError, {}};
+        }
+        ConsumeChar();
+        return {StringResult::kReplacementCharacter,
+                input_.substr(start_index, last_index - start_index)};
       }
+
+      // Valid UTF-8 will be copied as-is into the output, so keep processing.
+      DCHECK_GE(next_char, kExtendedASCIIStart);
       ConsumeChar();
-      string.Append(kUnicodeReplacementPoint);
       continue;
     }
 
-    if (next_char == '"') {
+    if (*c == '"') {
+      std::string_view ret = input_.substr(start_index, index_ - start_index);
       ConsumeChar();
-      *out = std::move(string);
-      return true;
+      return {StringResult::kDone, ret};
     }
-    if (next_char != '\\') {
-      // Per Section 7, "All Unicode characters may be placed within the
-      // quotation marks, except for the characters that MUST be escaped:
-      // quotation mark, reverse solidus, and the control characters (U+0000
-      // through U+001F)".
-      if (next_char <= 0x1F) {
-        UmaHistogramEnumeration(kExtensionHistogramName,
-                                ChromiumJsonExtension::kControlCharacter);
-        if (!(options_ & JSON_ALLOW_CONTROL_CHARS)) {
-          ReportError(JSON_UNSUPPORTED_ENCODING, -1);
-          return false;
-        }
-      }
-
-      // If this character is not an escape sequence, track any line breaks and
-      // copy next_char to the StringBuilder. The JSON spec forbids unescaped
-      // ASCII control characters within a string, including '\r' and '\n', but
-      // this implementation is more lenient.
-      if ((next_char == '\r') || (next_char == '\n')) {
-        index_last_line_ = index_;
-        // Don't increment line_number_ twice for "\r\n". We are guaranteed
-        // that (index_ > 0) because we are consuming a string, so we must have
-        // seen an opening '"' quote character.
-        if ((next_char == '\r') || (input_[index_ - 1] != '\r')) {
-          ++line_number_;
-        }
-      }
+    if (*c == '\\') {
+      std::string_view ret = input_.substr(start_index, index_ - start_index);
       ConsumeChar();
-      string.Append(next_char);
-    } else {
-      // And if it is an escape sequence, the input string will be adjusted
-      // (either by combining the two characters of an encoded escape sequence,
-      // or with a UTF conversion), so using StringPiece isn't possible -- force
-      // a conversion.
-      string.Convert();
+      return {StringResult::kEscape, ret};
+    }
 
-      // Read past the escape '\' and ensure there's a character following.
-      absl::optional<StringPiece> escape_sequence = ConsumeChars(2);
-      if (!escape_sequence) {
-        ReportError(JSON_INVALID_ESCAPE, -1);
-        return false;
+    // Per Section 7, "All Unicode characters may be placed within the
+    // quotation marks, except for the characters that MUST be escaped:
+    // quotation mark, reverse solidus, and the control characters (U+0000
+    // through U+001F)".
+    if (*c == '\n' || *c == '\r') {
+      if (!(options_ & JSON_ALLOW_NEWLINES_IN_STRINGS)) {
+        ReportError(JSON_UNSUPPORTED_ENCODING, -1);
+        return {StringResult::kError, {}};  // No need to return consumed data.
       }
+    } else if (*c <= 0x1F) {
+      ReportError(JSON_UNSUPPORTED_ENCODING, -1);
+      return {StringResult::kError, {}};  // No need to return consumed data.
+    }
 
-      switch ((*escape_sequence)[1]) {
-        // Allowed esape sequences:
-        case 'x': {  // UTF-8 sequence.
-          // UTF-8 \x escape sequences are not allowed in the spec, but they
-          // are supported here for backwards-compatiblity with the old parser.
-          UmaHistogramEnumeration(kExtensionHistogramName,
-                                  ChromiumJsonExtension::kXEscape);
-          if (!(options_ & JSON_ALLOW_X_ESCAPES)) {
-            ReportError(JSON_INVALID_ESCAPE, -1);
-            return false;
-          }
-
-          escape_sequence = ConsumeChars(2);
-          if (!escape_sequence) {
-            ReportError(JSON_INVALID_ESCAPE, -3);
-            return false;
-          }
-
-          int hex_digit = 0;
-          if (!UnprefixedHexStringToInt(*escape_sequence, &hex_digit) ||
-              !IsValidCharacter(hex_digit)) {
-            ReportError(JSON_INVALID_ESCAPE, -3);
-            return false;
-          }
-
-          string.Append(hex_digit);
-          break;
-        }
-        case 'u': {  // UTF-16 sequence.
-          // UTF units are of the form \uXXXX.
-          base_icu::UChar32 code_point;
-          if (!DecodeUTF16(&code_point)) {
-            ReportError(JSON_INVALID_ESCAPE, -1);
-            return false;
-          }
-          string.Append(code_point);
-          break;
-        }
-        case '"':
-          string.Append('"');
-          break;
-        case '\\':
-          string.Append('\\');
-          break;
-        case '/':
-          string.Append('/');
-          break;
-        case 'b':
-          string.Append('\b');
-          break;
-        case 'f':
-          string.Append('\f');
-          break;
-        case 'n':
-          string.Append('\n');
-          break;
-        case 'r':
-          string.Append('\r');
-          break;
-        case 't':
-          string.Append('\t');
-          break;
-        case 'v':  // Not listed as valid escape sequence in the RFC.
-          UmaHistogramEnumeration(kExtensionHistogramName,
-                                  ChromiumJsonExtension::kVerticalTabEscape);
-          if (!(options_ & JSON_ALLOW_VERT_TAB)) {
-            ReportError(JSON_INVALID_ESCAPE, -1);
-            return false;
-          }
-          string.Append('\v');
-          break;
-        // All other escape squences are illegal.
-        default:
-          ReportError(JSON_INVALID_ESCAPE, -1);
-          return false;
+    // If this character is not an escape sequence, track any line breaks and
+    // keep parsing. The JSON spec forbids unescaped ASCII control characters
+    // within a string, including '\r' and '\n', but this implementation is more
+    // lenient.
+    if (*c == '\r' || *c == '\n') {
+      index_last_line_ = index_;
+      // Don't increment line_number_ twice for "\r\n". We are guaranteed that
+      // (index_ > 0) because we are consuming a string, so we must have seen an
+      // opening '"' quote character.
+      if ((*c == '\r') || (input_[index_ - 1] != '\r')) {
+        ++line_number_;
       }
     }
+    ConsumeChar();
   }
 
   ReportError(JSON_SYNTAX_ERROR, -1);
-  return false;
+  return {StringResult::kError, {}};  // No need to return consumed data.
 }
 
 // Entry is at the first X in \uXXXX.
 bool JSONParser::DecodeUTF16(base_icu::UChar32* out_code_point) {
-  absl::optional<StringPiece> escape_sequence = ConsumeChars(4);
-  if (!escape_sequence)
+  std::optional<std::string_view> escape_sequence = ConsumeChars(4);
+  if (!escape_sequence) {
     return false;
+  }
 
   // Consume the UTF-16 code unit, which may be a high surrogate.
   int code_unit16_high = 0;
-  if (!UnprefixedHexStringToInt(*escape_sequence, &code_unit16_high))
+  if (!UnprefixedHexStringToInt(*escape_sequence, &code_unit16_high)) {
     return false;
+  }
 
   // If this is a high surrogate, consume the next code unit to get the
   // low surrogate.
   if (CBU16_IS_SURROGATE(code_unit16_high)) {
     // Make sure this is the high surrogate.
     if (!CBU16_IS_SURROGATE_LEAD(code_unit16_high)) {
-      if ((options_ & JSON_REPLACE_INVALID_CHARACTERS) == 0)
+      if ((options_ & JSON_REPLACE_INVALID_CHARACTERS) == 0) {
         return false;
+      }
       *out_code_point = kUnicodeReplacementPoint;
       return true;
     }
@@ -706,23 +697,27 @@ bool JSONParser::DecodeUTF16(base_icu::UChar32* out_code_point) {
     // Make sure that the token has more characters to consume the
     // lower surrogate.
     if (!ConsumeIfMatch("\\u")) {
-      if ((options_ & JSON_REPLACE_INVALID_CHARACTERS) == 0)
+      if ((options_ & JSON_REPLACE_INVALID_CHARACTERS) == 0) {
         return false;
+      }
       *out_code_point = kUnicodeReplacementPoint;
       return true;
     }
 
     escape_sequence = ConsumeChars(4);
-    if (!escape_sequence)
+    if (!escape_sequence) {
       return false;
+    }
 
     int code_unit16_low = 0;
-    if (!UnprefixedHexStringToInt(*escape_sequence, &code_unit16_low))
+    if (!UnprefixedHexStringToInt(*escape_sequence, &code_unit16_low)) {
       return false;
+    }
 
     if (!CBU16_IS_TRAIL(code_unit16_low)) {
-      if ((options_ & JSON_REPLACE_INVALID_CHARACTERS) == 0)
+      if ((options_ & JSON_REPLACE_INVALID_CHARACTERS) == 0) {
         return false;
+      }
       *out_code_point = kUnicodeReplacementPoint;
       return true;
     }
@@ -741,17 +736,18 @@ bool JSONParser::DecodeUTF16(base_icu::UChar32* out_code_point) {
   return true;
 }
 
-absl::optional<Value> JSONParser::ConsumeNumber() {
+std::optional<Value> JSONParser::ConsumeNumber() {
   const char* num_start = pos();
   const size_t start_index = index_;
   size_t end_index = start_index;
 
-  if (PeekChar() == '-')
+  if (PeekChar() == '-') {
     ConsumeChar();
+  }
 
   if (!ReadInt(false)) {
     ReportError(JSON_SYNTAX_ERROR, 0);
-    return absl::nullopt;
+    return std::nullopt;
   }
   end_index = index_;
 
@@ -760,13 +756,13 @@ absl::optional<Value> JSONParser::ConsumeNumber() {
     ConsumeChar();
     if (!ReadInt(true)) {
       ReportError(JSON_SYNTAX_ERROR, 0);
-      return absl::nullopt;
+      return std::nullopt;
     }
     end_index = index_;
   }
 
   // Optional exponent part.
-  absl::optional<char> c = PeekChar();
+  std::optional<char> c = PeekChar();
   if (c == 'e' || c == 'E') {
     ConsumeChar();
     if (PeekChar() == '-' || PeekChar() == '+') {
@@ -774,35 +770,22 @@ absl::optional<Value> JSONParser::ConsumeNumber() {
     }
     if (!ReadInt(true)) {
       ReportError(JSON_SYNTAX_ERROR, 0);
-      return absl::nullopt;
+      return std::nullopt;
     }
     end_index = index_;
   }
 
-  // ReadInt is greedy because numbers have no easily detectable sentinel,
-  // so save off where the parser should be on exit (see Consume invariant at
-  // the top of the header), then make sure the next token is one which is
-  // valid.
-  size_t exit_index = index_;
-
-  switch (GetNextToken()) {
-    case T_OBJECT_END:
-    case T_ARRAY_END:
-    case T_LIST_SEPARATOR:
-    case T_END_OF_INPUT:
-      break;
-    default:
-      ReportError(JSON_SYNTAX_ERROR, 0);
-      return absl::nullopt;
-  }
-
-  index_ = exit_index;
-
-  StringPiece num_string(num_start, end_index - start_index);
+  std::string_view num_string(num_start, end_index - start_index);
 
   int num_int;
-  if (StringToInt(num_string, &num_int))
+  if (StringToInt(num_string, &num_int)) {
+    // StringToInt will treat `-0` as zero, losing the significance of the
+    // negation.
+    if (num_int == 0 && num_string.starts_with('-')) {
+      return Value(-0.0);
+    }
     return Value(num_int);
+  }
 
   double num_double;
   if (StringToDouble(num_string, &num_double) && std::isfinite(num_double)) {
@@ -810,45 +793,52 @@ absl::optional<Value> JSONParser::ConsumeNumber() {
   }
 
   ReportError(JSON_UNREPRESENTABLE_NUMBER, 0);
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 bool JSONParser::ReadInt(bool allow_leading_zeros) {
   size_t len = 0;
   char first = 0;
 
-  while (absl::optional<char> c = PeekChar()) {
-    if (!IsAsciiDigit(c))
+  while (std::optional<char> c = PeekChar()) {
+    if (!IsAsciiDigit(*c)) {
       break;
+    }
 
-    if (len == 0)
+    if (len == 0) {
       first = *c;
+    }
 
     ++len;
     ConsumeChar();
   }
 
-  if (len == 0)
+  if (len == 0) {
     return false;
+  }
 
-  if (!allow_leading_zeros && len > 1 && first == '0')
+  if (!allow_leading_zeros && len > 1 && first == '0') {
     return false;
+  }
 
   return true;
 }
 
-absl::optional<Value> JSONParser::ConsumeLiteral() {
-  if (ConsumeIfMatch("true"))
+std::optional<Value> JSONParser::ConsumeLiteral() {
+  if (ConsumeIfMatch("true")) {
     return Value(true);
-  if (ConsumeIfMatch("false"))
+  }
+  if (ConsumeIfMatch("false")) {
     return Value(false);
-  if (ConsumeIfMatch("null"))
+  }
+  if (ConsumeIfMatch("null")) {
     return Value(Value::Type::NONE);
+  }
   ReportError(JSON_SYNTAX_ERROR, 0);
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-bool JSONParser::ConsumeIfMatch(StringPiece match) {
+bool JSONParser::ConsumeIfMatch(std::string_view match) {
   if (match == PeekChars(match.size())) {
     ConsumeChars(match.size());
     return true;
@@ -869,14 +859,14 @@ void JSONParser::ReportError(JsonParseError code, int column_adjust) {
 }
 
 // static
-std::string JSONParser::FormatErrorMessage(int line, int column,
+std::string JSONParser::FormatErrorMessage(int line,
+                                           int column,
                                            const std::string& description) {
   if (line || column) {
-    return StringPrintf("Line: %i, column: %i, %s",
-        line, column, description.c_str());
+    return StringPrintf("Line: %i, column: %i, %s", line, column,
+                        description.c_str());
   }
   return description;
 }
 
-}  // namespace internal
-}  // namespace base
+}  // namespace base::internal

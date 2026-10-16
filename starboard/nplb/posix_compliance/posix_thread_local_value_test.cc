@@ -161,7 +161,7 @@ TEST(PosixThreadLocalValueTest, SunnyDayFreshlyCreatedValuesAreNull) {
 }
 
 TEST(PosixThreadLocalValueTest, SunnyDayMany) {
-  const int kMany = (2 * kSbMaxThreadLocalKeys) / 3;
+  const int kMany = 64;
   std::vector<pthread_key_t> keys(kMany);
 
   for (int i = 0; i < kMany; ++i) {

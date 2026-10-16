@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "third_party/blink/renderer/platform/mediastream/webrtc_uma_histograms.h"
 
 #include "base/logging.h"
@@ -9,11 +10,6 @@
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom-blink.h"
 
 namespace blink {
-
-void LogUserMediaRequestWithNoResult(MediaStreamRequestState state) {
-  UMA_HISTOGRAM_ENUMERATION("WebRTC.UserMediaRequest.NoResultState", state,
-                            NUM_MEDIA_STREAM_REQUEST_WITH_NO_RESULT);
-}
 
 void LogUserMediaRequestResult(mojom::blink::MediaStreamRequestResult result) {
   UMA_HISTOGRAM_ENUMERATION(
@@ -30,7 +26,14 @@ void UpdateWebRTCMethodCount(RTCAPIName api_name) {
 }
 
 PerSessionWebRTCAPIMetrics::~PerSessionWebRTCAPIMetrics() {
+#if BUILDFLAG(IS_STARBOARD)
+  // TODO: b/554096932 - In Starboard, PerSessionWebRTCAPIMetrics is lazily
+  // initialized on worker/media threads but destroyed by the AtExitManager on
+  // the main UI thread during shutdown, causing this thread check to fail.
+  // Investigate using a Leaky singleton or explicit destruction.
+#else
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#endif
 }
 
 // static

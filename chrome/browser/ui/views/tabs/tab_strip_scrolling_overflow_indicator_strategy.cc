@@ -6,6 +6,7 @@
 
 #include "base/notreached.h"
 #include "cc/paint/paint_shader.h"
+#include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/views/frame/browser_non_client_frame_view.h"
 #include "chrome/browser/ui/views/tabs/tab_style_views.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -44,9 +45,8 @@ TabStripScrollingOverflowIndicatorStrategy::CreateFromFeatureFlag(
     base::RepeatingCallback<SkColor4f()> get_frame_color,
     base::RepeatingCallback<SkColor4f()> get_shadow_color) {
   const int overflow_feature_flag = base::GetFieldTrialParamByFeatureAsInt(
-      features::kScrollableTabStripOverflow,
-      features::kScrollableTabStripOverflowModeName,
-      OverflowFeatureFlag::kDefault);
+      tabs::kScrollableTabStripOverflow,
+      tabs::kScrollableTabStripOverflowModeName, OverflowFeatureFlag::kDefault);
 
   switch (overflow_feature_flag) {
     case OverflowFeatureFlag::kDivider:
@@ -60,7 +60,7 @@ TabStripScrollingOverflowIndicatorStrategy::CreateFromFeatureFlag(
       return std::make_unique<ShadowOverflowIndicatorStrategy>(
           scroll_view, get_frame_color, get_shadow_color);
     default:
-      NOTREACHED_NORETURN();
+      NOTREACHED();
   }
 }
 
@@ -133,7 +133,7 @@ void GradientIndicatorView::SetFrameColor(SkColor4f new_frame_color) {
   SchedulePaint();
 }
 
-BEGIN_METADATA(GradientIndicatorView, views::View)
+BEGIN_METADATA(GradientIndicatorView)
 END_METADATA
 
 GradientOverflowIndicatorStrategy::GradientOverflowIndicatorStrategy(
@@ -208,7 +208,7 @@ void FadeOverflowIndicatorStrategy::Init() {
           views::OverflowIndicatorAlignment::kRight);
   right_overflow_indicator_ = right_overflow_indicator.get();
 
-  const int min_tab_width = TabStyleViews::Create()->GetMinimumInactiveWidth();
+  const int min_tab_width = TabStyle::Get()->GetMinimumInactiveWidth();
 
   left_overflow_indicator_->SetShadowBlurWidth(std::min(64, min_tab_width * 2));
   right_overflow_indicator_->SetShadowBlurWidth(

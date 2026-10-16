@@ -37,19 +37,27 @@ class AutoplayPolicyTest : public PolicyTest {
     EXPECT_TRUE(embedded_test_server2()->Start());
   }
 
-  void NavigateToTestPage() {
-    GURL origin = embedded_test_server()->GetURL(kAutoplayTestPageURL);
+  void NavigateToTestPage(const std::string& main_origin = std::string(),
+                          const std::string& subframe_origin = std::string()) {
+    GURL origin =
+        main_origin.empty()
+            ? embedded_test_server()->GetURL(kAutoplayTestPageURL)
+            : embedded_test_server()->GetURL(main_origin, kAutoplayTestPageURL);
     ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), origin));
 
     // Navigate the subframe to the test page but on the second origin.
-    GURL origin2 = embedded_test_server2()->GetURL(kAutoplayTestPageURL);
+    GURL origin2 = subframe_origin.empty()
+                       ? embedded_test_server2()->GetURL(kAutoplayTestPageURL)
+                       : embedded_test_server()->GetURL(subframe_origin,
+                                                        kAutoplayTestPageURL);
     std::string script = base::StringPrintf(
         "setTimeout(\""
         "document.getElementById('subframe').src='%s';"
         "\",0)",
         origin2.spec().c_str());
     content::TestNavigationObserver load_observer(GetWebContents());
-    EXPECT_TRUE(ExecuteScriptWithoutUserGesture(GetWebContents(), script));
+    EXPECT_TRUE(ExecJs(GetWebContents(), script,
+                       content::EXECUTE_SCRIPT_NO_USER_GESTURE));
     load_observer.Wait();
   }
 
@@ -94,6 +102,24 @@ IN_PROC_BROWSER_TEST_F(AutoplayPolicyTest, AutoplayAllowedByPolicy) {
 
   // Check that autoplay was allowed by policy.
   NavigateToTestPage();
+  EXPECT_TRUE(TryAutoplay(GetPrimaryMainFrame()));
+  EXPECT_TRUE(TryAutoplay(GetChildFrame()));
+}
+
+IN_PROC_BROWSER_TEST_F(AutoplayPolicyTest, CrossOriginIframe) {
+  NavigateToTestPage("foo.com", "bar.com");
+
+  // Check that autoplay was not allowed.
+  EXPECT_FALSE(TryAutoplay(GetPrimaryMainFrame()));
+  EXPECT_FALSE(TryAutoplay(GetChildFrame()));
+
+  // Update policy to allow autoplay.
+  PolicyMap policies;
+  SetPolicy(&policies, key::kAutoplayAllowed, base::Value(true));
+  UpdateProviderPolicy(policies);
+
+  // Check that autoplay was allowed by policy.
+  NavigateToTestPage("foo.com", "bar.com");
   EXPECT_TRUE(TryAutoplay(GetPrimaryMainFrame()));
   EXPECT_TRUE(TryAutoplay(GetChildFrame()));
 }
@@ -173,7 +199,6 @@ IN_PROC_BROWSER_TEST_F(AutoplayPolicyTest, AutoplayAllowlist_Missing) {
   EXPECT_FALSE(TryAutoplay(GetChildFrame()));
 }
 
-#if !BUILDFLAG(IS_FUCHSIA)
 // Flaky on Linux and ChromeOS. See: crbug.com/1172978.
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_AutoplayDeniedByPolicy DISABLED_AutoplayDeniedByPolicy
@@ -250,7 +275,7 @@ IN_PROC_BROWSER_TEST_F(AutoplayPolicyTest, MAYBE_AutoplayDeniedAllowedWithURL) {
   EXPECT_TRUE(TryAutoplay(GetChildFrame()));
 }
 
-// TODO(crbug.com/1167239): Flaky test.
+// TODO(crbug.com/40742600): Flaky test.
 IN_PROC_BROWSER_TEST_F(AutoplayPolicyTest,
                        DISABLED_AutoplayAllowedGlobalAndURL) {
   NavigateToTestPage();
@@ -283,7 +308,7 @@ IN_PROC_BROWSER_TEST_F(AutoplayPolicyTest,
   EXPECT_TRUE(TryAutoplay(GetPrimaryMainFrame()));
   EXPECT_TRUE(TryAutoplay(GetChildFrame()));
 }
-#endif  // !BUILDFLAG(IS_FUCHSIA)
+
 class AutoplayPolicyFencedFrameTest : public AutoplayPolicyTest {
  public:
   AutoplayPolicyFencedFrameTest() = default;
@@ -318,7 +343,6 @@ class AutoplayPolicyFencedFrameTest : public AutoplayPolicyTest {
   content::test::FencedFrameTestHelper fenced_frame_helper_;
 };
 
-#if !BUILDFLAG(IS_FUCHSIA)
 IN_PROC_BROWSER_TEST_F(AutoplayPolicyFencedFrameTest, AutoplayAllowedByPolicy) {
   // Check that autoplay was not allowed.
   NavigateAndCheckAutoplayAllowed(false);
@@ -331,7 +355,6 @@ IN_PROC_BROWSER_TEST_F(AutoplayPolicyFencedFrameTest, AutoplayAllowedByPolicy) {
   // Check that autoplay was allowed by policy.
   NavigateAndCheckAutoplayAllowed(true);
 }
-#endif  // !BUILDFLAG(IS_FUCHSIA)
 
 IN_PROC_BROWSER_TEST_F(AutoplayPolicyFencedFrameTest,
                        AutoplayAllowlist_Allowed) {

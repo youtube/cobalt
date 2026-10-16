@@ -66,26 +66,21 @@ UserspaceSwapPolicy::UserspaceSwapPolicy()
 UserspaceSwapPolicy::~UserspaceSwapPolicy() = default;
 
 void UserspaceSwapPolicy::OnPassedToGraph(Graph* graph) {
-  DCHECK_EQ(graph_, nullptr);
-  graph_ = graph;
   graph->AddProcessNodeObserver(this);
 
   // Only handle the memory pressure notifications if the feature to swap on
   // moderate pressure is enabled.
   if (config_->swap_on_moderate_pressure) {
-    graph_->AddSystemNodeObserver(this);
+    graph->AddSystemNodeObserver(this);
   }
 }
 
 void UserspaceSwapPolicy::OnTakenFromGraph(Graph* graph) {
-  DCHECK_EQ(graph_, graph);
-
   if (config_->swap_on_moderate_pressure) {
-    graph_->RemoveSystemNodeObserver(this);
+    graph->RemoveSystemNodeObserver(this);
   }
 
   graph->RemoveProcessNodeObserver(this);
-  graph_ = nullptr;
 }
 
 void UserspaceSwapPolicy::OnAllFramesInProcessFrozen(
@@ -161,7 +156,7 @@ void UserspaceSwapPolicy::OnMemoryPressure(
 }
 
 void UserspaceSwapPolicy::SwapNodesOnGraph() {
-  for (const PageNode* page_node : graph_->GetAllPageNodes()) {
+  for (const PageNode* page_node : GetOwningGraph()->GetAllPageNodes()) {
     // Check that we have a main frame.
     const FrameNode* main_frame_node = page_node->GetMainFrameNode();
     if (!main_frame_node)
@@ -183,10 +178,11 @@ void UserspaceSwapPolicy::PrintAllSwapMetrics() {
   uint64_t total_reclaimed = 0;
   uint64_t total_on_disk = 0;
   uint64_t total_renderers = 0;
-  for (const PageNode* page_node : graph_->GetAllPageNodes()) {
+  for (const PageNode* page_node : GetOwningGraph()->GetAllPageNodes()) {
     const FrameNode* main_frame_node = page_node->GetMainFrameNode();
-    if (!main_frame_node)
+    if (!main_frame_node) {
       continue;
+    }
 
     const ProcessNode* process_node = main_frame_node->GetProcessNode();
 
@@ -194,7 +190,7 @@ void UserspaceSwapPolicy::PrintAllSwapMetrics() {
     if (process_node && process_node->GetProcess().IsValid()) {
       bool is_visible = page_node->IsVisible();
       auto last_visibility_change =
-          page_node->GetTimeSinceLastVisibilityChange();
+          now_ticks - page_node->GetLastVisibilityChangeTime();
       auto url = main_frame_node->GetURL();
 
       uint64_t memory_reclaimed = GetProcessNodeReclaimedBytes(process_node);
@@ -258,9 +254,9 @@ bool UserspaceSwapPolicy::IsPageNodeVisible(const PageNode* page_node) {
   return page_node->IsVisible();
 }
 
-base::TimeDelta UserspaceSwapPolicy::GetTimeSinceLastVisibilityChange(
+base::TimeTicks UserspaceSwapPolicy::GetLastVisibilityChangeTime(
     const PageNode* page_node) {
-  return page_node->GetTimeSinceLastVisibilityChange();
+  return page_node->GetLastVisibilityChangeTime();
 }
 
 bool UserspaceSwapPolicy::IsEligibleToSwap(const ProcessNode* process_node,
@@ -300,7 +296,7 @@ bool UserspaceSwapPolicy::IsEligibleToSwap(const ProcessNode* process_node,
 
     // Next the page node must have been invisible for longer than the
     // configured time.
-    if (GetTimeSinceLastVisibilityChange(page_node) <
+    if ((now_ticks - GetLastVisibilityChangeTime(page_node)) <
         config_->invisible_time_before_swap) {
       return false;
     }

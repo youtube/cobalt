@@ -143,8 +143,15 @@ void MatchOutputCodeTest::compile(const std::string &shaderString,
     std::string infoLog;
     for (auto &code : mOutputCode)
     {
+        const ShShaderOutput output = code.first;
+        ShCompileOptions options    = compileOptions;
+        if (output == SH_SPIRV_VULKAN_OUTPUT || output == SH_MSL_METAL_OUTPUT)
+        {
+            options.removeInactiveVariables = true;
+        }
+
         bool compilationSuccess =
-            compileWithSettings(code.first, shaderString, compileOptions, &code.second, &infoLog);
+            compileWithSettings(output, shaderString, options, &code.second, &infoLog);
         if (!compilationSuccess)
         {
             FAIL() << "Shader compilation failed:\n" << infoLog;
@@ -336,6 +343,24 @@ bool MatchOutputCodeTest::notFoundInCode(const char *stringToFind) const
         }
     }
     return true;
+}
+
+std::string MatchOutputCodeTest::outputCode(ShShaderOutput output) const
+{
+    const auto code = mOutputCode.find(output);
+    EXPECT_NE(mOutputCode.end(), code);
+    if (code == mOutputCode.end())
+    {
+        return {};
+    }
+
+    // No meaningful check for binary blobs
+    if (IsBinaryBlob(code->second))
+    {
+        return {};
+    }
+
+    return code->second;
 }
 
 const TIntermAggregate *FindFunctionCallNode(TIntermNode *root, const TString &functionMangledName)

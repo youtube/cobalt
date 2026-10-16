@@ -4,22 +4,25 @@
 
 package org.chromium.components.media_router;
 
-import android.annotation.SuppressLint;
+import static org.chromium.build.NullUtil.assumeNonNull;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.mediarouter.media.MediaRouter;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.StrictModeContext;
 import org.chromium.base.SysUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.media_router.caf.CafMediaRouteProvider;
 import org.chromium.components.media_router.caf.remoting.CafRemotingMediaRouteProvider;
 import org.chromium.content_public.browser.WebContents;
@@ -34,6 +37,7 @@ import java.util.Map;
  * Owns a list of {@link MediaRouteProvider} implementations and dispatches native calls to them.
  */
 @JNINamespace("media_router")
+@NullMarked
 public class BrowserMediaRouter implements MediaRouteManager {
     private static final String TAG = "MediaRouter";
     private static final int MIN_GOOGLE_PLAY_SERVICES_APK_VERSION = 12600000;
@@ -43,12 +47,15 @@ public class BrowserMediaRouter implements MediaRouteManager {
                 @Override
                 public void addProviders(MediaRouteManager manager) {
                     int googleApiAvailabilityResult =
-                            GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(
-                                    ContextUtils.getApplicationContext(),
-                                    MIN_GOOGLE_PLAY_SERVICES_APK_VERSION);
+                            GoogleApiAvailability.getInstance()
+                                    .isGooglePlayServicesAvailable(
+                                            ContextUtils.getApplicationContext(),
+                                            MIN_GOOGLE_PLAY_SERVICES_APK_VERSION);
                     if (googleApiAvailabilityResult != ConnectionResult.SUCCESS) {
-                        GoogleApiAvailability.getInstance().showErrorNotification(
-                                ContextUtils.getApplicationContext(), googleApiAvailabilityResult);
+                        GoogleApiAvailability.getInstance()
+                                .showErrorNotification(
+                                        ContextUtils.getApplicationContext(),
+                                        googleApiAvailabilityResult);
                         return;
                     }
                     MediaRouteProvider cafProvider = CafMediaRouteProvider.create(manager);
@@ -69,61 +76,36 @@ public class BrowserMediaRouter implements MediaRouteManager {
             new HashMap<String, Map<MediaRouteProvider, List<MediaSink>>>();
     private final Map<String, List<MediaSink>> mSinksPerSource =
             new HashMap<String, List<MediaSink>>();
-    private static boolean sAndroidMediaRouterSetForTest;
-    @SuppressLint("StaticFieldLeak") // This is for test only.
-    private static MediaRouter sAndroidMediaRouterForTest;
 
-    @VisibleForTesting
-    public static void setAndroidMediaRouterForTest(MediaRouter router) {
-        sAndroidMediaRouterSetForTest = true;
-        sAndroidMediaRouterForTest = router;
-    }
-
-    @VisibleForTesting
     public static void setRouteProviderFactoryForTest(MediaRouteProvider.Factory factory) {
+        var oldValue = sRouteProviderFactory;
         sRouteProviderFactory = factory;
+        ResettersForTesting.register(() -> sRouteProviderFactory = oldValue);
     }
 
-    @VisibleForTesting
     protected List<MediaRouteProvider> getRouteProvidersForTest() {
         return mRouteProviders;
     }
 
-    @VisibleForTesting
     protected Map<String, MediaRouteProvider> getRouteIdsToProvidersForTest() {
         return mRouteIdsToProviders;
     }
 
-    @VisibleForTesting
     protected Map<String, Map<MediaRouteProvider, List<MediaSink>>>
-    getSinksPerSourcePerProviderForTest() {
+            getSinksPerSourcePerProviderForTest() {
         return mSinksPerSourcePerProvider;
     }
 
-    @VisibleForTesting
     protected Map<String, List<MediaSink>> getSinksPerSourceForTest() {
         return mSinksPerSource;
     }
 
-    /**
-     * Obtains the {@link MediaRouter} instance given the application context.
-     * @return Null if the media router API is not supported, the service instance otherwise.
-     */
-    @Nullable
+    /** Obtains the {@link MediaRouter} instance. */
     public static MediaRouter getAndroidMediaRouter() {
-        if (sAndroidMediaRouterSetForTest) return sAndroidMediaRouterForTest;
-
         // Some manufacturers have an implementation that causes StrictMode
         // violations. See https://crbug.com/818325.
         try (StrictModeContext ignored = StrictModeContext.allowDiskReads()) {
-            // Pre-MR1 versions of JB do not have the complete MediaRouter APIs,
-            // so getting the MediaRouter instance will throw an exception.
             return MediaRouter.getInstance(ContextUtils.getApplicationContext());
-        } catch (NoSuchMethodError e) {
-            return null;
-        } catch (NoClassDefFoundError e) {
-            // TODO(mlamouri): happens with Robolectric.
-            return null;
         }
     }
 
@@ -150,50 +132,78 @@ public class BrowserMediaRouter implements MediaRouteManager {
 
         mSinksPerSource.put(sourceId, allSinksPerSource);
         if (mNativeMediaRouterAndroidBridge != 0) {
-            BrowserMediaRouterJni.get().onSinksReceived(mNativeMediaRouterAndroidBridge,
-                    BrowserMediaRouter.this, sourceId, allSinksPerSource.size());
+            BrowserMediaRouterJni.get()
+                    .onSinksReceived(
+                            mNativeMediaRouterAndroidBridge,
+                            BrowserMediaRouter.this,
+                            sourceId,
+                            allSinksPerSource.size());
         }
     }
 
     @Override
-    public void onRouteCreated(String mediaRouteId, String mediaSinkId, int requestId,
-            MediaRouteProvider provider, boolean wasLaunched) {
+    public void onRouteCreated(
+            String mediaRouteId,
+            String mediaSinkId,
+            int requestId,
+            MediaRouteProvider provider,
+            boolean wasLaunched) {
         mRouteIdsToProviders.put(mediaRouteId, provider);
         if (mNativeMediaRouterAndroidBridge != 0) {
-            BrowserMediaRouterJni.get().onRouteCreated(mNativeMediaRouterAndroidBridge,
-                    BrowserMediaRouter.this, mediaRouteId, mediaSinkId, requestId, wasLaunched);
+            BrowserMediaRouterJni.get()
+                    .onRouteCreated(
+                            mNativeMediaRouterAndroidBridge,
+                            BrowserMediaRouter.this,
+                            mediaRouteId,
+                            mediaSinkId,
+                            requestId,
+                            wasLaunched);
         }
     }
 
     @Override
     public void onCreateRouteRequestError(String errorText, int requestId) {
         if (mNativeMediaRouterAndroidBridge != 0) {
-            BrowserMediaRouterJni.get().onCreateRouteRequestError(
-                    mNativeMediaRouterAndroidBridge, BrowserMediaRouter.this, errorText, requestId);
+            BrowserMediaRouterJni.get()
+                    .onCreateRouteRequestError(
+                            mNativeMediaRouterAndroidBridge,
+                            BrowserMediaRouter.this,
+                            errorText,
+                            requestId);
         }
     }
+
     @Override
     public void onJoinRouteRequestError(String errorText, int requestId) {
         if (mNativeMediaRouterAndroidBridge != 0) {
-            BrowserMediaRouterJni.get().onJoinRouteRequestError(
-                    mNativeMediaRouterAndroidBridge, BrowserMediaRouter.this, errorText, requestId);
+            BrowserMediaRouterJni.get()
+                    .onJoinRouteRequestError(
+                            mNativeMediaRouterAndroidBridge,
+                            BrowserMediaRouter.this,
+                            errorText,
+                            requestId);
         }
     }
 
     @Override
     public void onRouteTerminated(String mediaRouteId) {
         if (mNativeMediaRouterAndroidBridge != 0) {
-            BrowserMediaRouterJni.get().onRouteTerminated(
-                    mNativeMediaRouterAndroidBridge, BrowserMediaRouter.this, mediaRouteId);
+            BrowserMediaRouterJni.get()
+                    .onRouteTerminated(
+                            mNativeMediaRouterAndroidBridge, BrowserMediaRouter.this, mediaRouteId);
         }
         mRouteIdsToProviders.remove(mediaRouteId);
     }
 
     @Override
-    public void onRouteClosed(String mediaRouteId, String error) {
+    public void onRouteClosed(String mediaRouteId, @Nullable String error) {
         if (mNativeMediaRouterAndroidBridge != 0) {
-            BrowserMediaRouterJni.get().onRouteClosed(
-                    mNativeMediaRouterAndroidBridge, BrowserMediaRouter.this, mediaRouteId, error);
+            BrowserMediaRouterJni.get()
+                    .onRouteClosed(
+                            mNativeMediaRouterAndroidBridge,
+                            BrowserMediaRouter.this,
+                            mediaRouteId,
+                            error);
         }
         mRouteIdsToProviders.remove(mediaRouteId);
     }
@@ -201,16 +211,24 @@ public class BrowserMediaRouter implements MediaRouteManager {
     @Override
     public void onMessage(String mediaRouteId, String message) {
         if (mNativeMediaRouterAndroidBridge != 0) {
-            BrowserMediaRouterJni.get().onMessage(mNativeMediaRouterAndroidBridge,
-                    BrowserMediaRouter.this, mediaRouteId, message);
+            BrowserMediaRouterJni.get()
+                    .onMessage(
+                            mNativeMediaRouterAndroidBridge,
+                            BrowserMediaRouter.this,
+                            mediaRouteId,
+                            message);
         }
     }
 
     @Override
     public void onRouteMediaSourceUpdated(String mediaRouteId, String mediaSourceId) {
         if (mNativeMediaRouterAndroidBridge != 0) {
-            BrowserMediaRouterJni.get().onRouteMediaSourceUpdated(mNativeMediaRouterAndroidBridge,
-                    BrowserMediaRouter.this, mediaRouteId, mediaSourceId);
+            BrowserMediaRouterJni.get()
+                    .onRouteMediaSourceUpdated(
+                            mNativeMediaRouterAndroidBridge,
+                            BrowserMediaRouter.this,
+                            mediaRouteId,
+                            mediaSourceId);
         }
     }
 
@@ -296,18 +314,32 @@ public class BrowserMediaRouter implements MediaRouteManager {
      * @param requestId the id of the route creation request tracked by the native side.
      */
     @CalledByNative
-    public void createRoute(String sourceId, String sinkId, String presentationId, String origin,
-            WebContents webContents, int requestId) {
+    public void createRoute(
+            String sourceId,
+            String sinkId,
+            String presentationId,
+            String origin,
+            WebContents webContents,
+            int requestId) {
         MediaRouteProvider provider = getProviderForSource(sourceId);
         if (provider == null) {
-            onCreateRouteRequestError("No provider supports createRoute with source: " + sourceId
-                            + " and sink: " + sinkId,
+            onCreateRouteRequestError(
+                    "No provider supports createRoute with source: "
+                            + sourceId
+                            + " and sink: "
+                            + sinkId,
                     requestId);
             return;
         }
 
-        provider.createRoute(sourceId, sinkId, presentationId, origin,
-                MediaRouterClient.getInstance().getTabId(webContents), webContents.isIncognito(),
+        assumeNonNull(MediaRouterClient.getInstance());
+        provider.createRoute(
+                sourceId,
+                sinkId,
+                presentationId,
+                origin,
+                MediaRouterClient.getInstance().getTabId(webContents),
+                webContents.isIncognito(),
                 requestId);
     }
 
@@ -322,16 +354,25 @@ public class BrowserMediaRouter implements MediaRouteManager {
      * @param requestId the id of the route creation request tracked by the native side.
      */
     @CalledByNative
-    public void joinRoute(String sourceId, String presentationId, String origin,
-            WebContents webContents, int requestId) {
+    public void joinRoute(
+            String sourceId,
+            String presentationId,
+            String origin,
+            WebContents webContents,
+            int requestId) {
         MediaRouteProvider provider = getProviderForSource(sourceId);
         if (provider == null) {
             onJoinRouteRequestError("Route not found.", requestId);
             return;
         }
 
-        provider.joinRoute(sourceId, presentationId, origin,
-                MediaRouterClient.getInstance().getTabId(webContents), requestId);
+        assumeNonNull(MediaRouterClient.getInstance());
+        provider.joinRoute(
+                sourceId,
+                presentationId,
+                origin,
+                MediaRouterClient.getInstance().getTabId(webContents),
+                requestId);
     }
 
     /**
@@ -379,9 +420,8 @@ public class BrowserMediaRouter implements MediaRouteManager {
      * @param routeId The route ID tied to the CastSession for which we want a media controller.
      * @return A MediaControllerBridge if it can be obtained from |routeId|, null otherwise.
      */
-    @Nullable
     @CalledByNative
-    public FlingingControllerBridge getFlingingControllerBridge(String routeId) {
+    public @Nullable FlingingControllerBridge getFlingingControllerBridge(String routeId) {
         MediaRouteProvider provider = mRouteIdsToProviders.get(routeId);
         if (provider == null) return null;
 
@@ -396,9 +436,7 @@ public class BrowserMediaRouter implements MediaRouteManager {
         mNativeMediaRouterAndroidBridge = nativeMediaRouterAndroidBridge;
     }
 
-    /**
-     * Called when the native object is being destroyed.
-     */
+    /** Called when the native object is being destroyed. */
     @CalledByNative
     public void teardown() {
         // The native object has been destroyed.
@@ -410,7 +448,7 @@ public class BrowserMediaRouter implements MediaRouteManager {
         return mSinksPerSource.get(sourceId).get(index);
     }
 
-    private MediaRouteProvider getProviderForSource(String sourceId) {
+    private @Nullable MediaRouteProvider getProviderForSource(String sourceId) {
         for (MediaRouteProvider provider : mRouteProviders) {
             if (provider.supportsSource(sourceId)) return provider;
         }
@@ -419,22 +457,53 @@ public class BrowserMediaRouter implements MediaRouteManager {
 
     @NativeMethods
     interface Natives {
-        void onSinksReceived(long nativeMediaRouterAndroidBridge, BrowserMediaRouter caller,
-                String sourceUrn, int count);
-        void onRouteCreated(long nativeMediaRouterAndroidBridge, BrowserMediaRouter caller,
-                String mediaRouteId, String mediaSinkId, int createRouteRequestId,
+        void onSinksReceived(
+                long nativeMediaRouterAndroidBridge,
+                BrowserMediaRouter caller,
+                String sourceUrn,
+                int count);
+
+        void onRouteCreated(
+                long nativeMediaRouterAndroidBridge,
+                BrowserMediaRouter caller,
+                String mediaRouteId,
+                String mediaSinkId,
+                int createRouteRequestId,
                 boolean wasLaunched);
-        void onCreateRouteRequestError(long nativeMediaRouterAndroidBridge,
-                BrowserMediaRouter caller, String errorText, int requestId);
-        void onJoinRouteRequestError(long nativeMediaRouterAndroidBridge, BrowserMediaRouter caller,
-                String errorText, int requestId);
-        void onRouteTerminated(long nativeMediaRouterAndroidBridge, BrowserMediaRouter caller,
+
+        void onCreateRouteRequestError(
+                long nativeMediaRouterAndroidBridge,
+                BrowserMediaRouter caller,
+                String errorText,
+                int requestId);
+
+        void onJoinRouteRequestError(
+                long nativeMediaRouterAndroidBridge,
+                BrowserMediaRouter caller,
+                String errorText,
+                int requestId);
+
+        void onRouteTerminated(
+                long nativeMediaRouterAndroidBridge,
+                BrowserMediaRouter caller,
                 String mediaRouteId);
-        void onRouteClosed(long nativeMediaRouterAndroidBridge, BrowserMediaRouter caller,
-                String mediaRouteId, String message);
-        void onMessage(long nativeMediaRouterAndroidBridge, BrowserMediaRouter caller,
-                String mediaRouteId, String message);
-        void onRouteMediaSourceUpdated(long nativeMediaRouterAndroidBridge,
-                BrowserMediaRouter caller, String mediaRouteId, String mediaSourceId);
+
+        void onRouteClosed(
+                long nativeMediaRouterAndroidBridge,
+                BrowserMediaRouter caller,
+                String mediaRouteId,
+                @Nullable String message);
+
+        void onMessage(
+                long nativeMediaRouterAndroidBridge,
+                BrowserMediaRouter caller,
+                String mediaRouteId,
+                String message);
+
+        void onRouteMediaSourceUpdated(
+                long nativeMediaRouterAndroidBridge,
+                BrowserMediaRouter caller,
+                String mediaRouteId,
+                String mediaSourceId);
     }
 }

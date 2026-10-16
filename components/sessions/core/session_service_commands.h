@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "components/sessions/core/command_storage_manager.h"
@@ -15,7 +16,7 @@
 #include "components/sessions/core/sessions_export.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/base/ui_base_types.h"
 
 namespace sessions {
@@ -32,7 +33,7 @@ SESSIONS_EXPORT std::unique_ptr<SessionCommand> CreateSetTabWindowCommand(
 SESSIONS_EXPORT std::unique_ptr<SessionCommand> CreateSetWindowBoundsCommand(
     SessionID window_id,
     const gfx::Rect& bounds,
-    ui::WindowShowState show_state);
+    ui::mojom::WindowShowState show_state);
 SESSIONS_EXPORT std::unique_ptr<SessionCommand>
 CreateSetTabIndexInWindowCommand(SessionID tab_id, int new_index);
 SESSIONS_EXPORT std::unique_ptr<SessionCommand> CreateTabClosedCommand(
@@ -46,12 +47,12 @@ SESSIONS_EXPORT std::unique_ptr<SessionCommand> CreateSetWindowTypeCommand(
     SessionWindow::WindowType type);
 SESSIONS_EXPORT std::unique_ptr<SessionCommand> CreateTabGroupCommand(
     SessionID tab_id,
-    absl::optional<tab_groups::TabGroupId> group);
+    std::optional<tab_groups::TabGroupId> group);
 SESSIONS_EXPORT std::unique_ptr<SessionCommand>
 CreateTabGroupMetadataUpdateCommand(
     const tab_groups::TabGroupId group,
     const tab_groups::TabGroupVisualData* visual_data,
-    const absl::optional<std::string> saved_guid = absl::nullopt);
+    const std::optional<std::string> saved_guid = std::nullopt);
 SESSIONS_EXPORT std::unique_ptr<SessionCommand> CreatePinnedStateCommand(
     SessionID tab_id,
     bool is_pinned);
@@ -82,7 +83,7 @@ SESSIONS_EXPORT std::unique_ptr<SessionCommand> CreateSetWindowUserTitleCommand(
     const std::string& user_title);
 SESSIONS_EXPORT std::unique_ptr<SessionCommand> CreateLastActiveTimeCommand(
     SessionID tab_id,
-    base::TimeTicks last_active_time);
+    base::Time last_active_time);
 
 SESSIONS_EXPORT std::unique_ptr<SessionCommand> CreateSetWindowWorkspaceCommand(
     SessionID window_id,
@@ -110,6 +111,9 @@ SESSIONS_EXPORT std::unique_ptr<SessionCommand> CreateAddWindowExtraDataCommand(
     const std::string& key,
     const std::string& data);
 
+SESSIONS_EXPORT std::unique_ptr<SessionCommand>
+CreateSetPlatformSessionIdCommand(const std::string& platform_session_id);
+
 // Searches for a pending command using |command_storage_manager| that can be
 // replaced with |command|. If one is found, pending command is removed, the
 // command is added to the pending commands (taken ownership) and true is
@@ -122,13 +126,18 @@ SESSIONS_EXPORT bool ReplacePendingCommand(
 SESSIONS_EXPORT bool IsClosingCommand(SessionCommand* command);
 
 // Converts a list of commands into SessionWindows. On return any valid
-// windows are added to |valid_windows|. |active_window_id| will be set with the
+// windows are added to `valid_windows`. `active_window_id` will be set with the
 // id of the last active window, but it's only valid when this id corresponds
-// to the id of one of the windows in |valid_windows|.
+// to the id of one of the windows in `valid_windows`. Discarded
+// windows, eg: the ones with no tab or previously closed are inserted
+// into `discarded_window_ids`. If present, `platform_session_id` is set with
+// the window system level session id, on platforms that support it.
 SESSIONS_EXPORT void RestoreSessionFromCommands(
     const std::vector<std::unique_ptr<SessionCommand>>& commands,
     std::vector<std::unique_ptr<SessionWindow>>* valid_windows,
-    SessionID* active_window_id);
+    SessionID* active_window_id,
+    std::string* platform_session_id,
+    std::set<SessionID>* discarded_window_ids);
 
 }  // namespace sessions
 

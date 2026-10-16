@@ -20,11 +20,15 @@ namespace media {
 MEDIA_EXPORT size_t
 GetDemuxerStreamAudioMemoryLimit(const AudioDecoderConfig* audio_config);
 MEDIA_EXPORT size_t
-GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes demuxer_type,
+GetDemuxerStreamVideoMemoryLimit(DemuxerType demuxer_type,
                                  const VideoDecoderConfig* video_config);
 
 // The maximum amount of data (in bytes) a demuxer can keep in memory overall.
-MEDIA_EXPORT size_t GetDemuxerMemoryLimit(Demuxer::DemuxerTypes demuxer_type);
+MEDIA_EXPORT size_t GetDemuxerMemoryLimit(DemuxerType demuxer_type);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+MEDIA_EXPORT void SetVideoBufferSizeReductionPercent(int reduction_pct);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace internal {
 

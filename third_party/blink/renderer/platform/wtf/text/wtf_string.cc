@@ -26,11 +26,14 @@
 #include <stdarg.h>
 
 #include <algorithm>
+#include <limits>
+#include <string_view>
 
+#include "base/compiler_specific.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/strings/string_util.h"
+#include "base/strings/span_printf.h"
 #include "build/build_config.h"
 #include "third_party/blink/renderer/platform/wtf/dtoa.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
@@ -38,6 +41,8 @@
 #include "third_party/blink/renderer/platform/wtf/text/ascii_ctype.h"
 #include "third_party/blink/renderer/platform/wtf/text/case_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
+#include "third_party/blink/renderer/platform/wtf/text/character_visitor.h"
+#include "third_party/blink/renderer/platform/wtf/text/code_point_iterator.h"
 #include "third_party/blink/renderer/platform/wtf/text/copy_lchars_from_uchar_source.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_utf8_adaptor.h"
@@ -51,33 +56,20 @@ namespace WTF {
 ASSERT_SIZE(String, void*);
 
 // Construct a string with UTF-16 data.
-String::String(const UChar* characters, unsigned length)
-    : impl_(characters ? StringImpl::Create(characters, length) : nullptr) {}
+String::String(base::span<const UChar> utf16_data)
+    : impl_(utf16_data.data() ? StringImpl::Create(utf16_data) : nullptr) {}
 
 // Construct a string with UTF-16 data, from a null-terminated source.
 String::String(const UChar* str) {
-  if (!str)
+  if (!str) {
     return;
-  impl_ = StringImpl::Create(str, LengthOfNullTerminatedString(str));
+  }
+  impl_ = StringImpl::Create(std::u16string_view(str));
 }
 
 // Construct a string with latin1 data.
-String::String(const LChar* characters, unsigned length)
-    : impl_(characters ? StringImpl::Create(characters, length) : nullptr) {}
-
-String::String(const char* characters, unsigned length)
-    : impl_(characters
-                ? StringImpl::Create(reinterpret_cast<const LChar*>(characters),
-                                     length)
-                : nullptr) {}
-
-#if defined(ARCH_CPU_64_BITS)
-String::String(const UChar* characters, size_t length)
-    : String(characters, base::checked_cast<unsigned>(length)) {}
-
-String::String(const char* characters, size_t length)
-    : String(characters, base::checked_cast<unsigned>(length)) {}
-#endif  // defined(ARCH_CPU_64_BITS)
+String::String(base::span<const LChar> latin1_data)
+    : impl_(latin1_data.data() ? StringImpl::Create(latin1_data) : nullptr) {}
 
 int CodeUnitCompare(const String& a, const String& b) {
   return CodeUnitCompare(a.Impl(), b.Impl());
@@ -99,15 +91,24 @@ UChar32 String::CharacterStartingAt(unsigned i) const {
   return impl_->CharacterStartingAt(i);
 }
 
+CodePointIterator String::begin() const {
+  return CodePointIterator(*this);
+}
+
+CodePointIterator String::end() const {
+  return CodePointIterator::End(*this);
+}
+
 void String::Ensure16Bit() {
   if (IsNull())
     return;
   if (!Is8Bit())
     return;
-  if (unsigned length = this->length())
-    impl_ = Make16BitFrom8BitSource(impl_->Characters8(), length).ReleaseImpl();
-  else
+  if (!empty()) {
+    impl_ = Make16BitFrom8BitSource(impl_->Span8()).ReleaseImpl();
+  } else {
     impl_ = StringImpl::empty16_bit_;
+  }
 }
 
 void String::Truncate(unsigned length) {
@@ -194,9 +195,9 @@ String String::Format(const char* format, ...) {
   // the locale is compatible, and also that it is the default "C"
   // locale so that we aren't just lucky. Android's locales work
   // differently so can't check the same way there.
-  DCHECK_EQ(strcmp(localeconv()->decimal_point, "."), 0);
+  DCHECK_EQ(UNSAFE_TODO(strcmp(localeconv()->decimal_point, ".")), 0);
 #if !BUILDFLAG(IS_ANDROID)
-  DCHECK_EQ(strcmp(setlocale(LC_NUMERIC, NULL), "C"), 0);
+  DCHECK_EQ(UNSAFE_TODO(strcmp(setlocale(LC_NUMERIC, NULL), "C")), 0);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
   va_list args;
@@ -206,18 +207,24 @@ String String::Format(const char* format, ...) {
   Vector<char, kDefaultSize> buffer(kDefaultSize);
 
   va_start(args, format);
-  int length = base::vsnprintf(buffer.data(), buffer.size(), format, args);
+  int length = base::VSpanPrintf(buffer, format, args);
   va_end(args);
 
-  // TODO(esprehn): This can only happen if there's an encoding error, what's
-  // the locale set to inside blink? Can this happen? We should probably CHECK
-  // instead.
-  if (length < 0)
+  // TODO(esprehn): Negative result can only happen if there's an encoding
+  // error, what's the locale set to inside blink? Can this happen?
+  if (length < 0) {
     return String();
+  }
 
   if (static_cast<unsigned>(length) >= buffer.size()) {
-    // vsnprintf doesn't include the NUL terminator in the length so we need to
-    // add space for it when growing.
+    // Buffer is too small to hold the full result. Resize larger and try
+    // again. `length` doesn't include the NUL terminator so add space for
+    // it when growing.
+    if (length == std::numeric_limits<int>::max()) {
+      // But length can't grow if it is already at max size (and signed
+      // overflow below would be UB).
+      return String();
+    }
     buffer.Grow(length + 1);
 
     // We need to call va_end() and then va_start() each time we use args, as
@@ -227,51 +234,22 @@ String String::Format(const char* format, ...) {
     // Not calling va_end/va_start here happens to work on lots of systems, but
     // fails e.g. on 64bit Linux.
     va_start(args, format);
-    length = base::vsnprintf(buffer.data(), buffer.size(), format, args);
+    length = base::VSpanPrintf(buffer, format, args);
     va_end(args);
+
+    // TODO(tsepez): can we get an error the second time around if
+    // we didn't get an error the first time? Can this happen?
+    if (length < 0) {
+      return String();
+    }
   }
 
-  CHECK_LT(static_cast<unsigned>(length), buffer.size());
-  return String(reinterpret_cast<const LChar*>(buffer.data()), length);
+  // Note that first() will CHECK() if length is OOB.
+  return String(base::span(buffer).first(base::checked_cast<size_t>(length)));
 }
 
 String String::EncodeForDebugging() const {
-  if (IsNull())
-    return "<null>";
-
-  StringBuilder builder;
-  builder.Append('"');
-  for (unsigned index = 0; index < length(); ++index) {
-    // Print shorthands for select cases.
-    UChar character = (*impl_)[index];
-    switch (character) {
-      case '\t':
-        builder.Append("\\t");
-        break;
-      case '\n':
-        builder.Append("\\n");
-        break;
-      case '\r':
-        builder.Append("\\r");
-        break;
-      case '"':
-        builder.Append("\\\"");
-        break;
-      case '\\':
-        builder.Append("\\\\");
-        break;
-      default:
-        if (IsASCIIPrintable(character)) {
-          builder.Append(static_cast<char>(character));
-        } else {
-          // Print "\uXXXX" for control or non-ASCII characters.
-          builder.AppendFormat("\\u%04X", character);
-        }
-        break;
-    }
-  }
-  builder.Append('"');
-  return builder.ToString();
+  return StringView(*this).EncodeForDebugging();
 }
 
 String String::Number(float number) {
@@ -419,28 +397,17 @@ void String::Split(UChar separator,
 std::string String::Ascii() const {
   // Printable ASCII characters 32..127 and the null character are
   // preserved, characters outside of this range are converted to '?'.
-
   unsigned length = this->length();
   if (!length)
     return std::string();
 
   std::string ascii(length, '\0');
-  if (Is8Bit()) {
-    const LChar* characters = Characters8();
-
-    for (unsigned i = 0; i < length; ++i) {
-      LChar ch = characters[i];
-      ascii[i] = ch && (ch < 0x20 || ch > 0x7f) ? '?' : ch;
+  VisitCharacters(*this, [&ascii](auto chars) {
+    for (size_t i = 0; i < chars.size(); ++i) {
+      const auto ch = chars[i];
+      ascii[i] = ch && (ch < 0x20 || ch > 0x7f) ? '?' : static_cast<char>(ch);
     }
-    return ascii;
-  }
-
-  const UChar* characters = Characters16();
-  for (unsigned i = 0; i < length; ++i) {
-    UChar ch = characters[i];
-    ascii[i] = ch && (ch < 0x20 || ch > 0x7f) ? '?' : static_cast<char>(ch);
-  }
-
+  });
   return ascii;
 }
 
@@ -448,50 +415,51 @@ std::string String::Latin1() const {
   // Basic Latin1 (ISO) encoding - Unicode characters 0..255 are
   // preserved, characters outside of this range are converted to '?'.
   unsigned length = this->length();
-
   if (!length)
     return std::string();
 
   if (Is8Bit()) {
-    return std::string(reinterpret_cast<const char*>(Characters8()), length);
+    return std::string(base::as_string_view(Span8()));
   }
 
-  const UChar* characters = Characters16();
   std::string latin1(length, '\0');
-  for (unsigned i = 0; i < length; ++i) {
-    UChar ch = characters[i];
+  base::span<const UChar> characters = Span16();
+  for (size_t i = 0; i < characters.size(); ++i) {
+    const UChar ch = characters[i];
     latin1[i] = ch > 0xff ? '?' : static_cast<char>(ch);
   }
-
   return latin1;
 }
 
-String String::Make8BitFrom16BitSource(const UChar* source, wtf_size_t length) {
-  if (!length)
+String String::Make8BitFrom16BitSource(base::span<const UChar> source) {
+  if (source.empty()) {
     return g_empty_string;
+  }
 
-  LChar* destination;
+  const wtf_size_t length = base::checked_cast<wtf_size_t>(source.size());
+  base::span<LChar> destination;
   String result = String::CreateUninitialized(length, destination);
 
-  CopyLCharsFromUCharSource(destination, source, length);
+  CopyLCharsFromUCharSource(destination.data(), source.data(), length);
 
   return result;
 }
 
-String String::Make16BitFrom8BitSource(const LChar* source, wtf_size_t length) {
-  if (!length)
+String String::Make16BitFrom8BitSource(base::span<const LChar> source) {
+  if (source.empty()) {
     return g_empty_string16_bit;
+  }
 
-  UChar* destination;
-  String result = String::CreateUninitialized(length, destination);
+  base::span<UChar> destination;
+  String result = String::CreateUninitialized(source.size(), destination);
 
-  StringImpl::CopyChars(destination, source, length);
-
+  StringImpl::CopyChars(destination, source);
   return result;
 }
 
-String String::FromUTF8(const LChar* string_start, size_t string_length) {
-  wtf_size_t length = base::checked_cast<wtf_size_t>(string_length);
+String String::FromUTF8(base::span<const uint8_t> bytes) {
+  const uint8_t* string_start = bytes.data();
+  wtf_size_t length = base::checked_cast<wtf_size_t>(bytes.size());
 
   if (!string_start)
     return String();
@@ -499,41 +467,32 @@ String String::FromUTF8(const LChar* string_start, size_t string_length) {
   if (!length)
     return g_empty_string;
 
-  ASCIIStringAttributes attributes = CharacterAttributes(string_start, length);
+  ASCIIStringAttributes attributes = CharacterAttributes(bytes);
   if (attributes.contains_only_ascii)
-    return StringImpl::Create(string_start, length, attributes);
+    return StringImpl::Create(bytes, attributes);
 
   Vector<UChar, 1024> buffer(length);
-  UChar* buffer_start = buffer.data();
 
-  UChar* buffer_current = buffer_start;
-  const char* string_current = reinterpret_cast<const char*>(string_start);
-  if (unicode::ConvertUTF8ToUTF16(
-          &string_current, reinterpret_cast<const char*>(string_start + length),
-          &buffer_current,
-          buffer_current + buffer.size()) != unicode::kConversionOK)
+  unicode::ConversionResult result =
+      unicode::ConvertUTF8ToUTF16(bytes, base::span(buffer));
+  if (result.status != unicode::kConversionOK) {
     return String();
+  }
 
-  unsigned utf16_length =
-      static_cast<wtf_size_t>(buffer_current - buffer_start);
-  DCHECK_LT(utf16_length, length);
-  return StringImpl::Create(buffer_start, utf16_length);
+  return StringImpl::Create(result.converted);
 }
 
-String String::FromUTF8(const LChar* string) {
-  if (!string)
+String String::FromUTF8(const char* s) {
+  if (!s) {
     return String();
-  return FromUTF8(string, strlen(reinterpret_cast<const char*>(string)));
+  }
+  return FromUTF8(std::string_view(s));
 }
 
-String String::FromUTF8(base::StringPiece s) {
-  return FromUTF8(reinterpret_cast<const LChar*>(s.data()), s.size());
-}
-
-String String::FromUTF8WithLatin1Fallback(const LChar* string, size_t size) {
-  String utf8 = FromUTF8(string, size);
+String String::FromUTF8WithLatin1Fallback(base::span<const uint8_t> bytes) {
+  String utf8 = FromUTF8(bytes);
   if (!utf8)
-    return String(string, base::checked_cast<wtf_size_t>(size));
+    return String(bytes);
   return utf8;
 }
 
@@ -556,8 +515,8 @@ void String::WriteIntoTrace(perfetto::TracedValue context) const {
   // Avoid the default String to StringView conversion since it calls
   // AddRef() on the StringImpl and this method is sometimes called in
   // places where that triggers DCHECKs.
-  StringUTF8Adaptor adaptor(Is8Bit() ? StringView(Characters8(), length())
-                                     : StringView(Characters16(), length()));
+  StringUTF8Adaptor adaptor(Is8Bit() ? StringView(Span8())
+                                     : StringView(Span16()));
   std::move(context).WriteString(adaptor.data(), adaptor.size());
 }
 

@@ -4,13 +4,13 @@
 
 #include "chrome/browser/chromeos/policy/dlp/dlp_drag_drop_notifier.h"
 
+#include <optional>
+
 #include "base/test/mock_callback.h"
 #include "base/types/optional_util.h"
-#include "build/chromeos_buildflags.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/data_transfer_policy/data_transfer_endpoint.h"
 
 namespace policy {
@@ -36,8 +36,8 @@ class MockDlpDragDropNotifier : public DlpDragDropNotifier {
   MOCK_METHOD1(ShowBlockBubble, void(const std::u16string& text));
   MOCK_METHOD3(ShowWarningBubble,
                void(const std::u16string& text,
-                    base::RepeatingCallback<void(views::Widget*)> proceed_cb,
-                    base::RepeatingCallback<void(views::Widget*)> cancel_cb));
+                    base::OnceCallback<void(views::Widget*)> proceed_cb,
+                    base::OnceCallback<void(views::Widget*)> cancel_cb));
   MOCK_METHOD2(CloseWidget,
                void(MayBeDangling<views::Widget> widget,
                     views::Widget::ClosedReason reason));
@@ -61,7 +61,7 @@ class MockDlpDragDropNotifier : public DlpDragDropNotifier {
 }  // namespace
 
 class DragDropBubbleTestWithParam
-    : public ::testing::TestWithParam<absl::optional<ui::EndpointType>> {
+    : public ::testing::TestWithParam<std::optional<ui::EndpointType>> {
  public:
   DragDropBubbleTestWithParam() = default;
   DragDropBubbleTestWithParam(const DragDropBubbleTestWithParam&) = delete;
@@ -73,7 +73,7 @@ class DragDropBubbleTestWithParam
 TEST_P(DragDropBubbleTestWithParam, NotifyBlocked) {
   ::testing::StrictMock<MockDlpDragDropNotifier> notifier;
   ui::DataTransferEndpoint data_src((GURL(kExampleUrl)));
-  absl::optional<ui::DataTransferEndpoint> data_dst;
+  std::optional<ui::DataTransferEndpoint> data_dst;
   auto param = GetParam();
   if (param.has_value())
     data_dst.emplace(CreateEndpoint(param.value()));
@@ -86,7 +86,7 @@ TEST_P(DragDropBubbleTestWithParam, NotifyBlocked) {
 TEST_P(DragDropBubbleTestWithParam, ProceedWarnOnDrop) {
   ::testing::StrictMock<MockDlpDragDropNotifier> notifier;
   ui::DataTransferEndpoint data_src((GURL(kExampleUrl)));
-  absl::optional<ui::DataTransferEndpoint> data_dst;
+  std::optional<ui::DataTransferEndpoint> data_dst;
   auto param = GetParam();
   if (param.has_value())
     data_dst.emplace(CreateEndpoint(param.value()));
@@ -109,7 +109,7 @@ TEST_P(DragDropBubbleTestWithParam, ProceedWarnOnDrop) {
 TEST_P(DragDropBubbleTestWithParam, CancelWarnOnDrop) {
   ::testing::StrictMock<MockDlpDragDropNotifier> notifier;
   ui::DataTransferEndpoint data_src((GURL(kExampleUrl)));
-  absl::optional<ui::DataTransferEndpoint> data_dst;
+  std::optional<ui::DataTransferEndpoint> data_dst;
   auto param = GetParam();
   if (param.has_value())
     data_dst.emplace(CreateEndpoint(param.value()));
@@ -130,14 +130,12 @@ TEST_P(DragDropBubbleTestWithParam, CancelWarnOnDrop) {
 
 INSTANTIATE_TEST_SUITE_P(DlpDragDropNotifierTest,
                          DragDropBubbleTestWithParam,
-                         ::testing::Values(absl::nullopt,
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+                         ::testing::Values(std::nullopt,
                                            ui::EndpointType::kUnknownVm,
                                            ui::EndpointType::kBorealis,
                                            ui::EndpointType::kCrostini,
                                            ui::EndpointType::kPluginVm,
                                            ui::EndpointType::kArc,
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
                                            ui::EndpointType::kDefault,
                                            ui::EndpointType::kUrl));
 

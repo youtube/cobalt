@@ -69,7 +69,6 @@ const char* PaintInvalidationReasonToString(PaintInvalidationReason reason) {
       return "full layer";
   }
   NOTREACHED();
-  return "";
 }
 
 std::ostream& operator<<(std::ostream& out, PaintInvalidationReason reason) {

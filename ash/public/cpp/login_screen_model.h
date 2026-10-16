@@ -6,9 +6,11 @@
 #define ASH_PUBLIC_CPP_LOGIN_SCREEN_MODEL_H_
 
 #include <string>
+#include <vector>
 
 #include "ash/public/cpp/ash_public_export.h"
 #include "base/time/time.h"
+#include "chromeos/ash/components/cryptohome/auth_factor.h"
 
 class AccountId;
 
@@ -18,11 +20,17 @@ enum class FingerprintState;
 enum class SmartLockState;
 enum class OobeDialogState;
 struct AuthDisabledData;
-struct EasyUnlockIconInfo;
 struct InputMethodItem;
 struct LocaleItem;
 struct LoginUserInfo;
 struct UserAvatar;
+
+// The current authentication stage. Used to get more verbose logging.
+enum class AuthenticationStage {
+  kIdle,
+  kDoAuthenticate,
+  kUserCallback,
+};
 
 // Provides Chrome access to Ash's login UI. See additional docs for
 // ash::LoginDataDispatcher.
@@ -32,17 +40,21 @@ class ASH_PUBLIC_EXPORT LoginScreenModel {
   // and does not correspond to every user on the device.
   virtual void SetUserList(const std::vector<LoginUserInfo>& users) = 0;
 
-  // Notification if pin is enabled or disabled for the given user.
-  // |account_id|:   The account id of the user in the user pod.
-  // |is_enabled|:   True if pin unlock is enabled.
-  virtual void SetPinEnabledForUser(const AccountId& user, bool enabled) = 0;
+  // Update the auth factors (password, pin and challenge-response
+  // authentication) availability for the given user.
+  virtual void SetAuthFactorsForUser(
+      const AccountId& user,
+      cryptohome::AuthFactorsSet auth_factors,
+      cryptohome::PinLockAvailability pin_available_at) = 0;
 
-  // TODO(https://crbug.com/1233614): Delete this method in favor of
-  // SetSmartLockState once the Smart Lock UI revamp is enabled. Requests to
-  // show the custom icon in the user pod. |account_id|:  The account id of the
-  // user in the user pod. |icon_info|:   Information regarding the icon.
-  virtual void ShowEasyUnlockIcon(const AccountId& account_id,
-                                  const EasyUnlockIconInfo& icon_info) = 0;
+  // Notification if pin is enabled or disabled for the given user.
+  // |user|:         The account id of the user in the user pod.
+  // |enabled|:      True if pin unlock is enabled.
+  // |available_at|: The time when the pin will be available.
+  virtual void SetPinEnabledForUser(
+      const AccountId& user,
+      bool enabled,
+      cryptohome::PinLockAvailability available_at) = 0;
 
   // Update the status of the challenge-response authentication against a
   // security token for the given user.
@@ -94,6 +106,11 @@ class ASH_PUBLIC_EXPORT LoginScreenModel {
   virtual void DisableAuthForUser(
       const AccountId& account_id,
       const AuthDisabledData& auth_disabled_data) = 0;
+
+  // Called when authentication stage changed.
+  // |auth_stage|: The new authentication stage
+  virtual void AuthenticationStageChange(
+      const AuthenticationStage auth_state) = 0;
 
   virtual void SetTpmLockedState(const AccountId& user,
                                  bool is_locked,
@@ -151,11 +168,6 @@ class ASH_PUBLIC_EXPORT LoginScreenModel {
   virtual void SetPublicSessionShowFullManagementDisclosure(
       bool show_full_management_disclosure) = 0;
 
-  // Called when focus is reported to be leaving a lock screen app window.
-  // Requests focus to be handed off to the next suitable widget.
-  // |reverse|:   Whether the tab order is reversed.
-  virtual void HandleFocusLeavingLockScreenApps(bool reverse) = 0;
-
   // Called when the dialog hosting oobe has changed state. The oobe dialog
   // provides support for any part of login that is implemented in JS/HTML, such
   // as add user or powerwash.
@@ -166,6 +178,8 @@ class ASH_PUBLIC_EXPORT LoginScreenModel {
  protected:
   virtual ~LoginScreenModel();
 };
+
+std::ostream& operator<<(std::ostream&, AuthenticationStage);
 
 }  // namespace ash
 

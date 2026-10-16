@@ -5,11 +5,12 @@
 #ifndef CHROME_BROWSER_DOWNGRADE_USER_DATA_DOWNGRADE_H_
 #define CHROME_BROWSER_DOWNGRADE_USER_DATA_DOWNGRADE_H_
 
+#include <optional>
+
 #include "base/containers/flat_set.h"
 #include "base/files/file_path.h"
 #include "base/time/time.h"
 #include "base/version.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class Time;
@@ -18,13 +19,13 @@ class Time;
 namespace downgrade {
 
 // The suffix of pending deleted directory.
-extern const base::FilePath::StringPieceType kDowngradeDeleteSuffix;
+extern const base::FilePath::StringViewType kDowngradeDeleteSuffix;
 
 // The name of "Last Version" file.
-extern const base::FilePath::StringPieceType kDowngradeLastVersionFile;
+extern const base::FilePath::StringViewType kDowngradeLastVersionFile;
 
 // The name of the Snapshot directory.
-extern const base::FilePath::StringPieceType kSnapshotsDir;
+extern const base::FilePath::StringViewType kSnapshotsDir;
 
 // Returns the path to the "Last Version" file in |user_data_dir|.
 base::FilePath GetLastVersionFile(const base::FilePath& user_data_dir);
@@ -32,7 +33,7 @@ base::FilePath GetLastVersionFile(const base::FilePath& user_data_dir);
 // Returns the value contained in the "Last Version" file in |user_data_dir|, or
 // a null value if the file does not exist, cannot be read, or does not contain
 // a version number.
-absl::optional<base::Version> GetLastVersion(
+std::optional<base::Version> GetLastVersion(
     const base::FilePath& user_data_dir);
 
 // Return the disk cache directory override if one is set via administrative
@@ -51,7 +52,7 @@ std::vector<base::FilePath> GetInvalidSnapshots(
 
 // Return the highest available snapshot version that is not greater than
 // |version|.
-absl::optional<base::Version> GetSnapshotToRestore(
+std::optional<base::Version> GetSnapshotToRestore(
     const base::Version& version,
     const base::FilePath& user_data_dir);
 

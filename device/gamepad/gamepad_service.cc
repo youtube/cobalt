@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "device/gamepad/gamepad_service.h"
 
 #include <utility>
@@ -161,15 +162,6 @@ void GamepadService::OnGamepadConnectionChange(bool connected,
     OnGamepadConnected(index, pad);
   } else {
     OnGamepadDisconnected(index, pad);
-  }
-}
-
-void GamepadService::OnGamepadChange(mojom::GamepadChangesPtr changes) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  for (auto& it : consumers_) {
-    if (it.did_observe_user_gesture && it.is_active)
-      it.consumer->OnGamepadChanged(*changes);
   }
 }
 

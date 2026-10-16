@@ -18,8 +18,8 @@ class SyncChangeProcessorWrapperForTest : public SyncChangeProcessor {
  public:
   // Create a SyncChangeProcessorWrapperForTest.
   //
-  // All method calls are forwarded to |wrapped|. Caller maintains ownership
-  // of |wrapped| and is responsible for ensuring it outlives this object.
+  // All method calls are forwarded to `wrapped`. Caller maintains ownership
+  // of `wrapped` and is responsible for ensuring it outlives this object.
   explicit SyncChangeProcessorWrapperForTest(SyncChangeProcessor* wrapped);
   // Overload for SyncableService.
   explicit SyncChangeProcessorWrapperForTest(SyncableService* wrapped);
@@ -32,12 +32,12 @@ class SyncChangeProcessorWrapperForTest : public SyncChangeProcessor {
   ~SyncChangeProcessorWrapperForTest() override;
 
   // SyncChangeProcessor implementation.
-  absl::optional<ModelError> ProcessSyncChanges(
+  std::optional<ModelError> ProcessSyncChanges(
       const base::Location& from_here,
       const SyncChangeList& change_list) override;
 
  private:
-  const base::RepeatingCallback<absl::optional<ModelError>(
+  const base::RepeatingCallback<std::optional<ModelError>(
       const base::Location& from_here,
       const SyncChangeList& change_list)>
       process_sync_changes_;

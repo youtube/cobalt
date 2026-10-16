@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <memory>
 #include <utility>
 #include <vector>
@@ -24,19 +29,18 @@ TEST(SkottieTransferCacheEntryTest, SerializationDeserialization) {
           kLottieDataWithoutAssets1.length());
 
   scoped_refptr<SkottieWrapper> skottie =
-      SkottieWrapper::CreateSerializable(std::move(a_data));
+      SkottieWrapper::UnsafeCreateSerializable(std::move(a_data));
 
   // Serialize
   auto client_entry(std::make_unique<ClientSkottieTransferCacheEntry>(skottie));
   uint32_t size = client_entry->SerializedSize();
   std::vector<uint8_t> data(size);
-  ASSERT_TRUE(client_entry->Serialize(
-      base::make_span(static_cast<uint8_t*>(data.data()), size)));
+  ASSERT_TRUE(client_entry->Serialize(data));
 
   // De-serialize
   auto entry(std::make_unique<ServiceSkottieTransferCacheEntry>());
   ASSERT_TRUE(entry->Deserialize(
-      nullptr, base::make_span(static_cast<uint8_t*>(data.data()), size)));
+      /*gr_context=*/nullptr, /*graphite_recorder=*/nullptr, data));
 
   EXPECT_EQ(entry->skottie()->id(), skottie->id());
   EXPECT_EQ(entry->skottie()->duration(), skottie->duration());

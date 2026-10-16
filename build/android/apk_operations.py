@@ -12,7 +12,6 @@ import collections
 import json
 import logging
 import os
-import pipes
 import posixpath
 import random
 import re
@@ -30,7 +29,6 @@ from devil import devil_env
 from devil.android import apk_helper
 from devil.android import device_errors
 from devil.android import device_utils
-from devil.android import flag_changer
 from devil.android.sdk import adb_wrapper
 from devil.android.sdk import build_tools
 from devil.android.sdk import intent
@@ -124,13 +122,18 @@ def _GenerateBundleApks(info,
       optimize_for=optimize_for)
 
 
-def _InstallBundle(devices, apk_helper_instance, modules, fake_modules):
+def _InstallBundle(devices,
+                   apk_helper_instance,
+                   modules,
+                   fake_modules,
+                   locales=None):
 
   def Install(device):
     device.Install(apk_helper_instance,
                    permissions=[],
                    modules=modules,
                    fake_modules=fake_modules,
+                   additional_locales=locales,
                    allow_downgrade=True,
                    reinstall=True)
 
@@ -254,6 +257,49 @@ def _ResolveActivity(device, package_name, category, action):
   return next(iter(activity_names))
 
 
+def _ReadDeviceFlags(device, command_line_flags_file):
+  device_path = f'/data/local/tmp/{command_line_flags_file}'
+  old_flags = device.RunShellCommand(f'cat {device_path} 2>/dev/null',
+                                     as_root=True,
+                                     shell=True,
+                                     check_return=False,
+                                     raw_output=True)
+  if not old_flags:
+    return None
+  if old_flags.startswith('_ '):
+    old_flags = old_flags[2:]
+
+  return old_flags
+
+
+def _UpdateDeviceFlags(device, command_line_flags_file, new_flags):
+  if not command_line_flags_file:
+    if new_flags:
+      logging.warning('Command-line flags are not configured for this target.')
+    return
+
+  old_flags = _ReadDeviceFlags(device, command_line_flags_file)
+
+  if new_flags is None:
+    if old_flags:
+      logging.warning('Using pre-existing command-line flags: %s', old_flags)
+    return
+
+  if new_flags != old_flags:
+    adb_command_line.CheckBuildTypeSupportsFlags(device,
+                                                 command_line_flags_file)
+    # This file does not need to be owned by root, but devil's flag_changer
+    # helper uses as_root, so existing files cannot be updated without it.
+    device_path = f'/data/local/tmp/{command_line_flags_file}'
+    if new_flags:
+      logging.info('Updated flags file: %s with value: %s', device_path,
+                   new_flags)
+      device.WriteFile(device_path, '_ ' + new_flags, as_root=True)
+    else:
+      logging.info('Removed flags file: %s', device_path)
+      device.RemovePath(device_path, force=True, as_root=True)
+
+
 def _LaunchUrl(devices,
                package_name,
                argv=None,
@@ -286,17 +332,7 @@ def _LaunchUrl(devices,
       device.RunShellCommand(cmd, check_return=False)
 
       # The flags are first updated with input args.
-      if command_line_flags_file:
-        changer = flag_changer.FlagChanger(device, command_line_flags_file)
-        flags = []
-        if argv:
-          adb_command_line.CheckBuildTypeSupportsFlags(device,
-                                                       command_line_flags_file)
-          flags = shlex.split(argv)
-        try:
-          changer.ReplaceFlags(flags)
-        except device_errors.AdbShellCommandFailedError:
-          logging.exception('Failed to set flags')
+      _UpdateDeviceFlags(device, command_line_flags_file, argv)
 
     launch_intent = intent.Intent(action=action,
                                   activity=activity,
@@ -309,19 +345,6 @@ def _LaunchUrl(devices,
   if wait_for_java_debugger:
     print('Waiting for debugger to attach to process: ' +
           _Colorize(debug_process_name, colorama.Fore.YELLOW))
-
-
-def _ChangeFlags(devices, argv, command_line_flags_file):
-  if argv is None:
-    _DisplayArgs(devices, command_line_flags_file)
-  else:
-    flags = shlex.split(argv)
-    def update(device):
-      adb_command_line.CheckBuildTypeSupportsFlags(device,
-                                                   command_line_flags_file)
-      changer = flag_changer.FlagChanger(device, command_line_flags_file)
-      changer.ReplaceFlags(flags)
-    device_utils.DeviceUtils.parallel(devices).pMap(update)
 
 
 def _TargetCpuToTargetArch(target_cpu):
@@ -359,10 +382,57 @@ def _RunGdb(device, package_name, debug_process_name, pid, output_directory,
     cmd.append('--verbose')
   if target_cpu:
     cmd.append('--target-arch=%s' % _TargetCpuToTargetArch(target_cpu))
-  logging.warning('Running: %s', ' '.join(pipes.quote(x) for x in cmd))
+  logging.warning('Running: %s', ' '.join(shlex.quote(x) for x in cmd))
   print(_Colorize('All subsequent output is from adb_gdb script.',
                   colorama.Fore.YELLOW))
   os.execv(gdb_script_path, cmd)
+
+
+def _RunLldb(device,
+             package_name,
+             debug_process_name,
+             pid,
+             output_directory,
+             port,
+             target_cpu=None,
+             ndk_dir=None,
+             lldb_server=None,
+             lldb=None,
+             verbose=None):
+  if not pid:
+    debug_process_name = _NormalizeProcessName(debug_process_name, package_name)
+    pid = device.GetApplicationPids(debug_process_name, at_most_one=True)
+  if not pid:
+    # Attaching lldb makes the app run so slow that it takes *minutes* to start
+    # up (as of 2018). Better to just fail than to start & attach.
+    raise Exception('App not running.')
+
+  lldb_script_path = os.path.dirname(__file__) + '/connect_lldb.sh'
+  cmd = [
+      lldb_script_path,
+      '--package-name=%s' % package_name,
+      '--output-directory=%s' % output_directory,
+      '--adb=%s' % adb_wrapper.AdbWrapper.GetAdbPath(),
+      '--device=%s' % device.serial,
+      '--pid=%s' % pid,
+      '--port=%d' % port,
+  ]
+  # Enable verbose output of connect_lldb.sh if it's set for this script.
+  if verbose:
+    cmd.append('--verbose')
+  if target_cpu:
+    cmd.append('--target-arch=%s' % _TargetCpuToTargetArch(target_cpu))
+  if ndk_dir:
+    cmd.append('--ndk-dir=%s' % ndk_dir)
+  if lldb_server:
+    cmd.append('--lldb-server=%s' % lldb_server)
+  if lldb:
+    cmd.append('--lldb=%s' % lldb)
+  logging.warning('Running: %s', ' '.join(shlex.quote(x) for x in cmd))
+  print(
+      _Colorize('All subsequent output is from connect_lldb.sh script.',
+                colorama.Fore.YELLOW))
+  os.execv(lldb_script_path, cmd)
 
 
 def _PrintPerDeviceOutput(devices, results, single_line=False):
@@ -567,7 +637,7 @@ def _RunDiskUsage(devices, package_name):
               odex_paths.append('/data/dalvik-cache/%s@classes%s.dex' % (
                   mangled_apk_path, suffix))
 
-    odex_sizes = _DuHelper(d, ' '.join(pipes.quote(p) for p in odex_paths))
+    odex_sizes = _DuHelper(d, ' '.join(shlex.quote(p) for p in odex_paths))
 
     return (data_dir_sizes, code_cache_sizes, apk_sizes, lib_sizes, odex_sizes,
             compilation_filter)
@@ -701,8 +771,11 @@ class _LogcatProcessor:
     else:
       self._exit_on_match = None
     self._found_exit_match = False
-    self._native_stack_symbolizer = _LogcatProcessor.NativeStackSymbolizer(
-        stack_script_context, self._PrintParsedLine)
+    if stack_script_context:
+      self._print_func = _LogcatProcessor.NativeStackSymbolizer(
+          stack_script_context, self._PrintParsedLine).AddLine
+    else:
+      self._print_func = self._PrintParsedLine
     # Process ID for the app's main process (with no :name suffix).
     self._primary_pid = None
     # Set of all Process IDs that belong to the app.
@@ -843,7 +916,7 @@ class _LogcatProcessor:
     # belong to the current run of the app. Process all of the buffered lines.
     if self._primary_pid:
       for args in self._initial_buffered_lines:
-        self._native_stack_symbolizer.AddLine(*args)
+        self._print_func(*args)
     self._initial_buffered_lines = None
     self.nonce = None
 
@@ -893,7 +966,7 @@ class _LogcatProcessor:
     if owned_pid or self._verbose or (log.priority == 'F' or  # Java crash dump
                                       log.tag in self._ALLOWLISTED_TAGS):
       if nonce_found:
-        self._native_stack_symbolizer.AddLine(log, not owned_pid)
+        self._print_func(log, not owned_pid)
       else:
         self._initial_buffered_lines.append((log, not owned_pid))
 
@@ -975,10 +1048,7 @@ def _RunCompileDex(devices, package_name, compilation_filter):
   cmd = ['cmd', 'package', 'compile', '-f', '-m', compilation_filter,
          package_name]
   parallel_devices = device_utils.DeviceUtils.parallel(devices)
-  outputs = parallel_devices.RunShellCommand(cmd, timeout=120).pGet(None)
-  for output in _PrintPerDeviceOutput(devices, outputs):
-    for line in output:
-      print(line)
+  return parallel_devices.RunShellCommand(cmd, timeout=120).pGet(None)
 
 
 def _RunProfile(device, package_name, host_build_directory, pprof_out_path,
@@ -1068,7 +1138,7 @@ class _StackScriptContext:
       cmd.append('--quiet')
     if input_file:
       cmd.append(input_file)
-    logging.info('Running stack.py')
+    logging.info('Running: %s', shlex.join(cmd))
     return subprocess.Popen(cmd, universal_newlines=True, **kwargs)
 
 
@@ -1087,23 +1157,15 @@ def _GenerateMissingAllFlagMessage(devices):
           'or use --device to select a device by serial.\n\n' +
           _GenerateAvailableDevicesMessage(devices))
 
-
-def _DisplayArgs(devices, command_line_flags_file):
-  def flags_helper(d):
-    changer = flag_changer.FlagChanger(d, command_line_flags_file)
-    return changer.GetCurrentFlags()
-
-  parallel_devices = device_utils.DeviceUtils.parallel(devices)
-  outputs = parallel_devices.pMap(flags_helper).pGet(None)
-  print('Existing flags per-device (via /data/local/tmp/{}):'.format(
-      command_line_flags_file))
-  for flags in _PrintPerDeviceOutput(devices, outputs, single_line=True):
-    quoted_flags = ' '.join(pipes.quote(f) for f in flags)
-    print(quoted_flags or 'No flags set.')
+def _SanitizeFilename(filename):
+  for sep in os.path.sep, os.path.altsep:
+    if sep is not None:
+      filename = filename.replace(sep, '_')
+  return filename
 
 
 def _DeviceCachePath(device, output_directory):
-  file_name = 'device_cache_%s.json' % device.serial
+  file_name = 'device_cache_%s.json' % _SanitizeFilename(device.serial)
   return os.path.join(output_directory, file_name)
 
 
@@ -1151,6 +1213,7 @@ class _Command:
     self._parser = None
     self._from_wrapper_script = from_wrapper_script
     self.args = None
+    self.incremental_apk_path = None
     self.apk_helper = None
     self.additional_apk_helpers = None
     self.install_dict = None
@@ -1209,11 +1272,20 @@ class _Command:
       #
       # - Called directly, then --package-name is required on the command-line.
       #
+      # Similarly is_official_build is set directly by the bundle wrapper
+      # script, so it also needs to be added for non-bundle builds.
       if not self.is_bundle:
         group.add_argument(
             '--package-name',
             help=argparse.SUPPRESS if self._from_wrapper_script else (
                 "App's package name."))
+
+        group.add_argument(
+            '--is-official-build',
+            action='store_true',
+            default=False,
+            help=argparse.SUPPRESS if self._from_wrapper_script else
+            ('Whether this is an official build or not (affects perf).'))
 
     if self.needs_apk_helper or self.needs_package_name:
       # Adding this argument to the subparser would override the set_defaults()
@@ -1269,6 +1341,66 @@ class _Command:
       ]
     return self.apk_helper is not None
 
+  def _FindSupportedDevices(self, devices):
+    """Returns supported devices and reasons for each not supported one."""
+    app_abis = self.apk_helper.GetAbis()
+    calling_script_name = os.path.basename(sys.argv[0])
+    is_webview = 'webview' in calling_script_name
+    requires_32_bit = self.apk_helper.Get32BitAbiOverride() == '0xffffffff'
+    logging.debug('App supports (requires 32bit: %r, is webview: %r): %r',
+                  requires_32_bit, is_webview, app_abis)
+    # Webview 32_64 targets can work even on 64-bit only devices since only the
+    # webview library in the target needs the correct bitness.
+    if requires_32_bit and not is_webview:
+      app_abis = [abi for abi in app_abis if '64' not in abi]
+      logging.debug('App supports (filtered): %r', app_abis)
+    if not app_abis:
+      # The app does not have any native libs, so all devices can support it.
+      return devices, {}
+    fully_supported = []
+    not_supported_reasons = {}
+    for device in devices:
+      device_abis = device.GetSupportedABIs()
+      device_primary_abi = device_abis[0]
+      logging.debug('Device primary: %s', device_primary_abi)
+      logging.debug('Device supports: %r', device_abis)
+
+      # x86/x86_64 emulators sometimes advertises arm support but arm builds do
+      # not work on them. Thus these non-functional ABIs need to be filtered out
+      # here to avoid resulting in hard to understand runtime failures.
+      if device_primary_abi in ('x86', 'x86_64'):
+        device_abis = [abi for abi in device_abis if not abi.startswith('arm')]
+        logging.debug('Device supports (filtered): %r', device_abis)
+
+      if any(abi in app_abis for abi in device_abis):
+        fully_supported.append(device)
+        if is_webview and not all(abi in app_abis for abi in device_abis):
+          logging.warning(
+              'Using a webview that supports only %s on a device that '
+              'supports %s. You probably need to set GN arg:\n\n'
+              '    enable_android_secondary_abi=true\n', ','.join(app_abis),
+              ','.join(device_abis))
+      else:  # No common supported ABIs between the device and app.
+        if device_primary_abi == 'x86':
+          target_cpu = 'x86'
+        elif device_primary_abi == 'x86_64':
+          target_cpu = 'x64'
+        elif device_primary_abi.startswith('arm64'):
+          target_cpu = 'arm64'
+        elif device_primary_abi.startswith('armeabi'):
+          target_cpu = 'arm'
+        else:
+          target_cpu = '<something else>'
+        # pylint: disable=line-too-long
+        native_lib_link = 'https://chromium.googlesource.com/chromium/src/+/main/docs/android_native_libraries.md'
+        not_supported_reasons[device.serial] = (
+            f"none of the app's ABIs ({','.join(app_abis)}) match this "
+            f"device's ABIs ({','.join(device_abis)}), you may need to set "
+            f'target_cpu="{target_cpu}" in your args.gn. If you already set '
+            'the target_cpu arg, you may need to use one of the _64 or _64_32 '
+            f'targets, see {native_lib_link} for more details.')
+    return fully_supported, not_supported_reasons
+
   def ProcessArgs(self, args):
     self.args = args
     # Ensure these keys always exist. They are set by wrapper scripts, but not
@@ -1276,16 +1408,16 @@ class _Command:
     args.__dict__.setdefault('apk_path', None)
     args.__dict__.setdefault('incremental_json', None)
 
-    incremental_apk_path = None
+    self.incremental_apk_path = None
     install_dict = None
     if args.incremental_json and not (self.supports_incremental and
                                       args.non_incremental):
       with open(args.incremental_json) as f:
         install_dict = json.load(f)
-        incremental_apk_path = os.path.join(args.output_directory,
-                                            install_dict['apk_path'])
-        if not os.path.exists(incremental_apk_path):
-          incremental_apk_path = None
+        self.incremental_apk_path = os.path.join(args.output_directory,
+                                                 install_dict['apk_path'])
+        if not os.path.exists(self.incremental_apk_path):
+          self.incremental_apk_path = None
 
     if self.supports_incremental:
       if args.incremental and args.non_incremental:
@@ -1295,11 +1427,11 @@ class _Command:
         if not args.apk_path:
           self._parser.error('Apk has not been built.')
       elif args.incremental:
-        if not incremental_apk_path:
+        if not self.incremental_apk_path:
           self._parser.error('Incremental apk has not been built.')
         args.apk_path = None
 
-      if args.apk_path and incremental_apk_path:
+      if args.apk_path and self.incremental_apk_path:
         self._parser.error('Both incremental and non-incremental apks exist. '
                            'Select using --incremental or --non-incremental')
 
@@ -1308,11 +1440,12 @@ class _Command:
     # a while to unpack the apks file from the aab file, so avoid this slowdown
     # for simple commands that don't need apk_helper.
     if self.needs_apk_helper:
-      if not self._CreateApkHelpers(args, incremental_apk_path, install_dict):
+      if not self._CreateApkHelpers(args, self.incremental_apk_path,
+                                    install_dict):
         self._parser.error('App is not built.')
 
     if self.needs_package_name and not args.package_name:
-      if self._CreateApkHelpers(args, incremental_apk_path, install_dict):
+      if self._CreateApkHelpers(args, self.incremental_apk_path, install_dict):
         args.package_name = self.apk_helper.GetPackageName()
       elif self._from_wrapper_script:
         self._parser.error('App is not built.')
@@ -1321,14 +1454,37 @@ class _Command:
 
     self.devices = []
     if self.need_device_args:
-      abis = None
-      if self._CreateApkHelpers(args, incremental_apk_path, install_dict):
-        abis = self.apk_helper.GetAbis()
-      self.devices = device_utils.DeviceUtils.HealthyDevices(
+      # Avoid filtering by ABIs with catapult since some x86 or x86_64 emulators
+      # can still work with the right target_cpu GN arg and the right targets.
+      # Doing this manually allows us to output more informative warnings to
+      # help devs towards the right course, see: https://crbug.com/1335139
+      available_devices = device_utils.DeviceUtils.HealthyDevices(
           device_arg=args.devices,
           enable_device_files_cache=bool(args.output_directory),
-          default_retries=0,
-          abis=abis)
+          default_retries=0)
+      if not available_devices:
+        raise Exception('Cannot find any available devices.')
+
+      if not self._CreateApkHelpers(args, self.incremental_apk_path,
+                                    install_dict):
+        self.devices = available_devices
+      else:
+        fully_supported, not_supported_reasons = self._FindSupportedDevices(
+            available_devices)
+        reason_string = '\n'.join(
+            'The device (serial={}) is not supported because {}'.format(
+                serial, reason)
+            for serial, reason in not_supported_reasons.items())
+        if args.devices:
+          if reason_string:
+            logging.warning('Devices not supported: %s', reason_string)
+          self.devices = available_devices
+        elif fully_supported:
+          self.devices = fully_supported
+        else:
+          raise Exception('Cannot find any supported devices for this app.\n\n'
+                          f'{reason_string}')
+
       # TODO(agrieve): Device cache should not depend on output directory.
       #     Maybe put into /tmp?
       _LoadDeviceCaches(self.devices, args.output_directory)
@@ -1376,12 +1532,18 @@ class _PackageInfoCommand(_Command):
 class _InstallCommand(_Command):
   name = 'install'
   description = 'Installs the APK or bundle to one or more devices.'
+  needs_package_name = True
   needs_apk_helper = True
   supports_incremental = True
   default_modules = []
 
   def _RegisterExtraArgs(self, group):
     if self.is_bundle:
+      group.add_argument(
+          '--locales',
+          action='append',
+          help=
+          'Locale splits to install (english is in base, so always installed).')
       group.add_argument(
           '-m',
           '--module',
@@ -1411,9 +1573,12 @@ class _InstallCommand(_Command):
       modules = list(
           set(self.args.module) - set(self.args.no_module) -
           set(self.args.fake))
-      _InstallBundle(self.devices, self.apk_helper, modules, self.args.fake)
+      _InstallBundle(self.devices, self.apk_helper, modules, self.args.fake,
+                     self.args.locales)
     else:
       _InstallApk(self.devices, self.apk_helper, self.install_dict)
+    if self.args.is_official_build:
+      _RunCompileDex(self.devices, self.args.package_name, 'speed')
 
 
 class _UninstallCommand(_Command):
@@ -1504,8 +1669,21 @@ class _ArgvCommand(_Command):
   all_devices_by_default = True
 
   def Run(self):
-    _ChangeFlags(self.devices, self.args.args,
-                 self.args.command_line_flags_file)
+    command_line_flags_file = self.args.command_line_flags_file
+    argv = self.args.args
+    devices = self.devices
+    parallel_devices = device_utils.DeviceUtils.parallel(devices)
+
+    if argv is not None:
+      parallel_devices.pMap(
+          lambda d: _UpdateDeviceFlags(d, command_line_flags_file, argv))
+
+    outputs = parallel_devices.pMap(
+        lambda d: _ReadDeviceFlags(d, command_line_flags_file) or '').pGet(None)
+
+    print(f'Showing flags via /data/local/tmp/{command_line_flags_file}:')
+    for flags in _PrintPerDeviceOutput(devices, outputs, single_line=True):
+      print(flags or 'No flags set.')
 
 
 class _GdbCommand(_Command):
@@ -1546,6 +1724,54 @@ If no apk process is currently running, sends a launch intent.
                        help='Use the given port for the GDB connection')
 
 
+class _LldbCommand(_Command):
+  name = 'lldb'
+  description = 'Runs //build/android/connect_lldb.sh with apk-specific args.'
+  long_description = description + """
+
+To attach to a process other than the APK's main process, use --pid=1234.
+To list all PIDs, use the "ps" command.
+
+If no apk process is currently running, sends a launch intent.
+"""
+  needs_package_name = True
+  needs_output_directory = True
+  calls_exec = True
+  supports_multiple_devices = False
+
+  def Run(self):
+    _RunLldb(device=self.devices[0],
+             package_name=self.args.package_name,
+             debug_process_name=self.args.debug_process_name,
+             pid=self.args.pid,
+             output_directory=self.args.output_directory,
+             port=self.args.port,
+             target_cpu=self.args.target_cpu,
+             ndk_dir=self.args.ndk_dir,
+             lldb_server=self.args.lldb_server,
+             lldb=self.args.lldb,
+             verbose=bool(self.args.verbose_count))
+
+  def _RegisterExtraArgs(self, group):
+    pid_group = group.add_mutually_exclusive_group()
+    pid_group.add_argument('--debug-process-name',
+                           help='Name of the process to attach to. '
+                           'E.g. "privileged_process0", or "foo.bar:baz"')
+    pid_group.add_argument('--pid',
+                           help='The process ID to attach to. Defaults to '
+                           'the main process for the package.')
+    group.add_argument('--ndk-dir',
+                       help='Select alternative NDK root directory.')
+    group.add_argument('--lldb-server',
+                       help='Select alternative on-device lldb-server.')
+    group.add_argument('--lldb', help='Select alternative client lldb.sh.')
+    # Same default port that ndk-gdb.py uses.
+    group.add_argument('--port',
+                       type=int,
+                       default=5039,
+                       help='Use the given port for the LLDB connection')
+
+
 class _LogcatCommand(_Command):
   name = 'logcat'
   description = 'Runs "adb logcat" with filters relevant the current APK.'
@@ -1574,12 +1800,14 @@ To disable filtering, (but keep coloring), use --verbose.
     deobfuscate = None
     if self.args.proguard_mapping_path and not self.args.no_deobfuscate:
       deobfuscate = deobfuscator.Deobfuscator(self.args.proguard_mapping_path)
-
-    stack_script_context = _StackScriptContext(
-        self.args.output_directory,
-        self.args.apk_path,
-        self.bundle_generation_info,
-        quiet=True)
+    apk_path = self.args.apk_path or self.incremental_apk_path
+    if apk_path or self.bundle_generation_info:
+      stack_script_context = _StackScriptContext(self.args.output_directory,
+                                                 apk_path,
+                                                 self.bundle_generation_info,
+                                                 quiet=True)
+    else:
+      stack_script_context = None
 
     extra_package_names = []
     if self.is_test_apk and self.additional_apk_helpers:
@@ -1597,7 +1825,8 @@ To disable filtering, (but keep coloring), use --verbose.
     except KeyboardInterrupt:
       pass  # Don't show stack trace upon Ctrl-C
     finally:
-      stack_script_context.Close()
+      if stack_script_context:
+        stack_script_context.Close()
       if deobfuscate:
         deobfuscate.Close()
 
@@ -1690,8 +1919,11 @@ class _CompileDexCommand(_Command):
              '"speed-profile".')
 
   def Run(self):
-    _RunCompileDex(self.devices, self.args.package_name,
-                   self.args.compilation_filter)
+    outputs = _RunCompileDex(self.devices, self.args.package_name,
+                             self.args.compilation_filter)
+    for output in _PrintPerDeviceOutput(self.devices, outputs):
+      for line in output:
+        print(line)
 
 
 class _PrintCertsCommand(_Command):
@@ -1724,15 +1956,18 @@ class _PrintCertsCommand(_Command):
             self.bundle_generation_info.keystore_password, '-alias',
             self.bundle_generation_info.keystore_alias, '-file', f.name
         ]
+        logging.warning('Running: %s', shlex.join(cmd))
         subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         cmd = [keytool, '-printcert', '-file', f.name]
-        logging.warning('Running: %s', ' '.join(cmd))
+        logging.warning('Running: %s', shlex.join(cmd))
         subprocess.check_call(cmd)
         if self.args.full_cert:
           # Redirect stderr to hide a keytool warning about using non-standard
           # keystore format.
+          cmd += ['-rfc']
+          logging.warning('Running: %s', shlex.join(cmd))
           pem_encoded_certificate = subprocess.check_output(
-              cmd + ['-rfc'], stderr=subprocess.STDOUT).decode()
+              cmd, stderr=subprocess.STDOUT).decode()
     else:
 
       def run_apksigner(min_sdk_version):
@@ -1741,7 +1976,7 @@ class _PrintCertsCommand(_Command):
             str(min_sdk_version), '--print-certs-pem', '--verbose',
             self.apk_helper.path
         ]
-        logging.warning('Running: %s', ' '.join(cmd))
+        logging.warning('Running: %s', shlex.join(cmd))
         env = os.environ.copy()
         env['PATH'] = os.path.pathsep.join(
             [os.path.join(_JAVA_HOME, 'bin'),
@@ -1927,8 +2162,9 @@ class _ManifestCommand(_Command):
       apkanalyzer = os.path.join(_DIR_SOURCE_ROOT, 'third_party', 'android_sdk',
                                  'public', 'cmdline-tools', 'latest', 'bin',
                                  'apkanalyzer')
-      subprocess.check_call(
-          [apkanalyzer, 'manifest', 'print', self.apk_helper.path])
+      cmd = [apkanalyzer, 'manifest', 'print', self.apk_helper.path]
+      logging.info('Running: %s', shlex.join(cmd))
+      subprocess.check_call(cmd)
 
 
 class _StackCommand(_Command):
@@ -1943,8 +2179,8 @@ class _StackCommand(_Command):
         help='File to decode. If not specified, stdin is processed.')
 
   def Run(self):
-    context = _StackScriptContext(self.args.output_directory,
-                                  self.args.apk_path,
+    apk_path = self.args.apk_path or self.incremental_apk_path
+    context = _StackScriptContext(self.args.output_directory, apk_path,
                                   self.bundle_generation_info)
     try:
       proc = context.Popen(input_file=self.args.file)
@@ -1966,6 +2202,7 @@ _COMMANDS = [
     _ClearDataCommand,
     _ArgvCommand,
     _GdbCommand,
+    _LldbCommand,
     _LogcatCommand,
     _PsCommand,
     _DiskUsageCommand,
@@ -2023,7 +2260,12 @@ def _RunInternal(parser,
   if bundle_generation_info:
     args.command.RegisterBundleGenerationInfo(bundle_generation_info)
   if args.additional_apk_paths:
-    for path in additional_apk_paths:
+    for i, path in enumerate(args.additional_apk_paths):
+      if path and not os.path.exists(path):
+        inc_path = path.replace('.apk', '_incremental.apk')
+        if os.path.exists(inc_path):
+          args.additional_apk_paths[i] = inc_path
+          path = inc_path
       if not path or not os.path.exists(path):
         raise Exception('Invalid additional APK path "{}"'.format(path))
   args.command.ProcessArgs(args)
@@ -2057,7 +2299,7 @@ def RunForBundle(output_directory, bundle_path, bundle_apks_path,
                  additional_apk_paths, aapt2_path, keystore_path,
                  keystore_password, keystore_alias, package_name,
                  command_line_flags_file, proguard_mapping_path, target_cpu,
-                 system_image_locales, default_modules):
+                 system_image_locales, default_modules, is_official_build):
   """Entry point for generated app bundle wrapper scripts.
 
   Args:
@@ -2093,16 +2335,15 @@ def RunForBundle(output_directory, bundle_path, bundle_apks_path,
   _InstallCommand.default_modules = default_modules
 
   parser = argparse.ArgumentParser()
-  parser.set_defaults(
-      package_name=package_name,
-      command_line_flags_file=command_line_flags_file,
-      proguard_mapping_path=proguard_mapping_path,
-      target_cpu=target_cpu)
-  _RunInternal(
-      parser,
-      output_directory=output_directory,
-      additional_apk_paths=additional_apk_paths,
-      bundle_generation_info=bundle_generation_info)
+  parser.set_defaults(package_name=package_name,
+                      command_line_flags_file=command_line_flags_file,
+                      proguard_mapping_path=proguard_mapping_path,
+                      target_cpu=target_cpu,
+                      is_official_build=is_official_build)
+  _RunInternal(parser,
+               output_directory=output_directory,
+               additional_apk_paths=additional_apk_paths,
+               bundle_generation_info=bundle_generation_info)
 
 
 def RunForTestApk(*, output_directory, package_name, test_apk_path,

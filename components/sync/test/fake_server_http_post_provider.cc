@@ -37,11 +37,7 @@ FakeServerHttpPostProvider::FakeServerHttpPostProvider(
     const base::WeakPtr<FakeServer>& fake_server,
     scoped_refptr<base::SequencedTaskRunner> fake_server_task_runner)
     : fake_server_(fake_server),
-      fake_server_task_runner_(fake_server_task_runner),
-      synchronous_post_completion_(
-          base::WaitableEvent::ResetPolicy::AUTOMATIC,
-          base::WaitableEvent::InitialState::NOT_SIGNALED),
-      aborted_(false) {}
+      fake_server_task_runner_(fake_server_task_runner) {}
 
 FakeServerHttpPostProvider::~FakeServerHttpPostProvider() = default;
 
@@ -66,8 +62,6 @@ void FakeServerHttpPostProvider::SetPostPayload(const char* content_type,
   request_content_type_.assign(content_type);
   request_content_.assign(content, content_length);
 }
-
-void FakeServerHttpPostProvider::SetAllowBatching(bool allow_batching) {}
 
 bool FakeServerHttpPostProvider::MakeSynchronousPost(int* net_error_code,
                                                      int* http_status_code) {
@@ -136,7 +130,7 @@ const std::string FakeServerHttpPostProvider::GetResponseHeaderValue(
 }
 
 void FakeServerHttpPostProvider::Abort() {
-  // Note: This may be called on any thread, so no |sequence_checker_| here.
+  // Note: This may be called on any thread, so no `sequence_checker_` here.
   // The sync thread could be blocked in MakeSynchronousPost(), waiting
   // for HandleCommandOnFakeServerThread() to be processed and completed.
   // This causes an immediate unblocking which will be returned as

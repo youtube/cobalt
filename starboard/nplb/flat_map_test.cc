@@ -15,13 +15,13 @@
 #include "starboard/common/flat_map.h"
 
 #include <sched.h>
+
 #include <map>
 #include <sstream>
 #include <string>
 
 #include "starboard/common/time.h"
 #include "starboard/system.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {

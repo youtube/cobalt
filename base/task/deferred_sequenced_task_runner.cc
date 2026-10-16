@@ -3,18 +3,17 @@
 // found in the LICENSE file.
 
 #include "base/task/deferred_sequenced_task_runner.h"
-#include "base/task/common/scoped_defer_task_posting.h"
 
 #include <utility>
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/task/common/scoped_defer_task_posting.h"
 
 namespace base {
 
 DeferredSequencedTaskRunner::DeferredTask::DeferredTask()
-    : is_non_nestable(false) {
-}
+    : is_non_nestable(false) {}
 
 DeferredSequencedTaskRunner::DeferredTask::DeferredTask(DeferredTask&& other) =
     default;
@@ -100,6 +99,11 @@ void DeferredSequencedTaskRunner::StartWithTaskRunner(
   task_runner_atomic_ptr_.store(target_task_runner_.get(),
                                 std::memory_order_release);
   StartImpl();
+}
+
+bool DeferredSequencedTaskRunner::Started() const {
+  AutoLock lock(lock_);
+  return started_;
 }
 
 DeferredSequencedTaskRunner::~DeferredSequencedTaskRunner() = default;

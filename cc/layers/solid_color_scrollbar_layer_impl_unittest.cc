@@ -18,13 +18,13 @@ TEST(SolidColorScrollbarLayerImplTest, Occlusion) {
 
   LayerTreeImplTestBase impl;
 
-  ScrollbarOrientation orientation = ScrollbarOrientation::VERTICAL;
+  ScrollbarOrientation orientation = ScrollbarOrientation::kVertical;
   int thumb_thickness = layer_size.width();
   int track_start = 0;
   bool is_left_side_vertical_scrollbar = false;
 
   SolidColorScrollbarLayerImpl* scrollbar_layer_impl =
-      impl.AddLayer<SolidColorScrollbarLayerImpl>(
+      impl.AddLayerInActiveTree<SolidColorScrollbarLayerImpl>(
           orientation, thumb_thickness, track_start,
           is_left_side_vertical_scrollbar);
   scrollbar_layer_impl->SetBounds(layer_size);

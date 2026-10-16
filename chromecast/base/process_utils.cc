@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/posix/safe_strerror.h"
 #include "base/strings/string_util.h"
@@ -23,8 +24,7 @@ bool GetAppOutput(const std::vector<std::string>& argv, std::string* output) {
   // Open the process.
   FILE* fp = popen(command.c_str(), "r");
   if (!fp) {
-    LOG(ERROR) << "popen (" << command << ") failed: "
-               << base::safe_strerror(errno);
+    PLOG(ERROR) << "popen (" << command << ") failed";
     return false;
   }
 
@@ -32,7 +32,7 @@ bool GetAppOutput(const std::vector<std::string>& argv, std::string* output) {
   output->clear();
   while (!feof(fp)) {
     char buffer[256];
-    size_t bytes_read = fread(buffer, 1, sizeof(buffer), fp);
+    size_t bytes_read = UNSAFE_TODO(fread(buffer, 1, sizeof(buffer), fp));
     if (bytes_read <= 0)
       break;
     output->append(buffer, bytes_read);

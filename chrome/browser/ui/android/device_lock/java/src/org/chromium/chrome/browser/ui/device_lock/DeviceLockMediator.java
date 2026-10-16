@@ -6,56 +6,98 @@ package org.chromium.chrome.browser.ui.device_lock;
 
 import static org.chromium.chrome.browser.ui.device_lock.DeviceLockProperties.ALL_KEYS;
 import static org.chromium.chrome.browser.ui.device_lock.DeviceLockProperties.DEVICE_SUPPORTS_PIN_CREATION_INTENT;
-import static org.chromium.chrome.browser.ui.device_lock.DeviceLockProperties.IN_SIGN_IN_FLOW;
 import static org.chromium.chrome.browser.ui.device_lock.DeviceLockProperties.ON_CREATE_DEVICE_LOCK_CLICKED;
 import static org.chromium.chrome.browser.ui.device_lock.DeviceLockProperties.ON_DISMISS_CLICKED;
 import static org.chromium.chrome.browser.ui.device_lock.DeviceLockProperties.ON_GO_TO_OS_SETTINGS_CLICKED;
 import static org.chromium.chrome.browser.ui.device_lock.DeviceLockProperties.ON_USER_UNDERSTANDS_CLICKED;
+import static org.chromium.chrome.browser.ui.device_lock.DeviceLockProperties.ON_USE_WITHOUT_AN_ACCOUNT_CLICKED;
 import static org.chromium.chrome.browser.ui.device_lock.DeviceLockProperties.PREEXISTING_DEVICE_LOCK;
+import static org.chromium.chrome.browser.ui.device_lock.DeviceLockProperties.SOURCE;
+import static org.chromium.chrome.browser.ui.device_lock.DeviceLockProperties.UI_ENABLED;
+import static org.chromium.components.browser_ui.device_lock.DeviceLockBridge.DEVICE_LOCK_PAGE_HAS_BEEN_PASSED;
 
+import android.accounts.Account;
+import android.app.Activity;
 import android.app.KeyguardManager;
-import android.app.admin.DevicePolicyManager;
 import android.content.Context;
 import android.content.Intent;
-import android.provider.Settings;
+import android.content.SharedPreferences;
 
+import org.chromium.base.ContextUtils;
+import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.device_reauth.ReauthenticatorBridge;
+import org.chromium.components.browser_ui.device_lock.DeviceLockDialogMetrics;
+import org.chromium.components.browser_ui.device_lock.DeviceLockDialogMetrics.DeviceLockDialogAction;
+import org.chromium.components.signin.AccountManagerFacade;
+import org.chromium.components.signin.AccountManagerFacadeProvider;
+import org.chromium.components.signin.AccountReauthenticationUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * The mediator handles which design the device lock UI displays and interacts through the
  * coordinator delegate.
  */
+@NullMarked
 public class DeviceLockMediator {
+    static final int ACCOUNT_REAUTHENTICATION_RECENT_TIME_WINDOW_MINUTES = 10;
+
     private final PropertyModel mModel;
     private final DeviceLockCoordinator.Delegate mDelegate;
 
     private final WindowAndroid mWindowAndroid;
-    private final Context mContext;
-    private final ReauthenticatorBridge mDeviceLockAuthenticatorBridge;
+    private final Activity mActivity;
+    private final @Nullable Account mAccount;
+    private final @Nullable ReauthenticatorBridge mDeviceLockAuthenticatorBridge;
+    private final AccountReauthenticationUtils mAccountReauthenticationUtils;
 
-    public DeviceLockMediator(boolean inSignInFlow, DeviceLockCoordinator.Delegate delegate,
-            WindowAndroid windowAndroid, ReauthenticatorBridge deviceLockAuthenticatorBridge,
-            Context context) {
+    public DeviceLockMediator(
+            DeviceLockCoordinator.Delegate delegate,
+            WindowAndroid windowAndroid,
+            @Nullable ReauthenticatorBridge deviceLockAuthenticatorBridge,
+            Activity activity,
+            @Nullable Account account) {
+        this(
+                delegate,
+                windowAndroid,
+                deviceLockAuthenticatorBridge,
+                new AccountReauthenticationUtils(),
+                activity,
+                account);
+    }
+
+    protected DeviceLockMediator(
+            DeviceLockCoordinator.Delegate delegate,
+            WindowAndroid windowAndroid,
+            @Nullable ReauthenticatorBridge deviceLockAuthenticatorBridge,
+            AccountReauthenticationUtils accountReauthenticationUtils,
+            Activity activity,
+            @Nullable Account account) {
         mDelegate = delegate;
-        mContext = context;
+        mActivity = activity;
+        mAccount = account;
         mWindowAndroid = windowAndroid;
         mDeviceLockAuthenticatorBridge = deviceLockAuthenticatorBridge;
+        mAccountReauthenticationUtils = accountReauthenticationUtils;
         mModel =
                 new PropertyModel.Builder(ALL_KEYS)
                         .with(PREEXISTING_DEVICE_LOCK, isDeviceLockPresent())
-                        .with(DEVICE_SUPPORTS_PIN_CREATION_INTENT,
-                                isDeviceLockCreationIntentSupported())
-                        .with(IN_SIGN_IN_FLOW, inSignInFlow)
-                        .with(ON_CREATE_DEVICE_LOCK_CLICKED,
-                                v -> navigateToDeviceLockCreation(createDeviceLockDirectlyIntent()))
-                        .with(ON_GO_TO_OS_SETTINGS_CLICKED,
-                                v
-                                -> navigateToDeviceLockCreation(
-                                        createDeviceLockThroughOSSettingsIntent()))
-                        .with(ON_USER_UNDERSTANDS_CLICKED, v -> triggerDeviceLockChallenge())
-                        .with(ON_DISMISS_CLICKED, v -> delegate.onDeviceLockRefused())
+                        .with(
+                                DEVICE_SUPPORTS_PIN_CREATION_INTENT,
+                                DeviceLockUtils.isDeviceLockCreationIntentSupported(mActivity))
+                        .with(UI_ENABLED, true)
+                        .with(SOURCE, mDelegate.getSource())
+                        .with(ON_CREATE_DEVICE_LOCK_CLICKED, v -> onCreateDeviceLockClicked())
+                        .with(ON_GO_TO_OS_SETTINGS_CLICKED, v -> onGoToOSSettingsClicked())
+                        .with(ON_USER_UNDERSTANDS_CLICKED, v -> onUserUnderstandsClicked())
+                        .with(
+                                ON_USE_WITHOUT_AN_ACCOUNT_CLICKED,
+                                v -> onUseWithoutAnAccountClicked())
+                        .with(ON_DISMISS_CLICKED, v -> onDismissClicked())
                         .build();
     }
 
@@ -63,39 +105,113 @@ public class DeviceLockMediator {
         return mModel;
     }
 
+    private AccountManagerFacade getAccountManager() {
+        return AccountManagerFacadeProvider.getInstance();
+    }
+
     private boolean isDeviceLockPresent() {
         KeyguardManager keyguardManager =
-                (KeyguardManager) mContext.getSystemService(Context.KEYGUARD_SERVICE);
+                (KeyguardManager) mActivity.getSystemService(Context.KEYGUARD_SERVICE);
         return keyguardManager.isDeviceSecure();
     }
 
-    private boolean isDeviceLockCreationIntentSupported() {
-        return new Intent(DevicePolicyManager.ACTION_SET_NEW_PASSWORD)
-                       .resolveActivity(mContext.getPackageManager())
-                != null;
+    private void onCreateDeviceLockClicked() {
+        DeviceLockDialogMetrics.recordDeviceLockDialogAction(
+                DeviceLockDialogAction.CREATE_DEVICE_LOCK_CLICKED, mDelegate.getSource());
+        mModel.set(UI_ENABLED, false);
+        navigateToDeviceLockCreation(
+                DeviceLockUtils.createDeviceLockDirectlyIntent(),
+                () -> maybeTriggerAccountReauthenticationChallenge(this::setDeviceLockReady));
     }
 
-    private Intent createDeviceLockDirectlyIntent() {
-        return new Intent(DevicePolicyManager.ACTION_SET_NEW_PASSWORD);
+    private void onGoToOSSettingsClicked() {
+        DeviceLockDialogMetrics.recordDeviceLockDialogAction(
+                DeviceLockDialogAction.GO_TO_OS_SETTINGS_CLICKED, mDelegate.getSource());
+        mModel.set(UI_ENABLED, false);
+        navigateToDeviceLockCreation(
+                DeviceLockUtils.createDeviceLockThroughOSSettingsIntent(),
+                () -> maybeTriggerAccountReauthenticationChallenge(this::setDeviceLockReady));
     }
 
-    private Intent createDeviceLockThroughOSSettingsIntent() {
-        return new Intent(Settings.ACTION_SECURITY_SETTINGS);
+    private void onUserUnderstandsClicked() {
+        DeviceLockDialogMetrics.recordDeviceLockDialogAction(
+                DeviceLockDialogAction.USER_UNDERSTANDS_CLICKED, mDelegate.getSource());
+        mModel.set(UI_ENABLED, false);
+        triggerDeviceLockChallenge(
+                () -> maybeTriggerAccountReauthenticationChallenge(this::setDeviceLockReady));
     }
 
-    private void navigateToDeviceLockCreation(Intent intent) {
-        mWindowAndroid.showIntent(intent, (resultCode, data) -> {
-            if (isDeviceLockPresent()) {
-                mDelegate.onDeviceLockReady();
-            }
-        }, null);
+    private void onUseWithoutAnAccountClicked() {
+        DeviceLockDialogMetrics.recordDeviceLockDialogAction(
+                DeviceLockDialogAction.USE_WITHOUT_AN_ACCOUNT_CLICKED, mDelegate.getSource());
+        mDelegate.onDeviceLockRefused();
     }
 
-    private void triggerDeviceLockChallenge() {
-        mDeviceLockAuthenticatorBridge.reauthenticate((authSucceeded) -> {
-            if (authSucceeded) {
-                mDelegate.onDeviceLockReady();
-            }
-        }, false);
+    private void onDismissClicked() {
+        DeviceLockDialogMetrics.recordDeviceLockDialogAction(
+                DeviceLockDialogAction.DISMISS_CLICKED, mDelegate.getSource());
+        mDelegate.onDeviceLockRefused();
+    }
+
+    private void setDeviceLockReady() {
+        SharedPreferences prefs = ContextUtils.getAppSharedPreferences();
+        prefs.edit().putBoolean(DEVICE_LOCK_PAGE_HAS_BEEN_PASSED, true).apply();
+        mDelegate.onDeviceLockReady();
+    }
+
+    private void navigateToDeviceLockCreation(Intent intent, Runnable onSuccess) {
+        if (isDeviceLockPresent()) {
+            onSuccess.run();
+            return;
+        }
+        mWindowAndroid.showIntent(
+                intent,
+                (resultCode, data) -> {
+                    if (isDeviceLockPresent()) {
+                        onSuccess.run();
+                    } else {
+                        mModel.set(UI_ENABLED, true);
+                    }
+                },
+                null);
+    }
+
+    private void triggerDeviceLockChallenge(Runnable onSuccess) {
+        // If the authenticator bridge is null, then reauthentication is not required here.
+        if (mDeviceLockAuthenticatorBridge == null) {
+            onSuccess.run();
+            return;
+        }
+        mDeviceLockAuthenticatorBridge.reauthenticate(
+                (authSucceeded) -> {
+                    RecordHistogram.recordBooleanHistogram(
+                            "Android.Automotive.DeviceLockOutcome", authSucceeded);
+                    if (authSucceeded) {
+                        onSuccess.run();
+                    } else {
+                        mModel.set(UI_ENABLED, true);
+                    }
+                });
+    }
+
+    private void maybeTriggerAccountReauthenticationChallenge(Runnable onSuccess) {
+        //  If no account is specified, the current flow does not require account reauthentication.
+        if (mAccount == null) {
+            onSuccess.run();
+            return;
+        }
+        mAccountReauthenticationUtils.confirmCredentialsOrRecentAuthentication(
+                getAccountManager(),
+                mAccount,
+                mActivity,
+                (confirmationResult) -> {
+                    if (confirmationResult
+                            == AccountReauthenticationUtils.ConfirmationResult.SUCCESS) {
+                        onSuccess.run();
+                    } else {
+                        mModel.set(UI_ENABLED, true);
+                    }
+                },
+                TimeUnit.MINUTES.toMillis(ACCOUNT_REAUTHENTICATION_RECENT_TIME_WINDOW_MINUTES));
     }
 }

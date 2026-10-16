@@ -2,11 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+#include <string>
+
 #include "base/command_line.h"
 #include "base/json/json_reader.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/stringprintf.h"
+#include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/component_updater/chrome_component_updater_configurator.h"
 #include "chrome/browser/policy/policy_test_utils.h"
@@ -21,6 +25,10 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/test/browser_test.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_features.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace policy {
 
@@ -88,6 +96,7 @@ class ComponentUpdaterPolicyTest : public PolicyTest {
   void OnDemandComplete(update_client::Error error);
 
   std::unique_ptr<update_client::URLLoaderPostInterceptor> post_interceptor_;
+  base::test::ScopedFeatureList scoped_feature_list_;
 
   // This member is owned by g_browser_process;
   raw_ptr<component_updater::ComponentUpdateService> cus_ = nullptr;
@@ -99,9 +108,14 @@ const char ComponentUpdaterPolicyTest::component_id_[] =
     "jebgalgnebhfojomionfpkfelancnnkf";
 
 ComponentUpdaterPolicyTest::ComponentUpdaterPolicyTest()
-    : https_server_(net::EmbeddedTestServer::TYPE_HTTPS) {}
+    : https_server_(net::EmbeddedTestServer::TYPE_HTTPS) {
+#if BUILDFLAG(IS_CHROMEOS)
+  scoped_feature_list_.InitAndDisableFeature(
+      ash::features::kGrowthCampaignsInConsumerSession);
+#endif  // BUILDFLAG(IS_CHROMEOS)
+}
 
-ComponentUpdaterPolicyTest::~ComponentUpdaterPolicyTest() {}
+ComponentUpdaterPolicyTest::~ComponentUpdaterPolicyTest() = default;
 
 void ComponentUpdaterPolicyTest::SetUpCommandLine(
     base::CommandLine* command_line) {
@@ -139,7 +153,7 @@ ComponentUpdaterPolicyTest::MakeComponentRegistration(
     bool supports_group_policy_enable_component_updates) {
   class MockInstaller : public update_client::CrxInstaller {
    public:
-    MockInstaller() {}
+    MockInstaller() = default;
 
     void Install(const base::FilePath& unpack_path,
                  const std::string& public_key,
@@ -154,12 +168,12 @@ ComponentUpdaterPolicyTest::MakeComponentRegistration(
                  void(const base::FilePath& unpack_path,
                       const std::string& public_key,
                       const Callback& callback));
-    MOCK_METHOD2(GetInstalledFile,
-                 bool(const std::string& file, base::FilePath* installed_file));
+    MOCK_METHOD1(GetInstalledFile,
+                 std::optional<base::FilePath>(const std::string& file));
     MOCK_METHOD0(Uninstall, bool());
 
    private:
-    ~MockInstaller() override {}
+    ~MockInstaller() override = default;
   };
 
   // component id "jebgalgnebhfojomionfpkfelancnnkf".
@@ -171,8 +185,13 @@ ComponentUpdaterPolicyTest::MakeComponentRegistration(
   // The component uses HTTPS only for network interception purposes.
   return component_updater::ComponentRegistration(
       "jebgalgnebhfojomionfpkfelancnnkf", {}, jebg_hash, base::Version("0.9"),
-      {}, {}, nullptr, base::MakeRefCounted<MockInstaller>(), true,
-      supports_group_policy_enable_component_updates);
+      /*fingerprint=*/{}, /*installer_attributes=*/{},
+      /*action_handler=*/nullptr, base::MakeRefCounted<MockInstaller>(),
+      /*requires_network_encryption=*/true,
+      supports_group_policy_enable_component_updates,
+      /*allow_cached_copies=*/true,
+      /*allow_updates_on_metered_connection=*/true,
+      /*allow_updates=*/true);
 }
 
 void ComponentUpdaterPolicyTest::UpdateComponent(
@@ -237,7 +256,7 @@ void ComponentUpdaterPolicyTest::VerifyExpectations(bool update_disabled) {
     const auto root = base::JSONReader::Read(request);
     ASSERT_TRUE(root);
     const auto* update_check =
-        (*root->GetDict().FindDict("request")->FindList("app"))[0]
+        (*root->GetDict().FindDict("request")->FindList("apps"))[0]
             .GetDict()
             .FindDict("updatecheck");
     ASSERT_TRUE(update_check);

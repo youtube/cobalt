@@ -17,7 +17,6 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
-import org.chromium.base.CollectionUtil;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.components.offline_items_collection.OfflineItem;
 import org.chromium.url.GURL;
@@ -25,26 +24,24 @@ import org.chromium.url.JUnitTestGURLs;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Set;
 
 /** Unit tests for the SearchOfflineItemFilter class. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class SearchOfflineItemFilterTest {
-    @Mock
-    private OfflineItemFilterSource mSource;
+    @Mock private OfflineItemFilterSource mSource;
 
-    @Mock
-    private OfflineItemFilterObserver mObserver;
+    @Mock private OfflineItemFilterObserver mObserver;
 
-    @Rule
-    public MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Test
     public void testTitleFiltering() {
         OfflineItem item1 = buildItem("cows", GURL.emptyGURL());
         OfflineItem item2 = buildItem("cows are", GURL.emptyGURL());
         OfflineItem item3 = buildItem("cows are crazy!", GURL.emptyGURL());
-        Collection<OfflineItem> sourceItems = CollectionUtil.newHashSet(item1, item2, item3);
+        Collection<OfflineItem> sourceItems = Set.of(item1, item2, item3);
         when(mSource.getItems()).thenReturn(sourceItems);
 
         SearchOfflineItemFilter filter = buildFilter(mSource);
@@ -53,12 +50,12 @@ public class SearchOfflineItemFilterTest {
 
         // Test a query that doesn't match.
         filter.onQueryChanged("dogs");
-        verify(mObserver, times(1)).onItemsRemoved(CollectionUtil.newHashSet(item1, item2, item3));
+        verify(mObserver, times(1)).onItemsRemoved(Set.of(item1, item2, item3));
         Assert.assertEquals(Collections.emptySet(), filter.getItems());
 
         // Test undoing the query.
         filter.onQueryChanged("");
-        verify(mObserver, times(1)).onItemsAdded(CollectionUtil.newHashSet(item1, item2, item3));
+        verify(mObserver, times(1)).onItemsAdded(Set.of(item1, item2, item3));
         Assert.assertEquals(sourceItems, filter.getItems());
 
         // Test null queries.
@@ -67,35 +64,34 @@ public class SearchOfflineItemFilterTest {
 
         // Test progressive queries.
         filter.onQueryChanged("cows");
-        Assert.assertEquals(CollectionUtil.newHashSet(item1, item2, item3), filter.getItems());
+        Assert.assertEquals(Set.of(item1, item2, item3), filter.getItems());
 
         filter.onQueryChanged("cows ar");
-        verify(mObserver, times(1)).onItemsRemoved(CollectionUtil.newHashSet(item1));
-        Assert.assertEquals(CollectionUtil.newHashSet(item2, item3), filter.getItems());
+        verify(mObserver, times(1)).onItemsRemoved(Set.of(item1));
+        Assert.assertEquals(Set.of(item2, item3), filter.getItems());
 
         filter.onQueryChanged("cows are c");
-        verify(mObserver, times(1)).onItemsRemoved(CollectionUtil.newHashSet(item2));
-        Assert.assertEquals(CollectionUtil.newHashSet(item3), filter.getItems());
+        verify(mObserver, times(1)).onItemsRemoved(Set.of(item2));
+        Assert.assertEquals(Set.of(item3), filter.getItems());
 
         filter.onQueryChanged("cows are crazy!");
-        Assert.assertEquals(CollectionUtil.newHashSet(item3), filter.getItems());
+        Assert.assertEquals(Set.of(item3), filter.getItems());
 
         filter.onQueryChanged("cows are");
-        verify(mObserver, times(1)).onItemsAdded(CollectionUtil.newHashSet(item2));
-        Assert.assertEquals(CollectionUtil.newHashSet(item2, item3), filter.getItems());
+        verify(mObserver, times(1)).onItemsAdded(Set.of(item2));
+        Assert.assertEquals(Set.of(item2, item3), filter.getItems());
 
         // Test upper case.
         filter.onQueryChanged("CoWs ArE");
-        Assert.assertEquals(CollectionUtil.newHashSet(item2, item3), filter.getItems());
+        Assert.assertEquals(Set.of(item2, item3), filter.getItems());
     }
 
     @Test
     public void testUrlFiltering() {
-        OfflineItem item1 = buildItem("", JUnitTestGURLs.getGURL(JUnitTestGURLs.GOOGLE_URL));
-        OfflineItem item2 = buildItem("", JUnitTestGURLs.getGURL(JUnitTestGURLs.GOOGLE_URL_DOGS));
-        OfflineItem item3 =
-                buildItem("", JUnitTestGURLs.getGURL(JUnitTestGURLs.GOOGLE_URL_DOGS_FUN));
-        Collection<OfflineItem> sourceItems = CollectionUtil.newHashSet(item1, item2, item3);
+        OfflineItem item1 = buildItem("", JUnitTestGURLs.GOOGLE_URL);
+        OfflineItem item2 = buildItem("", JUnitTestGURLs.GOOGLE_URL_DOGS);
+        OfflineItem item3 = buildItem("", new GURL("http://www.google.com/dogs-are-fun"));
+        Collection<OfflineItem> sourceItems = Set.of(item1, item2, item3);
         when(mSource.getItems()).thenReturn(sourceItems);
 
         SearchOfflineItemFilter filter = buildFilter(mSource);
@@ -104,12 +100,12 @@ public class SearchOfflineItemFilterTest {
 
         // Test a query that doesn't match.
         filter.onQueryChanged("cows");
-        verify(mObserver, times(1)).onItemsRemoved(CollectionUtil.newHashSet(item1, item2, item3));
+        verify(mObserver, times(1)).onItemsRemoved(Set.of(item1, item2, item3));
         Assert.assertEquals(Collections.emptySet(), filter.getItems());
 
         // Test undoing the query.
         filter.onQueryChanged("");
-        verify(mObserver, times(1)).onItemsAdded(CollectionUtil.newHashSet(item1, item2, item3));
+        verify(mObserver, times(1)).onItemsAdded(Set.of(item1, item2, item3));
         Assert.assertEquals(sourceItems, filter.getItems());
 
         // Test null queries.
@@ -118,34 +114,34 @@ public class SearchOfflineItemFilterTest {
 
         // Test progressive queries.
         filter.onQueryChanged("google");
-        Assert.assertEquals(CollectionUtil.newHashSet(item1, item2, item3), filter.getItems());
+        Assert.assertEquals(Set.of(item1, item2, item3), filter.getItems());
 
         filter.onQueryChanged("dogs");
-        verify(mObserver, times(1)).onItemsRemoved(CollectionUtil.newHashSet(item1));
-        Assert.assertEquals(CollectionUtil.newHashSet(item2, item3), filter.getItems());
+        verify(mObserver, times(1)).onItemsRemoved(Set.of(item1));
+        Assert.assertEquals(Set.of(item2, item3), filter.getItems());
 
         filter.onQueryChanged("dogs-are");
-        verify(mObserver, times(1)).onItemsRemoved(CollectionUtil.newHashSet(item2));
-        Assert.assertEquals(CollectionUtil.newHashSet(item3), filter.getItems());
+        verify(mObserver, times(1)).onItemsRemoved(Set.of(item2));
+        Assert.assertEquals(Set.of(item3), filter.getItems());
 
         filter.onQueryChanged("dogs-are-fun");
-        Assert.assertEquals(CollectionUtil.newHashSet(item3), filter.getItems());
+        Assert.assertEquals(Set.of(item3), filter.getItems());
 
         filter.onQueryChanged("dogs");
-        verify(mObserver, times(1)).onItemsAdded(CollectionUtil.newHashSet(item2));
-        Assert.assertEquals(CollectionUtil.newHashSet(item2, item3), filter.getItems());
+        verify(mObserver, times(1)).onItemsAdded(Set.of(item2));
+        Assert.assertEquals(Set.of(item2, item3), filter.getItems());
 
         // Test upper case.
         filter.onQueryChanged("DoGs");
-        Assert.assertEquals(CollectionUtil.newHashSet(item2, item3), filter.getItems());
+        Assert.assertEquals(Set.of(item2, item3), filter.getItems());
     }
 
     @Test
     public void testUrlOrTitleFiltering() {
-        OfflineItem item1 = buildItem("cat", JUnitTestGURLs.getGURL(JUnitTestGURLs.GOOGLE_URL_DOG));
-        OfflineItem item2 = buildItem("dog", JUnitTestGURLs.getGURL(JUnitTestGURLs.GOOGLE_URL_CAT));
-        OfflineItem item3 = buildItem("cow", JUnitTestGURLs.getGURL(JUnitTestGURLs.GOOGLE_URL_PIG));
-        Collection<OfflineItem> sourceItems = CollectionUtil.newHashSet(item1, item2, item3);
+        OfflineItem item1 = buildItem("cat", JUnitTestGURLs.GOOGLE_URL_DOG);
+        OfflineItem item2 = buildItem("dog", JUnitTestGURLs.GOOGLE_URL_CAT);
+        OfflineItem item3 = buildItem("cow", new GURL("http://www.google.com/pig"));
+        Collection<OfflineItem> sourceItems = Set.of(item1, item2, item3);
         when(mSource.getItems()).thenReturn(sourceItems);
 
         SearchOfflineItemFilter filter = buildFilter(mSource);
@@ -153,8 +149,8 @@ public class SearchOfflineItemFilterTest {
         Assert.assertEquals(sourceItems, filter.getItems());
 
         filter.onQueryChanged("cat");
-        verify(mObserver, times(1)).onItemsRemoved(CollectionUtil.newHashSet(item3));
-        Assert.assertEquals(CollectionUtil.newHashSet(item1, item2), filter.getItems());
+        verify(mObserver, times(1)).onItemsRemoved(Set.of(item3));
+        Assert.assertEquals(Set.of(item1, item2), filter.getItems());
     }
 
     private static SearchOfflineItemFilter buildFilter(OfflineItemFilterSource source) {

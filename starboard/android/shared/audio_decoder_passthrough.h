@@ -15,7 +15,9 @@
 #ifndef STARBOARD_ANDROID_SHARED_AUDIO_DECODER_PASSTHROUGH_H_
 #define STARBOARD_ANDROID_SHARED_AUDIO_DECODER_PASSTHROUGH_H_
 
+#include <optional>
 #include <queue>
+#include <utility>
 
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
@@ -26,7 +28,6 @@
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
-#include "starboard/types.h"
 
 namespace starboard {
 
@@ -41,7 +42,7 @@ class AudioDecoderPassthrough : public AudioDecoder {
 
   // AudioDecoder methods.
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
+    SB_CHECK(thread_checker_.CalledOnValidThread());
     SB_DCHECK(!output_cb_);
     SB_DCHECK(output_cb);
 
@@ -50,7 +51,7 @@ class AudioDecoderPassthrough : public AudioDecoder {
 
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
+    SB_CHECK(thread_checker_.CalledOnValidThread());
     SB_DCHECK(!input_buffers.empty());
     SB_DCHECK(consumed_cb);
     SB_DCHECK(output_cb_);
@@ -64,12 +65,11 @@ class AudioDecoderPassthrough : public AudioDecoder {
     //       mode on more platforms.
     const int kChannels = 1;
     for (const auto& input_buffer : input_buffers) {
-      scoped_refptr<DecodedAudio> decoded_audio =
-          new DecodedAudio(kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
-                           kSbMediaAudioFrameStorageTypePlanar,
-                           input_buffer->timestamp(), input_buffer->size());
-      memcpy(decoded_audio->data(), input_buffer->data(), input_buffer->size());
-      decoded_audios_.push(decoded_audio);
+      DecodedAudio decoded_audio(
+          kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
+          input_buffer->timestamp(), input_buffer->size());
+      memcpy(decoded_audio.data(), input_buffer->data(), input_buffer->size());
+      decoded_audios_.push(std::move(decoded_audio));
       output_cb_();
     }
 
@@ -77,29 +77,30 @@ class AudioDecoderPassthrough : public AudioDecoder {
   }
 
   void WriteEndOfStream() override {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
+    SB_CHECK(thread_checker_.CalledOnValidThread());
     SB_DCHECK(output_cb_);
 
-    decoded_audios_.push(new DecodedAudio);
+    decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
     output_cb_();
   }
 
-  scoped_refptr<DecodedAudio> Read(int* samples_per_second) override {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
+  std::optional<DecodedAudio> Read(int* samples_per_second) override {
+    SB_CHECK(thread_checker_.CalledOnValidThread());
     SB_DCHECK(samples_per_second);
     SB_DCHECK(!decoded_audios_.empty());
 
     *samples_per_second = samples_per_second_;
 
-    auto decoded_audio = decoded_audios_.front();
+    std::optional<DecodedAudio> decoded_audio =
+        std::move(decoded_audios_.front());
     decoded_audios_.pop();
     return decoded_audio;
   }
 
   void Reset() override {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
+    SB_CHECK(thread_checker_.CalledOnValidThread());
 
-    decoded_audios_ = std::queue<scoped_refptr<DecodedAudio>>();  // Clear
+    decoded_audios_ = std::queue<DecodedAudio>();  // Clear
   }
 
  private:
@@ -107,7 +108,7 @@ class AudioDecoderPassthrough : public AudioDecoder {
 
   const int samples_per_second_;
   OutputCB output_cb_;
-  std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
+  std::queue<DecodedAudio> decoded_audios_;
 };
 
 }  // namespace starboard

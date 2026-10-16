@@ -55,9 +55,12 @@ void DelegatedFrameHostClientAura::InvalidateLocalSurfaceIdOnEviction() {
   render_widget_host_view_->InvalidateLocalSurfaceIdOnEviction();
 }
 
-std::vector<viz::SurfaceId>
+viz::FrameEvictorClient::EvictIds
 DelegatedFrameHostClientAura::CollectSurfaceIdsForEviction() {
-  return render_widget_host_view_->host()->CollectSurfaceIdsForEviction();
+  viz::FrameEvictorClient::EvictIds ids;
+  ids.embedded_ids =
+      render_widget_host_view_->host()->CollectSurfaceIdsForEviction();
+  return ids;
 }
 
 bool DelegatedFrameHostClientAura::ShouldShowStaleContentOnEviction() {

@@ -10,17 +10,15 @@ a CL, triggers Clang Upload try bots, and tells what to do next"""
 from __future__ import print_function
 
 import argparse
-import fnmatch
 import itertools
 import os
 import re
-import shutil
 import subprocess
 import sys
-import urllib3
+import urllib.request
 
-from build import (CheckoutGitRepo, GetCommitDescription, LLVM_DIR,
-                   LLVM_GIT_URL, RunCommand)
+from build import (CheckoutGitRepo, GetCommitDescription, GetLatestLLVMCommit,
+                   LLVM_DIR, LLVM_GIT_URL, RunCommand)
 from update import CHROMIUM_DIR, DownloadAndUnpack
 
 # Access to //tools/rust
@@ -28,7 +26,7 @@ sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..',
                  'rust'))
 
-from build_rust import RUST_GIT_URL, RUST_SRC_DIR
+from build_rust import RUST_GIT_URL, RUST_SRC_DIR, GetLatestRustCommit
 
 # Path constants.
 THIS_DIR = os.path.dirname(__file__)
@@ -38,17 +36,14 @@ RUST_UPDATE_PY_PATH = os.path.join(THIS_DIR, '..', '..', 'rust',
                                    'update_rust.py')
 BUILD_RUST_PY_PATH = os.path.join(THIS_DIR, '..', '..', 'rust', 'build_rust.py')
 
-# Constants for finding HEAD.
-CLANG_URL = 'https://api.github.com/repos/llvm/llvm-project/git/refs/heads/main'
-RUST_URL = 'https://api.github.com/repos/rust-lang/rust/git/refs/heads/master'
-HEAD_SHA_REGEX = b'"sha":"([^"]+)"'
-
 # Bots where we build Clang + Rust.
-BOTS = [
+BUILD_CLANG_BOTS = [
     'linux_upload_clang',
     'mac_upload_clang',
     'mac_upload_clang_arm',
     'win_upload_clang',
+]
+BUILD_RUST_BOTS = [
     'linux_upload_rust',
     'mac_upload_rust',
     'mac_upload_rust_arm',
@@ -61,6 +56,7 @@ COMMIT_FOOTER = \
 '''
 Bug: TODO. Remove the Tricium: line below when filling this in.
 Tricium: skip
+Disable-Rts: True
 Cq-Include-Trybots: chromium/try:chromeos-amd64-generic-cfi-thin-lto-rel
 Cq-Include-Trybots: chromium/try:dawn-win10-x86-deps-rel
 Cq-Include-Trybots: chromium/try:linux-chromeos-dbg
@@ -68,28 +64,30 @@ Cq-Include-Trybots: chromium/try:linux_chromium_cfi_rel_ng
 Cq-Include-Trybots: chromium/try:linux_chromium_chromeos_msan_rel_ng
 Cq-Include-Trybots: chromium/try:linux_chromium_msan_rel_ng
 Cq-Include-Trybots: chromium/try:mac11-arm64-rel,mac_chromium_asan_rel_ng
-Cq-Include-Trybots: chromium/try:ios-catalyst
-Cq-Include-Trybots: chromium/try:win-asan
-Cq-Include-Trybots: chromium/try:android-official,fuchsia-official
+Cq-Include-Trybots: chromium/try:ios-catalyst,win-asan,android-official
+Cq-Include-Trybots: chromium/try:fuchsia-arm64-cast-receiver-rel
 Cq-Include-Trybots: chromium/try:mac-official,linux-official
 Cq-Include-Trybots: chromium/try:win-official,win32-official
+Cq-Include-Trybots: chromium/try:win-arm64-rel
 Cq-Include-Trybots: chromium/try:linux-swangle-try-x64,win-swangle-try-x86
+Cq-Include-Trybots: chromium/try:android-cronet-riscv64-dbg
+Cq-Include-Trybots: chromium/try:android-cronet-riscv64-rel
 Cq-Include-Trybots: chrome/try:iphone-device,ipad-device
 Cq-Include-Trybots: chrome/try:linux-chromeos-chrome
 Cq-Include-Trybots: chrome/try:win-chrome,win64-chrome,linux-chrome,mac-chrome
-Cq-Include-Trybots: chrome/try:linux-pgo,mac-pgo,win32-pgo,win64-pgo'''
+Cq-Include-Trybots: chrome/try:linux-pgo,mac-pgo,win32-pgo,win64-pgo
+Cq-Include-Trybots: luci.chrome.try:fuchsia-x64-nest-sd
+Cq-Include-Trybots: luci.chromium.try:linux-cast-x64-rel'''
 
 RUST_BOTS = \
 '''Cq-Include-Trybots: chromium/try:android-rust-arm32-rel
 Cq-Include-Trybots: chromium/try:android-rust-arm64-dbg
 Cq-Include-Trybots: chromium/try:android-rust-arm64-rel
 Cq-Include-Trybots: chromium/try:linux-rust-x64-dbg
-Cq-Include-Trybots: chromium/try:linux-rust-x64-rel'''
-
-# These do not pass yet:
-#Cq-Include-Trybots: chromium/try:mac-rust-x64-rel
-#Cq-Include-Trybots: chromium/try:win-rust-x64-dbg
-#Cq-Include-Trybots: chromium/try:win-rust-x64-rel
+Cq-Include-Trybots: chromium/try:linux-rust-x64-rel
+Cq-Include-Trybots: chromium/try:mac-rust-x64-dbg
+Cq-Include-Trybots: chromium/try:win-rust-x64-dbg
+Cq-Include-Trybots: chromium/try:win-rust-x64-rel'''
 
 is_win = sys.platform.startswith('win32')
 
@@ -135,15 +133,6 @@ class ClangVersion:
   def __eq__(self, o) -> bool:
     return (self.git_describe == o.git_describe
             and self.sub_revision == o.sub_revision)
-
-
-def GetLatestGitHash(url):
-  http = urllib3.PoolManager(cert_reqs="CERT_REQUIRED")
-  resp = http.request('GET', url)
-  if resp.status != 200:
-    raise RuntimeError(f'Unable to download {url}: status {resp.status}')
-  m = re.search(HEAD_SHA_REGEX, resp.data)
-  return m.group(1).decode('utf-8')
 
 
 def PatchClangRevision(new_version: ClangVersion) -> ClangVersion:
@@ -199,13 +188,14 @@ def PatchRustRevision(new_version: RustVersion) -> RustVersion:
 
 
 def PatchRustStage0():
-  verify_stage0 = subprocess.run([BUILD_RUST_PY_PATH, '--verify-stage0-hash'],
-                                 capture_output=True,
-                                 text=True)
+  verify_stage0 = subprocess.run(
+      [sys.executable, BUILD_RUST_PY_PATH, '--verify-stage0-hash'],
+      capture_output=True,
+      text=True)
   if verify_stage0.returncode == 0:
     return
 
-  # TODO(crbug.com/1405814): We're printing a warning that the hash has
+  # TODO(crbug.com/40252478): We're printing a warning that the hash has
   # changed, but we could require a verification step of some sort here. We
   # should do the same for both Rust and Clang if we do so.
   print(verify_stage0.stdout)
@@ -225,13 +215,13 @@ def PatchRustStage0():
     f.write(content)
 
 
-def PatchRustRemoveFallback():
+def PatchRustRemoveOverride():
   with open(RUST_UPDATE_PY_PATH) as f:
     content = f.read()
 
   REV = '([0-9a-z-]+)'
-  content = re.sub(f'FALLBACK_REVISION = \'{REV}\'',
-                   f'FALLBACK_REVISION = \'\'',
+  content = re.sub(f'OVERRIDE_CLANG_REVISION = \'{REV}\'',
+                   f'OVERRIDE_CLANG_REVISION = None',
                    content,
                    count=1)
   with open(RUST_UPDATE_PY_PATH, 'w') as f:
@@ -253,7 +243,7 @@ def Git(*args, no_run: bool):
 
 def main():
   parser = argparse.ArgumentParser(description='upload new clang revision')
-  # TODO(crbug.com/1401042): Remove this when the cron job doesn't pass a SHA.
+  # TODO(crbug.com/40250560): Remove this when the cron job doesn't pass a SHA.
   parser.add_argument(
       'ignored',
       nargs='?',
@@ -299,28 +289,33 @@ def main():
     print('Cannot set both --skip-clang and --skip-rust.')
     sys.exit(1)
 
-  if args.clang_git_hash:
-    clang_git_hash = args.clang_git_hash
+  if args.skip_clang:
+    clang_version = '-skipped-'
   else:
-    clang_git_hash = GetLatestGitHash(CLANG_URL)
+    if args.clang_git_hash:
+      clang_git_hash = args.clang_git_hash
+    else:
+      clang_git_hash = GetLatestLLVMCommit()
+    # To `GetCommitDescription()`, we need a checkout. On success, the
+    # CheckoutLLVM() makes `LLVM_DIR` be the current working directory, so that
+    # we can GetCommitDescription() without changing directory.
+    CheckoutGitRepo("LLVM", LLVM_GIT_URL, clang_git_hash, LLVM_DIR)
+    clang_version = ClangVersion(GetCommitDescription(clang_git_hash),
+                                 args.clang_sub_revision)
+    os.chdir(CHROMIUM_DIR)
 
-  # To `GetCommitDescription()`, we need a checkout. On success, the
-  # CheckoutLLVM() makes `LLVM_DIR` be the current working directory, so that
-  # we can GetCommitDescription() without changing directory.
-  CheckoutGitRepo("LLVM", LLVM_GIT_URL, clang_git_hash, LLVM_DIR)
-  clang_version = ClangVersion(GetCommitDescription(clang_git_hash),
-                               args.clang_sub_revision)
-  os.chdir(CHROMIUM_DIR)
-
-  if args.rust_git_hash:
-    rust_git_hash = args.rust_git_hash
+  if args.skip_rust:
+    rust_version = '-skipped-'
   else:
-    rust_git_hash = GetLatestGitHash(RUST_URL)
-  CheckoutGitRepo("Rust", RUST_GIT_URL, rust_git_hash, RUST_SRC_DIR)
-  rust_version = RustVersion(rust_git_hash, args.rust_sub_revision)
-  os.chdir(CHROMIUM_DIR)
+    if args.rust_git_hash:
+      rust_git_hash = args.rust_git_hash
+    else:
+      rust_git_hash = GetLatestRustCommit()
+    CheckoutGitRepo("Rust", RUST_GIT_URL, rust_git_hash, RUST_SRC_DIR)
+    rust_version = RustVersion(rust_git_hash, args.rust_sub_revision)
+    os.chdir(CHROMIUM_DIR)
 
-  print((f'Making a patch for Clang {clang_version} and Rust {rust_version}'))
+  print(f'Making a patch for Clang {clang_version} and Rust {rust_version}')
 
   branch_name = f'clang-{clang_version}_rust-{rust_version}'
   Git('checkout', 'origin/main', '-b', branch_name, no_run=args.no_git)
@@ -339,9 +334,8 @@ def main():
                 'Change the sub-revision of Clang or Rust if there is '
                 'no major version change.')
     PatchRustStage0()
-    # TODO: Do this when we block Clang updates without a matching Rust
-    # compiler.
-    # PatchRustRemoveFallback()
+    if not args.skip_clang:
+      PatchRustRemoveOverride()
 
   if args.skip_clang:
     clang_change = '[skipping Clang]'
@@ -377,16 +371,33 @@ def main():
       RUST_UPDATE_PY_PATH,
       no_run=args.no_git)
   Git('commit', '-m', commit_message, no_run=args.no_git)
-  Git('cl', 'upload', '-f', '--bypass-hooks', no_run=args.no_git)
+  Git('cl', 'upload', '-f', '--bypass-hooks', '--squash', no_run=args.no_git)
+  if not args.skip_clang:
+    Git('cl',
+        'try',
+        '-B',
+        "chromium/try",
+        *itertools.chain(*[['-b', bot] for bot in BUILD_CLANG_BOTS]),
+        no_run=args.no_git)
+
   Git('cl',
       'try',
       '-B',
       "chromium/try",
-      *itertools.chain(*[['-b', bot] for bot in BOTS]),
+      *itertools.chain(*[['-b', bot] for bot in BUILD_RUST_BOTS]),
       no_run=args.no_git)
 
   print('Please, wait until the try bots succeeded '
-        'and then push the binaries to goma.')
+        'and then push the binaries to RBE.')
+  print()
+  print('To update the Clang/Rust DEPS entries, run:\n  '
+        'tools/clang/scripts/sync_deps.py')
+  print()
+  print('To regenerate BUILD.gn rules for Rust stdlib (needed if dep versions '
+        'in the stdlib change for example), run:\n  tools/rust/gnrt_stdlib.py.')
+  print()
+  print('To update Abseil .def files, run:\n  '
+        'third_party/abseil-cpp/generate_def_files.py')
 
 
 if __name__ == '__main__':

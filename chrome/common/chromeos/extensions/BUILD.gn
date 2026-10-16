@@ -25,13 +25,23 @@ static_library("extensions") {
     "chromeos_system_extensions_manifest_handler.h",
   ]
 
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  public_deps = [ "//components/web_package" ]
+
   deps = [
     ":resources",
     "api:api",
     "api:extensions_features",
     "//base",
+    "//chrome/common:url_constants",
+    "//chromeos/constants",
     "//extensions/common",
   ]
+
+  if (is_chromeos) {
+    deps += [ "//ash/constants" ]
+  }
 }
 
 grd_file = "$target_gen_dir/chromeos_system_extensions_resources.grd"

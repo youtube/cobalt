@@ -7,13 +7,13 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/containers/flat_map.h"
 #include "base/values.h"
 #include "components/update_client/protocol_definition.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class Version;
@@ -40,7 +40,7 @@ protocol_request::Request MakeProtocolRequest(
     const std::string& channel,
     const std::string& os_long_name,
     const std::string& download_preference,
-    absl::optional<bool> domain_joined,
+    std::optional<bool> domain_joined,
     const base::flat_map<std::string, std::string>& additional_attributes,
     const base::flat_map<std::string, std::string>& updater_state_attributes,
     std::vector<protocol_request::App> apps);
@@ -50,21 +50,22 @@ protocol_request::App MakeProtocolApp(
     const base::Version& version,
     const std::string& ap,
     const std::string& brand_code,
+    const std::string& install_id,
     const std::string& lang,
     int install_date,
     const std::string& install_source,
     const std::string& install_location,
-    const std::string& fingerprint,
     const std::map<std::string, std::string>& installer_attributes,
     const std::string& cohort,
     const std::string& cohort_hint,
     const std::string& cohort_name,
     const std::string& release_channel,
     const std::vector<int>& disabled_reasons,
-    absl::optional<protocol_request::UpdateCheck> update_check,
+    const std::vector<std::string>& cached_hashes,
+    std::optional<protocol_request::UpdateCheck> update_check,
     const std::vector<protocol_request::Data>& data,
-    absl::optional<protocol_request::Ping> ping,
-    absl::optional<std::vector<base::Value::Dict>> events);
+    std::optional<protocol_request::Ping> ping,
+    std::optional<std::vector<base::Value::Dict>> events);
 
 protocol_request::UpdateCheck MakeProtocolUpdateCheck(
     bool is_update_disabled,

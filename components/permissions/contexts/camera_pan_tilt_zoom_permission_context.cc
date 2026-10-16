@@ -4,6 +4,8 @@
 
 #include "components/permissions/contexts/camera_pan_tilt_zoom_permission_context.h"
 
+#include <memory>
+
 #include "components/permissions/permission_manager.h"
 #include "components/permissions/permission_request_id.h"
 #include "components/permissions/permission_util.h"
@@ -12,14 +14,15 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/permission_controller.h"
+#include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-shared.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy_feature.mojom-shared.h"
 
 namespace permissions {
 
-// TODO(crbug.com/1271543): This method is a temporary solution because of
+// TODO(crbug.com/40205763): This method is a temporary solution because of
 // inconsistency between the new permissions API that is migrated to
 // `blink::mojom::PermissionStatus` and its callsites that still use
 // `ContentSetting`.
@@ -38,9 +41,10 @@ CameraPanTiltZoomPermissionContext::CameraPanTiltZoomPermissionContext(
     content::BrowserContext* browser_context,
     std::unique_ptr<Delegate> delegate,
     const webrtc::MediaStreamDeviceEnumerator* device_enumerator)
-    : PermissionContextBase(browser_context,
-                            ContentSettingsType::CAMERA_PAN_TILT_ZOOM,
-                            blink::mojom::PermissionsPolicyFeature::kNotFound),
+    : PermissionContextBase(
+          browser_context,
+          ContentSettingsType::CAMERA_PAN_TILT_ZOOM,
+          network::mojom::PermissionsPolicyFeature::kNotFound),
       delegate_(std::move(delegate)),
       device_enumerator_(device_enumerator) {
   DCHECK(device_enumerator_);
@@ -55,24 +59,23 @@ CameraPanTiltZoomPermissionContext::~CameraPanTiltZoomPermissionContext() {
 }
 
 void CameraPanTiltZoomPermissionContext::RequestPermission(
-    const permissions::PermissionRequestID& id,
-    const GURL& requesting_frame_origin,
-    bool user_gesture,
+    std::unique_ptr<PermissionRequestData> request_data,
     permissions::BrowserPermissionCallback callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   if (HasAvailableCameraPtzDevices()) {
-    PermissionContextBase::RequestPermission(id, requesting_frame_origin,
-                                             user_gesture, std::move(callback));
+    PermissionContextBase::RequestPermission(std::move(request_data),
+                                             std::move(callback));
     return;
   }
 
   // If there is no camera with PTZ capabilities, let's request a "regular"
   // camera permission instead.
   content::RenderFrameHost* render_frame_host =
-      content::RenderFrameHost::FromID(id.global_render_frame_host_id());
+      content::RenderFrameHost::FromID(
+          request_data->id.global_render_frame_host_id());
 
-  if (requesting_frame_origin !=
+  if (request_data->requesting_origin !=
       render_frame_host->GetLastCommittedOrigin().GetURL()) {
     std::move(callback).Run(CONTENT_SETTING_BLOCK);
     return;
@@ -80,7 +83,12 @@ void CameraPanTiltZoomPermissionContext::RequestPermission(
   render_frame_host->GetBrowserContext()
       ->GetPermissionController()
       ->RequestPermissionFromCurrentDocument(
-          blink::PermissionType::VIDEO_CAPTURE, render_frame_host, user_gesture,
+          render_frame_host,
+          content::PermissionRequestDescription(
+              content::PermissionDescriptorUtil::
+                  CreatePermissionDescriptorForPermissionType(
+                      blink::PermissionType::VIDEO_CAPTURE),
+              request_data->user_gesture),
           base::BindOnce(&CallbackWrapper, std::move(callback)));
 }
 
@@ -125,7 +133,7 @@ void CameraPanTiltZoomPermissionContext::OnContentSettingChanged(
     return;
   }
 
-  // TODO(crbug.com/1078272): We should not need to deduce the url from the
+  // TODO(crbug.com/40129438): We should not need to deduce the url from the
   // primary pattern here. Modify the infrastructure to facilitate this
   // particular use case better.
   const GURL url(primary_pattern.ToString());

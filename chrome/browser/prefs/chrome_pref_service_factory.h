@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/values.h"
 #include "components/prefs/persistent_pref_store.h"
 #include "components/prefs/pref_value_store.h"
@@ -44,6 +44,10 @@ class SupervisedUserSettingsService;
 }  // namespace supervised_user
 
 namespace chrome_prefs {
+
+// The prefix (without the trailing ".") with which the account preference
+// values are stored in the preference file.
+extern const char kAccountPreferencesPrefix[];
 
 // Factory methods that create and initialize a new instance of a
 // PrefService for Chrome with the applicable PrefStores. The

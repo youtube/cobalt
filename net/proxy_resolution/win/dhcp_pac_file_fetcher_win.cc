@@ -4,6 +4,10 @@
 
 #include "net/proxy_resolution/win/dhcp_pac_file_fetcher_win.h"
 
+#include <winsock2.h>
+
+#include <iphlpapi.h>
+
 #include <memory>
 #include <vector>
 
@@ -19,9 +23,6 @@
 #include "net/base/net_errors.h"
 #include "net/log/net_log.h"
 #include "net/proxy_resolution/win/dhcp_pac_file_adapter_fetcher_win.h"
-
-#include <winsock2.h>
-#include <iphlpapi.h>
 
 namespace net {
 
@@ -276,7 +277,6 @@ int DhcpPacFileFetcherWin::Fetch(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (state_ != STATE_START && state_ != STATE_DONE) {
     NOTREACHED();
-    return ERR_UNEXPECTED;
   }
 
   net_log_ = net_log;
@@ -303,7 +303,8 @@ int DhcpPacFileFetcherWin::Fetch(
           &DhcpPacFileFetcherWin::AdapterQuery::GetCandidateAdapterNames,
           last_query_.get()),
       base::BindOnce(&DhcpPacFileFetcherWin::OnGetCandidateAdapterNamesDone,
-                     AsWeakPtr(), last_query_, traffic_annotation));
+                     weak_ptr_factory_.GetWeakPtr(), last_query_,
+                     traffic_annotation));
 
   return ERR_IO_PENDING;
 }
@@ -340,6 +341,7 @@ void DhcpPacFileFetcherWin::CancelImpl() {
 
     fetchers_.clear();
   }
+  destination_string_ = nullptr;
 }
 
 void DhcpPacFileFetcherWin::OnGetCandidateAdapterNamesDone(

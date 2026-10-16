@@ -4,9 +4,10 @@
 
 #include "components/gcm_driver/crypto/encryption_header_parsers.h"
 
+#include <string_view>
+
 #include "base/base64url.h"
 #include "base/strings/string_number_conversions.h"
-
 #include "base/strings/string_util.h"
 
 
@@ -20,7 +21,7 @@ const uint64_t kDefaultRecordSizeBytes = 4096;
 
 // Decodes the string in |value| using base64url and writes the decoded value to
 // |*salt|. Returns whether the string is not empty and could be decoded.
-bool ValueToDecodedString(base::StringPiece value, std::string* salt) {
+bool ValueToDecodedString(std::string_view value, std::string* salt) {
   if (value.empty())
     return false;
 
@@ -31,7 +32,7 @@ bool ValueToDecodedString(base::StringPiece value, std::string* salt) {
 // Parses the record size in |value| and writes the value to |*rs|. The value
 // must be a positive decimal integer greater than one that does not start
 // with a plus. Returns whether the record size was valid.
-bool RecordSizeToInt(base::StringPiece value, uint64_t* rs) {
+bool RecordSizeToInt(std::string_view value, uint64_t* rs) {
   if (value.empty())
     return false;
 
@@ -57,10 +58,10 @@ bool RecordSizeToInt(base::StringPiece value, uint64_t* rs) {
 EncryptionHeaderIterator::EncryptionHeaderIterator(
     std::string::const_iterator header_begin,
     std::string::const_iterator header_end)
-    : iterator_(header_begin, header_end, ','),
+    : iterator_(std::string_view(header_begin, header_end), /*delimiter=*/','),
       rs_(kDefaultRecordSizeBytes) {}
 
-EncryptionHeaderIterator::~EncryptionHeaderIterator() {}
+EncryptionHeaderIterator::~EncryptionHeaderIterator() = default;
 
 bool EncryptionHeaderIterator::GetNext() {
   keyid_.clear();
@@ -71,7 +72,7 @@ bool EncryptionHeaderIterator::GetNext() {
     return false;
 
   net::HttpUtil::NameValuePairsIterator name_value_pairs(
-      iterator_.value_begin(), iterator_.value_end(), ';',
+      iterator_.value(), /*delimiter=*/';',
       net::HttpUtil::NameValuePairsIterator::Values::REQUIRED,
       net::HttpUtil::NameValuePairsIterator::Quotes::NOT_STRICT);
 
@@ -80,13 +81,13 @@ bool EncryptionHeaderIterator::GetNext() {
   bool found_rs = false;
 
   while (name_value_pairs.GetNext()) {
-    const base::StringPiece name = name_value_pairs.name_piece();
-    const base::StringPiece value = name_value_pairs.value_piece();
+    const std::string_view name = name_value_pairs.name();
+    const std::string_view value = name_value_pairs.value();
 
     if (base::EqualsCaseInsensitiveASCII(name, "keyid")) {
       if (found_keyid)
         return false;
-      keyid_.assign(value.data(), value.size());
+      keyid_ = value;
       found_keyid = true;
     } else if (base::EqualsCaseInsensitiveASCII(name, "salt")) {
       if (found_salt || !ValueToDecodedString(value, &salt_))
@@ -107,9 +108,10 @@ bool EncryptionHeaderIterator::GetNext() {
 CryptoKeyHeaderIterator::CryptoKeyHeaderIterator(
     std::string::const_iterator header_begin,
     std::string::const_iterator header_end)
-    : iterator_(header_begin, header_end, ',') {}
+    : iterator_(std::string_view(header_begin, header_end), /*delimiter=*/',') {
+}
 
-CryptoKeyHeaderIterator::~CryptoKeyHeaderIterator() {}
+CryptoKeyHeaderIterator::~CryptoKeyHeaderIterator() = default;
 
 bool CryptoKeyHeaderIterator::GetNext() {
   keyid_.clear();
@@ -120,7 +122,7 @@ bool CryptoKeyHeaderIterator::GetNext() {
     return false;
 
   net::HttpUtil::NameValuePairsIterator name_value_pairs(
-      iterator_.value_begin(), iterator_.value_end(), ';',
+      iterator_.value(), /*delimiter=*/';',
       net::HttpUtil::NameValuePairsIterator::Values::REQUIRED,
       net::HttpUtil::NameValuePairsIterator::Quotes::NOT_STRICT);
 
@@ -129,13 +131,13 @@ bool CryptoKeyHeaderIterator::GetNext() {
   bool found_dh = false;
 
   while (name_value_pairs.GetNext()) {
-    const base::StringPiece name = name_value_pairs.name_piece();
-    const base::StringPiece value = name_value_pairs.value_piece();
+    const std::string_view name = name_value_pairs.name();
+    const std::string_view value = name_value_pairs.value();
 
     if (base::EqualsCaseInsensitiveASCII(name, "keyid")) {
       if (found_keyid)
         return false;
-      keyid_.assign(value.data(), value.size());
+      keyid_ = value;
       found_keyid = true;
     } else if (base::EqualsCaseInsensitiveASCII(name, "aesgcm128")) {
       if (found_aesgcm128 || !ValueToDecodedString(value, &aesgcm128_))

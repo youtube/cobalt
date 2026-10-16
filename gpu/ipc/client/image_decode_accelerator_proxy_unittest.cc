@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "gpu/ipc/client/image_decode_accelerator_proxy.h"
 
 #include <memory>
@@ -43,6 +48,7 @@ class TestGpuChannelHost : public GpuChannelHost {
       : GpuChannelHost(kChannelId,
                        info,
                        GpuFeatureInfo(),
+                       SharedImageCapabilities(),
                        mojo::ScopedMessagePipeHandle(
                            mojo::MessagePipeHandle(mojo::kInvalidHandleValue))),
         gpu_channel_(gpu_channel) {}

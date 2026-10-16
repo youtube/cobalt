@@ -245,15 +245,16 @@ DomCode UsLayoutKeyboardCodeToDomCode(KeyboardCode key_code) {
 }
 
 KeyboardCode DomCodeToUsLayoutKeyboardCode(DomCode dom_code) {
-  const DomCodeToKeyboardCodeEntry* end =
-      kDomCodeToKeyboardCodeMap + std::size(kDomCodeToKeyboardCodeMap);
   const DomCodeToKeyboardCodeEntry* found = std::lower_bound(
-      kDomCodeToKeyboardCodeMap, end, dom_code,
+      std::begin(kDomCodeToKeyboardCodeMap),
+      std::end(kDomCodeToKeyboardCodeMap), dom_code,
       [](const DomCodeToKeyboardCodeEntry& a, DomCode b) {
         return static_cast<int>(a.dom_code) < static_cast<int>(b);
       });
-  if ((found != end) && (found->dom_code == dom_code))
+  if ((found != std::end(kDomCodeToKeyboardCodeMap)) &&
+      (found->dom_code == dom_code)) {
     return found->key_code;
+  }
 
   return VKEY_UNKNOWN;
 }
@@ -279,12 +280,15 @@ int ModifierDomKeyToEventFlag(DomKey key) {
       return EF_SHIFT_DOWN;
     case DomKey::SHIFT_LEVEL5:
       return EF_MOD3_DOWN;
+#if BUILDFLAG(IS_CHROMEOS)
+    case DomKey::FN:
+      return EF_FUNCTION_DOWN;
+#endif
     default:
       return EF_NONE;
   }
   // Not represented:
   //   DomKey::ACCEL
-  //   DomKey::FN
   //   DomKey::FN_LOCK
   //   DomKey::HYPER
   //   DomKey::NUM_LOCK

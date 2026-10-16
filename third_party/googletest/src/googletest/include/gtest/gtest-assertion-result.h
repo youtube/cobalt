@@ -46,6 +46,9 @@
 #include "gtest/gtest-message.h"
 #include "gtest/internal/gtest-port.h"
 
+GTEST_DISABLE_MSC_WARNINGS_PUSH_(4251                                   \
+/* class A needs to have dll-interface to be used by clients of class B */)
+
 namespace testing {
 
 // A class for indicating whether an assertion was successful.  When
@@ -127,6 +130,13 @@ namespace testing {
 //   Expected: Foo() is even
 //     Actual: it's 5
 //
+
+// Returned AssertionResult objects may not be ignored.
+// Note: Disabled for SWIG as it doesn't parse attributes correctly.
+#if !defined(SWIG)
+class [[nodiscard]] AssertionResult;
+#endif  // !SWIG
+
 class GTEST_API_ AssertionResult {
  public:
   // Copy constructor.
@@ -178,7 +188,7 @@ class GTEST_API_ AssertionResult {
   // assertion's expectation). When nothing has been streamed into the
   // object, returns an empty string.
   const char* message() const {
-    return message_.get() != nullptr ? message_->c_str() : "";
+    return message_ != nullptr ? message_->c_str() : "";
   }
   // Deprecated; please use message() instead.
   const char* failure_message() const { return message(); }
@@ -201,7 +211,7 @@ class GTEST_API_ AssertionResult {
  private:
   // Appends the contents of message to message_.
   void AppendMessage(const Message& a_message) {
-    if (message_.get() == nullptr) message_.reset(new ::std::string);
+    if (message_ == nullptr) message_ = ::std::make_unique<::std::string>();
     message_->append(a_message.GetString().c_str());
   }
 
@@ -228,5 +238,7 @@ GTEST_API_ AssertionResult AssertionFailure();
 GTEST_API_ AssertionResult AssertionFailure(const Message& msg);
 
 }  // namespace testing
+
+GTEST_DISABLE_MSC_WARNINGS_POP_()  // 4251
 
 #endif  // GOOGLETEST_INCLUDE_GTEST_GTEST_ASSERTION_RESULT_H_

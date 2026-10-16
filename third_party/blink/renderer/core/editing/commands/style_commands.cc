@@ -44,6 +44,7 @@
 #include "third_party/blink/renderer/core/editing/editor.h"
 #include "third_party/blink/renderer/core/editing/ephemeral_range.h"
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
+#include "third_party/blink/renderer/core/editing/ime/input_method_controller.h"
 #include "third_party/blink/renderer/core/editing/visible_position.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -97,7 +98,6 @@ bool StyleCommands::ApplyCommandToFrame(LocalFrame& frame,
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 bool StyleCommands::ExecuteApplyStyle(LocalFrame& frame,
@@ -152,11 +152,13 @@ bool StyleCommands::ExecuteFontSize(LocalFrame& frame,
                                     Event*,
                                     EditorCommandSource source,
                                     const String& value) {
-  CSSValueID size;
-  if (!HTMLFontElement::CssValueFromFontSizeNumber(value, size))
+  std::optional<CSSValueID> size =
+      HTMLFontElement::CssValueFromFontSizeNumber(value);
+  if (!size) {
     return false;
+  }
   return ExecuteApplyStyle(frame, source, InputEvent::InputType::kNone,
-                           CSSPropertyID::kFontSize, size);
+                           CSSPropertyID::kFontSize, *size);
 }
 
 bool StyleCommands::ExecuteFontSizeDelta(LocalFrame& frame,
@@ -292,9 +294,10 @@ String StyleCommands::ComputeToggleStyleInList(EditingStyle& selection_style,
                                                const CSSValue& value) {
   const CSSValue& selected_css_value =
       *selection_style.Style()->GetPropertyCSSValue(property_id);
-  if (IsA<CSSValueList>(selected_css_value)) {
+  if (auto* selected_value_list_original =
+          DynamicTo<CSSValueList>(selected_css_value)) {
     CSSValueList& selected_css_value_list =
-        *To<CSSValueList>(selected_css_value).Copy();
+        *selected_value_list_original->Copy();
     if (!selected_css_value_list.RemoveAll(value))
       selected_css_value_list.Append(value);
     if (selected_css_value_list.length())
@@ -373,6 +376,10 @@ bool StyleCommands::ExecuteUseCSS(LocalFrame& frame,
 EditingTriState StyleCommands::StateStyle(LocalFrame& frame,
                                           CSSPropertyID property_id,
                                           const char* desired_value) {
+  if (frame.GetInputMethodController().GetActiveEditContext()) {
+    return EditingTriState::kFalse;
+  }
+
   frame.GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
   if (frame.GetEditor().Behavior().ShouldToggleStyleBasedOnStartOfSelection()) {
     return SelectionStartHasStyle(frame, property_id, desired_value)
@@ -396,6 +403,10 @@ EditingTriState StyleCommands::StateStrikethrough(LocalFrame& frame, Event*) {
 }
 
 EditingTriState StyleCommands::StateStyleWithCSS(LocalFrame& frame, Event*) {
+  if (frame.GetInputMethodController().GetActiveEditContext()) {
+    return EditingTriState::kFalse;
+  }
+
   return frame.GetEditor().ShouldStyleWithCSS() ? EditingTriState::kTrue
                                                 : EditingTriState::kFalse;
 }
@@ -446,8 +457,9 @@ mojo_base::mojom::blink::TextDirection StyleCommands::TextDirectionForSelection(
       if (!node.IsStyledElement())
         continue;
 
+      Element& element = To<Element>(node);
       const CSSComputedStyleDeclaration& style =
-          *MakeGarbageCollected<CSSComputedStyleDeclaration>(&node);
+          *MakeGarbageCollected<CSSComputedStyleDeclaration>(&element);
       const CSSValue* unicode_bidi =
           style.GetPropertyCSSValue(CSSPropertyID::kUnicodeBidi);
       auto* unicode_bidi_identifier_value =
@@ -536,6 +548,10 @@ mojo_base::mojom::blink::TextDirection StyleCommands::TextDirectionForSelection(
 EditingTriState StyleCommands::StateTextWritingDirection(
     LocalFrame& frame,
     mojo_base::mojom::blink::TextDirection direction) {
+  if (frame.GetInputMethodController().GetActiveEditContext()) {
+    return EditingTriState::kFalse;
+  }
+
   frame.GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
 
   bool has_nested_or_multiple_embeddings;
@@ -594,6 +610,10 @@ String StyleCommands::SelectionStartCSSPropertyValue(
 }
 
 String StyleCommands::ValueStyle(LocalFrame& frame, CSSPropertyID property_id) {
+  if (frame.GetInputMethodController().GetActiveEditContext()) {
+    return g_empty_string;
+  }
+
   frame.GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
 
   // TODO(editing-dev): Rather than retrieving the style at the start of the

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 // This file contains the GLES2Decoder class.
 
 #ifndef GPU_COMMAND_BUFFER_SERVICE_GLES2_CMD_DECODER_H_
@@ -11,6 +16,7 @@
 
 #include <cstring>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/functional/callback_forward.h"
@@ -28,10 +34,6 @@
 
 namespace gl {
 class GLSurface;
-}
-
-namespace gfx {
-class Size;
 }
 
 namespace gpu {
@@ -124,7 +126,7 @@ class GPU_GLES2_EXPORT GLES2Decoder : public CommonDecoder,
                     const gfx::Rect& cleared_rect) override;
   void BeginDecoding() override;
   void EndDecoding() override;
-  base::StringPiece GetLogPrefix() override;
+  std::string_view GetLogPrefix() override;
 
   void set_initialized() {
     initialized_ = true;
@@ -156,9 +158,6 @@ class GPU_GLES2_EXPORT GLES2Decoder : public CommonDecoder,
   // The decoder should not be used until a new surface is set.
   virtual void ReleaseSurface() = 0;
 
-  virtual void TakeFrontBuffer(const Mailbox& mailbox) = 0;
-  virtual void ReturnFrontBuffer(const Mailbox& mailbox, bool is_lost) = 0;
-
   // This is intended only for use with NaCL swapchain, replacing
   // TakeFrontBuffer/ReturnFrontBuffer flow.
   virtual void SetDefaultFramebufferSharedImage(const Mailbox& mailbox,
@@ -166,9 +165,6 @@ class GPU_GLES2_EXPORT GLES2Decoder : public CommonDecoder,
                                                 bool preserve,
                                                 bool needs_depth,
                                                 bool needs_stencil) = 0;
-
-  // Resize an offscreen frame buffer.
-  virtual bool ResizeOffscreenFramebuffer(const gfx::Size& size) = 0;
 
   // Gets the GLES2 Util which holds info.
   virtual GLES2Util* GetGLES2Util() = 0;
@@ -179,8 +175,6 @@ class GPU_GLES2_EXPORT GLES2Decoder : public CommonDecoder,
   virtual void SetIgnoreCachedStateForTest(bool ignore) = 0;
   virtual void SetForceShaderNameHashingForTest(bool force) = 0;
   virtual uint32_t GetAndClearBackbufferClearBitsForTest();
-  virtual size_t GetSavedBackTextureCountForTest() = 0;
-  virtual size_t GetCreatedBackTextureCountForTest() = 0;
 
   // Gets the FramebufferManager for this context.
   virtual FramebufferManager* GetFramebufferManager() = 0;

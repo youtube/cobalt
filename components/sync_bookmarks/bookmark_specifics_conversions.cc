@@ -5,6 +5,7 @@
 #include "components/sync_bookmarks/bookmark_specifics_conversions.h"
 
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -21,14 +22,15 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "base/uuid.h"
-#include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/browser/bookmark_node.h"
+#include "components/bookmarks/browser/bookmark_uuids.h"
 #include "components/bookmarks/common/bookmark_metrics.h"
 #include "components/favicon/core/favicon_service.h"
 #include "components/sync/base/unique_position.h"
 #include "components/sync/protocol/bookmark_specifics.pb.h"
 #include "components/sync/protocol/entity_data.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
+#include "components/sync_bookmarks/bookmark_model_view.h"
 #include "components/sync_bookmarks/switches.h"
 #include "ui/gfx/favicon_size.h"
 #include "url/gurl.h"
@@ -52,6 +54,7 @@ const int kMaxFaviconUrlSize = 4096;
 // Used in metrics: "Sync.InvalidBookmarkSpecifics". These values are
 // persisted to logs. Entries should not be renumbered and numeric values
 // should never be reused.
+// LINT.IfChange(InvalidBookmarkSpecificsError)
 enum class InvalidBookmarkSpecificsError {
   kEmptySpecifics = 0,
   kInvalidURL = 1,
@@ -65,6 +68,7 @@ enum class InvalidBookmarkSpecificsError {
 
   kMaxValue = kBannedGUID,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/sync/enums.xml:InvalidBookmarkSpecificsError)
 
 void LogInvalidSpecifics(InvalidBookmarkSpecificsError error) {
   base::UmaHistogramEnumeration("Sync.InvalidBookmarkSpecifics", error);
@@ -109,9 +113,8 @@ void SetBookmarkFaviconFromSpecifics(
                                              bookmark_node->GetTitle());
 
   const std::string& icon_bytes_str = specifics.favicon();
-  scoped_refptr<base::RefCountedString> icon_bytes(
-      new base::RefCountedString());
-  icon_bytes->data().assign(icon_bytes_str);
+  auto icon_bytes = base::MakeRefCounted<base::RefCountedString>();
+  icon_bytes->as_string().assign(icon_bytes_str);
 
   GURL icon_url(specifics.icon_url());
 
@@ -169,7 +172,7 @@ std::string ComputeGuidFromBytes(base::span<const uint8_t> bytes) {
 
 // This is an exact copy of the same code in bookmark_update_preprocessing.cc,
 // which could be removed if eventually client tags are adapted/inferred in
-// ModelTypeWorker. The reason why this is non-trivial today is that some users
+// DataTypeWorker. The reason why this is non-trivial today is that some users
 // are known to contain corrupt data in the sense that several different
 // entities (identified by their server-provided ID) use the same client tag
 // (and UUID). Currently BookmarkModelMerger has logic to prefer folders over
@@ -182,12 +185,11 @@ std::string InferGuidForLegacyBookmark(
 
   const std::string unique_tag =
       base::StrCat({originator_cache_guid, originator_client_item_id});
-  const base::SHA1Digest hash =
-      base::SHA1HashSpan(base::as_bytes(base::make_span(unique_tag)));
+  const base::SHA1Digest hash = base::SHA1Hash(base::as_byte_span(unique_tag));
 
   static_assert(base::kSHA1Length >= 16, "16 bytes needed to infer UUID");
 
-  const std::string guid = ComputeGuidFromBytes(base::make_span(hash));
+  const std::string guid = ComputeGuidFromBytes(base::span(hash));
   DCHECK(base::Uuid::ParseLowercase(guid).is_valid());
   return guid;
 }
@@ -198,23 +200,7 @@ bool IsForbiddenTitleWithMaybeTrailingSpaces(const std::string& title) {
       base::TrimWhitespaceASCII(title, base::TrimPositions::TRIM_TRAILING));
 }
 
-std::u16string NodeTitleFromSpecifics(
-    const sync_pb::BookmarkSpecifics& specifics) {
-  if (specifics.has_full_title()) {
-    return base::UTF8ToUTF16(specifics.full_title());
-  }
-
-  std::string node_title = specifics.legacy_canonicalized_title();
-  if (base::EndsWith(node_title, " ") &&
-      IsForbiddenTitleWithMaybeTrailingSpaces(node_title)) {
-    // Legacy clients added an extra space to the real title, so remove it here.
-    // See also FullTitleToLegacyCanonicalizedTitle().
-    node_title.pop_back();
-  }
-  return base::UTF8ToUTF16(node_title);
-}
-
-void MoveAllChildren(bookmarks::BookmarkModel* model,
+void MoveAllChildren(BookmarkModelView* model,
                      const bookmarks::BookmarkNode* old_parent,
                      const bookmarks::BookmarkNode* new_parent) {
   DCHECK(old_parent && old_parent->is_folder());
@@ -256,6 +242,22 @@ std::string FullTitleToLegacyCanonicalizedTitle(const std::string& node_title) {
   return specifics_title;
 }
 
+std::u16string NodeTitleFromSpecifics(
+    const sync_pb::BookmarkSpecifics& specifics) {
+  if (specifics.has_full_title()) {
+    return base::UTF8ToUTF16(specifics.full_title());
+  }
+
+  std::string node_title = specifics.legacy_canonicalized_title();
+  if (base::EndsWith(node_title, " ") &&
+      IsForbiddenTitleWithMaybeTrailingSpaces(node_title)) {
+    // Legacy clients added an extra space to the real title, so remove it here.
+    // See also FullTitleToLegacyCanonicalizedTitle().
+    node_title.pop_back();
+  }
+  return base::UTF8ToUTF16(node_title);
+}
+
 bool IsBookmarkEntityReuploadNeeded(
     const syncer::EntityData& remote_entity_data) {
   DCHECK(remote_entity_data.server_defined_unique_tag.empty());
@@ -275,7 +277,7 @@ bool IsBookmarkEntityReuploadNeeded(
 
 sync_pb::EntitySpecifics CreateSpecificsFromBookmarkNode(
     const bookmarks::BookmarkNode* node,
-    bookmarks::BookmarkModel* model,
+    BookmarkModelView* model,
     const sync_pb::UniquePosition& unique_position,
     bool force_favicon_load) {
   sync_pb::EntitySpecifics specifics;
@@ -324,15 +326,13 @@ sync_pb::EntitySpecifics CreateSpecificsFromBookmarkNode(
   }
 
   if (favicon_bytes.get() && favicon_bytes->size() != 0) {
-    bm_specifics->set_favicon(favicon_bytes->front(), favicon_bytes->size());
+    bm_specifics->set_favicon(favicon_bytes->data(), favicon_bytes->size());
     // Avoid sync-ing favicon URLs that are unreasonably large, as determined by
     // |kMaxFaviconUrlSize|. Most notably, URLs prefixed with the data: scheme
     // to embed the content of the image itself in the URL may be arbitrarily
     // large and run into the server-side enforced limit per sync entity.
     if (node->icon_url() &&
-        (node->icon_url()->spec().size() <= kMaxFaviconUrlSize ||
-         !base::FeatureList::IsEnabled(
-             switches::kSyncOmitLargeBookmarkFaviconUrl))) {
+        node->icon_url()->spec().size() <= kMaxFaviconUrlSize) {
       bm_specifics->set_icon_url(node->icon_url()->spec());
     } else {
       bm_specifics->set_icon_url(std::string());
@@ -346,7 +346,7 @@ const bookmarks::BookmarkNode* CreateBookmarkNodeFromSpecifics(
     const sync_pb::BookmarkSpecifics& specifics,
     const bookmarks::BookmarkNode* parent,
     size_t index,
-    bookmarks::BookmarkModel* model,
+    BookmarkModelView* model,
     favicon::FaviconService* favicon_service) {
   DCHECK(parent);
   DCHECK(model);
@@ -374,7 +374,6 @@ const bookmarks::BookmarkNode* CreateBookmarkNodeFromSpecifics(
   switch (specifics.type()) {
     case sync_pb::BookmarkSpecifics::UNSPECIFIED:
       NOTREACHED();
-      break;
     case sync_pb::BookmarkSpecifics::URL: {
       const bookmarks::BookmarkNode* node =
           model->AddURL(parent, index, NodeTitleFromSpecifics(specifics),
@@ -386,7 +385,7 @@ const bookmarks::BookmarkNode* CreateBookmarkNodeFromSpecifics(
                 // Use FromDeltaSinceWindowsEpoch because last_used_time_us has
                 // always used the Windows epoch.
                 base::Microseconds(last_used_time_us));
-        model->UpdateLastUsedTime(node, last_used_time);
+        model->UpdateLastUsedTime(node, last_used_time, /*just_opened=*/false);
       }
       SetBookmarkFaviconFromSpecifics(specifics, node, favicon_service);
       return node;
@@ -397,13 +396,12 @@ const bookmarks::BookmarkNode* CreateBookmarkNodeFromSpecifics(
   }
 
   NOTREACHED();
-  return nullptr;
 }
 
 void UpdateBookmarkNodeFromSpecifics(
     const sync_pb::BookmarkSpecifics& specifics,
     const bookmarks::BookmarkNode* node,
-    bookmarks::BookmarkModel* model,
+    BookmarkModelView* model,
     favicon::FaviconService* favicon_service) {
   DCHECK(node);
   DCHECK(model);
@@ -414,13 +412,11 @@ void UpdateBookmarkNodeFromSpecifics(
   base::Uuid guid = base::Uuid::ParseLowercase(specifics.guid());
   DCHECK(!guid.is_valid() || guid == node->uuid());
 
-  model->SetTitle(node, NodeTitleFromSpecifics(specifics),
-                  bookmarks::metrics::BookmarkEditSource::kOther);
+  model->SetTitle(node, NodeTitleFromSpecifics(specifics));
   model->SetNodeMetaInfoMap(node, GetBookmarkMetaInfo(specifics));
 
   if (!node->is_folder()) {
-    model->SetURL(node, GURL(specifics.url()),
-                  bookmarks::metrics::BookmarkEditSource::kOther);
+    model->SetURL(node, GURL(specifics.url()));
     SetBookmarkFaviconFromSpecifics(specifics, node, favicon_service);
 
     if (specifics.has_last_used_time_us()) {
@@ -429,7 +425,7 @@ void UpdateBookmarkNodeFromSpecifics(
           // Use FromDeltaSinceWindowsEpoch because last_used_time_us has
           // always used the Windows epoch.
           base::Microseconds(last_used_time_us));
-      model->UpdateLastUsedTime(node, last_used_time);
+      model->UpdateLastUsedTime(node, last_used_time, /*just_opened=*/false);
     }
   }
 }
@@ -454,7 +450,7 @@ sync_pb::BookmarkSpecifics::Type GetProtoTypeFromBookmarkNode(
 const bookmarks::BookmarkNode* ReplaceBookmarkNodeUuid(
     const bookmarks::BookmarkNode* node,
     const base::Uuid& guid,
-    bookmarks::BookmarkModel* model) {
+    BookmarkModelView* model) {
   DCHECK(guid.is_valid());
 
   if (node->uuid() == guid) {
@@ -475,14 +471,14 @@ const bookmarks::BookmarkNode* ReplaceBookmarkNodeUuid(
                       node->date_added(), guid);
   }
 
-  model->Remove(node, bookmarks::metrics::BookmarkEditSource::kOther);
+  model->Remove(node, FROM_HERE);
 
   return new_node;
 }
 
 bool IsValidBookmarkSpecifics(const sync_pb::BookmarkSpecifics& specifics) {
   bool is_valid = true;
-  if (specifics.ByteSize() == 0) {
+  if (specifics.ByteSizeLong() == 0) {
     DLOG(ERROR) << "Invalid bookmark: empty specifics.";
     LogInvalidSpecifics(InvalidBookmarkSpecificsError::kEmptySpecifics);
     is_valid = false;
@@ -494,7 +490,7 @@ bool IsValidBookmarkSpecifics(const sync_pb::BookmarkSpecifics& specifics) {
     LogInvalidSpecifics(InvalidBookmarkSpecificsError::kInvalidGUID);
     is_valid = false;
   } else if (guid.AsLowercaseString() ==
-             bookmarks::BookmarkNode::kBannedUuidDueToPastSyncBug) {
+             bookmarks::kBannedUuidDueToPastSyncBug) {
     DLOG(ERROR) << "Invalid bookmark: banned UUID in specifics.";
     LogInvalidSpecifics(InvalidBookmarkSpecificsError::kBannedGUID);
     is_valid = false;
@@ -510,7 +506,7 @@ bool IsValidBookmarkSpecifics(const sync_pb::BookmarkSpecifics& specifics) {
 
   switch (specifics.type()) {
     case sync_pb::BookmarkSpecifics::UNSPECIFIED:
-      // Note that old data doesn't run into this because ModelTypeWorker takes
+      // Note that old data doesn't run into this because DataTypeWorker takes
       // care of backfilling the field.
       DLOG(ERROR) << "Invalid bookmark: invalid type in specifics.";
       is_valid = false;
@@ -548,7 +544,7 @@ bool IsValidBookmarkSpecifics(const sync_pb::BookmarkSpecifics& specifics) {
   }
 
   // Verify all keys in meta_info are unique.
-  std::unordered_set<base::StringPiece, base::StringPieceHash> keys;
+  std::unordered_set<std::string_view> keys;
   for (const sync_pb::MetaInfo& meta_info : specifics.meta_info()) {
     if (!keys.insert(meta_info.key()).second) {
       DLOG(ERROR) << "Invalid bookmark: keys in meta_info aren't unique.";

@@ -33,6 +33,7 @@ from blinkpy.common.system.system_host_mock import MockSystemHost
 from blinkpy.web_tests.port.base import Port
 from blinkpy.web_tests.port.driver import Driver
 from blinkpy.web_tests.port.driver import coalesce_repeated_switches
+from blinkpy.web_tests.port.factory import command_wrapper
 from blinkpy.web_tests.port.server_process_mock import MockServerProcess
 
 
@@ -40,19 +41,19 @@ class DriverTest(unittest.TestCase):
 
     # pylint: disable=protected-access
 
-    def make_port(self):
-        return Port(MockSystemHost(), 'test',
-                    optparse.Values({
-                        'configuration': 'Release'
-                    }))
+    def make_port(self, **extra_options):
+        return Port(
+            MockSystemHost(), 'test',
+            optparse.Values({
+                'configuration': 'Release',
+                **extra_options,
+            }))
 
     def _assert_wrapper(self, wrapper_string, expected_wrapper):
-        wrapper = Driver(self.make_port(),
-                         None)._command_wrapper(wrapper_string)
+        wrapper = command_wrapper(wrapper_string)
         self.assertEqual(wrapper, expected_wrapper)
 
     def test_command_wrapper(self):
-        self._assert_wrapper(None, [])
         self._assert_wrapper('valgrind', ['valgrind'])
 
         # Validate that shlex works as expected.
@@ -201,6 +202,14 @@ class DriverTest(unittest.TestCase):
         self.assertEqual(cmd_line[-1], '-')
         self.assertIn('--no-timeout', cmd_line)
 
+    def test_disable_system_font_check(self):
+        port = self.make_port()
+        driver = Driver(port, 0)
+        self.assertNotIn('--disable-system-font-check', driver.cmd_line([]))
+        port = self.make_port(nocheck_sys_deps=True)
+        driver = Driver(port, 0)
+        self.assertIn('--disable-system-font-check', driver.cmd_line([]))
+
     def test_check_for_driver_crash(self):
         port = self.make_port()
         driver = Driver(port, 0)
@@ -218,7 +227,10 @@ class DriverTest(unittest.TestCase):
             def has_crashed(self):
                 return self.crashed
 
-            def stop(self, timeout=0.0):
+            def stop(self,
+                     timeout_secs=0.0,
+                     kill_tree=True,
+                     send_sigterm=False):
                 pass
 
         def assert_crash(driver,

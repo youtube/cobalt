@@ -46,7 +46,6 @@ uint8_t AdjustGroup(uint8_t group, uint8_t group_info) {
   }
 
   NOTREACHED();
-  return 0;
 }
 
 // Ported from XkbTranslateKeycode:

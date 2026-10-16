@@ -30,7 +30,7 @@ class Document;
 // CSSPropertyRef (e.g. if a non-existent property name is provided), so be
 // sure to always check IsValid() before calling GetProperty().
 class CORE_EXPORT CSSPropertyRef {
-  DISALLOW_NEW();
+  STACK_ALLOCATED();
 
  public:
   // Look up (or create) a CSSProperty.
@@ -64,12 +64,10 @@ class CORE_EXPORT CSSPropertyRef {
 
   const CSSUnresolvedProperty& GetUnresolvedProperty() const {
     if (IsPropertyAlias(property_id_)) {
-      return *CSSUnresolvedProperty::GetAliasProperty(property_id_);
+      return *GetPropertyInternal(property_id_);
     }
     return GetProperty();
   }
-
-  void Trace(Visitor* visitor) const { visitor->Trace(custom_property_); }
 
  private:
   CSSPropertyID property_id_;

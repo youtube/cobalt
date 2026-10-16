@@ -4,26 +4,24 @@
 
 #include "content/browser/media/audio_input_stream_broker.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/memory/read_only_shared_memory_region.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "content/browser/browser_main_loop.h"
+#include "content/browser/media/audio_stream_broker_helper.h"
 #include "content/browser/media/media_internals.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "media/audio/audio_logging.h"
 #include "media/base/media_switches.h"
-#include "media/base/user_input_monitor.h"
 #include "media/mojo/mojom/audio_processing.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 
@@ -37,7 +35,6 @@ AudioInputStreamBroker::AudioInputStreamBroker(
     const std::string& device_id,
     const media::AudioParameters& params,
     uint32_t shared_memory_count,
-    media::UserInputMonitorBase* user_input_monitor,
     bool enable_agc,
     media::mojom::AudioProcessingConfigPtr processing_config,
     AudioStreamBroker::DeleterCallback deleter,
@@ -47,7 +44,6 @@ AudioInputStreamBroker::AudioInputStreamBroker(
       device_id_(device_id),
       params_(params),
       shared_memory_count_(shared_memory_count),
-      user_input_monitor_(user_input_monitor),
       enable_agc_(enable_agc),
       deleter_(std::move(deleter)),
       processing_config_(std::move(processing_config)),
@@ -61,7 +57,8 @@ AudioInputStreamBroker::AudioInputStreamBroker(
   renderer_factory_client_.set_disconnect_handler(base::BindOnce(
       &AudioInputStreamBroker::ClientBindingLost, base::Unretained(this)));
 
-  NotifyProcessHostOfStartedStream(render_process_id);
+  NotifyFrameHostOfAudioStreamStarted(render_process_id, render_frame_id,
+                                      /*is_capturing=*/true);
 
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kUseFakeDeviceForMediaStream)) {
@@ -72,14 +69,10 @@ AudioInputStreamBroker::AudioInputStreamBroker(
 AudioInputStreamBroker::~AudioInputStreamBroker() {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
-  // This relies on CreateStream() being called synchronously right after the
-  // constructor.
-  if (user_input_monitor_)
-    user_input_monitor_->DisableKeyPressMonitoring();
+  NotifyFrameHostOfAudioStreamStopped(render_process_id(), render_frame_id(),
+                                      /*is_capturing=*/true);
 
-  NotifyProcessHostOfStoppedStream(render_process_id());
-
-  // TODO(https://crbug.com/829317) update tab recording indicator.
+  // TODO(crbug.com/40091014) update tab recording indicator.
 
   if (awaiting_created_) {
     TRACE_EVENT_NESTABLE_ASYNC_END1("audio", "CreateStream", this, "success",
@@ -98,12 +91,6 @@ void AudioInputStreamBroker::CreateStream(
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN1("audio", "CreateStream", this, "device id",
                                     device_id_);
   awaiting_created_ = true;
-
-  base::ReadOnlySharedMemoryRegion key_press_count_buffer;
-  if (user_input_monitor_) {
-    key_press_count_buffer =
-        user_input_monitor_->EnableKeyPressMonitoringWithMapping();
-  }
 
   mojo::PendingRemote<media::mojom::AudioInputStreamClient> client;
   pending_client_receiver_ = client.InitWithNewPipeAndPassReceiver();
@@ -126,24 +113,24 @@ void AudioInputStreamBroker::CreateStream(
   factory->CreateInputStream(
       std::move(stream_receiver), std::move(client), std::move(observer),
       MediaInternals::GetInstance()->CreateMojoAudioLog(
-          media::AudioLogFactory::AudioComponent::AUDIO_INPUT_CONTROLLER,
+          media::AudioLogFactory::AudioComponent::kAudioInputController,
           log_component_id, render_process_id(), render_frame_id()),
       device_id_, params_, shared_memory_count_, enable_agc_,
-      std::move(key_press_count_buffer), std::move(processing_config_),
+      std::move(processing_config_),
       base::BindOnce(&AudioInputStreamBroker::StreamCreated,
                      weak_ptr_factory_.GetWeakPtr(), std::move(stream)));
 }
 
 void AudioInputStreamBroker::DidStartRecording() {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
-  // TODO(https://crbug.com/829317) update tab recording indicator.
+  // TODO(crbug.com/40091014) update tab recording indicator.
 }
 
 void AudioInputStreamBroker::StreamCreated(
     mojo::PendingRemote<media::mojom::AudioInputStream> stream,
-    media::mojom::ReadOnlyAudioDataPipePtr data_pipe,
+    media::mojom::ReadWriteAudioDataPipePtr data_pipe,
     bool initially_muted,
-    const absl::optional<base::UnguessableToken>& stream_id) {
+    const std::optional<base::UnguessableToken>& stream_id) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   awaiting_created_ = false;
   TRACE_EVENT_NESTABLE_ASYNC_END1("audio", "CreateStream", this, "success",

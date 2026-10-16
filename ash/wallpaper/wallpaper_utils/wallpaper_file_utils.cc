@@ -2,13 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ash/wallpaper/wallpaper_utils/wallpaper_file_utils.h"
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/logging.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/threading/thread_restrictions.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+#include "third_party/skia/include/core/SkData.h"
+#include "third_party/skia/include/core/SkPixmap.h"
+#include "third_party/skia/include/encode/SkJpegEncoder.h"
 #include "ui/gfx/codec/jpeg_codec.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/image/image_skia.h"
@@ -20,24 +30,64 @@ namespace {
 // Default quality for encoding wallpaper.
 constexpr int kDefaultEncodingQuality = 90;
 
-// Resizes |image| to a resolution which is nearest to |preferred_width| and
-// |preferred_height| while respecting the |layout| choice. Encodes the image to
-// JPEG and saves to |output|. Returns true on success.
-bool ResizeAndEncodeImage(const gfx::ImageSkia& image,
-                          WallpaperLayout layout,
-                          int preferred_width,
-                          int preferred_height,
-                          scoped_refptr<base::RefCountedBytes>* output) {
-  int width = image.width();
-  int height = image.height();
+// Encodes `image_skia` to jpg with `image_metadata` encoded in the header.
+// `output` will be in an undefined state on failure.
+bool EncodeImage(const gfx::ImageSkia& image_skia,
+                 const std::string& image_metadata,
+                 scoped_refptr<base::RefCountedBytes>* output) {
+  base::AssertLongCPUWorkAllowed();
+  SkBitmap bitmap = *(image_skia.bitmap());
+  DCHECK(!bitmap.drawsNothing());
+  *output = base::MakeRefCounted<base::RefCountedBytes>();
+
+  if (image_metadata.empty()) {
+    std::optional<std::vector<uint8_t>> data =
+        gfx::JPEGCodec::Encode(bitmap, kDefaultEncodingQuality);
+    if (!data) {
+      return false;
+    }
+    (*output)->as_vector() = std::move(data.value());
+    return true;
+  }
+
+  SkPixmap pixmap;
+  if (!bitmap.peekPixels(&pixmap)) {
+    LOG(WARNING) << "Failed to read bitmap pixels";
+    return false;
+  }
+
+  auto xmp_metadata = SkData::MakeWithCString(image_metadata.c_str());
+
+  std::optional<std::vector<uint8_t>> data = gfx::JPEGCodec::Encode(
+      pixmap, kDefaultEncodingQuality, SkJpegEncoder::Downsample::k420,
+      xmp_metadata.get());
+  if (!data) {
+    return false;
+  }
+  (*output)->as_vector() = std::move(data.value());
+  return true;
+}
+
+// Resizes `image` to a resolution which is nearest to `preferred_width` and
+// `preferred_height` while respecting the `layout` choice. Returns empty
+// `ImageSkia` on failure.
+gfx::ImageSkia ResizeImage(const gfx::ImageSkia& image_skia,
+                           const WallpaperLayout layout,
+                           const gfx::Size preferred_size) {
+  const int width = image_skia.width();
+  const int height = image_skia.height();
+  const int preferred_width = preferred_size.width();
+  const int preferred_height = preferred_size.height();
   int resized_width;
   int resized_height;
-  *output = base::MakeRefCounted<base::RefCountedBytes>();
 
   if (layout == WALLPAPER_LAYOUT_CENTER_CROPPED) {
     // Do not resize wallpaper if it is smaller than preferred size.
     if (width < preferred_width || height < preferred_height) {
-      return false;
+      DVLOG(1) << "Skip resize. Size=" << image_skia.size().ToString()
+               << " Preferred_Size="
+               << gfx::Size(preferred_width, preferred_height).ToString();
+      return gfx::ImageSkia();
     }
 
     // TODO(esum): This is the same scaling logic as what's in
@@ -61,12 +111,41 @@ bool ResizeAndEncodeImage(const gfx::ImageSkia& image,
     resized_height = height;
   }
 
-  gfx::ImageSkia resized_image = gfx::ImageSkiaOperations::CreateResizedImage(
-      image, skia::ImageOperations::RESIZE_LANCZOS3,
+  return gfx::ImageSkiaOperations::CreateResizedImage(
+      image_skia, skia::ImageOperations::RESIZE_LANCZOS3,
       gfx::Size(resized_width, resized_height));
+}
 
-  SkBitmap bitmap = *(resized_image.bitmap());
-  gfx::JPEGCodec::Encode(bitmap, kDefaultEncodingQuality, &(*output)->data());
+bool SaveWallpaper(const gfx::ImageSkia& image,
+                   const base::FilePath& path,
+                   const std::string& image_metadata) {
+  scoped_refptr<base::RefCountedBytes> data;
+  if (!EncodeImage(image, image_metadata, &data)) {
+    LOG(WARNING) << "Encoding wallpaper image failed";
+    return false;
+  }
+
+  // Write to `temp_path` to reduce the chance of read/write
+  // collisions from different sequences. This avoids issues with policy
+  // wallpaper at login: b/280578317.
+  base::FilePath temp_path;
+  if (!base::CreateTemporaryFileInDir(path.DirName(), &temp_path)) {
+    LOG(WARNING) << "Failed to create temporary file";
+    return false;
+  }
+
+  if (!base::WriteFile(temp_path, base::span(*data))) {
+    LOG(WARNING) << "Failed to write wallpaper data to temporary file";
+    base::DeleteFile(temp_path);
+    return false;
+  }
+
+  if (!base::Move(temp_path, path)) {
+    LOG(WARNING) << "Failed to copy temporary wallpaper data to " << path;
+    base::DeleteFile(temp_path);
+    return false;
+  }
+
   return true;
 }
 
@@ -74,23 +153,24 @@ bool ResizeAndEncodeImage(const gfx::ImageSkia& image,
 
 bool ResizeAndSaveWallpaper(const gfx::ImageSkia& image,
                             const base::FilePath& path,
-                            WallpaperLayout layout,
-                            int preferred_width,
-                            int preferred_height) {
-  if (layout == WALLPAPER_LAYOUT_CENTER) {
-    if (base::PathExists(path)) {
-      base::DeleteFile(path);
-    }
-    return false;
-  }
-  scoped_refptr<base::RefCountedBytes> data;
-  if (!ResizeAndEncodeImage(image, layout, preferred_width, preferred_height,
-                            &data)) {
+                            const WallpaperLayout layout,
+                            const gfx::Size preferred_size,
+                            const std::string& image_metadata) {
+  gfx::ImageSkia resized_image = ResizeImage(image, layout, preferred_size);
+  if (resized_image.isNull()) {
+    LOG(WARNING) << "Failed to resize image";
     return false;
   }
 
-  // Saves |data| to |path| in local file system.
-  return base::WriteFile(path, base::make_span(data->front(), data->size()));
+  return SaveWallpaper(resized_image, path, image_metadata);
+}
+
+void CreateDirectoryAndLogError(const base::FilePath& directory) {
+  DCHECK(!directory.empty());
+  base::File::Error error;
+  if (!base::CreateDirectoryAndGetError(directory, &error)) {
+    LOG(WARNING) << "Failed to create wallpaper directory: " << error;
+  }
 }
 
 }  // namespace ash

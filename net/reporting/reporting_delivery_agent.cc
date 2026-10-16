@@ -13,6 +13,7 @@
 
 #include "base/check.h"
 #include "base/containers/contains.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/json/json_writer.h"
 #include "base/memory/raw_ptr.h"
@@ -21,6 +22,7 @@
 #include "base/time/tick_clock.h"
 #include "base/timer/timer.h"
 #include "base/values.h"
+#include "net/base/features.h"
 #include "net/base/isolation_info.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/base/url_util.h"
@@ -30,6 +32,7 @@
 #include "net/reporting/reporting_delegate.h"
 #include "net/reporting/reporting_endpoint_manager.h"
 #include "net/reporting/reporting_report.h"
+#include "net/reporting/reporting_target_type.h"
 #include "net/reporting/reporting_uploader.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -38,7 +41,8 @@ namespace net {
 
 namespace {
 
-using ReportList = std::vector<const ReportingReport*>;
+using ReportList =
+    std::vector<raw_ptr<const ReportingReport, VectorExperimental>>;
 using ReportingUploadHeaderType =
     ReportingDeliveryAgent::ReportingUploadHeaderType;
 
@@ -48,8 +52,27 @@ void RecordReportingUploadHeaderType(ReportingUploadHeaderType header_type) {
 
 std::string SerializeReports(const ReportList& reports, base::TimeTicks now) {
   base::Value::List reports_value;
+  const bool can_exclude_report_with_large_body =
+      base::FeatureList::IsEnabled(features::kExcludeLargeBodyReports);
+  const size_t max_body_size_bytes =
+      features::kMaxReportBodySizeKB.Get() * 1024;  // Convert KB to bytes
+  base::UmaHistogramCounts100("Net.Reporting.ReportsCount", reports.size());
 
   for (const ReportingReport* report : reports) {
+    // If the size of report->body is less than max_body_size_bytes, include it
+    // in the JSON. The body can be of media type, which may result in a large
+    // size. Therefore, excluding the body part can help reduce the JSON size
+    // without affecting eviction.
+
+    // Calculate memory usage and conditionally include the body.
+    const size_t body_size = report->body.EstimateMemoryUsage();
+    base::UmaHistogramMemoryKB("Net.Reporting.ReportBodySize",
+                               body_size / 1024);
+    // If the body size is greater than the max allowed size, skip object.
+    if (can_exclude_report_with_large_body && body_size > max_body_size_bytes) {
+      continue;
+    }
+
     base::Value::Dict report_value;
 
     report_value.Set("age", base::saturated_cast<int>(
@@ -61,10 +84,16 @@ std::string SerializeReports(const ReportList& reports, base::TimeTicks now) {
 
     reports_value.Append(std::move(report_value));
   }
-
+  base::UmaHistogramCounts100("Net.Reporting.FilteredReportsCount",
+                              reports_value.size());
+  base::UmaHistogramMemoryKB("Net.Reporting.ReportTotalSize",
+                             reports_value.EstimateMemoryUsage() / 1024);
+  if (reports_value.empty()) {
+    return std::string();
+  }
   std::string json_out;
   bool json_written = base::JSONWriter::Write(reports_value, &json_out);
-  DCHECK(json_written);
+  CHECK(json_written);
   return json_out;
 }
 
@@ -81,26 +110,28 @@ class Delivery {
   // Note that |origin| here (which matches the report's |origin|) is not
   // necessarily the same as the |origin| of the ReportingEndpoint's group key
   // (if the endpoint is configured to include subdomains). Reports with
-  // different group keys can be in the same delivery, as long as the NIK,
+  // different group keys can be in the same delivery, as long as the NAK,
   // report origin and reporting source are the same, and they all get assigned
   // to the same endpoint URL.
   // |isolation_info| is the IsolationInfo struct associated with the reporting
   // endpoint, and is used to determine appropriate credentials for the upload.
-  // |network_anonymization_key| is the NIK from the ReportingEndpoint, which
+  // |network_anonymization_key| is the NAK from the ReportingEndpoint, which
   // may have been cleared in the ReportingService if reports are not being
-  // partitioned by NIK. (This is why a separate parameter is used here, rather
-  // than simply using the computed NIK from |isolation_info|.)
+  // partitioned by NAK. (This is why a separate parameter is used here, rather
+  // than simply using the computed NAK from |isolation_info|.)
   struct Target {
     Target(const IsolationInfo& isolation_info,
            const NetworkAnonymizationKey& network_anonymization_key,
            const url::Origin& origin,
            const GURL& endpoint_url,
-           const absl::optional<base::UnguessableToken> reporting_source)
+           const std::optional<base::UnguessableToken> reporting_source,
+           ReportingTargetType target_type)
         : isolation_info(isolation_info),
           network_anonymization_key(network_anonymization_key),
           origin(origin),
           endpoint_url(endpoint_url),
-          reporting_source(reporting_source) {
+          reporting_source(reporting_source),
+          target_type(target_type) {
       DCHECK(network_anonymization_key.IsEmpty() ||
              network_anonymization_key ==
                  isolation_info.network_anonymization_key());
@@ -109,46 +140,77 @@ class Delivery {
     ~Target() = default;
 
     bool operator<(const Target& other) const {
-      // Note that sorting by NIK here is required for V0 reports; V1 reports
+      // Note that sorting by NAK here is required for V0 reports; V1 reports
       // should not need this (but it doesn't hurt). We can remove that as a
       // comparison key when V0 reporting endpoints are removed.
       return std::tie(network_anonymization_key, origin, endpoint_url,
-                      reporting_source) <
+                      reporting_source, target_type) <
              std::tie(other.network_anonymization_key, other.origin,
-                      other.endpoint_url, other.reporting_source);
+                      other.endpoint_url, other.reporting_source,
+                      other.target_type);
     }
 
     IsolationInfo isolation_info;
     NetworkAnonymizationKey network_anonymization_key;
     url::Origin origin;
     GURL endpoint_url;
-    absl::optional<base::UnguessableToken> reporting_source;
+    std::optional<base::UnguessableToken> reporting_source;
+    ReportingTargetType target_type;
   };
 
   explicit Delivery(const Target& target) : target_(target) {}
 
   ~Delivery() = default;
 
-  // Add the reports in [reports_begin, reports_end) into this delivery.
-  // Modify the report counter for the |endpoint| to which this delivery is
-  // destined.
-  void AddReports(const ReportingEndpoint& endpoint,
-                  const ReportList::const_iterator reports_begin,
-                  const ReportList::const_iterator reports_end) {
+  // Add the developer reports in [reports_begin, reports_end) into this
+  // delivery. Modify the report counter for the |endpoint| to which this
+  // delivery is destined.
+  void AddDeveloperReports(const ReportingEndpoint& endpoint,
+                           const ReportList::const_iterator reports_begin,
+                           const ReportList::const_iterator reports_end) {
     DCHECK(reports_begin != reports_end);
     DCHECK(endpoint.group_key.network_anonymization_key ==
            network_anonymization_key());
-    DCHECK(IsSubdomainOf(target_.origin.host() /* subdomain */,
-                         endpoint.group_key.origin.host() /* superdomain */));
-    for (auto it = reports_begin; it != reports_end; ++it) {
-      DCHECK_EQ((*reports_begin)->GetGroupKey(), (*it)->GetGroupKey());
-      DCHECK((*it)->network_anonymization_key == network_anonymization_key());
-      DCHECK_EQ(url::Origin::Create((*it)->url), target_.origin);
-      DCHECK_EQ((*it)->group, endpoint.group_key.group_name);
+    DCHECK(endpoint.group_key.origin.has_value());
+    DCHECK(IsSubdomainOf(
+        target_.origin.host() /* subdomain */,
+        endpoint.group_key.origin.value().host() /* superdomain */));
+    DCHECK_EQ(ReportingTargetType::kDeveloper, target_.target_type);
+    DCHECK_EQ(endpoint.group_key.target_type, target_.target_type);
+    for (auto report_it = reports_begin; report_it != reports_end;
+         ++report_it) {
+      DCHECK_EQ((*reports_begin)->GetGroupKey(), (*report_it)->GetGroupKey());
+      DCHECK((*report_it)->network_anonymization_key ==
+             network_anonymization_key());
+      DCHECK_EQ(url::Origin::Create((*report_it)->url), target_.origin);
+      DCHECK_EQ((*report_it)->group, endpoint.group_key.group_name);
       // Report origin is equal to, or a subdomain of, the endpoint
       // configuration's origin.
-      DCHECK(IsSubdomainOf((*it)->url.host_piece() /* subdomain */,
-                           endpoint.group_key.origin.host() /* superdomain */));
+      DCHECK(IsSubdomainOf(
+          (*report_it)->url.host_piece() /* subdomain */,
+          endpoint.group_key.origin.value().host() /* superdomain */));
+      DCHECK_EQ((*report_it)->target_type, target_.target_type);
+    }
+
+    reports_per_group_[endpoint.group_key] +=
+        std::distance(reports_begin, reports_end);
+    reports_.insert(reports_.end(), reports_begin, reports_end);
+  }
+
+  // Add the enterprise reports in [reports_begin, reports_end) into this
+  // delivery. Modify the report counter for the |endpoint| to which this
+  // delivery is destined.
+  void AddEnterpriseReports(const ReportingEndpoint& endpoint,
+                            const ReportList::const_iterator reports_begin,
+                            const ReportList::const_iterator reports_end) {
+    DCHECK(reports_begin != reports_end);
+    DCHECK_EQ(ReportingTargetType::kEnterprise, target_.target_type);
+    DCHECK_EQ(endpoint.group_key.target_type, target_.target_type);
+    for (auto report_it = reports_begin; report_it != reports_end;
+         ++report_it) {
+      DCHECK_EQ((*reports_begin)->GetGroupKey(), (*report_it)->GetGroupKey());
+      DCHECK_EQ((*report_it)->group, endpoint.group_key.group_name);
+      DCHECK_EQ((*report_it)->target_type, target_.target_type);
     }
 
     reports_per_group_[endpoint.group_key] +=
@@ -270,6 +332,8 @@ class ReportingDeliveryAgentImpl : public ReportingDeliveryAgent,
     DoSendReports(std::move(reports));
   }
 
+  void SendReportsForTesting() override { SendReports(); }
+
   void DoSendReports(ReportList reports) {
     // First determine which origins we're allowed to upload reports about.
     std::set<url::Origin> report_origins;
@@ -300,8 +364,14 @@ class ReportingDeliveryAgentImpl : public ReportingDeliveryAgent,
       // Skip this group if we don't have origin permissions for this origin.
       const ReportingEndpointGroupKey& report_group_key =
           (*bucket_start)->GetGroupKey();
-      if (!base::Contains(allowed_report_origins, report_group_key.origin))
+      // If the origin is nullopt, this should be an enterprise target.
+      if (!report_group_key.origin.has_value()) {
+        DCHECK_EQ(ReportingTargetType::kEnterprise,
+                  report_group_key.target_type);
+      } else if (!base::Contains(allowed_report_origins,
+                                 report_group_key.origin.value())) {
         continue;
+      }
 
       // Skip this group if there is already a pending upload for it.
       // We don't allow multiple concurrent uploads for the same group.
@@ -322,19 +392,30 @@ class ReportingDeliveryAgentImpl : public ReportingDeliveryAgent,
           cache()->GetIsolationInfoForEndpoint(endpoint);
 
       // Add the reports to the appropriate delivery.
-      Delivery::Target target(isolation_info,
-                              report_group_key.network_anonymization_key,
-                              report_group_key.origin, endpoint.info.url,
-                              endpoint.group_key.reporting_source);
+      Delivery::Target target(
+          isolation_info, report_group_key.network_anonymization_key,
+          (report_group_key.origin.has_value() ? report_group_key.origin.value()
+                                               : url::Origin()),
+          endpoint.info.url, endpoint.group_key.reporting_source,
+          endpoint.group_key.target_type);
       auto delivery_it = deliveries.find(target);
       if (delivery_it == deliveries.end()) {
         bool inserted;
         auto new_delivery = std::make_unique<Delivery>(target);
-        std::tie(delivery_it, inserted) = deliveries.insert(
-            std::make_pair(std::move(target), std::move(new_delivery)));
+        std::tie(delivery_it, inserted) =
+            deliveries.emplace(std::move(target), std::move(new_delivery));
         DCHECK(inserted);
       }
-      delivery_it->second->AddReports(endpoint, bucket_start, bucket_it);
+      switch (target.target_type) {
+        case ReportingTargetType::kDeveloper:
+          delivery_it->second->AddDeveloperReports(endpoint, bucket_start,
+                                                   bucket_it);
+          break;
+        case ReportingTargetType::kEnterprise:
+          delivery_it->second->AddEnterpriseReports(endpoint, bucket_start,
+                                                    bucket_it);
+          break;
+      }
     }
 
     // Keep track of which of these reports we don't queue for delivery; we'll
@@ -355,6 +436,20 @@ class ReportingDeliveryAgentImpl : public ReportingDeliveryAgent,
 
       std::string upload_data =
           SerializeReports(delivery->reports(), tick_clock().NowTicks());
+
+      // The uploader_data received from the SerializedReports method can result
+      // in an empty string if the body of all reports exceeds the allowed size.
+      // To handle this scenario, we are marking those deliverables as completed
+      // since they are meant to be skipped. Consequently, the subsequent steps
+      // in the execution process will also be skipped.
+      if (upload_data.empty()) {
+        base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+            FROM_HERE,
+            base::BindOnce(&ReportingDeliveryAgentImpl::OnUploadComplete,
+                           weak_factory_.GetWeakPtr(), std::move(delivery),
+                           ReportingUploader::Outcome::SUCCESS));
+        continue;
+      }
 
       // TODO: Calculate actual max depth.
       uploader()->StartUpload(
@@ -378,9 +473,9 @@ class ReportingDeliveryAgentImpl : public ReportingDeliveryAgent,
         delivery->network_anonymization_key(), delivery->endpoint_url(),
         success);
 
-    // TODO(chlily): This leaks information across NIKs. If the endpoint URL is
-    // configured for both NIK1 and NIK2, and it responds with a 410 on a NIK1
-    // connection, then the change in configuration will be detectable on a NIK2
+    // TODO(chlily): This leaks information across NAKs. If the endpoint URL is
+    // configured for both NAK1 and NAK2, and it responds with a 410 on a NAK1
+    // connection, then the change in configuration will be detectable on a NAK2
     // connection.
     // TODO(rodneyding): Handle Remove endpoint for Reporting-Endpoints header.
     if (outcome == ReportingUploader::Outcome::REMOVE_ENDPOINT)

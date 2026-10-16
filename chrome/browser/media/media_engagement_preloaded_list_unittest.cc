@@ -17,14 +17,9 @@
 
 namespace {
 
-#if BUILDFLAG(IS_FUCHSIA)
 // Generated files are re-homed to the package root.
 const base::FilePath kTestDataPath = base::FilePath(
     FILE_PATH_LITERAL("chrome/test/data/media/engagement/preload"));
-#else
-const base::FilePath kTestDataPath = base::FilePath(
-    FILE_PATH_LITERAL("gen/chrome/test/data/media/engagement/preload"));
-#endif
 
 // This sample data is auto generated at build time.
 const base::FilePath kSampleDataPath = kTestDataPath.AppendASCII("test.pb");
@@ -107,13 +102,7 @@ TEST_F(MediaEngagementPreloadedListTest, LoadMissingFile) {
   EXPECT_TRUE(IsEmpty());
 }
 
-#if BUILDFLAG(IS_FUCHSIA)
-// ".." is not a file that can be opened on Fuchsia.
-#define MAYBE_LoadFileReadFailed DISABLED_LoadFileReadFailed
-#else
-#define MAYBE_LoadFileReadFailed LoadFileReadFailed
-#endif  // BUILDFLAG(IS_FUCHSIA)
-TEST_F(MediaEngagementPreloadedListTest, MAYBE_LoadFileReadFailed) {
+TEST_F(MediaEngagementPreloadedListTest, LoadFileReadFailed) {
   ASSERT_FALSE(LoadFromFile(kFileReadFailedPath));
   EXPECT_FALSE(IsLoaded());
   EXPECT_TRUE(IsEmpty());

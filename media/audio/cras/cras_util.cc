@@ -9,13 +9,14 @@
 #include "base/time/time.h"
 #include "media/audio/audio_device_description.h"
 #include "media/audio/cras/audio_manager_cras_base.h"
+#include "media/base/media_switches.h"
 
 namespace media {
 
 namespace {
 
 constexpr char kInternalInputVirtualDevice[] = "Built-in mic";
-constexpr char kInternalOutputVirtualDevice[] = "Built-in speaker";
+constexpr char kInternalOutputVirtualDevice[] = "Built-in speaker/headphone";
 constexpr char kHeadphoneLineOutVirtualDevice[] = "Headphone/Line Out";
 
 // Names below are from the node_type_to_str function in CRAS server.
@@ -59,7 +60,7 @@ libcras_client* CrasConnect() {
     LOG(ERROR) << "Couldn't create CRAS client.\n";
     return nullptr;
   }
-  if (libcras_client_connect(client)) {
+  if (libcras_client_connect_timeout(client, kCrasConnectTimeoutMs)) {
     LOG(ERROR) << "Couldn't connect CRAS client.\n";
     libcras_client_destroy(client);
     return nullptr;
@@ -111,22 +112,27 @@ CrasDevice::CrasDevice(struct libcras_node_info* node, DeviceType type)
   rc = libcras_node_info_get_type(node, &type_str);
   if (rc) {
     LOG(ERROR) << "Failed to get the node type: " << rc;
-    node_type = nullptr;
+    node_type = "";
+  } else {
+    node_type = type_str;
   }
-  node_type = type_str;
 
   char* node_name;
   rc = libcras_node_info_get_node_name(node, &node_name);
   if (rc) {
     LOG(ERROR) << "Failed to get the node name: " << rc;
-    node_name = nullptr;
+    name = "";
+  } else {
+    name = node_name;
   }
 
   char* device_name;
   rc = libcras_node_info_get_dev_name(node, &device_name);
   if (rc) {
     LOG(ERROR) << "Failed to get the dev name: " << rc;
-    device_name = nullptr;
+    dev_name = "";
+  } else {
+    dev_name = device_name;
   }
 
   rc = libcras_node_info_get_max_supported_channels(node,
@@ -136,11 +142,9 @@ CrasDevice::CrasDevice(struct libcras_node_info* node, DeviceType type)
     max_supported_channels = 0;
   }
 
-  name = std::string(node_name);
   if (name.empty() || name == "(default)") {
-    name = device_name;
+    name = dev_name;
   }
-  dev_name = device_name;
 }
 
 CrasDevice::CrasDevice(DeviceType type,
@@ -201,6 +205,13 @@ bool CrasUtil::CacheEffects() {
   if (libcras_client_get_ns_supported(client, &ns_supported_) < 0) {
     LOG(ERROR) << "Fail to query NS supported";
     ns_supported_ = false;
+  }
+  if (base::FeatureList::IsEnabled(media::kCrOSSystemVoiceIsolationOption)) {
+    if (libcras_client_get_voice_isolation_supported(
+            client, &voice_isolation_supported_) < 0) {
+      LOG(ERROR) << "Fail to query VoiceIsolation supported";
+      voice_isolation_supported_ = false;
+    }
   }
   if (libcras_client_get_aec_group_id(client, &aec_group_id_) < 0) {
     LOG(ERROR) << "Fail to query AEC group ID";
@@ -285,6 +296,13 @@ int CrasUtil::CrasGetNsSupported() {
     cras_effects_cached_ = CacheEffects();
   }
   return ns_supported_;
+}
+
+int CrasUtil::CrasGetVoiceIsolationSupported() {
+  if (!cras_effects_cached_) {
+    cras_effects_cached_ = CacheEffects();
+  }
+  return voice_isolation_supported_;
 }
 
 int CrasUtil::CrasGetAecGroupId() {

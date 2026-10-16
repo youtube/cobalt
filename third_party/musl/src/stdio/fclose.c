@@ -31,6 +31,14 @@ int fclose(FILE *f)
 	if (*head == f) *head = f->next;
 	__ofl_unlock();
 
+#if defined(STARBOARD)
+	if (f->lock >= 0) {
+		f->lock = -1;
+		pthread_mutex_destroy(&f->cond_mutex.mutex);
+		pthread_cond_destroy(&f->cond_mutex.cond);
+	}
+#endif
+
 	free(f->getln_buf);
 	free(f);
 

@@ -5,6 +5,7 @@
 #include "content/gpu/in_process_gpu_thread.h"
 
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "content/child/child_process.h"
@@ -24,7 +25,37 @@
 #include "base/android/jni_android.h"
 #endif
 
+#if BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS)
+#include "gpu/ipc/common/ios/be_layer_hierarchy_transport.h"
+#endif
+
 namespace content {
+namespace {
+
+BASE_FEATURE(kInProcessGpuUseIOThread,
+             "InProcessGpuUseIOThread",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+}  // namespace
+
+#if BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS)
+class InProcessGpuThread::BELayerHierarchyTransportImpl
+    : public gpu::BELayerHierarchyTransport {
+ public:
+  BELayerHierarchyTransportImpl() {
+    gpu::BELayerHierarchyTransport::SetInstance(this);
+  }
+  ~BELayerHierarchyTransportImpl() override {
+    gpu::BELayerHierarchyTransport::SetInstance(nullptr);
+  }
+
+  void ForwardBELayerHierarchyToBrowser(
+      gpu::SurfaceHandle surface_handle,
+      xpc_object_t ipc_representation) override {
+    // Nothing to do.
+  }
+};
+#endif
 
 InProcessGpuThread::InProcessGpuThread(
     const InProcessChildThreadParams& params,
@@ -57,7 +88,16 @@ void InProcessGpuThread::Init() {
   io_thread_type = base::ThreadType::kDisplayCritical;
 #endif
 
-  gpu_process_ = std::make_unique<ChildProcess>(io_thread_type);
+#if BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS)
+  be_layer_transport_ =
+      std::make_unique<InProcessGpuThread::BELayerHierarchyTransportImpl>();
+#endif
+
+  if (base::FeatureList::IsEnabled(kInProcessGpuUseIOThread)) {
+    gpu_process_ = std::make_unique<ChildProcess>(params_.child_io_runner());
+  } else {
+    gpu_process_ = std::make_unique<ChildProcess>(io_thread_type);
+  }
 
   auto gpu_init = std::make_unique<gpu::GpuInit>();
   gpu_init->InitializeInProcess(base::CommandLine::ForCurrentProcess(),

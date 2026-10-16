@@ -5,6 +5,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
+#include <string_view>
+
 #include "base/base64url.h"
 #include "base/containers/span.h"
 #include "components/webcrypto/algorithm_dispatch.h"
@@ -32,8 +35,8 @@ std::string Base64EncodeUrlSafe(const std::vector<uint8_t>& input) {
   // https://tools.ietf.org/html/draft-ietf-jose-json-web-signature-36#section-2
   std::string base64url_encoded;
   base::Base64UrlEncode(
-      base::StringPiece(reinterpret_cast<const char*>(input.data()),
-                        input.size()),
+      std::string_view(reinterpret_cast<const char*>(input.data()),
+                       input.size()),
       base::Base64UrlEncodePolicy::OMIT_PADDING, &base64url_encoded);
   return base64url_encoded;
 }
@@ -148,7 +151,7 @@ struct RsaOaepKnownAnswer {
   const char* plaintext;
 };
 
-const RsaOaepKnownAnswer kRsaOaepKnownAnswers[] = {
+constexpr auto kRsaOaepKnownAnswers = std::to_array<RsaOaepKnownAnswer>({
     // Tests for RSA-OAEP Encrypt/Decrypt without a label (the empty string).
     {"30819f300d06092a864886f70d010101050003818d0030818902818100a56e4a0e7010175"
      "89a5187dc7ea841d156f2ec0e36ad52a44dfeb1e61f7ad991d8c51056ffedb162b4c0f283"
@@ -355,7 +358,7 @@ const RsaOaepKnownAnswer kRsaOaepKnownAnswers[] = {
      "0D620F00CFA33AE318AF6090B76E4ADC5FE1686165786F8B7E559156E8AF690D6EF050133"
      "AB5620FAF91B17CF52FED0B57FAC0924F2CC4",
      ""},
-};
+});
 
 TEST_F(WebCryptoRsaOaepTest, EncryptDecryptKnownAnswerTest) {
   for (const auto& test : kRsaOaepKnownAnswers) {
@@ -648,7 +651,7 @@ TEST_F(WebCryptoRsaOaepTest, ImportExportJwkRsaPublicKey) {
     const blink::WebCryptoKeyUsageMask usage;
     const char* const jwk_alg;
   };
-  const TestCase kTests[] = {
+  const auto kTests = std::to_array<TestCase>({
       {blink::kWebCryptoAlgorithmIdSha1, blink::kWebCryptoKeyUsageEncrypt,
        "RSA-OAEP"},
       {blink::kWebCryptoAlgorithmIdSha256, blink::kWebCryptoKeyUsageEncrypt,
@@ -656,7 +659,8 @@ TEST_F(WebCryptoRsaOaepTest, ImportExportJwkRsaPublicKey) {
       {blink::kWebCryptoAlgorithmIdSha384, blink::kWebCryptoKeyUsageEncrypt,
        "RSA-OAEP-384"},
       {blink::kWebCryptoAlgorithmIdSha512, blink::kWebCryptoKeyUsageEncrypt,
-       "RSA-OAEP-512"}};
+       "RSA-OAEP-512"},
+  });
 
   for (const auto& test : kTests) {
     SCOPED_TRACE(&test - &kTests[0]);

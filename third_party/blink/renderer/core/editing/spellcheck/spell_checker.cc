@@ -30,8 +30,6 @@
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/web_text_check_client.h"
 #include "third_party/blink/public/web/web_text_decoration_type.h"
-#include "third_party/blink/renderer/core/clipboard/data_transfer.h"
-#include "third_party/blink/renderer/core/clipboard/data_transfer_access_policy.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
@@ -40,7 +38,6 @@
 #include "third_party/blink/renderer/core/editing/editor.h"
 #include "third_party/blink/renderer/core/editing/ephemeral_range.h"
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
-#include "third_party/blink/renderer/core/editing/ime/input_method_controller.h"
 #include "third_party/blink/renderer/core/editing/iterators/character_iterator.h"
 #include "third_party/blink/renderer/core/editing/markers/document_marker_controller.h"
 #include "third_party/blink/renderer/core/editing/markers/spell_check_marker.h"
@@ -54,7 +51,6 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html_names.h"
-#include "third_party/blink/renderer/core/input_type_names.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/loader/empty_clients.h"
 #include "third_party/blink/renderer/core/page/page.h"
@@ -182,6 +178,8 @@ void SpellChecker::AdvanceToNextMisspelling(bool start_before_selection) {
 
   // topNode defines the whole range we want to operate on
   ContainerNode* top_node = HighestEditableRoot(position);
+  if (!top_node)
+    return;
   // TODO(yosin): |lastOffsetForEditing()| is wrong here if
   // |editingIgnoresContent(highestEditableRoot())| returns true, e.g. <table>
   spelling_search_end = Position::EditingPositionOf(
@@ -391,8 +389,10 @@ void SpellChecker::RemoveSpellingAndGrammarMarkers(const HTMLElement& element,
                                                    ElementsType elements_type) {
   // TODO(editing-dev): The use of updateStyleAndLayoutIgnorePendingStylesheets
   // needs to be audited.  See http://crbug.com/590369 for more details.
-  if (elements_type == ElementsType::kOnlyNonEditable)
-    GetFrame().GetDocument()->UpdateStyleAndLayoutTreeForNode(&element);
+  if (elements_type == ElementsType::kOnlyNonEditable) {
+    GetFrame().GetDocument()->UpdateStyleAndLayoutTreeForElement(
+        &element, DocumentUpdateReason::kSpellCheck);
+  }
 
   for (Node& node : NodeTraversal::InclusiveDescendantsOf(element)) {
     auto* text_node = DynamicTo<Text>(node);
@@ -459,41 +459,7 @@ void SpellChecker::ReplaceMisspelledRange(const String& text) {
           .Extend(marker_group->EndPosition())
           .Build());
 
-  Document& current_document = *GetFrame().GetDocument();
-
-  // TODO(editing-dev): The use of UpdateStyleAndLayout
-  // needs to be audited.  See http://crbug.com/590369 for more details.
-  current_document.UpdateStyleAndLayout(DocumentUpdateReason::kSpellCheck);
-
-  // Dispatch 'beforeinput'.
-  Element* const target = FindEventTargetFrom(
-      GetFrame(), GetFrame().Selection().ComputeVisibleSelectionInDOMTree());
-
-  DataTransfer* const data_transfer = DataTransfer::Create(
-      DataTransfer::DataTransferType::kInsertReplacementText,
-      DataTransferAccessPolicy::kReadable, DataObject::CreateFromString(text));
-
-  const bool cancel = DispatchBeforeInputDataTransfer(
-                          target, InputEvent::InputType::kInsertReplacementText,
-                          data_transfer) != DispatchEventResult::kNotCanceled;
-
-  // 'beforeinput' event handler may destroy target frame.
-  if (current_document != GetFrame().GetDocument())
-    return;
-
-  // No DOM mutation if EditContext is active.
-  if (GetFrame().GetInputMethodController().GetActiveEditContext())
-    return;
-
-  // TODO(editing-dev): The use of UpdateStyleAndLayout
-  // needs to be audited.  See http://crbug.com/590369 for more details.
-  GetFrame().GetDocument()->UpdateStyleAndLayout(
-      DocumentUpdateReason::kSpellCheck);
-
-  if (cancel)
-    return;
-  GetFrame().GetEditor().ReplaceSelectionWithText(
-      text, false, false, InputEvent::InputType::kInsertReplacementText);
+  InsertTextAndSendInputEventsOfTypeInsertReplacementText(GetFrame(), text);
 }
 
 void SpellChecker::RespondToChangedSelection() {
@@ -524,7 +490,6 @@ void SpellChecker::RemoveSpellingMarkersUnderWords(
   DocumentMarkerController& marker_controller =
       GetFrame().GetDocument()->Markers();
   marker_controller.RemoveSpellingMarkersUnderWords(words);
-  marker_controller.RepaintMarkers();
 }
 
 static Node* FindFirstMarkable(Node* node) {
@@ -606,14 +571,15 @@ Vector<TextCheckingResult> SpellChecker::FindMisspellings(const String& text) {
     int word_end = iterator->next();
     if (word_end < 0)
       break;
-    size_t word_length = word_end - word_start;
+    auto word_length = static_cast<size_t>(word_end - word_start);
     size_t misspelling_location = 0;
     size_t misspelling_length = 0;
     if (WebTextCheckClient* text_checker_client = GetTextCheckerClient()) {
       // SpellCheckWord will write (0, 0) into the output vars, which is what
       // our caller expects if the word is spelled correctly.
       text_checker_client->CheckSpelling(
-          String(characters.data() + word_start, word_length),
+          String(base::span(characters)
+                     .subspan(static_cast<size_t>(word_start), word_length)),
           misspelling_location, misspelling_length, nullptr);
     } else {
       misspelling_location = 0;
@@ -712,8 +678,14 @@ std::pair<String, int> SpellChecker::FindFirstMisspelling(const Position& start,
     Position new_paragraph_start =
         StartOfNextParagraph(CreateVisiblePosition(paragraph_end))
             .DeepEquivalent();
-    if (new_paragraph_start.IsNull())
+    // To prevent an infinite loop, break when `new_paragraph_start` is
+    // non-editable.
+    if (new_paragraph_start.IsNull() ||
+        (RuntimeEnabledFeatures::
+             FindFirstMisspellingEndWhenNonEditableEnabled() &&
+         !IsEditablePosition(new_paragraph_start))) {
       break;
+    }
 
     paragraph_range = ExpandToParagraphBoundary(
         EphemeralRange(new_paragraph_start, new_paragraph_start));

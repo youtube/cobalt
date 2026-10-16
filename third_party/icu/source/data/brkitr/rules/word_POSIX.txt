@@ -55,7 +55,6 @@ $ALetter            = [\p{Word_Break = ALetter}];
 
 $Single_Quote       = [\p{Word_Break = Single_Quote}];
 $Double_Quote       = [\p{Word_Break = Double_Quote}];
-
 # Remove full-width full stop (\uff0e) from $MidNumLet and add it to $MidNum, in
 # addition to the ordinary full stop (dot, period, '.', \u002e).
 $MidNumLet          = [[\p{Word_Break = MidNumLet}] - [\u002E \uFF0E]];

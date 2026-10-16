@@ -2,19 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {FilePath} from 'chrome://resources/mojo/mojo/public/mojom/base/file_path.mojom-webui.js';
+import {FullscreenPreviewState} from 'chrome://resources/ash/common/personalization/wallpaper_state.js';
+import type {SeaPenActions} from 'chrome://resources/ash/common/sea_pen/sea_pen_actions.js';
+import {SeaPenActionName} from 'chrome://resources/ash/common/sea_pen/sea_pen_actions.js';
+import {seaPenReducer} from 'chrome://resources/ash/common/sea_pen/sea_pen_reducer.js';
+import type {SeaPenState} from 'chrome://resources/ash/common/sea_pen/sea_pen_state.js';
+import {isImageDataUrl, isNonEmptyArray, isNonEmptyFilePath} from 'chrome://resources/ash/common/sea_pen/sea_pen_utils.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import type {FilePath} from 'chrome://resources/mojo/mojo/public/mojom/base/file_path.mojom-webui.js';
 
-import {WallpaperCollection} from '../../personalization_app.mojom-webui.js';
-import {Actions} from '../personalization_actions.js';
-import {ReducerFunction} from '../personalization_reducers.js';
-import {PersonalizationState} from '../personalization_state.js';
-import {isImageDataUrl, isNonEmptyArray} from '../utils.js';
+import type {WallpaperCollection} from '../../personalization_app.mojom-webui.js';
+import type {Actions} from '../personalization_actions.js';
+import type {ReducerFunction} from '../personalization_reducers.js';
+import type {PersonalizationState} from '../personalization_state.js';
 
-import {DefaultImageSymbol, kDefaultImageSymbol} from './constants.js';
-import {findAlbumById, isDefaultImage, isFilePath, isImageEqualToSelected} from './utils.js';
+import type {DefaultImageSymbol} from './constants.js';
+import {kDefaultImageSymbol} from './constants.js';
+import {findAlbumById, isDefaultImage, isImageEqualToSelected} from './utils.js';
 import {WallpaperActionName} from './wallpaper_actions.js';
-import {DailyRefreshType, WallpaperState} from './wallpaper_state.js';
+import type {WallpaperState} from './wallpaper_state.js';
+import {DailyRefreshType} from './wallpaper_state.js';
 
 function backdropReducer(
     state: WallpaperState['backdrop'], action: Actions,
@@ -61,7 +68,7 @@ function loadingReducer(
         local: {...state.local, data: {...state.local.data, [action.id]: true}},
       };
     case WallpaperActionName.BEGIN_LOAD_SELECTED_IMAGE:
-      return {...state, selected: true};
+      return {...state, selected: {attribution: true, image: true}};
     case WallpaperActionName.BEGIN_SELECT_IMAGE:
       return {...state, setImage: state.setImage + 1};
     case WallpaperActionName.END_SELECT_IMAGE:
@@ -118,7 +125,7 @@ function loadingReducer(
         local: {
           data: imagesToKeep.reduce(
               (result, next) => {
-                const path = isFilePath(next) ? next.path : next;
+                const path = isNonEmptyFilePath(next) ? next.path : next;
                 if (state.local.data.hasOwnProperty(path)) {
                   result[path] = state.local.data[path];
                 }
@@ -149,7 +156,18 @@ function loadingReducer(
         // loading.selected stays true.
         return state;
       }
-      return {...state, selected: false};
+      return {...state, selected: {...state.selected, image: false}};
+    case WallpaperActionName.SET_ATTRIBUTION:
+      return {...state, selected: {...state.selected, attribution: false}};
+    case SeaPenActionName.END_SELECT_SEA_PEN_THUMBNAIL:
+    case SeaPenActionName.END_SELECT_RECENT_SEA_PEN_IMAGE:
+      // End loading state if selecting a SeaPen image failed. There are no
+      // incoming events from wallpaper_observer.ts to reset the loading state
+      // from wallpaper side, as the SeaPen image was not saved and applied.
+      if (!action.success) {
+        return {...state, selected: {image: false, attribution: false}};
+      }
+      return state;
     case WallpaperActionName.BEGIN_UPDATE_DAILY_REFRESH_IMAGE:
       return {...state, refreshWallpaper: true};
     case WallpaperActionName.SET_UPDATED_DAILY_REFRESH_IMAGE:
@@ -264,7 +282,7 @@ function localReducer(
         return {
           images: [
             kDefaultImageSymbol,
-            ...(state.images || []).filter(img => isFilePath(img)),
+            ...(state.images || []).filter(img => isNonEmptyFilePath(img)),
           ],
           data: {
             ...state.data,
@@ -274,7 +292,7 @@ function localReducer(
       }
       return {
         images: Array.isArray(state.images) ?
-            state.images.filter(img => isFilePath(img)) :
+            state.images.filter(img => isNonEmptyFilePath(img)) :
             null,
         data: {...state.data, [kDefaultImageSymbol]: {url: ''}},
       };
@@ -300,7 +318,7 @@ function localReducer(
         // Only keep image thumbnails if the image is still in |images|.
         data: newImages.reduce(
             (result, next) => {
-              const key = isFilePath(next) ? next.path : next;
+              const key = isNonEmptyFilePath(next) ? next.path : next;
               if (state.data.hasOwnProperty(key)) {
                 result[key] = state.data[key];
               }
@@ -318,6 +336,17 @@ function localReducer(
           [action.id]: action.data,
         },
       };
+    default:
+      return state;
+  }
+}
+
+function attributionReducer(
+    state: WallpaperState['attribution'], action: Actions,
+    _: PersonalizationState): WallpaperState['attribution'] {
+  switch (action.name) {
+    case WallpaperActionName.SET_ATTRIBUTION:
+      return action.attribution;
     default:
       return state;
   }
@@ -362,8 +391,8 @@ function pendingSelectedReducer(
         return null;
       }
       return state;
-    case WallpaperActionName.SET_FULLSCREEN_ENABLED:
-      if (!action.enabled) {
+    case WallpaperActionName.SET_FULLSCREEN_STATE:
+      if (action.state === FullscreenPreviewState.OFF) {
         // Clear the pending selected state after full screen is dismissed.
         return null;
       }
@@ -407,8 +436,18 @@ function fullscreenReducer(
     state: WallpaperState['fullscreen'], action: Actions,
     _: PersonalizationState): WallpaperState['fullscreen'] {
   switch (action.name) {
-    case WallpaperActionName.SET_FULLSCREEN_ENABLED:
-      return action.enabled;
+    case WallpaperActionName.SET_FULLSCREEN_STATE:
+      return action.state;
+    default:
+      return state;
+  }
+}
+
+function shouldShowTimeOfDayWallpaperDialogReducer(
+    state: boolean, action: Actions, _: PersonalizationState): boolean {
+  switch (action.name) {
+    case WallpaperActionName.SET_SHOULD_SHOW_TIME_OF_DAY_WALLPAPER_DIALOG:
+      return action.shouldShowDialog;
     default:
       return state;
   }
@@ -612,14 +651,33 @@ function googlePhotosReducer(
   }
 }
 
+const allSeaPenActionNames =
+    new Set<Actions['name']>(Object.values(SeaPenActionName));
+
+function actionIsSeaPenAction(action: Actions): action is SeaPenActions {
+  return allSeaPenActionNames.has(action.name);
+}
+
+function seaPenReducerAdapter(
+    state: SeaPenState, action: Actions, _: PersonalizationState): SeaPenState {
+  if (actionIsSeaPenAction(action)) {
+    return seaPenReducer(state, action);
+  }
+  return state;
+}
+
 export const wallpaperReducers:
     {[K in keyof WallpaperState]: ReducerFunction<WallpaperState[K]>} = {
       backdrop: backdropReducer,
       loading: loadingReducer,
       local: localReducer,
+      attribution: attributionReducer,
       currentSelected: currentSelectedReducer,
       pendingSelected: pendingSelectedReducer,
       dailyRefresh: dailyRefreshReducer,
       fullscreen: fullscreenReducer,
+      shouldShowTimeOfDayWallpaperDialog:
+          shouldShowTimeOfDayWallpaperDialogReducer,
       googlePhotos: googlePhotosReducer,
+      seaPen: seaPenReducerAdapter,
     };

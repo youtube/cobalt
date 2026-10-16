@@ -22,6 +22,7 @@
   <script type="module" src="./install_oobe_error_store.js"></script>
 
   <!-- OOBE Start Script -->
+  <link rel="modulepreload" href="chrome://oobe/screens.js">
   <script type="module" src="./oobe.js"></script>
 </head>
 <custom-style>
@@ -37,6 +38,9 @@
       <div class="oobe-vertical-margin"></div>
       <div id="oobe" class="faded">
         <div id="inner-container" class="down">
+          <!-- Unconditionally load assets for unbranded test bots -->
+          <img id="welcome-backdrop" aria-hidden="true" decoding="sync"
+              src="internal_assets/welcome_backdrop.svg">
           <!-- SCREENS ARE ADDED HERE DYNAMICALLY -->
         </div>
       </div>

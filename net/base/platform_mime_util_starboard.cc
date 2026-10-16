@@ -30,14 +30,14 @@ bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
 }
 
 bool PlatformMimeUtil::GetPlatformPreferredExtensionForMimeType(
-    const std::string& mime_type,
+    std::string_view mime_type,
     base::FilePath::StringType* ext) const {
   NOTIMPLEMENTED();
   return false;
 }
 
 void PlatformMimeUtil::GetPlatformExtensionsForMimeType(
-    const std::string& mime_type,
+    std::string_view mime_type,
     std::unordered_set<base::FilePath::StringType>* extensions) const {
   NOTIMPLEMENTED();
 }

@@ -6,17 +6,14 @@
 
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
-#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
 #include "chrome/browser/sync/device_info_sync_service_factory.h"
 #include "chrome/browser/sync/test/integration/bookmarks_helper.h"
 #include "chrome/browser/sync/test/integration/device_info_helper.h"
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
 #include "chrome/browser/sync/test/integration/sync_test.h"
-#include "components/sync/base/features.h"
-#include "components/sync/base/model_type.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/base/time.h"
 #include "components/sync/protocol/device_info_specifics.pb.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
@@ -37,8 +34,8 @@ namespace {
 
 using device_info_helper::HasCacheGuid;
 using device_info_helper::HasSharingFields;
-using syncer::ModelType;
-using syncer::ModelTypeSet;
+using syncer::DataType;
+using syncer::DataTypeSet;
 using testing::AllOf;
 using testing::Contains;
 using testing::ElementsAre;
@@ -65,7 +62,7 @@ MATCHER_P(HasInterestedDataType, expected_data_type, "") {
                                              .invalidation_fields()
                                              .interested_data_type_ids()) {
     if (interested_data_type_id ==
-        syncer::GetSpecificsFieldNumberFromModelType(expected_data_type)) {
+        syncer::GetSpecificsFieldNumberFromDataType(expected_data_type)) {
       return true;
     }
   }
@@ -92,14 +89,14 @@ std::string SigninScopedDeviceIdForSuffix(int suffix) {
   return base::StringPrintf("signin scoped device id %d", suffix);
 }
 
-ModelTypeSet DefaultInterestedDataTypes() {
+DataTypeSet DefaultInterestedDataTypes() {
   return Difference(syncer::ProtocolTypes(), syncer::CommitOnlyTypes());
 }
 
 sync_pb::DeviceInfoSpecifics CreateSpecifics(
     int suffix,
     const std::string& fcm_registration_token,
-    const ModelTypeSet& interested_data_types) {
+    const DataTypeSet& interested_data_types) {
   sync_pb::DeviceInfoSpecifics specifics;
   specifics.set_cache_guid(CacheGuidForSuffix(suffix));
   specifics.set_client_name(ClientNameForSuffix(suffix));
@@ -112,9 +109,9 @@ sync_pb::DeviceInfoSpecifics CreateSpecifics(
   auto& mutable_interested_data_type_ids =
       *specifics.mutable_invalidation_fields()
            ->mutable_interested_data_type_ids();
-  for (ModelType type : interested_data_types) {
+  for (DataType type : interested_data_types) {
     mutable_interested_data_type_ids.Add(
-        syncer::GetSpecificsFieldNumberFromModelType(type));
+        syncer::GetSpecificsFieldNumberFromDataType(type));
   }
   if (!fcm_registration_token.empty()) {
     specifics.mutable_invalidation_fields()->set_instance_id_token(
@@ -162,15 +159,7 @@ class DeviceInfoCommitChecker : public SingleClientStatusChangeChecker {
 
 class SingleClientDeviceInfoSyncTest : public SyncTest {
  public:
-  SingleClientDeviceInfoSyncTest() : SyncTest(SINGLE_CLIENT) {
-    override_features_.InitWithFeatures(
-        {syncer::kSkipInvalidationOptimizationsWhenDeviceInfoUpdated,
-         // Enable both features to make it sure that old invalidations are
-         // completely disabled.
-         syncer::kUseSyncInvalidations,
-         syncer::kUseSyncInvalidationsForWalletAndOffer},
-        {});
-  }
+  SingleClientDeviceInfoSyncTest() : SyncTest(SINGLE_CLIENT) {}
 
   SingleClientDeviceInfoSyncTest(const SingleClientDeviceInfoSyncTest&) =
       delete;
@@ -207,12 +196,9 @@ class SingleClientDeviceInfoSyncTest : public SyncTest {
             specifics,
             /*creation_time=*/0, /*last_modified_time=*/0));
   }
-
- private:
-  base::test::ScopedFeatureList override_features_;
 };
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
                        UmaEnabledSetFullHardwareClass) {
   bool uma_enabled = true;
@@ -220,7 +206,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
       &uma_enabled);
   ASSERT_TRUE(SetupSync());
 
-  EXPECT_THAT(fake_server_->GetSyncEntitiesByModelType(syncer::DEVICE_INFO),
+  EXPECT_THAT(fake_server_->GetSyncEntitiesByDataType(syncer::DEVICE_INFO),
               Contains(HasFullHardwareClass()));
 
   ChromeMetricsServiceAccessor::SetMetricsAndCrashReportingForTesting(nullptr);
@@ -233,7 +219,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
       &uma_enabled);
   ASSERT_TRUE(SetupSync());
 
-  EXPECT_THAT(fake_server_->GetSyncEntitiesByModelType(syncer::DEVICE_INFO),
+  EXPECT_THAT(fake_server_->GetSyncEntitiesByDataType(syncer::DEVICE_INFO),
               Contains(IsFullHardwareClassEmpty()));
 
   ChromeMetricsServiceAccessor::SetMetricsAndCrashReportingForTesting(nullptr);
@@ -246,12 +232,12 @@ IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
       &uma_enabled);
   ASSERT_TRUE(SetupSync());
 
-  EXPECT_THAT(fake_server_->GetSyncEntitiesByModelType(syncer::DEVICE_INFO),
+  EXPECT_THAT(fake_server_->GetSyncEntitiesByDataType(syncer::DEVICE_INFO),
               Contains(IsFullHardwareClassEmpty()));
 
   ChromeMetricsServiceAccessor::SetMetricsAndCrashReportingForTesting(nullptr);
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest, CommitLocalDevice) {
   ASSERT_TRUE(SetupSync());
@@ -269,7 +255,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest, DownloadRemoteDevices) {
   ASSERT_TRUE(SetupSync());
 
   // The local device may or may not already be committed at this point.
-  ASSERT_THAT(fake_server_->GetSyncEntitiesByModelType(syncer::DEVICE_INFO),
+  ASSERT_THAT(fake_server_->GetSyncEntitiesByDataType(syncer::DEVICE_INFO),
               IsSupersetOf({HasCacheGuid(CacheGuidForSuffix(1)),
                             HasCacheGuid(CacheGuidForSuffix(2))}));
 
@@ -292,8 +278,12 @@ IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
   // Devices without a chrome_version correspond to non-Chromium-based clients
   // and should be excluded.
   EXPECT_THAT(
-      GetDeviceInfoTracker()->GetAllDeviceInfo(),
+      GetDeviceInfoTracker()->GetAllChromeDeviceInfo(),
       UnorderedElementsAre(ModelEntryHasCacheGuid(GetLocalCacheGuid())));
+  EXPECT_THAT(
+      GetDeviceInfoTracker()->GetAllDeviceInfo(),
+      UnorderedElementsAre(ModelEntryHasCacheGuid(GetLocalCacheGuid()),
+                           ModelEntryHasCacheGuid(CacheGuidForSuffix(1))));
 }
 
 IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
@@ -317,9 +307,9 @@ IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
 
 // On ChromeOS, Sync-the-feature gets started automatically once a primary
 // account is signed in and transport mode is not a thing.
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 
-// TODO(crbug.com/1191225): Flaky on Android.
+// TODO(crbug.com/40756482): Flaky on Android.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_CommitLocalDevice_TransportOnly \
   DISABLED_CommitLocalDevice_TransportOnly
@@ -344,7 +334,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
                   .Wait());
 }
 
-// TODO(crbug.com/1191225): Flaky on Android.
+// TODO(crbug.com/40756482): Flaky on Android.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_DownloadRemoteDevices_TransportOnly \
   DISABLED_DownloadRemoteDevices_TransportOnly
@@ -367,31 +357,31 @@ IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
   ASSERT_FALSE(GetSyncService(0)->IsSyncFeatureEnabled());
   ASSERT_TRUE(GetSyncService(0)->GetActiveDataTypes().Has(syncer::DEVICE_INFO));
 
-  EXPECT_THAT(fake_server_->GetSyncEntitiesByModelType(syncer::DEVICE_INFO),
+  EXPECT_THAT(fake_server_->GetSyncEntitiesByDataType(syncer::DEVICE_INFO),
               IsSupersetOf({HasCacheGuid(CacheGuidForSuffix(1)),
                             HasCacheGuid(CacheGuidForSuffix(2))}));
 }
 
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
                        ShouldSetTheOnlyClientFlag) {
   ASSERT_TRUE(SetupSync());
 
   const std::vector<sync_pb::SyncEntity> entities_before =
-      fake_server_->GetSyncEntitiesByModelType(syncer::DEVICE_INFO);
+      fake_server_->GetSyncEntitiesByDataType(syncer::DEVICE_INFO);
 
   // Single client flag could be dropped due to a DeviceInfo update in the last
   // GetUpdates request. The next sync cycle may download the latest committed
   // DeviceInfo reflection and drop optimization flags. Hence, make it sure that
   // there are at least 2 sync cycles and check the second one only.
-  bookmarks_helper::AddURL(/*profile=*/0, "Title", GURL("http://foo.com"));
+  bookmarks_helper::AddURL(/*profile=*/0, u"Title", GURL("http://foo.com"));
   ASSERT_TRUE(bookmarks_helper::BookmarkModelMatchesFakeServerChecker(
                   /*profile=*/0, GetSyncService(0), GetFakeServer())
                   .Wait());
 
   // Perform the second sync cycle.
-  bookmarks_helper::AddURL(/*profile=*/0, "Title", GURL("http://foo.com"));
+  bookmarks_helper::AddURL(/*profile=*/0, u"Title", GURL("http://foo.com"));
   ASSERT_TRUE(bookmarks_helper::BookmarkModelMatchesFakeServerChecker(
                   /*profile=*/0, GetSyncService(0), GetFakeServer())
                   .Wait());
@@ -399,7 +389,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
   // Double check that DeviceInfo hasn't been committed during the test. It may
   // happen if there are any DeviceInfo fields are initialized asynchronously.
   const std::vector<sync_pb::SyncEntity> entities_after =
-      fake_server_->GetSyncEntitiesByModelType(syncer::DEVICE_INFO);
+      fake_server_->GetSyncEntitiesByDataType(syncer::DEVICE_INFO);
   ASSERT_EQ(1U, entities_before.size());
   ASSERT_EQ(1U, entities_after.size());
   ASSERT_EQ(entities_before.front().mtime(), entities_after.front().mtime());
@@ -426,13 +416,13 @@ IN_PROC_BROWSER_TEST_F(
   // GetUpdates request. The next sync cycle may download the latest committed
   // DeviceInfo reflection and drop optimization flags. Hence, make it sure that
   // there are at least 2 sync cycles and check the second one only.
-  bookmarks_helper::AddURL(/*profile=*/0, "Title", GURL("http://foo.com"));
+  bookmarks_helper::AddURL(/*profile=*/0, u"Title", GURL("http://foo.com"));
   ASSERT_TRUE(bookmarks_helper::BookmarkModelMatchesFakeServerChecker(
                   /*profile=*/0, GetSyncService(0), GetFakeServer())
                   .Wait());
 
   // Perform the second sync cycle.
-  bookmarks_helper::AddURL(/*profile=*/0, "Title", GURL("http://foo.com"));
+  bookmarks_helper::AddURL(/*profile=*/0, u"Title", GURL("http://foo.com"));
   ASSERT_TRUE(bookmarks_helper::BookmarkModelMatchesFakeServerChecker(
                   /*profile=*/0, GetSyncService(0), GetFakeServer())
                   .Wait());
@@ -449,7 +439,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
                        ShouldSetTheOnlyClientFlagForDataType) {
   // There is a remote client which is not interested in BOOKMARKS.
-  const ModelTypeSet remote_interested_data_types =
+  const DataTypeSet remote_interested_data_types =
       Difference(DefaultInterestedDataTypes(), {syncer::BOOKMARKS});
   InjectDeviceInfoSpecificsToServer(CreateSpecifics(
       /*suffix=*/1, "fcm_token_1", remote_interested_data_types));
@@ -460,13 +450,13 @@ IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
   // GetUpdates request. The next sync cycle may download the latest committed
   // DeviceInfo reflection and drop optimization flags. Hence, make it sure that
   // there are at least 2 sync cycles and check the second one only.
-  bookmarks_helper::AddURL(/*profile=*/0, "Title", GURL("http://foo.com"));
+  bookmarks_helper::AddURL(/*profile=*/0, u"Title", GURL("http://foo.com"));
   ASSERT_TRUE(bookmarks_helper::BookmarkModelMatchesFakeServerChecker(
                   /*profile=*/0, GetSyncService(0), GetFakeServer())
                   .Wait());
 
   // Perform the second sync cycle.
-  bookmarks_helper::AddURL(/*profile=*/0, "Title", GURL("http://foo.com"));
+  bookmarks_helper::AddURL(/*profile=*/0, u"Title", GURL("http://foo.com"));
   ASSERT_TRUE(bookmarks_helper::BookmarkModelMatchesFakeServerChecker(
                   /*profile=*/0, GetSyncService(0), GetFakeServer())
                   .Wait());
@@ -491,7 +481,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
   ASSERT_TRUE(SetupSync());
 
   // Verify that both DeviceInfos are present on the server.
-  ASSERT_THAT(GetFakeServer()->GetSyncEntitiesByModelType(syncer::DEVICE_INFO),
+  ASSERT_THAT(GetFakeServer()->GetSyncEntitiesByDataType(syncer::DEVICE_INFO),
               UnorderedElementsAre(HasCacheGuid(GetLocalCacheGuid()),
                                    HasCacheGuid(CacheGuidForSuffix(1))));
 
@@ -502,7 +492,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
   // Everything's ready to verify that the next commit request contains
   // single_client which is false. Commit a bookmark to trigger a commit
   // request.
-  bookmarks_helper::AddURL(/*profile=*/0, "Title", GURL("http://foo.com"));
+  bookmarks_helper::AddURL(/*profile=*/0, u"Title", GURL("http://foo.com"));
   ASSERT_TRUE(bookmarks_helper::BookmarkModelMatchesFakeServerChecker(
                   /*profile=*/0, GetSyncService(0), GetFakeServer())
                   .Wait());
@@ -523,7 +513,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
   ASSERT_TRUE(SetupSync());
 
   const std::vector<sync_pb::SyncEntity> server_device_infos =
-      GetFakeServer()->GetSyncEntitiesByModelType(syncer::DEVICE_INFO);
+      GetFakeServer()->GetSyncEntitiesByDataType(syncer::DEVICE_INFO);
   ASSERT_THAT(server_device_infos,
               ElementsAre(HasCacheGuid(GetLocalCacheGuid())));
 
@@ -569,7 +559,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
   ASSERT_TRUE(SetupSync());
 
   const std::vector<sync_pb::SyncEntity> server_device_infos =
-      GetFakeServer()->GetSyncEntitiesByModelType(syncer::DEVICE_INFO);
+      GetFakeServer()->GetSyncEntitiesByDataType(syncer::DEVICE_INFO);
   ASSERT_THAT(server_device_infos, Contains(HasCacheGuid(GetLocalCacheGuid())));
 
   GetFakeServer()->InjectEntity(
@@ -614,7 +604,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
 IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
                        ShouldNotSendDeviceInfoAfterBrowserRestart) {
   const std::vector<sync_pb::SyncEntity> entities_before =
-      fake_server_->GetSyncEntitiesByModelType(syncer::DEVICE_INFO);
+      fake_server_->GetSyncEntitiesByDataType(syncer::DEVICE_INFO);
   ASSERT_TRUE(SetupClients());
   ASSERT_TRUE(GetClient(0)->AwaitEngineInitialization());
   ASSERT_TRUE(GetClient(0)->AwaitSyncSetupCompletion());
@@ -630,7 +620,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientDeviceInfoSyncTest,
   run_loop.Run();
 
   const std::vector<sync_pb::SyncEntity> entities_after =
-      fake_server_->GetSyncEntitiesByModelType(syncer::DEVICE_INFO);
+      fake_server_->GetSyncEntitiesByDataType(syncer::DEVICE_INFO);
   ASSERT_EQ(1U, entities_before.size());
   ASSERT_EQ(1U, entities_after.size());
 

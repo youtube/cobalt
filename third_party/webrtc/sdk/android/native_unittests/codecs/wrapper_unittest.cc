@@ -13,6 +13,8 @@
 #include <memory>
 
 #include "absl/memory/memory.h"
+#include "api/environment/environment.h"
+#include "api/environment/environment_factory.h"
 #include "media/base/media_constants.h"
 #include "sdk/android/generated_native_unittests_jni/CodecsWrapperTestHelper_jni.h"
 #include "sdk/android/src/jni/video_encoder_wrapper.h"
@@ -29,19 +31,20 @@ TEST(JavaCodecsWrapperTest, JavaToNativeVideoCodecInfo) {
   const SdpVideoFormat video_format =
       JavaToNativeVideoCodecInfo(env, j_video_codec_info.obj());
 
-  EXPECT_EQ(cricket::kH264CodecName, video_format.name);
-  const auto it =
-      video_format.parameters.find(cricket::kH264FmtpProfileLevelId);
+  EXPECT_EQ(webrtc::kH264CodecName, video_format.name);
+  const auto it = video_format.parameters.find(webrtc::kH264FmtpProfileLevelId);
   ASSERT_NE(it, video_format.parameters.end());
-  EXPECT_EQ(cricket::kH264ProfileLevelConstrainedBaseline, it->second);
+  EXPECT_EQ(webrtc::kH264ProfileLevelConstrainedBaseline, it->second);
 }
 
 TEST(JavaCodecsWrapperTest, JavaToNativeResolutionBitrateLimits) {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
   ScopedJavaLocalRef<jobject> j_fake_encoder =
       jni::Java_CodecsWrapperTestHelper_createFakeVideoEncoder(env);
+  const Environment webrtc_env = CreateEnvironment();
 
-  auto encoder = jni::JavaToNativeVideoEncoder(env, j_fake_encoder);
+  auto encoder = jni::JavaToNativeVideoEncoder(
+      env, j_fake_encoder, NativeToJavaPointer(&webrtc_env));
   ASSERT_TRUE(encoder);
 
   // Check that the bitrate limits correctly passed from Java to native.

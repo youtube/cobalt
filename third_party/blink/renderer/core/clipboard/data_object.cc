@@ -31,26 +31,28 @@
 #include "third_party/blink/renderer/core/clipboard/data_object.h"
 
 #include <utility>
+#include <variant>
 
 #include "base/functional/overloaded.h"
 #include "base/notreached.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "third_party/blink/public/platform/file_path_conversion.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_drag_data.h"
-#include "third_party/blink/renderer/core/clipboard/clipboard_mime_types.h"
 #include "third_party/blink/renderer/core/clipboard/clipboard_utilities.h"
 #include "third_party/blink/renderer/core/clipboard/dragged_isolated_file_system.h"
 #include "third_party/blink/renderer/core/clipboard/paste_mode.h"
 #include "third_party/blink/renderer/core/clipboard/system_clipboard.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/platform/blob/blob_data.h"
 #include "third_party/blink/renderer/platform/file_metadata.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
+#include "ui/base/clipboard/clipboard_constants.h"
 
 namespace blink {
 
 // static
-DataObject* DataObject::CreateFromClipboard(SystemClipboard* system_clipboard,
+DataObject* DataObject::CreateFromClipboard(ExecutionContext* context,
+                                            SystemClipboard* system_clipboard,
                                             PasteMode paste_mode) {
   DataObject* data_object = Create();
 #if DCHECK_IS_ON()
@@ -59,21 +61,26 @@ DataObject* DataObject::CreateFromClipboard(SystemClipboard* system_clipboard,
   ClipboardSequenceNumberToken sequence_number =
       system_clipboard->SequenceNumber();
   for (const String& type : system_clipboard->ReadAvailableTypes()) {
-    if (paste_mode == PasteMode::kPlainTextOnly && type != kMimeTypeTextPlain)
+    if (paste_mode == PasteMode::kPlainTextOnly &&
+        type != ui::kMimeTypePlainText) {
       continue;
+    }
     mojom::blink::ClipboardFilesPtr files;
-    if (type == kMimeTypeTextURIList) {
+    if (type == ui::kMimeTypeUriList) {
       files = system_clipboard->ReadFiles();
-      // Ignore ReadFiles() result if clipboard sequence number has changed.
-      if (system_clipboard->SequenceNumber() != sequence_number) {
-        files->files.clear();
-      }
-      for (const mojom::blink::DataTransferFilePtr& file : files->files) {
-        data_object->AddFilename(
-            FilePathToString(file->path), FilePathToString(file->display_name),
-            files->file_system_id,
-            base::MakeRefCounted<FileSystemAccessDropData>(
-                std::move(file->file_system_access_token)));
+      if (files) {
+        // Ignore ReadFiles() result if clipboard sequence number has changed.
+        if (system_clipboard->SequenceNumber() != sequence_number) {
+          files->files.clear();
+        } else {
+          for (const mojom::blink::DataTransferFilePtr& file : files->files) {
+            data_object->AddFilename(
+                context, FilePathToString(file->path),
+                FilePathToString(file->display_name), files->file_system_id,
+                base::MakeRefCounted<FileSystemAccessDropData>(
+                    std::move(file->file_system_access_token)));
+          }
+        }
       }
     }
     if (files && !files->files.empty()) {
@@ -89,10 +96,15 @@ DataObject* DataObject::CreateFromClipboard(SystemClipboard* system_clipboard,
   return data_object;
 }
 
+DataObject* DataObject::CreateFromClipboard(SystemClipboard* system_clipboard,
+                                            PasteMode paste_mode) {
+  return CreateFromClipboard(/*context=*/nullptr, system_clipboard, paste_mode);
+}
+
 // static
 DataObject* DataObject::CreateFromString(const String& data) {
   DataObject* data_object = Create();
-  data_object->Add(data, kMimeTypeTextPlain);
+  data_object->Add(data, ui::kMimeTypePlainText);
   return data_object;
 }
 
@@ -110,7 +122,7 @@ uint32_t DataObject::length() const {
 DataObjectItem* DataObject::Item(uint32_t index) {
   if (index >= length())
     return nullptr;
-  return item_list_[index];
+  return item_list_[index].Get();
 }
 
 void DataObject::DeleteItem(uint32_t index) {
@@ -118,6 +130,23 @@ void DataObject::DeleteItem(uint32_t index) {
     return;
   item_list_.EraseAt(index);
   NotifyItemListChanged();
+}
+
+void DataObject::ClearStringItems() {
+  if (item_list_.empty()) {
+    return;
+  }
+
+  wtf_size_t num_items_before = item_list_.size();
+  item_list_.erase(std::remove_if(item_list_.begin(), item_list_.end(),
+                                  [](Member<DataObjectItem> item) {
+                                    return item->Kind() ==
+                                           DataObjectItem::kStringKind;
+                                  }),
+                   item_list_.end());
+  if (num_items_before != item_list_.size()) {
+    NotifyItemListChanged();
+  }
 }
 
 void DataObject::ClearAll() {
@@ -186,9 +215,13 @@ Vector<String> DataObject::Types() const {
     }
   }
   if (contains_files) {
-    results.push_back(kMimeTypeFiles);
+    // The "Files" value that isn't a MIME type but that is inserted into the
+    // types array when files are present in the store item list. See
+    // https://html.spec.whatwg.org/multipage/dnd.html#concept-datatransfer-types.
+    constexpr char kPseudoMimeTypeFiles[] = "Files";
+    results.push_back(kPseudoMimeTypeFiles);
 #if DCHECK_IS_ON()
-    DCHECK(types_seen.insert(kMimeTypeFiles).is_new_entry);
+    DCHECK(types_seen.insert(kPseudoMimeTypeFiles).is_new_entry);
 #endif
   }
   return results;
@@ -204,12 +237,13 @@ String DataObject::GetData(const String& type) const {
 
 void DataObject::SetData(const String& type, const String& data) {
   ClearData(type);
-  if (!Add(data, type))
+  if (!Add(data, type)) {
     NOTREACHED();
+  }
 }
 
 void DataObject::UrlAndTitle(String& url, String* title) const {
-  DataObjectItem* item = FindStringItem(kMimeTypeTextURIList);
+  DataObjectItem* item = FindStringItem(ui::kMimeTypeUriList);
   if (!item)
     return;
   url = ConvertURIListToURL(item->GetAsString());
@@ -218,12 +252,12 @@ void DataObject::UrlAndTitle(String& url, String* title) const {
 }
 
 void DataObject::SetURLAndTitle(const String& url, const String& title) {
-  ClearData(kMimeTypeTextURIList);
+  ClearData(ui::kMimeTypeUriList);
   InternalAddStringItem(DataObjectItem::CreateFromURL(url, title));
 }
 
 void DataObject::HtmlAndBaseURL(String& html, KURL& base_url) const {
-  DataObjectItem* item = FindStringItem(kMimeTypeTextHTML);
+  DataObjectItem* item = FindStringItem(ui::kMimeTypeHtml);
   if (!item)
     return;
   html = item->GetAsString();
@@ -231,8 +265,19 @@ void DataObject::HtmlAndBaseURL(String& html, KURL& base_url) const {
 }
 
 void DataObject::SetHTMLAndBaseURL(const String& html, const KURL& base_url) {
-  ClearData(kMimeTypeTextHTML);
+  ClearData(ui::kMimeTypeHtml);
   InternalAddStringItem(DataObjectItem::CreateFromHTML(html, base_url));
+}
+
+Vector<String> DataObject::Urls() const {
+  Vector<String> results;
+  for (const auto& item : item_list_) {
+    if (item->Kind() == DataObjectItem::kStringKind &&
+        item->GetType() == ui::kMimeTypeUriList) {
+      results.push_back(ConvertURIListToURL(item->GetAsString()));
+    }
+  }
+  return results;
 }
 
 bool DataObject::ContainsFilenames() const {
@@ -253,13 +298,14 @@ Vector<String> DataObject::Filenames() const {
 }
 
 void DataObject::AddFilename(
+    ExecutionContext* context,
     const String& filename,
     const String& display_name,
     const String& file_system_id,
     scoped_refptr<FileSystemAccessDropData> file_system_access_entry) {
   InternalAddFileItem(DataObjectItem::CreateFromFileWithFileSystemId(
-      File::CreateForUserProvidedFile(filename, display_name), file_system_id,
-      std::move(file_system_access_entry)));
+      File::CreateForUserProvidedFile(context, filename, display_name),
+      file_system_id, std::move(file_system_access_entry)));
 }
 
 void DataObject::AddFileSharedBuffer(scoped_refptr<SharedBuffer> buffer,
@@ -277,7 +323,7 @@ DataObject::DataObject() : modifiers_(0) {}
 DataObjectItem* DataObject::FindStringItem(const String& type) const {
   for (const auto& item : item_list_) {
     if (item->Kind() == DataObjectItem::kStringKind && item->GetType() == type)
-      return item;
+      return item.Get();
   }
   return nullptr;
 }
@@ -318,17 +364,18 @@ void DataObject::Trace(Visitor* visitor) const {
 }
 
 // static
-DataObject* DataObject::Create(const WebDragData& data) {
+DataObject* DataObject::Create(ExecutionContext* context,
+                               const WebDragData& data) {
   DataObject* data_object = Create();
   bool has_file_system = false;
 
   for (const WebDragData::Item& item : data.Items()) {
-    absl::visit(
+    std::visit(
         base::Overloaded{
             [&](const WebDragData::StringItem& item) {
-              if (String(item.type) == kMimeTypeTextURIList) {
+              if (String(item.type) == ui::kMimeTypeUriList) {
                 data_object->SetURLAndTitle(item.data, item.title);
-              } else if (String(item.type) == kMimeTypeTextHTML) {
+              } else if (String(item.type) == ui::kMimeTypeHtml) {
                 data_object->SetHTMLAndBaseURL(item.data, item.base_url);
               } else {
                 data_object->SetData(item.type, item.data);
@@ -336,8 +383,8 @@ DataObject* DataObject::Create(const WebDragData& data) {
             },
             [&](const WebDragData::FilenameItem& item) {
               has_file_system = true;
-              data_object->AddFilename(item.filename, item.display_name,
-                                       data.FilesystemId(),
+              data_object->AddFilename(context, item.filename,
+                                       item.display_name, data.FilesystemId(),
                                        item.file_system_access_entry);
             },
             [&](const WebDragData::BinaryDataItem& item) {
@@ -386,9 +433,13 @@ DataObject* DataObject::Create(const WebDragData& data) {
   return data_object;
 }
 
+DataObject* DataObject::Create(const WebDragData& data) {
+  return Create(/*context=*/nullptr, data);
+}
+
 WebDragData DataObject::ToWebDragData() {
   WebDragData data;
-  WebVector<WebDragData::Item> item_list(length());
+  std::vector<WebDragData::Item> item_list(length());
 
   for (wtf_size_t i = 0; i < length(); ++i) {
     DataObjectItem* original_item = Item(i);

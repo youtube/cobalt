@@ -8,6 +8,7 @@
 #include "base/containers/flat_set.h"
 #include "base/notreached.h"
 #include "base/trace_event/typed_macros.h"
+#include "extensions/common/mojom/match_origin_as_fallback.mojom-shared.h"
 #include "url/scheme_host_port.h"
 
 namespace extensions {
@@ -16,7 +17,7 @@ namespace extensions {
 GURL ContentScriptInjectionUrlGetter::Get(
     const FrameContextData& context_data,
     const GURL& document_url,
-    MatchOriginAsFallbackBehavior match_origin_as_fallback,
+    mojom::MatchOriginAsFallbackBehavior match_origin_as_fallback,
     bool allow_inaccessible_parents) {
   // The following schemes are considered for opaque origins if the
   // `match_origin_as_fallback` behavior is to always match.
@@ -34,27 +35,28 @@ GURL ContentScriptInjectionUrlGetter::Get(
       url::kFileSystemScheme,
   };
 
-  // TODO(https://crbug.com/1212918): Consider reducing tracing instrumentation
+  // TODO(crbug.com/40055997): Consider reducing tracing instrumentation
   // in the main function bodu and in the lambda below (once the bug is
   // understood and fixed).
   auto should_consider_origin = [&document_url, match_origin_as_fallback]() {
     bool result = false;
     switch (match_origin_as_fallback) {
-      case MatchOriginAsFallbackBehavior::kNever: {
+      case mojom::MatchOriginAsFallbackBehavior::kNever: {
         TRACE_EVENT_INSTANT("extensions",
                             "ContentScriptInjectionUrlGetter::Get/"
                             "should_consider_origin: origin-never");
         result = false;
         break;
       }
-      case MatchOriginAsFallbackBehavior::kMatchForAboutSchemeAndClimbTree: {
+      case mojom::MatchOriginAsFallbackBehavior::
+          kMatchForAboutSchemeAndClimbTree: {
         TRACE_EVENT_INSTANT("extensions",
                             "ContentScriptInjectionUrlGetter::Get/"
                             "should_consider_origin: origin-climb");
         result = document_url.SchemeIs(url::kAboutScheme);
         break;
       }
-      case MatchOriginAsFallbackBehavior::kAlways: {
+      case mojom::MatchOriginAsFallbackBehavior::kAlways: {
         TRACE_EVENT_INSTANT("extensions",
                             "ContentScriptInjectionUrlGetter::Get/"
                             "should_consider_origin: origin-always");
@@ -120,7 +122,8 @@ GURL ContentScriptInjectionUrlGetter::Get(
 
   // Looks like the initiator origin is an appropriate fallback!
 
-  if (match_origin_as_fallback == MatchOriginAsFallbackBehavior::kAlways) {
+  if (match_origin_as_fallback ==
+      mojom::MatchOriginAsFallbackBehavior::kAlways) {
     // The easy case! We use the origin directly. We're done.
     TRACE_EVENT_INSTANT(
         "extensions",
@@ -128,8 +131,9 @@ GURL ContentScriptInjectionUrlGetter::Get(
     return origin_or_precursor_origin.GetURL();
   }
 
-  DCHECK_EQ(MatchOriginAsFallbackBehavior::kMatchForAboutSchemeAndClimbTree,
-            match_origin_as_fallback);
+  DCHECK_EQ(
+      mojom::MatchOriginAsFallbackBehavior::kMatchForAboutSchemeAndClimbTree,
+      match_origin_as_fallback);
 
   // Unfortunately, in this case, we have to climb the frame tree. This is for
   // match patterns that are associated with paths as well, not just origins.
@@ -140,7 +144,7 @@ GURL ContentScriptInjectionUrlGetter::Get(
 
   // Traverse the frame/window hierarchy to find the closest non-about:-page
   // with the same origin as the precursor and return its URL.
-  // TODO(https://crbug.com/1186321): This can return the incorrect result, e.g.
+  // TODO(crbug.com/40753677): This can return the incorrect result, e.g.
   // if a parent frame navigates a grandchild frame to about:blank.
   std::unique_ptr<FrameContextData> parent_context_data =
       context_data.CloneFrameContextData();

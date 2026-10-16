@@ -3,29 +3,28 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/ash/login/screens/management_transition_screen.h"
-#include "base/memory/weak_ptr.h"
 
-#include "ash/components/arc/arc_prefs.h"
-#include "ash/components/arc/session/arc_management_transition.h"
 #include "ash/public/cpp/login_screen.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/ash/arc/arc_util.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/browser/ui/ash/system_tray_client_impl.h"
+#include "chrome/browser/ui/ash/system/system_tray_client_impl.h"
 #include "chrome/browser/ui/managed_ui.h"
 #include "chrome/browser/ui/webui/ash/login/management_transition_screen_handler.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
+#include "chromeos/ash/experiences/arc/session/arc_management_transition.h"
 
 namespace ash {
 
 namespace {
 
-constexpr base::TimeDelta kWaitingTimeout = base::Minutes(2);
+constexpr base::TimeDelta kWaitingTimeout = base::Minutes(5);
 
 // Management transition screen step names.
 constexpr const char kUserActionfinishManagementTransition[] =
@@ -72,7 +71,7 @@ void ManagementTransitionScreen::ShowImpl() {
   arc::ArcManagementTransition arc_management_transition =
       arc::GetManagementTransition(profile);
   std::string management_entity =
-      chrome::GetAccountManagerIdentity(profile).value_or(std::string());
+      GetAccountManagerIdentity(profile).value_or(std::string());
 
   if (view_)
     view_->Show(arc_management_transition, std::move(management_entity));

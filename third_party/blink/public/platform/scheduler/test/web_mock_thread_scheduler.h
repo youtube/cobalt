@@ -30,8 +30,6 @@ class WebMockThreadScheduler : public WebThreadScheduler {
                scoped_refptr<base::SingleThreadTaskRunner>());
   MOCK_METHOD0(DeprecatedDefaultTaskRunner,
                scoped_refptr<base::SingleThreadTaskRunner>());
-  MOCK_METHOD0(CompositorTaskRunner,
-               scoped_refptr<base::SingleThreadTaskRunner>());
   MOCK_METHOD0(InputTaskRunner, scoped_refptr<base::SingleThreadTaskRunner>());
   MOCK_METHOD0(LoadingTaskRunner,
                scoped_refptr<base::SingleThreadTaskRunner>());
@@ -50,7 +48,6 @@ class WebMockThreadScheduler : public WebThreadScheduler {
   MOCK_METHOD0(Shutdown, void());
   MOCK_METHOD0(VirtualTimePaused, void());
   MOCK_METHOD0(VirtualTimeResumed, void());
-  MOCK_METHOD1(SetRendererProcessType, void(WebRendererProcessType));
 };
 
 }  // namespace scheduler

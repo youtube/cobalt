@@ -39,14 +39,17 @@ Status BidiTracker::OnEvent(DevToolsClient* client,
   if (payload == nullptr) {
     return Status(kUnknownError, "Runtime.bindingCalled missing 'payload'");
   }
-  const std::string* channel = payload->FindString("channel");
+  const std::string* channel = payload->FindString("goog:channel");
   if (!channel || channel->empty()) {
     // Internally we set non-empty channel to any BiDi command.
     // Missing or empty channel in the response means that there is a bug.
-    return Status{kUnknownError, "channel is missing in the payload"};
+    return Status{kUnknownError, "goog:channel is missing in the payload"};
   }
   if (!base::EndsWith(*channel, channel_suffix_)) {
     return Status{kOk};
+  }
+  if (send_bidi_response_.is_null()) {
+    return Status{kUnknownError, "no callback is set in BidiTracker"};
   }
 
   return send_bidi_response_.Run(payload->Clone());

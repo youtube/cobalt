@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_SHAPING_SHAPE_RESULT_BLOBERIZER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_SHAPING_SHAPE_RESULT_BLOBERIZER_H_
 
+#include "cc/paint/node_id.h"
 #include "third_party/blink/renderer/platform/fonts/canvas_rotation_in_vertical.h"
 #include "third_party/blink/renderer/platform/fonts/glyph.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_buffer.h"
@@ -16,9 +17,15 @@
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/vector2d_f.h"
 
+namespace cc {
+class PaintCanvas;
+class PaintFlags;
+}  // namespace cc
+
 namespace blink {
 
 class FontDescription;
+class PlainTextNode;
 struct TextRunPaintInfo;
 
 class PLATFORM_EXPORT ShapeResultBloberizer {
@@ -59,8 +66,8 @@ class PLATFORM_EXPORT ShapeResultBloberizer {
     // cannot mix x-only/xy offsets
     DCHECK(!HasPendingVerticalOffsets());
 
-    if (UNLIKELY(font_data != pending_font_data_) ||
-        UNLIKELY(canvas_rotation != pending_canvas_rotation_)) {
+    if (font_data != pending_font_data_ ||
+        canvas_rotation != pending_canvas_rotation_) [[unlikely]] {
       CommitPendingRun();
       pending_font_data_ = font_data;
       pending_canvas_rotation_ = canvas_rotation;
@@ -70,7 +77,7 @@ class PLATFORM_EXPORT ShapeResultBloberizer {
 
     pending_glyphs_.push_back(glyph);
     pending_offsets_.push_back(h_offset);
-    if (UNLIKELY(!current_text_.IsNull())) {
+    if (!current_text_.IsNull()) [[unlikely]] {
       DVLOG(5) << "  Appending glyph " << glyph << " with start index "
                << character_index;
       current_character_indexes_.push_back(character_index);
@@ -85,8 +92,8 @@ class PLATFORM_EXPORT ShapeResultBloberizer {
     // cannot mix x-only/xy offsets
     DCHECK(pending_glyphs_.empty() || HasPendingVerticalOffsets());
 
-    if (UNLIKELY(font_data != pending_font_data_) ||
-        UNLIKELY(canvas_rotation != pending_canvas_rotation_)) {
+    if (font_data != pending_font_data_ ||
+        canvas_rotation != pending_canvas_rotation_) [[unlikely]] {
       CommitPendingRun();
       pending_font_data_ = font_data;
       pending_canvas_rotation_ = canvas_rotation;
@@ -101,7 +108,7 @@ class PLATFORM_EXPORT ShapeResultBloberizer {
     pending_offsets_.push_back(offset.x() +
                                pending_vertical_baseline_x_offset_);
     pending_offsets_.push_back(offset.y());
-    if (UNLIKELY(!current_text_.IsNull())) {
+    if (!current_text_.IsNull()) [[unlikely]] {
       DVLOG(5) << "  Appending glyph " << glyph << " with start index "
                << character_index;
       current_character_indexes_.push_back(character_index);
@@ -223,14 +230,24 @@ struct PLATFORM_EXPORT ShapeResultBloberizer::FillGlyphs
              const TextRunPaintInfo&,
              const ShapeResultBuffer&,
              Type);
+  FillGlyphs(const FontDescription& font_description,
+             const PlainTextNode& node,
+             Type type);
+
+ private:
+  template <typename ShapeList>
+  void FillGlyphsSlow(StringView text,
+                      TextDirection direction,
+                      const ShapeList& list,
+                      unsigned from,
+                      unsigned to);
 };
-struct PLATFORM_EXPORT ShapeResultBloberizer::FillTextEmphasisGlyphs
-    : public ShapeResultBloberizer {
-  FillTextEmphasisGlyphs(const FontDescription&,
-                         const TextRunPaintInfo&,
-                         const ShapeResultBuffer&,
-                         const GlyphData& emphasis_data);
-};
+
+void DrawTextBlobs(const ShapeResultBloberizer::BlobBuffer& blobs,
+                   cc::PaintCanvas& canvas,
+                   const gfx::PointF& point,
+                   const cc::PaintFlags& flags,
+                   cc::NodeId node_id = cc::kInvalidNodeId);
 
 }  // namespace blink
 

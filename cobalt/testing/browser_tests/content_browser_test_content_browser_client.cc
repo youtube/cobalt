@@ -14,7 +14,16 @@
 
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 
+#include <optional>
+#include <string_view>
+
 #include "base/test/task_environment.h"
+#include "cobalt/browser/cobalt_browser_interface_binders.h"
+#include "cobalt/browser/cobalt_browser_main_parts.h"
+#include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/shell/common/url_constants.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
 
 namespace content {
@@ -41,12 +50,64 @@ ContentBrowserTestContentBrowserClient::
   }
 }
 
-bool ContentBrowserTestContentBrowserClient::CreateThreadPool(
-    base::StringPiece name) {
-  // Injects a test TaskTracker to watch for long-running tasks and produce a
-  // useful timeout message in order to find the cause of flaky timeout tests.
-  base::test::TaskEnvironment::CreateThreadPool();
-  return true;
+void ContentBrowserTestContentBrowserClient::OnNetworkServiceCreated(
+    network::mojom::NetworkService* network_service) {
+  // Override ShellContentBrowserClient::OnNetworkServiceCreated() not to call
+  // NetworkService::ConfigureStubHostResolver(), because some tests are flaky
+  // when configuring the stub host resolver.
+  // TODO(crbug.com/41494161): Remove this override once the flakiness is fixed.
+}
+
+void ContentBrowserTestContentBrowserClient::
+    RegisterBrowserInterfaceBindersForFrame(
+        RenderFrameHost* render_frame_host,
+        mojo::BinderMapWithContext<RenderFrameHost*>* map) {
+  cobalt::PopulateCobaltFrameBinders(std::nullopt, render_frame_host, map);
+  ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
+      render_frame_host, map);
+}
+
+namespace {
+
+class ContentBrowserTestBrowserMainParts
+    : public cobalt::CobaltBrowserMainParts {
+ public:
+  ContentBrowserTestBrowserMainParts()
+      : cobalt::CobaltBrowserMainParts("", /*is_visible=*/true) {}
+
+  void PostOrRunIfStorageMigrationFinished(base::OnceClosure task) override {
+    // In browser tests, do not defer window creation tasks.
+    std::move(task).Run();
+  }
+
+ protected:
+  void InitializeMessageLoopContext() override {
+    // In browser tests, ensure the initial test shell window is created on all
+    // platforms including Android.
+    ShellBrowserMainParts::InitializeMessageLoopContext();
+  }
+};
+
+}  // namespace
+
+std::unique_ptr<BrowserMainParts>
+ContentBrowserTestContentBrowserClient::CreateBrowserMainParts(
+    bool /*is_integration_test*/) {
+  auto browser_main_parts =
+      std::make_unique<ContentBrowserTestBrowserMainParts>();
+  set_browser_main_parts(browser_main_parts.get());
+  return browser_main_parts;
+}
+
+void ContentBrowserTestContentBrowserClient::OnWebContentsCreated(
+    content::WebContents* web_contents) {
+  if (web_contents->GetPrimaryMainFrame() &&
+      web_contents->GetPrimaryMainFrame()->GetFrameName() ==
+          content::kCobaltSplashMainFrameName) {
+    return;
+  }
+  web_contents_observer_ =
+      std::make_unique<cobalt::CobaltWebContentsObserver>(web_contents);
 }
 
 }  // namespace content

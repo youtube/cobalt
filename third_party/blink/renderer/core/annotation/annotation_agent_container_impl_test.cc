@@ -21,6 +21,7 @@
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/testing/sim/sim_request.h"
 #include "third_party/blink/renderer/core/testing/sim/sim_test.h"
+#include "third_party/blink/renderer/platform/graphics/dom_node_id.h"
 
 namespace blink {
 
@@ -34,11 +35,16 @@ class AnnotationAgentContainerImplTest : public SimTest {
  protected:
   bool IsInContainer(AnnotationAgentImpl& agent,
                      AnnotationAgentContainerImpl& container) const {
-    return container.agents_.find(&agent) != container.agents_.end();
+    return container.agents_.Contains(&agent);
   }
 
   size_t GetAgentCount(AnnotationAgentContainerImpl& container) {
     return container.agents_.size();
+  }
+
+  AnnotationAgentImpl* GetAgentAt(AnnotationAgentContainerImpl& container,
+                                  size_t index) {
+    return container.agents_[index];
   }
 
   void SendRightClick(const gfx::Point& click_point) {
@@ -67,6 +73,7 @@ TEST_F(AnnotationAgentContainerImplTest, IsConstructedLazily) {
     <!DOCTYPE html>
     SUBFRAME
   )HTML");
+  Compositor().BeginFrame();
 
   ASSERT_TRUE(GetDocument().GetFrame());
   ASSERT_TRUE(GetDocument().GetFrame()->FirstChild());
@@ -78,26 +85,23 @@ TEST_F(AnnotationAgentContainerImplTest, IsConstructedLazily) {
   ASSERT_TRUE(child_document);
 
   // Initially, the container supplement should not exist on either document.
-  EXPECT_FALSE(
-      Supplement<Document>::From<AnnotationAgentContainerImpl>(GetDocument()));
-  EXPECT_FALSE(
-      Supplement<Document>::From<AnnotationAgentContainerImpl>(child_document));
+  EXPECT_FALSE(AnnotationAgentContainerImpl::FromIfExists(GetDocument()));
+  EXPECT_FALSE(AnnotationAgentContainerImpl::FromIfExists(*child_document));
 
   // Calling the getter on the container should create the supplement but only
   // for the child document.
-  auto* child_container = AnnotationAgentContainerImpl::From(*child_document);
+  auto* child_container =
+      AnnotationAgentContainerImpl::CreateIfNeeded(*child_document);
   EXPECT_TRUE(child_container);
-  EXPECT_EQ(
-      child_container,
-      Supplement<Document>::From<AnnotationAgentContainerImpl>(child_document));
-  EXPECT_FALSE(
-      Supplement<Document>::From<AnnotationAgentContainerImpl>(GetDocument()));
+  EXPECT_EQ(child_container,
+            AnnotationAgentContainerImpl::FromIfExists(*child_document));
+  EXPECT_FALSE(AnnotationAgentContainerImpl::FromIfExists(GetDocument()));
 
   // Calling the getter for the main document should now create that supplement.
-  auto* main_container = AnnotationAgentContainerImpl::From(GetDocument());
-  EXPECT_EQ(
-      main_container,
-      Supplement<Document>::From<AnnotationAgentContainerImpl>(GetDocument()));
+  auto* main_container =
+      AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
+  EXPECT_EQ(main_container,
+            AnnotationAgentContainerImpl::FromIfExists(GetDocument()));
 
   // The child and main documents should each have their own containers.
   EXPECT_NE(main_container, child_container);
@@ -111,18 +115,17 @@ TEST_F(AnnotationAgentContainerImplTest, BindingCreatesContainer) {
     <!DOCTYPE html>
     TEST PAGE
   )HTML");
+  Compositor().BeginFrame();
 
   mojo::Remote<mojom::blink::AnnotationAgentContainer> remote;
   ASSERT_FALSE(remote.is_bound());
-  ASSERT_FALSE(
-      Supplement<Document>::From<AnnotationAgentContainerImpl>(GetDocument()));
+  ASSERT_FALSE(AnnotationAgentContainerImpl::FromIfExists(GetDocument()));
 
   AnnotationAgentContainerImpl::BindReceiver(
       GetDocument().GetFrame(), remote.BindNewPipeAndPassReceiver());
 
   EXPECT_TRUE(remote.is_connected());
-  EXPECT_TRUE(
-      Supplement<Document>::From<AnnotationAgentContainerImpl>(GetDocument()));
+  EXPECT_TRUE(AnnotationAgentContainerImpl::FromIfExists(GetDocument()));
 }
 
 // Test that navigating to a new document breaks the binding on the old
@@ -135,6 +138,7 @@ TEST_F(AnnotationAgentContainerImplTest, NavigationBreaksBinding) {
     <!DOCTYPE html>
     TEST PAGE
   )HTML");
+  Compositor().BeginFrame();
 
   mojo::Remote<mojom::blink::AnnotationAgentContainer> remote;
   AnnotationAgentContainerImpl::BindReceiver(
@@ -146,6 +150,7 @@ TEST_F(AnnotationAgentContainerImplTest, NavigationBreaksBinding) {
     <!DOCTYPE html>
     NEXT PAGE
   )HTML");
+  Compositor().BeginFrame();
 
   remote.FlushForTesting();
 
@@ -161,16 +166,19 @@ TEST_F(AnnotationAgentContainerImplTest, NavigationReplacesContainer) {
     <!DOCTYPE html>
     TEST PAGE
   )HTML");
+  Compositor().BeginFrame();
 
-  auto* container = AnnotationAgentContainerImpl::From(GetDocument());
+  auto* container = AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
 
   LoadURL("https://example.com/next.html");
   request_next.Complete(R"HTML(
     <!DOCTYPE html>
     NEXT PAGE
   )HTML");
+  Compositor().BeginFrame();
 
-  auto* container_next = AnnotationAgentContainerImpl::From(GetDocument());
+  auto* container_next =
+      AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
 
   EXPECT_NE(container, container_next);
 }
@@ -183,8 +191,9 @@ TEST_F(AnnotationAgentContainerImplTest, CreateUnboundAgent) {
     <!DOCTYPE html>
     TEST PAGE
   )HTML");
+  Compositor().BeginFrame();
 
-  auto* container = AnnotationAgentContainerImpl::From(GetDocument());
+  auto* container = AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
   ASSERT_TRUE(container);
   auto* agent = container->CreateUnboundAgent(
       mojom::blink::AnnotationType::kSharedHighlight,
@@ -206,24 +215,27 @@ TEST_F(AnnotationAgentContainerImplTest, CreateBoundAgent) {
     <!DOCTYPE html>
     TEST PAGE
   )HTML");
+  Compositor().BeginFrame();
 
   MockAnnotationAgentHost host;
   auto remote_receiver_pair = host.BindForCreateAgent();
 
-  auto* container = AnnotationAgentContainerImpl::From(GetDocument());
+  auto* container = AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
   ASSERT_TRUE(container);
-  container->CreateAgent(std::move(remote_receiver_pair.first),
-                         std::move(remote_receiver_pair.second),
-                         mojom::blink::AnnotationType::kSharedHighlight,
-                         "MockAnnotationSelector");
+  container->CreateAgent(
+      std::move(remote_receiver_pair.first),
+      std::move(remote_receiver_pair.second),
+      mojom::blink::AnnotationType::kSharedHighlight,
+      mojom::blink::Selector::NewSerializedSelector("MockAnnotationSelector"));
 
   EXPECT_EQ(GetAgentCount(*container), 1ul);
 
   EXPECT_TRUE(host.agent_.is_connected());
 
+  // Creating an agent from selection should automatically attach, which will
+  // happen in the next BeginFrame.
+  Compositor().BeginFrame();
   host.FlushForTesting();
-
-  // Creating a bound agent should automatically start attachment.
   EXPECT_TRUE(host.did_finish_attachment_rect_);
   EXPECT_FALSE(host.did_disconnect_);
 }
@@ -245,12 +257,13 @@ TEST_F(AnnotationAgentContainerImplTest, DeferAttachmentUntilFinishedParsing) {
   MockAnnotationAgentHost host;
   auto remote_receiver_pair = host.BindForCreateAgent();
 
-  auto* container = AnnotationAgentContainerImpl::From(GetDocument());
+  auto* container = AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
   ASSERT_TRUE(container);
-  container->CreateAgent(std::move(remote_receiver_pair.first),
-                         std::move(remote_receiver_pair.second),
-                         mojom::blink::AnnotationType::kUserNote,
-                         "MockAnnotationSelector");
+  container->CreateAgent(
+      std::move(remote_receiver_pair.first),
+      std::move(remote_receiver_pair.second),
+      mojom::blink::AnnotationType::kUserNote,
+      mojom::blink::Selector::NewSerializedSelector("MockAnnotationSelector"));
 
   // The agent should be created and bound.
   EXPECT_EQ(GetAgentCount(*container), 1ul);
@@ -277,8 +290,9 @@ TEST_F(AnnotationAgentContainerImplTest, ManuallyRemoveAgent) {
     <!DOCTYPE html>
     TEST PAGE
   )HTML");
+  Compositor().BeginFrame();
 
-  auto* container = AnnotationAgentContainerImpl::From(GetDocument());
+  auto* container = AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
   ASSERT_TRUE(container);
   auto* agent1 = container->CreateUnboundAgent(
       mojom::blink::AnnotationType::kSharedHighlight,
@@ -315,15 +329,17 @@ TEST_F(AnnotationAgentContainerImplTest, NavigationRemovesBoundAgents) {
     <!DOCTYPE html>
     TEST PAGE
   )HTML");
+  Compositor().BeginFrame();
 
   MockAnnotationAgentHost host;
   auto remote_receiver_pair = host.BindForCreateAgent();
 
-  auto* container = AnnotationAgentContainerImpl::From(GetDocument());
-  container->CreateAgent(std::move(remote_receiver_pair.first),
-                         std::move(remote_receiver_pair.second),
-                         mojom::blink::AnnotationType::kSharedHighlight,
-                         "MockAnnotationSelector");
+  auto* container = AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
+  container->CreateAgent(
+      std::move(remote_receiver_pair.first),
+      std::move(remote_receiver_pair.second),
+      mojom::blink::AnnotationType::kSharedHighlight,
+      mojom::blink::Selector::NewSerializedSelector("MockAnnotationSelector"));
   ASSERT_EQ(GetAgentCount(*container), 1ul);
   ASSERT_FALSE(host.did_disconnect_);
 
@@ -347,6 +363,7 @@ TEST_F(AnnotationAgentContainerImplTest,
     <!DOCTYPE html>
     TEST PAGE
   )HTML");
+  Compositor().BeginFrame();
 
   auto& first_document = GetDocument();
 
@@ -356,7 +373,7 @@ TEST_F(AnnotationAgentContainerImplTest,
     NEXT PAGE
   )HTML");
 
-  EXPECT_FALSE(AnnotationAgentContainerImpl::From(first_document));
+  EXPECT_FALSE(AnnotationAgentContainerImpl::CreateIfNeeded(first_document));
 }
 
 // When the document has no selection, calling CreateAgentFromSelection must
@@ -370,8 +387,9 @@ TEST_F(AnnotationAgentContainerImplTest,
     <!DOCTYPE html>
     <body>TEST PAGE</body>
   )HTML");
+  Compositor().BeginFrame();
 
-  auto* container = AnnotationAgentContainerImpl::From(GetDocument());
+  auto* container = AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
 
   bool did_reply = false;
   container->CreateAgentFromSelection(
@@ -409,8 +427,9 @@ TEST_F(AnnotationAgentContainerImplTest,
     <!DOCTYPE html>
     <body>TEST PAGE</body>
   )HTML");
+  Compositor().BeginFrame();
 
-  auto* container = AnnotationAgentContainerImpl::From(GetDocument());
+  auto* container = AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
 
   FrameSelection& frame_selection = GetDocument().GetFrame()->Selection();
 
@@ -453,8 +472,9 @@ TEST_F(AnnotationAgentContainerImplTest,
     <!DOCTYPE html>
     <body>TEST PAGE</body>
   )HTML");
+  Compositor().BeginFrame();
 
-  auto* container = AnnotationAgentContainerImpl::From(GetDocument());
+  auto* container = AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
 
   FrameSelection& frame_selection = GetDocument().GetFrame()->Selection();
 
@@ -507,9 +527,11 @@ TEST_F(AnnotationAgentContainerImplTest,
   EXPECT_TRUE(did_reply);
 
   EXPECT_TRUE(host.agent_.is_connected());
-  host.FlushForTesting();
 
-  // Creating an agent from selection should automatically start attachment.
+  // Creating an agent from selection should automatically attach, which will
+  // happen in the next BeginFrame.
+  Compositor().BeginFrame();
+  host.FlushForTesting();
   EXPECT_TRUE(host.did_finish_attachment_rect_);
 
   EXPECT_EQ(GetAgentCount(*container), 1ul);
@@ -525,8 +547,9 @@ TEST_F(AnnotationAgentContainerImplTest, CreateAgentFromSelection) {
     <!DOCTYPE html>
     <body>TEST PAGE</body>
   )HTML");
+  Compositor().BeginFrame();
 
-  auto* container = AnnotationAgentContainerImpl::From(GetDocument());
+  auto* container = AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
 
   FrameSelection& frame_selection = GetDocument().GetFrame()->Selection();
 
@@ -572,9 +595,11 @@ TEST_F(AnnotationAgentContainerImplTest, CreateAgentFromSelection) {
   run_loop.Run();
 
   EXPECT_TRUE(host.agent_.is_connected());
-  host.FlushForTesting();
 
-  // Creating an agent from selection should automatically start attachment.
+  // Creating an agent from selection should automatically attach, which will
+  // happen in the next BeginFrame.
+  Compositor().BeginFrame();
+  host.FlushForTesting();
   EXPECT_TRUE(host.did_finish_attachment_rect_);
 
   EXPECT_EQ(GetAgentCount(*container), 1ul);
@@ -598,17 +623,18 @@ TEST_F(AnnotationAgentContainerImplTest, ShutdownDocumentWhileGenerating) {
       <p>Multiple blocks</p>
     </body>
   )HTML");
+  Compositor().BeginFrame();
 
   // Set a tiny timeout so that the generator takes many tasks to finish its
   // work.
   auto auto_reset_timeout =
       AsyncFindBuffer::OverrideTimeoutForTesting(base::TimeDelta::Min());
 
-  auto* container = AnnotationAgentContainerImpl::From(GetDocument());
+  auto* container = AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
 
   FrameSelection& frame_selection = GetDocument().GetFrame()->Selection();
 
-  Element* target = GetDocument().getElementById("target");
+  Element* target = GetDocument().getElementById(AtomicString("target"));
   EphemeralRange range =
       EphemeralRange(Position(target, 0), Position(target, 1));
   ASSERT_EQ("TARGET", PlainText(range));
@@ -667,9 +693,124 @@ TEST_F(AnnotationAgentContainerImplTest, ShutdownDocumentWhileGenerating) {
   EXPECT_EQ(GetAgentCount(*container), 0ul);
 
   // Ensure the new document doesn't somehow get involved.
-  auto* new_container = AnnotationAgentContainerImpl::From(GetDocument());
+  auto* new_container =
+      AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
   ASSERT_NE(new_container, container);
   EXPECT_EQ(GetAgentCount(*new_container), 0ul);
+}
+
+// Test that the container can create a bound agent using a node id selector. It
+// should automatically perform attachment at creation time.
+TEST_F(AnnotationAgentContainerImplTest, CreateBoundAgentWithNodeId) {
+  SimRequest request("https://example.com/test.html", "text/html");
+  LoadURL("https://example.com/test.html");
+  request.Complete(R"HTML(
+    <!DOCTYPE html>
+    <body>
+      <p id="text">some text</p>
+    </body>
+  )HTML");
+  Compositor().BeginFrame();
+
+  MockAnnotationAgentHost host;
+  auto remote_receiver_pair = host.BindForCreateAgent();
+
+  auto* container = AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
+  ASSERT_TRUE(container);
+  container->CreateAgent(
+      std::move(remote_receiver_pair.first),
+      std::move(remote_receiver_pair.second),
+      mojom::blink::AnnotationType::kSharedHighlight,
+      mojom::blink::Selector::NewNodeId(DOMNodeIds::IdForNode(
+          GetDocument().getElementById(AtomicString("text")))));
+
+  EXPECT_EQ(GetAgentCount(*container), 1ul);
+  EXPECT_TRUE(host.agent_.is_connected());
+
+  Compositor().BeginFrame();
+  host.FlushForTesting();
+  EXPECT_EQ(host.attachment_result_, mojom::blink::AttachmentResult::kSuccess);
+  EXPECT_FALSE(host.did_finish_attachment_rect_->IsEmpty());
+  EXPECT_FALSE(host.did_disconnect_);
+}
+
+TEST_F(AnnotationAgentContainerImplTest,
+       CreateBoundAgentWithNonExistentNodeId) {
+  SimRequest request("https://example.com/test.html", "text/html");
+  LoadURL("https://example.com/test.html");
+  request.Complete(R"HTML()HTML");
+  Compositor().BeginFrame();
+
+  MockAnnotationAgentHost host;
+  auto remote_receiver_pair = host.BindForCreateAgent();
+
+  auto* container = AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
+  ASSERT_TRUE(container);
+  const int non_existent_node_id = 9999;
+  container->CreateAgent(
+      std::move(remote_receiver_pair.first),
+      std::move(remote_receiver_pair.second),
+      mojom::blink::AnnotationType::kSharedHighlight,
+      mojom::blink::Selector::NewNodeId(non_existent_node_id));
+
+  EXPECT_EQ(GetAgentCount(*container), 1ul);
+  EXPECT_TRUE(host.agent_.is_connected());
+
+  Compositor().BeginFrame();
+  host.FlushForTesting();
+  EXPECT_EQ(host.attachment_result_,
+            mojom::blink::AttachmentResult::kSelectorNotMatched);
+  EXPECT_TRUE(host.did_finish_attachment_rect_->IsEmpty());
+  EXPECT_FALSE(host.did_disconnect_);
+}
+
+TEST_F(AnnotationAgentContainerImplTest, RemoveAgentsOfType) {
+  SimRequest request("https://example.com/test.html", "text/html");
+  LoadURL("https://example.com/test.html");
+  request.Complete(R"HTML(
+    <!DOCTYPE html>
+    TEST PAGE
+  )HTML");
+  Compositor().BeginFrame();
+
+  mojo::Remote<mojom::blink::AnnotationAgentContainer> remote;
+  AnnotationAgentContainerImpl::BindReceiver(
+      GetDocument().GetFrame(), remote.BindNewPipeAndPassReceiver());
+  ASSERT_TRUE(remote.is_connected());
+  auto* container = AnnotationAgentContainerImpl::FromIfExists(GetDocument());
+  ASSERT_TRUE(container);
+
+  struct AnnotationAgentHost {
+    MockAnnotationAgentHost host;
+    mojom::AnnotationType type = mojom::AnnotationType::kSharedHighlight;
+  };
+  std::array<AnnotationAgentHost, 3> agent_hosts;
+  agent_hosts[0].type = mojom::AnnotationType::kGlic;
+  agent_hosts[2].type = mojom::AnnotationType::kGlic;
+
+  for (auto& agent_host : agent_hosts) {
+    auto remote_receiver_pair = agent_host.host.BindForCreateAgent();
+    container->CreateAgent(std::move(remote_receiver_pair.first),
+                           std::move(remote_receiver_pair.second),
+                           agent_host.type,
+                           mojom::blink::Selector::NewSerializedSelector(
+                               "MockAnnotationSelector"));
+  }
+
+  remote->RemoveAgentsOfType(mojom::AnnotationType::kGlic);
+  remote.FlushForTesting();
+
+  // Only the agents of type kGlic should be removed.
+  EXPECT_EQ(GetAgentCount(*container), 1u);
+  EXPECT_EQ(GetAgentAt(*container, 0)->GetType(),
+            mojom::AnnotationType::kSharedHighlight);
+
+  for (auto& agent_host : agent_hosts) {
+    agent_host.host.FlushForTesting();
+  }
+  EXPECT_TRUE(agent_hosts[0].host.did_disconnect_);
+  EXPECT_FALSE(agent_hosts[1].host.did_disconnect_);
+  EXPECT_TRUE(agent_hosts[2].host.did_disconnect_);
 }
 
 }  // namespace blink

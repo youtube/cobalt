@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/spellcheck/browser/spellcheck_platform.h"
 
 #include <stddef.h>
@@ -25,9 +30,7 @@ class SpellcheckPlatformMacTest: public testing::Test {
                                  base::Unretained(this))),
         callback_finished_(false) {}
 
-  void WaitForCallback() {
-    content::RunMessageLoop();
-  }
+  void WaitForCallback() { loop_.Run(); }
 
   std::vector<SpellCheckResult> results_;
   spellcheck_platform::TextCheckCompleteCallback callback_;
@@ -37,7 +40,7 @@ class SpellcheckPlatformMacTest: public testing::Test {
   void QuitMessageLoop() {
     ASSERT_TRUE(
         task_environment_.GetMainThreadTaskRunner()->BelongsToCurrentThread());
-    base::RunLoop::QuitCurrentWhenIdleDeprecated();
+    loop_.Quit();
   }
 
   void CompletionCallback(const std::vector<SpellCheckResult>& results) {
@@ -51,6 +54,7 @@ class SpellcheckPlatformMacTest: public testing::Test {
   base::test::SingleThreadTaskEnvironment task_environment_{
       base::test::SingleThreadTaskEnvironment::MainThreadType::UI};
   spellcheck_platform::ScopedEnglishLanguageForTest scoped_language_;
+  base::RunLoop loop_;
 };
 
 // Tests that words are properly ignored. Currently only enabled on OS X as it

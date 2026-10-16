@@ -2,24 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "content/public/common/pseudonymization_util.h"
 
 #include <string.h>
 
+#include <string_view>
+
 #include "base/hash/sha1.h"
-#include "base/strings/string_piece.h"
 #include "content/common/pseudonymization_salt.h"
 
 namespace content {
 
 // static
 uint32_t PseudonymizationUtil::PseudonymizeStringForTesting(
-    base::StringPiece string) {
+    std::string_view string) {
   return PseudonymizeString(string);
 }
 
 // static
-uint32_t PseudonymizationUtil::PseudonymizeString(base::StringPiece string) {
+uint32_t PseudonymizationUtil::PseudonymizeString(std::string_view string) {
   // Include `string` in the SHA1 hash.
   base::SHA1Context sha1_context;
   base::SHA1Init(sha1_context);
@@ -32,7 +38,7 @@ uint32_t PseudonymizationUtil::PseudonymizeString(base::StringPiece string) {
   // retained or sent anywhere).
   uint32_t salt = GetPseudonymizationSalt();
   base::SHA1Update(
-      base::StringPiece(reinterpret_cast<const char*>(&salt), sizeof(salt)),
+      std::string_view(reinterpret_cast<const char*>(&salt), sizeof(salt)),
       sha1_context);
 
   // Compute the SHA1 hash.

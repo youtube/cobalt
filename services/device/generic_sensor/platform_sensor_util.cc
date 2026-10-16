@@ -4,10 +4,10 @@
 
 #include "services/device/generic_sensor/platform_sensor_util.h"
 
+#include <algorithm>
 #include <cmath>
 
 #include "base/notreached.h"
-#include "base/ranges/algorithm.h"
 #include "services/device/public/cpp/generic_sensor/sensor_reading.h"
 
 namespace device {
@@ -28,6 +28,9 @@ static_assert(kOrientationEulerRoundingMultiple > 0.0,
               "Rounding multiple must be positive.");
 
 static_assert(kOrientationQuaternionRoundingMultiple > 0.0,
+              "Rounding multiple must be positive.");
+
+static_assert(kMagnetometerRoundingMultiple > 0.0,
               "Rounding multiple must be positive.");
 
 // Check that threshold value is at least half of rounding multiple.
@@ -112,6 +115,12 @@ void RoundOrientationEulerReading(SensorReadingXYZ* reading) {
   reading->z = RoundToMultiple(reading->z, kOrientationEulerRoundingMultiple);
 }
 
+void RoundMagnetometerReading(SensorReadingXYZ* reading) {
+  reading->x = RoundToMultiple(reading->x, kMagnetometerRoundingMultiple);
+  reading->y = RoundToMultiple(reading->y, kMagnetometerRoundingMultiple);
+  reading->z = RoundToMultiple(reading->z, kMagnetometerRoundingMultiple);
+}
+
 void RoundSensorReading(SensorReading* reading, mojom::SensorType sensor_type) {
   switch (sensor_type) {
     case mojom::SensorType::ACCELEROMETER:
@@ -139,8 +148,7 @@ void RoundSensorReading(SensorReading* reading, mojom::SensorType sensor_type) {
       break;
 
     case mojom::SensorType::MAGNETOMETER:
-    case mojom::SensorType::PRESSURE:
-    case mojom::SensorType::PROXIMITY:
+      RoundMagnetometerReading(&reading->magn);
       break;
   }
 }

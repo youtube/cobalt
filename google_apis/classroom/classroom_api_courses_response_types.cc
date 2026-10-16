@@ -6,10 +6,10 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/json/json_value_converter.h"
 #include "base/notreached.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "google_apis/common/parser_util.h"
 
@@ -18,10 +18,11 @@ namespace {
 
 constexpr char kApiResponseCoursesKey[] = "courses";
 constexpr char kApiResponseCourseStateKey[] = "courseState";
+constexpr char kApiResponseSectionKey[] = "section";
 
 constexpr char kActiveCourseState[] = "ACTIVE";
 
-bool ConvertCourseState(base::StringPiece input, Course::State* output) {
+bool ConvertCourseState(std::string_view input, Course::State* output) {
   *output = input == kActiveCourseState ? Course::State::kActive
                                         : Course::State::kOther;
   return true;
@@ -31,11 +32,16 @@ bool ConvertCourseState(base::StringPiece input, Course::State* output) {
 
 // ----- Course -----
 
+Course::Course() = default;
+
+Course::~Course() = default;
+
 // static
 void Course::RegisterJSONConverter(
     base::JSONValueConverter<Course>* converter) {
   converter->RegisterStringField(kApiResponseIdKey, &Course::id_);
   converter->RegisterStringField(kApiResponseNameKey, &Course::name_);
+  converter->RegisterStringField(kApiResponseSectionKey, &Course::section_);
   converter->RegisterCustomField<Course::State>(
       kApiResponseCourseStateKey, &Course::state_, &ConvertCourseState);
 }
@@ -45,7 +51,7 @@ std::string Course::StateToString(Course::State state) {
   if (state == Course::State::kActive) {
     return kActiveCourseState;
   }
-  NOTREACHED_NORETURN();
+  NOTREACHED();
 }
 
 // ----- Courses -----

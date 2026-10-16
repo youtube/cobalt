@@ -28,7 +28,7 @@ class NormalizerConformanceTest : public IntlTest {
     NormalizerConformanceTest();
     virtual ~NormalizerConformanceTest();
 
-    void runIndexedTest(int32_t index, UBool exec, const char* &name, char* par=NULL) override;
+    void runIndexedTest(int32_t index, UBool exec, const char* &name, char* par=nullptr) override;
 
     /**
      * Test the conformance of Normalizer to
@@ -40,7 +40,7 @@ class NormalizerConformanceTest : public IntlTest {
 
     // Specific tests for debugging.  These are generally failures taken from
     // the conformance file, but culled out to make debugging easier.
-    void TestCase6(void);
+    void TestCase6();
 
  private:
     FileStream *openNormalizationTestFile(const char *filename);

@@ -28,7 +28,6 @@
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -40,8 +39,6 @@ HTMLParserOptions::HTMLParserOptions(Document* document) {
   scripting_flag = (document->GetSettings()->GetParserScriptingFlagPolicy() ==
                     ParserScriptingFlagPolicy::kEnabled) ||
                    window->CanExecuteScripts(kNotAboutToExecuteScript);
-  priority_hints_origin_trial_enabled =
-      RuntimeEnabledFeatures::PriorityHintsEnabled(window);
 }
 
 }  // namespace blink

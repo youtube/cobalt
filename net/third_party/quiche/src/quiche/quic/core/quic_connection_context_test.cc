@@ -4,6 +4,10 @@
 
 #include "quiche/quic/core/quic_connection_context.h"
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/platform/api/quic_thread.h"
 
@@ -72,7 +76,7 @@ void NestedSwitch() {
     QUIC_TRACEPRINTF("%s %s %d", "outer", "printf", 0);
 
     {
-      QuicConnectionContextSwitcher switcher(&inner.context);
+      QuicConnectionContextSwitcher nested_switcher(&inner.context);
       QUIC_TRACELITERAL("inner literal");
       QUIC_TRACESTRING(std::string("inner string"));
       QUIC_TRACEPRINTF("%s %s", "inner", "printf");

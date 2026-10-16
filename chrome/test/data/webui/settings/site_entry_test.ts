@@ -5,14 +5,16 @@
 // clang-format off
 import 'chrome://webui-test/cr_elements/cr_policy_strings.js';
 
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {SiteEntryElement, SiteSettingsPrefsBrowserProxyImpl, SortMethod} from 'chrome://settings/lazy_load.js';
+import type {SiteEntryElement} from 'chrome://settings/lazy_load.js';
+import {SiteSettingsPrefsBrowserProxyImpl, SortMethod} from 'chrome://settings/lazy_load.js';
 import {Router, routes} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {eventToPromise, isChildVisible} from 'chrome://webui-test/test_util.js';
+import {eventToPromise, microtasksFinished, isChildVisible} from 'chrome://webui-test/test_util.js';
 
 import {TestSiteSettingsPrefsBrowserProxy} from './test_site_settings_prefs_browser_proxy.js';
-import {createOriginInfo,createSiteGroup} from './test_util.js';
+import {createOriginInfo, createSiteGroup} from './test_util.js';
 
 // clang-format on
 
@@ -20,16 +22,17 @@ suite('SiteEntry', function() {
   /**
    * An example eTLD+1 Object with multiple origins grouped under it.
    */
-  const TEST_MULTIPLE_SITE_GROUP = createSiteGroup('example.com', [
-    'http://example.com',
-    'https://www.example.com',
-    'https://login.example.com',
-  ]);
+  const TEST_MULTIPLE_SITE_GROUP =
+      createSiteGroup('example.com', 'example.com', [
+        'http://example.com',
+        'https://www.example.com',
+        'https://login.example.com',
+      ]);
 
   /**
    * An example eTLD+1 Object with a single origin in it.
    */
-  const TEST_SINGLE_SITE_GROUP = createSiteGroup('foo.com', [
+  const TEST_SINGLE_SITE_GROUP = createSiteGroup('foo.com', 'foo.com', [
     'https://login.foo.com',
   ]);
 
@@ -42,6 +45,11 @@ suite('SiteEntry', function() {
    * A site list element created before each test.
    */
   let testElement: SiteEntryElement;
+
+  function createPage() {
+    testElement = document.createElement('site-entry');
+    document.body.appendChild(testElement);
+  }
 
   // Initialize a site-list before each test.
   setup(function() {
@@ -67,7 +75,7 @@ suite('SiteEntry', function() {
     assertEquals(3, collapseChild.querySelectorAll('.origin-link').length);
   });
 
-  test('expands and closes to show more origins', function() {
+  test('expands and closes to show more origins', async () => {
     testElement.siteGroup = TEST_MULTIPLE_SITE_GROUP;
     assertFalse(testElement.$.expandIcon.hidden);
     assertEquals(
@@ -75,15 +83,16 @@ suite('SiteEntry', function() {
     assertEquals(
         'false', testElement.$.expandIcon.getAttribute('aria-expanded'));
     const originList = testElement.$.originList.get();
-    assertTrue(originList.classList.contains('iron-collapse-closed'));
+    assertTrue(originList.classList.contains('collapse-closed'));
     assertEquals('true', originList.getAttribute('aria-hidden'));
 
     testElement.$.toggleButton.click();
+    await microtasksFinished();
     assertEquals(
         'true', testElement.$.toggleButton.getAttribute('aria-expanded'));
     assertEquals(
         'true', testElement.$.expandIcon.getAttribute('aria-expanded'));
-    assertTrue(originList.classList.contains('iron-collapse-opened'));
+    assertTrue(originList.classList.contains('collapse-opened'));
     assertEquals('false', originList.getAttribute('aria-hidden'));
   });
 
@@ -93,13 +102,13 @@ suite('SiteEntry', function() {
     assertEquals(
         'false', testElement.$.toggleButton.getAttribute('aria-expanded'));
     const originList = testElement.$.originList.get();
-    assertTrue(originList.classList.contains('iron-collapse-closed'));
+    assertTrue(originList.classList.contains('collapse-closed'));
     assertEquals('true', originList.getAttribute('aria-hidden'));
 
     testElement.$.toggleButton.click();
     assertEquals(
         'false', testElement.$.toggleButton.getAttribute('aria-expanded'));
-    assertTrue(originList.classList.contains('iron-collapse-closed'));
+    assertTrue(originList.classList.contains('collapse-closed'));
     assertEquals('true', originList.getAttribute('aria-hidden'));
     assertEquals(
         routes.SITE_SETTINGS_SITE_DETAILS.path,
@@ -133,16 +142,14 @@ suite('SiteEntry', function() {
       'moving from grouped to ungrouped does not get stuck in opened state',
       function() {
         // Clone this object to avoid propagating changes made in this test.
-        testElement.siteGroup =
-            JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
+        testElement.siteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
         flush();
         testElement.$.toggleButton.click();
         assertTrue(testElement.$.originList.get().opened);
 
         // Remove all origins except one, then make sure it's not still
         // expanded.
-        const siteGroupUpdated =
-            JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
+        const siteGroupUpdated = structuredClone(TEST_MULTIPLE_SITE_GROUP);
         siteGroupUpdated.origins.splice(1);
         testElement.siteGroup = siteGroupUpdated;
         assertEquals(1, testElement.siteGroup.origins.length);
@@ -155,7 +162,7 @@ suite('SiteEntry', function() {
     const cookiesLabel = testElement.$.cookies;
     assertTrue(cookiesLabel.hidden);
     // When the number of cookies is more than zero, the label appears.
-    const testSiteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
+    const testSiteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
     const numCookies = 3;
     testSiteGroup.numCookies = numCookies;
 
@@ -175,7 +182,7 @@ suite('SiteEntry', function() {
     assertTrue(cookiesLabel.hidden);
 
 
-    const testSiteGroup = JSON.parse(JSON.stringify(TEST_SINGLE_SITE_GROUP));
+    const testSiteGroup = structuredClone(TEST_SINGLE_SITE_GROUP);
     const numCookies = 3;
 
     testSiteGroup.numCookies = numCookies;
@@ -191,13 +198,13 @@ suite('SiteEntry', function() {
 
   test('data usage shown correctly for grouped entries', async function() {
     // Clone this object to avoid propagating changes made in this test.
-    const testSiteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
+    const testSiteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
     const numBytes1 = 74622;
     const numBytes2 = 1274;
     const numBytes3 = 0;
-    testSiteGroup.origins[0].usage = numBytes1;
-    testSiteGroup.origins[1].usage = numBytes2;
-    testSiteGroup.origins[2].usage = numBytes3;
+    testSiteGroup.origins[0]!.usage = numBytes1;
+    testSiteGroup.origins[1]!.usage = numBytes2;
+    testSiteGroup.origins[2]!.usage = numBytes3;
     testElement.siteGroup = testSiteGroup;
     flush();
     const args = await browserProxy.whenCalled('getFormattedBytes');
@@ -212,9 +219,9 @@ suite('SiteEntry', function() {
 
   test('data usage shown correctly for ungrouped entries', async function() {
     // Clone this object to avoid propagating changes made in this test.
-    const testSiteGroup = JSON.parse(JSON.stringify(TEST_SINGLE_SITE_GROUP));
+    const testSiteGroup = structuredClone(TEST_SINGLE_SITE_GROUP);
     const numBytes = 74622;
-    testSiteGroup.origins[0].usage = numBytes;
+    testSiteGroup.origins[0]!.usage = numBytes;
     testElement.siteGroup = testSiteGroup;
     flush();
     const args = await browserProxy.whenCalled('getFormattedBytes');
@@ -230,14 +237,13 @@ suite('SiteEntry', function() {
       'large number data usage shown correctly for grouped entries',
       async function() {
         // Clone this object to avoid propagating changes made in this test.
-        const testSiteGroup =
-            JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
+        const testSiteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
         const numBytes1 = 2000000000;
         const numBytes2 = 10000000000;
         const numBytes3 = 7856;
-        testSiteGroup.origins[0].usage = numBytes1;
-        testSiteGroup.origins[1].usage = numBytes2;
-        testSiteGroup.origins[2].usage = numBytes3;
+        testSiteGroup.origins[0]!.usage = numBytes1;
+        testSiteGroup.origins[1]!.usage = numBytes2;
+        testSiteGroup.origins[2]!.usage = numBytes3;
         testElement.siteGroup = testSiteGroup;
         flush();
         const args = await browserProxy.whenCalled('getFormattedBytes');
@@ -252,10 +258,10 @@ suite('SiteEntry', function() {
 
   test('favicon with www.etld+1 chosen for site group', function() {
     // Clone this object to avoid propagating changes made in this test.
-    const testSiteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
-    testSiteGroup.origins[0].usage = 0;
-    testSiteGroup.origins[1].usage = 1274;
-    testSiteGroup.origins[2].usage = 74622;
+    const testSiteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
+    testSiteGroup.origins[0]!.usage = 0;
+    testSiteGroup.origins[1]!.usage = 1274;
+    testSiteGroup.origins[2]!.usage = 74622;
     testElement.siteGroup = testSiteGroup;
     flush();
     assertEquals(
@@ -265,11 +271,11 @@ suite('SiteEntry', function() {
 
   test('favicon with largest storage chosen for site group', function() {
     // Clone this object to avoid propagating changes made in this test.
-    const testSiteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
-    testSiteGroup.origins[0].usage = 0;
-    testSiteGroup.origins[1].usage = 1274;
-    testSiteGroup.origins[2].usage = 74622;
-    testSiteGroup.origins[1].origin = 'https://abc.example.com';
+    const testSiteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
+    testSiteGroup.origins[0]!.usage = 0;
+    testSiteGroup.origins[1]!.usage = 1274;
+    testSiteGroup.origins[2]!.usage = 74622;
+    testSiteGroup.origins[1]!.origin = 'https://abc.example.com';
     testElement.siteGroup = testSiteGroup;
     flush();
     assertEquals(
@@ -279,14 +285,14 @@ suite('SiteEntry', function() {
 
   test('favicon with largest cookies number chosen for site group', function() {
     // Clone this object to avoid propagating changes made in this test.
-    const testSiteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
-    testSiteGroup.origins[0].usage = 0;
-    testSiteGroup.origins[1].usage = 1274;
-    testSiteGroup.origins[2].usage = 1274;
-    testSiteGroup.origins[0].numCookies = 10;
-    testSiteGroup.origins[1].numCookies = 3;
-    testSiteGroup.origins[2].numCookies = 1;
-    testSiteGroup.origins[1].origin = 'https://abc.example.com';
+    const testSiteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
+    testSiteGroup.origins[0]!.usage = 0;
+    testSiteGroup.origins[1]!.usage = 1274;
+    testSiteGroup.origins[2]!.usage = 1274;
+    testSiteGroup.origins[0]!.numCookies = 10;
+    testSiteGroup.origins[1]!.numCookies = 3;
+    testSiteGroup.origins[2]!.numCookies = 1;
+    testSiteGroup.origins[1]!.origin = 'https://abc.example.com';
     testElement.siteGroup = testSiteGroup;
     flush();
     assertEquals(
@@ -296,16 +302,16 @@ suite('SiteEntry', function() {
 
   test('can be sorted by most visited', function() {
     // Clone this object to avoid propagating changes made in this test.
-    const testSiteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
-    testSiteGroup.origins[0].engagement = 20;
-    testSiteGroup.origins[1].engagement = 30;
-    testSiteGroup.origins[2].engagement = 10;
-    testSiteGroup.origins[0].usage = 0;
-    testSiteGroup.origins[1].usage = 1274;
-    testSiteGroup.origins[2].usage = 1274;
-    testSiteGroup.origins[0].numCookies = 10;
-    testSiteGroup.origins[1].numCookies = 3;
-    testSiteGroup.origins[2].numCookies = 1;
+    const testSiteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
+    testSiteGroup.origins[0]!.engagement = 20;
+    testSiteGroup.origins[1]!.engagement = 30;
+    testSiteGroup.origins[2]!.engagement = 10;
+    testSiteGroup.origins[0]!.usage = 0;
+    testSiteGroup.origins[1]!.usage = 1274;
+    testSiteGroup.origins[2]!.usage = 1274;
+    testSiteGroup.origins[0]!.numCookies = 10;
+    testSiteGroup.origins[1]!.numCookies = 3;
+    testSiteGroup.origins[2]!.numCookies = 1;
     testElement.sortMethod = SortMethod.MOST_VISITED;
     testElement.siteGroup = testSiteGroup;
     flush();
@@ -329,16 +335,16 @@ suite('SiteEntry', function() {
 
   test('can be sorted by storage', function() {
     // Clone this object to avoid propagating changes made in this test.
-    const testSiteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
-    testSiteGroup.origins[0].engagement = 20;
-    testSiteGroup.origins[1].engagement = 30;
-    testSiteGroup.origins[2].engagement = 10;
-    testSiteGroup.origins[0].usage = 0;
-    testSiteGroup.origins[1].usage = 1274;
-    testSiteGroup.origins[2].usage = 1274;
-    testSiteGroup.origins[0].numCookies = 10;
-    testSiteGroup.origins[1].numCookies = 3;
-    testSiteGroup.origins[2].numCookies = 1;
+    const testSiteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
+    testSiteGroup.origins[0]!.engagement = 20;
+    testSiteGroup.origins[1]!.engagement = 30;
+    testSiteGroup.origins[2]!.engagement = 10;
+    testSiteGroup.origins[0]!.usage = 0;
+    testSiteGroup.origins[1]!.usage = 1274;
+    testSiteGroup.origins[2]!.usage = 1274;
+    testSiteGroup.origins[0]!.numCookies = 10;
+    testSiteGroup.origins[1]!.numCookies = 3;
+    testSiteGroup.origins[2]!.numCookies = 1;
     testElement.sortMethod = SortMethod.STORAGE;
     testElement.siteGroup = testSiteGroup;
     flush();
@@ -362,16 +368,16 @@ suite('SiteEntry', function() {
 
   test('can be sorted by name', function() {
     // Clone this object to avoid propagating changes made in this test.
-    const testSiteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
-    testSiteGroup.origins[0].engagement = 20;
-    testSiteGroup.origins[1].engagement = 30;
-    testSiteGroup.origins[2].engagement = 10;
-    testSiteGroup.origins[0].usage = 0;
-    testSiteGroup.origins[1].usage = 1274;
-    testSiteGroup.origins[2].usage = 1274;
-    testSiteGroup.origins[0].numCookies = 10;
-    testSiteGroup.origins[1].numCookies = 3;
-    testSiteGroup.origins[2].numCookies = 1;
+    const testSiteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
+    testSiteGroup.origins[0]!.engagement = 20;
+    testSiteGroup.origins[1]!.engagement = 30;
+    testSiteGroup.origins[2]!.engagement = 10;
+    testSiteGroup.origins[0]!.usage = 0;
+    testSiteGroup.origins[1]!.usage = 1274;
+    testSiteGroup.origins[2]!.usage = 1274;
+    testSiteGroup.origins[0]!.numCookies = 10;
+    testSiteGroup.origins[1]!.numCookies = 3;
+    testSiteGroup.origins[2]!.numCookies = 1;
     testElement.sortMethod = SortMethod.NAME;
     testElement.siteGroup = testSiteGroup;
     flush();
@@ -394,8 +400,7 @@ suite('SiteEntry', function() {
   });
 
   test('remove site fires correct event for individual site', async function() {
-    testElement.siteGroup =
-        JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
+    testElement.siteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
     flush();
 
     const collapseChild = testElement.$.originList.get();
@@ -416,8 +421,7 @@ suite('SiteEntry', function() {
   });
 
   test('remove site fires correct event for site group', async function() {
-    testElement.siteGroup =
-        JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
+    testElement.siteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
     flush();
 
     const siteRemoved = eventToPromise('remove-site', testElement);
@@ -434,7 +438,7 @@ suite('SiteEntry', function() {
 
   test('partitioned entry interaction', async function() {
     // Clone this object to avoid propagating changes made in this test.
-    const testSiteGroup = JSON.parse(JSON.stringify(TEST_MULTIPLE_SITE_GROUP));
+    const testSiteGroup = structuredClone(TEST_MULTIPLE_SITE_GROUP);
 
     // Add a partitioned entry for an unrelated origin.
     testSiteGroup.origins.push(
@@ -444,6 +448,7 @@ suite('SiteEntry', function() {
     flush();
     const collapseChild = testElement.$.originList.get();
     testElement.$.toggleButton.click();
+    await microtasksFinished();
     flush();
 
     const originList = collapseChild.querySelectorAll('.hr');
@@ -472,8 +477,8 @@ suite('SiteEntry', function() {
   test('partitioned entry prevents collapse', function() {
     // If a siteGroup has a partitioned entry, even if it is the only entry,
     // it should keep the site entry as a top level + collapse list.
-    const testSingleSite = JSON.parse(JSON.stringify(TEST_SINGLE_SITE_GROUP));
-    testSingleSite.origins[0].isPartitioned = true;
+    const testSingleSite = structuredClone(TEST_SINGLE_SITE_GROUP);
+    testSingleSite.origins[0]!.isPartitioned = true;
 
     testElement.siteGroup = testSingleSite;
     flush();
@@ -489,10 +494,10 @@ suite('SiteEntry', function() {
     assertEquals(1, originList.length);
   });
 
-  test('unpartitioned entry remains collapsed', async function() {
+  test('unpartitioned entry remains collapsed', function() {
     // Check that a single origin containing unpartitioned storage only is
     // correctly collapsed.
-    testElement.siteGroup = JSON.parse(JSON.stringify(TEST_SINGLE_SITE_GROUP));
+    testElement.siteGroup = structuredClone(TEST_SINGLE_SITE_GROUP);
     flush();
     const collapseChild = testElement.$.originList.get();
 
@@ -510,106 +515,146 @@ suite('SiteEntry', function() {
         Router.getInstance().getCurrentRoute().path);
   });
 
-  test('first party set information showed when available', async function() {
-    // Set unowned site group.
-    testElement.siteGroup = JSON.parse(JSON.stringify(TEST_SINGLE_SITE_GROUP));
-    flush();
+  test(
+      'related website set information showed when not in filtered view',
+      function() {
+        // Set unowned site group.
+        testElement.siteGroup = structuredClone(TEST_SINGLE_SITE_GROUP);
+        flush();
 
-    const fpsMembershipLabel = testElement.$.fpsMembership;
-    // Assert first party set membership information when no fps owner is set.
-    assertTrue(fpsMembershipLabel.hidden);
+        const rwsMembershipLabel = testElement.$.rwsMembership;
+        // Assert related website set membership information when no rws owner
+        // is set.
+        assertTrue(rwsMembershipLabel.hidden);
 
-    // Update first party set information and set siteGroup
-    const fooSiteGroup = JSON.parse(JSON.stringify(TEST_SINGLE_SITE_GROUP));
-    fooSiteGroup.fpsOwner = 'foo.com';
-    fooSiteGroup.fpsNumMembers = 1;
+        // Update related website set information and set siteGroup
+        const fooSiteGroup = structuredClone(TEST_SINGLE_SITE_GROUP);
+        fooSiteGroup.rwsOwner = 'foo.com';
+        fooSiteGroup.rwsNumMembers = 1;
+        testElement.siteGroup = fooSiteGroup;
+        flush();
+
+        // Assert related website set membership information is set correctly.
+        assertFalse(rwsMembershipLabel.hidden);
+        assertEquals(
+            '· ' + loadTimeData.getString('allSitesRwsMembershipLabel'),
+            rwsMembershipLabel.innerText.trim());
+
+        testElement.isRwsFiltered = true;
+        flush();
+        // Label should be hidden in filtered view.
+        assertTrue(rwsMembershipLabel.hidden);
+      });
+
+  // TODO(crbug.com/396463421): Remove once RelatedWebsiteSetsUi launched.
+  test(
+      'related website set information showed when available and isRelatedWebsiteSetsV2UiEnabled disabled',
+      async function() {
+        loadTimeData.overrideValues({
+          isRelatedWebsiteSetsV2UiEnabled: false,
+        });
+        await createPage();
+        // Set unowned site group.
+        testElement.siteGroup = structuredClone(TEST_SINGLE_SITE_GROUP);
+        flush();
+
+        const rwsMembershipLabel = testElement.$.rwsMembership;
+        // Assert related website set membership information when no rws owner
+        // is set.
+        assertTrue(rwsMembershipLabel.hidden);
+
+        // Update related website set information and set siteGroup
+        const fooSiteGroup = structuredClone(TEST_SINGLE_SITE_GROUP);
+        fooSiteGroup.rwsOwner = 'foo.com';
+        fooSiteGroup.rwsNumMembers = 1;
+        testElement.siteGroup = fooSiteGroup;
+        flush();
+
+        await browserProxy.whenCalled('getRwsMembershipLabel');
+        // Assert related website set membership information is set correctly.
+        assertFalse(rwsMembershipLabel.hidden);
+        assertEquals(
+            '· 1 site in foo.com\'s group',
+            rwsMembershipLabel.innerText.trim());
+      });
+
+  test('related website set policy shown when managed key is true', function() {
+    // Set site group with related website set information.
+    const fooSiteGroup = structuredClone(TEST_SINGLE_SITE_GROUP);
+    fooSiteGroup.rwsOwner = 'foo.com';
+    fooSiteGroup.rwsNumMembers = 1;
+    fooSiteGroup.rwsEnterpriseManaged = true;
     testElement.siteGroup = fooSiteGroup;
     flush();
-
-    await browserProxy.whenCalled('getFpsMembershipLabel');
-    // Assert first party set membership information is set correctly.
-    assertFalse(fpsMembershipLabel.hidden);
-    assertEquals(
-        '· 1 site in foo.com\'s group', fpsMembershipLabel.innerText.trim());
-  });
-
-  test('first party set policy shown when managed key is true', function() {
-    // Set site group with first party set information.
-    const fooSiteGroup = JSON.parse(JSON.stringify(TEST_SINGLE_SITE_GROUP));
-    fooSiteGroup.fpsOwner = 'foo.com';
-    fooSiteGroup.fpsNumMembers = 1;
-    fooSiteGroup.fpsEnterpriseManaged = true;
-    testElement.siteGroup = fooSiteGroup;
-    flush();
-    // Assert first party set policy is shown.
-    const fpsPolicy =
-        testElement.shadowRoot!.querySelector<HTMLElement>('#fpsPolicy');
-    assertFalse(fpsPolicy!.hidden);
+    // Assert related website set policy is shown.
+    const rwsPolicy =
+        testElement.shadowRoot!.querySelector<HTMLElement>('#rwsPolicy');
+    assertFalse(rwsPolicy!.hidden);
   });
 
   test(
-      'first party set policy undefined when managed key is false', function() {
-        // Set site group with first party set information.
-        const fooSiteGroup = JSON.parse(JSON.stringify(TEST_SINGLE_SITE_GROUP));
-        fooSiteGroup.fpsOwner = 'foo.com';
-        fooSiteGroup.fpsNumMembers = 1;
-        fooSiteGroup.fpsEnterpriseManaged = false;
+      'related website set policy undefined when managed key is false',
+      function() {
+        // Set site group with related website set information.
+        const fooSiteGroup = structuredClone(TEST_SINGLE_SITE_GROUP);
+        fooSiteGroup.rwsOwner = 'foo.com';
+        fooSiteGroup.rwsNumMembers = 1;
+        fooSiteGroup.rwsEnterpriseManaged = false;
         testElement.siteGroup = fooSiteGroup;
         flush();
-        // Assert first party set policy is null.
-        const fpsPolicy =
-            testElement.shadowRoot!.querySelector<HTMLElement>('#fpsPolicy');
-        assertEquals(null, fpsPolicy);
+        // Assert related website set policy is null.
+        const rwsPolicy =
+            testElement.shadowRoot!.querySelector<HTMLElement>('#rwsPolicy');
+        assertEquals(null, rwsPolicy);
       });
 
-  test('first party set more actions aria-label set correctly', function() {
-    // Set site group with first party set information.
-    const fooSiteGroup = JSON.parse(JSON.stringify(TEST_SINGLE_SITE_GROUP));
-    fooSiteGroup.fpsOwner = 'foo.com';
-    fooSiteGroup.fpsNumMembers = 1;
-    fooSiteGroup.fpsEnterpriseManaged = false;
+  test('related website set more actions aria-label set correctly', function() {
+    // Set site group with related website set information.
+    const fooSiteGroup = structuredClone(TEST_SINGLE_SITE_GROUP);
+    fooSiteGroup.rwsOwner = 'foo.com';
+    fooSiteGroup.rwsNumMembers = 1;
+    fooSiteGroup.rwsEnterpriseManaged = false;
     testElement.siteGroup = fooSiteGroup;
     flush();
 
     // Assert aria-label is set correctly
     const moreActionsButton =
         testElement.shadowRoot!.querySelector<HTMLElement>(
-            '#fpsOverflowMenuButton');
+            '#rwsOverflowMenuButton');
     assertEquals('More actions for foo.com', moreActionsButton!.ariaLabel);
   });
 
   test(
-      'first party set more actions menu removed when filtered by fps owner',
+      'related website set more actions menu removed when filtered by rws owner',
       function() {
-        // Set site group with first party set information.
-        const fooSiteGroup = JSON.parse(JSON.stringify(TEST_SINGLE_SITE_GROUP));
-        fooSiteGroup.fpsOwner = 'foo.com';
-        fooSiteGroup.fpsNumMembers = 1;
-        fooSiteGroup.fpsEnterpriseManaged = false;
+        // Set site group with related website set information.
+        const fooSiteGroup = structuredClone(TEST_SINGLE_SITE_GROUP);
+        fooSiteGroup.rwsOwner = 'foo.com';
+        fooSiteGroup.rwsNumMembers = 1;
+        fooSiteGroup.rwsEnterpriseManaged = false;
         testElement.siteGroup = fooSiteGroup;
-        testElement.isFpsFiltered = false;
+        testElement.isRwsFiltered = false;
         flush();
 
         // Assert more actions button is visible and remove site button is
         // hidden at the beginning of the test when no filter is applied.
-        assertTrue(isChildVisible(testElement, '#fpsOverflowMenuButton'));
+        assertTrue(isChildVisible(testElement, '#rwsOverflowMenuButton'));
         assertFalse(isChildVisible(testElement, '#removeSiteButton'));
 
-        // Change `isFpsFiltered` state to true to test icon change.
-        testElement.isFpsFiltered = true;
+        // Change `isRwsFiltered` state to true to test icon change.
+        testElement.isRwsFiltered = true;
         flush();
 
         // Assert more actions button hidden and replaced with remove site
         // button.
-        assertFalse(isChildVisible(testElement, '#fpsOverflowMenuButton'));
+        assertFalse(isChildVisible(testElement, '#rwsOverflowMenuButton'));
         assertTrue(isChildVisible(testElement, '#removeSiteButton'));
       });
 
-  test('extension site group is shown correctly', async function() {
-    const extensionSiteGroup =
-        JSON.parse(JSON.stringify(TEST_SINGLE_SITE_GROUP));
+  test('extension site group is shown correctly', function() {
+    const extensionSiteGroup = structuredClone(TEST_SINGLE_SITE_GROUP);
     extensionSiteGroup.displayName = 'Test Extension';
-    extensionSiteGroup.origins[0].origin =
+    extensionSiteGroup.origins[0]!.origin =
         'chrome-extension://mhabknllooicelmdboebjilbohdbihln';
     testElement.siteGroup = extensionSiteGroup;
     flush();

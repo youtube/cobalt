@@ -37,10 +37,12 @@
 #ifndef V8_CODEGEN_IA32_ASSEMBLER_IA32_INL_H_
 #define V8_CODEGEN_IA32_ASSEMBLER_IA32_INL_H_
 
+#include "src/codegen/ia32/assembler-ia32.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/memory.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/flush-instruction-cache.h"
-#include "src/codegen/ia32/assembler-ia32.h"
 #include "src/debug/debug.h"
 #include "src/objects/objects-inl.h"
 
@@ -50,7 +52,7 @@ namespace internal {
 bool CpuFeatures::SupportsOptimizer() { return true; }
 
 // The modes possibly affected by apply must be in kApplyMask.
-void RelocInfo::apply(intptr_t delta) {
+void WritableRelocInfo::apply(intptr_t delta) {
   DCHECK_EQ(kApplyMask, (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                          RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
                          RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
@@ -80,18 +82,23 @@ Address RelocInfo::constant_pool_entry_address() { UNREACHABLE(); }
 
 int RelocInfo::target_address_size() { return Assembler::kSpecialTargetSize; }
 
-HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
+Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
-  return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
+  return Cast<HeapObject>(Tagged<Object>(ReadUnalignedValue<Address>(pc_)));
 }
 
-Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
+DirectHandle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
-  return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
+  return Cast<HeapObject>(ReadUnalignedValue<IndirectHandle<Object>>(pc_));
 }
 
-void RelocInfo::set_target_object(HeapObject target,
-                                  ICacheFlushMode icache_flush_mode) {
+JSDispatchHandle RelocInfo::js_dispatch_handle() {
+  DCHECK(rmode_ == JS_DISPATCH_HANDLE);
+  return JSDispatchHandle(ReadUnalignedValue<JSDispatchHandle>(pc_));
+}
+
+void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
+                                          ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   WriteUnalignedValue(pc_, target.ptr());
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
@@ -104,10 +111,24 @@ Address RelocInfo::target_external_reference() {
   return ReadUnalignedValue<Address>(pc_);
 }
 
-void RelocInfo::set_target_external_reference(
+void WritableRelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   WriteUnalignedValue(pc_, target);
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    FlushInstructionCache(pc_, sizeof(Address));
+  }
+}
+
+WasmCodePointer RelocInfo::wasm_code_pointer_table_entry() const {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY);
+  return WasmCodePointer{ReadUnalignedValue<uint32_t>(pc_)};
+}
+
+void WritableRelocInfo::set_wasm_code_pointer_table_entry(
+    WasmCodePointer target, ICacheFlushMode icache_flush_mode) {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY);
+  WriteUnalignedValue(pc_, target.value());
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));
   }
@@ -130,16 +151,21 @@ Address RelocInfo::target_off_heap_target() {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-void RelocInfo::WipeOut() {
-  if (IsFullEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
-      IsInternalReference(rmode_)) {
-    WriteUnalignedValue(pc_, kNullAddress);
-  } else if (IsCodeTarget(rmode_) || IsOffHeapTarget(rmode_)) {
-    // Effectively write zero into the relocation.
-    Assembler::set_target_address_at(pc_, constant_pool_,
-                                     pc_ + sizeof(int32_t));
+uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
+  return ReadUnalignedValue<uint32_t>(pc);
+}
+
+void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
+                                       uint32_t new_constant,
+                                       WritableJitAllocation* jit_allocation,
+                                       ICacheFlushMode icache_flush_mode) {
+  if (jit_allocation) {
+    jit_allocation->WriteUnalignedValue<uint32_t>(pc, new_constant);
   } else {
-    UNREACHABLE();
+    WriteUnalignedValue<uint32_t>(pc, new_constant);
+  }
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    FlushInstructionCache(pc, sizeof(uint32_t));
   }
 }
 
@@ -212,18 +238,16 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 
 void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       Address target,
+                                      WritableJitAllocation* jit_allocation,
                                       ICacheFlushMode icache_flush_mode) {
-  WriteUnalignedValue(pc, target - (pc + sizeof(int32_t)));
+  if (jit_allocation) {
+    jit_allocation->WriteUnalignedValue(pc, target - (pc + sizeof(int32_t)));
+  } else {
+    WriteUnalignedValue(pc, target - (pc + sizeof(int32_t)));
+  }
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, sizeof(int32_t));
   }
-}
-
-void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Code code, Address target) {
-  set_target_address_at(instruction_payload,
-                        !code.is_null() ? code.constant_pool() : kNullAddress,
-                        target);
 }
 
 int Assembler::deserialization_special_target_size(
@@ -246,19 +270,20 @@ void Assembler::emit_disp(Label* L, Displacement::Type type) {
 }
 
 void Assembler::emit_near_disp(Label* L) {
-  byte disp = 0x00;
+  uint8_t disp = 0x00;
   if (L->is_near_linked()) {
     int offset = L->near_link_pos() - pc_offset();
     DCHECK(is_int8(offset));
-    disp = static_cast<byte>(offset & 0xFF);
+    disp = static_cast<uint8_t>(offset & 0xFF);
   }
   L->link_to(pc_offset(), Label::kNear);
   *pc_++ = disp;
 }
 
 void Assembler::deserialization_set_target_internal_reference_at(
-    Address pc, Address target, RelocInfo::Mode mode) {
-  WriteUnalignedValue(pc, target);
+    Address pc, Address target, WritableJitAllocation& jit_allocation,
+    RelocInfo::Mode mode) {
+  jit_allocation.WriteUnalignedValue(pc, target);
 }
 
 void Operand::set_sib(ScaleFactor scale, Register index, Register base) {

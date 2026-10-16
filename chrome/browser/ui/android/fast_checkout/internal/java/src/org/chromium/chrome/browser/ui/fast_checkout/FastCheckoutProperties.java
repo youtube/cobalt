@@ -6,13 +6,13 @@ package org.chromium.chrome.browser.ui.fast_checkout;
 
 import androidx.annotation.IntDef;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.ui.fast_checkout.data.FastCheckoutAutofillProfile;
 import org.chromium.chrome.browser.ui.fast_checkout.data.FastCheckoutCreditCard;
 import org.chromium.chrome.browser.ui.fast_checkout.home_screen.HomeScreenCoordinator;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
-import org.chromium.ui.modelutil.PropertyModel.ReadableObjectPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableBooleanPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableIntPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
@@ -20,15 +20,15 @@ import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/**
- * State for the Fast Checkout UI.
- */
+/** State for the Fast Checkout UI. */
+@NullMarked
 public class FastCheckoutProperties {
-    /**
-     * The different screens that can be shown on the sheet.
-     */
-    @IntDef({ScreenType.HOME_SCREEN, ScreenType.AUTOFILL_PROFILE_SCREEN,
-            ScreenType.CREDIT_CARD_SCREEN})
+    /** The different screens that can be shown on the sheet. */
+    @IntDef({
+        ScreenType.HOME_SCREEN,
+        ScreenType.AUTOFILL_PROFILE_SCREEN,
+        ScreenType.CREDIT_CARD_SCREEN
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ScreenType {
         int HOME_SCREEN = 0;
@@ -36,9 +36,7 @@ public class FastCheckoutProperties {
         int CREDIT_CARD_SCREEN = 2;
     }
 
-    /**
-     * The different item types in the RecyclerView on the Autofill profile sheet.
-     */
+    /** The different item types in the RecyclerView on the Autofill profile sheet. */
     @IntDef({DetailItemType.PROFILE, DetailItemType.CREDIT_CARD, DetailItemType.FOOTER})
     @Retention(RetentionPolicy.SOURCE)
     public @interface DetailItemType {
@@ -68,16 +66,16 @@ public class FastCheckoutProperties {
             new WritableObjectPropertyKey<>("selected_profile");
 
     /** The models corresponding to all autofill profile options. */
-    public static final ReadableObjectPropertyKey<ModelList> PROFILE_MODEL_LIST =
-            new ReadableObjectPropertyKey("profile_model_list");
+    public static final WritableObjectPropertyKey<ModelList> PROFILE_MODEL_LIST =
+            new WritableObjectPropertyKey("profile_model_list");
 
     /** The chosen credit card option. */
     public static final WritableObjectPropertyKey<FastCheckoutCreditCard> SELECTED_CREDIT_CARD =
             new WritableObjectPropertyKey<>("selected_credit_card");
 
     /** The models corresponding to all credit card options. */
-    public static final ReadableObjectPropertyKey<ModelList> CREDIT_CARD_MODEL_LIST =
-            new ReadableObjectPropertyKey("credit_card_model_list");
+    public static final WritableObjectPropertyKey<ModelList> CREDIT_CARD_MODEL_LIST =
+            new WritableObjectPropertyKey("credit_card_model_list");
 
     /** The delegate that handles actions on the home screen. */
     public static final WritableObjectPropertyKey<HomeScreenCoordinator.Delegate>
@@ -120,9 +118,20 @@ public class FastCheckoutProperties {
     }
 
     /** All keys used for the fast checkout bottom sheet. */
-    static final PropertyKey[] ALL_KEYS = new PropertyKey[] {VISIBLE, CURRENT_SCREEN,
-            SELECTED_PROFILE, PROFILE_MODEL_LIST, SELECTED_CREDIT_CARD, CREDIT_CARD_MODEL_LIST,
-            HOME_SCREEN_DELEGATE, DETAIL_SCREEN_TITLE, DETAIL_SCREEN_TITLE_DESCRIPTION,
-            DETAIL_SCREEN_SETTINGS_MENU_TITLE, DETAIL_SCREEN_BACK_CLICK_HANDLER,
-            DETAIL_SCREEN_SETTINGS_CLICK_HANDLER, DETAIL_SCREEN_MODEL_LIST};
+    static final PropertyKey[] ALL_KEYS =
+            new PropertyKey[] {
+                VISIBLE,
+                CURRENT_SCREEN,
+                SELECTED_PROFILE,
+                PROFILE_MODEL_LIST,
+                SELECTED_CREDIT_CARD,
+                CREDIT_CARD_MODEL_LIST,
+                HOME_SCREEN_DELEGATE,
+                DETAIL_SCREEN_TITLE,
+                DETAIL_SCREEN_TITLE_DESCRIPTION,
+                DETAIL_SCREEN_SETTINGS_MENU_TITLE,
+                DETAIL_SCREEN_BACK_CLICK_HANDLER,
+                DETAIL_SCREEN_SETTINGS_CLICK_HANDLER,
+                DETAIL_SCREEN_MODEL_LIST
+            };
 }

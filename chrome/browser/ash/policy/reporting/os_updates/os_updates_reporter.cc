@@ -5,12 +5,13 @@
 #include "chrome/browser/ash/policy/reporting/os_updates/os_updates_reporter.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/memory/ptr_util.h"
 #include "base/system/sys_info.h"
 #include "base/time/time.h"
-#include "chrome/browser/browser_process.h"
+#include "chrome/browser/ash/policy/reporting/event_based_logs/event_based_log_utils.h"
 #include "chrome/browser/policy/messaging_layer/proto/synced/os_events.pb.h"
 #include "chrome/browser/upgrade_detector/build_state.h"
 #include "chrome/common/channel_info.h"
@@ -82,14 +83,22 @@ void OsUpdatesReporter::MaybeReportEvent(
     return;
   }
 
-  absl::optional<std::string> os_version = chromeos::version_loader::GetVersion(
+  std::optional<std::string> os_version = chromeos::version_loader::GetVersion(
       chromeos::version_loader::VERSION_SHORT);
   record.set_current_os_version(os_version.value_or("0.0.0.0"));
 
   record.set_current_channel(
-      version_info::GetChannelString(chrome::GetChannel()));
+      std::string(version_info::GetChannelString(chrome::GetChannel())));
 
   record.set_event_timestamp_sec(base::Time::Now().ToTimeT());
+
+  if (record.os_operation_type() == ash::reporting::OsOperationType::FAILURE) {
+    // Trigger log upload only on a case of failure.
+    auto log_upload_id = NotifyOsUpdateFailed();
+    if (log_upload_id.has_value()) {
+      record.set_log_upload_id(log_upload_id.value());
+    }
+  }
 
   helper_->ReportEvent(
       std::make_unique<ash::reporting::OsEventsRecord>(std::move(record)),
@@ -144,6 +153,28 @@ void OsUpdatesReporter::PowerwashRequested(bool remote_request) {
     last_powerwash_attempt_time_ = time_now;
   }
   MaybeReportEvent(std::move(record));
+}
+
+void OsUpdatesReporter::AddObserver(OsUpdateEventBasedLogObserver* observer) {
+  observers_.AddObserver(observer);
+}
+
+void OsUpdatesReporter::RemoveObserver(
+    const OsUpdateEventBasedLogObserver* observer) {
+  observers_.RemoveObserver(observer);
+}
+
+std::optional<std::string> OsUpdatesReporter::NotifyOsUpdateFailed() {
+  // We won't generate an upload ID if there's no observers to trigger the log
+  // upload.
+  if (observers_.empty()) {
+    return std::nullopt;
+  }
+  std::string upload_id = policy::GenerateEventBasedLogUploadId();
+  for (auto& observer : observers_) {
+    observer.OnOsUpdateFailed(upload_id);
+  }
+  return upload_id;
 }
 
 OsUpdatesReporter::OsUpdatesReporter(

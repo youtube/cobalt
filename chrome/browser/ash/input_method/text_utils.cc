@@ -6,8 +6,7 @@
 
 // TODO(crbug/1223597) The rules to detect sentence end is not perfect, and we
 // may want to use regex to improve readability.
-namespace ash {
-namespace input_method {
+namespace ash::input_method {
 namespace {
 
 const int kMaxSearchRange = 200;
@@ -27,10 +26,12 @@ bool IsSentenceEndCharacter(char16_t c) {
 bool EndsInSpecialPeriodWord(const std::u16string& text, uint32_t pos) {
   uint32_t idx = pos;
   while (idx <= pos && pos - idx <= kSpecialWordMaxLength &&
-         text[idx] != u' ' && text[idx] != u'(')
+         text[idx] != u' ' && text[idx] != u'(') {
     idx--;
-  if (idx > pos || pos - idx > kSpecialWordMaxLength)
+  }
+  if (idx > pos || pos - idx > kSpecialWordMaxLength) {
     return false;
+  }
   std::u16string last_word = text.substr(idx + 1, pos - idx);
   return (last_word == u"c.f." || last_word == u"cf." || last_word == u"e.g." ||
           last_word == u"eg." || last_word == u"i.e." || last_word == u"ie." ||
@@ -66,30 +67,37 @@ bool EndsInEmoticon(const std::u16string& text, uint32_t pos) {
 }
 
 bool IsSentenceEnd(const std::u16string& text, uint32_t pos) {
-  if (pos < text.size() - 1 && (text[pos + 1] == '\n' || text[pos + 1] == '\r'))
+  if (pos < text.size() - 1 &&
+      (text[pos + 1] == '\n' || text[pos + 1] == '\r')) {
     return true;
+  }
 
   // The character after the sentence end must be a space or the end of the
   // text.
-  if (pos < 2 || (pos < text.size() - 1 && text[pos + 1] != u' '))
+  if (pos < 2 || (pos < text.size() - 1 && text[pos + 1] != u' ')) {
     return false;
+  }
 
-  if (IsSentenceEndCharacter(text[pos]) && !EndsInSpecialPeriodWord(text, pos))
+  if (IsSentenceEndCharacter(text[pos]) &&
+      !EndsInSpecialPeriodWord(text, pos)) {
     return true;
+  }
 
   if (IsSentenceEndCharacter(text[pos - 1]) &&
-      IsSentenceEndSectionCharacter(text[pos]))
+      IsSentenceEndSectionCharacter(text[pos])) {
     return true;
+  }
 
-  if (EndsInEmoticon(text, pos))
+  if (EndsInEmoticon(text, pos)) {
     return true;
+  }
 
   return false;
 }
 
 }  // namespace
 
-Sentence::Sentence() {}
+Sentence::Sentence() = default;
 
 Sentence::Sentence(const gfx::Range& original_range, const std::u16string& text)
     : original_range(original_range), text(text) {}
@@ -98,17 +106,10 @@ Sentence::Sentence(const Sentence& other) = default;
 
 Sentence::~Sentence() = default;
 
-bool Sentence::operator==(const Sentence& other) const {
-  return original_range == other.original_range && text == other.text;
-}
-
-bool Sentence::operator!=(const Sentence& other) const {
-  return !(*this == other);
-}
-
 uint32_t FindLastSentenceEnd(const std::u16string& text, uint32_t pos) {
-  if (pos == 0 || pos > text.size())
+  if (pos == 0 || pos > text.size()) {
     return kUndefined;
+  }
 
   for (size_t i = pos - 1; i > 0 && pos - i <= kMaxSearchRange; i--) {
     if (IsSentenceEnd(text, i)) {
@@ -119,8 +120,9 @@ uint32_t FindLastSentenceEnd(const std::u16string& text, uint32_t pos) {
 }
 
 uint32_t FindNextSentenceEnd(const std::u16string& text, uint32_t pos) {
-  if (pos >= text.size())
+  if (pos >= text.size()) {
     return kUndefined;
+  }
 
   for (size_t i = pos; i < text.size() && i - pos <= kMaxSearchRange; i++) {
     if (IsSentenceEnd(text, i)) {
@@ -131,8 +133,9 @@ uint32_t FindNextSentenceEnd(const std::u16string& text, uint32_t pos) {
 }
 
 Sentence FindLastSentence(const std::u16string& text, uint32_t pos) {
-  if (pos > text.size())
+  if (pos > text.size()) {
     return Sentence();
+  }
   if (pos > 0 &&
       (pos == text.size() || text[pos] == '\n' || text[pos] == '\r')) {
     pos--;
@@ -155,8 +158,9 @@ Sentence FindLastSentence(const std::u16string& text, uint32_t pos) {
 }
 
 Sentence FindCurrentSentence(const std::u16string& text, uint32_t pos) {
-  if (pos > text.size())
+  if (pos > text.size()) {
     return Sentence();
+  }
   if (pos > 0 &&
       (pos == text.size() || text[pos] == '\n' || text[pos] == '\r')) {
     pos--;
@@ -173,12 +177,12 @@ Sentence FindCurrentSentence(const std::u16string& text, uint32_t pos) {
     end = text.length() - 1;
   }
 
-  if (start >= end || end - start > kMaxSearchRange)
+  if (start >= end || end - start > kMaxSearchRange) {
     return Sentence();
+  }
 
   return Sentence(gfx::Range(start, end + 1),
                   text.substr(start, end - start + 1));
 }
 
-}  // namespace input_method
-}  // namespace ash
+}  // namespace ash::input_method

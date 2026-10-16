@@ -73,7 +73,6 @@ String PushRegistrationStatusToString(mojom::PushRegistrationStatus status) {
              "please upgrade to VAPID authentication instead";
   }
   NOTREACHED();
-  return String();
 }
 
 mojom::PushErrorType PushRegistrationStatusToPushErrorType(

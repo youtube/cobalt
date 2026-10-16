@@ -15,7 +15,6 @@
 #include "starboard/shared/starboard/player/filter/media_time_provider_impl.h"
 
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/thread.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -80,8 +79,9 @@ class MediaTimeProviderImplTest : public ::testing::Test {
         // is passed to and owned by |media_time_provider_impl_|, so the tests
         // can adjust expectation on it.  This is safe in the context of the
         // tests.
-        media_time_provider_impl_(std::unique_ptr<MonotonicSystemTimeProvider>(
-            system_time_provider_)) {
+        media_time_provider_impl_(&job_queue_,
+                                  std::unique_ptr<MonotonicSystemTimeProvider>(
+                                      system_time_provider_)) {
     media_time_provider_impl_.SetPlaybackRate(1.0);
   }
 

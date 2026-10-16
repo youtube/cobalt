@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "components/enterprise/browser/reporting/real_time_report_generator.h"
+
 #include "chrome/browser/enterprise/reporting/prefs.h"
 #include "chrome/browser/enterprise/reporting/real_time_report_generator_desktop.h"
 #include "chrome/browser/enterprise/reporting/reporting_delegate_factory_desktop.h"
@@ -10,7 +11,7 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
-#include "components/enterprise/common/proto/extensions_workflow_events.pb.h"
+#include "components/enterprise/common/proto/synced/extensions_workflow_events.pb.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/test/browser_task_environment.h"
 #include "extensions/browser/pref_names.h"
@@ -38,12 +39,9 @@ TEST_F(RealTimeReportGeneratorTest, ExtensionRequest) {
   TestingProfile* profile = profile_manager()->CreateTestingProfile("profile");
 
   profile->GetTestingPrefService()->SetManagedPref(
-      prefs::kCloudExtensionRequestEnabled,
-      std::make_unique<base::Value>(true));
+      prefs::kCloudExtensionRequestEnabled, base::Value(true));
 
-  std::unique_ptr<base::Value> requests =
-      std::make_unique<base::Value>(base::Value::Type::DICT);
-  requests->SetKey(extension_id, base::Value());
+  auto requests = base::Value::Dict().Set(extension_id, base::Value::Dict());
   profile->GetTestingPrefService()->SetUserPref(
       prefs::kCloudExtensionRequestIds, std::move(requests));
 
@@ -52,7 +50,7 @@ TEST_F(RealTimeReportGeneratorTest, ExtensionRequest) {
 
   std::vector<std::unique_ptr<google::protobuf::MessageLite>> reports =
       generator.Generate(
-          RealTimeReportGenerator::ReportType::kExtensionRequest,
+          RealTimeReportType::kExtensionRequest,
           ExtensionRequestReportGenerator::ExtensionRequestData(profile));
   EXPECT_EQ(1u, reports.size());
 

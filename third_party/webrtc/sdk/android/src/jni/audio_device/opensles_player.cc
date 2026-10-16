@@ -44,7 +44,7 @@ namespace jni {
 
 OpenSLESPlayer::OpenSLESPlayer(
     const AudioParameters& audio_parameters,
-    rtc::scoped_refptr<OpenSLEngineManager> engine_manager)
+    webrtc::scoped_refptr<OpenSLEngineManager> engine_manager)
     : audio_parameters_(audio_parameters),
       audio_device_buffer_(nullptr),
       initialized_(false),
@@ -56,7 +56,7 @@ OpenSLESPlayer::OpenSLESPlayer(
       simple_buffer_queue_(nullptr),
       volume_(nullptr),
       last_play_time_(0) {
-  ALOGD("ctor[tid=%d]", rtc::CurrentThreadId());
+  ALOGD("ctor[tid=%d]", webrtc::CurrentThreadId());
   // Use native audio output parameters provided by the audio manager and
   // define the PCM format structure.
   pcm_format_ = CreatePCMConfiguration(audio_parameters_.channels(),
@@ -68,7 +68,7 @@ OpenSLESPlayer::OpenSLESPlayer(
 }
 
 OpenSLESPlayer::~OpenSLESPlayer() {
-  ALOGD("dtor[tid=%d]", rtc::CurrentThreadId());
+  ALOGD("dtor[tid=%d]", webrtc::CurrentThreadId());
   RTC_DCHECK(thread_checker_.IsCurrent());
   Terminate();
   DestroyAudioPlayer();
@@ -82,7 +82,7 @@ OpenSLESPlayer::~OpenSLESPlayer() {
 }
 
 int OpenSLESPlayer::Init() {
-  ALOGD("Init[tid=%d]", rtc::CurrentThreadId());
+  ALOGD("Init[tid=%d]", webrtc::CurrentThreadId());
   RTC_DCHECK(thread_checker_.IsCurrent());
   if (audio_parameters_.channels() == 2) {
     ALOGW("Stereo mode is enabled");
@@ -91,14 +91,14 @@ int OpenSLESPlayer::Init() {
 }
 
 int OpenSLESPlayer::Terminate() {
-  ALOGD("Terminate[tid=%d]", rtc::CurrentThreadId());
+  ALOGD("Terminate[tid=%d]", webrtc::CurrentThreadId());
   RTC_DCHECK(thread_checker_.IsCurrent());
   StopPlayout();
   return 0;
 }
 
 int OpenSLESPlayer::InitPlayout() {
-  ALOGD("InitPlayout[tid=%d]", rtc::CurrentThreadId());
+  ALOGD("InitPlayout[tid=%d]", webrtc::CurrentThreadId());
   RTC_DCHECK(thread_checker_.IsCurrent());
   RTC_DCHECK(!initialized_);
   RTC_DCHECK(!playing_);
@@ -117,7 +117,7 @@ bool OpenSLESPlayer::PlayoutIsInitialized() const {
 }
 
 int OpenSLESPlayer::StartPlayout() {
-  ALOGD("StartPlayout[tid=%d]", rtc::CurrentThreadId());
+  ALOGD("StartPlayout[tid=%d]", webrtc::CurrentThreadId());
   RTC_DCHECK(thread_checker_.IsCurrent());
   RTC_DCHECK(initialized_);
   RTC_DCHECK(!playing_);
@@ -131,7 +131,7 @@ int OpenSLESPlayer::StartPlayout() {
   // starts when mode is later changed to SL_PLAYSTATE_PLAYING.
   // TODO(henrika): we can save some delay by only making one call to
   // EnqueuePlayoutData. Most likely not worth the risk of adding a glitch.
-  last_play_time_ = rtc::Time();
+  last_play_time_ = Time();
   for (int i = 0; i < kNumOfOpenSLESBuffers; ++i) {
     EnqueuePlayoutData(true);
   }
@@ -145,7 +145,7 @@ int OpenSLESPlayer::StartPlayout() {
 }
 
 int OpenSLESPlayer::StopPlayout() {
-  ALOGD("StopPlayout[tid=%d]", rtc::CurrentThreadId());
+  ALOGD("StopPlayout[tid=%d]", webrtc::CurrentThreadId());
   RTC_DCHECK(thread_checker_.IsCurrent());
   if (!initialized_ || !playing_) {
     return 0;
@@ -182,16 +182,16 @@ int OpenSLESPlayer::SetSpeakerVolume(uint32_t volume) {
   return -1;
 }
 
-absl::optional<uint32_t> OpenSLESPlayer::SpeakerVolume() const {
-  return absl::nullopt;
+std::optional<uint32_t> OpenSLESPlayer::SpeakerVolume() const {
+  return std::nullopt;
 }
 
-absl::optional<uint32_t> OpenSLESPlayer::MaxSpeakerVolume() const {
-  return absl::nullopt;
+std::optional<uint32_t> OpenSLESPlayer::MaxSpeakerVolume() const {
+  return std::nullopt;
 }
 
-absl::optional<uint32_t> OpenSLESPlayer::MinSpeakerVolume() const {
-  return absl::nullopt;
+std::optional<uint32_t> OpenSLESPlayer::MinSpeakerVolume() const {
+  return std::nullopt;
 }
 
 void OpenSLESPlayer::AttachAudioBuffer(AudioDeviceBuffer* audioBuffer) {
@@ -395,7 +395,7 @@ void OpenSLESPlayer::EnqueuePlayoutData(bool silence) {
   // Check delta time between two successive callbacks and provide a warning
   // if it becomes very large.
   // TODO(henrika): using 150ms as upper limit but this value is rather random.
-  const uint32_t current_time = rtc::Time();
+  const uint32_t current_time = Time();
   const uint32_t diff = current_time - last_play_time_;
   if (diff > 150) {
     ALOGW("Bad OpenSL ES playout timing, dT=%u [ms]", diff);
@@ -416,9 +416,9 @@ void OpenSLESPlayer::EnqueuePlayoutData(bool silence) {
     // OpenSL ES. Use hardcoded delay estimate since OpenSL ES does not support
     // delay estimation.
     fine_audio_buffer_->GetPlayoutData(
-        rtc::ArrayView<int16_t>(audio_buffers_[buffer_index_].get(),
-                                audio_parameters_.frames_per_buffer() *
-                                    audio_parameters_.channels()),
+        webrtc::ArrayView<int16_t>(audio_buffers_[buffer_index_].get(),
+                                   audio_parameters_.frames_per_buffer() *
+                                       audio_parameters_.channels()),
         25);
   }
   // Enqueue the decoded audio buffer for playback.

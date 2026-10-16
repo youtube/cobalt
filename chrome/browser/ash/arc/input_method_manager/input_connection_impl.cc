@@ -5,10 +5,10 @@
 #include "chrome/browser/ash/arc/input_method_manager/input_connection_impl.h"
 
 #include <tuple>
+#include <utility>
 
 #include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
-#include "third_party/abseil-cpp/absl/utility/utility.h"
 #include "ui/base/ime/ash/ime_bridge.h"
 #include "ui/base/ime/ash/ime_keymap.h"
 #include "ui/events/base_event_utils.h"
@@ -99,11 +99,11 @@ mojom::TextInputStatePtr InputConnectionImpl::GetTextInputState(
   ui::TextInputClient* client = GetTextInputClient();
   gfx::Range text_range = gfx::Range();
   gfx::Range selection_range = gfx::Range();
-  absl::optional<gfx::Range> composition_text_range = gfx::Range();
+  std::optional<gfx::Range> composition_text_range = gfx::Range();
   std::u16string text;
 
   if (!client) {
-    return mojom::TextInputStatePtr(absl::in_place, 0, text, text_range,
+    return mojom::TextInputStatePtr(std::in_place, 0, text, text_range,
                                     selection_range, ui::TEXT_INPUT_TYPE_NONE,
                                     false, 0, is_input_state_update_requested,
                                     composition_text_range);
@@ -116,8 +116,8 @@ mojom::TextInputStatePtr InputConnectionImpl::GetTextInputState(
   client->GetTextFromRange(text_range, &text);
 
   return mojom::TextInputStatePtr(
-      absl::in_place, selection_range.start(), text, text_range,
-      selection_range, client->GetTextInputType(), client->ShouldDoLearning(),
+      std::in_place, selection_range.start(), text, text_range, selection_range,
+      client->GetTextInputType(), client->ShouldDoLearning(),
       client->GetTextInputFlags(), is_input_state_update_requested,
       composition_text_range);
 }
@@ -156,8 +156,8 @@ void InputConnectionImpl::DeleteSurroundingText(int before, int after) {
   // |before| is a number of characters is going to be deleted before the cursor
   // and |after| is a number of characters is going to be deleted after the
   // cursor.
-  if (!ime_engine_->DeleteSurroundingText(input_context_id_, before, after,
-                                          &error)) {
+  if (!ime_engine_->DeleteSurroundingText(input_context_id_, -before,
+                                          before + after, &error)) {
     LOG(ERROR) << "DeleteSurroundingText failed: before = " << before
                << ", after = " << after << ", error = \"" << error << "\"";
   }
@@ -199,25 +199,34 @@ void InputConnectionImpl::FinishComposingText() {
 void InputConnectionImpl::SetComposingText(
     const std::u16string& text,
     int new_cursor_pos,
-    const absl::optional<gfx::Range>& new_selection_range) {
+    const std::optional<gfx::Range>& new_selection_range) {
   // It's relative to the last character of the composing text,
   // so 0 means the cursor should be just before the last character of the text.
   new_cursor_pos += text.length() - 1;
 
   StartStateUpdateTimer();
 
-  const int selection_start = new_selection_range
-                                  ? new_selection_range.value().start()
-                                  : new_cursor_pos;
-  const int selection_end =
-      new_selection_range ? new_selection_range.value().end() : new_cursor_pos;
-
   ui::TextInputClient* client = GetTextInputClient();
   if (!client)
     return;
 
-  gfx::Range selection_range;
+  // Calculate the position of composition insertion point
+  gfx::Range selection_range, composition_range;
   client->GetEditableSelectionRange(&selection_range);
+  client->GetCompositionTextRange(&composition_range);
+
+  const int insertion_point = composition_range.is_empty()
+                                  ? selection_range.start()
+                                  : composition_range.start();
+
+  const int selection_start =
+      new_selection_range
+          ? new_selection_range.value().start() - insertion_point
+          : new_cursor_pos;
+  const int selection_end =
+      new_selection_range ? new_selection_range.value().end() - insertion_point
+                          : new_cursor_pos;
+
   if (text.empty() &&
       selection_range.start() == static_cast<uint32_t>(selection_start) &&
       selection_range.end() == static_cast<uint32_t>(selection_end)) {
@@ -232,7 +241,7 @@ void InputConnectionImpl::SetComposingText(
           selection_end, new_cursor_pos,
           std::vector<ash::input_method::InputMethodEngine::SegmentInfo>(),
           &error)) {
-    LOG(ERROR) << "SetComposingText failed: pos=" << new_cursor_pos
+    LOG(ERROR) << "SetComposition failed: pos=" << new_cursor_pos
                << ", error=\"" << error << "\"";
     return;
   }
@@ -284,8 +293,6 @@ void InputConnectionImpl::SetCompositionRange(
 
   StartStateUpdateTimer();
 
-  const int before = selection_range.start() - new_composition_range.start();
-  const int after = new_composition_range.end() - selection_range.end();
   ash::input_method::InputMethodEngine::SegmentInfo segment_info;
   segment_info.start = 0;
   segment_info.end = new_composition_range.length();
@@ -293,9 +300,10 @@ void InputConnectionImpl::SetCompositionRange(
       ash::input_method::InputMethodEngine::SEGMENT_STYLE_UNDERLINE;
 
   std::string error;
-  if (!ime_engine_->ash::input_method::InputMethodEngine::SetCompositionRange(
-          input_context_id_, before, after, {segment_info}, &error)) {
-    LOG(ERROR) << "SetCompositionRange failed: range="
+  if (!ime_engine_->ash::input_method::InputMethodEngine::SetComposingRange(
+          input_context_id_, new_composition_range.start(),
+          new_composition_range.end(), {segment_info}, &error)) {
+    LOG(ERROR) << "SetComposingRange failed: range="
                << new_composition_range.ToString() << ", error=\"" << error
                << "\"";
   }
@@ -319,11 +327,13 @@ void InputConnectionImpl::SendControlKeyEvent(const std::u16string& text) {
 
   for (const auto& t : kControlCharToKeyEvent) {
     if (std::get<0>(t) == str[0]) {
-      ui::KeyEvent press = CreateKeyEvent(ui::ET_KEY_PRESSED, std::get<1>(t),
-                                          std::get<2>(t), std::get<3>(t));
+      ui::KeyEvent press =
+          CreateKeyEvent(ui::EventType::kKeyPressed, std::get<1>(t),
+                         std::get<2>(t), std::get<3>(t));
 
-      ui::KeyEvent release = CreateKeyEvent(ui::ET_KEY_RELEASED, std::get<1>(t),
-                                            std::get<2>(t), std::get<3>(t));
+      ui::KeyEvent release =
+          CreateKeyEvent(ui::EventType::kKeyReleased, std::get<1>(t),
+                         std::get<2>(t), std::get<3>(t));
 
       std::string error;
       if (!ime_engine_->SendKeyEvents(input_context_id_, {press, release},

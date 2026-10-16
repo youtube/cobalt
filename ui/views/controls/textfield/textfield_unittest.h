@@ -5,8 +5,6 @@
 #ifndef UI_VIEWS_CONTROLS_TEXTFIELD_TEXTFIELD_UNITTEST_H_
 #define UI_VIEWS_CONTROLS_TEXTFIELD_TEXTFIELD_UNITTEST_H_
 
-#include "ui/views/controls/textfield/textfield.h"
-
 #include <memory>
 #include <string>
 #include <utility>
@@ -14,6 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/events/event_constants.h"
+#include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
 #include "ui/views/test/views_test_base.h"
 
@@ -53,6 +52,8 @@ class TextfieldTest : public ViewsTestBase, public TextfieldController {
   void InitTextfield(int count = 1);
   ui::MenuModel* GetContextMenuModel();
 
+  void MockAXModeAdded();
+
   bool TestingNativeMac() const;
   bool TestingNativeCrOs() const;
 
@@ -60,7 +61,7 @@ class TextfieldTest : public ViewsTestBase, public TextfieldController {
   T* PrepareTextfields(int count,
                        std::unique_ptr<T> textfield_owned,
                        gfx::Rect bounds) {
-    widget_ = CreateTestWidget();
+    widget_ = CreateTestWidget(Widget::InitParams::CLIENT_OWNS_WIDGET);
     widget_->SetBounds(bounds);
 
     View* container = widget_->SetContentsView(std::make_unique<View>());
@@ -147,18 +148,23 @@ class TextfieldTest : public ViewsTestBase, public TextfieldController {
   void MoveMouseTo(const gfx::Point& where);
   void TapAtCursor(ui::EventPointerType pointer_type);
 
+  // Returns the test api for the element that is being tested. Virtual
+  // because the unit tests for `Textarea` use the same test fixture and various
+  // fixture methods depend on the test api of the test element.
+  virtual TextfieldTestApi GetTextfieldTestApi();
+
+  // Returns the mock input method set for the test widget created by the
+  // fixture.
+  MockInputMethod* input_method();
+  TextfieldModel* model();
+
   // We need widget to populate wrapper class.
   std::unique_ptr<Widget> widget_;
 
   raw_ptr<TestTextfield> textfield_ = nullptr;
-  std::unique_ptr<TextfieldTestApi> test_api_;
-  raw_ptr<TextfieldModel> model_ = nullptr;
 
   // The string from Controller::ContentsChanged callback.
   std::u16string last_contents_;
-
-  // For testing input method related behaviors.
-  raw_ptr<MockInputMethod> input_method_ = nullptr;
 
   // Indicates how many times OnBeforeUserAction() is called.
   int on_before_user_action_ = 0;

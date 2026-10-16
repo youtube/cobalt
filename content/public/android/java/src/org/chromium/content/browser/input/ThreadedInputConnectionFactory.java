@@ -4,6 +4,8 @@
 
 package org.chromium.content.browser.input;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.view.View;
@@ -13,12 +15,15 @@ import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.content_public.browser.InputMethodManagerWrapper;
 
 /**
  * A factory class for {@link ThreadedInputConnection}. The class also includes triggering
  * mechanism (hack) to run our InputConnection on non-UI thread.
  */
+@NullMarked
 public class ThreadedInputConnectionFactory implements ChromiumBaseInputConnection.Factory {
     private static final String TAG = "Ime";
     private static final boolean DEBUG_LOGS = false;
@@ -32,15 +37,18 @@ public class ThreadedInputConnectionFactory implements ChromiumBaseInputConnecti
     private static final int CHECK_REGISTER_RETRY = 1;
 
     private final InputMethodManagerWrapper mInputMethodManagerWrapper;
-    private ThreadedInputConnectionProxyView mProxyView;
-    private ThreadedInputConnection mThreadedInputConnection;
-    private CheckInvalidator mCheckInvalidator;
+    private @Nullable ThreadedInputConnectionProxyView mProxyView;
+    private @Nullable ThreadedInputConnection mThreadedInputConnection;
+    private @Nullable CheckInvalidator mCheckInvalidator;
     private boolean mReentrantTriggering;
     private boolean mTriggerDelayedOnCreateInputConnection;
 
-    @IntDef({FocusState.NOT_APPLICABLE, FocusState.WINDOW_FOCUS_LOST,
-            FocusState.VIEW_FOCUSED_WITHOUT_WINDOW_FOCUS,
-            FocusState.VIEW_FOCUSED_THEN_WINDOW_FOCUSED})
+    @IntDef({
+        FocusState.NOT_APPLICABLE,
+        FocusState.WINDOW_FOCUS_LOST,
+        FocusState.VIEW_FOCUSED_WITHOUT_WINDOW_FOCUS,
+        FocusState.VIEW_FOCUSED_THEN_WINDOW_FOCUSED
+    })
     @interface FocusState {
         int NOT_APPLICABLE = 0;
         int WINDOW_FOCUS_LOST = 1;
@@ -49,13 +57,13 @@ public class ThreadedInputConnectionFactory implements ChromiumBaseInputConnecti
     }
 
     // A tri-state to keep track of view focus and window focus.
-    @FocusState
-    private int mFocusState = FocusState.NOT_APPLICABLE;
+    @FocusState private int mFocusState = FocusState.NOT_APPLICABLE;
 
     // Initialization-on-demand holder for Handler.
     private static class LazyHandlerHolder {
         // Note that we never exit this thread to avoid lifetime or thread-safety issues.
         private static final Handler sHandler;
+
         static {
             HandlerThread handlerThread =
                     new HandlerThread("InputConnectionHandlerThread", HandlerThread.NORM_PRIORITY);
@@ -113,15 +121,30 @@ public class ThreadedInputConnectionFactory implements ChromiumBaseInputConnecti
     }
 
     @Override
-    public ThreadedInputConnection initializeAndGet(View view, ImeAdapterImpl imeAdapter,
-            int inputType, int inputFlags, int inputMode, int inputAction, int selectionStart,
-            int selectionEnd, String lastText, EditorInfo outAttrs) {
+    public @Nullable ThreadedInputConnection initializeAndGet(
+            View view,
+            ImeAdapterImpl imeAdapter,
+            int inputType,
+            int inputFlags,
+            int inputMode,
+            int inputAction,
+            int selectionStart,
+            int selectionEnd,
+            String lastText,
+            EditorInfo outAttrs) {
         ImeUtils.checkOnUiThread();
 
         // Compute outAttrs early in case we early out to prevent reentrancy. (crbug.com/636197)
         // TODO(changwan): move this up to ImeAdapter once ReplicaInputConnection is deprecated.
-        ImeUtils.computeEditorInfo(inputType, inputFlags, inputMode, inputAction, selectionStart,
-                selectionEnd, lastText, outAttrs);
+        ImeUtils.computeEditorInfo(
+                inputType,
+                inputFlags,
+                inputMode,
+                inputAction,
+                selectionStart,
+                selectionEnd,
+                lastText,
+                outAttrs);
         if (DEBUG_LOGS) {
             Log.i(TAG, "initializeAndGet. outAttr: " + ImeUtils.getEditorInfoDebugString(outAttrs));
         }
@@ -170,35 +193,42 @@ public class ThreadedInputConnectionFactory implements ChromiumBaseInputConnecti
         mProxyView.requestFocus();
         mReentrantTriggering = false;
 
-        Runnable r = new Runnable() {
-            @Override
-            public void run() {
-                // This is a hack to make InputMethodManager believe that the proxy view
-                // now has a focus. As a result, InputMethodManager will think that mProxyView
-                // is focused, and will call getHandler() of the view when creating input
-                // connection.
-
-                // Step 1: Set mProxyView as InputMethodManager#mNextServedView.
-                // This does not affect the real window focus.
-                mProxyView.onWindowFocusChanged(true);
-
-                // Step 2: Have InputMethodManager focus in on mNextServedView.
-                // As a result, IMM will call onCreateInputConnection() on mProxyView on the same
-                // thread as mProxyView.getHandler(). It will also call subsequent InputConnection
-                // methods on this IME thread.
-                mInputMethodManagerWrapper.isActive(view);
-
-                // Step 3: Check that the above hack worked.
-                // Do not check until activation finishes inside InputMethodManager (on IME thread).
-                getHandler().post(new Runnable() {
+        Runnable r =
+                new Runnable() {
                     @Override
                     public void run() {
-                        postCheckRegisterResultOnUiThread(view, mCheckInvalidator,
-                                CHECK_REGISTER_RETRY);
+                        assumeNonNull(mProxyView);
+                        // This is a hack to make InputMethodManager believe that the proxy view
+                        // now has a focus. As a result, InputMethodManager will think that
+                        // mProxyView is focused, and will call getHandler() of the view when
+                        // creating input connection.
+
+                        // Step 1: Set mProxyView as InputMethodManager#mNextServedView.
+                        // This does not affect the real window focus.
+                        mProxyView.onWindowFocusChanged(true);
+
+                        // Step 2: Have InputMethodManager focus in on mNextServedView.
+                        // As a result, IMM will call onCreateInputConnection() on mProxyView on the
+                        // same thread as mProxyView.getHandler(). It will also call subsequent
+                        // InputConnection methods on this IME thread.
+                        mInputMethodManagerWrapper.isActive(view);
+
+                        // Step 3: Check that the above hack worked.
+                        // Do not check until activation finishes inside InputMethodManager (on IME
+                        // thread).
+                        getHandler()
+                                .post(
+                                        new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                postCheckRegisterResultOnUiThread(
+                                                        view,
+                                                        assumeNonNull(mCheckInvalidator),
+                                                        CHECK_REGISTER_RETRY);
+                                            }
+                                        });
                     }
-                });
-            }
-        };
+                };
 
         if (mFocusState == FocusState.VIEW_FOCUSED_THEN_WINDOW_FOCUSED) {
             // https://crbug.com/1108237: If the container view gets focused before the window gets
@@ -212,34 +242,36 @@ public class ThreadedInputConnectionFactory implements ChromiumBaseInputConnecti
             // 4) Window focus gain.
             // (On N+ window focus gain occurs first, anyways.)
             if (DEBUG_LOGS) {
-                Log.i(TAG,
+                Log.i(
+                        TAG,
                         "Delaying keyboard activation by 1 second since view was focused before "
                                 + "window.");
             }
             postDelayed(view, r, 1000);
             mFocusState = FocusState.NOT_APPLICABLE;
         } else {
-            view.getHandler().post(r);
+            assumeNonNull(view.getHandler()).post(r);
         }
     }
 
     @VisibleForTesting
     protected void postDelayed(View view, Runnable r, long delayMs) {
-        view.getHandler().postDelayed(r, delayMs);
+        assumeNonNull(view.getHandler()).postDelayed(r, delayMs);
     }
 
     // Note that this function is called both from IME thread and UI thread.
-    private void postCheckRegisterResultOnUiThread(final View view,
-            final CheckInvalidator checkInvalidator, final int retry) {
+    private void postCheckRegisterResultOnUiThread(
+            final View view, final CheckInvalidator checkInvalidator, final int retry) {
         // Now posting on UI thread to access view methods.
         final Handler viewHandler = view.getHandler();
         if (viewHandler == null) return;
-        viewHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                checkRegisterResult(view, checkInvalidator, retry);
-            }
-        });
+        viewHandler.post(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        checkRegisterResult(view, checkInvalidator, retry);
+                    }
+                });
     }
 
     private void checkRegisterResult(View view, CheckInvalidator checkInvalidator, int retry) {

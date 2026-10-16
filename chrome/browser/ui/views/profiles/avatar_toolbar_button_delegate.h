@@ -5,31 +5,49 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_PROFILES_AVATAR_TOOLBAR_BUTTON_DELEGATE_H_
 #define CHROME_BROWSER_UI_VIEWS_PROFILES_AVATAR_TOOLBAR_BUTTON_DELEGATE_H_
 
+#include <optional>
 #include <string>
 
+#include "base/auto_reset.h"
+#include "base/callback_list.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/scoped_observation.h"
-#include "build/build_config.h"
-#include "chrome/browser/profiles/profile_attributes_storage.h"
-#include "chrome/browser/sync/sync_ui_util.h"
-#include "chrome/browser/ui/browser_list_observer.h"
-#include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
+#include "base/time/time.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_service_observer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "ui/gfx/image/image.h"
+#include "google_apis/gaia/gaia_id.h"
+#include "ui/base/models/image_model.h"
 
 class Browser;
 class Profile;
+class AvatarToolbarButton;
+enum class AvatarDelayType;
 
-// Handles the business logic for AvatarToolbarButton. This includes
-// managing the highlight animation and the identity animation.
-class AvatarToolbarButtonDelegate : public BrowserListObserver,
-                                    public ProfileAttributesStorage::Observer,
-                                    public signin::IdentityManager::Observer,
-                                    public syncer::SyncServiceObserver {
+namespace ui {
+class ColorProvider;
+}
+
+// Internal structures.
+namespace internal {
+class StateManager;
+enum class ButtonState;
+}  // namespace internal
+
+// Handles the business logic for AvatarToolbarButton.
+// Listens to Chrome and Profile changes in order to compute the proper state of
+// the button. This state is used to compute the information requested by
+// the button to be shown, such as Text and color, Icon, tooltip text etc...
+// The different states that can be reached:
+// - Regular state: regular browsing session.
+// - Private mode: Incognito or Guest browser sessions.
+// - Identity name shown: the identity name is shown for a short period of time.
+//   This can be triggered by identity changes in Chrome or when an IPH is
+//   showing.
+// - Explicit modifications override: such as displaying specific text when
+//   intercept bubbles are displayed.
+// - Sync paused/error state.
+class AvatarToolbarButtonDelegate : public signin::IdentityManager::Observer {
  public:
   AvatarToolbarButtonDelegate(AvatarToolbarButton* button, Browser* browser);
 
@@ -39,114 +57,77 @@ class AvatarToolbarButtonDelegate : public BrowserListObserver,
 
   ~AvatarToolbarButtonDelegate() override;
 
-  // Methods called by the AvatarToolbarButton to get profile information.
-  std::u16string GetProfileName() const;
-  std::u16string GetShortProfileName() const;
-  gfx::Image GetGaiaAccountImage() const;
-  // Must only be called in states which have an avatar image (i.e. not
-  // kGuestSession and not kIncognitoProfile).
-  gfx::Image GetProfileAvatarImage(gfx::Image gaia_account_image,
-                                   int preferred_size) const;
+  // Expected to be called once the avatar button view is properly added to the
+  // widget. Expected to be called once to initialize the StateManager. Using
+  // `state_manager_` can only be done after calling this method.
+  void InitializeStateManager();
+  bool IsStateManagerInitialized() const;
 
-  // Returns the count of incognito or guest windows attached to the profile.
-  int GetWindowCount() const;
+  // These info are based on the `ButtonState`.
+  std::pair<std::u16string, std::optional<SkColor>> GetTextAndColor(
+      const ui::ColorProvider* color_provider) const;
+  SkColor GetHighlightTextColor(const ui::ColorProvider* color_provider) const;
+  std::optional<std::u16string> GetAccessibilityLabel() const;
+  std::u16string GetAvatarTooltipText() const;
+  std::pair<ChromeColorIds, ChromeColorIds> GetInkdropColors() const;
+  ui::ImageModel GetAvatarIcon(int icon_size,
+                               SkColor icon_color,
+                               const ui::ColorProvider* color_provider) const;
+  bool ShouldPaintBorder() const;
+  bool ShouldBlendHighlightColor() const;
+  std::optional<base::RepeatingClosure> GetButtonAction();
 
-  AvatarToolbarButton::State GetState() const;
-
-  absl::optional<AvatarSyncErrorType> GetAvatarSyncErrorType() const;
-
-  bool IsSyncFeatureEnabled() const;
-
-  void ShowHighlightAnimation();
-  bool IsHighlightAnimationVisible() const;
-
-  // Should be called when the icon is updated. This may trigger the identity
-  // pill animation if the delegate is waiting for the image.
-  void MaybeShowIdentityAnimation(const gfx::Image& gaia_account_image);
-
-  // Enables or disables the IPH highlight.
-  void SetHasInProductHelpPromo(bool has_promo);
+  [[nodiscard]] base::ScopedClosureRunner SetExplicitButtonState(
+      const std::u16string& text,
+      std::optional<std::u16string> accessibility_label,
+      std::optional<base::RepeatingClosure> explicit_action);
 
   // Called by the AvatarToolbarButton to notify the delegate about events.
-  void NotifyClick();
-  void OnMouseExited();
-  void OnBlur();
+  void OnThemeChanged(const ui::ColorProvider* color_provider);
+
+  // Testing functions: check `AvatarToolbarButton` equivalent functions.
+  [[nodiscard]] static base::AutoReset<std::optional<base::TimeDelta>>
+  CreateScopedInfiniteDelayOverrideForTesting(AvatarDelayType delay_type);
+  void TriggerTimeoutForTesting(AvatarDelayType delay_type);
+  [[nodiscard]] static base::AutoReset<std::optional<base::TimeDelta>>
+  CreateScopedZeroDelayOverrideSigninPendingTextForTesting();
 
  private:
-  enum class IdentityAnimationState { kNotShowing, kWaitingForImage, kShowing };
+  std::u16string GetProfileName() const;
+  std::u16string GetShortProfileName() const;
+  // Must only be called in states which have an avatar image (i.e. not
+  // kGuestSession and not kIncognitoProfile).
+  gfx::Image GetProfileAvatarImage(int preferred_size) const;
+  // Returns the count of incognito or guest windows attached to the profile.
+  int GetWindowCount() const;
+  gfx::Image GetGaiaAccountImage() const;
 
-  // BrowserListObserver:
-  void OnBrowserAdded(Browser* browser) override;
-  void OnBrowserRemoved(Browser* browser) override;
-
-  // ProfileAttributesStorage::Observer:
-  void OnProfileAdded(const base::FilePath& profile_path) override;
-  void OnProfileWasRemoved(const base::FilePath& profile_path,
-                           const std::u16string& profile_name) override;
-  void OnProfileAvatarChanged(const base::FilePath& profile_path) override;
-  void OnProfileHighResAvatarLoaded(
-      const base::FilePath& profile_path) override;
-  void OnProfileNameChanged(const base::FilePath& profile_path,
-                            const std::u16string& old_profile_name) override;
-
-  // IdentityManager::Observer:
-  // Needed if the first sync promo account should be displayed.
+  // signin::IdentityManager::Observer:
   void OnPrimaryAccountChanged(
-      const signin::PrimaryAccountChangeEvent& event) override;
-  void OnRefreshTokensLoaded() override;
-  void OnAccountsInCookieUpdated(
-      const signin::AccountsInCookieJarInfo& accounts_in_cookie_jar_info,
-      const GoogleServiceAuthError& error) override;
+      const signin::PrimaryAccountChangeEvent& event_details) override;
   void OnExtendedAccountInfoUpdated(const AccountInfo& info) override;
-  void OnExtendedAccountInfoRemoved(const AccountInfo& info) override;
-
-  // SyncServiceObserver:
-  void OnStateChanged(syncer::SyncService*) override;
-
-  // Initiates showing the identity.
-  void OnUserIdentityChanged();
-
-  void OnIdentityAnimationTimeout();
-  // Called after the user interacted with the button or after some timeout.
-  void MaybeHideIdentityAnimation();
-  void HideHighlightAnimation();
-
-  // Shows the identity pill animation. If the animation is already showing,
-  // this extends the duration of the current animation.
-  void ShowIdentityAnimation();
-
-  base::ScopedObservation<ProfileAttributesStorage,
-                          ProfileAttributesStorage::Observer>
-      profile_observation_{this};
-  base::ScopedObservation<syncer::SyncService, syncer::SyncServiceObserver>
-      sync_service_observation_{this};
-  base::ScopedObservation<signin::IdentityManager,
-                          signin::IdentityManager::Observer>
-      identity_manager_observation_{this};
+  void OnErrorStateOfRefreshTokenUpdatedForAccount(
+      const CoreAccountInfo& account_info,
+      const GoogleServiceAuthError& error,
+      signin_metrics::SourceForRefreshTokenOperation token_operation_source)
+      override;
 
   const raw_ptr<AvatarToolbarButton> avatar_toolbar_button_;
   const raw_ptr<Browser> browser_;
   const raw_ptr<Profile> profile_;
-  IdentityAnimationState identity_animation_state_ =
-      IdentityAnimationState::kNotShowing;
+  const raw_ptr<signin::IdentityManager> identity_manager_;
 
-  // Count of identity pill animation timeouts that are currently scheduled.
-  // Multiple timeouts are scheduled when multiple animation triggers happen in
-  // a quick sequence (before the first timeout passes). The identity pill tries
-  // to close when this reaches 0.
-  int identity_animation_timeout_count_ = 0;
+  // Gaia Id of the account that was signed in from having it's choice
+  // remembered following a web sign-in event but waiting for the available
+  // account information to be fetched in order to show the sign in IPH.
+  GaiaId gaia_id_for_signin_choice_remembered_;
 
-  bool refresh_tokens_loaded_ = false;
-  bool has_in_product_help_promo_ = false;
+  // Initialized in `InitializeStates()`.
+  std::unique_ptr<internal::StateManager> state_manager_;
 
-  // Whether the avatar highlight animation is visible. The animation is shown
-  // when an Autofill datatype is saved. When this is true the avatar button
-  // sync paused/error state will be disabled.
-  bool highlight_animation_visible_ = false;
-
-  // Caches the value of the last error so the class can detect when it changes
-  // and notify |avatar_toolbar_button_|.
-  absl::optional<AvatarSyncErrorType> last_avatar_error_;
+  base::ScopedObservation<signin::IdentityManager,
+                          signin::IdentityManager::Observer>
+      identity_manager_observation_{this};
 
   base::WeakPtrFactory<AvatarToolbarButtonDelegate> weak_ptr_factory_{this};
 };

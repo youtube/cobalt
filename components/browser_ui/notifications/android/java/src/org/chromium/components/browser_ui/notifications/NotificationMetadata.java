@@ -4,11 +4,11 @@
 
 package org.chromium.components.browser_ui.notifications;
 
-import androidx.annotation.Nullable;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
-/**
- * Struct to contain information to identify the notification.
- */
+/** Struct to contain information to identify the notification. */
+@NullMarked
 public class NotificationMetadata {
     /**
      * The notification type used in metrics tracking.
@@ -20,8 +20,7 @@ public class NotificationMetadata {
      * The notification tag used in {@link android.app.NotificationManager#notify(String, int,
      * android.app.Notification)}.
      */
-    @Nullable
-    public final String tag;
+    public final @Nullable String tag;
 
     /**
      * The notification id used in {@link android.app.NotificationManager#notify(String, int,

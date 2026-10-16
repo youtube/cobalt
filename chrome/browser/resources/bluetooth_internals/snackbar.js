@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {CustomElement} from 'chrome://resources/js/custom_element.js';
-import {listenOnce} from 'chrome://resources/js/util_ts.js';
+import {listenOnce} from 'chrome://resources/js/util.js';
 
 import {getTemplate} from './snackbar.html.js';
 
@@ -220,7 +220,7 @@ export function getSnackbarStateForTest() {
 }
 
 /**
- * TODO(crbug.com/675299): Add ability to specify parent element to Snackbar.
+ * TODO(crbug.com/40498702): Add ability to specify parent element to Snackbar.
  * Creates a Snackbar and shows it if one is not showing already. If a
  * Snackbar is already active, the next Snackbar is queued.
  * @param {string} message The message to display in the Snackbar.
@@ -253,7 +253,7 @@ export function showSnackbar(message, opt_type, opt_actionText, opt_action) {
 window.showSnackbar = showSnackbar;
 
 /**
- * TODO(crbug.com/675299): Add ability to specify parent element to Snackbar.
+ * TODO(crbug.com/40498702): Add ability to specify parent element to Snackbar.
  * Creates a Snackbar and sets events for queuing the next Snackbar to show.
  * @param {!BluetoothSnackbarElement} snackbar
  */
@@ -261,10 +261,13 @@ function show(snackbar) {
   document.body.querySelector('#snackbar-container').appendChild(snackbar);
 
   snackbar.addEventListener('dismissed', function() {
-    document.body.querySelector('#snackbar-container').removeChild(current);
+    const container = document.body.querySelector('#snackbar-container');
+    if (container) {
+      container.removeChild(current);
+    }
 
     const newSnackbar = queue.shift();
-    if (newSnackbar) {
+    if (container && newSnackbar) {
       show(newSnackbar);
       return;
     }

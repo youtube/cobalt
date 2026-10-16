@@ -4,27 +4,22 @@
 
 #include "chrome/browser/apps/app_service/webapk/webapk_install_task.h"
 
+#include <algorithm>
 #include <utility>
 
-#include "ash/components/arc/mojom/webapk.mojom.h"
-#include "ash/components/arc/session/arc_bridge_service.h"
-#include "ash/components/arc/session/arc_service_manager.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/thread_restrictions.h"
 #include "chrome/browser/apps/app_service/webapk/webapk_prefs.h"
 #include "chrome/browser/apps/app_service/webapk/webapk_utils.h"
-#include "chrome/browser/ash/crosapi/crosapi_ash.h"
-#include "chrome/browser/ash/crosapi/crosapi_manager.h"
-#include "chrome/browser/ash/crosapi/web_app_service_ash.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
@@ -32,6 +27,9 @@
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/chrome_switches.h"
+#include "chromeos/ash/experiences/arc/mojom/webapk.mojom.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
 #include "components/services/app_service/public/cpp/share_target.h"
 #include "components/version_info/version_info.h"
 #include "components/webapk/webapk.pb.h"
@@ -45,7 +43,7 @@
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/fetch_api.mojom-shared.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
-#include "third_party/smhasher/src/MurmurHash2.h"
+#include "third_party/smhasher/src/src/MurmurHash2.h"
 #include "url/gurl.h"
 
 namespace {
@@ -54,9 +52,6 @@ namespace {
 constexpr char kProtoMimeType[] = "application/x-protobuf";
 
 constexpr char kRequesterPackageName[] = "org.chromium.arc.webapk";
-
-// Android property containing the list of supported ABIs.
-constexpr char kAbiListPropertyName[] = "ro.product.cpu.abilist";
 
 const char kMinimumIconSize = 64;
 
@@ -88,7 +83,7 @@ constexpr net::NetworkTrafficAnnotationTag kWebApksTrafficAnnotation =
           destination: GOOGLE_OWNED_SERVICE
           internal {
             contacts {
-              email: "tsergeant@google.com"
+              email: "cros-web-apps-team@google.com"
             }
           }
           user_data {
@@ -209,7 +204,7 @@ void AddUpdateParams(webapk::WebApk* webapk,
 
 // Attaches icon PNG data and hash to an existing icon entry, and then
 // serializes and returns the entire proto. Should be called on a worker thread.
-absl::optional<std::string> AddIconDataAndSerializeProto(
+std::optional<std::string> AddIconDataAndSerializeProto(
     std::unique_ptr<webapk::WebApk> webapk,
     std::vector<uint8_t> icon_data,
     arc::mojom::WebApkInfoPtr web_apk_info) {
@@ -230,7 +225,7 @@ absl::optional<std::string> AddIconDataAndSerializeProto(
     // If we don't have an update reason here, return before we query the server
     // as there is no reason to update.
     if (webapk->update_reasons_size() == 0) {
-      return absl::nullopt;
+      return std::nullopt;
     }
   }
 
@@ -241,14 +236,10 @@ absl::optional<std::string> AddIconDataAndSerializeProto(
 }
 
 std::string GetArcAbi(const arc::ArcFeatures& arc_features) {
-  const std::string& property =
-      arc_features.build_props.at(kAbiListPropertyName);
-  size_t separator_pos = property.find(',');
-  if (separator_pos != std::string::npos) {
-    return property.substr(0, separator_pos);
-  }
-
-  return property;
+  // The property value will be a comma separated list, e.g. "x86_64,x86". The
+  // highest priority will be listed first.
+  return base::SplitString(arc_features.build_props.abi_list, ",",
+                           base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY)[0];
 }
 
 }  // namespace
@@ -264,7 +255,7 @@ WebApkInstallTask::WebApkInstallTask(Profile* profile,
       package_name_to_update_(
           webapk_prefs::GetWebApkPackageName(profile_, app_id_)),
       minter_timeout_(kMinterResponseTimeout) {
-  DCHECK(web_app::IsWebAppsCrosapiEnabled() || web_app_provider_);
+  DCHECK(web_app_provider_);
 }
 
 WebApkInstallTask::~WebApkInstallTask() = default;
@@ -273,18 +264,17 @@ void WebApkInstallTask::Start(ResultCallback callback) {
   VLOG(1) << "Generating WebAPK for app: " << app_id_;
   result_callback_ = std::move(callback);
 
-  if (web_app::IsWebAppsCrosapiEnabled()) {
-    FetchWebApkInfoFromCrosapi();
-    return;
-  }
-
   auto& registrar = web_app_provider_->registrar_unsafe();
 
   // Installation & share target are already checked in WebApkManager, check
   // again in case anything changed while the install request was queued.
   // Manifest URL is always set for apps installed or updated in recent
   // versions, but might be missing for older apps.
-  if (!registrar.IsInstalled(app_id_) ||
+  if (!registrar.IsInstallState(
+          app_id_,
+          {web_app::proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
+           web_app::proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION,
+           web_app::proto::InstallState::INSTALLED_WITH_OS_INTEGRATION}) ||
       !registrar.GetAppShareTarget(app_id_) ||
       registrar.GetAppManifestUrl(app_id_).is_empty()) {
     DeliverResult(WebApkInstallStatus::kAppInvalid);
@@ -294,7 +284,8 @@ void WebApkInstallTask::Start(ResultCallback callback) {
   std::unique_ptr<webapk::WebApk> webapk = std::make_unique<webapk::WebApk>();
   webapk->set_manifest_url(registrar.GetAppManifestUrl(app_id_).spec());
   webapk->set_requester_application_package(kRequesterPackageName);
-  webapk->set_requester_application_version(version_info::GetVersionNumber());
+  webapk->set_requester_application_version(
+      std::string(version_info::GetVersionNumber()));
 
   LoadWebApkInfo(std::move(webapk));
 }
@@ -349,7 +340,7 @@ void WebApkInstallTask::OnWebApkInfoLoaded(
 
 void WebApkInstallTask::OnArcFeaturesLoaded(
     std::unique_ptr<webapk::WebApk> webapk,
-    absl::optional<arc::ArcFeatures> arc_features) {
+    std::optional<arc::ArcFeatures> arc_features) {
   if (!arc_features) {
     LOG(ERROR) << "Could not load ArcFeatures";
     DeliverResult(WebApkInstallStatus::kArcUnavailable);
@@ -357,16 +348,11 @@ void WebApkInstallTask::OnArcFeaturesLoaded(
   }
   webapk->set_android_abi(GetArcAbi(arc_features.value()));
 
-  if (web_app::IsWebAppsCrosapiEnabled()) {
-    WebApkInstallTask::OnLoadedIcon(std::move(webapk), IconPurpose::ANY,
-                                    /*data=*/{});
-    return;
-  }
-
   auto& icon_manager = web_app_provider_->icon_manager();
-  absl::optional<web_app::WebAppIconManager::IconSizeAndPurpose>
+  std::optional<web_app::WebAppIconManager::IconSizeAndPurpose>
       icon_size_and_purpose = icon_manager.FindIconMatchBigger(
-          app_id_, {IconPurpose::MASKABLE, IconPurpose::ANY}, kMinimumIconSize);
+          app_id_, {web_app::IconPurpose::MASKABLE, web_app::IconPurpose::ANY},
+          kMinimumIconSize);
 
   if (!icon_size_and_purpose) {
     LOG(ERROR) << "Could not find suitable icon";
@@ -380,10 +366,10 @@ void WebApkInstallTask::OnArcFeaturesLoaded(
   // and just send any URL of the correct purpose.
   auto& registrar = web_app_provider_->registrar_unsafe();
   const auto& manifest_icons = registrar.GetAppIconInfos(app_id_);
-  auto it = base::ranges::find_if(
+  auto it = std::ranges::find_if(
       manifest_icons, [&icon_size_and_purpose](const apps::IconInfo& info) {
-        return info.purpose ==
-               ManifestPurposeToIconInfoPurpose(icon_size_and_purpose->purpose);
+        return info.purpose == web_app::ManifestPurposeToIconInfoPurpose(
+                                   icon_size_and_purpose->purpose);
       });
 
   if (it == manifest_icons.end()) {
@@ -398,7 +384,8 @@ void WebApkInstallTask::OnArcFeaturesLoaded(
 
   webapk::Image* image = web_app_manifest->add_icons();
   image->set_src(std::move(icon_url));
-  image->add_purposes(icon_size_and_purpose->purpose == IconPurpose::MASKABLE
+  image->add_purposes(icon_size_and_purpose->purpose ==
+                              web_app::IconPurpose::MASKABLE
                           ? webapk::Image::MASKABLE
                           : webapk::Image::ANY);
   image->add_usages(webapk::Image::PRIMARY_ICON);
@@ -410,7 +397,7 @@ void WebApkInstallTask::OnArcFeaturesLoaded(
 }
 
 void WebApkInstallTask::OnLoadedIcon(std::unique_ptr<webapk::WebApk> webapk,
-                                     IconPurpose purpose,
+                                     web_app::IconPurpose purpose,
                                      std::vector<uint8_t> data) {
   app_short_name_ = webapk->manifest().short_name();
   base::ThreadPool::PostTaskAndReplyWithResult(
@@ -422,7 +409,7 @@ void WebApkInstallTask::OnLoadedIcon(std::unique_ptr<webapk::WebApk> webapk,
 }
 
 void WebApkInstallTask::OnProtoSerialized(
-    absl::optional<std::string> serialized_proto) {
+    std::optional<std::string> serialized_proto) {
   if (!serialized_proto && !serialized_proto.has_value()) {
     // We don't need to continue the update, because the existing WebAPK is up
     // to date.
@@ -519,52 +506,6 @@ void WebApkInstallTask::OnInstallComplete(
 
   DeliverResult(success ? WebApkInstallStatus::kSuccess
                         : WebApkInstallStatus::kGooglePlayError);
-}
-
-void WebApkInstallTask::FetchWebApkInfoFromCrosapi() {
-  crosapi::mojom::WebAppProviderBridge* web_app_provider_bridge =
-      crosapi::CrosapiManager::Get()
-          ->crosapi_ash()
-          ->web_app_service_ash()
-          ->GetWebAppProviderBridge();
-  if (!web_app_provider_bridge) {
-    // TODO(crbug.com/1254199): Consider adding an enum entry for failures
-    // relating to Lacros.
-    DeliverResult(WebApkInstallStatus::kAppInvalid);
-    return;
-  }
-
-  web_app_provider_bridge->GetWebApkCreationParams(
-      app_id_,
-      base::BindOnce(&WebApkInstallTask::OnWebApkInfoFetchedFromCrosapi,
-                     weak_ptr_factory_.GetWeakPtr()));
-}
-
-void WebApkInstallTask::OnWebApkInfoFetchedFromCrosapi(
-    crosapi::mojom::WebApkCreationParamsPtr webapk_creation_params) {
-  // TODO(crbug.com/1254199): Consider deserializing on another thread.
-
-  std::unique_ptr<webapk::WebApk> webapk;
-  if (webapk_creation_params &&
-      !webapk_creation_params->webapk_manifest_proto_bytes.empty()) {
-    webapk = std::make_unique<webapk::WebApk>();
-    webapk->set_manifest_url(webapk_creation_params->manifest_url);
-    if (!webapk->mutable_manifest()->ParseFromArray(
-            webapk_creation_params->webapk_manifest_proto_bytes.data(),
-            webapk_creation_params->webapk_manifest_proto_bytes.size())) {
-      webapk.reset();
-    }
-  }
-  if (!webapk) {
-    // TODO(crbug.com/1254199): Consider adding an enum entry for failures
-    // relating to Lacros.
-    DeliverResult(WebApkInstallStatus::kAppInvalid);
-    return;
-  }
-
-  webapk->set_requester_application_package(kRequesterPackageName);
-  webapk->set_requester_application_version(version_info::GetVersionNumber());
-  LoadWebApkInfo(std::move(webapk));
 }
 
 void WebApkInstallTask::DeliverResult(WebApkInstallStatus result) {

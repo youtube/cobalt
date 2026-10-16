@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/shared/starboard/media/media_support_internal.h"
+// clang-format on
 
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                            const MimeType* mime_type,
@@ -53,4 +55,4 @@ bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
   return false;
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

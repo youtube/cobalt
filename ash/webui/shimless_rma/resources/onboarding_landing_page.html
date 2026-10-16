@@ -33,30 +33,33 @@
     <div class="instructions">[[i18n('beginRmaWarningText')]]</div>
     <div id="verificationMessage" class="icon-message">
       <paper-spinner-lite id="busyIcon" class="small-spinner"
-          hidden$="[[!verificationInProgress_]]" active>
+          hidden$="[[!verificationInProgress]]" active>
       </paper-spinner-lite>
       <iron-icon id="verificationIcon"
-        icon$="[[getVerificationIcon_(isCompliant_)]]"
-        hidden$="[[verificationInProgress_]]" class="small-icon">
+        icon$="[[getVerificationIcon(isCompliant)]]"
+        hidden$="[[verificationInProgress]]" class="small-icon">
       </iron-icon>
       <div aria-live="polite">
-        <span hidden$="[[!verificationInProgress_]]" class="instructions">
+        <span hidden$="[[!verificationInProgress]]" class="instructions">
           [[i18n('validatingComponentsText')]]
         </span>
-        <span hidden$="[[verificationInProgress_]]" class="instructions">
-          <span hidden$="[[!isCompliant_]]">
+        <span hidden$="[[verificationInProgress]]" class="instructions">
+          <span hidden$="[[!isCompliant]]">
             [[i18n('validatedComponentsSuccessText')]]
           </span>
-          <span inner-h-t-m-l="[[verificationFailedMessage_]]"
-              hidden$="[[isCompliant_]]" class="instructions">
+          <span inner-h-t-m-l="[[verificationFailedMessage]]"
+              hidden$="[[isCompliant || isSkipped]]" class="instructions">
+          </span>
+          <span id="verificationSkipMessage" hidden$="[[!isSkipped]]">
+            [[i18n('validatedComponentsSkipText')]]
           </span>
         </span>
       </div>
     </div>
     <div id="navigationButtonWrapper">
       <cr-button id="getStartedButton" class="action-button"
-          on-click="onGetStartedButtonClicked_"
-          disabled="[[isGetStartedButtonDisabled_(verificationInProgress_,
+          on-click="onGetStartedButtonClicked"
+          disabled="[[isGetStartedButtonDisabled(verificationInProgress,
           allButtonsDisabled)]]">
         [[i18n('getStartedButtonLabel')]]
         <paper-spinner-lite class="button-spinner"
@@ -64,8 +67,9 @@
         </paper-spinner-lite>
       </cr-button>
       <cr-button id="landingExit" class="pill"
-          on-click="onLandingExitButtonClicked_"
-          disabled="[[allButtonsDisabled]]">
+          on-click="onLandingExitButtonClicked"
+          disabled="[[allButtonsDisabled]]"
+          hidden$="[[!canExit]]">
         <span id="exitButtonLabel">
           [[i18n('exitButtonLabel')]]
         </span>
@@ -83,12 +87,12 @@
   </div>
 </base-page>
 
-<cr-dialog id="unqualifiedComponentsDialog" on-cancel="closeDialog_"
+<cr-dialog id="unqualifiedComponentsDialog" on-cancel="closeDialog"
     ignore-popstate>
   <div slot="title">[[i18n('unqualifiedComponentsTitle')]]</div>
-  <div slot="body" id="dialogBody">[[componentsList_]]</div>
+  <div slot="body" id="dialogBody">[[componentsList]]</div>
   <div class="dialog-footer" slot="button-container">
-    <cr-button class="action-button" on-click="closeDialog_">
+    <cr-button class="action-button" on-click="closeDialog">
       [[i18n('okButtonLabel')]]
     </cr-button>
   </div>

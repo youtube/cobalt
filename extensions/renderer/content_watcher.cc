@@ -7,13 +7,13 @@
 #include <stddef.h>
 
 #include <set>
+#include <string_view>
 
-#include "base/strings/string_piece.h"
+#include "base/memory/raw_ref.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_frame_observer.h"
 #include "content/public/renderer/render_frame_observer_tracker.h"
 #include "content/public/renderer/render_frame_visitor.h"
-#include "extensions/common/extension_messages.h"
 #include "extensions/renderer/extension_frame_helper.h"
 #include "third_party/blink/public/web/web_document.h"
 #include "third_party/blink/public/web/web_element.h"
@@ -29,7 +29,7 @@ class FrameContentWatcher
       public content::RenderFrameObserverTracker<FrameContentWatcher> {
  public:
   FrameContentWatcher(content::RenderFrame* render_frame,
-                      const blink::WebVector<blink::WebString>& css_selectors);
+                      const std::vector<blink::WebString>& css_selectors);
 
   FrameContentWatcher(const FrameContentWatcher&) = delete;
   FrameContentWatcher& operator=(const FrameContentWatcher&) = delete;
@@ -40,11 +40,10 @@ class FrameContentWatcher
   void OnDestruct() override;
   void DidCreateDocumentElement() override;
   void DidMatchCSS(
-      const blink::WebVector<blink::WebString>& newly_matching_selectors,
-      const blink::WebVector<blink::WebString>& stopped_matching_selectors)
-      override;
+      const std::vector<blink::WebString>& newly_matching_selectors,
+      const std::vector<blink::WebString>& stopped_matching_selectors) override;
 
-  void UpdateCSSSelectors(const blink::WebVector<blink::WebString>& selectors);
+  void UpdateCSSSelectors(const std::vector<blink::WebString>& selectors);
 
  private:
   // Given that we saw a change in the CSS selectors that the associated frame
@@ -59,14 +58,14 @@ class FrameContentWatcher
   // frames the top frame cannot access, we may have to rethink this.
   void NotifyBrowserOfChange();
 
-  blink::WebVector<blink::WebString> css_selectors_;
+  std::vector<blink::WebString> css_selectors_;
   std::set<std::string> matching_selectors_;
   bool document_created_ = false;
 };
 
 FrameContentWatcher::FrameContentWatcher(
     content::RenderFrame* render_frame,
-    const blink::WebVector<blink::WebString>& css_selectors)
+    const std::vector<blink::WebString>& css_selectors)
     : content::RenderFrameObserver(render_frame),
       content::RenderFrameObserverTracker<FrameContentWatcher>(render_frame),
       css_selectors_(css_selectors) {}
@@ -84,8 +83,8 @@ void FrameContentWatcher::DidCreateDocumentElement() {
 }
 
 void FrameContentWatcher::DidMatchCSS(
-    const blink::WebVector<blink::WebString>& newly_matching_selectors,
-    const blink::WebVector<blink::WebString>& stopped_matching_selectors) {
+    const std::vector<blink::WebString>& newly_matching_selectors,
+    const std::vector<blink::WebString>& stopped_matching_selectors) {
   for (size_t i = 0; i < stopped_matching_selectors.size(); ++i)
     matching_selectors_.erase(stopped_matching_selectors[i].Utf8());
   for (size_t i = 0; i < newly_matching_selectors.size(); ++i)
@@ -95,7 +94,7 @@ void FrameContentWatcher::DidMatchCSS(
 }
 
 void FrameContentWatcher::UpdateCSSSelectors(
-    const blink::WebVector<blink::WebString>& selectors) {
+    const std::vector<blink::WebString>& selectors) {
   css_selectors_ = selectors;
   if (document_created_) {
     render_frame()->GetWebFrame()->GetDocument().WatchCSSSelectors(
@@ -115,7 +114,7 @@ void FrameContentWatcher::NotifyBrowserOfChange() {
     return;
   }
 
-  std::set<base::StringPiece> transitive_selectors;
+  std::set<std::string_view> transitive_selectors;
   for (blink::WebFrame* frame = top_frame; frame;
        frame = frame->TraverseNext()) {
     if (frame->IsWebLocalFrame() &&
@@ -130,8 +129,9 @@ void FrameContentWatcher::NotifyBrowserOfChange() {
   }
 
   std::vector<std::string> selector_strings;
-  for (const base::StringPiece& selector : transitive_selectors)
+  for (std::string_view selector : transitive_selectors) {
     selector_strings.push_back(std::string(selector));
+  }
 
   ExtensionFrameHelper::Get(render_frame())
       ->GetLocalFrameHost()
@@ -145,7 +145,7 @@ ContentWatcher::~ContentWatcher() = default;
 
 void ContentWatcher::OnWatchPages(
     const std::vector<std::string>& new_css_selectors_utf8) {
-  blink::WebVector<blink::WebString> new_css_selectors(
+  std::vector<blink::WebString> new_css_selectors(
       new_css_selectors_utf8.size());
   bool changed = new_css_selectors.size() != css_selectors_.size();
   for (size_t i = 0; i < new_css_selectors.size(); ++i) {
@@ -158,22 +158,21 @@ void ContentWatcher::OnWatchPages(
   if (!changed)
     return;
 
-  css_selectors_.Swap(new_css_selectors);
+  css_selectors_.swap(new_css_selectors);
 
   // Tell each frame's document about the new set of watched selectors. These
   // will trigger calls to DidMatchCSS after Blink has a chance to apply the new
   // style, which will in turn notify the browser about the changes.
   struct WatchSelectors : public content::RenderFrameVisitor {
-    explicit WatchSelectors(
-        const blink::WebVector<blink::WebString>& css_selectors)
+    explicit WatchSelectors(const std::vector<blink::WebString>& css_selectors)
         : css_selectors(css_selectors) {}
 
     bool Visit(content::RenderFrame* frame) override {
-      FrameContentWatcher::Get(frame)->UpdateCSSSelectors(css_selectors);
+      FrameContentWatcher::Get(frame)->UpdateCSSSelectors(*css_selectors);
       return true;  // Continue visiting.
     }
 
-    const blink::WebVector<blink::WebString>& css_selectors;
+    const raw_ref<const std::vector<blink::WebString>> css_selectors;
   };
   WatchSelectors visitor(css_selectors_);
   content::RenderFrame::ForEach(&visitor);

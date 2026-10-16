@@ -134,7 +134,7 @@ class VIEWS_EXPORT BoundsAnimator : public AnimationDelegateViews {
     std::unique_ptr<gfx::AnimationDelegate> delegate;
 
     // Will only exist if |use_transforms_| is true.
-    absl::optional<gfx::Transform> target_transform;
+    std::optional<gfx::Transform> target_transform;
   };
 
   // Used by AnimationEndedOrCanceled.
@@ -142,7 +142,8 @@ class VIEWS_EXPORT BoundsAnimator : public AnimationDelegateViews {
 
   using ViewToDataMap = std::map<const View*, Data>;
 
-  using AnimationToViewMap = std::map<const gfx::Animation*, View*>;
+  using AnimationToViewMap =
+      std::map<const gfx::Animation*, raw_ptr<View, CtnExperimental>>;
 
   // Removes references to |view| and its animation. Returns the data for the
   // caller to handle cleanup.

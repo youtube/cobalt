@@ -10,18 +10,17 @@
 #include "base/functional/callback_helpers.h"
 #include "base/test/bind.h"
 #include "build/build_config.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/test_extension_environment.h"
-#include "chrome/browser/ui/apps/app_info_dialog.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
+#include "chrome/browser/ui/views/apps/app_info_dialog/app_info_dialog_container.h"
 #include "chrome/test/base/testing_profile.h"
 #include "content/public/test/browser_test.h"
 
 class AppInfoDialogBrowserTest : public DialogBrowserTest {
  public:
-  AppInfoDialogBrowserTest() {}
+  AppInfoDialogBrowserTest() = default;
 
   AppInfoDialogBrowserTest(const AppInfoDialogBrowserTest&) = delete;
   AppInfoDialogBrowserTest& operator=(const AppInfoDialogBrowserTest&) = delete;
@@ -50,18 +49,31 @@ class AppInfoDialogBrowserTest : public DialogBrowserTest {
 };
 
 // Invokes a dialog that shows details of an installed extension.
-IN_PROC_BROWSER_TEST_F(AppInfoDialogBrowserTest, InvokeUi_default) {
+// Flaky on ChromeOS. See https://crbug.com/1485666
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_InvokeUi_default DISABLED_InvokeUi_default
+#else
+#define MAYBE_InvokeUi_default InvokeUi_default
+#endif
+IN_PROC_BROWSER_TEST_F(AppInfoDialogBrowserTest, MAYBE_InvokeUi_default) {
   ShowAndVerifyUi();
 }
 
+// Flaky on ChromeOS. See https://crbug.com/1484928
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_CreateShortcutsAfterExtensionUnloaded \
+  DISABLED_CreateShortcutsAfterExtensionUnloaded
+#else
+#define MAYBE_CreateShortcutsAfterExtensionUnloaded \
+  CreateShortcutsAfterExtensionUnloaded
+#endif
 IN_PROC_BROWSER_TEST_F(AppInfoDialogBrowserTest,
-                       CreateShortcutsAfterExtensionUnloaded) {
+                       MAYBE_CreateShortcutsAfterExtensionUnloaded) {
   ShowUi("");
   ASSERT_TRUE(AppInfoDialog::GetLastDialogForTesting());
 
   // Unload all extensions.
-  extension_environment_->GetExtensionService()
-      ->ProfileMarkedForPermanentDeletionForTest();
+  extension_environment_->ProfileMarkedForPermanentDeletionForTest();
 
   // Dialog widgets and their root views are closed asynchronously so the dialog
   // is still alive.

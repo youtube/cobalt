@@ -4,13 +4,14 @@
 
 package org.chromium.chrome.browser.share;
 
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.profiles.Profile;
 
-/**
- * This class is a shim that wraps the JNI interface to the C++-side
- * ShareHistory object.
- */
+/** This class is a shim that wraps the JNI interface to the C++-side ShareHistory object. */
+@NullMarked
 public class ShareHistoryBridge {
     public static void addShareEntry(Profile profile, String target) {
         assert profile != null;
@@ -24,7 +25,8 @@ public class ShareHistoryBridge {
 
     @NativeMethods
     public interface Natives {
-        void addShareEntry(Profile profile, String string);
-        void clear(Profile profile);
+        void addShareEntry(@JniType("Profile*") Profile profile, String string);
+
+        void clear(@JniType("Profile*") Profile profile);
     }
 }

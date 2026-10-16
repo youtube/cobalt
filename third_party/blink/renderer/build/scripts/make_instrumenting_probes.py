@@ -104,7 +104,7 @@ def match_and_consume(pattern, source):
 def load_model_from_idl(source):
     source = re.sub(r"//.*", "", source)  # Remove line comments
     # Remove block comments
-    source = re.sub(r"/\*(.|\n)*?\*/", "", source, re.MULTILINE)
+    source = re.sub(r"/\*(.|\n)*?\*/", "", source, flags=re.MULTILINE)
     # Merge the method annotation with the next line
     source = re.sub(r"\]\s*?\n\s*", "] ", source)
     source = source.strip()
@@ -129,7 +129,8 @@ class File(object):
             line = re.sub(r"\s{2,}", " ", line).strip()  # Collapse whitespace
             if len(line) == 0:
                 continue
-            elif line.startswith("class ") or line.startswith("struct "):
+            elif line.startswith("class ") or line.startswith(
+                    "struct ") or line.startswith("using "):
                 self.forward_declarations.append(line)
             else:
                 self.declarations.append(Method(line))
@@ -177,6 +178,7 @@ class Parameter(object):
             self.type = param_decl
             self.name = build_param_name(self.type)
 
+        self.is_reference = "&" in self.type
         if self.type[-1] == "*" and "char" not in self.type:
             self.member_type = "Member<%s>" % self.type[:-1]
         else:

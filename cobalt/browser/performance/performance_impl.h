@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_PERFORMANCE_PERFORMANCE_H_
-#define COBALT_BROWSER_PERFORMANCE_PERFORMANCE_H_
+#ifndef COBALT_BROWSER_PERFORMANCE_PERFORMANCE_IMPL_H_
+#define COBALT_BROWSER_PERFORMANCE_PERFORMANCE_IMPL_H_
+
+#include <optional>
 
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "content/public/browser/document_service.h"
@@ -25,7 +27,7 @@ class RenderFrameHost;
 
 namespace performance {
 
-// Implements the H5vccSystem Mojo interface and extends
+// Implements the CobaltPerformance Mojo interface and extends
 // DocumentService so that an object's lifetime is scoped to the corresponding
 // document / RenderFrameHost (see DocumentService for details).
 class PerformanceImpl
@@ -33,21 +35,46 @@ class PerformanceImpl
  public:
   // Creates a PerformanceImpl. The PerformanceImpl is bound to the
   // receiver and its lifetime is scoped to the render_frame_host.
-  static void Create(content::RenderFrameHost* render_frame_host,
+  static void Create(std::optional<int64_t> app_startup_timestamp,
+                     content::RenderFrameHost* render_frame_host,
                      mojo::PendingReceiver<mojom::CobaltPerformance> receiver);
 
   PerformanceImpl(const PerformanceImpl&) = delete;
   PerformanceImpl& operator=(const PerformanceImpl&) = delete;
 
+  void MeasureSystemMemoryInfo(MeasureSystemMemoryInfoCallback) override;
+  void MeasureFreeRssMemory(MeasureFreeRssMemoryCallback) override;
   void MeasureAvailableCpuMemory(MeasureAvailableCpuMemoryCallback) override;
-  void MeasureUsedCpuMemory(MeasureAvailableCpuMemoryCallback) override;
-  void GetAppStartupTime(GetAppStartupTimeCallback) override;
+  void MeasureUsedRssMemory(MeasureUsedRssMemoryCallback) override;
+  void MeasureUsedCpuMemory(MeasureUsedCpuMemoryCallback) override;
+  void MeasureUsedSwapMemory(MeasureUsedSwapMemoryCallback) override;
+  void MeasureReservedVirtualMemory(
+      MeasureReservedVirtualMemoryCallback) override;
+  void MeasureRssHighWaterMarkMemory(
+      MeasureRssHighWaterMarkMemoryCallback) override;
+  void MeasureUsedRssAnonMemory(MeasureUsedRssAnonMemoryCallback) override;
+  void MeasureTotalCpuMemory(MeasureTotalCpuMemoryCallback) override;
+  void MeasureUsedPssMemory(MeasureUsedPssMemoryCallback) override;
+  void MeasureApplicationLimitMemory(
+      MeasureApplicationLimitMemoryCallback) override;
+  void MeasureApplicationUsageMemory(
+      MeasureApplicationUsageMemoryCallback) override;
+  void MeasureUsedGpuMemory(MeasureUsedGpuMemoryCallback) override;
+  void MeasureDecodedImagesMemory(
+      MeasureDecodedImagesMemoryCallback callback) override;
+  void MeasureDecodedImagesPeakMemory(
+      MeasureDecodedImagesPeakMemoryCallback callback) override;
+  void MeasureUsedTileMemory(MeasureUsedTileMemoryCallback) override;
+  void MeasurePeakTileMemory(MeasurePeakTileMemoryCallback) override;
+  void GetAppStartupTimeStamp(GetAppStartupTimeStampCallback callback) override;
 
  private:
-  PerformanceImpl(content::RenderFrameHost& render_frame_host,
+  PerformanceImpl(std::optional<int64_t> app_startup_timestamp,
+                  content::RenderFrameHost& render_frame_host,
                   mojo::PendingReceiver<mojom::CobaltPerformance> receiver);
+  std::optional<int64_t> app_startup_timestamp_;
 };
 
 }  // namespace performance
 
-#endif  // COBALT_BROWSER_PERFORMANCE_PERFORMANCE_H_
+#endif  // COBALT_BROWSER_PERFORMANCE_PERFORMANCE_IMPL_H_

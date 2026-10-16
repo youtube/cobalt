@@ -20,22 +20,18 @@ found in the LICENSE file.
   }
 
   #saml-notice-container {
-    border-bottom: 1px solid var(--google-grey-200);
+    border-bottom: 1px solid var(--cros-sys-separator);
     height: 44px;
   }
 
   #saml-footer-container {
-    border-top: 1px solid var(--google-grey-200);
+    border-top: 1px solid var(--cros-sys-separator);
     height: 58px;
   }
 
   #saml-notice-recording-indicator {
     padding-inline-end: 10px;
     padding-inline-start: 10px;
-  }
-
-  #saml-notice-message {
-    font-size: 13px;
   }
 
   #signin-frame {
@@ -82,7 +78,7 @@ found in the LICENSE file.
   }
 
   #sshWarning {
-    color: var(--google-red-600);
+    color: var(--cros-sys-error);
     text-align: center;
   }
 
@@ -95,14 +91,15 @@ found in the LICENSE file.
 <!-- As this dialog have pre-loading logic that require access to elements,
       dialog is marked as no-lazy. -->
 <oobe-content-dialog role="dialog" id="gaiaDialog" no-lazy
-    no-buttons$="[[isSamlSsoVisible]]" fullscreen$="[[isSamlSsoVisible]]">
+    no-buttons$="[[isSamlSsoVisible]]" fullscreen$="[[isSamlSsoVisible]]"
+    isGaia$="[[!isSamlSsoVisible]]">
   <div slot="content" id="signin-frame-container"
-      hideshadows$="[[isPopUpOverlayVisible_]]"
+      hideshadows$="[[isPopUpOverlayVisible]]"
       class="flex layout vertical">
     <div id="saml-notice-container" class="layout horizontal center"
         hidden$="[[!isSamlSsoVisible]]">
       <cr-icon-button id="saml-back-button" iron-icon="cr:arrow-back"
-          on-click="close_" hidden="[[isSamlBackButtonHidden_]]">
+          on-click="close" hidden="[[samlBackButtonHidden]]">
       </cr-icon-button>
       <div class="flex layout horizontal center-justified">
         <span id="saml-notice-recording-indicator"
@@ -110,7 +107,7 @@ found in the LICENSE file.
           <img src="chrome://theme/IDR_TAB_RECORDING_INDICATOR">
         </span>
         <span id="saml-notice-message">
-          [[getSamlNoticeMessage_(locale, videoEnabled, authDomain)]]
+          [[getSamlNoticeMessage(locale, videoEnabled, authDomain)]]
         </span>
       </div>
     </div>
@@ -124,77 +121,62 @@ found in the LICENSE file.
       <div>[[i18nDynamic(locale, 'samlChangeProviderMessage')]]</div>
       <oobe-text-button id="change-account"
           text-key="samlChangeProviderButton"
-          on-click="onChangeSigninProviderClicked_">
+          on-click="onChangeSigninProviderClicked">
       </oobe-text-button>
     </div>
   </div>
   <div slot="back-navigation" hidden$="[[navigationHidden]]">
     <oobe-back-button id="signin-back-button"
         disabled="[[!navigationEnabled]]"
-        hidden="[[isBackButtonHidden(hideBackButtonIfCantGoBack,
-                                      canGoBack)]]"
-        on-click="onBackButtonClicked_">
+        hidden="[[isBackButtonHidden(navigationHidden,
+                                     hideBackButtonIfCantGoBack, canGoBack)]]"
+        on-click="onBackButtonClicked">
     </oobe-back-button>
   </div>
-  <div slot="bottom-buttons" hidden$="[[navigationHidden]]">
-    <div hidden="[[!isDefaultNavigationShown_(canGoBack,
-        gaiaDialogButtonsType)]]">
-      <oobe-text-button id="secondary-action-button"
-          label-for-aria="[[secondaryActionButtonLabel_]]"
-          on-click="onSecondaryActionButtonClicked_"
-          hidden$="[[!secondaryActionButtonLabel_]]"
-          disabled="[[!isButtonEnabled_(navigationEnabled,
-                                        secondaryActionButtonEnabled_)]]">
-        <div slot="text">[[secondaryActionButtonLabel_]]</div>
-      </oobe-text-button>
-      <oobe-text-button id="primary-action-button"
-          label-for-aria="[[primaryActionButtonLabel_]]"
-          on-click="onPrimaryActionButtonClicked_"
-          hidden$="[[!primaryActionButtonLabel_]]"
-          disabled="[[!isButtonEnabled_(navigationEnabled,
-                                        primaryActionButtonEnabled_)]]"
-          inverse>
-        <div slot="text">[[primaryActionButtonLabel_]]</div>
-      </oobe-text-button>
-    </div>
-    <div hidden="[[!isEnterpriseNavigationShown_(canGoBack,
-        gaiaDialogButtonsType)]]">
-      <oobe-text-button id="enterprise-navigation-kiosk"
-          text-key="kioskEnrollmentButton"
-          on-click="onKioskButtonClicked_"
-          hidden$="[[!primaryActionButtonLabel_]]"
-          disabled="[[!isButtonEnabled_(navigationEnabled,
-                                        primaryActionButtonEnabled_)]]">
-      </oobe-text-button>
-      <oobe-text-button id="enterprise-navigation-enterprise"
-          text-key="enterpriseEnrollmentButton"
-          on-click="onEnterpriseButtonClicked_"
-          hidden$="[[!primaryActionButtonLabel_]]"
-          disabled="[[!isButtonEnabled_(navigationEnabled,
-                                        primaryActionButtonEnabled_)]]"
-          inverse>
-      </oobe-text-button>
-    </div>
-    <div hidden="[[!isKioskNavigationShown_(canGoBack,
-        gaiaDialogButtonsType)]]">
-      <oobe-text-button id="kiosk-navigation-enterprise"
-          text-key="enterpriseEnrollmentButton"
-          on-click="onEnterpriseButtonClicked_"
-          hidden$="[[!primaryActionButtonLabel_]]"
-          disabled="[[!isButtonEnabled_(navigationEnabled,
-                                        primaryActionButtonEnabled_)]]">
-      </oobe-text-button>
-      <oobe-text-button id="kiosk-navigation-kiosk"
-          text-key="kioskEnrollmentButton"
-          on-click="onKioskButtonClicked_"
-          hidden$="[[!primaryActionButtonLabel_]]"
-          disabled="[[!isButtonEnabled_(navigationEnabled,
-                                        primaryActionButtonEnabled_)]]"
-          inverse>
-      </oobe-text-button>
-    </div>
+  <div slot="bottom-buttons" hidden$="[[navigationHidden]]"
+      class="layout horizontal end-justified">
+    <!-- Quick start button visibility is controlled by the corresponding
+      feature flag -->
+    <quick-start-entry-point
+      id="quick-start-signin-button"
+      on-click="onQuickStartClicked"
+      hidden="[[!isQuickStartEnabled]]"
+      quick-start-text-key="signinScreenQuickStart">
+    </quick-start-entry-point>
+    <!-- Secondary action button appearance is controlled by the corresponding
+      info provided by GAIA -->
+    <oobe-text-button id="secondary-action-button"
+        label-for-aria="[[secondaryActionButtonLabel]]"
+        on-click="onSecondaryActionButtonClicked"
+        hidden$="[[!secondaryActionButtonLabel]]"
+        disabled="[[!isButtonEnabled(navigationEnabled,
+                                     secondaryActionButtonEnabled)]]">
+      <div slot="text">[[secondaryActionButtonLabel]]</div>
+    </oobe-text-button>
+    <!-- Primary action button appearance is controlled by the corresponding
+      info provided by GAIA. During the enrollment flow users on the client are
+      able to choose between kiosk and enterprise enrollment. To address this
+      case primary button text is updated locally and additional
+      additional-primary-action-button button is shown. -->
+    <oobe-text-button id="additional-primary-action-button"
+        label-for-aria="[[clientAdditionalPrimaryActionButtonLabel]]"
+        on-click="onAdditionalPrimaryActionButtonClicked"
+        hidden$="[[!clientAdditionalPrimaryActionButtonLabel]]"
+        disabled="[[!isButtonEnabled(navigationEnabled,
+                                     primaryActionButtonEnabled)]]">
+      <div slot="text">[[clientAdditionalPrimaryActionButtonLabel]]</div>
+    </oobe-text-button>
+    <oobe-text-button id="primary-action-button"
+        label-for-aria="[[clientPrimaryActionButtonLabel]]"
+        on-click="onPrimaryActionButtonClicked"
+        hidden$="[[!clientPrimaryActionButtonLabel]]"
+        disabled="[[!isButtonEnabled(navigationEnabled,
+                                     primaryActionButtonEnabled)]]"
+        inverse>
+      <div slot="text">[[clientPrimaryActionButtonLabel]]</div>
+    </oobe-text-button>
   </div>
 </oobe-content-dialog>
 <div class="popup-overlay"
-    hidden="[[!isPopUpOverlayVisible_]]">
+    hidden="[[!isPopUpOverlayVisible]]">
 </div>

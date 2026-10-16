@@ -10,6 +10,7 @@
 
 #include "rtc_base/platform_thread_types.h"
 
+// IWYU pragma: begin_keep
 #if defined(WEBRTC_LINUX)
 #include <sys/prctl.h>
 #include <sys/syscall.h>
@@ -31,13 +32,14 @@ typedef HRESULT(WINAPI* RTC_SetThreadDescription)(HANDLE hThread,
 
 #include "rtc_base/checks.h"
 #endif
+// IWYU pragma: end_keep
 
 #include "build/build_config.h"
 #if BUILDFLAG(IS_STARBOARD)
-#include "starboard/thread.h"  // nogncheck
+#include "starboard/common/gettid.h"  // nogncheck
 #endif
 
-namespace rtc {
+namespace webrtc {
 
 PlatformThreadId CurrentThreadId() {
 #if defined(WEBRTC_WIN)
@@ -45,7 +47,7 @@ PlatformThreadId CurrentThreadId() {
 #elif defined(WEBRTC_POSIX)
 #if defined(WEBRTC_MAC) || defined(WEBRTC_IOS)
   return pthread_mach_thread_np(pthread_self());
-#elif defined(WEBRTC_ANDROID)
+#elif defined(WEBRTC_ANDROID) || BUILDFLAG(IS_STARBOARD)
   return gettid();
 #elif defined(WEBRTC_FUCHSIA)
   return zx_thread_self();
@@ -53,8 +55,6 @@ PlatformThreadId CurrentThreadId() {
   return syscall(__NR_gettid);
 #elif defined(__EMSCRIPTEN__)
   return static_cast<PlatformThreadId>(pthread_self());
-#elif BUILDFLAG(IS_STARBOARD)
-  return SbThreadGetId();
 #else
   // Default implementation for nacl and solaris.
   return reinterpret_cast<PlatformThreadId>(pthread_self());
@@ -130,4 +130,4 @@ void SetCurrentThreadName(const char* name) {
 #endif
 }
 
-}  // namespace rtc
+}  // namespace webrtc

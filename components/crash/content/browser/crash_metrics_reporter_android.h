@@ -16,6 +16,20 @@ namespace crash_reporter {
 // wants to observe reason for the death of a child process.
 class CrashMetricsReporter {
  public:
+  // The status of the spare renderer when a process is killed.
+  //
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // LINT.IfChange(SpareRendererAvailabilityWhenKilled)
+  enum class SpareRendererAvailabilityWhenKilled {
+    kKillSpareRenderer = 0,
+    kKillNonSpareRendererWithoutSpareRenderer = 1,
+    kKillNonSpareRendererWithSpareRender = 2,
+    kMaxValue = kKillNonSpareRendererWithSpareRender,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/stability/enums.xml:SpareRendererAvailabilityWhenKilled)
+
   // This enum is used to back a UMA histogram, and must be treated as
   // append-only.
   enum ExitStatus {
@@ -56,7 +70,8 @@ class CrashMetricsReporter {
     kRendererForegroundInvisibleWithNotPerceptibleBindingKilled = 22,
     kRendererForegroundInvisibleWithNotPerceptibleBindingOom = 23,
     kRendererForegroundInvisibleWithWaivedBindingOom = 24,
-    kMaxValue = kRendererForegroundInvisibleWithWaivedBindingOom
+    kRendererForegroundInvisibleWithWaivedBindingKilled = 25,
+    kMaxValue = kRendererForegroundInvisibleWithWaivedBindingKilled
   };
   using ReportedCrashTypeSet = base::flat_set<ProcessedCrashCounts>;
 

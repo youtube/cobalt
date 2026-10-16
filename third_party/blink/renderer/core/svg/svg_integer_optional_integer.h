@@ -49,7 +49,6 @@ class SVGIntegerOptionalInteger final : public SVGPropertyBase {
                             SVGInteger* second_integer);
 
   SVGIntegerOptionalInteger* Clone() const;
-  SVGPropertyBase* CloneForAnimation(const String&) const override;
 
   String ValueAsString() const override;
   SVGParsingError SetValueAsString(const String&);
@@ -73,8 +72,8 @@ class SVGIntegerOptionalInteger final : public SVGPropertyBase {
   }
   AnimatedPropertyType GetType() const override { return ClassType(); }
 
-  SVGInteger* FirstInteger() const { return first_integer_; }
-  SVGInteger* SecondInteger() const { return second_integer_; }
+  SVGInteger* FirstInteger() const { return first_integer_.Get(); }
+  SVGInteger* SecondInteger() const { return second_integer_.Get(); }
 
   void Trace(Visitor*) const override;
 

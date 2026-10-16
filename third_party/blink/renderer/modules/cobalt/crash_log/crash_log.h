@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_CRASH_LOG_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_CRASH_LOG_H_
 
+#include "base/compiler_specific.h"
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -29,7 +31,6 @@ namespace blink {
 
 class ExecutionContext;
 class LocalDOMWindow;
-class ScriptPromiseResolver;
 class ScriptState;
 
 class MODULES_EXPORT CrashLog final : public ScriptWrappable,
@@ -42,16 +43,16 @@ class MODULES_EXPORT CrashLog final : public ScriptWrappable,
   void ContextDestroyed() override;
 
   // Web-exposed interface:
-  ScriptPromise setString(ScriptState*,
-                          const String& key,
-                          const String& value,
-                          ExceptionState&);
-  void triggerCrash();
+  ScriptPromise<IDLBoolean> setString(ScriptState*,
+                                      const String& key,
+                                      const String& value,
+                                      ExceptionState&);
+  NOINLINE NOT_TAIL_CALLED void triggerCrash();
 
   void Trace(Visitor*) const override;
 
  private:
-  void OnSetString(ScriptPromiseResolver*, bool);
+  void OnSetString(ScriptPromiseResolver<IDLBoolean>*, bool);
   void EnsureReceiverIsBound();
 
   // TODO(cobalt, b/383301493): consider renaming the web interface and
@@ -65,4 +66,4 @@ class MODULES_EXPORT CrashLog final : public ScriptWrappable,
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_CRASH_LOG_H_

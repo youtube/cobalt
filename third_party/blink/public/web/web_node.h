@@ -31,11 +31,15 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_NODE_H_
 #define THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_NODE_H_
 
+#include <iosfwd>
+#include <vector>
+
+#include "base/functional/callback_helpers.h"
 #include "cc/paint/element_id.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_private_ptr.h"
 #include "third_party/blink/public/platform/web_string.h"
-#include "third_party/blink/public/platform/web_vector.h"
+#include "third_party/blink/public/web/web_dom_event.h"
 #include "v8/include/v8-forward.h"
 
 namespace blink {
@@ -54,6 +58,12 @@ class WebPluginContainer;
 // reason, subclasses must not add any additional data members.
 class BLINK_EXPORT WebNode {
  public:
+  enum class EventType {
+    kSelectionchange,
+  };
+
+  static WebNode FromDomNodeId(int dom_node_id);
+
   virtual ~WebNode();
 
   WebNode();
@@ -69,8 +79,13 @@ class BLINK_EXPORT WebNode {
   bool LessThan(const WebNode&) const;
 
   bool IsNull() const;
+  explicit operator bool() const { return !IsNull(); }
+
+  bool IsConnected() const;
 
   WebNode ParentNode() const;
+  WebNode ParentOrShadowHostNode() const;
+  bool IsInUserAgentShadowRoot() const;
   WebString NodeValue() const;
   WebDocument GetDocument() const;
   WebNode FirstChild() const;
@@ -88,6 +103,10 @@ class BLINK_EXPORT WebNode {
   bool IsElementNode() const;
   void SimulateClick();
 
+  // Returns the top-most ancestor such this WebNode and that ancestor and all
+  // nodes in between are contenteditable.
+  WebElement RootEditableElement() const;
+
   // See cc/paint/element_id.h for the definition of these ids.
   cc::ElementId ScrollingElementIdForTesting() const;
 
@@ -98,7 +117,17 @@ class BLINK_EXPORT WebNode {
   // If the JS API would have thrown this returns null instead.
   WebElement QuerySelector(const WebString& selector) const;
 
-  WebVector<WebElement> QuerySelectorAll(const WebString& selector) const;
+  std::vector<WebElement> QuerySelectorAll(const WebString& selector) const;
+
+  // Returns all Text nodes where `regex` would match for the text inside of
+  // the node, case-insensitive. This function does not normalize adjacent Text
+  // nodes and search them together. It only matches within individual Text
+  // nodes. It is therefore possible that some text is displayed to the user as
+  // a single run of text, but will not match the regex, because the nodes
+  // aren't normalized. This function searches within both the DOM and Shadow
+  // DOM.
+  std::vector<WebNode> FindAllTextNodesMatchingRegex(
+      const WebString& regex) const;
 
   bool Focused() const;
 
@@ -106,10 +135,15 @@ class BLINK_EXPORT WebNode {
 
   bool IsInsideFocusableElementOrARIAWidget() const;
 
-  v8::Local<v8::Value> ToV8Value(v8::Local<v8::Object> creation_context,
-                                 v8::Isolate*);
+  v8::Local<v8::Value> ToV8Value(v8::Isolate*);
 
-  int GetDevToolsNodeId() const;
+  int GetDomNodeId() const;
+
+  // Adds a listener to this node.
+  // Returns a RAII object that removes the listener.
+  base::ScopedClosureRunner AddEventListener(
+      EventType event_type,
+      base::RepeatingCallback<void(WebDOMEvent)> handler);
 
   // Helper to downcast to `T`. Will fail with a CHECK() if converting to `T` is
   // not legal. The returned `T` will always be non-null if `this` is non-null.
@@ -120,6 +154,8 @@ class BLINK_EXPORT WebNode {
   // be performed.
   template <typename T>
   T DynamicTo() const;
+
+  BLINK_EXPORT friend std::ostream& operator<<(std::ostream&, const WebNode&);
 
 #if INSIDE_BLINK
   WebNode(Node*);
@@ -138,7 +174,7 @@ class BLINK_EXPORT WebNode {
 #endif
 
  protected:
-  WebPrivatePtr<Node> private_;
+  WebPrivatePtrForGC<Node> private_;
 };
 
 #define DECLARE_WEB_NODE_TYPE_CASTS(type)      \

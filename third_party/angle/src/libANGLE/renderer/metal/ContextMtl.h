@@ -14,13 +14,16 @@
 #import <mach/mach_types.h>
 
 #include "common/Optional.h"
+#include "image_util/loadimage.h"
 #include "libANGLE/Context.h"
 #include "libANGLE/renderer/ContextImpl.h"
 #include "libANGLE/renderer/metal/ProvokingVertexHelper.h"
+#include "libANGLE/renderer/metal/mtl_buffer_manager.h"
 #include "libANGLE/renderer/metal/mtl_buffer_pool.h"
 #include "libANGLE/renderer/metal/mtl_command_buffer.h"
 #include "libANGLE/renderer/metal/mtl_context_device.h"
 #include "libANGLE/renderer/metal/mtl_occlusion_query_pool.h"
+#include "libANGLE/renderer/metal/mtl_pipeline_cache.h"
 #include "libANGLE/renderer/metal/mtl_resources.h"
 #include "libANGLE/renderer/metal/mtl_state_cache.h"
 #include "libANGLE/renderer/metal/mtl_utils.h"
@@ -30,6 +33,7 @@ class DisplayMtl;
 class FramebufferMtl;
 class VertexArrayMtl;
 class ProgramMtl;
+class ProgramExecutableMtl;
 class RenderTargetMtl;
 class WindowSurfaceMtl;
 class TransformFeedbackMtl;
@@ -43,7 +47,7 @@ class ContextMtl : public ContextImpl, public mtl::Context
                DisplayMtl *display);
     ~ContextMtl() override;
 
-    angle::Result initialize() override;
+    angle::Result initialize(const angle::ImageLoadContext &imageLoadContext) override;
 
     void onDestroy(const gl::Context *context) override;
 
@@ -190,10 +194,10 @@ class ContextMtl : public ContextImpl, public mtl::Context
 
     // State sync with dirty bits.
     angle::Result syncState(const gl::Context *context,
-                            const gl::State::DirtyBits &dirtyBits,
-                            const gl::State::DirtyBits &bitMask,
-                            const gl::State::ExtendedDirtyBits &extendedDirtyBits,
-                            const gl::State::ExtendedDirtyBits &extendedBitMask,
+                            const gl::state::DirtyBits dirtyBits,
+                            const gl::state::DirtyBits bitMask,
+                            const gl::state::ExtendedDirtyBits extendedDirtyBits,
+                            const gl::state::ExtendedDirtyBits extendedBitMask,
                             gl::Command command) override;
 
     // Disjoint timer queries
@@ -211,12 +215,14 @@ class ContextMtl : public ContextImpl, public mtl::Context
     const gl::Limitations &getNativeLimitations() const override;
     const ShPixelLocalStorageOptions &getNativePixelLocalStorageOptions() const override;
 
-    const ProgramMtl *getProgram() const { return mProgram; }
+    const ProgramExecutableMtl *getProgramExecutable() const { return mExecutable; }
 
     // Shader creation
     CompilerImpl *createCompiler() override;
     ShaderImpl *createShader(const gl::ShaderState &state) override;
     ProgramImpl *createProgram(const gl::ProgramState &state) override;
+    ProgramExecutableImpl *createProgramExecutable(
+        const gl::ProgramExecutable *executable) override;
 
     // Framebuffer creation
     FramebufferImpl *createFramebuffer(const gl::FramebufferState &state) override;
@@ -272,11 +278,6 @@ class ContextMtl : public ContextImpl, public mtl::Context
                      const char *file,
                      const char *function,
                      unsigned int line) override;
-    void handleError(NSError *error,
-                     const char *message,
-                     const char *file,
-                     const char *function,
-                     unsigned int line) override;
 
     using ContextImpl::handleError;
 
@@ -286,6 +287,8 @@ class ContextMtl : public ContextImpl, public mtl::Context
     void invalidateCurrentTextures();
     void invalidateDriverUniforms();
     void invalidateRenderPipeline();
+
+    void updateIncompatibleAttachments(const gl::State &glState);
 
     // Call this to notify ContextMtl whenever FramebufferMtl's state changed
     void onDrawFrameBufferChangedState(const gl::Context *context,
@@ -312,9 +315,12 @@ class ContextMtl : public ContextImpl, public mtl::Context
     void onTransformFeedbackActive(const gl::Context *context, TransformFeedbackMtl *xfb);
     void onTransformFeedbackInactive(const gl::Context *context, TransformFeedbackMtl *xfb);
 
-    // Invoke by mtl::Sync
-    void queueEventSignal(const mtl::SharedEventRef &event, uint64_t value);
-    void serverWaitEvent(const mtl::SharedEventRef &event, uint64_t value);
+    // Invoked by multiple classes in SyncMtl.mm
+    // Enqueue an event and return the command queue serial that the event was or will be placed in.
+    uint64_t queueEventSignal(id<MTLEvent> event, uint64_t value);
+    void serverWaitEvent(id<MTLEvent> event, uint64_t value);
+
+    void markResourceWrittenByCommandBuffer(const mtl::ResourceRef &resource);
 
     const mtl::ClearColorValue &getClearColorValue() const;
     const mtl::WriteMaskArray &getWriteMaskArray() const;
@@ -332,6 +338,7 @@ class ContextMtl : public ContextImpl, public mtl::Context
 
     angle::Result getIncompleteTexture(const gl::Context *context,
                                        gl::TextureType type,
+                                       gl::SamplerFormat format,
                                        gl::Texture **textureOut);
 
     // Recommended to call these methods to end encoding instead of invoking the encoder's
@@ -361,6 +368,9 @@ class ContextMtl : public ContextImpl, public mtl::Context
     // The previous content of texture will be loaded
     mtl::RenderCommandEncoder *getTextureRenderCommandEncoder(const mtl::TextureRef &textureTarget,
                                                               const mtl::ImageNativeIndex &index);
+    mtl::RenderCommandEncoder *getTextureRenderCommandEncoder(const mtl::TextureRef &textureTarget,
+                                                              mtl::MipmapNativeLevel level,
+                                                              uint32_t layer);
     // The previous content of texture will be loaded if clearColor is not provided
     mtl::RenderCommandEncoder *getRenderTargetCommandEncoderWithClear(
         const RenderTargetMtl &renderTarget,
@@ -371,34 +381,37 @@ class ContextMtl : public ContextImpl, public mtl::Context
     // Will end current command encoder and start new blit command encoder. Unless a blit comamnd
     // encoder is already started.
     mtl::BlitCommandEncoder *getBlitCommandEncoder();
+
     // Will end current command encoder and start new compute command encoder. Unless a compute
     // command encoder is already started.
     mtl::ComputeCommandEncoder *getComputeCommandEncoder();
 
     // Because this backend uses an intermediate representation for the rendering
     // commands, a render encoder can coexist with blit/compute command encoders.
+    // Note: the blit/compute commands will run before the pending render commands.
     mtl::BlitCommandEncoder *getBlitCommandEncoderWithoutEndingRenderEncoder();
     mtl::ComputeCommandEncoder *getComputeCommandEncoderWithoutEndingRenderEncoder();
 
     // Get the provoking vertex command encoder.
     mtl::ComputeCommandEncoder *getIndexPreprocessingCommandEncoder();
 
+    bool isCurrentRenderEncoderSerial(uint64_t serial);
+
     const mtl::ContextDevice &getMetalDevice() const { return mContextDevice; }
 
-    angle::Result copy2DTextureSlice0Level0ToWorkTexture(const mtl::TextureRef &srcTexture);
-    const mtl::TextureRef &getWorkTexture() const { return mWorkTexture; }
-    angle::Result copyTextureSliceLevelToWorkBuffer(const gl::Context *context,
-                                                    const mtl::TextureRef &srcTexture,
-                                                    const mtl::MipmapNativeLevel &mipNativeLevel,
-                                                    uint32_t layerIndex);
-    const mtl::BufferRef &getWorkBuffer() const { return mWorkBuffer; }
+    mtl::BufferManager &getBufferManager() { return mBufferManager; }
 
-    angle::ImageLoadContext getImageLoadContext() const;
+    mtl::PipelineCache &getPipelineCache() { return mPipelineCache; }
+
+    const angle::ImageLoadContext &getImageLoadContext() const { return mImageLoadContext; }
+
+    bool getForceResyncDrawFramebuffer() const { return mForceResyncDrawFramebuffer; }
+    gl::DrawBufferMask getIncompatibleAttachments() const { return mIncompatibleAttachments; }
 
   private:
     void ensureCommandBufferReady();
     void endBlitAndComputeEncoding();
-    angle::Result ensureIncompleteTexturesCreated(const gl::Context *context);
+    angle::Result resyncDrawFramebufferIfNeeded(const gl::Context *context);
     angle::Result setupDraw(const gl::Context *context,
                             gl::PrimitiveMode mode,
                             GLint firstVertex,
@@ -485,7 +498,7 @@ class ContextMtl : public ContextImpl, public mtl::Context
                                    GLuint baseInstance);
     void flushCommandBufferIfNeeded();
     void updateExtendedState(const gl::State &glState,
-                             const gl::State::ExtendedDirtyBits &extendedDirtyBits);
+                             const gl::state::ExtendedDirtyBits extendedDirtyBits);
 
     void updateViewport(FramebufferMtl *framebufferMtl,
                         const gl::Rectangle &viewport,
@@ -496,7 +509,6 @@ class ContextMtl : public ContextImpl, public mtl::Context
     void updateScissor(const gl::State &glState);
     void updateCullMode(const gl::State &glState);
     void updateFrontFace(const gl::State &glState);
-    void updateDepthBias(const gl::State &glState);
     void updateDrawFrameBufferBinding(const gl::Context *context);
     void updateProgramExecutable(const gl::Context *context);
     void updateVertexArray(const gl::Context *context);
@@ -521,6 +533,8 @@ class ContextMtl : public ContextImpl, public mtl::Context
 
     angle::Result startOcclusionQueryInRenderPass(QueryMtl *query, bool clearOldValue);
 
+    angle::Result checkCommandBufferError();
+
     // Dirty bits.
     enum DirtyBitType : size_t
     {
@@ -536,6 +550,7 @@ class ContextMtl : public ContextImpl, public mtl::Context
         DIRTY_BIT_SCISSOR,
         DIRTY_BIT_DRAW_FRAMEBUFFER,
         DIRTY_BIT_CULL_MODE,
+        DIRTY_BIT_FILL_MODE,
         DIRTY_BIT_WINDING,
         DIRTY_BIT_RENDER_PIPELINE,
         DIRTY_BIT_UNIFORM_BUFFERS_BINDING,
@@ -571,21 +586,22 @@ class ContextMtl : public ContextImpl, public mtl::Context
         uint8_t values[sizeof(float) * 4];
     };
 
+    angle::ImageLoadContext mImageLoadContext;
+
     mtl::OcclusionQueryPool mOcclusionQueryPool;
 
     mtl::CommandBuffer mCmdBuffer;
     mtl::RenderCommandEncoder mRenderEncoder;
     mtl::BlitCommandEncoder mBlitEncoder;
     mtl::ComputeCommandEncoder mComputeEncoder;
-    bool mHasMetalSharedEvents = false;
+
+    mtl::PipelineCache mPipelineCache;
 
     // Cached back-end objects
-    FramebufferMtl *mDrawFramebuffer = nullptr;
-    VertexArrayMtl *mVertexArray     = nullptr;
-    ProgramMtl *mProgram             = nullptr;
-    QueryMtl *mOcclusionQuery        = nullptr;
-    mtl::TextureRef mWorkTexture;
-    mtl::BufferRef mWorkBuffer;
+    FramebufferMtl *mDrawFramebuffer  = nullptr;
+    VertexArrayMtl *mVertexArray      = nullptr;
+    ProgramExecutableMtl *mExecutable = nullptr;
+    QueryMtl *mOcclusionQuery         = nullptr;
 
     using DirtyBits = angle::BitSet<DIRTY_BIT_MAX>;
 
@@ -609,6 +625,12 @@ class ContextMtl : public ContextImpl, public mtl::Context
     MTLCullMode mCullMode;
     bool mCullAllPolygons = false;
 
+    // Cached state to handle attachments incompatible with the current program
+    bool mForceResyncDrawFramebuffer = false;
+    gl::DrawBufferMask mIncompatibleAttachments;
+
+    mtl::BufferManager mBufferManager;
+
     // Lineloop and TriFan index buffer
     mtl::BufferPool mLineLoopIndexBuffer;
     mtl::BufferPool mLineLoopLastSegmentIndexBuffer;
@@ -624,7 +646,6 @@ class ContextMtl : public ContextImpl, public mtl::Context
     DefaultAttribute mDefaultAttributes[mtl::kMaxVertexAttribs];
 
     IncompleteTextureSet mIncompleteTextures;
-    bool mIncompleteTexturesInitialized = false;
     ProvokingVertexHelper mProvokingVertexHelper;
 
     mtl::ContextDevice mContextDevice;

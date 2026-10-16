@@ -12,11 +12,9 @@
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#include "chrome/browser/browser_switcher/browser_switcher_features.h"
 #include "chrome/browser/browser_switcher/browser_switcher_prefs.h"
 #include "chrome/browser/browser_switcher/browser_switcher_service_factory.h"
 #include "chrome/browser/browser_switcher/browser_switcher_sitelist.h"
@@ -37,7 +35,7 @@
 #if BUILDFLAG(IS_WIN)
 #include "chrome/browser/browser_switcher/browser_switcher_policy_migrator.h"
 #include "chrome/browser/browser_switcher/browser_switcher_service_win.h"
-#include "chrome/browser/extensions/extension_service.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/common/extension.h"
@@ -126,9 +124,6 @@ void EnableBrowserSwitcher(policy::PolicyMap* policies) {
 
 class BrowserSwitcherServiceTest : public InProcessBrowserTest {
  public:
-  BrowserSwitcherServiceTest() {
-    feature_list_.InitAndEnableFeature(kBrowserSwitcherNoneIsGreylist);
-  }
   ~BrowserSwitcherServiceTest() override = default;
 
   void SetUpInProcessBrowserTestFixture() override {
@@ -234,7 +229,6 @@ class BrowserSwitcherServiceTest : public InProcessBrowserTest {
 #endif
 
  private:
-  base::test::ScopedFeatureList feature_list_;
   testing::NiceMock<policy::MockConfigurationPolicyProvider> provider_;
 
 #if BUILDFLAG(IS_WIN)
@@ -467,8 +461,7 @@ IN_PROC_BROWSER_TEST_F(BrowserSwitcherServiceTest,
                        ExternalGreylistFetchAndParseAfterStartup) {
   policy::PolicyMap policies;
   EnableBrowserSwitcher(&policies);
-  base::Value::List url_list;
-  url_list.Append("*");
+  auto url_list = base::Value::List().Append("*");
   SetPolicy(&policies, policy::key::kBrowserSwitcherUrlList,
             base::Value(std::move(url_list)));
   SetPolicy(&policies, policy::key::kBrowserSwitcherExternalGreylistUrl,
@@ -540,8 +533,9 @@ IN_PROC_BROWSER_TEST_F(BrowserSwitcherServiceTest, IeemSitelistInvalidUrl) {
   EXPECT_FALSE(fetch_happened);
 }
 
+// TODO(crbug.com/323787135): Times out flakily on CI.
 IN_PROC_BROWSER_TEST_F(BrowserSwitcherServiceTest,
-                       IeemFetchAndParseAfterStartup) {
+                       DISABLED_IeemFetchAndParseAfterStartup) {
   SetUseIeSitelist(true);
   BrowserSwitcherServiceWin::SetIeemSitelistUrlForTesting(kAValidUrl);
 
@@ -645,7 +639,7 @@ IN_PROC_BROWSER_TEST_F(BrowserSwitcherServiceTest, WritesPrefsToCacheFile) {
       "IExplore.exe\n"
       "--bogus-flag\n"
       "chrome.exe\n"
-      "--force-dark-mode\n"
+      "--force-dark-mode --from-browser-switcher\n"
       "1\n"
       "*://example.com/\n"
       "1\n"
@@ -712,7 +706,7 @@ IN_PROC_BROWSER_TEST_F(BrowserSwitcherServiceTest,
       "\n"
       "\n"
       "%s\n"
-      "\n"
+      "--from-browser-switcher\n"
       "2\n"
       "docs.google.com\n"
       "yahoo.com\n"
@@ -776,7 +770,7 @@ IN_PROC_BROWSER_TEST_F(BrowserSwitcherServiceTest, CacheFileCorrectOnStartup) {
       "\n"
       "\n"
       "%s\n"
-      "\n"
+      "--from-browser-switcher\n"
       "1\n"
       "docs.google.com\n"
       "0\n"
@@ -842,15 +836,13 @@ IN_PROC_BROWSER_TEST_F(BrowserSwitcherServiceTest,
       extensions::ExtensionBuilder()
           .SetLocation(extensions::mojom::ManifestLocation::kInternal)
           .SetID(kLBSExtensionId)
-          .SetManifest(extensions::DictionaryBuilder()
+          .SetManifest(base::Value::Dict()
                            .Set("name", "Legacy Browser Support")
                            .Set("manifest_version", 2)
-                           .Set("version", "5.9")
-                           .Build())
+                           .Set("version", "5.9"))
           .Build();
-  extensions::ExtensionSystem::Get(browser()->profile())
-      ->extension_service()
-      ->AddExtension(extension.get());
+  extensions::ExtensionRegistrar::Get(browser()->profile())
+      ->AddExtension(extension);
 
   // Cache files already exist.
   ASSERT_TRUE(base::CreateDirectory(cache_dir()));

@@ -14,16 +14,16 @@ BluetoothHelper::BluetoothHelper() = default;
 
 BluetoothHelper::~BluetoothHelper() = default;
 
-absl::optional<BluetoothHelper::DeviceWithBackgroundBool>
+std::optional<BluetoothHelper::DeviceWithBackgroundBool>
 BluetoothHelper::IdentifyRemoteDevice(
     const std::string& service_data,
     const DeviceIdPairSet& device_id_pair_set) {
-  absl::optional<DeviceWithBackgroundBool>
+  std::optional<DeviceWithBackgroundBool>
       potential_device_with_background_bool =
           PerformIdentifyRemoteDevice(service_data, device_id_pair_set);
 
   if (!potential_device_with_background_bool)
-    return absl::nullopt;
+    return std::nullopt;
 
   const std::string remote_device_id =
       potential_device_with_background_bool->first.GetDeviceId();
@@ -32,10 +32,8 @@ BluetoothHelper::IdentifyRemoteDevice(
       return potential_device_with_background_bool;
   }
 
-  PA_LOG(ERROR) << "BluetoothHelper::IdentifyRemoteDevice(): Identified "
-                   "device was not present in the provided DeviceIdPairSet.";
-  NOTREACHED();
-  return absl::nullopt;
+  NOTREACHED() << "BluetoothHelper::IdentifyRemoteDevice(): Identified "
+                  "device was not present in the provided DeviceIdPairSet.";
 }
 
 }  // namespace ash::secure_channel

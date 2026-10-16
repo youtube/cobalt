@@ -285,6 +285,17 @@ class scoped_refptr {
     return *this = r.get();
   }
 
+  scoped_refptr<T>& operator=(scoped_refptr<T>&& r) noexcept {
+    scoped_refptr<T>(std::move(r)).swap(*this);
+    return *this;
+  }
+
+  template <typename U>
+  scoped_refptr<T>& operator=(scoped_refptr<U>&& r) noexcept {
+    scoped_refptr<T>(std::move(r)).swap(*this);
+    return *this;
+  }
+
   void swap(T** pp) {
     T* p = ptr_;
     ptr_ = *pp;

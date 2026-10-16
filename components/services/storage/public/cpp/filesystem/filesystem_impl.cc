@@ -16,6 +16,7 @@
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/synchronization/lock.h"
+#include "base/types/expected_macros.h"
 #include "build/build_config.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 
@@ -118,19 +119,16 @@ void FilesystemImpl::GetEntries(const base::FilePath& path,
                                 mojom::GetEntriesMode mode,
                                 GetEntriesCallback callback) {
   const base::FilePath full_path = MakeAbsolute(path);
-  base::FileErrorOr<std::vector<base::FilePath>> result =
-      GetDirectoryEntries(full_path, mode);
-  if (!result.has_value()) {
-    std::move(callback).Run(result.error(), std::vector<base::FilePath>());
-    return;
-  }
+  ASSIGN_OR_RETURN(
+      std::vector<base::FilePath> result, GetDirectoryEntries(full_path, mode),
+      [&](base::File::Error error) { std::move(callback).Run(error, {}); });
 
   // Fix up the absolute paths to be relative to |path|.
   std::vector<base::FilePath> entries;
   std::vector<base::FilePath::StringType> root_components =
       full_path.GetComponents();
   const size_t num_components_to_strip = root_components.size();
-  for (const auto& entry : result.value()) {
+  for (const auto& entry : result) {
     std::vector<base::FilePath::StringType> components = entry.GetComponents();
     base::FilePath relative_path;
     for (size_t i = num_components_to_strip; i < components.size(); ++i)
@@ -164,7 +162,6 @@ void FilesystemImpl::OpenFile(const base::FilePath& path,
       break;
     default:
       NOTREACHED();
-      return;
   }
 
   switch (read_access) {
@@ -175,7 +172,6 @@ void FilesystemImpl::OpenFile(const base::FilePath& path,
       break;
     default:
       NOTREACHED();
-      break;
   }
 
   switch (write_access) {
@@ -189,7 +185,6 @@ void FilesystemImpl::OpenFile(const base::FilePath& path,
       break;
     default:
       NOTREACHED();
-      break;
   }
 
   if (client_type_ == ClientType::kUntrusted) {
@@ -205,13 +200,6 @@ void FilesystemImpl::OpenFile(const base::FilePath& path,
   std::move(callback).Run(error, std::move(file));
 }
 
-void FilesystemImpl::WriteFileAtomically(const base::FilePath& path,
-                                         const std::string& contents,
-                                         WriteFileAtomicallyCallback callback) {
-  std::move(callback).Run(base::ImportantFileWriter::WriteFileAtomically(
-      MakeAbsolute(path), std::move(contents)));
-}
-
 void FilesystemImpl::CreateDirectory(const base::FilePath& path,
                                      CreateDirectoryCallback callback) {
   base::File::Error error = base::File::FILE_OK;
@@ -224,32 +212,18 @@ void FilesystemImpl::DeleteFile(const base::FilePath& path,
   std::move(callback).Run(base::DeleteFile(MakeAbsolute(path)));
 }
 
-void FilesystemImpl::DeletePathRecursively(
-    const base::FilePath& path,
-    DeletePathRecursivelyCallback callback) {
-  std::move(callback).Run(base::DeletePathRecursively(MakeAbsolute(path)));
-}
-
 void FilesystemImpl::GetFileInfo(const base::FilePath& path,
                                  GetFileInfoCallback callback) {
   base::File::Info info;
   if (base::GetFileInfo(MakeAbsolute(path), &info))
     std::move(callback).Run(std::move(info));
   else
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
 }
 
 void FilesystemImpl::GetPathAccess(const base::FilePath& path,
                                    GetPathAccessCallback callback) {
   std::move(callback).Run(GetPathAccessLocal(MakeAbsolute(path)));
-}
-
-void FilesystemImpl::GetMaximumPathComponentLength(
-    const base::FilePath& path,
-    GetMaximumPathComponentLengthCallback callback) {
-  int len = base::GetMaximumPathComponentLength(MakeAbsolute(path));
-  bool success = len != -1;
-  return std::move(callback).Run(success, len);
 }
 
 void FilesystemImpl::RenameFile(const base::FilePath& old_path,
@@ -262,43 +236,42 @@ void FilesystemImpl::RenameFile(const base::FilePath& old_path,
 
 void FilesystemImpl::LockFile(const base::FilePath& path,
                               LockFileCallback callback) {
-  base::FileErrorOr<base::File> result = LockFileLocal(MakeAbsolute(path));
-  if (!result.has_value()) {
-    std::move(callback).Run(result.error(), mojo::NullRemote());
-    return;
-  }
+  ASSIGN_OR_RETURN(base::File result,
+                   LockFileLocal(MakeAbsolute(path), nullptr),
+                   [&](base::File::Error error) {
+                     std::move(callback).Run(error, mojo::NullRemote());
+                   });
 
   mojo::PendingRemote<mojom::FileLock> lock;
   mojo::MakeSelfOwnedReceiver(
-      std::make_unique<FileLockImpl>(MakeAbsolute(path),
-                                     std::move(result.value())),
+      std::make_unique<FileLockImpl>(MakeAbsolute(path), std::move(result)),
       lock.InitWithNewPipeAndPassReceiver());
   std::move(callback).Run(base::File::FILE_OK, std::move(lock));
 }
 
-void FilesystemImpl::SetOpenedFileLength(base::File file,
-                                         uint64_t length,
-                                         SetOpenedFileLengthCallback callback) {
-  bool success = file.SetLength(length);
-  std::move(callback).Run(success, std::move(file));
-}
-
 // static
 base::FileErrorOr<base::File> FilesystemImpl::LockFileLocal(
-    const base::FilePath& path) {
+    const base::FilePath& path,
+    bool* same_process_failure) {
   DCHECK(path.IsAbsolute());
   base::File file(path, base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_READ |
                             base::File::FLAG_WRITE);
   if (!file.IsValid())
     return base::unexpected(file.error_details());
 
-  if (!GetLockTable().AddLock(path))
+  if (!GetLockTable().AddLock(path)) {
+    if (same_process_failure) {
+      *same_process_failure = true;
+    }
     return base::unexpected(base::File::FILE_ERROR_IN_USE);
+  }
 
 #if !BUILDFLAG(IS_FUCHSIA)
   base::File::Error error = file.Lock(base::File::LockMode::kExclusive);
-  if (error != base::File::FILE_OK)
+  if (error != base::File::FILE_OK) {
+    UnlockFileLocal(path);
     return base::unexpected(error);
+  }
 #endif
 
   return file;

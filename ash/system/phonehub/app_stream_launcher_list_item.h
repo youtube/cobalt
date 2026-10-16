@@ -6,17 +6,18 @@
 #define ASH_SYSTEM_PHONEHUB_APP_STREAM_LAUNCHER_LIST_ITEM_H_
 
 #include "ash/ash_export.h"
-#include "base/memory/raw_ptr.h"
 #include "chromeos/ash/components/phonehub/notification.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/button/label_button.h"
 
 namespace ash {
 
-// A view contains a Label button with app icon and name
-class ASH_EXPORT AppStreamLauncherListItem : public views::View {
+// A LabelButton that represents an app in the launcher.
+class ASH_EXPORT AppStreamLauncherListItem : public views::LabelButton {
+  METADATA_HEADER(AppStreamLauncherListItem, views::LabelButton)
  public:
   AppStreamLauncherListItem(
-      views::LabelButton::PressedCallback callback,
+      PressedCallback callback,
       const phonehub::Notification::AppMetadata& app_metadata);
 
   ~AppStreamLauncherListItem() override;
@@ -26,16 +27,6 @@ class ASH_EXPORT AppStreamLauncherListItem : public views::View {
   std::u16string GetAppAccessibleName(
       const phonehub::Notification::AppMetadata& app_metadata);
 
-  // views::View:
-  bool HasFocus() const override;
-  void RequestFocus() override;
-  const char* GetClassName() const override;
-
-  views::LabelButton* GetAppButtonForTest();
-
- private:
-  // Owned by views hierarchy.
-  raw_ptr<views::LabelButton, ExperimentalAsh> app_button_ = nullptr;
 };
 
 }  // namespace ash

@@ -7,20 +7,21 @@
 #include <map>
 #include <string>
 
+#include "base/containers/span.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
 #include "chrome/browser/notifications/notification_display_service_tester.h"
-#include "chrome/browser/sharing/mock_sharing_service.h"
-#include "chrome/browser/sharing/proto/remote_copy_message.pb.h"
-#include "chrome/browser/sharing/proto/sharing_message.pb.h"
-#include "chrome/browser/sharing/shared_clipboard/remote_copy_handle_message_result.h"
 #include "chrome/browser/sharing/shared_clipboard/shared_clipboard_test_base.h"
 #include "chrome/browser/sharing/sharing_service_factory.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/sharing_message/mock_sharing_service.h"
+#include "components/sharing_message/proto/remote_copy_message.pb.h"
+#include "components/sharing_message/proto/sharing_message.pb.h"
+#include "components/sharing_message/shared_clipboard/remote_copy_handle_message_result.h"
 #include "components/sync/protocol/sync_enums.pb.h"
 #include "content/public/test/url_loader_interceptor.h"
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
@@ -29,6 +30,7 @@
 #include "ui/base/clipboard/clipboard_observer.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/codec/png_codec.h"
+#include "ui/gfx/image/image_unittest_util.h"
 #include "ui/gfx/skia_util.h"
 #include "ui/message_center/public/cpp/notification.h"
 
@@ -38,7 +40,6 @@ const char kText[] = "clipboard text";
 const char kEmptyDeviceName[] = "";
 const char kDeviceNameInMessage[] = "DeviceNameInMessage";
 const char16_t kDeviceNameInMessage16[] = u"DeviceNameInMessage";
-const char kHistogramName[] = "Sharing.RemoteCopyHandleMessageResult";
 const char kTestImageUrl[] = "https://foo.com/image.png";
 
 class ClipboardObserver : public ui::ClipboardObserver {
@@ -78,22 +79,22 @@ class RemoteCopyMessageHandlerTest : public SharedClipboardTestBase {
   }
 
  protected:
-  chrome_browser_sharing::SharingMessage CreateMessageWithText(
+  components_sharing_message::SharingMessage CreateMessageWithText(
       const std::string& guid,
       const std::string& device_name,
       const std::string& text) {
-    chrome_browser_sharing::SharingMessage message =
+    components_sharing_message::SharingMessage message =
         SharedClipboardTestBase::CreateMessage(guid, device_name);
     message.mutable_remote_copy_message()->set_text(text);
     return message;
   }
 
-  chrome_browser_sharing::SharingMessage CreateMessageWithImage(
+  components_sharing_message::SharingMessage CreateMessageWithImage(
       const std::string& image_url) {
     image_url_ = image_url;
-    image_ = CreateTestSkBitmap(/*w=*/10, /*h=*/20, SK_ColorRED);
+    image_ = gfx::test::CreateBitmap(10, 20, SK_ColorRED);
 
-    chrome_browser_sharing::SharingMessage message =
+    components_sharing_message::SharingMessage message =
         SharedClipboardTestBase::CreateMessage(
             base::Uuid::GenerateRandomV4().AsLowercaseString(),
             kDeviceNameInMessage);
@@ -115,18 +116,11 @@ class RemoteCopyMessageHandlerTest : public SharedClipboardTestBase {
     return true;
   }
 
-  static SkBitmap CreateTestSkBitmap(int w, int h, SkColor color) {
-    SkBitmap bitmap;
-    bitmap.allocN32Pixels(w, h);
-    bitmap.eraseColor(color);
-    return bitmap;
-  }
-
   static std::string SkBitmapToPNGString(const SkBitmap& bitmap) {
-    std::vector<unsigned char> png_data;
-    gfx::PNGCodec::EncodeBGRASkBitmap(bitmap, /*discard_transparency=*/false,
-                                      &png_data);
-    return std::string(png_data.begin(), png_data.end());
+    std::optional<std::vector<uint8_t>> png_data =
+        gfx::PNGCodec::EncodeBGRASkBitmap(bitmap,
+                                          /*discard_transparency=*/false);
+    return std::string(base::as_string_view(png_data.value()));
   }
 
   std::unique_ptr<RemoteCopyMessageHandler> message_handler_;
@@ -134,7 +128,7 @@ class RemoteCopyMessageHandlerTest : public SharedClipboardTestBase {
   content::URLLoaderInterceptor url_loader_interceptor_;
   data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
   std::string image_url_;
-  absl::optional<SkBitmap> image_;
+  std::optional<SkBitmap> image_;
 };
 
 TEST_F(RemoteCopyMessageHandlerTest, NotificationWithoutDeviceName) {
@@ -147,8 +141,6 @@ TEST_F(RemoteCopyMessageHandlerTest, NotificationWithoutDeviceName) {
       l10n_util::GetStringUTF16(
           IDS_SHARING_REMOTE_COPY_NOTIFICATION_TITLE_TEXT_CONTENT_UNKNOWN_DEVICE),
       GetNotification().title());
-  histograms_.ExpectUniqueSample(
-      kHistogramName, RemoteCopyHandleMessageResult::kSuccessHandledText, 1);
 }
 
 TEST_F(RemoteCopyMessageHandlerTest, NotificationWithDeviceName) {
@@ -161,8 +153,6 @@ TEST_F(RemoteCopyMessageHandlerTest, NotificationWithDeviceName) {
                 IDS_SHARING_REMOTE_COPY_NOTIFICATION_TITLE_TEXT_CONTENT,
                 kDeviceNameInMessage16),
             GetNotification().title());
-  histograms_.ExpectUniqueSample(
-      kHistogramName, RemoteCopyHandleMessageResult::kSuccessHandledText, 1);
 }
 
 TEST_F(RemoteCopyMessageHandlerTest, IsImageSourceAllowed) {

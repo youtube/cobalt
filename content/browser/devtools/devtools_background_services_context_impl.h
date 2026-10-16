@@ -5,6 +5,12 @@
 #ifndef CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_BACKGROUND_SERVICES_CONTEXT_IMPL_H_
 #define CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_BACKGROUND_SERVICES_CONTEXT_IMPL_H_
 
+#include "third_party/blink/public/common/buildflags.h"
+
+#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "content/browser/devtools/cobalt/devtools_background_services_context_impl_stub.h"
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include <array>
 #include <map>
 #include <memory>
@@ -13,16 +19,18 @@
 #include <vector>
 
 #include "base/functional/callback_forward.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/time/time.h"
-#include "content/browser/devtools/devtools_background_services.pb.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/devtools_background_services_context.h"
+
+#include "content/browser/devtools/devtools_background_services.pb.h"
 
 namespace content {
 
@@ -38,8 +46,7 @@ class ServiceWorkerContextWrapper;
 //
 // Lives on the UI thread.
 class CONTENT_EXPORT DevToolsBackgroundServicesContextImpl
-    : public DevToolsBackgroundServicesContext,
-      public base::RefCountedThreadSafe<DevToolsBackgroundServicesContextImpl> {
+    : public DevToolsBackgroundServicesContext {
  public:
   using GetLoggedBackgroundServiceEventsCallback = base::OnceCallback<void(
       std::vector<devtools::proto::BackgroundServiceEvent>)>;
@@ -57,6 +64,7 @@ class CONTENT_EXPORT DevToolsBackgroundServicesContextImpl
   DevToolsBackgroundServicesContextImpl(
       BrowserContext* browser_context,
       scoped_refptr<ServiceWorkerContextWrapper> service_worker_context);
+  ~DevToolsBackgroundServicesContextImpl() override;
 
   DevToolsBackgroundServicesContextImpl(
       const DevToolsBackgroundServicesContextImpl&) = delete;
@@ -99,9 +107,6 @@ class CONTENT_EXPORT DevToolsBackgroundServicesContextImpl
 
  private:
   friend class DevToolsBackgroundServicesContextTest;
-  friend class base::RefCountedThreadSafe<
-      DevToolsBackgroundServicesContextImpl>;
-  ~DevToolsBackgroundServicesContextImpl() override;
 
   // Whether |service| has an expiration time and it was exceeded.
   bool IsRecordingExpired(devtools::proto::BackgroundService service);
@@ -116,7 +121,7 @@ class CONTENT_EXPORT DevToolsBackgroundServicesContextImpl
 
   void OnRecordingTimeExpired(devtools::proto::BackgroundService service);
 
-  BrowserContext* browser_context_;
+  const raw_ref<BrowserContext> browser_context_;
   scoped_refptr<ServiceWorkerContextWrapper> service_worker_context_;
 
   // Maps from the background service to the time up until the events can be
@@ -131,5 +136,7 @@ class CONTENT_EXPORT DevToolsBackgroundServicesContextImpl
 };
 
 }  // namespace content
+
+#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_BACKGROUND_SERVICES_CONTEXT_IMPL_H_

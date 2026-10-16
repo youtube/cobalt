@@ -6,6 +6,8 @@
 
 #include <stddef.h>
 
+#include <array>
+
 #include "base/i18n/message_formatter.h"
 #include "base/notreached.h"
 #include "base/strings/escape.h"
@@ -97,7 +99,7 @@ ErrorInfo ErrorInfo::CreateError(ErrorType error_type,
       break;
     case CERT_KNOWN_INTERCEPTION_BLOCKED:
     case CERT_AUTHORITY_INVALID:
-    case CERT_SYMANTEC_LEGACY:
+    case CERT_SELF_SIGNED_LOCAL_NETWORK:
       details =
           l10n_util::GetStringFUTF16(IDS_CERT_ERROR_AUTHORITY_INVALID_DETAILS,
                                      UTF8ToUTF16(request_url.host()));
@@ -176,6 +178,13 @@ ErrorInfo ErrorInfo::CreateError(ErrorType error_type,
       short_description = l10n_util::GetStringUTF16(
           IDS_CERT_ERROR_CERTIFICATE_TRANSPARENCY_REQUIRED_DESCRIPTION);
       break;
+    case CERT_NON_UNIQUE_NAME:
+      details =
+          l10n_util::GetStringFUTF16(IDS_CERT_ERROR_NON_UNIQUE_NAME_DETAILS,
+                                     UTF8ToUTF16(request_url.host()));
+      short_description =
+          l10n_util::GetStringUTF16(IDS_CERT_ERROR_NON_UNIQUE_NAME_DESCRIPTION);
+      break;
     case UNKNOWN:
       details = l10n_util::GetStringUTF16(IDS_CERT_ERROR_UNKNOWN_ERROR_DETAILS);
       short_description =
@@ -187,7 +196,7 @@ ErrorInfo ErrorInfo::CreateError(ErrorType error_type,
   return ErrorInfo(details, short_description);
 }
 
-ErrorInfo::~ErrorInfo() {}
+ErrorInfo::~ErrorInfo() = default;
 
 // static
 ErrorInfo::ErrorType ErrorInfo::NetErrorToErrorType(int net_error) {
@@ -210,6 +219,8 @@ ErrorInfo::ErrorType ErrorInfo::NetErrorToErrorType(int net_error) {
       return CERT_INVALID;
     case net::ERR_CERT_WEAK_SIGNATURE_ALGORITHM:
       return CERT_WEAK_SIGNATURE_ALGORITHM;
+    case net::ERR_CERT_NON_UNIQUE_NAME:
+      return CERT_NON_UNIQUE_NAME;
     case net::ERR_CERT_WEAK_KEY:
       return CERT_WEAK_KEY;
     case net::ERR_CERT_NAME_CONSTRAINT_VIOLATION:
@@ -220,13 +231,12 @@ ErrorInfo::ErrorType ErrorInfo::NetErrorToErrorType(int net_error) {
       return CERT_PINNED_KEY_MISSING;
     case net::ERR_CERTIFICATE_TRANSPARENCY_REQUIRED:
       return CERTIFICATE_TRANSPARENCY_REQUIRED;
-    case net::ERR_CERT_SYMANTEC_LEGACY:
-      return CERT_SYMANTEC_LEGACY;
     case net::ERR_CERT_KNOWN_INTERCEPTION_BLOCKED:
       return CERT_KNOWN_INTERCEPTION_BLOCKED;
+    case net::ERR_CERT_SELF_SIGNED_LOCAL_NETWORK:
+      return CERT_SELF_SIGNED_LOCAL_NETWORK;
     default:
       NOTREACHED();
-      return UNKNOWN;
   }
 }
 
@@ -236,7 +246,7 @@ void ErrorInfo::GetErrorsForCertStatus(
     net::CertStatus cert_status,
     const GURL& url,
     std::vector<ErrorInfo>* errors) {
-  const net::CertStatus kErrorFlags[] = {
+  const auto kErrorFlags = std::to_array<net::CertStatus>({
       net::CERT_STATUS_COMMON_NAME_INVALID,
       net::CERT_STATUS_DATE_INVALID,
       net::CERT_STATUS_AUTHORITY_INVALID,
@@ -245,15 +255,15 @@ void ErrorInfo::GetErrorsForCertStatus(
       net::CERT_STATUS_REVOKED,
       net::CERT_STATUS_INVALID,
       net::CERT_STATUS_WEAK_SIGNATURE_ALGORITHM,
+      net::CERT_STATUS_NON_UNIQUE_NAME,
       net::CERT_STATUS_WEAK_KEY,
       net::CERT_STATUS_NAME_CONSTRAINT_VIOLATION,
       net::CERT_STATUS_VALIDITY_TOO_LONG,
       net::CERT_STATUS_CERTIFICATE_TRANSPARENCY_REQUIRED,
-      net::CERT_STATUS_SYMANTEC_LEGACY,
       net::CERT_STATUS_KNOWN_INTERCEPTION_BLOCKED,
-  };
+  });
 
-  const ErrorType kErrorTypes[] = {
+  const auto kErrorTypes = std::to_array<ErrorType>({
       CERT_COMMON_NAME_INVALID,
       CERT_DATE_INVALID,
       CERT_AUTHORITY_INVALID,
@@ -262,13 +272,13 @@ void ErrorInfo::GetErrorsForCertStatus(
       CERT_REVOKED,
       CERT_INVALID,
       CERT_WEAK_SIGNATURE_ALGORITHM,
+      CERT_NON_UNIQUE_NAME,
       CERT_WEAK_KEY,
       CERT_NAME_CONSTRAINT_VIOLATION,
       CERT_VALIDITY_TOO_LONG,
       CERTIFICATE_TRANSPARENCY_REQUIRED,
-      CERT_SYMANTEC_LEGACY,
       CERT_KNOWN_INTERCEPTION_BLOCKED,
-  };
+  });
   DCHECK(std::size(kErrorFlags) == std::size(kErrorTypes));
 
   for (size_t i = 0; i < std::size(kErrorFlags); ++i) {

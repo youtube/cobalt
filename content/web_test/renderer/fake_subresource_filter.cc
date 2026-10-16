@@ -4,8 +4,11 @@
 
 #include "content/web_test/renderer/fake_subresource_filter.h"
 
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+#include <string_view>
+
 #include "base/strings/string_util.h"
+#include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-shared.h"
 #include "third_party/blink/public/platform/web_url.h"
 #include "url/gurl.h"
 
@@ -21,7 +24,7 @@ FakeSubresourceFilter::~FakeSubresourceFilter() = default;
 
 blink::WebDocumentSubresourceFilter::LoadPolicy
 FakeSubresourceFilter::GetLoadPolicy(const blink::WebURL& resource_url,
-                                     blink::mojom::RequestContextType) {
+                                     network::mojom::RequestDestination) {
   return GetLoadPolicyImpl(resource_url);
 }
 
@@ -40,10 +43,10 @@ FakeSubresourceFilter::GetLoadPolicyForWebTransportConnect(
 blink::WebDocumentSubresourceFilter::LoadPolicy
 FakeSubresourceFilter::GetLoadPolicyImpl(const blink::WebURL& url) {
   GURL gurl(url);
-  base::StringPiece path(gurl.path_piece());
+  std::string_view path(gurl.path_piece());
 
   // Allows things not listed in |disallowed_path_suffixes_|.
-  if (base::ranges::none_of(
+  if (std::ranges::none_of(
           disallowed_path_suffixes_, [&path](const std::string& suffix) {
             return base::EndsWith(path, suffix, base::CompareCase::SENSITIVE);
           })) {
@@ -51,8 +54,9 @@ FakeSubresourceFilter::GetLoadPolicyImpl(const blink::WebURL& url) {
   }
   // Disallows everything in |disallowed_path_suffixes_| only if
   // |block_subresources| is true.
-  if (block_subresources_)
+  if (block_subresources_) {
     return kDisallow;
+  }
   return kWouldDisallow;
 }
 

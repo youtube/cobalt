@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from './assert_ts.js';
+import {assert} from './assert.js';
 import {PromiseResolver} from './promise_resolver.js';
 
 export interface WebUiListener {
@@ -109,7 +109,7 @@ export function addWebUiListener(
     eventName: string, callback: Function): WebUiListener {
   webUiListenerMap[eventName] = webUiListenerMap[eventName] || {};
   const uid = createUid();
-  webUiListenerMap[eventName]![uid] = callback;
+  webUiListenerMap[eventName][uid] = callback;
   return {eventName: eventName, uid: uid};
 }
 

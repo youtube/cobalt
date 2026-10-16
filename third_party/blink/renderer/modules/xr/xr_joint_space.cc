@@ -26,7 +26,7 @@ XRJointSpace::XRJointSpace(XRHand* hand,
       radius_(radius),
       handedness_(handedness) {}
 
-absl::optional<gfx::Transform> XRJointSpace::MojoFromNative() const {
+std::optional<gfx::Transform> XRJointSpace::MojoFromNative() const {
   return *mojo_from_joint_space_.get();
 }
 
@@ -67,8 +67,8 @@ bool XRJointSpace::IsStationary() const {
   return false;
 }
 
-const String XRJointSpace::jointName() const {
-  return MojomHandJointToString(joint_);
+V8XRHandJoint XRJointSpace::jointName() const {
+  return V8XRHandJoint(MojomHandJointToV8Enum(joint_));
 }
 
 std::string XRJointSpace::ToString() const {

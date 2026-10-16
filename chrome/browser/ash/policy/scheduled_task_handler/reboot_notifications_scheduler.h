@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_ASH_POLICY_SCHEDULED_TASK_HANDLER_REBOOT_NOTIFICATIONS_SCHEDULER_H_
 #define CHROME_BROWSER_ASH_POLICY_SCHEDULED_TASK_HANDLER_REBOOT_NOTIFICATIONS_SCHEDULER_H_
 
+#include <optional>
 #include <vector>
 
 #include "base/functional/callback.h"
@@ -19,7 +20,6 @@
 #include "components/prefs/pref_service.h"
 #include "components/session_manager/core/session_manager.h"
 #include "components/session_manager/core/session_manager_observer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class Clock;
@@ -60,10 +60,6 @@ class RebootNotificationsScheduler
   // Registers boolean pref for showing post reboot notification.
   static void RegisterProfilePrefs(PrefRegistrySimple* registry);
 
-  // Returns true if the pref for showing the post reboot notification is set
-  // for the |profile|.
-  static bool ShouldShowPostRebootNotification(Profile* profile);
-
   // Schedules timers for showing pending reboot notification and dialog or
   // shows them right away if the scheduled reboot time is soon. If there
   // already is a scheduled notification, either reschedules notification or
@@ -97,7 +93,7 @@ class RebootNotificationsScheduler
   // dialog or notification.
   void OnRebootButtonClicked();
 
-  absl::optional<Requester> GetCurrentRequesterForTesting() const;
+  std::optional<Requester> GetCurrentRequesterForTesting() const;
 
   std::vector<Requester> GetRequestersForTesting() const;
 
@@ -148,7 +144,7 @@ class RebootNotificationsScheduler
                           session_manager::SessionManagerObserver>
       observation_{this};
 
-  base::raw_ptr<const base::Clock> clock_;
+  raw_ptr<const base::Clock> clock_;
 
   base::WeakPtrFactory<RebootNotificationsScheduler> weak_ptr_factory_{this};
 };

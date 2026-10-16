@@ -25,15 +25,15 @@
   },
   "android_junit_tests": {
     "label": "//:android_junit_tests",
-    "type": "junit_test",
+    "type": "raw",
   },
   "android_examples_junit_tests": {
     "label": "//examples:android_examples_junit_tests",
-    "type": "junit_test",
+    "type": "raw",
   },
   "android_sdk_junit_tests": {
     "label": "//sdk/android:android_sdk_junit_tests",
-    "type": "junit_test",
+    "type": "raw",
   },
   "apprtcmobile_tests": {
     "label": "//examples:apprtcmobile_tests",
@@ -63,19 +63,6 @@
     "label": "//sdk/android:android_instrumentation_test_apk",
     "type": "console_test_launcher",
   },
-  "fuchsia_perf_tests": {
-    "label": "//:fuchsia_perf_tests",
-    "type": "raw",
-  },
-  "low_bandwidth_audio_test": {
-    "label": "//audio:low_bandwidth_audio_test",
-    "type": "console_test_launcher",
-  },
-  "low_bandwidth_audio_perf_test": {
-    "label": "//audio:low_bandwidth_audio_perf_test",
-    "type": "script",
-    "script": "//audio/test/low_bandwidth_audio_test.py",
-  },
   "modules_tests": {
     "label": "//modules:modules_tests",
     "type": "console_test_launcher",
@@ -83,10 +70,6 @@
   "modules_unittests": {
     "label": "//modules:modules_unittests",
     "type": "windowed_test_launcher",
-  },
-  "peer_connection_mediachannel_split_unittests": {
-    "label": "//pc:peer_connection_mediachannel_split_unittests",
-    "type": "console_test_launcher",
   },
   "peerconnection_unittests": {
     "label": "//pc:peerconnection_unittests",
@@ -99,6 +82,10 @@
   },
   "rtc_media_unittests": {
     "label": "//media:rtc_media_unittests",
+    "type": "console_test_launcher",
+  },
+  "rtc_p2p_unittests": {
+    "label": "//:rtc_p2p_unittests",
     "type": "console_test_launcher",
   },
   "rtc_pc_unittests": {
@@ -143,9 +130,11 @@
   },
   "video_capture_tests": {
     "label": "//modules/video_capture:video_capture_tests",
-    "type": "non_parallel_console_test_launcher",
-    # TODO(bugs.webrtc.org/9292): remove use_webcam and the ensure script.
-    "use_webcam": True,
+    "type": "console_test_launcher",
+  },
+  "video_codec_perf_tests": {
+    "label": "//modules/video_coding:video_codec_perf_tests",
+    "type": "raw",
   },
   "video_engine_tests": {
     "label": "//:video_engine_tests",

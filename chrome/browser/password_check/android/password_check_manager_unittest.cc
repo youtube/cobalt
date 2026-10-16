@@ -5,6 +5,8 @@
 #include "chrome/browser/password_check/android/password_check_manager.h"
 
 #include <memory>
+#include <optional>
+#include <string_view>
 
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -21,14 +23,15 @@
 #include "chrome/browser/password_manager/password_manager_test_util.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/test/base/testing_profile.h"
-#include "components/password_manager/core/browser/bulk_leak_check_service.h"
+#include "components/password_manager/core/browser/leak_detection/bulk_leak_check_service.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_test_utils.h"
-#include "components/password_manager/core/browser/test_password_store.h"
+#include "components/password_manager/core/browser/password_store/test_password_store.h"
 #include "components/password_manager/core/browser/ui/insecure_credentials_manager.h"
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/testing_pref_service.h"
+#include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/sync/test/test_sync_service.h"
@@ -38,7 +41,6 @@
 #include "services/network/test/test_shared_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using password_manager::BulkLeakCheckService;
 using password_manager::InsecureType;
@@ -100,24 +102,28 @@ BulkLeakCheckService* CreateAndUseBulkLeakCheckService(
     Profile* profile) {
   return BulkLeakCheckServiceFactory::GetInstance()
       ->SetTestingSubclassFactoryAndUse(
-          profile, base::BindLambdaForTesting([=](content::BrowserContext*) {
-            return std::make_unique<BulkLeakCheckService>(
-                identity_manager,
-                base::MakeRefCounted<network::TestSharedURLLoaderFactory>());
-          }));
+          profile, base::BindOnce(
+                       [](signin::IdentityManager* identity_manager,
+                          content::BrowserContext*) {
+                         return std::make_unique<BulkLeakCheckService>(
+                             identity_manager,
+                             base::MakeRefCounted<
+                                 network::TestSharedURLLoaderFactory>());
+                       },
+                       base::Unretained(identity_manager)));
 }
 
 syncer::TestSyncService* CreateAndUseSyncService(Profile* profile) {
   return SyncServiceFactory::GetInstance()->SetTestingSubclassFactoryAndUse(
-      profile, base::BindLambdaForTesting([](content::BrowserContext*) {
+      profile, base::BindOnce([](content::BrowserContext*) {
         return std::make_unique<syncer::TestSyncService>();
       }));
 }
 
-PasswordForm MakeSavedPassword(base::StringPiece signon_realm,
-                               base::StringPiece16 username,
-                               base::StringPiece16 password = kPassword1,
-                               base::StringPiece16 username_element = u"") {
+PasswordForm MakeSavedPassword(std::string_view signon_realm,
+                               std::u16string_view username,
+                               std::u16string_view password = kPassword1,
+                               std::u16string_view username_element = u"") {
   PasswordForm form;
   form.signon_realm = std::string(signon_realm);
   form.url = GURL(signon_realm);
@@ -127,14 +133,14 @@ PasswordForm MakeSavedPassword(base::StringPiece signon_realm,
   return form;
 }
 
-std::string MakeAndroidRealm(base::StringPiece package_name) {
+std::string MakeAndroidRealm(std::string_view package_name) {
   return base::StrCat({"android://hash@", package_name});
 }
 PasswordForm MakeSavedAndroidPassword(
-    base::StringPiece package_name,
-    base::StringPiece16 username,
-    base::StringPiece app_display_name = "",
-    base::StringPiece affiliated_web_realm = "") {
+    std::string_view package_name,
+    std::u16string_view username,
+    std::string_view app_display_name = "",
+    std::string_view affiliated_web_realm = "") {
   PasswordForm form;
   form.signon_realm = MakeAndroidRealm(package_name);
   form.username_value = std::u16string(username);
@@ -158,8 +164,8 @@ auto ExpectCompromisedCredentialForUI(
     const std::u16string& display_username,
     const std::u16string& display_origin,
     const GURL& url,
-    const absl::optional<std::string>& package_name,
-    const absl::optional<std::string>& change_password_url,
+    const std::optional<std::string>& package_name,
+    const std::optional<std::string>& change_password_url,
     InsecureType insecure_type) {
   auto package_name_field_matcher =
       package_name.has_value()
@@ -257,7 +263,8 @@ TEST_F(PasswordCheckManagerTest, OnCompromisedCredentialsChanged) {
 }
 
 TEST_F(PasswordCheckManagerTest, RunCheckAfterLastInitialization) {
-  identity_test_env().MakeAccountAvailable(kTestEmail);
+  identity_test_env().MakePrimaryAccountAvailable(
+      kTestEmail, signin::ConsentLevel::kSignin);
   EXPECT_CALL(mock_observer(), OnPasswordCheckStatusChanged(_))
       .Times(AtLeast(1));
   EXPECT_CALL(mock_observer(), OnSavedPasswordsFetched(1));
@@ -268,7 +275,7 @@ TEST_F(PasswordCheckManagerTest, RunCheckAfterLastInitialization) {
   manager().StartCheck();  // Try to start a check — has no immediate effect.
   service()->set_state_and_notify(State::kIdle);
   // Since check hasn't started, the last completion time should remain 0.
-  EXPECT_EQ(0.0, manager().GetLastCheckTimestamp().ToDoubleT());
+  EXPECT_EQ(0.0, manager().GetLastCheckTimestamp().InSecondsFSinceUnixEpoch());
 
   // Complete pending initialization. The check should run now.
   EXPECT_CALL(mock_observer(), OnCompromisedCredentialsChanged(0))
@@ -276,7 +283,7 @@ TEST_F(PasswordCheckManagerTest, RunCheckAfterLastInitialization) {
   RunUntilIdle();
   service()->set_state_and_notify(State::kIdle);  // Complete check, if any.
   // Check should have started and the last completion time be non-zero.
-  EXPECT_NE(0.0, manager().GetLastCheckTimestamp().ToDoubleT());
+  EXPECT_NE(0.0, manager().GetLastCheckTimestamp().InSecondsFSinceUnixEpoch());
 }
 
 TEST_F(PasswordCheckManagerTest, CorrectlyCreatesUIStructForSiteCredential) {
@@ -287,7 +294,7 @@ TEST_F(PasswordCheckManagerTest, CorrectlyCreatesUIStructForSiteCredential) {
   RunUntilIdle();
   EXPECT_THAT(manager().GetCompromisedCredentials(),
               ElementsAre(ExpectCompromisedCredentialForUI(
-                  kUsername1, u"example.com", GURL(kExampleCom), absl::nullopt,
+                  kUsername1, u"example.com", GURL(kExampleCom), std::nullopt,
                   "https://example.com/.well-known/change-password",
                   InsecureType::kLeaked)));
 }
@@ -318,19 +325,19 @@ TEST_F(PasswordCheckManagerTest, CorrectlyCreatesUIStructForAppCredentials) {
   store().AddLogin(MakeSavedAndroidPassword(kExampleOrg, kUsername2));
 
   EXPECT_THAT(manager().GetCompromisedCredentialsCount(), 2);
-  EXPECT_THAT(
-      manager().GetCompromisedCredentials(),
-      UnorderedElementsAre(
-          ExpectCompromisedCredentialForUI(
-              kUsername1, u"App (com.example.app)", GURL::EmptyGURL(),
-              "com.example.app", absl::nullopt, InsecureType::kLeaked),
-          ExpectCompromisedCredentialForUI(
-              kUsername2, u"Example App", GURL(kExampleCom), "com.example.app",
-              absl::nullopt, InsecureType::kLeaked)));
+  EXPECT_THAT(manager().GetCompromisedCredentials(),
+              UnorderedElementsAre(
+                  ExpectCompromisedCredentialForUI(
+                      kUsername1, u"App (com.example.app)", GURL(),
+                      "com.example.app", std::nullopt, InsecureType::kLeaked),
+                  ExpectCompromisedCredentialForUI(
+                      kUsername2, u"Example App", GURL(kExampleCom),
+                      "com.example.app", std::nullopt, InsecureType::kLeaked)));
 }
 
 TEST_F(PasswordCheckManagerTest, SetsTimestampOnSuccessfulCheck) {
-  identity_test_env().MakeAccountAvailable(kTestEmail);
+  identity_test_env().MakePrimaryAccountAvailable(
+      kTestEmail, signin::ConsentLevel::kSignin);
   InitializeManager();
   store().AddLogin(MakeSavedPassword(kExampleCom, kUsername1));
   RunUntilIdle();
@@ -340,7 +347,7 @@ TEST_F(PasswordCheckManagerTest, SetsTimestampOnSuccessfulCheck) {
 
   // Change the state to idle to simulate a successful check finish.
   service()->set_state_and_notify(State::kIdle);
-  EXPECT_NE(0.0, manager().GetLastCheckTimestamp().ToDoubleT());
+  EXPECT_NE(0.0, manager().GetLastCheckTimestamp().InSecondsFSinceUnixEpoch());
 }
 
 TEST_F(PasswordCheckManagerTest, DoesntRecordTimestampOfUnsuccessfulCheck) {
@@ -354,7 +361,7 @@ TEST_F(PasswordCheckManagerTest, DoesntRecordTimestampOfUnsuccessfulCheck) {
 
   // Change the state to an error state to simulate a unsuccessful check finish.
   service()->set_state_and_notify(State::kSignedOut);
-  EXPECT_EQ(0.0, manager().GetLastCheckTimestamp().ToDoubleT());
+  EXPECT_EQ(0.0, manager().GetLastCheckTimestamp().InSecondsFSinceUnixEpoch());
 }
 
 TEST_F(PasswordCheckManagerTest, CorrectlyCreatesUIStruct) {
@@ -370,13 +377,14 @@ TEST_F(PasswordCheckManagerTest, CorrectlyCreatesUIStruct) {
 
   EXPECT_THAT(manager().GetCompromisedCredentials(),
               ElementsAre(ExpectCompromisedCredentialForUI(
-                  kUsername1, u"example.com", GURL(kExampleCom), absl::nullopt,
+                  kUsername1, u"example.com", GURL(kExampleCom), std::nullopt,
                   "https://example.com/.well-known/change-password",
                   InsecureType::kLeaked)));
 }
 
 TEST_F(PasswordCheckManagerTest, UpdatesProgressCorrectly) {
-  identity_test_env().MakeAccountAvailable(kTestEmail);
+  identity_test_env().MakePrimaryAccountAvailable(
+      kTestEmail, signin::ConsentLevel::kSignin);
   InitializeManager();
 
   store().AddLogin(MakeSavedPassword(kExampleCom, kUsername1, kPassword1));

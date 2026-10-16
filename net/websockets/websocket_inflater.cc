@@ -2,12 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/websockets/websocket_inflater.h"
+
+#include <string.h>
 
 #include <algorithm>
 #include <vector>
 
+#include "base/check.h"
 #include "base/check_op.h"
+#include "base/numerics/checked_math.h"
 #include "net/base/io_buffer.h"
 #include "third_party/zlib/zlib.h"
 
@@ -20,9 +29,9 @@ class ShrinkableIOBufferWithSize : public IOBufferWithSize {
   explicit ShrinkableIOBufferWithSize(size_t size) : IOBufferWithSize(size) {}
 
   void Shrink(int new_size) {
-    CHECK_GE(new_size, 0);
-    CHECK_LE(new_size, size_);
-    size_ = new_size;
+    // The `checked_cast` addresses the < 0 case.
+    CHECK_LE(new_size, size());
+    SetSpan(first(base::checked_cast<size_t>(new_size)));
   }
 
  private:
@@ -177,8 +186,8 @@ size_t WebSocketInflater::OutputBuffer::Size() const {
 
 std::pair<char*, size_t> WebSocketInflater::OutputBuffer::GetTail() {
   DCHECK_LT(tail_, buffer_.size());
-  return std::make_pair(&buffer_[tail_],
-                        std::min(capacity_ - Size(), buffer_.size() - tail_));
+  return std::pair(&buffer_[tail_],
+                   std::min(capacity_ - Size(), buffer_.size() - tail_));
 }
 
 void WebSocketInflater::OutputBuffer::Read(char* dest, size_t size) {
@@ -224,11 +233,11 @@ WebSocketInflater::InputQueue::~InputQueue() = default;
 std::pair<char*, size_t> WebSocketInflater::InputQueue::Top() {
   DCHECK(!IsEmpty());
   if (buffers_.size() == 1) {
-    return std::make_pair(&buffers_.front()->data()[head_of_first_buffer_],
-                          tail_of_last_buffer_ - head_of_first_buffer_);
+    return std::pair(&buffers_.front()->data()[head_of_first_buffer_],
+                     tail_of_last_buffer_ - head_of_first_buffer_);
   }
-  return std::make_pair(&buffers_.front()->data()[head_of_first_buffer_],
-                        capacity_ - head_of_first_buffer_);
+  return std::pair(&buffers_.front()->data()[head_of_first_buffer_],
+                   capacity_ - head_of_first_buffer_);
 }
 
 void WebSocketInflater::InputQueue::Push(const char* data, size_t size) {

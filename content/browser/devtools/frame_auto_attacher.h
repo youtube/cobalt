@@ -5,9 +5,13 @@
 #define CONTENT_BROWSER_DEVTOOLS_FRAME_AUTO_ATTACHER_H_
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "content/browser/devtools/protocol/target_auto_attacher.h"
 #include "content/browser/devtools/service_worker_devtools_manager.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#include "content/browser/devtools/shared_storage_worklet_devtools_manager.h"
 #include "content/browser/interest_group/debuggable_auction_worklet_tracker.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
 namespace content {
 
@@ -18,15 +22,18 @@ class RenderFrameHostImpl;
 class ServiceWorkerDevToolsAgentHost;
 
 class FrameAutoAttacher : public protocol::RendererAutoAttacherBase,
-                          public ServiceWorkerDevToolsManager::Observer,
-                          public DebuggableAuctionWorkletTracker::Observer {
+                          public ServiceWorkerDevToolsManager::Observer
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+                          , public DebuggableAuctionWorkletTracker::Observer,
+                          public SharedStorageWorkletDevToolsManager::Observer
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+{
  public:
   explicit FrameAutoAttacher(DevToolsRendererChannel* renderer_channel);
   ~FrameAutoAttacher() override;
 
   void SetRenderFrameHost(RenderFrameHostImpl* render_frame_host);
   void DidFinishNavigation(NavigationRequest* navigation_request);
-  void UpdatePages();
   void AutoAttachToPage(FrameTree* frame_tree, bool wait_for_debugger_on_start);
 
  protected:
@@ -38,17 +45,28 @@ class FrameAutoAttacher : public protocol::RendererAutoAttacherBase,
                      bool* should_pause_on_start) override;
   void WorkerDestroyed(ServiceWorkerDevToolsAgentHost* host) override;
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // DebuggableAuctionWorkletTracker::Observer implementation.
   void AuctionWorkletCreated(DebuggableAuctionWorklet* worklet,
                              bool& should_pause_on_start) override;
+
+  // SharedStorageWorkletDevToolsManager::Observer implementation.
+  void SharedStorageWorkletCreated(SharedStorageWorkletDevToolsAgentHost* host,
+                                   bool& should_pause_on_start) override;
+  void SharedStorageWorkletDestroyed(
+      SharedStorageWorkletDevToolsAgentHost* host) override;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   void ReattachServiceWorkers();
   void UpdateFrames();
 
  private:
-  RenderFrameHostImpl* render_frame_host_ = nullptr;
+  raw_ptr<RenderFrameHostImpl> render_frame_host_ = nullptr;
   bool observing_service_workers_ = false;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   bool observing_auction_worklets_ = false;
+  bool observing_shared_storage_worklets_ = false;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 };
 
 }  // namespace content

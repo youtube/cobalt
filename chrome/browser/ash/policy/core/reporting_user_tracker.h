@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
 
@@ -21,7 +22,7 @@ namespace policy {
 // This maintains persistent data in the given |local_state|.
 class ReportingUserTracker : public user_manager::UserManager::Observer {
  public:
-  explicit ReportingUserTracker(PrefService* local_state);
+  explicit ReportingUserTracker(user_manager::UserManager* user_manager);
   ReportingUserTracker(const ReportingUserTracker&) = delete;
   ReportingUserTracker& operator=(const ReportingUserTracker&) = delete;
   ~ReportingUserTracker() override;
@@ -49,7 +50,10 @@ class ReportingUserTracker : public user_manager::UserManager::Observer {
   // Removes user from the list of the users who should be reported.
   void RemoveReportingUser(const AccountId& account_id);
 
-  const base::raw_ptr<PrefService> local_state_;
+  const raw_ptr<PrefService> local_state_;
+  base::ScopedObservation<user_manager::UserManager,
+                          user_manager::UserManager::Observer>
+      observation_{this};
 };
 
 }  // namespace policy

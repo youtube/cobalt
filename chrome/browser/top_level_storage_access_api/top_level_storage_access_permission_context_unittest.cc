@@ -4,8 +4,6 @@
 
 #include "chrome/browser/top_level_storage_access_api/top_level_storage_access_permission_context.h"
 
-#include "base/barrier_callback.h"
-#include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
@@ -19,11 +17,11 @@
 #include "components/permissions/permission_request_manager.h"
 #include "components/permissions/permission_util.h"
 #include "components/permissions/test/mock_permission_prompt_factory.h"
+#include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/navigation_simulator.h"
 #include "content/public/test/web_contents_tester.h"
-#include "net/base/features.h"
 #include "net/base/schemeful_site.h"
 #include "net/first_party_sets/first_party_set_entry.h"
 #include "net/first_party_sets/global_first_party_sets.h"
@@ -32,15 +30,24 @@
 
 namespace {
 
+using testing::Contains;
+using testing::Each;
+using PermissionStatus = blink::mojom::PermissionStatus;
+
 constexpr char kRequestOutcomeHistogram[] =
     "API.TopLevelStorageAccess.RequestOutcome";
+
+MATCHER_P(DecidedByRelatedWebsiteSets, inner, "") {
+  return testing::ExplainMatchResult(
+      inner, arg.metadata.decided_by_related_website_sets(), result_listener);
+}
 
 GURL GetTopLevelURL() {
   return GURL("https://embedder.example.com");
 }
 
 GURL GetRequesterURL() {
-  return GURL("https://requester.example.com");
+  return GURL("https://requester.com");
 }
 
 GURL GetDummyEmbeddingUrl() {
@@ -52,16 +59,7 @@ GURL GetDummyEmbeddingUrl() {
 class TopLevelStorageAccessPermissionContextTest
     : public ChromeRenderViewHostTestHarness {
  public:
-  explicit TopLevelStorageAccessPermissionContextTest(bool saa_enabled) {
-    std::vector<base::test::FeatureRef> enabled;
-    std::vector<base::test::FeatureRef> disabled;
-    if (saa_enabled) {
-      enabled.push_back(blink::features::kStorageAccessAPI);
-    } else {
-      disabled.push_back(blink::features::kStorageAccessAPI);
-    }
-    features_.InitWithFeatures(enabled, disabled);
-  }
+  TopLevelStorageAccessPermissionContextTest() = default;
 
   void SetUp() override {
     ChromeRenderViewHostTestHarness::SetUp();
@@ -76,6 +74,21 @@ class TopLevelStorageAccessPermissionContextTest
         std::make_unique<permissions::MockPermissionPromptFactory>(
             permissions::PermissionRequestManager::FromWebContents(
                 web_contents()));
+    first_party_sets_handler_.SetGlobalSets(net::GlobalFirstPartySets());
+  }
+
+  ContentSetting DecidePermissionSync(
+      TopLevelStorageAccessPermissionContext* permission_context,
+      bool user_gesture,
+      const GURL& requester_url,
+      const GURL& embedding_url) {
+    base::test::TestFuture<ContentSetting> future;
+    permission_context->DecidePermissionForTesting(
+        std::make_unique<permissions::PermissionRequestData>(
+            permission_context, CreateFakeID(), user_gesture, requester_url,
+            embedding_url),
+        future.GetCallback());
+    return future.Get();
   }
 
   void TearDown() override {
@@ -89,22 +102,23 @@ class TopLevelStorageAccessPermissionContextTest
         request_id_generator_.GenerateNextId());
   }
 
+  base::HistogramTester& histogram_tester() { return histogram_tester_; }
+
+  first_party_sets::ScopedMockFirstPartySetsHandler&
+  first_party_sets_handler() {
+    return first_party_sets_handler_;
+  }
+
  private:
-  base::test::ScopedFeatureList features_;
+  base::HistogramTester histogram_tester_;
+  first_party_sets::ScopedMockFirstPartySetsHandler first_party_sets_handler_;
   std::unique_ptr<permissions::MockPermissionPromptFactory>
       mock_permission_prompt_factory_;
   permissions::PermissionRequestID::RequestLocalId::Generator
       request_id_generator_;
 };
 
-class TopLevelStorageAccessPermissionContextTestAPIDisabledTest
-    : public TopLevelStorageAccessPermissionContextTest {
- public:
-  TopLevelStorageAccessPermissionContextTestAPIDisabledTest()
-      : TopLevelStorageAccessPermissionContextTest(false) {}
-};
-
-TEST_F(TopLevelStorageAccessPermissionContextTestAPIDisabledTest,
+TEST_F(TopLevelStorageAccessPermissionContextTest,
        InsecureOriginsAreDisallowed) {
   GURL insecure_url = GURL("http://www.example.com");
   TopLevelStorageAccessPermissionContext permission_context(profile());
@@ -114,162 +128,161 @@ TEST_F(TopLevelStorageAccessPermissionContextTestAPIDisabledTest,
       insecure_url, GetRequesterURL()));
 }
 
-// When the Storage Access API feature is disabled (the default) we
-// should block the permission request.
-TEST_F(TopLevelStorageAccessPermissionContextTestAPIDisabledTest,
-       PermissionBlocked) {
-  TopLevelStorageAccessPermissionContext permission_context(profile());
-  permissions::PermissionRequestID fake_id = CreateFakeID();
-
-  base::test::TestFuture<ContentSetting> future;
-  permission_context.DecidePermissionForTesting(
-      fake_id, GetRequesterURL(), GetTopLevelURL(),
-      /*user_gesture=*/true, future.GetCallback());
-  EXPECT_EQ(CONTENT_SETTING_BLOCK, future.Get());
-}
-
-TEST_F(TopLevelStorageAccessPermissionContextTestAPIDisabledTest,
-       PermissionStatusBlocked) {
-  TopLevelStorageAccessPermissionContext permission_context(profile());
-
-  EXPECT_EQ(CONTENT_SETTING_BLOCK,
-            permission_context
-                .GetPermissionStatus(/*render_frame_host=*/nullptr,
-                                     GetRequesterURL(), GetTopLevelURL())
-                .content_setting);
-}
-
-class TopLevelStorageAccessPermissionContextTestAPIEnabledTest
-    : public TopLevelStorageAccessPermissionContextTest {
- public:
-  TopLevelStorageAccessPermissionContextTestAPIEnabledTest()
-      : TopLevelStorageAccessPermissionContextTest(true) {}
-
-  base::HistogramTester& histogram_tester() { return histogram_tester_; }
-
- private:
-  base::HistogramTester histogram_tester_;
-};
-
 // No user gesture should force a permission rejection.
-TEST_F(TopLevelStorageAccessPermissionContextTestAPIEnabledTest,
+TEST_F(TopLevelStorageAccessPermissionContextTest,
        PermissionDeniedWithoutUserGesture) {
   TopLevelStorageAccessPermissionContext permission_context(profile());
-  permissions::PermissionRequestID fake_id = CreateFakeID();
 
-  base::test::TestFuture<ContentSetting> future;
-  permission_context.DecidePermissionForTesting(
-      fake_id, GetRequesterURL(), GetTopLevelURL(),
-      /*user_gesture=*/false, future.GetCallback());
-  EXPECT_EQ(CONTENT_SETTING_BLOCK, future.Get());
+  EXPECT_EQ(DecidePermissionSync(&permission_context, /*user_gesture=*/false,
+                                 GetRequesterURL(), GetTopLevelURL()),
+            CONTENT_SETTING_BLOCK);
+
   EXPECT_EQ(histogram_tester().GetBucketCount(
                 kRequestOutcomeHistogram,
-                CookieRequestOutcome::kDeniedByPrerequisites),
+                TopLevelStorageAccessRequestOutcome::kDeniedByPrerequisites),
             1);
 }
 
-TEST_F(TopLevelStorageAccessPermissionContextTestAPIEnabledTest,
+TEST_F(TopLevelStorageAccessPermissionContextTest,
        PermissionStatusAsksWhenFeatureEnabled) {
   TopLevelStorageAccessPermissionContext permission_context(profile());
 
-  EXPECT_EQ(CONTENT_SETTING_ASK,
-            permission_context
-                .GetPermissionStatus(/*render_frame_host=*/nullptr,
-                                     GetRequesterURL(), GetTopLevelURL())
-                .content_setting);
+  EXPECT_EQ(
+      PermissionStatus::ASK,
+      permission_context
+          .GetPermissionStatus(
+              content::PermissionDescriptorUtil::
+                  CreatePermissionDescriptorForPermissionType(
+                      permissions::PermissionUtil::
+                          ContentSettingsTypeToPermissionType(
+                              permission_context.content_settings_type())),
+              /*render_frame_host=*/nullptr, GetRequesterURL(),
+              GetTopLevelURL())
+          .status);
+}
+
+TEST_F(TopLevelStorageAccessPermissionContextTest,
+       ImplicitGrant_DenialQueryStillAsk) {
+  TopLevelStorageAccessPermissionContext permission_context(profile());
+
+  HostContentSettingsMap* settings_map =
+      HostContentSettingsMapFactory::GetForProfile(profile());
+  CHECK(settings_map);
+
+  // Check no `SessionModel::DURABLE` setting with
+  // `decided_by_related_website_sets` exists yet.
+  ASSERT_THAT(settings_map->GetSettingsForOneType(
+                  ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS,
+                  content_settings::mojom::SessionModel::DURABLE),
+              Each(DecidedByRelatedWebsiteSets(false)));
+
+  EXPECT_EQ(DecidePermissionSync(&permission_context, /*user_gesture=*/true,
+                                 GetRequesterURL(), GetDummyEmbeddingUrl()),
+            CONTENT_SETTING_BLOCK);
+
+  // Check the `SessionModel::DURABLE` settings with
+  // `decided_by_related_website_sets`. None were granted, and implicit denials
+  // are not currently persisted, which preserves the default `ASK` setting.
+  EXPECT_THAT(settings_map->GetSettingsForOneType(
+                  ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS,
+                  content_settings::mojom::SessionModel::DURABLE),
+              Each(DecidedByRelatedWebsiteSets(false)));
+
+  EXPECT_EQ(
+      PermissionStatus::ASK,
+      permission_context
+          .GetPermissionStatus(
+              content::PermissionDescriptorUtil::
+                  CreatePermissionDescriptorForPermissionType(
+                      permissions::PermissionUtil::
+                          ContentSettingsTypeToPermissionType(
+                              permission_context.content_settings_type())),
+              /*render_frame_host=*/nullptr, GetRequesterURL(),
+              GetDummyEmbeddingUrl())
+          .status);
 }
 
 class TopLevelStorageAccessPermissionContextAPIWithFirstPartySetsTest
-    : public TopLevelStorageAccessPermissionContextTestAPIEnabledTest {
+    : public TopLevelStorageAccessPermissionContextTest {
  public:
-  TopLevelStorageAccessPermissionContextAPIWithFirstPartySetsTest() {
-    features_.InitWithFeatures(
-        /*enabled_features=*/
-        {features::kFirstPartySets, blink::features::kStorageAccessAPI},
-        /*disabled_features=*/{});
-  }
-  void SetUp() override {
-    TopLevelStorageAccessPermissionContextTestAPIEnabledTest::SetUp();
+  TopLevelStorageAccessPermissionContextAPIWithFirstPartySetsTest() = default;
 
-    // Create a FPS with https://requester.example.com as the member and
-    // https://embedder.example.com as the primary.
-    first_party_sets_handler_.SetGlobalSets(net::GlobalFirstPartySets(
+  void SetUp() override {
+    TopLevelStorageAccessPermissionContextTest::SetUp();
+
+    const net::SchemefulSite top_level(GetTopLevelURL());
+    first_party_sets_handler().SetGlobalSets(net::GlobalFirstPartySets(
         base::Version("1.2.3"),
         /*entries=*/
-        {{net::SchemefulSite(GetRequesterURL()),
-          {net::FirstPartySetEntry(net::SchemefulSite(GetTopLevelURL()),
-                                   net::SiteType::kAssociated, 0)}}},
+        {
+            {net::SchemefulSite(GetRequesterURL()),
+             net::FirstPartySetEntry(top_level, net::SiteType::kAssociated)},
+            {top_level,
+             net::FirstPartySetEntry(top_level, net::SiteType::kPrimary)},
+        },
         /*aliases=*/{}));
   }
 
  private:
-  base::test::ScopedFeatureList features_;
-  first_party_sets::ScopedMockFirstPartySetsHandler first_party_sets_handler_;
 };
 
 TEST_F(TopLevelStorageAccessPermissionContextAPIWithFirstPartySetsTest,
        ImplicitGrant_AutograntedWithinFPS) {
   TopLevelStorageAccessPermissionContext permission_context(profile());
-  permissions::PermissionRequestID fake_id = CreateFakeID();
 
   HostContentSettingsMap* settings_map =
       HostContentSettingsMapFactory::GetForProfile(profile());
-  DCHECK(settings_map);
+  CHECK(settings_map);
 
-  // Check no `SessionModel::NonRestorableUserSession` setting exists yet.
-  ContentSettingsForOneType non_restorable_grants;
-  settings_map->GetSettingsForOneType(
-      ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS, &non_restorable_grants,
-      content_settings::SessionModel::NonRestorableUserSession);
-  EXPECT_EQ(0u, non_restorable_grants.size());
+  // Check no `SessionModel::DURABLE` setting with
+  // `decided_by_related_website_sets` exists yet.
+  ASSERT_THAT(settings_map->GetSettingsForOneType(
+                  ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS,
+                  content_settings::mojom::SessionModel::DURABLE),
+              Each(DecidedByRelatedWebsiteSets(false)));
 
-  base::test::TestFuture<ContentSetting> future;
-  permission_context.DecidePermissionForTesting(
-      fake_id, GetRequesterURL(), GetTopLevelURL(),
-      /*user_gesture=*/true, future.GetCallback());
-
-  EXPECT_EQ(CONTENT_SETTING_ALLOW, future.Get());
+  EXPECT_EQ(DecidePermissionSync(&permission_context, /*user_gesture=*/true,
+                                 GetRequesterURL(), GetTopLevelURL()),
+            CONTENT_SETTING_ALLOW);
   EXPECT_EQ(histogram_tester().GetBucketCount(
                 kRequestOutcomeHistogram,
-                CookieRequestOutcome::kGrantedByFirstPartySet),
+                TopLevelStorageAccessRequestOutcome::kGrantedByFirstPartySet),
             1);
 
-  // Check the `SessionModel::NonRestorableUserSession` settings granted by FPS.
-  settings_map->GetSettingsForOneType(
-      ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS, &non_restorable_grants,
-      content_settings::SessionModel::NonRestorableUserSession);
-  EXPECT_EQ(1u, non_restorable_grants.size());
+  // Check the `SessionModel::DURABLE` setting with
+  // `decided_by_related_website_sets` granted by FPS.
+  EXPECT_THAT(settings_map->GetSettingsForOneType(
+                  ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS,
+                  content_settings::mojom::SessionModel::DURABLE),
+              Contains(DecidedByRelatedWebsiteSets(true)));
 }
 
 TEST_F(TopLevelStorageAccessPermissionContextAPIWithFirstPartySetsTest,
        ImplicitGrant_CrossSiteFrameQueryStillAsk) {
   // First, grant the permission based on FPS membership.
   TopLevelStorageAccessPermissionContext permission_context(profile());
-  permissions::PermissionRequestID fake_id = CreateFakeID();
 
   HostContentSettingsMap* settings_map =
       HostContentSettingsMapFactory::GetForProfile(profile());
-  DCHECK(settings_map);
+  CHECK(settings_map);
 
-  // Check no `SessionModel::NonRestorableUserSession` setting exists yet.
-  ContentSettingsForOneType non_restorable_grants;
-  settings_map->GetSettingsForOneType(
-      ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS, &non_restorable_grants,
-      content_settings::SessionModel::NonRestorableUserSession);
-  ASSERT_EQ(0u, non_restorable_grants.size());
+  // Check no `SessionModel::DURABLE` setting with
+  // `decided_by_related_website_sets` exists yet.
+  ASSERT_THAT(settings_map->GetSettingsForOneType(
+                  ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS,
+                  content_settings::mojom::SessionModel::DURABLE),
+              Each(DecidedByRelatedWebsiteSets(false)));
 
-  base::test::TestFuture<ContentSetting> future;
-  permission_context.DecidePermissionForTesting(
-      fake_id, GetRequesterURL(), GetTopLevelURL(),
-      /*user_gesture=*/true, future.GetCallback());
+  EXPECT_EQ(DecidePermissionSync(&permission_context, /*user_gesture=*/true,
+                                 GetRequesterURL(), GetTopLevelURL()),
+            CONTENT_SETTING_ALLOW);
 
-  EXPECT_EQ(CONTENT_SETTING_ALLOW, future.Get());
-
-  // Check the `SessionModel::NonRestorableUserSession` settings granted by FPS.
-  settings_map->GetSettingsForOneType(
-      ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS, &non_restorable_grants,
-      content_settings::SessionModel::NonRestorableUserSession);
-  EXPECT_EQ(1u, non_restorable_grants.size());
+  // Check the `SessionModel::DURABLE` setting with
+  // `decided_by_related_website_sets` granted by FPS.
+  EXPECT_THAT(settings_map->GetSettingsForOneType(
+                  ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS,
+                  content_settings::mojom::SessionModel::DURABLE),
+              Contains(DecidedByRelatedWebsiteSets(true)));
 
   // Next, set up a cross-site frame.
   content::RenderFrameHostTester* rfh_tester =
@@ -281,47 +294,49 @@ TEST_F(TopLevelStorageAccessPermissionContextAPIWithFirstPartySetsTest,
 
   // Even though the permission is granted, queries from cross-site frames
   // should return the default value.
-  EXPECT_EQ(CONTENT_SETTING_ASK,
-            permission_context
-                .GetPermissionStatus(navigated_subframe, GetRequesterURL(),
-                                     GetTopLevelURL())
-                .content_setting);
+  EXPECT_EQ(
+      PermissionStatus::ASK,
+      permission_context
+          .GetPermissionStatus(
+              content::PermissionDescriptorUtil::
+                  CreatePermissionDescriptorForPermissionType(
+                      permissions::PermissionUtil::
+                          ContentSettingsTypeToPermissionType(
+                              permission_context.content_settings_type())),
+              navigated_subframe, GetRequesterURL(), GetTopLevelURL())
+          .status);
 }
 
 TEST_F(TopLevelStorageAccessPermissionContextAPIWithFirstPartySetsTest,
        ImplicitGrant_AutodeniedOutsideFPS) {
   TopLevelStorageAccessPermissionContext permission_context(profile());
-  permissions::PermissionRequestID fake_id = CreateFakeID();
 
   HostContentSettingsMap* settings_map =
       HostContentSettingsMapFactory::GetForProfile(profile());
-  DCHECK(settings_map);
+  CHECK(settings_map);
 
-  // Check no `SessionModel::NonRestorableUserSession` setting exists yet.
-  ContentSettingsForOneType non_restorable_grants;
-  settings_map->GetSettingsForOneType(
-      ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS, &non_restorable_grants,
-      content_settings::SessionModel::NonRestorableUserSession);
-  EXPECT_EQ(0u, non_restorable_grants.size());
+  // Check no `SessionModel::DURABLE` setting with
+  // `decided_by_related_website_sets` exists yet.
+  ASSERT_THAT(settings_map->GetSettingsForOneType(
+                  ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS,
+                  content_settings::mojom::SessionModel::DURABLE),
+              Each(DecidedByRelatedWebsiteSets(false)));
 
-  base::test::TestFuture<ContentSetting> future;
-  permission_context.DecidePermissionForTesting(
-      fake_id, GetRequesterURL(), GetDummyEmbeddingUrl(),
-      /*user_gesture=*/true, future.GetCallback());
-
-  EXPECT_EQ(CONTENT_SETTING_BLOCK, future.Get());
+  EXPECT_EQ(DecidePermissionSync(&permission_context, /*user_gesture=*/true,
+                                 GetRequesterURL(), GetDummyEmbeddingUrl()),
+            CONTENT_SETTING_BLOCK);
   EXPECT_EQ(histogram_tester().GetBucketCount(
                 kRequestOutcomeHistogram,
-                CookieRequestOutcome::kDeniedByFirstPartySet),
+                TopLevelStorageAccessRequestOutcome::kDeniedByFirstPartySet),
             1);
 
-  // Check the `SessionModel::NonRestorableUserSession` settings.
-  // None were granted, and implicit denials are not currently persisted, which
-  // preserves the default `ASK` setting.
-  settings_map->GetSettingsForOneType(
-      ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS, &non_restorable_grants,
-      content_settings::SessionModel::NonRestorableUserSession);
-  EXPECT_EQ(0u, non_restorable_grants.size());
+  // Check the `SessionModel::DURABLE` setting with
+  // `decided_by_related_website_sets`. None were granted, and implicit denials
+  // are not currently persisted, which preserves the default `ASK` setting.
+  EXPECT_THAT(settings_map->GetSettingsForOneType(
+                  ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS,
+                  content_settings::mojom::SessionModel::DURABLE),
+              Each(DecidedByRelatedWebsiteSets(false)));
 }
 
 TEST_F(TopLevelStorageAccessPermissionContextAPIWithFirstPartySetsTest,
@@ -331,84 +346,40 @@ TEST_F(TopLevelStorageAccessPermissionContextAPIWithFirstPartySetsTest,
 
   HostContentSettingsMap* settings_map =
       HostContentSettingsMapFactory::GetForProfile(profile());
-  DCHECK(settings_map);
+  CHECK(settings_map);
 
-  // Check no `SessionModel::NonRestorableUserSession` setting exists yet.
-  ContentSettingsForOneType non_restorable_grants;
-  settings_map->GetSettingsForOneType(
-      ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS, &non_restorable_grants,
-      content_settings::SessionModel::NonRestorableUserSession);
-  ASSERT_EQ(0u, non_restorable_grants.size());
+  // Check no `SessionModel::DURABLE` setting with
+  // `decided_by_related_website_sets` exists yet.
+  ASSERT_THAT(settings_map->GetSettingsForOneType(
+                  ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS,
+                  content_settings::mojom::SessionModel::DURABLE),
+              Each(DecidedByRelatedWebsiteSets(false)));
 
-  base::test::TestFuture<ContentSetting> future;
-  permission_context.DecidePermissionForTesting(
-      fake_id, GetRequesterURL(), GetDummyEmbeddingUrl(),
-      /*user_gesture=*/true, future.GetCallback());
+  EXPECT_EQ(DecidePermissionSync(&permission_context, /*user_gesture=*/true,
+                                 GetRequesterURL(), GetDummyEmbeddingUrl()),
+            CONTENT_SETTING_BLOCK);
 
-  EXPECT_EQ(CONTENT_SETTING_BLOCK, future.Get());
-
-  // Check the `SessionModel::NonRestorableUserSession` settings.
-  // None were granted, and implicit denials are not currently persisted, which
-  // preserves the default `ASK` setting.
-  settings_map->GetSettingsForOneType(
-      ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS, &non_restorable_grants,
-      content_settings::SessionModel::NonRestorableUserSession);
-  EXPECT_EQ(0u, non_restorable_grants.size());
+  // Check the `SessionModel::DURABLE` setting with
+  // `decided_by_related_website_sets`. None were granted, and implicit denials
+  // are not currently persisted, which preserves the default `ASK` setting.
+  EXPECT_THAT(settings_map->GetSettingsForOneType(
+                  ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS,
+                  content_settings::mojom::SessionModel::DURABLE),
+              Each(DecidedByRelatedWebsiteSets(false)));
 
   // The permission denial should not be exposed via query. Note that the block
   // setting is not persisted anyway with the current implementation; this is a
   // forward-looking test.
-  EXPECT_EQ(CONTENT_SETTING_ASK,
-            permission_context
-                .GetPermissionStatus(/*render_frame_host=*/nullptr,
-                                     GetRequesterURL(), GetDummyEmbeddingUrl())
-                .content_setting);
-}
-
-class TopLevelStorageAccessPermissionContextAPIFirstPartySetsDisabledTest
-    : public TopLevelStorageAccessPermissionContextTestAPIEnabledTest {
- public:
-  TopLevelStorageAccessPermissionContextAPIFirstPartySetsDisabledTest() {
-    features_.InitWithFeatures(
-        /*enabled_features=*/
-        {blink::features::kStorageAccessAPI},
-        /*disabled_features=*/{features::kFirstPartySets});
-  }
-
- private:
-  base::test::ScopedFeatureList features_;
-};
-
-TEST_F(TopLevelStorageAccessPermissionContextAPIFirstPartySetsDisabledTest,
-       PermissionDeniedWithFPSDisabled) {
-  TopLevelStorageAccessPermissionContext permission_context(profile());
-  permissions::PermissionRequestID fake_id = CreateFakeID();
-
-  HostContentSettingsMap* settings_map =
-      HostContentSettingsMapFactory::GetForProfile(profile());
-  DCHECK(settings_map);
-
-  // Check no `SessionModel::NonRestorableUserSession` setting exists yet.
-  ContentSettingsForOneType non_restorable_grants;
-  settings_map->GetSettingsForOneType(
-      ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS, &non_restorable_grants,
-      content_settings::SessionModel::NonRestorableUserSession);
-  EXPECT_EQ(0u, non_restorable_grants.size());
-
-  base::test::TestFuture<ContentSetting> future;
-  permission_context.DecidePermissionForTesting(
-      fake_id, GetRequesterURL(), GetTopLevelURL(),
-      /*user_gesture=*/true, future.GetCallback());
-
-  EXPECT_EQ(CONTENT_SETTING_BLOCK, future.Get());
-  EXPECT_EQ(histogram_tester().GetBucketCount(
-                kRequestOutcomeHistogram,
-                CookieRequestOutcome::kDeniedByPrerequisites),
-            1);
-
-  // Check the `SessionModel::NonRestorableUserSession` settings granted by FPS.
-  settings_map->GetSettingsForOneType(
-      ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS, &non_restorable_grants,
-      content_settings::SessionModel::NonRestorableUserSession);
-  EXPECT_EQ(0u, non_restorable_grants.size());
+  EXPECT_EQ(
+      PermissionStatus::ASK,
+      permission_context
+          .GetPermissionStatus(
+              content::PermissionDescriptorUtil::
+                  CreatePermissionDescriptorForPermissionType(
+                      permissions::PermissionUtil::
+                          ContentSettingsTypeToPermissionType(
+                              permission_context.content_settings_type())),
+              /*render_frame_host=*/nullptr, GetRequesterURL(),
+              GetDummyEmbeddingUrl())
+          .status);
 }

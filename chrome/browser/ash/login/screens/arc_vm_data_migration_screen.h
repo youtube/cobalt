@@ -5,20 +5,23 @@
 #ifndef CHROME_BROWSER_ASH_LOGIN_SCREENS_ARC_VM_DATA_MIGRATION_SCREEN_H_
 #define CHROME_BROWSER_ASH_LOGIN_SCREENS_ARC_VM_DATA_MIGRATION_SCREEN_H_
 
+#include <optional>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/sequence_checker.h"
 #include "chrome/browser/ash/login/screens/base_screen.h"
+#include "chrome/browser/ash/login/screens/oobe_mojo_binder.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/ash/login/arc_vm_data_migration_screen_handler.h"
+#include "chrome/browser/ui/webui/ash/login/mojom/screens_login.mojom.h"
 #include "chromeos/ash/components/dbus/arc/arcvm_data_migrator_client.h"
 #include "chromeos/ash/components/dbus/arcvm_data_migrator/arcvm_data_migrator.pb.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/device/public/mojom/wake_lock.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class TickClock;
@@ -27,28 +30,34 @@ class TickClock;
 namespace ash {
 
 class ScopedScreenLockBlocker;
+class ArcVmDataMigrationScreenView;
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused. Please keep in sync with
 // "ArcVmDataMigrationScreenSetupFailure" in tools/metrics/histograms/enums.xml.
 enum class ArcVmDataMigrationScreenSetupFailure {
-  kGetVmInfoFailure = 0,
-  kStopVmFailure = 1,
-  kStopUpstartJobsFailure = 2,
+  kGetVmInfoFailure = 0,        // Deprecated.
+  kStopVmFailure = 1,           // Deprecated.
+  kStopUpstartJobsFailure = 2,  // Deprecated.
   kGetFreeDiskSpaceFailure = 3,
-  kGetAndroidDataSizeFailure = 4,
+  kGetAndroidDataInfoFailure = 4,
   kCreateDiskImageDBusFailure = 5,
   kCreateDiskImageGeneralFailure = 6,
   kArcVmDataMigratorStartFailure = 7,
   kStartMigrationFailure = 8,
-  kMaxValue = kStartMigrationFailure,
+  kStopArcVmAndArcVmUpstartJobsFailure = 9,
+  kMaxValue = kStopArcVmAndArcVmUpstartJobsFailure,
 };
 
-class ArcVmDataMigrationScreen : public BaseScreen,
-                                 public ArcVmDataMigratorClient::Observer,
-                                 public ConciergeClient::VmObserver,
-                                 public chromeos::PowerManagerClient::Observer {
+class ArcVmDataMigrationScreen
+    : public BaseScreen,
+      public ArcVmDataMigratorClient::Observer,
+      public chromeos::PowerManagerClient::Observer,
+      public screens_login::mojom::ArcVmDataMigrationPageHandler,
+      public OobeMojoBinder<screens_login::mojom::ArcVmDataMigrationPageHandler,
+                            screens_login::mojom::ArcVmDataMigrationPage> {
  public:
+  using TView = ArcVmDataMigrationScreenView;
   explicit ArcVmDataMigrationScreen(
       base::WeakPtr<ArcVmDataMigrationScreenView> view);
   ~ArcVmDataMigrationScreen() override;
@@ -56,31 +65,33 @@ class ArcVmDataMigrationScreen : public BaseScreen,
   ArcVmDataMigrationScreen& operator=(const ArcVmDataMigrationScreen&) = delete;
 
   void SetTickClockForTesting(const base::TickClock* tick_clock);
+  void SetRemoteForTesting(
+      mojo::PendingRemote<screens_login::mojom::ArcVmDataMigrationPage>
+          pending_page);
+
+ protected:
+  // screens_login::mojom::ArcVmDataMigrationPageHandler
+  void OnSkipClicked() override;
+  void OnUpdateClicked() override;
+  void OnResumeClicked() override;
+  void OnFinishClicked() override;
+  void OnReportClicked() override;
 
  private:
   // BaseScreen overrides:
   void ShowImpl() override;
   void HideImpl() override;
-  void OnUserAction(const base::Value::List& args) override;
 
-  // Stops ARCVM instance and ARC-related Upstart jobs that have outlived the
-  // previous session.
-  void StopArcVmInstanceAndArcUpstartJobs();
-
-  void OnGetVmInfoResponse(
-      absl::optional<vm_tools::concierge::GetVmInfoResponse> response);
-  void OnStopVmResponse(
-      absl::optional<vm_tools::concierge::StopVmResponse> response);
-
-  void StopArcUpstartJobs();
-  void OnArcUpstartJobsStopped(bool result);
+  void OnArcVmAndArcVmUpstartJobsStopped(bool result);
 
   void SetUpInitialView();
 
-  void OnGetFreeDiskSpace(absl::optional<int64_t> reply);
+  void OnGetFreeDiskSpace(std::optional<int64_t> reply);
 
-  void OnGetAndroidDataSizeResponse(uint64_t free_disk_space,
-                                    absl::optional<int64_t> response);
+  void OnGetAndroidDataInfoResponse(
+      uint64_t free_disk_space,
+      const base::TimeTicks& time_before_get_android_data_info,
+      std::optional<arc::data_migrator::GetAndroidDataInfoResponse> response);
 
   void CheckBatteryState();
 
@@ -90,7 +101,7 @@ class ArcVmDataMigrationScreen : public BaseScreen,
   // Sets up the destination of the migration, and then triggers the migration.
   void SetUpDestinationAndTriggerMigration();
   void OnCreateDiskImageResponse(
-      absl::optional<vm_tools::concierge::CreateDiskImageResponse> res);
+      std::optional<vm_tools::concierge::CreateDiskImageResponse> res);
 
   // Triggers the migration by calling ArcVmDataMigrator's StartMigration().
   void TriggerMigration();
@@ -107,17 +118,8 @@ class ArcVmDataMigrationScreen : public BaseScreen,
   void RemoveArcDataAndShowFailureScreen();
   void OnArcDataRemoved(bool success);
 
-  // ConciergeClient::VmObserver overrides:
-  void OnVmStarted(const vm_tools::concierge::VmStartedSignal& signal) override;
-  void OnVmStopped(const vm_tools::concierge::VmStoppedSignal& signal) override;
-
-  void UpdateUIState(ArcVmDataMigrationScreenView::UIState state);
-
-  void HandleSkip();
-  void HandleUpdate();
-  void HandleResume();
-  void HandleFinish();
-  void HandleReport();
+  void UpdateUIState(
+      screens_login::mojom::ArcVmDataMigrationPage::ArcVmUIState state);
 
   void HandleSetupFailure(ArcVmDataMigrationScreenSetupFailure failure);
 
@@ -128,11 +130,11 @@ class ArcVmDataMigrationScreen : public BaseScreen,
 
   virtual device::mojom::WakeLock* GetWakeLock();
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile> profile_;
   std::string user_id_hash_;
 
-  ArcVmDataMigrationScreenView::UIState current_ui_state_ =
-      ArcVmDataMigrationScreenView::UIState::kLoading;
+  screens_login::mojom::ArcVmDataMigrationPage::ArcVmUIState current_ui_state_ =
+      screens_login::mojom::ArcVmDataMigrationPage::ArcVmUIState::kLoading;
 
   uint64_t disk_size_ = 0;
 
@@ -146,7 +148,7 @@ class ArcVmDataMigrationScreen : public BaseScreen,
   // |update_button_pressed_| is flipped to true.
   double lowest_battery_percent_during_migration_;
 
-  raw_ptr<const base::TickClock, ExperimentalAsh> tick_clock_ = nullptr;
+  raw_ptr<const base::TickClock> tick_clock_ = nullptr;
   base::TimeTicks previous_ticks_ = {};
   uint64_t previous_bytes_ = 0;
 
@@ -167,9 +169,6 @@ class ArcVmDataMigrationScreen : public BaseScreen,
   base::ScopedObservation<ArcVmDataMigratorClient,
                           ArcVmDataMigratorClient::Observer>
       migration_progress_observation_{this};
-
-  base::ScopedObservation<ConciergeClient, ConciergeClient::VmObserver>
-      concierge_observation_{this};
 
   base::ScopedObservation<chromeos::PowerManagerClient,
                           chromeos::PowerManagerClient::Observer>

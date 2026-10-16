@@ -5,6 +5,7 @@
 #include "content/browser/web_contents/web_contents_view_aura.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/command_line.h"
@@ -14,13 +15,11 @@
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/test_renderer_host.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/client/drag_drop_client.h"
 #include "ui/aura/test/test_windows.h"
@@ -31,24 +30,23 @@
 #include "ui/base/dragdrop/drop_target_event.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/base/dragdrop/os_exchange_data.h"
+#include "ui/base/ozone_buildflags.h"
 #include "ui/display/display_switches.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/gfx/geometry/rect.h"
+#include "url/origin.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "ui/base/dragdrop/os_exchange_data_provider_win.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX)
-#include "ui/ozone/buildflags.h"
-#if BUILDFLAG(OZONE_PLATFORM_X11)
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(IS_OZONE_X11)
 #include "ui/base/x/selection_utils.h"
 #include "ui/base/x/x11_os_exchange_data_provider.h"
-#include "ui/gfx/x/x11_atom_cache.h"
-#include "ui/gfx/x/xproto_util.h"
+#include "ui/gfx/x/atom_cache.h"
+#include "ui/gfx/x/connection.h"
 #include "ui/ozone/public/ozone_platform.h"
-#endif  // BUILDFLAG(OZONE_PLATFORM_X11)
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) && BUILDFLAG(IS_OZONE_X11)
 
 namespace content {
 namespace {
@@ -165,7 +163,7 @@ class WebContentsViewAuraTest : public RenderViewHostTestHarness {
   aura::Window* GetNativeView() { return web_contents()->GetNativeView(); }
 
   void CheckDropData(WebContentsViewAura* view) const {
-    EXPECT_EQ(nullptr, view->current_drop_data_);
+    EXPECT_EQ(nullptr, view->current_drag_data_);
     ASSERT_NE(nullptr, drop_complete_data_);
     EXPECT_TRUE(drop_complete_data_->drop_allowed);
     EXPECT_EQ(view->current_rwh_for_drag_.get(),
@@ -228,9 +226,9 @@ TEST_F(WebContentsViewAuraTest, WebContentsDestroyedDuringClick) {
   web_contents()->SetDelegate(&delegate);
 
   // Simulates the mouse press.
-  ui::MouseEvent mouse_event(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
-                             ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
-                             0);
+  ui::MouseEvent mouse_event(ui::EventType::kMousePressed, gfx::Point(),
+                             gfx::Point(), ui::EventTimeForNow(),
+                             ui::EF_LEFT_MOUSE_BUTTON, 0);
   ui::EventHandler* event_handler = GetView();
   event_handler->OnMouseEvent(&mouse_event);
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -248,7 +246,7 @@ TEST_F(WebContentsViewAuraTest, OccludeView) {
   EXPECT_EQ(web_contents()->GetVisibility(), Visibility::VISIBLE);
 }
 
-// TODO(crbug.com/1231509): Enable these tests on Fuchsia when
+// TODO(crbug.com/40190725): Enable these tests on Fuchsia when
 // OSExchangeDataProviderFactory::CreateProvider is implemented.
 #if BUILDFLAG(IS_FUCHSIA)
 #define MAYBE_DragDropFiles DISABLED_DragDropFiles
@@ -295,26 +293,26 @@ TEST_F(WebContentsViewAuraTest, MAYBE_DragDropFiles) {
                             ui::DragDropTypes::DRAG_COPY);
 
   // Simulate drag enter.
-  EXPECT_EQ(nullptr, view->current_drop_data_);
+  EXPECT_EQ(nullptr, view->current_drag_data_);
   view->OnDragEntered(event);
-  ASSERT_NE(nullptr, view->current_drop_data_);
+  ASSERT_NE(nullptr, view->current_drag_data_);
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // By design, Linux implementations return an empty string if file data
   // is also present.
-  EXPECT_TRUE(!view->current_drop_data_->text ||
-              view->current_drop_data_->text->empty());
+  EXPECT_TRUE(!view->current_drag_data_->text ||
+              view->current_drag_data_->text->empty());
 #else
-  EXPECT_EQ(string_data, view->current_drop_data_->text);
+  EXPECT_EQ(string_data, view->current_drag_data_->text);
 #endif
 
   // FileContents should be ignored when Filenames exists
   // (https://crbug.com/1251482).
-  EXPECT_FALSE(view->current_drop_data_->file_contents_source_url.is_valid());
-  EXPECT_TRUE(view->current_drop_data_->file_contents.empty());
+  EXPECT_FALSE(view->current_drag_data_->file_contents_source_url.is_valid());
+  EXPECT_TRUE(view->current_drag_data_->file_contents.empty());
 
   std::vector<ui::FileInfo> retrieved_file_infos =
-      view->current_drop_data_->filenames;
+      view->current_drag_data_->filenames;
   ASSERT_EQ(test_file_infos.size(), retrieved_file_infos.size());
   for (size_t i = 0; i < retrieved_file_infos.size(); i++) {
     EXPECT_EQ(test_file_infos[i].path, retrieved_file_infos[i].path);
@@ -386,31 +384,30 @@ TEST_F(WebContentsViewAuraTest, MAYBE_DragDropFilesOriginateFromRenderer) {
 
   // Simulate the drag originating in the renderer process, in which case
   // any file data should be filtered out (anchor drag scenario) except in
-  // CHROMEOS_ASH.
-  data->MarkOriginatedFromRenderer();
+  // CHROMEOS.
+  data->MarkRendererTaintedFromOrigin(url::Origin());
 
   ui::DropTargetEvent event(*data.get(), kClientPt, kScreenPt,
                             ui::DragDropTypes::DRAG_COPY);
 
   // Simulate drag enter.
-  EXPECT_EQ(nullptr, view->current_drop_data_);
+  EXPECT_EQ(nullptr, view->current_drag_data_);
   view->OnDragEntered(event);
-  ASSERT_NE(nullptr, view->current_drop_data_);
+  ASSERT_NE(nullptr, view->current_drag_data_);
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // By design, Linux implementations return an empty string if file data
   // is also present.
-  EXPECT_TRUE(!view->current_drop_data_->text ||
-              view->current_drop_data_->text->empty());
+  EXPECT_TRUE(!view->current_drag_data_->text ||
+              view->current_drag_data_->text->empty());
 #else
-  EXPECT_EQ(string_data, view->current_drop_data_->text);
+  EXPECT_EQ(string_data, view->current_drag_data_->text);
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  // CHROMEOS_ASH always returns false for DidOriginateFromRenderer().
-  ASSERT_FALSE(view->current_drop_data_->filenames.empty());
+#if BUILDFLAG(IS_CHROMEOS)
+  ASSERT_FALSE(view->current_drag_data_->filenames.empty());
 #else
-  ASSERT_TRUE(view->current_drop_data_->filenames.empty());
+  ASSERT_TRUE(view->current_drag_data_->filenames.empty());
 #endif
 
   // Simulate drop.
@@ -439,8 +436,9 @@ TEST_F(WebContentsViewAuraTest, MAYBE_DragDropFilesOriginateFromRenderer) {
   EXPECT_EQ(string_data, drop_complete_data_->drop_data.text);
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  // CHROMEOS_ASH always returns false for DidOriginateFromRenderer().
+#if BUILDFLAG(IS_CHROMEOS)
+  // CHROMEOS never filters out files from a drop, even if the drag
+  // originated from a renderer, because otherwise, it breaks the Files app.
   ASSERT_FALSE(drop_complete_data_->drop_data.filenames.empty());
 #else
   ASSERT_TRUE(drop_complete_data_->drop_data.filenames.empty());
@@ -460,22 +458,21 @@ TEST_F(WebContentsViewAuraTest, MAYBE_DragDropImageFromRenderer) {
 
   auto data = std::make_unique<ui::OSExchangeData>();
 
-#if BUILDFLAG(IS_LINUX)
-#if BUILDFLAG(OZONE_PLATFORM_X11)
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(IS_OZONE_X11)
   // FileContents drag-drop in X relies on XDragDropClient::InitDrag() setting
   // window property 'XdndDirectSave0' to filename. Since XDragDropClient is not
   // created in this unittest, we will set this property manually to allow
   // XOSExchangeDataProvider::GetFileContents() to succeed.
   if (ui::OzonePlatform::GetPlatformNameForTest() == "x11") {
-    x11::Window xwindow = x11::CreateDummyWindow("Test Window");
-    x11::SetStringProperty(xwindow, x11::GetAtom("XdndDirectSave0"),
-                           x11::GetAtom("text/plain"), "image.jpg");
+    auto* connection = x11::Connection::Get();
+    x11::Window xwindow = connection->CreateDummyWindow("Test Window");
+    connection->SetStringProperty(xwindow, x11::GetAtom("XdndDirectSave0"),
+                                  x11::GetAtom("text/plain"), "image.jpg");
     data = std::make_unique<ui::OSExchangeData>(
         std::make_unique<ui::XOSExchangeDataProvider>(
             xwindow, xwindow, ui::SelectionFormatMap()));
   }
-#endif  // BUILDFLAG(OZONE_PLATFORM_X11)
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) && BUILDFLAG(IS_OZONE_X11)
 
   // As per WebContentsViewAura::PrepareDragData(), we must call
   // SetFileContents() before SetURL() to get the expected contents since
@@ -483,26 +480,26 @@ TEST_F(WebContentsViewAuraTest, MAYBE_DragDropImageFromRenderer) {
   data->SetFileContents(filename, file_contents);
   data->SetURL(url, url_title);
   data->SetHtml(html, GURL());
-  data->MarkOriginatedFromRenderer();
+  data->MarkRendererTaintedFromOrigin(url::Origin());
 
   ui::DropTargetEvent event(*data.get(), kClientPt, kScreenPt,
                             ui::DragDropTypes::DRAG_COPY);
 
   // Simulate drag enter.
-  EXPECT_EQ(nullptr, view->current_drop_data_);
+  EXPECT_EQ(nullptr, view->current_drag_data_);
   view->OnDragEntered(event);
-  ASSERT_NE(nullptr, view->current_drop_data_);
+  ASSERT_NE(nullptr, view->current_drag_data_);
 
-  EXPECT_EQ(base::ASCIIToUTF16(url_spec), *view->current_drop_data_->text);
-  EXPECT_EQ(url_spec, view->current_drop_data_->url);
-  EXPECT_EQ(url_title, view->current_drop_data_->url_title);
-  EXPECT_TRUE(view->current_drop_data_->filenames.empty());
-  EXPECT_EQ(file_contents, view->current_drop_data_->file_contents);
-  EXPECT_TRUE(view->current_drop_data_->file_contents_image_accessible);
-  EXPECT_EQ(source_url, view->current_drop_data_->file_contents_source_url);
+  EXPECT_EQ(base::ASCIIToUTF16(url_spec), *view->current_drag_data_->text);
+  EXPECT_EQ(url_spec, view->current_drag_data_->url);
+  EXPECT_EQ(url_title, view->current_drag_data_->url_title);
+  EXPECT_TRUE(view->current_drag_data_->filenames.empty());
+  EXPECT_EQ(file_contents, view->current_drag_data_->file_contents);
+  EXPECT_TRUE(view->current_drag_data_->file_contents_image_accessible);
+  EXPECT_EQ(source_url, view->current_drag_data_->file_contents_source_url);
   EXPECT_EQ(FILE_PATH_LITERAL("jpg"),
-            view->current_drop_data_->file_contents_filename_extension);
-  EXPECT_EQ("", view->current_drop_data_->file_contents_content_disposition);
+            view->current_drag_data_->file_contents_filename_extension);
+  EXPECT_EQ("", view->current_drag_data_->file_contents_content_disposition);
 
   // Simulate drop.
   auto callback = base::BindOnce(&WebContentsViewAuraTest::OnDropComplete,
@@ -561,15 +558,15 @@ TEST_F(WebContentsViewAuraTest, DragDropVirtualFiles) {
                             ui::DragDropTypes::DRAG_COPY);
 
   // Simulate drag enter.
-  EXPECT_EQ(nullptr, view->current_drop_data_);
+  EXPECT_EQ(nullptr, view->current_drag_data_);
   view->OnDragEntered(event);
-  ASSERT_NE(nullptr, view->current_drop_data_);
+  ASSERT_NE(nullptr, view->current_drag_data_);
 
-  EXPECT_EQ(string_data, view->current_drop_data_->text);
+  EXPECT_EQ(string_data, view->current_drag_data_->text);
 
   const base::FilePath path_placeholder(FILE_PATH_LITERAL("temp.tmp"));
   std::vector<ui::FileInfo> retrieved_file_infos =
-      view->current_drop_data_->filenames;
+      view->current_drag_data_->filenames;
   ASSERT_EQ(test_filenames_and_contents.size(), retrieved_file_infos.size());
   for (size_t i = 0; i < retrieved_file_infos.size(); i++) {
     EXPECT_EQ(test_filenames_and_contents[i].first,
@@ -642,19 +639,19 @@ TEST_F(WebContentsViewAuraTest, DragDropVirtualFilesOriginateFromRenderer) {
 
   // Simulate the drag originating in the renderer process, in which case
   // any file data should be filtered out (anchor drag scenario).
-  data->MarkOriginatedFromRenderer();
+  data->MarkRendererTaintedFromOrigin(url::Origin());
 
   ui::DropTargetEvent event(*data.get(), kClientPt, kScreenPt,
                             ui::DragDropTypes::DRAG_COPY);
 
   // Simulate drag enter.
-  EXPECT_EQ(nullptr, view->current_drop_data_);
+  EXPECT_EQ(nullptr, view->current_drag_data_);
   view->OnDragEntered(event);
-  ASSERT_NE(nullptr, view->current_drop_data_);
+  ASSERT_NE(nullptr, view->current_drag_data_);
 
-  EXPECT_EQ(string_data, view->current_drop_data_->text);
+  EXPECT_EQ(string_data, view->current_drag_data_->text);
 
-  ASSERT_TRUE(view->current_drop_data_->filenames.empty());
+  ASSERT_TRUE(view->current_drag_data_->filenames.empty());
 
   // Simulate drop (completes asynchronously since virtual file data is
   // present).
@@ -679,10 +676,36 @@ TEST_F(WebContentsViewAuraTest, DragDropVirtualFilesOriginateFromRenderer) {
   ASSERT_TRUE(drop_complete_data_->drop_data.filenames.empty());
 }
 
+TEST_F(WebContentsViewAuraTest, DragDropVirtualFileGetsNonEmptyContents) {
+  WebContentsViewAura* view = GetView();
+  auto data = std::make_unique<ui::OSExchangeData>();
+  const std::u16string string_data = u"Some string data";
+  data->SetString(string_data);
+
+  const base::FilePath test_filename(FILE_PATH_LITERAL("filename.txt"));
+  const std::string test_file_content = "just some data";
+
+  data->provider().SetVirtualFileContentsForTesting(
+      {{test_filename, test_file_content}}, TYMED_ISTREAM);
+
+  ui::DropTargetEvent event(*data.get(), kClientPt, kScreenPt,
+                            ui::DragDropTypes::DRAG_COPY);
+
+  // Simulate drag enter.
+  EXPECT_EQ(nullptr, view->current_drag_data_);
+  view->OnDragEntered(event);
+  ASSERT_NE(nullptr, view->current_drag_data_);
+
+  // Verify drag data is set with file contents
+  EXPECT_GT(view->current_drag_data_->file_contents.size(),
+            static_cast<size_t>(0));
+  EXPECT_EQ(test_file_content, view->current_drag_data_->file_contents);
+}
+
 TEST_F(WebContentsViewAuraTest, DragDropUrlData) {
   WebContentsViewAura* view = GetView();
   auto data = std::make_unique<ui::OSExchangeData>();
-  data->MarkOriginatedFromRenderer();
+  data->MarkRendererTaintedFromOrigin(url::Origin());
 
   const std::string url_spec = "https://www.wikipedia.org/";
   const GURL url(url_spec);
@@ -690,29 +713,30 @@ TEST_F(WebContentsViewAuraTest, DragDropUrlData) {
   data->SetURL(url, url_title);
 
   // SetUrl should also add a virtual .url (internet shortcut) file.
-  std::vector<ui::FileInfo> file_infos;
-  EXPECT_TRUE(data->GetVirtualFilenames(&file_infos));
-  ASSERT_EQ(1ULL, file_infos.size());
+  std::optional<std::vector<ui::FileInfo>> file_infos =
+      data->GetVirtualFilenames();
+  ASSERT_TRUE(file_infos.has_value());
+  ASSERT_EQ(1ULL, file_infos.value().size());
   EXPECT_EQ(base::FilePath(base::UTF16ToWide(url_title) + L".url"),
-            file_infos[0].display_name);
+            file_infos.value()[0].display_name);
 
   ui::DropTargetEvent event(*data.get(), kClientPt, kScreenPt,
                             ui::DragDropTypes::DRAG_COPY);
 
   // Simulate drag enter.
-  EXPECT_EQ(nullptr, view->current_drop_data_);
+  EXPECT_EQ(nullptr, view->current_drag_data_);
   view->OnDragEntered(event);
-  ASSERT_NE(nullptr, view->current_drop_data_);
+  ASSERT_NE(nullptr, view->current_drag_data_);
 
-  EXPECT_EQ(url_spec, view->current_drop_data_->url);
-  EXPECT_EQ(url_title, view->current_drop_data_->url_title);
+  EXPECT_EQ(url_spec, view->current_drag_data_->url);
+  EXPECT_EQ(url_title, view->current_drag_data_->url_title);
 
   // Virtual files should not have been retrieved if url data present.
-  EXPECT_TRUE(view->current_drop_data_->filenames.empty());
+  EXPECT_TRUE(view->current_drag_data_->filenames.empty());
   // Shortcut *.url file contents created by SetURL() should be ignored
   // (https://crbug.com/1274395).
-  EXPECT_TRUE(view->current_drop_data_->file_contents_source_url.is_empty());
-  EXPECT_TRUE(view->current_drop_data_->file_contents.empty());
+  EXPECT_TRUE(view->current_drag_data_->file_contents_source_url.is_empty());
+  EXPECT_TRUE(view->current_drag_data_->file_contents.empty());
 
   // Simulate drop (completes asynchronously since virtual file data is
   // present).
@@ -743,7 +767,7 @@ TEST_F(WebContentsViewAuraTest, DragDropUrlData) {
 }
 #endif  // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 
 TEST_F(WebContentsViewAuraTest, StartDragging) {
   const char kGmailUrl[] = "http://mail.google.com/";
@@ -761,7 +785,8 @@ TEST_F(WebContentsViewAuraTest, StartDragging) {
 
   DropData drop_data;
   drop_data.text.emplace(u"Hello World!");
-  view->StartDragging(drop_data, blink::DragOperationsMask::kDragOperationNone,
+  view->StartDragging(drop_data, url::Origin(),
+                      blink::DragOperationsMask::kDragOperationNone,
                       gfx::ImageSkia(), gfx::Vector2d(), gfx::Rect(),
                       blink::mojom::DragEventSourceInfo(),
                       RenderWidgetHostImpl::From(rvh()->GetWidget()));
@@ -773,7 +798,7 @@ TEST_F(WebContentsViewAuraTest, StartDragging) {
   EXPECT_EQ(*(exchange_data->GetSource()->GetURL()), GURL(kGmailUrl));
 }
 
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 TEST_F(WebContentsViewAuraTest,
        RejectDragFromPrivilegedWebContentsToNonPrivilegedWebContents) {
@@ -783,9 +808,9 @@ TEST_F(WebContentsViewAuraTest,
   ui::DropTargetEvent event(*data.get(), kClientPt, kScreenPt,
                             ui::DragDropTypes::DRAG_MOVE);
   // Simulate drag enter.
-  EXPECT_EQ(nullptr, view->current_drop_data_);
+  EXPECT_EQ(nullptr, view->current_drag_data_);
   view->OnDragEntered(event);
-  ASSERT_EQ(nullptr, view->current_drop_data_);
+  ASSERT_EQ(nullptr, view->current_drag_data_);
 }
 
 TEST_F(WebContentsViewAuraTest,
@@ -798,9 +823,9 @@ TEST_F(WebContentsViewAuraTest,
   ui::DropTargetEvent event(*data.get(), kClientPt, kScreenPt,
                             ui::DragDropTypes::DRAG_MOVE);
   // Simulate drag enter.
-  EXPECT_EQ(nullptr, view->current_drop_data_);
+  EXPECT_EQ(nullptr, view->current_drag_data_);
   view->OnDragEntered(event);
-  ASSERT_NE(nullptr, view->current_drop_data_);
+  ASSERT_NE(nullptr, view->current_drag_data_);
 }
 
 TEST_F(WebContentsViewAuraTest,
@@ -812,12 +837,15 @@ TEST_F(WebContentsViewAuraTest,
   ui::DropTargetEvent event(*data.get(), kClientPt, kScreenPt,
                             ui::DragDropTypes::DRAG_MOVE);
   // Simulate drag enter.
-  EXPECT_EQ(nullptr, view->current_drop_data_);
+  EXPECT_EQ(nullptr, view->current_drag_data_);
   view->OnDragEntered(event);
-  ASSERT_EQ(nullptr, view->current_drop_data_);
+  ASSERT_EQ(nullptr, view->current_drag_data_);
 }
 
 TEST_F(WebContentsViewAuraTest, StartDragFromPrivilegedWebContents) {
+  const char kGoogleUrl[] = "https://google.com/";
+  NavigateAndCommit(GURL(kGoogleUrl));
+
   TestDragDropClient drag_drop_client;
   aura::client::SetDragDropClient(root_window(), &drag_drop_client);
 
@@ -832,7 +860,8 @@ TEST_F(WebContentsViewAuraTest, StartDragFromPrivilegedWebContents) {
   view->drag_in_progress_ = true;
 
   DropData drop_data;
-  view->StartDragging(drop_data, blink::DragOperationsMask::kDragOperationNone,
+  view->StartDragging(drop_data, url::Origin::Create(GURL(kGoogleUrl)),
+                      blink::DragOperationsMask::kDragOperationNone,
                       gfx::ImageSkia(), gfx::Vector2d(), gfx::Rect(),
                       blink::mojom::DragEventSourceInfo(),
                       RenderWidgetHostImpl::From(rvh()->GetWidget()));
@@ -840,6 +869,105 @@ TEST_F(WebContentsViewAuraTest, StartDragFromPrivilegedWebContents) {
   ui::OSExchangeData* exchange_data = drag_drop_client.GetDragDropData();
   EXPECT_TRUE(exchange_data);
   EXPECT_TRUE(exchange_data->IsFromPrivileged());
+}
+
+TEST_F(WebContentsViewAuraTest, EmptyTextInDropDataIsNonNullInOSExchangeData) {
+  const char kGoogleUrl[] = "https://google.com/";
+
+  // Declare an empty but NON-NULL string
+  std::u16string empty_string;
+  NavigateAndCommit(GURL(kGoogleUrl));
+
+  TestDragDropClient drag_drop_client;
+  aura::client::SetDragDropClient(root_window(), &drag_drop_client);
+
+  // Mark the Web Contents as native UI.
+  WebContentsViewAura* view = GetView();
+
+  // This condition is needed to avoid calling WebContentsViewAura::EndDrag
+  // which will result NOTREACHED being called in
+  // `RenderWidgetHostViewBase::TransformPointToCoordSpaceForView`.
+  view->drag_in_progress_ = true;
+
+  DropData drop_data;
+  drop_data.text = empty_string;
+
+  view->StartDragging(drop_data, url::Origin::Create(GURL(kGoogleUrl)),
+                      blink::DragOperationsMask::kDragOperationNone,
+                      gfx::ImageSkia(), gfx::Vector2d(), gfx::Rect(),
+                      blink::mojom::DragEventSourceInfo(),
+                      RenderWidgetHostImpl::From(rvh()->GetWidget()));
+
+  ui::OSExchangeData* exchange_data = drag_drop_client.GetDragDropData();
+  EXPECT_TRUE(exchange_data);
+  EXPECT_EQ(exchange_data->GetString(), empty_string);
+}
+
+TEST_F(WebContentsViewAuraTest,
+       EmptyTextWithUrlInDropDataIsEmptyInOSExchangeDataGetString) {
+  const char kGoogleUrl[] = "https://google.com/";
+
+  // Declare an empty but NON-NULL string
+  std::u16string empty_string;
+  NavigateAndCommit(GURL(kGoogleUrl));
+
+  TestDragDropClient drag_drop_client;
+  aura::client::SetDragDropClient(root_window(), &drag_drop_client);
+
+  // Mark the Web Contents as native UI.
+  WebContentsViewAura* view = GetView();
+
+  // This condition is needed to avoid calling WebContentsViewAura::EndDrag
+  // which will result NOTREACHED being called in
+  // `RenderWidgetHostViewBase::TransformPointToCoordSpaceForView`.
+  view->drag_in_progress_ = true;
+
+  DropData drop_data;
+  drop_data.text = empty_string;
+  drop_data.url = GURL(kGoogleUrl);
+
+  view->StartDragging(drop_data, url::Origin::Create(GURL(kGoogleUrl)),
+                      blink::DragOperationsMask::kDragOperationNone,
+                      gfx::ImageSkia(), gfx::Vector2d(), gfx::Rect(),
+                      blink::mojom::DragEventSourceInfo(),
+                      RenderWidgetHostImpl::From(rvh()->GetWidget()));
+
+  ui::OSExchangeData* exchange_data = drag_drop_client.GetDragDropData();
+  EXPECT_TRUE(exchange_data);
+  EXPECT_EQ(exchange_data->GetString(), empty_string);
+}
+
+TEST_F(WebContentsViewAuraTest,
+       UrlInDropDataReturnsUrlInOSExchangeDataGetString) {
+  const char kGoogleUrl[] = "https://google.com/";
+
+  std::u16string url_string = u"https://google.com/";
+
+  NavigateAndCommit(GURL(kGoogleUrl));
+
+  TestDragDropClient drag_drop_client;
+  aura::client::SetDragDropClient(root_window(), &drag_drop_client);
+
+  // Mark the Web Contents as native UI.
+  WebContentsViewAura* view = GetView();
+
+  // This condition is needed to avoid calling WebContentsViewAura::EndDrag
+  // which will result NOTREACHED being called in
+  // `RenderWidgetHostViewBase::TransformPointToCoordSpaceForView`.
+  view->drag_in_progress_ = true;
+
+  DropData drop_data;
+  drop_data.url = GURL(kGoogleUrl);
+
+  view->StartDragging(drop_data, url::Origin::Create(GURL(kGoogleUrl)),
+                      blink::DragOperationsMask::kDragOperationNone,
+                      gfx::ImageSkia(), gfx::Vector2d(), gfx::Rect(),
+                      blink::mojom::DragEventSourceInfo(),
+                      RenderWidgetHostImpl::From(rvh()->GetWidget()));
+
+  ui::OSExchangeData* exchange_data = drag_drop_client.GetDragDropData();
+  EXPECT_TRUE(exchange_data);
+  EXPECT_EQ(exchange_data->GetString(), url_string);
 }
 
 }  // namespace content

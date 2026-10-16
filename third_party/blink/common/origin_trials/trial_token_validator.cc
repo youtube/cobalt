@@ -5,6 +5,8 @@
 #include "third_party/blink/public/common/origin_trials/trial_token_validator.h"
 
 #include <memory>
+#include <string_view>
+
 #include "base/check.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -17,6 +19,7 @@
 #include "third_party/blink/public/common/origin_trials/origin_trials.h"
 #include "third_party/blink/public/common/origin_trials/trial_token.h"
 #include "third_party/blink/public/common/origin_trials/trial_token_result.h"
+#include "third_party/blink/public/mojom/origin_trials/origin_trial_feature.mojom-shared.h"
 
 namespace blink {
 namespace {
@@ -61,7 +64,7 @@ OriginTrialTokenStatus IsTokenValid(
 // at |current_time| given the |trial_name|.
 // Manual completion trials add an expiry grace period, which has to be taken
 // into account to answer this question.
-bool IsTokenExpired(const base::StringPiece trial_name,
+bool IsTokenExpired(std::string_view trial_name,
                     const base::Time token_expiry_time,
                     const base::Time current_time) {
   // Check token expiry.
@@ -71,7 +74,7 @@ bool IsTokenExpired(const base::StringPiece trial_name,
       // Manual completion trials have an expiry grace period. For these trials
       // the token expiry time is valid if:
       // token_expiry_time + kExpiryGracePeriod > current_time
-      for (OriginTrialFeature feature :
+      for (mojom::OriginTrialFeature feature :
            origin_trials::FeaturesForTrial(trial_name)) {
         if (origin_trials::FeatureHasExpiryGracePeriod(feature)) {
           if (token_expiry_time + kExpiryGracePeriod > current_time) {
@@ -89,10 +92,10 @@ bool IsTokenExpired(const base::StringPiece trial_name,
 // token has not been disabled.
 OriginTrialTokenStatus ValidateTokenEnabled(
     const OriginTrialPolicy& policy,
-    const base::StringPiece trial_name,
+    std::string_view trial_name,
     const base::Time token_expiry_time,
     const TrialToken::UsageRestriction usage_restriction,
-    const base::StringPiece token_signature,
+    std::string_view token_signature,
     const base::Time current_time) {
   if (IsTokenExpired(trial_name, token_expiry_time, current_time))
     return OriginTrialTokenStatus::kExpired;
@@ -138,7 +141,7 @@ void TrialTokenValidator::ResetOriginTrialPolicyGetter() {
 }
 
 TrialTokenResult TrialTokenValidator::ValidateTokenAndTrial(
-    base::StringPiece token,
+    std::string_view token,
     const url::Origin& origin,
     base::Time current_time) const {
   return ValidateTokenAndTrialWithOriginInfo(
@@ -146,7 +149,7 @@ TrialTokenResult TrialTokenValidator::ValidateTokenAndTrial(
 }
 
 TrialTokenResult TrialTokenValidator::ValidateTokenAndTrial(
-    base::StringPiece token,
+    std::string_view token,
     const url::Origin& origin,
     base::span<const url::Origin> third_party_origins,
     base::Time current_time) const {
@@ -159,7 +162,7 @@ TrialTokenResult TrialTokenValidator::ValidateTokenAndTrial(
 }
 
 TrialTokenResult TrialTokenValidator::ValidateTokenAndTrialWithOriginInfo(
-    base::StringPiece token,
+    std::string_view token,
     const OriginInfo& origin,
     base::span<const OriginInfo> third_party_origin_info,
     base::Time current_time) const {
@@ -241,7 +244,7 @@ TrialTokenResult TrialTokenValidator::ValidateTokenAndTrialWithOriginInfo(
 }
 
 TrialTokenResult TrialTokenValidator::ValidateToken(
-    base::StringPiece token,
+    std::string_view token,
     const url::Origin& origin,
     base::Time current_time) const {
   return ValidateToken(token, origin, base::span<const url::Origin>{},
@@ -249,7 +252,7 @@ TrialTokenResult TrialTokenValidator::ValidateToken(
 }
 
 TrialTokenResult TrialTokenValidator::ValidateToken(
-    base::StringPiece token,
+    std::string_view token,
     const url::Origin& origin,
     base::span<const url::Origin> third_party_origins,
     base::Time current_time) const {
@@ -290,10 +293,10 @@ TrialTokenResult TrialTokenValidator::ValidateToken(
 }
 
 bool TrialTokenValidator::RevalidateTokenAndTrial(
-    const base::StringPiece trial_name,
+    std::string_view trial_name,
     const base::Time token_expiry_time,
     const TrialToken::UsageRestriction usage_restriction,
-    const base::StringPiece token_signature,
+    std::string_view token_signature,
     const base::Time current_time) const {
   OriginTrialPolicy* policy = PolicyGetter().Run();
 
@@ -309,8 +312,31 @@ bool TrialTokenValidator::RevalidateTokenAndTrial(
   return status == OriginTrialTokenStatus::kSuccess;
 }
 
+std::vector<mojom::OriginTrialFeature>
+TrialTokenValidator::FeaturesEnabledByTrial(std::string_view trial_name) {
+  std::vector<mojom::OriginTrialFeature> enabled_features;
+  base::span<const mojom::OriginTrialFeature> features =
+      origin_trials::FeaturesForTrial(trial_name);
+  for (const mojom::OriginTrialFeature feature : features) {
+    if (origin_trials::FeatureEnabledForOS(feature)) {
+      enabled_features.push_back(feature);
+      // Also add implied features
+      for (const mojom::OriginTrialFeature implied_feature :
+           origin_trials::GetImpliedFeatures(feature)) {
+        enabled_features.push_back(implied_feature);
+      }
+    }
+  }
+  return enabled_features;
+}
+
+bool TrialTokenValidator::TrialEnablesFeaturesForOS(
+    std::string_view trial_name) {
+  return !FeaturesEnabledByTrial(trial_name).empty();
+}
+
 bool TrialTokenValidator::RequestEnablesFeature(const net::URLRequest* request,
-                                                base::StringPiece feature_name,
+                                                std::string_view feature_name,
                                                 base::Time current_time) const {
   // TODO(mek): Possibly cache the features that are availble for request in
   // UserData associated with the request.
@@ -321,7 +347,7 @@ bool TrialTokenValidator::RequestEnablesFeature(const net::URLRequest* request,
 bool TrialTokenValidator::RequestEnablesFeature(
     const GURL& request_url,
     const net::HttpResponseHeaders* response_headers,
-    base::StringPiece feature_name,
+    std::string_view feature_name,
     base::Time current_time) const {
   return IsTrialPossibleOnOrigin(request_url) &&
          ResponseBearsValidTokenForFeature(request_url, *response_headers,
@@ -331,7 +357,7 @@ bool TrialTokenValidator::RequestEnablesFeature(
 bool TrialTokenValidator::RequestEnablesDeprecatedFeature(
     const GURL& request_url,
     const net::HttpResponseHeaders* response_headers,
-    base::StringPiece feature_name,
+    std::string_view feature_name,
     base::Time current_time) const {
   return IsDeprecationTrialPossible() &&
          ResponseBearsValidTokenForFeature(request_url, *response_headers,
@@ -341,7 +367,7 @@ bool TrialTokenValidator::RequestEnablesDeprecatedFeature(
 bool TrialTokenValidator::ResponseBearsValidTokenForFeature(
     const GURL& request_url,
     const net::HttpResponseHeaders& response_headers,
-    base::StringPiece feature_name,
+    std::string_view feature_name,
     base::Time current_time) const {
   url::Origin origin = url::Origin::Create(request_url);
   size_t iter = 0;

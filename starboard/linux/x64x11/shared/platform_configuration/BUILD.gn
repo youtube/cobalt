@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/toolchain_variables.gni")
+
 config("platform_configuration") {
-  if (current_toolchain == starboard_toolchain) {
+  if (is_starboard_toolchain) {
     configs = [
       "//starboard/build/config:starboard",
       ":libraries",
@@ -23,7 +25,7 @@ config("platform_configuration") {
       "//base/third_party/symbolize:symbolize_config",
       ":linker_flags",
     ]
-  } else if (current_toolchain == native_target) {
+  } else if (is_native_toolchain) {
     configs = [
       "//starboard/linux/shared/platform_configuration",
       "//starboard/linux/shared/platform_configuration:compiler_flags",

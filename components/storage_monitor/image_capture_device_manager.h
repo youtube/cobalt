@@ -6,9 +6,10 @@
 #define COMPONENTS_STORAGE_MONITOR_IMAGE_CAPTURE_DEVICE_MANAGER_H_
 
 #import <Foundation/Foundation.h>
+
 #include <string>
 
-#include "base/mac/scoped_nsobject.h"
+#include "base/component_export.h"
 #include "components/storage_monitor/storage_monitor.h"
 
 class MTPDeviceDelegateImplMacTest;
@@ -24,7 +25,7 @@ namespace storage_monitor {
 // ImageCapture API. Notifies clients of the presence of such devices
 // (i.e. cameras,  USB cards) using the SystemMonitor and makes them
 // available using |deviceForUUID|.
-class ImageCaptureDeviceManager {
+class COMPONENT_EXPORT(STORAGE_MONITOR) ImageCaptureDeviceManager {
  public:
   ImageCaptureDeviceManager();
   ~ImageCaptureDeviceManager();
@@ -48,7 +49,7 @@ class ImageCaptureDeviceManager {
       base::OnceCallback<void(StorageMonitor::EjectStatus)> callback);
 
  private:
-  base::scoped_nsobject<ImageCaptureDeviceManagerImpl> device_browser_;
+  ImageCaptureDeviceManagerImpl* __strong device_browser_;
 
   // Returns a weak pointer to the internal device browser.
   ICDeviceBrowser* device_browser_for_test();

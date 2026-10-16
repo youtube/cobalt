@@ -49,7 +49,7 @@ class SVGFilterGraphNodeMap final
  public:
   SVGFilterGraphNodeMap();
 
-  typedef HeapHashSet<Member<FilterEffect>> FilterEffectSet;
+  using FilterEffectSet = GCedHeapHashSet<Member<FilterEffect>>;
 
   void AddBuiltinEffect(FilterEffect*);
   void AddPrimitive(SVGFilterPrimitiveStandardAttributes&, FilterEffect*);
@@ -59,7 +59,7 @@ class SVGFilterGraphNodeMap final
   FilterEffect* EffectForElement(
       SVGFilterPrimitiveStandardAttributes& primitive) {
     auto it = effect_element_.find(&primitive);
-    return it != effect_element_.end() ? it->value : nullptr;
+    return it != effect_element_.end() ? it->value.Get() : nullptr;
   }
 
   void InvalidateDependentEffects(FilterEffect*);

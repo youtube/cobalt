@@ -4,49 +4,62 @@
 
 package org.chromium.chrome.browser.tab;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.app.Activity;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.Matrix;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.util.Size;
 import android.view.Display;
+import android.widget.ImageView;
+import android.widget.ImageView.ScaleType;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.MathUtils;
-import org.chromium.base.annotations.CalledByNative;
+import org.chromium.base.BuildInfo;
+import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
-import org.chromium.chrome.browser.tasks.tab_management.TabUiFeatureUtilities;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeProvider;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
+import org.chromium.components.browser_ui.util.AutomotiveUtils;
+import org.chromium.components.browser_ui.util.DimensionCompat;
 import org.chromium.components.content_settings.ContentSettingValues;
 import org.chromium.components.content_settings.ContentSettingsType;
-import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.display.DisplayAndroidManager;
+import org.chromium.ui.display.DisplayUtil;
 import org.chromium.url.GURL;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/**
- * Collection of utility methods that operates on Tab.
- */
+/** Collection of utility methods that operates on Tab. */
+@NullMarked
 public class TabUtils {
-    /**
-     * Define the callers of NavigationControllerImpl#setUseDesktopUserAgent.
-     */
-    @IntDef({UseDesktopUserAgentCaller.ON_MENU_OR_KEYBOARD_ACTION,
-            UseDesktopUserAgentCaller.LOAD_IF_NEEDED, UseDesktopUserAgentCaller.RELOAD,
-            UseDesktopUserAgentCaller.RELOAD_IGNORING_CACHE, UseDesktopUserAgentCaller.OTHER})
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    public static final float PORTRAIT_THUMBNAIL_ASPECT_RATIO = 0.85f;
+
+    /** Define the callers of NavigationControllerImpl#setUseDesktopUserAgent. */
+    @IntDef({
+        UseDesktopUserAgentCaller.ON_MENU_OR_KEYBOARD_ACTION,
+        UseDesktopUserAgentCaller.LOAD_IF_NEEDED,
+        UseDesktopUserAgentCaller.RELOAD,
+        UseDesktopUserAgentCaller.RELOAD_IGNORING_CACHE,
+        UseDesktopUserAgentCaller.OTHER
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface UseDesktopUserAgentCaller {
         int ON_MENU_OR_KEYBOARD_ACTION = 0;
@@ -56,34 +69,13 @@ public class TabUtils {
         int OTHER = 400;
     }
 
-    /**
-     * Define the callers of TabImpl#loadIfNeeded.
-     */
-    @IntDef({LoadIfNeededCaller.SET_TAB, LoadIfNeededCaller.ON_ACTIVITY_SHOWN,
-            LoadIfNeededCaller.ON_ACTIVITY_SHOWN_THEN_SHOW, LoadIfNeededCaller.REQUEST_TO_SHOW_TAB,
-            LoadIfNeededCaller.REQUEST_TO_SHOW_TAB_THEN_SHOW,
-            LoadIfNeededCaller.ON_FINISH_NATIVE_INITIALIZATION,
-            LoadIfNeededCaller.MAYBE_SHOW_GLOBAL_SETTING_OPT_IN_MESSAGE, LoadIfNeededCaller.OTHER})
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface LoadIfNeededCaller {
-        int SET_TAB = 0;
-        int ON_ACTIVITY_SHOWN = 1;
-        int ON_ACTIVITY_SHOWN_THEN_SHOW = 2;
-        int REQUEST_TO_SHOW_TAB = 3;
-        int REQUEST_TO_SHOW_TAB_THEN_SHOW = 4;
-        int ON_FINISH_NATIVE_INITIALIZATION = 5;
-        int MAYBE_SHOW_GLOBAL_SETTING_OPT_IN_MESSAGE = 6;
-        int OTHER = 7;
-    }
-
     // Do not instantiate this class.
     private TabUtils() {}
 
     /**
      * @return {@link Activity} associated with the given tab.
      */
-    @Nullable
-    public static Activity getActivity(Tab tab) {
+    public static @Nullable Activity getActivity(Tab tab) {
         WebContents webContents = tab != null ? tab.getWebContents() : null;
         if (webContents == null || webContents.isDestroyed()) return null;
         WindowAndroid window = webContents.getTopLevelNativeWindow();
@@ -117,9 +109,11 @@ public class TabUtils {
         } catch (Resources.NotFoundException e) {
             // Nothing, this is just a best effort estimate.
         }
-        screenBounds.set(0,
+        screenBounds.set(
+                0,
                 resources.getDimensionPixelSize(R.dimen.custom_tabs_control_container_height),
-                screenSize.x, screenSize.y);
+                screenSize.x,
+                screenSize.y);
         return screenBounds;
     }
 
@@ -129,33 +123,25 @@ public class TabUtils {
 
     /**
      * Call when tab need to switch user agent between desktop and mobile.
+     *
      * @param tab The tab to be switched the user agent.
      * @param switchToDesktop Whether switching the user agent to desktop.
-     * @param forcedByUser Whether this was triggered by users action.
      * @param caller The caller of this method.
      */
-    public static void switchUserAgent(
-            Tab tab, boolean switchToDesktop, boolean forcedByUser, int caller) {
+    public static void switchUserAgent(Tab tab, boolean switchToDesktop, int caller) {
         final boolean reloadOnChange = !tab.isNativePage();
-        tab.getWebContents().getNavigationController().setUseDesktopUserAgent(
-                switchToDesktop, reloadOnChange, caller);
-        if (forcedByUser) {
-            @TabUserAgent
-            int tabUserAgent = switchToDesktop ? TabUserAgent.DESKTOP : TabUserAgent.MOBILE;
-            if (isDesktopSiteGlobalEnabled(Profile.fromWebContents(tab.getWebContents()))
-                    == switchToDesktop) {
-                tabUserAgent = TabUserAgent.DEFAULT;
-            }
-            CriticalPersistedTabData.from(tab).setUserAgent(tabUserAgent);
-        }
+        assumeNonNull(tab.getWebContents())
+                .getNavigationController()
+                .setUseDesktopUserAgent(switchToDesktop, reloadOnChange, caller);
     }
 
     /**
      * Get UseDesktopUserAgent setting from webContents.
+     *
      * @param webContents The webContents used to retrieve UseDesktopUserAgent setting.
      * @return Whether the webContents is set to use desktop user agent.
      */
-    public static boolean isUsingDesktopUserAgent(WebContents webContents) {
+    public static boolean isUsingDesktopUserAgent(@Nullable WebContents webContents) {
         return webContents != null
                 && webContents.getNavigationController().getUseDesktopUserAgent();
     }
@@ -166,8 +152,7 @@ public class TabUtils {
      * @return The tab level RDS setting.
      */
     public static @TabUserAgent int getTabUserAgent(Tab tab) {
-        @TabUserAgent
-        int tabUserAgent = CriticalPersistedTabData.from(tab).getUserAgent();
+        @TabUserAgent int tabUserAgent = tab.getUserAgent();
         WebContents webContents = tab.getWebContents();
         boolean currentRequestDesktopSite = isUsingDesktopUserAgent(webContents);
         // TabUserAgent.UNSET means this is a pre-existing tab from an earlier build. In this case
@@ -180,7 +165,7 @@ public class TabUtils {
             } else {
                 tabUserAgent = TabUserAgent.DEFAULT;
             }
-            CriticalPersistedTabData.from(tab).setUserAgent(tabUserAgent);
+            tab.setUserAgent(tabUserAgent);
         }
         return tabUserAgent;
     }
@@ -193,11 +178,22 @@ public class TabUtils {
      */
     public static boolean readRequestDesktopSiteContentSettings(
             Profile profile, @Nullable GURL url) {
-        if (ContentFeatureList.isEnabled(ContentFeatureList.REQUEST_DESKTOP_SITE_EXCEPTIONS)) {
-            return url != null && TabUtils.isDesktopSiteEnabled(profile, url);
-        } else {
-            return TabUtils.isDesktopSiteGlobalEnabled(profile);
+        return url != null && TabUtils.isDesktopSiteEnabled(profile, url);
+    }
+
+    /**
+     * Check if Request Desktop Site ContentSettings is global setting.
+     * @param profile The profile used to retrieve ContentSettings.
+     * @param url The Url used to retrieve ContentSettings.
+     * @return Whether Request Desktop Site ContentSettings is global setting.
+     */
+    public static boolean isRequestDesktopSiteContentSettingsGlobal(
+            Profile profile, @Nullable GURL url) {
+        if (url == null) {
+            return true;
         }
+        return WebsitePreferenceBridge.isContentSettingGlobal(
+                profile, ContentSettingsType.REQUEST_DESKTOP_SITE, url, url);
     }
 
     /**
@@ -222,62 +218,156 @@ public class TabUtils {
      */
     public static boolean isDesktopSiteEnabled(Profile profile, GURL url) {
         return WebsitePreferenceBridge.getContentSetting(
-                       profile, ContentSettingsType.REQUEST_DESKTOP_SITE, url, url)
+                        profile, ContentSettingsType.REQUEST_DESKTOP_SITE, url, url)
                 == ContentSettingValues.ALLOW;
-    }
-
-    /**
-     * Return whether hardware keyboard is available, including QWERTY and 12Key keyboards.
-     * @param tab The tab used to retrieve context for keyboard configuration.
-     * TODO(shuyng): Create ConfigurationChangedObserver to update the current value in C++; to
-     * avoid extra JNI request on each navigation.
-     */
-    @CalledByNative
-    public static boolean isHardwareKeyboardAvailable(Tab tab) {
-        int keyboard = tab.getContext().getResources().getConfiguration().keyboard;
-        return keyboard == Configuration.KEYBOARD_QWERTY
-                || keyboard == Configuration.KEYBOARD_12KEY;
     }
 
     /**
      * Return aspect ratio for grid tab card based on form factor and orientation.
      * @param context - Context of the application.
+     * @param browserControlsStateProvider - For getting browser controls height.
      * @return Aspect ratio for the grid tab card.
      */
-    public static float getTabThumbnailAspectRatio(Context context) {
-        if (DeviceFormFactor.isNonMultiDisplayContextOnTablet(context)
-                && context.getResources().getConfiguration().orientation
-                        == Configuration.ORIENTATION_LANDSCAPE) {
-            return (context.getResources().getConfiguration().screenWidthDp * 1.f)
-                    / (context.getResources().getConfiguration().screenHeightDp * 1.f);
+    public static float getTabThumbnailAspectRatio(
+            Context context, BrowserControlsStateProvider browserControlsStateProvider) {
+        if (context.getResources().getConfiguration().orientation
+                == Configuration.ORIENTATION_LANDSCAPE) {
+            assert browserControlsStateProvider != null;
+            int browserControlsHeightDp =
+                    (browserControlsStateProvider == null)
+                            ? 0
+                            : Math.round(
+                                    (float) browserControlsStateProvider.getTopControlsHeight()
+                                            / context.getResources().getDisplayMetrics().density);
+            int horizontalAutomotiveToolbarHeightDp =
+                    AutomotiveUtils.getHorizontalAutomotiveToolbarHeightDp(context);
+            int verticalAutomotiveToolbarWidthDp =
+                    AutomotiveUtils.getVerticalAutomotiveToolbarWidthDp(context);
+            DimensionCompat dimensionCompat = getDimensionCompat(context);
+            float windowWidthDp = getWindowWidthDp(dimensionCompat, context);
+            float windowHeightDp = getWindowHeightExcludingSystemBarsDp(dimensionCompat, context);
+            // This should match the aspect ratio of a Tab's content area.
+            return (windowWidthDp - verticalAutomotiveToolbarWidthDp)
+                    / (windowHeightDp
+                            - browserControlsHeightDp
+                            - horizontalAutomotiveToolbarHeightDp);
         }
-        float value = (float) TabUiFeatureUtilities.THUMBNAIL_ASPECT_RATIO.getValue();
-        return MathUtils.clamp(value, 0.5f, 2.0f);
+        // This is an experimentally determined value.
+        return PORTRAIT_THUMBNAIL_ASPECT_RATIO;
+    }
+
+    private static float getWindowWidthDp(DimensionCompat compat, Context context) {
+        return compat.getWindowWidth() / context.getResources().getDisplayMetrics().density;
+    }
+
+    private static float getWindowHeightExcludingSystemBarsDp(
+            DimensionCompat compat, Context context) {
+        return (compat.getWindowHeight() - compat.getNavbarHeight() - compat.getStatusBarHeight())
+                / context.getResources().getDisplayMetrics().density;
+    }
+
+    private static DimensionCompat getDimensionCompat(Context context) {
+        // (TODO: crbug.com/351854698) Pass activity context instead.
+        Activity activity = ContextUtils.activityFromContext(context);
+        assert activity != null : "Activity from context should not be null for this class.";
+        return DimensionCompat.create(activity, null);
     }
 
     /**
      * Derive grid card height based on width, expected thumbnail aspect ratio and margins.
+     *
      * @param cardWidthPx width of the card
      * @param context to derive view margins
+     * @param browserControlsStateProvider - For getting browser controls height.
      * @return computed card height.
      */
-    public static int deriveGridCardHeight(int cardWidthPx, Context context) {
-        int tabThumbnailHeight = (int) ((cardWidthPx - getThumbnailWidthDiff(context))
-                / getTabThumbnailAspectRatio(context));
-        int cardHeightPx = tabThumbnailHeight + getThumbnailHeightDiff(context);
-        return cardHeightPx;
+    public static int deriveGridCardHeight(
+            int cardWidthPx,
+            Context context,
+            BrowserControlsStateProvider browserControlsStateProvider) {
+        float aspectRatio = getTabThumbnailAspectRatio(context, browserControlsStateProvider);
+        int thumbnailHeight = (int) ((cardWidthPx - getThumbnailWidthDiff(context)) / aspectRatio);
+        return thumbnailHeight + getThumbnailHeightDiff(context);
+    }
+
+    /**
+     * Derive grid card width based on height, expected thumbnail aspect ratio and margins.
+     *
+     * @param cardHeightPx width of the card
+     * @param context to derive view margins
+     * @param browserControlsStateProvider - For getting browser controls height.
+     * @return computed card height.
+     */
+    public static int deriveGridCardWidth(
+            int cardHeightPx,
+            Context context,
+            BrowserControlsStateProvider browserControlsStateProvider) {
+        float aspectRatio = getTabThumbnailAspectRatio(context, browserControlsStateProvider);
+        int thumbnailWidth = (int) ((cardHeightPx - getThumbnailHeightDiff(context)) * aspectRatio);
+        return thumbnailWidth + getThumbnailWidthDiff(context);
     }
 
     /**
      * Derive thumbnail size based on parent card size.
+     *
      * @param gridCardSize size of parent card.
      * @param context to derive view margins.
      * @return computed width and height of thumbnail.
      */
-    public static Size deriveThumbnailSize(@NonNull Size gridCardSize, @NonNull Context context) {
+    public static Size deriveThumbnailSize(Size gridCardSize, Context context) {
         int thumbnailWidth = gridCardSize.getWidth() - getThumbnailWidthDiff(context);
         int thumbnailHeight = gridCardSize.getHeight() - getThumbnailHeightDiff(context);
         return new Size(thumbnailWidth, thumbnailHeight);
+    }
+
+    /**
+     * Update the {@link Bitmap} and @{@link Matrix} of ImageView. The drawable is scaled by a
+     * matrix to be scaled to larger of the two dimensions of {@code destinationSize}, then
+     * top-center aligned.
+     *
+     * @param view The {@link ImageView} to update.
+     * @param drawable The {@link Drawable} to set in the view and scale.
+     * @param destinationSize The desired {@link Size} of the drawable.
+     */
+    public static void setDrawableAndUpdateImageMatrix(
+            ImageView view, Drawable drawable, Size destinationSize) {
+        if (BuildInfo.getInstance().isAutomotive) {
+            if (drawable instanceof BitmapDrawable bitmapDrawable) {
+                Bitmap bitmap = bitmapDrawable.getBitmap();
+                assert bitmap != null;
+                bitmap.setDensity(
+                        DisplayUtil.getUiDensityForAutomotive(
+                                view.getContext(), bitmap.getDensity()));
+            }
+        }
+        view.setImageDrawable(drawable);
+        int newWidth = destinationSize == null ? 0 : destinationSize.getWidth();
+        int newHeight = destinationSize == null ? 0 : destinationSize.getHeight();
+        if (newWidth <= 0
+                || newHeight <= 0
+                || (newWidth == drawable.getIntrinsicWidth()
+                        && newHeight == drawable.getIntrinsicHeight())) {
+            view.setScaleType(ScaleType.FIT_CENTER);
+            return;
+        }
+
+        final Matrix m = new Matrix();
+        final float scale =
+                Math.max(
+                        (float) newWidth / drawable.getIntrinsicWidth(),
+                        (float) newHeight / drawable.getIntrinsicHeight());
+        m.setScale(scale, scale);
+
+        /*
+         * Bitmap is top-left aligned by default. We want to translate the image to be horizontally
+         * center-aligned. |destination width - scaled width| is the width that is out of view
+         * bounds. We need to translate the drawable (to left) by half of this distance.
+         */
+        final int xOffset = (int) ((newWidth - (drawable.getIntrinsicWidth() * scale)) / 2);
+        m.postTranslate(xOffset, 0);
+
+        view.setScaleType(ScaleType.MATRIX);
+        view.setImageMatrix(m);
     }
 
     private static int getThumbnailHeightDiff(Context context) {

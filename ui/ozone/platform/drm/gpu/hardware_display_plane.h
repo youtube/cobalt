@@ -44,6 +44,8 @@ class HardwareDisplayPlane {
   // Adds trace records to |context|.
   void WriteIntoTrace(perfetto::TracedValue context) const;
 
+  std::ostream& DumpProperties(std::ostream& out) const;
+
   bool in_use() const { return in_use_; }
   void set_in_use(bool in_use) { in_use_ = in_use; }
 
@@ -55,6 +57,7 @@ class HardwareDisplayPlane {
   uint32_t owning_crtc() const { return owning_crtc_; }
 
   const std::vector<uint32_t>& supported_formats() const;
+  const std::vector<gfx::Size>& supported_cursor_sizes() const;
 
  protected:
   struct Properties {
@@ -78,9 +81,10 @@ class HardwareDisplayPlane {
     DrmWrapper::Property rotation;
     DrmWrapper::Property in_formats;
     DrmWrapper::Property in_fence_fd;
-    DrmWrapper::Property plane_ctm;
     DrmWrapper::Property plane_color_encoding;
     DrmWrapper::Property plane_color_range;
+    DrmWrapper::Property plane_fb_damage_clips;
+    DrmWrapper::Property size_hints;
   };
 
   const uint32_t id_;
@@ -93,10 +97,12 @@ class HardwareDisplayPlane {
   bool in_use_ = false;
   uint32_t type_ = DRM_PLANE_TYPE_PRIMARY;
   std::vector<uint32_t> supported_formats_;
+  std::vector<gfx::Size> supported_cursor_sizes_;
   std::vector<drm_format_modifier> supported_format_modifiers_;
 
-  uint64_t color_encoding_bt601_;
-  uint64_t color_range_limited_;
+  uint64_t color_encoding_bt601_ = 0u;
+  uint64_t color_encoding_bt709_ = 0u;
+  uint64_t color_range_limited_ = 0u;
 
  private:
   void InitializeProperties(DrmDevice* drm);

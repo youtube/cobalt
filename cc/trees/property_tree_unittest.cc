@@ -9,6 +9,7 @@
 #include "cc/input/main_thread_scrolling_reason.h"
 #include "cc/test/fake_impl_task_runner_provider.h"
 #include "cc/test/fake_layer_tree_host_impl.h"
+#include "cc/test/layer_test_common.h"
 #include "cc/test/test_task_graph_runner.h"
 #include "cc/trees/clip_node.h"
 #include "cc/trees/draw_property_utils.h"
@@ -221,7 +222,7 @@ TEST(PropertyTreeTest, UndoOverscroll) {
 
   const gfx::PointF overscroll_offset(0, 10);
   TransformNode overscroll_node;
-  overscroll_node.scroll_offset = overscroll_offset;
+  overscroll_node.SetScrollOffset(overscroll_offset, DamageReason::kUntracked);
   overscroll_node.id = transform_tree.Insert(overscroll_node, 1);
   viewport_property_ids.overscroll_elasticity_transform = overscroll_node.id;
 
@@ -551,7 +552,6 @@ TEST(EffectTreeTest, CopyOutputRequestsAreTransformed) {
   EffectTree& effect_tree = property_trees.effect_tree_mutable();
   EffectNode effect_node;
   effect_node.render_surface_reason = RenderSurfaceReason::kTest;
-  effect_node.has_copy_request = true;
   effect_node.transform_id = contents_root.id;
   effect_node.id = effect_tree.Insert(effect_node, 0);
   effect_tree.UpdateEffects(effect_node.id);
@@ -650,7 +650,6 @@ TEST(EffectTreeTest, CopyOutputRequestsThatBecomeIllegalAreDropped) {
   EffectTree& effect_tree = property_trees.effect_tree_mutable();
   EffectNode effect_node;
   effect_node.render_surface_reason = RenderSurfaceReason::kTest;
-  effect_node.has_copy_request = true;
   effect_node.transform_id = contents_root.id;
   effect_node.id = effect_tree.Insert(effect_node, 0);
   effect_tree.UpdateEffects(effect_node.id);
@@ -671,7 +670,7 @@ TEST(EffectTreeTest, CopyOutputRequestsThatBecomeIllegalAreDropped) {
 // (fractionally) larger due to floating point precision errors, and if the
 // scroll offset is near zero that can naively lead to a negative offset being
 // returned which is not desirable.
-TEST(ScrollTreeTest, GetPixelSnappedScrollOffsetNegativeOffset) {
+TEST(ScrollTreeTest, GetScrollOffsetForScrollTimelineNegativeOffset) {
   FakeProtectedSequenceSynchronizer synchronizer;
   PropertyTrees property_trees(synchronizer);
   ScrollTree& scroll_tree = property_trees.scroll_tree_mutable();
@@ -686,14 +685,16 @@ TEST(ScrollTreeTest, GetPixelSnappedScrollOffsetNegativeOffset) {
   // Set a scroll value close to 0.
   scroll_tree.SetScrollOffset(element_id, gfx::PointF(0, 0.1));
   transform_tree.Node(transform_node_id)->scrolls = true;
-  transform_tree.Node(transform_node_id)->scroll_offset = gfx::PointF(0, 0.1);
+  transform_tree.Node(transform_node_id)
+      ->SetScrollOffset(gfx::PointF(0, 0.1), DamageReason::kUntracked);
 
   // Pretend that the snap amount was slightly larger than 0.1.
   transform_tree.Node(transform_node_id)->snap_amount = gfx::Vector2dF(0, 0.2);
   transform_tree.Node(transform_node_id)->needs_local_transform_update = false;
 
   // The returned offset should be clamped at a minimum of 0.
-  gfx::PointF offset = scroll_tree.GetPixelSnappedScrollOffset(scroll_node_id);
+  gfx::PointF offset = scroll_tree.GetScrollOffsetForScrollTimeline(
+      *scroll_tree.Node(scroll_node_id));
   EXPECT_EQ(offset.y(), 0);
 }
 
@@ -717,8 +718,9 @@ TEST(ScrollTreeTest, PushScrollUpdatesFromMainThreadIntegerDelta) {
   // Set up FakeLayerTreeHostImpl.
   TestTaskGraphRunner task_graph_runner;
   FakeImplTaskRunnerProvider impl_task_runner_provider;
-  FakeLayerTreeHostImpl host_impl(
-      LayerTreeSettings(), &impl_task_runner_provider, &task_graph_runner);
+  FakeLayerTreeHostImpl host_impl(CommitToPendingTreeLayerTreeSettings(),
+                                  &impl_task_runner_provider,
+                                  &task_graph_runner);
   host_impl.CreatePendingTree();
 
   // Set up pending property trees.

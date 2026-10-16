@@ -6,35 +6,41 @@
 # pylint: disable=protected-access
 
 
+import copy
+import dataclasses
 import json
 import os
 import tempfile
 import typing
-from typing import Dict, List, Optional, Set, Tuple, Type
+from typing import Any, Type
 import unittest
-import unittest.mock as mock
+from unittest import mock
 
-import gpu_project_config
-import run_gpu_integration_test
-
+# Needed in order for the tools/perf and Telemetry imports to work.
+# pylint: disable=unused-import,wrong-import-order
+from gpu_path_util import setup_telemetry_paths
+from gpu_path_util import setup_tools_perf_paths
+# pylint: enable=unused-import,wrong-import-order
 from chrome_telemetry_build import chromium_config
-
-from gpu_tests import common_typing as ct
-from gpu_tests import context_lost_integration_test
-from gpu_tests import gpu_helper
-from gpu_tests import gpu_integration_test
-from gpu_tests import webgl1_conformance_integration_test as webgl1_cit
-from gpu_tests import webgl2_conformance_integration_test as webgl2_cit
-
-import gpu_path_util
-
 from py_utils import tempfile_ext
-
+from telemetry.internal.browser import browser_options as bo
 from telemetry.internal.util import binary_manager
 from telemetry.internal.platform import system_info
 from telemetry.testing import browser_test_runner
 from telemetry.testing import fakes
 from telemetry.testing import run_browser_tests
+
+import gpu_path_util
+import gpu_project_config
+from gpu_tests import common_typing as ct
+from gpu_tests import context_lost_integration_test
+from gpu_tests import gpu_helper
+from gpu_tests import gpu_integration_test
+from gpu_tests import trace_integration_test as trace_it
+from gpu_tests import webgl1_conformance_integration_test as webgl1_cit
+from gpu_tests import webgl2_conformance_integration_test as webgl2_cit
+from gpu_tests import webgpu_compat_cts_integration_test as webgpu_compat_cit
+import run_gpu_integration_test
 
 # Unittest test cases are defined as public methods, so ignore complaints about
 # having too many.
@@ -89,7 +95,7 @@ def _GetSystemInfo(  # pylint: disable=too-many-arguments
 
 
 def _GetTagsToTest(browser: fakes.FakeBrowser,
-                   test_class: Optional[GpuTestClassType] = None) -> Set[str]:
+                   test_class: GpuTestClassType | None = None) -> set[str]:
   browser = typing.cast(ct.Browser, browser)
   test_class = test_class or gpu_integration_test.GpuIntegrationTest
   tags = None
@@ -105,11 +111,11 @@ def _GenerateNvidiaExampleTagsForTestClassAndArgs(
     is_asan: bool = False,
     is_clang_coverage: bool = False,
     target_cpu_bits: int = 64,
-) -> Set[str]:
+) -> set[str]:
   tags = None
   with mock.patch.object(
       test_class, 'ExpectationsFiles', return_value=['exp.txt']):
-    _ = list(test_class.GenerateGpuTests(args))
+    _ = list(test_class.GenerateTestCases__RunGpuTest(args))
     platform = fakes.FakePlatform('win', 'win10')
     browser = fakes.FakeBrowser(platform, 'release')
     browser._returned_system_info = _GetSystemInfo(
@@ -123,15 +129,14 @@ def _GenerateNvidiaExampleTagsForTestClassAndArgs(
   return tags
 
 
+@dataclasses.dataclass
 class _IntegrationTestArgs():
   """Struct-like object for defining an integration test."""
-
-  def __init__(self, test_name: str):
-    self.test_name = test_name
-    self.failures = []
-    self.successes = []
-    self.skips = []
-    self.additional_args = []
+  test_name: str
+  failures: list[str] = ct.EmptyList()
+  successes: list[str] = ct.EmptyList()
+  skips: list[str] = ct.EmptyList()
+  additional_args: list[str] = ct.EmptyList()
 
 
 class GpuIntegrationTestUnittest(unittest.TestCase):
@@ -141,24 +146,24 @@ class GpuIntegrationTestUnittest(unittest.TestCase):
 
   def _RunGpuIntegrationTests(self,
                               test_name: str,
-                              extra_args: Optional[List[str]] = None) -> None:
+                              extra_args: list[str] | None = None) -> None:
     extra_args = extra_args or []
     unittest_config = chromium_config.ChromiumConfig(
         top_level_dir=gpu_path_util.GPU_DIR,
         benchmark_dirs=[os.path.join(gpu_path_util.GPU_DIR, 'unittest_data')])
     with binary_manager.TemporarilyReplaceBinaryManager(None), \
          mock.patch.object(gpu_project_config, 'CONFIG', unittest_config):
-      # TODO(crbug.com/1103792): Using NamedTemporaryFile() as a generator is
+      # TODO(crbug.com/40139419): Using NamedTemporaryFile() as a generator is
       # causing windows bots to fail. When the issue is fixed with
       # tempfile_ext.NamedTemporaryFile(), put it in the list of generators
       # starting this with block. Also remove the try finally statement
       # below.
-      temp_file = tempfile.NamedTemporaryFile(delete=False)
-      temp_file.close()
+      with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_file_name = temp_file.name
       try:
         test_argv = [
             test_name,
-            '--write-full-results-to=%s' % temp_file.name,
+            f'--write-full-results-to={temp_file_name}',
             # We don't want the underlying typ-based tests to report their
             # results to ResultDB.
             '--disable-resultsink',
@@ -172,10 +177,10 @@ class GpuIntegrationTestUnittest(unittest.TestCase):
         telemetry_args = browser_test_runner.ProcessConfig(
             unittest_config, processed_args)
         run_browser_tests.RunTests(telemetry_args)
-        with open(temp_file.name) as f:
+        with open(temp_file_name, encoding='utf-8') as f:
           self._test_result = json.load(f)
       finally:
-        temp_file.close()
+        os.remove(temp_file_name)
 
   def testOverrideDefaultRetryArgumentsinRunGpuIntegrationTests(self) -> None:
     self._RunGpuIntegrationTests('run_tests_with_expectations_files',
@@ -200,7 +205,7 @@ class GpuIntegrationTestUnittest(unittest.TestCase):
                                         args: mock.MagicMock,
                                         is_asan: bool = False,
                                         is_clang_coverage: bool = False,
-                                        target_cpu_bits: int = 64) -> Set[str]:
+                                        target_cpu_bits: int = 64) -> set[str]:
     tag_set = _GenerateNvidiaExampleTagsForTestClassAndArgs(
         test_class, args, is_asan, is_clang_coverage, target_cpu_bits)
     self.assertTrue(
@@ -268,36 +273,56 @@ class GpuIntegrationTestUnittest(unittest.TestCase):
             args,
             target_cpu_bits=31))
 
-  def testGenerateWebglConformanceExampleTagsForWebglVersion1andAsan(self
-                                                                     ) -> None:
+  def testGenerateWebglConformanceExampleTagsForAsan(self) -> None:
     args = gpu_helper.GetMockArgs(webgl_version='1.0.0')
     tag_set = self._TestTagGenerationForMockPlatform(
         webgl1_cit.WebGL1ConformanceIntegrationTest, args, is_asan=True)
-    self.assertTrue(set(['asan', 'webgl-version-1']).issubset(tag_set))
-    self.assertFalse(set(['no-asan', 'webgl-version-2']) & tag_set)
+    self.assertTrue(set(['asan']).issubset(tag_set))
+    self.assertFalse(set(['no-asan']) & tag_set)
 
-  def testGenerateWebglConformanceExampleTagsForWebglVersion2andNoAsan(
-      self) -> None:
+  def testGenerateWebglConformanceExampleTagsForNoAsan(self) -> None:
     args = gpu_helper.GetMockArgs(webgl_version='2.0.0')
     tag_set = self._TestTagGenerationForMockPlatform(
         webgl2_cit.WebGL2ConformanceIntegrationTest, args)
-    self.assertTrue(set(['no-asan', 'webgl-version-2']).issubset(tag_set))
-    self.assertFalse(set(['asan', 'webgl-version-1']) & tag_set)
+    self.assertTrue(set(['no-asan']).issubset(tag_set))
+    self.assertFalse(set(['asan']) & tag_set)
 
   def testWebGlConformanceTimeoutNoAsan(self) -> None:
     instance = webgl1_cit.WebGL1ConformanceIntegrationTest(
         '_RunConformanceTest')
-    instance.is_asan = False
+    instance._is_asan = False
     self.assertEqual(instance._GetTestTimeout(), 300)
 
   def testWebGlConformanceTimeoutAsan(self) -> None:
     instance = webgl1_cit.WebGL1ConformanceIntegrationTest(
         '_RunConformanceTest')
-    instance.is_asan = True
+    instance._is_asan = True
     self.assertEqual(instance._GetTestTimeout(), 600)
 
-  @mock.patch('sys.platform', 'win32')
-  def testGenerateNvidiaExampleTags(self) -> None:
+  def testAsanClassMemberSetCorrectly(self):
+    test_class = gpu_integration_test.GpuIntegrationTest
+    platform = fakes.FakePlatform('win', 'win10')
+    browser = fakes.FakeBrowser(platform, 'release')
+    browser = typing.cast(ct.Browser, browser)
+
+    browser._returned_system_info = _GetSystemInfo(is_asan=True)
+    with mock.patch.object(test_class,
+                           'ExpectationsFiles',
+                           return_value=['exp.txt']):
+      test_class.GetPlatformTags(browser)
+    self.assertTrue(test_class._is_asan)
+
+    browser._returned_system_info = _GetSystemInfo(is_asan=False)
+    with mock.patch.object(test_class,
+                           'ExpectationsFiles',
+                           return_value=['exp.txt']):
+      test_class.GetPlatformTags(browser)
+    self.assertFalse(test_class._is_asan)
+
+  @mock.patch('gpu_tests.util.host_information.IsLinux', return_value=False)
+  @mock.patch('gpu_tests.util.host_information.GetSystemMemoryBytes',
+              return_value=32_000_000_000)
+  def testGenerateNvidiaExampleTags(self, _, __) -> None:
     platform = fakes.FakePlatform('win', 'win10')
     browser = fakes.FakeBrowser(platform, 'release')
     browser._returned_system_info = _GetSystemInfo(
@@ -313,14 +338,17 @@ class GpuIntegrationTestUnittest(unittest.TestCase):
             'angle-d3d9',
             'no-passthrough',
             'renderer-skia-gl',
-            'no-oop-c',
             'no-asan',
             'target-cpu-64',
             'no-clang-coverage',
+            'graphite-disabled',
+            'memory_ge_16gb',
         ]))
 
-  @mock.patch('sys.platform', 'darwin')
-  def testGenerateVendorTagUsingVendorString(self) -> None:
+  @mock.patch('gpu_tests.util.host_information.IsLinux', return_value=False)
+  @mock.patch('gpu_tests.util.host_information.GetSystemMemoryBytes',
+              return_value=32_000_000_000)
+  def testGenerateVendorTagUsingVendorString(self, _, __) -> None:
     platform = fakes.FakePlatform('mac', 'mojave')
     browser = fakes.FakeBrowser(platform, 'release')
     browser._returned_system_info = _GetSystemInfo(
@@ -341,12 +369,15 @@ class GpuIntegrationTestUnittest(unittest.TestCase):
             'angle-opengles',
             'passthrough',
             'renderer-skia-gl',
-            'no-oop-c',
             'no-clang-coverage',
+            'graphite-disabled',
+            'memory_ge_16gb',
         ]))
 
-  @mock.patch('sys.platform', 'darwin')
-  def testGenerateVendorTagUsingDeviceString(self) -> None:
+  @mock.patch('gpu_tests.util.host_information.IsLinux', return_value=False)
+  @mock.patch('gpu_tests.util.host_information.GetSystemMemoryBytes',
+              return_value=32_000_000_000)
+  def testGenerateVendorTagUsingDeviceString(self, _, __) -> None:
     platform = fakes.FakePlatform('mac', 'mojave')
     browser = fakes.FakeBrowser(platform, 'release')
     browser._returned_system_info = _GetSystemInfo(
@@ -365,9 +396,29 @@ class GpuIntegrationTestUnittest(unittest.TestCase):
             'angle-disabled',
             'no-passthrough',
             'renderer-skia-gl',
-            'no-oop-c',
             'no-clang-coverage',
+            'graphite-disabled',
+            'memory_ge_16gb',
         ]))
+
+  @mock.patch('gpu_tests.util.host_information.IsLinux', return_value=False)
+  def testGenerateMemoryTags(self, _):
+    platform = fakes.FakePlatform('win', 'win10')
+    browser = fakes.FakeBrowser(platform, 'release')
+    browser._returned_system_info = _GetSystemInfo(
+        gpu=VENDOR_NVIDIA, device=0x1cb3, gl_renderer='ANGLE Direct3D9')
+
+    with mock.patch('gpu_tests.util.host_information.GetSystemMemoryBytes',
+                    return_value=8_000_000_000):
+      tags = _GetTagsToTest(browser)
+      self.assertIn('memory_lt_16gb', tags)
+      self.assertNotIn('memory_ge_16gb', tags)
+
+    with mock.patch('gpu_tests.util.host_information.GetSystemMemoryBytes',
+                    return_value=16_000_000_000):
+      tags = _GetTagsToTest(browser)
+      self.assertNotIn('memory_lt_16gb', tags)
+      self.assertIn('memory_ge_16gb', tags)
 
   @mock.patch.dict(os.environ, clear=True)
   def testGenerateDisplayServer(self) -> None:
@@ -375,13 +426,14 @@ class GpuIntegrationTestUnittest(unittest.TestCase):
     browser = fakes.FakeBrowser(platform, 'release')
     browser = typing.cast(ct.Browser, browser)
 
-    with mock.patch('sys.platform', 'darwin'):
+    with mock.patch('gpu_tests.util.host_information.IsLinux',
+                    return_value=False):
       tags = gpu_integration_test.GpuIntegrationTest.GetPlatformTags(browser)
       for t in tags:
         self.assertFalse(t.startswith('display-server'))
 
-    # Python 2's return value.
-    with mock.patch('sys.platform', 'linux2'):
+    with mock.patch('gpu_tests.util.host_information.IsLinux',
+                    return_value=True):
       tags = gpu_integration_test.GpuIntegrationTest.GetPlatformTags(browser)
       self.assertIn('display-server-x', tags)
 
@@ -389,15 +441,14 @@ class GpuIntegrationTestUnittest(unittest.TestCase):
       tags = gpu_integration_test.GpuIntegrationTest.GetPlatformTags(browser)
       self.assertIn('display-server-wayland', tags)
 
-    # Python 3's return value.
-    with mock.patch('sys.platform', 'linux'):
-      del os.environ['WAYLAND_DISPLAY']
-      tags = gpu_integration_test.GpuIntegrationTest.GetPlatformTags(browser)
-      self.assertIn('display-server-x', tags)
-
-      os.environ['WAYLAND_DISPLAY'] = 'wayland-0'
-      tags = gpu_integration_test.GpuIntegrationTest.GetPlatformTags(browser)
-      self.assertIn('display-server-wayland', tags)
+  def testTraceTestPrefixesInSync(self):
+    """Verifies that the trace test known prefix list is in sync."""
+    test_cases = list(
+        trace_it.TraceIntegrationTest.GenerateTestCases__RunGpuTest(
+            mock.MagicMock()))
+    valid_prefixes = tuple(trace_it.TraceIntegrationTest.known_test_prefixes)
+    for test_name, _ in test_cases:
+      self.assertTrue(test_name.startswith(valid_prefixes))
 
   def testSimpleIntegrationTest(self) -> None:
     test_args = _IntegrationTestArgs('simple_integration_unittest')
@@ -549,11 +600,12 @@ class GpuIntegrationTestUnittest(unittest.TestCase):
       pass
 
     def SetBrowserAndRaiseTestException() -> None:
-      gpu_integration_test.GpuIntegrationTest.browser = (mock.MagicMock())
+      gpu_integration_test.GpuIntegrationTest.browser = mock.MagicMock()
       raise TestException
 
     gpu_integration_test.GpuIntegrationTest.browser = None
     gpu_integration_test.GpuIntegrationTest.platform = None
+    gpu_integration_test.GpuIntegrationTest._finder_options = mock.MagicMock()
     with mock.patch.object(
         gpu_integration_test.serially_executed_browser_test_case.\
             SeriallyExecutedBrowserTestCase,
@@ -567,27 +619,6 @@ class GpuIntegrationTestUnittest(unittest.TestCase):
                          gpu_integration_test._START_BROWSER_RETRIES)
         self.assertEqual(mock_stop_browser.call_count,
                          gpu_integration_test._START_BROWSER_RETRIES)
-
-  def testConsolidateBrowserArgs(self) -> None:
-    original_args = [
-        '--foo', 'value', '--enable-features', 'A', '--disable-features', 'B',
-        '--bar', '--enable-features=C,D=E'
-    ]
-    consolidated_args = gpu_integration_test._ConsolidateBrowserArgs(
-        original_args)
-    # We use sets for the consolidation check since the order they are appended
-    # is random due to the use of a dict.
-    expected_non_consolidated = ['--foo', 'value', '--bar']
-    expected_consolidated = {
-        '--enable-features=A,C,D=E', '--disable-features=B'
-    }
-    self.assertEqual(
-        len(consolidated_args),
-        len(expected_non_consolidated) + len(expected_consolidated))
-    self.assertEqual(consolidated_args[:len(expected_non_consolidated)],
-                     expected_non_consolidated)
-    self.assertEqual(set(consolidated_args[len(expected_non_consolidated):]),
-                     expected_consolidated)
 
   def _RunIntegrationTest(self, test_args: _IntegrationTestArgs) -> None:
     """Runs an integration and asserts fail/success/skip expectations.
@@ -611,8 +642,8 @@ class GpuIntegrationTestUnittest(unittest.TestCase):
           config,
           [
               test_args.test_name,
-              '--write-full-results-to=%s' % test_results_path,
-              '--test-state-json-path=%s' % test_state_path,
+              f'--write-full-results-to={test_results_path}',
+              f'--test-state-json-path={test_state_path}',
               # We don't want the underlying typ-based tests to report their
               # results to ResultDB.
               '--disable-resultsink',
@@ -623,9 +654,9 @@ class GpuIntegrationTestUnittest(unittest.TestCase):
               '--use-global-pool',
           ] + test_args.additional_args)
       run_browser_tests.RunTests(args)
-      with open(test_results_path) as f:
+      with open(test_results_path, encoding='utf-8') as f:
         self._test_result = json.load(f)
-      with open(test_state_path) as f:
+      with open(test_state_path, encoding='utf-8') as f:
         self._test_state = json.load(f)
       actual_successes, actual_failures, actual_skips = (_ExtractTestResults(
           self._test_result))
@@ -634,8 +665,290 @@ class GpuIntegrationTestUnittest(unittest.TestCase):
       self.assertEqual(set(actual_skips), set(test_args.skips))
 
 
-def _ExtractTestResults(test_result: Dict[str, Dict]
-                        ) -> Tuple[List[str], List[str], List[str]]:
+def RunFakeBrowserStartWithArgsAndGpuInfo(
+    additional_args: list[str],
+    gpu_info: Any,
+    gpu_test_class: GpuTestClassType = gpu_integration_test.GpuIntegrationTest
+) -> None:
+  cls = gpu_test_class
+
+  def FakeStartBrowser():
+    cls.browser = mock.Mock()
+    cls.browser.tabs = [mock.Mock()]
+    mock_system_info = mock.Mock()
+    mock_system_info.gpu = gpu_info
+    cls.browser.GetSystemInfo = mock.Mock(return_value=mock_system_info)
+
+  with mock.patch(
+      'telemetry.testing.serially_executed_browser_test_case.'
+      'SeriallyExecutedBrowserTestCase.StartBrowser',
+      side_effect=FakeStartBrowser):
+    options = fakes.CreateBrowserFinderOptions()
+    cls._finder_options = options
+    cls._original_finder_options = options
+    cls.platform = None
+    cls.CustomizeBrowserArgs(additional_args)
+    cls.StartBrowser()
+
+
+def CreateGpuInfo(aux_attributes: dict | None = None,
+                  feature_statuses: dict | None = None) -> mock.Mock:
+  aux_attributes = aux_attributes or {}
+  feature_statuses = feature_statuses or {}
+
+  gpu_info = mock.Mock()
+  gpu_info.aux_attributes = aux_attributes
+  gpu_info.feature_status = feature_statuses
+  device = mock.Mock()
+  device.device_string = 'device_string'
+  gpu_info.devices = [device]
+  return gpu_info
+
+
+# TODO(crbug.com/372740546): Find a way to properly unittest the cases
+# where --gpu-disabled is passed in as well. Currently, we run into
+# problems due to cls.platform being None, which causes problems with
+# GPU code in _GenerateAndSanitizeBrowserArgs. Setting cls.platform to
+# non-None values causes Telemetry code to fail due to the platform
+# changing when it expects it to stay constant throughout the entire
+# suite.
+class FeatureVerificationUnittest(unittest.TestCase):
+
+  # pylint: disable=no-self-use
+  def testVerifyGLBackendSuccessUnspecified(self):
+    """Tests GL backend verification that passes w/o a backend specified."""
+    gpu_info = CreateGpuInfo(aux_attributes={
+        'gl_renderer': 'ANGLE OpenGL',
+    })
+    RunFakeBrowserStartWithArgsAndGpuInfo([], gpu_info)
+
+  def testVerifyGLBackendSuccessSpecified(self):
+    """Tests GL backend verification that passes w/ a backend specified."""
+    gpu_info = CreateGpuInfo(aux_attributes={
+        'gl_renderer': 'ANGLE OpenGL',
+    })
+    RunFakeBrowserStartWithArgsAndGpuInfo(['--use-gl=angle'], gpu_info)
+
+  def testVerifyGLBackendFailure(self):
+    """Tests GL backend verification that fails."""
+    gpu_info = CreateGpuInfo(aux_attributes={})
+    with self.assertRaisesRegex(
+        RuntimeError,
+        'Requested GL backend \\(angle\\) had no effect on the browser:.*'):
+      RunFakeBrowserStartWithArgsAndGpuInfo(['--use-gl=angle'], gpu_info)
+
+  def testVerifyANGLEBackendSuccessUnspecified(self):
+    """Tests ANGLE backend verification that passes w/o a backend specified."""
+    gpu_info = CreateGpuInfo(aux_attributes={
+        'gl_renderer': 'ANGLE OpenGL',
+    })
+    RunFakeBrowserStartWithArgsAndGpuInfo([], gpu_info)
+
+  def testVerifyANGLEBackendSuccessSpecified(self):
+    """Tests ANGLE backend verification that passes w/ a backend specified."""
+    gpu_info = CreateGpuInfo(aux_attributes={
+        'gl_renderer': 'ANGLE OpenGL',
+    })
+    RunFakeBrowserStartWithArgsAndGpuInfo(['--use-angle=gl'], gpu_info)
+
+  def testVerifyANGLEBackendFailureUnknownBackend(self):
+    """Tests ANGLE backend verification failure due to an unknown backend."""
+    gpu_info = CreateGpuInfo(aux_attributes={
+        'gl_renderer': 'ANGLE foo',
+    })
+    with self.assertRaisesRegex(
+        RuntimeError,
+        'Requested ANGLE backend \\(foo\\) had no effect on the browser:.*'):
+      RunFakeBrowserStartWithArgsAndGpuInfo(['--use-angle=foo'], gpu_info)
+
+  def testVerifyANGLEBackendFailureMismatchedBackend(self):
+    """Tests ANGLE backend verification failure due to mismatched backends."""
+    gpu_info = CreateGpuInfo(aux_attributes={
+        'gl_renderer': 'ANGLE Vulkan',
+    })
+    with self.assertRaisesRegex(
+        RuntimeError,
+        'Requested ANGLE backend \\(gl\\) had no effect on the browser:.*'):
+      RunFakeBrowserStartWithArgsAndGpuInfo(['--use-angle=gl'], gpu_info)
+
+  def testVerifyCommandDecoderSuccessUnspecified(self):
+    """Tests cmd decoder verification that passes w/o a decoder specified."""
+    gpu_info = CreateGpuInfo(aux_attributes={
+        'passthrough_cmd_decoder': True,
+    })
+    RunFakeBrowserStartWithArgsAndGpuInfo([], gpu_info)
+
+  def testVerifyCommandDecoderSuccessSpecified(self):
+    """Tests cmd decoder verification that passes w/ a decoder specified."""
+    gpu_info = CreateGpuInfo(aux_attributes={
+        'passthrough_cmd_decoder': True,
+    })
+    RunFakeBrowserStartWithArgsAndGpuInfo(['--use-cmd-decoder=passthrough'],
+                                          gpu_info)
+
+  def testVerifyCommandDecoderFailureUnknownDecoder(self):
+    """Tests cmd decoder verification that fails due to an unknown decoder."""
+    gpu_info = CreateGpuInfo(aux_attributes={
+        'passthrough_cmd_decoder': True,
+    })
+    with self.assertRaisesRegex(
+        RuntimeError,
+        'Requested command decoder \\(foo\\) had no effect on the browser:.*'):
+      RunFakeBrowserStartWithArgsAndGpuInfo(['--use-cmd-decoder=foo'], gpu_info)
+
+  def testVerifyCommandDecoderFailureMismatchedDecoder(self):
+    """Tests cmd decoder verification that fails due to a mismatched decoder."""
+    gpu_info = CreateGpuInfo(aux_attributes={
+        'passthrough_cmd_decoder': False,
+    })
+    with self.assertRaisesRegex(
+        RuntimeError,
+        'Requested command decoder \\(passthrough\\) had no effect on the '
+        'browser:.*'):
+      RunFakeBrowserStartWithArgsAndGpuInfo(['--use-cmd-decoder=passthrough'],
+                                            gpu_info)
+
+  def testVerifySkiaGraphiteSuccessUnspecified(self):
+    """Tests Skia Graphite verification that passes w/o specification."""
+    gpu_info = CreateGpuInfo(feature_statuses={
+        'skia_graphite': 'enabled_on',
+    })
+    RunFakeBrowserStartWithArgsAndGpuInfo([], gpu_info)
+
+  def testVerifySkiaGraphiteSuccessSpecified(self):
+    """Tests Skia Graphite verification that passes w/ specification."""
+    gpu_info = CreateGpuInfo(feature_statuses={
+        'skia_graphite': 'enabled_on',
+    })
+    RunFakeBrowserStartWithArgsAndGpuInfo(['--enable-features=SkiaGraphite'],
+                                          gpu_info)
+
+    gpu_info = CreateGpuInfo(feature_statuses={})
+    RunFakeBrowserStartWithArgsAndGpuInfo(['--disable-features=SkiaGraphite'],
+                                          gpu_info)
+
+  def testVerifySkiaGraphiteFailureMismatchedStatus(self):
+    """Tests Skia Graphite verification that fails due to mismatched status."""
+    gpu_info = CreateGpuInfo(feature_statuses={})
+    with self.assertRaisesRegex(
+        RuntimeError,
+        'Requested Skia Graphite status \\(graphite-enabled\\) had no effect '
+        'on the browser:.*'):
+      RunFakeBrowserStartWithArgsAndGpuInfo(['--enable-features=SkiaGraphite'],
+                                            gpu_info)
+
+    gpu_info = CreateGpuInfo(feature_statuses={
+        'skia_graphite': 'enabled_on',
+    })
+    with self.assertRaisesRegex(
+        RuntimeError,
+        'Requested Skia Graphite status \\(graphite-disabled\\) had no effect '
+        'on the browser:.*'):
+      RunFakeBrowserStartWithArgsAndGpuInfo(['--disable-features=SkiaGraphite'],
+                                            gpu_info)
+
+  # pylint: enable=no-self-use
+
+
+class FeatureVerificationWebGPUCompatUnittest(unittest.TestCase):
+
+  # pylint: disable=no-self-use
+  def testVerifyCompatContextSuccessUnspecified(self):
+    """Tests WebGPU compat verification that passes w/o the es31 flag."""
+    gpu_info = CreateGpuInfo(aux_attributes={
+        'gl_renderer': 'ANGLE OpenGL ES 3.1',
+    })
+    RunFakeBrowserStartWithArgsAndGpuInfo(
+        [], gpu_info, webgpu_compat_cit.WebGpuCompatCtsIntegrationTest)
+
+  def testVerifyCompatContextSuccessSpecified(self):
+    """Tests WebGPU compat verification that passes w/ the es31 flag."""
+    gpu_info = CreateGpuInfo(aux_attributes={
+        'gl_renderer': 'ANGLE OpenGL ES 3.1',
+    })
+    RunFakeBrowserStartWithArgsAndGpuInfo(
+        ['--use-dawn-features=gl_force_es_31_and_no_extensions'], gpu_info,
+        webgpu_compat_cit.WebGpuCompatCtsIntegrationTest)
+
+  # TODO(crbug.com/388318201): Uncomment the following test
+  # def testVerifyCompatContextFailure(self):
+  #   """Tests WebGPU compat verification that fails."""
+  #   gpu_info = CreateGpuInfo(aux_attributes={
+  #       'gl_renderer': 'ANGLE OpenGL ES 3.2',
+  #   })
+  #   with self.assertRaisesRegex(RuntimeError,
+  #                             'Requested WebGPU compat context min ES31 .*'):
+  #     RunFakeBrowserStartWithArgsAndGpuInfo(
+  #         ['--use-dawn-features=gl_force_es_31_and_no_extensions'], gpu_info,
+  #         webgpu_compat_cit.WebGpuCompatCtsIntegrationTest)
+
+class PreemptArgsUnittest(unittest.TestCase):
+
+  def testNoConflictIsNoOp(self):
+    """Tests that no conflict arguments results in a no-op."""
+    options = bo.BrowserOptions()
+    options.AppendExtraBrowserArgs(['--use-angle=gl', '--another-arg'])
+    expected_browser_args = copy.deepcopy(options.extra_browser_args)
+    gpu_integration_test._PreemptArguments(options,
+                                           ['--use-webgpu-adapter=swiftshader'])
+    self.assertEqual(options.extra_browser_args, expected_browser_args)
+
+  def testConflictingArgsRemoved(self):
+    for arg in gpu_integration_test._ARGS_TO_PREEMPT:
+      options = bo.BrowserOptions()
+      options.AppendExtraBrowserArgs([f'{arg}=a', '--another-arg'])
+      gpu_integration_test._PreemptArguments(options,
+                                             [f'{arg}=b', '--yet-another-arg'])
+      self.assertEqual(options.extra_browser_args, set(['--another-arg']))
+
+
+class GetGPUInfoErrorStringUnittest(unittest.TestCase):
+
+  def testMinimalInformation(self):
+    """Tests error string generation w/ the minimum possible information."""
+    gpu_info = CreateGpuInfo()
+    expected_error = 'primary gpu=device_string'
+    self.assertEqual(gpu_integration_test._GetGPUInfoErrorString(gpu_info),
+                     expected_error)
+
+  def testGLRenderer(self):
+    """Tests error string generation w/ the GL renderer specified."""
+    gpu_info = CreateGpuInfo(aux_attributes={
+        'gl_renderer': 'foo',
+    })
+    expected_error = 'primary gpu=device_string, gl_renderer=foo'
+    self.assertEqual(gpu_integration_test._GetGPUInfoErrorString(gpu_info),
+                     expected_error)
+
+  def testFeatureStatuses(self):
+    """Tests error string generation w/ feature statuses specified."""
+    gpu_info = CreateGpuInfo(feature_statuses={
+        'featureA': 'on',
+        'featureB': 'off',
+    })
+    expected_error = ('primary gpu=device_string, '
+                      'feature_statuses=featureA=on,featureB=off')
+    self.assertEqual(gpu_integration_test._GetGPUInfoErrorString(gpu_info),
+                     expected_error)
+
+  def testGLRendererAndFeatureStatuses(self):
+    """Tests error string generation w/ GL renderer/feature status specified."""
+    gpu_info = CreateGpuInfo(aux_attributes={
+        'gl_renderer': 'foo',
+    },
+                             feature_statuses={
+                                 'featureA': 'on',
+                                 'featureB': 'off'
+                             })
+    expected_error = ('primary gpu=device_string, '
+                      'gl_renderer=foo, '
+                      'feature_statuses=featureA=on,featureB=off')
+    self.assertEqual(gpu_integration_test._GetGPUInfoErrorString(gpu_info),
+                     expected_error)
+
+
+def _ExtractTestResults(
+    test_result: dict[str, dict]) -> tuple[list[str], list[str], list[str]]:
   delimiter = test_result['path_delimiter']
   failures = []
   successes = []
@@ -661,8 +974,7 @@ def _ExtractTestResults(test_result: Dict[str, Dict]
         successes.append(full_test_name)
     else:
       for k in test_dict:
-        node_queues.append(
-            ('%s%s%s' % (full_test_name, delimiter, k), test_dict[k]))
+        node_queues.append((f'{full_test_name}{delimiter}{k}', test_dict[k]))
   return successes, failures, skips
 
 

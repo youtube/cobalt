@@ -8,8 +8,13 @@
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "chromeos/ash/components/cryptohome/constants.h"
+#include "chromeos/ash/components/cryptohome/error_types.h"
+#include "chromeos/ash/components/cryptohome/error_util.h"
 #include "chromeos/ash/components/cryptohome/userdataauth_util.h"
 #include "chromeos/ash/components/dbus/userdataauth/userdataauth_client.h"
+#include "chromeos/ash/components/login/auth/auth_events_recorder.h"
+#include "chromeos/ash/components/login/auth/auth_performer.h"
 #include "chromeos/ash/components/login/auth/public/user_context.h"
 #include "components/device_event_log/device_event_log.h"
 
@@ -24,7 +29,7 @@ bool ShouldUseOldEncryptionForTesting() {
 
 }  // namespace
 
-MountPerformer::MountPerformer() = default;
+MountPerformer::MountPerformer(const base::Clock* clock) : clock_(clock) {}
 MountPerformer::~MountPerformer() = default;
 
 void MountPerformer::InvalidateCurrentAttempts() {
@@ -42,8 +47,8 @@ void MountPerformer::CreateNewUser(std::unique_ptr<UserContext> context,
   request.set_auth_session_id(context->GetAuthSessionId());
   UserDataAuthClient::Get()->CreatePersistentUser(
       request, base::BindOnce(&MountPerformer::OnCreatePersistentUser,
-                              weak_factory_.GetWeakPtr(), std::move(context),
-                              std::move(callback)));
+                              weak_factory_.GetWeakPtr(), clock_->Now(),
+                              std::move(context), std::move(callback)));
 }
 
 void MountPerformer::MountPersistentDirectory(
@@ -83,8 +88,8 @@ void MountPerformer::MountEphemeralDirectory(
   request.set_auth_session_id(context->GetAuthSessionId());
   UserDataAuthClient::Get()->PrepareEphemeralVault(
       request, base::BindOnce(&MountPerformer::OnPrepareEphemeralVault,
-                              weak_factory_.GetWeakPtr(), std::move(context),
-                              std::move(callback)));
+                              weak_factory_.GetWeakPtr(), clock_->Now(),
+                              std::move(context), std::move(callback)));
 }
 
 void MountPerformer::MountGuestDirectory(std::unique_ptr<UserContext> context,
@@ -124,7 +129,7 @@ void MountPerformer::OnServiceRunning(cryptohome::AccountIdentifier identifier,
   if (!service_is_available) {
     LOGIN_LOG(ERROR)
         << "Unable to initiate user removal, service is not available";
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
     return;
   }
   user_data_auth::RemoveRequest request;
@@ -138,13 +143,13 @@ void MountPerformer::OnServiceRunning(cryptohome::AccountIdentifier identifier,
 
 void MountPerformer::OnRemoveByIdentifier(
     NoContextOperationCallback callback,
-    absl::optional<user_data_auth::RemoveReply> reply) {
+    std::optional<user_data_auth::RemoveReply> reply) {
   auto error = user_data_auth::ReplyToCryptohomeError(reply);
-  if (error != user_data_auth::CRYPTOHOME_ERROR_NOT_SET) {
+  if (cryptohome::HasError(error)) {
     std::move(callback).Run(AuthenticationError{error});
     return;
   }
-  std::move(callback).Run(absl::nullopt);
+  std::move(callback).Run(std::nullopt);
 }
 
 // Unmounts all currently mounted directories.
@@ -173,120 +178,148 @@ void MountPerformer::MigrateToDircrypto(std::unique_ptr<UserContext> context,
 /// ---- private callbacks ----
 
 void MountPerformer::OnCreatePersistentUser(
+    base::Time request_start,
     std::unique_ptr<UserContext> context,
     AuthOperationCallback callback,
-    absl::optional<user_data_auth::CreatePersistentUserReply> reply) {
+    std::optional<user_data_auth::CreatePersistentUserReply> reply) {
   auto error = user_data_auth::ReplyToCryptohomeError(reply);
-  if (error != user_data_auth::CRYPTOHOME_ERROR_NOT_SET) {
+  if (cryptohome::HasError(error)) {
     LOGIN_LOG(ERROR) << "CreatePersistentUser failed with error " << error;
     std::move(callback).Run(std::move(context), AuthenticationError{error});
     return;
   }
   CHECK(reply.has_value());
-  std::move(callback).Run(std::move(context), absl::nullopt);
+  CHECK(reply->has_auth_properties());
+  AuthPerformer::FillAuthenticationData(request_start, reply->auth_properties(),
+                                        *context);
+  context->SetMountState(UserContext::MountState::kNewPersistent);
+  std::move(callback).Run(std::move(context), std::nullopt);
 }
 
 void MountPerformer::OnPrepareGuestVault(
     std::unique_ptr<UserContext> context,
     AuthOperationCallback callback,
-    absl::optional<user_data_auth::PrepareGuestVaultReply> reply) {
+    std::optional<user_data_auth::PrepareGuestVaultReply> reply) {
   auto error = user_data_auth::ReplyToCryptohomeError(reply);
-  if (error != user_data_auth::CRYPTOHOME_ERROR_NOT_SET) {
+  bool is_success = !cryptohome::HasError(error);
+  AuthEventsRecorder::Get()->OnUserVaultPrepared(
+      AuthEventsRecorder::UserVaultType::kGuest, is_success);
+  if (!is_success) {
     LOGIN_LOG(ERROR) << "PrepareGuestVault failed with error " << error;
     std::move(callback).Run(std::move(context), AuthenticationError{error});
     return;
   }
   CHECK(reply.has_value());
+  context->SetMountState(UserContext::MountState::kEphemeral);
   context->SetUserIDHash(reply->sanitized_username());
-  std::move(callback).Run(std::move(context), absl::nullopt);
+  std::move(callback).Run(std::move(context), std::nullopt);
 }
 
 void MountPerformer::OnPrepareEphemeralVault(
+    base::Time request_start,
     std::unique_ptr<UserContext> context,
     AuthOperationCallback callback,
-    absl::optional<user_data_auth::PrepareEphemeralVaultReply> reply) {
+    std::optional<user_data_auth::PrepareEphemeralVaultReply> reply) {
   auto error = user_data_auth::ReplyToCryptohomeError(reply);
-  if (error != user_data_auth::CRYPTOHOME_ERROR_NOT_SET) {
+  bool is_success = !cryptohome::HasError(error);
+  AuthEventsRecorder::Get()->OnUserVaultPrepared(
+      AuthEventsRecorder::UserVaultType::kEphemeral, is_success);
+  if (!is_success) {
     LOGIN_LOG(ERROR) << "PrepareEphemeralVault failed with error " << error;
     std::move(callback).Run(std::move(context), AuthenticationError{error});
     return;
   }
   CHECK(reply.has_value());
+  CHECK(reply->has_auth_properties());
+  AuthPerformer::FillAuthenticationData(request_start, reply->auth_properties(),
+                                        *context);
+  context->SetMountState(UserContext::MountState::kEphemeral);
   context->SetUserIDHash(reply->sanitized_username());
-  std::move(callback).Run(std::move(context), absl::nullopt);
+  std::move(callback).Run(std::move(context), std::nullopt);
 }
 
 void MountPerformer::OnPreparePersistentVault(
     std::unique_ptr<UserContext> context,
     AuthOperationCallback callback,
-    absl::optional<user_data_auth::PreparePersistentVaultReply> reply) {
+    std::optional<user_data_auth::PreparePersistentVaultReply> reply) {
   auto error = user_data_auth::ReplyToCryptohomeError(reply);
-  if (error != user_data_auth::CRYPTOHOME_ERROR_NOT_SET) {
+  bool is_success = !cryptohome::HasError(error);
+  AuthEventsRecorder::Get()->OnUserVaultPrepared(
+      AuthEventsRecorder::UserVaultType::kPersistent, is_success);
+  if (!is_success) {
     LOGIN_LOG(ERROR) << "PreparePersistentVault failed with error " << error;
     std::move(callback).Run(std::move(context), AuthenticationError{error});
     return;
   }
   CHECK(reply.has_value());
+  if (!context->GetMountState()) {
+    context->SetMountState(UserContext::MountState::kExistingPersistent);
+  }
   context->SetUserIDHash(reply->sanitized_username());
-  std::move(callback).Run(std::move(context), absl::nullopt);
+  std::move(callback).Run(std::move(context), std::nullopt);
 }
 
 void MountPerformer::OnPrepareVaultForMigration(
     std::unique_ptr<UserContext> context,
     AuthOperationCallback callback,
-    absl::optional<user_data_auth::PrepareVaultForMigrationReply> reply) {
+    std::optional<user_data_auth::PrepareVaultForMigrationReply> reply) {
   auto error = user_data_auth::ReplyToCryptohomeError(reply);
-  if (error != user_data_auth::CRYPTOHOME_ERROR_NOT_SET) {
+  bool is_success = !cryptohome::HasError(error);
+  AuthEventsRecorder::Get()->OnUserVaultPrepared(
+      AuthEventsRecorder::UserVaultType::kPersistent, is_success);
+  if (!is_success) {
     LOGIN_LOG(ERROR) << "PrepareVaultForMigration failed with error " << error;
     std::move(callback).Run(std::move(context), AuthenticationError{error});
     return;
   }
   CHECK(reply.has_value());
+  CHECK(!context->GetMountState());
+  context->SetMountState(UserContext::MountState::kExistingPersistent);
   context->SetUserIDHash(reply->sanitized_username());
-  std::move(callback).Run(std::move(context), absl::nullopt);
+  std::move(callback).Run(std::move(context), std::nullopt);
 }
 
 void MountPerformer::OnRemove(
     std::unique_ptr<UserContext> context,
     AuthOperationCallback callback,
-    absl::optional<user_data_auth::RemoveReply> reply) {
+    std::optional<user_data_auth::RemoveReply> reply) {
   auto error = user_data_auth::ReplyToCryptohomeError(reply);
-  if (error != user_data_auth::CRYPTOHOME_ERROR_NOT_SET) {
+  if (cryptohome::HasError(error)) {
     LOGIN_LOG(ERROR) << "Remove failed with error " << error;
     std::move(callback).Run(std::move(context), AuthenticationError{error});
     return;
   }
   CHECK(reply.has_value());
-  context->ResetAuthSessionId();
-  std::move(callback).Run(std::move(context), absl::nullopt);
+  context->ResetAuthSessionIds();
+  std::move(callback).Run(std::move(context), std::nullopt);
 }
 
 void MountPerformer::OnUnmount(
     std::unique_ptr<UserContext> context,
     AuthOperationCallback callback,
-    absl::optional<user_data_auth::UnmountReply> reply) {
+    std::optional<user_data_auth::UnmountReply> reply) {
   auto error = user_data_auth::ReplyToCryptohomeError(reply);
-  if (error != user_data_auth::CRYPTOHOME_ERROR_NOT_SET) {
+  if (cryptohome::HasError(error)) {
     LOGIN_LOG(ERROR) << "Unmount failed with error" << error;
     std::move(callback).Run(std::move(context), AuthenticationError{error});
     return;
   }
   CHECK(reply.has_value());
-  std::move(callback).Run(std::move(context), absl::nullopt);
+  std::move(callback).Run(std::move(context), std::nullopt);
 }
 
 void MountPerformer::OnMigrateToDircrypto(
     std::unique_ptr<UserContext> context,
     AuthOperationCallback callback,
-    absl::optional<user_data_auth::StartMigrateToDircryptoReply> reply) {
+    std::optional<user_data_auth::StartMigrateToDircryptoReply> reply) {
   auto error = user_data_auth::ReplyToCryptohomeError(reply);
-  if (error != user_data_auth::CRYPTOHOME_ERROR_NOT_SET) {
+  if (cryptohome::HasError(error)) {
     LOGIN_LOG(ERROR) << "MigrateToDircrypto failed with error " << error;
     std::move(callback).Run(std::move(context), AuthenticationError{error});
     return;
   }
   CHECK(reply.has_value());
-  std::move(callback).Run(std::move(context), absl::nullopt);
+  std::move(callback).Run(std::move(context), std::nullopt);
 }
 
 }  // namespace ash

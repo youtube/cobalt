@@ -4,14 +4,16 @@
 
 #include "chromeos/ash/services/secure_channel/pending_connection_manager_impl.h"
 
+#include <algorithm>
 #include <memory>
+#include <optional>
 #include <sstream>
 
 #include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
+#include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/test/task_environment.h"
 #include "chromeos/ash/services/secure_channel/ble_initiator_connection_attempt.h"
 #include "chromeos/ash/services/secure_channel/ble_listener_connection_attempt.h"
@@ -28,7 +30,6 @@
 #include "chromeos/ash/services/secure_channel/pending_nearby_initiator_connection_request.h"
 #include "device/bluetooth/test/mock_bluetooth_adapter.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash::secure_channel {
 
@@ -55,8 +56,9 @@ class FakeBleInitiatorConnectionAttemptFactory
     expected_connection_attempt_details_ = expected_connection_attempt_details;
   }
 
-  base::flat_map<ConnectionAttemptDetails,
-                 FakeConnectionAttempt<BleInitiatorFailureType>*>&
+  base::flat_map<
+      ConnectionAttemptDetails,
+      raw_ptr<FakeConnectionAttempt<BleInitiatorFailureType>, CtnExperimental>>&
   details_to_active_attempt_map() {
     return details_to_active_attempt_map_;
   }
@@ -103,17 +105,17 @@ class FakeBleInitiatorConnectionAttemptFactory
     ++num_instances_deleted_;
   }
 
-  raw_ptr<FakeBleConnectionManager, ExperimentalAsh>
-      expected_ble_connection_manager_;
-  absl::optional<ConnectionAttemptDetails> expected_connection_attempt_details_;
+  raw_ptr<FakeBleConnectionManager> expected_ble_connection_manager_;
+  std::optional<ConnectionAttemptDetails> expected_connection_attempt_details_;
 
-  base::flat_map<ConnectionAttemptDetails,
-                 FakeConnectionAttempt<BleInitiatorFailureType>*>
+  base::flat_map<
+      ConnectionAttemptDetails,
+      raw_ptr<FakeConnectionAttempt<BleInitiatorFailureType>, CtnExperimental>>
       details_to_active_attempt_map_;
 
   size_t num_instances_created_ = 0u;
   size_t num_instances_deleted_ = 0u;
-  raw_ptr<FakeConnectionAttempt<BleInitiatorFailureType>, ExperimentalAsh>
+  raw_ptr<FakeConnectionAttempt<BleInitiatorFailureType>, DanglingUntriaged>
       last_created_instance_ = nullptr;
 };
 
@@ -136,8 +138,9 @@ class FakeBleListenerConnectionAttemptFactory
     expected_connection_attempt_details_ = expected_connection_attempt_details;
   }
 
-  base::flat_map<ConnectionAttemptDetails,
-                 FakeConnectionAttempt<BleListenerFailureType>*>&
+  base::flat_map<
+      ConnectionAttemptDetails,
+      raw_ptr<FakeConnectionAttempt<BleListenerFailureType>, CtnExperimental>>&
   details_to_active_attempt_map() {
     return details_to_active_attempt_map_;
   }
@@ -184,17 +187,17 @@ class FakeBleListenerConnectionAttemptFactory
     ++num_instances_deleted_;
   }
 
-  raw_ptr<FakeBleConnectionManager, ExperimentalAsh>
-      expected_ble_connection_manager_;
-  absl::optional<ConnectionAttemptDetails> expected_connection_attempt_details_;
+  raw_ptr<FakeBleConnectionManager> expected_ble_connection_manager_;
+  std::optional<ConnectionAttemptDetails> expected_connection_attempt_details_;
 
-  base::flat_map<ConnectionAttemptDetails,
-                 FakeConnectionAttempt<BleListenerFailureType>*>
+  base::flat_map<
+      ConnectionAttemptDetails,
+      raw_ptr<FakeConnectionAttempt<BleListenerFailureType>, CtnExperimental>>
       details_to_active_attempt_map_;
 
   size_t num_instances_created_ = 0u;
   size_t num_instances_deleted_ = 0u;
-  raw_ptr<FakeConnectionAttempt<BleListenerFailureType>, ExperimentalAsh>
+  raw_ptr<FakeConnectionAttempt<BleListenerFailureType>, DanglingUntriaged>
       last_created_instance_ = nullptr;
 };
 
@@ -219,7 +222,8 @@ class FakeNearbyInitiatorConnectionAttemptFactory
   }
 
   base::flat_map<ConnectionAttemptDetails,
-                 FakeConnectionAttempt<NearbyInitiatorFailureType>*>&
+                 raw_ptr<FakeConnectionAttempt<NearbyInitiatorFailureType>,
+                         CtnExperimental>>&
   details_to_active_attempt_map() {
     return details_to_active_attempt_map_;
   }
@@ -266,17 +270,17 @@ class FakeNearbyInitiatorConnectionAttemptFactory
     ++num_instances_deleted_;
   }
 
-  raw_ptr<FakeNearbyConnectionManager, ExperimentalAsh>
-      expected_nearby_connection_manager_;
-  absl::optional<ConnectionAttemptDetails> expected_connection_attempt_details_;
+  raw_ptr<FakeNearbyConnectionManager> expected_nearby_connection_manager_;
+  std::optional<ConnectionAttemptDetails> expected_connection_attempt_details_;
 
   base::flat_map<ConnectionAttemptDetails,
-                 FakeConnectionAttempt<NearbyInitiatorFailureType>*>
+                 raw_ptr<FakeConnectionAttempt<NearbyInitiatorFailureType>,
+                         CtnExperimental>>
       details_to_active_attempt_map_;
 
   size_t num_instances_created_ = 0u;
   size_t num_instances_deleted_ = 0u;
-  raw_ptr<FakeConnectionAttempt<NearbyInitiatorFailureType>, ExperimentalAsh>
+  raw_ptr<FakeConnectionAttempt<NearbyInitiatorFailureType>, DanglingUntriaged>
       last_created_instance_ = nullptr;
 };
 
@@ -324,10 +328,12 @@ class FakePendingBleInitiatorConnectionRequestFactory
     return instance;
   }
 
-  ClientConnectionParameters* expected_client_connection_parameters_ = nullptr;
-  absl::optional<ConnectionPriority> expected_connection_priority_;
+  raw_ptr<ClientConnectionParameters, DanglingUntriaged>
+      expected_client_connection_parameters_ = nullptr;
+  std::optional<ConnectionPriority> expected_connection_priority_;
 
-  FakePendingConnectionRequest<BleInitiatorFailureType>*
+  raw_ptr<FakePendingConnectionRequest<BleInitiatorFailureType>,
+          DanglingUntriaged>
       last_created_instance_ = nullptr;
 };
 
@@ -375,11 +381,13 @@ class FakePendingBleListenerConnectionRequestFactory
     return instance;
   }
 
-  ClientConnectionParameters* expected_client_connection_parameters_ = nullptr;
-  absl::optional<ConnectionPriority> expected_connection_priority_;
+  raw_ptr<ClientConnectionParameters, DanglingUntriaged>
+      expected_client_connection_parameters_ = nullptr;
+  std::optional<ConnectionPriority> expected_connection_priority_;
 
-  FakePendingConnectionRequest<BleListenerFailureType>* last_created_instance_ =
-      nullptr;
+  raw_ptr<FakePendingConnectionRequest<BleListenerFailureType>,
+          DanglingUntriaged>
+      last_created_instance_ = nullptr;
 };
 
 class FakePendingNearbyInitiatorConnectionRequestFactory
@@ -426,10 +434,12 @@ class FakePendingNearbyInitiatorConnectionRequestFactory
     return instance;
   }
 
-  ClientConnectionParameters* expected_client_connection_parameters_ = nullptr;
-  absl::optional<ConnectionPriority> expected_connection_priority_;
+  raw_ptr<ClientConnectionParameters, DanglingUntriaged>
+      expected_client_connection_parameters_ = nullptr;
+  std::optional<ConnectionPriority> expected_connection_priority_;
 
-  FakePendingConnectionRequest<NearbyInitiatorFailureType>*
+  raw_ptr<FakePendingConnectionRequest<NearbyInitiatorFailureType>,
+          DanglingUntriaged>
       last_created_instance_ = nullptr;
 };
 
@@ -451,10 +461,8 @@ GenerateFakeClientParameters(size_t num_to_generate) {
 std::vector<ClientConnectionParameters*> ClientParamsListToRawPtrs(
     const std::vector<std::unique_ptr<ClientConnectionParameters>>&
         unique_ptr_list) {
-  std::vector<ClientConnectionParameters*> raw_ptr_list;
-  base::ranges::transform(unique_ptr_list, std::back_inserter(raw_ptr_list),
-                          &std::unique_ptr<ClientConnectionParameters>::get);
-  return raw_ptr_list;
+  return base::ToVector(unique_ptr_list,
+                        &std::unique_ptr<ClientConnectionParameters>::get);
 }
 
 }  // namespace
@@ -874,7 +882,6 @@ class SecureChannelPendingConnectionManagerImplTest : public testing::Test {
 
             case ConnectionRole::kListenerRole:
               NOTREACHED();
-              break;
           }
           break;
       }

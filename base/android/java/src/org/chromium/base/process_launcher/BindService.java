@@ -16,17 +16,17 @@ import android.os.UserHandle;
 
 import androidx.annotation.RequiresApi;
 
-import org.chromium.base.compat.ApiHelperForQ;
 import org.chromium.build.BuildConfig;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.lang.reflect.Method;
 import java.util.concurrent.Executor;
 
-/**
- * Class of static helper methods to call Context.bindService variants.
- */
+/** Class of static helper methods to call Context.bindService variants. */
+@NullMarked
 final class BindService {
-    private static Method sBindServiceAsUserMethod;
+    private static @Nullable Method sBindServiceAsUserMethod;
 
     static boolean supportVariableConnections() {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
@@ -35,11 +35,16 @@ final class BindService {
 
     // Note that handler is not guaranteed to be used, and client still need to correctly handle
     // callbacks on the UI thread.
-    static boolean doBindService(Context context, Intent intent, ServiceConnection connection,
-            int flags, Handler handler, Executor executor, String instanceName) {
+    static boolean doBindService(
+            Context context,
+            Intent intent,
+            ServiceConnection connection,
+            int flags,
+            Handler handler,
+            Executor executor,
+            @Nullable String instanceName) {
         if (supportVariableConnections() && instanceName != null) {
-            return ApiHelperForQ.bindIsolatedService(
-                    context, intent, flags, instanceName, executor, connection);
+            return context.bindIsolatedService(intent, flags, instanceName, executor, connection);
         }
 
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.N) {
@@ -65,21 +70,31 @@ final class BindService {
 
     @RequiresApi(Build.VERSION_CODES.N)
     @SuppressLint("DiscouragedPrivateApi")
-    private static boolean bindServiceByReflection(Context context, Intent intent,
-            ServiceConnection connection, int flags, Handler handler)
+    private static boolean bindServiceByReflection(
+            Context context,
+            Intent intent,
+            ServiceConnection connection,
+            int flags,
+            Handler handler)
             throws ReflectiveOperationException {
         if (sBindServiceAsUserMethod == null) {
             sBindServiceAsUserMethod =
-                    Context.class.getDeclaredMethod("bindServiceAsUser", Intent.class,
-                            ServiceConnection.class, int.class, Handler.class, UserHandle.class);
+                    Context.class.getDeclaredMethod(
+                            "bindServiceAsUser",
+                            Intent.class,
+                            ServiceConnection.class,
+                            int.class,
+                            Handler.class,
+                            UserHandle.class);
         }
         // No need for null checks or worry about infinite looping here. Otherwise a regular calls
         // into the ContextWrapper would lead to problems as well.
         while (context instanceof ContextWrapper) {
             context = ((ContextWrapper) context).getBaseContext();
         }
-        return (Boolean) sBindServiceAsUserMethod.invoke(
-                context, intent, connection, flags, handler, Process.myUserHandle());
+        return (Boolean)
+                sBindServiceAsUserMethod.invoke(
+                        context, intent, connection, flags, handler, Process.myUserHandle());
     }
 
     private BindService() {}

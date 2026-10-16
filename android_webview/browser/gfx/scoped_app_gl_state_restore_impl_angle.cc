@@ -8,8 +8,6 @@
 #include <GLES2/gl2.h>
 
 #include "base/android/build_info.h"
-#include "base/functional/callback_helpers.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/native_library.h"
 #include "base/threading/thread_restrictions.h"
 #include "ui/gl/gl_context.h"
@@ -85,13 +83,6 @@ namespace internal {
 ScopedAppGLStateRestoreImplAngle::ScopedAppGLStateRestoreImplAngle(
     ScopedAppGLStateRestore::CallMode mode,
     bool save_restore) {
-  base::ScopedClosureRunner uma_runner(base::BindOnce(
-      [](base::TimeTicks start_time) {
-        UMA_HISTOGRAM_TIMES("Android.WebView.Gfx.SaveHWUIStateDuration",
-                            base::TimeTicks::Now() - start_time);
-      },
-      base::TimeTicks::Now()));
-
   os::InitializeGLBindings();
 
   os::ClearGLErrors(true, "Incoming GLError");
@@ -149,16 +140,10 @@ ScopedAppGLStateRestoreImplAngle::ScopedAppGLStateRestoreImplAngle(
   // always 0.
   framebuffer_binding_ext_ = 0;
 
-  // There should be no gl::GLContext current.
-  DCHECK(!gl::GLContext::GetCurrent());
-
   os::ClearGLErrors(false, nullptr);
 }
 
 ScopedAppGLStateRestoreImplAngle::~ScopedAppGLStateRestoreImplAngle() {
-  // There should be no gl::GLContext current.
-  DCHECK(!gl::GLContext::GetCurrent());
-
 #if DCHECK_IS_ON()
   DCHECK_EQ(egl_context_, os::eglGetCurrentContextFn())
       << " the native context is changed.";

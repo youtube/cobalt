@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "printing/backend/print_backend.h"
+#include "printing/backend/print_backend_win.h"
 
 #include <objidl.h>
 #include <stddef.h>
@@ -11,23 +11,25 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
+#include "base/compiler_specific.h"
+#include "base/containers/heap_array.h"
 #include "base/logging.h"
 #include "base/memory/free_deleter.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/types/expected.h"
-#include "base/values.h"
 #include "base/win/scoped_bstr.h"
 #include "base/win/scoped_hdc.h"
 #include "base/win/scoped_hglobal.h"
 #include "base/win/windows_types.h"
 #include "printing/backend/print_backend_consts.h"
 #include "printing/backend/printing_info_win.h"
+#include "printing/backend/spooler_win.h"
 #include "printing/backend/win_helper.h"
 #include "printing/mojom/print.mojom.h"
 #include "printing/printing_utils.h"
@@ -43,6 +45,8 @@ namespace {
 class ScopedProvider {
  public:
   explicit ScopedProvider(HPTPROVIDER provider) : provider_(provider) {}
+  ScopedProvider(const ScopedProvider&) = delete;
+  ScopedProvider& operator=(const ScopedProvider&) = delete;
 
   // Once the object is destroyed, it automatically closes the provider by
   // calling the XPSModule API.
@@ -55,15 +59,19 @@ class ScopedProvider {
   HPTPROVIDER provider_;
 };
 
-// `GetResultCodeFromSystemErrorCode()` is only ever invoked when something has
-// gone wrong while interacting with the OS printing system.  If the cause of
-// the failure was not of the type to register and be and available from
-// `GetLastError()` then we should just use the general error result.
-mojom::ResultCode GetResultCodeFromSystemErrorCode(
-    logging::SystemErrorCode system_code) {
-  if (system_code == ERROR_ACCESS_DENIED)
-    return mojom::ResultCode::kAccessDenied;
-  return mojom::ResultCode::kFailed;
+std::string ErrorMessageCheckSpooler(const std::string& base_message,
+                                     logging::SystemErrorCode err) {
+  std::string message = base_message;
+  if (err != ERROR_SUCCESS) {
+    message += logging::SystemErrorCodeToString(err);
+  }
+  if (internal::IsSpoolerRunning() !=
+      internal::SpoolerServiceStatus::kRunning) {
+    message += " Windows print spooler is not running";
+  } else if (err == ERROR_SUCCESS) {
+    message += " unknown internal printing error";
+  }
+  return message;
 }
 
 ScopedPrinterHandle GetPrinterHandle(const std::string& printer_name) {
@@ -80,30 +88,31 @@ HRESULT StreamOnHGlobalToString(IStream* stream, std::string* out) {
   if (SUCCEEDED(hr)) {
     DCHECK(hdata);
     base::win::ScopedHGlobal<char*> locked_data(hdata);
-    out->assign(locked_data.release(), locked_data.Size());
+    out->assign(locked_data.data(), locked_data.size());
   }
   return hr;
 }
 
 template <class T>
-void GetDeviceCapabilityArray(const wchar_t* printer,
-                              const wchar_t* port,
-                              WORD id,
-                              std::vector<T>* result) {
+std::vector<T> GetDeviceCapabilityArray(const wchar_t* printer,
+                                        const wchar_t* port,
+                                        WORD id) {
   int count = DeviceCapabilities(printer, port, id, nullptr, nullptr);
-  if (count <= 0)
-    return;
+  if (count <= 0) {
+    return {};
+  }
 
-  std::vector<T> tmp;
-  tmp.resize(count * 2);
+  std::vector<T> results;
+  results.resize(count * 2);
   count = DeviceCapabilities(printer, port, id,
-                             reinterpret_cast<LPTSTR>(tmp.data()), nullptr);
-  if (count <= 0)
-    return;
+                             reinterpret_cast<LPTSTR>(results.data()), nullptr);
+  if (count <= 0) {
+    return {};
+  }
 
-  CHECK_LE(static_cast<size_t>(count), tmp.size());
-  tmp.resize(count);
-  result->swap(tmp);
+  CHECK_LE(static_cast<size_t>(count), results.size());
+  results.resize(count);
+  return results;
 }
 
 gfx::Size GetDefaultDpi(HDC hdc) {
@@ -121,8 +130,8 @@ gfx::Rect LoadPaperPrintableAreaUm(const wchar_t* printer, DEVMODE* devmode) {
   gfx::Rect printable_area_device_units =
       GetPrintableAreaDeviceUnits(hdc.get());
 
-  // Device units can be non-square, so scale for non-square DPIs and convert to
-  // microns.
+  // Device units can be non-square, so scale for non-square pixels and convert
+  // to microns.
   gfx::Rect printable_area_um =
       gfx::Rect(ConvertUnit(printable_area_device_units.x(),
                             default_dpi.width(), kMicronsPerInch),
@@ -136,7 +145,10 @@ gfx::Rect LoadPaperPrintableAreaUm(const wchar_t* printer, DEVMODE* devmode) {
   return printable_area_um;
 }
 
-void LoadPaper(const wchar_t* printer,
+// Load the various papers for the printer.  At most the printable area of one
+// paper size is loaded.  Returns whether `LoadPaperPrintableAreaUm()` was
+// called for the default paper.
+bool LoadPaper(const wchar_t* printer,
                const wchar_t* port,
                DEVMODE* devmode,
                PrinterSemanticCapsAndDefaults* caps) {
@@ -150,14 +162,12 @@ void LoadPaper(const wchar_t* printer,
   DCHECK_EQ(sizeof(PaperName), sizeof(wchar_t) * kMaxPaperName);
 
   // Paper
-  std::vector<PaperName> names;
-  GetDeviceCapabilityArray(printer, port, DC_PAPERNAMES, &names);
-
-  std::vector<POINT> sizes;
-  GetDeviceCapabilityArray(printer, port, DC_PAPERSIZE, &sizes);
-
-  std::vector<WORD> ids;
-  GetDeviceCapabilityArray(printer, port, DC_PAPERS, &ids);
+  std::vector<PaperName> names =
+      GetDeviceCapabilityArray<PaperName>(printer, port, DC_PAPERNAMES);
+  std::vector<POINT> sizes =
+      GetDeviceCapabilityArray<POINT>(printer, port, DC_PAPERSIZE);
+  std::vector<WORD> ids =
+      GetDeviceCapabilityArray<WORD>(printer, port, DC_PAPERS);
 
   DCHECK_EQ(ids.size(), sizes.size());
   DCHECK_EQ(names.size(), sizes.size());
@@ -167,24 +177,27 @@ void LoadPaper(const wchar_t* printer,
   if (names.size() != sizes.size())
     names.clear();
 
+  bool loaded_printable_area_from_system = false;
   for (size_t i = 0; i < sizes.size(); ++i) {
-    PrinterSemanticCapsAndDefaults::Paper paper;
-    paper.size_um.SetSize(sizes[i].x * kToUm, sizes[i].y * kToUm);
-
+    const gfx::Size size_um(sizes[i].x * kToUm, sizes[i].y * kToUm);
     // Skip papers with empty paper sizes.
-    if (paper.size_um.IsEmpty()) {
+    if (size_um.IsEmpty()) {
       continue;
     }
 
+    std::string display_name;
     if (!names.empty()) {
       const wchar_t* name_start = names[i].chars;
       std::wstring tmp_name(name_start, kMaxPaperName);
       // Trim trailing zeros.
       tmp_name = tmp_name.c_str();
-      paper.display_name = base::WideToUTF8(tmp_name);
+      display_name = base::WideToUTF8(tmp_name);
     }
+
+    std::string vendor_id;
+    gfx::Rect printable_area_um;
     if (!ids.empty()) {
-      paper.vendor_id = base::NumberToString(ids[i]);
+      vendor_id = base::NumberToString(ids[i]);
 
       // `LoadPaperPrintableAreaUm()` has to create a new device context, which
       // is very expensive for some printer drivers.  Since this is in an
@@ -198,12 +211,13 @@ void LoadPaper(const wchar_t* printer,
       // `GetPaperPrintableArea()` to get the printable area for other paper
       // sizes as needed.
       //
-      // TODO(crbug.com/1424368):  Remove this limitation compared to other
+      // TODO(crbug.com/40260379):  Remove this limitation compared to other
       // platforms if an alternate way of getting the printable area for all
       // paper sizes can be done without a huge performance penalty.  For
       // now this workaround is only made for in-browser queries.
       if (devmode && (devmode->dmPaperSize == ids[i])) {
-        paper.printable_area_um = LoadPaperPrintableAreaUm(printer, devmode);
+        printable_area_um = LoadPaperPrintableAreaUm(printer, devmode);
+        loaded_printable_area_from_system = true;
       }
     }
 
@@ -211,23 +225,24 @@ void LoadPaper(const wchar_t* printer,
     // We've seen some drivers have a printable area that goes out of bounds of
     // the paper size. In those cases, set the printable area to be the size.
     // (See crbug.com/1412305.)
-    const gfx::Rect size_um_rect = gfx::Rect(paper.size_um);
-    if (paper.printable_area_um.IsEmpty() ||
-        !size_um_rect.Contains(paper.printable_area_um)) {
-      paper.printable_area_um = size_um_rect;
+    const gfx::Rect size_um_rect(size_um);
+    if (printable_area_um.IsEmpty() ||
+        !size_um_rect.Contains(printable_area_um)) {
+      printable_area_um = size_um_rect;
     }
 
-    caps->papers.push_back(paper);
+    caps->papers.push_back(PrinterSemanticCapsAndDefaults::Paper(
+        display_name, vendor_id, size_um, printable_area_um));
   }
 
   if (!devmode)
-    return;
+    return loaded_printable_area_from_system;
 
   // Copy paper with the same ID as default paper.
   if (devmode->dmFields & DM_PAPERSIZE) {
     std::string default_vendor_id = base::NumberToString(devmode->dmPaperSize);
     for (const PrinterSemanticCapsAndDefaults::Paper& paper : caps->papers) {
-      if (paper.vendor_id == default_vendor_id) {
+      if (paper.vendor_id() == default_vendor_id) {
         caps->default_paper = paper;
         break;
       }
@@ -240,24 +255,23 @@ void LoadPaper(const wchar_t* printer,
   if (devmode->dmFields & DM_PAPERLENGTH)
     default_size.set_height(devmode->dmPaperLength * kToUm);
 
-  if (!default_size.IsEmpty()) {
-    // Reset default paper if `dmPaperWidth` or `dmPaperLength` does not
-    // match default paper set by.
-    if (default_size != caps->default_paper.size_um) {
-      caps->default_paper = PrinterSemanticCapsAndDefaults::Paper();
-      caps->default_paper.printable_area_um = gfx::Rect(default_size);
-    }
-    caps->default_paper.size_um = default_size;
+  // Reset default paper if `dmPaperWidth` or `dmPaperLength` does not match
+  // default paper set by `dmPaperSize`.
+  if (!default_size.IsEmpty() &&
+      default_size != caps->default_paper.size_um()) {
+    caps->default_paper = PrinterSemanticCapsAndDefaults::Paper(
+        /*display_name=*/"", /*vendor_id=*/"", default_size);
   }
+
+  return loaded_printable_area_from_system;
 }
 
 void LoadDpi(const wchar_t* printer,
              const wchar_t* port,
              const DEVMODE* devmode,
              PrinterSemanticCapsAndDefaults* caps) {
-  std::vector<POINT> dpis;
-  GetDeviceCapabilityArray(printer, port, DC_ENUMRESOLUTIONS, &dpis);
-
+  std::vector<POINT> dpis =
+      GetDeviceCapabilityArray<POINT>(printer, port, DC_ENUMRESOLUTIONS);
   for (size_t i = 0; i < dpis.size(); ++i)
     caps->dpis.push_back(gfx::Size(dpis[i].x, dpis[i].y));
 
@@ -282,33 +296,25 @@ void LoadDpi(const wchar_t* printer,
 
 }  // namespace
 
-class PrintBackendWin : public PrintBackend {
- public:
-  PrintBackendWin() = default;
+PrintBackendWin::DriverPaperPrintableArea::DriverPaperPrintableArea(
+    const std::string& name,
+    const std::vector<std::string>& driver,
+    const std::string& id,
+    const gfx::Rect& area_um)
+    : printer_name(name),
+      driver_info(driver),
+      vendor_id(id),
+      printable_area_um(area_um) {}
 
-  // PrintBackend implementation.
-  mojom::ResultCode EnumeratePrinters(PrinterList& printer_list) override;
-  mojom::ResultCode GetDefaultPrinterName(
-      std::string& default_printer) override;
-  mojom::ResultCode GetPrinterBasicInfo(
-      const std::string& printer_name,
-      PrinterBasicInfo* printer_info) override;
-  mojom::ResultCode GetPrinterSemanticCapsAndDefaults(
-      const std::string& printer_name,
-      PrinterSemanticCapsAndDefaults* printer_info) override;
-  mojom::ResultCode GetPrinterCapsAndDefaults(
-      const std::string& printer_name,
-      PrinterCapsAndDefaults* printer_info) override;
-  absl::optional<gfx::Rect> GetPaperPrintableArea(
-      const std::string& printer_name,
-      const std::string& paper_vendor_id,
-      const gfx::Size& paper_size_um) override;
-  std::string GetPrinterDriverInfo(const std::string& printer_name) override;
-  bool IsValidPrinter(const std::string& printer_name) override;
+PrintBackendWin::DriverPaperPrintableArea::DriverPaperPrintableArea(
+    const PrintBackendWin::DriverPaperPrintableArea& other) = default;
 
- protected:
-  ~PrintBackendWin() override = default;
-};
+PrintBackendWin::DriverPaperPrintableArea::~DriverPaperPrintableArea() =
+    default;
+
+PrintBackendWin::PrintBackendWin() = default;
+
+PrintBackendWin::~PrintBackendWin() = default;
 
 mojom::ResultCode PrintBackendWin::EnumeratePrinters(
     PrinterList& printer_list) {
@@ -334,31 +340,32 @@ mojom::ResultCode PrintBackendWin::EnumeratePrinters(
     return GetResultCodeFromSystemErrorCode(code);
   }
 
-  auto printer_info_buffer = std::make_unique<BYTE[]>(bytes_needed);
-  if (!EnumPrinters(kFlags, nullptr, kLevel, printer_info_buffer.get(),
-                    bytes_needed, &bytes_needed, &count_returned)) {
-    NOTREACHED();
+  auto printer_info_buffer = base::HeapArray<BYTE>::Uninit(bytes_needed);
+  if (!EnumPrinters(kFlags, nullptr, kLevel, printer_info_buffer.data(),
+                    printer_info_buffer.size(), &bytes_needed,
+                    &count_returned)) {
     return GetResultCodeFromSystemErrorCode(logging::GetLastSystemErrorCode());
   }
 
-  // No need to worry about a query failure for `GetDefaultPrinterName()` here,
-  // that would mean we can just treat it as there being no default printer.
-  std::string default_printer;
-  GetDefaultPrinterName(default_printer);
+  const auto* printer_info =
+      reinterpret_cast<PRINTER_INFO_4*>(printer_info_buffer.data());
+  UNSAFE_TODO({
+    for (DWORD index = 0; index < count_returned; index++) {
+      ScopedPrinterHandle printer;
+      if (!printer.OpenPrinterWithName(printer_info[index].pPrinterName)) {
+        continue;
+      }
 
-  PRINTER_INFO_4* printer_info =
-      reinterpret_cast<PRINTER_INFO_4*>(printer_info_buffer.get());
-  for (DWORD index = 0; index < count_returned; index++) {
-    ScopedPrinterHandle printer;
-    PrinterBasicInfo info;
-    if (printer.OpenPrinterWithName(printer_info[index].pPrinterName) &&
-        InitBasicPrinterInfo(printer.Get(), &info)) {
-      info.is_default = (info.printer_name == default_printer);
-      printer_list.push_back(info);
+      std::optional<PrinterBasicInfo> info = GetBasicPrinterInfo(printer.Get());
+      if (!info.has_value()) {
+        continue;
+      }
+
+      printer_list.push_back(info.value());
     }
-  }
+  });
 
-  VLOG(1) << "Found " << count_returned << " printers";
+  VLOG(1) << "Found " << printer_list.size() << " printers";
   return mojom::ResultCode::kSuccess;
 }
 
@@ -369,12 +376,18 @@ mojom::ResultCode PrintBackendWin::GetDefaultPrinterName(
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::MAY_BLOCK);
   if (!::GetDefaultPrinter(default_printer_name, &size)) {
-    LOG(ERROR) << "Error getting default printer: "
-               << logging::SystemErrorCodeToString(
-                      logging::GetLastSystemErrorCode());
-    return mojom::ResultCode::kFailed;
+    logging::SystemErrorCode err = logging::GetLastSystemErrorCode();
+    if (err != ERROR_FILE_NOT_FOUND) {
+      LOG(ERROR) << ErrorMessageCheckSpooler("Error getting default printer: ",
+                                             err);
+      return mojom::ResultCode::kFailed;
+    }
+
+    // There is no default printer, which is not treated as a failure.
+    default_printer = std::string();
+  } else {
+    default_printer = base::WideToUTF8(default_printer_name);
   }
-  default_printer = base::WideToUTF8(default_printer_name);
   return mojom::ResultCode::kSuccess;
 }
 
@@ -385,20 +398,15 @@ mojom::ResultCode PrintBackendWin::GetPrinterBasicInfo(
   if (!printer_handle.IsValid())
     return GetResultCodeFromSystemErrorCode(logging::GetLastSystemErrorCode());
 
-  if (!InitBasicPrinterInfo(printer_handle.Get(), printer_info)) {
-    // InitBasicPrinterInfo() doesn't set a system error code, so just treat as
+  std::optional<PrinterBasicInfo> info =
+      GetBasicPrinterInfo(printer_handle.Get());
+  if (!info.has_value()) {
+    // GetBasicPrinterInfo() doesn't set a system error code, so just treat as
     // general failure.
     return mojom::ResultCode::kFailed;
   }
 
-  std::string default_printer;
-  mojom::ResultCode result = GetDefaultPrinterName(default_printer);
-  if (result != mojom::ResultCode::kSuccess) {
-    // Query failure means we can treat this printer as not the default.
-    printer_info->is_default = false;
-  } else {
-    printer_info->is_default = (printer_info->printer_name == default_printer);
-  }
+  *printer_info = info.value();
   return mojom::ResultCode::kSuccess;
 }
 
@@ -408,8 +416,8 @@ mojom::ResultCode PrintBackendWin::GetPrinterSemanticCapsAndDefaults(
   ScopedPrinterHandle printer_handle = GetPrinterHandle(printer_name);
   if (!printer_handle.IsValid()) {
     logging::SystemErrorCode err = logging::GetLastSystemErrorCode();
-    LOG(WARNING) << "Failed to open printer, error = "
-                 << logging::SystemErrorCodeToString(err);
+    LOG(WARNING) << "Failed to open printer `" << printer_name
+                 << "`, error = " << logging::SystemErrorCodeToString(err);
     return GetResultCodeFromSystemErrorCode(err);
   }
 
@@ -439,12 +447,14 @@ mojom::ResultCode PrintBackendWin::GetPrinterSemanticCapsAndDefaults(
           caps.duplex_default = mojom::DuplexMode::kShortEdge;
           break;
         default:
-          NOTREACHED();
+          // Ignore invalid values to prevent a crash. See crbug.com/359253687
+          break;
       }
     }
 
-    if (user_settings->dmFields & DM_COLLATE)
+    if (user_settings->dmFields & DM_COLLATE) {
       caps.collate_default = (user_settings->dmCollate == DMCOLLATE_TRUE);
+    }
   } else {
     LOG(WARNING) << "Fallback to color/simplex mode.";
     caps.color_default = caps.color_changeable;
@@ -470,8 +480,22 @@ mojom::ResultCode PrintBackendWin::GetPrinterSemanticCapsAndDefaults(
   caps.copies_max =
       std::max(1, DeviceCapabilities(name, port, DC_COPIES, nullptr, nullptr));
 
-  LoadPaper(name, port, user_settings.get(), &caps);
+  bool loaded_printable_area =
+      LoadPaper(name, port, user_settings.get(), &caps);
   LoadDpi(name, port, user_settings.get(), &caps);
+
+  if (loaded_printable_area) {
+    // Save the printable area of the default paper that was loaded.  Any
+    // subsequent call to `GetPaperPrintableArea()` can reuse this value so
+    // long as the printer/paper hasn't changed.
+    last_default_paper_printable_area_ = DriverPaperPrintableArea(
+        printer_name, GetDriverInfo(printer_handle.Get()),
+        caps.default_paper.vendor_id(), caps.default_paper.printable_area_um());
+
+    if (printable_area_loaded_callback_for_test_) {
+      printable_area_loaded_callback_for_test_.Run();
+    }
+  }
 
   *printer_info = caps;
   return mojom::ResultCode::kSuccess;
@@ -543,19 +567,29 @@ mojom::ResultCode PrintBackendWin::GetPrinterCapsAndDefaults(
   return mojom::ResultCode::kSuccess;
 }
 
-absl::optional<gfx::Rect> PrintBackendWin::GetPaperPrintableArea(
+std::optional<gfx::Rect> PrintBackendWin::GetPaperPrintableArea(
     const std::string& printer_name,
     const std::string& paper_vendor_id,
     const gfx::Size& paper_size_um) {
   ScopedPrinterHandle printer_handle = GetPrinterHandle(printer_name);
   if (!printer_handle.IsValid()) {
-    return absl::nullopt;
+    return std::nullopt;
+  }
+
+  // Reuse the paper printable area loaded with rest of printer capabilities
+  // if possible.
+  if (last_default_paper_printable_area_.has_value() &&
+      last_default_paper_printable_area_.value().printer_name == printer_name &&
+      last_default_paper_printable_area_.value().driver_info ==
+          GetDriverInfo(printer_handle.Get()) &&
+      last_default_paper_printable_area_.value().vendor_id == paper_vendor_id) {
+    return last_default_paper_printable_area_.value().printable_area_um;
   }
 
   std::unique_ptr<DEVMODE, base::FreeDeleter> devmode =
       CreateDevMode(printer_handle.Get(), nullptr);
   if (!devmode) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   unsigned id = 0;
@@ -572,15 +606,20 @@ absl::optional<gfx::Rect> PrintBackendWin::GetPaperPrintableArea(
         paper_size_um.height(), kMicronsPerInch, kTenthsOfMillimetersPerInch);
   }
 
+  if (printable_area_loaded_callback_for_test_) {
+    printable_area_loaded_callback_for_test_.Run();
+  }
+
   return LoadPaperPrintableAreaUm(base::UTF8ToWide(printer_name).c_str(),
                                   devmode.get());
 }
 
 // Gets the information about driver for a specific printer.
-std::string PrintBackendWin::GetPrinterDriverInfo(
+std::vector<std::string> PrintBackendWin::GetPrinterDriverInfo(
     const std::string& printer_name) {
   ScopedPrinterHandle printer = GetPrinterHandle(printer_name);
-  return printer.IsValid() ? GetDriverInfo(printer.Get()) : std::string();
+  return printer.IsValid() ? GetDriverInfo(printer.Get())
+                           : std::vector<std::string>();
 }
 
 bool PrintBackendWin::IsValidPrinter(const std::string& printer_name) {
@@ -588,9 +627,13 @@ bool PrintBackendWin::IsValidPrinter(const std::string& printer_name) {
   return printer_handle.IsValid();
 }
 
+void PrintBackendWin::SetPrintableAreaLoadedCallbackForTesting(
+    base::RepeatingClosure callback) {
+  printable_area_loaded_callback_for_test_ = std::move(callback);
+}
+
 // static
 scoped_refptr<PrintBackend> PrintBackend::CreateInstanceImpl(
-    const base::Value::Dict* print_backend_settings,
     const std::string& /*locale*/) {
   return base::MakeRefCounted<PrintBackendWin>();
 }

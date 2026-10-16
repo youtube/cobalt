@@ -3,14 +3,14 @@
 // found in the LICENSE file.
 
 /**
- * @fileoverview Displays a dialog informing the user that selecting a Time of
- * Day wallpaper will override some of settings such as dark/light mode and
- * dynamic color.
+ * @fileoverview Displays a dialog asking the user to whether enable auto dark
+ * light mode or not before setting the time of day wallpaper.
  */
 
-import '../../css/cros_button_style.css.js';
+import 'chrome://resources/ash/common/personalization/common.css.js';
+import 'chrome://resources/ash/common/personalization/cros_button_style.css.js';
 
-import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
+import type {CrDialogElement} from 'chrome://resources/ash/common/cr_elements/cr_dialog/cr_dialog.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './time_of_day_wallpaper_dialog_element.html.js';
@@ -32,15 +32,15 @@ export class TimeOfDayAcceptEvent extends CustomEvent<null> {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'time-of-day-wallpaper-dialog': TimeOfDayWallpaperDialog;
+    'time-of-day-wallpaper-dialog': TimeOfDayWallpaperDialogElement;
   }
 }
 
-export interface TimeOfDayWallpaperDialog {
+export interface TimeOfDayWallpaperDialogElement {
   $: {dialog: CrDialogElement};
 }
 
-export class TimeOfDayWallpaperDialog extends PolymerElement {
+export class TimeOfDayWallpaperDialogElement extends PolymerElement {
   static get is() {
     return 'time-of-day-wallpaper-dialog';
   }
@@ -62,4 +62,5 @@ export class TimeOfDayWallpaperDialog extends PolymerElement {
   }
 }
 
-customElements.define(TimeOfDayWallpaperDialog.is, TimeOfDayWallpaperDialog);
+customElements.define(
+    TimeOfDayWallpaperDialogElement.is, TimeOfDayWallpaperDialogElement);

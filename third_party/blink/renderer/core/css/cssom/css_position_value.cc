@@ -36,7 +36,6 @@ CSSNumericValue* FromSingleValue(const CSSValue& value) {
                                     CSSPrimitiveValue::UnitType::kPercentage);
       default:
         NOTREACHED();
-        return nullptr;
     }
   }
 
@@ -66,7 +65,6 @@ CSSNumericValue* FromSingleValue(const CSSValue& value) {
     }
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 

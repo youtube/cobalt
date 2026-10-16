@@ -11,7 +11,7 @@ namespace payments {
 
 class PaymentRequestDataUrlTest : public PaymentRequestBrowserTestBase {
  protected:
-  PaymentRequestDataUrlTest() {}
+  PaymentRequestDataUrlTest() = default;
 };
 
 IN_PROC_BROWSER_TEST_F(PaymentRequestDataUrlTest, SecurityError) {
@@ -29,7 +29,7 @@ IN_PROC_BROWSER_TEST_F(PaymentRequestDataUrlTest, SecurityError) {
   ASSERT_EQ(false, content::EvalJs(GetActiveWebContents(),
                                    "'PaymentRequest' in window;"));
 
-  ASSERT_TRUE(content::ExecuteScript(
+  ASSERT_TRUE(content::ExecJs(
       GetActiveWebContents(),
       "(function() { document.getElementById('buy').click(); })();"));
   ExpectBodyContains({"PaymentRequest is not defined"});

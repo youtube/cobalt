@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.recent_tabs.ui;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.recent_tabs.ForeignSessionHelper.ForeignSessionTab;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -11,9 +12,8 @@ import org.chromium.ui.modelutil.PropertyModel.ReadableObjectPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableBooleanPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 
-/**
- * Model for a Tab entry in the review tabs detail screen sheet.
- */
+/** Model for a Tab entry in the review tabs detail screen sheet. */
+@NullMarked
 public class TabItemProperties {
     /** The tab represented by this entry. */
     public static final ReadableObjectPropertyKey<ForeignSessionTab> FOREIGN_SESSION_TAB =
@@ -25,9 +25,7 @@ public class TabItemProperties {
      */
     public static final WritableBooleanPropertyKey IS_SELECTED = new WritableBooleanPropertyKey();
 
-    /**
-     * The function to run when this tab item is selected by the user.
-     */
+    /** The function to run when this tab item is selected by the user. */
     public static final WritableObjectPropertyKey<Runnable> ON_CLICK_LISTENER =
             new WritableObjectPropertyKey<>();
 
@@ -40,5 +38,6 @@ public class TabItemProperties {
     }
 
     public static final PropertyKey[] ALL_KEYS = {
-            FOREIGN_SESSION_TAB, IS_SELECTED, ON_CLICK_LISTENER};
+        FOREIGN_SESSION_TAB, IS_SELECTED, ON_CLICK_LISTENER
+    };
 }

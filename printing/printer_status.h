@@ -8,6 +8,7 @@
 #include <cups/cups.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/component_export.h"
@@ -56,7 +57,8 @@ struct COMPONENT_EXPORT(PRINTING_BASE) PrinterStatus {
       kDeveloperLow = 31,
       kDeveloperEmpty = 32,
       kInterpreterResourceUnavailable = 33,
-      kMaxValue = kInterpreterResourceUnavailable
+      kCupsPkiExpired = 34,
+      kMaxValue = kCupsPkiExpired
     };
 
     // Severity of the state-reason.
@@ -69,6 +71,9 @@ struct COMPONENT_EXPORT(PRINTING_BASE) PrinterStatus {
 
     Reason reason;
     Severity severity;
+
+    std::string_view ReasonName() const;
+    std::string_view SeverityName() const;
   };
 
   PrinterStatus();
@@ -81,6 +86,8 @@ struct COMPONENT_EXPORT(PRINTING_BASE) PrinterStatus {
   std::vector<PrinterReason> reasons;
   // printer-state-message
   std::string message;
+
+  std::string AllReasonsAsString() const;
 };
 
 }  // namespace printing

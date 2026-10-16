@@ -32,7 +32,6 @@
 #include "base/values.h"
 #include "components/prefs/persistent_pref_store_unittest.h"
 #include "components/prefs/pref_filter.h"
-#include "components/prefs/prefs_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -75,7 +74,7 @@ class InterceptingPrefFilter : public PrefFilter {
   // PrefFilter implementation:
   void FilterOnLoad(PostFilterOnLoadCallback post_filter_on_load_callback,
                     base::Value::Dict pref_store_contents) override;
-  void FilterUpdate(const std::string& path) override {}
+  void FilterUpdate(std::string_view path) override {}
   OnWriteCallbackPair FilterSerializeData(
       base::Value::Dict& pref_store_contents) override {
     return std::move(on_write_callback_pair_);
@@ -94,14 +93,14 @@ class InterceptingPrefFilter : public PrefFilter {
   OnWriteCallbackPair on_write_callback_pair_;
 };
 
-InterceptingPrefFilter::InterceptingPrefFilter() {}
+InterceptingPrefFilter::InterceptingPrefFilter() = default;
 
 InterceptingPrefFilter::InterceptingPrefFilter(
     OnWriteCallbackPair callback_pair) {
   on_write_callback_pair_ = std::move(callback_pair);
 }
 
-InterceptingPrefFilter::~InterceptingPrefFilter() {}
+InterceptingPrefFilter::~InterceptingPrefFilter() = default;
 
 void InterceptingPrefFilter::FilterOnLoad(
     PostFilterOnLoadCallback post_filter_on_load_callback,
@@ -119,13 +118,12 @@ void InterceptingPrefFilter::ReleasePrefs() {
 
 class MockPrefStoreObserver : public PrefStore::Observer {
  public:
-  MOCK_METHOD1(OnPrefValueChanged, void (const std::string&));
-  MOCK_METHOD1(OnInitializationCompleted, void (bool));
+  MOCK_METHOD(void, OnInitializationCompleted, (bool), (override));
 };
 
 class MockReadErrorDelegate : public PersistentPrefStore::ReadErrorDelegate {
  public:
-  MOCK_METHOD1(OnError, void(PersistentPrefStore::PrefReadError));
+  MOCK_METHOD(void, OnError, (PersistentPrefStore::PrefReadError), (override));
 };
 
 enum class CommitPendingWriteMode {
@@ -176,27 +174,18 @@ void CommitPendingWrite(JsonPrefStore* pref_store,
 }
 
 class JsonPrefStoreTest
-    : public testing::TestWithParam<std::tuple<CommitPendingWriteMode, bool>> {
+    : public testing::TestWithParam<CommitPendingWriteMode> {
  public:
   JsonPrefStoreTest()
       : task_environment_(base::test::TaskEnvironment::MainThreadType::DEFAULT,
-                          GetExecutionMode(std::get<0>(GetParam()))) {}
+                          GetExecutionMode(GetParam())) {}
 
   JsonPrefStoreTest(const JsonPrefStoreTest&) = delete;
   JsonPrefStoreTest& operator=(const JsonPrefStoreTest&) = delete;
 
  protected:
   void SetUp() override {
-    commit_pending_write_mode_ = std::get<0>(GetParam());
-    bool background_serialization_enabled = std::get<1>(GetParam());
-    base::test::ScopedFeatureList scoped_feature_list;
-    if (background_serialization_enabled) {
-      scoped_feature_list.InitWithFeatures({kPrefStoreBackgroundSerialization},
-                                           {});
-    } else {
-      scoped_feature_list.InitWithFeatures({},
-                                           {kPrefStoreBackgroundSerialization});
-    }
+    commit_pending_write_mode_ = GetParam();
 
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
   }
@@ -568,14 +557,35 @@ TEST_P(JsonPrefStoreTest, RemoveValuesByPrefix) {
   EXPECT_TRUE(pref_store->GetValue(other_name, &value));
 }
 
+TEST_P(JsonPrefStoreTest, HasReadErrorDelegate) {
+  base::FilePath bogus_input_file = temp_dir_.GetPath().AppendASCII("read.txt");
+  ASSERT_FALSE(PathExists(bogus_input_file));
+  auto pref_store = base::MakeRefCounted<JsonPrefStore>(bogus_input_file);
+
+  EXPECT_FALSE(pref_store->HasReadErrorDelegate());
+
+  pref_store->ReadPrefsAsync(new MockReadErrorDelegate);
+  EXPECT_TRUE(pref_store->HasReadErrorDelegate());
+}
+
+TEST_P(JsonPrefStoreTest, HasReadErrorDelegateWithNullDelegate) {
+  base::FilePath bogus_input_file = temp_dir_.GetPath().AppendASCII("read.txt");
+  ASSERT_FALSE(PathExists(bogus_input_file));
+  auto pref_store = base::MakeRefCounted<JsonPrefStore>(bogus_input_file);
+
+  EXPECT_FALSE(pref_store->HasReadErrorDelegate());
+
+  pref_store->ReadPrefsAsync(nullptr);
+  // Returns true even though no instance was passed.
+  EXPECT_TRUE(pref_store->HasReadErrorDelegate());
+}
+
 INSTANTIATE_TEST_SUITE_P(
     JsonPrefStoreTestVariations,
     JsonPrefStoreTest,
-    ::testing::Combine(
-        ::testing::Values(CommitPendingWriteMode::WITHOUT_CALLBACK,
-                          CommitPendingWriteMode::WITH_CALLBACK,
-                          CommitPendingWriteMode::WITH_SYNCHRONOUS_CALLBACK),
-        ::testing::Bool()));
+    ::testing::Values(CommitPendingWriteMode::WITHOUT_CALLBACK,
+                      CommitPendingWriteMode::WITH_CALLBACK,
+                      CommitPendingWriteMode::WITH_SYNCHRONOUS_CALLBACK));
 
 class JsonPrefStoreLossyWriteTest : public JsonPrefStoreTest {
  public:
@@ -725,11 +735,9 @@ TEST_P(JsonPrefStoreLossyWriteTest, ScheduleLossyWrite) {
 INSTANTIATE_TEST_SUITE_P(
     JsonPrefStoreLossyWriteTestVariations,
     JsonPrefStoreLossyWriteTest,
-    ::testing::Combine(
-        ::testing::Values(CommitPendingWriteMode::WITHOUT_CALLBACK,
-                          CommitPendingWriteMode::WITH_CALLBACK,
-                          CommitPendingWriteMode::WITH_SYNCHRONOUS_CALLBACK),
-        ::testing::Bool()));
+    ::testing::Values(CommitPendingWriteMode::WITHOUT_CALLBACK,
+                      CommitPendingWriteMode::WITH_CALLBACK,
+                      CommitPendingWriteMode::WITH_SYNCHRONOUS_CALLBACK));
 
 class SuccessfulWriteReplyObserver {
  public:

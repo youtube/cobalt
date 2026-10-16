@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/350788890): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/at_exit.h"
 #include "base/check_op.h"
 #include "base/i18n/icu_util.h"
@@ -45,15 +50,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   if (size < 1)
     return 0;
   {
-    base::StringPiece string_piece_input(reinterpret_cast<const char*>(data),
-                                         size);
+    std::string_view string_piece_input(reinterpret_cast<const char*>(data),
+                                        size);
     const GURL url_from_string_piece(string_piece_input);
     CheckIdempotency(url_from_string_piece);
     CheckReplaceComponentsPreservesSpec(url_from_string_piece);
   }
-  // Test for StringPiece16 if size is even.
+  // Test for std::u16string_view if size is even.
   if (size % sizeof(char16_t) == 0) {
-    base::StringPiece16 string_piece_input16(
+    std::u16string_view string_piece_input16(
         reinterpret_cast<const char16_t*>(data), size / sizeof(char16_t));
     const GURL url_from_string_piece16(string_piece_input16);
     CheckIdempotency(url_from_string_piece16);
@@ -69,20 +74,20 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         *reinterpret_cast<const size_t*>(data) % (size - size_t_bytes);
     std::string relative_string(
         reinterpret_cast<const char*>(data + size_t_bytes), relative_size);
-    base::StringPiece string_piece_part_input(
+    std::string_view string_piece_part_input(
         reinterpret_cast<const char*>(data + size_t_bytes + relative_size),
         size - relative_size - size_t_bytes);
     const GURL url_from_string_piece_part(string_piece_part_input);
     CheckIdempotency(url_from_string_piece_part);
     CheckReplaceComponentsPreservesSpec(url_from_string_piece_part);
 
-    url_from_string_piece_part.Resolve(relative_string);
+    std::ignore = url_from_string_piece_part.Resolve(relative_string);
 
     if (relative_size % sizeof(char16_t) == 0) {
       std::u16string relative_string16(
           reinterpret_cast<const char16_t*>(data + size_t_bytes),
           relative_size / sizeof(char16_t));
-      url_from_string_piece_part.Resolve(relative_string16);
+      std::ignore = url_from_string_piece_part.Resolve(relative_string16);
     }
   }
   return 0;

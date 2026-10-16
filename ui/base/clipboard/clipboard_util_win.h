@@ -7,7 +7,9 @@
 
 #include <shlobj.h>
 #include <stddef.h>
+
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -15,7 +17,6 @@
 #include "base/component_export.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
-#include "ui/base/clipboard/clipboard_content_type.h"
 #include "ui/base/clipboard/file_info.h"
 
 class GURL;
@@ -58,26 +59,25 @@ COMPONENT_EXPORT(UI_BASE_CLIPBOARD)
 STGMEDIUM CreateStorageForFileNames(const std::vector<FileInfo>& filenames);
 
 // Fills a vector of display names of "virtual files" in the data store, but
-// does not actually retrieve the file contents. Display names are assured to
-// be unique. Method is called on drag enter of the Chromium drop target, when
-// only the display names are needed. Method only returns true if |filenames|
-// is not empty.
+// does not actually retrieve the file contents. Display names are assured to be
+// unique. Method is called on drag enter of the Chromium drop target, when only
+// the display names are needed. If there are no display names, returns nullopt.
 COMPONENT_EXPORT(UI_BASE_CLIPBOARD)
-bool GetVirtualFilenames(IDataObject* data_object,
-                         std::vector<base::FilePath>* filenames);
+std::optional<std::vector<base::FilePath>> GetVirtualFilenames(
+    IDataObject* data_object);
 
 // Retrieves "virtual file" contents via creation of intermediary temp files.
 // Method is called on dropping on the Chromium drop target. Since creating
 // the temp files involves file I/O, the method is asynchronous and the caller
 // must provide a callback function that receives a vector of pairs of temp
-// file paths and display names. Method immediately returns false if there are
-// no virtual files in the data object, in which case the callback will never
-// be invoked.
-// TODO(https://crbug.com/951574): Implement virtual file extraction to
+// file paths and display names. The method will invoke the callback with an
+// empty vector if there are no virtual files in the data object.
+//
+// TODO(crbug.com/41452260): Implement virtual file extraction to
 // dynamically stream data to the renderer when File's bytes are actually
 // requested
 COMPONENT_EXPORT(UI_BASE_CLIPBOARD)
-bool GetVirtualFilesAsTempFiles(
+void GetVirtualFilesAsTempFiles(
     IDataObject* data_object,
     base::OnceCallback<
         void(const std::vector<std::pair</*temp path*/ base::FilePath,
@@ -99,22 +99,20 @@ bool GetFileContents(IDataObject* data_object,
 // to avoid polluting the ::RegisterClipboardFormat() namespace with random
 // strings from web content.
 COMPONENT_EXPORT(UI_BASE_CLIPBOARD)
-bool GetWebCustomData(
+bool GetDataTransferCustomData(
     IDataObject* data_object,
     std::unordered_map<std::u16string, std::u16string>* custom_data);
 
 // Helper method for converting between MS CF_HTML format and plain
 // text/html.
 COMPONENT_EXPORT(UI_BASE_CLIPBOARD)
-std::string HtmlToCFHtml(const std::string& html,
-                         const std::string& base_url,
-                         ClipboardContentType content_type);
+std::string HtmlToCFHtml(std::string_view html, std::string_view base_url);
 COMPONENT_EXPORT(UI_BASE_CLIPBOARD)
-void CFHtmlToHtml(const std::string& cf_html,
+void CFHtmlToHtml(std::string_view cf_html,
                   std::string* html,
                   std::string* base_url);
 COMPONENT_EXPORT(UI_BASE_CLIPBOARD)
-void CFHtmlExtractMetadata(const std::string& cf_html,
+void CFHtmlExtractMetadata(std::string_view cf_html,
                            std::string* base_url,
                            size_t* html_start,
                            size_t* fragment_start,

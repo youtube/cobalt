@@ -38,7 +38,7 @@ if __name__ == '__main__' and sys.platform == 'darwin':
 _MULTIPROCESSING_USES_FORK = multiprocessing.get_start_method() == 'fork'
 
 
-def _ResolveRelativeImportPath(path, roots):
+def _ResolveRelativeImportPath(path, imported_by, roots):
   """Attempts to resolve a relative import path against a set of possible roots.
 
   Args:
@@ -58,7 +58,8 @@ def _ResolveRelativeImportPath(path, roots):
     if os.path.isfile(abs_path):
       return os.path.normcase(os.path.normpath(abs_path))
 
-  raise ValueError('"%s" does not exist in any of %s' % (path, roots))
+  raise ValueError('"%s", imported by %s, does not exist in any of %s' %
+                   (path, imported_by, roots))
 
 
 def RebaseAbsolutePath(path, roots):
@@ -99,7 +100,7 @@ def RebaseAbsolutePath(path, roots):
   for root in sorted_roots:
     relative_path = try_rebase_path(path, root)
     if relative_path:
-      # TODO(crbug.com/953884): Use pathlib for this kind of thing once we're
+      # TODO(crbug.com/40623602): Use pathlib for this kind of thing once we're
       # fully migrated to Python 3.
       return relative_path.replace('\\', '/')
 
@@ -232,7 +233,7 @@ def _Shard(target_func, arg_list, processes=None):
   processes = min(processes, len(arg_list) // 2)
 
   if sys.platform == 'win32':
-    # TODO(crbug.com/1190269) - we can't use more than 56
+    # TODO(crbug.com/40755900) - we can't use more than 56
     # cores on Windows or Python3 may hang.
     processes = min(processes, 56)
 
@@ -310,6 +311,7 @@ def _ParseMojoms(mojom_files,
     invalid_imports = []
     for imp in ast.import_list:
       import_abspath = _ResolveRelativeImportPath(imp.import_filename,
+                                                  mojom_abspath,
                                                   input_root_paths)
       if allowed_imports and import_abspath not in allowed_imports:
         invalid_imports.append(imp.import_filename)
@@ -328,7 +330,7 @@ def _ParseMojoms(mojom_files,
         # location.
         module_path = _GetModuleFilename(imp.import_filename)
         module_abspath = _ResolveRelativeImportPath(
-            module_path, module_root_paths + [output_root_path])
+            module_path, mojom_abspath, module_root_paths + [output_root_path])
         with open(module_abspath, 'rb') as module_file:
           loaded_modules[import_abspath] = module.Module.Load(module_file)
 

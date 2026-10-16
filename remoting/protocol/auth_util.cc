@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "remoting/protocol/auth_util.h"
 
 #include "base/base64.h"
@@ -37,12 +42,12 @@ std::string GetSharedSecretHash(const std::string& tag,
 
 // static
 std::string GetAuthBytes(net::SSLSocket* socket,
-                         const base::StringPiece& label,
-                         const base::StringPiece& shared_secret) {
+                         const std::string_view& label,
+                         const std::string_view& shared_secret) {
   // Get keying material from SSL.
-  unsigned char key_material[kAuthDigestLength];
-  int export_result = socket->ExportKeyingMaterial(
-      label, false, "", key_material, kAuthDigestLength);
+  std::array<uint8_t, kAuthDigestLength> key_material;
+  int export_result =
+      socket->ExportKeyingMaterial(label, std::nullopt, key_material);
   if (export_result != net::OK) {
     LOG(ERROR) << "Error fetching keying material: " << export_result;
     return std::string();
@@ -50,14 +55,12 @@ std::string GetAuthBytes(net::SSLSocket* socket,
 
   // Generate auth digest based on the keying material and shared secret.
   crypto::HMAC response(crypto::HMAC::SHA256);
-  if (!response.Init(key_material, kAuthDigestLength)) {
+  if (!response.Init(key_material.data(), kAuthDigestLength)) {
     NOTREACHED() << "HMAC::Init failed";
-    return std::string();
   }
   unsigned char out_bytes[kAuthDigestLength];
   if (!response.Sign(shared_secret, out_bytes, kAuthDigestLength)) {
     NOTREACHED() << "HMAC::Sign failed";
-    return std::string();
   }
 
   return std::string(out_bytes, out_bytes + kAuthDigestLength);

@@ -1,11 +1,12 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   var {page, session, dp} = await testRunner.startBlank(
     `Verifies that requestWillBeSent.redirectEmittedExtraInfo matches the presence of ExtraInfo events on redirects.\n`);
 
-  dp.Network.enable();
-  dp.Page.enable();
+  await dp.Network.enable();
+  await dp.Network.setCacheDisabled({cacheDisabled: true});
+  await dp.Page.enable();
 
-  dp.Network.setRequestInterception({patterns: [{}]});
+  await dp.Network.setRequestInterception({patterns: [{}]});
   dp.Runtime.evaluate({expression: `
     document.body.innerHTML = '<iframe src="http://127.0.1.1:8000/whatever"></iframe>';
   `});

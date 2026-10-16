@@ -6,8 +6,11 @@
 #define MEDIA_BASE_MEDIA_LOG_EVENTS_H_
 
 #include <string>
+
 #include "media/base/media_export.h"
 #include "media/base/media_log_type_enforcement.h"
+#include "media/base/media_track.h"
+#include "media/base/picture_in_picture_events_info.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace media {
@@ -67,6 +70,32 @@ enum class MediaLogEvent {
   // An internal-only event that the media log sends when it is created, and
   // includes a wall-clock timestamp.
   kMediaLogCreated,
+
+  // The media player video "occlusion state" has changed, where "occlusion
+  // state" represents the `MediaVideoVisibilityTracker` state related to
+  // occlusion computations. This is recorded at the time that the video
+  // visibility is reported, not for every occlusion computation.
+  //
+  // "Visibility" in the context of the `MediaVideoVisibilityTracker` is defined
+  // as having an `HTMLVideoElement` that is intersecting with the viewport and
+  // is not occluded by other html elements within the page, with the exception
+  // of MediaControls.
+  //
+  // These logs only apply to HTMLVideoElement. Other media elements will not
+  // log these events.
+  kVideoOcclusionState,
+
+  // Triggered whenever WMPI handles a track change.
+  kAudioTrackChange,
+  kVideoTrackChange,
+
+  // Triggered when the media element starts and finishes fetching media data.
+  kHlsSegmentFetch,
+
+  // The media player auto picture in picture information has changed. Triggered
+  // when auto picture in picture is requested, to record why the automatic
+  // enter picture in picture request was accepted/denied.
+  kAutoPictureInPictureInfoChanged,
 };
 
 // Sometimes URLs can have encoded data that can be exteremly large.
@@ -92,6 +121,17 @@ MEDIA_LOG_EVENT_NAMED_DATA_OP(kWebMediaPlayerCreated,
                               "origin_url",
                               TruncateUrlString);
 MEDIA_LOG_EVENT_NAMED_DATA(kMediaLogCreated, base::Time, "created");
+MEDIA_LOG_EVENT_NAMED_DATA(kVideoOcclusionState,
+                           std::string,
+                           "video_occlusion_state");
+MEDIA_LOG_EVENT_NAMED_DATA(kAutoPictureInPictureInfoChanged,
+                           PictureInPictureEventsInfo::AutoPipInfo,
+                           "auto_picture_in_picture_info");
+
+MEDIA_LOG_EVENT_NAMED_DATA_OP(kHlsSegmentFetch,
+                              std::string,
+                              "hls_segment_url",
+                              TruncateUrlString);
 
 // Each type of buffering state gets a different name.
 MEDIA_LOG_EVENT_NAMED_DATA(
@@ -106,6 +146,13 @@ MEDIA_LOG_EVENT_NAMED_DATA(
     kBufferingStateChanged,
     SerializableBufferingState<SerializableBufferingStateType::kPipeline>,
     "pipeline_buffering_state");
+
+MEDIA_LOG_EVENT_NAMED_DATA(kAudioTrackChange,
+                           std::vector<MediaTrack::Id>,
+                           "audio_tracks_enabled");
+MEDIA_LOG_EVENT_NAMED_DATA(kVideoTrackChange,
+                           std::optional<MediaTrack::Id>,
+                           "video_track_selected");
 
 }  // namespace media
 

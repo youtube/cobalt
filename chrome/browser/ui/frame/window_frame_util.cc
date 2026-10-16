@@ -7,35 +7,19 @@
 #include "build/build_config.h"
 #include "ui/gfx/geometry/size.h"
 
-#if BUILDFLAG(IS_WIN)
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/ui_features.h"
-#endif  // BUILDFLAG(IS_WIN)
-
 // static
-SkAlpha WindowFrameUtil::CalculateWindows10GlassCaptionButtonBackgroundAlpha(
+SkAlpha WindowFrameUtil::CalculateWindowsCaptionButtonBackgroundAlpha(
     SkAlpha theme_alpha) {
   return theme_alpha == SK_AlphaOPAQUE ? 0xCC : theme_alpha;
 }
 
 // static
-gfx::Size WindowFrameUtil::GetWindows10GlassCaptionButtonAreaSize() {
-  // TODO(crbug.com/1257470): Fix uses of this to dynamically compute the size
-  // of the glass caption button area.
+gfx::Size WindowFrameUtil::GetWindowsCaptionButtonAreaSize() {
+  // TODO(crbug.com/40200697): Fix uses of this to dynamically compute the size
+  // of the caption button area.
   constexpr int kNumButtons = 3;
 
-  return gfx::Size(
-      (kNumButtons * kWindows10GlassCaptionButtonWidth) +
-          ((kNumButtons - 1) * kWindows10GlassCaptionButtonVisualSpacing),
-      kWindows10GlassCaptionButtonHeightRestored);
-}
-
-// static
-bool WindowFrameUtil::IsWin10TabSearchCaptionButtonEnabled(
-    const Browser* browser) {
-#if BUILDFLAG(IS_WIN)
-  return browser->is_type_normal();
-#else
-  return false;
-#endif  // BUILDFLAG(IS_WIN)
+  return gfx::Size((kNumButtons * kWindowsCaptionButtonWidth) +
+                       ((kNumButtons - 1) * kWindowsCaptionButtonVisualSpacing),
+                   kWindowsCaptionButtonHeightRestored);
 }

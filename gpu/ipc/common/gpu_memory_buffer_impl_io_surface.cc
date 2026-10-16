@@ -37,12 +37,12 @@ uint32_t LockFlags(gfx::BufferUsage usage) {
     case gfx::BufferUsage::CAMERA_AND_CPU_READ_WRITE:
     case gfx::BufferUsage::SCANOUT_CPU_READ_WRITE:
     case gfx::BufferUsage::SCANOUT_VDA_WRITE:
+    case gfx::BufferUsage::PROTECTED_SCANOUT:
     case gfx::BufferUsage::PROTECTED_SCANOUT_VDA_WRITE:
     case gfx::BufferUsage::SCANOUT_FRONT_RENDERING:
       return 0;
   }
   NOTREACHED();
-  return 0;
 }
 
 }  // namespace
@@ -52,10 +52,10 @@ GpuMemoryBufferImplIOSurface::GpuMemoryBufferImplIOSurface(
     const gfx::Size& size,
     gfx::BufferFormat format,
     DestructionCallback callback,
-    IOSurfaceRef io_surface,
+    base::apple::ScopedCFTypeRef<IOSurfaceRef> io_surface,
     uint32_t lock_flags)
     : GpuMemoryBufferImpl(id, size, format, std::move(callback)),
-      io_surface_(io_surface),
+      io_surface_(std::move(io_surface)),
       lock_flags_(lock_flags) {}
 
 GpuMemoryBufferImplIOSurface::~GpuMemoryBufferImplIOSurface() {}
@@ -83,15 +83,15 @@ GpuMemoryBufferImplIOSurface::CreateFromHandle(
     }
     return nullptr;
   }
-  int64_t io_surface_width = IOSurfaceGetWidth(io_surface);
-  int64_t io_surface_height = IOSurfaceGetHeight(io_surface);
+  int64_t io_surface_width = IOSurfaceGetWidth(io_surface.get());
+  int64_t io_surface_height = IOSurfaceGetHeight(io_surface.get());
   if (io_surface_width < size.width() || io_surface_height < size.height()) {
     DLOG(ERROR) << "IOSurface size does not match handle.";
     return nullptr;
   }
 
   return base::WrapUnique(new GpuMemoryBufferImplIOSurface(
-      handle.id, size, format, std::move(callback), io_surface.release(),
+      handle.id, size, format, std::move(callback), std::move(io_surface),
       LockFlags(usage)));
 }
 
@@ -104,7 +104,7 @@ base::OnceClosure GpuMemoryBufferImplIOSurface::AllocateForTesting(
   gfx::GpuMemoryBufferId kBufferId(1);
   handle->type = gfx::IO_SURFACE_BUFFER;
   handle->id = kBufferId;
-  handle->io_surface.reset(gfx::CreateIOSurface(size, format));
+  handle->io_surface = gfx::CreateIOSurface(size, format);
   DCHECK(handle->io_surface);
   return base::DoNothing();
 }
@@ -114,15 +114,15 @@ bool GpuMemoryBufferImplIOSurface::Map() {
   if (map_count_++)
     return true;
 
-  IOReturn status = IOSurfaceLock(io_surface_, lock_flags_, nullptr);
-  DCHECK_NE(status, kIOReturnCannotLock) << " lock_flags_: " << lock_flags_;
+  kern_return_t status = IOSurfaceLock(io_surface_.get(), lock_flags_, nullptr);
+  DCHECK_EQ(status, KERN_SUCCESS) << " lock_flags_: " << lock_flags_;
   return true;
 }
 
 void* GpuMemoryBufferImplIOSurface::memory(size_t plane) {
   AssertMapped();
   DCHECK_LT(plane, gfx::NumberOfPlanesForLinearBufferFormat(format_));
-  return IOSurfaceGetBaseAddressOfPlane(io_surface_, plane);
+  return IOSurfaceGetBaseAddressOfPlane(io_surface_.get(), plane);
 }
 
 void GpuMemoryBufferImplIOSurface::Unmap() {
@@ -130,12 +130,12 @@ void GpuMemoryBufferImplIOSurface::Unmap() {
   DCHECK_GT(map_count_, 0u);
   if (--map_count_)
     return;
-  IOSurfaceUnlock(io_surface_, lock_flags_, nullptr);
+  IOSurfaceUnlock(io_surface_.get(), lock_flags_, nullptr);
 }
 
 int GpuMemoryBufferImplIOSurface::stride(size_t plane) const {
   DCHECK_LT(plane, gfx::NumberOfPlanesForLinearBufferFormat(format_));
-  return IOSurfaceGetBytesPerRowOfPlane(io_surface_, plane);
+  return IOSurfaceGetBytesPerRowOfPlane(io_surface_.get(), plane);
 }
 
 void GpuMemoryBufferImplIOSurface::SetColorSpace(
@@ -143,7 +143,7 @@ void GpuMemoryBufferImplIOSurface::SetColorSpace(
   if (color_space == color_space_)
     return;
   color_space_ = color_space;
-  IOSurfaceSetColorSpace(io_surface_, color_space);
+  IOSurfaceSetColorSpace(io_surface_.get(), color_space);
 }
 
 gfx::GpuMemoryBufferType GpuMemoryBufferImplIOSurface::GetType() const {

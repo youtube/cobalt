@@ -9,13 +9,15 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/containers/contains.h"
 #include "base/containers/fixed_flat_set.h"
+#include "base/containers/to_value_list.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/values.h"
@@ -25,7 +27,6 @@
 #include "printing/print_job_constants.h"
 #include "printing/print_settings.h"
 #include "printing/units.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -41,59 +42,62 @@ namespace {
 // Note: If this code crashes, then the caller has passed in invalid `settings`.
 // Fix the caller, instead of trying to avoid the crash here.
 PageMargins GetCustomMarginsFromJobSettings(const base::Value::Dict& settings) {
-  PageMargins margins_in_points;
+  PageMargins margins_in_microns;
   const base::Value::Dict* custom_margins =
       settings.FindDict(kSettingMarginsCustom);
-  margins_in_points.top = custom_margins->FindInt(kSettingMarginTop).value();
-  margins_in_points.bottom =
-      custom_margins->FindInt(kSettingMarginBottom).value();
-  margins_in_points.left = custom_margins->FindInt(kSettingMarginLeft).value();
-  margins_in_points.right =
-      custom_margins->FindInt(kSettingMarginRight).value();
-  return margins_in_points;
+  margins_in_microns.top =
+      ConvertUnit(custom_margins->FindInt(kSettingMarginTop).value(),
+                  kPointsPerInch, kMicronsPerInch);
+  margins_in_microns.bottom =
+      ConvertUnit(custom_margins->FindInt(kSettingMarginBottom).value(),
+                  kPointsPerInch, kMicronsPerInch);
+  margins_in_microns.left =
+      ConvertUnit(custom_margins->FindInt(kSettingMarginLeft).value(),
+                  kPointsPerInch, kMicronsPerInch);
+  margins_in_microns.right =
+      ConvertUnit(custom_margins->FindInt(kSettingMarginRight).value(),
+                  kPointsPerInch, kMicronsPerInch);
+  return margins_in_microns;
 }
 
 void SetMarginsToJobSettings(const std::string& json_path,
                              const PageMargins& margins,
                              base::Value::Dict& job_settings) {
-  base::Value::Dict dict;
-  dict.Set(kSettingMarginTop, margins.top);
-  dict.Set(kSettingMarginBottom, margins.bottom);
-  dict.Set(kSettingMarginLeft, margins.left);
-  dict.Set(kSettingMarginRight, margins.right);
-  job_settings.Set(json_path, std::move(dict));
+  job_settings.Set(json_path, base::Value::Dict()
+                                  .Set(kSettingMarginTop, margins.top)
+                                  .Set(kSettingMarginBottom, margins.bottom)
+                                  .Set(kSettingMarginLeft, margins.left)
+                                  .Set(kSettingMarginRight, margins.right));
 }
 
 void SetSizeToJobSettings(const std::string& json_path,
                           const gfx::Size& size,
                           base::Value::Dict& job_settings) {
-  base::Value::Dict dict;
-  dict.Set("width", size.width());
-  dict.Set("height", size.height());
-  job_settings.Set(json_path, std::move(dict));
+  job_settings.Set(json_path, base::Value::Dict()
+                                  .Set("width", size.width())
+                                  .Set("height", size.height()));
 }
 
 void SetRectToJobSettings(const std::string& json_path,
                           const gfx::Rect& rect,
                           base::Value::Dict& job_settings) {
-  base::Value::Dict dict;
-  dict.Set("x", rect.x());
-  dict.Set("y", rect.y());
-  dict.Set("width", rect.width());
-  dict.Set("height", rect.height());
-  job_settings.Set(json_path, std::move(dict));
+  job_settings.Set(json_path, base::Value::Dict()
+                                  .Set("x", rect.x())
+                                  .Set("y", rect.y())
+                                  .Set("width", rect.width())
+                                  .Set("height", rect.height()));
 }
 
 void SetPrintableAreaIfValid(PrintSettings& settings,
                              const gfx::Size& size_microns,
                              const base::Value::Dict& media_size) {
-  absl::optional<int> left_microns =
+  std::optional<int> left_microns =
       media_size.FindInt(kSettingsImageableAreaLeftMicrons);
-  absl::optional<int> bottom_microns =
+  std::optional<int> bottom_microns =
       media_size.FindInt(kSettingsImageableAreaBottomMicrons);
-  absl::optional<int> right_microns =
+  std::optional<int> right_microns =
       media_size.FindInt(kSettingsImageableAreaRightMicrons);
-  absl::optional<int> top_microns =
+  std::optional<int> top_microns =
       media_size.FindInt(kSettingsImageableAreaTopMicrons);
   if (!bottom_microns.has_value() || !left_microns.has_value() ||
       !right_microns.has_value() || !top_microns.has_value()) {
@@ -102,7 +106,7 @@ void SetPrintableAreaIfValid(PrintSettings& settings,
 
   // Scale the page size and printable area to device units.
   // Blink doesn't support different dpi settings in X and Y axis. Because of
-  // this, printers with non-square DPIs still scale page size and printable
+  // this, printers with non-square pixels still scale page size and printable
   // area using device_units_per_inch() instead of their respective dimensions
   // in device_units_per_inch_size().
   float scale =
@@ -140,8 +144,8 @@ PageRanges GetPageRangesFromJobSettings(const base::Value::Dict& job_settings) {
     }
 
     const auto& dict = page_range.GetDict();
-    absl::optional<int> from = dict.FindInt(kSettingPageRangeFrom);
-    absl::optional<int> to = dict.FindInt(kSettingPageRangeTo);
+    std::optional<int> from = dict.FindInt(kSettingPageRangeFrom);
+    std::optional<int> to = dict.FindInt(kSettingPageRangeTo);
     if (!from.has_value() || !to.has_value()) {
       continue;
     }
@@ -157,7 +161,7 @@ PageRanges GetPageRangesFromJobSettings(const base::Value::Dict& job_settings) {
 std::unique_ptr<PrintSettings> PrintSettingsFromJobSettings(
     const base::Value::Dict& job_settings) {
   auto settings = std::make_unique<PrintSettings>();
-  absl::optional<bool> display_header_footer =
+  std::optional<bool> display_header_footer =
       job_settings.FindBool(kSettingHeaderFooterEnabled);
   if (!display_header_footer.has_value()) {
     return nullptr;
@@ -176,9 +180,9 @@ std::unique_ptr<PrintSettings> PrintSettingsFromJobSettings(
     settings->set_url(base::UTF8ToUTF16(*url));
   }
 
-  absl::optional<bool> backgrounds =
+  std::optional<bool> backgrounds =
       job_settings.FindBool(kSettingShouldPrintBackgrounds);
-  absl::optional<bool> selection_only =
+  std::optional<bool> selection_only =
       job_settings.FindBool(kSettingShouldPrintSelectionOnly);
   if (!backgrounds.has_value() || !selection_only.has_value()) {
     return nullptr;
@@ -187,16 +191,16 @@ std::unique_ptr<PrintSettings> PrintSettingsFromJobSettings(
   settings->set_should_print_backgrounds(backgrounds.value());
   settings->set_selection_only(selection_only.value());
 
-  absl::optional<bool> collate = job_settings.FindBool(kSettingCollate);
-  absl::optional<int> copies = job_settings.FindInt(kSettingCopies);
-  absl::optional<int> color = job_settings.FindInt(kSettingColor);
-  absl::optional<int> duplex_mode = job_settings.FindInt(kSettingDuplexMode);
-  absl::optional<bool> landscape = job_settings.FindBool(kSettingLandscape);
+  std::optional<bool> collate = job_settings.FindBool(kSettingCollate);
+  std::optional<int> copies = job_settings.FindInt(kSettingCopies);
+  std::optional<int> color = job_settings.FindInt(kSettingColor);
+  std::optional<int> duplex_mode = job_settings.FindInt(kSettingDuplexMode);
+  std::optional<bool> landscape = job_settings.FindBool(kSettingLandscape);
   const std::string* device_name = job_settings.FindString(kSettingDeviceName);
-  absl::optional<int> scale_factor = job_settings.FindInt(kSettingScaleFactor);
-  absl::optional<bool> rasterize_pdf =
+  std::optional<int> scale_factor = job_settings.FindInt(kSettingScaleFactor);
+  std::optional<bool> rasterize_pdf =
       job_settings.FindBool(kSettingRasterizePdf);
-  absl::optional<int> pages_per_sheet =
+  std::optional<int> pages_per_sheet =
       job_settings.FindInt(kSettingPagesPerSheet);
   if (!collate.has_value() || !copies.has_value() || !color.has_value() ||
       !duplex_mode.has_value() || !landscape.has_value() || !device_name ||
@@ -215,16 +219,16 @@ std::unique_ptr<PrintSettings> PrintSettingsFromJobSettings(
   settings->set_rasterize_pdf(rasterize_pdf.value());
   settings->set_pages_per_sheet(pages_per_sheet.value());
 
-  absl::optional<int> dpi_horizontal =
+  std::optional<int> dpi_horizontal =
       job_settings.FindInt(kSettingDpiHorizontal);
-  absl::optional<int> dpi_vertical = job_settings.FindInt(kSettingDpiVertical);
+  std::optional<int> dpi_vertical = job_settings.FindInt(kSettingDpiVertical);
   if (!dpi_horizontal.has_value() || !dpi_vertical.has_value()) {
     return nullptr;
   }
 
   settings->set_dpi_xy(dpi_horizontal.value(), dpi_vertical.value());
 
-  absl::optional<int> rasterize_pdf_dpi =
+  std::optional<int> rasterize_pdf_dpi =
       job_settings.FindInt(kSettingRasterizePdfDpi);
   if (rasterize_pdf_dpi.has_value()) {
     settings->set_rasterize_pdf_dpi(rasterize_pdf_dpi.value());
@@ -250,9 +254,9 @@ std::unique_ptr<PrintSettings> PrintSettingsFromJobSettings(
   const base::Value::Dict* media_size_value =
       job_settings.FindDict(kSettingMediaSize);
   if (media_size_value) {
-    absl::optional<int> width_microns =
+    std::optional<int> width_microns =
         media_size_value->FindInt(kSettingMediaSizeWidthMicrons);
-    absl::optional<int> height_microns =
+    std::optional<int> height_microns =
         media_size_value->FindInt(kSettingMediaSizeHeightMicrons);
     if (width_microns.has_value() && height_microns.has_value()) {
       requested_media.size_microns =
@@ -269,9 +273,19 @@ std::unique_ptr<PrintSettings> PrintSettingsFromJobSettings(
   }
   settings->set_requested_media(requested_media);
 
+  std::optional<bool> borderless = job_settings.FindBool(kSettingBorderless);
+  if (borderless.has_value()) {
+    settings->set_borderless(borderless.value());
+  }
+
+  const std::string* media_type = job_settings.FindString(kSettingMediaType);
+  if (media_type && !media_type->empty()) {
+    settings->set_media_type(*media_type);
+  }
+
   settings->set_ranges(GetPageRangesFromJobSettings(job_settings));
 
-  absl::optional<bool> is_modifiable =
+  std::optional<bool> is_modifiable =
       job_settings.FindBool(kSettingPreviewModifiable);
   if (is_modifiable.has_value()) {
     settings->set_is_modifiable(is_modifiable.value());
@@ -283,7 +297,7 @@ std::unique_ptr<PrintSettings> PrintSettingsFromJobSettings(
   if (advanced_settings) {
     for (const auto item : *advanced_settings) {
       static constexpr auto kNonJobAttributes =
-          base::MakeFixedFlatSet<base::StringPiece>(
+          base::MakeFixedFlatSet<std::string_view>(
               {"printer-info", "printer-make-and-model", "system_driverinfo"});
       if (!base::Contains(kNonJobAttributes, item.first)) {
         settings->advanced_settings().emplace(item.first, item.second.Clone());
@@ -325,8 +339,7 @@ std::unique_ptr<PrintSettings> PrintSettingsFromJobSettings(
   settings->set_printer_manually_selected(
       job_settings.FindBool(kSettingPrinterManuallySelected).value_or(false));
 
-  absl::optional<int> reason =
-      job_settings.FindInt(kSettingPrinterStatusReason);
+  std::optional<int> reason = job_settings.FindInt(kSettingPrinterStatusReason);
   if (reason.has_value()) {
     settings->set_printer_status_reason(
         static_cast<crosapi::mojom::StatusReason::Reason>(reason.value()));
@@ -338,53 +351,52 @@ std::unique_ptr<PrintSettings> PrintSettingsFromJobSettings(
 
 base::Value::Dict PrintSettingsToJobSettingsDebug(
     const PrintSettings& settings) {
-  base::Value::Dict job_settings;
+  auto job_settings =
+      base::Value::Dict()
+          .Set(kSettingHeaderFooterEnabled, settings.display_header_footer())
+          .Set(kSettingHeaderFooterTitle, settings.title())
+          .Set(kSettingHeaderFooterURL, settings.url())
+          .Set(kSettingShouldPrintBackgrounds,
+               settings.should_print_backgrounds())
+          .Set(kSettingShouldPrintSelectionOnly, settings.selection_only())
+          .Set(kSettingMarginsType, static_cast<int>(settings.margin_type()))
+          .Set(kSettingCollate, settings.collate())
+          .Set(kSettingCopies, settings.copies())
+          .Set(kSettingColor, static_cast<int>(settings.color()))
+          .Set(kSettingDuplexMode, static_cast<int>(settings.duplex_mode()))
+          .Set(kSettingLandscape, settings.landscape())
+          .Set(kSettingDeviceName, settings.device_name())
+          .Set(kSettingDpiHorizontal, settings.dpi_horizontal())
+          .Set(kSettingDpiVertical, settings.dpi_vertical())
+          .Set(kSettingScaleFactor,
+               static_cast<int>((settings.scale_factor() * 100.0) + 0.5))
+          .Set(kSettingRasterizePdf, settings.rasterize_pdf())
+          .Set(kSettingPagesPerSheet, settings.pages_per_sheet());
 
-  job_settings.Set(kSettingHeaderFooterEnabled,
-                   settings.display_header_footer());
-  job_settings.Set(kSettingHeaderFooterTitle, settings.title());
-  job_settings.Set(kSettingHeaderFooterURL, settings.url());
-  job_settings.Set(kSettingShouldPrintBackgrounds,
-                   settings.should_print_backgrounds());
-  job_settings.Set(kSettingShouldPrintSelectionOnly, settings.selection_only());
-  job_settings.Set(kSettingMarginsType,
-                   static_cast<int>(settings.margin_type()));
   if (!settings.ranges().empty()) {
-    base::Value::List page_range_array;
-    for (const auto& range : settings.ranges()) {
-      base::Value::Dict dict;
-      dict.Set(kSettingPageRangeFrom, static_cast<int>(range.from + 1));
-      dict.Set(kSettingPageRangeTo, static_cast<int>(range.to + 1));
-      page_range_array.Append(std::move(dict));
-    }
-    job_settings.Set(kSettingPageRange, std::move(page_range_array));
+    job_settings.Set(
+        kSettingPageRange,
+        base::ToValueList(settings.ranges(), [](const auto& range) {
+          return base::Value::Dict()
+              .Set(kSettingPageRangeFrom, static_cast<int>(range.from + 1))
+              .Set(kSettingPageRangeTo, static_cast<int>(range.to + 1));
+        }));
   }
-
-  job_settings.Set(kSettingCollate, settings.collate());
-  job_settings.Set(kSettingCopies, settings.copies());
-  job_settings.Set(kSettingColor, static_cast<int>(settings.color()));
-  job_settings.Set(kSettingDuplexMode,
-                   static_cast<int>(settings.duplex_mode()));
-  job_settings.Set(kSettingLandscape, settings.landscape());
-  job_settings.Set(kSettingDeviceName, settings.device_name());
-  job_settings.Set(kSettingDpiHorizontal, settings.dpi_horizontal());
-  job_settings.Set(kSettingDpiVertical, settings.dpi_vertical());
-  job_settings.Set(kSettingScaleFactor,
-                   static_cast<int>((settings.scale_factor() * 100.0) + 0.5));
-  job_settings.Set(kSettingRasterizePdf, settings.rasterize_pdf());
-  job_settings.Set(kSettingPagesPerSheet, settings.pages_per_sheet());
 
   // Following values are not read form JSON by InitSettings, so do not have
   // common public constants. So just serialize in "debug" section.
-  base::Value::Dict debug;
-  debug.Set("dpi", settings.dpi());
-  debug.Set("deviceUnitsPerInch", settings.device_units_per_inch());
-  debug.Set("support_alpha_blend", settings.should_print_backgrounds());
-  debug.Set("media_vendor_id", settings.requested_media().vendor_id);
+  auto debug =
+      base::Value::Dict()
+          .Set("dpi", settings.dpi())
+          .Set("deviceUnitsPerInch", settings.device_units_per_inch())
+          .Set("support_alpha_blend", settings.should_print_backgrounds())
+          .Set("media_vendor_id", settings.requested_media().vendor_id);
+
   SetSizeToJobSettings("media_size", settings.requested_media().size_microns,
                        debug);
-  SetMarginsToJobSettings("requested_custom_margins_in_points",
-                          settings.requested_custom_margins_in_points(), debug);
+  SetMarginsToJobSettings("requested_custom_margins_in_microns",
+                          settings.requested_custom_margins_in_microns(),
+                          debug);
   const PageSetup& page_setup = settings.page_setup_device_units();
   SetMarginsToJobSettings("effective_margins", page_setup.effective_margins(),
                           debug);

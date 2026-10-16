@@ -19,14 +19,13 @@ namespace sharing {
 
 namespace {
 
-const char kDeviceName[] = "deviceName";
+constexpr char kDeviceName[] = "deviceName";
 // Salt for advertisement.
-const std::vector<uint8_t> kSalt(Advertisement::kSaltSize, 0);
+constexpr std::array<uint8_t, Advertisement::kSaltSize> kSalt = {};
 // Key for encrypting personal info metadata.
-static const std::vector<uint8_t> kEncryptedMetadataKey(
-    Advertisement::kMetadataEncryptionKeyHashByteSize,
-    0);
-const nearby_share::mojom::ShareTargetType kDeviceType =
+constexpr std::array<uint8_t, Advertisement::kMetadataEncryptionKeyHashByteSize>
+    kEncryptedMetadataKey = {};
+constexpr nearby_share::mojom::ShareTargetType kDeviceType =
     nearby_share::mojom::ShareTargetType::kPhone;
 
 class AdvertisementDecoderTest : public testing::Test {
@@ -87,7 +86,7 @@ TEST(AdvertisementDecoderTest,
   std::unique_ptr<sharing::Advertisement> advertisement =
       sharing::Advertisement::NewInstance(kSalt, kEncryptedMetadataKey,
                                           kDeviceType,
-                                          /* device_name= */ absl::nullopt);
+                                          /* device_name= */ std::nullopt);
   ExpectEquals(*advertisement, *sharing::AdvertisementDecoder::FromEndpointInfo(
                                    advertisement->ToEndpointInfo()));
 }
@@ -128,7 +127,7 @@ TEST(AdvertisementDecoderTest, V1ContactsOnlyAdvertisementEncoding) {
   std::unique_ptr<sharing::Advertisement> advertisement =
       sharing::Advertisement::NewInstance(kSalt, kEncryptedMetadataKey,
                                           kDeviceType,
-                                          /* device_name= */ absl::nullopt);
+                                          /* device_name= */ std::nullopt);
   std::vector<uint8_t> v1EndpointInfo = {18, 0, 0, 0, 0, 0, 0, 0, 0,
                                          0,  0, 0, 0, 0, 0, 0, 0};
   ExpectEquals(*advertisement, *sharing::AdvertisementDecoder::FromEndpointInfo(

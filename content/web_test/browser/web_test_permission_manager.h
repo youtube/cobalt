@@ -15,8 +15,9 @@
 #include "content/public/browser/permission_result.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
+#include "third_party/blink/public/mojom/permissions/permission.mojom-forward.h"
 #include "third_party/blink/public/mojom/permissions/permission.mojom.h"
-#include "third_party/blink/public/mojom/permissions/permission_automation.mojom.h"
+#include "third_party/blink/public/test/mojom/permissions/permission_automation.test-mojom.h"
 #include "url/gurl.h"
 
 namespace blink {
@@ -38,59 +39,47 @@ class WebTestPermissionManager
   ~WebTestPermissionManager() override;
 
   // PermissionManager overrides.
-  void RequestPermission(
-      blink::PermissionType permission,
-      RenderFrameHost* render_frame_host,
-      const GURL& requesting_origin,
-      bool user_gesture,
-      base::OnceCallback<void(blink::mojom::PermissionStatus)> callback)
-      override;
   void RequestPermissions(
-      const std::vector<blink::PermissionType>& permission,
-      RenderFrameHost* render_frame_host,
-      const GURL& requesting_origin,
-      bool user_gesture,
+      content::RenderFrameHost* render_frame_host,
+      const content::PermissionRequestDescription& request_description,
       base::OnceCallback<
           void(const std::vector<blink::mojom::PermissionStatus>&)> callback)
       override;
+
   void ResetPermission(blink::PermissionType permission,
                        const GURL& requesting_origin,
                        const GURL& embedding_origin) override;
   void RequestPermissionsFromCurrentDocument(
-      const std::vector<blink::PermissionType>& permissions,
       content::RenderFrameHost* render_frame_host,
-      bool user_gesture,
+      const content::PermissionRequestDescription& request_description,
       base::OnceCallback<
           void(const std::vector<blink::mojom::PermissionStatus>&)> callback)
       override;
   blink::mojom::PermissionStatus GetPermissionStatus(
-      blink::PermissionType permission,
+      const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
       const GURL& requesting_origin,
       const GURL& embedding_origin) override;
   PermissionResult GetPermissionResultForOriginWithoutContext(
-      blink::PermissionType permission,
-      const url::Origin& origin) override;
+      const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
+      const url::Origin& requesting_origin,
+      const url::Origin& embedding_origin) override;
   blink::mojom::PermissionStatus GetPermissionStatusForCurrentDocument(
-      blink::PermissionType permission,
-      content::RenderFrameHost* render_frame_host) override;
+      const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
+      content::RenderFrameHost* render_frame_host,
+      bool should_include_device_status) override;
   blink::mojom::PermissionStatus GetPermissionStatusForWorker(
-      blink::PermissionType permission,
+      const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
       RenderProcessHost* render_process_host,
       const GURL& worker_origin) override;
   blink::mojom::PermissionStatus GetPermissionStatusForEmbeddedRequester(
-      blink::PermissionType permission,
+      const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
       content::RenderFrameHost* render_frame_host,
       const url::Origin& overridden_origin) override;
-  SubscriptionId SubscribePermissionStatusChange(
-      blink::PermissionType permission,
-      RenderProcessHost* render_process_host,
-      RenderFrameHost* render_frame_host,
-      const GURL& requesting_origin,
-      base::RepeatingCallback<void(blink::mojom::PermissionStatus)> callback)
-      override;
-  void UnsubscribePermissionStatusChange(
-      SubscriptionId subscription_id) override;
+  void OnPermissionStatusChangeSubscriptionAdded(
+      content::PermissionController::SubscriptionId subscription_id) override;
 
+  void UnsubscribeFromPermissionStatusChange(
+      content::PermissionController::SubscriptionId subscription_id) override;
   void SetPermission(
       blink::PermissionType permission,
       blink::mojom::PermissionStatus status,
@@ -113,35 +102,44 @@ class WebTestPermissionManager
  private:
   // Representation of a permission for the WebTestPermissionManager.
   struct PermissionDescription {
-    PermissionDescription() = default;
-    PermissionDescription(blink::PermissionType type,
+    PermissionDescription();
+    PermissionDescription(blink::mojom::PermissionDescriptorPtr permissions,
                           const GURL& origin,
                           const GURL& embedding_origin);
+    PermissionDescription(const PermissionDescription&);
+    ~PermissionDescription();
+
     // Note that the comparison operator does not always require strict
     // origin equality for the requesting and embedding origin. For permission
     // types such as STORAGE_ACCESS_GRANT, which are scoped to (requesting
     // site, embedding site), it will apply a same-site check instead.
     bool operator==(const PermissionDescription& other) const;
-    bool operator!=(const PermissionDescription& other) const;
+
+    bool operator==(PermissionStatusSubscription* other) const;
 
     // Hash operator for hash maps.
     struct Hash {
       size_t operator()(const PermissionDescription& description) const;
     };
 
-    blink::PermissionType type;
+    blink::mojom::PermissionDescriptorPtr permission_descriptor;
     GURL origin;
     GURL embedding_origin;
   };
 
-  struct Subscription;
-  using SubscriptionsMap =
-      base::IDMap<std::unique_ptr<Subscription>, SubscriptionId>;
   using PermissionsMap = std::unordered_map<PermissionDescription,
                                             blink::mojom::PermissionStatus,
                                             PermissionDescription::Hash>;
   using DefaultPermissionStatusMap =
       std::unordered_map<blink::PermissionType, blink::mojom::PermissionStatus>;
+
+  // A wrapper function of `GetPermissionStatus`. Called in requesting
+  // permissions to handle the case when `GetPermissionStatus` should behave
+  // differently when requesting and getting permissions.
+  blink::mojom::PermissionStatus GetPermissionStatusForRequestPermission(
+      const blink::mojom::PermissionDescriptorPtr& permission_descriptor,
+      const GURL& requesting_origin,
+      const GURL& embedding_origin);
 
   void OnPermissionChanged(
       const PermissionDescription& permission,
@@ -166,10 +164,6 @@ class WebTestPermissionManager
       {blink::PermissionType::TOP_LEVEL_STORAGE_ACCESS,
        blink::mojom::PermissionStatus::ASK},
   };
-
-  // List of subscribers currently listening to permission changes.
-  SubscriptionsMap subscriptions_;
-  SubscriptionId::Generator subscription_id_generator_;
 
   mojo::ReceiverSet<blink::test::mojom::PermissionAutomation> receivers_;
 };

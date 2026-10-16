@@ -13,6 +13,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/intent.h"
@@ -35,18 +36,6 @@ class PreferredAppsImpl {
     Host(const Host&) = delete;
     Host& operator=(const Host&) = delete;
     ~Host() = default;
-
-    // Called when the PreferredAppsList has been loaded from disk, and can
-    // be used to initialize subscribers.
-    // Only implemented in Ash, to support initializing the Lacros copy of the
-    // PreferredAppsList.
-    virtual void InitializePreferredAppsForAllSubscribers() {}
-
-    // Called when changes have been made to the PreferredAppsList which should
-    // be propagated to subscribers.
-    // Only implemented in Ash, to support updating the Lacros copy of the
-    // PreferredAppsList.
-    virtual void OnPreferredAppsChanged(PreferredAppChangesPtr changes) {}
 
     // Notifies the host that the supported links preference for a particular
     // `app_id` was enabled/disabled. Used by the host to notify the app
@@ -124,6 +113,8 @@ class PreferredAppsImpl {
   base::OnceClosure write_completed_for_testing_;
 
   base::queue<base::OnceClosure> pending_preferred_apps_tasks_;
+
+  SEQUENCE_CHECKER(sequence_checker_);
 
   base::WeakPtrFactory<PreferredAppsImpl> weak_ptr_factory_{this};
 };

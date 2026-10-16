@@ -5,29 +5,28 @@
 #ifndef ASH_ROOT_WINDOW_CONTROLLER_H_
 #define ASH_ROOT_WINDOW_CONTROLLER_H_
 
-#include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "ash/ash_export.h"
-#include "ash/public/cpp/shelf_types.h"
 #include "ash/style/ash_color_provider_source.h"
-#include "ash/wm/workspace/workspace_types.h"
-#include "base/gtest_prod_util.h"
+#include "ash/wm/overview/overview_metrics.h"
+#include "ash/wm/overview/overview_types.h"
+#include "ash/wm/wm_metrics.h"
 #include "base/memory/raw_ptr.h"
-#include "ui/aura/window.h"
 #include "ui/aura/window_tree_host.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
 
 namespace aura {
 class Window;
-}
+}  // namespace aura
 
 namespace gfx {
 class Point;
-}
+}  // namespace gfx
 
 namespace ui {
-class WindowTreeHost;
 class SimpleMenuModel;
 }  // namespace ui
 
@@ -41,25 +40,27 @@ class ScopedCaptureClient;
 }
 
 namespace ash {
+
 class AccessibilityPanelLayoutManager;
 class AlwaysOnTopController;
 class AppMenuModelAdapter;
 class AshWindowTreeHost;
-class LockScreenActionBackgroundController;
-enum class LoginStatus;
 class RootWindowLayoutManager;
+class ScreenRotationAnimator;
 class Shelf;
 class ShelfLayoutManager;
 class SplitViewController;
-class StackingController;
+class SplitViewOverviewSession;
 class StatusAreaWidget;
 class SystemModalContainerLayoutManager;
-class SystemWallpaperController;
 class TouchExplorationManager;
 class TouchHudDebug;
 class TouchHudProjection;
 class WallpaperWidgetController;
+class WindowParentingController;
 class WorkAreaInsets;
+enum class LoginStatus;
+enum class SplitViewOverviewSessionExitPoint;
 
 namespace curtain {
 class SecurityCurtainWidgetController;
@@ -112,8 +113,11 @@ class ASH_EXPORT RootWindowController {
   aura::Window* GetRootWindow();
   const aura::Window* GetRootWindow() const;
 
-  SplitViewController* split_view_controller() const {
+  SplitViewController* split_view_controller() {
     return split_view_controller_.get();
+  }
+  SplitViewOverviewSession* split_view_overview_session() {
+    return split_view_overview_session_.get();
   }
 
   Shelf* shelf() const { return shelf_.get(); }
@@ -135,6 +139,8 @@ class ASH_EXPORT RootWindowController {
   RootWindowLayoutManager* root_window_layout_manager() {
     return root_window_layout_manager_;
   }
+
+  bool is_shutting_down() const { return is_shutting_down_; }
 
   // Returns parameters of the work area associated with this root window.
   WorkAreaInsets* work_area_insets() { return work_area_insets_.get(); }
@@ -184,30 +190,25 @@ class ASH_EXPORT RootWindowController {
     return wallpaper_widget_controller_.get();
   }
 
-  LockScreenActionBackgroundController*
-  lock_screen_action_background_controller() {
-    return lock_screen_action_background_controller_.get();
-  }
-
   AshColorProviderSource* color_provider_source() {
     return color_provider_source_.get();
   }
 
+  // Returns the rotation animator associated with the root window of this
+  // controller. It creates it lazily if it had never been created, unless
+  // `Shutdown()` had been called, and in this case, it returns nullptr.
+  ScreenRotationAnimator* GetScreenRotationAnimator();
+
   // Deletes associated objects and clears the state, but doesn't delete
   // the root window yet. This is used to delete a secondary displays'
   // root window safely when the display disconnect signal is received,
-  // which may come while we're in the nested run loop.
-  void Shutdown();
+  // which may come while we're in the nested run loop. Child windows of the
+  // root window of this controller will be moved to `destination_root` if
+  // provided.
+  void Shutdown(aura::Window* destination_root);
 
   // Deletes all child windows and performs necessary cleanup.
   void CloseChildWindows();
-
-  // Moves child windows to |dest|.
-  // TODO(afakhry): Consider renaming this function to avoid misuse. It is only
-  // called by WindowTreeHostManager::DeleteHost(), and has destructive side
-  // effects like deleting the workspace controllers, so it shouldn't be called
-  // for something else.
-  void MoveWindowsTo(aura::Window* dest);
 
   // Initialize touch HUDs if necessary.
   void InitTouchHuds();
@@ -227,10 +228,7 @@ class ASH_EXPORT RootWindowController {
 
   // Shows a context menu at the |location_in_screen|.
   void ShowContextMenu(const gfx::Point& location_in_screen,
-                       ui::MenuSourceType source_type);
-  void HideContextMenu();
-  void HideContextMenuNoAnimation();
-  bool IsContextMenuShown() const;
+                       ui::mojom::MenuSourceType source_type);
 
   // Called when the login status changes after login (such as lock/unlock).
   void UpdateAfterLoginStatusChange(LoginStatus status);
@@ -253,12 +251,32 @@ class ASH_EXPORT RootWindowController {
   curtain::SecurityCurtainWidgetController*
   security_curtain_widget_controller();
 
+  // Starts a split view overview session for this root window with `window`
+  // snapped on one side and overview on the other side.
+  void StartSplitViewOverviewSession(aura::Window* window,
+                                     std::optional<OverviewStartAction> action,
+                                     std::optional<OverviewEnterExitType> type,
+                                     WindowSnapActionSource snap_action_source);
+
+  // Ends the split view overview session and reports the uma metrics if it is
+  // active.
+  void EndSplitViewOverviewSession(
+      SplitViewOverviewSessionExitPoint exit_point);
+
+  void SetScreenRotationAnimatorForTest(
+      std::unique_ptr<ScreenRotationAnimator> animator);
+
+  bool IsContextMenuShownForTest() const;
+
  private:
   FRIEND_TEST_ALL_PREFIXES(RootWindowControllerTest,
                            ContextMenuDisappearsInTabletMode);
 
   // Takes ownership of |ash_host|.
   explicit RootWindowController(AshWindowTreeHost* ash_host);
+
+  // Moves child windows to `dest`.
+  void MoveWindowsTo(aura::Window* dest);
 
   // Initializes the RootWindowController based on |root_window_type|.
   void Init(RootWindowType root_window_type);
@@ -276,10 +294,13 @@ class ASH_EXPORT RootWindowController {
                                 const char* name,
                                 aura::Window* parent);
 
-  // Initializes |system_wallpaper_| and possibly also |boot_splash_screen_|.
-  // The initial color is determined by the |root_window_type| and whether or
-  // not this is the first boot.
-  void CreateSystemWallpaper(RootWindowType root_window_type);
+  // Build a menu model adapter to configure birch bar in Overview.
+  std::unique_ptr<AppMenuModelAdapter> BuildBirchMenuModelAdapter(
+      ui::mojom::MenuSourceType source_type);
+
+  // Build a menu model adapter to configure shelf.
+  std::unique_ptr<AppMenuModelAdapter> BuildShelfMenuModelAdapter(
+      ui::mojom::MenuSourceType source_type);
 
   // Callback for MenuRunner.
   void OnMenuClosed();
@@ -290,11 +311,10 @@ class ASH_EXPORT RootWindowController {
 
   std::unique_ptr<AshWindowTreeHost> ash_host_;
   // |ash_host_| as a WindowTreeHost.
-  raw_ptr<aura::WindowTreeHost, DanglingUntriaged | ExperimentalAsh>
-      window_tree_host_;
+  raw_ptr<aura::WindowTreeHost, DanglingUntriaged> window_tree_host_;
 
   // LayoutManagers are owned by the window they are installed on.
-  raw_ptr<RootWindowLayoutManager, DanglingUntriaged | ExperimentalAsh>
+  raw_ptr<RootWindowLayoutManager, DanglingUntriaged>
       root_window_layout_manager_ = nullptr;
 
   std::unique_ptr<WallpaperWidgetController> wallpaper_widget_controller_;
@@ -305,16 +325,20 @@ class ASH_EXPORT RootWindowController {
   std::unique_ptr<AppMenuModelAdapter> root_window_menu_model_adapter_;
   std::unique_ptr<ui::SimpleMenuModel> sort_apps_submenu_;
 
-  std::unique_ptr<StackingController> stacking_controller_;
+  std::unique_ptr<WindowParentingController> window_parenting_controller_;
+
+  // The rotation animator of the root window controlled by `this`. It's created
+  // lazily when `GetScreenRotationAnimator()` is called, unless it was called
+  // after `Shutdown()` had begun.
+  std::unique_ptr<ScreenRotationAnimator> screen_rotation_animator_;
 
   std::unique_ptr<SplitViewController> split_view_controller_;
+  std::unique_ptr<SplitViewOverviewSession> split_view_overview_session_;
 
   // The shelf controller for this root window. Exists for the entire lifetime
   // of the RootWindowController so that it is safe for observers to be added
   // to it during construction of the shelf widget and status tray.
   std::unique_ptr<Shelf> shelf_;
-
-  std::unique_ptr<SystemWallpaperController> system_wallpaper_;
 
   // Responsible for initializing TouchExplorationController when spoken
   // feedback is on.
@@ -322,13 +346,11 @@ class ASH_EXPORT RootWindowController {
 
   // Heads-up displays for touch events. These HUDs are not owned by the root
   // window controller and manage their own lifetimes.
-  raw_ptr<TouchHudDebug, ExperimentalAsh> touch_hud_debug_ = nullptr;
-  raw_ptr<TouchHudProjection, ExperimentalAsh> touch_hud_projection_ = nullptr;
+  raw_ptr<TouchHudDebug, DanglingUntriaged> touch_hud_debug_ = nullptr;
+  raw_ptr<TouchHudProjection, DanglingUntriaged> touch_hud_projection_ =
+      nullptr;
 
   std::unique_ptr<::wm::ScopedCaptureClient> capture_client_;
-
-  std::unique_ptr<LockScreenActionBackgroundController>
-      lock_screen_action_background_controller_;
 
   std::unique_ptr<views::Widget> ambient_widget_;
 
@@ -336,6 +358,9 @@ class ASH_EXPORT RootWindowController {
       security_curtain_widget_controller_;
 
   std::unique_ptr<AshColorProviderSource> color_provider_source_;
+
+  // True if we are in the process of shutting down this controller.
+  bool is_shutting_down_ = false;
 
   // Whether child windows have been closed during shutdown. Exists to avoid
   // calling related cleanup code more than once.

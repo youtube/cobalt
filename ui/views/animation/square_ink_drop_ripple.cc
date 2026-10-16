@@ -119,16 +119,18 @@ constexpr float kQuickActionBurstScale = 1.3f;
 // Returns the InkDropState sub animation duration for the given |state|.
 base::TimeDelta GetAnimationDuration(InkDropHost* ink_drop_host,
                                      InkDropSubAnimations state) {
-  if (!PlatformStyle::kUseRipples ||
-      !gfx::Animation::ShouldRenderRichAnimation() ||
-      (ink_drop_host &&
-       ink_drop_host->GetMode() == InkDropHost::InkDropMode::ON_NO_ANIMATE)) {
+  if constexpr (!PlatformStyle::kUseRipples) {
+    return base::TimeDelta();
+  }
+  if (!gfx::Animation::ShouldRenderRichAnimation() ||
+             (ink_drop_host && ink_drop_host->GetMode() ==
+                                   InkDropHost::InkDropMode::ON_NO_ANIMATE)) {
     return base::TimeDelta();
   }
 
   // Duration constants for InkDropStateSubAnimations. See the
   // InkDropStateSubAnimations enum documentation for more info.
-  constexpr base::TimeDelta kAnimationDuration[] = {
+  constexpr auto kAnimationDuration = std::to_array<base::TimeDelta>({
       base::Milliseconds(150),  // HIDDEN_FADE_OUT
       base::Milliseconds(200),  // HIDDEN_TRANSFORM
       base::TimeDelta(),        // ACTION_PENDING_FADE_IN
@@ -142,7 +144,7 @@ base::TimeDelta GetAnimationDuration(InkDropHost* ink_drop_host,
       base::Milliseconds(160),  // ACTIVATED_RECT_TRANSFORM
       base::Milliseconds(150),  // DEACTIVATED_FADE_OUT
       base::Milliseconds(200),  // DEACTIVATED_TRANSFORM
-  };
+  });
   return kAnimationDuration[state];
 }
 
@@ -171,8 +173,9 @@ SquareInkDropRipple::SquareInkDropRipple(InkDropHost* ink_drop_host,
       root_layer_(ui::LAYER_NOT_DRAWN) {
   root_layer_.SetName("SquareInkDropRipple:ROOT_LAYER");
 
-  for (int i = 0; i < PAINTED_SHAPE_COUNT; ++i)
+  for (size_t i = 0; i < PAINTED_SHAPE_COUNT; ++i) {
     AddPaintLayer(static_cast<PaintedShape>(i));
+  }
 
   root_layer_.SetMasksToBounds(false);
   root_layer_.SetBounds(gfx::Rect(large_size_));
@@ -189,14 +192,6 @@ SquareInkDropRipple::~SquareInkDropRipple() {
   // Explicitly aborting all the animations ensures all callbacks are invoked
   // while this instance still exists.
   AbortAllAnimations();
-}
-
-void SquareInkDropRipple::SnapToActivated() {
-  InkDropRipple::SnapToActivated();
-  SetOpacity(visible_opacity_);
-  InkDropTransforms transforms;
-  GetActivatedTargetTransforms(&transforms);
-  SetTransforms(transforms);
 }
 
 ui::Layer* SquareInkDropRipple::GetRootLayer() {
@@ -222,8 +217,7 @@ std::string SquareInkDropRipple::ToLayerName(PaintedShape painted_shape) {
     case VERTICAL_RECT:
       return "VERTICAL_RECT";
     case PAINTED_SHAPE_COUNT:
-      NOTREACHED_NORETURN()
-          << "The PAINTED_SHAPE_COUNT value should never be used.";
+      NOTREACHED() << "The PAINTED_SHAPE_COUNT value should never be used.";
   }
   return "UNKNOWN";
 }
@@ -242,8 +236,9 @@ void SquareInkDropRipple::AnimateStateChange(InkDropState old_ink_drop_state,
       [this](AnimationSequenceBlock& sequence,
              const InkDropTransforms& transforms,
              gfx::Tween::Type tween) -> AnimationSequenceBlock& {
-    for (int i = 0; i < PAINTED_SHAPE_COUNT; ++i)
+    for (size_t i = 0; i < PAINTED_SHAPE_COUNT; ++i) {
       sequence.SetTransform(painted_layers_[i].get(), transforms[i], tween);
+    }
     return sequence;
   };
 
@@ -279,8 +274,9 @@ void SquareInkDropRipple::AnimateStateChange(InkDropState old_ink_drop_state,
       }
       break;
     case InkDropState::ACTION_PENDING: {
-      if (old_ink_drop_state == new_ink_drop_state)
+      if (old_ink_drop_state == new_ink_drop_state) {
         return;
+      }
       DLOG_IF(WARNING, InkDropState::HIDDEN != old_ink_drop_state)
           << "Invalid InkDropState transition. old_ink_drop_state="
           << ToString(old_ink_drop_state)
@@ -399,6 +395,14 @@ void SquareInkDropRipple::AnimateStateChange(InkDropState old_ink_drop_state,
   }
 }
 
+void SquareInkDropRipple::SetStateToActivated() {
+  root_layer_.SetVisible(true);
+  SetOpacity(visible_opacity_);
+  InkDropTransforms transforms;
+  GetActivatedTargetTransforms(&transforms);
+  SetTransforms(transforms);
+}
+
 void SquareInkDropRipple::SetStateToHidden() {
   InkDropTransforms transforms;
   // Use non-zero size to avoid visual anomalies.
@@ -410,13 +414,15 @@ void SquareInkDropRipple::SetStateToHidden() {
 
 void SquareInkDropRipple::AbortAllAnimations() {
   root_layer_.GetAnimator()->AbortAllAnimations();
-  for (auto& painted_layer : painted_layers_)
+  for (auto& painted_layer : painted_layers_) {
     painted_layer->GetAnimator()->AbortAllAnimations();
+  }
 }
 
 void SquareInkDropRipple::SetTransforms(const InkDropTransforms transforms) {
-  for (int i = 0; i < PAINTED_SHAPE_COUNT; ++i)
+  for (size_t i = 0; i < PAINTED_SHAPE_COUNT; ++i) {
     painted_layers_[i]->SetTransform(transforms[i]);
+  }
 }
 
 void SquareInkDropRipple::SetOpacity(float opacity) {
@@ -519,8 +525,9 @@ gfx::Transform SquareInkDropRipple::CalculateRectTransform(
 
 void SquareInkDropRipple::GetCurrentTransforms(
     InkDropTransforms* transforms_out) const {
-  for (int i = 0; i < PAINTED_SHAPE_COUNT; ++i)
+  for (size_t i = 0; i < PAINTED_SHAPE_COUNT; ++i) {
     (*transforms_out)[i] = painted_layers_[i]->transform();
+  }
 }
 
 void SquareInkDropRipple::GetActivatedTargetTransforms(
@@ -563,8 +570,7 @@ void SquareInkDropRipple::AddPaintLayer(PaintedShape painted_shape) {
       delegate = rect_layer_delegate_.get();
       break;
     case PAINTED_SHAPE_COUNT:
-      NOTREACHED_NORETURN()
-          << "PAINTED_SHAPE_COUNT is not an actual shape type.";
+      NOTREACHED() << "PAINTED_SHAPE_COUNT is not an actual shape type.";
   }
 
   ui::Layer* layer = new ui::Layer();

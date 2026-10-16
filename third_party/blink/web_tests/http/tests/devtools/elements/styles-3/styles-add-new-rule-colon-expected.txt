@@ -6,12 +6,13 @@ element.style { ()
     font-size: 12px;
 
 [expanded] 
-foo, [$div#inspected$], bar { (inspector-stylesheet:1 -> inspector-stylesheet:1:26)
+foo, [$div#inspected$], bar { (*inspector-stylesheet:1 -> inspector-stylesheet:1:26)
     color: maroon;
 
 [expanded] 
 [$div$] { (user agent stylesheet)
     display: block;
+    unicode-bidi: isolate;
 
 After adding new rule (other):
 [expanded] 
@@ -19,11 +20,12 @@ element.style { ()
     color: red;
 
 [expanded] 
-div#other { (inspector-stylesheet:5 -> inspector-stylesheet:5:12)
+div#other { (*inspector-stylesheet:5 -> inspector-stylesheet:5:12)
 
 [expanded] 
 div { (user agent stylesheet)
     display: block;
+    unicode-bidi: isolate;
 
 Revision added: inspector-stylesheet
 

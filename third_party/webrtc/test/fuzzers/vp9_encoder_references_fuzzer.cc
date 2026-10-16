@@ -10,18 +10,36 @@
 
 #include <stdint.h>
 
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "absl/algorithm/container.h"
 #include "absl/base/macros.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
+#include "api/environment/environment_factory.h"
 #include "api/field_trials_view.h"
+#include "api/video/encoded_image.h"
+#include "api/video/i420_buffer.h"
+#include "api/video/video_bitrate_allocation.h"
+#include "api/video/video_codec_type.h"
 #include "api/video/video_frame.h"
+#include "api/video/video_frame_type.h"
+#include "api/video_codecs/spatial_layer.h"
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
+#include "common_video/generic_frame_descriptor/generic_frame_info.h"
+#include "modules/video_coding/codecs/interface/common_constants.h"
 #include "modules/video_coding/codecs/interface/libvpx_interface.h"
+#include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
 #include "modules/video_coding/codecs/vp9/libvpx_vp9_encoder.h"
 #include "modules/video_coding/frame_dependencies_calculator.h"
-#include "rtc_base/numerics/safe_compare.h"
+#include "modules/video_coding/include/video_codec_interface.h"
+#include "modules/video_coding/include/video_error_codes.h"
+#include "rtc_base/checks.h"
 #include "test/fuzzers/fuzz_data_helper.h"
 
 // Fuzzer simulates various svc configurations and libvpx encoder dropping
@@ -113,8 +131,9 @@ class FrameValidator : public EncodedImageCallback {
     }
   }
 
-  void CheckGenericReferences(rtc::ArrayView<const int64_t> frame_dependencies,
-                              const GenericFrameInfo& generic_info) const {
+  void CheckGenericReferences(
+      webrtc::ArrayView<const int64_t> frame_dependencies,
+      const GenericFrameInfo& generic_info) const {
     for (int64_t dependency_frame_id : frame_dependencies) {
       RTC_CHECK_GE(dependency_frame_id, 0);
       const LayerFrame& dependency = Frame(dependency_frame_id);
@@ -124,7 +143,7 @@ class FrameValidator : public EncodedImageCallback {
   }
 
   void CheckGenericAndCodecSpecificReferencesAreConsistent(
-      rtc::ArrayView<const int64_t> frame_dependencies,
+      webrtc::ArrayView<const int64_t> frame_dependencies,
       const CodecSpecificInfo& info,
       const LayerFrame& layer_frame) const {
     const CodecSpecificInfoVP9& vp9_info = info.codecSpecific.VP9;
@@ -133,7 +152,7 @@ class FrameValidator : public EncodedImageCallback {
     RTC_CHECK_EQ(generic_info.spatial_id, layer_frame.spatial_id);
     RTC_CHECK_EQ(generic_info.temporal_id, layer_frame.temporal_id);
     auto picture_id_diffs =
-        rtc::MakeArrayView(vp9_info.p_diff, vp9_info.num_ref_pics);
+        webrtc::MakeArrayView(vp9_info.p_diff, vp9_info.num_ref_pics);
     RTC_CHECK_EQ(
         frame_dependencies.size(),
         picture_id_diffs.size() + (vp9_info.inter_layer_predicted ? 1 : 0));
@@ -174,7 +193,6 @@ class FieldTrials : public FieldTrialsView {
   ~FieldTrials() override = default;
   std::string Lookup(absl::string_view key) const override {
     static constexpr absl::string_view kBinaryFieldTrials[] = {
-        "WebRTC-Vp9ExternalRefCtrl",
         "WebRTC-Vp9IssueKeyFrameOnLayerDeactivation",
     };
     for (size_t i = 0; i < ABSL_ARRAYSIZE(kBinaryFieldTrials); ++i) {
@@ -187,11 +205,20 @@ class FieldTrials : public FieldTrialsView {
     if (key == "WebRTC-CongestionWindow" ||
         key == "WebRTC-UseBaseHeavyVP8TL3RateAllocation" ||
         key == "WebRTC-VideoRateControl" ||
+        key == "WebRTC-GetEncoderInfoOverride" ||
+        key == "WebRTC-VP9-GetEncoderInfoOverride" ||
         key == "WebRTC-VP9-PerformanceFlags" ||
-        key == "WebRTC-VP9VariableFramerateScreenshare" ||
-        key == "WebRTC-VP9QualityScaler") {
+        key == "WebRTC-VP9QualityScaler" ||
+        key == "WebRTC-VP9-SvcForSimulcast" ||
+        key == "WebRTC-StableTargetRate") {
       return "";
     }
+
+    // TODO: bugs.webrtc.org/15827 - Fuzz frame drop config.
+    if (key == "WebRTC-LibvpxVp9Encoder-SvcFrameDropConfig") {
+      return "";
+    }
+
     // Crash when using unexpected field trial to decide if it should be fuzzed
     // or have a constant value.
     RTC_CHECK(false) << "Unfuzzed field trial " << key << "\n";
@@ -521,7 +548,7 @@ static_assert(DropBelow(0b1101, /*sid=*/3, 4) == false, "");
 }  // namespace
 
 void FuzzOneInput(const uint8_t* data, size_t size) {
-  FuzzDataHelper helper(rtc::MakeArrayView(data, size));
+  FuzzDataHelper helper(webrtc::MakeArrayView(data, size));
 
   FrameValidator validator;
   FieldTrials field_trials(helper);
@@ -529,8 +556,8 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
   LibvpxState state;
 
   // Initialize encoder
-  LibvpxVp9Encoder encoder(cricket::VideoCodec(),
-                           std::make_unique<StubLibvpx>(&state), field_trials);
+  LibvpxVp9Encoder encoder(CreateEnvironment(&field_trials), {},
+                           std::make_unique<StubLibvpx>(&state));
   VideoCodec codec = CodecSettings(helper);
   if (encoder.InitEncode(&codec, EncoderSettings()) != WEBRTC_VIDEO_CODEC_OK) {
     return;
@@ -573,21 +600,24 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
             // Don't encode disabled spatial layers.
             continue;
           }
-          bool drop = true;
-          switch (state.frame_drop.framedrop_mode) {
-            case FULL_SUPERFRAME_DROP:
-              drop = encode_spatial_layers == 0;
-              break;
-            case LAYER_DROP:
-              drop = (encode_spatial_layers & (1 << sid)) == 0;
-              break;
-            case CONSTRAINED_LAYER_DROP:
-              drop = DropBelow(encode_spatial_layers, sid,
-                               state.config.ss_number_layers);
-              break;
-            case CONSTRAINED_FROM_ABOVE_DROP:
-              drop = DropAbove(encode_spatial_layers, sid);
-              break;
+          bool drop = false;
+          // Never drop keyframe.
+          if (frame_types[0] != VideoFrameType::kVideoFrameKey) {
+            switch (state.frame_drop.framedrop_mode) {
+              case FULL_SUPERFRAME_DROP:
+                drop = encode_spatial_layers == 0;
+                break;
+              case LAYER_DROP:
+                drop = (encode_spatial_layers & (1 << sid)) == 0;
+                break;
+              case CONSTRAINED_LAYER_DROP:
+                drop = DropBelow(encode_spatial_layers, sid,
+                                 state.config.ss_number_layers);
+                break;
+              case CONSTRAINED_FROM_ABOVE_DROP:
+                drop = DropAbove(encode_spatial_layers, sid);
+                break;
+            }
           }
           if (!drop) {
             state.layer_id.spatial_layer_id = sid;

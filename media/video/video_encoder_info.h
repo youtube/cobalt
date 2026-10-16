@@ -6,12 +6,14 @@
 #define MEDIA_VIDEO_VIDEO_ENCODER_INFO_H_
 
 #include <stdint.h>
+
 #include <array>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "media/base/media_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "media/base/video_types.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace media {
@@ -19,23 +21,27 @@ namespace media {
 // These chromium classes are the corresponding classes in webrtc project.
 // See third_party/webrtc/api/video_codecs/video_encoder.h for the detail.
 
-struct MEDIA_EXPORT ResolutionBitrateLimit {
-  ResolutionBitrateLimit();
-  ResolutionBitrateLimit(const ResolutionBitrateLimit&);
-  ResolutionBitrateLimit(const gfx::Size& frame_size,
-                         int min_start_bitrate_bps,
-                         int min_bitrate_bps,
-                         int max_bitrate_bps);
-  ~ResolutionBitrateLimit();
-
-  friend bool operator==(const ResolutionBitrateLimit&,
-                         const ResolutionBitrateLimit&) = default;
+struct MEDIA_EXPORT ResolutionRateLimit {
+  ResolutionRateLimit();
+  ResolutionRateLimit(const ResolutionRateLimit&);
+  ResolutionRateLimit(const gfx::Size& frame_size,
+                      int min_start_bitrate_bps,
+                      int min_bitrate_bps,
+                      int max_bitrate_bps,
+                      uint32_t max_framerate_numerator,
+                      uint32_t max_framerate_denominator);
+  ~ResolutionRateLimit();
 
   gfx::Size frame_size;
   int min_start_bitrate_bps = 0;
   int min_bitrate_bps = 0;
   int max_bitrate_bps = 0;
+  uint32_t max_framerate_numerator = 0;
+  uint32_t max_framerate_denominator = 0;
 };
+
+MEDIA_EXPORT bool operator==(const ResolutionRateLimit& lhs,
+                             const ResolutionRateLimit& rhs);
 
 struct MEDIA_EXPORT VideoEncoderInfo {
   static constexpr size_t kMaxSpatialLayers = 5;
@@ -44,8 +50,7 @@ struct MEDIA_EXPORT VideoEncoderInfo {
   VideoEncoderInfo(const VideoEncoderInfo&);
   ~VideoEncoderInfo();
 
-  friend bool operator==(const VideoEncoderInfo&,
-                         const VideoEncoderInfo&) = default;
+  bool DoesSupportGpuSharedImages(VideoPixelFormat format);
 
   std::string implementation_name;
 
@@ -54,13 +59,13 @@ struct MEDIA_EXPORT VideoEncoderInfo {
   // compression window. Equal to 0 if the encoder can produce a chunk of
   // output just from the frame submitted last.
   // If absent, the encoder client will assume some default value.
-  absl::optional<int> frame_delay;
+  std::optional<int> frame_delay;
 
   // The number of input frames the encoder can queue internally. Once this
   // number is reached, further encode requests can block until some output has
   // been produced.
   // If absent, the encoder client will assume some default value.
-  absl::optional<int> input_capacity;
+  std::optional<int> input_capacity;
 
   bool supports_native_handle = true;
   bool has_trusted_rate_controller = false;
@@ -72,10 +77,28 @@ struct MEDIA_EXPORT VideoEncoderInfo {
   bool reports_average_qp = true;
   uint32_t requested_resolution_alignment = 1;
   bool apply_alignment_to_all_simulcast_layers = false;
+  // True if encoder supports frame size change without re-initialization.
+  bool supports_frame_size_change = false;
+
+  // Number of video encoder buffers (encoded frame slots) that
+  // are kept by the encoder and can be used to store encoded frames for
+  // future reference.
+  size_t number_of_manual_reference_buffers = 0;
 
   std::array<std::vector<uint8_t>, kMaxSpatialLayers> fps_allocation;
-  std::vector<ResolutionBitrateLimit> resolution_bitrate_limits;
+
+  std::vector<ResolutionRateLimit> resolution_rate_limits;
+
+  // Set of pixel formats that this encoder can handle on the gpu
+  // withhout readback.
+  std::vector<VideoPixelFormat> gpu_supported_pixel_formats;
+
+  // If true, the encoder can handle shared image video frames
+  bool supports_gpu_shared_images = false;
 };
+
+MEDIA_EXPORT bool operator==(const VideoEncoderInfo& lhs,
+                             const VideoEncoderInfo& rhs);
 
 }  // namespace media
 

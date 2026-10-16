@@ -8,6 +8,7 @@
 
 #include <memory>
 
+#include "base/apple/owned_objc.h"
 #include "base/check.h"
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
@@ -50,7 +51,8 @@ class EventCaptureMac::MouseCaptureDelegateImpl
  private:
   // remote_cocoa::CocoaMouseCaptureDelegate:
   bool PostCapturedEvent(NSEvent* event) override {
-    std::unique_ptr<ui::Event> ui_event = ui::EventFromNative(event);
+    std::unique_ptr<ui::Event> ui_event =
+        ui::EventFromNative(base::apple::OwnedNSEvent(event));
     if (!ui_event) {
       return false;
     }
@@ -60,17 +62,20 @@ class EventCaptureMac::MouseCaptureDelegateImpl
     NSView* view = [event.window.contentView hitTest:event.locationInWindow];
 
     ui::EventType type = ui_event->type();
-    if (type == ui::ET_MOUSE_DRAGGED || type == ui::ET_MOUSE_RELEASED) {
+    if (type == ui::EventType::kMouseDragged ||
+        type == ui::EventType::kMouseReleased) {
       event_handler_->OnMouseEvent(ui_event->AsMouseEvent());
-    } else if ((type == ui::ET_MOUSE_PRESSED || type == ui::ET_MOUSE_MOVED) &&
+    } else if ((type == ui::EventType::kMousePressed ||
+                type == ui::EventType::kMouseMoved) &&
                web_contents_view_ == view) {
       // We do not need to record mouse clicks outside of the web contents.
       event_handler_->OnMouseEvent(ui_event->AsMouseEvent());
-    } else if (type == ui::ET_MOUSE_MOVED && web_contents_view_ != view) {
+    } else if (type == ui::EventType::kMouseMoved &&
+               web_contents_view_ != view) {
       // Manually set arrow cursor when region search UI is open and cursor is
       // moved from web contents.
       [NSCursor.arrowCursor set];
-    } else if (type == ui::ET_SCROLL) {
+    } else if (type == ui::EventType::kScroll) {
       event_handler_->OnScrollEvent(ui_event->AsScrollEvent());
     }
 
@@ -88,10 +93,10 @@ class EventCaptureMac::MouseCaptureDelegateImpl
 
   raw_ptr<ui::EventHandler> event_handler_;
   base::OnceClosure capture_lost_callback_;
-  NSView* web_contents_view_ = nil;
-  NSWindow* window_ = nil;
+  NSView* __weak web_contents_view_ = nil;
+  NSWindow* __weak window_ = nil;
   std::unique_ptr<remote_cocoa::CocoaMouseCapture> mouse_capture_;
-  id local_keyboard_monitor_ = nil;
+  id __strong local_keyboard_monitor_ = nil;
 };
 
 EventCaptureMac::EventCaptureMac(ui::EventHandler* event_handler,
@@ -121,13 +126,14 @@ void EventCaptureMac::CreateKeyDownLocalMonitor(
       return event;
     }
 
-    if (!target_window || [event window] == target_window) {
-      std::unique_ptr<ui::Event> ui_event = ui::EventFromNative(event);
+    if (!target_window || event.window == target_window) {
+      std::unique_ptr<ui::Event> ui_event =
+          ui::EventFromNative(base::apple::OwnedNSEvent(event));
       if (!ui_event) {
         return event;
       }
       ui::EventType type = ui_event->type();
-      if (type == ui::ET_KEY_PRESSED) {
+      if (type == ui::EventType::kKeyPressed) {
         event_handler->OnKeyEvent(ui_event->AsKeyEvent());
       }
       // Consume the event if allowed and the corresponding EventHandler method

@@ -29,10 +29,6 @@ BASE_DECLARE_FEATURE(kAppStoreBillingDebug);
 // Used to control whether allow crawling just-in-time installable payment app.
 BASE_DECLARE_FEATURE(kWebPaymentsJustInTimePaymentApp);
 
-// Desktop only, if enabled payment handler window size matches the pop up
-// window size.
-BASE_DECLARE_FEATURE(kPaymentHandlerPopUpSizeWindow);
-
 // Used to test icon refetch for JIT installed apps with missing icons.
 BASE_DECLARE_FEATURE(kAllowJITInstallationWhenAppIconIsMissing);
 
@@ -47,13 +43,8 @@ BASE_DECLARE_FEATURE(kGPayAppDynamicUpdate);
 // credential store APIs, or if it can only rely on the user-profile database.
 BASE_DECLARE_FEATURE(kSecurePaymentConfirmationUseCredentialStoreAPIs);
 
-// Desktop only, if enabled PaymentHandler will use the new minimal header UX.
-// See https://crbug.com/1385136.
-BASE_DECLARE_FEATURE(kPaymentHandlerMinimalHeaderUX);
-
-// If enabled, the payment method manifest fetch for Payment Handler must go via
-// a Link header with rel="payment-method-manifest".
-BASE_DECLARE_FEATURE(kPaymentHandlerRequireLinkHeader);
+// Used to enable the refreshed fallback flow for Secure Payment Confirmation.
+BASE_DECLARE_FEATURE(kSecurePaymentConfirmationFallback);
 
 }  // namespace features
 }  // namespace payments

@@ -2,11 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/apps/app_service/app_icon/app_icon_factory.h"
+
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/barrier_callback.h"
 #include "base/containers/contains.h"
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -16,12 +20,9 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
-#include "build/chromeos_buildflags.h"
 #include "cc/test/pixel_comparator.h"
 #include "cc/test/pixel_test_utils.h"
-#include "chrome/browser/apps/app_service/app_icon/app_icon_factory.h"
 #include "chrome/browser/apps/app_service/app_icon/app_icon_test_util.h"
 #include "chrome/browser/apps/icon_standardizer.h"
 #include "chrome/browser/extensions/chrome_app_icon.h"
@@ -30,15 +31,13 @@
 #include "content/public/test/browser_task_environment.h"
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/base/layout.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/image/image_unittest_util.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "ash/components/arc/mojom/intent_helper.mojom.h"
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_features.h"
 #include "chrome/browser/apps/app_service/app_icon/app_icon_decoder.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
@@ -52,8 +51,10 @@
 #include "chrome/grit/component_extension_resources.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/dbus/cicerone/cicerone_client.h"
+#include "chromeos/ash/experiences/arc/app/arc_app_constants.h"
+#include "chromeos/ash/experiences/arc/mojom/intent_helper.mojom.h"
 #include "components/services/app_service/public/cpp/features.h"
-#endif
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace apps {
 class AppIconFactoryTest : public testing::Test {
@@ -82,12 +83,13 @@ class AppIconFactoryTest : public testing::Test {
     return fallback_called;
   }
 
-  std::string GetPngData(const std::string file_name) {
+  std::string GetPngData(const std::string& file_name) {
     base::FilePath base_path;
     std::string png_data_as_string;
-    CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &base_path));
-    base::FilePath icon_file_path = base_path.AppendASCII("ash")
-                                        .AppendASCII("components")
+    CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &base_path));
+    base::FilePath icon_file_path = base_path.AppendASCII("chromeos")
+                                        .AppendASCII("ash")
+                                        .AppendASCII("experiences")
                                         .AppendASCII("arc")
                                         .AppendASCII("test")
                                         .AppendASCII("data")
@@ -98,7 +100,7 @@ class AppIconFactoryTest : public testing::Test {
     return png_data_as_string;
   }
 
-  void RunLoadIconFromCompressedData(const std::string png_data_as_string,
+  void RunLoadIconFromCompressedData(const std::string& png_data_as_string,
                                      apps::IconType icon_type,
                                      apps::IconEffects icon_effects,
                                      apps::IconValuePtr& output_icon) {
@@ -117,23 +119,21 @@ class AppIconFactoryTest : public testing::Test {
   void GenerateIconFromCompressedData(const std::string& compressed_icon,
                                       float scale,
                                       gfx::ImageSkia& output_image_skia) {
-    std::vector<uint8_t> compressed_data(compressed_icon.begin(),
-                                         compressed_icon.end());
-    SkBitmap decoded;
-    ASSERT_TRUE(gfx::PNGCodec::Decode(compressed_data.data(),
-                                      compressed_data.size(), &decoded));
+    SkBitmap decoded =
+        gfx::PNGCodec::Decode(base::as_byte_span(compressed_icon));
+    ASSERT_FALSE(decoded.isNull());
 
-    output_image_skia = gfx::ImageSkia::CreateFromBitmap(decoded, scale);
-
-    output_image_skia = apps::CreateStandardIconImage(output_image_skia);
+    output_image_skia = apps::CreateStandardIconImage(
+        gfx::ImageSkia::CreateFromBitmap(decoded, scale));
     EnsureRepresentationsLoaded(output_image_skia);
   }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   apps::IconValuePtr RunLoadIconFromResource(apps::IconType icon_type,
                                              apps::IconEffects icon_effects) {
     base::test::TestFuture<apps::IconValuePtr> future;
-    apps::LoadIconFromResource(icon_type, kSizeInDip, IDR_LOGO_CROSTINI_DEFAULT,
+    apps::LoadIconFromResource(/*profile=*/nullptr, /*app_id=*/std::nullopt,
+                               icon_type, kSizeInDip, IDR_LOGO_CROSTINI_DEFAULT,
                                /*is_placeholder_icon=*/false, icon_effects,
                                future.GetCallback());
     auto icon = future.Take();
@@ -152,7 +152,7 @@ class AppIconFactoryTest : public testing::Test {
   }
 
   void GenerateCrostiniPenguinCompressedIcon(std::vector<uint8_t>& output) {
-    base::StringPiece data =
+    std::string_view data =
         ui::ResourceBundle::GetSharedInstance().GetRawDataResource(
             IDR_LOGO_CROSTINI_DEFAULT);
     output = std::vector<uint8_t>(data.begin(), data.end());
@@ -167,7 +167,7 @@ class AppIconFactoryTest : public testing::Test {
         gfx::Size(kSizeInDip, kSizeInDip));
     EnsureRepresentationsLoaded(output_image_skia);
   }
-#endif
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
  protected:
   content::BrowserTaskEnvironment task_env_;
@@ -179,7 +179,8 @@ TEST_F(AppIconFactoryTest, LoadFromFileSuccess) {
   gfx::ImageSkia image =
       gfx::ImageSkia(gfx::ImageSkiaRep(gfx::Size(20, 20), 0.0f));
   const SkBitmap* bitmap = image.bitmap();
-  cc::WritePNGFile(*bitmap, GetPath(), /*discard_transparency=*/false);
+  ASSERT_TRUE(
+      cc::WritePNGFile(*bitmap, GetPath(), /*discard_transparency=*/false));
 
   auto fallback_response = std::make_unique<apps::IconValue>();
   auto result = std::make_unique<apps::IconValue>();
@@ -258,7 +259,7 @@ TEST_F(AppIconFactoryTest, LoadIconFromCompressedData) {
       result->uncompressed.GetRepresentation(scale).GetBitmap()));
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 TEST_F(AppIconFactoryTest, LoadCrostiniPenguinIcon) {
   auto icon_type = apps::IconType::kStandard;
   auto icon_effects = apps::IconEffects::kCrOsStandardIcon;
@@ -379,9 +380,6 @@ class AppServiceAppIconTest : public AppIconFactoryTest {
   void SetUp() override {
     AppIconFactoryTest::SetUp();
 
-    scoped_feature_list_.InitAndEnableFeature(
-        apps::kUnifiedAppServiceIconLoading);
-
     ash::CiceroneClient::InitializeFake();
     profile_ = std::make_unique<TestingProfile>();
     proxy_ = AppServiceProxyFactory::GetForProfile(profile_.get());
@@ -430,8 +428,8 @@ class AppServiceAppIconTest : public AppIconFactoryTest {
                                          const IconKey& icon_key,
                                          IconType icon_type) {
     base::test::TestFuture<apps::IconValuePtr> result;
-    app_service_proxy().LoadIconFromIconKey(
-        AppType::kCrostini, app_id, icon_key, icon_type, kSizeInDip,
+    app_service_proxy().app_icon_loader()->LoadIconFromIconKey(
+        app_id, icon_key, icon_type, kSizeInDip,
         /*allow_placeholder_icon=*/false, result.GetCallback());
     return result.Take();
   }
@@ -440,12 +438,10 @@ class AppServiceAppIconTest : public AppIconFactoryTest {
 
  private:
   std::unique_ptr<TestingProfile> profile_;
-  raw_ptr<AppServiceProxy> proxy_;
+  raw_ptr<AppServiceProxy, DanglingUntriaged> proxy_;
   std::unique_ptr<apps::FakePublisherForIconTest> fake_publisher_;
 
   std::unique_ptr<crostini::CrostiniTestHelper> crostini_test_helper_;
-
-  base::test::ScopedFeatureList scoped_feature_list_;
 
   base::WeakPtrFactory<AppServiceAppIconTest> weak_ptr_factory_{this};
 };
@@ -497,6 +493,6 @@ TEST_F(AppServiceAppIconTest, GetPlayStoreIcon) {
   VerifyIcon(src_image_skia, iv->uncompressed);
 }
 
-#endif
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace apps

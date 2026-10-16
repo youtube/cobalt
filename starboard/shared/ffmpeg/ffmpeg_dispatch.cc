@@ -37,7 +37,18 @@ int FFMPEGDispatch::OpenCodec(AVCodecContext* codec_context,
 
 void FFMPEGDispatch::CloseCodec(AVCodecContext* codec_context) {
   pthread_mutex_lock(&g_codec_mutex);
-  avcodec_close(codec_context);
+  if (avcodec_close) {
+    avcodec_close(codec_context);
+  } else {
+    // avcodec_close is deprecated/removed in modern FFmpeg.
+    // Complete cleanup (including closing the codec) is handled by
+    // avcodec_free_context(), which is called via FFMPEGDispatch::FreeContext()
+    // inside TeardownCodec(). TeardownCodec() is invoked during the destruction
+    // of the decoders (e.g., FfmpegAudioDecoderImpl and FfmpegVideoDecoderImpl
+    // destructors).
+    SB_LOG(INFO) << "avcodec_close is unavailable (likely due to modern FFMPEG "
+                    "version). Cleanup is handled by avcodec_free_context.";
+  }
   pthread_mutex_unlock(&g_codec_mutex);
 }
 

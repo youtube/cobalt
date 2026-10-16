@@ -21,6 +21,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.annotation.Config;
 
+import org.chromium.base.BundleUtils;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -29,9 +30,7 @@ import org.chromium.base.test.util.CallbackHelper;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Unit tests for {@link SplitPreloader}.
- */
+/** Unit tests for {@link SplitPreloader}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE, sdk = Build.VERSION_CODES.O)
 public class SplitPreloaderTest {
@@ -89,7 +88,7 @@ public class SplitPreloaderTest {
         }
     }
 
-    private static class OnCompleteTracker implements SplitPreloader.OnComplete {
+    private static class PreloadHooksTracker implements SplitPreloader.PreloadHooks {
         private SplitContext mBackgroundContext;
         private SplitContext mUiContext;
 
@@ -103,6 +102,11 @@ public class SplitPreloaderTest {
         public void runInUiThread(Context context) {
             assertNull(mUiContext);
             mUiContext = (SplitContext) context;
+        }
+
+        @Override
+        public Context createIsolatedSplitContext(String name) {
+            return BundleUtils.createIsolatedSplitContext(name);
         }
 
         public SplitContext getBackgroundContext() {
@@ -119,6 +123,7 @@ public class SplitPreloaderTest {
 
     @Before
     public void setUp() {
+        BundleUtils.setIsBundleForTesting(true);
         mContext = new MainContext(ContextUtils.getApplicationContext());
         ContextUtils.initApplicationContextForTests(mContext);
         mPreloader = new SplitPreloader(mContext);
@@ -144,23 +149,23 @@ public class SplitPreloaderTest {
     public void testPreload_withOnComplete_splitInstalled() {
         initSplits(SPLIT_A);
 
-        OnCompleteTracker tracker = new OnCompleteTracker();
+        PreloadHooksTracker tracker = new PreloadHooksTracker();
         mPreloader.preload(SPLIT_A, tracker);
         mPreloader.wait(SPLIT_A);
 
         assertThat(mContext.getUiThreadContextNames()).containsExactly(SPLIT_A);
         assertThat(mContext.getBackgroundThreadContextNames()).containsExactly(SPLIT_A);
         assertTrue(tracker.getUiContext().wasCreatedOnUiThread());
-        assertEquals(tracker.getUiContext().getName(), SPLIT_A);
+        assertEquals(SPLIT_A, tracker.getUiContext().getName());
         assertFalse(tracker.getBackgroundContext().wasCreatedOnUiThread());
-        assertEquals(tracker.getBackgroundContext().getName(), SPLIT_A);
+        assertEquals(SPLIT_A, tracker.getBackgroundContext().getName());
     }
 
     @Test
     public void testPreload_multipleWaitCalls() {
         initSplits(SPLIT_A);
 
-        OnCompleteTracker tracker = new OnCompleteTracker();
+        PreloadHooksTracker tracker = new PreloadHooksTracker();
         mPreloader.preload(SPLIT_A, tracker);
         mPreloader.wait(SPLIT_A);
         mPreloader.wait(SPLIT_A);
@@ -169,17 +174,17 @@ public class SplitPreloaderTest {
         assertThat(mContext.getUiThreadContextNames()).containsExactly(SPLIT_A);
         assertThat(mContext.getBackgroundThreadContextNames()).containsExactly(SPLIT_A);
         assertTrue(tracker.getUiContext().wasCreatedOnUiThread());
-        assertEquals(tracker.getUiContext().getName(), SPLIT_A);
+        assertEquals(SPLIT_A, tracker.getUiContext().getName());
     }
 
     @Test
     public void testPreload_withOnComplete_multipleSplitsInstalled() {
         initSplits(SPLIT_A, SPLIT_B);
 
-        OnCompleteTracker trackerA = new OnCompleteTracker();
+        PreloadHooksTracker trackerA = new PreloadHooksTracker();
         mPreloader.preload(SPLIT_A, trackerA);
 
-        OnCompleteTracker trackerB = new OnCompleteTracker();
+        PreloadHooksTracker trackerB = new PreloadHooksTracker();
         mPreloader.preload(SPLIT_B, trackerB);
         mPreloader.wait(SPLIT_A);
         mPreloader.wait(SPLIT_B);
@@ -187,10 +192,10 @@ public class SplitPreloaderTest {
         assertThat(mContext.getUiThreadContextNames()).containsExactly(SPLIT_A, SPLIT_B);
         assertThat(mContext.getBackgroundThreadContextNames()).containsExactly(SPLIT_A, SPLIT_B);
         assertTrue(trackerA.getUiContext().wasCreatedOnUiThread());
-        assertEquals(trackerA.getUiContext().getName(), SPLIT_A);
+        assertEquals(SPLIT_A, trackerA.getUiContext().getName());
 
         assertTrue(trackerB.getUiContext().wasCreatedOnUiThread());
-        assertEquals(trackerB.getUiContext().getName(), SPLIT_B);
+        assertEquals(SPLIT_B, trackerB.getUiContext().getName());
     }
 
     @Test
@@ -207,19 +212,26 @@ public class SplitPreloaderTest {
         Context[] backgroundContextHolder = new Context[1];
         Context[] uiContextHolder = new Context[1];
         CallbackHelper helper = new CallbackHelper();
-        mPreloader.preload(SPLIT_A, new SplitPreloader.OnComplete() {
-            @Override
-            public void runImmediatelyInBackgroundThread(Context context) {
-                backgroundContextHolder[0] = context;
-                helper.notifyCalled();
-            }
+        mPreloader.preload(
+                SPLIT_A,
+                new SplitPreloader.PreloadHooks() {
+                    @Override
+                    public void runImmediatelyInBackgroundThread(Context context) {
+                        backgroundContextHolder[0] = context;
+                        helper.notifyCalled();
+                    }
 
-            @Override
-            public void runInUiThread(Context context) {
-                uiContextHolder[0] = context;
-            }
-        });
-        helper.waitForFirst();
+                    @Override
+                    public void runInUiThread(Context context) {
+                        uiContextHolder[0] = context;
+                    }
+
+                    @Override
+                    public Context createIsolatedSplitContext(String name) {
+                        return BundleUtils.createIsolatedSplitContext(name);
+                    }
+                });
+        helper.waitForOnly();
         assertEquals(backgroundContextHolder[0], mContext);
 
         mPreloader.wait(SPLIT_A);

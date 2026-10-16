@@ -31,9 +31,12 @@
 #include "third_party/blink/renderer/platform/text/text_encoding_detector.h"
 
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
-#include "third_party/ced/src/compact_enc_det/compact_enc_det.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "third_party/ced/src/compact_enc_det/compact_enc_det.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 
 // third_party/ced/src/util/encodings/encodings.h, which is included
 // by the include above, undefs UNICODE because that is a macro used
@@ -47,12 +50,12 @@
 
 namespace blink {
 
-bool DetectTextEncoding(const char* data,
-                        uint32_t length,
+bool DetectTextEncoding(base::span<const uint8_t> bytes,
                         const char* hint_encoding_name,
                         const KURL& hint_url,
                         const char* hint_user_language,
                         WTF::TextEncoding* detected_encoding) {
+#if !BUILDFLAG(IS_COBALT)
   *detected_encoding = WTF::TextEncoding();
   // In general, do not use language hint. This helps get more
   // deterministic encoding detection results across devices. Note that local
@@ -62,9 +65,10 @@ bool DetectTextEncoding(const char* data,
     LanguageFromCode(hint_user_language, &language);
   int consumed_bytes;
   bool is_reliable;
+  auto chars = base::as_chars(bytes);
   Encoding encoding = CompactEncDet::DetectEncoding(
-      data, length, hint_url.GetString().Ascii().c_str(), nullptr, nullptr,
-      EncodingNameAliasToEncoding(hint_encoding_name), language,
+      chars.data(), chars.size(), hint_url.GetString().Ascii().c_str(), nullptr,
+      nullptr, EncodingNameAliasToEncoding(hint_encoding_name), language,
       CompactEncDet::WEB_CORPUS,
       false,  // Include 7-bit encodings to detect ISO-2022-JP
       &consumed_bytes, &is_reliable);
@@ -83,6 +87,10 @@ bool DetectTextEncoding(const char* data,
   // determined from system locale or TLD.
   return !(encoding == UNKNOWN_ENCODING ||
            (hint_url.Protocol() != "file" && encoding == UTF8));
+#else
+  *detected_encoding = WTF::TextEncoding();
+  return false;
+#endif  // !BUILDFLAG(IS_COBALT)
 }
 
 }  // namespace blink

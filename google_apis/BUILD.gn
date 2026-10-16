@@ -4,30 +4,13 @@
 
 import("//build/buildflag_header.gni")
 import("//build/config/chrome_build.gni")
-import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/features.gni")
 import("//extensions/buildflags/buildflags.gni")
+import("//google_apis/config.gni")
 import("//testing/test.gni")
 import("//third_party/protobuf/proto_library.gni")
 
 declare_args() {
-  # Set the variable 'use_official_google_api_keys' to true
-  # to use the Google-internal file containing official API keys
-  # even in a developer build.  Setting this variable explicitly to
-  # true will cause the build to fail if the internal file is missing.
-  #
-  # Set the variable to false to not use the internal file, even for
-  # Chrome-branded builds or when it exists in your checkout.
-  #
-  # Leave it set to "" to have the variable implicitly set to true for
-  # Chrome-branded builds or if
-  # //src/google_apis/internal/google_chrome_api_keys.h is present and false
-  # otherwise.
-  # This does not apply to iOS builds, which use different mechanisms and always
-  # evaluate to use_official_google_api_keys=false.
-  # See https://crbug.com/1183709.
-  use_official_google_api_keys = ""
-
   # Set these to bake the specified API keys and OAuth client
   # IDs/secrets into your build.
   #
@@ -83,7 +66,7 @@ declare_args() {
 # internal:generate_metrics_key_header must be a deps when
 # USE_OFFICIAL_GOOGLE_API_KEYS` is defined. Use this variable for both.
 # On iOS, Chrome branding had been overriding use_official_google_api_keys.
-# TODO(crbug.com/1362160): Fix this logic on iOS. Can this variable be replaced
+# TODO(crbug.com/40864074): Fix this logic on iOS. Can this variable be replaced
 # with just use_official_google_api_keys?
 _use_official_google_keys_and_generate_metrics_key_header =
     use_official_google_api_keys || (is_ios && is_chrome_branded)
@@ -113,8 +96,12 @@ config("key_defines") {
 
 component("google_apis") {
   sources = [
+    "api_key_cache.cc",
+    "api_key_cache.h",
     "credentials_mode.cc",
     "credentials_mode.h",
+    "default_api_keys-inc.cc",
+    "default_api_keys.h",
     "gaia/core_account_id.cc",
     "gaia/core_account_id.h",
     "gaia/gaia_access_token_fetcher.cc",
@@ -129,6 +116,10 @@ component("google_apis") {
     "gaia/gaia_config.h",
     "gaia/gaia_constants.cc",
     "gaia/gaia_constants.h",
+    "gaia/gaia_features.cc",
+    "gaia/gaia_features.h",
+    "gaia/gaia_id.cc",
+    "gaia/gaia_id.h",
     "gaia/gaia_oauth_client.cc",
     "gaia/gaia_oauth_client.h",
     "gaia/gaia_switches.cc",
@@ -151,30 +142,33 @@ component("google_apis") {
     "gaia/oauth2_api_call_flow.h",
     "gaia/oauth2_id_token_decoder.cc",
     "gaia/oauth2_id_token_decoder.h",
+    "gaia/oauth2_mint_access_token_fetcher_adapter.cc",
+    "gaia/oauth2_mint_access_token_fetcher_adapter.h",
     "gaia/oauth2_mint_token_flow.cc",
     "gaia/oauth2_mint_token_flow.h",
+    "gaia/oauth2_response.h",
     "gaia/oauth_multilogin_result.cc",
     "gaia/oauth_multilogin_result.h",
-    "gaia/oauth_request_signer.cc",
-    "gaia/oauth_request_signer.h",
+    "gaia/token_binding_response_encryption_error.h",
     "google_api_keys.cc",
     "google_api_keys.h",
   ]
 
-  configs += [ ":key_defines" ]
+  configs += [
+    ":key_defines",
+    "//build/config/compiler:wexit_time_destructors",
+  ]
 
   public_deps = [
     ":buildflags",
     "//base",
-    "//build:chromeos_buildflags",
     "//services/network/public/cpp",
   ]
 
   deps = [
-    ":oauth2_mint_token_consent_result_proto",
-    "//base/third_party/dynamic_annotations",
+    ":proto",
+    "//base/version_info:channel",
     "//build:branding_buildflags",
-    "//build:chromeos_buildflags",
     "//crypto",
     "//mojo/public/cpp/bindings:struct_traits",
     "//net",
@@ -191,14 +185,26 @@ component("google_apis") {
       "google_api_keys_mac.mm",
     ]
 
+    if (is_ios) {
+      sources += [ "gaia/gaia_id_ios.mm" ]
+    }
+
     frameworks = [ "Foundation.framework" ]
+  }
+
+  if (is_android) {
+    deps += [ "gaia/android:jni_headers" ]
   }
 
   defines = [ "IS_GOOGLE_APIS_IMPL" ]
 }
 
-proto_library("oauth2_mint_token_consent_result_proto") {
-  sources = [ "gaia/oauth2_mint_token_consent_result.proto" ]
+proto_library("proto") {
+  sources = [
+    "gaia/bound_oauth_token.proto",
+    "gaia/list_accounts_response.proto",
+    "gaia/oauth2_mint_token_consent_result.proto",
+  ]
 }
 
 static_library("test_support") {
@@ -218,7 +224,7 @@ static_library("test_support") {
 
   public_deps = [
     ":google_apis",
-    ":oauth2_mint_token_consent_result_proto",
+    ":proto",
     "//base",
     "//base/test:test_support",
     "//net:test_support",
@@ -254,9 +260,9 @@ test("google_apis_unittests") {
     "gaia/oauth2_access_token_manager_unittest.cc",
     "gaia/oauth2_api_call_flow_unittest.cc",
     "gaia/oauth2_id_token_decoder_unittest.cc",
+    "gaia/oauth2_mint_access_token_fetcher_adapter_unittest.cc",
     "gaia/oauth2_mint_token_flow_unittest.cc",
     "gaia/oauth_multilogin_result_unittest.cc",
-    "gaia/oauth_request_signer_unittest.cc",
     "google_api_keys_unittest.cc",
     "google_api_keys_unittest.h",
   ]
@@ -265,17 +271,18 @@ test("google_apis_unittests") {
 
   deps = [
     ":google_apis",
-    ":oauth2_mint_token_consent_result_proto",
+    ":proto",
     ":run_all_unittests",
     ":test_support",
     "//base",
     "//base/test:test_support",
+    "//base/version_info:channel",
     "//build:branding_buildflags",
-    "//build:chromeos_buildflags",
     "//google_apis/calendar:calendar_unittests",
     "//google_apis/common:common_unittests",
     "//testing/gmock",
     "//testing/gtest",
+    "//third_party/protobuf:protobuf_lite",
   ]
 
   if (is_ios) {
@@ -306,7 +313,9 @@ test("google_apis_unittests") {
   if (is_chromeos) {
     deps += [
       "//google_apis/classroom:classroom_unittests",
+      "//google_apis/people:people_unittest_sources",
       "//google_apis/tasks:tasks_unittests",
+      "//google_apis/youtube_music:youtube_music_unittests",
     ]
   }
 }
@@ -314,8 +323,11 @@ test("google_apis_unittests") {
 bundle_data("google_apis_unittest_bundle_data") {
   testonly = true
   sources = [
+    "test/data/calendar/calendar_list.json",
     "test/data/calendar/event_self_response_statuses.json",
     "test/data/calendar/event_statuses.json",
+    "test/data/calendar/event_with_attachments.json",
+    "test/data/calendar/event_with_invalid_attachments.json",
     "test/data/calendar/event_with_invalid_conference_data_uri.json",
     "test/data/calendar/event_with_missing_entry_point_type.json",
     "test/data/calendar/events.json",

@@ -9,7 +9,7 @@
 #include "base/notreached.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/login/screens/os_install_screen.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/login/localized_values_builder.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -124,6 +124,10 @@ void OsInstallScreenHandler::UpdateCountdownStringWithTime(
           ui::TimeFormat::Simple(ui::TimeFormat::FORMAT_DURATION,
                                  ui::TimeFormat::LENGTH_LONG, time_left),
           l10n_util::GetStringUTF16(IDS_INSTALLED_PRODUCT_OS_NAME)));
+}
+
+base::WeakPtr<OsInstallScreenView> OsInstallScreenHandler::AsWeakPtr() {
+  return weak_factory_.GetWeakPtr();
 }
 
 }  // namespace ash

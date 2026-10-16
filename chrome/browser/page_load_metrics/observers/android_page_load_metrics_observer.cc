@@ -10,7 +10,6 @@
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/time/time.h"
-#include "chrome/android/chrome_jni_headers/PageLoadMetrics_jni.h"
 #include "chrome/browser/browser_process.h"
 #include "components/page_load_metrics/browser/observers/core/largest_contentful_paint_handler.h"
 #include "components/page_load_metrics/browser/page_load_metrics_util.h"
@@ -19,6 +18,9 @@
 #include "content/public/browser/web_contents.h"
 #include "services/network/public/cpp/network_quality_tracker.h"
 #include "url/gurl.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/browser/page_load_metrics/jni_headers/PageLoadMetrics_jni.h"
 
 AndroidPageLoadMetricsObserver::AndroidPageLoadMetricsObserver() {
   network_quality_tracker_ = g_browser_process->network_quality_tracker();

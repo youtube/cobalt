@@ -5,27 +5,23 @@
 #ifndef CHROME_BROWSER_MEDIA_WEBRTC_CHROME_SCREEN_ENUMERATOR_H_
 #define CHROME_BROWSER_MEDIA_WEBRTC_CHROME_SCREEN_ENUMERATOR_H_
 
-#include "media/capture/content/screen_enumerator.h"
-
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/functional/callback.h"
 #include "build/buildflag.h"
-#include "build/chromeos_buildflags.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "media/capture/content/screen_enumerator.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom-forward.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 namespace aura {
 class Window;
 }
-
-#elif BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_LINUX)
+#elif BUILDFLAG(IS_LINUX)
 namespace webrtc {
 class DesktopCapturer;
 }
-
 #endif
 
 // Whereas ScreenEnumerator is exposed in content/,
@@ -40,9 +36,10 @@ class ChromeScreenEnumerator : public media::ScreenEnumerator {
       const blink::mojom::StreamDevicesSet& stream_devices_set,
       blink::mojom::MediaStreamRequestResult result)>;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  static void SetRootWindowsForTesting(std::vector<aura::Window*> root_windows);
-#elif BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_CHROMEOS)
+  static void SetRootWindowsForTesting(
+      std::vector<raw_ptr<aura::Window, VectorExperimental>> root_windows);
+#elif BUILDFLAG(IS_LINUX)
   static void SetDesktopCapturerForTesting(
       std::unique_ptr<webrtc::DesktopCapturer> capturer);
 #endif

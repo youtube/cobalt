@@ -41,7 +41,6 @@ translate::mojom::TranslateError EnumTraits<
   }
 
   NOTREACHED();
-  return translate::mojom::TranslateError::NONE;
 }
 
 bool EnumTraits<translate::mojom::TranslateError, translate::TranslateErrors>::
@@ -87,7 +86,6 @@ bool EnumTraits<translate::mojom::TranslateError, translate::TranslateErrors>::
   }
 
   NOTREACHED();
-  return false;
 }
 
 // static

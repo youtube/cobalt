@@ -28,12 +28,6 @@ class CONTENT_EXPORT PpapiPluginSandboxedProcessLauncherDelegate
 
   ~PpapiPluginSandboxedProcessLauncherDelegate() override = default;
 
-#if BUILDFLAG(IS_WIN)
-  std::string GetSandboxTag() override;
-  bool InitializeConfig(sandbox::TargetConfig* config) override;
-  bool AllowWindowsFontsDir() override;
-#endif  // BUILDFLAG(IS_WIN)
-
 #if BUILDFLAG(USE_ZYGOTE)
   ZygoteCommunication* GetZygote() override;
 #endif  // BUILDFLAG(USE_ZYGOTE)
@@ -47,4 +41,4 @@ class CONTENT_EXPORT PpapiPluginSandboxedProcessLauncherDelegate
 };
 }  // namespace content
 
-#endif
+#endif  // CONTENT_BROWSER_PPAPI_PLUGIN_SANDBOXED_PROCESS_LAUNCHER_DELEGATE_H_

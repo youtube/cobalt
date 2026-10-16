@@ -5,8 +5,7 @@
 #ifndef UI_GL_INIT_CREATE_GR_GL_INTERFACE_H_
 #define UI_GL_INIT_CREATE_GR_GL_INTERFACE_H_
 
-#include "third_party/skia/include/gpu/gl/GrGLInterface.h"
-
+#include "third_party/skia/include/gpu/ganesh/gl/GrGLInterface.h"
 #include "ui/gl/init/gl_init_export.h"
 
 namespace gl {
@@ -21,7 +20,6 @@ namespace init {
 // GL bindings.
 GL_INIT_EXPORT sk_sp<GrGLInterface> CreateGrGLInterface(
     const gl::GLVersionInfo& version_info,
-    bool use_version_es2,
     gl::ProgressReporter* progress_reporter = nullptr);
 
 }  // namespace init

@@ -11,18 +11,18 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "components/reading_list/core/reading_list_model_storage.h"
-#include "components/sync/model/model_type_store.h"
+#include "components/sync/model/data_type_store.h"
 
 namespace base {
 class Clock;
 }  // namespace base
 
-// A ReadingListModelStorage storing data in protobufs within ModelTypeStore
+// A ReadingListModelStorage storing data in protobufs within DataTypeStore
 // (leveldb).
 class ReadingListModelStorageImpl : public ReadingListModelStorage {
  public:
   explicit ReadingListModelStorageImpl(
-      syncer::OnceModelTypeStoreFactory create_store_callback);
+      syncer::OnceDataTypeStoreFactory create_store_callback);
 
   ReadingListModelStorageImpl(const ReadingListModelStorageImpl&) = delete;
   ReadingListModelStorageImpl& operator=(const ReadingListModelStorageImpl&) =
@@ -58,23 +58,23 @@ class ReadingListModelStorageImpl : public ReadingListModelStorage {
   void BeginTransaction();
   void CommitTransaction();
   // Callbacks needed for the database handling.
-  void OnStoreCreated(const absl::optional<syncer::ModelError>& error,
-                      std::unique_ptr<syncer::ModelTypeStore> store);
+  void OnStoreCreated(const std::optional<syncer::ModelError>& error,
+                      std::unique_ptr<syncer::DataTypeStore> store);
   void OnDatabaseLoad(
-      const absl::optional<syncer::ModelError>& error,
-      std::unique_ptr<syncer::ModelTypeStore::RecordList> entries);
-  void OnDatabaseSave(const absl::optional<syncer::ModelError>& error);
+      const std::optional<syncer::ModelError>& error,
+      std::unique_ptr<syncer::DataTypeStore::RecordList> entries);
+  void OnDatabaseSave(const std::optional<syncer::ModelError>& error);
   void OnReadAllMetadata(ReadingListEntries loaded_entries,
-                         const absl::optional<syncer::ModelError>& error,
+                         const std::optional<syncer::ModelError>& error,
                          std::unique_ptr<syncer::MetadataBatch> metadata_batch);
 
   bool loaded_ = false;
-  std::unique_ptr<syncer::ModelTypeStore> store_;
-  syncer::OnceModelTypeStoreFactory create_store_callback_;
+  std::unique_ptr<syncer::DataTypeStore> store_;
+  syncer::OnceDataTypeStoreFactory create_store_callback_;
   LoadCallback load_callback_;
 
   int pending_transaction_count_ = 0;
-  std::unique_ptr<syncer::ModelTypeStore::WriteBatch> batch_;
+  std::unique_ptr<syncer::DataTypeStore::WriteBatch> batch_;
 
   raw_ptr<base::Clock> clock_;
 

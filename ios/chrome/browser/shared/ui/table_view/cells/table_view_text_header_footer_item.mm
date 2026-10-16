@@ -6,18 +6,21 @@
 
 #import "base/check_op.h"
 #import "base/containers/contains.h"
-#import "ios/chrome/browser/net/crurl.h"
+#import "ios/chrome/browser/net/model/crurl.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/string_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/table_view/table_view_cells_constants.h"
 #import "ios/chrome/common/ui/util/text_view_util.h"
-#import "net/base/mac/url_conversions.h"
+#import "net/base/apple/url_conversions.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+namespace {
+
+// Horizontal padding used to align the header/footer with the section items.
+const CGFloat kHorizontalSpacingToAlignWithItems = 16.0;
+
+}  // namespace
 
 @implementation TableViewTextHeaderFooterItem
 
@@ -47,10 +50,13 @@
   if ([self.URLs count] != 0) {
     headerFooter.URLs = self.URLs;
   }
+
+  if (self.forceIndents) {
+    [headerFooter setForceIndents:YES];
+  }
+
   [headerFooter setSubtitle:self.subtitle];
-  headerFooter.textLabel.text = self.text;
-  headerFooter.textLabel.accessibilityTraits = UIAccessibilityTraitHeader;
-  headerFooter.isAccessibilityElement = NO;
+  [headerFooter setTitle:self.text];
 }
 
 @end
@@ -60,15 +66,25 @@
 // UITextView corresponding to `subtitle` from the item.
 @property(nonatomic, readonly, strong) UITextView* subtitleView;
 
+// The UILabel containing the text stored in `text`.
+@property(nonatomic, readonly, strong) UILabel* textLabel;
+
 @end
 
-@implementation TableViewTextHeaderFooterView
+@implementation TableViewTextHeaderFooterView {
+  // Leading constaint for item.
+  NSLayoutConstraint* leadingAnchorConstraint_;
+  // Trailing constraint for item.
+  NSLayoutConstraint* trailingAnchorConstraint_;
+}
 @synthesize subtitleView = _subtitleView;
 @synthesize textLabel = _textLabel;
 
 - (instancetype)initWithReuseIdentifier:(NSString*)reuseIdentifier {
   self = [super initWithReuseIdentifier:reuseIdentifier];
   if (self) {
+    self.isAccessibilityElement = NO;
+
     _URLs = @[];
     _subtitleView = CreateUITextViewWithTextKit1();
     _subtitleView.scrollEnabled = NO;
@@ -84,11 +100,14 @@
     _subtitleView.textAlignment = NSTextAlignmentLeft;
     _subtitleView.textContainer.lineFragmentPadding = 0;
     _subtitleView.textContainerInset = UIEdgeInsetsZero;
+    _subtitleView.hidden = YES;
 
     // Labels, set font sizes using dynamic type.
     _textLabel = [[UILabel alloc] init];
     _textLabel.font =
         [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
+    _textLabel.accessibilityTraits = UIAccessibilityTraitHeader;
+    _textLabel.numberOfLines = 0;
 
     // Vertical StackView.
     UIStackView* verticalStack = [[UIStackView alloc]
@@ -122,14 +141,14 @@
         constraintEqualToAnchor:self.contentView.bottomAnchor
                        constant:-kTableViewVerticalSpacing];
     bottomAnchorConstraint.priority = UILayoutPriorityDefaultHigh;
-    NSLayoutConstraint* leadingAnchorConstraint = [containerView.leadingAnchor
+    leadingAnchorConstraint_ = [containerView.leadingAnchor
         constraintEqualToAnchor:self.contentView.leadingAnchor
                        constant:HorizontalPadding()];
-    leadingAnchorConstraint.priority = UILayoutPriorityDefaultHigh;
-    NSLayoutConstraint* trailingAnchorConstraint = [containerView.trailingAnchor
+    leadingAnchorConstraint_.priority = UILayoutPriorityDefaultHigh;
+    trailingAnchorConstraint_ = [containerView.trailingAnchor
         constraintEqualToAnchor:self.contentView.trailingAnchor
                        constant:-HorizontalPadding()];
-    trailingAnchorConstraint.priority = UILayoutPriorityDefaultHigh;
+    trailingAnchorConstraint_.priority = UILayoutPriorityDefaultHigh;
 
     // Set and activate constraints.
     [NSLayoutConstraint activateConstraints:@[
@@ -137,8 +156,8 @@
       heightConstraint,
       topAnchorConstraint,
       bottomAnchorConstraint,
-      leadingAnchorConstraint,
-      trailingAnchorConstraint,
+      leadingAnchorConstraint_,
+      trailingAnchorConstraint_,
       [containerView.centerYAnchor
           constraintEqualToAnchor:self.contentView.centerYAnchor],
       // Vertical StackView Constraints.
@@ -156,14 +175,24 @@
 
 - (void)prepareForReuse {
   [super prepareForReuse];
-  self.subtitleView.text = nil;
+  [self setTitle:nil];
+  [self setSubtitle:nil];
   self.delegate = nil;
   self.URLs = @[];
+  self.forceIndents = NO;
 }
 
 #pragma mark - Properties
 
+- (void)setTitle:(NSString*)title {
+  self.textLabel.text = title;
+}
+
 - (void)setSubtitle:(NSString*)subtitle {
+  [self setSubtitle:subtitle withColor:nil];
+}
+
+- (void)setSubtitle:(NSString*)subtitle withColor:(UIColor*)color {
   if (!subtitle) {
     // If no subtitle, hide the subtitle view to avoid taking space for nothing.
     self.subtitleView.hidden = YES;
@@ -174,10 +203,12 @@
 
   StringWithTags parsedString = ParseStringWithLinks(subtitle);
 
+  UIColor* textColor = color ? color : [UIColor colorNamed:kTextSecondaryColor];
+
   NSDictionary* textAttributes = @{
     NSFontAttributeName :
         [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote],
-    NSForegroundColorAttributeName : [UIColor colorNamed:kTextSecondaryColor]
+    NSForegroundColorAttributeName : textColor
   };
 
   NSMutableAttributedString* attributedText =
@@ -196,8 +227,16 @@
   self.subtitleView.attributedText = attributedText;
 }
 
+- (void)setForceIndents:(BOOL)forceIndents {
+  leadingAnchorConstraint_.constant =
+      forceIndents ? kHorizontalSpacingToAlignWithItems : HorizontalPadding();
+  trailingAnchorConstraint_.constant =
+      forceIndents ? -kHorizontalSpacingToAlignWithItems : -HorizontalPadding();
+}
+
 #pragma mark - UITextViewDelegate
 
+#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
 - (BOOL)textView:(UITextView*)textView
     shouldInteractWithURL:(NSURL*)URL
                   inRange:(NSRange)characterRange
@@ -209,6 +248,21 @@
   [self.delegate view:self didTapLinkURL:crurl];
   // Returns NO as the app is handling the opening of the URL.
   return NO;
+}
+#endif
+
+- (UIAction*)textView:(UITextView*)textView
+    primaryActionForTextItem:(UITextItem*)textItem
+               defaultAction:(UIAction*)defaultAction API_AVAILABLE(ios(17.0)) {
+  CHECK(self.subtitleView == textView);
+  NSURL* URL = textItem.link;
+  CrURL* crurl = [[CrURL alloc] initWithNSURL:URL];
+  CHECK(crurl.gurl.is_valid());
+
+  __weak __typeof(self) weakSelf = self;
+  return [UIAction actionWithHandler:^(UIAction* action) {
+    [weakSelf.delegate view:weakSelf didTapLinkURL:crurl];
+  }];
 }
 
 - (void)textViewDidChangeSelection:(UITextView*)textView {

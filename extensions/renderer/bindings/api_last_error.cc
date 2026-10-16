@@ -4,6 +4,7 @@
 
 #include "extensions/renderer/bindings/api_last_error.h"
 
+#include <optional>
 #include <tuple>
 
 #include "gin/converter.h"
@@ -64,7 +65,7 @@ void LastErrorGetter(v8::Local<v8::Name> property,
   v8::Isolate* isolate = info.GetIsolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Object> holder = info.Holder();
-  v8::Local<v8::Context> context = holder->GetCreationContextChecked();
+  v8::Local<v8::Context> context = holder->GetCreationContextChecked(isolate);
 
   v8::Local<v8::Value> last_error;
   v8::Local<v8::Private> last_error_key = v8::Private::ForApi(
@@ -73,7 +74,6 @@ void LastErrorGetter(v8::Local<v8::Name> property,
       last_error != info.Data()) {
     // Something funny happened - our private properties aren't set right.
     NOTREACHED();
-    return;
   }
 
   v8::Local<v8::Value> return_value;
@@ -104,7 +104,7 @@ void LastErrorSetter(v8::Local<v8::Name> property,
   v8::Isolate* isolate = info.GetIsolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Object> holder = info.Holder();
-  v8::Local<v8::Context> context = holder->GetCreationContextChecked();
+  v8::Local<v8::Context> context = holder->GetCreationContextChecked(isolate);
 
   v8::Local<v8::Private> script_value_key = v8::Private::ForApi(
       isolate, gin::StringToSymbol(isolate, kScriptSuppliedValueKey));
@@ -184,7 +184,6 @@ void APILastError::ClearError(v8::Local<v8::Context> context,
   v8::Maybe<bool> delete_private = parent->DeletePrivate(context, private_key);
   if (!delete_private.IsJust() || !delete_private.FromJust()) {
     NOTREACHED();
-    return;
   }
   // These Delete()s can fail, but there's nothing to do if it does (the
   // exception will be caught by the TryCatch above).
@@ -214,6 +213,36 @@ bool APILastError::HasError(v8::Local<v8::Context> context) {
   LastErrorObject* last_error = nullptr;
   return gin::Converter<LastErrorObject*>::FromV8(context->GetIsolate(), error,
                                                   &last_error);
+}
+
+std::optional<std::string> APILastError::GetErrorMessage(
+    v8::Local<v8::Context> context) {
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  // See comment in SetError().
+  v8::TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
+
+  v8::Local<v8::Object> parent = get_parent_.Run(context, nullptr);
+  if (parent.IsEmpty()) {
+    return std::nullopt;
+  }
+  v8::Local<v8::Value> error;
+  v8::Local<v8::Private> key = v8::Private::ForApi(
+      isolate, gin::StringToSymbol(isolate, kLastErrorProperty));
+  // Access through GetPrivate() so we don't trigger accessed() and ensure we
+  // get the original error and not any overrides.
+  if (!parent->GetPrivate(context, key).ToLocal(&error)) {
+    return std::nullopt;
+  }
+
+  LastErrorObject* last_error = nullptr;
+  if (gin::Converter<LastErrorObject*>::FromV8(context->GetIsolate(), error,
+                                               &last_error)) {
+    return last_error->error();
+  }
+  return std::nullopt;
 }
 
 void APILastError::ReportUncheckedError(v8::Local<v8::Context> context,
@@ -257,13 +286,12 @@ void APILastError::SetErrorOnPrimaryParent(v8::Local<v8::Context> context,
         context, v8::Private::ForApi(isolate, key), last_error);
     if (!set_private.IsJust() || !set_private.FromJust()) {
       NOTREACHED();
-      return;
     }
     DCHECK(!last_error.IsEmpty());
-    // This SetAccessor() can fail, but there's nothing to do if it does (the
-    // exception will be caught by the TryCatch in SetError()).
-    std::ignore = parent->SetAccessor(context, key, &LastErrorGetter,
-                                      &LastErrorSetter, last_error);
+    // This SetNativeDataProperty() can fail, but there's nothing to do if it
+    // does (the exception will be caught by the TryCatch in SetError()).
+    std::ignore = parent->SetNativeDataProperty(context, key, &LastErrorGetter,
+                                                &LastErrorSetter, last_error);
   }
 }
 

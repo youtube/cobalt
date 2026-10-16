@@ -47,7 +47,7 @@ ContextResult RasterInProcessContext::Initialize(
     const ContextCreationAttribs& attribs,
     const SharedMemoryLimits& memory_limits,
     gpu::raster::GrShaderCache* gr_shader_cache,
-    GpuProcessActivityFlags* activity_flags) {
+    GpuProcessShmCount* use_shader_cache_shm_count) {
   DCHECK(attribs.enable_raster_interface);
   if (!attribs.enable_raster_interface) {
     return ContextResult::kFatalFailure;
@@ -61,7 +61,7 @@ ContextResult RasterInProcessContext::Initialize(
       std::make_unique<InProcessCommandBuffer>(task_executor, GURL());
   auto result = command_buffer_->Initialize(
       attribs, base::SingleThreadTaskRunner::GetCurrentDefault(),
-      gr_shader_cache, activity_flags);
+      gr_shader_cache, use_shader_cache_shm_count);
   if (result != ContextResult::kSuccess) {
     DLOG(ERROR) << "Failed to initialize InProcessCommmandBuffer";
     return result;
@@ -130,8 +130,7 @@ bool RasterInProcessContext::SupportedInTest() {
   const base::CommandLine* command_line =
       base::CommandLine::ForCurrentProcess();
   GpuPreferences gpu_preferences = gles2::ParseGpuPreferences(command_line);
-  return !gpu_preferences.use_passthrough_cmd_decoder ||
-         !gles2::PassthroughCommandDecoderSupported();
+  return !gpu_preferences.use_passthrough_cmd_decoder;
 }
 
 }  // namespace gpu

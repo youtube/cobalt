@@ -6,7 +6,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "components/password_manager/core/browser/password_form.h"
-#include "components/password_manager/core/browser/password_store.h"
+#include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
 #include "components/undo/undo_operation.h"
 
@@ -74,10 +74,10 @@ class PasswordOperation : public UndoOperation {
             PasswordOperation<PasswordOperationType::kAddOperation>>(
             profile_store_, account_store_, undo_manager_, form_));
     if (form.IsUsingAccountStore()) {
-      account_store_->RemoveLogin(form);
+      account_store_->RemoveLogin(FROM_HERE, form);
     }
     if (form.IsUsingProfileStore()) {
-      profile_store_->RemoveLogin(form);
+      profile_store_->RemoveLogin(FROM_HERE, form);
     }
   }
 

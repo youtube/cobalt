@@ -21,12 +21,17 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
+#include <optional>
+#include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "starboard/configuration.h"
-#include "starboard/types.h"
 
 namespace starboard {
 
@@ -48,6 +53,29 @@ inline std::string FormatString(const char* format, ...) {
   vsnprintf(buffer.data(), buffer.size(), format, arguments);
   va_end(arguments);
   return std::string(buffer.data(), expected_size);
+}
+
+template <typename T>
+std::string ToString(const T& val) {
+  std::stringstream ss;
+  ss << val;
+  return ss.str();
+}
+
+inline std::string ToString(const std::string& val) {
+  return val;
+}
+
+inline std::string ToString(bool val) {
+  return val ? "true" : "false";
+}
+
+template <typename T>
+std::string ToString(const std::optional<T>& val) {
+  if (!val) {
+    return "(nullopt)";
+  }
+  return ToString(*val);
 }
 
 std::string HexEncode(const void* data,
@@ -91,6 +119,39 @@ static SB_C_FORCE_INLINE int strlcat(CHAR* dst, const CHAR* src, int dst_size) {
 
   return strlcpy<CHAR>(dst + dst_length, src, dst_size - dst_length) +
          dst_length;
+}
+
+// Splits a string on a char delimiter.
+inline std::vector<std::string> SplitString(const std::string& input,
+                                            char delimiter) {
+  std::vector<std::string> output;
+  if (input.empty()) {
+    return output;
+  }
+
+  size_t start = 0;
+  while (start != std::string::npos) {
+    size_t end = input.find_first_of(delimiter, start);
+    std::string piece;
+
+    if (end == std::string::npos) {
+      piece = input.substr(start);
+      start = std::string::npos;
+    } else {
+      piece = input.substr(start, end - start);
+      start = end + 1;
+    }
+
+    output.emplace_back(piece);
+  }
+
+  return output;
+}
+
+// Returns true if `str` ends with `suffix`.
+inline bool EndsWith(std::string_view str, std::string_view suffix) {
+  return str.size() >= suffix.size() &&
+         str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
 }  // namespace starboard

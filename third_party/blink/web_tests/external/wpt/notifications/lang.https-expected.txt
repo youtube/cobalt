@@ -1,40 +1,45 @@
 This is a testharness.js-based test.
-NOTRUN Roundtripping lang "". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "en". Expecting "en". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "en-US-x-hixie". Expecting "en-US-x-hixie". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "de-DE". Expecting "de-DE". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "de-de". Expecting "de-de". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "de-De". Expecting "de-De". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "de-dE". Expecting "de-dE". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "de-DE-1996". Expecting "de-DE-1996". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "de-Latn-DE". Expecting "de-Latn-DE". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "de-Latf-DE". Expecting "de-Latf-DE". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "de-Latn-DE-1996". Expecting "de-Latn-DE-1996". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "de-CH". Expecting "de-CH". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "it-CH". Expecting "it-CH". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "fr-CH". Expecting "fr-CH". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "rm-CH". Expecting "rm-CH". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "es-CH". Expecting "es-CH". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "Latn-de". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "Latf-de". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "tic-tac-tac-toe". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "cocoa-1-bar". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "cocoa-a-bar". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "en-". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "en--". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "foo--bar". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "id---Java". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "fr-x". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "fr-xenomorph". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "fr-x-xenomorph". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "a". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "a-fr-lang". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "b-fr-lang". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "es1-KK-aa-bb-cc-dd". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "es2-KL-aa-bb-cc-dd". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "es3-KM-aa-bb-cc-dd". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "fooÉ". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "foöÉ-bÁr". Expecting "". You must allow notifications for this origin before running this test.
-NOTRUN Roundtripping lang "foöÉbÁr". Expecting "". You must allow notifications for this origin before running this test.
+[FAIL] Roundtripping lang "Latn-de". Expecting "".
+  assert_equals: notification.lang expected "" but got "Latn-de"
+[FAIL] Roundtripping lang "Latf-de". Expecting "".
+  assert_equals: notification.lang expected "" but got "Latf-de"
+[FAIL] Roundtripping lang "tic-tac-tac-toe". Expecting "".
+  assert_equals: notification.lang expected "" but got "tic-tac-tac-toe"
+[FAIL] Roundtripping lang "cocoa-1-bar". Expecting "".
+  assert_equals: notification.lang expected "" but got "cocoa-1-bar"
+[FAIL] Roundtripping lang "cocoa-a-bar". Expecting "".
+  assert_equals: notification.lang expected "" but got "cocoa-a-bar"
+[FAIL] Roundtripping lang "en-". Expecting "".
+  assert_equals: notification.lang expected "" but got "en-"
+[FAIL] Roundtripping lang "en--". Expecting "".
+  assert_equals: notification.lang expected "" but got "en--"
+[FAIL] Roundtripping lang "foo--bar". Expecting "".
+  assert_equals: notification.lang expected "" but got "foo--bar"
+[FAIL] Roundtripping lang "id---Java". Expecting "".
+  assert_equals: notification.lang expected "" but got "id---Java"
+[FAIL] Roundtripping lang "fr-x". Expecting "".
+  assert_equals: notification.lang expected "" but got "fr-x"
+[FAIL] Roundtripping lang "fr-xenomorph". Expecting "".
+  assert_equals: notification.lang expected "" but got "fr-xenomorph"
+[FAIL] Roundtripping lang "fr-x-xenomorph". Expecting "".
+  assert_equals: notification.lang expected "" but got "fr-x-xenomorph"
+[FAIL] Roundtripping lang "a". Expecting "".
+  assert_equals: notification.lang expected "" but got "a"
+[FAIL] Roundtripping lang "a-fr-lang". Expecting "".
+  assert_equals: notification.lang expected "" but got "a-fr-lang"
+[FAIL] Roundtripping lang "b-fr-lang". Expecting "".
+  assert_equals: notification.lang expected "" but got "b-fr-lang"
+[FAIL] Roundtripping lang "es1-KK-aa-bb-cc-dd". Expecting "".
+  assert_equals: notification.lang expected "" but got "es1-KK-aa-bb-cc-dd"
+[FAIL] Roundtripping lang "es2-KL-aa-bb-cc-dd". Expecting "".
+  assert_equals: notification.lang expected "" but got "es2-KL-aa-bb-cc-dd"
+[FAIL] Roundtripping lang "es3-KM-aa-bb-cc-dd". Expecting "".
+  assert_equals: notification.lang expected "" but got "es3-KM-aa-bb-cc-dd"
+[FAIL] Roundtripping lang "fooÉ". Expecting "".
+  assert_equals: notification.lang expected "" but got "fooÉ"
+[FAIL] Roundtripping lang "foöÉ-bÁr". Expecting "".
+  assert_equals: notification.lang expected "" but got "foöÉ-bÁr"
+[FAIL] Roundtripping lang "foöÉbÁr". Expecting "".
+  assert_equals: notification.lang expected "" but got "foöÉbÁr"
 Harness: the test ran to completion.
 

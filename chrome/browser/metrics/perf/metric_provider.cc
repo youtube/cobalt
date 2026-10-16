@@ -14,10 +14,11 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "components/sync/base/user_selectable_type.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_user_settings.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "third_party/metrics_proto/device_state.pb.h"
 #include "third_party/metrics_proto/sampled_profile.pb.h"
 
 namespace metrics {
@@ -48,6 +49,22 @@ void RedactCommMd5Prefixes(PerfDataProto* proto) {
     if (event.has_comm_event()) {
       event.mutable_comm_event()->set_comm_md5_prefix(kRedactedCommMd5Prefix);
     }
+  }
+}
+
+ThermalState ToProtoThermalStateEnum(
+    base::PowerThermalObserver::DeviceThermalState state) {
+  switch (state) {
+    case base::PowerThermalObserver::DeviceThermalState::kUnknown:
+      return THERMAL_STATE_UNKNOWN;
+    case base::PowerThermalObserver::DeviceThermalState::kNominal:
+      return THERMAL_STATE_NOMINAL;
+    case base::PowerThermalObserver::DeviceThermalState::kFair:
+      return THERMAL_STATE_FAIR;
+    case base::PowerThermalObserver::DeviceThermalState::kSerious:
+      return THERMAL_STATE_SERIOUS;
+    case base::PowerThermalObserver::DeviceThermalState::kCritical:
+      return THERMAL_STATE_CRITICAL;
   }
 }
 
@@ -252,10 +269,14 @@ void MetricProvider::AddProfileToCache(
   if (app_sync_state != RecordAttemptStatus::kAppSyncEnabled)
     RedactCommMd5Prefixes(sampled_profile->mutable_perf_data());
 
+  // Add the device thermal state and cpu speed limit to the profile.
+  sampled_profile->set_thermal_state(ToProtoThermalStateEnum(thermal_state_));
+  sampled_profile->set_cpu_speed_limit_percent(cpu_speed_limit_percent_);
+
   collector_task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&MetricCollector::AddCachedDataDelta,
                                 base::Unretained(metric_collector_.get()),
-                                sampled_profile->ByteSize()));
+                                sampled_profile->ByteSizeLong()));
   cached_profile_data_.resize(cached_profile_data_.size() + 1);
   cached_profile_data_.back().Swap(sampled_profile.get());
 

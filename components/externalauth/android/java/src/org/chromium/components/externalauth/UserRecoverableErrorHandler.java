@@ -13,6 +13,8 @@ import com.google.android.gms.common.GoogleApiAvailability;
 
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -39,6 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * If none of these behaviors is suitable, a new behavior can be defined by
  * subclassing this class.
  */
+@NullMarked
 public abstract class UserRecoverableErrorHandler {
     /**
      * Handles the specified error code from Google Play Services.
@@ -61,9 +64,7 @@ public abstract class UserRecoverableErrorHandler {
      */
     protected abstract void handle(final Context context, final int errorCode);
 
-    /**
-     * A handler that does nothing.
-     */
+    /** A handler that does nothing. */
     public static final class Silent extends UserRecoverableErrorHandler {
         @Override
         protected final void handle(final Context context, final int errorCode) {}
@@ -139,19 +140,13 @@ public abstract class UserRecoverableErrorHandler {
          */
         private final Activity mActivity;
 
-        /**
-         * The modal dialog that is shown to the user.
-         */
-        private Dialog mDialog;
+        /** The modal dialog that is shown to the user. */
+        private @Nullable Dialog mDialog;
 
-        /**
-         * Whether the dialog can be canceled by the user.
-         */
+        /** Whether the dialog can be canceled by the user. */
         private final boolean mCancelable;
 
-        /**
-         * Last error code from Google Play Services.
-         */
+        /** Last error code from Google Play Services. */
         private int mErrorCode;
 
         /**
@@ -181,24 +176,26 @@ public abstract class UserRecoverableErrorHandler {
             if (mErrorCode != errorCode) {
                 cancelDialog();
             }
-            if (mDialog == null) {
-                mDialog = GoogleApiAvailability.getInstance().getErrorDialog(
-                        mActivity, errorCode, NO_RESPONSE_REQUIRED);
+            Dialog dialog = mDialog;
+            if (dialog == null) {
+                dialog =
+                        GoogleApiAvailability.getInstance()
+                                .getErrorDialog(mActivity, errorCode, NO_RESPONSE_REQUIRED);
+                assert dialog != null : "code was " + errorCode;
+                mDialog = dialog;
                 mErrorCode = errorCode;
 
-                DialogUserActionRecorder.createAndAttachToDialog(mDialog);
+                DialogUserActionRecorder.createAndAttachToDialog(dialog);
             }
             // This can happen if |errorCode| is ConnectionResult.SERVICE_INVALID.
-            if (mDialog != null && !mDialog.isShowing()) {
-                mDialog.setCancelable(mCancelable);
-                mDialog.show();
+            if (!dialog.isShowing()) {
+                dialog.setCancelable(mCancelable);
+                dialog.show();
                 RecordUserAction.record("Signin_Android_GmsUserRecoverableDialogShown");
             }
         }
 
-        /**
-         * Cancels the dialog.
-         */
+        /** Cancels the dialog. */
         public void cancelDialog() {
             if (mDialog != null) {
                 mDialog.cancel();
@@ -206,9 +203,7 @@ public abstract class UserRecoverableErrorHandler {
             }
         }
 
-        /**
-         * Checks whether dialog is being shown.
-         */
+        /** Checks whether dialog is being shown. */
         public boolean isShowing() {
             return mDialog != null && mDialog.isShowing();
         }

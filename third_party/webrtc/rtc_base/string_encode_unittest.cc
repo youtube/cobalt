@@ -12,12 +12,10 @@
 
 #include <string.h>
 
-#include <sstream>  // no-presubmit-check TODO(webrtc:8982)
-
 #include "api/array_view.h"
 #include "test/gtest.h"
 
-namespace rtc {
+namespace webrtc {
 
 class HexEncodeTest : public ::testing::Test {
  public:
@@ -257,32 +255,6 @@ TEST(SplitTest, EmptyTokens) {
   EXPECT_TRUE(fields[0].empty());
 }
 
-TEST(ToString, SanityCheck) {
-  EXPECT_EQ(ToString(true), "true");
-  EXPECT_EQ(ToString(false), "false");
-
-  const char* c = "message";
-  EXPECT_EQ(ToString(c), c);
-  EXPECT_EQ(ToString(std::string(c)), c);
-
-  EXPECT_EQ(ToString(short{-123}), "-123");
-  EXPECT_EQ(ToString((unsigned short)123), "123");
-  EXPECT_EQ(ToString(int{-123}), "-123");
-  EXPECT_EQ(ToString((unsigned int)123), "123");
-  EXPECT_EQ(ToString((long int)-123), "-123");
-  EXPECT_EQ(ToString((unsigned long int)123), "123");
-  EXPECT_EQ(ToString((long long int)-123), "-123");
-  EXPECT_EQ(ToString((unsigned long long int)123), "123");
-
-  int i = 10;
-  int* p = &i;
-  std::ostringstream s;  // no-presubmit-check TODO(webrtc:8982)
-  s << p;
-  EXPECT_EQ(s.str(), ToString(p));
-
-  EXPECT_EQ(ToString(0.5), "0.5");
-}
-
 template <typename T>
 void ParsesTo(std::string s, T t) {
   T value;
@@ -316,20 +288,4 @@ TEST(FromString, DecodeInvalid) {
   FailsToParse<int>("1 2");
 }
 
-template <typename T>
-void RoundTrip(T t) {
-  std::string s = ToString(t);
-  T value;
-  EXPECT_TRUE(FromString(s, &value));
-  EXPECT_EQ(value, t);
-}
-
-TEST(FromString, RoundTrip) {
-  RoundTrip<int>(123);
-  RoundTrip(false);
-  RoundTrip(true);
-  RoundTrip(0.5);
-  RoundTrip(-15l);
-}
-
-}  // namespace rtc
+}  // namespace webrtc

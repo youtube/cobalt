@@ -8,15 +8,15 @@
 #include <stdint.h>
 
 #include <map>
+#include <optional>
 #include <set>
-#include <string>
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
-#include "chrome/browser/extensions/site_permissions_helper.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "extensions/browser/blocked_action_type.h"
 #include "extensions/browser/extension_action.h"
@@ -28,7 +28,6 @@
 #include "extensions/common/mojom/run_location.mojom-shared.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "extensions/common/user_script.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 class BrowserContext;
@@ -43,9 +42,9 @@ class Extension;
 class ExtensionActionRunner : public content::WebContentsObserver,
                               public ExtensionRegistryObserver {
  public:
-  class TestObserver {
+  class TestObserver : public base::CheckedObserver {
    public:
-    virtual void OnBlockedActionAdded() = 0;
+    virtual void OnBlockedActionAdded() {}
   };
 
   explicit ExtensionActionRunner(content::WebContents* web_contents);
@@ -55,7 +54,7 @@ class ExtensionActionRunner : public content::WebContentsObserver,
 
   ~ExtensionActionRunner() override;
 
-  // Returns the ExtensionActionRunner for the given |web_contents|, or null
+  // Returns the ExtensionActionRunner for the given `web_contents`, or null
   // if one does not exist.
   static ExtensionActionRunner* GetForWebContents(
       content::WebContents* web_contents);
@@ -82,31 +81,26 @@ class ExtensionActionRunner : public content::WebContentsObserver,
   // well.
   void GrantTabPermissions(const std::vector<const Extension*>& extensions);
 
-  // The same as ShowReloadPageBubble, but for only one extension and the
-  // callback will reload the page.
-  void ShowReloadPageBubbleWithReloadPageCallback(
-      const ExtensionId& extension_id);
-
-  // Notifies the ExtensionActionRunner that the user site setting for
-  // `origin` with `action_ids` has changed.
-  void HandleUserSiteSettingModified(
-      const base::flat_set<ToolbarActionsModel::ActionId>& action_ids,
-      const url::Origin& origin,
-      PermissionsManager::UserSiteSetting new_site_settings);
+  // TODO(crbug.com/40883928): Move the reload bubble outside of
+  // `ExtensionActionRunner` as it is no longer tied to running an action. See
+  // if it can be merged with extensions dialogs utils `ShowReloadPageDialog`.
+  // Shows the bubble to prompt the user to refresh the page to run or not the
+  // action for the given `extension_ids`.
+  void ShowReloadPageBubble(const std::vector<ExtensionId>& extension_ids);
 
   // Notifies the ExtensionActionRunner that an extension has been granted
   // active tab permissions. This will run any pending injections for that
   // extension.
   void OnActiveTabPermissionGranted(const Extension* extension);
 
-  // Called when a webRequest event for the given |extension| was blocked.
+  // Called when a webRequest event for the given `extension` was blocked.
   void OnWebRequestBlocked(const Extension* extension);
 
   // Returns a bitmask of BlockedActionType for the actions that have been
   // blocked for the given extension.
   int GetBlockedActions(const ExtensionId& extension_id) const;
 
-  // Returns true if the given |extension| has any blocked actions.
+  // Returns true if the given `extension` has any blocked actions.
   bool WantsToRun(const Extension* extension);
 
   // Runs any blocked actions the extension has, but does not handle any page
@@ -119,14 +113,10 @@ class ExtensionActionRunner : public content::WebContentsObserver,
     accept_bubble_for_testing_ = accept_bubble;
   }
 
-  void set_observer_for_testing(TestObserver* observer) {
-    test_observer_ = observer;
-  }
-
   // Handles mojom::LocalFrameHost::RequestScriptInjectionPermission(). It
-  // replies back with |callback|.
+  // replies back with `callback`.
   void OnRequestScriptInjectionPermission(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       mojom::InjectionType script_type,
       mojom::RunLocation run_location,
       mojom::LocalFrameHost::RequestScriptInjectionPermissionCallback callback);
@@ -150,6 +140,9 @@ class ExtensionActionRunner : public content::WebContentsObserver,
   }
 #endif  // defined(UNIT_TEST)
 
+  void AddObserver(TestObserver* observer);
+  void RemoveObserver(TestObserver* observer);
+
  private:
   FRIEND_TEST_ALL_PREFIXES(ExtensionActionRunnerFencedFrameBrowserTest,
                            DoNotResetExtensionActionRunner);
@@ -169,7 +162,7 @@ class ExtensionActionRunner : public content::WebContentsObserver,
   };
 
   using PendingScriptList = std::vector<std::unique_ptr<PendingScript>>;
-  using PendingScriptMap = std::map<std::string, PendingScriptList>;
+  using PendingScriptMap = std::map<ExtensionId, PendingScriptList>;
 
   // Returns true if the extension requesting script injection requires
   // user consent. If this is true, the caller should then register a request
@@ -178,8 +171,8 @@ class ExtensionActionRunner : public content::WebContentsObserver,
       const Extension* extension,
       mojom::InjectionType type);
 
-  // |callback|. The only assumption that can be made about when (or if)
-  // |callback| is run is that, if it is run, it will run on the current page.
+  // `callback`. The only assumption that can be made about when (or if)
+  // `callback` is run is that, if it is run, it will run on the current page.
   void RequestScriptInjection(const Extension* extension,
                               mojom::RunLocation run_location,
                               ScriptInjectionCallback callback);
@@ -194,23 +187,8 @@ class ExtensionActionRunner : public content::WebContentsObserver,
   // Log metrics.
   void LogUMA() const;
 
-  // TODO(crbug.com/1400812): Move this method and
-  // `ShowReloadPageBubbleWithReloadPageCallback` out of EAR and/or combine with
-  // `ShowReloadPageDialog`.
-  // Shows the bubble to prompt the user to refresh the page to run or not the
-  // action for the given `extension_ids`. `callback` is invoked when the bubble
-  // is closed.
-  void ShowReloadPageBubble(const std::vector<ExtensionId>& extension_ids,
-                            base::OnceClosure callback);
-
   // Reloads the current page.
   void OnReloadPageBubbleAccepted();
-
-  // Called when the reload page bubble is accepted. Updates user site setting
-  // of `origin` to `site_settings`.
-  void OnReloadPageBubbleAcceptedForUserSiteSettingsChange(
-      const url::Origin& origin,
-      extensions::PermissionsManager::UserSiteSetting site_settings);
 
   // content::WebContentsObserver implementation.
   void DidFinishNavigation(
@@ -224,43 +202,43 @@ class ExtensionActionRunner : public content::WebContentsObserver,
 
   // Runs the callback from the pending script. Since the callback holds
   // RequestScriptInjectionPermissionCallback, it should be called before the
-  // pending script is cleared. |granted| represents whether the script is
+  // pending script is cleared. `granted` represents whether the script is
   // granted or not.
   void RunCallbackOnPendingScript(const PendingScriptList& list, bool granted);
 
   // The total number of requests from the renderer on the current page,
   // including any that are pending or were immediately granted.
   // Right now, used only in tests.
-  int num_page_requests_;
+  int num_page_requests_ = 0;
 
   // The associated browser context.
   raw_ptr<content::BrowserContext> browser_context_;
 
   // Whether or not the feature was used for any extensions. This may not be the
   // case if the user never enabled the scripts-require-action flag.
-  bool was_used_on_page_;
+  bool was_used_on_page_ = false;
 
   // The map of extension_id:pending_request of all pending script requests.
   PendingScriptMap pending_scripts_;
 
   // A set of ids for which the webRequest API was blocked on the page.
-  std::set<std::string> web_request_blocked_;
+  std::set<ExtensionId> web_request_blocked_;
 
   // The extensions which have been granted permission to run on the given page.
   // TODO(rdevlin.cronin): Right now, this just keeps track of extensions that
   // have been permitted to run on the page via this interface. Instead, it
   // should incorporate more fully with ActiveTab.
-  std::set<std::string> permitted_extensions_;
+  std::set<ExtensionId> permitted_extensions_;
 
   // If true, ignore active tab being granted rather than running pending
   // actions.
-  bool ignore_active_tab_granted_;
+  bool ignore_active_tab_granted_ = false;
 
   // If true, immediately accept the blocked action dialog by running the
   // callback.
-  absl::optional<bool> accept_bubble_for_testing_;
+  std::optional<bool> accept_bubble_for_testing_;
 
-  raw_ptr<TestObserver> test_observer_;
+  base::ObserverList<TestObserver> test_observers_;
 
   base::ScopedObservation<ExtensionRegistry, ExtensionRegistryObserver>
       extension_registry_observation_{this};

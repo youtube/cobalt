@@ -42,13 +42,6 @@ class WebsiteSettingsInfo {
     // right and often result in surprising UX.
     REQUESTING_ORIGIN_WITH_TOP_ORIGIN_EXCEPTIONS_SCOPE,
 
-    // Settings scoped to the origin of the requesting frame and the top-level
-    // frame.
-    // Use only after strongly considering if this is the right choice;
-    // presenting settings that are scoped on two origins is difficult to get
-    // right and often result in surprising UX.
-    REQUESTING_AND_TOP_ORIGIN_SCOPE,
-
     // Settings scoped to the schemeful site of the requesting frame and the
     // top-level frame.
     // Use only after strongly considering if this is the right choice;
@@ -56,9 +49,12 @@ class WebsiteSettingsInfo {
     // to get right and often result in surprising UX.
     REQUESTING_AND_TOP_SCHEMEFUL_SITE_SCOPE,
 
-    // Settings scoped to the top-level origin that can have exceptions for
-    // specific resource origins.
-    TOP_ORIGIN_WITH_RESOURCE_EXCEPTIONS_SCOPE,
+    // Settings scoped to the origin of the requesting frame and the
+    // schemeful site of the top-level frame.
+    // Use only after strongly considering if this is the right choice;
+    // presenting settings that are scoped on two schemeful sites is difficult
+    // to get right and often result in surprising UX.
+    REQUESTING_ORIGIN_AND_TOP_SCHEMEFUL_SITE_SCOPE,
 
     // Setting scoped to the origin of the requesting frame only.
     REQUESTING_ORIGIN_ONLY_SCOPE,
@@ -79,6 +75,11 @@ class WebsiteSettingsInfo {
     // * MEDIA_ENGAGEMENT is always scoped to the origin of the frame that a
     // video is played in. A `FRAME_ORIGIN_ONLY` scope could be considered.
     GENERIC_SINGLE_ORIGIN_SCOPE,
+
+    // Settings scoped to the schemeful site of the requesting frame only.
+    // Similar to `REQUESTING_ORIGIN_ONLY_SCOPE` but is site-scoped, not
+    // origin-scoped.
+    REQUESTING_SCHEMEFUL_SITE_ONLY_SCOPE,
   };
 
   enum IncognitoBehavior {
@@ -106,6 +107,9 @@ class WebsiteSettingsInfo {
   const std::string& name() const { return name_; }
 
   const std::string& pref_name() const { return pref_name_; }
+  const std::string& partitioned_pref_name() const {
+    return partitioned_pref_name_;
+  }
   const std::string& default_value_pref_name() const {
     return default_value_pref_name_;
   }
@@ -125,6 +129,7 @@ class WebsiteSettingsInfo {
   const std::string name_;
 
   const std::string pref_name_;
+  const std::string partitioned_pref_name_;
   const std::string default_value_pref_name_;
   const base::Value initial_default_value_;
   const SyncStatus sync_status_;

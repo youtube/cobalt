@@ -22,27 +22,31 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_DOM_NODE_RARE_DATA_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_NODE_RARE_DATA_H_
 
+#include <concepts>
+
 #include "base/check_op.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/platform/graphics/dom_node_id.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_deque.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/thread_state_storage.h"
-#include "third_party/blink/renderer/platform/wtf/bit_field.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 
 namespace blink {
 
-class ComputedStyle;
 enum class DynamicRestyleFlags;
 enum class ElementFlags;
-class ElementRareData;
 class FlatTreeNodeData;
-class LayoutObject;
 class MutationObserverRegistration;
 class NodeListsNodeData;
 class NodeRareData;
+class Part;
 class ScrollTimeline;
+
+using PartsList = GCedHeapDeque<Member<Part>>;
+using TemporaryPartsList = HeapDeque<Member<Part>>;
 
 class NodeMutationObserverData final
     : public GarbageCollected<NodeMutationObserverData> {
@@ -71,98 +75,17 @@ class NodeMutationObserverData final
   HeapHashSet<Member<MutationObserverRegistration>> transient_registry_;
 };
 
-class NodeData : public GarbageCollected<NodeData> {
+class NodeRareData : public GarbageCollected<NodeRareData> {
  public:
   enum {
     kConnectedFrameCountBits = 10,  // Must fit Page::maxNumberOfFrames.
-    kNumberOfElementFlags = 6,
+    kNumberOfElementFlags = 8,
     kNumberOfDynamicRestyleFlags = 14
+    // 0 bits remaining.
   };
 
-  // NOTE: This can only distinguish between NodeRareData and ElementRareData,
-  // not a regular NodeData (because we never need to do that).
-  enum class ClassType : uint8_t {
-    kNodeRareData,
-    kElementRareData,
-    kLastType = kElementRareData,
-  };
-
-  virtual ~NodeData();
-  virtual void Trace(Visitor*) const;
-
-  CORE_EXPORT NodeData(LayoutObject*,
-                       scoped_refptr<const ComputedStyle> computed_style);
-  NodeData(const NodeData&) = delete;
-  NodeData(NodeData&&);
-
-  LayoutObject* GetLayoutObject() const { return layout_object_; }
-  void SetLayoutObject(LayoutObject* layout_object) {
-    DCHECK_NE(&SharedEmptyData(), this);
-    layout_object_ = layout_object;
-  }
-
-  const ComputedStyle* GetComputedStyle() const {
-    return computed_style_.get();
-  }
-  void SetComputedStyle(scoped_refptr<const ComputedStyle> computed_style);
-
-  void SetIsPseudoElement(bool value) { is_pseudo_element_ = value; }
-  bool IsPseudoElement() const { return is_pseudo_element_; }
-
-  static NodeData& SharedEmptyData();
-  bool IsSharedEmptyData() { return this == &SharedEmptyData(); }
-
- protected:
-  using BitField = WTF::ConcurrentlyReadBitField<uint16_t>;
-  using RestyleFlags =
-      BitField::DefineFirstValue<uint16_t, kNumberOfDynamicRestyleFlags>;
-  static constexpr size_t kClassTypeBits = 1;
-  static_assert(static_cast<size_t>(ClassType::kLastType) <
-                    ((size_t{1} << kClassTypeBits)),
-                "Too many subtypes to fit into bitfield.");
-  using ClassTypeData =
-      RestyleFlags::DefineNextValue<uint8_t,
-                                    kClassTypeBits,
-                                    WTF::BitFieldValueConstness::kConst>;
-
-  ClassType GetClassType() const {
-    return static_cast<ClassType>(bit_field_.get_concurrently<ClassTypeData>());
-  }
-
- protected:
-  scoped_refptr<const ComputedStyle> computed_style_;
-  Member<LayoutObject> layout_object_;
-  BitField bit_field_;
-  bool is_pseudo_element_ = false;
-  // 8 free bits here (or 16, if moving is_pseudo_element_ into bit_field_).
-
-  friend struct DowncastTraits<NodeRareData>;
-  friend struct DowncastTraits<ElementRareData>;
-};
-
-template <>
-struct DowncastTraits<NodeRareData> {
-  static bool AllowFrom(const NodeData& node_data) {
-    return node_data.GetClassType() == NodeData::ClassType::kNodeRareData;
-  }
-};
-
-template <>
-struct DowncastTraits<ElementRareData> {
-  static bool AllowFrom(const NodeData& node_data) {
-    return node_data.GetClassType() == NodeData::ClassType::kElementRareData;
-  }
-};
-
-class NodeRareData : public NodeData {
- public:
-  explicit NodeRareData(NodeData&& node_layout_data)
-      : NodeData(std::move(node_layout_data)),
-        connected_frame_count_(0),
-        element_flags_(0) {
-    bit_field_.set<ClassTypeData>(
-        ClassTypeData::encode(static_cast<uint8_t>(ClassType::kNodeRareData)));
-  }
+  NodeRareData() = default;
+  virtual ~NodeRareData() = default;
   NodeRareData(const NodeRareData&) = delete;
   NodeRareData& operator=(const NodeRareData&) = delete;
 
@@ -177,7 +100,9 @@ class NodeRareData : public NodeData {
     return *node_lists_;
   }
 
-  FlatTreeNodeData* GetFlatTreeNodeData() const { return flat_tree_node_data_; }
+  FlatTreeNodeData* GetFlatTreeNodeData() const {
+    return flat_tree_node_data_.Get();
+  }
   FlatTreeNodeData& EnsureFlatTreeNodeData();
 
   NodeMutationObserverData* MutationObserverData() {
@@ -211,34 +136,31 @@ class NodeRareData : public NodeData {
   }
 
   bool HasRestyleFlag(DynamicRestyleFlags mask) const {
-    return bit_field_.get<RestyleFlags>() & static_cast<uint16_t>(mask);
+    return restyle_flags_ & static_cast<uint16_t>(mask);
   }
   void SetRestyleFlag(DynamicRestyleFlags mask) {
-    bit_field_.set<RestyleFlags>(bit_field_.get<RestyleFlags>() |
-                                 static_cast<uint16_t>(mask));
-    CHECK(bit_field_.get<RestyleFlags>());
+    restyle_flags_ |= static_cast<uint16_t>(mask);
   }
-  bool HasRestyleFlags() const { return bit_field_.get<RestyleFlags>(); }
-  void ClearRestyleFlags() { bit_field_.set<RestyleFlags>(0); }
+  bool HasRestyleFlags() const { return restyle_flags_; }
+  void ClearRestyleFlags() { restyle_flags_ = 0u; }
 
   void RegisterScrollTimeline(ScrollTimeline*);
   void UnregisterScrollTimeline(ScrollTimeline*);
   void InvalidateAssociatedAnimationEffects();
 
-  void Trace(blink::Visitor*) const override;
+  void AddDOMPart(Part& part);
+  void RemoveDOMPart(Part& part);
+  PartsList* GetDOMParts() const;
+
+  DOMNodeId NodeId() const { return id_; }
+  DOMNodeId& NodeId() { return id_; }
+
+  virtual void Trace(Visitor*) const;
 
  protected:
-  NodeRareData(ClassType class_type, NodeData&& node_layout_data)
-      : NodeData(std::move(node_layout_data)),
-        connected_frame_count_(0),
-        element_flags_(0) {
-    bit_field_.set<ClassTypeData>(
-        ClassTypeData::encode(static_cast<uint16_t>(class_type)));
-  }
-
-  uint16_t connected_frame_count_ : kConnectedFrameCountBits;
-  uint16_t element_flags_ : kNumberOfElementFlags;
-  // 16 free bits here.
+  uint32_t restyle_flags_ : kNumberOfDynamicRestyleFlags = 0u;
+  uint32_t connected_frame_count_ : kConnectedFrameCountBits = 0u;
+  uint32_t element_flags_ : kNumberOfElementFlags = 0u;
 
  private:
   NodeListsNodeData& CreateNodeLists();
@@ -248,13 +170,17 @@ class NodeRareData : public NodeData {
   Member<FlatTreeNodeData> flat_tree_node_data_;
   // Keeps strong scroll timeline pointers linked to this node to ensure
   // the timelines are alive as long as the node is alive.
-  Member<HeapHashSet<Member<ScrollTimeline>>> scroll_timelines_;
+  Member<GCedHeapHashSet<Member<ScrollTimeline>>> scroll_timelines_;
+  // An ordered set of DOM Parts for this Node, in order of construction. This
+  // order is important, since `getParts()` returns a tree-ordered set of parts,
+  // with parts on the same `Node` returned in `Part` construction order.
+  Member<PartsList> dom_parts_;
+  DOMNodeId id_ = kInvalidDOMNodeId;  // Used primarily for accessibility.
 };
 
 template <typename T>
-struct ThreadingTrait<
-    T,
-    std::enable_if_t<std::is_base_of<blink::NodeRareData, T>::value>> {
+  requires(std::derived_from<T, blink::NodeRareData>)
+struct ThreadingTrait<T> {
   static constexpr ThreadAffinity kAffinity = kMainThreadOnly;
 };
 

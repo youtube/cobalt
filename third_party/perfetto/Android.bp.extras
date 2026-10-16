@@ -10,6 +10,32 @@ java_library_host {
     ],
 }
 
+java_library {
+    name: "perfetto_config-lite",
+    proto: {
+        type: "lite",
+    },
+    srcs: [
+        "protos/perfetto/config/perfetto_config.proto",
+    ],
+}
+
+java_library_host {
+    name: "trace_summary-full",
+    proto: {
+        type: "full",
+        canonical_path_from_root: false,
+    },
+    static_libs: [
+        "libprotobuf-java-full",
+    ],
+    srcs: [
+        ":perfetto_trace_summary_filegroup_proto",
+    ],
+    // b/267831518: Pin tradefed and dependencies to Java 11.
+    java_version: "11",
+}
+
 java_library_host {
     name: "perfetto_trace-full",
     proto: {
@@ -93,11 +119,6 @@ genrule {
     ],
 }
 
-sh_binary {
-    name: "mm_events",
-    src: "tools/mm_events",
-}
-
 package {
     default_applicable_licenses: ["external_perfetto_license"],
 }
@@ -125,7 +146,10 @@ filegroup {
 
 filegroup {
     name: "perfetto-trace-processor-python-srcs",
-    srcs: ["python/perfetto/trace_processor/*.py"],
+    srcs: [
+        "python/perfetto/common/*.py",
+        "python/perfetto/trace_processor/*.py",
+    ],
     path: "python",
 }
 
@@ -160,4 +184,106 @@ license {
     license_text: [
         "LICENSE",
     ],
+}
+
+gensrcs {
+    name: "perfetto_trace_javastream_protos",
+    srcs: [
+        ":perfetto_javastream_filegroup_proto",
+    ],
+    tools: [
+        "aprotoc",
+        "protoc-gen-javastream",
+        "soong_zip",
+    ],
+    cmd: "mkdir -p $(genDir)/$(in) " +
+        "&& $(location aprotoc) " +
+        "--plugin=$(location protoc-gen-javastream) " +
+
+        "--javastream_opt=include_filter:perfetto.protos.TracePacket,perfetto.protos.ShellTransition,perfetto.protos.ShellHandlerMappings,perfetto.protos.ProtoLogMessage,perfetto.protos.ProtoLogViewerConfig,perfetto.protos.ShellHandlerMapping,perfetto.protos.ShellHandlerMappings,perfetto.protos.ProtoLogGroup,perfetto.protos.ProtoLogConfig,perfetto.protos.DataSourceConfig,perfetto.protos.InternedString,perfetto.protos.InternedData,perfetto.protos.ProtoLogLevel,perfetto.protos.TestEvent,perfetto.protos.TestEvent.TestPayload,perfetto.protos.TestConfig,perfetto.protos.TestConfig.DummyFields,perfetto.protos.WinscopeExtensionsImpl,perfetto.protos.InputMethodClientsTraceProto,perfetto.protos.InputMethodManagerServiceTraceProto,perfetto.protos.InputMethodServiceTraceProto,perfetto.protos.ViewCapture,perfetto.protos.AppWakelocksConfig,perfetto.protos.AppWakelockInfo,perfetto.protos.AppWakelockBundle," +
+
+        // WindowManager protos
+        "perfetto.protos.ActivityInfoProto,perfetto.protos.ActivityRecordProto,perfetto.protos.AlphaAnimationSpecProto,perfetto.protos.AnimationAdapterProto,perfetto.protos.AnimationSpecProto,perfetto.protos.AppTransitionProto,perfetto.protos.BackNavigationProto,perfetto.protos.ConfigurationContainerProto,perfetto.protos.ConfigurationProto,perfetto.protos.DeviceConfigurationProto,perfetto.protos.DisplayAreaProto,perfetto.protos.DisplayContentProto,perfetto.protos.DisplayInfoProto,perfetto.protos.DisplayRotationProto,perfetto.protos.GlobalConfigurationProto,perfetto.protos.IdentifierProto,perfetto.protos.ImeInsetsSourceProviderProto,perfetto.protos.InsetsSourceProviderProto,perfetto.protos.KeyguardControllerProto,perfetto.protos.KeyguardPerDisplayProto,perfetto.protos.KeyguardServiceDelegateProto,perfetto.protos.LocalAnimationAdapterProto,perfetto.protos.LocaleProto,perfetto.protos.MoveAnimationSpecProto,perfetto.protos.PointProto,perfetto.protos.RemoteAnimationTargetProto,perfetto.protos.RemoteInsetsControlTargetProto,perfetto.protos.ResourcesConfigurationProto,perfetto.protos.RootWindowContainerProto,perfetto.protos.SurfaceAnimatorProto,perfetto.protos.TaskFragmentProto,perfetto.protos.TaskProto,perfetto.protos.WindowAnimationSpecProto,perfetto.protos.WindowConfigurationProto,perfetto.protos.WindowContainerChildProto,perfetto.protos.WindowContainerProto,perfetto.protos.WindowFramesProto,perfetto.protos.WindowManagerConfig,perfetto.protos.WindowManagerPolicyProto,perfetto.protos.WindowManagerServiceDumpProto,perfetto.protos.WindowManagerTraceFileProto,perfetto.protos.WindowOrientationListenerProto,perfetto.protos.WindowStateAnimatorProto,perfetto.protos.WindowStateProto,perfetto.protos.WindowSurfaceControllerProto,perfetto.protos.WindowTokenProto " +
+
+        "--javastream_out=$(genDir)/$(in) " +
+        "-Iexternal/protobuf/src " +
+        "-Iexternal/perfetto " +
+        "-I . $(in) " +
+        "&& $(location soong_zip) " +
+        "-jar -o $(out) -C $(genDir)/$(in) -D $(genDir)/$(in)",
+    data: [
+        ":libprotobuf-internal-protos",
+    ],
+    output_extension: "srcjar",
+}
+
+java_library {
+    name: "perfetto_winscope-lite",
+    proto: {
+        type: "lite",
+        include_dirs: ["external/protobuf/src"],
+        canonical_path_from_root: false,
+    },
+    srcs: [
+        ":libprotobuf-internal-descriptor-proto",
+        ":perfetto_javastream_filegroup_proto",
+    ],
+    static_libs: [
+        "libprotobuf-java-lite",
+    ],
+    sdk_version: "current",
+}
+
+java_library {
+    name: "perfetto_config_java_protos_system_server_current",
+    srcs: [
+        ":perfetto_config_filegroup_proto",
+    ],
+    static_libs: [
+        "libprotobuf-java-lite",
+    ],
+    proto: {
+        type: "lite",
+        canonical_path_from_root: false,
+    },
+    sdk_version: "system_server_current",
+    min_sdk_version: "35",
+    apex_available: [
+        "com.android.profiling",
+    ],
+}
+
+prebuilt_etc {
+    name: "perfetto_persistent_cfg.pbtxt",
+    filename: "persistent_cfg.pbtxt",
+    sub_dir: "perfetto",
+    src: "persistent_cfg.pbtxt",
+}
+
+phony {
+    name: "perfetto-extras",
+    required: [
+        "libperfetto_android_internal",
+        "traced_perf",
+        "trigger_perfetto",
+    ],
+}
+
+filegroup {
+    name: "heap_profile",
+    srcs: [
+        "tools/heap_profile",
+    ],
+}
+
+aconfig_declarations {
+    name: "perfetto_flags-aconfig",
+    package: "perfetto.flags",
+    container: "system",
+    srcs: ["perfetto_flags.aconfig"],
+}
+
+cc_aconfig_library {
+    name: "perfetto_flags_c_lib",
+    aconfig_declarations: "perfetto_flags-aconfig",
 }

@@ -221,7 +221,9 @@ void ConsumerIPCClientImpl::FreeBuffers() {
   consumer_port_.FreeBuffers(req, std::move(async_response));
 }
 
-void ConsumerIPCClientImpl::Flush(uint32_t timeout_ms, FlushCallback callback) {
+void ConsumerIPCClientImpl::Flush(uint32_t timeout_ms,
+                                  FlushCallback callback,
+                                  FlushFlags flush_flags) {
   if (!connected_) {
     PERFETTO_DLOG("Cannot Flush(), not connected to tracing service");
     return callback(/*success=*/false);
@@ -229,6 +231,7 @@ void ConsumerIPCClientImpl::Flush(uint32_t timeout_ms, FlushCallback callback) {
 
   protos::gen::FlushRequest req;
   req.set_timeout_ms(static_cast<uint32_t>(timeout_ms));
+  req.set_flags(flush_flags.flags());
   ipc::Deferred<protos::gen::FlushResponse> async_response;
   async_response.Bind(
       [callback](ipc::AsyncResult<protos::gen::FlushResponse> response) {
@@ -279,7 +282,7 @@ void ConsumerIPCClientImpl::Attach(const std::string& key) {
           const TraceConfig& trace_config = response->trace_config();
 
           // If attached successfully, also attach to the end-of-trace
-          // notificaton callback, via EnableTracing(attach_notification_only).
+          // notification callback, via EnableTracing(attach_notification_only).
           protos::gen::EnableTracingRequest enable_req;
           enable_req.set_attach_notification_only(true);
           ipc::Deferred<protos::gen::EnableTracingResponse> enable_resp;
@@ -353,6 +356,7 @@ void ConsumerIPCClientImpl::ObserveEvents(uint32_t enabled_event_types) {
 }
 
 void ConsumerIPCClientImpl::QueryServiceState(
+    QueryServiceStateArgs args,
     QueryServiceStateCallback callback) {
   if (!connected_) {
     PERFETTO_DLOG(
@@ -363,6 +367,7 @@ void ConsumerIPCClientImpl::QueryServiceState(
   auto it = pending_query_svc_reqs_.insert(pending_query_svc_reqs_.end(),
                                            {std::move(callback), {}});
   protos::gen::QueryServiceStateRequest req;
+  req.set_sessions_only(args.sessions_only);
   ipc::Deferred<protos::gen::QueryServiceStateResponse> async_response;
   auto weak_this = weak_ptr_factory_.GetWeakPtr();
   async_response.Bind(
@@ -459,14 +464,37 @@ void ConsumerIPCClientImpl::SaveTraceForBugreport(
   consumer_port_.SaveTraceForBugreport(req, std::move(async_response));
 }
 
-void ConsumerIPCClientImpl::CloneSession(TracingSessionID tsid) {
+void ConsumerIPCClientImpl::CloneSession(CloneSessionArgs args) {
   if (!connected_) {
     PERFETTO_DLOG("Cannot CloneSession(), not connected to tracing service");
     return;
   }
 
   protos::gen::CloneSessionRequest req;
-  req.set_session_id(tsid);
+  if (args.tsid) {
+    req.set_session_id(args.tsid);
+  }
+  if (!args.unique_session_name.empty()) {
+    req.set_unique_session_name(args.unique_session_name);
+  }
+  req.set_skip_trace_filter(args.skip_trace_filter);
+  req.set_for_bugreport(args.for_bugreport);
+  if (!args.clone_trigger_name.empty()) {
+    req.set_clone_trigger_name(args.clone_trigger_name);
+  }
+  if (!args.clone_trigger_producer_name.empty()) {
+    req.set_clone_trigger_producer_name(args.clone_trigger_producer_name);
+  }
+  if (args.clone_trigger_trusted_producer_uid != 0) {
+    req.set_clone_trigger_trusted_producer_uid(
+        static_cast<int32_t>(args.clone_trigger_trusted_producer_uid));
+  }
+  if (args.clone_trigger_boot_time_ns != 0) {
+    req.set_clone_trigger_boot_time_ns(args.clone_trigger_boot_time_ns);
+  }
+  if (args.clone_trigger_delay_ms != 0) {
+    req.set_clone_trigger_delay_ms(args.clone_trigger_delay_ms);
+  }
   ipc::Deferred<protos::gen::CloneSessionResponse> async_response;
   auto weak_this = weak_ptr_factory_.GetWeakPtr();
 
@@ -479,10 +507,11 @@ void ConsumerIPCClientImpl::CloneSession(TracingSessionID tsid) {
           // If the IPC fails, we are talking to an older version of the service
           // that didn't support CloneSession at all.
           weak_this->consumer_->OnSessionCloned(
-              false, "CloneSession IPC not supported");
+              {false, "CloneSession IPC not supported", {}});
         } else {
-          weak_this->consumer_->OnSessionCloned(response->success(),
-                                                response->error());
+          base::Uuid uuid(response->uuid_lsb(), response->uuid_msb());
+          weak_this->consumer_->OnSessionCloned(
+              {response->success(), response->error(), uuid});
         }
       });
   consumer_port_.CloneSession(req, std::move(async_response));

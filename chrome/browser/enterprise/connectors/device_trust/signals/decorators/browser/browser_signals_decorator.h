@@ -5,16 +5,24 @@
 #ifndef CHROME_BROWSER_ENTERPRISE_CONNECTORS_DEVICE_TRUST_SIGNALS_DECORATORS_BROWSER_BROWSER_SIGNALS_DECORATOR_H_
 #define CHROME_BROWSER_ENTERPRISE_CONNECTORS_DEVICE_TRUST_SIGNALS_DECORATORS_BROWSER_BROWSER_SIGNALS_DECORATOR_H_
 
+#include <memory>
+#include <optional>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/enterprise/connectors/device_trust/signals/decorators/common/signals_decorator.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+
+class Profile;
 
 namespace policy {
-class CloudPolicyStore;
+class CloudPolicyManager;
 }  // namespace policy
+
+namespace enterprise_core {
+class DependencyFactory;
+}  // namespace enterprise_core
 
 namespace enterprise_signals {
 struct DeviceInfo;
@@ -31,8 +39,8 @@ namespace enterprise_connectors {
 class BrowserSignalsDecorator : public SignalsDecorator {
  public:
   BrowserSignalsDecorator(
-      policy::CloudPolicyStore* browser_cloud_policy_store,
-      policy::CloudPolicyStore* user_cloud_policy_store,
+      policy::CloudPolicyManager* browser_cloud_policy_manager,
+      std::unique_ptr<enterprise_core::DependencyFactory> dependency_factory,
       device_signals::SignalsAggregator* signals_aggregator);
   ~BrowserSignalsDecorator() override;
 
@@ -65,8 +73,8 @@ class BrowserSignalsDecorator : public SignalsDecorator {
   void OnAllSignalsReceived(base::TimeTicks start_time,
                             base::OnceClosure done_closure);
 
-  const raw_ptr<policy::CloudPolicyStore> browser_cloud_policy_store_;
-  const raw_ptr<policy::CloudPolicyStore> user_cloud_policy_store_;
+  const raw_ptr<policy::CloudPolicyManager> browser_cloud_policy_manager_;
+  std::unique_ptr<enterprise_core::DependencyFactory> dependency_factory_;
 
   // Signals aggregator, which is a profile-keyed service. Can be nullptr in
   // the case where the Profile is an incognito profile.

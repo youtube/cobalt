@@ -17,8 +17,12 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "content/public/browser/devtools_agent_host.h"
-#include "content/public/browser/devtools_frontend_host.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "content/public/common/buildflags.h"
+
+#if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
+#include "content/public/browser/devtools_frontend_host.h"
+#endif
 
 namespace content {
 
@@ -39,13 +43,8 @@ class ShellDevToolsBindings : public WebContentsObserver,
                         WebContents* inspected_contents,
                         ShellDevToolsDelegate* delegate);
 
-  static std::vector<ShellDevToolsBindings*> GetInstancesForWebContents(
-      WebContents* web_contents);
-
   void InspectElementAt(int x, int y);
   virtual void Attach();
-  void UpdateInspectedWebContents(WebContents* new_contents,
-                                  base::OnceCallback<void()> callback);
 
   void CallClientFunction(
       const std::string& object_name,
@@ -77,12 +76,12 @@ class ShellDevToolsBindings : public WebContentsObserver,
   void SendMessageAck(int request_id, const base::Value::Dict arg);
   void AttachInternal();
 
-  raw_ptr<WebContents, DanglingUntriaged> inspected_contents_;
-  raw_ptr<ShellDevToolsDelegate, DanglingUntriaged> delegate_;
+  raw_ptr<WebContents, FlakyDanglingUntriaged> inspected_contents_;
+  raw_ptr<ShellDevToolsDelegate, FlakyDanglingUntriaged> delegate_;
   scoped_refptr<DevToolsAgentHost> agent_host_;
   int inspect_element_at_x_;
   int inspect_element_at_y_;
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
   std::unique_ptr<DevToolsFrontendHost> frontend_host_;
 #endif
 

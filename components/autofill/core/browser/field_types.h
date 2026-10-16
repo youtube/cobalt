@@ -7,7 +7,7 @@
 
 #include <type_traits>
 
-#include "base/strings/string_piece_forward.h"
+#include "base/types/cxx23_to_underlying.h"
 #include "components/autofill/core/common/dense_set.h"
 #include "components/autofill/core/common/html_field_types.h"
 
@@ -19,7 +19,7 @@ namespace autofill {
 // server, which is itself backward-compatible. The list must be kept up to
 // date with the Autofill server list.
 //
-// NOTE: When deprecating field types, also update IsValidServerFieldType().
+// NOTE: When deprecating field types, also update IsValidFieldType().
 //
 // This enum represents the list of all field types natively understood by the
 // Autofill server. A subset of these types is used to store Autofill data in
@@ -81,19 +81,15 @@ namespace autofill {
 // If the user made no attempt at formatting the number (it consists only of
 // characters of the set [+0123456789], no whitespaces, no parentheses, no
 // hyphens, no slashes, etc), we will make an attempt to format the number in a
-// proper way. If AutofillInferCountryCallingCode is enabled, we will infer the
-// country code and also store that in the formatted number.
-// If a website contains <input autocomplete="tel"> this is what we fill. I.e.,
-// the phone number representation the user tried to give us.
-// With AutofillInferCountryCallingCode, the GetInfo() representation always
-// contains a country code. So for filling purposes, PHONE_HOME_WHOLE_NUMBER is
-// in international format.
-// If we reformat the number ourselves, the GetRawInfo() contains the inferred
-// country code. If we don't reformat the number, the GetRawInfo()
-// representation remains without one. In all countries but the US and Canada,
-// formatting will put a + infront of the country code.
-// TODO(crbug.com/1311937) Clean this up once AutofillInferCountryCallingCode
-// is launched.
+// proper way. We will infer the country code and also store that in the
+// formatted number. If a website contains <input autocomplete="tel"> this is
+// what we fill. I.e., the phone number representation the user tried to give
+// us. The GetInfo() representation always contains a country code. So for
+// filling purposes, PHONE_HOME_WHOLE_NUMBER is in international format. If we
+// reformat the number ourselves, the GetRawInfo() contains the inferred country
+// code. If we don't reformat the number, the GetRawInfo() representation
+// remains without one. In all countries but the US and Canada, formatting will
+// put a + in front of the country code.
 //
 // PHONE_HOME_EXTENSION: Extensions are detected, but not filled. This would
 //   be the part that comes after a PHONE_HOME_WHOLE_NUMBER or
@@ -121,7 +117,12 @@ namespace autofill {
 // GetInfo() returns an unformatted number (digits only). It is used for
 // filling!
 //
-enum ServerFieldType {
+// A Java counterpart will be generated for this enum.
+// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.components.autofill
+//
+// LINT.IfChange
+// This enum set must be kept in sync with IDL enum used by JS code.
+enum FieldType {
   // Server indication that it has no data for the requested field.
   NO_SERVER_DATA = 0,
   // Client indication that the text entered did not match anything in the
@@ -155,11 +156,13 @@ enum ServerFieldType {
 
   ADDRESS_HOME_LINE1 = 30,
   ADDRESS_HOME_LINE2 = 31,
+  // The raw number (or identifier) of an apartment (e.g. "5") but without a
+  // prefix. The value "apt 5" would correspond to an ADDRESS_HOME_APT.
   ADDRESS_HOME_APT_NUM = 32,
   ADDRESS_HOME_CITY = 33,
   ADDRESS_HOME_STATE = 34,
   ADDRESS_HOME_ZIP = 35,
-  // TODO(crbug.com/1434216): Autofill stores country codes. When
+  // TODO(crbug.com/40264633): Autofill stores country codes. When
   // ADDRESS_HOME_COUNTRY is accessed through `AutofillProfile::GetRawInfo()`, a
   // country code is returned. When retrieved using
   // `AutofillProfile::GetInfo()`, the country name is returned.
@@ -188,7 +191,7 @@ enum ServerFieldType {
 
   // Field types for options generally found in merchant buyflows. Given that
   // these are likely to be filled out differently on a case by case basis,
-  // they are here primarily for use by Autocheckout.
+  // they are here primarily for use by AutoCheckout.
   MERCHANT_EMAIL_SIGNUP = 73,
   // A promo/gift/coupon code, usually entered during checkout on a commerce web
   // site to reduce the cost of a purchase.
@@ -276,7 +279,7 @@ enum ServerFieldType {
 
   // UPI/VPA is a payment method, which is stored and filled. See
   // https://en.wikipedia.org/wiki/Unified_Payments_Interface
-  UPI_VPA = 102,
+  // UPI_VPA value 102 is deprecated.
 
   // Just the street name of an address, no house number.
   ADDRESS_HOME_STREET_NAME = 103,
@@ -300,16 +303,12 @@ enum ServerFieldType {
   // Type to catch name additions like "Mr.", "Ms." or "Dr.".
   NAME_HONORIFIC_PREFIX = 110,
 
-  // Type that corresponds to the name of a place or a building below the
-  // granularity of a street.
-  ADDRESS_HOME_PREMISE_NAME = 111,
+  // ADDRESS_HOME_PREMISE_NAME value 111 is deprecated.
 
-  // Type that describes a crossing street as it is used in some countries to
-  // describe a location.
-  ADDRESS_HOME_DEPENDENT_STREET_NAME = 112,
+  // ADDRESS_HOME_DEPENDENT_STREET_NAME value 112 is deprecated.
 
   // Compound type to join the street and dependent street names.
-  ADDRESS_HOME_STREET_AND_DEPENDENT_STREET_NAME = 113,
+  // ADDRESS_HOME_STREET_AND_DEPENDENT_STREET_NAME  value 113 is deprecated.
 
   // The complete formatted address as it would be written on an envelope or in
   // a clear-text field without the name.
@@ -321,13 +320,9 @@ enum ServerFieldType {
   // The floor number within a building.
   ADDRESS_HOME_FLOOR = 116,
 
-  // The full name including the honorific prefix.
-  NAME_FULL_WITH_HONORIFIC_PREFIX = 117,
+  // NAME_FULL_WITH_HONORIFIC_PREFIX value 117 is deprecated.
 
-  // Types to represent a birthdate.
-  BIRTHDATE_DAY = 118,
-  BIRTHDATE_MONTH = 119,
-  BIRTHDATE_4_DIGIT_YEAR = 120,
+  // Birthdates 118, 119 and 120 are deprecated.
 
   // Types for better trunk prefix support for phone numbers.
   // Like PHONE_HOME_CITY_CODE, but with a trunk prefix, if applicable in the
@@ -360,55 +355,331 @@ enum ServerFieldType {
   // One-time code used for verifying user identity.
   ONE_TIME_CODE = 129,
 
-  // Reserved for a server-side-only use: 130-153
+  // Type for additional delivery instructions to find the address.
+  DELIVERY_INSTRUCTIONS = 133,
+
+  // Additional information for describing the location within a building or
+  // gated community. Often called "extra information", "additional
+  // information", "address extension", etc.
+  ADDRESS_HOME_OVERFLOW = 135,
+
+  // A well-known object or feature of the landscape that can easily be
+  // recognized to understand where the building is situated.
+  ADDRESS_HOME_LANDMARK = 136,
+
+  // Combination of types ADDRESS_HOME_OVERFLOW and ADDRESS_HOME_LANDMARK.
+  ADDRESS_HOME_OVERFLOW_AND_LANDMARK = 140,
+
+  // Administrative area level 2. A sub-division of a state, e.g. a Municipio in
+  // Brazil or Mexico.
+  ADDRESS_HOME_ADMIN_LEVEL2 = 141,
+
+  // Street name and house number in structured address forms. Should NOT be
+  // used for US.
+  ADDRESS_HOME_STREET_LOCATION = 142,
+
+  // The type indicates that the address is at the intersection between two
+  // streets. This is a common way of writing addresses in Mexico.
+  ADDRESS_HOME_BETWEEN_STREETS = 143,
+
+  // Combination of types ADDRESS_HOME_BETWEEN_STREETS or ADDRESS_HOME_LANDMARK.
+  ADDRESS_HOME_BETWEEN_STREETS_OR_LANDMARK = 144,
+
+  // Combination of types ADDRESS_HOME_STREET_LOCATION and
+  // ADDRESS_HOME_DEPENDENT_LOCALITY.
+  ADDRESS_HOME_STREET_LOCATION_AND_LOCALITY = 145,
+
+  // Combination of types ADDRESS_HOME_STREET_LOCATION and
+  // ADDRESS_HOME_LANDMARK.
+  // One of the synthesized types in the address model in India.
+  ADDRESS_HOME_STREET_LOCATION_AND_LANDMARK = 146,
+
+  // Combination of types ADDRESS_HOME_DEPENDENT_LOCALITY and
+  // ADDRESS_HOME_LANDMARK.
+  // One of the synthesized types in the address model in India.
+  ADDRESS_HOME_DEPENDENT_LOCALITY_AND_LANDMARK = 150,
+
+  // The meaning of the field is the same as ADDRESS_HOME_BETWEEN_STREETS. The
+  // field type should be used for "Entre calle 1" in MX forms which also
+  // contain the "Entre calle 2" field.
+  ADDRESS_HOME_BETWEEN_STREETS_1 = 151,
+
+  // The meaning of the field is the same as ADDRESS_HOME_BETWEEN_STREETS. The
+  // field type should be used for "Entre calle 2" in MX forms which also
+  // contain the "Entre calle 1" field.
+  ADDRESS_HOME_BETWEEN_STREETS_2 = 152,
+
+  // House number and apartment.
+  ADDRESS_HOME_HOUSE_NUMBER_AND_APT = 153,
+
+  // Username field in a password-less forgot password form.
+  SINGLE_USERNAME_FORGOT_PASSWORD = 154,
+
+  // Autofill fallback type for username fields which accept also email or
+  // phone number.
+  // EMAIL_OR_PHONE_NUMBER = 155 is server-side only.
+
+  // All the information related to the apartment. Normally a combination of the
+  // apartment type (ADDRESS_HOME_APT_TYPE) and number (ADDRESS_HOME_APT_NUM).
+  // E.g. "Apt 5".
+  // ADDRESS_HOME_APT and ADDRESS_HOME_APT_TYPE are intended to remain
+  // experimental types (i.e. we don't classify fields with this type) because
+  // we don't expect that fields ask for "Apt" or "Apt 5" as entries for
+  // example. There is a risk that "Apt 5" votes might turn ADDRESS_HOME_LINE2
+  // into ADDRESS_HOME_APT entries. We'd need to be very intentional with such a
+  // change as it affects the US for example.
+  ADDRESS_HOME_APT = 156,
+
+  // Information describing the type of apartment (e.g. Apt, Apartamento, Sala,
+  // Departamento).
+  ADDRESS_HOME_APT_TYPE = 157,
+
+  // Loyalty program card or membeship ID.
+  LOYALTY_MEMBERSHIP_ID = 158,
+
+  // Reserved for a server-side-only use: 159
+
+  // Similar to `SINGLE_USERNAME`, but for the case when there are additional
+  // fields between single username and password forms.
+  // Will be used to rollout new predictions based on new votes of Username
+  // First Flow with intermediate values.
+  // TODO(crbug.com/294195764): Deprecate after fully rolling out new
+  // predictions.
+  SINGLE_USERNAME_WITH_INTERMEDIATE_VALUES = 160,
+
+  // SERVER_RESPONSE_PENDING is not exposed as an enum value to prevent
+  // confusion. It is never sent by the server nor sent for voting. The purpose
+  // is merely to have a well defined value in the debug attributes if
+  // chrome://flags/#show-autofill-type-predictions is enabled. This is not
+  // the same as NO_SERVER_DATA, which indicates that the server has no
+  // classification for the field.
+  // SERVER_RESPONSE_PENDING = 161;
+
+  // Improved Prediction indicates that this field is support by the predition
+  // improvement system.
+  // This type is a metatype and does not correspond to a specific sort of
+  // data.
+  // It should not take precedence over existing types.
+  // TODO(crbug.com/389629676): Deprecate this field type.
+  IMPROVED_PREDICTION = 162,
+
+  // Types to represent alternative names (e.g. phonetic name in Japanese).
+  ALTERNATIVE_FULL_NAME = 163,
+  ALTERNATIVE_GIVEN_NAME = 164,
+  ALTERNATIVE_FAMILY_NAME = 165,
+
+  // Prefix of the last name, e.g. "van" in the Netherlands.
+  // This is the first child of NAME_LAST.
+  NAME_LAST_PREFIX = 166,
+
+  // Type to represent the core part of the last name.
+  // More technically it contains the last name without the prefix.
+  // NAME_LAST_CORE: NAME_LAST_FIRST + NAME_LAST_CONJUNCTION + NAME_LAST_SECOND.
+  // Don't use this type unless there is NAME_LAST_PREFIX present in the form.
+  // E.g. "Gogh" in "Vincent van Gogh".
+  NAME_LAST_CORE = 167,
+
+  // Types corresponding to the "Passport" entity from
+  // components/autofill/core/browser/data_model/autofill_ai/entity_schema.json.
+  // *TAG field types are merely placeholder tagging that the type belongs to
+  // the passport entity, but that the existing Autofill classification or logic
+  // should be used.
+  PASSPORT_NAME_TAG = 168,
+  PASSPORT_NUMBER = 169,
+  PASSPORT_ISSUING_COUNTRY = 170,
+  PASSPORT_EXPIRATION_DATE = 171,
+  PASSPORT_ISSUE_DATE = 172,
+
+  // Types corresponding to the "Loyalty card" entity from
+  // components/autofill/core/browser/data_model/autofill_ai/entity_schema.json.
+  LOYALTY_MEMBERSHIP_PROGRAM = 173,
+  LOYALTY_MEMBERSHIP_PROVIDER = 174,
+  // The member ID is represented by LOYALTY_MEMBERSHIP_ID.
+
+  // Types corresponding to the "Car" entity from
+  // components/autofill/core/browser/data_model/autofill_ai/entity_schema.json.
+  VEHICLE_OWNER_TAG = 175,
+  VEHICLE_LICENSE_PLATE = 176,
+  VEHICLE_VIN = 177,
+  VEHICLE_MAKE = 178,
+  VEHICLE_MODEL = 179,
+
+  // Types corresponding to the "Drivers license" entity from
+  // components/autofill/core/browser/data_model/autofill_ai/entity_schema.json.
+  DRIVERS_LICENSE_NAME_TAG = 180,
+  DRIVERS_LICENSE_REGION = 181,
+  DRIVERS_LICENSE_NUMBER = 182,
+  DRIVERS_LICENSE_EXPIRATION_DATE = 183,
+  DRIVERS_LICENSE_ISSUE_DATE = 184,
+
+  VEHICLE_YEAR = 185,
+  VEHICLE_PLATE_STATE = 186,
+
+  // Types 187 and 188 are not used yet on the client, but will likely be added
+  // in the future.
+
+  // For fields that can contain either email or loyalty membership ID. This
+  // type is neither voted for by the client nor emitted by the server. The
+  // client will vote for either EMAIL_ADDRESS or LOYALTY_MEMBERSHIP_ID and the
+  // server will emit both types in the response. The joined type is built by
+  // the client.
+  EMAIL_OR_LOYALTY_MEMBERSHIP_ID = 189,
 
   // No new types can be added without a corresponding change to the Autofill
   // server.
-  // Please update the following enums in `tools/metrics/histogram/enums.xml`
-  // for metrics tracking.
-  // - `AutofillServerFieldType`
-  // - `AutofilledFieldUserEditingStatusByFieldType` (16 * type + x)
-  // - `AutofillPredictionsComparisonResult` (6 * type + x)
-  MAX_VALID_FIELD_TYPE = 153,
+  // This enum must be kept in sync with FieldType from
+  // * chrome/common/extensions/api/autofill_private.idl
+  // * tools/typescript/definitions/autofill_private.d.ts
+  // Please update `tools/metrics/histograms/enums.xml` by executing
+  // `tools/metrics/histograms/update_autofill_enums.py`.
+  // If the newly added type is a storable type of AutofillProfile, update
+  // AutofillProfile.StorableTypes in
+  // tools/metrics/histograms/metadata/autofill/histograms.xml.
+  MAX_VALID_FIELD_TYPE = 190,
 };
+// LINT.ThenChange(//chrome/common/extensions/api/autofill_private.idl)
 
 enum class FieldTypeGroup {
   kNoGroup,
   kName,
-  kNameBilling,
   kEmail,
   kCompany,
-  kAddressHome,
-  kAddressBilling,
-  kPhoneHome,
-  kPhoneBilling,
+  kAddress,
+  kPhone,
   kCreditCard,
   kPasswordField,
   kTransaction,
   kUsernameField,
   kUnfillable,
-  kBirthdateField,
   kIban,
-  kMaxValue = kIban,
+  kStandaloneCvcField,
+  kAutofillAi,
+  kLoyaltyCard,
+  kMaxValue = kLoyaltyCard,
 };
 
-using ServerFieldTypeSet = DenseSet<ServerFieldType, MAX_VALID_FIELD_TYPE>;
+template <>
+struct DenseSetTraits<FieldType>
+    : EnumDenseSetTraits<FieldType, NO_SERVER_DATA, MAX_VALID_FIELD_TYPE> {};
 
-std::ostream& operator<<(std::ostream& o, ServerFieldTypeSet field_type_set);
+using FieldTypeSet = DenseSet<FieldType>;
 
-// Returns |raw_value| if it corresponds to a non-deprecated enumeration
-// constant of ServerFieldType other than MAX_VALID_FIELD_TYPE. Otherwise,
-// returns |fallback_value|.
-ServerFieldType ToSafeServerFieldType(
-    std::underlying_type_t<ServerFieldType> raw_value,
-    ServerFieldType fallback_value);
+using FieldTypeGroupSet = DenseSet<FieldTypeGroup>;
+
+using HtmlFieldTypeSet = DenseSet<HtmlFieldType>;
+
+std::ostream& operator<<(std::ostream& o, FieldTypeSet field_type_set);
 
 // Returns whether the field can be filled with data.
-bool IsFillableFieldType(ServerFieldType field_type);
+bool IsFillableFieldType(FieldType field_type);
 
-// Returns a StringPiece describing |type|. As the StringPiece points to a
-// static string, you don't need to worry about memory deallocation.
-base::StringPiece FieldTypeToStringPiece(ServerFieldType type);
+// Returns a string view describing `type`.
+std::string_view FieldTypeToStringView(FieldType type);
+
+// Returns a string describing `type`.
+std::string FieldTypeToString(FieldType type);
+
+// Inverse FieldTypeToStringView(). Returns UNKNOWN_TYPE for unknown FieldType
+// string representations.
+FieldType TypeNameToFieldType(std::string_view type_name);
+
+// Returns a string view describing `type`. The devtools UI uses this string to
+// give developers feedback about autofill's filling decision. Note that
+// different field types can map to the same string representation for
+// simplicity of the feedback. Returns an empty string if the type is not
+// supported.
+std::string_view FieldTypeToDeveloperRepresentationString(FieldType type);
+
+// There's a one-to-many relationship between FieldTypeGroup and
+// FieldType as well as HtmlFieldType.
+FieldTypeSet GetFieldTypesOfGroup(FieldTypeGroup group);
+FieldTypeGroup GroupTypeOfFieldType(FieldType field_type);
+FieldTypeGroup GroupTypeOfHtmlFieldType(HtmlFieldType field_type);
+
+// Not all HtmlFieldTypes have a corresponding FieldType.
+FieldType HtmlFieldTypeToBestCorrespondingFieldType(HtmlFieldType field_type);
+
+// Returns |raw_value| if it corresponds to a non-deprecated enumeration
+// constant of FieldType other than MAX_VALID_FIELD_TYPE. Otherwise, returns
+// |fallback_value|.
+constexpr FieldType ToSafeFieldType(std::underlying_type_t<FieldType> raw_value,
+                                    FieldType fallback_value) {
+  auto IsValid = [](std::underlying_type_t<FieldType> t) {
+    return NO_SERVER_DATA <= t && t < MAX_VALID_FIELD_TYPE &&
+           // Work phone numbers (values [15,19]) are deprecated.
+           !(15 <= t && t <= 19) &&
+           // Cell phone numbers (values [25,29]) are deprecated.
+           !(25 <= t && t <= 29) &&
+           // Shipping addresses (values [44,50]) are deprecated.
+           !(44 <= t && t <= 50) &&
+           // Probably-account creation password (value 94) is deprecated.
+           t != 94 &&
+           // Billing addresses (values [37,43], 78, 80, 82, 84) are deprecated.
+           !(37 <= t && t <= 43) && t != 78 && t != 80 && t != 82 && t != 84 &&
+           // Billing phone numbers (values [62,66]) are deprecated.
+           !(62 <= t && t <= 66) &&
+           // Billing names (values [67,72]) are deprecated.
+           !(67 <= t && t <= 72) &&
+           // Fax numbers (values [20,24]) are deprecated.
+           !(20 <= t && t <= 24) &&
+           // UPI VPA type (value 102) is deprecated.
+           !(t == 102) &&
+           // Birthdates (values [118, 120]) are deprecated.
+           !(118 <= t && t <= 120) &&
+           // Reserved for server-side only use.
+           !(111 <= t && t <= 113) && t != 117 && t != 127 &&
+           !(130 <= t && t <= 132) && t != 134 && !(137 <= t && t <= 139) &&
+           !(147 <= t && t <= 149) && t != 155 && t != 159 && t != 161 &&
+           // Types for the country for driver's license and vehicle are not
+           // used yet, but will likely be added in the future.
+           !(187 <= t && t <= 188);
+  };
+  return IsValid(raw_value) ? static_cast<FieldType>(raw_value)
+                            : fallback_value;
+}
+
+constexpr HtmlFieldType ToSafeHtmlFieldType(
+    std::underlying_type_t<HtmlFieldType> raw_value,
+    HtmlFieldType fallback_value) {
+  using underlying_type_t = std::underlying_type_t<HtmlFieldType>;
+  auto IsValid = [](underlying_type_t t) {
+    return static_cast<underlying_type_t>(HtmlFieldType::kMinValue) <= t &&
+           t <= static_cast<underlying_type_t>(HtmlFieldType::kMaxValue) &&
+           // Full address is deprecated.
+           t != 17 &&
+           // UPI is deprecated.
+           t != 46;
+  };
+  return IsValid(raw_value) ? static_cast<HtmlFieldType>(raw_value)
+                            : fallback_value;
+}
+
+constexpr inline FieldTypeSet kAllFieldTypes = [] {
+  FieldTypeSet fields;
+  for (std::underlying_type_t<FieldType> i = 0; i < MAX_VALID_FIELD_TYPE; ++i) {
+    if (FieldType field_type = ToSafeFieldType(i, NO_SERVER_DATA);
+        field_type != NO_SERVER_DATA) {
+      fields.insert(field_type);
+    }
+  }
+  return fields;
+}();
+
+constexpr HtmlFieldTypeSet kAllHtmlFieldTypes = [] {
+  HtmlFieldTypeSet fields;
+  using underlying_type_t = std::underlying_type_t<HtmlFieldType>;
+  for (underlying_type_t i = base::to_underlying(HtmlFieldType::kMinValue);
+       i < base::to_underlying(HtmlFieldType::kMaxValue); ++i) {
+    if (HtmlFieldType field_type =
+            ToSafeHtmlFieldType(i, HtmlFieldType::kUnrecognized);
+        field_type != HtmlFieldType::kUnrecognized) {
+      fields.insert(field_type);
+    }
+  }
+  return fields;
+}();
+
+bool IsDateFieldType(FieldType field_type);
 
 }  // namespace autofill
 

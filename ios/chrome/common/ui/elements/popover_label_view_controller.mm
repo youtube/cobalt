@@ -8,10 +8,6 @@
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/text_view_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // Vertical inset for the text content.
@@ -114,7 +110,7 @@ constexpr CGFloat kIconSize = 16;
 
   AddSameConstraints(self.view.safeAreaLayoutGuide, _scrollView);
 
-  // TODO(crbug.com/1100884): Remove the following workaround:
+  // TODO(crbug.com/40138105): Remove the following workaround:
   // Using a UIView instead of UILayoutGuide as the later behaves weirdly with
   // the scroll view.
   UIView* textContainerView = [[UIView alloc] init];
@@ -250,6 +246,19 @@ constexpr CGFloat kIconSize = 16;
   heightConstraint.active = YES;
 
   [self updateBackgroundColor];
+
+  if (@available(iOS 17, *)) {
+    NSArray<UITrait>* traits = @[
+      UITraitVerticalSizeClass.class, UITraitHorizontalSizeClass.class,
+      UITraitUserInterfaceStyle.class
+    ];
+    __weak __typeof(self) weakSelf = self;
+    UITraitChangeHandler handler = ^(id<UITraitEnvironment> traitEnvironment,
+                                     UITraitCollection* previousCollection) {
+      [weakSelf updateUIOnTraitChange:previousCollection];
+    };
+    [self registerForTraitChanges:traits withHandler:handler];
+  }
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -257,8 +266,7 @@ constexpr CGFloat kIconSize = 16;
   [super viewWillAppear:animated];
 }
 
-- (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
-  [super traitCollectionDidChange:previousTraitCollection];
+- (void)updateUIOnTraitChange:(UITraitCollection*)previousTraitCollection {
   if ((self.traitCollection.verticalSizeClass !=
        previousTraitCollection.verticalSizeClass) ||
       (self.traitCollection.horizontalSizeClass !=
@@ -271,6 +279,16 @@ constexpr CGFloat kIconSize = 16;
     [self updateBackgroundColor];
   }
 }
+
+#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
+- (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
+  [super traitCollectionDidChange:previousTraitCollection];
+  if (@available(iOS 17, *)) {
+    return;
+  }
+  [self updateUIOnTraitChange:previousTraitCollection];
+}
+#endif
 
 - (void)viewDidLayoutSubviews {
   [super viewDidLayoutSubviews];
@@ -360,6 +378,7 @@ constexpr CGFloat kIconSize = 16;
 
 #pragma mark - UITextViewDelegate
 
+#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
 - (BOOL)textView:(UITextView*)textView
     shouldInteractWithURL:(NSURL*)URL
                   inRange:(NSRange)characterRange
@@ -369,6 +388,21 @@ constexpr CGFloat kIconSize = 16;
   }
   // Returns NO as the app is handling the opening of the URL.
   return NO;
+}
+#endif
+
+- (UIAction*)textView:(UITextView*)textView
+    primaryActionForTextItem:(UITextItem*)textItem
+               defaultAction:(UIAction*)defaultAction API_AVAILABLE(ios(17.0)) {
+  NSURL* URL = textItem.link;
+  if (URL) {
+    __weak __typeof(self) weakSelf = self;
+    return [UIAction actionWithHandler:^(UIAction* action) {
+      [weakSelf.delegate didTapLinkURL:URL];
+    }];
+  }
+
+  return defaultAction;
 }
 
 @end

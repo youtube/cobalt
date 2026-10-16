@@ -5,28 +5,48 @@
 #ifndef CHROME_BROWSER_ASH_BRUSCHETTA_BRUSCHETTA_INSTALLER_H_
 #define CHROME_BROWSER_ASH_BRUSCHETTA_BRUSCHETTA_INSTALLER_H_
 
-#include "base/uuid.h"
-#include "chromeos/ash/components/dbus/vm_concierge/concierge_service.pb.h"
-#include "components/download/public/background_service/download_metadata.h"
+#include <string>
 
 namespace bruschetta {
 
 // These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
+// numeric values should never be reused. BruschettaInstallResult in
+// tools/metrics/histograms/enums.xml must be updated when making a change to
+// this enum.
 enum class BruschettaInstallResult {
   kUnknown = 0,
   kSuccess = 1,
   kInstallationProhibited = 2,
-  kDlcInstallError = 3,
+  // Deprecated in favour of more specific errors.
+  // kToolsDlcInstallError = 3,
   kDownloadError = 4,
-  kInvalidFirmware = 5,
+  // Deprecated: kInvalidFirmware = 5,
   kInvalidBootDisk = 6,
   kInvalidPflash = 7,
   kUnableToOpenImages = 8,
   kCreateDiskError = 9,
   kStartVmFailed = 10,
   kInstallPflashError = 11,
-  kMaxValue = kInstallPflashError,
+  // Deprecated in favour of more specific errors.
+  // kFirmwareDlcInstallError = 12,
+  kVmAlreadyExists = 13,
+  kClearVekFailed = 14,
+  kToolsDlcOfflineError = 15,
+  kToolsDlcNeedUpdateError = 16,
+  kToolsDlcNeedRebootError = 17,
+  kToolsDlcDiskFullError = 18,
+  kToolsDlcBusyError = 19,
+  kToolsDlcUnknownError = 20,
+  kFirmwareDlcOfflineError = 21,
+  kFirmwareDlcNeedUpdateError = 22,
+  kFirmwareDlcNeedRebootError = 23,
+  kFirmwareDlcDiskFullError = 24,
+  kFirmwareDlcBusyError = 25,
+  kFirmwareDlcUnknownError = 26,
+  kConciergeUnavailableError = 27,
+  kNotEnoughMemoryError = 28,
+  kNoAdidError = 29,
+  kMaxValue = kNoAdidError,
 };
 
 // Returns the string name of the BruschettaResult.
@@ -37,8 +57,8 @@ class BruschettaInstaller {
  public:
   enum class State {
     kInstallStarted,
-    kDlcInstall,
-    kFirmwareDownload,
+    kToolsDlcInstall,
+    kFirmwareDlcInstall,
     kBootDiskDownload,
     kPflashDownload,
     kOpenFiles,
@@ -46,6 +66,7 @@ class BruschettaInstaller {
     kInstallPflash,
     kStartVm,
     kLaunchTerminal,
+    kClearVek,
   };
 
   class Observer {
@@ -58,15 +79,6 @@ class BruschettaInstaller {
 
   virtual void Cancel() = 0;
   virtual void Install(std::string vm_name, std::string config_id) = 0;
-
-  virtual const base::Uuid& GetDownloadGuid() const = 0;
-
-  virtual void DownloadStarted(
-      const std::string& guid,
-      download::DownloadParams::StartResult result) = 0;
-  virtual void DownloadFailed() = 0;
-  virtual void DownloadSucceeded(
-      const download::CompletionInfo& completion_info) = 0;
 
   virtual void AddObserver(Observer* observer) = 0;
   virtual void RemoveObserver(Observer* observer) = 0;

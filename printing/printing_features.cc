@@ -11,18 +11,42 @@
 #include "base/metrics/field_trial_params.h"
 #endif
 
-namespace printing {
-namespace features {
+namespace printing::features {
 
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_CHROMEOS)
+// Add printers via printscanmgr instead of debugd.
+BASE_FEATURE(kAddPrinterViaPrintscanmgr,
+             "AddPrinterViaPrintscanmgr",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls whether chrome.printing API uses margins and scale ticket items when
+// submitting a print job.
+BASE_FEATURE(kApiPrintingMarginsAndScale,
+             "ApiPrintingMarginsAndScale",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 // Use the CUPS IPP printing backend instead of the original CUPS backend that
 // calls the deprecated PPD API.
 BASE_FEATURE(kCupsIppPrintingBackend,
              "CupsIppPrintingBackend",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_LINUX)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_WIN)
+// Use a faster method to enumerate printers, using a combination of a
+// non-blocking Print Spooler API and the Windows registry to speed up reading
+// of basic printer info.
+BASE_FEATURE(kFastEnumeratePrinters,
+             "FastEnumeratePrinters",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // When using PostScript level 3 printing, render text with Type 42 fonts if
 // possible.
 BASE_FEATURE(kPrintWithPostScriptType42Fonts,
@@ -50,25 +74,6 @@ BASE_FEATURE(kUseXpsForPrinting,
 BASE_FEATURE(kUseXpsForPrintingFromPdf,
              "UseXpsForPrintingFromPdf",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsXpsPrintCapabilityRequired() {
-  // Require XPS printing to be used out-of-process.
-#if BUILDFLAG(ENABLE_OOP_PRINTING)
-  return features::kEnableOopPrintDriversJobPrint.Get() &&
-         (base::FeatureList::IsEnabled(features::kUseXpsForPrinting) ||
-          base::FeatureList::IsEnabled(features::kUseXpsForPrintingFromPdf));
-#else
-  return false;
-#endif
-}
-
-bool ShouldPrintUsingXps(bool source_is_pdf) {
-  // Require XPS to be used out-of-process.
-  return features::kEnableOopPrintDriversJobPrint.Get() &&
-         base::FeatureList::IsEnabled(source_is_pdf
-                                          ? features::kUseXpsForPrintingFromPdf
-                                          : features::kUseXpsForPrinting);
-}
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(ENABLE_OOP_PRINTING)
@@ -76,28 +81,26 @@ bool ShouldPrintUsingXps(bool source_is_pdf) {
 // out-of-process.
 BASE_FEATURE(kEnableOopPrintDrivers,
              "EnableOopPrintDrivers",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
+const base::FeatureParam<bool> kEnableOopPrintDriversEarlyStart{
+    &kEnableOopPrintDrivers, "EarlyStart", false};
 
 const base::FeatureParam<bool> kEnableOopPrintDriversJobPrint{
-    &kEnableOopPrintDrivers, "JobPrint", false};
+    &kEnableOopPrintDrivers, "JobPrint", true};
 
 const base::FeatureParam<bool> kEnableOopPrintDriversSandbox{
     &kEnableOopPrintDrivers, "Sandbox", false};
+
+#if BUILDFLAG(IS_WIN)
+const base::FeatureParam<bool> kEnableOopPrintDriversSingleProcess{
+    &kEnableOopPrintDrivers, "SingleProcess", true};
+#endif
 #endif  // BUILDFLAG(ENABLE_OOP_PRINTING)
 
-#if BUILDFLAG(ENABLE_PRINT_CONTENT_ANALYSIS)
-// Enables scanning of to-be-printed pages and documents for sensitive data if
-// the OnPrintEnterpriseConnector policy is enabled.
-BASE_FEATURE(kEnablePrintContentAnalysis,
-             "EnablePrintContentAnalysis",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables print scanning after preview options have been selected instead of
-// when the user initiates the printing to bring up the preview
-BASE_FEATURE(kEnablePrintScanAfterPreview,
-             "EnablePrintScanAfterPreview",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(ENABLE_PRINT_CONTENT_ANALYSIS)
-
-}  // namespace features
-}  // namespace printing
+}  // namespace printing::features

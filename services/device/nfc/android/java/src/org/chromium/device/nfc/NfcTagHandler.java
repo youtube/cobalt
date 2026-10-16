@@ -12,31 +12,32 @@ import android.nfc.tech.Ndef;
 import android.nfc.tech.NdefFormatable;
 import android.nfc.tech.TagTechnology;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 import java.io.IOException;
 
-/**
- * Utility class that provides I/O operations for NFC tags.
- */
+/** Utility class that provides I/O operations for NFC tags. */
+@NullMarked
 public class NfcTagHandler {
     private final TagTechnology mTech;
     private final TagTechnologyHandler mTechHandler;
     private boolean mWasConnected;
-    private final String mSerialNumber;
+    private final @Nullable String mSerialNumber;
 
     /**
      * Factory method that creates NfcTagHandler for a given NFC Tag.
      *
-     * @param tag @see android.nfc.Tag
+     * @see android.nfc.Tag
      * @return NfcTagHandler or null when unsupported Tag is provided.
      */
-    public static NfcTagHandler create(Tag tag) {
+    public static @Nullable NfcTagHandler create(Tag tag) {
         if (tag == null) return null;
 
         if (NfcBlocklist.getInstance().isTagBlocked(tag)) return null;
 
         Ndef ndef = Ndef.get(tag);
         if (ndef != null) {
-            String type = ndef.getType();
             return new NfcTagHandler(ndef, new NdefHandler(ndef), tag.getId());
         }
 
@@ -56,9 +57,12 @@ public class NfcTagHandler {
     private interface TagTechnologyHandler {
         public void write(NdefMessage message)
                 throws IOException, TagLostException, FormatException, IllegalStateException;
+
         public boolean makeReadOnly() throws IOException, TagLostException;
+
         public NdefMessage read()
                 throws IOException, TagLostException, FormatException, IllegalStateException;
+
         public boolean canAlwaysOverwrite()
                 throws IOException, TagLostException, FormatException, IllegalStateException;
     }
@@ -78,6 +82,7 @@ public class NfcTagHandler {
         public void write(NdefMessage message)
                 throws IOException, TagLostException, FormatException, IllegalStateException {
             mNdef.writeNdefMessage(message);
+            mNdef.close();
         }
 
         @Override
@@ -143,10 +148,8 @@ public class NfcTagHandler {
         mSerialNumber = bytesToSerialNumber(id);
     }
 
-    /**
-     * Convert byte array to serial number string (4-7 ASCII hex digits concatenated by ":").
-     */
-    private static String bytesToSerialNumber(byte[] octets) {
+    /** Convert byte array to serial number string (4-7 ASCII hex digits concatenated by ":"). */
+    private static @Nullable String bytesToSerialNumber(byte[] octets) {
         if (octets.length < 0) return null;
 
         StringBuilder sb = new StringBuilder(octets.length * 3);
@@ -159,16 +162,12 @@ public class NfcTagHandler {
         return sb.toString();
     }
 
-    /**
-     * Get the serial number of this NFC tag.
-     */
-    public String serialNumber() {
+    /** Get the serial number of this NFC tag. */
+    public @Nullable String serialNumber() {
         return mSerialNumber;
     }
 
-    /**
-     * Connects to NFC tag.
-     */
+    /** Connects to NFC tag. */
     public void connect() throws IOException, SecurityException, TagLostException {
         if (!mTech.isConnected()) {
             mTech.connect();
@@ -176,31 +175,13 @@ public class NfcTagHandler {
         }
     }
 
-    /**
-     * Checks if NFC tag is connected.
-     */
-    public boolean isConnected() {
-        return mTech.isConnected();
-    }
-
-    /**
-     * Closes connection.
-     */
-    public void close() throws IOException {
-        mTech.close();
-    }
-
-    /**
-     * Writes NdefMessage to NFC tag.
-     */
+    /** Writes NdefMessage to NFC tag. */
     public void write(NdefMessage message)
             throws IOException, TagLostException, FormatException, IllegalStateException {
         mTechHandler.write(message);
     }
 
-    /**
-     * Make NFC tag read-only.
-     */
+    /** Make NFC tag read-only. */
     public boolean makeReadOnly() throws IOException, TagLostException {
         return mTechHandler.makeReadOnly();
     }

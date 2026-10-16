@@ -6,11 +6,14 @@
 
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
+#include "components/account_id/account_id.h"
+#include "components/prefs/testing_pref_service.h"
+#include "components/user_manager/fake_user_manager.h"
+#include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/test_helper.h"
+#include "components/user_manager/user_manager.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-namespace {
-const char kTestUserHash[] = "testuserhash";
-}  // namespace
 
 namespace ash {
 
@@ -96,14 +99,14 @@ TEST_F(LoginStateTest, TestSafeModeLoginState) {
 
   // Setting login state to ACTIVE.
   LoginState::Get()->SetLoggedInState(LoginState::LOGGED_IN_ACTIVE,
-                                      LoginState::LOGGED_IN_USER_OWNER);
-  EXPECT_EQ(LoginState::LOGGED_IN_USER_OWNER,
+                                      LoginState::LOGGED_IN_USER_REGULAR);
+  EXPECT_EQ(LoginState::LOGGED_IN_USER_REGULAR,
             LoginState::Get()->GetLoggedInUserType());
   EXPECT_TRUE(LoginState::Get()->IsUserLoggedIn());
   EXPECT_FALSE(LoginState::Get()->IsInSafeMode());
 
   EXPECT_EQ(1U, GetNewLoginStateChangesCount());
-  EXPECT_EQ(LoginState::LOGGED_IN_USER_OWNER, logged_in_user_type_);
+  EXPECT_EQ(LoginState::LOGGED_IN_USER_REGULAR, logged_in_user_type_);
 }
 
 TEST_F(LoginStateTest, TestLoggedInStateChangedObserverOnUserTypeChange) {
@@ -118,34 +121,31 @@ TEST_F(LoginStateTest, TestLoggedInStateChangedObserverOnUserTypeChange) {
 
   // Change the user type, without changing the logged in state.
   LoginState::Get()->SetLoggedInState(LoginState::LOGGED_IN_ACTIVE,
-                                      LoginState::LOGGED_IN_USER_OWNER);
+                                      LoginState::LOGGED_IN_USER_CHILD);
 
   EXPECT_EQ(1u, GetNewLoginStateChangesCount());
   EXPECT_TRUE(LoginState::Get()->IsUserLoggedIn());
-  EXPECT_EQ(LoginState::LOGGED_IN_USER_OWNER, logged_in_user_type_);
-  EXPECT_EQ(LoginState::LOGGED_IN_USER_OWNER,
+  EXPECT_EQ(LoginState::LOGGED_IN_USER_CHILD, logged_in_user_type_);
+  EXPECT_EQ(LoginState::LOGGED_IN_USER_CHILD,
             LoginState::Get()->GetLoggedInUserType());
 }
 
 TEST_F(LoginStateTest, TestPrimaryUser) {
-  EXPECT_FALSE(LoginState::Get()->IsUserLoggedIn());
-  EXPECT_FALSE(LoginState::Get()->IsInSafeMode());
-  EXPECT_EQ(LoginState::LOGGED_IN_USER_NONE, logged_in_user_type_);
-  EXPECT_EQ(LoginState::LOGGED_IN_USER_NONE,
-            LoginState::Get()->GetLoggedInUserType());
+  TestingPrefServiceSimple local_state;
+  user_manager::UserManagerImpl::RegisterPrefs(local_state.registry());
+  auto fake_user_manager =
+      std::make_unique<user_manager::FakeUserManager>(&local_state);
 
-  // Setting login state to ACTIVE and setting the primary user.
-  LoginState::Get()->SetLoggedInStateAndPrimaryUser(
-      LoginState::LOGGED_IN_ACTIVE, LoginState::LOGGED_IN_USER_REGULAR,
-      kTestUserHash);
-  EXPECT_EQ(LoginState::LOGGED_IN_USER_REGULAR,
-            LoginState::Get()->GetLoggedInUserType());
-  EXPECT_TRUE(LoginState::Get()->IsUserLoggedIn());
-  EXPECT_FALSE(LoginState::Get()->IsInSafeMode());
-  EXPECT_EQ(kTestUserHash, LoginState::Get()->primary_user_hash());
+  const AccountId account_id =
+      AccountId::FromUserEmailGaiaId("test@test", GaiaId("fakegaia"));
+  std::string username_hash =
+      user_manager::TestHelper::GetFakeUsernameHash(account_id);
+  fake_user_manager->AddGaiaUser(account_id, user_manager::UserType::kRegular);
+  fake_user_manager->UserLoggedIn(account_id, username_hash);
+  auto scoped_user_manager = std::make_unique<user_manager::ScopedUserManager>(
+      std::move(fake_user_manager));
 
-  EXPECT_EQ(1U, GetNewLoginStateChangesCount());
-  EXPECT_EQ(LoginState::LOGGED_IN_USER_REGULAR, logged_in_user_type_);
+  EXPECT_EQ(username_hash, LoginState::Get()->primary_user_hash());
 }
 
 }  // namespace ash

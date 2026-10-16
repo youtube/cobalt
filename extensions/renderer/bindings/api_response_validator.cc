@@ -4,10 +4,10 @@
 
 #include "extensions/renderer/bindings/api_response_validator.h"
 
+#include <algorithm>
 #include <ostream>
 
 #include "base/containers/contains.h"
-#include "base/ranges/algorithm.h"
 #include "extensions/renderer/bindings/api_binding_util.h"
 #include "extensions/renderer/bindings/api_signature.h"
 #include "extensions/renderer/bindings/api_type_reference_map.h"
@@ -55,7 +55,7 @@ APIResponseValidator::~APIResponseValidator() = default;
 void APIResponseValidator::ValidateResponse(
     v8::Local<v8::Context> context,
     const std::string& method_name,
-    const std::vector<v8::Local<v8::Value>> response_arguments,
+    const v8::LocalVector<v8::Value>& response_arguments,
     const std::string& api_error,
     CallbackType callback_type) {
   DCHECK(binding::IsResponseValidationEnabled());
@@ -99,7 +99,7 @@ void APIResponseValidator::ValidateResponse(
 void APIResponseValidator::ValidateEvent(
     v8::Local<v8::Context> context,
     const std::string& event_name,
-    const std::vector<v8::Local<v8::Value>>& event_args) {
+    const v8::LocalVector<v8::Value>& event_args) {
   DCHECK(binding::IsResponseValidationEnabled());
 
   const APISignature* signature = type_refs_->GetEventSignature(event_name);
@@ -115,7 +115,7 @@ void APIResponseValidator::ValidateEvent(
   // The following signatures are incorrect (the parameters dispatched to the
   // event don't match the schema's event definition). These should be fixed
   // and then validated.
-  // TODO(https://crbug.com/1329587): Eliminate this list.
+  // TODO(crbug.com/40226845): Eliminate this list.
   static constexpr char const* kBrokenSignaturesToIgnore[] = {
       "automationInternal.onAccessibilityEvent",
       "chromeWebViewInternal.onClicked",
@@ -132,9 +132,10 @@ void APIResponseValidator::ValidateEvent(
       "downloads.onCreated",
   };
 
-  if (base::ranges::find(kBrokenSignaturesToIgnore, event_name) !=
-      std::end(kBrokenSignaturesToIgnore))
+  if (std::ranges::find(kBrokenSignaturesToIgnore, event_name) !=
+      std::end(kBrokenSignaturesToIgnore)) {
     return;
+  }
 
   std::string error;
   if (signature->ValidateCall(context, event_args, *type_refs_, &error)) {

@@ -19,15 +19,13 @@
 #import "testing/platform_test.h"
 #import "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 
 namespace {
 
 const char kUrl[] = "chromium://download.test/";
+const char kUrlRedirected[] = "chromium://redirected.test/";
+NSString* const kOrigninatingHost = @"host.test";
 const char kContentDisposition[] = "attachment; filename=file.test";
 const char kMimeType[] = "application/pdf";
 const base::FilePath::CharType kTestFileName[] = FILE_PATH_LITERAL("file.test");
@@ -41,6 +39,7 @@ class FakeDownloadTaskImpl final : public DownloadTaskImpl {
   FakeDownloadTaskImpl(
       WebState* web_state,
       const GURL& original_url,
+      NSString* originating_host,
       NSString* http_method,
       const std::string& content_disposition,
       int64_t total_bytes,
@@ -49,6 +48,7 @@ class FakeDownloadTaskImpl final : public DownloadTaskImpl {
       const scoped_refptr<base::SequencedTaskRunner>& task_runner)
       : DownloadTaskImpl(web_state,
                          original_url,
+                         originating_host,
                          http_method,
                          content_disposition,
                          total_bytes,
@@ -58,6 +58,7 @@ class FakeDownloadTaskImpl final : public DownloadTaskImpl {
 
   void StartInternal(const base::FilePath& path) final {}
   void CancelInternal() final {}
+  void Redirect(const GURL& url) { OnRedirected(url); }
 };
 
 // Test fixture for testing DownloadTaskImplTest class.
@@ -67,6 +68,7 @@ class DownloadTaskImplTest : public PlatformTest {
       : task_(std::make_unique<FakeDownloadTaskImpl>(
             &web_state_,
             GURL(kUrl),
+            kOrigninatingHost,
             kHttpMethod,
             kContentDisposition,
             /*total_bytes=*/-1,
@@ -86,6 +88,8 @@ TEST_F(DownloadTaskImplTest, DefaultState) {
   EXPECT_EQ(DownloadTask::State::kNotStarted, task_->GetState());
   EXPECT_NSNE(@"", task_->GetIdentifier());
   EXPECT_EQ(kUrl, task_->GetOriginalUrl());
+  EXPECT_EQ(kUrl, task_->GetRedirectedUrl());
+  EXPECT_NSEQ(kOrigninatingHost, task_->GetOriginatingHost());
   EXPECT_FALSE(task_->IsDone());
   EXPECT_EQ(0, task_->GetErrorCode());
   EXPECT_EQ(-1, task_->GetHttpCode());
@@ -109,4 +113,14 @@ TEST_F(DownloadTaskImplTest, SuccessfulInitialization) {
   task_->Cancel();
   EXPECT_EQ(DownloadTask::State::kCancelled, task_->GetState());
 }
+
+// Tests DownloadTaskImpl redirection.
+TEST_F(DownloadTaskImplTest, RedirectURL) {
+  EXPECT_EQ(kUrl, task_->GetOriginalUrl());
+  EXPECT_EQ(kUrl, task_->GetRedirectedUrl());
+  task_->Redirect(GURL(kUrlRedirected));
+  EXPECT_EQ(kUrl, task_->GetOriginalUrl());
+  EXPECT_EQ(kUrlRedirected, task_->GetRedirectedUrl());
+}
+
 }  // namespace web

@@ -9,13 +9,7 @@ desc: |-
   behavior which is in the process of being removed from
   <ph name="PRODUCT_NAME">$1<ex>Google Chrome</ex></ph>.
 
-  The previous behavior would show an interstitial page if a
-  <ph name="WEBVIEW_TAG_NAME">&lt;webview&gt;</ph> were to navigate to a page
-  with an invalid SSL certificate. This interstitial gives the user the option
-  to unsafely proceed. The new behavior shows an error page without the option
-  to unsafely proceed.
-
-  The previous behaviour also allows the
+  The previous behavior allows the
   <ph name="WEBVIEW_TAG_NAME">&lt;webview&gt;</ph>
   <ph name="NEWWINDOW_EVENT_NAME">newwindow</ph> event
   (https://developer.chrome.com/docs/extensions/reference/webviewTag/#event-newwindow)
@@ -32,19 +26,16 @@ desc: |-
   release process.
 
   This policy is a temporary workaround in the event that enterprises
-  experience breakage due to these changes. This policy will be removed
-  in version 117.
+  experience breakage due to this change. The last supported version of this
+  policy was version 121. It was removed in version 122.
 
 # On ChromeOS, this policy should reach an LTS release before being removed.
-# TODO(crbug.com/1261928): The supported_on range is intended to be 113-116,
-# but until_version doesn't allow future versions. In M117, set the
-# until_version and remove the supporting code.
 supported_on:
-- chrome.*:113-
-- chrome_os:113-
-- fuchsia:113-
+- chrome.*:113-121
+- chrome_os:113-121
+- fuchsia:113-121
 
-supported_chrome_os_management: ['google_cloud', 'active_directory']
+deprecated: true
 
 # While this policy on its own could be dynamic, the GuestView MPArch
 # migration (crbug.com/1261928), which depends on this policy being disabled,

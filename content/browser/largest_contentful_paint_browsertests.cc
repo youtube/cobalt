@@ -9,6 +9,7 @@
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test.h"
 #include "content/public/test/content_browser_test_utils.h"
 #include "content/shell/browser/shell.h"
@@ -35,23 +36,8 @@ class LargestContentfulPaintTestBrowserTest
     return web_contents()->GetPrimaryFrameTree().root()->current_frame_host();
   }
 
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    ContentBrowserTest::SetUpCommandLine(command_line);
-    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
-        switches::kEnableBlinkFeatures, "ExposeRenderTimeNonTaoDelayedImage");
-  }
-
-  EvalJsResult GetLCPStartTime() const {
-    std::string script = R"(
-      getLCPStartTime();
-    )";
-    return EvalJs(shell(), script);
-  }
-
-  EvalJsResult GetFCPStartTime() const {
-    std::string script = R"(
-      getFCPStartTime();
-    )";
+  EvalJsResult GetStartTime(std::string type) const {
+    std::string script = content::JsReplace("getStartTime($1);", type);
     return EvalJs(shell(), script);
   }
 
@@ -66,8 +52,10 @@ IN_PROC_BROWSER_TEST_F(LargestContentfulPaintTestBrowserTest,
 
   EXPECT_TRUE(NavigateToURL(shell(), url1));
 
-  double lcpStartTime = GetLCPStartTime().ExtractDouble();
-  double fcpStartTime = GetFCPStartTime().ExtractDouble();
+  double fcpStartTime = GetStartTime("paint").ExtractDouble();
+
+  double lcpStartTime =
+      GetStartTime("largest-contentful-paint").ExtractDouble();
 
   EXPECT_NEAR(lcpStartTime, fcpStartTime, 0.01);
 }

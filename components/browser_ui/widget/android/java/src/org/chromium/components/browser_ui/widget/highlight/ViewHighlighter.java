@@ -5,22 +5,23 @@
 package org.chromium.components.browser_ui.widget.highlight;
 
 import android.content.Context;
-import android.content.res.Resources;
-import android.graphics.drawable.Drawable;
-import android.graphics.drawable.LayerDrawable;
+import android.graphics.Rect;
 import android.view.View;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.Px;
 import androidx.core.view.ViewCompat;
 
-import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.widget.R;
+import org.chromium.ui.widget.RectProvider;
+import org.chromium.ui.widget.ViewRectProvider;
 
 /**
  * A helper class to draw an overlay layer on the top of a view to enable highlighting. The overlay
  * layer can be specified to be a circle or a rectangle.
  */
+@NullMarked
 public class ViewHighlighter {
     /**
      * Represents the delay between when menu anchor/toolbar handle/expand button was tapped and
@@ -68,15 +69,12 @@ public class ViewHighlighter {
         private int mNumPulses;
         // Only valid for HighlightShape.CIRCLE.
         // Used to customize the size of pulse if needed.
-        @Nullable
-        private PulseDrawable.Bounds mCircleRadius;
-        // Only valid for HighlightShape.RECTANGLE
-        // The corner radius od rectangle in pixels. Used to created a rounded rectangle.
-        @Px
-        private int mCornerRadius;
+        private PulseDrawable.@Nullable Bounds mCircleRadius;
+        // Only valid for HighlightShape.RECTANGLE The corner radius od rectangle in pixels. Used
+        // to created a rounded rectangle.
+        @Px private int mCornerRadius;
         // How far the highlight should extend past the bounds of the view.
-        @Px
-        private int mHighlightExtension;
+        @Px private int mHighlightExtension;
 
         public HighlightParams(HighlightShape shape) {
             mShape = shape;
@@ -113,8 +111,7 @@ public class ViewHighlighter {
         }
 
         /** @return custom definition of the size of highlight's pulse or null of not set */
-        @Nullable
-        public PulseDrawable.Bounds getCircleRadius() {
+        public PulseDrawable.@Nullable Bounds getCircleRadius() {
             return mCircleRadius;
         }
 
@@ -163,35 +160,66 @@ public class ViewHighlighter {
     /**
      * Attach a custom PulseDrawable as a highlight layer over the view.
      *
-     * Will not highlight if the view is already highlighted.
+     * <p>Will not highlight if the view is already highlighted.
      *
      * @param view The view to be highlighted.
      * @param pulseDrawable The highlight.
+     * @param highlightExtension How far in pixels the highlight should be extended past the bounds
+     *     of the view. 0 should be passed if there should be no extension.
      */
-    private static void attachViewAsHighlight(View view, PulseDrawable pulseDrawable) {
-        boolean highlighted = view.getTag(R.id.highlight_state) != null
-                ? (boolean) view.getTag(R.id.highlight_state)
-                : false;
+    private static void attachViewAsHighlight(
+            View view, PulseDrawable pulseDrawable, int highlightExtension) {
+        boolean highlighted =
+                view.getTag(R.id.highlight_state) != null
+                        ? (boolean) view.getTag(R.id.highlight_state)
+                        : false;
         if (highlighted) return;
 
-        Resources resources = view.getContext().getResources();
-        Drawable background = view.getBackground();
-        if (background != null) {
-            background = background.getConstantState().newDrawable();
-        }
-
-        Drawable[] layers = background == null ? new Drawable[] {pulseDrawable}
-                                               : new Drawable[] {background, pulseDrawable};
-        LayerDrawable drawable = new LayerDrawable(layers);
-        view.setBackground(drawable);
         view.setTag(R.id.highlight_state, true);
+        // Store the highlight drawable.
+        view.setTag(R.id.highlight_drawable, pulseDrawable);
 
-        pulseDrawable.start();
+        // ViewRectProvider can listen to any layout changes.
+        ViewRectProvider viewRectProvider = new ViewRectProvider(view);
+        RectProvider.Observer observer =
+                new RectProvider.Observer() {
+                    @Override
+                    public void onRectChanged() {
+                        Rect drawingRect = new Rect();
+                        view.getDrawingRect(drawingRect);
+                        pulseDrawable.setBounds(
+                                drawingRect.left - highlightExtension,
+                                drawingRect.top - highlightExtension,
+                                drawingRect.right + highlightExtension,
+                                drawingRect.bottom + highlightExtension);
+
+                        // Avoid adding the same drawable as view overlay several times.
+                        if (view.getTag(R.id.highlight_drawable_overlay_added) == null) {
+                            // Pulse drawable is added as a separate view overlay layer.
+                            view.getOverlay().add(pulseDrawable);
+                            pulseDrawable.start();
+                            view.setTag(R.id.highlight_drawable_overlay_added, true);
+                        }
+                    }
+
+                    @Override
+                    public void onRectHidden() {
+                        view.getOverlay().remove(pulseDrawable);
+                        // Reset the tag so that when onRectChanged() is called again the drawable
+                        // is added again.
+                        view.setTag(R.id.highlight_drawable_overlay_added, null);
+                    }
+                };
+
+        viewRectProvider.startObserving(observer);
+        observer.onRectChanged();
+
+        view.setTag(R.id.highlight_view_rect_provider, viewRectProvider);
     }
 
     /**
-     * Create a highlight layer over the view.
-     * Will not highlight if the view is already highlighted.
+     * Create a highlight layer over the view. Will not highlight if the view is already
+     * highlighted.
      *
      * @param view The view to be highlighted.
      * @param params Definition of the highlight.
@@ -201,14 +229,21 @@ public class ViewHighlighter {
 
         PulseDrawable drawable = null;
         if (params.getShape() == HighlightShape.CIRCLE) {
-            drawable = createCircle(view, params.getNumPulses(), params.getBoundsRespectPadding(),
-                    params.getCircleRadius());
+            drawable =
+                    createCircle(
+                            view,
+                            params.getNumPulses(),
+                            params.getBoundsRespectPadding(),
+                            params.getCircleRadius());
         } else {
             drawable =
-                    createRectangle(view, params.getNumPulses(), params.getBoundsRespectPadding(),
-                            params.getCornerRadius(), params.getHighlightExtension());
+                    createRectangle(
+                            view,
+                            params.getNumPulses(),
+                            params.getBoundsRespectPadding(),
+                            params.getCornerRadius());
         }
-        attachViewAsHighlight(view, drawable);
+        attachViewAsHighlight(view, drawable, params.getHighlightExtension());
     }
 
     /**
@@ -218,28 +253,35 @@ public class ViewHighlighter {
     public static void turnOffHighlight(View view) {
         if (view == null) return;
 
-        boolean highlighted = view.getTag(R.id.highlight_state) != null
-                ? (boolean) view.getTag(R.id.highlight_state)
-                : false;
+        boolean highlighted =
+                view.getTag(R.id.highlight_state) != null
+                        ? (boolean) view.getTag(R.id.highlight_state)
+                        : false;
         if (!highlighted) return;
         view.setTag(R.id.highlight_state, false);
 
-        Resources resources = ContextUtils.getApplicationContext().getResources();
-        Drawable existingBackground = view.getBackground();
-        if (existingBackground instanceof LayerDrawable) {
-            LayerDrawable layerDrawable = (LayerDrawable) existingBackground;
-            if (layerDrawable.getNumberOfLayers() >= 2) {
-                view.setBackground(
-                        layerDrawable.getDrawable(0).getConstantState().newDrawable(resources));
-            } else {
-                view.setBackground(null);
-            }
+        PulseDrawable pulseDrawable = (PulseDrawable) view.getTag(R.id.highlight_drawable);
+        if (pulseDrawable != null) {
+            view.getOverlay().remove(pulseDrawable);
+            view.setTag(R.id.highlight_drawable, null);
+            view.setTag(R.id.highlight_drawable_overlay_added, null);
+        }
+
+        // Stop observing the layout changes.
+        ViewRectProvider viewRectProvider =
+                (ViewRectProvider) view.getTag(R.id.highlight_view_rect_provider);
+        if (viewRectProvider != null) {
+            viewRectProvider.stopObserving();
+            view.setTag(R.id.highlight_view_rect_provider, null);
         }
     }
 
     /** Helper method to create a circular drawable from the values of {@code HighlightParams}. */
-    private static PulseDrawable createCircle(View view, int numPulses,
-            boolean boundsRespectPadding, @Nullable PulseDrawable.Bounds circleRadius) {
+    private static PulseDrawable createCircle(
+            View view,
+            int numPulses,
+            boolean boundsRespectPadding,
+            PulseDrawable.@Nullable Bounds circleRadius) {
         PulseDrawable drawable = null;
         Context context = view.getContext();
         PulseDrawable.PulseEndAuthority pulseEndAuthority =
@@ -250,8 +292,11 @@ public class ViewHighlighter {
             drawable = PulseDrawable.createCircle(context, pulseEndAuthority);
         }
         if (boundsRespectPadding) {
-            drawable.setInset(ViewCompat.getPaddingStart(view), view.getPaddingTop(),
-                    ViewCompat.getPaddingEnd(view), view.getPaddingBottom());
+            drawable.setInset(
+                    ViewCompat.getPaddingStart(view),
+                    view.getPaddingTop(),
+                    ViewCompat.getPaddingEnd(view),
+                    view.getPaddingBottom());
         }
         return drawable;
     }
@@ -259,22 +304,25 @@ public class ViewHighlighter {
     /**
      * Helper method to create a rectangular drawable from the values of {@code HighlightParams}.
      */
-    private static PulseDrawable createRectangle(View view, int numPulses,
-            boolean boundsRespectPadding, @Px int cornerRadius, @Px int highlightExtension) {
+    private static PulseDrawable createRectangle(
+            View view, int numPulses, boolean boundsRespectPadding, @Px int cornerRadius) {
         PulseDrawable drawable = null;
         Context context = view.getContext();
 
         if (numPulses != 0) {
-            drawable = PulseDrawable.createRoundedRectangle(
-                    context, cornerRadius, highlightExtension, new NumberPulser(view, numPulses));
-        } else {
             drawable =
-                    PulseDrawable.createRoundedRectangle(context, cornerRadius, highlightExtension);
+                    PulseDrawable.createRoundedRectangle(
+                            context, cornerRadius, new NumberPulser(view, numPulses));
+        } else {
+            drawable = PulseDrawable.createRoundedRectangle(context, cornerRadius);
         }
 
         if (boundsRespectPadding) {
-            drawable.setInset(ViewCompat.getPaddingStart(view), view.getPaddingTop(),
-                    ViewCompat.getPaddingEnd(view), view.getPaddingBottom());
+            drawable.setInset(
+                    ViewCompat.getPaddingStart(view),
+                    view.getPaddingTop(),
+                    ViewCompat.getPaddingEnd(view),
+                    view.getPaddingBottom());
         }
         return drawable;
     }

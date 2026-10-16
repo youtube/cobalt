@@ -10,8 +10,6 @@ d3d_shared_sources = [
   "CompilerD3D.cpp",
   "CompilerD3D.h",
   "ContextD3D.h",
-  "DeviceD3D.cpp",
-  "DeviceD3D.h",
   "DisplayD3D.cpp",
   "DisplayD3D.h",
   "DynamicHLSL.cpp",
@@ -34,6 +32,8 @@ d3d_shared_sources = [
   "NativeWindowD3D.h",
   "ProgramD3D.cpp",
   "ProgramD3D.h",
+  "ProgramExecutableD3D.cpp",
+  "ProgramExecutableD3D.h",
   "RenderTargetD3D.cpp",
   "RenderTargetD3D.h",
   "RenderbufferD3D.cpp",
@@ -61,13 +61,6 @@ d3d_shared_sources = [
   "formatutilsD3D.h",
 ]
 
-if (!angle_is_winuwp) {
-  d3d_shared_sources += [
-    "../../../third_party/systeminfo/SystemInfo.cpp",
-    "../../../third_party/systeminfo/SystemInfo.h",
-  ]
-}
-
 if (angle_enable_d3d9) {
   d3d9_backend_sources = [
     "d3d9/Blit9.cpp",
@@ -78,6 +71,8 @@ if (angle_enable_d3d9) {
     "d3d9/Context9.h",
     "d3d9/DebugAnnotator9.cpp",
     "d3d9/DebugAnnotator9.h",
+    "d3d9/Device9.cpp",
+    "d3d9/Device9.h",
     "d3d9/Fence9.cpp",
     "d3d9/Fence9.h",
     "d3d9/Framebuffer9.cpp",
@@ -137,6 +132,8 @@ if (angle_enable_d3d11) {
     "d3d11/Context11.h",
     "d3d11/DebugAnnotator11.cpp",
     "d3d11/DebugAnnotator11.h",
+    "d3d11/Device11.cpp",
+    "d3d11/Device11.h",
     "d3d11/ExternalImageSiblingImpl11.cpp",
     "d3d11/ExternalImageSiblingImpl11.h",
     "d3d11/Fence11.cpp",
@@ -195,12 +192,10 @@ if (angle_enable_d3d11) {
     "d3d11/shaders/compiled/buffertotexture11_ps_4i.h",
     "d3d11/shaders/compiled/buffertotexture11_ps_4ui.h",
     "d3d11/shaders/compiled/buffertotexture11_vs.h",
-    "d3d11/shaders/compiled/clear11_fl9vs.h",
     "d3d11/shaders/compiled/clear11multiviewgs.h",
     "d3d11/shaders/compiled/clear11multiviewvs.h",
     "d3d11/shaders/compiled/clear11vs.h",
     "d3d11/shaders/compiled/cleardepth11ps.h",
-    "d3d11/shaders/compiled/clearfloat11_fl9ps.h",
     "d3d11/shaders/compiled/clearfloat11ps1.h",
     "d3d11/shaders/compiled/clearfloat11ps2.h",
     "d3d11/shaders/compiled/clearfloat11ps3.h",

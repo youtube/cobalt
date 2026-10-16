@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/scoped_multi_source_observation.h"
 #include "chrome/browser/ui/media_router/media_router_ui_service.h"
 #include "chrome/browser/ui/views/media_router/cast_dialog_coordinator.h"
@@ -73,12 +74,18 @@ class MediaRouterDialogControllerViews
   void InitializeMediaRouterUI();
   void DestroyMediaRouterUI();
 
-  // On Chrome OS, show the GMC dialog in the Ash UI. On other platforms,
-  // if there exists a media button, show the GMC dialog anchored to the media
-  // button. Otherwise, show the dialog anchored to the top center of the web
-  // contents.
+#if BUILDFLAG(IS_CHROMEOS)
+  // Show the GMC dialog in the Ash UI.
   void ShowGlobalMediaControlsDialog(
       std::unique_ptr<StartPresentationContext> context);
+#else
+  // If there exists a media button, show the GMC dialog anchored to the media
+  // button. Otherwise, show the dialog anchored to the top center of the web
+  // contents.
+  void ShowGlobalMediaControlsDialogAsync(
+      std::unique_ptr<StartPresentationContext> context);
+  void ShowGlobalMediaControlsDialog();
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   // Returns the media button from the browser that initiates the request to
   // open the dialog. Returns nullptr if:
@@ -86,16 +93,15 @@ class MediaRouterDialogControllerViews
   // running a PWA.) or (2) |hide_media_button_for_testing_| is true.
   MediaToolbarButtonView* GetMediaButton();
 
-  // MediaRouterActionController is responsible for showing and hiding the
+  // CastToolbarButtonController is responsible for showing and hiding the
   // toolbar action. It's owned by MediaRouterUIService and it may be nullptr.
-  MediaRouterActionController* GetActionController();
+  CastToolbarButtonController* GetActionController();
 
   MediaRouterUI* ui() { return ui_.get(); }
 
   // Responsible for notifying the dialog view of dialog model updates and
   // sending route requests to MediaRouter. Set to nullptr when the dialog is
-  // closed. Not used for presentation requests when
-  // GlobalMediaControlsCastStartStopEnabled() returns true.
+  // closed. Not used for presentation requests.
   std::unique_ptr<MediaRouterUI> ui_;
 
   CastDialogCoordinator cast_dialog_coordinator_;
@@ -105,10 +111,13 @@ class MediaRouterDialogControllerViews
   base::ScopedMultiSourceObservation<views::Widget, views::WidgetObserver>
       scoped_widget_observations_{this};
 
-  // Service that provides MediaRouterActionController. It outlives |this|.
+  // Service that provides CastToolbarButtonController. It outlives |this|.
   const raw_ptr<MediaRouterUIService> media_router_ui_service_;
 
   bool hide_media_button_for_testing_ = false;
+
+  base::WeakPtrFactory<MediaRouterDialogControllerViews> weak_ptr_factory_{
+      this};
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };

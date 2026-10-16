@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Status, TenorGifResponse} from 'chrome://emoji-picker/emoji_picker.mojom-webui.js';
-import {EmojiPickerApiProxyImpl} from 'chrome://emoji-picker/emoji_picker_api_proxy.js';
-import {GifSubcategoryData, VisualContent} from 'chrome://emoji-picker/types.js';
+import type {GifSubcategoryData, PaginatedGifResponses, VisualContent} from 'chrome://emoji-picker/emoji_picker.js';
+import {EmojiPickerApiProxy, Status} from 'chrome://emoji-picker/emoji_picker.js';
 
-export class TestEmojiPickerApiProxyErrorImpl extends EmojiPickerApiProxyImpl {
+export class TestEmojiPickerApiProxyError extends EmojiPickerApiProxy {
   status: Status = Status.kHttpOk;
-  readonly noGifs: TenorGifResponse = {
+  readonly noGifs: PaginatedGifResponses = {
     next: '',
     results: [],
   };
@@ -28,7 +27,7 @@ export class TestEmojiPickerApiProxyErrorImpl extends EmojiPickerApiProxyImpl {
   }
 
   override getFeaturedGifs():
-      Promise<{status: number, featuredGifs: TenorGifResponse}> {
+      Promise<{status: number, featuredGifs: PaginatedGifResponses}> {
     return Promise.resolve({
       status: this.status,
       featuredGifs: this.noGifs,
@@ -36,7 +35,7 @@ export class TestEmojiPickerApiProxyErrorImpl extends EmojiPickerApiProxyImpl {
   }
 
   override searchGifs():
-      Promise<{status: number, searchGifs: TenorGifResponse}> {
+      Promise<{status: number, searchGifs: PaginatedGifResponses}> {
     return Promise.resolve({
       status: this.status,
       searchGifs: this.noGifs,

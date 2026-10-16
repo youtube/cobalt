@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 #include "base/memory/ref_counted_memory.h"
@@ -45,13 +46,14 @@ class CastResourceDelegate : public ui::ResourceBundle::Delegate {
       const std::string& locale) override;
   gfx::Image GetImageNamed(int resource_id) override;
   gfx::Image GetNativeImageNamed(int resource_id) override;
+  bool HasDataResource(int resource_id) const override;
   base::RefCountedStaticMemory* LoadDataResourceBytes(
       int resource_id,
       ui::ResourceScaleFactor scale_factor) override;
-  absl::optional<std::string> LoadDataResourceString(int resource_id) override;
+  std::optional<std::string> LoadDataResourceString(int resource_id) override;
   bool GetRawDataResource(int resource_id,
                           ui::ResourceScaleFactor scale_factor,
-                          base::StringPiece* value) const override;
+                          std::string_view* value) const override;
   bool GetLocalizedString(int message_id, std::u16string* value) const override;
 
   // Adds/removes/clears extra localized strings.

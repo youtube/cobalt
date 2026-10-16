@@ -6,10 +6,10 @@ package org.chromium.chrome.browser.download;
 
 import android.graphics.Bitmap;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
-import org.chromium.chrome.browser.profiles.OTRProfileID;
+import org.chromium.chrome.browser.profiles.OtrProfileId;
 import org.chromium.components.offline_items_collection.ContentId;
 import org.chromium.components.offline_items_collection.FailState;
 import org.chromium.components.offline_items_collection.OfflineItem.Progress;
@@ -18,7 +18,7 @@ import org.chromium.url.GURL;
 
 /**
  * Class representing information relating to an update in download status.
- * TODO(crbug.com/691805): Consolidate with other downloads-related objects.
+ * TODO(crbug.com/40506285): Consolidate with other downloads-related objects.
  */
 public final class DownloadUpdate {
     private final ContentId mContentId;
@@ -27,7 +27,7 @@ public final class DownloadUpdate {
     private final Bitmap mIcon;
     private final int mIconId;
     private final boolean mIsOffTheRecord;
-    private final @Nullable OTRProfileID mOTRProfileID;
+    private final @Nullable OtrProfileId mOtrProfileId;
     private final boolean mIsOpenable;
     private final boolean mIsSupportedMimeType;
     private final boolean mIsTransient;
@@ -50,7 +50,7 @@ public final class DownloadUpdate {
         this.mIcon = builder.mIcon;
         this.mIconId = builder.mIconId;
         this.mIsOffTheRecord = builder.mIsOffTheRecord;
-        this.mOTRProfileID = builder.mOTRProfileID;
+        this.mOtrProfileId = builder.mOtrProfileId;
         this.mIsOpenable = builder.mIsOpenable;
         this.mIsSupportedMimeType = builder.mIsSupportedMimeType;
         this.mIsTransient = builder.mIsTransient;
@@ -95,9 +95,8 @@ public final class DownloadUpdate {
         return mIsOffTheRecord;
     }
 
-    @Nullable
-    public OTRProfileID getOTRProfileID() {
-        return mOTRProfileID;
+    public @Nullable OtrProfileId getOtrProfileId() {
+        return mOtrProfileId;
     }
 
     public boolean getIsOpenable() {
@@ -116,8 +115,7 @@ public final class DownloadUpdate {
         return mNotificationId;
     }
 
-    @NonNull
-    public GURL getOriginalUrl() {
+    public @NonNull GURL getOriginalUrl() {
         return mOriginalUrl;
     }
 
@@ -129,8 +127,7 @@ public final class DownloadUpdate {
         return mProgress;
     }
 
-    @NonNull
-    public GURL getReferrer() {
+    public @NonNull GURL getReferrer() {
         return mReferrer;
     }
 
@@ -158,9 +155,7 @@ public final class DownloadUpdate {
         return mPendingState;
     }
 
-    /**
-     * Helper class for building the DownloadUpdate object.
-     */
+    /** Helper class for building the DownloadUpdate object. */
     public static class Builder {
         private ContentId mContentId;
         private String mFileName;
@@ -168,7 +163,7 @@ public final class DownloadUpdate {
         private Bitmap mIcon;
         private int mIconId = -1;
         private boolean mIsOffTheRecord;
-        private @Nullable OTRProfileID mOTRProfileID;
+        private @Nullable OtrProfileId mOtrProfileId;
         private boolean mIsOpenable;
         private boolean mIsSupportedMimeType;
         private boolean mIsTransient;
@@ -209,11 +204,11 @@ public final class DownloadUpdate {
             return this;
         }
 
-        public Builder setOTRProfileID(@Nullable OTRProfileID otrProfileID) {
-            this.mOTRProfileID = otrProfileID;
-            // TODO(crbug.com/1161132): Remove this after replacing |DownloadUpdate#isOffTheRecord|
-            // usages with |DownloadUpdate#getOTRProfileID|.
-            this.mIsOffTheRecord = OTRProfileID.isOffTheRecord(otrProfileID);
+        public Builder setOtrProfileId(@Nullable OtrProfileId otrProfileId) {
+            this.mOtrProfileId = otrProfileId;
+            // TODO(crbug.com/40162349): Remove this after replacing |DownloadUpdate#isOffTheRecord|
+            // usages with |DownloadUpdate#getOtrProfileId|.
+            this.mIsOffTheRecord = OtrProfileId.isOffTheRecord(otrProfileId);
             return this;
         }
 

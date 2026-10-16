@@ -9,20 +9,11 @@
 #include "content/public/test/unittest_test_suite.h"
 #include "content/test/content_test_suite.h"
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-#include "content/common/set_process_title_linux.h"
-#endif
-
 int main(int argc, char** argv) {
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-  // For setproctitle unit tests.
-  setproctitle_init(const_cast<const char**>(argv));
-#endif
-
   content::UnitTestTestSuite test_suite(
       new content::ContentTestSuite(argc, argv),
       base::BindRepeating(content::UnitTestTestSuite::CreateTestContentClients),
-      /*child_mojo_config=*/absl::nullopt);
+      /*child_mojo_config=*/std::nullopt);
   return base::LaunchUnitTests(argc, argv,
                                base::BindOnce(&content::UnitTestTestSuite::Run,
                                               base::Unretained(&test_suite)));

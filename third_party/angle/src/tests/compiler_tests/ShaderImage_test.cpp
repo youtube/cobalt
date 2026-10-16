@@ -121,11 +121,7 @@ class ShaderImageTest : public ShaderCompileTreeTest
     ShaderImageTest() {}
 
   protected:
-    void SetUp() override
-    {
-        ShaderCompileTreeTest::SetUp();
-        mCompileOptions.variables = true;
-    }
+    void SetUp() override { ShaderCompileTreeTest::SetUp(); }
 
     ::GLenum getShaderType() const override { return GL_COMPUTE_SHADER; }
     ShShaderSpec getShaderSpec() const override { return SH_GLES3_1_SPEC; }
@@ -179,9 +175,12 @@ TEST_F(ShaderImageTest, ImageLoad)
         "layout(local_size_x = 4) in;\n"
         "layout(rgba32f) uniform highp readonly image2D my2DImageInput;\n"
         "layout(rgba32i) uniform highp readonly iimage3D my3DImageInput;\n"
+        "layout(rgba32f) uniform highp writeonly image2D imageOutput;\n"
         "void main() {\n"
         "   vec4 result = imageLoad(my2DImageInput, ivec2(gl_LocalInvocationID.xy));\n"
         "   ivec4 result2 = imageLoad(my3DImageInput, ivec3(gl_LocalInvocationID.xyz));\n"
+        "   // Ensure the imageLoad calls are not dead-code eliminated\n"
+        "   imageStore(imageOutput, ivec2(0), result + vec4(result2));\n"
         "}";
     if (!compile(shaderString))
     {

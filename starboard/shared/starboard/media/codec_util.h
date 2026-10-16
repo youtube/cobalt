@@ -33,32 +33,37 @@ namespace starboard {
 class VideoConfig {
  public:
   // |data| must point to the encoded data of a key frame.
-  VideoConfig(SbMediaVideoCodec video_codec,
-              const Size& size,
-              const uint8_t* data,
-              size_t data_size);
+  static std::optional<VideoConfig> Create(SbMediaVideoCodec video_codec,
+                                           const Size& size,
+                                           const uint8_t* data,
+                                           size_t data_size);
 
-  VideoConfig(const VideoStreamInfo& video_stream_info,
-              const uint8_t* data,
-              size_t data_size);
-
-  bool is_valid() const { return video_codec_ != kSbMediaVideoCodecNone; }
+  static std::optional<VideoConfig> Create(
+      const VideoStreamInfo& video_stream_info,
+      const uint8_t* data,
+      size_t data_size);
 
   const AvcParameterSets& avc_parameter_sets() const {
-    SB_DCHECK(is_valid());
     SB_DCHECK_EQ(video_codec_, kSbMediaVideoCodecH264);
     SB_DCHECK(avc_parameter_sets_);
     return avc_parameter_sets_.value();
   }
 
+  SbMediaVideoCodec video_codec() const { return video_codec_; }
+  const Size& size() const { return size_; }
+
   bool operator==(const VideoConfig& that) const;
   bool operator!=(const VideoConfig& that) const;
 
  private:
-  SbMediaVideoCodec video_codec_ = kSbMediaVideoCodecNone;
-  Size size_;
+  VideoConfig(SbMediaVideoCodec video_codec,
+              const Size& size,
+              std::optional<AvcParameterSets> avc_parameter_sets);
+
+  const SbMediaVideoCodec video_codec_;
+  const Size size_;
   // Only valid when |video_codec_| is |kSbMediaVideoCodecH264|.
-  std::optional<AvcParameterSets> avc_parameter_sets_;
+  const std::optional<AvcParameterSets> avc_parameter_sets_;
 };
 
 // Attempts to determine an SbMediaAudioCodec from |codec|, returning

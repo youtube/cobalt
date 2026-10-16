@@ -15,8 +15,16 @@ wayland_protocol("content_type_protocol") {
   sources = [ "unstable/content-type/content-type-v1.xml" ]
 }
 
+wayland_protocol("cursor_shape_protocol") {
+  sources = [ "src/staging/cursor-shape/cursor-shape-v1.xml" ]
+}
+
 wayland_protocol("cursor_shapes_protocol") {
   sources = [ "unstable/cursor-shapes/cursor-shapes-unstable-v1.xml" ]
+}
+
+wayland_protocol("drm_lease_protocol") {
+  sources = [ "src/staging/drm-lease/drm-lease-v1.xml" ]
 }
 
 wayland_protocol("extended_drag") {
@@ -71,12 +79,20 @@ wayland_protocol("linux_dmabuf_protocol") {
   sources = [ "src/unstable/linux-dmabuf/linux-dmabuf-unstable-v1.xml" ]
 }
 
+wayland_protocol("linux_drm_syncobj_protocol") {
+  sources = [ "src/staging/linux-drm-syncobj/linux-drm-syncobj-v1.xml" ]
+}
+
 wayland_protocol("linux_explicit_synchronization_protocol") {
   sources = [ "src/unstable/linux-explicit-synchronization/linux-explicit-synchronization-unstable-v1.xml" ]
 }
 
 wayland_protocol("notification_shell_protocol") {
   sources = [ "unstable/notification-shell/notification-shell-unstable-v1.xml" ]
+}
+
+wayland_protocol("org_kde_kwin_appmenu") {
+  sources = [ "kde/src/protocols/appmenu.xml" ]
 }
 
 wayland_protocol("org_kde_kwin_idle") {
@@ -116,6 +132,10 @@ wayland_protocol("secure_output_protocol") {
   sources = [ "unstable/secure-output/secure-output-unstable-v1.xml" ]
 }
 
+wayland_protocol("single_pixel_buffer") {
+  sources = [ "src/staging/single-pixel-buffer/single-pixel-buffer-v1.xml" ]
+}
+
 wayland_protocol("stylus_protocol") {
   sources = [ "unstable/stylus/stylus-unstable-v2.xml" ]
 }
@@ -124,12 +144,23 @@ wayland_protocol("stylus_tools_protocol") {
   sources = [ "unstable/stylus-tools/stylus-tools-unstable-v1.xml" ]
 }
 
+wayland_protocol("tablet_protocol") {
+  sources = [ "src/unstable/tablet/tablet-unstable-v2.xml" ]
+}
+
+wayland_protocol("tearing_control_protocol") {
+  sources = [ "src/staging/tearing-control/tearing-control-v1.xml" ]
+}
+
 wayland_protocol("text_input_extension_protocol") {
   sources = [ "unstable/text-input/text-input-extension-unstable-v1.xml" ]
 }
 
 wayland_protocol("text_input_protocol") {
-  sources = [ "src/unstable/text-input/text-input-unstable-v1.xml" ]
+  sources = [
+    "src/unstable/text-input/text-input-unstable-v1.xml",
+    "src/unstable/text-input/text-input-unstable-v3.xml",
+  ]
 }
 
 wayland_protocol("touchpad_haptics_protocol") {
@@ -152,10 +183,6 @@ wayland_protocol("wayland_drm_protocol") {
   sources = [ "mesa/wayland-drm/wayland-drm.xml" ]
 }
 
-wayland_protocol("weston_test") {
-  sources = [ "unstable/weston-test/weston-test.xml" ]
-}
-
 wayland_protocol("xdg_activation") {
   # XDG activation has been introduced in wayland-protocols version 1.21, which
   # is newer than 1.18 which is in the sysroot for Debian 11.5 (Bullseye).
@@ -165,6 +192,10 @@ wayland_protocol("xdg_activation") {
 
 wayland_protocol("xdg_decoration_protocol") {
   sources = [ "src/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml" ]
+}
+
+wayland_protocol("xdg_dialog_protocol") {
+  sources = [ "src/staging/xdg-dialog/xdg-dialog-v1.xml" ]
 }
 
 wayland_protocol("xdg_foreign") {
@@ -183,4 +214,18 @@ wayland_protocol("xdg_shell_protocol") {
     "src/stable/xdg-shell/xdg-shell.xml",
     "src/unstable/xdg-shell/xdg-shell-unstable-v6.xml",
   ]
+}
+
+wayland_protocol("xdg_toplevel_drag_protocol") {
+  sources = [ "src/staging/xdg-toplevel-drag/xdg-toplevel-drag-v1.xml" ]
+}
+
+wayland_protocol("xdg_toplevel_icon_protocol") {
+  sources = [ "src/staging/xdg-toplevel-icon/xdg-toplevel-icon-v1.xml" ]
+}
+
+# Experimental session management protocol shipped in Mutter 47/48.
+# Will be replaced by upstream's version once it lands.
+wayland_protocol("xx_session_management_protocol") {
+  sources = [ "unstable/session-management/xx-session-management-v1.xml" ]
 }

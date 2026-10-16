@@ -7,7 +7,7 @@
 
 #include <stdint.h>
 
-#include <set>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -29,26 +29,32 @@ class COMPONENT_EXPORT(PRINTSCANMGR) FakePrintscanmgrClient
 
   // PrintscanmgrClient overrides:
   void CupsAddManuallyConfiguredPrinter(
-      const std::string& name,
-      const std::string& uri,
-      const std::string& ppd_contents,
-      CupsAddPrinterCallback callback) override;
-  void CupsAddAutoConfiguredPrinter(const std::string& name,
-                                    const std::string& uri,
-                                    CupsAddPrinterCallback callback) override;
-  void CupsRemovePrinter(const std::string& name,
-                         CupsRemovePrinterCallback callback,
-                         base::OnceClosure error_callback) override;
-  void CupsRetrievePrinterPpd(const std::string& name,
-                              CupsRetrievePrinterPpdCallback callback,
-                              base::OnceClosure error_callback) override;
-
-  // Sets PPD data that will be returned by CupsRetrievePrinterPpd for testing.
-  void SetPpdDataForTesting(const std::vector<uint8_t>& data);
+      const printscanmgr::CupsAddManuallyConfiguredPrinterRequest& request,
+      chromeos::DBusMethodCallback<
+          printscanmgr::CupsAddManuallyConfiguredPrinterResponse> callback)
+      override;
+  void CupsAddAutoConfiguredPrinter(
+      const printscanmgr::CupsAddAutoConfiguredPrinterRequest& request,
+      chromeos::DBusMethodCallback<
+          printscanmgr::CupsAddAutoConfiguredPrinterResponse> callback)
+      override;
+  void CupsRemovePrinter(
+      const printscanmgr::CupsRemovePrinterRequest& request,
+      chromeos::DBusMethodCallback<printscanmgr::CupsRemovePrinterResponse>
+          callback,
+      base::OnceClosure error_callback) override;
+  // Returns PPD set in CupsAddManuallyConfiguredPrinter or an empty string if
+  // the printer was added with CupsAddAutoConfiguredPrinter. If the printer
+  // does not exists then `error_callback` is called.
+  void CupsRetrievePrinterPpd(
+      const printscanmgr::CupsRetrievePpdRequest& request,
+      chromeos::DBusMethodCallback<printscanmgr::CupsRetrievePpdResponse>
+          callback,
+      base::OnceClosure error_callback) override;
 
  private:
-  std::set<std::string> printers_;
-  std::vector<uint8_t> ppd_data_;
+  // Stores printer's name as a key and PPD content as a value.
+  std::map<std::string, std::string> printers_;
 };
 
 }  // namespace ash

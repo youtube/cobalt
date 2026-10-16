@@ -14,8 +14,8 @@
 #include "base/values.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/extensions/tab_helper.h"
-#include "chrome/browser/ui/webui/ash/internet_config_dialog.h"
-#include "chrome/browser/ui/webui/ash/internet_detail_dialog.h"
+#include "chrome/browser/ui/webui/ash/internet/internet_config_dialog.h"
+#include "chrome/browser/ui/webui/ash/internet/internet_detail_dialog.h"
 #include "chrome/browser/ui/webui/ash/lock_screen_reauth/lock_screen_reauth_dialogs.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/browser_resources.h"
@@ -44,7 +44,7 @@ constexpr char kGetHostname[] = "getHostname";
 
 }  // namespace
 
-NetworkConfigMessageHandler::NetworkConfigMessageHandler() {}
+NetworkConfigMessageHandler::NetworkConfigMessageHandler() = default;
 
 NetworkConfigMessageHandler::~NetworkConfigMessageHandler() = default;
 
@@ -76,8 +76,9 @@ void NetworkConfigMessageHandler::Initialize(const base::Value::List& args) {
   // been loaded.
   LockScreenStartReauthDialog* start_reauth_dialog =
       LockScreenStartReauthDialog::GetInstance();
-  if (!start_reauth_dialog)
+  if (!start_reauth_dialog) {
     return;
+  }
   start_reauth_dialog->OnNetworkDialogReadyForTesting();
 }
 

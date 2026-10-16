@@ -4,6 +4,10 @@
 
 #include "third_party/blink/public/common/font_unique_name_lookup/font_table_persistence.h"
 
+#include <optional>
+
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/hash/hash.h"
 #include "base/pickle.h"
 #include "base/threading/scoped_blocking_call.h"
@@ -30,43 +34,46 @@ bool LoadFromFile(base::FilePath file_path,
 
     file_contents.resize(table_cache_file.GetLength());
 
-    if (table_cache_file.Read(0, file_contents.data(), file_contents.size()) <=
-        0) {
+    if (UNSAFE_TODO(table_cache_file.Read(0, file_contents.data(),
+                                          file_contents.size())) <= 0) {
       return false;
     }
   }
 
-  base::PickleIterator pickle_iterator(
-      base::Pickle(file_contents.data(), file_contents.size()));
+  base::Pickle pickle =
+      base::Pickle::WithUnownedBuffer(base::as_byte_span(file_contents));
+  base::PickleIterator pickle_iterator(pickle);
 
   uint32_t checksum = 0;
   if (!pickle_iterator.ReadUInt32(&checksum)) {
     return false;
   }
 
-  const char* proto_data = nullptr;
-  size_t proto_length = 0;
-
-  if (!pickle_iterator.ReadData(&proto_data, &proto_length) || !proto_data ||
-      proto_length == 0) {
+  std::optional<base::span<const uint8_t>> read_result =
+      pickle_iterator.ReadData();
+  if (!read_result.has_value()) {
+    return false;
+  }
+  base::span<const uint8_t> proto = read_result.value();
+  if (proto.empty()) {
     return false;
   }
 
-  if (checksum != base::PersistentHash(proto_data, proto_length)) {
+  if (checksum != base::PersistentHash(proto)) {
     return false;
   }
 
   blink::FontUniqueNameTable font_table;
-  if (!font_table.ParseFromArray(proto_data, proto_length)) {
+  if (!font_table.ParseFromArray(proto.data(), proto.size())) {
     return false;
   }
 
-  *name_table_region = base::ReadOnlySharedMemoryRegion::Create(proto_length);
+  *name_table_region = base::ReadOnlySharedMemoryRegion::Create(proto.size());
   if (!name_table_region->IsValid() || !name_table_region->mapping.size()) {
     return false;
   }
 
-  memcpy(name_table_region->mapping.memory(), proto_data, proto_length);
+  base::span(name_table_region->mapping).copy_from(proto);
 
   return true;
 }
@@ -84,17 +91,16 @@ bool PersistToFile(const base::MappedReadOnlyRegion& name_table_region,
   }
 
   base::Pickle pickle;
-  uint32_t checksum = base::PersistentHash(name_table_region.mapping.memory(),
-                                           name_table_region.mapping.size());
+  uint32_t checksum = base::PersistentHash(name_table_region.mapping);
   pickle.WriteUInt32(checksum);
-  pickle.WriteData(static_cast<char*>(name_table_region.mapping.memory()),
-                   name_table_region.mapping.size());
+  pickle.WriteData(name_table_region.mapping);
   DCHECK(pickle.size());
   {
     base::ScopedBlockingCall scoped_blocking_call(
         FROM_HERE, base::BlockingType::MAY_BLOCK);
 
-    if (table_cache_file.Write(0, pickle.data_as_char(), pickle.size()) == -1) {
+    if (UNSAFE_TODO(table_cache_file.Write(0, pickle.data_as_char(),
+                                           pickle.size())) == -1) {
       table_cache_file.SetLength(0);
       return false;
     }

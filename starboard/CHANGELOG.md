@@ -7,6 +7,92 @@ since the version previous to it.
 
 **NOTE: Starboard versions 16 and older are no longer supported.**
 
+## Version 18
+
+### RDK: Suspend hangwatcher while backgrounded and bound lifecycle
+### events to 2.5s
+
+Suspend the hangwatcher while suspended to prevent signaling a hand
+when resuming after >30s in the background.
+
+### Removed SbFileAtomicReplace from Starboard API
+Moved `SbFileAtomicReplace` from `starboard/file.h` to `starboard/common/file.h`.
+Platforms no longer need to implement this API.
+
+### Removed kHasPartialAudioFramesSupport
+The `kHasPartialAudioFramesSupport` configuration constant has been removed.
+All Starboard implementations are now expected to support partial audio frames.
+
+### Cleanup starboard/configuration.h
+Removed deprecated feature macros and derived configurations, including
+`SB_STRINGIFY`, `SB_PREFERRED_RGBA_BYTE_ORDER_*`, `SB_RESTRICT`, `SB_LIKELY`,
+`SB_UNLIKELY`, `SB_HAS_64_BIT_ATOMICS`, `SB_C_INLINE`.
+
+
+### Removed SbThreadSetPriority
+The `SbThreadSetPriority` API is no longer used. Instead, the standard POSIX
+`setpriority` API should be used directly.
+
+### Removed SbThreadGetPriority
+The `SbThreadGetPriority` API is no longer used. Instead, the standard POSIX
+`getpriority` API should be used directly.
+
+### Removed SbThreadId
+The `SbThreadId` type, `kSbThreadInvalidId` macro, and `SbThreadIsValidId` function
+are no longer used. Instead, standard POSIX `pid_t` and `gettid()` should be used.
+
+### Removed SbThreadSampler and SbThreadContext
+The SbThreadSampler and SbThreadContext APIs are no longer used. Instead,
+POSIX APIs are used directly.
+
+### Removed SbMediaGetProgressiveBufferBudget
+The `SbMediaGetProgressiveBufferBudget` API is no longer used since progressive
+playback was removed.
+
+### Removed SbMediaGetBufferAlignment, SbMediaGetBufferPadding, and SbMediaIsBufferUsingMemoryPool
+These APIs were deprecated in Starboard 16 and are no longer used.
+
+### Support decode-to-texture mode
+Implementations of `DecodeTarget` for YUV planes should ensure they use
+`GL_RED_EXT` or `GL_LUMINANCE` instead of `GL_ALPHA` to avoid green-screen
+rendering issues caused by Chromium's shader expectations.
+
+### Added the following POSIX symbols:
+* `alarm`
+* `getrandom`
+* `getuid`
+* `if_indextoname`
+* `if_nametoindex`
+* `inotify_init1`
+* `inotify_add_watch`
+* `inotify_rm_watch`
+* `sched_getparam`
+* `sched_setparam`
+* `sched_getscheduler`
+* `sched_setscheduler`
+* `statx`
+
+### Added AV2 to SbMediaVideoCodec
+This prepares Cobalt for future AV2 playback support.
+
+### Added SbMediaCanChangeType() to media.h
+This API will query the starboard implementation for its support of SourceBuffer.changeType().
+
+### Updated the capabilities of SbPlayerWriteSamples()
+If `SbMediaCanChangeType` returns true, `SbPlayerWriteSamples()` may write
+samples to an `SbPlayer` that has different data (such as MIME string and codec type) than what the
+`SbPlayer` is currently configured to.
+
+### Removed unused configuration constants
+The following configuration constants were removed as they are no longer used by Cobalt core:
+* `kSbFileMaxOpen`
+* `kSbHasThreadPrioritySupport`
+* `kSbMaxThreadLocalKeys`
+* `kSbMaxThreadNameLength`
+* `kSbNetworkReceiveBufferSize`
+* `kSbPathSepChar`
+* `kSbPathSepString`
+
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.
 
@@ -14,59 +100,48 @@ Starboard 17 fully switches to POSIX APIs.
 The functionality is migrated to use `getauxval` instead.
 
 ### Added the following POSIX symbols:
+* `access`
 * `aligned_alloc`
-* `fdatasync`
+* `chmod`
+* `clock_nanosleep`
 * `dup`
 * `dup2`
 * `epoll_create`
 * `epoll_create1`
 * `epoll_ctl`
 * `epoll_wait`
+* `eventfd`
+* `fchmod`
+* `fchown`
+* `fdatasync`
+* `fdopendir`
+* `fstatat`
+* `gai_strerror`
+* `getauxval`
 * `getcwd`
+* `geteuid`
 * `getpeername`
+* `getpid`
+* `getpriority`
+* `getrlimit`
 * `getsockopt`
 * `isatty`
 * `kill`
 * `link`
-* `lstat`
 * `madvise`
 * `malloc_usable_size`
 * `mincore`
 * `mkdtemp`
 * `mkostemp`
 * `mkstemp`
+* `openat`
+* `pathconf`
 * `pause`
 * `pipe`
-* `pread`
-* `pwrite`
-* `raise`
-* `rand`
-* `rand_r`
-* `readlink`
-* `recvmsg`
-* `rename`
-* `sched_get_priority_max`
-* `sched_get_priority_min`
-* `select`
-* `signal`
-* `srand`
-* `symlink`
-* `recvmmsg`
-* `access`
-* `chmod`
-* `clock_nanosleep`
-* `eventfd`
-* `fchmod`
-* `fchown`
-* `gai_strerror`
-* `getauxval`
-* `geteuid`
-* `getpid`
-* `getpriority`
-* `getrlimit`
-* `pathconf`
 * `pipe2`
 * `poll`
+* `prctl`
+* `pread`
 * `pthread_attr_getschedpolicy`
 * `pthread_attr_getscope`
 * `pthread_attr_getstack`
@@ -91,9 +166,21 @@ The functionality is migrated to use `getauxval` instead.
 * `pthread_rwlock_wrlock`
 * `pthread_setschedparam`
 * `pthread_sigmask`
+* `pwrite`
+* `raise`
+* `rand`
+* `rand_r`
 * `readdir`
+* `readlink`
+* `readv`
 * `realpath`
+* `recvmmsg`
+* `recvmsg`
+* `rename`
 * `sched_getaffinity`
+* `sched_get_priority_max`
+* `sched_get_priority_min`
+* `select`
 * `sem_destroy`
 * `sem_init`
 * `sem_post`
@@ -103,27 +190,45 @@ The functionality is migrated to use `getauxval` instead.
 * `setpriority`
 * `shutdown`
 * `sigaction`
+* `signal`
 * `socketpair`
+* `srand`
 * `statvfs`
+* `symlink`
 * `sysconf`
 * `uname`
+* `unlinkat`
 * `utimensat`
 * `writev`
+
+Note that concurrent calls to `readdir` that specify different directory
+streams are expected to be thread safe.
+
+### Removed the following POSIX Symbols:
+The following were removed in favor of more modern POSIX APIs added above.
+* `open`
+* `stat`
 
 ### From `starboard/time_zone.h`
  * Removed `SbTimeZoneGetCurrent`. The time offset is now derived
    from the name returned by `SbTimeZoneGetName`, using the zoneinfo
    that is in the included ICU data.
 
+### Introduces new system property kSbSystemPathFilesDirectory.
+
+Path to directory for permanent storage. Both read and write access are
+required. The path is used primarily for DOM localStorage and HTTP cookies
+persistence.
+
 ### Removed the following SbEvents:
 * `kSbEventTypeUser`.
 * `kSbEventTypeAccessibilitySettingsChanged`
 * `kSbEventTypeAccessibilityCaptionSettingsChanged`
-* `kSbEventTypeAccessibilityTextToSpeechSettingsChanged`
 * `kSbEventTypeOnScreenKeyboardShown`
 * `kSbEventTypeOnScreenKeyboardHidden`
 * `kSbEventTypeOnScreenKeyboardFocused`
 * `kSbEventTypeOnScreenKeyboardBlurred`
+* `kSbEventTypeVerticalSync`
 
 ### Removed `starboard/accessibility.h`
 The functionality is migrated to a starboard extension.
@@ -171,10 +276,17 @@ Their Sb prefixes were removed and renamed to `MediaIsAudioSupported()`,
 `MediaIsSupported()`, and `MediaIsVideoSupported()`.  They are also moved from
 the global namespace into ::starboard::shared::starboard::media.
 
+### Updated `kSbEventTypeAccessibilityTextToSpeechSettingsChanged` SbEvent
+Now the data field of this SbEvent type is a boolean indicating if text-to-speech is enabled.
+
+### Removed unused methods
+* `SbMediaGetMaxBufferCapacity`. This method is no longer used. Use
+  `SbMediaGetAudioBufferBudget` and `SbMediaGetVideoBufferBudget` instead.
+
 ## Version 16
 A key update in Starboard version 16 is the adoption of POSIX APIs.
 For a full overview of Starboard POSIX migrations, please refer to
-[migration guide](/starboard/doc/starboard_16_posix.md).
+[migration guide](/starboard/doc/starboard_17_posix.md).
 
 #### Added new configuration constant `kHasPartialAudioFramesSupport`
 Set this to true if your platform supports partial audio frames.

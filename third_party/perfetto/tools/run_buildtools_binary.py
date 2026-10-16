@@ -20,7 +20,7 @@ import os
 import subprocess
 import sys
 
-from platform import system, machine
+from platform import system
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -46,14 +46,20 @@ def run_buildtools_binary(args):
 
   cmd = args[0]
   args = args[1:]
-  exe_path = os.path.join(ROOT_DIR, 'buildtools', os_dir, cmd) + ext
+
+  # Some binaries have been migrated to third_party/xxx. Look into that path
+  # first (see b/261398524)
+  exe_path = os.path.join(ROOT_DIR, 'third_party', cmd, cmd) + ext
+  if not os.path.exists(exe_path):
+    exe_path = os.path.join(ROOT_DIR, 'buildtools', os_dir, cmd) + ext
+
   if sys_name == 'windows':
     # execl() behaves oddly on Windows: the spawned process doesn't seem to
     # receive CTRL+C. Use subprocess instead.
-    return subprocess.call([exe_path] + args)
+    sys.exit(subprocess.call([exe_path] + args))
   else:
     os.execl(exe_path, os.path.basename(exe_path), *args)
 
 
 if __name__ == '__main__':
-  sys.exit(run_buildtools_binary(sys.argv[1:]))
+  run_buildtools_binary(sys.argv[1:])

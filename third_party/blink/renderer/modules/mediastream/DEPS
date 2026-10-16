@@ -11,13 +11,16 @@ include_rules = [
     "+base/threading/sequenced_task_runner_handle.h",
     "+base/threading/thread_task_runner_handle.h",
 
-    # webmediaplayer_ms{_compositor}.cc includes.
+    # web_media_player_ms{_compositor}.cc includes.
+    "+base/containers/circular_deque.h",
     "+base/values.h",
     "+cc/layers/surface_layer.h",
     "+cc/layers/video_frame_provider_client_impl.h",
     "+cc/layers/video_frame_provider.h",
     "+cc/layers/video_layer.h",
     "+cc/paint/skia_paint_canvas.h",
+    "+gpu/command_buffer/client/client_shared_image.h",
+    "+gpu/command_buffer/client/test_shared_image_interface.h",
     "+media/media_buildflags.h",
     "+media/filters/video_renderer_algorithm.h",
     "+media/renderers/paint_canvas_video_renderer.h",
@@ -25,14 +28,9 @@ include_rules = [
     "+services/viz/public/cpp/gpu/context_provider_command_buffer.h",
     "+skia/ext/platform_canvas.h",
 
-    "+base/task/bind_post_task.h",
     "+base/files/file.h",
     "+base/metrics/field_trial.h",
 
-    "+base/guid.h",
-    "+base/token.h",
-    "+base/sequence_checker.h",
-    "+base/trace_event/trace_event.h",
     "+base/unguessable_token.h",
     "+base/uuid.h",
     "+media/audio",
@@ -61,11 +59,9 @@ include_rules = [
 
 specific_include_rules = {
     ".*test\.cc" : [
-        "+base/containers/circular_deque.h",
         "+base/numerics/ranges.h",
         "+base/run_loop.h",
         "+cc/layers/layer.h",
-        "+media/video/fake_gpu_memory_buffer.h",
         "+media/video/mock_gpu_memory_buffer_video_frame_pool.h",
         "+media/video/mock_gpu_video_accelerator_factories.h",
 

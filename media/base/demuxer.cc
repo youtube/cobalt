@@ -12,4 +12,12 @@ Demuxer::Demuxer() = default;
 
 Demuxer::~Demuxer() = default;
 
+// Most Demuxer implementations don't need to disable canChangeType.
+// Do nothing by default.
+void Demuxer::DisableCanChangeType() {}
+
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+void Demuxer::SetEncryptedMediaInitDataCB(EncryptedMediaInitDataCB cb) {}
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // namespace media

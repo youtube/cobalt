@@ -6,19 +6,24 @@
 #define CHROME_BROWSER_ASH_LOGIN_OOBE_QUICK_START_CONNECTIVITY_FAKE_TARGET_DEVICE_CONNECTION_BROKER_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/ash/login/oobe_quick_start/connectivity/connection.h"
+#include "chrome/browser/ash/login/oobe_quick_start/connectivity/fake_connection.h"
+#include "chrome/browser/ash/login/oobe_quick_start/connectivity/session_context.h"
 #include "chrome/browser/ash/login/oobe_quick_start/connectivity/target_device_connection_broker.h"
 #include "chrome/browser/ash/login/oobe_quick_start/connectivity/target_device_connection_broker_factory.h"
+#include "chromeos/ash/components/quick_start/quick_start_metrics.h"
 
 class FakeNearbyConnection;
 
 namespace ash::quick_start {
 
-class FakeQuickStartDecoder;
-class RandomSessionId;
+class AdvertisingId;
+class QuickStartConnectivityService;
 
 class FakeTargetDeviceConnectionBroker : public TargetDeviceConnectionBroker {
  public:
@@ -31,7 +36,9 @@ class FakeTargetDeviceConnectionBroker : public TargetDeviceConnectionBroker {
 
     // Returns all FakeTargetDeviceConnectionBroker instances created by
     // CreateInstance().
-    const std::vector<FakeTargetDeviceConnectionBroker*>& instances() {
+    const std::vector<
+        raw_ptr<FakeTargetDeviceConnectionBroker, VectorExperimental>>&
+    instances() {
       return instances_;
     }
 
@@ -46,13 +53,17 @@ class FakeTargetDeviceConnectionBroker : public TargetDeviceConnectionBroker {
 
     // TargetDeviceConnectionBrokerFactory:
     std::unique_ptr<TargetDeviceConnectionBroker> CreateInstance(
-        base::WeakPtr<NearbyConnectionsManager> nearby_connections_manager,
-        RandomSessionId session_id) override;
+        SessionContext* session_context,
+        QuickStartConnectivityService* quick_start_connectivity_service)
+        override;
 
-    std::vector<FakeTargetDeviceConnectionBroker*> instances_;
+    std::vector<raw_ptr<FakeTargetDeviceConnectionBroker, VectorExperimental>>
+        instances_;
   };
 
-  FakeTargetDeviceConnectionBroker();
+  explicit FakeTargetDeviceConnectionBroker(
+      SessionContext* session_context,
+      QuickStartConnectivityService* quick_start_connectivity_service);
   FakeTargetDeviceConnectionBroker(FakeTargetDeviceConnectionBroker&) = delete;
   FakeTargetDeviceConnectionBroker& operator=(
       FakeTargetDeviceConnectionBroker&) = delete;
@@ -64,10 +75,11 @@ class FakeTargetDeviceConnectionBroker : public TargetDeviceConnectionBroker {
                         bool use_pin_authentication,
                         ResultCallback on_start_advertising_callback) override;
   void StopAdvertising(base::OnceClosure on_stop_advertising_callback) override;
-  base::Value::Dict GetPrepareForUpdateInfo() override;
 
   void InitiateConnection(const std::string& source_device_id);
-  void AuthenticateConnection(const std::string& source_device_id);
+  void AuthenticateConnection(
+      const std::string& source_device_id,
+      QuickStartMetrics::AuthenticationMethod auth_method);
   void RejectConnection();
   void CloseConnection(ConnectionClosedReason reason);
 
@@ -76,9 +88,13 @@ class FakeTargetDeviceConnectionBroker : public TargetDeviceConnectionBroker {
     MaybeNotifyFeatureStatus();
   }
 
+  std::string GetAdvertisingIdDisplayCode() override;
+
   void set_use_pin_authentication(bool use_pin_authentication) {
     use_pin_authentication_ = use_pin_authentication;
   }
+
+  std::string GetPinForTests();
 
   size_t num_start_advertising_calls() const {
     return num_start_advertising_calls_;
@@ -100,6 +116,16 @@ class FakeTargetDeviceConnectionBroker : public TargetDeviceConnectionBroker {
     return std::move(on_stop_advertising_callback_);
   }
 
+  std::optional<bool> start_advertising_use_pin_authentication() {
+    return start_advertising_use_pin_authentication_;
+  }
+
+  SessionContext::SessionId session_id() {
+    return session_context_->session_id();
+  }
+
+  FakeConnection* GetFakeConnection();
+
  private:
   size_t num_start_advertising_calls_ = 0;
   size_t num_stop_advertising_calls_ = 0;
@@ -107,8 +133,13 @@ class FakeTargetDeviceConnectionBroker : public TargetDeviceConnectionBroker {
       FeatureSupportStatus::kSupported;
   ResultCallback on_start_advertising_callback_;
   base::OnceClosure on_stop_advertising_callback_;
+  raw_ptr<SessionContext> session_context_;
+  raw_ptr<QuickStartConnectivityService> quick_start_connectivity_service_;
   std::unique_ptr<FakeNearbyConnection> fake_nearby_connection_;
-  std::unique_ptr<FakeQuickStartDecoder> fake_quick_start_decoder_;
+  std::unique_ptr<FakeConnection> connection_;
+
+  AdvertisingId advertising_id_;
+  std::optional<bool> start_advertising_use_pin_authentication_;
 
   base::WeakPtrFactory<FakeTargetDeviceConnectionBroker> weak_ptr_factory_{
       this};

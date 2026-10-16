@@ -212,8 +212,6 @@ bool IsPlatformAvailable(const CompilerParameters &param)
             }
             break;
         }
-        case SH_HLSL_4_0_FL9_3_OUTPUT:
-            return false;
         default:
             break;
     }
@@ -307,7 +305,6 @@ void CompilerPerfTest::step()
 
     ShCompileOptions compileOptions              = {};
     compileOptions.objectCode                    = true;
-    compileOptions.variables                     = true;
     compileOptions.initializeUninitializedLocals = true;
     compileOptions.initOutputVariables           = true;
 

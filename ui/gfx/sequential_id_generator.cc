@@ -19,7 +19,7 @@ void Remove(uint32_t key, T* first, T* second) {
   first->erase(iter);
 
   iter = second->find(second_key);
-  DCHECK(iter != second->end());
+  CHECK(iter != second->end());
   second->erase(iter);
 }
 

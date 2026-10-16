@@ -6,12 +6,12 @@
 #define CHROME_BROWSER_DOWNLOAD_DOWNLOAD_STATS_H_
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/download/download_commands.h"
 #include "chrome/browser/download/download_prompt_status.h"
-#include "chrome/browser/profiles/profile.h"
 #include "components/download/public/common/download_danger_type.h"
 #include "components/download/public/common/download_path_reservation_tracker.h"
+
+class Profile;
 
 // Used for counting UMA stats. Similar to content's
 // download_stats::DownloadInitiattionSources but from the chrome layer.
@@ -57,6 +57,9 @@ enum ChromeDownloadOpenMethod {
   // The download was opened using a rename handler.
   DOWNLOAD_OPEN_METHOD_RENAME_HANDLER,
 
+  // The download was opened with the Media App on ChromeOS.
+  DOWNLOAD_OPEN_METHOD_MEDIA_APP,
+
   DOWNLOAD_OPEN_METHOD_LAST_ENTRY
 };
 
@@ -101,21 +104,15 @@ enum class DownloadCancelReason {
 // Record initiation of a download from a specific source.
 void RecordDownloadSource(ChromeDownloadSource source);
 
-// Record that a download warning was shown.
-void RecordDangerousDownloadWarningShown(
-    download::DownloadDangerType danger_type,
-    const base::FilePath& file_path,
-    bool is_https,
-    bool has_user_gesture);
+// Record that a download warning was shown, if the download was dangerous. To
+// avoid double-logging, it checks DownloadItemModel::WasUIWarningShown() first.
+// Also records the warning shown by setting WasUIWarningShown to true on the
+// model.
+void MaybeRecordDangerousDownloadWarningShown(DownloadUIModel& model);
 
 // Record that a download was opened.
 void RecordDownloadOpen(ChromeDownloadOpenMethod open_method,
                         const std::string& mime_type_string);
-
-// TODO(crbug.com/1372476): Remove this function after debugging.
-// Record that a download open button was pressed, either on download shelf or
-// download bubble.
-void RecordDownloadOpenButtonPressed(bool is_download_completed);
 
 // Record if the database is available to provide the next download id before
 // starting all downloads.
@@ -158,11 +155,6 @@ void RecordDownloadStartPerProfileType(Profile* profile);
 // Records whether the download dialog is shown to the user.
 void RecordDownloadPromptStatus(DownloadPromptStatus status);
 #endif  // BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(IS_CHROMEOS)
-// Records that a notification for a download was suppressed.
-void RecordDownloadNotificationSuppressed();
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
 enum class DownloadShelfContextMenuAction {
   // Drop down button for download shelf context menu is visible

@@ -7,6 +7,8 @@
 #include <memory>
 
 #include "base/check.h"
+#include "base/check_is_test.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -15,17 +17,20 @@
 #include "base/json/values_util.h"
 #include "base/logging.h"
 #include "base/task/thread_pool.h"
+#include "build/build_config.h"
+#include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/download/download_core_service.h"
 #include "chrome/browser/download/download_core_service_factory.h"
-#include "chrome/browser/password_manager/password_store_factory.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
+#include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
 #include "chrome/browser/profiles/nuke_profile_directory_utils.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profiles_state.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -33,9 +38,10 @@
 #include "chrome/common/pref_names.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "components/keep_alive_registry/scoped_keep_alive.h"
-#include "components/password_manager/core/browser/password_store_interface.h"
 #include "components/prefs/scoped_user_pref_update.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/signin/public/identity_manager/primary_account_mutator.h"
+#include "components/sync/service/sync_service.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 
@@ -64,6 +70,28 @@ bool IsRegisteredAsEphemeral(ProfileAttributesStorage* storage,
   ProfileAttributesEntry* entry =
       storage->GetProfileAttributesWithPath(profile_dir);
   return entry && entry->IsEphemeral();
+}
+
+// Disables sync in order to prevent that browsing data deletions propagate
+// across devices via sync.
+void DisableSyncForProfileDeletion(Profile* profile) {
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfileIfExists(profile);
+  if (!identity_manager ||
+      !identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
+    // Nothing to do as the user is signed out (hence sync is guaranteed to be
+    // disabled).
+    return;
+  }
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // On ChromeOS, profile deletion uses a different codepath but some
+  // browser tests do exercise this code.
+  CHECK_IS_TEST();
+#else
+  identity_manager->GetPrimaryAccountMutator()->ClearPrimaryAccount(
+      signin_metrics::ProfileSignout::kSignoutDuringProfileDeletion);
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 }  // namespace
@@ -101,16 +129,14 @@ void DeleteProfileHelper::MaybeScheduleProfileForDeletion(
 
   Profile* profile = profile_manager_->GetProfileByPath(profile_dir);
   if (profile) {
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-    CHECK(!profile->IsMainProfile());
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
     // Cancel all in-progress downloads before deleting the profile to prevent a
     // "Do you want to exit Google Chrome and cancel the downloads?" prompt
     // (crbug.com/336725).
     DownloadCoreService* service =
         DownloadCoreServiceFactory::GetForBrowserContext(profile);
-    service->CancelDownloads();
-    DCHECK_EQ(0, service->NonMaliciousDownloadCount());
+    service->CancelDownloads(
+        DownloadCoreService::CancelDownloadsTrigger::kProfileDeletion);
+    DCHECK_EQ(0, service->BlockingShutdownCount());
 
     // Take a ScopedProfileKeepAlive for the the deletion process to avoid the
     // profile from being randomly unloaded.
@@ -143,7 +169,7 @@ void DeleteProfileHelper::ScheduleEphemeralProfileForDeletion(
       &profile_manager_->GetProfileAttributesStorage(), profile_dir));
   DCHECK_EQ(0u, chrome::GetBrowserCount(
                     profile_manager_->GetProfileByPath(profile_dir)));
-  absl::optional<base::FilePath> new_active_profile_dir =
+  std::optional<base::FilePath> new_active_profile_dir =
       profile_manager_->FindLastActiveProfile(base::BindRepeating(
           [](const base::FilePath& profile_dir, ProfileAttributesEntry* entry) {
             return entry->GetPath() != profile_dir;
@@ -212,7 +238,7 @@ void DeleteProfileHelper::CleanUpDeletedProfiles() {
       local_state->GetList(prefs::kProfilesDeleted);
 
   for (const base::Value& value : deleted_profiles) {
-    absl::optional<base::FilePath> profile_path = base::ValueToFilePath(value);
+    std::optional<base::FilePath> profile_path = base::ValueToFilePath(value);
     // Although it should never happen, make sure this is a valid path in the
     // user_data_dir, so we don't accidentally delete something else.
     if (profile_path && profile_manager_->IsAllowedProfilePath(*profile_path)) {
@@ -234,7 +260,15 @@ void DeleteProfileHelper::CleanUpDeletedProfiles() {
     } else {
       LOG(ERROR) << "Found invalid profile path in deleted_profiles: "
                  << profile_path->AsUTF8Unsafe();
-      NOTREACHED();
+      SCOPED_CRASH_KEY_STRING256("DeleteProfileHelper", "profile_path",
+                                 profile_path->AsUTF8Unsafe());
+      SCOPED_CRASH_KEY_STRING256(
+          "DeleteProfileHelper", "user_data_dir",
+          profile_manager_->user_data_dir().AsUTF8Unsafe());
+      SCOPED_CRASH_KEY_BOOL(
+          "DeleteProfileHelper", "allowed_path",
+          profile_manager_->IsAllowedProfilePath(*profile_path));
+      base::debug::DumpWithoutCrashing();
     }
   }
 }
@@ -346,23 +380,10 @@ void DeleteProfileHelper::OnLoadProfileForProfileDeletion(
     // ProfileManager instead of handling shutdown here.
     profile_manager_->NotifyOnProfileMarkedForPermanentDeletion(profile);
 
-    // Disable sync for doomed profile.
-    if (SyncServiceFactory::HasSyncService(profile)) {
-      syncer::SyncService* sync_service =
-          SyncServiceFactory::GetForProfile(profile);
-      // Ensure data is cleared even if sync was already off.
-      sync_service->StopAndClear();
-    }
-
-    // Some platforms store passwords in keychains. They should be removed.
-    scoped_refptr<password_manager::PasswordStoreInterface> password_store =
-        PasswordStoreFactory::GetForProfile(profile,
-                                            ServiceAccessType::EXPLICIT_ACCESS)
-            .get();
-    if (password_store.get()) {
-      password_store->RemoveLoginsCreatedBetween(base::Time(),
-                                                 base::Time::Max());
-    }
+    // Sign out from doomed profile to avoid that RemoveBrowsingDataForProfile()
+    // would result in deletions being propagated to the server (and other
+    // devices) via sync.
+    DisableSyncForProfileDeletion(profile);
 
     // The Profile Data doesn't get wiped until Chrome closes. Since we promised
     // that the user's data would be removed, do so immediately.
@@ -375,7 +396,6 @@ void DeleteProfileHelper::OnLoadProfileForProfileDeletion(
 
     // Clean-up pref data that won't be cleaned up by deleting the profile dir.
     profile->GetPrefs()->OnStoreDeletionFromDisk();
-
   } else {
     // We failed to load the profile, but it's safe to delete a not yet loaded
     // Profile from disk.

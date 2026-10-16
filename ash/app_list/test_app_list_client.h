@@ -14,6 +14,8 @@
 #include "ash/public/cpp/app_list/app_list_client.h"
 #include "ash/public/cpp/app_list/app_list_types.h"
 #include "base/memory/weak_ptr.h"
+#include "components/account_id/account_id.h"
+#include "ui/base/models/image_model.h"
 
 namespace ash {
 
@@ -29,6 +31,8 @@ class TestAppListClient : public AppListClient {
 
   // AppListClient:
   void OnAppListControllerDestroyed() override {}
+  std::vector<AppListSearchControlCategory> GetToggleableCategories()
+      const override;
   void StartZeroStateSearch(base::OnceClosure on_done,
                             base::TimeDelta timeout) override;
   void StartSearch(const std::u16string& trimmed_query) override;
@@ -44,7 +48,8 @@ class TestAppListClient : public AppListClient {
   void ActivateItem(int profile_id,
                     const std::string& id,
                     int event_flags,
-                    ash::AppListLaunchedFrom launched_from) override;
+                    ash::AppListLaunchedFrom launched_from,
+                    bool is_above_the_fold) override;
   void GetContextMenuModel(int profile_id,
                            const std::string& id,
                            AppListItemContext item_context,
@@ -59,10 +64,18 @@ class TestAppListClient : public AppListClient {
   AppListNotifier* GetNotifier() override;
   void RecalculateWouldTriggerLauncherSearchIph() override;
   std::unique_ptr<ScopedIphSession> CreateLauncherSearchIphSession() override;
-  void OpenSearchBoxIphUrl() override;
   void LoadIcon(int profile_id, const std::string& app_id) override;
   ash::AppListSortOrder GetPermanentSortingOrder() const override;
-  void CommitTemporarySortOrder() override;
+  std::optional<bool> IsNewUser(const AccountId& account_id) const override;
+  void RecordAppsDefaultVisibility(
+      const std::vector<std::string>& apps_above_the_fold,
+      const std::vector<std::string>& apps_below_the_fold,
+      bool is_apps_collections_page) override;
+  bool HasReordered() override;
+  void GetAssistantNewEntryPointEligibility(
+      GetAssistantNewEntryPointEligibilityCallback callback) override;
+  std::optional<std::string> GetAssistantNewEntryPointName() override;
+  ui::ImageModel GetGeminiIcon() override;
 
   int start_zero_state_search_count() const {
     return start_zero_state_search_count_;
@@ -73,10 +86,22 @@ class TestAppListClient : public AppListClient {
   int zero_state_search_done_count() const {
     return zero_state_search_done_count_;
   }
+  void set_available_categories_for_test(
+      const std::vector<AppListSearchControlCategory>& categories) {
+    toggleable_categories_for_test_ = categories;
+  }
 
   // Returns the number of AppItems that have been activated. These items could
   // live in search, RecentAppsView, or ScrollableAppsGridView.
   int activate_item_count() const { return activate_item_count_; }
+  int activate_item_above_the_fold() const {
+    return activate_item_above_the_fold_;
+  }
+  int activate_item_below_the_fold() const {
+    return activate_item_below_the_fold_;
+  }
+  int items_above_the_fold_count() const { return items_above_the_fold_count_; }
+  int items_below_the_fold_count() const { return items_below_the_fold_count_; }
 
   // Returns the ID of the last activated AppItem.
   std::string activate_item_last_id() const { return activate_item_last_id_; }
@@ -105,6 +130,10 @@ class TestAppListClient : public AppListClient {
     search_callback_ = std::move(callback);
   }
 
+  void set_is_new_user(std::optional<bool> is_new_user) {
+    is_new_user_ = is_new_user;
+  }
+
  private:
   // Called in response to StartZeroStateSearch() when
   // `run_zero_state_callback_immediately_` is false. Counts calls via
@@ -117,9 +146,16 @@ class TestAppListClient : public AppListClient {
   std::vector<std::u16string> search_queries_;
   std::vector<SearchResultActionId> invoked_result_actions_;
   int activate_item_count_ = 0;
+  int activate_item_above_the_fold_ = 0;
+  int items_above_the_fold_count_ = 0;
+  int activate_item_below_the_fold_ = 0;
+  int items_below_the_fold_count_ = 0;
   std::string activate_item_last_id_;
   std::string last_opened_search_result_;
   std::vector<std::string> loaded_icon_app_ids_;
+
+  std::vector<AppListSearchControlCategory> toggleable_categories_for_test_;
+  std::optional<bool> is_new_user_;
 
   // If not null, callback that will be run on each search request. It can be
   // used by tests to inject results to search model in response to search

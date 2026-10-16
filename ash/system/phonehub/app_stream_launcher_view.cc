@@ -12,7 +12,10 @@
 #include "ash/controls/rounded_scroll_bar.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/strings/grit/ash_strings.h"
+#include "ash/style/ash_color_id.h"
 #include "ash/style/ash_color_provider.h"
+#include "ash/style/style_util.h"
+#include "ash/style/typography.h"
 #include "ash/system/phonehub/app_stream_launcher_item.h"
 #include "ash/system/phonehub/app_stream_launcher_list_item.h"
 #include "ash/system/phonehub/app_stream_launcher_view.h"
@@ -24,7 +27,10 @@
 #include "chromeos/ash/components/phonehub/phone_hub_manager.h"
 #include "chromeos/ash/components/phonehub/user_action_recorder.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
+#include "ui/color/color_id.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/size.h"
@@ -36,6 +42,7 @@
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/image_button_factory.h"
 #include "ui/views/controls/button/label_button.h"
+#include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
@@ -137,7 +144,7 @@ std::unique_ptr<views::View> AppStreamLauncherView::CreateAppListView() {
   scroll_view->ClipHeightTo(0, std::numeric_limits<int>::max());
   scroll_view->SetDrawOverflowIndicator(false);
   // Don't paint a background. The bubble already has one.
-  scroll_view->SetBackgroundColor(absl::nullopt);
+  scroll_view->SetBackgroundColor(std::nullopt);
   // Arrow keys are used to select app icons.
   scroll_view->SetAllowKeyboardScrolling(false);
 
@@ -147,8 +154,8 @@ std::unique_ptr<views::View> AppStreamLauncherView::CreateAppListView() {
   // Set up scroll bars.
   scroll_view->SetHorizontalScrollBarMode(
       views::ScrollView::ScrollBarMode::kDisabled);
-  auto vertical_scroll =
-      std::make_unique<RoundedScrollBar>(/*horizontal=*/false);
+  auto vertical_scroll = std::make_unique<RoundedScrollBar>(
+      views::ScrollBar::Orientation::kVertical);
   vertical_scroll->SetInsets(kVerticalScrollInsets);
   vertical_scroll->SetSnapBackOnDragOutside(false);
   scroll_view->SetVerticalScrollBar(std::move(vertical_scroll));
@@ -185,8 +192,7 @@ std::unique_ptr<views::View> AppStreamLauncherView::CreateAppListView() {
 }
 
 void AppStreamLauncherView::AppIconActivated(
-    phonehub::Notification::AppMetadata app,
-    const ui::Event& event) {
+    phonehub::Notification::AppMetadata app) {
   auto* interaction_handler_ =
       phone_hub_manager_->GetRecentAppsInteractionHandler();
   if (!interaction_handler_)
@@ -234,10 +240,8 @@ std::unique_ptr<views::View> AppStreamLauncherView::CreateHeaderView() {
       views::BoxLayout::Orientation::kHorizontal, kHeaderViewInsets,
       kHeaderChildrenSpacing));
 
-  header->SetBackground(views::CreateSolidBackground(
-      AshColorProvider::Get()->GetControlsLayerColor(
-          AshColorProvider::ControlsLayerType::
-              kControlBackgroundColorInactive)));
+  header->SetBackground(
+      views::CreateSolidBackground(kColorAshControlBackgroundColorInactive));
 
   // Add arrowback button
   arrow_back_button_ = header->AddChildView(CreateButton(
@@ -251,15 +255,14 @@ std::unique_ptr<views::View> AppStreamLauncherView::CreateHeaderView() {
       gfx::DirectionalityMode::DIRECTIONALITY_AS_URL));
   title->SetMultiLine(true);
   title->SetAllowCharacterBreak(true);
-  title->SetProperty(
-      views::kFlexBehaviorKey,
-      views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
-                               views::MaximumFlexSizeRule::kUnbounded,
-                               /*adjust_height_for_width =*/true)
-          .WithWeight(1));
+  title->SetProperty(views::kBoxLayoutFlexKey,
+                     views::BoxLayoutFlexSpecification());
   title->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   title->SetText(
       l10n_util::GetStringUTF16(IDS_ASH_PHONE_HUB_APP_STREAM_LAUNCHER_TITLE));
+
+  TypographyProvider::Get()->StyleLabel(ash::TypographyToken::kCrosHeadline1,
+                                        *title);
 
   return header;
 }
@@ -276,6 +279,13 @@ std::unique_ptr<views::Button> AppStreamLauncherView::CreateButton(
   auto button = views::CreateVectorImageButton(std::move(callback));
   views::SetImageFromVectorIconWithColor(button.get(), icon, color,
                                          disabled_color);
+
+  ash::StyleUtil::SetUpInkDropForButton(button.get(), gfx::Insets(),
+                                        /*highlight_on_hover=*/false,
+                                        /*highlight_on_focus=*/true);
+  views::FocusRing::Get(button.get())
+      ->SetColorId(static_cast<ui::ColorId>(cros_tokens::kCrosSysFocusRing));
+
   button->SetTooltipText(l10n_util::GetStringUTF16(message_id));
   button->SizeToPreferredSize();
 
@@ -297,10 +307,6 @@ void AppStreamLauncherView::ChildPreferredSizeChanged(View* child) {
 void AppStreamLauncherView::ChildVisibilityChanged(View* child) {
   // Resize the bubble when the child change its visibility.
   PreferredSizeChanged();
-}
-
-const char* AppStreamLauncherView::GetClassName() const {
-  return "AppStreamLauncherView";
 }
 
 phone_hub_metrics::Screen AppStreamLauncherView::GetScreenForMetrics() const {
@@ -349,5 +355,8 @@ void AppStreamLauncherView::CreateGridView(
     items_container_->AddChildView(CreateItemView(app));
   }
 }
+
+BEGIN_METADATA(AppStreamLauncherView)
+END_METADATA
 
 }  // namespace ash

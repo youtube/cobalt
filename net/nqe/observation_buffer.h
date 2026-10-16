@@ -7,8 +7,10 @@
 
 #include <stdint.h>
 
+#include <array>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <vector>
 
@@ -19,7 +21,6 @@
 #include "net/nqe/network_quality_estimator_util.h"
 #include "net/nqe/network_quality_observation.h"
 #include "net/nqe/network_quality_observation_source.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 
@@ -30,6 +31,9 @@ class TimeTicks;
 namespace net {
 
 class NetworkQualityEstimatorParams;
+
+using DeletedObservationSources =
+    std::array<bool, NETWORK_QUALITY_OBSERVATION_SOURCE_MAX>;
 
 namespace nqe::internal {
 
@@ -55,7 +59,8 @@ class NET_EXPORT_PRIVATE ObservationBuffer {
 
   // Adds |observation| to the buffer. The oldest observation in the buffer
   // will be evicted to make room if the buffer is already full.
-  void AddObservation(const Observation& observation);
+  // In that case, an evicted observation will be returned.
+  std::optional<Observation> AddObservation(const Observation& observation);
 
   // Returns the number of observations in this buffer.
   size_t Size() const { return static_cast<size_t>(observations_.size()); }
@@ -75,10 +80,10 @@ class NET_EXPORT_PRIVATE ObservationBuffer {
   // signal strength. |result| must not be null. If |observations_count| is not
   // null, then it is set to the number of observations that were available
   // in the observation buffer for computing the percentile.
-  absl::optional<int32_t> GetPercentile(base::TimeTicks begin_timestamp,
-                                        int32_t current_signal_strength,
-                                        int percentile,
-                                        size_t* observations_count) const;
+  std::optional<int32_t> GetPercentile(base::TimeTicks begin_timestamp,
+                                       int32_t current_signal_strength,
+                                       int percentile,
+                                       size_t* observations_count) const;
 
   void SetTickClockForTesting(const base::TickClock* tick_clock) {
     tick_clock_ = tick_clock;
@@ -89,7 +94,7 @@ class NET_EXPORT_PRIVATE ObservationBuffer {
   // 3 in |deleted_observation_sources| are set to true, then all observations
   // in the buffer that have source set to either 1 or 3 would be removed.
   void RemoveObservationsWithSource(
-      bool deleted_observation_sources[NETWORK_QUALITY_OBSERVATION_SOURCE_MAX]);
+      const DeletedObservationSources& deleted_observation_sources);
 
  private:
   // Computes the weighted observations and stores them in

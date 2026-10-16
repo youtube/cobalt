@@ -23,7 +23,8 @@ class SpellCheckHostChromeImplMacBrowserTest : public InProcessBrowserTest {
     content::BrowserContext* context = browser()->profile();
     renderer_ = std::make_unique<content::MockRenderProcessHost>(context);
     SpellCheckHostChromeImpl::Create(
-        renderer_->GetID(), spell_check_host_.BindNewPipeAndPassReceiver());
+        renderer_->GetDeprecatedID(),
+        spell_check_host_.BindNewPipeAndPassReceiver());
   }
 
   void TearDownOnMainThread() override { renderer_.reset(); }
@@ -56,9 +57,8 @@ class SpellCheckHostChromeImplMacBrowserTest : public InProcessBrowserTest {
 IN_PROC_BROWSER_TEST_F(SpellCheckHostChromeImplMacBrowserTest,
                        SpellCheckReturnMessage) {
   spell_check_host_->RequestTextCheck(
-      u"zz.", 123,
-      base::BindOnce(&SpellCheckHostChromeImplMacBrowserTest::LogResult,
-                     base::Unretained(this)));
+      u"zz.", base::BindOnce(&SpellCheckHostChromeImplMacBrowserTest::LogResult,
+                             base::Unretained(this)));
   RunUntilResultReceived();
 
   ASSERT_EQ(1U, result_.size());

@@ -3,12 +3,12 @@
 // found in the LICENSE file.
 
 import * as animate from '../../animation.js';
-import {assert} from '../../assert.js';
+import {assert, assertExists} from '../../assert.js';
 import {
   CameraConfig,
   CameraInfo,
   CameraManager,
-  CameraUI,
+  CameraUi,
 } from '../../device/index.js';
 import * as dom from '../../dom.js';
 import {I18nString} from '../../i18n_string.js';
@@ -17,12 +17,12 @@ import * as nav from '../../nav.js';
 import * as state from '../../state.js';
 import {Facing, LocalStorageKey, Mode, ViewName} from '../../type.js';
 import * as util from '../../util.js';
-import {OptionPanelOptions, PTZPanelOptions, StateOption} from '../view.js';
+import {OptionPanelOptions, PtzPanelOptions, StateOption} from '../view.js';
 
 /**
  * Creates a controller for the options of Camera view.
  */
-export class Options implements CameraUI {
+export class Options implements CameraUi {
   private readonly toggleMic = dom.get('#toggle-mic', HTMLButtonElement);
 
   private readonly openMirrorPanel =
@@ -37,7 +37,7 @@ export class Options implements CameraUI {
   private readonly openPTZPanel = dom.get('#open-ptz-panel', HTMLButtonElement);
 
   private readonly switchDeviceButton =
-      dom.get('#switch-device', HTMLButtonElement);
+      dom.get('switch-device-button', HTMLElement);
 
   /**
    * CameraConfig of the camera device currently used or selected.
@@ -54,27 +54,29 @@ export class Options implements CameraUI {
    */
   private audioTrack: MediaStreamTrack|null = null;
 
-  /**
-   * @param cameraManager Camera manager instance.
-   */
   constructor(private readonly cameraManager: CameraManager) {
-    this.cameraManager.registerCameraUI(this);
-    this.switchDeviceButton.addEventListener('click', async () => {
+    this.cameraManager.registerCameraUi(this);
+    this.switchDeviceButton.addEventListener('click', () => {
       if (state.get(state.State.TAKING)) {
         return;
       }
       const switching = this.cameraManager.switchCamera();
       if (switching !== null) {
-        await animate.play(dom.get('#switch-device', HTMLElement));
+        animate.play(this.switchDeviceButton);
       }
     });
     dom.get('#open-settings', HTMLButtonElement)
-        .addEventListener('click', () => nav.open(ViewName.SETTINGS));
+        .addEventListener('click', () => {
+          if (state.get(state.State.TAKING)) {
+            return;
+          }
+          nav.open(ViewName.SETTINGS);
+        });
 
     this.initOpenMirrorPanel();
     this.initOpenGridPanel();
     this.initOpenTimerPanel();
-    this.initOpenPTZPanel();
+    this.initOpenPtzPanel();
     this.initToggleMic();
 
     // Restore saved mirroring states per video device.
@@ -83,15 +85,16 @@ export class Options implements CameraUI {
   }
 
   private setAriaLabelForOptionButton(
-      element: HTMLElement, titleLabel: I18nString,
-      stateOptions: StateOption[]) {
+      element: HTMLElement, titleLabel: I18nString, stateOptions: StateOption[],
+      ariaDescribedByElement: HTMLElement) {
     element.setAttribute('i18n-label', titleLabel);
-    for (const {ariaLabel, state: targetState, isDisableOption} of
+    for (const {ariaLabel, state: targetState, isDisableOption = false} of
              stateOptions) {
       const stateEnabled = state.get(targetState);
       if ((stateEnabled && !isDisableOption) ||
           (!stateEnabled && isDisableOption)) {
-        element.setAttribute('i18n-aria', ariaLabel);
+        ariaDescribedByElement.setAttribute('i18n-text', ariaLabel);
+        util.setupI18nElements(ariaDescribedByElement);
         break;
       }
     }
@@ -113,8 +116,10 @@ export class Options implements CameraUI {
       },
     ];
     const titleLabel = I18nString.OPEN_MIRROR_PANEL_BUTTON;
+    const ariaDescribedByElement =
+        this.createAriaDescribedByElement(this.openMirrorPanel);
     this.setAriaLabelForOptionButton(
-        this.openMirrorPanel, titleLabel, stateOptions);
+        this.openMirrorPanel, titleLabel, stateOptions, ariaDescribedByElement);
     this.openMirrorPanel.addEventListener('click', () => {
       nav.open(ViewName.OPTION_PANEL, new OptionPanelOptions({
                  triggerButton: this.openMirrorPanel,
@@ -125,6 +130,7 @@ export class Options implements CameraUI {
                    state.set(state.State.MIRROR, enabled);
                    this.saveMirroring(enabled);
                  },
+                 ariaDescribedByElement,
                }));
     });
   }
@@ -154,8 +160,10 @@ export class Options implements CameraUI {
       },
     ];
     const titleLabel = I18nString.OPEN_GRID_PANEL_BUTTON;
+    const ariaDescribedByElement =
+        this.createAriaDescribedByElement(this.openGridPanel);
     this.setAriaLabelForOptionButton(
-        this.openGridPanel, titleLabel, stateOptions);
+        this.openGridPanel, titleLabel, stateOptions, ariaDescribedByElement);
     this.openGridPanel.addEventListener('click', () => {
       nav.open(ViewName.OPTION_PANEL, new OptionPanelOptions({
                  triggerButton: this.openGridPanel,
@@ -169,6 +177,7 @@ export class Options implements CameraUI {
                      state.set(s, newState === s);
                    }
                  },
+                 ariaDescribedByElement,
                }));
     });
   }
@@ -193,8 +202,10 @@ export class Options implements CameraUI {
       },
     ];
     const titleLabel = I18nString.OPEN_TIMER_PANEL_BUTTON;
+    const ariaDescribedByElement =
+        this.createAriaDescribedByElement(this.openTimerPanel);
     this.setAriaLabelForOptionButton(
-        this.openTimerPanel, titleLabel, stateOptions);
+        this.openTimerPanel, titleLabel, stateOptions, ariaDescribedByElement);
     this.openTimerPanel.addEventListener('click', () => {
       nav.open(
           ViewName.OPTION_PANEL, new OptionPanelOptions({
@@ -208,17 +219,16 @@ export class Options implements CameraUI {
                 state.set(s, newState === s);
               }
             },
+            ariaDescribedByElement,
           }));
     });
   }
 
-  private initOpenPTZPanel() {
+  private initOpenPtzPanel() {
     this.openPTZPanel.addEventListener('click', () => {
-      nav.open(ViewName.PTZ_PANEL, new PTZPanelOptions({
-                 stream: this.cameraManager.getPreviewVideo().getStream(),
-                 vidPid: this.cameraManager.getVidPid(),
-                 resetPTZ: () => this.cameraManager.resetPTZ(),
-               }));
+      nav.open(
+          ViewName.PTZ_PANEL,
+          new PtzPanelOptions(this.cameraManager.getPtzController()));
     });
   }
 
@@ -309,8 +319,23 @@ export class Options implements CameraUI {
    * option.
    */
   private updateAudioByMic() {
-    if (this.audioTrack) {
+    if (this.audioTrack !== null) {
       this.audioTrack.enabled = state.get(state.State.MIC);
     }
+  }
+
+  /**
+   * Creates an element as `triggerButton`'s aria-describedby reference. The id
+   * of the created element is the ID of `triggerButton` with the suffix
+   * "-desc".
+   */
+  private createAriaDescribedByElement(triggerButton: HTMLElement) {
+    const element = document.createElement('div');
+    const parent = assertExists(triggerButton.parentElement);
+    element.id = `${triggerButton.id}-desc`;
+    element.hidden = true;
+    parent.insertBefore(element, triggerButton);
+    triggerButton.setAttribute('aria-describedby', element.id);
+    return element;
   }
 }

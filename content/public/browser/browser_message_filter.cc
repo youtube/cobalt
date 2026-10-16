@@ -6,6 +6,7 @@
 
 #include "base/check_op.h"
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -108,26 +109,16 @@ class BrowserMessageFilter::Internal : public IPC::MessageFilter {
   scoped_refptr<BrowserMessageFilter> filter_;
 };
 
-BrowserMessageFilter::BrowserMessageFilter() = default;
-
 BrowserMessageFilter::BrowserMessageFilter(uint32_t message_class_to_filter)
     : message_classes_to_filter_(1, message_class_to_filter) {}
 
 BrowserMessageFilter::BrowserMessageFilter(
     const uint32_t* message_classes_to_filter,
     size_t num_message_classes_to_filter)
-    : message_classes_to_filter_(
-          message_classes_to_filter,
-          message_classes_to_filter + num_message_classes_to_filter) {
+    : message_classes_to_filter_(message_classes_to_filter,
+                                 UNSAFE_TODO(message_classes_to_filter +
+                                             num_message_classes_to_filter)) {
   DCHECK(num_message_classes_to_filter);
-}
-
-void BrowserMessageFilter::AddAssociatedInterface(
-    const std::string& name,
-    const IPC::ChannelProxy::GenericAssociatedInterfaceFactory& factory,
-    base::OnceClosure filter_removed_callback) {
-  associated_interfaces_.emplace_back(name, factory);
-  filter_removed_callbacks_.emplace_back(std::move(filter_removed_callback));
 }
 
 base::ProcessHandle BrowserMessageFilter::PeerHandle() {
@@ -175,7 +166,7 @@ void BrowserMessageFilter::ShutdownForBadMessage() {
 
   if (base::Process::Current().Handle() == peer_process_.Handle()) {
     // Just crash in single process. Matches RenderProcessHostImpl behavior.
-    CHECK(false);
+    NOTREACHED();
   }
 
   ChildProcessLauncher::TerminateProcess(
@@ -194,13 +185,6 @@ IPC::MessageFilter* BrowserMessageFilter::GetFilter() {
   DCHECK(!internal_) << "Should only be called once.";
   internal_ = new Internal(this);
   return internal_;
-}
-
-void BrowserMessageFilter::RegisterAssociatedInterfaces(
-    IPC::ChannelProxy* proxy) {
-  for (const auto& entry : associated_interfaces_)
-    proxy->AddGenericAssociatedInterfaceForIOThread(entry.first, entry.second);
-  associated_interfaces_.clear();
 }
 
 }  // namespace content

@@ -4,8 +4,8 @@
 
 #include "chrome/browser/ash/system_web_apps/test_support/system_web_app_browsertest_base.h"
 
-#include "base/ranges/algorithm.h"
-#include "build/chromeos_buildflags.h"
+#include <algorithm>
+
 #include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -52,7 +53,7 @@ void SystemWebAppBrowserTestBase::WaitForTestSystemAppInstall() {
 
 apps::AppLaunchParams SystemWebAppBrowserTestBase::LaunchParamsForApp(
     SystemWebAppType system_app_type) {
-  absl::optional<web_app::AppId> app_id =
+  std::optional<webapps::AppId> app_id =
       GetManager().GetAppIdForSystemApp(system_app_type);
 
   CHECK(app_id.has_value());
@@ -94,9 +95,8 @@ content::WebContents* SystemWebAppBrowserTestBase::LaunchApp(
   }
 
   if (out_browser) {
-    *out_browser = web_contents
-                       ? chrome::FindBrowserWithWebContents(web_contents)
-                       : nullptr;
+    *out_browser =
+        web_contents ? chrome::FindBrowserWithTab(web_contents) : nullptr;
   }
 
   return web_contents;
@@ -147,7 +147,7 @@ GURL SystemWebAppBrowserTestBase::GetStartUrl() {
 size_t SystemWebAppBrowserTestBase::GetSystemWebAppBrowserCount(
     SystemWebAppType type) {
   auto* browser_list = BrowserList::GetInstance();
-  return base::ranges::count_if(*browser_list, [&](Browser* browser) {
+  return std::ranges::count_if(*browser_list, [&](Browser* browser) {
     return ash::IsBrowserForSystemWebApp(browser, type);
   });
 }

@@ -5,6 +5,7 @@
 #ifndef CONTENT_BROWSER_RENDERER_HOST_PAGE_LIFECYCLE_STATE_MANAGER_H_
 #define CONTENT_BROWSER_RENDERER_HOST_PAGE_LIFECYCLE_STATE_MANAGER_H_
 
+#include "base/feature_list.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -18,6 +19,10 @@
 namespace content {
 
 class RenderViewHostImpl;
+
+// Enables the fix for a bug that prevents caching of pages for the second time.
+// TODO(https://crbug.com/360183659): Remove this after measuring the impact.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kBackForwardCacheNonStickyDoubleFix);
 
 // A class responsible for managing the main lifecycle state of the
 // `blink::Page` and communicating in to the `blink::WebView`. 1:1 with
@@ -100,9 +105,11 @@ class CONTENT_EXPORT PageLifecycleStateManager {
   // This represents the frozen state set by |SetIsFrozen|, which corresponds to
   // WebContents::SetPageFrozen.  Effective frozen state, i.e. per-page frozen
   // state is computed based on |is_in_back_forward_cache_| and
-  // |is_set_frozen_called_|.
-  bool is_set_frozen_called_ = false;
+  // |frozen_explicitly_|.
+  bool frozen_explicitly_ = false;
 
+  // TODO(https://crrev.com/c/6088660): Combine this and
+  // `did_receive_back_forward_cache_ack_` into a 3-state enum.
   bool is_in_back_forward_cache_ = false;
   bool eviction_enabled_ = false;
 
@@ -121,7 +128,7 @@ class CONTENT_EXPORT PageLifecycleStateManager {
   const raw_ptr<RenderViewHostImpl> render_view_host_impl_;
 
   // This is the per-page state computed based on web contents / tab lifecycle
-  // states, i.e. |is_set_frozen_called_|, |is_in_back_forward_cache_| and
+  // states, i.e. |frozen_explicitly_|, |is_in_back_forward_cache_| and
   // |frame_tree_visibility_|.
   blink::mojom::PageLifecycleStatePtr last_acknowledged_state_;
 

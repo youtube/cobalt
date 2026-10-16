@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -16,7 +17,6 @@
 #include "chrome/browser/ash/cert_provisioning/cert_provisioning_client.h"
 #include "chrome/browser/ash/cert_provisioning/cert_provisioning_common.h"
 #include "components/policy/proto/device_management_backend.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class Profile;
 class PrefService;
@@ -29,7 +29,8 @@ class CertProvisioningInvalidator;
 // A OnceCallback that is invoked when the CertProvisioningWorker is done and
 // has a result (which could be success or failure).
 using CertProvisioningWorkerCallback =
-    base::OnceCallback<void(const CertProfile& profile,
+    base::OnceCallback<void(CertProfile profile,
+                            std::string process_id,
                             CertProvisioningWorkerState state)>;
 
 class CertProvisioningWorker;
@@ -51,6 +52,7 @@ class CertProvisioningWorkerFactory {
   static CertProvisioningWorkerFactory* Get();
 
   virtual std::unique_ptr<CertProvisioningWorker> Create(
+      std::string process_id,
       CertScope cert_scope,
       Profile* profile,
       PrefService* pref_service,
@@ -95,9 +97,16 @@ class CertProvisioningWorker {
   virtual void Stop(CertProvisioningWorkerState state) = 0;
   // Make worker pause all activity and wait for DoStep.
   virtual void Pause() = 0;
+  // Mark worker that it is undergoing a reset process.
+  virtual void MarkWorkerForReset() = 0;
   // Returns true, if the worker is waiting for some future event. |DoStep| can
   // be called to try continue right now.
   virtual bool IsWaiting() const = 0;
+  // Returns true if the worker is to be recreated due to a user-initiated
+  // "reset" action.
+  virtual bool IsWorkerMarkedForReset() const = 0;
+  // Returns the certificate provisioning process id.
+  virtual const std::string& GetProcessId() const = 0;
   // Returns CertProfile that this worker is working on.
   virtual const CertProfile& GetCertProfile() const = 0;
   // Returns public key or an empty string if the key is not created yet.
@@ -110,11 +119,12 @@ class CertProvisioningWorker {
   // Returns the time when this worker has been last updated.
   virtual base::Time GetLastUpdateTime() const = 0;
   // Return the info of when this worker has last faced an unsuccessful attempt.
-  virtual const absl::optional<BackendServerError>& GetLastBackendServerError()
+  virtual const std::optional<BackendServerError>& GetLastBackendServerError()
       const = 0;
   // Return a message describing the reason for failure when the worker fails.
-  // In case the worker did not fail, the message is empty.
-  virtual const std::string& GetFailureMessage() const = 0;
+  // In case the worker did not fail, the message is empty. It can be shown in
+  // the UI, but should not be logged.
+  virtual std::string GetFailureMessageWithPii() const = 0;
 };
 
 }  // namespace cert_provisioning

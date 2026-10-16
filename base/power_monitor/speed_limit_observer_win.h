@@ -7,7 +7,7 @@
 
 #include "base/base_export.h"
 #include "base/functional/callback.h"
-#include "base/power_monitor/moving_average.h"
+#include "base/moving_window.h"
 #include "base/power_monitor/power_observer.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -34,9 +34,9 @@ class BASE_EXPORT SpeedLimitObserverWin final {
   ~SpeedLimitObserverWin();
 
  private:
-  int GetCurrentSpeedLimit();
+  int GetCurrentSpeedLimit() const;
   void OnTimerTick();
-  float EstimateThrottlingLevel();
+  float EstimateThrottlingLevel() const;
 
   size_t num_cpus() const { return num_cpus_; }
 
@@ -54,7 +54,7 @@ class BASE_EXPORT SpeedLimitObserverWin final {
   // sample rate is one sample per seconds but the existing choice is rather
   // ad-hoc and not based on any deeper analysis into exact frequency
   // characteristics of the underlying process.
-  MovingAverage moving_average_;
+  mutable MovingAverage<int, int64_t> moving_average_;
   // Max speed-limit value is 100 (%) and it is also used in cases where the
   // native Windows API(s) fail.
   int speed_limit_ = PowerThermalObserver::kSpeedLimitMax;

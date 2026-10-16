@@ -1,0 +1,24 @@
+[
+  {
+    "can_be_recommended": true,
+    "os": [
+      "win",
+      "linux",
+      "mac",
+      "chromeos",
+      "fuchsia"
+    ],
+    "policy_pref_mapping_tests": [
+      {
+        "policies": {
+          "ShowFullUrlsInAddressBar": true
+        },
+        "prefs": {
+          "omnibox.prevent_url_elisions": {
+            "value": true
+          }
+        }
+      }
+    ]
+  }
+]

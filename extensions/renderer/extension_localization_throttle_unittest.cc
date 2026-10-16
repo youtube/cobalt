@@ -4,6 +4,8 @@
 
 #include "extensions/renderer/extension_localization_throttle.h"
 
+#include <string_view>
+
 #include "base/test/task_environment.h"
 #include "extensions/renderer/shared_l10n_map.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -21,12 +23,6 @@ namespace {
 
 class FakeURLLoader final : public network::mojom::URLLoader {
  public:
-  enum class Status {
-    kInitial,
-    kPauseReading,
-    kResumeReading,
-  };
-
   explicit FakeURLLoader(
       mojo::PendingReceiver<network::mojom::URLLoader> url_loader_receiver)
       : receiver_(this, std::move(url_loader_receiver)) {}
@@ -40,24 +36,18 @@ class FakeURLLoader final : public network::mojom::URLLoader {
       const std::vector<std::string>& removed_headers,
       const net::HttpRequestHeaders& modified_headers,
       const net::HttpRequestHeaders& modified_cors_exempt_headers,
-      const absl::optional<GURL>& new_url) override {
+      const std::optional<GURL>& new_url) override {
     NOTREACHED();
   }
   void SetPriority(net::RequestPriority priority,
                    int32_t intra_priority_value) override {
     set_priority_called_ = true;
   }
-  void PauseReadingBodyFromNet() override { status_ = Status::kPauseReading; }
-  void ResumeReadingBodyFromNet() override { status_ = Status::kResumeReading; }
 
   bool set_priority_called() const { return set_priority_called_; }
 
-  Status status() const { return status_; }
-
  private:
   bool set_priority_called_ = false;
-
-  Status status_ = Status::kInitial;
 
   mojo::Receiver<network::mojom::URLLoader> receiver_;
 };
@@ -66,20 +56,17 @@ class FakeDelegate : public blink::URLLoaderThrottle::Delegate {
  public:
   // Implements blink::URLLoaderThrottle::Delegate.
   void CancelWithError(int error_code,
-                       base::StringPiece custom_reason) override {
+                       std::string_view custom_reason) override {
     cancel_error_code_ = error_code;
     cancel_custom_reason_ = std::string(custom_reason);
   }
   void Resume() override { NOTREACHED(); }
 
-  void SetPriority(net::RequestPriority priority) override { NOTREACHED(); }
   void UpdateDeferredResponseHead(
       network::mojom::URLResponseHeadPtr new_response_head,
       mojo::ScopedDataPipeConsumerHandle body) override {
     NOTREACHED();
   }
-  void PauseReadingBodyFromNet() override { NOTREACHED(); }
-  void ResumeReadingBodyFromNet() override { NOTREACHED(); }
   void InterceptResponse(
       mojo::PendingRemote<network::mojom::URLLoader> new_loader,
       mojo::PendingReceiver<network::mojom::URLLoaderClient>
@@ -111,7 +98,7 @@ class FakeDelegate : public blink::URLLoaderThrottle::Delegate {
 
     destination_loader_client()->OnReceiveResponse(
         network::mojom::URLResponseHead::New(), std::move(consumer_handle),
-        absl::nullopt);
+        std::nullopt);
   }
 
   void LoadResponseBody(const std::string& body) {
@@ -125,10 +112,10 @@ class FakeDelegate : public blink::URLLoaderThrottle::Delegate {
   }
 
   bool is_intercepted() const { return is_intercepted_; }
-  const absl::optional<int>& cancel_error_code() const {
+  const std::optional<int>& cancel_error_code() const {
     return cancel_error_code_;
   }
-  const absl::optional<std::string>& cancel_custom_reason() const {
+  const std::optional<std::string>& cancel_custom_reason() const {
     return cancel_custom_reason_;
   }
 
@@ -152,8 +139,8 @@ class FakeDelegate : public blink::URLLoaderThrottle::Delegate {
 
  private:
   bool is_intercepted_ = false;
-  absl::optional<int> cancel_error_code_;
-  absl::optional<std::string> cancel_custom_reason_;
+  std::optional<int> cancel_error_code_;
+  std::optional<std::string> cancel_custom_reason_;
 
   //  The chain of mojom::URLLoaderClient:
   //    [Blink side]
@@ -196,15 +183,15 @@ class ExtensionLocalizationThrottleTest : public testing::Test {
 
 TEST_F(ExtensionLocalizationThrottleTest, DoNotCreate) {
   EXPECT_FALSE(ExtensionLocalizationThrottle::MaybeCreate(
-      blink::WebURL(GURL("https://example.com/test.css"))));
+      std::nullopt, blink::WebURL(GURL("https://example.com/test.css"))));
   EXPECT_FALSE(ExtensionLocalizationThrottle::MaybeCreate(
-      blink::WebURL(GURL("http://example.com/test.css"))));
+      std::nullopt, blink::WebURL(GURL("http://example.com/test.css"))));
 }
 
 TEST_F(ExtensionLocalizationThrottleTest, DoNotIntercept) {
   const GURL url("chrome-extension://some_id/test.txt");
-  auto throttle =
-      ExtensionLocalizationThrottle::MaybeCreate(blink::WebURL(url));
+  auto throttle = ExtensionLocalizationThrottle::MaybeCreate(
+      std::nullopt, blink::WebURL(url));
   ASSERT_TRUE(throttle);
   auto delegate = std::make_unique<FakeDelegate>();
   throttle->set_delegate(delegate.get());
@@ -219,8 +206,8 @@ TEST_F(ExtensionLocalizationThrottleTest, DoNotIntercept) {
 
 TEST_F(ExtensionLocalizationThrottleTest, OneMessage) {
   const GURL url("chrome-extension://some_id/test.css");
-  auto throttle =
-      ExtensionLocalizationThrottle::MaybeCreate(blink::WebURL(url));
+  auto throttle = ExtensionLocalizationThrottle::MaybeCreate(
+      std::nullopt, blink::WebURL(url));
   ASSERT_TRUE(throttle);
 
   auto delegate = std::make_unique<FakeDelegate>();
@@ -248,8 +235,8 @@ TEST_F(ExtensionLocalizationThrottleTest, OneMessage) {
 
 TEST_F(ExtensionLocalizationThrottleTest, TwoMessages) {
   const GURL url("chrome-extension://some_id/test.css");
-  auto throttle =
-      ExtensionLocalizationThrottle::MaybeCreate(blink::WebURL(url));
+  auto throttle = ExtensionLocalizationThrottle::MaybeCreate(
+      std::nullopt, blink::WebURL(url));
   ASSERT_TRUE(throttle);
 
   auto delegate = std::make_unique<FakeDelegate>();
@@ -280,8 +267,8 @@ TEST_F(ExtensionLocalizationThrottleTest, TwoMessages) {
 
 TEST_F(ExtensionLocalizationThrottleTest, EmptyData) {
   const GURL url("chrome-extension://some_id/test.css");
-  auto throttle =
-      ExtensionLocalizationThrottle::MaybeCreate(blink::WebURL(url));
+  auto throttle = ExtensionLocalizationThrottle::MaybeCreate(
+      std::nullopt, blink::WebURL(url));
   ASSERT_TRUE(throttle);
 
   auto delegate = std::make_unique<FakeDelegate>();
@@ -309,8 +296,8 @@ TEST_F(ExtensionLocalizationThrottleTest, EmptyData) {
 // Regression test for https://crbug.com/1475798
 TEST_F(ExtensionLocalizationThrottleTest, Cancel) {
   const GURL url("chrome-extension://some_id/test.css");
-  auto throttle =
-      ExtensionLocalizationThrottle::MaybeCreate(blink::WebURL(url));
+  auto throttle = ExtensionLocalizationThrottle::MaybeCreate(
+      std::nullopt, blink::WebURL(url));
   ASSERT_TRUE(throttle);
 
   auto delegate = std::make_unique<FakeDelegate>();
@@ -339,8 +326,8 @@ TEST_F(ExtensionLocalizationThrottleTest, Cancel) {
 
 TEST_F(ExtensionLocalizationThrottleTest, SourceSideError) {
   const GURL url("chrome-extension://some_id/test.css");
-  auto throttle =
-      ExtensionLocalizationThrottle::MaybeCreate(blink::WebURL(url));
+  auto throttle = ExtensionLocalizationThrottle::MaybeCreate(
+      std::nullopt, blink::WebURL(url));
   ASSERT_TRUE(throttle);
 
   auto delegate = std::make_unique<FakeDelegate>();
@@ -372,8 +359,8 @@ TEST_F(ExtensionLocalizationThrottleTest, SourceSideError) {
 
 TEST_F(ExtensionLocalizationThrottleTest, WriteError) {
   const GURL url("chrome-extension://some_id/test.css");
-  auto throttle =
-      ExtensionLocalizationThrottle::MaybeCreate(blink::WebURL(url));
+  auto throttle = ExtensionLocalizationThrottle::MaybeCreate(
+      std::nullopt, blink::WebURL(url));
   ASSERT_TRUE(throttle);
 
   auto delegate = std::make_unique<FakeDelegate>();
@@ -401,8 +388,8 @@ TEST_F(ExtensionLocalizationThrottleTest, WriteError) {
 
 TEST_F(ExtensionLocalizationThrottleTest, CreateDataPipeError) {
   const GURL url("chrome-extension://some_id/test.css");
-  auto throttle =
-      ExtensionLocalizationThrottle::MaybeCreate(blink::WebURL(url));
+  auto throttle = ExtensionLocalizationThrottle::MaybeCreate(
+      std::nullopt, blink::WebURL(url));
   ASSERT_TRUE(throttle);
   throttle->ForceCreateDataPipeErrorForTest();
 
@@ -428,8 +415,8 @@ TEST_F(ExtensionLocalizationThrottleTest, CreateDataPipeError) {
 
 TEST_F(ExtensionLocalizationThrottleTest, URLLoaderChain) {
   const GURL url("chrome-extension://some_id/test.css");
-  auto throttle =
-      ExtensionLocalizationThrottle::MaybeCreate(blink::WebURL(url));
+  auto throttle = ExtensionLocalizationThrottle::MaybeCreate(
+      std::nullopt, blink::WebURL(url));
   ASSERT_TRUE(throttle);
 
   auto delegate = std::make_unique<FakeDelegate>();
@@ -448,19 +435,10 @@ TEST_F(ExtensionLocalizationThrottleTest, URLLoaderChain) {
 
   ASSERT_TRUE(source_url_loader);
   EXPECT_FALSE(source_url_loader->set_priority_called());
-  EXPECT_EQ(FakeURLLoader::Status::kInitial, source_url_loader->status());
 
   destination_loader_remote->SetPriority(net::LOW, 1);
   task_environment_.RunUntilIdle();
   EXPECT_TRUE(source_url_loader->set_priority_called());
-
-  destination_loader_remote->PauseReadingBodyFromNet();
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(FakeURLLoader::Status::kPauseReading, source_url_loader->status());
-
-  destination_loader_remote->ResumeReadingBodyFromNet();
-  task_environment_.RunUntilIdle();
-  EXPECT_EQ(FakeURLLoader::Status::kResumeReading, source_url_loader->status());
 
   delegate->LoadResponseBody("__MSG_hello__!");
   delegate->CompleteResponse();
@@ -479,8 +457,8 @@ TEST_F(ExtensionLocalizationThrottleTest, URLLoaderChain) {
 TEST_F(ExtensionLocalizationThrottleTest,
        URLLoaderClientOnTransferSizeUpdated) {
   const GURL url("chrome-extension://some_id/test.css");
-  auto throttle =
-      ExtensionLocalizationThrottle::MaybeCreate(blink::WebURL(url));
+  auto throttle = ExtensionLocalizationThrottle::MaybeCreate(
+      std::nullopt, blink::WebURL(url));
   ASSERT_TRUE(throttle);
 
   auto delegate = std::make_unique<FakeDelegate>();

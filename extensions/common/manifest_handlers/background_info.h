@@ -5,12 +5,12 @@
 #ifndef EXTENSIONS_COMMON_MANIFEST_HANDLERS_BACKGROUND_INFO_H_
 #define EXTENSIONS_COMMON_MANIFEST_HANDLERS_BACKGROUND_INFO_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest_handler.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace extensions {
@@ -58,10 +58,10 @@ class BackgroundInfo : public Extension::ManifestData {
     return has_background_page() && !is_persistent_;
   }
 
-  bool Parse(const Extension* extension, std::u16string* error);
+  bool Parse(Extension* extension, std::u16string* error);
 
  private:
-  bool LoadBackgroundScripts(const Extension* extension,
+  bool LoadBackgroundScripts(Extension* extension,
                              const std::string& key,
                              std::u16string* error);
   bool LoadBackgroundPage(const Extension* extension,
@@ -83,10 +83,10 @@ class BackgroundInfo : public Extension::ManifestData {
   std::vector<std::string> background_scripts_;
 
   // Optional service worker based background script.
-  absl::optional<std::string> background_service_worker_script_;
+  std::optional<std::string> background_service_worker_script_;
 
   // Optional service worker based background type.
-  absl::optional<BackgroundServiceWorkerType> background_service_worker_type_;
+  std::optional<BackgroundServiceWorkerType> background_service_worker_type_;
 
   // True if the background page should stay loaded forever; false if it should
   // load on-demand (when it needs to handle an event). Defaults to true.

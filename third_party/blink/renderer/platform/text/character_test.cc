@@ -4,8 +4,16 @@
 
 #include "third_party/blink/renderer/platform/text/character.h"
 
+#include <ubidi_props.h>
+#include <unicode/uscript.h>
+#include <unicode/utypes.h>
+
+#include "base/containers/contains.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/renderer/platform/text/emoji_segmentation_category.h"
+#include "third_party/blink/renderer/platform/text/emoji_segmentation_category_inline_header.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 namespace blink {
 
@@ -23,10 +31,44 @@ testing::AssertionResult IsCJKIdeographOrSymbolWithMessage(UChar32 codepoint) {
                                      << " is not a CJKIdeographOrSymbol.";
 }
 
-TEST(CharacterTest, HammerEmojiVsCJKIdeographOrSymbol) {
-  for (UChar32 test_char = 0; test_char < kMaxCodepoint; test_char++) {
-    if (Character::IsEmojiEmojiDefault(test_char)) {
-      EXPECT_TRUE(IsCJKIdeographOrSymbolWithMessage(test_char));
+// Test Unicode-derived functions work as intended.
+// These functions may need to be adjusted if Unicode changes.
+TEST(CharacterTest, Derived) {
+  StringBuilder builder;
+  for (UChar32 ch = 0; ch < kMaxCodepoint; ++ch) {
+    if (Character::IsEmojiEmojiDefault(ch)) {
+      EXPECT_TRUE(IsCJKIdeographOrSymbolWithMessage(ch));
+    }
+
+    const UBlockCode block = ublock_getCode(ch);
+    EXPECT_EQ(Character::IsBlockCjkSymbolsAndPunctuation(ch),
+              block == UBLOCK_CJK_SYMBOLS_AND_PUNCTUATION);
+    EXPECT_EQ(Character::IsBlockHalfwidthAndFullwidthForms(ch),
+              block == UBLOCK_HALFWIDTH_AND_FULLWIDTH_FORMS);
+
+    const UEastAsianWidth eaw = Character::EastAsianWidth(ch);
+    EXPECT_EQ(Character::IsEastAsianWidthFullwidth(ch),
+              eaw == UEastAsianWidth::U_EA_FULLWIDTH);
+
+    if (!Character::MayNeedEastAsianSpacing(ch)) {
+      EastAsianSpacingType type = Character::GetEastAsianSpacingType(ch);
+      DCHECK_NE(type, EastAsianSpacingType::kWide);
+    }
+
+    if (!Character::MaybeHanKerningOpenOrCloseFast(ch)) {
+      DCHECK(!Character::MaybeHanKerningOpenSlow(ch));
+      DCHECK(!Character::MaybeHanKerningCloseSlow(ch));
+    }
+
+    // Test UTF-16 functions.
+    const UCharDirection bidi = ubidi_getClass(ch);
+    if (bidi == UCharDirection::U_RIGHT_TO_LEFT ||
+        bidi == UCharDirection::U_RIGHT_TO_LEFT_ARABIC ||
+        Character::IsBidiControl(ch)) {
+      builder.Clear();
+      builder.Append(ch);
+      const String utf16 = builder.ToString();
+      DCHECK(Character::MaybeBidiRtl(utf16));
     }
   }
 }
@@ -224,6 +266,30 @@ TEST(CharacterTest, TestIsCJKIdeographOrSymbol) {
   TestSpecificUChar32RangeIdeographSymbol(0x1F150, 0x1F169);
   TestSpecificUChar32RangeIdeographSymbol(0x1F170, 0x1F189);
   TestSpecificUChar32RangeIdeographSymbol(0x1F1E6, 0x1F6FF);
+}
+
+TEST(CharacterTest, HanKerning) {
+  struct Data {
+    UChar32 ch;
+    HanKerningCharType type;
+  } data_list[] = {
+      {kLeftDoubleQuotationMarkCharacter, HanKerningCharType::kOpenQuote},
+      {kRightDoubleQuotationMarkCharacter, HanKerningCharType::kCloseQuote},
+      {kMiddleDotCharacter, HanKerningCharType::kMiddle},
+      {kIdeographicSpaceCharacter, HanKerningCharType::kMiddle},
+      {kFullwidthComma, HanKerningCharType::kDot},
+      {0x3008, HanKerningCharType::kOpen},
+      {0xFF5F, HanKerningCharType::kOpen},
+      {0x3009, HanKerningCharType::kClose},
+      {0xFF60, HanKerningCharType::kClose},
+      {0x0028, HanKerningCharType::kOpenNarrow},
+      {0xFF62, HanKerningCharType::kOpenNarrow},
+      {0x0029, HanKerningCharType::kCloseNarrow},
+      {0xFF63, HanKerningCharType::kCloseNarrow},
+  };
+  for (const Data& data : data_list) {
+    EXPECT_EQ(Character::GetHanKerningCharType(data.ch), data.type);
+  }
 }
 
 TEST(CharacterTest, CanTextDecorationSkipInk) {
@@ -433,11 +499,11 @@ TEST(CharacterTest, IsVerticalMathCharacter) {
     } else if (test_char == kArabicMathematicalOperatorHahWithDal) {
       EXPECT_FALSE(Character::IsVerticalMathCharacter(test_char));
     } else {
-      bool in_vertical =
-          !std::binary_search(stretchy_operator_with_inline_axis,
-                              stretchy_operator_with_inline_axis +
-                                  std::size(stretchy_operator_with_inline_axis),
-                              test_char);
+      bool in_vertical = !std::binary_search(
+          stretchy_operator_with_inline_axis,
+          UNSAFE_TODO(stretchy_operator_with_inline_axis +
+                      std::size(stretchy_operator_with_inline_axis)),
+          test_char);
       EXPECT_TRUE(Character::IsVerticalMathCharacter(test_char) == in_vertical);
     }
   }
@@ -465,6 +531,211 @@ TEST(CharacterTest, EmojiComponents) {
 
   for (auto true_test : true_set)
     EXPECT_TRUE(Character::IsEmojiComponent(true_test));
+}
+
+// Ensure that the iterator forwarding in SymbolsIterator is not
+// skipping any other categories that would be computed for the same cursor
+// position and codepoint.
+TEST(CharacterTest, MaybeEmojiPresentationNoIllegalShortcut) {
+  for (UChar32 ch = 0; ch < kMaxCodepoint; ++ch) {
+    const EmojiSegmentationCategory emoji = GetEmojiSegmentationCategory(ch);
+    if (IsEmojiPresentationCategory(emoji)) {
+      EXPECT_TRUE(Character::MaybeEmojiPresentation(ch));
+    }
+    if (!Character::MaybeEmojiPresentation(ch)) {
+      EXPECT_FALSE(IsEmojiPresentationCategory(emoji));
+    }
+  }
+}
+
+TEST(CharacterTest, TestIsStandardizedVariationSequence) {
+  EXPECT_TRUE(Character::IsStandardizedVariationSequence(0x2293, 0xfe00));
+  EXPECT_TRUE(Character::IsStandardizedVariationSequence(0x8279, 0xfe00));
+  EXPECT_TRUE(Character::IsStandardizedVariationSequence(0x8279, 0xfe01));
+  EXPECT_FALSE(Character::IsStandardizedVariationSequence(0x8279, 0xe0100));
+  EXPECT_FALSE(Character::IsStandardizedVariationSequence(0x8279, 0xfe03));
+}
+
+TEST(CharacterTest, TestIsEmojiVariationSequence) {
+  EXPECT_TRUE(Character::IsEmojiVariationSequence(0x1fae8, 0xfe0f));
+  EXPECT_TRUE(Character::IsEmojiVariationSequence(0x0030, 0xfe0e));
+  EXPECT_FALSE(Character::IsEmojiVariationSequence(0x1faf0, 0xfe00));
+  EXPECT_FALSE(Character::IsEmojiVariationSequence(0x0041, 0xfe0f));
+}
+
+TEST(CharacterTest, TestIsIdeographicVariationSequence) {
+  EXPECT_TRUE(Character::IsIdeographicVariationSequence(0x8279, 0xe0100));
+  EXPECT_TRUE(Character::IsIdeographicVariationSequence(0x8279, 0xe01ef));
+  EXPECT_TRUE(Character::IsIdeographicVariationSequence(0x9038, 0xe0101));
+  EXPECT_TRUE(Character::IsIdeographicVariationSequence(0x9038, 0xe01ef));
+  EXPECT_FALSE(Character::IsIdeographicVariationSequence(0x9038, 0xfe00));
+  EXPECT_FALSE(Character::IsIdeographicVariationSequence(0x0041, 0xe0100));
+}
+
+// The test data are sampled from the ground truth.
+TEST(CharacterTest, TestEastAsianSpacingPropertySampling) {
+  // MICRO SIGN
+  EXPECT_EQ(Character::GetEastAsianSpacingType(0x00B5),
+            EastAsianSpacingType::kNarrow);
+  // WAVY DASH
+  EXPECT_EQ(Character::GetEastAsianSpacingType(0x3030),
+            EastAsianSpacingType::kOther);
+  // KAWI DANDA
+  EXPECT_EQ(Character::GetEastAsianSpacingType(0x11F43),
+            EastAsianSpacingType::kConditional);
+  // KATAKANA LETTER SMALL KO
+  EXPECT_EQ(Character::GetEastAsianSpacingType(0x1B155),
+            EastAsianSpacingType::kWide);
+}
+
+namespace {
+
+// https://www.unicode.org/reports/tr59/#UTR59-D2.
+static std::vector<UScriptCode> east_asian_script_codes{
+    USCRIPT_BOPOMOFO, USCRIPT_HAN,      USCRIPT_HANGUL,
+    USCRIPT_HIRAGANA, USCRIPT_KATAKANA, USCRIPT_KHITAN_SMALL_SCRIPT,
+    USCRIPT_NUSHU,    USCRIPT_TANGUT,   USCRIPT_YI};
+
+// returns true if the script code is in the above list.
+bool IsEastAsianScript(const UScriptCode& script_code) {
+  return base::Contains(east_asian_script_codes, script_code);
+}
+
+// returns true if any of script_extension is in the above list.
+bool HasEastAsianScriptExtention(
+    const std::vector<UScriptCode>& script_extension) {
+  for (const UScriptCode& east_asian_script_extension_code :
+       east_asian_script_codes) {
+    if (base::Contains(script_extension, east_asian_script_extension_code)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool ShouldBeWidth(UChar32 test_char,
+                   UScriptCode script_code,
+                   UEastAsianWidth east_asian_width,
+                   const std::vector<UScriptCode>& script_extension) {
+  // Include the following code point: U+3013 GETA MARK
+  if (test_char == 0x3013) {
+    return true;
+  }
+  // Exclude if the East_Asian_Width property is “East Asian Halfwidth (H)”.
+  if (east_asian_width == UEastAsianWidth::U_EA_HALFWIDTH) {
+    return false;
+  }
+  // Exclude if the General_Category property is “Punctuation (P)” or
+  // “Other_Number (No)”.
+  const uint32_t gc_mask = U_GET_GC_MASK(test_char);
+  if (gc_mask & U_GC_P_MASK) {
+    return false;
+  }
+  if (gc_mask & U_GC_NO_MASK) {
+    return false;
+  }
+  // Exclude if the General_Category property is “Symbol (S)” except
+  // “Modifier_Symbol (Sk)”.
+  if ((gc_mask & U_GC_S_MASK) && !(gc_mask & U_GC_SK_MASK)) {
+    return false;
+  }
+  // Include if the Script property is one of the East Asian scripts.
+  // Include if the Script_Extensions property is one of the East Asian scripts,
+  // except when the East_Asian_Width property is “Neutral (N)” or “Narrow
+  // (Na)”.
+  return IsEastAsianScript(script_code) ||
+         (HasEastAsianScriptExtention(script_extension) &&
+          east_asian_width != UEastAsianWidth::U_EA_NEUTRAL &&
+          east_asian_width != UEastAsianWidth::U_EA_NARROW);
+}
+
+bool ShouldBeConditional(UChar32 test_char, UEastAsianWidth east_asian_width) {
+  // Exclude the following code points: U+0022 QUOTATION MARK U+0027 APOSTROPHE
+  // U+002A ASTERISK U+002F SOLIDUS U+00B7 MIDDLE DOT U+2020 DAGGER U+2021
+  // DOUBLE DAGGER U+2026 HORIZONTAL ELLIPSIS
+  static std::vector<UChar32> not_conditional{0x0022, 0x0027, 0x002A, 0x002F,
+                                              0x00B7, 0x2020, 0x2021, 0x2026};
+  if (base::Contains(not_conditional, test_char)) {
+    return false;
+  }
+  // Exclude if the East_Asian_Width property is “East Asian Fullwidth (F)”,
+  // “East Asian Halfwidth (H)”, or “East Asian Wide (W)”.
+  if (east_asian_width == UEastAsianWidth::U_EA_FULLWIDTH ||
+      east_asian_width == UEastAsianWidth::U_EA_HALFWIDTH ||
+      east_asian_width == UEastAsianWidth::U_EA_WIDE) {
+    return false;
+  }
+  // Include if the General_Category property is “Other_Punctuation (Po)”.
+  const uint32_t gc_mask = U_GET_GC_MASK(test_char);
+  return gc_mask & U_GC_PO_MASK;
+}
+
+bool ShouldBeNarrow(UChar32 test_char, UEastAsianWidth east_asian_width) {
+  // Exclude if the East_Asian_Width property is “East Asian Fullwidth (F)”,
+  // “East Asian Halfwidth (H)”, or “East Asian Wide (W)”.
+  if (east_asian_width == UEastAsianWidth::U_EA_FULLWIDTH ||
+      east_asian_width == UEastAsianWidth::U_EA_HALFWIDTH ||
+      east_asian_width == UEastAsianWidth::U_EA_WIDE) {
+    return false;
+  }
+  const uint32_t gc_mask = U_GET_GC_MASK(test_char);
+  // Exclude if the East_Asian_Width property is “East Asian Fullwidth (F)",
+  // “East Asian Halfwidth (H)”, or “East Asian Wide (W)”.
+  return (gc_mask & U_GC_L_MASK) || (gc_mask & U_GC_M_MASK) ||
+         (gc_mask & U_GC_ND_MASK);
+}
+
+}  // namespace
+
+// Check the property based on https://www.unicode.org/reports/tr59/#data.
+TEST(CharacterTest, TestEastAsianSpacingPropertyRule) {
+  for (UChar32 test_char = 0; test_char < kMaxCodepoint; test_char++) {
+    if (U_GC_CN_MASK & U_GET_GC_MASK(test_char)) {
+      continue;
+    }
+    UErrorCode error_code = U_ZERO_ERROR;
+    UScriptCode script = uscript_getScript(test_char, &error_code);
+    ASSERT_TRUE(U_SUCCESS(error_code));
+    std::vector<UScriptCode> script_list(32);
+    int32_t required_capacity = uscript_getScriptExtensions(
+        test_char, script_list.data(), script_list.size(), &error_code);
+    ASSERT_TRUE(U_SUCCESS(error_code))
+        << error_code << "\t" << required_capacity;
+    UEastAsianWidth east_asian_width = Character::EastAsianWidth(test_char);
+
+    switch (Character::GetEastAsianSpacingType(test_char)) {
+      case EastAsianSpacingType::kWide:
+        EXPECT_TRUE(
+            ShouldBeWidth(test_char, script, east_asian_width, script_list))
+            << test_char << "should not be Wide";
+        break;
+      case EastAsianSpacingType::kConditional:
+        EXPECT_FALSE(
+            ShouldBeWidth(test_char, script, east_asian_width, script_list))
+            << test_char << "should not be wide";
+        EXPECT_TRUE(ShouldBeConditional(test_char, east_asian_width))
+            << test_char << "should be conditional";
+        break;
+      case EastAsianSpacingType::kNarrow:
+        EXPECT_FALSE(
+            ShouldBeWidth(test_char, script, east_asian_width, script_list))
+            << test_char << "should not be wide";
+        EXPECT_FALSE(ShouldBeConditional(test_char, east_asian_width))
+            << test_char << "should not be conditional";
+        EXPECT_TRUE(ShouldBeNarrow(test_char, east_asian_width))
+            << test_char << "should be narrow";
+        break;
+      case EastAsianSpacingType::kOther:
+        ASSERT_FALSE(
+            ShouldBeWidth(test_char, script, east_asian_width, script_list))
+            << test_char << "should not be wide";
+        EXPECT_FALSE(ShouldBeConditional(test_char, east_asian_width))
+            << test_char << "should not be conditional";
+        EXPECT_FALSE(ShouldBeNarrow(test_char, east_asian_width))
+            << test_char << "should be narrow";
+        break;
+    }
+  }
 }
 
 }  // namespace blink

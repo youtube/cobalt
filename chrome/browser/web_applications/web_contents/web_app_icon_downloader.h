@@ -6,12 +6,13 @@
 #define CHROME_BROWSER_WEB_APPLICATIONS_WEB_CONTENTS_WEB_APP_ICON_DOWNLOADER_H_
 
 #include <map>
-#include <set>
+#include <tuple>
 #include <vector>
 
 #include "base/functional/callback.h"
-#include "base/gtest_prod_util.h"
 #include "base/memory/weak_ptr.h"
+#include "base/timer/timer.h"
+#include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_install_utils.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "third_party/blink/public/mojom/favicon/favicon_url.mojom.h"
@@ -42,32 +43,50 @@ class WebAppIconDownloader : public content::WebContentsObserver {
                               IconsMap icons_map,
                               DownloadedIconsHttpResults icons_http_results)>;
 
-  // |extra_favicon_urls| allows callers to provide icon urls that aren't
-  // provided by the renderer (e.g touch icons on non-android environments).
-  WebAppIconDownloader(content::WebContents* web_contents,
-                       base::flat_set<GURL> extra_favicon_urls,
-                       WebAppIconDownloaderCallback callback,
-                       IconDownloaderOptions options = IconDownloaderOptions());
+  // Exposed for testing.
+  static constexpr base::TimeDelta kDefaultSecondsToWaitForIconDownloading =
+      base::Seconds(30);
+
+  WebAppIconDownloader();
   WebAppIconDownloader(const WebAppIconDownloader&) = delete;
   WebAppIconDownloader& operator=(const WebAppIconDownloader&) = delete;
   ~WebAppIconDownloader() override;
 
-  void Start();
+  // |extra_icon_urls_with_sizes| allows callers to provide icon urls that
+  // aren't provided by the renderer (e.g touch icons on non-android
+  // environments).
+  virtual void Start(content::WebContents* web_contents,
+                     const IconUrlSizeSet& extra_icon_urls_with_sizes,
+                     WebAppIconDownloaderCallback callback,
+                     IconDownloaderOptions options = IconDownloaderOptions());
 
   size_t pending_requests() const { return in_progress_requests_.size(); }
 
  private:
+  // This is used for metrics, do not change values.
+  enum class WebAppIconDownloaderResult {
+    kSuccess = 0,
+    kPrimaryPageChanged = 1,
+    kFailure = 2,
+    kTimeoutFailure = 3,
+    kTimeoutWithPartialDownloadSuccess = 4,
+    kMaxValue = kTimeoutWithPartialDownloadSuccess
+  };
+
+  // Returns if this downloader is still 'running', where the callback hasn't
+  // been called yet.
+  bool IsRunning();
+
   // Initiates a download of the image at |url| and returns the download id.
-  int DownloadImage(const GURL& url);
+  int DownloadImage(const GURL& url, const gfx::Size& preferred_size);
 
   // Queries WebContents for the page's current favicon URLs.
   const std::vector<blink::mojom::FaviconURLPtr>&
   GetFaviconURLsFromWebContents();
 
-  // Fetches icons for the given urls.
+  // Fetches icons for the given urls with sizes.
   // |callback_| is run when all downloads complete.
-  void FetchIcons(const std::vector<blink::mojom::FaviconURLPtr>& favicon_urls);
-  void FetchIcons(const base::flat_set<GURL>& urls);
+  void FetchIcons(const IconUrlSizeSet& urls_to_download_with_size);
 
   // Icon download callback.
   void DidDownloadFavicon(int id,
@@ -82,16 +101,18 @@ class WebAppIconDownloader : public content::WebContentsObserver {
 
   void MaybeCompleteCallback();
   void CancelDownloads(IconsDownloadedResult result,
-                       DownloadedIconsHttpResults icons_http_results);
+                       DownloadedIconsHttpResults icons_http_results,
+                       WebAppIconDownloaderResult metrics_result);
 
-  // URLs that aren't given by WebContentsObserver::DidUpdateFaviconURL() that
-  // should be used for this favicon. This is necessary in order to get touch
-  // icons on non-android environments.
-  base::flat_set<GURL> extra_favicon_urls_;
+  // Used to abort icon downloading if the timer_ has elapsed 30 seconds
+  // (by default) and either exit with a failure based on:
+  // 1. if no icons have been downloaded.
+  // 2. fail_all_if_fail_any has been set as true.
+  // For other cases, it returns the icons that have been successfully
+  // downloaded so far, and reports HTTP_REQUEST_TIMEOUT for the rest.
+  void OnTimeout();
 
   IconDownloaderOptions options_;
-
-  bool starting_ = false;
 
   // The icons which were downloaded. Populated by FetchIcons().
   IconsMap icons_map_;
@@ -99,11 +120,15 @@ class WebAppIconDownloader : public content::WebContentsObserver {
   DownloadedIconsHttpResults icons_http_results_;
 
   // Request ids of in-progress requests.
-  std::set<int> in_progress_requests_;
+  bool populating_pending_requests_ = false;
+  std::map<int, IconUrlWithSize> in_progress_requests_;
 
   // Urls for which a download has already been initiated. Used to prevent
   // duplicate downloads of the same url.
-  std::set<GURL> processed_urls_;
+  IconUrlSizeSet processed_urls_;
+
+  // Timer used for the timeout result.
+  base::OneShotTimer timer_;
 
   // Callback to run on favicon download completion.
   WebAppIconDownloaderCallback callback_;

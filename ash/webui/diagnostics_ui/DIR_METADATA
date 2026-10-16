@@ -1,3 +1,1 @@
-monorail {
-  component: "OS>Systems>Diagnostics"
-}
+mixins: "//ash/webui/diagnostics_ui/COMMON_METADATA"

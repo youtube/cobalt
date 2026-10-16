@@ -13,9 +13,11 @@ interface ElementInternals {
   // Attributes and operations for form-associated custom elements.
   [RaisesException] void setFormValue(ControlValue? value, optional ControlValue? state);
 
-  [RaisesException] readonly attribute HTMLFormElement? form;
+  // Until ReferenceTarget is enabled, this will only ever return HTMLFormElement.
+  // https://github.com/whatwg/html/pull/10995
+  [RaisesException, ImplementedAs=formForBinding] readonly attribute HTMLElement? form;
 
-  [RaisesException] void setValidity(ValidityStateFlags flags, optional DOMString message, optional Element anchor);
+  [RaisesException] void setValidity(ValidityStateFlags flags, optional DOMString message, optional HTMLElement anchor);
   [RaisesException] readonly attribute boolean willValidate;
   [RaisesException] readonly attribute ValidityState validity;
   [RaisesException, ImplementedAs=ValidationMessageForBinding] readonly attribute DOMString validationMessage;

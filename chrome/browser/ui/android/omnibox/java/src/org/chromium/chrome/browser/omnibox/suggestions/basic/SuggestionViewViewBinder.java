@@ -11,21 +11,33 @@ import android.widget.TextView;
 
 import androidx.annotation.ColorInt;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
+import org.chromium.chrome.browser.omnibox.styles.SuggestionSpannable;
 import org.chromium.chrome.browser.omnibox.suggestions.SuggestionCommonProperties;
-import org.chromium.chrome.browser.omnibox.suggestions.base.SuggestionSpannable;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** Properties associated with the basic suggestion view. */
+@NullMarked
 public class SuggestionViewViewBinder {
-    /** @see PropertyModelChangeProcessor.ViewBinder#bind(Object, Object, Object) */
+    /**
+     * @see PropertyModelChangeProcessor.ViewBinder#bind(Object, Object, Object)
+     */
     public static void bind(PropertyModel model, View view, PropertyKey propertyKey) {
         if (propertyKey == SuggestionViewProperties.TEXT_LINE_1_TEXT) {
             TextView tv = view.findViewById(R.id.line_1);
             tv.setText(model.get(SuggestionViewProperties.TEXT_LINE_1_TEXT));
+            int minHeight =
+                    tv.getResources()
+                            .getDimensionPixelSize(
+                                    tv.getLineCount() > 1
+                                            ? R.dimen
+                                                    .omnibox_suggestion_minimum_content_height_multiline
+                                            : R.dimen.omnibox_suggestion_minimum_content_height);
+            view.setMinimumHeight(minHeight);
         } else if (propertyKey == SuggestionCommonProperties.COLOR_SCHEME) {
             updateSuggestionTextColor(view, model);
         } else if (propertyKey == SuggestionViewProperties.IS_SEARCH_SUGGESTION) {
@@ -67,10 +79,12 @@ public class SuggestionViewViewBinder {
                 OmniboxResourceProvider.getSuggestionPrimaryTextColor(context, brandedColorScheme);
         line1.setTextColor(color1);
 
-        final @ColorInt int color2 = isSearch
-                ? OmniboxResourceProvider.getSuggestionSecondaryTextColor(
-                        context, brandedColorScheme)
-                : OmniboxResourceProvider.getSuggestionUrlTextColor(context, brandedColorScheme);
+        final @ColorInt int color2 =
+                isSearch
+                        ? OmniboxResourceProvider.getSuggestionSecondaryTextColor(
+                                context, brandedColorScheme)
+                        : OmniboxResourceProvider.getSuggestionUrlTextColor(
+                                context, brandedColorScheme);
         line2.setTextColor(color2);
     }
 }

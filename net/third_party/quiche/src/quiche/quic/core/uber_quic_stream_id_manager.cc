@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/uber_quic_stream_id_manager.h"
 
+#include <string>
+
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_utils.h"
 
@@ -96,6 +98,16 @@ bool UberQuicStreamIdManager::IsAvailableStream(QuicStreamId id) const {
     return bidirectional_stream_id_manager_.IsAvailableStream(id);
   }
   return unidirectional_stream_id_manager_.IsAvailableStream(id);
+}
+
+void UberQuicStreamIdManager::StopIncreasingIncomingMaxStreams() {
+  unidirectional_stream_id_manager_.StopIncreasingIncomingMaxStreams();
+  bidirectional_stream_id_manager_.StopIncreasingIncomingMaxStreams();
+}
+
+void UberQuicStreamIdManager::MaybeSendMaxStreamsFrame() {
+  unidirectional_stream_id_manager_.MaybeSendMaxStreamsFrame();
+  bidirectional_stream_id_manager_.MaybeSendMaxStreamsFrame();
 }
 
 QuicStreamCount

@@ -23,7 +23,6 @@ struct VIEWS_EXPORT ChildLayout {
   // Note that comparison ignores available size; as two layouts with the same
   // geometry are the same even if the available size is different.
   bool operator==(const ChildLayout& other) const;
-  bool operator!=(const ChildLayout& other) const { return !(*this == other); }
 
   std::string ToString() const;
 
@@ -44,10 +43,12 @@ struct VIEWS_EXPORT ProposedLayout {
   ProposedLayout& operator=(const ProposedLayout& other);
   ProposedLayout& operator=(ProposedLayout&& other);
 
-  bool operator==(const ProposedLayout& other) const;
-  bool operator!=(const ProposedLayout& other) const {
-    return !(*this == other);
-  }
+  bool operator==(const ProposedLayout& other) const = default;
+
+  // Convenience methods to get the child layout for the specified `view`;
+  // return the layout or null if not found.
+  ChildLayout* GetLayoutFor(const View* child_view);
+  const ChildLayout* GetLayoutFor(const View* child_view) const;
 
   std::string ToString() const;
 

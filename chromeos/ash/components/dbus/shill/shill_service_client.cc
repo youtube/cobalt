@@ -53,7 +53,7 @@ void OnGetDictionaryError(
     LOG(ERROR) << log_string;
   }
 
-  std::move(callback).Run(absl::nullopt);
+  std::move(callback).Run(std::nullopt);
 }
 
 // The ShillServiceClient implementation.
@@ -330,7 +330,8 @@ class ShillServiceClientImpl : public ShillServiceClient {
   }
 
  private:
-  using HelperMap = std::map<std::string, ShillClientHelper*>;
+  using HelperMap =
+      std::map<std::string, raw_ptr<ShillClientHelper, CtnExperimental>>;
 
   // Returns the corresponding ShillClientHelper for the profile.
   ShillClientHelper* GetHelper(const dbus::ObjectPath& service_path) {
@@ -390,7 +391,7 @@ class ShillServiceClientImpl : public ShillServiceClient {
         std::move(callback));
   }
 
-  raw_ptr<dbus::Bus, ExperimentalAsh> bus_;
+  raw_ptr<dbus::Bus> bus_;
   HelperMap helpers_;
   base::WeakPtrFactory<ShillServiceClientImpl> weak_ptr_factory_{this};
 };

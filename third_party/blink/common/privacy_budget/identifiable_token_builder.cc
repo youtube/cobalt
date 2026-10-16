@@ -14,15 +14,6 @@
 
 namespace blink {
 
-namespace {
-
-// A big random prime. It's also the digest returned for an empty block.
-constexpr uint64_t kChainingValueSeed = UINT64_C(6544625333304541877);
-
-}  // namespace
-
-const size_t IdentifiableTokenBuilder::kBlockSizeInBytes;
-
 IdentifiableTokenBuilder::IdentifiableTokenBuilder()
     : chaining_value_(kChainingValueSeed) {
   // Ensures that BlockBuffer iterators are random-access on all platforms.
@@ -47,7 +38,7 @@ IdentifiableTokenBuilder::IdentifiableTokenBuilder(ByteSpan buffer)
 }
 
 IdentifiableTokenBuilder& IdentifiableTokenBuilder::AddBytes(ByteSpan message) {
-  DCHECK_NE(position_, partial_.end());
+  DCHECK(position_ != partial_.end());
   // Phase 1:
   //    Slurp in as much of the message as necessary if there's a partial block
   //    already assembled. Copying is expensive, so |partial_| is only involved
@@ -60,7 +51,7 @@ IdentifiableTokenBuilder& IdentifiableTokenBuilder::AddBytes(ByteSpan message) {
 
   // Phase 2:
   //    Consume as many full blocks as possible from |message|.
-  DCHECK_EQ(position_, partial_.begin());
+  DCHECK(position_ == partial_.begin());
   while (message.size() >= kBlockSizeInBytes) {
     DigestBlock(message.first<kBlockSizeInBytes>());
     message = message.subspan(kBlockSizeInBytes);
@@ -117,13 +108,13 @@ void IdentifiableTokenBuilder::AlignPartialBuffer() {
   if (position_ == partial_.end())
     DigestBlock(TakeCompletedBlock());
 
-  DCHECK_NE(position_, partial_.end());
+  DCHECK(position_ != partial_.end());
   DCHECK(IsAligned());
 }
 
 void IdentifiableTokenBuilder::DigestBlock(ConstFullBlockSpan block) {
   // partial_ should've been flushed before calling this.
-  DCHECK_EQ(position_, partial_.begin());
+  DCHECK(position_ == partial_.begin());
 
   // The chaining value (initialized with the initialization vector
   // kChainingValueSeed) is only used for diffusion. There's no length padding
@@ -133,7 +124,7 @@ void IdentifiableTokenBuilder::DigestBlock(ConstFullBlockSpan block) {
   // study has more-or-less accepted for some metrics and is dealt with during
   // the analysis phase.
   chaining_value_ =
-      base::legacy::CityHash64WithSeed(base::make_span(block), chaining_value_);
+      base::legacy::CityHash64WithSeed(base::span(block), chaining_value_);
 }
 
 size_t IdentifiableTokenBuilder::PartialSize() const {
@@ -143,8 +134,8 @@ size_t IdentifiableTokenBuilder::PartialSize() const {
 
 IdentifiableTokenBuilder::ConstFullBlockSpan
 IdentifiableTokenBuilder::TakeCompletedBlock() {
-  DCHECK_EQ(position_, partial_.end());
-  auto buffer = base::make_span(partial_);
+  DCHECK(position_ == partial_.end());
+  auto buffer = base::span(partial_);
   position_ = partial_.begin();
   return buffer;
 }
@@ -155,7 +146,7 @@ bool IdentifiableTokenBuilder::IsAligned() const {
 
 IdentifiableTokenBuilder::ByteSpan IdentifiableTokenBuilder::GetPartialBlock()
     const {
-  return ByteSpan(partial_.begin(), position_);
+  return ByteSpan(partial_).first(PartialSize());
 }
 
 }  // namespace blink

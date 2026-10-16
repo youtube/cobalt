@@ -5,7 +5,9 @@
 #include "chromeos/ash/components/attestation/attestation_flow_integrated.h"
 
 #include <algorithm>
+#include <optional>
 #include <utility>
+#include <variant>
 
 #include "base/check.h"
 #include "base/command_line.h"
@@ -22,7 +24,6 @@
 #include "chromeos/ash/components/dbus/constants/attestation_constants.h"
 #include "chromeos/dbus/constants/dbus_switches.h"
 #include "components/account_id/account_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 namespace attestation {
@@ -71,7 +72,7 @@ bool IsPreparedWith(const ::attestation::GetEnrollmentPreparationsReply& reply,
   return false;
 }
 
-absl::optional<::attestation::CertificateProfile> ProfileToAttestationProtoEnum(
+std::optional<::attestation::CertificateProfile> ProfileToAttestationProtoEnum(
     AttestationCertificateProfile p) {
   switch (p) {
     case PROFILE_ENTERPRISE_MACHINE_CERTIFICATE:
@@ -87,6 +88,8 @@ absl::optional<::attestation::CertificateProfile> ProfileToAttestationProtoEnum(
       return ::attestation::CertificateProfile::SOFT_BIND_CERTIFICATE;
     case PROFILE_DEVICE_SETUP_CERTIFICATE:
       return ::attestation::CertificateProfile::DEVICE_SETUP_CERTIFICATE;
+    case PROFILE_DEVICE_TRUST_USER_CERTIFICATE:
+      return ::attestation::CertificateProfile::DEVICE_TRUST_USER_CERTIFICATE;
     default:
       return {};
   }
@@ -105,8 +108,7 @@ AttestationFlowIntegrated::AttestationFlowIntegrated()
 // |AttestationFlow|.
 AttestationFlowIntegrated::AttestationFlowIntegrated(
     ::attestation::ACAType aca_type)
-    : AttestationFlow(/*server_proxy=*/nullptr),
-      aca_type_(aca_type),
+    : aca_type_(aca_type),
       attestation_client_(AttestationClient::Get()),
       ready_timeout_(kReadyTimeout),
       retry_delay_(kRetryDelay) {}
@@ -120,7 +122,7 @@ void AttestationFlowIntegrated::GetCertificate(
     bool force_new_key,
     ::attestation::KeyType key_crypto_type,
     const std::string& key_name,
-    const absl::optional<AttestationFlow::CertProfileSpecificData>&
+    const std::optional<AttestationFlow::CertProfileSpecificData>&
         profile_specific_data,
     CertificateCallback callback) {
   EnrollCallback start_certificate_request =
@@ -190,7 +192,7 @@ void AttestationFlowIntegrated::StartCertificateRequest(
     bool generate_new_key,
     ::attestation::KeyType key_crypto_type,
     const std::string& key_name,
-    const absl::optional<CertProfileSpecificData>& profile_specific_data,
+    const std::optional<CertProfileSpecificData>& profile_specific_data,
     CertificateCallback callback,
     EnrollState enroll_state) {
   switch (enroll_state) {
@@ -209,7 +211,7 @@ void AttestationFlowIntegrated::StartCertificateRequest(
 
   ::attestation::GetCertificateRequest request;
   request.set_aca_type(aca_type_);
-  absl::optional<::attestation::CertificateProfile> profile_attestation_enum =
+  std::optional<::attestation::CertificateProfile> profile_attestation_enum =
       ProfileToAttestationProtoEnum(certificate_profile);
   if (!profile_attestation_enum) {
     LOG(ERROR) << __func__ << ": Unexpected profile value: "
@@ -233,19 +235,19 @@ void AttestationFlowIntegrated::StartCertificateRequest(
     DCHECK(profile_specific_data.has_value())
         << "profile_specific_data must be provided for "
            "DEVICE_SETUP_CERTIFICATE";
-    DCHECK(absl::holds_alternative<
+    DCHECK(std::holds_alternative<
            ::attestation::DeviceSetupCertificateRequestMetadata>(
         profile_specific_data.value()))
         << "profile_specific_data must be of type "
            "::attestation::DeviceSetupCertificateRequestMetadata";
 
     request.mutable_device_setup_certificate_request_metadata()->set_id(
-        absl::get<::attestation::DeviceSetupCertificateRequestMetadata>(
+        std::get<::attestation::DeviceSetupCertificateRequestMetadata>(
             profile_specific_data.value())
             .id());
     request.mutable_device_setup_certificate_request_metadata()
         ->set_content_binding(
-            absl::get<::attestation::DeviceSetupCertificateRequestMetadata>(
+            std::get<::attestation::DeviceSetupCertificateRequestMetadata>(
                 profile_specific_data.value())
                 .content_binding());
   }

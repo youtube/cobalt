@@ -16,7 +16,6 @@
 #include "components/history/core/browser/history_types.h"
 #include "components/segmentation_platform/internal/database/ukm_types.h"
 #include "components/segmentation_platform/internal/signals/url_signal_handler.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace history {
@@ -28,7 +27,8 @@ namespace segmentation_platform {
 class HistoryDelegateImpl : public UrlSignalHandler::HistoryDelegate {
  public:
   HistoryDelegateImpl(history::HistoryService* history_service,
-                      UrlSignalHandler* url_signal_handler);
+                      UrlSignalHandler* url_signal_handler,
+                      const std::string& profile_id);
 
   ~HistoryDelegateImpl() override;
   HistoryDelegateImpl(const HistoryDelegateImpl&) = delete;
@@ -43,6 +43,9 @@ class HistoryDelegateImpl : public UrlSignalHandler::HistoryDelegate {
   bool FastCheckUrl(const GURL& url) override;
   void FindUrlInHistory(const GURL& url,
                         UrlSignalHandler::FindCallback callback) override;
+  const std::string& profile_id() override;
+
+  // Getters.
 
  private:
   void OnHistoryQueryResult(UrlId url_id,
@@ -55,13 +58,16 @@ class HistoryDelegateImpl : public UrlSignalHandler::HistoryDelegate {
   // observer is unregistered.
   base::CancelableTaskTracker task_tracker_;
 
+  // ProfileId associated with the current profile.
+  const std::string profile_id_;
+
   base::ScopedObservation<UrlSignalHandler, UrlSignalHandler::HistoryDelegate>
       ukm_db_observation_{this};
 
   // List of URLs visited in the current session.
   // TODO(ssid): This list grows indefnitely, consider having a limit or LRU
   // cache.
-  std::unordered_set<UrlId, UrlId::Hasher> cached_history_urls_;
+  std::unordered_set<UrlId> cached_history_urls_;
 
   SEQUENCE_CHECKER(sequence_checker_);
   base::WeakPtrFactory<HistoryDelegateImpl> weak_factory_{this};

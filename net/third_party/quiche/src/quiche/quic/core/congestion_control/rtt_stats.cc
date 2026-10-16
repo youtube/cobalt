@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 
+#include <algorithm>
 #include <cstdlib>  // std::abs
 
 #include "quiche/quic/platform/api/quic_flag_utils.h"
@@ -111,7 +112,7 @@ QuicTime::Delta RttStats::GetStandardOrMeanDeviation() const {
   return standard_deviation_calculator_.CalculateStandardDeviation();
 }
 
-void RttStats::StandardDeviationCaculator::OnNewRttSample(
+void RttStats::StandardDeviationCalculator::OnNewRttSample(
     QuicTime::Delta rtt_sample, QuicTime::Delta smoothed_rtt) {
   double new_value = rtt_sample.ToMicroseconds();
   if (smoothed_rtt.IsZero()) {
@@ -123,7 +124,7 @@ void RttStats::StandardDeviationCaculator::OnNewRttSample(
 }
 
 QuicTime::Delta
-RttStats::StandardDeviationCaculator::CalculateStandardDeviation() const {
+RttStats::StandardDeviationCalculator::CalculateStandardDeviation() const {
   QUICHE_DCHECK(has_valid_standard_deviation);
   return QuicTime::Delta::FromMicroseconds(sqrt(m2));
 }

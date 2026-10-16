@@ -31,6 +31,7 @@
 #include "third_party/blink/public/web/web_settings.h"
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
 #include "third_party/blink/renderer/platform/keyboard_codes.h"
+#include "third_party/blink/renderer/platform/text/writing_mode_utils.h"
 
 namespace blink {
 
@@ -81,38 +82,36 @@ struct DomKeyKeyDownEntry {
   const char* name;
 };
 
+#if BUILDFLAG(IS_MAC)
+#define OPTION_OR_CTRL_KEY kOptionKey
+#else
+#define OPTION_OR_CTRL_KEY kCtrlKey
+#endif
+
 // Key bindings with command key on Mac and alt key on other platforms are
 // marked as system key events and will be ignored (with the exception
 // of Command-B and Command-I) so they shouldn't be added here.
 const KeyboardCodeKeyDownEntry kKeyboardCodeKeyDownEntries[] = {
     {VKEY_LEFT, 0, "MoveLeft"},
     {VKEY_LEFT, kShiftKey, "MoveLeftAndModifySelection"},
-#if BUILDFLAG(IS_MAC)
-    {VKEY_LEFT, kOptionKey, "MoveWordLeft"},
-    {VKEY_LEFT, kOptionKey | kShiftKey, "MoveWordLeftAndModifySelection"},
-#else
-    {VKEY_LEFT, kCtrlKey, "MoveWordLeft"},
-    {VKEY_LEFT, kCtrlKey | kShiftKey, "MoveWordLeftAndModifySelection"},
-#endif
+    {VKEY_LEFT, OPTION_OR_CTRL_KEY, "MoveWordLeft"},
+    {VKEY_LEFT, OPTION_OR_CTRL_KEY | kShiftKey,
+     "MoveWordLeftAndModifySelection"},
     {VKEY_RIGHT, 0, "MoveRight"},
     {VKEY_RIGHT, kShiftKey, "MoveRightAndModifySelection"},
-#if BUILDFLAG(IS_MAC)
-    {VKEY_RIGHT, kOptionKey, "MoveWordRight"},
-    {VKEY_RIGHT, kOptionKey | kShiftKey, "MoveWordRightAndModifySelection"},
-#else
-    {VKEY_RIGHT, kCtrlKey, "MoveWordRight"},
-    {VKEY_RIGHT, kCtrlKey | kShiftKey, "MoveWordRightAndModifySelection"},
-#endif
+    {VKEY_RIGHT, OPTION_OR_CTRL_KEY, "MoveWordRight"},
+    {VKEY_RIGHT, OPTION_OR_CTRL_KEY | kShiftKey,
+     "MoveWordRightAndModifySelection"},
     {VKEY_UP, 0, "MoveUp"},
     {VKEY_UP, kShiftKey, "MoveUpAndModifySelection"},
     {VKEY_PRIOR, kShiftKey, "MovePageUpAndModifySelection"},
     {VKEY_DOWN, 0, "MoveDown"},
     {VKEY_DOWN, kShiftKey, "MoveDownAndModifySelection"},
     {VKEY_NEXT, kShiftKey, "MovePageDownAndModifySelection"},
+    {VKEY_UP, OPTION_OR_CTRL_KEY, "MoveParagraphBackward"},
+    {VKEY_DOWN, OPTION_OR_CTRL_KEY, "MoveParagraphForward"},
 #if !BUILDFLAG(IS_MAC)
-    {VKEY_UP, kCtrlKey, "MoveParagraphBackward"},
     {VKEY_UP, kCtrlKey | kShiftKey, "MoveParagraphBackwardAndModifySelection"},
-    {VKEY_DOWN, kCtrlKey, "MoveParagraphForward"},
     {VKEY_DOWN, kCtrlKey | kShiftKey, "MoveParagraphForwardAndModifySelection"},
     {VKEY_PRIOR, 0, "MovePageUp"},
     {VKEY_NEXT, 0, "MovePageDown"},
@@ -137,13 +136,8 @@ const KeyboardCodeKeyDownEntry kKeyboardCodeKeyDownEntries[] = {
     {VKEY_BACK, 0, "DeleteBackward"},
     {VKEY_BACK, kShiftKey, "DeleteBackward"},
     {VKEY_DELETE, 0, "DeleteForward"},
-#if BUILDFLAG(IS_MAC)
-    {VKEY_BACK, kOptionKey, "DeleteWordBackward"},
-    {VKEY_DELETE, kOptionKey, "DeleteWordForward"},
-#else
-    {VKEY_BACK, kCtrlKey, "DeleteWordBackward"},
-    {VKEY_DELETE, kCtrlKey, "DeleteWordForward"},
-#endif
+    {VKEY_BACK, OPTION_OR_CTRL_KEY, "DeleteWordBackward"},
+    {VKEY_DELETE, OPTION_OR_CTRL_KEY, "DeleteWordForward"},
 #if BUILDFLAG(IS_MAC)
     {'B', kCommandKey, "ToggleBold"},
     {'I', kCommandKey, "ToggleItalic"},
@@ -200,6 +194,8 @@ const DomKeyKeyDownEntry kDomKeyKeyDownEntries[] = {
     {"Paste", 0, "Paste"},
 };
 
+#undef OPTION_OR_CTRL_KEY
+
 const char* LookupCommandNameFromDomKeyKeyDown(const String& key,
                                                unsigned modifiers) {
   // This table is not likely to grow, so sequential search is fine here.
@@ -210,10 +206,32 @@ const char* LookupCommandNameFromDomKeyKeyDown(const String& key,
   return nullptr;
 }
 
+const int kVkeyForwardChar = VKEY_RIGHT;
+const int kVkeyBackwardChar = VKEY_LEFT;
+const int kVkeyNextLine = VKEY_DOWN;
+const int kVkeyPreviousLine = VKEY_UP;
+
+int TransposeArrowKey(int key_code, WritingMode writing_mode) {
+  LogicalToPhysical<int> key_map({writing_mode, TextDirection::kLtr},
+                                 kVkeyBackwardChar, kVkeyForwardChar,
+                                 kVkeyPreviousLine, kVkeyNextLine);
+  switch (key_code) {
+    case VKEY_LEFT:
+      return key_map.Left();
+    case VKEY_RIGHT:
+      return key_map.Right();
+    case VKEY_UP:
+      return key_map.Top();
+    case VKEY_DOWN:
+      return key_map.Bottom();
+  }
+  return key_code;
+}
+
 }  // anonymous namespace
 
-const char* EditingBehavior::InterpretKeyEvent(
-    const KeyboardEvent& event) const {
+const char* EditingBehavior::InterpretKeyEvent(const KeyboardEvent& event,
+                                               WritingMode writing_mode) const {
   const WebKeyboardEvent* key_event = event.KeyEvent();
   if (!key_event)
     return "";
@@ -251,7 +269,9 @@ const char* EditingBehavior::InterpretKeyEvent(
   };
 
   if (key_event->GetType() == WebInputEvent::Type::kRawKeyDown) {
-    const char* name = FindName(key_down_commands_map, event.keyCode());
+    const char* name =
+        FindName(key_down_commands_map,
+                 TransposeArrowKey(event.keyCode(), writing_mode));
     return name ? name
                 : LookupCommandNameFromDomKeyKeyDown(event.key(), modifiers);
   }

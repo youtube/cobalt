@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromeos/dbus/ip_peripheral/ip_peripheral_service_client.h"
 
 #include <utility>
@@ -61,6 +66,43 @@ void OnSetMethod(IpPeripheralServiceClient::SetCallback callback,
                  dbus::Response* response) {
   if (!response) {
     LOG(ERROR) << "Unable to set pan/tilt/zoom value. Call failed, no response";
+    std::move(callback).Run(false);
+    return;
+  }
+  std::move(callback).Run(true);
+}
+
+void OnGetControlMethod(IpPeripheralServiceClient::GetControlCallback callback,
+                        dbus::Response* response) {
+  std::vector<uint8_t> control_response;
+
+  if (!response) {
+    LOG(ERROR) << "Unable to get-XU-control request. Call failed, no response";
+    std::move(callback).Run(false, std::move(control_response));
+    return;
+  }
+
+  dbus::MessageReader reader(response);
+  const uint8_t* output_bytes = nullptr;
+  size_t length = 0;
+
+  if (!reader.PopArrayOfBytes(&output_bytes, &length)) {
+    LOG(ERROR) << "Unable to read get-XU-control response value.";
+    std::move(callback).Run(false, std::move(control_response));
+    return;
+  }
+
+  while (length-- != 0) {
+    control_response.push_back(*output_bytes++);
+  }
+
+  std::move(callback).Run(true, std::move(control_response));
+}
+
+void OnSetControlMethod(IpPeripheralServiceClient::SetControlCallback callback,
+                        dbus::Response* response) {
+  if (!response) {
+    LOG(ERROR) << "Unable to set-XU-control. Call failed, no response";
     std::move(callback).Run(false);
     return;
   }
@@ -145,6 +187,40 @@ class IpPeripheralServiceClientImpl : public IpPeripheralServiceClient {
         base::BindOnce(&OnSetMethod, std::move(callback)));
   }
 
+  void GetControl(const std::string& ip,
+                  const std::vector<uint8_t>& guid_le,
+                  uint8_t control_selector,
+                  uint8_t uvc_get_request,
+                  GetControlCallback callback) override {
+    dbus::MethodCall method_call(ip_peripheral::kIpPeripheralServiceInterface,
+                                 ip_peripheral::kGetControlMethod);
+    dbus::MessageWriter writer(&method_call);
+    writer.AppendString(ip);
+    writer.AppendArrayOfBytes(guid_le);
+    writer.AppendByte(control_selector);
+    writer.AppendByte(uvc_get_request);
+    ip_peripheral_service_proxy_->CallMethod(
+        &method_call, dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+        base::BindOnce(&OnGetControlMethod, std::move(callback)));
+  }
+
+  void SetControl(const std::string& ip,
+                  const std::vector<uint8_t>& guid_le,
+                  uint8_t control_selector,
+                  const std::vector<uint8_t>& control_setting,
+                  SetControlCallback callback) override {
+    dbus::MethodCall method_call(ip_peripheral::kIpPeripheralServiceInterface,
+                                 ip_peripheral::kSetControlMethod);
+    dbus::MessageWriter writer(&method_call);
+    writer.AppendString(ip);
+    writer.AppendArrayOfBytes(guid_le);
+    writer.AppendByte(control_selector);
+    writer.AppendArrayOfBytes(control_setting);
+    ip_peripheral_service_proxy_->CallMethod(
+        &method_call, dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+        base::BindOnce(&OnSetControlMethod, std::move(callback)));
+  }
+
   void Init(dbus::Bus* bus) {
     ip_peripheral_service_proxy_ = bus->GetObjectProxy(
         ip_peripheral::kIpPeripheralServiceName,
@@ -152,8 +228,7 @@ class IpPeripheralServiceClientImpl : public IpPeripheralServiceClient {
   }
 
  private:
-  raw_ptr<dbus::ObjectProxy, ExperimentalAsh> ip_peripheral_service_proxy_ =
-      nullptr;
+  raw_ptr<dbus::ObjectProxy> ip_peripheral_service_proxy_ = nullptr;
 };
 
 }  // namespace

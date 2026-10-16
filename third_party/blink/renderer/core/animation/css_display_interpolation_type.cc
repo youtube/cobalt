@@ -7,7 +7,8 @@
 #include <memory>
 
 #include "base/memory/ptr_util.h"
-#include "third_party/blink/renderer/core/css/css_primitive_value_mappings.h"
+#include "third_party/blink/renderer/core/animation/underlying_value_owner.h"
+#include "third_party/blink/renderer/core/css/css_identifier_value_mappings.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver_state.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
@@ -16,12 +17,9 @@ namespace blink {
 
 class CSSDisplayNonInterpolableValue final : public NonInterpolableValue {
  public:
+  CSSDisplayNonInterpolableValue(EDisplay start, EDisplay end)
+      : start_(start), end_(end) {}
   ~CSSDisplayNonInterpolableValue() final = default;
-
-  static scoped_refptr<CSSDisplayNonInterpolableValue> Create(EDisplay start,
-                                                              EDisplay end) {
-    return base::AdoptRef(new CSSDisplayNonInterpolableValue(start, end));
-  }
 
   EDisplay Display() const {
     DCHECK_EQ(start_, end_);
@@ -44,9 +42,6 @@ class CSSDisplayNonInterpolableValue final : public NonInterpolableValue {
   DECLARE_NON_INTERPOLABLE_VALUE_TYPE();
 
  private:
-  CSSDisplayNonInterpolableValue(EDisplay start, EDisplay end)
-      : start_(start), end_(end) {}
-
   const EDisplay start_;
   const EDisplay end_;
 };
@@ -70,10 +65,11 @@ class UnderlyingDisplayChecker final
   ~UnderlyingDisplayChecker() final = default;
 
  private:
-  bool IsValid(const StyleResolverState&,
+  bool IsValid(const StyleResolverState& state,
                const InterpolationValue& underlying) const final {
     double underlying_fraction =
-        To<InterpolableNumber>(*underlying.interpolable_value).Value();
+        To<InterpolableNumber>(*underlying.interpolable_value)
+            .Value(state.CssToLengthConversionData());
     EDisplay underlying_display =
         To<CSSDisplayNonInterpolableValue>(*underlying.non_interpolable_value)
             .Display(underlying_fraction);
@@ -100,20 +96,24 @@ class InheritedDisplayChecker
 InterpolationValue CSSDisplayInterpolationType::CreateDisplayValue(
     EDisplay display) const {
   return InterpolationValue(
-      std::make_unique<InterpolableNumber>(0),
-      CSSDisplayNonInterpolableValue::Create(display, display));
+      MakeGarbageCollected<InterpolableNumber>(0),
+      MakeGarbageCollected<CSSDisplayNonInterpolableValue>(display, display));
 }
 
 InterpolationValue CSSDisplayInterpolationType::MaybeConvertNeutral(
     const InterpolationValue& underlying,
     ConversionCheckers& conversion_checkers) const {
+  // Note: using default CSSToLengthConversionData here as it's
+  // guaranteed to be a double.
+  // TODO(crbug.com/325821290): Avoid InterpolableNumber here.
   double underlying_fraction =
-      To<InterpolableNumber>(*underlying.interpolable_value).Value();
+      To<InterpolableNumber>(*underlying.interpolable_value)
+          .Value(CSSToLengthConversionData(/*element=*/nullptr));
   EDisplay underlying_display =
       To<CSSDisplayNonInterpolableValue>(*underlying.non_interpolable_value)
           .Display(underlying_fraction);
   conversion_checkers.push_back(
-      std::make_unique<UnderlyingDisplayChecker>(underlying_display));
+      MakeGarbageCollected<UnderlyingDisplayChecker>(underlying_display));
   return CreateDisplayValue(underlying_display);
 }
 
@@ -132,13 +132,13 @@ InterpolationValue CSSDisplayInterpolationType::MaybeConvertInherit(
   }
   EDisplay inherited_display = state.ParentStyle()->Display();
   conversion_checkers.push_back(
-      std::make_unique<InheritedDisplayChecker>(inherited_display));
+      MakeGarbageCollected<InheritedDisplayChecker>(inherited_display));
   return CreateDisplayValue(inherited_display);
 }
 
 InterpolationValue CSSDisplayInterpolationType::MaybeConvertValue(
     const CSSValue& value,
-    const StyleResolverState*,
+    const StyleResolverState&,
     ConversionCheckers& conversion_checkers) const {
   const auto* identifier_value = DynamicTo<CSSIdentifierValue>(value);
   if (!identifier_value) {
@@ -182,9 +182,10 @@ PairwiseInterpolationValue CSSDisplayInterpolationType::MaybeMergeSingles(
   EDisplay end_display =
       To<CSSDisplayNonInterpolableValue>(*end.non_interpolable_value).Display();
   return PairwiseInterpolationValue(
-      std::make_unique<InterpolableNumber>(0),
-      std::make_unique<InterpolableNumber>(1),
-      CSSDisplayNonInterpolableValue::Create(start_display, end_display));
+      MakeGarbageCollected<InterpolableNumber>(0),
+      MakeGarbageCollected<InterpolableNumber>(1),
+      MakeGarbageCollected<CSSDisplayNonInterpolableValue>(start_display,
+                                                           end_display));
 }
 
 void CSSDisplayInterpolationType::Composite(
@@ -192,7 +193,7 @@ void CSSDisplayInterpolationType::Composite(
     double underlying_fraction,
     const InterpolationValue& value,
     double interpolation_fraction) const {
-  underlying_value_owner.Set(*this, value);
+  underlying_value_owner.Set(this, value);
 }
 
 void CSSDisplayInterpolationType::ApplyStandardPropertyValue(
@@ -201,7 +202,8 @@ void CSSDisplayInterpolationType::ApplyStandardPropertyValue(
     StyleResolverState& state) const {
   // Display interpolation has been deferred to application time here due to
   // its non-linear behaviour.
-  double fraction = To<InterpolableNumber>(interpolable_value).Value();
+  double fraction = To<InterpolableNumber>(interpolable_value)
+                        .Value(state.CssToLengthConversionData());
   EDisplay display = To<CSSDisplayNonInterpolableValue>(non_interpolable_value)
                          ->Display(fraction);
   state.StyleBuilder().SetDisplay(display);

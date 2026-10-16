@@ -80,9 +80,6 @@ void LocalMouseInputMonitorX11::Core::StartOnInputThread() {
     LOG(ERROR) << "X Input extension not available.";
     return;
   }
-  // Let the server know the client XInput version.
-  connection_->xinput().XIQueryVersion(
-      {x11::Input::major_version, x11::Input::minor_version});
 
   auto mask = CommonXIEventMaskForRootWindow();
   connection_->xinput().XISelectEvents(
@@ -119,8 +116,8 @@ void LocalMouseInputMonitorX11::Core::OnEvent(const x11::Event& event) {
             }
             webrtc::DesktopVector position(response->root_x, response->root_y);
             caller_task_runner->PostTask(
-                FROM_HERE,
-                base::BindOnce(on_mouse_move, position, ui::ET_MOUSE_MOVED));
+                FROM_HERE, base::BindOnce(on_mouse_move, position,
+                                          ui::EventType::kMouseMoved));
           },
           caller_task_runner_, on_mouse_move_));
   connection_->Flush();

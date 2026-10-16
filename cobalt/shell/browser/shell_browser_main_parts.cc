@@ -18,15 +18,8 @@
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
-#include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/memory/ref_counted_memory.h"
-#include "base/strings/utf_string_conversions.h"
-#include "base/task/current_thread.h"
-#include "base/threading/thread.h"
-#include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
 #include "cobalt/shell/android/shell_descriptors.h"
@@ -47,6 +40,7 @@
 #include "device/bluetooth/bluetooth_adapter_factory.h"
 #include "net/base/filename_util.h"
 #include "net/base/net_module.h"
+#include "net/base/url_util.h"
 #include "net/grit/net_resources.h"
 #include "ui/base/buildflags.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -56,7 +50,13 @@
 #include "components/crash/content/browser/child_exit_observer_android.h"
 #include "components/crash/content/browser/child_process_crash_observer_android.h"
 #include "net/android/network_change_notifier_factory_android.h"
+#endif
+
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
 #include "net/base/network_change_notifier.h"
+#include "net/base/network_change_notifier_factory.h"
+#include "net/base/network_change_notifier_passive.h"
+#include "starboard/system.h"
 #endif
 
 #if defined(USE_AURA) && (BUILDFLAG(IS_LINUX))
@@ -72,18 +72,35 @@
 #include "ui/linux/linux_ui_factory.h"  // nogncheck
 #endif
 
-#if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
-#endif  // defined(RUN_BROWSER_TESTS)
-
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/shell/common/device_authentication.h"
+#include "net/base/network_change_notifier.h"
+#include "net/base/network_change_notifier_factory.h"
+#include "net/base/network_change_notifier_passive.h"
+#include "starboard/system.h"  // nogncheck
 #endif
 
 namespace content {
 
 namespace {
-GURL GetStartupURL() {
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROID)
+class NetworkChangeNotifierFactoryStarboard
+    : public net::NetworkChangeNotifierFactory {
+ public:
+  std::unique_ptr<net::NetworkChangeNotifier> CreateInstanceWithInitialTypes(
+      net::NetworkChangeNotifier::ConnectionType initial_type,
+      net::NetworkChangeNotifier::ConnectionSubtype initial_subtype) override {
+    // Override the initial type based on actual Starboard state.
+    initial_type = SbSystemNetworkIsDisconnected()
+                       ? net::NetworkChangeNotifier::CONNECTION_NONE
+                       : net::NetworkChangeNotifier::CONNECTION_UNKNOWN;
+    return std::make_unique<net::NetworkChangeNotifierPassive>(initial_type,
+                                                               initial_subtype);
+  }
+};
+#endif  // BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROID)
+
+GURL GetStartupURL(bool should_preload) {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kBrowserTest)) {
     return GURL();
@@ -108,6 +125,10 @@ GURL GetStartupURL() {
     }
   }
 
+  if (should_preload) {
+    initial_url = net::AppendQueryParameter(initial_url, "launch", "preload");
+  }
+
 #if BUILDFLAG(IS_STARBOARD)
   initial_url = GetDeviceAuthenticationSignedURL(initial_url);
 #endif
@@ -125,7 +146,9 @@ scoped_refptr<base::RefCountedMemory> PlatformResourceProvider(int key) {
 
 }  // namespace
 
-ShellBrowserMainParts::ShellBrowserMainParts() = default;
+ShellBrowserMainParts::ShellBrowserMainParts(const std::string& deep_link,
+                                             bool is_visible)
+    : deep_link_(deep_link), is_visible_(is_visible) {}
 
 ShellBrowserMainParts::~ShellBrowserMainParts() = default;
 
@@ -140,8 +163,14 @@ int ShellBrowserMainParts::PreEarlyInitialization() {
   ui::InitializeInputMethodForTesting();
 #endif
 #if BUILDFLAG(IS_ANDROID)
+  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "use-starboard-lifecycle")) {
+    net::NetworkChangeNotifier::SetFactory(
+        new net::NetworkChangeNotifierFactoryAndroid());
+  }
+#elif BUILDFLAG(IS_STARBOARD)
   net::NetworkChangeNotifier::SetFactory(
-      new net::NetworkChangeNotifierFactoryAndroid());
+      new NetworkChangeNotifierFactoryStarboard());
 #endif
   return RESULT_CODE_NORMAL_EXIT;
 }
@@ -152,17 +181,18 @@ void ShellBrowserMainParts::InitializeBrowserContexts() {
 }
 
 void ShellBrowserMainParts::InitializeMessageLoopContext() {
-  Shell::CreateNewWindow(browser_context_.get(), GetStartupURL(), nullptr,
-                         gfx::Size());
+  Shell::CreateNewWindow(browser_context_.get(),
+                         GetStartupURL(/*should_preload=*/!is_visible_),
+                         nullptr, gfx::Size(),
+#if BUILDFLAG(IS_ANDROID)
+                         false /* create_splash_screen_web_contents */
+#else
+                         switches::ShouldCreateSplashScreen(), deep_link_
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
 }
 
 void ShellBrowserMainParts::ToolkitInitialized() {
-#if defined(RUN_BROWSER_TESTS)
-  if (switches::IsRunWebTestsSwitchPresent()) {
-    return;
-  }
-#endif  // defined(RUN_BROWSER_TESTS)
-
 #if BUILDFLAG(IS_LINUX)
   ui::LinuxUi::SetInstance(ui::GetDefaultLinuxUi());
 #endif
@@ -189,7 +219,7 @@ void ShellBrowserMainParts::PostCreateThreads() {
 
 int ShellBrowserMainParts::PreMainMessageLoopRun() {
   InitializeBrowserContexts();
-  Shell::Initialize(CreateShellPlatformDelegate());
+  Shell::Initialize(CreateShellPlatformDelegate(), is_visible_);
   net::NetModule::SetResourceProvider(PlatformResourceProvider);
   ShellDevToolsManagerDelegate::StartHttpHandler(browser_context_.get());
   InitializeMessageLoopContext();
@@ -209,6 +239,7 @@ void ShellBrowserMainParts::PostMainMessageLoopRun() {
 #if BUILDFLAG(IS_LINUX)
   ui::LinuxUi::SetInstance(nullptr);
 #endif
+  base::RunLoop().RunUntilIdle();
   performance_manager_lifetime_.reset();
 }
 
@@ -217,6 +248,12 @@ void ShellBrowserMainParts::PostDestroyThreads() {
   device::BluetoothAdapterFactory::Shutdown();
   bluez::DBusBluezManagerWrapperLinux::Shutdown();
 #endif
+}
+
+void ShellBrowserMainParts::PostOrRunIfStorageMigrationFinished(
+    base::OnceClosure task) {
+  // Default implementation doesn't defer tasks.
+  std::move(task).Run();
 }
 
 std::unique_ptr<ShellPlatformDelegate>

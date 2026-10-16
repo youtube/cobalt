@@ -2,26 +2,29 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/views/bruschetta/bruschetta_uninstaller_view.h"
+
 #include "ash/constants/ash_features.h"
 #include "base/run_loop.h"
 #include "base/test/scoped_feature_list.h"
+#include "chrome/browser/ash/bruschetta/bruschetta_service.h"
+#include "chrome/browser/ash/bruschetta/bruschetta_service_factory.h"
 #include "chrome/browser/ash/bruschetta/bruschetta_util.h"
-#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
-#include "chrome/browser/ui/views/bruschetta/bruschetta_uninstaller_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+
+namespace {
+const char kTestVmName[] = "vm_name";
+const char kTestVmConfig[] = "vm_config";
+}  // namespace
 
 class BruschettaUninstallerViewBrowserTest : public DialogBrowserTest {
  public:
-  BruschettaUninstallerViewBrowserTest() {
-    feature_list_.InitWithFeatures(
-        {ash::features::kBruschetta, ash::features::kBruschettaAlphaMigrate},
-        {});
-  }
-
+  BruschettaUninstallerViewBrowserTest() = default;
   BruschettaUninstallerViewBrowserTest(
       const BruschettaUninstallerViewBrowserTest&) = delete;
   BruschettaUninstallerViewBrowserTest& operator=(
@@ -30,7 +33,7 @@ class BruschettaUninstallerViewBrowserTest : public DialogBrowserTest {
   // DialogBrowserTest:
   void ShowUi(const std::string& name) override {
     BruschettaUninstallerView::Show(browser()->profile(),
-                                    bruschetta::GetBruschettaAlphaId());
+                                    bruschetta::MakeBruschettaId(kTestVmName));
   }
 
   BruschettaUninstallerView* ActiveView() {
@@ -47,8 +50,6 @@ class BruschettaUninstallerViewBrowserTest : public DialogBrowserTest {
     run_loop.Run();
     EXPECT_EQ(nullptr, ActiveView());
   }
-
-  base::test::ScopedFeatureList feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(BruschettaUninstallerViewBrowserTest, InvokeUi_default) {
@@ -56,10 +57,15 @@ IN_PROC_BROWSER_TEST_F(BruschettaUninstallerViewBrowserTest, InvokeUi_default) {
 }
 
 IN_PROC_BROWSER_TEST_F(BruschettaUninstallerViewBrowserTest, UninstallFlow) {
+  bruschetta::BruschettaServiceFactory::GetForProfile(browser()->profile())
+      ->RegisterInPrefs(bruschetta::MakeBruschettaId(kTestVmName),
+                        kTestVmConfig);
+
   ShowUi("default");
   EXPECT_NE(nullptr, ActiveView());
-  EXPECT_EQ(ui::DIALOG_BUTTON_OK | ui::DIALOG_BUTTON_CANCEL,
-            ActiveView()->GetDialogButtons());
+  EXPECT_EQ(static_cast<int>(ui::mojom::DialogButton::kOk) |
+                static_cast<int>(ui::mojom::DialogButton::kCancel),
+            ActiveView()->buttons());
 
   EXPECT_TRUE(HasAcceptButton());
   EXPECT_TRUE(HasCancelButton());
@@ -70,4 +76,8 @@ IN_PROC_BROWSER_TEST_F(BruschettaUninstallerViewBrowserTest, UninstallFlow) {
   EXPECT_FALSE(HasCancelButton());
 
   WaitForViewDestroyed();
+
+  EXPECT_TRUE(guest_os::GetContainers(browser()->profile(),
+                                      guest_os::VmType::BRUSCHETTA)
+                  .empty());
 }

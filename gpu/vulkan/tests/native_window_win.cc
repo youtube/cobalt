@@ -44,7 +44,7 @@ gfx::AcceleratedWidget CreateNativeWindow(const gfx::Rect& bounds) {
 
 void DestroyNativeWindow(gfx::AcceleratedWidget window) {
   auto it = g_windows_.find(window);
-  DCHECK(it != g_windows_.end());
+  CHECK(it != g_windows_.end());
 
   it->second.reset();
   g_windows_.erase(it);

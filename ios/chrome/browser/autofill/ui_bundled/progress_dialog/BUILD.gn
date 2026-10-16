@@ -1,0 +1,65 @@
+# Copyright 2024 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("progress_dialog") {
+  sources = [
+    "autofill_progress_dialog_coordinator.h",
+    "autofill_progress_dialog_coordinator.mm",
+    "autofill_progress_dialog_mediator.h",
+    "autofill_progress_dialog_mediator.mm",
+    "autofill_progress_dialog_mediator_delegate.h",
+  ]
+  deps = [
+    "//base",
+    "//components/autofill/core/browser",
+    "//components/strings",
+    "//ios/chrome/browser/alert_view/ui_bundled",
+    "//ios/chrome/browser/autofill/model:model_internal",
+    "//ios/chrome/browser/autofill/ui_bundled:autofill_ui_constants",
+    "//ios/chrome/browser/autofill/ui_bundled:coordinator",
+    "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/shared/public/commands",
+    "//ios/chrome/browser/shared/ui/symbols",
+  ]
+  frameworks = [ "UIKit.framework" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "autofill_progress_dialog_mediator_unittest.mm" ]
+  deps = [
+    ":progress_dialog",
+    "//base/test:test_support",
+    "//components/autofill/core/browser",
+    "//components/autofill/ios/browser:test_support",
+    "//components/strings",
+    "//ios/chrome/browser/alert_view/ui_bundled",
+    "//ios/chrome/browser/shared/ui/symbols",
+    "//testing/gtest",
+    "//third_party/ocmock",
+  ]
+}
+
+source_set("eg2_tests") {
+  configs += [ "//build/config/ios:xctest_config" ]
+  testonly = true
+  sources = [ "autofill_progress_dialog_egtest.mm" ]
+  deps = [
+    "//components/autofill/core/browser:test_support",
+    "//components/strings:components_strings_grit",
+    "//ios/chrome/app/strings",
+    "//ios/chrome/browser/autofill/ui_bundled:autofill_ui_constants",
+    "//ios/chrome/browser/autofill/ui_bundled:eg_test_support+eg2",
+    "//ios/chrome/browser/shared/ui/symbols",
+    "//ios/chrome/test/earl_grey:eg_test_support+eg2",
+    "//ios/testing/earl_grey:eg_test_support+eg2",
+    "//net:test_support",
+  ]
+  frameworks = [
+    "UIKit.framework",
+    "Foundation.framework",
+  ]
+}

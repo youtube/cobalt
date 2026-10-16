@@ -21,10 +21,8 @@ import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 
-import androidx.appcompat.app.AlertDialog;
-
+import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.dom_distiller.core.DistilledPagePrefs;
 import org.chromium.dom_distiller.mojom.FontFamily;
 import org.chromium.dom_distiller.mojom.Theme;
@@ -43,13 +41,15 @@ public class DistilledPagePrefsView extends LinearLayout
     // XML layout for View.
     private static final int VIEW_LAYOUT = R.layout.distilled_page_prefs_view;
 
-    // RadioGroup for color mode buttons.
-    private RadioGroup mRadioGroup;
-
     // Buttons for color mode.
     private final Map<Integer /* Theme */, RadioButton> mColorModeButtons;
 
-    private final DistilledPagePrefs mDistilledPagePrefs;
+    private final NumberFormat mPercentageFormatter;
+
+    // RadioGroup for color mode buttons.
+    private RadioGroup mRadioGroup;
+
+    private DistilledPagePrefs mDistilledPagePrefs;
 
     // Text field showing font scale percentage.
     private TextView mFontScaleTextView;
@@ -60,8 +60,6 @@ public class DistilledPagePrefsView extends LinearLayout
     // Spinner for choosing a font family.
     private Spinner mFontFamilySpinner;
 
-    private final NumberFormat mPercentageFormatter;
-
     /**
      * Creates a DistilledPagePrefsView.
      *
@@ -70,44 +68,37 @@ public class DistilledPagePrefsView extends LinearLayout
      */
     public DistilledPagePrefsView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        // TODO (https://crbug.com/1048632): Use the current profile (i.e., regular profile or
-        // incognito profile) instead of always using regular profile. It works correctly now, but
-        // it is not safe.
-        mDistilledPagePrefs =
-                DomDistillerServiceFactory.getForProfile(Profile.getLastUsedRegularProfile())
-                        .getDistilledPagePrefs();
         mColorModeButtons = new HashMap<Integer /* Theme */, RadioButton>();
         mPercentageFormatter = NumberFormat.getPercentInstance(Locale.getDefault());
     }
 
-    public static DistilledPagePrefsView create(Context context) {
-        return (DistilledPagePrefsView) LayoutInflater.from(context)
-                .inflate(VIEW_LAYOUT, null);
-    }
-
-    public static void showDialog(Context context) {
-        AlertDialog.Builder builder =
-                new AlertDialog.Builder(context, R.style.ThemeOverlay_BrowserUI_AlertDialog);
-        builder.setView(DistilledPagePrefsView.create(context));
-        builder.show();
+    public static DistilledPagePrefsView create(
+            Context context, DistilledPagePrefs distilledPagePrefs) {
+        DistilledPagePrefsView prefsView =
+                (DistilledPagePrefsView) LayoutInflater.from(context).inflate(VIEW_LAYOUT, null);
+        prefsView.initDistilledPagePrefs(distilledPagePrefs);
+        return prefsView;
     }
 
     @Override
     public void onFinishInflate() {
         super.onFinishInflate();
-        mRadioGroup = (RadioGroup) findViewById(R.id.radio_button_group);
-        mColorModeButtons.put(Theme.LIGHT,
-                initializeAndGetButton(R.id.light_mode, Theme.LIGHT));
-        mColorModeButtons.put(Theme.DARK,
-                initializeAndGetButton(R.id.dark_mode, Theme.DARK));
-        mColorModeButtons.put(Theme.SEPIA,
-                initializeAndGetButton(R.id.sepia_mode, Theme.SEPIA));
+        mRadioGroup = findViewById(R.id.radio_button_group);
+        mColorModeButtons.put(Theme.LIGHT, initializeAndGetButton(R.id.light_mode, Theme.LIGHT));
+        mColorModeButtons.put(Theme.DARK, initializeAndGetButton(R.id.dark_mode, Theme.DARK));
+        mColorModeButtons.put(Theme.SEPIA, initializeAndGetButton(R.id.sepia_mode, Theme.SEPIA));
+
+        mFontScaleSeekBar = findViewById(R.id.font_size);
+        mFontScaleTextView = findViewById(R.id.font_size_percentage);
+
+        mFontFamilySpinner = findViewById(R.id.font_family);
+    }
+
+    private void initDistilledPagePrefs(DistilledPagePrefs distilledPagePrefs) {
+        assert distilledPagePrefs != null;
+        mDistilledPagePrefs = distilledPagePrefs;
+
         mColorModeButtons.get(mDistilledPagePrefs.getTheme()).setChecked(true);
-
-        mFontScaleSeekBar = (SeekBar) findViewById(R.id.font_size);
-        mFontScaleTextView = (TextView) findViewById(R.id.font_size_percentage);
-
-        mFontFamilySpinner = (Spinner) findViewById(R.id.font_family);
         initFontFamilySpinner();
 
         // Setting initial progress on font scale seekbar.
@@ -120,55 +111,60 @@ public class DistilledPagePrefsView extends LinearLayout
         // components/dom_distiller/core/font_family_list.h
         // TODO(wychen): fix getStringArray issue (https://crbug/803117#c2)
         String[] fonts = {
-                getResources().getString(R.string.sans_serif),
-                getResources().getString(R.string.serif),
-                getResources().getString(R.string.monospace)};
-        ArrayAdapter<CharSequence> adapter = new ArrayAdapter<CharSequence>(
-                getContext(), android.R.layout.simple_spinner_item, fonts) {
-            @Override
-            public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
-                return overrideTypeFace(view, position);
-            }
-
-            @Override
-            public View getDropDownView(int position, View convertView, ViewGroup parent) {
-                View view = super.getDropDownView(position, convertView, parent);
-                return overrideTypeFace(view, position);
-            }
-
-            private View overrideTypeFace(View view, int family) {
-                FontFamily.validate(family);
-                if (view instanceof TextView) {
-                    TextView textView = (TextView) view;
-                    if (family == FontFamily.MONOSPACE) {
-                        textView.setTypeface(Typeface.MONOSPACE);
-                    } else if (family == FontFamily.SANS_SERIF) {
-                        textView.setTypeface(Typeface.SANS_SERIF);
-                    } else if (family == FontFamily.SERIF) {
-                        textView.setTypeface(Typeface.SERIF);
-                    }
-                }
-                return view;
-            }
+            getResources().getString(R.string.sans_serif),
+            getResources().getString(R.string.serif),
+            getResources().getString(R.string.monospace)
         };
+        ArrayAdapter<CharSequence> adapter =
+                new ArrayAdapter<CharSequence>(
+                        getContext(), android.R.layout.simple_spinner_item, fonts) {
+                    @Override
+                    public View getView(int position, View convertView, ViewGroup parent) {
+                        View view = super.getView(position, convertView, parent);
+                        return overrideTypeFace(view, position);
+                    }
+
+                    @Override
+                    public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                        View view = super.getDropDownView(position, convertView, parent);
+                        return overrideTypeFace(view, position);
+                    }
+
+                    private View overrideTypeFace(View view, int family) {
+                        FontFamily.validate(family);
+                        if (view instanceof TextView) {
+                            TextView textView = (TextView) view;
+                            if (family == FontFamily.MONOSPACE) {
+                                textView.setTypeface(Typeface.MONOSPACE);
+                            } else if (family == FontFamily.SANS_SERIF) {
+                                textView.setTypeface(Typeface.SANS_SERIF);
+                            } else if (family == FontFamily.SERIF) {
+                                textView.setTypeface(Typeface.SERIF);
+                            }
+                        }
+                        return view;
+                    }
+                };
 
         adapter.setDropDownViewResource(R.layout.distilled_page_font_family_spinner);
         mFontFamilySpinner.setAdapter(adapter);
         mFontFamilySpinner.setSelection(mDistilledPagePrefs.getFontFamily());
-        mFontFamilySpinner.setOnItemSelectedListener(new OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int family, long id) {
-                if (FontFamily.isKnownValue(family)) {
-                    mDistilledPagePrefs.setFontFamily(family);
-                }
-            }
+        mFontFamilySpinner.setOnItemSelectedListener(
+                new OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(
+                            AdapterView<?> parent, View view, int family, long id) {
+                        if (FontFamily.isKnownValue(family)) {
+                            RecordUserAction.record("DomDistiller.Android.FontFamilyChanged");
+                            mDistilledPagePrefs.setFontFamily(family);
+                        }
+                    }
 
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-                // Nothing to do.
-            }
-        });
+                    @Override
+                    public void onNothingSelected(AdapterView<?> parent) {
+                        // Nothing to do.
+                    }
+                });
     }
 
     @Override
@@ -218,9 +214,7 @@ public class DistilledPagePrefsView extends LinearLayout
         mFontFamilySpinner.setSelection(fontFamily);
     }
 
-    /**
-     * Changes which button is selected if the theme is changed in another tab.
-     */
+    /** Changes which button is selected if the theme is changed in another tab. */
     @Override
     public void onChangeTheme(int theme) {
         Theme.validate(theme);
@@ -242,6 +236,7 @@ public class DistilledPagePrefsView extends LinearLayout
         float newValue = (progress / 20f + .5f);
         setFontScaleTextView(newValue);
         if (fromUser) {
+            RecordUserAction.record("DomDistiller.Android.FontScalingChanged");
             mDistilledPagePrefs.setFontScaling(newValue);
         }
     }
@@ -252,25 +247,22 @@ public class DistilledPagePrefsView extends LinearLayout
     @Override
     public void onStopTrackingTouch(SeekBar seekBar) {}
 
-    /**
-     * Initiatializes a Button and selects it if it corresponds to the current
-     * theme.
-     */
+    /** Initiatializes a Button and selects it if it corresponds to the current theme. */
     private RadioButton initializeAndGetButton(int id, final int theme) {
         Theme.validate(theme);
-        final RadioButton button = (RadioButton) findViewById(id);
-        button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mDistilledPagePrefs.setTheme(theme);
-            }
-        });
+        final RadioButton button = findViewById(id);
+        button.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        RecordUserAction.record("DomDistiller.Android.ThemeChanged");
+                        mDistilledPagePrefs.setTheme(theme);
+                    }
+                });
         return button;
     }
 
-    /**
-     * Sets the progress of mFontScaleSeekBar.
-     */
+    /** Sets the progress of mFontScaleSeekBar. */
     private void setFontScaleProgress(float newValue) {
         // newValue = .50, .55, .60, ..., 1.95, 2.00 (supported font scales)
         // progress = [0, 30]
@@ -279,8 +271,11 @@ public class DistilledPagePrefsView extends LinearLayout
 
         // On Android R+, use stateDescription so the only percentage announced to the user is
         // the scaling percent. For previous versions the SeekBar percentage is always announced.
-        String userFriendlyFontDescription = getContext().getResources().getString(
-                R.string.font_size_accessibility_label, mPercentageFormatter.format(newValue));
+        String userFriendlyFontDescription =
+                getContext()
+                        .getString(
+                                R.string.font_size_accessibility_label,
+                                mPercentageFormatter.format(newValue));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             mFontScaleSeekBar.setStateDescription(userFriendlyFontDescription);
         } else {
@@ -288,9 +283,7 @@ public class DistilledPagePrefsView extends LinearLayout
         }
     }
 
-    /**
-     * Sets the text for the font scale text view.
-     */
+    /** Sets the text for the font scale text view. */
     private void setFontScaleTextView(float newValue) {
         mFontScaleTextView.setText(mPercentageFormatter.format(newValue));
     }

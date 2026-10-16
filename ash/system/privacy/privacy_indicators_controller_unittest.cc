@@ -7,32 +7,38 @@
 #include <memory>
 #include <string>
 
-#include "ash/constants/ash_constants.h"
 #include "ash/constants/ash_features.h"
-#include "ash/constants/ash_switches.h"
+#include "ash/public/cpp/ash_view_ids.h"
+#include "ash/public/cpp/session/session_types.h"
 #include "ash/root_window_controller.h"
+#include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
-#include "ash/system/message_center/ash_message_popup_collection.h"
-#include "ash/system/message_center/unified_message_center_bubble.h"
+#include "ash/system/notification_center/ash_message_popup_collection.h"
+#include "ash/system/notification_center/message_center_utils.h"
 #include "ash/system/notification_center/notification_center_tray.h"
-#include "ash/system/notification_center/notification_center_view.h"
-#include "ash/system/notification_center/notification_list_view.h"
+#include "ash/system/notification_center/views/message_view_container.h"
+#include "ash/system/notification_center/views/notification_center_view.h"
+#include "ash/system/notification_center/views/notification_list_view.h"
 #include "ash/system/privacy/privacy_indicators_tray_item_view.h"
 #include "ash/system/unified/unified_system_tray.h"
-#include "ash/system/video_conference/fake_video_conference_tray_controller.h"
 #include "ash/test/ash_test_base.h"
+#include "ash/test/ash_test_util.h"
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
+#include "components/session_manager/session_manager_types.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/compositor/scoped_animation_duration_scale_mode.h"
 #include "ui/events/test/event_generator.h"
 #include "ui/message_center/message_center.h"
 #include "ui/message_center/public/cpp/message_center_constants.h"
+#include "ui/message_center/views/message_view.h"
 #include "ui/message_center/views/notification_view_base.h"
 #include "ui/views/widget/widget_utils.h"
 
@@ -40,14 +46,15 @@ namespace ash {
 
 namespace {
 
+void SetSessionState(session_manager::SessionState state) {
+  ash::SessionInfo info;
+  info.state = state;
+  ash::Shell::Get()->session_controller()->SetSessionInfo(info);
+}
+
 class TestDelegate : public PrivacyIndicatorsNotificationDelegate {
  public:
-  explicit TestDelegate(bool has_launch_app_callback = true,
-                        bool has_launch_settings_callback = true) {
-    if (has_launch_app_callback) {
-      SetLaunchAppCallback(base::BindRepeating(
-          &TestDelegate::LaunchApp, weak_pointer_factory_.GetWeakPtr()));
-    }
+  explicit TestDelegate(bool has_launch_settings_callback = true) {
     if (has_launch_settings_callback) {
       SetLaunchSettingsCallback(
           base::BindRepeating(&TestDelegate::LaunchAppSettings,
@@ -58,16 +65,13 @@ class TestDelegate : public PrivacyIndicatorsNotificationDelegate {
   TestDelegate(const TestDelegate&) = delete;
   TestDelegate& operator=(const TestDelegate&) = delete;
 
-  void LaunchApp() { launch_app_called_ = true; }
   void LaunchAppSettings() { launch_settings_called_ = true; }
 
-  bool launch_app_called() { return launch_app_called_; }
   bool launch_settings_called() { return launch_settings_called_; }
 
  private:
   ~TestDelegate() override = default;
 
-  bool launch_app_called_ = false;
   bool launch_settings_called_ = false;
 
   base::WeakPtrFactory<TestDelegate> weak_pointer_factory_{this};
@@ -78,9 +82,10 @@ void ExpectPrivacyIndicatorsTrayItemVisible(bool visible,
                                             bool microphone_visible) {
   for (auto* root_window_controller :
        ash::Shell::Get()->GetAllRootWindowControllers()) {
-    auto* privacy_indicators_view =
-        root_window_controller->GetStatusAreaWidget()
-            ->unified_system_tray()
+    StatusAreaWidget* status_area_widget =
+        root_window_controller->GetStatusAreaWidget();
+    PrivacyIndicatorsTrayItemView* privacy_indicators_view =
+        status_area_widget->notification_center_tray()
             ->privacy_indicators_view();
 
     ASSERT_TRUE(privacy_indicators_view);
@@ -97,63 +102,82 @@ void ExpectPrivacyIndicatorsTrayItemVisible(bool visible,
 
 }  // namespace
 
-class PrivacyIndicatorsControllerTest : public AshTestBase {
+class PrivacyIndicatorsControllerTest
+    : public AshTestBase,
+      public testing::WithParamInterface<bool> {
  public:
   PrivacyIndicatorsControllerTest()
-      : scoped_feature_list_(features::kPrivacyIndicators) {}
-  PrivacyIndicatorsControllerTest(const PrivacyIndicatorsControllerTest&) =
-      delete;
-  PrivacyIndicatorsControllerTest& operator=(
-      const PrivacyIndicatorsControllerTest&) = delete;
-  ~PrivacyIndicatorsControllerTest() override = default;
+      : AshTestBase(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
+    scoped_feature_list_.InitWithFeatureState(features::kOngoingProcesses,
+                                              AreOngoingProcessesEnabled());
+  }
 
   // Get the notification view from message center associated with `id`.
-  message_center::NotificationViewBase* GetNotificationViewFromMessageCenter(
+  const message_center::MessageView* GetMessageViewFromMessageCenter(
       const std::string& id) {
-    GetPrimaryUnifiedSystemTray()->ShowBubble();
-    auto* view = GetPrimaryUnifiedSystemTray()
-                     ->message_center_bubble()
-                     ->notification_center_view()
-                     ->notification_list_view()
-                     ->GetMessageViewForNotificationId(id);
-    auto* notification_view =
-        static_cast<message_center::NotificationViewBase*>(view);
-    EXPECT_TRUE(notification_view);
-    return notification_view;
+    NotificationCenterTray* notification_center_tray =
+        Shell::GetPrimaryRootWindowController()
+            ->GetStatusAreaWidget()
+            ->notification_center_tray();
+    notification_center_tray->ShowBubble();
+
+    if (features::AreOngoingProcessesEnabled()) {
+      return notification_center_tray->bubble()
+          ->GetOngoingProcessMessageViewContainerById(id)
+          ->message_view();
+    }
+
+    return notification_center_tray->GetNotificationListView()
+        ->GetMessageViewForNotificationId(id);
   }
 
   // Get the popup notification view associated with `id`.
   views::View* GetPopupNotificationView(const std::string& id) {
-    return GetPrimaryUnifiedSystemTray()
-        ->GetMessagePopupCollection()
+    return GetPrimaryNotificationCenterTray()
+        ->popup_collection()
         ->GetMessageViewForNotificationId(id);
   }
 
-  void ClickView(message_center::NotificationViewBase* view, int button_index) {
-    auto* action_buttons = view->GetViewByID(
+  void ClickPrimaryNotificationButton(const std::string& id) {
+    if (features::AreOngoingProcessesEnabled()) {
+      auto* notification_view = GetMessageViewFromMessageCenter(id);
+      ASSERT_TRUE(notification_view);
+      auto* button_view = notification_view->GetViewByID(
+          VIEW_ID_ONGOING_PROCESS_PRIMARY_ICON_BUTTON);
+      ASSERT_TRUE(button_view);
+      LeftClickOn(button_view);
+      return;
+    }
+
+    auto* notification_view = GetMessageViewFromMessageCenter(id);
+    ASSERT_TRUE(notification_view);
+    auto* action_buttons = notification_view->GetViewByID(
         message_center::NotificationViewBase::kActionButtonsRow);
-
-    auto* button_view = action_buttons->children()[button_index];
-
-    ui::test::EventGenerator generator(GetRootWindow(button_view->GetWidget()));
-    gfx::Point cursor_location = button_view->GetBoundsInScreen().CenterPoint();
-    generator.MoveMouseTo(cursor_location);
-    generator.ClickLeftButton();
+    ASSERT_TRUE(action_buttons);
+    auto* button_view = action_buttons->children()[0].get();
+    ASSERT_TRUE(button_view);
+    LeftClickOn(button_view);
   }
 
   PrivacyIndicatorsTrayItemView* GetPrimaryDisplayPrivacyIndicatorsView()
       const {
     return Shell::GetPrimaryRootWindowController()
         ->GetStatusAreaWidget()
-        ->unified_system_tray()
+        ->notification_center_tray()
         ->privacy_indicators_view();
   }
+
+  bool AreOngoingProcessesEnabled() { return GetParam(); }
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-TEST_F(PrivacyIndicatorsControllerTest, NotificationMetadata) {
+INSTANTIATE_TEST_SUITE_P(All,
+                         PrivacyIndicatorsControllerTest,
+                         /*are_ongoing_processes_enabled=*/testing::Bool());
+
+TEST_P(PrivacyIndicatorsControllerTest, NotificationMetadata) {
   std::string app_id = "test_app_id";
   std::u16string app_name = u"test_app_name";
   std::string notification_id = GetPrivacyIndicatorsNotificationId(app_id);
@@ -167,18 +191,17 @@ TEST_F(PrivacyIndicatorsControllerTest, NotificationMetadata) {
           notification_id);
 
   // Notification message should contains app name.
-  EXPECT_NE(std::string::npos, notification->message().find(app_name));
+  EXPECT_TRUE(base::Contains((notification->title()), app_name));
 
   // Privacy indicators notification should not be a popup. It is silently added
   // to the tray.
   EXPECT_FALSE(GetPopupNotificationView(notification_id));
 }
 
-TEST_F(PrivacyIndicatorsControllerTest, NotificationWithNoButton) {
+TEST_P(PrivacyIndicatorsControllerTest, NotificationWithNoButton) {
   std::string app_id = "test_app_id";
   std::string notification_id = GetPrivacyIndicatorsNotificationId(app_id);
   scoped_refptr<TestDelegate> delegate = base::MakeRefCounted<TestDelegate>(
-      /*has_launch_app_callback=*/false,
       /*has_launch_settings_callback=*/false);
   PrivacyIndicatorsController::Get()->UpdatePrivacyIndicators(
       app_id, u"test_app_name",
@@ -194,43 +217,12 @@ TEST_F(PrivacyIndicatorsControllerTest, NotificationWithNoButton) {
   EXPECT_EQ(0u, notification->buttons().size());
 }
 
-TEST_F(PrivacyIndicatorsControllerTest, NotificationClickWithLaunchAppButton) {
-  std::string app_id = "test_app_id";
-  std::string notification_id = GetPrivacyIndicatorsNotificationId(app_id);
-  scoped_refptr<TestDelegate> delegate = base::MakeRefCounted<TestDelegate>(
-      /*has_launch_app_callback=*/true, /*has_launch_settings_callback=*/false);
-  PrivacyIndicatorsController::Get()->UpdatePrivacyIndicators(
-      app_id, u"test_app_name",
-      /*is_camera_used=*/true,
-      /*is_microphone_used=*/true, delegate, PrivacyIndicatorsSource::kApps);
-
-  auto* notification =
-      message_center::MessageCenter::Get()->FindNotificationById(
-          notification_id);
-  auto* notification_view =
-      GetNotificationViewFromMessageCenter(notification_id);
-
-  // With the delegate provides only launch app callbacks, the notification
-  // should have one button for launching the app.
-  auto buttons = notification->buttons();
-  ASSERT_EQ(1u, buttons.size());
-
-  EXPECT_EQ(
-      l10n_util::GetStringUTF16(IDS_PRIVACY_NOTIFICATION_BUTTON_APP_LAUNCH),
-      buttons[0].title);
-
-  // Clicking that button will trigger launching the app.
-  EXPECT_FALSE(delegate->launch_app_called());
-  ClickView(notification_view, 0);
-  EXPECT_TRUE(delegate->launch_app_called());
-}
-
-TEST_F(PrivacyIndicatorsControllerTest,
+TEST_P(PrivacyIndicatorsControllerTest,
        NotificationClickWithLaunchSettingsButton) {
   std::string app_id = "test_app_id";
   std::string notification_id = GetPrivacyIndicatorsNotificationId(app_id);
   scoped_refptr<TestDelegate> delegate = base::MakeRefCounted<TestDelegate>(
-      /*has_launch_app_callback=*/false, /*has_launch_settings_callback=*/true);
+      /*has_launch_settings_callback=*/true);
   PrivacyIndicatorsController::Get()->UpdatePrivacyIndicators(
       app_id, u"test_app_name",
       /*is_camera_used=*/true,
@@ -239,66 +231,59 @@ TEST_F(PrivacyIndicatorsControllerTest,
   auto* notification =
       message_center::MessageCenter::Get()->FindNotificationById(
           notification_id);
-  auto* notification_view =
-      GetNotificationViewFromMessageCenter(notification_id);
 
   // With the delegate provides only launch settings callbacks, the notification
   // should have one button for launching the app settings.
   auto buttons = notification->buttons();
   ASSERT_EQ(1u, buttons.size());
 
-  EXPECT_EQ(
-      l10n_util::GetStringUTF16(IDS_PRIVACY_NOTIFICATION_BUTTON_APP_SETTINGS),
-      buttons[0].title);
-
-  // Clicking that button will trigger launching the app.
+  // Clicking that button will trigger launching the app settings.
   EXPECT_FALSE(delegate->launch_settings_called());
-  ClickView(notification_view, 0);
+  ClickPrimaryNotificationButton(notification_id);
   EXPECT_TRUE(delegate->launch_settings_called());
 }
 
-TEST_F(PrivacyIndicatorsControllerTest, NotificationClickWithTwoButtons) {
+TEST_P(PrivacyIndicatorsControllerTest, NotificationClickBody) {
   std::string app_id = "test_app_id";
   std::string notification_id = GetPrivacyIndicatorsNotificationId(app_id);
-  scoped_refptr<TestDelegate> delegate = base::MakeRefCounted<TestDelegate>();
+
+  // Create a notification without a launch settings callback.
+  scoped_refptr<TestDelegate> delegate = base::MakeRefCounted<TestDelegate>(
+      /*has_launch_settings_callback=*/false);
   PrivacyIndicatorsController::Get()->UpdatePrivacyIndicators(
       app_id, u"test_app_name",
       /*is_camera_used=*/true,
       /*is_microphone_used=*/true, delegate, PrivacyIndicatorsSource::kApps);
 
-  auto* notification =
-      message_center::MessageCenter::Get()->FindNotificationById(
-          notification_id);
-  auto* notification_view =
-      GetNotificationViewFromMessageCenter(notification_id);
+  auto* notification_view = GetMessageViewFromMessageCenter(notification_id);
+  ASSERT_TRUE(notification_view);
 
-  // With the delegate provides both launch app and launch settings callbacks,
-  // the notification should have 2 buttons. The first one is the launch app and
-  // the second one is the launch button.
-  auto buttons = notification->buttons();
-  ASSERT_EQ(2u, buttons.size());
-
-  EXPECT_EQ(
-      l10n_util::GetStringUTF16(IDS_PRIVACY_NOTIFICATION_BUTTON_APP_LAUNCH),
-      buttons[0].title);
-  EXPECT_EQ(
-      l10n_util::GetStringUTF16(IDS_PRIVACY_NOTIFICATION_BUTTON_APP_SETTINGS),
-      buttons[1].title);
-
-  // Clicking the first button will trigger launching the app.
-  EXPECT_FALSE(delegate->launch_app_called());
-  ClickView(notification_view, 0);
-  EXPECT_TRUE(delegate->launch_app_called());
-
-  // Clicking the second button will trigger launching the app settings.
+  // Clicking the notification body without a launch settings callback will not
+  // do anything.
   EXPECT_FALSE(delegate->launch_settings_called());
-  ClickView(notification_view, 1);
-  EXPECT_TRUE(delegate->launch_settings_called());
+  LeftClickOn(notification_view);
+  EXPECT_FALSE(delegate->launch_settings_called());
+
+  // Update the notification so it has a launch settings callback.
+  scoped_refptr<TestDelegate> delegate_with_settings_callback =
+      base::MakeRefCounted<TestDelegate>(
+          /*has_launch_settings_callback=*/true);
+  PrivacyIndicatorsController::Get()->UpdatePrivacyIndicators(
+      app_id, u"test_app_name",
+      /*is_camera_used=*/true,
+      /*is_microphone_used=*/true, delegate_with_settings_callback,
+      PrivacyIndicatorsSource::kApps);
+
+  // Clicking the notification body with a launch settings callback should
+  // launch the app settings.
+  EXPECT_FALSE(delegate_with_settings_callback->launch_settings_called());
+  LeftClickOn(notification_view);
+  EXPECT_TRUE(delegate_with_settings_callback->launch_settings_called());
 }
 
 // Tests that privacy indicators notifications are working properly when there
 // are two running apps.
-TEST_F(PrivacyIndicatorsControllerTest, NotificationWithTwoApps) {
+TEST_P(PrivacyIndicatorsControllerTest, NotificationWithTwoApps) {
   std::string app_id1 = "test_app_id1";
   std::string app_id2 = "test_app_id2";
   std::string notification_id1 = GetPrivacyIndicatorsNotificationId(app_id1);
@@ -321,7 +306,10 @@ TEST_F(PrivacyIndicatorsControllerTest, NotificationWithTwoApps) {
   // A group parent notification should also be created for these 2
   // notifications.
   std::string id_parent =
-      notification_id1 + message_center::kIdSuffixForGroupContainerNotification;
+      notification_id1 +
+      message_center_utils::GenerateGroupParentNotificationIdSuffix(
+          message_center->FindNotificationById(notification_id1)
+              ->notifier_id());
   EXPECT_TRUE(message_center->FindNotificationById(id_parent));
 
   // Update the state. All notifications should be removed.
@@ -329,40 +317,25 @@ TEST_F(PrivacyIndicatorsControllerTest, NotificationWithTwoApps) {
       app_id1, u"test_app_name",
       /*is_camera_used=*/false,
       /*is_microphone_used=*/false, delegate, PrivacyIndicatorsSource::kApps);
+  // Fast forward by the minimum duration the privacy indicator should be held.
+  task_environment()->FastForwardBy(
+      PrivacyIndicatorsController::kPrivacyIndicatorsMinimumHoldDuration);
+
   PrivacyIndicatorsController::Get()->UpdatePrivacyIndicators(
       app_id2, u"test_app_name",
       /*is_camera_used=*/false,
       /*is_microphone_used=*/false, delegate, PrivacyIndicatorsSource::kApps);
+  // Fast forward by the minimum duration the privacy indicator should be held.
+  task_environment()->FastForwardBy(
+      PrivacyIndicatorsController::kPrivacyIndicatorsMinimumHoldDuration);
 
   EXPECT_FALSE(message_center->FindNotificationById(notification_id1));
   EXPECT_FALSE(message_center->FindNotificationById(notification_id2));
   EXPECT_FALSE(message_center->FindNotificationById(id_parent));
 }
 
-// Tests that a basic privacy indicator notification is disabled when the video
-// conference feature is enabled.
-TEST_F(PrivacyIndicatorsControllerTest,
-       DoNotShowNotificationWithVideoConferenceEnabled) {
-  base::test::ScopedFeatureList scoped_feature_list_{
-      features::kVideoConference};
-  base::CommandLine::ForCurrentProcess()->AppendSwitch(
-      switches::kCameraEffectsSupportedByHardware);
-  // Try to show a notification.
-  std::string app_id = "test_app_id";
-  std::string notification_id = GetPrivacyIndicatorsNotificationId(app_id);
-  scoped_refptr<TestDelegate> delegate = base::MakeRefCounted<TestDelegate>();
-  PrivacyIndicatorsController::Get()->UpdatePrivacyIndicators(
-      app_id, u"test_app_name",
-      /*is_camera_used=*/true,
-      /*is_microphone_used=*/true, delegate, PrivacyIndicatorsSource::kApps);
-
-  // The notification should not exist.
-  EXPECT_FALSE(message_center::MessageCenter::Get()->FindNotificationById(
-      notification_id));
-}
-
 // Tests privacy indicators tray item visibility across all status area widgets.
-TEST_F(PrivacyIndicatorsControllerTest, PrivacyIndicatorsTrayItemView) {
+TEST_P(PrivacyIndicatorsControllerTest, PrivacyIndicatorsTrayItemView) {
   // Uses normal animation duration so that the icons would not be immediately
   // hidden after the animation.
   ui::ScopedAnimationDurationScaleMode animation_scale(
@@ -391,6 +364,9 @@ TEST_F(PrivacyIndicatorsControllerTest, PrivacyIndicatorsTrayItemView) {
       "test_id", u"test_app_name",
       /*is_camera_used=*/false,
       /*is_microphone_used=*/false, delegate, PrivacyIndicatorsSource::kApps);
+  // Fast forward by the minimum duration the privacy indicator should be held.
+  task_environment()->FastForwardBy(
+      PrivacyIndicatorsController::kPrivacyIndicatorsMinimumHoldDuration);
   ExpectPrivacyIndicatorsTrayItemVisible(
       /*visible=*/false, /*camera_visible=*/false,
       /*microphone_visible=*/false);
@@ -403,7 +379,7 @@ TEST_F(PrivacyIndicatorsControllerTest, PrivacyIndicatorsTrayItemView) {
       /*visible=*/true, /*camera_visible=*/false, /*microphone_visible=*/true);
 }
 
-TEST_F(PrivacyIndicatorsControllerTest, SourceMetricsCollection) {
+TEST_P(PrivacyIndicatorsControllerTest, SourceMetricsCollection) {
   base::HistogramTester histogram_tester;
   scoped_refptr<TestDelegate> delegate = base::MakeRefCounted<TestDelegate>();
   const std::string histogram_name = "Ash.PrivacyIndicators.Source";
@@ -432,12 +408,13 @@ TEST_F(PrivacyIndicatorsControllerTest, SourceMetricsCollection) {
                                      PrivacyIndicatorsSource::kLinuxVm, 1);
 }
 
-TEST_F(PrivacyIndicatorsControllerTest, CameraDisabledWithOneApp) {
+TEST_P(PrivacyIndicatorsControllerTest, CameraDisabledWithOneApp) {
   auto* controller = PrivacyIndicatorsController::Get();
 
   std::string app_id = "test_app_id";
+  std::u16string app_name = u"test_app_name";
   scoped_refptr<TestDelegate> delegate = base::MakeRefCounted<TestDelegate>();
-  controller->UpdatePrivacyIndicators(app_id, u"test_app_name",
+  controller->UpdatePrivacyIndicators(app_id, app_name,
                                       /*is_camera_used=*/true,
                                       /*is_microphone_used=*/false, delegate,
                                       PrivacyIndicatorsSource::kApps);
@@ -479,7 +456,7 @@ TEST_F(PrivacyIndicatorsControllerTest, CameraDisabledWithOneApp) {
   // If both camera and microphone is in use, but the camera is muted. The
   // notification content (i.e. the title) should reflect that only mic is being
   // in used.
-  controller->UpdatePrivacyIndicators(app_id, u"test_app_name",
+  controller->UpdatePrivacyIndicators(app_id, app_name,
                                       /*is_camera_used=*/true,
                                       /*is_microphone_used=*/true, delegate,
                                       PrivacyIndicatorsSource::kApps);
@@ -489,8 +466,9 @@ TEST_F(PrivacyIndicatorsControllerTest, CameraDisabledWithOneApp) {
       message_center::MessageCenter::Get()->FindNotificationById(
           notification_id);
   EXPECT_TRUE(notification);
-  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_PRIVACY_NOTIFICATION_TITLE_MIC),
-            notification->title());
+  EXPECT_EQ(
+      l10n_util::GetStringFUTF16(IDS_PRIVACY_NOTIFICATION_TITLE_MIC, app_name),
+      notification->title());
 
   // Flip back.
   controller->OnCameraSWPrivacySwitchStateChanged(
@@ -498,15 +476,16 @@ TEST_F(PrivacyIndicatorsControllerTest, CameraDisabledWithOneApp) {
   notification = message_center::MessageCenter::Get()->FindNotificationById(
       notification_id);
   EXPECT_TRUE(notification);
-  EXPECT_EQ(
-      l10n_util::GetStringUTF16(IDS_PRIVACY_NOTIFICATION_TITLE_CAMERA_AND_MIC),
-      notification->title());
+  EXPECT_EQ(l10n_util::GetStringFUTF16(
+                IDS_PRIVACY_NOTIFICATION_TITLE_CAMERA_AND_MIC, app_name),
+            notification->title());
 }
 
-TEST_F(PrivacyIndicatorsControllerTest, MicrophoneDisabledWithOneApp) {
+TEST_P(PrivacyIndicatorsControllerTest, MicrophoneDisabledWithOneApp) {
   auto* controller = PrivacyIndicatorsController::Get();
 
   std::string app_id = "test_app_id";
+  std::u16string app_name = u"test_app_name";
   scoped_refptr<TestDelegate> delegate = base::MakeRefCounted<TestDelegate>();
   controller->UpdatePrivacyIndicators(app_id, u"test_app_name",
                                       /*is_camera_used=*/false,
@@ -549,7 +528,8 @@ TEST_F(PrivacyIndicatorsControllerTest, MicrophoneDisabledWithOneApp) {
       message_center::MessageCenter::Get()->FindNotificationById(
           notification_id);
   EXPECT_TRUE(notification);
-  EXPECT_EQ(l10n_util::GetStringUTF16(IDS_PRIVACY_NOTIFICATION_TITLE_CAMERA),
+  EXPECT_EQ(l10n_util::GetStringFUTF16(IDS_PRIVACY_NOTIFICATION_TITLE_CAMERA,
+                                       app_name),
             notification->title());
 
   // Flip back.
@@ -559,14 +539,14 @@ TEST_F(PrivacyIndicatorsControllerTest, MicrophoneDisabledWithOneApp) {
   notification = message_center::MessageCenter::Get()->FindNotificationById(
       notification_id);
   EXPECT_TRUE(notification);
-  EXPECT_EQ(
-      l10n_util::GetStringUTF16(IDS_PRIVACY_NOTIFICATION_TITLE_CAMERA_AND_MIC),
-      notification->title());
+  EXPECT_EQ(l10n_util::GetStringFUTF16(
+                IDS_PRIVACY_NOTIFICATION_TITLE_CAMERA_AND_MIC, app_name),
+            notification->title());
 }
 
 // When both microphone and camera is disabled, no privacy indicators should
 // show for camera/microphone usage.
-TEST_F(PrivacyIndicatorsControllerTest, CameraAndMicrophoneDisabledWithOneApp) {
+TEST_P(PrivacyIndicatorsControllerTest, CameraAndMicrophoneDisabledWithOneApp) {
   auto* controller = PrivacyIndicatorsController::Get();
 
   std::string app_id = "test_app_id";
@@ -602,7 +582,7 @@ TEST_F(PrivacyIndicatorsControllerTest, CameraAndMicrophoneDisabledWithOneApp) {
   EXPECT_FALSE(GetPrimaryDisplayPrivacyIndicatorsView()->GetVisible());
 }
 
-TEST_F(PrivacyIndicatorsControllerTest, CameraDisabledWithMultipleApps) {
+TEST_P(PrivacyIndicatorsControllerTest, CameraDisabledWithMultipleApps) {
   auto* controller = PrivacyIndicatorsController::Get();
 
   std::string app_id1 = "test_app_id1";
@@ -653,7 +633,7 @@ TEST_F(PrivacyIndicatorsControllerTest, CameraDisabledWithMultipleApps) {
       notification_id2));
 }
 
-TEST_F(PrivacyIndicatorsControllerTest, MicrophoneDisabledWithMultipleApps) {
+TEST_P(PrivacyIndicatorsControllerTest, MicrophoneDisabledWithMultipleApps) {
   auto* controller = PrivacyIndicatorsController::Get();
 
   std::string app_id1 = "test_app_id1";
@@ -706,80 +686,118 @@ TEST_F(PrivacyIndicatorsControllerTest, MicrophoneDisabledWithMultipleApps) {
       notification_id2));
 }
 
-// Tests enabling both `kPrivacyIndicators` and `kVideoConference`,
-// parameterized with `kQsRevamp` enabled and disabled.
-class PrivacyIndicatorsControllerVideoConferenceTest
-    : public AshTestBase,
-      public testing::WithParamInterface<bool> {
- public:
-  PrivacyIndicatorsControllerVideoConferenceTest() {
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kPrivacyIndicators, features::kVideoConference};
-    std::vector<base::test::FeatureRef> disabled_features;
+TEST_P(PrivacyIndicatorsControllerTest,
+       HidingDelayTimerMinimumEnabledWithOneApp) {
+  auto* controller = PrivacyIndicatorsController::Get();
 
-    if (IsQsRevampEnabled()) {
-      enabled_features.push_back(features::kQsRevamp);
-    } else {
-      disabled_features.push_back(features::kQsRevamp);
-    }
+  std::string app_id = "test_app_id";
+  scoped_refptr<TestDelegate> delegate = base::MakeRefCounted<TestDelegate>();
+  controller->UpdatePrivacyIndicators(app_id, u"test_app_name",
+                                      /*is_camera_used=*/true,
+                                      /*is_microphone_used=*/false, delegate,
+                                      PrivacyIndicatorsSource::kApps);
 
-    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
-  }
-  PrivacyIndicatorsControllerVideoConferenceTest(
-      const PrivacyIndicatorsControllerVideoConferenceTest&) = delete;
-  PrivacyIndicatorsControllerVideoConferenceTest& operator=(
-      const PrivacyIndicatorsControllerVideoConferenceTest&) = delete;
-  ~PrivacyIndicatorsControllerVideoConferenceTest() override = default;
+  std::string notification_id1 = GetPrivacyIndicatorsNotificationId(app_id);
+  ASSERT_TRUE(message_center::MessageCenter::Get()->FindNotificationById(
+      notification_id1));
 
-  bool IsQsRevampEnabled() { return GetParam(); }
+  controller->UpdatePrivacyIndicators(app_id, u"test_app_name",
+                                      /*is_camera_used=*/false,
+                                      /*is_microphone_used=*/false, delegate,
+                                      PrivacyIndicatorsSource::kApps);
+  EXPECT_TRUE(message_center::MessageCenter::Get()->FindNotificationById(
+      notification_id1));
+  EXPECT_TRUE(GetPrimaryDisplayPrivacyIndicatorsView()->GetVisible());
 
-  // AshTestBase:
-  void SetUp() override {
-    base::CommandLine::ForCurrentProcess()->AppendSwitch(
-        switches::kCameraEffectsSupportedByHardware);
+  // Fast forward by the minimum duration the privacy indicator should be held.
+  task_environment()->FastForwardBy(
+      PrivacyIndicatorsController::kPrivacyIndicatorsMinimumHoldDuration);
+  EXPECT_FALSE(message_center::MessageCenter::Get()->FindNotificationById(
+      notification_id1));
+  EXPECT_FALSE(GetPrimaryDisplayPrivacyIndicatorsView()->GetVisible());
+}
 
-    // Instantiates a fake controller (the real one is created in
-    // ChromeBrowserMainExtraPartsAsh::PreProfileInit() which is not called in
-    // ash unit tests).
-    controller_ = std::make_unique<FakeVideoConferenceTrayController>();
+TEST_P(PrivacyIndicatorsControllerTest, HidingDelayTimerHoldEnabledWithOneApp) {
+  auto* controller = PrivacyIndicatorsController::Get();
 
-    AshTestBase::SetUp();
-  }
+  std::string app_id = "test_app_id";
+  scoped_refptr<TestDelegate> delegate = base::MakeRefCounted<TestDelegate>();
+  controller->UpdatePrivacyIndicators(app_id, u"test_app_name",
+                                      /*is_camera_used=*/true,
+                                      /*is_microphone_used=*/false, delegate,
+                                      PrivacyIndicatorsSource::kApps);
+  // Fast forward by the minimum duration the privacy indicator should be held.
+  task_environment()->FastForwardBy(
+      PrivacyIndicatorsController::kPrivacyIndicatorsMinimumHoldDuration);
 
-  void TearDown() override {
-    AshTestBase::TearDown();
-    controller_.reset();
-  }
+  std::string notification_id1 = GetPrivacyIndicatorsNotificationId(app_id);
+  ASSERT_TRUE(message_center::MessageCenter::Get()->FindNotificationById(
+      notification_id1));
 
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-  std::unique_ptr<FakeVideoConferenceTrayController> controller_;
-};
+  controller->UpdatePrivacyIndicators(app_id, u"test_app_name",
+                                      /*is_camera_used=*/false,
+                                      /*is_microphone_used=*/false, delegate,
+                                      PrivacyIndicatorsSource::kApps);
+  EXPECT_TRUE(message_center::MessageCenter::Get()->FindNotificationById(
+      notification_id1));
+  EXPECT_TRUE(GetPrimaryDisplayPrivacyIndicatorsView()->GetVisible());
 
-INSTANTIATE_TEST_SUITE_P(All,
-                         PrivacyIndicatorsControllerVideoConferenceTest,
-                         testing::Bool() /* IsQsRevampEnabled() */);
+  // Fast forward by the after use duration the privacy indicator should be
+  // held.
+  task_environment()->FastForwardBy(
+      PrivacyIndicatorsController::kPrivacyIndicatorsHoldAfterUseDuration);
+  EXPECT_FALSE(message_center::MessageCenter::Get()->FindNotificationById(
+      notification_id1));
+  EXPECT_FALSE(GetPrimaryDisplayPrivacyIndicatorsView()->GetVisible());
+}
 
-// Make sure that when `kPrivacyIndicators` and `kVideoConference` are both
-// enabled, the privacy indicators view and the controller is not created.
-TEST_P(PrivacyIndicatorsControllerVideoConferenceTest, ObjectsCreation) {
-  EXPECT_FALSE(PrivacyIndicatorsController::Get());
+// Tests to make sure that privacy indicators are updated accordingly in locked
+// screen.
+TEST_P(PrivacyIndicatorsControllerTest, UpdateUsageStageInLockScreen) {
+  auto* controller = PrivacyIndicatorsController::Get();
 
-  for (auto* root_window_controller :
-       Shell::Get()->GetAllRootWindowControllers()) {
-    DCHECK(root_window_controller);
-    auto* status_area_widget = root_window_controller->GetStatusAreaWidget();
-    DCHECK(status_area_widget);
+  std::string app_id = "test_app_id";
+  scoped_refptr<TestDelegate> delegate = base::MakeRefCounted<TestDelegate>();
 
-    auto* privacy_indicators_view =
-        features::IsQsRevampEnabled()
-            ? status_area_widget->notification_center_tray()
-                  ->privacy_indicators_view()
-            : status_area_widget->unified_system_tray()
-                  ->privacy_indicators_view();
+  SetSessionState(session_manager::SessionState::ACTIVE);
 
-    EXPECT_FALSE(privacy_indicators_view);
-  }
+  controller->UpdatePrivacyIndicators(app_id, u"test_app_name",
+                                      /*is_camera_used=*/true,
+                                      /*is_microphone_used=*/true, delegate,
+                                      PrivacyIndicatorsSource::kApps);
+
+  // Privacy indicators should show up as expected in an active session.
+  std::string notification_id = GetPrivacyIndicatorsNotificationId(app_id);
+  ASSERT_TRUE(message_center::MessageCenter::Get()->FindNotificationById(
+      notification_id));
+  ASSERT_TRUE(GetPrimaryDisplayPrivacyIndicatorsView()->GetVisible());
+
+  // Privacy indicators should show up as expected in a locked session.
+  SetSessionState(session_manager::SessionState::LOCKED);
+
+  EXPECT_TRUE(message_center::MessageCenter::Get()->FindNotificationById(
+      notification_id));
+  EXPECT_TRUE(GetPrimaryDisplayPrivacyIndicatorsView()->GetVisible());
+
+  // Update privacy indicators in a locked session. Should update accordingly.
+  controller->UpdatePrivacyIndicators(app_id, u"test_app_name",
+                                      /*is_camera_used=*/false,
+                                      /*is_microphone_used=*/false, delegate,
+                                      PrivacyIndicatorsSource::kApps);
+  // Fast forward by the minimum duration the privacy indicator should be held.
+  task_environment()->FastForwardBy(
+      PrivacyIndicatorsController::kPrivacyIndicatorsMinimumHoldDuration);
+  EXPECT_FALSE(message_center::MessageCenter::Get()->FindNotificationById(
+      notification_id));
+  EXPECT_FALSE(GetPrimaryDisplayPrivacyIndicatorsView()->GetVisible());
+
+  // Indicators should still show up correctly when log back to an active
+  // session.
+  SetSessionState(session_manager::SessionState::ACTIVE);
+
+  EXPECT_FALSE(message_center::MessageCenter::Get()->FindNotificationById(
+      notification_id));
+  EXPECT_FALSE(GetPrimaryDisplayPrivacyIndicatorsView()->GetVisible());
 }
 
 }  // namespace ash

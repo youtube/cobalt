@@ -13,16 +13,17 @@
 #include "chrome/browser/ui/webui/omnibox/omnibox_page_handler.h"
 #include "chrome/browser/ui/webui/version/version_handler.h"
 #include "chrome/browser/ui/webui/version/version_ui.h"
-#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/omnibox_resources.h"
 #include "chrome/grit/omnibox_resources_map.h"
+#include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_controller.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "ui/base/webui/web_ui_util.h"
+#include "ui/webui/webui_util.h"
 
 OmniboxUI::OmniboxUI(content::WebUI* web_ui)
     : ui::MojoWebUIController(web_ui, /*enable_chrome_send=*/true) {
@@ -38,15 +39,17 @@ OmniboxUI::OmniboxUI(content::WebUI* web_ui)
   VersionUI::AddVersionDetailStrings(source);
   source->UseStringsJs();
 
-  source->AddResourcePaths(
-      base::make_span(kOmniboxResources, kOmniboxResourcesSize));
+  source->AddResourcePaths(kOmniboxResources);
   source->SetDefaultResource(IDR_OMNIBOX_OMNIBOX_HTML);
-  web_ui->AddMessageHandler(std::make_unique<VersionHandler>());
+  source->AddResourcePath("ml", IDR_OMNIBOX_ML_ML_HTML);
+
+  source->AddBoolean("isMlUrlScoringEnabled",
+                     OmniboxFieldTrial::IsMlUrlScoringEnabled());
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(OmniboxUI)
 
-OmniboxUI::~OmniboxUI() {}
+OmniboxUI::~OmniboxUI() = default;
 
 void OmniboxUI::BindInterface(
     mojo::PendingReceiver<mojom::OmniboxPageHandler> receiver) {

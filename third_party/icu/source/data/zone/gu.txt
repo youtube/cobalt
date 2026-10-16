@@ -258,6 +258,9 @@ gu{
         "America:Chihuahua"{
             ec{"ચિહુઆહુઆ"}
         }
+        "America:Ciudad_Juarez"{
+            ec{"સિયુદાદ હુઆરેઝ"}
+        }
         "America:Coral_Harbour"{
             ec{"એટિકોકેન"}
         }
@@ -1944,10 +1947,6 @@ gu{
         "meta:Yukon"{
             ls{"યુકોન સમય"}
         }
-        fallbackFormat{"{1} ({0})"}
-        gmtFormat{"GMT{0}"}
-        gmtZeroFormat{"GMT"}
-        hourFormat{"+HH:mm;-HH:mm"}
         regionFormat{"{0} સમય"}
         regionFormatDaylight{"{0} દિવસ સમય"}
         regionFormatStandard{"{0} માનક સમય"}

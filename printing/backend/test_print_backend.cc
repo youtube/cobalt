@@ -127,11 +127,11 @@ mojom::ResultCode TestPrintBackend::GetPrinterSemanticCapsAndDefaults(
 #if BUILDFLAG(IS_WIN)
   // The Windows implementation does not load the printable area for all
   // paper sizes, only for the default size.  Mimic this behavior by
-  // defaulting the printable area to the physical size any other paper
+  // defaulting the printable area to the physical size for all other paper
   // sizes.
   for (auto& paper : printer_caps->papers) {
     if (paper != printer_caps->default_paper) {
-      paper.printable_area_um = gfx::Rect(paper.size_um);
+      paper.set_printable_area_to_paper_size();
     }
   }
 #endif
@@ -145,23 +145,23 @@ mojom::ResultCode TestPrintBackend::GetPrinterCapsAndDefaults(
   return ReportErrorNotImplemented(FROM_HERE);
 }
 
-absl::optional<gfx::Rect> TestPrintBackend::GetPaperPrintableArea(
+std::optional<gfx::Rect> TestPrintBackend::GetPaperPrintableArea(
     const std::string& printer_name,
     const std::string& paper_vendor_id,
     const gfx::Size& paper_size_um) {
   auto found = printer_map_.find(printer_name);
   if (found == printer_map_.end()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   const std::unique_ptr<PrinterData>& data = found->second;
   if (data->blocked_by_permissions) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Capabilities might not have been provided.
   if (!data->caps) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Windows uses non-zero IDs to represent specific standard paper sizes.
@@ -169,13 +169,13 @@ absl::optional<gfx::Rect> TestPrintBackend::GetPaperPrintableArea(
   if (base::StringToUint(paper_vendor_id, &id) && id) {
     PrinterSemanticCapsAndDefaults::Papers& papers = data->caps->papers;
     for (auto paper = papers.begin(); paper != papers.end(); ++paper) {
-      if (paper->vendor_id == paper_vendor_id) {
-        return paper->printable_area_um;
+      if (paper->vendor_id() == paper_vendor_id) {
+        return paper->printable_area_um();
       }
     }
 
     // No match for the specified paper identification.
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Custom paper size.  For testing just treat as match to paper size.
@@ -183,10 +183,10 @@ absl::optional<gfx::Rect> TestPrintBackend::GetPaperPrintableArea(
 }
 #endif  // BUILDFLAG(IS_WIN)
 
-std::string TestPrintBackend::GetPrinterDriverInfo(
+std::vector<std::string> TestPrintBackend::GetPrinterDriverInfo(
     const std::string& printer_name) {
   // not implemented
-  return "";
+  return std::vector<std::string>();
 }
 
 bool TestPrintBackend::IsValidPrinter(const std::string& printer_name) {
@@ -224,15 +224,7 @@ void TestPrintBackend::SetDefaultPrinterName(const std::string& printer_name) {
     return;
   }
 
-  // Previous default printer is no longer the default.
-  const std::unique_ptr<PrinterData>& new_default_data = found->second;
-  if (!default_printer_name_.empty())
-    printer_map_[default_printer_name_]->info->is_default = false;
-
-  // Now update new printer as default.
   default_printer_name_ = printer_name;
-  if (!default_printer_name_.empty())
-    new_default_data->info->is_default = true;
 }
 
 void TestPrintBackend::AddValidPrinter(
@@ -280,16 +272,14 @@ void TestPrintBackend::AddPrinter(
     bool blocked_by_permissions) {
   DCHECK(!printer_name.empty());
 
-  const bool is_default = info && info->is_default;
+  // Ensure that default settings are honored if this prior default should no
+  // longer be so.
+  if (default_printer_name_ == printer_name && !info) {
+    default_printer_name_.clear();
+  }
+
   printer_map_[printer_name] = std::make_unique<PrinterData>(
       std::move(caps), std::move(info), blocked_by_permissions);
-
-  // Ensure that default settings are honored if more than one is attempted to
-  // be marked as default or if this prior default should no longer be so.
-  if (is_default)
-    SetDefaultPrinterName(printer_name);
-  else if (default_printer_name_ == printer_name)
-    default_printer_name_.clear();
 }
 
 TestPrintBackend::PrinterData::PrinterData(

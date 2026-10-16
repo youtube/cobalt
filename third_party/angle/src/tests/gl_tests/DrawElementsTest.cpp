@@ -84,14 +84,14 @@ TEST_P(DrawElementsTest, ClientSideNullptrArrayZeroCount)
 
     ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Blue());
 
-    GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
+    GLint posLocation = glGetAttribLocation(program, "a_pos");
     ASSERT_NE(-1, posLocation);
-    glUseProgram(program.get());
+    glUseProgram(program);
 
     const auto &vertices = GetQuadVertices();
 
     GLBuffer vertexBuffer;
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer.get());
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0]) * vertices.size(), vertices.data(),
                  GL_STATIC_DRAW);
 
@@ -684,16 +684,14 @@ TEST_P(WebGLDrawElementsTest, DrawElementsTypeAlignment)
 
     ASSERT_GL_NO_ERROR();
 
-    const char *zeroIndices = nullptr;
-
-    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT, zeroIndices);
+    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT, nullptr);
     ASSERT_GL_NO_ERROR();
 
     const GLushort indices2[] = {0, 0, 0, 0, 0, 0};
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices2), indices2, GL_STATIC_DRAW);
 
-    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT, zeroIndices + 1);
+    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT, reinterpret_cast<const void *>(1));
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 }
 

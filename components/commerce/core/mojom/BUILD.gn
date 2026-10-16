@@ -5,9 +5,15 @@
 import("//mojo/public/tools/bindings/mojom.gni")
 
 mojom("mojo_bindings") {
-  sources = [ "shopping_list.mojom" ]
+  sources = [
+    "commerce_web_extractor.mojom",
+    "price_insights.mojom",
+    "price_tracking.mojom",
+    "product_specifications.mojom",
+    "shared.mojom",
+    "shopping_service.mojom",
+  ]
   webui_module_path = "/"
-  use_typescript_sources = true
   public_deps = [
     "//mojo/public/mojom/base",
     "//url/mojom:url_mojom_gurl",

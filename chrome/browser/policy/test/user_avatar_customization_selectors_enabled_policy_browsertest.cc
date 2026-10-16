@@ -5,8 +5,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "chrome/browser/ash/login/users/avatar/user_image_manager_impl.h"
+#include "chrome/browser/ash/login/users/avatar/user_image_manager_registry.h"
 #include "chrome/browser/ash/login/users/avatar/user_image_manager_test_util.h"
-#include "chrome/browser/ash/login/users/chrome_user_manager.h"
 #include "chrome/browser/ash/login/users/default_user_image/default_user_images.h"
 #include "chrome/browser/policy/policy_test_utils.h"
 #include "chrome/common/chrome_paths.h"
@@ -31,8 +31,8 @@ class UserAvatarCustomizationSelectorsEnabledPolicyTest : public PolicyTest {
     // Fetch User, which can be used to check the currently set user image
     user_ = user_manager::UserManager::Get()->GetActiveUser();
     // Fetch UserImageManager, which can be used to save a new user image
-    user_image_manager_ = ash::ChromeUserManager::Get()->GetUserImageManager(
-        user_->GetAccountId());
+    user_image_manager_ =
+        ash::UserImageManagerRegistry::Get()->GetManager(user_->GetAccountId());
 
     ASSERT_TRUE(base::PathService::Get(chrome::DIR_TEST_DATA, &test_data_dir_));
   }
@@ -47,8 +47,8 @@ class UserAvatarCustomizationSelectorsEnabledPolicyTest : public PolicyTest {
     provider_.UpdateChromePolicy(policies);
   }
 
-  raw_ptr<ash::UserImageManager, ExperimentalAsh> user_image_manager_;
-  raw_ptr<const user_manager::User, ExperimentalAsh> user_;
+  raw_ptr<ash::UserImageManagerImpl, DanglingUntriaged> user_image_manager_;
+  raw_ptr<const user_manager::User, DanglingUntriaged> user_;
   base::FilePath test_data_dir_;
 };
 
@@ -86,13 +86,13 @@ IN_PROC_BROWSER_TEST_F(UserAvatarCustomizationSelectorsEnabledPolicyTest,
   SetPolicy(false);
 
   // Verify user starts with default image
-  EXPECT_TRUE(user_->HasDefaultImage());
+  EXPECT_TRUE(ash::default_user_image::IsValidIndex(user_->image_index()));
 
   // Attempt to save custom local image
   const gfx::ImageSkia& image = ash::default_user_image::GetStubDefaultImage();
   user_image_manager_->SaveUserImage(user_manager::UserImage::CreateAndEncode(
       image, user_manager::UserImage::FORMAT_JPEG));
-  EXPECT_TRUE(user_->HasDefaultImage());
+  EXPECT_TRUE(ash::default_user_image::IsValidIndex(user_->image_index()));
 
   // Attempt to save custom local image from file
   const base::FilePath custom_image_path =
@@ -101,18 +101,17 @@ IN_PROC_BROWSER_TEST_F(UserAvatarCustomizationSelectorsEnabledPolicyTest,
       ash::test::ImageLoader(custom_image_path).Load();
   ASSERT_FALSE(custom_image.isNull());
   user_image_manager_->SaveUserImageFromFile(custom_image_path);
-  EXPECT_TRUE(user_->HasDefaultImage());
+  EXPECT_TRUE(ash::default_user_image::IsValidIndex(user_->image_index()));
 
   // Attempt to save image from profile
   user_image_manager_->SaveUserImageFromProfileImage();
-  EXPECT_TRUE(user_->HasDefaultImage());
+  EXPECT_TRUE(ash::default_user_image::IsValidIndex(user_->image_index()));
 
   // Save default image. This should not be affected by policy
   int index = ash::default_user_image::GetRandomDefaultImageIndex();
   UserImageChangedWaiter waiter;
   user_image_manager_->SaveUserDefaultImageIndex(index);
   waiter.Wait();
-  EXPECT_TRUE(user_->HasDefaultImage());
   EXPECT_EQ(index, user_->image_index());
 }
 
@@ -126,7 +125,7 @@ IN_PROC_BROWSER_TEST_F(UserAvatarCustomizationSelectorsEnabledPolicyTest,
   user_image_manager_->SaveUserImage(user_manager::UserImage::CreateAndEncode(
       image, user_manager::UserImage::FORMAT_JPEG));
   waiter.Wait();
-  EXPECT_EQ(user_manager::User::USER_IMAGE_EXTERNAL, user_->image_index());
+  EXPECT_EQ(user_manager::UserImage::Type::kExternal, user_->image_index());
   EXPECT_TRUE(ash::test::AreImagesEqual(image, user_->GetImage()));
 
   // Save custom local image from file
@@ -138,21 +137,20 @@ IN_PROC_BROWSER_TEST_F(UserAvatarCustomizationSelectorsEnabledPolicyTest,
   waiter.Reset();
   user_image_manager_->SaveUserImageFromFile(custom_image_path);
   waiter.Wait();
-  EXPECT_EQ(user_manager::User::USER_IMAGE_EXTERNAL, user_->image_index());
+  EXPECT_EQ(user_manager::UserImage::Type::kExternal, user_->image_index());
   EXPECT_TRUE(ash::test::AreImagesEqual(custom_image, user_->GetImage()));
 
   // Save profile image
   waiter.Reset();
   user_image_manager_->SaveUserImageFromProfileImage();
   waiter.Wait();
-  EXPECT_EQ(user_manager::User::USER_IMAGE_PROFILE, user_->image_index());
+  EXPECT_EQ(user_manager::UserImage::Type::kProfile, user_->image_index());
 
   // Save default image. This should not be affected by policy
   int index = ash::default_user_image::GetRandomDefaultImageIndex();
   waiter.Reset();
   user_image_manager_->SaveUserDefaultImageIndex(index);
   waiter.Wait();
-  EXPECT_TRUE(user_->HasDefaultImage());
   EXPECT_EQ(index, user_->image_index());
 }
 }  // namespace policy

@@ -19,13 +19,14 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/browser/apps/platform_apps/app_load_service.h"
 #include "chrome/browser/background/background_contents_service_factory.h"
 #include "chrome/browser/background/background_contents_service_observer.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/notifications/notification_common.h"
 #include "chrome/browser/notifications/notification_display_service.h"
+#include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser.h"
@@ -39,12 +40,14 @@
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_host.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/image_loader.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
-#include "extensions/common/extension_icon_set.h"
+#include "extensions/common/extension_id.h"
 #include "extensions/common/extension_set.h"
+#include "extensions/common/icons/extension_icon_set.h"
 #include "extensions/common/manifest_handlers/background_info.h"
 #include "extensions/common/manifest_handlers/icons_handler.h"
 #include "extensions/grit/extensions_browser_resources.h"
@@ -57,9 +60,9 @@
 #include "ui/message_center/public/cpp/notification_types.h"
 #include "ui/message_center/public/cpp/notifier_id.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/notifier_catalogs.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 using content::SiteInstance;
 using content::WebContents;
@@ -77,7 +80,7 @@ void CloseBalloon(const std::string& extension_id, Profile* profile) {
   if (g_disable_close_balloon_for_testing)
     return;
 
-  NotificationDisplayService::GetForProfile(profile)->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile)->Close(
       NotificationHandler::Type::TRANSIENT,
       kCrashedNotificationPrefix + extension_id);
 }
@@ -96,15 +99,15 @@ class CrashNotificationDelegate : public message_center::NotificationDelegate {
   CrashNotificationDelegate& operator=(const CrashNotificationDelegate&) =
       delete;
 
-  void Click(const absl::optional<int>& button_index,
-             const absl::optional<std::u16string>& reply) override {
+  void Click(const std::optional<int>& button_index,
+             const std::optional<std::u16string>& reply) override {
     // Pass arguments by value as HandleClick() might destroy *this.
     HandleClick(is_hosted_app_, is_platform_app_, extension_id_, profile_);
     // *this might be destroyed now, do not access any members anymore!
   }
 
  private:
-  ~CrashNotificationDelegate() override {}
+  ~CrashNotificationDelegate() override = default;
 
   // Static to prevent accidental use of members as *this might get destroyed.
   static void HandleClick(bool is_hosted_app,
@@ -128,18 +131,21 @@ class CrashNotificationDelegate : public message_center::NotificationDelegate {
     } else if (is_platform_app) {
       apps::AppLoadService::Get(profile)->RestartApplication(extension_id);
     } else {
-      extensions::ExtensionSystem::Get(profile)
-          ->extension_service()
-          ->ReloadExtension(extension_id);
+      extensions::ExtensionRegistrar::Get(profile)->ReloadExtension(
+          extension_id);
     }
 
     CloseBalloon(extension_id, profile);
   }
 
-  raw_ptr<Profile> profile_;
+  // This dangling raw_ptr occurred in:
+  // unit_tests:
+  // BackgroundContentsServiceNotificationTest.TestShowBalloonShutdown
+  // https://ci.chromium.org/ui/p/chromium/builders/try/linux-rel/1427454/test-results?q=ExactID%3Aninja%3A%2F%2Fchrome%2Ftest%3Aunit_tests%2FBackgroundContentsServiceNotificationTest.TestShowBalloonShutdown+VHash%3A728d3f3a440b40c1
+  raw_ptr<Profile, FlakyDanglingUntriaged> profile_;
   bool is_hosted_app_;
   bool is_platform_app_;
-  std::string extension_id_;
+  extensions::ExtensionId extension_id_;
 };
 
 void ReloadExtension(const std::string& extension_id, Profile* profile) {
@@ -148,22 +154,18 @@ void ReloadExtension(const std::string& extension_id, Profile* profile) {
     return;
   }
 
-  extensions::ExtensionSystem* extension_system =
-      extensions::ExtensionSystem::Get(profile);
-  extensions::ExtensionRegistry* extension_registry =
-      extensions::ExtensionRegistry::Get(profile);
-  if (!extension_system || !extension_system->extension_service() ||
-      !extension_registry) {
+  auto* extension_registrar = extensions::ExtensionRegistrar::Get(profile);
+  auto* extension_registry = extensions::ExtensionRegistry::Get(profile);
+  if (!extension_registrar || !extension_registry) {
     return;
   }
 
-  if (!extension_registry->GetExtensionById(
-          extension_id, extensions::ExtensionRegistry::TERMINATED)) {
+  if (!extension_registry->terminated_extensions().GetByID(extension_id)) {
     // Either the app/extension was uninstalled by policy or it has since
     // been restarted successfully by someone else (the user).
     return;
   }
-  extension_system->extension_service()->ReloadExtension(extension_id);
+  extension_registrar->ReloadExtension(extension_id);
 }
 
 }  // namespace
@@ -357,7 +359,6 @@ void BackgroundContentsService::OnExtensionUnloaded(
     }
   }
   NOTREACHED() << "Undefined UnloadedExtensionReason.";
-  return ShutdownAssociatedBackgroundContents(extension->id());
 }
 
 void BackgroundContentsService::OnExtensionUninstalled(
@@ -425,8 +426,8 @@ void BackgroundContentsService::LoadBackgroundContentsFromPrefs() {
   DCHECK(extension_registry);
   for (const auto [extension_id, _] : contents) {
     // Check to make sure that the parent extension is still enabled.
-    const Extension* extension = extension_registry->GetExtensionById(
-        extension_id, extensions::ExtensionRegistry::ENABLED);
+    const Extension* extension =
+        extension_registry->enabled_extensions().GetByID(extension_id);
     if (!extension) {
       // Normally, we shouldn't reach here - it shouldn't be possible for an app
       // to become uninstalled without the associated BackgroundContents being
@@ -468,9 +469,9 @@ void BackgroundContentsService::MaybeClearBackoffEntry(
 void BackgroundContentsService::LoadBackgroundContentsForExtension(
     const std::string& extension_id) {
   // First look if the manifest specifies a background page.
-  const Extension* extension =
-      extensions::ExtensionRegistry::Get(profile_)->GetExtensionById(
-          extension_id, extensions::ExtensionRegistry::ENABLED);
+  const Extension* extension = extensions::ExtensionRegistry::Get(profile_)
+                                   ->enabled_extensions()
+                                   .GetByID(extension_id);
   DCHECK(!extension || extension->is_hosted_app());
   if (extension && BackgroundInfo::HasBackgroundPage(extension)) {
     LoadBackgroundContents(BackgroundInfo::GetBackgroundURL(extension),
@@ -688,8 +689,8 @@ void BackgroundContentsService::OnBackgroundContentsNavigated(
   const std::string& appid = GetParentApplicationId(contents);
   extensions::ExtensionRegistry* extension_registry =
       extensions::ExtensionRegistry::Get(profile_);
-  const Extension* extension = extension_registry->GetExtensionById(
-      appid, extensions::ExtensionRegistry::ENABLED);
+  const Extension* extension =
+      extension_registry->enabled_extensions().GetByID(appid);
   if (extension && BackgroundInfo::HasBackgroundPage(extension))
     return;
   RegisterBackgroundContents(contents);
@@ -697,10 +698,9 @@ void BackgroundContentsService::OnBackgroundContentsNavigated(
 
 void BackgroundContentsService::OnBackgroundContentsTerminated(
     BackgroundContents* contents) {
-  HandleExtensionCrashed(
-      extensions::ExtensionRegistry::Get(profile_)->GetExtensionById(
-          GetParentApplicationId(contents),
-          extensions::ExtensionRegistry::ENABLED));
+  HandleExtensionCrashed(extensions::ExtensionRegistry::Get(profile_)
+                             ->enabled_extensions()
+                             .GetByID(GetParentApplicationId(contents)));
   DeleteBackgroundContents(contents);
 }
 
@@ -742,7 +742,7 @@ void BackgroundContentsService::NotificationImageReady(
     scoped_refptr<message_center::NotificationDelegate> delegate,
     const gfx::Image& icon) {
   NotificationDisplayService* notification_service =
-      NotificationDisplayService::GetForProfile(profile_);
+      NotificationDisplayServiceFactory::GetForProfile(profile_);
   CHECK(notification_service);
 
   if (g_browser_process->IsShuttingDown()) {
@@ -763,14 +763,14 @@ void BackgroundContentsService::NotificationImageReady(
       message_center::NOTIFICATION_TYPE_SIMPLE, id, std::u16string(), message,
       ui::ImageModel::FromImage(notification_icon), std::u16string(),
       GURL("chrome://extension-crash"),
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
       message_center::NotifierId(
           message_center::NotifierType::SYSTEM_COMPONENT, kNotifierId,
           ash::NotificationCatalogName::kBackgroundCrash),
 #else
       message_center::NotifierId(message_center::NotifierType::SYSTEM_COMPONENT,
                                  kNotifierId),
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
       {}, delegate);
   notification_service->Display(NotificationHandler::Type::TRANSIENT,
                                 notification,
@@ -787,7 +787,7 @@ void BackgroundContentsService::ShowBalloon(const Extension* extension) {
   extension_misc::ExtensionIcons size(extension_misc::EXTENSION_ICON_LARGE);
   extensions::ExtensionResource resource =
       extensions::IconsInfo::GetIconResource(extension, size,
-                                             ExtensionIconSet::MATCH_SMALLER);
+                                             ExtensionIconSet::Match::kSmaller);
   // We can't just load the image in the Observe method below because, despite
   // what this method is called, it may call the callback synchronously.
   // However, it's possible that the extension went away during the interim,

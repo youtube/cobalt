@@ -10,15 +10,16 @@
 
 #include "sdk/objc/native/src/objc_video_renderer.h"
 
-#import "base/RTCMacros.h"
 #import "base/RTCVideoFrame.h"
 #import "base/RTCVideoRenderer.h"
+#import "sdk/objc/base/RTCMacros.h"
 
 #include "sdk/objc/native/src/objc_video_frame.h"
 
 namespace webrtc {
 
-ObjCVideoRenderer::ObjCVideoRenderer(id<RTC_OBJC_TYPE(RTCVideoRenderer)> renderer)
+ObjCVideoRenderer::ObjCVideoRenderer(
+    id<RTC_OBJC_TYPE(RTCVideoRenderer)> renderer)
     : renderer_(renderer), size_(CGSizeZero) {}
 
 void ObjCVideoRenderer::OnFrame(const VideoFrame& nativeVideoFrame) {

@@ -14,9 +14,11 @@
 #import <Metal/Metal.h>
 
 #include "angle_gl.h"
+#include "common/MemoryBuffer.h"
 #include "common/PackedEnums.h"
 #include "libANGLE/Context.h"
 #include "libANGLE/Texture.h"
+#include "libANGLE/angletypes.h"
 #include "libANGLE/renderer/metal/mtl_format_utils.h"
 #include "libANGLE/renderer/metal/mtl_resources.h"
 #include "libANGLE/renderer/metal/mtl_state_cache.h"
@@ -33,9 +35,16 @@ void StopFrameCapture();
 namespace mtl
 {
 
+enum class StagingPurpose
+{
+    Initialization,
+    Upload
+};
+
 bool PreferStagedTextureUploads(const gl::Context *context,
                                 const TextureRef &texture,
-                                const Format &textureObjFormat);
+                                const Format &textureObjFormat,
+                                const StagingPurpose purpose);
 
 // Initialize texture content to black.
 angle::Result InitializeTextureContents(const gl::Context *context,
@@ -90,39 +99,29 @@ MTLScissorRect GetScissorRect(const gl::Rectangle &rect,
 
 uint32_t GetDeviceVendorId(id<MTLDevice> metalDevice);
 
-AutoObjCPtr<id<MTLLibrary>> CreateShaderLibrary(
-    const mtl::ContextDevice &metalDevice,
-    const std::string &source,
+angle::ObjCPtr<id<MTLLibrary>> CreateShaderLibrary(
+    id<MTLDevice> metalDevice,
+    std::string_view source,
     const std::map<std::string, std::string> &substitutionDictionary,
-    bool enableFastMath,
-    AutoObjCPtr<NSError *> *error);
+    bool disableFastMath,
+    bool usesInvariance,
+    angle::ObjCPtr<NSError> *error);
 
-AutoObjCPtr<id<MTLLibrary>> CreateShaderLibrary(const mtl::ContextDevice &metalDevice,
-                                                const std::string &source,
-                                                AutoObjCPtr<NSError *> *error);
+angle::ObjCPtr<id<MTLLibrary>> CreateShaderLibraryFromBinary(id<MTLDevice> metalDevice,
+                                                             const uint8_t *data,
+                                                             size_t length,
+                                                             angle::ObjCPtr<NSError> *error);
 
-AutoObjCPtr<id<MTLLibrary>> CreateShaderLibrary(
-    const mtl::ContextDevice &metalDevice,
-    const char *source,
-    size_t sourceLen,
-    const std::map<std::string, std::string> &substitutionDictionary,
-    bool enableFastMath,
-    AutoObjCPtr<NSError *> *error);
-
-AutoObjCPtr<id<MTLLibrary>> CreateShaderLibrary(id<MTLDevice> metalDevice,
-                                                const char *source,
-                                                size_t sourceLen,
-                                                AutoObjCPtr<NSError *> *error);
-
-AutoObjCPtr<id<MTLLibrary>> CreateShaderLibraryFromBinary(id<MTLDevice> metalDevice,
-                                                          const uint8_t *binarySource,
-                                                          size_t binarySourceLen,
-                                                          AutoObjCPtr<NSError *> *error);
+angle::ObjCPtr<id<MTLLibrary>> CreateShaderLibraryFromStaticBinary(id<MTLDevice> metalDevice,
+                                                                   const uint8_t *data,
+                                                                   size_t length,
+                                                                   angle::ObjCPtr<NSError> *error);
 
 // Compiles a shader library into a metallib file, returning the path to it.
 std::string CompileShaderLibraryToFile(const std::string &source,
                                        const std::map<std::string, std::string> &macros,
-                                       bool enableFastMath);
+                                       bool disableFastMath,
+                                       bool usesInvariance);
 
 bool SupportsAppleGPUFamily(id<MTLDevice> device, uint8_t appleFamily);
 
@@ -147,21 +146,19 @@ MTLSamplerMinMagFilter GetFilter(GLenum filter);
 MTLSamplerMipFilter GetMipmapFilter(GLenum filter);
 MTLSamplerAddressMode GetSamplerAddressMode(GLenum wrap);
 
-MTLBlendFactor GetBlendFactor(GLenum factor);
-MTLBlendOperation GetBlendOp(GLenum op);
+MTLBlendFactor GetBlendFactor(gl::BlendFactorType factor);
+MTLBlendOperation GetBlendOp(gl::BlendEquationType op);
 
 MTLCompareFunction GetCompareFunc(GLenum func);
 MTLStencilOperation GetStencilOp(GLenum op);
 
 MTLWinding GetFrontfaceWinding(GLenum frontFaceMode, bool invert);
 
-PrimitiveTopologyClass GetPrimitiveTopologyClass(gl::PrimitiveMode mode);
+MTLPrimitiveTopologyClass GetPrimitiveTopologyClass(gl::PrimitiveMode mode);
 MTLPrimitiveType GetPrimitiveType(gl::PrimitiveMode mode);
 MTLIndexType GetIndexType(gl::DrawElementsType type);
 
-#if ANGLE_MTL_SWIZZLE_AVAILABLE
 MTLTextureSwizzle GetTextureSwizzle(GLenum swizzle);
-#endif
 
 // Get color write mask for a specified format. Some formats such as RGB565 doesn't have alpha
 // channel but is emulated by a RGBA8 format, we need to disable alpha write for this format.
@@ -185,7 +182,7 @@ bool DeviceHasMaximumRenderTargetSize(id<MTLDevice> device);
 // has alpha channel.
 MTLClearColor EmulatedAlphaClearColor(MTLClearColor color, MTLColorWriteMask colorMask);
 
-NSUInteger ComputeTotalSizeUsedForMTLRenderPassDescriptor(const MTLRenderPassDescriptor *descriptor,
+NSUInteger ComputeTotalSizeUsedForMTLRenderPassDescriptor(const mtl::RenderPassDesc &descriptor,
                                                           const Context *context,
                                                           const mtl::ContextDevice &device);
 
@@ -194,6 +191,7 @@ NSUInteger ComputeTotalSizeUsedForMTLRenderPipelineDescriptor(
     const Context *context,
     const mtl::ContextDevice &device);
 
+gl::Rectangle MTLRegionToGLRect(const MTLRegion &mtlRegion);
 gl::Box MTLRegionToGLBox(const MTLRegion &mtlRegion);
 
 MipmapNativeLevel GetNativeMipLevel(GLuint level, GLuint base);
@@ -205,17 +203,11 @@ angle::Result GetTriangleFanIndicesCount(ContextMtl *context,
                                          GLsizei vetexCount,
                                          uint32_t *numElemsOut);
 
-angle::Result CreateMslShader(Context *context,
+angle::Result CreateMslShader(ContextMtl *context,
                               id<MTLLibrary> shaderLib,
                               NSString *shaderName,
                               MTLFunctionConstantValues *funcConstants,
-                              AutoObjCPtr<id<MTLFunction>> *shaderOut);
-
-angle::Result CreateMslShader(Context *context,
-                              id<MTLLibrary> shaderLib,
-                              NSString *shaderName,
-                              MTLFunctionConstantValues *funcConstants,
-                              id<MTLFunction> *shaderOut);
+                              angle::ObjCPtr<id<MTLFunction>> *shaderOut);
 
 }  // namespace mtl
 }  // namespace rx

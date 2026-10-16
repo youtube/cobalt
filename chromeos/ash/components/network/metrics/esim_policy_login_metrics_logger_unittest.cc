@@ -4,9 +4,12 @@
 
 #include "chromeos/ash/components/network/metrics/esim_policy_login_metrics_logger.h"
 
+#include <memory>
+
 #include "ash/constants/ash_features.h"
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
@@ -66,9 +69,11 @@ class ESimPolicyLoginMetricsLoggerTest : public testing::Test {
         network_state_test_helper_.network_state_handler(),
         network_profile_handler_.get(), network_config_handler_.get(),
         /*network_device_handler=*/nullptr,
-        /*prohibited_tecnologies_handler=*/nullptr);
+        /*prohibited_technologies_handler=*/nullptr,
+        /*hotspot_controller=*/nullptr);
 
-    esim_policy_login_metrics_logger_.reset(new ESimPolicyLoginMetricsLogger());
+    esim_policy_login_metrics_logger_ =
+        std::make_unique<ESimPolicyLoginMetricsLogger>();
     esim_policy_login_metrics_logger_->Init(
         network_state_test_helper_.network_state_handler(),
         managed_config_handler_.get());
@@ -93,7 +98,7 @@ class ESimPolicyLoginMetricsLoggerTest : public testing::Test {
         LoginState::LoggedInUserType::LOGGED_IN_USER_NONE);
     LoginState::Get()->SetLoggedInState(
         LoginState::LoggedInState::LOGGED_IN_ACTIVE,
-        LoginState::LoggedInUserType::LOGGED_IN_USER_OWNER);
+        LoginState::LoggedInUserType::LOGGED_IN_USER_REGULAR);
   }
 
   void RemoveCellular() {
@@ -104,8 +109,7 @@ class ESimPolicyLoginMetricsLoggerTest : public testing::Test {
   }
 
   void SetGlobalPolicy(bool allow_only_policy_cellular) {
-    base::Value::Dict global_config;
-    global_config.Set(
+    auto global_config = base::Value::Dict().Set(
         ::onc::global_network_config::kAllowOnlyPolicyCellularNetworks,
         allow_only_policy_cellular);
     managed_config_handler_->SetPolicy(
@@ -114,9 +118,10 @@ class ESimPolicyLoginMetricsLoggerTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
+  base::test::ScopedFeatureList scoped_feature_list_;
   base::HistogramTester histogram_tester_;
   NetworkStateTestHelper network_state_test_helper_{
-      false /* use_default_devices_and_services */};
+      /*use_default_devices_and_services=*/false};
   std::unique_ptr<NetworkConfigurationHandler> network_config_handler_;
   std::unique_ptr<NetworkProfileHandler> network_profile_handler_;
   std::unique_ptr<ManagedNetworkConfigurationHandlerImpl>
@@ -126,12 +131,14 @@ class ESimPolicyLoginMetricsLoggerTest : public testing::Test {
 };
 
 TEST_F(ESimPolicyLoginMetricsLoggerTest, LoginMetricsTest) {
+  scoped_feature_list_.InitAndDisableFeature(
+      ash::features::kAllowApnModificationPolicy);
   // Perform this test as though this "device" is enterprise managed.
   esim_policy_login_metrics_logger_->SetIsEnterpriseManaged(
       /*is_enterprise_managed=*/true);
   LoginState::Get()->SetLoggedInState(
       LoginState::LoggedInState::LOGGED_IN_ACTIVE,
-      LoginState::LoggedInUserType::LOGGED_IN_USER_OWNER);
+      LoginState::LoggedInUserType::LOGGED_IN_USER_REGULAR);
   histogram_tester_.ExpectTotalCount(
       ESimPolicyLoginMetricsLogger::kESimPolicyBlockNonManagedCellularHistogram,
       0);

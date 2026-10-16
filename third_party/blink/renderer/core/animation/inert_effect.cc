@@ -47,19 +47,25 @@ InertEffect::InertEffect(KeyframeEffectModelBase* model,
       at_scroll_timeline_boundary_(proxy.AtScrollTimelineBoundary()) {}
 
 void InertEffect::Sample(HeapVector<Member<Interpolation>>& result) const {
-  UpdateInheritedTime(inherited_time_, at_scroll_timeline_boundary_,
-                      /* is_idle */ false, playback_rate_,
+  UpdateInheritedTime(inherited_time_, /* is_idle */ false, playback_rate_,
                       kTimingUpdateOnDemand);
   if (!IsInEffect()) {
     result.clear();
     return;
   }
 
-  absl::optional<double> iteration = CurrentIteration();
+  std::optional<double> iteration = CurrentIteration();
   DCHECK(iteration);
   DCHECK_GE(iteration.value(), 0);
+
+  TimingFunction::LimitDirection limit_direction =
+      (GetPhase() == Timing::kPhaseBefore)
+          ? TimingFunction::LimitDirection::LEFT
+          : TimingFunction::LimitDirection::RIGHT;
+
   model_->Sample(ClampTo<int>(iteration.value(), 0), Progress().value(),
-                 NormalizedTiming().iteration_duration, result);
+                 limit_direction, NormalizedTiming().iteration_duration,
+                 result);
 }
 
 bool InertEffect::Affects(const PropertyHandle& property) const {
@@ -68,12 +74,12 @@ bool InertEffect::Affects(const PropertyHandle& property) const {
 
 AnimationTimeDelta InertEffect::CalculateTimeToEffectChange(
     bool,
-    absl::optional<AnimationTimeDelta>,
+    std::optional<AnimationTimeDelta>,
     AnimationTimeDelta) const {
   return AnimationTimeDelta::Max();
 }
 
-absl::optional<AnimationTimeDelta> InertEffect::TimelineDuration() const {
+std::optional<AnimationTimeDelta> InertEffect::TimelineDuration() const {
   return timeline_duration_;
 }
 

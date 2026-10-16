@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <string>
 
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -81,6 +82,9 @@ class QUICHE_EXPORT QuicheDataReader {
   // Returns true on success, false otherwise.
   bool ReadStringPiece(absl::string_view* result, size_t size);
 
+  // Reads at most a given number of bytes into the provided view.
+  absl::string_view ReadAtMost(size_t size);
+
   // Reads tag represented as 32-bit unsigned integer into given output
   // parameter. Tags are in big endian on the wire (e.g., CHLO is
   // 'C','H','L','O') and are read in byte order, so tags in memory are in big
@@ -110,6 +114,13 @@ class QUICHE_EXPORT QuicheDataReader {
   // Returns false if there is not enough space in the buffer to read
   // the number and subsequent string, true otherwise.
   bool ReadStringPieceVarInt62(absl::string_view* result);
+
+  // Reads a string prefixed with a RFC 9000 varint length prefix, and copies it
+  // into the provided string.
+  //
+  // Returns false if there is not enough space in the buffer to read
+  // the number and subsequent string, true otherwise.
+  bool ReadStringVarInt62(std::string& result);
 
   // Returns the remaining payload as a absl::string_view.
   //
@@ -164,7 +175,7 @@ class QUICHE_EXPORT QuicheDataReader {
 
   // Truncates the reader down by reducing its internal length.
   // If called immediately after calling this, BytesRemaining will
-  // return |truncation_length|. If truncation_length is less than the
+  // return |truncation_length|. If truncation_length is greater than the
   // current value of BytesRemaining, this does nothing and returns false.
   bool TruncateRemaining(size_t truncation_length);
 
@@ -197,8 +208,6 @@ class QUICHE_EXPORT QuicheDataReader {
   quiche::Endianness endianness() const { return endianness_; }
 
  private:
-  // TODO(fkastenholz, b/73004262) change buffer_, et al, to be uint8_t, not
-  // char. The data buffer that we're reading from.
   const char* data_;
 
   // The length of the data buffer that we're reading from.

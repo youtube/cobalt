@@ -22,8 +22,16 @@ public class MockShellManagerNatives implements ShellManager.Natives {
   public void onShellCreated(ShellManager caller, long nativeShell) {}
 
   @Override
-  public void launchShell(String url) {}
+  public void launchShell(Object shellManagerInstance, String url, String deepLinkUrl) {}
 
   @Override
   public void init(Object shellManagerInstance) {}
+
+  @Override
+  public void destroy(Object shellManagerInstance) {}
+
+  @Override
+  public String appendMigrationStatus(String url) {
+    return url;
+  }
 }

@@ -9,6 +9,7 @@
 #include <memory>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/command_line.h"
@@ -26,7 +27,9 @@
 #include "components/zucchini/zucchini_commands.h"
 
 #if BUILDFLAG(IS_WIN)
-#include <windows.h>  // This include must come first.
+// clang-format off
+#include <windows.h>  // Must be in front of other Windows header files.
+// clang-format on
 
 #include <psapi.h>
 #endif
@@ -66,15 +69,17 @@ struct Command {
 constexpr Command kCommands[] = {
     {"gen",
      "-gen <old_file> <new_file> <patch_file> [-raw] [-keep]"
-     " [-impose=#+#=#+#,#+#=#+#,...]",
+     " [-start-scan-at=#] [-impose=#+#=#+#,#+#=#+#,...]",
      3, &MainGen},
     {"apply", "-apply <old_file> <patch_file> <new_file> [-keep]", 3,
      &MainApply},
     {"verify", "-verify <patch_file>", 1, &MainVerify},
     {"read", "-read <exe> [-dump]", 1, &MainRead},
-    {"detect", "-detect <archive_file>", 1, &MainDetect},
-    {"match", "-match <old_file> <new_file> [-impose=#+#=#+#,#+#=#+#,...]", 2,
-     &MainMatch},
+    {"detect", "-detect <archive_file> [-start-scan-at=#]", 1, &MainDetect},
+    {"match",
+     "-match <old_file> <new_file> [-start-scan-at=#]"
+     " [-impose=#+#=#+#,#+#=#+#,...]",
+     2, &MainMatch},
     {"crc32", "-crc32 <file>", 1, &MainCrc32},
     {"suffix-array", "-suffix-array <file>", 1, &MainSuffixArray},
 };
@@ -98,12 +103,12 @@ void GetPeakMemoryMetrics(size_t* peak_virtual_memory,
           .Append("status");
   std::string contents_string;
   base::ReadFileToString(status_path, &contents_string);
-  std::vector<base::StringPiece> lines = base::SplitStringPiece(
+  std::vector<std::string_view> lines = base::SplitStringPiece(
       contents_string, "\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
 
   for (const auto& line : lines) {
     // Tokens should generally be of the form "Metric: <val> kB"
-    std::vector<base::StringPiece> tokens = base::SplitStringPiece(
+    std::vector<std::string_view> tokens = base::SplitStringPiece(
         line, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
     if (tokens.size() < 2)
       continue;

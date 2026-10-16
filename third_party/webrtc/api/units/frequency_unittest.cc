@@ -9,8 +9,9 @@
  */
 #include "api/units/frequency.h"
 
-#include <limits>
+#include <cstdint>
 
+#include "api/units/time_delta.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -19,6 +20,7 @@ TEST(FrequencyTest, ConstExpr) {
   constexpr Frequency kFrequencyZero = Frequency::Zero();
   constexpr Frequency kFrequencyPlusInf = Frequency::PlusInfinity();
   constexpr Frequency kFrequencyMinusInf = Frequency::MinusInfinity();
+  static_assert(Frequency() == kFrequencyZero);
   static_assert(kFrequencyZero.IsZero(), "");
   static_assert(kFrequencyPlusInf.IsPlusInfinity(), "");
   static_assert(kFrequencyMinusInf.IsMinusInfinity(), "");

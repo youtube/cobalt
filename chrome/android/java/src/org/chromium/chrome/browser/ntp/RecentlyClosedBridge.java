@@ -7,104 +7,108 @@ package org.chromium.chrome.browser.ntp;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.base.Token;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModel;
-import org.chromium.chrome.browser.tabmodel.TabModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
-import org.chromium.chrome.browser.tasks.tab_groups.TabGroupModelFilter;
-import org.chromium.chrome.browser.tasks.tab_groups.TabGroupTitleUtils;
-import org.chromium.url.GURL;
+import org.chromium.components.tab_groups.TabGroupColorId;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * This class allows Java code to get and clear the list of recently closed entries.
- */
+/** This class allows Java code to get and clear the list of recently closed entries. */
 @JNINamespace("recent_tabs")
 public class RecentlyClosedBridge implements RecentlyClosedTabManager {
     private long mNativeBridge;
     private final TabModelSelector mTabModelSelector;
 
-    @Nullable
-    private Runnable mEntriesUpdatedRunnable;
-
-    private static void addTabs(List<RecentlyClosedTab> tabs, int[] tabIds, long[] tabTimestamps,
-            String[] tabTitles, GURL[] tabUrls, String[] tabGroupIds) {
-        assert tabIds.length == tabTimestamps.length;
-        assert tabIds.length == tabTitles.length;
-        assert tabIds.length == tabUrls.length;
-        assert tabIds.length == tabGroupIds.length;
-        for (int i = 0; i < tabIds.length; i++) {
-            tabs.add(new RecentlyClosedTab(
-                    tabIds[i], tabTimestamps[i], tabTitles[i], tabUrls[i], tabGroupIds[i]));
-        }
-    }
+    @Nullable private Runnable mEntriesUpdatedRunnable;
 
     @CalledByNative
-    private static void addTabToEntries(List<RecentlyClosedEntry> entries, int id, long timestamp,
-            String title, GURL url, String groupId) {
-        RecentlyClosedTab tab = new RecentlyClosedTab(id, timestamp, title, url, groupId);
+    private static void addTabToEntries(List<RecentlyClosedEntry> entries, RecentlyClosedTab tab) {
         entries.add(tab);
     }
 
     @CalledByNative
-    private static void addGroupToEntries(List<RecentlyClosedEntry> entries, int id,
-            long groupTimestamp, String groupTitle, int[] tabIds, long[] tabTimestamps,
-            String[] tabTitles, GURL[] tabUrls, String[] tabGroupIds) {
-        RecentlyClosedGroup group = new RecentlyClosedGroup(id, groupTimestamp, groupTitle);
-
-        addTabs(group.getTabs(), tabIds, tabTimestamps, tabTitles, tabUrls, tabGroupIds);
-
+    private static void addGroupToEntries(
+            List<RecentlyClosedEntry> entries,
+            int id,
+            long groupTimestamp,
+            @JniType("std::u16string") String groupTitle,
+            @TabGroupColorId int groupColor,
+            @JniType("std::vector") List<RecentlyClosedTab> tabs) {
+        RecentlyClosedGroup group =
+                new RecentlyClosedGroup(id, groupTimestamp, groupTitle, groupColor);
+        group.getTabs().addAll(tabs);
         entries.add(group);
     }
 
     @CalledByNative
-    private static void addBulkEventToEntries(List<RecentlyClosedEntry> entries, int id,
-            long eventTimestamp, String[] groupIds, String[] groupsTitles, int[] tabIds,
-            long[] tabTimestamps, String[] tabTitles, GURL[] tabUrls, String[] tabGroupIds) {
+    private static void addBulkEventToEntries(
+            List<RecentlyClosedEntry> entries,
+            int id,
+            long eventTimestamp,
+            @JniType("std::vector<std::optional<base::Token>>") Token[] tabGroupIds,
+            @JniType("std::vector<const std::u16string*>") String[] groupTitles,
+            @JniType("std::vector") List<RecentlyClosedTab> tabs) {
         RecentlyClosedBulkEvent event = new RecentlyClosedBulkEvent(id, eventTimestamp);
 
-        assert groupIds.length == groupsTitles.length;
-        for (int i = 0; i < groupIds.length; i++) {
-            event.getGroupIdToTitleMap().put(groupIds[i], groupsTitles[i]);
+        assert tabGroupIds.length == groupTitles.length;
+        for (int i = 0; i < tabGroupIds.length; i++) {
+            event.getTabGroupIdToTitleMap().put(tabGroupIds[i], groupTitles[i]);
         }
 
-        addTabs(event.getTabs(), tabIds, tabTimestamps, tabTitles, tabUrls, tabGroupIds);
-
+        event.getTabs().addAll(tabs);
         entries.add(event);
     }
 
     @CalledByNative
-    private void restoreTabGroup(TabModel tabModel, int groupId, String title, int[] tabIds) {
-        // Can't restore empty or size 1 group. Note groupId is a tab in the group.
-        if (tabIds.length < 1) return;
+    private void restoreTabGroup(
+            TabModel tabModel,
+            @JniType("std::u16string") String title,
+            int color,
+            @JniType("std::vector") int[] tabIds) {
+        if (tabIds.length == 0) return;
 
         assert mTabModelSelector.getModel(tabModel.isIncognito()) == tabModel;
-        TabModelFilter filter = mTabModelSelector.getTabModelFilterProvider().getTabModelFilter(
-                tabModel.isIncognito());
-        if (!(filter instanceof TabGroupModelFilter)) return;
+        TabGroupModelFilter filter =
+                mTabModelSelector
+                        .getTabGroupModelFilterProvider()
+                        .getTabGroupModelFilter(tabModel.isIncognito());
+        TabGroupModelFilter groupFilter = filter;
 
-        TabGroupModelFilter groupFilter = (TabGroupModelFilter) filter;
-        for (int id : tabIds) {
-            // This shouldn't happen, but as a precaution skip.
-            if (id == groupId) continue;
+        int rootId = tabIds[0];
+        groupFilter.setTabGroupColor(rootId, color);
 
-            groupFilter.mergeTabsToGroup(id, groupId);
+        // TODO(b/336589861): Use savedTabGroupId to reassociate this tab group with a sync entity.
+
+        if (tabIds.length == 1) {
+            groupFilter.createSingleTabGroup(tabIds[0]);
+        } else {
+            for (int id : tabIds) {
+                if (id == rootId) continue;
+
+                groupFilter.mergeTabsToGroup(id, rootId);
+            }
         }
 
         if (title == null || title.isEmpty()) return;
 
-        TabGroupTitleUtils.storeTabGroupTitle(groupId, title);
+        groupFilter.setTabGroupTitle(rootId, title);
     }
 
     /**
      * Initializes this class with the given profile.
+     *
      * @param profile The {@link Profile} whose recently closed tabs will be queried.
-     * @param tabModelSelector The {@link TabModelSelector} to use to get {@link TabModelFilter}s.
+     * @param tabModelSelector The {@link TabModelSelector} to use to get {@link
+     *     TabGroupModelFilter}s.
      */
     public RecentlyClosedBridge(Profile profile, TabModelSelector tabModelSelector) {
         mNativeBridge = RecentlyClosedBridgeJni.get().init(RecentlyClosedBridge.this, profile);
@@ -127,8 +131,9 @@ public class RecentlyClosedBridge implements RecentlyClosedTabManager {
     @Override
     public List<RecentlyClosedEntry> getRecentlyClosedEntries(int maxEntryCount) {
         List<RecentlyClosedEntry> entries = new ArrayList<RecentlyClosedEntry>();
-        boolean received = RecentlyClosedBridgeJni.get().getRecentlyClosedEntries(
-                mNativeBridge, entries, maxEntryCount);
+        boolean received =
+                RecentlyClosedBridgeJni.get()
+                        .getRecentlyClosedEntries(mNativeBridge, entries, maxEntryCount);
         return received ? entries : null;
     }
 
@@ -136,15 +141,16 @@ public class RecentlyClosedBridge implements RecentlyClosedTabManager {
     public boolean openRecentlyClosedTab(
             TabModel tabModel, RecentlyClosedTab recentTab, int windowOpenDisposition) {
         assert mTabModelSelector.getModel(tabModel.isIncognito()) == tabModel;
-        return RecentlyClosedBridgeJni.get().openRecentlyClosedTab(
-                mNativeBridge, tabModel, recentTab.getSessionId(), windowOpenDisposition);
+        return RecentlyClosedBridgeJni.get()
+                .openRecentlyClosedTab(
+                        mNativeBridge, tabModel, recentTab.getSessionId(), windowOpenDisposition);
     }
 
     @Override
     public boolean openRecentlyClosedEntry(TabModel tabModel, RecentlyClosedEntry recentEntry) {
         assert mTabModelSelector.getModel(tabModel.isIncognito()) == tabModel;
-        return RecentlyClosedBridgeJni.get().openRecentlyClosedEntry(
-                mNativeBridge, tabModel, recentEntry.getSessionId());
+        return RecentlyClosedBridgeJni.get()
+                .openRecentlyClosedEntry(mNativeBridge, tabModel, recentEntry.getSessionId());
     }
 
     @Override
@@ -158,9 +164,7 @@ public class RecentlyClosedBridge implements RecentlyClosedTabManager {
         RecentlyClosedBridgeJni.get().clearRecentlyClosedEntries(mNativeBridge);
     }
 
-    /**
-     * This method will be called every time the list of recently closed tabs is updated.
-     */
+    /** This method will be called every time the list of recently closed tabs is updated. */
     @CalledByNative
     private void onUpdated() {
         if (mEntriesUpdatedRunnable != null) mEntriesUpdatedRunnable.run();
@@ -169,15 +173,26 @@ public class RecentlyClosedBridge implements RecentlyClosedTabManager {
     @NativeMethods
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public interface Natives {
-        long init(RecentlyClosedBridge caller, Profile profile);
+        long init(RecentlyClosedBridge caller, @JniType("Profile*") Profile profile);
+
         void destroy(long nativeRecentlyClosedTabsBridge);
-        boolean getRecentlyClosedEntries(long nativeRecentlyClosedTabsBridge,
-                List<RecentlyClosedEntry> entries, int maxEntryCount);
-        boolean openRecentlyClosedTab(long nativeRecentlyClosedTabsBridge, TabModel tabModel,
-                int tabSessionId, int windowOpenDisposition);
+
+        boolean getRecentlyClosedEntries(
+                long nativeRecentlyClosedTabsBridge,
+                List<RecentlyClosedEntry> entries,
+                int maxEntryCount);
+
+        boolean openRecentlyClosedTab(
+                long nativeRecentlyClosedTabsBridge,
+                TabModel tabModel,
+                int tabSessionId,
+                int windowOpenDisposition);
+
         boolean openRecentlyClosedEntry(
                 long nativeRecentlyClosedTabsBridge, TabModel tabModel, int sessionId);
+
         boolean openMostRecentlyClosedEntry(long nativeRecentlyClosedTabsBridge, TabModel tabModel);
+
         void clearRecentlyClosedEntries(long nativeRecentlyClosedTabsBridge);
     }
 }

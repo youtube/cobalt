@@ -8,12 +8,12 @@
 
 #include <algorithm>  // for std::lower_bound()
 
+#include "base/compiler_specific.h"
 #include "base/cpu.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 
 namespace metrics {
 
@@ -64,11 +64,16 @@ const CpuUarchTableEntry kCpuUarchTable[] = {
     {"06_8C", "Tigerlake"},
     {"06_8D", "Tigerlake"},
     {"06_8E", "Kabylake"},
+    {"06_97", "AlderLake"},
     {"06_9A", "AlderLake"},
     {"06_9C", "Tremont"},     // Jasperlake
     {"06_9E", "Kabylake"},
     {"06_A5", "CometLake"},
     {"06_A6", "CometLake"},
+    {"06_B7", "RaptorLake"},
+    {"06_BA", "RaptorLake"},
+    {"06_BE", "Gracemont"},   // Alderlake-N
+    {"06_BF", "RaptorLake"},
     {"0F_03", "Prescott"},
     {"0F_04", "Prescott"},
     {"0F_06", "Presler"},
@@ -99,16 +104,16 @@ const CpuUarchTableEntry kCpuUarchTable[] = {
     {"17_60", "Zen2"},        // AMD Renoir
     {"17_68", "Zen2"},        // AMD Lucienne
     {"17_71", "Zen2"},        // AMD Matisse
+    {"17_A0", "Zen2"},        // AMD Mendocino
     {"19_50", "Zen3"},        // AMD Cezanne
     // clang-format on
 };
 
-const CpuUarchTableEntry* kCpuUarchTableEnd =
-    kCpuUarchTable + std::size(kCpuUarchTable);
+const CpuUarchTableEntry* kCpuUarchTableEnd = std::end(kCpuUarchTable);
 
 bool CpuUarchTableCmp(const CpuUarchTableEntry& a,
                       const CpuUarchTableEntry& b) {
-  return strcmp(a.family_model, b.family_model) < 0;
+  return UNSAFE_TODO(strcmp(a.family_model, b.family_model)) < 0;
 }
 
 }  // namespace internal
@@ -117,7 +122,7 @@ CPUIdentity::CPUIdentity() : family(0), model(0) {}
 
 CPUIdentity::CPUIdentity(const CPUIdentity& other) = default;
 
-CPUIdentity::~CPUIdentity() {}
+CPUIdentity::~CPUIdentity() = default;
 
 std::string GetCpuUarch(const CPUIdentity& cpuid) {
   if (cpuid.vendor != "GenuineIntel" && cpuid.vendor != "AuthenticAMD")
@@ -139,9 +144,9 @@ CPUIdentity GetCPUIdentity() {
   CPUIdentity result = {};
   result.arch = base::SysInfo::OperatingSystemArchitecture();
   result.release =
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
       base::SysInfo::KernelVersion();
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#elif BUILDFLAG(IS_LINUX)
       base::SysInfo::OperatingSystemVersion();
 #else
 #error "Unsupported configuration"

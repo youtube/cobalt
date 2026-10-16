@@ -15,18 +15,16 @@ import org.junit.runner.RunWith;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.autofill.AutofillTestHelper;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.AutofillProfile;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.payments.PaymentRequestTestRule.AppPresence;
 import org.chromium.chrome.browser.payments.PaymentRequestTestRule.FactorySpeed;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.R;
+import org.chromium.components.autofill.AutofillProfile;
 
 import java.util.concurrent.TimeoutException;
 
-/**
- * A payment integration test for the show promise that resolves with an empty dictionary.
- */
+/** A payment integration test for the show promise that resolves with an empty dictionary. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class PaymentRequestShowPromiseEmptyTest {
@@ -36,9 +34,19 @@ public class PaymentRequestShowPromiseEmptyTest {
 
     @Before
     public void setUp() throws TimeoutException {
-        new AutofillTestHelper().setProfile(new AutofillProfile("", "https://example.test", true,
-                "" /* honorific prefix */, "Jon Doe", "Google", "340 Main St", "CA", "Los Angeles",
-                "", "90291", "", "US", "650-253-0000", "", "en-US"));
+        new AutofillTestHelper()
+                .setProfile(
+                        AutofillProfile.builder()
+                                .setFullName("Jon Doe")
+                                .setCompanyName("Google")
+                                .setStreetAddress("340 Main St")
+                                .setRegion("CA")
+                                .setLocality("Los Angeles")
+                                .setPostalCode("90291")
+                                .setCountryCode("US")
+                                .setPhoneNumber("650-253-0000")
+                                .setLanguageCode("en-US")
+                                .build());
     }
 
     @Test

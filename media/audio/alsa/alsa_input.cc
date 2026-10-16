@@ -6,6 +6,8 @@
 
 #include <stddef.h>
 
+#include <array>
+
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -62,7 +64,8 @@ AudioInputStream::OpenOutcome AlsaPcmInputStream::Open() {
   buffer_us = std::max(buffer_us, AlsaPcmOutputStream::kMinLatencyMicros);
 
   if (device_name_ == kAutoSelectDevice) {
-    const char* device_names[] = { kDefaultDevice1, kDefaultDevice2 };
+    auto device_names =
+        std::to_array<const char*>({kDefaultDevice1, kDefaultDevice2});
     for (size_t i = 0; i < std::size(device_names); ++i) {
       device_handle_ = alsa_util::OpenCaptureDevice(
           wrapper_, device_names[i], params_.channels(), params_.sample_rate(),
@@ -274,17 +277,21 @@ void AlsaPcmInputStream::Stop() {
 void AlsaPcmInputStream::Close() {
   if (device_handle_) {
     Stop();
-    int error = alsa_util::CloseDevice(wrapper_, device_handle_);
-    if (error < 0)
-      HandleError("PcmClose", error);
+    int error =
+        alsa_util::CloseDevice(wrapper_, device_handle_.ExtractAsDangling());
 
-    if (mixer_handle_)
-      alsa_util::CloseMixer(wrapper_, mixer_handle_, device_name_);
+    if (error < 0) {
+      HandleError("PcmClose", error);
+    }
+
+    mixer_element_handle_ = nullptr;
+
+    if (mixer_handle_) {
+      alsa_util::CloseMixer(wrapper_, mixer_handle_.ExtractAsDangling(),
+                            device_name_);
+    }
 
     audio_buffer_.reset();
-    device_handle_ = nullptr;
-    mixer_handle_ = nullptr;
-    mixer_element_handle_ = nullptr;
   }
 
   audio_manager_->ReleaseInputStream(this);

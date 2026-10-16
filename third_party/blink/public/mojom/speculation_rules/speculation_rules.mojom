@@ -4,7 +4,6 @@
 
 module blink.mojom;
 
-import "mojo/public/mojom/base/unguessable_token.mojom";
 import "services/network/public/mojom/no_vary_search.mojom";
 import "third_party/blink/public/mojom/loader/referrer.mojom";
 import "url/mojom/url.mojom";
@@ -21,18 +20,14 @@ import "url/mojom/url.mojom";
 // re-evaluate.
 interface SpeculationHost {
   // Pushes a new set of speculation candidates, which replaces any previously
-  // sent. All candidates in `candidates` are from a single document, and
-  // `devtools_navigation_token` is this document's loader's
-  // devtools_navigation_token (a token that can be used by DevTools to
-  // identify a document). This token is sent from renderer to browser as the
-  // document id for Devtools because the lifetime of both SpeculationHostImpl
-  // and RenderFrameHost makes them not suitable for the storage of the
-  // information.
-  UpdateSpeculationCandidates(
-    mojo_base.mojom.UnguessableToken devtools_navigation_token,
-      array<SpeculationCandidate> candidates);
-  // Enables matching prefetches according to No-Vary-Search response headers.
-  EnableNoVarySearchSupport();
+  // sent.
+  UpdateSpeculationCandidates(array<SpeculationCandidate> candidates);
+  // Called when LCP is predicted.
+  OnLCPPredicted();
+  // Initiates previewing the given `url`.
+  // TODO(https://b/292184832): Give more hints, such as gfx.mjom.PointF
+  // screen_position.
+  InitiatePreview(url.mojom.Url url);
 };
 
 // The action that is proposed.
@@ -50,18 +45,20 @@ enum SpeculationTargetHint {
 };
 
 // Shows how eager the developer is to perform the speculation action.
+// NOTE: These values are persisted to logs. Entries should not be renumbered
+// and numeric values should never be reused.
 enum SpeculationEagerness {
-  kConservative,
-  kModerate,
-  kEager,
+  kConservative = 0,
+  kModerate = 1,
+  kEager = 2,
 };
 
-// Specifies the v8 world where the JavaScript runs if the JavaScript injects
-// the speculation rule.
-enum SpeculationInjectionWorld {
-  kNone,  // No v8 context, i.e. statically inserted script tags.
-  kMain,
-  kIsolated,
+// Specifies the way in which speculation rules were injected.
+enum SpeculationInjectionType {
+  kNone,                  // Not injected, i.e., statically-inserted script tags.
+  kMainWorldScript,       // Injected by main V8 world's script.
+  kIsolatedWorldScript,   // Injected by an isolated V8 world's script.
+  kAutoSpeculationRules,  // Injected by the browser as part of the auto speculation rules feature.
 };
 
 // A single candidate: a URL, an action, a referrer, and any associated
@@ -93,9 +90,25 @@ struct SpeculationCandidate {
 
   // The expected No-Vary-Search header if specified.
   // Explainer: https://github.com/WICG/nav-speculation/blob/main/no-vary-search.md#a-referrer-hint
-  network.mojom.NoVarySearch? no_vary_search_expected;
+  network.mojom.NoVarySearch? no_vary_search_hint;
 
-  // The v8 world where the JavaScript runs if the speculation rule is injected
-  // by the JavaScript.
-  SpeculationInjectionWorld injection_world = kNone;
+  // The way in which the speculation rules were injected.
+  SpeculationInjectionType injection_type = kNone;
+
+  // A list of string tags which are associated with the speculation candidate,
+  // and it is optional as both null and empty are valid values. Null and empty
+  // string will be stored as they are into the vector.
+  // Explainer: https://github.com/WICG/nav-speculation/blob/main/speculation-rules-tags.md
+  //
+  // Mapping:
+  // - An empty string tag is represented as
+  //   - empty `WTF::String` in blink/
+  //   - empty `std::string` in content/
+  // - No tag (null tag) is represented as
+  //   - null `WTF::String` in blink/
+  //   - nullopt `std::optional<std::string>` in content/
+  //
+  // This must not be empty, as when no tags are specified in rules, this should
+  // contain the null tag.
+  array<string?> tags;
 };

@@ -47,6 +47,9 @@ web::WebState* GetWebStateAtIndexInCurrentMode(int index);
 // Closes current tab.
 void CloseCurrentTab();
 
+// Pins current tab.
+void PinCurrentTab();
+
 // Closes tab with the given index in current mode (incognito or normal).
 void CloseTabAtIndex(NSUInteger index);
 
@@ -67,8 +70,11 @@ void CloseAllTabs();
 // Selects tab with given index in current mode (incognito or normal).
 void SelectTabAtIndexInCurrentMode(NSUInteger index);
 
-// Returns the number of main tabs.
+// Returns the number of main, active, tabs.
 NSUInteger GetMainTabCount();
+
+// Returns the number of inactive tabs.
+NSUInteger GetInactiveTabCount();
 
 // Returns the number of incognito tabs.
 NSUInteger GetIncognitoTabCount();

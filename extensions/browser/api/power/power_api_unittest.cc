@@ -93,7 +93,6 @@ class FakeWakeLockManager {
           break;
         case device::mojom::WakeLockType::kPreventDisplaySleepAllowDimming:
           NOTREACHED() << "Unexpected wake lock type " << type;
-          break;
       }
 
       type_ = type;
@@ -111,7 +110,6 @@ class FakeWakeLockManager {
           break;
         case device::mojom::WakeLockType::kPreventDisplaySleepAllowDimming:
           NOTREACHED() << "Unexpected wake lock type " << type;
-          break;
       }
 
       type_ = type;
@@ -131,7 +129,6 @@ class FakeWakeLockManager {
         break;
       case device::mojom::WakeLockType::kPreventDisplaySleepAllowDimming:
         NOTREACHED() << "Unexpected wake lock type " << type_;
-        break;
     }
     is_active_ = false;
   }

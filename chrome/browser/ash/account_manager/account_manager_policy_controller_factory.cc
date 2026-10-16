@@ -37,15 +37,17 @@ AccountManagerPolicyControllerFactory::AccountManagerPolicyControllerFactory()
           "AccountManagerPolicyController",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              .WithAshInternals(ProfileSelection::kNone)
               .Build()) {}
 
 AccountManagerPolicyControllerFactory::
     ~AccountManagerPolicyControllerFactory() = default;
 
-KeyedService* AccountManagerPolicyControllerFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AccountManagerPolicyControllerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* const profile = Profile::FromBrowserContext(context);
   auto* factory =
@@ -67,10 +69,10 @@ KeyedService* AccountManagerPolicyControllerFactory::BuildServiceInstanceFor(
   if (!user)
     return nullptr;
 
-  AccountManagerPolicyController* const service =
-      new AccountManagerPolicyController(profile, account_manager,
-                                         account_manager_facade,
-                                         user->GetAccountId());
+  std::unique_ptr<AccountManagerPolicyController> service =
+      std::make_unique<AccountManagerPolicyController>(profile, account_manager,
+                                                       account_manager_facade,
+                                                       user->GetAccountId());
   // Auto-start the Service.
   service->Start();
 

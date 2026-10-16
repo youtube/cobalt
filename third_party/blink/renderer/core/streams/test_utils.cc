@@ -31,7 +31,8 @@ ScriptValue Eval(V8TestingScope* scope, const char* script_as_string) {
     ADD_FAILURE() << "Compilation fails";
     return ScriptValue();
   }
-  return ScriptValue(scope->GetIsolate(), script->Run(scope->GetContext()));
+  return ScriptValue(scope->GetIsolate(),
+                     script->Run(scope->GetContext()).ToLocalChecked());
 }
 
 }  // namespace
@@ -41,6 +42,7 @@ ScriptValue EvalWithPrintingError(V8TestingScope* scope, const char* script) {
   ScriptValue r = Eval(scope, script);
   if (block.HasCaught()) {
     ADD_FAILURE() << ToCoreString(
+        scope->GetIsolate(),
         block.Exception()->ToString(scope->GetContext()).ToLocalChecked());
     block.ReThrow();
   }

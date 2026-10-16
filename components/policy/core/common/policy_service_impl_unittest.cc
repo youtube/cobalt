@@ -13,7 +13,10 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/strings/strcat.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "components/policy/core/common/external_data_fetcher.h"
@@ -30,6 +33,7 @@
 using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::Invoke;
+using ::testing::IsEmpty;
 using ::testing::Mock;
 using ::testing::Return;
 
@@ -43,9 +47,15 @@ const char kDiffLevelPolicy[] = "chrome-diff-level-and-scope";
 const std::string kUrl1 = "example.com";
 const std::string kUrl2 = "gmail.com";
 const std::string kUrl3 = "google.com";
+
+#if !BUILDFLAG(IS_IOS)
 const std::string kUrl4 = "youtube.com";
+#endif
+
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_IOS)
 const std::string kAffiliationId1 = "abc";
 const std::string kAffiliationId2 = "def";
+#endif
 
 // Helper to compare the arguments to an EXPECT_CALL of OnPolicyUpdated() with
 // their expected values.
@@ -152,8 +162,9 @@ class PolicyServiceTest : public testing::Test {
         }));
     PolicyServiceImpl::Migrators migrators;
     migrators.push_back(std::move(migrator));
-    policy_service_ = std::make_unique<PolicyServiceImpl>(std::move(providers),
-                                                          std::move(migrators));
+    policy_service_ = std::make_unique<PolicyServiceImpl>(
+        std::move(providers), PolicyServiceImpl::ScopeForMetrics::kUnspecified,
+        std::move(migrators));
   }
 
   void TearDown() override {
@@ -534,13 +545,15 @@ TEST_F(PolicyServiceTest, PolicyChangeRegistrar) {
 }
 
 TEST_F(PolicyServiceTest, RefreshPolicies) {
-  EXPECT_CALL(provider0_, RefreshPolicies()).Times(AnyNumber());
-  EXPECT_CALL(provider1_, RefreshPolicies()).Times(AnyNumber());
-  EXPECT_CALL(provider2_, RefreshPolicies()).Times(AnyNumber());
+  EXPECT_CALL(provider0_, RefreshPolicies(testing::_)).Times(AnyNumber());
+  EXPECT_CALL(provider1_, RefreshPolicies(testing::_)).Times(AnyNumber());
+  EXPECT_CALL(provider2_, RefreshPolicies(testing::_)).Times(AnyNumber());
 
   EXPECT_CALL(*this, OnPolicyRefresh()).Times(0);
-  policy_service_->RefreshPolicies(base::BindOnce(
-      &PolicyServiceTest::OnPolicyRefresh, base::Unretained(this)));
+  policy_service_->RefreshPolicies(
+      base::BindOnce(&PolicyServiceTest::OnPolicyRefresh,
+                     base::Unretained(this)),
+      PolicyFetchReason::kTest);
   // Let any queued observer tasks run.
   RunUntilIdle();
   Mock::VerifyAndClearExpectations(this);
@@ -571,8 +584,10 @@ TEST_F(PolicyServiceTest, RefreshPolicies) {
   // If another RefreshPolicies() call happens while waiting for a previous
   // one to complete, then all providers must refresh again.
   EXPECT_CALL(*this, OnPolicyRefresh()).Times(0);
-  policy_service_->RefreshPolicies(base::BindOnce(
-      &PolicyServiceTest::OnPolicyRefresh, base::Unretained(this)));
+  policy_service_->RefreshPolicies(
+      base::BindOnce(&PolicyServiceTest::OnPolicyRefresh,
+                     base::Unretained(this)),
+      PolicyFetchReason::kTest);
   RunUntilIdle();
   Mock::VerifyAndClearExpectations(this);
 
@@ -865,7 +880,8 @@ class PolicyServiceTestForObservers
 TEST_P(PolicyServiceTestForObservers, MaybeNotifyPolicyDomainStatusChange) {
   auto local_policy_service =
       PolicyServiceImpl::CreateWithThrottledInitialization(
-          PolicyServiceImpl::Providers{&provider_});
+          PolicyServiceImpl::Providers{&provider_},
+          PolicyServiceImpl::ScopeForMetrics::kUser);
 
   AddObservers(local_policy_service.get());
 
@@ -895,7 +911,7 @@ TEST_F(PolicyServiceTest, IsInitializationCompleteMightDestroyThis) {
   providers.push_back(&provider0_);
   auto local_policy_service =
       PolicyServiceImpl::CreateWithThrottledInitialization(
-          std::move(providers));
+          std::move(providers), PolicyServiceImpl::ScopeForMetrics::kUser);
   EXPECT_FALSE(
       local_policy_service->IsInitializationComplete(POLICY_DOMAIN_CHROME));
 
@@ -941,7 +957,7 @@ TEST_F(PolicyServiceTest, InitializationThrottled) {
   providers.push_back(&provider1_);
   providers.push_back(&provider2_);
   policy_service_ = PolicyServiceImpl::CreateWithThrottledInitialization(
-      std::move(providers));
+      std::move(providers), PolicyServiceImpl::ScopeForMetrics::kUser);
   EXPECT_FALSE(policy_service_->IsInitializationComplete(POLICY_DOMAIN_CHROME));
   EXPECT_FALSE(
       policy_service_->IsInitializationComplete(POLICY_DOMAIN_EXTENSIONS));
@@ -1062,7 +1078,7 @@ TEST_F(PolicyServiceTest, InitializationThrottledProvidersAlreadyInitialized) {
   providers.push_back(&provider1_);
   providers.push_back(&provider2_);
   policy_service_ = PolicyServiceImpl::CreateWithThrottledInitialization(
-      std::move(providers));
+      std::move(providers), PolicyServiceImpl::ScopeForMetrics::kUser);
   EXPECT_FALSE(policy_service_->IsInitializationComplete(POLICY_DOMAIN_CHROME));
   EXPECT_FALSE(
       policy_service_->IsInitializationComplete(POLICY_DOMAIN_EXTENSIONS));
@@ -2354,5 +2370,207 @@ TEST_F(PolicyServiceTest, PolicyMessages) {
   EXPECT_TRUE(VerifyPolicies(chrome_namespace, expected_chrome));
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_IOS)
+
+struct PolicyServiceInitTimeTestParams {
+  PolicyServiceImpl::ScopeForMetrics scope_for_metrics;
+  size_t policy_count;
+  std::vector<std::vector<std::string>> expected_histogram_parts;
+} kInitTimeTestParams[] = {
+    {
+        .scope_for_metrics = PolicyServiceImpl::ScopeForMetrics::kUnspecified,
+        .policy_count = 0,
+        .expected_histogram_parts = {},
+    },
+    {
+        .scope_for_metrics = PolicyServiceImpl::ScopeForMetrics::kMachine,
+        .policy_count = 0,
+        .expected_histogram_parts =
+            {
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kMachineHistogramSuffix,
+                },
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kMachineHistogramSuffix,
+                    PolicyServiceImpl::kWithoutPoliciesHistogramSuffix,
+                },
+            },
+    },
+    {
+        .scope_for_metrics = PolicyServiceImpl::ScopeForMetrics::kMachine,
+        .policy_count = 3,
+        .expected_histogram_parts =
+            {
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kMachineHistogramSuffix,
+                },
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kMachineHistogramSuffix,
+                    PolicyServiceImpl::kWithPoliciesHistogramSuffix,
+                },
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kMachineHistogramSuffix,
+                    PolicyServiceImpl::kWith1to50PoliciesHistogramSuffix,
+                },
+            },
+    },
+    {
+        .scope_for_metrics = PolicyServiceImpl::ScopeForMetrics::kMachine,
+        .policy_count = 60,
+        .expected_histogram_parts =
+            {
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kMachineHistogramSuffix,
+                },
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kMachineHistogramSuffix,
+                    PolicyServiceImpl::kWithPoliciesHistogramSuffix,
+                },
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kMachineHistogramSuffix,
+                    PolicyServiceImpl::kWith51to100PoliciesHistogramSuffix,
+                },
+            },
+    },
+    {
+        .scope_for_metrics = PolicyServiceImpl::ScopeForMetrics::kMachine,
+        .policy_count = 200,
+        .expected_histogram_parts =
+            {
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kMachineHistogramSuffix,
+                },
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kMachineHistogramSuffix,
+                    PolicyServiceImpl::kWithPoliciesHistogramSuffix,
+                },
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kMachineHistogramSuffix,
+                    PolicyServiceImpl::kWith101PlusPoliciesHistogramSuffix,
+                },
+            },
+    },
+    {
+        .scope_for_metrics = PolicyServiceImpl::ScopeForMetrics::kUser,
+        .policy_count = 0,
+        .expected_histogram_parts =
+            {
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kUserHistogramSuffix,
+                },
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kUserHistogramSuffix,
+                    PolicyServiceImpl::kWithoutPoliciesHistogramSuffix,
+                },
+            },
+    },
+    {
+        .scope_for_metrics = PolicyServiceImpl::ScopeForMetrics::kUser,
+        .policy_count = 3,
+        .expected_histogram_parts =
+            {
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kUserHistogramSuffix,
+                },
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kUserHistogramSuffix,
+                    PolicyServiceImpl::kWithPoliciesHistogramSuffix,
+                },
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kUserHistogramSuffix,
+                    PolicyServiceImpl::kWith1to50PoliciesHistogramSuffix,
+                },
+            },
+    },
+    {
+        .scope_for_metrics = PolicyServiceImpl::ScopeForMetrics::kUser,
+        .policy_count = 60,
+        .expected_histogram_parts =
+            {
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kUserHistogramSuffix,
+                },
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kUserHistogramSuffix,
+                    PolicyServiceImpl::kWithPoliciesHistogramSuffix,
+                },
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kUserHistogramSuffix,
+                    PolicyServiceImpl::kWith51to100PoliciesHistogramSuffix,
+                },
+            },
+    },
+    {
+        .scope_for_metrics = PolicyServiceImpl::ScopeForMetrics::kUser,
+        .policy_count = 200,
+        .expected_histogram_parts =
+            {
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kUserHistogramSuffix,
+                },
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kUserHistogramSuffix,
+                    PolicyServiceImpl::kWithPoliciesHistogramSuffix,
+                },
+                {
+                    PolicyServiceImpl::kInitTimeHistogramPrefix,
+                    PolicyServiceImpl::kUserHistogramSuffix,
+                    PolicyServiceImpl::kWith101PlusPoliciesHistogramSuffix,
+                },
+            },
+    },
+};
+
+class PolicyServiceInitTimeTest
+    : public testing::TestWithParam<PolicyServiceInitTimeTestParams> {};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         PolicyServiceInitTimeTest,
+                         ::testing::ValuesIn(kInitTimeTestParams));
+
+TEST_P(PolicyServiceInitTimeTest, HistogramsRecorded) {
+  constexpr base::TimeDelta kInitTime = base::Seconds(9);
+
+  base::HistogramTester histogram_tester;
+  PolicyServiceInitTimeTestParams params = GetParam();
+  PolicyServiceImpl::RecordInitializationTime(params.scope_for_metrics,
+                                              params.policy_count, kInitTime);
+
+  if (params.expected_histogram_parts.empty()) {
+    EXPECT_THAT(histogram_tester.GetAllSamples(
+                    base::StrCat({PolicyServiceImpl::kInitTimeHistogramPrefix,
+                                  PolicyServiceImpl::kUserHistogramSuffix})),
+                IsEmpty());
+    EXPECT_THAT(histogram_tester.GetAllSamples(
+                    base::StrCat({PolicyServiceImpl::kInitTimeHistogramPrefix,
+                                  PolicyServiceImpl::kMachineHistogramSuffix})),
+                IsEmpty());
+  }
+
+  for (auto hist_name_parts : params.expected_histogram_parts) {
+    histogram_tester.ExpectTimeBucketCount(base::StrCat(hist_name_parts),
+                                           kInitTime, 1);
+  }
+}
 
 }  // namespace policy

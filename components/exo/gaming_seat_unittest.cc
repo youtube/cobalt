@@ -30,7 +30,7 @@ namespace {
 
 class MockGamepadDelegate : public GamepadDelegate {
  public:
-  MockGamepadDelegate() {}
+  MockGamepadDelegate() = default;
 
   // Overridden from GamepadDelegate:
   MOCK_METHOD(void, OnRemoved, (), (override));
@@ -59,7 +59,7 @@ class MockGamingSeatDelegate : public GamingSeatDelegate {
 
 class GamingSeatTest : public test::ExoTestBase {
  public:
-  GamingSeatTest() {}
+  GamingSeatTest() = default;
 
   GamingSeatTest(const GamingSeatTest&) = delete;
   GamingSeatTest& operator=(const GamingSeatTest&) = delete;
@@ -110,8 +110,7 @@ TEST_F(GamingSeatTest, ConnectionChange) {
   std::unique_ptr<Surface> surface(new Surface);
   std::unique_ptr<ShellSurface> shell_surface(new ShellSurface(surface.get()));
   gfx::Size buffer_size(10, 10);
-  std::unique_ptr<Buffer> buffer(
-      new Buffer(exo_test_helper()->CreateGpuMemoryBuffer(buffer_size)));
+  auto buffer = test::ExoTestHelper::CreateBuffer(buffer_size);
   surface->Attach(buffer.get());
   surface->Commit();
 
@@ -198,8 +197,7 @@ TEST_F(GamingSeatTest, Timestamp) {
   std::unique_ptr<Surface> surface(new Surface);
   std::unique_ptr<ShellSurface> shell_surface(new ShellSurface(surface.get()));
   gfx::Size buffer_size(10, 10);
-  std::unique_ptr<Buffer> buffer(
-      new Buffer(exo_test_helper()->CreateGpuMemoryBuffer(buffer_size)));
+  auto buffer = test::ExoTestHelper::CreateBuffer(buffer_size);
   surface->Attach(buffer.get());
   surface->Commit();
 

@@ -159,9 +159,8 @@ class NET_EXPORT_PRIVATE BrokenAlternativeServices {
   // If values are present, sets initial_delay_ and
   // exponential_backoff_on_initial_delay_ which are used to calculate delay of
   // broken alternative services.
-  void SetDelayParams(
-      absl::optional<base::TimeDelta> initial_delay,
-      absl::optional<bool> exponential_backoff_on_initial_delay);
+  void SetDelayParams(std::optional<base::TimeDelta> initial_delay,
+                      std::optional<bool> exponential_backoff_on_initial_delay);
 
   const BrokenAlternativeServiceList& broken_alternative_service_list() const;
 
@@ -174,8 +173,9 @@ class NET_EXPORT_PRIVATE BrokenAlternativeServices {
   friend class HttpServerPropertiesPeer;
 
   struct AlternativeServiceHash {
-    size_t operator()(const net::AlternativeService& entry) const {
-      return entry.protocol ^ std::hash<std::string>()(entry.host) ^ entry.port;
+    size_t operator()(const AlternativeService& entry) const {
+      return static_cast<size_t>(entry.protocol) ^
+             std::hash<std::string>()(entry.host) ^ entry.port;
     }
   };
 

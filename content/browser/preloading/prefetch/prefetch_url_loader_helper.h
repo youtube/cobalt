@@ -6,21 +6,21 @@
 #define CONTENT_BROWSER_PRELOADING_PREFETCH_PREFETCH_URL_LOADER_HELPER_H_
 
 #include "base/memory/weak_ptr.h"
+#include "content/browser/preloading/prefetch/prefetch_container.h"
 #include "content/common/content_export.h"
+#include "content/public/browser/frame_tree_node_id.h"
 #include "services/network/public/cpp/resource_request.h"
 
 namespace content {
 
-class PrefetchContainer;
-
-// Checks if `prefetch_container` can be used for `tentative_resource_request`,
-// and starts checking `PrefetchOriginProber` if needed.
-void CONTENT_EXPORT
-OnGotPrefetchToServe(int frame_tree_node_id,
-                     const network::ResourceRequest& tentative_resource_request,
-                     base::OnceCallback<void(base::WeakPtr<PrefetchContainer>)>
-                         get_prefetch_callback,
-                     base::WeakPtr<PrefetchContainer> prefetch_container);
+// Checks if `prefetch_container` can be used for the url of intercepted
+// `tentative_resource_request`, and starts checking `PrefetchOriginProber` if
+// needed.
+void CONTENT_EXPORT OnGotPrefetchToServe(
+    FrameTreeNodeId frame_tree_node_id,
+    const GURL& tentative_resource_request_url,
+    base::OnceCallback<void(PrefetchContainer::Reader)> get_prefetch_callback,
+    PrefetchContainer::Reader reader);
 
 }  // namespace content
 

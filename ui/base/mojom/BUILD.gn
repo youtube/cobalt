@@ -7,37 +7,36 @@ import("//mojo/public/tools/bindings/mojom.gni")
 mojom("mojom") {
   generate_java = true
   sources = [
+    "themes.mojom",
     "ui_base_types.mojom",
     "window_open_disposition.mojom",
   ]
+  cpp_typemaps = []
 
   if (is_mac) {
-    sources += [ "attributed_string.mojom" ]
+    sources += [
+      "attributed_string.mojom",
+      "color_mode.mojom",
+    ]
     public_deps = [
       "//mojo/public/mojom/base",
       "//ui/gfx/range/mojom",
     ]
+    cpp_typemaps += [
+      {
+        types = [
+          {
+            mojom = "ui.mojom.ColorMode"
+            cpp = "::ui::ColorProviderKey::ColorMode"
+          },
+        ]
+        traits_headers = [ "color_mode_mojom_traits.h" ]
+        traits_public_deps = [ "//ui/color:color_provider_key" ]
+      },
+    ]
   }
 
-  cpp_typemaps = [
-    {
-      types = [
-        {
-          mojom = "ui.mojom.DialogButton"
-          cpp = "::ui::DialogButton"
-        },
-        {
-          mojom = "ui.mojom.MenuSourceType"
-          cpp = "::ui::MenuSourceType"
-        },
-        {
-          mojom = "ui.mojom.ModalType"
-          cpp = "::ui::ModalType"
-        },
-      ]
-      traits_headers = [ "ui_base_types_mojom_traits.h" ]
-      traits_public_deps = [ "//ui/base" ]
-    },
+  cpp_typemaps += [
     {
       types = [
         {
@@ -55,9 +54,18 @@ mojom("mojom") {
   export_header_blink = "third_party/blink/public/platform/web_common.h"
   webui_module_path = "chrome://resources/mojo/ui/base/mojom"
 
-  # Generate WebUI bindings in TypeScript.
-  use_typescript_sources = true
-
   # Generate legacy bindings for Blink.
   generate_legacy_js_bindings = true
+}
+
+# TODO(crbug.com/359910414): Move back DialogButton enum to ui_base_types.mojom.
+# TODO(crbug.com/361008605): Move back `WindowShowState` enum to ui_base_types.mojom.
+# TODO(crbug.com/370252254): Move back `MenuSourceType` enum to ui_base_types.mojom.
+mojom("ui_base_types") {
+  generate_java = true
+  sources = [
+    "dialog_button.mojom",
+    "menu_source_type.mojom",
+    "window_show_state.mojom",
+  ]
 }

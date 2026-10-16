@@ -9,7 +9,6 @@
         },
         "name": "mixins_test mixins",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "iama": "mixin",
             "os": "Linux"

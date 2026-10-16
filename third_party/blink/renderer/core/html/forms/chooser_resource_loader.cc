@@ -16,7 +16,6 @@ Vector<char> ChooserResourceLoader::GetSuggestionPickerStyleSheet() {
   return UncompressResourceAsBinary(IDR_SUGGESTION_PICKER_CSS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 
@@ -25,7 +24,6 @@ Vector<char> ChooserResourceLoader::GetSuggestionPickerJS() {
   return UncompressResourceAsBinary(IDR_SUGGESTION_PICKER_JS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 
@@ -34,7 +32,6 @@ Vector<char> ChooserResourceLoader::GetPickerCommonStyleSheet() {
   return UncompressResourceAsBinary(IDR_PICKER_COMMON_CSS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 
@@ -43,7 +40,6 @@ Vector<char> ChooserResourceLoader::GetPickerCommonJS() {
   return UncompressResourceAsBinary(IDR_PICKER_COMMON_JS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 
@@ -52,7 +48,6 @@ Vector<char> ChooserResourceLoader::GetCalendarPickerStyleSheet() {
   return UncompressResourceAsBinary(IDR_CALENDAR_PICKER_CSS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 
@@ -61,7 +56,6 @@ Vector<char> ChooserResourceLoader::GetCalendarPickerJS() {
   return UncompressResourceAsBinary(IDR_CALENDAR_PICKER_JS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 
@@ -70,7 +64,6 @@ Vector<char> ChooserResourceLoader::GetMonthPickerJS() {
   return UncompressResourceAsBinary(IDR_MONTH_PICKER_JS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 
@@ -79,7 +72,6 @@ Vector<char> ChooserResourceLoader::GetTimePickerStyleSheet() {
   return UncompressResourceAsBinary(IDR_TIME_PICKER_CSS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 
@@ -88,7 +80,6 @@ Vector<char> ChooserResourceLoader::GetTimePickerJS() {
   return UncompressResourceAsBinary(IDR_TIME_PICKER_JS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 
@@ -97,7 +88,6 @@ Vector<char> ChooserResourceLoader::GetDateTimeLocalPickerJS() {
   return UncompressResourceAsBinary(IDR_DATETIMELOCAL_PICKER_JS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 
@@ -106,7 +96,6 @@ Vector<char> ChooserResourceLoader::GetColorSuggestionPickerStyleSheet() {
   return UncompressResourceAsBinary(IDR_COLOR_SUGGESTION_PICKER_CSS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 
@@ -115,7 +104,6 @@ Vector<char> ChooserResourceLoader::GetColorSuggestionPickerJS() {
   return UncompressResourceAsBinary(IDR_COLOR_SUGGESTION_PICKER_JS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 
@@ -124,7 +112,6 @@ Vector<char> ChooserResourceLoader::GetColorPickerStyleSheet() {
   return UncompressResourceAsBinary(IDR_COLOR_PICKER_CSS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 
@@ -133,7 +120,6 @@ Vector<char> ChooserResourceLoader::GetColorPickerJS() {
   return UncompressResourceAsBinary(IDR_COLOR_PICKER_JS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 
@@ -142,7 +128,6 @@ Vector<char> ChooserResourceLoader::GetColorPickerCommonJS() {
   return UncompressResourceAsBinary(IDR_COLOR_PICKER_COMMON_JS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 
@@ -151,7 +136,6 @@ Vector<char> ChooserResourceLoader::GetListPickerStyleSheet() {
   return UncompressResourceAsBinary(IDR_LIST_PICKER_CSS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 
@@ -160,7 +144,6 @@ Vector<char> ChooserResourceLoader::GetListPickerJS() {
   return UncompressResourceAsBinary(IDR_LIST_PICKER_JS);
 #else
   NOTREACHED();
-  return Vector<char>();
 #endif
 }
 

@@ -2,13 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/files/file_proxy.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
+#include <string_view>
 #include <utility>
 
+#include "base/containers/heap_array.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -28,9 +36,7 @@ class FileProxyTest : public testing::Test {
  public:
   FileProxyTest()
       : task_environment_(test::TaskEnvironment::MainThreadType::IO),
-        file_thread_("FileProxyTestFileThread"),
-        error_(File::FILE_OK),
-        bytes_written_(-1) {}
+        file_thread_("FileProxyTestFileThread") {}
 
   void SetUp() override {
     ASSERT_TRUE(dir_.CreateUniqueTempDir());
@@ -65,11 +71,9 @@ class FileProxyTest : public testing::Test {
 
   void DidRead(base::RepeatingClosure continuation,
                File::Error error,
-               const char* data,
-               int bytes_read) {
+               base::span<const char> data) {
     error_ = error;
-    buffer_.resize(bytes_read);
-    memcpy(&buffer_[0], data, bytes_read);
+    buffer_ = base::HeapArray<char>::CopiedFrom(data);
     continuation.Run();
   }
 
@@ -102,11 +106,11 @@ class FileProxyTest : public testing::Test {
   test::TaskEnvironment task_environment_;
   Thread file_thread_;
 
-  File::Error error_;
+  File::Error error_ = File::FILE_OK;
   FilePath path_;
   File::Info file_info_;
-  std::vector<char> buffer_;
-  int bytes_written_;
+  base::HeapArray<char> buffer_;
+  int bytes_written_ = -1;
   WeakPtrFactory<FileProxyTest> weak_factory_{this};
 };
 
@@ -127,7 +131,7 @@ TEST_F(FileProxyTest, CreateOrOpen_Create) {
 
 TEST_F(FileProxyTest, CreateOrOpen_Open) {
   // Creates a file.
-  base::WriteFile(TestPath(), base::StringPiece());
+  base::WriteFile(TestPath(), std::string_view());
   ASSERT_TRUE(PathExists(TestPath()));
 
   // Opens the created file.
@@ -215,7 +219,7 @@ TEST_F(FileProxyTest, CreateTemporary) {
     // The file should be writable.
     {
       RunLoop run_loop;
-      proxy.Write(0, "test", 4,
+      proxy.Write(0, base::as_byte_span(std::string_view("test")),
                   BindOnce(&FileProxyTest::DidWrite, weak_factory_.GetWeakPtr(),
                            run_loop.QuitWhenIdleClosure()));
       run_loop.Run();
@@ -233,11 +237,12 @@ TEST_F(FileProxyTest, CreateTemporary) {
   // Try a few times because files may be locked by anti-virus or other.
   bool deleted_temp_file = false;
   for (int i = 0; !deleted_temp_file && i < 3; ++i) {
-    if (base::DeleteFile(path_))
+    if (base::DeleteFile(path_)) {
       deleted_temp_file = true;
-    else
+    } else {
       // Wait one second and then try again
       PlatformThread::Sleep(Seconds(1));
+    }
   }
   EXPECT_TRUE(deleted_temp_file);
 }
@@ -249,7 +254,7 @@ TEST_F(FileProxyTest, SetAndTake) {
   EXPECT_FALSE(proxy.IsValid());
   proxy.SetFile(std::move(file));
   EXPECT_TRUE(proxy.IsValid());
-  EXPECT_FALSE(file.IsValid());
+  EXPECT_FALSE(file.IsValid());  // NOLINT(bugprone-use-after-move)
 
   file = proxy.TakeFile();
   EXPECT_FALSE(proxy.IsValid());
@@ -299,7 +304,7 @@ TEST_F(FileProxyTest, GetInfo) {
 
 TEST_F(FileProxyTest, Read) {
   // Setup.
-  constexpr base::StringPiece expected_data = "bleh";
+  constexpr std::string_view expected_data = "bleh";
   ASSERT_TRUE(base::WriteFile(TestPath(), expected_data));
 
   // Run.
@@ -314,24 +319,24 @@ TEST_F(FileProxyTest, Read) {
 
   // Verify.
   EXPECT_EQ(File::FILE_OK, error_);
-  EXPECT_EQ(expected_data, base::StringPiece(buffer_.data(), buffer_.size()));
+  EXPECT_EQ(expected_data, std::string_view(buffer_.data(), buffer_.size()));
 }
 
 TEST_F(FileProxyTest, WriteAndFlush) {
   FileProxy proxy(file_task_runner());
   CreateProxy(File::FLAG_CREATE | File::FLAG_WRITE, &proxy);
 
-  const char data[] = "foo!";
-  int data_bytes = std::size(data);
+  auto write_span = base::as_byte_span("foo!");
+  EXPECT_EQ(write_span.size(), 5u);  // Includes the NUL, too.
   {
     RunLoop run_loop;
-    proxy.Write(0, data, data_bytes,
+    proxy.Write(0, write_span,
                 BindOnce(&FileProxyTest::DidWrite, weak_factory_.GetWeakPtr(),
                          run_loop.QuitWhenIdleClosure()));
     run_loop.Run();
   }
   EXPECT_EQ(File::FILE_OK, error_);
-  EXPECT_EQ(data_bytes, bytes_written_);
+  EXPECT_EQ(write_span.size(), static_cast<size_t>(bytes_written_));
 
   // Flush the written data.  (So that the following read should always
   // succeed.  On some platforms it may work with or without this flush.)
@@ -344,10 +349,11 @@ TEST_F(FileProxyTest, WriteAndFlush) {
   EXPECT_EQ(File::FILE_OK, error_);
 
   // Verify the written data.
-  char buffer[10];
-  EXPECT_EQ(data_bytes, base::ReadFile(TestPath(), buffer, data_bytes));
-  for (int i = 0; i < data_bytes; ++i) {
-    EXPECT_EQ(data[i], buffer[i]);
+  std::array<char, 10> read_buffer;
+  EXPECT_GE(std::size(read_buffer), write_span.size());
+  EXPECT_EQ(write_span.size(), base::ReadFile(TestPath(), read_buffer));
+  for (size_t i = 0; i < write_span.size(); ++i) {
+    EXPECT_EQ(write_span[i], read_buffer[i]);
   }
 }
 
@@ -378,13 +384,13 @@ TEST_F(FileProxyTest, MAYBE_SetTimes) {
 
   // The returned values may only have the seconds precision, so we cast
   // the double values to int here.
-  EXPECT_EQ(static_cast<int>(last_modified_time.ToDoubleT()),
-            static_cast<int>(info.last_modified.ToDoubleT()));
+  EXPECT_EQ(static_cast<int>(last_modified_time.InSecondsFSinceUnixEpoch()),
+            static_cast<int>(info.last_modified.InSecondsFSinceUnixEpoch()));
 
 #if !BUILDFLAG(IS_FUCHSIA)
   // On Fuchsia, /tmp is noatime
-  EXPECT_EQ(static_cast<int>(last_accessed_time.ToDoubleT()),
-            static_cast<int>(info.last_accessed.ToDoubleT()));
+  EXPECT_EQ(static_cast<int>(last_accessed_time.InSecondsFSinceUnixEpoch()),
+            static_cast<int>(info.last_accessed.InSecondsFSinceUnixEpoch()));
 #endif  // BUILDFLAG(IS_FUCHSIA)
 }
 
@@ -409,11 +415,12 @@ TEST_F(FileProxyTest, SetLength_Shrink) {
   GetFileInfo(TestPath(), &info);
   ASSERT_EQ(7, info.size);
 
-  char buffer[7];
-  EXPECT_EQ(7, base::ReadFile(TestPath(), buffer, 7));
+  std::array<char, 7> buffer;
+  EXPECT_EQ(7, base::ReadFile(TestPath(), buffer));
   int i = 0;
-  for (; i < 7; ++i)
+  for (; i < 7; ++i) {
     EXPECT_EQ(kTestData[i], buffer[i]);
+  }
 }
 
 TEST_F(FileProxyTest, SetLength_Expand) {
@@ -437,13 +444,15 @@ TEST_F(FileProxyTest, SetLength_Expand) {
   GetFileInfo(TestPath(), &info);
   ASSERT_EQ(53, info.size);
 
-  char buffer[53];
-  EXPECT_EQ(53, base::ReadFile(TestPath(), buffer, 53));
+  std::array<char, 53> buffer;
+  EXPECT_EQ(53, base::ReadFile(TestPath(), buffer));
   int i = 0;
-  for (; i < 10; ++i)
+  for (; i < 10; ++i) {
     EXPECT_EQ(kTestData[i], buffer[i]);
-  for (; i < 53; ++i)
+  }
+  for (; i < 53; ++i) {
     EXPECT_EQ(0, buffer[i]);
+  }
 }
 
 }  // namespace base

@@ -26,35 +26,63 @@ using starboard::AssetManager;
 using starboard::IsAndroidAssetPath;
 using starboard::OpenAndroidAsset;
 
+namespace {
+
+bool OpenNeedsMode(int oflag) {
+  // O_TMPFILE shares the O_DIRECTORY bit, so it must be masked exactly.
+  return (oflag & O_CREAT) || (oflag & O_TMPFILE) == O_TMPFILE;
+}
+
+}  // namespace
+
 // ///////////////////////////////////////////////////////////////////////////////
 // // Implementations below exposed externally in pure C for emulation.
 // ///////////////////////////////////////////////////////////////////////////////
 
 extern "C" {
+
 int __real_close(int fildes);
 int __real_open(const char* path, int oflag, ...);
+int __real_openat(int dirfd, const char* path, int oflag, ...);
 
 int __wrap_close(int fildes) {
   AssetManager* asset_manager = AssetManager::GetInstance();
   if (asset_manager->IsAssetFd(fildes)) {
     return asset_manager->Close(fildes);
   }
+  if (asset_manager->IsAssetDirFd(fildes)) {
+    return asset_manager->CloseDirectory(fildes);
+  }
   return __real_close(fildes);
 }
 
-int __wrap_open(const char* path, int oflag, ...) {
+int __wrap_openat(int dirfd, const char* path, int oflag, ...) {
   if (!IsAndroidAssetPath(path)) {
-    va_list args;
-    va_start(args, oflag);
-    int fd;
-    if (oflag & O_CREAT) {
+    if (OpenNeedsMode(oflag)) {
+      va_list args;
+      va_start(args, oflag);
       mode_t mode = va_arg(args, int);
-      return __real_open(path, oflag, mode);
-    } else {
-      return __real_open(path, oflag);
+      va_end(args);
+      return __real_openat(dirfd, path, oflag, mode);
     }
+    return __real_openat(dirfd, path, oflag);
+  }
+  // handle asset paths
+  if ((oflag & O_DIRECTORY) == O_DIRECTORY) {
+    return AssetManager::GetInstance()->OpenDirectory(path);
   }
   return AssetManager::GetInstance()->Open(path, oflag);
+}
+
+int __wrap_open(const char* path, int oflag, ...) {
+  if (OpenNeedsMode(oflag)) {
+    va_list args;
+    va_start(args, oflag);
+    mode_t mode = va_arg(args, int);
+    va_end(args);
+    return __wrap_openat(AT_FDCWD, path, oflag, mode);
+  }
+  return __wrap_openat(AT_FDCWD, path, oflag);
 }
 
 }  // extern "C"

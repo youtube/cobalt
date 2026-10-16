@@ -51,18 +51,26 @@ message Predictor {
     repeated string class_labels = 2;
 
     // Threshold to get `class_labels` with score above it. Only labels with
-    // score above or equal to threshold are returned. 
+    // score above or equal to threshold are returned. Must not be used along
+    // with `class_thresholds`.
     optional float threshold = 3;
+
+    // Per-class thresholds. Used to assign a different threshold to each class
+    // so that class_labels[n] is returned when outputs[n] >=
+    // class_thresholds[n]. Length of this list must be the same as the length
+    // of `class_labels`. Must not be used along with `threshold`.
+    repeated float class_thresholds = 4;
   }
 
   // A post-processor that converts a continuous model score into discrete
   // ranges. The final result supplied to the client is one of the bin labels or
   // `underflow_label`.
   message BinnedClassifier {
-    // A bin represents a bucket containing entries between the current bin min
-    // range to the next bin min range.
+    // A bin represents a bucket containing entries.
     message Bin {
-      // Minimum range for this bin.
+      // Represents minimum range for this bin. Entries are between the current
+      // bin `min_range` (inclusive) to the next bin `min_range` (exclusive).
+      // Range of bin : [min_range , next-bin min_range)
       optional float min_range = 1;
       // Signify what the bin corresponds to.
       optional string label = 2;
@@ -81,20 +89,24 @@ message Predictor {
   // Describes a regression model.
   message Regressor {}
 
+  // Used when the model does not fit in any of the above descriptions. Contains
+  // basic description about the model output. Model result is vector of floats
+  // with labels.
+  message GenericPredictor {
+    // Label assigned to each corresponding output value returned by the model.
+    // The number of outputs from the model must be equal to the length of this
+    // list.
+    repeated string output_labels = 1;
+  }
+
   // Specifies how to post process the raw model results based on model type,
   // e.g. classification or regression.
   oneof PredictorType {
-    // Model result is classified as boolean/binary.
     BinaryClassifier binary_classifier = 1;
-
-    // Model result is of multi-class type.
     MultiClassClassifier multi_class_classifier = 2;
-
-    // Model result is binned into one of the types.
     BinnedClassifier binned_classifier = 3;
-
-    // Model output is of regression type.
     Regressor regressor = 4;
+    GenericPredictor generic_predictor = 5;
   }
 }
 
@@ -122,4 +134,9 @@ message OutputConfig {
   // TTL associated with the PredictionResult. Config defines when to refresh
   // results.
   optional PredictedResultTTL predicted_result_ttl = 2;
+
+  // Flag to ignore previous model TTL. If this is set to true, ttl is ignored
+  // and results are refreshed on model update. This is false by default. It
+  // doesn't have any effect on TTL.
+  optional bool ignore_previous_model_ttl = 3;
 }

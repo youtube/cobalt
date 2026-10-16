@@ -27,7 +27,7 @@ namespace starboard {
 
 class StubVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
-  StubVideoDecoder() {}
+  explicit StubVideoDecoder(JobQueue* job_queue) : JobOwner(job_queue) {}
   ~StubVideoDecoder() { Reset(); }
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,

@@ -28,18 +28,19 @@ GuestOsRegistryServiceFactory::GuestOsRegistryServiceFactory()
     : ProfileKeyedServiceFactory(
           "GuestOsRegistryService",
           ProfileSelections::Builder()
-              .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
-              // Guest mode.
-              .WithGuest(ProfileSelection::kOriginalOnly)
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              .WithGuest(ProfileSelection::kNone)
+              .WithAshInternals(ProfileSelection::kNone)
+              .WithSystem(ProfileSelection::kNone)
               .Build()) {}
 
 GuestOsRegistryServiceFactory::~GuestOsRegistryServiceFactory() = default;
 
-KeyedService* GuestOsRegistryServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+GuestOsRegistryServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
-  return new GuestOsRegistryService(profile);
+  return std::make_unique<GuestOsRegistryService>(profile);
 }
 
 }  // namespace guest_os

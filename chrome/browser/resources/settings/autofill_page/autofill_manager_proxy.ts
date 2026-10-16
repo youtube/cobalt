@@ -6,6 +6,7 @@ export type PersonalDataChangedListener =
     (addresses: chrome.autofillPrivate.AddressEntry[],
      creditCards: chrome.autofillPrivate.CreditCardEntry[],
      ibans: chrome.autofillPrivate.IbanEntry[],
+     payOverTimeIssuers: chrome.autofillPrivate.PayOverTimeIssuerEntry[],
      accountInfo?: chrome.autofillPrivate.AccountInfo) => void;
 
 /**
@@ -40,6 +41,11 @@ export interface AutofillManagerProxy {
 
   /** @param guid The guid of the address to remove.  */
   removeAddress(guid: string): void;
+
+  /**
+   * Sets the Sync Autofill toggle value.
+   */
+  setAutofillSyncToggleEnabled(enabled: boolean): void;
 }
 
 /**
@@ -67,7 +73,11 @@ export class AutofillManagerImpl implements AutofillManagerProxy {
   }
 
   removeAddress(guid: string) {
-    chrome.autofillPrivate.removeEntry(guid);
+    chrome.autofillPrivate.removeAddress(guid);
+  }
+
+  setAutofillSyncToggleEnabled(enabled: boolean) {
+    chrome.autofillPrivate.setAutofillSyncToggleEnabled(enabled);
   }
 
   static getInstance(): AutofillManagerProxy {

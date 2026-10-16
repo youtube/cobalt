@@ -5,11 +5,12 @@
 #ifndef UI_ACCESSIBILITY_PLATFORM_FUCHSIA_ACCESSIBILITY_BRIDGE_FUCHSIA_H_
 #define UI_ACCESSIBILITY_PLATFORM_FUCHSIA_ACCESSIBILITY_BRIDGE_FUCHSIA_H_
 
-#include <fuchsia/accessibility/semantics/cpp/fidl.h>
+#include <fidl/fuchsia.accessibility.semantics/cpp/fidl.h>
 #include <lib/inspect/cpp/vmo/types.h>
 
+#include <optional>
+
 #include "base/component_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ui {
 
@@ -25,7 +26,7 @@ class COMPONENT_EXPORT(AX_PLATFORM) AccessibilityBridgeFuchsia {
   //
   // Note that |node_update.node_data| should not have any node ID fields
   // (node_id, child_ids, offset_container_id, etc.) filled initially.
-  virtual void UpdateNode(fuchsia::accessibility::semantics::Node node) = 0;
+  virtual void UpdateNode(fuchsia_accessibility_semantics::Node node) = 0;
 
   // Translates |node_id| to a fuchsia node ID, and sends the deletion to
   // fuchsia.
@@ -36,9 +37,8 @@ class COMPONENT_EXPORT(AX_PLATFORM) AccessibilityBridgeFuchsia {
   //
   // Method to notify the accessibility bridge when a hit test result is
   // received.
-  virtual void OnAccessibilityHitTestResult(
-      int hit_test_request_id,
-      absl::optional<uint32_t> result) = 0;
+  virtual void OnAccessibilityHitTestResult(int hit_test_request_id,
+                                            std::optional<uint32_t> result) = 0;
 
   // Returns the device scale factor.
   virtual float GetDeviceScaleFactor() = 0;

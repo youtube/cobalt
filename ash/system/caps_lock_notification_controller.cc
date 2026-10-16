@@ -4,7 +4,7 @@
 
 #include "ash/system/caps_lock_notification_controller.h"
 
-#include "ash/accessibility/accessibility_controller_impl.h"
+#include "ash/accessibility/accessibility_controller.h"
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/notification_utils.h"
 #include "ash/resources/vector_icons/vector_icons.h"
@@ -12,6 +12,7 @@
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
+#include "ash/system/input_device_settings/input_device_settings_controller_impl.h"
 #include "ash/system/status_area_widget.h"
 #include "ash/system/unified/unified_system_tray.h"
 #include "ash/system/unified/unified_system_tray_model.h"
@@ -35,21 +36,53 @@ namespace {
 const char kCapsLockNotificationId[] = "capslock";
 const char kNotifierCapsLock[] = "ash.caps-lock";
 
+int GetMessageStringId() {
+  if (!features::IsInputDeviceSettingsSplitEnabled()) {
+    return CapsLockNotificationController::IsSearchKeyMappedToCapsLock()
+               ? IDS_ASH_STATUS_TRAY_CAPS_LOCK_CANCEL_BY_SEARCH
+               : IDS_ASH_STATUS_TRAY_CAPS_LOCK_CANCEL_BY_ALT_SEARCH;
+  }
+
+  const ash::mojom::Keyboard* keyboard =
+      Shell::Get()
+          ->input_device_settings_controller()
+          ->GetGeneralizedKeyboard();
+
+  if (keyboard != nullptr) {
+    // If the keyboard has function key, return function key message id.
+    if (std::ranges::find(keyboard->modifier_keys,
+                          ui::mojom::ModifierKey::kFunction) !=
+        keyboard->modifier_keys.end()) {
+      return IDS_ASH_STATUS_TRAY_CAPS_LOCK_CANCEL_BY_FN_QUICK_INSERT;
+    }
+
+    // If the search key is remapped to kCapsLock, return search key message id.
+    auto iter = keyboard->settings->modifier_remappings.find(
+        ui::mojom::ModifierKey::kMeta);
+    if (iter != keyboard->settings->modifier_remappings.end() &&
+        iter->second == ui::mojom::ModifierKey::kCapsLock) {
+      return IDS_ASH_STATUS_TRAY_CAPS_LOCK_CANCEL_BY_SEARCH;
+    }
+  }
+
+  // Otherwise return alt search key message id.
+  return IDS_ASH_STATUS_TRAY_CAPS_LOCK_CANCEL_BY_ALT_SEARCH;
+}
+
 std::unique_ptr<Notification> CreateNotification() {
-  const int string_id =
-      CapsLockNotificationController::IsSearchKeyMappedToCapsLock()
-          ? IDS_ASH_STATUS_TRAY_CAPS_LOCK_CANCEL_BY_SEARCH
-          : IDS_ASH_STATUS_TRAY_CAPS_LOCK_CANCEL_BY_ALT_SEARCH;
+  const gfx::VectorIcon& capslock_icon =
+      features::IsModifierSplitEnabled()
+          ? kModifierSplitNotificationCapslockIcon
+          : kNotificationCapslockIcon;
   std::unique_ptr<Notification> notification = ash::CreateSystemNotificationPtr(
       message_center::NOTIFICATION_TYPE_SIMPLE, kCapsLockNotificationId,
       l10n_util::GetStringUTF16(IDS_ASH_STATUS_TRAY_CAPS_LOCK_ENABLED),
-      l10n_util::GetStringUTF16(string_id),
+      l10n_util::GetStringUTF16(GetMessageStringId()),
       std::u16string() /* display_source */, GURL(),
       message_center::NotifierId(message_center::NotifierType::SYSTEM_COMPONENT,
                                  kNotifierCapsLock,
                                  NotificationCatalogName::kCapsLock),
-      message_center::RichNotificationData(), nullptr,
-      kNotificationCapslockIcon,
+      message_center::RichNotificationData(), nullptr, capslock_icon,
       message_center::SystemNotificationWarningLevel::NORMAL);
   notification->set_pinned(true);
 
@@ -63,8 +96,9 @@ std::unique_ptr<Notification> CreateNotification() {
   // Set the priority to low to prevent the notification showing as a popup in
   // medium or large size tray button because we already show an icon in tray
   // for this in the feature.
-  if (primary_tray_button_size != SystemTrayButtonSize::kSmall)
+  if (primary_tray_button_size != SystemTrayButtonSize::kSmall) {
     notification->set_priority(message_center::LOW_PRIORITY);
+  }
 
   return notification;
 }
@@ -104,8 +138,7 @@ void CapsLockNotificationController::OnCapsLockChanged(bool enabled) {
   if (enabled) {
     base::RecordAction(base::UserMetricsAction("StatusArea_CapsLock_Popup"));
     MessageCenter::Get()->AddNotification(CreateNotification());
-  } else if (MessageCenter::Get()->FindVisibleNotificationById(
-                 kCapsLockNotificationId)) {
+  } else {
     MessageCenter::Get()->RemoveNotification(kCapsLockNotificationId, false);
   }
 }

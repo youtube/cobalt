@@ -7,8 +7,8 @@
 #include <algorithm>
 #include <array>
 
+#include "base/i18n/time_formatting.h"
 #include "base/rand_util.h"
-#include "base/ranges/algorithm.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
 #include "net/base/load_flags.h"
 #include "net/http/http_log_util.h"
@@ -30,7 +30,9 @@
 #include "services/network/public/mojom/oblivious_http_request.mojom.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
-#include "services/network/trust_tokens/trust_token_request_helper_factory.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#include "services/network/trust_tokens/trust_token_request_helper_factory.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 namespace network {
 
@@ -50,12 +52,15 @@ constexpr size_t kMaxContentTypeSize = 256;        // Per RFC6838
 // request/response pair.
 class StatefulObliviousHttpClient {
  public:
-  static absl::optional<StatefulObliviousHttpClient> CreateFromKeyConfig(
+  static std::optional<StatefulObliviousHttpClient> CreateFromKeyConfig(
       std::string key_config_str) {
     auto key_configs =
         quiche::ObliviousHttpKeyConfigs::ParseConcatenatedKeys(key_config_str);
     if (!key_configs.ok()) {
-      return absl::nullopt;
+      return std::nullopt;
+    }
+    if (key_configs->NumKeys() == 0) {
+      return std::nullopt;
     }
     quiche::ObliviousHttpHeaderKeyConfig key_config =
         key_configs->PreferredConfig();
@@ -63,7 +68,7 @@ class StatefulObliviousHttpClient {
         key_configs->GetPublicKeyForId(key_config.GetKeyId()).value(),
         key_config);
     if (!ohttp_client.ok()) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     return StatefulObliviousHttpClient(std::move(*ohttp_client));
   }
@@ -73,22 +78,22 @@ class StatefulObliviousHttpClient {
   StatefulObliviousHttpClient& operator=(StatefulObliviousHttpClient&& other) =
       default;
 
-  absl::optional<std::string> EncryptRequest(std::string plain_text) {
+  std::optional<std::string> EncryptRequest(std::string plain_text) {
     auto maybe_request = quiche_client_.CreateObliviousHttpRequest(plain_text);
     if (!maybe_request.ok()) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     std::string cipher_text = maybe_request->EncapsulateAndSerialize();
     context_ = std::move(*maybe_request).ReleaseContext();
     return cipher_text;
   }
 
-  absl::optional<std::string> DecryptResponse(std::string cipher_text) {
+  std::optional<std::string> DecryptResponse(std::string cipher_text) {
     DCHECK(context_) << "Decrypt called before Encrypt";
     auto maybe_response = quiche_client_.DecryptObliviousHttpResponse(
         cipher_text, context_.value());
     if (!maybe_response.ok()) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     return std::string(maybe_response->GetPlaintextData());
   }
@@ -99,7 +104,7 @@ class StatefulObliviousHttpClient {
       : quiche_client_(std::move(quiche_client)) {}
 
   quiche::ObliviousHttpClient quiche_client_;
-  absl::optional<quiche::ObliviousHttpRequest::Context> context_;
+  std::optional<quiche::ObliviousHttpRequest::Context> context_;
 };
 
 std::string CreateAndSerializeBhttpMessage(
@@ -153,10 +158,12 @@ class ObliviousHttpRequestHandler::RequestState {
  public:
   mojom::ObliviousHttpRequestPtr request;
   std::unique_ptr<SimpleURLLoader> loader;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   std::unique_ptr<TrustTokenRequestHelperFactory> trust_token_helper_factory;
   std::unique_ptr<TrustTokenRequestHelper> trust_token_helper;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   net::NetLogWithSource net_log;
-  absl::optional<StatefulObliviousHttpClient> ohttp_client;
+  std::optional<StatefulObliviousHttpClient> ohttp_client;
 };
 
 ObliviousHttpRequestHandler::ObliviousHttpRequestHandler(
@@ -215,6 +222,7 @@ void ObliviousHttpRequestHandler::StartRequest(
       net::NetLog::Get(), net::NetLogSourceType::URL_REQUEST);
   state->net_log.BeginEvent(net::NetLogEventType::OBLIVIOUS_HTTP_REQUEST);
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (state->request->trust_token_params) {
     state->trust_token_helper_factory =
         std::make_unique<TrustTokenRequestHelperFactory>(
@@ -226,17 +234,21 @@ void ObliviousHttpRequestHandler::StartRequest(
             // state, which owns the TrustTokenRequestHelperFactory.
             base::BindRepeating(&NetworkContext::client,
                                 base::Unretained(owner_network_context_)),
+            // It's safe to bind to |state| pointer. Callback is owned by the
+            // |state->trust_token_helper_factory|.
             base::BindRepeating(
-                [](NetworkContext* context) {
+                [](NetworkContext* context, RequestState* state) {
                   // Trust tokens will be blocked if the user has either
-                  // disabled the Trust Token Privacy Sandbox setting, or if the
-                  // user has disabled third party cookies.
-                  return !(context->cookie_manager()
-                               ->cookie_settings()
-                               .are_third_party_cookies_blocked() ||
-                           context->are_trust_tokens_blocked());
+                  // disabled the anti-abuse content setting or blocked the
+                  // issuer site from storing data (i.e. the cookie content
+                  // setting for that site is blocked).
+                  bool is_allowed = context->cookie_manager()
+                                        ->cookie_settings()
+                                        .ArePrivateStateTokensAllowed(
+                                            state->request->resource_url);
+                  return (is_allowed && !context->are_trust_tokens_blocked());
                 },
-                base::Unretained(owner_network_context_)));
+                base::Unretained(owner_network_context_), state));
 
     state->trust_token_helper_factory->CreateTrustTokenHelperForRequest(
         url::Origin::Create(state->request->resource_url),
@@ -249,20 +261,22 @@ void ObliviousHttpRequestHandler::StartRequest(
             base::Unretained(this), id));
     return;
   }
-  ContinueHandlingRequest(/*headers=*/absl::nullopt, id);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+  ContinueHandlingRequest(/*headers=*/std::nullopt, id);
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 void ObliviousHttpRequestHandler::OnDoneConstructingTrustTokenHelper(
     mojo::RemoteSetElementId id,
     TrustTokenStatusOrRequestHelper status_or_helper) {
   if (!status_or_helper.ok()) {
     RespondWithError(id, net::ERR_TRUST_TOKEN_OPERATION_FAILED,
-                     /*outer_response_error_code=*/absl::nullopt);
+                     /*outer_response_error_code=*/std::nullopt);
     return;
   }
 
   auto state_iter = client_state_.find(id);
-  DCHECK(state_iter != client_state_.end());
+  CHECK(state_iter != client_state_.end());
 
   RequestState* state = state_iter->second.get();
   state->trust_token_helper = status_or_helper.TakeOrCrash();
@@ -276,21 +290,22 @@ void ObliviousHttpRequestHandler::OnDoneConstructingTrustTokenHelper(
 
 void ObliviousHttpRequestHandler::OnDoneBeginningTrustTokenOperation(
     mojo::RemoteSetElementId id,
-    absl::optional<net::HttpRequestHeaders> headers,
+    std::optional<net::HttpRequestHeaders> headers,
     mojom::TrustTokenOperationStatus status) {
   if (status != mojom::TrustTokenOperationStatus::kOk) {
     RespondWithError(id, net::ERR_TRUST_TOKEN_OPERATION_FAILED,
-                     /*outer_response_error_code=*/absl::nullopt);
+                     /*outer_response_error_code=*/std::nullopt);
     return;
   }
   ContinueHandlingRequest(std::move(headers), id);
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 void ObliviousHttpRequestHandler::ContinueHandlingRequest(
-    absl::optional<net::HttpRequestHeaders> headers,
+    std::optional<net::HttpRequestHeaders> headers,
     mojo::RemoteSetElementId id) {
   auto state_iter = client_state_.find(id);
-  DCHECK(state_iter != client_state_.end());
+  CHECK(state_iter != client_state_.end());
   RequestState* state = state_iter->second.get();
 
   std::string bhttp_payload = CreateAndSerializeBhttpMessage(
@@ -346,7 +361,7 @@ void ObliviousHttpRequestHandler::ContinueHandlingRequest(
       std::move(state->request->key_config));
   if (!maybe_client) {
     RespondWithError(id, net::ERR_INVALID_ARGUMENT,
-                     /*outer_response_error_code=*/absl::nullopt);
+                     /*outer_response_error_code=*/std::nullopt);
     return;
   }
   state->ohttp_client = std::move(maybe_client);
@@ -354,7 +369,7 @@ void ObliviousHttpRequestHandler::ContinueHandlingRequest(
       state->ohttp_client->EncryptRequest(std::move(padded_payload));
   if (!maybe_encrypted_blob) {
     RespondWithError(id, net::ERR_FAILED,
-                     /*outer_response_error_code=*/absl::nullopt);
+                     /*outer_response_error_code=*/std::nullopt);
     return;
   }
 
@@ -386,11 +401,11 @@ void ObliviousHttpRequestHandler::ContinueHandlingRequest(
 void ObliviousHttpRequestHandler::RespondWithError(
     mojo::RemoteSetElementId id,
     int error_code,
-    absl::optional<int> outer_response_error_code) {
+    std::optional<int> outer_response_error_code) {
   mojom::ObliviousHttpClient* client = clients_.Get(id);
   auto state_iter = client_state_.find(id);
   DCHECK(client);
-  DCHECK(state_iter != client_state_.end());
+  CHECK(state_iter != client_state_.end());
   RequestState* state = state_iter->second.get();
   state->net_log.EndEvent(net::NetLogEventType::OBLIVIOUS_HTTP_REQUEST, [&] {
     base::Value::Dict params;
@@ -423,11 +438,11 @@ void ObliviousHttpRequestHandler::OnRequestComplete(
     mojo::RemoteSetElementId id,
     std::unique_ptr<std::string> response) {
   auto state_iter = client_state_.find(id);
-  DCHECK(state_iter != client_state_.end());
+  CHECK(state_iter != client_state_.end());
 
   RequestState* state = state_iter->second.get();
   if (!response) {
-    absl::optional<int> outer_response_error_code;
+    std::optional<int> outer_response_error_code;
     if (state->loader->NetError() == net::ERR_HTTP_RESPONSE_CODE_FAILURE &&
         state->loader->ResponseInfo() &&
         state->loader->ResponseInfo()->headers) {
@@ -442,7 +457,7 @@ void ObliviousHttpRequestHandler::OnRequestComplete(
       state->ohttp_client->DecryptResponse(std::move(*response));
   if (!maybe_payload) {
     RespondWithError(id, net::ERR_INVALID_RESPONSE,
-                     /*outer_response_error_code=*/absl::nullopt);
+                     /*outer_response_error_code=*/std::nullopt);
     return;
   }
 
@@ -462,7 +477,7 @@ void ObliviousHttpRequestHandler::OnRequestComplete(
   auto bhttp_response = quiche::BinaryHttpResponse::Create(*maybe_payload);
   if (!bhttp_response.ok()) {
     RespondWithError(id, net::ERR_INVALID_RESPONSE,
-                     /*outer_response_error_code=*/absl::nullopt);
+                     /*outer_response_error_code=*/std::nullopt);
     return;
   }
 
@@ -472,24 +487,27 @@ void ObliviousHttpRequestHandler::OnRequestComplete(
   // Check that the header is valid.
   if (!headers) {
     RespondWithError(id, net::ERR_INVALID_RESPONSE,
-                     /*outer_response_error_code=*/absl::nullopt);
+                     /*outer_response_error_code=*/std::nullopt);
     return;
   }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (state->trust_token_helper) {
     state->trust_token_helper->Finalize(
         *headers,
         base::BindOnce(
             &ObliviousHttpRequestHandler::OnDoneFinalizingTrustTokenOperation,
-            base::Unretained(this), id, inner_status_code, std::move(headers),
+            base::Unretained(this), id, inner_status_code, headers,
             std::string(bhttp_response->body())));
     return;
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   NotifyComplete(id, inner_status_code, std::move(headers),
                  std::string(bhttp_response->body()));
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 void ObliviousHttpRequestHandler::OnDoneFinalizingTrustTokenOperation(
     mojo::RemoteSetElementId id,
     int inner_response_code,
@@ -498,11 +516,12 @@ void ObliviousHttpRequestHandler::OnDoneFinalizingTrustTokenOperation(
     mojom::TrustTokenOperationStatus status) {
   if (status != mojom::TrustTokenOperationStatus::kOk) {
     RespondWithError(id, net::ERR_TRUST_TOKEN_OPERATION_FAILED,
-                     /*outer_response_error_code=*/absl::nullopt);
+                     /*outer_response_error_code=*/std::nullopt);
     return;
   }
   NotifyComplete(id, inner_response_code, std::move(headers), std::move(body));
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 void ObliviousHttpRequestHandler::NotifyComplete(
     mojo::RemoteSetElementId id,
@@ -512,7 +531,7 @@ void ObliviousHttpRequestHandler::NotifyComplete(
   mojom::ObliviousHttpClient* client = clients_.Get(id);
   auto state_iter = client_state_.find(id);
   DCHECK(client);
-  DCHECK(state_iter != client_state_.end());
+  CHECK(state_iter != client_state_.end());
   RequestState* state = state_iter->second.get();
   net::NetLogResponseHeaders(
       state->net_log, net::NetLogEventType::OBLIVIOUS_HTTP_RESPONSE_HEADERS,
@@ -554,7 +573,7 @@ ObliviousHttpRequestHandler::GetURLLoaderFactory() {
   network::mojom::URLLoaderFactoryParamsPtr params =
       network::mojom::URLLoaderFactoryParams::New();
   params->process_id = network::mojom::kBrowserProcessId;
-  params->is_corb_enabled = false;
+  params->is_orb_enabled = false;
   params->is_trusted = true;
   params->automatically_assign_isolation_info = true;
 

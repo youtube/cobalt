@@ -24,9 +24,7 @@
 #include "storage/browser/file_system/async_file_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace ash {
-namespace file_system_provider {
-namespace operations {
+namespace ash::file_system_provider::operations {
 namespace {
 
 const char kExtensionId[] = "mbflcebpggnecokmikipoihdbecnjfoj";
@@ -47,7 +45,7 @@ class CallbackLogger {
     Event(const Event&) = delete;
     Event& operator=(const Event&) = delete;
 
-    virtual ~Event() {}
+    virtual ~Event() = default;
 
     const Actions& actions() const { return actions_; }
     base::File::Error result() const { return result_; }
@@ -57,12 +55,12 @@ class CallbackLogger {
     base::File::Error result_;
   };
 
-  CallbackLogger() {}
+  CallbackLogger() = default;
 
   CallbackLogger(const CallbackLogger&) = delete;
   CallbackLogger& operator=(const CallbackLogger&) = delete;
 
-  virtual ~CallbackLogger() {}
+  virtual ~CallbackLogger() = default;
 
   void OnGetActions(const Actions& actions, base::File::Error result) {
     events_.push_back(std::make_unique<Event>(actions, result));
@@ -83,7 +81,7 @@ void CreateRequestValueFromJSON(const std::string& json, RequestValue* result) {
   ASSERT_TRUE(parsed_json.has_value()) << parsed_json.error().message;
 
   ASSERT_TRUE(parsed_json->is_list());
-  absl::optional<Params> params = Params::Create(parsed_json->GetList());
+  std::optional<Params> params = Params::Create(parsed_json->GetList());
   ASSERT_TRUE(params.has_value());
   *result = RequestValue::CreateForGetActionsSuccess(std::move(*params));
   ASSERT_TRUE(result->is_valid());
@@ -93,17 +91,17 @@ void CreateRequestValueFromJSON(const std::string& json, RequestValue* result) {
 
 class FileSystemProviderOperationsGetActionsTest : public testing::Test {
  protected:
-  FileSystemProviderOperationsGetActionsTest() {}
-  ~FileSystemProviderOperationsGetActionsTest() override {}
+  FileSystemProviderOperationsGetActionsTest() = default;
+  ~FileSystemProviderOperationsGetActionsTest() override = default;
 
   void SetUp() override {
     file_system_info_ = ProvidedFileSystemInfo(
-        kExtensionId, MountOptions(kFileSystemId, "" /* display_name */),
-        base::FilePath(), false /* configurable */, true /* watchable */,
+        kExtensionId, MountOptions(kFileSystemId, /*display_name=*/""),
+        base::FilePath(), /*configurable=*/false, /*watchable=*/true,
         extensions::SOURCE_FILE, IconSet());
     entry_paths_.clear();
-    entry_paths_.push_back(base::FilePath(kDirectoryPath));
-    entry_paths_.push_back(base::FilePath(kFilePath));
+    entry_paths_.emplace_back(kDirectoryPath);
+    entry_paths_.emplace_back(kFilePath);
   }
 
   ProvidedFileSystemInfo file_system_info_;
@@ -113,7 +111,7 @@ class FileSystemProviderOperationsGetActionsTest : public testing::Test {
 TEST_F(FileSystemProviderOperationsGetActionsTest, Execute) {
   using extensions::api::file_system_provider::GetActionsRequestedOptions;
 
-  util::LoggingDispatchEventImpl dispatcher(true /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/true);
   CallbackLogger callback_logger;
 
   GetActions get_actions(&dispatcher, file_system_info_, entry_paths_,
@@ -133,18 +131,18 @@ TEST_F(FileSystemProviderOperationsGetActionsTest, Execute) {
   const base::Value* options_as_value = &event_args[0];
   ASSERT_TRUE(options_as_value->is_dict());
 
-  GetActionsRequestedOptions options;
-  ASSERT_TRUE(GetActionsRequestedOptions::Populate(options_as_value->GetDict(),
-                                                   options));
-  EXPECT_EQ(kFileSystemId, options.file_system_id);
-  EXPECT_EQ(kRequestId, options.request_id);
-  ASSERT_EQ(entry_paths_.size(), options.entry_paths.size());
-  EXPECT_EQ(entry_paths_[0].value(), options.entry_paths[0]);
-  EXPECT_EQ(entry_paths_[1].value(), options.entry_paths[1]);
+  auto options =
+      GetActionsRequestedOptions::FromValue(options_as_value->GetDict());
+  ASSERT_TRUE(options);
+  EXPECT_EQ(kFileSystemId, options->file_system_id);
+  EXPECT_EQ(kRequestId, options->request_id);
+  ASSERT_EQ(entry_paths_.size(), options->entry_paths.size());
+  EXPECT_EQ(entry_paths_[0].value(), options->entry_paths[0]);
+  EXPECT_EQ(entry_paths_[1].value(), options->entry_paths[1]);
 }
 
 TEST_F(FileSystemProviderOperationsGetActionsTest, Execute_NoListener) {
-  util::LoggingDispatchEventImpl dispatcher(false /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/false);
   CallbackLogger callback_logger;
 
   GetActions get_actions(&dispatcher, file_system_info_, entry_paths_,
@@ -155,7 +153,7 @@ TEST_F(FileSystemProviderOperationsGetActionsTest, Execute_NoListener) {
 }
 
 TEST_F(FileSystemProviderOperationsGetActionsTest, OnSuccess) {
-  util::LoggingDispatchEventImpl dispatcher(true /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/true);
   CallbackLogger callback_logger;
 
   GetActions get_actions(&dispatcher, file_system_info_, entry_paths_,
@@ -211,7 +209,7 @@ TEST_F(FileSystemProviderOperationsGetActionsTest, OnSuccess) {
 }
 
 TEST_F(FileSystemProviderOperationsGetActionsTest, OnError) {
-  util::LoggingDispatchEventImpl dispatcher(true /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/true);
   CallbackLogger callback_logger;
 
   GetActions get_actions(&dispatcher, file_system_info_, entry_paths_,
@@ -229,6 +227,4 @@ TEST_F(FileSystemProviderOperationsGetActionsTest, OnError) {
   ASSERT_EQ(0u, event->actions().size());
 }
 
-}  // namespace operations
-}  // namespace file_system_provider
-}  // namespace ash
+}  // namespace ash::file_system_provider::operations

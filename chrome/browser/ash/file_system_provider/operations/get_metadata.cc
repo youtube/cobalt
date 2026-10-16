@@ -6,19 +6,18 @@
 
 #include <stdint.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <tuple>
 #include <utility>
 
-#include "base/ranges/algorithm.h"
 #include "base/time/time.h"
+#include "chrome/browser/ash/file_system_provider/provided_file_system_interface.h"
 #include "chrome/common/extensions/api/file_system_provider.h"
 #include "chrome/common/extensions/api/file_system_provider_internal.h"
 
-namespace ash {
-namespace file_system_provider {
-namespace operations {
+namespace ash::file_system_provider::operations {
 namespace {
 
 // Convert |value| into |output|. If parsing fails, then returns false.
@@ -76,6 +75,20 @@ bool ConvertRequestValueToFileInfo(const RequestValue& value,
         std::make_unique<std::string>(*params->metadata.thumbnail);
   }
 
+  if (fields & ProvidedFileSystemInterface::METADATA_FIELD_CLOUD_IDENTIFIER &&
+      params->metadata.cloud_identifier) {
+    output->cloud_identifier = std::make_unique<CloudIdentifier>(
+        params->metadata.cloud_identifier->provider_name,
+        params->metadata.cloud_identifier->id);
+  }
+
+  if (fields & ProvidedFileSystemInterface::METADATA_FIELD_CLOUD_FILE_INFO &&
+      params->metadata.cloud_file_info &&
+      params->metadata.cloud_file_info->version_tag.has_value()) {
+    output->cloud_file_info = std::make_unique<CloudFileInfo>(
+        params->metadata.cloud_file_info->version_tag.value());
+  }
+
   return true;
 }
 
@@ -123,11 +136,17 @@ bool ValidateIDLEntryMetadata(
     const std::string expected_prefix = "data:";
     std::string thumbnail_prefix =
         metadata.thumbnail->substr(0, expected_prefix.size());
-    base::ranges::transform(thumbnail_prefix, thumbnail_prefix.begin(),
-                            ::tolower);
+    std::ranges::transform(thumbnail_prefix, thumbnail_prefix.begin(),
+                           ::tolower);
 
     if (expected_prefix != thumbnail_prefix)
       return false;
+  }
+
+  if (fields & ProvidedFileSystemInterface::METADATA_FIELD_CLOUD_IDENTIFIER &&
+      (!metadata.cloud_identifier ||
+       !ValidateCloudIdentifier(*metadata.cloud_identifier))) {
+    return false;
   }
 
   return true;
@@ -137,6 +156,13 @@ bool ValidateName(const std::string& name, bool root_entry) {
   if (root_entry)
     return name.empty();
   return !name.empty() && name.find('/') == std::string::npos;
+}
+
+bool ValidateCloudIdentifier(
+    const extensions::api::file_system_provider::CloudIdentifier&
+        cloud_identifier) {
+  return !cloud_identifier.provider_name.empty() &&
+         !cloud_identifier.id.empty();
 }
 
 GetMetadata::GetMetadata(
@@ -152,8 +178,7 @@ GetMetadata::GetMetadata(
   DCHECK_NE(0, fields_);
 }
 
-GetMetadata::~GetMetadata() {
-}
+GetMetadata::~GetMetadata() = default;
 
 bool GetMetadata::Execute(int request_id) {
   using extensions::api::file_system_provider::GetMetadataRequestedOptions;
@@ -172,6 +197,10 @@ bool GetMetadata::Execute(int request_id) {
       fields_ & ProvidedFileSystemInterface::METADATA_FIELD_MIME_TYPE;
   options.thumbnail =
       fields_ & ProvidedFileSystemInterface::METADATA_FIELD_THUMBNAIL;
+  options.cloud_identifier =
+      fields_ & ProvidedFileSystemInterface::METADATA_FIELD_CLOUD_IDENTIFIER;
+  options.cloud_file_info =
+      fields_ & ProvidedFileSystemInterface::METADATA_FIELD_CLOUD_FILE_INFO;
 
   return SendEvent(
       request_id,
@@ -181,7 +210,7 @@ bool GetMetadata::Execute(int request_id) {
           options));
 }
 
-void GetMetadata::OnSuccess(int /* request_id */,
+void GetMetadata::OnSuccess(/*request_id=*/int,
                             const RequestValue& result,
                             bool has_more) {
   DCHECK(callback_);
@@ -199,13 +228,11 @@ void GetMetadata::OnSuccess(int /* request_id */,
   std::move(callback_).Run(std::move(metadata), base::File::FILE_OK);
 }
 
-void GetMetadata::OnError(int /* request_id */,
-                          const RequestValue& /* result */,
+void GetMetadata::OnError(/*request_id=*/int,
+                          /*result=*/const RequestValue&,
                           base::File::Error error) {
   DCHECK(callback_);
   std::move(callback_).Run(nullptr, error);
 }
 
-}  // namespace operations
-}  // namespace file_system_provider
-}  // namespace ash
+}  // namespace ash::file_system_provider::operations

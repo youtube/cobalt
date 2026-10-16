@@ -35,8 +35,8 @@ import android.os.Message;
 import android.view.Choreographer;
 import android.view.Choreographer.FrameCallback;
 import dev.cobalt.util.DisplayUtil;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
 /** Makes a best effort to adjust frame release timestamps for a smoother visual result. */
 @JNINamespace("starboard")
@@ -176,13 +176,13 @@ public final class VideoFrameReleaseTimeHelper {
     mLastFramePresentationTimeUs = framePresentationTimeUs;
     mPendingAdjustedFrameTimeNs = adjustedFrameTimeNs;
 
-    if (mVsyncSampler == null || mVsyncSampler.sampledVsyncTimeNs == 0) {
+    if (mVsyncSampler == null || mVsyncSampler.mSampledVsyncTimeNs == 0) {
       return adjustedReleaseTimeNs;
     }
 
     // Find the timestamp of the closest vsync. This is the vsync that we're targeting.
     long snappedTimeNs =
-        closestVsync(adjustedReleaseTimeNs, mVsyncSampler.sampledVsyncTimeNs, mVsyncDurationNs);
+        closestVsync(adjustedReleaseTimeNs, mVsyncSampler.mSampledVsyncTimeNs, mVsyncDurationNs);
     // Apply an offset so that we release before the target vsync, but after the previous one.
     return snappedTimeNs - mVsyncOffsetNs;
   }
@@ -206,9 +206,9 @@ public final class VideoFrameReleaseTimeHelper {
     // YT playback rate can be set to multiples of 0.25, ranging from 0.25 to 2.0 (e.g., 0.25, 0.5,
     // 0.75, 1.0, 1.25, 1.5, 1.75, and 2.0). To prevent issues with floating-point conversions, the
     // playback rate is converted to a long integer by multiplying it by 4.
-    final long PLAYBACK_RATE_ADJUSTMENT_MULTIPLIER = 4;
-    long adjustedPlaybackRate = Math.round(playbackRate * PLAYBACK_RATE_ADJUSTMENT_MULTIPLIER);
-    return frameTimeNs / adjustedPlaybackRate * PLAYBACK_RATE_ADJUSTMENT_MULTIPLIER;
+    final long kPlaybackRateAdjustmentMultiplier = 4;
+    long adjustedPlaybackRate = Math.round(playbackRate * kPlaybackRateAdjustmentMultiplier);
+    return frameTimeNs / adjustedPlaybackRate * kPlaybackRateAdjustmentMultiplier;
   }
 
   private static long closestVsync(long releaseTime, long sampledVsyncTime, long vsyncDuration) {
@@ -235,7 +235,7 @@ public final class VideoFrameReleaseTimeHelper {
    */
   private static final class VSyncSampler implements FrameCallback, Handler.Callback {
 
-    public volatile long sampledVsyncTimeNs;
+    public volatile long mSampledVsyncTimeNs;
 
     private static final int CREATE_CHOREOGRAPHER = 0;
     private static final int MSG_ADD_OBSERVER = 1;
@@ -243,42 +243,42 @@ public final class VideoFrameReleaseTimeHelper {
 
     private static final VSyncSampler INSTANCE = new VSyncSampler();
 
-    private final Handler handler;
-    private final HandlerThread choreographerOwnerThread;
-    private Choreographer choreographer;
-    private int observerCount;
+    private final Handler mHandler;
+    private final HandlerThread mChoreographerOwnerThread;
+    private Choreographer mChoreographer;
+    private int mObserverCount;
 
     public static VSyncSampler getInstance() {
       return INSTANCE;
     }
 
     private VSyncSampler() {
-      choreographerOwnerThread = new HandlerThread("ChoreographerOwner:Handler");
-      choreographerOwnerThread.start();
-      handler = new Handler(choreographerOwnerThread.getLooper(), this);
-      handler.sendEmptyMessage(CREATE_CHOREOGRAPHER);
+      mChoreographerOwnerThread = new HandlerThread("ChoreographerOwner:Handler");
+      mChoreographerOwnerThread.start();
+      mHandler = new Handler(mChoreographerOwnerThread.getLooper(), this);
+      mHandler.sendEmptyMessage(CREATE_CHOREOGRAPHER);
     }
 
     /**
      * Notifies the sampler that a {@link VideoFrameReleaseTimeHelper} is observing {@link
-     * #sampledVsyncTimeNs}, and hence that the value should be periodically updated.
+     * #mSampledVsyncTimeNs}, and hence that the value should be periodically updated.
      */
     public void addObserver() {
-      handler.sendEmptyMessage(MSG_ADD_OBSERVER);
+      mHandler.sendEmptyMessage(MSG_ADD_OBSERVER);
     }
 
     /**
      * Notifies the sampler that a {@link VideoFrameReleaseTimeHelper} is no longer observing {@link
-     * #sampledVsyncTimeNs}.
+     * #mSampledVsyncTimeNs}.
      */
     public void removeObserver() {
-      handler.sendEmptyMessage(MSG_REMOVE_OBSERVER);
+      mHandler.sendEmptyMessage(MSG_REMOVE_OBSERVER);
     }
 
     @Override
     public void doFrame(long vsyncTimeNs) {
-      sampledVsyncTimeNs = vsyncTimeNs;
-      choreographer.postFrameCallbackDelayed(this, CHOREOGRAPHER_SAMPLE_DELAY_MILLIS);
+      mSampledVsyncTimeNs = vsyncTimeNs;
+      mChoreographer.postFrameCallbackDelayed(this, CHOREOGRAPHER_SAMPLE_DELAY_MILLIS);
     }
 
     @Override
@@ -307,21 +307,21 @@ public final class VideoFrameReleaseTimeHelper {
     }
 
     private void createChoreographerInstanceInternal() {
-      choreographer = Choreographer.getInstance();
+      mChoreographer = Choreographer.getInstance();
     }
 
     private void addObserverInternal() {
-      observerCount++;
-      if (observerCount == 1) {
-        choreographer.postFrameCallback(this);
+      mObserverCount++;
+      if (mObserverCount == 1) {
+        mChoreographer.postFrameCallback(this);
       }
     }
 
     private void removeObserverInternal() {
-      observerCount--;
-      if (observerCount == 0) {
-        choreographer.removeFrameCallback(this);
-        sampledVsyncTimeNs = 0;
+      mObserverCount--;
+      if (mObserverCount == 0) {
+        mChoreographer.removeFrameCallback(this);
+        mSampledVsyncTimeNs = 0;
       }
     }
   }

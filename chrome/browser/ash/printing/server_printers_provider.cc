@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/containers/contains.h"
@@ -13,13 +14,10 @@
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/task/sequenced_task_runner.h"
-#include "chrome/browser/ash/printing/print_servers_provider.h"
-#include "chrome/browser/ash/printing/print_servers_provider_factory.h"
 #include "chrome/browser/ash/printing/server_printers_fetcher.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/pref_names.h"
 #include "components/device_event_log/device_event_log.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 class PrefService;
@@ -36,9 +34,7 @@ struct PrintServerWithPrinters {
   std::vector<PrinterDetector::DetectedPrinter> printers;  // queried printers
 };
 
-class ServerPrintersProviderImpl
-    : public ServerPrintersProvider,
-      public base::SupportsWeakPtr<ServerPrintersProviderImpl> {
+class ServerPrintersProviderImpl : public ServerPrintersProvider {
  public:
   explicit ServerPrintersProviderImpl(Profile* profile) : profile_(profile) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -151,7 +147,7 @@ class ServerPrintersProviderImpl
     return (servers_are_complete_ && fetchers_.empty());
   }
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile> profile_;
 
   // A callback to propagate update of the resultant list of server printers.
   OnPrintersUpdateCallback callback_;

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/values.h"
 #include "extensions/common/mojom/event_dispatcher.mojom-forward.h"
 #include "extensions/renderer/bindings/api_binding_types.h"
@@ -22,7 +23,7 @@ class ListenerTracker;
 // transitioning from 0 -> 1 or 1 -> 0 listeners.
 class APIEventListeners {
  public:
-  // The callback called when listeners change. |update_lazy_listeners|
+  // The callback called when listeners change. `update_lazy_listeners`
   // indicates that the lazy listener count for the event should potentially be
   // updated. This is true if a) the event supports lazy listeners and b) the
   // change was "manual" (i.e., triggered by a direct call from the extension
@@ -38,7 +39,7 @@ class APIEventListeners {
   // to associate multiple listeners from different v8::Contexts with the same
   // owner (e.g., extension). This is used lazily, when listeners are first
   // added.
-  // TODO(https://crbug.com/877658): Ideally, we'd just pass in the context
+  // TODO(crbug.com/41410015): Ideally, we'd just pass in the context
   // owner to the event directly. However, this led to https://crbug.com/877401,
   // presumably because of https://crbug.com/877658. If we can fix that, we can
   // simplify this again.
@@ -50,9 +51,9 @@ class APIEventListeners {
 
   virtual ~APIEventListeners() = default;
 
-  // Adds the given |listener| to the list, possibly associating it with the
-  // given |filter|. Returns true if the listener is added. Populates |error|
-  // with any errors encountered. Note that |error| is *not* always populated
+  // Adds the given `listener` to the list, possibly associating it with the
+  // given `filter`. Returns true if the listener is added. Populates `error`
+  // with any errors encountered. Note that `error` is *not* always populated
   // if false is returned, since we don't consider trying to re-add a listener
   // to be an error.
   virtual bool AddListener(v8::Local<v8::Function> listener,
@@ -60,18 +61,18 @@ class APIEventListeners {
                            v8::Local<v8::Context> context,
                            std::string* error) = 0;
 
-  // Removes the given |listener|, if it's present in the list.
+  // Removes the given `listener`, if it's present in the list.
   virtual void RemoveListener(v8::Local<v8::Function> listener,
                               v8::Local<v8::Context> context) = 0;
 
-  // Returns true if the given |listener| is in the list.
+  // Returns true if the given `listener` is in the list.
   virtual bool HasListener(v8::Local<v8::Function> listener) = 0;
 
   // Returns the number of listeners in the list.
   virtual size_t GetNumListeners() = 0;
 
-  // Returns the listeners that should be notified for the given |filter|.
-  virtual std::vector<v8::Local<v8::Function>> GetListeners(
+  // Returns the listeners that should be notified for the given `filter`.
+  virtual v8::LocalVector<v8::Function> GetListeners(
       mojom::EventFilteringInfoPtr filter,
       v8::Local<v8::Context> context) = 0;
 
@@ -106,13 +107,13 @@ class UnfilteredEventListeners final : public APIEventListeners {
                       v8::Local<v8::Context> context) override;
   bool HasListener(v8::Local<v8::Function> listener) override;
   size_t GetNumListeners() override;
-  std::vector<v8::Local<v8::Function>> GetListeners(
+  v8::LocalVector<v8::Function> GetListeners(
       mojom::EventFilteringInfoPtr filter,
       v8::Local<v8::Context> context) override;
   void Invalidate(v8::Local<v8::Context> context) override;
 
  private:
-  // Lazily sets |context_id_owner_| from |context_id_owner_getter_|.
+  // Lazily sets `context_id_owner_` from `context_id_owner_getter_`.
   void LazilySetContextOwner(v8::Local<v8::Context> context);
 
   // Notifies that all the listeners for this context are now removed.
@@ -152,7 +153,7 @@ class UnfilteredEventListeners final : public APIEventListeners {
   // The listener tracker to notify of added or removed listeners. This may be
   // null if this is a set of listeners for an unmanaged event. If
   // non-null, required to outlive this object.
-  ListenerTracker* listener_tracker_ = nullptr;
+  raw_ptr<ListenerTracker, DanglingUntriaged> listener_tracker_ = nullptr;
 };
 
 // A listener list implementation that supports filtering. Events should only
@@ -181,7 +182,7 @@ class FilteredEventListeners final : public APIEventListeners {
                       v8::Local<v8::Context> context) override;
   bool HasListener(v8::Local<v8::Function> listener) override;
   size_t GetNumListeners() override;
-  std::vector<v8::Local<v8::Function>> GetListeners(
+  v8::LocalVector<v8::Function> GetListeners(
       mojom::EventFilteringInfoPtr filter,
       v8::Local<v8::Context> context) override;
   void Invalidate(v8::Local<v8::Context> context) override;
@@ -189,7 +190,7 @@ class FilteredEventListeners final : public APIEventListeners {
  private:
   struct ListenerData;
 
-  // Lazily sets |context_owner_id_| from |context_owner_id_getter_|.
+  // Lazily sets `context_owner_id_` from `context_owner_id_getter_`.
   void LazilySetContextOwner(v8::Local<v8::Context> context);
 
   void InvalidateListener(const ListenerData& listener,
@@ -220,7 +221,7 @@ class FilteredEventListeners final : public APIEventListeners {
 
   // The listener tracker to notify of added or removed listeners. Required to
   // outlive this object. Must be non-null.
-  ListenerTracker* listener_tracker_ = nullptr;
+  raw_ptr<ListenerTracker> listener_tracker_ = nullptr;
 };
 
 }  // namespace extensions

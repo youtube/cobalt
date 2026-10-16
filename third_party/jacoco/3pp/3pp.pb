@@ -1,11 +1,21 @@
 create {
   source {
-    url {
-      download_url: "https://repo1.maven.org/maven2/org/jacoco/jacoco/0.8.8/jacoco-0.8.8.zip"
-      version: "0.8.8"
-      extension: ".zip"
+    git {
+      repo: "https://github.com/jacoco/jacoco.git"
+      tag_pattern: "v%s"
+      version_restriction {
+        op: EQ
+        val: "0.8.8"
+      }
     }
-    unpack_archive: true
+    patch_dir: "patches"
+    patch_version: "chromium.4.2"
+  }
+  build {
+    install: "install.py"
+    tool: "chromium/third_party/maven"
+    # Pin to a JDK version that's known to work.
+    external_dep: "chromium/third_party/jdk@2@jdk-17.0.6+10.f601e9c320"
   }
 }
 

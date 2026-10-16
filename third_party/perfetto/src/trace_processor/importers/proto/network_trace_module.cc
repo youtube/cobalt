@@ -16,18 +16,34 @@
 
 #include "src/trace_processor/importers/proto/network_trace_module.h"
 
-#include "perfetto/ext/base/string_writer.h"
+#include <cinttypes>
+#include <cstdint>
+#include <utility>
+#include <vector>
+
+#include "perfetto/ext/base/string_utils.h"
+#include "perfetto/ext/base/string_view.h"
+#include "perfetto/protozero/field.h"
+#include "perfetto/trace_processor/ref_counted.h"
+#include "perfetto/trace_processor/trace_blob.h"
+#include "protos/perfetto/trace/android/network_trace.pbzero.h"
 #include "protos/perfetto/trace/interned_data/interned_data.pbzero.h"
 #include "protos/perfetto/trace/trace_packet.pbzero.h"
-#include "src/trace_processor/importers/common/async_track_set_tracker.h"
+#include "src/trace_processor/importers/common/parser_types.h"
 #include "src/trace_processor/importers/common/slice_tracker.h"
-#include "src/trace_processor/importers/proto/packet_sequence_state.h"
+#include "src/trace_processor/importers/common/track_compressor.h"
+#include "src/trace_processor/importers/common/track_tracker.h"
+#include "src/trace_processor/importers/common/tracks.h"
+#include "src/trace_processor/importers/proto/packet_sequence_state_generation.h"
+#include "src/trace_processor/importers/proto/proto_importer_module.h"
 #include "src/trace_processor/sorter/trace_sorter.h"
+#include "src/trace_processor/storage/stats.h"
 #include "src/trace_processor/storage/trace_storage.h"
+#include "src/trace_processor/tables/slice_tables_py.h"
 #include "src/trace_processor/types/tcp_state.h"
+#include "src/trace_processor/types/variadic.h"
 
-namespace perfetto {
-namespace trace_processor {
+namespace perfetto::trace_processor {
 namespace {
 // From android.os.UserHandle.PER_USER_RANGE
 constexpr int kPerUserRange = 100000;
@@ -63,8 +79,12 @@ NetworkTraceModule::NetworkTraceModule(TraceProcessorContext* context)
       net_arg_uid_(context->storage->InternString("socket_uid")),
       net_arg_local_port_(context->storage->InternString("local_port")),
       net_arg_remote_port_(context->storage->InternString("remote_port")),
+      net_arg_icmp_type_(context->storage->InternString("packet_icmp_type")),
+      net_arg_icmp_code_(context->storage->InternString("packet_icmp_code")),
       net_ipproto_tcp_(context->storage->InternString("IPPROTO_TCP")),
       net_ipproto_udp_(context->storage->InternString("IPPROTO_UDP")),
+      net_ipproto_icmp_(context->storage->InternString("IPPROTO_ICMP")),
+      net_ipproto_icmpv6_(context->storage->InternString("IPPROTO_ICMPV6")),
       packet_count_(context->storage->InternString("packet_count")) {
   RegisterForField(TracePacket::kNetworkPacketFieldNumber, context);
   RegisterForField(TracePacket::kNetworkPacketBundleFieldNumber, context);
@@ -74,18 +94,17 @@ ModuleResult NetworkTraceModule::TokenizePacket(
     const protos::pbzero::TracePacket::Decoder& decoder,
     TraceBlobView*,
     int64_t ts,
-    PacketSequenceState* state,
+    RefPtr<PacketSequenceStateGeneration> state,
     uint32_t field_id) {
   if (field_id != TracePacket::kNetworkPacketBundleFieldNumber) {
     return ModuleResult::Ignored();
   }
 
-  auto seq_state = state->current_generation();
   NetworkPacketBundle::Decoder evt(decoder.network_packet_bundle());
 
   ConstBytes context = evt.ctx();
   if (evt.has_iid()) {
-    auto* interned = seq_state->LookupInternedMessage<
+    auto* interned = state->LookupInternedMessage<
         protos::pbzero::InternedData::kPacketContextFieldNumber,
         protos::pbzero::NetworkPacketContext>(evt.iid());
     if (!interned) {
@@ -145,101 +164,163 @@ void NetworkTraceModule::ParseTracePacketData(
 void NetworkTraceModule::ParseGenericEvent(
     int64_t ts,
     int64_t dur,
-    protos::pbzero::NetworkPacketEvent::Decoder& evt,
-    std::function<void(ArgsTracker::BoundInserter*)> extra_args) {
+    int64_t length,
+    int64_t count,
+    protos::pbzero::NetworkPacketEvent::Decoder& evt) {
   // Tracks are per interface and per direction.
-  const char* track_suffix =
-      evt.direction() == TrafficDirection::DIR_INGRESS  ? " Received"
-      : evt.direction() == TrafficDirection::DIR_EGRESS ? " Transmitted"
-                                                        : " DIR_UNKNOWN";
+  const char* direction =
+      evt.direction() == TrafficDirection::DIR_INGRESS  ? "Received"
+      : evt.direction() == TrafficDirection::DIR_EGRESS ? "Transmitted"
+                                                        : "DIR_UNKNOWN";
 
-  base::StackString<64> name("%.*s%s", static_cast<int>(evt.interface().size),
-                             evt.interface().data, track_suffix);
-  StringId name_id = context_->storage->InternString(name.string_view());
+  StringId direction_id = context_->storage->InternString(direction);
+  StringId iface = context_->storage->InternString(evt.interface());
+
+  if (!loaded_package_names_) {
+    loaded_package_names_ = true;
+    const auto& package_list = context_->storage->package_list_table();
+    for (auto row = package_list.IterateRows(); row; ++row) {
+      package_names_.Insert(row.uid(), row.package_name());
+    }
+  }
 
   // Android stores the app id in the lower part of the uid. The actual uid will
   // be `user_id * kPerUserRange + app_id`. For package lookup, we want app id.
-  int app_id = evt.uid() % kPerUserRange;
+  uint32_t app_id = evt.uid() % kPerUserRange;
 
   // Event titles are the package name, if available.
-  StringId title_id = kNullStringId;
+  StringId slice_name = kNullStringId;
   if (evt.uid() > 0) {
-    const auto& package_list = context_->storage->package_list_table();
-    std::optional<uint32_t> pkg_row = package_list.uid().IndexOf(app_id);
-    if (pkg_row) {
-      title_id = package_list.package_name()[*pkg_row];
+    StringId* iter = package_names_.Find(app_id);
+    if (iter != nullptr) {
+      slice_name = *iter;
     }
   }
 
   // If the above fails, fall back to the uid.
-  if (title_id == kNullStringId) {
+  if (slice_name == kNullStringId) {
     base::StackString<32> title_str("uid=%" PRIu32, evt.uid());
-    title_id = context_->storage->InternString(title_str.string_view());
+    slice_name = context_->storage->InternString(title_str.string_view());
   }
 
-  TrackId track_id = context_->async_track_set_tracker->Scoped(
-      context_->async_track_set_tracker->InternGlobalTrackSet(name_id), ts,
-      dur);
+  static constexpr auto kBlueprint = TrackCompressor::SliceBlueprint(
+      "network_packets",
+      tracks::Dimensions(tracks::StringDimensionBlueprint("net_interface"),
+                         tracks::StringDimensionBlueprint("net_direction")),
+      tracks::FnNameBlueprint([](base::StringView interface,
+                                 base::StringView direction) {
+        return base::StackString<64>("%.*s %.*s", int(interface.size()),
+                                     interface.data(), int(direction.size()),
+                                     direction.data());
+      }));
 
-  context_->slice_tracker->Scoped(
-      ts, track_id, name_id, title_id, dur, [&](ArgsTracker::BoundInserter* i) {
-        StringId ip_proto;
-        if (evt.ip_proto() == kIpprotoTcp) {
-          ip_proto = net_ipproto_tcp_;
-        } else if (evt.ip_proto() == kIpprotoUdp) {
-          ip_proto = net_ipproto_udp_;
-        } else {
-          base::StackString<32> proto("IPPROTO (%d)", evt.ip_proto());
-          ip_proto = context_->storage->InternString(proto.string_view());
-        }
+  TrackId track_id = context_->track_compressor->InternScoped(
+      kBlueprint, tracks::Dimensions(evt.interface(), direction), ts, dur);
 
-        i->AddArg(net_arg_ip_proto_, Variadic::String(ip_proto));
+  tables::AndroidNetworkPacketsTable::Row actual_row;
+  actual_row.ts = ts;
+  actual_row.dur = dur;
+  actual_row.name = slice_name;
+  actual_row.track_id = track_id;
+  actual_row.iface = iface;
+  actual_row.direction = direction_id;
+  actual_row.packet_transport = GetIpProto(evt);
+  actual_row.packet_length = length;
+  actual_row.packet_count = count;
+  actual_row.socket_tag = evt.tag();
+  actual_row.socket_uid = evt.uid();
+  actual_row.socket_tag_str = context_->storage->InternString(
+      base::StackString<16>("0x%x", evt.tag()).string_view());
+
+  if (evt.has_local_port()) {
+    actual_row.local_port = evt.local_port();
+  }
+  if (evt.has_remote_port()) {
+    actual_row.remote_port = evt.remote_port();
+  }
+  if (evt.has_icmp_type()) {
+    actual_row.packet_icmp_type = evt.icmp_type();
+  }
+  if (evt.has_icmp_code()) {
+    actual_row.packet_icmp_code = evt.icmp_code();
+  }
+  if (evt.has_tcp_flags()) {
+    actual_row.packet_tcp_flags = evt.tcp_flags();
+    actual_row.packet_tcp_flags_str = context_->storage->InternString(
+        GetTcpFlagMask(evt.tcp_flags()).string_view());
+  }
+
+  context_->slice_tracker->ScopedTyped(
+      context_->storage->mutable_android_network_packets_table(), actual_row,
+      [&](ArgsTracker::BoundInserter* i) {
+        i->AddArg(net_arg_ip_proto_,
+                  Variadic::String(actual_row.packet_transport));
 
         i->AddArg(net_arg_uid_, Variadic::Integer(evt.uid()));
-        base::StackString<16> tag("0x%x", evt.tag());
-        i->AddArg(net_arg_tag_,
-                  Variadic::String(
-                      context_->storage->InternString(tag.string_view())));
+        i->AddArg(net_arg_tag_, Variadic::String(actual_row.socket_tag_str));
 
-        base::StackString<12> flags = GetTcpFlagMask(evt.tcp_flags());
-        i->AddArg(net_arg_tcp_flags_,
-                  Variadic::String(
-                      context_->storage->InternString(flags.string_view())));
+        if (actual_row.packet_tcp_flags_str.has_value()) {
+          i->AddArg(net_arg_tcp_flags_,
+                    Variadic::String(*actual_row.packet_tcp_flags_str));
+        }
 
-        i->AddArg(net_arg_local_port_, Variadic::Integer(evt.local_port()));
-        i->AddArg(net_arg_remote_port_, Variadic::Integer(evt.remote_port()));
-        extra_args(i);
+        if (evt.has_local_port()) {
+          i->AddArg(net_arg_local_port_, Variadic::Integer(evt.local_port()));
+        }
+        if (evt.has_remote_port()) {
+          i->AddArg(net_arg_remote_port_, Variadic::Integer(evt.remote_port()));
+        }
+        if (evt.has_icmp_type()) {
+          i->AddArg(net_arg_icmp_type_, Variadic::Integer(evt.icmp_type()));
+        }
+        if (evt.has_icmp_code()) {
+          i->AddArg(net_arg_icmp_code_, Variadic::Integer(evt.icmp_code()));
+        }
+        i->AddArg(net_arg_length_, Variadic::Integer(length));
+        i->AddArg(packet_count_, Variadic::Integer(count));
       });
+}
+
+StringId NetworkTraceModule::GetIpProto(NetworkPacketEvent::Decoder& evt) {
+  switch (evt.ip_proto()) {
+    case kIpprotoTcp:
+      return net_ipproto_tcp_;
+    case kIpprotoUdp:
+      return net_ipproto_udp_;
+    case kIpprotoIcmp:
+      return net_ipproto_icmp_;
+    case kIpprotoIcmpv6:
+      return net_ipproto_icmpv6_;
+    default:
+      return context_->storage->InternString(
+          base::StackString<32>("IPPROTO (%u)", evt.ip_proto()).string_view());
+  }
 }
 
 void NetworkTraceModule::ParseNetworkPacketEvent(int64_t ts, ConstBytes blob) {
   NetworkPacketEvent::Decoder event(blob);
-  ParseGenericEvent(ts, /*dur=*/0, event, [&](ArgsTracker::BoundInserter* i) {
-    i->AddArg(net_arg_length_, Variadic::Integer(event.length()));
-  });
+  ParseGenericEvent(ts, /*dur=*/0, event.length(), /*count=*/1, event);
 }
 
 void NetworkTraceModule::ParseNetworkPacketBundle(int64_t ts, ConstBytes blob) {
   NetworkPacketBundle::Decoder event(blob);
   NetworkPacketEvent::Decoder ctx(event.ctx());
   int64_t dur = static_cast<int64_t>(event.total_duration());
+  int64_t length = static_cast<int64_t>(event.total_length());
 
   // Any bundle that makes it through tokenization must be aggregated bundles
   // with total packets/total length.
-  ParseGenericEvent(ts, dur, ctx, [&](ArgsTracker::BoundInserter* i) {
-    i->AddArg(net_arg_length_, Variadic::UnsignedInteger(event.total_length()));
-    i->AddArg(packet_count_, Variadic::UnsignedInteger(event.total_packets()));
-  });
+  ParseGenericEvent(ts, dur, length, event.total_packets(), ctx);
 }
 
-void NetworkTraceModule::PushPacketBufferForSort(int64_t timestamp,
-                                                 PacketSequenceState* state) {
+void NetworkTraceModule::PushPacketBufferForSort(
+    int64_t timestamp,
+    RefPtr<PacketSequenceStateGeneration> state) {
   std::vector<uint8_t> v = packet_buffer_.SerializeAsArray();
   context_->sorter->PushTracePacket(
-      timestamp, state->current_generation(),
+      timestamp, std::move(state),
       TraceBlobView(TraceBlob::CopyFrom(v.data(), v.size())));
   packet_buffer_.Reset();
 }
 
-}  // namespace trace_processor
-}  // namespace perfetto
+}  // namespace perfetto::trace_processor

@@ -6,7 +6,7 @@
 #define CHROME_BROWSER_POLICY_CLOUD_USER_POLICY_SIGNIN_SERVICE_MOBILE_H_
 
 #include "base/memory/raw_ptr.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -66,8 +66,13 @@ class UserPolicySigninService : public UserPolicySigninServiceBase,
   // UserPolicySigninServiceBase implementation:
   base::TimeDelta GetTryRegistrationDelay() override;
   void UpdateLastPolicyCheckTime() override;
-  signin::ConsentLevel GetConsentLevelForRegistration() override;
   bool CanApplyPolicies(bool check_for_refresh_token) override;
+  void InitializeCloudPolicyManager(
+      const AccountId& account_id,
+      std::unique_ptr<CloudPolicyClient> client) override;
+  CloudPolicyClient::DeviceDMTokenCallback
+  GetDeviceDMTokenIfAffiliatedCallback() override;
+  std::string GetProfileId() override;
 
   // Initializes the UserPolicySigninService once its owning Profile becomes
   // ready. If the Profile has a signed-in account associated with it at startup

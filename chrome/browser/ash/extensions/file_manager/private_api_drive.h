@@ -93,7 +93,7 @@ class FileManagerPrivateSearchDriveFunction : public LoggedExtensionFunction {
   ResponseAction Run() override;
 
  private:
-  void OnSearchDriveFs(absl::optional<base::Value::List> results);
+  void OnSearchDriveFs(std::optional<base::Value::List> results);
 
   base::TimeTicks operation_start_;
   bool is_offline_;
@@ -122,7 +122,7 @@ class FileManagerPrivateSearchDriveMetadataFunction
 
  private:
   void OnSearchDriveFs(const std::string& query_text,
-                       absl::optional<base::Value::List> results);
+                       std::optional<base::Value::List> results);
 
   base::TimeTicks operation_start_;
   SearchType search_type_;
@@ -140,38 +140,6 @@ class FileManagerPrivateGetDriveConnectionStateFunction
   ~FileManagerPrivateGetDriveConnectionStateFunction() override = default;
 
   ResponseAction Run() override;
-};
-
-// Implements the chrome.fileManagerPrivate.getDownloadUrl method.
-class FileManagerPrivateInternalGetDownloadUrlFunction
-    : public LoggedExtensionFunction {
- public:
-  FileManagerPrivateInternalGetDownloadUrlFunction();
-
-  DECLARE_EXTENSION_FUNCTION("fileManagerPrivateInternal.getDownloadUrl",
-                             FILEMANAGERPRIVATEINTERNAL_GETDOWNLOADURL)
-
- protected:
-  ~FileManagerPrivateInternalGetDownloadUrlFunction() override;
-
-  // ExtensionFunction overrides.
-  ResponseAction Run() override;
-
- private:
-  void OnGotDownloadUrl(GURL download_url);
-
-  // Callback with an |access_token|, called by
-  // drive::DriveReadonlyTokenFetcher.
-  void OnTokenFetched(google_apis::ApiErrorCode code,
-                      const std::string& access_token);
-
-  ResponseAction RunAsyncForDriveFs(
-      const storage::FileSystemURL& file_system_url);
-  void OnGotMetadata(drive::FileError error,
-                     drivefs::mojom::FileMetadataPtr metadata);
-
- private:
-  GURL download_url_;
 };
 
 // Implements the chrome.fileManagerPrivate.notifyDriveDialogResult method.
@@ -221,6 +189,20 @@ class FileManagerPrivateGetBulkPinProgressFunction : public ExtensionFunction {
 
  protected:
   ~FileManagerPrivateGetBulkPinProgressFunction() override = default;
+
+  ResponseAction Run() override;
+};
+
+// Implements the chrome.fileManagerPrivate.calculateBulkPinRequiredSpace
+// method.
+class FileManagerPrivateCalculateBulkPinRequiredSpaceFunction
+    : public ExtensionFunction {
+ public:
+  DECLARE_EXTENSION_FUNCTION("fileManagerPrivate.calculateBulkPinRequiredSpace",
+                             FILEMANAGERPRIVATE_CALCULATEBULKPINREQUIREDSPACE)
+
+ protected:
+  ~FileManagerPrivateCalculateBulkPinRequiredSpaceFunction() override = default;
 
   ResponseAction Run() override;
 };

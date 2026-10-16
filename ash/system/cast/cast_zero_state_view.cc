@@ -13,6 +13,7 @@
 #include "ash/style/rounded_container.h"
 #include "ash/style/typography.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/views/border.h"
@@ -55,15 +56,20 @@ CastZeroStateView::CastZeroStateView() {
       l10n_util::GetStringUTF16(IDS_ASH_STATUS_TRAY_CAST_ZERO_STATE_TITLE)));
   title->SetMultiLine(true);
   bubble_utils::ApplyStyle(title, TypographyToken::kCrosTitle1);
-  title->SetEnabledColorId(cros_tokens::kCrosSysOnSurface);
+  title->SetEnabledColor(cros_tokens::kCrosSysOnSurface);
   title->SetProperty(views::kMarginsKey, gfx::Insets::TLBR(32, 0, 0, 0));
+  title->SetFocusBehavior(FocusBehavior::ACCESSIBLE_ONLY);
 
   Label* subtitle = container->AddChildView(std::make_unique<Label>(
       l10n_util::GetStringUTF16(IDS_ASH_STATUS_TRAY_CAST_ZERO_STATE_SUBTITLE)));
   subtitle->SetMultiLine(true);
   bubble_utils::ApplyStyle(subtitle, TypographyToken::kCrosBody1);
-  subtitle->SetEnabledColorId(cros_tokens::kTextColorSecondary);
+  subtitle->SetEnabledColor(cros_tokens::kCrosSysOnSurfaceVariant);
   subtitle->SetProperty(views::kMarginsKey, gfx::Insets::TLBR(8, 0, 0, 0));
+  subtitle->SetFocusBehavior(FocusBehavior::ACCESSIBLE_ONLY);
 }
+
+BEGIN_METADATA(CastZeroStateView)
+END_METADATA
 
 }  // namespace ash

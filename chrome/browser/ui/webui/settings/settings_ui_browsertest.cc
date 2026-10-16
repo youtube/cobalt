@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/webui/settings/settings_ui.h"
+
 #include <string>
 
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/hats/mock_hats_service.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/webui/settings/settings_ui.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -56,7 +57,7 @@ IN_PROC_BROWSER_TEST_F(SettingsUITest, TriggerHappinessTrackingSurveys) {
           browser()->profile(), base::BindRepeating(&BuildMockHatsService)));
   EXPECT_CALL(*mock_hats_service_,
               LaunchDelayedSurveyForWebContents(kHatsSurveyTriggerSettings, _,
-                                                _, _, _, _));
+                                                _, _, _, _, _, _, _, _));
   ASSERT_TRUE(NavigateToURL(browser(), GURL(chrome::kChromeUISettingsURL)));
   base::RunLoop().RunUntilIdle();
 }

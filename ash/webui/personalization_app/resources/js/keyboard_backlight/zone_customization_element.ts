@@ -9,21 +9,22 @@
  */
 
 import 'chrome://resources/polymer/v3_0/iron-a11y-keys/iron-a11y-keys.js';
-import 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
+import 'chrome://resources/ash/common/cr_elements/cr_dialog/cr_dialog.js';
 import './color_icon_element.js';
 
-import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
-import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {IronA11yKeysElement} from 'chrome://resources/polymer/v3_0/iron-a11y-keys/iron-a11y-keys.js';
-import {IronSelectorElement} from 'chrome://resources/polymer/v3_0/iron-selector/iron-selector.js';
+import type {CrDialogElement} from 'chrome://resources/ash/common/cr_elements/cr_dialog/cr_dialog.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import type {IronA11yKeysElement} from 'chrome://resources/polymer/v3_0/iron-a11y-keys/iron-a11y-keys.js';
+import type {IronSelectorElement} from 'chrome://resources/polymer/v3_0/iron-selector/iron-selector.js';
 import {afterNextRender} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {BacklightColor, CurrentBacklightState} from '../../personalization_app.mojom-webui.js';
+import type {CurrentBacklightState} from '../../personalization_app.mojom-webui.js';
+import {BacklightColor} from '../../personalization_app.mojom-webui.js';
 import {WithPersonalizationStore} from '../personalization_store.js';
 import {getPresetColors, isSelectionEvent, RAINBOW, staticColorIds} from '../utils.js';
 
-import {PresetColorSelectedEvent} from './color_selector_element.js';
+import type {PresetColorSelectedEvent} from './color_selector_element.js';
 import {setBacklightZoneColor, setPreRainbowBacklightZoneColor} from './keyboard_backlight_controller.js';
 import {getKeyboardBacklightProvider} from './keyboard_backlight_interface_provider.js';
 import {getTemplate} from './zone_customization_element.html.js';
@@ -103,9 +104,8 @@ export class ZoneCustomizationElement extends WithPersonalizationStore {
     // Set focus on the currently selected zone to overwrite the default focus
     // on the dialog title.
     afterNextRender(this, () => {
-      const selectedZoneElem =
-          this.shadowRoot!.querySelector('.zone-tab[aria-selected=true]') as
-          HTMLElement;
+      const selectedZoneElem = this.shadowRoot!.querySelector<HTMLElement>(
+          '.zone-tab[aria-selected=true]');
       if (selectedZoneElem) {
         selectedZoneElem.focus();
       }

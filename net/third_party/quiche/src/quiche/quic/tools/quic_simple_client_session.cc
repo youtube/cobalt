@@ -4,9 +4,12 @@
 
 #include "quiche/quic/tools/quic_simple_client_session.h"
 
+#include <memory>
 #include <utility>
 
 #include "quiche/quic/core/quic_path_validator.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/common/http/http_header_block.h"
 
 namespace quic {
 
@@ -14,60 +17,69 @@ QuicSimpleClientSession::QuicSimpleClientSession(
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection, QuicClientBase::NetworkHelper* network_helper,
     const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
-    QuicClientPushPromiseIndex* push_promise_index, bool drop_response_body,
-    bool enable_web_transport)
+    bool drop_response_body, bool enable_web_transport)
     : QuicSimpleClientSession(config, supported_versions, connection,
                               /*visitor=*/nullptr, network_helper, server_id,
-                              crypto_config, push_promise_index,
-                              drop_response_body, enable_web_transport) {}
+                              crypto_config, drop_response_body,
+                              enable_web_transport) {}
 
 QuicSimpleClientSession::QuicSimpleClientSession(
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection, QuicSession::Visitor* visitor,
     QuicClientBase::NetworkHelper* network_helper,
     const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
-    QuicClientPushPromiseIndex* push_promise_index, bool drop_response_body,
-    bool enable_web_transport)
+    bool drop_response_body, bool enable_web_transport)
     : QuicSpdyClientSession(config, supported_versions, connection, visitor,
-                            server_id, crypto_config, push_promise_index),
+                            server_id, crypto_config,
+                            enable_web_transport
+                                ? QuicPriorityType::kWebTransport
+                                : QuicPriorityType::kHttp),
       network_helper_(network_helper),
       drop_response_body_(drop_response_body),
       enable_web_transport_(enable_web_transport) {}
 
 std::unique_ptr<QuicSpdyClientStream>
 QuicSimpleClientSession::CreateClientStream() {
-  return std::make_unique<QuicSimpleClientStream>(
+  auto stream = std::make_unique<QuicSimpleClientStream>(
       GetNextOutgoingBidirectionalStreamId(), this, BIDIRECTIONAL,
       drop_response_body_);
+  stream->set_on_interim_headers(
+      [this](const quiche::HttpHeaderBlock& headers) {
+        on_interim_headers_(headers);
+      });
+  return stream;
 }
 
-bool QuicSimpleClientSession::ShouldNegotiateWebTransport() {
-  return enable_web_transport_;
+WebTransportHttp3VersionSet
+QuicSimpleClientSession::LocallySupportedWebTransportVersions() const {
+  return enable_web_transport_ ? kDefaultSupportedWebTransportVersions
+                               : WebTransportHttp3VersionSet();
 }
 
 HttpDatagramSupport QuicSimpleClientSession::LocalHttpDatagramSupport() {
-  return enable_web_transport_ ? HttpDatagramSupport::kDraft04
+  return enable_web_transport_ ? HttpDatagramSupport::kRfcAndDraft04
                                : HttpDatagramSupport::kNone;
 }
 
-std::unique_ptr<QuicPathValidationContext>
-QuicSimpleClientSession::CreateContextForMultiPortPath() {
+void QuicSimpleClientSession::CreateContextForMultiPortPath(
+    std::unique_ptr<MultiPortPathContextObserver> context_observer) {
   if (!network_helper_ || connection()->multi_port_stats() == nullptr) {
-    return nullptr;
+    return;
   }
   auto self_address = connection()->self_address();
   auto server_address = connection()->peer_address();
   if (!network_helper_->CreateUDPSocketAndBind(
           server_address, self_address.host(), self_address.port() + 1)) {
-    return nullptr;
+    return;
   }
   QuicPacketWriter* writer = network_helper_->CreateQuicPacketWriter();
   if (writer == nullptr) {
-    return nullptr;
+    return;
   }
-  return std::make_unique<PathMigrationContext>(
-      std::unique_ptr<QuicPacketWriter>(writer),
-      network_helper_->GetLatestClientAddress(), peer_address());
+  context_observer->OnMultiPortPathContextAvailable(
+      std::make_unique<PathMigrationContext>(
+          std::unique_ptr<QuicPacketWriter>(writer),
+          network_helper_->GetLatestClientAddress(), peer_address()));
 }
 
 void QuicSimpleClientSession::MigrateToMultiPortPath(

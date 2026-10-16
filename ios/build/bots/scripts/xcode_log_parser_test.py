@@ -8,12 +8,16 @@
 import json
 import mock
 import os
+import re
+import shutil
+import subprocess
 import unittest
 
-from test_result_util import TestStatus
+from test_result_util import ResultCollection, TestResult, TestStatus
 import test_runner
 import test_runner_test
 import xcode_log_parser
+import constants
 
 
 OUTPUT_PATH = '/tmp/attempt_0'
@@ -21,6 +25,11 @@ XCRESULT_PATH = '/tmp/attempt_0.xcresult'
 XCODE11_DICT = {
     'path': '/Users/user1/Xcode.app',
     'version': '11.0',
+    'build': '11M336w',
+}
+XCODE16_DICT = {
+    'path': '/Users/user1/Xcode.app',
+    'version': '16.0',
     'build': '11M336w',
 }
 # A sample of json result when executing xcresulttool on .xcresult dir without
@@ -51,6 +60,23 @@ XCRESULT_ROOT = """
             "id" : {
               "_value" : "0~iRbOkDnmtKVIvHSV2jkeuNcg4RDTUaCLZV7KijyxdCqvhqtp08MKxl0MwjBAPpjmruoI7qNHzBR1RJQAlANNHA=="
             }
+          },
+          "metrics" : {
+            "_type" : {
+              "_name" : "ResultMetrics"
+            },
+            "testsCount" : {
+              "_type" : {
+                "_name" : "Int"
+              },
+              "_value" : "2"
+            },
+            "errorCount" : {
+              "_type" : {
+                "_name" : "Int"
+              },
+              "_value" : "2"
+            }
           }
         }
       }
@@ -79,8 +105,48 @@ XCRESULT_ROOT = """
     "testsCount" : {
       "_value" : "2"
     },
-    "testsFailedCount" : {
+    "errorCount" : {
       "_value" : "1"
+    }
+  }
+}"""
+
+XCRESULT_MISSING_ACTIONRESULT_METRICS = b"""
+{
+  "_type" : {
+    "_name" : "ActionsInvocationRecord"
+  },
+  "actions" : {
+    "_values" : [
+      {
+        "actionResult" : {
+          "metrics" : {
+            "_type" : {
+              "_name" : "ResultMetrics"
+            },
+            "errorCount" : {
+              "_type" : {
+                "_name" : "Int"
+              },
+              "_value" : "1"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "metrics" : {
+    "errorCount" : {
+      "_type" : {
+        "_name" : "Int"
+      },
+      "_value" : "1"
+    },
+    "testsCount" : {
+      "_type" : {
+        "_name" : "Int"
+      },
+      "_value" : "30"
     }
   }
 }"""
@@ -397,8 +463,179 @@ SINGLE_TEST_SUMMARY_REF = """
   }
 }"""
 
+APP_SIDE_FAILURE_LOG = """Will attempt to recover by breaking constraint
+<NSLayoutConstraint:0x1000444e0e0 H:[UIView:0x100031b0fc0]-(4)-[UIView:0x100031b1180]   (active)>
+
+Make a symbolic breakpoint at UIViewAlertForUnsatisfiableConstraints to catch this in the debugger.
+The methods in the UIConstraintBasedLayoutDebugging category on UIView listed in <UIKitCore/UIView.h> may also be helpful.
+[1009/111922.254778:WARNING:base_earl_grey_test_case_app_interface.mm(21)] *********************************
+Starting test: -[SmokeTestCase testOpenTab]
+2023-10-09 09:25:00.318076-0700 ios_chrome_eg2tests[56690:4719583] [LayoutConstraints] Unable to simultaneously satisfy constraints.
+  Probably at least one of the constraints in the following list is one you don't want.
+  Try this:
+    (1) look at each constraint and try to figure out which you don't expect;
+    (2) find the code that added the unwanted constraint or constraints and fix it.
+(
+    "<NSLayoutConstraint:0x12003d1a6e0 H:|-(0)-[UIView:0x12002478a80]   (active, names: '|':UIView:0x120029d4380 )>",
+    "<NSLayoutConstraint:0x12003d1a680 UIView:0x12002478a80.trailing == UIView:0x120029d4380.trailing   (active)>",
+    "<NSLayoutConstraint:0x12003d1a440 H:|-(8)-[UIView:0x1200247d080]   (active, names: '|':UIView:0x12002478a80 )>",
+    "<NSLayoutConstraint:0x12003d18340 H:[UIView:0x1200247d080]-(4)-[UIView:0x1200247ec80]   (active)>",
+    "<NSLayoutConstraint:0x12003d182e0 UIView:0x1200247ec80.trailing == UIView:0x12002478a80.trailing - 8   (active)>",
+    "<NSLayoutConstraint:0x12003d42a00 'UIView-Encapsulated-Layout-Width' UIView:0x120029d4380.width == 0   (active)>"
+)
+
+Will attempt to recover by breaking constraint
+<NSLayoutConstraint:0x12003d18340 H:[UIView:0x1200247d080]-(4)-[UIView:0x1200247ec80]   (active)>
+
+Make a symbolic breakpoint at UIViewAlertForUnsatisfiableConstraints to catch this in the debugger.
+The methods in the UIConstraintBasedLayoutDebugging category on UIView listed in <UIKitCore/UIView.h> may also be helpful.
+2023-10-09 09:25:01.480402-0700 ios_chrome_eg2tests[56690:4719583] [unspecified] container_create_or_lookup_app_group_path_by_app_group_identifier: client is not entitled
+2023-10-09 09:25:02.383910-0700 ios_chrome_eg2tests[56690:4719754] [VoiceShortcutClient] -[VCVoiceShortcutClient unsafeSetupXPCConnection]_block_invoke Client connection to VCVoiceShortcut XPC server interrupted
+2023-10-09 09:25:02.385353-0700 ios_chrome_eg2tests[56690:4719754] [Intents] -[INVoiceShortcutCenter getAllVoiceShortcutsWithCompletion:]_block_invoke Error from -getVoiceShortcutsWithCompletion: Error Domain=NSCocoaErrorDomain Code=4097 "Couldn’t communicate with a helper application."
+[1009/092503.896821:ERROR:loopback_server.cc(907)] Loopback sync cannot read the persistent state file (/Users/chrome-bot/Library/Developer/CoreSimulator/Devices/82CF3734-9FF2-4C1B-920C-B3345C0CA891/data/Containers/Data/Application/F2938797-9668-4622-947A-895503B62BCD/tmp/.org.chromium.ost.chrome.unittests.dev.lxaMyc/profile.pb) with error FILE_ERROR_NOT_FOUND
+2023-10-09 09:25:03.964248-0700 ios_chrome_eg2tests[56690:4719583] [unspecified] container_create_or_lookup_app_group_path_by_app_group_identifier: client is not entitled
+2023-10-09 09:25:06.074170-0700 ios_chrome_eg2tests[56690:4719583] [LayoutConstraints] Unable to simultaneously satisfy constraints.
+  Probably at least one of the constraints in the following list is one you don't want.
+  Try this:
+    (1) look at each constraint and try to figure out which you don't expect;
+    (2) find the code that added the unwanted constraint or constraints and fix it.
+(
+    "<NSLayoutConstraint:0x12003d2a8c0 H:|-(0)-[UIView:0x1200235e300]   (active, names: '|':UIView:0x12002a10fc0 )>",
+    "<NSLayoutConstraint:0x12003d20360 UIView:0x1200235e300.trailing == UIView:0x12002a10fc0.trailing   (active)>",
+    "<NSLayoutConstraint:0x12003d21d40 H:|-(8)-[UIView:0x1200235f640]   (active, names: '|':UIView:0x1200235e300 )>",
+    "<NSLayoutConstraint:0x12003d24b60 UIView:0x1200235f640.width == 16   (active)>",
+    "<NSLayoutConstraint:0x12003d9c200 H:[UIView:0x1200235f640]-(4)-[UIView:0x1200235c380]   (active)>",
+    "<NSLayoutConstraint:0x12003d98a20 UIView:0x1200235c380.trailing == UIView:0x1200235e300.trailing - 8   (active)>",
+    "<NSLayoutConstraint:0x12001326f60 'UIView-Encapsulated-Layout-Width' UIView:0x12002a10fc0.width == 0   (active)>"
+)
+
+Will attempt to recover by breaking constraint
+<NSLayoutConstraint:0x12003d24b60 UIView:0x1200235f640.width == 16   (active)>
+
+Make a symbolic breakpoint at UIViewAlertForUnsatisfiableConstraints to catch this in the debugger.
+The methods in the UIConstraintBasedLayoutDebugging category on UIView listed in <UIKitCore/UIView.h> may also be helpful.
+2023-10-09 09:25:06.075364-0700 ios_chrome_eg2tests[56690:4719583] [LayoutConstraints] Unable to simultaneously satisfy constraints.
+  Probably at least one of the constraints in the following list is one you don't want.
+  Try this:
+    (1) look at each constraint and try to figure out which you don't expect;
+    (2) find the code that added the unwanted constraint or constraints and fix it.
+(
+    "<NSLayoutConstraint:0x12003d2a8c0 H:|-(0)-[UIView:0x1200235e300]   (active, names: '|':UIView:0x12002a10fc0 )>",
+    "<NSLayoutConstraint:0x12003d20360 UIView:0x1200235e300.trailing == UIView:0x12002a10fc0.trailing   (active)>",
+    "<NSLayoutConstraint:0x12003d21d40 H:|-(8)-[UIView:0x1200235f640]   (active, names: '|':UIView:0x1200235e300 )>",
+    "<NSLayoutConstraint:0x12003d9c200 H:[UIView:0x1200235f640]-(4)-[UIView:0x1200235c380]   (active)>",
+    "<NSLayoutConstraint:0x12003d98a20 UIView:0x1200235c380.trailing == UIView:0x1200235e300.trailing - 8   (active)>",
+    "<NSLayoutConstraint:0x12001326f60 'UIView-Encapsulated-Layout-Width' UIView:0x12002a10fc0.width == 0   (active)>"
+)
+
+Will attempt to recover by breaking constraint
+<NSLayoutConstraint:0x12003d9c200 H:[UIView:0x1200235f640]-(4)-[UIView:0x1200235c380]   (active)>
+
+Make a symbolic breakpoint at UIViewAlertForUnsatisfiableConstraints to catch this in the debugger.
+The methods in the UIConstraintBasedLayoutDebugging category on UIView listed in <UIKitCore/UIView.h> may also be helpful.
+[1009/111926.491858:FATAL:chrome_earl_grey_app_interface.mm(147)] Check failed: NO.
+0   ios_chrome_eg2testsMain             0x000000012a31b174 base::debug::CollectStackTrace(void const**, unsigned long) + 48
+1   ios_chrome_eg2testsMain             0x000000012a2ed878 base::debug::StackTrace::StackTrace(unsigned long) + 92
+2   ios_chrome_eg2testsMain             0x000000012a2ed910 base::debug::StackTrace::StackTrace(unsigned long) + 36
+3   ios_chrome_eg2testsMain             0x000000012a2ed8dc base::debug::StackTrace::StackTrace() + 40
+4   ios_chrome_eg2testsMain             0x000000012a03d7e0 logging::LogMessage::~LogMessage() + 204
+5   ios_chrome_eg2testsMain             0x000000012a03e748 logging::LogMessage::~LogMessage() + 28
+6   ios_chrome_eg2testsMain             0x000000012a03e774 logging::LogMessage::~LogMessage() + 28
+7   ios_chrome_eg2testsMain             0x000000012a00bba8 logging::CheckError::~CheckError() + 112
+8   ios_chrome_eg2testsMain             0x000000012a00bc08 logging::CheckError::~CheckError() + 28
+9   ios_chrome_eg2testsMain             0x0000000126745008 +[ChromeEarlGreyAppInterface crashApp] + 104
+more of the stack trace and crash report logs...
+
+Standard output and standard error from com.google.chrome.unittests.dev with process ID 1358 beginning at 2023-10-09 15:19:36 +0000
+
+2023-10-09 11:19:37.449520-0400 ios_chrome_eg2tests[1358:24891823] [User Defaults] Not updating lastKnownShmemState in CFPrefsPlistSource<0x6000030083f0> (Domain: com.apple.keyboard.preferences.plist, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: Yes): 0 -> 323
+2023-10-09 11:19:37.449594-0400 ios_chrome_eg2tests[1358:24891823] [User Defaults] Source was stale because shmem was null: CFPrefsPlistSource<0x6000030083f0> (Domain: com.apple.keyboard.preferences.plist, User: kCFPreferencesCurrentUser, ByHost: No, Container: (null), Contents Need Refresh: Yes)
+
+"""
+
+APP_SIDE_FAILURE_LOG_EXPECTED = f"""App crashed and disconnected.
+Showing logs from application under test. For complete logs see attempt_0_simulator#0_StandardOutputAndStandardError-com.google.chrome.unittests.dev.txt in Artifacts.
+
+Starting test: -[SmokeTestCase testOpenTab]
+2023-10-09 09:25:00.318076-0700 ios_chrome_eg2tests[56690:4719583] [LayoutConstraints] {constants.LAYOUT_CONSTRAINT_MSG}.
+2023-10-09 09:25:01.480402-0700 ios_chrome_eg2tests[56690:4719583] [unspecified] container_create_or_lookup_app_group_path_by_app_group_identifier: client is not entitled
+2023-10-09 09:25:02.383910-0700 ios_chrome_eg2tests[56690:4719754] [VoiceShortcutClient] -[VCVoiceShortcutClient unsafeSetupXPCConnection]_block_invoke Client connection to VCVoiceShortcut XPC server interrupted
+2023-10-09 09:25:02.385353-0700 ios_chrome_eg2tests[56690:4719754] [Intents] -[INVoiceShortcutCenter getAllVoiceShortcutsWithCompletion:]_block_invoke Error from -getVoiceShortcutsWithCompletion: Error Domain=NSCocoaErrorDomain Code=4097 "Couldn’t communicate with a helper application."
+[1009/092503.896821:ERROR:loopback_server.cc(907)] Loopback sync cannot read the persistent state file (/Users/chrome-bot/Library/Developer/CoreSimulator/Devices/82CF3734-9FF2-4C1B-920C-B3345C0CA891/data/Containers/Data/Application/F2938797-9668-4622-947A-895503B62BCD/tmp/.org.chromium.ost.chrome.unittests.dev.lxaMyc/profile.pb) with error FILE_ERROR_NOT_FOUND
+2023-10-09 09:25:03.964248-0700 ios_chrome_eg2tests[56690:4719583] [unspecified] container_create_or_lookup_app_group_path_by_app_group_identifier: client is not entitled
+2023-10-09 09:25:06.074170-0700 ios_chrome_eg2tests[56690:4719583] [LayoutConstraints] {constants.LAYOUT_CONSTRAINT_MSG}.
+2023-10-09 09:25:06.075364-0700 ios_chrome_eg2tests[56690:4719583] [LayoutConstraints] {constants.LAYOUT_CONSTRAINT_MSG}.
+[1009/111926.491858:FATAL:chrome_earl_grey_app_interface.mm(147)] Check failed: NO.
+0   ios_chrome_eg2testsMain             0x000000012a31b174 base::debug::CollectStackTrace(void const**, unsigned long) + 48
+1   ios_chrome_eg2testsMain             0x000000012a2ed878 base::debug::StackTrace::StackTrace(unsigned long) + 92
+2   ios_chrome_eg2testsMain             0x000000012a2ed910 base::debug::StackTrace::StackTrace(unsigned long) + 36
+3   ios_chrome_eg2testsMain             0x000000012a2ed8dc base::debug::StackTrace::StackTrace() + 40
+4   ios_chrome_eg2testsMain             0x000000012a03d7e0 logging::LogMessage::~LogMessage() + 204
+5   ios_chrome_eg2testsMain             0x000000012a03e748 logging::LogMessage::~LogMessage() + 28
+6   ios_chrome_eg2testsMain             0x000000012a03e774 logging::LogMessage::~LogMessage() + 28
+7   ios_chrome_eg2testsMain             0x000000012a00bba8 logging::CheckError::~CheckError() + 112
+8   ios_chrome_eg2testsMain             0x000000012a00bc08 logging::CheckError::~CheckError() + 28
+9   ios_chrome_eg2testsMain             0x0000000126745008 +[ChromeEarlGreyAppInterface crashApp] + 104
+more of the stack trace and crash report logs...
+
+
+"""
+
+APP_SIDE_ASAN_FAILURE_LOG = """Starting test: -[SmokeTestCase testOpenTab]
+=================================================================
+\x1b[1m\x1b[31m==74737==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x00016ee509ac at pc 0x000144992658 bp 0x00016ee50670 sp 0x00016ee4fe20
+\x1b[1m\x1b[0m\x1b[1m\x1b[34mREAD of size 16 at 0x00016ee509ac thread T0\x1b[1m\x1b[0m
+==74737==WARNING: invalid path to external symbolizer!
+==74737==WARNING: Failed to use and restart external symbolizer!
+
+"""
+
+APP_SIDE_ASAN_FAILURE_LOG_EXPECTED = """App crashed and disconnected.
+ERROR: AddressSanitizer
+Showing logs from application under test. For complete logs see attempt_0_simulator#0_StandardOutputAndStandardError-com.google.chrome.unittests.dev.txt in Artifacts.
+
+Starting test: -[SmokeTestCase testOpenTab]
+=================================================================
+\x1b[1m\x1b[31m==74737==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x00016ee509ac at pc 0x000144992658 bp 0x00016ee50670 sp 0x00016ee4fe20
+\x1b[1m\x1b[0m\x1b[1m\x1b[34mREAD of size 16 at 0x00016ee509ac thread T0\x1b[1m\x1b[0m
+==74737==WARNING: invalid path to external symbolizer!
+==74737==WARNING: Failed to use and restart external symbolizer!
+
+
+"""
+
+APP_SIDE_FAILURE_LOG_MISSING_EXPECTED = """App crashed and disconnected.
+App side failure reason not found for SmokeTestCase/testOpenTab.
+For complete logs see attempt_0_simulator#0_StandardOutputAndStandardError-com.google.chrome.unittests.dev.txt in Artifacts.
+"""
+
+# Xcode16 tests data
+XC16_TESTS_JSON = """
+{
+  "testNodes": [
+    {
+      "children": [
+        {
+          "children": [
+            {"nodeType": "Test Suite", "children": [
+              {"nodeType": "Test Case", "nodeIdentifier": "test1", "result": "Passed", "duration": "1.234"},
+              {"nodeType": "Test Case", "nodeIdentifier": "test2", "result": "Failed", "children": [
+                {"nodeType": "Failure Message", "name": "Some failure message"}
+              ]},
+              {"nodeType": "Test Case", "nodeIdentifier": "test3", "result": "Skipped"},
+              {"nodeType": "Test Case", "nodeIdentifier": "test4", "result": "Expected Failure"},
+              {"nodeType": "Test Case", "nodeIdentifier": "test_with_system_error_suffix", "result": "Failed", "children": [
+              {"nodeType": "Failure Message", "name": "crashed"}
+              ]}
+            ]}
+          ]}
+      ]}
+  ]}
+"""
+
+
 def _xcresulttool_get_side_effect(xcresult_path, ref_id=None):
-  """Side effect for _xcresulttool_get in Xcode11LogParser tested."""
+  """Side effect for _xcresulttool_get in XcodeLogParser tested."""
   if ref_id is None:
     return XCRESULT_ROOT
   if ref_id == 'testsRef':
@@ -410,6 +647,30 @@ def _xcresulttool_get_side_effect(xcresult_path, ref_id=None):
 
 class UtilMethodsTest(test_runner_test.TestCase):
   """Test case for utility methods not related with Parser class."""
+
+  def setUp(self):
+    self.summary_xcode16_with_parallel = {
+        'tests': {
+            '_values': ['TestSuite1', 'TestSuite2']
+        }
+    }
+
+    # Example test summary when running xcode version lower than 16.
+    # It could also be when running xcode version 16 without xcode
+    # parallelization enabled.
+    self.summary_pre_xcode16 = {
+        'tests': {
+            '_values': [{
+                'subtests': {
+                    '_values': [{
+                        'subtests': {
+                            '_values': ['TestSuite1', 'TestSuite2']
+                        }
+                    }]
+                }
+            }]
+        }
+    }
 
   def testParseTestsForInterruptedRun(self):
     test_output = """
@@ -442,30 +703,54 @@ class UtilMethodsTest(test_runner_test.TestCase):
       if result.name == 'LinkToTextTestCase/testGenerateLinkForSimpleText':
         self.assertEqual(result.test_log, expected_failed_message)
 
+  @mock.patch('xcode_util.using_xcode_16_or_higher')
+  def test_xcode16_parallel(self, mock_xcode_version):
+    mock_xcode_version.return_value = True
+    result = xcode_log_parser.get_test_suites(
+        self.summary_xcode16_with_parallel, True)
+    self.assertEqual(result, ['TestSuite1', 'TestSuite2'])
 
-class XCode11LogParserTest(test_runner_test.TestCase):
-  """Test case to test Xcode11LogParser."""
+  @mock.patch('xcode_util.using_xcode_16_or_higher')
+  def test_xcode16_not_parallel(self, mock_xcode_version):
+    mock_xcode_version.return_value = True
+    result = xcode_log_parser.get_test_suites(self.summary_pre_xcode16, False)
+    self.assertEqual(result, ['TestSuite1', 'TestSuite2'])
+
+  @mock.patch('xcode_util.using_xcode_16_or_higher')
+  def test_pre_xcode16_parallel(self, mock_xcode_version):
+    mock_xcode_version.return_value = False
+    result = xcode_log_parser.get_test_suites(self.summary_pre_xcode16, True)
+    self.assertEqual(result, ['TestSuite1', 'TestSuite2'])
+
+  def test_valid_duration_formats(self):
+    test_cases = [("11s", 11000.0), ("3m 10s", 190000.0), ("3m", 180000.0),
+                  ("10s", 10000.0), ("0s", 0.0)]
+
+    for duration_str, expected_ms in test_cases:
+      result = xcode_log_parser.duration_to_milliseconds(duration_str)
+      self.assertEqual(result, expected_ms)
+
+  def test_invalid_duration_formats(self):
+    invalid_formats = ["10m 11h", "abc", "11", "", "5m 11s 20ms"]
+
+    for duration_str in invalid_formats:
+      result = xcode_log_parser.duration_to_milliseconds(duration_str)
+      self.assertIsNone(result)
+
+
+class XcodeLogParserTest(test_runner_test.TestCase):
+  """Test case to test XcodeLogParser."""
 
   def setUp(self):
-    super(XCode11LogParserTest, self).setUp()
+    super(XcodeLogParserTest, self).setUp()
     self.mock(test_runner, 'get_current_xcode_info', lambda: XCODE11_DICT)
 
-  @mock.patch('xcode_util.version', autospec=True)
-  def testGetParser(self, mock_xcode_version):
-    mock_xcode_version.return_value = ('12.0', '12A7209')
-    self.assertEqual(xcode_log_parser.get_parser().__class__.__name__,
-        'Xcode11LogParser')
-    mock_xcode_version.return_value = ('11.4', '11E146')
-    self.assertEqual(xcode_log_parser.get_parser().__class__.__name__,
-        'Xcode11LogParser')
-    mock_xcode_version.return_value = ('10.3', '10G8')
-    self.assertEqual(xcode_log_parser.get_parser().__class__.__name__,
-        'XcodeLogParser')
-
   @mock.patch('subprocess.check_output', autospec=True)
-  def testXcresulttoolGetRoot(self, mock_process):
+  @mock.patch('xcode_util.using_xcode_16_or_higher')
+  def testXcresulttoolGetRoot(self, mock_xcode_version, mock_process):
+    mock_xcode_version.return_value = False
     mock_process.return_value = b'%JSON%'
-    xcode_log_parser.Xcode11LogParser()._xcresulttool_get('xcresult_path')
+    xcode_log_parser.XcodeLogParser()._xcresulttool_get('xcresult_path')
     self.assertTrue(
         os.path.join(XCODE11_DICT['path'], 'usr', 'bin') in os.environ['PATH'])
     self.assertEqual(
@@ -473,9 +758,11 @@ class XCode11LogParserTest(test_runner_test.TestCase):
         mock_process.mock_calls[0][1][0])
 
   @mock.patch('subprocess.check_output', autospec=True)
-  def testXcresulttoolGetRef(self, mock_process):
+  @mock.patch('xcode_util.using_xcode_16_or_higher')
+  def testXcresulttoolGetRef(self, mock_xcode_version, mock_process):
+    mock_xcode_version.return_value = False
     mock_process.side_effect = [REF_ID, b'JSON']
-    xcode_log_parser.Xcode11LogParser()._xcresulttool_get('xcresult_path',
+    xcode_log_parser.XcodeLogParser()._xcresulttool_get('xcresult_path',
                                                           'testsRef')
     self.assertEqual(
         ['xcresulttool', 'get', '--format', 'json', '--path', 'xcresult_path'],
@@ -490,7 +777,7 @@ class XCode11LogParserTest(test_runner_test.TestCase):
         'CharacterRangeLen=0&EndingLineNumber=130&StartingLineNumber=130\n'
         'Fail. Screenshots: {\n\"Failure\": \"path.png\"\n}')
     expected = set(['PageStateTestCase/testZeroContentOffsetAfterLoad'])
-    results = xcode_log_parser.Xcode11LogParser()._list_of_failed_tests(
+    results = xcode_log_parser.XcodeLogParser()._list_of_failed_tests(
         json.loads(XCRESULT_ROOT))
     self.assertEqual(expected, results.failed_tests())
     log = results.test_results[0].test_log
@@ -498,12 +785,12 @@ class XCode11LogParserTest(test_runner_test.TestCase):
 
   def testXcresulttoolListFailedTestsExclude(self):
     excluded = set(['PageStateTestCase/testZeroContentOffsetAfterLoad'])
-    results = xcode_log_parser.Xcode11LogParser()._list_of_failed_tests(
+    results = xcode_log_parser.XcodeLogParser()._list_of_failed_tests(
         json.loads(XCRESULT_ROOT), excluded=excluded)
     self.assertEqual(set([]), results.all_test_names())
 
-  @mock.patch('xcode_log_parser.Xcode11LogParser._export_data')
-  @mock.patch('xcode_log_parser.Xcode11LogParser._xcresulttool_get')
+  @mock.patch('xcode_log_parser.XcodeLogParser._export_data')
+  @mock.patch('xcode_log_parser.XcodeLogParser._xcresulttool_get')
   def testGetTestStatuses(self, mock_xcresult, mock_export):
     mock_xcresult.side_effect = _xcresulttool_get_side_effect
     #   self.assertEqual(test_result.test_log, lo
@@ -518,8 +805,8 @@ class XCode11LogParserTest(test_runner_test.TestCase):
         'PageStateTestCase/testMethod1', 'PageStateTestCase/testMethod2',
         'PageStateTestCase/testMethod3'
     ])
-    results = xcode_log_parser.Xcode11LogParser()._get_test_statuses(
-        OUTPUT_PATH)
+    results = xcode_log_parser.XcodeLogParser()._get_test_statuses(
+        OUTPUT_PATH, False)
     self.assertEqual(expected_expected_tests, results.expected_tests())
     seen_failed_test = False
     for test_result in results.test_results:
@@ -550,10 +837,10 @@ class XCode11LogParserTest(test_runner_test.TestCase):
     self.assertTrue(seen_failed_test)
 
   @mock.patch('file_util.zip_and_remove_folder')
-  @mock.patch('xcode_log_parser.Xcode11LogParser._extract_artifacts_for_test')
-  @mock.patch('xcode_log_parser.Xcode11LogParser.export_diagnostic_data')
+  @mock.patch('xcode_log_parser.XcodeLogParser._extract_artifacts_for_test')
+  @mock.patch('xcode_log_parser.XcodeLogParser.export_diagnostic_data')
   @mock.patch('os.path.exists', autospec=True)
-  @mock.patch('xcode_log_parser.Xcode11LogParser._xcresulttool_get')
+  @mock.patch('xcode_log_parser.XcodeLogParser._xcresulttool_get')
   def testCollectTestTesults(self, mock_root, mock_exist_file, *args):
     expected_passed = set([
         'PageStateTestCase/testMethod1', 'PageStateTestCase/testMethod2',
@@ -563,7 +850,7 @@ class XCode11LogParserTest(test_runner_test.TestCase):
 
     mock_root.side_effect = _xcresulttool_get_side_effect
     mock_exist_file.return_value = True
-    results = xcode_log_parser.Xcode11LogParser().collect_test_results(
+    results = xcode_log_parser.XcodeLogParser().collect_test_results(
         OUTPUT_PATH, [])
 
     # Length ensures no duplicate results from |_get_test_statuses| and
@@ -578,24 +865,39 @@ class XCode11LogParserTest(test_runner_test.TestCase):
         self.assertTrue(isinstance(test.test_log, str))
 
   @mock.patch('file_util.zip_and_remove_folder')
-  @mock.patch('xcode_log_parser.Xcode11LogParser.copy_artifacts')
-  @mock.patch('xcode_log_parser.Xcode11LogParser.export_diagnostic_data')
+  @mock.patch('xcode_log_parser.XcodeLogParser.copy_artifacts')
+  @mock.patch('xcode_log_parser.XcodeLogParser.export_diagnostic_data')
   @mock.patch('os.path.exists', autospec=True)
-  @mock.patch('xcode_log_parser.Xcode11LogParser._xcresulttool_get')
+  @mock.patch('xcode_log_parser.XcodeLogParser._xcresulttool_get')
   def testCollectTestsRanZeroTests(self, mock_root, mock_exist_file, *args):
-    metrics_json = '{"metrics": {}}'
+    metrics_json = '{"actions": {}}'
     mock_root.return_value = metrics_json
     mock_exist_file.return_value = True
-    results = xcode_log_parser.Xcode11LogParser().collect_test_results(
+    results = xcode_log_parser.XcodeLogParser().collect_test_results(
         OUTPUT_PATH, [])
     self.assertTrue(results.crashed)
     self.assertEqual(results.crash_message, '0 tests executed!')
     self.assertEqual(len(results.all_test_names()), 0)
 
+  @mock.patch('xcode_log_parser.XcodeLogParser._list_of_failed_tests')
+  @mock.patch('xcode_log_parser.XcodeLogParser._get_test_statuses')
+  @mock.patch('file_util.zip_and_remove_folder')
+  @mock.patch('xcode_log_parser.XcodeLogParser.copy_artifacts')
+  @mock.patch('xcode_log_parser.XcodeLogParser.export_diagnostic_data')
+  @mock.patch('os.path.exists', autospec=True)
+  @mock.patch('xcode_log_parser.XcodeLogParser._xcresulttool_get')
+  def testFallbackOnRootMetrics(self, mock_root, mock_exist_file, *args):
+    mock_root.return_value = XCRESULT_MISSING_ACTIONRESULT_METRICS
+    mock_exist_file.return_value = True
+    results = xcode_log_parser.XcodeLogParser().collect_test_results(
+        OUTPUT_PATH, [])
+    self.assertTrue(results.crashed != True)
+    self.assertNotEqual(results.crash_message, '0 tests executed!')
+
   @mock.patch('os.path.exists', autospec=True)
   def testCollectTestsDidNotRun(self, mock_exist_file):
     mock_exist_file.return_value = False
-    results = xcode_log_parser.Xcode11LogParser().collect_test_results(
+    results = xcode_log_parser.XcodeLogParser().collect_test_results(
         OUTPUT_PATH, [])
     self.assertTrue(results.crashed)
     self.assertEqual(results.crash_message,
@@ -605,7 +907,7 @@ class XCode11LogParserTest(test_runner_test.TestCase):
   @mock.patch('os.path.exists', autospec=True)
   def testCollectTestsInterruptedRun(self, mock_exist_file):
     mock_exist_file.side_effect = [True, False]
-    results = xcode_log_parser.Xcode11LogParser().collect_test_results(
+    results = xcode_log_parser.XcodeLogParser().collect_test_results(
         OUTPUT_PATH, [])
     self.assertTrue(results.crashed)
     self.assertEqual(
@@ -615,12 +917,14 @@ class XCode11LogParserTest(test_runner_test.TestCase):
 
   @mock.patch('subprocess.check_output', autospec=True)
   @mock.patch('os.path.exists', autospec=True)
-  @mock.patch('xcode_log_parser.Xcode11LogParser._xcresulttool_get')
-  def testCopyScreenshots(self, mock_xcresulttool_get, mock_path_exists,
-                          mock_process):
+  @mock.patch('xcode_log_parser.XcodeLogParser._xcresulttool_get')
+  @mock.patch('xcode_util.using_xcode_16_or_higher')
+  def testCopyScreenshots(self, mock_xcode_version, mock_xcresulttool_get,
+                          mock_path_exists, mock_process):
+    mock_xcode_version.return_value = False
     mock_path_exists.return_value = True
     mock_xcresulttool_get.side_effect = _xcresulttool_get_side_effect
-    xcode_log_parser.Xcode11LogParser().copy_artifacts(OUTPUT_PATH)
+    xcode_log_parser.XcodeLogParser().copy_artifacts(OUTPUT_PATH)
     mock_process.assert_any_call([
         'xcresulttool', 'export', '--type', 'file', '--id',
         'SCREENSHOT_REF_ID_IN_FAILURE_SUMMARIES', '--path', XCRESULT_PATH,
@@ -642,12 +946,14 @@ class XCode11LogParserTest(test_runner_test.TestCase):
   @mock.patch('file_util.zip_and_remove_folder')
   @mock.patch('subprocess.check_output', autospec=True)
   @mock.patch('os.path.exists', autospec=True)
-  @mock.patch('xcode_log_parser.Xcode11LogParser._xcresulttool_get')
-  def testExportDiagnosticData(self, mock_xcresulttool_get, mock_path_exists,
-                               mock_process, _):
+  @mock.patch('xcode_log_parser.XcodeLogParser._xcresulttool_get')
+  @mock.patch('xcode_util.using_xcode_16_or_higher')
+  def testExportDiagnosticData(self, mock_xcode_version, mock_xcresulttool_get,
+                               mock_path_exists, mock_process, _):
+    mock_xcode_version.return_value = False
     mock_path_exists.return_value = True
     mock_xcresulttool_get.side_effect = _xcresulttool_get_side_effect
-    xcode_log_parser.Xcode11LogParser.export_diagnostic_data(OUTPUT_PATH)
+    xcode_log_parser.XcodeLogParser.export_diagnostic_data(OUTPUT_PATH)
     mock_process.assert_called_with([
         'xcresulttool', 'export', '--type', 'directory', '--id',
         'DIAGNOSTICS_REF_ID', '--path', XCRESULT_PATH, '--output-path',
@@ -658,15 +964,20 @@ class XCode11LogParserTest(test_runner_test.TestCase):
   @mock.patch('shutil.copy')
   @mock.patch('subprocess.check_output', autospec=True)
   @mock.patch('os.path.exists', autospec=True)
-  @mock.patch('xcode_log_parser.Xcode11LogParser._xcresulttool_get')
-  def testStdoutCopiedInExportDiagnosticData(self, mock_xcresulttool_get,
+  @mock.patch('os.makedirs')
+  @mock.patch('xcode_log_parser.XcodeLogParser._xcresulttool_get')
+  @mock.patch('xcode_util.using_xcode_16_or_higher')
+  def testStdoutCopiedInExportDiagnosticData(self, mock_xcode_version,
+                                             mock_xcresulttool_get,
+                                             mock_makedirs,
                                              mock_path_exists, mock_process,
                                              mock_copy, _):
+    mock_xcode_version.return_value = False
     output_path_in_test = 'test_data/attempt_0'
     xcresult_path_in_test = 'test_data/attempt_0.xcresult'
     mock_path_exists.return_value = True
     mock_xcresulttool_get.side_effect = _xcresulttool_get_side_effect
-    xcode_log_parser.Xcode11LogParser.export_diagnostic_data(
+    xcode_log_parser.XcodeLogParser.export_diagnostic_data(
         output_path_in_test)
     # os.walk() walks folders in unknown sequence. Use try-except blocks to
     # assert that any of the 2 assertions is true.
@@ -690,6 +1001,14 @@ class XCode11LogParserTest(test_runner_test.TestCase):
           'test_data/attempt_0.xcresult_diagnostic/test_module-UUID/test_module-UUID2/StandardOutputAndStandardError-org.chromium.gtest.ios-chrome-eg2tests.txt',
           'test_data/attempt_0/../attempt_0_simulator#0_StandardOutputAndStandardError-org.chromium.gtest.ios-chrome-eg2tests.txt'
       )
+    mock_copy.assert_any_call(
+      'test_data/attempt_0.xcresult_diagnostic/test_module-UUID/test_module-UUID1/StandardOutputAndStandardError.txt',
+      'test_data/attempt_0/../attempt_0_simulator#1_StandardOutputAndStandardError.txt'
+    )
+    mock_copy.assert_any_call(
+      'test_data/attempt_0.xcresult_diagnostic/test_module-UUID/test_module-UUID1/ios_internal_chrome_ui_eg2tests_module-Runner-2024-11-07-105813.ips',
+      'test_data/attempt_0/../Crash Reports/ios_internal_chrome_ui_eg2tests_module-Runner-2024-11-07-105813.ips'
+    )
 
   @mock.patch('os.path.exists', autospec=True)
   def testCollectTestResults_interruptedTests(self, mock_path_exists):
@@ -701,7 +1020,7 @@ class XCode11LogParserTest(test_runner_test.TestCase):
         '** BUILD INTERRUPTED **',
     ]
     not_found_message = ['%s with test results does not exist.' % XCRESULT_PATH]
-    res = xcode_log_parser.Xcode11LogParser().collect_test_results(
+    res = xcode_log_parser.XcodeLogParser().collect_test_results(
         OUTPUT_PATH, output)
     self.assertTrue(res.crashed)
     self.assertEqual('\n'.join(not_found_message + output), res.crash_message)
@@ -709,19 +1028,351 @@ class XCode11LogParserTest(test_runner_test.TestCase):
         set(['TestCase1/method1', 'TestCase2/method1']), res.expected_tests())
 
   @mock.patch('file_util.zip_and_remove_folder')
-  @mock.patch('xcode_log_parser.Xcode11LogParser._extract_artifacts_for_test')
-  @mock.patch('xcode_log_parser.Xcode11LogParser.export_diagnostic_data')
+  @mock.patch('xcode_log_parser.XcodeLogParser._extract_artifacts_for_test')
+  @mock.patch('xcode_log_parser.XcodeLogParser.export_diagnostic_data')
   @mock.patch('os.path.exists', autospec=True)
-  @mock.patch('xcode_log_parser.Xcode11LogParser._xcresulttool_get')
-  @mock.patch('xcode_log_parser.Xcode11LogParser._list_of_failed_tests')
+  @mock.patch('xcode_log_parser.XcodeLogParser._xcresulttool_get')
+  @mock.patch('xcode_log_parser.XcodeLogParser._list_of_failed_tests')
   def testArtifactsDiagnosticLogsExportedInCollectTestTesults(
       self, mock_get_failed_tests, mock_root, mock_exist_file,
       mock_export_diagnostic_data, mock_extract_artifacts, mock_zip):
     mock_root.side_effect = _xcresulttool_get_side_effect
     mock_exist_file.return_value = True
-    xcode_log_parser.Xcode11LogParser().collect_test_results(OUTPUT_PATH, [])
+    xcode_log_parser.XcodeLogParser().collect_test_results(OUTPUT_PATH, [])
     mock_export_diagnostic_data.assert_called_with(OUTPUT_PATH)
     mock_extract_artifacts.assert_called()
+
+  @mock.patch('os.listdir')
+  @mock.patch(
+      'builtins.open', new=mock.mock_open(read_data=APP_SIDE_FAILURE_LOG))
+  def testLogAppSideFailureReason(self, mock_listdir):
+    test_name = 'SmokeTestCase/testOpenTab'
+    test_result = TestResult(
+      test_name,
+      TestStatus.FAIL,
+    )
+    expected_log_file_name = 'attempt_0_simulator#0_StandardOutputAndStandardError-com.google.chrome.unittests.dev.txt'
+    mock_listdir.return_value = [
+        'run_1696864672.xctestrun', 'attempt_0.xcresult.zip',
+        'attempt_0.xcresult_diagnostic.zip',
+        expected_log_file_name,
+        'attempt_0_simulator#0_StandardOutputAndStandardError.txt',
+    ]
+    app_side_failure_message = (
+      xcode_log_parser.XcodeLogParser()._get_app_side_failure(
+        test_result, OUTPUT_PATH))
+    self.assertFalse(test_result.asan_failure_detected)
+    self.assertEqual(app_side_failure_message, APP_SIDE_FAILURE_LOG_EXPECTED)
+    self.assertEqual(len(test_result.attachments), 1)
+    self.assertTrue(expected_log_file_name in test_result.attachments)
+    expected_path = os.path.realpath(
+      os.path.join(OUTPUT_PATH, os.pardir, expected_log_file_name))
+    self.assertEqual(test_result.attachments[expected_log_file_name],
+                     expected_path)
+
+  @mock.patch('os.listdir')
+  @mock.patch(
+      'builtins.open', new=mock.mock_open(read_data=APP_SIDE_ASAN_FAILURE_LOG))
+  def testAsanFailureDetected(self, mock_listdir):
+    test_name = 'SmokeTestCase/testOpenTab'
+    test_result = TestResult(
+      test_name,
+      TestStatus.FAIL,
+    )
+    expected_log_file_name = 'attempt_0_simulator#0_StandardOutputAndStandardError-com.google.chrome.unittests.dev.txt'
+    mock_listdir.return_value = [
+        'run_1696864672.xctestrun',
+        'attempt_0.xcresult.zip',
+        'attempt_0.xcresult_diagnostic.zip',
+        expected_log_file_name,
+        'attempt_0_simulator#0_StandardOutputAndStandardError.txt',
+    ]
+    app_side_failure_message = (
+      xcode_log_parser.XcodeLogParser()._get_app_side_failure(
+        test_result, OUTPUT_PATH))
+    self.assertTrue(test_result.asan_failure_detected)
+    self.assertEqual(app_side_failure_message,
+                     APP_SIDE_ASAN_FAILURE_LOG_EXPECTED)
+    self.assertEqual(len(test_result.attachments), 1)
+    self.assertTrue(expected_log_file_name in test_result.attachments)
+    expected_path = os.path.realpath(
+        os.path.join(OUTPUT_PATH, os.pardir, expected_log_file_name))
+    self.assertEqual(test_result.attachments[expected_log_file_name],
+                     expected_path)
+
+  @mock.patch('os.listdir')
+  @mock.patch(
+      'builtins.open', new=mock.mock_open(read_data=""))
+  def testLogAppSideFailureReasonMissing(self, mock_listdir):
+    test_name = 'SmokeTestCase/testOpenTab'
+    test_result = TestResult(
+      test_name,
+      TestStatus.FAIL,
+    )
+    expected_log_file_name = 'attempt_0_simulator#0_StandardOutputAndStandardError-com.google.chrome.unittests.dev.txt'
+    mock_listdir.return_value = [
+        'run_1696864672.xctestrun', 'attempt_0.xcresult.zip',
+        'attempt_0.xcresult_diagnostic.zip',
+        expected_log_file_name,
+        'attempt_0_simulator#0_StandardOutputAndStandardError.txt',
+    ]
+    app_side_failure_message = (
+      xcode_log_parser.XcodeLogParser()._get_app_side_failure(
+        test_result, OUTPUT_PATH))
+    self.assertFalse(test_result.asan_failure_detected)
+    self.assertEqual(app_side_failure_message,
+                     APP_SIDE_FAILURE_LOG_MISSING_EXPECTED)
+    self.assertEqual(len(test_result.attachments), 1)
+    self.assertTrue(expected_log_file_name in test_result.attachments)
+    expected_path = os.path.realpath(
+      os.path.join(OUTPUT_PATH, os.pardir, expected_log_file_name))
+    self.assertEqual(test_result.attachments[expected_log_file_name],
+                     expected_path)
+
+
+class Xcode16LogParserTest(test_runner_test.TestCase):
+
+  def setUp(self):
+    super(Xcode16LogParserTest, self).setUp()
+    self.mock(test_runner, 'get_current_xcode_info', lambda: XCODE16_DICT)
+
+  @mock.patch('subprocess.check_output', autospec=True)
+  def test_xcresulttool_get_summary(self, mock_check_output):
+    mock_check_output.return_value = b'{"some": "json"}'
+
+    result = xcode_log_parser.Xcode16LogParser._xcresulttool_get_summary(
+        '/path/to/xcresult')
+
+    mock_check_output.assert_called_once_with([
+        'xcresulttool', 'get', 'test-results', 'summary', '--format', 'json',
+        '--path', '/path/to/xcresult'
+    ])
+    self.assertEqual(result, '{"some": "json"}')
+
+  @mock.patch(
+      'xcode_log_parser.Xcode16LogParser._xcresulttool_get_tests',
+      return_value=XC16_TESTS_JSON)
+  @mock.patch(
+      'xcode_log_parser.Xcode16LogParser._extract_artifacts_for_test',
+      return_value={"screenshot.png": "/path/to/artifact"})
+  def test_get_test_statuses_passed_failed_skipped_crashed(
+      self, mock_extract_artifacts, mock_get_tests):
+    result = xcode_log_parser.Xcode16LogParser._get_test_statuses('some_path')
+
+    self.assertEqual(len(result.test_results), 5)
+    self.assertFalse(result.crashed)
+
+    self.assertEqual(result.test_results[0].status, TestStatus.PASS)
+    self.assertEqual(result.test_results[1].status, TestStatus.FAIL)
+    self.assertEqual(
+        result.test_results[1].test_log,
+        "Logs from \"Failure Message\" in .xcresult:\nSome failure message\n")
+    self.assertEqual(result.test_results[1].attachments,
+                     {"screenshot.png": "/path/to/artifact"})
+    self.assertEqual(result.test_results[2].status, TestStatus.SKIP)
+    self.assertEqual(result.test_results[3].status, TestStatus.FAIL)
+
+  @mock.patch('xcode_log_parser.Xcode16LogParser._xcresulttool_get_summary')
+  @mock.patch('xcode_log_parser.Xcode16LogParser.export_diagnostic_data')
+  @mock.patch('xcode_log_parser.Xcode16LogParser._get_test_statuses')
+  @mock.patch('xcode_log_parser.file_util.zip_and_remove_folder')
+  @mock.patch('os.path.exists')
+  def test_collect_test_results_xcresult_exists_tests_crashed(
+      self, mock_exists, mock_zip_and_remove, mock_get_statuses,
+      mock_export_data, mock_get_summary):
+    # Mocking
+    mock_exists.return_value = True
+    mock_get_summary.return_value = json.dumps({"some_key": "some_value"})
+
+    mock_get_statuses.return_value = ResultCollection()
+
+    # Execution
+    output_path = "some_output_path"
+    output = ["some_output"]
+    result = xcode_log_parser.Xcode16LogParser.collect_test_results(
+        output_path, output)
+
+    # Asserts
+    self.assertTrue(result.crashed)
+    mock_export_data.assert_called_once_with(output_path)
+    mock_zip_and_remove.assert_called_once_with(
+        output_path + xcode_log_parser._XCRESULT_SUFFIX)
+
+  @mock.patch(
+      'xcode_log_parser.Xcode16LogParser._xcresulttool_get_tests',
+      return_value=XC16_TESTS_JSON)
+  @mock.patch('xcode_log_parser.Xcode16LogParser._extract_artifacts_for_test')
+  @mock.patch('os.path.exists')
+  def test_copy_artifacts_xcresult(self, mock_exists, mock_extract_artifacts,
+                                   mock_get_tests):
+    mock_exists.return_value = True
+    mock_extract_artifacts.return_value = {
+        "screenshot.png": "/path/to/screenshot.png"
+    }
+    output_path = "some_output_path"
+
+    xcode_log_parser.Xcode16LogParser.copy_artifacts(output_path)
+
+    mock_exists.assert_called_once_with(output_path +
+                                        xcode_log_parser._XCRESULT_SUFFIX)
+    mock_get_tests.assert_called_once_with(output_path +
+                                           xcode_log_parser._XCRESULT_SUFFIX)
+    mock_extract_artifacts.assert_called()
+
+  @mock.patch('subprocess.check_output')
+  @mock.patch('os.path.exists')
+  @mock.patch('os.walk')
+  @mock.patch('xcode_log_parser.file_util.zip_and_remove_folder')
+  @mock.patch('xcode_log_parser.shutil.copy')
+  def test_export_diagnostic_data_xcresult(self, mock_copy, mock_zip_and_remove,
+                                           mock_walk, mock_exists,
+                                           mock_check_output):
+    mock_exists.return_value = True
+    output_path = "some_output_path"
+    mock_walk.return_value = [("/path/to/diagnostic_folder", [],
+                               ["StandardOutputAndStandardError.txt"])]
+
+    xcode_log_parser.Xcode16LogParser.export_diagnostic_data(output_path)
+
+    mock_exists.assert_called_once_with(output_path +
+                                        xcode_log_parser._XCRESULT_SUFFIX)
+    mock_check_output.assert_called_once()
+    mock_copy.assert_called_with(
+        "/path/to/diagnostic_folder/StandardOutputAndStandardError.txt",
+        os.path.join(
+            output_path, os.pardir,
+            f"some_output_path_simulator#0_StandardOutputAndStandardError.txt"))
+
+    mock_zip_and_remove.assert_called_once_with(
+        output_path + xcode_log_parser._XCRESULT_SUFFIX + "_diagnostic")
+
+  @mock.patch('file_util.zip_and_remove_folder')
+  @mock.patch('shutil.copy')
+  @mock.patch('subprocess.check_output', autospec=True)
+  @mock.patch('os.path.exists', autospec=True)
+  @mock.patch('os.makedirs')
+  def testStdoutCopiedInExportDiagnosticData(self, mock_makedirs,
+                                             mock_path_exists, mock_process,
+                                             mock_copy, _):
+    output_path_in_test = 'test_data/attempt_0'
+    xcresult_path_in_test = 'test_data/attempt_0.xcresult'
+    mock_path_exists.return_value = True
+    xcode_log_parser.Xcode16LogParser.export_diagnostic_data(
+        output_path_in_test)
+    # os.walk() walks folders in unknown sequence. Use try-except blocks to
+    # assert that any of the 2 assertions is true.
+    try:
+      mock_copy.assert_any_call(
+          'test_data/attempt_0.xcresult_diagnostic/test_module-UUID/test_module-UUID1/StandardOutputAndStandardError.txt',
+          'test_data/attempt_0/../attempt_0_simulator#1_StandardOutputAndStandardError.txt'
+      )
+    except AssertionError:
+      mock_copy.assert_any_call(
+          'test_data/attempt_0.xcresult_diagnostic/test_module-UUID/test_module-UUID1/StandardOutputAndStandardError.txt',
+          'test_data/attempt_0/../attempt_0_simulator#0_StandardOutputAndStandardError.txt'
+      )
+    try:
+      mock_copy.assert_any_call(
+          'test_data/attempt_0.xcresult_diagnostic/test_module-UUID/test_module-UUID2/StandardOutputAndStandardError-org.chromium.gtest.ios-chrome-eg2tests.txt',
+          'test_data/attempt_0/../attempt_0_simulator#1_StandardOutputAndStandardError-org.chromium.gtest.ios-chrome-eg2tests.txt'
+      )
+    except AssertionError:
+      mock_copy.assert_any_call(
+          'test_data/attempt_0.xcresult_diagnostic/test_module-UUID/test_module-UUID2/StandardOutputAndStandardError-org.chromium.gtest.ios-chrome-eg2tests.txt',
+          'test_data/attempt_0/../attempt_0_simulator#0_StandardOutputAndStandardError-org.chromium.gtest.ios-chrome-eg2tests.txt'
+      )
+    mock_copy.assert_any_call(
+        'test_data/attempt_0.xcresult_diagnostic/test_module-UUID/test_module-UUID1/StandardOutputAndStandardError.txt',
+        'test_data/attempt_0/../attempt_0_simulator#1_StandardOutputAndStandardError.txt'
+    )
+    mock_copy.assert_any_call(
+        'test_data/attempt_0.xcresult_diagnostic/test_module-UUID/test_module-UUID1/ios_internal_chrome_ui_eg2tests_module-Runner-2024-11-07-105813.ips',
+        'test_data/attempt_0/../Crash Reports/ios_internal_chrome_ui_eg2tests_module-Runner-2024-11-07-105813.ips'
+    )
+
+  @mock.patch('subprocess.check_output')
+  @mock.patch('os.makedirs')
+  def test_extract_attachments_success(self, mock_makedirs, mock_check_output):
+    test_name = "MyTest"
+    xcresult_path = "test_data/attempt_0.xcresult"
+    attachments = {}  # Empty dictionary to store attachments
+    attachment_folder = os.path.abspath(
+        os.path.join(
+            xcresult_path, os.pardir,
+            os.path.splitext(os.path.basename(xcresult_path))[0] +
+            "_attachments", test_name))
+
+    xcode_log_parser.Xcode16LogParser._extract_attachments(
+        test_name, xcresult_path, attachments)
+
+    expected_attachments = {
+        'My Screenshot':
+            os.path.join(attachment_folder, 'screenshot.png'),
+        'My Video':
+            os.path.join(attachment_folder, 'video.mp4'),
+        'Failure Screenshot':
+            os.path.join(attachment_folder, 'failure_screenshot.png'),
+    }
+
+    self.assertEqual(attachments, expected_attachments)
+    mock_check_output.assert_called_once_with([
+        "xcresulttool", "export", "attachments", "--test-id", test_name,
+        "--path", xcresult_path, "--output-path", attachment_folder
+    ])
+
+  @mock.patch('subprocess.check_output')
+  @mock.patch('os.makedirs')
+  def test_extract_attachments_only_failures(self, mock_makedirs,
+                                             mock_check_output):
+    test_name = "MyTest"
+    xcresult_path = "test_data/attempt_0.xcresult"
+    attachments = {}  # Empty dictionary to store attachments
+    attachment_folder = os.path.abspath(
+        os.path.join(
+            xcresult_path, os.pardir,
+            os.path.splitext(os.path.basename(xcresult_path))[0] +
+            "_attachments", test_name))
+
+    xcode_log_parser.Xcode16LogParser._extract_attachments(
+        test_name, xcresult_path, attachments, True)
+
+    expected_attachments = {
+        'My Screenshot': os.path.join(attachment_folder, 'screenshot.png'),
+        'My Video': os.path.join(attachment_folder, 'video.mp4'),
+    }
+
+    self.assertEqual(attachments, expected_attachments)
+    mock_check_output.assert_called_once_with([
+        "xcresulttool", "export", "attachments", "--test-id", test_name,
+        "--path", xcresult_path, "--output-path", attachment_folder
+    ])
+
+  @mock.patch('subprocess.check_output')
+  @mock.patch('os.makedirs')
+  def test_extract_attachments_no_manifest(self, mock_makedirs,
+                                           mock_check_output):
+    test_name = "MyTest"
+    xcresult_path = "test_data/attempt_1.xcresult"
+    attachments = {}  # Empty dictionary to store attachments
+    attachment_folder = os.path.abspath(
+        os.path.join(
+            xcresult_path, os.pardir,
+            os.path.splitext(os.path.basename(xcresult_path))[0] +
+            "_attachments", test_name))
+
+    xcode_log_parser.Xcode16LogParser._extract_attachments(
+        test_name, xcresult_path, attachments)
+
+    expected_attachments = {
+        'My Screenshot': os.path.join(attachment_folder, 'screenshot.png'),
+        'My Video': os.path.join(attachment_folder, 'video.mp4'),
+    }
+
+    self.assertEqual(attachments, {})
+    mock_check_output.assert_called_once_with([
+        "xcresulttool", "export", "attachments", "--test-id", test_name,
+        "--path", xcresult_path, "--output-path", attachment_folder
+    ])
 
 
 if __name__ == '__main__':

@@ -6,20 +6,23 @@
 
 #include <stdint.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
 
-#include "base/ranges/algorithm.h"
 #include "base/threading/simple_thread.h"
 #include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
 
 namespace cc {
 
 SingleThreadTaskGraphRunner::SingleThreadTaskGraphRunner()
     : lock_(),
       has_ready_to_run_tasks_cv_(&lock_),
-      has_namespaces_with_finished_running_tasks_cv_(&lock_) {
+      has_namespaces_with_finished_running_tasks_cv_(&lock_),
+      is_idle_cv_(&lock_) {
   has_ready_to_run_tasks_cv_.declare_only_used_while_idle();
 }
 
@@ -75,6 +78,15 @@ void SingleThreadTaskGraphRunner::ScheduleTasks(NamespaceToken token,
   }
 }
 
+void SingleThreadTaskGraphRunner::ExternalDependencyCompletedForTask(
+    NamespaceToken token,
+    scoped_refptr<Task> task) {
+  base::AutoLock lock(lock_);
+  if (work_queue_.ExternalDependencyCompletedForTask(token, std::move(task))) {
+    has_ready_to_run_tasks_cv_.Signal();
+  }
+}
+
 void SingleThreadTaskGraphRunner::WaitForTasksToFinishRunning(
     NamespaceToken token) {
   TRACE_EVENT0("cc",
@@ -112,15 +124,21 @@ void SingleThreadTaskGraphRunner::CollectCompletedTasks(
   }
 }
 
+void SingleThreadTaskGraphRunner::RunTasksUntilIdleForTest() {
+  base::AutoLock lock(lock_);
+
+  while (work_queue_.HasReadyToRunTasks() ||
+         work_queue_.NumRunningTasks() > 0) {
+    is_idle_cv_.Wait();
+  }
+}
+
 void SingleThreadTaskGraphRunner::Run() {
   base::AutoLock lock(lock_);
 
   while (true) {
     if (!RunTaskWithLockAcquired()) {
-      // Make sure the END of the last trace event emitted before going idle
-      // is flushed to perfetto.
-      // TODO(crbug.com/1021571): Remove this once fixed.
-      PERFETTO_INTERNAL_ADD_EMPTY_EVENT();
+      is_idle_cv_.Signal();
 
       // Exit when shutdown is set and no more tasks are pending.
       if (shutdown_)
@@ -140,7 +158,7 @@ bool SingleThreadTaskGraphRunner::RunTaskWithLockAcquired() {
   // Find the first category with any tasks to run. This task graph runner
   // treats categories as an additional priority.
   const auto& ready_to_run_namespaces = work_queue_.ready_to_run_namespaces();
-  auto found = base::ranges::find_if_not(
+  auto found = std::ranges::find_if_not(
       ready_to_run_namespaces,
       &TaskGraphWorkQueue::TaskNamespace::Vector::empty,
       &TaskGraphWorkQueue::ReadyNamespaces::value_type::second);
@@ -153,6 +171,9 @@ bool SingleThreadTaskGraphRunner::RunTaskWithLockAcquired() {
   auto prioritized_task = work_queue_.GetNextTaskToRun(category);
 
   {
+    TRACE_EVENT("toplevel", "cc::SingleThreadTaskGraphRunner::RunTask",
+                perfetto::TerminatingFlow::Global(
+                    prioritized_task.task->trace_task_id()));
     base::AutoUnlock unlock(lock_);
     prioritized_task.task->RunOnWorkerThread();
   }

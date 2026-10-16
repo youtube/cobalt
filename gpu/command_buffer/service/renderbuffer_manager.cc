@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "gpu/command_buffer/service/renderbuffer_manager.h"
 
 #include <stddef.h>
@@ -142,14 +147,9 @@ Renderbuffer::Renderbuffer(RenderbufferManager* manager,
 
 bool Renderbuffer::RegenerateAndBindBackingObjectIfNeeded(
     const GpuDriverBugWorkarounds& workarounds) {
-  // There are two workarounds which need this code path:
-  //   depth_stencil_renderbuffer_resize_emulation
-  //   multisample_renderbuffer_resize_emulation
   bool multisample_workaround =
       workarounds.multisample_renderbuffer_resize_emulation;
-  bool depth_stencil_workaround =
-      workarounds.depth_stencil_renderbuffer_resize_emulation;
-  if (!multisample_workaround && !depth_stencil_workaround) {
+  if (!multisample_workaround) {
     return false;
   }
 
@@ -157,11 +157,7 @@ bool Renderbuffer::RegenerateAndBindBackingObjectIfNeeded(
     return false;
   }
 
-  bool workaround_needed = (multisample_workaround && samples_ > 0) ||
-                           (depth_stencil_workaround &&
-                            TextureManager::ExtractFormatFromStorageFormat(
-                                internal_format_) == GL_DEPTH_STENCIL);
-
+  bool workaround_needed = (multisample_workaround && samples_ > 0);
   if (!workaround_needed) {
     return false;
   }
@@ -303,21 +299,10 @@ bool RenderbufferManager::ComputeEstimatedRenderbufferSize(
 
 GLenum RenderbufferManager::InternalRenderbufferFormatToImplFormat(
     GLenum impl_format) const {
-  if (!feature_info_->gl_version_info().BehavesLikeGLES()) {
-    switch (impl_format) {
-      case GL_DEPTH_COMPONENT16:
-        return GL_DEPTH_COMPONENT;
-      case GL_RGBA4:
-      case GL_RGB5_A1:
-        return GL_RGBA;
-      case GL_RGB565:
-        return GL_RGB;
-    }
-  } else {
-    // Upgrade 16-bit depth to 24-bit if possible.
-    if (impl_format == GL_DEPTH_COMPONENT16 &&
-        feature_info_->feature_flags().oes_depth24)
-      return GL_DEPTH_COMPONENT24;
+  // Upgrade 16-bit depth to 24-bit if possible.
+  if (impl_format == GL_DEPTH_COMPONENT16 &&
+      feature_info_->feature_flags().oes_depth24) {
+    return GL_DEPTH_COMPONENT24;
   }
   return impl_format;
 }
@@ -330,7 +315,7 @@ bool RenderbufferManager::OnMemoryDump(
   const uint64_t context_group_tracing_id =
       memory_tracker_->ContextGroupTracingId();
 
-  if (args.level_of_detail == MemoryDumpLevelOfDetail::BACKGROUND) {
+  if (args.level_of_detail == MemoryDumpLevelOfDetail::kBackground) {
     std::string dump_name =
         base::StringPrintf("gpu/gl/renderbuffers/context_group_0x%" PRIX64,
                            context_group_tracing_id);

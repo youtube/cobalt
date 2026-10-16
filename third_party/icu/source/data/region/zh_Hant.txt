@@ -299,6 +299,9 @@ zh_Hant{
         ZW{"辛巴威"}
         ZZ{"未知區域"}
     }
+    Countries%chagos{
+        IO{"查哥斯群島"}
+    }
     Countries%variant{
         CD{"剛果民主共和國"}
         CG{"剛果共和國"}

@@ -9,15 +9,14 @@
 #include "base/metrics/statistics_recorder.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
+#include "chrome/test/base/platform_browser_test.h"
 #include "components/startup_metric_utils/browser/startup_metric_utils.h"
 #include "content/public/test/browser_test.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
-#include "chrome/test/base/android/android_browser_test.h"
-#else
-#include "chrome/test/base/in_process_browser_test.h"
 #endif
 
 using StartupMetricsTest = PlatformBrowserTest;
@@ -52,7 +51,13 @@ void AddProcessCreateMetrics(std::vector<const char*>& v) {
 }  // namespace
 
 // Verify that startup histograms are logged on browser startup.
-IN_PROC_BROWSER_TEST_F(StartupMetricsTest, ReportsValues) {
+// TODO(crbug.com/40919406): Re-enable this test
+#if BUILDFLAG(IS_WIN) && defined(ARCH_CPU_X86_64)
+#define MAYBE_ReportsValues DISABLED_ReportsValues
+#else
+#define MAYBE_ReportsValues ReportsValues
+#endif
+IN_PROC_BROWSER_TEST_F(StartupMetricsTest, MAYBE_ReportsValues) {
   std::vector<const char*> startup_metrics{std::begin(kStartupMetrics),
                                            std::end(kStartupMetrics)};
 
@@ -82,8 +87,8 @@ IN_PROC_BROWSER_TEST_F(StartupMetricsTest, ReportsValues) {
         base::StatisticsRecorder::ScopedHistogramSampleObserver>(
         histogram,
         base::BindLambdaForTesting(
-            [&](const char* histogram_name, uint64_t name_hash,
-                base::HistogramBase::Sample sample) { run_loop.Quit(); }));
+            [&](std::string_view histogram_name, uint64_t name_hash,
+                base::HistogramBase::Sample32 sample) { run_loop.Quit(); }));
     run_loop.Run();
   }
 }

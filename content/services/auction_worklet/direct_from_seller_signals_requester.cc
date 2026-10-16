@@ -6,9 +6,11 @@
 
 #include <list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "base/check.h"
@@ -19,12 +21,10 @@
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
-#include "content/services/auction_worklet/auction_downloader.h"
 #include "content/services/auction_worklet/auction_v8_helper.h"
+#include "content/services/auction_worklet/public/cpp/auction_downloader.h"
 #include "net/http/http_response_headers.h"
 #include "services/network/public/mojom/url_loader_factory.mojom-forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "url/gurl.h"
 #include "v8/include/v8-context.h"
 #include "v8/include/v8-local-handle.h"
@@ -35,31 +35,52 @@ namespace auction_worklet {
 
 namespace {
 
-// Validates that the X-FLEDGE-Auction-Only header is present. Returns
-// absl::nullopt upon success. Upon failure, returns an error string.
+// Validates that the Ad-Auction-Only (or deprecated X-FLEDGE-Auction-Only)
+// header is present. Returns std::nullopt upon success. Upon failure, returns
+// an error string.
 //
 // NOTE: This check is *NOT* directly part of the DirectFromSellerSignals
 // security model, and serves more as a convenience check for developers: the
 // network service and browser process ensure that resources that have the
-// "X-FLEDGE-Auction-Only: true" header are only usable in FLEDGE auctions. This
+// "Ad-Auction-Only: true" header are only usable in FLEDGE auctions. This
 // check reminds developers using DirectFromSellerSignals to use
-// X-FLEDGE-Auction-Only on subresource responses to ensure that these responses
+// Ad-Auction-Only on subresource responses to ensure that these responses
 // are protected (by the browser and network stack) from being using outside
 // FLEDGE.
-absl::optional<std::string> CheckHeader(
+std::optional<std::string> CheckHeader(
     scoped_refptr<net::HttpResponseHeaders> headers) {
-  std::string auction_only;
-  if (!headers->GetNormalizedHeader("X-FLEDGE-Auction-Only", &auction_only)) {
-    return "Missing X-FLEDGE-Auction-Only header.";
+  // TODO(crbug.com/40269364): Remove support for old header names once API
+  // users have switched.
+  std::optional<std::string> old_header_value =
+      headers->GetNormalizedHeader("X-FLEDGE-Auction-Only");
+  std::optional<std::string> new_header_value =
+      headers->GetNormalizedHeader("Ad-Auction-Only");
+  if (!new_header_value && !old_header_value) {
+    return "Missing Ad-Auction-Only (or deprecated X-FLEDGE-Auction-Only) "
+           "header.";
   }
-  if (!base::EqualsCaseInsensitiveASCII(auction_only, "true")) {
+  if (old_header_value) {
+    if (new_header_value) {
+      if (old_header_value != new_header_value) {
+        return base::StringPrintf(
+            "Ad-Auction-Only: %s does not match deprecated header "
+            "X-FLEDGE-Auction-Only: %s.",
+            new_header_value->c_str(), old_header_value->c_str());
+      }
+    } else {
+      new_header_value = std::move(old_header_value);
+    }
+  }
+  if (!new_header_value ||
+      !base::EqualsCaseInsensitiveASCII(*new_header_value, "true")) {
     return base::StringPrintf(
-        "Wrong X-FLEDGE-Auction-Only header value. Expected \"true\", found "
+        "Wrong Ad-Auction-Only (or deprecated X-FLEDGE-Auction-Only) header "
+        "value. Expected \"true\", found "
         "\"%s\".",
-        auction_only.c_str());
+        new_header_value.value_or(std::string()).c_str());
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 // These values are persisted to logs. Entries should not be renumbered and
@@ -87,15 +108,15 @@ v8::Local<v8::Value> DirectFromSellerSignalsRequester::Result::GetSignals(
     v8::Local<v8::Context> context,
     std::vector<std::string>& errors) const {
   DCHECK(v8_helper.v8_runner()->RunsTasksInCurrentSequence());
-  if (absl::holds_alternative<ErrorString>(response_or_error_)) {
-    errors.push_back(absl::get<ErrorString>(response_or_error_).value());
+  if (std::holds_alternative<ErrorString>(response_or_error_)) {
+    errors.push_back(std::get<ErrorString>(response_or_error_).value());
     return v8::Null(v8_helper.isolate());
   }
 
-  DCHECK(absl::holds_alternative<scoped_refptr<ResponseString>>(
+  DCHECK(std::holds_alternative<scoped_refptr<ResponseString>>(
       response_or_error_));
   scoped_refptr<ResponseString> response =
-      absl::get<scoped_refptr<ResponseString>>(response_or_error_);
+      std::get<scoped_refptr<ResponseString>>(response_or_error_);
   v8::MaybeLocal<v8::Value> v8_result =
       response ? v8_helper.CreateValueFromJson(context, response->value())
                : v8::Null(v8_helper.isolate());
@@ -106,6 +127,18 @@ v8::Local<v8::Value> DirectFromSellerSignalsRequester::Result::GetSignals(
     return v8::Null(v8_helper.isolate());
   }
   return v8_result.ToLocalChecked();
+}
+
+bool DirectFromSellerSignalsRequester::Result::IsNull() const {
+  if (std::holds_alternative<ErrorString>(response_or_error_)) {
+    return false;
+  }
+
+  DCHECK(std::holds_alternative<scoped_refptr<ResponseString>>(
+      response_or_error_));
+  scoped_refptr<ResponseString> response =
+      std::get<scoped_refptr<ResponseString>>(response_or_error_);
+  return response == nullptr;
 }
 
 DirectFromSellerSignalsRequester::Result::ResponseString::ResponseString(
@@ -119,7 +152,7 @@ DirectFromSellerSignalsRequester::Result::Result(
     GURL signals_url,
     std::unique_ptr<std::string> response_body,
     scoped_refptr<net::HttpResponseHeaders> headers,
-    absl::optional<std::string> error)
+    std::optional<std::string> error)
     : signals_url_(std::move(signals_url)) {
   DCHECK(!signals_url_.is_empty());
   if (response_body) {
@@ -205,10 +238,16 @@ DirectFromSellerSignalsRequester::LoadSignals(
         signals_url,
         CoalescedDownload(std::make_unique<AuctionDownloader>(
             &url_loader_factory, signals_url,
+            AuctionDownloader::DownloadMode::kActualDownload,
             AuctionDownloader::MimeType::kJson,
+            /*post_body=*/std::nullopt,
+            /*content_type=*/std::nullopt,
+            /*num_igs_for_trusted_bidding_signals_kvv1=*/std::nullopt,
+            AuctionDownloader::ResponseStartedCallback(),
             base::BindOnce(
                 &DirectFromSellerSignalsRequester::OnSignalsDownloaded,
-                base::Unretained(this), signals_url, base::TimeTicks::Now()))));
+                base::Unretained(this), signals_url, base::TimeTicks::Now()),
+            /*network_events_delegate=*/nullptr)));
     DCHECK(inserted);
     base::UmaHistogramEnumeration(
         "Ads.InterestGroup.Auction.DirectFromSellerSignals.RequestType",
@@ -248,7 +287,7 @@ void DirectFromSellerSignalsRequester::OnSignalsDownloaded(
     base::TimeTicks start_time,
     std::unique_ptr<std::string> response_body,
     scoped_refptr<net::HttpResponseHeaders> headers,
-    absl::optional<std::string> error) {
+    std::optional<std::string> error) {
   if (response_body) {
     // The request size isn't very meaningful, since the request is served from
     // a subresource bundle, so don't record the request size.
@@ -267,15 +306,18 @@ void DirectFromSellerSignalsRequester::OnSignalsDownloaded(
   // will also destroy the downloader. The Request won't try to cancel anything
   // after this since running the callback clears the Request's iterator.
   auto it = coalesced_downloads_.find(signals_url);
-  DCHECK(it != coalesced_downloads_.end());
+  CHECK(it != coalesced_downloads_.end());
   DCHECK_EQ(signals_url, it->second.downloader->source_url());
-  std::list<raw_ptr<Request, DanglingUntriaged>> requests;
+  std::list<raw_ptr<Request>> requests;
   std::swap(requests, it->second.requests);
   coalesced_downloads_.erase(it);
 
-  for (Request* request : requests) {
+  while (!requests.empty()) {
+    // `*request` may be destroyed by the callback, so we also don't want to
+    // keep a dangling pointer to it in `requests`.
+    Request* request = requests.front();
+    requests.pop_front();
     request->RunCallbackSync(result);
-    // `*request` might have been destroyed by the callback.
   }
 }
 
@@ -283,13 +325,14 @@ void DirectFromSellerSignalsRequester::OnRequestDestroyed(Request& request) {
   DCHECK(request.requester_);
   // If signals were were retrieved from cache, or the request already
   // completed, no cleanup is necessary.
-  if (!request.maybe_coalesce_iterator_)
+  if (!request.maybe_coalesce_iterator_) {
     return;
+  }
 
   // Otherwise, remove the request pointer to `this` from
   // `coalesced_downloads_`.
   auto map_it = coalesced_downloads_.find(request.signals_url_);
-  DCHECK(map_it != coalesced_downloads_.end());
+  CHECK(map_it != coalesced_downloads_.end());
   CoalescedDownload& coalesced_download = map_it->second;
   DCHECK_EQ(coalesced_download.downloader->source_url(), request.signals_url_);
   DCHECK_GT(coalesced_download.requests.size(), 0u);
@@ -299,8 +342,9 @@ void DirectFromSellerSignalsRequester::OnRequestDestroyed(Request& request) {
   // If there are now no more requests left for `request.signals_url_`, delete
   // its `coalesced_downloads_` pair. This will cancel the download for that
   // URL.
-  if (coalesced_download.requests.empty())
+  if (coalesced_download.requests.empty()) {
     coalesced_downloads_.erase(map_it);
+  }
 }
 
 }  // namespace auction_worklet

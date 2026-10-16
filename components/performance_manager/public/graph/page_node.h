@@ -5,20 +5,28 @@
 #ifndef COMPONENTS_PERFORMANCE_MANAGER_PUBLIC_GRAPH_PAGE_NODE_H_
 #define COMPONENTS_PERFORMANCE_MANAGER_PUBLIC_GRAPH_PAGE_NODE_H_
 
-#include <ostream>
+#include <iosfwd>
+#include <optional>
 #include <string>
 
 #include "base/containers/flat_set.h"
-#include "base/functional/function_ref.h"
-#include "components/performance_manager/public/freezing/freezing.h"
+#include "base/observer_list_types.h"
+#include "base/time/time.h"
 #include "components/performance_manager/public/graph/node.h"
-#include "components/performance_manager/public/mojom/coordination_unit.mojom.h"
+#include "components/performance_manager/public/graph/node_set_view.h"
 #include "components/performance_manager/public/mojom/lifecycle.mojom.h"
-#include "components/performance_manager/public/web_contents_proxy.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/permissions/permission_utils.h"
 
 class GURL;
+
+namespace content {
+class WebContents;
+}
+
+namespace resource_attribution {
+class PageContext;
+}
 
 namespace performance_manager {
 
@@ -35,28 +43,14 @@ enum class PageType {
 };
 
 // A PageNode represents the root of a FrameTree, or equivalently a WebContents.
-// These may correspond to normal tabs, WebViews, Portals, Chrome Apps or
-// Extensions.
-class PageNode : public Node {
+// These may correspond to normal tabs, WebViews, Chrome Apps or Extensions.
+class PageNode : public TypedNode<PageNode> {
  public:
-  using FrameNodeVisitor = base::FunctionRef<bool(const FrameNode*)>;
+  using NodeSet = base::flat_set<const Node*>;
+  template <class NodeViewPtr>
+  using NodeSetView = NodeSetView<NodeSet, NodeViewPtr>;
+
   using LifecycleState = mojom::LifecycleState;
-  using Observer = PageNodeObserver;
-  class ObserverDefaultImpl;
-
-  // Reasons for which a frame can become the embedder of a page.
-  enum class EmbeddingType {
-    // Returned if this node doesn't have an embedder.
-    kInvalid,
-    // This page is a guest view. This can be many things (<webview>, <appview>,
-    // etc) but is backed by the same inner/outer WebContents mechanism.
-    kGuestView,
-    // This page is a portal.
-    kPortal,
-  };
-
-  // Returns a string for a PageNode::EmbeddingType enumeration.
-  static const char* ToString(PageNode::EmbeddingType embedding_type);
 
   // Loading state of a page.
   enum class LoadingState {
@@ -83,24 +77,7 @@ class PageNode : public Node {
   static const char* ToString(PageType type);
   static const char* ToString(PageNode::LoadingState loading_state);
 
-  // State of a page. Pages can be born in "kActive" or "kPrerendering" state.
-  enum class PageState {
-    // The page is a normal page, that is actively running. Can transition from
-    // here to kBackForwardCache.
-    kActive,
-
-    // The page is a prerender page. It may do some initial loading but will
-    // never fully run unless it is activated. Can transition from here to
-    // kActive, or be destroyed.
-    kPrerendering,
-
-    // The page is in the back-forward cache. The page will be frozen during its
-    // entire stay in the cache. Can transition from here to kActive or be
-    // destroyed.
-    kBackForwardCache,
-  };
-
-  static const char* ToString(PageNode::PageState page_state);
+  static constexpr NodeTypeEnum Type() { return NodeTypeEnum::kPage; }
 
   PageNode();
 
@@ -120,24 +97,46 @@ class PageNode : public Node {
   // lifetime of this page. See "OnEmbedderFrameNodeChanged".
   virtual const FrameNode* GetEmbedderFrameNode() const = 0;
 
-  // Returns the type of relationship this node has with its embedder, if it has
-  // an embedder.
-  virtual EmbeddingType GetEmbeddingType() const = 0;
+  // Gets the unique token identifying this node for resource attribution. This
+  // token will not be reused after the node is destroyed.
+  virtual resource_attribution::PageContext GetResourceContext() const = 0;
 
   // Returns the type of the page.
   virtual PageType GetType() const = 0;
+
+  // Returns true if this page has the focus.
+  virtual bool IsFocused() const = 0;
 
   // Returns true if this page is currently visible, false otherwise.
   // See PageNodeObserver::OnIsVisibleChanged.
   virtual bool IsVisible() const = 0;
 
-  // Returns the time since the last visibility change. It is always well
-  // defined as the visibility property is set at node creation.
-  virtual base::TimeDelta GetTimeSinceLastVisibilityChange() const = 0;
+  // Returns the time of the last visibility change. It is always well defined
+  // as the visibility property is set at node creation.
+  virtual base::TimeTicks GetLastVisibilityChangeTime() const = 0;
 
   // Returns true if this page is currently audible, false otherwise.
   // See PageNodeObserver::OnIsAudibleChanged.
   virtual bool IsAudible() const = 0;
+
+  // Returns the time since the last audible change. Unlike
+  // GetLastVisibilityChangeTime(), this returns nullopt for a node which has
+  // never been audible. If a node is audible when created, it is considered to
+  // change from inaudible to audible at that point.
+  virtual std::optional<base::TimeDelta> GetTimeSinceLastAudibleChange()
+      const = 0;
+
+  // Returns true if this page is displaying content in a picture-in-picture
+  // window, false otherwise.
+  virtual bool HasPictureInPicture() const = 0;
+
+  // Returns true if this page is opted-out from freezing via origin trial, i.e.
+  // if any of its current frames sets the origin trial.
+  virtual bool HasFreezingOriginTrialOptOut() const = 0;
+
+  // Returns true if this page is off the record, false otherwise.
+  // A tab is off the record when it is open in incognito or guest mode.
+  virtual bool IsOffTheRecord() const = 0;
 
   // Returns the page's loading state.
   virtual LoadingState GetLoadingState() const = 0;
@@ -157,17 +156,24 @@ class PageNode : public Node {
   virtual bool IsHoldingWebLock() const = 0;
 
   // Returns true if at least one of the frame in this page is currently
-  // holding an IndexedDB lock.
-  virtual bool IsHoldingIndexedDBLock() const = 0;
+  // holding an IndexedDB lock that is blocking another client.
+  virtual bool IsHoldingBlockingIndexedDBLock() const = 0;
+
+  // Returns whether at least one frame on this page currently uses WebRTC.
+  virtual bool UsesWebRTC() const = 0;
 
   // Returns the navigation ID associated with the last committed navigation
   // event for the main frame of this page.
   // See PageNodeObserver::OnMainFrameNavigationCommitted.
   virtual int64_t GetNavigationID() const = 0;
 
-  // Returns the MIME type of the contents associated with the last committed
-  // navigation event for the main frame of this page.
+  // Returns the MIME type for the last committed main frame navigation.
   virtual const std::string& GetContentsMimeType() const = 0;
+
+  // Returns the notification permission status for the last committed main
+  // frame navigation (nullopt if it wasn't retrieved).
+  virtual std::optional<blink::mojom::PermissionStatus>
+  GetNotificationPermissionStatus() const = 0;
 
   // Returns "zero" if no navigation has happened, otherwise returns the time
   // since the last navigation commit.
@@ -178,22 +184,20 @@ class PageNode : public Node {
   // are no main frames at the moment, returns nullptr.
   virtual const FrameNode* GetMainFrameNode() const = 0;
 
-  // Visits the main frame nodes associated with this page. The iteration is
-  // halted if the visitor returns false. Returns true if every call to the
-  // visitor returned true, false otherwise.
-  virtual bool VisitMainFrameNodes(const FrameNodeVisitor& visitor) const = 0;
-
   // Returns all of the main frame nodes, both current and otherwise. If there
-  // are no main frames at the moment, returns the empty set. Note that this
-  // incurs a full container copy of all main frame nodes. Please use
-  // VisitMainFrameNodes when that makes sense.
-  virtual const base::flat_set<const FrameNode*> GetMainFrameNodes() const = 0;
+  // are no main frames at the moment, returns the empty set.
+  virtual NodeSetView<const FrameNode*> GetMainFrameNodes() const = 0;
 
   // Returns the URL the main frame last committed a navigation to, or the
   // initial URL of the page before navigation. The latter case is distinguished
   // by a zero navigation ID.
   // See PageNodeObserver::OnMainFrameNavigationCommitted.
   virtual const GURL& GetMainFrameUrl() const = 0;
+
+  // Returns the private memory footprint size of the main frame and its
+  // children. This differs from EstimatePrivateFootprintSize which includes
+  // all the frames under the page node.
+  virtual uint64_t EstimateMainFramePrivateFootprintSize() const = 0;
 
   // Indicates if at least one of the frames in the page has received some form
   // interactions.
@@ -207,51 +211,64 @@ class PageNode : public Node {
   // Returns the web contents associated with this page node. It is valid to
   // call this function on any thread but the weak pointer must only be
   // dereferenced on the UI thread.
-  virtual const WebContentsProxy& GetContentsProxy() const = 0;
-
-  // Indicates if there's a freezing vote for this page node. This has 3
-  // possible values:
-  //   - absl::nullopt: There's no active freezing vote for this page.
-  //   - freezing::FreezingVoteValue::kCanFreeze: There's one or more positive
-  //     freezing vote for this page and no negative vote.
-  //   - freezing::FreezingVoteValue::kCannotFreeze: There's at least one
-  //     negative freezing vote for this page.
-  virtual const absl::optional<freezing::FreezingVote>& GetFreezingVote()
-      const = 0;
-
-  // Returns the current page state. See "PageNodeObserver::OnPageStateChanged".
-  virtual PageState GetPageState() const = 0;
+  virtual base::WeakPtr<content::WebContents> GetWebContents() const = 0;
 
   virtual uint64_t EstimateResidentSetSize() const = 0;
 
   virtual uint64_t EstimatePrivateFootprintSize() const = 0;
+
+  // Returns a weak pointer to this page node.
+  virtual base::WeakPtr<PageNode> GetWeakPtr() = 0;
+  virtual base::WeakPtr<const PageNode> GetWeakPtr() const = 0;
 };
 
-// Pure virtual observer interface. Derive from this if you want to be forced to
-// implement the entire interface.
-class PageNodeObserver {
+// Observer interface for page nodes.
+class PageNodeObserver : public base::CheckedObserver {
  public:
-  using PageState = PageNode::PageState;
-  using EmbeddingType = PageNode::EmbeddingType;
-
   PageNodeObserver();
 
   PageNodeObserver(const PageNodeObserver&) = delete;
   PageNodeObserver& operator=(const PageNodeObserver&) = delete;
 
-  virtual ~PageNodeObserver();
+  ~PageNodeObserver() override;
 
   // Node lifetime notifications.
 
-  // Called when a |page_node| is added to the graph. Observers must not make
-  // any property changes or cause re-entrant notifications during the scope of
-  // this call. Instead, make property changes via a separate posted task.
-  virtual void OnPageNodeAdded(const PageNode* page_node) = 0;
+  // Called before a `page_node` is added to the graph. OnPageNodeAdded() is
+  // better for most purposes, but this can be useful if an observer needs to
+  // check the state of the graph without including `page_node`, or to set
+  // initial properties on the node that should be visible to other observers in
+  // OnPageNodeAdded().
+  //
+  // Observers may make property changes during the scope of this call, as long
+  // as they don't cause notifications to be sent and don't modify pointers
+  // to/from other nodes, since the node is still isolated from the graph. To
+  // change a property that causes notifications, post a task (which will run
+  // after OnPageNodeAdded().
+  //
+  // Note that observers are notified in an arbitrary order, so property changes
+  // made here may or may not be visible to other observers in
+  // OnBeforePageNodeAdded().
+  virtual void OnBeforePageNodeAdded(const PageNode* page_node) {}
 
-  // Called before a |page_node| is removed from the graph. Observers must not
-  // make any property changes or cause re-entrant notifications during the
-  // scope of this call.
-  virtual void OnBeforePageNodeRemoved(const PageNode* page_node) = 0;
+  // Called after a `page_node` is added to the graph. Observers may *not* make
+  // property changes during the scope of this call. To change a property, post
+  // a task which will run after all observers.
+  virtual void OnPageNodeAdded(const PageNode* page_node) {}
+
+  // Called before a `page_node` is removed from the graph. Observers may *not*
+  // make property changes during the scope of this call. The node will be
+  // deleted before any task posted from this scope runs.
+  virtual void OnBeforePageNodeRemoved(const PageNode* page_node) {}
+
+  // Called after a `page_node` is removed from the graph.
+  // OnBeforePageNodeRemoved() is better for most purposes, but this can be
+  // useful if an observer needs to check the state of the graph without
+  // including `page_node`.
+  //
+  // Observers may *not* make property changes during the scope of this call.
+  // The node will be deleted before any task posted from this scope runs.
+  virtual void OnPageNodeRemoved(const PageNode* page_node) {}
 
   // Notifications of property changes.
 
@@ -260,136 +277,98 @@ class PageNodeObserver {
   // via window.open, or when that relationship is subsequently severed or
   // reparented.
   virtual void OnOpenerFrameNodeChanged(const PageNode* page_node,
-                                        const FrameNode* previous_opener) = 0;
+                                        const FrameNode* previous_opener) {}
 
   // Invoked when this page has been assigned an embedder, had the embedder
   // change, or had the embedder removed. This can happen if a page is opened
-  // via webviews, guestviews, portals, etc, or when that relationship is
-  // subsequently severed or reparented.
-  virtual void OnEmbedderFrameNodeChanged(
-      const PageNode* page_node,
-      const FrameNode* previous_embedder,
-      EmbeddingType previous_embedder_type) = 0;
+  // via webviews, guestviews etc, or when that relationship is subsequently
+  // severed or reparented.
+  virtual void OnEmbedderFrameNodeChanged(const PageNode* page_node,
+                                          const FrameNode* previous_embedder) {}
 
   // Invoked when the GetType property changes.
   virtual void OnTypeChanged(const PageNode* page_node,
-                             PageType previous_type) = 0;
+                             PageType previous_type) {}
+
+  // Invoked when the IsFocused property changes.
+  virtual void OnIsFocusedChanged(const PageNode* page_node) {}
 
   // Invoked when the IsVisible property changes.
-  virtual void OnIsVisibleChanged(const PageNode* page_node) = 0;
+  //
+  // GetLastVisibilityChangeTime() will return the time of the previous
+  // IsVisible change. After all observers have fired it will return the time of
+  // this property change.
+  virtual void OnIsVisibleChanged(const PageNode* page_node) {}
 
   // Invoked when the IsAudible property changes.
-  virtual void OnIsAudibleChanged(const PageNode* page_node) = 0;
+  //
+  // GetTimeSinceLastAudibleChange() will return the time since the previous
+  // IsAudible change. After all observers have fired it will return the time of
+  // this property change.
+  virtual void OnIsAudibleChanged(const PageNode* page_node) {}
+
+  // Invoked when the HasPictureInPicture property changes.
+  virtual void OnHasPictureInPictureChanged(const PageNode* page_node) {}
+
+  // Invoked when the HasFreezingOriginTrialOptOut() property changes.
+  virtual void OnPageHasFreezingOriginTrialOptOutChanged(
+      const PageNode* page_node) {}
 
   // Invoked when the GetLoadingState property changes.
   virtual void OnLoadingStateChanged(const PageNode* page_node,
-                                     PageNode::LoadingState previous_state) = 0;
+                                     PageNode::LoadingState previous_state) {}
 
   // Invoked when the UkmSourceId property changes.
-  virtual void OnUkmSourceIdChanged(const PageNode* page_node) = 0;
+  virtual void OnUkmSourceIdChanged(const PageNode* page_node) {}
 
   // Invoked when the PageLifecycleState property changes.
-  virtual void OnPageLifecycleStateChanged(const PageNode* page_node) = 0;
+  virtual void OnPageLifecycleStateChanged(const PageNode* page_node) {}
 
   // Invoked when the IsHoldingWebLock property changes.
-  virtual void OnPageIsHoldingWebLockChanged(const PageNode* page_node) = 0;
+  virtual void OnPageIsHoldingWebLockChanged(const PageNode* page_node) {}
 
-  // Invoked when the IsHoldingIndexedDBLock property changes.
-  virtual void OnPageIsHoldingIndexedDBLockChanged(
-      const PageNode* page_node) = 0;
+  // Invoked when the IsHoldingBlockingIndexedDBLock property changes.
+  virtual void OnPageIsHoldingBlockingIndexedDBLockChanged(
+      const PageNode* page_node) {}
+
+  // Invoked when the UsesWebRTC property changes.
+  virtual void OnPageUsesWebRTCChanged(const PageNode* page_node) {}
+
+  // Invoked when the GetNotificationPermissionStatus property changes.
+  virtual void OnPageNotificationPermissionStatusChange(
+      const PageNode* page_node,
+      std::optional<blink::mojom::PermissionStatus> previous_status) {}
 
   // Invoked when the MainFrameUrl property changes.
-  virtual void OnMainFrameUrlChanged(const PageNode* page_node) = 0;
+  virtual void OnMainFrameUrlChanged(const PageNode* page_node) {}
 
   // This is fired when a non-same document navigation commits in the main
   // frame. It indicates that the the |NavigationId| property and possibly the
   // |MainFrameUrl| properties have changed.
-  virtual void OnMainFrameDocumentChanged(const PageNode* page_node) = 0;
+  virtual void OnMainFrameDocumentChanged(const PageNode* page_node) {}
 
   // Invoked when the HadFormInteraction property changes.
-  virtual void OnHadFormInteractionChanged(const PageNode* page_node) = 0;
+  virtual void OnHadFormInteractionChanged(const PageNode* page_node) {}
 
   // Invoked when the HadUserEdits property changes.
-  virtual void OnHadUserEditsChanged(const PageNode* page_node) = 0;
-
-  // Invoked when the page state changes. See `PageState` for the valid
-  // transitions.
-  virtual void OnPageStateChanged(const PageNode* page_node,
-                                  PageState old_state) = 0;
+  virtual void OnHadUserEditsChanged(const PageNode* page_node) {}
 
   // Events with no property changes.
 
   // Fired when the tab title associated with a page changes. This property is
   // not directly reflected on the node.
-  virtual void OnTitleUpdated(const PageNode* page_node) = 0;
+  virtual void OnTitleUpdated(const PageNode* page_node) {}
 
   // Fired when the favicon associated with a page is updated. This property is
   // not directly reflected on the node.
-  virtual void OnFaviconUpdated(const PageNode* page_node) = 0;
+  virtual void OnFaviconUpdated(const PageNode* page_node) {}
 
   // Fired after `new_page_node` is created but before `page_node` is deleted
   // from being discarded. See the equivalent function on `WebContentsObserver`
   // for more detail.
   virtual void OnAboutToBeDiscarded(const PageNode* page_node,
-                                    const PageNode* new_page_node) = 0;
-
-  // Called every time the aggregated freezing vote changes or gets invalidated.
-  virtual void OnFreezingVoteChanged(
-      const PageNode* page_node,
-      absl::optional<freezing::FreezingVote> previous_vote) = 0;
+                                    const PageNode* new_page_node) {}
 };
-
-// Default implementation of observer that provides dummy versions of each
-// function. Derive from this if you only need to implement a few of the
-// functions.
-class PageNode::ObserverDefaultImpl : public PageNodeObserver {
- public:
-  ObserverDefaultImpl();
-
-  ObserverDefaultImpl(const ObserverDefaultImpl&) = delete;
-  ObserverDefaultImpl& operator=(const ObserverDefaultImpl&) = delete;
-
-  ~ObserverDefaultImpl() override;
-
-  // PageNodeObserver implementation:
-  void OnPageNodeAdded(const PageNode* page_node) override {}
-  void OnBeforePageNodeRemoved(const PageNode* page_node) override {}
-  void OnPageStateChanged(const PageNode* page_node,
-                          PageState old_state) override {}
-  void OnOpenerFrameNodeChanged(const PageNode* page_node,
-                                const FrameNode* previous_opener) override {}
-  void OnEmbedderFrameNodeChanged(
-      const PageNode* page_node,
-      const FrameNode* previous_embedder,
-      EmbeddingType previous_embedding_type) override {}
-  void OnTypeChanged(const PageNode* page_node,
-                     PageType previous_type) override {}
-  void OnIsVisibleChanged(const PageNode* page_node) override {}
-  void OnIsAudibleChanged(const PageNode* page_node) override {}
-  void OnLoadingStateChanged(const PageNode* page_node,
-                             PageNode::LoadingState previous_state) override {}
-  void OnUkmSourceIdChanged(const PageNode* page_node) override {}
-  void OnPageLifecycleStateChanged(const PageNode* page_node) override {}
-  void OnPageIsHoldingWebLockChanged(const PageNode* page_node) override {}
-  void OnPageIsHoldingIndexedDBLockChanged(const PageNode* page_node) override {
-  }
-  void OnMainFrameUrlChanged(const PageNode* page_node) override {}
-  void OnMainFrameDocumentChanged(const PageNode* page_node) override {}
-  void OnHadFormInteractionChanged(const PageNode* page_node) override {}
-  void OnHadUserEditsChanged(const PageNode* page_node) override {}
-  void OnTitleUpdated(const PageNode* page_node) override {}
-  void OnFaviconUpdated(const PageNode* page_node) override {}
-  void OnAboutToBeDiscarded(const PageNode* page_node,
-                            const PageNode* new_page_node) override {}
-  void OnFreezingVoteChanged(
-      const PageNode* page_node,
-      absl::optional<freezing::FreezingVote> previous_vote) override {}
-};
-
-// std::ostream support for PageNode::EmbeddingType.
-std::ostream& operator<<(
-    std::ostream& os,
-    performance_manager::PageNode::EmbeddingType embedding_type);
 
 }  // namespace performance_manager
 

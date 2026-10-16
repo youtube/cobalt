@@ -15,6 +15,8 @@
 #ifndef COBALT_BROWSER_COBALT_BROWSER_INTERFACE_BINDERS_H_
 #define COBALT_BROWSER_COBALT_BROWSER_INTERFACE_BINDERS_H_
 
+#include <optional>
+
 #include "mojo/public/cpp/bindings/binder_map.h"
 
 namespace content {
@@ -25,6 +27,7 @@ namespace cobalt {
 
 // Registers binders for Cobalt-specific, document-scoped Mojo interfaces.
 void PopulateCobaltFrameBinders(
+    std::optional<int64_t> app_startup_timestamp,
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map);
 

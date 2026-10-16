@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "ash/constants/personalization_entry_point.h"
+#include "ash/constants/web_app_id_constants.h"
 #include "ash/public/cpp/app_list/app_list_config.h"
 #include "ash/public/cpp/app_list/app_list_metrics.h"
 #include "ash/public/cpp/app_list/app_list_types.h"
@@ -19,12 +20,16 @@
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/ash/app_list/search/common/icon_constants.h"
-#include "chrome/browser/ash/web_applications/personalization_app/personalization_app_metrics.h"
+#include "chrome/browser/ash/app_list/search/search_provider.h"
+#include "chrome/browser/ash/system_web_apps/apps/personalization_app/personalization_app_manager.h"
+#include "chrome/browser/ash/system_web_apps/apps/personalization_app/personalization_app_manager_factory.h"
+#include "chrome/browser/ash/system_web_apps/apps/personalization_app/personalization_app_metrics.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
-#include "chrome/browser/web_applications/web_app_id_constants.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/app_types.h"
+#include "components/session_manager/core/session_manager.h"
+#include "components/session_manager/core/session_manager_observer.h"
 #include "url/gurl.h"
 
 namespace app_list {
@@ -52,7 +57,7 @@ PersonalizationResult::PersonalizationResult(
   SetTitle(result.text);
   SetResultType(ResultType::kPersonalization);
   SetDisplayType(DisplayType::kList);
-  SetIcon(IconInfo(icon, kAppIconDimension));
+  SetIcon(IconInfo(ui::ImageModel::FromImageSkia(icon), kAppIconDimension));
   SetMetricsType(::ash::SearchResultType::PERSONALIZATION);
 }
 
@@ -68,25 +73,63 @@ void PersonalizationResult::Open(int event_flags) {
                                launch_params);
 }
 
-PersonalizationProvider::PersonalizationProvider(
-    Profile* profile,
-    ash::personalization_app::SearchHandler* search_handler)
-    : profile_(profile), search_handler_(search_handler) {
-  app_service_proxy_ = apps::AppServiceProxyFactory::GetForProfile(profile_);
-  Observe(&app_service_proxy_->AppRegistryCache());
-  StartLoadIcon();
-
-  if (search_handler_) {
-    search_handler_->AddObserver(
-        search_results_observer_.BindNewPipeAndPassRemote());
+PersonalizationProvider::PersonalizationProvider(Profile* profile)
+    : SearchProvider(SearchCategory::kSettings), profile_(profile) {
+  auto* session_manager = session_manager::SessionManager::Get();
+  if (session_manager->IsUserSessionStartUpTaskCompleted()) {
+    // If user session start up task has completed, the initialization can
+    // start.
+    MaybeInitialize();
+  } else {
+    // Wait for the user session start up task completion to prioritize
+    // resources for them.
+    session_manager_observation_.Observe(session_manager);
   }
 }
 
 PersonalizationProvider::~PersonalizationProvider() = default;
 
-void PersonalizationProvider::Start(const std::u16string& query) {
-  if (!search_handler_)
+void PersonalizationProvider::MaybeInitialize(
+    ::ash::personalization_app::SearchHandler* fake_search_handler) {
+  // Ensures that the provider can be initialized once only.
+  if (has_initialized) {
     return;
+  }
+  has_initialized = true;
+
+  // Initialization is happening, so we no longer need to wait for user session
+  // start up task completion.
+  session_manager_observation_.Reset();
+
+  app_registry_cache_observer_.Observe(
+      &apps::AppServiceProxyFactory::GetForProfile(profile_)
+           ->AppRegistryCache());
+  StartLoadIcon();
+
+  // Use fake search handler if provided in tests, or get it from
+  // `personalization_app_manager`.
+  if (fake_search_handler) {
+    search_handler_ = fake_search_handler;
+  } else {
+    auto* personalization_app_manager = ash::personalization_app::
+        PersonalizationAppManagerFactory::GetForBrowserContext(profile_);
+    CHECK(personalization_app_manager);
+    search_handler_ = personalization_app_manager->search_handler();
+  }
+  CHECK(search_handler_);
+  search_handler_->AddObserver(
+      search_results_observer_.BindNewPipeAndPassRemote());
+}
+
+void PersonalizationProvider::Start(const std::u16string& query) {
+  if (!search_handler_) {
+    // If user has started to user launcher search before the user session
+    // startup tasks completed, we should honor this user action and
+    // initialize the provider. It makes the personalization search available
+    // earlier.
+    MaybeInitialize();
+    return;
+  }
 
   if (query.size() < kMinQueryLength) {
     return;
@@ -123,7 +166,7 @@ void PersonalizationProvider::OnSearchResultsChanged() {
 }
 
 void PersonalizationProvider::OnAppUpdate(const apps::AppUpdate& update) {
-  if (update.AppId() != web_app::kPersonalizationAppId) {
+  if (update.AppId() != ash::kPersonalizationAppId) {
     return;
   }
 
@@ -135,7 +178,9 @@ void PersonalizationProvider::OnAppUpdate(const apps::AppUpdate& update) {
 }
 
 void PersonalizationProvider::OnAppRegistryCacheWillBeDestroyed(
-    apps::AppRegistryCache* cache) {}
+    apps::AppRegistryCache* cache) {
+  app_registry_cache_observer_.Reset();
+}
 
 void PersonalizationProvider::OnSearchDone(
     base::TimeTicks start_time,
@@ -153,11 +198,14 @@ void PersonalizationProvider::OnSearchDone(
   SwapResults(&search_results);
 }
 
+void PersonalizationProvider::OnUserSessionStartUpTaskCompleted() {
+  MaybeInitialize();
+}
+
 void PersonalizationProvider::StartLoadIcon() {
-  app_service_proxy_->LoadIcon(
-      app_service_proxy_->AppRegistryCache().GetAppType(
-          web_app::kPersonalizationAppId),
-      web_app::kPersonalizationAppId, apps::IconType::kStandard,
+  auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile_);
+  proxy->LoadIcon(
+      ash::kPersonalizationAppId, apps::IconType::kStandard,
       ash::SharedAppListConfig::instance().search_list_icon_dimension(),
       /*allow_placeholder_icon=*/false,
       base::BindOnce(&PersonalizationProvider::OnLoadIcon,

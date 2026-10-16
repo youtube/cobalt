@@ -14,15 +14,31 @@
 
 #include "media/starboard/starboard_renderer.h"
 
+#include "base/barrier_closure.h"
+#include "base/containers/flat_map.h"
 #include "base/feature_list.h"
+#include "base/json/string_escape.h"
 #include "base/logging.h"
+#include "base/no_destructor.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/stringprintf.h"
+#include "base/synchronization/lock.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/thread_annotations.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/media_switches.h"
+#include "media/base/starboard/experimental_features.h"
+#include "media/base/timestamp_constants.h"
 #include "media/base/video_codecs.h"
+#include "media/starboard/buildflags.h"
+#include "media/starboard/decoder_buffer_allocator.h"
+#include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
+#include "starboard/common/string.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "media/base/android/android_overlay.h"
@@ -36,6 +52,34 @@ namespace {
 using ::starboard::GetMediaAudioConnectorName;
 using ::starboard::GetPlayerStateName;
 
+struct ActiveRendererEntry {
+  scoped_refptr<base::SequencedTaskRunner> task_runner;
+  base::WeakPtr<StarboardRenderer> weak_this;
+};
+
+// Tracks active StarboardRenderer instances and conceal state so
+// FlushAndSuspendActiveRenderers() can be safely invoked from the browser UI
+// thread during kSbEventTypeConceal.
+// TODO(b/570356133): Move StarboardRendererConcealRegistry ownership into
+// GpuMojoMediaClientStarboard via MediaService to avoid a static singleton.
+struct StarboardRendererConcealRegistry {
+  base::Lock lock;
+  base::flat_map<StarboardRenderer*, ActiveRendererEntry> active_renderers
+      GUARDED_BY(lock);
+  bool is_concealed GUARDED_BY(lock) = false;
+};
+
+StarboardRendererConcealRegistry& GetConcealRegistry() {
+  static base::NoDestructor<StarboardRendererConcealRegistry> registry;
+  return *registry;
+}
+
+bool IsApplicationConcealed() {
+  auto& registry = GetConcealRegistry();
+  base::AutoLock auto_lock(registry.lock);
+  return registry.is_concealed;
+}
+
 // In the OnNeedData(), it attempts to write one more audio access
 // unit than the audio write duration. Specifically, the check
 // |time_ahead_of_playback_for_preroll| > |adjusted_write_duration_for_preroll|
@@ -45,6 +89,10 @@ using ::starboard::GetPlayerStateName;
 // additional call to SbPlayerWriteSamples(). By writing an extra guard audio
 // buffer, this extra write during preroll can be eliminated.
 const int kPrerollGuardAudioBuffer = 1;
+
+// The value of 12 was chosen after experimentation was done. For more
+// details, see b/497891900.
+constexpr int kDefaultMaxSamplePerWrite = 12;
 
 bool HasRemoteAudioOutputs(
     const std::vector<SbMediaAudioConfiguration>& configurations) {
@@ -111,7 +159,6 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
       return 1;
   }
 }
-
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
@@ -121,6 +168,8 @@ StarboardRenderer::StarboardRenderer(
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
+    const std::string& max_video_resolution,
+    const StarboardRendererConfig::ExperimentalFeatures& experimental_features,
     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
     ,
@@ -135,6 +184,10 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
+      max_video_resolution_(max_video_resolution),
+      experimental_features_(experimental_features),
+      max_samples_per_write_(experimental_features.Get(kMediaMaxSamplesPerWrite)
+                                 .value_or(kDefaultMaxSamplePerWrite)),
       viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
       ,
@@ -143,15 +196,35 @@ StarboardRenderer::StarboardRenderer(
 {
   DCHECK(task_runner_);
   DCHECK(media_log_);
-  LOG(INFO) << "StarboardRenderer constructed.";
+  CHECK_GT(max_samples_per_write_, 0);
+  {
+    auto& registry = GetConcealRegistry();
+    base::AutoLock auto_lock(registry.lock);
+    registry.active_renderers.emplace(
+        this, ActiveRendererEntry{task_runner_, weak_factory_.GetWeakPtr()});
+  }
+  LOG(INFO) << "StarboardRenderer constructed: audio_write_duration_local="
+            << audio_write_duration_local_
+            << ", audio_write_duration_remote=" << audio_write_duration_remote_
+            << ", max_video_capabilities="
+            << base::GetQuotedJSONString(max_video_capabilities_)
+            << ", max_samples_per_write=" << max_samples_per_write_
+            << ", view_port_size=" << viewport_size_.ToString()
+            << ", experimental_features=" << experimental_features_;
 }
 
 StarboardRenderer::~StarboardRenderer() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  weak_factory_.InvalidateWeakPtrs();
 
   LOG(INFO) << "Destructing StarboardRenderer.";
 
   player_bridge_.reset();
+  {
+    auto& registry = GetConcealRegistry();
+    base::AutoLock auto_lock(registry.lock);
+    registry.active_renderers.erase(this);
+  }
 
   LOG(INFO) << "SbPlayerBridge destructed.";
 }
@@ -172,7 +245,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   LOG(INFO) << "Initializing StarboardRenderer.";
 
-#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   // Note that once this code block is enabled, we should also ensure that the
   // posted callback executes on the right object (i.e. not destroyed, use
   // WeakPtr?) in the right state (not flushed?).
@@ -184,10 +257,30 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
         base::Milliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
-#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
   client_ = client;
   init_cb_ = std::move(init_cb);
+
+  // If the application is concealed, abort initialization immediately so
+  // SbPlayerCreate is not invoked on a destroyed native window.
+  if (IsApplicationConcealed()) {
+    state_ = STATE_ERROR;
+    std::move(init_cb_).Run(PIPELINE_ERROR_ABORT);
+    return;
+  }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+  if (IsUrlPlayer()) {
+    state_ = STATE_INITIALIZING;
+    if (get_sb_window_handle_cb_) {
+      get_sb_window_handle_cb_.Run();
+      return;
+    }
+    CreatePlayerBridge();
+    return;
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   audio_stream_ = media_resource->GetFirstStream(DemuxerStream::AUDIO);
   video_stream_ = media_resource->GetFirstStream(DemuxerStream::VIDEO);
@@ -233,21 +326,26 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   state_ = STATE_INITIALIZING;
 
 #if BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(media::kCobaltUsingAndroidOverlay)) {
+  if (base::FeatureList::IsEnabled(media::kCobaltUsingAndroidOverlay) ||
+      IsSecondaryVideoProtected()) {
+    CHECK(request_overlay_info_cb_);
+    CHECK(android_overlay_factory_cb_);
     // RequestOverlayInfoCB and create AndroidOverlay if the BASE feature is
-    // enabled.
-    if (request_overlay_info_cb_ && android_overlay_factory_cb_) {
-      // Set |restart_for_transitions| to false due to devices are
-      // isSetOutputSurfaceSupported() in
-      // media/base/android/java/src/org/chromium/media/MediaCodecUtil.java.
-      request_overlay_info_cb_.Run(/*restart_for_transitions=*/false);
-      return;
-    }
-    // When CobaltUsingAndroidOverlay is enabled, both request_overlay_info_cb_
-    // and android_overlay_factory_cb_ should not be null.
-    NOTREACHED();
+    // enabled or if secondary video requires DRM (L1).
+    // Set |restart_for_transitions| to false due to devices are
+    // isSetOutputSurfaceSupported() in
+    // media/base/android/java/src/org/chromium/media/MediaCodecUtil.java.
+    LOG(INFO) << "Requesting AndroidOverlay for Video SurfaceView.";
+    request_overlay_info_cb_.Run(/*restart_for_transitions=*/false);
+    return;
   }
 #endif  // BUILDFLAG(IS_ANDROID)
+
+  if (get_sb_window_handle_cb_) {
+    // Get SbWindow from CobaltRenderContentClient.
+    get_sb_window_handle_cb_.Run();
+    return;
+  }
 
   CreatePlayerBridge();
 }
@@ -269,12 +367,40 @@ void StarboardRenderer::SetCdm(CdmContext* cdm_context,
   std::move(cdm_attached_cb).Run(true);
   LOG(INFO) << "CDM set successfully.";
 
+#if BUILDFLAG(IS_IOS_TVOS)
+  // Wire DRM to URL player bridge if it was created before CDM arrived.
+  if (IsUrlPlayer() && player_bridge_ && SbDrmSystemIsValid(drm_system_)) {
+    player_bridge_->SetDrmSystem(drm_system_);
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
   if (state_ != STATE_INIT_PENDING_CDM) {
     return;
   }
 
   DCHECK(init_cb_);
   state_ = STATE_INITIALIZING;
+
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(media::kCobaltUsingAndroidOverlay) ||
+      IsSecondaryVideoProtected()) {
+    CHECK(request_overlay_info_cb_);
+    CHECK(android_overlay_factory_cb_);
+    // RequestOverlayInfoCB and create AndroidOverlay if the BASE feature is
+    // enabled or if secondary video requires DRM (L1).
+    LOG(INFO)
+        << "Requesting AndroidOverlay for Video SurfaceView after CDM set.";
+    request_overlay_info_cb_.Run(/*restart_for_transitions=*/false);
+    return;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  if (get_sb_window_handle_cb_) {
+    // Get SbWindow from CobaltRenderContentClient.
+    get_sb_window_handle_cb_.Run();
+    return;
+  }
+
   CreatePlayerBridge();
 }
 
@@ -289,26 +415,18 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
 
   LOG(INFO) << "Flushing StarboardRenderer.";
 
-  // It's possible that Flush() is called immediately after StartPlayingFrom(),
-  // before the underlying SbPlayer is initialized.  Reset
-  // `playing_start_from_time_` here as StartPlayingFrom() checks for
-  // re-entrant.  This also avoids the stale `playing_start_from_time_` to be
-  // used.
-  playing_start_from_time_.reset();
-
   // Prepares the |player_bridge_| for Seek(), the |player_bridge_| won't
   // request more data from us before Seek() is called.
   player_bridge_->PrepareForSeek();
+  // Reset |playback_rate_| after PrepareForSeek().
+  playback_rate_ = 0.0;
 
   if (buffering_state_ != BUFFERING_HAVE_NOTHING) {
     buffering_state_ = BUFFERING_HAVE_NOTHING;
-    if (base::FeatureList::IsEnabled(
-            media::kCobaltReportBufferingStateDuringFlush)) {
-      task_runner_->PostTask(
-          FROM_HERE,
-          base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
-                         weak_factory_.GetWeakPtr(), buffering_state_));
-    }
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
+                       weak_factory_.GetWeakPtr(), buffering_state_));
   }
 
   // The function can be called when there are in-flight Demuxer::Read() calls
@@ -354,16 +472,8 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
     return;
   }
 
-  if (player_bridge_initialized_) {
-    state_ = STATE_PLAYING;
-    player_bridge_->Seek(time);
-    return;
-  }
-
-  // We cannot start playback before SbPlayerBridge is initialized, save the
-  // time and start later.
-  DCHECK(!playing_start_from_time_);
-  playing_start_from_time_ = time;
+  state_ = STATE_PLAYING;
+  player_bridge_->Seek(time);
 }
 
 void StarboardRenderer::SetPlaybackRate(double playback_rate) {
@@ -421,10 +531,10 @@ TimeDelta StarboardRenderer::GetMediaTime() {
 
   uint32_t video_frames_decoded, video_frames_dropped;
   uint64_t audio_bytes_decoded, video_bytes_decoded;
-  TimeDelta media_time;
+  TimeDelta media_time, duration;
   SbPlayerBridge::PlayerInfo info{&video_frames_decoded, &video_frames_dropped,
-                                  &audio_bytes_decoded, &video_bytes_decoded,
-                                  &media_time};
+                                  &audio_bytes_decoded,  &video_bytes_decoded,
+                                  &media_time,           &duration};
 
   player_bridge_->GetInfo(&info);
 
@@ -455,14 +565,51 @@ TimeDelta StarboardRenderer::GetMediaTime() {
         FROM_HERE, base::BindOnce(&StarboardRenderer::OnStatisticsUpdate,
                                   weak_factory_.GetWeakPtr(), statistics));
   }
+#if BUILDFLAG(IS_IOS_TVOS)
+  if (IsUrlPlayer()) {
+    UpdateUrlPlayerVideoResolution();
+
+    if (duration_change_cb_ && duration != kNoTimestamp &&
+        duration != last_duration_) {
+      last_duration_ = duration;
+      duration_change_cb_.Run(duration);
+    }
+
+    // Polling buffered ranges on every media-time update may affect
+    // performance. Since the URL player exposes only the last loaded range and
+    // polling is not synchronized with platform buffer updates, reported ranges
+    // may be incomplete or stale.
+    if (buffered_ranges_cb_) {
+      TimeDelta buffer_start, buffer_length;
+      player_bridge_->GetUrlPlayerBufferedTimeRanges(&buffer_start,
+                                                     &buffer_length);
+      if (buffer_start != last_buffer_start_ ||
+          buffer_length != last_buffer_length_) {
+        last_buffer_start_ = buffer_start;
+        last_buffer_length_ = buffer_length;
+        buffered_ranges_cb_.Run(buffer_start, buffer_length);
+      }
+    }
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
   StoreMediaTime(media_time);
 
   return media_time;
 }
 
+void StarboardRenderer::OnTracksChanged(
+    DemuxerStream::Type track_type,
+    std::vector<DemuxerStream*> enabled_tracks,
+    base::OnceClosure change_completed_cb) {
+  LOG(INFO) << "OnTracksChanged not supported for type: " << track_type;
+  std::move(change_completed_cb).Run();
+}
+
 void StarboardRenderer::SetStarboardRendererCallbacks(
     PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
-    UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb
+    UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb,
+    GetSbWindowHandleCallback get_sb_window_handle_cb
 #if BUILDFLAG(IS_ANDROID)
     ,
     RequestOverlayInfoCallBack request_overlay_info_cb
@@ -471,6 +618,7 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
   paint_video_hole_frame_cb_ = std::move(paint_video_hole_frame_cb);
   update_starboard_rendering_mode_cb_ =
       std::move(update_starboard_rendering_mode_cb);
+  get_sb_window_handle_cb_ = std::move(get_sb_window_handle_cb);
 #if BUILDFLAG(IS_ANDROID)
   request_overlay_info_cb_ = std::move(request_overlay_info_cb);
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -478,16 +626,95 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
   CHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (output_rect_ == output_rect) {
+    return;
+  }
+
   output_rect_ = output_rect;
+
+#if BUILDFLAG(IS_ANDROID)
+  if (overlay_ && output_rect_) {
+    overlay_->ScheduleLayout(*output_rect_);
+    return;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
 
   ApplyPendingBounds();
 }
 
+void StarboardRenderer::OnSbWindowHandleReady(const uint64_t sb_window_handle) {
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (sb_window_handle != 0) {
+    sb_window_ = reinterpret_cast<SbWindow>(sb_window_handle);
+    if (!SbWindowIsValid(sb_window_)) {
+      LOG(WARNING) << "SbWindow is not valid.";
+    }
+  }
+  CreatePlayerBridge();
+}
+
+#if BUILDFLAG(IS_IOS_TVOS)
+bool StarboardRenderer::IsUrlPlayer() const {
+  return !source_url_.empty();
+}
+
+void StarboardRenderer::UpdateUrlPlayerVideoResolution() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (!player_bridge_) {
+    return;
+  }
+
+  int width = 0, height = 0;
+  player_bridge_->GetVideoResolution(&width, &height);
+  if (width <= 0 || height <= 0) {
+    LOG(WARNING) << "Platform player reported invalid dimensions (" << width
+                 << "x" << height
+                 << ") at presenting; skipping video hole update.";
+    return;
+  }
+
+  const gfx::Size size(width, height);
+  if (size == url_player_video_size_) {
+    return;
+  }
+
+  url_player_video_size_ = size;
+  client_->OnVideoNaturalSizeChange(size);
+  if (player_bridge_->GetSbPlayerOutputMode() == kSbPlayerOutputModePunchOut) {
+    paint_video_hole_frame_cb_.Run(size);
+  }
+}
+
+void StarboardRenderer::OnUrlPlayerPresenting() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (!player_bridge_) {
+    return;
+  }
+
+  UpdateUrlPlayerVideoResolution();
+
+  // Re-apply playback rate; the platform player ignores rate changes
+  // before it is ready to play.
+  player_bridge_->SetPlaybackRate(playback_rate_);
+}
+
+void StarboardRenderer::SetSourceUrl(const std::string& source_url) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  source_url_ = source_url;
+}
+
+void StarboardRenderer::OnEncryptedMediaInitDataEncountered(
+    const std::string& init_data_type,
+    const std::vector<uint8_t>& init_data) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (encrypted_media_init_data_cb_) {
+    encrypted_media_init_data_cb_.Run(init_data_type, init_data);
+  }
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
 #if BUILDFLAG(IS_ANDROID)
 void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
-  // TODO: b/429435008 - Request AndroidOverlay() for SbPlayer.
-  // Check if the the overlay_info has stayed the same --> do not request
-  // AndroidOverlay.
   bool overlay_changed = !overlay_info_.RefersToSameOverlayAs(overlay_info);
   if (!overlay_changed) {
     return;
@@ -510,8 +737,14 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
                                    weak_factory_.GetWeakPtr());
   config.failed_cb = base::BindOnce(&StarboardRenderer::OnOverlayFailed,
                                     weak_factory_.GetWeakPtr());
-  config.rect = gfx::Rect(viewport_size_);
-  config.secure = false;
+  gfx::Rect initial_rect = gfx::Rect(viewport_size_);
+  if (initial_rect.IsEmpty()) {
+    // Provide a default non-zero size, this is fine as it will be
+    // updated by OnVideoGeometryChange().
+    initial_rect = gfx::Rect(0, 0, 1920, 1080);
+  }
+  config.rect = initial_rect;
+  config.secure = cdm_context_ != nullptr;
   config.power_efficient = false;
 
   overlay_ = android_overlay_factory_cb_.Run(*overlay_info.routing_token,
@@ -522,21 +755,51 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
 #endif  // BUILDFLAG(IS_ANDROID)
 
 SbPlayerInterface* StarboardRenderer::GetSbPlayerInterface() {
-  if (test_sbplayer_interface_) {
-    return test_sbplayer_interface_;
+  SbPlayerInterface* testing_interface = GetSbPlayerInterfaceForTesting();
+  return testing_interface ? testing_interface : &sbplayer_interface_;
+}
+
+void StarboardRenderer::UpdateAudioWriteDuration() {
+#if BUILDFLAG(IS_IOS_TVOS)
+  // URL player handles audio natively; no write duration to configure.
+  if (IsUrlPlayer()) {
+    return;
   }
-  return &sbplayer_interface_;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+  // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
+  // returns no audio configurations, update the write durations again
+  // before the SbPlayer reaches `kSbPlayerStatePresenting`.
+  audio_write_duration_for_preroll_ = audio_write_duration_ =
+      HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
+          ? audio_write_duration_remote_
+          : audio_write_duration_local_;
+  LOG(INFO) << "audio write duration at " << audio_write_duration_
+            << ", max_video_capabilities_ at " << max_video_capabilities_;
 }
 
 void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  // If concealed while waiting for an asynchronous window handle or overlay,
+  // abort before constructing SbPlayerBridge on a destroyed native window.
+  if (IsApplicationConcealed() || state_ == STATE_ERROR) {
+    state_ = STATE_ERROR;
+    if (init_cb_) {
+      std::move(init_cb_).Run(PIPELINE_ERROR_ABORT);
+    }
+    return;
+  }
   DCHECK(init_cb_);
   DCHECK_EQ(state_, STATE_INITIALIZING);
+#if BUILDFLAG(IS_IOS_TVOS)
+  DCHECK(audio_stream_ || video_stream_ ||
+         (IsUrlPlayer() && !audio_stream_ && !video_stream_));
+#else
   DCHECK(audio_stream_ || video_stream_);
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   TRACE_EVENT0("media", "StarboardRenderer::CreatePlayerBridge");
 
-#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   // Note that once this code block is enabled, we should also ensure that the
   // posted callback executes on the right object (i.e. not destroyed, use
   // WeakPtr?) in the right state (not flushed?).
@@ -547,7 +810,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         base::Milliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
-#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
 
   AudioDecoderConfig invalid_audio_config;
   const AudioDecoderConfig& audio_config =
@@ -558,11 +821,6 @@ void StarboardRenderer::CreatePlayerBridge() {
       video_stream_ ? video_stream_->video_decoder_config()
                     : invalid_video_config;
 
-  const std::string audio_mime_type =
-      audio_stream_ ? audio_stream_->mime_type() : "";
-  const std::string video_mime_type =
-      video_stream_ ? video_stream_->mime_type() : "";
-
   std::string error_message;
 
   DCHECK(!player_bridge_);
@@ -572,83 +830,101 @@ void StarboardRenderer::CreatePlayerBridge() {
   // number of active players.
   player_bridge_.reset();
 
-  LOG(INFO) << "Creating SbPlayerBridge.";
-
-  player_bridge_.reset(new SbPlayerBridge(
-      GetSbPlayerInterface(), task_runner_,
-      // TODO(b/375070492): Implement decode-to-texture support
-      SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
-      audio_config, audio_mime_type, video_config, video_mime_type,
-      // TODO(b/326497953): Support suspend/resume.
-      // TODO(b/326508279): Support background mode.
-      kSbWindowInvalid, drm_system_, this,
-      // TODO(b/326497953): Support suspend/resume.
-      false,
-      // TODO(b/326825450): Revisit 360 videos.
-      kSbPlayerOutputModeInvalid, max_video_capabilities_,
-      // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-      -1));
-  if (player_bridge_->IsValid()) {
-    // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
-    // returns no audio configurations, update the write durations again
-    // before the SbPlayer reaches `kSbPlayerStatePresenting`.
-    audio_write_duration_for_preroll_ = audio_write_duration_ =
-        HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
-            ? audio_write_duration_remote_
-            : audio_write_duration_local_;
-    LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
-              << audio_write_duration_for_preroll_
-              << " and with max_video_capabilities_ at "
-              << max_video_capabilities_;
+#if BUILDFLAG(IS_IOS_TVOS)
+  if (IsUrlPlayer()) {
+    player_bridge_.reset(new SbPlayerBridge(
+        GetSbPlayerInterface(), task_runner_, source_url_, sb_window_, this,
+        /*allow_resume_after_suspend=*/false, kSbPlayerOutputModePunchOut,
+        base::BindRepeating(
+            &StarboardRenderer::OnEncryptedMediaInitDataEncountered,
+            base::Unretained(this))
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+            ,
+        /*pipeline_identifier=*/""
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
+        ));
+    // Wire DRM if CDM arrived before bridge creation.
+    if (SbDrmSystemIsValid(drm_system_)) {
+      player_bridge_->SetDrmSystem(drm_system_);
+    }
   } else {
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+    player_bridge_.reset(new SbPlayerBridge(
+        GetSbPlayerInterface(), task_runner_,
+        get_decode_target_graphics_context_provider_func_, audio_config,
+        video_config,
+        // TODO(b/326497953): Support suspend/resume.
+        // TODO(b/326508279): Support background mode.
+        sb_window_, drm_system_, this,
+        // TODO(b/326497953): Support suspend/resume.
+        false,
+        // TODO(b/326825450): Revisit 360 videos.
+        kSbPlayerOutputModeInvalid, max_video_capabilities_,
+        max_video_resolution_,
+        // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
+        /*max_video_input_size=*/-1, experimental_features_
+#if BUILDFLAG(IS_ANDROID)
+        ,
+        // TODO: b/475294958 - Revisit platform-specific codes above starboard.
+        surface_view_
+#endif  // BUILDFLAG(IS_ANDROID)
+        ));
+#if BUILDFLAG(IS_IOS_TVOS)
+  }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
+  if (!player_bridge_->IsValid()) {
     error_message = player_bridge_->GetPlayerCreationErrorMessage();
     player_bridge_.reset();
-    LOG(INFO) << "Failed to create a valid SbPlayerBridge.";
-  }
 
-  if (player_bridge_ && player_bridge_->IsValid()) {
-    ApplyPendingBounds();
+    LOG(INFO) << "StarboardRenderer::CreatePlayerBridge() failed to create a"
+                 " valid SbPlayerBridge - \""
+              << error_message << "\"";
 
-    const auto output_mode = player_bridge_->GetSbPlayerOutputMode();
-    switch (output_mode) {
-      case kSbPlayerOutputModeDecodeToTexture:
-        update_starboard_rendering_mode_cb_.Run(
-            StarboardRenderingMode::kDecodeToTexture);
-        break;
-      case kSbPlayerOutputModePunchOut:
-        update_starboard_rendering_mode_cb_.Run(
-            StarboardRenderingMode::kPunchOut);
-        break;
-      case kSbPlayerOutputModeInvalid:
-        NOTREACHED() << "Invalid SbPlayer output mode";
-        break;
-    }
-
-    if (audio_stream_) {
-      UpdateDecoderConfig(audio_stream_);
-    }
-    if (video_stream_) {
-      UpdateDecoderConfig(video_stream_);
-    }
-
-    player_bridge_->SetPlaybackRate(playback_rate_);
-    player_bridge_->SetVolume(volume_);
-
-    state_ = STATE_FLUSHED;
-    std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
+    state_ = STATE_ERROR;
+    std::move(init_cb_).Run(PipelineStatus(
+        DECODER_ERROR_NOT_SUPPORTED,
+        "StarboardRenderer::CreatePlayerBridge() failed to create a valid"
+        " SbPlayerBridge - \"" +
+            error_message + "\""));
     return;
   }
 
-  LOG(INFO) << "StarboardRenderer::CreatePlayerBridge() failed to create a"
-               " valid SbPlayerBridge - \""
-            << error_message << "\"";
+  UpdateAudioWriteDuration();
 
-  state_ = STATE_ERROR;
-  std::move(init_cb_).Run(PipelineStatus(
-      DECODER_ERROR_NOT_SUPPORTED,
-      "StarboardRenderer::CreatePlayerBridge() failed to create a valid"
-      " SbPlayerBridge - \"" +
-          error_message + "\""));
+  ApplyPendingBounds();
+
+  const auto output_mode = player_bridge_->GetSbPlayerOutputMode();
+  switch (output_mode) {
+    case kSbPlayerOutputModeDecodeToTexture:
+      update_starboard_rendering_mode_cb_.Run(
+          StarboardRenderingMode::kDecodeToTexture);
+      break;
+    case kSbPlayerOutputModePunchOut:
+      update_starboard_rendering_mode_cb_.Run(
+          StarboardRenderingMode::kPunchOut);
+      break;
+    case kSbPlayerOutputModeInvalid:
+      NOTREACHED() << "Invalid SbPlayer output mode";
+      break;
+  }
+
+  if (audio_stream_) {
+    UpdateDecoderConfig(audio_stream_);
+  }
+  if (video_stream_) {
+    UpdateDecoderConfig(video_stream_);
+  }
+
+  player_bridge_->SetVolume(volume_);
+
+  state_ = STATE_FLUSHED;
+
+  // Defer running the initialization callback
+  // (|init_cb_|.Run(PipelineStatus(PIPELINE_OK))) until the `SbPlayer`
+  // reports it is initialized via
+  // `OnPlayerStatus(kSbPlayerStateInitialized)`. This ensures clients don't
+  // call `StartPlayingFrom()` until the SbPlayer is actually ready.
 }
 
 void StarboardRenderer::ApplyPendingBounds() {
@@ -668,12 +944,12 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
 
   if (stream->type() == DemuxerStream::AUDIO) {
     const AudioDecoderConfig& decoder_config = stream->audio_decoder_config();
-    player_bridge_->UpdateAudioConfig(decoder_config, stream->mime_type());
+    player_bridge_->UpdateAudioConfig(decoder_config);
   } else {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
 
-    player_bridge_->UpdateVideoConfig(decoder_config, stream->mime_type());
+    player_bridge_->UpdateVideoConfig(decoder_config);
 
     // TODO(b/375275033): Refine natural size change handling.
 #if 0
@@ -687,20 +963,25 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
       content_size_change_cb_.Run();
     }
 #endif  // 0
-    paint_video_hole_frame_cb_.Run(
-        stream->video_decoder_config().visible_rect().size());
+    color_space_ = decoder_config.color_space_info().ToGfxColorSpace();
+    if (player_bridge_->GetSbPlayerOutputMode() ==
+        kSbPlayerOutputModePunchOut) {
+      paint_video_hole_frame_cb_.Run(
+          stream->video_decoder_config().visible_rect().size());
+    }
   }
 }
 
 void StarboardRenderer::OnDemuxerStreamRead(
     DemuxerStream* stream,
+    int max_buffers,
     DemuxerStream::Status status,
     DemuxerStream::DecoderBufferVector buffers) {
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                       weak_factory_.GetWeakPtr(), stream, status, buffers));
+        FROM_HERE, base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
+                                  weak_factory_.GetWeakPtr(), stream,
+                                  max_buffers, status, buffers));
     return;
   }
 
@@ -721,7 +1002,14 @@ void StarboardRenderer::OnDemuxerStreamRead(
     return;
   }
 
-  DCHECK(player_bridge_);
+  if (state_ == STATE_ERROR || !player_bridge_) {
+    if (stream == audio_stream_) {
+      audio_read_in_progress_ = false;
+    } else if (stream == video_stream_) {
+      video_read_in_progress_ = false;
+    }
+    return;
+  }
 
   if (status == DemuxerStream::kOk) {
     if (stream == audio_stream_) {
@@ -768,14 +1056,20 @@ void StarboardRenderer::OnDemuxerStreamRead(
       // TODO(b/375275033): Refine calling to OnVideoNaturalSizeChange().
       client_->OnVideoNaturalSizeChange(
           stream->video_decoder_config().visible_rect().size());
-      paint_video_hole_frame_cb_.Run(
-          stream->video_decoder_config().visible_rect().size());
+      if (player_bridge_->GetSbPlayerOutputMode() ==
+          kSbPlayerOutputModePunchOut) {
+        paint_video_hole_frame_cb_.Run(
+            stream->video_decoder_config().visible_rect().size());
+      }
     }
     UpdateDecoderConfig(stream);
-    stream->Read(1, base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                                   weak_factory_.GetWeakPtr(), stream));
+    stream->Read(
+        max_buffers,
+        base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
+                       weak_factory_.GetWeakPtr(), stream, max_buffers));
   } else if (status == DemuxerStream::kError) {
-    client_->OnError(PIPELINE_ERROR_READ);
+    state_ = STATE_ERROR;
+    NotifyError(PIPELINE_ERROR_READ);
   }
 }
 
@@ -787,6 +1081,12 @@ void StarboardRenderer::OnStatisticsUpdate(const PipelineStatistics& stats) {
 void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
                                    int max_number_of_buffers_to_write) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+#if BUILDFLAG(IS_IOS_TVOS)
+  // URL player handles all buffering natively; OnNeedData should never
+  // be called because SbUrlPlayerCreate does not take a decoder-status
+  // callback. This is defensive guard.
+  DCHECK(!IsUrlPlayer());
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   // In case if the callback is fired when creation of the `player_bridge_`
   // fails.
@@ -796,10 +1096,8 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
     return;
   }
 
-  int max_buffers = max_audio_samples_per_write_ > 1
-                        ? std::min(max_number_of_buffers_to_write,
-                                   max_audio_samples_per_write_)
-                        : 1;
+  int max_buffers =
+      std::min(max_number_of_buffers_to_write, max_samples_per_write_);
 
   if (type == DemuxerStream::AUDIO) {
     if (!audio_stream_) {
@@ -854,13 +1152,12 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
         audio_read_delayed_ = true;
         return;
       }
-      if (max_audio_samples_per_write_ > 1 &&
-          !time_ahead_of_playback.is_negative()) {
+      if (max_samples_per_write_ > 1 && !time_ahead_of_playback.is_negative()) {
         estimated_max_buffers = GetEstimatedMaxBuffers(adjusted_write_duration,
                                                        time_ahead_of_playback,
                                                        false /* is_preroll */);
       }
-    } else if (max_audio_samples_per_write_ > 1) {
+    } else if (max_samples_per_write_ > 1) {
       if (!time_ahead_of_playback_for_preroll.is_negative()) {
         estimated_max_buffers = GetEstimatedMaxBuffers(
             adjusted_write_duration_for_preroll,
@@ -895,7 +1192,7 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
 
   stream->Read(max_buffers,
                base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                              weak_factory_.GetWeakPtr(), stream));
+                              weak_factory_.GetWeakPtr(), stream, max_buffers));
 }
 
 void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
@@ -914,31 +1211,25 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
 
   switch (state) {
     case kSbPlayerStateInitialized:
-      DCHECK(!player_bridge_initialized_);
-      player_bridge_initialized_ = true;
-
-      if (playing_start_from_time_) {
-        StartPlayingFrom(std::move(playing_start_from_time_).value());
-      }
+      CHECK(init_cb_);
+      std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
       break;
     case kSbPlayerStatePrerolling:
-      DCHECK(player_bridge_initialized_);
       break;
     case kSbPlayerStatePresenting:
-      DCHECK(player_bridge_initialized_);
       buffering_state_ = BUFFERING_HAVE_ENOUGH;
       task_runner_->PostTask(
           FROM_HERE,
           base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
                          weak_factory_.GetWeakPtr(), buffering_state_));
-      audio_write_duration_for_preroll_ = audio_write_duration_ =
-          HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
-              ? audio_write_duration_remote_
-              : audio_write_duration_local_;
-      LOG(INFO) << "Audio write duration is " << audio_write_duration_;
+      UpdateAudioWriteDuration();
+#if BUILDFLAG(IS_IOS_TVOS)
+      if (IsUrlPlayer()) {
+        OnUrlPlayerPresenting();
+      }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
       break;
     case kSbPlayerStateEndOfStream:
-      DCHECK(player_bridge_initialized_);
       client_->OnEnded();
       break;
     case kSbPlayerStateDestroyed:
@@ -962,7 +1253,7 @@ void StarboardRenderer::OnPlayerError(SbPlayerError error,
   switch (error) {
     case kSbPlayerErrorDecode:
       MEDIA_LOG(ERROR, media_log_) << message;
-      client_->OnError(PIPELINE_ERROR_DECODE);
+      NotifyError(PIPELINE_ERROR_DECODE);
       break;
     case kSbPlayerErrorCapabilityChanged:
       MEDIA_LOG(ERROR, media_log_)
@@ -971,12 +1262,92 @@ void StarboardRenderer::OnPlayerError(SbPlayerError error,
                   : base::StringPrintf("%s: %s",
                                        kSbPlayerCapabilityChangedErrorMessage,
                                        message.c_str()));
-      client_->OnError(PIPELINE_ERROR_DECODE);
+      NotifyError(PIPELINE_ERROR_DECODE);
       break;
     case kSbPlayerErrorMax:
       NOTREACHED();
       break;
   }
+}
+
+void StarboardRenderer::NotifyError(PipelineStatus status) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  // MojoRenderer in the renderer process delays assigning its `client_` pointer
+  // until the initialization callback resolves. If we encounter an error during
+  // initialization, we must resolve `init_cb_` with the error status instead of
+  // firing an asynchronous `client_->OnError()` event. Firing
+  // `client_->OnError()` before `init_cb_` is resolved will cause a null
+  // pointer dereference in `MojoRenderer::OnError()`.
+  if (init_cb_) {
+    std::move(init_cb_).Run(status);
+  } else if (client_) {
+    client_->OnError(status);
+  }
+}
+
+// static
+void StarboardRenderer::FlushAndSuspendActiveRenderers(
+    base::OnceClosure done_cb) {
+  std::vector<ActiveRendererEntry> entries;
+  {
+    auto& registry = GetConcealRegistry();
+    base::AutoLock auto_lock(registry.lock);
+    registry.is_concealed = true;
+    entries.reserve(registry.active_renderers.size());
+    for (const auto& [renderer, entry] : registry.active_renderers) {
+      entries.push_back(entry);
+    }
+  }
+
+  base::OnceClosure reply_cb =
+      base::SequencedTaskRunner::HasCurrentDefault()
+          ? base::BindPostTaskToCurrentDefault(std::move(done_cb))
+          : std::move(done_cb);
+
+  if (entries.empty()) {
+    std::move(reply_cb).Run();
+    return;
+  }
+
+  // Post to the tail of each active StarboardRenderer's sequence so any queued
+  // MojoRendererService disconnect tasks execute first, then fallback-suspend
+  // any remaining StarboardRenderer instances before replying to the conceal
+  // barrier.
+  base::RepeatingClosure barrier_cb =
+      base::BarrierClosure(entries.size(), std::move(reply_cb));
+  for (auto& entry : entries) {
+    if (!entry.task_runner->PostTask(
+            FROM_HERE, base::BindOnce(
+                           [](base::WeakPtr<StarboardRenderer> renderer,
+                              base::OnceClosure done) {
+                             if (renderer) {
+                               renderer->OnConcealFallbackSuspend();
+                             }
+                             std::move(done).Run();
+                           },
+                           std::move(entry.weak_this), barrier_cb))) {
+      barrier_cb.Run();
+    }
+  }
+}
+
+// static
+void StarboardRenderer::ResumeActiveRenderers() {
+  auto& registry = GetConcealRegistry();
+  base::AutoLock auto_lock(registry.lock);
+  registry.is_concealed = false;
+}
+
+void StarboardRenderer::OnConcealFallbackSuspend() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (player_bridge_) {
+    player_bridge_->Suspend();
+  }
+  if (state_ == STATE_UNINITIALIZED || state_ == STATE_ERROR) {
+    return;
+  }
+  state_ = STATE_ERROR;
+  NotifyError(PIPELINE_ERROR_ABORT);
 }
 
 void StarboardRenderer::DelayedNeedData(int max_number_of_buffers_to_write) {
@@ -996,8 +1367,7 @@ void StarboardRenderer::OnOverlayReady(AndroidOverlay* overlay) {
   // Check that the passed overlay and overlay_ point to the same object.
   DCHECK_EQ(overlay, overlay_.get());
 
-  // TODO: b/431850939 - Pass JavaSurface to Starboard via StarboardExtension.
-
+  surface_view_ = overlay_->GetJavaSurface().obj();
   CreatePlayerBridge();
 }
 
@@ -1011,6 +1381,14 @@ void StarboardRenderer::OnOverlayFailed(AndroidOverlay* overlay) {
         "StarboardRenderer::OnOverlayFailed() failed to create a "
         "valid AndroidOverlay"));
   }
+}
+
+bool StarboardRenderer::IsSecondaryVideoProtected() const {
+  if (max_video_capabilities_.empty() || !cdm_context_) {
+    return false;
+  }
+  const auto key_system = cdm_context_->GetKeySystem();
+  return key_system == "com.widevine" || key_system == "com.widevine.alpha";
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -1038,8 +1416,7 @@ int StarboardRenderer::GetEstimatedMaxBuffers(TimeDelta write_duration,
   DCHECK_GE(time_ahead_of_playback.InMicroseconds(), 0);
 
   int estimated_max_buffers = 1;
-  if (!(max_audio_samples_per_write_ > 1) ||
-      write_duration <= time_ahead_of_playback) {
+  if (max_samples_per_write_ <= 1 || write_duration <= time_ahead_of_playback) {
     return estimated_max_buffers;
   }
 
@@ -1080,6 +1457,24 @@ void StarboardRenderer::OnBufferingStateChange(BufferingState buffering_state) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   client_->OnBufferingStateChange(buffering_state,
                                   BUFFERING_CHANGE_REASON_UNKNOWN);
+}
+
+SbDecodeTarget StarboardRenderer::GetSbDecodeTarget() {
+  // This function might be called from a different thread (e.g. GPU thread)
+  // to get the decode target for rendering.
+  if (player_bridge_ && player_bridge_->IsValid()) {
+    CHECK(player_bridge_->GetSbPlayerOutputMode() ==
+          kSbPlayerOutputModeDecodeToTexture);
+    return player_bridge_->GetCurrentSbDecodeTarget();
+  }
+  return kSbDecodeTargetInvalid;
+}
+
+void StarboardRenderer::set_decode_target_graphics_context_provider(
+    const GetDecodeTargetGraphicsContextProviderFunc&
+        get_decode_target_graphics_context_provider_func) {
+  get_decode_target_graphics_context_provider_func_ =
+      get_decode_target_graphics_context_provider_func;
 }
 
 }  // namespace media

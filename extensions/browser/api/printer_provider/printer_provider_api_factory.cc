@@ -43,14 +43,16 @@ PrinterProviderAPIFactory::PrinterProviderAPIFactory()
 PrinterProviderAPIFactory::~PrinterProviderAPIFactory() {
 }
 
-KeyedService* PrinterProviderAPIFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+PrinterProviderAPIFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   return PrinterProviderAPI::Create(context);
 }
 
 content::BrowserContext* PrinterProviderAPIFactory::GetBrowserContextToUse(
     content::BrowserContext* context) const {
-  return ExtensionsBrowserClient::Get()->GetOriginalContext(context);
+  return ExtensionsBrowserClient::Get()->GetContextRedirectedToOriginal(
+      context);
 }
 
 }  // namespace extensions

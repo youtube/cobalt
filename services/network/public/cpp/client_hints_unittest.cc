@@ -17,7 +17,7 @@ using testing::UnorderedElementsAre;
 namespace network {
 
 TEST(ClientHintsTest, ParseClientHintsHeader) {
-  absl::optional<std::vector<network::mojom::WebClientHintsType>> result;
+  std::optional<std::vector<network::mojom::WebClientHintsType>> result;
 
   // Empty is OK.
   result = ParseClientHintsHeader(" ");
@@ -64,7 +64,7 @@ TEST(ClientHintsTest, ParseClientHintsHeader) {
 
 TEST(ClientHintsTest,
      ParseClientHintToDelegatedThirdPartiesHeader_HttpEquivAcceptCH) {
-  EXPECT_DCHECK_DEATH(ParseClientHintToDelegatedThirdPartiesHeader(
+  EXPECT_NOTREACHED_DEATH(ParseClientHintToDelegatedThirdPartiesHeader(
       "", MetaCHType::HttpEquivAcceptCH));
 }
 

@@ -1,1 +1,1 @@
-mixins: "//chrome/browser/ash/child_accounts/COMMON_METADATA"
+mixins: "//ash/child_accounts/COMMON_METADATA"

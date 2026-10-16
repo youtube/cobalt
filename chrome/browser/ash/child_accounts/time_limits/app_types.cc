@@ -24,19 +24,11 @@ std::string AppTypeToString(apps::AppType app_type) {
       return "Web";
     case apps::AppType::kChromeApp:
     case apps::AppType::kExtension:
-    case apps::AppType::kStandaloneBrowserChromeApp:
-    case apps::AppType::kStandaloneBrowserExtension:
       return "Extension";
-    case apps::AppType::kBuiltIn:
-      return "Built in";
     case apps::AppType::kCrostini:
       return "Crostini";
-    case apps::AppType::kMacOs:
-      return "Mac OS";
     case apps::AppType::kPluginVm:
       return "Plugin VM";
-    case apps::AppType::kStandaloneBrowser:
-      return "LaCrOS";
     case apps::AppType::kRemote:
       return "Remote";
     case apps::AppType::kBorealis:
@@ -85,14 +77,6 @@ AppId& AppId::operator=(AppId&&) = default;
 
 AppId::~AppId() = default;
 
-bool AppId::operator==(const AppId& rhs) const {
-  return app_type_ == rhs.app_type() && app_id_ == rhs.app_id();
-}
-
-bool AppId::operator!=(const AppId& rhs) const {
-  return !(*this == rhs);
-}
-
 bool AppId::operator<(const AppId& rhs) const {
   return app_id_ < rhs.app_id();
 }
@@ -108,15 +92,15 @@ PauseAppInfo::PauseAppInfo(const AppId& app,
     : app_id(app), daily_limit(limit), show_pause_dialog(show_dialog) {}
 
 AppLimit::AppLimit(AppRestriction restriction,
-                   absl::optional<base::TimeDelta> daily_limit,
+                   std::optional<base::TimeDelta> daily_limit,
                    base::Time last_updated)
     : restriction_(restriction),
       daily_limit_(daily_limit),
       last_updated_(last_updated) {
   DCHECK_EQ(restriction_ == AppRestriction::kBlocked,
-            daily_limit_ == absl::nullopt);
-  DCHECK(daily_limit_ == absl::nullopt || daily_limit >= base::Hours(0));
-  DCHECK(daily_limit_ == absl::nullopt || daily_limit <= base::Hours(24));
+            daily_limit_ == std::nullopt);
+  DCHECK(daily_limit_ == std::nullopt || daily_limit >= base::Hours(0));
+  DCHECK(daily_limit_ == std::nullopt || daily_limit <= base::Hours(24));
 }
 
 AppLimit::AppLimit(const AppLimit&) = default;
@@ -130,11 +114,11 @@ AppLimit& AppLimit::operator=(AppLimit&&) = default;
 AppLimit::~AppLimit() = default;
 
 // static
-absl::optional<AppActivity::ActiveTime> AppActivity::ActiveTime::Merge(
+std::optional<AppActivity::ActiveTime> AppActivity::ActiveTime::Merge(
     const ActiveTime& t1,
     const ActiveTime& t2) {
   if (!CanMerge(t1, t2))
-    return absl::nullopt;
+    return std::nullopt;
 
   base::Time active_from = std::min(t1.active_from(), t2.active_from());
   base::Time active_to = std::max(t1.active_to(), t2.active_to());

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "remoting/protocol/message_decoder.h"
 
 #include <stdint.h>
@@ -69,8 +74,7 @@ void SimulateReadSequence(const int read_sequence[], int sequence_size) {
     int read = std::min(size - pos, read_sequence[pos % sequence_size]);
 
     // And then prepare an IOBuffer for feeding it.
-    scoped_refptr<net::IOBuffer> buffer =
-        base::MakeRefCounted<net::IOBuffer>(read);
+    auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(read);
     memcpy(buffer->data(), test_data + pos, read);
     decoder.AddData(buffer, read);
     while (true) {

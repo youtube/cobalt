@@ -7,9 +7,9 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/fixed_flat_map.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
-#include "net/base/features.h"
 #include "net/base/mime_sniffer.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
@@ -53,6 +53,9 @@ const char* kUnsafeHeaders[] = {
     // Forbidden by the fetch spec.
     net::HttpRequestHeaders::kTransferEncoding,
 
+    // Semantically a response header, so not useful on requests.
+    "Set-Cookie",
+
     // TODO(mmenke): Figure out what to do about the remaining headers:
     // Connection, Cookie, Date, Expect, Referer, Via.
 };
@@ -71,17 +74,10 @@ const struct {
 
 }  // namespace
 
-bool IsRequestHeaderSafe(const base::StringPiece& key,
-                         const base::StringPiece& value) {
+bool IsRequestHeaderSafe(std::string_view key, std::string_view value) {
   for (const auto* header : kUnsafeHeaders) {
     if (base::EqualsCaseInsensitiveASCII(header, key))
       return false;
-  }
-
-  // 'Set-Cookie' is semantically a response header, so not useuful on requests.
-  if (base::FeatureList::IsEnabled(net::features::kBlockSetCookieHeader) &&
-      base::EqualsCaseInsensitiveASCII("Set-Cookie", key)) {
-    return false;
   }
 
   for (const auto& header : kUnsafeHeaderValues) {
@@ -109,79 +105,52 @@ bool AreRequestHeadersSafe(const net::HttpRequestHeaders& request_headers) {
   return true;
 }
 
-// TODO(https://crbug.com/1302851): Consider merging this with
-// ProcessReferrerPolicyHeaderOnRedirect() in //net and/or
-// blink::SecurityPolicy::ReferrerPolicyFromString().
 mojom::ReferrerPolicy ParseReferrerPolicy(
     const net::HttpResponseHeaders& response_headers) {
-  mojom::ReferrerPolicy policy = mojom::ReferrerPolicy::kDefault;
-
-  std::string referrer_policy_header;
-  if (!response_headers.GetNormalizedHeader("Referrer-Policy",
-                                            &referrer_policy_header)) {
-    return policy;
+  using enum net::ReferrerPolicy;
+  using enum mojom::ReferrerPolicy;
+  std::optional<std::string> referrer_policy_header =
+      response_headers.GetNormalizedHeader("Referrer-Policy");
+  if (!referrer_policy_header) {
+    return kDefault;
   }
 
-  std::vector<base::StringPiece> policy_tokens =
-      base::SplitStringPiece(referrer_policy_header, ",", base::TRIM_WHITESPACE,
-                             base::SPLIT_WANT_NONEMPTY);
+  std::optional<net::ReferrerPolicy> net_policy =
+      net::ReferrerPolicyFromHeader(*referrer_policy_header);
 
-  // Per https://w3c.github.io/webappsec-referrer-policy/#unknown-policy-values,
-  // use the last recognized policy value, and ignore unknown policies.
-  for (const auto& token : policy_tokens) {
-    if (base::CompareCaseInsensitiveASCII(token, "no-referrer") == 0) {
-      policy = mojom::ReferrerPolicy::kNever;
-      continue;
-    }
-
-    if (base::CompareCaseInsensitiveASCII(token,
-                                          "no-referrer-when-downgrade") == 0) {
-      policy = mojom::ReferrerPolicy::kNoReferrerWhenDowngrade;
-      continue;
-    }
-
-    if (base::CompareCaseInsensitiveASCII(token, "origin") == 0) {
-      policy = mojom::ReferrerPolicy::kOrigin;
-      continue;
-    }
-
-    if (base::CompareCaseInsensitiveASCII(token, "origin-when-cross-origin") ==
-        0) {
-      policy = mojom::ReferrerPolicy::kOriginWhenCrossOrigin;
-      continue;
-    }
-
-    if (base::CompareCaseInsensitiveASCII(token, "unsafe-url") == 0) {
-      policy = mojom::ReferrerPolicy::kAlways;
-      continue;
-    }
-
-    if (base::CompareCaseInsensitiveASCII(token, "same-origin") == 0) {
-      policy = mojom::ReferrerPolicy::kSameOrigin;
-      continue;
-    }
-
-    if (base::CompareCaseInsensitiveASCII(token, "strict-origin") == 0) {
-      policy = mojom::ReferrerPolicy::kStrictOrigin;
-      continue;
-    }
-
-    if (base::CompareCaseInsensitiveASCII(
-            token, "strict-origin-when-cross-origin") == 0) {
-      policy = mojom::ReferrerPolicy::kStrictOriginWhenCrossOrigin;
-      continue;
-    }
+  if (!net_policy) {
+    return kDefault;
   }
 
-  return policy;
+  switch (net_policy.value()) {
+    case NO_REFERRER:
+      return kNever;
+    case CLEAR_ON_TRANSITION_FROM_SECURE_TO_INSECURE:
+      return kNoReferrerWhenDowngrade;
+    case ORIGIN:
+      return kOrigin;
+    case ORIGIN_ONLY_ON_TRANSITION_CROSS_ORIGIN:
+      return kOriginWhenCrossOrigin;
+    case CLEAR_ON_TRANSITION_CROSS_ORIGIN:
+      return kSameOrigin;
+    case ORIGIN_CLEAR_ON_TRANSITION_FROM_SECURE_TO_INSECURE:
+      return kStrictOrigin;
+    case REDUCE_GRANULARITY_ON_TRANSITION_CROSS_ORIGIN:
+      return kStrictOriginWhenCrossOrigin;
+    case NEVER_CLEAR:
+      return kAlways;
+  }
+
+  NOTREACHED();
 }
 
 bool ShouldSniffContent(const GURL& url,
                         const mojom::URLResponseHead& response) {
   std::string content_type_options;
   if (response.headers) {
-    response.headers->GetNormalizedHeader("x-content-type-options",
-                                          &content_type_options);
+    content_type_options =
+        response.headers->GetNormalizedHeader("x-content-type-options")
+            .value_or(std::string());
   }
   bool sniffing_blocked =
       base::EqualsCaseInsensitiveASCII(content_type_options, "nosniff");

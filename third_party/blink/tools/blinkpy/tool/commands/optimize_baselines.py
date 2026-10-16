@@ -7,8 +7,8 @@ import logging
 import optparse
 
 from blinkpy.common.checkout.baseline_optimizer import BaselineOptimizer
+from blinkpy.tool.commands.command import resolve_test_patterns
 from blinkpy.tool.commands.rebaseline import AbstractParallelRebaselineCommand
-from blinkpy.web_tests.models.test_expectations import TestExpectationsCache
 
 _log = logging.getLogger(__name__)
 
@@ -39,23 +39,26 @@ class OptimizeBaselines(AbstractParallelRebaselineCommand):
             self.port_name_option,
             self.all_option,
             self.check_option,
+            self.test_name_file_option,
         ] + self.platform_options + self.wpt_options)
         self._successful = True
-        self._exp_cache = TestExpectationsCache()
 
     def execute(self, options, args, tool):
+        self._successful = True
+        if options.test_name_file:
+            tests = self._host_port.tests_from_file(options.test_name_file)
+            args.extend(sorted(tests))
+
         if not args != options.all_tests:
             _log.error('Must provide one of --all or TEST_NAMES')
             return 1
 
-        self._tool, self._successful = tool, True
         port_names = tool.port_factory.all_port_names(options.platform)
         if not port_names:
             _log.error("No port names match '%s'", options.platform)
             return 1
 
-        port = tool.port_factory.get(options=options)
-        test_set = self._get_test_set(port, options, args)
+        test_set = self._get_test_set(options, args)
         if not test_set:
             _log.error('No tests to optimize. Ensure all listed tests exist.')
             return 1
@@ -63,11 +66,8 @@ class OptimizeBaselines(AbstractParallelRebaselineCommand):
         worker_factory = functools.partial(Worker,
                                            port_names=port_names,
                                            options=options)
-        baseline_suffix_list = options.suffixes.split(',')
-        with self._message_pool(worker_factory) as pool:
-            tasks = [(self.name, test_name, suffix) for test_name in test_set
-                     for suffix in baseline_suffix_list]
-            pool.run(tasks)
+        tasks = [(self.name, test_name) for test_name in sorted(test_set)]
+        self._run_in_message_pool(worker_factory, tasks)
         if options.check:
             if self._successful:
                 _log.info('All baselines are optimal.')
@@ -77,14 +77,21 @@ class OptimizeBaselines(AbstractParallelRebaselineCommand):
                              'to fix these issues.')
                 return 2
 
-    def _get_test_set(self, port, options, args):
-        test_set = set(port.tests() if options.all_tests else port.tests(args))
-        virtual_tests_to_exclude = set([
-            test for test in test_set
-            if port.lookup_virtual_test_base(test) in test_set
-        ])
-        test_set -= virtual_tests_to_exclude
-        return test_set
+    def _get_test_set(self, options, args):
+        if options.all_tests:
+            test_set = set(self._host_port.tests())
+        else:
+            test_set = resolve_test_patterns(self._host_port, args)
+        # Coerce virtual tests to their respective base tests so that the base
+        # test's entire baseline graph is optimized as one task. Otherwise, two
+        # virtual tests `virtual/a/t.html` and `virtual/b/t.html` can be
+        # scheduled as separate tasks on different workers. Those workers could
+        # then race to delete the same nonvirtual (but possibly
+        # platform-specific) `t-expected.txt`.
+        return {
+            self._host_port.lookup_virtual_test_base(test) or test
+            for test in test_set
+        }
 
     def handle(self, name: str, source: str, successful: bool):
         self._successful = self._successful and successful
@@ -101,14 +108,19 @@ class Worker:
         # The manifest should already be updated by `optimize-baselines` or
         # `rebaseline-cl`.
         self._options.manifest_update = False
-        self._optimizer = BaselineOptimizer(
-            self._connection.host,
-            self._connection.host.port_factory.get(options=self._options),
-            self._port_names,
-            check=self._options.check)
+        self._default_port = self._connection.host.port_factory.get(
+            options=self._options)
+        self._optimizer = BaselineOptimizer(self._connection.host,
+                                            self._default_port,
+                                            self._port_names,
+                                            check=self._options.check)
 
-    def handle(self, name: str, source: str, test_name: str, suffix: str):
-        successful = self._optimizer.optimize(test_name, suffix)
+    def handle(self, name: str, source: str, test_name: str):
+        suffixes = sorted(
+            set(self._options.suffixes)
+            & self._default_port.allowed_suffixes(test_name))
+        successful = all(
+            self._optimizer.optimize(test_name, suffix) for suffix in suffixes)
         if self._options.check and not self._options.verbose and successful:
             # Without `--verbose`, do not show optimization logs when a test
             # passes the check.

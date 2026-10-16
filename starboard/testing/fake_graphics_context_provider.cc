@@ -14,9 +14,13 @@
 
 #include "starboard/testing/fake_graphics_context_provider.h"
 
+#include <unistd.h>
+
 #include <condition_variable>
 #include <mutex>
 
+#include "build/build_config.h"
+#include "starboard/common/gettid.h"
 #include "starboard/common/log.h"
 #include "starboard/egl_and_gles/buildflags.h"
 
@@ -70,6 +74,8 @@
 
 #define EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE 0x320D
 #define EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE 0x320E
+
+#define EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE 0x3489
 #endif  // BUILDFLAG(STARBOARD_GL_TYPE_ANGLE)
 
 #define EGL_CALL(x)                                           \
@@ -92,7 +98,9 @@ namespace starboard {
 FakeGraphicsContextProvider::FakeGraphicsContextProvider()
     : display_(EGL_NO_DISPLAY),
       surface_(EGL_NO_SURFACE),
-      context_(EGL_NO_CONTEXT) {
+      context_(EGL_NO_CONTEXT),
+      window_(kSbWindowInvalid) {
+  InitializeWindow();
   InitializeEGL();
 }
 
@@ -100,14 +108,17 @@ FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
   RunOnGlesContextThread(
       std::bind(&FakeGraphicsContextProvider::DestroyContext, this));
   functor_queue_.Wake();
-  pthread_join(decode_target_context_thread_, NULL);
+  if (gles_context_thread_) {
+    gles_context_thread_->Join();
+  }
   EGL_CALL(eglDestroySurface(display_, surface_));
   EGL_CALL(eglTerminate(display_));
+  SbWindowDestroy(window_);
 }
 
 void FakeGraphicsContextProvider::RunOnGlesContextThread(
     const std::function<void()>& functor) {
-  if (pthread_equal(pthread_self(), decode_target_context_thread_)) {
+  if (gettid() == gles_context_thread_id_.load()) {
     functor();
     return;
   }
@@ -126,7 +137,7 @@ void FakeGraphicsContextProvider::RunOnGlesContextThread(
 
 void FakeGraphicsContextProvider::ReleaseDecodeTarget(
     SbDecodeTarget decode_target) {
-  if (pthread_equal(pthread_self(), decode_target_context_thread_)) {
+  if (gettid() == gles_context_thread_id_.load()) {
     SbDecodeTargetRelease(decode_target);
     return;
   }
@@ -145,26 +156,24 @@ void FakeGraphicsContextProvider::ReleaseDecodeTarget(
   condition_variable.wait(lock, [&functor_done] { return functor_done; });
 }
 
-// static
-void* FakeGraphicsContextProvider::ThreadEntryPoint(void* context) {
-#if defined(__APPLE__)
-  pthread_setname_np("dt_context");
-#else
-  pthread_setname_np(pthread_self(), "dt_context");
-#endif
-  auto provider = static_cast<FakeGraphicsContextProvider*>(context);
-  provider->RunLoop();
-
-  return NULL;
-}
-
 void FakeGraphicsContextProvider::RunLoop() {
+  gles_context_thread_id_.store(gettid());
   while (std::function<void()> functor = functor_queue_.Get()) {
     if (!functor) {
       break;
     }
     functor();
   }
+}
+
+void FakeGraphicsContextProvider::InitializeWindow() {
+  SbWindowOptions window_options;
+  SbWindowSetDefaultOptions(&window_options);
+
+  window_ = SbWindowCreate(&window_options);
+#if BUILDFLAG(IS_STARBOARD)
+  SB_CHECK(SbWindowIsValid(window_));
+#endif
 }
 
 void FakeGraphicsContextProvider::InitializeEGL() {
@@ -186,9 +195,13 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   // attributes and a valid platform value to the function.
 #if BUILDFLAG(STARBOARD_GL_TYPE_ANGLE)
   static constexpr SbEglAttrib kAngleAttributes[] = {
+#if BUILDFLAG(IS_APPLE)
+      EGL_PLATFORM_ANGLE_TYPE_ANGLE, EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE,
+#else
       EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
       EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE, EGL_PLATFORM_ANGLE_TYPE_ANGLE,
       EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE,
+#endif          // BUILDFLAG(IS_APPLE)
       EGL_NONE  // Terminate the attribute list.
   };
   display_ = EGL_CALL_SIMPLE(eglGetPlatformDisplay(
@@ -281,8 +294,8 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   decoder_target_provider_.gles_context_runner = DecodeTargetGlesContextRunner;
   decoder_target_provider_.gles_context_runner_context = this;
 
-  pthread_create(&decode_target_context_thread_, nullptr,
-                 &FakeGraphicsContextProvider::ThreadEntryPoint, this);
+  gles_context_thread_ = std::make_unique<GlesContextThread>(this);
+  gles_context_thread_->Start();
   MakeNoContextCurrent();
 
   functor_queue_.Put(
@@ -292,7 +305,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
 void FakeGraphicsContextProvider::OnDecodeTargetGlesContextRunner(
     SbDecodeTargetGlesContextRunnerTarget target_function,
     void* target_function_context) {
-  if (pthread_equal(pthread_self(), decode_target_context_thread_)) {
+  if (gettid() == gles_context_thread_id_.load()) {
     target_function(target_function_context);
     return;
   }

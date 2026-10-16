@@ -26,8 +26,8 @@ struct MathMLOperatorDictionaryProperties {
   unsigned trailing_space_in_math_unit : 3;
   unsigned flags : 4;
 };
-static const MathMLOperatorDictionaryProperties
-    MathMLOperatorDictionaryCategories[] = {
+static const auto MathMLOperatorDictionaryCategories =
+    std::to_array<MathMLOperatorDictionaryProperties>({
         {5, 5, kOperatorPropertyFlagsNone},        // None (default values)
         {5, 5, kOperatorPropertyFlagsNone},        // ForceDefault
         {5, 5, MathMLOperatorElement::kStretchy},  // Category A
@@ -46,7 +46,7 @@ static const MathMLOperatorDictionaryProperties
              MathMLOperatorElement::kMovableLimits},  // Category J
         {3, 0, kOperatorPropertyFlagsNone},           // Category L
         {0, 3, kOperatorPropertyFlagsNone},           // Category M
-};
+    });
 
 static const QualifiedName& OperatorPropertyFlagToAttributeName(
     MathMLOperatorElement::OperatorPropertyFlag flag) {
@@ -61,7 +61,6 @@ static const QualifiedName& OperatorPropertyFlagToAttributeName(
       return mathml_names::kSymmetricAttr;
   }
   NOTREACHED();
-  return g_null_name;
 }
 
 }  // namespace
@@ -199,7 +198,7 @@ void MathMLOperatorElement::ComputeDictionaryCategory() {
 void MathMLOperatorElement::ComputeOperatorProperty(OperatorPropertyFlag flag) {
   DCHECK(properties_.dirty_flags & flag);
   const auto& name = OperatorPropertyFlagToAttributeName(flag);
-  if (absl::optional<bool> value = BooleanAttribute(name)) {
+  if (std::optional<bool> value = BooleanAttribute(name)) {
     // https://w3c.github.io/mathml-core/#dfn-algorithm-for-determining-the-properties-of-an-embellished-operator
     // Step 1.
     if (*value) {

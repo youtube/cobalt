@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Unit tests for implementation of google_api_keys namespace.
+// Unit tests for implementation of google_apis/google_api_keys.h.
 //
 // Because the file deals with a lot of preprocessor defines and
 // optionally includes an internal header, the way we test is by
@@ -10,34 +10,22 @@
 // This is a little unorthodox, but it lets us test the behavior as
 // close to unmodified as possible.
 
-#include "google_apis/google_api_keys_unittest.h"
+#include "google_apis/google_api_keys.h"
 
-#include "base/mac/bundle_locations.h"
+#include "base/apple/bundle_locations.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
+#include "google_apis/api_key_cache.h"
+#include "google_apis/default_api_keys.h"
 #include "google_apis/gaia/gaia_switches.h"
+#include "google_apis/google_api_keys.h"
+#include "google_apis/google_api_keys_unittest.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 
-// We need to include everything included by google_api_keys.cc once
-// at global scope so that things like STL and classes from base don't
-// get defined when we re-include the google_api_keys.cc file
-// below. We used to include that file in its entirety here, but that
-// can cause problems if the linker decides the version of symbols
-// from that file included here is the "right" version.
-
-#include <stddef.h>
-
-#include <string>
-#include "base/command_line.h"
-#include "base/lazy_instance.h"
-#include "base/logging.h"
-#include "base/strings/stringize_macros.h"
-#include "google_apis/gaia/gaia_config.h"
-#include "google_apis/google_api_keys_mac.h"
-
-// After this test, for the remainder of this compilation unit, we
-// need official keys to not be used.
+// We need official keys to not be used.
 #undef BUILDFLAG_INTERNAL_CHROMIUM_BRANDING
 #undef BUILDFLAG_INTERNAL_GOOGLE_CHROME_BRANDING
 #define BUILDFLAG_INTERNAL_CHROMIUM_BRANDING() (1)
@@ -49,8 +37,7 @@
 namespace override_some_keys_info_plist {
 
 // We start every test by creating a clean environment for the
-// preprocessor defines used in google_api_keys.cc
-#undef DUMMY_API_TOKEN
+// preprocessor defines used in define_baked_in_api_keys-inc.cc
 #undef GOOGLE_API_KEY
 #undef GOOGLE_CLIENT_ID_MAIN
 #undef GOOGLE_CLIENT_SECRET_MAIN
@@ -69,44 +56,43 @@ namespace override_some_keys_info_plist {
 #define GOOGLE_CLIENT_ID_REMOTING_HOST "ID_REMOTING_HOST"
 #define GOOGLE_CLIENT_SECRET_REMOTING_HOST "SECRET_REMOTING_HOST"
 
-// Undef include guard so things get defined again, within this namespace.
-#undef GOOGLE_APIS_GOOGLE_API_KEYS_H_
-#undef GOOGLE_APIS_INTERNAL_GOOGLE_CHROME_API_KEYS_
-#include "google_apis/google_api_keys.cc"
+#include "google_apis/default_api_keys-inc.cc"
 
-}  // namespace override_all_keys_env
+}  // namespace override_some_keys_info_plist
 
 TEST_F(GoogleAPIKeysTest, OverrideSomeKeysUsingInfoPlist) {
-  namespace testcase = override_some_keys_info_plist::google_apis;
-
   id mock_bundle = [OCMockObject mockForClass:[NSBundle class]];
   [[[mock_bundle stub] andReturn:@"plist-API_KEY"]
       objectForInfoDictionaryKey:@"GOOGLE_API_KEY"];
   [[[mock_bundle stub] andReturn:@"plist-ID_MAIN"]
       objectForInfoDictionaryKey:@"GOOGLE_CLIENT_ID_MAIN"];
   [[[mock_bundle stub] andReturn:nil] objectForInfoDictionaryKey:[OCMArg any]];
-  base::mac::SetOverrideFrameworkBundle(mock_bundle);
+  base::apple::SetOverrideFrameworkBundle(mock_bundle);
 
-  EXPECT_TRUE(testcase::HasAPIKeyConfigured());
-  EXPECT_TRUE(testcase::HasOAuthClientConfigured());
+  google_apis::ApiKeyCache api_key_cache(
+      override_some_keys_info_plist::GetDefaultApiKeysFromDefinedValues());
+  auto scoped_override =
+      google_apis::SetScopedApiKeyCacheForTesting(&api_key_cache);
+
+  EXPECT_TRUE(google_apis::HasAPIKeyConfigured());
+  EXPECT_TRUE(google_apis::HasOAuthClientConfigured());
 
   // Once the keys have been configured, the bundle isn't used anymore.
-  base::mac::SetOverrideFrameworkBundle(nil);
+  base::apple::SetOverrideFrameworkBundle(nil);
 
-  std::string api_key = testcase::g_api_key_cache.Get().api_key();
+  std::string api_key = google_apis::GetAPIKey();
   std::string id_main =
-      testcase::g_api_key_cache.Get().GetClientID(testcase::CLIENT_MAIN);
+      google_apis::GetOAuth2ClientID(google_apis::CLIENT_MAIN);
   std::string secret_main =
-      testcase::g_api_key_cache.Get().GetClientSecret(testcase::CLIENT_MAIN);
+      google_apis::GetOAuth2ClientSecret(google_apis::CLIENT_MAIN);
   std::string id_remoting =
-      testcase::g_api_key_cache.Get().GetClientID(testcase::CLIENT_REMOTING);
-  std::string secret_remoting = testcase::g_api_key_cache.Get().GetClientSecret(
-      testcase::CLIENT_REMOTING);
-  std::string id_remoting_host = testcase::g_api_key_cache.Get().GetClientID(
-      testcase::CLIENT_REMOTING_HOST);
+      google_apis::GetOAuth2ClientID(google_apis::CLIENT_REMOTING);
+  std::string secret_remoting =
+      google_apis::GetOAuth2ClientSecret(google_apis::CLIENT_REMOTING);
+  std::string id_remoting_host =
+      google_apis::GetOAuth2ClientID(google_apis::CLIENT_REMOTING_HOST);
   std::string secret_remoting_host =
-      testcase::g_api_key_cache.Get().GetClientSecret(
-          testcase::CLIENT_REMOTING_HOST);
+      google_apis::GetOAuth2ClientSecret(google_apis::CLIENT_REMOTING_HOST);
 
   EXPECT_EQ("plist-API_KEY", api_key);
   EXPECT_EQ("plist-ID_MAIN", id_main);

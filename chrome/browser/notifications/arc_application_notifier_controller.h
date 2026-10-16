@@ -11,6 +11,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "chrome/browser/notifications/notifier_controller.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/icon_types.h"
@@ -52,12 +53,16 @@ class ArcApplicationNotifierController
       apps::AppRegistryCache* cache) override;
 
   // Needed to load icons for ARC apps.
-  raw_ptr<Profile, ExperimentalAsh> last_used_profile_ = nullptr;
-  raw_ptr<NotifierController::Observer, ExperimentalAsh> observer_;
+  raw_ptr<Profile, DanglingUntriaged> last_used_profile_ = nullptr;
+  raw_ptr<NotifierController::Observer> observer_;
 
   // Used to keep track of all PWA start URLs to prevent creation of duplicate
   // notifier metadata.
   std::map<std::string, std::string> package_to_app_ids_;
+
+  base::ScopedObservation<apps::AppRegistryCache,
+                          apps::AppRegistryCache::Observer>
+      app_registry_cache_observer_{this};
 
   base::WeakPtrFactory<ArcApplicationNotifierController> weak_ptr_factory_{
       this};

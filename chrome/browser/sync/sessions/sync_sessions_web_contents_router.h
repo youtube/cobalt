@@ -42,11 +42,14 @@ class SyncSessionsWebContentsRouter : public LocalSessionEventRouter,
   SyncSessionsWebContentsRouter(const SyncSessionsWebContentsRouter&) = delete;
   SyncSessionsWebContentsRouter& operator=(
       const SyncSessionsWebContentsRouter&) = delete;
+  ~SyncSessionsWebContentsRouter() override;
 
   // Notify the router that the tab corresponding to |web_contents| has been
   // modified in some way.
   void NotifyTabModified(content::WebContents* web_contents,
                          bool page_load_completed);
+  // Notify the router that a tab was closed.
+  void NotifyTabClosed();
   // Notify the router that session restore has completed.
   void NotifySessionRestoreComplete();
   // Inject a flare that can be used to start sync. See the comment for
@@ -59,9 +62,6 @@ class SyncSessionsWebContentsRouter : public LocalSessionEventRouter,
 
   // KeyedService implementation.
   void Shutdown() override;
-
- protected:
-  ~SyncSessionsWebContentsRouter() override;
 
  private:
   syncer::SyncableService::StartSyncFlare flare_;

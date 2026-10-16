@@ -4,6 +4,10 @@
 
 #include "quiche/quic/core/http/quic_receive_control_stream.h"
 
+#include <ostream>
+#include <string>
+#include <vector>
+
 #include "absl/memory/memory.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
@@ -88,6 +92,10 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
         session_(connection_) {
     EXPECT_CALL(session_, OnCongestionWindowChange(_)).Times(AnyNumber());
     session_.Initialize();
+    EXPECT_CALL(
+        static_cast<const MockQuicCryptoStream&>(*session_.GetCryptoStream()),
+        encryption_established())
+        .WillRepeatedly(testing::Return(true));
     QuicStreamId id = perspective() == Perspective::IS_SERVER
                           ? GetNthClientInitiatedUnidirectionalStreamId(
                                 session_.transport_version(), 3)
@@ -280,10 +288,12 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveGoAwayFrame) {
 }
 
 TEST_P(QuicReceiveControlStreamTest, PushPromiseOnControlStreamShouldClose) {
-  std::string push_promise_frame = absl::HexStringToBytes(
-      "05"    // PUSH_PROMISE
-      "01"    // length
-      "00");  // push ID
+  std::string push_promise_frame;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("05"   // PUSH_PROMISE
+                             "01"   // length
+                             "00",  // push ID
+                             &push_promise_frame));
   QuicStreamFrame frame(receive_control_stream_->id(), false, 1,
                         push_promise_frame);
   EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_FRAME_ERROR, _, _))
@@ -311,10 +321,12 @@ TEST_P(QuicReceiveControlStreamTest, ConsumeUnknownFrame) {
   EXPECT_EQ(offset, NumBytesConsumed());
 
   // Receive unknown frame.
-  std::string unknown_frame = absl::HexStringToBytes(
-      "21"        // reserved frame type
-      "03"        // payload length
-      "666f6f");  // payload "foo"
+  std::string unknown_frame;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("21"       // reserved frame type
+                             "03"       // payload length
+                             "666f6f",  // payload "foo"
+                             &unknown_frame));
 
   receive_control_stream_->OnStreamFrame(QuicStreamFrame(
       receive_control_stream_->id(), /* fin = */ false, offset, unknown_frame));
@@ -340,10 +352,12 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveUnknownFrame) {
   offset += settings_frame.length();
 
   // Receive unknown frame.
-  std::string unknown_frame = absl::HexStringToBytes(
-      "21"        // reserved frame type
-      "03"        // payload length
-      "666f6f");  // payload "foo"
+  std::string unknown_frame;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("21"       // reserved frame type
+                             "03"       // payload length
+                             "666f6f",  // payload "foo"
+                             &unknown_frame));
 
   EXPECT_CALL(debug_visitor, OnUnknownFrameReceived(id, /* frame_type = */ 0x21,
                                                     /* payload_length = */ 3));
@@ -352,10 +366,12 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveUnknownFrame) {
 }
 
 TEST_P(QuicReceiveControlStreamTest, CancelPushFrameBeforeSettings) {
-  std::string cancel_push_frame = absl::HexStringToBytes(
-      "03"    // type CANCEL_PUSH
-      "01"    // payload length
-      "01");  // push ID
+  std::string cancel_push_frame;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("03"   // type CANCEL_PUSH
+                             "01"   // payload length
+                             "01",  // push ID
+                             &cancel_push_frame));
 
   EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_FRAME_ERROR,
                                             "CANCEL_PUSH frame received.", _))
@@ -370,9 +386,11 @@ TEST_P(QuicReceiveControlStreamTest, CancelPushFrameBeforeSettings) {
 }
 
 TEST_P(QuicReceiveControlStreamTest, AcceptChFrameBeforeSettings) {
-  std::string accept_ch_frame = absl::HexStringToBytes(
-      "4089"  // type (ACCEPT_CH)
-      "00");  // length
+  std::string accept_ch_frame;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("4089"  // type (ACCEPT_CH)
+                             "00",   // length
+                             &accept_ch_frame));
 
   if (perspective() == Perspective::IS_SERVER) {
     EXPECT_CALL(*connection_,
@@ -414,9 +432,11 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveAcceptChFrame) {
   offset += settings_frame.length();
 
   // Receive ACCEPT_CH frame.
-  std::string accept_ch_frame = absl::HexStringToBytes(
-      "4089"  // type (ACCEPT_CH)
-      "00");  // length
+  std::string accept_ch_frame;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("4089"  // type (ACCEPT_CH)
+                             "00",   // length
+                             &accept_ch_frame));
 
   if (perspective() == Perspective::IS_CLIENT) {
     EXPECT_CALL(debug_visitor, OnAcceptChFrameReceived(_));
@@ -435,11 +455,58 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveAcceptChFrame) {
       QuicStreamFrame(id, /* fin = */ false, offset, accept_ch_frame));
 }
 
+TEST_P(QuicReceiveControlStreamTest, ReceiveOriginFrame) {
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
+  const QuicStreamId id = receive_control_stream_->id();
+  QuicStreamOffset offset = 1;
+
+  // Receive SETTINGS frame.
+  SettingsFrame settings;
+  std::string settings_frame = HttpEncoder::SerializeSettingsFrame(settings);
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
+  receive_control_stream_->OnStreamFrame(
+      QuicStreamFrame(id, /* fin = */ false, offset, settings_frame));
+  offset += settings_frame.length();
+
+  // Receive ORIGIN frame.
+  std::string origin_frame;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("0C"   // type (ORIGIN)
+                             "00",  // length
+                             &origin_frame));
+
+  if (GetQuicReloadableFlag(enable_h3_origin_frame)) {
+    if (perspective() == Perspective::IS_CLIENT) {
+      EXPECT_CALL(debug_visitor, OnOriginFrameReceived(_));
+    } else {
+      EXPECT_CALL(*connection_,
+                  CloseConnection(
+                      QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM,
+                      "Invalid frame type 12 received on control stream.", _))
+          .WillOnce(
+              Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+      EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
+      EXPECT_CALL(session_, OnConnectionClosed(_, _));
+    }
+  } else {
+    EXPECT_CALL(debug_visitor,
+                OnUnknownFrameReceived(id, /* frame_type = */ 0x0c,
+                                       /* payload_length = */ 0));
+  }
+
+  receive_control_stream_->OnStreamFrame(
+      QuicStreamFrame(id, /* fin = */ false, offset, origin_frame));
+}
+
 TEST_P(QuicReceiveControlStreamTest, UnknownFrameBeforeSettings) {
-  std::string unknown_frame = absl::HexStringToBytes(
-      "21"        // reserved frame type
-      "03"        // payload length
-      "666f6f");  // payload "foo"
+  std::string unknown_frame;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("21"       // reserved frame type
+                             "03"       // payload length
+                             "666f6f",  // payload "foo"
+                             &unknown_frame));
 
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_HTTP_MISSING_SETTINGS_FRAME,

@@ -4,6 +4,7 @@
 
 #include "third_party/blink/public/common/indexeddb/indexed_db_default_mojom_traits.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "mojo/public/cpp/base/string16_mojom_traits.h"
@@ -21,7 +22,6 @@ bool StructTraits<blink::mojom::IDBDatabaseMetadataDataView,
                   blink::IndexedDBDatabaseMetadata>::
     Read(blink::mojom::IDBDatabaseMetadataDataView data,
          blink::IndexedDBDatabaseMetadata* out) {
-  out->id = data.id();
   if (!data.ReadName(&out->name))
     return false;
   out->version = data.version();
@@ -88,7 +88,6 @@ UnionTraits<blink::mojom::IDBKeyDataView, blink::IndexedDBKey>::GetTag(
     case blink::mojom::IDBKeyType::Min:;     // Only used in the browser.
   }
   NOTREACHED();
-  return blink::mojom::IDBKeyDataView::Tag::kOtherNone;
 }
 
 // static
@@ -104,9 +103,9 @@ bool UnionTraits<blink::mojom::IDBKeyDataView, blink::IndexedDBKey>::Read(
       return true;
     }
     case blink::mojom::IDBKeyDataView::Tag::kBinary: {
-      ArrayDataView<uint8_t> bytes;
-      data.GetBinaryDataView(&bytes);
-      std::string binary(bytes.data(), bytes.data() + bytes.size());
+      ArrayDataView<uint8_t> byte_view;
+      data.GetBinaryDataView(&byte_view);
+      std::string binary(base::as_string_view(byte_view));
       *out = blink::IndexedDBKey(std::move(binary));
       return true;
     }
@@ -150,7 +149,6 @@ StructTraits<blink::mojom::IDBKeyPathDataView, blink::IndexedDBKeyPath>::data(
                                                // block to NOTREACHED().
   }
   NOTREACHED();
-  return nullptr;
 }
 
 // static
@@ -164,19 +162,32 @@ bool StructTraits<blink::mojom::IDBKeyPathDataView, blink::IndexedDBKeyPath>::
     return true;
   }
 
+  auto is_valid_key_path_entry = [](const std::u16string& entry) {
+    // Must not contain spaces: https://www.w3.org/TR/IndexedDB/#valid-key-path.
+    return entry.find_first_of(u' ') == std::u16string::npos;
+  };
+
   switch (data_view.tag()) {
     case blink::mojom::IDBKeyPathDataDataView::Tag::kString: {
-      std::u16string string;
-      if (!data_view.ReadString(&string))
+      std::u16string entry;
+      if (!data_view.ReadString(&entry)) {
         return false;
-      *out = blink::IndexedDBKeyPath(string);
+      }
+      if (!is_valid_key_path_entry(entry)) {
+        return false;
+      }
+      *out = blink::IndexedDBKeyPath(std::move(entry));
       return true;
     }
     case blink::mojom::IDBKeyPathDataDataView::Tag::kStringArray: {
-      std::vector<std::u16string> array;
-      if (!data_view.ReadStringArray(&array))
+      std::vector<std::u16string> entries;
+      if (!data_view.ReadStringArray(&entries)) {
         return false;
-      *out = blink::IndexedDBKeyPath(array);
+      }
+      if (!std::ranges::all_of(entries, is_valid_key_path_entry)) {
+        return false;
+      }
+      *out = blink::IndexedDBKeyPath(std::move(entries));
       return true;
     }
   }
@@ -193,8 +204,8 @@ bool StructTraits<blink::mojom::IDBKeyRangeDataView, blink::IndexedDBKeyRange>::
   if (!data.ReadLower(&lower) || !data.ReadUpper(&upper))
     return false;
 
-  *out = blink::IndexedDBKeyRange(lower, upper, data.lower_open(),
-                                  data.upper_open());
+  *out = blink::IndexedDBKeyRange(std::move(lower), std::move(upper),
+                                  data.lower_open(), data.upper_open());
   return true;
 }
 

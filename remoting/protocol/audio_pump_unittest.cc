@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 
+#include <array>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -77,8 +78,8 @@ class AudioPumpTest : public testing::Test, public protocol::AudioStub {
   base::test::SingleThreadTaskEnvironment task_environment_;
 
   // |source_| and |encoder_| are owned by the |pump_|.
-  raw_ptr<FakeAudioSource> source_;
-  raw_ptr<FakeAudioEncoder> encoder_;
+  raw_ptr<FakeAudioSource, AcrossTasksDanglingUntriaged> source_;
+  raw_ptr<FakeAudioEncoder, AcrossTasksDanglingUntriaged> encoder_;
 
   std::unique_ptr<AudioPump> pump_;
 
@@ -142,33 +143,21 @@ TEST_F(AudioPumpTest, DownmixAudioPacket) {
   ASSERT_TRUE(source_->callback());
 
   // Generate several audio packets with different channel counts.
-  static const int kChannels[] = {
-    AudioPacket::CHANNELS_7_1,
-    AudioPacket::CHANNELS_6_1,
-    AudioPacket::CHANNELS_5_1,
-    AudioPacket::CHANNELS_STEREO,
-    AudioPacket::CHANNELS_MONO,
-    AudioPacket::CHANNELS_7_1,
-    AudioPacket::CHANNELS_7_1,
-    AudioPacket::CHANNELS_7_1,
-    AudioPacket::CHANNELS_7_1,
-    AudioPacket::CHANNELS_6_1,
-    AudioPacket::CHANNELS_6_1,
-    AudioPacket::CHANNELS_6_1,
-    AudioPacket::CHANNELS_6_1,
-    AudioPacket::CHANNELS_5_1,
-    AudioPacket::CHANNELS_5_1,
-    AudioPacket::CHANNELS_5_1,
-    AudioPacket::CHANNELS_5_1,
-    AudioPacket::CHANNELS_STEREO,
-    AudioPacket::CHANNELS_STEREO,
-    AudioPacket::CHANNELS_STEREO,
-    AudioPacket::CHANNELS_STEREO,
-    AudioPacket::CHANNELS_MONO,
-    AudioPacket::CHANNELS_MONO,
-    AudioPacket::CHANNELS_MONO,
-    AudioPacket::CHANNELS_MONO,
-  };
+  static const auto kChannels = std::to_array<int>({
+      AudioPacket::CHANNELS_7_1,    AudioPacket::CHANNELS_6_1,
+      AudioPacket::CHANNELS_5_1,    AudioPacket::CHANNELS_STEREO,
+      AudioPacket::CHANNELS_MONO,   AudioPacket::CHANNELS_7_1,
+      AudioPacket::CHANNELS_7_1,    AudioPacket::CHANNELS_7_1,
+      AudioPacket::CHANNELS_7_1,    AudioPacket::CHANNELS_6_1,
+      AudioPacket::CHANNELS_6_1,    AudioPacket::CHANNELS_6_1,
+      AudioPacket::CHANNELS_6_1,    AudioPacket::CHANNELS_5_1,
+      AudioPacket::CHANNELS_5_1,    AudioPacket::CHANNELS_5_1,
+      AudioPacket::CHANNELS_5_1,    AudioPacket::CHANNELS_STEREO,
+      AudioPacket::CHANNELS_STEREO, AudioPacket::CHANNELS_STEREO,
+      AudioPacket::CHANNELS_STEREO, AudioPacket::CHANNELS_MONO,
+      AudioPacket::CHANNELS_MONO,   AudioPacket::CHANNELS_MONO,
+      AudioPacket::CHANNELS_MONO,
+  });
 
   for (size_t i = 0; i < std::size(kChannels); i++) {
     source_->callback().Run(MakeAudioPacket(kChannels[i]));

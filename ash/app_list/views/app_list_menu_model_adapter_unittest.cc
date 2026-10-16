@@ -15,6 +15,7 @@
 #include "base/strings/string_util.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/controls/menu/menu_types.h"
 
@@ -35,8 +36,8 @@ class AppListMenuModelAdapterTest
 
     return std::make_unique<AppListMenuModelAdapter>(
         "test-app-id", std::move(menu_model), nullptr,
-        ui::MenuSourceType::MENU_SOURCE_MOUSE, metric_params, type,
-        base::OnceClosure(), is_tablet_mode);
+        ui::mojom::MenuSourceType::kMouse, metric_params, type,
+        base::OnceClosure(), is_tablet_mode, AppCollection::kUnknown);
   }
 
   std::string AppendClamshellOrTabletModePostfix(
@@ -52,9 +53,9 @@ class AppListMenuModelAdapterTest
 // Tests that NOTIFICATION_CONTAINER is enabled. This ensures that the
 // container is able to handle gesture events.
 TEST_F(AppListMenuModelAdapterTest, NotificationContainerEnabled) {
-  auto adapter =
-      CreateAdapter(AppLaunchedMetricParams(),
-                    AppListMenuModelAdapter::FULLSCREEN_APP_GRID, false);
+  auto adapter = CreateAdapter(
+      AppLaunchedMetricParams(),
+      AppListMenuModelAdapter::PRODUCTIVITY_LAUNCHER_APP_GRID, false);
   EXPECT_TRUE(adapter->IsCommandEnabled(NOTIFICATION_CONTAINER));
 }
 
@@ -64,14 +65,12 @@ TEST_P(AppListMenuModelAdapterTest, RecordsHistogramOnMenuClosed) {
     std::string base_histogram_name;
     bool has_non_tablet_clamshell_histograms;
   } test_cases[] = {
-      {AppListMenuModelAdapter::FULLSCREEN_SUGGESTED, "SuggestedAppFullscreen",
-       true},
-      {AppListMenuModelAdapter::FULLSCREEN_APP_GRID, "AppGrid", true},
       {AppListMenuModelAdapter::PRODUCTIVITY_LAUNCHER_RECENT_APP,
        "ProductivityLauncherRecentApp", false},
       {AppListMenuModelAdapter::PRODUCTIVITY_LAUNCHER_APP_GRID,
        "ProductivityLauncherAppGrid", false},
-      {AppListMenuModelAdapter::FULLSCREEN_SEARCH_RESULT, "SearchResult", true},
+      {AppListMenuModelAdapter::PRODUCTIVITY_LAUNCHER_APPS_COLLECTIONS,
+       "AppsCollections", false},
   };
 
   for (const auto& test_case : test_cases) {
@@ -90,13 +89,13 @@ TEST_P(AppListMenuModelAdapterTest, RecordsHistogramOnMenuClosed) {
         ".");
 
     if (test_case.has_non_tablet_clamshell_histograms) {
-      histogram_tester.ExpectUniqueSample(
-          show_source_histogram_name, ui::MenuSourceType::MENU_SOURCE_MOUSE, 1);
+      histogram_tester.ExpectUniqueSample(show_source_histogram_name,
+                                          ui::mojom::MenuSourceType::kMouse, 1);
       histogram_tester.ExpectTotalCount(user_journey_time_histogram_name, 1);
     }
     histogram_tester.ExpectUniqueSample(
         AppendClamshellOrTabletModePostfix(show_source_histogram_name),
-        ui::MenuSourceType::MENU_SOURCE_MOUSE, 1);
+        ui::mojom::MenuSourceType::kMouse, 1);
     histogram_tester.ExpectTotalCount(
         AppendClamshellOrTabletModePostfix(user_journey_time_histogram_name),
         1);
@@ -114,6 +113,8 @@ TEST_P(AppListMenuModelAdapterTest, RecordsAppLaunched) {
        AppListUserAction::kAppLaunchFromRecentApps},
       {AppListLaunchedFrom::kLaunchedFromSearchBox,
        AppListUserAction::kOpenAppSearchResult},
+      {AppListLaunchedFrom::kLaunchedFromAppsCollections,
+       AppListUserAction::kAppLauncherFromAppsCollections},
   };
 
   for (const auto& test_case : test_cases) {
@@ -126,7 +127,7 @@ TEST_P(AppListMenuModelAdapterTest, RecordsAppLaunched) {
     metric_params.app_list_view_state = AppListViewState::kFullscreenAllApps;
 
     const auto adapter = CreateAdapter(
-        metric_params, AppListMenuModelAdapter::FULLSCREEN_APP_GRID,
+        metric_params, AppListMenuModelAdapter::PRODUCTIVITY_LAUNCHER_APP_GRID,
         is_tablet_mode());
     adapter->Run(gfx::Rect(), views::MenuAnchorPosition::kBottomCenter, 0);
     adapter->ExecuteCommand(LAUNCH_NEW, /*mouse_event_flags=*/0);

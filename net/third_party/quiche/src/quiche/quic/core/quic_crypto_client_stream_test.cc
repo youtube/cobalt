@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "quiche/quic/core/crypto/aes_128_gcm_12_encrypter.h"
@@ -40,7 +41,7 @@ class QuicCryptoClientStreamTest : public QuicTest {
  public:
   QuicCryptoClientStreamTest()
       : supported_versions_(AllSupportedVersionsWithQuicCrypto()),
-        server_id_(kServerHostname, kServerPort, false),
+        server_id_(kServerHostname, kServerPort),
         crypto_config_(crypto_test_utils::ProofVerifierForTesting(),
                        std::make_unique<test::SimpleSessionCache>()),
         server_crypto_config_(
@@ -335,35 +336,6 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdateBeforeHandshake) {
   server_config_update.set_tag(kSCUP);
   crypto_test_utils::SendHandshakeMessageToStream(
       stream(), server_config_update, Perspective::IS_SERVER);
-}
-
-TEST_F(QuicCryptoClientStreamTest, PreferredVersion) {
-  // This mimics the case where client receives version negotiation packet, such
-  // that, the preferred version is different from the packets' version.
-  connection_ = new PacketSavingConnection(
-      &client_helper_, &alarm_factory_, Perspective::IS_CLIENT,
-      ParsedVersionOfIndex(supported_versions_, 1));
-  connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
-
-  CreateSession();
-  CompleteCryptoHandshake();
-  // 2 CHLOs are sent.
-  ASSERT_EQ(2u, session_->sent_crypto_handshake_messages().size());
-  // Verify preferred version is the highest version that session supports, and
-  // is different from connection's version.
-  QuicVersionLabel client_version_label;
-  EXPECT_THAT(session_->sent_crypto_handshake_messages()[0].GetVersionLabel(
-                  kVER, &client_version_label),
-              IsQuicNoError());
-  EXPECT_EQ(CreateQuicVersionLabel(supported_versions_[0]),
-            client_version_label);
-  EXPECT_THAT(session_->sent_crypto_handshake_messages()[1].GetVersionLabel(
-                  kVER, &client_version_label),
-              IsQuicNoError());
-  EXPECT_EQ(CreateQuicVersionLabel(supported_versions_[0]),
-            client_version_label);
-  EXPECT_NE(CreateQuicVersionLabel(connection_->version()),
-            client_version_label);
 }
 
 }  // namespace

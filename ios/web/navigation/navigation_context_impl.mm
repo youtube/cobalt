@@ -11,10 +11,6 @@
 #import "ios/web/navigation/navigation_item_impl.h"
 #import "net/http/http_response_headers.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 
 namespace {
@@ -48,7 +44,7 @@ NSString* NavigationContextImpl::GetDescription() const {
       stringWithFormat:
           @"web::WebState: %ld, url: %s, "
            "is_same_document: %@, error: %@ is_loading_error_page: %@",
-          reinterpret_cast<long>(web_state_), url_.spec().c_str(),
+          reinterpret_cast<long>(web_state_.get()), url_.spec().c_str(),
           is_same_document_ ? @"true" : @"false", error_,
           is_loading_error_page_ ? @"true" : @"false"];
 }
@@ -201,6 +197,10 @@ void NavigationContextImpl::SetItem(std::unique_ptr<NavigationItemImpl> item) {
 
 base::TimeDelta NavigationContextImpl::GetElapsedTimeSinceCreation() const {
   return elapsed_timer_.Elapsed();
+}
+
+base::WeakPtr<NavigationContextImpl> NavigationContextImpl::GetWeakPtr() {
+  return weak_factory_.GetWeakPtr();
 }
 
 NavigationContextImpl::NavigationContextImpl(WebState* web_state,

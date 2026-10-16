@@ -6,9 +6,10 @@
 #define UI_GFX_COLOR_TRANSFORM_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/feature_list.h"
 #include "third_party/skia/include/core/SkData.h"
 #include "third_party/skia/include/effects/SkRuntimeEffect.h"
 #include "ui/gfx/color_space.h"
@@ -20,6 +21,8 @@ namespace gfx {
 
 class COLOR_SPACE_EXPORT ColorTransform {
  public:
+  // Parameters that must be specified at creation time. Changing these
+  // parameters will result in an entirely different SkShader.
   struct Options {
     // Used in testing to verify that optimizations have no effect.
     bool disable_optimizations = false;
@@ -28,22 +31,32 @@ class COLOR_SPACE_EXPORT ColorTransform {
     uint32_t src_bit_depth = kDefaultBitDepth;
     uint32_t dst_bit_depth = kDefaultBitDepth;
 
-    // If set to true, then map PQ and HLG imputs such that their maximum
+    // If set to true, then map PQ and HLG inputs such that their maximum
     // luminance will be `dst_max_luminance_relative`.
     bool tone_map_pq_and_hlg_to_dst = false;
+  };
 
-    // Used for tone mapping and for interpreting color spaces whose
-    // definition depends on an SDR white point.
-    // TODO(https://crbug.com/1286082): Use this value in the transform.
-    float sdr_max_luminance_nits = ColorSpace::kDefaultSDRWhiteLevel;
+  // Parameters that may be specified when the transform is applied. Changing
+  // these parameters will change the uniforms for a single SkShader.
+  struct COLOR_SPACE_EXPORT RuntimeOptions {
+    RuntimeOptions();
+    RuntimeOptions(const RuntimeOptions&) = delete;
+    RuntimeOptions& operator=(const RuntimeOptions&) = delete;
+    ~RuntimeOptions();
+
+    // Offset and multiplier used when sampling textures;
+    float offset = 0.f;
+    float multiplier = 1.f;
 
     // Used for tone mapping PQ sources.
-    absl::optional<gfx::HDRMetadata> src_hdr_metadata;
+    std::optional<gfx::HDRMetadata> src_hdr_metadata;
+
+    // Used for interpreting color spaces whose definition depends on an SDR
+    // white point and for tone mapping.
+    float dst_sdr_max_luminance_nits = ColorSpace::kDefaultSDRWhiteLevel;
 
     // The maximum luminance value for the destination, as a multiple of
-    // `sdr_max_luminance_nits` (so this is 1 for SDR displays).
-    // TODO(https://crbug.com/1286076): Use this value for transforming
-    // PQ and HLG content.
+    // `dst_sdr_max_luminance_nits` (so this is 1 for SDR displays).
     float dst_max_luminance_relative = 1.f;
   };
 
@@ -62,16 +75,9 @@ class COLOR_SPACE_EXPORT ColorTransform {
 
   // Perform transformation of colors, |colors| is both input and output.
   virtual void Transform(TriStim* colors, size_t num) const = 0;
-
-  // Return an SkRuntimeEffect to perform this transform.
-  virtual sk_sp<SkRuntimeEffect> GetSkRuntimeEffect() const = 0;
-
-  // Return the uniforms used by the above SkRuntimeEffect.
-  static sk_sp<SkData> GetSkShaderUniforms(const ColorSpace& src,
-                                           const ColorSpace& dst,
-                                           float offset,
-                                           float multiplier,
-                                           const Options& options);
+  virtual void Transform(TriStim* colors,
+                         size_t num,
+                         const RuntimeOptions& options) const = 0;
 
   // Returns true if this transform is the identity.
   virtual bool IsIdentity() const = 0;

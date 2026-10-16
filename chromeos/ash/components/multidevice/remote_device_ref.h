@@ -14,7 +14,7 @@
 #include "chromeos/ash/components/multidevice/software_feature_state.h"
 
 namespace ash {
-class EasyUnlockServiceRegular;
+class EasyUnlockService;
 namespace multidevice_setup {
 class MultiDeviceSetupImpl;
 }
@@ -99,9 +99,9 @@ class RemoteDeviceRef {
   FRIEND_TEST_ALL_PREFIXES(RemoteDeviceRefTest, TestFields);
   FRIEND_TEST_ALL_PREFIXES(RemoteDeviceRefTest, TestCopyAndAssign);
 
-  // TODO(crbug.com/752273): Remove these once clients have migrated to Device
+  // TODO(crbug.com/40533499): Remove these once clients have migrated to Device
   // Sync service.
-  friend class EasyUnlockServiceRegular;
+  friend class EasyUnlockService;
   friend class tether::TetherHostFetcherImplTest;
   friend class tether::TetherHostFetcherImpl;
   friend class ProximityAuthWebUIHandler;

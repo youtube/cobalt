@@ -6,10 +6,6 @@
 
 #import "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation ShareHighlightCommand {
   GURL _URL;
 }
@@ -19,7 +15,7 @@
                selectedText:(NSString*)selectedText
                  sourceView:(UIView*)sourceView
                  sourceRect:(CGRect)sourceRect {
-  if (self = [super init]) {
+  if ((self = [super init])) {
     _URL = URL;
     _title = [title copy];
     _selectedText = [selectedText copy];

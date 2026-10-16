@@ -12,8 +12,7 @@
 #include "chromeos/ash/services/secure_channel/public/cpp/client/fake_connection_manager.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 class InvalidConnectionDisconnectorTest : public testing::Test {
  public:
@@ -55,7 +54,7 @@ class InvalidConnectionDisconnectorTest : public testing::Test {
   }
 
   void ClearPhoneModel() {
-    fake_phone_model_.SetPhoneStatusModel(absl::nullopt);
+    fake_phone_model_.SetPhoneStatusModel(std::nullopt);
   }
 
   void SetPhoneModel() {
@@ -68,7 +67,7 @@ class InvalidConnectionDisconnectorTest : public testing::Test {
   std::unique_ptr<secure_channel::FakeConnectionManager>
       fake_connection_manager_;
   MutablePhoneModel fake_phone_model_;
-  raw_ptr<base::MockOneShotTimer, ExperimentalAsh> timer_;
+  raw_ptr<base::MockOneShotTimer, DanglingUntriaged> timer_;
   std::unique_ptr<InvalidConnectionDisconnector>
       invalid_connection_disconnector_;
 };
@@ -103,5 +102,4 @@ TEST_F(InvalidConnectionDisconnectorTest, DisconnectFlows) {
   EXPECT_FALSE(IsTimerRunning());
 }
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub

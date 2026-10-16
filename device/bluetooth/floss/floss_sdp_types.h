@@ -5,6 +5,7 @@
 #define DEVICE_BLUETOOTH_FLOSS_FLOSS_SDP_TYPES_H_
 
 #include <string>
+#include <variant>
 
 #include "device/bluetooth/bluetooth_device.h"
 #include "device/bluetooth/bluetooth_export.h"
@@ -84,18 +85,18 @@ struct DEVICE_BLUETOOTH_EXPORT BtSdpDipRecord {
   bool primary_record;
 };
 
-using BtSdpRecord = absl::variant<BtSdpHeaderOverlay,
-                                  BtSdpMasRecord,
-                                  BtSdpMnsRecord,
-                                  BtSdpPseRecord,
-                                  BtSdpPceRecord,
-                                  BtSdpOpsRecord,
-                                  BtSdpSapRecord,
-                                  BtSdpDipRecord>;
-absl::optional<floss::BtSdpHeaderOverlay> DEVICE_BLUETOOTH_EXPORT
+using BtSdpRecord = std::variant<BtSdpHeaderOverlay,
+                                 BtSdpMasRecord,
+                                 BtSdpMnsRecord,
+                                 BtSdpPseRecord,
+                                 BtSdpPceRecord,
+                                 BtSdpOpsRecord,
+                                 BtSdpSapRecord,
+                                 BtSdpDipRecord>;
+std::optional<floss::BtSdpHeaderOverlay> DEVICE_BLUETOOTH_EXPORT
 GetHeaderOverlayFromSdpRecord(const floss::BtSdpRecord& record);
 
-absl::optional<device::BluetoothUUID> DEVICE_BLUETOOTH_EXPORT
+std::optional<device::BluetoothUUID> DEVICE_BLUETOOTH_EXPORT
 GetUUIDFromSdpRecord(const floss::BtSdpRecord& record);
 
 }  // namespace floss

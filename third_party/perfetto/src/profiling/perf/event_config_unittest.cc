@@ -40,7 +40,7 @@ bool IsPowerOfTwo(size_t v) {
 
 std::optional<EventConfig> CreateEventConfig(
     const protos::gen::PerfEventConfig& perf_cfg,
-    EventConfig::tracepoint_id_fn_t tracepoint_id_lookup =
+    const EventConfig::tracepoint_id_fn_t& tracepoint_id_lookup =
         [](const std::string&, const std::string&) { return 0; }) {
   protos::gen::DataSourceConfig ds_cfg;
   ds_cfg.set_perf_event_config_raw(perf_cfg.SerializeAsString());
@@ -266,6 +266,53 @@ TEST(EventConfigTest, CounterOnlyModeDetection) {
   }
 }
 
+// Tests the polled (periodic read syscall) configuration.
+TEST(EventConfigTest, CounterPolling) {
+  {  // single counter:
+    protos::gen::PerfEventConfig cfg;
+    auto* mutable_timebase = cfg.mutable_timebase();
+    mutable_timebase->set_poll_period_ms(200);
+    mutable_timebase->set_counter(protos::gen::PerfEvents::HW_CPU_CYCLES);
+
+    std::optional<EventConfig> event_config = CreateEventConfig(cfg);
+
+    ASSERT_TRUE(event_config.has_value());
+    EXPECT_EQ(event_config->perf_attr()->type, PERF_TYPE_HARDWARE);
+    EXPECT_EQ(event_config->perf_attr()->config, PERF_COUNT_HW_CPU_CYCLES);
+    EXPECT_EQ(event_config->perf_attr()->read_format, PERF_FORMAT_GROUP);
+    EXPECT_EQ(event_config->perf_attr()->sample_type, 0u);
+
+    EXPECT_EQ(event_config->recording_mode(), RecordingMode::kPolling);
+  }
+  {  // multiple counters:
+    protos::gen::PerfEventConfig cfg;
+    auto* mutable_timebase = cfg.mutable_timebase();
+    mutable_timebase->set_poll_period_ms(200);
+    mutable_timebase->set_counter(protos::gen::PerfEvents::SW_PAGE_FAULTS);
+
+    auto* counter_follower = cfg.add_followers();
+    counter_follower->set_counter(
+        protos::gen::PerfEvents::HW_BRANCH_INSTRUCTIONS);
+
+    std::optional<EventConfig> event_config = CreateEventConfig(cfg);
+
+    ASSERT_TRUE(event_config.has_value());
+    EXPECT_EQ(event_config->perf_attr()->type, PERF_TYPE_SOFTWARE);
+    EXPECT_EQ(event_config->perf_attr()->config, PERF_COUNT_SW_PAGE_FAULTS);
+    EXPECT_EQ(event_config->perf_attr()->read_format, PERF_FORMAT_GROUP);
+    EXPECT_EQ(event_config->perf_attr()->sample_type, 0u);
+
+    ASSERT_EQ(event_config->follower_events().size(), 1u);
+    ASSERT_EQ(event_config->perf_attr_followers().size(), 1u);
+
+    const auto& follower = event_config->perf_attr_followers().at(0);
+    EXPECT_EQ(follower.type, PERF_TYPE_HARDWARE);
+    EXPECT_EQ(follower.config, PERF_COUNT_HW_BRANCH_INSTRUCTIONS);
+
+    EXPECT_EQ(event_config->recording_mode(), RecordingMode::kPolling);
+  }
+}
+
 TEST(EventConfigTest, CallstackSamplingModeDetection) {
   {  // set-but-empty |callstack_sampling| field enables userspace callstacks
     protos::gen::PerfEventConfig cfg;
@@ -366,6 +413,66 @@ TEST(EventConfigTest, TimestampClockId) {
     EXPECT_TRUE(event_config->perf_attr()->use_clockid);
     EXPECT_EQ(event_config->perf_attr()->clockid, CLOCK_MONOTONIC);
   }
+}
+
+TEST(EventConfigTest, GroupMultipleType) {
+  protos::gen::PerfEventConfig cfg;
+  {
+    // timebase:
+    auto* mutable_timebase = cfg.mutable_timebase();
+    mutable_timebase->set_period(500);
+    mutable_timebase->set_counter(protos::gen::PerfEvents::HW_CPU_CYCLES);
+    mutable_timebase->set_name("timebase");
+
+    // raw follower:
+    auto* raw_follower = cfg.add_followers();
+    raw_follower->set_name("raw");
+    auto* raw_event = raw_follower->mutable_raw_event();
+    raw_event->set_type(8);
+    raw_event->set_config(8);
+
+    // HW counter follower:
+    auto* counter_follower = cfg.add_followers();
+    counter_follower->set_name("counter");
+    counter_follower->set_counter(
+        protos::gen::PerfEvents::HW_BRANCH_INSTRUCTIONS);
+
+    // tracepoint follower:
+    auto* tracepoint_follower = cfg.add_followers();
+    tracepoint_follower->set_name("tracepoint");
+    auto* tracepoint_event = tracepoint_follower->mutable_tracepoint();
+    tracepoint_event->set_name("sched:sched_switch");
+  }
+
+  auto id_lookup = [](const std::string& group, const std::string& name) {
+    return (group == "sched" && name == "sched_switch") ? 42 : 0;
+  };
+  std::optional<EventConfig> event_config = CreateEventConfig(cfg, id_lookup);
+
+  ASSERT_TRUE(event_config.has_value());
+  EXPECT_EQ(event_config->perf_attr()->type, PERF_TYPE_HARDWARE);
+  EXPECT_EQ(event_config->perf_attr()->config, PERF_COUNT_HW_CPU_CYCLES);
+  EXPECT_EQ(event_config->perf_attr()->sample_type &
+                (PERF_SAMPLE_STACK_USER | PERF_SAMPLE_REGS_USER),
+            0u);
+  EXPECT_EQ(event_config->perf_attr()->read_format, PERF_FORMAT_GROUP);
+
+  ASSERT_EQ(event_config->perf_attr_followers().size(), 3u);
+
+  const auto& raw_event = event_config->perf_attr_followers().at(0);
+  EXPECT_EQ(raw_event.type, 8u);
+  EXPECT_EQ(raw_event.config, 8u);
+  EXPECT_TRUE(raw_event.sample_type & PERF_SAMPLE_READ);
+
+  const auto& hw_counter = event_config->perf_attr_followers().at(1);
+  EXPECT_EQ(hw_counter.type, PERF_TYPE_HARDWARE);
+  EXPECT_EQ(hw_counter.config, PERF_COUNT_HW_BRANCH_INSTRUCTIONS);
+  EXPECT_TRUE(hw_counter.sample_type & PERF_SAMPLE_READ);
+
+  const auto& tracepoint = event_config->perf_attr_followers().at(2);
+  EXPECT_EQ(tracepoint.type, PERF_TYPE_TRACEPOINT);
+  EXPECT_EQ(tracepoint.config, 42u);
+  EXPECT_TRUE(tracepoint.sample_type & PERF_SAMPLE_READ);
 }
 
 }  // namespace

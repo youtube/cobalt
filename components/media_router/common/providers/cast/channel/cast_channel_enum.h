@@ -8,14 +8,15 @@
 #include <cstdint>
 #include <string>
 
+#include "base/types/cxx23_to_underlying.h"
+
 namespace cast_channel {
 
 // Helper function to convert scoped enums to their underlying type, for use
 // with ostreams.
 template <typename Enumeration>
-auto AsInteger(Enumeration const value) ->
-    typename std::underlying_type<Enumeration>::type {
-  return static_cast<typename std::underlying_type<Enumeration>::type>(value);
+auto AsInteger(Enumeration const value) {
+  return base::to_underlying(value);
 }
 
 enum class ReadyState {
@@ -93,6 +94,9 @@ enum class ChallengeReplyError {
   TLS_CERT_EXPIRED,
   CRL_INVALID,
   CERT_REVOKED,
+  CRL_OK_FALLBACK_CRL,
+  FALLBACK_CRL_INVALID,
+  CERTS_REVOKED_BY_FALLBACK_CRL,
   SENDER_NONCE_MISMATCH,
   SIGNATURE_EMPTY,
   DIGEST_UNSUPPORTED,
@@ -138,11 +142,11 @@ enum class WriteState {
 std::string ReadyStateToString(ReadyState ready_state);
 std::string ChannelErrorToString(ChannelError channel_error);
 
-constexpr int kNumCastChannelFlags = 6;
+constexpr int kNumCastChannelFlags = 9;
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
-// Keep in sync with CastChannelFlag enum in tools/metrics/enums.xml.
+// Keep in sync with CastChannelFlag enum in tools/metrics/histograms/enums.xml.
 enum class CastChannelFlag : uint16_t {
   kFlagsNone = 0,
   kSha1DigestAlgorithm = 1,
@@ -151,7 +155,10 @@ enum class CastChannelFlag : uint16_t {
   kCRLMissing = 1 << 3,
   kCRLInvalid = 1 << 4,
   kCertificateRevoked = 1 << 5,
-  kMaxValue = kCertificateRevoked,
+  kInvalidFallbackCRL = 1 << 6,
+  kCertificateRevokedByFallbackCRL = 1 << 7,
+  kCertificateAcceptedByFallbackCRL = 1 << 8,
+  kMaxValue = kCertificateAcceptedByFallbackCRL,
 };
 
 using CastChannelFlags = uint16_t;

@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/compiler_specific.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/trace_event/trace_event.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -36,7 +37,7 @@ ScriptProcessorHandler::ScriptProcessorHandler(
     uint32_t number_of_output_channels,
     const HeapVector<Member<AudioBuffer>>& input_buffers,
     const HeapVector<Member<AudioBuffer>>& output_buffers)
-    : AudioHandler(kNodeTypeScriptProcessor, node, sample_rate),
+    : AudioHandler(NodeType::kNodeTypeScriptProcessor, node, sample_rate),
       buffer_size_(buffer_size),
       number_of_input_channels_(number_of_input_channels),
       number_of_output_channels_(number_of_output_channels),
@@ -52,7 +53,7 @@ ScriptProcessorHandler::ScriptProcessorHandler(
   AddOutput(number_of_output_channels);
 
   channel_count_ = number_of_input_channels;
-  SetInternalChannelCountMode(kExplicit);
+  SetInternalChannelCountMode(V8ChannelCountMode::Enum::kExplicit);
 
   if (Context()->GetExecutionContext()) {
     task_runner_ = Context()->GetExecutionContext()->GetTaskRunner(
@@ -176,8 +177,9 @@ void ScriptProcessorHandler::Process(uint32_t frames_to_process) {
     for (uint32_t i = 0; i < number_of_input_channels; ++i) {
       internal_input_bus_->SetChannelMemory(
           i,
-          static_cast<float*>(shared_input_buffer->channels()[i].Data()) +
-              buffer_read_write_index_,
+          UNSAFE_TODO(
+              static_cast<float*>(shared_input_buffer->channels()[i].Data()) +
+              buffer_read_write_index_),
           frames_to_process);
     }
 
@@ -187,10 +189,11 @@ void ScriptProcessorHandler::Process(uint32_t frames_to_process) {
 
     for (uint32_t i = 0; i < number_of_output_channels; ++i) {
       float* destination = output_bus->Channel(i)->MutableData();
-      const float* source =
+      const float* source = UNSAFE_TODO(
           static_cast<float*>(shared_output_buffer->channels()[i].Data()) +
-          buffer_read_write_index_;
-      memcpy(destination, source, sizeof(float) * frames_to_process);
+          buffer_read_write_index_);
+      UNSAFE_TODO(
+          memcpy(destination, source, sizeof(float) * frames_to_process));
     }
   }
 
@@ -210,7 +213,8 @@ void ScriptProcessorHandler::Process(uint32_t frames_to_process) {
       PostCrossThreadTask(
           *task_runner_, FROM_HERE,
           CrossThreadBindOnce(&ScriptProcessorHandler::FireProcessEvent,
-                              AsWeakPtr(), double_buffer_index_));
+                              weak_ptr_factory_.GetWeakPtr(),
+                              double_buffer_index_));
     } else {
       // For an offline context, wait until the script execution is finished.
       std::unique_ptr<base::WaitableEvent> waitable_event =
@@ -219,7 +223,7 @@ void ScriptProcessorHandler::Process(uint32_t frames_to_process) {
           *task_runner_, FROM_HERE,
           CrossThreadBindOnce(
               &ScriptProcessorHandler::FireProcessEventForOfflineAudioContext,
-              AsWeakPtr(), double_buffer_index_,
+              weak_ptr_factory_.GetWeakPtr(), double_buffer_index_,
               CrossThreadUnretained(waitable_event.get())));
       waitable_event->Wait();
     }
@@ -297,7 +301,7 @@ double ScriptProcessorHandler::LatencyTime() const {
 void ScriptProcessorHandler::SetChannelCount(uint32_t channel_count,
                                              ExceptionState& exception_state) {
   DCHECK(IsMainThread());
-  BaseAudioContext::GraphAutoLocker locker(Context());
+  DeferredTaskHandler::GraphAutoLocker locker(Context());
 
   if (channel_count != channel_count_) {
     exception_state.ThrowDOMException(DOMExceptionCode::kNotSupportedError,
@@ -309,15 +313,17 @@ void ScriptProcessorHandler::SetChannelCount(uint32_t channel_count,
 }
 
 void ScriptProcessorHandler::SetChannelCountMode(
-    const String& mode,
+    V8ChannelCountMode::Enum mode,
     ExceptionState& exception_state) {
   DCHECK(IsMainThread());
-  BaseAudioContext::GraphAutoLocker locker(Context());
+  DeferredTaskHandler::GraphAutoLocker locker(Context());
 
-  if ((mode == "max") || (mode == "clamped-max")) {
+  if ((mode == V8ChannelCountMode::Enum::kMax) ||
+      (mode == V8ChannelCountMode::Enum::kClampedMax)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kNotSupportedError,
-        "channelCountMode cannot be changed from 'explicit' to '" + mode + "'");
+        "channelCountMode cannot be changed from 'explicit' to '" +
+            V8ChannelCountMode(mode).AsString() + "'");
   }
 }
 

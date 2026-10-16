@@ -6,13 +6,14 @@
 #define CHROME_BROWSER_UI_TOOLBAR_TOOLBAR_ACTIONS_MODEL_H_
 
 #include <stddef.h>
+
 #include <vector>
 
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/scoped_observation.h"
-#include "chrome/browser/extensions/api/extension_action/extension_action_api.h"
+#include "chrome/browser/extensions/extension_action_dispatcher.h"
 #include "chrome/browser/extensions/extension_management.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/prefs/pref_change_registrar.h"
@@ -30,7 +31,6 @@ class ExtensionsContainer;
 
 namespace extensions {
 class ExtensionActionManager;
-class ExtensionMessageBubbleController;
 }  // namespace extensions
 
 // Model for the browser actions toolbar. This is a per-profile instance, and
@@ -40,11 +40,12 @@ class ExtensionMessageBubbleController;
 // overflow menu on a per-window basis. Callers interested in the arrangement of
 // actions in a particular window should check that window's instance of
 // ExtensionsContainer, which is responsible for the per-window layout.
-class ToolbarActionsModel : public extensions::ExtensionActionAPI::Observer,
-                            public extensions::ExtensionRegistryObserver,
-                            public extensions::ExtensionManagement::Observer,
-                            public extensions::PermissionsManager::Observer,
-                            public KeyedService {
+class ToolbarActionsModel
+    : public extensions::ExtensionActionDispatcher::Observer,
+      public extensions::ExtensionRegistryObserver,
+      public extensions::ExtensionManagement::Observer,
+      public extensions::PermissionsManager::Observer,
+      public KeyedService {
  public:
   using ActionId = std::string;
 
@@ -62,15 +63,15 @@ class ToolbarActionsModel : public extensions::ExtensionActionAPI::Observer,
   // delegate.
   class Observer {
    public:
-    // Signals that |id| has been added to the toolbar. This will
+    // Signals that `id` has been added to the toolbar. This will
     // *only* be called after the toolbar model has been initialized.
     virtual void OnToolbarActionAdded(const ActionId& id) = 0;
 
-    // Signals that the given action with |id| has been removed from the
+    // Signals that the given action with `id` has been removed from the
     // toolbar.
     virtual void OnToolbarActionRemoved(const ActionId& id) = 0;
 
-    // Signals that the browser action with |id| has been updated.
+    // Signals that the browser action with `id` has been updated.
     // This method covers lots of different extension updates and could be split
     // in different methods if needed, such as
     // `OnToolbarActionHostPermissionsUpdated`.
@@ -85,11 +86,14 @@ class ToolbarActionsModel : public extensions::ExtensionActionAPI::Observer,
     virtual void OnToolbarPinnedActionsChanged() = 0;
 
    protected:
-    virtual ~Observer() {}
+    virtual ~Observer() = default;
   };
 
   // Convenience function to get the ToolbarActionsModel for a Profile.
   static ToolbarActionsModel* Get(Profile* profile);
+
+  // Returns whether actions can be shown in the toolbar for `browser`.
+  static bool CanShowActionsInToolbar(const Browser& browser);
 
   // Adds or removes an observer.
   void AddObserver(Observer* observer);
@@ -99,24 +103,21 @@ class ToolbarActionsModel : public extensions::ExtensionActionAPI::Observer,
 
   const base::flat_set<ActionId>& action_ids() const { return action_ids_; }
 
-  bool has_active_bubble() const { return has_active_bubble_; }
-  void set_has_active_bubble(bool has_active_bubble) {
-    has_active_bubble_ = has_active_bubble;
-  }
-
   void SetActionVisibility(const ActionId& action_id, bool visible);
-
-  // Gets the ExtensionMessageBubbleController that should be shown for this
-  // profile, if any.
-  std::unique_ptr<extensions::ExtensionMessageBubbleController>
-  GetExtensionMessageBubbleController(Browser* browser);
 
   // Returns the extension name corresponding to the `action_id`.
   const std::u16string GetExtensionName(const ActionId& action_id) const;
 
-  // Returns true if `url` is restricted for all extensions with actions in the
-  // toolbar.ß
+  // Returns true if `action_id` is in the toolbar model.
+  bool HasAction(const ActionId& action_id) const;
+
+  // Returns if `url` is restricted for all extensions with actions in the
+  // toolbar.
   bool IsRestrictedUrl(const GURL& url) const;
+
+  // Returns if `url` is a policy-blocked url for all non-enterprise extensions
+  // with actions in the toolbar.
+  bool IsPolicyBlockedHost(const GURL& url) const;
 
   // Returns true if the action is pinned to the toolbar.
   bool IsActionPinned(const ActionId& action_id) const;
@@ -146,7 +147,7 @@ class ToolbarActionsModel : public extensions::ExtensionActionAPI::Observer,
                               const extensions::Extension* extension,
                               extensions::UninstallReason reason) override;
 
-  // ExtensionActionAPI::Observer:
+  // ExtensionActionDispatcher::Observer:
   void OnExtensionActionUpdated(
       extensions::ExtensionAction* extension_action,
       content::WebContents* web_contents,
@@ -160,6 +161,8 @@ class ToolbarActionsModel : public extensions::ExtensionActionAPI::Observer,
       const extensions::Extension& extension,
       const extensions::PermissionSet& permissions,
       extensions::PermissionsManager::UpdateReason reason) override;
+  void OnActiveTabPermissionGranted(
+      const extensions::Extension& extension) override;
 
   // KeyedService:
   void Shutdown() override;
@@ -177,9 +180,6 @@ class ToolbarActionsModel : public extensions::ExtensionActionAPI::Observer,
 
   // Returns true if the given |extension| should be added to the toolbar.
   bool ShouldAddExtension(const extensions::Extension* extension);
-
-  // Returns true if |action_id| is in the toolbar model.
-  bool HasAction(const ActionId& action_id) const;
 
   // Adds |action_id| to the toolbar.  If the action has an existing preference
   // for toolbar position, that will be used to determine its location.
@@ -201,6 +201,9 @@ class ToolbarActionsModel : public extensions::ExtensionActionAPI::Observer,
   // with a corresponding action in the model.
   std::vector<ActionId> GetFilteredPinnedActionIds() const;
 
+  // Notifies `observers_` that `action_id` has been updated.
+  void NotifyToolbarActionUpdated(const ActionId& action_id);
+
   // Our observers.
   base::ObserverList<Observer>::Unchecked observers_;
 
@@ -210,8 +213,8 @@ class ToolbarActionsModel : public extensions::ExtensionActionAPI::Observer,
   raw_ptr<extensions::ExtensionPrefs> extension_prefs_;
   raw_ptr<PrefService> prefs_;
 
-  // The ExtensionActionAPI object, cached for convenience.
-  raw_ptr<extensions::ExtensionActionAPI> extension_action_api_;
+  // The ExtensionActionDispatcher object, cached for convenience.
+  raw_ptr<extensions::ExtensionActionDispatcher> extension_action_dispatcher_;
 
   // The ExtensionRegistry object, cached for convenience.
   raw_ptr<extensions::ExtensionRegistry> extension_registry_;
@@ -229,12 +232,8 @@ class ToolbarActionsModel : public extensions::ExtensionActionAPI::Observer,
   // appear on the toolbar.
   std::vector<ActionId> pinned_action_ids_;
 
-  // Whether or not there is an active ExtensionMessageBubbleController
-  // associated with the profile. There should only be one at a time.
-  bool has_active_bubble_;
-
-  base::ScopedObservation<extensions::ExtensionActionAPI,
-                          extensions::ExtensionActionAPI::Observer>
+  base::ScopedObservation<extensions::ExtensionActionDispatcher,
+                          extensions::ExtensionActionDispatcher::Observer>
       extension_action_observation_{this};
 
   // Listen to extension load, unloaded notifications.

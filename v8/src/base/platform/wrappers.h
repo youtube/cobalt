@@ -8,15 +8,8 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-
-
 
 namespace v8::base {
-
-inline char* Strdup(const char* source) {
-  return strdup(source);
-}
 
 inline FILE* Fopen(const char* filename, const char* mode) {
   return fopen(filename, mode);

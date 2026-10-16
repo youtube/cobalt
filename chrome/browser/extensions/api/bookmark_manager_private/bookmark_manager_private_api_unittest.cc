@@ -9,6 +9,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
+#include "chrome/browser/extensions/api/bookmarks/bookmarks_api.h"
 #include "chrome/browser/extensions/extension_service_test_base.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/test_browser_window.h"
@@ -33,7 +34,7 @@ class BookmarkManagerPrivateApiUnitTest : public ExtensionServiceTestBase {
 
     ExtensionServiceInitParams params;
     params.enable_bookmark_model = true;
-    InitializeExtensionService(params);
+    InitializeExtensionService(std::move(params));
 
     browser_window_ = std::make_unique<TestBrowserWindow>();
     Browser::CreateParams browser_params(profile(), true);
@@ -108,7 +109,7 @@ TEST_F(BookmarkManagerPrivateApiUnitTest, RunCutOnPermanentNode) {
 TEST_F(BookmarkManagerPrivateApiUnitTest, RunOpenInNewTabFunction) {
   auto new_tab_function =
       base::MakeRefCounted<BookmarkManagerPrivateOpenInNewTabFunction>();
-  std::string args = base::StringPrintf(R"(["%s", false])", node_id().c_str());
+  std::string args = base::StringPrintf(R"(["%s"])", node_id().c_str());
   ASSERT_TRUE(
       api_test_utils::RunFunction(new_tab_function.get(), args, profile()));
 
@@ -121,7 +122,7 @@ TEST_F(BookmarkManagerPrivateApiUnitTest, RunOpenInNewTabFunctionFolder) {
       base::MakeRefCounted<BookmarkManagerPrivateOpenInNewTabFunction>();
   std::string node_id =
       base::NumberToString(model()->bookmark_bar_node()->id());
-  std::string args = base::StringPrintf(R"(["%s", false])", node_id.c_str());
+  std::string args = base::StringPrintf(R"(["%s"])", node_id.c_str());
   EXPECT_EQ("Cannot open a folder in a new tab.",
             api_test_utils::RunFunctionAndReturnError(new_tab_function.get(),
                                                       args, profile()));

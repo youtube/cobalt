@@ -42,8 +42,8 @@ class SESSIONS_EXPORT ContentLiveTab
   sessions::SerializedNavigationEntry GetEntryAtIndex(int index) override;
   sessions::SerializedNavigationEntry GetPendingEntry() override;
   int GetEntryCount() override;
-  std::unique_ptr<PlatformSpecificTabData> GetPlatformSpecificTabData()
-      override;
+  std::unique_ptr<tab_restore::PlatformSpecificTabData>
+  GetPlatformSpecificTabData() override;
   SerializedUserAgentOverride GetUserAgentOverride() override;
 
   content::WebContents* web_contents() { return web_contents_; }
@@ -59,7 +59,7 @@ class SESSIONS_EXPORT ContentLiveTab
     return web_contents_->GetController();
   }
 
-  raw_ptr<content::WebContents> web_contents_;
+  raw_ptr<content::WebContents, DanglingUntriaged> web_contents_;
 };
 
 }  // namespace sessions

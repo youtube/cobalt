@@ -49,6 +49,10 @@ def _MakeTempPredeterminedIdsFile(content):
 
 
 class GritNodeUnittest(unittest.TestCase):
+  @classmethod
+  def setUpClass(cls):
+    os.environ["root_gen_dir"] = "gen"
+
   def testUniqueNameAttribute(self):
     try:
       restree = grd_reader.Parse(
@@ -147,7 +151,7 @@ class GritNodeUnittest(unittest.TestCase):
         </if>
       </messages>''')
     grd.SetOutputLanguage('fr')
-    output = ''.join(rc_header.Format(grd, 'fr', '.'))
+    output = ''.join(rc_header.Format(grd, 'fr', None, '.'))
     self.assertIn('#define IDS_A 2378\n#define IDS_B 2379', output)
 
   def testMaxIds(self):

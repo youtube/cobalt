@@ -2,25 +2,29 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "mojo/core/ipcz_driver/shared_buffer.h"
+
 #include <string.h>
 
+#include <array>
 #include <string>
 #include <utility>
 
 #include "base/memory/platform_shared_memory_region.h"
-#include "base/strings/string_piece.h"
+#include "base/notreached.h"
 #include "build/blink_buildflags.h"
 #include "build/build_config.h"
-#include "mojo/core/core.h"
 #include "mojo/core/embedder/embedder.h"
-#include "mojo/core/ipcz_driver/shared_buffer.h"
-#include "mojo/core/shared_buffer_dispatcher.h"
 #include "mojo/core/test/mojo_test_base.h"
 #include "mojo/public/c/system/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace mojo {
-namespace core {
+#if BUILDFLAG(MOJO_SUPPORT_LEGACY_CORE)
+#include "mojo/core/core.h"
+#include "mojo/core/shared_buffer_dispatcher.h"
+#endif
+
+namespace mojo::core {
 namespace {
 
 using SharedBufferTest = test::MojoTestBase;
@@ -78,7 +82,7 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(CopyToBufferClient, SharedBufferTest, h) {
 }
 
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
-// TODO(crbug.com/1418597): Test currently fails on iOS.
+// TODO(crbug.com/40257752): Test currently fails on iOS.
 #define MAYBE_PassSharedBufferCrossProcess DISABLED_PassSharedBufferCrossProcess
 #else
 #define MAYBE_PassSharedBufferCrossProcess PassSharedBufferCrossProcess
@@ -110,7 +114,7 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(CreateBufferClient, SharedBufferTest, h) {
 }
 
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
-// TODO(crbug.com/1418597): Test currently fails on iOS.
+// TODO(crbug.com/40257752): Test currently fails on iOS.
 #define MAYBE_PassSharedBufferFromChild DISABLED_PassSharedBufferFromChild
 #else
 #define MAYBE_PassSharedBufferFromChild PassSharedBufferFromChild
@@ -166,7 +170,7 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(ReceiveAndEditBuffer, SharedBufferTest, h) {
 }
 
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
-// TODO(crbug.com/1418597): Test currently fails on iOS.
+// TODO(crbug.com/40257752): Test currently fails on iOS.
 #define MAYBE_PassSharedBufferFromChildToChild \
   DISABLED_PassSharedBufferFromChildToChild
 #else
@@ -243,7 +247,7 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(ReceiveAndEditBufferParent,
 #endif
 TEST_F(SharedBufferTest, MAYBE_PassHandleBetweenCousins) {
   if (IsMojoIpczEnabled()) {
-    // TODO(https://crbug.com/1299283): This test relies on Mojo invitations
+    // TODO(crbug.com/40058840): This test relies on Mojo invitations
     // between non-broker nodes, which is not currently supported by MojoIpcz.
     GTEST_SKIP() << "Invitations between non-brokers are not yet supported "
                  << "by MojoIpcz.";
@@ -256,7 +260,7 @@ TEST_F(SharedBufferTest, MAYBE_PassHandleBetweenCousins) {
   MojoHandle b;
   RunTestClient("CreateAndPassBufferParent", [&](MojoHandle child1) {
     RunTestClient("ReceiveAndEditBufferParent", [&](MojoHandle child2) {
-      MojoHandle pipe[2];
+      std::array<MojoHandle, 2> pipe;
       CreateMessagePipe(&pipe[0], &pipe[1]);
 
       WriteMessageWithHandles(child1, message, &pipe[0], 1);
@@ -291,6 +295,7 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(ReadAndMapWriteSharedBuffer,
     EXPECT_EQ(buffer->region().GetMode(),
               base::subtle::PlatformSharedMemoryRegion::Mode::kReadOnly);
   } else {
+#if BUILDFLAG(MOJO_SUPPORT_LEGACY_CORE)
     auto* dispatcher = static_cast<SharedBufferDispatcher*>(
         Core::Get()->GetDispatcher(b).get());
     base::subtle::PlatformSharedMemoryRegion& region =
@@ -298,6 +303,9 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(ReadAndMapWriteSharedBuffer,
     EXPECT_EQ(region.GetMode(),
               base::subtle::PlatformSharedMemoryRegion::Mode::kReadOnly);
     EXPECT_EQ(MOJO_RESULT_OK, MojoClose(b));
+#else
+    NOTREACHED();
+#endif
   }
 
   WriteMessage(h, "ok");
@@ -306,7 +314,7 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(ReadAndMapWriteSharedBuffer,
 }
 
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
-// TODO(crbug.com/1418597): Test currently fails on iOS.
+// TODO(crbug.com/40257752): Test currently fails on iOS.
 #define MAYBE_CreateAndPassReadOnlyBuffer DISABLED_CreateAndPassReadOnlyBuffer
 #else
 #define MAYBE_CreateAndPassReadOnlyBuffer CreateAndPassReadOnlyBuffer
@@ -345,7 +353,7 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(CreateAndPassReadOnlyBuffer,
 }
 
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
-// TODO(crbug.com/1418597): Test currently fails on iOS.
+// TODO(crbug.com/40257752): Test currently fails on iOS.
 #define MAYBE_CreateAndPassFromChildReadOnlyBuffer \
   DISABLED_CreateAndPassFromChildReadOnlyBuffer
 #else
@@ -364,6 +372,7 @@ TEST_F(SharedBufferTest, MAYBE_CreateAndPassFromChildReadOnlyBuffer) {
       EXPECT_EQ(buffer->region().GetMode(),
                 base::subtle::PlatformSharedMemoryRegion::Mode::kReadOnly);
     } else {
+#if BUILDFLAG(MOJO_SUPPORT_LEGACY_CORE)
       auto* dispatcher = static_cast<SharedBufferDispatcher*>(
           Core::Get()->GetDispatcher(b).get());
       base::subtle::PlatformSharedMemoryRegion& region =
@@ -371,6 +380,9 @@ TEST_F(SharedBufferTest, MAYBE_CreateAndPassFromChildReadOnlyBuffer) {
       EXPECT_EQ(region.GetMode(),
                 base::subtle::PlatformSharedMemoryRegion::Mode::kReadOnly);
       EXPECT_EQ(MOJO_RESULT_OK, MojoClose(b));
+#else
+      NOTREACHED();
+#endif
     }
 
     EXPECT_EQ("ok", ReadMessage(h));
@@ -381,5 +393,4 @@ TEST_F(SharedBufferTest, MAYBE_CreateAndPassFromChildReadOnlyBuffer) {
 #endif  // BUILDFLAG(USE_BLINK)
 
 }  // namespace
-}  // namespace core
-}  // namespace mojo
+}  // namespace mojo::core

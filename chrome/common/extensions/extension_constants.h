@@ -7,63 +7,64 @@
 
 #include <stdint.h>
 
+#include "base/files/file_path.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/common/buildflags.h"
-#include "url/gurl.h"
 
 namespace extension_urls {
 
 // Field to use with webstore URL for tracking launch source.
-extern const char kWebstoreSourceField[];
+inline constexpr char kWebstoreSourceField[] = "utm_source";
 
 // Values to use with webstore URL launch source field.
-extern const char kLaunchSourceAppList[];
-extern const char kLaunchSourceAppListSearch[];
-extern const char kLaunchSourceAppListInfoDialog[];
+inline constexpr char kLaunchSourceAppList[] = "chrome-app-launcher";
+inline constexpr char kLaunchSourceAppListSearch[] =
+    "chrome-app-launcher-search";
+inline constexpr char kLaunchSourceAppListInfoDialog[] =
+    "chrome-app-launcher-info-dialog";
 
 }  // namespace extension_urls
 
 namespace extension_misc {
 
 // The extension id of the Calendar application.
-extern const char kCalendarAppId[];
+inline constexpr char kCalendarAppId[] = "ejjicmeblgpmajnghnpcppodonldlgfn";
 
 // The extension id of the Data Saver extension.
-extern const char kDataSaverExtensionId[];
-
-// The extension id of the Google Docs Offline extension.
-extern const char kDocsOfflineExtensionId[];
+inline constexpr char kDataSaverExtensionId[] =
+    "pfmgfdlgomnbgkofeojodiodmgpgmkac";
 
 // The extension id of the Google Maps application.
-extern const char kGoogleMapsAppId[];
+inline constexpr char kGoogleMapsAppId[] = "lneaknkopdijkpnocmklfnjbeapigfbh";
 
 // The extension id of the Google Photos application.
-extern const char kGooglePhotosAppId[];
+inline constexpr char kGooglePhotosAppId[] = "hcglmfcclpfgljeaiahehebeoaiicbko";
 
 // The extension id of the Google Play Books application.
-extern const char kGooglePlayBooksAppId[];
+inline constexpr char kGooglePlayBooksAppId[] =
+    "mmimngoggfoobjdlefbcabngfnmieonb";
 
 // The extension id of the Google Play Movies application.
-extern const char kGooglePlayMoviesAppId[];
+inline constexpr char kGooglePlayMoviesAppId[] =
+    "gdijeikdkaembjbdobgfkoidjkpbmlkd";
 
 // The extension id of the Google Play Music application.
-extern const char kGooglePlayMusicAppId[];
+inline constexpr char kGooglePlayMusicAppId[] =
+    "icppfcnhkcmnfdhfhphakoifcfokfdhg";
 
 // The extension id of the Google+ application.
-extern const char kGooglePlusAppId[];
-
-// The extension id of the Identity API UI application.
-extern const char kIdentityApiUiAppId[];
+inline constexpr char kGooglePlusAppId[] = "dlppkpafhbajpcmmoheippocdidnckmm";
 
 // The extension id of the Text Editor application.
-extern const char kTextEditorAppId[];
+inline constexpr char kTextEditorAppId[] = "mmfbcljfglbokpmkimbfghdkjmjhdgbg";
 
 // The extension id of the in-app payments support application.
-extern const char kInAppPaymentsSupportAppId[];
+inline constexpr char kInAppPaymentsSupportAppId[] =
+    "nmmhkkegccagdldgiimedpiccmgmieda";
 
 // The extension id of virtual keyboard extension.
-extern const char kKeyboardExtensionId[];
+inline constexpr char kKeyboardExtensionId[] =
+    "mppnpdlheglhdfmldimlhpnegondlapf";
 
 // A list of all the first party extension IDs, last entry is null.
 extern const char* const kBuiltInFirstPartyExtensionIds[];
@@ -156,121 +157,188 @@ enum AppLaunchBucket {
 
 #if BUILDFLAG(IS_CHROMEOS)
 // The extension id of the Assessment Assistant extension.
-extern const char kAssessmentAssistantExtensionId[];
+inline constexpr char kAssessmentAssistantExtensionId[] =
+    "gndmhdcefbhlchkhipcnnbkcmicncehk";
 // The extension id of the extension responsible for providing chromeos perks.
-extern const char kEchoExtensionId[];
+inline constexpr char kEchoExtensionId[] = "kddnkjkcjddckihglkfcickdhbmaodcn";
 // The extension id of the Gnubby chrome app.
-extern const char kGnubbyAppId[];
+inline constexpr char kGnubbyAppId[] = "beknehfpfkghjoafdifaflglpjkojoco";
 // The extension id of the new v3 Gnubby extension.
-extern const char kGnubbyV3ExtensionId[];
+inline constexpr char kGnubbyV3ExtensionId[] =
+    "lfboplenmmjcmpbkeemecobbadnmpfhi";
 // The extension id of the GCSE.
-extern const char kGCSEExtensionId[];
+inline constexpr char kGCSEExtensionId[] = "cfmgaohenjcikllcgjpepfadgbflcjof";
 // The extension id of the Contact Center Insights chrome component extension.
-extern const char kContactCenterInsightsExtensionId[];
+inline constexpr char kContactCenterInsightsExtensionId[] =
+    "oebfonohdfogiaaaelfmjlkjbgdbaahf";
 // The extension id of the Desk API chrome component extension.
-extern const char kDeskApiExtensionId[];
+inline constexpr char kDeskApiExtensionId[] =
+    "kflgdebkpepnpjobkdfeeipcjdahoomc";
 // The extension id of the Bruschetta Security Key Forwarder extension.
-extern const char kBruSecurityKeyForwarderExtensionId[];
+inline constexpr char kBruSecurityKeyForwarderExtensionId[] =
+    "lcooaekmckohjjnpaaokodoepajbnill";
 // The extension id of the OneDrive FS external component extension.
-extern const char kODFSExtensionId[];
-#endif
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+inline constexpr char kODFSExtensionId[] = "gnnndjlaomemikopnjhhnoombakkkkdg";
+// The extension id of Perfetto UI extension.
+inline constexpr char kPerfettoUIExtensionId[] =
+    "lfmkphfpdbjijhpomgecfikhfohaoine";
 // The extension id of the Accessibility Common extension.
-extern const char kAccessibilityCommonExtensionId[];
+inline constexpr char kAccessibilityCommonExtensionId[] =
+    "egfdjlfmgnehecnclamagfafdccgfndp";
 // Path to preinstalled Accessibility Common extension (relative to
 // |chrome::DIR_RESOURCES|).
-extern const char kAccessibilityCommonExtensionPath[];
+inline constexpr char kAccessibilityCommonExtensionPath[] =
+    "chromeos/accessibility";
 // The manifest filename of the Accessibility Common extension.
-extern const char kAccessibilityCommonManifestFilename[];
+inline constexpr char kAccessibilityCommonManifestFilename[] =
+    "accessibility_common_manifest.json";
+// The manifest v3 filename of the Accessibility Common extension.
+inline constexpr char kAccessibilityCommonManifestV3Filename[] =
+    "accessibility_common_manifest_v3.json";
 // The guest manifest filename of the Accessibility Common extension.
-extern const char kAccessibilityCommonGuestManifestFilename[];
+inline constexpr char kAccessibilityCommonGuestManifestFilename[] =
+    "accessibility_common_manifest_guest.json";
+// The guest manifest v3 filename of the Accessibility Common extension.
+inline constexpr char kAccessibilityCommonGuestManifestV3Filename[] =
+    "accessibility_common_manifest_guest_v3.json";
 // Path to preinstalled ChromeVox screen reader extension (relative to
 // |chrome::DIR_RESOURCES|).
-extern const char kChromeVoxExtensionPath[];
+inline constexpr char kChromeVoxExtensionPath[] = "chromeos/accessibility";
 // The manifest filename of the ChromeVox extension.
-extern const char kChromeVoxManifestFilename[];
+inline constexpr char kChromeVoxManifestFilename[] = "chromevox_manifest.json";
+// The manifest v3 filename of the ChromeVox extension.
+inline constexpr char kChromeVoxManifestV3Filename[] =
+    "chromevox_manifest_v3.json";
 // The guest manifest filename of the ChromeVox extension.
-extern const char kChromeVoxGuestManifestFilename[];
+inline constexpr char kChromeVoxGuestManifestFilename[] =
+    "chromevox_manifest_guest.json";
+// The guest manifest v3 filename of the ChromeVox extension.
+inline constexpr char kChromeVoxGuestManifestV3Filename[] =
+    "chromevox_manifest_guest_v3.json";
 // The path to the ChromeVox extension's options page.
-extern const char kChromeVoxOptionsPath[];
+inline constexpr char kChromeVoxOptionsPath[] =
+    "/chromevox/options/options.html";
 // The extension id of the Enhanced network TTS engine extension.
-extern const char kEnhancedNetworkTtsExtensionId[];
+inline constexpr char kEnhancedNetworkTtsExtensionId[] =
+    "jacnkoglebceckolkoapelihnglgaicd";
 // Path to preinstalled Enhanced network TTS engine extension (relative to
 // |chrome::DIR_RESOURCES|).
-extern const char kEnhancedNetworkTtsExtensionPath[];
+inline constexpr char kEnhancedNetworkTtsExtensionPath[] =
+    "chromeos/accessibility";
 // The manifest filename of the Enhanced network TTS engine extension.
-extern const char kEnhancedNetworkTtsManifestFilename[];
+inline constexpr char kEnhancedNetworkTtsManifestFilename[] =
+    "enhanced_network_tts_manifest.json";
+// The manifest v3 filename of the Enhanced network TTS engine extension.
+inline constexpr char kEnhancedNetworkTtsManifestV3Filename[] =
+    "enhanced_network_tts_manifest_v3.json";
 // The guest manifest filename of the Enhanced network TTS engine extension.
-extern const char kEnhancedNetworkTtsGuestManifestFilename[];
+inline constexpr char kEnhancedNetworkTtsGuestManifestFilename[] =
+    "enhanced_network_tts_manifest_guest.json";
+// The guest manifest v3 filename of the Enhanced network TTS engine extension.
+inline constexpr char kEnhancedNetworkTtsGuestManifestV3Filename[] =
+    "enhanced_network_tts_manifest_guest_v3.json";
 // The extension id of the Select-to-speak extension.
-extern const char kSelectToSpeakExtensionId[];
+inline constexpr char kSelectToSpeakExtensionId[] =
+    "klbcgckkldhdhonijdbnhhaiedfkllef";
 // Path to preinstalled Select-to-speak extension (relative to
 // |chrome::DIR_RESOURCES|).
-extern const char kSelectToSpeakExtensionPath[];
+inline constexpr char kSelectToSpeakExtensionPath[] = "chromeos/accessibility";
 // The manifest filename of the Select to Speak extension.
-extern const char kSelectToSpeakManifestFilename[];
+inline constexpr char kSelectToSpeakManifestFilename[] =
+    "select_to_speak_manifest.json";
+// The manifest v3 filename of the Select to Speak extension.
+inline constexpr char kSelectToSpeakManifestV3Filename[] =
+    "select_to_speak_manifest_v3.json";
 // The guest manifest filename of the Select to Speak extension.
-extern const char kSelectToSpeakGuestManifestFilename[];
+inline constexpr char kSelectToSpeakGuestManifestFilename[] =
+    "select_to_speak_manifest_guest.json";
+// The guest manifest v3 filename of the Select to Speak extension.
+inline constexpr char kSelectToSpeakGuestManifestV3Filename[] =
+    "select_to_speak_manifest_v3_guest.json";
 // The extension id of the Switch Access extension.
-extern const char kSwitchAccessExtensionId[];
+inline constexpr char kSwitchAccessExtensionId[] =
+    "pmehocpgjmkenlokgjfkaichfjdhpeol";
 // Path to preinstalled Switch Access extension (relative to
 // |chrome::DIR_RESOURCES|).
-extern const char kSwitchAccessExtensionPath[];
+inline constexpr char kSwitchAccessExtensionPath[] = "chromeos/accessibility";
 // The manifest filename of the Switch Access extension.
-extern const char kSwitchAccessManifestFilename[];
+inline constexpr char kSwitchAccessManifestFilename[] =
+    "switch_access_manifest.json";
+// The manifest v3 filename of the Switch Access extension.
+inline constexpr char kSwitchAccessManifestV3Filename[] =
+    "switch_access_manifest_v3.json";
 // The guest manifest filename of the Switch Access extension.
-extern const char kSwitchAccessGuestManifestFilename[];
+inline constexpr char kSwitchAccessGuestManifestFilename[] =
+    "switch_access_manifest_guest.json";
+// The guest manifest v3 filename of the Switch Access extension.
+inline constexpr char kSwitchAccessGuestManifestV3Filename[] =
+    "switch_access_manifest_guest_v3.json";
 // Name of the manifest file in an extension when a special manifest is used
 // for guest mode.
-extern const char kGuestManifestFilename[];
+inline constexpr char kGuestManifestFilename[] = "manifest_guest.json";
 // The extension id of the first run dialog application.
-extern const char kFirstRunDialogId[];
+inline constexpr char kFirstRunDialogId[] = "jdgcneonijmofocbhmijhacgchbihela";
 // Path to preinstalled Google speech synthesis extension.
-extern const char kGoogleSpeechSynthesisExtensionPath[];
+inline constexpr char kGoogleSpeechSynthesisExtensionPath[] =
+    "/usr/share/chromeos-assets/speech_synthesis/patts";
 // The extension id of the Google speech synthesis extension.
-extern const char kGoogleSpeechSynthesisExtensionId[];
+inline constexpr char kGoogleSpeechSynthesisExtensionId[] =
+    "gjjabgpgjpampikjhjpfhneeoapjbjaf";
 // The path to the Google speech synthesis extension's options page.
-extern const char kGoogleSpeechSynthesisOptionsPath[];
+inline constexpr char kGoogleSpeechSynthesisOptionsPath[] = "/options.html";
 // Path to preinstalled eSpeak-NG speech synthesis extension.
-extern const char kEspeakSpeechSynthesisExtensionPath[];
+inline constexpr char kEspeakSpeechSynthesisExtensionPath[] =
+    "/usr/share/chromeos-assets/speech_synthesis/espeak-ng";
+inline constexpr char kEspeakManifestV3SpeechSynthesisExtensionPath[] =
+    "/usr/share/chromeos-assets/speech_synthesis/espeak-ng-mv3";
 // The extension id of the eSpeak-NG speech synthesis extension.
-extern const char kEspeakSpeechSynthesisExtensionId[];
+inline constexpr char kEspeakSpeechSynthesisExtensionId[] =
+    "dakbfdmgjiabojdgbiljlhgjbokobjpg";
 // The path to the eSpeak-NG speech synthesis extension's options page.
-extern const char kEspeakSpeechSynthesisOptionsPath[];
+inline constexpr char kEspeakSpeechSynthesisOptionsPath[] = "/options.html";
 // The extension id of official HelpApp extension.
-extern const char kHelpAppExtensionId[];
-#endif
-
-// What causes an extension to be installed? Used in histograms, so don't
-// change existing values.
-enum CrxInstallCause {
-  INSTALL_CAUSE_UNSET = 0,
-  INSTALL_CAUSE_USER_DOWNLOAD,
-  INSTALL_CAUSE_UPDATE,
-  INSTALL_CAUSE_EXTERNAL_FILE,
-  INSTALL_CAUSE_AUTOMATION,
-  NUM_INSTALL_CAUSES
-};
+inline constexpr char kHelpAppExtensionId[] =
+    "honijodknafkokifofgiaalefdiedpko";
+#endif  // BUILDFLAG(IS_CHROMEOS)
+// The extension id of the helper extension for Reading Mode to work on Google
+// Docs.
+inline constexpr char kReadingModeGDocsHelperExtensionId[] =
+    "cjlaeehoipngghikfjogbdkpbdgebppb";
+// The path to the the helper extension for Reading Mode to work on Google Docs.
+inline constexpr char kReadingModeGDocsHelperExtensionPath[] = "accessibility";
+// The name of the manifest file for the extension that enables Reading Mode to
+// work on Google Docs.
+inline constexpr base::FilePath::CharType
+    kReadingModeGDocsHelperManifestFilename[] =
+        FILE_PATH_LITERAL("reading_mode_gdocs_helper_manifest.json");
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
+// The extension id of the google tts engine extension to use on-device natural
+// Google voices.
+inline constexpr char kTTSEngineExtensionId[] =
+    "kfgdcmdikpmgdjhgfpbfgkomboamacbb";
+inline constexpr char kComponentUpdaterTTSEngineExtensionId[] =
+    "gjjabgpgjpampikjhjpfhneeoapjbjaf";
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 
 // The states that an app can be in, as reported by chrome.app.installState
 // and chrome.app.runningState.
-extern const char kAppStateNotInstalled[];
-extern const char kAppStateInstalled[];
-extern const char kAppStateDisabled[];
-extern const char kAppStateRunning[];
-extern const char kAppStateCannotRun[];
-extern const char kAppStateReadyToRun[];
+inline constexpr char kAppStateNotInstalled[] = "not_installed";
+inline constexpr char kAppStateInstalled[] = "installed";
+inline constexpr char kAppStateDisabled[] = "disabled";
+inline constexpr char kAppStateRunning[] = "running";
+inline constexpr char kAppStateCannotRun[] = "cannot_run";
+inline constexpr char kAppStateReadyToRun[] = "ready_to_run";
 
 // The path part of the file system url used for media file systems.
-extern const char kMediaFileSystemPathPart[];
+inline constexpr char kMediaFileSystemPathPart[] = "_";
 
 // The key name of extension request timestamp used by the
 // prefs::kCloudExtensionRequestIds preference.
-extern const char kExtensionRequestTimestamp[];
+inline constexpr char kExtensionRequestTimestamp[] = "timestamp";
 
 // The key name of the extension workflow request justification used by the
 // prefs::kCloudExtensionRequestIds preference.
-extern const char kExtensionWorkflowJustification[];
+inline constexpr char kExtensionWorkflowJustification[] = "justification";
 }  // namespace extension_misc
 
 #endif  // CHROME_COMMON_EXTENSIONS_EXTENSION_CONSTANTS_H_

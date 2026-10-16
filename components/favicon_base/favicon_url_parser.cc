@@ -2,7 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "components/favicon_base/favicon_url_parser.h"
+
+#include <string_view>
 
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
@@ -25,7 +32,7 @@ bool HasSubstringAt(const std::string& path,
 
 // Same as base::StringToInt() but guarantees that the output number is positive
 // (greater than zero), returns false in all other cases.
-bool StringToPositiveInt(base::StringPiece input, int* output) {
+bool StringToPositiveInt(std::string_view input, int* output) {
   int result;
   if (!base::StringToInt(input, &result))
     return false;
@@ -108,7 +115,7 @@ bool ParseFaviconPathWithFavicon2Format(const std::string& path,
   *parsed = chrome::ParsedFaviconPath();
 
   for (net::QueryIterator it(query_url); !it.IsAtEnd(); it.Advance()) {
-    const base::StringPiece key = it.GetKey();
+    const std::string_view key = it.GetKey();
     // Note: each of these keys can be used in chrome://favicon2 path. See file
     // "favicon_url_parser.h" for a description of what each one does.
     if (key == "allowGoogleServerFallback") {
@@ -131,6 +138,12 @@ bool ParseFaviconPathWithFavicon2Format(const std::string& path,
     } else if (key == "size" && !StringToPositiveInt(it.GetUnescapedValue(),
                                                      &parsed->size_in_dip)) {
       return false;
+    } else if (key == "fallbackToHost") {
+      const std::string val = it.GetUnescapedValue();
+      if (!(val == "0" || val == "1")) {
+        return false;
+      }
+      parsed->fallback_to_host = val == "1";
     }
   }
 
@@ -166,7 +179,6 @@ bool ParseFaviconPath(const std::string& path,
       return ParseFaviconPathWithFavicon2Format(path, parsed);
   }
   NOTREACHED();
-  return false;
 }
 
 }  // namespace chrome

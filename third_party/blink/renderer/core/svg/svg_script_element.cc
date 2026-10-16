@@ -49,15 +49,34 @@ void SVGScriptElement::ParseAttribute(
         JSEventHandlerForContentAttribute::Create(
             GetExecutionContext(), params.name, params.new_value,
             JSEventHandler::HandlerType::kOnErrorEventHandler));
+  } else if (params.name == svg_names::kAsyncAttr &&
+             RuntimeEnabledFeatures::SvgScriptElementAsyncAttributeEnabled()) {
+    // https://html.spec.whatwg.org/C/#non-blocking
+    // "In addition, whenever a script element whose |non-blocking|
+    // flag is set has an async content attribute added, the element's
+    // |non-blocking| flag must be unset."
+    loader_->HandleAsyncAttribute();
   } else {
     SVGElement::ParseAttribute(params);
   }
 }
 
+void SVGScriptElement::setAsync(bool async) {
+  CHECK(RuntimeEnabledFeatures::SvgScriptElementAsyncAttributeEnabled());
+
+  SetBooleanAttribute(svg_names::kAsyncAttr, async);
+  loader_->HandleAsyncAttribute();
+}
+
+bool SVGScriptElement::async() const {
+  CHECK(RuntimeEnabledFeatures::SvgScriptElementAsyncAttributeEnabled());
+
+  return FastHasAttribute(svg_names::kAsyncAttr) || loader_->IsForceAsync();
+}
+
 void SVGScriptElement::SvgAttributeChanged(
     const SvgAttributeChangedParams& params) {
   if (SVGURIReference::IsKnownAttribute(params.name)) {
-    SVGElement::InvalidationGuard invalidation_guard(this);
     loader_->HandleSourceAttribute(LegacyHrefString(*this));
     return;
   }
@@ -80,7 +99,11 @@ void SVGScriptElement::DidNotifySubtreeInsertionsToDocument() {
 
 void SVGScriptElement::ChildrenChanged(const ChildrenChange& change) {
   SVGElement::ChildrenChanged(change);
-  loader_->ChildrenChanged();
+  loader_->ChildrenChanged(change);
+
+  // We'll record whether the script element children were ever changed by
+  // the API (as opposed to the parser).
+  children_changed_by_api_ |= !change.ByParser();
 }
 
 bool SVGScriptElement::IsURLAttribute(const Attribute& attribute) const {
@@ -90,12 +113,36 @@ bool SVGScriptElement::IsURLAttribute(const Attribute& attribute) const {
 void SVGScriptElement::FinishParsingChildren() {
   SVGElement::FinishParsingChildren();
   have_fired_load_ = true;
-  DCHECK(!script_text_internal_slot_.length());
-  script_text_internal_slot_ = ParkableString(TextFromChildren().Impl());
+
+  // We normally expect the parser to finish parsing before any script gets
+  // a chance to manipulate the script. However, if script parsing gets
+  // deferred (or similar; see crbug.com/1033101) then a script might get
+  // access to the script element before. In this case, we cannot blindly
+  // accept the current TextFromChildren as a parser result.
+  // This matches the logic in HTMLScriptElement.
+  DCHECK(children_changed_by_api_ || !script_text_internal_slot_.length());
+  if (!children_changed_by_api_) {
+    script_text_internal_slot_ = ParkableString(TextFromChildren().Impl());
+  }
 }
 
 bool SVGScriptElement::HaveLoadedRequiredResources() {
   return have_fired_load_;
+}
+
+String SVGScriptElement::IntegrityAttributeValue() const {
+  return FastGetAttribute(html_names::kIntegrityAttr);
+}
+
+String SVGScriptElement::SignatureAttributeValue() const {
+  return FastGetAttribute(html_names::kSignatureAttr);
+}
+
+bool SVGScriptElement::AsyncAttributeValue() const {
+  if (RuntimeEnabledFeatures::SvgScriptElementAsyncAttributeEnabled()) {
+    return FastHasAttribute(svg_names::kAsyncAttr);
+  }
+  return false;
 }
 
 String SVGScriptElement::SourceAttributeValue() const {
@@ -196,7 +243,22 @@ V8HTMLOrSVGScriptElement* SVGScriptElement::AsV8HTMLOrSVGScriptElement() {
 }
 
 DOMNodeId SVGScriptElement::GetDOMNodeId() {
-  return DOMNodeIds::IdForNode(this);
+  return this->GetDomNodeId();
+}
+
+SVGAnimatedPropertyBase* SVGScriptElement::PropertyFromAttribute(
+    const QualifiedName& attribute_name) const {
+  if (SVGAnimatedPropertyBase* ret =
+          SVGURIReference::PropertyFromAttribute(attribute_name);
+      ret) {
+    return ret;
+  }
+  return SVGElement::PropertyFromAttribute(attribute_name);
+}
+
+void SVGScriptElement::SynchronizeAllSVGAttributes() const {
+  SVGURIReference::SynchronizeAllSVGAttributes();
+  SVGElement::SynchronizeAllSVGAttributes();
 }
 
 void SVGScriptElement::Trace(Visitor* visitor) const {

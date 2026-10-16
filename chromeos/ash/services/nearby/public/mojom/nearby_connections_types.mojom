@@ -11,6 +11,10 @@ import "mojo/public/mojom/base/time.mojom";
 // Generic result status of NearbyConnections API calls. These values are
 // persisted to logs. Entries should not be renumbered and numeric values should
 // never be reused.
+// Keep synced with with the NearbyConnectionsStatus UMA enum defined in
+// //tools/metrics/histograms/metadata/cross_device/enums.xml.
+//
+// LINT.IfChange(NearbyConnectionsStatus)
 enum Status {
   // The operation was successful.
   kSuccess = 0,
@@ -55,7 +59,19 @@ enum Status {
   // An attempt to interact with an in-flight Payload failed because it's
   // unknown to us.
   kPayloadUnknown = 14,
+  // The app is already listening for incoming connections from remote
+  // endpoints.
+  kAlreadyListening = 15,
+  // The connection was reset.
+  kReset = 16,
+  // The connection timed out.
+  kTimeout = 17,
+  // Unknown failure.
+  kUnknown = 18,
+  // Value of the next enum variant.
+  kNextValue = 19,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/cross_device/enums.xml:NearbyConnectionsStatus)
 
 // Information about a connection that is being initiated.
 struct ConnectionInfo {
@@ -116,6 +132,8 @@ struct MediumSelection {
   bool web_rtc;
   // Whether WiFi LAN should be allowed.
   bool wifi_lan;
+  // Whether WiFi Direct should be allowed.
+  bool wifi_direct;
 };
 
 // Options for a call to NearbyConnections::StartAdvertising().
@@ -144,9 +162,9 @@ struct AdvertisingOptions {
   // incoming Web RTC connections while advertising.
   bool enable_webrtc_listening = false;
   // Optional. If set, BLE advertisements will be in their "fast advertisement"
-  // form, use this UUID, and non-connectable; if empty, BLE advertisements
+  // form, use this UUID, and non-connectable; if null, BLE advertisements
   // will otherwise be normal and connectable.
-  bluetooth.mojom.UUID fast_advertisement_service_uuid;
+  bluetooth.mojom.UUID? fast_advertisement_service_uuid;
 };
 
 // Options for a call to NearbyConnections::StartDiscovery().
@@ -260,6 +278,10 @@ enum BandwidthQuality {
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+// This enum should be kept in sync with the NearbyConnectionsMedium enum at
+// //tools/metrics/histograms/metadata/nearby/enums.xml.
+//
+// LINT.IfChange(NearbyConnectionsMedium)
 enum Medium {
   kUnknown = 0,
   kMdns = 1,
@@ -273,7 +295,10 @@ enum Medium {
   kWebRtc = 9,
   kBleL2Cap = 10,
   kUsb = 11,
+  kWebRtcNonCellular = 12,
+  kAwdl = 13,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/nearby/enums.xml:NearbyConnectionsMedium)
 
 // Log severity levels. This is passed as a member of
 // NearbyConnectionsDependencies to set the minimum log level in the Nearby
@@ -285,4 +310,36 @@ enum LogSeverity {
   kWarning = 1,
   kError = 2,
   kFatal = 3,
+};
+
+// Used to indicate the authentication status to clients requesting connection.
+// This should stay in sync with the AuthenticationStatus enum defined at:
+// //third_party/nearby/src/internal/interop/device_provider.h
+enum AuthenticationStatus {
+  kUnknown = 0,
+  kSuccess = 1,
+  kFailure = 2,
+};
+
+// Information about a connection to determine if this is the correct device
+// to connect to. These fields should never be empty.
+struct InitialConnectionInfoV3 {
+  // 4-digit authentication code shown to user derived by UKEY2.
+  string authentication_digits;
+
+  // Raw 32-byte authentication token derived by UKEY2.
+  string raw_authentication_token;
+
+  // Specifies if the connection is incoming or outgoing.
+  bool is_incoming_connection = false;
+
+  // Status whether the remote device is authenticated or not.
+  AuthenticationStatus authentication_status;
+};
+
+// Used to indicate the new connection quality when upgrading to a new medium
+// e.g. BT -> WiFi direct.
+struct BandwidthInfo {
+  BandwidthQuality quality;
+  Medium medium;
 };

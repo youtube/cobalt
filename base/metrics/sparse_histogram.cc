@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/dummy_histogram.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/metrics_hashes.h"
 #include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/persistent_sample_map.h"
@@ -22,40 +23,38 @@
 
 namespace base {
 
-typedef HistogramBase::Count Count;
-typedef HistogramBase::Sample Sample;
+typedef HistogramBase::Count32 Count32;
 
 // static
-HistogramBase* SparseHistogram::FactoryGet(const std::string& name,
+HistogramBase* SparseHistogram::FactoryGet(std::string_view name,
                                            int32_t flags) {
-  HistogramBase* histogram = StatisticsRecorder::FindHistogram(name);
+  uint64_t name_hash = HashMetricName(name);
+  HistogramBase* histogram = StatisticsRecorder::FindHistogram(name_hash, name);
   if (!histogram) {
-    // TODO(gayane): |HashMetricName| is called again in Histogram constructor.
-    // Refactor code to avoid the additional call.
-    bool should_record =
-        StatisticsRecorder::ShouldRecordHistogram(HashMetricNameAs32Bits(name));
-    if (!should_record)
+    bool should_record = StatisticsRecorder::ShouldRecordHistogram(
+        ParseMetricHashTo32Bits(name_hash));
+    if (!should_record) {
       return DummyHistogram::GetInstance();
-    // Try to create the histogram using a "persistent" allocator. As of
-    // 2016-02-25, the availability of such is controlled by a base::Feature
-    // that is off by default. If the allocator doesn't exist or if
-    // allocating from it fails, code below will allocate the histogram from
-    // the process heap.
+    }
+    // Try to create the histogram using a "persistent" allocator. If the
+    // allocator doesn't exist or if allocating from it fails, code below will
+    // allocate the histogram from the process heap.
     PersistentMemoryAllocator::Reference histogram_ref = 0;
     std::unique_ptr<HistogramBase> tentative_histogram;
     PersistentHistogramAllocator* allocator = GlobalHistogramAllocator::Get();
     if (allocator) {
       tentative_histogram = allocator->AllocateHistogram(
-          SPARSE_HISTOGRAM, name, 0, 0, nullptr, flags, &histogram_ref);
+          SPARSE_HISTOGRAM, name, name_hash, /*minimum=*/0, /*maximum=*/0,
+          /*bucket_ranges=*/nullptr, flags, &histogram_ref);
     }
 
     // Handle the case where no persistent allocator is present or the
     // persistent allocation fails (perhaps because it is full).
     if (!tentative_histogram) {
       DCHECK(!histogram_ref);  // Should never have been set.
-      DCHECK(!allocator);      // Shouldn't have failed.
       flags &= ~HistogramBase::kIsPersistent;
-      tentative_histogram.reset(new SparseHistogram(GetPermanentName(name)));
+      tentative_histogram.reset(
+          new SparseHistogram(GetPermanentName(name), name_hash));
       tentative_histogram->SetFlags(flags);
     }
 
@@ -74,17 +73,31 @@ HistogramBase* SparseHistogram::FactoryGet(const std::string& name,
     }
   }
 
-  CHECK_EQ(SPARSE_HISTOGRAM, histogram->GetHistogramType());
+  if (histogram->GetHistogramType() != SPARSE_HISTOGRAM) {
+    // The type does not match the existing histogram. This can come about if an
+    // extension updates in the middle of a Chrome run or simply by bad code
+    // within Chrome itself. We can't return null since calling code does not
+    // expect it, so return a dummy instance and log the name hash.
+    //
+    // Note: Theoretically the below line could be re-entrant if something has
+    // gone very wrong, but crashing w/ an infinite recursion seems OK then.
+    UmaHistogramSparse("Histogram.MismatchedConstructionArguments",
+                       static_cast<Sample32>(name_hash));
+    DLOG(ERROR) << "Histogram " << name << " has a mismatched type";
+    return DummyHistogram::GetInstance();
+  }
   return histogram;
 }
 
 // static
 std::unique_ptr<HistogramBase> SparseHistogram::PersistentCreate(
     PersistentHistogramAllocator* allocator,
-    const char* name,
+    DurableStringView durable_name,
+    uint64_t name_hash,
     HistogramSamples::Metadata* meta,
     HistogramSamples::Metadata* logged_meta) {
-  return WrapUnique(new SparseHistogram(allocator, name, meta, logged_meta));
+  return WrapUnique(new SparseHistogram(allocator, durable_name, name_hash,
+                                        meta, logged_meta));
 }
 
 SparseHistogram::~SparseHistogram() = default;
@@ -98,29 +111,29 @@ HistogramType SparseHistogram::GetHistogramType() const {
 }
 
 bool SparseHistogram::HasConstructionArguments(
-    Sample expected_minimum,
-    Sample expected_maximum,
+    Sample32 expected_minimum,
+    Sample32 expected_maximum,
     size_t expected_bucket_count) const {
   // SparseHistogram never has min/max/bucket_count limit.
   return false;
 }
 
-void SparseHistogram::Add(Sample value) {
+void SparseHistogram::Add(Sample32 value) {
   AddCount(value, 1);
 }
 
-void SparseHistogram::AddCount(Sample value, int count) {
+void SparseHistogram::AddCount(Sample32 value, int count) {
   if (count <= 0) {
     NOTREACHED();
-    return;
   }
   {
     base::AutoLock auto_lock(lock_);
     unlogged_samples_->Accumulate(value, count);
   }
 
-  if (UNLIKELY(StatisticsRecorder::have_active_callbacks()))
+  if (StatisticsRecorder::have_active_callbacks()) [[unlikely]] {
     FindAndRunCallbacks(value);
+  }
 }
 
 std::unique_ptr<HistogramSamples> SparseHistogram::SnapshotSamples() const {
@@ -172,9 +185,9 @@ std::unique_ptr<HistogramSamples> SparseHistogram::SnapshotFinalDelta() const {
   return std::move(snapshot);
 }
 
-void SparseHistogram::AddSamples(const HistogramSamples& samples) {
+bool SparseHistogram::AddSamples(const HistogramSamples& samples) {
   base::AutoLock auto_lock(lock_);
-  unlogged_samples_->Add(samples);
+  return unlogged_samples_->Add(samples);
 }
 
 bool SparseHistogram::AddSamplesFromPickle(PickleIterator* iter) {
@@ -192,31 +205,39 @@ void SparseHistogram::SerializeInfoImpl(Pickle* pickle) const {
   pickle->WriteInt(flags());
 }
 
-SparseHistogram::SparseHistogram(const char* name)
-    : HistogramBase(name),
-      unlogged_samples_(new SampleMap(HashMetricName(name))),
-      logged_samples_(new SampleMap(unlogged_samples_->id())) {}
+SparseHistogram::SparseHistogram(DurableStringView durable_name)
+    : SparseHistogram(durable_name, HashMetricName(*durable_name)) {}
+
+SparseHistogram::SparseHistogram(DurableStringView durable_name,
+                                 uint64_t name_hash)
+    : HistogramBase(durable_name),
+      unlogged_samples_(new SampleMap(name_hash)),
+      logged_samples_(new SampleMap(unlogged_samples_->id())) {
+  DCHECK_EQ(name_hash, HashMetricName(*durable_name)) << "Name hash mismatch";
+}
 
 SparseHistogram::SparseHistogram(PersistentHistogramAllocator* allocator,
-                                 const char* name,
+                                 DurableStringView durable_name,
+                                 uint64_t name_hash,
                                  HistogramSamples::Metadata* meta,
                                  HistogramSamples::Metadata* logged_meta)
-    : HistogramBase(name),
+    : HistogramBase(durable_name),
       // While other histogram types maintain a static vector of values with
       // sufficient space for both "active" and "logged" samples, with each
       // SampleVector being given the appropriate half, sparse histograms
       // have no such initial allocation. Each sample has its own record
       // attached to a single PersistentSampleMap by a common 64-bit identifier.
       // Since a sparse histogram has two sample maps (active and logged),
-      // there must be two sets of sample records with diffent IDs. The
+      // there must be two sets of sample records with different IDs. The
       // "active" samples use, for convenience purposes, an ID matching
       // that of the histogram while the "logged" samples use that number
       // plus 1.
-      unlogged_samples_(
-          new PersistentSampleMap(HashMetricName(name), allocator, meta)),
+      unlogged_samples_(new PersistentSampleMap(name_hash, allocator, meta)),
       logged_samples_(new PersistentSampleMap(unlogged_samples_->id() + 1,
                                               allocator,
-                                              logged_meta)) {}
+                                              logged_meta)) {
+  DCHECK_EQ(name_hash, HashMetricName(*durable_name)) << "Name hash mismatch";
+}
 
 HistogramBase* SparseHistogram::DeserializeInfoImpl(PickleIterator* iter) {
   std::string histogram_name;

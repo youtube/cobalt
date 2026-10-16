@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//printing/buildflags/buildflags.gni")
 if (use_cups && is_chromeos) {
   import("//printing/backend/tools/code_generator.gni")
@@ -61,18 +60,30 @@ component("backend") {
     defines += [ "PRINT_BACKEND_AVAILABLE" ]
     sources += [
       "print_backend_win.cc",
+      "print_backend_win.h",
       "printing_info_win.cc",
       "printing_info_win.h",
+      "spooler_win.cc",
+      "spooler_win.h",
       "win_helper.cc",
       "win_helper.h",
       "xps_utils_win.cc",
       "xps_utils_win.h",
     ]
+    public_deps += [ "//printing/mojom" ]
     deps += [ "//services/data_decoder/public/cpp:safe_xml_parser" ]
   }
 
   if (use_cups) {
     public_configs += [ "//printing:cups" ]
+
+    sources += [
+      "cups_deleters.cc",
+      "cups_deleters.h",
+      "cups_helper.cc",
+      "cups_helper.h",
+      "cups_weak_functions.h",
+    ]
 
     if (is_linux || is_chromeos) {
       # CUPS 1.6 deprecated the PPD APIs, but we will stay with this API
@@ -95,14 +106,10 @@ component("backend") {
       sources += [
         "cups_connection.cc",
         "cups_connection.h",
-        "cups_deleters.cc",
-        "cups_deleters.h",
         "cups_ipp_constants.cc",
         "cups_ipp_constants.h",
         "cups_ipp_helper.cc",
         "cups_ipp_helper.h",
-        "cups_ipp_utils.cc",
-        "cups_ipp_utils.h",
         "cups_jobs.cc",
         "cups_jobs.h",
         "cups_printer.cc",
@@ -123,13 +130,10 @@ component("backend") {
         "ipp_handlers.h",
         ipp_handler_map_path,
       ]
-    }
-    if (!is_chromeos_ash) {
-      # TODO(crbug.com/1062136): Remove the original CUPS backend for macOS
+    } else {
+      # TODO(crbug.com/40122734): Remove the original CUPS backend for macOS
       # when Cloud Print support is terminated. Follow up after Jan 1, 2021.
       sources += [
-        "cups_helper.cc",
-        "cups_helper.h",
         "print_backend_cups.cc",
         "print_backend_cups.h",
       ]

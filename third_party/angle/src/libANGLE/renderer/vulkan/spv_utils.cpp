@@ -30,15 +30,6 @@ namespace rx
 {
 namespace
 {
-template <size_t N>
-constexpr size_t ConstStrLen(const char (&)[N])
-{
-    static_assert(N > 0, "C++ shouldn't allow N to be zero");
-
-    // The length of a string defined as a char array is the size of the array minus 1 (the
-    // terminating '\0').
-    return N - 1;
-}
 
 // Test if there are non-zero indices in the uniform name, returning false in that case.  This
 // happens for multi-dimensional arrays, where a uniform is created for every possible index of the
@@ -69,9 +60,10 @@ bool UniformNameIsIndexZero(const std::string &name)
     return true;
 }
 
-bool MappedSamplerNameNeedsUserDefinedPrefix(const std::string &originalName)
+uint32_t SpvIsXfbBufferBlockId(spirv::IdRef id)
 {
-    return originalName.find('.') == std::string::npos;
+    return id >= sh::vk::spirv::ReservedIds::kIdXfbEmulationBufferVarZero &&
+           id < sh::vk::spirv::ReservedIds::kIdXfbEmulationBufferVarZero + 4;
 }
 
 template <typename OutputIter, typename ImplicitIter>
@@ -80,7 +72,7 @@ uint32_t CountExplicitOutputs(OutputIter outputsBegin,
                               ImplicitIter implicitsBegin,
                               ImplicitIter implicitsEnd)
 {
-    auto reduce = [implicitsBegin, implicitsEnd](uint32_t count, const sh::ShaderVariable &var) {
+    auto reduce = [implicitsBegin, implicitsEnd](uint32_t count, const gl::ProgramOutput &var) {
         bool isExplicit = std::find(implicitsBegin, implicitsEnd, var.name) == implicitsEnd;
         return count + isExplicit;
     };
@@ -90,15 +82,14 @@ uint32_t CountExplicitOutputs(OutputIter outputsBegin,
 
 ShaderInterfaceVariableInfo *AddResourceInfoToAllStages(ShaderInterfaceVariableInfoMap *infoMap,
                                                         gl::ShaderType shaderType,
-                                                        ShaderVariableType variableType,
-                                                        const std::string &varName,
+                                                        uint32_t varId,
                                                         uint32_t descriptorSet,
                                                         uint32_t binding)
 {
     gl::ShaderBitSet allStages;
     allStages.set();
 
-    ShaderInterfaceVariableInfo &info = infoMap->add(shaderType, variableType, varName);
+    ShaderInterfaceVariableInfo &info = infoMap->add(shaderType, varId);
     info.descriptorSet                = descriptorSet;
     info.binding                      = binding;
     info.activeStages                 = allStages;
@@ -108,12 +99,11 @@ ShaderInterfaceVariableInfo *AddResourceInfoToAllStages(ShaderInterfaceVariableI
 ShaderInterfaceVariableInfo *AddResourceInfo(ShaderInterfaceVariableInfoMap *infoMap,
                                              gl::ShaderBitSet stages,
                                              gl::ShaderType shaderType,
-                                             ShaderVariableType variableType,
-                                             const std::string &varName,
+                                             uint32_t varId,
                                              uint32_t descriptorSet,
                                              uint32_t binding)
 {
-    ShaderInterfaceVariableInfo &info = infoMap->add(shaderType, variableType, varName);
+    ShaderInterfaceVariableInfo &info = infoMap->add(shaderType, varId);
     info.descriptorSet                = descriptorSet;
     info.binding                      = binding;
     info.activeStages                 = stages;
@@ -123,23 +113,20 @@ ShaderInterfaceVariableInfo *AddResourceInfo(ShaderInterfaceVariableInfoMap *inf
 // Add location information for an in/out variable.
 ShaderInterfaceVariableInfo *AddLocationInfo(ShaderInterfaceVariableInfoMap *infoMap,
                                              gl::ShaderType shaderType,
-                                             ShaderVariableType variableType,
-                                             const std::string &varName,
+                                             uint32_t varId,
                                              uint32_t location,
                                              uint32_t component,
                                              uint8_t attributeComponentCount,
                                              uint8_t attributeLocationCount)
 {
-    // The info map for this name may or may not exist already.  This function merges the
+    // The info map for this id may or may not exist already.  This function merges the
     // location/component information.
-    ShaderInterfaceVariableInfo &info = infoMap->addOrGet(shaderType, variableType, varName);
+    ShaderInterfaceVariableInfo &info = infoMap->addOrGet(shaderType, varId);
 
     ASSERT(info.descriptorSet == ShaderInterfaceVariableInfo::kInvalid);
     ASSERT(info.binding == ShaderInterfaceVariableInfo::kInvalid);
     if (info.location != ShaderInterfaceVariableInfo::kInvalid)
     {
-        // TODO: Correctly support in and out interface variables with identical name.
-        // anglebug.com/7220
         ASSERT(info.location == location);
         ASSERT(info.component == component);
     }
@@ -157,45 +144,47 @@ ShaderInterfaceVariableInfo *AddLocationInfo(ShaderInterfaceVariableInfoMap *inf
 // Add location information for an in/out variable
 void AddVaryingLocationInfo(ShaderInterfaceVariableInfoMap *infoMap,
                             const gl::VaryingInShaderRef &ref,
-                            const bool isStructField,
                             const uint32_t location,
                             const uint32_t component)
 {
-    const std::string &name = isStructField ? ref.parentStructMappedName : ref.varying->mappedName;
-    AddLocationInfo(infoMap, ref.stage, ShaderVariableType::Varying, name, location, component, 0,
-                    0);
+    // Skip statically-unused varyings, they are already pruned by the translator
+    if (ref.varying->id != 0)
+    {
+        AddLocationInfo(infoMap, ref.stage, ref.varying->id, location, component, 0, 0);
+    }
 }
 
 // Modify an existing out variable and add transform feedback information.
-ShaderInterfaceVariableInfo *SetXfbInfo(ShaderInterfaceVariableInfoMap *infoMap,
-                                        gl::ShaderType shaderType,
-                                        const std::string &varName,
-                                        int fieldIndex,
-                                        uint32_t xfbBuffer,
-                                        uint32_t xfbOffset,
-                                        uint32_t xfbStride,
-                                        uint32_t arraySize,
-                                        uint32_t columnCount,
-                                        uint32_t rowCount,
-                                        uint32_t arrayIndex,
-                                        GLenum componentType)
+void SetXfbInfo(ShaderInterfaceVariableInfoMap *infoMap,
+                gl::ShaderType shaderType,
+                uint32_t varId,
+                int fieldIndex,
+                uint32_t xfbBuffer,
+                uint32_t xfbOffset,
+                uint32_t xfbStride,
+                uint32_t arraySize,
+                uint32_t columnCount,
+                uint32_t rowCount,
+                uint32_t arrayIndex,
+                GLenum componentType)
 {
-    ShaderInterfaceVariableInfo &info =
-        infoMap->getMutable(shaderType, ShaderVariableType::Varying, varName);
-    ShaderInterfaceVariableXfbInfo *xfb = &info.xfb;
+    XFBInterfaceVariableInfo *info = infoMap->getXFBMutable(shaderType, varId);
+    ASSERT(info != nullptr);
+
+    ShaderInterfaceVariableXfbInfo *xfb = &info->xfb;
 
     if (fieldIndex >= 0)
     {
-        if (info.fieldXfb.size() <= static_cast<size_t>(fieldIndex))
+        if (info->fieldXfb.size() <= static_cast<size_t>(fieldIndex))
         {
-            info.fieldXfb.resize(fieldIndex + 1);
+            info->fieldXfb.resize(fieldIndex + 1);
         }
-        xfb = &info.fieldXfb[fieldIndex];
+        xfb = &info->fieldXfb[fieldIndex];
     }
 
-    ASSERT(xfb->buffer == ShaderInterfaceVariableXfbInfo::kInvalid);
-    ASSERT(xfb->offset == ShaderInterfaceVariableXfbInfo::kInvalid);
-    ASSERT(xfb->stride == ShaderInterfaceVariableXfbInfo::kInvalid);
+    ASSERT(xfb->pod.buffer == ShaderInterfaceVariableXfbInfo::kInvalid);
+    ASSERT(xfb->pod.offset == ShaderInterfaceVariableXfbInfo::kInvalid);
+    ASSERT(xfb->pod.stride == ShaderInterfaceVariableXfbInfo::kInvalid);
 
     if (arrayIndex != ShaderInterfaceVariableXfbInfo::kInvalid)
     {
@@ -203,16 +192,14 @@ ShaderInterfaceVariableInfo *SetXfbInfo(ShaderInterfaceVariableInfoMap *infoMap,
         xfb = &xfb->arrayElements.back();
     }
 
-    xfb->buffer        = xfbBuffer;
-    xfb->offset        = xfbOffset;
-    xfb->stride        = xfbStride;
-    xfb->arraySize     = arraySize;
-    xfb->columnCount   = columnCount;
-    xfb->rowCount      = rowCount;
-    xfb->arrayIndex    = arrayIndex;
-    xfb->componentType = componentType;
-
-    return &info;
+    xfb->pod.buffer        = xfbBuffer;
+    xfb->pod.offset        = xfbOffset;
+    xfb->pod.stride        = xfbStride;
+    xfb->pod.arraySize     = arraySize;
+    xfb->pod.columnCount   = columnCount;
+    xfb->pod.rowCount      = rowCount;
+    xfb->pod.arrayIndex    = arrayIndex;
+    xfb->pod.componentType = componentType;
 }
 
 void AssignTransformFeedbackEmulationBindings(gl::ShaderType shaderType,
@@ -236,7 +223,7 @@ void AssignTransformFeedbackEmulationBindings(gl::ShaderType shaderType,
     for (uint32_t bufferIndex = 0; bufferIndex < bufferCount; ++bufferIndex)
     {
         AddResourceInfo(variableInfoMapOut, gl::ShaderBitSet().set(shaderType), shaderType,
-                        ShaderVariableType::TransformFeedback, SpvGetXfbBufferName(bufferIndex),
+                        SpvGetXfbBufferBlockId(bufferIndex),
                         ToUnderlying(DescriptorSetIndex::UniformsAndXfb),
                         programInterfaceInfo->currentUniformBindingIndex);
         ++programInterfaceInfo->currentUniformBindingIndex;
@@ -246,8 +233,7 @@ void AssignTransformFeedbackEmulationBindings(gl::ShaderType shaderType,
     for (uint32_t bufferIndex = static_cast<uint32_t>(bufferCount);
          bufferIndex < gl::IMPLEMENTATION_MAX_TRANSFORM_FEEDBACK_BUFFERS; ++bufferIndex)
     {
-        variableInfoMapOut->add(shaderType, ShaderVariableType::TransformFeedback,
-                                SpvGetXfbBufferName(bufferIndex));
+        variableInfoMapOut->add(shaderType, SpvGetXfbBufferBlockId(bufferIndex));
     }
 }
 
@@ -289,21 +275,54 @@ void AssignAttributeLocations(const gl::ProgramExecutable &programExecutable,
                               gl::ShaderType shaderType,
                               ShaderInterfaceVariableInfoMap *variableInfoMapOut)
 {
-    // Assign attribute locations for the vertex shader.
-    for (const sh::ShaderVariable &attribute : programExecutable.getProgramInputs())
-    {
-        ASSERT(attribute.active);
+    const std::array<std::string, 2> implicitInputs = {"gl_VertexID", "gl_InstanceID"};
+    gl::AttributesMask isLocationAssigned;
+    bool hasAliasingAttributes = false;
 
-        const uint8_t colCount = static_cast<uint8_t>(gl::VariableColumnCount(attribute.type));
-        const uint8_t rowCount = static_cast<uint8_t>(gl::VariableRowCount(attribute.type));
+    // Assign attribute locations for the vertex shader.
+    for (const gl::ProgramInput &attribute : programExecutable.getProgramInputs())
+    {
+        ASSERT(attribute.isActive());
+
+        if (std::find(implicitInputs.begin(), implicitInputs.end(), attribute.name) !=
+            implicitInputs.end())
+        {
+            continue;
+        }
+
+        const uint8_t colCount = static_cast<uint8_t>(gl::VariableColumnCount(attribute.getType()));
+        const uint8_t rowCount = static_cast<uint8_t>(gl::VariableRowCount(attribute.getType()));
         const bool isMatrix    = colCount > 1 && rowCount > 1;
 
         const uint8_t componentCount = isMatrix ? rowCount : colCount;
         const uint8_t locationCount  = isMatrix ? colCount : rowCount;
 
-        AddLocationInfo(variableInfoMapOut, shaderType, ShaderVariableType::Attribute,
-                        attribute.mappedName, attribute.location,
+        AddLocationInfo(variableInfoMapOut, shaderType, attribute.getId(), attribute.getLocation(),
                         ShaderInterfaceVariableInfo::kInvalid, componentCount, locationCount);
+
+        // Detect if there are aliasing attributes.
+        if (!hasAliasingAttributes &&
+            programExecutable.getLinkedShaderVersion(gl::ShaderType::Vertex) == 100)
+        {
+            for (uint8_t offset = 0; offset < locationCount; ++offset)
+            {
+                uint32_t location = attribute.getLocation() + offset;
+
+                // If there's aliasing, no need for futher processing.
+                if (isLocationAssigned.test(location))
+                {
+                    hasAliasingAttributes = true;
+                    break;
+                }
+
+                isLocationAssigned.set(location);
+            }
+        }
+    }
+
+    if (hasAliasingAttributes)
+    {
+        variableInfoMapOut->setHasAliasingAttributes();
     }
 }
 
@@ -318,46 +337,49 @@ void AssignSecondaryOutputLocations(const gl::ProgramExecutable &programExecutab
     {
         if (outputLocation.arrayIndex == 0 && outputLocation.used() && !outputLocation.ignored)
         {
-            const sh::ShaderVariable &outputVar = outputVariables[outputLocation.index];
+            const gl::ProgramOutput &outputVar = outputVariables[outputLocation.index];
 
             uint32_t location = 0;
-            if (outputVar.location != -1)
+            if (outputVar.pod.location != -1)
             {
-                location = outputVar.location;
+                location = outputVar.pod.location;
             }
 
-            ShaderInterfaceVariableInfo *info = AddLocationInfo(
-                variableInfoMapOut, gl::ShaderType::Fragment, ShaderVariableType::SecondaryOutput,
-                outputVar.mappedName, location, ShaderInterfaceVariableInfo::kInvalid, 0, 0);
+            ShaderInterfaceVariableInfo *info =
+                AddLocationInfo(variableInfoMapOut, gl::ShaderType::Fragment, outputVar.pod.id,
+                                location, ShaderInterfaceVariableInfo::kInvalid, 0, 0);
 
-            // If the shader source has not specified the index, specify it here.
-            if (outputVar.index == -1)
-            {
-                // Index 1 is used to specify that the color be used as the second color input to
-                // the blend equation
-                info->index = 1;
-            }
+            // Index 1 is used to specify that the color be used as the second color input to
+            // the blend equation
+            info->index = 1;
+
+            ASSERT(!outputVar.isArray() || outputVar.getOutermostArraySize() == 1);
+            info->isArray = outputVar.isArray();
         }
     }
     // Handle secondary outputs for ESSL version less than 3.00
     if (programExecutable.hasLinkedShaderStage(gl::ShaderType::Fragment) &&
         programExecutable.getLinkedShaderVersion(gl::ShaderType::Fragment) == 100)
     {
-        const std::vector<sh::ShaderVariable> &shaderOutputs =
-            programExecutable.getOutputVariables();
-        for (const sh::ShaderVariable &outputVar : shaderOutputs)
+        const std::array<std::string, 2> secondaryFrag = {"gl_SecondaryFragColorEXT",
+                                                          "gl_SecondaryFragDataEXT"};
+
+        for (const gl::ProgramOutput &outputVar : outputVariables)
         {
-            if (outputVar.name == "gl_SecondaryFragColorEXT")
+            if (std::find(secondaryFrag.begin(), secondaryFrag.end(), outputVar.name) !=
+                secondaryFrag.end())
             {
-                AddLocationInfo(variableInfoMapOut, gl::ShaderType::Fragment,
-                                ShaderVariableType::SecondaryOutput, "webgl_SecondaryFragColor", 0,
-                                ShaderInterfaceVariableInfo::kInvalid, 0, 0);
-            }
-            else if (outputVar.name == "gl_SecondaryFragDataEXT")
-            {
-                AddLocationInfo(variableInfoMapOut, gl::ShaderType::Fragment,
-                                ShaderVariableType::SecondaryOutput, "webgl_SecondaryFragData", 0,
-                                ShaderInterfaceVariableInfo::kInvalid, 0, 0);
+                ShaderInterfaceVariableInfo *info =
+                    AddLocationInfo(variableInfoMapOut, gl::ShaderType::Fragment, outputVar.pod.id,
+                                    0, ShaderInterfaceVariableInfo::kInvalid, 0, 0);
+
+                info->index = 1;
+
+                ASSERT(!outputVar.isArray() || outputVar.getOutermostArraySize() == 1);
+                info->isArray = outputVar.isArray();
+
+                // SecondaryFragColor and SecondaryFragData cannot be present simultaneously.
+                break;
             }
         }
     }
@@ -379,12 +401,12 @@ void AssignOutputLocations(const gl::ProgramExecutable &programExecutable,
     {
         if (outputLocation.arrayIndex == 0 && outputLocation.used() && !outputLocation.ignored)
         {
-            const sh::ShaderVariable &outputVar = outputVariables[outputLocation.index];
+            const gl::ProgramOutput &outputVar = outputVariables[outputLocation.index];
 
             uint32_t location = 0;
-            if (outputVar.location != -1)
+            if (outputVar.pod.location != -1)
             {
-                location = outputVar.location;
+                location = outputVar.pod.location;
             }
             else if (std::find(implicitOutputs.begin(), implicitOutputs.end(), outputVar.name) ==
                      implicitOutputs.end())
@@ -395,23 +417,25 @@ void AssignOutputLocations(const gl::ProgramExecutable &programExecutable,
                                             implicitOutputs.begin(), implicitOutputs.end()) == 1);
             }
 
-            AddLocationInfo(variableInfoMapOut, shaderType, ShaderVariableType::Output,
-                            outputVar.mappedName, location, ShaderInterfaceVariableInfo::kInvalid,
-                            0, 0);
+            AddLocationInfo(variableInfoMapOut, shaderType, outputVar.pod.id, location,
+                            ShaderInterfaceVariableInfo::kInvalid, 0, 0);
+        }
+    }
+    // Handle outputs for ESSL version less than 3.00
+    if (programExecutable.hasLinkedShaderStage(gl::ShaderType::Fragment) &&
+        programExecutable.getLinkedShaderVersion(gl::ShaderType::Fragment) == 100)
+    {
+        for (const gl::ProgramOutput &outputVar : outputVariables)
+        {
+            if (outputVar.name == "gl_FragColor" || outputVar.name == "gl_FragData")
+            {
+                AddLocationInfo(variableInfoMapOut, gl::ShaderType::Fragment, outputVar.pod.id, 0,
+                                ShaderInterfaceVariableInfo::kInvalid, 0, 0);
+            }
         }
     }
 
     AssignSecondaryOutputLocations(programExecutable, variableInfoMapOut);
-
-    // When no fragment output is specified by the shader, the translator outputs webgl_FragColor or
-    // webgl_FragData.  Add an entry for these.  Even though the translator is already assigning
-    // location 0 to these entries, adding an entry for them here allows us to ASSERT that every
-    // shader interface variable is processed during the SPIR-V transformation.  This is done when
-    // iterating the ids provided by OpEntryPoint.
-    AddLocationInfo(variableInfoMapOut, shaderType, ShaderVariableType::Output, "webgl_FragColor",
-                    0, 0, 0, 0);
-    AddLocationInfo(variableInfoMapOut, shaderType, ShaderVariableType::Output, "webgl_FragData", 0,
-                    0, 0, 0);
 }
 
 void AssignVaryingLocations(const SpvSourceOptions &options,
@@ -442,78 +466,36 @@ void AssignVaryingLocations(const SpvSourceOptions &options,
             component = varyingReg.registerColumn;
         }
 
-        // In the following:
-        //
-        //     struct S { vec4 field; };
-        //     out S varStruct;
-        //
-        // "_uvarStruct" is found through |parentStructMappedName|, with |varying->mappedName|
-        // being "_ufield".  In such a case, use |parentStructMappedName|.
         if (varying.frontVarying.varying && (varying.frontVarying.stage == shaderType))
         {
-            AddVaryingLocationInfo(variableInfoMapOut, varying.frontVarying,
-                                   varying.isStructField(), location, component);
+            AddVaryingLocationInfo(variableInfoMapOut, varying.frontVarying, location, component);
         }
 
         if (varying.backVarying.varying && (varying.backVarying.stage == shaderType))
         {
-            AddVaryingLocationInfo(variableInfoMapOut, varying.backVarying, varying.isStructField(),
-                                   location, component);
+            AddVaryingLocationInfo(variableInfoMapOut, varying.backVarying, location, component);
         }
     }
 
     // Add an entry for inactive varyings.
-    const gl::ShaderMap<std::vector<std::string>> &inactiveVaryingMappedNames =
-        varyingPacking.getInactiveVaryingMappedNames();
-    for (const std::string &varyingName : inactiveVaryingMappedNames[shaderType])
+    const gl::ShaderMap<std::vector<uint32_t>> &inactiveVaryingIds =
+        varyingPacking.getInactiveVaryingIds();
+    for (const uint32_t varyingId : inactiveVaryingIds[shaderType])
     {
-        ASSERT(!gl::IsBuiltInName(varyingName));
-
-        // If name is already in the map, it will automatically have marked all other stages
-        // inactive.
-        if (variableInfoMapOut->hasVariable(shaderType, varyingName))
+        // If id is already in the map, it will automatically have marked all other stages inactive.
+        if (variableInfoMapOut->hasVariable(shaderType, varyingId))
         {
             continue;
         }
 
         // Otherwise, add an entry for it with all locations inactive.
-        ShaderInterfaceVariableInfo &info =
-            variableInfoMapOut->addOrGet(shaderType, ShaderVariableType::Varying, varyingName);
+        ShaderInterfaceVariableInfo &info = variableInfoMapOut->addOrGet(shaderType, varyingId);
         ASSERT(info.location == ShaderInterfaceVariableInfo::kInvalid);
-    }
-
-    // Add an entry for active builtins varyings.  This will allow inactive builtins, such as
-    // gl_PointSize, gl_ClipDistance etc to be removed.
-    const gl::ShaderMap<std::vector<std::string>> &activeOutputBuiltIns =
-        varyingPacking.getActiveOutputBuiltInNames();
-    for (const std::string &builtInName : activeOutputBuiltIns[shaderType])
-    {
-        ASSERT(gl::IsBuiltInName(builtInName));
-
-        ShaderInterfaceVariableInfo &info =
-            variableInfoMapOut->addOrGet(shaderType, ShaderVariableType::Varying, builtInName);
-        info.activeStages.set(shaderType);
-        info.varyingIsOutput = true;
-    }
-
-    // If an output builtin is active in the previous stage, assume it's active in the input of the
-    // current stage as well.
-    if (frontShaderType != gl::ShaderType::InvalidEnum)
-    {
-        for (const std::string &builtInName : activeOutputBuiltIns[frontShaderType])
-        {
-            ASSERT(gl::IsBuiltInName(builtInName));
-
-            ShaderInterfaceVariableInfo &info =
-                variableInfoMapOut->addOrGet(shaderType, ShaderVariableType::Varying, builtInName);
-            info.activeStages.set(shaderType);
-            info.varyingIsInput = true;
-        }
     }
 
     // Add an entry for gl_PerVertex, for use with transform feedback capture of built-ins.
     ShaderInterfaceVariableInfo &info =
-        variableInfoMapOut->addOrGet(shaderType, ShaderVariableType::Varying, "gl_PerVertex");
+        variableInfoMapOut->addOrGet(shaderType, sh::vk::spirv::kIdOutputPerVertexBlock);
     info.activeStages.set(shaderType);
 }
 
@@ -564,8 +546,8 @@ void AssignTransformFeedbackQualifiers(const gl::ProgramExecutable &programExecu
             if (usesExtension && tfVarying.name == "gl_Position")
             {
                 // With the extension, gl_Position is captured via a special varying.
-                SetXfbInfo(variableInfoMapOut, shaderType, sh::vk::kXfbExtensionPositionOutName, -1,
-                           bufferIndex, currentOffset, currentStride, varyingSize,
+                SetXfbInfo(variableInfoMapOut, shaderType, sh::vk::spirv::kIdXfbExtensionPosition,
+                           -1, bufferIndex, currentOffset, currentStride, varyingSize,
                            uniformInfo.columnCount, uniformInfo.rowCount,
                            ShaderInterfaceVariableXfbInfo::kInvalid, uniformInfo.componentType);
             }
@@ -599,10 +581,10 @@ void AssignTransformFeedbackQualifiers(const gl::ProgramExecutable &programExecu
                 ASSERT(fieldIndex != -1);
                 ASSERT(!usesExtension || fieldIndex > 0);
 
-                SetXfbInfo(variableInfoMapOut, shaderType, "gl_PerVertex", fieldIndex, bufferIndex,
-                           currentOffset, currentStride, varyingSize, uniformInfo.columnCount,
-                           uniformInfo.rowCount, ShaderInterfaceVariableXfbInfo::kInvalid,
-                           uniformInfo.componentType);
+                SetXfbInfo(variableInfoMapOut, shaderType, sh::vk::spirv::kIdOutputPerVertexBlock,
+                           fieldIndex, bufferIndex, currentOffset, currentStride, varyingSize,
+                           uniformInfo.columnCount, uniformInfo.rowCount,
+                           ShaderInterfaceVariableXfbInfo::kInvalid, uniformInfo.componentType);
             }
 
             continue;
@@ -610,17 +592,16 @@ void AssignTransformFeedbackQualifiers(const gl::ProgramExecutable &programExecu
         // Note: capturing individual array elements using the Vulkan transform feedback extension
         // is currently not supported due to limitations in the extension.
         // ANGLE supports capturing the whole array.
-        // http://anglebug.com/4140
+        // http://anglebug.com/42262773
         if (usesExtension && tfVarying.isArray() && tfVarying.arrayIndex != GL_INVALID_INDEX)
         {
             continue;
         }
 
         // Find the varying with this name.  If a struct is captured, we would be iterating over its
-        // fields, and the name of the varying is found through parentStructMappedName.  This should
-        // only be done for the first field of the struct.  For I/O blocks on the other hand, we
-        // need to decorate the exact member that is captured (as whole-block capture is not
-        // supported).
+        // fields.  This is done when the first field of the struct is visited.  For I/O blocks on
+        // the other hand, we need to decorate the exact member that is captured (as whole-block
+        // capture is not supported).
         const gl::PackedVarying *originalVarying = nullptr;
         for (const gl::PackedVaryingRegister &varyingReg : varyingPacking.getRegisterList())
         {
@@ -657,11 +638,6 @@ void AssignTransformFeedbackQualifiers(const gl::ProgramExecutable &programExecu
 
         if (originalVarying)
         {
-            const std::string &mappedName =
-                originalVarying->isStructField()
-                    ? originalVarying->frontVarying.parentStructMappedName
-                    : originalVarying->frontVarying.varying->mappedName;
-
             const int fieldIndex = tfVarying.isShaderIOBlock ? originalVarying->fieldIndex : -1;
             const uint32_t arrayIndex = tfVarying.arrayIndex == GL_INVALID_INDEX
                                             ? ShaderInterfaceVariableXfbInfo::kInvalid
@@ -669,287 +645,256 @@ void AssignTransformFeedbackQualifiers(const gl::ProgramExecutable &programExecu
 
             // Set xfb info for this varying.  AssignVaryingLocations should have already added
             // location information for these varyings.
-            SetXfbInfo(variableInfoMapOut, shaderType, mappedName, fieldIndex, bufferIndex,
-                       currentOffset, currentStride, varyingSize, uniformInfo.columnCount,
-                       uniformInfo.rowCount, arrayIndex, uniformInfo.componentType);
+            SetXfbInfo(variableInfoMapOut, shaderType, originalVarying->frontVarying.varying->id,
+                       fieldIndex, bufferIndex, currentOffset, currentStride, varyingSize,
+                       uniformInfo.columnCount, uniformInfo.rowCount, arrayIndex,
+                       uniformInfo.componentType);
         }
     }
 }
 
 void AssignUniformBindings(const SpvSourceOptions &options,
                            const gl::ProgramExecutable &programExecutable,
-                           const gl::ShaderType shaderType,
                            SpvProgramInterfaceInfo *programInterfaceInfo,
                            ShaderInterfaceVariableInfoMap *variableInfoMapOut)
 {
-    if (programExecutable.hasLinkedShaderStage(shaderType))
+    for (const gl::ShaderType shaderType : programExecutable.getLinkedShaderStages())
     {
         AddResourceInfo(variableInfoMapOut, gl::ShaderBitSet().set(shaderType), shaderType,
-                        ShaderVariableType::DefaultUniform, kDefaultUniformNames[shaderType],
+                        sh::vk::spirv::kIdDefaultUniformsBlock,
                         ToUnderlying(DescriptorSetIndex::UniformsAndXfb),
                         programInterfaceInfo->currentUniformBindingIndex);
         ++programInterfaceInfo->currentUniformBindingIndex;
 
         // Assign binding to the driver uniforms block
-        AddResourceInfoToAllStages(
-            variableInfoMapOut, shaderType, ShaderVariableType::DriverUniform,
-            sh::vk::kDriverUniformsBlockName, ToUnderlying(DescriptorSetIndex::Internal), 0);
+        AddResourceInfoToAllStages(variableInfoMapOut, shaderType,
+                                   sh::vk::spirv::kIdDriverUniformsBlock,
+                                   ToUnderlying(DescriptorSetIndex::Internal), 0);
     }
-}
-
-bool InsertIfAbsent(UniformBindingIndexMap *uniformBindingIndexMapOut,
-                    const std::string &name,
-                    const uint32_t bindingIndex,
-                    const gl::ShaderType shaderType)
-{
-    if (uniformBindingIndexMapOut->count(name) == 0)
-    {
-        (*uniformBindingIndexMapOut)[name] =
-            UniformBindingInfo(bindingIndex, gl::ShaderBitSet(), shaderType);
-        return true;
-    }
-    return false;
-}
-
-void AddAndUpdateResourceMaps(const gl::ShaderType shaderType,
-                              ShaderVariableType variableType,
-                              std::string name,
-                              uint32_t *binding,
-                              bool updateBinding,
-                              bool updateFrontShaderType,
-                              const uint32_t descriptorSetIndex,
-                              UniformBindingIndexMap *uniformBindingIndexMapOut,
-                              ShaderInterfaceVariableInfoMap *variableInfoMapOut)
-{
-    ASSERT(binding);
-    bool isUniqueName = InsertIfAbsent(uniformBindingIndexMapOut, name, *binding, shaderType);
-    if (updateBinding && isUniqueName)
-    {
-        ++(*binding);
-    }
-    UniformBindingInfo &uniformBindingInfo = (*uniformBindingIndexMapOut)[name];
-    uniformBindingInfo.shaderBitSet.set(shaderType);
-    AddResourceInfo(variableInfoMapOut, uniformBindingInfo.shaderBitSet, shaderType, variableType,
-                    name, descriptorSetIndex, uniformBindingInfo.bindingIndex);
-    if (!isUniqueName)
-    {
-        if (updateFrontShaderType)
-        {
-            uniformBindingInfo.frontShaderType = shaderType;
-        }
-        else
-        {
-            variableInfoMapOut->markAsDuplicate(shaderType, variableType, name);
-        }
-    }
-
-    variableInfoMapOut->setActiveStages(uniformBindingInfo.frontShaderType, variableType, name,
-                                        uniformBindingInfo.shaderBitSet);
 }
 
 void AssignInputAttachmentBindings(const SpvSourceOptions &options,
                                    const gl::ProgramExecutable &programExecutable,
-                                   const std::vector<gl::LinkedUniform> &uniforms,
-                                   const gl::RangeUI &inputAttachmentUniformRange,
-                                   const gl::ShaderType shaderType,
                                    SpvProgramInterfaceInfo *programInterfaceInfo,
-                                   UniformBindingIndexMap *uniformBindingIndexMapOut,
                                    ShaderInterfaceVariableInfoMap *variableInfoMapOut)
 {
-    const uint32_t baseInputAttachmentBindingIndex =
-        programInterfaceInfo->currentShaderResourceBindingIndex;
-
-    bool hasFragmentInOutVars = false;
-
-    for (unsigned int uniformIndex : inputAttachmentUniformRange)
+    if (!programExecutable.hasLinkedShaderStage(gl::ShaderType::Fragment))
     {
-        std::string mappedInputAttachmentName;
-        const gl::LinkedUniform &inputAttachmentUniform = uniforms[uniformIndex];
-        mappedInputAttachmentName                       = inputAttachmentUniform.mappedName;
+        return;
+    }
 
-        if (programExecutable.hasLinkedShaderStage(shaderType) &&
-            inputAttachmentUniform.isActive(shaderType))
+    if (!programExecutable.usesColorFramebufferFetch() &&
+        !programExecutable.usesDepthFramebufferFetch() &&
+        !programExecutable.usesStencilFramebufferFetch())
+    {
+        return;
+    }
+
+    uint32_t baseInputAttachmentBindingIndex =
+        programInterfaceInfo->currentShaderResourceBindingIndex;
+    const gl::ShaderBitSet activeShaders{gl::ShaderType::Fragment};
+
+    // If depth/stencil framebuffer fetch is enabled, place their bindings before the color
+    // attachments.  When binding descriptors, this results in a smaller gap that would need to be
+    // filled with bogus bindings.
+    if (options.supportsDepthStencilInputAttachments)
+    {
+        AddResourceInfo(variableInfoMapOut, activeShaders, gl::ShaderType::Fragment,
+                        sh::vk::spirv::kIdDepthInputAttachment,
+                        ToUnderlying(DescriptorSetIndex::ShaderResource),
+                        baseInputAttachmentBindingIndex++);
+        AddResourceInfo(variableInfoMapOut, activeShaders, gl::ShaderType::Fragment,
+                        sh::vk::spirv::kIdStencilInputAttachment,
+                        ToUnderlying(DescriptorSetIndex::ShaderResource),
+                        baseInputAttachmentBindingIndex++);
+
+        programInterfaceInfo->currentShaderResourceBindingIndex += 2;
+    }
+
+    if (programExecutable.usesColorFramebufferFetch())
+    {
+        // sh::vk::spirv::ReservedIds supports max 8 draw buffers
+        ASSERT(options.maxColorInputAttachmentCount <= 8);
+        ASSERT(options.maxColorInputAttachmentCount >= 1);
+
+        for (size_t index : programExecutable.getFragmentInoutIndices())
         {
-            uint32_t inputAttachmentBindingIndex =
-                baseInputAttachmentBindingIndex + inputAttachmentUniform.location;
-            AddAndUpdateResourceMaps(shaderType, ShaderVariableType::FramebufferFetch,
-                                     mappedInputAttachmentName, &(inputAttachmentBindingIndex),
-                                     false, false, ToUnderlying(DescriptorSetIndex::ShaderResource),
-                                     uniformBindingIndexMapOut, variableInfoMapOut);
-            hasFragmentInOutVars = true;
+            const uint32_t inputAttachmentBindingIndex =
+                baseInputAttachmentBindingIndex + static_cast<uint32_t>(index);
+
+            AddResourceInfo(variableInfoMapOut, activeShaders, gl::ShaderType::Fragment,
+                            sh::vk::spirv::kIdInputAttachment0 + static_cast<uint32_t>(index),
+                            ToUnderlying(DescriptorSetIndex::ShaderResource),
+                            inputAttachmentBindingIndex);
         }
     }
 
-    if (hasFragmentInOutVars)
-    {
-        // For input attachment uniform, the descriptor set binding indices are allocated as much as
-        // the maximum draw buffers.
-        programInterfaceInfo->currentShaderResourceBindingIndex +=
-            gl::IMPLEMENTATION_MAX_DRAW_BUFFERS;
-    }
+    // For input attachment uniform, the descriptor set binding indices are allocated as much as
+    // the maximum draw buffers.
+    programInterfaceInfo->currentShaderResourceBindingIndex += options.maxColorInputAttachmentCount;
 }
 
 void AssignInterfaceBlockBindings(const SpvSourceOptions &options,
                                   const gl::ProgramExecutable &programExecutable,
                                   const std::vector<gl::InterfaceBlock> &blocks,
-                                  const gl::ShaderType shaderType,
-                                  ShaderVariableType variableType,
+
                                   SpvProgramInterfaceInfo *programInterfaceInfo,
-                                  UniformBindingIndexMap *uniformBindingIndexMapOut,
                                   ShaderInterfaceVariableInfoMap *variableInfoMapOut)
 {
     for (uint32_t blockIndex = 0; blockIndex < blocks.size(); ++blockIndex)
     {
         const gl::InterfaceBlock &block = blocks[blockIndex];
-        // TODO: http://anglebug.com/4523: All blocks should be active
-        if (programExecutable.hasLinkedShaderStage(shaderType) && block.isActive(shaderType))
+
+        // TODO: http://anglebug.com/42263134: All blocks should be active
+        const gl::ShaderBitSet activeShaders =
+            programExecutable.getLinkedShaderStages() & block.activeShaders();
+        if (activeShaders.none())
         {
-            if (!block.isArray || block.arrayElement == 0)
-            {
-                AddAndUpdateResourceMaps(shaderType, variableType, block.mappedName,
-                                         &(programInterfaceInfo->currentShaderResourceBindingIndex),
-                                         true, false,
-                                         ToUnderlying(DescriptorSetIndex::ShaderResource),
-                                         uniformBindingIndexMapOut, variableInfoMapOut);
-            }
-            variableInfoMapOut->mapIndexedResourceByName(shaderType, variableType, blockIndex,
-                                                         block.mappedName);
+            continue;
         }
+
+        const bool isIndexZero = !block.pod.isArray || block.pod.arrayElement == 0;
+        if (!isIndexZero)
+        {
+            continue;
+        }
+
+        variableInfoMapOut->addResource(activeShaders, block.getIds(),
+                                        ToUnderlying(DescriptorSetIndex::ShaderResource),
+                                        programInterfaceInfo->currentShaderResourceBindingIndex++);
     }
 }
 
 void AssignAtomicCounterBufferBindings(const SpvSourceOptions &options,
                                        const gl::ProgramExecutable &programExecutable,
-                                       const std::vector<gl::AtomicCounterBuffer> &buffers,
-                                       const gl::ShaderType shaderType,
                                        SpvProgramInterfaceInfo *programInterfaceInfo,
-                                       UniformBindingIndexMap *uniformBindingIndexMapOut,
                                        ShaderInterfaceVariableInfoMap *variableInfoMapOut)
 {
+    const std::vector<gl::AtomicCounterBuffer> &buffers =
+        programExecutable.getAtomicCounterBuffers();
+
     if (buffers.size() == 0)
     {
         return;
     }
 
-    if (programExecutable.hasLinkedShaderStage(shaderType))
+    const gl::ShaderBitSet activeShaders = programExecutable.getLinkedShaderStages();
+    ASSERT(activeShaders.any());
+
+    gl::ShaderMap<uint32_t> ids = {};
+    for (const gl::ShaderType shaderType : activeShaders)
     {
-        AddAndUpdateResourceMaps(shaderType, ShaderVariableType::AtomicCounter,
-                                 sh::vk::kAtomicCountersBlockName,
-                                 &(programInterfaceInfo->currentShaderResourceBindingIndex), true,
-                                 false, ToUnderlying(DescriptorSetIndex::ShaderResource),
-                                 uniformBindingIndexMapOut, variableInfoMapOut);
+        ids[shaderType] = sh::vk::spirv::kIdAtomicCounterBlock;
     }
+
+    variableInfoMapOut->addResource(activeShaders, ids,
+                                    ToUnderlying(DescriptorSetIndex::ShaderResource),
+                                    programInterfaceInfo->currentShaderResourceBindingIndex++);
 }
 
 void AssignImageBindings(const SpvSourceOptions &options,
                          const gl::ProgramExecutable &programExecutable,
-                         const std::vector<gl::LinkedUniform> &uniforms,
-                         const gl::RangeUI &imageUniformRange,
-                         const gl::ShaderType shaderType,
                          SpvProgramInterfaceInfo *programInterfaceInfo,
-                         UniformBindingIndexMap *uniformBindingIndexMapOut,
                          ShaderInterfaceVariableInfoMap *variableInfoMapOut)
 {
+    const std::vector<gl::LinkedUniform> &uniforms = programExecutable.getUniforms();
+    const gl::RangeUI &imageUniformRange           = programExecutable.getImageUniformRange();
     for (unsigned int uniformIndex : imageUniformRange)
     {
         const gl::LinkedUniform &imageUniform = uniforms[uniformIndex];
-        if (programExecutable.hasLinkedShaderStage(shaderType))
+
+        // TODO: http://anglebug.com/42263134: All uniforms should be active
+        const gl::ShaderBitSet activeShaders =
+            programExecutable.getLinkedShaderStages() & imageUniform.activeShaders();
+        if (activeShaders.none())
         {
-            std::string name = imageUniform.mappedName;
-            if (GetImageNameWithoutIndices(&name))
-            {
-                bool updateFrontShaderType = false;
-                if ((*uniformBindingIndexMapOut).count(name) > 0)
-                {
-                    UniformBindingInfo &uniformBindingInfo = (*uniformBindingIndexMapOut)[name];
-                    updateFrontShaderType =
-                        !imageUniform.isActive(uniformBindingInfo.frontShaderType);
-                }
-                AddAndUpdateResourceMaps(shaderType, ShaderVariableType::Image, name,
-                                         &(programInterfaceInfo->currentShaderResourceBindingIndex),
-                                         true, updateFrontShaderType,
-                                         ToUnderlying(DescriptorSetIndex::ShaderResource),
-                                         uniformBindingIndexMapOut, variableInfoMapOut);
-            }
-            uint32_t imageIndex = uniformIndex - imageUniformRange.low();
-            variableInfoMapOut->mapIndexedResourceByName(shaderType, ShaderVariableType::Image,
-                                                         imageIndex, name);
+            continue;
         }
+
+        const bool isIndexZero =
+            UniformNameIsIndexZero(programExecutable.getUniformNameByIndex(uniformIndex));
+        if (!isIndexZero)
+        {
+            continue;
+        }
+
+        variableInfoMapOut->addResource(activeShaders, imageUniform.getIds(),
+                                        ToUnderlying(DescriptorSetIndex::ShaderResource),
+                                        programInterfaceInfo->currentShaderResourceBindingIndex++);
     }
 }
 
 void AssignNonTextureBindings(const SpvSourceOptions &options,
                               const gl::ProgramExecutable &programExecutable,
-                              const gl::ShaderType shaderType,
                               SpvProgramInterfaceInfo *programInterfaceInfo,
-                              UniformBindingIndexMap *uniformBindingIndexMapOut,
                               ShaderInterfaceVariableInfoMap *variableInfoMapOut)
 {
-    const std::vector<gl::LinkedUniform> &uniforms = programExecutable.getUniforms();
-    const gl::RangeUI &inputAttachmentUniformRange = programExecutable.getFragmentInoutRange();
-    AssignInputAttachmentBindings(options, programExecutable, uniforms, inputAttachmentUniformRange,
-                                  shaderType, programInterfaceInfo, uniformBindingIndexMapOut,
+    AssignInputAttachmentBindings(options, programExecutable, programInterfaceInfo,
                                   variableInfoMapOut);
 
     const std::vector<gl::InterfaceBlock> &uniformBlocks = programExecutable.getUniformBlocks();
-    AssignInterfaceBlockBindings(options, programExecutable, uniformBlocks, shaderType,
-                                 ShaderVariableType::UniformBuffer, programInterfaceInfo,
-                                 uniformBindingIndexMapOut, variableInfoMapOut);
+    AssignInterfaceBlockBindings(options, programExecutable, uniformBlocks, programInterfaceInfo,
+                                 variableInfoMapOut);
 
     const std::vector<gl::InterfaceBlock> &storageBlocks =
         programExecutable.getShaderStorageBlocks();
-    AssignInterfaceBlockBindings(options, programExecutable, storageBlocks, shaderType,
-                                 ShaderVariableType::ShaderStorageBuffer, programInterfaceInfo,
-                                 uniformBindingIndexMapOut, variableInfoMapOut);
+    AssignInterfaceBlockBindings(options, programExecutable, storageBlocks, programInterfaceInfo,
+                                 variableInfoMapOut);
 
-    const std::vector<gl::AtomicCounterBuffer> &atomicCounterBuffers =
-        programExecutable.getAtomicCounterBuffers();
-    AssignAtomicCounterBufferBindings(options, programExecutable, atomicCounterBuffers, shaderType,
-                                      programInterfaceInfo, uniformBindingIndexMapOut,
+    AssignAtomicCounterBufferBindings(options, programExecutable, programInterfaceInfo,
                                       variableInfoMapOut);
 
-    const gl::RangeUI &imageUniformRange = programExecutable.getImageUniformRange();
-    AssignImageBindings(options, programExecutable, uniforms, imageUniformRange, shaderType,
-                        programInterfaceInfo, uniformBindingIndexMapOut, variableInfoMapOut);
+    AssignImageBindings(options, programExecutable, programInterfaceInfo, variableInfoMapOut);
 }
 
 void AssignTextureBindings(const SpvSourceOptions &options,
                            const gl::ProgramExecutable &programExecutable,
-                           const gl::ShaderType shaderType,
                            SpvProgramInterfaceInfo *programInterfaceInfo,
-                           UniformBindingIndexMap *uniformBindingIndexMapOut,
                            ShaderInterfaceVariableInfoMap *variableInfoMapOut)
 {
     // Assign textures to a descriptor set and binding.
     const std::vector<gl::LinkedUniform> &uniforms = programExecutable.getUniforms();
+    const gl::RangeUI &samplerUniformRange         = programExecutable.getSamplerUniformRange();
 
-    for (unsigned int uniformIndex : programExecutable.getSamplerUniformRange())
+    for (unsigned int uniformIndex : samplerUniformRange)
     {
         const gl::LinkedUniform &samplerUniform = uniforms[uniformIndex];
 
-        // TODO: http://anglebug.com/4523: All uniforms should be active
-        if (!programExecutable.hasLinkedShaderStage(shaderType) ||
-            !samplerUniform.isActive(shaderType))
+        // TODO: http://anglebug.com/42263134: All uniforms should be active
+        const gl::ShaderBitSet activeShaders =
+            programExecutable.getLinkedShaderStages() & samplerUniform.activeShaders();
+        if (activeShaders.none())
         {
             continue;
         }
 
-        // Samplers in structs are extracted and renamed.
-        const std::string samplerName = SpvGetMappedSamplerName(samplerUniform.name);
-        if (!gl::SamplerNameContainsNonZeroArrayElement(samplerUniform.name))
+        const bool isIndexZero =
+            UniformNameIsIndexZero(programExecutable.getUniformNameByIndex(uniformIndex));
+        if (!isIndexZero)
         {
-            ASSERT(UniformNameIsIndexZero(samplerUniform.name));
-            AddAndUpdateResourceMaps(shaderType, ShaderVariableType::Texture, samplerName,
-                                     &(programInterfaceInfo->currentTextureBindingIndex), true,
-                                     false, ToUnderlying(DescriptorSetIndex::Texture),
-                                     uniformBindingIndexMapOut, variableInfoMapOut);
+            continue;
         }
 
-        uint32_t textureIndex = uniformIndex - programExecutable.getSamplerUniformRange().low();
-        variableInfoMapOut->mapIndexedResourceByName(shaderType, ShaderVariableType::Texture,
-                                                     textureIndex, samplerName);
+        variableInfoMapOut->addResource(activeShaders, samplerUniform.getIds(),
+                                        ToUnderlying(DescriptorSetIndex::Texture),
+                                        programInterfaceInfo->currentTextureBindingIndex++);
     }
 }
+
+bool IsNonSemanticInstruction(const uint32_t *instruction)
+{
+    // To avoid parsing the numerous GLSL OpExtInst instructions, take a quick peek at the set and
+    // skip instructions that aren't non-semantic.
+    return instruction[3] == sh::vk::spirv::kIdNonSemanticInstructionSet;
+}
+
+enum class EntryPointList
+{
+    // Prior to SPIR-V 1.4, only the Input and Output variables are listed in OpEntryPoint.
+    InterfaceVariables,
+    // Since SPIR-V 1.4, all global variables must be listed in OpEntryPoint.
+    GlobalVariables,
+};
 
 // Base class for SPIR-V transformations.
 class SpirvTransformerBase : angle::NonCopyable
@@ -973,6 +918,9 @@ class SpirvTransformerBase : angle::NonCopyable
     static spirv::IdRef GetNewId(spirv::Blob *blob);
     spirv::IdRef getNewId();
 
+    EntryPointList entryPointList() const { return mEntryPointList; }
+    spv::StorageClass storageBufferStorageClass() const { return mStorageBufferStorageClass; }
+
   protected:
     // Common utilities
     void onTransformBegin();
@@ -993,6 +941,10 @@ class SpirvTransformerBase : angle::NonCopyable
     bool mIsInFunctionSection = false;
 
     // Transformation state:
+
+    // Required behavior based on SPIR-V version.
+    EntryPointList mEntryPointList               = EntryPointList::InterfaceVariables;
+    spv::StorageClass mStorageBufferStorageClass = spv::StorageClassUniform;
 
     // Shader variable info per id, if id is a shader variable.
     std::vector<const ShaderInterfaceVariableInfo *> mVariableInfoById;
@@ -1020,6 +972,12 @@ void SpirvTransformerBase::onTransformBegin()
                           mSpirvBlobIn.begin() + spirv::kHeaderIndexInstructions);
 
     mCurrentWord = spirv::kHeaderIndexInstructions;
+
+    if (mSpirvBlobIn[spirv::kHeaderIndexVersion] >= spirv::kVersion_1_4)
+    {
+        mEntryPointList            = EntryPointList::GlobalVariables;
+        mStorageBufferStorageClass = spv::StorageClassStorageBuffer;
+    }
 }
 
 const uint32_t *SpirvTransformerBase::getCurrentInstruction(spv::Op *opCodeOut,
@@ -1051,442 +1009,245 @@ spirv::IdRef SpirvTransformerBase::getNewId()
     return GetNewId(mSpirvBlobOut);
 }
 
-enum class SpirvVariableType
-{
-    InterfaceVariable,
-    BuiltIn,
-    Other,
-};
-
 enum class TransformationState
 {
     Transformed,
     Unchanged,
 };
 
-// Helper class that gathers IDs of interest.  This class would be largely unnecessary when the
-// translator generates SPIR-V directly, as it could communicate these IDs directly.
-class SpirvIDDiscoverer final : angle::NonCopyable
+class SpirvNonSemanticInstructions final : angle::NonCopyable
 {
   public:
-    SpirvIDDiscoverer() : mOutputPerVertex{}, mInputPerVertex{} {}
+    SpirvNonSemanticInstructions(bool isLastPass) : mIsLastPass(isLastPass) {}
 
-    void init(size_t indexBound);
+    // Returns whether this is a non-semantic instruction (as opposed to GLSL extended
+    // instructions).  If it is non-semantic, returns the instruction code.
+    bool visitExtInst(const uint32_t *instruction, sh::vk::spirv::NonSemanticInstruction *instOut);
 
-    // Instructions:
-    void visitDecorate(spirv::IdRef id, spv::Decoration decoration);
-    void visitName(spirv::IdRef id, const spirv::LiteralString &name);
-    void visitMemberName(const ShaderInterfaceVariableInfo &info,
-                         spirv::IdRef id,
-                         spirv::LiteralInteger member,
-                         const spirv::LiteralString &name);
-    void visitTypeArray(spirv::IdResult id, spirv::IdRef elementType, spirv::IdRef length);
-    void visitTypeFloat(spirv::IdResult id, spirv::LiteralInteger width);
-    void visitTypeInt(spirv::IdResult id,
-                      spirv::LiteralInteger width,
-                      spirv::LiteralInteger signedness);
-    void visitTypePointer(spirv::IdResult id, spv::StorageClass storageClass, spirv::IdRef typeId);
-    void visitTypeVector(spirv::IdResult id,
-                         spirv::IdRef componentId,
-                         spirv::LiteralInteger componentCount);
-    SpirvVariableType visitVariable(spirv::IdResultType typeId,
-                                    spirv::IdResult id,
-                                    spv::StorageClass storageClass,
-                                    spirv::LiteralString *nameOut);
+    // Cleans up non-semantic instructions in the last SPIR-V pass.
+    TransformationState transformExtInst(const uint32_t *instruction);
 
-    // Helpers:
-    void visitTypeHelper(spirv::IdResult id, spirv::IdRef typeId);
-    void writePendingDeclarations(spirv::Blob *blobOut);
+    bool hasSampleRateShading() const
+    {
+        return (mOverviewFlags & sh::vk::spirv::kOverviewHasSampleRateShadingMask) != 0;
+    }
+    bool hasSampleID() const
+    {
+        return (mOverviewFlags & sh::vk::spirv::kOverviewHasSampleIDMask) != 0;
+    }
+    bool hasOutputPerVertex() const
+    {
+        return (mOverviewFlags & sh::vk::spirv::kOverviewHasOutputPerVertexMask) != 0;
+    }
 
-    // Getters:
-    const spirv::LiteralString &getName(spirv::IdRef id) const { return mNamesById[id]; }
-    bool isIOBlock(spirv::IdRef id) const { return mIsIOBlockById[id]; }
+  private:
+    // Whether this is the last SPIR-V pass. The non-semantics instructions are removed from the
+    // SPIR-V in the last pass.
+    const bool mIsLastPass;
+
+    uint32_t mOverviewFlags;
+};
+
+bool SpirvNonSemanticInstructions::visitExtInst(const uint32_t *instruction,
+                                                sh::vk::spirv::NonSemanticInstruction *instOut)
+{
+    if (!IsNonSemanticInstruction(instruction))
+    {
+        return false;
+    }
+
+    spirv::IdResultType typeId;
+    spirv::IdResult id;
+    spirv::IdRef set;
+    spirv::LiteralExtInstInteger extInst;
+    spirv::ParseExtInst(instruction, &typeId, &id, &set, &extInst, nullptr);
+
+    ASSERT(set == sh::vk::spirv::kIdNonSemanticInstructionSet);
+    const uint32_t inst = extInst & sh::vk::spirv::kNonSemanticInstructionMask;
+
+    // Recover the additional overview flags placed in the instruction id.
+    if (inst == sh::vk::spirv::kNonSemanticOverview)
+    {
+        mOverviewFlags = extInst & ~sh::vk::spirv::kNonSemanticInstructionMask;
+    }
+
+    *instOut = static_cast<sh::vk::spirv::NonSemanticInstruction>(inst);
+
+    return true;
+}
+
+TransformationState SpirvNonSemanticInstructions::transformExtInst(const uint32_t *instruction)
+{
+    return IsNonSemanticInstruction(instruction) && mIsLastPass ? TransformationState::Transformed
+                                                                : TransformationState::Unchanged;
+}
+
+namespace ID
+{
+namespace
+{
+[[maybe_unused]] constexpr spirv::IdRef EntryPoint(sh::vk::spirv::kIdEntryPoint);
+[[maybe_unused]] constexpr spirv::IdRef Void(sh::vk::spirv::kIdVoid);
+[[maybe_unused]] constexpr spirv::IdRef Float(sh::vk::spirv::kIdFloat);
+[[maybe_unused]] constexpr spirv::IdRef Vec2(sh::vk::spirv::kIdVec2);
+[[maybe_unused]] constexpr spirv::IdRef Vec3(sh::vk::spirv::kIdVec3);
+[[maybe_unused]] constexpr spirv::IdRef Vec4(sh::vk::spirv::kIdVec4);
+[[maybe_unused]] constexpr spirv::IdRef Mat2(sh::vk::spirv::kIdMat2);
+[[maybe_unused]] constexpr spirv::IdRef Mat3(sh::vk::spirv::kIdMat3);
+[[maybe_unused]] constexpr spirv::IdRef Mat4(sh::vk::spirv::kIdMat4);
+[[maybe_unused]] constexpr spirv::IdRef Int(sh::vk::spirv::kIdInt);
+[[maybe_unused]] constexpr spirv::IdRef IVec4(sh::vk::spirv::kIdIVec4);
+[[maybe_unused]] constexpr spirv::IdRef Uint(sh::vk::spirv::kIdUint);
+[[maybe_unused]] constexpr spirv::IdRef IntZero(sh::vk::spirv::kIdIntZero);
+[[maybe_unused]] constexpr spirv::IdRef IntOne(sh::vk::spirv::kIdIntOne);
+[[maybe_unused]] constexpr spirv::IdRef IntTwo(sh::vk::spirv::kIdIntTwo);
+[[maybe_unused]] constexpr spirv::IdRef IntThree(sh::vk::spirv::kIdIntThree);
+[[maybe_unused]] constexpr spirv::IdRef IntInputTypePointer(sh::vk::spirv::kIdIntInputTypePointer);
+[[maybe_unused]] constexpr spirv::IdRef Vec4OutputTypePointer(
+    sh::vk::spirv::kIdVec4OutputTypePointer);
+[[maybe_unused]] constexpr spirv::IdRef IVec4FunctionTypePointer(
+    sh::vk::spirv::kIdIVec4FunctionTypePointer);
+[[maybe_unused]] constexpr spirv::IdRef OutputPerVertexTypePointer(
+    sh::vk::spirv::kIdOutputPerVertexTypePointer);
+[[maybe_unused]] constexpr spirv::IdRef TransformPositionFunction(
+    sh::vk::spirv::kIdTransformPositionFunction);
+[[maybe_unused]] constexpr spirv::IdRef XfbEmulationGetOffsetsFunction(
+    sh::vk::spirv::kIdXfbEmulationGetOffsetsFunction);
+[[maybe_unused]] constexpr spirv::IdRef SampleID(sh::vk::spirv::kIdSampleID);
+
+[[maybe_unused]] constexpr spirv::IdRef InputPerVertexBlock(sh::vk::spirv::kIdInputPerVertexBlock);
+[[maybe_unused]] constexpr spirv::IdRef OutputPerVertexBlock(
+    sh::vk::spirv::kIdOutputPerVertexBlock);
+[[maybe_unused]] constexpr spirv::IdRef OutputPerVertexVar(sh::vk::spirv::kIdOutputPerVertexVar);
+[[maybe_unused]] constexpr spirv::IdRef XfbExtensionPosition(
+    sh::vk::spirv::kIdXfbExtensionPosition);
+[[maybe_unused]] constexpr spirv::IdRef XfbEmulationBufferBlockZero(
+    sh::vk::spirv::kIdXfbEmulationBufferBlockZero);
+[[maybe_unused]] constexpr spirv::IdRef XfbEmulationBufferBlockOne(
+    sh::vk::spirv::kIdXfbEmulationBufferBlockOne);
+[[maybe_unused]] constexpr spirv::IdRef XfbEmulationBufferBlockTwo(
+    sh::vk::spirv::kIdXfbEmulationBufferBlockTwo);
+[[maybe_unused]] constexpr spirv::IdRef XfbEmulationBufferBlockThree(
+    sh::vk::spirv::kIdXfbEmulationBufferBlockThree);
+}  // anonymous namespace
+}  // namespace ID
+
+// Helper class that trims input and output gl_PerVertex declarations to remove inactive builtins.
+//
+// gl_PerVertex is unique in that it's the only builtin of struct type.  This struct is pruned
+// by removing trailing inactive members.  Note that intermediate stages, i.e. geometry and
+// tessellation have two gl_PerVertex declarations, one for input and one for output.
+class SpirvPerVertexTrimmer final : angle::NonCopyable
+{
+  public:
+    SpirvPerVertexTrimmer(const SpvTransformOptions &options,
+                          const ShaderInterfaceVariableInfoMap &variableInfoMap)
+        : mInputPerVertexMaxActiveMember{gl::PerVertexMember::Position},
+          mOutputPerVertexMaxActiveMember{gl::PerVertexMember::Position},
+          mInputPerVertexMaxActiveMemberIndex(0),
+          mOutputPerVertexMaxActiveMemberIndex(0)
+    {
+        const gl::PerVertexMemberBitSet inputPerVertexActiveMembers =
+            variableInfoMap.getInputPerVertexActiveMembers()[options.shaderType];
+        const gl::PerVertexMemberBitSet outputPerVertexActiveMembers =
+            variableInfoMap.getOutputPerVertexActiveMembers()[options.shaderType];
+
+        // Currently, this transformation does not trim inactive members in between two active
+        // members.
+        if (inputPerVertexActiveMembers.any())
+        {
+            mInputPerVertexMaxActiveMember = inputPerVertexActiveMembers.last();
+        }
+        if (outputPerVertexActiveMembers.any())
+        {
+            mOutputPerVertexMaxActiveMember = outputPerVertexActiveMembers.last();
+        }
+    }
+
+    void visitMemberDecorate(spirv::IdRef id,
+                             spirv::LiteralInteger member,
+                             spv::Decoration decoration,
+                             const spirv::LiteralIntegerList &valueList);
+
+    TransformationState transformMemberDecorate(spirv::IdRef typeId,
+                                                spirv::LiteralInteger member,
+                                                spv::Decoration decoration);
+    TransformationState transformMemberName(spirv::IdRef id,
+                                            spirv::LiteralInteger member,
+                                            const spirv::LiteralString &name);
+    TransformationState transformTypeStruct(spirv::IdResult id,
+                                            spirv::IdRefList *memberList,
+                                            spirv::Blob *blobOut);
+
+  private:
     bool isPerVertex(spirv::IdRef typeId) const
     {
-        return typeId == mOutputPerVertex.typeId || typeId == mInputPerVertex.typeId;
+        return typeId == ID::OutputPerVertexBlock || typeId == ID::InputPerVertexBlock;
     }
     uint32_t getPerVertexMaxActiveMember(spirv::IdRef typeId) const
     {
         ASSERT(isPerVertex(typeId));
-        return typeId == mOutputPerVertex.typeId ? mOutputPerVertex.maxActiveMember
-                                                 : mInputPerVertex.maxActiveMember;
+        return typeId == ID::OutputPerVertexBlock ? mOutputPerVertexMaxActiveMemberIndex
+                                                  : mInputPerVertexMaxActiveMemberIndex;
     }
 
-    spirv::IdRef floatId() const { return mFloatId; }
-    spirv::IdRef vec4Id() const { return mVec4Id; }
-    spirv::IdRef vec4OutTypePointerId() const { return mVec4OutTypePointerId; }
-    spirv::IdRef intId() const { return mIntId; }
-    spirv::IdRef ivec4Id() const { return mIvec4Id; }
-    spirv::IdRef uintId() const { return mUintId; }
-    spirv::IdRef int0Id() const { return mInt0Id; }
-    spirv::IdRef floatHalfId() const { return mFloatHalfId; }
-    spirv::IdRef outputPerVertexTypePointerId() const { return mOutputPerVertexTypePointerId; }
-    spirv::IdRef outputPerVertexId() const { return mOutputPerVertexId; }
+    gl::PerVertexMember mInputPerVertexMaxActiveMember;
+    gl::PerVertexMember mOutputPerVertexMaxActiveMember;
 
-  private:
-    // Names associated with ids through OpName.  The same name may be assigned to multiple ids, but
-    // not all names are interesting (for example function arguments).  When the variable
-    // declaration is met (OpVariable), the variable info is matched with the corresponding id's
-    // name based on the Storage Class.
-    std::vector<spirv::LiteralString> mNamesById;
-
-    // Tracks whether a given type is an I/O block.  I/O blocks are identified by their type name
-    // instead of variable name, but otherwise look like varyings of struct type (which are
-    // identified by their instance name).  To disambiguate them, the `OpDecorate %N Block`
-    // instruction is used which decorates I/O block types.
-    std::vector<bool> mIsIOBlockById;
-
-    // gl_PerVertex is unique in that it's the only builtin of struct type.  This struct is pruned
-    // by removing trailing inactive members.  We therefore need to keep track of what's its type id
-    // as well as which is the last active member. In the case of gl_PerVertex being used in an
-    // array, we also need to keep track of the array's id. Note that intermediate stages, i.e.
-    // geometry and tessellation have two gl_PerVertex declarations, one for input and one for
-    // output.
-    struct PerVertexData
-    {
-        spirv::IdRef typeId;
-        spirv::IdRef arrayId;
-        uint32_t maxActiveMember;
-    };
-    PerVertexData mOutputPerVertex;
-    PerVertexData mInputPerVertex;
-
-    // A handful of ids that are used to generate gl_Position transformation code (for pre-rotation
-    // or depth correction).  These IDs are used to load/store gl_Position and apply modifications
-    // and swizzles.
+    // If gl_ClipDistance and gl_CullDistance are not used, they are missing from gl_PerVertex.  So
+    // the index of gl_CullDistance may not be the same as the value of
+    // gl::PerVertexMember::CullDistance.
     //
-    // - mFloatId: id of OpTypeFloat 32
-    // - mVec4Id: id of OpTypeVector %mFloatId 4
-    // - mVec4OutTypePointerId: id of OpTypePointer Output %mVec4Id
-    // - mIntId: id of OpTypeInt 32 1
-    // - mIvecId: id of OpTypeVector %mIntId 4
-    // - mUintId: id of OpTypeInt 32 0
-    // - mInt0Id: id of OpConstant %mIntId 0
-    // - mFloatHalfId: id of OpConstant %mFloatId 0.5f
-    // - mOutputPerVertexTypePointerId: id of OpTypePointer Output %mOutputPerVertex.typeId
-    // - mOutputPerVertexId: id of OpVariable %mOutputPerVertexTypePointerId Output
-    //
-    spirv::IdRef mFloatId;
-    spirv::IdRef mVec4Id;
-    spirv::IdRef mVec4OutTypePointerId;
-    spirv::IdRef mIntId;
-    spirv::IdRef mIvec4Id;
-    spirv::IdRef mUintId;
-    spirv::IdRef mInt0Id;
-    spirv::IdRef mFloatHalfId;
-    spirv::IdRef mOutputPerVertexTypePointerId;
-    spirv::IdRef mOutputPerVertexId;
+    // By looking at OpMemberDecorate %kIdInput/OutputPerVertexBlock <Index> BuiltIn <Member>, the
+    // <Index> corresponding to mInput/OutputPerVertexMaxActiveMember is discovered and kept in
+    // mInput/OutputPerVertexMaxActiveMemberIndex
+    uint32_t mInputPerVertexMaxActiveMemberIndex;
+    uint32_t mOutputPerVertexMaxActiveMemberIndex;
 };
 
-void SpirvIDDiscoverer::init(size_t indexBound)
-{
-    // Allocate storage for id-to-name map.  Used to associate ShaderInterfaceVariableInfo with ids
-    // based on name, but only when it's determined that the name corresponds to a shader interface
-    // variable.
-    mNamesById.resize(indexBound, nullptr);
-
-    // Allocate storage for id-to-flag map.  Used to disambiguate I/O blocks instances from varyings
-    // of struct type.
-    mIsIOBlockById.resize(indexBound, false);
-}
-
-void SpirvIDDiscoverer::visitDecorate(spirv::IdRef id, spv::Decoration decoration)
-{
-    mIsIOBlockById[id] = decoration == spv::DecorationBlock;
-}
-
-void SpirvIDDiscoverer::visitName(spirv::IdRef id, const spirv::LiteralString &name)
-{
-    // The names and ids are unique
-    ASSERT(id < mNamesById.size());
-    ASSERT(mNamesById[id] == nullptr);
-
-    mNamesById[id] = name;
-}
-
-void SpirvIDDiscoverer::visitMemberName(const ShaderInterfaceVariableInfo &info,
-                                        spirv::IdRef id,
-                                        spirv::LiteralInteger member,
-                                        const spirv::LiteralString &name)
-{
-    // The names and ids are unique
-    ASSERT(id < mNamesById.size());
-    ASSERT(mNamesById[id] != nullptr);
-
-    if (strcmp(mNamesById[id], "gl_PerVertex") != 0)
-    {
-        return;
-    }
-
-    // Assume output gl_PerVertex is encountered first.  When the storage class of these types are
-    // determined, the variables can be swapped if this assumption was incorrect.
-    if (!mOutputPerVertex.typeId.valid() || id == mOutputPerVertex.typeId)
-    {
-        mOutputPerVertex.typeId = id;
-
-        // Keep track of the range of members that are active.
-        if (info.varyingIsOutput && member > mOutputPerVertex.maxActiveMember)
-        {
-            mOutputPerVertex.maxActiveMember = member;
-        }
-    }
-    else if (!mInputPerVertex.typeId.valid() || id == mInputPerVertex.typeId)
-    {
-        mInputPerVertex.typeId = id;
-
-        // Keep track of the range of members that are active.
-        if (info.varyingIsInput && member > mInputPerVertex.maxActiveMember)
-        {
-            mInputPerVertex.maxActiveMember = member;
-        }
-    }
-    else
-    {
-        UNREACHABLE();
-    }
-}
-
-void SpirvIDDiscoverer::visitTypeHelper(spirv::IdResult id, spirv::IdRef typeId)
-{
-    // Every type id is declared only once.
-    ASSERT(id < mNamesById.size());
-    ASSERT(mNamesById[id] == nullptr);
-    ASSERT(id < mIsIOBlockById.size());
-    ASSERT(!mIsIOBlockById[id]);
-
-    // Carry the name forward from the base type.  This is only necessary for interface blocks,
-    // as the variable info is associated with the block name instead of the variable name (to
-    // support nameless interface blocks).  When the variable declaration is met, either the
-    // type name or the variable name is used to associate with info based on the variable's
-    // storage class.
-    ASSERT(typeId < mNamesById.size());
-    mNamesById[id] = mNamesById[typeId];
-
-    // Similarly, carry forward the information regarding whether this type is an I/O block.
-    ASSERT(typeId < mIsIOBlockById.size());
-    mIsIOBlockById[id] = mIsIOBlockById[typeId];
-}
-
-void SpirvIDDiscoverer::visitTypeArray(spirv::IdResult id,
-                                       spirv::IdRef elementType,
-                                       spirv::IdRef length)
-{
-    visitTypeHelper(id, elementType);
-    // In the case of a gl_PerVertex block being used in an array (gl_in/gl_out), save the id of the
-    // array
-    if (elementType == mOutputPerVertex.typeId)
-    {
-        mOutputPerVertex.arrayId = id;
-    }
-    else if (elementType == mInputPerVertex.typeId)
-    {
-        mInputPerVertex.arrayId = id;
-    }
-}
-
-void SpirvIDDiscoverer::visitTypeFloat(spirv::IdResult id, spirv::LiteralInteger width)
-{
-    // Only interested in OpTypeFloat 32.
-    if (width == 32)
-    {
-        ASSERT(!mFloatId.valid());
-        mFloatId = id;
-    }
-}
-
-void SpirvIDDiscoverer::visitTypeInt(spirv::IdResult id,
-                                     spirv::LiteralInteger width,
-                                     spirv::LiteralInteger signedness)
-{
-    // Only interested in OpTypeInt 32 *.
-    if (width != 32)
-    {
-        return;
-    }
-
-    if (signedness == 0)
-    {
-        ASSERT(!mUintId.valid());
-        mUintId = id;
-    }
-    else
-    {
-        ASSERT(!mIntId.valid());
-        mIntId = id;
-    }
-}
-
-void SpirvIDDiscoverer::visitTypePointer(spirv::IdResult id,
-                                         spv::StorageClass storageClass,
-                                         spirv::IdRef typeId)
-{
-    visitTypeHelper(id, typeId);
-
-    // Check if the type is a gl_PerVertex block or an array of gl_PerVertex blocks
-    bool isOutputPerVertex =
-        (typeId == mOutputPerVertex.typeId || typeId == mOutputPerVertex.arrayId);
-    bool isInputPerVertex = (typeId == mInputPerVertex.typeId || typeId == mInputPerVertex.arrayId);
-
-    // Verify that the ids associated with input and output gl_PerVertex are correct.
-    if (isOutputPerVertex || isInputPerVertex)
-    {
-        // If assumption about the first gl_PerVertex encountered being Output is wrong, swap the
-        // two ids.
-        if ((isOutputPerVertex && storageClass == spv::StorageClassInput) ||
-            (isInputPerVertex && storageClass == spv::StorageClassOutput))
-        {
-            std::swap(mOutputPerVertex.typeId, mInputPerVertex.typeId);
-            std::swap(mOutputPerVertex.arrayId, mInputPerVertex.arrayId);
-        }
-
-        // Remember type pointer of output gl_PerVertex for gl_Position transformations
-        if (typeId == mOutputPerVertex.typeId)
-        {
-            mOutputPerVertexTypePointerId = id;
-        }
-    }
-
-    // If OpTypePointer Output %mVec4ID was encountered, remember that.  Otherwise we'll have to
-    // generate one.
-    if (typeId == mVec4Id && storageClass == spv::StorageClassOutput)
-    {
-        mVec4OutTypePointerId = id;
-    }
-}
-
-void SpirvIDDiscoverer::visitTypeVector(spirv::IdResult id,
-                                        spirv::IdRef componentId,
-                                        spirv::LiteralInteger componentCount)
-{
-    // Only interested in OpTypeVector %mFloatId 4 and OpTypeVector %mIntId 4
-    if (componentId == mFloatId && componentCount == 4)
-    {
-        ASSERT(!mVec4Id.valid());
-        mVec4Id = id;
-    }
-    if (componentId == mIntId && componentCount == 4)
-    {
-        ASSERT(!mIvec4Id.valid());
-        mIvec4Id = id;
-    }
-}
-
-SpirvVariableType SpirvIDDiscoverer::visitVariable(spirv::IdResultType typeId,
-                                                   spirv::IdResult id,
-                                                   spv::StorageClass storageClass,
-                                                   spirv::LiteralString *nameOut)
-{
-    ASSERT(typeId < mNamesById.size());
-    ASSERT(id < mNamesById.size());
-    ASSERT(typeId < mIsIOBlockById.size());
-
-    // If storage class indicates that this is not a shader interface variable, ignore it.
-    const bool isInterfaceBlockVariable =
-        storageClass == spv::StorageClassUniform || storageClass == spv::StorageClassStorageBuffer;
-    const bool isOpaqueUniform = storageClass == spv::StorageClassUniformConstant;
-    const bool isInOut =
-        storageClass == spv::StorageClassInput || storageClass == spv::StorageClassOutput;
-
-    if (!isInterfaceBlockVariable && !isOpaqueUniform && !isInOut)
-    {
-        return SpirvVariableType::Other;
-    }
-
-    // For interface block variables, the name that's used to associate info is the block name
-    // rather than the variable name.
-    const bool isIOBlock = mIsIOBlockById[typeId];
-    *nameOut             = mNamesById[isInterfaceBlockVariable || isIOBlock ? typeId : id];
-
-    ASSERT(*nameOut != nullptr);
-
-    // Handle builtins, which all start with "gl_".  The variable name could be an indication of a
-    // builtin variable (such as with gl_FragCoord).  gl_PerVertex is the only builtin whose "type"
-    // name starts with gl_.  However, gl_PerVertex has its own entry in the info map for its
-    // potential use with transform feedback.
-    const bool isNameBuiltin = isInOut && !isIOBlock && gl::IsBuiltInName(*nameOut);
-    if (isNameBuiltin)
-    {
-        return SpirvVariableType::BuiltIn;
-    }
-
-    if (typeId == mOutputPerVertexTypePointerId)
-    {
-        // If this is the output gl_PerVertex variable, remember its id for gl_Position
-        // transformations.
-        ASSERT(storageClass == spv::StorageClassOutput && isIOBlock &&
-               strcmp(*nameOut, "gl_PerVertex") == 0);
-        mOutputPerVertexId = id;
-    }
-
-    return SpirvVariableType::InterfaceVariable;
-}
-
-void SpirvIDDiscoverer::writePendingDeclarations(spirv::Blob *blobOut)
-{
-    if (!mFloatId.valid())
-    {
-        mFloatId = SpirvTransformerBase::GetNewId(blobOut);
-        spirv::WriteTypeFloat(blobOut, mFloatId, spirv::LiteralInteger(32));
-    }
-
-    if (!mVec4Id.valid())
-    {
-        mVec4Id = SpirvTransformerBase::GetNewId(blobOut);
-        spirv::WriteTypeVector(blobOut, mVec4Id, mFloatId, spirv::LiteralInteger(4));
-    }
-
-    if (!mVec4OutTypePointerId.valid())
-    {
-        mVec4OutTypePointerId = SpirvTransformerBase::GetNewId(blobOut);
-        spirv::WriteTypePointer(blobOut, mVec4OutTypePointerId, spv::StorageClassOutput, mVec4Id);
-    }
-
-    if (!mIntId.valid())
-    {
-        mIntId = SpirvTransformerBase::GetNewId(blobOut);
-        spirv::WriteTypeInt(blobOut, mIntId, spirv::LiteralInteger(32), spirv::LiteralInteger(1));
-    }
-
-    if (!mIvec4Id.valid())
-    {
-        mIvec4Id = SpirvTransformerBase::GetNewId(blobOut);
-        spirv::WriteTypeVector(blobOut, mIvec4Id, mIntId, spirv::LiteralInteger(4));
-    }
-
-    ASSERT(!mInt0Id.valid());
-    mInt0Id = SpirvTransformerBase::GetNewId(blobOut);
-    spirv::WriteConstant(blobOut, mIntId, mInt0Id, spirv::LiteralContextDependentNumber(0));
-
-    constexpr uint32_t kFloatHalfAsUint = 0x3F00'0000;
-
-    ASSERT(!mFloatHalfId.valid());
-    mFloatHalfId = SpirvTransformerBase::GetNewId(blobOut);
-    spirv::WriteConstant(blobOut, mFloatId, mFloatHalfId,
-                         spirv::LiteralContextDependentNumber(kFloatHalfAsUint));
-}
-
-// Helper class that trims input and output gl_PerVertex declarations to remove inactive builtins.
-class SpirvPerVertexTrimmer final : angle::NonCopyable
-{
-  public:
-    SpirvPerVertexTrimmer() {}
-
-    TransformationState transformMemberDecorate(const SpirvIDDiscoverer &ids,
-                                                spirv::IdRef typeId,
+void SpirvPerVertexTrimmer::visitMemberDecorate(spirv::IdRef id,
                                                 spirv::LiteralInteger member,
-                                                spv::Decoration decoration);
-    TransformationState transformMemberName(const SpirvIDDiscoverer &ids,
-                                            spirv::IdRef id,
-                                            spirv::LiteralInteger member,
-                                            const spirv::LiteralString &name);
-    TransformationState transformTypeStruct(const SpirvIDDiscoverer &ids,
-                                            spirv::IdResult id,
-                                            spirv::IdRefList *memberList,
-                                            spirv::Blob *blobOut);
-};
+                                                spv::Decoration decoration,
+                                                const spirv::LiteralIntegerList &valueList)
+{
+    if (decoration != spv::DecorationBuiltIn || !isPerVertex(id))
+    {
+        return;
+    }
 
-TransformationState SpirvPerVertexTrimmer::transformMemberDecorate(const SpirvIDDiscoverer &ids,
-                                                                   spirv::IdRef typeId,
+    // Map spv::BuiltIn to gl::PerVertexMember.
+    ASSERT(!valueList.empty());
+    const uint32_t builtIn              = valueList[0];
+    gl::PerVertexMember perVertexMember = gl::PerVertexMember::Position;
+    switch (builtIn)
+    {
+        case spv::BuiltInPosition:
+            perVertexMember = gl::PerVertexMember::Position;
+            break;
+        case spv::BuiltInPointSize:
+            perVertexMember = gl::PerVertexMember::PointSize;
+            break;
+        case spv::BuiltInClipDistance:
+            perVertexMember = gl::PerVertexMember::ClipDistance;
+            break;
+        case spv::BuiltInCullDistance:
+            perVertexMember = gl::PerVertexMember::CullDistance;
+            break;
+        default:
+            UNREACHABLE();
+    }
+
+    if (id == ID::OutputPerVertexBlock && perVertexMember == mOutputPerVertexMaxActiveMember)
+    {
+        mOutputPerVertexMaxActiveMemberIndex = member;
+    }
+    else if (id == ID::InputPerVertexBlock && perVertexMember == mInputPerVertexMaxActiveMember)
+    {
+        mInputPerVertexMaxActiveMemberIndex = member;
+    }
+}
+
+TransformationState SpirvPerVertexTrimmer::transformMemberDecorate(spirv::IdRef typeId,
                                                                    spirv::LiteralInteger member,
                                                                    spv::Decoration decoration)
 {
@@ -1495,7 +1256,7 @@ TransformationState SpirvPerVertexTrimmer::transformMemberDecorate(const SpirvID
     // - OpMemberDecorate %gl_PerVertex N BuiltIn B
     // - OpMemberDecorate %gl_PerVertex N Invariant
     // - OpMemberDecorate %gl_PerVertex N RelaxedPrecision
-    if (!ids.isPerVertex(typeId) ||
+    if (!isPerVertex(typeId) ||
         (decoration != spv::DecorationBuiltIn && decoration != spv::DecorationInvariant &&
          decoration != spv::DecorationRelaxedPrecision))
     {
@@ -1503,32 +1264,30 @@ TransformationState SpirvPerVertexTrimmer::transformMemberDecorate(const SpirvID
     }
 
     // Drop stripped fields.
-    return member > ids.getPerVertexMaxActiveMember(typeId) ? TransformationState::Transformed
-                                                            : TransformationState::Unchanged;
+    return member > getPerVertexMaxActiveMember(typeId) ? TransformationState::Transformed
+                                                        : TransformationState::Unchanged;
 }
 
-TransformationState SpirvPerVertexTrimmer::transformMemberName(const SpirvIDDiscoverer &ids,
-                                                               spirv::IdRef id,
+TransformationState SpirvPerVertexTrimmer::transformMemberName(spirv::IdRef id,
                                                                spirv::LiteralInteger member,
                                                                const spirv::LiteralString &name)
 {
     // Remove the instruction if it's a stripped member of gl_PerVertex.
-    return ids.isPerVertex(id) && member > ids.getPerVertexMaxActiveMember(id)
+    return isPerVertex(id) && member > getPerVertexMaxActiveMember(id)
                ? TransformationState::Transformed
                : TransformationState::Unchanged;
 }
 
-TransformationState SpirvPerVertexTrimmer::transformTypeStruct(const SpirvIDDiscoverer &ids,
-                                                               spirv::IdResult id,
+TransformationState SpirvPerVertexTrimmer::transformTypeStruct(spirv::IdResult id,
                                                                spirv::IdRefList *memberList,
                                                                spirv::Blob *blobOut)
 {
-    if (!ids.isPerVertex(id))
+    if (!isPerVertex(id))
     {
         return TransformationState::Unchanged;
     }
 
-    const uint32_t maxMembers = ids.getPerVertexMaxActiveMember(id);
+    const uint32_t maxMembers = getPerVertexMaxActiveMember(id);
 
     // Change the definition of the gl_PerVertex struct by stripping unused fields at the end.
     const uint32_t memberCount = maxMembers + 1;
@@ -1558,8 +1317,7 @@ class SpirvInactiveVaryingRemover final : angle::NonCopyable
                                           spv::Decoration decoration,
                                           const spirv::LiteralIntegerList &decorationValues,
                                           spirv::Blob *blobOut);
-    TransformationState transformTypePointer(const SpirvIDDiscoverer &ids,
-                                             spirv::IdResult id,
+    TransformationState transformTypePointer(spirv::IdResult id,
                                              spv::StorageClass storageClass,
                                              spirv::IdRef typeId,
                                              spirv::Blob *blobOut);
@@ -1571,9 +1329,16 @@ class SpirvInactiveVaryingRemover final : angle::NonCopyable
     void modifyEntryPointInterfaceList(
         const std::vector<const ShaderInterfaceVariableInfo *> &variableInfoById,
         gl::ShaderType shaderType,
+        EntryPointList entryPointList,
         spirv::IdRefList *interfaceList);
 
     bool isInactive(spirv::IdRef id) const { return mIsInactiveById[id]; }
+
+    spirv::IdRef getTransformedPrivateType(spirv::IdRef id) const
+    {
+        ASSERT(id < mTypePointerTransformedId.size());
+        return mTypePointerTransformedId[id];
+    }
 
   private:
     // Each OpTypePointer instruction that defines a type with the Output storage class is
@@ -1626,8 +1391,16 @@ TransformationState SpirvInactiveVaryingRemover::transformDecorate(
 void SpirvInactiveVaryingRemover::modifyEntryPointInterfaceList(
     const std::vector<const ShaderInterfaceVariableInfo *> &variableInfoById,
     gl::ShaderType shaderType,
+    EntryPointList entryPointList,
     spirv::IdRefList *interfaceList)
 {
+    // Nothing to do if SPIR-V 1.4, each inactive variable is replaced with a Private varaible, but
+    // its ID is retained and stays in the variable list.
+    if (entryPointList == EntryPointList::GlobalVariables)
+    {
+        return;
+    }
+
     // Filter out inactive varyings from entry point interface declaration.
     size_t writeIndex = 0;
     for (size_t index = 0; index < interfaceList->size(); ++index)
@@ -1651,7 +1424,6 @@ void SpirvInactiveVaryingRemover::modifyEntryPointInterfaceList(
 }
 
 TransformationState SpirvInactiveVaryingRemover::transformTypePointer(
-    const SpirvIDDiscoverer &ids,
     spirv::IdResult id,
     spv::StorageClass storageClass,
     spirv::IdRef typeId,
@@ -1667,7 +1439,10 @@ TransformationState SpirvInactiveVaryingRemover::transformTypePointer(
     // storage class, in case it may be necessary later.
 
     // Cannot create a Private type declaration from builtins such as gl_PerVertex.
-    if (ids.getName(typeId) != nullptr && gl::IsBuiltInName(ids.getName(typeId)))
+    if (typeId == sh::vk::spirv::kIdInputPerVertexBlock ||
+        typeId == sh::vk::spirv::kIdOutputPerVertexBlock ||
+        typeId == sh::vk::spirv::kIdInputPerVertexBlockArray ||
+        typeId == sh::vk::spirv::kIdOutputPerVertexBlockArray)
     {
         return TransformationState::Unchanged;
     }
@@ -1730,7 +1505,8 @@ class SpirvVaryingPrecisionFixer final : angle::NonCopyable
                                           spv::StorageClass storageClass,
                                           spirv::Blob *blobOut);
 
-    void modifyEntryPointInterfaceList(spirv::IdRefList *interfaceList);
+    void modifyEntryPointInterfaceList(EntryPointList entryPointList,
+                                       spirv::IdRefList *interfaceList);
     void addDecorate(spirv::IdRef replacedId, spirv::Blob *blobOut);
     void writeInputPreamble(
         const std::vector<const ShaderInterfaceVariableInfo *> &variableInfoById,
@@ -1837,12 +1613,33 @@ void SpirvVaryingPrecisionFixer::writeInputPreamble(
     }
 }
 
-void SpirvVaryingPrecisionFixer::modifyEntryPointInterfaceList(spirv::IdRefList *interfaceList)
+void SpirvVaryingPrecisionFixer::modifyEntryPointInterfaceList(EntryPointList entryPointList,
+                                                               spirv::IdRefList *interfaceList)
 {
-    // Modify interface list if any ID was replaced due to varying precision mismatch.
-    for (size_t index = 0; index < interfaceList->size(); ++index)
+    // With SPIR-V 1.3, modify interface list if any ID was replaced due to varying precision
+    // mismatch.
+    //
+    // With SPIR-V 1.4, the original variables are changed to Private and should remain in the list.
+    // The new variables should be added to the variable list.
+    //
+    // If any ID is beyond the original bound, it was added by another transformation, and should be
+    // left intact.
+    const size_t variableCount = interfaceList->size();
+    for (size_t index = 0; index < variableCount; ++index)
     {
-        (*interfaceList)[index] = getReplacementId((*interfaceList)[index]);
+        const spirv::IdRef id            = (*interfaceList)[index];
+        const spirv::IdRef replacementId = id < mFixedVaryingId.size() ? getReplacementId(id) : id;
+        if (replacementId != id)
+        {
+            if (entryPointList == EntryPointList::InterfaceVariables)
+            {
+                (*interfaceList)[index] = replacementId;
+            }
+            else
+            {
+                interfaceList->push_back(replacementId);
+            }
+        }
     }
 }
 
@@ -1888,71 +1685,94 @@ void SpirvVaryingPrecisionFixer::writeOutputPrologue(
 class SpirvTransformFeedbackCodeGenerator final : angle::NonCopyable
 {
   public:
-    SpirvTransformFeedbackCodeGenerator(bool isEmulated)
-        : mIsEmulated(isEmulated), mHasTransformFeedbackOutput(false)
+    SpirvTransformFeedbackCodeGenerator(const SpvTransformOptions &options)
+        : mIsEmulated(options.isTransformFeedbackEmulated),
+          mHasTransformFeedbackOutput(false),
+          mIsPositionCapturedByTransformFeedbackExtension(false)
     {}
 
-    void visitName(spirv::IdRef id, const spirv::LiteralString &name);
-    void visitTypeVector(const SpirvIDDiscoverer &ids,
-                         spirv::IdResult id,
-                         spirv::IdRef componentId,
-                         spirv::LiteralInteger componentCount);
-    void visitTypePointer(spirv::IdResult id, spv::StorageClass storageClass, spirv::IdRef typeId);
     void visitVariable(const ShaderInterfaceVariableInfo &info,
+                       const XFBInterfaceVariableInfo &xfbInfo,
                        gl::ShaderType shaderType,
-                       const spirv::LiteralString &name,
                        spirv::IdResultType typeId,
                        spirv::IdResult id,
                        spv::StorageClass storageClass);
 
     TransformationState transformCapability(spv::Capability capability, spirv::Blob *blobOut);
+    TransformationState transformDecorate(const ShaderInterfaceVariableInfo *info,
+                                          gl::ShaderType shaderType,
+                                          spirv::IdRef id,
+                                          spv::Decoration decoration,
+                                          const spirv::LiteralIntegerList &decorationValues,
+                                          spirv::Blob *blobOut);
+    TransformationState transformMemberDecorate(const ShaderInterfaceVariableInfo *info,
+                                                gl::ShaderType shaderType,
+                                                spirv::IdRef id,
+                                                spirv::LiteralInteger member,
+                                                spv::Decoration decoration,
+                                                spirv::Blob *blobOut);
     TransformationState transformName(spirv::IdRef id, spirv::LiteralString name);
+    TransformationState transformMemberName(spirv::IdRef id,
+                                            spirv::LiteralInteger member,
+                                            spirv::LiteralString name);
+    TransformationState transformTypeStruct(const ShaderInterfaceVariableInfo *info,
+                                            gl::ShaderType shaderType,
+                                            spirv::IdResult id,
+                                            const spirv::IdRefList &memberList,
+                                            spirv::Blob *blobOut);
+    TransformationState transformTypePointer(const ShaderInterfaceVariableInfo *info,
+                                             gl::ShaderType shaderType,
+                                             spirv::IdResult id,
+                                             spv::StorageClass storageClass,
+                                             spirv::IdRef typeId,
+                                             spirv::Blob *blobOut);
     TransformationState transformVariable(const ShaderInterfaceVariableInfo &info,
                                           const ShaderInterfaceVariableInfoMap &variableInfoMap,
                                           gl::ShaderType shaderType,
+                                          spv::StorageClass storageBufferStorageClass,
                                           spirv::IdResultType typeId,
                                           spirv::IdResult id,
                                           spv::StorageClass storageClass);
 
+    void modifyEntryPointInterfaceList(
+        const std::vector<const ShaderInterfaceVariableInfo *> &variableInfoById,
+        gl::ShaderType shaderType,
+        EntryPointList entryPointList,
+        spirv::IdRefList *interfaceList);
+
     void writePendingDeclarations(
         const std::vector<const ShaderInterfaceVariableInfo *> &variableInfoById,
-        const SpirvIDDiscoverer &ids,
+        spv::StorageClass storageBufferStorageClass,
         spirv::Blob *blobOut);
-    void writeTransformFeedbackExtensionOutput(const SpirvIDDiscoverer &ids,
-                                               spirv::IdRef positionId,
-                                               spirv::Blob *blobOut);
+    void writeTransformFeedbackExtensionOutput(spirv::IdRef positionId, spirv::Blob *blobOut);
     void writeTransformFeedbackEmulationOutput(
-        const SpirvIDDiscoverer &ids,
         const SpirvInactiveVaryingRemover &inactiveVaryingRemover,
         const SpirvVaryingPrecisionFixer &varyingPrecisionFixer,
         const bool usePrecisionFixer,
-        spirv::IdRef currentFunctionId,
         spirv::Blob *blobOut);
     void addExecutionMode(spirv::IdRef entryPointId, spirv::Blob *blobOut);
-    void addMemberDecorate(const ShaderInterfaceVariableInfo &info,
+    void addMemberDecorate(const XFBInterfaceVariableInfo &info,
                            spirv::IdRef id,
                            spirv::Blob *blobOut);
-    void addDecorate(const ShaderInterfaceVariableInfo &info,
+    void addDecorate(const XFBInterfaceVariableInfo &xfbInfo,
                      spirv::IdRef id,
                      spirv::Blob *blobOut);
 
   private:
-    void gatherXfbVaryings(const ShaderInterfaceVariableInfo &info, spirv::IdRef id);
+    void gatherXfbVaryings(const XFBInterfaceVariableInfo &info, spirv::IdRef id);
     void visitXfbVarying(const ShaderInterfaceVariableXfbInfo &xfb,
                          spirv::IdRef baseId,
                          uint32_t fieldIndex);
-    void writeIntConstant(const SpirvIDDiscoverer &ids,
-                          uint32_t value,
-                          spirv::IdRef intId,
-                          spirv::Blob *blobOut);
-    void getVaryingTypeIds(const SpirvIDDiscoverer &ids,
-                           GLenum componentType,
+    TransformationState transformTypeHelper(const ShaderInterfaceVariableInfo *info,
+                                            gl::ShaderType shaderType,
+                                            spirv::IdResult id);
+    void writeIntConstant(uint32_t value, spirv::IdRef intId, spirv::Blob *blobOut);
+    void getVaryingTypeIds(GLenum componentType,
                            bool isPrivate,
                            spirv::IdRef *typeIdOut,
                            spirv::IdRef *typePtrOut);
     void writeGetOffsetsCall(spirv::IdRef xfbOffsets, spirv::Blob *blobOut);
-    void writeComponentCapture(const SpirvIDDiscoverer &ids,
-                               uint32_t bufferIndex,
+    void writeComponentCapture(uint32_t bufferIndex,
                                spirv::IdRef xfbOffset,
                                spirv::IdRef varyingTypeId,
                                spirv::IdRef varyingTypePtr,
@@ -1972,28 +1792,21 @@ class SpirvTransformFeedbackCodeGenerator final : angle::NonCopyable
     bool mHasTransformFeedbackOutput;
 
     // Ids needed to generate transform feedback support code.
-    spirv::IdRef mTransformFeedbackExtensionPositionId;
-    spirv::IdRef mGetXfbOffsetsFuncId;
-    spirv::IdRef mXfbCaptureFuncId;
-    gl::TransformFeedbackBuffersArray<spirv::IdRef> mXfbBuffers;
+    bool mIsPositionCapturedByTransformFeedbackExtension;
     gl::TransformFeedbackBuffersArray<spirv::IdRef> mBufferStrides;
     spirv::IdRef mBufferStridesCompositeId;
 
     // Type and constant ids:
     //
-    // - mIVec4Id: id of OpTypeVector %mIntId 4
-    //
-    // - mFloatOutputPointerId: id of OpTypePointer Output %mFloatId
-    // - mIntOutputPointerId: id of OpTypePointer Output %mIntId
-    // - mUintOutputPointerId: id of OpTypePointer Output %mUintId
+    // - mFloatOutputPointerId: id of OpTypePointer Output %kIdFloat
+    // - mIntOutputPointerId: id of OpTypePointer Output %kIdInt
+    // - mUintOutputPointerId: id of OpTypePointer Output %kIdUint
     // - mFloatPrivatePointerId, mIntPrivatePointerId, mUintPrivatePointerId: identical to the
     //   above, but with the Private storage class.  Used to load from varyings that have been
     //   replaced as part of precision mismatch fixup.
-    // - mFloatUniformPointerId: id of OpTypePointer Uniform %mFloatId
-    // - mIVec4FuncPointerId: id of OpTypePointer Function %mIVec4Id
+    // - mFloatUniformPointerId: id of OpTypePointer Uniform %kIdFloat
     //
-    // - mIntNIds[n]: id of OpConstant %mIntId n
-    spirv::IdRef mIVec4Id;
+    // - mIntNIds[n]: id of OpConstant %kIdInt n
     spirv::IdRef mFloatOutputPointerId;
     spirv::IdRef mIntOutputPointerId;
     spirv::IdRef mUintOutputPointerId;
@@ -2001,9 +1814,9 @@ class SpirvTransformFeedbackCodeGenerator final : angle::NonCopyable
     spirv::IdRef mIntPrivatePointerId;
     spirv::IdRef mUintPrivatePointerId;
     spirv::IdRef mFloatUniformPointerId;
-    spirv::IdRef mIVec4FuncPointerId;
+
     // Id of constants such as row, column and array index.  Integers 0, 1, 2 and 3 are always
-    // defined due to the ubiquity of usage.
+    // defined by the compiler.
     angle::FastVector<spirv::IdRef, 4> mIntNIds;
 
     // For transform feedback emulation, the captured elements are gathered in a list and sorted.
@@ -2024,85 +1837,32 @@ class SpirvTransformFeedbackCodeGenerator final : angle::NonCopyable
 constexpr size_t SpirvTransformFeedbackCodeGenerator::kXfbDecorationCount;
 constexpr spv::Decoration SpirvTransformFeedbackCodeGenerator::kXfbDecorations[kXfbDecorationCount];
 
-void SpirvTransformFeedbackCodeGenerator::visitName(spirv::IdRef id,
-                                                    const spirv::LiteralString &name)
-{
-    if (!mIsEmulated)
-    {
-        return;
-    }
-
-    const size_t bufferNameBaseLength = strlen(sh::vk::kXfbEmulationBufferName);
-
-    if (angle::BeginsWith(name, sh::vk::kXfbEmulationGetOffsetsFunctionName))
-    {
-        ASSERT(!mGetXfbOffsetsFuncId.valid());
-        mGetXfbOffsetsFuncId = id;
-    }
-    else if (angle::BeginsWith(name, sh::vk::kXfbEmulationCaptureFunctionName))
-    {
-        ASSERT(!mXfbCaptureFuncId.valid());
-        mXfbCaptureFuncId = id;
-    }
-    else if (angle::BeginsWith(name, sh::vk::kXfbEmulationBufferName) &&
-             std::isdigit(name[bufferNameBaseLength]))
-    {
-        static_assert(gl::IMPLEMENTATION_MAX_TRANSFORM_FEEDBACK_BUFFERS < 10,
-                      "Parsing the xfb buffer index below must be adjusted");
-        uint32_t xfbBuffer     = name[bufferNameBaseLength] - '0';
-        mXfbBuffers[xfbBuffer] = id;
-    }
-}
-
-void SpirvTransformFeedbackCodeGenerator::visitTypeVector(const SpirvIDDiscoverer &ids,
-                                                          spirv::IdResult id,
-                                                          spirv::IdRef componentId,
-                                                          spirv::LiteralInteger componentCount)
-{
-    // Only interested in OpTypeVector %mIntId 4
-    if (componentId == ids.intId() && componentCount == 4)
-    {
-        ASSERT(!mIVec4Id.valid());
-        mIVec4Id = id;
-    }
-}
-
-void SpirvTransformFeedbackCodeGenerator::visitTypePointer(spirv::IdResult id,
-                                                           spv::StorageClass storageClass,
-                                                           spirv::IdRef typeId)
-{
-    if (typeId == mIVec4Id && storageClass == spv::StorageClassFunction)
-    {
-        ASSERT(!mIVec4FuncPointerId.valid());
-        mIVec4FuncPointerId = id;
-    }
-}
-
 void SpirvTransformFeedbackCodeGenerator::visitVariable(const ShaderInterfaceVariableInfo &info,
+                                                        const XFBInterfaceVariableInfo &xfbInfo,
                                                         gl::ShaderType shaderType,
-                                                        const spirv::LiteralString &name,
                                                         spirv::IdResultType typeId,
                                                         spirv::IdResult id,
                                                         spv::StorageClass storageClass)
 {
     if (mIsEmulated)
     {
-        gatherXfbVaryings(info, id);
+        gatherXfbVaryings(xfbInfo, id);
         return;
     }
 
     // Note if the variable is captured by transform feedback.  In that case, the TransformFeedback
     // capability needs to be added.
-    if ((info.xfb.buffer != ShaderInterfaceVariableInfo::kInvalid || !info.fieldXfb.empty()) &&
+    if ((xfbInfo.xfb.pod.buffer != ShaderInterfaceVariableInfo::kInvalid ||
+         !xfbInfo.fieldXfb.empty()) &&
         info.activeStages[shaderType])
     {
         mHasTransformFeedbackOutput = true;
 
         // If this is the special ANGLEXfbPosition variable, remember its id to be used for the
         // ANGLEXfbPosition = gl_Position; assignment code generation.
-        if (strcmp(name, sh::vk::kXfbExtensionPositionOutName) == 0)
+        if (id == ID::XfbExtensionPosition)
         {
-            mTransformFeedbackExtensionPositionId = id;
+            mIsPositionCapturedByTransformFeedbackExtension = true;
         }
     }
 }
@@ -2139,15 +1899,106 @@ TransformationState SpirvTransformFeedbackCodeGenerator::transformName(spirv::Id
 {
     // In the case of ANGLEXfbN, unconditionally remove the variable names.  If transform
     // feedback is not active, the corresponding variables will be removed.
-    return angle::BeginsWith(name, sh::vk::kXfbEmulationBufferName)
-               ? TransformationState::Transformed
-               : TransformationState::Unchanged;
+    switch (id)
+    {
+        case sh::vk::spirv::kIdXfbEmulationBufferBlockZero:
+        case sh::vk::spirv::kIdXfbEmulationBufferBlockOne:
+        case sh::vk::spirv::kIdXfbEmulationBufferBlockTwo:
+        case sh::vk::spirv::kIdXfbEmulationBufferBlockThree:
+        case sh::vk::spirv::kIdXfbEmulationBufferVarZero:
+        case sh::vk::spirv::kIdXfbEmulationBufferVarOne:
+        case sh::vk::spirv::kIdXfbEmulationBufferVarTwo:
+        case sh::vk::spirv::kIdXfbEmulationBufferVarThree:
+            return TransformationState::Transformed;
+        default:
+            return TransformationState::Unchanged;
+    }
+}
+
+TransformationState SpirvTransformFeedbackCodeGenerator::transformMemberName(
+    spirv::IdRef id,
+    spirv::LiteralInteger member,
+    spirv::LiteralString name)
+{
+    switch (id)
+    {
+        case sh::vk::spirv::kIdXfbEmulationBufferBlockZero:
+        case sh::vk::spirv::kIdXfbEmulationBufferBlockOne:
+        case sh::vk::spirv::kIdXfbEmulationBufferBlockTwo:
+        case sh::vk::spirv::kIdXfbEmulationBufferBlockThree:
+            return TransformationState::Transformed;
+        default:
+            return TransformationState::Unchanged;
+    }
+}
+
+TransformationState SpirvTransformFeedbackCodeGenerator::transformTypeHelper(
+    const ShaderInterfaceVariableInfo *info,
+    gl::ShaderType shaderType,
+    spirv::IdResult id)
+{
+    switch (id)
+    {
+        case sh::vk::spirv::kIdXfbEmulationBufferBlockZero:
+        case sh::vk::spirv::kIdXfbEmulationBufferBlockOne:
+        case sh::vk::spirv::kIdXfbEmulationBufferBlockTwo:
+        case sh::vk::spirv::kIdXfbEmulationBufferBlockThree:
+            ASSERT(info);
+            return info->activeStages[shaderType] ? TransformationState::Unchanged
+                                                  : TransformationState::Transformed;
+        default:
+            return TransformationState::Unchanged;
+    }
+}
+
+TransformationState SpirvTransformFeedbackCodeGenerator::transformDecorate(
+    const ShaderInterfaceVariableInfo *info,
+    gl::ShaderType shaderType,
+    spirv::IdRef id,
+    spv::Decoration decoration,
+    const spirv::LiteralIntegerList &decorationValues,
+    spirv::Blob *blobOut)
+{
+    return transformTypeHelper(info, shaderType, id);
+}
+
+TransformationState SpirvTransformFeedbackCodeGenerator::transformMemberDecorate(
+    const ShaderInterfaceVariableInfo *info,
+    gl::ShaderType shaderType,
+    spirv::IdRef id,
+    spirv::LiteralInteger member,
+    spv::Decoration decoration,
+    spirv::Blob *blobOut)
+{
+    return transformTypeHelper(info, shaderType, id);
+}
+
+TransformationState SpirvTransformFeedbackCodeGenerator::transformTypeStruct(
+    const ShaderInterfaceVariableInfo *info,
+    gl::ShaderType shaderType,
+    spirv::IdResult id,
+    const spirv::IdRefList &memberList,
+    spirv::Blob *blobOut)
+{
+    return transformTypeHelper(info, shaderType, id);
+}
+
+TransformationState SpirvTransformFeedbackCodeGenerator::transformTypePointer(
+    const ShaderInterfaceVariableInfo *info,
+    gl::ShaderType shaderType,
+    spirv::IdResult id,
+    spv::StorageClass storageClass,
+    spirv::IdRef typeId,
+    spirv::Blob *blobOut)
+{
+    return transformTypeHelper(info, shaderType, typeId);
 }
 
 TransformationState SpirvTransformFeedbackCodeGenerator::transformVariable(
     const ShaderInterfaceVariableInfo &info,
     const ShaderInterfaceVariableInfoMap &variableInfoMap,
     gl::ShaderType shaderType,
+    spv::StorageClass storageBufferStorageClass,
     spirv::IdResultType typeId,
     spirv::IdResult id,
     spv::StorageClass storageClass)
@@ -2155,14 +2006,14 @@ TransformationState SpirvTransformFeedbackCodeGenerator::transformVariable(
     // This function is currently called for inactive variables.
     ASSERT(!info.activeStages[shaderType]);
 
-    if (shaderType == gl::ShaderType::Vertex && storageClass == spv::StorageClassUniform)
+    if (shaderType == gl::ShaderType::Vertex && storageClass == storageBufferStorageClass)
     {
         // The ANGLEXfbN variables are unconditionally generated and may be inactive.  Remove these
         // variables in that case.
-        ASSERT(&info == &variableInfoMap.getVariableByName(shaderType, SpvGetXfbBufferName(0)) ||
-               &info == &variableInfoMap.getVariableByName(shaderType, SpvGetXfbBufferName(1)) ||
-               &info == &variableInfoMap.getVariableByName(shaderType, SpvGetXfbBufferName(2)) ||
-               &info == &variableInfoMap.getVariableByName(shaderType, SpvGetXfbBufferName(3)));
+        ASSERT(&info == &variableInfoMap.getVariableById(shaderType, SpvGetXfbBufferBlockId(0)) ||
+               &info == &variableInfoMap.getVariableById(shaderType, SpvGetXfbBufferBlockId(1)) ||
+               &info == &variableInfoMap.getVariableById(shaderType, SpvGetXfbBufferBlockId(2)) ||
+               &info == &variableInfoMap.getVariableById(shaderType, SpvGetXfbBufferBlockId(3)));
 
         // Drop the declaration.
         return TransformationState::Transformed;
@@ -2171,7 +2022,7 @@ TransformationState SpirvTransformFeedbackCodeGenerator::transformVariable(
     return TransformationState::Unchanged;
 }
 
-void SpirvTransformFeedbackCodeGenerator::gatherXfbVaryings(const ShaderInterfaceVariableInfo &info,
+void SpirvTransformFeedbackCodeGenerator::gatherXfbVaryings(const XFBInterfaceVariableInfo &info,
                                                             spirv::IdRef id)
 {
     visitXfbVarying(info.xfb, id, ShaderInterfaceVariableXfbInfo::kInvalid);
@@ -2191,20 +2042,19 @@ void SpirvTransformFeedbackCodeGenerator::visitXfbVarying(const ShaderInterfaceV
         visitXfbVarying(arrayElement, baseId, fieldIndex);
     }
 
-    if (xfb.buffer == ShaderInterfaceVariableXfbInfo::kInvalid)
+    if (xfb.pod.buffer == ShaderInterfaceVariableXfbInfo::kInvalid)
     {
         return;
     }
 
     // Varyings captured to the same buffer have the same stride.
-    ASSERT(mXfbVaryings[xfb.buffer].empty() ||
-           mXfbVaryings[xfb.buffer][0].info->stride == xfb.stride);
+    ASSERT(mXfbVaryings[xfb.pod.buffer].empty() ||
+           mXfbVaryings[xfb.pod.buffer][0].info->pod.stride == xfb.pod.stride);
 
-    mXfbVaryings[xfb.buffer].push_back({&xfb, baseId, fieldIndex});
+    mXfbVaryings[xfb.pod.buffer].push_back({&xfb, baseId, fieldIndex});
 }
 
-void SpirvTransformFeedbackCodeGenerator::writeIntConstant(const SpirvIDDiscoverer &ids,
-                                                           uint32_t value,
+void SpirvTransformFeedbackCodeGenerator::writeIntConstant(uint32_t value,
                                                            spirv::IdRef intId,
                                                            spirv::Blob *blobOut)
 {
@@ -2224,13 +2074,46 @@ void SpirvTransformFeedbackCodeGenerator::writeIntConstant(const SpirvIDDiscover
     }
 
     mIntNIds[value] = SpirvTransformerBase::GetNewId(blobOut);
-    spirv::WriteConstant(blobOut, ids.intId(), mIntNIds[value],
+    spirv::WriteConstant(blobOut, ID::Int, mIntNIds[value],
                          spirv::LiteralContextDependentNumber(value));
+}
+
+void SpirvTransformFeedbackCodeGenerator::modifyEntryPointInterfaceList(
+    const std::vector<const ShaderInterfaceVariableInfo *> &variableInfoById,
+    gl::ShaderType shaderType,
+    EntryPointList entryPointList,
+    spirv::IdRefList *interfaceList)
+{
+    if (entryPointList == EntryPointList::GlobalVariables)
+    {
+        // Filter out unused xfb blocks from entry point interface declaration.
+        size_t writeIndex = 0;
+        for (size_t index = 0; index < interfaceList->size(); ++index)
+        {
+            spirv::IdRef id((*interfaceList)[index]);
+            if (SpvIsXfbBufferBlockId(id))
+            {
+                const ShaderInterfaceVariableInfo *info = variableInfoById[id];
+                ASSERT(info);
+
+                if (!info->activeStages[shaderType])
+                {
+                    continue;
+                }
+            }
+
+            (*interfaceList)[writeIndex] = id;
+            ++writeIndex;
+        }
+
+        // Update the number of interface variables.
+        interfaceList->resize_down(writeIndex);
+    }
 }
 
 void SpirvTransformFeedbackCodeGenerator::writePendingDeclarations(
     const std::vector<const ShaderInterfaceVariableInfo *> &variableInfoById,
-    const SpirvIDDiscoverer &ids,
+    spv::StorageClass storageBufferStorageClass,
     spirv::Blob *blobOut)
 {
     if (!mIsEmulated)
@@ -2238,104 +2121,82 @@ void SpirvTransformFeedbackCodeGenerator::writePendingDeclarations(
         return;
     }
 
-    ASSERT(mIVec4Id.valid());
-
     mFloatOutputPointerId  = SpirvTransformerBase::GetNewId(blobOut);
     mFloatPrivatePointerId = SpirvTransformerBase::GetNewId(blobOut);
-    spirv::WriteTypePointer(blobOut, mFloatOutputPointerId, spv::StorageClassOutput, ids.floatId());
-    spirv::WriteTypePointer(blobOut, mFloatPrivatePointerId, spv::StorageClassPrivate,
-                            ids.floatId());
+    spirv::WriteTypePointer(blobOut, mFloatOutputPointerId, spv::StorageClassOutput, ID::Float);
+    spirv::WriteTypePointer(blobOut, mFloatPrivatePointerId, spv::StorageClassPrivate, ID::Float);
 
-    if (ids.intId().valid())
-    {
-        mIntOutputPointerId  = SpirvTransformerBase::GetNewId(blobOut);
-        mIntPrivatePointerId = SpirvTransformerBase::GetNewId(blobOut);
-        spirv::WriteTypePointer(blobOut, mIntOutputPointerId, spv::StorageClassOutput, ids.intId());
-        spirv::WriteTypePointer(blobOut, mIntPrivatePointerId, spv::StorageClassPrivate,
-                                ids.intId());
-    }
+    mIntOutputPointerId  = SpirvTransformerBase::GetNewId(blobOut);
+    mIntPrivatePointerId = SpirvTransformerBase::GetNewId(blobOut);
+    spirv::WriteTypePointer(blobOut, mIntOutputPointerId, spv::StorageClassOutput, ID::Int);
+    spirv::WriteTypePointer(blobOut, mIntPrivatePointerId, spv::StorageClassPrivate, ID::Int);
 
-    if (ids.uintId().valid())
-    {
-        mUintOutputPointerId  = SpirvTransformerBase::GetNewId(blobOut);
-        mUintPrivatePointerId = SpirvTransformerBase::GetNewId(blobOut);
-        spirv::WriteTypePointer(blobOut, mUintOutputPointerId, spv::StorageClassOutput,
-                                ids.uintId());
-        spirv::WriteTypePointer(blobOut, mUintPrivatePointerId, spv::StorageClassPrivate,
-                                ids.uintId());
-    }
+    mUintOutputPointerId  = SpirvTransformerBase::GetNewId(blobOut);
+    mUintPrivatePointerId = SpirvTransformerBase::GetNewId(blobOut);
+    spirv::WriteTypePointer(blobOut, mUintOutputPointerId, spv::StorageClassOutput, ID::Uint);
+    spirv::WriteTypePointer(blobOut, mUintPrivatePointerId, spv::StorageClassPrivate, ID::Uint);
 
     mFloatUniformPointerId = SpirvTransformerBase::GetNewId(blobOut);
-    spirv::WriteTypePointer(blobOut, mFloatUniformPointerId, spv::StorageClassUniform,
-                            ids.floatId());
-
-    if (!mIVec4FuncPointerId.valid())
-    {
-        mIVec4FuncPointerId = SpirvTransformerBase::GetNewId(blobOut);
-        spirv::WriteTypePointer(blobOut, mIVec4FuncPointerId, spv::StorageClassFunction,
-                                ids.ivec4Id());
-    }
+    spirv::WriteTypePointer(blobOut, mFloatUniformPointerId, storageBufferStorageClass, ID::Float);
 
     ASSERT(mIntNIds.empty());
     // All new elements initialized later after the resize. Additionally mIntNIds was always empty
     // before this resize, so previous value reuse is not possible.
     mIntNIds.resize_maybe_value_reuse(4);
-    mIntNIds[0] = ids.int0Id();
-    for (int n = 1; n < 4; ++n)
-    {
-        writeIntConstant(ids, n, ids.intId(), blobOut);
-    }
+    mIntNIds[0] = ID::IntZero;
+    mIntNIds[1] = ID::IntOne;
+    mIntNIds[2] = ID::IntTwo;
+    mIntNIds[3] = ID::IntThree;
 
     spirv::IdRefList compositeIds;
     for (const std::vector<XfbVarying> &varyings : mXfbVaryings)
     {
         if (varyings.empty())
         {
-            compositeIds.push_back(ids.int0Id());
+            compositeIds.push_back(ID::IntZero);
             continue;
         }
 
         const ShaderInterfaceVariableXfbInfo *info0 = varyings[0].info;
 
         // Define the buffer stride constant
-        ASSERT(info0->stride % sizeof(float) == 0);
-        uint32_t stride = info0->stride / sizeof(float);
+        ASSERT(info0->pod.stride % sizeof(float) == 0);
+        uint32_t stride = info0->pod.stride / sizeof(float);
 
-        mBufferStrides[info0->buffer] = SpirvTransformerBase::GetNewId(blobOut);
-        spirv::WriteConstant(blobOut, ids.intId(), mBufferStrides[info0->buffer],
+        mBufferStrides[info0->pod.buffer] = SpirvTransformerBase::GetNewId(blobOut);
+        spirv::WriteConstant(blobOut, ID::Int, mBufferStrides[info0->pod.buffer],
                              spirv::LiteralContextDependentNumber(stride));
 
-        compositeIds.push_back(mBufferStrides[info0->buffer]);
+        compositeIds.push_back(mBufferStrides[info0->pod.buffer]);
 
         // Define all the constants that would be necessary to load the components of the varying.
         for (const XfbVarying &varying : varyings)
         {
-            writeIntConstant(ids, varying.fieldIndex, ids.intId(), blobOut);
+            writeIntConstant(varying.fieldIndex, ID::Int, blobOut);
             const ShaderInterfaceVariableXfbInfo *info = varying.info;
-            if (info->arraySize == ShaderInterfaceVariableXfbInfo::kInvalid)
+            if (info->pod.arraySize == ShaderInterfaceVariableXfbInfo::kInvalid)
             {
                 continue;
             }
 
             uint32_t arrayIndexStart =
-                varying.info->arrayIndex != ShaderInterfaceVariableXfbInfo::kInvalid
-                    ? varying.info->arrayIndex
+                varying.info->pod.arrayIndex != ShaderInterfaceVariableXfbInfo::kInvalid
+                    ? varying.info->pod.arrayIndex
                     : 0;
-            uint32_t arrayIndexEnd = arrayIndexStart + info->arraySize;
+            uint32_t arrayIndexEnd = arrayIndexStart + info->pod.arraySize;
 
             for (uint32_t arrayIndex = arrayIndexStart; arrayIndex < arrayIndexEnd; ++arrayIndex)
             {
-                writeIntConstant(ids, arrayIndex, ids.intId(), blobOut);
+                writeIntConstant(arrayIndex, ID::Int, blobOut);
             }
         }
     }
 
     mBufferStridesCompositeId = SpirvTransformerBase::GetNewId(blobOut);
-    spirv::WriteConstantComposite(blobOut, mIVec4Id, mBufferStridesCompositeId, compositeIds);
+    spirv::WriteConstantComposite(blobOut, ID::IVec4, mBufferStridesCompositeId, compositeIds);
 }
 
 void SpirvTransformFeedbackCodeGenerator::writeTransformFeedbackExtensionOutput(
-    const SpirvIDDiscoverer &ids,
     spirv::IdRef positionId,
     spirv::Blob *blobOut)
 {
@@ -2344,9 +2205,9 @@ void SpirvTransformFeedbackCodeGenerator::writeTransformFeedbackExtensionOutput(
         return;
     }
 
-    if (mTransformFeedbackExtensionPositionId.valid())
+    if (mIsPositionCapturedByTransformFeedbackExtension)
     {
-        spirv::WriteStore(blobOut, mTransformFeedbackExtensionPositionId, positionId, nullptr);
+        spirv::WriteStore(blobOut, ID::XfbExtensionPosition, positionId, nullptr);
     }
 }
 
@@ -2378,14 +2239,12 @@ class AccessChainIndexListAppend final : angle::NonCopyable
 };
 
 void SpirvTransformFeedbackCodeGenerator::writeTransformFeedbackEmulationOutput(
-    const SpirvIDDiscoverer &ids,
     const SpirvInactiveVaryingRemover &inactiveVaryingRemover,
     const SpirvVaryingPrecisionFixer &varyingPrecisionFixer,
     const bool usePrecisionFixer,
-    spirv::IdRef currentFunctionId,
     spirv::Blob *blobOut)
 {
-    if (!mIsEmulated || !mXfbCaptureFuncId.valid() || currentFunctionId != mXfbCaptureFuncId)
+    if (!mIsEmulated)
     {
         return;
     }
@@ -2395,7 +2254,7 @@ void SpirvTransformFeedbackCodeGenerator::writeTransformFeedbackEmulationOutput(
     {
         std::sort(varyings.begin(), varyings.end(),
                   [](const XfbVarying &first, const XfbVarying &second) {
-                      return first.info->offset < second.info->offset;
+                      return first.info->pod.offset < second.info->pod.offset;
                   });
     }
 
@@ -2415,7 +2274,7 @@ void SpirvTransformFeedbackCodeGenerator::writeTransformFeedbackEmulationOutput(
     // - For the initial offsets calculation:
     //
     //    %xfbOffsetsResult = OpFunctionCall %ivec4 %ANGLEGetXfbOffsets %stridesComposite
-    //       %xfbOffsetsVar = OpVariable %mIVec4FuncPointerId Function
+    //       %xfbOffsetsVar = OpVariable %kIdIVec4FunctionTypePointer Function
     //                        OpStore %xfbOffsetsVar %xfbOffsetsResult
     //          %xfbOffsets = OpLoad %ivec4 %xfbOffsetsVar
     //
@@ -2441,10 +2300,15 @@ void SpirvTransformFeedbackCodeGenerator::writeTransformFeedbackEmulationOutput(
     //             %asFloat = OpBitcast %float %component
     //
 
-    const spirv::IdRef xfbOffsets(SpirvTransformerBase::GetNewId(blobOut));
+    spirv::IdRef xfbOffsets;
 
-    // ivec4 xfbOffsets = ANGLEGetXfbOffsets(ivec4(stride0, stride1, stride2, stride3));
-    writeGetOffsetsCall(xfbOffsets, blobOut);
+    if (!mXfbVaryings.empty())
+    {
+        xfbOffsets = SpirvTransformerBase::GetNewId(blobOut);
+
+        // ivec4 xfbOffsets = ANGLEGetXfbOffsets(ivec4(stride0, stride1, stride2, stride3));
+        writeGetOffsetsCall(xfbOffsets, blobOut);
+    }
 
     // Go over the buffers one by one and capture the varyings.
     for (uint32_t bufferIndex = 0; bufferIndex < mXfbVaryings.size(); ++bufferIndex)
@@ -2454,7 +2318,7 @@ void SpirvTransformFeedbackCodeGenerator::writeTransformFeedbackEmulationOutput(
         // Get the offset corresponding to this buffer:
         //
         //     int xfbOffset = xfbOffsets[N]
-        spirv::WriteCompositeExtract(blobOut, ids.intId(), xfbOffset, xfbOffsets,
+        spirv::WriteCompositeExtract(blobOut, ID::Int, xfbOffset, xfbOffsets,
                                      {spirv::LiteralInteger(bufferIndex)});
 
         // Track offsets for verification.
@@ -2466,7 +2330,7 @@ void SpirvTransformFeedbackCodeGenerator::writeTransformFeedbackEmulationOutput(
         {
             const XfbVarying &varying                  = varyings[varyingIndex];
             const ShaderInterfaceVariableXfbInfo *info = varying.info;
-            ASSERT(info->buffer == bufferIndex);
+            ASSERT(info->pod.buffer == bufferIndex);
 
             // Each component of the varying being captured is loaded one by one.  This uses the
             // OpAccessChain instruction that takes a chain of "indices" to end up with the
@@ -2498,12 +2362,12 @@ void SpirvTransformFeedbackCodeGenerator::writeTransformFeedbackEmulationOutput(
             // - The whole array
             //
             uint32_t arrayIndexStart = 0;
-            uint32_t arrayIndexEnd   = info->arraySize;
-            const bool isArray       = info->arraySize != ShaderInterfaceVariableXfbInfo::kInvalid;
-            if (varying.info->arrayIndex != ShaderInterfaceVariableXfbInfo::kInvalid)
+            uint32_t arrayIndexEnd   = info->pod.arraySize;
+            const bool isArray = info->pod.arraySize != ShaderInterfaceVariableXfbInfo::kInvalid;
+            if (varying.info->pod.arrayIndex != ShaderInterfaceVariableXfbInfo::kInvalid)
             {
                 // Capturing a single element.
-                arrayIndexStart = varying.info->arrayIndex;
+                arrayIndexStart = varying.info->pod.arrayIndex;
                 arrayIndexEnd   = arrayIndexStart + 1;
             }
             else if (!isArray)
@@ -2514,9 +2378,9 @@ void SpirvTransformFeedbackCodeGenerator::writeTransformFeedbackEmulationOutput(
 
             // Sorting the varyings should have ensured that offsets are in order and that writing
             // to the output buffer sequentially ends up using the correct offsets.
-            ASSERT(info->offset == offsetForVerification);
-            offsetForVerification += (arrayIndexEnd - arrayIndexStart) * info->rowCount *
-                                     info->columnCount * sizeof(float);
+            ASSERT(info->pod.offset == offsetForVerification);
+            offsetForVerification += (arrayIndexEnd - arrayIndexStart) * info->pod.rowCount *
+                                     info->pod.columnCount * sizeof(float);
 
             // Determine the type of the component being captured.  OpBitcast is used (the
             // implementation of intBitsToFloat() and uintBitsToFloat() for non-float types).
@@ -2525,27 +2389,27 @@ void SpirvTransformFeedbackCodeGenerator::writeTransformFeedbackEmulationOutput(
             const bool isPrivate =
                 inactiveVaryingRemover.isInactive(varying.baseId) ||
                 (usePrecisionFixer && varyingPrecisionFixer.isReplaced(varying.baseId));
-            getVaryingTypeIds(ids, info->componentType, isPrivate, &varyingTypeId, &varyingTypePtr);
+            getVaryingTypeIds(info->pod.componentType, isPrivate, &varyingTypeId, &varyingTypePtr);
 
             for (uint32_t arrayIndex = arrayIndexStart; arrayIndex < arrayIndexEnd; ++arrayIndex)
             {
                 AccessChainIndexListAppend appendArrayIndex(isArray, mIntNIds, arrayIndex,
                                                             &indexList);
-                for (uint32_t col = 0; col < info->columnCount; ++col)
+                for (uint32_t col = 0; col < info->pod.columnCount; ++col)
                 {
-                    AccessChainIndexListAppend appendColumn(info->columnCount > 1, mIntNIds, col,
-                                                            &indexList);
-                    for (uint32_t row = 0; row < info->rowCount; ++row)
+                    AccessChainIndexListAppend appendColumn(info->pod.columnCount > 1, mIntNIds,
+                                                            col, &indexList);
+                    for (uint32_t row = 0; row < info->pod.rowCount; ++row)
                     {
-                        AccessChainIndexListAppend appendRow(info->rowCount > 1, mIntNIds, row,
+                        AccessChainIndexListAppend appendRow(info->pod.rowCount > 1, mIntNIds, row,
                                                              &indexList);
 
                         // Generate the code to capture a single component of the varying:
                         //
                         //     ANGLEXfbN.xfbOut[xfbOffset] = tfVarying0.field[index][row][col]
-                        writeComponentCapture(ids, bufferIndex, xfbOffset, varyingTypeId,
-                                              varyingTypePtr, varying.baseId, indexList,
-                                              info->componentType, blobOut);
+                        writeComponentCapture(bufferIndex, xfbOffset, varyingTypeId, varyingTypePtr,
+                                              varying.baseId, indexList, info->pod.componentType,
+                                              blobOut);
 
                         // Increment the offset:
                         //
@@ -2555,7 +2419,7 @@ void SpirvTransformFeedbackCodeGenerator::writeTransformFeedbackEmulationOutput(
                         //
                         //     %newOffsetId = OpIAdd %int %currentOffsetId %int1
                         spirv::IdRef nextOffset(SpirvTransformerBase::GetNewId(blobOut));
-                        spirv::WriteIAdd(blobOut, ids.intId(), nextOffset, xfbOffset, mIntNIds[1]);
+                        spirv::WriteIAdd(blobOut, ID::Int, nextOffset, xfbOffset, ID::IntOne);
                         xfbOffset = nextOffset;
                     }
                 }
@@ -2564,8 +2428,7 @@ void SpirvTransformFeedbackCodeGenerator::writeTransformFeedbackEmulationOutput(
     }
 }
 
-void SpirvTransformFeedbackCodeGenerator::getVaryingTypeIds(const SpirvIDDiscoverer &ids,
-                                                            GLenum componentType,
+void SpirvTransformFeedbackCodeGenerator::getVaryingTypeIds(GLenum componentType,
                                                             bool isPrivate,
                                                             spirv::IdRef *typeIdOut,
                                                             spirv::IdRef *typePtrOut)
@@ -2573,15 +2436,15 @@ void SpirvTransformFeedbackCodeGenerator::getVaryingTypeIds(const SpirvIDDiscove
     switch (componentType)
     {
         case GL_INT:
-            *typeIdOut  = ids.intId();
+            *typeIdOut  = ID::Int;
             *typePtrOut = isPrivate ? mIntPrivatePointerId : mIntOutputPointerId;
             break;
         case GL_UNSIGNED_INT:
-            *typeIdOut  = ids.uintId();
+            *typeIdOut  = ID::Uint;
             *typePtrOut = isPrivate ? mUintPrivatePointerId : mUintOutputPointerId;
             break;
         case GL_FLOAT:
-            *typeIdOut  = ids.floatId();
+            *typeIdOut  = ID::Float;
             *typePtrOut = isPrivate ? mFloatPrivatePointerId : mFloatOutputPointerId;
             break;
         default:
@@ -2603,20 +2466,19 @@ void SpirvTransformFeedbackCodeGenerator::writeGetOffsetsCall(spirv::IdRef xfbOf
     //     ivec4 xfbOffsets = ANGLEGetXfbOffsets(ivec4(stride0, stride1, stride2, stride3));
 
     // Create a variable to hold the result.
-    spirv::WriteVariable(blobOut, mIVec4FuncPointerId, xfbOffsetsVar, spv::StorageClassFunction,
-                         nullptr);
+    spirv::WriteVariable(blobOut, ID::IVec4FunctionTypePointer, xfbOffsetsVar,
+                         spv::StorageClassFunction, nullptr);
     // Call a helper function generated by the translator to calculate the offsets for the current
     // vertex.
-    spirv::WriteFunctionCall(blobOut, mIVec4Id, xfbOffsetsResult, mGetXfbOffsetsFuncId,
-                             {mBufferStridesCompositeId});
+    spirv::WriteFunctionCall(blobOut, ID::IVec4, xfbOffsetsResult,
+                             ID::XfbEmulationGetOffsetsFunction, {mBufferStridesCompositeId});
     // Store the results.
     spirv::WriteStore(blobOut, xfbOffsetsVar, xfbOffsetsResult, nullptr);
     // Load from the variable for use in expressions.
-    spirv::WriteLoad(blobOut, mIVec4Id, xfbOffsets, xfbOffsetsVar, nullptr);
+    spirv::WriteLoad(blobOut, ID::IVec4, xfbOffsets, xfbOffsetsVar, nullptr);
 }
 
 void SpirvTransformFeedbackCodeGenerator::writeComponentCapture(
-    const SpirvIDDiscoverer &ids,
     uint32_t bufferIndex,
     spirv::IdRef xfbOffset,
     spirv::IdRef varyingTypeId,
@@ -2650,14 +2512,22 @@ void SpirvTransformFeedbackCodeGenerator::writeComponentCapture(
     if (componentType != GL_FLOAT)
     {
         asFloat = SpirvTransformerBase::GetNewId(blobOut);
-        spirv::WriteBitcast(blobOut, ids.floatId(), asFloat, component);
+        spirv::WriteBitcast(blobOut, ID::Float, asFloat, component);
     }
 
     // Store into the transform feedback capture buffer at the current offset.  Note that this
     // buffer has only one field (xfbOut), hence ANGLEXfbN.xfbOut[xfbOffset] translates to ANGLEXfbN
     // with access chain {0, xfbOffset}.
-    spirv::WriteAccessChain(blobOut, mFloatUniformPointerId, xfbOutPtr, mXfbBuffers[bufferIndex],
-                            {mIntNIds[0], xfbOffset});
+    static_assert(gl::IMPLEMENTATION_MAX_TRANSFORM_FEEDBACK_BUFFERS == 4);
+    static_assert(sh::vk::spirv::kIdXfbEmulationBufferVarOne ==
+                  sh::vk::spirv::kIdXfbEmulationBufferVarZero + 1);
+    static_assert(sh::vk::spirv::kIdXfbEmulationBufferVarTwo ==
+                  sh::vk::spirv::kIdXfbEmulationBufferVarZero + 2);
+    static_assert(sh::vk::spirv::kIdXfbEmulationBufferVarThree ==
+                  sh::vk::spirv::kIdXfbEmulationBufferVarZero + 3);
+    spirv::WriteAccessChain(blobOut, mFloatUniformPointerId, xfbOutPtr,
+                            spirv::IdRef(sh::vk::spirv::kIdXfbEmulationBufferVarZero + bufferIndex),
+                            {ID::IntZero, xfbOffset});
     spirv::WriteStore(blobOut, xfbOutPtr, asFloat, nullptr);
 }
 
@@ -2675,7 +2545,7 @@ void SpirvTransformFeedbackCodeGenerator::addExecutionMode(spirv::IdRef entryPoi
     }
 }
 
-void SpirvTransformFeedbackCodeGenerator::addMemberDecorate(const ShaderInterfaceVariableInfo &info,
+void SpirvTransformFeedbackCodeGenerator::addMemberDecorate(const XFBInterfaceVariableInfo &info,
                                                             spirv::IdRef id,
                                                             spirv::Blob *blobOut)
 {
@@ -2688,18 +2558,18 @@ void SpirvTransformFeedbackCodeGenerator::addMemberDecorate(const ShaderInterfac
     {
         const ShaderInterfaceVariableXfbInfo &xfb = info.fieldXfb[fieldIndex];
 
-        if (xfb.buffer == ShaderInterfaceVariableXfbInfo::kInvalid)
+        if (xfb.pod.buffer == ShaderInterfaceVariableXfbInfo::kInvalid)
         {
             continue;
         }
 
-        ASSERT(xfb.stride != ShaderInterfaceVariableXfbInfo::kInvalid);
-        ASSERT(xfb.offset != ShaderInterfaceVariableXfbInfo::kInvalid);
+        ASSERT(xfb.pod.stride != ShaderInterfaceVariableXfbInfo::kInvalid);
+        ASSERT(xfb.pod.offset != ShaderInterfaceVariableXfbInfo::kInvalid);
 
         const uint32_t xfbDecorationValues[kXfbDecorationCount] = {
-            xfb.buffer,
-            xfb.stride,
-            xfb.offset,
+            xfb.pod.buffer,
+            xfb.pod.stride,
+            xfb.pod.offset,
         };
 
         // Generate the following three instructions:
@@ -2716,22 +2586,22 @@ void SpirvTransformFeedbackCodeGenerator::addMemberDecorate(const ShaderInterfac
     }
 }
 
-void SpirvTransformFeedbackCodeGenerator::addDecorate(const ShaderInterfaceVariableInfo &info,
+void SpirvTransformFeedbackCodeGenerator::addDecorate(const XFBInterfaceVariableInfo &info,
                                                       spirv::IdRef id,
                                                       spirv::Blob *blobOut)
 {
-    if (mIsEmulated || info.xfb.buffer == ShaderInterfaceVariableXfbInfo::kInvalid)
+    if (mIsEmulated || info.xfb.pod.buffer == ShaderInterfaceVariableXfbInfo::kInvalid)
     {
         return;
     }
 
-    ASSERT(info.xfb.stride != ShaderInterfaceVariableXfbInfo::kInvalid);
-    ASSERT(info.xfb.offset != ShaderInterfaceVariableXfbInfo::kInvalid);
+    ASSERT(info.xfb.pod.stride != ShaderInterfaceVariableXfbInfo::kInvalid);
+    ASSERT(info.xfb.pod.offset != ShaderInterfaceVariableXfbInfo::kInvalid);
 
     const uint32_t xfbDecorationValues[kXfbDecorationCount] = {
-        info.xfb.buffer,
-        info.xfb.stride,
-        info.xfb.offset,
+        info.xfb.pod.buffer,
+        info.xfb.pod.stride,
+        info.xfb.pod.offset,
     };
 
     // Generate the following three instructions:
@@ -2752,30 +2622,15 @@ class SpirvPositionTransformer final : angle::NonCopyable
   public:
     SpirvPositionTransformer(const SpvTransformOptions &options) : mOptions(options) {}
 
-    void visitName(spirv::IdRef id, const spirv::LiteralString &name);
-
-    void writePositionTransformation(const SpirvIDDiscoverer &ids,
-                                     spirv::IdRef positionPointerId,
+    void writePositionTransformation(spirv::IdRef positionPointerId,
                                      spirv::IdRef positionId,
                                      spirv::Blob *blobOut);
 
   private:
     SpvTransformOptions mOptions;
-
-    spirv::IdRef mTransformPositionFuncId;
 };
 
-void SpirvPositionTransformer::visitName(spirv::IdRef id, const spirv::LiteralString &name)
-{
-    if (angle::BeginsWith(name, sh::vk::kTransformPositionFunctionName))
-    {
-        ASSERT(!mTransformPositionFuncId.valid());
-        mTransformPositionFuncId = id;
-    }
-}
-
-void SpirvPositionTransformer::writePositionTransformation(const SpirvIDDiscoverer &ids,
-                                                           spirv::IdRef positionPointerId,
+void SpirvPositionTransformer::writePositionTransformation(spirv::IdRef positionPointerId,
                                                            spirv::IdRef positionId,
                                                            spirv::Blob *blobOut)
 {
@@ -2783,70 +2638,106 @@ void SpirvPositionTransformer::writePositionTransformation(const SpirvIDDiscover
     //
     //     // Transform position based on uniforms by making a call to the ANGLETransformPosition
     //     // function that the translator has already provided.
-    //     %transformed = OpFunctionCall %mVec4Id %mTransformPositionFuncId %position
+    //     %transformed = OpFunctionCall %kIdVec4 %kIdTransformPositionFunction %position
     //
     //     // Store the results back in gl_Position
     //     OpStore %PositionPointer %transformedPosition
     //
     const spirv::IdRef transformedPositionId(SpirvTransformerBase::GetNewId(blobOut));
 
-    spirv::WriteFunctionCall(blobOut, ids.vec4Id(), transformedPositionId, mTransformPositionFuncId,
-                             {positionId});
+    spirv::WriteFunctionCall(blobOut, ID::Vec4, transformedPositionId,
+                             ID::TransformPositionFunction, {positionId});
     spirv::WriteStore(blobOut, positionPointerId, transformedPositionId, nullptr);
 }
 
-class SpirvMultiSampleTransformer final : angle::NonCopyable
+// A transformation to handle both the isMultisampledFramebufferFetch and enableSampleShading
+// options.  The common transformation between these two options is the addition of the
+// SampleRateShading capability.
+class SpirvMultisampleTransformer final : angle::NonCopyable
 {
   public:
-    SpirvMultiSampleTransformer(const SpvTransformOptions &options)
-        : mOptions(options),
-          mIsSampleRateShadingCapabilityEnabled(false),
-          mSampleIDExists(false),
-          mAnyImageTypesModified(false)
+    SpirvMultisampleTransformer(const SpvTransformOptions &options)
+        : mOptions(options), mSampleIDDecorationsAdded(false), mAnyImageTypesModified(false)
     {}
-    ~SpirvMultiSampleTransformer()
+    ~SpirvMultisampleTransformer()
     {
         ASSERT(!mOptions.isMultisampledFramebufferFetch || mAnyImageTypesModified);
     }
 
-    void visitCapability(const uint32_t *instruction);
+    void init(size_t indexBound);
 
-    void visitDecorate(const spirv::IdRef &id,
-                       const spv::Decoration decoration,
+    void visitDecorate(spirv::IdRef id,
+                       spv::Decoration decoration,
                        const spirv::LiteralIntegerList &valueList);
 
-    void visitEntryPoint(const uint32_t *instruction);
+    void visitMemberDecorate(spirv::IdRef id,
+                             spirv::LiteralInteger member,
+                             spv::Decoration decoration);
 
-    TransformationState transformCapability(const spv::Capability capability, spirv::Blob *blobOut);
+    void visitTypeStruct(spirv::IdResult id, const spirv::IdRefList &memberList);
+
+    void visitTypePointer(gl::ShaderType shaderType,
+                          spirv::IdResult id,
+                          spv::StorageClass storageClass,
+                          spirv::IdRef typeId);
+
+    void visitVariable(gl::ShaderType shaderType,
+                       spirv::IdResultType typeId,
+                       spirv::IdResult id,
+                       spv::StorageClass storageClass);
+
+    TransformationState transformCapability(const SpirvNonSemanticInstructions &nonSemantic,
+                                            spv::Capability capability,
+                                            spirv::Blob *blobOut);
 
     TransformationState transformTypeImage(const uint32_t *instruction, spirv::Blob *blobOut);
 
-    void modifyEntryPointInterfaceList(spirv::IdRefList *interfaceList, spirv::Blob *blobOut);
+    void modifyEntryPointInterfaceList(const SpirvNonSemanticInstructions &nonSemantic,
+                                       EntryPointList entryPointList,
+                                       spirv::IdRefList *interfaceList,
+                                       spirv::Blob *blobOut);
 
     void writePendingDeclarations(
+        const SpirvNonSemanticInstructions &nonSemantic,
         const std::vector<const ShaderInterfaceVariableInfo *> &variableInfoById,
-        SpirvIDDiscoverer &ids,
         spirv::Blob *blobOut);
 
-    TransformationState transformDecoration(const spv::Decoration &decoration,
-                                            spirv::Blob *blobOut);
+    TransformationState transformDecorate(const SpirvNonSemanticInstructions &nonSemantic,
+                                          const ShaderInterfaceVariableInfo &info,
+                                          gl::ShaderType shaderType,
+                                          spirv::IdRef id,
+                                          spirv::IdRef replacementId,
+                                          spv::Decoration &decoration,
+                                          spirv::Blob *blobOut);
 
-    TransformationState transformImageRead(const uint32_t *instruction,
-                                           const SpirvIDDiscoverer &ids,
-                                           spirv::Blob *blobOut);
+    TransformationState transformImageRead(const uint32_t *instruction, spirv::Blob *blobOut);
 
   private:
+    void visitVarying(gl::ShaderType shaderType, spirv::IdRef id, spv::StorageClass storageClass);
+    bool skipSampleDecoration(spv::Decoration decoration);
+
     SpvTransformOptions mOptions;
-    spirv::IdRef mBuiltInGLSampleID;
-    spirv::IdRef mIntInputPointerId;
-    bool mIsSampleRateShadingCapabilityEnabled;
-    bool mSampleIDExists;
     // Used to assert that the transformation is not unnecessarily run.
+    bool mSampleIDDecorationsAdded;
     bool mAnyImageTypesModified;
+
+    struct VaryingInfo
+    {
+        // Whether any variable is a varying
+        bool isVarying = false;
+        // Whether any variable or its members are already sample-, centroid- or flat-qualified.
+        bool skipSampleDecoration = false;
+        std::vector<bool> skipMemberSampleDecoration;
+    };
+    std::vector<VaryingInfo> mVaryingInfoById;
 };
 
-TransformationState SpirvMultiSampleTransformer::transformImageRead(const uint32_t *instruction,
-                                                                    const SpirvIDDiscoverer &ids,
+void SpirvMultisampleTransformer::init(size_t indexBound)
+{
+    mVaryingInfoById.resize(indexBound);
+}
+
+TransformationState SpirvMultisampleTransformer::transformImageRead(const uint32_t *instruction,
                                                                     spirv::Blob *blobOut)
 {
     // Transform the following:
@@ -2861,8 +2752,6 @@ TransformationState SpirvMultiSampleTransformer::transformImageRead(const uint32
         return TransformationState::Unchanged;
     }
 
-    ASSERT(mBuiltInGLSampleID.valid());
-
     spirv::IdResultType idResultType;
     spirv::IdResult idResult;
     spirv::IdRef image;
@@ -2873,11 +2762,11 @@ TransformationState SpirvMultiSampleTransformer::transformImageRead(const uint32
     spirv::ParseImageRead(instruction, &idResultType, &idResult, &image, &coordinate,
                           &imageOperands, &imageOperandIdsList);
 
-    ASSERT(ids.intId().valid());
+    ASSERT(ID::Int.valid());
 
     spirv::IdRef builtInSampleIDOpLoad = SpirvTransformerBase::GetNewId(blobOut);
 
-    spirv::WriteLoad(blobOut, ids.intId(), builtInSampleIDOpLoad, mBuiltInGLSampleID, nullptr);
+    spirv::WriteLoad(blobOut, ID::Int, builtInSampleIDOpLoad, ID::SampleID, nullptr);
 
     imageOperands = spv::ImageOperandsMask::ImageOperandsSampleMask;
     imageOperandIdsList.push_back(builtInSampleIDOpLoad);
@@ -2886,9 +2775,9 @@ TransformationState SpirvMultiSampleTransformer::transformImageRead(const uint32
     return TransformationState::Transformed;
 }
 
-void SpirvMultiSampleTransformer::writePendingDeclarations(
+void SpirvMultisampleTransformer::writePendingDeclarations(
+    const SpirvNonSemanticInstructions &nonSemantic,
     const std::vector<const ShaderInterfaceVariableInfo *> &variableInfoById,
-    SpirvIDDiscoverer &ids,
     spirv::Blob *blobOut)
 {
     // Add following declarations if they are not available yet
@@ -2902,30 +2791,16 @@ void SpirvMultiSampleTransformer::writePendingDeclarations(
         return;
     }
 
-    if (mSampleIDExists)
+    if (nonSemantic.hasSampleID())
     {
         return;
     }
 
-    if (!ids.intId().valid())
-    {
-        spirv::IdResult id               = SpirvTransformerBase::GetNewId(blobOut);
-        spirv::LiteralInteger width      = spirv::LiteralInteger(32);
-        spirv::LiteralInteger signedness = spirv::LiteralInteger(1);
-        ids.visitTypeInt(id, width, signedness);
-        spirv::WriteTypeInt(blobOut, id, spirv::LiteralInteger(32), spirv::LiteralInteger(1));
-    }
-    ASSERT(ids.intId().valid());
-    mIntInputPointerId = SpirvTransformerBase::GetNewId(blobOut);
-    spirv::WriteTypePointer(blobOut, mIntInputPointerId, spv::StorageClassInput, ids.intId());
-    ASSERT(mIntInputPointerId.valid());
-    ASSERT(mBuiltInGLSampleID.valid());
-
-    spirv::WriteVariable(blobOut, mIntInputPointerId, mBuiltInGLSampleID, spv::StorageClassInput,
+    spirv::WriteVariable(blobOut, ID::IntInputTypePointer, ID::SampleID, spv::StorageClassInput,
                          nullptr);
 }
 
-TransformationState SpirvMultiSampleTransformer::transformTypeImage(const uint32_t *instruction,
+TransformationState SpirvMultisampleTransformer::transformTypeImage(const uint32_t *instruction,
                                                                     spirv::Blob *blobOut)
 {
     // Transform the following
@@ -2967,11 +2842,11 @@ TransformationState SpirvMultiSampleTransformer::transformTypeImage(const uint32
 
 namespace
 {
-bool verifyEntryPointsContainsID(const spirv::IdRefList &interfaceList, const spirv::IdRef &id)
+bool verifyEntryPointsContainsID(const spirv::IdRefList &interfaceList)
 {
     for (spirv::IdRef interfaceId : interfaceList)
     {
-        if (interfaceId == id)
+        if (interfaceId == ID::SampleID)
         {
             return true;
         }
@@ -2980,55 +2855,59 @@ bool verifyEntryPointsContainsID(const spirv::IdRefList &interfaceList, const sp
 }
 }  // namespace
 
-void SpirvMultiSampleTransformer::modifyEntryPointInterfaceList(spirv::IdRefList *interfaceList,
-                                                                spirv::Blob *blobOut)
+void SpirvMultisampleTransformer::modifyEntryPointInterfaceList(
+    const SpirvNonSemanticInstructions &nonSemantic,
+    EntryPointList entryPointList,
+    spirv::IdRefList *interfaceList,
+    spirv::Blob *blobOut)
 {
     // Append %gl_sampleID to OpEntryPoint
     // Transform the following
-    // OpEntryPoint Fragment %main "main" %_uo_color
+    //
+    //     OpEntryPoint Fragment %main "main" %_uo_color
+    //
     // To
-    // OpEntryPoint Fragment %main "main" %_uo_color %gl_SampleID
+    //
+    //     OpEntryPoint Fragment %main "main" %_uo_color %gl_SampleID
 
     if (!mOptions.isMultisampledFramebufferFetch)
     {
         return;
     }
 
-    // First check if the shader as the gl_SampleID append to the EntryPoint
-    if (mSampleIDExists)
+    // Nothing to do if the shader had already declared SampleID
+    if (nonSemantic.hasSampleID())
     {
-        ASSERT(verifyEntryPointsContainsID(*interfaceList, mBuiltInGLSampleID));
+        ASSERT(verifyEntryPointsContainsID(*interfaceList));
         return;
     }
 
-    // If the pre transform SPIRV doesn't have an id for gl_SampleID, check that we haven't
-    // generated an id for gl_SampleID
-    ASSERT(!mBuiltInGLSampleID.valid());
-
-    // Generate a new id for gl_SampleID
-    mBuiltInGLSampleID = SpirvTransformerBase::GetNewId(blobOut);
-
-    // Add the generated id to the interfaceList
-    interfaceList->push_back(mBuiltInGLSampleID);
+    // Add the SampleID id to the interfaceList.  The variable will later be decalred in
+    // writePendingDeclarations.
+    interfaceList->push_back(ID::SampleID);
     return;
 }
 
-TransformationState SpirvMultiSampleTransformer::transformCapability(
+TransformationState SpirvMultisampleTransformer::transformCapability(
+    const SpirvNonSemanticInstructions &nonSemantic,
     const spv::Capability capability,
     spirv::Blob *blobOut)
 {
-    // Add a new OpCapability line: OpCapability SampleRateShading
+    // Add a new OpCapability line:
+    //
+    //     OpCapability SampleRateShading
+    //
     // right before the following instruction
-    // OpCapability InputAttachment
+    //
+    //     OpCapability InputAttachment
 
-    if (!mOptions.isMultisampledFramebufferFetch)
+    if (!mOptions.isMultisampledFramebufferFetch && !mOptions.enableSampleShading)
     {
         return TransformationState::Unchanged;
     }
 
-    // If we already have this line "OpCapability SampleRateShading"
-    // Do not add a duplicated line. Return.
-    if (mIsSampleRateShadingCapabilityEnabled)
+    // Do not add the capability if the SPIR-V already has it
+    if (nonSemantic.hasSampleRateShading())
     {
         return TransformationState::Unchanged;
     }
@@ -3036,80 +2915,519 @@ TransformationState SpirvMultiSampleTransformer::transformCapability(
     // Make sure no duplicates
     ASSERT(capability != spv::CapabilitySampleRateShading);
 
-    // Make sure we only add the new line on top of "OpCapability InputAttachment"
-    if (capability != spv::CapabilityInputAttachment)
+    // Make sure we only add the new line on top of "OpCapability Shader"
+    if (capability != spv::CapabilityShader)
     {
         return TransformationState::Unchanged;
     }
 
     spirv::WriteCapability(blobOut, spv::CapabilitySampleRateShading);
-    mIsSampleRateShadingCapabilityEnabled = true;
 
-    // Leave the next line "OpCapability InputAttachment untouched"
+    // Leave the original OpCapability untouched
     return TransformationState::Unchanged;
 }
 
-TransformationState SpirvMultiSampleTransformer::transformDecoration(
-    const spv::Decoration &decoration,
+TransformationState SpirvMultisampleTransformer::transformDecorate(
+    const SpirvNonSemanticInstructions &nonSemantic,
+    const ShaderInterfaceVariableInfo &info,
+    gl::ShaderType shaderType,
+    spirv::IdRef id,
+    spirv::IdRef replacementId,
+    spv::Decoration &decoration,
     spirv::Blob *blobOut)
 {
-    // Add the following declarations if they are not available yet:
-    // OpDecorate %gl_SampleID RelaxedPrecision
-    // OpDecorate %gl_SampleID Flat
-    // OpDecorate %gl_SampleID BuiltIn SampleId
-
-    if (!mOptions.isMultisampledFramebufferFetch ||
-        decoration != spv::DecorationInputAttachmentIndex)
+    if (mOptions.isMultisampledFramebufferFetch && !nonSemantic.hasSampleID() &&
+        !mSampleIDDecorationsAdded)
     {
-        return TransformationState::Unchanged;
+        // Add the following instructions if they are not available yet:
+        //
+        //     OpDecorate %gl_SampleID RelaxedPrecision
+        //     OpDecorate %gl_SampleID Flat
+        //     OpDecorate %gl_SampleID BuiltIn SampleId
+
+        spirv::WriteDecorate(blobOut, ID::SampleID, spv::DecorationRelaxedPrecision, {});
+        spirv::WriteDecorate(blobOut, ID::SampleID, spv::DecorationFlat, {});
+        spirv::WriteDecorate(blobOut, ID::SampleID, spv::DecorationBuiltIn,
+                             {spirv::LiteralInteger(spv::BuiltIn::BuiltInSampleId)});
+
+        mSampleIDDecorationsAdded = true;
+    }
+    if (mOptions.enableSampleShading && mVaryingInfoById[id].isVarying &&
+        !mVaryingInfoById[id].skipSampleDecoration)
+    {
+        if (decoration == spv::DecorationLocation && info.activeStages[shaderType])
+        {
+            // Add the following instructions when the Location decoration is met, if the varying is
+            // not already decorated with Sample:
+            //
+            //     OpDecorate %id Sample
+            spirv::WriteDecorate(blobOut, replacementId, spv::DecorationSample, {});
+        }
+        else if (decoration == spv::DecorationBlock)
+        {
+            // Add the following instructions when the Block decoration is met, for any member that
+            // is not already decorated with Sample:
+            //
+            //     OpMemberDecorate %id member Sample
+            for (uint32_t member = 0;
+                 member < mVaryingInfoById[id].skipMemberSampleDecoration.size(); ++member)
+            {
+                if (!mVaryingInfoById[id].skipMemberSampleDecoration[member])
+                {
+                    spirv::WriteMemberDecorate(blobOut, replacementId,
+                                               spirv::LiteralInteger(member), spv::DecorationSample,
+                                               {});
+                }
+            }
+        }
     }
 
-    if (mSampleIDExists)
-    {
-        return TransformationState::Unchanged;
-    }
-
-    ASSERT(mBuiltInGLSampleID.valid());
-
-    spirv::WriteDecorate(blobOut, mBuiltInGLSampleID, spv::DecorationRelaxedPrecision, {});
-    spirv::WriteDecorate(blobOut, mBuiltInGLSampleID, spv::DecorationFlat, {});
-    spirv::WriteDecorate(blobOut, mBuiltInGLSampleID, spv::DecorationBuiltIn,
-                         {spirv::LiteralInteger(spv::BuiltIn::BuiltInSampleId)});
     return TransformationState::Unchanged;
 }
 
-void SpirvMultiSampleTransformer::visitDecorate(const spirv::IdRef &id,
-                                                const spv::Decoration decoration,
+bool SpirvMultisampleTransformer::skipSampleDecoration(spv::Decoration decoration)
+{
+    // If a variable is already decorated with Sample, Patch or Centroid, it shouldn't be decorated
+    // with Sample.  BuiltIns are also excluded.
+    return decoration == spv::DecorationPatch || decoration == spv::DecorationCentroid ||
+           decoration == spv::DecorationSample || decoration == spv::DecorationBuiltIn;
+}
+
+void SpirvMultisampleTransformer::visitDecorate(spirv::IdRef id,
+                                                spv::Decoration decoration,
                                                 const spirv::LiteralIntegerList &valueList)
 {
-    if (!mOptions.isMultisampledFramebufferFetch)
+    if (mOptions.enableSampleShading)
     {
-        return;
-    }
-
-    if (decoration == spv::DecorationBuiltIn)
-    {
-        if (valueList[0] == spv::BuiltInSampleId)
+        // Determine whether the id is already decorated with Sample.
+        if (skipSampleDecoration(decoration))
         {
-            mBuiltInGLSampleID = id;
-            mSampleIDExists    = true;
+            mVaryingInfoById[id].skipSampleDecoration = true;
         }
     }
     return;
 }
 
-void SpirvMultiSampleTransformer::visitCapability(const uint32_t *instruction)
+void SpirvMultisampleTransformer::visitMemberDecorate(spirv::IdRef id,
+                                                      spirv::LiteralInteger member,
+                                                      spv::Decoration decoration)
 {
-    if (!mOptions.isMultisampledFramebufferFetch)
+    if (!mOptions.enableSampleShading)
     {
         return;
     }
-    spv::Capability capability;
-    spirv::ParseCapability(instruction, &capability);
-    if (capability == spv::CapabilitySampleRateShading)
+
+    if (mVaryingInfoById[id].skipMemberSampleDecoration.size() <= member)
     {
-        mIsSampleRateShadingCapabilityEnabled = true;
+        mVaryingInfoById[id].skipMemberSampleDecoration.resize(member + 1, false);
     }
+    // Determine whether the member is already decorated with Sample.
+    if (skipSampleDecoration(decoration))
+    {
+        mVaryingInfoById[id].skipMemberSampleDecoration[member] = true;
+    }
+}
+
+void SpirvMultisampleTransformer::visitVarying(gl::ShaderType shaderType,
+                                               spirv::IdRef id,
+                                               spv::StorageClass storageClass)
+{
+    if (!mOptions.enableSampleShading)
+    {
+        return;
+    }
+
+    // Vertex input and fragment output variables are not varyings and don't need to be decorated
+    // with Sample.
+    if ((shaderType == gl::ShaderType::Fragment && storageClass == spv::StorageClassOutput) ||
+        (shaderType == gl::ShaderType::Vertex && storageClass == spv::StorageClassInput))
+    {
+        return;
+    }
+
+    const bool isVarying =
+        storageClass == spv::StorageClassInput || storageClass == spv::StorageClassOutput;
+    mVaryingInfoById[id].isVarying = isVarying;
+}
+
+void SpirvMultisampleTransformer::visitTypeStruct(spirv::IdResult id,
+                                                  const spirv::IdRefList &memberList)
+{
+    if (mOptions.enableSampleShading)
+    {
+        mVaryingInfoById[id].skipMemberSampleDecoration.resize(memberList.size(), false);
+    }
+}
+
+void SpirvMultisampleTransformer::visitTypePointer(gl::ShaderType shaderType,
+                                                   spirv::IdResult id,
+                                                   spv::StorageClass storageClass,
+                                                   spirv::IdRef typeId)
+{
+    // For I/O blocks, the Sample decoration should be specified on the members of the struct type.
+    // For that purpose, we consider the struct type as the varying instead.
+    visitVarying(shaderType, typeId, storageClass);
+}
+
+void SpirvMultisampleTransformer::visitVariable(gl::ShaderType shaderType,
+                                                spirv::IdResultType typeId,
+                                                spirv::IdResult id,
+                                                spv::StorageClass storageClass)
+{
+    visitVarying(shaderType, id, storageClass);
+}
+
+// Helper class that flattens secondary fragment output arrays.
+class SpirvSecondaryOutputTransformer final : angle::NonCopyable
+{
+  public:
+    SpirvSecondaryOutputTransformer() {}
+
+    void init(size_t indexBound);
+
+    void visitTypeArray(spirv::IdResult id, spirv::IdRef typeId);
+
+    void visitTypePointer(spirv::IdResult id, spirv::IdRef typeId);
+
+    TransformationState transformAccessChain(spirv::IdResultType typeId,
+                                             spirv::IdResult id,
+                                             spirv::IdRef baseId,
+                                             const spirv::IdRefList &indexList,
+                                             spirv::Blob *blobOut);
+
+    TransformationState transformDecorate(spirv::IdRef id,
+                                          spv::Decoration decoration,
+                                          const spirv::LiteralIntegerList &decorationValues,
+                                          spirv::Blob *blobOut);
+
+    TransformationState transformVariable(spirv::IdResultType typeId,
+                                          spirv::IdResultType privateTypeId,
+                                          spirv::IdResult id,
+                                          spirv::Blob *blobOut);
+
+    void modifyEntryPointInterfaceList(
+        const std::vector<const ShaderInterfaceVariableInfo *> &variableInfoById,
+        EntryPointList entryPointList,
+        spirv::IdRefList *interfaceList,
+        spirv::Blob *blobOut);
+
+    void writeOutputPrologue(
+        const std::vector<const ShaderInterfaceVariableInfo *> &variableInfoById,
+        spirv::Blob *blobOut);
+
+    static_assert(gl::IMPLEMENTATION_MAX_DUAL_SOURCE_DRAW_BUFFERS == 1,
+                  "This transformer is incompatible with two or more dual-source draw buffers");
+
+  private:
+    void visitTypeHelper(spirv::IdResult id, spirv::IdRef typeId) { mTypeCache[id] = typeId; }
+
+    // This list is filled during visitTypePointer and visitTypeArray steps,
+    // to resolve the element type ID of the original output array variable.
+    std::vector<spirv::IdRef> mTypeCache;
+    spirv::IdRef mElementTypeId;
+    spirv::IdRef mArrayVariableId;
+    spirv::IdRef mReplacementVariableId;
+    spirv::IdRef mElementPointerTypeId;
+};
+
+void SpirvSecondaryOutputTransformer::init(size_t indexBound)
+{
+    mTypeCache.resize(indexBound);
+}
+
+void SpirvSecondaryOutputTransformer::visitTypeArray(spirv::IdResult id, spirv::IdRef typeId)
+{
+    visitTypeHelper(id, typeId);
+}
+
+void SpirvSecondaryOutputTransformer::visitTypePointer(spirv::IdResult id, spirv::IdRef typeId)
+{
+    visitTypeHelper(id, typeId);
+}
+
+void SpirvSecondaryOutputTransformer::modifyEntryPointInterfaceList(
+    const std::vector<const ShaderInterfaceVariableInfo *> &variableInfoById,
+    EntryPointList entryPointList,
+    spirv::IdRefList *interfaceList,
+    spirv::Blob *blobOut)
+{
+    // Flatten a secondary output array (if any).
+    for (size_t index = 0; index < interfaceList->size(); ++index)
+    {
+        const spirv::IdRef id((*interfaceList)[index]);
+        const ShaderInterfaceVariableInfo *info =
+            id < variableInfoById.size() ? variableInfoById[id] : nullptr;
+
+        if (info == nullptr || info->index != 1 || !info->isArray)
+        {
+            continue;
+        }
+
+        mArrayVariableId       = id;
+        mReplacementVariableId = SpirvTransformerBase::GetNewId(blobOut);
+
+        // With SPIR-V 1.3, modify interface list with the replacement ID.
+        //
+        // With SPIR-V 1.4, the original variable is changed to Private and should remain in the
+        // list.  The new variable should be added to the variable list.
+        if (entryPointList == EntryPointList::InterfaceVariables)
+        {
+            (*interfaceList)[index] = mReplacementVariableId;
+        }
+        else
+        {
+            interfaceList->push_back(mReplacementVariableId);
+        }
+        break;
+    }
+}
+
+TransformationState SpirvSecondaryOutputTransformer::transformAccessChain(
+    spirv::IdResultType typeId,
+    spirv::IdResult id,
+    spirv::IdRef baseId,
+    const spirv::IdRefList &indexList,
+    spirv::Blob *blobOut)
+{
+    if (baseId != mArrayVariableId)
+    {
+        return TransformationState::Unchanged;
+    }
+    ASSERT(typeId.valid());
+    spirv::WriteAccessChain(blobOut, typeId, id, baseId, indexList);
+    return TransformationState::Transformed;
+}
+
+TransformationState SpirvSecondaryOutputTransformer::transformDecorate(
+    spirv::IdRef id,
+    spv::Decoration decoration,
+    const spirv::LiteralIntegerList &decorationValues,
+    spirv::Blob *blobOut)
+{
+    if (id != mArrayVariableId)
+    {
+        return TransformationState::Unchanged;
+    }
+    ASSERT(mReplacementVariableId.valid());
+    if (decoration == spv::DecorationLocation)
+    {
+        // Drop the Location decoration from the original variable and add
+        // it together with an Index decoration to the replacement variable.
+        spirv::WriteDecorate(blobOut, mReplacementVariableId, spv::DecorationLocation,
+                             {spirv::LiteralInteger(0)});
+        spirv::WriteDecorate(blobOut, mReplacementVariableId, spv::DecorationIndex,
+                             {spirv::LiteralInteger(1)});
+    }
+    else
+    {
+        // Apply other decorations, such as RelaxedPrecision, to both variables.
+        spirv::WriteDecorate(blobOut, id, decoration, decorationValues);
+        spirv::WriteDecorate(blobOut, mReplacementVariableId, decoration, decorationValues);
+    }
+    return TransformationState::Transformed;
+}
+
+TransformationState SpirvSecondaryOutputTransformer::transformVariable(
+    spirv::IdResultType typeId,
+    spirv::IdResultType privateTypeId,
+    spirv::IdResult id,
+    spirv::Blob *blobOut)
+{
+    if (id != mArrayVariableId)
+    {
+        return TransformationState::Unchanged;
+    }
+
+    // Change the original variable to use private storage.
+    ASSERT(privateTypeId.valid());
+    spirv::WriteVariable(blobOut, privateTypeId, id, spv::StorageClassPrivate, nullptr);
+
+    ASSERT(!mElementTypeId.valid());
+    mElementTypeId = mTypeCache[mTypeCache[typeId]];
+    ASSERT(mElementTypeId.valid());
+
+    // Pointer type for accessing the array element value.
+    mElementPointerTypeId = SpirvTransformerBase::GetNewId(blobOut);
+    spirv::WriteTypePointer(blobOut, mElementPointerTypeId, spv::StorageClassPrivate,
+                            mElementTypeId);
+
+    // Pointer type for the replacement output variable.
+    const spirv::IdRef outputPointerTypeId(SpirvTransformerBase::GetNewId(blobOut));
+    spirv::WriteTypePointer(blobOut, outputPointerTypeId, spv::StorageClassOutput, mElementTypeId);
+
+    ASSERT(mReplacementVariableId.valid());
+    spirv::WriteVariable(blobOut, outputPointerTypeId, mReplacementVariableId,
+                         spv::StorageClassOutput, nullptr);
+
+    return TransformationState::Transformed;
+}
+
+void SpirvSecondaryOutputTransformer::writeOutputPrologue(
+    const std::vector<const ShaderInterfaceVariableInfo *> &variableInfoById,
+    spirv::Blob *blobOut)
+{
+    if (mArrayVariableId.valid())
+    {
+        const spirv::IdRef accessChainId(SpirvTransformerBase::GetNewId(blobOut));
+        spirv::WriteAccessChain(blobOut, mElementPointerTypeId, accessChainId, mArrayVariableId,
+                                {ID::IntZero});
+
+        ASSERT(mElementTypeId.valid());
+        const spirv::IdRef loadId(SpirvTransformerBase::GetNewId(blobOut));
+        spirv::WriteLoad(blobOut, mElementTypeId, loadId, accessChainId, nullptr);
+
+        ASSERT(mReplacementVariableId.valid());
+        spirv::WriteStore(blobOut, mReplacementVariableId, loadId, nullptr);
+    }
+}
+
+// Helper class that removes mentions of depth/stencil input attachments and replaces subpassLoads
+// of these attachments with 0.
+class SpirvDepthStencilInputRemover final : angle::NonCopyable
+{
+  public:
+    SpirvDepthStencilInputRemover() {}
+
+    TransformationState transformName(spirv::IdRef id, spirv::LiteralString name);
+    TransformationState transformDecorate(spirv::IdRef id,
+                                          spv::Decoration decoration,
+                                          const spirv::LiteralIntegerList &decorationValues,
+                                          spirv::Blob *blobOut);
+    TransformationState transformVariable(spirv::IdResultType typeId,
+                                          spirv::IdResult id,
+                                          spirv::Blob *blobOut);
+    TransformationState transformLoad(spirv::IdResultType typeId,
+                                      spirv::IdResult id,
+                                      spirv::IdRef pointerId,
+                                      spirv::Blob *blobOut);
+
+    TransformationState transformImageRead(const uint32_t *instruction, spirv::Blob *blobOut);
+
+    void modifyEntryPointInterfaceList(spirv::IdRefList *interfaceList, spirv::Blob *blobOut);
+
+    void writePendingDeclarations(spirv::Blob *blobOut);
+
+  private:
+    bool isDepthStencilInput(spirv::IdRef id)
+    {
+        return id == sh::vk::spirv::kIdDepthInputAttachment ||
+               id == sh::vk::spirv::kIdStencilInputAttachment;
+    }
+
+    spirv::IdRef mVec4ZeroId;
+    spirv::IdRef mIVec4ZeroId;
+
+    std::vector<spirv::IdRef> mImageReadParamIdsToRemove;
+};
+
+TransformationState SpirvDepthStencilInputRemover::transformName(spirv::IdRef id,
+                                                                 spirv::LiteralString name)
+{
+    // Both depth and stencil input variables are removed, so remove their debug info too
+    return isDepthStencilInput(id) ? TransformationState::Transformed
+                                   : TransformationState::Unchanged;
+}
+
+TransformationState SpirvDepthStencilInputRemover::transformDecorate(
+    spirv::IdRef id,
+    spv::Decoration decoration,
+    const spirv::LiteralIntegerList &decorationValues,
+    spirv::Blob *blobOut)
+{
+    // Both depth and stencil input variables are removed, so remove their decorations too
+    return isDepthStencilInput(id) ? TransformationState::Transformed
+                                   : TransformationState::Unchanged;
+}
+
+TransformationState SpirvDepthStencilInputRemover::transformVariable(spirv::IdResultType typeId,
+                                                                     spirv::IdResult id,
+                                                                     spirv::Blob *blobOut)
+{
+    // Both depth and stencil input variables are removed
+    return isDepthStencilInput(id) ? TransformationState::Transformed
+                                   : TransformationState::Unchanged;
+}
+
+TransformationState SpirvDepthStencilInputRemover::transformLoad(spirv::IdResultType typeId,
+                                                                 spirv::IdResult id,
+                                                                 spirv::IdRef pointerId,
+                                                                 spirv::Blob *blobOut)
+{
+    if (isDepthStencilInput(pointerId))
+    {
+        // Both depth and stencil input variables are removed, so OpLoad from them needs to be
+        // removed.  Later, OpImageRead from the result of this instruction should also be removed,
+        // so keep that in |mImageReadParamIdsToRemove|.
+        mImageReadParamIdsToRemove.push_back(id);
+
+        // The result of OpLoad for the stencil attachment is decorated with RelaxedPrecision.  At
+        // this point, we have passed the OpDecorate section; instead of adding another pass to
+        // either discover this ID earlier or remove the OpDecorate later, this instruction is
+        // simply replaced with OpCopyObject given the ivec4(0) constant.  The driver would
+        // eliminate it as dead code.
+        if (pointerId == sh::vk::spirv::kIdStencilInputAttachment)
+        {
+            spirv::WriteCopyObject(blobOut, ID::IVec4, id, mIVec4ZeroId);
+        }
+
+        return TransformationState::Transformed;
+    }
+
+    return TransformationState::Unchanged;
+}
+
+TransformationState SpirvDepthStencilInputRemover::transformImageRead(const uint32_t *instruction,
+                                                                      spirv::Blob *blobOut)
+{
+    spirv::IdResultType idResultType;
+    spirv::IdResult idResult;
+    spirv::IdRef image;
+    spirv::IdRef coordinate;
+    spv::ImageOperandsMask imageOperands;
+    spirv::IdRefList imageOperandIdsList;
+
+    spirv::ParseImageRead(instruction, &idResultType, &idResult, &image, &coordinate,
+                          &imageOperands, &imageOperandIdsList);
+
+    if (std::find(mImageReadParamIdsToRemove.begin(), mImageReadParamIdsToRemove.end(), image) !=
+        mImageReadParamIdsToRemove.end())
+    {
+        // Replace the OpImageRead from removed images with OpCopyObject from [i]vec4(0).
+        ASSERT(idResultType == ID::Vec4 || idResultType == ID::IVec4);
+        spirv::WriteCopyObject(blobOut, idResultType, idResult,
+                               idResultType == ID::Vec4 ? mVec4ZeroId : mIVec4ZeroId);
+        return TransformationState::Transformed;
+    }
+
+    return TransformationState::Unchanged;
+}
+
+void SpirvDepthStencilInputRemover::modifyEntryPointInterfaceList(spirv::IdRefList *interfaceList,
+                                                                  spirv::Blob *blobOut)
+{
+    // Remove the depth and stencil input variables from the interface list.
+    size_t writeIndex = 0;
+    for (size_t index = 0; index < interfaceList->size(); ++index)
+    {
+        spirv::IdRef id((*interfaceList)[index]);
+        if (!isDepthStencilInput(id))
+        {
+            (*interfaceList)[writeIndex] = id;
+            ++writeIndex;
+        }
+    }
+
+    interfaceList->resize_down(writeIndex);
+}
+
+void SpirvDepthStencilInputRemover::writePendingDeclarations(spirv::Blob *blobOut)
+{
+    // Add vec4(0) and uvec4(0) declarations for future use.
+    mVec4ZeroId  = SpirvTransformerBase::GetNewId(blobOut);
+    mIVec4ZeroId = SpirvTransformerBase::GetNewId(blobOut);
+
+    spirv::WriteConstantNull(blobOut, ID::Vec4, mVec4ZeroId);
+    spirv::WriteConstantNull(blobOut, ID::IVec4, mIVec4ZeroId);
 }
 
 // A SPIR-V transformer.  It walks the instructions and modifies them as necessary, for example to
@@ -3119,13 +3437,17 @@ class SpirvTransformer final : public SpirvTransformerBase
   public:
     SpirvTransformer(const spirv::Blob &spirvBlobIn,
                      const SpvTransformOptions &options,
+                     bool isLastPass,
                      const ShaderInterfaceVariableInfoMap &variableInfoMap,
                      spirv::Blob *spirvBlobOut)
         : SpirvTransformerBase(spirvBlobIn, variableInfoMap, spirvBlobOut),
           mOptions(options),
-          mXfbCodeGenerator(options.isTransformFeedbackEmulated),
+          mOverviewFlags(0),
+          mNonSemanticInstructions(isLastPass),
+          mPerVertexTrimmer(options, variableInfoMap),
+          mXfbCodeGenerator(options),
           mPositionTransformer(options),
-          mMultiSampleTransformer(options)
+          mMultisampleTransformer(options)
     {}
 
     void transform();
@@ -3139,28 +3461,29 @@ class SpirvTransformer final : public SpirvTransformerBase
 
     // Instructions that are purely informational:
     void visitDecorate(const uint32_t *instruction);
-    void visitName(const uint32_t *instruction);
-    void visitMemberName(const uint32_t *instruction);
+    void visitMemberDecorate(const uint32_t *instruction);
     void visitTypeArray(const uint32_t *instruction);
-    void visitTypeFloat(const uint32_t *instruction);
-    void visitTypeInt(const uint32_t *instruction);
     void visitTypePointer(const uint32_t *instruction);
-    void visitTypeVector(const uint32_t *instruction);
+    void visitTypeStruct(const uint32_t *instruction);
     void visitVariable(const uint32_t *instruction);
     void visitCapability(const uint32_t *instruction);
+    bool visitExtInst(const uint32_t *instruction);
 
     // Instructions that potentially need transformation.  They return true if the instruction is
     // transformed.  If false is returned, the instruction should be copied as-is.
     TransformationState transformAccessChain(const uint32_t *instruction);
     TransformationState transformCapability(const uint32_t *instruction);
-    TransformationState transformDebugInfo(const uint32_t *instruction, spv::Op op);
-    TransformationState transformEmitVertex(const uint32_t *instruction);
     TransformationState transformEntryPoint(const uint32_t *instruction);
+    TransformationState transformExtension(const uint32_t *instruction);
+    TransformationState transformExtInstImport(const uint32_t *instruction);
+    TransformationState transformExtInst(const uint32_t *instruction);
+    TransformationState transformLoad(const uint32_t *instruction);
     TransformationState transformDecorate(const uint32_t *instruction);
     TransformationState transformMemberDecorate(const uint32_t *instruction);
+    TransformationState transformName(const uint32_t *instruction);
+    TransformationState transformMemberName(const uint32_t *instruction);
     TransformationState transformTypePointer(const uint32_t *instruction);
     TransformationState transformTypeStruct(const uint32_t *instruction);
-    TransformationState transformReturn(const uint32_t *instruction);
     TransformationState transformVariable(const uint32_t *instruction);
     TransformationState transformTypeImage(const uint32_t *instruction);
     TransformationState transformImageRead(const uint32_t *instruction);
@@ -3175,20 +3498,20 @@ class SpirvTransformer final : public SpirvTransformerBase
     SpvTransformOptions mOptions;
 
     // Traversal state:
-    bool mInsertFunctionVariables = false;
-    spirv::IdRef mEntryPointId;
     spirv::IdRef mCurrentFunctionId;
-
-    SpirvIDDiscoverer mIds;
 
     // Transformation state:
 
+    uint32_t mOverviewFlags;
+    SpirvNonSemanticInstructions mNonSemanticInstructions;
     SpirvPerVertexTrimmer mPerVertexTrimmer;
     SpirvInactiveVaryingRemover mInactiveVaryingRemover;
     SpirvVaryingPrecisionFixer mVaryingPrecisionFixer;
     SpirvTransformFeedbackCodeGenerator mXfbCodeGenerator;
     SpirvPositionTransformer mPositionTransformer;
-    SpirvMultiSampleTransformer mMultiSampleTransformer;
+    SpirvMultisampleTransformer mMultisampleTransformer;
+    SpirvSecondaryOutputTransformer mSecondaryOutputTransformer;
+    SpirvDepthStencilInputRemover mDepthStencilInputRemover;
 };
 
 void SpirvTransformer::transform()
@@ -3196,7 +3519,10 @@ void SpirvTransformer::transform()
     onTransformBegin();
 
     // First, find all necessary ids and associate them with the information required to transform
-    // their decorations.
+    // their decorations.  This is mostly derived from |mVariableInfoMap|, but may have additional
+    // mappings; for example |mVariableInfoMap| maps an interface block's type ID to info, but the
+    // transformer needs to discover the variable associated with that block and map it to the same
+    // info.
     resolveVariableIds();
 
     while (mCurrentWord < mSpirvBlobIn.size())
@@ -3209,17 +3535,46 @@ void SpirvTransformer::resolveVariableIds()
 {
     const size_t indexBound = mSpirvBlobIn[spirv::kHeaderIndexIndexBound];
 
-    mIds.init(indexBound);
     mInactiveVaryingRemover.init(indexBound);
     if (mOptions.useSpirvVaryingPrecisionFixer)
     {
         mVaryingPrecisionFixer.init(indexBound);
     }
+    if (mOptions.isMultisampledFramebufferFetch || mOptions.enableSampleShading)
+    {
+        mMultisampleTransformer.init(indexBound);
+    }
+    if (mOptions.shaderType == gl::ShaderType::Fragment)
+    {
+        mSecondaryOutputTransformer.init(indexBound);
+    }
 
-    // Allocate storage for id-to-info map.  If %i is the id of a name in mVariableInfoMap, index i
-    // in this vector will hold a pointer to the ShaderInterfaceVariableInfo object associated with
-    // that name in mVariableInfoMap.
+    // Allocate storage for id-to-info map.  If %i is an id in mVariableInfoMap, index i in this
+    // vector will hold a pointer to the ShaderInterfaceVariableInfo object associated with that
+    // name in mVariableInfoMap.
     mVariableInfoById.resize(indexBound, nullptr);
+
+    // Pre-populate from mVariableInfoMap.
+    {
+        const ShaderInterfaceVariableInfoMap::VariableInfoArray &data = mVariableInfoMap.getData();
+        const ShaderInterfaceVariableInfoMap::IdToIndexMap &idToIndexMap =
+            mVariableInfoMap.getIdToIndexMap()[mOptions.shaderType];
+
+        for (uint32_t hashedId = 0; hashedId < idToIndexMap.size(); ++hashedId)
+        {
+            const uint32_t id                  = hashedId + sh::vk::spirv::kIdShaderVariablesBegin;
+            const VariableIndex &variableIndex = idToIndexMap.at(hashedId);
+            if (variableIndex.index == VariableIndex::kInvalid)
+            {
+                continue;
+            }
+
+            const ShaderInterfaceVariableInfo &info = data[variableIndex.index];
+
+            ASSERT(id < mVariableInfoById.size());
+            mVariableInfoById[id] = &info;
+        }
+    }
 
     size_t currentWord = spirv::kHeaderIndexInstructions;
 
@@ -3233,43 +3588,30 @@ void SpirvTransformer::resolveVariableIds()
 
         switch (opCode)
         {
-            case spv::OpCapability:
-                visitCapability(instruction);
-                break;
             case spv::OpDecorate:
                 visitDecorate(instruction);
                 break;
-            case spv::OpName:
-                visitName(instruction);
-                break;
-            case spv::OpMemberName:
-                visitMemberName(instruction);
+            case spv::OpMemberDecorate:
+                visitMemberDecorate(instruction);
                 break;
             case spv::OpTypeArray:
                 visitTypeArray(instruction);
                 break;
-            case spv::OpTypeFloat:
-                visitTypeFloat(instruction);
-                break;
-            case spv::OpTypeInt:
-                visitTypeInt(instruction);
-                break;
             case spv::OpTypePointer:
                 visitTypePointer(instruction);
                 break;
-            case spv::OpTypeVector:
-                visitTypeVector(instruction);
+            case spv::OpTypeStruct:
+                visitTypeStruct(instruction);
                 break;
             case spv::OpVariable:
                 visitVariable(instruction);
                 break;
-            case spv::OpFunction:
-                // SPIR-V is structured in sections (SPIR-V 1.0 Section 2.4 Logical Layout of a
-                // Module). Names appear before decorations, which are followed by type+variables
-                // and finally functions.  We are only interested in name and variable declarations
-                // (as well as type declarations for the sake of nameless interface blocks).  Early
-                // out when the function declaration section is met.
-                return;
+            case spv::OpExtInst:
+                if (visitExtInst(instruction))
+                {
+                    return;
+                }
+                break;
             default:
                 break;
         }
@@ -3296,22 +3638,7 @@ void SpirvTransformer::transformInstruction()
         // SPIR-V is structured in sections.  Function declarations come last.  Only a few
         // instructions such as Op*Access* or OpEmitVertex opcodes inside functions need to be
         // inspected.
-        //
-        // If this is the first OpFunction instruction, this is also where the declaration section
-        // finishes, so we need to declare anything that we need but didn't find there already right
-        // now.
-        if (!mIsInFunctionSection)
-        {
-            writePendingDeclarations();
-        }
         mIsInFunctionSection = true;
-
-        // Only write function variables for the EntryPoint function for non-compute shaders
-        if (mOptions.useSpirvVaryingPrecisionFixer)
-        {
-            mInsertFunctionVariables = mCurrentFunctionId == mEntryPointId &&
-                                       mOptions.shaderType != gl::ShaderType::Compute;
-        }
     }
 
     // Only look at interesting instructions.
@@ -3319,35 +3646,23 @@ void SpirvTransformer::transformInstruction()
 
     if (mIsInFunctionSection)
     {
-        // After we process an OpFunction instruction and any instructions that must come
-        // immediately after OpFunction we need to check if there are any precision mismatches that
-        // need to be handled. If so, output OpVariable for each variable that needed to change from
-        // a StorageClassOutput to a StorageClassFunction.
-        if (mOptions.useSpirvVaryingPrecisionFixer && mInsertFunctionVariables &&
-            opCode != spv::OpFunction && opCode != spv::OpFunctionParameter &&
-            opCode != spv::OpLabel && opCode != spv::OpVariable)
-        {
-            writeInputPreamble();
-            mInsertFunctionVariables = false;
-        }
-
         // Look at in-function opcodes.
         switch (opCode)
         {
+            case spv::OpExtInst:
+                transformationState = transformExtInst(instruction);
+                break;
             case spv::OpAccessChain:
             case spv::OpInBoundsAccessChain:
             case spv::OpPtrAccessChain:
             case spv::OpInBoundsPtrAccessChain:
                 transformationState = transformAccessChain(instruction);
                 break;
+            case spv::OpLoad:
+                transformationState = transformLoad(instruction);
+                break;
             case spv::OpImageRead:
                 transformationState = transformImageRead(instruction);
-                break;
-            case spv::OpEmitVertex:
-                transformationState = transformEmitVertex(instruction);
-                break;
-            case spv::OpReturn:
-                transformationState = transformReturn(instruction);
                 break;
             default:
                 break;
@@ -3358,13 +3673,20 @@ void SpirvTransformer::transformInstruction()
         // Look at global declaration opcodes.
         switch (opCode)
         {
+            case spv::OpExtension:
+                transformationState = transformExtension(instruction);
+                break;
+            case spv::OpExtInstImport:
+                transformationState = transformExtInstImport(instruction);
+                break;
+            case spv::OpExtInst:
+                transformationState = transformExtInst(instruction);
+                break;
             case spv::OpName:
+                transformationState = transformName(instruction);
+                break;
             case spv::OpMemberName:
-            case spv::OpString:
-            case spv::OpLine:
-            case spv::OpNoLine:
-            case spv::OpModuleProcessed:
-                transformationState = transformDebugInfo(instruction, opCode);
+                transformationState = transformMemberName(instruction);
                 break;
             case spv::OpCapability:
                 transformationState = transformCapability(instruction);
@@ -3409,7 +3731,13 @@ void SpirvTransformer::transformInstruction()
 // present in the original shader need to be done here.
 void SpirvTransformer::writePendingDeclarations()
 {
-    mMultiSampleTransformer.writePendingDeclarations(mVariableInfoById, mIds, mSpirvBlobOut);
+    if (mOptions.removeDepthStencilInput)
+    {
+        mDepthStencilInputRemover.writePendingDeclarations(mSpirvBlobOut);
+    }
+
+    mMultisampleTransformer.writePendingDeclarations(mNonSemanticInstructions, mVariableInfoById,
+                                                     mSpirvBlobOut);
 
     // Pre-rotation and transformation of depth to Vulkan clip space require declarations that may
     // not necessarily be in the shader.  Transform feedback emulation additionally requires a few
@@ -3419,10 +3747,10 @@ void SpirvTransformer::writePendingDeclarations()
         return;
     }
 
-    mIds.writePendingDeclarations(mSpirvBlobOut);
     if (mOptions.isTransformFeedbackStage)
     {
-        mXfbCodeGenerator.writePendingDeclarations(mVariableInfoById, mIds, mSpirvBlobOut);
+        mXfbCodeGenerator.writePendingDeclarations(mVariableInfoById, storageBufferStorageClass(),
+                                                   mSpirvBlobOut);
     }
 }
 
@@ -3445,7 +3773,11 @@ void SpirvTransformer::writeOutputPrologue()
         mVaryingPrecisionFixer.writeOutputPrologue(mVariableInfoById, mOptions.shaderType,
                                                    mSpirvBlobOut);
     }
-    if (!mIds.outputPerVertexId().valid())
+    if (mOptions.shaderType == gl::ShaderType::Fragment)
+    {
+        mSecondaryOutputTransformer.writeOutputPrologue(mVariableInfoById, mSpirvBlobOut);
+    }
+    if (!mNonSemanticInstructions.hasOutputPerVertex())
     {
         return;
     }
@@ -3462,33 +3794,29 @@ void SpirvTransformer::writeOutputPrologue()
     // Load gl_Position with the following SPIR-V:
     //
     //     // Create an access chain to gl_PerVertex.gl_Position, which is always at index 0.
-    //     %PositionPointer = OpAccessChain %mVec4OutTypePointerId %mOutputPerVertexId %mInt0Id
+    //     %PositionPointer = OpAccessChain %kIdVec4OutputTypePointer %kIdOutputPerVertexVar
+    //                                      %kIdIntZero
     //     // Load gl_Position
-    //     %Position = OpLoad %mVec4Id %PositionPointer
+    //     %Position = OpLoad %kIdVec4 %PositionPointer
     //
     const spirv::IdRef positionPointerId(getNewId());
     const spirv::IdRef positionId(getNewId());
 
-    spirv::WriteAccessChain(mSpirvBlobOut, mIds.vec4OutTypePointerId(), positionPointerId,
-                            mIds.outputPerVertexId(), {mIds.int0Id()});
-    spirv::WriteLoad(mSpirvBlobOut, mIds.vec4Id(), positionId, positionPointerId, nullptr);
+    spirv::WriteAccessChain(mSpirvBlobOut, ID::Vec4OutputTypePointer, positionPointerId,
+                            ID::OutputPerVertexVar, {ID::IntZero});
+    spirv::WriteLoad(mSpirvBlobOut, ID::Vec4, positionId, positionPointerId, nullptr);
 
     // Write transform feedback output before modifying gl_Position.
     if (isXfbExtensionStage)
     {
-        mXfbCodeGenerator.writeTransformFeedbackExtensionOutput(mIds, positionId, mSpirvBlobOut);
+        mXfbCodeGenerator.writeTransformFeedbackExtensionOutput(positionId, mSpirvBlobOut);
     }
 
     if (transformPosition)
     {
-        mPositionTransformer.writePositionTransformation(mIds, positionPointerId, positionId,
+        mPositionTransformer.writePositionTransformation(positionPointerId, positionId,
                                                          mSpirvBlobOut);
     }
-}
-
-void SpirvTransformer::visitCapability(const uint32_t *instruction)
-{
-    mMultiSampleTransformer.visitCapability(instruction);
 }
 
 void SpirvTransformer::visitDecorate(const uint32_t *instruction)
@@ -3498,50 +3826,27 @@ void SpirvTransformer::visitDecorate(const uint32_t *instruction)
     spirv::LiteralIntegerList valueList;
     spirv::ParseDecorate(instruction, &id, &decoration, &valueList);
 
-    mIds.visitDecorate(id, decoration);
-
-    if (mIds.isIOBlock(id))
-    {
-        // For I/O blocks, associate the type with the info, which is used to decorate its members
-        // with transform feedback if any.
-        spirv::LiteralString name = mIds.getName(id);
-        ASSERT(name != nullptr);
-
-        const ShaderInterfaceVariableInfo &info =
-            mVariableInfoMap.getVariableByName(mOptions.shaderType, name);
-        mVariableInfoById[id] = &info;
-    }
-
-    mMultiSampleTransformer.visitDecorate(id, decoration, valueList);
+    mMultisampleTransformer.visitDecorate(id, decoration, valueList);
 }
 
-void SpirvTransformer::visitName(const uint32_t *instruction)
+void SpirvTransformer::visitMemberDecorate(const uint32_t *instruction)
 {
-    spirv::IdRef id;
-    spirv::LiteralString name;
-    spirv::ParseName(instruction, &id, &name);
-
-    mIds.visitName(id, name);
-    mXfbCodeGenerator.visitName(id, name);
-    mPositionTransformer.visitName(id, name);
-}
-
-void SpirvTransformer::visitMemberName(const uint32_t *instruction)
-{
-    spirv::IdRef id;
+    spirv::IdRef typeId;
     spirv::LiteralInteger member;
-    spirv::LiteralString name;
-    spirv::ParseMemberName(instruction, &id, &member, &name);
+    spv::Decoration decoration;
+    spirv::LiteralIntegerList valueList;
+    spirv::ParseMemberDecorate(instruction, &typeId, &member, &decoration, &valueList);
 
-    if (!mVariableInfoMap.hasVariable(mOptions.shaderType, name))
-    {
-        return;
-    }
+    mPerVertexTrimmer.visitMemberDecorate(typeId, member, decoration, valueList);
+    mMultisampleTransformer.visitMemberDecorate(typeId, member, decoration);
+}
 
-    const ShaderInterfaceVariableInfo &info =
-        mVariableInfoMap.getVariableByName(mOptions.shaderType, name);
-
-    mIds.visitMemberName(info, id, member, name);
+void SpirvTransformer::visitTypeHelper(spirv::IdResult id, spirv::IdRef typeId)
+{
+    // Carry forward the mapping of typeId->info to id->info.  For interface block, it's the block
+    // id that is mapped to the info, so this is necessary to eventually be able to map the variable
+    // itself to the info.
+    mVariableInfoById[id] = mVariableInfoById[typeId];
 }
 
 void SpirvTransformer::visitTypeArray(const uint32_t *instruction)
@@ -3551,26 +3856,11 @@ void SpirvTransformer::visitTypeArray(const uint32_t *instruction)
     spirv::IdRef length;
     spirv::ParseTypeArray(instruction, &id, &elementType, &length);
 
-    mIds.visitTypeArray(id, elementType, length);
-}
-
-void SpirvTransformer::visitTypeFloat(const uint32_t *instruction)
-{
-    spirv::IdResult id;
-    spirv::LiteralInteger width;
-    spirv::ParseTypeFloat(instruction, &id, &width);
-
-    mIds.visitTypeFloat(id, width);
-}
-
-void SpirvTransformer::visitTypeInt(const uint32_t *instruction)
-{
-    spirv::IdResult id;
-    spirv::LiteralInteger width;
-    spirv::LiteralInteger signedness;
-    spirv::ParseTypeInt(instruction, &id, &width, &signedness);
-
-    mIds.visitTypeInt(id, width, signedness);
+    visitTypeHelper(id, elementType);
+    if (mOptions.shaderType == gl::ShaderType::Fragment)
+    {
+        mSecondaryOutputTransformer.visitTypeArray(id, elementType);
+    }
 }
 
 void SpirvTransformer::visitTypePointer(const uint32_t *instruction)
@@ -3580,23 +3870,25 @@ void SpirvTransformer::visitTypePointer(const uint32_t *instruction)
     spirv::IdRef typeId;
     spirv::ParseTypePointer(instruction, &id, &storageClass, &typeId);
 
-    mIds.visitTypePointer(id, storageClass, typeId);
+    visitTypeHelper(id, typeId);
     if (mOptions.useSpirvVaryingPrecisionFixer)
     {
         mVaryingPrecisionFixer.visitTypePointer(id, storageClass, typeId);
     }
-    mXfbCodeGenerator.visitTypePointer(id, storageClass, typeId);
+    mMultisampleTransformer.visitTypePointer(mOptions.shaderType, id, storageClass, typeId);
+    if (mOptions.shaderType == gl::ShaderType::Fragment)
+    {
+        mSecondaryOutputTransformer.visitTypePointer(id, typeId);
+    }
 }
 
-void SpirvTransformer::visitTypeVector(const uint32_t *instruction)
+void SpirvTransformer::visitTypeStruct(const uint32_t *instruction)
 {
     spirv::IdResult id;
-    spirv::IdRef componentId;
-    spirv::LiteralInteger componentCount;
-    spirv::ParseTypeVector(instruction, &id, &componentId, &componentCount);
+    spirv::IdRefList memberList;
+    ParseTypeStruct(instruction, &id, &memberList);
 
-    mIds.visitTypeVector(id, componentId, componentCount);
-    mXfbCodeGenerator.visitTypeVector(mIds, id, componentId, componentCount);
+    mMultisampleTransformer.visitTypeStruct(id, memberList);
 }
 
 void SpirvTransformer::visitVariable(const uint32_t *instruction)
@@ -3606,19 +3898,30 @@ void SpirvTransformer::visitVariable(const uint32_t *instruction)
     spv::StorageClass storageClass;
     spirv::ParseVariable(instruction, &typeId, &id, &storageClass, nullptr);
 
-    spirv::LiteralString name;
-    SpirvVariableType variableType = mIds.visitVariable(typeId, id, storageClass, &name);
+    // If storage class indicates that this is not a shader interface variable, ignore it.
+    const bool isInterfaceBlockVariable =
+        storageClass == spv::StorageClassUniform || storageClass == spv::StorageClassStorageBuffer;
+    const bool isOpaqueUniform = storageClass == spv::StorageClassUniformConstant;
+    const bool isInOut =
+        storageClass == spv::StorageClassInput || storageClass == spv::StorageClassOutput;
 
-    if (variableType == SpirvVariableType::Other)
+    if (!isInterfaceBlockVariable && !isOpaqueUniform && !isInOut)
     {
         return;
     }
 
-    // The ids are unique.
-    ASSERT(id < mVariableInfoById.size());
-    ASSERT(mVariableInfoById[id] == nullptr);
+    // If no info is already associated with this id, carry that forward from the type.  This
+    // happens for interface blocks, where the id->info association is done on the type id.
+    ASSERT(mVariableInfoById[id] == nullptr || mVariableInfoById[typeId] == nullptr);
+    if (mVariableInfoById[id] == nullptr)
+    {
+        mVariableInfoById[id] = mVariableInfoById[typeId];
+    }
 
-    if (variableType == SpirvVariableType::BuiltIn)
+    const ShaderInterfaceVariableInfo *info = mVariableInfoById[id];
+
+    // If this is an interface variable but no info is associated with it, it must be a built-in.
+    if (info == nullptr)
     {
         // Make all builtins point to this no-op info.  Adding this entry allows us to ASSERT that
         // every shader interface variable is processed during the SPIR-V transformation.  This is
@@ -3627,22 +3930,46 @@ void SpirvTransformer::visitVariable(const uint32_t *instruction)
         return;
     }
 
-    // Every shader interface variable should have an associated data.
-    const ShaderInterfaceVariableInfo &info =
-        mVariableInfoMap.getVariableByName(mOptions.shaderType, name);
-
-    // Associate the id of this name with its info.
-    mVariableInfoById[id] = &info;
-
     if (mOptions.useSpirvVaryingPrecisionFixer)
     {
-        mVaryingPrecisionFixer.visitVariable(info, mOptions.shaderType, typeId, id, storageClass,
+        mVaryingPrecisionFixer.visitVariable(*info, mOptions.shaderType, typeId, id, storageClass,
                                              mSpirvBlobOut);
     }
-    if (mOptions.isTransformFeedbackStage)
+    if (mOptions.isTransformFeedbackStage && mVariableInfoById[id]->hasTransformFeedback)
     {
-        mXfbCodeGenerator.visitVariable(info, mOptions.shaderType, name, typeId, id, storageClass);
+        const XFBInterfaceVariableInfo &xfbInfo =
+            mVariableInfoMap.getXFBDataForVariableInfo(mVariableInfoById[id]);
+        mXfbCodeGenerator.visitVariable(*info, xfbInfo, mOptions.shaderType, typeId, id,
+                                        storageClass);
     }
+
+    mMultisampleTransformer.visitVariable(mOptions.shaderType, typeId, id, storageClass);
+}
+
+bool SpirvTransformer::visitExtInst(const uint32_t *instruction)
+{
+    sh::vk::spirv::NonSemanticInstruction inst;
+    if (!mNonSemanticInstructions.visitExtInst(instruction, &inst))
+    {
+        return false;
+    }
+
+    switch (inst)
+    {
+        case sh::vk::spirv::kNonSemanticOverview:
+            // SPIR-V is structured in sections (SPIR-V 1.0 Section 2.4 Logical Layout of a Module).
+            // Names appear before decorations, which are followed by type+variables and finally
+            // functions.  We are only interested in name and variable declarations (as well as type
+            // declarations for the sake of nameless interface blocks).  Early out when the function
+            // declaration section is met.
+            //
+            // This non-semantic instruction marks the beginning of the functions section.
+            return true;
+        default:
+            UNREACHABLE();
+    }
+
+    return false;
 }
 
 TransformationState SpirvTransformer::transformDecorate(const uint32_t *instruction)
@@ -3662,7 +3989,26 @@ TransformationState SpirvTransformer::transformDecorate(const uint32_t *instruct
         return TransformationState::Unchanged;
     }
 
-    mMultiSampleTransformer.transformDecoration(decoration, mSpirvBlobOut);
+    if (mOptions.shaderType == gl::ShaderType::Fragment)
+    {
+        // Handle decorations for the secondary fragment output array.
+        if (mSecondaryOutputTransformer.transformDecorate(id, decoration, decorationValues,
+                                                          mSpirvBlobOut) ==
+            TransformationState::Transformed)
+        {
+            return TransformationState::Transformed;
+        }
+    }
+
+    if (mOptions.removeDepthStencilInput)
+    {
+        if (mDepthStencilInputRemover.transformDecorate(id, decoration, decorationValues,
+                                                        mSpirvBlobOut) ==
+            TransformationState::Transformed)
+        {
+            return TransformationState::Transformed;
+        }
+    }
 
     if (mInactiveVaryingRemover.transformDecorate(*info, mOptions.shaderType, id, decoration,
                                                   decorationValues, mSpirvBlobOut) ==
@@ -3671,11 +4017,22 @@ TransformationState SpirvTransformer::transformDecorate(const uint32_t *instruct
         return TransformationState::Transformed;
     }
 
+    if (mXfbCodeGenerator.transformDecorate(info, mOptions.shaderType, id, decoration,
+                                            decorationValues,
+                                            mSpirvBlobOut) == TransformationState::Transformed)
+    {
+        return TransformationState::Transformed;
+    }
+
     // If using relaxed precision, generate instructions for the replacement id instead.
+    spirv::IdRef replacementId = id;
     if (mOptions.useSpirvVaryingPrecisionFixer)
     {
-        id = mVaryingPrecisionFixer.getReplacementId(id);
+        replacementId = mVaryingPrecisionFixer.getReplacementId(id);
     }
+
+    mMultisampleTransformer.transformDecorate(mNonSemanticInstructions, *info, mOptions.shaderType,
+                                              id, replacementId, decoration, mSpirvBlobOut);
 
     uint32_t newDecorationValue = ShaderInterfaceVariableInfo::kInvalid;
 
@@ -3697,20 +4054,22 @@ TransformationState SpirvTransformer::transformDecorate(const uint32_t *instruct
             if (mOptions.useSpirvVaryingPrecisionFixer && info->useRelaxedPrecision)
             {
                 // Change the id to replacement variable
-                spirv::WriteDecorate(mSpirvBlobOut, id, decoration, decorationValues);
+                spirv::WriteDecorate(mSpirvBlobOut, replacementId, decoration, decorationValues);
                 return TransformationState::Transformed;
             }
             break;
         case spv::DecorationBlock:
             // If this is the Block decoration of a shader I/O block, add the transform feedback
             // decorations to its members right away.
-            if (mOptions.isTransformFeedbackStage)
+            if (mOptions.isTransformFeedbackStage && info->hasTransformFeedback)
             {
-                mXfbCodeGenerator.addMemberDecorate(*info, id, mSpirvBlobOut);
+                const XFBInterfaceVariableInfo &xfbInfo =
+                    mVariableInfoMap.getXFBDataForVariableInfo(info);
+                mXfbCodeGenerator.addMemberDecorate(xfbInfo, id, mSpirvBlobOut);
             }
             break;
         case spv::DecorationInvariant:
-            spirv::WriteDecorate(mSpirvBlobOut, id, spv::DecorationInvariant, {});
+            spirv::WriteDecorate(mSpirvBlobOut, replacementId, spv::DecorationInvariant, {});
             return TransformationState::Transformed;
         default:
             break;
@@ -3724,7 +4083,7 @@ TransformationState SpirvTransformer::transformDecorate(const uint32_t *instruct
 
     // Modify the decoration value.
     ASSERT(decorationValues.size() == 1);
-    spirv::WriteDecorate(mSpirvBlobOut, id, decoration,
+    spirv::WriteDecorate(mSpirvBlobOut, replacementId, decoration,
                          {spirv::LiteralInteger(newDecorationValue)});
 
     // If there are decorations to be added, add them right after the Location decoration is
@@ -3738,27 +4097,28 @@ TransformationState SpirvTransformer::transformDecorate(const uint32_t *instruct
     // fixedVaryingId.
     if (mOptions.useSpirvVaryingPrecisionFixer && info->useRelaxedPrecision)
     {
-        mVaryingPrecisionFixer.addDecorate(id, mSpirvBlobOut);
+        mVaryingPrecisionFixer.addDecorate(replacementId, mSpirvBlobOut);
     }
 
     // Add component decoration, if any.
     if (info->component != ShaderInterfaceVariableInfo::kInvalid)
     {
-        spirv::WriteDecorate(mSpirvBlobOut, id, spv::DecorationComponent,
+        spirv::WriteDecorate(mSpirvBlobOut, replacementId, spv::DecorationComponent,
                              {spirv::LiteralInteger(info->component)});
     }
 
     // Add index decoration, if any.
     if (info->index != ShaderInterfaceVariableInfo::kInvalid)
     {
-        spirv::WriteDecorate(mSpirvBlobOut, id, spv::DecorationIndex,
+        spirv::WriteDecorate(mSpirvBlobOut, replacementId, spv::DecorationIndex,
                              {spirv::LiteralInteger(info->index)});
     }
 
     // Add Xfb decorations, if any.
-    if (mOptions.isTransformFeedbackStage)
+    if (mOptions.isTransformFeedbackStage && info->hasTransformFeedback)
     {
-        mXfbCodeGenerator.addDecorate(*info, id, mSpirvBlobOut);
+        const XFBInterfaceVariableInfo &xfbInfo = mVariableInfoMap.getXFBDataForVariableInfo(info);
+        mXfbCodeGenerator.addDecorate(xfbInfo, replacementId, mSpirvBlobOut);
     }
 
     return TransformationState::Transformed;
@@ -3771,7 +4131,17 @@ TransformationState SpirvTransformer::transformMemberDecorate(const uint32_t *in
     spv::Decoration decoration;
     spirv::ParseMemberDecorate(instruction, &typeId, &member, &decoration, nullptr);
 
-    return mPerVertexTrimmer.transformMemberDecorate(mIds, typeId, member, decoration);
+    if (mPerVertexTrimmer.transformMemberDecorate(typeId, member, decoration) ==
+        TransformationState::Transformed)
+    {
+        return TransformationState::Transformed;
+    }
+
+    ASSERT(typeId < mVariableInfoById.size());
+    const ShaderInterfaceVariableInfo *info = mVariableInfoById[typeId];
+
+    return mXfbCodeGenerator.transformMemberDecorate(info, mOptions.shaderType, typeId, member,
+                                                     decoration, mSpirvBlobOut);
 }
 
 TransformationState SpirvTransformer::transformCapability(const uint32_t *instruction)
@@ -3783,79 +4153,84 @@ TransformationState SpirvTransformer::transformCapability(const uint32_t *instru
         mXfbCodeGenerator.transformCapability(capability, mSpirvBlobOut);
     ASSERT(xfbTransformState == TransformationState::Unchanged);
 
-    TransformationState multiSampleTransformState =
-        mMultiSampleTransformer.transformCapability(capability, mSpirvBlobOut);
+    TransformationState multiSampleTransformState = mMultisampleTransformer.transformCapability(
+        mNonSemanticInstructions, capability, mSpirvBlobOut);
     ASSERT(multiSampleTransformState == TransformationState::Unchanged);
 
     return TransformationState::Unchanged;
 }
 
-TransformationState SpirvTransformer::transformDebugInfo(const uint32_t *instruction, spv::Op op)
+TransformationState SpirvTransformer::transformName(const uint32_t *instruction)
 {
-    if (mOptions.removeDebugInfo)
+    spirv::IdRef id;
+    spirv::LiteralString name;
+    spirv::ParseName(instruction, &id, &name);
+
+    if (mOptions.removeDepthStencilInput)
     {
-        // Strip debug info to reduce binary size.
+        if (mDepthStencilInputRemover.transformName(id, name) == TransformationState::Transformed)
+        {
+            return TransformationState::Transformed;
+        }
+    }
+
+    return mXfbCodeGenerator.transformName(id, name);
+}
+
+TransformationState SpirvTransformer::transformMemberName(const uint32_t *instruction)
+{
+    spirv::IdRef id;
+    spirv::LiteralInteger member;
+    spirv::LiteralString name;
+    spirv::ParseMemberName(instruction, &id, &member, &name);
+
+    if (mXfbCodeGenerator.transformMemberName(id, member, name) == TransformationState::Transformed)
+    {
         return TransformationState::Transformed;
     }
 
-    // In the case of OpMemberName, unconditionally remove stripped gl_PerVertex members.
-    if (op == spv::OpMemberName)
-    {
-        spirv::IdRef id;
-        spirv::LiteralInteger member;
-        spirv::LiteralString name;
-        spirv::ParseMemberName(instruction, &id, &member, &name);
-
-        return mPerVertexTrimmer.transformMemberName(mIds, id, member, name);
-    }
-
-    if (op == spv::OpName)
-    {
-        spirv::IdRef id;
-        spirv::LiteralString name;
-        spirv::ParseName(instruction, &id, &name);
-
-        return mXfbCodeGenerator.transformName(id, name);
-    }
-
-    return TransformationState::Unchanged;
-}
-
-TransformationState SpirvTransformer::transformEmitVertex(const uint32_t *instruction)
-{
-    // This is only possible in geometry shaders.
-    ASSERT(mOptions.shaderType == gl::ShaderType::Geometry);
-
-    // Write the temporary variables that hold varyings data before EmitVertex().
-    writeOutputPrologue();
-
-    return TransformationState::Unchanged;
+    return mPerVertexTrimmer.transformMemberName(id, member, name);
 }
 
 TransformationState SpirvTransformer::transformEntryPoint(const uint32_t *instruction)
 {
-    // Should only have one EntryPoint
-    ASSERT(!mEntryPointId.valid());
-
     spv::ExecutionModel executionModel;
+    spirv::IdRef entryPointId;
     spirv::LiteralString name;
     spirv::IdRefList interfaceList;
-    spirv::ParseEntryPoint(instruction, &executionModel, &mEntryPointId, &name, &interfaceList);
+    spirv::ParseEntryPoint(instruction, &executionModel, &entryPointId, &name, &interfaceList);
+
+    // Should only have one EntryPoint
+    ASSERT(entryPointId == ID::EntryPoint);
 
     mInactiveVaryingRemover.modifyEntryPointInterfaceList(mVariableInfoById, mOptions.shaderType,
-                                                          &interfaceList);
-    if (mOptions.useSpirvVaryingPrecisionFixer)
+                                                          entryPointList(), &interfaceList);
+
+    if (mOptions.shaderType == gl::ShaderType::Fragment)
     {
-        mVaryingPrecisionFixer.modifyEntryPointInterfaceList(&interfaceList);
+        mSecondaryOutputTransformer.modifyEntryPointInterfaceList(
+            mVariableInfoById, entryPointList(), &interfaceList, mSpirvBlobOut);
     }
 
-    mMultiSampleTransformer.modifyEntryPointInterfaceList(&interfaceList, mSpirvBlobOut);
+    if (mOptions.useSpirvVaryingPrecisionFixer)
+    {
+        mVaryingPrecisionFixer.modifyEntryPointInterfaceList(entryPointList(), &interfaceList);
+    }
+    if (mOptions.removeDepthStencilInput)
+    {
+        mDepthStencilInputRemover.modifyEntryPointInterfaceList(&interfaceList, mSpirvBlobOut);
+    }
+
+    mMultisampleTransformer.modifyEntryPointInterfaceList(
+        mNonSemanticInstructions, entryPointList(), &interfaceList, mSpirvBlobOut);
+    mXfbCodeGenerator.modifyEntryPointInterfaceList(mVariableInfoById, mOptions.shaderType,
+                                                    entryPointList(), &interfaceList);
 
     // Write the entry point with the inactive interface variables removed.
-    spirv::WriteEntryPoint(mSpirvBlobOut, executionModel, mEntryPointId, name, interfaceList);
+    spirv::WriteEntryPoint(mSpirvBlobOut, executionModel, ID::EntryPoint, name, interfaceList);
 
     // Add an OpExecutionMode Xfb instruction if necessary.
-    mXfbCodeGenerator.addExecutionMode(mEntryPointId, mSpirvBlobOut);
+    mXfbCodeGenerator.addExecutionMode(ID::EntryPoint, mSpirvBlobOut);
 
     return TransformationState::Transformed;
 }
@@ -3867,8 +4242,101 @@ TransformationState SpirvTransformer::transformTypePointer(const uint32_t *instr
     spirv::IdRef typeId;
     spirv::ParseTypePointer(instruction, &id, &storageClass, &typeId);
 
-    return mInactiveVaryingRemover.transformTypePointer(mIds, id, storageClass, typeId,
-                                                        mSpirvBlobOut);
+    if (mInactiveVaryingRemover.transformTypePointer(id, storageClass, typeId, mSpirvBlobOut) ==
+        TransformationState::Transformed)
+    {
+        return TransformationState::Transformed;
+    }
+
+    ASSERT(id < mVariableInfoById.size());
+    const ShaderInterfaceVariableInfo *info = mVariableInfoById[id];
+
+    return mXfbCodeGenerator.transformTypePointer(info, mOptions.shaderType, id, storageClass,
+                                                  typeId, mSpirvBlobOut);
+}
+
+TransformationState SpirvTransformer::transformExtension(const uint32_t *instruction)
+{
+    // Drop the OpExtension "SPV_KHR_non_semantic_info" extension instruction.
+    // SPV_KHR_non_semantic_info is used purely as a means of communication between the compiler and
+    // the SPIR-V transformer, and is stripped away before the SPIR-V is handed off to the driver.
+    spirv::LiteralString name;
+    spirv::ParseExtension(instruction, &name);
+
+    return strcmp(name, "SPV_KHR_non_semantic_info") == 0 ? TransformationState::Transformed
+                                                          : TransformationState::Unchanged;
+}
+
+TransformationState SpirvTransformer::transformExtInstImport(const uint32_t *instruction)
+{
+    // Drop the OpExtInstImport "NonSemantic.ANGLE" instruction.
+    spirv::IdResult id;
+    spirv::LiteralString name;
+    ParseExtInstImport(instruction, &id, &name);
+
+    return id == sh::vk::spirv::kIdNonSemanticInstructionSet ? TransformationState::Transformed
+                                                             : TransformationState::Unchanged;
+}
+
+TransformationState SpirvTransformer::transformExtInst(const uint32_t *instruction)
+{
+    sh::vk::spirv::NonSemanticInstruction inst;
+    if (!mNonSemanticInstructions.visitExtInst(instruction, &inst))
+    {
+        return TransformationState::Unchanged;
+    }
+
+    switch (inst)
+    {
+        case sh::vk::spirv::kNonSemanticOverview:
+            // Declare anything that we need but didn't find there already.
+            writePendingDeclarations();
+            break;
+        case sh::vk::spirv::kNonSemanticEnter:
+            // If there are any precision mismatches that need to be handled, temporary global
+            // variables are created with the original precision.  Initialize those variables from
+            // the varyings at the beginning of the shader.
+            writeInputPreamble();
+            break;
+        case sh::vk::spirv::kNonSemanticOutput:
+            // Generate gl_Position transformations and transform feedback capture (through
+            // extension) before return or EmitVertex().  Additionally, if there are any precision
+            // mismatches that need to be ahendled, write the temporary variables that hold varyings
+            // data. Copy a secondary fragment output value if it was declared as an array.
+            writeOutputPrologue();
+            break;
+        case sh::vk::spirv::kNonSemanticTransformFeedbackEmulation:
+            // Transform feedback emulation is written to a designated function.  Allow its code to
+            // be generated if this is the right function.
+            if (mOptions.isTransformFeedbackStage)
+            {
+                mXfbCodeGenerator.writeTransformFeedbackEmulationOutput(
+                    mInactiveVaryingRemover, mVaryingPrecisionFixer,
+                    mOptions.useSpirvVaryingPrecisionFixer, mSpirvBlobOut);
+            }
+            break;
+        default:
+            UNREACHABLE();
+            break;
+    }
+
+    // Drop the instruction if this is the last pass
+    return mNonSemanticInstructions.transformExtInst(instruction);
+}
+
+TransformationState SpirvTransformer::transformLoad(const uint32_t *instruction)
+{
+    if (!mOptions.removeDepthStencilInput)
+    {
+        return TransformationState::Unchanged;
+    }
+
+    spirv::IdResultType typeId;
+    spirv::IdResult id;
+    spirv::IdRef pointerId;
+    ParseLoad(instruction, &typeId, &id, &pointerId, nullptr);
+
+    return mDepthStencilInputRemover.transformLoad(typeId, id, pointerId, mSpirvBlobOut);
 }
 
 TransformationState SpirvTransformer::transformTypeStruct(const uint32_t *instruction)
@@ -3877,38 +4345,17 @@ TransformationState SpirvTransformer::transformTypeStruct(const uint32_t *instru
     spirv::IdRefList memberList;
     ParseTypeStruct(instruction, &id, &memberList);
 
-    return mPerVertexTrimmer.transformTypeStruct(mIds, id, &memberList, mSpirvBlobOut);
-}
-
-TransformationState SpirvTransformer::transformReturn(const uint32_t *instruction)
-{
-    if (mCurrentFunctionId != mEntryPointId)
+    if (mPerVertexTrimmer.transformTypeStruct(id, &memberList, mSpirvBlobOut) ==
+        TransformationState::Transformed)
     {
-        if (mOptions.isTransformFeedbackStage)
-        {
-            // Transform feedback emulation is written to a designated function.  Allow its code to
-            // be generated if this is the right function.
-            mXfbCodeGenerator.writeTransformFeedbackEmulationOutput(
-                mIds, mInactiveVaryingRemover, mVaryingPrecisionFixer,
-                mOptions.useSpirvVaryingPrecisionFixer, mCurrentFunctionId, mSpirvBlobOut);
-        }
-
-        // We only need to process the precision info when returning from the entry point function
-        return TransformationState::Unchanged;
+        return TransformationState::Transformed;
     }
 
-    // For geometry shaders, this operations is done before every EmitVertex() instead.
-    // Additionally, this transformation (which affects output varyings) doesn't apply to fragment
-    // shaders.
-    if (mOptions.shaderType == gl::ShaderType::Geometry ||
-        mOptions.shaderType == gl::ShaderType::Fragment)
-    {
-        return TransformationState::Unchanged;
-    }
+    ASSERT(id < mVariableInfoById.size());
+    const ShaderInterfaceVariableInfo *info = mVariableInfoById[id];
 
-    writeOutputPrologue();
-
-    return TransformationState::Unchanged;
+    return mXfbCodeGenerator.transformTypeStruct(info, mOptions.shaderType, id, memberList,
+                                                 mSpirvBlobOut);
 }
 
 TransformationState SpirvTransformer::transformVariable(const uint32_t *instruction)
@@ -3925,6 +4372,27 @@ TransformationState SpirvTransformer::transformVariable(const uint32_t *instruct
     if (info == nullptr)
     {
         return TransformationState::Unchanged;
+    }
+
+    if (mOptions.shaderType == gl::ShaderType::Fragment && storageClass == spv::StorageClassOutput)
+    {
+        // If present, make the secondary fragment output array
+        // private and declare a non-array output instead.
+        if (mSecondaryOutputTransformer.transformVariable(
+                typeId, mInactiveVaryingRemover.getTransformedPrivateType(typeId), id,
+                mSpirvBlobOut) == TransformationState::Transformed)
+        {
+            return TransformationState::Transformed;
+        }
+    }
+
+    if (mOptions.removeDepthStencilInput)
+    {
+        if (mDepthStencilInputRemover.transformVariable(typeId, id, mSpirvBlobOut) ==
+            TransformationState::Transformed)
+        {
+            return TransformationState::Transformed;
+        }
     }
 
     // Furthermore, if it's not an inactive varying output, there's nothing to do.  Note that
@@ -3944,8 +4412,9 @@ TransformationState SpirvTransformer::transformVariable(const uint32_t *instruct
         return TransformationState::Unchanged;
     }
 
-    if (mXfbCodeGenerator.transformVariable(*info, mVariableInfoMap, mOptions.shaderType, typeId,
-                                            id, storageClass) == TransformationState::Transformed)
+    if (mXfbCodeGenerator.transformVariable(*info, mVariableInfoMap, mOptions.shaderType,
+                                            storageBufferStorageClass(), typeId, id,
+                                            storageClass) == TransformationState::Transformed)
     {
         return TransformationState::Transformed;
     }
@@ -3957,12 +4426,20 @@ TransformationState SpirvTransformer::transformVariable(const uint32_t *instruct
 
 TransformationState SpirvTransformer::transformTypeImage(const uint32_t *instruction)
 {
-    return mMultiSampleTransformer.transformTypeImage(instruction, mSpirvBlobOut);
+    return mMultisampleTransformer.transformTypeImage(instruction, mSpirvBlobOut);
 }
 
 TransformationState SpirvTransformer::transformImageRead(const uint32_t *instruction)
 {
-    return mMultiSampleTransformer.transformImageRead(instruction, mIds, mSpirvBlobOut);
+    if (mOptions.removeDepthStencilInput)
+    {
+        if (mDepthStencilInputRemover.transformImageRead(instruction, mSpirvBlobOut) ==
+            TransformationState::Transformed)
+        {
+            return TransformationState::Transformed;
+        }
+    }
+    return mMultisampleTransformer.transformImageRead(instruction, mSpirvBlobOut);
 }
 
 TransformationState SpirvTransformer::transformAccessChain(const uint32_t *instruction)
@@ -3978,6 +4455,17 @@ TransformationState SpirvTransformer::transformAccessChain(const uint32_t *instr
     if (info == nullptr)
     {
         return TransformationState::Unchanged;
+    }
+
+    if (mOptions.shaderType == gl::ShaderType::Fragment)
+    {
+        // Update the type used for accessing the secondary fragment output array.
+        if (mSecondaryOutputTransformer.transformAccessChain(
+                mInactiveVaryingRemover.getTransformedPrivateType(typeId), id, baseId, indexList,
+                mSpirvBlobOut) == TransformationState::Transformed)
+        {
+            return TransformationState::Transformed;
+        }
     }
 
     if (mOptions.useSpirvVaryingPrecisionFixer)
@@ -4037,7 +4525,8 @@ class SpirvVertexAttributeAliasingTransformer final : public SpirvTransformerBas
         const ShaderInterfaceVariableInfoMap &variableInfoMap,
         std::vector<const ShaderInterfaceVariableInfo *> &&variableInfoById,
         spirv::Blob *spirvBlobOut)
-        : SpirvTransformerBase(spirvBlobIn, variableInfoMap, spirvBlobOut)
+        : SpirvTransformerBase(spirvBlobIn, variableInfoMap, spirvBlobOut),
+          mNonSemanticInstructions(true)
     {
         mVariableInfoById = std::move(variableInfoById);
     }
@@ -4056,14 +4545,12 @@ class SpirvVertexAttributeAliasingTransformer final : public SpirvTransformerBas
     bool isMatrixAttribute(spirv::IdRef id) const;
 
     // Instructions that are purely informational:
-    void visitTypeFloat(const uint32_t *instruction);
-    void visitTypeVector(const uint32_t *instruction);
-    void visitTypeMatrix(const uint32_t *instruction);
     void visitTypePointer(const uint32_t *instruction);
 
     // Instructions that potentially need transformation.  They return true if the instruction is
     // transformed.  If false is returned, the instruction should be copied as-is.
     TransformationState transformEntryPoint(const uint32_t *instruction);
+    TransformationState transformExtInst(const uint32_t *instruction);
     TransformationState transformName(const uint32_t *instruction);
     TransformationState transformDecorate(const uint32_t *instruction);
     TransformationState transformVariable(const uint32_t *instruction);
@@ -4108,35 +4595,39 @@ class SpirvVertexAttributeAliasingTransformer final : public SpirvTransformerBas
     // ids of the split vectors are consecutive, so %veci == %vec0 + i.  %veciType is taken from
     // mInputTypePointers.
     std::vector<spirv::IdRef> mExpandedMatrixFirstVectorIdById;
-    // Whether the expanded matrix OpVariables are generated.
-    bool mHaveMatricesExpanded = false;
-    // Whether initialization of the matrix attributes should be written at the beginning of the
-    // current function.
-    bool mWriteExpandedMatrixInitialization = false;
-    spirv::IdRef mEntryPointId;
 
-    // Id of attribute types; float and veci.  This array is one-based, and [0] is unused.
-    //
-    // [1]: id of OpTypeFloat 32
-    // [N]: id of OpTypeVector %[1] N, N = {2, 3, 4}
-    //
-    // In other words, index of the array corresponds to the number of components in the type.
-    std::array<spirv::IdRef, 5> mFloatTypes;
+    // Id of attribute types; float and veci.
+    spirv::IdRef floatType(uint32_t componentCount)
+    {
+        static_assert(sh::vk::spirv::kIdVec2 == sh::vk::spirv::kIdFloat + 1);
+        static_assert(sh::vk::spirv::kIdVec3 == sh::vk::spirv::kIdFloat + 2);
+        static_assert(sh::vk::spirv::kIdVec4 == sh::vk::spirv::kIdFloat + 3);
+        ASSERT(componentCount <= 4);
+        return spirv::IdRef(sh::vk::spirv::kIdFloat + (componentCount - 1));
+    }
 
-    // Corresponding to mFloatTypes, [i]: id of OpMatrix %mFloatTypes[i] i.  Note that only square
-    // matrices are possible as attributes in GLSL ES 1.00.  [0] and [1] are unused.
-    std::array<spirv::IdRef, 5> mMatrixTypes;
+    // Id of matrix attribute types.  Note that only square matrices are possible as attributes in
+    // GLSL ES 1.00.
+    spirv::IdRef matrixType(uint32_t dimension)
+    {
+        static_assert(sh::vk::spirv::kIdMat3 == sh::vk::spirv::kIdMat2 + 1);
+        static_assert(sh::vk::spirv::kIdMat4 == sh::vk::spirv::kIdMat2 + 2);
+        ASSERT(dimension >= 2 && dimension <= 4);
+        return spirv::IdRef(sh::vk::spirv::kIdMat2 + (dimension - 2));
+    }
 
-    // Corresponding to mFloatTypes, [i]: id of OpTypePointer Input %mFloatTypes[i].  [0] is unused.
+    // Corresponding to floatType(), [i]: id of OpTypePointer Input %floatType(i).  [0] is unused.
     std::array<spirv::IdRef, 5> mInputTypePointers;
 
-    // Corresponding to mFloatTypes, [i]: id of OpTypePointer Private %mFloatTypes[i].  [0] is
+    // Corresponding to floatType(), [i]: id of OpTypePointer Private %floatType(i).  [0] is
     // unused.
     std::array<spirv::IdRef, 5> mPrivateFloatTypePointers;
 
-    // Corresponding to mMatrixTypes, [i]: id of OpTypePointer Private %mMatrixTypes[i].  [0] and
+    // Corresponding to matrixType(), [i]: id of OpTypePointer Private %matrixType(i).  [0] and
     // [1] are unused.
     std::array<spirv::IdRef, 5> mPrivateMatrixTypePointers;
+
+    SpirvNonSemanticInstructions mNonSemanticInstructions;
 };
 
 void SpirvVertexAttributeAliasingTransformer::transform()
@@ -4245,27 +4736,8 @@ void SpirvVertexAttributeAliasingTransformer::transformInstruction()
 
     if (opCode == spv::OpFunction)
     {
-        // Declare the expanded matrix variables right before the first function declaration.
-        if (!mHaveMatricesExpanded)
-        {
-            declareExpandedMatrixVectors();
-            mHaveMatricesExpanded = true;
-        }
-
         // SPIR-V is structured in sections.  Function declarations come last.
         mIsInFunctionSection = true;
-
-        // The matrix attribute declarations have been changed to have Private storage class, and
-        // they are initialized from the expanded (and potentially aliased) Input vectors.  This is
-        // done at the beginning of the entry point.
-
-        spirv::IdResultType id;
-        spirv::IdResult functionId;
-        spv::FunctionControlMask functionControl;
-        spirv::IdRef functionType;
-        spirv::ParseFunction(instruction, &id, &functionId, &functionControl, &functionType);
-
-        mWriteExpandedMatrixInitialization = functionId == mEntryPointId;
     }
 
     // Only look at interesting instructions.
@@ -4273,19 +4745,12 @@ void SpirvVertexAttributeAliasingTransformer::transformInstruction()
 
     if (mIsInFunctionSection)
     {
-        // Write expanded matrix initialization right after the entry point's OpFunction and any
-        // instruction that must come immediately after it.
-        if (mWriteExpandedMatrixInitialization && opCode != spv::OpFunction &&
-            opCode != spv::OpFunctionParameter && opCode != spv::OpLabel &&
-            opCode != spv::OpVariable)
-        {
-            writeExpandedMatrixInitialization();
-            mWriteExpandedMatrixInitialization = false;
-        }
-
         // Look at in-function opcodes.
         switch (opCode)
         {
+            case spv::OpExtInst:
+                transformationState = transformExtInst(instruction);
+                break;
             case spv::OpAccessChain:
             case spv::OpInBoundsAccessChain:
                 transformationState = transformAccessChain(instruction);
@@ -4303,21 +4768,15 @@ void SpirvVertexAttributeAliasingTransformer::transformInstruction()
         switch (opCode)
         {
             // Informational instructions:
-            case spv::OpTypeFloat:
-                visitTypeFloat(instruction);
-                break;
-            case spv::OpTypeVector:
-                visitTypeVector(instruction);
-                break;
-            case spv::OpTypeMatrix:
-                visitTypeMatrix(instruction);
-                break;
             case spv::OpTypePointer:
                 visitTypePointer(instruction);
                 break;
             // Instructions that may need transformation:
             case spv::OpEntryPoint:
                 transformationState = transformEntryPoint(instruction);
+                break;
+            case spv::OpExtInst:
+                transformationState = transformExtInst(instruction);
                 break;
             case spv::OpName:
                 transformationState = transformName(instruction);
@@ -4368,53 +4827,6 @@ bool SpirvVertexAttributeAliasingTransformer::isMatrixAttribute(spirv::IdRef id)
     return mExpandedMatrixFirstVectorIdById[id].valid();
 }
 
-void SpirvVertexAttributeAliasingTransformer::visitTypeFloat(const uint32_t *instruction)
-{
-    spirv::IdResult id;
-    spirv::LiteralInteger width;
-    spirv::ParseTypeFloat(instruction, &id, &width);
-
-    // Only interested in OpTypeFloat 32.
-    if (width == 32)
-    {
-        ASSERT(!mFloatTypes[1].valid());
-        mFloatTypes[1] = id;
-    }
-}
-
-void SpirvVertexAttributeAliasingTransformer::visitTypeVector(const uint32_t *instruction)
-{
-    spirv::IdResult id;
-    spirv::IdRef componentId;
-    spirv::LiteralInteger componentCount;
-    spirv::ParseTypeVector(instruction, &id, &componentId, &componentCount);
-
-    // Only interested in OpTypeVector %f32 N, where %f32 is the id of OpTypeFloat 32.
-    if (componentId == mFloatTypes[1])
-    {
-        ASSERT(componentCount >= 2 && componentCount <= 4);
-        ASSERT(!mFloatTypes[componentCount].valid());
-        mFloatTypes[componentCount] = id;
-    }
-}
-
-void SpirvVertexAttributeAliasingTransformer::visitTypeMatrix(const uint32_t *instruction)
-{
-    spirv::IdResult id;
-    spirv::IdRef columnType;
-    spirv::LiteralInteger columnCount;
-    spirv::ParseTypeMatrix(instruction, &id, &columnType, &columnCount);
-
-    // Only interested in OpTypeMatrix %vecN, where %vecN is the id of OpTypeVector %f32 N.
-    // This is only for square matN types (as allowed by GLSL ES 1.00), so columnCount is the same
-    // as rowCount.
-    if (columnType == mFloatTypes[columnCount])
-    {
-        ASSERT(!mMatrixTypes[columnCount].valid());
-        mMatrixTypes[columnCount] = id;
-    }
-}
-
 void SpirvVertexAttributeAliasingTransformer::visitTypePointer(const uint32_t *instruction)
 {
     spirv::IdResult id;
@@ -4427,9 +4839,9 @@ void SpirvVertexAttributeAliasingTransformer::visitTypePointer(const uint32_t *i
     // This is only for matN types (as allowed by GLSL ES 1.00), so N >= 2.
     if (storageClass == spv::StorageClassInput)
     {
-        for (size_t n = 2; n < mFloatTypes.size(); ++n)
+        for (uint32_t n = 2; n <= 4; ++n)
         {
-            if (typeId == mFloatTypes[n])
+            if (typeId == floatType(n))
             {
                 ASSERT(!mInputTypePointers[n].valid());
                 mInputTypePointers[n] = id;
@@ -4439,17 +4851,16 @@ void SpirvVertexAttributeAliasingTransformer::visitTypePointer(const uint32_t *i
     }
     else if (storageClass == spv::StorageClassPrivate)
     {
-        ASSERT(mFloatTypes.size() == mMatrixTypes.size());
-        for (size_t n = 2; n < mMatrixTypes.size(); ++n)
+        for (uint32_t n = 2; n <= 4; ++n)
         {
             // Note that Private types may not be unique, as the previous transformation can
             // generate duplicates.
-            if (typeId == mFloatTypes[n])
+            if (typeId == floatType(n))
             {
                 mPrivateFloatTypePointers[n] = id;
                 break;
             }
-            if (typeId == mMatrixTypes[n])
+            if (typeId == matrixType(n))
             {
                 mPrivateMatrixTypePointers[n] = id;
                 break;
@@ -4461,14 +4872,15 @@ void SpirvVertexAttributeAliasingTransformer::visitTypePointer(const uint32_t *i
 TransformationState SpirvVertexAttributeAliasingTransformer::transformEntryPoint(
     const uint32_t *instruction)
 {
-    // Should only have one EntryPoint
-    ASSERT(!mEntryPointId.valid());
-
     // Remove aliasing attributes from the shader interface declaration.
     spv::ExecutionModel executionModel;
+    spirv::IdRef entryPointId;
     spirv::LiteralString name;
     spirv::IdRefList interfaceList;
-    spirv::ParseEntryPoint(instruction, &executionModel, &mEntryPointId, &name, &interfaceList);
+    spirv::ParseEntryPoint(instruction, &executionModel, &entryPointId, &name, &interfaceList);
+
+    // Should only have one EntryPoint
+    ASSERT(entryPointId == ID::EntryPoint);
 
     // As a first pass, filter out matrix attributes and append their replacement vectors.
     size_t originalInterfaceListSize = interfaceList.size();
@@ -4493,6 +4905,12 @@ TransformationState SpirvVertexAttributeAliasingTransformer::transformEntryPoint
         {
             const spirv::IdRef vecId(vec0Id + offset);
             interfaceList.push_back(vecId);
+        }
+
+        // With SPIR-V 1.4, keep the Private variable in the interface list.
+        if (entryPointList() == EntryPointList::GlobalVariables)
+        {
+            interfaceList.push_back(matrixId);
         }
     }
 
@@ -4526,9 +4944,43 @@ TransformationState SpirvVertexAttributeAliasingTransformer::transformEntryPoint
     interfaceList.resize_down(writeIndex);
 
     // Write the entry point with the aliasing attributes removed.
-    spirv::WriteEntryPoint(mSpirvBlobOut, executionModel, mEntryPointId, name, interfaceList);
+    spirv::WriteEntryPoint(mSpirvBlobOut, executionModel, ID::EntryPoint, name, interfaceList);
 
     return TransformationState::Transformed;
+}
+
+TransformationState SpirvVertexAttributeAliasingTransformer::transformExtInst(
+    const uint32_t *instruction)
+{
+    sh::vk::spirv::NonSemanticInstruction inst;
+    if (!mNonSemanticInstructions.visitExtInst(instruction, &inst))
+    {
+        return TransformationState::Unchanged;
+    }
+
+    switch (inst)
+    {
+        case sh::vk::spirv::kNonSemanticOverview:
+            // Declare the expanded matrix variables
+            declareExpandedMatrixVectors();
+            break;
+        case sh::vk::spirv::kNonSemanticEnter:
+            // The matrix attribute declarations have been changed to have Private storage class,
+            // and they are initialized from the expanded (and potentially aliased) Input vectors.
+            // This is done at the beginning of the entry point.
+            writeExpandedMatrixInitialization();
+            break;
+        case sh::vk::spirv::kNonSemanticOutput:
+        case sh::vk::spirv::kNonSemanticTransformFeedbackEmulation:
+            // Unused by this transformation
+            break;
+        default:
+            UNREACHABLE();
+            break;
+    }
+
+    // Drop the instruction if this is the last pass
+    return mNonSemanticInstructions.transformExtInst(instruction);
 }
 
 TransformationState SpirvVertexAttributeAliasingTransformer::transformName(
@@ -4731,7 +5183,7 @@ void SpirvVertexAttributeAliasingTransformer::transformLoadHelper(spirv::IdRef p
     //     %newId = OpLoad %replacementType %replacement
     //
     const spirv::IdRef loadResultId(getNewId());
-    const spirv::IdRef replacementTypeId(mFloatTypes[replacementInfo->attributeComponentCount]);
+    const spirv::IdRef replacementTypeId(floatType(replacementInfo->attributeComponentCount));
     ASSERT(replacementTypeId.valid());
 
     spirv::WriteLoad(mSpirvBlobOut, replacementTypeId, loadResultId, replacementId, nullptr);
@@ -4756,7 +5208,7 @@ void SpirvVertexAttributeAliasingTransformer::transformLoadHelper(spirv::IdRef p
     //     %resultId = OpVectorShuffle %vecType %newId %newId 0 1 ...
     //
     ASSERT(aliasingInfo->attributeComponentCount < replacementInfo->attributeComponentCount);
-    ASSERT(mFloatTypes[aliasingInfo->attributeComponentCount] == typeId);
+    ASSERT(floatType(aliasingInfo->attributeComponentCount) == typeId);
 
     if (aliasingInfo->attributeComponentCount == 1)
     {
@@ -4795,7 +5247,7 @@ TransformationState SpirvVertexAttributeAliasingTransformer::transformLoad(
         const ShaderInterfaceVariableInfo *info = mVariableInfoById[pointerId];
         ValidateShaderInterfaceVariableIsAttribute(info);
 
-        const spirv::IdRef replacementTypeId(mMatrixTypes[info->attributeLocationCount]);
+        const spirv::IdRef replacementTypeId(matrixType(info->attributeLocationCount));
 
         spirv::WriteLoad(mSpirvBlobOut, replacementTypeId, id, pointerId, nullptr);
     }
@@ -4847,7 +5299,6 @@ void SpirvVertexAttributeAliasingTransformer::declareExpandedMatrixVectors()
         const uint32_t componentCount = info->attributeComponentCount;
         const uint32_t locationCount  = info->attributeLocationCount;
         ASSERT(componentCount == locationCount);
-        ASSERT(mMatrixTypes[locationCount].valid());
 
         // OpTypePointer Private %matrixType
         spirv::IdRef privateType(mPrivateMatrixTypePointers[locationCount]);
@@ -4856,7 +5307,7 @@ void SpirvVertexAttributeAliasingTransformer::declareExpandedMatrixVectors()
             privateType                               = getNewId();
             mPrivateMatrixTypePointers[locationCount] = privateType;
             spirv::WriteTypePointer(mSpirvBlobOut, privateType, spv::StorageClassPrivate,
-                                    mMatrixTypes[locationCount]);
+                                    matrixType(locationCount));
         }
 
         // OpVariable %privateType Private
@@ -4873,7 +5324,7 @@ void SpirvVertexAttributeAliasingTransformer::declareExpandedMatrixVectors()
             inputType                          = getNewId();
             mInputTypePointers[componentCount] = inputType;
             spirv::WriteTypePointer(mSpirvBlobOut, inputType, spv::StorageClassInput,
-                                    mFloatTypes[componentCount]);
+                                    floatType(componentCount));
         }
 
         // Declare a vector for each column of the matrix.
@@ -4888,16 +5339,16 @@ void SpirvVertexAttributeAliasingTransformer::declareExpandedMatrixVectors()
         }
     }
 
-    // Additionally, declare OpTypePointer Private %mFloatTypes[i] in case needed (used in
+    // Additionally, declare OpTypePointer Private %floatType(i) in case needed (used in
     // Op*AccessChain instructions, if any).
-    for (size_t n = 1; n < mFloatTypes.size(); ++n)
+    for (uint32_t n = 1; n <= 4; ++n)
     {
-        if (mFloatTypes[n].valid() && !mPrivateFloatTypePointers[n].valid())
+        if (!mPrivateFloatTypePointers[n].valid())
         {
             const spirv::IdRef privateType(getNewId());
             mPrivateFloatTypePointers[n] = privateType;
             spirv::WriteTypePointer(mSpirvBlobOut, privateType, spv::StorageClassPrivate,
-                                    mFloatTypes[n]);
+                                    floatType(n));
         }
     }
 }
@@ -4945,197 +5396,141 @@ void SpirvVertexAttributeAliasingTransformer::writeExpandedMatrixInitialization(
 
             // Write a load instruction from the replacement id.
             vecLoadIds.push_back(getNewId());
-            transformLoadHelper(matrixId, mFloatTypes[info->attributeComponentCount], replacementId,
+            transformLoadHelper(matrixId, floatType(info->attributeComponentCount), replacementId,
                                 vecLoadIds.back());
         }
 
         // Aggregate the vector loads into a matrix.
-        ASSERT(mMatrixTypes[locationCount].valid());
         const spirv::IdRef compositeId(getNewId());
-        spirv::WriteCompositeConstruct(mSpirvBlobOut, mMatrixTypes[locationCount], compositeId,
+        spirv::WriteCompositeConstruct(mSpirvBlobOut, matrixType(locationCount), compositeId,
                                        vecLoadIds);
 
         // Store it in the private variable.
         spirv::WriteStore(mSpirvBlobOut, matrixId, compositeId, nullptr);
     }
 }
-
-bool HasAliasingAttributes(const ShaderInterfaceVariableInfoMap &variableInfoMap)
-{
-    gl::AttributesMask isLocationAssigned;
-
-    for (const ShaderInterfaceVariableInfo &info : variableInfoMap.getAttributes())
-    {
-        ASSERT(info.activeStages[gl::ShaderType::Vertex]);
-        ASSERT(info.location != ShaderInterfaceVariableInfo::kInvalid);
-        ASSERT(info.attributeComponentCount > 0);
-        ASSERT(info.attributeLocationCount > 0);
-
-        for (uint8_t offset = 0; offset < info.attributeLocationCount; ++offset)
-        {
-            uint32_t location = info.location + offset;
-
-            // If there's aliasing, return immediately.
-            if (isLocationAssigned.test(location))
-            {
-                return true;
-            }
-
-            isLocationAssigned.set(location);
-        }
-    }
-
-    return false;
-}
 }  // anonymous namespace
 
-SpvSourceOptions SpvCreateSourceOptions(const angle::FeaturesVk &features)
+SpvSourceOptions SpvCreateSourceOptions(const angle::FeaturesVk &features,
+                                        uint32_t maxColorInputAttachmentCount)
 {
     SpvSourceOptions options;
 
+    options.maxColorInputAttachmentCount = maxColorInputAttachmentCount;
     options.supportsTransformFeedbackExtension =
         features.supportsTransformFeedbackExtension.enabled;
     options.supportsTransformFeedbackEmulation = features.emulateTransformFeedback.enabled;
     options.enableTransformFeedbackEmulation   = options.supportsTransformFeedbackEmulation;
+    options.supportsDepthStencilInputAttachments =
+        features.supportsShaderFramebufferFetchDepthStencil.enabled;
 
     return options;
 }
 
-UniformBindingInfo::UniformBindingInfo(uint32_t bindingIndex,
-                                       gl::ShaderBitSet shaderBitSet,
-                                       gl::ShaderType frontShaderType)
-    : bindingIndex(bindingIndex), shaderBitSet(shaderBitSet), frontShaderType(frontShaderType)
-{}
-
-UniformBindingInfo::UniformBindingInfo() {}
-
-// Strip indices from the name.  If there are non-zero indices, return false to indicate that this
-// image uniform doesn't require set/binding.  That is done on index 0.
-bool GetImageNameWithoutIndices(std::string *name)
+uint32_t SpvGetXfbBufferBlockId(const uint32_t bufferIndex)
 {
-    if (name->back() != ']')
-    {
-        return true;
-    }
+    ASSERT(bufferIndex < 4);
+    static_assert(sh::vk::spirv::ReservedIds::kIdXfbEmulationBufferBlockOne ==
+                  sh::vk::spirv::ReservedIds::kIdXfbEmulationBufferBlockZero + 1);
+    static_assert(sh::vk::spirv::ReservedIds::kIdXfbEmulationBufferBlockTwo ==
+                  sh::vk::spirv::ReservedIds::kIdXfbEmulationBufferBlockZero + 2);
+    static_assert(sh::vk::spirv::ReservedIds::kIdXfbEmulationBufferBlockThree ==
+                  sh::vk::spirv::ReservedIds::kIdXfbEmulationBufferBlockZero + 3);
 
-    bool isIndexZero = UniformNameIsIndexZero(*name);
-
-    // Strip all indices
-    *name = name->substr(0, name->find('['));
-
-    return isIndexZero;
-}
-
-std::string SpvGetMappedSamplerName(const std::string &originalName)
-{
-    std::string samplerName = originalName;
-
-    // Samplers in structs are extracted.
-    std::replace(samplerName.begin(), samplerName.end(), '.', '_');
-
-    // Remove array elements
-    auto out = samplerName.begin();
-    for (auto in = samplerName.begin(); in != samplerName.end(); in++)
-    {
-        if (*in == '[')
-        {
-            while (*in != ']')
-            {
-                in++;
-                ASSERT(in != samplerName.end());
-            }
-        }
-        else
-        {
-            *out++ = *in;
-        }
-    }
-
-    samplerName.erase(out, samplerName.end());
-
-    if (MappedSamplerNameNeedsUserDefinedPrefix(originalName))
-    {
-        samplerName = sh::kUserDefinedNamePrefix + samplerName;
-    }
-
-    return samplerName;
-}
-
-std::string SpvGetXfbBufferName(const uint32_t bufferIndex)
-{
-    return sh::vk::kXfbEmulationBufferBlockName + Str(bufferIndex);
+    return sh::vk::spirv::ReservedIds::kIdXfbEmulationBufferBlockZero + bufferIndex;
 }
 
 void SpvAssignLocations(const SpvSourceOptions &options,
                         const gl::ProgramExecutable &programExecutable,
                         const gl::ProgramVaryingPacking &varyingPacking,
-                        const gl::ShaderType shaderType,
-                        const gl::ShaderType frontShaderType,
-                        bool isTransformFeedbackStage,
+                        const gl::ShaderType transformFeedbackStage,
                         SpvProgramInterfaceInfo *programInterfaceInfo,
-                        UniformBindingIndexMap *uniformBindingIndexMapOut,
                         ShaderInterfaceVariableInfoMap *variableInfoMapOut)
 {
+    const gl::ShaderBitSet shaderStages = programExecutable.getLinkedShaderStages();
+
     // Assign outputs to the fragment shader, if any.
-    if ((shaderType == gl::ShaderType::Fragment) &&
+    if (shaderStages[gl::ShaderType::Fragment] &&
         programExecutable.hasLinkedShaderStage(gl::ShaderType::Fragment))
     {
         AssignOutputLocations(programExecutable, gl::ShaderType::Fragment, variableInfoMapOut);
     }
 
     // Assign attributes to the vertex shader, if any.
-    if ((shaderType == gl::ShaderType::Vertex) &&
+    if (shaderStages[gl::ShaderType::Vertex] &&
         programExecutable.hasLinkedShaderStage(gl::ShaderType::Vertex))
     {
         AssignAttributeLocations(programExecutable, gl::ShaderType::Vertex, variableInfoMapOut);
+
+        if (options.supportsTransformFeedbackEmulation)
+        {
+            // If transform feedback emulation is not enabled, mark all transform feedback output
+            // buffers as inactive.
+            const bool isTransformFeedbackStage =
+                transformFeedbackStage == gl::ShaderType::Vertex &&
+                options.enableTransformFeedbackEmulation &&
+                !programExecutable.getLinkedTransformFeedbackVaryings().empty();
+
+            AssignTransformFeedbackEmulationBindings(gl::ShaderType::Vertex, programExecutable,
+                                                     isTransformFeedbackStage, programInterfaceInfo,
+                                                     variableInfoMapOut);
+        }
     }
 
-    if (programExecutable.hasLinkedGraphicsShader())
+    gl::ShaderType frontShaderType = gl::ShaderType::InvalidEnum;
+    for (const gl::ShaderType shaderType : shaderStages)
     {
-        const gl::VaryingPacking &inputPacking  = varyingPacking.getInputPacking(shaderType);
-        const gl::VaryingPacking &outputPacking = varyingPacking.getOutputPacking(shaderType);
+        if (programExecutable.hasLinkedGraphicsShader())
+        {
+            const gl::VaryingPacking &inputPacking  = varyingPacking.getInputPacking(shaderType);
+            const gl::VaryingPacking &outputPacking = varyingPacking.getOutputPacking(shaderType);
 
-        // Assign varying locations.
-        if (shaderType != gl::ShaderType::Vertex)
-        {
-            AssignVaryingLocations(options, inputPacking, shaderType, frontShaderType,
-                                   programInterfaceInfo, variableInfoMapOut);
-        }
-        if (shaderType != gl::ShaderType::Fragment)
-        {
-            AssignVaryingLocations(options, outputPacking, shaderType, frontShaderType,
-                                   programInterfaceInfo, variableInfoMapOut);
+            // Assign varying locations.
+            if (shaderType != gl::ShaderType::Vertex)
+            {
+                AssignVaryingLocations(options, inputPacking, shaderType, frontShaderType,
+                                       programInterfaceInfo, variableInfoMapOut);
+
+                // Record active members of in gl_PerVertex.
+                if (shaderType != gl::ShaderType::Fragment &&
+                    frontShaderType != gl::ShaderType::InvalidEnum)
+                {
+                    // If an output builtin is active in the previous stage, assume it's active in
+                    // the input of the current stage as well.
+                    const gl::ShaderMap<gl::PerVertexMemberBitSet> &outputPerVertexActiveMembers =
+                        inputPacking.getOutputPerVertexActiveMembers();
+                    variableInfoMapOut->setInputPerVertexActiveMembers(
+                        shaderType, outputPerVertexActiveMembers[frontShaderType]);
+                }
+            }
+            if (shaderType != gl::ShaderType::Fragment)
+            {
+                AssignVaryingLocations(options, outputPacking, shaderType, frontShaderType,
+                                       programInterfaceInfo, variableInfoMapOut);
+
+                // Record active members of out gl_PerVertex.
+                const gl::ShaderMap<gl::PerVertexMemberBitSet> &outputPerVertexActiveMembers =
+                    outputPacking.getOutputPerVertexActiveMembers();
+                variableInfoMapOut->setOutputPerVertexActiveMembers(
+                    shaderType, outputPerVertexActiveMembers[shaderType]);
+            }
+
+            // Assign qualifiers to all varyings captured by transform feedback
+            if (!programExecutable.getLinkedTransformFeedbackVaryings().empty() &&
+                shaderType == programExecutable.getLinkedTransformFeedbackStage())
+            {
+                AssignTransformFeedbackQualifiers(programExecutable, outputPacking, shaderType,
+                                                  options.supportsTransformFeedbackExtension,
+                                                  variableInfoMapOut);
+            }
         }
 
-        // Assign qualifiers to all varyings captured by transform feedback
-        if (!programExecutable.getLinkedTransformFeedbackVaryings().empty() &&
-            shaderType == programExecutable.getLinkedTransformFeedbackStage())
-        {
-            AssignTransformFeedbackQualifiers(programExecutable, outputPacking, shaderType,
-                                              options.supportsTransformFeedbackExtension,
-                                              variableInfoMapOut);
-        }
+        frontShaderType = shaderType;
     }
 
-    AssignUniformBindings(options, programExecutable, shaderType, programInterfaceInfo,
-                          variableInfoMapOut);
-    AssignTextureBindings(options, programExecutable, shaderType, programInterfaceInfo,
-                          uniformBindingIndexMapOut, variableInfoMapOut);
-    AssignNonTextureBindings(options, programExecutable, shaderType, programInterfaceInfo,
-                             uniformBindingIndexMapOut, variableInfoMapOut);
-
-    if (options.supportsTransformFeedbackEmulation &&
-        gl::ShaderTypeSupportsTransformFeedback(shaderType))
-    {
-        // If transform feedback emulation is not enabled, mark all transform feedback output
-        // buffers as inactive.
-        isTransformFeedbackStage =
-            isTransformFeedbackStage && options.enableTransformFeedbackEmulation;
-
-        AssignTransformFeedbackEmulationBindings(shaderType, programExecutable,
-                                                 isTransformFeedbackStage, programInterfaceInfo,
-                                                 variableInfoMapOut);
-    }
+    AssignUniformBindings(options, programExecutable, programInterfaceInfo, variableInfoMapOut);
+    AssignTextureBindings(options, programExecutable, programInterfaceInfo, variableInfoMapOut);
+    AssignNonTextureBindings(options, programExecutable, programInterfaceInfo, variableInfoMapOut);
 }
 
 void SpvAssignTransformFeedbackLocations(gl::ShaderType shaderType,
@@ -5157,7 +5552,7 @@ void SpvAssignTransformFeedbackLocations(gl::ShaderType shaderType,
         for (uint32_t varyingIndex = 0; varyingIndex < tfVaryings.size(); ++varyingIndex)
         {
             const gl::TransformFeedbackVarying &tfVarying = tfVaryings[varyingIndex];
-            const std::string &tfVaryingName              = tfVarying.mappedName;
+            const std::string &tfVaryingName              = tfVarying.name;
 
             if (tfVaryingName == "gl_Position")
             {
@@ -5170,8 +5565,7 @@ void SpvAssignTransformFeedbackLocations(gl::ShaderType shaderType,
 
     if (capturesPosition)
     {
-        AddLocationInfo(variableInfoMapOut, shaderType, ShaderVariableType::Varying,
-                        sh::vk::kXfbExtensionPositionOutName,
+        AddLocationInfo(variableInfoMapOut, shaderType, sh::vk::spirv::kIdXfbExtensionPosition,
                         programInterfaceInfo->locationsUsedForXfbExtension, 0, 0, 0);
         ++programInterfaceInfo->locationsUsedForXfbExtension;
     }
@@ -5179,28 +5573,28 @@ void SpvAssignTransformFeedbackLocations(gl::ShaderType shaderType,
     {
         // Make sure this varying is removed from the other stages, or if position is not captured
         // at all.
-        variableInfoMapOut->add(shaderType, ShaderVariableType::Varying,
-                                sh::vk::kXfbExtensionPositionOutName);
+        variableInfoMapOut->add(shaderType, sh::vk::spirv::kIdXfbExtensionPosition);
     }
 }
 
-void SpvGetShaderSpirvCode(const gl::Context *context,
-                           const SpvSourceOptions &options,
-                           const gl::ProgramState &programState,
-                           const gl::ProgramLinkedResources &resources,
-                           SpvProgramInterfaceInfo *programInterfaceInfo,
-                           gl::ShaderMap<const spirv::Blob *> *spirvBlobsOut,
-                           ShaderInterfaceVariableInfoMap *variableInfoMapOut)
+void SpvGetShaderSpirvCode(const gl::ProgramState &programState,
+                           gl::ShaderMap<const spirv::Blob *> *spirvBlobsOut)
 {
     for (const gl::ShaderType shaderType : gl::AllShaderTypes())
     {
-        gl::Shader *glShader         = programState.getAttachedShader(shaderType);
-        (*spirvBlobsOut)[shaderType] = glShader ? &glShader->getCompiledBinary(context) : nullptr;
+        const gl::SharedCompiledShaderState &glShader = programState.getAttachedShader(shaderType);
+        (*spirvBlobsOut)[shaderType] = glShader ? &glShader->compiledBinary : nullptr;
     }
+}
 
-    const gl::ProgramExecutable &programExecutable = programState.getExecutable();
-    gl::ShaderType xfbStage        = programState.getAttachedTransformFeedbackStage();
-    gl::ShaderType frontShaderType = gl::ShaderType::InvalidEnum;
+void SpvAssignAllLocations(const SpvSourceOptions &options,
+                           const gl::ProgramState &programState,
+                           const gl::ProgramLinkedResources &resources,
+                           ShaderInterfaceVariableInfoMap *variableInfoMapOut)
+{
+    SpvProgramInterfaceInfo spvProgramInterfaceInfo = {};
+    const gl::ProgramExecutable &programExecutable  = programState.getExecutable();
+    gl::ShaderType xfbStage = programState.getAttachedTransformFeedbackStage();
 
     // This should be done before assigning varying location. Otherwise, We can encounter shader
     // interface mismatching problem in case the transformFeedback stage is not Vertex stage.
@@ -5213,20 +5607,12 @@ void SpvGetShaderSpirvCode(const gl::Context *context,
             gl::ShaderTypeSupportsTransformFeedback(shaderType))
         {
             SpvAssignTransformFeedbackLocations(shaderType, programExecutable, isXfbStage,
-                                                programInterfaceInfo, variableInfoMapOut);
+                                                &spvProgramInterfaceInfo, variableInfoMapOut);
         }
     }
-    UniformBindingIndexMap uniformBindingIndexMap;
-    for (const gl::ShaderType shaderType : programExecutable.getLinkedShaderStages())
-    {
-        const bool isXfbStage = shaderType == xfbStage &&
-                                !programExecutable.getLinkedTransformFeedbackVaryings().empty();
-        SpvAssignLocations(options, programExecutable, resources.varyingPacking, shaderType,
-                           frontShaderType, isXfbStage, programInterfaceInfo,
-                           &uniformBindingIndexMap, variableInfoMapOut);
 
-        frontShaderType = shaderType;
-    }
+    SpvAssignLocations(options, programExecutable, resources.varyingPacking, xfbStage,
+                       &spvProgramInterfaceInfo, variableInfoMapOut);
 }
 
 angle::Result SpvTransformSpirvCode(const SpvTransformOptions &options,
@@ -5239,12 +5625,16 @@ angle::Result SpvTransformSpirvCode(const SpvTransformOptions &options,
         return angle::Result::Continue;
     }
 
+    const bool hasAliasingAttributes =
+        options.shaderType == gl::ShaderType::Vertex && variableInfoMap.hasAliasingAttributes();
+
     // Transform the SPIR-V code by assigning location/set/binding values.
-    SpirvTransformer transformer(initialSpirvBlob, options, variableInfoMap, spirvBlobOut);
+    SpirvTransformer transformer(initialSpirvBlob, options, !hasAliasingAttributes, variableInfoMap,
+                                 spirvBlobOut);
     transformer.transform();
 
     // If there are aliasing vertex attributes, transform the SPIR-V again to remove them.
-    if (options.shaderType == gl::ShaderType::Vertex && HasAliasingAttributes(variableInfoMap))
+    if (hasAliasingAttributes)
     {
         spirv::Blob preTransformBlob = std::move(*spirvBlobOut);
         SpirvVertexAttributeAliasingTransformer aliasingTransformer(

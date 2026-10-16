@@ -6,9 +6,9 @@
 #define MOJO_PUBLIC_CPP_BINDINGS_LIB_MESSAGE_FRAGMENT_H_
 
 #include <stddef.h>
+#include <type_traits>
 
-#include <limits>
-
+#include "base/bits.h"
 #include "base/check_op.h"
 #include "base/component_export.h"
 #include "base/memory/raw_ptr_exclusion.h"
@@ -20,7 +20,7 @@ namespace internal {
 
 // Sentinel value used to denote an invalid index and thus a null fragment. Note
 // that we choose a sentinel value over something more explicit like
-// absl::optional because this is used heavily in generated code, so code size
+// std::optional because this is used heavily in generated code, so code size
 // is particularly relevant.
 constexpr size_t kInvalidFragmentIndex = std::numeric_limits<size_t>::max();
 
@@ -87,8 +87,7 @@ class MessageFragment {
   }
 
  private:
-  // Exclude from `raw_ref` rewriter - increases Android binary size by
-  // ~350K.
+  // RAW_PTR_EXCLUSION: Binary size increase (~350K on Android).
   RAW_PTR_EXCLUSION Message& message_;
   size_t index_ = kInvalidFragmentIndex;
 };
@@ -107,6 +106,45 @@ struct MessageFragmentArrayTraits {
   }
 };
 
+template <typename ElementType>
+  requires(std::is_arithmetic_v<ElementType> || std::is_enum_v<ElementType>)
+struct MessageFragmentArrayTraits<std::optional<ElementType>> {
+  // We must account for the optional flag bitfield preceding the data.
+  static constexpr uint32_t kMaxNumElements = base::checked_cast<uint32_t>(
+      ((base::CheckedNumeric<uint64_t>(8) *
+            (std::numeric_limits<uint32_t>::max() -
+             sizeof(ArrayHeader)
+             // There may be up to 8 * sizeof(ElementType) - 1 bits of padding
+             // between the bool array tracking engagement and the element array
+             // tracking actual values.
+             - sizeof(ElementType)) +
+        1) /
+       // Each element requires an extra bit to track whether the value is
+       // engaged.
+       (8 * sizeof(ElementType) + 1))
+          .ValueOrDie());
+
+  // The layout for arrays of nullable primitivess are:
+  // |header| |flag bitfield| |values|.
+  // The flag bitfield determines whether or not the value in |values| should
+  // be considered as set. The bitfield is followed by padding, if needed, to
+  // ensure element alignment.
+  static uint32_t GetStorageSize(uint32_t num_elements) {
+    DCHECK_LE(num_elements, kMaxNumElements);
+    return sizeof(ArrayHeader) + GetEngagedBitfieldSize(num_elements) +
+           sizeof(ElementType) * num_elements;
+  }
+
+  // Computes the number of bytes needed to represent the engaged bits for
+  // |num_elements|. Aligned to sizeof(ElementType).
+  static uint32_t GetEngagedBitfieldSize(uint32_t num_elements) {
+    uint32_t bitfield_size = (num_elements + 7) / 8;
+    uint32_t padded_size =
+        base::bits::AlignUp<uint32_t>(bitfield_size, sizeof(ElementType));
+    return padded_size;
+  }
+};
+
 // Bool arrays are packed bit for bit, so e.g. an 8-element bool array requires
 // only a single byte of storage apart from the header.
 template <>
@@ -116,6 +154,23 @@ struct MessageFragmentArrayTraits<bool> {
   static uint32_t GetStorageSize(uint32_t num_elements) {
     DCHECK_LE(num_elements, kMaxNumElements);
     return sizeof(ArrayHeader) + ((num_elements + 7) / 8);
+  }
+};
+
+// Optional bool arrays are two consecutive bitfields.
+template <>
+struct MessageFragmentArrayTraits<std::optional<bool>> {
+  static constexpr uint32_t kMaxNumElements =
+      std::numeric_limits<uint32_t>::max() - 7;
+
+  static uint32_t GetStorageSize(uint32_t num_elements) {
+    DCHECK_LE(num_elements, kMaxNumElements);
+    return sizeof(ArrayHeader) + GetEngagedBitfieldSize(num_elements) +
+           ((num_elements + 7) / 8);
+  }
+
+  static uint32_t GetEngagedBitfieldSize(uint32_t num_elements) {
+    return (num_elements + 7) / 8;
   }
 };
 
@@ -161,8 +216,7 @@ class MessageFragment<Array_Data<T>> {
   }
 
  private:
-  // Exclude from `raw_ref` rewriter - increases Android binary size by
-  // ~350K.
+  // RAW_PTR_EXCLUSION: Binary size increase (~350K on Android).
   RAW_PTR_EXCLUSION Message& message_;
   size_t index_ = kInvalidFragmentIndex;
 };

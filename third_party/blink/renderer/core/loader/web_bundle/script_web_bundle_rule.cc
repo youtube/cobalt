@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/core/loader/web_bundle/script_web_bundle_rule.h"
 
+#include <variant>
+
 #include "base/containers/contains.h"
 #include "base/metrics/histogram_macros.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-blink.h"
@@ -50,20 +52,16 @@ network::mojom::CredentialsMode ParseCredentials(const String& credentials) {
 
 }  // namespace
 
-absl::variant<ScriptWebBundleRule, ScriptWebBundleError>
+std::variant<ScriptWebBundleRule, ScriptWebBundleError>
 ScriptWebBundleRule::ParseJson(const String& inline_text,
                                const KURL& base_url,
                                ConsoleLogger* logger) {
-  // TODO(crbug.com/1264024): Deprecate JSON comments here, if possible.
-  bool has_comments = false;
-  std::unique_ptr<JSONValue> json = ParseJSONWithCommentsDeprecated(
-      inline_text, /*opt_error=*/nullptr, &has_comments);
+  std::unique_ptr<JSONValue> json = ParseJSON(inline_text);
   if (!json) {
     return ScriptWebBundleError(
         ScriptWebBundleError::Type::kSyntaxError,
         "Failed to parse web bundle rule: invalid JSON.");
   }
-  UMA_HISTOGRAM_BOOLEAN("SubresourceWebBundles.HasJSONComments", has_comments);
   std::unique_ptr<JSONObject> json_obj = JSONObject::From(std::move(json));
   if (!json_obj) {
     return ScriptWebBundleError(

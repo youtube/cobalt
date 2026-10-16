@@ -4,7 +4,7 @@
 
 #include "ash/system/overview/overview_button_tray.h"
 
-#include "ash/constants/ash_features.h"
+#include "ash/constants/ash_switches.h"
 #include "ash/constants/tray_background_view_catalog.h"
 #include "ash/public/cpp/shelf_config.h"
 #include "ash/resources/vector_icons/vector_icons.h"
@@ -23,9 +23,14 @@
 #include "ash/wm/window_state.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
+#include "ui/gfx/image/image.h"
+#include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/image_view.h"
@@ -34,13 +39,6 @@
 namespace ash {
 
 namespace {
-
-gfx::ImageSkia GetIconImage() {
-  return gfx::CreateVectorIcon(
-      kShelfOverviewIcon,
-      AshColorProvider::Get()->GetContentLayerColor(
-          AshColorProvider::ContentLayerType::kButtonIconColor));
-}
 
 bool ShouldButtonBeVisible() {
   auto* shell = Shell::Get();
@@ -51,17 +49,7 @@ bool ShouldButtonBeVisible() {
     return false;
   }
 
-  // Check whether the button should be visible for 'kOverviewButton' feature,
-  // which is running as an experiment now. We want to enable it if the user has
-  // explicitly enabled `kOverviewButton` from chrome://flags or from the
-  // command line.
-  // Note: only check whether the feature is overridden from command line if the
-  // FeatureList is initialized.
-  const base::FeatureList* feature_list = base::FeatureList::GetInstance();
-  if ((feature_list && feature_list->IsFeatureOverriddenFromCommandLine(
-                           features::kOverviewButton.name,
-                           base::FeatureList::OVERRIDE_ENABLE_FEATURE)) ||
-      base::FeatureList::IsEnabled(features::kOverviewButton)) {
+  if (switches::IsOverviewButtonEnabledForTests()) {
     return true;
   }
 
@@ -77,15 +65,15 @@ OverviewButtonTray::OverviewButtonTray(Shelf* shelf)
     : TrayBackgroundView(shelf, TrayBackgroundViewCatalogName::kOverview),
       icon_(new views::ImageView()),
       scoped_session_observer_(this) {
-  SetPressedCallback(base::BindRepeating(&OverviewButtonTray::OnButtonPressed,
-                                         base::Unretained(this)));
+  SetCallback(base::BindRepeating(&OverviewButtonTray::OnButtonPressed,
+                                  base::Unretained(this)));
 
   const gfx::ImageSkia image = GetIconImage();
   const int vertical_padding = (kTrayItemSize - image.height()) / 2;
   const int horizontal_padding = (kTrayItemSize - image.width()) / 2;
   icon_->SetBorder(views::CreateEmptyBorder(
       gfx::Insets::VH(vertical_padding, horizontal_padding)));
-  tray_container()->AddChildView(icon_.get());
+  tray_container()->AddChildViewRaw(icon_.get());
 
   // Since OverviewButtonTray is located on the rightmost position of a
   // horizontal shelf, no separator is required.
@@ -96,6 +84,9 @@ OverviewButtonTray::OverviewButtonTray(Shelf* shelf)
   Shell::Get()->overview_controller()->AddObserver(this);
   Shell::Get()->tablet_mode_controller()->AddObserver(this);
   Shell::Get()->shelf_config()->AddObserver(this);
+
+  GetViewAccessibility().SetName(
+      l10n_util::GetStringUTF16(IDS_ASH_OVERVIEW_BUTTON_ACCESSIBLE_NAME));
 }
 
 OverviewButtonTray::~OverviewButtonTray() {
@@ -116,19 +107,14 @@ void OverviewButtonTray::SnapRippleToActivated() {
 
 void OverviewButtonTray::OnGestureEvent(ui::GestureEvent* event) {
   Button::OnGestureEvent(event);
-  // TODO(crbug/1374368): React to long press via `OnButtonPressed()` once this
-  // is enabled.
-  if (event->type() == ui::ET_GESTURE_LONG_PRESS) {
-    // TODO(crbug.com/970013): Properly implement the multi-display behavior (in
-    // tablet position with an external pointing device).
+  // TODO(crbug.com/40242435): React to long press via `OnButtonPressed()` once
+  // this is enabled.
+  if (event->type() == ui::EventType::kGestureLongPress) {
+    // TODO(crbug.com/40630467): Properly implement the multi-display behavior
+    // (in tablet position with an external pointing device).
     SplitViewController::Get(Shell::GetPrimaryRootWindow())
         ->OnOverviewButtonTrayLongPressed(event->location());
   }
-}
-
-void OverviewButtonTray::HandlePerformActionResult(bool action_performed,
-                                                   const ui::Event& event) {
-  // Do nothing, prevent the default ripple handling.
 }
 
 void OverviewButtonTray::OnSessionStateChanged(
@@ -152,10 +138,10 @@ void OverviewButtonTray::OnOverviewModeEnded() {
   SetIsActive(false);
 }
 
-void OverviewButtonTray::ClickedOutsideBubble() {}
+void OverviewButtonTray::ClickedOutsideBubble(const ui::LocatedEvent& event) {}
 
-std::u16string OverviewButtonTray::GetAccessibleNameForTray() {
-  return l10n_util::GetStringUTF16(IDS_ASH_OVERVIEW_BUTTON_ACCESSIBLE_NAME);
+void OverviewButtonTray::UpdateTrayItemColor(bool is_active) {
+  icon_->SetImage(ui::ImageModel::FromImageSkia(GetIconImage()));
 }
 
 void OverviewButtonTray::HandleLocaleChange() {}
@@ -166,13 +152,14 @@ void OverviewButtonTray::HideBubbleWithView(const TrayBubbleView* bubble_view) {
 
 void OverviewButtonTray::OnThemeChanged() {
   TrayBackgroundView::OnThemeChanged();
-  icon_->SetImage(GetIconImage());
+  icon_->SetImage(ui::ImageModel::FromImageSkia(GetIconImage()));
+}
+
+void OverviewButtonTray::HideBubble(const TrayBubbleView* bubble_view) {
+  // This class has no bubbles to hide.
 }
 
 void OverviewButtonTray::OnButtonPressed(const ui::Event& event) {
-  DCHECK(event.type() == ui::ET_MOUSE_RELEASED ||
-         event.type() == ui::ET_GESTURE_TAP);
-
   OverviewController* overview_controller = Shell::Get()->overview_controller();
   // Skip if the second tap happened outside of overview. This can happen if a
   // window gets activated in between, which cancels overview mode.
@@ -217,7 +204,7 @@ void OverviewButtonTray::OnButtonPressed(const ui::Event& event) {
       views::InkDrop::Get(this)->AnimateToState(
           views::InkDropState::DEACTIVATED, nullptr);
       wm::ActivateWindow(new_active_window);
-      last_press_event_time_ = absl::nullopt;
+      last_press_event_time_ = std::nullopt;
       return;
     }
   }
@@ -225,8 +212,8 @@ void OverviewButtonTray::OnButtonPressed(const ui::Event& event) {
   // If not in overview mode record the time of this tap. A subsequent tap will
   // be checked against this to see if we should quick switch.
   last_press_event_time_ = overview_controller->InOverviewSession()
-                               ? absl::nullopt
-                               : absl::make_optional(event.time_stamp());
+                               ? std::nullopt
+                               : std::make_optional(event.time_stamp());
 
   if (overview_controller->InOverviewSession())
     overview_controller->EndOverview(OverviewEndAction::kOverviewButton);
@@ -239,7 +226,20 @@ void OverviewButtonTray::UpdateIconVisibility() {
   SetVisiblePreferred(ShouldButtonBeVisible());
 }
 
-BEGIN_METADATA(OverviewButtonTray, TrayBackgroundView)
+gfx::ImageSkia OverviewButtonTray::GetIconImage() {
+  SkColor color;
+  if (GetColorProvider()) {
+    color = GetColorProvider()->GetColor(
+        is_active() ? cros_tokens::kCrosSysSystemOnPrimaryContainer
+                    : cros_tokens::kCrosSysOnSurface);
+  } else {
+    color = AshColorProvider::Get()->GetContentLayerColor(
+        AshColorProvider::ContentLayerType::kButtonIconColor);
+  }
+  return gfx::CreateVectorIcon(kShelfOverviewIcon, color);
+}
+
+BEGIN_METADATA(OverviewButtonTray)
 END_METADATA
 
 }  // namespace ash

@@ -6,23 +6,21 @@ package org.chromium.chrome.browser.feed;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.content.Context;
 import android.util.DisplayMetrics;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.MeasureSpec;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
-import android.view.accessibility.AccessibilityManager;
 
 import androidx.annotation.IdRes;
-import androidx.annotation.NonNull;
 
 import org.chromium.base.ObserverList;
 import org.chromium.base.metrics.RecordUserAction;
-import org.chromium.chrome.browser.user_education.IPHCommandBuilder;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.user_education.IphCommandBuilder;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
-import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.third_party.android.swiperefresh.CircleImageView;
@@ -32,6 +30,7 @@ import org.chromium.third_party.android.swiperefresh.SwipeRefreshLayout;
  * Makes the modified version of SwipeRefreshLayout support layout, measuring and touch handling
  * of direct child.
  */
+@NullMarked
 public class FeedSwipeRefreshLayout extends SwipeRefreshLayout implements ScrollListener {
     public static final int IPH_WAIT_TIME_MS = 5 * 1000;
     // Offset in dips from the top of the view to where the progress spinner should start.
@@ -43,15 +42,14 @@ public class FeedSwipeRefreshLayout extends SwipeRefreshLayout implements Scroll
     private static final int SPINNER_OFFSET_FROM_BOTTOM = 100;
 
     private final Activity mActivity;
-    @IdRes
-    private final int mAnchorViewId;
-    private View mTarget; // the target of the gesture.
+    @IdRes private final int mAnchorViewId;
+    private @Nullable View mTarget; // the target of the gesture.
     private final int mTouchSlop;
     private final ObserverList<SwipeRefreshLayout.OnRefreshListener> mRefreshListeners =
             new ObserverList<>();
     private float mLastMotionY;
     private boolean mIsBeingDragged;
-    private ScrollableContainerDelegate mScrollableContainerDelegate;
+    private @Nullable ScrollableContainerDelegate mScrollableContainerDelegate;
     private int mHeaderOffset;
 
     /**
@@ -59,70 +57,67 @@ public class FeedSwipeRefreshLayout extends SwipeRefreshLayout implements Scroll
      * @param activity The current {@link Activity}.
      * @param anchorViewId ID of the view below which this layout is anchored.
      */
-    public static FeedSwipeRefreshLayout create(
-            @NonNull Activity activity, @IdRes int anchorViewId) {
+    public static FeedSwipeRefreshLayout create(Activity activity, @IdRes int anchorViewId) {
         FeedSwipeRefreshLayout instance = new FeedSwipeRefreshLayout(activity, anchorViewId);
         instance.setLayoutParams(
                 new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         instance.setProgressBackgroundColorSchemeColor(
-                ChromeColors.getSurfaceColor(activity, R.dimen.default_elevation_2));
+                SemanticColorUtils.getColorSurfaceContainer(activity));
         instance.setColorSchemeColors(SemanticColorUtils.getDefaultControlColorActive(activity));
         instance.setEnabled(false);
         final DisplayMetrics metrics = activity.getResources().getDisplayMetrics();
-        instance.setProgressViewOffset(false, (int) (SPINNER_START_OFFSET * metrics.density),
+        instance.setProgressViewOffset(
+                false,
+                (int) (SPINNER_START_OFFSET * metrics.density),
                 (int) (SPINNER_END_OFFSET * metrics.density));
-        instance.addOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
-            @Override
-            public void onRefresh() {
-                AccessibilityManager accessibilityManager =
-                        (AccessibilityManager) instance.getContext().getSystemService(
-                                Context.ACCESSIBILITY_SERVICE);
-                if (accessibilityManager != null && accessibilityManager.isEnabled()) {
-                    try {
-                        accessibilityManager.interrupt();
-                    } catch (NullPointerException e) {
-                        // The interrupt call can throw an exception due to a framework bug
-                        // (http://b/32507871).
+        instance.addOnRefreshListener(
+                new SwipeRefreshLayout.OnRefreshListener() {
+                    @Override
+                    public void onRefresh() {
+                        instance.setAccessibilityLiveRegion(ACCESSIBILITY_LIVE_REGION_ASSERTIVE);
+                        instance.setContentDescription(
+                                activity.getResources()
+                                        .getString(R.string.accessibility_swipe_refresh));
+                        RecordUserAction.record("MobilePullGestureReloadNTP");
                     }
-                    instance.announceForAccessibility(activity.getResources().getString(
-                            R.string.accessibility_swipe_refresh));
-                }
-                RecordUserAction.record("MobilePullGestureReloadNTP");
-            }
-        });
+                });
         return instance;
     }
 
-    private FeedSwipeRefreshLayout(@NonNull Activity activity, @IdRes int anchorViewId) {
+    private FeedSwipeRefreshLayout(Activity activity, @IdRes int anchorViewId) {
         super(activity);
         mActivity = activity;
         mAnchorViewId = anchorViewId;
         mTouchSlop = ViewConfiguration.get(activity).getScaledTouchSlop();
 
-        setOnRefreshListener(new OnRefreshListener() {
-            @Override
-            public void onRefresh() {
-                for (OnRefreshListener listener : mRefreshListeners) {
-                    listener.onRefresh();
-                }
-            }
-        });
+        setOnRefreshListener(
+                new OnRefreshListener() {
+                    @Override
+                    public void onRefresh() {
+                        for (OnRefreshListener listener : mRefreshListeners) {
+                            listener.onRefresh();
+                        }
+                    }
+                });
     }
 
     /** Shows an IPH. */
-    public void showIPH(UserEducationHelper helper) {
+    public void showIph(UserEducationHelper helper) {
         ViewGroup contentContainer = mActivity.findViewById(android.R.id.content);
         if (contentContainer == null) return;
         // Only toolbar_container view appears in both NTP and start surface.
         View toolbarView = contentContainer.findViewById(mAnchorViewId);
         if (toolbarView == null) return;
-        helper.requestShowIPH(new IPHCommandBuilder(getContext().getResources(),
-                FeatureConstants.FEED_SWIPE_REFRESH_FEATURE, R.string.feed_swipe_refresh_iph,
-                R.string.accessibility_feed_swipe_refresh_iph)
-                                      .setAnchorView(toolbarView)
-                                      .setDismissOnTouch(true)
-                                      .setAutoDismissTimeout(IPH_WAIT_TIME_MS)
-                                      .build());
+        helper.requestShowIph(
+                new IphCommandBuilder(
+                                getContext().getResources(),
+                                FeatureConstants.FEED_SWIPE_REFRESH_FEATURE,
+                                R.string.feed_swipe_refresh_iph,
+                                R.string.accessibility_feed_swipe_refresh_iph)
+                        .setAnchorView(toolbarView)
+                        .setDismissOnTouch(true)
+                        .setAutoDismissTimeout(IPH_WAIT_TIME_MS)
+                        .build());
     }
 
     /**
@@ -139,9 +134,7 @@ public class FeedSwipeRefreshLayout extends SwipeRefreshLayout implements Scroll
         }
     }
 
-    /**
-     * Disables the swipe gesture.
-     */
+    /** Disables the swipe gesture. */
     public void disableSwipe() {
         if (!isEnabled()) return;
         setEnabled(false);
@@ -175,8 +168,11 @@ public class FeedSwipeRefreshLayout extends SwipeRefreshLayout implements Scroll
     public void startRefreshingAtTheBottom() {
         final DisplayMetrics metrics = mActivity.getResources().getDisplayMetrics();
         // The offset will limited to show the spiiner as high as the vertical middle of the view.
-        int offset = Math.max(metrics.heightPixels / 2,
-                metrics.heightPixels - ((int) (SPINNER_OFFSET_FROM_BOTTOM * metrics.density)));
+        int offset =
+                Math.max(
+                        metrics.heightPixels / 2,
+                        metrics.heightPixels
+                                - ((int) (SPINNER_OFFSET_FROM_BOTTOM * metrics.density)));
         setProgressViewEndTarget(false, offset);
         setRefreshing(true);
         setProgressViewEndTarget(false, (int) (SPINNER_END_OFFSET * metrics.density));
@@ -228,9 +224,10 @@ public class FeedSwipeRefreshLayout extends SwipeRefreshLayout implements Scroll
         if (mTarget == null) {
             return;
         }
-        mTarget.measure(MeasureSpec.makeMeasureSpec(
-                                getMeasuredWidth() - getPaddingLeft() - getPaddingRight(),
-                                MeasureSpec.EXACTLY),
+        mTarget.measure(
+                MeasureSpec.makeMeasureSpec(
+                        getMeasuredWidth() - getPaddingLeft() - getPaddingRight(),
+                        MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(
                         getMeasuredHeight() - getPaddingTop() - getPaddingBottom(),
                         MeasureSpec.EXACTLY));
@@ -252,28 +249,30 @@ public class FeedSwipeRefreshLayout extends SwipeRefreshLayout implements Scroll
 
         final int action = event.getAction();
         switch (action) {
-            case MotionEvent.ACTION_DOWN: {
-                mIsBeingDragged = false;
-                final float y = event.getY();
-                if (y == -1) {
-                    return false;
+            case MotionEvent.ACTION_DOWN:
+                {
+                    mIsBeingDragged = false;
+                    final float y = event.getY();
+                    if (y == -1) {
+                        return false;
+                    }
+                    mLastMotionY = y;
+                    break;
                 }
-                mLastMotionY = y;
-                break;
-            }
 
-            case MotionEvent.ACTION_MOVE: {
-                final float y = event.getY();
-                if (y == -1) {
-                    return false;
+            case MotionEvent.ACTION_MOVE:
+                {
+                    final float y = event.getY();
+                    if (y == -1) {
+                        return false;
+                    }
+                    final float yDiff = y - mLastMotionY;
+                    if (yDiff > mTouchSlop && !mIsBeingDragged) {
+                        mIsBeingDragged = true;
+                        start();
+                    }
+                    break;
                 }
-                final float yDiff = y - mLastMotionY;
-                if (yDiff > mTouchSlop && !mIsBeingDragged) {
-                    mIsBeingDragged = true;
-                    start();
-                }
-                break;
-            }
 
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:

@@ -10,22 +10,24 @@
 
 #include "modules/audio_processing/aec3/transparent_mode.h"
 
+#include "api/environment/environment.h"
+#include "api/field_trials_view.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "system_wrappers/include/field_trial.h"
 
 namespace webrtc {
 namespace {
 
 constexpr size_t kBlocksSinceConvergencedFilterInit = 10000;
 constexpr size_t kBlocksSinceConsistentEstimateInit = 10000;
+constexpr float kInitialTransparentStateProbability = 0.2f;
 
-bool DeactivateTransparentMode() {
-  return field_trial::IsEnabled("WebRTC-Aec3TransparentModeKillSwitch");
+bool DeactivateTransparentMode(const FieldTrialsView& field_trials) {
+  return field_trials.IsEnabled("WebRTC-Aec3TransparentModeKillSwitch");
 }
 
-bool ActivateTransparentModeHmm() {
-  return field_trial::IsEnabled("WebRTC-Aec3TransparentModeHmm");
+bool ActivateTransparentModeHmm(const FieldTrialsView& field_trials) {
+  return field_trials.IsEnabled("WebRTC-Aec3TransparentModeHmm");
 }
 
 }  // namespace
@@ -41,16 +43,16 @@ class TransparentModeImpl : public TransparentMode {
     transparency_activated_ = false;
 
     // The estimated probability of being transparent mode.
-    prob_transparent_state_ = 0.f;
+    prob_transparent_state_ = kInitialTransparentStateProbability;
   }
 
-  void Update(int filter_delay_blocks,
-              bool any_filter_consistent,
-              bool any_filter_converged,
+  void Update(int /* filter_delay_blocks */,
+              bool /* any_filter_consistent */,
+              bool /* any_filter_converged */,
               bool any_coarse_filter_converged,
-              bool all_filters_diverged,
+              bool /* all_filters_diverged */,
               bool active_render,
-              bool saturated_capture) override {
+              bool /* saturated_capture */) override {
     // The classifier is implemented as a Hidden Markov Model (HMM) with two
     // hidden states: "normal" and "transparent". The estimated probabilities of
     // the two states are updated by observing filter convergence during active
@@ -118,7 +120,7 @@ class TransparentModeImpl : public TransparentMode {
 
  private:
   bool transparency_activated_ = false;
-  float prob_transparent_state_ = 0.f;
+  float prob_transparent_state_ = kInitialTransparentStateProbability;
 };
 
 // Legacy classifier for toggling transparent mode.
@@ -144,7 +146,7 @@ class LegacyTransparentModeImpl : public TransparentMode {
   void Update(int filter_delay_blocks,
               bool any_filter_consistent,
               bool any_filter_converged,
-              bool any_coarse_filter_converged,
+              bool /* any_coarse_filter_converged */,
               bool all_filters_diverged,
               bool active_render,
               bool saturated_capture) override {
@@ -227,12 +229,14 @@ class LegacyTransparentModeImpl : public TransparentMode {
 };
 
 std::unique_ptr<TransparentMode> TransparentMode::Create(
+    const Environment& env,
     const EchoCanceller3Config& config) {
-  if (config.ep_strength.bounded_erl || DeactivateTransparentMode()) {
+  if (config.ep_strength.bounded_erl ||
+      DeactivateTransparentMode(env.field_trials())) {
     RTC_LOG(LS_INFO) << "AEC3 Transparent Mode: Disabled";
     return nullptr;
   }
-  if (ActivateTransparentModeHmm()) {
+  if (ActivateTransparentModeHmm(env.field_trials())) {
     RTC_LOG(LS_INFO) << "AEC3 Transparent Mode: HMM";
     return std::make_unique<TransparentModeImpl>();
   }

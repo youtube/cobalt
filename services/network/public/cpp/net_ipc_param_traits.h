@@ -25,12 +25,10 @@
 #include "net/cert/signed_certificate_timestamp_and_status.h"
 #include "net/cert/x509_certificate.h"
 #include "net/dns/public/resolve_error_info.h"
+#include "net/http/http_connection_info.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
-#include "net/http/http_response_info.h"
-#include "net/http/http_version.h"
 #include "net/nqe/effective_connection_type.h"
-#include "net/ssl/ssl_cert_request_info.h"
 #include "net/ssl/ssl_info.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/url_request/redirect_info.h"
@@ -88,17 +86,6 @@ struct COMPONENT_EXPORT(NETWORK_CPP_NETWORK_PARAM) ParamTraits<net::HashValue> {
 
 template <>
 struct COMPONENT_EXPORT(NETWORK_CPP_NETWORK_PARAM)
-    ParamTraits<net::HostPortPair> {
-  typedef net::HostPortPair param_type;
-  static void Write(base::Pickle* m, const param_type& p);
-  static bool Read(const base::Pickle* m,
-                   base::PickleIterator* iter,
-                   param_type* r);
-  static void Log(const param_type& p, std::string* l);
-};
-
-template <>
-struct COMPONENT_EXPORT(NETWORK_CPP_NETWORK_PARAM)
     ParamTraits<net::IPEndPoint> {
   typedef net::IPEndPoint param_type;
   static void Write(base::Pickle* m, const param_type& p);
@@ -131,19 +118,8 @@ struct COMPONENT_EXPORT(NETWORK_CPP_NETWORK_PARAM)
 
 template <>
 struct COMPONENT_EXPORT(NETWORK_CPP_NETWORK_PARAM)
-    ParamTraits<net::ProxyServer> {
-  typedef net::ProxyServer param_type;
-  static void Write(base::Pickle* m, const param_type& p);
-  static bool Read(const base::Pickle* m,
-                   base::PickleIterator* iter,
-                   param_type* r);
-  static void Log(const param_type& p, std::string* l);
-};
-
-template <>
-struct COMPONENT_EXPORT(NETWORK_CPP_NETWORK_PARAM)
-    ParamTraits<net::OCSPVerifyResult> {
-  typedef net::OCSPVerifyResult param_type;
+    ParamTraits<bssl::OCSPVerifyResult> {
+  typedef bssl::OCSPVerifyResult param_type;
   static void Write(base::Pickle* m, const param_type& p);
   static bool Read(const base::Pickle* m,
                    base::PickleIterator* iter,
@@ -155,17 +131,6 @@ template <>
 struct COMPONENT_EXPORT(NETWORK_CPP_NETWORK_PARAM)
     ParamTraits<net::ResolveErrorInfo> {
   typedef net::ResolveErrorInfo param_type;
-  static void Write(base::Pickle* m, const param_type& p);
-  static bool Read(const base::Pickle* m,
-                   base::PickleIterator* iter,
-                   param_type* r);
-  static void Log(const param_type& p, std::string* l);
-};
-
-template <>
-struct COMPONENT_EXPORT(NETWORK_CPP_NETWORK_PARAM)
-    ParamTraits<scoped_refptr<net::SSLCertRequestInfo>> {
-  typedef scoped_refptr<net::SSLCertRequestInfo> param_type;
   static void Write(base::Pickle* m, const param_type& p);
   static bool Read(const base::Pickle* m,
                    base::PickleIterator* iter,
@@ -263,22 +228,25 @@ struct COMPONENT_EXPORT(NETWORK_CPP_NETWORK_PARAM)
 
 #endif  // INTERNAL_SERVICES_NETWORK_PUBLIC_CPP_NET_IPC_PARAM_TRAITS_H_
 
+// TODO(crbug.com/408018829): convert these to normal mojom EnumTraits
+// LINT.IfChange(CTPolicyCompliance)
 IPC_ENUM_TRAITS_MAX_VALUE(
     net::ct::CTPolicyCompliance,
     net::ct::CTPolicyCompliance::CT_POLICY_COMPLIANCE_DETAILS_NOT_AVAILABLE)
+// LINT.ThenChange(/net/cert/ct_policy_status.h:CTPolicyCompliance)
+
+IPC_ENUM_TRAITS_MAX_VALUE(net::ct::CTRequirementsStatus,
+                          net::ct::CTRequirementsStatus::kMaxValue)
 
 IPC_ENUM_TRAITS(net::ProxyServer::Scheme)  // BitMask.
 
-IPC_ENUM_TRAITS_MAX_VALUE(net::OCSPVerifyResult::ResponseStatus,
-                          net::OCSPVerifyResult::PARSE_RESPONSE_DATA_ERROR)
-IPC_ENUM_TRAITS_MAX_VALUE(net::OCSPRevocationStatus,
-                          net::OCSPRevocationStatus::UNKNOWN)
+IPC_ENUM_TRAITS_MAX_VALUE(bssl::OCSPVerifyResult::ResponseStatus,
+                          bssl::OCSPVerifyResult::PARSE_RESPONSE_DATA_ERROR)
+IPC_ENUM_TRAITS_MAX_VALUE(bssl::OCSPRevocationStatus,
+                          bssl::OCSPRevocationStatus::UNKNOWN)
 
 IPC_ENUM_TRAITS_MAX_VALUE(net::ct::SCTVerifyStatus, net::ct::SCT_STATUS_MAX)
 IPC_ENUM_TRAITS_MAX_VALUE(net::RequestPriority, net::MAXIMUM_PRIORITY)
-
-IPC_ENUM_TRAITS_MAX_VALUE(net::SSLClientCertType,
-                          net::SSLClientCertType::kMaxValue)
 
 IPC_ENUM_TRAITS_MAX_VALUE(net::SSLInfo::HandshakeType,
                           net::SSLInfo::HANDSHAKE_FULL)
@@ -308,10 +276,11 @@ IPC_STRUCT_TRAITS_BEGIN(net::RedirectInfo)
   IPC_STRUCT_TRAITS_MEMBER(insecure_scheme_was_upgraded)
   IPC_STRUCT_TRAITS_MEMBER(is_signed_exchange_fallback_redirect)
   IPC_STRUCT_TRAITS_MEMBER(new_referrer_policy)
+  IPC_STRUCT_TRAITS_MEMBER(critical_ch_restart_time)
 IPC_STRUCT_TRAITS_END()
 
-IPC_ENUM_TRAITS_MAX_VALUE(net::HttpResponseInfo::ConnectionInfo,
-                          net::HttpResponseInfo::NUM_OF_CONNECTION_INFOS - 1)
+IPC_ENUM_TRAITS_MAX_VALUE(net::HttpConnectionInfo,
+                          net::HttpConnectionInfo::kMaxValue)
 
 IPC_ENUM_TRAITS_MAX_VALUE(net::EffectiveConnectionType,
                           net::EFFECTIVE_CONNECTION_TYPE_LAST - 1)

@@ -4,6 +4,11 @@
 
 #include "components/omnibox/browser/bookmark_provider.h"
 
+#include <array>
+
+#include "components/query_parser/query_parser.h"
+#include "third_party/omnibox_proto/groups.pb.h"
+
 #include <stddef.h>
 
 #include <memory>
@@ -21,10 +26,10 @@
 #include "components/bookmarks/test/test_bookmark_client.h"
 #include "components/omnibox/browser/mock_autocomplete_provider_client.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
-#include "components/omnibox/browser/omnibox_triggered_feature_service.h"
 #include "components/omnibox/browser/test_scheme_classifier.h"
 #include "components/omnibox/browser/titled_url_match_utils.h"
 #include "components/omnibox/common/omnibox_features.h"
+#include "components/search_engines/search_engines_test_environment.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/search_engines/template_url_starter_pack_data.h"
@@ -43,7 +48,8 @@ namespace {
 struct BookmarksTestInfo {
   std::string title;
   std::string url;
-} bookmark_provider_test_data[] = {
+};
+auto bookmark_provider_test_data = std::to_array<BookmarksTestInfo>({
     {"abc def", "http://www.catsanddogs.com/a"},
     {"abcde", "http://www.catsanddogs.com/b"},
     {"abcdef", "http://www.catsanddogs.com/c"},
@@ -93,7 +99,7 @@ struct BookmarksTestInfo {
     {"zyx7", "http://randomsite.com/zyx7"},
     {"zyx8", "http://randomsite.com/zyx8"},
     {"zyx9", "http://randomsite.com/zyx9"},
-};
+});
 
 // Structures and functions supporting the BookmarkProviderTest.Positions
 // unit test.
@@ -175,77 +181,58 @@ class BookmarkProviderTest : public testing::Test {
  protected:
   void SetUp() override;
 
-  // Invokes |Start()| with |input_text| and verifies the number of matches
-  // returned and whether |expected_triggered_feature| was triggered. If
-  // |expected_triggered_feature| is empty, verifies no feature was triggered.
-  void TestNumMatchesAndTriggeredFeature(
-      std::string input_text,
-      size_t expected_matches_count,
-      std::vector<OmniboxTriggeredFeatureService::Feature>
-          expected_triggered_features = {});
+  // Starts fresh with a new BookmarkProvider.
+  void ResetProvider();
 
+  // Invokes |Start()| with |input_text| and returns the number of matches
+  // provided.
+  [[nodiscard]] size_t GetNumMatches(std::string input_text);
+
+  search_engines::SearchEnginesTestEnvironment search_engines_test_environment_;
   std::unique_ptr<MockAutocompleteProviderClient> provider_client_;
-  std::unique_ptr<BookmarkModel> model_;
+  std::unique_ptr<BookmarkModel> local_or_syncable_model_;
   scoped_refptr<BookmarkProvider> provider_;
   TestSchemeClassifier classifier_;
 };
 
 BookmarkProviderTest::BookmarkProviderTest() {
-  model_ = bookmarks::TestBookmarkClient::CreateModel();
+  local_or_syncable_model_ = bookmarks::TestBookmarkClient::CreateModel();
 }
 
 void BookmarkProviderTest::SetUp() {
   provider_client_ = std::make_unique<MockAutocompleteProviderClient>();
-  EXPECT_CALL(*provider_client_, GetLocalOrSyncableBookmarkModel())
-      .WillRepeatedly(testing::Return(model_.get()));
-  EXPECT_CALL(*provider_client_, GetSchemeClassifier())
-      .WillRepeatedly(testing::ReturnRef(classifier_));
+  ON_CALL(*provider_client_, GetBookmarkModel())
+      .WillByDefault(testing::Return(local_or_syncable_model_.get()));
+  ON_CALL(*provider_client_, GetSchemeClassifier())
+      .WillByDefault(testing::ReturnRef(classifier_));
 
   provider_client_->set_template_url_service(
-      std::make_unique<TemplateURLService>(nullptr, 0));
+      search_engines_test_environment_.template_url_service());
 
-  provider_ = new BookmarkProvider(provider_client_.get());
-  const BookmarkNode* other_node = model_->other_node();
+  ResetProvider();
+
+  const BookmarkNode* other_node = local_or_syncable_model_->other_node();
   for (size_t i = 0; i < std::size(bookmark_provider_test_data); ++i) {
     const BookmarksTestInfo& cur(bookmark_provider_test_data[i]);
     const GURL url(cur.url);
-    model_->AddURL(other_node, other_node->children().size(),
-                   base::ASCIIToUTF16(cur.title), url);
+    local_or_syncable_model_->AddURL(other_node, other_node->children().size(),
+                                     base::ASCIIToUTF16(cur.title), url);
   }
 }
 
-void BookmarkProviderTest::TestNumMatchesAndTriggeredFeature(
-    std::string input_text,
-    size_t expected_matches_count,
-    std::vector<OmniboxTriggeredFeatureService::Feature>
-        expected_triggered_features) {
-  SCOPED_TRACE("[" + input_text + "]");  // Wrap |input_text| in `[]` to make
-                                         // trailing whitespace apparent.
+void BookmarkProviderTest::ResetProvider() {
+  provider_ = new BookmarkProvider(provider_client_.get());
+}
 
-  auto* triggered_feature_service =
-      provider_client_->GetOmniboxTriggeredFeatureService();
-  triggered_feature_service->ResetSession();
+size_t BookmarkProviderTest::GetNumMatches(std::string input_text) {
   AutocompleteInput input(base::UTF8ToUTF16(input_text),
                           metrics::OmniboxEventProto::OTHER,
                           TestSchemeClassifier());
-  provider_->Start(input, false);
-  EXPECT_EQ(provider_->matches().size(), expected_matches_count);
-
-  OmniboxTriggeredFeatureService::Features features_triggered;
-  OmniboxTriggeredFeatureService::Features features_triggered_in_session;
-  triggered_feature_service->RecordToLogs(&features_triggered,
-                                          &features_triggered_in_session);
-  triggered_feature_service->ResetSession();
-  EXPECT_THAT(features_triggered,
-              testing::UnorderedElementsAreArray(expected_triggered_features));
-  EXPECT_THAT(features_triggered_in_session,
-              testing::UnorderedElementsAreArray(expected_triggered_features));
+  provider_->Start(input, /*minimal_changes=*/false);
+  return provider_->matches().size();
 }
 
 TEST_F(BookmarkProviderTest, Positions) {
-  base::test::ScopedFeatureList feature_list{
-      omnibox::kShortBookmarkSuggestionsByTotalInputLength};
-
   // Simulate searches.
   // Description of |positions|:
   //   The first index represents the collection of positions for each expected
@@ -313,7 +300,7 @@ TEST_F(BookmarkProviderTest, Positions) {
     AutocompleteInput input(base::ASCIIToUTF16(query.query),
                             metrics::OmniboxEventProto::OTHER,
                             TestSchemeClassifier());
-    provider_->Start(input, false);
+    provider_->Start(input, /*minimal_changes=*/false);
     const ACMatches& matches(provider_->matches());
     // Validate number of results is as expected.
     EXPECT_LE(matches.size(), query.positions_per_match.size())
@@ -344,8 +331,8 @@ TEST_F(BookmarkProviderTest, Rankings) {
     const size_t match_count;
     // |matches| specifies the titles for all bookmarks expected to be matched
     // by the |query|
-    const std::string matches[3];
-  } query_data[] = {
+    const std::array<std::string, 3> matches;
+  } query_datas[] = {
       // Basic ranking test.
       {"abc",
        3,
@@ -391,30 +378,30 @@ TEST_F(BookmarkProviderTest, Rankings) {
         "burning worms #2"}},  // not boosted
   };
 
-  for (size_t i = 0; i < std::size(query_data); ++i) {
-    AutocompleteInput input(base::ASCIIToUTF16(query_data[i].query),
+  for (auto& query_data : query_datas) {
+    AutocompleteInput input(base::ASCIIToUTF16(query_data.query),
                             metrics::OmniboxEventProto::OTHER,
                             TestSchemeClassifier());
-    provider_->Start(input, false);
+    provider_->Start(input, /*minimal_changes=*/false);
     const ACMatches& matches(provider_->matches());
     // Validate number and content of results is as expected.
-    for (size_t j = 0; j < std::max(query_data[i].match_count, matches.size());
+    for (size_t j = 0; j < std::max(query_data.match_count, matches.size());
          ++j) {
-      EXPECT_LT(j, query_data[i].match_count)
+      EXPECT_LT(j, query_data.match_count)
           << "    Unexpected match '"
           << base::UTF16ToUTF8(matches[j].description) << "' for query: '"
-          << query_data[i].query << "'.";
-      if (j >= query_data[i].match_count)
+          << query_data.query << "'.";
+      if (j >= query_data.match_count)
         continue;
       EXPECT_LT(j, matches.size())
-          << "    Missing match '" << query_data[i].matches[j]
-          << "' for query: '" << query_data[i].query << "'.";
+          << "    Missing match '" << query_data.matches[j] << "' for query: '"
+          << query_data.query << "'.";
       if (j >= matches.size())
         continue;
-      EXPECT_EQ(query_data[i].matches[j],
+      EXPECT_EQ(query_data.matches[j],
                 base::UTF16ToUTF8(matches[j].description))
           << "    Mismatch at [" << base::NumberToString(j) << "] for query '"
-          << query_data[i].query << "'.";
+          << query_data.query << "'.";
     }
   }
 }
@@ -426,7 +413,8 @@ TEST_F(BookmarkProviderTest, InlineAutocompletion) {
     const std::string url;
     const bool allowed_to_be_default_match;
     const std::string inline_autocompletion;
-  } query_data[] = {
+  };
+  auto query_data = std::to_array<QueryData>({
       {"bla", "http://blah.com/", true, "h.com"},
       {"blah ", "http://blah.com/", false, ".com"},
       {"http://bl", "http://blah.com/", true, "ah.com"},
@@ -443,7 +431,7 @@ TEST_F(BookmarkProviderTest, InlineAutocompletion) {
       // need to be in the bookmarks list because BookmarkProvider's
       // TitleMatchToACMatch() has an assertion that verifies the URL is
       // actually bookmarked.
-  };
+  });
 
   for (size_t i = 0; i < std::size(query_data); ++i) {
     const std::string description =
@@ -480,7 +468,8 @@ TEST_F(BookmarkProviderTest, StripHttpAndAdjustOffsets) {
     const std::string expected_contents;
     // |expected_contents_class| is in format offset:style,offset:style,...
     const std::string expected_contents_class;
-  } query_data[] = {
+  };
+  auto query_data = std::to_array<QueryData>({
       // clang-format off
     { "foo",       "foobar.com",              "0:3,3:1"                    },
     { "www foo",   "www.foobar.com",          "0:3,3:1,4:3,7:1"            },
@@ -493,14 +482,14 @@ TEST_F(BookmarkProviderTest, StripHttpAndAdjustOffsets) {
     { "rep",       "repeat.com/1/repeat/2/",  "0:3,3:1"                    },
     { "versi",     "chrome://version",        "0:1,9:3,14:1"               },
       // clang-format on
-  };
+  });
 
   for (size_t i = 0; i < std::size(query_data); ++i) {
     std::string description = "for query=" + query_data[i].query;
     AutocompleteInput input(base::ASCIIToUTF16(query_data[i].query),
                             metrics::OmniboxEventProto::OTHER,
                             TestSchemeClassifier());
-    provider_->Start(input, false);
+    provider_->Start(input, /*minimal_changes=*/false);
     const ACMatches& matches(provider_->matches());
     ASSERT_EQ(1U, matches.size()) << description;
     const AutocompleteMatch& match = matches[0];
@@ -538,7 +527,7 @@ TEST_F(BookmarkProviderTest, DoesNotProvideMatchesOnFocus) {
   AutocompleteInput input(u"foo", metrics::OmniboxEventProto::OTHER,
                           TestSchemeClassifier());
   input.set_focus_type(metrics::OmniboxFocusType::INTERACTION_FOCUS);
-  provider_->Start(input, false);
+  provider_->Start(input, /*minimal_changes=*/false);
   EXPECT_TRUE(provider_->matches().empty());
 }
 
@@ -547,199 +536,22 @@ TEST_F(BookmarkProviderTest, ShortBookmarks) {
   // be allowed to prefix match. These tests are trying to match the mock
   // bookmark "testing short bookmarks".
 
-  auto short_feature = metrics::
-      OmniboxEventProto_Feature_SHORT_BOOKMARK_SUGGESTIONS_BY_TOTAL_INPUT_LENGTH;
-
-  {
-    SCOPED_TRACE("Default.");
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndDisableFeature(
-        omnibox::kShortBookmarkSuggestionsByTotalInputLength);
-    TestNumMatchesAndTriggeredFeature("te", 0);
-    TestNumMatchesAndTriggeredFeature("te ", 0);
-    TestNumMatchesAndTriggeredFeature("tes", 1);
-    TestNumMatchesAndTriggeredFeature("te sh bo", 0);
-  }
-
-  {
-    SCOPED_TRACE("Short bookmarks enabled.");
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndEnableFeature(omnibox::kShortBookmarkSuggestions);
-    TestNumMatchesAndTriggeredFeature("te", 1);
-    TestNumMatchesAndTriggeredFeature("te ", 1);
-    TestNumMatchesAndTriggeredFeature("tes", 1);
-    TestNumMatchesAndTriggeredFeature("te sh bo", 1);
-  }
-
-  {
-    SCOPED_TRACE("Short bookmarks for long inputs enabled.");
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndEnableFeature(
-        omnibox::kShortBookmarkSuggestionsByTotalInputLength);
-    TestNumMatchesAndTriggeredFeature("te", 0);
-    TestNumMatchesAndTriggeredFeature("te ", 1, {short_feature});
-    TestNumMatchesAndTriggeredFeature("tes", 1, {short_feature});
-    TestNumMatchesAndTriggeredFeature("te sh bo", 1, {short_feature});
-  }
-
-  {
-    SCOPED_TRACE("Short bookmarks for long inputs enabled with threshold 5.");
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndEnableFeatureWithParameters(
-        omnibox::kShortBookmarkSuggestionsByTotalInputLength,
-        {{OmniboxFieldTrial::
-              kShortBookmarkSuggestionsByTotalInputLengthThreshold.name,
-          "5"}});
-    TestNumMatchesAndTriggeredFeature("te", 0);
-    TestNumMatchesAndTriggeredFeature("te ", 0);
-    TestNumMatchesAndTriggeredFeature("te   ", 1, {short_feature});
-    TestNumMatchesAndTriggeredFeature("tes", 1);
-    TestNumMatchesAndTriggeredFeature("te sh bo", 1, {short_feature});
-  }
-
-  {
-    SCOPED_TRACE("Short bookmarks for long inputs counterfactual.");
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndEnableFeatureWithParameters(
-        omnibox::kShortBookmarkSuggestionsByTotalInputLength,
-        {{OmniboxFieldTrial::
-              kShortBookmarkSuggestionsByTotalInputLengthCounterfactual.name,
-          "true"}});
-    TestNumMatchesAndTriggeredFeature("te", 0);
-    TestNumMatchesAndTriggeredFeature("te ", 0, {short_feature});
-    TestNumMatchesAndTriggeredFeature("tes", 1, {short_feature});
-    TestNumMatchesAndTriggeredFeature("te sh bo", 0, {short_feature});
-  }
-
-  {
-    SCOPED_TRACE(
-        "Short bookmarks for long inputs counterfactual with threshold 5.");
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndEnableFeatureWithParameters(
-        omnibox::kShortBookmarkSuggestionsByTotalInputLength,
-        {{OmniboxFieldTrial::
-              kShortBookmarkSuggestionsByTotalInputLengthThreshold.name,
-          "5"},
-         {OmniboxFieldTrial::
-              kShortBookmarkSuggestionsByTotalInputLengthCounterfactual.name,
-          "true"}});
-    TestNumMatchesAndTriggeredFeature("te", 0);
-    TestNumMatchesAndTriggeredFeature("te ", 0);
-    TestNumMatchesAndTriggeredFeature("te   ", 0, {short_feature});
-    TestNumMatchesAndTriggeredFeature("tes", 1);
-    TestNumMatchesAndTriggeredFeature("te sh bo", 0, {short_feature});
-  }
-
-  {
-    SCOPED_TRACE("Shortcut non-prefix rich autocompletion enabled.");
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitWithFeaturesAndParameters(
-        {{omnibox::kRichAutocompletion,
-          {{OmniboxFieldTrial::kRichAutocompletionAutocompleteTitlesMinChar
-                .name,
-            "4"},
-           {OmniboxFieldTrial::kRichAutocompletionAutocompleteNonPrefixMinChar
-                .name,
-            "5"},
-           {OmniboxFieldTrial::
-                kRichAutocompletionAutocompleteNonPrefixShortcutProvider.name,
-            "true"}}}},
-        {omnibox::kShortBookmarkSuggestionsByTotalInputLength});
-    TestNumMatchesAndTriggeredFeature("te", 0);
-    TestNumMatchesAndTriggeredFeature("te ", 0);
-    TestNumMatchesAndTriggeredFeature("te   ", 0);
-    TestNumMatchesAndTriggeredFeature("tes", 1);
-    TestNumMatchesAndTriggeredFeature("te sh bo", 0);
-  }
-
-  {
-    SCOPED_TRACE("Non-prefix rich autocompletion enabled with limit 5.");
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitWithFeaturesAndParameters(
-        {{omnibox::kRichAutocompletion,
-          {{OmniboxFieldTrial::kRichAutocompletionAutocompleteTitlesMinChar
-                .name,
-            "4"},
-           {OmniboxFieldTrial::kRichAutocompletionAutocompleteNonPrefixMinChar
-                .name,
-            "5"},
-           {OmniboxFieldTrial::kRichAutocompletionAutocompleteNonPrefixAll.name,
-            "true"}}}},
-        {omnibox::kShortBookmarkSuggestionsByTotalInputLength});
-    TestNumMatchesAndTriggeredFeature("te", 0);
-    TestNumMatchesAndTriggeredFeature("te ", 0);
-    TestNumMatchesAndTriggeredFeature("te   ", 1, {short_feature});
-    TestNumMatchesAndTriggeredFeature("tes", 1);
-    TestNumMatchesAndTriggeredFeature("te sh bo", 1, {short_feature});
-  }
-
-  {
-    SCOPED_TRACE("Title rich autocompletion enabled with limit 4.");
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitWithFeaturesAndParameters(
-        {{omnibox::kRichAutocompletion,
-          {{OmniboxFieldTrial::kRichAutocompletionAutocompleteTitlesMinChar
-                .name,
-            "4"},
-           {OmniboxFieldTrial::kRichAutocompletionAutocompleteNonPrefixMinChar
-                .name,
-            "5"},
-           {OmniboxFieldTrial::kRichAutocompletionAutocompleteTitles.name,
-            "true"}}}},
-        {omnibox::kShortBookmarkSuggestionsByTotalInputLength});
-    TestNumMatchesAndTriggeredFeature("te", 0);
-    TestNumMatchesAndTriggeredFeature("te ", 0);
-    TestNumMatchesAndTriggeredFeature("te  ", 1, {short_feature});
-    TestNumMatchesAndTriggeredFeature("tes", 1);
-    TestNumMatchesAndTriggeredFeature("te sh bo", 1, {short_feature});
-  }
-
-  {
-    SCOPED_TRACE(
-        "Title and non-prefix rich autocompletion enabled with limits 4 and "
-        "5.");
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitWithFeaturesAndParameters(
-        {{omnibox::kRichAutocompletion,
-          {{OmniboxFieldTrial::kRichAutocompletionAutocompleteTitlesMinChar
-                .name,
-            "4"},
-           {OmniboxFieldTrial::kRichAutocompletionAutocompleteNonPrefixMinChar
-                .name,
-            "5"},
-           {OmniboxFieldTrial::kRichAutocompletionAutocompleteNonPrefixMinChar
-                .name,
-            "true"},
-           {OmniboxFieldTrial::kRichAutocompletionAutocompleteTitles.name,
-            "true"}}}},
-        {omnibox::kShortBookmarkSuggestionsByTotalInputLength});
-    TestNumMatchesAndTriggeredFeature("te", 0);
-    TestNumMatchesAndTriggeredFeature("te ", 0);
-    TestNumMatchesAndTriggeredFeature("te  ", 1, {short_feature});
-    TestNumMatchesAndTriggeredFeature("tes", 1);
-    TestNumMatchesAndTriggeredFeature("te sh bo", 1, {short_feature});
-  }
+  EXPECT_EQ(GetNumMatches("te"), 0u);
+  EXPECT_EQ(GetNumMatches("te "), 1u);
+  EXPECT_EQ(GetNumMatches("tes"), 1u);
+  EXPECT_EQ(GetNumMatches("te sh bo"), 1u);
 }
 
 TEST_F(BookmarkProviderTest, GetMatchesWithBookmarkPaths) {
-  base::test::ScopedFeatureList enable_short_bookmarks(
-      omnibox::kShortBookmarkSuggestionsByTotalInputLength);
-
-  auto short_feature = metrics::
-      OmniboxEventProto_Feature_SHORT_BOOKMARK_SUGGESTIONS_BY_TOTAL_INPUT_LENGTH;
-
   // Should return path matched bookmark.
   SCOPED_TRACE("feature enabled without counterfactual");
-  TestNumMatchesAndTriggeredFeature("carefully other", 1, {short_feature});
+  EXPECT_EQ(GetNumMatches("carefully other"), 1u);
 }
 
 // Make sure that user input is trimmed correctly for starter pack keyword mode.
 // In this mode, suggestions should be provided for only the user input after
 // the keyword, i.e. "@bookmarks domain" should only match "domain".
 TEST_F(BookmarkProviderTest, KeywordModeExtractUserInput) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(omnibox::kSiteSearchStarterPack);
-
   // Populate template URL with starter pack entries
   std::vector<std::unique_ptr<TemplateURLData>> turls =
       TemplateURLStarterPackData::GetStarterPackEngines();
@@ -750,45 +562,41 @@ TEST_F(BookmarkProviderTest, KeywordModeExtractUserInput) {
   // Test result for user text "domain", we should get back a result for domain.
   AutocompleteInput input(u"domain", metrics::OmniboxEventProto::OTHER,
                           TestSchemeClassifier());
-  provider_->Start(input, false);
+  provider_->Start(input, /*minimal_changes=*/false);
 
   ACMatches matches = provider_->matches();
   ASSERT_GT(matches.size(), 0u);
-  EXPECT_EQ(u"domain", matches[0].description);
+  EXPECT_EQ(matches[0].description, u"domain");
 
-  // Test result for "@bookmarks" and "@bookmarks domain" while NOT in keyword
-  // mode, we should get a result for the @bookmarks bookmark and not for the
-  // domain bookmark since we're searching for the whole input text including
-  // "@bookmarks".
+  // Test result for "@bookmarks" while NOT in keyword mode, we shouldn't get a
+  // result because the input starts with "@".
   AutocompleteInput input2(u"@bookmarks", metrics::OmniboxEventProto::OTHER,
                            TestSchemeClassifier());
-  provider_->Start(input2, false);
+  provider_->Start(input2, /*minimal_changes=*/false);
+  EXPECT_TRUE(provider_->matches().empty());
 
-  matches = provider_->matches();
-  ASSERT_GT(matches.size(), 0u);
-  EXPECT_EQ(u"@bookmarks", matches[0].description);
-
-  AutocompleteInput input3(u"@bookmarks domain",
+  // Test result for "domain @bookmarks" while NOT in keyword mode, we should
+  // get a result. Although the input contains "@", it doesn't start with it.
+  AutocompleteInput input3(u"domain @bookmarks",
                            metrics::OmniboxEventProto::OTHER,
                            TestSchemeClassifier());
-  provider_->Start(input3, false);
+  provider_->Start(input3, /*minimal_changes=*/false);
+  EXPECT_EQ(provider_->matches().size(), 1u);
+  EXPECT_EQ(matches[0].description, u"domain");
 
-  matches = provider_->matches();
-
-  // TODO(https://crbug.com/1417053): This used to be 0u. Is 1u OK?
-  ASSERT_EQ(matches.size(), 1u);
-
-  // Turn on keyword mode, test result again, we should only get back the result
-  // for the domain bookmark since we're searching only for the user text after
-  // the keyword.
-  input3.set_prefer_keyword(true);
-  input3.set_keyword_mode_entry_method(
+  // In keyword mode, "@bookmarks domain" should match since we're only trying
+  // to match "domain".
+  AutocompleteInput input4(u"@bookmarks domain",
+                           metrics::OmniboxEventProto::OTHER,
+                           TestSchemeClassifier());
+  input4.set_prefer_keyword(true);
+  input4.set_keyword_mode_entry_method(
       metrics::OmniboxEventProto_KeywordModeEntryMethod_TAB);
-  provider_->Start(input3, false);
+  provider_->Start(input4, /*minimal_changes=*/false);
 
   matches = provider_->matches();
   ASSERT_EQ(matches.size(), 1u);
-  EXPECT_EQ(u"domain", matches[0].description);
+  EXPECT_EQ(matches[0].description, u"domain");
 
   // Ensure keyword and transition are set properly to keep user in keyword
   // mode.
@@ -802,7 +610,7 @@ TEST_F(BookmarkProviderTest, MaxMatches) {
   // Keyword mode is off. We should only get provider_max_matches_ matches.
   AutocompleteInput input(u"zyx", metrics::OmniboxEventProto::OTHER,
                           TestSchemeClassifier());
-  provider_->Start(input, false);
+  provider_->Start(input, /*minimal_changes=*/false);
 
   ACMatches matches = provider_->matches();
   EXPECT_EQ(matches.size(), provider_->provider_max_matches());
@@ -811,8 +619,72 @@ TEST_F(BookmarkProviderTest, MaxMatches) {
   input.set_keyword_mode_entry_method(
       metrics::OmniboxEventProto_KeywordModeEntryMethod_TAB);
   input.set_prefer_keyword(true);
-  provider_->Start(input, false);
+  provider_->Start(input, /*minimal_changes=*/false);
 
   matches = provider_->matches();
   EXPECT_EQ(matches.size(), provider_->provider_max_matches_in_keyword_mode());
+
+  // The provider should not limit the number of suggestions when ML scoring
+  // w/increased candidates is enabled. Any matches beyond the limit should be
+  // marked as culled_by_provider and have a relevance of 0.
+  input.set_keyword_mode_entry_method(
+      metrics::OmniboxEventProto_KeywordModeEntryMethod_INVALID);
+  input.set_prefer_keyword(false);
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      /*enabled_features=*/
+      {{omnibox::kUrlScoringModel, {}},
+       {omnibox::kMlUrlScoring,
+        {{"MlUrlScoringUnlimitedNumCandidates", "true"}}}},
+      /*disabled_features=*/{});
+  OmniboxFieldTrial::ScopedMLConfigForTesting scoped_ml_config;
+
+  provider_->Start(input, false);
+  matches = provider_->matches();
+  EXPECT_EQ(matches.size(), 9u);
+  // Matches below the `max_matches` limit.
+  for (size_t i = 0; i < provider_->provider_max_matches(); i++) {
+    EXPECT_FALSE(matches[i].culled_by_provider);
+    EXPECT_GT(matches[i].relevance, 0);
+  }
+  // "Extra" matches above the `max_matches` limit. Should have 0 relevance and
+  // be marked as `culled_by_provider`.
+  for (size_t i = provider_->provider_max_matches(); i < matches.size(); i++) {
+    EXPECT_TRUE(matches[i].culled_by_provider);
+    EXPECT_EQ(matches[i].relevance, 0);
+  }
+
+  // Unlimited matches should ignore the provider max matches, even if the
+  // `kMlUrlScoringMaxMatchesByProvider` param is set.
+  scoped_ml_config.GetMLConfig().ml_url_scoring_max_matches_by_provider = "*:6";
+
+  provider_->Start(input, false);
+  matches = provider_->matches();
+  EXPECT_EQ(matches.size(), 9u);
+}
+
+TEST_F(BookmarkProviderTest, SetsGroupForHubSearch) {
+  AutocompleteInput input(u"foo", metrics::OmniboxEventProto::ANDROID_HUB,
+                          TestSchemeClassifier());
+  provider_->Start(input, /*minimal_changes=*/false);
+  EXPECT_FALSE(provider_->matches().empty());
+  EXPECT_EQ(omnibox::GROUP_MOBILE_BOOKMARKS,
+            provider_->matches()[0].suggestion_group_id);
+}
+
+TEST_F(BookmarkProviderTest, NoMaxMatchesForHubSearch) {
+  AutocompleteInput input(u"zyx", metrics::OmniboxEventProto::ANDROID_HUB,
+                          TestSchemeClassifier());
+  provider_->Start(input, /*minimal_changes=*/false);
+  EXPECT_EQ(3u, provider_->provider_max_matches());
+  EXPECT_FALSE(provider_->matches().empty());
+  EXPECT_GT(provider_->matches().size(), 3u);
+}
+
+TEST_F(BookmarkProviderTest, MatchingAlgorithmForHubSearch) {
+  AutocompleteInput input(u"foo", metrics::OmniboxEventProto::ANDROID_HUB,
+                          TestSchemeClassifier());
+  EXPECT_EQ(query_parser::MatchingAlgorithm::ALWAYS_PREFIX_SEARCH,
+            provider_->GetMatchingAlgorithm(input));
 }

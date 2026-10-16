@@ -4,8 +4,13 @@
 
 package org.chromium.components.offline_items_collection.bridges;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import static org.chromium.build.NullUtil.assumeNonNull;
+
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.components.download.DownloadDangerType;
 import org.chromium.components.offline_items_collection.FailState;
 import org.chromium.components.offline_items_collection.OfflineItem;
 import org.chromium.components.offline_items_collection.OfflineItemFilter;
@@ -24,6 +29,7 @@ import java.util.ArrayList;
  * instances.
  */
 @JNINamespace("offline_items_collection::android")
+@NullMarked
 public final class OfflineItemBridge {
     private OfflineItemBridge() {}
 
@@ -38,27 +44,56 @@ public final class OfflineItemBridge {
     }
 
     /**
-     * Creates an {@link OfflineItem} from the passed in parameters.  See {@link OfflineItem} for a
-     * list of the members that will be populated.  If {@code list} isn't {@code null}, the newly
+     * Creates an {@link OfflineItem} from the passed in parameters. See {@link OfflineItem} for a
+     * list of the members that will be populated. If {@code list} isn't {@code null}, the newly
      * created {@link OfflineItem} will be added to it.
+     *
      * @param list An {@link ArrayList} to optionally add the newly created {@link OfflineItem} to.
      * @return The newly created {@link OfflineItem} based on the passed in parameters.
      */
     @CalledByNative
-    private static OfflineItem createOfflineItemAndMaybeAddToList(ArrayList<OfflineItem> list,
-            String nameSpace, String id, String title, String description,
-            @OfflineItemFilter int filter, boolean isTransient, boolean isSuggested,
-            boolean isAccelerated, boolean promoteOrigin, long totalSizeBytes,
-            boolean externallyRemoved, long creationTimeMs, long completionTimeMs,
-            long lastAccessedTimeMs, boolean isOpenable, String filePath, String mimeType, GURL url,
-            GURL originalUrl, boolean isOffTheRecord, String otrProfileId,
-            @OfflineItemState int state, @FailState int failState, @PendingState int pendingState,
-            boolean isResumable, boolean allowMetered, long receivedBytes, long progressValue,
-            long progressMax, @OfflineItemProgressUnit int progressUnit, long timeRemainingMs,
-            boolean isDangerous, boolean canRename, boolean ignoreVisuals,
+    private static OfflineItem createOfflineItemAndMaybeAddToList(
+            ArrayList<OfflineItem> list,
+            String nameSpace,
+            String id,
+            String title,
+            String description,
+            @OfflineItemFilter int filter,
+            boolean isTransient,
+            boolean isSuggested,
+            boolean isAccelerated,
+            boolean promoteOrigin,
+            long totalSizeBytes,
+            boolean externallyRemoved,
+            long creationTimeMs,
+            long completionTimeMs,
+            long lastAccessedTimeMs,
+            boolean isOpenable,
+            String filePath,
+            String mimeType,
+            GURL url,
+            GURL originalUrl,
+            boolean isOffTheRecord,
+            String otrProfileId,
+            GURL referrerUrl,
+            boolean hasUserGesture,
+            @OfflineItemState int state,
+            @FailState int failState,
+            @PendingState int pendingState,
+            boolean isResumable,
+            boolean allowMetered,
+            long receivedBytes,
+            long progressValue,
+            long progressMax,
+            @OfflineItemProgressUnit int progressUnit,
+            long timeRemainingMs,
+            @DownloadDangerType int dangerType,
+            boolean isDangerous,
+            boolean canRename,
+            boolean ignoreVisuals,
             double contentQualityScore) {
         OfflineItem item = new OfflineItem();
-        item.id.namespace = nameSpace;
+        assumeNonNull(item.id).namespace = nameSpace;
         item.id.id = id;
         item.title = title;
         item.description = description;
@@ -79,15 +114,19 @@ public final class OfflineItemBridge {
         item.originalUrl = originalUrl;
         item.isOffTheRecord = isOffTheRecord;
         item.otrProfileId = otrProfileId;
+        item.referrerUrl = referrerUrl;
+        item.hasUserGesture = hasUserGesture;
         item.state = state;
         item.failState = failState;
         item.pendingState = pendingState;
         item.isResumable = isResumable;
         item.allowMetered = allowMetered;
         item.receivedBytes = receivedBytes;
-        item.progress = new OfflineItem.Progress(
-                progressValue, progressMax == -1 ? null : progressMax, progressUnit);
+        item.progress =
+                new OfflineItem.Progress(
+                        progressValue, progressMax == -1 ? null : progressMax, progressUnit);
         item.timeRemainingMs = timeRemainingMs;
+        item.dangerType = dangerType;
         item.isDangerous = isDangerous;
         item.canRename = canRename;
         item.ignoreVisuals = ignoreVisuals;

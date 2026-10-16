@@ -67,6 +67,54 @@
     return foundFrame;
   }
 
+  let keyPressFunc, keyDownFunc, keyUpFunc;
+  const eventSender = window.eventSender;
+  if (eventSender) {
+    keyPressFunc = eventSender.keyDown.bind(eventSender);
+    keyDownFunc = eventSender.keyDownOnly.bind(eventSender);
+    keyUpFunc = eventSender.keyUp.bind(eventSender);
+  }
+
+  function sendKeysToEventSender(keys, func = keyPressFunc) {
+    if (!func) {
+      throw new Error("No eventSender");
+    }
+    for(var i = 0; i < keys.length; ++i) {
+      const charCode = keys.charCodeAt(i);
+      // See https://w3c.github.io/webdriver/#keyboard-actions and
+      // EventSender::KeyDown().
+      switch (charCode) {
+        case 0xE003: func("Backspace"); break;
+        case 0xE004: func("Tab"); break;
+        case 0xE006:
+        case 0xE007: func("Enter", "enter"); break;
+        case 0xE008: func("ShiftLeft", "shiftKey"); break;
+        case 0xE009: func("ControlLeft", "ctrlKey"); break;
+        case 0xE00A: func("AltLeft", "altKey"); break;
+        case 0xE00C: func("Escape"); break;
+        case 0xE00D: func(" "); break;
+        case 0xE00E: func("PageUp"); break;
+        case 0xE00F: func("PageDown"); break;
+        case 0xE010: func("End"); break;
+        case 0xE011: func("Home"); break;
+        case 0xE012: func("ArrowLeft"); break;
+        case 0xE013: func("ArrowUp"); break;
+        case 0xE014: func("ArrowRight"); break;
+        case 0xE015: func("ArrowDown"); break;
+        case 0xE016: func("Insert"); break;
+        case 0xE017: func("Delete"); break;
+        case 0xE03D: func("MetaLeft", "metaKey"); break;
+        case 0xE050: func("ShiftRight"); break;
+        default:
+          if (charCode >= 0xE000 && charCode <= 0xF8FF) {
+            throw new Error("No support for this code: U+" + charCode.toString(16));
+          }
+          func(keys[i]);
+          break;
+      }
+    }
+  }
+
   window.test_driver_internal.click = function(element, coords) {
     return new Promise(function(resolve, reject) {
       if (window.chrome && chrome.gpuBenchmarking) {
@@ -105,51 +153,12 @@
           return;
       }
       window.requestAnimationFrame(() => {
-        for(var i = 0; i < keys.length; ++i) {
-          let eventSenderKeys = keys[i];
-          let charCode = keys.charCodeAt(i);
-          let modifierValue;
-          // See https://w3c.github.io/webdriver/#keyboard-actions and
-          // EventSender::KeyDown().
-          if (charCode == 0xE004) {
-            eventSenderKeys = "Tab";
-          } else if (charCode == 0xE050) {
-            eventSenderKeys = "ShiftRight";
-          } else if (charCode == 0xE012) {
-            eventSenderKeys = "ArrowLeft";
-          } else if (charCode == 0xE013) {
-            eventSenderKeys = "ArrowUp";
-          } else if (charCode == 0xE014) {
-            eventSenderKeys = "ArrowRight";
-          } else if (charCode == 0xE015) {
-            eventSenderKeys = "ArrowDown";
-          } else if (charCode == 0xE00C) {
-            eventSenderKeys = "Escape";
-          } else if (charCode == 0xE003) {
-            eventSenderKeys = "Backspace";
-          } else if (charCode == 0xE009) {
-            eventSenderKeys = "ControlLeft";
-            modifierValue = "ctrlKey";
-          } else if (charCode == 0xE00A) {
-            eventSenderKeys = "AltLeft";
-            modifierValue = "altKey";
-          } else if (charCode == 0xE03D) {
-            eventSenderKeys = "MetaLeft";
-            modifierValue = "metaKey";
-          } else if (charCode == 0xE008) {
-            eventSenderKeys = "ShiftLeft";
-            modifierValue = "shiftKey";
-          } else if (charCode == 0xE006 || charCode == 0xE007) {
-            eventSenderKeys = "Enter";
-            modifierValue = "enter";
-          } else if (charCode >= 0xE000 && charCode <= 0xF8FF) {
-            reject(new Error("No support for this code: U+" + charCode.toString(16)));
-            return;
-          }
-
-          window.eventSender.keyDown(eventSenderKeys, modifierValue);
+        try {
+          sendKeysToEventSender(keys);
+          resolve();
+        } catch (e) {
+          reject(e);
         }
-        resolve();
       });
     });
   };
@@ -181,16 +190,32 @@
       return Promise.reject(new Error("can only send actions in top-level window"));
     }
 
+    let hasKeyActions = false;
+    let hasPointerActions = false;
     var didScrollIntoView = false;
     for (let i = 0; i < actions.length; i++) {
       var last_x_position = 0;
       var last_y_position = 0;
       var first_pointer_down = false;
       for (let j = 0; j < actions[i].actions.length; j++) {
-        if (actions[i].actions[j].type == "keyDown" ||
-            actions[i].actions[j].type == "keyUp") {
-          return Promise.reject(new Error("We do not support keydown and keyup actions, " +
-                                          "please use test_driver.send_keys. See crbug.com/893480."));
+        const action = actions[i].actions[j];
+        const type = action.type;
+        // TODO(crbug.com/893480): Currently, `gpuBenchmarking` handles pointer
+        // actions, while `EventSender` handles key actions. Mixing both types
+        // of actions in one action sequence is not supported.
+        if (type == "keyDown" || type == "keyUp") {
+          hasKeyActions = true;
+          if (!hasPointerActions) {
+            continue;
+          }
+        } else if (type != "pause") {
+          // "pause" is supported in both types of actions.
+          hasPointerActions = true
+        }
+        if (hasKeyActions && hasPointerActions) {
+          return Promise.reject(new Error(
+            "We do not support keydown and keyup mixed with other actions, " +
+            "please use test_driver.send_keys. See crbug.com/893480."));
         }
 
         if ('origin' in actions[i].actions[j]) {
@@ -223,7 +248,7 @@
             var pointerInteractablePaintTree = getPointerInteractablePaintTree(element, frame);
             if (pointerInteractablePaintTree.length === 0 ||
                 !element.contains(pointerInteractablePaintTree[0])) {
-              return Promise.reject(new Error("element click intercepted error"));
+              return Promise.reject(new Error("element event-dispatch intercepted error"));
             }
 
             var rect = element.getClientRects()[0];
@@ -257,186 +282,40 @@
       }
     }
 
-    return new Promise(function(resolve, reject) {
-      if (window.chrome && chrome.gpuBenchmarking) {
+    return new Promise(async function(resolve, reject) {
+      if (hasKeyActions) {
+        try {
+          if (!keyDownFunc || !keyUpFunc) {
+            throw new Error("No eventSender");
+          }
+          for (const innerActions of actions) {
+            for (const action of innerActions.actions) {
+              switch (action.type) {
+                case "keyDown":
+                  sendKeysToEventSender(action.value, keyDownFunc);
+                  break;
+                case "keyUp":
+                  sendKeysToEventSender(action.value, keyUpFunc);
+                  break;
+                case "pause":
+                  await new Promise((resolve) => setTimeout(resolve, action.duration));
+                  break;
+                default:
+                  throw new Error(`Unexpected key action type: ${action.type}`);
+              }
+            }
+          }
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      } else if (window.chrome && chrome.gpuBenchmarking) {
         chrome.gpuBenchmarking.pointerActionSequence(actions, resolve);
       } else {
         reject(new Error("GPU benchmarking is not enabled."));
       }
     });
   };
-
-  let virtualAuthenticatorManager_;
-
-  async function findAuthenticator(authenticatorManager, authenticatorId) {
-    let authenticators = (await authenticatorManager.getAuthenticators()).authenticators;
-    let foundAuthenticator;
-    for (let authenticator of authenticators) {
-      if ((await authenticator.getUniqueId()).id == authenticatorId) {
-        foundAuthenticator = authenticator;
-        break;
-      }
-    }
-    if (!foundAuthenticator) {
-      throw "Cannot find authenticator with ID " + authenticatorId;
-    }
-    return foundAuthenticator;
-  }
-
-  async function loadVirtualAuthenticatorManager() {
-    if (!virtualAuthenticatorManager_) {
-      const {VirtualAuthenticatorManager} = await import(
-          '/gen/third_party/blink/public/mojom/webauthn/virtual_authenticator.mojom.m.js');
-      virtualAuthenticatorManager_ = VirtualAuthenticatorManager.getRemote();
-    }
-    return virtualAuthenticatorManager_;
-  }
-
-  function urlSafeBase64ToUint8Array(base64url) {
-    let base64 = base64url.replace(/-/g, "+").replace(/_/g, "/");
-    // Add padding to make the length of the base64 string divisible by 4.
-    if (base64.length % 4 != 0)
-      base64 += "=".repeat(4 - base64.length % 4);
-    return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-  }
-
-  function uint8ArrayToUrlSafeBase64(array) {
-    let binary = "";
-    for (let i = 0; i < array.length; ++i)
-      binary += String.fromCharCode(array[i]);
-
-    return window.btoa(binary)
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=/g, "");
-  }
-
-  window.test_driver_internal.add_virtual_authenticator = async function(options) {
-    let manager = await loadVirtualAuthenticatorManager();
-
-    const {AuthenticatorAttachment, AuthenticatorTransport} = await import(
-        '/gen/third_party/blink/public/mojom/webauthn/authenticator.mojom.m.js');
-    const {ClientToAuthenticatorProtocol, Ctap2Version} = await import(
-        '/gen/third_party/blink/public/mojom/webauthn/virtual_authenticator.mojom.m.js');
-
-    options = Object.assign({
-      hasResidentKey: false,
-      hasUserVerification: false,
-      isUserConsenting: true,
-      isUserVerified: false,
-      extensions: [],
-    }, options);
-    let mojoOptions = {};
-    switch (options.protocol) {
-      case "ctap1/u2f":
-        mojoOptions.protocol = ClientToAuthenticatorProtocol.U2F;
-        break;
-      case "ctap2":
-        mojoOptions.protocol = ClientToAuthenticatorProtocol.CTAP2;
-        mojoOptions.ctap2Version = Ctap2Version.CTAP2_0;
-        break;
-      case "ctap2_1":
-        mojoOptions.protocol = ClientToAuthenticatorProtocol.CTAP2;
-        mojoOptions.ctap2Version = Ctap2Version.CTAP2_1;
-        break;
-      default:
-        throw "Unknown protocol "  + options.protocol;
-    }
-    switch (options.transport) {
-      case "usb":
-        mojoOptions.transport = AuthenticatorTransport.USB;
-        mojoOptions.attachment = AuthenticatorAttachment.CROSS_PLATFORM;
-        break;
-      case "nfc":
-        mojoOptions.transport = AuthenticatorTransport.NFC;
-        mojoOptions.attachment = AuthenticatorAttachment.CROSS_PLATFORM;
-        break;
-      case "ble":
-        mojoOptions.transport = AuthenticatorTransport.BLE;
-        mojoOptions.attachment = AuthenticatorAttachment.CROSS_PLATFORM;
-        break;
-      case "internal":
-        mojoOptions.transport = AuthenticatorTransport.INTERNAL;
-        mojoOptions.attachment = AuthenticatorAttachment.PLATFORM;
-        break;
-      default:
-        throw "Unknown transport "  + options.transport;
-    }
-    mojoOptions.hasResidentKey = options.hasResidentKey;
-    mojoOptions.hasUserVerification = options.hasUserVerification;
-    mojoOptions.hasLargeBlob = options.extensions.indexOf("largeBlob") !== -1;
-    mojoOptions.hasCredBlob = options.extensions.indexOf("credBlob") !== -1;
-    mojoOptions.hasMinPinLength = options.extensions.indexOf("minPinLength") !== -1;
-    mojoOptions.hasPrf = options.extensions.indexOf('prf') !== -1;
-    mojoOptions.isUserPresent = options.isUserConsenting;
-
-    let authenticator = (await manager.createAuthenticator(mojoOptions)).authenticator;
-    await authenticator.setUserVerified(options.isUserVerified);
-    return (await authenticator.getUniqueId()).id;
-  };
-
-  window.test_driver_internal.add_credential = async function(authenticatorId, credential) {
-    if (credential.isResidentCredential) {
-      throw "The mojo virtual authenticator manager does not support resident credentials";
-    }
-    let manager = await loadVirtualAuthenticatorManager();
-    let authenticator = await findAuthenticator(manager, authenticatorId);
-
-    let registration = {
-      keyHandle: urlSafeBase64ToUint8Array(credential.credentialId),
-      privateKey: urlSafeBase64ToUint8Array(credential.privateKey),
-      rpId: credential.rpId,
-      counter: credential.signCount,
-    };
-    let addRegistrationResponse = await authenticator.addRegistration(registration);
-    if (!addRegistrationResponse.added) {
-      throw "Could not add credential";
-    }
-  };
-
-  window.test_driver_internal.get_credentials = async function(authenticatorId) {
-    let manager = await loadVirtualAuthenticatorManager();
-    let authenticator = await findAuthenticator(manager, authenticatorId);
-
-    let getCredentialsResponse = await authenticator.getRegistrations();
-    return getCredentialsResponse.keys.map(key => ({
-      credentialId: uint8ArrayToUrlSafeBase64(key.keyHandle),
-      privateKey: uint8ArrayToUrlSafeBase64(key.privateKey),
-      rpId: key.rpId,
-      signCount: key.counter,
-      isResidentCredential: false,
-    }));
-  };
-
-  window.test_driver_internal.remove_credential = async function(authenticatorId, credentialId) {
-    let manager = await loadVirtualAuthenticatorManager();
-    let authenticator = await findAuthenticator(manager, authenticatorId);
-
-    let removeRegistrationResponse = await authenticator.removeRegistration(
-        urlSafeBase64ToUint8Array(credentialId));
-    if (!removeRegistrationResponse.removed) {
-      throw "Could not remove credential";
-    }
-  };
-
-  window.test_driver_internal.remove_all_credentials = async function(authenticatorId) {
-    let manager = await loadVirtualAuthenticatorManager();
-    let authenticator = await findAuthenticator(manager, authenticatorId);
-    await authenticator.clearRegistrations();
-  }
-
-  window.test_driver_internal.set_user_verified = async function(authenticatorId, options) {
-    let manager = await loadVirtualAuthenticatorManager();
-    let authenticator = await findAuthenticator(manager, authenticatorId);
-    await authenticator.setUserVerified(options.isUserVerified);
-  }
-
-  window.test_driver_internal.remove_virtual_authenticator = async function(authenticatorId) {
-    let manager = await loadVirtualAuthenticatorManager();
-    let response = await manager.removeAuthenticator(authenticatorId);
-    if (!response.removed)
-      throw "Could not remove authenticator";
-  }
 
   window.test_driver_internal.set_permission = function(permission_params) {
     return internals.setPermission(permission_params.descriptor,
@@ -459,21 +338,106 @@
     return internals.getNamedCookie(name);
   }
 
+  window.test_driver_internal.get_computed_label = function(element) {
+    return internals.getComputedLabel(element);
+  }
+
+  window.test_driver_internal.get_computed_role = function(element) {
+    return internals.getComputedRole(element);
+  }
+
   window.test_driver_internal.minimize_window = async () => {
-    window.testRunner.setMainWindowHidden(true);
+    window.testRunner.setFrameWindowHidden(true);
     // Wait until the new state is reflected in the document
     while (!document.hidden) {
       await new Promise(resolve => setTimeout(resolve, 0));
     }
   };
 
-  window.test_driver_internal.set_window_rect = async () => {
-    window.testRunner.setMainWindowHidden(false);
+  window.test_driver_internal.set_window_rect = async (rect, context) => {
+    window.testRunner.setFrameWindowHidden(false);
     // Wait until the new state is reflected in the document
     while (document.hidden) {
       await new Promise(resolve => setTimeout(resolve, 0));
     }
+    if (rect !== undefined)
+        window.testRunner.setWindowRect(rect);
   };
+
+  window.test_driver_internal.get_window_rect = async function() {
+      return {'x': window.screenX, 'y': window.screenY, 'width': window.outerWidth, 'height': window.outerHeight};
+  }
+
+  window.test_driver_internal.set_rph_registration_mode = async function (mode, context) {
+      window.testRunner.setRphRegistrationMode(mode);
+  };
+
+  window.test_driver_internal.get_fedcm_dialog_type = async function() {
+    return internals.getFedCmDialogType();
+  }
+
+  window.test_driver_internal.get_fedcm_dialog_title = async function() {
+    // TODO(crbug.com/331237005): Return a subtitle, if we have one.
+    return {title: await internals.getFedCmTitle()};
+  }
+
+  window.test_driver_internal.select_fedcm_account = async function(account_index) {
+    return internals.selectFedCmAccount(account_index);
+  }
+
+  window.test_driver_internal.cancel_fedcm_dialog = async function() {
+    return internals.dismissFedCmDialog();
+  }
+
+  window.test_driver_internal.click_fedcm_dialog_button = async function(dialog_button) {
+    return internals.clickFedCmDialogButton(dialog_button);
+  }
+
+  window.test_driver_internal.create_virtual_sensor = function(
+      sensor_type, sensor_params) {
+    return internals.createVirtualSensor(sensor_type, sensor_params);
+  }
+
+  window.test_driver_internal.update_virtual_sensor = function(
+      sensor_type, reading) {
+    return internals.updateVirtualSensor(sensor_type, reading);
+  }
+
+  window.test_driver_internal.remove_virtual_sensor = function(sensor_type) {
+    return internals.removeVirtualSensor(sensor_type);
+  }
+
+  window.test_driver_internal.get_virtual_sensor_information = function(
+      sensor_type) {
+    return internals.getVirtualSensorInformation(sensor_type);
+  }
+
+  window.test_driver_internal.set_device_posture = function(posture) {
+    return internals.setDevicePostureOverride(posture);
+  }
+
+  window.test_driver_internal.clear_device_posture = function() {
+    return internals.clearDevicePostureOverride();
+  }
+
+  window.test_driver_internal.create_virtual_pressure_source = function(
+      source_type, metadata) {
+    return internals.createVirtualPressureSource(source_type, metadata);
+  }
+
+  window.test_driver_internal.update_virtual_pressure_source = function(
+      source_type, state, own_contribution_estimate = -1.0) {
+    return internals.updateVirtualPressureSource(source_type, state, own_contribution_estimate);
+  }
+
+  window.test_driver_internal.remove_virtual_pressure_source = function(
+      source_type) {
+    return internals.removeVirtualPressureSource(source_type);
+  }
+
+  window.test_driver_internal.set_protected_audience_k_anonymity = function(owner, name, hashes) {
+    return internals.setProtectedAudienceKAnonymity(owner, name, hashes);
+  }
 
   // Enable automation so we don't wait for user input on unimplemented APIs
   window.test_driver_internal.in_automation = true;

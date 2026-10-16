@@ -8,9 +8,7 @@
 #include <utility>
 
 #include "base/memory/scoped_refptr.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/task/single_thread_task_runner.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/fetch/body_stream_buffer.h"
@@ -19,7 +17,6 @@
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/html/forms/form_data.h"
 #include "third_party/blink/renderer/core/typed_arrays/dom_array_buffer.h"
-#include "third_party/blink/renderer/core/typed_arrays/dom_typed_array.h"
 #include "third_party/blink/renderer/core/url/url_search_params.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
@@ -34,36 +31,25 @@ namespace blink {
 
 namespace {
 
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class BodyConsumerBaseFetchCheckPoint {
-  kConstructor = 0,
-  kDidFetchDataLoadFailed = 1,
-  kMaxValue = kDidFetchDataLoadFailed,
-};
-
-void SendHistogram(BodyConsumerBaseFetchCheckPoint cp) {
-  base::UmaHistogramEnumeration("Net.Fetch.CheckPoint.BodyConsumerBase", cp);
-}
-
 class BodyConsumerBase : public GarbageCollected<BodyConsumerBase>,
                          public FetchDataLoader::Client {
  public:
-  explicit BodyConsumerBase(ScriptPromiseResolver* resolver)
+  explicit BodyConsumerBase(ScriptPromiseResolverBase* resolver)
       : resolver_(resolver),
         task_runner_(ExecutionContext::From(resolver_->GetScriptState())
                          ->GetTaskRunner(TaskType::kNetworking)) {
-    SendHistogram(BodyConsumerBaseFetchCheckPoint::kConstructor);
   }
   BodyConsumerBase(const BodyConsumerBase&) = delete;
   BodyConsumerBase& operator=(const BodyConsumerBase&) = delete;
 
-  ScriptPromiseResolver* Resolver() { return resolver_; }
+  ScriptPromiseResolverBase* Resolver() { return resolver_.Get(); }
   void DidFetchDataLoadFailed() override {
-    ScriptState::Scope scope(Resolver()->GetScriptState());
-    resolver_->Reject(V8ThrowException::CreateTypeError(
-        Resolver()->GetScriptState()->GetIsolate(), "Failed to fetch"));
-    SendHistogram(BodyConsumerBaseFetchCheckPoint::kDidFetchDataLoadFailed);
+    ScriptState* state = resolver_->GetScriptState();
+    if (state->ContextIsValid()) {
+      ScriptState::Scope scope(state);
+      resolver_->Reject(V8ThrowException::CreateTypeError(
+          Resolver()->GetScriptState()->GetIsolate(), "Failed to fetch"));
+    }
   }
 
   void Abort() override {
@@ -74,11 +60,11 @@ class BodyConsumerBase : public GarbageCollected<BodyConsumerBase>,
   // Resource Timing event is not yet added, so delay the resolution timing
   // a bit. See https://crbug.com/507169.
   // TODO(yhirano): Fix this problem in a more sophisticated way.
-  template <typename T>
+  template <typename IDLType, typename T>
   void ResolveLater(const T& object) {
-    task_runner_->PostTask(FROM_HERE,
-                           WTF::BindOnce(&BodyConsumerBase::ResolveNow<T>,
-                                         WrapPersistent(this), object));
+    task_runner_->PostTask(
+        FROM_HERE, WTF::BindOnce(&BodyConsumerBase::ResolveNow<IDLType, T>,
+                                 WrapPersistent(this), object));
   }
 
   void Trace(Visitor* visitor) const override {
@@ -88,82 +74,105 @@ class BodyConsumerBase : public GarbageCollected<BodyConsumerBase>,
 
  private:
   template <typename T>
+  struct IsNotShared {
+    static constexpr bool value = false;
+  };
+  template <typename T>
+  struct IsNotShared<NotShared<T>> {
+    static constexpr bool value = true;
+  };
+
+  template <typename IDLType, typename T>
+    requires(!std::is_same<IDLType, IDLAny>::value &&
+             !IsNotShared<IDLType>::value)
   void ResolveNow(const T& object) {
-    resolver_->Resolve(object);
+    resolver_->DowncastTo<IDLType>()->Resolve(object);
   }
 
-  const Member<ScriptPromiseResolver> resolver_;
+  template <typename IDLType, typename T>
+    requires std::is_same<IDLType, IDLAny>::value
+  void ResolveNow(const Persistent<DisallowNewWrapper<ScriptValue>>& object) {
+    resolver_->DowncastTo<IDLType>()->Resolve(object->Value());
+  }
+
+  template <typename IDLType, typename T>
+    requires IsNotShared<IDLType>::value
+  void ResolveNow(const T& object) {
+    resolver_->DowncastTo<IDLType>()->Resolve(NotShared<DOMUint8Array>(object));
+  }
+
+  const Member<ScriptPromiseResolverBase> resolver_;
   const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 };
-
 class BodyBlobConsumer final : public BodyConsumerBase {
  public:
-  explicit BodyBlobConsumer(ScriptPromiseResolver* resolver)
-      : BodyConsumerBase(resolver) {}
-  BodyBlobConsumer(const BodyBlobConsumer&) = delete;
-  BodyBlobConsumer& operator=(const BodyBlobConsumer&) = delete;
+  using BodyConsumerBase::BodyConsumerBase;
+  using ResolveType = Blob;
 
   void DidFetchDataLoadedBlobHandle(
       scoped_refptr<BlobDataHandle> blob_data_handle) override {
-    ResolveLater(WrapPersistent(
+    ResolveLater<ResolveType>(WrapPersistent(
         MakeGarbageCollected<Blob>(std::move(blob_data_handle))));
   }
 };
 
 class BodyArrayBufferConsumer final : public BodyConsumerBase {
  public:
-  explicit BodyArrayBufferConsumer(ScriptPromiseResolver* resolver)
-      : BodyConsumerBase(resolver) {}
-  BodyArrayBufferConsumer(const BodyArrayBufferConsumer&) = delete;
-  BodyArrayBufferConsumer& operator=(const BodyArrayBufferConsumer&) = delete;
+  using BodyConsumerBase::BodyConsumerBase;
+  using ResolveType = DOMArrayBuffer;
 
   void DidFetchDataLoadedArrayBuffer(DOMArrayBuffer* array_buffer) override {
-    ResolveLater(WrapPersistent(array_buffer));
+    ResolveLater<ResolveType>(WrapPersistent(array_buffer));
+  }
+};
+
+class BodyUint8ArrayConsumer final : public BodyConsumerBase {
+ public:
+  using BodyConsumerBase::BodyConsumerBase;
+  using ResolveType = NotShared<DOMUint8Array>;
+
+  void DidFetchDataLoadedArrayBuffer(DOMArrayBuffer* array_buffer) override {
+    ResolveLater<ResolveType>(WrapPersistent(
+        DOMUint8Array::Create(array_buffer, 0, array_buffer->ByteLength())));
   }
 };
 
 class BodyFormDataConsumer final : public BodyConsumerBase {
  public:
-  explicit BodyFormDataConsumer(ScriptPromiseResolver* resolver)
-      : BodyConsumerBase(resolver) {}
-  BodyFormDataConsumer(const BodyFormDataConsumer&) = delete;
-  BodyFormDataConsumer& operator=(const BodyFormDataConsumer&) = delete;
+  using BodyConsumerBase::BodyConsumerBase;
+  using ResolveType = FormData;
 
-  void DidFetchDataLoadedFormData(FormData* formData) override {
-    ResolveLater(WrapPersistent(formData));
+  void DidFetchDataLoadedFormData(FormData* form_data) override {
+    ResolveLater<ResolveType>(WrapPersistent(form_data));
   }
 
   void DidFetchDataLoadedString(const String& string) override {
-    auto* formData = MakeGarbageCollected<FormData>();
+    auto* form_data = MakeGarbageCollected<FormData>();
     // URLSearchParams::Create() returns an on-heap object, but it can be
     // garbage collected, so making it a persistent variable on the stack
     // mitigates use-after-free scenarios. See crbug.com/1497997.
     Persistent<URLSearchParams> search_params = URLSearchParams::Create(string);
-    for (const auto& pair : search_params->Params()) {
-      formData->append(pair.first, pair.second);
+    for (const auto& [name, value] : search_params->Params()) {
+      form_data->append(name, value);
     }
-    DidFetchDataLoadedFormData(formData);
+    DidFetchDataLoadedFormData(form_data);
   }
 };
 
 class BodyTextConsumer final : public BodyConsumerBase {
  public:
-  explicit BodyTextConsumer(ScriptPromiseResolver* resolver)
-      : BodyConsumerBase(resolver) {}
-  BodyTextConsumer(const BodyTextConsumer&) = delete;
-  BodyTextConsumer& operator=(const BodyTextConsumer&) = delete;
+  using BodyConsumerBase::BodyConsumerBase;
+  using ResolveType = IDLUSVString;
 
   void DidFetchDataLoadedString(const String& string) override {
-    ResolveLater(string);
+    ResolveLater<ResolveType>(string);
   }
 };
 
 class BodyJsonConsumer final : public BodyConsumerBase {
  public:
-  explicit BodyJsonConsumer(ScriptPromiseResolver* resolver)
-      : BodyConsumerBase(resolver) {}
-  BodyJsonConsumer(const BodyJsonConsumer&) = delete;
-  BodyJsonConsumer& operator=(const BodyJsonConsumer&) = delete;
+  using BodyConsumerBase::BodyConsumerBase;
+  using ResolveType = IDLAny;
 
   void DidFetchDataLoadedString(const String& string) override {
     if (!Resolver()->GetExecutionContext() ||
@@ -171,26 +180,30 @@ class BodyJsonConsumer final : public BodyConsumerBase {
       return;
     ScriptState::Scope scope(Resolver()->GetScriptState());
     v8::Isolate* isolate = Resolver()->GetScriptState()->GetIsolate();
-    v8::Local<v8::String> input_string = V8String(isolate, string);
-    v8::TryCatch trycatch(isolate);
-    v8::Local<v8::Value> parsed;
-    if (v8::JSON::Parse(Resolver()->GetScriptState()->GetContext(),
-                        input_string)
-            .ToLocal(&parsed)) {
-      ResolveLater(WrapPersistent(WrapDisallowNew(
-          ScriptValue(Resolver()->GetScriptState()->GetIsolate(), parsed))));
-    } else
-      Resolver()->Reject(trycatch.Exception());
+    v8::TryCatch try_catch(isolate);
+    v8::Local<v8::Value> parsed =
+        FromJSONString(Resolver()->GetScriptState(), string);
+    if (try_catch.HasCaught()) {
+      Resolver()->Reject(try_catch.Exception());
+      return;
+    }
+    ResolveLater<ResolveType>(
+        WrapPersistent(WrapDisallowNew(ScriptValue(isolate, parsed))));
   }
 };
 
+FetchDataLoader* CreateLoaderAsStringWithUTF8Decode() {
+  return FetchDataLoader::CreateLoaderAsString(
+      TextResourceDecoderOptions::CreateUTF8Decode());
+}
+
 }  // namespace
 
-ScriptPromise Body::arrayBuffer(ScriptState* script_state,
-                                ExceptionState& exception_state) {
+bool Body::ShouldLoadBody(ScriptState* script_state,
+                          ExceptionState& exception_state) {
   RejectInvalidConsumption(exception_state);
   if (exception_state.HadException())
-    return ScriptPromise();
+    return false;
 
   // When the main thread sends a V8::TerminateExecution() signal to a worker
   // thread, any V8 API on the worker thread starts returning an empty
@@ -198,189 +211,155 @@ ScriptPromise Body::arrayBuffer(ScriptState* script_state,
   // first check the ExecutionContext and return immediately if it's already
   // gone (which means that the V8::TerminateExecution() signal has been sent
   // to this worker thread).
-  if (!ExecutionContext::From(script_state))
-    return ScriptPromise();
+  return ExecutionContext::From(script_state);
+}
 
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+// `Consumer` must be a subclass of BodyConsumerBase which takes a
+// ScriptPromiseResolverBase* as its constructor argument. `create_loader`
+// should take no arguments and return a FetchDataLoader*. `on_no_body` should
+// take a ScriptPromiseResolverBase* object and resolve or reject it, returning
+// nothing.
+template <class Consumer,
+          typename CreateLoaderFunction,
+          typename OnNoBodyFunction>
+ScriptPromise<typename Consumer::ResolveType> Body::LoadAndConvertBody(
+    ScriptState* script_state,
+    CreateLoaderFunction create_loader,
+    OnNoBodyFunction on_no_body,
+    ExceptionState& exception_state) {
+  if (!ShouldLoadBody(script_state, exception_state)) {
+    return EmptyPromise();
+  }
+
+  auto* resolver = MakeGarbageCollected<
+      ScriptPromiseResolver<typename Consumer::ResolveType>>(
       script_state, exception_state.GetContext());
-  ScriptPromise promise = resolver->Promise();
-  if (BodyBuffer()) {
-    BodyBuffer()->StartLoading(
-        FetchDataLoader::CreateLoaderAsArrayBuffer(),
-        MakeGarbageCollected<BodyArrayBufferConsumer>(resolver),
-        exception_state);
+  auto promise = resolver->Promise();
+  if (auto* body_buffer = BodyBuffer()) {
+    body_buffer->StartLoading(create_loader(),
+                              MakeGarbageCollected<Consumer>(resolver),
+                              exception_state);
     if (exception_state.HadException()) {
-      // Need to resolve the ScriptPromiseResolver to avoid a DCHECK().
-      resolver->Resolve();
-      return ScriptPromise();
+      resolver->Detach();
+      return EmptyPromise();
     }
   } else {
-    resolver->Resolve(DOMArrayBuffer::Create(size_t{0}, size_t{0}));
+    on_no_body(resolver);
   }
   return promise;
 }
 
-ScriptPromise Body::blob(ScriptState* script_state,
-                         ExceptionState& exception_state) {
-  RejectInvalidConsumption(exception_state);
-  if (exception_state.HadException())
-    return ScriptPromise();
+ScriptPromise<DOMArrayBuffer> Body::arrayBuffer(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto on_no_body = [](ScriptPromiseResolver<DOMArrayBuffer>* resolver) {
+    resolver->Resolve(DOMArrayBuffer::Create(size_t{0}, size_t{0}));
+  };
 
-  // See above comment.
-  if (!ExecutionContext::From(script_state))
-    return ScriptPromise();
+  return LoadAndConvertBody<BodyArrayBufferConsumer>(
+      script_state, &FetchDataLoader::CreateLoaderAsArrayBuffer, on_no_body,
+      exception_state);
+}
 
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
-      script_state, exception_state.GetContext());
-  ScriptPromise promise = resolver->Promise();
-  if (BodyBuffer()) {
+ScriptPromise<Blob> Body::blob(ScriptState* script_state,
+                               ExceptionState& exception_state) {
+  auto create_loader = [this, script_state]() {
     ExecutionContext* context = ExecutionContext::From(script_state);
-    BodyBuffer()->StartLoading(
-        FetchDataLoader::CreateLoaderAsBlobHandle(
-            MimeType(), context->GetTaskRunner(TaskType::kNetworking)),
-        MakeGarbageCollected<BodyBlobConsumer>(resolver), exception_state);
-    if (exception_state.HadException()) {
-      // Need to resolve the ScriptPromiseResolver to avoid a DCHECK().
-      resolver->Resolve();
-      return ScriptPromise();
-    }
-  } else {
+    return FetchDataLoader::CreateLoaderAsBlobHandle(
+        MimeType(), context->GetTaskRunner(TaskType::kNetworking));
+  };
+  auto on_no_body = [this](ScriptPromiseResolver<Blob>* resolver) {
     auto blob_data = std::make_unique<BlobData>();
     blob_data->SetContentType(MimeType());
     resolver->Resolve(MakeGarbageCollected<Blob>(
         BlobDataHandle::Create(std::move(blob_data), 0)));
-  }
-  return promise;
+  };
+
+  return LoadAndConvertBody<BodyBlobConsumer>(script_state, create_loader,
+                                              on_no_body, exception_state);
 }
 
-ScriptPromise Body::formData(ScriptState* script_state,
-                             ExceptionState& exception_state) {
-  RejectInvalidConsumption(exception_state);
-  if (exception_state.HadException())
-    return ScriptPromise();
+ScriptPromise<NotShared<DOMUint8Array>> Body::bytes(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto on_no_body =
+      [](ScriptPromiseResolver<NotShared<DOMUint8Array>>* resolver) {
+        resolver->Resolve(
+            NotShared<DOMUint8Array>(DOMUint8Array::Create(size_t{0})));
+      };
 
-  // See above comment.
-  if (!ExecutionContext::From(script_state))
-    return ScriptPromise();
+  return LoadAndConvertBody<BodyUint8ArrayConsumer>(
+      script_state, &FetchDataLoader::CreateLoaderAsArrayBuffer, on_no_body,
+      exception_state);
+}
 
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
-      script_state, exception_state.GetContext());
-  const ParsedContentType parsedTypeWithParameters(ContentType());
-  const String parsedType = parsedTypeWithParameters.MimeType().LowerASCII();
-  ScriptPromise promise = resolver->Promise();
-  if (parsedType == "multipart/form-data") {
+ScriptPromise<FormData> Body::formData(ScriptState* script_state,
+                                       ExceptionState& exception_state) {
+  auto on_no_body_reject = [script_state](ScriptPromiseResolverBase* resolver) {
+    resolver->Reject(V8ThrowException::CreateTypeError(
+        script_state->GetIsolate(), "Invalid MIME type"));
+  };
+  const ParsedContentType parsed_type_with_parameters(ContentType());
+  const String parsed_type =
+      parsed_type_with_parameters.MimeType().LowerASCII();
+  if (parsed_type == "multipart/form-data") {
     const String boundary =
-        parsedTypeWithParameters.ParameterValueForName("boundary");
-    auto* body_buffer = BodyBuffer();
-    if (body_buffer && !boundary.empty()) {
-      body_buffer->StartLoading(
-          FetchDataLoader::CreateLoaderAsFormData(boundary),
-          MakeGarbageCollected<BodyFormDataConsumer>(resolver),
-          exception_state);
-      if (exception_state.HadException()) {
-        // Need to resolve the ScriptPromiseResolver to avoid a DCHECK().
-        resolver->Resolve();
-        return ScriptPromise();
-      }
-      return promise;
+        parsed_type_with_parameters.ParameterValueForName("boundary");
+    if (!boundary.empty()) {
+      auto create_loader = [&boundary]() {
+        return FetchDataLoader::CreateLoaderAsFormData(boundary);
+      };
+      return LoadAndConvertBody<BodyFormDataConsumer>(
+          script_state, create_loader, on_no_body_reject, exception_state);
     }
-  } else if (parsedType == "application/x-www-form-urlencoded") {
-    if (BodyBuffer()) {
-      // According to https://fetch.spec.whatwg.org/#concept-body-package-data
-      // application/x-www-form-urlencoded FormData bytes are parsed using
-      // https://url.spec.whatwg.org/#concept-urlencoded-parser
-      // which does not decode BOM.
-      BodyBuffer()->StartLoading(
-          FetchDataLoader::CreateLoaderAsString(
-              TextResourceDecoderOptions::CreateUTF8DecodeWithoutBOM()),
-          MakeGarbageCollected<BodyFormDataConsumer>(resolver),
-          exception_state);
-      if (exception_state.HadException()) {
-        // Need to resolve the ScriptPromiseResolver to avoid a DCHECK().
-        resolver->Resolve();
-        return ScriptPromise();
-      }
-    } else {
-      resolver->Resolve(MakeGarbageCollected<FormData>());
+    if (!ShouldLoadBody(script_state, exception_state)) {
+      return EmptyPromise();
     }
+    auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<FormData>>(
+        script_state, exception_state.GetContext());
+    auto promise = resolver->Promise();
+    on_no_body_reject(resolver);
     return promise;
+  } else if (parsed_type == "application/x-www-form-urlencoded") {
+    auto on_no_body_resolve = [](ScriptPromiseResolver<FormData>* resolver) {
+      resolver->Resolve(MakeGarbageCollected<FormData>());
+    };
+    // According to https://fetch.spec.whatwg.org/#concept-body-package-data
+    // application/x-www-form-urlencoded FormData bytes are parsed using
+    // https://url.spec.whatwg.org/#concept-urlencoded-parser
+    // which does not decode BOM.
+    auto create_loader = []() {
+      return FetchDataLoader::CreateLoaderAsString(
+          TextResourceDecoderOptions::CreateUTF8DecodeWithoutBOM());
+    };
+    return LoadAndConvertBody<BodyFormDataConsumer>(
+        script_state, create_loader, on_no_body_resolve, exception_state);
   } else {
-    if (BodyBuffer()) {
-      BodyBuffer()->StartLoading(
-          FetchDataLoader::CreateLoaderAsFailure(),
-          MakeGarbageCollected<BodyFormDataConsumer>(resolver),
-          exception_state);
-      if (exception_state.HadException()) {
-        // Need to resolve the ScriptPromiseResolver to avoid a DCHECK().
-        resolver->Resolve();
-        return ScriptPromise();
-      }
-      return promise;
-    }
+    return LoadAndConvertBody<BodyFormDataConsumer>(
+        script_state, &FetchDataLoader::CreateLoaderAsFailure,
+        on_no_body_reject, exception_state);
   }
-
-  resolver->Reject(V8ThrowException::CreateTypeError(script_state->GetIsolate(),
-                                                     "Invalid MIME type"));
-  return promise;
 }
 
-ScriptPromise Body::json(ScriptState* script_state,
-                         ExceptionState& exception_state) {
-  RejectInvalidConsumption(exception_state);
-  if (exception_state.HadException())
-    return ScriptPromise();
-
-  // See above comment.
-  if (!ExecutionContext::From(script_state))
-    return ScriptPromise();
-
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
-      script_state, exception_state.GetContext());
-  ScriptPromise promise = resolver->Promise();
-  if (BodyBuffer()) {
-    BodyBuffer()->StartLoading(
-        FetchDataLoader::CreateLoaderAsString(
-            TextResourceDecoderOptions::CreateUTF8Decode()),
-        MakeGarbageCollected<BodyJsonConsumer>(resolver), exception_state);
-    if (exception_state.HadException()) {
-      // Need to resolve the ScriptPromiseResolver to avoid a DCHECK().
-      resolver->Resolve();
-      return ScriptPromise();
-    }
-  } else {
+ScriptPromise<IDLAny> Body::json(ScriptState* script_state,
+                                 ExceptionState& exception_state) {
+  auto on_no_body = [script_state](ScriptPromiseResolverBase* resolver) {
     resolver->Reject(V8ThrowException::CreateSyntaxError(
         script_state->GetIsolate(), "Unexpected end of input"));
-  }
-  return promise;
+  };
+  return LoadAndConvertBody<BodyJsonConsumer>(
+      script_state, &CreateLoaderAsStringWithUTF8Decode, on_no_body,
+      exception_state);
 }
 
-ScriptPromise Body::text(ScriptState* script_state,
-                         ExceptionState& exception_state) {
-  RejectInvalidConsumption(exception_state);
-  if (exception_state.HadException())
-    return ScriptPromise();
-
-  // See above comment.
-  if (!ExecutionContext::From(script_state))
-    return ScriptPromise();
-
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
-      script_state, exception_state.GetContext());
-  ScriptPromise promise = resolver->Promise();
-  if (BodyBuffer()) {
-    BodyBuffer()->StartLoading(
-        FetchDataLoader::CreateLoaderAsString(
-            TextResourceDecoderOptions::CreateUTF8Decode()),
-        MakeGarbageCollected<BodyTextConsumer>(resolver), exception_state);
-    if (exception_state.HadException()) {
-      // Need to resolve the ScriptPromiseResolver to avoid a DCHECK().
-      resolver->Resolve();
-      return ScriptPromise();
-    }
-  } else {
+ScriptPromise<IDLUSVString> Body::text(ScriptState* script_state,
+                                       ExceptionState& exception_state) {
+  auto on_no_body = [](ScriptPromiseResolver<IDLUSVString>* resolver) {
     resolver->Resolve(String());
-  }
-  return promise;
+  };
+  return LoadAndConvertBody<BodyTextConsumer>(
+      script_state, &CreateLoaderAsStringWithUTF8Decode, on_no_body,
+      exception_state);
 }
 
 ReadableStream* Body::body() {
@@ -393,9 +372,11 @@ ReadableStream* Body::body() {
     }
   }
 
-  if (!BodyBuffer())
-    return nullptr;
-  return BodyBuffer()->Stream();
+  if (auto* body_buffer = BodyBuffer()) {
+    return body_buffer->Stream();
+  }
+
+  return nullptr;
 }
 
 bool Body::IsBodyUsed() const {
@@ -406,15 +387,6 @@ bool Body::IsBodyUsed() const {
 bool Body::IsBodyLocked() const {
   auto* body_buffer = BodyBuffer();
   return body_buffer && body_buffer->IsStreamLocked();
-}
-
-bool Body::HasPendingActivity() const {
-  if (!GetExecutionContext() || GetExecutionContext()->IsContextDestroyed())
-    return false;
-  auto* body_buffer = BodyBuffer();
-  if (!body_buffer)
-    return false;
-  return body_buffer->HasPendingActivity();
 }
 
 Body::Body(ExecutionContext* context) : ExecutionContextClient(context) {}

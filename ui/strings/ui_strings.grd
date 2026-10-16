@@ -5,7 +5,7 @@ each locale. Specifically, these are UI strings that are used by app/ that
 need to be translated for each locale.-->
 
 <grit base_dir="." latest_public_release="0" current_release="1"
-      output_all_resource_defines="false" source_lang_id="en" enc_check="möl">
+      source_lang_id="en" enc_check="möl">
   <outputs>
     <!-- TODO add each of your output files.  Modify the three below, and add
     your own for your various languages.  See the user's guide
@@ -393,12 +393,18 @@ need to be translated for each locale.-->
       <message name="IDS_PAST_TIME_YESTERDAY" desc="Relative day yesterday">
         Yesterday
       </message>
+      <message name="IDS_TIME_TOMORROW" desc="Relative day tomorrow">
+        Tomorrow
+      </message>
 
       <!-- Menus -->
       <message name="IDS_APP_MENU_EMPTY_SUBMENU" desc="Used when a submenu has no entries">
         (empty)
       </message>
-        <message name="IDS_CLIPBOARD_MENU_HTML" desc="Used when HTML is stored in the clipboard history">
+      <message name="IDS_APP_MENU_AX_ANNOUNCE_EMPTY_SUBMENU" is_accessibility_with_no_ui="true" desc="Screen reader announcement when a submenu that has been opened has no entries">
+        Empty
+      </message>
+      <message name="IDS_CLIPBOARD_MENU_HTML" desc="Used when HTML is stored in the clipboard history">
         HTML Content
       </message>
       <message name="IDS_CLIPBOARD_MENU_IMAGE" desc="Used when an image is stored in the clipboard history">
@@ -424,10 +430,7 @@ need to be translated for each locale.-->
       </message>
 
       <!-- New Badge (user education) -->
-      <message name="IDS_NEW_BADGE" desc="Appears as a badge on UI elements like menus, denoting new features">
-        New
-      </message>
-      <message name="IDS_NEW_BADGE_UPPERCASE" desc="Appears as a badge on UI elements like menus, denoting new features, in uppercase">
+      <message name="IDS_NEW_BADGE" desc="Appears as a badge on UI elements like menus, denoting new features, in uppercase">
         NEW
       </message>
       <message name="IDS_NEW_BADGE_SCREEN_READER_MESSAGE"
@@ -441,6 +444,9 @@ need to be translated for each locale.-->
       </message>
       <message name="IDS_CONCAT_TWO_STRINGS_WITH_COMMA" desc="This string concatenates two other strings. In the English language, this particular concatenation is done via a comma and a whitespace in between the other strings. For example: '1 compromised password, 2 weak passwords'">
         <ph name="TYPE_1">$1<ex>2 compromised passwords</ex></ph>, <ph name="TYPE_2">$2<ex>7 weak passwords</ex></ph>
+      </message>
+      <message name="IDS_CONCAT_THREE_STRINGS_WITH_COMMA" desc="This string concatenates three other strings. In the English language, this particular concatenation is done via a comma and a whitespace in between the other strings. For example: '1 compromised password, 2 weak passwords, 3 reused passwords'">
+        <ph name="TYPE_1">$1<ex>2 compromised passwords</ex></ph>, <ph name="TYPE_2">$2<ex>7 weak passwords</ex></ph>, <ph name="TYPE_3">$3<ex>3 reused passwords</ex></ph>
       </message>
       <message name="IDS_CONCAT_TWO_STRINGS_WITH_PERIODS" desc="This string concatenates two other strings. In the English language, this particular concatenation is done via a period and a whitespace after the first string, and a period after the second string. For example: '1 compromised password. 2 weak passwords.'">
         <ph name="TYPE_1">$1<ex>2 compromised passwords</ex></ph>. <ph name="TYPE_2">$2<ex>7 weak passwords</ex></ph>.
@@ -602,6 +608,20 @@ need to be translated for each locale.-->
         Column <ph name="COLUMN_NAME">$1<ex>Column Name</ex></ph> sorted in descending order.
       </message>
 
+      <!-- TableView header sort state accessible strings -->
+      <message name="IDS_APP_TABLE_HEADER_NOT_SORTED_ACCNAME" desc="The text to be announced when specified column becomes unsorted.">
+        Column <ph name="COLUMN_NAME">$1<ex>Column Name</ex></ph> unsorted
+      </message>
+      <message name="IDS_APP_TABLE_HEADER_NOT_SORTED_ACCNAME_MAC" desc="The text to be announced when specified column becomes unsorted.">
+        Column <ph name="COLUMN_NAME">$1<ex>Column Name</ex></ph>
+      </message>
+      <message name="IDS_APP_TABLE_HEADER_SORTED_ASC_ACCNAME" desc="The text to be announced when specified column is sorted in ascending order.">
+        Column <ph name="COLUMN_NAME">$1<ex>Column Name</ex></ph> sorted in ascending order
+      </message>
+      <message name="IDS_APP_TABLE_HEADER_SORTED_DESC_ACCNAME" desc="The text to be announced when specified column is sorted in descending order.">
+        Column <ph name="COLUMN_NAME">$1<ex>Column Name</ex></ph> sorted in descending order
+      </message>
+
       <!-- Textfield context menu item labels. -->
       <message name="IDS_APP_UNDO" desc="The text label of the Undo menu item">
         &amp;Undo
@@ -645,6 +665,9 @@ need to be translated for each locale.-->
         <message name="IDS_APP_SHOW_CLIPBOARD_HISTORY" desc="The context menu item to show the clipboard history menu.">
           Clipboard
         </message>
+        <message name="IDS_APP_PASTE_FROM_CLIPBOARD" desc="The context menu item to show the submenu of clipboard history items the user can paste.">
+          Paste from clipboard
+        </message>
       </if>
 
       <!-- Generic terms -->
@@ -657,12 +680,18 @@ need to be translated for each locale.-->
       <message name="IDS_APP_CLOSE" desc="A generic term for Close on buttons and menus.">
         Close
       </message>
+      <message name="IDS_APP_CONTINUE" desc="A generic term for Continue on buttons.">
+        Continue
+      </message>
+      <message name="IDS_APP_TURN_ON" desc="A generic term for Turn on buttons.">
+        Turn on
+      </message>
 
       <!-- Key names -->
       <message name="IDS_APP_ESC_KEY" desc="Escape key">
         Esc
       </message>
-      <message name="IDS_APP_TAB_KEY" desc="Tab key" meaning="Tab key">
+      <message name="IDS_APP_TAB_KEY" desc="Tab key" meaning="Tab key on the keyboard">
         Tab
       </message>
       <message name="IDS_APP_INSERT_KEY" desc="Insert key">
@@ -755,7 +784,12 @@ need to be translated for each locale.-->
           Win
         </message>
       </if>
-      <if expr="chromeos_ash">
+      <if expr="is_linux">
+        <message name="IDS_APP_SUPER_KEY" desc="Windows key on Windows keyboards, and Command key on Mac keyboards.">
+          Super
+        </message>
+      </if>
+      <if expr="is_chromeos">
         <message name="IDS_APP_META_KEY" desc="External Meta key (Search key on ChromeOS keyboards, Windows key on Windows keyboards, and Command key on Mac keyboards)">
           Meta
         </message>
@@ -766,11 +800,6 @@ need to be translated for each locale.-->
           Overview
         </message>
       </if>
-
-      <!-- Accelerator format -->
-      <message name="IDS_APP_ACCELERATOR_WITH_MODIFIER" desc="Accelerator with a modifier key">
-        <ph name="KEY_MODIFIER_NAME">$1<ex>Ctrl</ex></ph>+<ph name="KEY_COMBO_NAME">$2<ex>C</ex></ph>
-      </message>
 
       <!-- Byte size units -->
       <message name="IDS_APP_BYTES" desc="Units tag indicating a quantity of bytes">
@@ -841,6 +870,9 @@ need to be translated for each locale.-->
       <message name="IDS_MESSAGE_CENTER_NOTIFICATION_INLINE_REPLY_PLACEHOLDER" desc="The default placeholder text for notification inline reply.">
         Send message
       </message>
+      <message name="IDS_MESSAGE_CENTER_NOTIFICATION_INLINE_REPLY_ACCESSIBLE_NAME" desc="The default accessible name for notification inline reply button.">
+        Send reply
+      </message>
       <message name="IDS_MESSAGE_NOTIFICATION_NOW_STRING_SHORTEST" desc="A string denoting the current point in time that should be as short as possible. Should be same as AndroidPlatform msgId 8912796667087856402. (frameworks/base/core/res/res/values/strings.xml:string:now_string_shortest)">
         now
       </message>
@@ -910,7 +942,7 @@ need to be translated for each locale.-->
       <message name="IDS_MESSAGE_NOTIFICATION_SEND_TAB_TO_SELF_CONFIRMATION_FAILURE_MESSAGE" desc="The message text for the comformation notification when the user failed to share a tab to other devices.">
         Please try again
       </message>
-      <if expr="chromeos_ash">
+      <if expr="is_chromeos">
         <message name="IDS_MESSAGE_CENTER_NOTIFIER_HATS_NAME" desc="The name of hats notifier that is a system component">
           Survey
         </message>
@@ -926,8 +958,8 @@ need to be translated for each locale.-->
       <message name="IDS_CLIPBOARD_HISTORY_MENU_TITLE" desc="The title of the clipboard history menu which shows the history of the clipboard data">
         Clipboard history
       </message>
-      <message name="IDS_CLIPBOARD_HISTORY_DELETE_BUTTON" desc="Accessibility name of the button which functions to delete a clipboard history menu entry">
-        Remove from clipboard.
+      <message name="IDS_CLIPBOARD_HISTORY_DELETE_ITEM_TEXT" is_accessibility_with_no_ui="true" desc="Accessibility name of the button used to delete an item from the clipboard history menu. Spoken by screen readers when an item's delete button gets focus but not visually rendered.">
+        Remove <ph name="ITEM_TEXT">$1<ex>text showing on menu item</ex></ph>.
       </message>
       <message name="IDS_CLIPBOARD_HISTORY_DELETE_BUTTON_HOVER_TEXT" desc="Message displayed when hovering over the button to delete a clipboard history menu entry">
         Remove
@@ -939,6 +971,12 @@ need to be translated for each locale.-->
       <!-- Strings describing the touch calibration UX -->
       <message name="IDS_DISPLAY_TOUCH_CALIBRATION_EXIT_LABEL" desc="A message to notify the user about using the escape key to exit the calibration mode.">
         To exit calibration press Esc.
+      </message>
+      <message name="IDS_DISPLAY_TOUCH_CALIBRATION_SECONDARY_SKIP_LABEL" desc="A message to notify the user about using the escape key to exit the calibration mode.">
+        If the current display is not a touchscreen, press Esc.
+      </message>
+      <message name="IDS_DISPLAY_TOUCH_CALIBRATION_PRIMARY_SKIP_LABEL" desc="A message to notify the user about using the escape key to exit the calibration mode.">
+        If this display is not a touchscreen, press Esc.
       </message>
       <message name="IDS_DISPLAY_TOUCH_CALIBRATION_HINT_LABEL_TEXT" desc="Title of the hint message to inform the user what the next step is in touch calibration is">
        Calibrate your touchscreen
@@ -1069,6 +1107,43 @@ need to be translated for each locale.-->
       <!-- Clipboard -->
       <message name="IDS_LINK_COPIED" desc="Notification telling the user that the url has been copied to clipboard. [CHAR_LIMIT=32]">
         Link copied
+      </message>
+
+      <!-- Strings shown on the Incognito navigation blocked page when policy-configured mandatory extensions are not allowed by the user to run in Incognito -->
+      <message name="IDS_INCOGNITO_NAVIGATION_BLOCKED_PAGE_TITLE" desc="Title of the page shown when Incognito navigation is blocked">
+              {COUNT, plural,
+              =1 {To use Incognito, your organization requires an extension}
+              other {To use Incognito, your organization requires some extensions}}
+      </message>
+      <message name="IDS_INCOGNITO_NAVIGATION_MESSAGE" desc="Informational message shown when Incognito navigation is blocked">
+                    {COUNT, plural,
+              =1 {Turn on the following extension in Incognito:}
+              other {Turn on the following extensions in Incognito:}}
+      </message>
+      <message name="IDS_INCOGNITO_NAVIGATION_INSTRUCTIONS" desc="Instructions shown on the blocked navigation page on how to enable an extension">
+        Turn on an extension in Incognito:
+      </message>
+      <message name="IDS_INCOGNITO_NAVIGATION_INSTRUCTIONS_STEP_1" desc="First step from the instruction to enable an extension in Incognito mode">
+        Type <ph name="BEGIN_BOLD">&lt;b&gt;</ph>chrome://extensions<ph name="END_BOLD">&lt;/b&gt;</ph> into your browser
+      </message>
+      <message name="IDS_INCOGNITO_NAVIGATION_INSTRUCTIONS_STEP_2" desc="Second step from the instruction to enable an extension in Incognito mode">
+        Find the extension above
+      </message>
+      <message name="IDS_INCOGNITO_NAVIGATION_INSTRUCTIONS_STEP_3" desc="Third step from the instruction to enable an extension in Incognito mode">
+        Click <ph name="BEGIN_BOLD">&lt;b&gt;</ph>Details<ph name="END_BOLD">&lt;/b&gt;</ph>
+      </message>
+      <message name="IDS_INCOGNITO_NAVIGATION_INSTRUCTIONS_STEP_4" desc="Forth step from the instruction to enable an extension in Incognito mode">
+        Turn on <ph name="BEGIN_BOLD">&lt;b&gt;</ph>Allow in Incognito<ph name="END_BOLD">&lt;/b&gt;</ph>
+      </message>
+        <message name="IDS_INCOGNITO_NAVIGATION_MISSING_TITLE" desc="Message shown when the admin has configures one or more extensions as mandatory for Incognito mode navigation but the extensions are not installed in the browser">
+        {COUNT, plural,
+              =1 {Can’t find extension}
+              other {Can’t find extensions}}
+      </message>
+      <message name="IDS_INCOGNITO_NAVIGATION_MISSING_EXTENSIONS" desc="Message shown when the admin has configures one or more extensions as mandatory for Incognito mode navigation but the extensions are not installed in the browser">
+        {COUNT, plural,
+              =1 {An extension with the ID <ph name="BEGIN_LIST">&lt;ul id="missing-extensions" &gt;</ph><ph name="END_LIST">&lt;/ul&gt;</ph> can’t be located. Contact your administrator.}
+              other {Extensions with the IDs <ph name="BEGIN_LIST">&lt;ul id="missing-extensions" &gt;</ph><ph name="END_LIST">&lt;/ul&gt;</ph> can’t be located. Contact your administrator.}}
       </message>
     </messages>
   </release>

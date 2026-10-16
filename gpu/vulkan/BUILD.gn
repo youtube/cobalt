@@ -23,7 +23,7 @@ if (enable_vulkan) {
     if (use_vulkan_xcb) {
       defines += [ "USE_VULKAN_XCB" ]
     }
-    if (ozone_platform_wayland) {
+    if (ozone_platform_wayland && !use_system_libwayland) {
       configs = [ "//third_party/wayland:wayland_config" ]
     }
   }
@@ -37,19 +37,23 @@ if (enable_vulkan) {
     sources = [
       "vulkan_function_pointers.cc",
       "vulkan_function_pointers.h",
+      "vulkan_queue_lock.cc",
+      "vulkan_queue_lock.h",
     ]
 
     public_configs = [ ":vulkan_config" ]
+
+    configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
     defines = [ "IS_VULKAN_IMPL" ]
 
     deps = [
       "//base",
       "//ui/gfx",
+      "//ui/gl",
     ]
 
-    public_deps =
-        [ "//third_party/vulkan-deps/vulkan-headers/src:vulkan_headers" ]
+    public_deps = [ "//third_party/vulkan-headers/src:vulkan_headers" ]
 
     if (is_fuchsia) {
       sources += [ "fuchsia/vulkan_fuchsia_ext.h" ]
@@ -66,6 +70,8 @@ if (enable_vulkan) {
 
     defines = [ "IS_VULKAN_IMPL" ]
 
+    configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
     deps = [
       ":vulkan_function_pointers",
       "//base",
@@ -80,6 +86,8 @@ if (enable_vulkan) {
     sources = [
       "semaphore_handle.cc",
       "semaphore_handle.h",
+      "skia_vk_memory_allocator_impl.cc",
+      "skia_vk_memory_allocator_impl.h",
       "vulkan_command_buffer.cc",
       "vulkan_command_buffer.h",
       "vulkan_command_pool.cc",
@@ -113,12 +121,16 @@ if (enable_vulkan) {
       defines += [ "OZONE_PLATFORM_IS_X11" ]
     }
 
+    configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
     deps = [
       ":buildflags",
       "//base",
-      "//build:chromeos_buildflags",
+      "//build:android_buildflags",
       "//components/crash/core/common:crash_key",
       "//gpu/ipc/common:vulkan_ycbcr_info",
+      "//third_party/vulkan_memory_allocator",
+      "//ui/base:ozone_buildflags",
       "//ui/gfx",
       "//ui/gl",
     ]
@@ -152,6 +164,19 @@ if (enable_vulkan) {
         "vulkan_image_win.cc",
         "vulkan_util_win32.cc",
       ]
+    }
+
+    if (use_ozone) {
+      sources += [
+        "drm_modifiers_filter_vulkan.cc",
+        "drm_modifiers_filter_vulkan.h",
+      ]
+
+      deps += [ "//ui/ozone:drm_modifiers_filter" ]
+    }
+
+    if (is_chromeos) {
+      deps += [ "//ui/gfx/linux:drm" ]
     }
 
     if (is_fuchsia) {
@@ -199,10 +224,7 @@ if (enable_vulkan) {
 
     if (is_android) {
       sources += [ "tests/native_window_android.cc" ]
-      deps += [
-        "//ui/android:ui_java",
-        "//ui/gl",
-      ]
+      deps += [ "//ui/gl" ]
     }
   }
 
@@ -218,7 +240,7 @@ if (enable_vulkan) {
         "tests/vulkan_test.cc",
         "tests/vulkan_tests_main.cc",
 
-        # TODO(crbug.com/1234132): fix compile problem with the latest vulkan
+        # TODO(crbug.com/40781300): fix compile problem with the latest vulkan
         # headers.
         # "vulkan_cxx_unittest.cc",
         "vulkan_fence_helper_unittest.cc",
@@ -246,6 +268,8 @@ if (enable_vulkan) {
       }
 
       if (use_ozone) {
+        sources += [ "drm_modifiers_filter_vulkan_unittest.cc" ]
+
         deps += [ "//ui/ozone" ]
       }
     }

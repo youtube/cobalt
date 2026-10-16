@@ -18,6 +18,7 @@
 #include <sched.h>
 
 #include "starboard/export.h"
+#include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"  // musl_sched_param
 #include "starboard/shared/modular/starboard_layer_posix_signal_abi_wrappers.h"
 
 #ifdef __cplusplus
@@ -32,6 +33,18 @@ typedef struct musl_cpu_set_t {
 SB_EXPORT int __abi_wrap_sched_getaffinity(musl_pid_t pid,
                                            size_t cpusetsize,
                                            musl_cpu_set_t* mask);
+
+SB_EXPORT int __abi_wrap_sched_getparam(musl_pid_t pid,
+                                        musl_sched_param* param);
+
+SB_EXPORT int __abi_wrap_sched_setparam(musl_pid_t pid,
+                                        const musl_sched_param* param);
+
+SB_EXPORT int __abi_wrap_sched_getscheduler(musl_pid_t pid);
+
+SB_EXPORT int __abi_wrap_sched_setscheduler(musl_pid_t pid,
+                                            int policy,
+                                            const musl_sched_param* param);
 
 #ifdef __cplusplus
 }  // extern "C"

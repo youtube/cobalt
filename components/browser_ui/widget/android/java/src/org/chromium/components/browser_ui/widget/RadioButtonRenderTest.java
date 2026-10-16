@@ -11,11 +11,17 @@ import android.view.View;
 
 import androidx.test.filters.SmallTest;
 
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
+import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.params.BaseJUnit4RunnerDelegate;
 import org.chromium.base.test.params.ParameterAnnotations.ClassParameter;
 import org.chromium.base.test.params.ParameterAnnotations.UseRunnerDelegate;
@@ -24,8 +30,7 @@ import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.components.browser_ui.widget.test.R;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
-import org.chromium.ui.test.util.BlankUiTestActivityTestCase;
+import org.chromium.ui.test.util.BlankUiTestActivity;
 import org.chromium.ui.test.util.NightModeTestUtils;
 import org.chromium.ui.test.util.RenderTestRule;
 
@@ -33,20 +38,25 @@ import java.util.List;
 
 /**
  * Render test for {@link RadioButtonWithDescription}, {@link RadioButtonWithEditText}, {@link
- * RadioButtonWithDescriptionAndAuxButton} and
- * {@link RadioButtonWithDescriptionLayout}.
+ * RadioButtonWithDescriptionAndAuxButton} and {@link RadioButtonWithDescriptionLayout}.
  */
 @RunWith(ParameterizedRunner.class)
 @UseRunnerDelegate(BaseJUnit4RunnerDelegate.class)
 @Batch(Batch.PER_CLASS)
-public class RadioButtonRenderTest extends BlankUiTestActivityTestCase {
+public class RadioButtonRenderTest {
     @ClassParameter
-    private static List<ParameterSet> sClassParams =
+    private static final List<ParameterSet> sClassParams =
             new NightModeTestUtils.NightModeParams().getParameters();
 
     private static final int REVISION = 3;
     private static final String REVISION_DESCRIPTION =
             "Use Google standard colors as the background.";
+
+    @ClassRule
+    public static final BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
+            new BaseActivityTestRule<>(BlankUiTestActivity.class);
+
+    private static Activity sActivity;
 
     @Rule
     public RenderTestRule mRenderTestRule =
@@ -79,30 +89,47 @@ public class RadioButtonRenderTest extends BlankUiTestActivityTestCase {
         mRenderTestRule.setNightModeEnabled(nightModeEnabled);
     }
 
-    @Override
-    public void setUpTest() throws Exception {
-        super.setUpTest();
-        Activity activity = getActivity();
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            View content = LayoutInflater.from(activity).inflate(
-                    R.layout.radio_button_render_test, null, false);
-            activity.setContentView(content);
+    @BeforeClass
+    public static void setupSuite() {
+        sActivity = sActivityTestRule.launchActivity(null);
+    }
 
-            mLayout = content.findViewById(R.id.test_radio_button_layout);
-            mLayout.setBackgroundColor(mFakeBgColor);
+    @AfterClass
+    public static void tearDownSuite() {
+        NightModeTestUtils.tearDownNightModeForBlankUiTestActivity();
+    }
 
-            mRadioButtonWithDescription1 = content.findViewById(R.id.base_primary_only);
-            mRadioButtonWithDescription2 = content.findViewById(R.id.base_primary_description);
-            mRadioButtonWithDescription3 = content.findViewById(R.id.base_primary_bg_override);
-            mRadioButtonWithEditText1 = content.findViewById(R.id.edittext_primary_description);
-            mRadioButtonWithEditText2 = content.findViewById(R.id.edittext_primary_only);
-            mRadioButtonWithEditText3 = content.findViewById(R.id.edittext_hint_description);
-            mRadioButtonWithEditText4 = content.findViewById(R.id.edittext_hint_only);
-            mRadioButtonWithDescriptonAndAuxButton1 = content.findViewById(R.id.aux_primary_only);
-            mRadioButtonWithDescriptonAndAuxButton2 =
-                    content.findViewById(R.id.aux_primary_description);
-            mRadioButtonWithDescriptonAndAuxButton3 = content.findViewById(R.id.aux_bg_override);
-        });
+    @Before
+    public void setUp() throws Exception {
+        Activity activity = sActivity;
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    View content =
+                            LayoutInflater.from(activity)
+                                    .inflate(R.layout.radio_button_render_test, null, false);
+                    activity.setContentView(content);
+
+                    mLayout = content.findViewById(R.id.test_radio_button_layout);
+                    mLayout.setBackgroundColor(mFakeBgColor);
+
+                    mRadioButtonWithDescription1 = content.findViewById(R.id.base_primary_only);
+                    mRadioButtonWithDescription2 =
+                            content.findViewById(R.id.base_primary_description);
+                    mRadioButtonWithDescription3 =
+                            content.findViewById(R.id.base_primary_bg_override);
+                    mRadioButtonWithEditText1 =
+                            content.findViewById(R.id.edittext_primary_description);
+                    mRadioButtonWithEditText2 = content.findViewById(R.id.edittext_primary_only);
+                    mRadioButtonWithEditText3 =
+                            content.findViewById(R.id.edittext_hint_description);
+                    mRadioButtonWithEditText4 = content.findViewById(R.id.edittext_hint_only);
+                    mRadioButtonWithDescriptonAndAuxButton1 =
+                            content.findViewById(R.id.aux_primary_only);
+                    mRadioButtonWithDescriptonAndAuxButton2 =
+                            content.findViewById(R.id.aux_primary_description);
+                    mRadioButtonWithDescriptonAndAuxButton3 =
+                            content.findViewById(R.id.aux_bg_override);
+                });
 
         Assert.assertNotNull(mLayout);
         Assert.assertNotNull(mRadioButtonWithDescription1);

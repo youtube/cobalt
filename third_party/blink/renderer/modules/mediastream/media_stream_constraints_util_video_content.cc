@@ -9,8 +9,6 @@
 #include <utility>
 
 #include "base/feature_list.h"
-#include "base/system/sys_info.h"
-#include "build/build_config.h"
 #include "media/base/limits.h"
 #include "media/base/video_types.h"
 #include "third_party/blink/public/common/features.h"
@@ -194,40 +192,6 @@ double SelectFrameRateFromCandidates(
   return frame_rate;
 }
 
-#if BUILDFLAG(IS_CHROMEOS) && defined(ARCH_CPU_ARM_FAMILY)
-bool IsRK3399Board() {
-  const std::string board = base::SysInfo::GetLsbReleaseBoard();
-  const char* kRK3399Boards[] = {
-      "bob",
-      "kevin",
-      "rainier",
-      "scarlet",
-  };
-  for (const char* b : kRK3399Boards) {
-    if (board.find(b) == 0u) {  // if |board| starts with |b|.
-      return true;
-    }
-  }
-  return false;
-}
-#endif  // BUILDFLAG(IS_CHROMEOS) && defined(ARCH_CPU_ARM_FAMILY)
-
-bool IsZeroCopyTabCaptureEnabled() {
-  // If you change this function, please change the code of the same function
-  // in
-  // https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/platform/peerconnection/rtc_video_encoder.cc.
-#if BUILDFLAG(IS_CHROMEOS) && defined(ARCH_CPU_ARM_FAMILY)
-  // The GL driver used on RK3399 has a problem to enable zero copy tab capture.
-  // See b/267966835.
-  // TODO(b/239503724): Remove this code when RK3399 reaches EOL.
-  static bool kIsRK3399Board = IsRK3399Board();
-  if (kIsRK3399Board) {
-    return false;
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS) && defined(ARCH_CPU_ARM_FAMILY)
-  return base::FeatureList::IsEnabled(blink::features::kZeroCopyTabCapture);
-}
-
 media::VideoCaptureParams SelectVideoCaptureParamsFromCandidates(
     const VideoContentCaptureCandidates& candidates,
     const MediaTrackConstraintSetPlatform& basic_constraint_set,
@@ -243,10 +207,13 @@ media::VideoCaptureParams SelectVideoCaptureParamsFromCandidates(
   media::VideoCaptureParams params;
   // If zero-copy tab capture is enabled, we want the capturer to auto-select
   // the pixel format:
+  const media::VideoPixelFormat pixel_format =
+      base::FeatureList::IsEnabled(blink::features::kZeroCopyTabCapture)
+          ? media::PIXEL_FORMAT_UNKNOWN
+          : media::PIXEL_FORMAT_I420;
   params.requested_format = media::VideoCaptureFormat(
       ToGfxSize(requested_resolution), static_cast<float>(requested_frame_rate),
-      IsZeroCopyTabCaptureEnabled() ? media::PIXEL_FORMAT_UNKNOWN
-                                    : media::PIXEL_FORMAT_I420);
+      pixel_format);
   params.resolution_change_policy = SelectResolutionPolicyFromCandidates(
       candidates.resolution_set(), default_resolution_policy);
   // Content capture always uses default power-line frequency.
@@ -281,21 +248,21 @@ std::string SelectDeviceIDFromCandidates(
   return candidates.FirstElement();
 }
 
-absl::optional<bool> SelectNoiseReductionFromCandidates(
+std::optional<bool> SelectNoiseReductionFromCandidates(
     const BoolSet& candidates,
     const MediaTrackConstraintSetPlatform& basic_constraint_set) {
   DCHECK(!candidates.IsEmpty());
   if (basic_constraint_set.goog_noise_reduction.HasIdeal() &&
       candidates.Contains(basic_constraint_set.goog_noise_reduction.Ideal())) {
-    return absl::optional<bool>(
+    return std::optional<bool>(
         basic_constraint_set.goog_noise_reduction.Ideal());
   }
 
   if (candidates.is_universal())
-    return absl::optional<bool>();
+    return std::optional<bool>();
 
   // A non-universal BoolSet can have at most one element.
-  return absl::optional<bool>(candidates.FirstElement());
+  return std::optional<bool>(candidates.FirstElement());
 }
 
 bool SelectRescaleFromCandidates(
@@ -382,7 +349,7 @@ VideoCaptureSettings SelectResultFromCandidates(
           candidates, basic_constraint_set, default_height, default_width,
           default_frame_rate, default_resolution_policy);
 
-  absl::optional<bool> noise_reduction = SelectNoiseReductionFromCandidates(
+  std::optional<bool> noise_reduction = SelectNoiseReductionFromCandidates(
       candidates.noise_reduction_set(), basic_constraint_set);
 
   bool enable_rescale = SelectRescaleFromCandidates(candidates.rescale_set(),

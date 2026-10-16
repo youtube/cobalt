@@ -103,7 +103,7 @@ uint64_t PerfUserRegsMask(unwindstack::ArchEnum arch) {
 // Adjusts the given architecture enum based on the ABI (as recorded in the perf
 // sample). Note: we do not support 64 bit samples on a 32 bit daemon build, so
 // this only converts from 64 bit to 32 bit architectures.
-// TODO(rsavitski): on riscv64, are 32 bit userspace processes posible?
+// TODO(rsavitski): on riscv64, are 32 bit userspace processes possible?
 unwindstack::ArchEnum ArchForAbi(unwindstack::ArchEnum arch, uint64_t abi) {
   if (arch == unwindstack::ARCH_ARM64 && abi == PERF_SAMPLE_REGS_ABI_32) {
     return unwindstack::ARCH_ARM;
@@ -214,15 +214,12 @@ std::unique_ptr<unwindstack::Regs> ToLibUnwindstackRegs(
                           static_cast<int>(PERF_REG_RISCV_PC) &&
                       static_cast<int>(unwindstack::RISCV64_REG_PC) == 0,
                   "register layout mismatch");
-    static_assert(static_cast<int>(unwindstack::RISCV64_REG_MAX) ==
+    static_assert(static_cast<int>(unwindstack::RISCV64_REG_REAL_COUNT) ==
                       static_cast<int>(PERF_REG_RISCV_MAX),
                   "register layout mismatch");
-    // Register layout should match, memcpy the 32 registers directly.
-    unwindstack::riscv64_user_regs riscv64_user_regs = {};
-    memcpy(&riscv64_user_regs.regs[0], &raw_regs.regs[0],
-           sizeof(uint64_t) * PERF_REG_RISCV_MAX);
+    // Register layout matches, pass the raw data to the Read call.
     return std::unique_ptr<unwindstack::Regs>(
-        unwindstack::RegsRiscv64::Read(&riscv64_user_regs));
+        unwindstack::RegsRiscv64::Read(&raw_regs.regs[0]));
   }
 
   PERFETTO_FATAL("Unsupported architecture");

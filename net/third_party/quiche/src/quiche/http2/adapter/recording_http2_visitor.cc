@@ -8,9 +8,27 @@ namespace http2 {
 namespace adapter {
 namespace test {
 
+using OnHeaderResult = ::http2::adapter::Http2VisitorInterface::OnHeaderResult;
+
 int64_t RecordingHttp2Visitor::OnReadyToSend(absl::string_view serialized) {
   events_.push_back(absl::StrFormat("OnReadyToSend %d", serialized.size()));
   return serialized.size();
+}
+
+Http2VisitorInterface::DataFrameHeaderInfo
+RecordingHttp2Visitor::OnReadyToSendDataForStream(Http2StreamId stream_id,
+                                                  size_t max_length) {
+  events_.push_back(absl::StrFormat("OnReadyToSendDataForStream %d %d",
+                                    stream_id, max_length));
+  return {70000, true, true};
+}
+
+bool RecordingHttp2Visitor::SendDataFrame(Http2StreamId stream_id,
+                                          absl::string_view /*frame_header*/,
+                                          size_t payload_bytes) {
+  events_.push_back(
+      absl::StrFormat("SendDataFrame %d %d", stream_id, payload_bytes));
+  return true;
 }
 
 void RecordingHttp2Visitor::OnConnectionError(ConnectionError error) {
@@ -48,11 +66,11 @@ bool RecordingHttp2Visitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
   return true;
 }
 
-Http2VisitorInterface::OnHeaderResult RecordingHttp2Visitor::OnHeaderForStream(
+OnHeaderResult RecordingHttp2Visitor::OnHeaderForStream(
     Http2StreamId stream_id, absl::string_view name, absl::string_view value) {
   events_.push_back(
       absl::StrFormat("OnHeaderForStream %d %s %s", stream_id, name, value));
-  return HEADER_OK;
+  return OnHeaderResult::HEADER_OK;
 }
 
 bool RecordingHttp2Visitor::OnEndHeadersForStream(Http2StreamId stream_id) {
@@ -170,6 +188,12 @@ bool RecordingHttp2Visitor::OnMetadataForStream(Http2StreamId stream_id,
 bool RecordingHttp2Visitor::OnMetadataEndForStream(Http2StreamId stream_id) {
   events_.push_back(absl::StrFormat("OnMetadataEndForStream %d", stream_id));
   return true;
+}
+
+std::pair<int64_t, bool> RecordingHttp2Visitor::PackMetadataForStream(
+    Http2StreamId stream_id, uint8_t* /*dest*/, size_t /*dest_len*/) {
+  events_.push_back(absl::StrFormat("PackMetadataForStream %d", stream_id));
+  return {1, true};
 }
 
 void RecordingHttp2Visitor::OnErrorDebug(absl::string_view message) {

@@ -7,10 +7,10 @@
 #include <memory>
 
 #include "base/files/file_util.h"
-#include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_file_util.h"
 #include "base/test/test_mock_time_task_runner.h"
 #include "media/base/test_data_util.h"
 #include "media/filters/file_data_source.h"
@@ -48,7 +48,6 @@ class VideoFrameExtractorTest : public testing::Test {
   ~VideoFrameExtractorTest() override {}
 
  protected:
-  void SetUp() override { ASSERT_TRUE(temp_dir_.CreateUniqueTempDir()); }
 
   ExtractVideoFrameResult ExtractFrame(const base::FilePath& file_path) {
     base::File file(
@@ -66,11 +65,8 @@ class VideoFrameExtractorTest : public testing::Test {
     return result;
   }
 
-  const base::FilePath& temp_dir() const { return temp_dir_.GetPath(); }
-
  private:
   base::test::TaskEnvironment task_environment_;
-  base::ScopedTempDir temp_dir_;
   std::unique_ptr<FileDataSource> data_source_;
   std::unique_ptr<VideoFrameExtractor> extractor_;
 };
@@ -83,11 +79,40 @@ TEST_F(VideoFrameExtractorTest, ExtractVideoFrame) {
   EXPECT_EQ(result.decoder_config.codec(), VideoCodec::kH264);
 }
 
+TEST_F(VideoFrameExtractorTest, ExtractVideoFrameHEVC) {
+  auto result = ExtractFrame(GetTestDataFilePath("bear-hevc-frag.mp4"));
+  EXPECT_TRUE(result.success);
+  EXPECT_GT(result.encoded_frame.size(), 0u);
+  EXPECT_EQ(result.decoder_config.codec(), VideoCodec::kHEVC);
+}
+
+TEST_F(VideoFrameExtractorTest, ExtractVideoFrameAV1) {
+  auto result = ExtractFrame(GetTestDataFilePath("bear-av1.mp4"));
+  EXPECT_TRUE(result.success);
+  EXPECT_GT(result.encoded_frame.size(), 0u);
+  EXPECT_EQ(result.decoder_config.codec(), VideoCodec::kAV1);
+}
+
+TEST_F(VideoFrameExtractorTest, ExtractVideoFrameVP8) {
+  auto result = ExtractFrame(GetTestDataFilePath("bear-vp8-webvtt.webm"));
+  EXPECT_TRUE(result.success);
+  EXPECT_GT(result.encoded_frame.size(), 0u);
+  EXPECT_EQ(result.decoder_config.codec(), VideoCodec::kVP8);
+}
+
+TEST_F(VideoFrameExtractorTest, ExtractVideoFrameVP9) {
+  auto result = ExtractFrame(GetTestDataFilePath("bear-vp9.webm"));
+  EXPECT_TRUE(result.success);
+  EXPECT_GT(result.encoded_frame.size(), 0u);
+  EXPECT_EQ(result.decoder_config.codec(), VideoCodec::kVP9);
+}
+
 // Verifies graceful failure when trying to extract frame from an invalid video
 // file.
 TEST_F(VideoFrameExtractorTest, ExtractInvalidVideoFile) {
   // Creates a dummy video file, frame extraction should fail.
-  base::FilePath file = temp_dir().AppendASCII("test.txt");
+  base::FilePath file =
+      base::CreateUniqueTempDirectoryScopedToTest().AppendASCII("test.txt");
   EXPECT_TRUE(base::WriteFile(file, "123"));
 
   auto result = ExtractFrame(file);

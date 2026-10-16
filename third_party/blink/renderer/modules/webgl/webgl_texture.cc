@@ -30,17 +30,19 @@
 
 namespace blink {
 
-WebGLTexture::WebGLTexture(WebGLRenderingContextBase* ctx)
-    : WebGLSharedPlatform3DObject(ctx), target_(0) {
-  GLuint texture;
-  ctx->ContextGL()->GenTextures(1, &texture);
-  SetObject(texture);
+WebGLTexture::WebGLTexture(WebGLContextObjectSupport* ctx)
+    : WebGLObject(ctx), target_(0) {
+  if (!ctx->IsLost()) {
+    GLuint texture;
+    ctx->ContextGL()->GenTextures(1, &texture);
+    SetObject(texture);
+  }
 }
 
-WebGLTexture::WebGLTexture(WebGLRenderingContextBase* ctx,
+WebGLTexture::WebGLTexture(WebGLContextObjectSupport* ctx,
                            GLuint texture,
                            GLenum target)
-    : WebGLSharedPlatform3DObject(ctx), target_(target) {
+    : WebGLObject(ctx), target_(target) {
   SetObject(texture);
 }
 
@@ -55,9 +57,42 @@ void WebGLTexture::SetTarget(GLenum target) {
   target_ = target;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void WebGLTexture::UpdateUnderlyingObject(GLuint new_object,
+                                          scoped_refptr<media::VideoFrame> video_frame,
+                                          bool has_shared_image_access) {
+  if (Object() && Object() != new_object) {
+    if (has_shared_image_access_) {
+      Context()->ContextGL()->EndSharedImageAccessDirectCHROMIUM(Object());
+    }
+    GLuint texture_id = Object();
+    Context()->ContextGL()->DeleteTextures(1, &texture_id);
+    ResetUnownedObject();
+  }
+  if (Object() != new_object) {
+    SetObject(new_object);
+  }
+  mailbox_ = video_frame && video_frame->HasSharedImage() ? video_frame->shared_image()->mailbox() : gpu::Mailbox();
+  shared_image_ = video_frame ? video_frame->shared_image() : nullptr;
+  video_frame_ = std::move(video_frame);
+  has_shared_image_access_ = has_shared_image_access;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 void WebGLTexture::DeleteObjectImpl(gpu::gles2::GLES2Interface* gl) {
-  gl->DeleteTextures(1, &object_);
-  object_ = 0;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (has_shared_image_access_) {
+    gl->EndSharedImageAccessDirectCHROMIUM(Object());
+    has_shared_image_access_ = false;
+  }
+  video_frame_ = nullptr;
+  shared_image_ = nullptr;
+  mailbox_ = gpu::Mailbox();
+  GLuint texture_id = Object();
+  gl->DeleteTextures(1, &texture_id);
+#else
+  gl->DeleteTextures(1, &Object());
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 int WebGLTexture::MapTargetToIndex(GLenum target) const {

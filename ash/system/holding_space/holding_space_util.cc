@@ -5,8 +5,8 @@
 #include "ash/system/holding_space/holding_space_util.h"
 
 #include <memory>
+#include <optional>
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/color/color_provider.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animation_element.h"
@@ -38,7 +38,7 @@ class CallbackPathGenerator : public views::HighlightPathGenerator {
 
  private:
   // views::HighlightPathGenerator:
-  absl::optional<gfx::RRectF> GetRoundRect(const gfx::RectF& rect) override {
+  std::optional<gfx::RRectF> GetRoundRect(const gfx::RectF& rect) override {
     return callback_.Run();
   }
 
@@ -50,13 +50,18 @@ class CallbackPathGenerator : public views::HighlightPathGenerator {
 class CircleBackground : public views::Background {
  public:
   CircleBackground(ui::ColorId color_id, size_t fixed_size)
-      : color_id_(color_id), fixed_size_(fixed_size) {}
+      : fixed_size_(fixed_size) {
+    SetColor(color_id);
+  }
 
   CircleBackground(ui::ColorId color_id, const gfx::InsetsF& insets)
-      : color_id_(color_id), insets_(insets) {}
+      : insets_(insets) {
+    SetColor(color_id);
+  }
 
   CircleBackground(const CircleBackground&) = delete;
   CircleBackground& operator=(const CircleBackground&) = delete;
+
   ~CircleBackground() override = default;
 
   // views::Background:
@@ -73,20 +78,18 @@ class CircleBackground : public views::Background {
 
     cc::PaintFlags flags;
     flags.setAntiAlias(true);
-    flags.setColor(get_color());
+    flags.setColor(color().ResolveToSkColor(view->GetColorProvider()));
 
     canvas->DrawCircle(bounds.CenterPoint(), radius, flags);
   }
 
   void OnViewThemeChanged(views::View* view) override {
-    SetNativeControlColor(view->GetColorProvider()->GetColor(color_id_));
     view->SchedulePaint();
   }
 
  private:
-  const ui::ColorId color_id_;
-  const absl::optional<size_t> fixed_size_;
-  const absl::optional<gfx::InsetsF> insets_;
+  const std::optional<size_t> fixed_size_;
+  const std::optional<gfx::InsetsF> insets_;
 };
 
 // Helpers ---------------------------------------------------------------------

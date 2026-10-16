@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/grpc_support/bidirectional_stream.h"
 
 #include <memory>
@@ -34,9 +39,9 @@
 
 namespace grpc_support {
 
-BidirectionalStream::WriteBuffers::WriteBuffers() {}
+BidirectionalStream::WriteBuffers::WriteBuffers() = default;
 
-BidirectionalStream::WriteBuffers::~WriteBuffers() {}
+BidirectionalStream::WriteBuffers::~WriteBuffers() = default;
 
 void BidirectionalStream::WriteBuffers::Clear() {
   write_buffer_list.clear();
@@ -97,7 +102,7 @@ int BidirectionalStream::Start(const char* url,
   request_info->method = method;
   if (!net::HttpUtil::IsValidHeaderName(request_info->method))
     return -1;
-  request_info->extra_headers.CopyFrom(headers);
+  request_info->extra_headers = headers;
   request_info->end_stream_on_headers = end_of_stream;
   write_end_of_stream_ = end_of_stream;
   PostToNetworkThread(FROM_HERE,
@@ -110,7 +115,8 @@ bool BidirectionalStream::ReadData(char* buffer, int capacity) {
   if (!buffer)
     return false;
   scoped_refptr<net::WrappedIOBuffer> read_buffer =
-      base::MakeRefCounted<net::WrappedIOBuffer>(buffer);
+      base::MakeRefCounted<net::WrappedIOBuffer>(
+          base::span(buffer, static_cast<size_t>(capacity)));
 
   PostToNetworkThread(
       FROM_HERE, base::BindOnce(&BidirectionalStream::ReadDataOnNetworkThread,
@@ -125,7 +131,8 @@ bool BidirectionalStream::WriteData(const char* buffer,
     return false;
 
   scoped_refptr<net::WrappedIOBuffer> write_buffer =
-      base::MakeRefCounted<net::WrappedIOBuffer>(buffer);
+      base::MakeRefCounted<net::WrappedIOBuffer>(
+          base::span(buffer, static_cast<size_t>(count)));
 
   PostToNetworkThread(
       FROM_HERE,
@@ -147,15 +154,6 @@ void BidirectionalStream::Cancel() {
       base::BindOnce(&BidirectionalStream::CancelOnNetworkThread, weak_this_));
 }
 
-void BidirectionalStream::Destroy() {
-  // Destroy could be called from any thread, including network thread (if
-  // posting task to executor throws an exception), but is posted, so |this|
-  // is valid until calling task is complete.
-  PostToNetworkThread(
-      FROM_HERE, base::BindOnce(&BidirectionalStream::DestroyOnNetworkThread,
-                                base::Unretained(this)));
-}
-
 void BidirectionalStream::OnStreamReady(bool request_headers_sent) {
   DCHECK(IsOnNetworkThread());
   DCHECK_EQ(STARTED, write_state_);
@@ -175,7 +173,7 @@ void BidirectionalStream::OnStreamReady(bool request_headers_sent) {
 }
 
 void BidirectionalStream::OnHeadersReceived(
-    const spdy::Http2HeaderBlock& response_headers) {
+    const quiche::HttpHeaderBlock& response_headers) {
   DCHECK(IsOnNetworkThread());
   DCHECK_EQ(STARTED, read_state_);
   if (!bidi_stream_)
@@ -189,10 +187,10 @@ void BidirectionalStream::OnHeadersReceived(
   }
   const char* protocol = "unknown";
   switch (bidi_stream_->GetProtocol()) {
-    case net::kProtoHTTP2:
+    case net::NextProto::kProtoHTTP2:
       protocol = "h2";
       break;
-    case net::kProtoQUIC:
+    case net::NextProto::kProtoQUIC:
       protocol = "quic/1+spdy/3";
       break;
     default:
@@ -222,11 +220,22 @@ void BidirectionalStream::OnDataSent() {
     return;
   DCHECK_EQ(WRITING, write_state_);
   write_state_ = WAITING_FOR_FLUSH;
+
+  // BidirectionalStream::WriteData() uses WrappedIOBuffers, which don't own
+  // their contents, so OnDataSent may well delete the data backing those
+  // buffers. As a result, to avoid trigging dangling pointer warnings, the
+  // WrappedIOBuffers must be destroyed before calling OnDataSent().
+  std::vector<char*> buffer_ptrs;
   for (const scoped_refptr<net::IOBuffer>& buffer :
        sending_write_data_->buffers()) {
-    delegate_->OnDataSent(buffer->data());
+    buffer_ptrs.push_back(buffer->data());
   }
   sending_write_data_->Clear();
+
+  for (char* buffer_ptr : buffer_ptrs) {
+    delegate_->OnDataSent(buffer_ptr);
+  }
+
   // Send data flushed while other data was sending.
   if (!flushing_write_data_->Empty()) {
     SendFlushingWriteData();
@@ -239,7 +248,7 @@ void BidirectionalStream::OnDataSent() {
 }
 
 void BidirectionalStream::OnTrailersReceived(
-    const spdy::Http2HeaderBlock& response_trailers) {
+    const quiche::HttpHeaderBlock& response_trailers) {
   DCHECK(IsOnNetworkThread());
   if (!bidi_stream_)
     return;
@@ -369,11 +378,6 @@ void BidirectionalStream::CancelOnNetworkThread() {
   bidi_stream_.reset();
   weak_factory_.InvalidateWeakPtrs();
   delegate_->OnCanceled();
-}
-
-void BidirectionalStream::DestroyOnNetworkThread() {
-  DCHECK(IsOnNetworkThread());
-  delete this;
 }
 
 void BidirectionalStream::MaybeOnSucceded() {

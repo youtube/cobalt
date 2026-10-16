@@ -16,7 +16,9 @@ PresentationReceiverWindowFrame::~PresentationReceiverWindowFrame() = default;
 void PresentationReceiverWindowFrame::InitReceiverFrame(
     std::unique_ptr<views::WidgetDelegateView> delegate,
     const gfx::Rect& bounds) {
-  views::Widget::InitParams params(views::Widget::InitParams::TYPE_WINDOW);
+  views::Widget::InitParams params(
+      views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET,
+      views::Widget::InitParams::TYPE_WINDOW);
   params.bounds = bounds;
   params.delegate = delegate.release();
 
@@ -28,7 +30,7 @@ const ui::ThemeProvider* PresentationReceiverWindowFrame::GetThemeProvider()
   return &ThemeService::GetThemeProviderForProfile(profile_);
 }
 
-ui::ColorProviderManager::ThemeInitializerSupplier*
+ui::ColorProviderKey::ThemeInitializerSupplier*
 PresentationReceiverWindowFrame::GetCustomTheme() const {
   return ThemeService::GetThemeSupplierForProfile(profile_);
 }

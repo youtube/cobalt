@@ -34,7 +34,7 @@ void MockPairerBroker::NotifyPairFailure(scoped_refptr<Device> device,
 
 void MockPairerBroker::NotifyAccountKeyWrite(
     scoped_refptr<Device> device,
-    absl::optional<AccountKeyFailure> failure) {
+    std::optional<AccountKeyFailure> failure) {
   for (auto& obs : observers_)
     obs.OnAccountKeyWrite(device, failure);
 }
@@ -42,6 +42,13 @@ void MockPairerBroker::NotifyAccountKeyWrite(
 void MockPairerBroker::NotifyPairingStart(scoped_refptr<Device> device) {
   for (auto& obs : observers_)
     obs.OnPairingStart(device);
+}
+
+void MockPairerBroker::NotifyDisplayPasskey(std::u16string device_name,
+                                            uint32_t passkey) {
+  for (auto& obs : observers_) {
+    obs.OnDisplayPasskey(device_name, passkey);
+  }
 }
 
 void MockPairerBroker::NotifyHandshakeComplete(scoped_refptr<Device> device) {

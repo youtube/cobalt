@@ -7,7 +7,6 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 
 class OmniboxTriggeredFeatureServiceTest : public testing::Test {
@@ -96,7 +95,7 @@ TEST_F(OmniboxTriggeredFeatureServiceTest, RichAutocompletionTypeTriggered) {
   service_.FeatureTriggered(
       metrics::OmniboxEventProto_Feature_RICH_AUTOCOMPLETION);
   service_.RichAutocompletionTypeTriggered(
-      AutocompleteMatch::RichAutocompletionType::kTitleNonPrefix);
+      AutocompleteMatch::RichAutocompletionType::kShortcutTextPrefix);
   service_.RichAutocompletionTypeTriggered(
       AutocompleteMatch::RichAutocompletionType::kTitlePrefix);
   service_.RichAutocompletionTypeTriggered(
@@ -110,7 +109,7 @@ TEST_F(OmniboxTriggeredFeatureServiceTest, RichAutocompletionTypeTriggered) {
   histogram_.ExpectTotalCount("Omnibox.RichAutocompletion.Triggered", 3);
   histogram_.ExpectBucketCount(
       "Omnibox.RichAutocompletion.Triggered",
-      AutocompleteMatch::RichAutocompletionType::kTitleNonPrefix, 1);
+      AutocompleteMatch::RichAutocompletionType::kShortcutTextPrefix, 1);
   histogram_.ExpectBucketCount(
       "Omnibox.RichAutocompletion.Triggered",
       AutocompleteMatch::RichAutocompletionType::kTitlePrefix, 1);

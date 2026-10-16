@@ -5,6 +5,7 @@
 #include "media/remoting/stream_provider.h"
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
 #include "media/base/audio_decoder_config.h"
@@ -33,7 +34,7 @@ class StreamProviderTest : public testing::Test {
   StreamProviderTest()
       : audio_config_(TestAudioConfig::Normal()),
         video_config_(TestVideoConfig::Normal()),
-        audio_buffer_(new DecoderBuffer(kBufferSize)),
+        audio_buffer_(base::MakeRefCounted<DecoderBuffer>(kBufferSize)),
         video_buffer_(DecoderBuffer::CreateEOSBuffer()) {}
 
   void SetUp() override {
@@ -299,7 +300,7 @@ TEST_F(StreamProviderTest, ReadBuffer) {
       1, base::BindOnce(&StreamProviderTest::OnBufferReadFromDemuxerStream,
                         base::Unretained(this), DemuxerStream::Type::AUDIO));
   task_environment_.RunUntilIdle();
-  EXPECT_EQ(audio_buffer_->data_size(), received_audio_buffer_->data_size());
+  EXPECT_EQ(audio_buffer_->size(), received_audio_buffer_->size());
   EXPECT_EQ(audio_buffer_->end_of_stream(),
             received_audio_buffer_->end_of_stream());
   EXPECT_EQ(audio_buffer_->is_key_frame(),

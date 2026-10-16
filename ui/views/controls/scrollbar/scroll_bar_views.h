@@ -19,11 +19,11 @@ namespace views {
 
 // Views implementation for the scrollbar.
 class VIEWS_EXPORT ScrollBarViews : public ScrollBar {
- public:
-  METADATA_HEADER(ScrollBarViews);
+  METADATA_HEADER(ScrollBarViews, ScrollBar)
 
+ public:
   // Creates new scrollbar, either horizontal or vertical.
-  explicit ScrollBarViews(bool horizontal = true);
+  explicit ScrollBarViews(Orientation orientation = Orientation::kHorizontal);
 
   ScrollBarViews(const ScrollBarViews&) = delete;
   ScrollBarViews& operator=(const ScrollBarViews&) = delete;
@@ -48,7 +48,6 @@ class VIEWS_EXPORT ScrollBarViews : public ScrollBar {
   raw_ptr<Button> prev_button_;
   raw_ptr<Button> next_button_;
 
-  ui::NativeTheme::ExtraParams params_;
   ui::NativeTheme::Part part_;
   ui::NativeTheme::State state_;
 };

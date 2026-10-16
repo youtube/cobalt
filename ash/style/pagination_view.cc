@@ -4,12 +4,14 @@
 
 #include "ash/style/pagination_view.h"
 
+#include <optional>
+#include <utility>
+
 #include "ash/public/cpp/pagination/pagination_model.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/style/style_util.h"
 #include "base/i18n/number_formatting.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
@@ -18,6 +20,7 @@
 #include "ui/gfx/animation/tween.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/scroll_view.h"
@@ -69,14 +72,14 @@ struct InterpolationInterval {
 // IndicatorButton:
 // A button with a hollow circle in the center.
 class IndicatorButton : public views::Button {
- public:
-  METADATA_HEADER(IndicatorButton);
+  METADATA_HEADER(IndicatorButton, views::Button)
 
+ public:
   IndicatorButton(PressedCallback callback,
                   const std::u16string& accessible_name)
-      : views::Button(callback) {
+      : views::Button(std::move(callback)) {
     SetFocusBehavior(views::View::FocusBehavior::ACCESSIBLE_ONLY);
-    SetAccessibleName(accessible_name);
+    GetViewAccessibility().SetName(accessible_name);
   }
 
   IndicatorButton(const IndicatorButton&) = delete;
@@ -92,7 +95,8 @@ class IndicatorButton : public views::Button {
   }
 
   // views::Button:
-  gfx::Size CalculatePreferredSize() const override {
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override {
     return gfx::Size(kIndicatorButtonSize, kIndicatorButtonSize);
   }
 
@@ -108,7 +112,7 @@ class IndicatorButton : public views::Button {
   }
 };
 
-BEGIN_METADATA(IndicatorButton, views::Button)
+BEGIN_METADATA(IndicatorButton)
 END_METADATA
 
 }  // namespace
@@ -117,9 +121,9 @@ END_METADATA
 // PaginationView::SelectorDotView:
 // A solid circle that performs deformation with the pace of page transition.
 class PaginationView::SelectorDotView : public views::View {
- public:
-  METADATA_HEADER(SelectorDotView);
+  METADATA_HEADER(SelectorDotView, views::View)
 
+ public:
   using DeformInterval = InterpolationInterval<gfx::Rect>;
 
   SelectorDotView() {
@@ -187,7 +191,7 @@ class PaginationView::SelectorDotView : public views::View {
   std::vector<DeformInterval> deform_intervals_;
 };
 
-BEGIN_METADATA(PaginationView, SelectorDotView, views::View)
+BEGIN_METADATA(PaginationView, SelectorDotView)
 END_METADATA
 
 //------------------------------------------------------------------------------
@@ -195,9 +199,9 @@ END_METADATA
 // The container of indicators. If the indicator to be selected is not visible,
 // the container will scroll with the pace of pagination transition.
 class PaginationView::IndicatorContainer : public views::BoxLayoutView {
- public:
-  METADATA_HEADER(IndicatorContainer);
+  METADATA_HEADER(IndicatorContainer, views::BoxLayoutView)
 
+ public:
   explicit IndicatorContainer(views::BoxLayout::Orientation orientation) {
     SetOrientation(orientation);
     SetMainAxisAlignment(views::BoxLayout::MainAxisAlignment::kCenter);
@@ -234,7 +238,7 @@ class PaginationView::IndicatorContainer : public views::BoxLayoutView {
     DCHECK(buttons_.size());
     auto indicator_button = buttons_.back();
     buttons_.pop_back();
-    RemoveChildViewT(indicator_button);
+    RemoveChildViewT(std::exchange(indicator_button, nullptr));
   }
 
   // Gets indicator corresponding to the given page.
@@ -243,6 +247,8 @@ class PaginationView::IndicatorContainer : public views::BoxLayoutView {
     DCHECK_LT(page, static_cast<int>(buttons_.size()));
     return buttons_[page].get();
   }
+
+  int GetNumberOfIndicators() const { return buttons_.size(); }
 
   // Sets up scrolling if an invisible page is selected.
   void StartScroll(int start_page, int target_page) {
@@ -278,7 +284,7 @@ class PaginationView::IndicatorContainer : public views::BoxLayoutView {
       ScrollWithOffset(canceled ? scroll_interval_->start_value
                                 : scroll_interval_->target_value);
     }
-    scroll_interval_ = absl::nullopt;
+    scroll_interval_ = std::nullopt;
   }
 
   // Returns true if the scrolling is in progress.
@@ -294,11 +300,11 @@ class PaginationView::IndicatorContainer : public views::BoxLayoutView {
     }
   }
 
-  std::vector<base::raw_ptr<IndicatorButton>> buttons_;
-  absl::optional<InterpolationInterval<int>> scroll_interval_;
+  std::vector<raw_ptr<IndicatorButton>> buttons_;
+  std::optional<InterpolationInterval<int>> scroll_interval_;
 };
 
-BEGIN_METADATA(PaginationView, IndicatorContainer, views::BoxLayoutView)
+BEGIN_METADATA(PaginationView, IndicatorContainer)
 END_METADATA
 
 //------------------------------------------------------------------------------
@@ -317,7 +323,7 @@ PaginationView::PaginationView(PaginationModel* model, Orientation orientation)
   model_observation_.Observe(model_.get());
 
   // Remove the default background color.
-  indicator_scroll_view_->SetBackgroundColor(absl::nullopt);
+  indicator_scroll_view_->SetBackgroundColor(std::nullopt);
 
   // The scroll view does not accept any scroll event.
   indicator_scroll_view_->SetHorizontalScrollBarMode(
@@ -336,7 +342,8 @@ PaginationView::PaginationView(PaginationModel* model, Orientation orientation)
 
 PaginationView::~PaginationView() = default;
 
-gfx::Size PaginationView::CalculatePreferredSize() const {
+gfx::Size PaginationView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   const int total_pages = model_->total_pages();
   if (total_pages < kMinNumPages) {
     return gfx::Size();
@@ -354,7 +361,7 @@ gfx::Size PaginationView::CalculatePreferredSize() const {
              : gfx::Size(kIndicatorButtonSize, container_size);
 }
 
-void PaginationView::Layout() {
+void PaginationView::Layout(PassKey) {
   const bool horizontal = (orientation_ == Orientation::kHorizontal);
   int offset = 0;
 
@@ -423,11 +430,8 @@ void PaginationView::CreateArrowButtons() {
 }
 
 void PaginationView::RemoveArrowButtons() {
-  RemoveChildViewT(backward_arrow_button_);
-  backward_arrow_button_ = nullptr;
-
-  RemoveChildViewT(forward_arrow_button_);
-  forward_arrow_button_ = nullptr;
+  RemoveChildViewT(std::exchange(backward_arrow_button_, nullptr));
+  RemoveChildViewT(std::exchange(forward_arrow_button_, nullptr));
 }
 
 void PaginationView::UpdateArrowButtonsVisiblity() {
@@ -483,8 +487,7 @@ void PaginationView::RemoveSelectorDot() {
     return;
   }
 
-  indicator_container_->RemoveChildViewT(selector_dot_);
-  selector_dot_ = nullptr;
+  indicator_container_->RemoveChildViewT(std::exchange(selector_dot_, nullptr));
 }
 
 void PaginationView::UpdateSelectorDot() {
@@ -508,7 +511,8 @@ void PaginationView::UpdateSelectorDot() {
 }
 
 void PaginationView::SetUpSelectorDotDeformation() {
-  DCHECK(!selector_dot_->DeformingInProgress());
+  CHECK(selector_dot_);
+  CHECK(!selector_dot_->DeformingInProgress());
 
   const int current_page = model_->selected_page();
   const int target_page = model_->transition().target_page;
@@ -577,7 +581,8 @@ void PaginationView::SelectedPageChanged(int old_selected, int new_selected) {
 
 void PaginationView::TotalPagesChanged(int previous_page_count,
                                        int new_page_count) {
-  const int current_indicator_num = indicator_container_->children().size();
+  const int current_indicator_num =
+      indicator_container_->GetNumberOfIndicators();
   new_page_count = new_page_count < kMinNumPages ? 0 : new_page_count;
   if (current_indicator_num == new_page_count) {
     return;
@@ -621,10 +626,14 @@ void PaginationView::TotalPagesChanged(int previous_page_count,
     }
   }
 
-  Layout();
+  DeprecatedLayoutImmediately();
 }
 
 void PaginationView::TransitionChanged() {
+  if (!selector_dot_) {
+    return;
+  }
+
   // If there is no transition, reset and cancel current selector dot
   // deformation and indicator container scrolling.
   if (!model_->has_transition()) {
@@ -649,6 +658,6 @@ void PaginationView::TransitionChanged() {
   selector_dot_->Deform(progress);
 }
 
-BEGIN_METADATA(PaginationView, views::View)
+BEGIN_METADATA(PaginationView)
 END_METADATA
 }  // namespace ash

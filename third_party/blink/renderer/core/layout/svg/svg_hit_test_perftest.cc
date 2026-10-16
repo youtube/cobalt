@@ -9,8 +9,8 @@
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/renderer/core/input/event_handler.h"
 #include "third_party/blink/renderer/core/input/event_handling_util.h"
-#include "third_party/blink/renderer/core/layout/svg/svg_layout_support.h"
 #include "third_party/blink/renderer/core/layout/svg/transformed_hit_test_location.h"
+#include "third_party/blink/renderer/core/paint/clip_path_clipper.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
 
 namespace blink {
@@ -115,18 +115,14 @@ TEST_F(SvgHitTestPerfTest, IntersectsClipPath) {
       HitTestLocation(document_point), container->LocalToSVGParentTransform());
   ASSERT_TRUE(local_location);
 
-  gfx::RectF object_bounding_box = container->ObjectBoundingBox();
-
-  RunTest(
-      "IntersectsClipPath",
-      WTF::BindRepeating(
-          [](const LayoutObject* container, gfx::RectF& container_bounding_box,
-             TransformedHitTestLocation& local_location) {
-            SVGLayoutSupport::IntersectsClipPath(
-                *container, container_bounding_box, *local_location);
-          },
-          WrapPersistent(container), std::ref(object_bounding_box),
-          std::ref(local_location)));
+  RunTest("IntersectsClipPath",
+          WTF::BindRepeating(
+              [](const LayoutObject* container,
+                 TransformedHitTestLocation& local_location) {
+                container->HasClipPath() &&
+                    ClipPathClipper::HitTest(*container, *local_location);
+              },
+              WrapPersistent(container), std::ref(local_location)));
 }
 
 }  // namespace blink

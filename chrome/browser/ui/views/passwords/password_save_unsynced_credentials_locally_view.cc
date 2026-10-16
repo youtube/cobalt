@@ -12,11 +12,13 @@
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
-#include "chrome/browser/ui/views/passwords/password_items_view.h"
 #include "chrome/browser/ui/views/passwords/views_utils.h"
 #include "chrome/grit/generated_resources.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/ui_base_types.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
@@ -30,15 +32,16 @@ PasswordSaveUnsyncedCredentialsLocallyView::
                              anchor_view,
                              /*easily_dismissable=*/false),
       controller_(PasswordsModelDelegateFromWebContents(web_contents)) {
-  SetButtons(ui::DIALOG_BUTTON_OK | ui::DIALOG_BUTTON_CANCEL);
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kOk) |
+             static_cast<int>(ui::mojom::DialogButton::kCancel));
   SetAcceptCallback(
       base::BindOnce(&PasswordSaveUnsyncedCredentialsLocallyView::OnSaveClicked,
                      base::Unretained(this)));
   SetButtonLabel(
-      ui::DIALOG_BUTTON_OK,
+      ui::mojom::DialogButton::kOk,
       l10n_util::GetStringUTF16(
           IDS_PASSWORD_MANAGER_SAVE_UNSYNCED_CREDENTIALS_BUTTON_GPM));
-  SetButtonLabel(ui::DIALOG_BUTTON_CANCEL,
+  SetButtonLabel(ui::mojom::DialogButton::kCancel,
                  l10n_util::GetStringUTF16(
                      IDS_PASSWORD_MANAGER_DISCARD_UNSYNCED_CREDENTIALS_BUTTON));
   SetCancelCallback(base::BindOnce(
@@ -100,7 +103,7 @@ void PasswordSaveUnsyncedCredentialsLocallyView::CreateLayout() {
     checkbox->SetChecked(true);
     num_selected_checkboxes_++;
     auto* username_label = row_view->AddChildView(CreateUsernameLabel(form));
-    checkbox->SetAccessibleName(username_label);
+    checkbox->GetViewAccessibility().SetName(*username_label);
     auto* password_label = row_view->AddChildView(CreatePasswordLabel(form));
     auto* row_layout =
         row_view->SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -122,8 +125,11 @@ void PasswordSaveUnsyncedCredentialsLocallyView::ButtonPressed(
 
 void PasswordSaveUnsyncedCredentialsLocallyView::OnSaveClicked() {
   std::vector<bool> was_credential_selected;
-  for (const auto* checkbox : checkboxes_) {
+  for (const views::Checkbox* checkbox : checkboxes_) {
     was_credential_selected.push_back(checkbox->GetChecked());
   }
   controller_.OnSaveClicked(was_credential_selected);
 }
+
+BEGIN_METADATA(PasswordSaveUnsyncedCredentialsLocallyView)
+END_METADATA

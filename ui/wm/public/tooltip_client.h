@@ -6,6 +6,7 @@
 #define UI_WM_PUBLIC_TOOLTIP_CLIENT_H_
 
 #include "ui/aura/window.h"
+#include "ui/base/class_property.h"
 #include "ui/gfx/font.h"
 #include "ui/wm/public/wm_public_export.h"
 
@@ -66,10 +67,19 @@ WM_PUBLIC_EXPORT void SetTooltipId(aura::Window* window, void* id);
 WM_PUBLIC_EXPORT const std::u16string GetTooltipText(aura::Window* window);
 WM_PUBLIC_EXPORT const void* GetTooltipId(aura::Window* window);
 
+WM_PUBLIC_EXPORT extern const aura::WindowProperty<TooltipClient*>* const
+    kRootWindowTooltipClientKey;
 WM_PUBLIC_EXPORT extern const aura::WindowProperty<void*>* const kTooltipIdKey;
 WM_PUBLIC_EXPORT extern const aura::WindowProperty<std::u16string*>* const
     kTooltipTextKey;
 
 }  // namespace wm
+
+// Declare template specializations introduced by WM here to make sure that the
+// compiler knows about them before the first template instance use. Using a
+// template instance before its specialization is declared in a translation unit
+// is an error.
+DECLARE_EXPORTED_UI_CLASS_PROPERTY_TYPE(WM_PUBLIC_EXPORT, void*)
+DECLARE_EXPORTED_UI_CLASS_PROPERTY_TYPE(WM_PUBLIC_EXPORT, wm::TooltipClient*)
 
 #endif  // UI_WM_PUBLIC_TOOLTIP_CLIENT_H_

@@ -15,13 +15,15 @@
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/mock_render_process_host.h"
 #include "content/public/test/test_browser_context.h"
-#include "extensions/browser/api/system_display/display_info_provider.h"
 #include "extensions/browser/api/system_info/system_info_provider.h"
+#include "extensions/browser/display_info_provider_base.h"
 #include "extensions/browser/event_router.h"
 #include "extensions/browser/event_router_factory.h"
+#include "extensions/browser/mock_extension_system.h"
 #include "extensions/browser/test_extensions_browser_client.h"
 #include "extensions/common/api/system_display.h"
 #include "extensions/common/api/system_storage.h"
+#include "extensions/common/extension_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace extensions {
@@ -52,7 +54,7 @@ class FakeExtensionsBrowserClient : public TestExtensionsBrowserClient {
   };
 
   // TestExtensionsBrowserClient:
-  bool IsValidContext(content::BrowserContext* context) override {
+  bool IsValidContext(void* context) override {
     return TestExtensionsBrowserClient::IsValidContext(context) ||
            context == second_context_;
   }
@@ -94,7 +96,7 @@ class FakeExtensionsBrowserClient : public TestExtensionsBrowserClient {
       event_name_to_broadcasts_map_;
 };
 
-class FakeDisplayInfoProvider : public DisplayInfoProvider {
+class FakeDisplayInfoProvider : public DisplayInfoProviderBase {
  public:
   FakeDisplayInfoProvider() = default;
   ~FakeDisplayInfoProvider() override = default;
@@ -173,6 +175,7 @@ class SystemInfoAPITest : public testing::Test {
     client_.SetMainContext(&context1_);
     client_.SetSecondContext(&context2_);
     ExtensionsBrowserClient::Set(&client_);
+    client_.set_extension_system_factory(&factory_);
 
     BrowserContextDependencyManager::GetInstance()
         ->CreateBrowserContextServicesForTest(&context1_);
@@ -226,14 +229,14 @@ class SystemInfoAPITest : public testing::Test {
 
   void AddEventListener(EventRouter* router,
                         EventType type,
-                        const std::string& extension_id = kFakeExtensionId) {
+                        const ExtensionId& extension_id = kFakeExtensionId) {
     router->AddEventListener(EventTypeToName(type), render_process_host(),
                              extension_id);
   }
 
   void RemoveEventListener(EventRouter* router,
                            EventType type,
-                           const std::string& extension_id = kFakeExtensionId) {
+                           const ExtensionId& extension_id = kFakeExtensionId) {
     router->RemoveEventListener(EventTypeToName(type), render_process_host(),
                                 extension_id);
   }
@@ -305,6 +308,7 @@ class SystemInfoAPITest : public testing::Test {
   content::TestBrowserContext context1_;
   content::TestBrowserContext context2_;
   FakeExtensionsBrowserClient client_;
+  MockExtensionSystemFactory<MockExtensionSystem> factory_;
   raw_ptr<EventRouter> router1_ = nullptr;
   raw_ptr<EventRouter> router2_ = nullptr;
   FakeDisplayInfoProvider display_info_provider_;

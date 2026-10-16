@@ -20,6 +20,7 @@
 
 #include "third_party/blink/renderer/core/page/frame_tree.h"
 
+#include "base/compiler_specific.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/frame/frame_client.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -28,42 +29,18 @@
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/frame/remote_frame.h"
 #include "third_party/blink/renderer/core/frame/remote_frame_view.h"
+#include "third_party/blink/renderer/core/loader/frame_load_request.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/create_window.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
-using std::swap;
-
 namespace blink {
 
 namespace {
 
 const unsigned kInvalidChildCount = ~0U;
-
-void LogDanglingMarkupHistogram(Document* document, const AtomicString& name) {
-  document->CountUse(WebFeature::kDanglingMarkupInTarget);
-  if (!name.EndsWith('>')) {
-    document->CountUse(WebFeature::kDanglingMarkupInTargetNotEndsWithGT);
-    if (!name.EndsWith('\n')) {
-      document->CountUse(
-          WebFeature::kDanglingMarkupInTargetNotEndsWithNewLineOrGT);
-    }
-  }
-}
-
-bool ContainsNewLineAndLessThan(const AtomicString& name) {
-  return name.Contains('\n') && name.Contains('<');
-}
-
-bool IsRequestFromHtml(FrameLoadRequest& request) {
-  return request.ClientRedirectReason() ==
-             ClientNavigationReason::kFormSubmissionGet ||
-         request.ClientRedirectReason() ==
-             ClientNavigationReason::kFormSubmissionPost ||
-         request.ClientRedirectReason() == ClientNavigationReason::kAnchorClick;
-}
 
 }  // namespace
 
@@ -213,10 +190,12 @@ unsigned FrameTree::ChildCount() const {
 Frame* FrameTree::FindFrameByName(const AtomicString& name) const {
   // Named frame lookup should always be relative to a local frame.
   DCHECK(IsA<LocalFrame>(this_frame_.Get()));
+  LocalFrame* current_frame = To<LocalFrame>(this_frame_.Get());
 
   Frame* frame = FindFrameForNavigationInternal(name, KURL());
-  if (frame && !To<LocalFrame>(this_frame_.Get())->CanNavigate(*frame))
+  if (frame && !current_frame->CanNavigate(*frame)) {
     frame = nullptr;
+  }
   return frame;
 }
 
@@ -232,12 +211,6 @@ FrameTree::FindResult FrameTree::FindOrCreateFrameForNavigation(
   // (e.g., a ctrl-click). Let the user's action override any target attribute.
   if (request.GetNavigationPolicy() != kNavigationPolicyCurrentTab)
     return FindResult(current_frame, false);
-
-  // Log use counters if the name contains both '\n' and '<'.
-  if (ContainsNewLineAndLessThan(name) && IsRequestFromHtml(request) &&
-      current_frame->GetDocument()) {
-    LogDanglingMarkupHistogram(current_frame->GetDocument(), name);
-  }
 
   const KURL& url = request.GetResourceRequest().Url();
   Frame* frame = FindFrameForNavigationInternal(name, url, &request);
@@ -267,68 +240,67 @@ Frame* FrameTree::FindFrameForNavigationInternal(
     const AtomicString& name,
     const KURL& url,
     FrameLoadRequest* request) const {
+  LocalFrame* current_frame = To<LocalFrame>(this_frame_.Get());
+
   if (EqualIgnoringASCIICase(name, "_current")) {
-    UseCounter::Count(
-        blink::DynamicTo<blink::LocalFrame>(this_frame_.Get())->GetDocument(),
-        WebFeature::kTargetCurrent);
+    UseCounter::Count(current_frame->GetDocument(), WebFeature::kTargetCurrent);
   }
 
   if (EqualIgnoringASCIICase(name, "_self") ||
       EqualIgnoringASCIICase(name, "_current") || name.empty()) {
-    return this_frame_;
+    return current_frame;
   }
 
-  if (EqualIgnoringASCIICase(name, "_top"))
+  if (EqualIgnoringASCIICase(name, "_top")) {
     return &Top();
+  }
 
-  // The target _unfencedTop should only be treated as a special name in
-  // opaque-ads mode fenced frames.
   if (EqualIgnoringASCIICase(name, "_unfencedTop")) {
     // In fenced frames, we set a flag that will later indicate to the browser
     // that this is an _unfencedTop navigation, and return the current frame
     // so that the renderer-side checks will succeed.
     // TODO(crbug.com/1315802): Refactor MPArch _unfencedTop handling.
-    if (this_frame_.Get()->GetDeprecatedFencedFrameMode() ==
-            blink::FencedFrame::DeprecatedFencedFrameMode::kOpaqueAds &&
-        request != nullptr) {
+    if (current_frame->IsInFencedFrameTree() && request != nullptr) {
       request->SetIsUnfencedTopNavigation(true);
-      return this_frame_;
+      return current_frame;
     }
   }
 
   if (EqualIgnoringASCIICase(name, "_parent")) {
-    return Parent() ? Parent() : this_frame_.Get();
+    return Parent() ? Parent() : current_frame;
   }
 
   // Since "_blank" should never be any frame's name, the following just amounts
   // to an optimization.
-  if (EqualIgnoringASCIICase(name, "_blank"))
+  if (EqualIgnoringASCIICase(name, "_blank")) {
     return nullptr;
+  }
 
   // Search subtree starting with this frame first.
-  for (Frame* frame = this_frame_; frame;
-       frame = frame->Tree().TraverseNext(this_frame_)) {
+  for (Frame* frame = current_frame; frame;
+       frame = frame->Tree().TraverseNext(current_frame)) {
     if (frame->Tree().GetName() == name &&
-        To<LocalFrame>(this_frame_.Get())->CanNavigate(*frame, url)) {
+        current_frame->CanNavigate(*frame, url)) {
       return frame;
     }
   }
 
   // Search the entire tree for this page next.
-  Page* page = this_frame_->GetPage();
+  Page* page = current_frame->GetPage();
 
   // The frame could have been detached from the page, so check it.
-  if (!page)
+  if (!page) {
     return nullptr;
+  }
 
-  for (Frame *top = &this_frame_->Tree().Top(), *frame = top; frame;
+  for (Frame *top = &current_frame->Tree().Top(), *frame = top; frame;
        frame = frame->Tree().TraverseNext(top)) {
     // Skip descendants of this frame that were searched above to avoid
     // showing duplicate console messages if a frame is found by name
     // but access is blocked.
     if (frame->Tree().GetName() == name &&
-        !frame->Tree().IsDescendantOf(this_frame_.Get()) &&
-        To<LocalFrame>(this_frame_.Get())->CanNavigate(*frame, url)) {
+        !frame->Tree().IsDescendantOf(current_frame) &&
+        current_frame->CanNavigate(*frame, url)) {
       return frame;
     }
   }
@@ -337,30 +309,30 @@ Frame* FrameTree::FindFrameForNavigationInternal(
   // (keywords, descendants, and the rest of the frame tree within the fence).
   // TODO(crbug.com/1262022): Remove this early return when we get rid of
   // ShadowDOM fenced frames, because it is unnecessary in MPArch.
-  if (this_frame_->IsInFencedFrameTree()) {
+  if (current_frame->IsInFencedFrameTree()) {
     return nullptr;
   }
 
   // Search the entire tree of each of the other pages in this namespace.
   for (const Page* other_page : page->RelatedPages()) {
-    if (other_page == page || other_page->IsClosing())
+    if (other_page == page || other_page->IsClosing()) {
       continue;
+    }
     for (Frame* frame = other_page->MainFrame(); frame;
          frame = frame->Tree().TraverseNext(nullptr)) {
       if (frame->Tree().GetName() == name &&
-          To<LocalFrame>(this_frame_.Get())->CanNavigate(*frame, url)) {
+          current_frame->CanNavigate(*frame, url)) {
         return frame;
       }
     }
   }
 
   // Ask the embedder as a fallback.
-  LocalFrame* local_frame = To<LocalFrame>(this_frame_.Get());
-  Frame* named_frame = local_frame->Client()->FindFrame(name);
+  Frame* named_frame = current_frame->Client()->FindFrame(name);
   // The embedder can return a frame from another agent cluster. Make sure
   // that the returned frame, if any, has explicitly allowed cross-agent
   // cluster access.
-  DCHECK(!named_frame || local_frame->DomWindow()
+  DCHECK(!named_frame || current_frame->DomWindow()
                              ->GetSecurityOrigin()
                              ->IsGrantedCrossAgentClusterAccess());
   return named_frame;
@@ -448,10 +420,11 @@ static void PrintFrames(const blink::Frame* frame,
   PrintIndent(indent);
   printf("  document=%p\n", local_frame ? local_frame->GetDocument() : nullptr);
   PrintIndent(indent);
-  printf("  uri=%s\n\n",
-         local_frame && local_frame->GetDocument()
-             ? local_frame->GetDocument()->Url().GetString().Utf8().c_str()
-             : nullptr);
+  UNSAFE_TODO(
+      printf("  uri=%s\n\n",
+             local_frame && local_frame->GetDocument()
+                 ? local_frame->GetDocument()->Url().GetString().Utf8().c_str()
+                 : nullptr));
 
   for (blink::Frame* child = frame->Tree().FirstChild(); child;
        child = child->Tree().NextSibling())

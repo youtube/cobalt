@@ -29,7 +29,8 @@ class WebrtcVideoEncoderFactory : public webrtc::VideoEncoderFactory {
   ~WebrtcVideoEncoderFactory() override;
 
   // webrtc::VideoEncoderFactory interface.
-  std::unique_ptr<webrtc::VideoEncoder> CreateVideoEncoder(
+  std::unique_ptr<webrtc::VideoEncoder> Create(
+      const webrtc::Environment& env,
       const webrtc::SdpVideoFormat& format) override;
   std::vector<webrtc::SdpVideoFormat> GetSupportedFormats() const override;
 
@@ -42,17 +43,10 @@ class WebrtcVideoEncoderFactory : public webrtc::VideoEncoderFactory {
 
   std::vector<webrtc::SdpVideoFormat> supported_formats_{
       webrtc::SdpVideoFormat("VP8"),
-      webrtc::SdpVideoFormat("VP9"),
-      webrtc::SdpVideoFormat(
-          "VP9",
-          {{webrtc::kVP9FmtpProfileId,
-            webrtc::VP9ProfileToString(webrtc::VP9Profile::kProfile1)}}),
-      webrtc::SdpVideoFormat("AV1"),
-      webrtc::SdpVideoFormat(
-          "AV1",
-          {{webrtc::kAV1FmtpProfile,
-            webrtc::AV1ProfileToString(webrtc::AV1Profile::kProfile1)
-                .data()}})};
+      webrtc::SdpVideoFormat("VP9"),  // VP9 default profile-id is 0.
+      webrtc::SdpVideoFormat("VP9", {{"profile-id", "1"}}),
+      webrtc::SdpVideoFormat("AV1"),  // AV1 default profile is 0.
+      webrtc::SdpVideoFormat("AV1", {{"profile", "1"}})};
 
   SessionOptions session_options_;
 

@@ -31,7 +31,7 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketWriter
   // repeated memory allocations.  This packet writer only ever has a
   // single write in flight, a constraint inherited from the interface
   // of the underlying datagram Socket.
-  class NET_EXPORT_PRIVATE ReusableIOBuffer : public IOBuffer {
+  class NET_EXPORT_PRIVATE ReusableIOBuffer : public IOBufferWithSize {
    public:
     explicit ReusableIOBuffer(size_t capacity);
 
@@ -87,32 +87,49 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketWriter
   void WritePacketToSocket(scoped_refptr<ReusableIOBuffer> packet);
 
   // quic::QuicPacketWriter
-  quic::WriteResult WritePacket(const char* buffer,
-                                size_t buf_len,
-                                const quic::QuicIpAddress& self_address,
-                                const quic::QuicSocketAddress& peer_address,
-                                quic::PerPacketOptions* options) override;
+  quic::WriteResult WritePacket(
+      const char* buffer,
+      size_t buf_len,
+      const quiche::QuicheIpAddress& self_address,
+      const quic::QuicSocketAddress& peer_address,
+      quic::PerPacketOptions* options,
+      const quic::QuicPacketWriterParams& params) override;
   bool IsWriteBlocked() const override;
   void SetWritable() override;
-  absl::optional<int> MessageTooBigErrorCode() const override;
+  std::optional<int> MessageTooBigErrorCode() const override;
   quic::QuicByteCount GetMaxPacketSize(
       const quic::QuicSocketAddress& peer_address) const override;
   bool SupportsReleaseTime() const override;
   bool IsBatchMode() const override;
+  bool SupportsEcn() const override;
   quic::QuicPacketBuffer GetNextWriteLocation(
-      const quic::QuicIpAddress& self_address,
+      const quiche::QuicheIpAddress& self_address,
       const quic::QuicSocketAddress& peer_address) override;
   quic::WriteResult Flush() override;
 
   void OnWriteComplete(int rv);
+
+  // If the writer has enqueued a task to retry, OnSocketClosed() must be called
+  // when the socket is closed to avoid using an invalid socket.
+  bool OnSocketClosed(DatagramClientSocket* socket);
+
+  // Register a QUIC UDP payload that can close a QUIC connection and the
+  // underlying socket to the Android system server. When the app loses network
+  // access, the system server destroys the registered socket and sends the
+  // registered UDP payload to the server.
+  void RegisterQuicConnectionClosePayload(base::span<uint8_t> payload);
+
+  // Unregister the underlying socket and its associated UDP payload that were
+  // previously registered by RegisterQuicConnectionClosePayload
+  void UnregisterQuicConnectionClosePayload();
 
  private:
   void SetPacket(const char* buffer, size_t buf_len);
   bool MaybeRetryAfterWriteError(int rv);
   void RetryPacketAfterNoBuffers();
   quic::WriteResult WritePacketToSocketImpl();
-  raw_ptr<DatagramClientSocket, DanglingUntriaged> socket_;  // Unowned.
-  raw_ptr<Delegate, DanglingUntriaged> delegate_ = nullptr;  // Unowned.
+  raw_ptr<DatagramClientSocket> socket_;  // Unowned.
+  raw_ptr<Delegate> delegate_ = nullptr;  // Unowned.
   // Reused for every packet write for the lifetime of the writer.  Is
   // moved to the delegate in the case of a write error.
   scoped_refptr<ReusableIOBuffer> packet_;
@@ -125,6 +142,14 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketWriter
   // If ture, IsWriteBlocked() will return true regardless of
   // |write_in_progress_|.
   bool force_write_blocked_ = false;
+
+  // The current ECN codepoint the UDP socket is sending.
+  EcnCodePoint outgoing_ecn_ = ECN_NOT_ECT;
+
+  // Bitmap of outgoing IP ECN marks observed on this session. Bit 0 = Not-ECT,
+  // Bit 1 = ECT(1), Bit 2 = ECT(0), Bit 3 = CE. Reported to metrics at the
+  // end of the session.
+  uint8_t outgoing_ecn_history_ = 0;
 
   int retry_count_ = 0;
   // Timer set when a packet should be retried after ENOBUFS.

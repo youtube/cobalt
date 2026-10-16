@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/containers/queue.h"
@@ -20,7 +21,7 @@
 #include "net/base/net_export.h"
 #include "net/base/request_priority.h"
 #include "net/disk_cache/disk_cache.h"
-#include "net/disk_cache/simple/post_doom_waiter.h"
+#include "net/disk_cache/simple/post_operation_waiter.h"
 #include "net/disk_cache/simple/simple_entry_format.h"
 #include "net/disk_cache/simple/simple_entry_operation.h"
 #include "net/disk_cache/simple/simple_synchronous_entry.h"
@@ -95,7 +96,7 @@ class NET_EXPORT_PRIVATE SimpleEntryImpl : public Entry,
   // CompletionOnceCallback.
   net::Error DoomEntry(CompletionOnceCallback callback);
 
-  const std::string& key() const { return key_; }
+  const std::optional<std::string>& key() const { return key_; }
   uint64_t entry_hash() const { return entry_hash_; }
 
   // The key is not a constructor parameter to the SimpleEntryImpl, because
@@ -113,11 +114,11 @@ class NET_EXPORT_PRIVATE SimpleEntryImpl : public Entry,
   // From Entry:
   void Doom() override;
   void Close() override;
+  // This is only used as a public API, not internally.
   std::string GetKey() const override;
   // GetLastUsed() should not be called in net::APP_CACHE mode since the times
   // are not updated.
   base::Time GetLastUsed() const override;
-  base::Time GetLastModified() const override;
   int32_t GetDataSize(int index) const override;
   int ReadData(int stream_index,
                int offset,
@@ -341,20 +342,21 @@ class NET_EXPORT_PRIVATE SimpleEntryImpl : public Entry,
   int64_t GetDiskUsage() const;
 
   // Completes a read from the stream data kept in memory, logging metrics
-  // and updating metadata. Returns the # of bytes read successfully.
-  // This asumes the caller has already range-checked offset and buf_len
-  // appropriately.
-  int ReadFromBuffer(net::GrowableIOBuffer* in_buf,
-                     int offset,
-                     int buf_len,
-                     net::IOBuffer* out_buf);
+  // and updating metadata. This assumes the caller has already range-checked
+  // offset and buf_len appropriately, and therefore always reads `buf_len`
+  // bytes.
+  void ReadFromBuffer(net::GrowableIOBuffer* in_buf,
+                      int offset,
+                      int buf_len,
+                      net::IOBuffer* out_buf);
 
   // Copies data from |buf| to the internal in-memory buffer for stream 0. If
   // |truncate| is set to true, the target buffer will be truncated at |offset|
   // + |buf_len| before being written.
-  int SetStream0Data(net::IOBuffer* buf,
-                     int offset, int buf_len,
-                     bool truncate);
+  void SetStream0Data(net::IOBuffer* buf,
+                      int offset,
+                      int buf_len,
+                      bool truncate);
 
   // We want all async I/O on entries to complete before recycling the dir.
   scoped_refptr<BackendCleanupTracker> cleanup_tracker_;
@@ -373,14 +375,13 @@ class NET_EXPORT_PRIVATE SimpleEntryImpl : public Entry,
   const base::FilePath path_;
   const uint64_t entry_hash_;
   const bool use_optimistic_operations_;
-  std::string key_;
+  std::optional<std::string> key_;
 
-  // |last_used_|, |last_modified_| and |data_size_| are copied from the
+  // |last_used_|  and |data_size_| are copied from the
   // synchronous entry at the completion of each item of asynchronous IO.
   // TODO(clamy): Unify last_used_ with data in the index.
   base::Time last_used_;
-  base::Time last_modified_;
-  int32_t data_size_[kSimpleEntryStreamCount];
+  std::array<int32_t, kSimpleEntryStreamCount> data_size_;
   int32_t sparse_data_size_ = 0;
 
   // Number of times this object has been returned from Backend::OpenEntry() and
@@ -406,12 +407,12 @@ class NET_EXPORT_PRIVATE SimpleEntryImpl : public Entry,
   // a single entry reader that reads serially through the entire file.
   // Extending this to multiple readers is possible, but isn't currently worth
   // it; see http://crbug.com/488076#c3 for details.
-  int32_t crc32s_end_offset_[kSimpleEntryStreamCount];
-  uint32_t crc32s_[kSimpleEntryStreamCount];
+  std::array<int32_t, kSimpleEntryStreamCount> crc32s_end_offset_;
+  std::array<uint32_t, kSimpleEntryStreamCount> crc32s_;
 
   // If |have_written_[index]| is true, we have written to the file that
   // contains stream |index|.
-  bool have_written_[kSimpleEntryStreamCount];
+  std::array<bool, kSimpleEntryStreamCount> have_written_;
 
   // The |synchronous_entry_| is the worker thread object that performs IO on
   // entries. It's owned by this SimpleEntryImpl whenever |executing_operation_|
@@ -444,7 +445,7 @@ class NET_EXPORT_PRIVATE SimpleEntryImpl : public Entry,
   scoped_refptr<net::GrowableIOBuffer> stream_1_prefetch_data_;
 
   // This is used only while a doom is pending.
-  scoped_refptr<SimplePostDoomWaiterTable> post_doom_waiting_;
+  scoped_refptr<SimplePostOperationWaiterTable> post_doom_waiting_;
 
   // Choosing uint32_t over uint64_t for space savings. Pages have in the
   // hundres to possibly thousands of resources. Wrapping every 4 billion

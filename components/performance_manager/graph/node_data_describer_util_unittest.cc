@@ -4,15 +4,16 @@
 
 #include "components/performance_manager/public/graph/node_data_describer_util.h"
 
+#include <optional>
+#include <string_view>
+
 #include "base/json/json_reader.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "components/performance_manager/public/graph/node_data_describer.h"
 #include "components/performance_manager/public/graph/node_data_describer_registry.h"
 #include "components/performance_manager/test_support/graph_test_harness.h"
 #include "components/performance_manager/test_support/mock_graphs.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace performance_manager {
 
@@ -38,7 +39,7 @@ class TestNodeDataDescriber final : public NodeDataDescriber {
   }
 
  private:
-  base::Value::Dict Describe(base::StringPiece node_type) const {
+  base::Value::Dict Describe(std::string_view node_type) const {
     base::Value::Dict description;
     description.Set("node_type", node_type);
     return description;
@@ -47,20 +48,20 @@ class TestNodeDataDescriber final : public NodeDataDescriber {
 
 class NodeDataDescriberUtilTest : public GraphTestHarness {
  protected:
-  void ExpectEmptyDict(base::StringPiece msg, base::StringPiece json) {
+  void ExpectEmptyDict(std::string_view msg, std::string_view json) {
     return ExpectDict(msg, json, true);
   }
 
-  void ExpectNonEmptyDict(base::StringPiece msg, base::StringPiece json) {
+  void ExpectNonEmptyDict(std::string_view msg, std::string_view json) {
     return ExpectDict(msg, json, false);
   }
 
  private:
-  void ExpectDict(base::StringPiece msg,
-                  base::StringPiece json,
+  void ExpectDict(std::string_view msg,
+                  std::string_view json,
                   bool expect_empty_dict) {
     SCOPED_TRACE(::testing::Message() << msg << " " << json);
-    absl::optional<base::Value> parsed_json = base::JSONReader::Read(json);
+    std::optional<base::Value> parsed_json = base::JSONReader::Read(json);
     ASSERT_TRUE(parsed_json.has_value());
     ASSERT_TRUE(parsed_json.value().is_dict());
     EXPECT_EQ(parsed_json.value().GetDict().empty(), expect_empty_dict);

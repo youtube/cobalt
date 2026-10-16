@@ -60,7 +60,7 @@ constexpr uint64_t kScrambleHi = (static_cast<uint64_t>(0x4f1bbcdcU) << 32) |
 constexpr uint64_t kScrambleLo = (static_cast<uint64_t>(0xf9ce6030U) << 32) |
                                  static_cast<uint64_t>(0x2e76e41bU);
 
-class CRCImpl : public CRC {  // Implemention of the abstract class CRC
+class CRCImpl : public CRC {  // Implementation of the abstract class CRC
  public:
   using Uint32By256 = uint32_t[256];
 
@@ -69,8 +69,6 @@ class CRCImpl : public CRC {  // Implemention of the abstract class CRC
 
   // The internal version of CRC::New().
   static CRCImpl* NewInternal();
-
-  void Empty(uint32_t* crc) const override;
 
   // Fill in a table for updating a CRC by one word of 'word_size' bytes
   // [last_lo, last_hi] contains the answer if the last bit in the word
@@ -111,7 +109,7 @@ class CRC32 : public CRCImpl {
   // Common implementation guts for ExtendByZeroes and UnextendByZeroes().
   //
   // zeroes_table is a table as returned by FillZeroesTable(), containing
-  // polynomials representing CRCs of strings-of-zeros of various lenghts,
+  // polynomials representing CRCs of strings-of-zeros of various lengths,
   // and which can be combined by polynomial multiplication.  poly_table is
   // a table of CRC byte extension values.  These tables are determined by
   // the generator polynomial.

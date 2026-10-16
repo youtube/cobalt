@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/containers/flat_map.h"
@@ -27,17 +28,23 @@ class NetworkFetcher {
   // If the request does not have an X-Retry-After header, implementations
   // should pass -1 for |xheader_retry_after_sec|.
   using PostRequestCompleteCallback =
-      base::OnceCallback<void(std::unique_ptr<std::string> response_body,
+      base::OnceCallback<void(std::optional<std::string> response_body,
                               int net_error,
                               const std::string& header_etag,
                               const std::string& header_x_cup_server_proof,
+                              const std::string& header_cookie,
                               int64_t xheader_retry_after_sec)>;
+#if defined(IN_MEMORY_UPDATES)
+  using DownloadToStringCompleteCallback = base::OnceCallback<
+      void(std::string* dst, int net_error, int64_t content_size)>;
+#else
   using DownloadToFileCompleteCallback =
       base::OnceCallback<void(int net_error, int64_t content_size)>;
+#endif
 
   // `content_length` is -1 if the value is not known.
   using ResponseStartedCallback =
-      base::OnceCallback<void(int response_code, int64_t content_length)>;
+      base::RepeatingCallback<void(int response_code, int64_t content_length)>;
 
   // `current` is the number of bytes received thus far.
   using ProgressCallback = base::RepeatingCallback<void(int64_t current)>;
@@ -56,6 +63,11 @@ class NetworkFetcher {
   // trusted.
   static constexpr char kHeaderXRetryAfter[] = "X-Retry-After";
 
+  // The HTTP 'Cookie' header to pass through to the
+  // `PostRequestCompleteCallback`. This header isn't used by the Omaha update
+  // protocol but is necessary for other uses of `NetworkFetcher`.
+  static constexpr char kHeaderCookie[] = "Cookie";
+
   NetworkFetcher(const NetworkFetcher&) = delete;
   NetworkFetcher& operator=(const NetworkFetcher&) = delete;
 
@@ -69,14 +81,31 @@ class NetworkFetcher {
       ResponseStartedCallback response_started_callback,
       ProgressCallback progress_callback,
       PostRequestCompleteCallback post_request_complete_callback) = 0;
-  virtual void DownloadToFile(
+
+#if defined(IN_MEMORY_UPDATES)
+  // Does not take ownership of |dst|, which must refer to a valid string that
+  // outlives this object.
+  virtual void DownloadToString(
+      const GURL& url,
+      std::string* dst,
+      ResponseStartedCallback response_started_callback,
+      ProgressCallback progress_callback,
+      DownloadToStringCompleteCallback download_to_string_complete_callback) = 0;
+#else
+  // Returns a cancellation closure.
+  virtual base::OnceClosure DownloadToFile(
       const GURL& url,
       const base::FilePath& file_path,
       ResponseStartedCallback response_started_callback,
       ProgressCallback progress_callback,
       DownloadToFileCompleteCallback download_to_file_complete_callback) = 0;
+#endif
 
- protected:
+#if BUILDFLAG(IS_STARBOARD)
+  virtual void Cancel() = 0;
+#endif
+
+protected:
   NetworkFetcher() = default;
 };
 

@@ -12,6 +12,7 @@
 #include "base/uuid.h"
 #include "base/values.h"
 #include "components/app_restore/app_restore_data.h"
+#include "components/app_restore/window_info.h"
 
 namespace base {
 class Value;
@@ -20,7 +21,6 @@ class Value;
 namespace app_restore {
 
 struct AppLaunchInfo;
-struct WindowInfo;
 
 // This class is responsible for saving all app launch and app windows
 // information. It can be converted to JSON format to be written to the
@@ -176,18 +176,14 @@ class COMPONENT_EXPORT(APP_RESTORE) RestoreData {
   const AppRestoreData* GetAppRestoreData(const std::string& app_id,
                                           int window_id) const;
 
-  // Sets `desk_index` as the desk to launch on for all windows.
-  void SetDeskIndex(int desk_index);
+  // Sets `desk_uuid` as the desk to launch on for all windows.
+  void SetDeskUuid(const base::Uuid& desk_uuid);
 
   // Make all contained window IDs globally unique for a desk template
   // launch. This must be done before launching. Returns a mapping of new window
   // IDs to the IDs present before this function was called. If the function is
   // called a second time, no change is done and the returned mapping is empty.
   base::flat_map<int32_t, int32_t> MakeWindowIdsUniqueForDeskTemplate();
-
-  // Update the app id for the browser app to lacros if lacros is enabled and is
-  // primary. This must be done before launching.
-  void UpdateBrowserAppIdToLacros();
 
   std::string ToString() const;
 

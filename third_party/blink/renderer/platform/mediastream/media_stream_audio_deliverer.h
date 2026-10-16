@@ -5,8 +5,11 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_MEDIASTREAM_MEDIA_STREAM_AUDIO_DELIVERER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_MEDIASTREAM_MEDIA_STREAM_AUDIO_DELIVERER_H_
 
+#include <inttypes.h>
+
+#include <algorithm>
+
 #include "base/containers/contains.h"
-#include "base/ranges/algorithm.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
 #include "base/trace_event/trace_event.h"
@@ -15,6 +18,10 @@
 #include "third_party/blink/public/platform/modules/webrtc/webrtc_logging.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
+
+namespace media {
+struct AudioGlitchInfo;
+}
 
 namespace blink {
 
@@ -68,11 +75,11 @@ class MediaStreamAudioDeliverer {
     base::AutoLock auto_lock(consumers_lock_);
     const bool had_consumers =
         !consumers_.empty() || !pending_consumers_.empty();
-    auto it = base::ranges::find(consumers_, consumer);
+    auto it = std::ranges::find(consumers_, consumer);
     if (it != consumers_.end()) {
       consumers_.erase(it);
     } else {
-      it = base::ranges::find(pending_consumers_, consumer);
+      it = std::ranges::find(pending_consumers_, consumer);
       if (it != pending_consumers_.end())
         pending_consumers_.erase(it);
     }
@@ -113,10 +120,13 @@ class MediaStreamAudioDeliverer {
 
   // Deliver data to all consumers. This method may be called on any thread.
   void OnData(const media::AudioBus& audio_bus,
-              base::TimeTicks reference_time) {
-    TRACE_EVENT1("audio", "MediaStreamAudioDeliverer::OnData",
-                 "reference time (ms)",
-                 (reference_time - base::TimeTicks()).InMillisecondsF());
+              base::TimeTicks reference_time,
+              const media::AudioGlitchInfo& glitch_info) {
+    TRACE_EVENT("audio", "MediaStreamAudioDeliverer::OnData",
+                "reference_time (ms)",
+                (reference_time - base::TimeTicks()).InMillisecondsF(),
+                "layover_delay (ms)",
+                (base::TimeTicks::Now() - reference_time).InMillisecondsF());
     base::AutoLock auto_lock(consumers_lock_);
 
     // Call OnSetFormat() for all pending consumers and move them to the
@@ -135,7 +145,7 @@ class MediaStreamAudioDeliverer {
 
     // Deliver the audio data to each consumer.
     for (Consumer* consumer : consumers_)
-      consumer->OnData(audio_bus, reference_time);
+      consumer->OnData(audio_bus, reference_time, glitch_info);
   }
 
   // Returns the maximum number of channels preferred by any consumer or -1 if

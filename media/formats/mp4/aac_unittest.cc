@@ -2,12 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stdint.h>
 
 #include <string>
 
 #include "media/base/mock_media_log.h"
 #include "media/formats/mp4/aac.h"
+#include "media/formats/mpeg/adts_constants.h"
+#include "media/formats/mpeg/adts_stream_parser.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -16,35 +23,29 @@ using ::testing::HasSubstr;
 using ::testing::InSequence;
 using ::testing::StrictMock;
 
-namespace media {
-
-namespace mp4 {
+namespace media::mp4 {
 
 MATCHER_P(UnsupportedFrequencyIndexLog, frequency_index, "") {
-  return CONTAINS_STRING(
-      arg,
-      "Sampling Frequency Index(0x" +
-          std::string(frequency_index) + ") is not supported.");
+  return CONTAINS_STRING(arg, "Sampling Frequency Index(0x" +
+                                  std::string(frequency_index) +
+                                  ") is not supported.");
 }
 
 MATCHER_P(UnsupportedExtensionFrequencyIndexLog, frequency_index, "") {
-  return CONTAINS_STRING(
-      arg,
-      "Extension Sampling Frequency Index(0x" +
-          std::string(frequency_index) + ") is not supported.");
+  return CONTAINS_STRING(arg, "Extension Sampling Frequency Index(0x" +
+                                  std::string(frequency_index) +
+                                  ") is not supported.");
 }
 
 MATCHER_P(UnsupportedChannelConfigLog, channel_index, "") {
-  return CONTAINS_STRING(
-      arg,
-      "Channel Configuration(" + std::string(channel_index) +
-          ") is not supported");
+  return CONTAINS_STRING(arg, "Channel Configuration(" +
+                                  std::string(channel_index) +
+                                  ") is not supported");
 }
 
 MATCHER_P(UnsupportedAudioProfileLog, profile_string, "") {
   return CONTAINS_STRING(
-      arg,
-      "Audio codec(" + std::string(profile_string) + ") is not supported");
+      arg, "Audio codec(" + std::string(profile_string) + ") is not supported");
 }
 
 class AACTest : public testing::Test {
@@ -96,7 +97,7 @@ TEST_F(AACTest, ImplicitSBR_ChannelConfig0) {
 
   EXPECT_TRUE(Parse(data));
 
-  // Test w/o implict SBR.
+  // Test w/o implicit SBR.
   EXPECT_EQ(aac_.GetOutputSamplesPerSecond(false), 24000);
   EXPECT_EQ(aac_.GetChannelLayout(false), CHANNEL_LAYOUT_MONO);
   EXPECT_EQ(aac_.GetProfile(), AudioCodecProfile::kUnknown);
@@ -116,7 +117,7 @@ TEST_F(AACTest, ImplicitSBR_ChannelConfig1) {
 
   EXPECT_TRUE(Parse(data));
 
-  // Test w/o implict SBR.
+  // Test w/o implicit SBR.
   EXPECT_EQ(aac_.GetOutputSamplesPerSecond(false), 24000);
   EXPECT_EQ(aac_.GetChannelLayout(false), CHANNEL_LAYOUT_STEREO);
   EXPECT_EQ(aac_.GetProfile(), AudioCodecProfile::kUnknown);
@@ -259,11 +260,52 @@ TEST_F(AACTest, XHE_AAC) {
   // ADTS conversion should do nothing since xHE-AAC can't be represented with
   // only two bits for the profile.
   int adts_header_size = 1;  // Choose a non-zero value to make sure it's set.
-  EXPECT_TRUE(aac_.ConvertEsdsToADTS(&data, &adts_header_size));
+  auto adts_buffer = aac_.CreateAdtsFromEsds(data, &adts_header_size);
+  EXPECT_TRUE(adts_buffer.empty());
   EXPECT_EQ(adts_header_size, 0);
-  EXPECT_EQ(data.size(), sizeof(buffer));
 }
 
-}  // namespace mp4
+TEST_F(AACTest, CreateAdtsFromEsds) {
+  // Prime `aac_` with a codec description.
+  uint8_t buffer[] = {0x12, 0x10};
+  std::vector<uint8_t> codec_desc(buffer, buffer + sizeof(buffer));
+  EXPECT_TRUE(Parse(codec_desc));
 
-}  // namespace media
+  uint8_t packet[] = {0x00, 0x01, 0x03, 0x04};
+
+  int adts_header_size = 0;
+  auto adts_packet = aac_.CreateAdtsFromEsds(packet, &adts_header_size);
+
+  const size_t total_size = sizeof(packet) + adts_header_size;
+
+  // Make sure the conversion succeeded.
+  EXPECT_FALSE(adts_packet.empty());
+  EXPECT_EQ(adts_header_size, kADTSHeaderMinSize);
+
+  // Verify the packet data.
+  EXPECT_EQ(
+      0, memcmp(adts_packet.data() + adts_header_size, packet, sizeof(packet)));
+
+  ADTSStreamParser adts_parser;
+
+  // Verify the header data.
+  int frame_size = 0;
+  int sample_rate = 0;
+  ChannelLayout channel_layout;
+  int sample_count = 0;
+  bool metadata_frame;
+  std::vector<uint8_t> extra_data;
+
+  // TODO(b/40285824): Change ParseFrameHeader to take a span instead of a
+  // `const uint8_t* data` as its first arg.
+  adts_parser.ParseFrameHeader(adts_packet.data(), total_size, &frame_size,
+                               &sample_rate, &channel_layout, &sample_count,
+                               &metadata_frame, &extra_data);
+
+  EXPECT_EQ(frame_size, static_cast<int>(total_size));
+  EXPECT_EQ(sample_rate, 44100);
+  EXPECT_EQ(channel_layout, ChannelLayout::CHANNEL_LAYOUT_STEREO);
+  EXPECT_EQ(0, memcmp(extra_data.data(), buffer, extra_data.size()));
+}
+
+}  // namespace media::mp4

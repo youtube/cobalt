@@ -12,6 +12,7 @@
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/dom/events/native_event_listener.h"
 #include "third_party/blink/renderer/modules/mediastream/mock_media_stream_track.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 namespace blink {
 
@@ -49,6 +50,7 @@ class TransferredMediaStreamTrackTest : public testing::Test {
 
   void TearDown() override { WebHeap::CollectAllGarbageForTesting(); }
 
+  test::TaskEnvironment task_environment_;
   WeakPersistent<MockMediaStreamTrack> mock_impl_;
   Persistent<TransferredMediaStreamTrack> transferred_track_;
 };
@@ -71,7 +73,7 @@ TEST_F(TransferredMediaStreamTrackTest, InitialProperties) {
   EXPECT_EQ(transferred_track_->GetReadyState(),
             MediaStreamSource::kReadyStateLive);
   EXPECT_EQ(transferred_track_->Ended(), false);
-  EXPECT_EQ(transferred_track_->device(), absl::nullopt);
+  EXPECT_EQ(transferred_track_->device(), std::nullopt);
 }
 
 TEST_F(TransferredMediaStreamTrackTest, PropertiesInheritFromImplementation) {
@@ -83,7 +85,8 @@ TEST_F(TransferredMediaStreamTrackTest, PropertiesInheritFromImplementation) {
   const bool kEnabled = false;
   const bool kMuted = true;
   const String kContentHint = "motion";
-  const String kReadyState = "ended";
+  const V8MediaStreamTrackState::Enum kReadyState =
+      V8MediaStreamTrackState::Enum::kEnded;
   const MediaStreamSource::ReadyState kReadyStateEnum =
       MediaStreamSource::kReadyStateEnded;
   const bool kEnded = true;
@@ -285,7 +288,7 @@ TEST_F(TransferredMediaStreamTrackTest, CloneInitialProperties) {
   EXPECT_EQ(clone->readyState(), "live");
   EXPECT_EQ(clone->GetReadyState(), MediaStreamSource::kReadyStateLive);
   EXPECT_EQ(clone->Ended(), false);
-  EXPECT_EQ(clone->device(), absl::nullopt);
+  EXPECT_EQ(clone->device(), std::nullopt);
 }
 
 TEST_F(TransferredMediaStreamTrackTest, CloneSetImplementation) {

@@ -37,6 +37,7 @@
 #elif (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
 #define USE_SIMD 1
 #include <arm_neon.h>
+
 #include "starboard/common/check_op.h"
 #endif
 
@@ -299,11 +300,9 @@ int FullSearch(int low_limit,
 
 int OptimalIndex(const DecodedAudio* search_block,
                  const DecodedAudio* target_block,
-                 SbMediaAudioFrameStorageType storage_type,
                  Interval exclude_interval) {
   int channels = search_block->channels();
   SB_DCHECK_EQ(channels, target_block->channels());
-  SB_DCHECK_EQ(storage_type, kSbMediaAudioFrameStorageTypeInterleaved);
 
   int target_size = target_block->frames();
   int num_candidate_blocks = search_block->frames() - (target_size - 1);

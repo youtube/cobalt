@@ -6,10 +6,10 @@
 
 #include <tuple>
 
-#include "ash/accessibility/accessibility_controller_impl.h"
-#include "ash/accessibility/autoclick/autoclick_drag_event_rewriter.h"
+#include "ash/accessibility/accessibility_controller.h"
 #include "ash/accessibility/autoclick/autoclick_ring_handler.h"
 #include "ash/accessibility/autoclick/autoclick_scroll_position_handler.h"
+#include "ash/accessibility/drag_event_rewriter.h"
 #include "ash/constants/ash_constants.h"
 #include "ash/public/cpp/shell_window_ids.h"
 #include "ash/shelf/shelf.h"
@@ -56,11 +56,11 @@ base::TimeDelta CalculateStartGestureDelay(base::TimeDelta total_delay) {
 
 views::Widget::InitParams CreateAutoclickOverlayWidgetParams(
     aura::Window* root_window) {
-  views::Widget::InitParams params;
-  params.type = views::Widget::InitParams::TYPE_WINDOW_FRAMELESS;
+  views::Widget::InitParams params(
+      views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+      views::Widget::InitParams::TYPE_WINDOW_FRAMELESS);
   params.accept_events = false;
   params.activatable = views::Widget::InitParams::Activatable::kNo;
-  params.ownership = views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
   params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
   params.parent =
       Shell::GetContainer(root_window, kShellWindowId_OverlayContainer);
@@ -77,7 +77,7 @@ base::TimeDelta AutoclickController::GetDefaultAutoclickDelay() {
 AutoclickController::AutoclickController()
     : delay_(GetDefaultAutoclickDelay()),
       autoclick_ring_handler_(std::make_unique<AutoclickRingHandler>()),
-      drag_event_rewriter_(std::make_unique<AutoclickDragEventRewriter>()) {
+      drag_event_rewriter_(std::make_unique<DragEventRewriter>()) {
   Shell::GetPrimaryRootWindow()->GetHost()->GetEventSource()->AddEventRewriter(
       drag_event_rewriter_.get());
   Shell::Get()->cursor_manager()->AddObserver(this);
@@ -271,11 +271,11 @@ void AutoclickController::DoScrollAction(ScrollPadAction action) {
   ::wm::ConvertPointFromScreen(root_window, &location_in_pixels);
   aura::WindowTreeHost* host = root_window->GetHost();
   host->ConvertDIPToPixels(&location_in_pixels);
-  ui::ScrollEvent scroll(ui::ET_SCROLL, gfx::PointF(location_in_pixels),
-                         gfx::PointF(location_in_pixels), ui::EventTimeForNow(),
-                         mouse_event_flags_, scroll_x, scroll_y,
-                         0 /* x_offset_ordinal */, 0 /* y_offset_ordinal */,
-                         2 /* finger_count */);
+  ui::ScrollEvent scroll(
+      ui::EventType::kScroll, gfx::PointF(location_in_pixels),
+      gfx::PointF(location_in_pixels), ui::EventTimeForNow(),
+      mouse_event_flags_, scroll_x, scroll_y, 0 /* x_offset_ordinal */,
+      0 /* y_offset_ordinal */, 2 /* finger_count */);
   ui::MouseWheelEvent wheel(scroll);
   std::ignore = host->GetEventSink()->OnEventFromSource(&wheel);
 }
@@ -297,13 +297,16 @@ void AutoclickController::OnExitedScrollButton() {
 }
 
 void AutoclickController::HandleAutoclickScrollableBoundsFound(
-    gfx::Rect& bounds_in_screen) {
+    const gfx::Rect& bounds_in_screen) {
   // The very first time scrollable bounds are found, the default first
   // position of the scrollbar to be next to the menu bubble.
   if (is_initial_scroll_location_)
     return;
   menu_bubble_controller_->SetScrollPosition(bounds_in_screen,
                                              scroll_location_);
+  if (scrollable_bounds_callback_for_testing_) {
+    scrollable_bounds_callback_for_testing_.Run(bounds_in_screen);
+  }
 }
 
 void AutoclickController::UpdateAutoclickMenuBoundsIfNeeded() {
@@ -389,9 +392,9 @@ void AutoclickController::DoAutoclickAction() {
     if (!drag_stop) {
       // Left click, right click, double click, and beginning of a drag have
       // a pressed event next.
-      ui::MouseEvent press_event(ui::ET_MOUSE_PRESSED, location_in_pixels,
-                                 location_in_pixels, ui::EventTimeForNow(),
-                                 mouse_event_flags_ | button, button);
+      ui::MouseEvent press_event(
+          ui::EventType::kMousePressed, location_in_pixels, location_in_pixels,
+          ui::EventTimeForNow(), mouse_event_flags_ | button, button);
       details = host->GetEventSink()->OnEventFromSource(&press_event);
       if (drag_start) {
         drag_event_rewriter_->SetEnabled(true);
@@ -404,9 +407,9 @@ void AutoclickController::DoAutoclickAction() {
     }
     if (drag_stop)
       drag_event_rewriter_->SetEnabled(false);
-    ui::MouseEvent release_event(ui::ET_MOUSE_RELEASED, location_in_pixels,
-                                 location_in_pixels, ui::EventTimeForNow(),
-                                 mouse_event_flags_ | button, button);
+    ui::MouseEvent release_event(
+        ui::EventType::kMouseReleased, location_in_pixels, location_in_pixels,
+        ui::EventTimeForNow(), mouse_event_flags_ | button, button);
     details = host->GetEventSink()->OnEventFromSource(&release_event);
 
     // Now a single click, or half the drag & drop, has been completed.
@@ -417,11 +420,11 @@ void AutoclickController::DoAutoclickAction() {
     }
 
     ui::MouseEvent double_press_event(
-        ui::ET_MOUSE_PRESSED, location_in_pixels, location_in_pixels,
+        ui::EventType::kMousePressed, location_in_pixels, location_in_pixels,
         ui::EventTimeForNow(),
         mouse_event_flags_ | button | ui::EF_IS_DOUBLE_CLICK, button);
     ui::MouseEvent double_release_event(
-        ui::ET_MOUSE_RELEASED, location_in_pixels, location_in_pixels,
+        ui::EventType::kMouseReleased, location_in_pixels, location_in_pixels,
         ui::EventTimeForNow(),
         mouse_event_flags_ | button | ui::EF_IS_DOUBLE_CLICK, button);
     details = host->GetEventSink()->OnEventFromSource(&double_press_event);
@@ -607,14 +610,15 @@ void AutoclickController::RecordUserAction(
 
 void AutoclickController::OnMouseEvent(ui::MouseEvent* event) {
   DCHECK(event->target());
-  if (event->type() == ui::ET_MOUSE_CAPTURE_CHANGED)
+  if (event->type() == ui::EventType::kMouseCaptureChanged) {
     return;
+  }
   last_mouse_location_ = event->target()->GetScreenLocation(*event);
   if (over_scroll_button_)
     return;
   if (!(event->flags() & ui::EF_IS_SYNTHESIZED) &&
-      (event->type() == ui::ET_MOUSE_MOVED ||
-       (event->type() == ui::ET_MOUSE_DRAGGED &&
+      (event->type() == ui::EventType::kMouseMoved ||
+       (event->type() == ui::EventType::kMouseDragged &&
         drag_event_rewriter_->IsEnabled()))) {
     mouse_event_flags_ = event->flags();
     // Update the point even if the animation is not currently being shown.
@@ -647,9 +651,9 @@ void AutoclickController::OnMouseEvent(ui::MouseEvent* event) {
       autoclick_ring_handler_->SetGestureCenter(last_mouse_location_,
                                                 ring_widget_.get());
     }
-  } else if (event->type() == ui::ET_MOUSE_PRESSED ||
-             event->type() == ui::ET_MOUSE_RELEASED ||
-             event->type() == ui::ET_MOUSEWHEEL) {
+  } else if (event->type() == ui::EventType::kMousePressed ||
+             event->type() == ui::EventType::kMouseReleased ||
+             event->type() == ui::EventType::kMousewheel) {
     CancelAutoclickAction();
   }
 }
@@ -676,8 +680,8 @@ void AutoclickController::OnGestureEvent(ui::GestureEvent* event) {
 void AutoclickController::OnScrollEvent(ui::ScrollEvent* event) {
   // A single tap can create a scroll event, so ignore scroll starts and
   // cancels but cancel autoclicks when scrolls actually occur.
-  if (event->type() == ui::EventType::ET_SCROLL_FLING_START ||
-      event->type() == ui::EventType::ET_SCROLL_FLING_CANCEL) {
+  if (event->type() == ui::EventType::kScrollFlingStart ||
+      event->type() == ui::EventType::kScrollFlingCancel) {
     return;
   }
   CancelAutoclickAction();

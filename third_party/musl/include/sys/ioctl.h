@@ -112,7 +112,19 @@ extern "C" {
 #define SIOCDEVPRIVATE     0x89F0
 #define SIOCPROTOPRIVATE   0x89E0
 
+#if !defined(STARBOARD)
 int ioctl (int, int, ...);
+#else
+// Map `ioctl(int fd, op,...)` to `ioctl_op(int fd,...)` calls
+// to allow separate implementation per ioctl operation.
+#define __IOCTL_CONCAT_X(a,b) a##b
+#define __IOCTL_CONCAT(a,b) __IOCTL_CONCAT_X(a,b)
+#define __IOCTL_DISP(b, op, fd_param, ...) __IOCTL_CONCAT(b,op)(fd_param, ##__VA_ARGS__)
+#define ioctl(fd, op, ...) __IOCTL_DISP(ioctl_, op, fd, ##__VA_ARGS__)
+
+int ioctl_FIONREAD(int fd, int* arg);
+int ioctl_TIOCGWINSZ(int fd, struct winsize *wz);
+#endif  // defined(STARBOARD)
 
 #ifdef __cplusplus
 }

@@ -10,7 +10,6 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/time/time.h"
 #include "chrome/browser/download/download_shelf.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/animation/slide_animation.h"
@@ -25,14 +24,10 @@ class Browser;
 class BrowserView;
 class DownloadItemView;
 
-namespace base {
-class Time;
-}
-
 namespace views {
 class ImageButton;
 class MdTextButton;
-}
+}  // namespace views
 
 // DownloadShelfView is a view that contains individual views for each download,
 // as well as a close button and a link to show all downloads.
@@ -43,8 +38,9 @@ class DownloadShelfView : public DownloadShelf,
                           public views::AccessiblePaneView,
                           public views::AnimationDelegateViews,
                           public views::MouseWatcherListener {
+  METADATA_HEADER(DownloadShelfView, views::AccessiblePaneView)
+
  public:
-  METADATA_HEADER(DownloadShelfView);
   DownloadShelfView(Browser* browser, BrowserView* parent);
   DownloadShelfView(const DownloadShelfView&) = delete;
   DownloadShelfView& operator=(const DownloadShelfView&) = delete;
@@ -57,9 +53,10 @@ class DownloadShelfView : public DownloadShelf,
   views::View* GetView() override;
 
   // views::AccessiblePaneView:
-  // TODO(crbug.com/1005568): Replace these with a LayoutManager
-  gfx::Size CalculatePreferredSize() const override;
-  void Layout() override;
+  // TODO(crbug.com/40648316): Replace these with a LayoutManager
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& /*available_size*/) const override;
+  void Layout(PassKey) override;
 
   // views::AnimationDelegateViews:
   void AnimationProgressed(const gfx::Animation* animation) override;
@@ -106,7 +103,7 @@ class DownloadShelfView : public DownloadShelf,
   // the DownloadShelfView is deleted.
   // TODO(pkasting): Remove this in favor of making these the children of a
   // nested view, so they can easily be laid out and iterated.
-  std::vector<DownloadItemView*> download_views_;
+  std::vector<raw_ptr<DownloadItemView, VectorExperimental>> download_views_;
 
   // Button for showing all downloads (chrome://downloads).
   raw_ptr<views::MdTextButton> show_all_view_;
@@ -121,16 +118,6 @@ class DownloadShelfView : public DownloadShelf,
 
   // The window this shelf belongs to.
   raw_ptr<BrowserView> parent_;
-
-  // Time since the last time the download shelf was opened.
-  base::Time last_opened_;
-
-  // Set the time when the download shelf becomes visible.
-  void SetLastOpened();
-
-  // Emits a histogram recording the time between the shelf being visible
-  // and it being closed.
-  void RecordShelfVisibleTime();
 
   views::MouseWatcher mouse_watcher_{
       std::make_unique<views::MouseWatcherViewHost>(this, gfx::Insets()), this};

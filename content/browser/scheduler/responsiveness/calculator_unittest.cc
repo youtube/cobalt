@@ -4,13 +4,15 @@
 
 #include "content/browser/scheduler/responsiveness/calculator.h"
 
+#include <optional>
+
 #include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "content/public/browser/responsiveness_calculator_delegate.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 namespace responsiveness {
@@ -26,6 +28,8 @@ constexpr int kCongestionThresholdInMs = 100;
 
 class FakeCalculator : public Calculator {
  public:
+  using Calculator::Calculator;
+
   MOCK_METHOD3(EmitResponsivenessMock,
                void(CongestionType congestion_type,
                     size_t congested_slices,
@@ -33,20 +37,25 @@ class FakeCalculator : public Calculator {
 
   void EmitResponsiveness(CongestionType congestion_type,
                           size_t congested_slices,
-                          StartupStage startup_stage) override {
+                          StartupStage startup_stage,
+                          uint64_t event_id) override {
     EmitResponsivenessMock(congestion_type, congested_slices, startup_stage);
     // Emit the histograms anyways for verification in some tests.
     Calculator::EmitResponsiveness(congestion_type, congested_slices,
-                                   startup_stage);
+                                   startup_stage, event_id);
   }
 
-  MOCK_METHOD3(EmitCongestedIntervalsMeasurementTraceEvent,
-               void(base::TimeTicks start_time,
+  MOCK_METHOD5(EmitCongestedIntervalsMeasurementTraceEvent,
+               void(StartupStage startup_stage,
+                    base::TimeTicks start_time,
                     base::TimeTicks end_time,
-                    size_t amount_of_slices));
+                    size_t num_congested_slices,
+                    uint64_t event_id));
 
-  MOCK_METHOD2(EmitCongestedIntervalTraceEvent,
-               void(base::TimeTicks start_time, base::TimeTicks end_time));
+  MOCK_METHOD3(EmitCongestedIntervalTraceEvent,
+               void(CongestionType congestion_type,
+                    base::TimeTicks start_time,
+                    base::TimeTicks end_time));
 
   using Calculator::EmitResponsivenessTraceEvents;
   using Calculator::GetLastCalculationTime;
@@ -54,10 +63,31 @@ class FakeCalculator : public Calculator {
 
 }  // namespace
 
+class MockDelegate : public ResponsivenessCalculatorDelegate {
+ public:
+  MockDelegate() = default;
+  ~MockDelegate() override = default;
+
+  // ResponsivenessCalculatorDelegate:
+  MOCK_METHOD(void, OnMeasurementIntervalEnded, (), (override));
+  MOCK_METHOD(void,
+              OnResponsivenessEmitted,
+              (int sample,
+               int min,
+               int exclusive_max,
+               size_t buckets),
+              (override));
+};
+
 class ResponsivenessCalculatorTest : public testing::Test {
  public:
   void SetUp() override {
-    calculator_ = std::make_unique<testing::StrictMock<FakeCalculator>>();
+    auto delegate = std::make_unique<
+        testing::NiceMock<MockDelegate>>();  // NiceMock because the delegate is
+                                             // only verified in one test.
+    delegate_ = delegate.get();
+    calculator_ = std::make_unique<testing::StrictMock<FakeCalculator>>(
+        std::move(delegate));
     last_calculation_time_ = calculator_->GetLastCalculationTime();
 #if BUILDFLAG(IS_ANDROID)
     base::android::ApplicationStatusListener::NotifyApplicationStateChange(
@@ -98,6 +128,7 @@ class ResponsivenessCalculatorTest : public testing::Test {
   content::BrowserTaskEnvironment task_environment_;
 
   std::unique_ptr<FakeCalculator> calculator_;
+  raw_ptr<MockDelegate> delegate_;
   base::TimeTicks last_calculation_time_;
 };
 
@@ -410,7 +441,7 @@ TEST_F(ResponsivenessCalculatorTest, StartupStages) {
   constexpr int kStartTime = kQueueTime + 10 * kCongestionThresholdInMs + 5;
   constexpr int kFinishTime = kStartTime + 5;
 
-  absl::optional<base::HistogramTester> histograms;
+  std::optional<base::HistogramTester> histograms;
 
   // Queue congestion event during the first kMeasurementInterval.
   AddEventUI(kQueueTime, kStartTime, kFinishTime);
@@ -547,7 +578,7 @@ TEST_F(ResponsivenessCalculatorTest, FastStartupStages) {
   constexpr int kStartTime = kQueueTime + 10 * kCongestionThresholdInMs + 5;
   constexpr int kFinishTime = kStartTime + 5;
 
-  absl::optional<base::HistogramTester> histograms;
+  std::optional<base::HistogramTester> histograms;
 
   // OnFirstIdle() right away during the first kMeasurementInterval. Still
   // considered as kFirstInterval, but second interval will go straight
@@ -723,28 +754,38 @@ TEST_F(ResponsivenessCalculatorTest, EmitResponsivenessTraceEventsEmpty) {
       kStartTime + base::Milliseconds(kMeasurementIntervalInMs);
   const std::set<int> congested_slices;
 
-  EXPECT_CALL(*calculator_,
-              EmitCongestedIntervalsMeasurementTraceEvent(_, _, _))
+  uint64_t event_id = 42;
+  EXPECT_CALL(*calculator_, EmitCongestedIntervalsMeasurementTraceEvent(
+                                StartupStage::kPeriodic, _, _, _, event_id))
       .Times(0);
 
-  calculator_->EmitResponsivenessTraceEvents(CongestionType::kQueueAndExecution,
-                                             kStartTime, kFinishTime,
-                                             congested_slices);
+  calculator_->EmitResponsivenessTraceEvents(
+      CongestionType::kQueueAndExecution, StartupStage::kPeriodic, kStartTime,
+      kFinishTime, congested_slices, event_id);
 }
 
-TEST_F(ResponsivenessCalculatorTest, EmitResponsivenessTraceEventsWrongMetric) {
+TEST_F(ResponsivenessCalculatorTest,
+       EmitResponsivenessTraceEventsExecutionOnly) {
+  constexpr base::TimeDelta kSliceInterval =
+      base::Milliseconds(kCongestionThresholdInMs);
   constexpr base::TimeTicks kStartTime = base::TimeTicks();
   constexpr base::TimeTicks kFinishTime =
       kStartTime + base::Milliseconds(kMeasurementIntervalInMs);
   const std::set<int> congested_slices = {1};
 
-  EXPECT_CALL(*calculator_,
-              EmitCongestedIntervalsMeasurementTraceEvent(_, _, _))
+  uint64_t event_id = 42;
+  EXPECT_CALL(*calculator_, EmitCongestedIntervalsMeasurementTraceEvent(
+                                StartupStage::kPeriodic, _, _, _, event_id))
       .Times(0);
 
-  calculator_->EmitResponsivenessTraceEvents(CongestionType::kExecutionOnly,
-                                             kStartTime, kFinishTime,
-                                             congested_slices);
+  EXPECT_CALL(*calculator_,
+              EmitCongestedIntervalTraceEvent(CongestionType::kExecutionOnly,
+                                              kStartTime + 1 * kSliceInterval,
+                                              kStartTime + 2 * kSliceInterval));
+
+  calculator_->EmitResponsivenessTraceEvents(
+      CongestionType::kExecutionOnly, StartupStage::kPeriodic, kStartTime,
+      kFinishTime, congested_slices, event_id);
 }
 
 TEST_F(ResponsivenessCalculatorTest, EmitResponsivenessTraceEvents) {
@@ -756,23 +797,70 @@ TEST_F(ResponsivenessCalculatorTest, EmitResponsivenessTraceEvents) {
 
   const std::set<int> congested_slices = {3, 4, 5, 12, 15};
 
+  uint64_t event_id = 42;
   EXPECT_CALL(*calculator_,
               EmitCongestedIntervalsMeasurementTraceEvent(
-                  kStartTime, kFinishTime, congested_slices.size()));
+                  StartupStage::kPeriodic, kStartTime, kFinishTime, 5, 42));
 
-  EXPECT_CALL(*calculator_,
-              EmitCongestedIntervalTraceEvent(kStartTime + 3 * kSliceInterval,
-                                              kStartTime + 6 * kSliceInterval));
   EXPECT_CALL(*calculator_, EmitCongestedIntervalTraceEvent(
+                                CongestionType::kQueueAndExecution,
+                                kStartTime + 3 * kSliceInterval,
+                                kStartTime + 6 * kSliceInterval));
+  EXPECT_CALL(*calculator_, EmitCongestedIntervalTraceEvent(
+                                CongestionType::kQueueAndExecution,
                                 kStartTime + 12 * kSliceInterval,
                                 kStartTime + 13 * kSliceInterval));
   EXPECT_CALL(*calculator_, EmitCongestedIntervalTraceEvent(
+                                CongestionType::kQueueAndExecution,
                                 kStartTime + 15 * kSliceInterval,
                                 kStartTime + 16 * kSliceInterval));
 
-  calculator_->EmitResponsivenessTraceEvents(CongestionType::kQueueAndExecution,
-                                             kStartTime, kFinishTime,
-                                             congested_slices);
+  calculator_->EmitResponsivenessTraceEvents(
+      CongestionType::kQueueAndExecution, StartupStage::kPeriodic, kStartTime,
+      kFinishTime, congested_slices, event_id);
+}
+
+TEST_F(ResponsivenessCalculatorTest, Delegate) {
+  calculator_->OnFirstIdle();
+
+  // To have a valid interval, there needs to be at least 30 seconds that
+  // passed, during which there was at least one event.
+  int interval_start = 0;
+  int interval_mid = 15000;
+  int interval_end = kMeasurementIntervalInMs + 1000;
+
+  EXPECT_EXECUTION_CONGESTED_SLICES(1u, StartupStage::kFirstInterval);
+  EXPECT_CONGESTED_SLICES(1u, StartupStage::kFirstInterval);
+
+  // OnResponsivenessEmitted() is not invoked for the first interval.
+  EXPECT_CALL(*delegate_, OnMeasurementIntervalEnded());
+  EXPECT_CALL(*delegate_, OnResponsivenessEmitted(_, _, _, _)).Times(0);
+
+  AddEventUI(interval_start, interval_start, interval_start);
+  AddEventUI(interval_mid, interval_mid,
+             interval_mid + kCongestionThresholdInMs + 20);
+  AddEventUI(interval_end, interval_end, interval_end);
+
+  // Repeat the same interval immediately following the first one.
+  interval_start += interval_end;
+  interval_mid += interval_end;
+  interval_end += interval_end;
+
+  EXPECT_EXECUTION_CONGESTED_SLICES(1u,
+                                    StartupStage::kFirstIntervalAfterFirstIdle);
+  EXPECT_CONGESTED_SLICES(1u, StartupStage::kFirstIntervalAfterFirstIdle);
+
+  // OnResponsivenessEmitted() is invoked for subsequent intervals.
+  {
+    testing::InSequence in_sequence;
+    EXPECT_CALL(*delegate_, OnMeasurementIntervalEnded());
+    EXPECT_CALL(*delegate_, OnResponsivenessEmitted(_, _, _, _));
+  }
+
+  AddEventUI(interval_start, interval_start, interval_start);
+  AddEventUI(interval_mid, interval_mid,
+             interval_mid + kCongestionThresholdInMs + 20);
+  AddEventUI(interval_end, interval_end, interval_end);
 }
 
 }  // namespace responsiveness

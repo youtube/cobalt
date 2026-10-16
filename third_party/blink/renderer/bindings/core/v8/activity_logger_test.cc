@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/platform/bindings/v8_dom_activity_logger.h"
 #include "third_party/blink/renderer/platform/heap/thread_state.h"
 #include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/text/base64.h"
 #include "v8/include/v8.h"
@@ -28,33 +29,36 @@ class TestActivityLogger : public V8DOMActivityLogger {
  public:
   ~TestActivityLogger() override = default;
 
-  void LogGetter(const String& api_name) override {
+  void LogGetter(ScriptState* script_state, const String& api_name) override {
     logged_activities_.push_back(api_name);
   }
 
-  void LogSetter(const String& api_name,
+  void LogSetter(ScriptState* script_state,
+                 const String& api_name,
                  const v8::Local<v8::Value>& new_value) override {
-    logged_activities_.push_back(
-        api_name + " | " + ToCoreStringWithUndefinedOrNullCheck(new_value));
+    logged_activities_.push_back(api_name + " | " +
+                                 ToCoreStringWithUndefinedOrNullCheck(
+                                     script_state->GetIsolate(), new_value));
   }
 
-  void LogMethod(const String& api_name,
-                 int argc,
-                 const v8::Local<v8::Value>* argv) override {
+  void LogMethod(ScriptState* script_state,
+                 const String& api_name,
+                 base::span<const v8::Local<v8::Value>> args) override {
     String activity_string = api_name;
-    for (int i = 0; i < argc; i++) {
-      activity_string = activity_string + " | " +
-                        ToCoreStringWithUndefinedOrNullCheck(argv[i]);
+    for (const auto& arg : args) {
+      activity_string =
+          activity_string + " | " +
+          ToCoreStringWithUndefinedOrNullCheck(script_state->GetIsolate(), arg);
     }
     logged_activities_.push_back(activity_string);
   }
 
-  void LogEvent(const String& event_name,
-                int argc,
-                const String* argv) override {
+  void LogEvent(ExecutionContext* execution_context,
+                const String& event_name,
+                base::span<const String> args) override {
     String activity_string = event_name;
-    for (int i = 0; i < argc; i++) {
-      activity_string = activity_string + " | " + argv[i];
+    for (const auto& arg : args) {
+      activity_string = activity_string + " | " + arg;
     }
     logged_activities_.push_back(activity_string);
   }
@@ -113,6 +117,7 @@ class ActivityLoggerTest : public testing::Test {
  private:
   static const int kIsolatedWorldId = 1;
 
+  test::TaskEnvironment task_environment_;
   WebViewHelper web_view_helper_;
   Persistent<LocalFrame> local_frame_;
   // TestActivityLogger is owned by a static table within V8DOMActivityLogger

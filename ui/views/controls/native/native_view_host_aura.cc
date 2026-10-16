@@ -5,12 +5,12 @@
 #include "ui/views/controls/native/native_view_host_aura.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/check.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/client/focus_client.h"
 #include "ui/aura/window.h"
@@ -40,7 +40,9 @@ class NativeViewHostAura::ClippingWindowDelegate : public aura::WindowDelegate {
   }
 
   gfx::Size GetMinimumSize() const override { return gfx::Size(); }
-  gfx::Size GetMaximumSize() const override { return gfx::Size(); }
+  std::optional<gfx::Size> GetMaximumSize() const override {
+    return std::nullopt;
+  }
   void OnBoundsChanged(const gfx::Rect& old_bounds,
                        const gfx::Rect& new_bounds) override {}
   ui::Cursor GetCursor(const gfx::Point& point) override {
@@ -85,16 +87,18 @@ NativeViewHostAura::~NativeViewHostAura() {
     host_->native_view()->ClearProperty(
         aura::client::kParentNativeViewAccessibleKey);
     clipping_window_->ClearProperty(views::kHostViewKey);
-    if (host_->native_view()->parent() == clipping_window_.get())
+    if (host_->native_view()->parent() == clipping_window_.get()) {
       clipping_window_->RemoveChild(host_->native_view());
+    }
   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // NativeViewHostAura, NativeViewHostWrapper implementation:
 void NativeViewHostAura::AttachNativeView() {
-  if (!clipping_window_)
+  if (!clipping_window_) {
     CreateClippingWindow();
+  }
   clipping_window_delegate_->set_native_view(host_->native_view());
   host_->native_view()->AddObserver(this);
   host_->native_view()->SetProperty(views::kHostViewKey,
@@ -103,7 +107,6 @@ void NativeViewHostAura::AttachNativeView() {
   original_transform_ = host_->native_view()->transform();
   original_transform_changed_ = false;
   AddClippingWindow();
-  InstallMask();
   ApplyRoundedCorners();
 }
 
@@ -118,13 +121,18 @@ gfx::NativeViewAccessible NativeViewHostAura::GetParentAccessible() {
       aura::client::kParentNativeViewAccessibleKey);
 }
 
+ui::Layer* NativeViewHostAura::GetUILayer() {
+  return host_->native_view()->layer();
+}
+
 void NativeViewHostAura::NativeViewDetaching(bool destroyed) {
   // This method causes a succession of window tree changes. ScopedPause ensures
   // that occlusion is recomputed at the end of the method instead of after each
   // change.
-  absl::optional<aura::WindowOcclusionTracker::ScopedPause> pause_occlusion;
-  if (clipping_window_)
+  std::optional<aura::WindowOcclusionTracker::ScopedPause> pause_occlusion;
+  if (clipping_window_) {
     pause_occlusion.emplace();
+  }
 
   clipping_window_delegate_->set_native_view(nullptr);
   RemoveClippingWindow();
@@ -134,23 +142,27 @@ void NativeViewHostAura::NativeViewDetaching(bool destroyed) {
     host_->native_view()->ClearProperty(aura::client::kHostWindowKey);
     host_->native_view()->ClearProperty(
         aura::client::kParentNativeViewAccessibleKey);
-    if (original_transform_changed_)
+    if (original_transform_changed_) {
       host_->native_view()->SetTransform(original_transform_);
+    }
     host_->native_view()->Hide();
-    if (host_->native_view()->parent())
+    if (host_->native_view()->parent()) {
       Widget::ReparentNativeView(host_->native_view(), nullptr);
+    }
   }
 }
 
 void NativeViewHostAura::AddedToWidget() {
-  if (!host_->native_view())
+  if (!host_->native_view()) {
     return;
+  }
 
   AddClippingWindow();
-  if (host_->IsDrawn())
+  if (host_->IsDrawn()) {
     host_->native_view()->Show();
-  else
+  } else {
     host_->native_view()->Hide();
+  }
   host_->InvalidateLayout();
 }
 
@@ -162,8 +174,9 @@ void NativeViewHostAura::RemovedFromWidget() {
     host_->native_view()->ClearProperty(aura::client::kHostWindowKey);
 
     host_->native_view()->Hide();
-    if (host_->native_view()->parent())
+    if (host_->native_view()->parent()) {
       host_->native_view()->parent()->RemoveChild(host_->native_view());
+    }
     RemoveClippingWindow();
   }
 }
@@ -175,18 +188,10 @@ bool NativeViewHostAura::SetCornerRadii(
   return true;
 }
 
-bool NativeViewHostAura::SetCustomMask(std::unique_ptr<ui::LayerOwner> mask) {
-  UninstallMask();
-  mask_ = std::move(mask);
-  if (mask_)
-    mask_->layer()->SetFillsBoundsOpaquely(false);
-  InstallMask();
-  return true;
-}
-
 void NativeViewHostAura::SetHitTestTopInset(int top_inset) {
-  if (top_inset_ == top_inset)
+  if (top_inset_ == top_inset) {
     return;
+  }
   top_inset_ = top_inset;
   UpdateInsets();
 }
@@ -249,8 +254,9 @@ void NativeViewHostAura::HideWidget() {
 void NativeViewHostAura::SetFocus() {
   aura::Window* window = host_->native_view();
   aura::client::FocusClient* client = aura::client::GetFocusClient(window);
-  if (client)
+  if (client) {
     client->FocusWindow(window);
+  }
 }
 
 gfx::NativeView NativeViewHostAura::GetNativeViewContainer() const {
@@ -262,25 +268,18 @@ gfx::NativeViewAccessible NativeViewHostAura::GetNativeViewAccessible() {
 }
 
 ui::Cursor NativeViewHostAura::GetCursor(int x, int y) {
-  if (host_->native_view())
+  if (host_->native_view()) {
     return host_->native_view()->GetCursor(gfx::Point(x, y));
+  }
   return ui::Cursor();
 }
 
 void NativeViewHostAura::SetVisible(bool visible) {
-  if (!visible)
+  if (!visible) {
     host_->native_view()->Hide();
-  else
+  } else {
     host_->native_view()->Show();
-}
-
-void NativeViewHostAura::OnWindowBoundsChanged(
-    aura::Window* window,
-    const gfx::Rect& old_bounds,
-    const gfx::Rect& new_bounds,
-    ui::PropertyChangeReason reason) {
-  if (mask_)
-    mask_->layer()->SetBounds(gfx::Rect(host_->native_view()->bounds().size()));
+  }
 }
 
 void NativeViewHostAura::OnWindowDestroying(aura::Window* window) {
@@ -327,8 +326,9 @@ void NativeViewHostAura::AddClippingWindow() {
 
 void NativeViewHostAura::RemoveClippingWindow() {
   clipping_window_->Hide();
-  if (host_->native_view())
+  if (host_->native_view()) {
     host_->native_view()->ClearProperty(aura::client::kHostWindowKey);
+  }
 
   if (host_->native_view()->parent() == clipping_window_.get()) {
     if (host_->GetWidget() && host_->GetWidget()->GetNativeView()) {
@@ -338,13 +338,15 @@ void NativeViewHostAura::RemoveClippingWindow() {
       clipping_window_->RemoveChild(host_->native_view());
     }
   }
-  if (clipping_window_->parent())
+  if (clipping_window_->parent()) {
     clipping_window_->parent()->RemoveChild(clipping_window_.get());
+  }
 }
 
 void NativeViewHostAura::ApplyRoundedCorners() {
-  if (!host_->native_view())
+  if (!host_->native_view()) {
     return;
+  }
 
   ui::Layer* layer = host_->native_view()->layer();
   if (layer->rounded_corner_radii() != corner_radii_) {
@@ -353,26 +355,10 @@ void NativeViewHostAura::ApplyRoundedCorners() {
   }
 }
 
-void NativeViewHostAura::InstallMask() {
-  if (!mask_)
-    return;
-  if (host_->native_view()) {
-    mask_->layer()->SetBounds(gfx::Rect(host_->native_view()->bounds().size()));
-    host_->native_view()->layer()->SetMaskLayer(mask_->layer());
-  }
-}
-
-void NativeViewHostAura::UninstallMask() {
-  if (!host_->native_view() || !mask_)
-    return;
-
-  host_->native_view()->layer()->SetMaskLayer(nullptr);
-  mask_.reset();
-}
-
 void NativeViewHostAura::UpdateInsets() {
-  if (!clipping_window_)
+  if (!clipping_window_) {
     return;
+  }
 
   if (top_inset_ == 0) {
     // The window targeter needs to be uninstalled when not used; keeping empty

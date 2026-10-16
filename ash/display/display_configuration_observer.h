@@ -6,18 +6,23 @@
 #define ASH_DISPLAY_DISPLAY_CONFIGURATION_OBSERVER_H_
 
 #include "ash/ash_export.h"
-#include "ash/display/window_tree_host_manager.h"
 #include "ash/public/cpp/tablet_mode_observer.h"
 #include "base/compiler_specific.h"
 #include "base/memory/weak_ptr.h"
+#include "ui/display/display_observer.h"
+#include "ui/display/manager/display_manager_observer.h"
+
+namespace display {
+enum class TabletState;
+}  // namespace display
 
 namespace ash {
 
 // DisplayConfigurationObserver observes and saves
 // the change of display configurations.
 class ASH_EXPORT DisplayConfigurationObserver
-    : public WindowTreeHostManager::Observer,
-      public TabletModeObserver {
+    : public display::DisplayManagerObserver,
+      public display::DisplayObserver {
  public:
   DisplayConfigurationObserver();
 
@@ -28,13 +33,12 @@ class ASH_EXPORT DisplayConfigurationObserver
   ~DisplayConfigurationObserver() override;
 
  protected:
-  // WindowTreeHostManager::Observer:
+  // display::DisplayManagerObserver:
   void OnDisplaysInitialized() override;
-  void OnDisplayConfigurationChanged() override;
+  void OnDidApplyDisplayChanges() override;
 
-  // TabletModeObserver:
-  void OnTabletModeStarted() override;
-  void OnTabletModeEnded() override;
+  // display::DisplayObserver:
+  void OnDisplayTabletStateChanged(display::TabletState state) override;
 
  private:
   void StartMirrorMode();
@@ -42,6 +46,8 @@ class ASH_EXPORT DisplayConfigurationObserver
 
   // True if the device was in mirror mode before siwtching to tablet mode.
   bool was_in_mirror_mode_ = false;
+
+  display::ScopedDisplayObserver display_observer_{this};
 
   base::WeakPtrFactory<DisplayConfigurationObserver> weak_ptr_factory_{this};
 };

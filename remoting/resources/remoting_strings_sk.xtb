@@ -4,7 +4,6 @@
 <translation id="1002108253973310084">Bola zistená nekompatibilná verzia protokolu. Uistite sa, že máte na oboch počítačoch nainštalovanú najnovšiu verziu príslušného softvéru a skúste to znova.</translation>
 <translation id="1008557486741366299">Teraz nie</translation>
 <translation id="1201402288615127009">Ďalej</translation>
-<translation id="1296511125400541222">Copyright 2023 Autori prehliadača Chromium. Všetky práva vyhradené.</translation>
 <translation id="1297009705180977556">Pri pripájaní k zariadeniu <ph name="HOSTNAME" /> sa vyskytla chyba</translation>
 <translation id="1450760146488584666">Požadovaný objekt neexistuje</translation>
 <translation id="1480046233931937785">Poďakovanie</translation>
@@ -29,7 +28,7 @@ Ak je políčko <ph name="SERVICE_SCRIPT_NAME" /> už začiarknuté, začiarknut
 <translation id="2329392777730037872"><ph name="URL" /> sa nepodarilo v klientovi otvoriť.</translation>
 <translation id="2359808026110333948">Pokračovať</translation>
 <translation id="2366718077645204424">Hostiteľa sa nepodarilo nájsť. Pravdepodobne je to spôsobené konfiguráciou siete, ktorú používate.</translation>
-<translation id="2370754117186920852"><ph name="OPTIONAL_OFFLINE_REASON" />  Naposledy bol(a) online <ph name="RELATIVE_TIMESTAMP" />.</translation>
+<translation id="242591256144136845">Copyright 2025 Google LLC. Všetky práva vyhradené.</translation>
 <translation id="2504109125669302160">Povolenie prístupu službe <ph name="PRODUCT_NAME" /></translation>
 <translation id="2509394361235492552">Pripojené k zariadeniu <ph name="HOSTNAME" /></translation>
 <translation id="2540992418118313681">Chcete tento počítač zdieľať s ďalším používateľom, aby ho mohol zobraziť a ovládať?</translation>
@@ -41,6 +40,7 @@ Ak je políčko <ph name="SERVICE_SCRIPT_NAME" /> už začiarknuté, začiarknut
 <translation id="2758123043070977469">Pri overovaní totožnosti sa vyskytla chyba. Prihláste sa znova.</translation>
 <translation id="2803375539583399270">Zadajte kód PIN</translation>
 <translation id="2919669478609886916">Momentálne zdieľate tento počítač s iným používateľom. Chcete pokračovať v zdieľaní?</translation>
+<translation id="2929683002824598593">Zdieľať zariadenie</translation>
 <translation id="2939145106548231838">Overenie na účely hostenia</translation>
 <translation id="3027681561976217984">Dotykový režim</translation>
 <translation id="3106379468611574572">Vzdialený počítač nereaguje na žiadosti o pripojenie. Skontrolujte, či je online a skúste to znova.</translation>
@@ -54,7 +54,6 @@ Ak je políčko <ph name="SERVICE_SCRIPT_NAME" /> už začiarknuté, začiarknut
 <translation id="3423542133075182604">Proces vzdialeného prístupu bezpečnostného kľúča</translation>
 <translation id="3581045510967524389">Nepodarilo sa pripojiť k sieti. Skontrolujte, či je vaše zariadenie online.</translation>
 <translation id="3596628256176442606">Táto služba povoľuje prichádzajúce pripojenia od klientov funkcie Chromoting.</translation>
-<translation id="369442766917958684">Offline.</translation>
 <translation id="3695446226812920698">Ako na to</translation>
 <translation id="3776024066357219166">Vaša relácia Vzdialenej plochy Chrome bola ukončená.</translation>
 <translation id="3858860766373142691">Názov</translation>
@@ -89,12 +88,12 @@ Ak je políčko <ph name="SERVICE_SCRIPT_NAME" /> už začiarknuté, začiarknut
 <translation id="4808503597364150972">Zadajte kód PIN pre počítač <ph name="HOSTNAME" />.</translation>
 <translation id="4812684235631257312">Hostiteľ</translation>
 <translation id="4867841927763172006">Odoslať akciu PrtScn</translation>
-<translation id="4960795469833295568">Copyright 2023 Google LLC. Všetky práva vyhradené.</translation>
 <translation id="4974476491460646149">Pripojenie k zariadeniu <ph name="HOSTNAME" /> bolo ukončené</translation>
 <translation id="4985296110227979402">Najprv musíte v počítači nastaviť vzdialený prístup</translation>
 <translation id="4987330545941822761">Vzdialená plocha Chrome nedokáže určiť prehliadač, v ktorom sa majú miestne otvárať webové adresy. Vyberte ho v zozname nižšie.</translation>
 <translation id="5064360042339518108"><ph name="HOSTNAME" /> (offline)</translation>
 <translation id="507204348399810022">Naozaj chcete zakázať vzdialené pripojenia k zariadeniu <ph name="HOSTNAME" />?</translation>
+<translation id="5095424396646120601">Crash Reporting</translation>
 <translation id="5170982930780719864">Neplatný identifikátor hostiteľa</translation>
 <translation id="5204575267916639804">Časté otázky</translation>
 <translation id="5222676887888702881">Odhlásiť sa</translation>
@@ -107,7 +106,6 @@ Ak je políčko <ph name="SERVICE_SCRIPT_NAME" /> už začiarknuté, začiarknut
 <translation id="5601503069213153581">Kód PIN</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5708869785009007625">Pracovnú plochu momentálne zdieľate s používateľom <ph name="USER" />.</translation>
-<translation id="5750083143895808682">Prihlásený/-á ako <ph name="EMAIL_ADDRESS" />.</translation>
 <translation id="579702532610384533">Znova pripojiť</translation>
 <translation id="5810269635982033450">Obrazovka funguje ako trackpad</translation>
 <translation id="5823554426827907568">Používateľ <ph name="CLIENT_USERNAME" /> požiadal o prístup k vašej obrazovke a ovládaniu klávesnice a myši. Ak ste túto žiadosť neočakávali, stlačte <ph name="IDS_SHARE_CONFIRM_DIALOG_DECLINE" />. Inak povoľte pripojenie výberom možnosti <ph name="IDS_SHARE_CONFIRM_DIALOG_CONFIRM" /> (keď budete chcieť).</translation>
@@ -121,10 +119,12 @@ Ak je políčko <ph name="SERVICE_SCRIPT_NAME" /> už začiarknuté, začiarknut
 <translation id="6178645564515549384">Natívna hostiteľská aplikácia určená na odosielanie správ v rámci vzdialenej pomoci</translation>
 <translation id="618120821413932081">Prispôsobenie rozlíšenia vzdialenej obrazovky, aby zodpovedalo oknu</translation>
 <translation id="6223301979382383752">Otvoriť predvoľby nahrávania obrazovky</translation>
+<translation id="6252344563748670011">Používateľ <ph name="CLIENT_USERNAME" /> požiadal o prístup k vašej obrazovke a ovládaniu klávesnice a myši. Chcete zdieľať svoje zariadenie?</translation>
 <translation id="6284412385303060032">Hostiteľ spustený na obrazovke logiky konzoly bol ukončený, aby sa tým zaistil režim opony (curtain mode), a to prepnutím na hostiteľa spúšťaného v relácii konkrétneho používateľa</translation>
 <translation id="6542902059648396432">Nahlásiť problém...</translation>
 <translation id="6583902294974160967">Podpora</translation>
 <translation id="6612717000975622067">Odoslať akciu Ctrl-Alt-Del</translation>
+<translation id="6625262630437221505">{0,plural, =1{Ak nebudete konať, vaše zariadenie začne automaticky zdieľať o # sekundu.}few{Ak nebudete konať, vaše zariadenie začne automaticky zdieľať o # sekundy.}many{Ak nebudete konať, vaše zariadenie začne automaticky zdieľať o # sekundy.}other{Ak nebudete konať, vaše zariadenie začne automaticky zdieľať o # sekúnd.}}</translation>
 <translation id="6654753848497929428">Zdieľať</translation>
 <translation id="677755392401385740">Hostiteľ bol spustený pre používateľa: <ph name="HOST_USERNAME" />.</translation>
 <translation id="6902524959760471898">Pomocná aplikácia na otvorenie webovej adresy v klientovi <ph name="PRODUCT_NAME" /></translation>
@@ -138,6 +138,7 @@ Ak je políčko <ph name="SERVICE_SCRIPT_NAME" /> už začiarknuté, začiarknut
 <translation id="7067321367069083429">Obrazovka funguje ako dotyková obrazovka</translation>
 <translation id="7116737094673640201">Predstavujeme Vzdialenú plochu Chrome</translation>
 <translation id="7144878232160441200">Skúsiť znova</translation>
+<translation id="7298392173540380852">Copyright 2025 Autori prehliadača Chromium. Všetky práva vyhradené.</translation>
 <translation id="7312846573060934304">Hostiteľ je v režime offline.</translation>
 <translation id="7319983568955948908">Prestať zdieľať</translation>
 <translation id="7359298090707901886">Vo vybranom prehliadači sa nedajú otvárať webové adresy v miestnom zariadení.</translation>

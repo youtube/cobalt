@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {HeapProfilerTestRunner} from 'heap_profiler_test_runner';
+
 (async function() {
   TestRunner.addResult(`Tests showing several node ranges in the Summary view of detailed heap snapshot.\n`);
-  await TestRunner.loadTestModule('heap_profiler_test_runner');
-  await TestRunner.showPanel('heap_profiler');
+  await TestRunner.showPanel('heap-profiler');
 
   var instanceCount = 50;
   function createHeapSnapshot() {
@@ -21,7 +23,8 @@
       TestRunner.addResult(step);
       TestRunner.addResult('Retrieved ranges: ' + JSON.stringify(row.retrievedChildrenRanges));
       for (var i = 0; i < row.children.length; ++i)
-        TestRunner.addResult('[' + i + '] ' + row.children[i].element().textContent.replace(/[^\w\d]/mg, ' '));
+        TestRunner.addResult('[' + i + '] ' + row.children[i].element().textContent
+          .replace(/[@%B]|\s+/mg, ' ').trim())
       return row.populateChildren(from, to);
     }
 

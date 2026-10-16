@@ -1,3 +1,1 @@
-monorail: {
-  component: "UI>Browser>Themes"
-}
+mixins: "//ui/gtk/COMMON_METADATA"

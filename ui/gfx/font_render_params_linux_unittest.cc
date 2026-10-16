@@ -13,12 +13,15 @@
 #include "base/notreached.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/test_fonts/fontconfig/fontconfig_util_linux.h"
 #include "ui/gfx/font.h"
+#include "ui/gfx/font_render_params_linux.h"
 #include "ui/gfx/linux/fontconfig_util.h"
+
+#if BUILDFLAG(IS_LINUX)
 #include "ui/linux/fake_linux_ui.h"
+#endif
 
 namespace gfx {
 
@@ -36,6 +39,7 @@ const char kFontconfigMatchFontHeader[] = "  <match target=\"font\">\n";
 const char kFontconfigMatchPatternHeader[] = "  <match target=\"pattern\">\n";
 const char kFontconfigMatchFooter[] = "  </match>\n";
 
+#if BUILDFLAG(IS_LINUX)
 // Implementation of LinuxUi that returns a canned FontRenderParams
 // struct. This is used to isolate tests from the system's local configuration.
 class TestFontDelegate : public ui::FakeLinuxUi {
@@ -49,20 +53,12 @@ class TestFontDelegate : public ui::FakeLinuxUi {
 
   void set_params(const FontRenderParams& params) { params_ = params; }
 
-  FontRenderParams GetDefaultFontRenderParams() const override {
-    return params_;
-  }
-  void GetDefaultFontDescription(std::string* family_out,
-                                 int* size_pixels_out,
-                                 int* style_out,
-                                 int* weight_out,
-                                 FontRenderParams* params_out) const override {
-    NOTIMPLEMENTED();
-  }
+  FontRenderParams GetDefaultFontRenderParams() override { return params_; }
 
  private:
   FontRenderParams params_;
 };
+#endif
 
 // Loads XML-formatted |data| into the current font configuration.
 bool LoadConfigDataIntoFontconfig(const std::string& data) {
@@ -111,8 +107,11 @@ std::string CreateFontconfigAliasStanza(const std::string& original_family,
 class FontRenderParamsTest : public testing::Test {
  public:
   FontRenderParamsTest() {
+#if BUILDFLAG(IS_LINUX)
     ui::LinuxUi::SetInstance(&test_font_delegate_);
+#endif
     ClearFontRenderParamsCacheForTest();
+    SetForceDisableSubpixelFontRendering(false);
 
     // Create a new fontconfig configuration and load the default fonts
     // configuration. The default test config file is produced in the build
@@ -135,12 +134,16 @@ class FontRenderParamsTest : public testing::Test {
   ~FontRenderParamsTest() override {
     OverrideGlobalFontConfigForTesting(original_config_);
     FcConfigDestroy(override_config_.ExtractAsDangling());
+#if BUILDFLAG(IS_LINUX)
     ui::LinuxUi::SetInstance(old_linux_ui_);
+#endif
   }
 
  protected:
+#if BUILDFLAG(IS_LINUX)
   TestFontDelegate test_font_delegate_;
   raw_ptr<ui::LinuxUi> old_linux_ui_ = nullptr;
+#endif
   raw_ptr<FcConfig> override_config_ = nullptr;
   raw_ptr<FcConfig> original_config_ = nullptr;
 };
@@ -188,6 +191,19 @@ TEST_F(FontRenderParamsTest, Default) {
   EXPECT_EQ(FontRenderParams::HINTING_SLIGHT, params.hinting);
   EXPECT_FALSE(params.subpixel_positioning);
   EXPECT_EQ(FontRenderParams::SUBPIXEL_RENDERING_RGB,
+            params.subpixel_rendering);
+
+  ClearFontRenderParamsCacheForTest();
+  SetForceDisableSubpixelFontRendering(true);
+
+  params = GetFontRenderParams(FontRenderParamsQuery(), nullptr);
+
+  EXPECT_TRUE(params.antialiasing);
+  EXPECT_TRUE(params.autohinter);
+  EXPECT_TRUE(params.use_bitmaps);
+  EXPECT_EQ(FontRenderParams::HINTING_SLIGHT, params.hinting);
+  EXPECT_FALSE(params.subpixel_positioning);
+  EXPECT_EQ(FontRenderParams::SUBPIXEL_RENDERING_NONE,
             params.subpixel_rendering);
 }
 
@@ -360,16 +376,17 @@ TEST_F(FontRenderParamsTest, ForceSubpixelPositioning) {
     FontRenderParams params =
         GetFontRenderParams(FontRenderParamsQuery(), nullptr);
     EXPECT_TRUE(params.antialiasing);
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
     EXPECT_TRUE(params.subpixel_positioning);
 #else
     // Integral scale factor does not require subpixel positioning.
     EXPECT_FALSE(params.subpixel_positioning);
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
     SetFontRenderParamsDeviceScaleFactor(1.0f);
   }
 }
 
+#if BUILDFLAG(IS_LINUX)
 TEST_F(FontRenderParamsTest, OnlySetConfiguredValues) {
   // Configure the LinuxUi to request subpixel rendering.
   FontRenderParams system_params;
@@ -428,6 +445,7 @@ TEST_F(FontRenderParamsTest, MissingFamily) {
   GetFontRenderParams(query, &suggested_family);
   EXPECT_EQ("Arimo", suggested_family);
 }
+#endif
 
 TEST_F(FontRenderParamsTest, SubstituteFamily) {
   // Configure Fontconfig to use Tinos for both Helvetica and Arimo.

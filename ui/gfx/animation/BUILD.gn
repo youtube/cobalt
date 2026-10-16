@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/ui.gni")
 
 if (is_android) {
@@ -37,6 +36,10 @@ component("animation") {
     sources += [ "animation_android.cc" ]
   }
 
+  if (is_chromeos) {
+    sources += [ "animation_chromeos.cc" ]
+  }
+
   if (is_mac) {
     sources += [ "animation_mac.mm" ]
   }
@@ -68,16 +71,14 @@ component("animation") {
 
   deps = [
     "//base",
-    "//build:chromeos_buildflags",
     "//skia",
-    "//ui/gfx:gfx_export",
     "//ui/gfx:gfx_switches",
     "//ui/gfx/geometry",
     "//ui/gfx/geometry:geometry_skia",
   ]
 
   if (is_android) {
-    deps += [ "//ui/gfx:gfx_jni_headers" ]
+    deps += [ "//ui/accessibility:ax_base_android" ]
   }
 
   if (is_linux) {

@@ -55,11 +55,10 @@ import org.chromium.components.media_router.TestMediaRouterClient;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Robolectric tests for CafBaseMediaRouteProvider.
- */
+/** Robolectric tests for CafBaseMediaRouteProvider. */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(manifest = Config.NONE,
+@Config(
+        manifest = Config.NONE,
         shadows = {ShadowMediaRouter.class, ShadowCastContext.class, ShadowLooper.class},
         // Required to mock final.
         instrumentedPackages = {"androidx.mediarouter.media.MediaRouteSelector"})
@@ -69,16 +68,11 @@ public class CafBaseMediaRouteProviderTest {
     private TestMRP mProvider;
     private MediaRouterTestHelper mMediaRouterHelper;
     private MediaRouter mMediaRouter;
-    @Mock
-    private MediaRouteManager mManager;
-    @Mock
-    private CastContext mCastContext;
-    @Mock
-    private CastSession mCastSession;
-    @Mock
-    private SessionManager mSessionManager;
-    @Mock
-    private BaseSessionController mSessionController;
+    @Mock private MediaRouteManager mManager;
+    @Mock private CastContext mCastContext;
+    @Mock private CastSession mCastSession;
+    @Mock private SessionManager mSessionManager;
+    @Mock private BaseSessionController mSessionController;
 
     @Before
     public void setUp() {
@@ -164,13 +158,17 @@ public class CafBaseMediaRouteProviderTest {
         verify(mManager).onSinksReceived(eq("source-id-1"), eq(mProvider), eq(NO_SINKS));
         verify(mManager).onSinksReceived(eq("source-id-2"), eq(mProvider), eq(NO_SINKS));
         verify(mMediaRouterHelper.getShadowImpl())
-                .addCallback(eq(mockSelector1), any(MediaRouter.Callback.class),
+                .addCallback(
+                        eq(mockSelector1),
+                        any(MediaRouter.Callback.class),
                         eq(MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY));
         verify(mMediaRouterHelper.getShadowImpl())
-                .addCallback(eq(mockSelector2), any(MediaRouter.Callback.class),
+                .addCallback(
+                        eq(mockSelector2),
+                        any(MediaRouter.Callback.class),
                         eq(MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY));
 
-        assertEquals(mProvider.mDiscoveryCallbacks.size(), 2);
+        assertEquals(2, mProvider.mDiscoveryCallbacks.size());
         assertTrue(mProvider.mDiscoveryCallbacks.containsKey("app-id-1"));
         assertTrue(mProvider.mDiscoveryCallbacks.containsKey("app-id-2"));
 
@@ -183,7 +181,7 @@ public class CafBaseMediaRouteProviderTest {
 
         verify(mManager, times(2))
                 .onSinksReceived(eq("source-id-1"), eq(mProvider), sinksCaptor.capture());
-        assertEquals(sinksCaptor.getAllValues().get(1).size(), 1);
+        assertEquals(1, sinksCaptor.getAllValues().get(1).size());
     }
 
     @Test
@@ -204,10 +202,12 @@ public class CafBaseMediaRouteProviderTest {
         verify(mManager).onSinksReceived(eq("source-id-1"), eq(mProvider), eq(NO_SINKS));
         verify(mManager).onSinksReceived(eq("source-id-2"), eq(mProvider), eq(NO_SINKS));
         verify(mMediaRouterHelper.getShadowImpl())
-                .addCallback(eq(mockSelector1), any(MediaRouter.Callback.class),
+                .addCallback(
+                        eq(mockSelector1),
+                        any(MediaRouter.Callback.class),
                         eq(MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY));
 
-        assertEquals(mProvider.mDiscoveryCallbacks.size(), 1);
+        assertEquals(1, mProvider.mDiscoveryCallbacks.size());
         assertTrue(mProvider.mDiscoveryCallbacks.containsKey("app-id-1"));
 
         // Add one route for source 1.
@@ -219,13 +219,13 @@ public class CafBaseMediaRouteProviderTest {
 
         verify(mManager, times(2))
                 .onSinksReceived(eq("source-id-1"), eq(mProvider), sinksCaptor.capture());
-        assertEquals(sinksCaptor.getAllValues().get(1).size(), 1);
+        assertEquals(1, sinksCaptor.getAllValues().get(1).size());
 
         sinksCaptor = ArgumentCaptor.forClass(List.class);
 
         verify(mManager, times(2))
                 .onSinksReceived(eq("source-id-2"), eq(mProvider), sinksCaptor.capture());
-        assertEquals(sinksCaptor.getAllValues().get(1).size(), 1);
+        assertEquals(1, sinksCaptor.getAllValues().get(1).size());
     }
 
     @Test
@@ -244,7 +244,7 @@ public class CafBaseMediaRouteProviderTest {
         // Existing devices that match the selector should be published upon start observing.
         ArgumentCaptor<List<MediaSink>> sinksCaptor = ArgumentCaptor.forClass(List.class);
         verify(mManager).onSinksReceived(eq("source-id"), eq(mProvider), sinksCaptor.capture());
-        assertEquals(sinksCaptor.getValue().size(), 1);
+        assertEquals(1, sinksCaptor.getValue().size());
     }
 
     @Test
@@ -262,7 +262,7 @@ public class CafBaseMediaRouteProviderTest {
 
         verify(mMediaRouterHelper.getShadowImpl(), never())
                 .removeCallback(any(MediaRouter.Callback.class));
-        assertEquals(mProvider.mDiscoveryCallbacks.size(), 1);
+        assertEquals(1, mProvider.mDiscoveryCallbacks.size());
 
         mProvider.stopObservingMediaSinks("source-id-2");
 
@@ -284,12 +284,12 @@ public class CafBaseMediaRouteProviderTest {
         CreateRouteRequestInfo pendingCreateRouteRequestInfo =
                 mProvider.getPendingCreateRouteRequestInfo();
         assertEquals(pendingCreateRouteRequestInfo.getMediaSource(), mockSource);
-        assertEquals(pendingCreateRouteRequestInfo.sink.getId(), "cast-route");
-        assertEquals(pendingCreateRouteRequestInfo.presentationId, "presentation-id");
-        assertEquals(pendingCreateRouteRequestInfo.origin, "origin");
-        assertEquals(pendingCreateRouteRequestInfo.tabId, 1);
-        assertEquals(pendingCreateRouteRequestInfo.isOffTheRecord, false);
-        assertEquals(pendingCreateRouteRequestInfo.nativeRequestId, 1);
+        assertEquals("cast-route", pendingCreateRouteRequestInfo.sink.getId());
+        assertEquals("presentation-id", pendingCreateRouteRequestInfo.presentationId);
+        assertEquals("origin", pendingCreateRouteRequestInfo.origin);
+        assertEquals(1, pendingCreateRouteRequestInfo.tabId);
+        assertEquals(false, pendingCreateRouteRequestInfo.isOffTheRecord);
+        assertEquals(1, pendingCreateRouteRequestInfo.nativeRequestId);
         assertEquals(pendingCreateRouteRequestInfo.routeInfo, mMediaRouterHelper.getCastRoute());
 
         // Second request cancels the first request.
@@ -301,12 +301,12 @@ public class CafBaseMediaRouteProviderTest {
         inOrder.verify(mSessionController).requestSessionLaunch();
         pendingCreateRouteRequestInfo = mProvider.getPendingCreateRouteRequestInfo();
         assertEquals(pendingCreateRouteRequestInfo.getMediaSource(), mockSource);
-        assertEquals(pendingCreateRouteRequestInfo.sink.getId(), "other-cast-route");
-        assertEquals(pendingCreateRouteRequestInfo.presentationId, "presentation-id-2");
-        assertEquals(pendingCreateRouteRequestInfo.origin, "origin-2");
-        assertEquals(pendingCreateRouteRequestInfo.tabId, 2);
-        assertEquals(pendingCreateRouteRequestInfo.isOffTheRecord, true);
-        assertEquals(pendingCreateRouteRequestInfo.nativeRequestId, 2);
+        assertEquals("other-cast-route", pendingCreateRouteRequestInfo.sink.getId());
+        assertEquals("presentation-id-2", pendingCreateRouteRequestInfo.presentationId);
+        assertEquals("origin-2", pendingCreateRouteRequestInfo.origin);
+        assertEquals(2, pendingCreateRouteRequestInfo.tabId);
+        assertEquals(true, pendingCreateRouteRequestInfo.isOffTheRecord);
+        assertEquals(2, pendingCreateRouteRequestInfo.nativeRequestId);
         assertEquals(
                 pendingCreateRouteRequestInfo.routeInfo, mMediaRouterHelper.getOtherCastRoute());
 
@@ -356,7 +356,7 @@ public class CafBaseMediaRouteProviderTest {
         doReturn(false).when(mSessionController).isConnected();
         mProvider.closeRoute(route.id);
         inOrder.verify(mSessionController, never()).endSession();
-        assertContainsRoutes(/* no route */);
+        assertContainsRoutes(/* no route */ );
     }
 
     @Test
@@ -366,7 +366,7 @@ public class CafBaseMediaRouteProviderTest {
 
         mProvider.addRoute(route, "origin", 1, 1, false);
         mProvider.detachRoute(route.id);
-        assertContainsRoutes(/* no route */);
+        assertContainsRoutes(/* no route */ );
     }
 
     @Test
@@ -402,12 +402,12 @@ public class CafBaseMediaRouteProviderTest {
 
         inOrder.verify(mSessionController).attachToCastSession(mCastSession);
         inOrder.verify(mSessionController).onSessionStarted();
-        assertEquals(mProvider.mRoutes.size(), 1);
+        assertEquals(1, mProvider.mRoutes.size());
 
-        MediaRoute route = (MediaRoute) (mProvider.mRoutes.values().toArray()[0]);
-        assertEquals(route.sinkId, "cast-route");
-        assertEquals(route.getSourceId(), "source-id");
-        assertEquals(route.presentationId, "presentation-id");
+        MediaRoute route = (MediaRoute) mProvider.mRoutes.values().toArray()[0];
+        assertEquals("cast-route", route.sinkId);
+        assertEquals("source-id", route.getSourceId());
+        assertEquals("presentation-id", route.presentationId);
         assertNull(mProvider.getPendingCreateRouteRequestInfo());
     }
 
@@ -448,12 +448,12 @@ public class CafBaseMediaRouteProviderTest {
 
         inOrder.verify(mSessionController).attachToCastSession(mCastSession);
         inOrder.verify(mSessionController).onSessionStarted();
-        assertEquals(mProvider.mRoutes.size(), 1);
+        assertEquals(1, mProvider.mRoutes.size());
 
-        MediaRoute route = (MediaRoute) (mProvider.mRoutes.values().toArray()[0]);
-        assertEquals(route.sinkId, "cast-route");
-        assertEquals(route.getSourceId(), "source-id");
-        assertEquals(route.presentationId, "presentation-id");
+        MediaRoute route = (MediaRoute) mProvider.mRoutes.values().toArray()[0];
+        assertEquals("cast-route", route.sinkId);
+        assertEquals("source-id", route.getSourceId());
+        assertEquals("presentation-id", route.presentationId);
         assertNull(mProvider.getPendingCreateRouteRequestInfo());
 
         // Same session started for the second time.
@@ -461,12 +461,12 @@ public class CafBaseMediaRouteProviderTest {
 
         inOrder.verify(mSessionController, never()).attachToCastSession(mCastSession);
         inOrder.verify(mSessionController, never()).onSessionStarted();
-        assertEquals(mProvider.mRoutes.size(), 1);
+        assertEquals(1, mProvider.mRoutes.size());
 
-        route = (MediaRoute) (mProvider.mRoutes.values().toArray()[0]);
-        assertEquals(route.sinkId, "cast-route");
-        assertEquals(route.getSourceId(), "source-id");
-        assertEquals(route.presentationId, "presentation-id");
+        route = (MediaRoute) mProvider.mRoutes.values().toArray()[0];
+        assertEquals("cast-route", route.sinkId);
+        assertEquals("source-id", route.getSourceId());
+        assertEquals("presentation-id", route.presentationId);
         assertNull(mProvider.getPendingCreateRouteRequestInfo());
     }
 
@@ -479,8 +479,12 @@ public class CafBaseMediaRouteProviderTest {
 
     @Test
     public void testOnSessionEnding() {
-        InOrder inOrder = inOrder(
-                mSessionController, mProvider, mSessionManager, mMediaRouterHelper.getShadowImpl());
+        InOrder inOrder =
+                inOrder(
+                        mSessionController,
+                        mProvider,
+                        mSessionManager,
+                        mMediaRouterHelper.getShadowImpl());
 
         mProvider.onSessionEnding(mCastSession);
 
@@ -491,8 +495,12 @@ public class CafBaseMediaRouteProviderTest {
     public void testOnSessionEnding_hasPendingRequest() {
         // If there's a pending request, then the session ending event comes from ending the
         // previous session.
-        InOrder inOrder = inOrder(
-                mSessionController, mProvider, mSessionManager, mMediaRouterHelper.getShadowImpl());
+        InOrder inOrder =
+                inOrder(
+                        mSessionController,
+                        mProvider,
+                        mSessionManager,
+                        mMediaRouterHelper.getShadowImpl());
 
         MediaSource mockSource = mock(MediaSource.class);
         doReturn(mockSource).when(mProvider).getSourceFromId("source-id");
@@ -509,8 +517,12 @@ public class CafBaseMediaRouteProviderTest {
 
     @Test
     public void testOnSessionEnded() {
-        InOrder inOrder = inOrder(
-                mSessionController, mProvider, mSessionManager, mMediaRouterHelper.getShadowImpl());
+        InOrder inOrder =
+                inOrder(
+                        mSessionController,
+                        mProvider,
+                        mSessionManager,
+                        mMediaRouterHelper.getShadowImpl());
 
         mProvider.onSessionEnded(mCastSession, 0);
 
@@ -521,8 +533,12 @@ public class CafBaseMediaRouteProviderTest {
     public void testOnSessionEnded_hasPendingRequest() {
         // If there's a pending request, then the session ending event comes from ending the
         // previous session.
-        InOrder inOrder = inOrder(
-                mSessionController, mProvider, mSessionManager, mMediaRouterHelper.getShadowImpl());
+        InOrder inOrder =
+                inOrder(
+                        mSessionController,
+                        mProvider,
+                        mSessionManager,
+                        mMediaRouterHelper.getShadowImpl());
 
         MediaSource mockSource = mock(MediaSource.class);
         doReturn(mockSource).when(mProvider).getSourceFromId("source-id");
@@ -585,13 +601,13 @@ public class CafBaseMediaRouteProviderTest {
 
         // Remove the second route.
         mProvider.removeRoute(route2.id, "error 2");
-        assertContainsRoutes(/* no route */);
+        assertContainsRoutes(/* no route */ );
         inOrder.verify(mManager).onRouteClosed(route2.id, "error 2");
 
         // Remove a duplicate route. This should never happen but the manager should be notified
         // just to be safe.
         mProvider.removeRoute(route1.id, "error 3");
-        assertContainsRoutes(/* no route */);
+        assertContainsRoutes(/* no route */ );
         inOrder.verify(mManager).onRouteClosed(route1.id, "error 3");
     }
 
@@ -605,7 +621,7 @@ public class CafBaseMediaRouteProviderTest {
 
         mProvider.removeAllRoutes("error");
 
-        assertContainsRoutes(/* no route */);
+        assertContainsRoutes(/* no route */ );
         verify(mManager).onRouteClosed(route1.id, "error");
         verify(mManager).onRouteClosed(route2.id, "error");
     }
@@ -620,7 +636,7 @@ public class CafBaseMediaRouteProviderTest {
 
         mProvider.terminateAllRoutes();
 
-        assertContainsRoutes(/* no route */);
+        assertContainsRoutes(/* no route */ );
         verify(mManager).onRouteTerminated(route1.id);
         verify(mManager).onRouteTerminated(route2.id);
         verify(mManager, never()).onRouteClosed(eq(route1.id), anyString());
@@ -679,7 +695,11 @@ public class CafBaseMediaRouteProviderTest {
         public void sendStringMessage(String routeId, String message) {}
 
         @Override
-        public void joinRoute(String routeId, String presentationId, String origin, int tabId,
+        public void joinRoute(
+                String routeId,
+                String presentationId,
+                String origin,
+                int tabId,
                 int nativeRequestId) {}
     }
 }

@@ -5,12 +5,13 @@
 #ifndef CC_TREES_MUTATOR_HOST_CLIENT_H_
 #define CC_TREES_MUTATOR_HOST_CLIENT_H_
 
+#include <optional>
+
 #include "cc/base/protected_sequence_synchronizer.h"
 #include "cc/paint/element_id.h"
 #include "cc/paint/paint_worklet_input.h"
 #include "cc/trees/property_animation_state.h"
 #include "cc/trees/target_property.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace gfx {
 class Transform;
@@ -67,7 +68,7 @@ class MutatorHostClient : public ProtectedSequenceSynchronizer {
                                    ElementListType list_type,
                                    float maximum_scale) = 0;
 
-  virtual void ScrollOffsetAnimationFinished() = 0;
+  virtual void ScrollOffsetAnimationFinished(ElementId element_id) = 0;
 
   virtual void NotifyAnimationWorkletStateChange(
       AnimationWorkletMutationState state,

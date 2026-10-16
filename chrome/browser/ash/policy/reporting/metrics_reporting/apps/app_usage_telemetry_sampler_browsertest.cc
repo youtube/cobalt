@@ -4,30 +4,26 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <tuple>
+#include <vector>
 
 #include "base/check.h"
 #include "base/functional/bind.h"
-#include "base/no_destructor.h"
-#include "base/notreached.h"
-#include "base/strings/string_piece_forward.h"
-#include "base/synchronization/lock.h"
-#include "base/test/scoped_feature_list.h"
-#include "base/thread_annotations.h"
 #include "base/time/time.h"
 #include "base/time/time_override.h"
 #include "chrome/browser/apps/app_service/metrics/app_platform_metrics.h"
 #include "chrome/browser/apps/app_service/metrics/app_platform_metrics_utils.h"
 #include "chrome/browser/ash/login/test/cryptohome_mixin.h"
+#include "chrome/browser/ash/login/test/user_auth_config.h"
 #include "chrome/browser/ash/policy/affiliation/affiliation_mixin.h"
 #include "chrome/browser/ash/policy/affiliation/affiliation_test_helper.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_browser_test.h"
-#include "chrome/browser/ash/policy/reporting/metrics_reporting/metric_reporting_manager.h"
+#include "chrome/browser/ash/policy/reporting/metrics_reporting/metric_reporting_prefs.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/ash/settings/scoped_testing_cros_settings.h"
-#include "chrome/browser/ash/settings/stub_cros_settings_provider.h"
 #include "chrome/browser/chromeos/reporting/metric_default_utils.h"
 #include "chrome/browser/policy/dm_token_utils.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -35,19 +31,19 @@
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom-shared.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/user_display_mode.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/test/base/in_process_browser_test.h"
-#include "chromeos/ash/components/settings/cros_settings_names.h"
+#include "chromeos/ash/components/login/session/session_termination_manager.h"
 #include "chromeos/dbus/missive/missive_client_test_observer.h"
 #include "components/app_constants/constants.h"
-#include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/reporting/proto/synced/metric_data.pb.h"
 #include "components/reporting/proto/synced/record.pb.h"
 #include "components/reporting/proto/synced/record_constants.pb.h"
+#include "components/reporting/util/mock_clock.h"
 #include "components/services/app_service/public/protos/app_types.pb.h"
 #include "components/sync/test/test_sync_service.h"
 #include "components/ukm/test_ukm_recorder.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_launcher.h"
@@ -56,6 +52,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom-shared.h"
+#include "third_party/cros_system_api/dbus/login_manager/dbus-constants.h"
 #include "url/gurl.h"
 
 using ::testing::AllOf;
@@ -63,7 +60,6 @@ using ::testing::Eq;
 using ::testing::Ge;
 using ::testing::Le;
 using ::testing::StrEq;
-using ::testing::UnorderedPointwise;
 
 namespace reporting {
 namespace {
@@ -72,7 +68,7 @@ namespace {
 constexpr char kDMToken[] = "token";
 
 // Standalone webapp start URL.
-constexpr char kWebAppUrl[] = "https://test.example.com";
+constexpr char kWebAppUrl[] = "https://test.example.com/";
 
 // App usage UKM entry name.
 constexpr char kAppUsageUKMEntryName[] = "ChromeOSApp.UsageTime";
@@ -85,82 +81,16 @@ constexpr base::TimeDelta kAppUsageUKMReportingInterval = base::Hours(2);
 
 // Additional webapp usage buffer period before the browser is actually closed.
 // Used when validating reported app usage data.
-constexpr base::TimeDelta kWebAppUsageBufferPeriod = base::Seconds(5);
+constexpr base::TimeDelta kWebAppUsageBufferPeriod = base::Seconds(10);
 
-MATCHER(ContainsAppId,
-        "Matches app id in app usage proto with the expected one") {
-  return std::get<0>(arg).app_id() == std::get<1>(arg);
-}
-
-// Mock clock that supplies a mock time and can be advanced for testing
-// purposes. Needed to simulate usage, and trigger telemetry collection and
-// reporting. Only applicable for browser tests where a `TaskEnvironment` is
-// unavailable.
-class MockClock {
- public:
-  // Returns a MockClock which will not be deleted. Should be called once while
-  // single-threaded to initialize ScopedTimeClockOverrides to avoid threading
-  // issues.
-  static MockClock& Get() {
-    static base::NoDestructor<MockClock> mock_clock;
-    return *mock_clock;
-  }
-
-  MockClock(const MockClock&) = delete;
-  MockClock& operator=(const MockClock&) = delete;
-  ~MockClock() = default;
-
-  // Advance clock by the specified duration.
-  void Advance(const base::TimeDelta& duration) {
-    base::AutoLock lock(lock_);
-    offset_ += duration;
-  }
-
- private:
-  friend base::NoDestructor<MockClock>;
-
-  static base::Time MockedNow() {
-    return base::subtle::TimeNowIgnoringOverride() + Get().Offset();
-  }
-
-  static base::TimeTicks MockedTicksNow() {
-    return base::subtle::TimeTicksNowIgnoringOverride() + Get().Offset();
-  }
-
-  MockClock()
-      : time_override_(std::make_unique<base::subtle::ScopedTimeClockOverrides>(
-            &MockClock::MockedNow,
-            &MockClock::MockedTicksNow,
-            nullptr)) {}
-
-  // Returns the offset duration.
-  const base::TimeDelta& Offset() {
-    base::AutoLock lock(lock_);
-    return offset_;
-  }
-
-  const std::unique_ptr<base::subtle::ScopedTimeClockOverrides> time_override_;
-
-  // A lock is necessary because `MockedNow` and `MockedTicksNow` can be
-  // accessed by components from different threads when they retrieve the
-  // current time.
-  base::Lock lock_;
-  base::TimeDelta offset_ GUARDED_BY(lock_);
-};
-
-// Assert app usage telemetry data in a record with relevant DM token and
-// returns the underlying `MetricData` object.
-const MetricData AssertAppUsageTelemetryData(Priority priority,
-                                             const Record& record) {
+void AssertRecordData(Priority priority, const Record& record) {
   EXPECT_THAT(priority, Eq(Priority::MANUAL_BATCH));
+  ASSERT_TRUE(record.has_destination());
   EXPECT_THAT(record.destination(), Eq(Destination::TELEMETRY_METRIC));
-
-  MetricData record_data;
-  EXPECT_TRUE(record_data.ParseFromString(record.data()));
-  EXPECT_TRUE(record_data.has_timestamp_ms());
-  EXPECT_TRUE(record.has_dm_token());
+  ASSERT_TRUE(record.has_dm_token());
   EXPECT_THAT(record.dm_token(), StrEq(kDMToken));
-  return record_data;
+  ASSERT_TRUE(record.has_source_info());
+  EXPECT_THAT(record.source_info().source(), Eq(SourceInfo::ASH));
 }
 
 // Returns true if the record includes app usage telemetry. False otherwise.
@@ -181,11 +111,13 @@ class AppUsageTelemetrySamplerBrowserTest
  protected:
   AppUsageTelemetrySamplerBrowserTest() {
     // Initialize the MockClock.
-    MockClock::Get();
+    test::MockClock::Get();
     crypto_home_mixin_.MarkUserAsExisting(affiliation_mixin_.account_id());
-    scoped_feature_list_.InitAndEnableFeature(kEnableAppMetricsReporting);
+    crypto_home_mixin_.ApplyAuthConfig(
+        affiliation_mixin_.account_id(),
+        ash::test::UserAuthConfig::Create(ash::test::kDefaultAuthSetup));
     ::policy::SetDMTokenForTesting(
-        ::policy::DMToken::CreateValidTokenForTesting(kDMToken));
+        ::policy::DMToken::CreateValidToken(kDMToken));
   }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
@@ -196,7 +128,6 @@ class AppUsageTelemetrySamplerBrowserTest
 
   void SetUpOnMainThread() override {
     ::policy::DevicePolicyCrosBrowserTest::SetUpOnMainThread();
-    SetPolicyEnabled(true);
     if (::content::IsPreTest()) {
       // Preliminary setup - set up affiliated user.
       ::policy::AffiliationTestHelper::PreLoginUser(
@@ -207,19 +138,14 @@ class AppUsageTelemetrySamplerBrowserTest
     // Login as affiliated user otherwise and set up test environment.
     ::policy::AffiliationTestHelper::LoginUser(affiliation_mixin_.account_id());
     ::web_app::test::UninstallAllWebApps(profile());
+    SetAllowedAppReportingTypes({::ash::reporting::kAppCategoryPWA});
     test_ukm_recorder_ = std::make_unique<::ukm::TestAutoSetUkmRecorder>();
   }
 
-  void SetUpInProcessBrowserTestFixture() override {
-    ::policy::DevicePolicyCrosBrowserTest::SetUpInProcessBrowserTestFixture();
-    create_sync_service_subscription_ =
-        BrowserContextDependencyManager::GetInstance()
-            ->RegisterCreateServicesCallbackForTesting(base::BindRepeating(
-                &AppUsageTelemetrySamplerBrowserTest::SetUpSyncService,
-                base::Unretained(this)));
-  }
-
-  void SetUpSyncService(::content::BrowserContext* context) {
+  void SetUpBrowserContextKeyedServices(
+      ::content::BrowserContext* context) override {
+    ::policy::DevicePolicyCrosBrowserTest::SetUpBrowserContextKeyedServices(
+        context);
     SyncServiceFactory::GetInstance()->SetTestingFactoryAndUse(
         context, base::BindRepeating([](::content::BrowserContext* context)
                                          -> std::unique_ptr<KeyedService> {
@@ -228,9 +154,9 @@ class AppUsageTelemetrySamplerBrowserTest
   }
 
   // Helper that installs a standalone webapp with the specified start url.
-  ::web_app::AppId InstallStandaloneWebApp(const GURL& start_url) {
-    auto web_app_info = std::make_unique<WebAppInstallInfo>();
-    web_app_info->start_url = start_url;
+  ::webapps::AppId InstallStandaloneWebApp(const GURL& start_url) {
+    auto web_app_info =
+        web_app::WebAppInstallInfo::CreateWithStartUrlForTesting(start_url);
     web_app_info->scope = start_url.GetWithoutFilename();
     web_app_info->display_mode = ::blink::mojom::DisplayMode::kStandalone;
     web_app_info->user_display_mode =
@@ -239,25 +165,25 @@ class AppUsageTelemetrySamplerBrowserTest
   }
 
   // Helper that simulates app usage for the specified app and usage duration.
-  void SimulateAppUsage(const ::web_app::AppId& app_id,
+  void SimulateAppUsage(const ::webapps::AppId& app_id,
                         const base::TimeDelta& running_time) {
     // Launch web app and simulate web app usage before closing the browser
     // window to prevent further usage tracking.
     Browser* const app_browser =
         ::web_app::LaunchWebAppBrowser(profile(), app_id);
-    MockClock::Get().Advance(running_time);
+    test::MockClock::Get().Advance(running_time);
     ::web_app::CloseAndWait(app_browser);
 
     // Trigger usage telemetry collection by advancing the clock. Wait before
     // returning to ensure usage data gets persisted in the user pref store.
-    MockClock::Get().Advance(kAppUsageCollectionInterval);
+    test::MockClock::Get().Advance(kAppUsageCollectionInterval);
     ::content::RunAllTasksUntilIdle();
   }
 
   void VerifyAppUsage(const AppUsageData::AppUsage& app_usage,
-                      const ::web_app::AppId& app_id,
                       const base::TimeDelta& running_time) {
     EXPECT_TRUE(app_usage.has_app_instance_id());
+    EXPECT_THAT(app_usage.app_id(), StrEq(kWebAppUrl));
     EXPECT_THAT(app_usage.app_type(),
                 Eq(::apps::ApplicationType::APPLICATION_TYPE_WEB));
 
@@ -281,24 +207,12 @@ class AppUsageTelemetrySamplerBrowserTest
     }
   }
 
-  const AppUsageData::AppUsage& GetAppUsageInfoForApp(
-      const AppUsageData& app_usage_data,
-      const ::web_app::AppId& app_id) {
-    for (const auto& app_usage : app_usage_data.app_usage()) {
-      if (app_usage.app_id() == app_id) {
-        return app_usage;
-      }
-    }
-    NOTREACHED_NORETURN() << "App usage info missing for app with id: "
-                          << app_id;
-  }
-
-  void VerifyWebAppUsageUKM(base::StringPiece instance_id,
+  void VerifyWebAppUsageUKM(std::string_view instance_id,
                             const base::TimeDelta& running_time) {
     const auto entries =
         test_ukm_recorder_->GetEntriesByName(kAppUsageUKMEntryName);
     int usage_time = 0;
-    for (const auto* entry : entries) {
+    for (const ukm::mojom::UkmEntry* entry : entries) {
       const ::ukm::UkmSource* source =
           test_ukm_recorder_->GetSourceForSourceId(entry->source_id);
       if (!source || source->url() != GURL(kWebAppUrl)) {
@@ -328,9 +242,13 @@ class AppUsageTelemetrySamplerBrowserTest
     }
   }
 
-  void SetPolicyEnabled(bool is_enabled) {
-    scoped_testing_cros_settings_.device_settings()->SetBoolean(
-        ::ash::kReportDeviceAppInfo, is_enabled);
+  void SetAllowedAppReportingTypes(const std::vector<std::string>& app_types) {
+    base::Value::List allowed_app_types;
+    for (const auto& app_type : app_types) {
+      allowed_app_types.Append(app_type);
+    }
+    profile()->GetPrefs()->SetList(::ash::reporting::kReportAppUsage,
+                                   std::move(allowed_app_types));
   }
 
   Profile* profile() const {
@@ -347,22 +265,16 @@ class AppUsageTelemetrySamplerBrowserTest
   ::policy::AffiliationMixin affiliation_mixin_{&mixin_host_, &test_helper_};
   ::ash::CryptohomeMixin crypto_home_mixin_{&mixin_host_};
 
-  base::test::ScopedFeatureList scoped_feature_list_;
-  ::ash::ScopedTestingCrosSettings scoped_testing_cros_settings_;
-
-  base::CallbackListSubscription create_sync_service_subscription_;
   std::unique_ptr<::ukm::TestAutoSetUkmRecorder> test_ukm_recorder_;
 };
 
 IN_PROC_BROWSER_TEST_F(AppUsageTelemetrySamplerBrowserTest,
                        PRE_ReportUsageData) {
-  // Dummy case that sets up the affiliated user through SetUpOnMainThread
+  // Simple case that sets up the affiliated user through SetUpOnMainThread
   // PRE-condition.
 }
 
 IN_PROC_BROWSER_TEST_F(AppUsageTelemetrySamplerBrowserTest, ReportUsageData) {
-  ASSERT_TRUE(base::FeatureList::IsEnabled(kEnableAppMetricsReporting));
-
   // Install webapp and simulate its usage.
   const auto& app_id = InstallStandaloneWebApp(GURL(kWebAppUrl));
   static constexpr base::TimeDelta kAppUsageDuration = base::Minutes(2);
@@ -372,31 +284,30 @@ IN_PROC_BROWSER_TEST_F(AppUsageTelemetrySamplerBrowserTest, ReportUsageData) {
 
   // Force telemetry collection by advancing the timer and verify data that is
   // being enqueued via ERP.
-  MockClock::Get().Advance(
-      metrics::kDefaultDeviceActivityHeartbeatCollectionRate);
+  test::MockClock::Get().Advance(
+      metrics::kDefaultAppUsageTelemetryCollectionRate);
   const auto [priority, record] = missive_observer.GetNextEnqueuedRecord();
-  const auto& metric_data = AssertAppUsageTelemetryData(priority, record);
+  AssertRecordData(priority, record);
+  MetricData metric_data;
+  ASSERT_TRUE(metric_data.ParseFromString(record.data()));
+  EXPECT_TRUE(metric_data.has_timestamp_ms());
 
-  // Data reported includes usage from the web app + the native Chrome
-  // component application since these leverage the browser.
+  // Data reported only includes usage from the web app. Derivative usage from
+  // the native Chrome component application (since these leverage the browser)
+  // should be filtered out by the policy setting.
   const auto& app_usage_data =
       metric_data.telemetry_data().app_telemetry().app_usage_data();
-  ASSERT_THAT(app_usage_data.app_usage().size(), Eq(2));
-  ASSERT_THAT(
-      app_usage_data.app_usage(),
-      UnorderedPointwise(
-          ContainsAppId(),
-          {app_id, static_cast<std::string>(::app_constants::kChromeAppId)}));
-  const auto& app_usage = GetAppUsageInfoForApp(app_usage_data, app_id);
-  VerifyAppUsage(app_usage, app_id, kAppUsageDuration);
+  ASSERT_THAT(app_usage_data.app_usage().size(), Eq(1));
+  const auto& app_usage = app_usage_data.app_usage(0);
+  VerifyAppUsage(app_usage, kAppUsageDuration);
 
   // Trigger upload to UKM by advancing the timer.
-  MockClock::Get().Advance(kAppUsageUKMReportingInterval);
+  test::MockClock::Get().Advance(kAppUsageUKMReportingInterval);
   ::content::RunAllTasksUntilIdle();
   VerifyWebAppUsageUKM(app_usage.app_instance_id(), kAppUsageDuration);
 
   // Advance the timer and verify data is cleared by the next upload cycle.
-  MockClock::Get().Advance(kAppUsageUKMReportingInterval);
+  test::MockClock::Get().Advance(kAppUsageUKMReportingInterval);
   ::content::RunAllTasksUntilIdle();
   ASSERT_FALSE(profile()
                    ->GetPrefs()
@@ -406,15 +317,13 @@ IN_PROC_BROWSER_TEST_F(AppUsageTelemetrySamplerBrowserTest, ReportUsageData) {
 
 IN_PROC_BROWSER_TEST_F(AppUsageTelemetrySamplerBrowserTest,
                        PRE_ReportUsageDataWhenSyncDisabled) {
-  // Dummy case that sets up the affiliated user through SetUpOnMainThread
+  // Simple case that sets up the affiliated user through SetUpOnMainThread
   // PRE-condition.
 }
 
 IN_PROC_BROWSER_TEST_F(AppUsageTelemetrySamplerBrowserTest,
                        ReportUsageDataWhenSyncDisabled) {
-  ASSERT_TRUE(base::FeatureList::IsEnabled(kEnableAppMetricsReporting));
-  sync_service()->SetDisableReasons(
-      ::syncer::SyncService::DISABLE_REASON_ENTERPRISE_POLICY);
+  sync_service()->SetAllowedByEnterprisePolicy(false);
 
   // Install web app and simulate its usage.
   const auto& app_id = InstallStandaloneWebApp(GURL(kWebAppUrl));
@@ -425,26 +334,24 @@ IN_PROC_BROWSER_TEST_F(AppUsageTelemetrySamplerBrowserTest,
 
   // Force telemetry collection by advancing the timer and verify data that is
   // being enqueued via ERP.
-  MockClock::Get().Advance(
-      metrics::kDefaultDeviceActivityHeartbeatCollectionRate);
+  test::MockClock::Get().Advance(
+      metrics::kDefaultAppUsageTelemetryCollectionRate);
   const auto [priority, record] = missive_observer.GetNextEnqueuedRecord();
-  const auto& metric_data = AssertAppUsageTelemetryData(priority, record);
+  AssertRecordData(priority, record);
+  MetricData metric_data;
+  ASSERT_TRUE(metric_data.ParseFromString(record.data()));
+  EXPECT_TRUE(metric_data.has_timestamp_ms());
 
-  // Data reported includes usage from the web app + the native Chrome
-  // component application since these leverage the browser.
+  // Data reported only includes usage from the web app. Derivative usage from
+  // the native Chrome component application (since these leverage the browser)
+  // should be filtered out by the policy setting.
   const auto& app_usage_data =
       metric_data.telemetry_data().app_telemetry().app_usage_data();
-  ASSERT_THAT(app_usage_data.app_usage().size(), Eq(2));
-  ASSERT_THAT(
-      app_usage_data.app_usage(),
-      UnorderedPointwise(
-          ContainsAppId(),
-          {app_id, static_cast<std::string>(::app_constants::kChromeAppId)}));
-  const auto& app_usage = GetAppUsageInfoForApp(app_usage_data, app_id);
-  VerifyAppUsage(app_usage, app_id, kAppUsageDuration);
+  ASSERT_THAT(app_usage_data.app_usage().size(), Eq(1));
+  VerifyAppUsage(app_usage_data.app_usage(0), kAppUsageDuration);
 
   // Advance timer and verify no data is reported to UKM.
-  MockClock::Get().Advance(kAppUsageUKMReportingInterval);
+  test::MockClock::Get().Advance(kAppUsageUKMReportingInterval);
   ::content::RunAllTasksUntilIdle();
   ASSERT_THAT(
       test_ukm_recorder_->GetEntriesByName(kAppUsageUKMEntryName).size(),
@@ -453,14 +360,14 @@ IN_PROC_BROWSER_TEST_F(AppUsageTelemetrySamplerBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(AppUsageTelemetrySamplerBrowserTest,
                        PRE_ReportUsageDataWhenPolicyDisabled) {
-  // Dummy case that sets up the affiliated user through SetUpOnMainThread
+  // Simple case that sets up the affiliated user through SetUpOnMainThread
   // PRE-condition.
 }
 
 IN_PROC_BROWSER_TEST_F(AppUsageTelemetrySamplerBrowserTest,
                        ReportUsageDataWhenPolicyDisabled) {
-  ASSERT_TRUE(base::FeatureList::IsEnabled(kEnableAppMetricsReporting));
-  SetPolicyEnabled(false);
+  // Disable policy.
+  SetAllowedAppReportingTypes({});
 
   // Install web app and simulate its usage.
   const auto& app_id = InstallStandaloneWebApp(GURL(kWebAppUrl));
@@ -471,10 +378,43 @@ IN_PROC_BROWSER_TEST_F(AppUsageTelemetrySamplerBrowserTest,
 
   // Force telemetry collection by advancing the timer and verify no data is
   // being enqueued.
-  MockClock::Get().Advance(
-      metrics::kDefaultDeviceActivityHeartbeatCollectionRate);
+  test::MockClock::Get().Advance(
+      metrics::kDefaultAppUsageTelemetryCollectionRate);
   ::content::RunAllTasksUntilIdle();
-  ASSERT_FALSE(missive_observer.HasNewEnqueuedRecords());
+  ASSERT_FALSE(missive_observer.HasNewEnqueuedRecord());
+}
+
+IN_PROC_BROWSER_TEST_F(AppUsageTelemetrySamplerBrowserTest,
+                       PRE_ReportUsageDataOnSessionTermination) {
+  // Simple case that sets up the affiliated user through SetUpOnMainThread
+  // PRE-condition.
+}
+
+IN_PROC_BROWSER_TEST_F(AppUsageTelemetrySamplerBrowserTest,
+                       ReportUsageDataOnSessionTermination) {
+  // Install web app and simulate its usage.
+  const auto& app_id = InstallStandaloneWebApp(GURL(kWebAppUrl));
+  static constexpr base::TimeDelta kAppUsageDuration = base::Minutes(2);
+  ::chromeos::MissiveClientTestObserver missive_observer(
+      base::BindRepeating(&IsAppUsageTelemetry));
+  SimulateAppUsage(app_id, kAppUsageDuration);
+
+  // Terminate session and verify data being enqueued.
+  ::ash::SessionTerminationManager::Get()->StopSession(
+      ::login_manager::SessionStopReason::USER_REQUESTS_SIGNOUT);
+  const auto [priority, record] = missive_observer.GetNextEnqueuedRecord();
+  AssertRecordData(priority, record);
+  MetricData metric_data;
+  ASSERT_TRUE(metric_data.ParseFromString(record.data()));
+  EXPECT_TRUE(metric_data.has_timestamp_ms());
+
+  // Data reported only includes usage from the web app. Derivative usage from
+  // the native Chrome component application (since these leverage the browser)
+  // should be filtered out by the policy setting.
+  const auto& app_usage_data =
+      metric_data.telemetry_data().app_telemetry().app_usage_data();
+  ASSERT_THAT(app_usage_data.app_usage().size(), Eq(1));
+  VerifyAppUsage(app_usage_data.app_usage(0), kAppUsageDuration);
 }
 
 }  // namespace

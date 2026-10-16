@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/media/webrtc/current_tab_desktop_media_list.h"
 
 #include "base/functional/bind.h"
@@ -10,6 +15,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
+#include "chrome/browser/media/webrtc/desktop_media_picker_utils.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
@@ -18,53 +24,23 @@
 #include "media/base/video_util.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkImage.h"
-#include "ui/gfx/image/image.h"
-#include "ui/gfx/image/image_skia_operations.h"
 
 namespace {
 
 constexpr base::TimeDelta kUpdatePeriodMs = base::Milliseconds(1000);
 
-gfx::ImageSkia ScaleBitmap(const SkBitmap& bitmap, gfx::Size size) {
-  const gfx::Rect scaled_rect = media::ComputeLetterboxRegion(
-      gfx::Rect(0, 0, size.width(), size.height()),
-      gfx::Size(bitmap.info().width(), bitmap.info().height()));
-
-  // TODO(crbug.com/1246835): Consider changing to ResizeMethod::BEST after
-  // evaluating the CPU impact.
-  const gfx::ImageSkia resized = gfx::ImageSkiaOperations::CreateResizedImage(
-      gfx::ImageSkia::CreateFromBitmap(bitmap, 1.f),
-      skia::ImageOperations::ResizeMethod::RESIZE_GOOD, scaled_rect.size());
-
-  SkBitmap result(*resized.bitmap());
-
-  // Set alpha channel values to 255 for all pixels.
-  // TODO(crbug.com/264424): Fix screen/window capturers to capture alpha
-  // channel and remove this code. Currently screen/window capturers (at least
-  // some implementations) only capture R, G and B channels and set Alpha to 0.
-  uint8_t* pixels_data = reinterpret_cast<uint8_t*>(result.getPixels());
-  for (int y = 0; y < result.height(); ++y) {
-    for (int x = 0; x < result.width(); ++x) {
-      pixels_data[result.rowBytes() * y + x * result.bytesPerPixel() + 3] =
-          0xff;
-    }
-  }
-
-  return gfx::ImageSkia::CreateFrom1xBitmap(result);
-}
-
 void HandleCapturedBitmap(
-    base::OnceCallback<void(uint32_t, const absl::optional<gfx::ImageSkia>&)>
+    base::OnceCallback<void(uint32_t, const std::optional<gfx::ImageSkia>&)>
         reply,
-    absl::optional<uint32_t> last_hash,
+    std::optional<uint32_t> last_hash,
     gfx::Size thumbnail_size,
     const SkBitmap& bitmap) {
   DCHECK(!thumbnail_size.IsEmpty());
 
-  absl::optional<gfx::ImageSkia> image;
+  std::optional<gfx::ImageSkia> image;
 
   // Only scale and update if the frame appears to be new.
-  const uint32_t hash = base::FastHash(base::make_span(
+  const uint32_t hash = base::FastHash(base::span(
       static_cast<uint8_t*>(bitmap.getPixels()), bitmap.computeByteSize()));
   if (!last_hash.has_value() || hash != last_hash.value()) {
     image = ScaleBitmap(bitmap, thumbnail_size);
@@ -88,7 +64,9 @@ CurrentTabDesktopMediaList::CurrentTabDesktopMediaList(
       media_id_(content::DesktopMediaID::TYPE_WEB_CONTENTS,
                 content::DesktopMediaID::kNullId,
                 content::WebContentsMediaCaptureId(
-                    web_contents->GetPrimaryMainFrame()->GetProcess()->GetID(),
+                    web_contents->GetPrimaryMainFrame()
+                        ->GetProcess()
+                        ->GetDeprecatedID(),
                     web_contents->GetPrimaryMainFrame()->GetRoutingID())),
       thumbnail_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_VISIBLE})) {
@@ -140,7 +118,7 @@ void CurrentTabDesktopMediaList::Refresh(bool update_thumbnails) {
 
 void CurrentTabDesktopMediaList::OnCaptureHandled(
     uint32_t hash,
-    const absl::optional<gfx::ImageSkia>& image) {
+    const std::optional<gfx::ImageSkia>& image) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   DCHECK((hash != last_hash_) == image.has_value());  // Only new frames passed.
 

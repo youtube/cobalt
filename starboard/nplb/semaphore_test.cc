@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/semaphore.h"
+
 #include <unistd.h>
 
-#include "starboard/common/semaphore.h"
 #include "starboard/common/time.h"
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -63,7 +64,7 @@ TEST(Semaphore, ThreadTakes) {
   ThreadTakesSemaphore thread(&semaphore);
   thread.Start();
   semaphore.Put();
-  thread.Join();
+  thread.WaitForFinish();
 }
 
 class ThreadTakesWaitSemaphore : public AbstractTestThread {
@@ -105,7 +106,7 @@ TEST(Semaphore, FLAKY_ThreadTakesWait_PutBeforeTimeExpires) {
   usleep(wait_time);
   thread.semaphore_.Put();
 
-  thread.Join();
+  thread.WaitForFinish();
 
   EXPECT_TRUE(thread.result_signaled_);
   EXPECT_LT(thread.result_wait_time_, timeout_time);
@@ -141,7 +142,7 @@ TEST(Semaphore, ThreadTakesWait_TimeExpires) {
     usleep(wait_time * 5);
     thread.semaphore_.Put();
 
-    thread.Join();
+    thread.WaitForFinish();
     EXPECT_FALSE(thread.result_signaled_);
 
     if (IsDoubleNear(1.0 * wait_time, 1.0 * thread.result_wait_time_,
@@ -165,7 +166,7 @@ TEST(Semaphore, ThreadPuts) {
   Semaphore semaphore;
   ThreadPutsSemaphore thread(&semaphore);
   thread.Start();
-  thread.Join();
+  thread.WaitForFinish();
   semaphore.Put();
 }
 }  // namespace

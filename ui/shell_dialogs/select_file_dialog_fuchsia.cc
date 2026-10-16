@@ -13,7 +13,6 @@ SelectFileDialog* CreateSelectFileDialog(
     SelectFileDialog::Listener* listener,
     std::unique_ptr<SelectFilePolicy> policy) {
   NOTREACHED();
-  return nullptr;
 }
 
 }  // namespace ui

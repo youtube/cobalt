@@ -10,6 +10,10 @@
 
 #include "modules/rtp_rtcp/source/capture_clock_offset_updater.h"
 
+#include <cstdint>
+#include <optional>
+
+#include "api/units/time_delta.h"
 #include "system_wrappers/include/ntp_time.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -18,24 +22,24 @@ namespace webrtc {
 
 TEST(AbsoluteCaptureTimeReceiverTest,
      SkipEstimatedCaptureClockOffsetIfRemoteToLocalClockOffsetIsUnknown) {
-  static const absl::optional<int64_t> kRemoteCaptureClockOffset =
+  static const std::optional<int64_t> kRemoteCaptureClockOffset =
       Int64MsToQ32x32(-350);
   CaptureClockOffsetUpdater updater;
-  updater.SetRemoteToLocalClockOffset(absl::nullopt);
+  updater.SetRemoteToLocalClockOffset(std::nullopt);
   EXPECT_EQ(
       updater.AdjustEstimatedCaptureClockOffset(kRemoteCaptureClockOffset),
-      absl::nullopt);
+      std::nullopt);
 }
 
 TEST(AbsoluteCaptureTimeReceiverTest,
      SkipEstimatedCaptureClockOffsetIfRemoteCaptureClockOffsetIsUnknown) {
-  static const absl::optional<int64_t> kCaptureClockOffsetNull = absl::nullopt;
+  static const std::optional<int64_t> kCaptureClockOffsetNull = std::nullopt;
   CaptureClockOffsetUpdater updater;
   updater.SetRemoteToLocalClockOffset(0);
   EXPECT_EQ(updater.AdjustEstimatedCaptureClockOffset(kCaptureClockOffsetNull),
             kCaptureClockOffsetNull);
 
-  static const absl::optional<int64_t> kRemoteCaptureClockOffset =
+  static const std::optional<int64_t> kRemoteCaptureClockOffset =
       Int64MsToQ32x32(-350);
   EXPECT_EQ(
       updater.AdjustEstimatedCaptureClockOffset(kRemoteCaptureClockOffset),
@@ -43,9 +47,9 @@ TEST(AbsoluteCaptureTimeReceiverTest,
 }
 
 TEST(AbsoluteCaptureTimeReceiverTest, EstimatedCaptureClockOffsetArithmetic) {
-  static const absl::optional<int64_t> kRemoteCaptureClockOffset =
+  static const std::optional<int64_t> kRemoteCaptureClockOffset =
       Int64MsToQ32x32(-350);
-  static const absl::optional<int64_t> kRemoteToLocalClockOffset =
+  static const std::optional<int64_t> kRemoteToLocalClockOffset =
       Int64MsToQ32x32(-7000007);
   CaptureClockOffsetUpdater updater;
   updater.SetRemoteToLocalClockOffset(kRemoteToLocalClockOffset);
@@ -53,6 +57,27 @@ TEST(AbsoluteCaptureTimeReceiverTest, EstimatedCaptureClockOffsetArithmetic) {
       updater.AdjustEstimatedCaptureClockOffset(kRemoteCaptureClockOffset),
       ::testing::Optional(::testing::Eq(*kRemoteCaptureClockOffset +
                                         *kRemoteToLocalClockOffset)));
+}
+
+TEST(AbsoluteCaptureTimeReceiverTest, ConvertClockOffset) {
+  constexpr TimeDelta kNegative = TimeDelta::Millis(-350);
+  constexpr int64_t kNegativeQ32x32 =
+      kNegative.ms() * (NtpTime::kFractionsPerSecond / 1000);
+  constexpr TimeDelta kPositive = TimeDelta::Millis(400);
+  constexpr int64_t kPositiveQ32x32 =
+      kPositive.ms() * (NtpTime::kFractionsPerSecond / 1000);
+  constexpr TimeDelta kEpsilon = TimeDelta::Millis(1);
+  std::optional<TimeDelta> converted =
+      CaptureClockOffsetUpdater::ConvertsToTimeDela(kNegativeQ32x32);
+  EXPECT_GT(converted, kNegative - kEpsilon);
+  EXPECT_LT(converted, kNegative + kEpsilon);
+
+  converted = CaptureClockOffsetUpdater::ConvertsToTimeDela(kPositiveQ32x32);
+  EXPECT_GT(converted, kPositive - kEpsilon);
+  EXPECT_LT(converted, kPositive + kEpsilon);
+
+  EXPECT_FALSE(
+      CaptureClockOffsetUpdater::ConvertsToTimeDela(std::nullopt).has_value());
 }
 
 }  // namespace webrtc

@@ -16,28 +16,30 @@ import 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar_search_field.js';
 import 'chrome://resources/cr_elements/cr_page_host_style.css.js';
 import 'chrome://resources/cr_elements/icons.html.js';
 import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
-import 'chrome://resources/polymer/v3_0/paper-styles/color.js';
 import '../icons.html.js';
 import '../settings_main/settings_main.js';
 import '../settings_menu/settings_menu.js';
 import '../settings_shared.css.js';
 import '../settings_vars.css.js';
 
-import {SettingsPrefsElement} from 'chrome://resources/cr_components/settings_prefs/prefs.js';
+import type {SettingsPrefsElement} from '/shared/settings/prefs/prefs.js';
 import {CrContainerShadowMixin} from 'chrome://resources/cr_elements/cr_container_shadow_mixin.js';
-import {CrDrawerElement} from 'chrome://resources/cr_elements/cr_drawer/cr_drawer.js';
-import {CrToolbarElement} from 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar.js';
+import type {CrDrawerElement} from 'chrome://resources/cr_elements/cr_drawer/cr_drawer.js';
+import type {CrToolbarElement} from 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar.js';
 import {FindShortcutMixin} from 'chrome://resources/cr_elements/find_shortcut_mixin.js';
-import {listenOnce} from 'chrome://resources/js/util_ts.js';
-import {DomIf, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {listenOnce} from 'chrome://resources/js/util.js';
+import type {DomIf} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {resetGlobalScrollTargetForTesting, setGlobalScrollTarget} from '../global_scroll_target_mixin.js';
 import {loadTimeData} from '../i18n_setup.js';
-import {PageVisibility, pageVisibility} from '../page_visibility.js';
+import type {PageVisibility} from '../page_visibility.js';
+import {pageVisibility} from '../page_visibility.js';
 import {routes} from '../route.js';
-import {Route, RouteObserverMixin, Router} from '../router.js';
-import {SettingsMainElement} from '../settings_main/settings_main.js';
-import {SettingsMenuElement} from '../settings_menu/settings_menu.js';
+import type {Route} from '../router.js';
+import {RouteObserverMixin, Router} from '../router.js';
+import type {SettingsMainElement} from '../settings_main/settings_main.js';
+import type {SettingsMenuElement} from '../settings_menu/settings_menu.js';
 
 import {getTemplate} from './settings_ui.html.js';
 
@@ -97,10 +99,11 @@ export class SettingsUiElement extends SettingsUiElementBase {
     };
   }
 
-  private toolbarSpinnerActive_: boolean;
-  private narrow_: boolean;
-  private pageVisibility_: PageVisibility;
-  private lastSearchQuery_: string;
+  declare prefs: {[key: string]: any};
+  declare private toolbarSpinnerActive_: boolean;
+  declare private narrow_: boolean;
+  declare private pageVisibility_: PageVisibility;
+  declare private lastSearchQuery_: string;
 
   constructor() {
     super();
@@ -131,6 +134,11 @@ export class SettingsUiElement extends SettingsUiElementBase {
           loadTimeData.getString('controlledSettingRecommendedMatches'),
       controlledSettingRecommendedDiffers:
           loadTimeData.getString('controlledSettingRecommendedDiffers'),
+      controlledSettingChildRestriction:
+          loadTimeData.getString('controlledSettingChildRestriction'),
+      controlledSettingParent:
+          loadTimeData.getString('controlledSettingParent'),
+
       // <if expr="chromeos_ash">
       controlledSettingShared:
           loadTimeData.getString('controlledSettingShared'),
@@ -138,10 +146,6 @@ export class SettingsUiElement extends SettingsUiElementBase {
           loadTimeData.getString('controlledSettingWithOwner'),
       controlledSettingNoOwner:
           loadTimeData.getString('controlledSettingNoOwner'),
-      controlledSettingParent:
-          loadTimeData.getString('controlledSettingParent'),
-      controlledSettingChildRestriction:
-          loadTimeData.getString('controlledSettingChildRestriction'),
       // </if>
     };
 
@@ -161,12 +165,6 @@ export class SettingsUiElement extends SettingsUiElementBase {
 
     document.documentElement.classList.remove('loading');
 
-    setTimeout(function() {
-      chrome.send(
-          'metricsHandler:recordTime',
-          ['Settings.TimeUntilInteractive', window.performance.now()]);
-    });
-
     // Preload bold Roboto so it doesn't load and flicker the first time used.
     // https://github.com/microsoft/TypeScript/issues/13569
     (document as any).fonts.load('bold 12px Roboto');
@@ -184,15 +182,17 @@ export class SettingsUiElement extends SettingsUiElementBase {
     if (route === routes.PRIVACY_GUIDE) {
       // Privacy guide has a multi-card layout, which only needs shadows to
       // show when there is more content to scroll.
-      this.enableShadowBehavior(true);
+      this.setForceDropShadows(false);
+      this.enableScrollObservation(true);
     } else if (route.depth <= 1) {
       // Main page uses scroll position to determine whether a shadow should
       // be shown.
-      this.enableShadowBehavior(true);
+      this.setForceDropShadows(false);
+      this.enableScrollObservation(true);
     } else if (!route.isNavigableDialog) {
       // Sub-pages always show the top shadow, regardless of scroll position.
-      this.enableShadowBehavior(false);
-      this.showDropShadows();
+      this.enableScrollObservation(false);
+      this.setForceDropShadows(true);
     }
 
     const urlSearchQuery =

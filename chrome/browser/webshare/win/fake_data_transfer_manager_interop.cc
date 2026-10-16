@@ -67,7 +67,6 @@ IFACEMETHODIMP FakeDataTransferManagerInterop::ShowShareUIForWindow(
       return S_OK;
   }
   NOTREACHED();
-  return E_UNEXPECTED;
 }
 
 base::OnceClosure FakeDataTransferManagerInterop::GetDataRequestedInvoker(

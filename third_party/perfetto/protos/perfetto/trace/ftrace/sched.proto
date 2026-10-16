@@ -99,3 +99,19 @@ message SchedCpuUtilCfsFtraceEvent {
   optional uint64 wake_group_util = 14;
   optional uint64 wake_util = 15;
 }
+message SchedMigrateTaskFtraceEvent {
+  optional string comm = 1;
+  optional int32 pid = 2;
+  optional int32 prio = 3;
+  optional int32 orig_cpu = 4;
+  optional int32 dest_cpu = 5;
+  optional int32 running = 6;
+  optional uint32 load = 7;
+}
+message SchedWakeupTaskAttrFtraceEvent {
+  optional int32 pid = 1;
+  optional uint64 cpu_affinity = 2;
+  optional uint64 task_util = 3;
+  optional uint64 uclamp_min = 4;
+  optional uint64 vruntime = 5;
+}

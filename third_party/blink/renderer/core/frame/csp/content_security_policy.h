@@ -28,12 +28,14 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 
 #include "base/gtest_prod_util.h"
 #include "base/unguessable_token.h"
+#include "services/network/public/cpp/content_security_policy/content_security_policy.h"
+#include "services/network/public/cpp/integrity_policy.h"
 #include "services/network/public/mojom/content_security_policy.mojom-blink.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-blink-forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-blink.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink-forward.h"
@@ -41,6 +43,7 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy_violation_type.h"
 #include "third_party/blink/renderer/core/frame/web_feature_forward.h"
+#include "third_party/blink/renderer/platform/crypto.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
@@ -75,6 +78,8 @@ typedef HeapVector<Member<ConsoleMessage>> ConsoleMessageVector;
 using RedirectStatus = ResourceRequest::RedirectStatus;
 using network::mojom::blink::CSPDirectiveName;
 
+using CSPCheckResult = network::CSPCheckResult;
+
 //  A delegate interface to implement violation reporting, support for some
 //  directives and other miscellaneous functionality.
 class CORE_EXPORT ContentSecurityPolicyDelegate : public GarbageCollectedMixin {
@@ -102,7 +107,7 @@ class CORE_EXPORT ContentSecurityPolicyDelegate : public GarbageCollectedMixin {
   // See https://w3c.github.io/webappsec-csp/#create-violation-for-global.
   // These functions are used to create the violation object.
   virtual std::unique_ptr<SourceLocation> GetSourceLocation() = 0;
-  virtual absl::optional<uint16_t> GetStatusCode() = 0;
+  virtual std::optional<uint16_t> GetStatusCode() = 0;
   // If the Delegate is not bound to a document, a null string should be
   // returned as the referrer.
   virtual String GetDocumentReferrer() = 0;
@@ -166,7 +171,7 @@ class CORE_EXPORT ContentSecurityPolicy final
     kDisallowedDuplicateName
   };
 
-  static const size_t kMaxSampleLength = 40;
+  static constexpr size_t kMaxSampleLength = 40;
 
   ContentSecurityPolicy();
   ~ContentSecurityPolicy();
@@ -196,6 +201,12 @@ class CORE_EXPORT ContentSecurityPolicy final
   bool AllowWasmCodeGeneration(ReportingDisposition,
                                ExceptionStatus,
                                const String& script_content);
+
+  HashSet<HashAlgorithm> HashesToReport() const;
+  void AddHashReportIfNeeded(
+      LocalFrame* frame,
+      const String& url,
+      const HashMap<HashAlgorithm, String>& integrity_hashes) const;
 
   // AllowFromSource() wrappers.
   bool AllowBaseURI(const KURL&);
@@ -229,7 +240,7 @@ class CORE_EXPORT ContentSecurityPolicy final
       const String& policy_name,
       bool is_duplicate,
       AllowTrustedTypePolicyDetails& violation_details,
-      absl::optional<base::UnguessableToken> issue_id = absl::nullopt);
+      std::optional<base::UnguessableToken> issue_id = std::nullopt);
 
   // Passing 'String()' into the |nonce| arguments in the following methods
   // represents an unnonced resource load.
@@ -254,19 +265,9 @@ class CORE_EXPORT ContentSecurityPolicy final
 
   // TODO(crbug.com/889751): Remove "mojom::blink::RequestContextType" once
   // all the code migrates.
-  bool AllowRequestWithoutIntegrity(
-      mojom::blink::RequestContextType,
-      network::mojom::RequestDestination,
-      const KURL&,
-      const KURL& url_before_redirects,
-      RedirectStatus,
-      ReportingDisposition = ReportingDisposition::kReport,
-      CheckHeaderType = CheckHeaderType::kCheckAll) const;
-
-  // TODO(crbug.com/889751): Remove "mojom::blink::RequestContextType" once
-  // all the code migrates.
   bool AllowRequest(mojom::blink::RequestContextType,
                     network::mojom::RequestDestination,
+                    network::mojom::RequestMode,
                     const KURL&,
                     const String& nonce,
                     const IntegrityMetadataSet&,
@@ -282,10 +283,9 @@ class CORE_EXPORT ContentSecurityPolicy final
       const String& message,
       const String& sample = String(),
       const String& sample_prefix = String(),
-      absl::optional<base::UnguessableToken> issue_id = absl::nullopt);
+      std::optional<base::UnguessableToken> issue_id = std::nullopt);
 
-  void UsesScriptHashAlgorithms(uint8_t content_security_policy_hash_algorithm);
-  void UsesStyleHashAlgorithms(uint8_t content_security_policy_hash_algorithm);
+  void UsesHashAlgorithm(IntegrityAlgorithm algorithm);
 
   void SetOverrideAllowInlineStyle(bool);
   void SetOverrideURLForSelf(const KURL&);
@@ -325,8 +325,12 @@ class CORE_EXPORT ContentSecurityPolicy final
       Element* = nullptr,
       const String& source = g_empty_string,
       const String& source_prefix = g_empty_string,
-      absl::optional<base::UnguessableToken> issue_id = absl::nullopt);
+      std::optional<base::UnguessableToken> issue_id = std::nullopt);
 
+  // Strip a URL to make it safe to report it.
+  static String StripURLForUseInReport(const SecurityOrigin* security_origin,
+                                       const KURL& url,
+                                       CSPDirectiveName effective_type);
   // Called when mixed content is detected on a page; will trigger a violation
   // report if the 'block-all-mixed-content' directive is specified for a
   // policy.
@@ -340,7 +344,7 @@ class CORE_EXPORT ContentSecurityPolicy final
 
   void EnforceSandboxFlags(network::mojom::blink::WebSandboxFlags);
   void RequireTrustedTypes();
-  bool IsRequireTrustedTypes() const { return require_trusted_types_; }
+  bool TrustedTypesRequired() const { return require_trusted_types_; }
   String EvalDisabledErrorMessage() const;
   String WasmEvalDisabledErrorMessage() const;
 
@@ -353,6 +357,13 @@ class CORE_EXPORT ContentSecurityPolicy final
   }
 
   bool ExperimentalFeaturesEnabled() const;
+
+  // CSP can be set from multiple sources; if a directive is set by multiple
+  // sources, the strictest one will be used. A CSP can be considered strict
+  // if the `base-uri`, `object-src`, and `script-src` directives are all
+  // strict enough (even if the strictest directives come from different CSP
+  // sources).
+  bool IsStrictPolicyEnforced() const { return enforces_strict_policy_; }
 
   // Whether the main world's CSP should be bypassed based on the current
   // javascript world we are in.
@@ -393,6 +404,18 @@ class CORE_EXPORT ContentSecurityPolicy final
   }
 
   bool HasPolicyFromSource(network::mojom::ContentSecurityPolicySource) const;
+
+  // Whether policies allow loading an opaque URL in a <fencedframe>.
+  //
+  // The document is not allowed to retrieve data about the URL, so the only
+  // allowed `fenced-frame-src` are the one allowing every HTTPs url:
+  // - '*'
+  // - https:
+  // - https://*:*
+  bool AllowFencedFrameOpaqueURL() const;
+
+  // Returns whether enforcing frame-ancestors CSP directives are present.
+  bool HasEnforceFrameAncestorsDirectives();
 
   void Count(WebFeature feature) const;
 
@@ -435,11 +458,6 @@ class CORE_EXPORT ContentSecurityPolicy final
                        const IntegrityMetadataSet& = IntegrityMetadataSet(),
                        ParserDisposition = kParserInserted);
 
-  static void FillInCSPHashValues(
-      const String& source,
-      uint8_t hash_algorithms_used,
-      Vector<network::mojom::blink::CSPHashSourcePtr>& csp_hash_values);
-
   // checks a vector of csp hashes against policy, probably a good idea
   // to use in tandem with FillInCSPHashValues.
   static bool CheckHashAgainstPolicy(
@@ -465,10 +483,9 @@ class CORE_EXPORT ContentSecurityPolicy final
   HashSet<unsigned, AlreadyHashedTraits> violation_reports_sent_;
 
   // We put the hash functions used on the policy object so that we only need
-  // to calculate a hash once and then distribute it to all of the directives
-  // for validation.
-  uint8_t script_hash_algorithms_used_;
-  uint8_t style_hash_algorithms_used_;
+  // to calculate digests using those hashing algorithms which show up in the
+  // policy.
+  WTF::HashSet<IntegrityAlgorithm> hash_algorithms_used_;
 
   // State flags used to configure the environment after parsing a policy.
   network::mojom::blink::WebSandboxFlags sandbox_mask_;
@@ -478,6 +495,8 @@ class CORE_EXPORT ContentSecurityPolicy final
   mojom::blink::InsecureRequestPolicy insecure_request_policy_;
 
   bool supports_wasm_eval_ = false;
+
+  bool enforces_strict_policy_{false};
 };
 
 }  // namespace blink

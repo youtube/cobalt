@@ -7,26 +7,30 @@
 #include "third_party/blink/renderer/platform/wtf/hash_functions.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string_hash.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/skia/include/core/SkFontArguments.h"
 
 namespace blink {
 
-static_assert(sizeof(FontPalette::FontPaletteOverride) ==
-                      sizeof(SkFontArguments::Palette::Override) &&
-                  sizeof(FontPalette::FontPaletteOverride::index) ==
-                      sizeof(SkFontArguments::Palette::Override::index) &&
-                  sizeof(FontPalette::FontPaletteOverride::color) ==
-                      sizeof(SkFontArguments::Palette::Override::color) &&
-                  offsetof(FontPalette::FontPaletteOverride, index) ==
-                      offsetof(SkFontArguments::Palette::Override, index) &&
-                  offsetof(FontPalette::FontPaletteOverride, color) ==
-                      offsetof(SkFontArguments::Palette::Override, color),
-              "Struct FontPalette::FontPaletteOverride must match "
-              "SkFontArguments::Palette::Override.");
-
 unsigned FontPalette::GetHash() const {
   unsigned computed_hash = 0;
   WTF::AddIntToHash(computed_hash, palette_keyword_);
+
+  if (palette_keyword_ == kInterpolablePalette) {
+    WTF::AddFloatToHash(computed_hash, percentages_.start);
+    WTF::AddFloatToHash(computed_hash, percentages_.end);
+    WTF::AddFloatToHash(computed_hash, normalized_percentage_);
+    WTF::AddFloatToHash(computed_hash, alpha_multiplier_);
+    WTF::AddIntToHash(computed_hash,
+                      static_cast<uint8_t>(color_interpolation_space_));
+    if (hue_interpolation_method_.has_value()) {
+      WTF::AddIntToHash(computed_hash,
+                        static_cast<uint8_t>(*hue_interpolation_method_));
+    }
+
+    WTF::AddIntToHash(computed_hash, start_->GetHash());
+    WTF::AddIntToHash(computed_hash, end_->GetHash());
+  }
 
   if (palette_keyword_ != kCustomPalette)
     return computed_hash;
@@ -44,7 +48,52 @@ unsigned FontPalette::GetHash() const {
   return computed_hash;
 }
 
+String FontPalette::ToString() const {
+  switch (palette_keyword_) {
+    case kNormalPalette:
+      return "normal";
+    case kLightPalette:
+      return "light";
+    case kDarkPalette:
+      return "dark";
+    case kCustomPalette:
+      return palette_values_name_.GetString();
+    case kInterpolablePalette:
+      StringBuilder builder;
+      builder.Append("palette-mix(in ");
+      if (hue_interpolation_method_.has_value()) {
+        builder.Append(Color::SerializeInterpolationSpace(
+            color_interpolation_space_, *hue_interpolation_method_));
+      } else {
+        builder.Append(
+            Color::SerializeInterpolationSpace(color_interpolation_space_));
+      }
+      builder.Append(", ");
+      builder.Append(start_->ToString());
+      builder.Append(", ");
+      builder.Append(end_->ToString());
+      DCHECK(normalized_percentage_);
+      builder.Append(" ");
+      double normalized_percentage = normalized_percentage_ * 100;
+      builder.AppendNumber(normalized_percentage);
+      builder.Append("%)");
+      return builder.ToString();
+  }
+}
+
 bool FontPalette::operator==(const FontPalette& other) const {
+  if (IsInterpolablePalette() != other.IsInterpolablePalette()) {
+    return false;
+  }
+  if (IsInterpolablePalette() && other.IsInterpolablePalette()) {
+    return *start_.get() == *other.start_.get() &&
+           *end_.get() == *other.end_.get() &&
+           percentages_ == other.percentages_ &&
+           normalized_percentage_ == other.normalized_percentage_ &&
+           alpha_multiplier_ == other.alpha_multiplier_ &&
+           color_interpolation_space_ == other.color_interpolation_space_ &&
+           hue_interpolation_method_ == other.hue_interpolation_method_;
+  }
   return palette_keyword_ == other.palette_keyword_ &&
          palette_values_name_ == other.palette_values_name_ &&
          match_font_family_ == other.match_font_family_ &&

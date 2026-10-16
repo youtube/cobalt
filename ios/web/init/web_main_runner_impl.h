@@ -5,8 +5,8 @@
 #ifndef IOS_WEB_INIT_WEB_MAIN_RUNNER_IMPL_H_
 #define IOS_WEB_INIT_WEB_MAIN_RUNNER_IMPL_H_
 
+#import "base/memory/raw_ptr.h"
 #import "ios/web/public/init/web_main_runner.h"
-
 #import "ios/web/public/web_client.h"
 
 namespace web {
@@ -22,7 +22,8 @@ class WebMainRunnerImpl : public WebMainRunner {
   ~WebMainRunnerImpl() override;
 
   // WebMainRunner implementation:
-  int Initialize(WebMainParams params) override;
+  void Initialize(WebMainParams params) override;
+  int Startup() override;
   void ShutDown() override;
 
  protected:
@@ -36,7 +37,7 @@ class WebMainRunnerImpl : public WebMainRunner {
   bool completed_basic_startup_;
 
   // The delegate will outlive this object.
-  WebMainDelegate* delegate_;
+  raw_ptr<WebMainDelegate> delegate_;
 
   // Used if the embedder doesn't set one.
   WebClient empty_web_client_;

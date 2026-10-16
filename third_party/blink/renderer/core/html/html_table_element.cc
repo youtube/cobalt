@@ -25,9 +25,7 @@
 
 #include "third_party/blink/renderer/core/html/html_table_element.h"
 
-#include "third_party/blink/renderer/core/accessibility/ax_object_cache.h"
 #include "third_party/blink/renderer/core/css/css_identifier_value.h"
-#include "third_party/blink/renderer/core/css/css_image_value.h"
 #include "third_party/blink/renderer/core/css/css_inherited_value.h"
 #include "third_party/blink/renderer/core/css/css_numeric_literal_value.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
@@ -51,6 +49,7 @@
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/weborigin/referrer.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
@@ -235,7 +234,8 @@ void HTMLTableElement::deleteRow(int index, ExceptionState& exception_state) {
   if (index < -1) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kIndexSizeError,
-        "The index provided (" + String::Number(index) + ") is less than -1.");
+        WTF::StrCat({"The index provided (", String::Number(index),
+                     ") is less than -1."}));
     return;
   }
 
@@ -255,9 +255,9 @@ void HTMLTableElement::deleteRow(int index, ExceptionState& exception_state) {
   if (!row) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kIndexSizeError,
-        "The index provided (" + String::Number(index) +
-            ") is greater than the number of rows in the table (" +
-            String::Number(i) + ").");
+        WTF::StrCat({"The index provided (", String::Number(index),
+                     ") is greater than the number of rows in the table (",
+                     String::Number(i), ")."}));
     return;
   }
   row->remove(exception_state);
@@ -309,7 +309,7 @@ static bool GetBordersFromFrameAttributeValue(const AtomicString& value,
 void HTMLTableElement::CollectStyleForPresentationAttribute(
     const QualifiedName& name,
     const AtomicString& value,
-    MutableCSSPropertyValueSet* style) {
+    HeapVector<CSSPropertyValue, 8>& style) {
   if (name == html_names::kWidthAttr) {
     AddHTMLLengthToStyle(style, CSSPropertyID::kWidth, value,
                          kAllowPercentageValues, kDontAllowZeroValues);
@@ -330,21 +330,16 @@ void HTMLTableElement::CollectStyleForPresentationAttribute(
         style, CSSPropertyID::kBorderRightWidth, width,
         CSSPrimitiveValue::UnitType::kPixels);
   } else if (name == html_names::kBordercolorAttr) {
-    if (!value.empty())
-      AddHTMLColorToStyle(style, CSSPropertyID::kBorderColor, value);
+    if (!value.empty()) {
+      AddHTMLColorToStyle(style, CSSPropertyID::kBorderLeftColor, value);
+      AddHTMLColorToStyle(style, CSSPropertyID::kBorderRightColor, value);
+      AddHTMLColorToStyle(style, CSSPropertyID::kBorderBottomColor, value);
+      AddHTMLColorToStyle(style, CSSPropertyID::kBorderTopColor, value);
+    }
   } else if (name == html_names::kBgcolorAttr) {
     AddHTMLColorToStyle(style, CSSPropertyID::kBackgroundColor, value);
   } else if (name == html_names::kBackgroundAttr) {
-    String url = StripLeadingAndTrailingHTMLSpaces(value);
-    if (!url.empty()) {
-      CSSImageValue* image_value = MakeGarbageCollected<CSSImageValue>(
-          AtomicString(url), GetDocument().CompleteURL(url),
-          Referrer(GetExecutionContext()->OutgoingReferrer(),
-                   GetExecutionContext()->GetReferrerPolicy()),
-          OriginClean::kTrue, false /* is_ad_related */);
-      style->SetLonghandProperty(CSSPropertyValue(
-          CSSPropertyName(CSSPropertyID::kBackgroundImage), *image_value));
-    }
+    AddHTMLBackgroundImageToStyle(style, value);
   } else if (name == html_names::kValignAttr) {
     if (!value.empty()) {
       AddPropertyToPresentationAttributeStyle(
@@ -529,7 +524,6 @@ HTMLTableElement::CellBorders HTMLTableElement::GetCellBorders() const {
       return kInsetBorders;
   }
   NOTREACHED();
-  return kNoBorders;
 }
 
 CSSPropertyValueSet* HTMLTableElement::CreateSharedCellStyle() {
@@ -648,10 +642,6 @@ bool HTMLTableElement::HasLegalLinkAttribute(const QualifiedName& name) const {
          HTMLElement::HasLegalLinkAttribute(name);
 }
 
-const QualifiedName& HTMLTableElement::SubResourceAttributeName() const {
-  return html_names::kBackgroundAttr;
-}
-
 HTMLTableRowsCollection* HTMLTableElement::rows() {
   return EnsureCachedCollection<HTMLTableRowsCollection>(kTableRows);
 }
@@ -666,13 +656,6 @@ const AtomicString& HTMLTableElement::Rules() const {
 
 const AtomicString& HTMLTableElement::Summary() const {
   return FastGetAttribute(html_names::kSummaryAttr);
-}
-
-void HTMLTableElement::FinishParsingChildren() {
-  HTMLElement::FinishParsingChildren();
-  if (AXObjectCache* cache = GetDocument().ExistingAXObjectCache()) {
-    cache->FinishedParsingTable(this);
-  }
 }
 
 void HTMLTableElement::Trace(Visitor* visitor) const {

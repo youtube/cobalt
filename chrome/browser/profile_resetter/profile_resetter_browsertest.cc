@@ -72,7 +72,7 @@ RemoveCookieTester::RemoveCookieTester(Profile* profile)
       cookie_manager_.BindNewPipeAndPassReceiver());
 }
 
-RemoveCookieTester::~RemoveCookieTester() {}
+RemoveCookieTester::~RemoveCookieTester() = default;
 
 // Returns true and sets |*cookie| if the given cookie exists in
 // the cookie store.
@@ -105,8 +105,7 @@ void RemoveCookieTester::AddCookie(const std::string& host,
   auto cookie = net::CanonicalCookie::CreateUnsafeCookieForTesting(
       name, value, host, "/", base::Time(), base::Time(), base::Time(),
       base::Time(), /*secure=*/true, /*httponly=*/false,
-      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_MEDIUM,
-      /*same_party=*/false);
+      net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_MEDIUM);
   cookie_manager_->SetCanonicalCookie(
       *cookie, net::cookie_util::SimulatedCookieSource(*cookie, "https"),
       options,

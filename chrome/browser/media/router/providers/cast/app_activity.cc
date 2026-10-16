@@ -4,16 +4,18 @@
 
 #include "chrome/browser/media/router/providers/cast/app_activity.h"
 
+#include <algorithm>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
 #include "chrome/browser/media/router/providers/cast/cast_activity_manager.h"
 #include "chrome/browser/media/router/providers/cast/cast_session_client.h"
+#include "components/media_router/common/providers/cast/channel/cast_message_handler.h"
+#include "components/media_router/common/providers/cast/channel/cast_message_util.h"
 #include "components/media_router/common/providers/cast/channel/enum_table.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/origin.h"
 
 using blink::mojom::PresentationConnectionCloseReason;
@@ -21,17 +23,34 @@ using blink::mojom::PresentationConnectionMessagePtr;
 
 namespace media_router {
 
+namespace {
+
+bool IsMediaStatusMessage(const cast_channel::InternalMessage& message) {
+  return message.message_namespace == cast_channel::kMediaNamespace &&
+         message.type == cast_channel::CastMessageType::kMediaStatus;
+}
+
+}  // namespace
+
 AppActivity::AppActivity(const MediaRoute& route,
                          const std::string& app_id,
                          cast_channel::CastMessageHandler* message_handler,
-                         CastSessionTracker* session_tracker)
-    : CastActivity(route, app_id, message_handler, session_tracker) {}
+                         CastSessionTracker* session_tracker,
+                         mojo::Remote<mojom::Logger>& logger,
+                         mojo::Remote<mojom::Debugger>& debugger)
+    : CastActivity(route,
+                   app_id,
+                   message_handler,
+                   session_tracker,
+                   logger,
+                   debugger) {}
 
 AppActivity::~AppActivity() = default;
 
 void AppActivity::OnSessionSet(const CastSession& session) {
-  if (media_controller_)
+  if (media_controller_) {
     media_controller_->SetSession(session);
+  }
 }
 
 void AppActivity::OnSessionUpdated(const CastSession& session,
@@ -40,8 +59,9 @@ void AppActivity::OnSessionUpdated(const CastSession& session,
     client.second->SendMessageToClient(
         CreateUpdateSessionMessage(session, client.first, sink_, hash_token));
   }
-  if (media_controller_)
+  if (media_controller_) {
     media_controller_->SetSession(session);
+  }
 }
 
 cast_channel::Result AppActivity::SendAppMessageToReceiver(
@@ -76,11 +96,12 @@ cast_channel::Result AppActivity::SendAppMessageToReceiver(
           cast_message.client_id(), session->destination_id()));
 }
 
-absl::optional<int> AppActivity::SendMediaRequestToReceiver(
+std::optional<int> AppActivity::SendMediaRequestToReceiver(
     const CastInternalMessage& cast_message) {
   CastSession* session = GetSession();
-  if (!session)
-    return absl::nullopt;
+  if (!session) {
+    return std::nullopt;
+  }
   return message_handler_->SendMediaRequest(
       cast_channel_id(), cast_message.v2_message_body(),
       cast_message.client_id(), session->destination_id());
@@ -96,17 +117,21 @@ void AppActivity::SendSetVolumeRequestToReceiver(
 
 void AppActivity::SendMediaStatusToClients(
     const base::Value::Dict& media_status,
-    absl::optional<int> request_id) {
+    std::optional<int> request_id) {
   CastActivity::SendMediaStatusToClients(media_status, request_id);
-  if (media_controller_)
+  if (media_controller_) {
     media_controller_->SetMediaStatus(media_status);
+  }
 }
 
-void AppActivity::CreateMediaController(
+void AppActivity::BindMediaController(
     mojo::PendingReceiver<mojom::MediaController> media_controller,
     mojo::PendingRemote<mojom::MediaStatusObserver> observer) {
-  media_controller_ = std::make_unique<CastMediaController>(
-      this, std::move(media_controller), std::move(observer));
+  if (!media_controller_) {
+    media_controller_ = std::make_unique<CastMediaController>(this);
+  }
+  media_controller_->AddMediaController(std::move(media_controller),
+                                        std::move(observer));
 
   if (session_id_) {
     CastSession* session = GetSession();
@@ -124,7 +149,8 @@ void AppActivity::CreateMediaController(
   }
 }
 
-void AppActivity::OnAppMessage(const cast::channel::CastMessage& message) {
+void AppActivity::OnAppMessage(
+    const openscreen::cast::proto::CastMessage& message) {
   if (!session_id_) {
     DVLOG(2) << "No session associated with activity!";
     return;
@@ -143,31 +169,43 @@ void AppActivity::OnAppMessage(const cast::channel::CastMessage& message) {
 }
 
 void AppActivity::OnInternalMessage(
-    const cast_channel::InternalMessage& message) {}
+    const cast_channel::InternalMessage& message) {
+  // Forward messages in the media namespace other than media statuses to the
+  // client. Media status messages are handled by SendMediaStatusToClients().
+  if (message.message_namespace == cast_channel::kMediaNamespace &&
+      !IsMediaStatusMessage(message)) {
+    std::optional<int> request_id =
+        cast_channel::GetRequestIdFromResponse(message.message);
+    auto client_it = connected_clients_.find(message.destination_id);
+    // Okay to drop messages for clients that have gone away.
+    if (client_it != connected_clients_.end()) {
+      client_it->second->SendMediaMessageToClient(message.message, request_id);
+    }
+  }
+}
 
-bool AppActivity::CanJoinSession(const CastMediaSource& cast_source,
-                                 bool off_the_record) const {
-  if (!cast_source.ContainsApp(app_id()))
+bool AppActivity::CanJoinSession(const CastMediaSource& cast_source) const {
+  if (!cast_source.ContainsApp(app_id())) {
     return false;
+  }
 
-  if (base::Contains(connected_clients_, cast_source.client_id()))
+  if (base::Contains(connected_clients_, cast_source.client_id())) {
     return false;
-
-  if (route().is_off_the_record() != off_the_record)
-    return false;
+  }
 
   return true;
 }
 
-bool AppActivity::HasJoinableClient(AutoJoinPolicy policy,
-                                    const url::Origin& origin,
-                                    int frame_tree_node_id) const {
-  return base::ranges::any_of(
+bool AppActivity::HasJoinableClient(
+    AutoJoinPolicy policy,
+    const url::Origin& origin,
+    content::FrameTreeNodeId frame_tree_node_id) const {
+  return std::ranges::any_of(
       connected_clients_,
       [policy, &origin, frame_tree_node_id](const auto& client) {
-        return IsAutoJoinAllowed(policy, origin, frame_tree_node_id,
+        return IsAutoJoinAllowed(policy, origin, frame_tree_node_id.value(),
                                  client.second->origin(),
-                                 client.second->frame_tree_node_id());
+                                 client.second->frame_tree_node_id().value());
       });
 }
 

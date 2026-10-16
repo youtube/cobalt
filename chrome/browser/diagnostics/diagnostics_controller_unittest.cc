@@ -12,7 +12,6 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/diagnostics/diagnostics_model.h"
 #include "chrome/browser/diagnostics/diagnostics_writer.h"
 #include "chrome/browser/diagnostics/sqlite_diagnostics.h"
@@ -20,9 +19,9 @@
 #include "chrome/common/chrome_switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_constants.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace diagnostics {
 
@@ -37,7 +36,7 @@ class DiagnosticsControllerTest : public testing::Test {
  protected:
   DiagnosticsControllerTest() : cmdline_(base::CommandLine::NO_PROGRAM) {}
 
-  ~DiagnosticsControllerTest() override {}
+  ~DiagnosticsControllerTest() override = default;
 
   void SetUp() override {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
@@ -48,7 +47,7 @@ class DiagnosticsControllerTest : public testing::Test {
     base::CopyDirectory(test_data, temp_dir_.GetPath(), true);
     profile_dir_ = temp_dir_.GetPath().Append(FILE_PATH_LITERAL("user"));
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     // Redirect the home dir to the profile directory. We have to do this
     // because NSS uses the HOME directory to find where to store it's database,
     // so that's where the diagnostics and recovery code looks for it.
@@ -67,7 +66,7 @@ class DiagnosticsControllerTest : public testing::Test {
 
   void TearDown() override {
     DiagnosticsController::GetInstance()->ClearResults();
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     base::PathService::Override(base::DIR_HOME, old_home_dir_);
     old_home_dir_.clear();
 #endif
@@ -86,7 +85,7 @@ class DiagnosticsControllerTest : public testing::Test {
   std::unique_ptr<DiagnosticsWriter> writer_;
   base::FilePath profile_dir_;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   base::FilePath old_home_dir_;
 #endif
 };
@@ -120,7 +119,7 @@ TEST_F(DiagnosticsControllerTest, RecoverAllOK) {
   }
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 TEST_F(DiagnosticsControllerTest, RecoverFromNssCertDbFailure) {
   base::FilePath db_path = profile_dir_.Append(ash::kNssCertDbPath);
   EXPECT_TRUE(base::PathExists(db_path));
@@ -136,7 +135,7 @@ TEST_F(DiagnosticsControllerTest, RecoverFromNssCertDbFailure) {
   EXPECT_TRUE(
       results.GetTestInfo(DIAGNOSTICS_SQLITE_INTEGRITY_NSS_CERT_TEST, &info));
   EXPECT_EQ(DiagnosticsModel::TEST_FAIL_CONTINUE, info->GetResult());
-  EXPECT_EQ(DIAG_SQLITE_ERROR_HANDLER_CALLED, info->GetOutcomeCode());
+  EXPECT_EQ(DIAG_SQLITE_CANNOT_OPEN_DB, info->GetOutcomeCode());
 
   DiagnosticsController::GetInstance()->RunRecovery(cmdline_, writer_.get());
   EXPECT_EQ(DiagnosticsModel::RECOVERY_OK, info->GetResult());
@@ -158,7 +157,7 @@ TEST_F(DiagnosticsControllerTest, RecoverFromNssKeyDbFailure) {
   EXPECT_TRUE(
       results.GetTestInfo(DIAGNOSTICS_SQLITE_INTEGRITY_NSS_KEY_TEST, &info));
   EXPECT_EQ(DiagnosticsModel::TEST_FAIL_CONTINUE, info->GetResult());
-  EXPECT_EQ(DIAG_SQLITE_ERROR_HANDLER_CALLED, info->GetOutcomeCode());
+  EXPECT_EQ(DIAG_SQLITE_CANNOT_OPEN_DB, info->GetOutcomeCode());
 
   DiagnosticsController::GetInstance()->RunRecovery(cmdline_, writer_.get());
   EXPECT_EQ(DiagnosticsModel::RECOVERY_OK, info->GetResult());

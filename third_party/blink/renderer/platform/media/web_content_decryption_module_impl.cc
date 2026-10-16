@@ -2,17 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "third_party/blink/renderer/platform/media/web_content_decryption_module_impl.h"
 
 #include <utility>
 
 #include "base/check.h"
-#include "base/functional/bind.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "media/base/cdm_context.h"
+#include "media/base/cdm_factory.h"
 #include "media/base/cdm_promise.h"
 #include "media/base/content_decryption_module.h"
 #include "media/base/key_systems.h"
@@ -21,10 +26,12 @@
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/renderer/platform/media/cdm_result_promise.h"
 #include "third_party/blink/renderer/platform/media/cdm_session_adapter.h"
+#include "third_party/blink/renderer/platform/media/create_cdm_uma_helper.h"
 #include "third_party/blink/renderer/platform/media/web_content_decryption_module_session_impl.h"
 #include "url/origin.h"
 
 namespace blink {
+
 namespace {
 
 const char kCreateSessionSessionTypeUMAName[] = "CreateSession.SessionType";
@@ -34,46 +41,11 @@ const char kGetStatusForPolicyUMAName[] = "GetStatusForPolicy";
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 const char kGetMetricsUMAName[] = "GetMetrics";
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-bool ConvertHdcpVersion(const WebString& hdcp_version_string,
-                        media::HdcpVersion* hdcp_version) {
-  if (!hdcp_version_string.ContainsOnlyASCII())
-    return false;
-
-  std::string hdcp_version_ascii = hdcp_version_string.Ascii();
-
-  // The strings are specified in the explainer doc:
-  // https://github.com/WICG/hdcp-detection/blob/master/explainer.md
-  if (hdcp_version_ascii.empty())
-    *hdcp_version = media::HdcpVersion::kHdcpVersionNone;
-  else if (hdcp_version_ascii == "1.0")
-    *hdcp_version = media::HdcpVersion::kHdcpVersion1_0;
-  else if (hdcp_version_ascii == "1.1")
-    *hdcp_version = media::HdcpVersion::kHdcpVersion1_1;
-  else if (hdcp_version_ascii == "1.2")
-    *hdcp_version = media::HdcpVersion::kHdcpVersion1_2;
-  else if (hdcp_version_ascii == "1.3")
-    *hdcp_version = media::HdcpVersion::kHdcpVersion1_3;
-  else if (hdcp_version_ascii == "1.4")
-    *hdcp_version = media::HdcpVersion::kHdcpVersion1_4;
-  else if (hdcp_version_ascii == "2.0")
-    *hdcp_version = media::HdcpVersion::kHdcpVersion2_0;
-  else if (hdcp_version_ascii == "2.1")
-    *hdcp_version = media::HdcpVersion::kHdcpVersion2_1;
-  else if (hdcp_version_ascii == "2.2")
-    *hdcp_version = media::HdcpVersion::kHdcpVersion2_2;
-  else if (hdcp_version_ascii == "2.3")
-    *hdcp_version = media::HdcpVersion::kHdcpVersion2_3;
-  else
-    return false;
-
-  return true;
-}
-
 }  // namespace
 
 void WebContentDecryptionModuleImpl::Create(
     media::CdmFactory* cdm_factory,
+    media::KeySystems* key_systems,
     const WebSecurityOrigin& security_origin,
     const media::CdmConfig& cdm_config,
     WebCdmCreatedCB web_cdm_created_cb) {
@@ -82,25 +54,31 @@ void WebContentDecryptionModuleImpl::Create(
   const auto key_system = cdm_config.key_system;
   DCHECK(!key_system.empty());
 
+  auto key_system_uma_prefix = GetUMAPrefixForCdm(cdm_config);
+
   // TODO(ddorwin): Guard against this in supported types check and remove this.
   // Chromium only supports ASCII key systems.
   if (!base::IsStringASCII(key_system)) {
     NOTREACHED();
-    std::move(web_cdm_created_cb).Run(nullptr, "Invalid keysystem.");
-    return;
   }
 
   // TODO(ddorwin): This should be a DCHECK.
-  if (!media::KeySystems::GetInstance()->IsSupportedKeySystem(key_system)) {
-    std::string message = "Keysystem '" + key_system + "' is not supported.";
-    std::move(web_cdm_created_cb).Run(nullptr, message);
+  if (!key_systems->IsSupportedKeySystem(key_system)) {
+    DVLOG(1) << __func__ << "Keysystem '" << key_system
+             << "' is not supported.";
+    ReportCreateCdmStatusUMA(key_system_uma_prefix, false,
+                             media::CreateCdmStatus::kUnsupportedKeySystem);
+    std::move(web_cdm_created_cb)
+        .Run(nullptr, media::CreateCdmStatus::kUnsupportedKeySystem);
     return;
   }
 
   // If opaque security origin, don't try to create the CDM.
   if (security_origin.IsOpaque() || security_origin.ToString() == "null") {
+    ReportCreateCdmStatusUMA(key_system_uma_prefix, false,
+                             media::CreateCdmStatus::kNotAllowedOnUniqueOrigin);
     std::move(web_cdm_created_cb)
-        .Run(nullptr, "EME use is not allowed on unique origins.");
+        .Run(nullptr, media::CreateCdmStatus::kNotAllowedOnUniqueOrigin);
     return;
   }
 
@@ -108,14 +86,15 @@ void WebContentDecryptionModuleImpl::Create(
   // if WebContentDecryptionModuleImpl is successfully created (returned in
   // |web_cdm_created_cb|), it will keep a reference to |adapter|. Otherwise,
   // |adapter| will be destructed.
-  scoped_refptr<CdmSessionAdapter> adapter(new CdmSessionAdapter());
+  auto adapter = base::MakeRefCounted<CdmSessionAdapter>(key_systems);
   adapter->CreateCdm(cdm_factory, cdm_config, std::move(web_cdm_created_cb));
 }
 
 WebContentDecryptionModuleImpl::WebContentDecryptionModuleImpl(
-    scoped_refptr<CdmSessionAdapter> adapter)
-    : adapter_(adapter) {
-}
+    base::PassKey<CdmSessionAdapter>,
+    scoped_refptr<CdmSessionAdapter> adapter,
+    media::KeySystems* key_systems)
+    : adapter_(adapter), key_systems_(key_systems) {}
 
 WebContentDecryptionModuleImpl::~WebContentDecryptionModuleImpl() = default;
 
@@ -144,15 +123,20 @@ void WebContentDecryptionModuleImpl::SetServerCertificate(
 void WebContentDecryptionModuleImpl::GetStatusForPolicy(
     const WebString& min_hdcp_version_string,
     WebContentDecryptionModuleResult result) {
-  media::HdcpVersion min_hdcp_version;
-  if (!ConvertHdcpVersion(min_hdcp_version_string, &min_hdcp_version)) {
+  std::optional<media::HdcpVersion> min_hdcp_version = std::nullopt;
+  if (min_hdcp_version_string.ContainsOnlyASCII()) {
+    min_hdcp_version =
+        media::MaybeHdcpVersionFromString(min_hdcp_version_string.Ascii());
+  }
+
+  if (!min_hdcp_version.has_value()) {
     result.CompleteWithError(kWebContentDecryptionModuleExceptionTypeError, 0,
                              "Invalid HDCP version");
     return;
   }
 
   adapter_->GetStatusForPolicy(
-      min_hdcp_version,
+      min_hdcp_version.value(),
       std::make_unique<CdmResultPromise<media::CdmKeyInformation::KeyStatus>>(
           result, adapter_->GetKeySystemUMAPrefix(),
           kGetStatusForPolicyUMAName));

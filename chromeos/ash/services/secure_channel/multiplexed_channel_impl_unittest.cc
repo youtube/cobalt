@@ -52,7 +52,7 @@ class FakeSingleClientProxyImplFactory : public SingleClientProxyImpl::Factory {
   // Contains all created FakeSingleClientProxy pointers which have not
   // yet been deleted.
   std::unordered_map<base::UnguessableToken,
-                     FakeSingleClientProxy*,
+                     raw_ptr<FakeSingleClientProxy, CtnExperimental>,
                      base::UnguessableTokenHash>&
   id_to_active_proxy_map() {
     return id_to_active_proxy_map_;
@@ -90,10 +90,10 @@ class FakeSingleClientProxyImplFactory : public SingleClientProxyImpl::Factory {
     EXPECT_EQ(1u, num_deleted);
   }
 
-  raw_ptr<SingleClientProxy::Delegate, ExperimentalAsh> expected_delegate_ =
+  raw_ptr<SingleClientProxy::Delegate, DanglingUntriaged> expected_delegate_ =
       nullptr;
   std::unordered_map<base::UnguessableToken,
-                     FakeSingleClientProxy*,
+                     raw_ptr<FakeSingleClientProxy, CtnExperimental>,
                      base::UnguessableTokenHash>
       id_to_active_proxy_map_;
 };
@@ -282,7 +282,7 @@ class SecureChannelMultiplexedChannelImplTest : public testing::Test {
   }
 
   std::unordered_map<base::UnguessableToken,
-                     FakeSingleClientProxy*,
+                     raw_ptr<FakeSingleClientProxy, CtnExperimental>,
                      base::UnguessableTokenHash>&
   id_to_active_proxy_map() {
     return fake_proxy_factory_->id_to_active_proxy_map();
@@ -313,7 +313,7 @@ class SecureChannelMultiplexedChannelImplTest : public testing::Test {
 
   std::vector<std::unique_ptr<ClientConnectionParameters>> initial_client_list_;
 
-  raw_ptr<FakeAuthenticatedChannel, ExperimentalAsh>
+  raw_ptr<FakeAuthenticatedChannel, DanglingUntriaged>
       fake_authenticated_channel_ = nullptr;
   std::unique_ptr<FakeMultiplexedChannelDelegate> fake_delegate_;
 

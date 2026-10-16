@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "base/check_op.h"
-#include "base/notreached.h"
 #include "base/numerics/safe_math.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
@@ -14,12 +13,10 @@
 
 #if BUILDFLAG(IS_WIN)
 #include <winsock2.h>
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX)
 #include <arpa/inet.h>
 #endif
 
-using ::google::protobuf::int32;
-using ::google::protobuf::int64;
 using ::google::protobuf::RepeatedField;
 
 #if !defined(ARCH_CPU_LITTLE_ENDIAN) || (ARCH_CPU_LITTLE_ENDIAN != 1)
@@ -36,11 +33,10 @@ const unsigned int kMaxBitIndex = kBitsPerByte * sizeof(uint32_t);
 }  // namespace
 
 // static
-V4DecodeResult V4RiceDecoder::ValidateInput(const int32 rice_parameter,
-                                            const int32 num_entries,
+V4DecodeResult V4RiceDecoder::ValidateInput(const int32_t rice_parameter,
+                                            const int32_t num_entries,
                                             const std::string& encoded_data) {
   if (num_entries < 0) {
-    NOTREACHED();
     return NUM_ENTRIES_NEGATIVE_FAILURE;
   }
 
@@ -49,12 +45,10 @@ V4DecodeResult V4RiceDecoder::ValidateInput(const int32 rice_parameter,
   }
 
   if (rice_parameter <= 0) {
-    NOTREACHED();
     return RICE_PARAMETER_NON_POSITIVE_FAILURE;
   }
 
   if (encoded_data.empty()) {
-    NOTREACHED();
     return ENCODED_DATA_UNEXPECTED_EMPTY_FAILURE;
   }
 
@@ -62,11 +56,11 @@ V4DecodeResult V4RiceDecoder::ValidateInput(const int32 rice_parameter,
 }
 
 // static
-V4DecodeResult V4RiceDecoder::DecodeIntegers(const int64 first_value,
-                                             const int32 rice_parameter,
-                                             const int32 num_entries,
+V4DecodeResult V4RiceDecoder::DecodeIntegers(const int64_t first_value,
+                                             const int32_t rice_parameter,
+                                             const int32_t num_entries,
                                              const std::string& encoded_data,
-                                             RepeatedField<int32>* out) {
+                                             RepeatedField<int32_t>* out) {
   DCHECK(out);
 
   V4DecodeResult result =
@@ -76,7 +70,7 @@ V4DecodeResult V4RiceDecoder::DecodeIntegers(const int64 first_value,
   }
 
   out->Reserve(num_entries + 1);
-  base::CheckedNumeric<int32> last_value(first_value);
+  base::CheckedNumeric<int32_t> last_value(first_value);
   out->Add(last_value.ValueOrDie());
   if (num_entries == 0) {
     return DECODE_SUCCESS;
@@ -92,7 +86,6 @@ V4DecodeResult V4RiceDecoder::DecodeIntegers(const int64 first_value,
 
     last_value += offset;
     if (!last_value.IsValid()) {
-      NOTREACHED();
       return DECODED_INTEGER_OVERFLOW_FAILURE;
     }
 
@@ -103,9 +96,9 @@ V4DecodeResult V4RiceDecoder::DecodeIntegers(const int64 first_value,
 }
 
 // static
-V4DecodeResult V4RiceDecoder::DecodePrefixes(const int64 first_value,
-                                             const int32 rice_parameter,
-                                             const int32 num_entries,
+V4DecodeResult V4RiceDecoder::DecodePrefixes(const int64_t first_value,
+                                             const int32_t rice_parameter,
+                                             const int32_t num_entries,
                                              const std::string& encoded_data,
                                              std::vector<uint32_t>* out) {
   DCHECK(out);
@@ -131,12 +124,11 @@ V4DecodeResult V4RiceDecoder::DecodePrefixes(const int64 first_value,
 
       last_value += offset;
       if (!last_value.IsValid()) {
-        NOTREACHED();
         return DECODED_INTEGER_OVERFLOW_FAILURE;
       }
 
-      // This flipping is done so that the decoded uint32 is interpreted
-      // correcly as a string of 4 bytes.
+      // This flipping is done so that the decoded uint32_t is interpreted
+      // correctly as a string of 4 bytes.
       out->push_back(htonl(last_value.ValueOrDie()));
     }
   }
@@ -169,7 +161,7 @@ V4RiceDecoder::V4RiceDecoder(const int rice_parameter,
   current_word_bit_index_ = kMaxBitIndex;
 }
 
-V4RiceDecoder::~V4RiceDecoder() {}
+V4RiceDecoder::~V4RiceDecoder() = default;
 
 bool V4RiceDecoder::HasAnotherValue() const {
   return num_entries_ > 0;
@@ -232,7 +224,6 @@ V4DecodeResult V4RiceDecoder::GetNextWord(uint32_t* word) {
 V4DecodeResult V4RiceDecoder::GetNextBits(unsigned int num_requested_bits,
                                           uint32_t* x) {
   if (num_requested_bits > kMaxBitIndex) {
-    NOTREACHED();
     return DECODE_REQUESTED_TOO_MANY_BITS_FAILURE;
   }
 

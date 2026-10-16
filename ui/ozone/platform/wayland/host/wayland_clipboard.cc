@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/check.h"
@@ -15,7 +16,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/clipboard_constants.h"
 #include "ui/ozone/platform/wayland/common/wayland_object.h"
@@ -49,7 +49,7 @@ class Clipboard {
   virtual std::vector<std::string> ReadMimeTypes() = 0;
 
   // Synchronously reads and returns clipboard content with |mime_type| format.
-  // TODO(crbug.com/443355): Drop once Clipboard API becomes async.
+  // TODO(crbug.com/40398800): Drop once Clipboard API becomes async.
   virtual ui::PlatformClipboard::Data Read(const std::string& mime_type) = 0;
 
   // Synchronously stores and announces |data| as available from this clipboard.
@@ -147,18 +147,20 @@ class ClipboardImpl final : public Clipboard, public DataSource::Delegate {
     std::vector<std::string> mime_types;
     for (const auto& data : offered_data_) {
       mime_types.push_back(data.first);
-      if (data.first == ui::kMimeTypeText)
-        mime_types.push_back(ui::kMimeTypeTextUtf8);
+      if (data.first == ui::kMimeTypePlainText) {
+        mime_types.push_back(ui::kMimeTypeUtf8PlainText);
+      }
     }
     return mime_types;
   }
 
   std::string GetMimeTypeForRequest(const std::string& mime_type) {
-    if (mime_type != ui::kMimeTypeText)
+    if (mime_type != ui::kMimeTypePlainText) {
       return mime_type;
+    }
     // Prioritize unicode for text data.
     for (const auto& t : GetDevice()->GetAvailableMimeTypes()) {
-      if (t == ui::kMimeTypeTextUtf8 || t == ui::kMimeTypeLinuxString ||
+      if (t == ui::kMimeTypeUtf8PlainText || t == ui::kMimeTypeLinuxString ||
           t == ui::kMimeTypeLinuxUtf8String || t == ui::kMimeTypeLinuxText) {
         return t;
       }
@@ -175,19 +177,24 @@ class ClipboardImpl final : public Clipboard, public DataSource::Delegate {
   }
 
   // WaylandDataSource::Delegate:
-  void OnDataSourceFinish(bool completed) override {
+  void OnDataSourceFinish(DataSource* source,
+                          base::TimeTicks timestamp,
+                          bool completed) override {
     if (!completed)
       Write(nullptr);
   }
 
-  void OnDataSourceSend(const std::string& mime_type,
+  void OnDataSourceSend(DataSource* source,
+                        const std::string& mime_type,
                         std::string* contents) override {
     DCHECK(contents);
     auto it = offered_data_.find(mime_type);
-    if (it == offered_data_.end() && mime_type == ui::kMimeTypeTextUtf8)
-      it = offered_data_.find(ui::kMimeTypeText);
-    if (it != offered_data_.end())
-      contents->assign(it->second->data().begin(), it->second->data().end());
+    if (it == offered_data_.end() && mime_type == ui::kMimeTypeUtf8PlainText) {
+      it = offered_data_.find(ui::kMimeTypePlainText);
+    }
+    if (it != offered_data_.end()) {
+      *contents = base::as_string_view(*it->second);
+    }
   }
 
   // The device manager used to access data device and create data sources.
@@ -303,7 +310,6 @@ wl::Clipboard* WaylandClipboard::GetClipboard(ClipboardBuffer buffer) {
   }
 
   NOTREACHED() << "Unsupported clipboard buffer: " << static_cast<int>(buffer);
-  return nullptr;
 }
 
 }  // namespace ui

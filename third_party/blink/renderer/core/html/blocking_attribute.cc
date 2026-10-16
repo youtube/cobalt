@@ -14,39 +14,74 @@
 
 namespace blink {
 
-// static
-const char BlockingAttribute::kRenderToken[] = "render";
-
-// static
-HashSet<AtomicString>& BlockingAttribute::SupportedTokens() {
+HashSet<AtomicString>& BlockingAttribute::SupportedTokens() const {
   DEFINE_STATIC_LOCAL(HashSet<AtomicString>, tokens,
                       ({
-                          kRenderToken,
+                          keywords::kRender,
                       }));
 
+  DEFINE_STATIC_LOCAL(HashSet<AtomicString>, tokens_with_frame_rate,
+                      ({
+                          keywords::kRender,
+                          keywords::kFullFrameRate,
+                      }));
+
+  if (RenderBlockingFullFrameRateEnabled()) {
+    return tokens_with_frame_rate;
+  }
   return tokens;
 }
 
 // static
 bool BlockingAttribute::HasRenderToken(const String& attribute_value) {
-  if (!RuntimeEnabledFeatures::BlockingAttributeEnabled())
+  if (attribute_value.empty()) {
     return false;
-  if (attribute_value.empty())
+  }
+  return SpaceSplitString(AtomicString(attribute_value))
+      .Contains(keywords::kRender);
+}
+
+// static
+bool BlockingAttribute::HasFullFrameRateToken(const String& attribute_value) {
+  if (attribute_value.empty()) {
     return false;
-  return SpaceSplitString(AtomicString(attribute_value)).Contains(kRenderToken);
+  }
+  return SpaceSplitString(AtomicString(attribute_value))
+      .Contains(keywords::kFullFrameRate);
 }
 
 bool BlockingAttribute::ValidateTokenValue(const AtomicString& token_value,
                                            ExceptionState&) const {
-  DCHECK(RuntimeEnabledFeatures::BlockingAttributeEnabled());
   return SupportedTokens().Contains(token_value);
 }
 
-void BlockingAttribute::CountTokenUsage() {
-  if (contains(kRenderToken)) {
+RenderBlockingLevel BlockingAttribute::GetBlockingLevel() const {
+  if (HasRenderToken()) {
+    return RenderBlockingLevel::kBlock;
+  }
+  if (HasFullFrameRateToken() && RenderBlockingFullFrameRateEnabled()) {
+    return RenderBlockingLevel::kLimitFrameRate;
+  }
+  return RenderBlockingLevel::kNone;
+}
+
+void BlockingAttribute::OnAttributeValueChanged(const AtomicString& old_value,
+                                                const AtomicString& new_value) {
+  DidUpdateAttributeValue(old_value, new_value);
+  // TODO(crbug.com/397832388): Add use counter for full-frame-rate
+  if (contains(keywords::kRender)) {
     GetElement().GetDocument().CountUse(
         WebFeature::kBlockingAttributeRenderToken);
+  } else if (contains(keywords::kFullFrameRate) &&
+             RenderBlockingFullFrameRateEnabled()) {
+    GetElement().GetDocument().CountUse(
+        WebFeature::kBlockingAttributeFullFrameRateToken);
   }
+}
+
+bool BlockingAttribute::RenderBlockingFullFrameRateEnabled() const {
+  return RuntimeEnabledFeatures::RenderBlockingFullFrameRateEnabled(
+      GetElement().GetExecutionContext());
 }
 
 }  // namespace blink

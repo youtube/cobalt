@@ -6,10 +6,10 @@
 
 namespace content {
 
-bool ContentUtilityClient::HandleServiceRequestDeprecated(
-    const std::string& service_name,
-    mojo::ScopedMessagePipeHandle service_pipe) {
-  return false;
+#if BUILDFLAG(IS_CHROMEOS)
+mojo::GenericPendingReceiver ContentUtilityClient::InitMojoServiceManager() {
+  return mojo::GenericPendingReceiver();
 }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace content

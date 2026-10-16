@@ -13,12 +13,11 @@
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/ash/app_list/search/search_provider.h"
-#include "chrome/browser/ash/app_list/search/system_info/battery_health.h"
-#include "chrome/browser/ash/app_list/search/system_info/cpu_data.h"
-#include "chrome/browser/ash/app_list/search/system_info/cpu_usage_data.h"
-#include "chrome/browser/ash/app_list/search/system_info/system_info_keyword_input.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/webui/settings/ash/calculator/size_calculator.h"
+#include "chrome/browser/ui/webui/ash/settings/calculator/size_calculator.h"
+#include "chromeos/ash/components/launcher_search/system_info/system_info_keyword_input.h"
+#include "chromeos/ash/components/system_info/battery_health.h"
+#include "chromeos/ash/components/system_info/cpu_usage_data.h"
 #include "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd.mojom.h"
 #include "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd_probe.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -43,8 +42,10 @@ class SystemInfoCardProvider : public SearchProvider,
   // cpu usage of the device.
   class CpuDataObserver : public base::CheckedObserver {
    public:
-    virtual void OnCpuDataUpdated(const std::u16string& title,
-                                  const std::u16string& description) = 0;
+    virtual void OnCpuDataUpdated(
+        const std::u16string& title,
+        const std::u16string& description,
+        const std::u16string& accessibility_label) = 0;
   };
 
   // Implemented by clients that wish to be updated periodically about the
@@ -52,7 +53,8 @@ class SystemInfoCardProvider : public SearchProvider,
   class MemoryObserver : public base::CheckedObserver {
    public:
     virtual void OnMemoryUpdated(const double memory_usage_percentage,
-                                 const std::u16string& description) = 0;
+                                 const std::u16string& description,
+                                 const std::u16string& accessibility_label) = 0;
   };
 
   explicit SystemInfoCardProvider(Profile* profile);
@@ -115,14 +117,13 @@ class SystemInfoCardProvider : public SearchProvider,
   ::ash::settings::MyFilesSizeCalculator my_files_size_calculator_;
   ::ash::settings::DriveOfflineSizeCalculator drive_offline_size_calculator_;
   ::ash::settings::BrowsingDataSizeCalculator browsing_data_size_calculator_;
-  ::ash::settings::AppsSizeCalculator apps_size_calculator_;
   ::ash::settings::CrostiniSizeCalculator crostini_size_calculator_;
   ::ash::settings::OtherUsersSizeCalculator other_users_size_calculator_;
 
   // Keeps track of the size of each storage item. Adding 1 since we are also
   // saving the system storage here
   int64_t storage_items_total_bytes_
-      [::ash::settings::SizeCalculator::kCalculationTypeCount + 1] = {0};
+      [::ash::settings::SizeCalculator::kCalculationTypeCount + 1] = {};
 
   // Controls if the size of each storage item has been calculated.
   std::bitset<::ash::settings::SizeCalculator::kCalculationTypeCount>
@@ -131,18 +132,19 @@ class SystemInfoCardProvider : public SearchProvider,
   // Last query. It is reset when view is closed.
   std::u16string last_query_;
 
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
+  const raw_ptr<Profile> profile_;
   double relevance_;
   mojo::Remote<ash::cros_healthd::mojom::CrosHealthdProbeService>
       probe_service_;
   std::string chromeOS_version_{""};
-  CpuUsageData previous_cpu_usage_data_{CpuUsageData()};
-  raw_ptr<ash::cros_healthd::mojom::MemoryInfo, ExperimentalAsh> memory_info_{
+  system_info::CpuUsageData previous_cpu_usage_data_{
+      system_info::CpuUsageData()};
+  raw_ptr<ash::cros_healthd::mojom::MemoryInfo, DanglingUntriaged> memory_info_{
       nullptr};
-  std::unique_ptr<BatteryHealth> battery_health_{nullptr};
+  std::unique_ptr<system_info::BatteryHealth> battery_health_{nullptr};
   gfx::ImageSkia os_settings_icon_;
   gfx::ImageSkia diagnostics_icon_;
-  std::vector<SystemInfoKeywordInput> keywords_;
+  std::vector<launcher_search::SystemInfoKeywordInput> keywords_;
   std::unique_ptr<base::RepeatingTimer> cpu_usage_timer_;
   std::unique_ptr<base::RepeatingTimer> memory_timer_;
   base::ObserverList<SystemInfoCardProvider::CpuDataObserver> cpu_observers_;

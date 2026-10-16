@@ -29,6 +29,22 @@ void FakeNearbyPresenceServerClient::SetAccessTokenUsed(
   access_token_used_ = token;
 }
 
+void FakeNearbyPresenceServerClient::UpdateDevice(
+    const ash::nearby::proto::UpdateDeviceRequest& request,
+    UpdateDeviceCallback callback,
+    ErrorCallback error_callback) {
+  update_device_callback_ = std::move(callback);
+  update_device_error_callback_ = std::move(error_callback);
+}
+
+void FakeNearbyPresenceServerClient::ListSharedCredentials(
+    const ash::nearby::proto::ListSharedCredentialsRequest& request,
+    ListSharedCredentialsCallback callback,
+    ErrorCallback error_callback) {
+  list_shared_credentials_callback_ = std::move(callback);
+  list_shared_credentials_error_callback_ = std::move(error_callback);
+}
+
 void FakeNearbyPresenceServerClient::InvokeUpdateDeviceSuccessCallback(
     const ash::nearby::proto::UpdateDeviceResponse& response) {
   CHECK(update_device_callback_);
@@ -41,33 +57,16 @@ void FakeNearbyPresenceServerClient::InvokeUpdateDeviceErrorCallback(
   std::move(update_device_error_callback_).Run(error);
 }
 
-void FakeNearbyPresenceServerClient::
-    InvokeListPublicCertificatesSuccessCallback(
-        const ash::nearby::proto::ListPublicCertificatesResponse& response) {
-  CHECK(list_public_certificates_callback_);
-  std::move(list_public_certificates_callback_).Run(response);
+void FakeNearbyPresenceServerClient::InvokeListSharedCredentialsSuccessCallback(
+    const ash::nearby::proto::ListSharedCredentialsResponse& response) {
+  CHECK(list_shared_credentials_callback_);
+  std::move(list_shared_credentials_callback_).Run(response);
 }
 
-void FakeNearbyPresenceServerClient::InvokeListPublicCertificatesErrorCallback(
+void FakeNearbyPresenceServerClient::InvokeListSharedCredentialsErrorCallback(
     ash::nearby::NearbyHttpError error) {
-  CHECK(list_public_certificates_error_callback_);
-  std::move(list_public_certificates_error_callback_).Run(error);
-}
-
-void FakeNearbyPresenceServerClient::UpdateDevice(
-    const ash::nearby::proto::UpdateDeviceRequest& request,
-    UpdateDeviceCallback callback,
-    ErrorCallback error_callback) {
-  update_device_callback_ = std::move(callback);
-  update_device_error_callback_ = std::move(error_callback);
-}
-
-void FakeNearbyPresenceServerClient::ListPublicCertificates(
-    const ash::nearby::proto::ListPublicCertificatesRequest& request,
-    ListPublicCertificatesCallback callback,
-    ErrorCallback error_callback) {
-  list_public_certificates_callback_ = std::move(callback);
-  list_public_certificates_error_callback_ = std::move(error_callback);
+  CHECK(list_shared_credentials_error_callback_);
+  std::move(list_shared_credentials_error_callback_).Run(error);
 }
 
 std::string FakeNearbyPresenceServerClient::GetAccessTokenUsed() {

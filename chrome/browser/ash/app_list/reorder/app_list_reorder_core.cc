@@ -23,7 +23,7 @@ struct SubsequenceStatus {
   int length = 0;
 
   // Used to reconstruct the subsequence.
-  absl::optional<size_t> prev_item;
+  std::optional<size_t> prev_item;
 };
 
 // Returns true if `order` is increasing.
@@ -31,7 +31,6 @@ bool IsIncreasingOrder(ash::AppListSortOrder order) {
   switch (order) {
     case ash::AppListSortOrder::kCustom:
       NOTREACHED();
-      return false;
     case ash::AppListSortOrder::kNameAlphabetical:
       return true;
     case ash::AppListSortOrder::kNameReverseAlphabetical:
@@ -100,7 +99,7 @@ std::vector<int> SortAndGetLis(
   int maximum_length = 0;
 
   // Index of LIS's ending element.
-  absl::optional<int> lis_end_index;
+  std::optional<int> lis_end_index;
 
   // `status_array[i]` stores the status of the LIS which ends with the i-th
   // element of `wrappers`.
@@ -118,7 +117,7 @@ std::vector<int> SortAndGetLis(
     // form a new increasing subsequence, it is called "appendable".
     // `optimal_prev_index` is the index to the last element of the longest
     // appendable subsequence.
-    absl::optional<size_t> optimal_prev_index;
+    std::optional<size_t> optimal_prev_index;
     for (size_t prev_id_index = 0; prev_id_index < i; ++prev_id_index) {
       const syncer::StringOrdinal& prev_item_ordinal =
           (*wrappers)[prev_id_index].item_ordinal;
@@ -163,7 +162,7 @@ std::vector<int> SortAndGetLis(
   }
 
   std::vector<int> lis;
-  absl::optional<int> element_in_lis = lis_end_index;
+  std::optional<int> element_in_lis = lis_end_index;
   while (element_in_lis) {
     lis.push_back(*element_in_lis);
     element_in_lis = status_array[*element_in_lis].prev_item;
@@ -197,7 +196,7 @@ void GenerateReorderParamsWithLis(
   }
 
   // Indicate the ordinal of the previous item in the sorted list.
-  absl::optional<syncer::StringOrdinal> prev_ordinal;
+  std::optional<syncer::StringOrdinal> prev_ordinal;
 
   // The index of the next item whose ordinal waits for update.
   int index_of_item_to_update = 0;
@@ -507,7 +506,6 @@ std::vector<reorder::ReorderParam> GenerateReorderParamsForSyncItems(
     }
     case ash::AppListSortOrder::kCustom:
       NOTREACHED();
-      return std::vector<reorder::ReorderParam>();
   }
 }
 
@@ -520,24 +518,23 @@ std::vector<reorder::ReorderParam> GenerateReorderParamsForAppListItems(
     case ash::AppListSortOrder::kNameReverseAlphabetical: {
       std::vector<reorder::SyncItemWrapper<std::u16string>> wrappers =
           reorder::GenerateWrappersFromAppListItems<std::u16string>(
-              app_list_items, /*ignored_id=*/absl::nullopt);
+              app_list_items, /*ignored_id=*/std::nullopt);
       return GenerateReorderParamsImpl(order, &wrappers);
     }
     case ash::AppListSortOrder::kColor: {
       std::vector<reorder::SyncItemWrapper<ash::IconColor>> wrappers =
           reorder::GenerateWrappersFromAppListItems<ash::IconColor>(
-              app_list_items, /*ignored_id=*/absl::nullopt);
+              app_list_items, /*ignored_id=*/std::nullopt);
       return GenerateReorderParamsImpl(order, &wrappers);
     }
     case ash::AppListSortOrder::kAlphabeticalEphemeralAppFirst: {
       std::vector<reorder::SyncItemWrapper<EphemeralAwareName>> wrappers =
           reorder::GenerateWrappersFromAppListItems<EphemeralAwareName>(
-              app_list_items, /*ignored_id=*/absl::nullopt);
+              app_list_items, /*ignored_id=*/std::nullopt);
       return GenerateReorderParamsImpl(order, &wrappers);
     }
     case ash::AppListSortOrder::kCustom:
       NOTREACHED();
-      return std::vector<reorder::ReorderParam>();
   }
 }
 
@@ -616,13 +613,12 @@ float CalculateEntropyForTest(ash::AppListSortOrder order,
     case ash::AppListSortOrder::kColor:
     case ash::AppListSortOrder::kAlphabeticalEphemeralAppFirst:
       NOTREACHED();
-      return 0.f;
     case ash::AppListSortOrder::kNameAlphabetical:
     case ash::AppListSortOrder::kNameReverseAlphabetical:
       std::vector<reorder::SyncItemWrapper<std::u16string>>
           local_item_wrappers =
               reorder::GenerateWrappersFromAppListItems<std::u16string>(
-                  model_updater->GetItems(), /*ignored_id=*/absl::nullopt);
+                  model_updater->GetItems(), /*ignored_id=*/std::nullopt);
       float entropy = 0.f;
       CalculateEntropyAndGetSortedSubsequence(
           order, &local_item_wrappers, &entropy,

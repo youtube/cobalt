@@ -31,6 +31,7 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extensions_browser_client.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/extension_id.h"
 #include "extensions/common/extension_set.h"
 #include "extensions/common/permissions/permissions_data.h"
 
@@ -109,7 +110,7 @@ bool GetPrimaryUserIdHash(content::BrowserContext* browser_context,
 void AppendDeviceState(
     const std::string& type,
     const ash::DeviceState* device,
-    NetworkingPrivateDelegate::DeviceStateList* device_state_list) {
+    NetworkingPrivateDelegate::DeviceStateList& device_state_list) {
   DCHECK(!type.empty());
   NetworkTypePattern pattern = ash::onc::NetworkTypePatternFromOncType(type);
   NetworkStateHandler::TechnologyState technology_state =
@@ -144,28 +145,27 @@ void AppendDeviceState(
       break;
   }
   DCHECK_NE(private_api::DeviceStateType::kNone, state);
-  std::unique_ptr<private_api::DeviceStateProperties> properties(
-      new private_api::DeviceStateProperties);
-  properties->type = private_api::ParseNetworkType(type);
-  properties->state = state;
+  private_api::DeviceStateProperties& properties =
+      device_state_list.emplace_back();
+  properties.type = private_api::ParseNetworkType(type);
+  properties.state = state;
   if (device && state == private_api::DeviceStateType::kEnabled) {
-    properties->scanning = device->scanning();
+    properties.scanning = device->scanning();
   }
   if (device && type == ::onc::network_config::kCellular) {
     bool sim_present = !device->IsSimAbsent();
-    properties->sim_present = sim_present;
+    properties.sim_present = sim_present;
     if (sim_present) {
-      properties->sim_lock_status.emplace();
-      properties->sim_lock_status->lock_enabled = device->sim_lock_enabled();
-      properties->sim_lock_status->lock_type = device->sim_lock_type();
-      properties->sim_lock_status->retries_left = device->sim_retries_left();
+      properties.sim_lock_status.emplace();
+      properties.sim_lock_status->lock_enabled = device->sim_lock_enabled();
+      properties.sim_lock_status->lock_type = device->sim_lock_type();
+      properties.sim_lock_status->retries_left = device->sim_retries_left();
     }
   }
   if (device && type == ::onc::network_config::kWiFi) {
-    properties->managed_network_available =
+    properties.managed_network_available =
         GetStateHandler()->GetAvailableManagedWifiNetwork();
   }
-  device_state_list->push_back(std::move(properties));
 }
 
 void NetworkHandlerFailureCallback(
@@ -244,30 +244,28 @@ private_api::Certificate GetCertDictionary(
   return api_cert;
 }
 
-// This returns the strings provided by NetworkPortalDetector for backwards
-// compatibility, even though the implementation no longer queries
-// NetworkPortalDetector directly.
+constexpr char kCaptivePortalStatusUnknown[] = "Unknown";
+constexpr char kCaptivePortalStatusOffline[] = "Offline";
+constexpr char kCaptivePortalStatusOnline[] = "Online";
+constexpr char kCaptivePortalStatusPortal[] = "Portal";
+constexpr char kCaptivePortalStatusUnrecognized[] = "Unrecognized";
+
+// This returns backwards compatible strings previously provided by
+// NetworkPortalDetector.
 // static
 std::string PortalStatusString(ash::NetworkState::PortalState portal_state) {
   using PortalState = ash::NetworkState::PortalState;
   switch (portal_state) {
     case PortalState::kUnknown:
-      return ash::NetworkPortalDetector::CaptivePortalStatusString(
-          ash::NetworkPortalDetector::CAPTIVE_PORTAL_STATUS_UNKNOWN);
+      return kCaptivePortalStatusUnknown;
     case PortalState::kOnline:
-      return ash::NetworkPortalDetector::CaptivePortalStatusString(
-          ash::NetworkPortalDetector::CAPTIVE_PORTAL_STATUS_ONLINE);
+      return kCaptivePortalStatusOnline;
     case PortalState::kPortalSuspected:
     case PortalState::kPortal:
     case PortalState::kNoInternet:
-      return ash::NetworkPortalDetector::CaptivePortalStatusString(
-          ash::NetworkPortalDetector::CAPTIVE_PORTAL_STATUS_PORTAL);
-    case PortalState::kProxyAuthRequired:
-      return ash::NetworkPortalDetector::CaptivePortalStatusString(
-          ash::NetworkPortalDetector::
-              CAPTIVE_PORTAL_STATUS_PROXY_AUTH_REQUIRED);
+      return kCaptivePortalStatusPortal;
   }
-  return "Unrecognized";
+  return kCaptivePortalStatusUnrecognized;
 }
 
 }  // namespace
@@ -287,14 +285,14 @@ void NetworkingPrivateChromeOS::GetProperties(const std::string& guid,
   std::string service_path, error;
   if (!GetServicePathFromGuid(guid, &service_path, &error)) {
     NET_LOG(ERROR) << "GetProperties failed: " << error;
-    std::move(callback).Run(absl::nullopt, error);
+    std::move(callback).Run(std::nullopt, error);
     return;
   }
 
   std::string user_id_hash;
   if (!GetPrimaryUserIdHash(browser_context_, &user_id_hash, &error)) {
     NET_LOG(ERROR) << "GetProperties failed: " << error;
-    std::move(callback).Run(absl::nullopt, error);
+    std::move(callback).Run(std::nullopt, error);
     return;
   }
 
@@ -311,14 +309,14 @@ void NetworkingPrivateChromeOS::GetManagedProperties(
   std::string service_path, error;
   if (!GetServicePathFromGuid(guid, &service_path, &error)) {
     NET_LOG(ERROR) << "GetManagedProperties failed: " << error;
-    std::move(callback).Run(absl::nullopt, error);
+    std::move(callback).Run(std::nullopt, error);
     return;
   }
 
   std::string user_id_hash;
   if (!GetPrimaryUserIdHash(browser_context_, &user_id_hash, &error)) {
     NET_LOG(ERROR) << "GetManagedProperties failed: " << error;
-    std::move(callback).Run(absl::nullopt, error);
+    std::move(callback).Run(std::nullopt, error);
     return;
   }
 
@@ -578,13 +576,10 @@ void NetworkingPrivateChromeOS::GetCaptivePortalStatus(
     return;
   }
   if (!network->IsConnectedState()) {
-    std::move(success_callback)
-        .Run(ash::NetworkPortalDetector::CaptivePortalStatusString(
-            ash::NetworkPortalDetector::CAPTIVE_PORTAL_STATUS_OFFLINE));
+    std::move(success_callback).Run(kCaptivePortalStatusOffline);
     return;
   }
-  std::move(success_callback)
-      .Run(PortalStatusString(network->GetPortalState()));
+  std::move(success_callback).Run(PortalStatusString(network->portal_state()));
 }
 
 void NetworkingPrivateChromeOS::UnlockCellularSim(
@@ -711,11 +706,11 @@ void NetworkingPrivateChromeOS::GetDeviceStateList(
   NetworkStateHandler::DeviceStateList devices;
   NetworkHandler::Get()->network_state_handler()->GetDeviceList(&devices);
 
-  std::unique_ptr<DeviceStateList> device_state_list(new DeviceStateList);
+  DeviceStateList device_state_list;
   for (const ash::DeviceState* device : devices) {
     std::string onc_type =
         ash::network_util::TranslateShillTypeToONC(device->type());
-    AppendDeviceState(onc_type, device, device_state_list.get());
+    AppendDeviceState(onc_type, device, device_state_list);
     technologies_found.insert(onc_type);
   }
 
@@ -728,8 +723,7 @@ void NetworkingPrivateChromeOS::GetDeviceStateList(
     if (base::Contains(technologies_found, technology)) {
       continue;
     }
-    AppendDeviceState(technology, nullptr /* device */,
-                      device_state_list.get());
+    AppendDeviceState(technology, nullptr /* device */, device_state_list);
   }
   std::move(callback).Run(std::move(device_state_list));
 }
@@ -806,8 +800,8 @@ void NetworkingPrivateChromeOS::GetPropertiesCallback(
     const std::string& guid,
     PropertiesCallback callback,
     const std::string& service_path,
-    absl::optional<base::Value::Dict> dictionary,
-    absl::optional<std::string> error) {
+    std::optional<base::Value::Dict> dictionary,
+    std::optional<std::string> error) {
   if (dictionary) {
     AppendThirdPartyProviderName(&dictionary.value());
   }
@@ -821,7 +815,7 @@ void NetworkingPrivateChromeOS::AppendThirdPartyProviderName(
     return;
   }
 
-  const std::string extension_id = GetStringFromDictionary(
+  const ExtensionId extension_id = GetStringFromDictionary(
       *third_party_vpn, ::onc::third_party_vpn::kExtensionID);
   const ExtensionSet& extensions =
       ExtensionRegistry::Get(browser_context_)->enabled_extensions();

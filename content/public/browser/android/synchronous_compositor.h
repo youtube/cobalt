@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include <memory>
+#include <optional>
 
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/waitable_event.h"
@@ -17,7 +18,6 @@
 #include "components/viz/common/resources/returned_resource.h"
 #include "components/viz/common/surfaces/local_surface_id.h"
 #include "content/common/content_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -64,7 +64,7 @@ class CONTENT_EXPORT SynchronousCompositor {
     std::unique_ptr<viz::CompositorFrame> frame;
     // Invalid if |frame| is nullptr.
     viz::LocalSurfaceId local_surface_id;
-    absl::optional<viz::HitTestRegionList> hit_test_region_list;
+    std::optional<viz::HitTestRegionList> hit_test_region_list;
   };
 
   class FrameFuture : public base::RefCountedThreadSafe<FrameFuture> {
@@ -83,6 +83,9 @@ class CONTENT_EXPORT SynchronousCompositor {
     bool waited_ = false;
 #endif
   };
+
+  virtual void OnCompositorVisible() = 0;
+  virtual void OnCompositorHidden() = 0;
 
   // "On demand" hardware draw. Parameters are used by compositor for this draw.
   // |viewport_size| is the current size to improve results during resize.
@@ -117,6 +120,10 @@ class CONTENT_EXPORT SynchronousCompositor {
 
   // Set the memory limit policy of this compositor.
   virtual void SetMemoryPolicy(size_t bytes_limit) = 0;
+
+  // Returns the higher of x or y scroll velocity. Only returns valid value
+  // after begin frame and before DemandDraw of a frame.
+  virtual float GetVelocityInPixelsPerSecond() = 0;
 
   // Called during renderer swap. Should push any relevant up to
   // SynchronousCompositorClient.

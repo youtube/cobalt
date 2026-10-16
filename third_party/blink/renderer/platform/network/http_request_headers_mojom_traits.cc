@@ -5,7 +5,7 @@
 #include <memory>
 #include <utility>
 
-#include "mojo/public/cpp/bindings/array_traits_wtf_vector.h"
+#include "mojo/public/cpp/base/byte_string_mojom_traits.h"
 #include "third_party/blink/renderer/platform/network/http_request_headers_mojom_traits.h"
 
 namespace mojo {
@@ -21,7 +21,7 @@ StructTraits<network::mojom::HttpRequestHeadersDataView,
     auto header_ptr =
         network::mojom::blink::HttpRequestHeaderKeyValuePair::New();
     header_ptr->key = header.first;
-    header_ptr->value = header.second;
+    header_ptr->value = header.second.Utf8();
     headers_out.push_back(std::move(header_ptr));
   }
   return headers_out;
@@ -38,7 +38,8 @@ bool StructTraits<
   }
   out->Clear();
   for (const auto& header : headers) {
-    out->Set(AtomicString(header->key), AtomicString(header->value));
+    out->Set(AtomicString(header->key),
+             AtomicString(WTF::String(header->value)));
   }
   return true;
 }

@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "base/uuid.h"
 #include "chrome/browser/ash/app_list/search/chrome_search_result.h"
 #include "chrome/browser/ash/app_list/search/search_provider.h"
@@ -41,8 +40,8 @@ class DesksAdminTemplateResult : public ChromeSearchResult {
   void Open(int event_flags) override;
 
  private:
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
-  const raw_ptr<AppListControllerDelegate, ExperimentalAsh> list_controller_;
+  const raw_ptr<Profile> profile_;
+  const raw_ptr<AppListControllerDelegate> list_controller_;
   base::Uuid template_uuid_;
 };
 
@@ -64,8 +63,8 @@ class DesksAdminTemplateProvider : public SearchProvider {
   ash::AppListSearchResultType ResultType() const override;
 
  private:
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
-  const raw_ptr<AppListControllerDelegate, ExperimentalAsh> list_controller_;
+  const raw_ptr<Profile> profile_;
+  const raw_ptr<AppListControllerDelegate> list_controller_;
 };
 
 }  // namespace app_list

@@ -15,17 +15,41 @@
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cstring>
+#include <optional>
+#include <type_traits>
 #include <utility>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/shared/starboard/media/media_util.h"
+
+#if (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
+#include <arm_neon.h>
+#define USE_NEON_FOR_AUDIO 1
+#endif  // (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
 
 namespace starboard {
 
 namespace {
+
+constexpr bool kIsSimdBasedAudioFormatSwitchingDefaultEnabled = false;
+
+static_assert(std::is_trivially_destructible<std::atomic<bool>>::value,
+              "g_enable_simd_based_audio_format_switching must be trivially "
+              "destructible.");
+std::atomic<bool> g_enable_simd_based_audio_format_switching{
+    kIsSimdBasedAudioFormatSwitchingDefaultEnabled};
+
+#if defined(USE_NEON_FOR_AUDIO)
+bool GetSimdBasedAudioFormatSwitchingSetting() {
+  return g_enable_simd_based_audio_format_switching.load(
+      std::memory_order_acquire);
+}
+#endif  // defined(USE_NEON_FOR_AUDIO)
 
 void ConvertSample(const int16_t* source, float* destination) {
   *destination = static_cast<float>(*source) / 32768.f;
@@ -39,22 +63,24 @@ void ConvertSample(const float* source, int16_t* destination) {
 
 }  // namespace
 
+// static
+DecodedAudio DecodedAudio::CreateEOSBuffer() {
+  return DecodedAudio();
+}
+
 DecodedAudio::DecodedAudio()
     : channels_(0),
       sample_type_(kSbMediaAudioSampleTypeInt16Deprecated),
-      storage_type_(kSbMediaAudioFrameStorageTypeInterleaved),
       timestamp_(0),
       offset_in_bytes_(0),
       size_in_bytes_(0) {}
 
 DecodedAudio::DecodedAudio(int channels,
                            SbMediaAudioSampleType sample_type,
-                           SbMediaAudioFrameStorageType storage_type,
                            int64_t timestamp,
                            int size_in_bytes)
     : channels_(channels),
       sample_type_(sample_type),
-      storage_type_(storage_type),
       timestamp_(timestamp),
       storage_(size_in_bytes),
       offset_in_bytes_(0),
@@ -69,13 +95,11 @@ DecodedAudio::DecodedAudio(int channels,
 
 DecodedAudio::DecodedAudio(int channels,
                            SbMediaAudioSampleType sample_type,
-                           SbMediaAudioFrameStorageType storage_type,
                            int64_t timestamp,
                            int size_in_bytes,
                            Buffer&& storage)
     : channels_(channels),
       sample_type_(sample_type),
-      storage_type_(storage_type),
       timestamp_(timestamp),
       storage_(std::move(storage)),
       offset_in_bytes_(0),
@@ -86,15 +110,38 @@ DecodedAudio::DecodedAudio(int channels,
                0);
 }
 
+DecodedAudio::DecodedAudio(DecodedAudio&& other) noexcept
+    : channels_(std::exchange(other.channels_, 0)),
+      sample_type_(other.sample_type_),
+      timestamp_(std::exchange(other.timestamp_, 0)),
+      storage_(std::move(other.storage_)),
+      offset_in_bytes_(std::exchange(other.offset_in_bytes_, 0)),
+      size_in_bytes_(std::exchange(other.size_in_bytes_, 0)) {}
+
+DecodedAudio& DecodedAudio::operator=(DecodedAudio&& other) noexcept {
+  if (this == &other) {
+    return *this;
+  }
+
+  channels_ = std::exchange(other.channels_, 0);
+  sample_type_ = other.sample_type_;
+  timestamp_ = std::exchange(other.timestamp_, 0);
+  storage_ = std::move(other.storage_);
+  offset_in_bytes_ = std::exchange(other.offset_in_bytes_, 0);
+  size_in_bytes_ = std::exchange(other.size_in_bytes_, 0);
+
+  return *this;
+}
+
+void DecodedAudio::EnableSimdBasedAudioFormatSwitching() {
+  g_enable_simd_based_audio_format_switching.store(true,
+                                                   std::memory_order_release);
+}
+
 int DecodedAudio::frames() const {
   int bytes_per_sample = GetBytesPerSample(sample_type_);
   SB_DCHECK_EQ(size_in_bytes_ % (bytes_per_sample * channels_), 0);
   return static_cast<int>(size_in_bytes_ / bytes_per_sample / channels_);
-}
-
-bool DecodedAudio::IsFormat(SbMediaAudioSampleType sample_type,
-                            SbMediaAudioFrameStorageType storage_type) const {
-  return sample_type_ == sample_type && storage_type_ == storage_type;
 }
 
 void DecodedAudio::ShrinkTo(int new_size_in_bytes) {
@@ -120,31 +167,11 @@ void DecodedAudio::AdjustForSeekTime(int sample_rate, int64_t seeking_to_time) {
   const auto bytes_per_sample = GetBytesPerSample(sample_type_);
   const auto bytes_per_frame = bytes_per_sample * channels();
 
-  if (storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved) {
+  if (frames_to_skip > 0) {
     offset_in_bytes_ += frames_to_skip * bytes_per_frame;
     size_in_bytes_ -= frames_to_skip * bytes_per_frame;
     timestamp_ += AudioFramesToDuration(frames_to_skip, sample_rate);
-    return;
   }
-
-  SB_DCHECK_EQ(storage_type_, kSbMediaAudioFrameStorageTypePlanar);
-
-  Buffer new_storage(size_in_bytes_ - frames_to_skip * bytes_per_frame);
-  const auto new_frames = frames() - frames_to_skip;
-
-  const uint8_t* source_addr = data();
-  uint8_t* dest_addr = new_storage.data();
-  for (int channel = 0; channel < channels(); ++channel) {
-    memcpy(dest_addr, source_addr + bytes_per_sample * frames_to_skip,
-           new_frames * bytes_per_frame);
-    source_addr += frames() * bytes_per_sample;
-    dest_addr += new_frames * bytes_per_sample;
-  }
-
-  storage_ = std::move(new_storage);
-  timestamp_ += AudioFramesToDuration(frames_to_skip, sample_rate);
-  offset_in_bytes_ = 0;
-  size_in_bytes_ = new_frames * bytes_per_frame;
 }
 
 void DecodedAudio::AdjustForDiscardedDurations(
@@ -161,7 +188,6 @@ void DecodedAudio::AdjustForDiscardedDurations(
                     << discarded_duration_from_back << ". Setting to 0.";
     discarded_duration_from_back = 0;
   }
-  SB_DCHECK_EQ(storage_type(), kSbMediaAudioFrameStorageTypeInterleaved);
 
   if (discarded_duration_from_front == 0 && discarded_duration_from_back == 0) {
     return;
@@ -186,145 +212,71 @@ void DecodedAudio::AdjustForDiscardedDurations(
   size_in_bytes_ -= bytes_per_frame * discarded_frames_from_back;
 }
 
-scoped_refptr<DecodedAudio> DecodedAudio::SwitchFormatTo(
+DecodedAudio DecodedAudio::SwitchFormatTo(
     SbMediaAudioSampleType new_sample_type,
-    SbMediaAudioFrameStorageType new_storage_type) const {
-  // The caller should call IsFormat() to check before calling SwitchFormatTo(),
+    [[maybe_unused]] std::optional<bool> force_simd) const {
+  // The caller should check sample type before calling SwitchFormatTo(),
   // as SwitchFormatTo() always copies the whole buffer and is not optimal.
-  SB_DCHECK(new_sample_type != sample_type_ ||
-            new_storage_type != storage_type_);
+  SB_DCHECK_NE(new_sample_type, sample_type_);
 
-  if (new_storage_type == storage_type_) {
-    return SwitchSampleTypeTo(new_sample_type);
-  }
+  bool enable_simd = false;
+#if defined(USE_NEON_FOR_AUDIO)
+  enable_simd = force_simd.value_or(GetSimdBasedAudioFormatSwitchingSetting());
+#endif  // defined(USE_NEON_FOR_AUDIO)
 
-  if (new_sample_type == sample_type_) {
-    return SwitchStorageTypeTo(new_storage_type);
-  }
-
-  // Both sample types and storage types are different, use the slowest way.
-  int new_size = GetBytesPerSample(new_sample_type) * frames() * channels();
-  scoped_refptr<DecodedAudio> new_decoded_audio = new DecodedAudio(
-      channels(), new_sample_type, new_storage_type, timestamp(), new_size);
-
-#define InterleavedSampleAddr(start_addr, channel, frame) \
-  (start_addr + (frame * channels() + channel))
-#define PlanarSampleAddr(start_addr, channel, frame) \
-  (start_addr + (channel * frames() + frame))
-#define GetSampleAddr(StorageType, start_addr, channel, frame) \
-  (StorageType##SampleAddr(start_addr, channel, frame))
-#define SwitchTo(OldSampleType, OldStorageType, NewSampleType, NewStorageType) \
-  do {                                                                         \
-    const OldSampleType* old_samples =                                         \
-        reinterpret_cast<const OldSampleType*>(this->data());                  \
-    NewSampleType* new_samples =                                               \
-        reinterpret_cast<NewSampleType*>(new_decoded_audio->data());           \
-                                                                               \
-    for (int channel = 0; channel < channels(); ++channel) {                   \
-      for (int frame = 0; frame < frames(); ++frame) {                         \
-        const OldSampleType* old_sample =                                      \
-            GetSampleAddr(OldStorageType, old_samples, channel, frame);        \
-        NewSampleType* new_sample =                                            \
-            GetSampleAddr(NewStorageType, new_samples, channel, frame);        \
-        ConvertSample(old_sample, new_sample);                                 \
-      }                                                                        \
-    }                                                                          \
-  } while (false)
-
-  if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated &&
-      storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved &&
-      new_sample_type == kSbMediaAudioSampleTypeFloat32 &&
-      new_storage_type == kSbMediaAudioFrameStorageTypePlanar) {
-    SwitchTo(int16_t, Interleaved, float, Planar);
-  } else if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated &&
-             storage_type_ == kSbMediaAudioFrameStorageTypePlanar &&
-             new_sample_type == kSbMediaAudioSampleTypeFloat32 &&
-             new_storage_type == kSbMediaAudioFrameStorageTypeInterleaved) {
-    SwitchTo(int16_t, Planar, float, Interleaved);
-  } else if (sample_type_ == kSbMediaAudioSampleTypeFloat32 &&
-             storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved &&
-             new_sample_type == kSbMediaAudioSampleTypeInt16Deprecated &&
-             new_storage_type == kSbMediaAudioFrameStorageTypePlanar) {
-    SwitchTo(float, Interleaved, int16_t, Planar);
-  } else if (sample_type_ == kSbMediaAudioSampleTypeFloat32 &&
-             storage_type_ == kSbMediaAudioFrameStorageTypePlanar &&
-             new_sample_type == kSbMediaAudioSampleTypeInt16Deprecated &&
-             new_storage_type == kSbMediaAudioFrameStorageTypeInterleaved) {
-    SwitchTo(float, Planar, int16_t, Interleaved);
-  } else {
-    SB_NOTREACHED();
-  }
-
-  return new_decoded_audio;
+  return SwitchSampleTypeTo(new_sample_type, enable_simd);
 }
 
-scoped_refptr<DecodedAudio> DecodedAudio::Clone() const {
-  scoped_refptr<DecodedAudio> copy = new DecodedAudio(
-      channels(), sample_type(), storage_type(), timestamp(), size_in_bytes());
+DecodedAudio DecodedAudio::CloneForTesting() const {
+  DecodedAudio copy(channels(), sample_type(), timestamp(), size_in_bytes());
 
-  memcpy(copy->data(), data(), size_in_bytes());
+  if (size_in_bytes() > 0) {
+    memcpy(copy.data(), data(), size_in_bytes());
+  }
 
   return copy;
 }
 
-scoped_refptr<DecodedAudio> DecodedAudio::SwitchSampleTypeTo(
-    SbMediaAudioSampleType new_sample_type) const {
+DecodedAudio DecodedAudio::SwitchSampleTypeTo(
+    SbMediaAudioSampleType new_sample_type,
+    bool enable_simd) const {
   int new_size = GetBytesPerSample(new_sample_type) * frames() * channels();
-  scoped_refptr<DecodedAudio> new_decoded_audio = new DecodedAudio(
-      channels(), new_sample_type, storage_type(), timestamp(), new_size);
+  DecodedAudio new_decoded_audio(channels(), new_sample_type, timestamp(),
+                                 new_size);
 
   if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated &&
       new_sample_type == kSbMediaAudioSampleTypeFloat32) {
     const int16_t* old_samples = reinterpret_cast<const int16_t*>(this->data());
-    float* new_samples = reinterpret_cast<float*>(new_decoded_audio->data());
+    float* new_samples = reinterpret_cast<float*>(new_decoded_audio.data());
+    int total_samples = frames() * channels();
 
-    for (int i = 0; i < frames() * channels(); ++i) {
+#if defined(USE_NEON_FOR_AUDIO)
+    if (enable_simd && IsAligned(total_samples, 16)) {
+      if (SwitchSampleTypeTo_NEON(new_sample_type, &new_decoded_audio)) {
+        return new_decoded_audio;
+      }
+    }
+#endif  // USE_NEON_FOR_AUDIO
+
+    for (int i = 0; i < total_samples; ++i) {
       ConvertSample(old_samples + i, new_samples + i);
     }
   } else if (sample_type_ == kSbMediaAudioSampleTypeFloat32 &&
              new_sample_type == kSbMediaAudioSampleTypeInt16Deprecated) {
     const float* old_samples = reinterpret_cast<const float*>(this->data());
-    int16_t* new_samples =
-        reinterpret_cast<int16_t*>(new_decoded_audio->data());
+    int16_t* new_samples = reinterpret_cast<int16_t*>(new_decoded_audio.data());
+    int total_samples = frames() * channels();
 
-    for (int i = 0; i < frames() * channels(); ++i) {
+#if defined(USE_NEON_FOR_AUDIO)
+    if (enable_simd && IsAligned(total_samples, 16)) {
+      if (SwitchSampleTypeTo_NEON(new_sample_type, &new_decoded_audio)) {
+        return new_decoded_audio;
+      }
+    }
+#endif  // USE_NEON_FOR_AUDIO
+
+    for (int i = 0; i < total_samples; ++i) {
       ConvertSample(old_samples + i, new_samples + i);
-    }
-  }
-
-  return new_decoded_audio;
-}
-
-scoped_refptr<DecodedAudio> DecodedAudio::SwitchStorageTypeTo(
-    SbMediaAudioFrameStorageType new_storage_type) const {
-  scoped_refptr<DecodedAudio> new_decoded_audio =
-      new DecodedAudio(channels(), sample_type(), new_storage_type, timestamp(),
-                       size_in_bytes());
-  int bytes_per_sample = GetBytesPerSample(sample_type());
-  const uint8_t* old_samples = this->data();
-  uint8_t* new_samples = new_decoded_audio->data();
-
-  if (storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved &&
-      new_storage_type == kSbMediaAudioFrameStorageTypePlanar) {
-    for (int channel = 0; channel < channels(); ++channel) {
-      for (int frame = 0; frame < frames(); ++frame) {
-        const uint8_t* old_sample =
-            old_samples + (frame * channels() + channel) * bytes_per_sample;
-        uint8_t* new_sample =
-            new_samples + (channel * frames() + frame) * bytes_per_sample;
-        memcpy(new_sample, old_sample, bytes_per_sample);
-      }
-    }
-  } else if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar &&
-             new_storage_type == kSbMediaAudioFrameStorageTypeInterleaved) {
-    for (int channel = 0; channel < channels(); ++channel) {
-      for (int frame = 0; frame < frames(); ++frame) {
-        const uint8_t* old_sample =
-            old_samples + (channel * frames() + frame) * bytes_per_sample;
-        uint8_t* new_sample =
-            new_samples + (frame * channels() + channel) * bytes_per_sample;
-        memcpy(new_sample, old_sample, bytes_per_sample);
-      }
     }
   }
 
@@ -342,7 +294,6 @@ bool operator==(const DecodedAudio& left, const DecodedAudio& right) {
   return left.timestamp() == right.timestamp() &&
          left.channels() == right.channels() &&
          left.sample_type() == right.sample_type() &&
-         left.storage_type() == right.storage_type() &&
          left.size_in_bytes() == right.size_in_bytes() &&
          memcmp(left.data(), right.data(), right.size_in_bytes()) == 0;
 }
@@ -358,9 +309,75 @@ std::ostream& operator<<(std::ostream& os, const DecodedAudio& decoded_audio) {
   return os << "timestamp: " << decoded_audio.timestamp()
             << ", channels: " << decoded_audio.channels() << ", sample type: "
             << GetMediaAudioSampleTypeName(decoded_audio.sample_type())
-            << ", storage type: "
-            << GetMediaAudioStorageTypeName(decoded_audio.storage_type())
             << ", frames: " << decoded_audio.frames();
 }
+
+#if defined(USE_NEON_FOR_AUDIO)
+
+bool DecodedAudio::SwitchSampleTypeTo_NEON(
+    SbMediaAudioSampleType new_sample_type,
+    DecodedAudio* destination_audio) const {
+  int total_samples = frames() * channels();
+  SB_DCHECK_EQ(total_samples % 16, 0);
+
+  if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated &&
+      new_sample_type == kSbMediaAudioSampleTypeFloat32) {
+    const int16_t* old_samples = reinterpret_cast<const int16_t*>(data());
+    float* new_samples = reinterpret_cast<float*>(destination_audio->data());
+
+    for (int i = 0; i + 15 < total_samples; i += 16) {
+      int16x8_t src0_s16 = vld1q_s16(old_samples + i);
+      int16x8_t src1_s16 = vld1q_s16(old_samples + i + 8);
+
+      int32x4_t low0_s32 = vmovl_s16(vget_low_s16(src0_s16));
+      int32x4_t high0_s32 = vmovl_s16(vget_high_s16(src0_s16));
+      int32x4_t low1_s32 = vmovl_s16(vget_low_s16(src1_s16));
+      int32x4_t high1_s32 = vmovl_s16(vget_high_s16(src1_s16));
+
+      vst1q_f32(new_samples + i, vcvtq_n_f32_s32(low0_s32, 15));
+      vst1q_f32(new_samples + i + 4, vcvtq_n_f32_s32(high0_s32, 15));
+      vst1q_f32(new_samples + i + 8, vcvtq_n_f32_s32(low1_s32, 15));
+      vst1q_f32(new_samples + i + 12, vcvtq_n_f32_s32(high1_s32, 15));
+    }
+    return true;
+  } else if (sample_type_ == kSbMediaAudioSampleTypeFloat32 &&
+             new_sample_type == kSbMediaAudioSampleTypeInt16Deprecated) {
+    const float* old_samples = reinterpret_cast<const float*>(data());
+    int16_t* new_samples =
+        reinterpret_cast<int16_t*>(destination_audio->data());
+
+    float32x4_t min_val = vdupq_n_f32(-1.0f);
+    float32x4_t max_val = vdupq_n_f32(1.0f);
+    float32x4_t scale = vdupq_n_f32(32767.f);
+    for (int i = 0; i + 15 < total_samples; i += 16) {
+      float32x4_t src0 = vld1q_f32(old_samples + i);
+      float32x4_t src1 = vld1q_f32(old_samples + i + 4);
+      float32x4_t src2 = vld1q_f32(old_samples + i + 8);
+      float32x4_t src3 = vld1q_f32(old_samples + i + 12);
+
+      float32x4_t src0_clamp = vminq_f32(vmaxq_f32(src0, min_val), max_val);
+      float32x4_t src1_clamp = vminq_f32(vmaxq_f32(src1, min_val), max_val);
+      float32x4_t src2_clamp = vminq_f32(vmaxq_f32(src2, min_val), max_val);
+      float32x4_t src3_clamp = vminq_f32(vmaxq_f32(src3, min_val), max_val);
+
+      int32x4_t src0_s32 = vcvtq_s32_f32(vmulq_f32(src0_clamp, scale));
+      int32x4_t src1_s32 = vcvtq_s32_f32(vmulq_f32(src1_clamp, scale));
+      int32x4_t src2_s32 = vcvtq_s32_f32(vmulq_f32(src2_clamp, scale));
+      int32x4_t src3_s32 = vcvtq_s32_f32(vmulq_f32(src3_clamp, scale));
+
+      int16x4_t s0_s16 = vqmovn_s32(src0_s32);
+      int16x4_t s1_s16 = vqmovn_s32(src1_s32);
+      int16x4_t s2_s16 = vqmovn_s32(src2_s32);
+      int16x4_t s3_s16 = vqmovn_s32(src3_s32);
+
+      vst1q_s16(new_samples + i, vcombine_s16(s0_s16, s1_s16));
+      vst1q_s16(new_samples + i + 8, vcombine_s16(s2_s16, s3_s16));
+    }
+    return true;
+  }
+  return false;
+}
+
+#endif  // defined(USE_NEON_FOR_AUDIO)
 
 }  // namespace starboard

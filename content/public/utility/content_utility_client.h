@@ -5,9 +5,6 @@
 #ifndef CONTENT_PUBLIC_UTILITY_CONTENT_UTILITY_CLIENT_H_
 #define CONTENT_PUBLIC_UTILITY_CONTENT_UTILITY_CLIENT_H_
 
-#include <map>
-#include <memory>
-
 #include "base/task/single_thread_task_runner.h"
 #include "content/common/content_export.h"
 #include "content/public/common/content_client.h"
@@ -40,20 +37,6 @@ class CONTENT_EXPORT ContentUtilityClient {
   virtual void PostIOThreadCreated(
       base::SingleThreadTaskRunner* io_thread_task_runner) {}
 
-  // Allows the embedder to handle an incoming service request. If this is
-  // called, this utility process was started for the sole purpose of running
-  // the service identified by |service_name|.
-  //
-  // The embedder should return |true| to indicate that |request| has been
-  // handled by running the expected service. It is the embedder's
-  // responsibility to ensure that this utility process exits (see
-  // |UtilityThread::ReleaseProcess()|) once the running service terminates.
-  //
-  // If the embedder returns |false| this process is terminated immediately.
-  virtual bool HandleServiceRequestDeprecated(
-      const std::string& service_name,
-      mojo::ScopedMessagePipeHandle service_pipe);
-
   // Allows the embedder to handle an incoming service interface request to run
   // a service on the IO thread.
   //
@@ -65,6 +48,11 @@ class CONTENT_EXPORT ContentUtilityClient {
   //
   // Only called from the main thread.
   virtual void RegisterMainThreadServices(mojo::ServiceFactory& services) {}
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // Initialize the endpoint of mojo service manager.
+  virtual mojo::GenericPendingReceiver InitMojoServiceManager();
+#endif  // BUILDFLAG(IS_CHROMEOS)
 };
 
 }  // namespace content

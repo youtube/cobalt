@@ -8,9 +8,9 @@
 ] interface NavigateEvent : Event {
   [CallWith=ExecutionContext] constructor(DOMString type, NavigateEventInit eventInit);
 
-  readonly attribute NavigationNavigationType navigationType;
+  readonly attribute NavigationType navigationType;
   readonly attribute NavigationDestination destination;
-  [ImplementedAs=canIntercept] readonly attribute boolean canTransition;
+  [ImplementedAs=canIntercept, RuntimeEnabled=NavigateEventCanTransition] readonly attribute boolean canTransition;
   readonly attribute boolean canIntercept;
   readonly attribute boolean userInitiated;
   readonly attribute boolean hashChange;
@@ -18,8 +18,9 @@
   readonly attribute FormData? formData;
   readonly attribute DOMString? downloadRequest;
   readonly attribute any info;
+  [RuntimeEnabled=HasUAVisualTransition] readonly attribute boolean hasUAVisualTransition;
+  [RuntimeEnabled=NavigateEventSourceElement] readonly attribute Element? sourceElement;
 
   [RaisesException] void intercept(optional NavigationInterceptOptions options = {});
-  [RaisesException, RuntimeEnabled=NavigateEventCommitBehavior] void commit();
   [RaisesException] void scroll();
 };

@@ -22,9 +22,9 @@ namespace ash {
 // Button view that is used in floating menu.
 
 class FloatingMenuButton : public views::ImageButton {
- public:
-  METADATA_HEADER(FloatingMenuButton);
+  METADATA_HEADER(FloatingMenuButton, views::ImageButton)
 
+ public:
   FloatingMenuButton();
   FloatingMenuButton(views::Button::PressedCallback callback,
                      const gfx::VectorIcon& icon,
@@ -58,13 +58,14 @@ class FloatingMenuButton : public views::ImageButton {
 
   // views::ImageButton:
   void PaintButtonContents(gfx::Canvas* canvas) override;
-  gfx::Size CalculatePreferredSize() const override;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
 
  private:
   void UpdateImage();
+  void UpdateAccessibleProperties();
 
-  raw_ptr<const gfx::VectorIcon, ExperimentalAsh> icon_ = nullptr;
+  raw_ptr<const gfx::VectorIcon> icon_ = nullptr;
   // True if the button is currently toggled.
   bool toggled_ = false;
   int size_ = kTrayItemSize;

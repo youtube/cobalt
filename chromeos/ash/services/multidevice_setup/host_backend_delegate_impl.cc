@@ -4,13 +4,13 @@
 
 #include "chromeos/ash/services/multidevice_setup/host_backend_delegate_impl.h"
 
+#include <algorithm>
 #include <sstream>
 
 #include "ash/constants/ash_features.h"
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
-#include "base/ranges/algorithm.h"
 #include "chromeos/ash/components/multidevice/logging/logging.h"
 #include "chromeos/ash/components/multidevice/software_feature.h"
 #include "chromeos/ash/components/multidevice/software_feature_state.h"
@@ -100,7 +100,7 @@ HostBackendDelegateImpl::~HostBackendDelegateImpl() {
 }
 
 void HostBackendDelegateImpl::AttemptToSetMultiDeviceHostOnBackend(
-    const absl::optional<multidevice::RemoteDeviceRef>& host_device) {
+    const std::optional<multidevice::RemoteDeviceRef>& host_device) {
   if (host_device && !IsHostEligible(*host_device)) {
     PA_LOG(WARNING) << "HostBackendDelegateImpl::"
                     << "AttemptToSetMultiDeviceHostOnBackend(): Tried to set a "
@@ -120,12 +120,8 @@ void HostBackendDelegateImpl::AttemptToSetMultiDeviceHostOnBackend(
   timer_->Stop();
 
   if (host_device) {
-    if (features::ShouldUseV1DeviceSync()) {
-      SetPendingHostRequest(host_device->GetDeviceId());
-    } else {
-      DCHECK(!host_device->instance_id().empty());
-      SetPendingHostRequest(host_device->instance_id());
-    }
+    DCHECK(!host_device->instance_id().empty());
+    SetPendingHostRequest(host_device->instance_id());
   } else {
     SetPendingHostRequest(kPendingRemovalOfCurrentHost);
   }
@@ -160,7 +156,7 @@ bool HostBackendDelegateImpl::HasPendingHostRequest() {
 
   // If a request was pending for a specific host device, but that device is no
   // longer present on the user's account, there is no longer a pending request.
-  // TODO(https://crbug.com/936273): Track frequency of unrecognized host IDs.
+  // TODO(crbug.com/41443836): Track frequency of unrecognized host IDs.
   // If the following scenarios occur before the pending host request completes,
   // the persisted host ID will not be recognized, and the user will need to go
   // through setup again:
@@ -174,7 +170,7 @@ bool HostBackendDelegateImpl::HasPendingHostRequest() {
   return false;
 }
 
-absl::optional<multidevice::RemoteDeviceRef>
+std::optional<multidevice::RemoteDeviceRef>
 HostBackendDelegateImpl::GetPendingHostRequest() const {
   const std::string pending_host_id_from_prefs =
       pref_service_->GetString(kPendingRequestHostIdPrefName);
@@ -185,9 +181,9 @@ HostBackendDelegateImpl::GetPendingHostRequest() const {
       << "host request.";
 
   if (pending_host_id_from_prefs == kPendingRemovalOfCurrentHost)
-    return absl::nullopt;
+    return std::nullopt;
 
-  absl::optional<multidevice::RemoteDeviceRef> pending_host =
+  std::optional<multidevice::RemoteDeviceRef> pending_host =
       FindDeviceById(pending_host_id_from_prefs);
   DCHECK(pending_host)
       << "HostBackendDelegateImpl::GetPendingHostRequest(): Tried to get "
@@ -196,7 +192,7 @@ HostBackendDelegateImpl::GetPendingHostRequest() const {
   return pending_host;
 }
 
-absl::optional<multidevice::RemoteDeviceRef>
+std::optional<multidevice::RemoteDeviceRef>
 HostBackendDelegateImpl::GetMultiDeviceHostFromBackend() const {
   return host_from_last_sync_;
 }
@@ -219,20 +215,16 @@ void HostBackendDelegateImpl::SetPendingHostRequest(
   NotifyPendingHostRequestChange();
 }
 
-absl::optional<multidevice::RemoteDeviceRef>
+std::optional<multidevice::RemoteDeviceRef>
 HostBackendDelegateImpl::FindDeviceById(const std::string& id) const {
   DCHECK(!id.empty());
   for (const auto& remote_device : device_sync_client_->GetSyncedDevices()) {
-    if (features::ShouldUseV1DeviceSync()) {
-      if (id == remote_device.GetDeviceId())
-        return remote_device;
-    } else {
-      if (id == remote_device.instance_id())
-        return remote_device;
+    if (id == remote_device.instance_id()) {
+      return remote_device;
     }
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void HostBackendDelegateImpl::AttemptNetworkRequest(bool is_retry) {
@@ -240,7 +232,7 @@ void HostBackendDelegateImpl::AttemptNetworkRequest(bool is_retry) {
       << "HostBackendDelegateImpl::AttemptNetworkRequest(): Tried to attempt a "
       << "network request, but there was no pending host request.";
 
-  absl::optional<multidevice::RemoteDeviceRef> pending_host_request =
+  std::optional<multidevice::RemoteDeviceRef> pending_host_request =
       GetPendingHostRequest();
 
   // If |pending_host_request| is non-null, the request should be to set that
@@ -250,44 +242,26 @@ void HostBackendDelegateImpl::AttemptNetworkRequest(bool is_retry) {
 
   // Likewise, if |pending_host_request| is non-null, that device should be
   // enabled, and if it is null, the old device should be disabled.
-  bool should_enable = pending_host_request != absl::nullopt;
+  bool should_enable = pending_host_request != std::nullopt;
 
   PA_LOG(INFO) << "HostBackendDelegateImpl::AttemptNetworkRequest(): "
                << (is_retry ? "Retrying attempt" : "Attempting") << " to "
                << (should_enable ? "enable" : "disable")
                << " the host: " << device_to_set.GetInstanceIdDeviceIdForLogs();
 
-  if (features::ShouldUseV1DeviceSync()) {
-    // Even if the |device_to_set| has a non-trivial Instance ID, we still
-    // invoke the v1 DeviceSync RPC to set the feature state. This ensures that
-    // GmsCore will be notified of the change regardless of what version of
-    // DeviceSync it is running. The v1 and v2 RPCs to change feature states
-    // ultimately update the same backend database entry. Note: The
-    // RemoteDeviceProvider guarantees that every device will have a public key
-    // while v1 DeviceSync is enabled.
-    DCHECK(!device_to_set.public_key().empty());
-    device_sync_client_->SetSoftwareFeatureState(
-        device_to_set.public_key(),
-        multidevice::SoftwareFeature::kBetterTogetherHost,
-        should_enable /* enabled */, should_enable /* is_exclusive */,
-        base::BindOnce(
-            &HostBackendDelegateImpl::OnSetHostNetworkRequestFinished,
-            weak_ptr_factory_.GetWeakPtr(), device_to_set, should_enable));
-  } else {
-    DCHECK(!device_to_set.instance_id().empty());
-    device_sync_client_->SetFeatureStatus(
-        device_to_set.instance_id(),
-        multidevice::SoftwareFeature::kBetterTogetherHost,
-        should_enable ? device_sync::FeatureStatusChange::kEnableExclusively
-                      : device_sync::FeatureStatusChange::kDisable,
-        base::BindOnce(
-            &HostBackendDelegateImpl::OnSetHostNetworkRequestFinished,
-            weak_ptr_factory_.GetWeakPtr(), device_to_set, should_enable));
-  }
+  DCHECK(!device_to_set.instance_id().empty());
+  device_sync_client_->SetFeatureStatus(
+      device_to_set.instance_id(),
+      multidevice::SoftwareFeature::kBetterTogetherHost,
+      should_enable ? device_sync::FeatureStatusChange::kEnableExclusively
+                    : device_sync::FeatureStatusChange::kDisable,
+      base::BindOnce(&HostBackendDelegateImpl::OnSetHostNetworkRequestFinished,
+                     weak_ptr_factory_.GetWeakPtr(), device_to_set,
+                     should_enable));
 }
 
 void HostBackendDelegateImpl::OnNewDevicesSynced() {
-  absl::optional<multidevice::RemoteDeviceRef> host_from_sync =
+  std::optional<multidevice::RemoteDeviceRef> host_from_sync =
       GetHostFromDeviceSync();
   if (host_from_last_sync_ == host_from_sync)
     return;
@@ -314,11 +288,11 @@ void HostBackendDelegateImpl::OnNewDevicesSynced() {
   NotifyHostChangedOnBackend();
 }
 
-absl::optional<multidevice::RemoteDeviceRef>
+std::optional<multidevice::RemoteDeviceRef>
 HostBackendDelegateImpl::GetHostFromDeviceSync() {
   multidevice::RemoteDeviceRefList synced_devices =
       device_sync_client_->GetSyncedDevices();
-  auto it = base::ranges::find(
+  auto it = std::ranges::find(
       synced_devices, multidevice::SoftwareFeatureState::kEnabled,
       [](const auto& remote_device) {
         return remote_device.GetSoftwareFeatureState(
@@ -326,7 +300,7 @@ HostBackendDelegateImpl::GetHostFromDeviceSync() {
       });
 
   if (it == synced_devices.end())
-    return absl::nullopt;
+    return std::nullopt;
 
   return *it;
 }
@@ -355,7 +329,7 @@ void HostBackendDelegateImpl::OnSetHostNetworkRequestFinished(
   if (!HasPendingHostRequest())
     return;
 
-  absl::optional<multidevice::RemoteDeviceRef> pending_host_request =
+  std::optional<multidevice::RemoteDeviceRef> pending_host_request =
       GetPendingHostRequest();
 
   bool failed_request_was_to_set_pending_host =

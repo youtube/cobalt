@@ -2,17 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "third_party/blink/renderer/modules/payments/payment_request.h"
+#include <ostream>
 
-#include <ostream>  // NOLINT
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_details_init.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_options.h"
 #include "third_party/blink/renderer/core/dom/document.h"
+#include "third_party/blink/renderer/modules/payments/payment_request.h"
 #include "third_party/blink/renderer/modules/payments/payment_test_helper.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
+#include "third_party/blink/renderer/platform/loader/fetch/memory_cache.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
@@ -85,7 +87,6 @@ std::ostream& operator<<(std::ostream& out, DetailsTestCase test_case) {
       break;
     case kPaymentTestDetailNone:
       NOTREACHED();
-      break;
   }
 
   switch (test_case.data_) {
@@ -106,7 +107,6 @@ std::ostream& operator<<(std::ostream& out, DetailsTestCase test_case) {
       break;
     case kPaymentTestDataNone:
       NOTREACHED();
-      break;
   }
 
   switch (test_case.mod_type_) {
@@ -122,7 +122,10 @@ std::ostream& operator<<(std::ostream& out, DetailsTestCase test_case) {
 }
 
 class PaymentRequestDetailsTest
-    : public testing::TestWithParam<DetailsTestCase> {};
+    : public testing::TestWithParam<DetailsTestCase> {
+ protected:
+  test::TaskEnvironment task_environment_;
+};
 
 TEST_P(PaymentRequestDetailsTest, ValidatesDetails) {
   PaymentRequestV8TestingScope scope;

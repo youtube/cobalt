@@ -14,10 +14,13 @@
 
 #include "starboard/android/shared/audio_output_manager.h"
 
+#include <atomic>
+
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
@@ -29,10 +32,8 @@ namespace starboard {
 
 namespace {
 
-using base::android::AttachCurrentThread;
-using base::android::JavaParamRef;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
+using jni_zero::JavaParamRef;
+using jni_zero::ScopedJavaLocalRef;
 
 // Constants for output types from
 // https://developer.android.com/reference/android/media/AudioDeviceInfo.
@@ -67,6 +68,8 @@ constexpr int TYPE_USB_DEVICE = 11;
 constexpr int TYPE_USB_HEADSET = 22;
 constexpr int TYPE_WIRED_HEADPHONES = 4;
 constexpr int TYPE_WIRED_HEADSET = 3;
+
+std::atomic<bool> g_enable_seamless_audio_switching = false;
 
 SbMediaAudioConnector GetConnectorFromAndroidOutputType(
     int android_output_device_type) {
@@ -141,13 +144,6 @@ SbMediaAudioConnector GetConnectorFromAndroidOutputType(
 }
 }  // namespace
 
-AudioOutputManager::AudioOutputManager() {
-  JNIEnv* env = AttachCurrentThread();
-  SB_DCHECK(env);
-  j_audio_output_manager_ =
-      StarboardBridge::GetInstance()->GetAudioOutputManager(env);
-}
-
 SB_EXPORT_ANDROID AudioOutputManager* AudioOutputManager::GetInstance() {
   return base::Singleton<AudioOutputManager>::get();
 }
@@ -157,13 +153,15 @@ ScopedJavaLocalRef<jobject> AudioOutputManager::CreateAudioTrackBridge(
     int sample_type,
     int sample_rate,
     int channel_count,
+    int max_samples_per_write,
     int preferred_buffer_size_in_bytes,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     jboolean is_web_audio) {
   SB_DCHECK(env);
   return Java_AudioOutputManager_createAudioTrackBridge(
       env, j_audio_output_manager_, sample_type, sample_rate, channel_count,
-      preferred_buffer_size_in_bytes, tunnel_mode_audio_session_id,
+      max_samples_per_write, preferred_buffer_size_in_bytes,
+      tunnel_mode_audio_session_id.value_or(TUNNEL_MODE_AUDIO_SESSION_ID_NONE),
       is_web_audio);
 }
 
@@ -207,23 +205,37 @@ int AudioOutputManager::GetMinBufferSizeInFrames(
          GetBytesPerSample(sample_type);
 }
 
-bool AudioOutputManager::GetAndResetHasAudioDeviceChanged(JNIEnv* env) {
-  SB_DCHECK(env);
-  return Java_AudioOutputManager_getAndResetHasAudioDeviceChanged(
-             env, j_audio_output_manager_) == JNI_TRUE;
+void AudioOutputManager::SetSeamlessAudioSwitching(bool enable) {
+  g_enable_seamless_audio_switching.store(enable, std::memory_order_relaxed);
 }
 
-int AudioOutputManager::GenerateTunnelModeAudioSessionId(JNIEnv* env,
-                                                         int numberOfChannels) {
+std::optional<int> AudioOutputManager::GenerateTunnelModeAudioSessionId(
+    JNIEnv* env,
+    int numberOfChannels) {
   SB_DCHECK(env);
-  return Java_AudioOutputManager_generateTunnelModeAudioSessionId(
+  int session_id = Java_AudioOutputManager_generateTunnelModeAudioSessionId(
       env, j_audio_output_manager_, numberOfChannels);
+  if (session_id == TUNNEL_MODE_AUDIO_SESSION_ID_NONE) {
+    return std::nullopt;
+  }
+  return session_id;
 }
 
 bool AudioOutputManager::HasPassthroughSupportFor(JNIEnv* env, int encoding) {
   SB_DCHECK(env);
   return Java_AudioOutputManager_hasPassthroughSupportFor(
              env, j_audio_output_manager_, encoding) == JNI_TRUE;
+}
+
+bool AudioOutputManager::GetDirectPlaybackSupport(JNIEnv* env,
+                                                  int encoding,
+                                                  int sample_rate,
+                                                  int channel_count,
+                                                  bool require_hw_av_sync) {
+  SB_DCHECK(env);
+  return Java_AudioOutputManager_getDirectPlaybackSupport(
+             env, j_audio_output_manager_, encoding, sample_rate, channel_count,
+             require_hw_av_sync) == JNI_TRUE;
 }
 
 bool AudioOutputManager::GetAudioConfiguration(
@@ -257,11 +269,22 @@ bool AudioOutputManager::GetAudioConfiguration(
   return true;
 }
 
+AudioOutputManager::AudioOutputManager() {
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  SB_DCHECK(env);
+  j_audio_output_manager_ =
+      StarboardBridge::GetInstance()->GetAudioOutputManager(env);
+}
+
 void JNI_AudioOutputManager_OnAudioDeviceChanged(JNIEnv* env) {
   // Audio output device change could change passthrough decoder capabilities,
   // so we have to reload codec capabilities.
   MediaCapabilitiesCache::GetInstance()->ClearCache();
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
+}
+
+jboolean JNI_AudioOutputManager_IsSeamlessAudioSwitchingEnabled(JNIEnv* env) {
+  return g_enable_seamless_audio_switching.load(std::memory_order_relaxed);
 }
 
 }  // namespace starboard

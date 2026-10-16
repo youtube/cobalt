@@ -5,10 +5,11 @@
 #include "third_party/blink/renderer/core/html/parser/html_document_parser.h"
 
 #include <memory>
+#include <optional>
 
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/html/html_document.h"
 #include "third_party/blink/renderer/core/html/html_iframe_element.h"
 #include "third_party/blink/renderer/core/html/parser/text_resource_decoder.h"
@@ -19,7 +20,6 @@
 #include "third_party/blink/renderer/core/testing/sim/sim_request.h"
 #include "third_party/blink/renderer/core/testing/sim/sim_test.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
-#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/url_test_helpers.h"
 
@@ -42,6 +42,9 @@ class MockNoStatePrefetchClient : public NoStatePrefetchClient {
 class HTMLDocumentParserTest
     : public PageTestBase,
       public testing::WithParamInterface<ParserSynchronizationPolicy> {
+ public:
+  ParserSynchronizationPolicy Policy() const { return GetParam(); }
+
  protected:
   HTMLDocumentParserTest()
       : original_force_synchronous_parsing_for_testing_(
@@ -65,15 +68,14 @@ class HTMLDocumentParserTest
   HTMLDocumentParser* CreateParser(HTMLDocument& document) {
     auto* parser =
         MakeGarbageCollected<HTMLDocumentParser>(document, GetParam());
-    std::unique_ptr<TextResourceDecoder> decoder(BuildTextResourceDecoder(
-        document.GetFrame(), document.Url(), "text/html", g_null_atom));
+    std::unique_ptr<TextResourceDecoder> decoder(
+        BuildTextResourceDecoder(document.GetFrame(), document.Url(),
+                                 AtomicString("text/html"), g_null_atom));
     parser->SetDecoder(std::move(decoder));
     return parser;
   }
 
  private:
-  ParserSynchronizationPolicy Policy() const { return GetParam(); }
-
   bool original_force_synchronous_parsing_for_testing_;
 };
 
@@ -103,8 +105,7 @@ TEST_P(HTMLDocumentParserTest, StopThenPrepareToStopShouldNotCrash) {
   auto& document = To<HTMLDocument>(GetDocument());
   DocumentParser* parser = CreateParser(document);
   ScopedParserDetacher detacher(parser);
-  const char kBytes[] = "<html>";
-  parser->AppendBytes(kBytes, sizeof(kBytes));
+  parser->AppendBytes(base::byte_span_from_cstring("<html>"));
   // These methods are not supposed to be called one after the other, but in
   // practice it can happen (e.g. if navigation is aborted).
   parser->StopParsing();
@@ -116,8 +117,7 @@ TEST_P(HTMLDocumentParserTest, HasNoPendingWorkAfterStopParsing) {
   HTMLDocumentParser* parser = CreateParser(document);
   DocumentParser* control_parser = static_cast<DocumentParser*>(parser);
   ScopedParserDetacher detacher(control_parser);
-  const char kBytes[] = "<html>";
-  control_parser->AppendBytes(kBytes, sizeof(kBytes));
+  control_parser->AppendBytes(base::byte_span_from_cstring("<html>"));
   control_parser->StopParsing();
   EXPECT_FALSE(parser->HasPendingWorkScheduledForTesting());
 }
@@ -127,11 +127,9 @@ TEST_P(HTMLDocumentParserTest, HasNoPendingWorkAfterStopParsingThenAppend) {
   HTMLDocumentParser* parser = CreateParser(document);
   DocumentParser* control_parser = static_cast<DocumentParser*>(parser);
   ScopedParserDetacher detacher(control_parser);
-  const char kBytes1[] = "<html>";
-  control_parser->AppendBytes(kBytes1, sizeof(kBytes1));
+  control_parser->AppendBytes(base::byte_span_from_cstring("<html>"));
   control_parser->StopParsing();
-  const char kBytes2[] = "<head>";
-  control_parser->AppendBytes(kBytes2, sizeof(kBytes2));
+  control_parser->AppendBytes(base::byte_span_from_cstring("<head>"));
   EXPECT_FALSE(parser->HasPendingWorkScheduledForTesting());
 }
 
@@ -139,8 +137,7 @@ TEST_P(HTMLDocumentParserTest, HasNoPendingWorkAfterDetach) {
   auto& document = To<HTMLDocument>(GetDocument());
   HTMLDocumentParser* parser = CreateParser(document);
   DocumentParser* control_parser = static_cast<DocumentParser*>(parser);
-  const char kBytes[] = "<html>";
-  control_parser->AppendBytes(kBytes, sizeof(kBytes));
+  control_parser->AppendBytes(base::byte_span_from_cstring("<html>"));
   control_parser->Detach();
   EXPECT_FALSE(parser->HasPendingWorkScheduledForTesting());
 }
@@ -154,8 +151,7 @@ TEST_P(HTMLDocumentParserTest, AppendPrefetch) {
   HTMLDocumentParser* parser = CreateParser(document);
   ScopedParserDetacher detacher(parser);
 
-  const char kBytes[] = "<httttttt";
-  parser->AppendBytes(kBytes, sizeof(kBytes));
+  parser->AppendBytes(base::byte_span_from_cstring("<httttttt"));
   // The bytes are forwarded to the preload scanner, not to the tokenizer.
   HTMLParserScriptRunnerHost* script_runner_host =
       parser->AsHTMLParserScriptRunnerHostForTesting();
@@ -177,8 +173,7 @@ TEST_P(HTMLDocumentParserTest, AppendNoPrefetch) {
   HTMLDocumentParser* parser = CreateParser(document);
   ScopedParserDetacher detacher(parser);
 
-  const char kBytes[] = "<htttttt";
-  parser->AppendBytes(kBytes, sizeof(kBytes));
+  parser->AppendBytes(base::byte_span_from_cstring("<htttttt"));
   test::RunPendingTasks();
   // The bytes are forwarded to the tokenizer.
   HTMLParserScriptRunnerHost* script_runner_host =
@@ -189,6 +184,56 @@ TEST_P(HTMLDocumentParserTest, AppendNoPrefetch) {
   // Cancel any pending work to make sure that RuntimeFeatures DCHECKs do not
   // fire.
   static_cast<DocumentParser*>(parser)->StopParsing();
+}
+
+class HTMLDocumentParserThreadedPreloadYieldModeScannerTest
+    : public HTMLDocumentParserTest {
+ public:
+  HTMLDocumentParserThreadedPreloadYieldModeScannerTest() {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/
+        {{features::kThreadedPreloadScanner,
+          {{"preload-processing-mode", "yield"}}}},
+        /*disabled_features=*/
+        {});
+    HTMLDocumentParser::ResetCachedFeaturesForTesting();
+    EXPECT_TRUE(
+        base::FeatureList::IsEnabled(features::kThreadedPreloadScanner));
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(HTMLDocumentParserThreadedPreloadYieldModeScannerTest,
+                         HTMLDocumentParserThreadedPreloadYieldModeScannerTest,
+                         testing::Values(kForceSynchronousParsing,
+                                         kAllowDeferredParsing));
+
+TEST_P(HTMLDocumentParserThreadedPreloadYieldModeScannerTest,
+       BasicPendingPreloadsBehaviour) {
+  auto& document = To<HTMLDocument>(GetDocument());
+  document.Fetcher()->EnableIsPreloadedForTest();
+  HTMLDocumentParser* parser = CreateParser(document);
+  EXPECT_FALSE(parser->HasPendingPreloads());
+  parser->AppendBytes(base::byte_span_from_cstring("<img src='preload.png'>"));
+
+  const auto preload_url =
+      document.CompleteURL("https://example.test/preload.png");
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return document.Fetcher()->AllResources().Contains(preload_url);
+  }));
+  HTMLDocumentParser::FlushPreloadScannerThreadForTesting();
+
+  EXPECT_FALSE(parser->HasPendingPreloads());
+  if (Policy() == kAllowDeferredParsing) {
+    // There are no more pending preloads, but ensure we had one and it has been
+    // processed OR the preload URL has been regularly loaded.
+    EXPECT_TRUE(document.Fetcher()->IsPreloadedForTest(preload_url) ||
+                document.Fetcher()->AllResources().Contains(preload_url));
+  } else {
+    EXPECT_FALSE(document.Fetcher()->IsPreloadedForTest(preload_url));
+  }
 }
 
 class HTMLDocumentParserThreadedPreloadScannerTest : public PageTestBase {
@@ -262,8 +307,9 @@ class HTMLDocumentParserProcessImmediatelyTest : public PageTestBase {
   static HTMLDocumentParser* CreateParser(HTMLDocument& document) {
     auto* parser = MakeGarbageCollected<HTMLDocumentParser>(
         document, kAllowDeferredParsing);
-    std::unique_ptr<TextResourceDecoder> decoder(BuildTextResourceDecoder(
-        document.GetFrame(), document.Url(), "text/html", g_null_atom));
+    std::unique_ptr<TextResourceDecoder> decoder(
+        BuildTextResourceDecoder(document.GetFrame(), document.Url(),
+                                 AtomicString("text/html"), g_null_atom));
     parser->SetDecoder(std::move(decoder));
     return parser;
   }
@@ -286,7 +332,8 @@ class HTMLDocumentParserProcessImmediatelyTest : public PageTestBase {
 
     Document* top_doc =
         web_view_impl->MainFrameImpl()->GetFrame()->GetDocument();
-    auto* iframe = To<HTMLIFrameElement>(top_doc->QuerySelector("iframe"));
+    auto* iframe =
+        To<HTMLIFrameElement>(top_doc->QuerySelector(AtomicString("iframe")));
     Document* child_document = iframe->contentDocument();
     return child_document ? CreateParser(To<HTMLDocument>(*child_document))
                           : nullptr;
@@ -302,8 +349,7 @@ TEST_F(HTMLDocumentParserProcessImmediatelyTest, FirstChunk) {
   auto& document = To<HTMLDocument>(GetDocument());
   HTMLDocumentParser* parser = CreateParser(document);
   ScopedParserDetacher detacher(parser);
-  const char kBytes[] = "<htttttt";
-  parser->AppendBytes(kBytes, sizeof(kBytes));
+  parser->AppendBytes(base::byte_span_from_cstring("<htttttt"));
   // Because kProcessHtmlDataImmediatelyFirstChunk is set,
   // DidPumpTokenizerForTesting() should be true.
   EXPECT_TRUE(parser->DidPumpTokenizerForTesting());
@@ -321,14 +367,14 @@ TEST_F(HTMLDocumentParserProcessImmediatelyTest, SecondChunk) {
   auto& document = To<HTMLDocument>(GetDocument());
   HTMLDocumentParser* parser = CreateParser(document);
   ScopedParserDetacher detacher(parser);
-  const char kBytes[] = "<div><div><div>";
-  parser->AppendBytes(kBytes, sizeof(kBytes) - 1);
+  const auto kBytes = base::byte_span_from_cstring("<div><div><div>");
+  parser->AppendBytes(kBytes);
   // The first chunk should not have been processed yet (it was scheduled).
   EXPECT_FALSE(parser->DidPumpTokenizerForTesting());
   test::RunPendingTasks();
   EXPECT_TRUE(parser->DidPumpTokenizerForTesting());
   EXPECT_EQ(1u, parser->GetChunkCountForTesting());
-  parser->AppendBytes(kBytes, sizeof(kBytes) - 1);
+  parser->AppendBytes(kBytes);
   // As kProcessHtmlDataImmediatelySubsequentChunks is true, the second chunk
   // should be processed immediately.
   EXPECT_EQ(2u, parser->GetChunkCountForTesting());
@@ -348,8 +394,7 @@ TEST_F(HTMLDocumentParserProcessImmediatelyTest, FirstChunkChildFrame) {
       ConfigureWebViewHelperForChildFrameAndCreateParser(web_view_helper);
   ASSERT_TRUE(parser);
   ScopedParserDetacher detacher(parser);
-  const char kBytes[] = "<div><div><div>";
-  parser->AppendBytes(kBytes, sizeof(kBytes) - 1);
+  parser->AppendBytes(base::byte_span_from_cstring("<div><div><div>"));
   // The first chunk should been processed.
   EXPECT_TRUE(parser->DidPumpTokenizerForTesting());
 
@@ -369,8 +414,7 @@ TEST_F(HTMLDocumentParserProcessImmediatelyTest, FirstChunkDelayedChildFrame) {
       ConfigureWebViewHelperForChildFrameAndCreateParser(web_view_helper);
   ASSERT_TRUE(parser);
   ScopedParserDetacher detacher(parser);
-  const char kBytes[] = "<div><div><div>";
-  parser->AppendBytes(kBytes, sizeof(kBytes) - 1);
+  parser->AppendBytes(base::byte_span_from_cstring("<div><div><div>"));
   // The first chunk should not been processed.
   EXPECT_FALSE(parser->DidPumpTokenizerForTesting());
 

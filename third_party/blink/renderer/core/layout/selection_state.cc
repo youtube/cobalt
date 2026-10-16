@@ -26,7 +26,6 @@ std::ostream& operator<<(std::ostream& out, const SelectionState state) {
       return out << "Contain";
   }
   NOTREACHED();
-  return out;
 }
 
 }  // namespace blink

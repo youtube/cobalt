@@ -7,6 +7,8 @@
 
 #include <stdint.h>
 
+#include <atomic>
+
 #include "base/memory/raw_ptr.h"
 #include "base/sync_socket.h"
 #include "base/threading/platform_thread.h"
@@ -45,6 +47,11 @@ class MEDIA_EXPORT AudioDeviceThread : public base::PlatformThread::Delegate {
 
     // Called whenever we receive notifications about pending input data.
     virtual void Process(uint32_t pending_data) = 0;
+
+    // Called if the socket closes outside of destruction.
+    virtual void OnSocketError() = 0;
+
+    virtual bool WillConfirmReadsViaShmem() const;
 
     base::TimeDelta buffer_duration() const {
       return audio_parameters_.GetBufferDuration();
@@ -88,12 +95,18 @@ class MEDIA_EXPORT AudioDeviceThread : public base::PlatformThread::Delegate {
 #endif
   void ThreadMain() final;
 
+  // Set to true in destruction, but before closing the socket.
+  std::atomic<bool> in_shutdown_ = false;
+
   const raw_ptr<Callback> callback_;
   const char* thread_name_;
   base::CancelableSyncSocket socket_;
   base::PlatformThreadHandle thread_handle_;
+
+  // False if callback_->WillConfirmReadsViaShmem() returned true.
+  const bool send_socket_messages_;
 };
 
-}  // namespace media.
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_AUDIO_DEVICE_THREAD_H_

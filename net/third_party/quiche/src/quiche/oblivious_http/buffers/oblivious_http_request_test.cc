@@ -25,31 +25,42 @@ const uint32_t kHeaderLength = ObliviousHttpHeaderKeyConfig::kHeaderLength;
 std::string GetHpkePrivateKey() {
   absl::string_view hpke_key_hex =
       "b77431ecfa8f4cfc30d6e467aafa06944dffe28cb9dd1409e33a3045f5adc8a1";
-  return absl::HexStringToBytes(hpke_key_hex);
+  std::string hpke_key_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(hpke_key_hex, &hpke_key_bytes));
+  return hpke_key_bytes;
 }
 
 std::string GetHpkePublicKey() {
   absl::string_view public_key =
       "6d21cfe09fbea5122f9ebc2eb2a69fcc4f06408cd54aac934f012e76fcdcef62";
-  return absl::HexStringToBytes(public_key);
+  std::string public_key_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(public_key, &public_key_bytes));
+  return public_key_bytes;
 }
 
 std::string GetAlternativeHpkePublicKey() {
   absl::string_view public_key =
       "6d21cfe09fbea5122f9ebc2eb2a69fcc4f06408cd54aac934f012e76fcdcef63";
-  return absl::HexStringToBytes(public_key);
+  std::string public_key_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(public_key, &public_key_bytes));
+  return public_key_bytes;
 }
 
 std::string GetSeed() {
   absl::string_view seed =
       "52c4a758a802cd8b936eceea314432798d5baf2d7e9235dc084ab1b9cfa2f736";
-  return absl::HexStringToBytes(seed);
+  std::string seed_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(seed, &seed_bytes));
+  return seed_bytes;
 }
 
 std::string GetSeededEncapsulatedKey() {
   absl::string_view encapsulated_key =
       "37fda3567bdbd628e88668c3c8d7e97d1d1253b6d4ea6d44c150f741f1bf4431";
-  return absl::HexStringToBytes(encapsulated_key);
+  std::string encapsulated_key_bytes;
+  EXPECT_TRUE(
+      absl::HexStringToBytes(encapsulated_key, &encapsulated_key_bytes));
+  return encapsulated_key_bytes;
 }
 
 bssl::UniquePtr<EVP_HPKE_KEY> ConstructHpkeKey(
@@ -74,47 +85,58 @@ const ObliviousHttpHeaderKeyConfig GetOhttpKeyConfig(uint8_t key_id,
 }
 }  // namespace
 
-// Direct test example from OHttp spec.
-// https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A
+// Direct test example from RFC.
+// https://www.rfc-editor.org/rfc/rfc9458.html#appendix-A
 TEST(ObliviousHttpRequest, TestDecapsulateWithSpecAppendixAExample) {
   auto ohttp_key_config =
       GetOhttpKeyConfig(/*key_id=*/1, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
                         EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_128_GCM);
 
   // X25519 Secret key (priv key).
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-2
+  // https://www.rfc-editor.org/rfc/rfc9458.html#appendix-A-2
   constexpr absl::string_view kX25519SecretKey =
       "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a";
 
   // Encapsulated request.
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-14
+  // https://www.rfc-editor.org/rfc/rfc9458.html#appendix-A-14
   constexpr absl::string_view kEncapsulatedRequest =
       "010020000100014b28f881333e7c164ffc499ad9796f877f4e1051ee6d31bad19dec96c2"
       "08b4726374e469135906992e1268c594d2a10c695d858c40a026e7965e7d86b83dd440b2"
       "c0185204b4d63525";
 
   // Initialize Request obj to Decapsulate (decrypt).
+  std::string encapsulated_request_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(kEncapsulatedRequest,
+                                     &encapsulated_request_bytes));
+  std::string x25519_secret_key_bytes;
+  ASSERT_TRUE(
+      absl::HexStringToBytes(kX25519SecretKey, &x25519_secret_key_bytes));
   auto instance = ObliviousHttpRequest::CreateServerObliviousRequest(
-      absl::HexStringToBytes(kEncapsulatedRequest),
-      *(ConstructHpkeKey(absl::HexStringToBytes(kX25519SecretKey),
-                         ohttp_key_config)),
+      encapsulated_request_bytes,
+      *(ConstructHpkeKey(x25519_secret_key_bytes, ohttp_key_config)),
       ohttp_key_config);
   ASSERT_TRUE(instance.ok());
   auto decrypted = instance->GetPlaintextData();
 
   // Encapsulated/Ephemeral public key.
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-10
+  // https://www.rfc-editor.org/rfc/rfc9458.html#appendix-A-10
   constexpr absl::string_view kExpectedEphemeralPublicKey =
       "4b28f881333e7c164ffc499ad9796f877f4e1051ee6d31bad19dec96c208b472";
+  std::string expected_ephemeral_public_key_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(kExpectedEphemeralPublicKey,
+                                     &expected_ephemeral_public_key_bytes));
   auto oblivious_request_context = std::move(instance.value()).ReleaseContext();
   EXPECT_EQ(oblivious_request_context.encapsulated_key_,
-            absl::HexStringToBytes(kExpectedEphemeralPublicKey));
+            expected_ephemeral_public_key_bytes);
 
   // Binary HTTP message.
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-6
+  // https://www.rfc-editor.org/rfc/rfc9458.html#appendix-A-6
   constexpr absl::string_view kExpectedBinaryHTTPMessage =
       "00034745540568747470730b6578616d706c652e636f6d012f";
-  EXPECT_EQ(decrypted, absl::HexStringToBytes(kExpectedBinaryHTTPMessage));
+  std::string expected_binary_http_message_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(kExpectedBinaryHTTPMessage,
+                                     &expected_binary_http_message_bytes));
+  EXPECT_EQ(decrypted, expected_binary_http_message_bytes);
 }
 
 TEST(ObliviousHttpRequest, TestEncapsulatedRequestStructure) {
@@ -167,12 +189,15 @@ TEST(ObliviousHttpRequest, TestDeterministicSeededOhttpRequest) {
             GetSeededEncapsulatedKey());
   absl::string_view expected_encrypted_request =
       "9f37cfed07d0111ecd2c34f794671759bcbd922a";
+  std::string expected_encrypted_request_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(expected_encrypted_request,
+                                     &expected_encrypted_request_bytes));
   EXPECT_NE(ohttp_request_context.hpke_context_, nullptr);
   size_t encapsulated_key_len = EVP_HPKE_KEM_enc_len(
       EVP_HPKE_CTX_kem(ohttp_request_context.hpke_context_.get()));
   int encrypted_payload_offset = kHeaderLength + encapsulated_key_len;
   EXPECT_EQ(encapsulated_request.substr(encrypted_payload_offset),
-            absl::HexStringToBytes(expected_encrypted_request));
+            expected_encrypted_request_bytes);
 }
 
 TEST(ObliviousHttpRequest,

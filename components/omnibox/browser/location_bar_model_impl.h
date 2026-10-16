@@ -39,21 +39,19 @@ class LocationBarModelImpl : public LocationBarModel {
   security_state::SecurityLevel GetSecurityLevel() const override;
   net::CertStatus GetCertStatus() const override;
   metrics::OmniboxEventProto::PageClassification GetPageClassification(
-      OmniboxFocusSource focus_source,
-      bool is_prefetch = false) override;
+      bool is_prefetch = false) const override;
   const gfx::VectorIcon& GetVectorIcon() const override;
   std::u16string GetSecureDisplayText() const override;
   std::u16string GetSecureAccessibilityText() const override;
   bool ShouldDisplayURL() const override;
   bool IsOfflinePage() const override;
   bool ShouldPreventElision() const override;
-  bool ShouldUseUpdatedConnectionSecurityIndicators() const override;
 
  private:
   std::u16string GetFormattedURL(
       url_formatter::FormatUrlTypes format_types) const;
 
-  raw_ptr<LocationBarModelDelegate, DanglingUntriaged> delegate_;
+  raw_ptr<LocationBarModelDelegate> delegate_;
   const size_t max_url_display_chars_;
 };
 

@@ -5,6 +5,8 @@
 #ifndef CONTENT_BROWSER_SMS_SMS_PARSER_H_
 #define CONTENT_BROWSER_SMS_SMS_PARSER_H_
 
+#include <string_view>
+
 #include "content/common/content_export.h"
 #include "content/public/browser/sms_fetcher.h"
 #include "url/origin.h"
@@ -40,7 +42,7 @@ class CONTENT_EXPORT SmsParser {
 
     // The origin list consists of the origin that made the OTP request followed
     // by its cross-origin ancestor's origin if such an ancestor exists.
-    OriginList GetOriginList() const;
+    SmsFetcher::OriginList GetOriginList() const;
 
     const url::Origin top_origin;
     const url::Origin embedded_origin;
@@ -48,7 +50,7 @@ class CONTENT_EXPORT SmsParser {
     SmsParsingStatus parsing_status;
   };
 
-  static Result Parse(base::StringPiece sms);
+  static Result Parse(std::string_view sms);
 };
 
 }  // namespace content

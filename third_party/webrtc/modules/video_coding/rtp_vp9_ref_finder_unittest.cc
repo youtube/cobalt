@@ -10,10 +10,28 @@
 
 #include "modules/video_coding/rtp_vp9_ref_finder.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <ostream>
 #include <utility>
 #include <vector>
 
+#include "api/array_view.h"
+#include "api/rtp_packet_infos.h"
+#include "api/video/encoded_frame.h"
+#include "api/video/encoded_image.h"
+#include "api/video/video_codec_type.h"
+#include "api/video/video_content_type.h"
+#include "api/video/video_frame_type.h"
+#include "api/video/video_rotation.h"
+#include "api/video/video_timing.h"
 #include "modules/rtp_rtcp/source/frame_object.h"
+#include "modules/rtp_rtcp/source/rtp_video_header.h"
+#include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
+#include "rtc_base/checks.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -128,7 +146,8 @@ class Frame {
         kVideoRotation_0,
         VideoContentType::UNSPECIFIED,
         video_header,
-        /*color_space=*/absl::nullopt,
+        /*color_space=*/std::nullopt,
+        /*frame_instrumentation_data=*/std::nullopt,
         RtpPacketInfos(),
         EncodedImageBuffer::Create(/*size=*/0));
     // clang-format on
@@ -138,10 +157,10 @@ class Frame {
   uint16_t seq_num_start = 0;
   uint16_t seq_num_end = 0;
   bool keyframe = false;
-  absl::optional<int> picture_id;
-  absl::optional<int> spatial_id;
-  absl::optional<int> temporal_id;
-  absl::optional<int> tl0_idx;
+  std::optional<int> picture_id;
+  std::optional<int> spatial_id;
+  std::optional<int> temporal_id;
+  std::optional<int> tl0_idx;
   bool up_switch = false;
   bool inter_layer = false;
   bool inter_pic = true;
@@ -172,8 +191,7 @@ class HasFrameMatcher : public MatcherInterface<const FrameVector&> {
       return false;
     }
 
-    rtc::ArrayView<int64_t> actual_refs((*it)->references,
-                                        (*it)->num_references);
+    ArrayView<int64_t> actual_refs((*it)->references, (*it)->num_references);
     if (!Matches(UnorderedElementsAreArray(expected_refs_))(actual_refs)) {
       if (result_listener->IsInterested()) {
         *result_listener << "Frame with frame_id:" << frame_id_ << " and "
@@ -358,6 +376,18 @@ TEST_F(RtpVp9RefFinderTest, GofSkipFramesTemporalLayers_0212) {
   EXPECT_THAT(frames_, HasFrameWithIdAndRefs(25, {20}));
   EXPECT_THAT(frames_, HasFrameWithIdAndRefs(30, {20}));
   EXPECT_THAT(frames_, HasFrameWithIdAndRefs(35, {30}));
+}
+
+TEST_F(RtpVp9RefFinderTest, GofInterLayerPredS0KeyS1Delta) {
+  GofInfoVP9 ss;
+  ss.SetGofInfoVP9(kTemporalStructureMode1);
+
+  Insert(Frame().Pid(1).SidAndTid(0, 0).Tl0(0).AsKeyFrame().Gof(&ss));
+  Insert(Frame().Pid(1).SidAndTid(1, 0).Tl0(0).AsInterLayer().NotAsInterPic());
+
+  ASSERT_EQ(2UL, frames_.size());
+  EXPECT_THAT(frames_, HasFrameWithIdAndRefs(5, {}));
+  EXPECT_THAT(frames_, HasFrameWithIdAndRefs(6, {5}));
 }
 
 TEST_F(RtpVp9RefFinderTest, GofTemporalLayers_01) {

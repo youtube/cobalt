@@ -22,29 +22,28 @@ sys.path.append(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 import gn_helpers
 
 SCRIPT_DIR = os.path.dirname(__file__)
-SDK_VERSION = '10.0.22621.0'
+SDK_VERSION = '10.0.26100.0'
 
 
 def _ExtractImportantEnvironment(output_of_set):
   """Extracts environment variables required for the toolchain to run from
   a textual dump output by the cmd.exe 'set' command."""
   envvars_to_save = (
-      'cipd_cache_dir', # needed by vpython
-      'homedrive', # needed by vpython
-      'homepath', # needed by vpython
-      'goma_.*', # TODO(scottmg): This is ugly, but needed for goma.
+      'cipd_cache_dir',  # needed by vpython
+      'homedrive',  # needed by vpython
+      'homepath',  # needed by vpython
       'include',
       'lib',
       'libpath',
-      'luci_context', # needed by vpython
+      'luci_context',  # needed by vpython
       'path',
       'pathext',
       'systemroot',
       'temp',
       'tmp',
-      'userprofile', # needed by vpython
-      'vpython_virtualenv_root' # needed by vpython
-      )
+      'userprofile',  # needed by vpython
+      'vpython_virtualenv_root'  # needed by vpython
+  )
   env = {}
   # This occasionally happens and leads to misleading SYSTEMROOT error messages
   # if not caught here.
@@ -256,9 +255,6 @@ def main():
   include = ''
   lib = ''
 
-  # TODO(scottmg|goma): Do we need an equivalent of
-  # ninja_use_custom_environment_files?
-
   def relflag(s):  # Make s relative to builddir when cwd and sdk on same drive.
     try:
       return os.path.relpath(s).replace('\\', '/')
@@ -284,32 +280,44 @@ def main():
       lib = [p.replace('"', r'\"') for p in env['LIB'].split(';') if p]
       lib = list(map(relflag, lib))
 
-      include_I = ' '.join([q('/I' + i) for i in include])
-      include_imsvc = ' '.join([q('-imsvc' + i) for i in include])
-      libpath_flags = ' '.join([q('-libpath:' + i) for i in lib])
+      include_I = ['/I' + i for i in include]
+      include_imsvc = ['-imsvc' + i for i in include]
+      libpath_flags = ['-libpath:' + i for i in lib]
 
       if (environment_block_name != ''):
         env_block = _FormatAsEnvironmentBlock(env)
         with open(environment_block_name, 'w', encoding='utf8') as f:
           f.write(env_block)
 
+  def ListToArgString(x):
+    return gn_helpers.ToGNString(' '.join(q(i) for i in x))
+
+  def ListToArgList(x):
+    return f'[{", ".join(gn_helpers.ToGNString(i) for i in x)}]'
+
   print('vc_bin_dir = ' + gn_helpers.ToGNString(vc_bin_dir))
   assert include_I
-  print('include_flags_I = ' + gn_helpers.ToGNString(include_I))
+  print(f'include_flags_I = {ListToArgString(include_I)}')
+  print(f'include_flags_I_list = {ListToArgList(include_I)}')
   assert include_imsvc
   if bool(int(os.environ.get('DEPOT_TOOLS_WIN_TOOLCHAIN', 1))) and win_sdk_path:
-    print('include_flags_imsvc = ' +
-          gn_helpers.ToGNString(q('/winsysroot' + relflag(toolchain_root))))
+    flags = ['/winsysroot' + relflag(toolchain_root)]
+    print(f'include_flags_imsvc = {ListToArgString(flags)}')
+    print(f'include_flags_imsvc_list = {ListToArgList(flags)}')
   else:
-    print('include_flags_imsvc = ' + gn_helpers.ToGNString(include_imsvc))
+    print(f'include_flags_imsvc = {ListToArgString(include_imsvc)}')
+    print(f'include_flags_imsvc_list = {ListToArgList(include_imsvc)}')
   print('paths = ' + gn_helpers.ToGNString(env['PATH']))
   assert libpath_flags
-  print('libpath_flags = ' + gn_helpers.ToGNString(libpath_flags))
+  print(f'libpath_flags = {ListToArgString(libpath_flags)}')
+  print(f'libpath_flags_list = {ListToArgList(libpath_flags)}')
   if bool(int(os.environ.get('DEPOT_TOOLS_WIN_TOOLCHAIN', 1))) and win_sdk_path:
-    print('libpath_lldlink_flags = ' +
-          gn_helpers.ToGNString(q('/winsysroot:' + relflag(toolchain_root))))
+    flags = ['/winsysroot:' + relflag(toolchain_root)]
+    print(f'libpath_lldlink_flags = {ListToArgString(flags)}')
+    print(f'libpath_lldlink_flags_list = {ListToArgList(flags)}')
   else:
-    print('libpath_lldlink_flags = ' + gn_helpers.ToGNString(libpath_flags))
+    print(f'libpath_lldlink_flags = {ListToArgString(libpath_flags)}')
+    print(f'libpath_lldlink_flags_list = {ListToArgList(libpath_flags)}')
 
 
 if __name__ == '__main__':

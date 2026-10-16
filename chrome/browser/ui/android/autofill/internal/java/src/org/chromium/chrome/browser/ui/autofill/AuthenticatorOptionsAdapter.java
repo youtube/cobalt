@@ -16,12 +16,14 @@ import androidx.core.content.res.ResourcesCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.ui.autofill.data.AuthenticatorOption;
 import org.chromium.chrome.browser.ui.autofill.internal.R;
 
 import java.util.List;
 
 /** Adapter for showing the authenticator options in a {@link RecyclerView}. */
+@NullMarked
 public class AuthenticatorOptionsAdapter extends RecyclerView.Adapter<ViewHolder> {
     /** Interface for callers to be notified when an item is selected. */
     public interface ItemClickListener {
@@ -34,8 +36,10 @@ public class AuthenticatorOptionsAdapter extends RecyclerView.Adapter<ViewHolder
 
     private int mSelectedAuthenticatorIndex;
 
-    public AuthenticatorOptionsAdapter(Context context,
-            List<AuthenticatorOption> authenticatorOptions, ItemClickListener itemClickListener) {
+    public AuthenticatorOptionsAdapter(
+            Context context,
+            List<AuthenticatorOption> authenticatorOptions,
+            ItemClickListener itemClickListener) {
         this.mAuthenticatorOptions = authenticatorOptions;
         this.mItemClickListener = itemClickListener;
         this.mContext = context;
@@ -43,8 +47,9 @@ public class AuthenticatorOptionsAdapter extends RecyclerView.Adapter<ViewHolder
 
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
-                            .inflate(R.layout.authenticator_option, parent, false);
+        View view =
+                LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.authenticator_option, parent, false);
         return new AuthenticatorOptionViewHolder(view, mItemClickListener);
     }
 
@@ -57,8 +62,10 @@ public class AuthenticatorOptionsAdapter extends RecyclerView.Adapter<ViewHolder
             int iconResId = option.getIconResId();
             if (iconResId != 0) {
                 holder.getIconImageView().setVisibility(View.VISIBLE);
-                holder.getIconImageView().setImageDrawable(ResourcesCompat.getDrawable(
-                        mContext.getResources(), iconResId, mContext.getTheme()));
+                holder.getIconImageView()
+                        .setImageDrawable(
+                                ResourcesCompat.getDrawable(
+                                        mContext.getResources(), iconResId, mContext.getTheme()));
             } else {
                 holder.getIconImageView().setVisibility(View.GONE);
             }
@@ -77,6 +84,7 @@ public class AuthenticatorOptionsAdapter extends RecyclerView.Adapter<ViewHolder
     }
 
     class AuthenticatorOptionViewHolder extends RecyclerView.ViewHolder {
+        private final View mAuthenticatorOptionView;
         private final TextView mTitleTextView;
         private final TextView mDescriptionTextView;
         private final ImageView mIconImageView;
@@ -84,20 +92,29 @@ public class AuthenticatorOptionsAdapter extends RecyclerView.Adapter<ViewHolder
 
         AuthenticatorOptionViewHolder(View view, ItemClickListener itemClickListener) {
             super(view);
+            mAuthenticatorOptionView = view;
             mTitleTextView = view.findViewById(R.id.authenticator_option_title);
             mDescriptionTextView = view.findViewById(R.id.authenticator_option_description);
             mIconImageView = view.findViewById(R.id.authenticator_option_icon);
             mRadioButton = view.findViewById(R.id.authenticator_option_radio_btn);
-            mRadioButton.setOnClickListener(radioButtonView -> {
-                int lastAuthenticatorIndex = mSelectedAuthenticatorIndex;
-                mSelectedAuthenticatorIndex = getAdapterPosition();
-                // Update both the previous and the current selection so that the radio button is
-                // updated.
-                notifyItemChanged(lastAuthenticatorIndex);
-                notifyItemChanged(mSelectedAuthenticatorIndex);
-                itemClickListener.onItemClicked(
-                        mAuthenticatorOptions.get(mSelectedAuthenticatorIndex));
-            });
+            mRadioButton.setOnClickListener(
+                    radioButtonView -> {
+                        int lastAuthenticatorIndex = mSelectedAuthenticatorIndex;
+                        mSelectedAuthenticatorIndex = getAdapterPosition();
+                        // Update both the previous and the current selection so that the radio
+                        // button is updated.
+                        notifyItemChanged(lastAuthenticatorIndex);
+                        notifyItemChanged(mSelectedAuthenticatorIndex);
+                        itemClickListener.onItemClicked(
+                                mAuthenticatorOptions.get(mSelectedAuthenticatorIndex));
+                    });
+            if (getItemCount() > 1) {
+                view.setOnClickListener((challengeOptionView) -> mRadioButton.performClick());
+            }
+        }
+
+        public View getAuthenticatorOptionView() {
+            return mAuthenticatorOptionView;
         }
 
         public TextView getTitleTextView() {

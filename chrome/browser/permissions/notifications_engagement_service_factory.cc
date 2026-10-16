@@ -4,7 +4,7 @@
 
 #include "chrome/browser/permissions/notifications_engagement_service_factory.h"
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/permissions/notifications_engagement_service.h"
@@ -12,7 +12,8 @@
 // static
 NotificationsEngagementServiceFactory*
 NotificationsEngagementServiceFactory::GetInstance() {
-  return base::Singleton<NotificationsEngagementServiceFactory>::get();
+  static base::NoDestructor<NotificationsEngagementServiceFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -27,9 +28,12 @@ NotificationsEngagementServiceFactory::NotificationsEngagementServiceFactory()
           "NotificationsEngagementService",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {
   DependsOn(HostContentSettingsMapFactory::GetInstance());
 }
@@ -37,9 +41,10 @@ NotificationsEngagementServiceFactory::NotificationsEngagementServiceFactory()
 NotificationsEngagementServiceFactory::
     ~NotificationsEngagementServiceFactory() = default;
 
-KeyedService* NotificationsEngagementServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+NotificationsEngagementServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
-  return new permissions::NotificationsEngagementService(context,
-                                                         profile->GetPrefs());
+  return std::make_unique<permissions::NotificationsEngagementService>(
+      context, profile->GetPrefs());
 }

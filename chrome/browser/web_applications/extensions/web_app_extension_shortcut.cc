@@ -22,19 +22,21 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
+#include "chrome/browser/web_applications/os_integration/os_integration_sub_manager.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/common/extensions/manifest_handlers/app_launch_info.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/image_loader.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest_handlers/icons_handler.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/image/image_skia.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -73,20 +75,21 @@ void UpdateAllShortcutsForShortcutInfo(
     std::unique_ptr<ShortcutInfo> shortcut_info) {
   base::FilePath shortcut_data_dir =
       internals::GetShortcutDataDir(*shortcut_info);
-  internals::PostShortcutIOTaskAndReplyWithResult(
-      base::BindOnce(&internals::UpdatePlatformShortcuts,
-                     std::move(shortcut_data_dir), old_app_title),
-      std::move(shortcut_info), std::move(callback));
+  internals::ScheduleUpdatePlatformShortcuts(
+      std::move(shortcut_data_dir), old_app_title,
+      /*user_specified_locations=*/std::nullopt, std::move(callback),
+      std::move(shortcut_info));
 }
 
-using AppCallbackMap = base::flat_map<AppId, std::vector<base::OnceClosure>>;
+using AppCallbackMap =
+    base::flat_map<webapps::AppId, std::vector<base::OnceClosure>>;
 AppCallbackMap& GetShortcutsDeletedCallbackMap() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   static base::NoDestructor<AppCallbackMap> map;
   return *map;
 }
 
-void ShortcutsDeleted(const AppId& app_id, bool /*shortcut_deleted*/) {
+void ShortcutsDeleted(const webapps::AppId& app_id, bool /*shortcut_deleted*/) {
   auto& map = GetShortcutsDeletedCallbackMap();
   auto it = map.find(app_id);
   if (it == map.end())
@@ -136,7 +139,11 @@ void CreateShortcutsWithInfo(ShortcutCreationReason reason,
     bool is_app_installed = false;
     auto* app_provider = WebAppProvider::GetForWebApps(profile);
     if (app_provider &&
-        app_provider->registrar_unsafe().IsInstalled(shortcut_info->app_id)) {
+        app_provider->registrar_unsafe().IsInstallState(
+            shortcut_info->app_id,
+            {proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
+             proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION,
+             proto::InstallState::INSTALLED_WITH_OS_INTEGRATION})) {
       is_app_installed = true;
     }
 
@@ -163,13 +170,13 @@ void GetShortcutInfoForApp(const extensions::Extension* extension,
 
   for (int size : GetDesiredIconSizesForShortcut()) {
     extensions::ExtensionResource resource =
-        extensions::IconsInfo::GetIconResource(extension, size,
-                                               ExtensionIconSet::MATCH_EXACTLY);
+        extensions::IconsInfo::GetIconResource(
+            extension, size, ExtensionIconSet::Match::kExactly);
     if (!resource.empty()) {
       info_list.emplace_back(
           resource, extensions::ImageLoader::ImageRepresentation::ALWAYS_RESIZE,
           gfx::Size(size, size),
-          GetScaleForResourceScaleFactor(ui::k100Percent));
+          ui::GetScaleForResourceScaleFactor(ui::k100Percent));
     }
   }
 
@@ -178,17 +185,19 @@ void GetShortcutInfoForApp(const extensions::Extension* extension,
 
     // If there is no icon at the desired sizes, we will resize what we can get.
     // Making a large icon smaller is preferred to making a small icon larger,
-    // so look for a larger icon first:
+    // so look for a larger icon first.
+    // TODO(crbug.com/329953472): Use a predefined threshold.
     extensions::ExtensionResource resource =
-        extensions::IconsInfo::GetIconResource(extension, size,
-                                               ExtensionIconSet::MATCH_BIGGER);
+        extensions::IconsInfo::GetIconResource(
+            extension, size, ExtensionIconSet::Match::kBigger);
     if (resource.empty()) {
       resource = extensions::IconsInfo::GetIconResource(
-          extension, size, ExtensionIconSet::MATCH_SMALLER);
+          extension, size, ExtensionIconSet::Match::kSmaller);
     }
     info_list.emplace_back(
         resource, extensions::ImageLoader::ImageRepresentation::ALWAYS_RESIZE,
-        gfx::Size(size, size), GetScaleForResourceScaleFactor(ui::k100Percent));
+        gfx::Size(size, size),
+        ui::GetScaleForResourceScaleFactor(ui::k100Percent));
   }
 
   // |info_list| may still be empty at this point, in which case
@@ -254,20 +263,6 @@ void CreateShortcuts(ShortcutCreationReason reason,
                                        locations, std::move(callback)));
 }
 
-void CreateShortcutsForWebApp(ShortcutCreationReason reason,
-                              const ShortcutLocations& locations,
-                              Profile* profile,
-                              const std::string& app_id,
-                              CreateShortcutsCallback callback) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-
-  WebAppProvider::GetForWebApps(profile)
-      ->os_integration_manager()
-      .GetShortcutInfoForApp(
-          app_id, base::BindOnce(&CreateShortcutsWithInfo, reason, locations,
-                                 std::move(callback)));
-}
-
 void DeleteAllShortcuts(Profile* profile, const extensions::Extension* app) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
@@ -280,7 +275,7 @@ void DeleteAllShortcuts(Profile* profile, const extensions::Extension* app) {
       base::BindOnce(ShortcutsDeleted, app->id()));
 }
 
-void WaitForExtensionShortcutsDeleted(const AppId& app_id,
+void WaitForExtensionShortcutsDeleted(const webapps::AppId& app_id,
                                       base::OnceClosure callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   GetShortcutsDeletedCallbackMap()[app_id].push_back(std::move(callback));
@@ -320,5 +315,20 @@ void UpdateRelaunchDetailsForApp(Profile* profile,
                      hwnd));
 }
 #endif
+
+SynchronizeOsOptions ConvertShortcutLocationsToSynchronizeOptions(
+    const ShortcutLocations& locations,
+    ShortcutCreationReason reason) {
+  SynchronizeOsOptions options;
+  options.reason = reason;
+  options.add_shortcut_to_desktop = locations.on_desktop;
+  options.add_to_quick_launch_bar = locations.in_quick_launch_bar;
+  // Since shortcuts can be manually deleted by thd end user, there
+  // is no way to listen to that information and update that in the
+  // web_app DB. Setting this flag allows shortcuts to always
+  // be force created.
+  options.force_create_shortcuts = true;
+  return options;
+}
 
 }  // namespace web_app

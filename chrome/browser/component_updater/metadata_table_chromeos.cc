@@ -4,14 +4,16 @@
 
 #include "chrome/browser/component_updater/metadata_table_chromeos.h"
 
+#include <algorithm>
 #include <memory>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/hash/sha1.h"
 #include "base/memory/ptr_util.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "components/component_updater/component_updater_paths.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
@@ -54,21 +56,16 @@ const user_manager::User* GetActiveUser() {
 }
 
 // Converts username to a hashed string.
-std::string HashUsername(const std::string& username) {
-  unsigned char binmd[base::kSHA1Length];
-  std::string lowercase(username);
-  base::ranges::transform(lowercase, lowercase.begin(), ::tolower);
-  std::vector<uint8_t> data;
-  base::ranges::copy(lowercase, std::back_inserter(data));
-  base::SHA1HashBytes(data.data(), data.size(), binmd);
-  std::string result = base::HexEncode(binmd, sizeof(binmd));
-  // Stay compatible with CryptoLib::HexEncodeToBuffer()
-  base::ranges::transform(result, result.begin(), ::tolower);
-  return result;
+//
+// The result is converted to lowercase to stay compatible with
+// CryptoLib::HexEncodeToBuffer().
+std::string HashUsername(std::string_view username) {
+  return base::ToLowerASCII(base::HexEncode(
+      base::SHA1Hash(base::as_byte_span(base::ToLowerASCII(username)))));
 }
 
 const std::string& GetRequiredStringFromDict(const base::Value& dict,
-                                             base::StringPiece key) {
+                                             std::string_view key) {
   const std::string* str = dict.GetDict().FindString(key);
   DCHECK(str);
   return *str;
@@ -101,8 +98,9 @@ bool MetadataTable::AddComponentForCurrentUser(
     const std::string& component_name) {
   const user_manager::User* active_user = GetActiveUser();
   // Return immediately if action is performed when no user is signed in.
-  if (!active_user)
+  if (!active_user) {
     return false;
+  }
 
   const std::string hashed_user_id =
       HashUsername(active_user->GetAccountId().GetUserEmail());
@@ -115,20 +113,22 @@ bool MetadataTable::DeleteComponentForCurrentUser(
     const std::string& component_name) {
   const user_manager::User* active_user = GetActiveUser();
   // Return immediately if action is performed when no user is signed in.
-  if (!active_user)
+  if (!active_user) {
     return false;
+  }
 
   const std::string hashed_user_id =
       HashUsername(active_user->GetAccountId().GetUserEmail());
-  if (!DeleteItem(hashed_user_id, component_name))
+  if (!DeleteItem(hashed_user_id, component_name)) {
     return false;
+  }
   Store();
   return true;
 }
 
 bool MetadataTable::HasComponentForAnyUser(
     const std::string& component_name) const {
-  return base::ranges::any_of(
+  return std::ranges::any_of(
       installed_items_, [&component_name](const base::Value& item) {
         const std::string& name =
             GetRequiredStringFromDict(item, kMetadataContentItemComponentKey);
@@ -164,8 +164,9 @@ void MetadataTable::Store() {
 
 void MetadataTable::AddItem(const std::string& hashed_user_id,
                             const std::string& component_name) {
-  if (HasComponentForUser(hashed_user_id, component_name))
+  if (HasComponentForUser(hashed_user_id, component_name)) {
     return;
+  }
 
   base::Value::Dict item;
   item.Set(kMetadataContentItemHashedUserIdKey, hashed_user_id);
@@ -176,8 +177,9 @@ void MetadataTable::AddItem(const std::string& hashed_user_id,
 bool MetadataTable::DeleteItem(const std::string& hashed_user_id,
                                const std::string& component_name) {
   size_t index = GetInstalledItemIndex(hashed_user_id, component_name);
-  if (index == installed_items_.size())
+  if (index == installed_items_.size()) {
     return false;
+  }
   installed_items_.erase(installed_items_.begin() + index);
   return true;
 }
@@ -196,12 +198,14 @@ size_t MetadataTable::GetInstalledItemIndex(
     const auto& dict = installed_items_[i];
     const std::string& user_id =
         GetRequiredStringFromDict(dict, kMetadataContentItemHashedUserIdKey);
-    if (user_id != hashed_user_id)
+    if (user_id != hashed_user_id) {
       continue;
+    }
     const std::string& name =
         GetRequiredStringFromDict(dict, kMetadataContentItemComponentKey);
-    if (name != component_name)
+    if (name != component_name) {
       continue;
+    }
     return i;
   }
   return installed_items_.size();

@@ -27,10 +27,12 @@ namespace {
 
 using SmartLockState = ash::SmartLockState;
 
-// This enum is tied directly to a UMA enum defined in
-// //tools/metrics/histograms/enums.xml, and should always reflect it (do not
-// change one without changing the other). Entries should be never modified
-// or deleted. Only additions possible.
+// This enum is tied directly to the SmartLockFindAndConnectToHostResult UMA
+// enum defined in //tools/metrics/histograms/metadata/cross_device/enums.xml,
+// and should always reflect it (do not change one without changing the other).
+// Entries should be never modified or deleted. Only additions possible.
+//
+// LINT.IfChange(SmartLockFindAndConnectToHostResult)
 enum class FindAndConnectToHostResult {
   kFoundAndConnectedToHost = 0,
   kCanceledBluetoothDisabled = 1,
@@ -39,6 +41,7 @@ enum class FindAndConnectToHostResult {
   kTimedOut = 4,
   kMaxValue = kTimedOut
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/cross_device/enums.xml:SmartLockFindAndConnectToHostResult)
 
 // The maximum amount of time that the unlock manager can stay in the 'waking
 // up' state after resuming from sleep.
@@ -66,7 +69,10 @@ const char kGetRemoteStatusSuccess[] = "success";
 
 // The subset of SmartLockStates that represent the first non-trival status
 // shown to the user. Entries persisted to UMA histograms; do not reorder or
-// delete enum values.
+// delete enum values. Keep in sync with FirstSmartLockStatus in
+// //tools/metrics/histograms/metadata/cross_device/enums.xml.
+//
+// LINT.IfChange(FirstSmartLockStatus)
 enum class FirstSmartLockStatus {
   kBluetoothDisabled = 0,
   kPhoneNotLockable = 1,
@@ -79,8 +85,9 @@ enum class FirstSmartLockStatus {
   kPrimaryUserAbsent = 8,
   kMaxValue = kPrimaryUserAbsent
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/cross_device/enums.xml:FirstSmartLockStatus)
 
-absl::optional<FirstSmartLockStatus> GetFirstSmartLockStatus(
+std::optional<FirstSmartLockStatus> GetFirstSmartLockStatus(
     SmartLockState state) {
   switch (state) {
     case SmartLockState::kBluetoothDisabled:
@@ -102,7 +109,7 @@ absl::optional<FirstSmartLockStatus> GetFirstSmartLockStatus(
     case SmartLockState::kPrimaryUserAbsent:
       return FirstSmartLockStatus::kPrimaryUserAbsent;
     default:
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 
@@ -142,7 +149,6 @@ metrics::RemoteSecuritySettingsState GetRemoteSecuritySettingsState(
   }
 
   NOTREACHED();
-  return metrics::RemoteSecuritySettingsState::UNKNOWN;
 }
 
 std::string GetHistogramStatusSuffix(bool unlockable) {
@@ -338,7 +344,7 @@ void UnlockManagerImpl::OnUnlockEventSent(bool success) {
         SmartLockMetricsRecorder::SmartLockAuthResultFailureReason::
             kUnlockEventSentButNotAttemptingAuth);
   } else if (success) {
-    FinalizeAuthAttempt(absl::nullopt /* failure_reason */);
+    FinalizeAuthAttempt(std::nullopt /* failure_reason */);
   } else {
     FinalizeAuthAttempt(
         SmartLockMetricsRecorder::SmartLockAuthResultFailureReason::
@@ -369,24 +375,6 @@ void UnlockManagerImpl::OnRemoteStatusUpdate(
 
   // This also calls |UpdateLockScreen()|
   SetIsPerformingInitialScan(false /* is_performing_initial_scan */);
-}
-
-void UnlockManagerImpl::OnDecryptResponse(const std::string& decrypted_bytes) {
-  if (!is_attempting_auth_) {
-    PA_LOG(ERROR) << "Decrypt response received but not attempting auth.";
-    return;
-  }
-
-  if (decrypted_bytes.empty()) {
-    PA_LOG(WARNING) << "Failed to decrypt sign-in challenge.";
-    FinalizeAuthAttempt(
-        SmartLockMetricsRecorder::SmartLockAuthResultFailureReason::
-            kFailedToDecryptSignInChallenge);
-  } else {
-    sign_in_secret_ = std::make_unique<std::string>(decrypted_bytes);
-    if (GetMessenger())
-      GetMessenger()->DispatchUnlockEvent();
-  }
 }
 
 void UnlockManagerImpl::OnUnlockResponse(bool success) {
@@ -725,7 +713,7 @@ void UnlockManagerImpl::OnInitialScanTimeout() {
 }
 
 void UnlockManagerImpl::FinalizeAuthAttempt(
-    const absl::optional<
+    const std::optional<
         SmartLockMetricsRecorder::SmartLockAuthResultFailureReason>& error) {
   if (error) {
     RecordAuthResultFailure(*error);
@@ -770,7 +758,6 @@ UnlockManagerImpl::GetScreenlockStateFromRemoteUpdate(
   }
 
   NOTREACHED();
-  return RemoteScreenlockState::UNKNOWN;
 }
 
 Messenger* UnlockManagerImpl::GetMessenger() {
@@ -790,10 +777,8 @@ void UnlockManagerImpl::RecordFirstRemoteStatusReceived(bool unlockable) {
 
   if (initial_scan_start_time_.is_null() ||
       attempt_get_remote_status_start_time_.is_null()) {
-    PA_LOG(WARNING) << "Attempted to RecordFirstRemoteStatusReceived() "
-                       "without initial timestamps recorded.";
-    NOTREACHED();
-    return;
+    NOTREACHED() << "Attempted to RecordFirstRemoteStatusReceived() "
+                    "without initial timestamps recorded.";
   }
 
   const std::string histogram_status_suffix =
@@ -828,7 +813,7 @@ void UnlockManagerImpl::RecordFirstRemoteStatusReceived(bool unlockable) {
 }
 
 void UnlockManagerImpl::RecordFirstStatusShownToUser(SmartLockState new_state) {
-  absl::optional<FirstSmartLockStatus> first_status =
+  std::optional<FirstSmartLockStatus> first_status =
       GetFirstSmartLockStatus(new_state);
   if (!first_status.has_value()) {
     return;
@@ -840,10 +825,8 @@ void UnlockManagerImpl::RecordFirstStatusShownToUser(SmartLockState new_state) {
   has_user_been_shown_first_status_ = true;
 
   if (show_lock_screen_time_.is_null()) {
-    PA_LOG(WARNING) << "Attempted to RecordFirstStatusShownToUser() "
-                       "without initial timestamp recorded.";
-    NOTREACHED();
-    return;
+    NOTREACHED() << "Attempted to RecordFirstStatusShownToUser() "
+                    "without initial timestamp recorded.";
   }
 
   base::UmaHistogramEnumeration("SmartLock.FirstStatusToUser",

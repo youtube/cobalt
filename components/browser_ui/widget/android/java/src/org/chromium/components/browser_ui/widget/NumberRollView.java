@@ -13,9 +13,9 @@ import android.util.FloatProperty;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
-import androidx.annotation.VisibleForTesting;
-
-import org.chromium.ui.interpolators.BakedBezierInterpolator;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.ui.interpolators.Interpolators;
 
 import java.text.NumberFormat;
 
@@ -23,18 +23,18 @@ import java.text.NumberFormat;
  * View that shows an integer number. It provides a smooth roll animation on changing the
  * number.
  */
+@NullMarked
 public class NumberRollView extends FrameLayout {
     private TextView mUpNumber;
     private TextView mDownNumber;
     private float mNumber;
-    private Animator mLastRollAnimator;
+    private @Nullable Animator mLastRollAnimator;
     private int mStringId;
-    private int mStringIdForZero;
+    private @Nullable String mStringForZero;
 
     /**
-     * A Property wrapper around the <code>number</code> functionality handled by the
-     * {@link NumberRollView#setNumberRoll(float)} and {@link NumberRollView#getNumberRoll()}
-     * methods.
+     * A Property wrapper around the <code>number</code> functionality handled by the {@link
+     * NumberRollView#setNumberRoll(float)} and {@link NumberRollView#getNumberRoll()} methods.
      */
     public static final FloatProperty<NumberRollView> NUMBER_PROPERTY =
             new FloatProperty<NumberRollView>("") {
@@ -49,9 +49,7 @@ public class NumberRollView extends FrameLayout {
                 }
             };
 
-    /**
-     * Constructor for inflating from XML.
-     */
+    /** Constructor for inflating from XML. */
     public NumberRollView(Context context, AttributeSet attrs) {
         super(context, attrs);
     }
@@ -77,7 +75,7 @@ public class NumberRollView extends FrameLayout {
 
         if (animate) {
             Animator rollAnimator = ObjectAnimator.ofFloat(this, NUMBER_PROPERTY, number);
-            rollAnimator.setInterpolator(BakedBezierInterpolator.TRANSFORM_CURVE);
+            rollAnimator.setInterpolator(Interpolators.FAST_OUT_SLOW_IN_INTERPOLATOR);
             rollAnimator.start();
             mLastRollAnimator = rollAnimator;
         } else {
@@ -95,22 +93,29 @@ public class NumberRollView extends FrameLayout {
 
     /**
      * @param stringIdForZero The id of the string to use for the description when the number is
-     * zero.
+     *     zero.
      */
     public void setStringForZero(int stringIdForZero) {
-        mStringIdForZero = stringIdForZero;
+        mStringForZero = getResources().getString(stringIdForZero);
     }
 
     /**
-     * Gets the current number roll position.
+     * @param string The string to use for the description when the number is 0.
      */
+    public void setStringForZero(String stringForZero) {
+        mStringForZero = stringForZero;
+        int number = (int) mNumber;
+        if (number == 0) {
+            setNumberRoll(mNumber);
+        }
+    }
+
+    /** Gets the current number roll position. */
     private float getNumberRoll() {
         return mNumber;
     }
 
-    /**
-     * Sets the number roll position.
-     */
+    /** Sets the number roll position. */
     private void setNumberRoll(float number) {
         mNumber = number;
         int downNumber = (int) number;
@@ -119,9 +124,10 @@ public class NumberRollView extends FrameLayout {
         NumberFormat numberFormatter = NumberFormat.getIntegerInstance();
         String newString;
         if (mStringId != 0) {
-            newString = upNumber == 0 && mStringIdForZero != 0
-                    ? getResources().getString(mStringIdForZero)
-                    : getResources().getQuantityString(mStringId, upNumber, upNumber);
+            newString =
+                    (upNumber == 0 && mStringForZero != null)
+                            ? mStringForZero
+                            : getResources().getQuantityString(mStringId, upNumber, upNumber);
         } else {
             newString = numberFormatter.format(upNumber);
         }
@@ -130,9 +136,10 @@ public class NumberRollView extends FrameLayout {
         }
 
         if (mStringId != 0) {
-            newString = downNumber == 0 && mStringIdForZero != 0
-                    ? getResources().getString(mStringIdForZero)
-                    : getResources().getQuantityString(mStringId, downNumber, downNumber);
+            newString =
+                    (downNumber == 0 && mStringForZero != null)
+                            ? mStringForZero
+                            : getResources().getQuantityString(mStringId, downNumber, downNumber);
         } else {
             newString = numberFormatter.format(downNumber);
         }
@@ -150,7 +157,6 @@ public class NumberRollView extends FrameLayout {
     }
 
     /** Ends any in-progress animations. */
-    @VisibleForTesting
     public void endAnimationsForTesting() {
         if (mLastRollAnimator != null) mLastRollAnimator.end();
     }

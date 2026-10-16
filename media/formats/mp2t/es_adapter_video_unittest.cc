@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/mp2t/es_adapter_video.h"
 
 #include <stddef.h>
@@ -41,13 +46,12 @@ VideoDecoderConfig CreateFakeVideoConfig() {
 BufferQueue GenerateFakeBuffers(const int* frame_pts_ms,
                                 const bool* is_key_frame,
                                 size_t frame_count) {
-  uint8_t dummy_buffer[] = {0, 0, 0, 0};
+  std::array<uint8_t, 4> dummy_buffer = {0, 0, 0, 0};
 
   BufferQueue buffers(frame_count);
   for (size_t k = 0; k < frame_count; k++) {
-    buffers[k] =
-        StreamParserBuffer::CopyFrom(dummy_buffer, std::size(dummy_buffer),
-                                     is_key_frame[k], DemuxerStream::VIDEO, 0);
+    buffers[k] = StreamParserBuffer::CopyFrom(dummy_buffer, is_key_frame[k],
+                                              DemuxerStream::VIDEO, 0);
     if (frame_pts_ms[k] < 0) {
       buffers[k]->set_timestamp(kNoTimestamp);
     } else {

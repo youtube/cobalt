@@ -6,26 +6,28 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <string>
 
-#include "base/strings/string_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // Basic functionality tests. Does NOT test the security of the random data.
 
 // Ensures we don't have all trivial data, i.e. that the data is indeed random.
 // Currently, that means the bytes cannot be all the same (e.g. all zeros).
-bool IsTrivial(const std::string& bytes) {
-  for (size_t i = 0; i < bytes.size(); i++) {
-    if (bytes[i] != bytes[0]) {
-      return false;
-    }
-  }
-  return true;
+bool IsTrivial(base::span<const uint8_t> bytes) {
+  const uint8_t first_byte = bytes.front();
+  return std::ranges::all_of(bytes,
+                             [=](uint8_t byte) { return byte == first_byte; });
 }
 
 TEST(RandBytes, RandBytes) {
-  std::string bytes(16, '\0');
-  crypto::RandBytes(base::WriteInto(&bytes, bytes.size()), bytes.size());
-  EXPECT_TRUE(!IsTrivial(bytes));
+  std::array<uint8_t, 16> bytes;
+  crypto::RandBytes(bytes);
+  EXPECT_FALSE(IsTrivial(bytes));
+}
+
+TEST(RandBytes, RandBytesAsVector) {
+  std::vector<uint8_t> vector = crypto::RandBytesAsVector(16);
+  EXPECT_FALSE(IsTrivial(vector));
 }

@@ -4,18 +4,20 @@
 
 #include "ash/login/ui/views_utils.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "ash/login/ui/non_accessible_view.h"
 #include "ash/public/cpp/shelf_config.h"
-#include "ash/style/ash_color_provider.h"
-#include "base/ranges/algorithm.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/highlight_path_generator.h"
+#include "ui/views/focus/focus_manager.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/metadata/view_factory_internal.h"
 #include "ui/views/view_targeter_delegate.h"
@@ -27,6 +29,8 @@ namespace {
 
 class ContainerView : public NonAccessibleView,
                       public views::ViewTargeterDelegate {
+  METADATA_HEADER(ContainerView, NonAccessibleView)
+
  public:
   ContainerView() {
     SetEventTargeter(std::make_unique<views::ViewTargeter>(this));
@@ -47,9 +51,12 @@ class ContainerView : public NonAccessibleView,
       return child->GetVisible() &&
              child->HitTestRect(gfx::ToEnclosingRect(child_rect));
     };
-    return base::ranges::any_of(children, hits_child);
+    return std::ranges::any_of(children, hits_child);
   }
 };
+
+BEGIN_METADATA(ContainerView)
+END_METADATA
 
 }  // namespace
 
@@ -99,13 +106,16 @@ bool ShouldShowLandscape(const views::Widget* widget) {
 }
 
 bool HasFocusInAnyChildView(views::View* view) {
-  // Find the topmost ancestor of the focused view, or |view|, whichever comes
-  // first.
-  views::View* search = view->GetFocusManager()->GetFocusedView();
-  while (search && search != view) {
-    search = search->parent();
+  CHECK(view);
+  views::FocusManager* focus_manager = view->GetFocusManager();
+  CHECK(focus_manager);
+
+  views::View* focused_view = focus_manager->GetFocusedView();
+  if (focused_view) {
+    return view->Contains(focused_view);
+  } else {
+    return false;
   }
-  return search == view;
 }
 
 std::unique_ptr<views::Label> CreateUnthemedBubbleLabel(
@@ -152,7 +162,7 @@ std::unique_ptr<views::Label> CreateThemedBubbleLabel(
     int line_height) {
   auto label = CreateUnthemedBubbleLabel(message, view_defining_max_width,
                                          font_list, line_height);
-  label->SetEnabledColorId(enabled_color_type);
+  label->SetEnabledColor(enabled_color_type);
   return label;
 }
 
@@ -166,7 +176,7 @@ views::View* GetBubbleContainer(views::View* view) {
   // An arbitrary id that no other child of root view should use.
   const int kMenuContainerId = 1000;
   views::View* container = nullptr;
-  for (auto* child : root_view->children()) {
+  for (views::View* child : root_view->children()) {
     if (child->GetID() == kMenuContainerId) {
       container = child;
       break;
@@ -211,7 +221,7 @@ gfx::Point CalculateBubblePositionAfterBeforeStrategy(gfx::Rect anchor,
 
 void ConfigureRectFocusRingCircleInkDrop(views::View* view,
                                          views::FocusRing* focus_ring,
-                                         absl::optional<int> radius) {
+                                         std::optional<int> radius) {
   DCHECK(view);
   DCHECK(focus_ring);
   focus_ring->SetPathGenerator(

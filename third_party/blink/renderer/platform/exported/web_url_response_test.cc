@@ -34,27 +34,31 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/platform/web_url.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_response.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 
 namespace blink {
 
 TEST(WebURLResponseTest, NewInstanceIsNull) {
+  test::TaskEnvironment task_environment;
   WebURLResponse instance;
   EXPECT_TRUE(instance.IsNull());
 }
 
 TEST(WebURLResponseTest, NotNullAfterSetURL) {
+  test::TaskEnvironment task_environment;
   WebURLResponse instance;
   instance.SetCurrentRequestUrl(KURL("http://localhost/"));
   EXPECT_FALSE(instance.IsNull());
 }
 
 TEST(WebURLResponseTest, DnsAliasesCanBeAccessed) {
+  test::TaskEnvironment task_environment;
   WebURLResponse instance;
   instance.SetCurrentRequestUrl(KURL("http://localhost/"));
   EXPECT_FALSE(instance.IsNull());
   EXPECT_TRUE(instance.ToResourceResponse().DnsAliases().empty());
-  WebVector<WebString> aliases({"alias1", "alias2"});
+  std::vector<WebString> aliases({"alias1", "alias2"});
   instance.SetDnsAliases(aliases);
   EXPECT_THAT(instance.ToResourceResponse().DnsAliases(),
               testing::ElementsAre("alias1", "alias2"));

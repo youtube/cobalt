@@ -18,13 +18,20 @@
 #include <string>
 
 #include "starboard/audio_sink.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
 
 // The interface used by AudioRendererPcm to output audio samples.
 class AudioRendererSink {
  public:
+  static const int kAudioSinkFramesAlignment = 256;
+  static const int kDefaultAudioSinkMinFramesPerAppend = 1024;
+  static_assert(IsAligned(kDefaultAudioSinkMinFramesPerAppend,
+                          kAudioSinkFramesAlignment));
+
   class RenderCallback {
    public:
     virtual void GetSourceStatus(int* frames_in_buffer,
@@ -46,28 +53,34 @@ class AudioRendererSink {
 
   virtual ~AudioRendererSink() {}
 
+  virtual void GetAudioRendererParams(const AudioStreamInfo& audio_stream_info,
+                                      int* max_cached_frames,
+                                      int* min_frames_per_append) const = 0;
+
   virtual bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const = 0;
-  virtual bool IsAudioFrameStorageTypeSupported(
-      SbMediaAudioFrameStorageType audio_frame_storage_type) const = 0;
   virtual int GetNearestSupportedSampleFrequency(
       int sampling_frequency_hz) const = 0;
+  virtual int GetOutputNumberOfChannels(int number_of_channels) const {
+    return number_of_channels;
+  }
 
   virtual bool HasStarted() const = 0;
   virtual void Start(int64_t media_start_time,
                      int channels,
                      int sampling_frequency_hz,
                      SbMediaAudioSampleType audio_sample_type,
-                     SbMediaAudioFrameStorageType audio_frame_storage_type,
                      SbAudioSinkFrameBuffers frame_buffers,
                      int frames_per_channel,
                      RenderCallback* render_callback) = 0;
   virtual void Stop() = 0;
+  virtual void Reset() { Stop(); }
 
   virtual void SetVolume(double volume) = 0;
   virtual void SetPlaybackRate(double playback_rate) = 0;
 
   virtual bool AllowOverflowAudioSamples() const { return false; }
+  virtual bool AllowDirectPlaybackRateSetting() const { return false; }
 };
 
 }  // namespace starboard

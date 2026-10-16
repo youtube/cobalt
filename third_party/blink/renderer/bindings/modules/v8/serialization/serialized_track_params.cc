@@ -29,7 +29,6 @@ SerializedContentHintType SerializeContentHint(
   // new values are added in enum WebMediaStreamTrack::ContentHintType, then add
   // them here as well. Do not use default.
   NOTREACHED();
-  return SerializedContentHintType::kNone;
 }
 
 SerializedReadyState SerializeReadyState(MediaStreamSource::ReadyState state) {
@@ -45,7 +44,6 @@ SerializedReadyState SerializeReadyState(MediaStreamSource::ReadyState state) {
   // values are added in enum MediaStreamSource::ReadyState, then add them here
   // as well. Do not use default.
   NOTREACHED();
-  return SerializedReadyState::kReadyStateEnded;
 }
 
 SerializedTrackImplSubtype SerializeTrackImplSubtype(
@@ -63,7 +61,6 @@ SerializedTrackImplSubtype SerializeTrackImplSubtype(
       dispatcher.DowncastTo<MediaStreamTrack>()->GetWrapperTypeInfo();
   LOG(FATAL) << "SerializeTrackImplSubtype is missing a case for "
              << wrapper_type_info->interface_name;
-  return SerializedTrackImplSubtype::kTrackImplSubtypeBase;
 }
 
 WebMediaStreamTrack::ContentHintType DeserializeContentHint(

@@ -1,13 +1,15 @@
 // Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+#include "third_party/blink/renderer/platform/peerconnection/stats_collecting_decoder.h"
+
+#include <optional>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/test/task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/blink/renderer/platform/peerconnection/stats_collecting_decoder.h"
 #include "third_party/webrtc/api/make_ref_counted.h"
 #include "third_party/webrtc/api/video/i420_buffer.h"
 #include "third_party/webrtc/api/video/video_frame.h"
@@ -40,8 +42,8 @@ class MockVideoFrameBuffer : public webrtc::VideoFrameBuffer {
   int width() const override { return width_; }
   int height() const override { return height_; }
 
-  rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override {
-    rtc::scoped_refptr<webrtc::I420Buffer> buffer =
+  webrtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override {
+    webrtc::scoped_refptr<webrtc::I420Buffer> buffer =
         webrtc::I420Buffer::Create(width_, height_);
     webrtc::I420Buffer::SetBlack(buffer.get());
     return buffer;
@@ -55,8 +57,8 @@ class MockVideoFrameBuffer : public webrtc::VideoFrameBuffer {
 webrtc::VideoFrame CreateMockFrame(int width, int height, uint32_t timestamp) {
   return webrtc::VideoFrame::Builder()
       .set_video_frame_buffer(
-          rtc::make_ref_counted<MockVideoFrameBuffer>(width, height))
-      .set_timestamp_rtp(timestamp)
+          webrtc::make_ref_counted<MockVideoFrameBuffer>(width, height))
+      .set_rtp_timestamp(timestamp)
       .build();
 }
 
@@ -72,8 +74,8 @@ class MockDecoder : public webrtc::VideoDecoder {
                  int64_t render_time_ms) override {
     webrtc::VideoFrame video_frame =
         CreateMockFrame(input_image._encodedWidth, input_image._encodedHeight,
-                        input_image.Timestamp());
-    callback_->Decoded(video_frame, absl::nullopt, absl::nullopt);
+                        input_image.RtpTimestamp());
+    callback_->Decoded(video_frame, std::nullopt, std::nullopt);
     return WEBRTC_VIDEO_CODEC_OK;
   }
 
@@ -92,8 +94,8 @@ class MockDecoder : public webrtc::VideoDecoder {
   }
 
  private:
-  bool* const is_hw_accelerated_;
-  webrtc::DecodedImageCallback* callback_;
+  const raw_ptr<bool> is_hw_accelerated_;
+  raw_ptr<webrtc::DecodedImageCallback> callback_;
 };
 
 class MockDecodedImageCallback : public webrtc::DecodedImageCallback {
@@ -103,13 +105,10 @@ class MockDecodedImageCallback : public webrtc::DecodedImageCallback {
         p90_decode_time_ms_(p90_decode_time_ms) {}
 
   // Implementation of webrtc::DecodedImageCallback.
-  int32_t Decoded(webrtc::VideoFrame& decodedImage) override {
-    NOTREACHED();
-    return 0;
-  }
+  int32_t Decoded(webrtc::VideoFrame& decodedImage) override { NOTREACHED(); }
   void Decoded(webrtc::VideoFrame& decodedImage,
-               absl::optional<int32_t> decode_time_ms,
-               absl::optional<uint8_t> qp) override {
+               std::optional<int32_t> decode_time_ms,
+               std::optional<uint8_t> qp) override {
     // Set the processing time. Start time is set to a fixed nonzero time since
     // we're only interested in the delta.
     webrtc::Timestamp start_time = webrtc::Timestamp::Seconds(1234);
@@ -170,7 +169,7 @@ class StatsCollectingDecoderTest : public ::testing::Test {
       webrtc::EncodedImage encoded_frame;
       encoded_frame._encodedWidth = width;
       encoded_frame._encodedHeight = height;
-      encoded_frame.SetTimestamp(
+      encoded_frame.SetRtpTimestamp(
           90000 * frame_counter /
           frame_rate);  // RTP timestamp using 90 kHz clock.
       encoded_frame._frameType = frame_counter % key_frame_interval == 0

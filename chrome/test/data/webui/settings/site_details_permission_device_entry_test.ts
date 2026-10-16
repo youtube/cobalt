@@ -6,7 +6,8 @@
 import 'chrome://webui-test/cr_elements/cr_policy_strings.js';
 
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {ChooserType, SiteDetailsPermissionDeviceEntryElement, SiteSettingsPrefsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
+import type {SiteDetailsPermissionDeviceEntryElement} from 'chrome://settings/lazy_load.js';
+import {ChooserType, SiteSettingsPrefsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 import {TestSiteSettingsPrefsBrowserProxy} from './test_site_settings_prefs_browser_proxy.js';
@@ -77,16 +78,6 @@ suite('SiteDetailsPermissionDeviceEntry', function() {
     const policyIndicator =
         testElement.shadowRoot!.querySelector('cr-policy-pref-indicator');
     assertTrue(!!policyIndicator);
-
-    // Check mouse over the indicator should fire show-tooltip event.
-    const icon = policyIndicator.shadowRoot!.querySelector('cr-tooltip-icon');
-    assertTrue(!!icon);
-    const paperTooltip = icon.shadowRoot!.querySelector('paper-tooltip');
-    assertTrue(!!paperTooltip);
-    assertFalse(paperTooltip._showing);
-    icon.$.indicator.dispatchEvent(
-        new MouseEvent('mouseenter', {bubbles: true, composed: true}));
-    assertTrue(paperTooltip._showing);
   }
 
   test('User granted chooser exception', async function() {

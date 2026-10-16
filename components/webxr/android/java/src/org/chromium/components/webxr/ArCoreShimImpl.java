@@ -10,9 +10,11 @@ import android.content.Context;
 import com.google.ar.core.ArCoreApk;
 
 import org.chromium.base.StrictModeContext;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.UsedByReflection;
 
 @UsedByReflection("ArCoreInstallUtils.java")
+@NullMarked
 class ArCoreShimImpl implements ArCoreShim {
     @UsedByReflection("ArCoreInstallUtils.java")
     public ArCoreShimImpl() {}
@@ -20,7 +22,7 @@ class ArCoreShimImpl implements ArCoreShim {
     @Override
     public @InstallStatus int requestInstall(Activity activity, boolean userRequestedInstall)
             throws UnavailableDeviceNotCompatibleException,
-                   UnavailableUserDeclinedInstallationException {
+                    UnavailableUserDeclinedInstallationException {
         try {
             ArCoreApk.InstallStatus installStatus =
                     ArCoreApk.getInstance().requestInstall(activity, userRequestedInstall);
@@ -36,7 +38,7 @@ class ArCoreShimImpl implements ArCoreShim {
     public @ArCoreAvailability int checkAvailability(Context applicationContext) {
         // ARCore's checkAvailability reads shared preferences via ArCoreContentProvider, need to
         // turn off strict mode to allow that.
-        // TODO(https://crbug.com/1038757): Remove the disk write context when the disk write is
+        // TODO(crbug.com/40666477): Remove the disk write context when the disk write is
         // fixed on ArCore's end.
         try (StrictModeContext ignored = StrictModeContext.allowDiskReads();
                 StrictModeContext ignored2 = StrictModeContext.allowDiskWrites()) {

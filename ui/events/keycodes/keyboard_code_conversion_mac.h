@@ -14,7 +14,7 @@
 
 namespace ui {
 
-enum class DomCode;
+enum class DomCode : uint32_t;
 
 // We use windows virtual keycodes throughout our keyboard event related code,
 // including unit tests. But Mac uses a different set of virtual keycodes.
@@ -38,7 +38,11 @@ EVENTS_BASE_EXPORT int MacKeyCodeForWindowsKeyCode(
     unichar* keyboard_character);
 
 // Returns the WindowsKeyCode from the Mac key code.
-EVENTS_BASE_EXPORT KeyboardCode KeyboardCodeFromKeyCode(unsigned short keyCode);
+EVENTS_BASE_EXPORT KeyboardCode
+KeyboardCodeFromKeyCode(unsigned short key_code);
+
+// Returns the KeyboardCode from a |char_code| from AppKit classes.
+EVENTS_BASE_EXPORT KeyboardCode KeyboardCodeFromCharCode(unichar char_code);
 
 // This implementation cribbed from:
 //   content/browser/render_host/input/web_input_event_builder_mac.mm

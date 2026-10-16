@@ -32,23 +32,24 @@ void FileTracing::SetProvider(FileTracing::Provider* provider) {
 
 FileTracing::ScopedEnabler::ScopedEnabler() {
   FileTracing::Provider* provider = GetProvider();
-  if (provider)
+  if (provider) {
     provider->FileTracingEnable(this);
+  }
 }
 
 FileTracing::ScopedEnabler::~ScopedEnabler() {
   FileTracing::Provider* provider = GetProvider();
-  if (provider)
+  if (provider) {
     provider->FileTracingDisable(this);
-  // TODO(crbug.com/1021571): Remove this once fixed.
-  PERFETTO_INTERNAL_ADD_EMPTY_EVENT();
+  }
 }
 
 FileTracing::ScopedTrace::~ScopedTrace() {
   if (id_) {
     FileTracing::Provider* provider = GetProvider();
-    if (provider)
+    if (provider) {
       provider->FileTracingEventEnd(name_, id_);
+    }
   }
 }
 
@@ -57,7 +58,7 @@ void FileTracing::ScopedTrace::Initialize(const char* name,
                                           int64_t size) {
   id_ = &file->trace_enabler_;
   name_ = name;
-  GetProvider()->FileTracingEventBegin(name_, id_, file->tracing_path_, size);
+  GetProvider()->FileTracingEventBegin(name_, id_, file->path_, size);
 }
 
 }  // namespace base

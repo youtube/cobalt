@@ -2,15 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 // Contains the definition of ValueValidator for the uses in *_cmd_validation.h
 
 #ifndef GPU_COMMAND_BUFFER_SERVICE_VALUE_VALIDATOR_H_
 #define GPU_COMMAND_BUFFER_SERVICE_VALUE_VALIDATOR_H_
 
+#include <algorithm>
 #include <vector>
 
 #include "base/containers/contains.h"
-#include "base/ranges/algorithm.h"
 
 namespace gpu {
 
@@ -38,7 +43,7 @@ class ValueValidator {
 
   void RemoveValues(const T* invalid_values, int num_values) {
     for (int ii = 0; ii < num_values; ++ii) {
-      auto iter = base::ranges::find(valid_values_, invalid_values[ii]);
+      auto iter = std::ranges::find(valid_values_, invalid_values[ii]);
       if (iter != valid_values_.end()) {
         valid_values_.erase(iter);
         DCHECK(!IsValid(invalid_values[ii]));

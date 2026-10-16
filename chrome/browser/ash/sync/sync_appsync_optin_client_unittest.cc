@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/ash/sync/sync_appsync_optin_client.h"
+
 #include <memory>
 
 #include "base/files/file_path.h"
@@ -16,27 +17,25 @@
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/sync/base/progress_marker_map.h"
 #include "components/sync/base/user_selectable_type.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_service_observer.h"
 #include "components/sync/engine/cycle/sync_cycle_snapshot.h"
 #include "components/sync/protocol/sync_enums.pb.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_service_observer.h"
 #include "components/sync/test/test_sync_service.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
 #include "google_apis/gaia/core_account_id.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace ash {
-
-constexpr char kAppsSyncOptinIOHistogram[] =
-    "Cros.AppsSyncOptinFileWriteAttempts";
 
 namespace {
 
 class FakeSyncService : public syncer::TestSyncService {
  public:
   FakeSyncService() {
-    SetTransportState(TransportState::INITIALIZING);
+    SetMaxTransportState(TransportState::INITIALIZING);
     SetLastCycleSnapshot(syncer::SyncCycleSnapshot());
   }
 
@@ -46,8 +45,8 @@ class FakeSyncService : public syncer::TestSyncService {
   ~FakeSyncService() override { Shutdown(); }
 
   void SetStatus(bool has_passphrase, bool active) {
-    SetTransportState(active ? TransportState::ACTIVE
-                             : TransportState::INITIALIZING);
+    SetMaxTransportState(active ? TransportState::ACTIVE
+                                : TransportState::INITIALIZING);
     SetIsUsingExplicitPassphrase(has_passphrase);
 
     // It doesn't matter what exactly we set here, it's only relevant that the
@@ -61,19 +60,10 @@ class FakeSyncService : public syncer::TestSyncService {
     NotifyObserversOfStateChanged();
   }
 
-  void SetUserFromAccountId(const AccountId& account_id) {
-    CoreAccountInfo account_info;
-    account_info.account_id = CoreAccountId::FromGaiaId(account_id.GetGaiaId());
-    account_info.gaia = account_id.GetGaiaId();
-    account_info.email = account_id.GetUserEmail();
-    SetAccountInfo(account_info);
-  }
-
   void SetAppsyncOptin(bool opted_in) {
     if (opted_in) {
       GetUserSettings()->SetSelectedOsTypes(
-          false, syncer::UserSelectableOsTypeSet(
-                     syncer::UserSelectableOsType::kOsApps));
+          false, {syncer::UserSelectableOsType::kOsApps});
     } else {
       GetUserSettings()->SetSelectedOsTypes(false,
                                             syncer::UserSelectableOsTypeSet());
@@ -135,10 +125,15 @@ class SyncAppsyncOptinClientTest : public testing::Test {
     tmp_dir_path_ = test_daemon_dir_.GetPath().Append("test@test.com-hash");
     base::CreateDirectory(tmp_dir_path_);
 
-    auto account_id = AccountId::FromUserEmailGaiaId("test@test.com", "1");
+    auto account_id =
+        AccountId::FromUserEmailGaiaId("test@test.com", GaiaId("1"));
     auto* test_user = RegisterUser(account_id);
     LoginUser(test_user);
-    test_sync_service_->SetUserFromAccountId(account_id);
+    CoreAccountInfo account_info;
+    account_info.account_id = CoreAccountId::FromGaiaId(account_id.GetGaiaId());
+    account_info.gaia = account_id.GetGaiaId();
+    account_info.email = account_id.GetUserEmail();
+    test_sync_service_->SetSignedIn(signin::ConsentLevel::kSync, account_info);
     test_sync_service_->SetStatus(/*has_passphrase=*/false, /*active=*/true);
   }
 
@@ -168,7 +163,6 @@ TEST_F(SyncAppsyncOptinClientTest, ServiceCreatesDirectory) {
 
 TEST_F(SyncAppsyncOptinClientTest, ServiceCreatesOptInFile) {
   EXPECT_TRUE(base::IsDirectoryEmpty(tmp_dir_path_));
-  base::HistogramTester histogram_tester;
 
   test_sync_service_->SetAppsyncOptin(false);
   test_appsync_optin_client_ = std::make_unique<SyncAppsyncOptinClient>(
@@ -180,10 +174,6 @@ TEST_F(SyncAppsyncOptinClientTest, ServiceCreatesOptInFile) {
 
   EXPECT_FALSE(base::IsDirectoryEmpty(tmp_dir_path_));
   EXPECT_TRUE(base::PathExists(tmp_dir_path_.Append("opted-in")));
-
-  histogram_tester.ExpectUniqueSample(
-      kAppsSyncOptinIOHistogram,
-      SyncAppsyncOptinClient::AppsSyncOptinFileWrite::kAttempt, 1);
 }
 
 TEST_F(SyncAppsyncOptinClientTest, LoggedInUser) {
@@ -221,8 +211,6 @@ TEST_F(SyncAppsyncOptinClientTest, LoggedInUserWithPermission) {
 }
 
 TEST_F(SyncAppsyncOptinClientTest, UserChangesPermission) {
-  base::HistogramTester histogram_tester;
-
   test_sync_service_->SetAppsyncOptin(true);
   test_appsync_optin_client_ = std::make_unique<SyncAppsyncOptinClient>(
       test_sync_service_.get(), test_user_manager_.get(),
@@ -248,10 +236,6 @@ TEST_F(SyncAppsyncOptinClientTest, UserChangesPermission) {
   EXPECT_TRUE(
       base::ReadFileToString(tmp_dir_path_.Append("opted-in"), &contents));
   EXPECT_EQ("0", contents);
-
-  histogram_tester.ExpectUniqueSample(
-      kAppsSyncOptinIOHistogram,
-      SyncAppsyncOptinClient::AppsSyncOptinFileWrite::kAttempt, 2);
 }
 
 TEST_F(SyncAppsyncOptinClientTest, WriteFails) {
@@ -264,13 +248,6 @@ TEST_F(SyncAppsyncOptinClientTest, WriteFails) {
   task_environment_.RunUntilIdle();
 
   EXPECT_TRUE(base::IsDirectoryEmpty(tmp_dir_path_));
-
-  histogram_tester.ExpectBucketCount(
-      kAppsSyncOptinIOHistogram,
-      SyncAppsyncOptinClient::AppsSyncOptinFileWrite::kAttempt, 1);
-  histogram_tester.ExpectBucketCount(
-      kAppsSyncOptinIOHistogram,
-      SyncAppsyncOptinClient::AppsSyncOptinFileWrite::kFailure, 1);
 }
 
 TEST_F(SyncAppsyncOptinClientTest, RemovesOldState) {

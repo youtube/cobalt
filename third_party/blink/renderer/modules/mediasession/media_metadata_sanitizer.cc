@@ -10,6 +10,7 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_media_image.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
+#include "third_party/blink/renderer/modules/mediasession/chapter_information.h"
 #include "third_party/blink/renderer/modules/mediasession/media_metadata.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_operators.h"
@@ -31,6 +32,9 @@ const size_t kMaxImageTypeLength = 2 * 127 + 1;
 
 // Maximum number of MediaImages inside the MediaMetadata.
 const size_t kMaxNumberOfMediaImages = 10;
+
+// Maximum number of `ChapterInformation` inside the `MediaMetadata`.
+const size_t kMaxNumberOfChapters = 200;
 
 // Maximum of sizes in a MediaImage.
 const size_t kMaxNumberOfImageSizes = 10;
@@ -89,6 +93,38 @@ media_session::mojom::blink::MediaImagePtr SanitizeMediaImageAndConvertToMojo(
   return mojo_image;
 }
 
+// Sanitize ChapterInformation and do mojo serialization.
+media_session::mojom::blink::ChapterInformationPtr
+SanitizeChapterInformationAndConvertToMojo(const ChapterInformation* chapter,
+                                           ExecutionContext* context) {
+  media_session::mojom::blink::ChapterInformationPtr mojo_chapter;
+
+  if (!chapter) {
+    return mojo_chapter;
+  }
+
+  mojo_chapter = media_session::mojom::blink::ChapterInformation::New();
+  mojo_chapter->title = chapter->title().Left(kMaxStringLength);
+  mojo_chapter->startTime = base::Seconds(chapter->startTime());
+
+  for (const MediaImage* image : chapter->artwork()) {
+    media_session::mojom::blink::MediaImagePtr mojo_image =
+        SanitizeMediaImageAndConvertToMojo(image, context);
+    if (!mojo_image.is_null()) {
+      mojo_chapter->artwork.push_back(std::move(mojo_image));
+    }
+    if (mojo_chapter->artwork.size() == kMaxNumberOfMediaImages) {
+      context->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
+          mojom::ConsoleMessageSource::kJavaScript,
+          mojom::ConsoleMessageLevel::kWarning,
+          "The number of MediaImage sizes exceeds the upper limit in a "
+          "chapter. All remaining MediaImage will be ignored"));
+      break;
+    }
+  }
+  return mojo_chapter;
+}
+
 }  // anonymous namespace
 
 blink::mojom::blink::SpecMediaMetadataPtr
@@ -115,6 +151,25 @@ MediaMetadataSanitizer::SanitizeAndConvertToMojo(const MediaMetadata* metadata,
           mojom::ConsoleMessageLevel::kWarning,
           "The number of MediaImage sizes exceeds the upper limit. "
           "All remaining MediaImage will be ignored"));
+      break;
+    }
+  }
+  if (!RuntimeEnabledFeatures::MediaSessionChapterInformationEnabled()) {
+    return mojo_metadata;
+  }
+
+  for (const ChapterInformation* chapter : metadata->chapterInfo()) {
+    media_session::mojom::blink::ChapterInformationPtr mojo_chapter =
+        SanitizeChapterInformationAndConvertToMojo(chapter, context);
+    if (!mojo_chapter.is_null()) {
+      mojo_metadata->chapterInfo.push_back(std::move(mojo_chapter));
+    }
+    if (mojo_metadata->chapterInfo.size() == kMaxNumberOfChapters) {
+      context->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
+          mojom::ConsoleMessageSource::kJavaScript,
+          mojom::ConsoleMessageLevel::kWarning,
+          "The number of ChapterInformation sizes exceeds the upper limit. "
+          "All remaining ChapterInformation will be ignored"));
       break;
     }
   }

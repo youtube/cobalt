@@ -21,22 +21,34 @@ AutocompleteActionPredictor* AutocompleteActionPredictorFactory::GetForProfile(
 // static
 AutocompleteActionPredictorFactory*
     AutocompleteActionPredictorFactory::GetInstance() {
-  return base::Singleton<AutocompleteActionPredictorFactory>::get();
+  static base::NoDestructor<AutocompleteActionPredictorFactory> instance;
+  return instance.get();
 }
 
 AutocompleteActionPredictorFactory::AutocompleteActionPredictorFactory()
     : ProfileKeyedServiceFactory(
           "AutocompleteActionPredictor",
-          ProfileSelections::BuildForRegularAndIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/40257657): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOwnInstance)
+              .Build()) {
   DependsOn(HistoryServiceFactory::GetInstance());
   DependsOn(PredictorDatabaseFactory::GetInstance());
 }
 
-AutocompleteActionPredictorFactory::~AutocompleteActionPredictorFactory() {}
+AutocompleteActionPredictorFactory::~AutocompleteActionPredictorFactory() =
+    default;
 
-KeyedService* AutocompleteActionPredictorFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AutocompleteActionPredictorFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* profile) const {
-  return new AutocompleteActionPredictor(static_cast<Profile*>(profile));
+  return std::make_unique<AutocompleteActionPredictor>(
+      static_cast<Profile*>(profile));
 }
 
 }  // namespace predictors

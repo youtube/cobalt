@@ -6,12 +6,15 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "chrome/browser/ui/bluetooth/bluetooth_dialogs.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/color/color_id.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
@@ -19,12 +22,10 @@
 
 using ::content::BluetoothDelegate;
 
-namespace chrome {
-
 void ShowBluetoothDevicePairConfirmDialog(
     content::WebContents* web_contents,
     const std::u16string& device_identifier,
-    const absl::optional<std::u16string>& pin,
+    const std::optional<std::u16string>& pin,
     BluetoothDelegate::PairPromptCallback close_callback) {
   // This dialog owns itself. DialogDelegateView will delete |dialog| instance.
   auto* dialog = new BluetoothDevicePairConfirmView(device_identifier, pin,
@@ -32,15 +33,13 @@ void ShowBluetoothDevicePairConfirmDialog(
   constrained_window::ShowWebModalDialogViews(dialog, web_contents);
 }
 
-}  // namespace chrome
-
 BluetoothDevicePairConfirmView::BluetoothDevicePairConfirmView(
     const std::u16string& device_identifier,
-    const absl::optional<std::u16string>& pin,
+    const std::optional<std::u16string>& pin,
     BluetoothDelegate::PairPromptCallback close_callback)
     : close_callback_(std::move(close_callback)),
       display_pin_(pin.has_value()) {
-  SetModalType(ui::MODAL_TYPE_CHILD);
+  SetModalType(ui::mojom::ModalType::kChild);
   set_margins(ChromeLayoutProvider::Get()->GetDialogInsetsForContentType(
       views::DialogContentType::kText, views::DialogContentType::kText));
   SetAcceptCallback(
@@ -53,7 +52,7 @@ BluetoothDevicePairConfirmView::BluetoothDevicePairConfirmView(
   };
   SetCancelCallback(base::BindOnce(canceled, base::Unretained(this)));
   SetCloseCallback(base::BindOnce(canceled, base::Unretained(this)));
-  SetButtonEnabled(ui::DIALOG_BUTTON_OK, true);
+  SetButtonEnabled(ui::mojom::DialogButton::kOk, true);
   InitControls(device_identifier, pin);
 }
 
@@ -61,7 +60,7 @@ BluetoothDevicePairConfirmView::~BluetoothDevicePairConfirmView() = default;
 
 void BluetoothDevicePairConfirmView::InitControls(
     const std::u16string& device_identifier,
-    const absl::optional<std::u16string>& pin) {
+    const std::optional<std::u16string>& pin) {
   //
   // Create the following layout:
   //
@@ -99,7 +98,7 @@ void BluetoothDevicePairConfirmView::InitControls(
   // to ensure the proper spacing is maintained between items when stacking
   // vertically.
   const int vertical_spacing = ChromeLayoutProvider::Get()->GetDistanceMetric(
-                                   DISTANCE_CONTROL_LIST_VERTICAL) /
+                                   views::DISTANCE_CONTROL_LIST_VERTICAL) /
                                2;
   constexpr int horizontal_spacing = 0;
 
@@ -144,7 +143,8 @@ void BluetoothDevicePairConfirmView::InitControls(
   contents_wrapper_ = AddChildView(std::move(contents_wrapper));
 }
 
-gfx::Size BluetoothDevicePairConfirmView::CalculatePreferredSize() const {
+gfx::Size BluetoothDevicePairConfirmView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   constexpr int kDialogWidth = 440;
   int height =
       GetLayoutManager()->GetPreferredHeightForWidth(this, kDialogWidth);
@@ -164,5 +164,5 @@ void BluetoothDevicePairConfirmView::OnDialogAccepted() {
   std::move(close_callback_).Run(prompt_result);
 }
 
-BEGIN_METADATA(BluetoothDevicePairConfirmView, views::DialogDelegateView)
+BEGIN_METADATA(BluetoothDevicePairConfirmView)
 END_METADATA

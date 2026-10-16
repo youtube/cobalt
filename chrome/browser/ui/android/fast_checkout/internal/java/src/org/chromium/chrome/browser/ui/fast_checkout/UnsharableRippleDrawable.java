@@ -8,13 +8,16 @@ import android.content.res.ColorStateList;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.RippleDrawable;
 
-/**
- * RippleDrawable that does not allow sharing across views. Returns a constant state of null.
- */
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
+/** RippleDrawable that does not allow sharing across views. Returns a constant state of null. */
+@NullMarked
 public class UnsharableRippleDrawable extends RippleDrawable {
     private static final ColorStateList DUMMY_COLOR = ColorStateList.valueOf(0xFFFFFF);
 
-    public UnsharableRippleDrawable(ColorStateList color, Drawable content, Drawable mask) {
+    public UnsharableRippleDrawable(
+            ColorStateList color, @Nullable Drawable content, @Nullable Drawable mask) {
         super(color, content, mask);
     }
 
@@ -29,7 +32,7 @@ public class UnsharableRippleDrawable extends RippleDrawable {
     }
 
     @Override
-    public ConstantState getConstantState() {
+    public @Nullable ConstantState getConstantState() {
         // Returning null means that these drawables will not be able to be shared. This avoids
         // issues with RecyclerView when backgrounds are shared and as result don't always fully
         // cover items of different heights.

@@ -14,15 +14,14 @@
 # limitations under the License.
 """Generates a fake junit xml report from a log file (if available)."""
 
-import re
 import html
 import datetime
 import pathlib
 import argparse
-from typing import Tuple
+import re
+from typing import Optional, Tuple
 
 RUN_MARKER = '[ RUN      ]'
-SUITE_MARKER = '[==========]'
 END_MARKERS = (
     '[       OK ]',
     '[  FAILED  ]',
@@ -30,52 +29,54 @@ END_MARKERS = (
 )
 
 
-def _get_test_name_from_run_line(line: str) -> str:
-  """Extracts test name like 'Suite.Test' from a gtest marker line."""
-  match = re.search(rf"{re.escape(RUN_MARKER)}\s*([^\s]+)$", line)
-  return match.group(1) if match else 'UnknownSuite.UnknownTest'
+def _extract_crash(log_path: pathlib.Path) -> Optional[Tuple[str, str, str]]:
+  """Identifies the crashed test and its log output from a gtest log file.
 
-
-def _extract_crash_info(log_path: pathlib.Path) -> Tuple[str, str, str]:
-  """
-  Identifies the crashed test and its log output from a gtest log file.
-  A crashed test will have a run marker but no end marker.
+  A crashed test will have a run marker but no end marker, or be marked
+  as CRASHED in the log.
 
   Returns:
-    A tuple `(test_suite, test_name, log_output_for_crashed_test)`.
-    Returns `("UnknownSuite", "UnknownTest", "")` if no crash is detected.
+    A tuple `(test_suite, test_name, log_output_for_crashed_test)` or
+    `None` if no crash is detected.
   """
+  if not log_path.is_file():
+    return None
   with log_path.open('r', encoding='utf-8', errors='replace') as f:
     lines = f.readlines()
 
-  run_line_idx: int = -1
-  current_idx: int = -1
-  current_test: str = ''
-  for idx, line in enumerate(lines):
-    current_idx = idx
-    if RUN_MARKER in line:
-      if current_test:
+  for i, line in reversed(list(enumerate(lines))):
+    test_name, log = None, None
+    m = re.search(r'\[\s*FAILED\s*\]\s+(\S+)\s+\(CRASHED\)', line) or re.search(
+        r'\[CRASH\]\s*([^:\n]+):', line)
+    if m:
+      test_name = m.group(1).strip()
+      log = f'Test crashed: {test_name}'
+    elif RUN_MARKER in line:
+      log_tail = ''.join(lines[i:])
+      # If the test crashed there are no end markers.
+      if any(marker in log_tail for marker in END_MARKERS):
         break
-      run_line_idx = idx
-      current_test = _get_test_name_from_run_line(line)
-    elif current_test and SUITE_MARKER in line:
-      break
-    elif line.startswith(END_MARKERS):
-      current_test = ''
+      test_name = line.partition(RUN_MARKER)[2].strip()
+      log = log_tail
 
-  if current_test:
-    test_suite, test_name = current_test.split('.')
-    return test_suite, test_name, ''.join(lines[run_line_idx:current_idx - 1])
-  return 'UnknownSuite', 'UnknownTest', 'No crash detected in test log.'
+    if test_name:
+      suite, name = test_name.split(
+          '.', 1) if '.' in test_name else ('UnknownSuite', test_name)
+      return suite, name, log
+
+  return None
 
 
 def write_junit_xml(xml_path: pathlib.Path, suite: str, name: str, log: str):
   # pylint: disable=line-too-long
-  now = datetime.datetime.now(datetime.timezone.utc)
+  now = datetime.datetime.now(
+      datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+  xml_path.parent.mkdir(parents=True, exist_ok=True)
   with xml_path.open('w', encoding='utf-8') as f:
     f.write(f"""<?xml version="1.0" encoding="UTF-8"?>
 <testsuites tests="1" failures="0" disabled="0" errors="1" time="0">
-  <testsuite name="{html.escape(suite)}" tests="1" failures="0" disabled="0" errors="1" time="0" timestamp="{now.strftime('%Y-%m-%dT%H:%M:%SZ')}">
+  <testsuite name="{html.escape(suite)}" tests="1" failures="0" disabled="0" errors="1" time="0" timestamp="{now}">
     <testcase name="{html.escape(name)}" classname="{html.escape(suite)}" time="0">
       <error message="Test crashed">
         <![CDATA[ {log} ]]>
@@ -90,7 +91,7 @@ if __name__ == '__main__':
 
   def main():
     parser = argparse.ArgumentParser(
-        description='Generates a JUnit XML report from a test log.')
+        description='Converts a gtest crash log to a JUnit XML report.')
     parser.add_argument(
         'log_path', type=pathlib.Path, help='Path to the input log file.')
     parser.add_argument(
@@ -99,8 +100,12 @@ if __name__ == '__main__':
         help='Path to the output XML report file.')
     args = parser.parse_args()
 
-    suite, name, log = _extract_crash_info(args.log_path)
-    args.xml_path.parent.mkdir(parents=True, exist_ok=True)
-    write_junit_xml(args.xml_path, suite, name, log)
+    crash_info = _extract_crash(args.log_path)
+    if crash_info:
+      args.xml_path.parent.mkdir(parents=True, exist_ok=True)
+      write_junit_xml(args.xml_path, *crash_info)
+      marker_path = args.xml_path.with_suffix('.crash')
+      marker_path.write_text(
+          f'{crash_info[0]}.{crash_info[1]}\n', encoding='utf-8')
 
   main()

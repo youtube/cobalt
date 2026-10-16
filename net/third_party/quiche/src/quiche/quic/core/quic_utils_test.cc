@@ -5,11 +5,11 @@
 #include "quiche/quic/core/quic_utils.h"
 
 #include <string>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -204,17 +204,13 @@ TEST_F(QuicUtilsTest, RandomConnectionIdVariableLength) {
 }
 
 TEST_F(QuicUtilsTest, VariableLengthConnectionId) {
-  EXPECT_FALSE(VersionAllowsVariableLengthConnectionIds(QUIC_VERSION_43));
+  EXPECT_FALSE(VersionAllowsVariableLengthConnectionIds(QUIC_VERSION_46));
   EXPECT_TRUE(QuicUtils::IsConnectionIdValidForVersion(
-      QuicUtils::CreateZeroConnectionId(QUIC_VERSION_43), QUIC_VERSION_43));
-  EXPECT_TRUE(QuicUtils::IsConnectionIdValidForVersion(
-      QuicUtils::CreateZeroConnectionId(QUIC_VERSION_50), QUIC_VERSION_50));
-  EXPECT_NE(QuicUtils::CreateZeroConnectionId(QUIC_VERSION_43),
-            EmptyQuicConnectionId());
-  EXPECT_EQ(QuicUtils::CreateZeroConnectionId(QUIC_VERSION_50),
+      QuicUtils::CreateZeroConnectionId(QUIC_VERSION_46), QUIC_VERSION_46));
+  EXPECT_NE(QuicUtils::CreateZeroConnectionId(QUIC_VERSION_46),
             EmptyQuicConnectionId());
   EXPECT_FALSE(QuicUtils::IsConnectionIdValidForVersion(EmptyQuicConnectionId(),
-                                                        QUIC_VERSION_43));
+                                                        QUIC_VERSION_46));
 }
 
 TEST_F(QuicUtilsTest, StatelessResetToken) {
@@ -240,6 +236,19 @@ TEST_F(QuicUtilsTest, EcnCodepointToString) {
   EXPECT_EQ(EcnCodepointToString(ECN_CE), "CE");
 }
 
+TEST_F(QuicUtilsTest, PosixBasename) {
+  EXPECT_EQ("", PosixBasename("/hello/"));
+  EXPECT_EQ("hello", PosixBasename("/hello"));
+  EXPECT_EQ("world", PosixBasename("hello/world"));
+  EXPECT_EQ("", PosixBasename("hello/"));
+  EXPECT_EQ("world", PosixBasename("world"));
+  EXPECT_EQ("", PosixBasename("/"));
+  EXPECT_EQ("", PosixBasename(""));
+  // "\\" is not treated as a path separator.
+  EXPECT_EQ("C:\\hello", PosixBasename("C:\\hello"));
+  EXPECT_EQ("world", PosixBasename("C:\\hello/world"));
+}
+
 enum class TestEnumClassBit : uint8_t {
   BIT_ZERO = 0,
   BIT_ONE,
@@ -253,7 +262,8 @@ enum TestEnumBit {
 };
 
 TEST(QuicBitMaskTest, EnumClass) {
-  BitMask64 mask(TestEnumClassBit::BIT_ZERO, TestEnumClassBit::BIT_TWO);
+  BitMask<TestEnumClassBit> mask(
+      {TestEnumClassBit::BIT_ZERO, TestEnumClassBit::BIT_TWO});
   EXPECT_TRUE(mask.IsSet(TestEnumClassBit::BIT_ZERO));
   EXPECT_FALSE(mask.IsSet(TestEnumClassBit::BIT_ONE));
   EXPECT_TRUE(mask.IsSet(TestEnumClassBit::BIT_TWO));
@@ -265,7 +275,7 @@ TEST(QuicBitMaskTest, EnumClass) {
 }
 
 TEST(QuicBitMaskTest, Enum) {
-  BitMask64 mask(TEST_BIT_1, TEST_BIT_2);
+  BitMask<TestEnumBit> mask({TEST_BIT_1, TEST_BIT_2});
   EXPECT_FALSE(mask.IsSet(TEST_BIT_0));
   EXPECT_TRUE(mask.IsSet(TEST_BIT_1));
   EXPECT_TRUE(mask.IsSet(TEST_BIT_2));
@@ -277,9 +287,11 @@ TEST(QuicBitMaskTest, Enum) {
 }
 
 TEST(QuicBitMaskTest, Integer) {
-  BitMask64 mask(1, 3);
+  BitMask<int> mask({1, 3});
+  EXPECT_EQ(mask.Max(), 3);
   mask.Set(3);
-  mask.Set(5, 7, 9);
+  mask.Set({5, 7, 9});
+  EXPECT_EQ(mask.Max(), 9);
   EXPECT_FALSE(mask.IsSet(0));
   EXPECT_TRUE(mask.IsSet(1));
   EXPECT_FALSE(mask.IsSet(2));
@@ -293,26 +305,44 @@ TEST(QuicBitMaskTest, Integer) {
 }
 
 TEST(QuicBitMaskTest, NumBits) {
-  EXPECT_EQ(64u, BitMask64::NumBits());
-  EXPECT_EQ(32u, BitMask<uint32_t>::NumBits());
+  EXPECT_EQ(64u, BitMask<int>::NumBits());
+  EXPECT_EQ(32u, (BitMask<int, uint32_t>::NumBits()));
 }
 
 TEST(QuicBitMaskTest, Constructor) {
-  BitMask64 empty_mask;
+  BitMask<int> empty_mask;
   for (size_t bit = 0; bit < empty_mask.NumBits(); ++bit) {
     EXPECT_FALSE(empty_mask.IsSet(bit));
   }
 
-  BitMask64 mask(1, 3);
-  BitMask64 mask2 = mask;
-  BitMask64 mask3(mask2);
+  BitMask<int> mask({1, 3});
+  BitMask<int> mask2 = mask;
+  BitMask<int> mask3(mask2);
 
   for (size_t bit = 0; bit < mask.NumBits(); ++bit) {
     EXPECT_EQ(mask.IsSet(bit), mask2.IsSet(bit));
     EXPECT_EQ(mask.IsSet(bit), mask3.IsSet(bit));
   }
 
-  EXPECT_TRUE(std::is_trivially_copyable<BitMask64>::value);
+  EXPECT_TRUE(std::is_trivially_copyable<BitMask<int>>::value);
+}
+
+TEST(QuicBitMaskTest, Any) {
+  BitMask<int> mask;
+  EXPECT_FALSE(mask.Any());
+  mask.Set(3);
+  EXPECT_TRUE(mask.Any());
+  mask.Set(2);
+  EXPECT_TRUE(mask.Any());
+  mask.ClearAll();
+  EXPECT_FALSE(mask.Any());
+}
+
+TEST(QuicBitMaskTest, And) {
+  using Mask = BitMask<int>;
+  EXPECT_EQ(Mask({1, 3, 6}) & Mask({3, 5, 6}), Mask({3, 6}));
+  EXPECT_EQ(Mask({1, 2, 4}) & Mask({3, 5}), Mask({}));
+  EXPECT_EQ(Mask({1, 2, 3, 4, 5}) & Mask({}), Mask({}));
 }
 
 }  // namespace

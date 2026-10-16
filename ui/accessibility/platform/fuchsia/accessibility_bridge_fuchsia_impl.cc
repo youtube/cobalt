@@ -14,33 +14,30 @@
 namespace ui {
 namespace {
 
-using HitTestCallback =
-    fuchsia::accessibility::semantics::SemanticListener::HitTestCallback;
-
 // Error allowed for each edge when converting from gfx::RectF to gfx::Rect.
 constexpr float kRectConversionError = 0.5;
 
-absl::optional<ax::mojom::Action> ConvertAction(
-    fuchsia::accessibility::semantics::Action fuchsia_action) {
+std::optional<ax::mojom::Action> ConvertAction(
+    fuchsia_accessibility_semantics::Action fuchsia_action) {
   switch (fuchsia_action) {
-    case fuchsia::accessibility::semantics::Action::DEFAULT:
+    case fuchsia_accessibility_semantics::Action::kDefault:
       return ax::mojom::Action::kDoDefault;
-    case fuchsia::accessibility::semantics::Action::DECREMENT:
+    case fuchsia_accessibility_semantics::Action::kDecrement:
       return ax::mojom::Action::kDecrement;
-    case fuchsia::accessibility::semantics::Action::INCREMENT:
+    case fuchsia_accessibility_semantics::Action::kIncrement:
       return ax::mojom::Action::kIncrement;
-    case fuchsia::accessibility::semantics::Action::SHOW_ON_SCREEN:
+    case fuchsia_accessibility_semantics::Action::kShowOnScreen:
       return ax::mojom::Action::kScrollToMakeVisible;
-    case fuchsia::accessibility::semantics::Action::SECONDARY:
+    case fuchsia_accessibility_semantics::Action::kSecondary:
       LOG(WARNING) << "SECONDARY action not supported";
       return {};
-    case fuchsia::accessibility::semantics::Action::SET_FOCUS:
+    case fuchsia_accessibility_semantics::Action::kSetFocus:
       return ax::mojom::Action::kFocus;
-    case fuchsia::accessibility::semantics::Action::SET_VALUE:
+    case fuchsia_accessibility_semantics::Action::kSetValue:
       return ax::mojom::Action::kSetValue;
     default:
       LOG(WARNING)
-          << "Unknown fuchsia::accessibility::semantics::Action with value "
+          << "Unknown fuchsia_accessibility_semantics::Action with value "
           << static_cast<int>(fuchsia_action);
       return {};
   }
@@ -50,7 +47,7 @@ absl::optional<ax::mojom::Action> ConvertAction(
 
 AccessibilityBridgeFuchsiaImpl::AccessibilityBridgeFuchsiaImpl(
     aura::Window* window,
-    fuchsia::ui::views::ViewRef view_ref,
+    fuchsia_ui_views::ViewRef view_ref,
     base::RepeatingCallback<void(bool)> on_semantics_enabled,
     OnConnectionClosedCallback on_connection_closed,
     inspect::Node inspect_node)
@@ -58,19 +55,19 @@ AccessibilityBridgeFuchsiaImpl::AccessibilityBridgeFuchsiaImpl(
       on_semantics_enabled_(std::move(on_semantics_enabled)),
       on_connection_closed_(std::move(on_connection_closed)),
       inspect_node_(std::move(inspect_node)) {
-  semantic_provider_ = std::make_unique<ui::AXFuchsiaSemanticProviderImpl>(
+  semantic_provider_ = std::make_unique<AXFuchsiaSemanticProviderImpl>(
       std::move(view_ref), this);
 
-  ui::AccessibilityBridgeFuchsiaRegistry* registry =
-      ui::AccessibilityBridgeFuchsiaRegistry::GetInstance();
+  AccessibilityBridgeFuchsiaRegistry* registry =
+      AccessibilityBridgeFuchsiaRegistry::GetInstance();
   DCHECK(registry);
   if (root_window_)
     registry->RegisterAccessibilityBridge(root_window_, this);
 }
 
 AccessibilityBridgeFuchsiaImpl::~AccessibilityBridgeFuchsiaImpl() {
-  ui::AccessibilityBridgeFuchsiaRegistry* registry =
-      ui::AccessibilityBridgeFuchsiaRegistry::GetInstance();
+  AccessibilityBridgeFuchsiaRegistry* registry =
+      AccessibilityBridgeFuchsiaRegistry::GetInstance();
   DCHECK(registry);
   if (root_window_)
     registry->UnregisterAccessibilityBridge(root_window_);
@@ -87,13 +84,14 @@ uint32_t AccessibilityBridgeFuchsiaImpl::MaybeToFuchsiaRootID(
 }
 
 void AccessibilityBridgeFuchsiaImpl::UpdateNode(
-    fuchsia::accessibility::semantics::Node node) {
-  DCHECK(node.has_node_id());
+    fuchsia_accessibility_semantics::Node node) {
+  DCHECK(node.node_id().has_value());
 
-  node.set_node_id(MaybeToFuchsiaRootID(node.node_id()));
+  node.node_id(MaybeToFuchsiaRootID(node.node_id().value()));
 
-  if (node.has_container_id())
-    node.set_container_id(MaybeToFuchsiaRootID(node.container_id()));
+  if (node.container_id()) {
+    node.container_id(MaybeToFuchsiaRootID(node.container_id().value()));
+  }
 
   semantic_provider_->Update(std::move(node));
 }
@@ -109,17 +107,18 @@ void AccessibilityBridgeFuchsiaImpl::DeleteNode(uint32_t node_id) {
 
 void AccessibilityBridgeFuchsiaImpl::OnAccessibilityHitTestResult(
     int hit_test_request_id,
-    absl::optional<uint32_t> result) {
-  auto it = pending_hit_test_callbacks_.find(hit_test_request_id);
-  if (it == pending_hit_test_callbacks_.end())
+    std::optional<uint32_t> result) {
+  auto it = pending_hit_test_completers_.find(hit_test_request_id);
+  if (it == pending_hit_test_completers_.end()) {
     return;
+  }
 
-  fuchsia::accessibility::semantics::Hit hit;
+  fuchsia_accessibility_semantics::Hit hit;
   if (result)
-    hit.set_node_id(MaybeToFuchsiaRootID(*result));
+    hit.node_id(MaybeToFuchsiaRootID(*result));
 
-  it->second(std::move(hit));
-  pending_hit_test_callbacks_.erase(it);
+  std::move(it->second).Run(std::move(hit));
+  pending_hit_test_completers_.erase(it);
 }
 
 float AccessibilityBridgeFuchsiaImpl::GetDeviceScaleFactor() {
@@ -145,7 +144,7 @@ void AccessibilityBridgeFuchsiaImpl::SetRootID(uint32_t root_node_id) {
 
 bool AccessibilityBridgeFuchsiaImpl::OnAccessibilityAction(
     uint32_t node_id,
-    fuchsia::accessibility::semantics::Action action) {
+    fuchsia_accessibility_semantics::Action action) {
   // If the action was requested on the root, translate to the root node's
   // unique ID.
   if (node_id == AXFuchsiaSemanticProvider::kFuchsiaRootNodeId) {
@@ -155,25 +154,25 @@ bool AccessibilityBridgeFuchsiaImpl::OnAccessibilityAction(
     node_id = *root_node_id_;
   }
 
-  ui::AXPlatformNode* ax_platform_node =
-      ui::AXPlatformNodeFuchsia::GetFromUniqueId(node_id);
-  ui::AXPlatformNodeFuchsia* ax_platform_node_fuchsia =
-      static_cast<ui::AXPlatformNodeFuchsia*>(ax_platform_node);
+  AXPlatformNode* ax_platform_node =
+      AXPlatformNodeFuchsia::GetFromUniqueId(node_id);
+  AXPlatformNodeFuchsia* ax_platform_node_fuchsia =
+      static_cast<AXPlatformNodeFuchsia*>(ax_platform_node);
 
   if (!ax_platform_node_fuchsia)
     return false;
 
-  ui::AXActionData action_data = ui::AXActionData();
+  AXActionData action_data = AXActionData();
 
   // The requested action is not supported.
-  absl::optional<ax::mojom::Action> ax_action = ConvertAction(action);
+  std::optional<ax::mojom::Action> ax_action = ConvertAction(action);
   if (!ax_action)
     return false;
 
   action_data.action = *ax_action;
   action_data.target_node_id = node_id;
 
-  if (action == fuchsia::accessibility::semantics::Action::SHOW_ON_SCREEN) {
+  if (action == fuchsia_accessibility_semantics::Action::kShowOnScreen) {
     // The scroll-to-make-visible action expects coordinates in the local
     // coordinate space of |node|. So, we need to translate node's bounds to the
     // origin.
@@ -194,34 +193,36 @@ bool AccessibilityBridgeFuchsiaImpl::OnAccessibilityAction(
   return true;
 }
 
-void AccessibilityBridgeFuchsiaImpl::OnHitTest(fuchsia::math::PointF point,
-                                               HitTestCallback callback) {
-  ui::AXPlatformNodeFuchsia* ax_platform_node_fuchsia = nullptr;
+void AccessibilityBridgeFuchsiaImpl::OnHitTest(
+    fuchsia_math::PointF point,
+    AXFuchsiaSemanticProvider::Delegate::HitTestCallback callback) {
+  AXPlatformNodeFuchsia* ax_platform_node_fuchsia = nullptr;
 
   if (root_node_id_) {
     // Target the root node.
-    ui::AXPlatformNode* ax_platform_node =
-        ui::AXPlatformNodeFuchsia::GetFromUniqueId(*root_node_id_);
+    AXPlatformNode* ax_platform_node =
+        AXPlatformNodeFuchsia::GetFromUniqueId(*root_node_id_);
     ax_platform_node_fuchsia =
-        static_cast<ui::AXPlatformNodeFuchsia*>(ax_platform_node);
+        static_cast<AXPlatformNodeFuchsia*>(ax_platform_node);
   }
 
   if (!ax_platform_node_fuchsia) {
-    fuchsia::accessibility::semantics::Hit hit;
-    callback(std::move(hit));
+    fuchsia_accessibility_semantics::Hit hit;
+    std::move(callback).Run(std::move(hit));
     return;
   }
 
-  ui::AXActionData action_data;
+  AXActionData action_data;
   action_data.action = ax::mojom::Action::kHitTest;
   gfx::Point target_point;
-  target_point.set_x(point.x);
-  target_point.set_y(point.y);
+  target_point.set_x(point.x());
+  target_point.set_y(point.y());
   action_data.target_point = target_point;
   action_data.hit_test_event_to_fire = ax::mojom::Event::kHitTestResult;
   action_data.request_id = next_hittest_request_id_++;
 
-  pending_hit_test_callbacks_[action_data.request_id] = std::move(callback);
+  pending_hit_test_completers_.insert_or_assign(action_data.request_id,
+                                                std::move(callback));
 
   ax_platform_node_fuchsia->PerformAction(std::move(action_data));
 }

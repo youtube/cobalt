@@ -21,6 +21,7 @@ class BorealisSecurityDelegate : public guest_os::GuestOsSecurityDelegate {
   // Builds an instance of the security_delegate for the given |profile|.
   static void Build(
       Profile* profile,
+      std::string vm_name,
       base::OnceCallback<
           void(std::unique_ptr<guest_os::GuestOsSecurityDelegate>)> callback);
 
@@ -29,8 +30,7 @@ class BorealisSecurityDelegate : public guest_os::GuestOsSecurityDelegate {
   // exo::SecurityDelegate overrides:
   bool CanSelfActivate(aura::Window* window) const override;
   bool CanLockPointer(aura::Window* window) const override;
-  bool CanSetBoundsWithServerSideDecoration(
-      aura::Window* window) const override;
+  SetBoundsPolicy CanSetBounds(aura::Window* window) const override;
 
   // Used in tests to avoid the async Build() call.
   static std::unique_ptr<BorealisSecurityDelegate> MakeForTesting(
@@ -38,9 +38,9 @@ class BorealisSecurityDelegate : public guest_os::GuestOsSecurityDelegate {
 
  private:
   // Private constructor, use Build().
-  explicit BorealisSecurityDelegate(Profile* profile);
+  BorealisSecurityDelegate(Profile* profile, std::string vm_name);
 
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
+  const raw_ptr<Profile> profile_;
 };
 
 }  // namespace borealis

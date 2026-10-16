@@ -57,8 +57,7 @@ void CmaAudioOutputStream::SetRunning(bool running) {
 }
 
 void CmaAudioOutputStream::Initialize(
-    const std::string& application_session_id,
-    chromecast::mojom::MultiroomInfoPtr multiroom_info) {
+    const std::string& application_session_id) {
   DCHECK_CALLED_ON_VALID_THREAD(media_thread_checker_);
   DCHECK_EQ(cma_backend_state_, CmaBackendState::kUninitialized);
   // If AUDIO_PREFETCH is enabled, we're able to push audio ahead of
@@ -70,7 +69,7 @@ void CmaAudioOutputStream::Initialize(
           ? MediaPipelineDeviceParams::kModeSyncPts
           : MediaPipelineDeviceParams::kModeIgnorePts,
       false /*use_hw_av_sync*/, 0 /*audio_track_session_id*/,
-      std::move(multiroom_info), cma_backend_factory_, this);
+      cma_backend_factory_, this);
   cma_backend_state_ = CmaBackendState::kStopped;
 
   audio_bus_ = ::media::AudioBus::Create(audio_params_);
@@ -121,7 +120,7 @@ void CmaAudioOutputStream::Start(
 void CmaAudioOutputStream::Stop(base::WaitableEvent* finished) {
   DCHECK_CALLED_ON_VALID_THREAD(media_thread_checker_);
   // Prevent further pushes to the audio buffer after stopping.
-  push_timer_.AbandonAndStop();
+  push_timer_.Stop();
   // Don't actually stop the backend.  Stop() gets called when the stream is
   // paused.  We rely on Flush() to stop the backend.
   if (output_) {
@@ -135,7 +134,7 @@ void CmaAudioOutputStream::Stop(base::WaitableEvent* finished) {
 void CmaAudioOutputStream::Flush(base::WaitableEvent* finished) {
   DCHECK_CALLED_ON_VALID_THREAD(media_thread_checker_);
   // Prevent further pushes to the audio buffer after stopping.
-  push_timer_.AbandonAndStop();
+  push_timer_.Stop();
 
   if (output_ && (cma_backend_state_ == CmaBackendState::kPaused ||
                   cma_backend_state_ == CmaBackendState::kStarted)) {
@@ -150,7 +149,7 @@ void CmaAudioOutputStream::Flush(base::WaitableEvent* finished) {
 void CmaAudioOutputStream::Close(base::OnceClosure closure) {
   DCHECK_CALLED_ON_VALID_THREAD(media_thread_checker_);
   // Prevent further pushes to the audio buffer after stopping.
-  push_timer_.AbandonAndStop();
+  push_timer_.Stop();
   // Only stop the backend if it was started.
   if (output_ && cma_backend_state_ != CmaBackendState::kStopped) {
     output_->Stop();

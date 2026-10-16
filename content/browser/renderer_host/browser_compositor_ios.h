@@ -10,17 +10,21 @@
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "components/viz/common/frame_sinks/begin_frame_source.h"
+#include "components/viz/common/frame_sinks/external_begin_frame_source_ios.h"
 #include "components/viz/common/surfaces/local_surface_id.h"
 #include "components/viz/common/surfaces/parent_local_surface_id_allocator.h"
 #include "components/viz/common/surfaces/scoped_surface_id_allocator.h"
 #include "content/browser/renderer_host/delegated_frame_host.h"
 #include "content/common/content_export.h"
+#include "mojo/public/cpp/bindings/associated_receiver_set.h"
 #include "ui/compositor/compositor.h"
 #include "ui/compositor/compositor_observer.h"
 #include "ui/compositor/layer_observer.h"
 #include "ui/display/screen_info.h"
 
 namespace content {
+
+class BeginFrameSourceIOS;
 
 class BrowserCompositorIOSClient {
  public:
@@ -107,18 +111,31 @@ class CONTENT_EXPORT BrowserCompositorIOS : public DelegatedFrameHostClient,
                            base::TimeTicks activation_time) override;
   float GetDeviceScaleFactor() const override;
   void InvalidateLocalSurfaceIdOnEviction() override;
-  std::vector<viz::SurfaceId> CollectSurfaceIdsForEviction() override;
+  viz::FrameEvictorClient::EvictIds CollectSurfaceIdsForEviction() override;
   bool ShouldShowStaleContentOnEviction() override;
 
   base::WeakPtr<BrowserCompositorIOS> GetWeakPtr() {
     return weak_factory_.GetWeakPtr();
   }
 
+  // Dispatched when the page is being navigated to a different document. The
+  // new page hasn't been marked as active yet.
+  void DidNavigateMainFramePreCommit();
+
+  // Dispatched after the old page has been unloaded and has entered the
+  // `BackForwardCache`.
+  void DidEnterBackForwardCache();
+
+  // Dispatched after the page is activated from BFCache.
+  void ActivatedOrEvictedFromBackForwardCache();
+
   void DidNavigate();
 
   void ForceNewSurfaceForTesting();
 
   ui::Compositor* GetCompositor() const;
+
+  void InvalidateSurfaceAllocationGroup();
 
  private:
   // ui::LayerObserver implementation:
@@ -150,6 +167,10 @@ class CONTENT_EXPORT BrowserCompositorIOS : public DelegatedFrameHostClient,
                      float scale_factor,
                      const gfx::DisplayColorSpaces& display_color_spaces);
 
+  void InvalidateSurface();
+  void Suspend();
+  void Unsuspend();
+
   // Weak pointer to the layer supplied and reset via SetParentUiLayer. |this|
   // is an observer of |parent_ui_layer_|, to ensure that |parent_ui_layer_|
   // always be valid when non-null. The UpdateState function will re-parent
@@ -180,6 +201,8 @@ class CONTENT_EXPORT BrowserCompositorIOS : public DelegatedFrameHostClient,
   gfx::Size size_pixels_;
   float scale_factor_ = 1.f;
   gfx::DisplayColorSpaces display_color_spaces_;
+  std::unique_ptr<ui::CompositorLock> compositor_suspended_lock_;
+  std::unique_ptr<BeginFrameSourceIOS> begin_frame_source_;
 
   base::WeakPtrFactory<BrowserCompositorIOS> weak_factory_;
 };

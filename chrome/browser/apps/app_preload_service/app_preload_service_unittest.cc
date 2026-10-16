@@ -11,21 +11,27 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "chrome/browser/apps/app_preload_service/app_preload_almanac_endpoint.h"
 #include "chrome/browser/apps/app_preload_service/app_preload_service_factory.h"
 #include "chrome/browser/apps/app_preload_service/proto/app_preload.pb.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_list_prefs.h"
-#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
+#include "chrome/browser/ash/settings/scoped_testing_cros_settings.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome/test/base/scoped_testing_local_state.h"
+#include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/system/fake_statistics_provider.h"
 #include "components/prefs/pref_service.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/app_update.h"
+#include "components/user_manager/fake_user_manager_delegate.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "components/user_manager/user_manager.h"
+#include "components/user_manager/user_manager_impl.h"
 #include "content/public/test/browser_task_environment.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/test/test_url_loader_factory.h"
@@ -49,39 +55,49 @@ namespace apps {
 class AppPreloadServiceTest : public testing::Test {
  protected:
   AppPreloadServiceTest()
-      : scoped_user_manager_(std::make_unique<ash::FakeChromeUserManager>()) {
-    scoped_feature_list_.InitAndEnableFeature(features::kAppPreloadService);
+      : startup_check_resetter_(
+            AppPreloadService::DisablePreloadsOnStartupForTesting()) {
+    scoped_feature_list_.InitWithFeatures(
+        {features::kAppPreloadService, kAppPreloadServiceEnableShelfPin}, {});
+    AppPreloadServiceFactory::SkipApiKeyCheckForTesting(true);
   }
 
   void SetUp() override {
     testing::Test::SetUp();
 
-    GetFakeUserManager()->set_current_user_new(true);
+    user_manager::UserManager::Get()->SetIsCurrentUserNew(true);
 
     TestingProfile::Builder profile_builder;
     profile_builder.SetSharedURLLoaderFactory(
-        base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
-            &url_loader_factory_));
+        url_loader_factory_.GetSafeWeakWrapper());
     profile_ = profile_builder.Build();
 
     web_app::test::AwaitStartWebAppProviderAndSubsystems(GetProfile());
   }
 
-  Profile* GetProfile() { return profile_.get(); }
-
-  ash::FakeChromeUserManager* GetFakeUserManager() const {
-    return static_cast<ash::FakeChromeUserManager*>(
-        user_manager::UserManager::Get());
+  void TearDown() override {
+    AppPreloadServiceFactory::SkipApiKeyCheckForTesting(false);
   }
+
+  Profile* GetProfile() { return profile_.get(); }
 
   network::TestURLLoaderFactory url_loader_factory_;
 
  private:
+  // BrowserTaskEnvironment has to be the first member or test will break.
   content::BrowserTaskEnvironment task_environment_;
   base::test::ScopedFeatureList scoped_feature_list_;
+  ScopedTestingLocalState testing_local_state_{
+      TestingBrowserProcess::GetGlobal()};
+  ash::ScopedTestingCrosSettings testing_cros_settings_;
+  user_manager::ScopedUserManager scoped_user_manager_{
+      std::make_unique<user_manager::UserManagerImpl>(
+          std::make_unique<user_manager::FakeUserManagerDelegate>(),
+          testing_local_state_.Get(),
+          ash::CrosSettings::Get())};
   std::unique_ptr<TestingProfile> profile_;
-  user_manager::ScopedUserManager scoped_user_manager_;
   ash::system::ScopedFakeStatisticsProvider fake_statistics_provider_;
+  base::AutoReset<bool> startup_check_resetter_;
 };
 
 TEST_F(AppPreloadServiceTest, ServiceAccessPerProfile) {
@@ -133,8 +149,9 @@ TEST_F(AppPreloadServiceTest, ServiceAccessPerProfile) {
 }
 
 TEST_F(AppPreloadServiceTest, FirstLoginStartedPrefSet) {
-  // Ensure that the AppPreloadService is created.
-  AppPreloadService::Get(GetProfile());
+  auto* service = AppPreloadService::Get(GetProfile());
+  // Start the login flow, but do not wait for it to finish.
+  service->StartFirstLoginFlowForTesting(base::DoNothing());
 
   auto flow_started =
       GetStateManager(GetProfile()).FindBool(kFirstLoginFlowStartedKey);
@@ -143,7 +160,7 @@ TEST_F(AppPreloadServiceTest, FirstLoginStartedPrefSet) {
   // Since we're creating a new profile with no saved state, we expect the state
   // to be "started", but not "completed".
   EXPECT_TRUE(flow_started.has_value() && flow_started.value());
-  EXPECT_EQ(flow_completed, absl::nullopt);
+  EXPECT_EQ(flow_completed, std::nullopt);
 }
 
 TEST_F(AppPreloadServiceTest, FirstLoginCompletedPrefSetAfterSuccess) {
@@ -152,28 +169,28 @@ TEST_F(AppPreloadServiceTest, FirstLoginCompletedPrefSetAfterSuccess) {
   proto::AppPreloadListResponse response;
 
   url_loader_factory_.AddResponse(
-      AppPreloadServerConnector::GetServerUrl().spec(),
+      app_preload_almanac_endpoint::GetServerUrl().spec(),
       response.SerializeAsString());
 
   base::test::TestFuture<bool> result;
   auto* service = AppPreloadService::Get(GetProfile());
-  service->SetInstallationCompleteCallbackForTesting(result.GetCallback());
+  service->StartFirstLoginFlowForTesting(result.GetCallback());
   ASSERT_TRUE(result.Get());
 
   // We expect that the key has been set after the first login flow has been
   // completed.
   auto flow_completed =
       GetStateManager(GetProfile()).FindBool(kFirstLoginFlowCompletedKey);
-  EXPECT_NE(flow_completed, absl::nullopt);
+  EXPECT_NE(flow_completed, std::nullopt);
   EXPECT_TRUE(flow_completed.value());
 }
 
 TEST_F(AppPreloadServiceTest, FirstLoginExistingUserNotStarted) {
-  GetFakeUserManager()->set_current_user_new(false);
+  user_manager::UserManager::Get()->SetIsCurrentUserNew(false);
   TestingProfile existing_user_profile;
 
-  // Ensure that the AppPreloadService is created.
-  AppPreloadService::Get(&existing_user_profile);
+  auto* service = AppPreloadService::Get(&existing_user_profile);
+  service->StartFirstLoginFlowForTesting(base::DoNothing());
 
   auto flow_started = GetStateManager(&existing_user_profile)
                           .FindBool(kFirstLoginFlowStartedKey);
@@ -191,12 +208,12 @@ TEST_F(AppPreloadServiceTest, IgnoreAndroidAppInstall) {
   app->set_install_reason(proto::AppPreloadListResponse::INSTALL_REASON_OEM);
 
   url_loader_factory_.AddResponse(
-      AppPreloadServerConnector::GetServerUrl().spec(),
+      app_preload_almanac_endpoint::GetServerUrl().spec(),
       response.SerializeAsString());
 
   base::test::TestFuture<bool> result;
   auto* service = AppPreloadService::Get(GetProfile());
-  service->SetInstallationCompleteCallbackForTesting(result.GetCallback());
+  service->StartFirstLoginFlowForTesting(result.GetCallback());
   ASSERT_TRUE(result.Get());
 
   // It's hard to assert conclusively that nothing happens in this case, but for
@@ -210,12 +227,12 @@ TEST_F(AppPreloadServiceTest, IgnoreAndroidAppInstall) {
 
 TEST_F(AppPreloadServiceTest, FirstLoginStartedNotCompletedAfterServerError) {
   url_loader_factory_.AddResponse(
-      AppPreloadServerConnector::GetServerUrl().spec(), /*content=*/"",
+      app_preload_almanac_endpoint::GetServerUrl().spec(), /*content=*/"",
       net::HTTP_INTERNAL_SERVER_ERROR);
 
   base::test::TestFuture<bool> result;
   auto* service = AppPreloadService::Get(GetProfile());
-  service->SetInstallationCompleteCallbackForTesting(result.GetCallback());
+  service->StartFirstLoginFlowForTesting(result.GetCallback());
   ASSERT_FALSE(result.Get());
 
   auto flow_started =
@@ -225,7 +242,58 @@ TEST_F(AppPreloadServiceTest, FirstLoginStartedNotCompletedAfterServerError) {
   // Since there was an error fetching apps, the flow should be "started" but
   // not "completed".
   EXPECT_EQ(flow_started, true);
-  EXPECT_EQ(flow_completed, absl::nullopt);
+  EXPECT_EQ(flow_completed, std::nullopt);
+}
+
+TEST_F(AppPreloadServiceTest, GetPinApps) {
+  PackageId app1 = *PackageId::FromString("web:https://example.com/app1");
+  PackageId app2 = *PackageId::FromString("web:https://example.com/app2");
+  PackageId app3 = *PackageId::FromString("web:https://example.com/app3");
+  PackageId app4 = *PackageId::FromString("web:https://example.com/app4");
+
+  proto::AppPreloadListResponse response;
+  auto add_app = [&](const std::string& package_id) {
+    auto* app = response.add_apps_to_install();
+    app->set_package_id(package_id);
+    app->set_install_reason(
+        proto::AppPreloadListResponse::INSTALL_REASON_DEFAULT);
+  };
+  auto add_shelf_config = [&](const std::string& package_id, uint32_t order) {
+    auto* config = response.add_shelf_config();
+    config->add_package_id(package_id);
+    config->set_order(order);
+  };
+  add_app(app4.ToString());
+  add_app(app2.ToString());
+  add_app(app1.ToString());
+  add_shelf_config(app3.ToString(), 3);
+  add_shelf_config(app2.ToString(), 2);
+  add_shelf_config(app1.ToString(), 1);
+
+  url_loader_factory_.AddResponse(
+      app_preload_almanac_endpoint::GetServerUrl().spec(),
+      response.SerializeAsString());
+
+  auto* service = AppPreloadService::Get(GetProfile());
+  service->StartFirstLoginFlowForTesting(base::DoNothing());
+
+  base::test::TestFuture<const std::vector<PackageId>&,
+                         const std::vector<PackageId>&>
+      result;
+  service->GetPinApps(result.GetCallback());
+
+  // Pin apps should ignore app4 since it is not in pin ordering.
+  std::vector<apps::PackageId> pin_apps = result.Get<0>();
+  EXPECT_EQ(pin_apps.size(), 2u);
+  EXPECT_EQ(pin_apps[0], app2);
+  EXPECT_EQ(pin_apps[1], app1);
+
+  // Pin order should be sorted.
+  std::vector<apps::PackageId> pin_order = result.Get<1>();
+  EXPECT_EQ(pin_order.size(), 3u);
+  EXPECT_EQ(pin_order[0], app1);
+  EXPECT_EQ(pin_order[1], app2);
+  EXPECT_EQ(pin_order[2], app3);
 }
 
 }  // namespace apps

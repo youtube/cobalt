@@ -18,10 +18,10 @@
 #include "chrome/browser/notifications/notification_display_service.h"
 #include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/sharing/proto/remote_copy_message.pb.h"
-#include "chrome/browser/sharing/proto/sharing_message.pb.h"
-#include "chrome/browser/sharing/sharing_metrics.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/sharing_message/proto/remote_copy_message.pb.h"
+#include "components/sharing_message/proto/sharing_message.pb.h"
+#include "components/sharing_message/sharing_metrics.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/storage_partition.h"
@@ -48,10 +48,6 @@ namespace {
 constexpr char kRemoteCopyAllowedOrigin[] = "https://googleusercontent.com";
 
 constexpr size_t kMaxImageDownloadSize = 5 * 1024 * 1024;
-
-// The initial delay for the timer that detects clipboard writes. An exponential
-// backoff will double this value whenever the OneShotTimer reschedules.
-constexpr base::TimeDelta kInitialDetectionTimerDelay = base::Milliseconds(1);
 
 const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
     net::DefineNetworkTrafficAnnotation("remote_copy_message_handler",
@@ -101,7 +97,7 @@ RemoteCopyMessageHandler::RemoteCopyMessageHandler(Profile* profile)
 RemoteCopyMessageHandler::~RemoteCopyMessageHandler() = default;
 
 void RemoteCopyMessageHandler::OnMessage(
-    chrome_browser_sharing::SharingMessage message,
+    components_sharing_message::SharingMessage message,
     DoneCallback done_callback) {
   DCHECK(message.has_remote_copy_message());
   TRACE_EVENT0("sharing", "RemoteCopyMessageHandler::OnMessage");
@@ -113,15 +109,14 @@ void RemoteCopyMessageHandler::OnMessage(
   device_name_ = message.sender_device_name();
 
   switch (message.remote_copy_message().content_case()) {
-    case chrome_browser_sharing::RemoteCopyMessage::kText:
+    case components_sharing_message::RemoteCopyMessage::kText:
       HandleText(message.remote_copy_message().text());
       break;
-    case chrome_browser_sharing::RemoteCopyMessage::kImageUrl:
+    case components_sharing_message::RemoteCopyMessage::kImageUrl:
       HandleImage(message.remote_copy_message().image_url());
       break;
-    case chrome_browser_sharing::RemoteCopyMessage::CONTENT_NOT_SET:
+    case components_sharing_message::RemoteCopyMessage::CONTENT_NOT_SET:
       NOTREACHED();
-      break;
   }
 
   std::move(done_callback).Run(/*response=*/nullptr);
@@ -136,23 +131,10 @@ void RemoteCopyMessageHandler::HandleText(const std::string& text) {
     return;
   }
 
-  LogRemoteCopyReceivedTextSize(text.size());
-
-  ui::ClipboardSequenceNumberToken old_sequence_number =
-      ui::Clipboard::GetForCurrentThread()->GetSequenceNumber(
-          ui::ClipboardBuffer::kCopyPaste);
-  base::ElapsedTimer write_timer;
   {
     ui::ScopedClipboardWriter(ui::ClipboardBuffer::kCopyPaste)
         .WriteText(base::UTF8ToUTF16(text));
   }
-  LogRemoteCopyWriteTime(write_timer.Elapsed(), /*is_image=*/false);
-  // Unretained(this) is safe here because |this| owns |write_detection_timer_|.
-  write_detection_timer_.Start(
-      FROM_HERE, kInitialDetectionTimerDelay,
-      base::BindOnce(&RemoteCopyMessageHandler::DetectWrite,
-                     base::Unretained(this), old_sequence_number,
-                     base::TimeTicks::Now(), /*is_image=*/false));
   ShowNotification(GetTextNotificationTitle(device_name_), SkBitmap());
   Finish(RemoteCopyHandleMessageResult::kSuccessHandledText);
 }
@@ -181,7 +163,6 @@ void RemoteCopyMessageHandler::HandleImage(const std::string& image_url) {
 
   url_loader_ =
       network::SimpleURLLoader::Create(std::move(request), kTrafficAnnotation);
-  timer_ = base::ElapsedTimer();
   // Unretained(this) is safe here because |this| owns |url_loader_|.
   url_loader_->DownloadToString(
       profile_->GetDefaultStoragePartition()
@@ -204,27 +185,12 @@ void RemoteCopyMessageHandler::OnURLLoadComplete(
     std::unique_ptr<std::string> content) {
   TRACE_EVENT0("sharing", "RemoteCopyMessageHandler::OnURLLoadComplete");
 
-  int code;
-  if (url_loader_->NetError() != net::OK) {
-    code = url_loader_->NetError();
-  } else if (!url_loader_->ResponseInfo() ||
-             !url_loader_->ResponseInfo()->headers) {
-    code = net::OK;
-  } else {
-    code = url_loader_->ResponseInfo()->headers->response_code();
-  }
-  LogRemoteCopyLoadImageStatusCode(code);
-
   url_loader_.reset();
   if (!content || content->empty()) {
     Finish(RemoteCopyHandleMessageResult::kFailureNoImageContentLoaded);
     return;
   }
 
-  LogRemoteCopyLoadImageTime(timer_.Elapsed());
-  LogRemoteCopyReceivedImageSizeBeforeDecode(content->size());
-
-  timer_ = base::ElapsedTimer();
   ImageDecoder::Start(this, std::move(*content));
 }
 
@@ -235,9 +201,6 @@ void RemoteCopyMessageHandler::OnImageDecoded(const SkBitmap& image) {
     Finish(RemoteCopyHandleMessageResult::kFailureDecodedImageDrawsNothing);
     return;
   }
-
-  LogRemoteCopyDecodeImageTime(timer_.Elapsed());
-  LogRemoteCopyReceivedImageSizeAfterDecode(image.computeByteSize());
 
   WriteImageAndShowNotification(image);
 }
@@ -252,21 +215,10 @@ void RemoteCopyMessageHandler::WriteImageAndShowNotification(
                "RemoteCopyMessageHandler::WriteImageAndShowNotification",
                "bytes", image.computeByteSize());
 
-  ui::ClipboardSequenceNumberToken old_sequence_number =
-      ui::Clipboard::GetForCurrentThread()->GetSequenceNumber(
-          ui::ClipboardBuffer::kCopyPaste);
-  base::ElapsedTimer write_timer;
   {
     ui::ScopedClipboardWriter(ui::ClipboardBuffer::kCopyPaste)
         .WriteImage(image);
   }
-  LogRemoteCopyWriteTime(write_timer.Elapsed(), /*is_image=*/true);
-  // Unretained(this) is safe here because |this| owns |write_detection_timer_|.
-  write_detection_timer_.Start(
-      FROM_HERE, kInitialDetectionTimerDelay,
-      base::BindOnce(&RemoteCopyMessageHandler::DetectWrite,
-                     base::Unretained(this), old_sequence_number,
-                     base::TimeTicks::Now(), /*is_image=*/true));
 
   ShowNotification(GetImageNotificationTitle(device_name_), image);
   Finish(RemoteCopyHandleMessageResult::kSuccessHandledImage);
@@ -277,7 +229,7 @@ void RemoteCopyMessageHandler::ShowNotification(const std::u16string& title,
   TRACE_EVENT0("sharing", "RemoteCopyMessageHandler::ShowNotification");
 
   message_center::RichNotificationData rich_notification_data;
-  rich_notification_data.vector_small_image = &kLaptopAndSmartphoneIcon;
+  rich_notification_data.vector_small_image = &kDevicesIcon;
   rich_notification_data.renotify = true;
 
   ui::Accelerator paste_accelerator(ui::VKEY_V, ui::EF_PLATFORM_ACCELERATOR);
@@ -298,41 +250,12 @@ void RemoteCopyMessageHandler::ShowNotification(const std::u16string& title,
       NotificationHandler::Type::SHARING, notification, /*metadata=*/nullptr);
 }
 
-void RemoteCopyMessageHandler::DetectWrite(
-    const ui::ClipboardSequenceNumberToken& old_sequence_number,
-    base::TimeTicks start_ticks,
-    bool is_image) {
-  TRACE_EVENT0("sharing", "RemoteCopyMessageHandler::DetectWrite");
-
-  ui::ClipboardSequenceNumberToken current_sequence_number =
-      ui::Clipboard::GetForCurrentThread()->GetSequenceNumber(
-          ui::ClipboardBuffer::kCopyPaste);
-  base::TimeDelta elapsed = base::TimeTicks::Now() - start_ticks;
-  if (current_sequence_number != old_sequence_number) {
-    LogRemoteCopyWriteDetectionTime(elapsed, is_image);
-    return;
-  }
-
-  if (elapsed > base::Seconds(10))
-    return;
-
-  // Unretained(this) is safe here because |this| owns |write_detection_timer_|.
-  base::TimeDelta backoff_delay = write_detection_timer_.GetCurrentDelay() * 2;
-  write_detection_timer_.Start(
-      FROM_HERE, backoff_delay,
-      base::BindOnce(&RemoteCopyMessageHandler::DetectWrite,
-                     base::Unretained(this), old_sequence_number, start_ticks,
-                     is_image));
-}
-
 void RemoteCopyMessageHandler::Finish(RemoteCopyHandleMessageResult result) {
   TRACE_EVENT1("sharing", "RemoteCopyMessageHandler::Finish", "result", result);
-  LogRemoteCopyHandleMessageResult(result);
   device_name_.clear();
 }
 
 void RemoteCopyMessageHandler::CancelAsyncTasks() {
   url_loader_.reset();
   ImageDecoder::Cancel(this);
-  write_detection_timer_.AbandonAndStop();
 }

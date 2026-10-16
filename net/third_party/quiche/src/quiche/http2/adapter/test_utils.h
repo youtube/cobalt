@@ -7,19 +7,20 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
+#include "quiche/http2/adapter/chunked_buffer.h"
 #include "quiche/http2/adapter/data_source.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/mock_http2_visitor.h"
+#include "quiche/http2/core/spdy_protocol.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/spdy/core/http2_header_block.h"
-#include "quiche/spdy/core/spdy_protocol.h"
 
 namespace http2 {
 namespace adapter {
 namespace test {
 
-class QUICHE_NO_EXPORT DataSavingVisitor
+class QUICHE_NO_EXPORT TestVisitor
     : public testing::StrictMock<MockHttp2Visitor> {
  public:
   int64_t OnReadyToSend(absl::string_view data) override {
@@ -58,6 +59,25 @@ class QUICHE_NO_EXPORT DataSavingVisitor
     }
   }
 
+  DataFrameHeaderInfo OnReadyToSendDataForStream(Http2StreamId stream_id,
+                                                 size_t max_length) override;
+  bool SendDataFrame(Http2StreamId stream_id, absl::string_view frame_header,
+                     size_t payload_bytes) override;
+
+  // Test methods to manipulate the data frame payload to send for a stream.
+  void AppendPayloadForStream(Http2StreamId stream_id,
+                              absl::string_view payload);
+  void SetEndData(Http2StreamId stream_id, bool end_stream);
+  void SimulateError(Http2StreamId stream_id);
+
+  std::pair<int64_t, bool> PackMetadataForStream(Http2StreamId stream_id,
+                                                 uint8_t* dest,
+                                                 size_t dest_len) override;
+
+  // Test methods to manipulate the metadata payload to send for a stream.
+  void AppendMetadataForStream(Http2StreamId stream_id,
+                               const quiche::HttpHeaderBlock& payload);
+
   const std::string& data() { return data_; }
   void Clear() { data_.clear(); }
 
@@ -69,41 +89,24 @@ class QUICHE_NO_EXPORT DataSavingVisitor
   void set_has_write_error() { has_write_error_ = true; }
 
  private:
+  struct DataPayload {
+    ChunkedBuffer data;
+    bool end_data = false;
+    bool end_stream = false;
+    bool return_error = false;
+  };
   std::string data_;
   absl::flat_hash_map<Http2StreamId, std::vector<std::string>> metadata_map_;
+  absl::flat_hash_map<Http2StreamId, DataPayload> data_map_;
+  absl::flat_hash_map<Http2StreamId, std::string> outbound_metadata_map_;
   size_t send_limit_ = std::numeric_limits<size_t>::max();
   bool is_write_blocked_ = false;
   bool has_write_error_ = false;
 };
 
-// A test DataFrameSource. Starts out in the empty, blocked state.
-class QUICHE_NO_EXPORT TestDataFrameSource : public DataFrameSource {
- public:
-  TestDataFrameSource(Http2VisitorInterface& visitor, bool has_fin);
-
-  void AppendPayload(absl::string_view payload);
-  void EndData();
-  void SimulateError() { return_error_ = true; }
-
-  std::pair<int64_t, bool> SelectPayloadLength(size_t max_length) override;
-  bool Send(absl::string_view frame_header, size_t payload_length) override;
-  bool send_fin() const override { return has_fin_; }
-
- private:
-  Http2VisitorInterface& visitor_;
-  std::vector<std::string> payload_fragments_;
-  absl::string_view current_fragment_;
-  // Whether the stream should end with the final frame of data.
-  const bool has_fin_;
-  // Whether |payload_fragments_| contains the final segment of data.
-  bool end_data_ = false;
-  // Whether SelectPayloadLength() should return an error.
-  bool return_error_ = false;
-};
-
 class QUICHE_NO_EXPORT TestMetadataSource : public MetadataSource {
  public:
-  explicit TestMetadataSource(const spdy::Http2HeaderBlock& entries);
+  explicit TestMetadataSource(const quiche::HttpHeaderBlock& entries);
 
   size_t NumFrames(size_t max_frame_size) const override {
     // Round up to the next frame.
@@ -112,9 +115,12 @@ class QUICHE_NO_EXPORT TestMetadataSource : public MetadataSource {
   std::pair<int64_t, bool> Pack(uint8_t* dest, size_t dest_len) override;
   void OnFailure() override {}
 
+  void InjectFailure() { fail_when_packing_ = true; }
+
  private:
   const std::string encoded_entries_;
   absl::string_view remaining_;
+  bool fail_when_packing_ = false;
 };
 
 // These matchers check whether a string consists entirely of HTTP/2 frames of
@@ -125,7 +131,7 @@ class QUICHE_NO_EXPORT TestMetadataSource : public MetadataSource {
 
 // Requires that frames match both types and lengths.
 testing::Matcher<absl::string_view> EqualsFrames(
-    std::vector<std::pair<spdy::SpdyFrameType, absl::optional<size_t>>>
+    std::vector<std::pair<spdy::SpdyFrameType, std::optional<size_t>>>
         types_and_lengths);
 
 // Requires that frames match the specified types.

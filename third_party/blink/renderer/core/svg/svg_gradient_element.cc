@@ -21,7 +21,6 @@
 
 #include "third_party/blink/renderer/core/svg/svg_gradient_element.h"
 
-#include "third_party/blink/renderer/core/css/style_change_reason.h"
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
 #include "third_party/blink/renderer/core/dom/id_target_observer.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_resource_container.h"
@@ -37,11 +36,11 @@ namespace blink {
 
 template <>
 const SVGEnumerationMap& GetEnumerationMap<SVGSpreadMethodType>() {
-  static const SVGEnumerationMap::Entry enum_items[] = {
-      {kSVGSpreadMethodPad, "pad"},
-      {kSVGSpreadMethodReflect, "reflect"},
-      {kSVGSpreadMethodRepeat, "repeat"},
-  };
+  static constexpr auto enum_items = std::to_array<const char* const>({
+      "pad",
+      "reflect",
+      "repeat",
+  });
   static const SVGEnumerationMap entries(enum_items);
   return entries;
 }
@@ -63,11 +62,7 @@ SVGGradientElement::SVGGradientElement(const QualifiedName& tag_name,
                       SVGAnimatedEnumeration<SVGUnitTypes::SVGUnitType>>(
           this,
           svg_names::kGradientUnitsAttr,
-          SVGUnitTypes::kSvgUnitTypeObjectboundingbox)) {
-  AddToPropertyMap(gradient_transform_);
-  AddToPropertyMap(spread_method_);
-  AddToPropertyMap(gradient_units_);
-}
+          SVGUnitTypes::kSvgUnitTypeObjectboundingbox)) {}
 
 void SVGGradientElement::Trace(Visitor* visitor) const {
   visitor->Trace(gradient_transform_);
@@ -86,7 +81,7 @@ void SVGGradientElement::BuildPendingResource() {
   if (auto* gradient = DynamicTo<SVGGradientElement>(target))
     AddReferenceTo(gradient);
 
-  InvalidateGradient(layout_invalidation_reason::kSvgResourceInvalidated);
+  InvalidateGradient();
 }
 
 void SVGGradientElement::ClearResourceReferences() {
@@ -94,38 +89,21 @@ void SVGGradientElement::ClearResourceReferences() {
   RemoveAllOutgoingReferences();
 }
 
-void SVGGradientElement::CollectStyleForPresentationAttribute(
-    const QualifiedName& name,
-    const AtomicString& value,
-    MutableCSSPropertyValueSet* style) {
-  if (name == svg_names::kGradientTransformAttr) {
-    AddPropertyToPresentationAttributeStyle(
-        style, CSSPropertyID::kTransform,
-        *gradient_transform_->CurrentValue()->CssValue());
-    return;
-  }
-  SVGElement::CollectStyleForPresentationAttribute(name, value, style);
-}
-
 void SVGGradientElement::SvgAttributeChanged(
     const SvgAttributeChangedParams& params) {
   const QualifiedName& attr_name = params.name;
   if (attr_name == svg_names::kGradientTransformAttr) {
-    InvalidateSVGPresentationAttributeStyle();
-    SetNeedsStyleRecalc(kLocalStyleChange,
-                        StyleChangeReasonForTracing::FromAttribute(attr_name));
+    UpdatePresentationAttributeStyle(*gradient_transform_);
   }
 
   if (attr_name == svg_names::kGradientUnitsAttr ||
       attr_name == svg_names::kGradientTransformAttr ||
       attr_name == svg_names::kSpreadMethodAttr) {
-    SVGElement::InvalidationGuard invalidation_guard(this);
-    InvalidateGradient(layout_invalidation_reason::kAttributeChanged);
+    InvalidateGradient();
     return;
   }
 
   if (SVGURIReference::IsKnownAttribute(attr_name)) {
-    SVGElement::InvalidationGuard invalidation_guard(this);
     BuildPendingResource();
     return;
   }
@@ -151,20 +129,18 @@ void SVGGradientElement::ChildrenChanged(const ChildrenChange& change) {
   SVGElement::ChildrenChanged(change);
 
   if (!change.ByParser())
-    InvalidateGradient(layout_invalidation_reason::kChildChanged);
+    InvalidateGradient();
 }
 
-void SVGGradientElement::InvalidateGradient(
-    LayoutInvalidationReasonForTracing reason) {
+void SVGGradientElement::InvalidateGradient() {
   if (auto* layout_object = To<LayoutSVGResourceContainer>(GetLayoutObject()))
-    layout_object->InvalidateCacheAndMarkForLayout(reason);
+    layout_object->InvalidateCache();
 }
 
 void SVGGradientElement::InvalidateDependentGradients() {
   NotifyIncomingReferences([](SVGElement& element) {
     if (auto* gradient = DynamicTo<SVGGradientElement>(element)) {
-      gradient->InvalidateGradient(
-          layout_invalidation_reason::kSvgResourceInvalidated);
+      gradient->InvalidateGradient();
     }
   });
 }
@@ -209,6 +185,39 @@ Vector<Gradient::ColorStop> SVGGradientElement::BuildStops() const {
         Gradient::ColorStop(offset, stop.StopColorIncludingOpacity()));
   }
   return stops;
+}
+
+SVGAnimatedPropertyBase* SVGGradientElement::PropertyFromAttribute(
+    const QualifiedName& attribute_name) const {
+  if (attribute_name == svg_names::kGradientTransformAttr) {
+    return gradient_transform_.Get();
+  } else if (attribute_name == svg_names::kSpreadMethodAttr) {
+    return spread_method_.Get();
+  } else if (attribute_name == svg_names::kGradientUnitsAttr) {
+    return gradient_units_.Get();
+  } else {
+    SVGAnimatedPropertyBase* ret =
+        SVGURIReference::PropertyFromAttribute(attribute_name);
+    if (ret) {
+      return ret;
+    } else {
+      return SVGElement::PropertyFromAttribute(attribute_name);
+    }
+  }
+}
+
+void SVGGradientElement::SynchronizeAllSVGAttributes() const {
+  SVGAnimatedPropertyBase* attrs[]{gradient_transform_.Get(),
+                                   spread_method_.Get(), gradient_units_.Get()};
+  SynchronizeListOfSVGAttributes(attrs);
+  SVGURIReference::SynchronizeAllSVGAttributes();
+  SVGElement::SynchronizeAllSVGAttributes();
+}
+
+void SVGGradientElement::CollectExtraStyleForPresentationAttribute(
+    HeapVector<CSSPropertyValue, 8>& style) {
+  AddAnimatedPropertyToPresentationAttributeStyle(*gradient_transform_, style);
+  SVGElement::CollectExtraStyleForPresentationAttribute(style);
 }
 
 }  // namespace blink

@@ -221,7 +221,8 @@ class DeviceSyncCryptAuthClientTest : public testing::Test {
   base::test::TaskEnvironment task_environment_;
   signin::IdentityTestEnvironment identity_test_environment_;
   // Owned by |client_|.
-  raw_ptr<StrictMock<MockCryptAuthApiCallFlow>, ExperimentalAsh> api_call_flow_;
+  raw_ptr<StrictMock<MockCryptAuthApiCallFlow>, DanglingUntriaged>
+      api_call_flow_;
 
   scoped_refptr<network::SharedURLLoaderFactory> shared_factory_;
 
@@ -1013,7 +1014,7 @@ TEST_F(DeviceSyncCryptAuthClientTest,
   // With request pending, make second request.
   {
     base::test::TestFuture<NetworkRequestError> future2;
-    EXPECT_DCHECK_DEATH(client_->FindEligibleUnlockDevices(
+    EXPECT_NOTREACHED_DEATH(client_->FindEligibleUnlockDevices(
         cryptauth::FindEligibleUnlockDevicesRequest(),
         base::BindOnce(
             &NotCalledConstRef<cryptauth::FindEligibleUnlockDevicesResponse>),
@@ -1061,7 +1062,7 @@ TEST_F(DeviceSyncCryptAuthClientTest,
   // Second request fails.
   {
     base::test::TestFuture<NetworkRequestError> future;
-    EXPECT_DCHECK_DEATH(client_->FindEligibleUnlockDevices(
+    EXPECT_NOTREACHED_DEATH(client_->FindEligibleUnlockDevices(
         cryptauth::FindEligibleUnlockDevicesRequest(),
         base::BindOnce(
             &NotCalledConstRef<cryptauth::FindEligibleUnlockDevicesResponse>),

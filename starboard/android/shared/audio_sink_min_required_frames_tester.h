@@ -15,16 +15,17 @@
 #ifndef STARBOARD_ANDROID_SHARED_AUDIO_SINK_MIN_REQUIRED_FRAMES_TESTER_H_
 #define STARBOARD_ANDROID_SHARED_AUDIO_SINK_MIN_REQUIRED_FRAMES_TESTER_H_
 
-#include <pthread.h>
-
 #include <atomic>
 #include <condition_variable>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
+#include "starboard/common/thread.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
@@ -34,7 +35,7 @@ class AudioTrackAudioSink;
 
 // The class is to detect min required frames for audio sink to play audio
 // without underflow.
-class MinRequiredFramesTester {
+class AudioSinkMinRequiredFramesTester {
  public:
   typedef std::function<void(int number_of_channels,
                              SbMediaAudioSampleType sample_type,
@@ -42,10 +43,10 @@ class MinRequiredFramesTester {
                              int min_required_frames)>
       OnMinRequiredFramesReceivedCallback;
 
-  MinRequiredFramesTester(int max_required_frames,
-                          int required_frames_increment,
-                          int min_stable_played_frames);
-  ~MinRequiredFramesTester();
+  AudioSinkMinRequiredFramesTester(int max_required_frames,
+                                   int required_frames_increment,
+                                   int min_stable_played_frames);
+  ~AudioSinkMinRequiredFramesTester();
 
   void AddTest(int number_of_channels,
                SbMediaAudioSampleType sample_type,
@@ -75,7 +76,8 @@ class MinRequiredFramesTester {
     const int default_required_frames;
   };
 
-  static void* TesterThreadEntryPoint(void* context);
+  class TesterThread;
+
   void TesterThreadFunc();
 
   static void UpdateSourceStatusFunc(int* frames_in_buffer,
@@ -95,8 +97,10 @@ class MinRequiredFramesTester {
                           bool* is_eos_reached);
   void ConsumeFrames(int frames_consumed);
 
-  MinRequiredFramesTester(const MinRequiredFramesTester&) = delete;
-  MinRequiredFramesTester& operator=(const MinRequiredFramesTester&) = delete;
+  AudioSinkMinRequiredFramesTester(const AudioSinkMinRequiredFramesTester&) =
+      delete;
+  AudioSinkMinRequiredFramesTester& operator=(
+      const AudioSinkMinRequiredFramesTester&) = delete;
 
   const int max_required_frames_;
   const int required_frames_increment_;
@@ -105,7 +109,7 @@ class MinRequiredFramesTester {
   ThreadChecker thread_checker_;
 
   std::vector<TestTask> test_tasks_;
-  AudioTrackAudioSink* audio_sink_ = nullptr;
+  std::unique_ptr<AudioTrackAudioSink> audio_sink_;
   int min_required_frames_;
   std::atomic_bool has_error_;
 
@@ -117,7 +121,7 @@ class MinRequiredFramesTester {
   std::mutex mutex_;
   std::condition_variable test_complete_cv_;
   bool is_test_complete_ = false;  // Guarded by |mutex_|.
-  std::optional<pthread_t> tester_thread_;
+  std::unique_ptr<Thread> tester_thread_;
   std::atomic_bool destroying_;
 };
 

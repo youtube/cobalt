@@ -5,13 +5,12 @@
 #ifndef DEVICE_GAMEPAD_PUBLIC_CPP_GAMEPADS_H_
 #define DEVICE_GAMEPAD_PUBLIC_CPP_GAMEPADS_H_
 
-#include "base/component_export.h"
+#include <array>
 
+#include "base/component_export.h"
 #include "device/gamepad/public/cpp/gamepad.h"
 
 namespace device {
-
-#pragma pack(push, 4)
 
 // This structure is intentionally POD and fixed size so that it can be stored
 // in shared memory between hardware polling threads and the rest of the
@@ -21,10 +20,8 @@ class COMPONENT_EXPORT(GAMEPAD_PUBLIC) Gamepads {
   static constexpr size_t kItemsLengthCap = 4;
 
   // Gamepad data for N separate gamepad devices.
-  Gamepad items[kItemsLengthCap];
+  std::array<Gamepad, kItemsLengthCap> items;
 };
-
-#pragma pack(pop)
 
 }  // namespace device
 

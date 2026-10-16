@@ -23,18 +23,25 @@ class BoxedUint32
 {
   public:
     BoxedUint32() : mValue{0} {}
-    explicit BoxedUint32(uint32_t value) : mValue{value} {}
+    explicit constexpr BoxedUint32(uint32_t value) : mValue{value} {}
     template <typename T>
-    T as() const
+    constexpr T as() const
     {
-        return T{mValue};
+        return static_cast<T>(mValue.value);
     }
-    BoxedUint32(const BoxedUint32 &other)            = default;
-    BoxedUint32 &operator=(const BoxedUint32 &other) = default;
-    operator uint32_t() const { return mValue.value; }
-    bool operator==(const BoxedUint32 &other) const { return mValue.value == other.mValue.value; }
+    constexpr BoxedUint32(const BoxedUint32 &other)            = default;
+    constexpr BoxedUint32 &operator=(const BoxedUint32 &other) = default;
+    constexpr operator uint32_t() const { return mValue.value; }
+    constexpr bool operator==(const BoxedUint32 &other) const
+    {
+        return mValue.value == other.mValue.value;
+    }
+    constexpr bool operator!=(const BoxedUint32 &other) const
+    {
+        return mValue.value != other.mValue.value;
+    }
     // Applicable to ids, which cannot be 0.
-    bool valid() const { return static_cast<bool>(mValue.value); }
+    constexpr bool valid() const { return static_cast<bool>(mValue.value); }
 
   private:
     Helper mValue;
@@ -52,7 +59,7 @@ struct LiteralIntegerHelper
 using IdRef = BoxedUint32<IdRefHelper>;
 
 template <>
-inline BoxedUint32<IdRefHelper>::operator uint32_t() const
+inline constexpr BoxedUint32<IdRefHelper>::operator uint32_t() const
 {
     ASSERT(valid());
     return mValue.value;
@@ -69,7 +76,7 @@ using LiteralString     = const char *;
 // Note: In ANGLE's use cases, all literals fit in 32 bits.
 using LiteralContextDependentNumber = LiteralInteger;
 // TODO(syoussefi): To be made stronger when generating SPIR-V from the translator.
-// http://anglebug.com/4889
+// http://anglebug.com/40096715
 using LiteralExtInstInteger = LiteralInteger;
 
 struct PairLiteralIntegerIdRef
@@ -121,6 +128,11 @@ enum HeaderIndex
     kHeaderIndexSchema       = 4,
     kHeaderIndexInstructions = 5,
 };
+
+// SPIR-V version
+constexpr uint32_t kVersion_1_0 = 0x00010000;
+constexpr uint32_t kVersion_1_3 = 0x00010300;
+constexpr uint32_t kVersion_1_4 = 0x00010400;
 
 // Returns whether SPIR-V is valid.  Useful for ASSERTs.  Automatically generates a warning if
 // SPIR-V is not valid.

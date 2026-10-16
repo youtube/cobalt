@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/views/controls/badge.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/md_text_button.h"
@@ -35,7 +36,8 @@ void BadgeExample::CreateExampleView(View* container) {
 
   auto show_menu = [](BadgeExample* example) {
     // Create a menu item view.
-    auto* menu_item_view = new views::MenuItemView(&example->menu_delegate_);
+    auto menu_item_view =
+        std::make_unique<views::MenuItemView>(&example->menu_delegate_);
 
     // Add items to the context menu.
     menu_item_view->AppendMenuItem(1, GetStringUTF16(IDS_BADGE_MENU_ITEM_1));
@@ -44,7 +46,8 @@ void BadgeExample::CreateExampleView(View* container) {
     menu_item_view->AppendMenuItem(3, GetStringUTF16(IDS_BADGE_MENU_ITEM_3))
         ->set_is_new(true);
 
-    example->menu_runner_ = std::make_unique<MenuRunner>(menu_item_view, 0);
+    example->menu_runner_ =
+        std::make_unique<MenuRunner>(std::move(menu_item_view), 0);
 
     View* menu_button = example->menu_button_;
     gfx::Point screen_loc;
@@ -53,7 +56,7 @@ void BadgeExample::CreateExampleView(View* container) {
 
     example->menu_runner_->RunMenuAt(menu_button->GetWidget(), nullptr, bounds,
                                      MenuAnchorPosition::kTopLeft,
-                                     ui::MENU_SOURCE_NONE);
+                                     ui::mojom::MenuSourceType::kNone);
   };
 
   auto view =

@@ -12,18 +12,19 @@
 
 #include "rtc_base/logging.h"
 
-rtc::LoggingSeverity RTCGetNativeLoggingSeverity(RTCLoggingSeverity severity) {
+webrtc::LoggingSeverity RTCGetNativeLoggingSeverity(
+    RTCLoggingSeverity severity) {
   switch (severity) {
     case RTCLoggingSeverityVerbose:
-      return rtc::LS_VERBOSE;
+      return webrtc::LS_VERBOSE;
     case RTCLoggingSeverityInfo:
-      return rtc::LS_INFO;
+      return webrtc::LS_INFO;
     case RTCLoggingSeverityWarning:
-      return rtc::LS_WARNING;
+      return webrtc::LS_WARNING;
     case RTCLoggingSeverityError:
-      return rtc::LS_ERROR;
+      return webrtc::LS_ERROR;
     case RTCLoggingSeverityNone:
-      return rtc::LS_NONE;
+      return webrtc::LS_NONE;
   }
 }
 
@@ -35,7 +36,7 @@ void RTCLogEx(RTCLoggingSeverity severity, NSString* log_string) {
 }
 
 void RTCSetMinDebugLogLevel(RTCLoggingSeverity severity) {
-  rtc::LogMessage::LogToDebug(RTCGetNativeLoggingSeverity(severity));
+  webrtc::LogMessage::LogToDebug(RTCGetNativeLoggingSeverity(severity));
 }
 
 NSString* RTCFileName(const char* file_path) {

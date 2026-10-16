@@ -91,6 +91,13 @@ XSLTPUBFUN const xmlChar * XSLTCALL
 XSLTPUBFUN int XSLTCALL
 		xsltGetUTF8Char	(const unsigned char *utf,
 				 int *len);
+#ifdef IN_LIBXSLT
+/** DOC_DISABLE */
+XSLTPUBFUN int XSLTCALL
+		xsltGetUTF8CharZ (const unsigned char *utf,
+				  int *len);
+/** DOC_ENABLE */
+#endif
 
 /*
  * XSLT Debug Tracing Tracing Types
@@ -250,9 +257,13 @@ XSLTPUBFUN xmlXPathCompExprPtr XSLTCALL
 						 int flags);
 
 #ifdef IN_LIBXSLT
+/** DOC_DISABLE */
 #define XSLT_SOURCE_NODE_MASK       15u
 #define XSLT_SOURCE_NODE_HAS_KEY    1u
 #define XSLT_SOURCE_NODE_HAS_ID     2u
+#define XSLT_SOURCE_NODE_SHIFT      28u
+#define XSLT_SOURCE_NODE_VALUE_MASK ((1 << XSLT_SOURCE_NODE_SHIFT) - 1)
+#define XSLT_SOURCE_NODE_VALUE_MAX  XSLT_SOURCE_NODE_VALUE_MASK
 int
 xsltGetSourceNodeFlags(xmlNodePtr node);
 int
@@ -260,8 +271,15 @@ xsltSetSourceNodeFlags(xsltTransformContextPtr ctxt, xmlNodePtr node,
                        int flags);
 int
 xsltClearSourceNodeFlags(xmlNodePtr node, int flags);
+int
+xsltSetSourceNodeValue(xmlNodePtr node, int value);
+int
+xsltClearSourceNodeExtraData(xmlNodePtr node);
+int
+xsltGetSourceNodeValue(xmlNodePtr node);
 void **
 xsltGetPSVIPtr(xmlNodePtr cur);
+/** DOC_ENABLE */
 #endif
 
 #ifdef WITH_PROFILER
@@ -330,5 +348,3 @@ XSLTPUBFUN void XSLTCALL
 #endif
 
 #endif /* __XML_XSLTUTILS_H__ */
-
-

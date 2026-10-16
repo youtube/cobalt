@@ -14,14 +14,14 @@
 #include <vector>
 
 #include "base/containers/flat_map.h"
-#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/stack_allocated.h"
 #include "base/memory/weak_ptr.h"
-#include "base/threading/thread_checker.h"
+#include "base/sequence_checker.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "build/build_config.h"
 #include "components/viz/common/resources/resource_id.h"
 #include "components/viz/common/resources/return_callback.h"
-#include "components/viz/common/resources/shared_bitmap.h"
 #include "components/viz/common/resources/transferable_resource.h"
 #include "components/viz/common/surfaces/surface_id.h"
 #include "components/viz/service/display/external_use_client.h"
@@ -73,37 +73,44 @@ class VIZ_SERVICE_EXPORT DisplayResourceProvider
   base::WeakPtr<DisplayResourceProvider> GetWeakPtr();
 
 #if BUILDFLAG(IS_ANDROID)
-  // Indicates if this resource is backed by an Android SurfaceTexture, and thus
-  // can't really be promoted to an overlay.
-  bool IsBackedBySurfaceTexture(ResourceId id);
+  // Indicates if this resource is backed by an Android SurfaceView, and thus
+  // can be promoted to an overlay via legacy (SurfaceView/Dialog) overlay
+  // system.
+  bool IsBackedBySurfaceView(ResourceId id) const;
 #endif
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN)
   // Indicates if this resource wants to receive promotion hints.
-  bool DoesResourceWantPromotionHint(ResourceId id);
+  bool DoesResourceWantPromotionHint(ResourceId id) const;
 #endif
 
   // Returns the size in pixels of the underlying gpu mailbox/software bitmap.
-  const gfx::Size GetResourceBackedSize(ResourceId id);
+  const gfx::Size GetResourceBackedSize(ResourceId id) const;
 
-  bool IsResourceSoftwareBacked(ResourceId id);
-  // Return the format of the underlying buffer that can be used for scanout.
-  gfx::BufferFormat GetBufferFormat(ResourceId id);
-  // Returns the color space that the resource needs to be interpreted in by the
-  // operating system.
-  const gfx::ColorSpace& GetOverlayColorSpace(ResourceId id);
-  // Returns the color space that samples of this resource in a shader will be
-  // in.
-  gfx::ColorSpace GetSamplerColorSpace(ResourceId id);
-  const absl::optional<gfx::HDRMetadata>& GetHDRMetadata(ResourceId id);
+  bool IsResourceSoftwareBacked(ResourceId id) const;
+  // Return the SharedImageFormat of the underlying buffer that can be used for
+  // scanout.
+  SharedImageFormat GetSharedImageFormat(ResourceId id) const;
+  // Returns the color space of the resource.
+  const gfx::ColorSpace& GetColorSpace(ResourceId id) const;
+  // Returns true if the resource needs a detiling pass before scanout.
+  bool GetNeedsDetiling(ResourceId id) const;
+
+  const gfx::HDRMetadata& GetHDRMetadata(ResourceId id) const;
+
+  GrSurfaceOrigin GetOrigin(ResourceId id) const;
+  SkAlphaType GetAlphaType(ResourceId id) const;
 
   // Indicates if this resource may be used for a hardware overlay plane.
-  bool IsOverlayCandidate(ResourceId id);
-  SurfaceId GetSurfaceId(ResourceId id);
-  int GetChildId(ResourceId id);
+  bool IsOverlayCandidate(ResourceId id) const;
+  // Indicates if this resource uses low latency rendering.
+  bool IsLowLatencyRendering(ResourceId id) const;
+
+  SurfaceId GetSurfaceId(ResourceId id) const;
+  int GetChildId(ResourceId id) const;
 
   // Checks whether a resource is in use.
-  bool InUse(ResourceId id);
+  bool InUse(ResourceId id) const;
 
   // Try removing the resources that are pending the |resource_fence|.
   void OnResourceFencePassed(ResourceFence* resource_fence,
@@ -131,7 +138,7 @@ class VIZ_SERVICE_EXPORT DisplayResourceProvider
 
     const gpu::Mailbox& mailbox() const {
       DCHECK(resource_);
-      return resource_->transferable.mailbox_holder.mailbox;
+      return resource_->transferable.mailbox();
     }
     const gpu::SyncToken& sync_token() const {
       DCHECK(resource_);
@@ -151,14 +158,18 @@ class VIZ_SERVICE_EXPORT DisplayResourceProvider
    private:
     void Reset();
 
-    raw_ptr<DisplayResourceProvider> resource_provider_ = nullptr;
+    // RAW_PTR_EXCLUSION: Performance reasons (based on analysis of MotionMark).
+    RAW_PTR_EXCLUSION DisplayResourceProvider* resource_provider_ = nullptr;
     ResourceId resource_id_ = kInvalidResourceId;
-    raw_ptr<ChildResource> resource_ = nullptr;
+    // RAW_PTR_EXCLUSION: Performance reasons (based on analysis of MotionMark).
+    RAW_PTR_EXCLUSION ChildResource* resource_ = nullptr;
   };
 
   // All resources that are returned to children while an instance of this
   // class exists will be stored and returned when the instance is destroyed.
   class VIZ_SERVICE_EXPORT ScopedBatchReturnResources {
+    STACK_ALLOCATED();
+
    public:
     explicit ScopedBatchReturnResources(
         DisplayResourceProvider* resource_provider,
@@ -166,7 +177,7 @@ class VIZ_SERVICE_EXPORT DisplayResourceProvider
     ~ScopedBatchReturnResources();
 
    private:
-    const raw_ptr<DisplayResourceProvider> resource_provider_;
+    DisplayResourceProvider* const resource_provider_ = nullptr;
     const bool was_access_to_gpu_thread_allowed_;
   };
 
@@ -203,7 +214,7 @@ class VIZ_SERVICE_EXPORT DisplayResourceProvider
                                      const ResourceIdSet& resources_from_child);
 
   // Returns the mailbox corresponding to a resource id.
-  gpu::Mailbox GetMailbox(ResourceId resource_id);
+  gpu::Mailbox GetMailbox(ResourceId resource_id) const;
 
   // Sets if the GPU thread is available (it always is for Chrome, but for
   // WebView it happens only when Android calls us on RenderThread.
@@ -279,14 +290,8 @@ class VIZ_SERVICE_EXPORT DisplayResourceProvider
     // When the resource should be deleted until it is actually reaped.
     bool marked_for_deletion = false;
 
-    // A pointer to the shared memory structure for software-backed resources,
-    // when it is mapped into memory in this process.
-    std::unique_ptr<SharedBitmap> shared_bitmap;
-    // A GUID for reporting the |shared_bitmap| to memory tracing. The GUID is
-    // known by other components in the system as well to give the same id for
-    // this shared memory bitmap everywhere. This is empty until the resource is
-    // mapped for use in the display compositor.
-    base::UnguessableToken shared_bitmap_tracing_guid;
+    // Indicate whether the shared_image has been locked at lease once.
+    bool shared_image_representation_created_and_set = false;
 
     // A fence used for returning resources after the display compositor has
     // completed accessing the resources it received from a client. This can
@@ -318,15 +323,17 @@ class VIZ_SERVICE_EXPORT DisplayResourceProvider
 
   explicit DisplayResourceProvider(Mode mode);
 
+  const ChildResource* GetResource(ResourceId id) const;
   ChildResource* GetResource(ResourceId id);
 
   // TODO(ericrk): TryGetResource is part of a temporary workaround for cases
   // where resources which should be available are missing. This version may
   // return nullptr if a resource is not found. https://crbug.com/811858
+  const ChildResource* TryGetResource(ResourceId id) const;
   ChildResource* TryGetResource(ResourceId id);
 
   void TryReleaseResource(ResourceId id, ChildResource* resource);
-  bool ResourceFenceHasPassed(const ChildResource* resource);
+  bool ResourceFenceHasPassed(const ChildResource* resource) const;
 
   void DeleteAndReturnUnusedResourcesToChild(
       ChildMap::iterator child_it,
@@ -339,7 +346,7 @@ class VIZ_SERVICE_EXPORT DisplayResourceProvider
       const std::vector<ResourceId>& unused) = 0;
   CanDeleteNowResult CanDeleteNow(const Child& child_info,
                                   const ChildResource& resource,
-                                  DeleteStyle style);
+                                  DeleteStyle style) const;
 
   // Destroys DisplayResourceProvider, must be called before destructor because
   // it might call virtual functions from inside.
@@ -349,7 +356,7 @@ class VIZ_SERVICE_EXPORT DisplayResourceProvider
   void SetBatchReturnResources(bool aggregate);
   void TryFlushBatchedResources();
 
-  THREAD_CHECKER(thread_checker_);
+  SEQUENCE_CHECKER(sequence_checker_);
   const Mode mode_;
 
   ResourceMap resources_;

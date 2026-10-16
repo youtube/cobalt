@@ -6,10 +6,11 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/media/router/chrome_media_router_factory.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/media_router/browser/media_sinks_observer.h"
-#include "components/media_router/browser/presentation/presentation_service_delegate_impl.h"
+#include "components/media_router/browser/presentation/controller_presentation_service_delegate_impl.h"
 #include "components/media_router/browser/test/mock_media_router.h"
 #include "components/media_router/common/media_route_provider_helper.h"
 #include "components/media_router/common/media_sink.h"
@@ -95,13 +96,15 @@ class CastHandlerTest : public ChromeRenderViewHostTestHarness {
               }
               return true;
             }));
-    handler_->Enable(protocol::Maybe<std::string>());
+    handler_->Enable(std::nullopt);
   }
 
   std::unique_ptr<CastHandler> handler_;
-  media_router::MockMediaRouter* router_ = nullptr;
-  media_router::MediaSinksObserver* desktop_sinks_observer_ = nullptr;
-  media_router::MediaSinksObserver* sinks_observer_ = nullptr;
+  raw_ptr<media_router::MockMediaRouter, DanglingUntriaged> router_ = nullptr;
+  raw_ptr<media_router::MediaSinksObserver, DanglingUntriaged>
+      desktop_sinks_observer_ = nullptr;
+  raw_ptr<media_router::MediaSinksObserver, DanglingUntriaged> sinks_observer_ =
+      nullptr;
 };
 
 TEST_F(CastHandlerTest, SetSinkToUse) {
@@ -121,10 +124,10 @@ TEST_F(CastHandlerTest, SetSinkToUse) {
           }));
 
   EXPECT_CALL(*router_,
-              CreateRouteInternal(presentation_url, kSinkId1, _, _, _, _, _));
-  media_router::PresentationServiceDelegateImpl::GetOrCreateForWebContents(
-      web_contents())
-      ->StartPresentation(request, base::DoNothing(), base::DoNothing());
+              CreateRouteInternal(presentation_url, kSinkId1, _, _, _, _));
+  media_router::ControllerPresentationServiceDelegateImpl::
+      GetOrCreateForWebContents(web_contents())
+          ->StartPresentation(request, base::DoNothing(), base::DoNothing());
 }
 
 TEST_F(CastHandlerTest, StartDesktopMirroring) {
@@ -137,7 +140,7 @@ TEST_F(CastHandlerTest, StartDesktopMirroring) {
   EXPECT_CALL(
       *router_,
       CreateRouteInternal(media_router::MediaSource::ForUnchosenDesktop().id(),
-                          kSinkId1, _, _, _, _, _))
+                          kSinkId1, _, _, _, _))
       .WillOnce(
           WithArg<4>([](media_router::MediaRouteResponseCallback& callback) {
             std::move(callback).Run(
@@ -172,7 +175,7 @@ TEST_F(CastHandlerTest, StartTabMirroring) {
                   media_router::MediaSource::ForTab(
                       sessions::SessionTabHelper::IdForTab(web_contents()).id())
                       .id(),
-                  kSinkId1, _, _, _, _, _))
+                  kSinkId1, _, _, _, _))
       .WillOnce(
           WithArg<4>([](media_router::MediaRouteResponseCallback& callback) {
             std::move(callback).Run(

@@ -27,29 +27,31 @@ import org.chromium.base.library_loader.LibraryProcessType;
 public class CobaltApplication extends Application implements StarboardBridge.HostApplication {
   private static final String PRIVATE_DATA_DIRECTORY_SUFFIX = "content_shell";
 
-  StarboardBridge starboardBridge;
+  StarboardBridge mStarboardBridge;
 
   @Override
   public void setStarboardBridge(StarboardBridge starboardBridge) {
-    this.starboardBridge = starboardBridge;
+    mStarboardBridge = starboardBridge;
   }
 
   @Override
   public StarboardBridge getStarboardBridge() {
-    return starboardBridge;
+    return mStarboardBridge;
   }
 
   @Override
   protected void attachBaseContext(Context base) {
-      super.attachBaseContext(base);
-      boolean isBrowserProcess = !ContextUtils.getProcessName().contains(":");
-      ContextUtils.initApplicationContext(this);
-      LibraryLoader.getInstance().setLibraryProcessType(isBrowserProcess
-                      ? LibraryProcessType.PROCESS_BROWSER
-                      : LibraryProcessType.PROCESS_CHILD);
-      if (isBrowserProcess) {
-          PathUtils.setPrivateDataDirectorySuffix(PRIVATE_DATA_DIRECTORY_SUFFIX);
-          ApplicationStatus.initialize(this);
-      }
+    super.attachBaseContext(base);
+    boolean isBrowserProcess = !ContextUtils.getProcessName().contains(":");
+    ContextUtils.initApplicationContext(this);
+    LibraryLoader.getInstance()
+        .setLibraryProcessType(
+            isBrowserProcess
+                ? LibraryProcessType.PROCESS_BROWSER
+                : LibraryProcessType.PROCESS_CHILD);
+    if (isBrowserProcess) {
+      PathUtils.setPrivateDataDirectorySuffix(PRIVATE_DATA_DIRECTORY_SUFFIX);
+      ApplicationStatus.initialize(this);
+    }
   }
 }

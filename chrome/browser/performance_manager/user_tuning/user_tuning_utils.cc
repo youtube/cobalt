@@ -4,15 +4,34 @@
 
 #include "chrome/browser/performance_manager/public/user_tuning/user_tuning_utils.h"
 
+#include <optional>
+
+#include "base/check.h"
 #include "base/feature_list.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "chrome/browser/performance_manager/policies/page_discarding_helper.h"
+#include "chrome/browser/performance_manager/public/user_tuning/battery_saver_mode_manager.h"
 #include "chrome/browser/performance_manager/public/user_tuning/user_performance_tuning_manager.h"
+#include "chrome/browser/resource_coordinator/lifecycle_unit_state.mojom.h"
 #include "components/performance_manager/public/features.h"
 #include "components/performance_manager/public/graph/graph.h"
+#include "components/performance_manager/public/graph/page_node.h"
 #include "components/performance_manager/public/performance_manager.h"
-#include "content/public/browser/browser_task_traits.h"
-#include "content/public/browser/browser_thread.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include <algorithm>
+#include <string>
+#include <vector>
+
+#include "chrome/browser/performance_manager/policies/cannot_discard_reason.h"
+#include "chrome/browser/performance_manager/policies/page_discarding_helper.h"
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_features.h"
+#endif
 
 namespace performance_manager::user_tuning {
 
@@ -21,11 +40,19 @@ bool IsRefreshRateThrottled() {
   return false;
 #else
   // This can be false in unit tests.
-  if (!UserPerformanceTuningManager::HasInstance()) {
+  if (!BatterySaverModeManager::HasInstance()) {
     return false;
   }
 
-  return UserPerformanceTuningManager::GetInstance()->IsBatterySaverActive();
+  return BatterySaverModeManager::GetInstance()->IsBatterySaverActive();
+#endif
+}
+
+bool IsBatterySaverModeManagedByOS() {
+#if BUILDFLAG(IS_CHROMEOS)
+  return ash::features::IsBatterySaverAvailable();
+#else
+  return false;
 #endif
 }
 
@@ -35,26 +62,59 @@ uint64_t GetDiscardedMemoryEstimateForPage(const PageNode* node) {
   return node->EstimatePrivateFootprintSize();
 }
 
-void GetDiscardedMemoryEstimateForWebContents(
-    content::WebContents* web_contents,
-    base::OnceCallback<void(uint64_t)> result_callback) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+std::vector<std::string> GetCannotDiscardReasonsForPageNode(
+    const PageNode* page_node) {
+#if BUILDFLAG(IS_ANDROID)
+  // TODO(crbug.com/399740817): Enable PageDiscardingHelper after
+  // WebContentsDiscard launch.
+  return {"not implemented"};
+#else
+  auto* discarding_helper = policies::DiscardEligibilityPolicy::GetFromGraph(
+      PerformanceManager::GetGraph());
+  CHECK(discarding_helper);
+  CHECK(page_node);
 
-  base::WeakPtr<PageNode> page_node =
-      PerformanceManager::GetPrimaryPageNodeForWebContents(web_contents);
-  PerformanceManager::CallOnGraph(
-      FROM_HERE,
-      base::BindOnce(
-          [](base::WeakPtr<PageNode> page_node,
-             base::OnceCallback<void(uint64_t)> result_callback) {
-            uint64_t estimate =
-                page_node ? GetDiscardedMemoryEstimateForPage(page_node.get())
-                          : 0;
-            content::GetUIThreadTaskRunner({})->PostTask(
-                FROM_HERE,
-                base::BindOnce(std::move(result_callback), estimate));
-          },
-          page_node, std::move(result_callback)));
+  std::vector<policies::CannotDiscardReason> cannot_discard_reasons;
+  discarding_helper->CanDiscard(
+      page_node, policies::DiscardEligibilityPolicy::DiscardReason::PROACTIVE,
+      policies::kNonVisiblePagesUrgentProtectionTime, &cannot_discard_reasons);
+
+  std::vector<std::string> results;
+  results.reserve(cannot_discard_reasons.size());  // Reserve space
+  std::transform(cannot_discard_reasons.begin(), cannot_discard_reasons.end(),
+                 std::back_inserter(results),
+                 policies::CannotDiscardReasonToString);
+  return results;
+#endif
+}
+
+void DiscardPage(const PageNode* page_node,
+                 ::mojom::LifecycleUnitDiscardReason reason,
+                 bool ignore_minimum_time_in_background) {
+#if !BUILDFLAG(IS_ANDROID)
+  auto* discarding_helper = policies::PageDiscardingHelper::GetFromGraph(
+      PerformanceManager::GetGraph());
+  CHECK(discarding_helper);
+  CHECK(page_node);
+  discarding_helper->ImmediatelyDiscardMultiplePages(
+      {page_node}, reason,
+      ignore_minimum_time_in_background
+          ? base::TimeDelta()
+          : policies::kNonVisiblePagesUrgentProtectionTime);
+#endif
+}
+
+void DiscardAnyPage(::mojom::LifecycleUnitDiscardReason reason,
+                    bool ignore_minimum_time_in_background) {
+#if !BUILDFLAG(IS_ANDROID)
+  auto* discarding_helper = policies::PageDiscardingHelper::GetFromGraph(
+      PerformanceManager::GetGraph());
+  CHECK(discarding_helper);
+  discarding_helper->DiscardAPage(
+      reason, ignore_minimum_time_in_background
+                  ? base::TimeDelta()
+                  : policies::kNonVisiblePagesUrgentProtectionTime);
+#endif
 }
 
 }  //  namespace performance_manager::user_tuning

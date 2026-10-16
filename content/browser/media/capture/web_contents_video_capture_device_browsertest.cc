@@ -4,6 +4,7 @@
 
 #include "content/browser/media/capture/web_contents_video_capture_device.h"
 
+#include <optional>
 #include <tuple>
 
 #include "base/functional/bind.h"
@@ -12,9 +13,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "cc/test/pixel_test_utils.h"
-#include "components/viz/common/features.h"
 #include "content/browser/media/capture/content_capture_device_browsertest_base.h"
 #include "content/browser/media/capture/fake_video_capture_stack.h"
 #include "content/browser/media/capture/frame_test_util.h"
@@ -27,12 +26,10 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/shell/browser/shell.h"
-#include "media/base/media_switches.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_types.h"
 #include "media/base/video_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/geometry/rect.h"
@@ -47,45 +44,14 @@
 #include "ui/base/ui_base_features.h"
 #endif
 
-#if BUILDFLAG(IS_MAC) || defined(USE_AURA)
-#include "content/browser/compositor/image_transport_factory.h"
-#endif
-
 namespace content {
 namespace {
-
-scoped_refptr<viz::ContextProvider> GetContextProvider() {
-#if BUILDFLAG(IS_MAC) || defined(USE_AURA)
-  auto* image_transport_factory = ImageTransportFactory::GetInstance();
-  DCHECK(image_transport_factory);
-
-  auto* ui_context_factory = image_transport_factory->GetContextFactory();
-  if (!ui_context_factory) {
-    return nullptr;
-  }
-
-  return ui_context_factory->SharedMainThreadContextProvider();
-#else
-  return nullptr;
-#endif
-}
-
-bool IsGpuRastrizationEnabled() {
-  auto context_provider = GetContextProvider();
-  if (!context_provider)
-    return false;
-
-  return context_provider->ContextCapabilities().gpu_rasterization;
-}
 
 class WebContentsVideoCaptureDeviceBrowserTest
     : public ContentCaptureDeviceBrowserTestBase,
       public FrameTestUtil {
  public:
-  WebContentsVideoCaptureDeviceBrowserTest() {
-    // TODO(https://crbug.com/1324757): tests should work with HiDPI enabled.
-    scoped_feature_list_.InitAndDisableFeature(media::kWebContentsCaptureHiDpi);
-  }
+  WebContentsVideoCaptureDeviceBrowserTest() = default;
 
   WebContentsVideoCaptureDeviceBrowserTest(
       const WebContentsVideoCaptureDeviceBrowserTest&) = delete;
@@ -103,7 +69,7 @@ class WebContentsVideoCaptureDeviceBrowserTest
   // test to fail in case we encounter something else).
   void WaitForFrameWithColor(
       SkColor color,
-      absl::optional<SkColor> tolerate_color = absl::nullopt) {
+      std::optional<SkColor> tolerate_color = std::nullopt) {
     const std::string color_string =
         base::StringPrintf("red=%d, green=%d, blue=%d", SkColorGetR(color),
                            SkColorGetG(color), SkColorGetB(color));
@@ -117,12 +83,12 @@ class WebContentsVideoCaptureDeviceBrowserTest
             << color_string << ", tolerated color: " << tolerated_color_string;
 
     while (!testing::Test::HasFailure()) {
-      EXPECT_TRUE(capture_stack()->Started());
       EXPECT_FALSE(capture_stack()->ErrorOccurred());
       capture_stack()->ExpectNoLogMessages();
 
       while (capture_stack()->HasCapturedFrames() &&
              !testing::Test::HasFailure()) {
+        EXPECT_TRUE(capture_stack()->Started());
         // Pop the next frame from the front of the queue and convert to a RGB
         // bitmap for analysis.
         const SkBitmap rgb_frame = capture_stack()->NextCapturedFrame();
@@ -156,10 +122,9 @@ class WebContentsVideoCaptureDeviceBrowserTest
 
         // viz::SoftwareRenderer does not do color space management. Otherwise
         // (normal case), be strict about color differences.
-        const int max_color_diff =
-            (IsSoftwareCompositingTest() || !IsGpuRastrizationEnabled())
-                ? kVeryLooseMaxColorDifference
-                : kMaxColorDifference;
+        const int max_color_diff = (IsSoftwareCompositingTest())
+                                       ? kVeryLooseMaxColorDifference
+                                       : kMaxColorDifference;
 
         // Determine the average RGB color in the three regions-of-interest in
         // the frame.
@@ -280,8 +245,9 @@ class WebContentsVideoCaptureDeviceBrowserTest
 
   std::unique_ptr<FrameSinkVideoCaptureDevice> CreateDevice() final {
     auto* const main_frame = shell()->web_contents()->GetPrimaryMainFrame();
-    const GlobalRenderFrameHostId id(main_frame->GetProcess()->GetID(),
-                                     main_frame->GetRoutingID());
+    const GlobalRenderFrameHostId id(
+        main_frame->GetProcess()->GetDeprecatedID(),
+        main_frame->GetRoutingID());
     return std::make_unique<WebContentsVideoCaptureDevice>(id);
   }
 
@@ -293,14 +259,23 @@ class WebContentsVideoCaptureDeviceBrowserTest
 
 // Tests that the device refuses to start if the WebContents target was
 // destroyed before the device could start.
+// TODO(crbug.com/40947039): Fails with MSAN. Determine if enabling the test for
+// MSAN is feasible or not
+#if defined(MEMORY_SANITIZER)
+#define MAYBE_ErrorsOutIfWebContentsHasGoneBeforeDeviceStart \
+  DISABLED_ErrorsOutIfWebContentsHasGoneBeforeDeviceStart
+#else
+#define MAYBE_ErrorsOutIfWebContentsHasGoneBeforeDeviceStart \
+  ErrorsOutIfWebContentsHasGoneBeforeDeviceStart
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsVideoCaptureDeviceBrowserTest,
-                       ErrorsOutIfWebContentsHasGoneBeforeDeviceStart) {
+                       MAYBE_ErrorsOutIfWebContentsHasGoneBeforeDeviceStart) {
   NavigateToInitialDocument();
 
   auto* const main_frame = shell()->web_contents()->GetPrimaryMainFrame();
   const auto capture_params = SnapshotCaptureParams();
 
-  const GlobalRenderFrameHostId id(main_frame->GetProcess()->GetID(),
+  const GlobalRenderFrameHostId id(main_frame->GetProcess()->GetDeprecatedID(),
                                    main_frame->GetRoutingID());
   // Delete the WebContents instance and the Shell. This makes the
   // render_frame_id invalid.
@@ -330,8 +305,18 @@ IN_PROC_BROWSER_TEST_F(WebContentsVideoCaptureDeviceBrowserTest,
 
 // Tests that the device starts, captures a frame, and then gracefully
 // errors-out because the WebContents is destroyed before the device is stopped.
+// TODO(crbug.com/40947039): Fails with MSAN. Determine if enabling the test for
+// MSAN is feasible or not
+// TODO(crbug.com/328658521): It is also flaky on macOS.
+#if defined(MEMORY_SANITIZER) || BUILDFLAG(IS_MAC)
+#define MAYBE_ErrorsOutWhenWebContentsIsDestroyed \
+  DISABLED_ErrorsOutWhenWebContentsIsDestroyed
+#else
+#define MAYBE_ErrorsOutWhenWebContentsIsDestroyed \
+  ErrorsOutWhenWebContentsIsDestroyed
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsVideoCaptureDeviceBrowserTest,
-                       ErrorsOutWhenWebContentsIsDestroyed) {
+                       MAYBE_ErrorsOutWhenWebContentsIsDestroyed) {
   NavigateToInitialDocument();
   AllocateAndStartAndWaitForFirstFrame();
   EXPECT_TRUE(shell()->web_contents()->IsBeingCaptured());
@@ -352,8 +337,16 @@ IN_PROC_BROWSER_TEST_F(WebContentsVideoCaptureDeviceBrowserTest,
 
 // Tests that capture is re-targetted when the render view of a WebContents
 // changes.
+// TODO(crbug.com/40947039): Fails with MSAN. Determine if enabling the test for
+// MSAN is feasible or not
+// TODO(crbug.com/328658521): It is also flaky on macOS.
+#if defined(MEMORY_SANITIZER) || BUILDFLAG(IS_MAC)
+#define MAYBE_ChangesTargettedRenderView DISABLED_ChangesTargettedRenderView
+#else
+#define MAYBE_ChangesTargettedRenderView ChangesTargettedRenderView
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsVideoCaptureDeviceBrowserTest,
-                       ChangesTargettedRenderView) {
+                       MAYBE_ChangesTargettedRenderView) {
   NavigateToInitialDocument();
   AllocateAndStartAndWaitForFirstFrame();
   EXPECT_TRUE(shell()->web_contents()->IsBeingCaptured());
@@ -387,7 +380,7 @@ class WebContentsVideoCaptureDeviceBrowserTestAura
   void SetUp() override {
     scoped_feature_list_.InitAndEnableFeatureWithParameters(
         features::kApplyNativeOcclusionToCompositor,
-        {{features::kApplyNativeOcclusionToCompositorType,
+        {{features::kApplyNativeOcclusionToCompositorType.name,
           features::kApplyNativeOcclusionToCompositorTypeRelease}});
 
     WebContentsVideoCaptureDeviceBrowserTest::SetUp();
@@ -398,8 +391,14 @@ class WebContentsVideoCaptureDeviceBrowserTestAura
 };
 
 // Verifies capture still works if the WindowTreeHost is occluded.
+// TODO(crbug.com/372481179): Failing on win-asan.
+#if defined(ADDRESS_SANITIZER) && BUILDFLAG(IS_WIN)
+#define MAYBE_CapturesWhenOccluded DISABLED_CapturesWhenOccluded
+#else
+#define MAYBE_CapturesWhenOccluded CapturesWhenOccluded
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsVideoCaptureDeviceBrowserTestAura,
-                       CapturesWhenOccluded) {
+                       MAYBE_CapturesWhenOccluded) {
   aura::WindowTreeHost* window_tree_host = shell()->window()->GetHost();
   aura::test::DisableNativeWindowOcclusionTracking(window_tree_host);
   NavigateToInitialDocument();
@@ -425,8 +424,18 @@ IN_PROC_BROWSER_TEST_F(WebContentsVideoCaptureDeviceBrowserTestAura,
 
 // Tests that capture is re-targetted when a renderer crash is followed by a
 // reload. Regression test for http://crbug.com/916332.
+// TODO(crbug.com/40947039): Fails with MSAN. Determine if enabling the test for
+// MSAN is feasible or not
+// TODO(crbug.com/328658521): It is also flaky on macOS.
+// TODO(crbug.com/372481179): Failing on win-asan.
+#if defined(MEMORY_SANITIZER) || \
+    (BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER)) || BUILDFLAG(IS_MAC)
+#define MAYBE_RecoversAfterRendererCrash DISABLED_RecoversAfterRendererCrash
+#else
+#define MAYBE_RecoversAfterRendererCrash RecoversAfterRendererCrash
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsVideoCaptureDeviceBrowserTest,
-                       RecoversAfterRendererCrash) {
+                       MAYBE_RecoversAfterRendererCrash) {
   NavigateToInitialDocument();
   AllocateAndStartAndWaitForFirstFrame();
   EXPECT_TRUE(shell()->web_contents()->IsBeingCaptured());
@@ -455,8 +464,16 @@ IN_PROC_BROWSER_TEST_F(WebContentsVideoCaptureDeviceBrowserTest,
 // Tests that the device stops delivering frames while suspended. When resumed,
 // any content changes that occurred during the suspend should cause a new frame
 // to be delivered, to ensure the client is up-to-date.
+// TODO(crbug.com/40947039): Fails with MSAN. Determine if enabling the test for
+// MSAN is feasible or not
+// TODO(crbug/328419809): Also flaky on Mac.
+#if defined(MEMORY_SANITIZER) || BUILDFLAG(IS_MAC)
+#define MAYBE_SuspendsAndResumes DISABLED_SuspendsAndResumes
+#else
+#define MAYBE_SuspendsAndResumes SuspendsAndResumes
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsVideoCaptureDeviceBrowserTest,
-                       SuspendsAndResumes) {
+                       MAYBE_SuspendsAndResumes) {
   NavigateToInitialDocument();
   AllocateAndStartAndWaitForFirstFrame();
   EXPECT_TRUE(shell()->web_contents()->IsBeingCaptured());
@@ -490,8 +507,17 @@ IN_PROC_BROWSER_TEST_F(WebContentsVideoCaptureDeviceBrowserTest,
 
 // Tests that the device delivers refresh frames when asked, while the source
 // content is not changing.
+// TODO(crbug.com/40947039): Fails with MSAN. Determine if enabling the test for
+// MSAN is feasible or not
+// TODO(crbug.com/328658521): It is also flaky on macOS.
+#if defined(MEMORY_SANITIZER) || BUILDFLAG(IS_MAC)
+#define MAYBE_DeliversRefreshFramesUponRequest \
+  DISABLED_DeliversRefreshFramesUponRequest
+#else
+#define MAYBE_DeliversRefreshFramesUponRequest DeliversRefreshFramesUponRequest
+#endif
 IN_PROC_BROWSER_TEST_F(WebContentsVideoCaptureDeviceBrowserTest,
-                       DeliversRefreshFramesUponRequest) {
+                       MAYBE_DeliversRefreshFramesUponRequest) {
   NavigateToInitialDocument();
   AllocateAndStartAndWaitForFirstFrame();
   EXPECT_TRUE(shell()->web_contents()->IsBeingCaptured());
@@ -530,10 +556,9 @@ class WebContentsVideoCaptureDeviceBrowserTestP
     return std::get<3>(GetParam());
   }
 
-#if BUILDFLAG(IS_WIN)
   void SetUpCommandLine(base::CommandLine* command_line) override {
     WebContentsVideoCaptureDeviceBrowserTest::SetUpCommandLine(command_line);
-
+#if BUILDFLAG(IS_WIN)
     if (!IsSoftwareCompositingTest()) {
       // In order to test the NV12 code-path, we need to use hardware GPU in the
       // tests as the product code checks whether hardware when deciding whether
@@ -545,8 +570,14 @@ class WebContentsVideoCaptureDeviceBrowserTestP
       // machines.
       command_line->AppendSwitch(switches::kUseGpuInTests);
     }
-  }
 #endif
+
+#if BUILDFLAG(IS_ANDROID)
+    // Disable RenderDocument temporarily while we figure out why the test
+    // "CapturesContentChange" is flaky when we change RenderFrameHosts.
+    scoped_feature_list_.InitWithFeatures({}, {features::kRenderDocument});
+#endif
+  }
 
   // Returns human-readable description of the test based on test parameters.
   // Currently unused due to CQ treating the tests as new and applying higher
@@ -564,9 +595,12 @@ class WebContentsVideoCaptureDeviceBrowserTestP
              : "Detect"});
     return name;
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 INSTANTIATE_TEST_SUITE_P(
     All,
     WebContentsVideoCaptureDeviceBrowserTestP,
@@ -615,12 +649,24 @@ INSTANTIATE_TEST_SUITE_P(
 // whether the browser is running with software compositing or GPU-accelerated
 // compositing, whether the WebContents is visible/hidden or occluded/unoccluded
 // and whether the main document contains a cross-site iframe.
+// TODO(crbug.com/40947039): Fails with MSAN. Determine if enabling the test for
+// MSAN is feasible or not
+// TODO(crbug/328419809): Also flaky on Mac.
+// TODO(crbug/329654821): Also flaky for ChromeOS ASAN LSAN and debug.
+#if defined(MEMORY_SANITIZER) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    (BUILDFLAG(IS_CHROMEOS) && defined(ADDRESS_SANITIZER)) ||                \
+    (BUILDFLAG(IS_CHROMEOS) && !defined(NDEBUG))
+#define MAYBE_CapturesContentChanges DISABLED_CapturesContentChanges
+#else
+#define MAYBE_CapturesContentChanges CapturesContentChanges
+#endif
 IN_PROC_BROWSER_TEST_P(WebContentsVideoCaptureDeviceBrowserTestP,
-                       CapturesContentChanges) {
+                       MAYBE_CapturesContentChanges) {
   media::VideoPixelFormat specified_format = GetVideoPixelFormat();
   media::VideoPixelFormat expected_format = specified_format;
+
   if (specified_format == media::VideoPixelFormat::PIXEL_FORMAT_UNKNOWN) {
-    if (IsSoftwareCompositingTest() || !IsGpuRastrizationEnabled()) {
+    if (IsSoftwareCompositingTest()) {
       expected_format = media::VideoPixelFormat::PIXEL_FORMAT_I420;
     } else {
       expected_format = media::VideoPixelFormat::PIXEL_FORMAT_NV12;
@@ -648,7 +694,7 @@ IN_PROC_BROWSER_TEST_P(WebContentsVideoCaptureDeviceBrowserTestP,
   EXPECT_TRUE(shell()->web_contents()->IsBeingCaptured());
 
   // First frame is supposed to be black, store this as a previous color:
-  absl::optional<SkColor> previous_color = SK_ColorBLACK;
+  std::optional<SkColor> previous_color = SK_ColorBLACK;
 
   for (int visibility_case = 0; visibility_case < 3; ++visibility_case) {
     switch (visibility_case) {

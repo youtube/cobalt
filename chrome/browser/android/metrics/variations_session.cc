@@ -3,9 +3,11 @@
 // found in the LICENSE file.
 
 #include "base/android/jni_string.h"
-#include "chrome/android/chrome_jni_headers/VariationsSession_jni.h"
 #include "chrome/browser/browser_process.h"
 #include "components/variations/service/variations_service.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/android/chrome_jni_headers/VariationsSession_jni.h"
 
 using base::android::JavaParamRef;
 
@@ -20,7 +22,7 @@ bool g_on_app_enter_foreground_called = false;
 static void JNI_VariationsSession_StartVariationsSession(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj,
-    const JavaParamRef<jstring>& jrestrict_mode) {
+    std::string& restrict_mode) {
   DCHECK(g_browser_process);
 
   variations::VariationsService* variations_service =
@@ -28,8 +30,6 @@ static void JNI_VariationsSession_StartVariationsSession(
   // Triggers an OnAppEnterForeground on the VariationsService. This may fetch
   // a new seed.
   if (variations_service) {
-    std::string restrict_mode =
-        base::android::ConvertJavaStringToUTF8(env, jrestrict_mode);
     if (!restrict_mode.empty() && !g_on_app_enter_foreground_called)
       variations_service->SetRestrictMode(restrict_mode);
     variations_service->OnAppEnterForeground();
@@ -37,17 +37,16 @@ static void JNI_VariationsSession_StartVariationsSession(
   }
 }
 
-static base::android::ScopedJavaLocalRef<jstring>
-JNI_VariationsSession_GetLatestCountry(JNIEnv* env,
-                                       const JavaParamRef<jobject>& obj) {
+static std::string JNI_VariationsSession_GetLatestCountry(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& obj) {
+  std::string latest_country;
+
   variations::VariationsService* variations_service =
       g_browser_process->variations_service();
-  if (!variations_service)
-    return nullptr;
+  if (variations_service) {
+    latest_country = variations_service->GetLatestCountry();
+  }
 
-  std::string latest_country = variations_service->GetLatestCountry();
-  if (latest_country.empty())
-    return nullptr;
-
-  return base::android::ConvertUTF8ToJavaString(env, latest_country);
+  return latest_country;
 }

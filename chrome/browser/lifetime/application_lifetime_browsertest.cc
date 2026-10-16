@@ -9,7 +9,6 @@
 #include "base/test/mock_callback.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/chrome_browser_main.h"
-#include "chrome/browser/chrome_browser_main_extra_parts.h"
 #include "chrome/browser/first_run/scoped_relaunch_chrome_browser_override.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -108,10 +107,10 @@ IN_PROC_BROWSER_TEST_F(RelaunchIgnoreUnloadHandlersTest, Do) {
       ui_test_utils::NavigateToURL(browser(), GURL(url::kAboutBlankURL)));
   content::WebContents* tab =
       browser()->tab_strip_model()->GetActiveWebContents();
-  ASSERT_TRUE(content::ExecuteScript(
-      tab,
-      "window.addEventListener('beforeunload',"
-      "function(event) { event.returnValue = 'Foo'; });"));
+  ASSERT_TRUE(
+      content::ExecJs(tab,
+                      "window.addEventListener('beforeunload',"
+                      "function(event) { event.returnValue = 'Foo'; });"));
   content::PrepContentsForBeforeUnloadTest(tab);
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE, base::BindOnce(&chrome::RelaunchIgnoreUnloadHandlers));

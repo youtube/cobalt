@@ -30,10 +30,11 @@
 #include "perfetto/ext/tracing/core/consumer.h"
 #include "perfetto/ext/tracing/core/shared_memory_arbiter.h"
 #include "perfetto/ext/tracing/core/trace_packet.h"
+#include "perfetto/ext/tracing/core/tracing_service.h"
 #include "perfetto/ext/tracing/ipc/consumer_ipc_client.h"
-#include "perfetto/ext/tracing/ipc/default_socket.h"
 #include "perfetto/ext/tracing/ipc/service_ipc_host.h"
 #include "perfetto/tracing/core/trace_config.h"
+#include "perfetto/tracing/default_socket.h"
 #include "src/base/test/test_task_runner.h"
 #include "test/fake_producer.h"
 
@@ -118,8 +119,11 @@ class TestEnvCleaner {
 class ServiceThread {
  public:
   ServiceThread(const std::string& producer_socket,
-                const std::string& consumer_socket)
-      : producer_socket_(producer_socket), consumer_socket_(consumer_socket) {}
+                const std::string& consumer_socket,
+                bool enable_relay_endpoint = false)
+      : producer_socket_(producer_socket),
+        consumer_socket_(consumer_socket),
+        enable_relay_endpoint_(enable_relay_endpoint) {}
 
   ~ServiceThread() { Stop(); }
 
@@ -128,10 +132,19 @@ class ServiceThread {
         {"PERFETTO_PRODUCER_SOCK_NAME", "PERFETTO_CONSUMER_SOCK_NAME"});
     runner_ = base::ThreadTaskRunner::CreateAndStart("perfetto.svc");
     runner_->PostTaskAndWaitForTesting([this]() {
-      svc_ = ServiceIPCHost::CreateInstance(runner_->get());
-      if (remove(producer_socket_.c_str()) == -1) {
-        if (errno != ENOENT)
-          PERFETTO_FATAL("Failed to remove %s", producer_socket_.c_str());
+      TracingService::InitOpts init_opts = {};
+      if (enable_relay_endpoint_)
+        init_opts.enable_relay_endpoint = true;
+      svc_ = ServiceIPCHost::CreateInstance(runner_->get(), init_opts);
+      auto producer_sockets = TokenizeProducerSockets(producer_socket_.c_str());
+      for (const auto& producer_socket : producer_sockets) {
+        // In some cases the socket is a TCP or abstract unix.
+        if (!base::FileExists(producer_socket))
+          continue;
+        if (remove(producer_socket.c_str()) == -1) {
+          if (errno != ENOENT)
+            PERFETTO_FATAL("Failed to remove %s", producer_socket_.c_str());
+        }
       }
       if (remove(consumer_socket_.c_str()) == -1) {
         if (errno != ENOENT)
@@ -163,6 +176,7 @@ class ServiceThread {
 
   std::string producer_socket_;
   std::string consumer_socket_;
+  bool enable_relay_endpoint_ = false;
   std::unique_ptr<ServiceIPCHost> svc_;
 };
 
@@ -208,15 +222,15 @@ class FakeProducerThread {
   FakeProducerThread(const std::string& producer_socket,
                      std::function<void()> connect_callback,
                      std::function<void()> setup_callback,
-                     std::function<void()> start_callback)
+                     std::function<void()> start_callback,
+                     const std::string& producer_name)
       : producer_socket_(producer_socket),
         connect_callback_(std::move(connect_callback)),
         setup_callback_(std::move(setup_callback)),
         start_callback_(std::move(start_callback)) {
     runner_ = base::ThreadTaskRunner::CreateAndStart("perfetto.prd.fake");
-    runner_->PostTaskAndWaitForTesting([this]() {
-      producer_.reset(
-          new FakeProducer("android.perfetto.FakeProducer", runner_->get()));
+    runner_->PostTaskAndWaitForTesting([this, producer_name]() {
+      producer_.reset(new FakeProducer(producer_name, runner_->get()));
     });
   }
 
@@ -243,7 +257,8 @@ class FakeProducerThread {
     PosixSharedMemory::Factory factory;
 #endif
     shm_ = factory.CreateSharedMemory(1024 * 1024);
-    shm_arbiter_ = SharedMemoryArbiter::CreateUnboundInstance(shm_.get(), 4096);
+    shm_arbiter_ = SharedMemoryArbiter::CreateUnboundInstance(
+        shm_.get(), 4096, SharedMemoryABI::ShmemMode::kDefault);
   }
 
   void ProduceStartupEventBatch(const protos::gen::TestConfig& config,
@@ -280,6 +295,11 @@ class TestHelper : public Consumer {
 
   explicit TestHelper(base::TestTaskRunner* task_runner, Mode mode);
 
+  explicit TestHelper(base::TestTaskRunner* task_runner,
+                      Mode mode,
+                      const char* producer_socket,
+                      bool enable_relay_endpoint = false);
+
   // Consumer implementation.
   void OnConnect() override;
   void OnDisconnect() override;
@@ -290,7 +310,7 @@ class TestHelper : public Consumer {
   void OnAttach(bool, const TraceConfig&) override;
   void OnTraceStats(bool, const TraceStats&) override;
   void OnObservableEvents(const ObservableEvents&) override;
-  void OnSessionCloned(bool, const std::string&) override;
+  void OnSessionCloned(const OnSessionClonedArgs&) override;
 
   // Starts the tracing service if in kStartDaemons mode.
   void StartServiceIfRequired();
@@ -300,32 +320,33 @@ class TestHelper : public Consumer {
 
   // Connects the producer and waits that the service has seen the
   // RegisterDataSource() call.
-  FakeProducer* ConnectFakeProducer();
+  FakeProducer* ConnectFakeProducer(size_t idx = 0);
 
   void ConnectConsumer();
   void StartTracing(const TraceConfig& config,
                     base::ScopedFile = base::ScopedFile());
   void DisableTracing();
-  void FlushAndWait(uint32_t timeout_ms);
+  void FlushAndWait(uint32_t timeout_ms, FlushFlags = FlushFlags());
   void ReadData(uint32_t read_count = 0);
   void FreeBuffers();
   void DetachConsumer(const std::string& key);
   bool AttachConsumer(const std::string& key);
   void CreateProducerProvidedSmb();
-  bool IsShmemProvidedByProducer();
+  bool IsShmemProvidedByProducer(size_t idx = 0);
   void ProduceStartupEventBatch(const protos::gen::TestConfig& config);
 
   void WaitFor(std::function<bool()> predicate,
                const std::string& error_msg,
                uint32_t timeout_ms = kDefaultTestTimeoutMs);
   void WaitForConsumerConnect();
-  void WaitForProducerSetup();
-  void WaitForProducerEnabled();
+  void WaitForProducerSetup(size_t idx = 0);
+  void WaitForProducerEnabled(size_t idx = 0);
   void WaitForDataSourceConnected(const std::string& ds_name);
   void WaitForTracingDisabled(uint32_t timeout_ms = kDefaultTestTimeoutMs);
   void WaitForReadData(uint32_t read_count = 0,
                        uint32_t timeout_ms = kDefaultTestTimeoutMs);
-  void SyncAndWaitProducer();
+  void WaitForAllDataSourceStarted(uint32_t timeout_ms = kDefaultTestTimeoutMs);
+  void SyncAndWaitProducer(size_t idx = 0);
   TracingServiceState QueryServiceStateAndWait();
 
   std::string AddID(const std::string& checkpoint) {
@@ -344,9 +365,12 @@ class TestHelper : public Consumer {
   std::function<void()> WrapTask(const std::function<void()>& function);
 
   base::ThreadTaskRunner* service_thread() { return service_thread_.runner(); }
-  base::ThreadTaskRunner* producer_thread() {
-    return fake_producer_thread_.runner();
+  base::ThreadTaskRunner* producer_thread(size_t i = 0) {
+    PERFETTO_DCHECK(i < fake_producer_threads_.size());
+    return fake_producer_threads_[i]->runner();
   }
+
+  size_t num_producers() { return fake_producer_threads_.size(); }
   const std::vector<protos::gen::TracePacket>& full_trace() {
     return full_trace_;
   }
@@ -366,6 +390,7 @@ class TestHelper : public Consumer {
   int cur_consumer_num_ = 0;
   uint64_t trace_count_ = 0;
 
+  std::function<void()> on_all_ds_started_callback_;
   std::function<void()> on_connect_callback_;
   std::function<void()> on_packets_finished_callback_;
   std::function<void()> on_stop_tracing_callback_;
@@ -379,7 +404,7 @@ class TestHelper : public Consumer {
   const char* producer_socket_;
   const char* consumer_socket_;
   ServiceThread service_thread_;
-  FakeProducerThread fake_producer_thread_;
+  std::vector<std::unique_ptr<FakeProducerThread>> fake_producer_threads_;
 
   TestEnvCleaner env_cleaner_;
 
@@ -452,6 +477,7 @@ class Exec {
       pass_env("TMPDIR", &subprocess_);
       pass_env("TMP", &subprocess_);
       pass_env("TEMP", &subprocess_);
+      pass_env("LD_LIBRARY_PATH", &subprocess_);
       cmd.push_back(base::GetCurExecutableDir() + "/" + argv0);
       cmd.insert(cmd.end(), args.begin(), args.end());
     }

@@ -20,26 +20,26 @@ import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ApiCompatibilityUtils;
-import org.chromium.components.browser_ui.widget.animation.Interpolators;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.ui.interpolators.Interpolators;
 
 /**
- * Animation Delegate for CCT Toolbar security icon. Show a cross-fade + rotation
- * transitioning from an existing icon to a new icon resource. The transition animation is
- * referencing {@link org.chromium.chrome.browser.omnibox.status.StatusView}.<br/><br/>
- *
+ * Animation Delegate for CCT Toolbar security icon. Show a cross-fade + rotation transitioning from
+ * an existing icon to a new icon resource. The transition animation is referencing {@link
+ * org.chromium.chrome.browser.omnibox.status.StatusView}.<br>
+ * <br>
  * <div>
- * <p>
- * How does the rotation security animation work?
- * </p>
- * 0. The rotation transition only works when image view is visible and displaying a |existing
- * drawable|, and needs to be updated to a new |target drawable|;<br/>
+ *
+ * <p>How does the rotation security animation work? 0. The rotation transition only works when
+ * image view is visible and displaying a |existing drawable|, and needs to be updated to a new
+ * |target drawable|;<br>
  * 1. The |existing drawable| will perform a 180-degree rotation from <b>regular position</b>, at
- * the same time opacity transitioning from 100% -> 0%;<br/>
+ * the same time opacity transitioning from 100% -> 0%;<br>
  * 2. The |target drawable| will start perform a 180-degree rotation from <b>up-side-down</b>, at
- * the same time opacity transitioning from 0% -> 100%.
- * </div>
+ * the same time opacity transitioning from 0% -> 100%. </div>
  */
-// TODO(https://crbug.com/1354675): Share more code with StatusView.java.
+// TODO(crbug.com/40859231): Share more code with StatusView.java.
+@NullMarked
 class BrandingSecurityButtonAnimationDelegate {
     public static final int ICON_ANIMATION_DURATION_MS = 250;
     private static final int ICON_ROTATION_DEGREES = 180;
@@ -48,6 +48,7 @@ class BrandingSecurityButtonAnimationDelegate {
 
     /** The current drawable resource set through {@link #updateDrawableResource(int)} */
     private @DrawableRes int mCurrentDrawableResource;
+
     private final ImageView mImageView;
 
     /**
@@ -67,7 +68,9 @@ class BrandingSecurityButtonAnimationDelegate {
         if (mCurrentDrawableResource == newResourceId) return;
         mCurrentDrawableResource = newResourceId;
 
-        if (mImageView.getVisibility() == View.VISIBLE && mImageView.getDrawable() != null) {
+        if (newResourceId != 0
+                && mImageView.getVisibility() == View.VISIBLE
+                && mImageView.getDrawable() != null) {
             updateWithTransitionalDrawable(newResourceId);
         } else {
             mImageView.setImageResource(newResourceId);
@@ -79,14 +82,15 @@ class BrandingSecurityButtonAnimationDelegate {
             resetAnimationStatus();
         }
 
-        Drawable targetDrawable = ApiCompatibilityUtils.getDrawable(
-                mImageView.getContext().getResources(), resourceId);
+        Drawable targetDrawable =
+                ApiCompatibilityUtils.getDrawable(
+                        mImageView.getContext().getResources(), resourceId);
         Drawable existingDrawable = mImageView.getDrawable();
 
         // If the drawable is a transitional drawable, this means previous transition is in place.
         // We should start the transition with the previous target drawable.
-        if (existingDrawable instanceof TransitionDrawable
-                && ((TransitionDrawable) existingDrawable).getNumberOfLayers() == 2) {
+        if (existingDrawable instanceof TransitionDrawable transitionDrawable
+                && transitionDrawable.getNumberOfLayers() == 2) {
             existingDrawable = ((TransitionDrawable) existingDrawable).getDrawable(1);
         }
 
@@ -98,37 +102,41 @@ class BrandingSecurityButtonAnimationDelegate {
         Resources resources = mImageView.getResources();
         int targetX =
                 Math.max(targetDrawable.getIntrinsicWidth(), existingDrawable.getIntrinsicWidth());
-        int targetY = Math.max(
-                targetDrawable.getIntrinsicHeight(), existingDrawable.getIntrinsicHeight());
+        int targetY =
+                Math.max(
+                        targetDrawable.getIntrinsicHeight(), existingDrawable.getIntrinsicHeight());
         targetDrawable = resizeToBitmapDrawable(resources, targetDrawable, targetX, targetY);
         existingDrawable = resizeToBitmapDrawable(resources, existingDrawable, targetX, targetY);
-        TransitionDrawable transitionDrawable = new TransitionDrawable(
-                new Drawable[] {existingDrawable, getRotatedIcon(targetDrawable)});
+        TransitionDrawable transitionDrawable =
+                new TransitionDrawable(
+                        new Drawable[] {existingDrawable, getRotatedIcon(targetDrawable)});
         transitionDrawable.setCrossFadeEnabled(true);
         mImageView.setImageDrawable(transitionDrawable);
 
         mIsAnimationInProgress = true;
-        mImageView.animate()
+        mImageView
+                .animate()
                 .setDuration(ICON_ANIMATION_DURATION_MS)
                 .rotationBy(ICON_ROTATION_DEGREES)
                 .setInterpolator(Interpolators.FAST_OUT_SLOW_IN_INTERPOLATOR)
                 .withStartAction(
                         () -> transitionDrawable.startTransition(ICON_ANIMATION_DURATION_MS))
-                .withEndAction(() -> {
-                    mIsAnimationInProgress = false;
-                    mImageView.setRotation(0);
-                    // Only update security icon if it is still the current icon.
-                    if (mCurrentDrawableResource == resourceId) {
-                        mImageView.setImageResource(resourceId);
-                    }
-                })
+                .withEndAction(
+                        () -> {
+                            mIsAnimationInProgress = false;
+                            mImageView.setRotation(0);
+                            // Only update security icon if it is still the current icon.
+                            if (mCurrentDrawableResource == resourceId) {
+                                mImageView.setImageResource(resourceId);
+                            }
+                        })
                 .start();
     }
 
     private void resetAnimationStatus() {
         mIsAnimationInProgress = false;
-        if (mImageView.getDrawable() instanceof TransitionDrawable) {
-            ((TransitionDrawable) mImageView.getDrawable()).resetTransition();
+        if (mImageView.getDrawable() instanceof TransitionDrawable transitionDrawable) {
+            transitionDrawable.resetTransition();
         }
     }
 
@@ -142,8 +150,9 @@ class BrandingSecurityButtonAnimationDelegate {
      * to a {@link BitmapDrawable}.
      */
     @VisibleForTesting
-    static BitmapDrawable resizeToBitmapDrawable(Resources resource, @NonNull Drawable drawable,
-            int targetWidth, int targetHeight) throws IllegalArgumentException {
+    static BitmapDrawable resizeToBitmapDrawable(
+            Resources resource, @NonNull Drawable drawable, int targetWidth, int targetHeight)
+            throws IllegalArgumentException {
         int width = drawable.getIntrinsicWidth();
         int height = drawable.getIntrinsicHeight();
         if (height > targetHeight || width > targetWidth) {
@@ -163,7 +172,7 @@ class BrandingSecurityButtonAnimationDelegate {
     }
 
     /** Returns a rotated version of the icon passed in. */
-    // TODO(https://crbug.com/1354675): Share more code with StatusView.java.
+    // TODO(crbug.com/40859231): Share more code with StatusView.java.
     private static Drawable getRotatedIcon(Drawable icon) {
         RotateDrawable rotated = new RotateDrawable();
         rotated.setDrawable(icon);

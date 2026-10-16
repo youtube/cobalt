@@ -6,21 +6,27 @@
 
 #include "base/metrics/histogram_functions.h"
 #include "base/task/sequenced_task_runner.h"
+#include "gpu/config/gpu_feature_info.h"
 #include "media/base/audio_decoder.h"
 #include "media/base/audio_encoder.h"
+#include "media/base/media_log.h"
 #include "media/base/media_switches.h"
 #include "media/gpu/chromeos/mailbox_video_frame_converter.h"
 #include "media/gpu/chromeos/platform_video_frame_pool.h"
 #include "media/gpu/chromeos/video_decoder_pipeline.h"
-#include "media/gpu/ipc/service/vda_video_decoder.h"
+#include "ui/gfx/buffer_types.h"
 
 namespace media {
 
 namespace {
 
+BASE_FEATURE(kAcceleratedVideoDecodeLinuxZeroCopyGL,
+             "AcceleratedVideoDecodeLinuxZeroCopyGL",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 VideoDecoderType GetPreferredLinuxDecoderImplementation() {
-  // VaapiVideoDecoder flag is required for both VDA and VaapiVideoDecoder.
-  if (!base::FeatureList::IsEnabled(kVaapiVideoDecodeLinux)) {
+  // VaapiVideoDecoder flag is required for VaapiVideoDecoder.
+  if (!base::FeatureList::IsEnabled(kAcceleratedVideoDecodeLinux)) {
     return VideoDecoderType::kUnknown;
   }
 
@@ -28,25 +34,55 @@ VideoDecoderType GetPreferredLinuxDecoderImplementation() {
     return VideoDecoderType::kOutOfProcess;
   }
 
-  // If direct video decoder is disabled, revert to using the VDA
-  // implementation.
-  if (!base::FeatureList::IsEnabled(kUseChromeOSDirectVideoDecoder)) {
-    return VideoDecoderType::kVda;
-  }
+#if BUILDFLAG(USE_VAAPI)
   return VideoDecoderType::kVaapi;
+#elif BUILDFLAG(USE_V4L2_CODEC)
+  return VideoDecoderType::kV4L2;
+#endif
 }
 
 std::vector<Fourcc> GetPreferredRenderableFourccs(
-    const gpu::GpuPreferences& gpu_preferences) {
+    const gpu::GpuPreferences& gpu_preferences,
+    const gpu::GpuFeatureInfo& gpu_feature_info) {
   std::vector<Fourcc> renderable_fourccs;
 #if BUILDFLAG(ENABLE_VULKAN)
-  // Support for zero-copy NV12 textures preferentially.
+  // Support for zero-copy NV12/P010 textures preferentially.
   if (gpu_preferences.gr_context_type == gpu::GrContextType::kVulkan) {
     renderable_fourccs.emplace_back(Fourcc::NV12);
-  }
+    renderable_fourccs.emplace_back(Fourcc::P010);
+  } else
 #endif  // BUILDFLAG(ENABLE_VULKAN)
+#if BUILDFLAG(IS_OZONE)
+    // Allow zero-copy formats with GL for testing or in controlled
+    // environments.
+    if (gpu_preferences.gr_context_type == gpu::GrContextType::kGL &&
+        base::FeatureList::IsEnabled(kAcceleratedVideoDecodeLinuxZeroCopyGL)) {
+      // Importing NV12 and P010 buffers requires EGL_EXT_image_dma_buf_import.
+      // GLX can only import native pixmap of format AR24. Ozone expose this
+      // capability through gpu_feature_info so we can selectively allow hw
+      // accelerated formats.
+      if (base::Contains(
+              gpu_feature_info
+                  .supported_buffer_formats_for_gl_native_pixmap_import,
+              gfx::BufferFormat::YUV_420_BIPLANAR)) {
+        renderable_fourccs.emplace_back(Fourcc::NV12);
+      }
+      if (base::Contains(
+              gpu_feature_info
+                  .supported_buffer_formats_for_gl_native_pixmap_import,
+              gfx::BufferFormat::P010)) {
+        renderable_fourccs.emplace_back(Fourcc::P010);
+      }
+    }
+#endif  // BUILDFLAG(IS_OZONE)
 
   // Support 1-copy argb textures.
+  //
+  // TODO(crbug.com/349428388): For VP9 Profile2 and HEVC Main 10 10-bit video,
+  // the current implementation requires additional VPP to convert the NV12/P010
+  // format to a renderable format AR24. While this VPP introduces a loss of
+  // color depth (P010 -> AR24), it should be optimized for zero-copy path in
+  // the future.
   renderable_fourccs.emplace_back(Fourcc::AR24);
 
   return renderable_fourccs;
@@ -55,21 +91,25 @@ std::vector<Fourcc> GetPreferredRenderableFourccs(
 VideoDecoderType GetActualPlatformDecoderImplementation(
     const gpu::GpuPreferences& gpu_preferences,
     const gpu::GPUInfo& gpu_info) {
-  // On linux, VDA and Vaapi have GL restrictions.
+  // On linux, Vaapi and V4L2 have GL restrictions.
   switch (GetPreferredLinuxDecoderImplementation()) {
     case VideoDecoderType::kUnknown:
       return VideoDecoderType::kUnknown;
     case VideoDecoderType::kOutOfProcess:
       return VideoDecoderType::kOutOfProcess;
-    case VideoDecoderType::kVda: {
-      return gpu_preferences.gr_context_type == gpu::GrContextType::kGL
-                 ? VideoDecoderType::kVda
-                 : VideoDecoderType::kUnknown;
-    }
+    case VideoDecoderType::kV4L2:
+      if (gpu_preferences.gr_context_type == gpu::GrContextType::kGL) {
+        if (base::FeatureList::IsEnabled(kAcceleratedVideoDecodeLinuxGL)) {
+          return VideoDecoderType::kV4L2;
+        } else {
+          return VideoDecoderType::kUnknown;
+        }
+      }
+      return VideoDecoderType::kV4L2;
     case VideoDecoderType::kVaapi: {
       // Allow VaapiVideoDecoder on GL.
       if (gpu_preferences.gr_context_type == gpu::GrContextType::kGL) {
-        if (base::FeatureList::IsEnabled(kVaapiVideoDecodeLinuxGL)) {
+        if (base::FeatureList::IsEnabled(kAcceleratedVideoDecodeLinuxGL)) {
           return VideoDecoderType::kVaapi;
         } else {
           return VideoDecoderType::kUnknown;
@@ -122,127 +162,99 @@ VideoDecoderType GetActualPlatformDecoderImplementation(
 
 }  // namespace
 
-std::unique_ptr<VideoDecoder> CreatePlatformVideoDecoder(
-    VideoDecoderTraits& traits) {
-  const auto decoder_type = GetActualPlatformDecoderImplementation(
-      traits.gpu_preferences, traits.gpu_info);
-  // The browser process guarantees this CHECK.
-  CHECK_EQ(!!traits.oop_video_decoder,
-           (decoder_type == VideoDecoderType::kOutOfProcess));
+class GpuMojoMediaClientLinux final : public GpuMojoMediaClient {
+ public:
+  GpuMojoMediaClientLinux(GpuMojoMediaClientTraits& traits)
+      : GpuMojoMediaClient(traits) {}
+  ~GpuMojoMediaClientLinux() final = default;
 
-  switch (decoder_type) {
-    case VideoDecoderType::kOutOfProcess: {
-      // TODO(b/195769334): for out-of-process video decoding, we don't need a
-      // |frame_pool| because the buffers will be allocated and managed
-      // out-of-process.
-      auto frame_pool = std::make_unique<PlatformVideoFramePool>();
+ protected:
+  std::unique_ptr<VideoDecoder> CreatePlatformVideoDecoder(
+      VideoDecoderTraits& traits) final {
+    const auto decoder_type =
+        GetActualPlatformDecoderImplementation(gpu_preferences_, gpu_info_);
+    // The browser process guarantees this CHECK.
+    CHECK_EQ(!!traits.oop_video_decoder,
+             (decoder_type == VideoDecoderType::kOutOfProcess));
 
-      // With out-of-process video decoding, we don't feed wrapped frames to the
-      // MailboxVideoFrameConverter, so we need to pass base::NullCallback() as
-      // the callback for unwrapping.
-      auto frame_converter = MailboxVideoFrameConverter::Create(
-          /*unwrap_frame_cb=*/base::NullCallback(), traits.gpu_task_runner,
-          traits.get_command_buffer_stub_cb,
-          traits.gpu_preferences.enable_unsafe_webgpu);
-      return VideoDecoderPipeline::Create(
-          *traits.gpu_workarounds, traits.task_runner, std::move(frame_pool),
-          std::move(frame_converter),
-          GetPreferredRenderableFourccs(traits.gpu_preferences),
-          traits.media_log->Clone(), std::move(traits.oop_video_decoder));
+    switch (decoder_type) {
+      case VideoDecoderType::kOutOfProcess: {
+        // TODO(b/195769334): for out-of-process video decoding, we don't need a
+        // |frame_pool| because the buffers will be allocated and managed
+        // out-of-process.
+        auto frame_pool = std::make_unique<PlatformVideoFramePool>();
+
+        auto frame_converter = MailboxVideoFrameConverter::Create(
+            gpu_task_runner_, traits.get_command_buffer_stub_cb);
+        return VideoDecoderPipeline::Create(
+            gpu_workarounds_, traits.task_runner, std::move(frame_pool),
+            std::move(frame_converter),
+            GetPreferredRenderableFourccs(gpu_preferences_, gpu_feature_info_),
+            traits.media_log->Clone(), std::move(traits.oop_video_decoder),
+            /*in_video_decoder_process=*/false);
+      }
+      case VideoDecoderType::kVaapi:
+      case VideoDecoderType::kV4L2: {
+        auto frame_pool = std::make_unique<PlatformVideoFramePool>();
+        auto frame_converter = MailboxVideoFrameConverter::Create(
+            gpu_task_runner_, traits.get_command_buffer_stub_cb);
+        return VideoDecoderPipeline::Create(
+            gpu_workarounds_, traits.task_runner, std::move(frame_pool),
+            std::move(frame_converter),
+            GetPreferredRenderableFourccs(gpu_preferences_, gpu_feature_info_),
+            traits.media_log->Clone(), /*oop_video_decoder=*/{},
+            /*in_video_decoder_process=*/false);
+      }
+      default:
+        return nullptr;
     }
-    case VideoDecoderType::kVaapi:
-    case VideoDecoderType::kV4L2: {
-      auto frame_pool = std::make_unique<PlatformVideoFramePool>();
-      auto frame_converter = MailboxVideoFrameConverter::Create(
-          base::BindRepeating(&PlatformVideoFramePool::UnwrapFrame,
-                              base::Unretained(frame_pool.get())),
-          traits.gpu_task_runner, traits.get_command_buffer_stub_cb,
-          traits.gpu_preferences.enable_unsafe_webgpu);
-      return VideoDecoderPipeline::Create(
-          *traits.gpu_workarounds, traits.task_runner, std::move(frame_pool),
-          std::move(frame_converter),
-          GetPreferredRenderableFourccs(traits.gpu_preferences),
-          traits.media_log->Clone(), /*oop_video_decoder=*/{});
+  }
+
+  void NotifyPlatformDecoderSupport(
+      mojo::PendingRemote<mojom::VideoDecoder> oop_video_decoder,
+      base::OnceCallback<void(mojo::PendingRemote<mojom::VideoDecoder>)> cb)
+      final {
+    switch (
+        GetActualPlatformDecoderImplementation(gpu_preferences_, gpu_info_)) {
+      case VideoDecoderType::kOutOfProcess:
+      case VideoDecoderType::kVaapi:
+      case VideoDecoderType::kV4L2:
+        VideoDecoderPipeline::NotifySupportKnown(std::move(oop_video_decoder),
+                                                 std::move(cb));
+        break;
+      default:
+        std::move(cb).Run(std::move(oop_video_decoder));
     }
-    case VideoDecoderType::kVda: {
-      return VdaVideoDecoder::Create(
-          traits.task_runner, traits.gpu_task_runner, traits.media_log->Clone(),
-          *traits.target_color_space, traits.gpu_preferences,
-          *traits.gpu_workarounds, traits.get_command_buffer_stub_cb,
-          VideoDecodeAccelerator::Config::OutputMode::ALLOCATE);
+  }
+
+  std::optional<SupportedVideoDecoderConfigs>
+  GetPlatformSupportedVideoDecoderConfigs() final {
+    VideoDecoderType decoder_implementation =
+        GetActualPlatformDecoderImplementation(gpu_preferences_, gpu_info_);
+    base::UmaHistogramEnumeration("Media.VaapiLinux.SupportedVideoDecoder",
+                                  decoder_implementation);
+    switch (decoder_implementation) {
+      case VideoDecoderType::kOutOfProcess:
+      case VideoDecoderType::kVaapi:
+      case VideoDecoderType::kV4L2:
+        return VideoDecoderPipeline::GetSupportedConfigs(decoder_implementation,
+                                                         gpu_workarounds_);
+      default:
+        return std::nullopt;
     }
-    default:
-      return nullptr;
   }
-}
 
-void NotifyPlatformDecoderSupport(
-    const gpu::GpuPreferences& gpu_preferences,
-    const gpu::GPUInfo& gpu_info,
-    mojo::PendingRemote<stable::mojom::StableVideoDecoder> oop_video_decoder,
-    base::OnceCallback<
-        void(mojo::PendingRemote<stable::mojom::StableVideoDecoder>)> cb) {
-  switch (GetActualPlatformDecoderImplementation(gpu_preferences, gpu_info)) {
-    case VideoDecoderType::kOutOfProcess:
-    case VideoDecoderType::kVaapi:
-    case VideoDecoderType::kV4L2:
-      VideoDecoderPipeline::NotifySupportKnown(std::move(oop_video_decoder),
-                                               std::move(cb));
-      break;
-    default:
-      std::move(cb).Run(std::move(oop_video_decoder));
+  VideoDecoderType GetPlatformDecoderImplementationType() final {
+    // Determine the preferred decoder based purely on compile-time and run-time
+    // flags. This is not intended to determine whether the selected decoder can
+    // be successfully initialized or used to decode.
+    return GetPreferredLinuxDecoderImplementation();
   }
-}
+};
 
-absl::optional<SupportedVideoDecoderConfigs>
-GetPlatformSupportedVideoDecoderConfigs(
-    gpu::GpuDriverBugWorkarounds gpu_workarounds,
-    gpu::GpuPreferences gpu_preferences,
-    const gpu::GPUInfo& gpu_info,
-    base::OnceCallback<SupportedVideoDecoderConfigs()> get_vda_configs) {
-  VideoDecoderType decoder_implementation =
-      GetActualPlatformDecoderImplementation(gpu_preferences, gpu_info);
-  base::UmaHistogramEnumeration("Media.VaapiLinux.SupportedVideoDecoder",
-                                decoder_implementation);
-  switch (decoder_implementation) {
-    case VideoDecoderType::kVda:
-      return std::move(get_vda_configs).Run();
-    case VideoDecoderType::kOutOfProcess:
-    case VideoDecoderType::kVaapi:
-    case VideoDecoderType::kV4L2:
-      return VideoDecoderPipeline::GetSupportedConfigs(decoder_implementation,
-                                                       gpu_workarounds);
-    default:
-      return absl::nullopt;
-  }
-}
-
-VideoDecoderType GetPlatformDecoderImplementationType(
-    gpu::GpuDriverBugWorkarounds gpu_workarounds,
-    gpu::GpuPreferences gpu_preferences,
-    const gpu::GPUInfo& gpu_info) {
-  // Determine the preferred decoder based purely on compile-time and run-time
-  // flags. This is not intended to determine whether the selected decoder can
-  // be successfully initialized or used to decode.
-  return GetPreferredLinuxDecoderImplementation();
-}
-
-std::unique_ptr<AudioDecoder> CreatePlatformAudioDecoder(
-    scoped_refptr<base::SequencedTaskRunner> task_runner,
-    std::unique_ptr<MediaLog> media_log) {
-  return nullptr;
-}
-
-std::unique_ptr<AudioEncoder> CreatePlatformAudioEncoder(
-    scoped_refptr<base::SequencedTaskRunner> task_runner) {
-  return nullptr;
-}
-
-class CdmFactory {};
-
-std::unique_ptr<CdmFactory> CreatePlatformCdmFactory(
-    mojom::FrameInterfaceFactory* frame_interfaces) {
-  return nullptr;
+std::unique_ptr<GpuMojoMediaClient> CreateGpuMediaService(
+    GpuMojoMediaClientTraits& traits) {
+  return std::make_unique<GpuMojoMediaClientLinux>(traits);
 }
 
 }  // namespace media

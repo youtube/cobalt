@@ -6,6 +6,7 @@ blink_core_sources_exported = [
   "web_array_buffer.cc",
   "web_array_buffer_converter.cc",
   "web_blob.cc",
+  "web_bundled_code_cache_generator.cc",
   "web_console_message.cc",
   "web_content_holder.cc",
   "web_custom_element.cc",
@@ -35,7 +36,6 @@ blink_core_sources_exported = [
   "web_isolated_world_info.cc",
   "web_label_element.cc",
   "web_language_detection_details.cc",
-  "web_memory_statistics.cc",
   "web_message_port_converter.cc",
   "web_meta_element.cc",
   "web_navigation_params.cc",
@@ -58,7 +58,6 @@ blink_core_sources_exported = [
   "web_searchable_form_data.cc",
   "web_security_policy.cc",
   "web_select_element.cc",
-  "web_select_menu_element.cc",
   "web_selector.cc",
   "web_serialized_script_value.cc",
   "web_settings_impl.cc",
@@ -74,6 +73,7 @@ blink_core_sources_exported = [
 ]
 
 blink_core_tests_exported = [
+  "web_bundled_code_cache_generator_test.cc",
   "web_disallow_transition_scope_test.cc",
   "web_document_subresource_filter_test.cc",
   "web_document_test.cc",
@@ -86,6 +86,7 @@ blink_core_tests_exported = [
   "web_frame_serializer_test_helper.h",
   "web_image_test.cc",
   "web_meaningful_layouts_test.cc",
+  "web_link_preview_triggerer_test.cc",
   "web_node_test.cc",
   "web_plugin_container_test.cc",
   "web_range_test.cc",

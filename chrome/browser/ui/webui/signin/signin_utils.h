@@ -6,17 +6,24 @@
 #define CHROME_BROWSER_UI_WEBUI_SIGNIN_SIGNIN_UTILS_H_
 
 #include <string>
+#include <variant>
 
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
+#include "base/time/time.h"
 #include "base/values.h"
+#include "components/signin/public/identity_manager/account_info.h"
 
+struct AccountInfo;
 class Browser;
+class Profile;
+struct AccountInfo;
 
 namespace content {
 class RenderFrameHost;
 class WebContents;
 class WebUI;
-}
+}  // namespace content
 
 namespace extensions {
 class WebViewGuest;
@@ -36,7 +43,66 @@ enum SigninChoice {
   SIGNIN_CHOICE_SIZE,
 };
 
+// Result of the operation done after the user choice.
+enum SigninChoiceOperationResult {
+  SIGNIN_TIMEOUT = 0,
+  SIGNIN_SILENT_SUCCESS = 1,
+  SIGNIN_ERROR = 2,
+  SIGNIN_CONFIRM_SUCCESS = 3
+};
+
+enum class SigninChoiceErrorType {
+  kNoError = 0,
+  kUnknown = 1,
+  kSigninDisabled = 2,
+};
+
+// Callback with the signin choice and a handler for when the choice has been
+// handled.
+using SigninChoiceOperationDoneCallback =
+    base::OnceCallback<void(SigninChoiceOperationResult,
+                            SigninChoiceErrorType)>;
+using SigninChoiceOperationRetryCallback =
+    base::RepeatingCallback<void(SigninChoiceOperationResult,
+                                 SigninChoiceErrorType)>;
+using SigninChoiceWithConfirmAndRetryCallback =
+    base::OnceCallback<void(SigninChoice,
+                            SigninChoiceOperationDoneCallback,
+                            SigninChoiceOperationRetryCallback)>;
 using SigninChoiceCallback = base::OnceCallback<void(SigninChoice)>;
+using SigninChoiceCallbackVariant =
+    std::variant<SigninChoiceCallback,
+                 signin::SigninChoiceWithConfirmAndRetryCallback>;
+
+struct EnterpriseProfileCreationDialogParams {
+  EnterpriseProfileCreationDialogParams(
+      AccountInfo account_info,
+      bool is_oidc_account,
+      bool turn_sync_on_signed_profile,
+      bool profile_creation_required_by_policy,
+      bool show_link_data_option,
+      SigninChoiceCallbackVariant process_user_choice_callback,
+      base::OnceClosure done_callback,
+      base::RepeatingClosure retry_callback = base::DoNothing());
+  ~EnterpriseProfileCreationDialogParams();
+  EnterpriseProfileCreationDialogParams(
+      const EnterpriseProfileCreationDialogParams&) = delete;
+  EnterpriseProfileCreationDialogParams& operator=(
+      const EnterpriseProfileCreationDialogParams&) = delete;
+
+  AccountInfo account_info;
+  bool is_oidc_account;
+  bool turn_sync_on_signed_profile;
+  // True if the user was already signed in before
+  // starting the sync flow. Used by UIs to decide whether the signin
+  // proposition value should be shown, and what state should the user be in if
+  // they cancel.
+  bool profile_creation_required_by_policy;
+  bool show_link_data_option;
+  SigninChoiceCallbackVariant process_user_choice_callback;
+  base::OnceClosure done_callback;
+  base::RepeatingClosure retry_callback;
+};
 
 // Gets a webview within an auth page that has the specified parent frame name
 // (i.e. <webview name="foobar"></webview>).
@@ -51,11 +117,31 @@ extensions::WebViewGuest* GetAuthWebViewGuest(
 // active browser for web UI's profile.
 Browser* GetDesktopBrowser(content::WebUI* web_ui);
 
+// After this time delta, user must see a screen. If it was impossible to get
+// the CanShowHistorySyncOptInsWithoutMinorModeRestrictions capability before
+// the deadline, the screen should be configured in minor-safe way.
+base::TimeDelta GetMinorModeRestrictionsDeadline();
+
 // Sets the height of the WebUI modal dialog after its initialization. This is
 // needed to better accomodate different locales' text heights.
 void SetInitializedModalHeight(Browser* browser,
                                content::WebUI* web_ui,
                                const base::Value::List& args);
+
+#if !BUILDFLAG(IS_CHROMEOS)
+// Helps clear Profile info, mainly for managed accounts.
+// Idealy this function should not be used much, consider deleting the profile
+// if possible instead.
+// Undoing the management is hacky (because the management may have installed
+// extensions for example).
+// TODO(crbug.com/40067597): Remove this function when the FRE is
+// adapted.
+void ClearProfileWithManagedAccounts(Profile* profile);
+#endif
+
+// Gets the account picture in the `account_info` as a data:// URL or the
+// default placeholder if it doesn't exist.
+std::string GetAccountPictureUrl(const AccountInfo& account_info);
 
 }  // namespace signin
 

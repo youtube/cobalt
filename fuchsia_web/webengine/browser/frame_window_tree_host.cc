@@ -5,6 +5,7 @@
 #include "fuchsia_web/webengine/browser/frame_window_tree_host.h"
 
 #include "base/fuchsia/fuchsia_logging.h"
+#include "base/memory/raw_ptr.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "fuchsia_web/webengine/features.h"
@@ -25,7 +26,7 @@ fuchsia::ui::views::ViewRef DupViewRef(
 }
 
 ui::PlatformWindowInitProperties CreatePlatformWindowInitProperties(
-    scenic::ViewRefPair view_ref_pair,
+    ui::ViewRefPair view_ref_pair,
     ui::ScenicWindowDelegate* scenic_window_delegate) {
   ui::PlatformWindowInitProperties properties;
   properties.view_ref_pair = std::move(view_ref_pair);
@@ -56,17 +57,18 @@ class FrameWindowTreeHost::WindowParentingClientImpl
 
   // WindowParentingClient implementation.
   aura::Window* GetDefaultParent(aura::Window* window,
-                                 const gfx::Rect& bounds) override {
+                                 const gfx::Rect& bounds,
+                                 const int64_t display_id) override {
     return root_window_;
   }
 
  private:
-  aura::Window* root_window_;
+  raw_ptr<aura::Window> root_window_;
 };
 
 FrameWindowTreeHost::FrameWindowTreeHost(
     fuchsia::ui::views::ViewToken view_token,
-    scenic::ViewRefPair view_ref_pair,
+    ui::ViewRefPair view_ref_pair,
     content::WebContents* web_contents,
     OnPixelScaleUpdateCallback on_pixel_scale_update)
     : view_ref_(DupViewRef(view_ref_pair.view_ref)),
@@ -85,7 +87,7 @@ FrameWindowTreeHost::FrameWindowTreeHost(
 
 FrameWindowTreeHost::FrameWindowTreeHost(
     fuchsia::ui::views::ViewCreationToken view_creation_token,
-    scenic::ViewRefPair view_ref_pair,
+    ui::ViewRefPair view_ref_pair,
     content::WebContents* web_contents,
     OnPixelScaleUpdateCallback on_pixel_scale_update)
     : view_ref_(DupViewRef(view_ref_pair.view_ref)),

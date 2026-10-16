@@ -5,7 +5,6 @@
 #import "ios/chrome/common/ui/confirmation_alert/confirmation_alert_view_controller.h"
 
 #import "base/check.h"
-#import "ios/chrome/common/button_configuration_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/confirmation_alert/confirmation_alert_action_handler.h"
 #import "ios/chrome/common/ui/confirmation_alert/constants.h"
@@ -14,14 +13,12 @@
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/dynamic_type_util.h"
 #import "ios/chrome/common/ui/util/pointer_interaction_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/common/ui/util/ui_util.h"
 
 namespace {
 
-const CGFloat kActionsBottomMargin = 10;
+const CGFloat kDefaultActionsBottomMargin = 10;
+const CGFloat kActionButtonImageInsets = 10;
 // Gradient height.
 const CGFloat kGradientHeight = 40.;
 const CGFloat kScrollViewBottomInsets = 20;
@@ -33,6 +30,10 @@ const CGFloat kContentOptimalWidth = 327;
 
 // The size of the symbol image.
 const CGFloat kSymbolBadgeImagePointSize = 13;
+
+// The size of the checkmark symbol in the confirmation state on the primary
+// button.
+const CGFloat kSymbolConfirmationCheckmarkPointSize = 17;
 
 // The name of the checkmark symbol in filled circle.
 NSString* const kCheckmarkSymbol = @"checkmark.circle.fill";
@@ -54,46 +55,96 @@ const CGFloat kFaviconSideLength = 30;
 // Length of each side of the favicon badge.
 const CGFloat kFaviconBadgeSideLength = 24;
 
+// Sets the activity indicator of the button in the button configuration.
+void SetConfigurationActivityIndicator(UIButton* button,
+                                       BOOL shows_activity_indicator,
+                                       UIColor* activity_indicator_color) {
+  UIButtonConfiguration* button_configuration = button.configuration;
+  button_configuration.showsActivityIndicator = shows_activity_indicator;
+  button_configuration.activityIndicatorColorTransformer =
+      ^UIColor*(UIColor* _) {
+        return activity_indicator_color;
+      };
+  button.configuration = button_configuration;
+}
+
+// Sets the image in the button's configuration and the accessiblitityIdentifier
+// on the button's image.
+void SetConfigurationImage(UIButton* button,
+                           UIImage* image,
+                           UIColor* image_color) {
+  UIButtonConfiguration* button_configuration = button.configuration;
+  button_configuration.image = image;
+  button_configuration.imageColorTransformer = ^UIColor*(UIColor* input_color) {
+    return image_color ? image_color : input_color;
+  };
+  button.configuration = button_configuration;
+  button.imageView.accessibilityIdentifier = image.accessibilityIdentifier;
+}
+
+// Sets the color of the button's background in the button configuration's
+// background configuration.
+void SetButtonColor(UIButton* button, UIColor* color) {
+  UIButtonConfiguration* configuration = button.configuration;
+  configuration.background.backgroundColor = color;
+  button.configuration = configuration;
+}
+
+// Gets the default checkmark circle fill symbol with default configuration of
+// the given point size.
+//
+// Since this code is in ios/chrome/common we cannot include the standard
+// symbol helpers from ios/chrome/browser/shared/ui/symbols.
+UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
+  UIImageSymbolConfiguration* configuration = [UIImageSymbolConfiguration
+      configurationWithPointSize:point_size
+                          weight:UIImageSymbolWeightMedium
+                           scale:UIImageSymbolScaleMedium];
+  UIImage* image = [UIImage systemImageNamed:kCheckmarkSymbol
+                           withConfiguration:configuration];
+  image.accessibilityIdentifier = kConfirmationAlertCheckmarkSymbolIdentifier;
+  return image;
+}
+
 }  // namespace
 
-@interface ConfirmationAlertViewController ()
+@interface ConfirmationAlertViewController () <UIScrollViewDelegate>
 
 // References to the UI properties that need to be updated when the trait
 // collection changes.
-@property(nonatomic, strong) UIButton* primaryActionButton;
-@property(nonatomic, strong) UIButton* secondaryActionButton;
 @property(nonatomic, strong) UIButton* tertiaryActionButton;
 @property(nonatomic, strong) UINavigationBar* navigationBar;
 @property(nonatomic, strong) UIImageView* imageView;
 @property(nonatomic, strong) UIView* imageContainerView;
 @property(nonatomic, strong) NSLayoutConstraint* imageViewAspectRatioConstraint;
 @property(nonatomic, strong) UIScrollView* scrollView;
+@property(nonatomic, strong) GradientView* gradientView;
+@property(nonatomic, strong) NSLayoutConstraint* gradientViewHeightConstraint;
+@property(nonatomic, strong)
+    NSLayoutConstraint* scrollViewBottomAnchorConstraint;
 @end
 
 @implementation ConfirmationAlertViewController
 
 #pragma mark - Public
 
-- (UISheetPresentationControllerDetent*)preferredHeightDetent {
-  __typeof(self) __weak weakSelf = self;
-  auto resolver = ^CGFloat(
-      id<UISheetPresentationControllerDetentResolutionContext> context) {
-    return [weakSelf detentForPreferredHeightInContext:context];
-  };
-  return [UISheetPresentationControllerDetent
-      customDetentWithIdentifier:@"preferred_height"
-                        resolver:resolver];
-}
-
 - (instancetype)init {
   self = [super initWithNibName:nil bundle:nil];
   if (self) {
     _customSpacingAfterImage = kStackViewSpacingAfterIllustration;
+    _customGradientViewHeight = kGradientHeight;
+    _customScrollViewBottomInsets = kScrollViewBottomInsets;
     _customSpacing = kStackViewSpacing;
     _showsVerticalScrollIndicator = YES;
     _scrollEnabled = YES;
     _showDismissBarButton = YES;
     _dismissBarButtonSystemItem = UIBarButtonSystemItemDone;
+    _shouldFillInformationStack = NO;
+    _actionStackBottomMargin = kDefaultActionsBottomMargin;
+    _activityIndicatorColor = [UIColor colorNamed:kSolidWhiteColor];
+    _confirmationButtonColor = [UIColor colorNamed:kBlue100Color];
+    _confirmationCheckmarkColor = [UIColor colorNamed:kBlue700Color];
+    _imageBackgroundColor = [UIColor colorNamed:kBackgroundColor];
   }
   return self;
 }
@@ -108,22 +159,29 @@ const CGFloat kFaviconBadgeSideLength = 24;
     [self.view addSubview:self.navigationBar];
   }
 
-  if (self.imageEnclosedWithShadowAndBadge) {
-    // The image view is set within the helper method.
-    self.imageContainerView = [self createImageContainerViewWithShadowAndBadge];
-  } else {
-    // The image container and the image view are the same.
-    self.imageView = [self createImageView];
-    self.imageContainerView = self.imageView;
-  }
-
   NSMutableArray* stackSubviews = [[NSMutableArray alloc] init];
 
-  [stackSubviews addObject:self.imageContainerView];
+  if (self.image) {
+    if (self.imageEnclosedWithShadowAndBadge ||
+        self.imageEnclosedWithShadowWithoutBadge) {
+      // The image view is set within the helper method.
+      self.imageContainerView =
+          [self createImageContainerViewWithShadowAndBadge];
+    } else {
+      // The image container and the image view are the same.
+      self.imageView = [self createImageView];
+      self.imageContainerView = self.imageView;
+    }
+    [stackSubviews addObject:self.imageContainerView];
+  }
+
+  if (self.aboveTitleView) {
+    [stackSubviews addObject:self.aboveTitleView];
+  }
 
   if (self.titleString.length) {
-    UILabel* title = [self createTitleLabel];
-    [stackSubviews addObject:title];
+    self.titleLabel = [self createTitleLabel];
+    [stackSubviews addObject:self.titleLabel];
   }
 
   if (self.secondaryTitleString.length) {
@@ -137,6 +195,8 @@ const CGFloat kFaviconBadgeSideLength = 24;
   }
 
   if (self.underTitleView) {
+    self.underTitleView.accessibilityIdentifier =
+        kConfirmationAlertUnderTitleViewAccessibilityIdentifier;
     [stackSubviews addObject:self.underTitleView];
   }
 
@@ -164,8 +224,9 @@ const CGFloat kFaviconBadgeSideLength = 24;
   // horizontal scroll.
   [NSLayoutConstraint activateConstraints:@[
     [stackView.topAnchor constraintEqualToAnchor:self.scrollView.topAnchor],
-    [stackView.bottomAnchor constraintEqualToAnchor:self.scrollView.bottomAnchor
-                                           constant:-kScrollViewBottomInsets]
+    [stackView.bottomAnchor
+        constraintEqualToAnchor:self.scrollView.bottomAnchor
+                       constant:-self.customScrollViewBottomInsets]
   ]];
 
   // Scroll View constraints to the height of its content. This allows to center
@@ -211,7 +272,7 @@ const CGFloat kFaviconBadgeSideLength = 24;
     // Add a low priority width constraints to make sure that the buttons are
     // taking as much width as they can.
     CGFloat extraBottomMargin =
-        self.secondaryActionString ? 0 : kActionsBottomMargin;
+        self.secondaryActionString ? 0 : self.actionStackBottomMargin;
     NSLayoutConstraint* lowPriorityWidthConstraint =
         [actionStackView.widthAnchor
             constraintEqualToConstant:kContentOptimalWidth];
@@ -235,7 +296,7 @@ const CGFloat kFaviconBadgeSideLength = 24;
           constraintEqualToAnchor:stackView.widthAnchor],
       [actionStackView.bottomAnchor
           constraintLessThanOrEqualToAnchor:self.view.bottomAnchor
-                                   constant:-kActionsBottomMargin -
+                                   constant:-self.actionStackBottomMargin -
                                             extraBottomMargin],
       [actionStackView.bottomAnchor
           constraintLessThanOrEqualToAnchor:self.view.safeAreaLayoutGuide
@@ -245,24 +306,28 @@ const CGFloat kFaviconBadgeSideLength = 24;
     ]];
     scrollViewBottomAnchor = actionStackView.topAnchor;
 
-    GradientView* gradientView = [self createGradientView];
-    [self.view addSubview:gradientView];
+    self.gradientView = [self createGradientView];
+    [self.view addSubview:self.gradientView];
 
     [NSLayoutConstraint activateConstraints:@[
-      [gradientView.bottomAnchor
+      [self.gradientView.bottomAnchor
           constraintEqualToAnchor:actionStackView.topAnchor],
-      [gradientView.leadingAnchor
+      [self.gradientView.leadingAnchor
           constraintEqualToAnchor:self.scrollView.leadingAnchor],
-      [gradientView.trailingAnchor
+      [self.gradientView.trailingAnchor
           constraintEqualToAnchor:self.scrollView.trailingAnchor],
-      [gradientView.heightAnchor constraintEqualToConstant:kGradientHeight],
     ]];
+    self.gradientViewHeightConstraint = [self.gradientView.heightAnchor
+        constraintEqualToConstant:self.customGradientViewHeight];
+    self.gradientViewHeightConstraint.active = YES;
   }
 
+  self.scrollViewBottomAnchorConstraint = [self.scrollView.bottomAnchor
+      constraintLessThanOrEqualToAnchor:scrollViewBottomAnchor
+                               constant:-kScrollViewBottomInsets];
+  self.scrollViewBottomAnchorConstraint.active = YES;
+
   [NSLayoutConstraint activateConstraints:@[
-    [self.scrollView.bottomAnchor
-        constraintLessThanOrEqualToAnchor:scrollViewBottomAnchor
-                                 constant:-kScrollViewBottomInsets],
     [self.scrollView.leadingAnchor
         constraintEqualToAnchor:self.view.leadingAnchor],
     [self.scrollView.trailingAnchor
@@ -297,7 +362,9 @@ const CGFloat kFaviconBadgeSideLength = 24;
     centerYConstraint.active = YES;
   }
 
-  if (!self.imageHasFixedSize) {
+  // Only add the constraint for imageView with an image that has a variable
+  // size.
+  if (self.image && !self.imageHasFixedSize) {
     // Constrain the image to the scroll view size and its aspect ratio.
     [self.imageView
         setContentCompressionResistancePriority:UILayoutPriorityDefaultLow
@@ -314,6 +381,34 @@ const CGFloat kFaviconBadgeSideLength = 24;
                      multiplier:imageAspectRatio];
     self.imageViewAspectRatioConstraint.active = YES;
   }
+  [self updateButtonState];
+
+  if (@available(iOS 17, *)) {
+    NSArray<UITrait>* traits = @[
+      UITraitPreferredContentSizeCategory.class,
+      UITraitHorizontalSizeClass.class, UITraitVerticalSizeClass.class
+    ];
+    auto* __weak weakSelf = self;
+    id handler = ^(id<UITraitEnvironment> traitEnvironment,
+                   UITraitCollection* previousCollection) {
+      [weakSelf updateRegisteredTraits:previousCollection];
+    };
+    [self registerForTraitChanges:traits withHandler:handler];
+  }
+}
+
+- (void)setIsLoading:(BOOL)isLoading {
+  if (_isLoading != isLoading) {
+    _isLoading = isLoading;
+    [self updateButtonState];
+  }
+}
+
+- (void)setIsConfirmed:(BOOL)isConfirmed {
+  if (_isConfirmed != isConfirmed) {
+    _isConfirmed = isConfirmed;
+    [self updateButtonState];
+  }
 }
 
 - (void)viewDidAppear:(BOOL)animated {
@@ -323,30 +418,16 @@ const CGFloat kFaviconBadgeSideLength = 24;
   [self.scrollView flashScrollIndicators];
 }
 
+#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
 - (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
   [super traitCollectionDidChange:previousTraitCollection];
-
-  // Update fonts for specific content sizes.
-  if (previousTraitCollection.preferredContentSizeCategory !=
-      self.traitCollection.preferredContentSizeCategory) {
-    self.primaryActionButton.titleLabel.font =
-        PreferredFontForTextStyleWithMaxCategory(
-            UIFontTextStyleHeadline,
-            self.traitCollection.preferredContentSizeCategory,
-            UIContentSizeCategoryExtraExtraExtraLarge);
+  if (@available(iOS 17, *)) {
+    return;
   }
 
-  // Update constraints for different size classes.
-  BOOL hasNewHorizontalSizeClass =
-      previousTraitCollection.horizontalSizeClass !=
-      self.traitCollection.horizontalSizeClass;
-  BOOL hasNewVerticalSizeClass = previousTraitCollection.verticalSizeClass !=
-                                 self.traitCollection.verticalSizeClass;
-
-  if (hasNewHorizontalSizeClass || hasNewVerticalSizeClass) {
-    [self.view setNeedsUpdateConstraints];
-  }
+  [self updateRegisteredTraits:previousTraitCollection];
 }
+#endif
 
 - (void)viewSafeAreaInsetsDidChange {
   [super viewSafeAreaInsetsDidChange];
@@ -359,16 +440,17 @@ const CGFloat kFaviconBadgeSideLength = 24;
 }
 
 - (void)updateViewConstraints {
-  BOOL isVerticalCompact =
-      self.traitCollection.verticalSizeClass == UIUserInterfaceSizeClassCompact;
+  BOOL showImageView =
+      self.alwaysShowImage || (self.traitCollection.verticalSizeClass !=
+                               UIUserInterfaceSizeClassCompact);
 
   // Hiding the image causes the UIStackView to change the image's height to 0.
   // Because its width and height are related, if the aspect ratio constraint
   // is active, the image's width also goes to 0, which causes the stack view
   // width to become 0 too.
-  [self.imageView setHidden:isVerticalCompact];
-  [self.imageContainerView setHidden:isVerticalCompact];
-  self.imageViewAspectRatioConstraint.active = !isVerticalCompact;
+  [self.imageView setHidden:!showImageView];
+  [self.imageContainerView setHidden:!showImageView];
+  self.imageViewAspectRatioConstraint.active = showImageView;
 
   // Allow the navigation bar to update its height based on new layout.
   [self.navigationBar invalidateIntrinsicContentSize];
@@ -384,7 +466,83 @@ const CGFloat kFaviconBadgeSideLength = 24;
   // Do nothing by default. Subclasses can override this.
 }
 
+- (void)displayGradientView:(BOOL)shouldShow {
+  self.gradientView.hidden = !shouldShow;
+}
+
+- (BOOL)isScrolledToBottom {
+  CGFloat scrollPosition =
+      self.scrollView.contentOffset.y + self.scrollView.frame.size.height;
+  CGFloat scrollLimit =
+      self.scrollView.contentSize.height + self.scrollView.contentInset.bottom;
+  return scrollPosition >= scrollLimit;
+}
+
+- (UISheetPresentationControllerDetent*)preferredHeightDetent {
+  __typeof(self) __weak weakSelf = self;
+  auto resolver = ^CGFloat(
+      id<UISheetPresentationControllerDetentResolutionContext> context) {
+    return [weakSelf detentForPreferredHeightInContext:context];
+  };
+  return [UISheetPresentationControllerDetent
+      customDetentWithIdentifier:@"preferred_height"
+                        resolver:resolver];
+}
+
+- (CGFloat)preferredHeightForContent {
+  // Obtain container view from presentation controller directly because
+  // this view may not have been added to its container view yet.
+  UIView* containerView = self.sheetPresentationController.containerView;
+
+  // Measure compressed height without safe area inset (detent values are
+  // generally expressed without safe area insets).
+  CGFloat fittingWidth = containerView.bounds.size.width;
+  CGSize fittingSize =
+      CGSizeMake(fittingWidth, UILayoutFittingCompressedSize.height);
+  CGFloat height = [self.view systemLayoutSizeFittingSize:fittingSize].height;
+
+  // These adjustments are necessary for devices in a non regular x regular size
+  // class with home indicators in their displays, as they have a non zero safe
+  // area inset at their bottom edge and a bottom sheet that attaches to it.
+  if (!IsRegularXRegularSizeClass(containerView.traitCollection) &&
+      containerView.safeAreaInsets.bottom != 0) {
+    height -= containerView.safeAreaInsets.bottom;
+
+    // Replace bottom margin calculated based on view's own safe area with
+    // bottom margin calculated based on the safe area of the container view
+    // it will eventually live in. This is needed in case the detent value
+    // is requested before the view has been added to its superview.
+    height -=
+        MAX(self.actionStackBottomMargin, self.view.safeAreaInsets.bottom);
+    height +=
+        MAX(self.actionStackBottomMargin, containerView.safeAreaInsets.bottom);
+  }
+  return height;
+}
+
 #pragma mark - Private
+
+- (CGFloat)detentForPreferredHeightInContext:
+    (id<UISheetPresentationControllerDetentResolutionContext>)context
+    API_AVAILABLE(ios(16)) {
+  // Only activate this detent in portrait orientation on iPhone.
+  UITraitCollection* traitCollection = context.containerTraitCollection;
+  if (traitCollection.horizontalSizeClass != UIUserInterfaceSizeClassCompact ||
+      traitCollection.verticalSizeClass != UIUserInterfaceSizeClassRegular) {
+    return UISheetPresentationControllerDetentInactive;
+  }
+
+  CGFloat height = [self preferredHeightForContent];
+
+  // Make sure detent is not larger than 75% of the maximum detent value but at
+  // least as large as a standard medium detent.
+  height = MIN(height, 0.75 * context.maximumDetentValue);
+  CGFloat mediumDetentHeight =
+      [[UISheetPresentationControllerDetent mediumDetent]
+          resolvedValueInContext:context];
+  height = MAX(height, mediumDetentHeight);
+  return height;
+}
 
 // Handle taps on the dismiss button.
 - (void)didTapDismissBarButton {
@@ -430,7 +588,7 @@ const CGFloat kFaviconBadgeSideLength = 24;
   UINavigationBar* navigationBar = [[UINavigationBar alloc] init];
   navigationBar.translucent = NO;
   [navigationBar setShadowImage:[[UIImage alloc] init]];
-  [navigationBar setBarTintColor:[UIColor colorNamed:kBackgroundColor]];
+  [navigationBar setBarTintColor:[UIColor colorNamed:kPrimaryBackgroundColor]];
 
   UINavigationItem* navigationItem = [[UINavigationItem alloc] init];
   if (self.helpButtonAvailable) {
@@ -458,10 +616,19 @@ const CGFloat kFaviconBadgeSideLength = 24;
   }
 
   if (self.showDismissBarButton) {
-    UIBarButtonItem* dismissButton = [[UIBarButtonItem alloc]
-        initWithBarButtonSystemItem:self.dismissBarButtonSystemItem
-                             target:self
-                             action:@selector(didTapDismissBarButton)];
+    UIBarButtonItem* dismissButton;
+    if (self.customDismissBarButtonImage) {
+      dismissButton = [[UIBarButtonItem alloc]
+          initWithImage:self.customDismissBarButtonImage
+                  style:UIBarButtonItemStylePlain
+                 target:self
+                 action:@selector(didTapDismissBarButton)];
+    } else {
+      dismissButton = [[UIBarButtonItem alloc]
+          initWithBarButtonSystemItem:self.dismissBarButtonSystemItem
+                               target:self
+                               action:@selector(didTapDismissBarButton)];
+    }
     navigationItem.rightBarButtonItem = dismissButton;
   }
 
@@ -487,6 +654,10 @@ const CGFloat kFaviconBadgeSideLength = 24;
 - (UIImageView*)createImageView {
   UIImageView* imageView = [[UIImageView alloc] initWithImage:self.image];
   imageView.contentMode = UIViewContentModeScaleAspectFit;
+  if (self.imageViewAccessibilityLabel) {
+    imageView.isAccessibilityElement = YES;
+    imageView.accessibilityLabel = self.imageViewAccessibilityLabel;
+  }
 
   imageView.translatesAutoresizingMaskIntoConstraints = NO;
   return imageView;
@@ -497,12 +668,8 @@ const CGFloat kFaviconBadgeSideLength = 24;
 - (UIView*)createImageContainerViewWithShadowAndBadge {
   UIImageView* faviconBadgeView = [[UIImageView alloc] init];
   faviconBadgeView.translatesAutoresizingMaskIntoConstraints = NO;
-  UIImageSymbolConfiguration* configuration = [UIImageSymbolConfiguration
-      configurationWithPointSize:kSymbolBadgeImagePointSize
-                          weight:UIImageSymbolWeightMedium
-                           scale:UIImageSymbolScaleMedium];
-  faviconBadgeView.image = [UIImage systemImageNamed:kCheckmarkSymbol
-                                   withConfiguration:configuration];
+  faviconBadgeView.image =
+      DefaultCheckmarkCircleFillSymbol(kSymbolBadgeImagePointSize);
   faviconBadgeView.tintColor = [UIColor colorNamed:kGreenColor];
 
   UIImageView* faviconView = [[UIImageView alloc] initWithImage:self.image];
@@ -511,7 +678,7 @@ const CGFloat kFaviconBadgeSideLength = 24;
 
   UIView* frameView = [[UIView alloc] init];
   frameView.translatesAutoresizingMaskIntoConstraints = NO;
-  frameView.backgroundColor = [UIColor colorNamed:kBackgroundColor];
+  frameView.backgroundColor = _imageBackgroundColor;
   frameView.layer.cornerRadius = kFaviconCornerRadius;
   frameView.layer.shadowOffset =
       CGSizeMake(kFaviconShadowOffsetX, kFaviconShadowOffsetY);
@@ -523,12 +690,20 @@ const CGFloat kFaviconBadgeSideLength = 24;
   [containerView addSubview:frameView];
   [containerView addSubview:faviconBadgeView];
 
+  if (self.imageEnclosedWithShadowWithoutBadge) {
+    [faviconBadgeView setHidden:YES];
+  }
+
+  CGFloat faviconSideLength = self.customFaviconSideLength > 0
+                                  ? self.customFaviconSideLength
+                                  : kFaviconSideLength;
+
   [NSLayoutConstraint activateConstraints:@[
     // Size constraints.
     [frameView.widthAnchor constraintEqualToConstant:kFaviconFrameSideLength],
     [frameView.heightAnchor constraintEqualToConstant:kFaviconFrameSideLength],
-    [faviconView.widthAnchor constraintEqualToConstant:kFaviconSideLength],
-    [faviconView.heightAnchor constraintEqualToConstant:kFaviconSideLength],
+    [faviconView.widthAnchor constraintEqualToConstant:faviconSideLength],
+    [faviconView.heightAnchor constraintEqualToConstant:faviconSideLength],
     [faviconBadgeView.widthAnchor
         constraintEqualToConstant:kFaviconBadgeSideLength],
     [faviconBadgeView.heightAnchor
@@ -593,6 +768,7 @@ const CGFloat kFaviconBadgeSideLength = 24;
   title.adjustsFontForContentSizeCategory = YES;
   title.accessibilityIdentifier =
       kConfirmationAlertTitleAccessibilityIdentifier;
+  title.accessibilityTraits = UIAccessibilityTraitHeader;
   return title;
 }
 
@@ -611,10 +787,14 @@ const CGFloat kFaviconBadgeSideLength = 24;
 
 // Helper to create the subtitle view.
 - (UITextView*)createSubtitleView {
+  if (!self.subtitleTextStyle) {
+    self.subtitleTextStyle = UIFontTextStyleBody;
+  }
   UITextView* subtitle = [self createTextView];
-  subtitle.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+  subtitle.font = [UIFont preferredFontForTextStyle:self.subtitleTextStyle];
   subtitle.text = self.subtitleString;
-  subtitle.textColor = [UIColor colorNamed:kTextSecondaryColor];
+  subtitle.textColor =
+      self.subtitleTextColor ?: [UIColor colorNamed:kTextSecondaryColor];
   subtitle.accessibilityIdentifier =
       kConfirmationAlertSubtitleAccessibilityIdentifier;
   [self customizeSubtitle:subtitle];
@@ -635,6 +815,7 @@ const CGFloat kFaviconBadgeSideLength = 24;
   scrollView.scrollEnabled = self.scrollEnabled;
   [scrollView
       setShowsVerticalScrollIndicator:self.showsVerticalScrollIndicator];
+  scrollView.delegate = self;
   return scrollView;
 }
 
@@ -656,7 +837,7 @@ const CGFloat kFaviconBadgeSideLength = 24;
   [stackView setCustomSpacing:self.customSpacingAfterImage
                     afterView:self.imageContainerView];
 
-  if (self.imageHasFixedSize) {
+  if (self.imageHasFixedSize && !self.shouldFillInformationStack) {
     stackView.alignment = UIStackViewAlignmentCenter;
   } else {
     stackView.alignment = UIStackViewAlignmentFill;
@@ -675,12 +856,12 @@ const CGFloat kFaviconBadgeSideLength = 24;
   actionStackView.translatesAutoresizingMaskIntoConstraints = NO;
 
   if (self.primaryActionString) {
-    self.primaryActionButton = [self createPrimaryActionButton];
+    _primaryActionButton = [self createPrimaryActionButton];
     [actionStackView addArrangedSubview:self.primaryActionButton];
   }
 
   if (self.secondaryActionString) {
-    self.secondaryActionButton = [self createSecondaryActionButton];
+    _secondaryActionButton = [self createSecondaryActionButton];
     [actionStackView addArrangedSubview:self.secondaryActionButton];
   }
   // Tertiary button should show above the primary one.
@@ -697,11 +878,9 @@ const CGFloat kFaviconBadgeSideLength = 24;
   [primaryActionButton addTarget:self
                           action:@selector(didTapPrimaryActionButton)
                 forControlEvents:UIControlEventTouchUpInside];
-  [primaryActionButton setTitle:self.primaryActionString
-                       forState:UIControlStateNormal];
+  SetConfigurationTitle(primaryActionButton, self.primaryActionString);
   primaryActionButton.accessibilityIdentifier =
       kConfirmationAlertPrimaryActionAccessibilityIdentifier;
-  primaryActionButton.titleLabel.adjustsFontSizeToFitWidth = YES;
 
   return primaryActionButton;
 }
@@ -714,29 +893,36 @@ const CGFloat kFaviconBadgeSideLength = 24;
   [secondaryActionButton addTarget:self
                             action:@selector(didTapSecondaryActionButton)
                   forControlEvents:UIControlEventTouchUpInside];
-  [secondaryActionButton setTitle:self.secondaryActionString
-                         forState:UIControlStateNormal];
-  [secondaryActionButton setBackgroundColor:[UIColor clearColor]];
+
+  UIButtonConfiguration* buttonConfiguration =
+      secondaryActionButton.configuration
+          ? secondaryActionButton.configuration
+          : [UIButtonConfiguration plainButtonConfiguration];
+  buttonConfiguration.contentInsets = NSDirectionalEdgeInsetsMake(
+      kButtonVerticalInsets, 0, kButtonVerticalInsets, 0);
+
+  if (self.secondaryActionImage) {
+    buttonConfiguration.image = self.secondaryActionImage;
+    buttonConfiguration.imagePadding = kActionButtonImageInsets;
+  }
+
+  UIFont* font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+  NSDictionary* attributes = @{NSFontAttributeName : font};
+  NSMutableAttributedString* string = [[NSMutableAttributedString alloc]
+      initWithString:self.secondaryActionString];
+  [string addAttributes:attributes range:NSMakeRange(0, string.length)];
+  buttonConfiguration.attributedTitle = string;
+
   UIColor* titleColor = [UIColor colorNamed:self.secondaryActionTextColor
                                                 ? self.secondaryActionTextColor
                                                 : kBlueColor];
-  [secondaryActionButton setTitleColor:titleColor
-                              forState:UIControlStateNormal];
+  buttonConfiguration.baseForegroundColor = titleColor;
+  buttonConfiguration.background.backgroundColor = [UIColor clearColor];
+  secondaryActionButton.configuration = buttonConfiguration;
 
-  // TODO(crbug.com/1418068): Replace with UIButtonConfiguration when min
-  // deployment target is iOS 15.
-  UIEdgeInsets contentInsets =
-      UIEdgeInsetsMake(kButtonVerticalInsets, 0, kButtonVerticalInsets, 0);
-  SetContentEdgeInsets(secondaryActionButton, contentInsets);
-
-  secondaryActionButton.titleLabel.font =
-      [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
-  secondaryActionButton.titleLabel.adjustsFontForContentSizeCategory = NO;
   secondaryActionButton.translatesAutoresizingMaskIntoConstraints = NO;
   secondaryActionButton.accessibilityIdentifier =
       kConfirmationAlertSecondaryActionAccessibilityIdentifier;
-  secondaryActionButton.titleLabel.adjustsFontSizeToFitWidth = YES;
-
   secondaryActionButton.pointerInteractionEnabled = YES;
   secondaryActionButton.pointerStyleProvider =
       CreateOpaqueButtonPointerStyleProvider();
@@ -750,25 +936,26 @@ const CGFloat kFaviconBadgeSideLength = 24;
   [tertiaryActionButton addTarget:self
                            action:@selector(didTapTertiaryActionButton)
                  forControlEvents:UIControlEventTouchUpInside];
-  [tertiaryActionButton setTitle:self.tertiaryActionString
-                        forState:UIControlStateNormal];
 
-  // TODO(crbug.com/1418068): Replace with UIButtonConfiguration when min
-  // deployment target is iOS 15.
-  UIEdgeInsets contentInsets =
-      UIEdgeInsetsMake(kButtonVerticalInsets, 0, kButtonVerticalInsets, 0);
-  SetContentEdgeInsets(tertiaryActionButton, contentInsets);
+  UIButtonConfiguration* buttonConfiguration =
+      [UIButtonConfiguration plainButtonConfiguration];
+  buttonConfiguration.contentInsets = NSDirectionalEdgeInsetsMake(
+      kButtonVerticalInsets, 0, kButtonVerticalInsets, 0);
+  buttonConfiguration.background.backgroundColor = [UIColor clearColor];
+  buttonConfiguration.baseForegroundColor = [UIColor colorNamed:kBlueColor];
 
-  [tertiaryActionButton setBackgroundColor:[UIColor clearColor]];
-  UIColor* titleColor = [UIColor colorNamed:kBlueColor];
-  [tertiaryActionButton setTitleColor:titleColor forState:UIControlStateNormal];
-  tertiaryActionButton.titleLabel.font =
-      [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
-  tertiaryActionButton.titleLabel.adjustsFontForContentSizeCategory = NO;
+  // Customize title string.
+  UIFont* font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+  NSDictionary* attributes = @{NSFontAttributeName : font};
+  NSMutableAttributedString* string = [[NSMutableAttributedString alloc]
+      initWithString:self.tertiaryActionString];
+  [string addAttributes:attributes range:NSMakeRange(0, string.length)];
+  buttonConfiguration.attributedTitle = string;
+  tertiaryActionButton.configuration = buttonConfiguration;
+
   tertiaryActionButton.translatesAutoresizingMaskIntoConstraints = NO;
   tertiaryActionButton.accessibilityIdentifier =
       kConfirmationAlertTertiaryActionAccessibilityIdentifier;
-
   tertiaryActionButton.pointerInteractionEnabled = YES;
   tertiaryActionButton.pointerStyleProvider =
       CreateOpaqueButtonPointerStyleProvider();
@@ -776,42 +963,61 @@ const CGFloat kFaviconBadgeSideLength = 24;
   return tertiaryActionButton;
 }
 
-- (CGFloat)detentForPreferredHeightInContext:
-    (id<UISheetPresentationControllerDetentResolutionContext>)context
-    API_AVAILABLE(ios(16)) {
-  // Only activate this detent in portrait orientation on iPhone.
-  UITraitCollection* traitCollection = context.containerTraitCollection;
-  if (traitCollection.horizontalSizeClass != UIUserInterfaceSizeClassCompact ||
-      traitCollection.verticalSizeClass != UIUserInterfaceSizeClassRegular) {
-    return UISheetPresentationControllerDetentInactive;
+// Applies an activity indicator to the primary button and disables buttons when
+// loading is true; otherwise, applies button labels and enables buttons.
+- (void)updateButtonState {
+  const BOOL showingProgressState = _isLoading || _isConfirmed;
+  _primaryActionButton.enabled = !showingProgressState;
+  if (_isConfirmed) {
+    SetButtonColor(_primaryActionButton, _confirmationButtonColor);
+    SetConfigurationImage(
+        _primaryActionButton,
+        DefaultCheckmarkCircleFillSymbol(kSymbolConfirmationCheckmarkPointSize),
+        _confirmationCheckmarkColor);
+  } else {
+    UpdateButtonColorOnEnableDisable(_primaryActionButton);
+    SetConfigurationImage(_primaryActionButton, /*image=*/nil, /*color=*/nil);
+  }
+  SetConfigurationActivityIndicator(_primaryActionButton, _isLoading,
+                                    _activityIndicatorColor);
+  SetConfigurationTitle(_primaryActionButton,
+                        showingProgressState ? @"" : _primaryActionString);
+
+  _secondaryActionButton.enabled = !showingProgressState;
+  _tertiaryActionButton.enabled = !showingProgressState;
+}
+
+// Checks which trait has been changed and adapts the UI to reflect this new
+// environment.
+- (void)updateRegisteredTraits:(UITraitCollection*)previousTraitCollection {
+  // Update fonts for specific content sizes.
+  if (previousTraitCollection.preferredContentSizeCategory !=
+      self.traitCollection.preferredContentSizeCategory) {
+    SetConfigurationFont(self.primaryActionButton,
+                         PreferredFontForTextStyleWithMaxCategory(
+                             UIFontTextStyleHeadline,
+                             self.traitCollection.preferredContentSizeCategory,
+                             UIContentSizeCategoryExtraExtraExtraLarge));
+
+    UIFont* newFont = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+    if (self.secondaryActionString) {
+      SetConfigurationFont(self.secondaryActionButton, newFont);
+    }
+    if (self.tertiaryActionString) {
+      SetConfigurationFont(self.tertiaryActionButton, newFont);
+    }
   }
 
-  // Obtain container view from presentation controller directly because
-  // this view may not have been added to its container view yet.
-  UIView* containerView = self.sheetPresentationController.containerView;
+  // Update constraints for different size classes.
+  BOOL hasNewHorizontalSizeClass =
+      previousTraitCollection.horizontalSizeClass !=
+      self.traitCollection.horizontalSizeClass;
+  BOOL hasNewVerticalSizeClass = previousTraitCollection.verticalSizeClass !=
+                                 self.traitCollection.verticalSizeClass;
 
-  // Measure compressed height without safe area inset (detent values are
-  // generally expressed without safe area insets).
-  CGFloat fittingWidth = containerView.bounds.size.width;
-  CGSize fittingSize =
-      CGSizeMake(fittingWidth, UILayoutFittingCompressedSize.height);
-  CGFloat height = [self.view systemLayoutSizeFittingSize:fittingSize].height;
-  height -= containerView.safeAreaInsets.bottom;
-
-  // Replace bottom margin calculated based on view's own safe area with bottom
-  // margin calculated based on the safe area of the container view it will
-  // eventually live in. This is needed in case the detent value is requested
-  // before the view has been added to its superview.
-  height -= MAX(kActionsBottomMargin, self.view.safeAreaInsets.bottom);
-  height += MAX(kActionsBottomMargin, containerView.safeAreaInsets.bottom);
-
-  // Make sure detent is not larger than 75% of the maximum detent value but at
-  // least as large as a standard medium detent.
-  height = MIN(height, 0.75 * context.maximumDetentValue);
-  CGFloat mediumDetentHeight = [UISheetPresentationControllerDetent.mediumDetent
-      resolvedValueInContext:context];
-  height = MAX(height, mediumDetentHeight);
-  return height;
+  if (hasNewHorizontalSizeClass || hasNewVerticalSizeClass) {
+    [self.view setNeedsUpdateConstraints];
+  }
 }
 
 @end

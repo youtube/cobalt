@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/sanitizers.gni")
+
 config("compiler_flags") {
   cflags = []
   cflags_c = []
@@ -75,6 +77,12 @@ config("compiler_flags") {
 
       # Do not remove null pointer checks.
       "-fno-delete-null-pointer-checks",
+
+      # Do not warn about variable length arrays
+      "-Wno-vla-cxx-extension",
+
+      "-Wno-return-type",
+      "-Wno-sometimes-uninitialized",
     ]
 
     if (is_gold) {
@@ -109,7 +117,8 @@ config("compiler_flags") {
     ]
     defines += [ "ADDRESS_SANITIZER" ]
     if (asan_symbolizer_path != "") {
-      defines += [ "ASAN_SYMBOLIZER_PATH=\"${asan_symbolizer_path}\"" ]
+      defines += [ "ASAN_SYMBOLIZER_PATH=\"" +
+                   rebase_path(asan_symbolizer_path, "") + "\"" ]
     }
   } else if (use_tsan) {
     cflags += [
@@ -130,15 +139,6 @@ config("platform_configuration") {
     "pthread",
     "rt",
   ]
-
-  if (!sb_is_modular || current_toolchain != cobalt_toolchain) {
-    ldflags += [
-      "-static-libstdc++",
-
-      # TODO(b/371589344#comment2) Revisit if static-libstdc++ is needed.
-      "-Wno-unused-command-line-argument",
-    ]
-  }
 
   defines += [
     # Defined to get format macro constants from <inttypes.h>.
@@ -169,29 +169,6 @@ config("libraries") {
     "Xcomposite",
     "Xrender",
   ]
-}
-
-config("speed") {
-  cflags = [ "-O2" ]
-
-  if (is_qa || is_gold) {
-    cflags += [
-      # Compile symbols in separate sections
-      "-ffunction-sections",
-      "-fdata-sections",
-    ]
-  }
-}
-
-config("size") {
-  cflags = [ "-Os" ]
-  if (is_qa || is_gold) {
-    cflags += [
-      # Compile symbols in separate sections
-      "-ffunction-sections",
-      "-fdata-sections",
-    ]
-  }
 }
 
 config("pedantic_warnings") {

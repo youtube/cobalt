@@ -29,7 +29,7 @@ ProfileImportImpl::ProfileImportImpl(
 ProfileImportImpl::~ProfileImportImpl() = default;
 
 void ProfileImportImpl::StartImport(
-    const importer::SourceProfile& source_profile,
+    const user_data_importer::SourceProfile& source_profile,
     uint16_t items,
     const base::flat_map<uint32_t, std::string>& localized_strings,
     mojo::PendingRemote<chrome::mojom::ProfileImportObserver> observer) {
@@ -50,7 +50,6 @@ void ProfileImportImpl::StartImport(
 #endif
   if (!import_thread_->Start()) {
     NOTREACHED();
-    ImporterCleanup();
   }
   bridge_ = new ExternalProcessImporterBridge(
       localized_strings,
@@ -66,7 +65,8 @@ void ProfileImportImpl::CancelImport() {
   ImporterCleanup();
 }
 
-void ProfileImportImpl::ReportImportItemFinished(importer::ImportItem item) {
+void ProfileImportImpl::ReportImportItemFinished(
+    user_data_importer::ImportItem item) {
   items_to_import_ ^= item;  // Remove finished item from mask.
   if (items_to_import_ == 0) {
     ImporterCleanup();

@@ -26,9 +26,9 @@ namespace blink {
 
 namespace {
 
-static WebVector<media::EmeInitDataType> ConvertInitDataTypes(
+static std::vector<media::EmeInitDataType> ConvertInitDataTypes(
     const Vector<String>& init_data_types) {
-  WebVector<media::EmeInitDataType> result(init_data_types.size());
+  std::vector<media::EmeInitDataType> result(init_data_types.size());
   for (wtf_size_t i = 0; i < init_data_types.size(); ++i)
     result[i] = EncryptedMediaUtils::ConvertToInitDataType(init_data_types[i]);
   return result;
@@ -47,9 +47,9 @@ ConvertEncryptionScheme(const String& encryption_scheme) {
   return WebMediaKeySystemMediaCapability::EncryptionScheme::kUnrecognized;
 }
 
-static WebVector<WebMediaKeySystemMediaCapability> ConvertCapabilities(
+static std::vector<WebMediaKeySystemMediaCapability> ConvertCapabilities(
     const HeapVector<Member<MediaKeySystemMediaCapability>>& capabilities) {
-  WebVector<WebMediaKeySystemMediaCapability> result(capabilities.size());
+  std::vector<WebMediaKeySystemMediaCapability> result(capabilities.size());
   for (wtf_size_t i = 0; i < capabilities.size(); ++i) {
     const WebString& content_type = capabilities[i]->contentType();
     result[i].content_type = content_type;
@@ -81,9 +81,9 @@ static WebVector<WebMediaKeySystemMediaCapability> ConvertCapabilities(
   return result;
 }
 
-static WebVector<WebEncryptedMediaSessionType> ConvertSessionTypes(
+static std::vector<WebEncryptedMediaSessionType> ConvertSessionTypes(
     const Vector<String>& session_types) {
-  WebVector<WebEncryptedMediaSessionType> result(session_types.size());
+  std::vector<WebEncryptedMediaSessionType> result(session_types.size());
   for (wtf_size_t i = 0; i < session_types.size(); ++i)
     result[i] = EncryptedMediaUtils::ConvertToSessionType(session_types[i]);
   return result;
@@ -92,14 +92,17 @@ static WebVector<WebEncryptedMediaSessionType> ConvertSessionTypes(
 }  // namespace
 
 MediaKeySystemAccessInitializerBase::MediaKeySystemAccessInitializerBase(
-    ScriptState* script_state,
+    ExecutionContext* context,
+    ScriptPromiseResolverBase* resolver,
     const String& key_system,
     const HeapVector<Member<MediaKeySystemConfiguration>>&
-        supported_configurations)
-    : ExecutionContextClient(ExecutionContext::From((script_state))),
-      resolver_(MakeGarbageCollected<ScriptPromiseResolver>(script_state)),
+        supported_configurations,
+    bool is_from_media_capabilities)
+    : ExecutionContextClient(context),
+      resolver_(resolver),
       key_system_(key_system),
-      supported_configurations_(supported_configurations.size()) {
+      supported_configurations_(supported_configurations.size()),
+      is_from_media_capabilities_(is_from_media_capabilities) {
   for (wtf_size_t i = 0; i < supported_configurations.size(); ++i) {
     const MediaKeySystemConfiguration* config = supported_configurations[i];
     WebMediaKeySystemConfiguration web_config;
@@ -118,12 +121,12 @@ MediaKeySystemAccessInitializerBase::MediaKeySystemAccessInitializerBase(
     DCHECK(config->hasDistinctiveIdentifier());
     web_config.distinctive_identifier =
         EncryptedMediaUtils::ConvertToMediaKeysRequirement(
-            config->distinctiveIdentifier());
+            config->distinctiveIdentifier().AsEnum());
 
     DCHECK(config->hasPersistentState());
     web_config.persistent_state =
         EncryptedMediaUtils::ConvertToMediaKeysRequirement(
-            config->persistentState());
+            config->persistentState().AsEnum());
 
     if (config->hasSessionTypes()) {
       web_config.session_types = ConvertSessionTypes(config->sessionTypes());
@@ -133,7 +136,7 @@ MediaKeySystemAccessInitializerBase::MediaKeySystemAccessInitializerBase(
       // If this member is not present when the dictionary is passed to
       // requestMediaKeySystemAccess(), the dictionary will be treated
       // as if this member is set to [ "temporary" ].
-      WebVector<WebEncryptedMediaSessionType> session_types(
+      std::vector<WebEncryptedMediaSessionType> session_types(
           static_cast<size_t>(1));
       session_types[0] = WebEncryptedMediaSessionType::kTemporary;
       web_config.session_types = session_types;
@@ -151,10 +154,6 @@ const SecurityOrigin* MediaKeySystemAccessInitializerBase::GetSecurityOrigin()
     const {
   return IsExecutionContextValid() ? GetExecutionContext()->GetSecurityOrigin()
                                    : nullptr;
-}
-
-ScriptPromise MediaKeySystemAccessInitializerBase::Promise() {
-  return resolver_->Promise();
 }
 
 void MediaKeySystemAccessInitializerBase::Trace(Visitor* visitor) const {
@@ -236,6 +235,8 @@ void MediaKeySystemAccessInitializerBase::GenerateWarningAndReportMetrics()
       static_cast<int>(has_empty_robustness));
   builder.SetVideoCapabilities_HasHwSecureAllRobustness(
       static_cast<int>(has_hw_secure_all));
+  builder.SetIsFromMediaCapabilities(
+      static_cast<int>(is_from_media_capabilities_));
   builder.Record(DomWindow()->UkmRecorder());
 }
 

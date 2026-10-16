@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.browserservices.intents;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.content_public.common.ScreenOrientationConstants;
 
 /**
@@ -11,6 +12,7 @@ import org.chromium.content_public.common.ScreenOrientationConstants;
  * screen.  These shortcuts are used to either open a page in the main browser
  * or open a web app.
  */
+@NullMarked
 public class WebappConstants {
     public static final String EXTRA_ICON = "org.chromium.chrome.browser.webapp_icon";
     public static final String EXTRA_ID = "org.chromium.chrome.browser.webapp_id";
@@ -28,6 +30,10 @@ public class WebappConstants {
     public static final String EXTRA_THEME_COLOR = "org.chromium.chrome.browser.theme_color";
     public static final String EXTRA_BACKGROUND_COLOR =
             "org.chromium.chrome.browser.background_color";
+    public static final String EXTRA_DARK_THEME_COLOR =
+            "org.chromium.chrome.browser.dark_theme_color";
+    public static final String EXTRA_DARK_BACKGROUND_COLOR =
+            "org.chromium.chrome.browser.dark_background_color";
     public static final String EXTRA_IS_ICON_GENERATED =
             "org.chromium.chrome.browser.is_icon_generated";
     public static final String EXTRA_IS_ICON_ADAPTIVE =

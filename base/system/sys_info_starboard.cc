@@ -14,6 +14,7 @@
 
 #include "base/system/sys_info_starboard.h"
 
+#include "base/notimplemented.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -26,8 +27,6 @@ using starboard::GetSystemPropertyString;
 #include <map>
 
 #include <sys/utsname.h>
-
-#include "base/containers/contains.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_STARBOARD)
@@ -78,6 +77,16 @@ std::string SbSysInfo::Brand() {
   __system_property_get("ro.product.brand", brand_str);
   return std::string(brand_str);
 }
+
+std::string SbSysInfo::OSFriendlyName() {
+  return "AOSP";
+}
+
+std::string SbSysInfo::OSPlatformName() {
+  NOTIMPLEMENTED();
+  return "";
+}
+
 #elif BUILDFLAG(IS_STARBOARD)
 std::string SbSysInfo::OriginalDesignManufacturer() {
   return GetSystemPropertyString(kSbSystemPropertySystemIntegratorName);
@@ -93,6 +102,19 @@ std::string SbSysInfo::ModelYear() {
 
 std::string SbSysInfo::Brand() {
   return GetSystemPropertyString(kSbSystemPropertyBrandName);
+}
+
+std::string SbSysInfo::OSFriendlyName() {
+  return GetSystemPropertyString(kSbSystemPropertyFriendlyName);
+}
+
+std::string SbSysInfo::OSPlatformName() {
+  std::string platform_name =
+      GetSystemPropertyString(kSbSystemPropertyPlatformName);
+  if (platform_name.empty()) {
+    return GetSystemPropertyString(kSbSystemPropertyFriendlyName);
+  }
+  return platform_name;
 }
 
 #elif BUILDFLAG(IS_IOS_TVOS)
@@ -150,6 +172,16 @@ std::string SbSysInfo::ModelYear() {
 
 std::string SbSysInfo::Brand() {
   return "Apple";
+}
+
+std::string SbSysInfo::OSFriendlyName() {
+  NOTIMPLEMENTED();
+  return "";
+}
+
+std::string SbSysInfo::OSPlatformName() {
+  NOTIMPLEMENTED();
+  return "";
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)

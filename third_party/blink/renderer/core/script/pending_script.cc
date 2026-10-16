@@ -25,7 +25,9 @@
 
 #include "third_party/blink/renderer/core/script/pending_script.h"
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
+
+#include "base/trace_event/trace_event.h"
 #include "third_party/blink/public/mojom/script/script_type.mojom-shared.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
@@ -40,7 +42,6 @@
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/scheduler/public/frame_scheduler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/task_attribution_tracker.h"
-#include "third_party/blink/renderer/platform/scheduler/public/thread_scheduler.h"
 
 namespace blink {
 
@@ -61,7 +62,8 @@ WebScopedVirtualTimePauser CreateWebScopedVirtualTimePauser(
 // See the comment about |is_in_document_write| in ScriptLoader::PrepareScript()
 // about IsInDocumentWrite() use here.
 PendingScript::PendingScript(ScriptElementBase* element,
-                             const TextPosition& starting_position)
+                             const TextPosition& starting_position,
+                             scheduler::TaskAttributionInfo* parent_task)
     : element_(element),
       starting_position_(starting_position),
       virtual_time_pauser_(CreateWebScopedVirtualTimePauser(element)),
@@ -69,7 +71,8 @@ PendingScript::PendingScript(ScriptElementBase* element,
       original_element_document_(&element->GetDocument()),
       original_execution_context_(element->GetExecutionContext()),
       created_during_document_write_(
-          element->GetDocument().IsInDocumentWrite()) {}
+          element->GetDocument().IsInDocumentWrite()),
+      parent_task_(parent_task) {}
 
 PendingScript::~PendingScript() {}
 
@@ -160,14 +163,13 @@ void PendingScript::ExecuteScriptBlock() {
     return;
   }
 
-  std::unique_ptr<scheduler::TaskAttributionTracker::TaskScope>
+  std::optional<scheduler::TaskAttributionTracker::TaskScope>
       task_attribution_scope;
   if (ScriptState* script_state = ToScriptStateForMainWorld(frame)) {
-    DCHECK(ThreadScheduler::Current());
-    if (auto* tracker =
-            ThreadScheduler::Current()->GetTaskAttributionTracker()) {
+    if (auto* tracker = scheduler::TaskAttributionTracker::From(
+            script_state->GetIsolate())) {
       task_attribution_scope = tracker->CreateTaskScope(
-          script_state, absl::nullopt,
+          script_state, parent_task_,
           scheduler::TaskAttributionTracker::TaskScopeType::kScriptExecution);
     }
   }
@@ -322,28 +324,29 @@ void PendingScript::Trace(Visitor* visitor) const {
   visitor->Trace(client_);
   visitor->Trace(original_execution_context_);
   visitor->Trace(original_element_document_);
+  visitor->Trace(parent_task_);
 }
 
 bool PendingScript::IsControlledByScriptRunner() const {
   switch (scheduling_type_) {
     case ScriptSchedulingType::kNotSet:
       NOTREACHED();
-      return false;
 
     case ScriptSchedulingType::kDefer:
     case ScriptSchedulingType::kParserBlocking:
     case ScriptSchedulingType::kParserBlockingInline:
     case ScriptSchedulingType::kImmediate:
-    case ScriptSchedulingType::kForceDefer:
       return false;
+
+    case ScriptSchedulingType::kDeprecatedForceDefer:
+      NOTREACHED()
+          << "kDeprecatedForceDefer is deprecated and should not be in use";
 
     case ScriptSchedulingType::kInOrder:
     case ScriptSchedulingType::kAsync:
     case ScriptSchedulingType::kForceInOrder:
       return true;
   }
-  NOTREACHED();
-  return false;
 }
 
 }  // namespace blink

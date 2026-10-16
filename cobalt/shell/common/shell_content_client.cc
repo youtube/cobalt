@@ -14,16 +14,20 @@
 
 #include "cobalt/shell/common/shell_content_client.h"
 
+#include <string_view>
+
 #include "base/command_line.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/shell/common/url_constants.h"
 #include "cobalt/shell/grit/shell_resources.h"
 #include "content/public/common/content_switches.h"
 #include "third_party/blink/public/strings/grit/blink_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "url/url_util.h"
 
 namespace content {
 
@@ -35,7 +39,7 @@ std::u16string ShellContentClient::GetLocalizedString(int message_id) {
   return l10n_util::GetStringUTF16(message_id);
 }
 
-base::StringPiece ShellContentClient::GetDataResource(
+std::string_view ShellContentClient::GetDataResource(
     int resource_id,
     ui::ResourceScaleFactor scale_factor) {
   return ui::ResourceBundle::GetSharedInstance().GetRawDataResourceForScale(
@@ -66,6 +70,15 @@ void ShellContentClient::AddAdditionalSchemes(Schemes* schemes) {
 #if BUILDFLAG(IS_ANDROID)
   schemes->local_schemes.push_back(url::kContentScheme);
 #endif
+  // Register kH5vccEmbeddedScheme as a standard scheme.
+  url::AddStandardScheme(kH5vccEmbeddedScheme, url::SCHEME_WITH_HOST);
+  schemes->local_schemes.push_back(kH5vccEmbeddedScheme);
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kTestRegisterStandardScheme)) {
+    std::string scheme = command_line->GetSwitchValueASCII(
+        switches::kTestRegisterStandardScheme);
+    schemes->standard_schemes.emplace_back(std::move(scheme));
+  }
 }
 
 }  // namespace content

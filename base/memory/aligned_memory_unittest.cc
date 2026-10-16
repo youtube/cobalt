@@ -2,7 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "base/memory/aligned_memory.h"
+
+#include <stdint.h>
+#include <string.h>
 
 #include <memory>
 
@@ -11,25 +19,52 @@
 
 namespace base {
 
+TEST(AlignedMemoryTest, AlignedUninit) {
+  {
+    base::AlignedHeapArray<char> h = AlignedUninit<char>(8, 32);
+    EXPECT_EQ(h.size(), 8u);
+    EXPECT_TRUE(IsAligned(h.data(), 32));
+  }
+  {
+    base::AlignedHeapArray<int16_t> h = AlignedUninit<int16_t>(8, 32);
+    EXPECT_EQ(h.size(), 8u);
+    EXPECT_TRUE(IsAligned(h.data(), 32));
+  }
+}
+
+TEST(AlignedMemoryTest, AlignedUninitCharArray) {
+  auto [h, s] = AlignedUninitCharArray<int16_t>(8, 32);
+  static_assert(std::same_as<base::AlignedHeapArray<char>, decltype(h)>);
+  static_assert(std::same_as<base::span<int16_t>, decltype(s)>);
+  EXPECT_EQ(h.size(), 8u * sizeof(int16_t));
+  EXPECT_TRUE(IsAligned(h.data(), 32));
+  EXPECT_EQ(s.size(), 8u);
+  EXPECT_TRUE(IsAligned(s.data(), 32));
+}
+
 TEST(AlignedMemoryTest, DynamicAllocation) {
   void* p = AlignedAlloc(8, 8);
-  EXPECT_TRUE(p);
+  ASSERT_TRUE(p);
   EXPECT_TRUE(IsAligned(p, 8));
+  memset(p, 0, 8);  // Fill to check allocated size under ASAN.
   AlignedFree(p);
 
   p = AlignedAlloc(8, 16);
-  EXPECT_TRUE(p);
+  ASSERT_TRUE(p);
   EXPECT_TRUE(IsAligned(p, 16));
+  memset(p, 0, 8);  // Fill to check allocated size under ASAN.
   AlignedFree(p);
 
   p = AlignedAlloc(8, 256);
-  EXPECT_TRUE(p);
+  ASSERT_TRUE(p);
   EXPECT_TRUE(IsAligned(p, 256));
+  memset(p, 0, 8);  // Fill to check allocated size under ASAN.
   AlignedFree(p);
 
   p = AlignedAlloc(8, 4096);
-  EXPECT_TRUE(p);
+  ASSERT_TRUE(p);
   EXPECT_TRUE(IsAligned(p, 4096));
+  memset(p, 0, 8);  // Fill to check allocated size under ASAN.
   AlignedFree(p);
 }
 

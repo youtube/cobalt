@@ -11,6 +11,7 @@
 #include "extensions/browser/extension_registry_factory.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/extension_system_provider.h"
+#include "extensions/common/extension_id.h"
 
 namespace extensions {
 
@@ -51,16 +52,14 @@ class MockExtensionSystem : public ExtensionSystem {
   ContentVerifier* content_verifier() override;
   std::unique_ptr<ExtensionSet> GetDependentExtensions(
       const Extension* extension) override;
-  void InstallUpdate(const std::string& extension_id,
+  void InstallUpdate(const ExtensionId& extension_id,
                      const std::string& public_key,
                      const base::FilePath& temp_dir,
                      bool install_immediately,
                      InstallUpdateCallback install_update_callback) override;
   void PerformActionBasedOnOmahaAttributes(
-      const std::string& extension_id,
-      const base::Value& attributes) override;
-  bool FinishDelayedInstallationIfReady(const std::string& extension_id,
-                                        bool install_immediately) override;
+      const ExtensionId& extension_id,
+      const base::Value::Dict& attributes) override;
 
  private:
   raw_ptr<content::BrowserContext> browser_context_;
@@ -85,12 +84,12 @@ class MockExtensionSystemFactory : public ExtensionSystemProvider {
   MockExtensionSystemFactory& operator=(const MockExtensionSystemFactory&) =
       delete;
 
-  ~MockExtensionSystemFactory() override {}
+  ~MockExtensionSystemFactory() override = default;
 
   // BrowserContextKeyedServiceFactory overrides:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override {
-    return new T(context);
+    return std::make_unique<T>(context);
   }
   content::BrowserContext* GetBrowserContextToUse(
       content::BrowserContext* context) const override {

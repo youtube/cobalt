@@ -14,7 +14,7 @@
 #include "chrome/browser/ui/webui/ash/assistant_optin/assistant_optin_utils.h"
 #include "chrome/browser/ui/webui/ash/login/assistant_optin_flow_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/base_webui_handler.h"
-#include "chrome/browser/ui/webui/ash/system_web_dialog_delegate.h"
+#include "chrome/browser/ui/webui/ash/system_web_dialog/system_web_dialog_delegate.h"
 #include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/web_ui_controller.h"
 #include "content/public/browser/webui_config.h"
@@ -48,8 +48,7 @@ class AssistantOptInUI : public ui::WebDialogUI {
   void OnDialogClosed();
 
  private:
-  raw_ptr<AssistantOptInFlowScreenHandler, ExperimentalAsh>
-      assistant_handler_ptr_;
+  raw_ptr<AssistantOptInFlowScreenHandler> assistant_handler_ptr_;
   base::WeakPtrFactory<AssistantOptInUI> weak_factory_{this};
 };
 
@@ -83,7 +82,7 @@ class AssistantOptInDialog : public SystemWebDialogDelegate {
   void OnDialogClosed(const std::string& json_retval) override;
 
  private:
-  raw_ptr<AssistantOptInUI, ExperimentalAsh> assistant_ui_ = nullptr;
+  raw_ptr<AssistantOptInUI> assistant_ui_ = nullptr;
 
   // Callback to run if the flow is completed.
   AssistantSetup::StartAssistantOptInFlowCallback callback_;

@@ -29,10 +29,14 @@
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_select_element.h"
+#include "third_party/blink/renderer/core/html/html_body_element.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
+#include "third_party/blink/renderer/core/html/html_head_element.h"
+#include "third_party/blink/renderer/core/html/html_html_element.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/mathml_names.h"
 #include "third_party/blink/renderer/core/svg_names.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -40,25 +44,21 @@ using HTMLTag = html_names::HTMLTag;
 
 namespace {
 
-// The following macro is used in switch statements for common types. It is
-// defined so that it looks like a normal case statement, e.g.:
-//   case FOO_CASES:
-
-// Disable formatting as it mangles the formatting.
-// clang-format off
-
-#define SCOPE_MARKER_CASES \
-  HTMLTag::kApplet: \
-  case HTMLTag::kCaption: \
-  case HTMLTag::kHTML: \
-  case HTMLTag::kMarquee: \
-  case HTMLTag::kObject: \
-  case HTMLTag::kTable: \
-  case HTMLTag::kTd: \
-  case HTMLTag::kTemplate: \
-  case HTMLTag::kTh
-
-// clang-format on
+inline bool IsScopeMarkerTag(const HTMLTag& tag, ContainerNode* node) {
+  if (tag == HTMLTag::kCaption || tag == HTMLTag::kApplet ||
+      tag == HTMLTag::kHTML || tag == HTMLTag::kMarquee ||
+      tag == HTMLTag::kObject || tag == HTMLTag::kTable ||
+      tag == HTMLTag::kTd || tag == HTMLTag::kTemplate || tag == HTMLTag::kTh) {
+    return true;
+  }
+  // TODO(crbug.com/40146374): the `node` parameter can be removed once the
+  // SelectParserRelaxationOptOut flag is removed.
+  if (tag == HTMLTag::kSelect &&
+      HTMLSelectElement::SelectParserRelaxationEnabled(node)) {
+    return true;
+  }
+  return false;
+}
 
 inline bool IsRootNode(HTMLStackItem* item) {
   return item->IsDocumentFragmentNode() ||
@@ -80,26 +80,18 @@ inline bool IsScopeMarkerNonHTML(HTMLStackItem* item) {
 
 inline bool IsScopeMarker(HTMLStackItem* item) {
   if (item->IsHTMLNamespace()) {
-    switch (item->GetHTMLTag()) {
-      case SCOPE_MARKER_CASES:
-        return true;
-      default:
-        return item->IsDocumentFragmentNode();
-    }
+    return IsScopeMarkerTag(item->GetHTMLTag(), item->GetNode()) ||
+           item->IsDocumentFragmentNode();
   }
   return IsScopeMarkerNonHTML(item);
 }
 
 inline bool IsListItemScopeMarker(HTMLStackItem* item) {
   if (item->IsHTMLNamespace()) {
-    switch (item->GetHTMLTag()) {
-      case SCOPE_MARKER_CASES:
-      case HTMLTag::kOl:
-      case HTMLTag::kUl:
-        return true;
-      default:
-        return item->IsDocumentFragmentNode();
-    }
+    return IsScopeMarkerTag(item->GetHTMLTag(), item->GetNode()) ||
+           item->IsDocumentFragmentNode() ||
+           item->GetHTMLTag() == HTMLTag::kOl ||
+           item->GetHTMLTag() == HTMLTag::kUl;
   }
   return IsScopeMarkerNonHTML(item);
 }
@@ -156,13 +148,9 @@ inline bool IsForeignContentScopeMarker(HTMLStackItem* item) {
 
 inline bool IsButtonScopeMarker(HTMLStackItem* item) {
   if (item->IsHTMLNamespace()) {
-    switch (item->GetHTMLTag()) {
-      case SCOPE_MARKER_CASES:
-      case HTMLTag::kButton:
-        return true;
-      default:
-        return item->IsDocumentFragmentNode();
-    }
+    return IsScopeMarkerTag(item->GetHTMLTag(), item->GetNode()) ||
+           item->IsDocumentFragmentNode() ||
+           item->GetHTMLTag() == HTMLTag::kButton;
   }
   return IsScopeMarkerNonHTML(item);
 }
@@ -450,7 +438,6 @@ bool InScopeCommon(HTMLStackItem* top, html_names::HTMLTag tag) {
       return false;
   }
   NOTREACHED();  // <html> is always on the stack and is a scope marker.
-  return false;
 }
 
 bool HTMLElementStack::HasNumberedHeaderElementInScope() const {
@@ -461,7 +448,6 @@ bool HTMLElementStack::HasNumberedHeaderElementInScope() const {
       return false;
   }
   NOTREACHED();  // <html> is always on the stack and is a scope marker.
-  return false;
 }
 
 bool HTMLElementStack::InScope(Element* target_element) const {
@@ -472,7 +458,6 @@ bool HTMLElementStack::InScope(Element* target_element) const {
       return false;
   }
   NOTREACHED();  // <html> is always on the stack and is a scope marker.
-  return false;
 }
 
 bool HTMLElementStack::InScope(html_names::HTMLTag tag) const {
@@ -492,7 +477,15 @@ bool HTMLElementStack::InButtonScope(html_names::HTMLTag tag) const {
 }
 
 bool HTMLElementStack::InSelectScope(html_names::HTMLTag tag) const {
-  return InScopeCommon<IsSelectScopeMarker>(top_.Get(), tag);
+  // IsSelectScopeMarker has rigid checks about having <option>s or
+  // <optgroup>s between the top and the <select> which don't hold
+  // true anymore when permitting other tags when SelectParserRelaxation is
+  // enabled.
+  if (HTMLSelectElement::SelectParserRelaxationEnabled(root_node_)) {
+    return InScopeCommon<IsScopeMarker>(top_.Get(), tag);
+  } else {
+    return InScopeCommon<IsSelectScopeMarker>(top_.Get(), tag);
+  }
 }
 
 bool HTMLElementStack::HasTemplateInHTMLScope() const {
@@ -506,21 +499,27 @@ Element* HTMLElementStack::HtmlElement() const {
 
 Element* HTMLElementStack::HeadElement() const {
   DCHECK(head_element_);
-  return head_element_;
+  return head_element_.Get();
 }
 
 Element* HTMLElementStack::BodyElement() const {
   DCHECK(body_element_);
-  return body_element_;
+  return body_element_.Get();
 }
 
 ContainerNode* HTMLElementStack::RootNode() const {
   DCHECK(root_node_);
-  return root_node_;
+  return root_node_.Get();
 }
 
 void HTMLElementStack::PushCommon(HTMLStackItem* item) {
   DCHECK(root_node_);
+
+  if (dom_parts_allowed_state_ == DOMPartsAllowed::kInsideParseParts &&
+      item->HasParsePartsAttribute() && body_element_) {
+    DCHECK(RuntimeEnabledFeatures::DOMPartsAPIEnabled());
+    ++parse_parts_count_;
+  }
 
   stack_depth_++;
   item->SetNextItemInStack(top_.Release());
@@ -532,6 +531,15 @@ void HTMLElementStack::PopCommon() {
   DCHECK(!TopStackItem()->HasTagName(html_names::kHeadTag) || !head_element_);
   DCHECK(!TopStackItem()->HasTagName(html_names::kBodyTag) || !body_element_);
   Top()->FinishParsingChildren();
+
+  DCHECK(!TopStackItem()->HasParsePartsAttribute() || parse_parts_count_ ||
+         !body_element_ ||
+         dom_parts_allowed_state_ != DOMPartsAllowed::kInsideParseParts);
+  if (parse_parts_count_ && TopStackItem()->HasParsePartsAttribute() &&
+      dom_parts_allowed_state_ == DOMPartsAllowed::kInsideParseParts) {
+    --parse_parts_count_;
+  }
+
   top_ = top_->ReleaseNextItemInStack();
 
   stack_depth_--;
@@ -546,6 +554,14 @@ void HTMLElementStack::RemoveNonTopCommon(Element* element) {
       // FIXME: Is it OK to call finishParsingChildren()
       // when the children aren't actually finished?
       element->FinishParsingChildren();
+
+      DCHECK(!TopStackItem()->HasParsePartsAttribute() || parse_parts_count_);
+      if (parse_parts_count_ &&
+          item->NextItemInStack()->HasParsePartsAttribute() &&
+          dom_parts_allowed_state_ == DOMPartsAllowed::kInsideParseParts) {
+        --parse_parts_count_;
+      }
+
       item->SetNextItemInStack(
           item->ReleaseNextItemInStack()->ReleaseNextItemInStack());
       stack_depth_--;
@@ -567,7 +583,6 @@ HTMLStackItem* HTMLElementStack::FurthestBlockForFormattingElement(
     }
   }
   NOTREACHED();
-  return nullptr;
 }
 
 void HTMLElementStack::Replace(HTMLStackItem* old_item,

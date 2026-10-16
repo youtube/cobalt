@@ -5,6 +5,7 @@
 #include "components/optimization_guide/core/optimization_guide_logger.h"
 
 #include "base/logging.h"
+#include "base/no_destructor.h"
 #include "base/observer_list.h"
 #include "base/strings/strcat.h"
 #include "components/optimization_guide/core/hints_processing_util.h"
@@ -113,9 +114,18 @@ OptimizationGuideLogger::LogMessage::LogMessage(
       source_line(source_line),
       message(message) {}
 
-OptimizationGuideLogger::OptimizationGuideLogger() {
-  if (optimization_guide::switches::IsDebugLogsEnabled())
+// static
+OptimizationGuideLogger* OptimizationGuideLogger::GetInstance() {
+  static base::NoDestructor<OptimizationGuideLogger> instance;
+  return instance.get();
+}
+
+OptimizationGuideLogger::OptimizationGuideLogger()
+    : command_line_flag_enabled_(
+          optimization_guide::switches::IsDebugLogsEnabled()) {
+  if (command_line_flag_enabled_) {
     recent_log_messages_.reserve(kMaxRecentLogMessages);
+  }
 }
 
 OptimizationGuideLogger::~OptimizationGuideLogger() = default;
@@ -123,7 +133,7 @@ OptimizationGuideLogger::~OptimizationGuideLogger() = default;
 void OptimizationGuideLogger::AddObserver(
     OptimizationGuideLogger::Observer* observer) {
   observers_.AddObserver(observer);
-  if (optimization_guide::switches::IsDebugLogsEnabled()) {
+  if (command_line_flag_enabled_) {
     for (const auto& message : recent_log_messages_) {
       for (Observer& obs : observers_) {
         obs.OnLogMessageAdded(message.event_time, message.log_source,
@@ -145,7 +155,7 @@ void OptimizationGuideLogger::OnLogMessageAdded(
     const std::string& source_file,
     int source_line,
     const std::string& message) {
-  if (optimization_guide::switches::IsDebugLogsEnabled()) {
+  if (command_line_flag_enabled_) {
     recent_log_messages_.emplace_back(event_time, log_source, source_file,
                                       source_line, message);
     if (recent_log_messages_.size() > kMaxRecentLogMessages)
@@ -157,6 +167,5 @@ void OptimizationGuideLogger::OnLogMessageAdded(
 }
 
 bool OptimizationGuideLogger::ShouldEnableDebugLogs() const {
-  return !observers_.empty() ||
-         optimization_guide::switches::IsDebugLogsEnabled();
+  return !observers_.empty() || command_line_flag_enabled_;
 }

@@ -265,13 +265,13 @@ void MojoJpegEncodeAcceleratorService::EncodeWithFD(
   const uint8_t* input_shm_memory =
       input_mapping.GetMemoryAsSpan<uint8_t>().data();
   scoped_refptr<media::VideoFrame> frame = media::VideoFrame::WrapExternalData(
-      media::PIXEL_FORMAT_I420,                // format
-      coded_size,                              // coded_size
-      gfx::Rect(coded_size),                   // visible_rect
-      coded_size,                              // natural_size
-      const_cast<uint8_t*>(input_shm_memory),  // data
-      input_buffer_size,                       // data_size
-      base::TimeDelta());                      // timestamp
+      media::PIXEL_FORMAT_I420,  // format
+      coded_size,                // coded_size
+      gfx::Rect(coded_size),     // visible_rect
+      coded_size,                // natural_size
+      input_shm_memory,          // data
+      input_buffer_size,         // data_size
+      base::TimeDelta());        // timestamp
   if (!frame.get()) {
     LOG(ERROR) << "Could not create VideoFrame for buffer id " << task_id;
     NotifyEncodeStatus(
@@ -370,7 +370,7 @@ void MojoJpegEncodeAcceleratorService::NotifyEncodeStatus(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   auto iter = encode_cb_map_.find(task_id);
-  DCHECK(iter != encode_cb_map_.end());
+  CHECK(iter != encode_cb_map_.end());
   EncodeWithDmaBufCallback encode_cb = std::move(iter->second);
   encode_cb_map_.erase(iter);
   std::move(encode_cb).Run(encoded_picture_size, error);

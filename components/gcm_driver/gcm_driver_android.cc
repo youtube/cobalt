@@ -14,6 +14,8 @@
 #include "base/logging.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "components/gcm_driver/android/jni_headers/GCMDriver_jni.h"
 
 using base::android::AppendJavaStringArrayToStringVector;
@@ -119,10 +121,6 @@ void GCMDriverAndroid::ValidateRegistration(
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), true /* is_valid */));
 }
-
-void GCMDriverAndroid::OnSignedIn() {}
-
-void GCMDriverAndroid::OnSignedOut() {}
 
 void GCMDriverAndroid::AddAppHandler(const std::string& app_id,
                                      GCMAppHandler* handler) {

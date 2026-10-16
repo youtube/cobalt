@@ -6,15 +6,17 @@
 #define BASE_JSON_JSON_WRITER_H_
 
 #include <stddef.h>
+
 #include <cstdint>
+#include <optional>
 #include <string>
+#include <string_view>
+#include <variant>
 
 #include "base/base_export.h"
 #include "base/json/json_common.h"
 #include "base/memory/raw_ptr.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 
@@ -38,10 +40,10 @@ enum JsonOptions {
 
 // Given a root node, generates and returns a JSON string.
 //
-// Returns `absl::nullopt` if
+// Returns `std::nullopt` if
 //    * the nesting depth exceeds `max_depth`, or
 //    * the JSON contains binary values.
-BASE_EXPORT absl::optional<std::string> WriteJson(
+BASE_EXPORT std::optional<std::string> WriteJson(
     ValueView node,
     size_t max_depth = internal::kAbsoluteMaxDepth);
 
@@ -49,26 +51,18 @@ BASE_EXPORT absl::optional<std::string> WriteJson(
 // The string is formatted according to `options` which is a bitmask of
 // `JsonOptions`.
 //
-// Returns `absl::nullopt` if
+// Returns `std::nullopt` if
 //    * the nesting depth exceeds `max_depth,` or
 //    * the JSON contains binary values
 //      (unless `JsonOptions::OPTIONS_OMIT_BINARY_VALUES` is passed).
-BASE_EXPORT absl::optional<std::string> WriteJsonWithOptions(
+BASE_EXPORT std::optional<std::string> WriteJsonWithOptions(
     ValueView node,
     uint32_t options,
     size_t max_depth = internal::kAbsoluteMaxDepth);
 
 class BASE_EXPORT JSONWriter {
  public:
-  using Options = JsonOptions;
-  // TODO: Once we support c++20 we replace these with
-  // `using enum ::JsonOptions`.
-  static constexpr auto OPTIONS_OMIT_BINARY_VALUES =
-      JsonOptions::OPTIONS_OMIT_BINARY_VALUES;
-  static constexpr auto OPTIONS_OMIT_DOUBLE_TYPE_PRESERVATION =
-      JsonOptions::OPTIONS_OMIT_DOUBLE_TYPE_PRESERVATION;
-  static constexpr auto OPTIONS_PRETTY_PRINT =
-      JsonOptions::OPTIONS_PRETTY_PRINT;
+  using enum JsonOptions;
 
   JSONWriter(const JSONWriter&) = delete;
   JSONWriter& operator=(const JSONWriter&) = delete;
@@ -101,11 +95,11 @@ class BASE_EXPORT JSONWriter {
 
   // Called recursively to build the JSON string. When completed,
   // |json_string_| will contain the JSON.
-  bool BuildJSONString(absl::monostate node, size_t depth);
+  bool BuildJSONString(std::monostate node, size_t depth);
   bool BuildJSONString(bool node, size_t depth);
   bool BuildJSONString(int node, size_t depth);
   bool BuildJSONString(double node, size_t depth);
-  bool BuildJSONString(StringPiece node, size_t depth);
+  bool BuildJSONString(std::string_view node, size_t depth);
   bool BuildJSONString(const Value::BlobStorage& node, size_t depth);
   bool BuildJSONString(const Value::Dict& node, size_t depth);
   bool BuildJSONString(const Value::List& node, size_t depth);

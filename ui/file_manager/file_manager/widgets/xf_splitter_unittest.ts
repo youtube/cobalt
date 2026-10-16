@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {getTrustedHTML} from 'chrome://resources/js/static_types.js';
 import {assertEquals, assertLT} from 'chrome://webui-test/chromeos/chai_assert.js';
 
 import {waitForElementUpdate} from '../common/js/unittest_util.js';
@@ -12,24 +13,28 @@ import {XfSplitter} from './xf_splitter.js';
  * Creates new <xf-splitter> element for each test.
  */
 export function setUp() {
-  document.body.innerHTML = '<style>div{width:100%;}</style><xf-splitter>' +
-      '<div slot=splitter-before>B<hr/></div>' +
-      '<div slot=splitter-after>A<hr/></div></xf-splitter>';
+  document.body.innerHTML = getTrustedHTML`
+    <style>div{width:100%;}</style>
+    <xf-splitter>
+      <div slot=splitter-before>B<hr/></div>
+      <div slot=splitter-after>A<hr/></div>
+    </xf-splitter>
+  `;
 }
 
 /**
  * Returns the <xf-splitter> element.
  */
 function getSplitterElement(): XfSplitter {
-  return document.querySelector('xf-splitter')! as XfSplitter;
+  return document.querySelector<XfSplitter>('xf-splitter')!;
 }
 
 /**
  * Returns the <div> element that is the splitter separator.
  */
-function getSplitterDivElement(): HTMLDivElement {
+function getSplitterDivElement(): HTMLElement {
   const splitter = getSplitterElement();
-  return splitter.shadowRoot!.querySelector('#splitter')! as HTMLDivElement;
+  return splitter.shadowRoot!.querySelector<HTMLElement>('#splitter')!;
 }
 
 function simulateMouseDown(element: HTMLElement, position: number) {

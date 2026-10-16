@@ -529,7 +529,7 @@ INSTANTIATE_TEST_SUITE_P(ShelfAutoHideSeparation,
 
 // Tests that shelf auto hide behavior is always hidden in app mode.
 TEST_P(ShelfControllerAppModeTest, AutoHideBehavior) {
-  SimulateKioskMode(user_manager::USER_TYPE_KIOSK_APP);
+  SimulateKioskMode(user_manager::UserType::kKioskApp);
 
   Shelf* shelf = GetPrimaryShelf();
   EXPECT_EQ(ShelfAutoHideBehavior::kAlwaysHidden, shelf->auto_hide_behavior());
@@ -544,33 +544,6 @@ TEST_P(ShelfControllerAppModeTest, AutoHideBehavior) {
 
   Shell::Get()->tablet_mode_controller()->SetEnabledForTest(false);
   EXPECT_EQ(ShelfAutoHideBehavior::kAlwaysHidden, shelf->auto_hide_behavior());
-}
-
-using ShelfControllerShelfPartyTest = NoSessionAshTestBase;
-
-TEST_F(ShelfControllerShelfPartyTest, ShelfPartyEndedOnLockScreen) {
-  auto* session_controller = GetSessionControllerClient();
-  session_controller->SetSessionState(session_manager::SessionState::ACTIVE);
-  ShelfModel* model = Shell::Get()->shelf_controller()->model();
-  model->ToggleShelfParty();
-  EXPECT_TRUE(model->in_shelf_party());
-  session_controller->SetSessionState(session_manager::SessionState::LOCKED);
-  EXPECT_FALSE(model->in_shelf_party());
-}
-
-TEST_F(ShelfControllerShelfPartyTest, ShelfPartyEndedOnSwitchUsers) {
-  auto* session_controller = GetSessionControllerClient();
-  constexpr char kEmail1[] = "user1@gmail.com";
-  session_controller->AddUserSession(kEmail1);
-  constexpr char kEmail2[] = "user2@gmail.com";
-  session_controller->AddUserSession(kEmail2);
-  session_controller->SwitchActiveUser(AccountId::FromUserEmail(kEmail1));
-  session_controller->SetSessionState(session_manager::SessionState::ACTIVE);
-  ShelfModel* model = Shell::Get()->shelf_controller()->model();
-  model->ToggleShelfParty();
-  EXPECT_TRUE(model->in_shelf_party());
-  session_controller->SwitchActiveUser(AccountId::FromUserEmail(kEmail2));
-  EXPECT_FALSE(model->in_shelf_party());
 }
 
 }  // namespace ash

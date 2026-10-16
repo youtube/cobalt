@@ -9,8 +9,10 @@
 
 @class FaviconView;
 
+// Container view that displays a `faviconView`.
 @interface FaviconContainerView : UIView
 
+// the `faviconView` to to display.
 @property(nonatomic, readonly, strong) FaviconView* faviconView;
 
 // Sets the favicon's background color. Can be nil to reset to original value.

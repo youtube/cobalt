@@ -4,20 +4,19 @@
 
 #include "chrome/browser/policy/policy_ui_utils.h"
 
+#include <optional>
 #include <string>
 
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/ui/webui/version/version_ui.h"
 #include "chrome/common/channel_info.h"
 #include "components/policy/core/browser/webui/json_generation.h"
 #include "components/version_info/version_info.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/l10n/l10n_util.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/version/version_loader.h"
 #endif
 
@@ -37,7 +36,7 @@ namespace policy {
 
 JsonGenerationParams GetChromeMetadataParams(
     const std::string& application_name) {
-  absl::optional<std::string> cohort_name;
+  std::optional<std::string> cohort_name;
 #if BUILDFLAG(IS_WIN)
   std::u16string cohort_version_info =
       version_utils::win::GetCohortVersionInfo();
@@ -46,9 +45,9 @@ JsonGenerationParams GetChromeMetadataParams(
         " %s", base::UTF16ToUTF8(cohort_version_info).c_str());
   }
 #endif
-  absl::optional<std::string> os_name;
-  absl::optional<std::string> platform_name;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+  std::optional<std::string> os_name;
+  std::optional<std::string> platform_name;
+#if BUILDFLAG(IS_CHROMEOS)
   platform_name = chromeos::version_loader::GetVersion(
       chromeos::version_loader::VERSION_FULL);
 #elif BUILDFLAG(IS_MAC)

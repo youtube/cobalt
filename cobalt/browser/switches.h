@@ -15,7 +15,6 @@
 #include <string>
 
 #include "base/command_line.h"
-#include "cobalt/shell/common/shell_switches.h"
 
 #ifndef COBALT_BROWSER_SWITCHES_H_
 #define COBALT_BROWSER_SWITCHES_H_
@@ -35,6 +34,13 @@ constexpr char kEnforceHTTPS[] = "https-enforcement";
 
 // Specify the initial window size: --window-size=w,h
 constexpr char kWindowSize[] = "window-size";
+
+// Enable H5VCC settings via command line:
+// --enable-h5vcc-settings=Key1=Val1;Key2=Val2
+constexpr char kEnableH5vccSettings[] = "enable-h5vcc-settings";
+
+// Specify the maximum HTTP disk cache size in bytes.
+constexpr char kMaxHttpCacheSize[] = "max-http-cache-size";
 
 }  // namespace switches
 }  // namespace cobalt

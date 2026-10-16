@@ -2,9 +2,9 @@
 # Test targets for TFLite MetadataExtractor.
 load("@build_bazel_rules_android//android:rules.bzl", "android_library", "android_local_test")
 load("@org_tensorflow//tensorflow/java:build_defs.bzl", "JAVACOPTS")
+load("//third_party/bazel_rules/rules_java/java:defs.bzl", "java_test")
 
 package(
-    default_applicable_licenses = ["//tensorflow_lite_support:license"],
     default_visibility = ["//visibility:private"],
     licenses = ["notice"],  # Apache 2.0
 )

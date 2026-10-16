@@ -7,26 +7,16 @@ package org.chromium.android_webview.test.util;
 import android.view.View;
 import android.view.ViewGroup;
 
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
-
-/**
- * Utils for testing SurfaceViews (SurfaceViews that display video).
- */
+/** Utils for testing SurfaceViews (SurfaceViews that display video). */
 public class VideoSurfaceViewUtils {
 
-    private static int containsNumChildrenOfType(
+    private static int containsNumChildrenOfTypeOnUiThread(
             final View view, final Class<? extends View> childType) throws Exception {
-        return TestThreadUtils.runOnUiThreadBlocking(
-                () -> containsNumChildrenOfTypeOnUiThread(view, childType));
-    }
-
-    private static int containsNumChildrenOfTypeOnUiThread(final View view,
-            final Class<? extends View> childType) throws Exception {
         return containsNumChildrenOfTypeOnUiThread(view, childType, 0);
     }
 
-    private static int containsNumChildrenOfTypeOnUiThread(final View view,
-            final Class<? extends View> childType, int sum) throws Exception {
+    private static int containsNumChildrenOfTypeOnUiThread(
+            final View view, final Class<? extends View> childType, int sum) throws Exception {
         if (childType.isInstance(view)) return 1;
 
         if (view instanceof ViewGroup) {

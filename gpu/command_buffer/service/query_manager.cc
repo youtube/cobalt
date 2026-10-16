@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "gpu/command_buffer/service/query_manager.h"
 
 #include <stddef.h>
@@ -378,6 +383,10 @@ void QueryManager::RemoveQuery(GLuint client_id) {
   generated_query_ids_.erase(client_id);
 }
 
+void QueryManager::RemoveAllQueries() {
+  queries_.clear();
+}
+
 void QueryManager::StartTracking(QueryManager::Query* /* query */) {
   ++query_count_;
 }
@@ -505,7 +514,7 @@ void QueryManager::EndQuery(Query* query, base::subtle::Atomic32 submit_count) {
 
   // Remove from active query map if it is active.
   ActiveQueryMap::iterator active_it = active_queries_.find(query->target());
-  DCHECK(active_it != active_queries_.end());
+  CHECK(active_it != active_queries_.end());
   DCHECK(query == active_it->second.get());
   active_queries_.erase(active_it);
 

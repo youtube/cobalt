@@ -14,6 +14,7 @@
 #include "ash/style/ash_color_id.h"
 #include "ash/style/ash_color_provider.h"
 #include "ash/style/icon_button.h"
+#include "ash/style/typography.h"
 #include "ash/system/phonehub/phone_hub_tray.h"
 #include "ash/system/phonehub/phone_hub_view_ids.h"
 #include "ash/system/status_area_widget.h"
@@ -24,6 +25,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/color/color_id.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/color_utils.h"
@@ -31,6 +33,7 @@
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/text_elider.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
@@ -52,9 +55,6 @@ constexpr int kSeparatorHeight = 18;
 constexpr int kPhoneNameLabelWidthMax = 160;
 constexpr auto kBorderInsets = gfx::Insets::VH(0, 16);
 constexpr auto kBatteryLabelBorderInsets = gfx::Insets::TLBR(0, 0, 0, 4);
-
-// Typograph in dip.
-constexpr int kBatteryLabelFontSize = 11;
 
 // Multiplied by the int returned by GetSignalStrengthAsInt() to obtain a
 // percentage for the signal strength displayed by the tooltip when hovering
@@ -106,11 +106,13 @@ PhoneStatusView::PhoneStatusView(phonehub::PhoneModel* phone_model,
   phone_model_->AddObserver(this);
 
   phone_name_label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+  // TODO(b/322067753): Replace usage of |AshColorProvider| with |cros_tokens|.
   phone_name_label_->SetEnabledColor(
       AshColorProvider::Get()->GetContentLayerColor(
           AshColorProvider::ContentLayerType::kTextColorPrimary));
-  TrayPopupUtils::SetLabelFontList(phone_name_label_,
-                                   TrayPopupUtils::FontStyle::kSubHeader);
+  TypographyProvider::Get()->StyleLabel(ash::TypographyToken::kCrosHeadline1,
+                                        *phone_name_label_);
+
   phone_name_label_->SetElideBehavior(gfx::ElideBehavior::ELIDE_TAIL);
   AddView(TriView::Container::START, phone_name_label_);
 
@@ -124,11 +126,14 @@ PhoneStatusView::PhoneStatusView(phonehub::PhoneModel* phone_model,
 
   battery_label_->SetAutoColorReadabilityEnabled(false);
   battery_label_->SetSubpixelRenderingEnabled(false);
+
+  // TODO(b/322067753): Replace usage of |AshColorProvider| with |cros_tokens|.
   battery_label_->SetEnabledColor(AshColorProvider::Get()->GetContentLayerColor(
       AshColorProvider::ContentLayerType::kTextColorPrimary));
-  auto default_font = battery_label_->font_list();
-  battery_label_->SetFontList(default_font.DeriveWithSizeDelta(
-      kBatteryLabelFontSize - default_font.GetFontSize()));
+
+  TypographyProvider::Get()->StyleLabel(ash::TypographyToken::kCrosButton2,
+                                        *battery_label_);
+
   battery_label_->SetBorder(
       views::CreateEmptyBorder(kBatteryLabelBorderInsets));
   AddView(TriView::Container::CENTER, battery_label_);
@@ -222,7 +227,7 @@ void PhoneStatusView::UpdateMobileStatus() {
       break;
   }
 
-  signal_icon_->SetImage(signal_image);
+  signal_icon_->SetImage(ui::ImageModel::FromImageSkia(signal_image));
   signal_icon_->SetTooltipText(tooltip_text);
 }
 
@@ -230,29 +235,28 @@ void PhoneStatusView::UpdateBatteryStatus() {
   const PhoneStatusModel& phone_status =
       phone_model_->phone_status_model().value();
 
-  const PowerStatus::BatteryImageInfo& info = CalculateBatteryInfo();
-
   const SkColor icon_fg_color = AshColorProvider::Get()->GetContentLayerColor(
       IsBatterySaverModeOn(phone_status)
           ? AshColorProvider::ContentLayerType::kIconColorWarning
           : AshColorProvider::ContentLayerType::kIconColorPrimary);
 
-  battery_icon_->SetImage(PowerStatus::GetBatteryImage(
-      info, kUnifiedTrayBatteryIconSize, icon_fg_color));
+  battery_icon_->SetImage(
+      ui::ImageModel::FromImageSkia(PowerStatus::GetBatteryImage(
+          CalculateBatteryInfo(icon_fg_color), kUnifiedTrayBatteryIconSize,
+          battery_icon_->GetColorProvider())));
   SetBatteryTooltipText();
   battery_label_->SetText(
       base::FormatPercent(phone_status.battery_percentage()));
-  battery_label_->SetAccessibleName(l10n_util::GetStringFUTF16(
+  battery_label_->GetViewAccessibility().SetName(l10n_util::GetStringFUTF16(
       IDS_ASH_PHONE_HUB_BATTERY_PERCENTAGE_ACCESSIBLE_TEXT,
       base::NumberToString16(phone_status.battery_percentage())));
 }
 
-PowerStatus::BatteryImageInfo PhoneStatusView::CalculateBatteryInfo() {
-  PowerStatus::BatteryImageInfo info;
-
+PowerStatus::BatteryImageInfo PhoneStatusView::CalculateBatteryInfo(
+    const SkColor icon_fg_color) {
   const PhoneStatusModel& phone_status =
       phone_model_->phone_status_model().value();
-
+  PowerStatus::BatteryImageInfo info(icon_fg_color);
   info.charge_percent = phone_status.battery_percentage();
 
   if (IsBatterySaverModeOn(phone_status)) {
@@ -315,11 +319,17 @@ void PhoneStatusView::SetBatteryTooltipText() {
 
 void PhoneStatusView::ClearExistingStatus() {
   // Clear mobile status.
-  signal_icon_->SetImage(gfx::ImageSkia());
+  signal_icon_->SetImage(ui::ImageModel());
 
   // Clear battery status.
-  battery_icon_->SetImage(gfx::ImageSkia());
+  battery_icon_->SetImage(ui::ImageModel());
   battery_label_->SetText(std::u16string());
+
+  // TODO(b/281844561): When the phone is disconnected the |phone_name_label_|
+  // should have cros.sys.disabled. Setting that here and then re-setting the
+  // label to cros.sys.on-surface on Update() would handle this case, but it
+  // would also incorrectly show cros.sys.disabled for the Connecting and
+  // Onboarding UI states.
 }
 
 void PhoneStatusView::ConfigureTriViewContainer(TriView::Container container) {

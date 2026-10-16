@@ -4,7 +4,7 @@
 
 #include "chrome/browser/enterprise/signals/system_signals_service_host_factory.h"
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/services/system_signals/public/cpp/browser/system_signals_service_host_impl.h"
 #include "components/device_signals/core/browser/system_signals_service_host.h"
@@ -16,7 +16,8 @@ namespace enterprise_signals {
 // static
 SystemSignalsServiceHostFactory*
 SystemSignalsServiceHostFactory::GetInstance() {
-  return base::Singleton<SystemSignalsServiceHostFactory>::get();
+  static base::NoDestructor<SystemSignalsServiceHostFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -31,16 +32,15 @@ SystemSignalsServiceHostFactory::SystemSignalsServiceHostFactory()
           "SystemSignalsServiceHost",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
-              // Guest mode.
-              .WithGuest(ProfileSelection::kOriginalOnly)
+              .WithGuest(ProfileSelection::kOffTheRecordOnly)
               .Build()) {}
 
 SystemSignalsServiceHostFactory::~SystemSignalsServiceHostFactory() = default;
 
-KeyedService* SystemSignalsServiceHostFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+SystemSignalsServiceHostFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new system_signals::SystemSignalsServiceHostImpl();
+  return std::make_unique<system_signals::SystemSignalsServiceHostImpl>();
 }
 
 }  // namespace enterprise_signals

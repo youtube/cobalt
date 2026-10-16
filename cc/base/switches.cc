@@ -5,8 +5,8 @@
 #include "cc/base/switches.h"
 
 #include "base/command_line.h"
+#include "build/build_config.h"
 
-namespace cc {
 namespace switches {
 
 const char kDisableThreadedAnimation[] = "disable-threaded-animation";
@@ -97,15 +97,9 @@ const char kUIShowScreenSpaceRects[] = "ui-show-screenspace-rects";
 // be highlighted. See DebugColors::NonLCDTextHighlightColor() for the colors.
 const char kHighlightNonLCDTextLayers[] = "highlight-non-lcd-text-layers";
 
-// Switches the ui compositor to use layer lists instead of layer trees.
-const char kUIEnableLayerLists[] = "ui-enable-layer-lists";
-
-// Enables the resume method on animated images.
-const char kAnimatedImageResume[] = "animated-image-resume";
-
 // Allows scaling clipped images in GpuImageDecodeCache. Note that this may
 // cause color-bleeding.
-// TODO(crbug.com/1157548): Remove this workaround flag once the underlying
+// TODO(crbug.com/40160880): Remove this workaround flag once the underlying
 // cache problems are solved.
 const char kEnableClippedImageScaling[] = "enable-scaling-clipped-images";
 
@@ -119,5 +113,13 @@ const char kCCLayerTreeTestLongTimeout[] = "cc-layer-tree-test-long-timeout";
 const char kCCScrollAnimationDurationForTesting[] =
     "cc-scroll-animation-duration-in-seconds";
 
+#if BUILDFLAG(IS_COBALT)
+const char kCCImageCacheLimitItems[] = "cc-image-cache-limit-items";
+const char kCCImageCacheLimitMbs[] = "cc-image-cache-limit-mbs";
+const char kDecodedImageWorkingSetBudgetBytes[] =
+    "decoded-image-working-set-budget-bytes";
+// Avoid reuse resource.
+const char kAvoidCCReuseResource[] = "avoid-cc-reuse-resource";
+#endif
+
 }  // namespace switches
-}  // namespace cc

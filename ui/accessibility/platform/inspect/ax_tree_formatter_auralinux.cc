@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/accessibility/platform/inspect/ax_tree_formatter_auralinux.h"
 
 #include <dbus/dbus.h>
@@ -9,9 +14,11 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "ui/accessibility/platform/ax_platform_node_auralinux.h"
@@ -120,7 +127,6 @@ void AXTreeFormatterAuraLinux::RecursiveBuildTree(
   DCHECK(platform_node);
 
   AXPlatformNodeDelegate* node = platform_node->GetDelegate();
-  DCHECK(node);
 
   if (!ShouldDumpNode(*node))
     return;
@@ -313,6 +319,48 @@ void AXTreeFormatterAuraLinux::AddActionProperties(
   dict->Set("actions", std::move(actions));
 }
 
+void AXTreeFormatterAuraLinux::AddRelationProperties(
+    AtkObject* atk_object,
+    base::Value::Dict* dict) const {
+  AtkRelationSet* relation_set = atk_object_ref_relation_set(atk_object);
+  base::Value::List relations;
+
+  for (int i = ATK_RELATION_NULL; i < ATK_RELATION_LAST_DEFINED; i++) {
+    AtkRelationType relation_type = static_cast<AtkRelationType>(i);
+    if (atk_relation_set_contains(relation_set, relation_type)) {
+      AtkRelation* relation =
+          atk_relation_set_get_relation_by_type(relation_set, relation_type);
+      DCHECK(relation);
+
+      relations.Append(ToString(relation));
+    }
+  }
+
+  g_object_unref(relation_set);
+  dict->Set("relations", std::move(relations));
+}
+
+std::string AXTreeFormatterAuraLinux::ToString(AtkRelation* relation) {
+  std::string relation_name =
+      atk_relation_type_get_name(relation->relationship);
+  GPtrArray* relation_targets = atk_relation_get_target(relation);
+  DCHECK(relation_targets);
+
+  std::vector<std::string> target_roles(relation_targets->len);
+  for (guint i = 0; i < relation_targets->len; i++) {
+    AtkObject* atk_target =
+        static_cast<AtkObject*>(g_ptr_array_index(relation_targets, i));
+    DCHECK(atk_target);
+    target_roles[i] = atk_role_get_name(atk_object_get_role(atk_target));
+  }
+
+  // We need to alphabetically sort the roles so tests don't flake from the
+  // order of `relation_targets`.
+  std::sort(target_roles.begin(), target_roles.end());
+  return base::StrCat(
+      {relation_name, "=[", base::JoinString(target_roles, ","), "]"});
+}
+
 void AXTreeFormatterAuraLinux::AddValueProperties(
     AtkObject* atk_object,
     base::Value::Dict* dict) const {
@@ -391,7 +439,7 @@ void AXTreeFormatterAuraLinux::AddTableProperties(
   // Caption details.
   AtkObject* caption = atk_table_get_caption(table);
   table_properties.Append(
-      base::StringPrintf("caption=%s;", caption ? "true" : "false"));
+      base::StringPrintf("caption=%s;", base::ToString<bool>(caption)));
 
   // Summarize information about the cells from the table's perspective here.
   std::vector<std::string> span_info;
@@ -426,34 +474,18 @@ void AXTreeFormatterAuraLinux::AddTableCellProperties(
   int row = 0, col = 0, row_span = 0, col_span = 0;
   int n_row_headers = 0, n_column_headers = 0;
 
-  // Properties obtained via AtkTableCell, if possible. If we do not have at
-  // least ATK 2.12, use the same logic in our AtkTableCell implementation so
-  // that tests can still be run.
-  if (AtkTableCellInterface::Exists()) {
-    AtkTableCell* cell = G_TYPE_CHECK_INSTANCE_CAST(
-        (atk_object), AtkTableCellInterface::GetType(), AtkTableCell);
+  AtkTableCell* cell = G_TYPE_CHECK_INSTANCE_CAST(
+      (atk_object), atk_table_cell_get_type(), AtkTableCell);
 
-    AtkTableCellInterface::GetRowColumnSpan(cell, &row, &col, &row_span,
-                                            &col_span);
+  atk_table_cell_get_row_column_span(cell, &row, &col, &row_span, &col_span);
 
-    GPtrArray* column_headers =
-        AtkTableCellInterface::GetColumnHeaderCells(cell);
-    n_column_headers = column_headers->len;
-    g_ptr_array_unref(column_headers);
+  GPtrArray* column_headers = atk_table_cell_get_column_header_cells(cell);
+  n_column_headers = column_headers->len;
+  g_ptr_array_unref(column_headers);
 
-    GPtrArray* row_headers = AtkTableCellInterface::GetRowHeaderCells(cell);
-    n_row_headers = row_headers->len;
-    g_ptr_array_unref(row_headers);
-  } else {
-    row = node->GetTableRow().value_or(-1);
-    col = node->GetTableColumn().value_or(-1);
-    row_span = node->GetTableRowSpan().value_or(0);
-    col_span = node->GetTableColumnSpan().value_or(0);
-    if (role == ATK_ROLE_TABLE_CELL) {
-      n_column_headers = node->GetDelegate()->GetColHeaderNodeIds(col).size();
-      n_row_headers = node->GetDelegate()->GetRowHeaderNodeIds(row).size();
-    }
-  }
+  GPtrArray* row_headers = atk_table_cell_get_row_header_cells(cell);
+  n_row_headers = row_headers->len;
+  g_ptr_array_unref(row_headers);
 
   std::vector<std::string> cell_info;
   cell_info.push_back(base::StringPrintf("row=%i", row));
@@ -476,7 +508,6 @@ void AXTreeFormatterAuraLinux::AddProperties(AtkObject* atk_object,
   DCHECK(platform_node);
 
   AXPlatformNodeDelegate* node = platform_node->GetDelegate();
-  DCHECK(node);
 
   dict->Set("id", node->GetId());
 
@@ -502,16 +533,6 @@ void AXTreeFormatterAuraLinux::AddProperties(AtkObject* atk_object,
   dict->Set("states", std::move(states));
   g_object_unref(state_set);
 
-  AtkRelationSet* relation_set = atk_object_ref_relation_set(atk_object);
-  base::Value::List relations;
-  for (int i = ATK_RELATION_NULL; i < ATK_RELATION_LAST_DEFINED; i++) {
-    AtkRelationType relation_type = static_cast<AtkRelationType>(i);
-    if (atk_relation_set_contains(relation_set, relation_type))
-      relations.Append(atk_relation_type_get_name(relation_type));
-  }
-  dict->Set("relations", std::move(relations));
-  g_object_unref(relation_set);
-
   AtkAttributeSet* attributes = atk_object_get_attributes(atk_object);
   for (AtkAttributeSet* attr = attributes; attr; attr = attr->next) {
     AtkAttribute* attribute = static_cast<AtkAttribute*>(attr->data);
@@ -523,6 +544,7 @@ void AXTreeFormatterAuraLinux::AddProperties(AtkObject* atk_object,
   AddTextProperties(atk_object, dict);
   AddHypertextProperties(atk_object, dict);
   AddActionProperties(atk_object, dict);
+  AddRelationProperties(atk_object, dict);
   AddValueProperties(atk_object, dict);
   AddTableProperties(atk_object, dict);
   AddTableCellProperties(platform_node, atk_object, dict);
@@ -589,30 +611,39 @@ const char* const ATK_OBJECT_ATTRIBUTES[] = {
     "colindex",
     "colspan",
     "coltext",
+    "colindextext",
     "container-atomic",
     "container-busy",
     "container-live",
     "container-relevant",
     "current",
+    "datetime",
     "description",
     "description-from",
+    "details-from",
     "details-roles",
     "display",
     "dropeffect",
     "explicit-name",
     "grabbed",
     "haspopup",
+    "has-interest-target",
     "hidden",
+    "html-input-name",
     "id",
     "keyshortcuts",
     "level",
+    "link-target",
     "live",
+    "maxlength",
+    "name-from",
     "placeholder",
     "posinset",
     "relevant",
     "roledescription",
     "rowcount",
     "rowindex",
+    "rowindextext",
     "rowspan",
     "rowtext",
     "setsize",
@@ -691,8 +722,8 @@ std::string AXTreeFormatterAuraLinux::ProcessTreeForOutput(
         // By default, exclude embedded-by because that should appear on every
         // top-level document object. The other relation types are less common
         // and thus almost always of interest when testing.
-        WriteAttribute(*relation_value != "embedded-by", *relation_value,
-                       &line);
+        WriteAttribute(!relation_value->starts_with("embedded-by"),
+                       *relation_value, &line);
       }
     }
   }

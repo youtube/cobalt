@@ -2,16 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "sandbox/win/src/startup_information_helper.h"
 
 #include <Windows.h>
 
+#include <algorithm>
 #include <vector>
 
 #include "base/check.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/win/startup_information.h"
+#include "base/win/windows_handle_util.h"
 #include "base/win/windows_version.h"
 #include "sandbox/win/src/app_container.h"
 #include "sandbox/win/src/nt_internals.h"
@@ -59,21 +65,29 @@ void StartupInformationHelper::SetStdHandles(HANDLE stdout_handle,
 }
 
 void StartupInformationHelper::AddInheritedHandle(HANDLE handle) {
-  if (handle != INVALID_HANDLE_VALUE) {
-    auto it = base::ranges::find(inherited_handle_list_, handle);
+  // https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute
+  // "These handles must be created as inheritable handles and must not include
+  // pseudo handles such as those returned by the GetCurrentProcess or
+  // GetCurrentThread function."
+  if (handle && !base::win::IsPseudoHandle(handle)) {
+    auto it = std::ranges::find(inherited_handle_list_, handle);
     if (it == inherited_handle_list_.end())
       inherited_handle_list_.push_back(handle);
   }
 }
 
-void StartupInformationHelper::SetAppContainer(
-    scoped_refptr<AppContainer> container) {
+void StartupInformationHelper::SetAppContainer(AppContainer* container) {
   // LowPrivilegeAppContainer only supported for Windows 10+
   DCHECK(!container->GetEnableLowPrivilegeAppContainer() ||
          base::win::GetVersion() >= base::win::Version::WIN10_RS1);
 
-  app_container_ = container;
-  security_capabilities_ = app_container_->GetSecurityCapabilities();
+  if (container->GetAppContainerType() == AppContainerType::kLowbox) {
+    return;
+  }
+
+  enable_low_privilege_app_container_ =
+      container->GetEnableLowPrivilegeAppContainer();
+  security_capabilities_ = container->GetSecurityCapabilities();
 }
 
 void StartupInformationHelper::AddJobToAssociate(HANDLE job_handle) {
@@ -94,11 +108,12 @@ DWORD StartupInformationHelper::CountAttributes() {
   if (!inherited_handle_list_.empty())
     ++attribute_count;
 
-  if (app_container_ &&
-      app_container_->GetAppContainerType() != AppContainerType::kLowbox) {
+  if (security_capabilities_) {
     ++attribute_count;
-    if (app_container_->GetEnableLowPrivilegeAppContainer())
-      ++attribute_count;
+  }
+
+  if (enable_low_privilege_app_container_) {
+    ++attribute_count;
   }
 
   if (!job_handle_list_.empty())
@@ -151,7 +166,7 @@ bool StartupInformationHelper::BuildStartupInformation() {
       return false;
     }
     startup_info_.startup_info()->dwFlags |= STARTF_USESTDHANDLES;
-    startup_info_.startup_info()->hStdInput = INVALID_HANDLE_VALUE;
+    startup_info_.startup_info()->hStdInput = nullptr;
     startup_info_.startup_info()->hStdOutput = stdout_handle_;
     startup_info_.startup_info()->hStdError = stderr_handle_;
     // Allowing inheritance of handles is only secure now that we
@@ -169,25 +184,25 @@ bool StartupInformationHelper::BuildStartupInformation() {
     expected_attributes--;
   }
 
-  if (app_container_ &&
-      app_container_->GetAppContainerType() != AppContainerType::kLowbox) {
+  if (security_capabilities_) {
     if (!startup_info_.UpdateProcThreadAttribute(
             PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES,
             security_capabilities_.get(), sizeof(SECURITY_CAPABILITIES))) {
       return false;
     }
     expected_attributes--;
-    if (app_container_->GetEnableLowPrivilegeAppContainer()) {
-      all_applications_package_policy_ =
-          PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT;
-      if (!startup_info_.UpdateProcThreadAttribute(
-              PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY,
-              &all_applications_package_policy_,
-              sizeof(all_applications_package_policy_))) {
-        return false;
-      }
-      expected_attributes--;
+  }
+
+  if (enable_low_privilege_app_container_) {
+    all_applications_package_policy_ =
+        PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT;
+    if (!startup_info_.UpdateProcThreadAttribute(
+            PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY,
+            &all_applications_package_policy_,
+            sizeof(all_applications_package_policy_))) {
+      return false;
     }
+    expected_attributes--;
   }
 
   CHECK(expected_attributes == 0);

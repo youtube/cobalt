@@ -10,7 +10,8 @@ import android.content.Intent;
 import org.chromium.net.test.EmbeddedTestServer;
 import org.chromium.net.test.ServerCertificate;
 
-/** A simple file server for java android webview tests which extends
+/**
+ * A simple file server for java android webview tests which extends
  *  from class EmbeddedTestServer. It is able to add custom handlers
  *  which registers with net::test_server::EmbeddedTestServer native code.
  *
@@ -20,8 +21,8 @@ import org.chromium.net.test.ServerCertificate;
  *   // serve requests...
  *   s.getURL("/foo/bar.txt");
  *
+ *   // Generally safe to omit as ResettersForTesting will call it.
  *   s.stopAndDestroyServer();
- *
  * Note that this runs net::test_server::EmbeddedTestServer in a service in a separate APK.
  */
 public class AwEmbeddedTestServer extends EmbeddedTestServer {
@@ -31,7 +32,8 @@ public class AwEmbeddedTestServer extends EmbeddedTestServer {
      */
     @Override
     protected void setIntentClassName(Intent intent) {
-        intent.setClassName("org.chromium.android_webview.test.support",
+        intent.setClassName(
+                "org.chromium.android_webview.test.support",
                 "org.chromium.android_webview.test.AwEmbeddedTestServerService");
     }
 
@@ -44,7 +46,7 @@ public class AwEmbeddedTestServer extends EmbeddedTestServer {
      *  @return The created server.
      */
     public static AwEmbeddedTestServer createAndStartServer(Context context) {
-        return initializeAndStartServer(new AwEmbeddedTestServer(), context, 0 /* port */);
+        return initializeAndStartServer(new AwEmbeddedTestServer(), context, /* port= */ 0);
     }
 
     /**
@@ -60,6 +62,6 @@ public class AwEmbeddedTestServer extends EmbeddedTestServer {
     public static AwEmbeddedTestServer createAndStartHTTPSServer(
             Context context, @ServerCertificate int serverCertificate) {
         return initializeAndStartHTTPSServer(
-                new AwEmbeddedTestServer(), context, serverCertificate, 0 /* port */);
+                new AwEmbeddedTestServer(), context, serverCertificate, /* port= */ 0);
     }
 }

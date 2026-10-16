@@ -4,9 +4,12 @@
 
 #include "chrome/browser/ash/dbus/vm/vm_applications_service_provider.h"
 
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/string_split.h"
@@ -15,7 +18,7 @@
 #include "chrome/browser/ash/borealis/borealis_service.h"
 #include "chrome/browser/ash/crostini/crostini_features.h"
 #include "chrome/browser/ash/crostini/crostini_util.h"
-#include "chrome/browser/ash/exo/chrome_data_exchange_delegate.h"
+#include "chrome/browser/ash/exo/chrome_security_delegate.h"
 #include "chrome/browser/ash/guest_os/guest_id.h"
 #include "chrome/browser/ash/guest_os/guest_os_mime_types_service.h"
 #include "chrome/browser/ash/guest_os/guest_os_mime_types_service_factory.h"
@@ -28,7 +31,7 @@
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/chrome_select_file_policy.h"
-#include "chrome/browser/ui/views/select_file_dialog_extension.h"
+#include "chrome/browser/ui/views/select_file_dialog_extension/select_file_dialog_extension.h"
 #include "chromeos/ash/components/dbus/cicerone/cicerone_client.h"
 #include "chromeos/ash/components/dbus/cicerone/cicerone_service.pb.h"
 #include "chromeos/ash/components/dbus/vm_applications/apps.pb.h"
@@ -38,14 +41,54 @@
 #include "ui/base/clipboard/file_info.h"
 #include "ui/base/data_transfer_policy/data_transfer_endpoint.h"
 #include "ui/display/types/display_constants.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 
 namespace ash {
 namespace {
 
-struct SelectFileData {
-  scoped_refptr<SelectFileDialogExtension> dialog;
-  vm_tools::cicerone::FileSelectedSignal signal;
+class DialogListener : public ui::SelectFileDialog::Listener {
+ public:
+  explicit DialogListener(vm_tools::cicerone::FileSelectedSignal signal)
+      : dialog_(SelectFileDialogExtension::Create(
+            this,
+            std::make_unique<ChromeSelectFilePolicy>(nullptr))),
+        signal_(signal) {
+    CHECK(dialog_);
+  }
+  DialogListener(const DialogListener&) = delete;
+  DialogListener& operator=(const DialogListener&) = delete;
+  ~DialogListener() override { dialog_->ListenerDestroyed(); }
+
+  scoped_refptr<SelectFileDialogExtension> dialog() { return dialog_; }
+
+  // ui::SelectFileDialog::Listener:
+  void FileSelected(const ui::SelectedFileInfo& file, int index) override {
+    MultiFilesSelected({file});
+  }
+  void MultiFilesSelected(
+      const std::vector<ui::SelectedFileInfo>& files) override;
+  void FileSelectionCanceled() override { MultiFilesSelected({}); }
+
+ private:
+  const scoped_refptr<SelectFileDialogExtension> dialog_;
+  const vm_tools::cicerone::FileSelectedSignal signal_;
 };
+
+void DialogListener::MultiFilesSelected(
+    const std::vector<ui::SelectedFileInfo>& files) {
+  ShareWithVMAndTranslateToFileUrls(
+      signal_.vm_name(), ui::SelectedFileInfoListToFilePathList(files),
+      base::BindOnce(
+          [](vm_tools::cicerone::FileSelectedSignal signal,
+             std::vector<std::string> file_urls) {
+            for (const auto& file_url : file_urls) {
+              signal.add_files(file_url);
+            }
+            CiceroneClient::Get()->FileSelected(signal);
+          },
+          signal_));
+  delete this;
+}
 
 }  // namespace
 
@@ -205,14 +248,6 @@ void VmApplicationsServiceProvider::SelectFile(
   }
   std::move(response_sender).Run(dbus::Response::FromMethodCall(method_call));
 
-  // SelectFileDialog will take ownership of |data| when we call SelectFile(),
-  // and we will take back ownership in MultiFilesSelected().
-  auto data = std::make_unique<SelectFileData>();
-  data->signal.set_vm_name(request.vm_name());
-  data->signal.set_container_name(request.container_name());
-  data->signal.set_owner_id(request.owner_id());
-  data->signal.set_select_file_token(request.select_file_token());
-
   // Match strings used by FilesApp GetDialogTypeAsString().
   ui::SelectFileDialog::Type type = ui::SelectFileDialog::SELECT_OPEN_FILE;
   if (request.type() == "open-multi-file") {
@@ -236,14 +271,8 @@ void VmApplicationsServiceProvider::SelectFile(
                                         base::FilePath()));
     }
     // Translate to path in host and DLP component type if possible.
-    ui::EndpointType source = ui::EndpointType::kUnknownVm;
-    if (request.vm_name() == crostini::kCrostiniDefaultVmName) {
-      source = ui::EndpointType::kCrostini;
-      owner.dialog_caller = policy::DlpFileDestination(
-          policy::DlpRulesManager::Component::kCrostini);
-    }
     std::vector<base::FilePath> paths =
-        TranslateVMPathsToHost(source, file_infos);
+        TranslateVMPathsToHost(request.vm_name(), file_infos);
     default_path =
         !paths.empty() ? std::move(paths[0]) : std::move(file_infos[0].path);
   }
@@ -252,20 +281,29 @@ void VmApplicationsServiceProvider::SelectFile(
   int file_type_index = 0;
   ParseSelectFileDialogFileTypes(request.allowed_extensions(), &file_types,
                                  &file_type_index);
-  data->dialog = SelectFileDialogExtension::Create(
-      this, std::make_unique<ChromeSelectFilePolicy>(nullptr));
-  // Release ownership of |data| and take back in MultiFilesSelected().
-  void* params = static_cast<void*>(data.get());
 
-  data.release()->dialog->SelectFileWithFileManagerParams(
-      type, title, default_path, &file_types, file_type_index, params, owner,
+  vm_tools::cicerone::FileSelectedSignal signal;
+  signal.set_vm_name(request.vm_name());
+  signal.set_container_name(request.container_name());
+  signal.set_owner_id(request.owner_id());
+  signal.set_select_file_token(request.select_file_token());
+  auto listener = std::make_unique<DialogListener>(signal);
+
+  // Grab the dialog from `listener` before releasing it.
+  scoped_refptr<SelectFileDialogExtension> dialog = listener->dialog();
+  // Release ownership of `listener`; it will self-delete when it receives a
+  // SelectFile callback.
+  listener.release();
+  dialog->SelectFileWithFileManagerParams(
+      type, title, default_path, &file_types, file_type_index, owner,
       /*search_query=*/"", /*show_android_picker_apps=*/false);
 }
 
+// static
 void VmApplicationsServiceProvider::ParseSelectFileDialogFileTypes(
     const std::string& allowed_extensions,
     ui::SelectFileDialog::FileTypeInfo* file_types,
-    int* file_type_index) const {
+    int* file_type_index) {
   file_types->extensions.clear();
   file_types->extension_description_overrides.clear();
   file_types->include_all_files = false;
@@ -302,40 +340,6 @@ void VmApplicationsServiceProvider::ParseSelectFileDialogFileTypes(
       ++i;
     }
   }
-}
-
-void VmApplicationsServiceProvider::FileSelected(const base::FilePath& path,
-                                                 int index,
-                                                 void* params) {
-  MultiFilesSelected({path}, params);
-}
-
-void VmApplicationsServiceProvider::MultiFilesSelected(
-    const std::vector<base::FilePath>& files,
-    void* params) {
-  auto data =
-      base::WrapUnique<SelectFileData>(static_cast<SelectFileData*>(params));
-
-  ui::EndpointType target = ui::EndpointType::kDefault;
-  if (data->signal.vm_name() == crostini::kCrostiniDefaultVmName) {
-    target = ui::EndpointType::kCrostini;
-  }
-
-  ShareWithVMAndTranslateToFileUrls(
-      target, files,
-      base::BindOnce(
-          [](std::unique_ptr<SelectFileData> data,
-             std::vector<std::string> file_urls) {
-            for (const auto& file_url : file_urls) {
-              data->signal.add_files(file_url);
-            }
-            CiceroneClient::Get()->FileSelected(data->signal);
-          },
-          std::move(data)));
-}
-
-void VmApplicationsServiceProvider::FileSelectionCanceled(void* params) {
-  MultiFilesSelected({}, params);
 }
 
 }  // namespace ash

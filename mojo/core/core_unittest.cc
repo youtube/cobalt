@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "mojo/core/core.h"
 
 #include <stdint.h>
@@ -33,6 +38,10 @@ const MojoHandleSignals kAllSignals =
 using CoreTest = test::CoreTestBase;
 
 TEST_F(CoreTest, GetTimeTicksNow) {
+  if (IsMojoIpczEnabled()) {
+    GTEST_SKIP() << "Not relevant when MojoIpcz is enabled.";
+  }
+
   const MojoTimeTicks start = core()->GetTimeTicksNow();
   ASSERT_NE(static_cast<MojoTimeTicks>(0), start)
       << "GetTimeTicksNow should return nonzero value";

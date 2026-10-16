@@ -9,10 +9,6 @@
 #import "ios/chrome/common/ui/table_view/table_view_cells_constants.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 const CGFloat kTableViewCustomSeparatorHeight = 0.5;
 }  // namespace
@@ -29,6 +25,8 @@ const CGFloat kTableViewCustomSeparatorHeight = 0.5;
     _customSeparator = [[UIView alloc] init];
     _customSeparator.translatesAutoresizingMaskIntoConstraints = NO;
     _customSeparator.backgroundColor = [UIColor colorNamed:kSeparatorColor];
+    // Defaults to hidden until a custom separator is explicitly set.
+    _customSeparator.hidden = YES;
 
     [self addSubview:_customSeparator];
 

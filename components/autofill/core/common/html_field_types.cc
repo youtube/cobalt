@@ -4,11 +4,10 @@
 #include "components/autofill/core/common/html_field_types.h"
 
 #include "base/notreached.h"
-#include "base/strings/string_piece.h"
 
 namespace autofill {
 
-base::StringPiece FieldTypeToStringPiece(HtmlFieldType type) {
+std::string_view FieldTypeToStringView(HtmlFieldType type) {
   switch (type) {
     case HtmlFieldType::kUnspecified:
       return "HTML_TYPE_UNSPECIFIED";
@@ -44,8 +43,6 @@ base::StringPiece FieldTypeToStringPiece(HtmlFieldType type) {
       return "HTML_TYPE_COUNTRY_NAME";
     case HtmlFieldType::kPostalCode:
       return "HTML_TYPE_POSTAL_CODE";
-    case HtmlFieldType::kFullAddress:
-      return "HTML_TYPE_FULL_ADDRESS";
     case HtmlFieldType::kCreditCardNameFull:
       return "HTML_TYPE_CREDIT_CARD_NAME_FULL";
     case HtmlFieldType::kCreditCardNameFirst:
@@ -102,8 +99,6 @@ base::StringPiece FieldTypeToStringPiece(HtmlFieldType type) {
       return "HTML_TYPE_CREDIT_CARD_EXP_2_DIGIT_YEAR";
     case HtmlFieldType::kCreditCardExp4DigitYear:
       return "HTML_TYPE_CREDIT_CARD_EXP_4_DIGIT_YEAR";
-    case HtmlFieldType::kUpiVpa:
-      return "HTML_TYPE_UPI_VPA";
     case HtmlFieldType::kOneTimeCode:
       return "HTML_TYPE_ONE_TIME_CODE";
     case HtmlFieldType::kMerchantPromoCode:
@@ -115,10 +110,13 @@ base::StringPiece FieldTypeToStringPiece(HtmlFieldType type) {
   }
 
   NOTREACHED();
-  return "";
 }
 
-base::StringPiece HtmlFieldModeToStringPiece(HtmlFieldMode mode) {
+std::string FieldTypeToString(HtmlFieldType type) {
+  return std::string(FieldTypeToStringView(type));
+}
+
+std::string_view HtmlFieldModeToStringView(HtmlFieldMode mode) {
   switch (mode) {
     case HtmlFieldMode::kNone:
       return "";
@@ -128,7 +126,10 @@ base::StringPiece HtmlFieldModeToStringPiece(HtmlFieldMode mode) {
       return "shipping";
   }
   NOTREACHED();
-  return "";
+}
+
+std::string HtmlFieldModeToString(HtmlFieldMode mode) {
+  return std::string(HtmlFieldModeToStringView(mode));
 }
 
 }  // namespace autofill

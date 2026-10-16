@@ -32,7 +32,9 @@ if (perfetto_build_with_android) {
       "health_hal.cc",
       "incident_service.cc",
       "power_stats.cc",
+      "statsd.cc",
       "statsd_logging.cc",
+      "suspend_control_service.cc",
       "tracing_service_proxy.cc",
     ]
     libs = [
@@ -41,6 +43,7 @@ if (perfetto_build_with_android) {
       "android.hardware.power.stats@1.0",
       "android.hardware.power.stats-V1-cpp",
       "android.hardware.atrace@1.0",
+      "android.system.suspend.control.internal-cpp",
       "statslog_perfetto",
       "statssocket",
       "cutils",
@@ -53,15 +56,15 @@ if (perfetto_build_with_android) {
       "services",
       "tracingproxy",
       "utils",
-      "libstatspull",
+      "statspull",
     ]
 
     # This target should never depend on any other perfetto target to avoid ODR
     # violation by doubly linking code in two .so(s) loaded in the same exe.
     assert_no_deps = [
-      "//include/*",
-      "//src/base/*",
-      "//src/tracing/*",
+      "../../include/*",
+      "../../src/base/*",
+      "../../src/tracing/*",
     ]
   }
 }  # if (perfetto_build_with_android)
@@ -78,6 +81,7 @@ source_set("headers") {
     "power_stats.h",
     "statsd.h",
     "statsd_logging.h",
+    "suspend_control_service.h",
     "tracing_service_proxy.h",
   ]
 }

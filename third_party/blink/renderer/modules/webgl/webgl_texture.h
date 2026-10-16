@@ -26,28 +26,21 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_WEBGL_TEXTURE_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGL_WEBGL_TEXTURE_H_
 
-#include "base/time/time.h"
+#include "third_party/blink/renderer/modules/webgl/webgl_object.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "gpu/command_buffer/client/client_shared_image.h"
+#include "gpu/command_buffer/common/mailbox.h"
 #include "media/base/video_frame.h"
-#include "third_party/blink/public/platform/web_media_player.h"
-#include "third_party/blink/renderer/modules/webgl/webgl_shared_platform_3d_object.h"
-#include "ui/gfx/geometry/rect.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
 
-// For last-uploaded-frame-metadata API. https://crbug.com/639174
-struct WebGLVideoFrameUploadMetadata {
-  media::VideoFrame::ID frame_id;
-  gfx::Rect visible_rect = {};
-  base::TimeDelta timestamp = {};
-  base::TimeDelta expected_timestamp = {};
-  bool skipped = false;
-};
-
-class WebGLTexture : public WebGLSharedPlatform3DObject {
+class WebGLTexture : public WebGLObject {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  explicit WebGLTexture(WebGLRenderingContextBase*);
+  explicit WebGLTexture(WebGLContextObjectSupport*);
 
   ~WebGLTexture() override;
 
@@ -59,35 +52,22 @@ class WebGLTexture : public WebGLSharedPlatform3DObject {
 
   static GLint ComputeLevelCount(GLsizei width, GLsizei height, GLsizei depth);
 
-  media::VideoFrame::ID GetLastUploadedVideoFrameId() const {
-    return last_uploaded_video_frame_metadata_.frame_id;
-  }
-
-  void UpdateLastUploadedFrame(WebGLVideoFrameUploadMetadata frame_metadata) {
-    last_uploaded_video_frame_metadata_ = frame_metadata;
-  }
-
-  void ClearLastUploadedFrame() { last_uploaded_video_frame_metadata_ = {}; }
-
-  unsigned lastUploadedVideoWidth() const {
-    return last_uploaded_video_frame_metadata_.visible_rect.width();
-  }
-  unsigned lastUploadedVideoHeight() const {
-    return last_uploaded_video_frame_metadata_.visible_rect.height();
-  }
-  double lastUploadedVideoTimestamp() const {
-    return last_uploaded_video_frame_metadata_.timestamp.InSecondsF();
-  }
-  bool lastUploadedVideoFrameWasSkipped() const {
-    return last_uploaded_video_frame_metadata_.skipped;
-  }
-
   // See https://www.w3.org/TR/webxrlayers-1/#opaque-texture.
   virtual bool IsOpaqueTexture() const { return false; }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void UpdateUnderlyingObject(GLuint new_object,
+                              scoped_refptr<media::VideoFrame> video_frame,
+                              bool has_shared_image_access);
+  const gpu::Mailbox& GetMailbox() const { return mailbox_; }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
+  scoped_refptr<media::VideoFrame> GetVideoFrame() const { return video_frame_; }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
+
  protected:
   // Constructor for WebGLUnownedTexture.
-  explicit WebGLTexture(WebGLRenderingContextBase* ctx,
+  explicit WebGLTexture(WebGLContextObjectSupport* ctx,
                         GLuint texture,
                         GLenum target);
 
@@ -99,8 +79,12 @@ class WebGLTexture : public WebGLSharedPlatform3DObject {
   int MapTargetToIndex(GLenum) const;
 
   GLenum target_;
-
-  WebGLVideoFrameUploadMetadata last_uploaded_video_frame_metadata_ = {};
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  bool has_shared_image_access_ = false;
+  gpu::Mailbox mailbox_;
+  scoped_refptr<gpu::ClientSharedImage> shared_image_;
+  scoped_refptr<media::VideoFrame> video_frame_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace blink

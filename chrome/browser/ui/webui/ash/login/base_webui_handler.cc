@@ -5,13 +5,14 @@
 #include "chrome/browser/ui/webui/ash/login/base_webui_handler.h"
 
 #include <memory>
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "base/values.h"
 #include "chrome/browser/ui/webui/ash/login/oobe_ui.h"
 #include "components/login/localized_values_builder.h"
 #include "content/public/browser/web_ui.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -21,8 +22,9 @@ BaseWebUIHandler::~BaseWebUIHandler() = default;
 
 void BaseWebUIHandler::OnJavascriptAllowed() {
   auto deferred_calls = std::exchange(deferred_calls_, {});
-  for (auto& call : deferred_calls)
+  for (auto& call : deferred_calls) {
     std::move(call).Run();
+  }
 
   InitAfterJavascriptAllowed();
 }
@@ -42,9 +44,10 @@ void BaseWebUIHandler::GetAdditionalParameters(base::Value::Dict* dict) {}
 void BaseWebUIHandler::InitAfterJavascriptAllowed() {}
 
 void BaseWebUIHandler::ShowScreenDeprecated(OobeScreenId screen) {
-  if (!GetOobeUI())
+  if (!GetOobeUI()) {
     return;
-  GetOobeUI()->GetCoreOobeView()->ShowScreenWithData(screen, absl::nullopt);
+  }
+  GetOobeUI()->GetCoreOobe()->ShowScreenWithData(screen, std::nullopt);
 }
 
 OobeUI* BaseWebUIHandler::GetOobeUI() {
@@ -53,8 +56,9 @@ OobeUI* BaseWebUIHandler::GetOobeUI() {
 
 OobeScreenId BaseWebUIHandler::GetCurrentScreen() {
   OobeUI* oobe_ui = GetOobeUI();
-  if (!oobe_ui)
+  if (!oobe_ui) {
     return OOBE_SCREEN_UNKNOWN;
+  }
   return oobe_ui->current_screen();
 }
 

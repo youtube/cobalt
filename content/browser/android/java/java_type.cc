@@ -156,7 +156,6 @@ std::string JavaType::JNIName() const {
       return class_jni_name;
   }
   NOTREACHED();
-  return std::string();
 }
 
 std::string JavaType::JNISignature() const {

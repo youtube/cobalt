@@ -36,13 +36,15 @@ class ChromeKeyboardControllerClientTestHelper::FakeKeyboardController
   bool IsKeyboardEnabled() override { return enabled_; }
   void SetEnableFlag(keyboard::KeyboardEnableFlag flag) override {
     keyboard_enable_flags_.insert(flag);
-    for (auto& observer : observers_)
+    for (auto& observer : observers_) {
       observer.OnKeyboardEnableFlagsChanged(keyboard_enable_flags_);
+    }
   }
   void ClearEnableFlag(keyboard::KeyboardEnableFlag flag) override {
     keyboard_enable_flags_.erase(flag);
-    for (auto& observer : observers_)
+    for (auto& observer : observers_) {
       observer.OnKeyboardEnableFlagsChanged(keyboard_enable_flags_);
+    }
   }
   const std::set<keyboard::KeyboardEnableFlag>& GetEnableFlags() override {
     return keyboard_enable_flags_;
@@ -75,11 +77,12 @@ class ChromeKeyboardControllerClientTestHelper::FakeKeyboardController
   void RemoveObserver(ash::KeyboardControllerObserver* observer) override {
     observers_.RemoveObserver(observer);
   }
-  absl::optional<ash::KeyRepeatSettings> GetKeyRepeatSettings() override {
+  std::optional<ash::KeyRepeatSettings> GetKeyRepeatSettings() override {
     return ash::KeyRepeatSettings{true, base::Milliseconds(1000),
                                   base::Milliseconds(1000)};
   }
   bool AreTopRowKeysFunctionKeys() override { return false; }
+  void SetSmartVisibilityEnabled(bool enabled) override {}
 
  private:
   keyboard::KeyboardConfig keyboard_config_;

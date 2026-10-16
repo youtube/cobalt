@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/containers/span.h"
 #include "cc/paint/skottie_wrapper.h"
 
 namespace cc {
@@ -26,8 +27,7 @@ uint32_t ClientSkottieTransferCacheEntry::SerializedSize() const {
 
 bool ClientSkottieTransferCacheEntry::Serialize(
     base::span<uint8_t> data) const {
-  DCHECK_GE(data.size(), SerializedSize());
-  memcpy(data.data(), skottie_->raw_data().data(), SerializedSize());
+  data.copy_prefix_from(skottie_->raw_data());
   return true;
 }
 
@@ -40,8 +40,9 @@ size_t ServiceSkottieTransferCacheEntry::CachedSize() const {
 
 bool ServiceSkottieTransferCacheEntry::Deserialize(
     GrDirectContext* context,
+    skgpu::graphite::Recorder* graphite_recorder,
     base::span<const uint8_t> data) {
-  skottie_ = SkottieWrapper::CreateNonSerializable(data);
+  skottie_ = SkottieWrapper::UnsafeCreateNonSerializable(data);
   cached_size_ = data.size();
   return skottie_->is_valid();
 }

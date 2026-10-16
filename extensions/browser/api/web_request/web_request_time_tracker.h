@@ -5,7 +5,6 @@
 #ifndef EXTENSIONS_BROWSER_API_WEB_REQUEST_WEB_REQUEST_TIME_TRACKER_H_
 #define EXTENSIONS_BROWSER_API_WEB_REQUEST_WEB_REQUEST_TIME_TRACKER_H_
 
-#include <stddef.h>
 #include <stdint.h>
 
 #include <map>
@@ -26,9 +25,9 @@ class ExtensionWebRequestTimeTracker {
 
   ~ExtensionWebRequestTimeTracker();
 
-  // Records the time that a request was created.  |has_listener| will be true
+  // Records the time that a request was created.  `has_listener` will be true
   // if there is at least one webRequest listener registered.
-  // |has_extra_headers_listener| will be true if there is at least one listener
+  // `has_extra_headers_listener` will be true if there is at least one listener
   // with 'extraHeaders' in the extraInfoSpec.
   void LogRequestStartTime(int64_t request_id,
                            const base::TimeTicks& start_time,

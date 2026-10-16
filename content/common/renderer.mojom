@@ -8,13 +8,14 @@ import "content/common/agent_scheduling_group.mojom";
 import "content/common/native_types.mojom";
 import "ipc/ipc.mojom";
 import "mojo/public/mojom/base/generic_pending_receiver.mojom";
+import "mojo/public/mojom/base/process_priority.mojom";
+import "mojo/public/mojom/base/shared_memory.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "services/network/public/mojom/network_types.mojom";
-import "services/network/public/mojom/attribution.mojom";
-import "skia/public/mojom/skcolor.mojom";
 import "third_party/blink/public/mojom/browser_interface_broker.mojom";
+import "third_party/blink/public/mojom/origin_trials/origin_trials_settings.mojom";
 import "third_party/blink/public/mojom/user_agent/user_agent_metadata.mojom";
-import "ui/color/color_id.mojom";
+import "url/mojom/url.mojom";
 
 struct UpdateScrollbarThemeParams {
   // TODO(avi): Update these to optional values when optional numeric types are
@@ -32,30 +33,8 @@ struct UpdateScrollbarThemeParams {
 };
 
 struct UpdateSystemColorInfoParams {
-  bool is_dark_mode;
-  bool forced_colors;
-
-  // uint32 represents a SkColor in the map.
-  // TODO(crbug.com/1251637): These colors should be consolidated into the
-  // renderer's ColorProviders.
-  map<SystemThemeColor, uint32> colors;
-
-  // Maps used to reconstruct ColorProvider instances in the renderer.
-  map<color.mojom.RendererColorId, skia.mojom.SkColor> light_colors;
-  map<color.mojom.RendererColorId, skia.mojom.SkColor> dark_colors;
-};
-
-// The background state for the render process.  When backgrounded the process's
-// priority will be lower (via base::Process::SetProcessBackgrounded()) if
-// allowed on the current platform (as determined by
-// base::Process::CanBackgroundProcesses()).
-enum RenderProcessBackgroundState {
-  // The renderer process has not been backgrounded, a hidden renderer may still
-  // be foregrounded, e.g. when it is playing audio.
-  kForegrounded,
-  // The renderer process has been backgrounded, a visible renderer may still
-  // be backgrounded, e.g. when it is hosting only low priority frames.
-  kBackgrounded,
+  // Accent color used by the system. Currently only set on ChromeOS.
+  uint32? accent_color;
 };
 
 // The visibility state for the renderer process, indicating whether or not any
@@ -76,11 +55,8 @@ interface Renderer {
   // This will create an "independent" agent scheduling group that is not
   // associated with the process-wide or other groups' IPC channels, meaning
   // there is no guaranteed ordering between them.
-  // `broker_remote` is the BrowserInterfaceBroker bound to the newly-created
-  // AgentSchedulingGroup.
   CreateAgentSchedulingGroup(
-    pending_receiver<IPC.mojom.ChannelBootstrap> bootstrap,
-    pending_remote<blink.mojom.BrowserInterfaceBroker> broker_remote);
+    pending_receiver<IPC.mojom.ChannelBootstrap> bootstrap);
 
   // Tells the renderer to create a new AgentSchedulingGroup, that will
   // listen to messages sent by the host via the pending
@@ -88,11 +64,15 @@ interface Renderer {
   // This will create an agent scheduling group that is associated with the
   // process-wide IPC channel, preserving message ordering across different
   // agent scheduling groups.
-  // `broker_remote` is the BrowserInterfaceBroker bound to the newly-created
-  // AgentSchedulingGroup.
   CreateAssociatedAgentSchedulingGroup(
-    pending_associated_receiver<AgentSchedulingGroup> agent_scheduling_group,
-    pending_remote<blink.mojom.BrowserInterfaceBroker> broker_remote);
+    pending_associated_receiver<AgentSchedulingGroup> agent_scheduling_group);
+
+  // Transfers the ReadOnlySharedMemoryRegion which is used to communicate the
+  // `std::atomic<base::TimeTicks>` representing the time at which this renderer
+  // was last upgraded to run at foreground priority or a null TimeTicks if it's
+  // currently running at best-effort priority.
+  TransferSharedLastForegroundTime(
+      mojo_base.mojom.ReadOnlySharedMemoryRegion last_foreground_time_region);
 
   // Tells the renderer that the network type has changed so that
   // navigator.onLine and navigator.connection can be updated.
@@ -130,9 +110,11 @@ interface Renderer {
   // pages containing plugins.
   PurgePluginListCache(bool reload_pages);
 
+  // Tells the renderer to purge its in-memory resource cache.
+  PurgeResourceCache() => ();
 
-  // Tells the renderer process of a change in visibility or background state.
-  SetProcessState(RenderProcessBackgroundState background_state,
+  // Tells the renderer process of a change in visibility or priority state.
+  SetProcessState(mojo_base.mojom.ProcessPriority process_priority,
                   RenderProcessVisibleState visible_state);
 
   // Tells the renderer process that it has been locked to a site (i.e., a
@@ -154,25 +136,30 @@ interface Renderer {
   // This is called at most once, prior to committing a navigation.
   SetIsCrossOriginIsolated(bool value);
 
+  // Sets whether `--disable-web-security` has been set.
+  //
+  // This is called at most once on process startup.
+  SetIsWebSecurityDisabled(bool value);
+
   // Set whether this renderer process is allowed to use Isolated Context APIs.
   // Similarly to the `SetIsCrossOriginIsolated()` method above, this flag is
   // process global, and called at most once, prior to committing a navigation.
   //
-  // TODO(crbug.com/1206150): We need a specification for this restriction.
+  // TODO(crbug.com/40180791): We need a specification for this restriction.
   SetIsIsolatedContext(bool value);
 
-  // Initialize renderer user agent string, user agent metadata and CORS exempt
-  // header list on renderer startup.
+  // Sets the mapping from WebUI resource URLs to the resource ID of their
+  // corresponding bundled bytecode cache. This is called once after a
+  // renderer's process lock has been set.
+  SetWebUIResourceUrlToCodeCacheMap(map<url.mojom.Url, int32> resource_map);
+
+  // Initialize renderer user agent string, user agent metadata, CORS exempt
+  // header list and origin trials settings on renderer startup.
   //
   // |user_agent| sets the user-agent string. This is needed because getting the
   // value in the renderer from the system leads to a wrong value due to
   // sandboxing. This must be called as early as possible, during the renderer
   // process initialization.
-  //
-  // |full_user_agent| sets the full user-agent with high-entropy information.
-  //
-  // |reduced_user_agent| sets a user-agent with high-entropy information
-  // reduced to common values.
   //
   // |metadata| sets the user agent metadata. This will replace `SetUserAgent()`
   // if we decide to ship https://github.com/WICG/ua-client-hints.
@@ -180,15 +167,14 @@ interface Renderer {
   // |cors_exempt_header_list| sets the CORS exempt header list for sanity
   // checking (e.g. DCHECKs).
   //
-  // |attribution_support| sets whether web or OS-level Attribution Reporting is supported.
+  // |origin_trials_settings| sets the settings used to build a
+  // blink::OriginTrialPolicy for the renderer. It can be null if the embedder
+  // does not support origin trials.
+  //
+  // |trace_id| allows us to trace this IPC from the browser to the renderer.
   InitializeRenderer(string user_agent,
-                     string full_user_agent,
-                     string reduced_user_agent,
                      blink.mojom.UserAgentMetadata metadata,
                      array<string> cors_exempt_header_list,
-                     network.mojom.AttributionSupport attribution_support);
-
- // Set whether web or OS-level Attribution Reporting is supported.
-  [EnableIf=is_android]
-  SetAttributionReportingSupport(network.mojom.AttributionSupport attribution_support);
+                     blink.mojom.OriginTrialsSettings? origin_trials_settings,
+                     uint64 trace_id);
 };

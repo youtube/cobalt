@@ -32,8 +32,8 @@ Vector<int32_t> SequenceTest::identityLongSequence(
   return arg;
 }
 
-absl::optional<Vector<uint8_t>> SequenceTest::identityOctetSequenceOrNull(
-    const absl::optional<Vector<uint8_t>>& arg) const {
+std::optional<Vector<uint8_t>> SequenceTest::identityOctetSequenceOrNull(
+    const std::optional<Vector<uint8_t>>& arg) const {
   return arg;
 }
 
@@ -43,6 +43,15 @@ HeapVector<Member<Element>> SequenceTest::getElementSequence() const {
 
 void SequenceTest::setElementSequence(const HeapVector<Member<Element>>& arg) {
   element_sequence_ = arg;
+}
+
+void SequenceTest::setElementSequenceOfSequences(
+    const HeapVector<HeapVector<Member<Element>>>& arg) {
+  HeapVector<Member<Element>> flattened_arg;
+  for (const auto& vec : arg) {
+    flattened_arg.AppendVector(vec);
+  }
+  element_sequence_ = flattened_arg;
 }
 
 bool SequenceTest::unionReceivedSequence(

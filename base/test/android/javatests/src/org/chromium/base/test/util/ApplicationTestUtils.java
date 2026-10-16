@@ -13,16 +13,16 @@ import androidx.test.runner.lifecycle.Stage;
 
 import org.junit.Assert;
 
+import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * Methods used for testing Application-level behavior.
- */
+/** Methods used for testing Application-level behavior. */
 public class ApplicationTestUtils {
+    private static final String TAG = "ApplicationTestUtils";
     private static final ActivityLifecycleMonitor sMonitor =
             ActivityLifecycleMonitorRegistry.getInstance();
 
@@ -30,30 +30,44 @@ public class ApplicationTestUtils {
 
     /** Waits until the given activity transitions to the given state. */
     public static void waitForActivityState(Activity activity, Stage stage) {
-        waitForActivityState("Activity " + activity.getLocalClassName()
-                        + " did not reach stage: " + stage + ". Is the device screen turned on?",
-                activity, stage);
+        waitForActivityState(
+                "Activity "
+                        + activity.getLocalClassName()
+                        + " did not reach stage: "
+                        + stage
+                        + ". Is the device screen turned on?",
+                activity,
+                stage);
     }
 
     /** Waits until the given activity transitions to the given state. */
     public static void waitForActivityState(String failureReason, Activity activity, Stage stage) {
-        CriteriaHelper.pollUiThread(() -> {
-            return sMonitor.getLifecycleStageOf(activity) == stage;
-        }, failureReason, ACTIVITY_TIMEOUT, CriteriaHelper.DEFAULT_POLLING_INTERVAL);
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    return sMonitor.getLifecycleStageOf(activity) == stage;
+                },
+                failureReason,
+                ACTIVITY_TIMEOUT,
+                CriteriaHelper.DEFAULT_POLLING_INTERVAL);
         // De-flake by flushing the tasks that are already queued on the Looper's Handler.
-        // TODO(https://crbug.com/1424788): Remove this and properly fix flaky tests.
+        // TODO(crbug.com/40260566): Remove this and properly fix flaky tests.
         TestThreadUtils.flushNonDelayedLooperTasks();
     }
 
     /** Finishes the given activity and waits for its onDestroy() to be called. */
-    public static void finishActivity(final Activity activity) throws Exception {
-        ThreadUtils.runOnUiThreadBlocking(() -> {
-            if (sMonitor.getLifecycleStageOf(activity) != Stage.DESTROYED) {
-                activity.finish();
-            }
-        });
-        final String error = "Failed to finish the Activity. Did you start a second Activity and "
-                + "not finish it?";
+    public static void finishActivity(final Activity activity) {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    if (sMonitor.getLifecycleStageOf(activity) != Stage.DESTROYED) {
+                        Log.i(TAG, "Finishing %s", activity);
+                        activity.finish();
+                    } else {
+                        Log.i(TAG, "Not finishing - already destroyed: %s", activity);
+                    }
+                });
+        final String error =
+                "Failed to finish the Activity. Did you start a second Activity and "
+                        + "not finish it?";
         waitForActivityState(error, activity, Stage.DESTROYED);
     }
 
@@ -73,10 +87,10 @@ public class ApplicationTestUtils {
      * triggered by running the provided trigger.
      *
      * @param activityClass The class type to wait for.
-     * @param state The Activity {@link Stage} to wait for an activity of the right class type to
-     *         reach.
+     * @param stage The Activity {@link Stage} to wait for an activity of the right class type to
+     *     reach.
      * @param uiThreadTrigger The Runnable that will trigger the state change to wait for. The
-     *         Runnable will be run on the UI thread
+     *     Runnable will be run on the UI thread
      */
     public static <T extends Activity> T waitForActivityWithClass(
             Class<? extends Activity> activityClass, Stage stage, Runnable uiThreadTrigger) {
@@ -88,27 +102,30 @@ public class ApplicationTestUtils {
      * triggered by running the provided trigger.
      *
      * @param activityClass The class type to wait for.
-     * @param state The Activity {@link Stage} to wait for an activity of the right class type to
-     *         reach.
+     * @param stage The Activity {@link Stage} to wait for an activity of the right class type to
+     *     reach.
      * @param uiThreadTrigger The Runnable that will trigger the state change to wait for, which
-     *         will be run on the UI thread.
+     *     will be run on the UI thread.
      * @param backgroundThreadTrigger The Runnable that will trigger the state change to wait for,
-     *         which will be run on the UI thread.
+     *     which will be run on the UI thread.
      */
     public static <T extends Activity> T waitForActivityWithClass(
-            Class<? extends Activity> activityClass, Stage stage, Runnable uiThreadTrigger,
+            Class<? extends Activity> activityClass,
+            Stage stage,
+            Runnable uiThreadTrigger,
             Runnable backgroundThreadTrigger) {
         ThreadUtils.assertOnBackgroundThread();
         final CallbackHelper activityCallback = new CallbackHelper();
         final AtomicReference<T> activityRef = new AtomicReference<>();
-        ActivityLifecycleCallback stateListener = (Activity newActivity, Stage newStage) -> {
-            if (newStage == stage) {
-                if (!activityClass.isAssignableFrom(newActivity.getClass())) return;
+        ActivityLifecycleCallback stateListener =
+                (Activity newActivity, Stage newStage) -> {
+                    if (newStage == stage) {
+                        if (!activityClass.isAssignableFrom(newActivity.getClass())) return;
 
-                activityRef.set((T) newActivity);
-                ThreadUtils.postOnUiThread(() -> activityCallback.notifyCalled());
-            }
-        };
+                        activityRef.set((T) newActivity);
+                        ThreadUtils.postOnUiThread(() -> activityCallback.notifyCalled());
+                    }
+                };
         sMonitor.addLifecycleCallback(stateListener);
 
         try {
@@ -116,7 +133,7 @@ public class ApplicationTestUtils {
                 ThreadUtils.runOnUiThreadBlocking(() -> uiThreadTrigger.run());
             }
             if (backgroundThreadTrigger != null) backgroundThreadTrigger.run();
-            activityCallback.waitForFirst(
+            activityCallback.waitForOnly(
                     "No Activity reached target state.", ACTIVITY_TIMEOUT, TimeUnit.MILLISECONDS);
             T createdActivity = activityRef.get();
             Assert.assertNotNull("Activity reference is null.", createdActivity);

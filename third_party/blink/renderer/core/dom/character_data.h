@@ -33,6 +33,8 @@
 namespace blink {
 
 class ExceptionState;
+class NodeCloningData;
+struct TextDiffRange;
 
 class CORE_EXPORT CharacterData : public Node {
   DEFINE_WRAPPERTYPEINFO();
@@ -123,10 +125,13 @@ class CORE_EXPORT CharacterData : public Node {
   void setNodeValue(const String&, ExceptionState&) final;
   bool IsCharacterDataNode() const final { return true; }
   void SetDataAndUpdate(const String&,
-                        unsigned offset_of_replaced_data,
-                        unsigned old_length,
-                        unsigned new_length,
+                        const TextDiffRange&,
                         UpdateSource = kUpdateFromNonParser);
+  Node* Clone(Document& factory,
+              NodeCloningData& data,
+              ContainerNode* append_to,
+              ExceptionState& append_exception_state) const override;
+  virtual CharacterData* CloneWithData(Document&, const String&) const = 0;
 
   bool IsContainerNode() const =
       delete;  // This will catch anyone doing an unnecessary check.

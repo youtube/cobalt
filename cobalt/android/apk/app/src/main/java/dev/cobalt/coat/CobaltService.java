@@ -16,17 +16,62 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
-import android.util.Base64;
 import dev.cobalt.util.Log;
-import org.chromium.base.annotations.CalledByNative;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
 
-/** Abstract class that provides an interface for Cobalt to interact with a platform service. */
+/**
+ * Abstract class that provides an interface for Cobalt to interact with a platform service.
+ *
+ * <p>Threading model:
+ *
+ * <ul>
+ *   <li>{@code openCobaltService}, {@code closeCobaltService}, and {@link #receiveFromClient} are
+ *       invoked on the browser UI thread (Android main looper) and are serialized with Activity
+ *       lifecycle callbacks.
+ *   <li>{@link #sendToClient} may be invoked from any thread; synchronization ensures safety
+ *       against concurrent {@link #onClose}.
+ * </ul>
+ */
 public abstract class CobaltService {
   // Indicate is the service opened, and be able to send data to client
   protected boolean opened = true;
+  private volatile String mServiceName;
+  private volatile long mNativeService;
   private final Object lock = new Object();
-  private StarboardBridge bridge;
-  protected CobaltActivity cobaltActivity;
+
+  public CobaltService() {
+    this.mNativeService = 0;
+  }
+
+  public CobaltService(long nativeService) {
+    this.mNativeService = nativeService;
+  }
+
+  void setNativeService(long nativeService) {
+    this.mNativeService = nativeService;
+  }
+
+  public long getNativeService() {
+    return mNativeService;
+  }
+
+  void setServiceName(String serviceName) {
+    mServiceName = serviceName;
+  }
+
+  public String getServiceName() {
+    return mServiceName;
+  }
+
+  @JNINamespace("starboard")
+  @NativeMethods
+  public interface Natives {
+    // Can not set it as nativeService, JNI zero has template code to convert it to a Service object
+    void nativeSendToClient(long service, byte[] data);
+  }
 
   /** Interface that returns an object that extends CobaltService. */
   public interface Factory {
@@ -40,9 +85,8 @@ public abstract class CobaltService {
   /** Take in a reference to StarboardBridge & use it as needed. Default behavior is no-op. */
   public void receiveStarboardBridge(StarboardBridge bridge) {}
 
-  public void setCobaltActivity(CobaltActivity cobaltActivity) {
-    this.cobaltActivity = cobaltActivity;
-  }
+  /** Take in a reference to BaseStarboardBridge & use it as needed. Default behavior is no-op. */
+  public void receiveBaseStarboardBridge(BaseStarboardBridge bridge) {}
 
   // Lifecycle
   /** Prepare service for start or resume. */
@@ -76,7 +120,7 @@ public abstract class CobaltService {
 
   /** Receive data from client of the service. */
   @CalledByNative
-  public abstract ResponseToClient receiveFromClient(byte[] data);
+  public abstract @JniType("ResponseToClientInfo") ResponseToClient receiveFromClient(byte[] data);
 
   /**
    * Close the service.
@@ -84,9 +128,11 @@ public abstract class CobaltService {
    * <p>Once this function returns, it is invalid to call sendToClient for the nativeService, so
    * synchronization must be used to protect against this.
    */
-  @CalledByNative
   public void onClose() {
     synchronized (lock) {
+      if (!opened) {
+        return;
+      }
       opened = false;
       close();
     }
@@ -94,34 +140,45 @@ public abstract class CobaltService {
 
   public abstract void close();
 
+  private static Natives sNatives;
+
+  public static void setNativesForTesting(Natives natives) {
+    sNatives = natives;
+  }
+
+  private static Natives getNatives() {
+    if (sNatives != null) {
+      return sNatives;
+    }
+    return CobaltServiceJni.get();
+  }
+
+  /**
+   * Send data from the service to the client using the service's bound native handle.
+   *
+   * <p>This may be called from a separate thread.
+   */
+  protected void sendToClient(byte[] data) {
+    sendToClient(mNativeService, data);
+  }
+
   /**
    * Send data from the service to the client.
+   *
+   * <p>This may be called from a separate thread, do not call nativeSendToClient() once onClose()
+   * is processed.
    */
   protected void sendToClient(long nativeService, byte[] data) {
-    if (this.cobaltActivity == null) {
-      Log.e(TAG, "CobaltActivity is null, can not run evaluateJavaScript()");
-      return;
+    synchronized (lock) {
+      if (!opened) {
+        Log.w(
+            TAG,
+            "Platform service did not send data to client, because client already closed the"
+                + " platform service.");
+        return;
+      }
+
+      getNatives().nativeSendToClient(nativeService, data);
     }
-
-    // Use Base64.NO_WRAP instead of Base64.DEFAULT to avoid adding a new line.
-    String base64Data = Base64.encodeToString(data, Base64.NO_WRAP);
-
-    // TODO(b/403638702): - Cobalt: Migrate away from Java Bridge for H5vccPlatformService.
-    // Workaround: Explicitly target the 'anchor' iframe for H5vccPlatformService callbacks.
-    // This is necessary because the polyfill is injected broadly, but callbacks
-    // are registered within the Kabuki app's iframe, which needs to be the
-    // execution context for CobaltService.sendToClient(). see b/403277033 for the details.
-    String jsCodeTemplate =
-      "((w) => {\n"
-      + "  let targetWindow = w;\n"
-      + "  const appIframe = document.getElementById('anchor');\n"
-      + "  if (appIframe?.contentWindow) {\n"
-      + "    targetWindow = appIframe.contentWindow;\n"
-      + "  }\n"
-      + "  targetWindow.H5vccPlatformService.callbackFromAndroid(%d, '%s');\n"
-      + "})(window)";
-
-    String jsCode = String.format(jsCodeTemplate, nativeService, base64Data);
-    this.cobaltActivity.evaluateJavaScript(jsCode);
   }
 }

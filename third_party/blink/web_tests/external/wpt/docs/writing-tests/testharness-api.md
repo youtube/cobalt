@@ -247,7 +247,7 @@ as resetting global state that need to happen consistently before the
 next test starts.
 
 To test that a promise rejects with a specified exception see [promise
-rejection].
+rejection](#promise-rejection).
 
 ### Single Page Tests ###
 
@@ -352,7 +352,7 @@ preferable if the entire test is optional.
 ### Consolidating tests from other documents ###
 
 ```eval_rst
-.. js::autofunction fetch_tests_from_window
+.. js:autofunction:: fetch_tests_from_window
 ```
 
 **Note:** By default any markup file referencing `testharness.js` will
@@ -408,7 +408,7 @@ Here's an example that uses `window.open`.
 ### Web Workers ###
 
 ```eval_rst
-.. js:autofunction fetch_tests_from_worker
+.. js:autofunction:: fetch_tests_from_worker
 ```
 
 The `testharness.js` script can be used from within [dedicated workers, shared
@@ -821,6 +821,29 @@ eventWatcher.wait_for('animationstart').then(t.step_func(function() {
   assertExpectedStateAtEndOfAnimation();
   t.done();
 }));
+```
+
+### Loading test data from JSON files ###
+
+```eval_rst
+.. js:autofunction:: fetch_json
+```
+
+Loading test data from a JSON file would normally be accomplished by
+something like this:
+
+```js
+promise_test(() => fetch('resources/my_data.json').then((res) => res.json()).then(runTests));
+function runTests(myData) {
+  /// ...
+}
+```
+
+However, `fetch()` is not exposed inside ShadowRealm scopes, so if the
+test is to be run inside a ShadowRealm, use `fetch_json()` instead:
+
+```js
+promise_test(() => fetch_json('resources/my_data.json').then(runTests));
 ```
 
 ### Utility Functions ###

@@ -5,6 +5,7 @@
 module ui.ozone.mojom;
 
 import "skia/public/mojom/skcolor4f.mojom";
+import "mojo/public/mojom/base/version.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
 import "ui/gfx/mojom/accelerated_widget.mojom";
 import "ui/gfx/mojom/buffer_types.mojom";
@@ -14,8 +15,7 @@ import "ui/gfx/mojom/frame_data.mojom";
 import "ui/ozone/platform/wayland/mojom/wayland_overlay_config.mojom";
 import "ui/ozone/platform/wayland/mojom/wayland_presentation_info.mojom";
 
-// Used by the GPU for communication with the WaylandBufferManagerHost in
-// the browser process.
+// Implemented by the browser process and used by the GPU.
 interface WaylandBufferManagerHost {
   // Sets up an associated pipe between the Gpu and Host.
   SetWaylandBufferManagerGpu(
@@ -60,16 +60,14 @@ interface WaylandBufferManagerHost {
                        gfx.mojom.Size size,
                        uint32 buffer_id);
 
-  // Creates a browser side solid color wl_buffer that is cleared to a given
+  // Creates a browser side single pixel wl_buffer that is cleared to a given
   // |color| on the Wayland compositor side without any performance penalties
   // compared to creation of dmabuf/shm backed buffers cleared to a certain
-  // color. |color| is a requested color. |size| is a requested size of the
-  // solid color buffer. And |buffer_id| is a unique id for the buffer, which is
-  // used to identify imported wl_buffers on the browser process side and map
-  // them with the buffer objects on the gpu process side.
-  CreateSolidColorBuffer(gfx.mojom.Size size,
-                         skia.mojom.SkColor4f color,
-                         uint32 buffer_id);
+  // color. |color| is a requested color. And |buffer_id| is a unique id for
+  // the buffer, which is used to identify imported wl_buffers on the browser
+  // process side and map them with the buffer objects on the gpu process side.
+  CreateSinglePixelBuffer(skia.mojom.SkColor4f color,
+                          uint32 buffer_id);
 
   // These two methods are independent from the type of rendering.
   //
@@ -81,13 +79,14 @@ interface WaylandBufferManagerHost {
 
   // Send overlay configurations for a frame to a WaylandWindow with the
   // following |widget|, |frame_id|, and |overlays|.
+  [EstimateSize]
   CommitOverlays(gfx.mojom.AcceleratedWidget widget,
                  uint32 frame_id,
                  gfx.mojom.FrameData data,
                  array<wl.mojom.WaylandOverlayConfig> overlays);
 };
 
-
+// Implemented by the GPU and used by the browser process.
 interface WaylandBufferManagerGpu {
   // Initializes the gpu side buffer manager by passing the interface pointer of
   // of the WaylandBufferManagerHost that lives in the browser process to it.
@@ -97,18 +96,15 @@ interface WaylandBufferManagerGpu {
   // modifiers are not supported.
   // The browser process may also request the client to reset gbm device
   // instance to avoid using zwp_linux_dmabuf protocol by setting
-  // |supports_dma_buf| to false, which results in using wl_egl_surface in a
+  // `supports_dma_buf` to false, which results in using wl_egl_surface in a
   // single process mode, and software rendering in a multiple process mode.
-  // |supports_viewporter| indicates whether the Wayland server implements
+  // `supports_viewporter` indicates whether the Wayland server implements
   // wp_viewporter extension to support cropping and scaling buffers.
-  // |supports_acquire_fence| indicates whether acquire fences can be submitted
+  // `supports_acquire_fence` indicates whether acquire fences can be submitted
   // with buffers for wayland servers to wait on before accessing buffer
   // contents.
-  // |supports_overlays| indicates whether overlays should be used with this
+  // `supports_overlays` indicates whether overlays should be used with this
   // Wayland compositor.
-  // |supported_surface_augmentor_version| says what version of the augment
-  // surface protocol the client is using. If the version is 0, the surface
-  // augmentor is not available.
   Initialize(pending_remote<WaylandBufferManagerHost> remote_host,
              map<gfx.mojom.BufferFormat,
                  array<uint64>> buffer_formats_with_modifiers,
@@ -116,7 +112,7 @@ interface WaylandBufferManagerGpu {
              bool supports_viewporter,
              bool supports_acquire_fence,
              bool supports_overlays,
-             uint32 supported_surface_augmentor_version);
+             bool supports_single_pixel_buffer);
 
   // Signals about swap completion and presentation.
   OnSubmission(gfx.mojom.AcceleratedWidget widget,

@@ -2,8 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# Suppress x.py warning about configuration changes
-changelog-seen = 2
+# FIXME: Remove after next rust roll.
+$CHANGELOG_SEEN
 
 [llvm]
 # We use LLVM that we've built ourselves.
@@ -20,13 +20,10 @@ static-libstdcpp = true
 
 [rust]
 download-rustc = false
-channel = "nightly"
+channel = "dev"
 description = "$PACKAGE_VERSION chromium"
 
 [build]
-# We pull all dependencies into the src/vendor/ directory.
-vendor = true
-
 # Check that vendored dependencies match the root Cargo.lock.
 locked-deps = true
 
@@ -37,21 +34,34 @@ docs = false
 # with the rust compiler we build.
 profiler = true
 
+# With `extended = true`, `x.py install` will install rustc and the listed
+# tools. This is the *only* way to install rust-analyzer-proc-macro-srv, which
+# is necessary to use rust-analyzer.
+extended = true
+tools = [
+    "cargo",
+    "clippy",
+    "rustfmt",
+    "rust-analyzer",
+    "rust-analyzer-proc-macro-srv",
+    "src",
+]
+
 [install]
 prefix = "$INSTALL_DIR"
 sysconfdir = "etc"
 
 [target.x86_64-pc-windows-msvc]
-llvm-config = "$LLVM_CONFIG_WINDOWS_x86_64"
+llvm-config = "$LLVM_BIN/llvm-config.exe"
 # TODO(danakj): We don't ship this in the clang toolchain package.
-# ranlib = "$LLVM_BIN/llvm-ranlib"
-ar = "$LLVM_BIN/llvm-lib"
-cc = "$LLVM_BIN/clang-cl"
-cxx = "$LLVM_BIN/clang-cl"
-linker = "$LLVM_BIN/lld-link"
+# ranlib = "$LLVM_BIN/llvm-ranlib.exe"
+ar = "$LLVM_BIN/llvm-lib.exe"
+cc = "$LLVM_BIN/clang-cl.exe"
+cxx = "$LLVM_BIN/clang-cl.exe"
+linker = "$LLVM_BIN/lld-link.exe"
 
 [target.aarch64-apple-darwin]
-llvm-config = "$LLVM_CONFIG_APPLE_AARCH64"
+llvm-config = "$LLVM_BIN/llvm-config"
 # TODO(danakj): We don't ship this in the clang toolchain package.
 # ranlib = "$LLVM_BIN/llvm-ranlib"
 ar = "$LLVM_BIN/llvm-ar"
@@ -60,7 +70,7 @@ cxx = "$LLVM_BIN/clang++"
 linker = "$LLVM_BIN/clang"
 
 [target.x86_64-apple-darwin]
-llvm-config = "$LLVM_CONFIG_APPLE_X86_64"
+llvm-config = "$LLVM_BIN/llvm-config"
 # TODO(danakj): We don't ship this in the clang toolchain package.
 # ranlib = "$LLVM_BIN/llvm-ranlib"
 ar = "$LLVM_BIN/llvm-ar"
@@ -69,10 +79,11 @@ cxx = "$LLVM_BIN/clang++"
 linker = "$LLVM_BIN/clang"
 
 [target.x86_64-unknown-linux-gnu]
-llvm-config = "$LLVM_CONFIG_LINUX_X86_64"
+llvm-config = "$LLVM_BIN/llvm-config"
 # TODO(danakj): We don't ship this in the clang toolchain package.
 # ranlib = "$LLVM_BIN/llvm-ranlib"
 ar = "$LLVM_BIN/llvm-ar"
 cc = "$LLVM_BIN/clang"
 cxx = "$LLVM_BIN/clang++"
 linker = "$LLVM_BIN/clang"
+

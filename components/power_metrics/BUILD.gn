@@ -41,10 +41,17 @@ static_library("power_metrics") {
     ldflags = [ "/DELAYLOAD:setupapi.dll" ]
   }
 
-  if (is_linux) {
+  if (is_linux || is_chromeos) {
     sources += [
       "energy_metrics_provider_linux.cc",
       "energy_metrics_provider_linux.h",
+    ]
+  }
+
+  if (is_win || is_linux || is_chromeos) {
+    sources += [
+      "system_power_monitor.cc",
+      "system_power_monitor.h",
     ]
   }
 }
@@ -56,6 +63,7 @@ source_set("unit_tests") {
 
   deps = [
     ":power_metrics",
+    "//base",
     "//testing/gtest",
   ]
 
@@ -66,7 +74,11 @@ source_set("unit_tests") {
     ]
 
     data = [ "test/data/" ]
+  }
 
-    deps += [ "//base" ]
+  if (is_win || is_linux || is_chromeos) {
+    sources += [ "system_power_monitor_unittest.cc" ]
+
+    deps += [ "//base/test:test_support" ]
   }
 }

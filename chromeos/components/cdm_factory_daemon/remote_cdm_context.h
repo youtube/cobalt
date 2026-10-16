@@ -11,13 +11,14 @@
 #include "base/memory/ref_counted.h"
 #include "chromeos/components/cdm_factory_daemon/chromeos_cdm_context.h"
 #include "media/base/cdm_context.h"
-#include "media/mojo/mojom/stable/stable_video_decoder.mojom.h"
+#include "media/base/decryptor.h"
+#include "media/mojo/mojom/cdm_context_for_oopvd.mojom.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 
 namespace chromeos {
 
 // Provides the implementation that runs in out of process video decoding that
-// proxies the media::CdmContext calls back through a mojom::StableCdmContext
+// proxies the media::CdmContext calls back through a mojom::CdmContextForOOPVD
 // IPC connection.
 //
 // This particular media::CdmContext/chromeos::ChromeOsCdmContext implementation
@@ -29,11 +30,12 @@ namespace chromeos {
 class COMPONENT_EXPORT(CDM_FACTORY_DAEMON) RemoteCdmContext
     : public media::CdmContext,
       public ChromeOsCdmContext,
+      public media::Decryptor,
       public base::RefCountedThreadSafe<RemoteCdmContext> {
  public:
   explicit RemoteCdmContext(
-      mojo::PendingRemote<media::stable::mojom::StableCdmContext>
-          stable_cdm_context);
+      mojo::PendingRemote<media::mojom::CdmContextForOOPVD>
+          cdm_context_for_oopvd);
 
   RemoteCdmContext(const RemoteCdmContext&) = delete;
   RemoteCdmContext& operator=(const RemoteCdmContext&) = delete;
@@ -41,6 +43,7 @@ class COMPONENT_EXPORT(CDM_FACTORY_DAEMON) RemoteCdmContext
   // media::CdmContext:
   std::unique_ptr<media::CallbackRegistration> RegisterEventCB(
       EventCB event_cb) override;
+  media::Decryptor* GetDecryptor() override;
   // GetChromeOsCdmContext() may be called on any sequence.
   ChromeOsCdmContext* GetChromeOsCdmContext() override;
 
@@ -56,6 +59,29 @@ class COMPONENT_EXPORT(CDM_FACTORY_DAEMON) RemoteCdmContext
   bool UsingArcCdm() const override;
   // IsRemoteCdm() may be called on any sequence.
   bool IsRemoteCdm() const override;
+  void AllocateSecureBuffer(uint32_t size,
+                            AllocateSecureBufferCB callback) override;
+  void ParseEncryptedSliceHeader(uint64_t secure_handle,
+                                 uint32_t offset,
+                                 const std::vector<uint8_t>& stream_data,
+                                 ParseEncryptedSliceHeaderCB callback) override;
+
+  // media::Decryptor:
+  void Decrypt(StreamType stream_type,
+               scoped_refptr<media::DecoderBuffer> encrypted,
+               DecryptCB decrypt_cb) override;
+  void CancelDecrypt(StreamType stream_type) override;
+  void InitializeAudioDecoder(const media::AudioDecoderConfig& config,
+                              DecoderInitCB init_cb) override;
+  void InitializeVideoDecoder(const media::VideoDecoderConfig& config,
+                              DecoderInitCB init_cb) override;
+  void DecryptAndDecodeAudio(scoped_refptr<media::DecoderBuffer> encrypted,
+                             AudioDecodeCB audio_decode_cb) override;
+  void DecryptAndDecodeVideo(scoped_refptr<media::DecoderBuffer> encrypted,
+                             VideoDecodeCB video_decode_cb) override;
+  void ResetDecoder(StreamType stream_type) override;
+  void DeinitializeDecoder(StreamType stream_type) override;
+  bool CanAlwaysDecrypt() override;
 
  private:
   friend class base::RefCountedThreadSafe<RemoteCdmContext>;
@@ -66,6 +92,11 @@ class COMPONENT_EXPORT(CDM_FACTORY_DAEMON) RemoteCdmContext
   class MojoSequenceState;
 
   ~RemoteCdmContext() override;
+
+  void OnDecryptVideoBufferDone(DecryptCB decrypt_cb,
+                                media::Decryptor::Status status,
+                                media::mojom::DecoderBufferPtr decoder_buffer,
+                                const std::vector<uint8_t>& bytes);
 
   std::unique_ptr<MojoSequenceState, void (*)(MojoSequenceState*)>
       mojo_sequence_state_;

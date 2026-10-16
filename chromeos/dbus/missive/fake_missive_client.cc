@@ -20,7 +20,9 @@ FakeMissiveClient::~FakeMissiveClient() = default;
 
 void FakeMissiveClient::Init() {
   DCHECK(base::SequencedTaskRunner::HasCurrentDefault());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(origin_checker_);
   origin_task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
+  is_initialized_ = true;
 }
 
 void FakeMissiveClient::EnqueueRecord(
@@ -43,6 +45,11 @@ void FakeMissiveClient::Flush(
 void FakeMissiveClient::ReportSuccess(
     const reporting::SequenceInformation& sequence_information,
     bool force_confirm) {
+  return;
+}
+
+void FakeMissiveClient::UpdateConfigInMissive(
+    const reporting::ListOfBlockedDestinations& destinations) {
   return;
 }
 

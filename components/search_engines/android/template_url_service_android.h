@@ -7,6 +7,7 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ptr.h"
+#include "components/search_engines/search_engine_choice/search_engine_choice_service.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/search_engines/template_url_service_observer.h"
 
@@ -28,7 +29,8 @@ class TemplateUrlServiceAndroid : public TemplateURLServiceObserver {
   void SetUserSelectedDefaultSearchProvider(
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& obj,
-      const base::android::JavaParamRef<jstring>& jkeyword);
+      const base::android::JavaParamRef<jstring>& jkeyword,
+      jint choice_made_location);
   jboolean IsLoaded(JNIEnv* env,
                     const base::android::JavaParamRef<jobject>& obj) const;
   jboolean IsDefaultSearchManaged(
@@ -88,7 +90,14 @@ class TemplateUrlServiceAndroid : public TemplateURLServiceObserver {
       const base::android::JavaParamRef<jstring>& jsearch_url,
       const base::android::JavaParamRef<jstring>& jsuggest_url,
       const base::android::JavaParamRef<jstring>& jfavicon_url,
-      jboolean set_as_default);
+      const base::android::JavaParamRef<jstring>& jnew_tab_url,
+      const base::android::JavaParamRef<jstring>& jimage_url,
+      const base::android::JavaParamRef<jstring>& jimage_url_post_params,
+      const base::android::JavaParamRef<jstring>& jimage_translate_url,
+      const base::android::JavaParamRef<jstring>&
+          jimage_translate_source_language_param_key,
+      const base::android::JavaParamRef<jstring>&
+          jimage_translate_target_language_param_key);
 
   // Adds a custom search engine, sets |jkeyword| as its short_name and keyword,
   // and sets its date_created as |age_in_days| days before the current time.
@@ -114,6 +123,11 @@ class TemplateUrlServiceAndroid : public TemplateURLServiceObserver {
 
   // Get current default search engine.
   base::android::ScopedJavaLocalRef<jobject> GetDefaultSearchEngine(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jobject>& obj);
+
+  // Get the image search url and the post content.
+  base::android::ScopedJavaLocalRef<jobjectArray> GetImageUrlAndPostContent(
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& obj);
 

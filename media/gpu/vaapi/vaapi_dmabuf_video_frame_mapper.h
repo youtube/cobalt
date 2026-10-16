@@ -29,14 +29,17 @@ class MEDIA_GPU_EXPORT VaapiDmaBufVideoFrameMapper : public VideoFrameMapper {
   ~VaapiDmaBufVideoFrameMapper() override;
 
   // VideoFrameMapper override.
-  scoped_refptr<VideoFrame> Map(scoped_refptr<const VideoFrame> video_frame,
-                                int permissions) const override;
+  scoped_refptr<VideoFrame> MapFrame(
+      scoped_refptr<const FrameResource> video_frame,
+      int permissions) override;
 
  private:
   explicit VaapiDmaBufVideoFrameMapper(VideoPixelFormat format);
 
+  SEQUENCE_CHECKER(sequence_checker_);
   // Vaapi components for mapping.
-  const scoped_refptr<VaapiWrapper> vaapi_wrapper_;
+  scoped_refptr<VaapiWrapper> vaapi_wrapper_
+      GUARDED_BY_CONTEXT(sequence_checker_);
 };
 
 }  // namespace media

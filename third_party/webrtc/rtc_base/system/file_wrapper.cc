@@ -10,15 +10,20 @@
 
 #include "rtc_base/system/file_wrapper.h"
 
+#include <stddef.h>
+
 #include <cerrno>
+#include <cstdint>
+#include <optional>
+#include <string>
 
 #include "absl/strings/string_view.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_conversions.h"
 
 #ifdef _WIN32
 #include <Windows.h>
 #else
-#include <string.h>
 #endif
 
 #include <utility>
@@ -69,28 +74,28 @@ FileWrapper& FileWrapper::operator=(FileWrapper&& other) {
 
 bool FileWrapper::SeekRelative(int64_t offset) {
   RTC_DCHECK(file_);
-  return fseek(file_, rtc::checked_cast<long>(offset), SEEK_CUR) == 0;
+  return fseek(file_, checked_cast<long>(offset), SEEK_CUR) == 0;
 }
 
 bool FileWrapper::SeekTo(int64_t position) {
   RTC_DCHECK(file_);
-  return fseek(file_, rtc::checked_cast<long>(position), SEEK_SET) == 0;
+  return fseek(file_, checked_cast<long>(position), SEEK_SET) == 0;
 }
 
-long FileWrapper::FileSize() {
+std::optional<size_t> FileWrapper::FileSize() {
   if (file_ == nullptr)
-    return -1;
+    return std::nullopt;
   long original_position = ftell(file_);
   if (original_position < 0)
-    return -1;
+    return std::nullopt;
   int seek_error = fseek(file_, 0, SEEK_END);
   if (seek_error)
-    return -1;
+    return std::nullopt;
   long file_size = ftell(file_);
   seek_error = fseek(file_, original_position, SEEK_SET);
   if (seek_error)
-    return -1;
-  return file_size;
+    return std::nullopt;
+  return checked_cast<size_t>(file_size);
 }
 
 bool FileWrapper::Flush() {

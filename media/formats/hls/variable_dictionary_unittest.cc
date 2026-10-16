@@ -4,16 +4,16 @@
 
 #include "media/formats/hls/variable_dictionary.h"
 
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "base/location.h"
-#include "base/strings/string_piece.h"
 #include "media/formats/hls/parse_status.h"
 #include "media/formats/hls/source_string.h"
 #include "media/formats/hls/test_util.h"
 #include "media/formats/hls/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media::hls {
 
@@ -31,8 +31,8 @@ VariableDictionary CreateBasicDictionary(
 }
 
 void OkTest(const VariableDictionary& dict,
-            base::StringPiece in,
-            base::StringPiece expected_out,
+            std::string_view in,
+            std::string_view expected_out,
             bool substitutions_expected,
             const base::Location& from = base::Location::Current()) {
   const auto source_str = SourceString::CreateForTesting(in);
@@ -47,7 +47,7 @@ void OkTest(const VariableDictionary& dict,
 }
 
 void ErrorTest(const VariableDictionary& dict,
-               base::StringPiece in,
+               std::string_view in,
                ParseStatusCode expected_error,
                const base::Location& from = base::Location::Current()) {
   const auto source_str = SourceString::CreateForTesting(in);
@@ -59,7 +59,7 @@ void ErrorTest(const VariableDictionary& dict,
 
 // Helper for cases where no substitutions should occur
 void NopTest(const VariableDictionary& dict,
-             base::StringPiece in,
+             std::string_view in,
              const base::Location& from = base::Location::Current()) {
   OkTest(dict, in, in, false, from);
 }
@@ -79,8 +79,8 @@ TEST(HlsVariableDictionaryTest, VariableUndefined) {
   // Names are case-sensitive
   EXPECT_TRUE(dict.Insert(CreateVarName("TEST"), "FOO"));
   EXPECT_EQ(dict.Find(CreateVarName("TEST")),
-            absl::make_optional<base::StringPiece>("FOO"));
-  EXPECT_EQ(dict.Find(CreateVarName("test")), absl::nullopt);
+            std::make_optional<std::string_view>("FOO"));
+  EXPECT_EQ(dict.Find(CreateVarName("test")), std::nullopt);
 
   ErrorTest(dict, "Hello {$test}", ParseStatusCode::kVariableUndefined);
   OkTest(dict, "Hello {$TEST}", "Hello FOO", true);
@@ -92,28 +92,28 @@ TEST(HlsVariableDictionaryTest, RedefinitionNotAllowed) {
   VariableDictionary dict;
   EXPECT_TRUE(dict.Insert(CreateVarName("TEST"), "FOO"));
   EXPECT_EQ(dict.Find(CreateVarName("TEST")),
-            absl::make_optional<base::StringPiece>("FOO"));
+            std::make_optional<std::string_view>("FOO"));
 
   // Redefinition of a variable is not allowed, with the same or different value
   EXPECT_FALSE(dict.Insert(CreateVarName("TEST"), "FOO"));
   EXPECT_FALSE(dict.Insert(CreateVarName("TEST"), "BAR"));
   EXPECT_EQ(dict.Find(CreateVarName("TEST")),
-            absl::make_optional<base::StringPiece>("FOO"));
+            std::make_optional<std::string_view>("FOO"));
 
   // Variable names are case-sensitive
   EXPECT_TRUE(dict.Insert(CreateVarName("TEsT"), "BAR"));
   EXPECT_EQ(dict.Find(CreateVarName("TEsT")),
-            absl::make_optional<base::StringPiece>("BAR"));
+            std::make_optional<std::string_view>("BAR"));
   EXPECT_EQ(dict.Find(CreateVarName("TEST")),
-            absl::make_optional<base::StringPiece>("FOO"));
+            std::make_optional<std::string_view>("FOO"));
 
   EXPECT_TRUE(dict.Insert(CreateVarName("TEST2"), "BAZ"));
   EXPECT_EQ(dict.Find(CreateVarName("TEST2")),
-            absl::make_optional<base::StringPiece>("BAZ"));
+            std::make_optional<std::string_view>("BAZ"));
   EXPECT_EQ(dict.Find(CreateVarName("TEsT")),
-            absl::make_optional<base::StringPiece>("BAR"));
+            std::make_optional<std::string_view>("BAR"));
   EXPECT_EQ(dict.Find(CreateVarName("TEST")),
-            absl::make_optional<base::StringPiece>("FOO"));
+            std::make_optional<std::string_view>("FOO"));
 }
 
 TEST(HlsVariableDictionaryTest, IgnoreInvalidRefSequence) {

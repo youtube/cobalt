@@ -29,16 +29,16 @@ VideoRotation jintToVideoRotation(jint rotation) {
   return static_cast<VideoRotation>(rotation);
 }
 
-absl::optional<std::pair<int, int>> OptionalAspectRatio(jint j_width,
-                                                        jint j_height) {
+std::optional<std::pair<int, int>> OptionalAspectRatio(jint j_width,
+                                                       jint j_height) {
   if (j_width > 0 && j_height > 0)
     return std::pair<int, int>(j_width, j_height);
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 }  // namespace
 
-AndroidVideoTrackSource::AndroidVideoTrackSource(rtc::Thread* signaling_thread,
+AndroidVideoTrackSource::AndroidVideoTrackSource(Thread* signaling_thread,
                                                  JNIEnv* jni,
                                                  bool is_screencast,
                                                  bool align_timestamps)
@@ -54,14 +54,14 @@ bool AndroidVideoTrackSource::is_screencast() const {
   return is_screencast_.load();
 }
 
-absl::optional<bool> AndroidVideoTrackSource::needs_denoising() const {
+std::optional<bool> AndroidVideoTrackSource::needs_denoising() const {
   return false;
 }
 
 void AndroidVideoTrackSource::SetState(JNIEnv* env, jboolean j_is_live) {
   const SourceState state = j_is_live ? kLive : kEnded;
   if (state_.exchange(state) != state) {
-    if (rtc::Thread::Current() == signaling_thread_) {
+    if (Thread::Current() == signaling_thread_) {
       FireOnChanged();
     } else {
       signaling_thread_->PostTask([this] { FireOnChanged(); });
@@ -90,12 +90,12 @@ ScopedJavaLocalRef<jobject> AndroidVideoTrackSource::AdaptFrame(
     jlong j_timestamp_ns) {
   const VideoRotation rotation = jintToVideoRotation(j_rotation);
 
-  const int64_t camera_time_us = j_timestamp_ns / rtc::kNumNanosecsPerMicrosec;
+  const int64_t camera_time_us = j_timestamp_ns / kNumNanosecsPerMicrosec;
   const int64_t aligned_timestamp_ns =
-      align_timestamps_ ? rtc::kNumNanosecsPerMicrosec *
-                              timestamp_aligner_.TranslateTimestamp(
-                                  camera_time_us, rtc::TimeMicros())
-                        : j_timestamp_ns;
+      align_timestamps_
+          ? kNumNanosecsPerMicrosec * timestamp_aligner_.TranslateTimestamp(
+                                          camera_time_us, TimeMicros())
+          : j_timestamp_ns;
 
   int adapted_width = 0;
   int adapted_height = 0;
@@ -108,12 +108,12 @@ ScopedJavaLocalRef<jobject> AndroidVideoTrackSource::AdaptFrame(
   // TODO(magjed): Move this logic to users of NativeAndroidVideoTrackSource
   // instead, in order to keep this native wrapping layer as thin as possible.
   if (rotation % 180 == 0) {
-    drop = !rtc::AdaptedVideoTrackSource::AdaptFrame(
+    drop = !AdaptedVideoTrackSource::AdaptFrame(
         j_width, j_height, camera_time_us, &adapted_width, &adapted_height,
         &crop_width, &crop_height, &crop_x, &crop_y);
   } else {
     // Swap all width/height and x/y.
-    drop = !rtc::AdaptedVideoTrackSource::AdaptFrame(
+    drop = !AdaptedVideoTrackSource::AdaptFrame(
         j_height, j_width, camera_time_us, &adapted_height, &adapted_width,
         &crop_height, &crop_width, &crop_y, &crop_x);
   }
@@ -128,7 +128,7 @@ void AndroidVideoTrackSource::OnFrameCaptured(
     jint j_rotation,
     jlong j_timestamp_ns,
     const JavaRef<jobject>& j_video_frame_buffer) {
-  rtc::scoped_refptr<VideoFrameBuffer> buffer =
+  scoped_refptr<VideoFrameBuffer> buffer =
       JavaToNativeFrameBuffer(env, j_video_frame_buffer);
   const VideoRotation rotation = jintToVideoRotation(j_rotation);
 
@@ -139,7 +139,7 @@ void AndroidVideoTrackSource::OnFrameCaptured(
   OnFrame(VideoFrame::Builder()
               .set_video_frame_buffer(buffer)
               .set_rotation(rotation)
-              .set_timestamp_us(j_timestamp_ns / rtc::kNumNanosecsPerMicrosec)
+              .set_timestamp_us(j_timestamp_ns / kNumNanosecsPerMicrosec)
               .build());
 }
 

@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSIONS_MENU_BUTTON_H_
 
 #include <memory>
+#include <string_view>
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/browser.h"
@@ -25,8 +26,9 @@ class Button;
 // the extension action.
 class ExtensionsMenuButton : public HoverButton,
                              public ToolbarActionViewDelegateViews {
+  METADATA_HEADER(ExtensionsMenuButton, HoverButton)
+
  public:
-  METADATA_HEADER(ExtensionsMenuButton);
   ExtensionsMenuButton(Browser* browser,
                        ToolbarActionViewController* controller);
   ExtensionsMenuButton(const ExtensionsMenuButton&) = delete;
@@ -36,13 +38,12 @@ class ExtensionsMenuButton : public HoverButton,
   // HoverButton:
   void AddedToWidget() override;
 
-  const std::u16string& label_text_for_testing() const {
+  std::u16string_view label_text_for_testing() const {
     return label()->GetText();
   }
 
  private:
   // ToolbarActionViewDelegateViews:
-  views::View* GetAsView() override;
   views::FocusManager* GetFocusManagerForAccelerator() override;
   views::Button* GetReferenceButtonForPopup() override;
   content::WebContents* GetCurrentWebContents() const override;

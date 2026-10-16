@@ -27,6 +27,11 @@ class SigninClient;
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 class TokenWebData;
+#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+namespace unexportable_keys {
+class UnexportableKeyService;
+}
+#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 #endif
 
 #if BUILDFLAG(IS_IOS)
@@ -64,24 +69,32 @@ struct IdentityManagerBuildParams {
   raw_ptr<SigninClient> signin_client = nullptr;
   std::unique_ptr<AccountCapabilitiesFetcherFactory>
       account_capabilities_fetcher_factory;
+  std::unique_ptr<ProfileOAuth2TokenService> token_service;
+  std::unique_ptr<AccountTrackerService> account_tracker_service;
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
   bool delete_signin_cookies_on_exit = false;
 #endif
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   scoped_refptr<TokenWebData> token_web_data;
+#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+  raw_ptr<unexportable_keys::UnexportableKeyService> unexportable_key_service =
+      nullptr;
+#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
-  raw_ptr<account_manager::AccountManagerFacade> account_manager_facade =
-      nullptr;
+  raw_ptr<account_manager::AccountManagerFacade, DanglingUntriaged>
+      account_manager_facade = nullptr;
   bool is_regular_profile = false;
 #endif
 
 #if BUILDFLAG(IS_IOS)
   std::unique_ptr<DeviceAccountsProvider> device_accounts_provider;
 #endif
+
+  bool require_sync_consent_for_scope_verification = true;
 
 #if BUILDFLAG(IS_WIN)
   base::RepeatingCallback<bool()> reauth_callback;

@@ -8,8 +8,10 @@
 #include <fidl/fuchsia.ui.input3/cpp/fidl.h>
 #include <lib/fidl/cpp/binding.h>
 
+#include <optional>
+
 #include "base/component_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/memory/raw_ptr.h"
 
 namespace ui {
 
@@ -50,12 +52,12 @@ class COMPONENT_EXPORT(UI_BASE_IME_FUCHSIA) KeyboardClient
   // ui::Event flags.
   int EventFlagsForCachedModifiers();
 
-  absl::optional<fidl::ServerBinding<fuchsia_ui_input3::KeyboardListener>>
+  std::optional<fidl::ServerBinding<fuchsia_ui_input3::KeyboardListener>>
       binding_;
 
   // Dispatches events into Chromium once they have been converted to
   // ui::KeyEvents.
-  InputEventSink* const event_sink_;
+  const raw_ptr<InputEventSink> event_sink_;
 };
 
 }  // namespace ui

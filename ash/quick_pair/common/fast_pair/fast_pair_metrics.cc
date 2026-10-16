@@ -5,14 +5,14 @@
 #include "ash/quick_pair/common/fast_pair/fast_pair_metrics.h"
 
 #include "ash/quick_pair/common/device.h"
-#include "ash/quick_pair/common/logging.h"
 #include "ash/quick_pair/common/protocol.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/sparse_histogram.h"
 #include "base/strings/string_number_conversions.h"
+#include "components/cross_device/logging/logging.h"
 #include "components/metrics/structured/structured_events.h"
-#include "components/metrics/structured/structured_metrics_features.h"
+#include "components/metrics/structured/structured_metrics_client.h"
 
 namespace {
 
@@ -20,7 +20,7 @@ const char kDeviceTypeHeadphones[] = "HeadphonesDeviceType";
 const char kDeviceTypeSpeaker[] = "SpeakerDeviceType";
 const char kDeviceTypeTrueWirelessHeadphones[] =
     "TrueWirelessHeadphonesDeviceType";
-const char kDeviceTypeInputDevice[] = "InputDeviceDeviceType";
+const char kDeviceTypeMouse[] = "MouseDeviceType";
 const char kDeviceTypeUnspecified[] = "UnspecifiedDeviceType";
 
 const char kNotificationTypeFastPair[] = "FastPairNotificationType";
@@ -40,10 +40,11 @@ const char kSocketNotListeningString[] = "Socket is not listening.";
 
 // Top Popular peripherals and first party devices. These device
 // model names should be kept in sync with the FastPairTrackedModelID
-// enum in src/tools/metrics/histograms/enums.xml. Devices may have multiple
-// Model IDs associated with the same device (for example, each Pixel Bud Pros
-// have different Model IDs for each different color) so we append '_*' to the
-// naming for subsequent Model IDs after the first one.
+// token in //tools/metrics/histograms/metadata/bluetooth/histograms.xml.
+// Devices may have multiple Model IDs associated with the same device
+// (for example, each Pixel Bud Pros have different Model IDs for each different
+// color) so we append '_*' to the naming for subsequent Model IDs after the
+// first one.
 const char kPopularPeripheral_BoatRockerz255Pro_ModelId[] = "CFF121";
 const char kPopularPeripheral_BoatRockerz255Pro_Name[] = "BoatRockerz255Pro";
 
@@ -553,7 +554,9 @@ const std::string GetFastPairTrackedModelId(const std::string& model_id) {
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused. This enum should be kept in sync
 // with the BluetoothConnectToServiceError enum in
-// src/tools/metrics/histograms/enums.xml.
+// //tools/metrics/histograms/metadata/bluetooth/enums.xml.
+//
+// LINT.IfChange(BluetoothConnectToServiceError)
 enum class ConnectToServiceError {
   kUnknownError = 0,
   kAcceptFailed = 1,
@@ -561,6 +564,7 @@ enum class ConnectToServiceError {
   kSocketNotListening = 3,
   kMaxValue = kSocketNotListening,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/bluetooth/enums.xml:BluetoothConnectToServiceError)
 
 ConnectToServiceError GetConnectToServiceError(const std::string& error) {
   if (error == kAcceptFailedString) {
@@ -580,7 +584,7 @@ ConnectToServiceError GetConnectToServiceError(const std::string& error) {
   return ConnectToServiceError::kUnknownError;
 }
 
-absl::optional<std::string> GetFastPairDeviceType(
+std::optional<std::string> GetFastPairDeviceType(
     const nearby::fastpair::Device& device_metadata) {
   // Needs to stay up to date with `DeviceType` enum in
   // ash/quick_pair/proto/enums.proto. We only expect these device
@@ -596,17 +600,17 @@ absl::optional<std::string> GetFastPairDeviceType(
              nearby::fastpair::DeviceType::TRUE_WIRELESS_HEADPHONES) {
     return kDeviceTypeTrueWirelessHeadphones;
   } else if (device_metadata.device_type() ==
-             nearby::fastpair::DeviceType::INPUT_DEVICE) {
-    return kDeviceTypeInputDevice;
+             nearby::fastpair::DeviceType::MOUSE) {
+    return kDeviceTypeMouse;
   } else if (device_metadata.device_type() ==
              nearby::fastpair::DeviceType::DEVICE_TYPE_UNSPECIFIED) {
     return kDeviceTypeUnspecified;
   }
 
-  NOTREACHED_NORETURN();
+  return std::nullopt;
 }
 
-absl::optional<std::string> GetFastPairNotificationType(
+std::optional<std::string> GetFastPairNotificationType(
     const nearby::fastpair::Device& device_metadata) {
   // Needs to stay up to date with `NotificationType` enum in
   // ash/quick_pair/proto/enums.proto. We only expect these notification
@@ -629,7 +633,7 @@ absl::optional<std::string> GetFastPairNotificationType(
                  NOTIFICATION_TYPE_UNSPECIFIED) {
     return kNotificationTypeUnspecified;
   } else {
-    return absl::nullopt;
+    return std::nullopt;
   }
 }
 
@@ -868,48 +872,48 @@ const std::string GetAccountKeyWriteResultRetroactiveModelIdMetric(
          GetFastPairTrackedModelId(device.metadata_id());
 }
 
-absl::optional<std::string>
+std::optional<std::string>
 GetEngagementFunnelInitialDeviceTypeNotificationTypeMetric(
     const nearby::fastpair::Device& device_metadata) {
-  absl::optional<std::string> device_type =
+  std::optional<std::string> device_type =
       GetFastPairDeviceType(device_metadata);
-  absl::optional<std::string> notification_type =
+  std::optional<std::string> notification_type =
       GetFastPairNotificationType(device_metadata);
 
   if (!device_type || !notification_type) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return std::string(kEngagementFlowInitialMetric) + "." + device_type.value() +
          "." + notification_type.value();
 }
 
-absl::optional<std::string>
+std::optional<std::string>
 GetEngagementFunnelSubsequentDeviceTypeNotificationTypeMetric(
     const nearby::fastpair::Device& device_metadata) {
-  absl::optional<std::string> device_type =
+  std::optional<std::string> device_type =
       GetFastPairDeviceType(device_metadata);
-  absl::optional<std::string> notification_type =
+  std::optional<std::string> notification_type =
       GetFastPairNotificationType(device_metadata);
 
   if (!device_type || !notification_type) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return std::string(kEngagementFlowSubsequentMetric) + "." +
          device_type.value() + "." + notification_type.value();
 }
 
-absl::optional<std::string>
+std::optional<std::string>
 GetEngagementFunnelRetroactiveDeviceTypeNotificationTypeMetric(
     const nearby::fastpair::Device& device_metadata) {
-  absl::optional<std::string> device_type =
+  std::optional<std::string> device_type =
       GetFastPairDeviceType(device_metadata);
-  absl::optional<std::string> notification_type =
+  std::optional<std::string> notification_type =
       GetFastPairNotificationType(device_metadata);
 
   if (!device_type || !notification_type) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return std::string(kRetroactiveEngagementFlowMetric) + "." +
@@ -925,7 +929,7 @@ void RecordFastPairDeviceAndNotificationSpecificEngagementFlow(
     const Device& device,
     const nearby::fastpair::Device& device_details,
     FastPairEngagementFlowEvent event) {
-  absl::optional<std::string> funnel_name;
+  std::optional<std::string> funnel_name;
 
   switch (device.protocol()) {
     case Protocol::kFastPairInitial:
@@ -960,7 +964,7 @@ void RecordFastPairDeviceAndNotificationSpecificRetroactiveEngagementFlow(
     const Device& device,
     const nearby::fastpair::Device& device_details,
     FastPairRetroactiveEngagementFlowEvent event) {
-  absl::optional<std::string> funnel_name;
+  std::optional<std::string> funnel_name;
 
   switch (device.protocol()) {
     case Protocol::kFastPairInitial:
@@ -1546,7 +1550,7 @@ void RecordSavedDevicesCount(int num_devices) {
   base::UmaHistogramCounts100(kSavedDevicesCount, num_devices);
 }
 
-int ConvertFastPairVersionToInt(absl::optional<DeviceFastPairVersion> version) {
+int ConvertFastPairVersionToInt(std::optional<DeviceFastPairVersion> version) {
   if (!version) {
     return 0;
   }
@@ -1586,11 +1590,7 @@ int GetTxPower(const device::BluetoothDevice* bt_device) {
 void RecordStructuredDiscoveryNotificationShown(
     const Device& device,
     const device::BluetoothDevice* bt_device) {
-  if (!base::FeatureList::IsEnabled(metrics::structured::kFastPairMetrics)) {
-    return;
-  }
-
-  QP_LOG(INFO) << __func__;
+  CD_LOG(INFO, Feature::FP) << __func__;
   int model_id;
   if (!base::HexStringToInt(device.metadata_id(), &model_id)) {
     return;
@@ -1598,24 +1598,20 @@ void RecordStructuredDiscoveryNotificationShown(
   int version = ConvertFastPairVersionToInt(device.version());
   int rssi = GetRSSI(bt_device);
   int tx_power = GetTxPower(bt_device);
-  QP_LOG(VERBOSE) << __func__ << ": RSSI: " << rssi
-                  << ", TxPower: " << tx_power;
-  metrics::structured::events::v2::fast_pair::DiscoveryNotificationShown()
-      .SetProtocol(static_cast<int>(device.protocol()))
-      .SetModelId(model_id)
-      .SetFastPairVersion(version)
-      .SetRSSI(rssi)
-      .SetTxPower(tx_power)
-      .Record();
+  CD_LOG(VERBOSE, Feature::FP)
+      << __func__ << ": RSSI: " << rssi << ", TxPower: " << tx_power;
+  metrics::structured::StructuredMetricsClient::Record(std::move(
+      metrics::structured::events::v2::fast_pair::DiscoveryNotificationShown()
+          .SetProtocol(static_cast<int>(device.protocol()))
+          .SetModelId(model_id)
+          .SetFastPairVersion(version)
+          .SetRSSI(rssi)
+          .SetTxPower(tx_power)));
 }
 
 void RecordStructuredPairingStarted(const Device& device,
                                     const device::BluetoothDevice* bt_device) {
-  if (!base::FeatureList::IsEnabled(metrics::structured::kFastPairMetrics)) {
-    return;
-  }
-
-  QP_LOG(INFO) << __func__;
+  CD_LOG(INFO, Feature::FP) << __func__;
   int model_id;
   if (!base::HexStringToInt(device.metadata_id(), &model_id)) {
     return;
@@ -1623,24 +1619,20 @@ void RecordStructuredPairingStarted(const Device& device,
   int version = ConvertFastPairVersionToInt(device.version());
   int rssi = GetRSSI(bt_device);
   int tx_power = GetTxPower(bt_device);
-  QP_LOG(VERBOSE) << __func__ << ": RSSI: " << rssi
-                  << ", TxPower: " << tx_power;
-  metrics::structured::events::v2::fast_pair::PairingStart()
-      .SetProtocol(static_cast<int>(device.protocol()))
-      .SetModelId(model_id)
-      .SetFastPairVersion(version)
-      .SetRSSI(rssi)
-      .SetTxPower(tx_power)
-      .Record();
+  CD_LOG(VERBOSE, Feature::FP)
+      << __func__ << ": RSSI: " << rssi << ", TxPower: " << tx_power;
+  metrics::structured::StructuredMetricsClient::Record(
+      std::move(metrics::structured::events::v2::fast_pair::PairingStart()
+                    .SetProtocol(static_cast<int>(device.protocol()))
+                    .SetModelId(model_id)
+                    .SetFastPairVersion(version)
+                    .SetRSSI(rssi)
+                    .SetTxPower(tx_power)));
 }
 
 void RecordStructuredPairingComplete(const Device& device,
                                      const device::BluetoothDevice* bt_device) {
-  if (!base::FeatureList::IsEnabled(metrics::structured::kFastPairMetrics)) {
-    return;
-  }
-
-  QP_LOG(INFO) << __func__;
+  CD_LOG(INFO, Feature::FP) << __func__;
   int model_id;
   if (!base::HexStringToInt(device.metadata_id(), &model_id)) {
     return;
@@ -1648,34 +1640,30 @@ void RecordStructuredPairingComplete(const Device& device,
   int version = ConvertFastPairVersionToInt(device.version());
   int rssi = GetRSSI(bt_device);
   int tx_power = GetTxPower(bt_device);
-  QP_LOG(VERBOSE) << __func__ << ": RSSI: " << rssi
-                  << ", TxPower: " << tx_power;
-  metrics::structured::events::v2::fast_pair::PairingComplete()
-      .SetProtocol(static_cast<int>(device.protocol()))
-      .SetModelId(model_id)
-      .SetFastPairVersion(version)
-      .SetRSSI(rssi)
-      .SetTxPower(tx_power)
-      .Record();
+  CD_LOG(VERBOSE, Feature::FP)
+      << __func__ << ": RSSI: " << rssi << ", TxPower: " << tx_power;
+  metrics::structured::StructuredMetricsClient::Record(
+      std::move(metrics::structured::events::v2::fast_pair::PairingComplete()
+                    .SetProtocol(static_cast<int>(device.protocol()))
+                    .SetModelId(model_id)
+                    .SetFastPairVersion(version)
+                    .SetRSSI(rssi)
+                    .SetTxPower(tx_power)));
 }
 
 void RecordStructuredPairFailure(const Device& device, PairFailure failure) {
-  if (!base::FeatureList::IsEnabled(metrics::structured::kFastPairMetrics)) {
-    return;
-  }
-
-  QP_LOG(INFO) << __func__;
+  CD_LOG(INFO, Feature::FP) << __func__;
   int model_id;
   if (!base::HexStringToInt(device.metadata_id(), &model_id)) {
     return;
   }
   int version = ConvertFastPairVersionToInt(device.version());
-  metrics::structured::events::v2::fast_pair::PairFailure()
-      .SetProtocol(static_cast<int>(device.protocol()))
-      .SetModelId(model_id)
-      .SetReason(static_cast<int>(failure))
-      .SetFastPairVersion(version)
-      .Record();
+  metrics::structured::StructuredMetricsClient::Record(
+      std::move(metrics::structured::events::v2::fast_pair::PairFailure()
+                    .SetProtocol(static_cast<int>(device.protocol()))
+                    .SetModelId(model_id)
+                    .SetReason(static_cast<int>(failure))
+                    .SetFastPairVersion(version)));
 }
 
 }  // namespace quick_pair

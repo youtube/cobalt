@@ -42,7 +42,7 @@ class SyncUrlFetcher {
         event_(base::WaitableEvent::ResetPolicy::AUTOMATIC,
                base::WaitableEvent::InitialState::NOT_SIGNALED) {}
 
-  ~SyncUrlFetcher() {}
+  ~SyncUrlFetcher() = default;
 
   bool Fetch() {
     network_task_runner_->PostTask(
@@ -96,7 +96,7 @@ NetAddress::NetAddress(int port) : host_("localhost"), port_(port) {}
 NetAddress::NetAddress(const std::string& host, int port)
     : host_(host), port_(port) {}
 
-NetAddress::~NetAddress() {}
+NetAddress::~NetAddress() = default;
 
 bool NetAddress::IsValid() const {
   return port_ >= 0 && port_ < (1 << 16);
@@ -123,4 +123,10 @@ bool FetchUrl(const std::string& url,
               network::mojom::URLLoaderFactory* factory,
               std::string* response) {
   return SyncUrlFetcher(GURL(url), factory, response).Fetch();
+}
+
+bool FetchUrl(const GURL& url,
+              network::mojom::URLLoaderFactory* factory,
+              std::string* response) {
+  return SyncUrlFetcher(url, factory, response).Fetch();
 }

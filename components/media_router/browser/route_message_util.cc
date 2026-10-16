@@ -47,7 +47,6 @@ PresentationConnectionFromRouteMessage(RouteMessagePtr route_message) {
           route_message->data.value());
   }
   NOTREACHED() << "Unknown RouteMessageType " << route_message->type;
-  return nullptr;
 }
 
 }  // namespace message_util

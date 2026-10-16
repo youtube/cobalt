@@ -11,13 +11,12 @@
 #include <vector>
 
 #include "base/component_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "ui/base/ime/autocorrect_info.h"
-#include "ui/base/ime/grammar_fragment.h"
 #include "ui/base/ime/text_input_client.h"
+#include "ui/base/ime/text_input_flags.h"
 #include "ui/base/ime/text_input_mode.h"
 #include "ui/base/ime/text_input_type.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/native_widget_types.h"
 #include "ui/gfx/range/range.h"
 
 namespace gfx {
@@ -36,6 +35,14 @@ class VirtualKeyboardController;
 // GNU/Linux and likes.
 class COMPONENT_EXPORT(UI_BASE_IME_LINUX) LinuxInputMethodContext {
  public:
+  struct TextInputClientAttributes {
+    TextInputType input_type = TEXT_INPUT_TYPE_NONE;
+    TextInputMode input_mode = TEXT_INPUT_MODE_DEFAULT;
+    uint32_t flags = TEXT_INPUT_FLAG_NONE;
+    bool should_do_learning = false;
+    bool can_compose_inline = true;
+  };
+
   virtual ~LinuxInputMethodContext() = default;
 
   // Dispatches the key event to an underlying IME.  Returns true if the key
@@ -50,19 +57,10 @@ class COMPONENT_EXPORT(UI_BASE_IME_LINUX) LinuxInputMethodContext {
   virtual void SetCursorLocation(const gfx::Rect& rect) = 0;
 
   // Tells the system IME the surrounding text around the cursor location.
-  virtual void SetSurroundingText(
-      const std::u16string& text,
-      const gfx::Range& text_range,
-      const gfx::Range& selection_range,
-      const absl::optional<ui::GrammarFragment>& fragment,
-      const absl::optional<AutocorrectInfo>& autocorrect) = 0;
-
-  // Tells the system IME the content type of the text input client is changed.
-  virtual void SetContentType(TextInputType type,
-                              TextInputMode mode,
-                              uint32_t flags,
-                              bool should_do_learning,
-                              bool can_compose_inline) = 0;
+  virtual void SetSurroundingText(const std::u16string& text,
+                                  const gfx::Range& text_range,
+                                  const gfx::Range& composition_range,
+                                  const gfx::Range& selection_range) = 0;
 
   // Resets the context.  A client needs to call OnTextInputTypeChanged() again
   // before calling DispatchKeyEvent().
@@ -73,10 +71,11 @@ class COMPONENT_EXPORT(UI_BASE_IME_LINUX) LinuxInputMethodContext {
                                TextInputClient* new_client) {}
 
   // Called when text input focus is changed.
-  virtual void UpdateFocus(bool has_client,
-                           TextInputType old_type,
-                           TextInputType new_type,
-                           TextInputClient::FocusReason reason) = 0;
+  virtual void UpdateFocus(
+      bool has_client,
+      TextInputType old_type,
+      const TextInputClientAttributes& new_client_attributes,
+      TextInputClient::FocusReason reason) = 0;
 
   // Returns the corresponding VirtualKeyboardController instance.
   // Or nullptr, if not supported.
@@ -87,6 +86,9 @@ class COMPONENT_EXPORT(UI_BASE_IME_LINUX) LinuxInputMethodContext {
 class COMPONENT_EXPORT(UI_BASE_IME_LINUX) LinuxInputMethodContextDelegate {
  public:
   virtual ~LinuxInputMethodContextDelegate() {}
+
+  // Returns the key for the window containing the input method.
+  virtual gfx::AcceleratedWidget GetClientWindowKey() const = 0;
 
   // Commits the |text| to the text input client.
   virtual void OnCommit(const std::u16string& text) = 0;
@@ -113,22 +115,12 @@ class COMPONENT_EXPORT(UI_BASE_IME_LINUX) LinuxInputMethodContextDelegate {
   virtual void OnSetPreeditRegion(const gfx::Range& range,
                                   const std::vector<ImeTextSpan>& spans) = 0;
 
-  // Clears all the grammar fragments in |range|. All indices are measured in
-  // UTF-16 code point.
-  virtual void OnClearGrammarFragments(const gfx::Range& range) = 0;
-
-  // Adds a new grammar marker according to |fragments|. Clients should show
-  // some visual indications such as underlining. All indices are measured in
-  // UTF-16 code point.
-  virtual void OnAddGrammarFragment(const ui::GrammarFragment& fragment) = 0;
-
-  // Sets the autocorrect range in the text input client.
-  // |range| is in UTF-16 code range.
-  virtual void OnSetAutocorrectRange(const gfx::Range& range) = 0;
-
   // Sets the virtual keyboard's occluded bounds in screen DIP.
   virtual void OnSetVirtualKeyboardOccludedBounds(
       const gfx::Rect& screen_bounds) = 0;
+
+  // Inserts an image.
+  virtual void OnInsertImage(const GURL& src) = 0;
 };
 
 }  // namespace ui

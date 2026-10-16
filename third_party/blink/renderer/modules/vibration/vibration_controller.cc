@@ -19,8 +19,7 @@
 
 #include "third_party/blink/renderer/modules/vibration/vibration_controller.h"
 
-#include "base/metrics/histogram_functions.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_unsignedlong_unsignedlongsequence.h"
@@ -62,48 +61,6 @@ blink::VibrationController::VibrationPattern sanitizeVibrationPatternInternal(
 
 namespace blink {
 
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class NavigatorVibrationType {
-  kMainFrameNoUserGesture = 0,
-  kMainFrameWithUserGesture = 1,
-  kSameOriginSubFrameNoUserGesture = 2,
-  kSameOriginSubFrameWithUserGesture = 3,
-  kCrossOriginSubFrameNoUserGesture = 4,
-  kCrossOriginSubFrameWithUserGesture = 5,
-  kInFencedFrameTree = 6,
-  kMaxValue = kInFencedFrameTree,
-};
-
-void CollectHistogramMetrics(LocalDOMWindow* window) {
-  NavigatorVibrationType type;
-  bool user_gesture = window->GetFrame()->HasStickyUserActivation();
-  UseCounter::Count(window, WebFeature::kNavigatorVibrate);
-  if (window->GetFrame()->IsInFencedFrameTree()) {
-    type = NavigatorVibrationType::kInFencedFrameTree;
-  } else if (!window->GetFrame()->IsMainFrame()) {
-    // TODO(crbug.com/1254770): Update for embedded portals.
-    UseCounter::Count(window, WebFeature::kNavigatorVibrateSubFrame);
-    if (window->GetFrame()->IsCrossOriginToNearestMainFrame()) {
-      if (user_gesture)
-        type = NavigatorVibrationType::kCrossOriginSubFrameWithUserGesture;
-      else
-        type = NavigatorVibrationType::kCrossOriginSubFrameNoUserGesture;
-    } else {
-      if (user_gesture)
-        type = NavigatorVibrationType::kSameOriginSubFrameWithUserGesture;
-      else
-        type = NavigatorVibrationType::kSameOriginSubFrameNoUserGesture;
-    }
-  } else {
-    if (user_gesture)
-      type = NavigatorVibrationType::kMainFrameWithUserGesture;
-    else
-      type = NavigatorVibrationType::kMainFrameNoUserGesture;
-  }
-  base::UmaHistogramEnumeration("Vibration.Context", type);
-}
-
 // static
 VibrationController::VibrationPattern
 VibrationController::SanitizeVibrationPattern(
@@ -121,7 +78,6 @@ VibrationController::SanitizeVibrationPattern(
           input->GetAsUnsignedLongSequence());
   }
   NOTREACHED();
-  return {};
 }
 
 // static
@@ -174,7 +130,7 @@ VibrationController::VibrationController(Navigator& navigator)
 VibrationController::~VibrationController() = default;
 
 bool VibrationController::Vibrate(const VibrationPattern& pattern) {
-  CollectHistogramMetrics(DomWindow());
+  UseCounter::Count(DomWindow(), WebFeature::kNavigatorVibrate);
 
   LocalFrame* frame = DomWindow()->GetFrame();
   if (frame->IsInFencedFrameTree()) {
@@ -189,7 +145,6 @@ bool VibrationController::Vibrate(const VibrationPattern& pattern) {
 
   if (!frame->HasStickyUserActivation()) {
     String message;
-    // TODO(crbug.com/1254770): Update for embedded portals.
     if (frame->IsCrossOriginToNearestMainFrame()) {
       message =
           "Blocked call to navigator.vibrate inside a cross-origin "

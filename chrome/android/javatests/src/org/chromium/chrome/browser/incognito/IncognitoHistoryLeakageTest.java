@@ -19,6 +19,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.params.ParameterAnnotations.UseMethodParameter;
 import org.chromium.base.test.params.ParameterAnnotations.UseRunnerDelegate;
 import org.chromium.base.test.params.ParameterProvider;
@@ -29,7 +30,6 @@ import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.chrome.browser.customtabs.CustomTabsIntentTestUtils;
 import org.chromium.chrome.browser.customtabs.IncognitoCustomTabActivityTestRule;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.history.BrowsingHistoryBridge;
 import org.chromium.chrome.browser.history.HistoryItem;
@@ -37,13 +37,13 @@ import org.chromium.chrome.browser.history.TestBrowsingHistoryObserver;
 import org.chromium.chrome.browser.incognito.IncognitoDataTestUtils.ActivityType;
 import org.chromium.chrome.browser.incognito.IncognitoDataTestUtils.TestParams;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
-import org.chromium.chrome.test.util.browser.Features.EnableFeatures;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.content_public.browser.NavigationEntry;
 import org.chromium.content_public.browser.NavigationHistory;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.net.test.EmbeddedTestServer;
 
 import java.util.ArrayList;
@@ -56,7 +56,6 @@ import java.util.concurrent.TimeoutException;
  */
 @RunWith(ParameterizedRunner.class)
 @UseRunnerDelegate(ChromeJUnit4RunnerDelegate.class)
-@EnableFeatures({ChromeFeatureList.CCT_INCOGNITO})
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class IncognitoHistoryLeakageTest {
     private static final String TEST_PAGE_1 = "/chrome/test/data/android/google.html";
@@ -67,8 +66,8 @@ public class IncognitoHistoryLeakageTest {
     private String mTestPage2;
 
     @Rule
-    public ChromeTabbedActivityTestRule mChromeActivityTestRule =
-            new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mChromeActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @Rule
     public IncognitoCustomTabActivityTestRule mCustomTabActivityTestRule =
@@ -76,44 +75,43 @@ public class IncognitoHistoryLeakageTest {
 
     @Before
     public void setUp() throws TimeoutException {
-        mTestServer = EmbeddedTestServer.createAndStartServer(
-                ApplicationProvider.getApplicationContext());
+        mTestServer =
+                EmbeddedTestServer.createAndStartServer(
+                        ApplicationProvider.getApplicationContext());
         mTestPage1 = mTestServer.getURL(TEST_PAGE_1);
         mTestPage2 = mTestServer.getURL(TEST_PAGE_2);
-
-        // Ensuring native is initialized before we access the CCT_INCOGNITO feature flag.
-        IncognitoDataTestUtils.fireAndWaitForCctWarmup();
-        assertTrue(ChromeFeatureList.isEnabled(ChromeFeatureList.CCT_INCOGNITO));
     }
 
     @After
     public void tearDown() {
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> IncognitoDataTestUtils.closeTabs(mChromeActivityTestRule));
-        mTestServer.stopAndDestroyServer();
     }
 
     /**
-     * Returns browsing history for the profile related to |tab|. If |tab| is
-     * null, the regular profile is used.
+     * Returns browsing history for the profile related to |tab|. If |tab| is null, the regular
+     * profile is used.
      */
     private static List<HistoryItem> getBrowsingHistory(Tab tab) throws TimeoutException {
         final TestBrowsingHistoryObserver historyObserver = new TestBrowsingHistoryObserver();
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            Profile profile = (tab == null) ? Profile.getLastUsedRegularProfile()
-                                            : Profile.fromWebContents(tab.getWebContents());
-            BrowsingHistoryBridge historyService = new BrowsingHistoryBridge(profile);
-            historyService.setObserver(historyObserver);
-            String historyQueryFilter = "";
-            historyService.queryHistory(historyQueryFilter);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    Profile profile =
+                            (tab == null)
+                                    ? ProfileManager.getLastUsedRegularProfile()
+                                    : tab.getProfile();
+                    BrowsingHistoryBridge historyService = new BrowsingHistoryBridge(profile);
+                    historyService.setObserver(historyObserver);
+                    String historyQueryFilter = "";
+                    historyService.queryHistory(historyQueryFilter, null);
+                });
         historyObserver.getQueryCallback().waitForCallback(0);
         return historyObserver.getHistoryQueryResults();
     }
 
     /**
-     * A general class providing test parameters encapsulating different Activity type pairs
-     * spliced on Regular and Incognito mode between whom we want to test leakage.
+     * A general class providing test parameters encapsulating different Activity type pairs spliced
+     * on Regular and Incognito mode between whom we want to test leakage.
      */
     public static class AllTypesToAllTypes implements ParameterProvider {
         @Override
@@ -128,10 +126,9 @@ public class IncognitoHistoryLeakageTest {
 
     @Test
     @LargeTest
-    public void
-    testBrowsingHistoryDoNotLeakFromIncognitoTabbedActivity() throws TimeoutException {
-        mChromeActivityTestRule.startMainActivityOnBlankPage();
-        mChromeActivityTestRule.loadUrlInNewTab(mTestPage1, /*incognito=*/true);
+    public void testBrowsingHistoryDoNotLeakFromIncognitoTabbedActivity() throws TimeoutException {
+        mChromeActivityTestRule.startOnBlankPage();
+        mChromeActivityTestRule.loadUrlInNewTab(mTestPage1, /* incognito= */ true);
         List<HistoryItem> historyEntriesOfIncognitoMode =
                 getBrowsingHistory(mChromeActivityTestRule.getActivity().getActivityTab());
         assertTrue(historyEntriesOfIncognitoMode.isEmpty());
@@ -141,8 +138,9 @@ public class IncognitoHistoryLeakageTest {
     @LargeTest
     public void testBrowsingHistoryDoNotLeakFromIncognitoCustomTabActivity()
             throws TimeoutException {
-        Intent intent = CustomTabsIntentTestUtils.createMinimalIncognitoCustomTabIntent(
-                ApplicationProvider.getApplicationContext(), mTestPage1);
+        Intent intent =
+                CustomTabsIntentTestUtils.createMinimalIncognitoCustomTabIntent(
+                        ApplicationProvider.getApplicationContext(), mTestPage1);
         mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
         List<HistoryItem> historyEntriesOfIncognitoMode =
                 getBrowsingHistory(mCustomTabActivityTestRule.getActivity().getActivityTab());
@@ -157,15 +155,17 @@ public class IncognitoHistoryLeakageTest {
         ActivityType activity1 = ActivityType.valueOf(activityType1);
         ActivityType activity2 = ActivityType.valueOf(activityType2);
 
-        Tab tab1 = activity1.launchUrl(
-                mChromeActivityTestRule, mCustomTabActivityTestRule, mTestPage1);
+        Tab tab1 =
+                activity1.launchUrl(
+                        mChromeActivityTestRule, mCustomTabActivityTestRule, mTestPage1);
         CriteriaHelper.pollUiThread(
                 () -> Criteria.checkThat(tab1.getWebContents(), Matchers.notNullValue()));
         NavigationHistory navigationHistory1 =
                 tab1.getWebContents().getNavigationController().getNavigationHistory();
 
-        Tab tab2 = activity2.launchUrl(
-                mChromeActivityTestRule, mCustomTabActivityTestRule, mTestPage2);
+        Tab tab2 =
+                activity2.launchUrl(
+                        mChromeActivityTestRule, mCustomTabActivityTestRule, mTestPage2);
         CriteriaHelper.pollUiThread(
                 () -> Criteria.checkThat(tab2.getWebContents(), Matchers.notNullValue()));
         NavigationHistory navigationHistory2 =

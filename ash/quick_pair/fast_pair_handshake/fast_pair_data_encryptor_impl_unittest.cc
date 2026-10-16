@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ash/quick_pair/fast_pair_handshake/fast_pair_data_encryptor_impl.h"
 
 #include <stddef.h>
@@ -84,7 +89,7 @@ class FastPairDataEncryptorImplTest : public testing::TestWithParam<TestParam> {
                      weak_ptr_factory_.GetWeakPtr()));
   }
 
-  void SuccessfulSetUp(const std::vector<uint8_t> account_key) {
+  void SuccessfulSetUp(const std::vector<uint8_t>& account_key) {
     repository_ = std::make_unique<FakeFastPairRepository>();
     nearby::fastpair::Device metadata;
 
@@ -180,7 +185,7 @@ class FastPairDataEncryptorImplTest : public testing::TestWithParam<TestParam> {
   }
 
   void ParseDecryptedResponseCallback(
-      const absl::optional<DecryptedResponse>& response) {
+      const std::optional<DecryptedResponse>& response) {
     response_ = response;
   }
 
@@ -207,14 +212,14 @@ class FastPairDataEncryptorImplTest : public testing::TestWithParam<TestParam> {
   }
 
   void ParseDecryptedPasskeyCallback(
-      const absl::optional<DecryptedPasskey>& passkey) {
+      const std::optional<DecryptedPasskey>& passkey) {
     passkey_ = passkey;
   }
 
  protected:
   std::unique_ptr<FastPairDataEncryptor> data_encryptor_;
-  absl::optional<DecryptedResponse> response_ = absl::nullopt;
-  absl::optional<DecryptedPasskey> passkey_ = absl::nullopt;
+  std::optional<DecryptedResponse> response_ = std::nullopt;
+  std::optional<DecryptedPasskey> passkey_ = std::nullopt;
   std::unique_ptr<MockQuickPairProcessManager> process_manager_;
   mojo::SharedRemote<ash::quick_pair::mojom::FastPairDataParser>
       data_parser_remote_;
@@ -292,7 +297,7 @@ TEST_P(FastPairDataEncryptorImplTest, NoKeyPair) {
   EXPECT_FALSE(data_encryptor_);
 }
 
-// TODO(crbug.com/1298377) flaky on ASan + LSan bots
+// TODO(crbug.com/40822900) flaky on ASan + LSan bots
 #if defined(ADDRESS_SANITIZER) && defined(LEAK_SANITIZER)
 #define MAYBE_ParseDecryptedPasskey_ProcessStopped \
   DISABLED_ParseDecryptedPasskey_ProcessStopped
@@ -318,7 +323,7 @@ TEST_P(FastPairDataEncryptorImplTest,
   base::RunLoop().RunUntilIdle();
 }
 
-// TODO(crbug.com/1298377) flaky on ASan + LSan bots
+// TODO(crbug.com/40822900) flaky on ASan + LSan bots
 #if defined(ADDRESS_SANITIZER) && defined(LEAK_SANITIZER)
 #define MAYBE_ParseDecryptedResponse_ProcessStopped \
   DISABLED_ParseDecryptedResponse_ProcessStopped
@@ -351,7 +356,7 @@ TEST_P(FastPairDataEncryptorImplTest, GetPublicKey) {
   EXPECT_CALL(*process_manager_, GetProcessReference);
   ParseDecryptedPasskey();
   base::RunLoop().RunUntilIdle();
-  EXPECT_NE(data_encryptor_->GetPublicKey(), absl::nullopt);
+  EXPECT_NE(data_encryptor_->GetPublicKey(), std::nullopt);
 }
 
 TEST_P(FastPairDataEncryptorImplTest, CreateAdditionalDataPacket_Success) {
@@ -412,6 +417,70 @@ TEST_P(FastPairDataEncryptorImplTest,
   // used as the secret key in `data_encryptor_`.
   if (!GetParam()) {
     data_encryptor_->CreateAdditionalDataPacket(nonce, input);
+  }
+}
+
+TEST_P(FastPairDataEncryptorImplTest, VerifyEncryptedAdditionalData_Success) {
+  // Values from Fast Pair Spec successful test:
+  // https://developers.google.com/nearby/fast-pair/specifications/appendix/testcases#hmac-sha256
+  std::vector<uint8_t> encrypted_additional_data{
+      0xEE, 0x4A, 0x24, 0x83, 0x73, 0x80, 0x52, 0xE4, 0x4E,
+      0x9B, 0x2A, 0x14, 0x5E, 0x5D, 0xDF, 0xAA, 0x44, 0xB9,
+      0xE5, 0x53, 0x6A, 0xF4, 0x38, 0xE1, 0xE5, 0xC6};
+
+  std::array<uint8_t, kPrivateKeyByteSize> secret_key = {
+      0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF,
+      0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
+
+  std::array<uint8_t, kNonceSizeBytes> nonce = {0x00, 0x01, 0x02, 0x03,
+                                                0x04, 0x05, 0x06, 0x07};
+
+  std::array<uint8_t, kHmacVerifyLenBytes> expected = {0x55, 0xEC, 0x5E, 0x60,
+                                                       0x55, 0xAF, 0x6E, 0x92};
+
+  // Set up
+  std::vector<uint8_t> secret_key_vec(secret_key.data(),
+                                      secret_key.data() + secret_key.size());
+  SuccessfulSetUp(secret_key_vec);
+
+  // Test only if pairing protocol is Subsequent, which occurs in
+  // SuccessfulSetUp() when GetParam() == 0, so that the device's account key is
+  // used as the secret key in `data_encryptor_`.
+  if (!GetParam()) {
+    EXPECT_TRUE(data_encryptor_->VerifyEncryptedAdditionalData(
+        expected, nonce, encrypted_additional_data));
+  }
+}
+
+TEST_P(FastPairDataEncryptorImplTest, VerifyEncryptedAdditionalData_Failure) {
+  // Values from Fast Pair Spec successful test:
+  // https://developers.google.com/nearby/fast-pair/specifications/appendix/testcases#hmac-sha256
+  std::vector<uint8_t> encrypted_additional_data{
+      0xEE, 0x4A, 0x24, 0x83, 0x73, 0x80, 0x52, 0xE4, 0x4E,
+      0x9B, 0x2A, 0x14, 0x5E, 0x5D, 0xDF, 0xAA, 0x44, 0xB9,
+      0xE5, 0x53, 0x6A, 0xF4, 0x38, 0xE1, 0xE5, 0xC6};
+
+  std::array<uint8_t, kPrivateKeyByteSize> secret_key = {
+      0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF,
+      0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
+
+  std::array<uint8_t, kNonceSizeBytes> nonce = {0x00, 0x01, 0x02, 0x03,
+                                                0x04, 0x05, 0x06, 0x07};
+
+  std::array<uint8_t, kHmacVerifyLenBytes> expected = {0x00, 0x01, 0x02, 0x03,
+                                                       0x04, 0x05, 0x06, 0x07};
+
+  // Set up
+  std::vector<uint8_t> secret_key_vec(secret_key.data(),
+                                      secret_key.data() + secret_key.size());
+  SuccessfulSetUp(secret_key_vec);
+
+  // Test only if pairing protocol is Subsequent, which occurs in
+  // SuccessfulSetUp() when GetParam() == 0, so that the device's account key is
+  // used as the secret key in `data_encryptor_`.
+  if (!GetParam()) {
+    EXPECT_FALSE(data_encryptor_->VerifyEncryptedAdditionalData(
+        expected, nonce, encrypted_additional_data));
   }
 }
 

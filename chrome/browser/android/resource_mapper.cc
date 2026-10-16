@@ -11,10 +11,12 @@
 #include "base/check_op.h"
 #include "base/lazy_instance.h"
 #include "base/notreached.h"
-#include "chrome/android/chrome_jni_headers/ResourceMapper_jni.h"
 #include "chrome/browser/android/android_theme_resources.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/grit/components_scaled_resources.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/android/chrome_jni_headers/ResourceMapper_jni.h"
 
 namespace {
 
@@ -37,7 +39,6 @@ int ResourceMapper::MapToJavaDrawableId(int resource_id) {
 
   // The resource couldn't be found.
   NOTREACHED();
-  return kMissingId;
 }
 
 void ResourceMapper::ConstructMap() {
@@ -54,6 +55,7 @@ void ResourceMapper::ConstructMap() {
 #define DECLARE_RESOURCE_ID(c_id, java_id) \
   g_id_map.Get()[c_id] = resource_id_list[next_id++];
 #include "chrome/browser/android/resource_id.h"
+#include "components/resources/android/autofill_resource_id.h"
 #include "components/resources/android/blocked_content_resource_id.h"
 #include "components/resources/android/page_info_resource_id.h"
 #include "components/resources/android/permissions_resource_id.h"

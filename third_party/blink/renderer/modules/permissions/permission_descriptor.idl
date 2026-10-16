@@ -26,7 +26,6 @@ enum PermissionName {
     "display-capture",
 
     // Non-standard:
-    "accessibility-events",
     "clipboard-read",
     "clipboard-write",
     "payment-handler",
@@ -34,17 +33,22 @@ enum PermissionName {
     "periodic-background-sync",
     "system-wake-lock",
     "storage-access",
-    // Alias for 'window-placement' (crbug.com/1328581).
     "window-management",
-    "window-placement",
     "local-fonts",
     "top-level-storage-access",
+    "captured-surface-control",
+    "speaker-selection",
+    "keyboard-lock",
+    "pointer-lock",
+    "fullscreen",
+    "web-app-installation",
+    "local-network-access",
 };
 
 // The PermissionDescriptor dictionary is a base to describe permissions. Some
 // permissions will extend it. The methods reading it will re-parse it depending
 // on the name.
-// https://w3c.github.io/permissions/#dictdef-permissiondescriptor
+// https://w3c.github.io/permissions/#dom-permissiondescriptor
 dictionary PermissionDescriptor {
     required PermissionName name;
 };

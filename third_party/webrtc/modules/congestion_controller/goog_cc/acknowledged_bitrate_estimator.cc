@@ -10,14 +10,19 @@
 
 #include "modules/congestion_controller/goog_cc/acknowledged_bitrate_estimator.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <utility>
+#include <vector>
 
+#include "api/field_trials_view.h"
+#include "api/transport/network_types.h"
+#include "api/units/data_rate.h"
+#include "api/units/data_size.h"
+#include "api/units/timestamp.h"
+#include "modules/congestion_controller/goog_cc/bitrate_estimator.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/numerics/safe_conversions.h"
 
 namespace webrtc {
 
@@ -30,7 +35,7 @@ AcknowledgedBitrateEstimator::AcknowledgedBitrateEstimator(
 AcknowledgedBitrateEstimator::~AcknowledgedBitrateEstimator() {}
 
 AcknowledgedBitrateEstimator::AcknowledgedBitrateEstimator(
-    const FieldTrialsView* key_value_config,
+    const FieldTrialsView* /* key_value_config */,
     std::unique_ptr<BitrateEstimator> bitrate_estimator)
     : in_alr_(false), bitrate_estimator_(std::move(bitrate_estimator)) {}
 
@@ -51,11 +56,11 @@ void AcknowledgedBitrateEstimator::IncomingPacketFeedbackVector(
   }
 }
 
-absl::optional<DataRate> AcknowledgedBitrateEstimator::bitrate() const {
+std::optional<DataRate> AcknowledgedBitrateEstimator::bitrate() const {
   return bitrate_estimator_->bitrate();
 }
 
-absl::optional<DataRate> AcknowledgedBitrateEstimator::PeekRate() const {
+std::optional<DataRate> AcknowledgedBitrateEstimator::PeekRate() const {
   return bitrate_estimator_->PeekRate();
 }
 

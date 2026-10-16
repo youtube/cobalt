@@ -17,9 +17,11 @@ import sys
 import tempfile
 
 
-SUPPORTED_TARGETS = ('iphoneos', 'iphonesimulator', 'maccatalyst')
+SUPPORTED_TARGETS = ('appletvos', 'appletvsimulator', 'iphoneos',
+                     'iphonesimulator', 'maccatalyst')
 SUPPORTED_CONFIGS = ('Debug', 'Release', 'Profile', 'Official')
 ADDITIONAL_FILE_ROOTS = ('//ios', '//ios_internal', '//docs', '//components')
+ADDITIONAL_FILES_PATTERNS = ('*.md', '*_google_chrome_*.grd', 'OWNERS', 'DEPS')
 
 # Pattern matching lines from ~/.lldbinit that must not be copied to the
 # generated .lldbinit file. They match what the user were told to add to
@@ -88,15 +90,27 @@ class GnGenerator(object):
   FAT_BUILD_DEFAULT_ARCH = '64-bit'
 
   TARGET_CPU_VALUES = {
+    'appletvos': '"arm64"',
+    'appletvsimulator': HostCpuArch(),
     'iphoneos': '"arm64"',
     'iphonesimulator': HostCpuArch(),
     'maccatalyst': HostCpuArch(),
   }
 
   TARGET_ENVIRONMENT_VALUES = {
+    'appletvos': '"device"',
+    'appletvsimulator': '"simulator"',
     'iphoneos': '"device"',
     'iphonesimulator': '"simulator"',
     'maccatalyst': '"catalyst"'
+  }
+
+  TARGET_PLATFORM_VALUES = {
+    'appletvos': '"tvos"',
+    'appletvsimulator': '"tvos"',
+    'iphoneos': '"iphoneos"',
+    'iphonesimulator': '"iphoneos"',
+    'maccatalyst': '"iphoneos"'
   }
 
   def __init__(self, settings, config, target):
@@ -115,12 +129,6 @@ class GnGenerator(object):
     """
     args = []
 
-    if self._settings.getboolean('goma', 'enabled'):
-      args.append(('use_goma', True))
-      goma_dir = self._settings.getstring('goma', 'install')
-      if goma_dir:
-        args.append(('goma_dir', '"%s"' % os.path.expanduser(goma_dir)))
-
     is_debug = self._config == 'Debug'
     official = self._config == 'Official'
     is_optim = self._config in ('Profile', 'Official')
@@ -135,10 +143,25 @@ class GnGenerator(object):
     if os.environ.get('FORCE_MAC_TOOLCHAIN', '0') == '1':
       args.append(('use_system_xcode', False))
 
-    args.append(('target_cpu', self.TARGET_CPU_VALUES[self._target]))
-    args.append((
-        'target_environment',
-        self.TARGET_ENVIRONMENT_VALUES[self._target]))
+    target_cpu = self.TARGET_CPU_VALUES[self._target];
+    if (self._target == 'iphoneos' and
+        self._settings.getboolean('build', 'use_arm64e')):
+      target_cpu = '"arm64e"'
+
+    args.append(('target_cpu', target_cpu))
+    args.append(
+        ('target_environment', self.TARGET_ENVIRONMENT_VALUES[self._target]))
+    args.append(('target_platform', self.TARGET_PLATFORM_VALUES[self._target]))
+
+    use_blink = self._settings.getboolean('gn_args', 'use_blink')
+
+    if self.TARGET_PLATFORM_VALUES[self._target] == '"tvos"' and not use_blink:
+      args.append(('use_blink', True))
+      use_blink = True
+
+    has_symbol_level = self._settings.has_option('gn_args', 'symbol_level')
+    if use_blink and is_optim and not has_symbol_level:
+      args.append(('symbol_level', 1))
 
     # Add user overrides after the other configurations so that they can
     # refer to them and override them.
@@ -223,7 +246,8 @@ class GnGenerator(object):
       gn_command.append('--ninja-executable=autoninja')
       gn_command.append('--xcode-build-system=new')
       gn_command.append('--xcode-project=%s' % xcode_project_name)
-      gn_command.append('--xcode-additional-files-patterns=*.md;OWNERS')
+      gn_command.append('--xcode-additional-files-patterns=' +
+                        ';'.join(ADDITIONAL_FILES_PATTERNS))
       gn_command.append(
           '--xcode-additional-files-roots=' + ';'.join(ADDITIONAL_FILE_ROOTS))
       gn_command.append('--xcode-configs=' + ';'.join(SUPPORTED_CONFIGS))

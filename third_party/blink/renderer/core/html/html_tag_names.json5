@@ -8,6 +8,19 @@
   },
 
   // If you add any tag names here, remember to update html_tree_builder_test.cc.
+
+  // Note that if an element is associated with a feature flag that has an
+  // origin trial, you must:
+  // * set runtimeFlagHasOriginTrial to true below, which disables the checks
+  //   that ensure that the tokenizer produces HTMLTag::kUnknown when the
+  //   feature flag is disabled.
+  // * make sure that any uses of HTMLTag::kYourElement treat it as
+  //   HTMLTag::kUnknown if the feature flag is disabled.  The member is
+  //   renamed to HTMLTag::kYourElementOrUnknown to remind you of this.
+  // * have a virtual suite testing the feature flag being disabled that
+  //   checks that any relevant behaviors (parsing or otherwise) are
+  //   unaffected when the feature is disabled.
+  // See https://crbug.com/1512345
   data: [
     {
       name: "a",
@@ -162,6 +175,10 @@
       interfaceName: "HTMLFencedFrameElement",
       interfaceHeaderDir: "third_party/blink/renderer/core/html/fenced_frame",
       runtimeEnabled: "FencedFrames",
+      // Set runtimeFlagHasOriginTrial to disable feature flag checks in
+      // the tokenizer (which doesn't necessarily have access to the
+      // document)
+      runtimeFlagHasOriginTrial: true,
       // This element could be enabled in some documents but not others (due to
       // origin trials), so we need custom type helpers.
       noTypeHelpers: true,
@@ -301,6 +318,24 @@
     "marquee",
     "menu",
     {
+      name: "menubar",
+      interfaceName: "HTMLMenuBarElement",
+      interfaceHeaderDir: "third_party/blink/renderer/core/html",
+      runtimeEnabled: "MenuElements",
+    },
+    {
+      name: "menuitem",
+      interfaceName: "HTMLMenuItemElement",
+      interfaceHeaderDir: "third_party/blink/renderer/core/html",
+      runtimeEnabled: "MenuElements",
+    },
+    {
+      name: "menulist",
+      interfaceName: "HTMLMenuListElement",
+      interfaceHeaderDir: "third_party/blink/renderer/core/html",
+      runtimeEnabled: "MenuElements",
+    },
+    {
       name: "meta",
       constructorNeedsCreateElementFlags: true,
     },
@@ -332,6 +367,7 @@
     {
       name: "object",
       constructorNeedsCreateElementFlags: true,
+      noTypeHelpers: true,
     },
     {
       name: "ol",
@@ -356,21 +392,19 @@
     },
     "param",
     {
+      name: "permission",
+      interfaceName: "HTMLPermissionElement",
+      runtimeEnabled: "PermissionElement",
+      runtimeFlagHasOriginTrial: true,
+      noTypeHelpers: true,
+    },
+    {
       name: "picture",
       interfaceName: "HTMLPictureElement",
     },
     {
       name: "plaintext",
       interfaceName: "HTMLElement",
-    },
-    {
-      name: "portal",
-      interfaceName: "HTMLPortalElement",
-      interfaceHeaderDir: "third_party/blink/renderer/core/html/portal",
-      runtimeEnabled: "Portals",
-      // Portals could be enabled in some documents but not others (due to
-      // origin trials), so we need custom type helpers.
-      noTypeHelpers: true,
     },
     "pre",
     {
@@ -391,8 +425,7 @@
     },
     {
       name: "rt",
-      JSInterfaceName: "HTMLElement",
-      interfaceName: "HTMLRTElement",
+      interfaceName: "HTMLElement",
     },
     {
       name: "rtc",
@@ -400,8 +433,7 @@
     },
     {
       name: "ruby",
-      JSInterfaceName: "HTMLElement",
-      interfaceName: "HTMLRubyElement",
+      interfaceName: "HTMLElement",
     },
     {
       name: "s",
@@ -416,6 +448,10 @@
       constructorNeedsCreateElementFlags: true,
     },
     {
+      name: "search",
+      interfaceName: "HTMLSearchElement",
+    },
+    {
       name: "section",
       interfaceName: "HTMLElement",
     },
@@ -424,10 +460,10 @@
       interfaceHeaderDir: "third_party/blink/renderer/core/html/forms",
     },
     {
-      name: "selectmenu",
-      interfaceName: "HTMLSelectMenuElement",
-      runtimeEnabled: "HTMLSelectMenuElement",
+      name: "selectedcontent",
+      interfaceName: "HTMLSelectedContentElement",
       interfaceHeaderDir: "third_party/blink/renderer/core/html/forms",
+      runtimeEnabled: "CustomizableSelect",
     },
     {
       name: "slot",

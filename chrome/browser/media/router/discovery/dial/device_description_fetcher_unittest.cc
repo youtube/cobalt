@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/media/router/discovery/dial/device_description_fetcher.h"
+
 #include <memory>
 #include <string>
 #include <utility>
@@ -12,7 +14,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
-#include "chrome/browser/media/router/discovery/dial/device_description_fetcher.h"
 #include "chrome/browser/media/router/discovery/dial/dial_device_data.h"
 #include "chrome/browser/media/router/test/provider_test_helpers.h"
 #include "net/base/ip_address.h"
@@ -26,33 +27,6 @@ using testing::HasSubstr;
 using testing::NiceMock;
 
 namespace media_router {
-
-class TestDeviceDescriptionFetcher : public DeviceDescriptionFetcher {
- public:
-  TestDeviceDescriptionFetcher(
-      const DialDeviceData& device_data,
-      base::OnceCallback<void(const DialDeviceDescriptionData&)> success_cb,
-      base::OnceCallback<void(const std::string&)> error_cb,
-      network::TestURLLoaderFactory* factory)
-      : DeviceDescriptionFetcher(device_data,
-                                 std::move(success_cb),
-                                 std::move(error_cb)),
-        factory_(factory) {}
-  ~TestDeviceDescriptionFetcher() override = default;
-
-  void Start() override {
-    fetcher_ = std::make_unique<NiceMock<TestDialURLFetcher>>(
-        base::BindOnce(&DeviceDescriptionFetcher::ProcessResponse,
-                       base::Unretained(this)),
-        base::BindOnce(&DeviceDescriptionFetcher::ReportError,
-                       base::Unretained(this)),
-        factory_);
-    fetcher_->Get(device_data_.device_description_url());
-  }
-
- private:
-  const raw_ptr<network::TestURLLoaderFactory> factory_;
-};
 
 class DeviceDescriptionFetcherTest : public testing::Test {
  public:

@@ -9,17 +9,20 @@
 
 #include <algorithm>
 #include <memory>
+#include <string_view>
 
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/debug/alias.h"
 #include "base/file_version_info.h"
 #include "base/files/file_path.h"
 #include "base/memory/free_deleter.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/numerics/checked_math.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/strings/string_piece.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -30,6 +33,9 @@
 #include "printing/backend/print_backend.h"
 #include "printing/backend/print_backend_consts.h"
 #include "printing/backend/printing_info_win.h"
+#include "printing/printing_features.h"
+
+namespace printing {
 
 namespace {
 
@@ -97,6 +103,23 @@ StartXpsPrintJobProc g_start_xps_print_job_proc = nullptr;
 typedef std::string (*GetDisplayNameFunc)(const std::string& printer_name);
 GetDisplayNameFunc g_get_display_name_func = nullptr;
 
+PrinterBasicInfo InitializePrinterInfo(LPTSTR name, LPTSTR comment) {
+  PrinterBasicInfo printer_info;
+
+  printer_info.printer_name = base::WideToUTF8(name);
+  if (g_get_display_name_func) {
+    printer_info.display_name =
+        g_get_display_name_func(printer_info.printer_name);
+  } else {
+    printer_info.display_name = printer_info.printer_name;
+  }
+  if (comment) {
+    printer_info.printer_description = base::WideToUTF8(comment);
+  }
+
+  return printer_info;
+}
+
 HRESULT StreamFromPrintTicket(const std::string& print_ticket,
                               IStream** stream) {
   DCHECK(stream);
@@ -138,8 +161,9 @@ const char kXpsTicketMonochrome[] = "Monochrome";
 constexpr wchar_t kDriversRegistryKeyPath[] =
     L"SYSTEM\\CurrentControlSet\\Control\\Print\\Printers\\";
 
-// Registry value name for a port.
-constexpr wchar_t kPortRegistryValue[] = L"Port";
+// Registry value names for info of a printer driver.
+constexpr wchar_t kLocationRegistryValueName[] = L"Location";
+constexpr wchar_t kPortRegistryValueName[] = L"Port";
 
 // List of printer ports which are known to cause a UI dialog to be displayed
 // when printing.
@@ -155,18 +179,67 @@ std::wstring GetPrinterDriverPort(const std::string& printer_name) {
                         base::UTF8ToWide(printer_name));
   LONG result =
       reg_key.Open(HKEY_LOCAL_MACHINE, root_key.c_str(), KEY_QUERY_VALUE);
-  if (result != ERROR_SUCCESS)
+  if (result != ERROR_SUCCESS) {
     return std::wstring();
-  std::wstring port_value;
-  result = reg_key.ReadValue(kPortRegistryValue, &port_value);
-  if (result != ERROR_SUCCESS)
+  }
+  std::wstring port_value_data;
+  result = reg_key.ReadValue(kPortRegistryValueName, &port_value_data);
+  if (result != ERROR_SUCCESS) {
     return std::wstring();
-  return port_value;
+  }
+  return port_value_data;
+}
+
+std::string GetDriverVersionString(DWORDLONG version_number) {
+  // A Windows driver version number is four 16-bit unsigned integers
+  // concatenated together as w.x.y.z in a 64 bit unsigned int.
+  // https://learn.microsoft.com/en-us/windows-hardware/drivers/install/inf-driverver-directive
+  return base::StringPrintf(
+      "%u.%u.%u.%u", static_cast<uint16_t>((version_number >> 48) & 0xFFFF),
+      static_cast<uint16_t>((version_number >> 32) & 0xFFFF),
+      static_cast<uint16_t>((version_number >> 16) & 0xFFFF),
+      static_cast<uint16_t>(version_number & 0xFFFF));
+}
+
+std::optional<PrinterBasicInfo> GetBasicPrinterInfoMixedMethod(HANDLE printer) {
+  // `printer` already guaranteed to be non-null by caller.
+  CHECK(printer);
+  PrinterInfo1 info_1;
+  if (!info_1.Init(printer)) {
+    return std::nullopt;
+  }
+
+  PrinterBasicInfo printer_info =
+      InitializePrinterInfo(info_1.get()->pName, info_1.get()->pComment);
+
+  // Location is not available from the fast ::GetPrinter() call that uses
+  // PRINTER_INFO_1, it is only available with the potentially slow level
+  // PRINTER_INFO_2.  Try to read the location information directly from the
+  // registry.  Since the location metadata is not critical, do not fail if
+  // the printer cannot be found in the registry.  Capture the success of this
+  // in a metric, as it will be of interest should finding the registry entry
+  // ever fail.
+  base::win::RegKey reg_key;
+  std::wstring root_key =
+      base::StrCat({kDriversRegistryKeyPath, info_1.get()->pName});
+  LONG result =
+      reg_key.Open(HKEY_LOCAL_MACHINE, root_key.c_str(), KEY_QUERY_VALUE);
+  base::UmaHistogramBoolean("Printing.EnumeratePrinters.BasicInfo.Registry",
+                            result == ERROR_SUCCESS);
+  if (result == ERROR_SUCCESS) {
+    // Even though the registry entry for the printer is found, it isn't
+    // required to contain a value name for location.
+    std::wstring value_data;
+    result = reg_key.ReadValue(kLocationRegistryValueName, &value_data);
+    if (result == ERROR_SUCCESS && !value_data.empty()) {
+      printer_info.options[kLocationTagName] = base::WideToUTF8(value_data);
+    }
+  }
+
+  return printer_info;
 }
 
 }  // namespace
-
-namespace printing {
 
 // static
 bool PrinterHandleTraits::CloseHandle(HANDLE handle) {
@@ -201,46 +274,39 @@ bool XPSModule::InitImpl() {
       GetProcAddress(prntvpt_module, "PTOpenProvider"));
   if (!g_open_provider_proc) {
     NOTREACHED();
-    return false;
   }
   g_get_print_capabilities_proc = reinterpret_cast<PTGetPrintCapabilitiesProc>(
       GetProcAddress(prntvpt_module, "PTGetPrintCapabilities"));
   if (!g_get_print_capabilities_proc) {
     NOTREACHED();
-    return false;
   }
   g_convert_devmode_to_print_ticket_proc =
       reinterpret_cast<PTConvertDevModeToPrintTicketProc>(
           GetProcAddress(prntvpt_module, "PTConvertDevModeToPrintTicket"));
   if (!g_convert_devmode_to_print_ticket_proc) {
     NOTREACHED();
-    return false;
   }
   g_convert_print_ticket_to_devmode_proc =
       reinterpret_cast<PTConvertPrintTicketToDevModeProc>(
           GetProcAddress(prntvpt_module, "PTConvertPrintTicketToDevMode"));
   if (!g_convert_print_ticket_to_devmode_proc) {
     NOTREACHED();
-    return false;
   }
   g_merge_and_validate_print_ticket_proc =
       reinterpret_cast<PTMergeAndValidatePrintTicketProc>(
           GetProcAddress(prntvpt_module, "PTMergeAndValidatePrintTicket"));
   if (!g_merge_and_validate_print_ticket_proc) {
     NOTREACHED();
-    return false;
   }
   g_release_memory_proc = reinterpret_cast<PTReleaseMemoryProc>(
       GetProcAddress(prntvpt_module, "PTReleaseMemory"));
   if (!g_release_memory_proc) {
     NOTREACHED();
-    return false;
   }
   g_close_provider_proc = reinterpret_cast<PTCloseProviderProc>(
       GetProcAddress(prntvpt_module, "PTCloseProvider"));
   if (!g_close_provider_proc) {
     NOTREACHED();
-    return false;
   }
   return true;
 }
@@ -358,7 +424,6 @@ bool XPSPrintModule::InitImpl() {
       GetProcAddress(xpsprint_module, "StartXpsPrintJob"));
   if (!g_start_xps_print_job_proc) {
     NOTREACHED();
-    return false;
   }
   return true;
 }
@@ -386,80 +451,75 @@ void SetGetDisplayNameFunction(GetDisplayNameFunc get_display_name_func) {
   g_get_display_name_func = get_display_name_func;
 }
 
-bool InitBasicPrinterInfo(HANDLE printer, PrinterBasicInfo* printer_info) {
-  DCHECK(printer);
-  DCHECK(printer_info);
-  if (!printer)
-    return false;
+std::optional<PrinterBasicInfo> GetBasicPrinterInfo(HANDLE printer) {
+  if (!printer) {
+    return std::nullopt;
+  }
+
+  if (base::FeatureList::IsEnabled(features::kFastEnumeratePrinters)) {
+    return GetBasicPrinterInfoMixedMethod(printer);
+  }
 
   PrinterInfo2 info_2;
-  if (!info_2.Init(printer))
-    return false;
+  if (!info_2.Init(printer)) {
+    return std::nullopt;
+  }
 
-  printer_info->printer_name = base::WideToUTF8(info_2.get()->pPrinterName);
-  if (g_get_display_name_func) {
-    printer_info->display_name =
-        g_get_display_name_func(printer_info->printer_name);
-  } else {
-    printer_info->display_name = printer_info->printer_name;
-  }
-  if (info_2.get()->pComment) {
-    printer_info->printer_description =
-        base::WideToUTF8(info_2.get()->pComment);
-  }
+  PrinterBasicInfo printer_info =
+      InitializePrinterInfo(info_2.get()->pPrinterName, info_2.get()->pComment);
+
   if (info_2.get()->pLocation) {
-    printer_info->options[kLocationTagName] =
-        base::WideToUTF8(info_2.get()->pLocation);
+    std::string location = base::WideToUTF8(info_2.get()->pLocation);
+    if (!location.empty()) {
+      printer_info.options[kLocationTagName] = std::move(location);
+    }
   }
-  if (info_2.get()->pDriverName) {
-    printer_info->options[kDriverNameTagName] =
-        base::WideToUTF8(info_2.get()->pDriverName);
-  }
-  printer_info->printer_status = info_2.get()->Status;
-
-  std::string driver_info = GetDriverInfo(printer);
-  if (!driver_info.empty())
-    printer_info->options[kDriverInfoTagName] = driver_info;
-  return true;
+  return printer_info;
 }
 
-std::string GetDriverInfo(HANDLE printer) {
-  DCHECK(printer);
-  std::string driver_info;
+std::optional<PrinterBasicInfo>
+GetBasicPrinterInfoMixedMethodForTesting(  // IN-TEST
+    HANDLE printer) {
+  return GetBasicPrinterInfoMixedMethod(printer);
+}
 
-  if (!printer)
+std::vector<std::string> GetDriverInfo(HANDLE printer) {
+  DCHECK(printer);
+  std::vector<std::string> driver_info;
+
+  if (!printer) {
     return driver_info;
+  }
 
   DriverInfo6 info_6;
-  if (!info_6.Init(printer))
+  if (!info_6.Init(printer)) {
     return driver_info;
+  }
 
-  std::string info[4];
-  if (info_6.get()->pName)
-    info[0] = base::WideToUTF8(info_6.get()->pName);
+  driver_info.emplace_back(info_6.get()->pName
+                               ? base::WideToUTF8(info_6.get()->pName)
+                               : std::string());
+
+  driver_info.emplace_back(
+      info_6.get()->dwlDriverVersion
+          ? GetDriverVersionString(info_6.get()->dwlDriverVersion)
+          : std::string());
 
   if (info_6.get()->pDriverPath) {
     std::unique_ptr<FileVersionInfo> version_info(
         FileVersionInfo::CreateFileVersionInfo(
             base::FilePath(info_6.get()->pDriverPath)));
     if (version_info.get()) {
-      info[1] = base::UTF16ToUTF8(version_info->file_version());
-      info[2] = base::UTF16ToUTF8(version_info->product_name());
-      info[3] = base::UTF16ToUTF8(version_info->product_version());
+      driver_info.emplace_back(base::UTF16ToUTF8(version_info->file_version()));
+      driver_info.emplace_back(base::UTF16ToUTF8(version_info->product_name()));
     }
   }
 
-  for (size_t i = 0; i < std::size(info); ++i) {
-    std::replace(info[i].begin(), info[i].end(), ';', ',');
-    driver_info.append(info[i]);
-    if (i < std::size(info) - 1)
-      driver_info.append(";");
-  }
   return driver_info;
 }
 
 bool DoesDriverDisplayFileDialogForPrinting(const std::string& printer_name) {
-  static constexpr auto kPortNames = base::MakeFixedFlatSet<base::WStringPiece>(
+  static constexpr auto kPortNames = base::MakeFixedFlatSet<std::wstring_view>(
       {kPrinterDriverPortFile, kPrinterDriverPortPrompt,
        kPrinterDriverPortFax});
   return kPortNames.contains(GetPrinterDriverPort(printer_name));
@@ -527,8 +587,9 @@ std::unique_ptr<DEVMODE, base::FreeDeleter> CreateDevModeWithColor(
   const DRIVER_INFO_6* p = info_6.get();
 
   // Only HP known to have issues.
-  if (!p->pszMfgName || wcscmp(p->pszMfgName, L"HP") != 0)
+  if (!p->pszMfgName || UNSAFE_TODO(wcscmp(p->pszMfgName, L"HP")) != 0) {
     return default_ticket;
+  }
 
   // Need XPS for this workaround.
   ScopedXPSInitializer xps_initializer;
@@ -608,7 +669,7 @@ std::unique_ptr<DEVMODE, base::FreeDeleter> CreateDevMode(HANDLE printer,
   // recorded in crash dumps.
   // See https://crbug.com/780016 and https://crbug.com/806016 for example
   // crashes.
-  // TODO(crbug.com/780016): Remove this debug code if the CHECK_GE() below
+  // TODO(crbug.com/41352705): Remove this debug code if the CHECK_GE() below
   // stops failing.
   base::debug::Alias(&size);
   base::debug::Alias(&extra_size);
@@ -653,6 +714,18 @@ std::unique_ptr<DEVMODE, base::FreeDeleter> PromptDevMode(
   int extra_size = out->dmDriverExtra;
   CHECK_GE(buffer_size, size + extra_size);
   return out;
+}
+
+std::string GetDriverVersionStringForTesting(DWORDLONG version_number) {
+  return GetDriverVersionString(version_number);
+}
+
+mojom::ResultCode GetResultCodeFromSystemErrorCode(
+    logging::SystemErrorCode system_code) {
+  if (system_code == ERROR_ACCESS_DENIED) {
+    return mojom::ResultCode::kAccessDenied;
+  }
+  return mojom::ResultCode::kFailed;
 }
 
 }  // namespace printing

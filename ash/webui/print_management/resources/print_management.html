@@ -1,4 +1,24 @@
 <style include="cr-shared-style print-management-shared print-management-fonts">
+  :host-context(body.jelly-enabled) .column-headers {
+    font: var(--cros-button-2-font);
+  }
+
+  :host-context(body.jelly-enabled) .column-headers {
+    font: var(--cros-button-2-font);
+  }
+
+  :host-context(body.jelly-enabled) #clearAllButton {
+    font: var(--cros-button-2-font);
+  }
+
+  :host-context(body.jelly-enabled) #ongoingEmptyState {
+    font: var(--cros-body-2-font);
+  }
+
+  :host-context(body.jelly-enabled) #printJobTitle {
+    font: var(--cros-display-6-font);
+  }
+
   .column-headers {
     color: var(--print-management-header-text-color);
     font-family: var(--print-management-header-font-family);
@@ -27,10 +47,11 @@
   }
 
   #clearAllContainer {
+    column-gap: 8px;
     display: flex;
   }
 
-  #deleteIcon {
+  :host-context(body:not(.jelly-enabled)) #deleteIcon {
     --iron-icon-height: 20px;
     --iron-icon-width: 20px;
     margin-inline-end: 4px;
@@ -87,6 +108,12 @@
     margin-bottom: 0;
     margin-top: 0;
   }
+
+  printer-setup-info {
+    align-items: center;
+    flex: 1 1 auto;
+    height: 100%;
+  }
 </style>
 
 <div class="main-container margin-border">
@@ -100,8 +127,17 @@
       <cr-button id="clearAllButton" on-click="onClearHistoryClicked"
           disabled="[[shouldDisableClearAllButton]]"
           hidden="[[!showClearAllButton]]">
-        <iron-icon id="deleteIcon" icon="print-management:delete"></iron-icon>
+        <iron-icon id="deleteIcon" icon="print-management:delete"
+            slot="prefix-icon">
+        </iron-icon>
         [[i18n('clearAllHistoryLabel')]]
+      </cr-button>
+      <cr-button id="managePrinters" hidden="[[!shouldShowManagePrinterButton(
+          ongoingPrintJobs.length, printJobs.length)]]"
+          on-click="onManagePrintersClicked">
+        <iron-icon id="openInNewIcon" icon="cr:open-in-new" slot="suffix-icon">
+        </iron-icon>
+        [[i18n('managePrintersButtonLabel')]]
       </cr-button>
     </div>
   </div>
@@ -114,7 +150,7 @@
 
   <div class="data-container">
     <div class="column-headers flex-center"
-        aria-labeledby="fileNameColumn printerNameColumn dateColumn statusColumn">
+        aria-labelledby="fileNameColumn printerNameColumn dateColumn statusColumn">
       <div id="fileNameColumn" class="file-name-header-column overflow-ellipsis"
           aria-hidden="true">
         [[i18n('fileNameColumn')]]
@@ -145,9 +181,14 @@
       </iron-list>
     </template>
 
-    <div id="ongoingEmptyState" hidden="[[ongoingPrintJobs.length]]">
+    <div id="ongoingEmptyState" hidden="[[!shouldShowOngoingEmptyState(
+          ongoingPrintJobs.length, printJobs.length)]]">
       [[i18n('noPrintJobInProgress')]]
     </div>
+
+    <printer-setup-info hidden="[[!shouldShowSetupAssistance(
+        printJobsLoaded, ongoingPrintJobs.length, printJobs.length)]]">
+    </printer-setup-info>
 
     <template is="dom-if" if="[[printJobs.length]]" restamp>
       <div id="historyHeaderContainer" class="column-headers flex-center">

@@ -17,9 +17,11 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/services/storage/public/mojom/storage_usage_info.mojom.h"
+#include "content/public/test/shared_storage_test_utils.h"
 #include "sql/database.h"
 #include "sql/test/test_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -39,8 +41,14 @@ TestDatabaseOperationReceiver::DBOperation::DBOperation(Type type,
                                                         url::Origin origin)
     : type(type), origin(std::move(origin)) {
   DCHECK(type == Type::DB_LENGTH || type == Type::DB_CLEAR ||
-         type == Type::DB_GET_REMAINING_BUDGET ||
-         type == Type::DB_GET_NUM_BUDGET || type == Type::DB_GET_CREATION_TIME);
+         type == Type::DB_GET_CREATION_TIME);
+}
+
+TestDatabaseOperationReceiver::DBOperation::DBOperation(Type type,
+                                                        net::SchemefulSite site)
+    : type(type), origin(site.GetInternalOriginForTesting()) {  // IN-TEST
+  DCHECK(type == Type::DB_GET_REMAINING_BUDGET ||
+         type == Type::DB_GET_NUM_BUDGET);
 }
 
 TestDatabaseOperationReceiver::DBOperation::DBOperation(
@@ -51,9 +59,18 @@ TestDatabaseOperationReceiver::DBOperation::DBOperation(
   DCHECK(type == Type::DB_GET || type == Type::DB_SET ||
          type == Type::DB_APPEND || type == Type::DB_DELETE ||
          type == Type::DB_KEYS || type == Type::DB_ENTRIES ||
-         type == Type::DB_MAKE_BUDGET_WITHDRAWAL ||
          type == Type::DB_OVERRIDE_TIME_ORIGIN ||
          type == Type::DB_OVERRIDE_TIME_ENTRY);
+}
+
+TestDatabaseOperationReceiver::DBOperation::DBOperation(
+    Type type,
+    net::SchemefulSite site,
+    std::vector<std::u16string> params)
+    : type(type),
+      origin(site.GetInternalOriginForTesting()),  // IN-TEST
+      params(std::move(params)) {
+  DCHECK_EQ(type, Type::DB_MAKE_BUDGET_WITHDRAWAL);
 }
 
 TestDatabaseOperationReceiver::DBOperation::DBOperation(
@@ -64,15 +81,33 @@ TestDatabaseOperationReceiver::DBOperation::DBOperation(
          type == Type::DB_PURGE_MATCHING);
 }
 
+TestDatabaseOperationReceiver::DBOperation::DBOperation(
+    Type type,
+    url::Origin origin,
+    std::vector<network::mojom::SharedStorageModifierMethodWithOptionsPtr>
+        batch_update_methods)
+    : type(type),
+      origin(std::move(origin)),
+      batch_update_methods(std::move(batch_update_methods)) {
+  DCHECK_EQ(type, Type::DB_BATCH_UPDATE);
+}
+
 TestDatabaseOperationReceiver::DBOperation::~DBOperation() = default;
 
-TestDatabaseOperationReceiver::DBOperation::DBOperation(const DBOperation&) =
-    default;
+TestDatabaseOperationReceiver::DBOperation::DBOperation(
+    const DBOperation& operation)
+    : type(operation.type),
+      origin(operation.origin),
+      params(operation.params),
+      batch_update_methods(
+          content::CloneSharedStorageMethods(operation.batch_update_methods)) {}
 
 bool TestDatabaseOperationReceiver::DBOperation::operator==(
     const DBOperation& operation) const {
-  if (type != operation.type || params != operation.params)
+  if (type != operation.type || params != operation.params ||
+      batch_update_methods != operation.batch_update_methods) {
     return false;
+  }
 
   if (origin.opaque() && operation.origin.opaque())
     return true;
@@ -82,8 +117,10 @@ bool TestDatabaseOperationReceiver::DBOperation::operator==(
 
 bool TestDatabaseOperationReceiver::DBOperation::operator!=(
     const DBOperation& operation) const {
-  if (type != operation.type || params != operation.params)
+  if (type != operation.type || params != operation.params ||
+      batch_update_methods != operation.batch_update_methods) {
     return true;
+  }
 
   if (origin.opaque() && operation.origin.opaque())
     return false;
@@ -103,6 +140,11 @@ std::string TestDatabaseOperationReceiver::DBOperation::Serialize() const {
                       ? base::StrCat({serialization, "}"})
                       : base::StrCat({serialization,
                                       base::UTF16ToUTF8(params.back()), "}"});
+
+  serialization = base::StrCat(
+      {serialization, "; batch_update_methods: ",
+       content::SerializeSharedStorageMethods(batch_update_methods)});
+
   return serialization;
 }
 
@@ -124,7 +166,7 @@ std::u16string TestDatabaseOperationReceiver::SerializeTimeDelta(
 
 // static
 std::u16string TestDatabaseOperationReceiver::SerializeBool(bool b) {
-  return b ? u"true" : u"false";
+  return base::UTF8ToUTF16(base::ToString(b));
 }
 
 // static
@@ -221,6 +263,27 @@ TestDatabaseOperationReceiver::MakeOperationResultCallback(
     OperationResult* out_result) {
   return base::BindOnce(
       &TestDatabaseOperationReceiver::OperationResultCallbackBase,
+      base::Unretained(this), current_operation, out_result);
+}
+
+void TestDatabaseOperationReceiver::BatchUpdateResultCallbackBase(
+    const DBOperation& current_operation,
+    BatchUpdateResult* out_result,
+    BatchUpdateResult result) {
+  DCHECK(out_result);
+  *out_result = std::move(result);
+
+  if (ExpectationsMet(current_operation) && loop_.running()) {
+    Finish();
+  }
+}
+
+base::OnceCallback<void(BatchUpdateResult)>
+TestDatabaseOperationReceiver::MakeBatchUpdateResultCallback(
+    const DBOperation& current_operation,
+    BatchUpdateResult* out_result) {
+  return base::BindOnce(
+      &TestDatabaseOperationReceiver::BatchUpdateResultCallbackBase,
       base::Unretained(this), current_operation, out_result);
 }
 
@@ -535,7 +598,7 @@ void VerifySharedStorageTablesAndColumns(sql::Database& db) {
 
   // Implicit index on `meta`, `values_mapping_last_used_time_idx`,
   // `per_origin_mapping_creation_time_idx`, and
-  // budget_mapping_origin_time_stamp_idx.
+  // budget_mapping_site_time_stamp_idx.
   EXPECT_EQ(4u, sql::test::CountSQLIndices(&db));
 
   // `key` and `value`.
@@ -544,16 +607,17 @@ void VerifySharedStorageTablesAndColumns(sql::Database& db) {
   // `context_origin`, `key`, `value`, and `last_used_time`.
   EXPECT_EQ(4u, sql::test::CountTableColumns(&db, "values_mapping"));
 
-  // `context_origin`, `creation_time`, and `length`.
+  // `context_origin`, `creation_time`, and `num_bytes`.
   EXPECT_EQ(3u, sql::test::CountTableColumns(&db, "per_origin_mapping"));
 
-  // `id`, `context_origin`, `time_stamp`, and `bits_debit`.
+  // `id`, `context_site`, `time_stamp`, and `bits_debit`.
   EXPECT_EQ(4u, sql::test::CountTableColumns(&db, "budget_mapping"));
 }
 
 bool GetTestDataSharedStorageDir(base::FilePath* dir) {
-  if (!base::PathService::Get(base::DIR_SOURCE_ROOT, dir))
+  if (!base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, dir)) {
     return false;
+  }
   *dir = dir->AppendASCII("components");
   *dir = dir->AppendASCII("test");
   *dir = dir->AppendASCII("data");

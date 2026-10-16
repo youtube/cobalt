@@ -2,12 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string_view>
+
 #include "ash/public/cpp/desk_template.h"
 #include "ash/public/cpp/saved_desk_delegate.h"
 #include "ash/wm/desks/templates/admin_template_launch_tracker.h"
 #include "ash/wm/desks/templates/saved_desk_constants.h"
+#include "ash/wm/desks/templates/saved_desk_test_util.h"
 #include "ash/wm/overview/overview_test_base.h"
 #include "base/json/json_string_value_serializer.h"
+#include "base/uuid.h"
 #include "components/app_restore/restore_data.h"
 #include "ui/gfx/geometry/rect.h"
 
@@ -28,8 +32,12 @@ class MockSavedDeskDelegate : public SavedDeskDelegate {
               (aura::Window*, GetAppLaunchDataCallback),
               (const override));
   MOCK_METHOD(desks_storage::DeskModel*, GetDeskModel, (), (override));
-  MOCK_METHOD(bool, IsIncognitoWindow, (aura::Window*), (const override));
-  MOCK_METHOD(absl::optional<gfx::ImageSkia>,
+  MOCK_METHOD(desks_storage::AdminTemplateService*,
+              GetAdminTemplateService,
+              (),
+              (override));
+  MOCK_METHOD(bool, IsWindowPersistable, (aura::Window*), (const override));
+  MOCK_METHOD(std::optional<gfx::ImageSkia>,
               MaybeRetrieveIconForSpecialIdentifier,
               (const std::string&, const ui::ColorProvider*),
               (const override));
@@ -90,7 +98,7 @@ class AdminTemplateTest : public OverviewTestBase,
 
  protected:
   // Creates a template from a JSON string.
-  std::unique_ptr<DeskTemplate> CreateTemplateFromJson(base::StringPiece json) {
+  std::unique_ptr<DeskTemplate> CreateTemplateFromJson(std::string_view json) {
     base::JSONReader::Result json_read_result =
         base::JSONReader::ReadAndReturnValueWithError(json);
     if (!json_read_result.has_value()) {
@@ -98,7 +106,7 @@ class AdminTemplateTest : public OverviewTestBase,
     }
 
     auto admin_template = std::make_unique<DeskTemplate>(
-        base::GUID::GenerateRandomV4(), DeskTemplateSource::kPolicy,
+        base::Uuid::GenerateRandomV4(), DeskTemplateSource::kPolicy,
         "admin template", base::Time::Now(), DeskTemplateType::kTemplate);
     admin_template->set_desk_restore_data(
         std::make_unique<app_restore::RestoreData>(
@@ -106,35 +114,13 @@ class AdminTemplateTest : public OverviewTestBase,
 
     return admin_template;
   }
-
-  // Returns the app restore data for `app_id` and `window_id` in
-  // `admin_template`.
-  const app_restore::AppRestoreData* GetRestoreData(
-      const DeskTemplate& admin_template,
-      const std::string& app_id,
-      absl::optional<int32_t> window_id = absl::nullopt) {
-    const auto& app_id_to_launch_list =
-        admin_template.desk_restore_data()->app_id_to_launch_list();
-    auto it = app_id_to_launch_list.find(app_id);
-    if (it == app_id_to_launch_list.end()) {
-      return nullptr;
-    }
-
-    const auto& launch_list = it->second;
-    if (window_id.has_value()) {
-      auto it2 = launch_list.find(*window_id);
-      return it2 != launch_list.end() ? it2->second.get() : nullptr;
-    }
-    return launch_list.begin()->second.get();
-  }
 };
 
 TEST_F(AdminTemplateTest, MergeAdminTemplateWindowUpdate) {
   auto admin_template = CreateTemplateFromJson(kAdminTemplateJson);
   ASSERT_TRUE(admin_template);
 
-  const auto* app_restore_data =
-      GetRestoreData(*admin_template, "mgndgikekgjfcpckkfioiadnlibdjbkf", 1);
+  const auto* app_restore_data = QueryRestoreData(*admin_template, {});
   ASSERT_TRUE(app_restore_data);
 
   // Using a window ID not present in the template.
@@ -142,15 +128,16 @@ TEST_F(AdminTemplateTest, MergeAdminTemplateWindowUpdate) {
       MergeAdminTemplateWindowUpdate(*admin_template, {.template_rwid = 123}));
 
   // Checks that the original window bounds are present.
-  EXPECT_THAT(app_restore_data->current_bounds,
+  EXPECT_THAT(app_restore_data->window_info.current_bounds,
               Optional(gfx::Rect(100, 50, 640, 480)));
 
   gfx::Rect new_bounds(10, 10, 300, 200);
   EXPECT_TRUE(MergeAdminTemplateWindowUpdate(
       *admin_template, {.template_rwid = 1, .bounds = new_bounds}));
-  EXPECT_THAT(app_restore_data->current_bounds, Optional(new_bounds));
+  EXPECT_THAT(app_restore_data->window_info.current_bounds,
+              Optional(new_bounds));
 
-  EXPECT_THAT(app_restore_data->display_id, Eq(absl::nullopt));
+  EXPECT_THAT(app_restore_data->display_id, Eq(std::nullopt));
   EXPECT_TRUE(MergeAdminTemplateWindowUpdate(
       *admin_template, {.template_rwid = 1, .display_id = 123456}));
   EXPECT_THAT(app_restore_data->display_id, Optional(123456));
@@ -216,44 +203,44 @@ TEST_F(AdminTemplateTest, AdjustAdminTemplateWindowBounds) {
 // Tests that when we have different number of windows the bounds for each
 // window is expected.
 TEST_F(AdminTemplateTest, GetInitialWindowLayout) {
-  const gfx::Rect work_area(0, 0, 1000, 800);
+  const gfx::Size work_area_size(1000, 800);
 
   // Verifies the bounds when there is only one window.
-  EXPECT_THAT(GetInitialWindowLayout(work_area, 1),
+  EXPECT_THAT(GetInitialWindowLayout(work_area_size, 1),
               ElementsAre(gfx::Rect(100, 80, 800, 640)));
 
   // Verifies the bounds when there are two windows.
   EXPECT_THAT(
-      GetInitialWindowLayout(work_area, 2),
+      GetInitialWindowLayout(work_area_size, 2),
       ElementsAre(gfx::Rect(0, 0, 500, 800), gfx::Rect(500, 0, 500, 800)));
 
   // Verifies the bounds when there are three windows.
   EXPECT_THAT(
-      GetInitialWindowLayout(work_area, 3),
+      GetInitialWindowLayout(work_area_size, 3),
       ElementsAre(gfx::Rect(0, 0, 500, 800), gfx::Rect(500, 0, 500, 400),
                   gfx::Rect(500, 400, 500, 400)));
 
   // Verifies the bounds when there are four windows.
   EXPECT_THAT(
-      GetInitialWindowLayout(work_area, 4),
+      GetInitialWindowLayout(work_area_size, 4),
       ElementsAre(gfx::Rect(0, 0, 500, 400), gfx::Rect(500, 0, 500, 400),
-                  gfx::Rect(500, 400, 500, 400), gfx::Rect(0, 400, 500, 400)));
+                  gfx::Rect(0, 400, 500, 400), gfx::Rect(500, 400, 500, 400)));
 
   // Verifies the bounds when there are eight windows.
   EXPECT_THAT(
-      GetInitialWindowLayout(work_area, 8),
+      GetInitialWindowLayout(work_area_size, 8),
       ElementsAre(gfx::Rect(0, 0, 500, 400), gfx::Rect(500, 0, 500, 400),
-                  gfx::Rect(500, 400, 500, 400), gfx::Rect(0, 400, 500, 400),
+                  gfx::Rect(0, 400, 500, 400), gfx::Rect(500, 400, 500, 400),
                   gfx::Rect(0, 0, 500, 400), gfx::Rect(500, 0, 500, 400),
-                  gfx::Rect(500, 400, 500, 400), gfx::Rect(0, 400, 500, 400)));
+                  gfx::Rect(0, 400, 500, 400), gfx::Rect(500, 400, 500, 400)));
 }
 
 TEST_P(AdminTemplateTest, LaunchTemplate) {
   auto admin_template = CreateTemplateFromJson(GetParam());
   ASSERT_TRUE(admin_template);
 
-  AdminTemplateLaunchTracker launch_tracker(std::move(admin_template),
-                                            base::DoNothing());
+  AdminTemplateLaunchTracker launch_tracker(
+      std::move(admin_template), base::DoNothing(), base::TimeDelta());
 
   MockSavedDeskDelegate saved_desk_delegate;
   std::unique_ptr<DeskTemplate> launched_template;
@@ -269,18 +256,17 @@ TEST_P(AdminTemplateTest, LaunchTemplate) {
                                 /*default_display_id=*/-1);
 
   ASSERT_TRUE(launched_template);
-  // The first launched window will start at -2.
-  const auto* app_restore_data =
-      GetRestoreData(*launched_template, "mgndgikekgjfcpckkfioiadnlibdjbkf");
+  const auto* app_restore_data = QueryRestoreData(*launched_template, {});
   ASSERT_TRUE(app_restore_data);
 
-  // Verifies that the window has been assigned with bounds.
-  ASSERT_FALSE(app_restore_data->current_bounds->IsEmpty());
   // Verifies that a display id has been assigned.
   EXPECT_THAT(app_restore_data->display_id, Optional(Not(Eq(-1))));
+
   // And window activation index.
-  EXPECT_THAT(app_restore_data->activation_index,
-              Optional(Le(kAdminTemplateStartingActivationIndex)));
+  EXPECT_THAT(app_restore_data->window_info.activation_index,
+              Optional(Le(kTemplateStartingActivationIndex)));
+  // Verifies that the window has been assigned with bounds.
+  ASSERT_FALSE(app_restore_data->window_info.current_bounds->IsEmpty());
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

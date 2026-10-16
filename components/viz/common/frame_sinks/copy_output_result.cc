@@ -8,7 +8,6 @@
 
 #include "base/check_op.h"
 #include "base/notreached.h"
-#include "third_party/khronos/GLES2/gl2.h"
 #include "third_party/libyuv/include/libyuv.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/include/core/SkPixelRef.h"
@@ -23,18 +22,8 @@ CopyOutputResult::TextureResult& CopyOutputResult::TextureResult::operator=(
 
 CopyOutputResult::TextureResult::TextureResult(
     const gpu::Mailbox& mailbox,
-    const gpu::SyncToken& sync_token,
     const gfx::ColorSpace& color_space)
-    : color_space(color_space) {
-  planes[0].mailbox = mailbox;
-  planes[0].sync_token = sync_token;
-  planes[0].texture_target = GL_TEXTURE_2D;
-}
-
-CopyOutputResult::TextureResult::TextureResult(
-    const std::array<gpu::MailboxHolder, kMaxPlanes>& planes,
-    const gfx::ColorSpace& color_space)
-    : planes(planes), color_space(color_space) {}
+    : mailbox(mailbox), color_space(color_space) {}
 
 CopyOutputResult::CopyOutputResult(Format format,
                                    Destination destination,
@@ -45,7 +34,7 @@ CopyOutputResult::CopyOutputResult(Format format,
       rect_(rect),
       needs_lock_for_bitmap_(needs_lock_for_bitmap) {
   DCHECK(format_ == Format::RGBA || format_ == Format::I420_PLANES ||
-         format == Format::NV12_PLANES);
+         format == Format::NV12);
   DCHECK(destination_ == Destination::kSystemMemory ||
          destination_ == Destination::kNativeTextures);
 }
@@ -81,11 +70,11 @@ CopyOutputResult::ReleaseCallbacks CopyOutputResult::TakeTextureOwnership() {
   return {};
 }
 
-bool CopyOutputResult::ReadI420Planes(uint8_t* y_out,
+bool CopyOutputResult::ReadI420Planes(base::span<uint8_t> y_out,
                                       int y_out_stride,
-                                      uint8_t* u_out,
+                                      base::span<uint8_t> u_out,
                                       int u_out_stride,
-                                      uint8_t* v_out,
+                                      base::span<uint8_t> v_out,
                                       int v_out_stride) const {
   auto scoped_sk_bitmap = ScopedAccessSkBitmap();
   const SkBitmap& bitmap = scoped_sk_bitmap.bitmap();
@@ -98,15 +87,16 @@ bool CopyOutputResult::ReadI420Planes(uint8_t* y_out,
   // a perfect conversion using gfx::ColorTransform would execute way too
   // slowly. See SoftwareRenderer for related comments on its lack of color
   // space management (due to performance concerns).
+  // TODO(crbug.com/384959115): Verify span size before calling into libyuv.
   if (bitmap.colorType() == kBGRA_8888_SkColorType) {
-    return 0 == libyuv::ARGBToI420(pixels, bitmap.rowBytes(), y_out,
-                                   y_out_stride, u_out, u_out_stride, v_out,
-                                   v_out_stride, bitmap.width(),
+    return 0 == libyuv::ARGBToI420(pixels, bitmap.rowBytes(), y_out.data(),
+                                   y_out_stride, u_out.data(), u_out_stride,
+                                   v_out.data(), v_out_stride, bitmap.width(),
                                    bitmap.height());
   } else if (bitmap.colorType() == kRGBA_8888_SkColorType) {
-    return 0 == libyuv::ABGRToI420(pixels, bitmap.rowBytes(), y_out,
-                                   y_out_stride, u_out, u_out_stride, v_out,
-                                   v_out_stride, bitmap.width(),
+    return 0 == libyuv::ABGRToI420(pixels, bitmap.rowBytes(), y_out.data(),
+                                   y_out_stride, u_out.data(), u_out_stride,
+                                   v_out.data(), v_out_stride, bitmap.width(),
                                    bitmap.height());
   }
 
@@ -117,9 +107,9 @@ bool CopyOutputResult::ReadI420Planes(uint8_t* y_out,
   return false;
 }
 
-bool CopyOutputResult::ReadNV12Planes(uint8_t* y_out,
+bool CopyOutputResult::ReadNV12Planes(base::span<uint8_t> y_out,
                                       int y_out_stride,
-                                      uint8_t* uv_out,
+                                      base::span<uint8_t> uv_out,
                                       int uv_out_stride) const {
   auto scoped_sk_bitmap = ScopedAccessSkBitmap();
   const SkBitmap& bitmap = scoped_sk_bitmap.bitmap();
@@ -132,13 +122,14 @@ bool CopyOutputResult::ReadNV12Planes(uint8_t* y_out,
   // a perfect conversion using gfx::ColorTransform would execute way too
   // slowly. See SoftwareRenderer for related comments on its lack of color
   // space management (due to performance concerns).
+  // TODO(crbug.com/384959115): Verify span size before calling into libyuv.
   if (bitmap.colorType() == kBGRA_8888_SkColorType) {
-    return 0 == libyuv::ARGBToNV12(pixels, bitmap.rowBytes(), y_out,
-                                   y_out_stride, uv_out, uv_out_stride,
+    return 0 == libyuv::ARGBToNV12(pixels, bitmap.rowBytes(), y_out.data(),
+                                   y_out_stride, uv_out.data(), uv_out_stride,
                                    bitmap.width(), bitmap.height());
   } else if (bitmap.colorType() == kRGBA_8888_SkColorType) {
-    return 0 == libyuv::ABGRToNV12(pixels, bitmap.rowBytes(), y_out,
-                                   y_out_stride, uv_out, uv_out_stride,
+    return 0 == libyuv::ABGRToNV12(pixels, bitmap.rowBytes(), y_out.data(),
+                                   y_out_stride, uv_out.data(), uv_out_stride,
                                    bitmap.width(), bitmap.height());
   }
 
@@ -149,7 +140,8 @@ bool CopyOutputResult::ReadNV12Planes(uint8_t* y_out,
   return false;
 }
 
-bool CopyOutputResult::ReadRGBAPlane(uint8_t* dest, int stride) const {
+bool CopyOutputResult::ReadRGBAPlane(base::span<uint8_t> dest,
+                                     int stride) const {
   auto scoped_sk_bitmap = ScopedAccessSkBitmap();
   const SkBitmap& bitmap = scoped_sk_bitmap.bitmap();
   if (!bitmap.readyToDraw())
@@ -159,7 +151,8 @@ bool CopyOutputResult::ReadRGBAPlane(uint8_t* dest, int stride) const {
   SkImageInfo image_info =
       SkImageInfo::MakeN32(bitmap.width(), bitmap.height(), kPremul_SkAlphaType,
                            bitmap.refColorSpace());
-  bitmap.readPixels(image_info, dest, stride, 0, 0);
+  CHECK_GE(dest.size(), image_info.computeByteSize(stride));
+  bitmap.readPixels(image_info, dest.data(), stride, 0, 0);
   return true;
 }
 
@@ -225,12 +218,9 @@ CopyOutputTextureResult::CopyOutputTextureResult(
     : CopyOutputResult(format, Destination::kNativeTextures, rect, false),
       texture_result_(std::move(texture_result)),
       release_callbacks_(std::move(release_callbacks)) {
-  // If we're constructing empty result, all mailboxes must be zero.
+  // If we're constructing empty result, all mailbox_holders must be zero.
   // Otherwise, the first mailbox must be non-zero.
-  DCHECK_EQ(rect.IsEmpty(), texture_result_.planes[0].mailbox.IsZero());
-  if (format == Format::NV12_PLANES) {
-    DCHECK_EQ(rect.IsEmpty(), texture_result_.planes[1].mailbox.IsZero());
-  }
+  DCHECK_EQ(rect.IsEmpty(), texture_result_.mailbox.IsZero());
   // If we're constructing empty result, the callbacks must be empty.
   // From definition of implication: p => q  <=>  !p || q.
   DCHECK(!rect.IsEmpty() || release_callbacks_.empty());
@@ -254,14 +244,11 @@ CopyOutputTextureResult::GetTextureResult() const {
 
 CopyOutputResult::ReleaseCallbacks
 CopyOutputTextureResult::TakeTextureOwnership() {
-  texture_result_.planes = {};
+  texture_result_.mailbox = {};
   texture_result_.color_space = {};
 
-  CopyOutputResult::ReleaseCallbacks result;
-  // std::swap is needed since we cannot just move from release_callbacks_ - the
-  // vector would be left in unspecified state, and we need to be able to
-  // iterate over it in the dtor.
-  std::swap(result, release_callbacks_);
+  CopyOutputResult::ReleaseCallbacks result = std::move(release_callbacks_);
+  release_callbacks_.clear();
 
   return result;
 }

@@ -14,16 +14,16 @@ TEST(AssertionsTest, Assertions) {
   DCHECK(true);
 #if DCHECK_IS_ON()
   EXPECT_DEATH_IF_SUPPORTED(DCHECK(false), "");
-  EXPECT_DEATH_IF_SUPPORTED(NOTREACHED(), "");
-  EXPECT_DEATH_IF_SUPPORTED(DCHECK_AT(false, __FILE__, __LINE__), "");
+  EXPECT_DEATH_IF_SUPPORTED(DCHECK_AT(false, base::Location::Current()), "");
 #else
   DCHECK(false);
-  NOTREACHED();
-  DCHECK_AT(false, __FILE__, __LINE__);
+  DCHECK_AT(false, base::Location::Current());
 #endif
 
   CHECK(true);
   EXPECT_DEATH_IF_SUPPORTED(CHECK(false), "");
+
+  EXPECT_DEATH_IF_SUPPORTED(NOTREACHED(), "");
 
   SECURITY_DCHECK(true);
 #if ENABLE_SECURITY_ASSERT

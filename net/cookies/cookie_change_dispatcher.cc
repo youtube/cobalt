@@ -7,31 +7,24 @@
 namespace net {
 
 const char* CookieChangeCauseToString(CookieChangeCause cause) {
-  const char* cause_string = "INVALID";
   switch (cause) {
     case CookieChangeCause::INSERTED:
-      cause_string = "inserted";
-      break;
+      return "inserted";
     case CookieChangeCause::EXPLICIT:
-      cause_string = "explicit";
-      break;
+      return "explicit";
     case CookieChangeCause::UNKNOWN_DELETION:
-      cause_string = "unknown";
-      break;
+      return "unknown";
     case CookieChangeCause::OVERWRITE:
-      cause_string = "overwrite";
-      break;
+      return "overwrite";
     case CookieChangeCause::EXPIRED:
-      cause_string = "expired";
-      break;
+      return "expired";
     case CookieChangeCause::EVICTED:
-      cause_string = "evicted";
-      break;
+      return "evicted";
     case CookieChangeCause::EXPIRED_OVERWRITE:
-      cause_string = "expired_overwrite";
-      break;
+      return "expired_overwrite";
+    case CookieChangeCause::INSERTED_NO_CHANGE_OVERWRITE:
+      return "inserted_no_change_overwrite";
   }
-  return cause_string;
 }
 
 CookieChangeInfo::CookieChangeInfo() = default;
@@ -50,7 +43,19 @@ CookieChangeInfo::CookieChangeInfo(const CanonicalCookie& cookie,
 CookieChangeInfo::~CookieChangeInfo() = default;
 
 bool CookieChangeCauseIsDeletion(CookieChangeCause cause) {
-  return cause != CookieChangeCause::INSERTED;
+  switch (cause) {
+    case CookieChangeCause::INSERTED:
+    case CookieChangeCause::INSERTED_NO_CHANGE_OVERWRITE:
+      return false;
+    case CookieChangeCause::EXPIRED:
+    case CookieChangeCause::EXPIRED_OVERWRITE:
+    case CookieChangeCause::EXPLICIT:
+    case CookieChangeCause::EVICTED:
+    case CookieChangeCause::OVERWRITE:
+    case CookieChangeCause::UNKNOWN_DELETION:
+      return true;
+  }
+  NOTREACHED();
 }
 
 }  // namespace net

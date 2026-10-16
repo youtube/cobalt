@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/342213636): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "content/renderer/skia_benchmarking_extension.h"
 
 #include <stddef.h>
@@ -10,6 +15,7 @@
 #include <utility>
 
 #include "base/base64.h"
+#include "base/memory/raw_ref.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "cc/base/math_util.h"
@@ -22,16 +28,16 @@
 #include "gin/object_template_builder.h"
 #include "skia/ext/benchmarking_canvas.h"
 #include "skia/ext/legacy_display_globals.h"
-#include "third_party/blink/public/web/blink.h"
+#include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/web/web_array_buffer.h"
 #include "third_party/blink/public/web/web_array_buffer_converter.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkCanvas.h"
-#include "third_party/skia/include/core/SkColorPriv.h"
 #include "third_party/skia/include/core/SkGraphics.h"
 #include "third_party/skia/include/core/SkPicture.h"
 #include "third_party/skia/include/core/SkStream.h"
+#include "third_party/skia/include/private/chromium/SkPMColor.h"
 #include "ui/gfx/codec/jpeg_codec.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/geometry/rect_conversions.h"
@@ -102,10 +108,10 @@ class PicturePlaybackController : public SkPicture::AbortCallback {
                             size_t count)
       : canvas_(canvas), playback_count_(count) {}
 
-  bool abort() override { return canvas_.CommandCount() > playback_count_; }
+  bool abort() override { return canvas_->CommandCount() > playback_count_; }
 
  private:
-  const skia::BenchmarkingCanvas& canvas_;
+  const raw_ref<const skia::BenchmarkingCanvas> canvas_;
   size_t playback_count_;
 };
 
@@ -115,7 +121,7 @@ gin::WrapperInfo SkiaBenchmarking::kWrapperInfo = {gin::kEmbedderNativeGin};
 
 // static
 void SkiaBenchmarking::Install(blink::WebLocalFrame* frame) {
-  v8::Isolate* isolate = blink::MainThreadIsolate();
+  v8::Isolate* isolate = frame->GetAgentGroupScheduler()->Isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context = frame->MainWorldScriptContext();
   if (context.IsEmpty())
@@ -187,8 +193,9 @@ void SkiaBenchmarking::Rasterize(gin::Arguments* args) {
     if (params_value && params_value->is_dict()) {
       const base::Value::Dict& params_dict = params_value->GetDict();
       scale = params_dict.FindDouble("scale").value_or(scale);
-      if (absl::optional<int> stop = params_dict.FindInt("stop"))
+      if (std::optional<int> stop = params_dict.FindInt("stop")) {
         stop_index = *stop;
+      }
 
       if (const base::Value* clip_value = params_dict.Find("clip"))
         cc::MathUtil::FromValue(clip_value, &clip_rect);
@@ -223,17 +230,17 @@ void SkiaBenchmarking::Rasterize(gin::Arguments* args) {
   // Swizzle from native Skia format to RGBA as we copy out.
   for (size_t i = 0; i < bitmap.computeByteSize(); i += 4) {
     uint32_t c = packed_pixels[i >> 2];
-    buffer_pixels[i] = SkGetPackedR32(c);
-    buffer_pixels[i + 1] = SkGetPackedG32(c);
-    buffer_pixels[i + 2] = SkGetPackedB32(c);
-    buffer_pixels[i + 3] = SkGetPackedA32(c);
+    buffer_pixels[i] = SkPMColorGetR(c);
+    buffer_pixels[i + 1] = SkPMColorGetG(c);
+    buffer_pixels[i + 2] = SkPMColorGetB(c);
+    buffer_pixels[i + 3] = SkPMColorGetA(c);
   }
 
   args->Return(gin::DataObjectBuilder(isolate)
                    .Set("width", snapped_clip.width())
                    .Set("height", snapped_clip.height())
                    .Set("data", blink::WebArrayBufferConverter::ToV8Value(
-                                    &buffer, context->Global(), isolate))
+                                    &buffer, isolate))
                    .Build());
 }
 

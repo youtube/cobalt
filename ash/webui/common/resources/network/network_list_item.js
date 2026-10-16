@@ -9,266 +9,303 @@
 
 import '//resources/polymer/v3_0/iron-flex-layout/iron-flex-layout-classes.js';
 import '//resources/polymer/v3_0/paper-spinner/paper-spinner-lite.js';
-import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import '//resources/cr_elements/icons.html.js';
-import '//resources/cr_elements/policy/cr_policy_indicator.js';
-import '//resources/cr_elements/cr_shared_style.css.js';
-import '//resources/cr_elements/cr_shared_vars.css.js';
+import '//resources/ash/common/cr_elements/cr_icon_button/cr_icon_button.js';
+import '//resources/ash/common/cr_elements/icons.html.js';
+import '//resources/ash/common/cr_elements/policy/cr_policy_indicator.js';
+import '//resources/ash/common/cr_elements/cr_shared_style.css.js';
+import '//resources/ash/common/cr_elements/cr_shared_vars.css.js';
 import './network_icon.js';
 
 import {assert} from '//resources/ash/common/assert.js';
 import {CellularSetupPageName} from '//resources/ash/common/cellular_setup/cellular_types.js';
 import {getESimProfileProperties} from '//resources/ash/common/cellular_setup/esim_manager_utils.js';
-import {FocusRowBehavior} from '//resources/ash/common/focus_row_behavior.js';
-import {I18nBehavior} from '//resources/ash/common/i18n_behavior.js';
+import {CrPolicyIndicatorType} from '//resources/ash/common/cr_policy_indicator_behavior.js';
+import {FocusRowBehavior, FocusRowBehaviorInterface} from '//resources/ash/common/focus_row_behavior.js';
+import {I18nBehavior, I18nBehaviorInterface} from '//resources/ash/common/i18n_behavior.js';
 import {loadTimeData} from '//resources/ash/common/load_time_data.m.js';
-import {Polymer} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {ActivationStateType, CrosNetworkConfigRemote, GlobalPolicy, ManagedCellularProperties, ManagedProperties, SecurityType} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/cros_network_config.mojom-webui.js';
-import {ConnectionStateType, NetworkType, OncSource, PortalState} from 'chrome://resources/mojo/chromeos/services/network_config/public/mojom/network_types.mojom-webui.js';
+import {mojoString16ToString} from '//resources/js/mojo_type_util.js';
+import {ActivationStateType, SecurityType, VpnType} from '//resources/mojo/chromeos/services/network_config/public/mojom/cros_network_config.mojom-webui.js';
+import {ConnectionStateType, NetworkType, OncSource, PortalState} from '//resources/mojo/chromeos/services/network_config/public/mojom/network_types.mojom-webui.js';
+import {mixinBehaviors, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {CrPolicyNetworkBehaviorMojo} from './cr_policy_network_behavior_mojo.js';
+import {CrPolicyNetworkBehaviorMojo, CrPolicyNetworkBehaviorMojoInterface} from './cr_policy_network_behavior_mojo.js';
 import {MojoInterfaceProvider, MojoInterfaceProviderImpl} from './mojo_interface_provider.js';
 import {getTemplate} from './network_list_item.html.js';
 import {NetworkList} from './network_list_types.js';
 import {OncMojo} from './onc_mojo.js';
 
-Polymer({
-  _template: getTemplate(),
-  is: 'network-list-item',
+/**
+ * @constructor
+ * @extends {PolymerElement}
+ * @implements {CrPolicyNetworkBehaviorMojoInterface}
+ * @implements {I18nBehaviorInterface}
+ * @implements {FocusRowBehaviorInterface}
+ */
+const NetworkListItemElementBase = mixinBehaviors(
+    [
+      CrPolicyNetworkBehaviorMojo,
+      I18nBehavior,
+      FocusRowBehavior,
+    ],
+    PolymerElement);
 
-  behaviors: [
-    CrPolicyNetworkBehaviorMojo,
-    I18nBehavior,
-    FocusRowBehavior,
-  ],
+/** @polymer */
+class NetworkListItemElement extends NetworkListItemElementBase {
+  static get is() {
+    return 'network-list-item';
+  }
 
-  properties: {
-    /**
-     * Dims the UI, disables click and keyboard event handlers.
-     * @private
-     */
-    disabled_: {
-      type: Boolean,
-      reflectToAttribute: true,
-      observer: 'disabledChanged_',
-      computed: 'computeDisabled_(deviceState, deviceState.inhibitReason,' +
-          'disableItem, isUserLoggedIn_, isPSimPendingActivationNetwork_)',
-    },
+  static get template() {
+    return getTemplate();
+  }
 
-    /**
-     * Set by network-list to force disable this network item.
-     * @type {boolean}
-     */
-    disableItem: Boolean,
-
-    /** @type {!NetworkList.NetworkListItemType|undefined} */
-    item: {
-      type: Object,
-      observer: 'itemChanged_',
-    },
-
-    /**
-     * The ONC data properties used to display the list item.
-     * @type {!OncMojo.NetworkStateProperties|undefined}
-     */
-    networkState: {
-      type: Object,
-      observer: 'networkStateChanged_',
-    },
-
-    /** Whether to show any buttons for network items. Defaults to false. */
-    showButtons: {
-      type: Boolean,
-      reflectToAttribute: true,
-    },
-
-    /**
-     * Reflect the element's tabindex attribute to a property so that embedded
-     * elements (e.g. the show subpage button) can become keyboard focusable
-     * when this element has keyboard focus.
-     */
-    tabindex: {
-      type: Number,
-      value: -1,
-    },
-
-    /**
-     * Expose the itemName so it can be used as a label for a11y.  It will be
-     * added as an attribute on this top-level network-list-item, and can
-     * be used by any sub-element which applies it.
-     */
-    rowLabel: {
-      type: String,
-      notify: true,
-      computed:
-          'getRowLabel_(item, networkState, subtitle_, isPSimPendingActivationNetwork_)',
-    },
-
-    buttonLabel: {
-      type: String,
-      computed: 'getButtonLabel_(item)',
-    },
-
-    /**
-     * The cached ConnectionState for the network.
-     * @type {!ConnectionStateType|undefined}
-     */
-    connectionState_: Number,
-
-    /** Whether to show technology badge on mobile network icon. */
-    showTechnologyBadge: {
-      type: Boolean,
-      value: true,
-    },
-
-    /** Whether cellular activation is unavailable in the current context. */
-    activationUnavailable: {
-      type: Boolean,
-      value: false,
-    },
-
-    /**
-     * DeviceState associated with the network item type, or undefined if none
-     * was provided.
-     * @private {!OncMojo.DeviceStateProperties|undefined} deviceState
-     */
-    deviceState: Object,
-
-    /** @private {?ManagedProperties|undefined} */
-    managedProperties_: Object,
-
-    /** @type {!GlobalPolicy|undefined} */
-    globalPolicy: Object,
-
-    /**
-     * Title containing the item's name and subtitle.
-     * @private {string}
-     */
-    itemTitle_: {
-      type: String,
-      value: '',
-    },
-
-    /**
-     * Subtitle for item.
-     * @private {string}
-     */
-    subtitle_: {
-      type: String,
-      value: '',
-    },
-
-    /**
-     * Indicates the network item is a pSIM network not yet activated but
-     * eligible for activation.
-     * @private
-     */
-    isPSimPendingActivationNetwork_: {
-      type: Boolean,
-      reflectToAttribute: true,
-      value: false,
-      computed: 'computeIsPSimPendingActivationNetwork_(managedProperties_)',
-    },
-
-    /**
-     * Indicates the network item is a pSIM network that is not activated nor
-     * available to be activated.
-     * @private
-     */
-    isPSimUnavailableNetwork_: {
-      type: Boolean,
-      reflectToAttribute: true,
-      value: false,
-      computed: 'computeIsPSimUnavailableNetwork_(managedProperties_)',
-    },
-
-    /**
-     * Indicates the network item is a pSIM network currently activating.
-     * @private
-     */
-    isPSimActivatingNetwork_: {
-      type: Boolean,
-      reflectToAttribute: true,
-      value: false,
-      computed: 'computeIsPSimActivatingNetwork_(networkState.*)',
-    },
-
-    /**
-     * Whether the network item is a cellular one and is of an esim
-     * pending profile.
-     * @private
-     */
-    isESimPendingProfile_: {
-      type: Boolean,
-      reflectToAttribute: true,
-      value: false,
-      computed: 'computeIsESimPendingProfile_(item, item.customItemType)',
-    },
-
-    /**
-     * Whether the network item is a cellular one and is of an esim
-     * installing profile.
-     * @private
-     */
-    isESimInstallingProfile_: {
-      type: Boolean,
-      reflectToAttribute: true,
-      value: false,
-      computed: 'computeIsESimInstallingProfile_(item, item.customItemType)',
-    },
-
-    /** @private */
-    isESimUnactivatedProfile_: {
-      type: Boolean,
-      value: false,
-      computed: 'computeIsESimUnactivatedProfile_(managedProperties_)',
-    },
-
-    /**
-     * Indicates the network item is a blocked cellular network by policy.
-     * @private
-     */
-    isBlockedNetwork_: {
-      type: Boolean,
-      reflectToAttribute: true,
-      value: false,
-      computed: 'computeIsBlockedNetwork_(item, globalPolicy)',
-    },
-
-    /**@private {boolean} */
-    isCellularUnlockDialogOpen_: {
-      type: Boolean,
-      value: false,
-    },
-
-    /** @private {boolean} */
-    isUserLoggedIn_: {
-      type: Boolean,
-      value() {
-        return loadTimeData.valueExists('isUserLoggedIn') &&
-            loadTimeData.getBoolean('isUserLoggedIn');
+  static get properties() {
+    return {
+      /**
+       * Dims the UI, disables click and keyboard event handlers.
+       * @private
+       */
+      disabled_: {
+        type: Boolean,
+        reflectToAttribute: true,
+        observer: 'disabledChanged_',
+        computed: 'computeDisabled_(deviceState, deviceState.inhibitReason,' +
+            'disableItem, isUserLoggedIn_, isPSimPendingActivationNetwork_,' +
+            'isBuiltInVpnManagementBlocked, networkState,' +
+            'networkState.typeState.vpn, networkState.typeState.vpn.type)',
       },
-    },
-  },
 
-  /** @private {?CrosNetworkConfigRemote} */
-  networkConfig_: null,
+      /**
+       * Set by network-list to force disable this network item.
+       * @type {boolean}
+       */
+      disableItem: Boolean,
+
+      isBuiltInVpnManagementBlocked: {
+        type: Boolean,
+        value: false,
+      },
+
+      /** @type {!NetworkList.NetworkListItemType|undefined} */
+      item: {
+        type: Object,
+        observer: 'itemChanged_',
+      },
+
+      /**
+       * The ONC data properties used to display the list item.
+       * @type {!OncMojo.NetworkStateProperties|undefined}
+       */
+      networkState: {
+        type: Object,
+        observer: 'networkStateChanged_',
+      },
+
+      /** Whether to show any buttons for network items. Defaults to false. */
+      showButtons: {
+        type: Boolean,
+        reflectToAttribute: true,
+      },
+
+      /**
+       * Reflect the element's tabindex attribute to a property so that embedded
+       * elements (e.g. the show subpage button) can become keyboard focusable
+       * when this element has keyboard focus.
+       */
+      tabindex: {
+        type: Number,
+        value: -1,
+      },
+
+      /**
+       * Expose the itemName so it can be used as a label for a11y.  It will be
+       * added as an attribute on this top-level network-list-item, and can
+       * be used by any sub-element which applies it.
+       */
+      rowLabel: {
+        type: String,
+        notify: true,
+        computed:
+            'getRowLabel_(item, networkState, subtitle_, isPSimPendingActivationNetwork_)',
+      },
+
+      buttonLabel: {
+        type: String,
+        computed: 'getButtonLabel_(item)',
+      },
+
+      /**
+       * The cached ConnectionState for the network.
+       * @type {!ConnectionStateType|undefined}
+       */
+      connectionState_: Number,
+
+      /** Whether to show technology badge on mobile network icon. */
+      showTechnologyBadge: {
+        type: Boolean,
+        value: true,
+      },
+
+      /** Whether cellular activation is unavailable in the current context. */
+      activationUnavailable: {
+        type: Boolean,
+        value: false,
+      },
+
+      /**
+       * DeviceState associated with the network item type, or undefined if none
+       * was provided.
+       * @private {!OncMojo.DeviceStateProperties|undefined} deviceState
+       */
+      deviceState: Object,
+
+      /** @type {!GlobalPolicy|undefined} */
+      globalPolicy: Object,
+
+      /**
+       * WARNING: This string may contain malicious HTML and should not be used
+       * for Polymer bindings in CSS code. For additional information see
+       * crbug.com/286254915.
+       *
+       * Title containing the item's name and subtitle.
+       * @private {string}
+       */
+      itemTitle_: {
+        type: String,
+        value: '',
+      },
+
+      /**
+       * Subtitle for item.
+       * @private {string}
+       */
+      subtitle_: {
+        type: String,
+        value: '',
+      },
+
+      /**
+       * Indicates the network item is a pSIM network not yet activated but
+       * eligible for activation.
+       * @private
+       */
+      isPSimPendingActivationNetwork_: {
+        type: Boolean,
+        reflectToAttribute: true,
+        value: false,
+        computed: 'computeIsPSimPendingActivationNetwork_(networkState.*)',
+      },
+
+      /**
+       * Indicates the network item is a pSIM network that is not activated nor
+       * available to be activated.
+       * @private
+       */
+      isPSimUnavailableNetwork_: {
+        type: Boolean,
+        reflectToAttribute: true,
+        value: false,
+        computed: 'computeIsPSimUnavailableNetwork_(networkState.*)',
+      },
+
+      /**
+       * Indicates the network item is a pSIM network currently activating.
+       * @private
+       */
+      isPSimActivatingNetwork_: {
+        type: Boolean,
+        reflectToAttribute: true,
+        value: false,
+        computed: 'computeIsPSimActivatingNetwork_(networkState.*)',
+      },
+
+      /**
+       * Whether the network item is a cellular one and is of an esim
+       * pending profile.
+       * @private
+       */
+      isESimPendingProfile_: {
+        type: Boolean,
+        reflectToAttribute: true,
+        value: false,
+        computed: 'computeIsESimPendingProfile_(item, item.customItemType)',
+      },
+
+      /**
+       * Whether the network item is a cellular one and is of an esim
+       * installing profile.
+       * @private
+       */
+      isESimInstallingProfile_: {
+        type: Boolean,
+        reflectToAttribute: true,
+        value: false,
+        computed: 'computeIsESimInstallingProfile_(item, item.customItemType)',
+      },
+
+      /** @private */
+      isESimUnactivatedProfile_: {
+        type: Boolean,
+        value: false,
+        computed: 'computeIsESimUnactivatedProfile_(networkState.*)',
+      },
+
+      /**
+       * Indicates the network item is a blocked cellular network by policy.
+       * @private
+       */
+      isBlockedNetwork_: {
+        type: Boolean,
+        reflectToAttribute: true,
+        value: false,
+        computed: 'computeIsBlockedNetwork_(item, globalPolicy)',
+      },
+
+      /**@private {boolean} */
+      isCellularUnlockDialogOpen_: {
+        type: Boolean,
+        value: false,
+      },
+
+      /** @private {boolean} */
+      isUserLoggedIn_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.valueExists('isUserLoggedIn') &&
+              loadTimeData.getBoolean('isUserLoggedIn');
+        },
+      },
+    };
+  }
 
   /** @override */
-  created() {
+  constructor() {
+    super();
+
+    /** @private {?CrosNetworkConfigInterface} */
     this.networkConfig_ =
         MojoInterfaceProviderImpl.getInstance().getMojoServiceRemote();
-  },
+
+    /**
+     * TODO(crbug.com/367735264): Figure out if this is needed.
+     * @private {boolean}
+     */
+    this.focusRequested_ = false;
+  }
 
   /** @override */
-  attached() {
-    this.listen(this, 'keydown', 'onKeydown_');
-  },
+  connectedCallback() {
+    super.connectedCallback();
+
+    this.addEventListener('keydown', this.onKeydown_.bind(this));
+  }
 
   /** @override */
-  detached() {
-    this.unlisten(this, 'keydown', 'onKeydown_');
-  },
+  disconnectedCallback() {
+    super.disconnectedCallback();
+
+    this.removeEventListener('keydown', this.onKeydown_.bind(this));
+  }
 
   /**
    * @return {boolean}
@@ -277,9 +314,35 @@ Polymer({
   isESimNetwork_() {
     return !!this.networkState &&
         this.networkState.type === NetworkType.kCellular &&
+        !!this.networkState.typeState.cellular &&
         !!this.networkState.typeState.cellular.eid &&
         !!this.networkState.typeState.cellular.iccid;
-  },
+  }
+
+  /**
+   * @return {boolean}
+   * @private
+   */
+  isPSimNetwork_() {
+    return !!this.networkState &&
+        this.networkState.type === NetworkType.kCellular &&
+        !!this.networkState.typeState.cellular &&
+        !this.networkState.typeState.cellular.eid &&
+        !!this.networkState.typeState.cellular.iccid;
+  }
+
+  /**
+   * @return {boolean}
+   * @private
+   */
+  isBuiltInVpn_() {
+    if (!this.networkState || this.networkState.type !== NetworkType.kVPN) {
+      return false;
+    }
+
+    const vpnType = this.networkState.typeState.vpn.type;
+    return vpnType === VpnType.kL2TPIPsec || vpnType === VpnType.kOpenVPN;
+  }
 
   /** @private */
   async itemChanged_() {
@@ -293,7 +356,7 @@ Polymer({
     // set each property or else the ordering is indeterminate.
     await this.setSubtitle_();
     this.setItemTitle_();
-  },
+  }
 
   /** @private */
   async setSubtitle_() {
@@ -332,28 +395,13 @@ Polymer({
 
     // Service provider from mojo API is a string16 value represented as an
     // array of characters. Convert to string for display.
-    this.subtitle_ = properties.serviceProvider.data
-                         .map((charCode) => String.fromCharCode(charCode))
-                         .join('');
-  },
+    this.subtitle_ = mojoString16ToString(properties.serviceProvider);
+  }
 
   /** @private */
   networkStateChanged_() {
     if (!this.networkState) {
-      this.managedProperties_ = undefined;
       return;
-    }
-
-    // network-list-item supports dummy networkStates that may have an empty
-    // guid, such as those set by network-select. Only fetch managedProperties_
-    // if the network's guid is defined.
-    if (this.networkState.guid) {
-      this.networkConfig_.getManagedProperties(this.networkState.guid)
-          .then((response) => {
-            this.managedProperties_ = response.result;
-          });
-    } else {
-      this.managedProperties_ = undefined;
     }
 
     const connectionState = this.networkState.connectionState;
@@ -361,8 +409,10 @@ Polymer({
       return;
     }
     this.connectionState_ = connectionState;
-    this.fire('network-connect-changed', this.networkState);
-  },
+    this.dispatchEvent(new CustomEvent(
+        'network-connect-changed',
+        {bubbles: true, composed: true, detail: this.networkState}));
+  }
 
   /** @private */
   setItemTitle_() {
@@ -372,10 +422,15 @@ Polymer({
       this.itemTitle_ = itemName;
       return;
     }
-    this.itemTitle_ = this.i18n('networkListItemTitle', itemName, subtitle);
-  },
+    this.itemTitle_ =
+        loadTimeData.getStringF('networkListItemTitle', itemName, subtitle);
+  }
 
   /**
+   * WARNING: The string returned by this method may contain malicious HTML and
+   * should not be used for Polymer bindings in CSS code. For additional
+   * information see b/286254915.
+   *
    * This gets called for network items and custom items.
    * @return {string}
    * @private
@@ -387,9 +442,9 @@ Polymer({
           this.i18n(item.customItemName) :
           item.customItemName;
     }
-    return OncMojo.getNetworkStateDisplayName(
+    return OncMojo.getNetworkStateDisplayNameUnsafe(
         /** @type {!OncMojo.NetworkStateProperties} */ (this.item));
-  },
+  }
 
   /**
    * The aria label for the subpage button.
@@ -397,8 +452,9 @@ Polymer({
    * @private
    */
   getButtonLabel_() {
-    return this.i18n('networkListItemSubpageButtonLabel', this.getItemName_());
-  },
+    return loadTimeData.getStringF(
+        'networkListItemSubpageButtonLabel', this.getItemName_());
+  }
 
   /**
    * @return {boolean}
@@ -406,6 +462,9 @@ Polymer({
    */
   computeDisabled_() {
     if (this.disableItem) {
+      return true;
+    }
+    if (this.isBuiltInVpn_() && this.isBuiltInVpnManagementBlocked) {
       return true;
     }
     if (!this.deviceState) {
@@ -416,7 +475,7 @@ Polymer({
     }
 
     return OncMojo.deviceIsInhibited(this.deviceState);
-  },
+  }
 
   /**
    * Label for the row, used for accessibility announcement.
@@ -452,134 +511,134 @@ Polymer({
           if (sublabel) {
             if (this.subtitle_) {
               if (this.isPsimPendingActivationWhileLoggedOut_()) {
-                return this.i18n(
+                return loadTimeData.getStringF(
                     'networkListItemLabelManagedActivateAfterSetupWithProviderName',
                     index, total, this.getItemName_(), this.subtitle_);
               }
-              return this.i18n(
+              return loadTimeData.getStringF(
                   'networkListItemLabelCellularManagedWithConnectionStatusAndProviderName',
                   index, total, this.getItemName_(), this.subtitle_, sublabel,
                   this.item.typeState.cellular.signalStrength);
             }
             if (this.isPsimPendingActivationWhileLoggedOut_()) {
-              return this.i18n(
+              return loadTimeData.getStringF(
                   'networkListItemLabelManagedActivateAfterSetup', index, total,
                   this.getItemName_());
             }
-            return this.i18n(
+            return loadTimeData.getStringF(
                 'networkListItemLabelCellularManagedWithConnectionStatus',
                 index, total, this.getItemName_(), sublabel,
                 this.item.typeState.cellular.signalStrength);
           }
           if (this.subtitle_) {
-            return this.i18n(
+            return loadTimeData.getStringF(
                 'networkListItemLabelCellularManagedWithProviderName', index,
                 total, this.getItemName_(), this.subtitle_,
                 this.item.typeState.cellular.signalStrength);
           }
-          return this.i18n(
+          return loadTimeData.getStringF(
               'networkListItemLabelCellularManaged', index, total,
               this.getItemName_(), this.item.typeState.cellular.signalStrength);
         }
         if (sublabel) {
           if (this.subtitle_) {
             if (this.isPsimPendingActivationWhileLoggedOut_()) {
-              return this.i18n(
+              return loadTimeData.getStringF(
                   'networkListItemLabelActivateAfterSetupWithProviderName',
                   index, total, this.getItemName_(), this.subtitle_);
             }
-            return this.i18n(
+            return loadTimeData.getStringF(
                 'networkListItemLabelCellularWithConnectionStatusAndProviderName',
                 index, total, this.getItemName_(), this.subtitle_, sublabel,
                 this.item.typeState.cellular.signalStrength);
           }
           if (this.isPsimPendingActivationWhileLoggedOut_()) {
-            return this.i18n(
+            return loadTimeData.getStringF(
                 'networkListItemLabelActivateAfterSetup', index, total,
                 this.getItemName_());
           }
           if (this.isPSimPendingActivationNetwork_) {
-            return this.i18n(
+            return loadTimeData.getStringF(
                 'networkListItemLabelCellularUnactivatedWithConnectionStatus',
                 index, total, this.getItemName_(), sublabel,
                 this.item.typeState.cellular.signalStrength);
           }
           if (this.isBlockedNetwork_) {
-            return this.i18n(
+            return loadTimeData.getStringF(
                 'networkListItemCellularBlockedWithConnectionStatusA11yLabel',
                 index, total, this.getItemName_(), sublabel,
                 this.item.typeState.cellular.signalStrength);
           }
 
-          return this.i18n(
+          return loadTimeData.getStringF(
               'networkListItemLabelCellularWithConnectionStatus', index, total,
               this.getItemName_(), sublabel,
               this.item.typeState.cellular.signalStrength);
         }
 
         if (this.isPSimPendingActivationNetwork_) {
-          return this.i18n(
+          return loadTimeData.getStringF(
               'networkListItemLabelCellularUnactivated', index, total,
               this.getItemName_(), this.item.typeState.cellular.signalStrength);
         }
 
         if (this.isBlockedNetwork_) {
-          return this.i18n(
+          return loadTimeData.getStringF(
               'networkListItemCellularBlockedA11yLabel', index, total,
               this.getItemName_(), this.item.typeState.cellular.signalStrength);
         }
 
         if (this.subtitle_) {
-          return this.i18n(
+          return loadTimeData.getStringF(
               'networkListItemLabelCellularWithProviderName', index, total,
               this.getItemName_(), this.subtitle_,
               this.item.typeState.cellular.signalStrength);
         }
-        return this.i18n(
+        return loadTimeData.getStringF(
             'networkListItemLabelCellular', index, total, this.getItemName_(),
             this.item.typeState.cellular.signalStrength);
       case NetworkType.kEthernet:
         if (isManaged) {
           if (sublabel) {
-            return this.i18n(
+            return loadTimeData.getStringF(
                 'networkListItemLabelCellularManagedWithConnectionStatus',
                 index, total, this.getItemName_(), sublabel);
           }
-          return this.i18n(
+          return loadTimeData.getStringF(
               'networkListItemLabelEthernetManaged', index, total,
               this.getItemName_());
         }
         if (sublabel) {
-          return this.i18n(
+          return loadTimeData.getStringF(
               'networkListItemLabelEthernetWithConnectionStatus', index, total,
               this.getItemName_(), sublabel);
         }
-        return this.i18n(
+        return loadTimeData.getStringF(
             'networkListItemLabel', index, total, this.getItemName_());
       case NetworkType.kTether:
         // Tether networks will never be controlled by policy (only disabled).
         if (sublabel) {
           if (this.subtitle_) {
-            return this.i18n(
+            return loadTimeData.getStringF(
                 'networkListItemLabelTetherWithConnectionStatusAndProviderName',
                 index, total, this.getItemName_(), this.subtitle_, sublabel,
                 this.item.typeState.tether.signalStrength,
                 this.item.typeState.tether.batteryPercentage);
           }
-          return this.i18n(
+          return loadTimeData.getStringF(
               'networkListItemLabelTetherWithConnectionStatus', index, total,
               this.getItemName_(), sublabel,
               this.item.typeState.tether.signalStrength,
               this.item.typeState.tether.batteryPercentage);
         }
         if (this.subtitle_) {
-          return this.i18n(
+          return loadTimeData.getStringF(
               'networkListItemLabelTetherWithProviderName', index, total,
               this.getItemName_(), this.subtitle_,
               this.item.typeState.tether.signalStrength,
               this.item.typeState.tether.batteryPercentage);
         }
-        return this.i18n(
+        return loadTimeData.getStringF(
             'networkListItemLabelTether', index, total, this.getItemName_(),
             this.item.typeState.tether.signalStrength,
             this.item.typeState.tether.batteryPercentage);
@@ -590,64 +649,64 @@ Polymer({
             this.i18n('wifiNetworkStatusSecured');
         if (isManaged) {
           if (sublabel) {
-            return this.i18n(
+            return loadTimeData.getStringF(
                 'networkListItemLabelWifiManagedWithConnectionStatus', index,
                 total, this.getItemName_(), secured, sublabel,
                 this.item.typeState.wifi.signalStrength);
           }
-          return this.i18n(
+          return loadTimeData.getStringF(
               'networkListItemLabelWifiManaged', index, total,
               this.getItemName_(), secured,
               this.item.typeState.wifi.signalStrength);
         }
         if (sublabel) {
           if (this.isBlockedNetwork_) {
-            return this.i18n(
+            return loadTimeData.getStringF(
                 'networkListItemWiFiBlockedWithConnectionStatusA11yLabel',
                 index, total, this.getItemName_(), secured, sublabel,
                 this.item.typeState.wifi.signalStrength);
           }
 
-          return this.i18n(
+          return loadTimeData.getStringF(
               'networkListItemLabelWifiWithConnectionStatus', index, total,
               this.getItemName_(), secured, sublabel,
               this.item.typeState.wifi.signalStrength);
         }
 
         if (this.isBlockedNetwork_) {
-          return this.i18n(
+          return loadTimeData.getStringF(
               'networkListItemWiFiBlockedA11yLabel', index, total,
               this.getItemName_(), secured,
               this.item.typeState.wifi.signalStrength);
         }
 
-        return this.i18n(
+        return loadTimeData.getStringF(
             'networkListItemLabelWifi', index, total, this.getItemName_(),
             secured, this.item.typeState.wifi.signalStrength);
       default:
         if (this.isESimPendingProfile_) {
           if (this.subtitle_) {
-            return this.i18n(
+            return loadTimeData.getStringF(
                 'networkListItemLabelESimPendingProfileWithProviderName', index,
                 total, this.getItemName_(), this.subtitle_);
           }
-          return this.i18n(
+          return loadTimeData.getStringF(
               'networkListItemLabelESimPendingProfile', index, total,
               this.getItemName_());
         } else if (this.isESimInstallingProfile_) {
           if (this.subtitle_) {
-            return this.i18n(
+            return loadTimeData.getStringF(
                 'networkListItemLabelESimPendingProfileWithProviderNameInstalling',
                 index, total, this.getItemName_(), this.subtitle_);
           }
-          return this.i18n(
+          return loadTimeData.getStringF(
               'networkListItemLabelESimPendingProfileInstalling', index, total,
               this.getItemName_());
         }
-        return this.i18n(
+        return loadTimeData.getStringF(
             'networkListItemLabel', index, total, this.getItemName_());
     }
-  },
+  }
 
   /**
    * @return {boolean}
@@ -655,7 +714,7 @@ Polymer({
    */
   isSublabelVisible_() {
     return !!this.networkState && !!this.getSublabelText_();
-  },
+  }
 
   /**
    * This only gets called for network items once networkState is set.
@@ -668,11 +727,18 @@ Polymer({
     }
 
     if (this.networkState.type === NetworkType.kCellular) {
+      // For carrier lock, display string is different from regular
+      // pin lock
+      if (this.networkState.typeState.cellular.simLocked) {
+        if (this.networkState.typeState.cellular.simLockType ===
+            'network-pin') {
+          return this.i18n(
+              'networkListItemUpdatedCellularSimCardCarrierLocked');
+        }
+        return this.i18n('networkListItemUpdatedCellularSimCardLocked');
+      }
       if (this.isPsimPendingActivationWhileLoggedOut_()) {
         return this.i18n('networkListItemActivateAfterDeviceSetup');
-      }
-      if (this.networkState.typeState.cellular.simLocked) {
-        return this.i18n('networkListItemUpdatedCellularSimCardLocked');
       }
       if (this.isPSimUnavailableNetwork_ || this.isESimUnactivatedProfile_) {
         return this.i18n('networkListItemUnavailableSimNetwork');
@@ -682,10 +748,10 @@ Polymer({
     const connectionState = this.networkState.connectionState;
     if (OncMojo.connectionStateIsConnected(connectionState)) {
       if (this.isPortalState_(this.networkState.portalState)) {
+        if (this.networkState.type === NetworkType.kCellular) {
+          return this.i18n('networkListItemCellularSignIn');
+        }
         return this.i18n('networkListItemSignIn');
-      }
-      if (this.networkState.portalState === PortalState.kPortalSuspected) {
-        return this.i18n('networkListItemConnectedLimited');
       }
       if (this.networkState.portalState === PortalState.kNoInternet) {
         return this.i18n('networkListItemConnectedNoConnectivity');
@@ -697,7 +763,7 @@ Polymer({
       return this.i18n('networkListItemConnecting');
     }
     return '';
-  },
+  }
 
   /**
    * @return {string}
@@ -708,7 +774,7 @@ Polymer({
       return 'warning';
     }
     return 'cr-secondary-text';
-  },
+  }
 
   /**
    * @return {boolean}
@@ -739,7 +805,7 @@ Polymer({
     }
 
     return false;
-  },
+  }
 
   /**
    * @return {string}
@@ -747,7 +813,7 @@ Polymer({
    */
   getSubtitle() {
     return this.subtitle_ ? this.subtitle_ : '';
-  },
+  }
 
   /**
    * @param {!OncMojo.NetworkStateProperties|undefined} networkState
@@ -762,8 +828,11 @@ Polymer({
     if (this.isPSimPendingActivationNetwork_ || this.isPSimActivatingNetwork_) {
       return true;
     }
+    if (this.isBuiltInVpn_() && this.isBuiltInVpnManagementBlocked) {
+      return true;
+    }
     return !!networkState && !disabled_ && !this.shouldShowUnlockButton_();
-  },
+  }
 
   /**
    * @return {boolean} Whether this element's contents describe an "active"
@@ -789,10 +858,10 @@ Polymer({
     }
     return OncMojo.connectionStateIsConnected(
         this.networkState.connectionState);
-  },
+  }
 
   /**
-   * @param {!KeyboardEvent} event
+   * @param {!Event} event
    * @private
    */
   onKeydown_(event) {
@@ -807,7 +876,7 @@ Polymer({
     // second time to the details page and cause an unnecessary entry to be
     // added to the back stack. See https://crbug.com/736963.
     event.preventDefault();
-  },
+  }
 
   /**
    * @param {!Event} event
@@ -820,14 +889,17 @@ Polymer({
     }
     if (this.isSubpageButtonVisible_(
             this.networkState, this.showButtons, this.disabled_) &&
-        this.$$('#subpageButton') === this.shadowRoot.activeElement) {
+        this.shadowRoot.querySelector('#subpageButton') ===
+            this.shadowRoot.activeElement) {
       this.fireShowDetails_(event);
     } else if (this.shouldShowInstallButton_()) {
       this.onInstallButtonClick_(event);
     } else if (this.shouldShowUnlockButton_()) {
       this.onUnlockButtonClick_();
     } else if (this.item && this.item.hasOwnProperty('customItemName')) {
-      this.fire('custom-item-selected', this.item);
+      this.dispatchEvent(new CustomEvent(
+          'custom-item-selected',
+          {bubbles: true, composed: true, detail: this.item}));
     } else if (this.shouldShowActivateButton_()) {
       this.fireShowDetails_(event);
     } else if (
@@ -836,10 +908,11 @@ Polymer({
          this.isESimUnactivatedProfile_)) {
       this.fireShowDetails_(event);
     } else {
-      this.fire('selected', this.item);
+      this.dispatchEvent(new CustomEvent(
+          'selected', {bubbles: true, composed: true, detail: this.item}));
       this.focusRequested_ = true;
     }
-  },
+  }
 
   /**
    * @param {!MouseEvent} event
@@ -847,7 +920,7 @@ Polymer({
    */
   onSubpageArrowClick_(event) {
     this.fireShowDetails_(event);
-  },
+  }
 
   /**
    * Fires a 'show-details' event with |this.networkState| as the details.
@@ -856,9 +929,11 @@ Polymer({
    */
   fireShowDetails_(event) {
     assert(this.networkState);
-    this.fire('show-detail', this.networkState);
+    this.dispatchEvent(new CustomEvent(
+        'show-detail',
+        {bubbles: true, composed: true, detail: this.networkState}));
     event.stopPropagation();
-  },
+  }
 
   /**
    * @return {boolean}
@@ -874,7 +949,7 @@ Polymer({
     return this.networkState.type === NetworkType.kCellular &&
         this.networkState.typeState.cellular.activationState !==
         ActivationStateType.kActivated;
-  },
+  }
 
   /**
    * When the row is focused, this enables aria-live in "polite" mode to notify
@@ -887,7 +962,7 @@ Polymer({
   getLiveStatus_(isFocused) {
     // isFocused is supplied by FocusRowBehavior.
     return this.isFocused ? 'polite' : 'off';
-  },
+  }
 
   /**
    * @param {!Event} event
@@ -897,10 +972,14 @@ Polymer({
     if (this.disabled_) {
       return;
     }
-    this.fire('install-profile', {iccid: this.item.customData.iccid});
+    this.dispatchEvent(new CustomEvent('install-profile', {
+      bubbles: true,
+      composed: true,
+      detail: {iccid: this.item.customData.iccid}
+    }));
     // Stop click from propagating to 'onSelected_()' and firing event twice.
     event.stopPropagation();
-  },
+  }
 
   /**
    * @return {boolean}
@@ -910,7 +989,7 @@ Polymer({
     return !!this.item && this.item.hasOwnProperty('customItemType') &&
         this.item.customItemType ===
         NetworkList.CustomItemType.ESIM_PENDING_PROFILE;
-  },
+  }
 
   /**
    * @return {boolean}
@@ -920,69 +999,51 @@ Polymer({
     return !!this.item && this.item.hasOwnProperty('customItemType') &&
         this.item.customItemType ===
         NetworkList.CustomItemType.ESIM_INSTALLING_PROFILE;
-  },
+  }
 
   /**
-   * @param {?ManagedProperties|undefined} managedProperties
    * @return {boolean}
    * @private
    */
-  computeIsESimUnactivatedProfile_(managedProperties) {
-    if (!managedProperties) {
+  computeIsESimUnactivatedProfile_() {
+    if (!this.isESimNetwork_()) {
       return false;
     }
-
-    const cellularProperties = managedProperties.typeProperties.cellular;
-    if (!cellularProperties || !cellularProperties.eid) {
-      return false;
-    }
-    return cellularProperties.activationState ===
+    return this.networkState.typeState.cellular.activationState ===
         ActivationStateType.kNotActivated;
-  },
+  }
 
   /**
-   * @param {?ManagedCellularProperties|undefined}
-   *     cellularProperties
    * @return {boolean}
    * @private
    */
-  isUnactivatedPSimNetwork_(cellularProperties) {
-    if (!cellularProperties || cellularProperties.eid) {
+  isUnactivatedPSimNetwork_() {
+    if (!this.isPSimNetwork_()) {
       return false;
     }
-    return cellularProperties.activationState ===
+    return this.networkState.typeState.cellular.activationState ===
         ActivationStateType.kNotActivated;
-  },
+  }
 
   /**
-   * @param {?ManagedCellularProperties|undefined}
-   *     cellularProperties
    * @return {boolean}
    * @private
    */
-  hasPaymentPortalInfo_(cellularProperties) {
-    if (!cellularProperties) {
+  hasPaymentPortalInfo_() {
+    if (!this.networkState || !this.networkState.typeState.cellular) {
       return false;
     }
-    return !!(
-        cellularProperties.paymentPortal &&
-        cellularProperties.paymentPortal.url);
-  },
+    return !!this.networkState.typeState.cellular.paymentPortal &&
+        !!this.networkState.typeState.cellular.paymentPortal.url;
+  }
 
   /**
-   * @param {?ManagedProperties|undefined}
-   *     managedProperties
    * @return {boolean}
    * @private
    */
-  computeIsPSimPendingActivationNetwork_(managedProperties) {
-    if (!managedProperties) {
-      return false;
-    }
-    const cellularProperties = managedProperties.typeProperties.cellular;
-    return this.isUnactivatedPSimNetwork_(cellularProperties) &&
-        this.hasPaymentPortalInfo_(cellularProperties);
-  },
+  computeIsPSimPendingActivationNetwork_() {
+    return this.isUnactivatedPSimNetwork_() && this.hasPaymentPortalInfo_();
+  }
 
   /**
    * @return {boolean}
@@ -997,53 +1058,49 @@ Polymer({
     }
 
     return this.isPSimPendingActivationNetwork_;
-  },
+  }
 
   /**
    * @return {string}
    * @private
    */
   getActivateBtnA11yLabel_() {
-    return this.i18n('networkListItemActivateA11yLabel', this.getItemName_());
-  },
+    return loadTimeData.getStringF(
+        'networkListItemActivateA11yLabel', this.getItemName_());
+  }
 
   /**
    * @param {!Event} event
    * @private
    */
   onActivateButtonClick_(event) {
-    this.fire(
-        'show-cellular-setup', {pageName: CellularSetupPageName.PSIM_FLOW_UI});
+    this.dispatchEvent(new CustomEvent('show-cellular-setup', {
+      bubbles: true,
+      composed: true,
+      detail: {pageName: CellularSetupPageName.PSIM_FLOW_UI}
+    }));
     event.stopPropagation();
-  },
+  }
 
   /**
-   * @param {?ManagedProperties|undefined}
-   *     managedProperties
    * @return {boolean}
    * @private
    */
-  computeIsPSimUnavailableNetwork_(managedProperties) {
-    if (!managedProperties) {
-      return false;
-    }
-    const cellularProperties = managedProperties.typeProperties.cellular;
-    return this.isUnactivatedPSimNetwork_(cellularProperties) &&
-        !this.hasPaymentPortalInfo_(cellularProperties);
-  },
+  computeIsPSimUnavailableNetwork_() {
+    return this.isUnactivatedPSimNetwork_() && !this.hasPaymentPortalInfo_();
+  }
 
   /**
    * @return {boolean}
    * @private
    */
   computeIsPSimActivatingNetwork_() {
-    if (!this.networkState || !this.networkState.typeState.cellular ||
-        this.networkState.typeState.cellular.eid) {
+    if (!this.isPSimNetwork_()) {
       return false;
     }
     return this.networkState.typeState.cellular.activationState ===
         ActivationStateType.kActivating;
-  },
+  }
 
   /**
    * @return {boolean}
@@ -1074,7 +1131,7 @@ Polymer({
     return !!this.globalPolicy.blockedHexSsids &&
         this.globalPolicy.blockedHexSsids.includes(
             this.item.typeState.wifi.hexSsid);
-  },
+  }
 
   /**
    * @return {boolean}
@@ -1100,7 +1157,30 @@ Polymer({
     }
 
     return this.isBlockedWifiNetwork_();
-  },
+  }
+
+  /**
+   * @return {boolean}
+   * @private
+   */
+  shouldShowPolicyIcon_() {
+    if (this.isBuiltInVpn_() && this.isBuiltInVpnManagementBlocked) {
+      return true;
+    }
+
+    return !!this.networkState && this.isPolicySource(this.networkState.source);
+  }
+
+  /**
+   * @return {!CrPolicyIndicatorType}
+   */
+  getPolicyIcon_() {
+    if (this.isBuiltInVpn_() && this.isBuiltInVpnManagementBlocked) {
+      return CrPolicyIndicatorType.USER_POLICY;
+    }
+
+    return this.getIndicatorTypeForSource(this.networkState.source);
+  }
 
   /**
    * @return {boolean}
@@ -1121,12 +1201,12 @@ Polymer({
     return this.deviceState.simInfos.some(simInfo => {
       return simInfo.iccid === iccid && simInfo.isPrimary;
     });
-  },
+  }
 
   /** @private */
   onUnlockButtonClick_() {
     this.isCellularUnlockDialogOpen_ = true;
-  },
+  }
 
   /**
    * @return {boolean}
@@ -1139,16 +1219,21 @@ Polymer({
     if (!this.networkState || !this.networkState.typeState.cellular) {
       return false;
     }
+    if (this.networkState.typeState.cellular.simLocked &&
+        this.networkState.typeState.cellular.simLockType === 'network-pin') {
+      return false;
+    }
     return this.networkState.typeState.cellular.simLocked;
-  },
+  }
 
   /**
    * @return {string}
    * @private
    */
   getUnlockBtnA11yLabel_() {
-    return this.i18n('networkListItemUnlockA11YLabel', this.getItemName_());
-  },
+    return loadTimeData.getStringF(
+        'networkListItemUnlockA11YLabel', this.getItemName_());
+  }
 
   /**
    * @return {boolean}
@@ -1159,15 +1244,16 @@ Polymer({
       return false;
     }
     return this.isESimPendingProfile_;
-  },
+  }
 
   /**
    * @return {string}
    * @private
    */
   getInstallBtnA11yLabel_() {
-    return this.i18n('networkListItemDownloadA11yLabel', this.getItemName_());
-  },
+    return loadTimeData.getStringF(
+        'networkListItemDownloadA11yLabel', this.getItemName_());
+  }
 
   /**
    * @param {boolean} newValue
@@ -1182,18 +1268,17 @@ Polymer({
       this.blur();
     }
     this.setAttribute('aria-disabled', !!this.disabled_);
-  },
+  }
 
   /**
-   * Return true if portalState is either kPortal or kProxyAuthRequired.
    * @param {!PortalState} portalState
    * @return {boolean}
    * @private
    */
   isPortalState_(portalState) {
     return portalState === PortalState.kPortal ||
-        portalState === PortalState.kProxyAuthRequired;
-  },
+        portalState === PortalState.kPortalSuspected;
+  }
 
   /**
    * Return true if current network is pSIM, requires activation and user is
@@ -1203,5 +1288,7 @@ Polymer({
    */
   isPsimPendingActivationWhileLoggedOut_() {
     return !this.isUserLoggedIn_ && this.isPSimPendingActivationNetwork_;
-  },
-});
+  }
+}
+
+customElements.define(NetworkListItemElement.is, NetworkListItemElement);

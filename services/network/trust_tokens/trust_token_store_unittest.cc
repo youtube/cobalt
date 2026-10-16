@@ -4,10 +4,12 @@
 
 #include "services/network/trust_tokens/trust_token_store.h"
 
+#include <map>
 #include <memory>
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/test/protobuf_matchers.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "services/network/public/cpp/trust_token_parameterization.h"
@@ -24,21 +26,11 @@
 #include "url/gurl.h"
 #include "url/origin.h"
 
+using ::base::test::EqualsProto;
 using ::testing::ElementsAre;
 using ::testing::Optional;
 
 namespace network::trust_tokens {
-
-namespace {
-MATCHER_P(EqualsProto,
-          message,
-          "Match a proto Message equal to the matcher's argument.") {
-  std::string expected_serialized, actual_serialized;
-  message.SerializeToString(&expected_serialized);
-  arg.SerializeToString(&actual_serialized);
-  return expected_serialized == actual_serialized;
-}
-}  // namespace
 
 TEST(TrustTokenStoreTest, RecordsIssuances) {
   // A newly initialized store should not think it's
@@ -51,7 +43,7 @@ TEST(TrustTokenStoreTest, RecordsIssuances) {
   base::test::TaskEnvironment env(
       base::test::TaskEnvironment::TimeSource::MOCK_TIME);
 
-  EXPECT_EQ(my_store->TimeSinceLastIssuance(issuer), absl::nullopt);
+  EXPECT_EQ(my_store->TimeSinceLastIssuance(issuer), std::nullopt);
 
   // Recording an issuance should result in the time
   // since last issuance being correctly returned.
@@ -74,7 +66,7 @@ TEST(TrustTokenStoreTest, DoesntReportMissingIssuanceTimestamps) {
   auto issuer_config_with_no_time = std::make_unique<TrustTokenIssuerConfig>();
   raw_persister->SetIssuerConfig(issuer, std::move(issuer_config_with_no_time));
 
-  EXPECT_EQ(my_store->TimeSinceLastIssuance(issuer), absl::nullopt);
+  EXPECT_EQ(my_store->TimeSinceLastIssuance(issuer), std::nullopt);
 }
 
 TEST(TrustTokenStoreTest, DoesntReportNegativeTimeSinceLastIssuance) {
@@ -97,7 +89,7 @@ TEST(TrustTokenStoreTest, DoesntReportNegativeTimeSinceLastIssuance) {
 
   // TimeSinceLastIssuance shouldn't return negative values.
 
-  EXPECT_EQ(my_store->TimeSinceLastIssuance(issuer), absl::nullopt);
+  EXPECT_EQ(my_store->TimeSinceLastIssuance(issuer), std::nullopt);
 }
 
 TEST(TrustTokenStoreTest, DoesntReportNegativeTimeSinceLastRedemption) {
@@ -126,7 +118,7 @@ TEST(TrustTokenStoreTest, DoesntReportNegativeTimeSinceLastRedemption) {
 
   // TimeSinceLastRedemption shouldn't return negative values.
 
-  EXPECT_EQ(my_store->TimeSinceLastRedemption(issuer, toplevel), absl::nullopt);
+  EXPECT_EQ(my_store->TimeSinceLastRedemption(issuer, toplevel), std::nullopt);
 }
 
 TEST(TrustTokenStore, AssociatesToplevelsWithIssuers) {
@@ -247,6 +239,40 @@ TEST(TrustTokenStore, GetsAllStoredTokens) {
   result = my_store->GetStoredTrustTokenCounts();
   EXPECT_TRUE(result.contains(issuer_b));
   EXPECT_EQ(result.find(issuer_b)->second, 2);
+}
+
+TEST(TrustTokenStore, GetsAllRedemptionRecordsByIssuerToplevelPair) {
+  auto my_store = TrustTokenStore::CreateForTesting(
+      std::make_unique<InMemoryTrustTokenPersister>());
+  auto issuer = SuitableTrustTokenOrigin::Create(GURL("https://issuer.com"));
+  ASSERT_TRUE(issuer);
+  auto toplevel =
+      SuitableTrustTokenOrigin::Create(GURL("https://toplevel.com"));
+  ASSERT_TRUE(toplevel);
+  base::test::TaskEnvironment env(
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME);
+
+  // A freshly initialized store should be storing zero redemption records.
+  EXPECT_TRUE(my_store->GetRedemptionRecords().empty())
+      << my_store->GetRedemptionRecords().size();
+
+  // Providing a redemption records should mean that subsequent
+  // queries should return that record.
+
+  TrustTokenRedemptionRecord my_record;
+  my_record.set_body("Look at me! I'm a redemption record!");
+  my_store->SetRedemptionRecord(*issuer, *toplevel, my_record);
+
+  auto result = my_store->GetRedemptionRecords();
+  EXPECT_TRUE(result.contains(issuer->origin()));
+  EXPECT_EQ(result[*issuer][0]->toplevel_origin, toplevel);
+  EXPECT_EQ(result[*issuer][0]->last_redemption, base::Time::Now());
+
+  base::TimeDelta some_arbitrary_time = base::Seconds(42);
+  env.AdvanceClock(some_arbitrary_time);
+  my_store->SetRedemptionRecord(*issuer, *toplevel, my_record);
+  result = my_store->GetRedemptionRecords();
+  EXPECT_EQ(result[*issuer][0]->last_redemption, base::Time::Now());
 }
 
 TEST(TrustTokenStore, PrunesDataAssociatedWithRemovedKeyCommitments) {
@@ -445,7 +471,7 @@ TEST(TrustTokenStore, SetsAndRetrievesRedemptionRecord) {
       base::test::TaskEnvironment::TimeSource::MOCK_TIME);
 
   EXPECT_EQ(my_store->RetrieveNonstaleRedemptionRecord(issuer, toplevel),
-            absl::nullopt);
+            std::nullopt);
 
   // Providing a redemption record should mean that subsequent
   // queries (modulo the record's staleness) should return that
@@ -487,7 +513,7 @@ TEST(TrustTokenStore, RetrieveRedemptionRecordHandlesConfigWithNoRecord) {
                                              std::move(config));
 
   EXPECT_EQ(my_store->RetrieveNonstaleRedemptionRecord(issuer, toplevel),
-            absl::nullopt);
+            std::nullopt);
 }
 
 TEST(TrustTokenStore, SetRedemptionRecordOverwritesExisting) {
@@ -551,7 +577,7 @@ TEST(TrustTokenStore, DoesNotReturnStaleRedemptionRecord) {
   my_store->SetRedemptionRecord(issuer, toplevel, my_record);
 
   EXPECT_EQ(my_store->RetrieveNonstaleRedemptionRecord(issuer, toplevel),
-            absl::nullopt);
+            std::nullopt);
 
   auto some_arbitrary_time_delta = base::Seconds(321);
   task_environment.AdvanceClock(some_arbitrary_time_delta);

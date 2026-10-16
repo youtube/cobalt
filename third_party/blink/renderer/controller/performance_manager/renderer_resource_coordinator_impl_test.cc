@@ -20,6 +20,7 @@
 #include "third_party/blink/renderer/core/frame/frame_test_helpers.h"
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
 #include "third_party/blink/renderer/core/frame/web_remote_frame_impl.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/url_test_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -74,10 +75,6 @@ class MockProcessCoordinationUnit : public ProcessCoordinationUnit {
               (const blink::LocalFrameToken& parent_frame_token,
                const blink::RemoteFrameToken& remote_frame_token),
               (override));
-  MOCK_METHOD(void,
-              FireBackgroundTracingTrigger,
-              (const String& trigger_name),
-              (override));
 
   void VerifyExpectations() {
     // Ensure that any pending Mojo messages are processed.
@@ -88,6 +85,11 @@ class MockProcessCoordinationUnit : public ProcessCoordinationUnit {
  private:
   mojo::Receiver<ProcessCoordinationUnit> receiver_;
 };
+
+using StrictMockProcessCoordinationUnit =
+    ::testing::StrictMock<MockProcessCoordinationUnit>;
+using NiceMockProcessCoordinationUnit =
+    ::testing::NiceMock<MockProcessCoordinationUnit>;
 
 MATCHER_P(MatchV8ContextDescription,
           execution_context_token,
@@ -116,6 +118,8 @@ class RendererResourceCoordinatorImplTest : public ::testing::Test {
     RendererResourceCoordinator::Set(nullptr);
   }
 
+  // Creates a MockProcessCoordinationUnit and binds it to a
+  // RendererResourceCoordinatorImpl.
   template <typename MockType>
   void InitializeMockProcessCoordinationUnit() {
     DCHECK(!mock_process_coordination_unit_);
@@ -133,13 +137,13 @@ class RendererResourceCoordinatorImplTest : public ::testing::Test {
     RendererResourceCoordinator::Set(resource_coordinator_.get());
   }
 
+  test::TaskEnvironment task_environment_;
   std::unique_ptr<MockProcessCoordinationUnit> mock_process_coordination_unit_;
   std::unique_ptr<RendererResourceCoordinatorImpl> resource_coordinator_;
 };
 
 TEST_F(RendererResourceCoordinatorImplTest, IframeNotifications) {
-  InitializeMockProcessCoordinationUnit<
-      ::testing::StrictMock<MockProcessCoordinationUnit>>();
+  InitializeMockProcessCoordinationUnit<StrictMockProcessCoordinationUnit>();
 
   frame_test_helpers::WebViewHelper helper;
   helper.InitializeAndLoad("about:blank");
@@ -156,10 +160,11 @@ TEST_F(RendererResourceCoordinatorImplTest, IframeNotifications) {
       *mock_process_coordination_unit_,
       OnV8ContextCreated(
           MatchV8ContextDescription(main_frame->GetLocalFrameToken()), _));
+  // This load must include some non-empty script to force context creation.
   frame_test_helpers::LoadHTMLString(
       main_frame,
       "<!DOCTYPE html>"
-      "<iframe id='iframe-id'></iframe>",
+      "<iframe id='iframe-id'></iframe><script>0;</script>",
       url_test_helpers::ToKURL("https://example.com/subframe.html"));
   mock_process_coordination_unit_->VerifyExpectations();
 
@@ -251,8 +256,7 @@ TEST_F(RendererResourceCoordinatorImplTest, IframeNotifications) {
 
 TEST_F(RendererResourceCoordinatorImplTest, NonIframeNotifications) {
   // Don't care about mocked methods except for OnRemoteIframeAttached.
-  InitializeMockProcessCoordinationUnit<
-      ::testing::NiceMock<MockProcessCoordinationUnit>>();
+  InitializeMockProcessCoordinationUnit<NiceMockProcessCoordinationUnit>();
 
   frame_test_helpers::WebViewHelper helper;
   helper.InitializeAndLoad("about:blank");

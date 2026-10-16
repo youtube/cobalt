@@ -5,17 +5,20 @@
 #include "content/browser/background_fetch/background_fetch_test_base.h"
 
 #include <stdint.h>
+
 #include <map>
 #include <memory>
 #include <utility>
 
 #include "base/check.h"
+#include "base/check_deref.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
 #include "content/browser/background_fetch/background_fetch_registration_id.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
@@ -197,10 +200,10 @@ BackgroundFetchTestBase::CreateBackgroundFetchRegistrationData(
       /* download_total= */ 0, /* downloaded= */ 0, result, failure_reason);
 }
 
-scoped_refptr<DevToolsBackgroundServicesContextImpl>
+DevToolsBackgroundServicesContextImpl&
 BackgroundFetchTestBase::devtools_context() {
-  return static_cast<DevToolsBackgroundServicesContextImpl*>(
-      storage_partition()->GetDevToolsBackgroundServicesContext());
+  return CHECK_DEREF(static_cast<DevToolsBackgroundServicesContextImpl*>(
+      storage_partition()->GetDevToolsBackgroundServicesContext()));
 }
 
 }  // namespace content

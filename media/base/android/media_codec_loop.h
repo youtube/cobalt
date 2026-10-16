@@ -6,10 +6,12 @@
 #define MEDIA_BASE_ANDROID_MEDIA_CODEC_LOOP_H_
 
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
@@ -22,7 +24,6 @@
 #include "media/base/media_export.h"
 #include "media/base/subsample_entry.h"
 #include "media/base/waiting.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 // MediaCodecLoop is based on Android's MediaCodec API.
 // The MediaCodec API is required to play encrypted (as in EME) content on
@@ -90,7 +91,7 @@
 //
 //      [Ready]
 //         |
-// (MEDIA_CODEC_NO_KEY)
+// (MediaCodecResult::Codes::kNoKey)
 //         |
 //   [WaitingForKey]
 //         |
@@ -108,26 +109,6 @@ namespace media {
 
 class MEDIA_EXPORT MediaCodecLoop {
  public:
-  // Data that the client wants to put into an input buffer.
-  struct InputData {
-    InputData();
-    InputData(const InputData&);
-    ~InputData();
-
-    const uint8_t* memory = nullptr;
-    size_t length = 0;
-
-    std::string key_id;
-    std::string iv;
-    std::vector<SubsampleEntry> subsamples;
-
-    base::TimeDelta presentation_time;
-
-    bool is_eos = false;
-    EncryptionScheme encryption_scheme = EncryptionScheme::kUnencrypted;
-    absl::optional<EncryptionPattern> encryption_pattern;
-  };
-
   // Handy enum for "no buffer".
   enum { kInvalidBufferIndex = -1 };
 
@@ -163,7 +144,7 @@ class MEDIA_EXPORT MediaCodecLoop {
 
     // Fills and returns an input buffer for MediaCodecLoop to queue.  It is
     // an error for MediaCodecLoop to call this while !IsAnyInputPending().
-    virtual InputData ProvideInputData() = 0;
+    virtual scoped_refptr<DecoderBuffer> ProvideInputData() = 0;
 
     // Called to notify the client that the previous data (or eos) provided by
     // ProvideInputData has been queued with the codec.  IsAnyInputPending and
@@ -278,7 +259,7 @@ class MEDIA_EXPORT MediaCodecLoop {
 
   // Dequeues an empty input buffer from the codec and returns the information
   // about it. InputBuffer.index is the index of the dequeued buffer or -1 if
-  // the codec is busy or an error occured.  InputBuffer.is_pending is set to
+  // the codec is busy or an error occurred.  InputBuffer.is_pending is set to
   // true if we tried to enqueue this buffer before. In this case the buffer is
   // already filled with data.
   // In the case of an error sets STATE_ERROR.
@@ -314,13 +295,13 @@ class MEDIA_EXPORT MediaCodecLoop {
   base::TimeTicks idle_time_begin_;
 
   // Index of the dequeued and filled buffer that we keep trying to enqueue.
-  // Such buffer appears in MEDIA_CODEC_NO_KEY processing. The -1 value means
-  // there is no such buffer.
+  // Such buffer appears in MediaCodecResult::Codes::kNoKey processing. The -1
+  // value means there is no such buffer.
   int pending_input_buf_index_;
 
   // When processing a pending input buffer, this is the data that was returned
   // to us by the client.  |memory| has been cleared, since the codec has it.
-  InputData pending_input_buf_data_;
+  scoped_refptr<DecoderBuffer> pending_input_buf_data_;
 
   // Optional clock for use during testing.  It may be null.  We do not maintain
   // ownership of it.

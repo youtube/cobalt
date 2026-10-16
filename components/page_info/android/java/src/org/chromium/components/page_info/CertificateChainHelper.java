@@ -4,12 +4,13 @@
 
 package org.chromium.components.page_info;
 
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.content_public.browser.WebContents;
 
-/**
- * Helper class for obtaining site certificate chain from WebContents.
- */
+/** Helper class for obtaining site certificate chain from WebContents. */
+@NullMarked
 public class CertificateChainHelper {
     public static byte[][] getCertificateChain(WebContents webContents) {
         return CertificateChainHelperJni.get().getCertificateChain(webContents);

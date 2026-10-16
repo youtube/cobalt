@@ -24,7 +24,6 @@
 
 #include "third_party/blink/renderer/core/html/html_table_part_element.h"
 
-#include "third_party/blink/renderer/core/css/css_image_value.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
 #include "third_party/blink/renderer/core/css/css_property_value_set.h"
 #include "third_party/blink/renderer/core/css_value_keywords.h"
@@ -52,20 +51,11 @@ bool HTMLTablePartElement::IsPresentationAttribute(
 void HTMLTablePartElement::CollectStyleForPresentationAttribute(
     const QualifiedName& name,
     const AtomicString& value,
-    MutableCSSPropertyValueSet* style) {
+    HeapVector<CSSPropertyValue, 8>& style) {
   if (name == html_names::kBgcolorAttr) {
     AddHTMLColorToStyle(style, CSSPropertyID::kBackgroundColor, value);
   } else if (name == html_names::kBackgroundAttr) {
-    String url = StripLeadingAndTrailingHTMLSpaces(value);
-    if (!url.empty()) {
-      CSSImageValue* image_value = MakeGarbageCollected<CSSImageValue>(
-          AtomicString(url), GetDocument().CompleteURL(url),
-          Referrer(GetExecutionContext()->OutgoingReferrer(),
-                   GetExecutionContext()->GetReferrerPolicy()),
-          OriginClean::kTrue, false /* is_ad_related */);
-      style->SetLonghandProperty(CSSPropertyValue(
-          CSSPropertyName(CSSPropertyID::kBackgroundImage), *image_value));
-    }
+    AddHTMLBackgroundImageToStyle(style, value);
   } else if (name == html_names::kValignAttr) {
     if (EqualIgnoringASCIICase(value, "top")) {
       AddPropertyToPresentationAttributeStyle(

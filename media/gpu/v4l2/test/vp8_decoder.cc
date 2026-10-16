@@ -2,22 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media/gpu/v4l2/test/vp8_decoder.h"
-
-// ChromeOS specific header; does not exist upstream
-#if BUILDFLAG(IS_CHROMEOS)
-#include <linux/media/vp8-ctrls-upstream.h>
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
 #endif
 
+#include "media/gpu/v4l2/test/vp8_decoder.h"
+
 #include <linux/v4l2-controls.h>
+#include <linux/videodev2.h>
 
 #include "base/memory/ptr_util.h"
 #include "base/notreached.h"
 #include "media/base/video_types.h"
-#include "media/filters/ivf_parser.h"
 #include "media/gpu/macros.h"
-#include "media/gpu/v4l2/test/upstream_pix_fmt.h"
 #include "media/gpu/v4l2/test/v4l2_ioctl_shim.h"
+#include "media/parsers/ivf_parser.h"
 #include "media/parsers/vp8_parser.h"
 
 namespace {
@@ -280,12 +280,6 @@ std::unique_ptr<Vp8Decoder> Vp8Decoder::Create(
 
   auto v4l2_ioctl = std::make_unique<V4L2IoctlShim>(kDriverCodecFourcc);
 
-  if (!v4l2_ioctl->VerifyCapabilities(kDriverCodecFourcc)) {
-    LOG(ERROR) << "Device doesn't support "
-               << media::FourccToString(kDriverCodecFourcc) << ".";
-    return nullptr;
-  }
-
   const gfx::Size bitstream_coded_size = GetResolutionFromBitstream(stream);
   LOG(INFO) << "Ivf file header: "
             << gfx::Size(file_header.width, file_header.height).ToString();
@@ -514,11 +508,12 @@ Vp8Decoder::ParseResult Vp8Decoder::ReadNextFrame(
   return result ? Vp8Decoder::kOk : Vp8Decoder::kError;
 }
 
-VideoDecoder::Result Vp8Decoder::DecodeNextFrame(std::vector<uint8_t>& y_plane,
+VideoDecoder::Result Vp8Decoder::DecodeNextFrame(const int frame_number,
+                                                 std::vector<uint8_t>& y_plane,
                                                  std::vector<uint8_t>& u_plane,
                                                  std::vector<uint8_t>& v_plane,
                                                  gfx::Size& size,
-                                                 const int frame_number) {
+                                                 BitDepth& bit_depth) {
   Vp8FrameHeader frame_hdr{};
 
   Vp8Decoder::ParseResult parser_res = ReadNextFrame(frame_hdr);
@@ -579,21 +574,23 @@ VideoDecoder::Result Vp8Decoder::DecodeNextFrame(std::vector<uint8_t>& y_plane,
   // dimensions and format will be ready. Specifying V4L2_CTRL_WHICH_CUR_VAL
   // when VIDIOC_S_EXT_CTRLS processes the request immediately so that the frame
   // is parsed by the driver and the state is readied.
-  v4l2_ioctl_->SetExtCtrls(OUTPUT_queue_, &ext_ctrls,
-                           is_OUTPUT_queue_new && cur_val_is_supported_);
+  v4l2_ioctl_->SetExtCtrls(OUTPUT_queue_, &ext_ctrls, is_OUTPUT_queue_new);
   v4l2_ioctl_->MediaRequestIocQueue(OUTPUT_queue_);
 
   if (!CAPTURE_queue_) {
     CreateCAPTUREQueue(kNumberOfBuffersInCaptureQueue);
   }
 
+  v4l2_ioctl_->WaitForRequestCompletion(OUTPUT_queue_);
+
   v4l2_ioctl_->DQBuf(CAPTURE_queue_, &buffer_id);
   CAPTURE_queue_->DequeueBufferId(buffer_id);
 
   scoped_refptr<MmappedBuffer> buffer = CAPTURE_queue_->GetBuffer(buffer_id);
-  ConvertToYUV(y_plane, u_plane, v_plane, OUTPUT_queue_->resolution(),
-               buffer->mmapped_planes(), CAPTURE_queue_->resolution(),
-               CAPTURE_queue_->fourcc());
+  bit_depth =
+      ConvertToYUV(y_plane, u_plane, v_plane, OUTPUT_queue_->resolution(),
+                   buffer->mmapped_planes(), CAPTURE_queue_->resolution(),
+                   CAPTURE_queue_->fourcc());
 
   const std::set<int> reusable_buffer_slots = RefreshReferenceSlots(
       frame_hdr, CAPTURE_queue_->GetBuffer(buffer_id).get(),

@@ -12,8 +12,9 @@
     margin-inline-start: var(--cr-controlled-by-spacing);
   }
 
+<if expr="not chromeos_ash">
   #labels[disabled] {
-    color: var(--paper-grey-400);
+    color: var(--google-grey-400);
   }
 
   @media (prefers-color-scheme: dark) {
@@ -21,12 +22,13 @@
       color: var(--google-grey-500);
     }
   }
+</if>
 
-  <if expr='chromeos_ash'>
-  :host-context(body.jelly-enabled) #labels[disabled] {
+<if expr="chromeos_ash">
+  #labels[disabled] {
     color: var(--cros-sys-disabled);
   }
-  </if>
+</if>
 
   div.outer {
     align-items: stretch;
@@ -64,7 +66,8 @@
       min="[[min]]" on-dragging-changed="onSliderChanged_"
       on-updating-from-key="onSliderChanged_"
       aria-roledescription$="[[getRoleDescription_()]]"
-      aria-label$="[[labelAria]]">
+      aria-label$="[[labelAria]]"
+      aria-disabled="[[ariaDisabled]]">
   </cr-slider>
   <!-- aria-hidden because role description on #slider contains min/max. -->
   <div id="labels" disabled$="[[disableSlider_]]" aria-hidden="true">

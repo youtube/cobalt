@@ -30,6 +30,7 @@ if (rtc_enable_protobuf) {
 if (is_android) {
   import("//build/config/android/config.gni")
   import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
 }
 
 if (!build_with_chromium) {
@@ -46,6 +47,7 @@ if (!build_with_chromium) {
     }
     if (rtc_include_tests) {
       deps += [
+        ":rtc_p2p_unittests",
         ":rtc_unittests",
         ":video_engine_tests",
         ":voip_unittests",
@@ -62,13 +64,14 @@ if (!build_with_chromium) {
         "modules/remote_bitrate_estimator:rtp_to_text",
         "modules/rtp_rtcp:test_packet_masks_metrics",
         "modules/video_capture:video_capture_internal_impl",
+        "modules/video_coding:video_codec_perf_tests",
         "net/dcsctp:dcsctp_unittests",
-        "pc:peer_connection_mediachannel_split_unittests",
         "pc:peerconnection_unittests",
         "pc:rtc_pc_unittests",
         "pc:slow_peer_connection_unittests",
         "pc:svc_tests",
         "rtc_tools:rtp_generator",
+        "rtc_tools:video_encoder",
         "rtc_tools:video_replay",
         "stats:rtc_stats_unittests",
         "system_wrappers:system_wrappers_unittests",
@@ -77,6 +80,9 @@ if (!build_with_chromium) {
         "video:sv_loopback",
         "video:video_loopback",
       ]
+      if (use_libfuzzer) {
+        deps += [ "test/fuzzers" ]
+      }
       if (!is_asan) {
         # Do not build :webrtc_lib_link_test because lld complains on some OS
         # (e.g. when target_os = "mac") when is_asan=true. For more details,
@@ -101,16 +107,12 @@ if (!build_with_chromium) {
       }
       if (rtc_enable_protobuf) {
         deps += [
-          "audio:low_bandwidth_audio_perf_test",
           "logging:rtc_event_log_rtp_dump",
           "tools_webrtc/perf:webrtc_dashboard_upload",
         ]
       }
       if ((is_linux || is_chromeos) && rtc_use_pipewire) {
         deps += [ "modules/desktop_capture:shared_screencast_stream_test" ]
-      }
-      if (is_fuchsia) {
-        deps += [ ":fuchsia_perf_tests" ]
       }
     }
     if (target_os == "android") {
@@ -137,9 +139,13 @@ config("library_impl_config") {
 # Contains the defines and includes in common.gypi that are duplicated both as
 # target_defaults and direct_dependent_settings.
 config("common_inherited_config") {
-  defines = []
+  defines = [ "PROTOBUF_ENABLE_DEBUG_LOGGING_MAY_LEAK_PII=0" ]
   cflags = []
   ldflags = []
+
+  if (rtc_objc_prefix != "") {
+    defines += [ "RTC_OBJC_TYPE_PREFIX=${rtc_objc_prefix}" ]
+  }
 
   if (rtc_dlog_always_on) {
     defines += [ "DLOG_ALWAYS_ON" ]
@@ -168,16 +174,18 @@ config("common_inherited_config") {
     defines += [ "RTC_ENABLE_WIN_WGC" ]
   }
 
-  # Some tests need to declare their own trace event handlers. If this define is
-  # not set, the first time TRACE_EVENT_* is called it will store the return
-  # value for the current handler in an static variable, so that subsequent
-  # changes to the handler for that TRACE_EVENT_* will be ignored.
-  # So when tests are included, we set this define, making it possible to use
-  # different event handlers in different tests.
-  if (rtc_include_tests) {
-    defines += [ "WEBRTC_NON_STATIC_TRACE_EVENT_HANDLERS=1" ]
-  } else {
-    defines += [ "WEBRTC_NON_STATIC_TRACE_EVENT_HANDLERS=0" ]
+  if (!rtc_use_perfetto) {
+    # Some tests need to declare their own trace event handlers. If this define is
+    # not set, the first time TRACE_EVENT_* is called it will store the return
+    # value for the current handler in an static variable, so that subsequent
+    # changes to the handler for that TRACE_EVENT_* will be ignored.
+    # So when tests are included, we set this define, making it possible to use
+    # different event handlers in different tests.
+    if (rtc_include_tests) {
+      defines += [ "WEBRTC_NON_STATIC_TRACE_EVENT_HANDLERS=1" ]
+    } else {
+      defines += [ "WEBRTC_NON_STATIC_TRACE_EVENT_HANDLERS=0" ]
+    }
   }
   if (build_with_chromium) {
     defines += [ "WEBRTC_CHROMIUM_BUILD" ]
@@ -243,6 +251,10 @@ config("common_inherited_config") {
   if (is_ubsan) {
     cflags += [ "-fsanitize=float-cast-overflow" ]
   }
+
+  if (rtc_allow_deprecated_namespaces) {
+    defines += [ "WEBRTC_ALLOW_DEPRECATED_NAMESPACES" ]
+  }
 }
 
 # TODO(bugs.webrtc.org/9693): Remove the possibility to suppress this warning
@@ -259,6 +271,33 @@ config("rtc_prod_config") {
     cflags = [
       "-Wexit-time-destructors",
       "-Wglobal-constructors",
+    ]
+  }
+}
+
+group("tracing") {
+  all_dependent_configs = [ "//third_party/perfetto/gn:public_config" ]
+  if (rtc_use_perfetto) {
+    if (build_with_chromium) {
+      public_deps =  # no-presubmit-check TODO(webrtc:8603)
+          [ "//third_party/perfetto:libperfetto" ]
+    } else {
+      public_deps = [  # no-presubmit-check TODO(webrtc:8603)
+        ":webrtc_libperfetto",
+        "//third_party/perfetto/include/perfetto/tracing",
+      ]
+    }
+  } else {
+    public_deps =  # no-presubmit-check TODO(webrtc:8603)
+        [ "//third_party/perfetto/include/perfetto/tracing" ]
+  }
+}
+
+if (rtc_use_perfetto) {
+  rtc_library("webrtc_libperfetto") {
+    deps = [
+      "//third_party/perfetto/src/tracing:client_api_without_backends",
+      "//third_party/perfetto/src/tracing:platform_impl",
     ]
   }
 }
@@ -296,6 +335,10 @@ config("common_config") {
     defines += [ "RTC_ENABLE_VP9" ]
   }
 
+  if (rtc_use_h265) {
+    defines += [ "RTC_ENABLE_H265" ]
+  }
+
   if (rtc_include_dav1d_in_internal_decoder_factory) {
     defines += [ "RTC_DAV1D_IN_INTERNAL_DECODER_FACTORY" ]
   }
@@ -328,18 +371,13 @@ config("common_config") {
     defines += [ "RTC_DISABLE_METRICS" ]
   }
 
-  if (rtc_exclude_transient_suppressor) {
-    defines += [ "WEBRTC_EXCLUDE_TRANSIENT_SUPPRESSOR" ]
-  }
-
   if (rtc_exclude_audio_processing_module) {
     defines += [ "WEBRTC_EXCLUDE_AUDIO_PROCESSING_MODULE" ]
   }
 
   if (is_clang) {
     cflags += [
-      # TODO(webrtc:13219): Fix -Wshadow instances and enable.
-      "-Wno-shadow",
+      "-Wshadow",
 
       # See https://reviews.llvm.org/D56731 for details about this
       # warning.
@@ -381,19 +419,11 @@ config("common_config") {
     }
 
     if (is_clang) {
-      cflags += [ "-Wc++11-narrowing" ]
-
-      if (!is_fuchsia) {
-        # Compiling with the Fuchsia SDK results in Wundef errors
-        # TODO(bugs.fuchsia.dev/100722): Remove from (!is_fuchsia) branch when
-        # Fuchsia build errors are fixed.
-        cflags += [ "-Wundef" ]
-      }
-
-      if (!is_nacl) {
-        # Flags NaCl (Clang 3.7) do not recognize.
-        cflags += [ "-Wunused-lambda-capture" ]
-      }
+      cflags += [
+        "-Wc++11-narrowing",
+        "-Wundef",
+        "-Wunused-lambda-capture",
+      ]
     }
 
     if (is_win && !is_clang) {
@@ -453,7 +483,7 @@ config("common_config") {
     ]
   }
 
-  if (use_fuzzing_engine && optimize_for_fuzzing) {
+  if (use_fuzzing_engine) {
     # Used in Chromium's overrides to disable logging
     defines += [ "WEBRTC_UNSAFE_FUZZER_MODE" ]
   }
@@ -464,10 +494,26 @@ config("common_config") {
       "/U_UNICODE",
     ]
   }
+
+  if (rtc_use_perfetto) {
+    defines += [ "RTC_USE_PERFETTO" ]
+  }
 }
 
 config("common_objc") {
   frameworks = [ "Foundation.framework" ]
+}
+
+if (!rtc_build_ssl) {
+  config("external_ssl_library") {
+    if (rtc_ssl_root != "") {
+      include_dirs = [ rtc_ssl_root ]
+    }
+    libs = [
+      "crypto",
+      "ssl",
+    ]
+  }
 }
 
 if (!build_with_chromium) {
@@ -486,9 +532,12 @@ if (!build_with_chromium) {
 
     deps = [
       "api:create_peerconnection_factory",
+      "api:enable_media",
       "api:libjingle_peerconnection_api",
       "api:rtc_error",
       "api:transport_api",
+      "api/audio:create_audio_device_module",
+      "api/audio_codecs:opus_audio_decoder_factory",
       "api/crypto",
       "api/rtc_event_log:rtc_event_log_factory",
       "api/task_queue",
@@ -512,7 +561,6 @@ if (!build_with_chromium) {
       "media",
       "modules",
       "modules/video_capture:video_capture_internal_impl",
-      "p2p:rtc_p2p",
       "pc:libjingle_peerconnection",
       "pc:rtc_pc",
       "sdk",
@@ -530,14 +578,6 @@ if (!build_with_chromium) {
       deps += [
         "api/video:video_frame",
         "api/video:video_rtp_headers",
-      ]
-    } else {
-      deps += [
-        "api",
-        "logging",
-        "p2p",
-        "pc",
-        "stats",
       ]
     }
 
@@ -574,24 +614,40 @@ if (use_libfuzzer || use_afl) {
 }
 
 if (rtc_include_tests && !build_with_chromium) {
+  rtc_unittests_resources = [ "resources/reference_video_640x360_30fps.y4m" ]
+
+  if (is_ios) {
+    bundle_data("rtc_unittests_bundle_data") {
+      testonly = true
+      sources = rtc_unittests_resources
+      outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
+    }
+  }
+
   rtc_test("rtc_unittests") {
     testonly = true
 
     deps = [
       "api:compile_all_headers",
       "api:rtc_api_unittests",
-      "api/audio/test:audio_api_unittests",
+      "api/audio:audio_api_unittests",
       "api/audio_codecs/test:audio_codecs_api_unittests",
+      "api/crypto:crypto_options_unittest",
+      "api/crypto:options",
       "api/numerics:numerics_unittests",
       "api/task_queue:pending_task_safety_flag_unittests",
       "api/test/metrics:metrics_unittests",
       "api/transport:stun_unittest",
+      "api/transport/rtp:corruption_detection_message_unittest",
       "api/video/test:rtc_api_video_unittests",
+      "api/video_codecs:libaom_av1_encoder_factory_test",
+      "api/video_codecs:simple_encoder_wrapper_unittests",
       "api/video_codecs/test:video_codecs_api_unittests",
       "api/voip:compile_all_headers",
       "call:fake_network_pipe_unittests",
-      "p2p:libstunprober_unittests",
-      "p2p:rtc_p2p_unittests",
+      "rtc_base:async_dns_resolver_unittests",
+      "rtc_base:async_packet_socket_unittest",
+      "rtc_base:async_udp_socket_unittest",
       "rtc_base:callback_list_unittests",
       "rtc_base:rtc_base_approved_unittests",
       "rtc_base:rtc_base_unittests",
@@ -613,8 +669,17 @@ if (rtc_include_tests && !build_with_chromium) {
       "test/network:network_emulation_unittests",
     ]
 
+    data = rtc_unittests_resources
+
     if (rtc_enable_protobuf) {
-      deps += [ "logging:rtc_event_log_tests" ]
+      deps += [
+        "api/test/network_emulation:network_config_schedule_proto",
+        "logging:rtc_event_log_tests",
+      ]
+    }
+
+    if (is_ios) {
+      deps += [ ":rtc_unittests_bundle_data" ]
     }
 
     if (is_android) {
@@ -624,10 +689,18 @@ if (rtc_include_tests && !build_with_chromium) {
       deps += [
         "sdk/android:native_unittests",
         "sdk/android:native_unittests_java",
-        "//testing/android/native_test:native_test_support",
       ]
       shard_timeout = 900
     }
+  }
+
+  rtc_test("rtc_p2p_unittests") {
+    testonly = true
+
+    deps = [
+      "p2p:rtc_p2p_unittests",
+      "test:test_main",
+    ]
   }
 
   if (rtc_enable_google_benchmarks) {
@@ -641,19 +714,6 @@ if (rtc_include_tests && !build_with_chromium) {
   }
 
   # TODO(pbos): Rename test suite, this is no longer "just" for video targets.
-  video_engine_tests_resources = [
-    "resources/foreman_cif_short.yuv",
-    "resources/voice_engine/audio_long16.pcm",
-  ]
-
-  if (is_ios) {
-    bundle_data("video_engine_tests_bundle_data") {
-      testonly = true
-      sources = video_engine_tests_resources
-      outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
-    }
-  }
-
   rtc_test("video_engine_tests") {
     testonly = true
     deps = [
@@ -669,40 +729,16 @@ if (rtc_include_tests && !build_with_chromium) {
       "video:video_tests",
       "video/adaptation:video_adaptation_tests",
     ]
-    data = video_engine_tests_resources
+
+    data_deps = [ "resources:video_engine_tests_data" ]
+
     if (is_android) {
       use_default_launcher = false
-      deps += [
-        "//build/android/gtest_apk:native_test_instrumentation_test_runner_java",
-        "//testing/android/native_test:native_test_java",
-        "//testing/android/native_test:native_test_support",
-      ]
+      deps += [ "//build/android/gtest_apk:native_test_instrumentation_test_runner_java" ]
       shard_timeout = 900
     }
     if (is_ios) {
-      deps += [ ":video_engine_tests_bundle_data" ]
-    }
-  }
-
-  webrtc_perf_tests_resources = [
-    "resources/ConferenceMotion_1280_720_50.yuv",
-    "resources/audio_coding/speech_mono_16kHz.pcm",
-    "resources/audio_coding/speech_mono_32_48kHz.pcm",
-    "resources/audio_coding/testfile32kHz.pcm",
-    "resources/difficult_photo_1850_1110.yuv",
-    "resources/foreman_cif.yuv",
-    "resources/paris_qcif.yuv",
-    "resources/photo_1850_1110.yuv",
-    "resources/presentation_1850_1110.yuv",
-    "resources/voice_engine/audio_long16.pcm",
-    "resources/web_screenshot_1850_1110.yuv",
-  ]
-
-  if (is_ios) {
-    bundle_data("webrtc_perf_tests_bundle_data") {
-      testonly = true
-      sources = webrtc_perf_tests_resources
-      outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
+      deps += [ "resources:video_engine_tests_bundle_data" ]
     }
   }
 
@@ -718,36 +754,15 @@ if (rtc_include_tests && !build_with_chromium) {
       "video:video_pc_full_stack_tests",
     ]
 
-    data = webrtc_perf_tests_resources
+    data_deps = [ "resources:webrtc_perf_tests_data" ]
+
     if (is_android) {
       use_default_launcher = false
-      deps += [
-        "//build/android/gtest_apk:native_test_instrumentation_test_runner_java",
-        "//testing/android/native_test:native_test_java",
-        "//testing/android/native_test:native_test_support",
-      ]
+      deps += [ "//build/android/gtest_apk:native_test_instrumentation_test_runner_java" ]
       shard_timeout = 4500
     }
     if (is_ios) {
-      deps += [ ":webrtc_perf_tests_bundle_data" ]
-    }
-  }
-
-  if (is_fuchsia) {
-    rtc_test("fuchsia_perf_tests") {
-      testonly = true
-      deps = [
-        #TODO(fxbug.dev/115601) - Enable when fixed
-        "call:call_perf_tests",
-        "modules/audio_coding:audio_coding_perf_tests",
-        "modules/audio_processing:audio_processing_perf_tests",
-        "pc:peerconnection_perf_tests",
-        "test:test_main",
-        "video:video_full_stack_tests",
-        "video:video_pc_full_stack_tests",
-      ]
-
-      data = webrtc_perf_tests_resources
+      deps += [ "resources:webrtc_perf_tests_bundle_data" ]
     }
   }
 
@@ -755,7 +770,6 @@ if (rtc_include_tests && !build_with_chromium) {
     testonly = true
     deps = [ "rtc_base:rtc_base_nonparallel_tests" ]
     if (is_android) {
-      deps += [ "//testing/android/native_test:native_test_support" ]
       shard_timeout = 900
     }
   }
@@ -803,14 +817,22 @@ rtc_static_library("dcsctp") {
 group("poison_audio_codecs") {
 }
 
-group("poison_default_task_queue") {
-}
-
 group("poison_default_echo_detector") {
 }
 
-group("poison_rtc_json") {
+group("poison_environment_construction") {
 }
 
 group("poison_software_video_codecs") {
+}
+
+if (!build_with_chromium) {
+  # Write debug logs to gn_logs.txt.
+  # This is also required for Siso builds.
+  import("//build/gn_logs.gni")
+  lines = [
+            "Generated during 'gn gen' by //BUILD.gn.",
+            "",
+          ] + build_gn_logs
+  write_file("$root_build_dir/gn_logs.txt", lines)
 }

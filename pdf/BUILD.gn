@@ -6,17 +6,23 @@ import("//build/buildflag_header.gni")
 import("//build/config/features.gni")
 import("//pdf/features.gni")
 import("//ppapi/buildflags/buildflags.gni")
+import("//services/screen_ai/buildflags/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
 import("//third_party/pdfium/pdfium.gni")
 import("//tools/grit/repack.gni")
 import("//v8/gni/v8.gni")
 
+if (is_ios) {
+  import("//build/config/ios/bundle_data_from_filelist.gni")
+}
+
 # Generate a buildflag header for compile-time checking of PDF support.
 buildflag_header("buildflags") {
   header = "buildflags.h"
   flags = [
     "ENABLE_INK=$enable_ink",
+    "ENABLE_PDF_INK2=$enable_pdf_ink2",
     "ENABLE_PDF=$enable_pdf",
   ]
 }
@@ -37,12 +43,20 @@ if (enable_pdf) {
 
     public = [ "pdf.h" ]
 
+    public_deps = []
+
     deps = [
+      ":features",
       ":internal",
       "//base",
       "//build:chromeos_buildflags",
+      "//services/screen_ai/buildflags",
       "//ui/gfx/geometry",
     ]
+
+    if (is_chromeos && enable_screen_ai_service) {
+      public_deps = [ ":pdf_progressive_searchifier" ]
+    }
   }
 
   source_set("features") {
@@ -51,6 +65,8 @@ if (enable_pdf) {
     configs += [ ":strict" ]
 
     public = [ "pdf_features.h" ]
+
+    public_deps = [ ":buildflags" ]
 
     deps = [
       "//base",
@@ -74,12 +90,15 @@ if (enable_pdf) {
       "draw_utils/coordinates.h",
       "draw_utils/shadow.cc",
       "draw_utils/shadow.h",
-      "file_extension.cc",
-      "file_extension.h",
+      "input_utils.cc",
+      "input_utils.h",
+      "message_util.cc",
+      "message_util.h",
       "metrics_handler.cc",
       "metrics_handler.h",
       "page_orientation.cc",
       "page_orientation.h",
+      "page_rotation.h",
       "paint_aggregator.cc",
       "paint_aggregator.h",
       "paint_manager.cc",
@@ -88,7 +107,6 @@ if (enable_pdf) {
       "paint_ready_rect.h",
       "parsed_params.cc",
       "parsed_params.h",
-      "pdf_engine.h",
       "pdf_init.cc",
       "pdf_init.h",
       "pdf_transform.cc",
@@ -97,16 +115,23 @@ if (enable_pdf) {
       "pdf_utils/dates.h",
       "pdfium/pdfium_api_string_buffer_adapter.cc",
       "pdfium/pdfium_api_string_buffer_adapter.h",
+      "pdfium/pdfium_api_wrappers.cc",
+      "pdfium/pdfium_api_wrappers.h",
       "pdfium/pdfium_document.cc",
       "pdfium/pdfium_document.h",
+      "pdfium/pdfium_document_metadata.cc",
+      "pdfium/pdfium_document_metadata.h",
       "pdfium/pdfium_engine.cc",
       "pdfium/pdfium_engine.h",
+      "pdfium/pdfium_engine_client.h",
       "pdfium/pdfium_engine_exports.cc",
       "pdfium/pdfium_engine_exports.h",
       "pdfium/pdfium_form_filler.cc",
       "pdfium/pdfium_form_filler.h",
       "pdfium/pdfium_mem_buffer_file_write.cc",
       "pdfium/pdfium_mem_buffer_file_write.h",
+      "pdfium/pdfium_ocr.cc",
+      "pdfium/pdfium_ocr.h",
       "pdfium/pdfium_page.cc",
       "pdfium/pdfium_page.h",
       "pdfium/pdfium_permissions.cc",
@@ -115,10 +140,16 @@ if (enable_pdf) {
       "pdfium/pdfium_print.h",
       "pdfium/pdfium_range.cc",
       "pdfium/pdfium_range.h",
+      "pdfium/pdfium_rotation.cc",
+      "pdfium/pdfium_rotation.h",
+      "pdfium/pdfium_text_fragment_finder.cc",
+      "pdfium/pdfium_text_fragment_finder.h",
       "pdfium/pdfium_unsupported_features.cc",
       "pdfium/pdfium_unsupported_features.h",
       "preview_mode_client.cc",
       "preview_mode_client.h",
+      "text_search.cc",
+      "text_search.h",
       "ui/document_properties.cc",
       "ui/document_properties.h",
       "ui/file_name.cc",
@@ -149,6 +180,7 @@ if (enable_pdf) {
       "//gin",
       "//pdf/loader",
       "//printing",
+      "//services/screen_ai/buildflags",
       "//third_party/blink/public:blink_headers",
       "//third_party/blink/public/common:headers",
       "//third_party/icu",
@@ -163,13 +195,94 @@ if (enable_pdf) {
 
     if (is_linux || is_chromeos) {
       sources += [
+        "pdfium/pdfium_font_helpers.cc",
+        "pdfium/pdfium_font_helpers.h",
         "pdfium/pdfium_font_linux.cc",
         "pdfium/pdfium_font_linux.h",
       ]
 
-      deps += [
-        ":font_table_linux",
-        "//components/services/font/public/cpp",
+      deps += [ "//components/services/font/public/cpp" ]
+    }
+
+    if (is_win) {
+      sources += [
+        "pdfium/pdfium_font_helpers.cc",
+        "pdfium/pdfium_font_helpers.h",
+        "pdfium/pdfium_font_win.cc",
+        "pdfium/pdfium_font_win.h",
+      ]
+      deps += [ "//third_party/re2" ]
+    }
+
+    if (is_chromeos) {
+      sources += [
+        "flatten_pdf_result.cc",
+        "flatten_pdf_result.h",
+      ]
+    }
+
+    if (enable_pdf_ink2) {
+      sources += [
+        "draw_utils/page_boundary_intersect.cc",
+        "draw_utils/page_boundary_intersect.h",
+        "pdf_ink_annotation_mode.h",
+        "pdf_ink_brush.cc",
+        "pdf_ink_brush.h",
+        "pdf_ink_constants.h",
+        "pdf_ink_conversions.cc",
+        "pdf_ink_conversions.h",
+        "pdf_ink_cursor.cc",
+        "pdf_ink_cursor.h",
+        "pdf_ink_ids.h",
+        "pdf_ink_metrics_handler.cc",
+        "pdf_ink_metrics_handler.h",
+        "pdf_ink_module.cc",
+        "pdf_ink_module.h",
+        "pdf_ink_module_client.h",
+        "pdf_ink_transform.cc",
+        "pdf_ink_transform.h",
+        "pdf_ink_undo_redo_model.cc",
+        "pdf_ink_undo_redo_model.h",
+        "pdfium/pdfium_ink_reader.cc",
+        "pdfium/pdfium_ink_reader.h",
+        "pdfium/pdfium_ink_writer.cc",
+        "pdfium/pdfium_ink_writer.h",
+      ]
+
+      public_deps += [ "//third_party/ink" ]
+    }
+
+    if (enable_screen_ai_service) {
+      sources += [
+        "pdfium/pdfium_on_demand_searchifier.cc",
+        "pdfium/pdfium_on_demand_searchifier.h",
+        "pdfium/pdfium_searchify.cc",
+        "pdfium/pdfium_searchify.h",
+        "pdfium/pdfium_searchify_font.cc",
+        "pdfium/pdfium_searchify_font.h",
+      ]
+
+      public_deps += [ "//services/screen_ai/public/mojom" ]
+      deps += [ "//services/screen_ai/public/cpp:utilities" ]
+
+      if (is_chromeos) {
+        sources += [
+          "pdfium/pdfium_progressive_searchifier.cc",
+          "pdfium/pdfium_progressive_searchifier.h",
+        ]
+
+        deps += [ ":pdf_progressive_searchifier" ]
+      }
+    }
+  }
+
+  if (is_chromeos && enable_screen_ai_service) {
+    source_set("pdf_progressive_searchifier") {
+      public = [ "pdf_progressive_searchifier.h" ]
+
+      public_deps = [
+        "//services/screen_ai/public/mojom",
+        "//skia",
       ]
     }
   }
@@ -212,12 +325,14 @@ if (enable_pdf) {
       "accessibility_structs.h",
       "pdf_accessibility_action_handler.h",
       "pdf_accessibility_data_handler.h",
+      "pdf_accessibility_image_fetcher.h",
     ]
 
     configs += [ ":strict" ]
 
     deps = [
       "//base",
+      "//services/screen_ai/buildflags",
       "//skia",
       "//ui/gfx/geometry",
     ]
@@ -242,12 +357,16 @@ if (enable_pdf) {
 
     public = [ "pdf_view_web_plugin.h" ]
 
-    public_deps = [ "//pdf/mojom" ]
+    public_deps = [
+      "//pdf/mojom",
+      "//ui/base:base",
+    ]
 
     deps = [
       ":accessibility",
       ":buildflags",
       ":content_restriction",
+      ":features",
       ":internal",
       "//base",
       "//base:i18n",
@@ -257,6 +376,7 @@ if (enable_pdf) {
       "//pdf/loader",
       "//printing",
       "//services/network/public/mojom:url_loader_base",
+      "//services/screen_ai/buildflags",
       "//skia",
       "//third_party/blink/public:blink_headers",
       "//third_party/blink/public/common:headers",
@@ -276,6 +396,8 @@ if (enable_pdf) {
     sources = [
       "test/mock_web_associated_url_loader.cc",
       "test/mock_web_associated_url_loader.h",
+      "test/mouse_event_builder.cc",
+      "test/mouse_event_builder.h",
       "test/test_client.cc",
       "test/test_client.h",
       "test/test_document_loader.cc",
@@ -287,10 +409,13 @@ if (enable_pdf) {
     ]
 
     deps = [
+      ":buildflags",
       ":internal",
       "//base",
       "//cc:test_support",
       "//pdf/loader",
+      "//printing",
+      "//services/screen_ai/buildflags",
       "//testing/gmock",
       "//testing/gtest",
       "//third_party/blink/public:blink",
@@ -299,27 +424,14 @@ if (enable_pdf) {
     ]
   }
 
-  if (is_linux || is_chromeos) {
-    # TODO(crbug.com/702990): After PPAPI deprecation, there will only be one
-    # caller left. Move inside the file with the caller.
-    static_library("font_table_linux") {
-      sources = [ "font_table_linux.cc" ]
-
-      configs += [ ":strict" ]
-
-      public = [ "font_table_linux.h" ]
-
-      deps = [ "//base" ]
-    }
-  }
-
   test("pdf_unittests") {
     testonly = true
 
     sources = [
       "document_layout_unittest.cc",
       "draw_utils/coordinates_unittest.cc",
-      "file_extension_unittest.cc",
+      "input_utils_unittest.cc",
+      "message_util_unittest.cc",
       "page_orientation_unittest.cc",
       "paint_manager_unittest.cc",
       "parsed_params_unittest.cc",
@@ -328,6 +440,8 @@ if (enable_pdf) {
       "pdf_view_web_plugin_unittest.cc",
       "pdfium/accessibility_unittest.cc",
       "pdfium/findtext_unittest.cc",
+      "pdfium/pdfium_draw_selection_test_base.cc",
+      "pdfium/pdfium_draw_selection_test_base.h",
       "pdfium/pdfium_engine_exports_unittest.cc",
       "pdfium/pdfium_engine_unittest.cc",
       "pdfium/pdfium_form_filler_unittest.cc",
@@ -337,11 +451,18 @@ if (enable_pdf) {
       "pdfium/pdfium_range_unittest.cc",
       "pdfium/pdfium_test_base.cc",
       "pdfium/pdfium_test_base.h",
+      "pdfium/pdfium_test_helpers.cc",
+      "pdfium/pdfium_test_helpers.h",
+      "pdfium/pdfium_text_fragment_finder_unittest.cc",
       "test/run_all_unittests.cc",
       "ui/document_properties_unittest.cc",
       "ui/file_name_unittest.cc",
       "ui/thumbnail_unittest.cc",
     ]
+
+    if (is_win) {
+      sources += [ "pdfium/pdfium_font_win_unittest.cc" ]
+    }
 
     data = [ "test/data/" ]
 
@@ -366,6 +487,7 @@ if (enable_pdf) {
       "//pdf/loader",
       "//pdf/loader:unit_tests",
       "//printing",
+      "//services/screen_ai/buildflags",
       "//skia",
       "//testing/gmock",
       "//testing/gtest",
@@ -383,14 +505,6 @@ if (enable_pdf) {
       "//v8",
     ]
 
-    if (v8_use_external_startup_data) {
-      deps += [
-        "//tools/v8_context_snapshot",
-        "//tools/v8_context_snapshot:buildflags",
-      ]
-      configs += [ "//v8:external_startup_data" ]
-    }
-
     data_deps = [
       ":pdf_unittests_pak",
       "//ui/resources:ui_test_pak_data",
@@ -400,6 +514,42 @@ if (enable_pdf) {
       "//ppapi/c/*",
       "//ppapi/cpp/*",
     ]
+
+    if (enable_pdf_ink2) {
+      sources += [
+        "draw_utils/page_boundary_intersect_unittest.cc",
+        "pdf_ink_brush_unittest.cc",
+        "pdf_ink_cursor_unittest.cc",
+        "pdf_ink_module_unittest.cc",
+        "pdf_ink_transform_unittest.cc",
+        "pdf_ink_undo_redo_model_unittest.cc",
+        "pdfium/pdfium_ink_reader_unittest.cc",
+        "pdfium/pdfium_ink_writer_unittest.cc",
+        "test/pdf_ink_test_helpers.cc",
+        "test/pdf_ink_test_helpers.h",
+      ]
+
+      deps += [
+        "//third_party/ink",
+        "//third_party/ink:brush_test_support",
+        "//third_party/ink:input_test_support",
+      ]
+    }
+
+    if (enable_screen_ai_service) {
+      sources += [
+        "pdfium/pdfium_on_demand_searchifier_unittest.cc",
+        "pdfium/pdfium_searchify_unittest.cc",
+      ]
+    }
+
+    if (v8_use_external_startup_data) {
+      deps += [
+        "//tools/v8_context_snapshot",
+        "//tools/v8_context_snapshot:buildflags",
+      ]
+      configs += [ "//v8:external_startup_data" ]
+    }
   }
 
   repack("pdf_unittests_pak") {
@@ -417,11 +567,30 @@ if (enable_pdf) {
       "//base",
     ]
   }
+
+  if (enable_pdf_ink2) {
+    test("pdf_ink_reader_fuzzer") {
+      fuzztests = [ "PdfInkReaderFuzzer.CreateMeshFromPolylineDoesntCrash" ]
+      sources = [ "pdfium/pdfium_ink_reader_fuzzer.cc" ]
+      deps = [
+        ":internal",
+        "//third_party/fuzztest:fuzztest_gtest_main",
+        "//third_party/ink",
+      ]
+    }
+  }
 } else {
   # Dummy groups when PDF support is disabled so targets can unconditionally
   # depend on it.
   group("features") {
   }
   group("pdf") {
+  }
+}
+
+if (is_ios) {
+  bundle_data_from_filelist("pdf_test_bundle_data") {
+    testonly = true
+    filelist_name = "test/pdf_test_bundle_data.filelist"
   }
 }

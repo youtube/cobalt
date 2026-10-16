@@ -4,7 +4,7 @@
 
 #include "chrome/browser/ash/app_list/search/files/file_search_provider.h"
 
-#include <cctype>
+#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -13,23 +13,23 @@
 #include "base/i18n/case_conversion.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "chrome/browser/ash/app_list/search/files/diacritics_checker.h"
 #include "chrome/browser/ash/app_list/search/files/file_result.h"
+#include "chrome/browser/ash/app_list/search/search_features.h"
+#include "chrome/browser/ash/app_list/search/types.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/file_manager/trash_common_util.h"
-#include "chrome/browser/ash/input_method/diacritics_checker.h"
 #include "chrome/browser/profiles/profile.h"
 
 namespace app_list {
 
 namespace {
 
-using ::ash::input_method::HasDiacritics;
 using ::ash::string_matching::TokenizedString;
 
 constexpr char kFileSearchSchema[] = "file_search://";
@@ -66,7 +66,7 @@ std::string CreateFnmatchQuery(const std::u16string& query_input) {
             query.substr(sequence_start, i - sequence_start));
       }
 
-      auto* it = conversion_map.find(query[i]);
+      auto it = conversion_map.find(query[i]);
       if (it != conversion_map.end()) {
         std::u16string piece(it->second);
         query_pieces.push_back(std::move(piece));
@@ -94,12 +94,13 @@ std::vector<FileSearchProvider::FileInfo> SearchFilesByPattern(
     const base::FilePath& root_path,
     const std::u16string& query,
     const base::TimeTicks& query_start_time,
-    const std::vector<base::FilePath> trash_paths) {
+    std::vector<base::FilePath> trash_paths,
+    int file_type,
+    base::span<const std::string> allowed_extensions) {
   base::FileEnumerator enumerator(
       root_path,
-      /*recursive=*/true,
-      base::FileEnumerator::DIRECTORIES | base::FileEnumerator::FILES,
-      CreateFnmatchQuery(query), base::FileEnumerator::FolderSearchPolicy::ALL);
+      /*recursive=*/true, file_type, CreateFnmatchQuery(query),
+      base::FileEnumerator::FolderSearchPolicy::ALL);
 
   const auto time_limit = base::Milliseconds(kSearchTimeoutMs);
   bool timed_out = false;
@@ -107,9 +108,17 @@ std::vector<FileSearchProvider::FileInfo> SearchFilesByPattern(
   for (base::FilePath path = enumerator.Next(); !path.empty();
        path = enumerator.Next()) {
     // Exclude any paths that are parented at an enabled trash location.
-    if (base::ranges::any_of(trash_paths,
-                             [&path](const base::FilePath& trash_path) {
-                               return trash_path.IsParent(path);
+    if (std::ranges::any_of(trash_paths,
+                            [&path](const base::FilePath& trash_path) {
+                              return trash_path.IsParent(path);
+                            })) {
+      continue;
+    }
+    // Exclude any results that are not in the allowed extensions.
+    if (!allowed_extensions.empty() &&
+        !std::ranges::any_of(allowed_extensions,
+                             [&path](const std::string& extension) {
+                               return path.MatchesFinalExtension(extension);
                              })) {
       continue;
     }
@@ -131,10 +140,16 @@ std::vector<FileSearchProvider::FileInfo> SearchFilesByPattern(
 
 }  // namespace
 
-FileSearchProvider::FileSearchProvider(Profile* profile)
-    : profile_(profile),
+FileSearchProvider::FileSearchProvider(
+    Profile* profile,
+    int file_type,
+    std::vector<std::string> allowed_extensions)
+    : SearchProvider(SearchCategory::kFiles),
+      profile_(profile),
       thumbnail_loader_(profile),
-      root_path_(file_manager::util::GetMyFilesFolderForProfile(profile)) {
+      root_path_(file_manager::util::GetMyFilesFolderForProfile(profile)),
+      file_type_(file_type),
+      allowed_extensions_(std::move(allowed_extensions)) {
   DCHECK(profile_);
   DCHECK(!root_path_.empty());
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -161,20 +176,19 @@ void FileSearchProvider::Start(const std::u16string& query) {
   // precomputed.
   if (trash_paths_.empty()) {
     auto enabled_trash_locations =
-        file_manager::trash::GenerateEnabledTrashLocationsForProfile(
-            profile_, /*base_path=*/base::FilePath());
+        file_manager::trash::GenerateEnabledTrashLocationsForProfile(profile_);
     for (const auto& it : enabled_trash_locations) {
       trash_paths_.emplace_back(
           it.first.Append(it.second.relative_folder_path));
     }
   }
-
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
       base::BindOnce(SearchFilesByPattern, root_path_, query, query_start_time_,
                      (file_manager::trash::IsTrashEnabledForProfile(profile_)
                           ? trash_paths_
-                          : std::vector<base::FilePath>())),
+                          : std::vector<base::FilePath>()),
+                     file_type_, allowed_extensions_),
       base::BindOnce(&FileSearchProvider::OnSearchComplete,
                      weak_factory_.GetWeakPtr()));
 }
@@ -218,8 +232,7 @@ std::unique_ptr<FileResult> FileSearchProvider::MakeResult(
       /*id=*/kFileSearchSchema + path.path.value(), path.path, parent_dir_name,
       ash::AppListSearchResultType::kFileSearch,
       ash::SearchResultDisplayType::kList, relevance, last_query_, type,
-      profile_);
-  result->RequestThumbnail(&thumbnail_loader_);
+      profile_, &thumbnail_loader_);
   return result;
 }
 

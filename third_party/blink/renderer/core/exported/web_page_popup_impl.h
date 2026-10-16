@@ -137,7 +137,7 @@ class CORE_EXPORT WebPagePopupImpl final : public WebPagePopup,
  private:
   // WidgetBaseClient overrides:
   void OnCommitRequested() override;
-  void BeginMainFrame(base::TimeTicks last_frame_time) override;
+  void BeginMainFrame(const viz::BeginFrameArgs& args) override;
   void SetSuppressFrameRequestsWorkaroundFor704763Only(bool) final;
   WebInputEventResult DispatchBufferedTouchEvents() override;
   void WillHandleGestureEvent(const WebGestureEvent& event,
@@ -150,7 +150,7 @@ class CORE_EXPORT WebPagePopupImpl final : public WebPagePopup,
       bool event_processed) override;
   bool SupportsBufferedTouchEvents() override { return true; }
   void FocusChanged(mojom::blink::FocusState focus_state) override;
-  void ScheduleAnimation() override;
+  void ScheduleAnimation(bool urgent) override;
   void UpdateVisualProperties(
       const VisualProperties& visual_properties) override;
   gfx::Rect ViewportVisibleRect() override;
@@ -167,6 +167,7 @@ class CORE_EXPORT WebPagePopupImpl final : public WebPagePopup,
   // of the WebWidget need to check if close has already been initiated (they
   // can do so by checking |page_|) and not crash! https://crbug.com/906340
   void SetCompositorVisible(bool visible) override;
+  void WarmUpCompositor() override;
   void UpdateLifecycle(WebLifecycleUpdate requested_update,
                        DocumentUpdateReason reason) override;
   void Resize(const gfx::Size&) override;
@@ -181,6 +182,8 @@ class CORE_EXPORT WebPagePopupImpl final : public WebPagePopup,
   void SetHandlingInputEvent(bool handling) override;
   void ProcessInputEventSynchronouslyForTesting(
       const WebCoalescedInputEvent&) override;
+  void DispatchNonBlockingEventForTesting(
+      std::unique_ptr<WebCoalescedInputEvent> event) override;
   void UpdateTextInputState() override;
   void UpdateSelectionBounds() override;
   void ShowVirtualKeyboard() override;
@@ -196,7 +199,7 @@ class CORE_EXPORT WebPagePopupImpl final : public WebPagePopup,
   gfx::Rect ViewRect() override;
   void SetScreenRects(const gfx::Rect& widget_screen_rect,
                       const gfx::Rect& window_screen_rect) override;
-  gfx::Size VisibleViewportSizeInDIPs() override;
+  gfx::Size VisibleViewportSize() override;
   bool IsHidden() const override;
 
   // WidgetEventHandler functions
@@ -222,7 +225,7 @@ class CORE_EXPORT WebPagePopupImpl final : public WebPagePopup,
   gfx::Rect GetAnchorRectInScreen() const;
 
   // PagePopup function
-  AXObject* RootAXObject() override;
+  AXObject* RootAXObject(Element* popover_owner) override;
   void SetWindowRect(const gfx::Rect&) override;
 
   WebPagePopupImpl(
@@ -244,11 +247,10 @@ class CORE_EXPORT WebPagePopupImpl final : public WebPagePopup,
 
   gfx::Rect WindowRectInScreen() const;
 
-  void InjectGestureScrollEvent(WebGestureDevice device,
-                                const gfx::Vector2dF& delta,
-                                ui::ScrollGranularity granularity,
-                                cc::ElementId scrollable_area_element_id,
-                                WebInputEvent::Type injected_type);
+  void InjectScrollbarGestureScroll(const gfx::Vector2dF& delta,
+                                    ui::ScrollGranularity granularity,
+                                    cc::ElementId scrollable_area_element_id,
+                                    WebInputEvent::Type injected_type);
 
   void WidgetHostDisconnected();
   void DidSetBounds();

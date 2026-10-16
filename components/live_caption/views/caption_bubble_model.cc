@@ -4,15 +4,32 @@
 
 #include "components/live_caption/views/caption_bubble_model.h"
 
+#include "base/feature_list.h"
 #include "base/functional/callback_forward.h"
 #include "base/metrics/histogram_functions.h"
 #include "components/live_caption/caption_bubble_context.h"
 #include "components/live_caption/views/caption_bubble.h"
+#include "media/base/media_switches.h"
 
 namespace {
 // The caption bubble contains 2 lines of text in its normal size and 8 lines
 // in its expanded size, so the maximum number of lines before truncating is 9.
 constexpr int kMaxLines = 9;
+
+// Returns the length of the longest common prefix between two strings.
+int GetLongestCommonPrefixLength(const std::string& str1,
+                                   const std::string& str2) {
+  int length = 0;
+  for (unsigned long i = 0, j = 0; i < str1.length() && j < str2.length();
+       i++, j++, length++) {
+    if (str1[i] != str2[j]) {
+      break;
+    }
+  }
+
+  return length;
+}
+
 }  // namespace
 
 namespace captions {
@@ -26,6 +43,15 @@ CaptionBubbleModel::CaptionBubbleModel(CaptionBubbleContext* context,
 }
 
 CaptionBubbleModel::~CaptionBubbleModel() {
+  if (base::FeatureList::IsEnabled(media::kLiveCaptionLogFlickerRate)) {
+    // Log the number of erasures per partial result.
+    double flicker_rate = (partial_result_count_ > 0)
+                              ? erasure_count_ / partial_result_count_
+                              : 0;
+    LOG(WARNING) << "Live caption flicker rate:" << flicker_rate
+                 << ". (not a warning)";
+  }
+
   if (observer_)
     observer_->SetModel(nullptr);
 }
@@ -45,6 +71,10 @@ void CaptionBubbleModel::SetObserver(CaptionBubble* observer) {
 
 void CaptionBubbleModel::RemoveObserver() {
   observer_ = nullptr;
+
+  if (context_) {
+    context_->RemoveContextActivatabilityObserver();
+  }
 }
 
 void CaptionBubbleModel::OnTextChanged() {
@@ -52,7 +82,20 @@ void CaptionBubbleModel::OnTextChanged() {
     observer_->OnTextChanged();
 }
 
+void CaptionBubbleModel::OnAutoDetectedLanguageChanged() {
+  if (observer_) {
+    observer_->OnAutoDetectedLanguageChanged();
+  }
+}
+
 void CaptionBubbleModel::SetPartialText(const std::string& partial_text) {
+  if (base::FeatureList::IsEnabled(media::kLiveCaptionLogFlickerRate)) {
+    erasure_count_ +=
+        partial_text_.size() -
+        GetLongestCommonPrefixLength(partial_text, partial_text_);
+    partial_result_count_++;
+  }
+
   partial_text_ = partial_text;
   OnTextChanged();
   if (has_error_) {
@@ -65,6 +108,21 @@ void CaptionBubbleModel::SetPartialText(const std::string& partial_text) {
   }
 }
 
+void CaptionBubbleModel::SetDownloadProgressText(
+    const std::u16string& download_progress_text) {
+  download_progress_text_ = download_progress_text;
+
+  if (observer_) {
+    observer_->OnDownloadProgressTextChanged();
+  }
+}
+
+void CaptionBubbleModel::OnLanguagePackInstalled() {
+  if (observer_) {
+    observer_->OnLanguagePackInstalled();
+  }
+}
+
 void CaptionBubbleModel::CloseButtonPressed() {
   caption_bubble_closed_callback_.Run(context_->GetSessionId());
   Close();
@@ -73,6 +131,16 @@ void CaptionBubbleModel::CloseButtonPressed() {
 void CaptionBubbleModel::Close() {
   is_closed_ = true;
   ClearText();
+}
+
+std::string CaptionBubbleModel::GetFullText() const {
+  // Ensure that there is a space between the final and partial texts.
+  if (!final_text_.empty() && !partial_text_.empty() &&
+      !std::isspace(final_text_.back()) && !std::isspace(partial_text_[0])) {
+    return final_text_ + " " + partial_text_;
+  }
+
+  return final_text_ + partial_text_;
 }
 
 void CaptionBubbleModel::OnError(
@@ -96,7 +164,7 @@ void CaptionBubbleModel::ClearText() {
 }
 
 void CaptionBubbleModel::CommitPartialText() {
-  final_text_ += partial_text_;
+  final_text_ = GetFullText();
   partial_text_.clear();
   if (!observer_)
     return;
@@ -110,6 +178,15 @@ void CaptionBubbleModel::CommitPartialText() {
     final_text_.erase(0, truncate_index);
     OnTextChanged();
   }
+}
+
+void CaptionBubbleModel::SetLanguage(const std::string& language_code) {
+  if (!observer_) {
+    return;
+  }
+
+  auto_detected_language_code_ = language_code;
+  OnAutoDetectedLanguageChanged();
 }
 
 // static

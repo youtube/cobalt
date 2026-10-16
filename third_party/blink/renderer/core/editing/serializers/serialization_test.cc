@@ -6,7 +6,6 @@
 
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "third_party/blink/renderer/core/css/properties/longhands.h"
-#include "third_party/blink/renderer/core/dom/node_computed_style.h"
 #include "third_party/blink/renderer/core/editing/position.h"
 #include "third_party/blink/renderer/core/editing/testing/editing_test_base.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
@@ -34,8 +33,8 @@ class SerializationTest : public EditingTestBase {
 // Regression test for https://crbug.com/1032673
 TEST_F(SerializationTest, CantCreateFragmentCrash) {
   // CreateFragmentFromMarkupWithContext() fails to create a fragment for the
-  // following markup. Should return nullptr as the sanitized fragment instead
-  // of crashing.
+  // following markup. Should return nullptr as the strictly processed fragment
+  // instead of crashing.
   const String html =
       "<article><dcell></dcell>A<td><dcol></"
       "dcol>A0<td>&percnt;&lbrack;<command></"
@@ -45,15 +44,16 @@ TEST_F(SerializationTest, CantCreateFragmentCrash) {
       "animateColor>A000AA0AA000A0<plaintext></"
       "plaintext><title>0A0AA00A0A0AA000A<switch><img "
       "src=\"../resources/abe.png\"> zz";
-  DocumentFragment* sanitized = CreateSanitizedFragmentFromMarkupWithContext(
-      GetDocument(), html, 0, html.length(), KURL());
-  EXPECT_FALSE(sanitized);
+  DocumentFragment* strictly_processed_fragment =
+      CreateStrictlyProcessedFragmentFromMarkupWithContext(
+          GetDocument(), html, 0, html.length(), KURL());
+  EXPECT_FALSE(strictly_processed_fragment);
 }
 
 // Regression test for https://crbug.com/1310535
 TEST_F(SerializationTest, CreateFragmentWithDataUrlCrash) {
   // When same data: URL is set for filter and style image with a style element
-  // CreateSanitizedFragmentFromMarkupWithContext() triggers
+  // CreateStrictlyProcessedFragmentFromMarkupWithContext() triggers
   // ResourceLoader::Start(), and EmptyLocalFrameClientWithFailingLoaderFactory
   // ::CreateURLLoaderFactory() will be called.
   // Note: Ideally ResourceLoader::Start() don't need to call
@@ -62,9 +62,10 @@ TEST_F(SerializationTest, CreateFragmentWithDataUrlCrash) {
   const String html =
       "<div style=\"filter: url(data:image/gif;base64,xx);\">"
       "<style>body {background: url(data:image/gif;base64,xx);}</style>";
-  DocumentFragment* sanitized = CreateSanitizedFragmentFromMarkupWithContext(
-      GetDocument(), html, 0, html.length(), KURL());
-  EXPECT_TRUE(sanitized);
+  DocumentFragment* strictly_processed_fragment =
+      CreateStrictlyProcessedFragmentFromMarkupWithContext(
+          GetDocument(), html, 0, html.length(), KURL());
+  EXPECT_TRUE(strictly_processed_fragment);
 }
 
 // http://crbug.com/938590
@@ -129,11 +130,30 @@ TEST_F(SerializationTest, SVGForeignObjectCrash) {
       "  </foreignObject>"
       "</svg>"
       "<span>\u00A0</span>";
-  DocumentFragment* sanitized = CreateSanitizedFragmentFromMarkupWithContext(
+  DocumentFragment* strictly_processed_fragment =
+      CreateStrictlyProcessedFragmentFromMarkupWithContext(
+          GetDocument(), markup, 0, markup.length(), KURL());
+  // This is a crash test. We don't verify the content of the strictly processed
+  // markup as it's too verbose and not interesting.
+  EXPECT_TRUE(strictly_processed_fragment);
+}
+
+// Regression test for https://crbug.com/40840595
+TEST_F(SerializationTest, CSSFontFaceLoadCrash) {
+  const String markup =
+      "<style>"
+      "  @font-face {"
+      "    font-family: \"custom-font\";"
+      "    src: "
+      "url(\"https://mdn.github.io/css-examples/web-fonts/VeraSeBd.ttf\");"
+      "  }"
+      "  </style>"
+      "<span style=\"font-family: custom-font\">lorem ipsum</span>";
+  const String sanitized_markup = CreateStrictlyProcessedMarkupWithContext(
       GetDocument(), markup, 0, markup.length(), KURL());
-  // This is a crash test. We don't verify the content of the sanitized markup
-  // as it's too verbose and not interesting.
-  EXPECT_TRUE(sanitized);
+  // This is a crash test. We don't verify the content of the strictly processed
+  // markup as it is not interesting.
+  EXPECT_TRUE(sanitized_markup);
 }
 
 }  // namespace blink

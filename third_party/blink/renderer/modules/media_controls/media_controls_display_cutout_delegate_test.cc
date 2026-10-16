@@ -19,7 +19,6 @@
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/modules/media_controls/media_controls_impl.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 
@@ -176,7 +175,8 @@ class MediaControlsDisplayCutoutDelegateTest
   }
 
   HTMLVideoElement& GetVideoElement() {
-    return *To<HTMLVideoElement>(GetDocument().getElementById("video"));
+    return *To<HTMLVideoElement>(
+        GetDocument().getElementById(AtomicString("video")));
   }
 
   Persistent<DisplayCutoutMockChromeClient> chrome_client_;

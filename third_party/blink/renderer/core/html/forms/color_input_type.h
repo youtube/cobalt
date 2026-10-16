@@ -64,16 +64,16 @@ class ColorInputType final : public InputType,
   ValueMode GetValueMode() const override;
   void ValueAttributeChanged() override;
   void CountUsage() override;
-  const AtomicString& FormControlType() const override;
   bool SupportsRequired() const override;
   String SanitizeValue(const String&) const override;
   void CreateShadowSubtree() override;
   void DidSetValue(const String&, bool value_changed) override;
   void HandleDOMActivateEvent(Event&) override;
-  ControlPart AutoAppearance() const override;
+  AppearanceValue AutoAppearance() const override;
   void OpenPopupView() override;
   void ClosePopupView() override;
   bool HasOpenedPopup() const override;
+  bool IsPickerVisible() const override;
   bool ShouldRespectListAttribute() override;
   void WarnIfValueIsInvalid(const String&) const override;
   void UpdateView() override;

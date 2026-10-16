@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string>
+#include <string_view>
+
 #include "base/metrics/histogram.h"
+#include "base/metrics/histogram_base.h"
 #include "base/metrics/sparse_histogram.h"
-#include "third_party/abseil-cpp/absl/strings/string_view.h"
 
 namespace webrtc {
 
@@ -16,7 +19,7 @@ namespace metrics {
 // between the Histogram functions in this file.
 class Histogram;
 
-Histogram* HistogramFactoryGetCounts(absl::string_view name,
+Histogram* HistogramFactoryGetCounts(std::string_view name,
                                      int min,
                                      int max,
                                      int bucket_count) {
@@ -25,7 +28,7 @@ Histogram* HistogramFactoryGetCounts(absl::string_view name,
       base::HistogramBase::kUmaTargetedHistogramFlag));
 }
 
-Histogram* HistogramFactoryGetCountsLinear(absl::string_view name,
+Histogram* HistogramFactoryGetCountsLinear(std::string_view name,
                                            int min,
                                            int max,
                                            int bucket_count) {
@@ -34,20 +37,19 @@ Histogram* HistogramFactoryGetCountsLinear(absl::string_view name,
       base::HistogramBase::kUmaTargetedHistogramFlag));
 }
 
-Histogram* HistogramFactoryGetEnumeration(absl::string_view name,
-                                          int boundary) {
+Histogram* HistogramFactoryGetEnumeration(std::string_view name, int boundary) {
   return reinterpret_cast<Histogram*>(base::LinearHistogram::FactoryGet(
       std::string(name), 1, boundary, boundary + 1,
       base::HistogramBase::kUmaTargetedHistogramFlag));
 }
 
-Histogram* SparseHistogramFactoryGetEnumeration(absl::string_view name,
+Histogram* SparseHistogramFactoryGetEnumeration(std::string_view name,
                                                 int boundary) {
   return reinterpret_cast<Histogram*>(base::SparseHistogram::FactoryGet(
       std::string(name), base::HistogramBase::kUmaTargetedHistogramFlag));
 }
 
-const char* GetHistogramName(Histogram* histogram_pointer) {
+std::string_view GetHistogramName(Histogram* histogram_pointer) {
   base::HistogramBase* ptr =
       reinterpret_cast<base::HistogramBase*>(histogram_pointer);
   return ptr->histogram_name();

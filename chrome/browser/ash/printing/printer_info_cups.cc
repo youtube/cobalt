@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/ash/printing/printer_info.h"
-
+#include <algorithm>
 #include <array>
 #include <string>
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/ranges/algorithm.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/version.h"
+#include "chrome/browser/ash/printing/printer_info.h"
 #include "chromeos/printing/cups_printer_status.h"
+#include "chromeos/printing/printer_configuration.h"
 #include "printing/backend/cups_jobs.h"
 #include "printing/printer_status.h"
 
@@ -31,55 +31,9 @@ struct QueryResult {
   printing::PrinterStatus printer_status;
 };
 
-// Enums for Printing.CUPS.HighestIppVersion.  Do not delete entries.  Keep
-// synced with enums.xml.  Represents IPP versions 1.0, 1.1, 2.0, 2.1, and 2.2.
-// Error is used if the version was unparsable.  OutOfRange is used for values
-// that are not currently mapped.
-enum class IppVersion {
-  kError,
-  kUnknown,
-  k10,
-  k11,
-  k20,
-  k21,
-  k22,
-  kMaxValue = k22
-};
-
-using MajorMinor = std::pair<uint32_t, uint32_t>;
-using VersionEntry = std::pair<MajorMinor, IppVersion>;
-
-IppVersion ToIppVersion(const base::Version& version) {
-  constexpr std::array<VersionEntry, 5> kVersions = {
-      VersionEntry(MajorMinor((uint32_t)1, (uint32_t)0), IppVersion::k10),
-      VersionEntry(MajorMinor((uint32_t)1, (uint32_t)1), IppVersion::k11),
-      VersionEntry(MajorMinor((uint32_t)2, (uint32_t)0), IppVersion::k20),
-      VersionEntry(MajorMinor((uint32_t)2, (uint32_t)1), IppVersion::k21),
-      VersionEntry(MajorMinor((uint32_t)2, (uint32_t)2), IppVersion::k22)};
-
-  if (!version.IsValid()) {
-    return IppVersion::kError;
-  }
-
-  const auto& components = version.components();
-  if (components.size() != 2) {
-    return IppVersion::kError;
-  }
-
-  const auto target = MajorMinor(components[0], components[1]);
-  const VersionEntry* iter =
-      base::ranges::find(kVersions, target, &VersionEntry::first);
-
-  if (iter == kVersions.end()) {
-    return IppVersion::kUnknown;
-  }
-
-  return iter->second;
-}
-
 // Returns true if any of the |ipp_versions| are greater than or equal to 2.0.
 bool AllowedIpp(const std::vector<base::Version>& ipp_versions) {
-  return base::ranges::any_of(ipp_versions, [](const base::Version& version) {
+  return std::ranges::any_of(ipp_versions, [](const base::Version& version) {
     return version.IsValid() && version.components()[0] >= 2;
   });
 }
@@ -92,7 +46,7 @@ bool SupportedMime(const std::string& mime_type) {
 // Returns true if |formats| contains one of the supported printer description
 // languages for an autoconf printer identified by MIME type.
 bool SupportsRequiredPDLS(const std::vector<std::string>& formats) {
-  return base::ranges::any_of(formats, &SupportedMime);
+  return std::ranges::any_of(formats, &SupportedMime);
 }
 
 // Returns true if |info| describes a printer for which we want to attempt
@@ -113,7 +67,9 @@ QueryResult QueryPrinterImpl(const std::string& host,
       ::printing::GetPrinterInfo(host, port, path, encrypted,
                                  &result.printer_info, &result.printer_status);
   if (result.result != ::printing::PrinterQueryResult::kSuccess) {
-    LOG(ERROR) << "Could not retrieve printer info";
+    LOG(ERROR) << "Could not retrieve printer info from "
+               << (encrypted ? "ipps://" : "ipp://") << host << ":" << port
+               << path << ": " << static_cast<int>(result.result);
   }
 
   return result;
@@ -131,22 +87,23 @@ void OnPrinterQueried(ash::PrinterInfoCallback callback,
     std::move(callback).Run(result, ::printing::PrinterStatus(),
                             /*make_and_model=*/std::string(),
                             /*document_formats=*/{}, /*ipp_everywhere=*/false,
-                            chromeos::PrinterAuthenticationInfo{});
+                            chromeos::PrinterAuthenticationInfo{},
+                            chromeos::IppPrinterInfo{});
     return;
   }
-
-  DCHECK(!printer_info.ipp_versions.empty())
-      << "Properly queried PrinterInfo always has at least one version";
-  base::UmaHistogramEnumeration(
-      "Printing.CUPS.HighestIppVersion",
-      ToIppVersion(*std::max_element(printer_info.ipp_versions.begin(),
-                                     printer_info.ipp_versions.end())));
-
-  std::move(callback).Run(result, printer_status, printer_info.make_and_model,
-                          printer_info.document_formats,
-                          IsAutoconf(printer_info),
-                          {.oauth_server = printer_info.oauth_server,
-                           .oauth_scope = printer_info.oauth_scope});
+  std::move(callback).Run(
+      result, printer_status, printer_info.make_and_model,
+      printer_info.document_formats, IsAutoconf(printer_info),
+      {.oauth_server = printer_info.oauth_server,
+       .oauth_scope = printer_info.oauth_scope},
+      {/*document_formats=*/printer_info.document_formats,
+       /*document_format_default=*/printer_info.document_format_default,
+       /*document_format_preferred=*/printer_info.document_format_preferred,
+       /*urf_supported=*/printer_info.urf_supported,
+       /*pdf_versions=*/printer_info.pdf_versions,
+       /*ipp_features=*/printer_info.ipp_features,
+       /*mopria_certified=*/printer_info.mopria_certified,
+       /*printer_kind=*/printer_info.printer_kind});
 }
 
 }  // namespace

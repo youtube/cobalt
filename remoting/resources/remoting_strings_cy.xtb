@@ -4,7 +4,6 @@
 <translation id="1002108253973310084">Canfuwyd fersiwn protocol anghydnaws. Gwnewch yn siŵr bod gennych fersiwn diweddaraf y feddalwedd wedi'i osod ar y ddau gyfrifiadur a rhowch gynnig arall arni.</translation>
 <translation id="1008557486741366299">Nid Nawr</translation>
 <translation id="1201402288615127009">Nesaf</translation>
-<translation id="1296511125400541222">Hawlfraint 2023 The Chromium Authors. Cedwir Pob Hawl.</translation>
 <translation id="1297009705180977556">Bu gwall wrth gysylltu â <ph name="HOSTNAME" /></translation>
 <translation id="1450760146488584666">Nid yw'r gwrthrych y gofynnwyd amdano yn bodoli.</translation>
 <translation id="1480046233931937785">Credydau</translation>
@@ -29,7 +28,7 @@ Os yw '<ph name="SERVICE_SCRIPT_NAME" />' eisoes wedi'i dicio, dad-diciwch ef a 
 <translation id="2329392777730037872">Nid oedd modd agor <ph name="URL" /> ar y cleient.</translation>
 <translation id="2359808026110333948">Parhau</translation>
 <translation id="2366718077645204424">Methu â chyrraedd y gwesteiwr. Mae'n debyg bod hyn oherwydd ffurfweddiad y rhwydwaith rydych yn ei ddefnyddio.</translation>
-<translation id="2370754117186920852"><ph name="OPTIONAL_OFFLINE_REASON" />  Gwelwyd ar-lein ddiwethaf <ph name="RELATIVE_TIMESTAMP" />.</translation>
+<translation id="242591256144136845">Hawlfraint 2025 Google LLC. Cedwir Pob Hawl.</translation>
 <translation id="2504109125669302160">Rhoi caniatâd 'Hygyrchedd' i <ph name="PRODUCT_NAME" /></translation>
 <translation id="2509394361235492552">Wedi cysylltu â <ph name="HOSTNAME" /></translation>
 <translation id="2540992418118313681">Hoffech chi rannu'r cyfrifiadur hwn er mwyn i ddefnyddiwr arall ei weld a'i reoli?</translation>
@@ -41,6 +40,7 @@ Os yw '<ph name="SERVICE_SCRIPT_NAME" />' eisoes wedi'i dicio, dad-diciwch ef a 
 <translation id="2758123043070977469">Bu problem wrth ddilysu, mewngofnodwch eto.</translation>
 <translation id="2803375539583399270">Rhowch y PIN</translation>
 <translation id="2919669478609886916">Ar hyn o bryd rydych yn rhannu'r peiriant hwn â defnyddiwr arall. Ydych chi am barhau i rannu?</translation>
+<translation id="2929683002824598593">Rhannu dyfais</translation>
 <translation id="2939145106548231838">Dilysu i westeiwr</translation>
 <translation id="3027681561976217984">Modd cyffwrdd</translation>
 <translation id="3106379468611574572">Nid yw'r cyfrifiadur o bell yn ymateb i geisiadau cysylltu. Cadarnhewch ei fod ar-lein a rhowch gynnig arall arni.</translation>
@@ -54,7 +54,6 @@ Os yw '<ph name="SERVICE_SCRIPT_NAME" />' eisoes wedi'i dicio, dad-diciwch ef a 
 <translation id="3423542133075182604">Proses Defnyddio Allwedd Ddiogelwch o Bell</translation>
 <translation id="3581045510967524389">Methu â chysylltu â'r rhwydwaith. Gwiriwch fod eich dyfais ar-lein.</translation>
 <translation id="3596628256176442606">Mae'r gwasanaeth hwn yn galluogi cysylltiadau sy'n dod i mewn gan gleientiaid Chromoting.</translation>
-<translation id="369442766917958684">All-lein.</translation>
 <translation id="3695446226812920698">Dysgu sut</translation>
 <translation id="3776024066357219166">Mae eich sesiwn Chrome Remote Desktop wedi dod i ben.</translation>
 <translation id="3858860766373142691">Enw</translation>
@@ -89,12 +88,12 @@ Os yw '<ph name="SERVICE_SCRIPT_NAME" />' eisoes wedi'i dicio, dad-diciwch ef a 
 <translation id="4808503597364150972">Rhowch eich PIN ar gyfer <ph name="HOSTNAME" />.</translation>
 <translation id="4812684235631257312">Gwesteiwr</translation>
 <translation id="4867841927763172006">Anfon PrtScn</translation>
-<translation id="4960795469833295568">Hawlfraint 2023 Google LLC. Cedwir Pob Hawl.</translation>
 <translation id="4974476491460646149">Cafodd y cysylltiad ei gau ar gyfer <ph name="HOSTNAME" /></translation>
 <translation id="4985296110227979402">Yn gyntaf mae angen i chi osod eich cyfrifiadur ar gyfer mynediad o bell</translation>
 <translation id="4987330545941822761">Ni all Chrome Remote Desktop bennu'r porwr i agor URL yn lleol. Dewiswch ef o'r rhestr isod.</translation>
 <translation id="5064360042339518108"><ph name="HOSTNAME" /> (all-lein)</translation>
 <translation id="507204348399810022">Ydych chi'n siŵr eich bod am analluogi cysylltiadau o bell â <ph name="HOSTNAME" />?</translation>
+<translation id="5095424396646120601">Adrodd am doriadau</translation>
 <translation id="5170982930780719864">Rhif adnabod gwesteiwr annilys.</translation>
 <translation id="5204575267916639804">Cwestiynau Cyffredin</translation>
 <translation id="5222676887888702881">Allgofnodi</translation>
@@ -107,7 +106,6 @@ Os yw '<ph name="SERVICE_SCRIPT_NAME" />' eisoes wedi'i dicio, dad-diciwch ef a 
 <translation id="5601503069213153581">PIN</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5708869785009007625">Ar hyn o bryd mae eich bwrdd gwaith yn cael ei rannu â <ph name="USER" />.</translation>
-<translation id="5750083143895808682">Wedi mewngofnodi fel <ph name="EMAIL_ADDRESS" />.</translation>
 <translation id="579702532610384533">Ailgysylltu</translation>
 <translation id="5810269635982033450">Mae'r sgrîn yn ymddwyn fel pad olrhain</translation>
 <translation id="5823554426827907568">Mae <ph name="CLIENT_USERNAME" /> wedi gofyn am fynediad i weld eich sgrîn a rheoli eich bysellfwrdd a'ch llygoden. Pwyswch "<ph name="IDS_SHARE_CONFIRM_DIALOG_DECLINE" />" os nad ydych yn disgwyl y cais hwn. Fel arall, dewiswch "<ph name="IDS_SHARE_CONFIRM_DIALOG_CONFIRM" />" i ganiatáu'r cysylltiad pan fyddwch yn barod.</translation>
@@ -121,10 +119,12 @@ Os yw '<ph name="SERVICE_SCRIPT_NAME" />' eisoes wedi'i dicio, dad-diciwch ef a 
 <translation id="6178645564515549384">Gwesteiwr negeseua brodorol ar gyfer cymorth o bell</translation>
 <translation id="618120821413932081">Diweddaru'r cydraniad o bell i gyd-fynd â'r ffenestr</translation>
 <translation id="6223301979382383752">Agor Dewisiadau Recordio'r Sgrîn</translation>
+<translation id="6252344563748670011">Mae <ph name="CLIENT_USERNAME" /> wedi gofyn am fynediad i weld eich sgrîn a rheoli eich bysellfwrdd a'ch llygoden. Hoffech chi rannu'ch dyfais?</translation>
 <translation id="6284412385303060032">Mae gwesteiwr sy'n rhedeg ar sgrîn rhesymeg y consol wedi cau i gefnogi'r modd llenni drwy newid i westeiwr sy'n rhedeg mewn sesiwn defnyddiwr-benodol.</translation>
 <translation id="6542902059648396432">Adrodd am broblem…</translation>
 <translation id="6583902294974160967">Cymorth</translation>
 <translation id="6612717000975622067">Anfon Ctrl-Alt-Del</translation>
+<translation id="6625262630437221505">{0,plural, =1{Os na fyddwch yn gweithredu, bydd eich dyfais yn dechrau rhannu'n awtomatig ymhen # eiliad.}zero{Os na fyddwch yn gweithredu, bydd eich dyfais yn dechrau rhannu'n awtomatig ymhen # eiliad.}two{Os na fyddwch yn gweithredu, bydd eich dyfais yn dechrau rhannu'n awtomatig ymhen # eiliad.}few{Os na fyddwch yn gweithredu, bydd eich dyfais yn dechrau rhannu'n awtomatig ymhen # eiliad.}many{Os na fyddwch yn gweithredu, bydd eich dyfais yn dechrau rhannu'n awtomatig ymhen # eiliad.}other{Os na fyddwch yn gweithredu, bydd eich dyfais yn dechrau rhannu'n awtomatig ymhen # eiliad.}}</translation>
 <translation id="6654753848497929428">Rhannu</translation>
 <translation id="677755392401385740">Gwnaeth y gwesteiwr ddechrau ar gyfer defnyddiwr: <ph name="HOST_USERNAME" />.</translation>
 <translation id="6902524959760471898">Ap cymorth i agor URL ar y cleient <ph name="PRODUCT_NAME" /></translation>
@@ -138,6 +138,7 @@ Os yw '<ph name="SERVICE_SCRIPT_NAME" />' eisoes wedi'i dicio, dad-diciwch ef a 
 <translation id="7067321367069083429">Mae'r sgrîn yn gweithredu fel sgrîn gyffwrdd</translation>
 <translation id="7116737094673640201">Croeso i Chrome Remote Desktop</translation>
 <translation id="7144878232160441200">Ceisio eto</translation>
+<translation id="7298392173540380852">Hawlfraint 2025 The Chromium Authors. Cedwir Pob Hawl.</translation>
 <translation id="7312846573060934304">Mae'r gwesteiwr all-lein.</translation>
 <translation id="7319983568955948908">Stopio Rhannu</translation>
 <translation id="7359298090707901886">Ni ellir defnyddio'r porwr a ddewiswyd i agor URL ar y peiriant lleol.</translation>

@@ -29,7 +29,7 @@ class DisplayMtl;
     {                                                          \
         if (ANGLE_UNLIKELY((EXPR) != angle::Result::Continue)) \
         {                                                      \
-            return egl::EglBadSurface();                       \
+            return egl::Error(EGL_BAD_SURFACE);                \
         }                                                      \
     } while (0)
 
@@ -47,7 +47,7 @@ class SurfaceMtl : public SurfaceImpl
 
     egl::Error makeCurrent(const gl::Context *context) override;
     egl::Error unMakeCurrent(const gl::Context *context) override;
-    egl::Error swap(const gl::Context *context) override;
+    egl::Error swap(const gl::Context *context, SurfaceSwapFeedback *feedback) override;
     egl::Error postSubBuffer(const gl::Context *context,
                              EGLint x,
                              EGLint y,
@@ -61,7 +61,7 @@ class SurfaceMtl : public SurfaceImpl
     egl::Error releaseTexImage(const gl::Context *context, EGLint buffer) override;
     egl::Error getSyncValues(EGLuint64KHR *ust, EGLuint64KHR *msc, EGLuint64KHR *sbc) override;
     egl::Error getMscRate(EGLint *numerator, EGLint *denominator) override;
-    void setSwapInterval(EGLint interval) override;
+    void setSwapInterval(const egl::Display *display, EGLint interval) override;
     void setFixedWidth(EGLint width) override;
     void setFixedHeight(EGLint height) override;
 
@@ -111,7 +111,8 @@ class SurfaceMtl : public SurfaceImpl
     bool mAutoResolveMSColorTexture = false;
 
     bool mRobustResourceInit = false;
-    bool mContentInitialized = false;
+    bool mColorTextureInitialized         = true;
+    bool mDepthStencilTexturesInitialized = true;
 
     mtl::Format mColorFormat;
     mtl::Format mDepthFormat;
@@ -138,9 +139,9 @@ class WindowSurfaceMtl : public SurfaceMtl
 
     egl::Error initialize(const egl::Display *display) override;
 
-    egl::Error swap(const gl::Context *context) override;
+    egl::Error swap(const gl::Context *context, SurfaceSwapFeedback *feedback) override;
 
-    void setSwapInterval(EGLint interval) override;
+    void setSwapInterval(const egl::Display *display, EGLint interval) override;
     EGLint getSwapBehavior() const override;
 
     angle::Result initializeContents(const gl::Context *context,
@@ -176,9 +177,9 @@ class WindowSurfaceMtl : public SurfaceMtl
     // Check if metal layer has been resized.
     bool checkIfLayerResized(const gl::Context *context);
 
-    mtl::AutoObjCObj<CAMetalLayer> mMetalLayer = nil;
+    angle::ObjCPtr<CAMetalLayer> mMetalLayer = nil;
     CALayer *mLayer;
-    mtl::AutoObjCPtr<id<CAMetalDrawable>> mCurrentDrawable = nil;
+    angle::ObjCPtr<id<CAMetalDrawable>> mCurrentDrawable = nil;
 
     // Cache last known drawable size that is used by GL context. Can be used to detect resize
     // event. We don't use mMetalLayer.drawableSize directly since it might be changed internally by
@@ -202,7 +203,7 @@ class OffscreenSurfaceMtl : public SurfaceMtl
     EGLint getWidth() const override;
     EGLint getHeight() const override;
 
-    egl::Error swap(const gl::Context *context) override;
+    egl::Error swap(const gl::Context *context, SurfaceSwapFeedback *feedback) override;
 
     egl::Error bindTexImage(const gl::Context *context,
                             gl::Texture *texture,

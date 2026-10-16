@@ -41,25 +41,45 @@ class PrefetchAgent extends RemoteContext {
   // In the future, this should also use browser hooks to force the prefetch to
   // occur despite heuristic matching, etc., and await the completion of the
   // prefetch.
-  async forceSinglePrefetch(url, extra = {}) {
-    await this.execute_script((url, extra) => {
-      insertSpeculationRules({ prefetch: [{source: 'list', urls: [url], ...extra}] });
-    }, [url, extra]);
+  async forceSinglePrefetch(url, extra = {}, wait_for_completion = true) {
+    return this.forceSpeculationRules(
+      {
+        prefetch: [{source: 'list', urls: [url], ...extra}]
+      }, wait_for_completion);
+  }
+
+  async forceSpeculationRules(rules, wait_for_completion = true) {
+    await this.execute_script((rules) => {
+      insertSpeculationRules(rules);
+    }, [rules]);
+    if (!wait_for_completion) {
+      return Promise.resolve();
+    }
     return new Promise(resolve => this.t.step_timeout(resolve, 2000));
   }
 
-  async navigate(url) {
+  // `url` is the URL to navigate.
+  //
+  // `expectedDestinationUrl` is the expected URL after navigation.
+  // When omitted, `url` is used. When explicitly null, the destination URL is
+  // not validated.
+  async navigate(url, {expectedDestinationUrl} = {}) {
     await this.execute_script((url) => {
       window.executor.suspend(() => {
         location.href = url;
       });
     }, [url]);
-    url.username = '';
-    url.password = '';
-    assert_equals(
-        await this.execute_script(() => location.href),
-        url.toString(),
-        "expected navigation to reach destination URL");
+    if (expectedDestinationUrl === undefined) {
+      expectedDestinationUrl = url;
+    }
+    if (expectedDestinationUrl) {
+      expectedDestinationUrl.username = '';
+      expectedDestinationUrl.password = '';
+      assert_equals(
+          await this.execute_script(() => location.href),
+          expectedDestinationUrl.toString(),
+          "expected navigation to reach destination URL");
+    }
     await this.execute_script(() => {});
   }
 
@@ -115,11 +135,6 @@ function getPrefetchUrlList(n) {
   return Array.from({ length: n }, () => getPrefetchUrl());
 }
 
-function getRedirectUrl() {
-  let params = new URLSearchParams({uuid: token()});
-  return new URL(`redirect.py?${params}`, SR_PREFETCH_UTILS_URL);
-}
-
 async function isUrlPrefetched(url) {
   let response = await fetch(url, {redirect: 'follow'});
   assert_true(response.ok);
@@ -127,11 +142,17 @@ async function isUrlPrefetched(url) {
 }
 
 // Must also include /common/utils.js and /common/dispatcher/dispatcher.js to use this.
-async function spawnWindow(t, options = {}, uuid = token()) {
+async function spawnWindowWithReference(t, options = {}, uuid = token()) {
   let agent = new PrefetchAgent(uuid, t);
   let w = window.open(agent.getExecutorURL(options), '_blank', options);
   t.add_cleanup(() => w.close());
-  return agent;
+  return {"agent":agent, "window":w};
+}
+
+// Must also include /common/utils.js and /common/dispatcher/dispatcher.js to use this.
+async function spawnWindow(t, options = {}, uuid = token()) {
+  let agent_window_pair = await spawnWindowWithReference(t, options, uuid);
+  return agent_window_pair.agent;
 }
 
 function insertSpeculationRules(body) {
@@ -165,12 +186,91 @@ function insertDocumentRule(predicate, extra_options={}) {
 }
 
 function assert_prefetched (requestHeaders, description) {
-  assert_in_array(requestHeaders.purpose, ["", "prefetch"], "The vendor-specific header Purpose, if present, must be 'prefetch'.");
-  assert_in_array(requestHeaders.sec_purpose,
+  assert_in_array(requestHeaders.purpose, [undefined, "prefetch"], "The vendor-specific header Purpose, if present, must be 'prefetch'.");
+  assert_in_array(requestHeaders['sec-purpose'],
                   ["prefetch", "prefetch;anonymous-client-ip"], description);
 }
 
+function assert_prefetched_anonymous_client_ip(requestHeaders, description) {
+  assert_in_array(requestHeaders.purpose, [undefined, "prefetch"], "The vendor-specific header Purpose, if present, must be 'prefetch'.");
+  assert_equals(requestHeaders['sec-purpose'],
+                "prefetch;anonymous-client-ip",
+                description);
+}
+
 function assert_not_prefetched (requestHeaders, description){
-  assert_equals(requestHeaders.purpose, "", description);
-  assert_equals(requestHeaders.sec_purpose, "", description);
+  assert_equals(requestHeaders.purpose, undefined, description);
+  assert_equals(requestHeaders['sec-purpose'], undefined, description);
+}
+
+// If the prefetch request is intercepted and modified by ServiceWorker,
+// - "Sec-Purpose: prefetch" header is dropped in Step 33 of
+//   https://fetch.spec.whatwg.org/#dom-request
+//   because it's a https://fetch.spec.whatwg.org/#forbidden-request-header.
+// - "Purpose: prefetch" can still be sent.
+// Note that this check passes also for non-prefetch requests, so additional
+// checks are needed to distinguish from non-prefetch requests.
+function assert_prefetched_without_sec_purpose(requestHeaders, description) {
+  assert_in_array(requestHeaders.purpose, [undefined, "prefetch"],
+      "The vendor-specific header Purpose, if present, must be 'prefetch'.");
+  assert_equals(requestHeaders['sec-purpose'], undefined, description);
+}
+
+// For ServiceWorker tests.
+// `interceptedRequest` is an element of `interceptedRequests` in
+// `resources/basic-service-worker.js`.
+
+// The ServiceWorker fetch handler intercepted a prefetching request.
+function assert_intercept_prefetch(interceptedRequest, expectedUrl) {
+  assert_equals(interceptedRequest.request.url, expectedUrl.toString(),
+      "intercepted request URL.");
+
+  assert_prefetched(interceptedRequest.request.headers,
+      "Prefetch request should be intercepted.");
+
+  if (new URL(location.href).searchParams.has('clientId')) {
+    // https://github.com/WICG/nav-speculation/issues/346
+    // https://crbug.com/404294123
+    assert_equals(interceptedRequest.resultingClientId, "",
+        "resultingClientId shouldn't be exposed.");
+
+    // https://crbug.com/404286918
+    // `assert_not_equals()` isn't used for now to create stable failure diffs.
+    assert_false(interceptedRequest.clientId === "",
+        "clientId should be initiator.");
+  }
+}
+
+// The ServiceWorker fetch handler intercepted a non-prefetching request.
+function assert_intercept_non_prefetch(interceptedRequest, expectedUrl) {
+  assert_equals(interceptedRequest.request.url, expectedUrl.toString(),
+      "intercepted request URL.");
+
+  assert_not_prefetched(interceptedRequest.request.headers,
+      "Non-prefetch request should be intercepted.");
+
+  if (new URL(location.href).searchParams.has('clientId')) {
+    // Because this is an ordinal non-prefetch request, `resultingClientId`
+    // can be set as normal.
+    assert_not_equals(interceptedRequest.resultingClientId, "",
+        "resultingClientId can be exposed.");
+
+    assert_not_equals(interceptedRequest.clientId, "",
+        "clientId should be initiator.");
+  }
+}
+
+function assert_served_by_navigation_preload(requestHeaders) {
+  assert_equals(
+    requestHeaders['service-worker-navigation-preload'],
+    'true',
+    'Service-Worker-Navigation-Preload');
+}
+
+// Use nvs_header query parameter to ask the wpt server
+// to populate No-Vary-Search response header.
+function addNoVarySearchHeaderUsingQueryParam(url, value){
+  if(value){
+    url.searchParams.append("nvs_header", value);
+  }
 }

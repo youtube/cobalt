@@ -15,8 +15,10 @@ namespace ui {
 GtkPrimarySelectionOffer::GtkPrimarySelectionOffer(
     gtk_primary_selection_offer* data_offer)
     : data_offer_(data_offer) {
-  static constexpr gtk_primary_selection_offer_listener kListener = {&OnOffer};
-  gtk_primary_selection_offer_add_listener(data_offer, &kListener, this);
+  static constexpr gtk_primary_selection_offer_listener
+      kPrimarySelectionOfferListener = {.offer = &OnOffer};
+  gtk_primary_selection_offer_add_listener(
+      data_offer, &kPrimarySelectionOfferListener, this);
 }
 
 GtkPrimarySelectionOffer::~GtkPrimarySelectionOffer() {
@@ -35,8 +37,9 @@ base::ScopedFD GtkPrimarySelectionOffer::Receive(const std::string& mime_type) {
   // mimetype, then it is safer to "read" the clipboard data with
   // a mimetype mime_type known to be available.
   std::string effective_mime_type = mime_type;
-  if (mime_type == kMimeTypeText && text_plain_mime_type_inserted())
-    effective_mime_type = kMimeTypeTextUtf8;
+  if (mime_type == kMimeTypePlainText && text_plain_mime_type_inserted()) {
+    effective_mime_type = kMimeTypeUtf8PlainText;
+  }
 
   gtk_primary_selection_offer_receive(
       data_offer_.get(), effective_mime_type.data(), write_fd.get());
@@ -44,9 +47,10 @@ base::ScopedFD GtkPrimarySelectionOffer::Receive(const std::string& mime_type) {
 }
 
 // static
-void GtkPrimarySelectionOffer::OnOffer(void* data,
-                                       gtk_primary_selection_offer* data_offer,
-                                       const char* mime_type) {
+void GtkPrimarySelectionOffer::OnOffer(
+    void* data,
+    gtk_primary_selection_offer* selection_offer,
+    const char* mime_type) {
   auto* self = static_cast<GtkPrimarySelectionOffer*>(data);
   self->AddMimeType(mime_type);
 }

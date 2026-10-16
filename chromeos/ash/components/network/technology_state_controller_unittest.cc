@@ -4,15 +4,14 @@
 
 #include "chromeos/ash/components/network/technology_state_controller.h"
 
-#include "ash/constants/ash_features.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/values.h"
 #include "chromeos/ash/components/dbus/shill/shill_clients.h"
 #include "chromeos/ash/components/dbus/shill/shill_manager_client.h"
 #include "chromeos/ash/components/network/enterprise_managed_metadata_store.h"
+#include "chromeos/ash/components/network/hotspot_allowed_flag_handler.h"
 #include "chromeos/ash/components/network/hotspot_capabilities_provider.h"
 #include "chromeos/ash/components/network/hotspot_controller.h"
 #include "chromeos/ash/components/network/hotspot_state_handler.h"
@@ -37,14 +36,15 @@ const char kEnableWifiResultCodeHistogram[] =
 class TechnologyStateControllerTest : public ::testing::Test {
  public:
   void SetUp() override {
-    feature_list_.InitAndEnableFeature(features::kHotspot);
-
     enterprise_managed_metadata_store_ =
         std::make_unique<EnterpriseManagedMetadataStore>();
     hotspot_capabilities_provider_ =
         std::make_unique<HotspotCapabilitiesProvider>();
+    hotspot_allowed_flag_handler_ =
+        std::make_unique<HotspotAllowedFlagHandler>();
     hotspot_capabilities_provider_->Init(
-        network_state_test_helper_.network_state_handler());
+        network_state_test_helper_.network_state_handler(),
+        hotspot_allowed_flag_handler_.get());
     hotspot_feature_usage_metrics_ =
         std::make_unique<HotspotFeatureUsageMetrics>();
     hotspot_feature_usage_metrics_->Init(
@@ -69,6 +69,7 @@ class TechnologyStateControllerTest : public ::testing::Test {
     hotspot_controller_.reset();
     hotspot_feature_usage_metrics_.reset();
     hotspot_capabilities_provider_.reset();
+    hotspot_allowed_flag_handler_.reset();
     hotspot_state_handler_.reset();
     enterprise_managed_metadata_store_.reset();
     technology_state_controller_.reset();
@@ -92,12 +93,12 @@ class TechnologyStateControllerTest : public ::testing::Test {
  protected:
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  base::test::ScopedFeatureList feature_list_;
   base::HistogramTester histogram_tester_;
   std::unique_ptr<HotspotController> hotspot_controller_;
   std::unique_ptr<EnterpriseManagedMetadataStore>
       enterprise_managed_metadata_store_;
   std::unique_ptr<HotspotCapabilitiesProvider> hotspot_capabilities_provider_;
+  std::unique_ptr<HotspotAllowedFlagHandler> hotspot_allowed_flag_handler_;
   std::unique_ptr<HotspotFeatureUsageMetrics> hotspot_feature_usage_metrics_;
   std::unique_ptr<HotspotStateHandler> hotspot_state_handler_;
   std::unique_ptr<TechnologyStateController> technology_state_controller_;
@@ -219,11 +220,10 @@ TEST_F(TechnologyStateControllerTest, EnableWifiWhenHotspotOn) {
           NetworkTypePattern::WiFi()));
 
   // Simulate that there's an active hotspot
-  base::Value::Dict status_dict;
-  status_dict.Set(shill::kTetheringStatusStateProperty,
-                  shill::kTetheringStateActive);
+  auto status_dict = base::Value::Dict().Set(
+      shill::kTetheringStatusStateProperty, shill::kTetheringStateActive);
   network_state_test_helper_.manager_test()->SetManagerProperty(
-      shill::kTetheringStatusProperty, base::Value(status_dict.Clone()));
+      shill::kTetheringStatusProperty, base::Value(std::move(status_dict)));
   base::RunLoop().RunUntilIdle();
 
   // Simulate disable hotspot will fail.

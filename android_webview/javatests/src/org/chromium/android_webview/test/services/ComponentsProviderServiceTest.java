@@ -4,9 +4,13 @@
 
 package org.chromium.android_webview.test.services;
 
+import static org.chromium.android_webview.test.OnlyRunIn.ProcessMode.EITHER_PROCESS;
+
 import android.app.job.JobScheduler;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 import android.os.ResultReceiver;
@@ -28,12 +32,12 @@ import org.chromium.android_webview.services.ComponentsProviderService;
 import org.chromium.android_webview.services.SafeModeService;
 import org.chromium.android_webview.test.AwActivityTestRule;
 import org.chromium.android_webview.test.AwJUnit4ClassRunner;
+import org.chromium.android_webview.test.OnlyRunIn;
 import org.chromium.android_webview.variations.VariationsSeedSafeModeAction;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.FileUtils;
 import org.chromium.base.PathUtils;
 import org.chromium.base.test.util.Batch;
-import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.components.background_task_scheduler.TaskIds;
 import org.chromium.components.component_updater.IComponentsProviderService;
@@ -65,7 +69,8 @@ public class ComponentsProviderServiceTest {
             new File(PathUtils.getDataDirectory(), "components/cps/");
 
     private static void cleanupFiles() {
-        Assert.assertTrue("Failed to delete " + sDirectory.getAbsolutePath(),
+        Assert.assertTrue(
+                "Failed to delete " + sDirectory.getAbsolutePath(),
                 FileUtils.recursivelyDeleteFile(sDirectory, null));
     }
 
@@ -75,6 +80,7 @@ public class ComponentsProviderServiceTest {
      * service is unbound and killed, and the process is restarted between tests.
      */
     @RunWith(AwJUnit4ClassRunner.class)
+    @OnlyRunIn(EITHER_PROCESS) // These tests don't use the renderer process
     public static class AutoBindServiceTests {
         private ServiceConnectionHelper mConnection;
         private IComponentsProviderService mService;
@@ -82,13 +88,29 @@ public class ComponentsProviderServiceTest {
         @Before
         public void setup() {
             Context context = ContextUtils.getApplicationContext();
-            mConnection = new ServiceConnectionHelper(
-                    new Intent(context, ComponentsProviderService.class), Context.BIND_AUTO_CREATE);
+            mConnection =
+                    new ServiceConnectionHelper(
+                            new Intent(context, ComponentsProviderService.class),
+                            Context.BIND_AUTO_CREATE);
             mService = IComponentsProviderService.Stub.asInterface(mConnection.getBinder());
         }
 
         @After
         public void tearDown() {
+            // Reset component state back to the default.
+            final Context context = ContextUtils.getApplicationContext();
+            ComponentName safeModeComponent =
+                    new ComponentName(
+                            TEST_WEBVIEW_PACKAGE_NAME,
+                            SafeModeController.SAFE_MODE_STATE_COMPONENT);
+            context.getPackageManager()
+                    .setComponentEnabledSetting(
+                            safeModeComponent,
+                            PackageManager.COMPONENT_ENABLED_STATE_DEFAULT,
+                            PackageManager.DONT_KILL_APP);
+
+            SafeModeController.getInstance().unregisterActionsForTesting();
+
             mConnection.close();
             cleanupFiles();
             SafeModeService.clearSharedPrefsForTesting();
@@ -153,21 +175,24 @@ public class ComponentsProviderServiceTest {
             final String componentUpdaterResetActionId =
                     new ComponentUpdaterResetSafeModeAction().getId();
             try (ServiceConnectionHelper helper =
-                            new ServiceConnectionHelper(intent, Context.BIND_AUTO_CREATE)) {
+                    new ServiceConnectionHelper(intent, Context.BIND_AUTO_CREATE)) {
                 ISafeModeService service = ISafeModeService.Stub.asInterface(helper.getBinder());
                 service.setSafeMode(Arrays.asList(componentUpdaterResetActionId));
             }
 
-            Assert.assertTrue("SafeMode should be enabled",
+            Assert.assertTrue(
+                    "SafeMode should be enabled",
                     SafeModeController.getInstance().isSafeModeEnabled(TEST_WEBVIEW_PACKAGE_NAME));
             Set<String> actions = new HashSet<>();
             actions.add(componentUpdaterResetActionId);
-            Assert.assertEquals("Querying the ContentProvider should yield the action we set",
+            Assert.assertEquals(
+                    "Querying the ContentProvider should yield the action we set",
                     actions,
                     SafeModeController.getInstance().queryActions(TEST_WEBVIEW_PACKAGE_NAME));
 
             resultBundle = getFilesForComponentSync(componentId);
-            Assert.assertNull(componentId
+            Assert.assertNull(
+                    componentId
                             + " must return a null result Bundle while ComponentUpdaterReset is on",
                     resultBundle);
         }
@@ -188,21 +213,24 @@ public class ComponentsProviderServiceTest {
                     new VariationsSeedSafeModeAction().getId();
 
             try (ServiceConnectionHelper helper =
-                            new ServiceConnectionHelper(intent, Context.BIND_AUTO_CREATE)) {
+                    new ServiceConnectionHelper(intent, Context.BIND_AUTO_CREATE)) {
                 ISafeModeService service = ISafeModeService.Stub.asInterface(helper.getBinder());
                 service.setSafeMode(Arrays.asList(variationsSeedSafeModeActionId));
             }
 
-            Assert.assertTrue("SafeMode should be enabled",
+            Assert.assertTrue(
+                    "SafeMode should be enabled",
                     SafeModeController.getInstance().isSafeModeEnabled(TEST_WEBVIEW_PACKAGE_NAME));
             Set<String> actions = new HashSet<>();
             actions.add(variationsSeedSafeModeActionId);
-            Assert.assertEquals("Querying the ContentProvider should yield the action we set",
+            Assert.assertEquals(
+                    "Querying the ContentProvider should yield the action we set",
                     actions,
                     SafeModeController.getInstance().queryActions(TEST_WEBVIEW_PACKAGE_NAME));
 
             resultBundle = getFilesForComponentSync(componentId);
-            Assert.assertNotNull(componentId
+            Assert.assertNotNull(
+                    componentId
                             + " must return a non-null Bundle while ComponentUpdaterReset is off",
                     resultBundle);
         }
@@ -210,16 +238,19 @@ public class ComponentsProviderServiceTest {
         private Bundle getFilesForComponentSync(String componentId) throws Exception {
             final CountDownLatch latch = new CountDownLatch(1);
             final Bundle result = new Bundle();
-            mService.getFilesForComponent(componentId, new ResultReceiver(null) {
-                @Override
-                protected void onReceiveResult(int resultCode, Bundle resultData) {
-                    if (resultData != null) {
-                        result.putAll(resultData);
-                    }
-                    latch.countDown();
-                }
-            });
-            Assert.assertTrue("Timeout waiting to receive files for component " + componentId,
+            mService.getFilesForComponent(
+                    componentId,
+                    new ResultReceiver(null) {
+                        @Override
+                        protected void onReceiveResult(int resultCode, Bundle resultData) {
+                            if (resultData != null) {
+                                result.putAll(resultData);
+                            }
+                            latch.countDown();
+                        }
+                    });
+            Assert.assertTrue(
+                    "Timeout waiting to receive files for component " + componentId,
                     latch.await(AwActivityTestRule.SCALED_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS));
 
             return result.isEmpty() ? null : result;
@@ -231,8 +262,8 @@ public class ComponentsProviderServiceTest {
             Assert.assertFalse(
                     componentId + " should not return an empty result Bundle", bundle.isEmpty());
             final HashMap<String, ParcelFileDescriptor> map =
-                    (HashMap<String, ParcelFileDescriptor>) bundle.getSerializable(
-                            ComponentsProviderService.KEY_RESULT);
+                    (HashMap<String, ParcelFileDescriptor>)
+                            bundle.getSerializable(ComponentsProviderService.KEY_RESULT);
             Assert.assertNotNull("Map in the result bundle should not be null", map);
             Assert.assertFalse("Map in the result bundle should not be empty", map.isEmpty());
 
@@ -241,9 +272,11 @@ public class ComponentsProviderServiceTest {
                 final String key = entry.getKey();
                 if (key.equals(fileName)) {
                     final ParcelFileDescriptor fileDescriptor = entry.getValue();
-                    Assert.assertTrue("Null file descriptor for " + key,
+                    Assert.assertTrue(
+                            "Null file descriptor for " + key,
                             fileDescriptor != null && fileDescriptor.getFileDescriptor() != null);
-                    Assert.assertTrue("Invalid file descriptor for " + key,
+                    Assert.assertTrue(
+                            "Invalid file descriptor for " + key,
                             fileDescriptor.getFileDescriptor().valid());
                     return;
                 }
@@ -254,11 +287,12 @@ public class ComponentsProviderServiceTest {
     }
 
     /**
-     * This subclass groups tests that manually create the service object, unlike tests that
-     * bind the service (see {@link AutoBindServiceTests}). Since these tests don't rely on
-     * binding the service, they can be ran as unit tests.
+     * This subclass groups tests that manually create the service object, unlike tests that bind
+     * the service (see {@link AutoBindServiceTests}). Since these tests don't rely on binding the
+     * service, they can be ran as unit tests.
      */
     @RunWith(AwJUnit4ClassRunner.class)
+    @OnlyRunIn(EITHER_PROCESS) // These are unit tests
     @Batch(Batch.UNIT_TESTS)
     public static class ServiceOnCreateTests {
         private final ComponentsProviderService mService = new ComponentsProviderService();
@@ -273,26 +307,29 @@ public class ComponentsProviderServiceTest {
         @Test
         @SmallTest
         public void testOnCreateCreatesDirectory() throws Exception {
-            Assert.assertTrue("Failed to remove directory " + sDirectory.getAbsolutePath(),
+            Assert.assertTrue(
+                    "Failed to remove directory " + sDirectory.getAbsolutePath(),
                     !sDirectory.exists() || sDirectory.delete());
 
             mService.onCreate();
 
-            Assert.assertTrue("Service didn't create directory " + sDirectory.getAbsolutePath(),
+            Assert.assertTrue(
+                    "Service didn't create directory " + sDirectory.getAbsolutePath(),
                     sDirectory.exists());
         }
 
         @Test
         @SmallTest
-        @DisabledTest(message = "https://crbug.com/1428048")
         public void testOnCreateSchedulesUpdater() throws Exception {
             JobScheduler jobScheduler =
-                    (JobScheduler) ContextUtils.getApplicationContext().getSystemService(
-                            Context.JOB_SCHEDULER_SERVICE);
+                    (JobScheduler)
+                            ContextUtils.getApplicationContext()
+                                    .getSystemService(Context.JOB_SCHEDULER_SERVICE);
             jobScheduler.cancelAll();
 
             mService.onCreate();
-            Assert.assertTrue("Service should schedule updater job",
+            Assert.assertTrue(
+                    "Service should schedule updater job",
                     ComponentsProviderService.isJobScheduled(
                             jobScheduler, TaskIds.WEBVIEW_COMPONENT_UPDATE_JOB_ID));
         }
@@ -301,8 +338,9 @@ public class ComponentsProviderServiceTest {
         @SmallTest
         public void testScheduleUpdateJob() throws Exception {
             JobScheduler jobScheduler =
-                    (JobScheduler) ContextUtils.getApplicationContext().getSystemService(
-                            Context.JOB_SCHEDULER_SERVICE);
+                    (JobScheduler)
+                            ContextUtils.getApplicationContext()
+                                    .getSystemService(Context.JOB_SCHEDULER_SERVICE);
             jobScheduler.cancelAll();
 
             long currentTime = System.currentTimeMillis();
@@ -310,27 +348,33 @@ public class ComponentsProviderServiceTest {
             ComponentsProviderService.setClockForTesting(() -> currentTime);
 
             ComponentsProviderService.maybeScheduleComponentUpdateService();
-            Assert.assertTrue("Service should schedule updater job",
+            Assert.assertTrue(
+                    "Service should schedule updater job",
                     ComponentsProviderService.isJobScheduled(
                             jobScheduler, TaskIds.WEBVIEW_COMPONENT_UPDATE_JOB_ID));
 
             jobScheduler.cancelAll();
-            Assert.assertFalse("Updater job should be cancelled",
+            Assert.assertFalse(
+                    "Updater job should be cancelled",
                     ComponentsProviderService.isJobScheduled(
                             jobScheduler, TaskIds.WEBVIEW_COMPONENT_UPDATE_JOB_ID));
 
             ComponentsProviderService.setClockForTesting(() -> currentTime + 1000L);
             ComponentsProviderService.maybeScheduleComponentUpdateService();
-            Assert.assertFalse("Updater job shouldn't be scheduled before "
-                            + ComponentsProviderService.UPDATE_INTERVAL_MS + " milliseconds pass",
+            Assert.assertFalse(
+                    "Updater job shouldn't be scheduled before "
+                            + ComponentsProviderService.UPDATE_INTERVAL_MS
+                            + " milliseconds pass",
                     ComponentsProviderService.isJobScheduled(
                             jobScheduler, TaskIds.WEBVIEW_COMPONENT_UPDATE_JOB_ID));
 
             ComponentsProviderService.setClockForTesting(
                     () -> currentTime + ComponentsProviderService.UPDATE_INTERVAL_MS + 1000L);
             ComponentsProviderService.maybeScheduleComponentUpdateService();
-            Assert.assertTrue("Updater job should be scheduled because "
-                            + ComponentsProviderService.UPDATE_INTERVAL_MS + " milliseconds passed",
+            Assert.assertTrue(
+                    "Updater job should be scheduled because "
+                            + ComponentsProviderService.UPDATE_INTERVAL_MS
+                            + " milliseconds passed",
                     ComponentsProviderService.isJobScheduled(
                             jobScheduler, TaskIds.WEBVIEW_COMPONENT_UPDATE_JOB_ID));
         }
@@ -359,10 +403,12 @@ public class ComponentsProviderServiceTest {
                     componentId + " has no installed versions, but should have 1", files);
             Assert.assertEquals(
                     componentId + " has " + files.length + " installed versions, but should have 1",
-                    /* expected = */ 1, /* actual = */ files.length);
-            Assert.assertEquals("Wrong sequence/version number for component " + componentId,
-                    /* expected = */ sequenceNumber + "_" + version,
-                    /* actual = */ files[0].getName());
+                    /* expected= */ 1,
+                    /* actual= */ files.length);
+            Assert.assertEquals(
+                    "Wrong sequence/version number for component " + componentId,
+                    /* expected= */ sequenceNumber + "_" + version,
+                    /* actual= */ files[0].getName());
         }
 
         @Test
@@ -373,17 +419,19 @@ public class ComponentsProviderServiceTest {
                     new ComponentUpdaterResetSafeModeAction().getId();
             Intent intent = new Intent(ContextUtils.getApplicationContext(), SafeModeService.class);
             try (ServiceConnectionHelper helper =
-                            new ServiceConnectionHelper(intent, Context.BIND_AUTO_CREATE)) {
+                    new ServiceConnectionHelper(intent, Context.BIND_AUTO_CREATE)) {
                 ISafeModeService safeModeService =
                         ISafeModeService.Stub.asInterface(helper.getBinder());
                 safeModeService.setSafeMode(Arrays.asList(componentUpdaterResetActionId));
             }
 
             JobScheduler jobScheduler =
-                    (JobScheduler) ContextUtils.getApplicationContext().getSystemService(
-                            Context.JOB_SCHEDULER_SERVICE);
+                    (JobScheduler)
+                            ContextUtils.getApplicationContext()
+                                    .getSystemService(Context.JOB_SCHEDULER_SERVICE);
             mService.onCreate();
-            Assert.assertFalse("Service should have no updater job scheduled",
+            Assert.assertFalse(
+                    "Service should have no updater job scheduled",
                     ComponentsProviderService.isJobScheduled(
                             jobScheduler, TaskIds.WEBVIEW_COMPONENT_UPDATE_JOB_ID));
         }
@@ -393,11 +441,14 @@ public class ComponentsProviderServiceTest {
             String componentId, String sequenceNumber, String version) throws IOException {
         final File versionDirectory =
                 new File(sDirectory, componentId + "/" + sequenceNumber + "_" + version);
-        Assert.assertTrue("Failed to create directory " + versionDirectory.getAbsolutePath(),
+        Assert.assertTrue(
+                "Failed to create directory " + versionDirectory.getAbsolutePath(),
                 versionDirectory.mkdirs());
 
-        final File file = new File(
-                versionDirectory, getComponentTestFileName(componentId, sequenceNumber, version));
+        final File file =
+                new File(
+                        versionDirectory,
+                        getComponentTestFileName(componentId, sequenceNumber, version));
         Assert.assertTrue("Failed to create file " + file.getAbsolutePath(), file.createNewFile());
 
         FileWriter writer = new FileWriter(file);
@@ -406,7 +457,8 @@ public class ComponentsProviderServiceTest {
         }
         writer.close();
 
-        Assert.assertTrue("File " + file.getName() + " should not have size 0",
+        Assert.assertTrue(
+                "File " + file.getName() + " should not have size 0",
                 FileUtils.getFileSizeBytes(file) > 0);
     }
 

@@ -46,6 +46,7 @@
 #include "third_party/blink/renderer/core/editing/commands/indent_outdent_command.h"
 #include "third_party/blink/renderer/core/editing/commands/insert_list_command.h"
 #include "third_party/blink/renderer/core/editing/commands/replace_selection_command.h"
+#include "third_party/blink/renderer/core/editing/commands/selection_for_undo_step.h"
 #include "third_party/blink/renderer/core/editing/commands/simplify_markup_command.h"
 #include "third_party/blink/renderer/core/editing/commands/typing_command.h"
 #include "third_party/blink/renderer/core/editing/commands/undo_stack.h"
@@ -87,6 +88,7 @@
 #include "third_party/blink/renderer/core/scroll/scroll_alignment.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
@@ -98,7 +100,8 @@ namespace {
 bool IsInPasswordFieldWithUnrevealedPassword(const Position& position) {
   if (auto* input =
           DynamicTo<HTMLInputElement>(EnclosingTextControl(position))) {
-    return (input->type() == input_type_names::kPassword) &&
+    return input->FormControlType() ==
+               mojom::blink::FormControlType::kInputPassword &&
            !input->ShouldRevealPassword();
   }
   return false;
@@ -118,7 +121,7 @@ SelectionInDOMTree Editor::SelectionForCommand(Event* event) {
   if (!IsTextControl(*event->target()->ToNode()))
     return selection;
   auto* text_control_of_selection_start =
-      EnclosingTextControl(selection.Base());
+      EnclosingTextControl(selection.Anchor());
   auto* text_control_of_target = ToTextControl(event->target()->ToNode());
   if (!selection.IsNone() &&
       text_control_of_target == text_control_of_selection_start)
@@ -203,7 +206,8 @@ bool Editor::HandleTextEvent(TextEvent* event) {
   // TODO(kojii): rich editing has the same issue, but has more options and
   // needs coordination with JS. Enable for plaintext only for now and collect
   // feedback.
-  if (data == " " && !CanEditRichly() &&
+  if (!RuntimeEnabledFeatures::CaretWithTextAffinityUpstreamEnabled() &&
+      data == " " && !CanEditRichly() &&
       IsCaretAtStartOfWrappedLine(GetFrameSelection())) {
     InsertLineBreak();
   }
@@ -223,7 +227,7 @@ bool Editor::CanEditRichly() const {
       GetFrame()
           .Selection()
           .ComputeVisibleSelectionInDOMTreeDeprecated()
-          .Base());
+          .Anchor());
 }
 
 bool Editor::CanCut() const {
@@ -426,6 +430,20 @@ void Editor::RespondToChangedContents(const Position& position) {
   frame_->Client()->DidChangeContents();
 }
 
+void Editor::NotifyAccessibilityOfDeletionOrInsertionInTextField(
+    const SelectionForUndoStep& changed_selection,
+    bool is_deletion) {
+  if (AXObjectCache* cache =
+          GetFrame().GetDocument()->ExistingAXObjectCache()) {
+    if (!changed_selection.Start().IsValidFor(*GetFrame().GetDocument()) ||
+        !changed_selection.End().IsValidFor(*GetFrame().GetDocument())) {
+      return;
+    }
+    cache->HandleDeletionOrInsertionInTextField(changed_selection.AsSelection(),
+                                                is_deletion);
+  }
+}
+
 void Editor::RegisterCommandGroup(CompositeEditCommand* command_group_wrapper) {
   DCHECK(command_group_wrapper->IsCommandGroupWrapper());
   last_edit_command_ = command_group_wrapper;
@@ -463,7 +481,6 @@ Editor::Editor(LocalFrame& frame)
       // matches IE but not FF).
       should_style_with_css_(false),
       kill_ring_(std::make_unique<KillRing>()),
-      are_marked_text_matches_highlighted_(false),
       default_paragraph_separator_(EditorParagraphSeparator::kIsDiv) {}
 
 Editor::~Editor() = default;
@@ -624,6 +641,12 @@ void Editor::CopyImage(const HitTestResult& result) {
                             result.AltDisplayString());
 }
 
+void Editor::CopyImage(const HitTestResult& result,
+                       const scoped_refptr<Image>& image) {
+  WriteImageToClipboard(*frame_->GetSystemClipboard(), image, KURL(),
+                        result.AltDisplayString());
+}
+
 bool Editor::CanUndo() {
   return undo_stack_->CanUndo();
 }
@@ -648,9 +671,10 @@ void Editor::SetBaseWritingDirection(
       return;
     text_control->setAttribute(
         html_names::kDirAttr,
-        direction == mojo_base::mojom::blink::TextDirection::LEFT_TO_RIGHT
-            ? "ltr"
-            : "rtl");
+        AtomicString(
+            direction == mojo_base::mojom::blink::TextDirection::LEFT_TO_RIGHT
+                ? "ltr"
+                : "rtl"));
     text_control->DispatchInputEvent();
     return;
   }
@@ -792,7 +816,7 @@ bool Editor::FindString(LocalFrame& frame,
   Range* const result_range = FindRangeOfString(
       *frame.GetDocument(), target,
       EphemeralRangeInFlatTree(selection.Start(), selection.End()),
-      static_cast<FindOptions>(options | kFindAPICall));
+      options.SetFindApiCall(true));
 
   if (!result_range)
     return false;
@@ -814,7 +838,7 @@ static Range* FindStringBetweenPositions(
     FindOptions options) {
   EphemeralRangeInFlatTree search_range(reference_range);
 
-  bool forward = !(options & kBackwards);
+  bool forward = !options.IsBackwards();
 
   while (true) {
     EphemeralRangeInFlatTree result_range =
@@ -847,7 +871,6 @@ static Range* FindStringBetweenPositions(
   }
 
   NOTREACHED();
-  return nullptr;
 }
 
 Range* Editor::FindRangeOfString(
@@ -866,10 +889,10 @@ Range* Editor::FindRangeOfString(
       EphemeralRangeInFlatTree::RangeOfContents(document);
   EphemeralRangeInFlatTree search_range(document_range);
 
-  const bool forward = !(options & kBackwards);
+  const bool forward = !options.IsBackwards();
   bool start_in_reference_range = false;
   if (reference_range.IsNotNull()) {
-    start_in_reference_range = options & kStartInSelection;
+    start_in_reference_range = options.IsStartingInSelection();
     if (forward && start_in_reference_range) {
       search_range = EphemeralRangeInFlatTree(reference_range.StartPosition(),
                                               document_range.EndPosition());
@@ -906,22 +929,13 @@ Range* Editor::FindRangeOfString(
     result_range = FindStringBetweenPositions(target, search_range, options);
   }
 
-  if (!result_range && options & kWrapAround) {
+  if (!result_range && options.IsWrappingAround()) {
     if (wrapped_around)
       *wrapped_around = true;
     return FindStringBetweenPositions(target, document_range, options);
   }
 
   return result_range;
-}
-
-void Editor::SetMarkedTextMatchesAreHighlighted(bool flag) {
-  if (flag == are_marked_text_matches_highlighted_)
-    return;
-
-  are_marked_text_matches_highlighted_ = flag;
-  GetFrame().GetDocument()->Markers().RepaintMarkers(
-      DocumentMarker::MarkerTypes::TextMatch());
 }
 
 void Editor::RespondToChangedSelection() {
@@ -931,6 +945,7 @@ void Editor::RespondToChangedSelection() {
 }
 
 void Editor::SyncSelection(SyncCondition force_sync) {
+  TRACE_EVENT0("blink", "Editor::SyncSelection");
   frame_->Client()->DidChangeSelection(
       !GetFrameSelection().GetSelectionInDOMTree().IsRange(), force_sync);
 }
@@ -957,9 +972,6 @@ void Editor::ReplaceSelection(const String& text) {
 }
 
 void Editor::ElementRemoved(Element* element) {
-  if (!RuntimeEnabledFeatures::DontLeakDetachedInputEnabled()) {
-    return;
-  }
   if (last_edit_command_ &&
       last_edit_command_->EndingSelection().RootEditableElement() == element) {
     last_edit_command_ = nullptr;

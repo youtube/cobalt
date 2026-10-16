@@ -1,10 +1,9 @@
+load("@build_bazel_rules_android//android:rules.bzl", "android_library")
 load("@org_tensorflow//tensorflow/lite/core/shims:cc_library_with_tflite.bzl", "android_library_with_tflite")
 load("@org_tensorflow//tensorflow/lite/java:aar_with_jni.bzl", "aar_with_jni")
-load("@build_bazel_rules_android//android:rules.bzl", "android_library")
 
 package(
-    default_applicable_licenses = ["//tensorflow_lite_support:license"],
-    default_visibility = ["//visibility:public"],
+    default_visibility = ["//tensorflow_lite_support:users"],
     licenses = ["notice"],  # Apache 2.0
 )
 

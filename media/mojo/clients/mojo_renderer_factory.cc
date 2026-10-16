@@ -9,6 +9,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
+#include "media/base/starboard/experimental_features.h"
 #include "media/mojo/clients/mojo_renderer.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/renderers/decrypting_renderer.h"
@@ -101,26 +102,6 @@ std::unique_ptr<MojoRenderer> MojoRendererFactory::CreateFlingingRenderer(
   interface_factory_->CreateFlingingRenderer(
       presentation_id, std::move(client_extension_remote),
       renderer_remote.InitWithNewPipeAndPassReceiver());
-
-  return std::make_unique<MojoRenderer>(media_task_runner, nullptr,
-                                        video_renderer_sink,
-                                        std::move(renderer_remote));
-}
-
-std::unique_ptr<MojoRenderer> MojoRendererFactory::CreateMediaPlayerRenderer(
-    mojo::PendingReceiver<mojom::MediaPlayerRendererExtension>
-        renderer_extension_receiver,
-    mojo::PendingRemote<mojom::MediaPlayerRendererClientExtension>
-        client_extension_remote,
-    const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
-    VideoRendererSink* video_renderer_sink) {
-  DCHECK(interface_factory_);
-  mojo::PendingRemote<mojom::Renderer> renderer_remote;
-
-  interface_factory_->CreateMediaPlayerRenderer(
-      std::move(client_extension_remote),
-      renderer_remote.InitWithNewPipeAndPassReceiver(),
-      std::move(renderer_extension_receiver));
 
   return std::make_unique<MojoRenderer>(media_task_runner, nullptr,
                                         video_renderer_sink,

@@ -26,66 +26,44 @@
 
 #include "third_party/blink/renderer/core/dom/element_data_cache.h"
 
+#include "base/compiler_specific.h"
 #include "third_party/blink/renderer/core/dom/element_data.h"
 
 namespace blink {
 
 inline unsigned AttributeHash(
     const Vector<Attribute, kAttributePrealloc>& attributes) {
-  return StringHasher::HashMemory(attributes.data(),
-                                  attributes.size() * sizeof(Attribute));
+  return StringHasher::HashMemory(base::as_byte_span(attributes));
 }
-
-// Do comparisons 8 bytes-at-a-time on architectures where it's safe.
-#if defined(ARCH_CPU_64_BITS)
-inline bool EqualAttributes(const void* a, const void* b, wtf_size_t bytes) {
-  // On 64 bits machine, alignment of Attribute is 8
-  static_assert((alignof(Attribute) % 8) == 0);
-  DCHECK_EQ(bytes % 8, 0u);
-  const uint64_t* attr_a = unsafe_reinterpret_cast_ptr<const uint64_t*>(a);
-  const uint64_t* attr_b = unsafe_reinterpret_cast_ptr<const uint64_t*>(b);
-  wtf_size_t length = bytes >> 3;
-  for (wtf_size_t i = 0; i != length; ++i) {
-    if (*attr_a != *attr_b)
-      return false;
-    ++attr_a;
-    ++attr_b;
-  }
-
-  return true;
-}
-#else
-inline bool EqualAttributes(const void* a, const void* b, wtf_size_t bytes) {
-  return !memcmp(a, b, bytes);
-}
-#endif
 
 inline bool HasSameAttributes(
     const Vector<Attribute, kAttributePrealloc>& attributes,
     ShareableElementData& element_data) {
-  if (attributes.size() != element_data.Attributes().size())
-    return false;
-  return EqualAttributes(attributes.data(), element_data.attribute_array_,
-                         attributes.size() * sizeof(Attribute));
+  return std::equal(attributes.begin(), attributes.end(),
+                    element_data.attribute_array_,
+                    UNSAFE_TODO(element_data.attribute_array_ +
+                                element_data.Attributes().size()));
 }
 
 ShareableElementData*
 ElementDataCache::CachedShareableElementDataWithAttributes(
+    const StringImpl* tag_name,
     const Vector<Attribute, kAttributePrealloc>& attributes) {
   DCHECK(!attributes.empty());
 
+  unsigned hash = WTF::HashInts(tag_name->GetHash(), AttributeHash(attributes));
   ShareableElementDataCache::ValueType* it =
-      shareable_element_data_cache_.insert(AttributeHash(attributes), nullptr)
+      shareable_element_data_cache_.insert(hash, std::pair(nullptr, nullptr))
           .stored_value;
 
   // FIXME: This prevents sharing when there's a hash collision.
-  if (it->value && !HasSameAttributes(attributes, *it->value))
-    return ShareableElementData::CreateWithAttributes(attributes);
+  if (it->value.second == nullptr || it->value.first != tag_name ||
+      !HasSameAttributes(attributes, *it->value.second)) {
+    it->value.first = tag_name;
+    it->value.second = ShareableElementData::CreateWithAttributes(attributes);
+  }
 
-  if (!it->value)
-    it->value = ShareableElementData::CreateWithAttributes(attributes);
-
-  return it->value.Get();
+  return it->value.second.Get();
 }
 
 ElementDataCache::ElementDataCache() = default;

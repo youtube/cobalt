@@ -16,8 +16,8 @@
 #include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if !SB_IS(EVERGREEN_COMPATIBLE)
-#error These tests apply only to EVERGREEN_COMPATIBLE platforms.
+#if !BUILDFLAG(IS_STARBOARD)
+#error These tests apply only to Starboard platforms.
 #endif
 
 namespace nplb {

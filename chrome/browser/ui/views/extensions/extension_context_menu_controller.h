@@ -9,13 +9,12 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/extensions/extension_context_menu_model.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/views/context_menu_controller.h"
 
 class ToolbarActionViewController;
 
 namespace views {
-class Button;
-class MenuItemView;
 class MenuModelAdapter;
 class MenuRunner;
 }  // namespace views
@@ -35,17 +34,14 @@ class ExtensionContextMenuController : public views::ContextMenuController {
   ~ExtensionContextMenuController() override;
 
   // views::ContextMenuController:
-  void ShowContextMenuForViewImpl(views::View* source,
-                                  const gfx::Point& point,
-                                  ui::MenuSourceType source_type) override;
+  void ShowContextMenuForViewImpl(
+      views::View* source,
+      const gfx::Point& point,
+      ui::mojom::MenuSourceType source_type) override;
 
   bool IsMenuRunning() const;
 
-  views::MenuItemView* menu_for_testing() { return menu_; }
-
  private:
-  void RunExtensionContextMenu(views::Button* source);
-
   // Callback for MenuModelAdapter.
   void OnMenuClosed();
 
@@ -54,10 +50,6 @@ class ExtensionContextMenuController : public views::ContextMenuController {
 
   // Responsible for running the menu.
   std::unique_ptr<views::MenuRunner> menu_runner_;
-
-  // The root MenuItemView for the context menu, or null if no menu is being
-  // shown. This is used for testing.
-  raw_ptr<views::MenuItemView, DanglingUntriaged> menu_ = nullptr;
 
   // This controller contains the data for the extension's context menu.
   const raw_ptr<ToolbarActionViewController> controller_;

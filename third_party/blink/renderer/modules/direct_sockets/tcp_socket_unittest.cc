@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_tester.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_dom_exception.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_tcp_socket_open_info.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/streams/readable_stream.h"
 #include "third_party/blink/renderer/core/streams/writable_stream.h"
@@ -19,6 +20,7 @@
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 
 namespace blink {
@@ -38,13 +40,12 @@ CreateDataPipe(int32_t capacity = 1) {
 }  // namespace
 
 TEST(TCPSocketTest, CloseBeforeInit) {
+  test::TaskEnvironment task_environment;
   V8TestingScope scope;
 
   auto* script_state = scope.GetScriptState();
   auto* tcp_socket = MakeGarbageCollected<TCPSocket>(script_state);
-
-  auto close_promise =
-      tcp_socket->close(script_state, scope.GetExceptionState());
+  tcp_socket->close(script_state, scope.GetExceptionState());
 
   ASSERT_TRUE(scope.GetExceptionState().HadException());
   EXPECT_EQ(scope.GetExceptionState().CodeAs<DOMExceptionCode>(),
@@ -52,6 +53,7 @@ TEST(TCPSocketTest, CloseBeforeInit) {
 }
 
 TEST(TCPSocketTest, CloseAfterInitWithResultOK) {
+  test::TaskEnvironment task_environment;
   V8TestingScope scope;
 
   auto* script_state = scope.GetScriptState();
@@ -77,13 +79,13 @@ TEST(TCPSocketTest, CloseAfterInitWithResultOK) {
   opened_tester.WaitUntilSettled();
   ASSERT_TRUE(opened_tester.IsFulfilled());
 
-  auto close_promise =
-      tcp_socket->close(script_state, scope.GetExceptionState());
+  tcp_socket->close(script_state, scope.GetExceptionState());
   test::RunPendingTasks();
   ASSERT_FALSE(scope.GetExceptionState().HadException());
 }
 
 TEST(TCPSocketTest, OnSocketObserverConnectionError) {
+  test::TaskEnvironment task_environment;
   V8TestingScope scope;
 
   auto* script_state = scope.GetScriptState();
@@ -127,6 +129,7 @@ class TCPSocketCloseTest
 TEST_P(TCPSocketCloseTest, OnErrorOrClose) {
   auto [read_error, write_error] = GetParam();
 
+  test::TaskEnvironment task_environment;
   V8TestingScope scope;
 
   auto* script_state = scope.GetScriptState();

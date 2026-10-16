@@ -20,20 +20,18 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.params.ParameterAnnotations;
 import org.chromium.base.test.params.ParameterSet;
 import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
 import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
-import org.chromium.chrome.test.util.browser.Features.EnableFeatures;
-import org.chromium.components.browser_ui.widget.listmenu.ListMenuButton;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
+import org.chromium.ui.listmenu.ListMenuButton;
 import org.chromium.ui.test.util.BlankUiTestActivity;
 import org.chromium.ui.test.util.NightModeTestUtils;
 
@@ -43,10 +41,7 @@ import java.util.List;
 /** Render tests for adaptive test long-press menu popup. */
 @RunWith(ParameterizedRunner.class)
 @ParameterAnnotations.UseRunnerDelegate(ChromeJUnit4RunnerDelegate.class)
-@EnableFeatures({ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR})
-@CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE,
-        "enable-features=" + ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR + "<Study",
-        "force-fieldtrials=Study/Group", "force-fieldtrial-params=Study.Group:mode/always-share"})
+@CommandLineFlags.Add(ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE)
 public class AdaptiveButtonActionMenuRenderTest {
     @ParameterAnnotations.ClassParameter
     public static List<ParameterSet> sClassParams =
@@ -59,7 +54,7 @@ public class AdaptiveButtonActionMenuRenderTest {
     @Rule
     public ChromeRenderTestRule mRenderTestRule =
             ChromeRenderTestRule.Builder.withPublicCorpus()
-                    .setRevision(1)
+                    .setRevision(2)
                     .setBugComponent(ChromeRenderTestRule.Component.UI_BROWSER_TOOLBAR)
                     .build();
 
@@ -73,30 +68,35 @@ public class AdaptiveButtonActionMenuRenderTest {
     @Before
     public void setUpTest() throws Exception {
         mActivityTestRule.launchActivity(null);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            Activity activity = mActivityTestRule.getActivity();
-            AdaptiveButtonActionMenuCoordinator coordinator =
-                    new AdaptiveButtonActionMenuCoordinator();
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    Activity activity = mActivityTestRule.getActivity();
+                    AdaptiveButtonActionMenuCoordinator coordinator =
+                            new AdaptiveButtonActionMenuCoordinator(/* showMenu= */ true);
 
-            coordinator.displayMenu(activity, new ListMenuButton(activity, null),
-                    coordinator.buildMenuItems(), null);
+                    coordinator.displayMenu(
+                            activity,
+                            new ListMenuButton(activity, null),
+                            coordinator.buildMenuItems(),
+                            null);
 
-            mView = coordinator.getContentViewForTesting();
-            if (mView.getParent() != null) {
-                ((ViewGroup) mView.getParent()).removeView(mView);
-            }
+                    mView = coordinator.getContentViewForTesting();
+                    if (mView.getParent() != null) {
+                        ((ViewGroup) mView.getParent()).removeView(mView);
+                    }
 
-            int popupWidth =
-                    activity.getResources().getDimensionPixelSize(R.dimen.tab_switcher_menu_width);
-            mView.setBackground(
-                    AppCompatResources.getDrawable(activity, R.drawable.menu_bg_tinted));
-            activity.setContentView(mView, new LayoutParams(popupWidth, WRAP_CONTENT));
-        });
+                    int popupWidth =
+                            activity.getResources()
+                                    .getDimensionPixelSize(R.dimen.tab_switcher_menu_width);
+                    mView.setBackground(
+                            AppCompatResources.getDrawable(activity, R.drawable.menu_bg_tinted));
+                    activity.setContentView(mView, new LayoutParams(popupWidth, WRAP_CONTENT));
+                });
     }
 
     @After
     public void tearDownTest() throws Exception {
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> NightModeTestUtils.tearDownNightModeForBlankUiTestActivity());
     }
 

@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/modules/peerconnection/rtc_sctp_transport.h"
 
+#include "base/memory/raw_ptr.h"
 #include "base/test/test_simple_task_runner.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -11,6 +12,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
 #include "third_party/blink/renderer/core/dom/events/native_event_listener.h"
 #include "third_party/blink/renderer/core/testing/null_execution_context.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/webrtc/api/sctp_transport_interface.h"
 #include "third_party/webrtc/rtc_base/ref_counted_object.h"
 
@@ -35,7 +37,7 @@ class MockSctpTransport : public webrtc::SctpTransportInterface {
         .WillByDefault(Invoke(this, &MockSctpTransport::SetObserver));
   }
   MOCK_CONST_METHOD0(dtls_transport,
-                     rtc::scoped_refptr<webrtc::DtlsTransportInterface>());
+                     webrtc::scoped_refptr<webrtc::DtlsTransportInterface>());
   MOCK_CONST_METHOD0(Information, webrtc::SctpTransportInformation());
   MOCK_METHOD1(RegisterObserver, void(webrtc::SctpTransportObserverInterface*));
   MOCK_METHOD0(UnregisterObserver, void());
@@ -54,7 +56,8 @@ class MockSctpTransport : public webrtc::SctpTransportInterface {
  private:
   webrtc::SctpTransportInformation info_ =
       webrtc::SctpTransportInformation(webrtc::SctpTransportState::kNew);
-  webrtc::SctpTransportObserverInterface* observer_ = nullptr;
+  raw_ptr<webrtc::SctpTransportObserverInterface, DanglingUntriaged> observer_ =
+      nullptr;
 };
 
 class RTCSctpTransportTest : public testing::Test {
@@ -66,6 +69,7 @@ class RTCSctpTransportTest : public testing::Test {
   void RunUntilIdle();
 
  protected:
+  test::TaskEnvironment task_environment_;
   scoped_refptr<base::TestSimpleTaskRunner> main_thread_;
   scoped_refptr<base::TestSimpleTaskRunner> worker_thread_;
   Vector<Persistent<MockEventListener>> mock_event_listeners_;
@@ -95,8 +99,8 @@ TEST_F(RTCSctpTransportTest, CreateFromMocks) {
   V8TestingScope scope;
 
   ExecutionContext* context = scope.GetExecutionContext();
-  rtc::scoped_refptr<webrtc::SctpTransportInterface> mock_native_transport(
-      new rtc::RefCountedObject<NiceMock<MockSctpTransport>>());
+  webrtc::scoped_refptr<webrtc::SctpTransportInterface> mock_native_transport(
+      new webrtc::RefCountedObject<NiceMock<MockSctpTransport>>());
   RTCSctpTransport* transport = MakeGarbageCollected<RTCSctpTransport>(
       context, mock_native_transport, main_thread_, worker_thread_);
   WeakPersistent<RTCSctpTransport> garbage_collection_observer = transport;

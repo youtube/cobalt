@@ -13,7 +13,6 @@
 #include "base/functional/callback.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/metrics/histogram_macros.h"
 #include "build/build_config.h"
 #include "components/error_page/common/localized_error.h"
 #include "content/public/common/content_switches.h"
@@ -76,7 +75,6 @@ void NetErrorHelperCore::OnCommitLoad(FrameType frame_type, const GURL& url) {
 #if BUILDFLAG(IS_ANDROID)
   // Don't need this state. It will be refreshed if another error page is
   // loaded.
-  available_content_helper_.Reset();
   page_auto_fetcher_helper_->OnCommitLoad();
 #endif
 
@@ -106,12 +104,6 @@ void NetErrorHelperCore::ErrorPageLoadedWithFinalErrorCode() {
     RecordEvent(error_page::NETWORK_ERROR_PAGE_OFFLINE_ERROR_SHOWN);
 
 #if BUILDFLAG(IS_ANDROID)
-  // The fetch functions shouldn't be triggered multiple times per page load.
-  if (page_info->page_state.offline_content_feature_enabled) {
-    available_content_helper_.FetchAvailableContent(base::BindOnce(
-        &Delegate::OfflineContentAvailable, base::Unretained(delegate_)));
-  }
-
   // |TrySchedule()| shouldn't be called more than once per page.
   if (page_info->page_state.auto_fetch_allowed) {
     page_auto_fetcher_helper_->TrySchedule(
@@ -235,8 +227,6 @@ void NetErrorHelperCore::UpdateErrorPage() {
   DCHECK(committed_error_page_info_->is_finished_loading);
   DCHECK_NE(error_page::DNS_PROBE_POSSIBLE, last_probe_status_);
 
-  UMA_HISTOGRAM_ENUMERATION("DnsProbe.ErrorPageUpdateStatus",
-                            last_probe_status_, error_page::DNS_PROBE_MAX);
   // Every status other than error_page::DNS_PROBE_POSSIBLE and
   // error_page::DNS_PROBE_STARTED is a final status code.  Once one is reached,
   // the page does not need further updates.
@@ -315,21 +305,7 @@ void NetErrorHelperCore::ExecuteButtonPress(Button button) {
       return;
     case NO_BUTTON:
       NOTREACHED();
-      return;
   }
-}
-
-void NetErrorHelperCore::LaunchOfflineItem(const std::string& id,
-                                           const std::string& name_space) {
-#if BUILDFLAG(IS_ANDROID)
-  available_content_helper_.LaunchItem(id, name_space);
-#endif
-}
-
-void NetErrorHelperCore::LaunchDownloadsPage() {
-#if BUILDFLAG(IS_ANDROID)
-  available_content_helper_.LaunchDownloadsPage();
-#endif
 }
 
 void NetErrorHelperCore::SavePageForLater() {
@@ -343,11 +319,5 @@ void NetErrorHelperCore::SavePageForLater() {
 void NetErrorHelperCore::CancelSavePage() {
 #if BUILDFLAG(IS_ANDROID)
   page_auto_fetcher_helper_->CancelSchedule();
-#endif
-}
-
-void NetErrorHelperCore::ListVisibilityChanged(bool is_visible) {
-#if BUILDFLAG(IS_ANDROID)
-  available_content_helper_.ListVisibilityChanged(is_visible);
 #endif
 }

@@ -5,6 +5,8 @@
 #ifndef MEDIA_GPU_ANDROID_DEVICE_INFO_H_
 #define MEDIA_GPU_ANDROID_DEVICE_INFO_H_
 
+#include <vector>
+
 #include "media/base/video_codecs.h"
 #include "media/gpu/media_gpu_export.h"
 
@@ -22,7 +24,6 @@ struct MEDIA_GPU_EXPORT DeviceInfo {
   virtual bool IsDecoderKnownUnaccelerated(VideoCodec codec);
   virtual bool IsSetOutputSurfaceSupported();
   virtual bool SupportsOverlaySurfaces();
-  virtual bool IsAsyncApiSupported();
   virtual void AddSupportedCodecProfileLevels(
       std::vector<CodecProfileLevel>* result);
 };

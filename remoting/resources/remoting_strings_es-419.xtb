@@ -4,7 +4,6 @@
 <translation id="1002108253973310084">Se detectó una versión de protocolo incompatible. Asegúrate de que tienes instalada la última versión del software en ambas computadoras y vuelve a intentarlo.</translation>
 <translation id="1008557486741366299">Ahora no</translation>
 <translation id="1201402288615127009">Siguiente</translation>
-<translation id="1296511125400541222">Copyright 2023 The Chromium Authors. Todos los derechos reservados.</translation>
 <translation id="1297009705180977556">Se produjo un error al conectarse a <ph name="HOSTNAME" /></translation>
 <translation id="1450760146488584666">El objeto solicitado no existe.</translation>
 <translation id="1480046233931937785">Créditos</translation>
@@ -29,7 +28,7 @@ Si ya está marcada la casilla "<ph name="SERVICE_SCRIPT_NAME" />", desmárcala 
 <translation id="2329392777730037872">No se pudo abrir <ph name="URL" /> en el cliente.</translation>
 <translation id="2359808026110333948">Continuar</translation>
 <translation id="2366718077645204424">No se puede establecer la conexión con el host. Probablemente esto se deba a la configuración de la red que usas.</translation>
-<translation id="2370754117186920852"><ph name="OPTIONAL_OFFLINE_REASON" /> Última vez en línea <ph name="RELATIVE_TIMESTAMP" /></translation>
+<translation id="242591256144136845">Copyright 2025 Google LLC. Todos los derechos reservados.</translation>
 <translation id="2504109125669302160">Otorga permiso de "Accesibilidad" a <ph name="PRODUCT_NAME" /></translation>
 <translation id="2509394361235492552">Conectado a <ph name="HOSTNAME" /></translation>
 <translation id="2540992418118313681">¿Quieres compartir esta computadora con otro usuario para que la vea y la controle?</translation>
@@ -41,6 +40,7 @@ Si ya está marcada la casilla "<ph name="SERVICE_SCRIPT_NAME" />", desmárcala 
 <translation id="2758123043070977469">Hubo un problema de autenticación. Vuelve a acceder.</translation>
 <translation id="2803375539583399270">Ingresar PIN</translation>
 <translation id="2919669478609886916">En este momento compartes esta computadora con otro usuario. ¿Deseas continuar compartiéndola?</translation>
+<translation id="2929683002824598593">Compartir dispositivo</translation>
 <translation id="2939145106548231838">Autenticarse en host</translation>
 <translation id="3027681561976217984">Modo táctil</translation>
 <translation id="3106379468611574572">La computadora remota no responde a las solicitudes de conexión. Verifica que esté conectada a Internet y vuelve a intentarlo.</translation>
@@ -54,7 +54,6 @@ Si ya está marcada la casilla "<ph name="SERVICE_SCRIPT_NAME" />", desmárcala 
 <translation id="3423542133075182604">Proceso remoto de llave de seguridad</translation>
 <translation id="3581045510967524389">No se pudo conectar a la red. Comprueba que el dispositivo esté conectado a Internet.</translation>
 <translation id="3596628256176442606">Este servicio permite conexiones entrantes de los clientes de Chromoting.</translation>
-<translation id="369442766917958684">Sin conexión</translation>
 <translation id="3695446226812920698">Más información</translation>
 <translation id="3776024066357219166">Se cerró tu sesión en Escritorio remoto de Chrome.</translation>
 <translation id="3858860766373142691">Nombre</translation>
@@ -89,12 +88,12 @@ Si ya está marcada la casilla "<ph name="SERVICE_SCRIPT_NAME" />", desmárcala 
 <translation id="4808503597364150972">Ingresa tu PIN de <ph name="HOSTNAME" />.</translation>
 <translation id="4812684235631257312">Host</translation>
 <translation id="4867841927763172006">Enviar Impr Pant</translation>
-<translation id="4960795469833295568">Copyright 2023 Google LLC. Todos los derechos reservados.</translation>
 <translation id="4974476491460646149">Conexión cerrada para <ph name="HOSTNAME" /></translation>
 <translation id="4985296110227979402">Para obtener acceso remoto, primero debes configurar la computadora</translation>
 <translation id="4987330545941822761">El Escritorio remoto de Chrome no puede determinar el navegador para abrir las URL de forma local. Elígelo de la siguiente lista.</translation>
 <translation id="5064360042339518108"><ph name="HOSTNAME" /> (sin conexión)</translation>
 <translation id="507204348399810022">¿Seguro que deseas inhabilitar las conexiones remotas a <ph name="HOSTNAME" />?</translation>
+<translation id="5095424396646120601">Informe de fallas</translation>
 <translation id="5170982930780719864">ID de host no válido</translation>
 <translation id="5204575267916639804">Preguntas frecuentes</translation>
 <translation id="5222676887888702881">Salir</translation>
@@ -107,7 +106,6 @@ Si ya está marcada la casilla "<ph name="SERVICE_SCRIPT_NAME" />", desmárcala 
 <translation id="5601503069213153581">PIN</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5708869785009007625">En este momento, estás compartiendo tu escritorio con <ph name="USER" />.</translation>
-<translation id="5750083143895808682">Accediste como <ph name="EMAIL_ADDRESS" />.</translation>
 <translation id="579702532610384533">Volver a conectar</translation>
 <translation id="5810269635982033450">La pantalla funciona como panel táctil</translation>
 <translation id="5823554426827907568"><ph name="CLIENT_USERNAME" /> solicitó acceso para ver tu pantalla y controlar el teclado y el mouse. Presiona ''<ph name="IDS_SHARE_CONFIRM_DIALOG_DECLINE" />'' si no estás esperando esta solicitud. De lo contrario, selecciona ''<ph name="IDS_SHARE_CONFIRM_DIALOG_CONFIRM" />'' para permitir la conexión cuando esté todo listo.</translation>
@@ -121,10 +119,12 @@ Si ya está marcada la casilla "<ph name="SERVICE_SCRIPT_NAME" />", desmárcala 
 <translation id="6178645564515549384">Host de mensajería nativa para asistencia remota</translation>
 <translation id="618120821413932081">Actualizar la resolución remota para que se adapte a la ventana</translation>
 <translation id="6223301979382383752">Abrir preferencias de grabación de pantalla</translation>
+<translation id="6252344563748670011"><ph name="CLIENT_USERNAME" /> solicitó acceso para ver tu pantalla y controlar el teclado y el mouse. ¿Quieres compartir tu dispositivo?</translation>
 <translation id="6284412385303060032">Se cerró el host que se ejecuta en la pantalla de acceso de la consola para poder admitir el modo de cortina. Por lo tanto, se cambió a un host que se ejecuta en una sesión específica de usuario.</translation>
 <translation id="6542902059648396432">Informar un problema</translation>
 <translation id="6583902294974160967">Asistencia</translation>
 <translation id="6612717000975622067">Enviar Ctrl-Alt-Supr</translation>
+<translation id="6625262630437221505">{0,plural, =1{Si no tomas medidas, tu dispositivo comenzará a compartirse automáticamente dentro de # segundo.}other{Si no tomas medidas, tu dispositivo comenzará a compartirse automáticamente dentro de # segundos.}}</translation>
 <translation id="6654753848497929428">Compartir</translation>
 <translation id="677755392401385740">Host iniciado para usuario: <ph name="HOST_USERNAME" /></translation>
 <translation id="6902524959760471898">Aplicación auxiliar para abrir una URL en el cliente <ph name="PRODUCT_NAME" /></translation>
@@ -138,6 +138,7 @@ Si ya está marcada la casilla "<ph name="SERVICE_SCRIPT_NAME" />", desmárcala 
 <translation id="7067321367069083429">La pantalla cuenta con función táctil</translation>
 <translation id="7116737094673640201">Bienvenido a Escritorio remoto de Chrome</translation>
 <translation id="7144878232160441200">Volver a intentar</translation>
+<translation id="7298392173540380852">Copyright 2025 The Chromium Authors. Todos los derechos reservados.</translation>
 <translation id="7312846573060934304">El host no tiene conexión.</translation>
 <translation id="7319983568955948908">Dejar de compartir</translation>
 <translation id="7359298090707901886">El navegador seleccionado no puede usarse para abrir URL en la máquina local.</translation>

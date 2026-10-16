@@ -9,6 +9,8 @@
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context_factory.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
+#include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
 #include "ui/gfx/geometry/point_f.h"
 
 namespace cc {
@@ -22,7 +24,8 @@ class ImageLayerBridge;
 class V8UnionHTMLCanvasElementOrOffscreenCanvas;
 
 class MODULES_EXPORT ImageBitmapRenderingContextBase
-    : public CanvasRenderingContext {
+    : public ScriptWrappable,
+      public CanvasRenderingContext {
  public:
   ImageBitmapRenderingContextBase(CanvasRenderingContextHost*,
                                   const CanvasContextCreationAttributesCore&);
@@ -33,25 +36,30 @@ class MODULES_EXPORT ImageBitmapRenderingContextBase
   bool CanCreateCanvas2dResourceProvider() const;
   V8UnionHTMLCanvasElementOrOffscreenCanvas* getHTMLOrOffscreenCanvas() const;
 
-  void SetIsInHiddenPage(bool) override {}
-  void SetIsBeingDisplayed(bool) override {}
+  void PageVisibilityChanged() override {}
   bool isContextLost() const override { return false; }
   // If SetImage receives a null imagebitmap, it will Reset the internal bitmap
   // to a black and transparent bitmap.
   void SetImage(ImageBitmap*);
-  scoped_refptr<StaticBitmapImage> GetImage(
-      CanvasResourceProvider::FlushReason) final;
+  scoped_refptr<StaticBitmapImage> GetImage(FlushReason) final;
 
   void SetUV(const gfx::PointF& left_top, const gfx::PointF& right_bottom);
-  bool IsComposited() const final { return true; }
-  bool IsAccelerated() const final;
-  bool PushFrame() override;
 
-  bool IsOriginTopLeft() const override;
+  SkAlphaType GetAlphaType() const override { return kPremul_SkAlphaType; }
+  viz::SharedImageFormat GetSharedImageFormat() const override {
+    return GetN32FormatForCanvas();
+  }
+  gfx::ColorSpace GetColorSpace() const override {
+    return gfx::ColorSpace::CreateSRGB();
+  }
+  bool IsComposited() const final { return true; }
+  bool PushFrame() override;
 
   cc::Layer* CcLayer() const final;
   // TODO(junov): handle lost contexts when content is GPU-backed
   void LoseContext(LostContextMode) override {}
+
+  void Reset() override;
 
   void Stop() override;
 

@@ -2,11 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ash/webui/media_app_ui/media_app_guest_ui.h"
 
+#include <memory>
+
+#include "ash/constants/ash_features.h"
 #include "ash/webui/grit/ash_media_app_resources.h"
 #include "ash/webui/media_app_ui/url_constants.h"
 #include "ash/webui/web_applications/webui_test_prod_util.h"
+#include "base/containers/span.h"
+#include "base/feature_list.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
@@ -14,6 +24,8 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
 #include "base/task/thread_pool.h"
+#include "chromeos/ash/components/mantis/media_app/mantis_untrusted_service_manager.h"
+#include "chromeos/ash/components/specialized_features/feature_access_checker.h"
 #include "chromeos/grit/chromeos_media_app_bundle_resources.h"
 #include "chromeos/grit/chromeos_media_app_bundle_resources_map.h"
 #include "content/public/browser/navigation_handle.h"
@@ -97,9 +109,7 @@ void FontLoaded(content::WebUIDataSource::GotDataCallback got_data_callback,
                 bool did_load_file) {
   if (font_data->size() && did_load_file) {
     std::move(got_data_callback)
-        .Run(new base::RefCountedBytes(
-            reinterpret_cast<const unsigned char*>(font_data->data()),
-            font_data->size()));
+        .Run(new base::RefCountedBytes(base::as_byte_span(*font_data)));
   } else {
     std::move(got_data_callback).Run(nullptr);
   }
@@ -129,8 +139,7 @@ content::WebUIDataSource* CreateAndAddMediaAppUntrustedDataSource(
                           IDR_MEDIA_APP_APP_IMAGE_HANDLER_MODULE_JS);
 
   // Add all resources from chromeos_media_app_bundle_resources.pak.
-  source->AddResourcePaths(base::make_span(
-      kChromeosMediaAppBundleResources, kChromeosMediaAppBundleResourcesSize));
+  source->AddResourcePaths(kChromeosMediaAppBundleResources);
 
   // Note: go/bbsrc/flags.ts processes this.
   delegate->PopulateLoadTimeData(web_ui, source);
@@ -159,10 +168,10 @@ content::WebUIDataSource* CreateAndAddMediaAppUntrustedDataSource(
   // Required to successfully load PDFs in the `<embed>` element.
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::FrameSrc, "frame-src blob:;");
-  // Allow wasm.
+  // Allow wasm and mojo.
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ScriptSrc,
-      "script-src 'self' 'wasm-eval';");
+      "script-src 'self' 'wasm-eval' chrome-untrusted://resources;");
   // Allow calls to Maps reverse geocoding API for loading metadata.
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ConnectSrc,
@@ -175,23 +184,25 @@ content::WebUIDataSource* CreateAndAddMediaAppUntrustedDataSource(
   // so allow resources in the guest to be loaded cross-origin.
   source->OverrideCrossOriginResourcePolicy("cross-origin");
 
-  // TODO(crbug.com/1098685): Trusted Type remaining WebUI.
+  // TODO(crbug.com/40137141): Trusted Type remaining WebUI.
   source->DisableTrustedTypesCSP();
   return source;
 }
 
 }  // namespace
 
-MediaAppGuestUI::MediaAppGuestUI(content::WebUI* web_ui,
-                                 MediaAppGuestUIDelegate* delegate)
+MediaAppGuestUI::MediaAppGuestUI(
+    content::WebUI* web_ui,
+    std::unique_ptr<MediaAppGuestUIDelegate> delegate)
     : UntrustedWebUIController(web_ui),
-      WebContentsObserver(web_ui->GetWebContents()) {
+      WebContentsObserver(web_ui->GetWebContents()),
+      delegate_(std::move(delegate)) {
   task_runner_ = base::ThreadPool::CreateSequencedTaskRunner(
       {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
        base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
 
   content::WebUIDataSource* untrusted_source =
-      CreateAndAddMediaAppUntrustedDataSource(web_ui, delegate);
+      CreateAndAddMediaAppUntrustedDataSource(web_ui, delegate_.get());
 
   MaybeConfigureTestableDataSource(
       untrusted_source, "media_app/untrusted",
@@ -201,16 +212,18 @@ MediaAppGuestUI::MediaAppGuestUI(content::WebUI* web_ui,
 }
 
 MediaAppGuestUI::~MediaAppGuestUI() {
-  if (app_navigation_committed_)
+  if (app_navigation_committed_) {
     MediaAppMetricsHelper::OnUiDestroyedAfterNavigation();
+  }
 }
 
 void MediaAppGuestUI::ReadyToCommitNavigation(
     content::NavigationHandle* handle) {
   // Force-enable autoplay support.
   const std::string allowed_resource = "app.html";
-  if (handle->GetURL() != GURL(kChromeUIMediaAppGuestURL + allowed_resource))
+  if (handle->GetURL() != GURL(kChromeUIMediaAppGuestURL + allowed_resource)) {
     return;
+  }
 
   if (!app_navigation_committed_) {
     app_navigation_committed_ = true;
@@ -255,8 +268,78 @@ void MediaAppGuestUI::StartFontDataRequestAfterPathExists(
   }
 }
 
+void MediaAppGuestUI::BindInterface(
+    mojo::PendingReceiver<color_change_listener::mojom::PageHandler> receiver) {
+  color_provider_handler_ = std::make_unique<ui::ColorChangeHandler>(
+      web_ui()->GetWebContents(), std::move(receiver));
+}
+
+void MediaAppGuestUI::BindInterface(
+    mojo::PendingReceiver<media_app_ui::mojom::UntrustedServiceFactory>
+        receiver) {
+  if (untrusted_service_factory_.is_bound()) {
+    untrusted_service_factory_.reset();
+  }
+  untrusted_service_factory_.Bind(std::move(receiver));
+}
+
+void MediaAppGuestUI::CreateOcrUntrustedService(
+    mojo::PendingReceiver<media_app_ui::mojom::OcrUntrustedService> receiver,
+    mojo::PendingRemote<media_app_ui::mojom::OcrUntrustedPage> page) {
+  delegate_->CreateAndBindOcrUntrustedService(
+      *web_ui()->GetWebContents()->GetBrowserContext(),
+      web_ui()->GetWebContents()->GetTopLevelNativeWindow(),
+      std::move(receiver), std::move(page));
+}
+
+void MediaAppGuestUI::CreateMahiUntrustedService(
+    mojo::PendingReceiver<media_app_ui::mojom::MahiUntrustedService> receiver,
+    mojo::PendingRemote<media_app_ui::mojom::MahiUntrustedPage> page,
+    const std::string& file_name) {
+  delegate_->CreateAndBindMahiUntrustedService(
+      std::move(receiver), std::move(page), file_name,
+      web_ui()->GetWebContents()->GetTopLevelNativeWindow());
+}
+
+void MediaAppGuestUI::OnMantisAvailableDone(IsMantisAvailableCallback callback,
+                                            bool result) {
+  is_mantis_available_ = result;
+  std::move(callback).Run(result);
+}
+
+void MediaAppGuestUI::IsMantisAvailable(IsMantisAvailableCallback callback) {
+  // Mantis does not live in //chrome, no need to use delegate.
+  if (mantis_untrusted_service_manager_ == nullptr) {
+    mantis_untrusted_service_manager_ =
+        std::make_unique<MantisUntrustedServiceManager>(
+            delegate_->GetFeatureAccessChecker(
+                MantisUntrustedServiceManager::GetFeatureAccessConfig(),
+                web_ui()));
+  }
+
+  mantis_untrusted_service_manager_->IsAvailable(
+      delegate_->GetPrefService(web_ui()),
+      base::BindOnce(&MediaAppGuestUI::OnMantisAvailableDone,
+                     weak_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void MediaAppGuestUI::CreateMantisUntrustedService(
+    mojo::PendingRemote<media_app_ui::mojom::MantisUntrustedPage> page,
+    const std::optional<base::Uuid>& dlc_uuid,
+    CreateMantisUntrustedServiceCallback callback) {
+  if (!is_mantis_available_.value_or(false)) {
+    untrusted_service_factory_.ReportBadMessage(
+        "Trying to bind interface when feature is not available.");
+    return;
+  }
+  mantis_untrusted_service_manager_->Create(std::move(page), dlc_uuid,
+                                            std::move(callback));
+}
+
 MediaAppUserActions GetMediaAppUserActionsForHappinessTracking() {
   return MediaAppMetricsHelper::actions;
 }
+
+WEB_UI_CONTROLLER_TYPE_IMPL(MediaAppGuestUI)
 
 }  // namespace ash

@@ -55,8 +55,8 @@ MonotoneCubicSpline CreateTestCurveFromTrainingData(
 }
 
 void CheckOptionalCurves(
-    const absl::optional<MonotoneCubicSpline>& result_curve,
-    const absl::optional<MonotoneCubicSpline>& expected_curve) {
+    const std::optional<MonotoneCubicSpline>& result_curve,
+    const std::optional<MonotoneCubicSpline>& expected_curve) {
   EXPECT_EQ(result_curve.has_value(), expected_curve.has_value());
   if (result_curve) {
     EXPECT_EQ(*result_curve, *expected_curve);
@@ -109,7 +109,7 @@ class FakeTrainer : public Trainer {
 
   TrainingResult Train(const std::vector<TrainingDataPoint>& data) override {
     if (!return_new_curve_) {
-      return TrainingResult(absl::nullopt, curve_error_);
+      return TrainingResult(std::nullopt, curve_error_);
     }
 
     DCHECK(is_configured_);
@@ -128,8 +128,8 @@ class FakeTrainer : public Trainer {
  private:
   bool is_configured_;
   bool is_personal_curve_valid_;
-  absl::optional<MonotoneCubicSpline> global_curve_;
-  absl::optional<MonotoneCubicSpline> current_curve_;
+  std::optional<MonotoneCubicSpline> global_curve_;
+  std::optional<MonotoneCubicSpline> current_curve_;
 
   bool return_new_curve_ = false;
   double curve_error_ = 0.0;
@@ -137,7 +137,7 @@ class FakeTrainer : public Trainer {
 
 class TestObserver : public Modeller::Observer {
  public:
-  TestObserver() {}
+  TestObserver() = default;
 
   TestObserver(const TestObserver&) = delete;
   TestObserver& operator=(const TestObserver&) = delete;
@@ -155,7 +155,7 @@ class TestObserver : public Modeller::Observer {
     model_ = model;
   }
 
-  absl::optional<MonotoneCubicSpline> personal_curve() const {
+  std::optional<MonotoneCubicSpline> personal_curve() const {
     return model_.personal_curve;
   }
 
@@ -208,7 +208,7 @@ class ModellerImplTest : public testing::Test {
                      double curve_error) {
     modeller_ = ModellerImpl::CreateForTesting(
         profile_.get(), als_reader_.get(), &fake_brightness_monitor_,
-        &fake_model_config_loader_, &user_activity_detector_,
+        &fake_model_config_loader_, ui::UserActivityDetector::Get(),
         std::make_unique<FakeTrainer>(is_trainer_configured,
                                       is_personal_curve_valid, return_new_curve,
                                       curve_error),
@@ -221,7 +221,7 @@ class ModellerImplTest : public testing::Test {
 
   void Init(AlsReader::AlsInitStatus als_reader_status,
             BrightnessMonitor::Status brightness_monitor_status,
-            absl::optional<ModelConfig> model_config,
+            std::optional<ModelConfig> model_config,
             bool is_trainer_configured = true,
             bool is_personal_curve_valid = true,
             bool return_new_curve = true,
@@ -274,13 +274,11 @@ class ModellerImplTest : public testing::Test {
   content::BrowserTaskEnvironment task_environment_;
   base::HistogramTester histogram_tester_;
 
-  ui::UserActivityDetector user_activity_detector_;
-
   base::ScopedTempDir temp_dir_;
   std::unique_ptr<TestingProfile> profile_;
 
   ModelConfig test_model_config_;
-  absl::optional<MonotoneCubicSpline> test_initial_global_curve_;
+  std::optional<MonotoneCubicSpline> test_initial_global_curve_;
 
   std::unique_ptr<FakeLightProvider> fake_light_provider_;
   std::unique_ptr<AlsReader> als_reader_;
@@ -346,7 +344,7 @@ TEST_F(ModellerImplTest, AlsReaderEnabledOnNotification) {
   fake_light_provider_->ReportReaderInitialized();
   task_environment_.RunUntilIdle();
 
-  const Model expected_model(test_initial_global_curve_, absl::nullopt, 0);
+  const Model expected_model(test_initial_global_curve_, std::nullopt, 0);
   test_observer_->CheckStatus(true /* is_model_initialized */, expected_model);
 }
 
@@ -375,14 +373,14 @@ TEST_F(ModellerImplTest, BrightnessMonitorEnabledOnNotification) {
   fake_brightness_monitor_.ReportBrightnessMonitorInitialized();
   task_environment_.RunUntilIdle();
 
-  const Model expected_model(test_initial_global_curve_, absl::nullopt, 0);
+  const Model expected_model(test_initial_global_curve_, std::nullopt, 0);
   test_observer_->CheckStatus(true /* is_model_initialized */, expected_model);
 }
 
 // ModelConfigLoader reports an invalid config on later notification.
 TEST_F(ModellerImplTest, InvalidModelConfigOnNotification) {
   Init(AlsReader::AlsInitStatus::kSuccess, BrightnessMonitor::Status::kSuccess,
-       absl::nullopt /* model_config */);
+       std::nullopt /* model_config */);
 
   test_observer_->CheckStatus(false /* is_model_initialized */, Model());
 
@@ -397,7 +395,7 @@ TEST_F(ModellerImplTest, InvalidModelConfigOnNotification) {
 // ModelConfigLoader reports a valid config on later notification.
 TEST_F(ModellerImplTest, ValidModelConfigOnNotification) {
   Init(AlsReader::AlsInitStatus::kSuccess, BrightnessMonitor::Status::kSuccess,
-       absl::nullopt /* model_config */);
+       std::nullopt /* model_config */);
 
   test_observer_->CheckStatus(false /* is_model_initialized */, Model());
 
@@ -405,7 +403,7 @@ TEST_F(ModellerImplTest, ValidModelConfigOnNotification) {
   fake_model_config_loader_.ReportModelConfigLoaded();
   task_environment_.RunUntilIdle();
 
-  const Model expected_model(test_initial_global_curve_, absl::nullopt, 0);
+  const Model expected_model(test_initial_global_curve_, std::nullopt, 0);
   test_observer_->CheckStatus(true /* is_model_initialized */, expected_model);
 }
 
@@ -415,7 +413,7 @@ TEST_F(ModellerImplTest, ValidModelConfigOnNotification) {
 TEST_F(ModellerImplTest, ModelLoadedFromProfilePath) {
   const std::vector<double> xs = {0, 10, 20, 40, 60, 80, 90, 100};
   const std::vector<double> ys = {0, 5, 10, 15, 20, 25, 30, 40};
-  const absl::optional<MonotoneCubicSpline> personal_curve =
+  const std::optional<MonotoneCubicSpline> personal_curve =
       MonotoneCubicSpline::CreateMonotoneCubicSpline(xs, ys);
   DCHECK(personal_curve);
 
@@ -441,7 +439,7 @@ TEST_F(ModellerImplTest, ModelLoadedFromProfilePath) {
 TEST_F(ModellerImplTest, ModelLoadedFromProfilePathWithReset) {
   const std::vector<double> xs = {0, 10, 20, 40, 60, 80, 90, 100};
   const std::vector<double> ys = {0, 5, 10, 15, 20, 25, 30, 40};
-  const absl::optional<MonotoneCubicSpline> saved_global_curve =
+  const std::optional<MonotoneCubicSpline> saved_global_curve =
       MonotoneCubicSpline::CreateMonotoneCubicSpline(xs, ys);
   DCHECK(saved_global_curve);
 
@@ -454,7 +452,7 @@ TEST_F(ModellerImplTest, ModelLoadedFromProfilePathWithReset) {
   Init(AlsReader::AlsInitStatus::kSuccess, BrightnessMonitor::Status::kSuccess,
        test_model_config_);
 
-  const Model expected_model(test_initial_global_curve_, absl::nullopt, 0);
+  const Model expected_model(test_initial_global_curve_, std::nullopt, 0);
   test_observer_->CheckStatus(true /* is_model_initialized */, expected_model);
 
   histogram_tester_.ExpectUniqueSample(
@@ -472,7 +470,7 @@ TEST_F(ModellerImplTest, PersonalCurveError) {
        test_model_config_, true /* is_trainer_configured */,
        false /* is_personal_curve_valid */);
 
-  const Model expected_model(test_initial_global_curve_, absl::nullopt, 0);
+  const Model expected_model(test_initial_global_curve_, std::nullopt, 0);
   test_observer_->CheckStatus(true /* is_model_initialized */, expected_model);
 
   histogram_tester_.ExpectUniqueSample(
@@ -490,7 +488,7 @@ TEST_F(ModellerImplTest, OnAmbientLightUpdated) {
 
   // No model is saved to disk, hence the initial model only has the global
   // curve set from the config.
-  const Model expected_model(test_initial_global_curve_, absl::nullopt, 0);
+  const Model expected_model(test_initial_global_curve_, std::nullopt, 0);
   test_observer_->CheckStatus(true /* is_model_initialized */, expected_model);
 
   EXPECT_EQ(modeller_->GetModelConfigForTesting(), test_model_config_);
@@ -529,7 +527,7 @@ TEST_F(ModellerImplTest, OnUserBrightnessChanged) {
        0.0 /* curve_error */,
        {{"training_delay_in_seconds", base::NumberToString(60)}});
 
-  const Model expected_model(test_initial_global_curve_, absl::nullopt, 0);
+  const Model expected_model(test_initial_global_curve_, std::nullopt, 0);
   test_observer_->CheckStatus(true /* is_model_initialized */, expected_model);
 
   std::vector<TrainingDataPoint> expected_data;
@@ -568,7 +566,7 @@ TEST_F(ModellerImplTest, OnUserBrightnessChanged) {
   EXPECT_EQ(0u, modeller_->NumberTrainingDataPointsForTesting());
   EXPECT_EQ(test_observer_->iteration_count(), 1);
 
-  const absl::optional<MonotoneCubicSpline>& result_curve =
+  const std::optional<MonotoneCubicSpline>& result_curve =
       test_observer_->personal_curve();
   DCHECK(result_curve);
 
@@ -585,7 +583,7 @@ TEST_F(ModellerImplTest, MultipleUserActivities) {
        0.0 /* curve_error */,
        {{"training_delay_in_seconds", base::NumberToString(60)}});
 
-  const Model expected_model(test_initial_global_curve_, absl::nullopt, 0);
+  const Model expected_model(test_initial_global_curve_, std::nullopt, 0);
   test_observer_->CheckStatus(true /* is_model_initialized */, expected_model);
 
   task_environment_.FastForwardBy(base::Seconds(1));
@@ -610,8 +608,9 @@ TEST_F(ModellerImplTest, MultipleUserActivities) {
 
   task_environment_.FastForwardBy(modeller_->GetTrainingDelayForTesting() / 2);
   // A user activity is received, timer should be reset.
-  const ui::MouseEvent mouse_event(ui::ET_MOUSE_EXITED, gfx::Point(0, 0),
-                                   gfx::Point(0, 0), base::TimeTicks(), 0, 0);
+  const ui::MouseEvent mouse_event(ui::EventType::kMouseExited,
+                                   gfx::Point(0, 0), gfx::Point(0, 0),
+                                   base::TimeTicks(), 0, 0);
   modeller_->OnUserActivity(&mouse_event);
 
   task_environment_.FastForwardBy(modeller_->GetTrainingDelayForTesting() / 3);
@@ -631,7 +630,7 @@ TEST_F(ModellerImplTest, MultipleUserActivities) {
 
   EXPECT_EQ(0u, modeller_->NumberTrainingDataPointsForTesting());
   EXPECT_EQ(test_observer_->iteration_count(), 1);
-  const absl::optional<MonotoneCubicSpline>& result_curve =
+  const std::optional<MonotoneCubicSpline>& result_curve =
       test_observer_->personal_curve();
   DCHECK(result_curve);
 
@@ -650,12 +649,13 @@ TEST_F(ModellerImplTest, ZeroTrainingDelay) {
            {"training_delay_in_seconds", "0"},
        });
 
-  const Model expected_model(test_initial_global_curve_, absl::nullopt, 0);
+  const Model expected_model(test_initial_global_curve_, std::nullopt, 0);
   test_observer_->CheckStatus(true /* is_model_initialized */, expected_model);
 
   fake_light_provider_->ReportAmbientLightUpdate(30);
-  const ui::MouseEvent mouse_event(ui::ET_MOUSE_EXITED, gfx::Point(0, 0),
-                                   gfx::Point(0, 0), base::TimeTicks(), 0, 0);
+  const ui::MouseEvent mouse_event(ui::EventType::kMouseExited,
+                                   gfx::Point(0, 0), gfx::Point(0, 0),
+                                   base::TimeTicks(), 0, 0);
   modeller_->OnUserActivity(&mouse_event);
 
   modeller_->OnUserBrightnessChanged(10, 20);
@@ -674,7 +674,7 @@ TEST_F(ModellerImplTest, CurveUnchanged) {
            {"training_delay_in_seconds", "0"},
        });
 
-  const Model expected_model(test_initial_global_curve_, absl::nullopt, 0);
+  const Model expected_model(test_initial_global_curve_, std::nullopt, 0);
   test_observer_->CheckStatus(true /* is_model_initialized */, expected_model);
 
   fake_light_provider_->ReportAmbientLightUpdate(30);
@@ -697,7 +697,7 @@ TEST_F(ModellerImplTest, CurveChangedLargeError) {
            {"curve_error_tolerance", "5"},
        });
 
-  const Model expected_model(test_initial_global_curve_, absl::nullopt, 0);
+  const Model expected_model(test_initial_global_curve_, std::nullopt, 0);
   test_observer_->CheckStatus(true /* is_model_initialized */, expected_model);
 
   fake_light_provider_->ReportAmbientLightUpdate(30);
@@ -720,7 +720,7 @@ TEST_F(ModellerImplTest, CurveChangedSmallError) {
            {"curve_error_tolerance", "10"},
        });
 
-  const Model expected_model(test_initial_global_curve_, absl::nullopt, 0);
+  const Model expected_model(test_initial_global_curve_, std::nullopt, 0);
   test_observer_->CheckStatus(true /* is_model_initialized */, expected_model);
 
   fake_light_provider_->ReportAmbientLightUpdate(30);

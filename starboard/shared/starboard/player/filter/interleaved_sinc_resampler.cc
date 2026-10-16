@@ -48,7 +48,9 @@
 #include "starboard/shared/starboard/player/filter/interleaved_sinc_resampler.h"
 
 #include <string.h>
+
 #include <algorithm>
+
 #include "starboard/common/check_op.h"
 
 namespace starboard {
@@ -58,6 +60,12 @@ InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
     : io_sample_rate_ratio_(io_sample_rate_ratio),
       channel_count_(channel_count),
       frame_size_in_bytes_(sizeof(float) * channel_count_) {
+  // The channel count is validated and bounded by the caller (Cobalt media
+  // pipeline) to at most 8 (kMaxChannels). Check explicitly as defense-in-depth
+  // to detect accidental breakage and prevent buffer overflow.
+  SB_CHECK_GT(channel_count_, 0);
+  SB_CHECK_LE(channel_count_, kMaxChannels);
+
   // Setup various region pointers in the buffer (see diagram above).
   r0_ = input_buffer_ + kKernelSize / 2 * channel_count_;
   r1_ = input_buffer_;
@@ -65,82 +73,8 @@ InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
   r3_ = r0_ + (kBlockSize - kKernelSize / 2) * channel_count_;
   r4_ = r0_ + kBlockSize * channel_count_;
   r5_ = r0_ + kKernelSize / 2 * channel_count_;
-  // Ensure kKernelSize is a multiple of 32 for easy SSE optimizations; causes
-  // r0_ and r5_ (used for input) to always be 16-byte aligned by virtue of
-  // input_buffer_ being 16-byte aligned.
-  SB_DCHECK_EQ(kKernelSize % 32, 0) << "kKernelSize must be a multiple of 32!";
-  SB_DCHECK_GT(kBlockSize, kKernelSize)
-      << "kBlockSize must be greater than kKernelSize!";
-  // Basic sanity checks to ensure buffer regions are laid out correctly:
-  // r0_ and r2_ should always be the same position.
-  SB_DCHECK_EQ(r0_, r2_);
-  // r1_ at the beginning of the buffer.
-  SB_DCHECK_EQ(r1_, input_buffer_);
-  // r1_ left of r2_, r2_ left of r5_ and r1_, r2_ size correct.
-  SB_DCHECK_EQ(r2_ - r1_, r5_ - r2_);
-  // r3_ left of r4_, r5_ left of r0_ and r3_ size correct.
-  SB_DCHECK_EQ(r4_ - r3_, r5_ - r0_);
-  // r3_, r4_ size correct and r4_ at the end of the buffer.
-  SB_DCHECK_EQ(r4_ + (r4_ - r3_), r1_ + kBufferSize * channel_count_);
-  // r5_ size correct and at the end of the buffer.
-  SB_DCHECK_EQ(r5_ + kBlockSize * channel_count_,
-               r1_ + kBufferSize * channel_count_);
 
   InitializeKernel();
-}
-
-void InterleavedSincResampler::InitializeKernel() {
-  // Blackman window parameters.
-  const double kAlpha = 0.16;
-  const double kA0 = 0.5 * (1.0 - kAlpha);
-  const double kA1 = 0.5;
-  const double kA2 = 0.5 * kAlpha;
-
-  // |sinc_scale_factor| is basically the normalized cutoff frequency of the
-  // low-pass filter.
-  double sinc_scale_factor =
-      io_sample_rate_ratio_ > 1.0 ? 1.0 / io_sample_rate_ratio_ : 1.0;
-
-  // The sinc function is an idealized brick-wall filter, but since we're
-  // windowing it the transition from pass to stop does not happen right away.
-  // So we should adjust the low pass filter cutoff slightly downward to avoid
-  // some aliasing at the very high-end.
-  // TODO: this value is empirical and to be more exact should vary depending
-  // on kKernelSize.
-  sinc_scale_factor *= 0.9;
-
-  // Generates a set of windowed sinc() kernels.
-  // We generate a range of sub-sample offsets from 0.0 to 1.0.
-  for (int offset_idx = 0; offset_idx <= kKernelOffsetCount; ++offset_idx) {
-    double subsample_offset =
-        static_cast<double>(offset_idx) / kKernelOffsetCount;
-
-    for (int i = 0; i < kKernelSize; ++i) {
-      // Compute the sinc with offset.
-      double s =
-          sinc_scale_factor * M_PI * (i - kKernelSize / 2 - subsample_offset);
-      double sinc = (!s ? 1.0 : sin(s) / s) * sinc_scale_factor;
-
-      // Compute Blackman window, matching the offset of the sinc().
-      double x = (i - subsample_offset) / kKernelSize;
-      double window =
-          kA0 - kA1 * cos(2.0 * M_PI * x) + kA2 * cos(4.0 * M_PI * x);
-
-      // Window the sinc() function and store at the correct offset.
-      kernel_storage_[i + offset_idx * kKernelSize] = sinc * window;
-    }
-  }
-}
-
-int InterleavedSincResampler::GetNumberOfCachedFrames() const {
-  if (pending_buffers_.empty()) {
-    return 0;
-  }
-
-  SB_DCHECK(frames_queued_ - kBufferSize >
-            frames_resampled_ * io_sample_rate_ratio_);
-  return frames_queued_ - kBufferSize -
-         frames_resampled_ * io_sample_rate_ratio_;
 }
 
 void InterleavedSincResampler::QueueBuffer(const float* data, int frames) {
@@ -254,6 +188,60 @@ bool InterleavedSincResampler::HasEnoughData(int frames_to_resample) const {
   // for an extra Read().
   return (frames_resampled_ + frames_to_resample) * io_sample_rate_ratio_ <
          frames_queued_ - kBufferSize;
+}
+
+int InterleavedSincResampler::GetNumberOfCachedFrames() const {
+  if (pending_buffers_.empty()) {
+    return 0;
+  }
+
+  SB_DCHECK(frames_queued_ - kBufferSize >
+            frames_resampled_ * io_sample_rate_ratio_);
+  return frames_queued_ - kBufferSize -
+         frames_resampled_ * io_sample_rate_ratio_;
+}
+
+void InterleavedSincResampler::InitializeKernel() {
+  // Blackman window parameters.
+  const double kAlpha = 0.16;
+  const double kA0 = 0.5 * (1.0 - kAlpha);
+  const double kA1 = 0.5;
+  const double kA2 = 0.5 * kAlpha;
+
+  // |sinc_scale_factor| is basically the normalized cutoff frequency of the
+  // low-pass filter.
+  double sinc_scale_factor =
+      io_sample_rate_ratio_ > 1.0 ? 1.0 / io_sample_rate_ratio_ : 1.0;
+
+  // The sinc function is an idealized brick-wall filter, but since we're
+  // windowing it the transition from pass to stop does not happen right away.
+  // So we should adjust the low pass filter cutoff slightly downward to avoid
+  // some aliasing at the very high-end.
+  // TODO: this value is empirical and to be more exact should vary depending
+  // on kKernelSize.
+  sinc_scale_factor *= 0.9;
+
+  // Generates a set of windowed sinc() kernels.
+  // We generate a range of sub-sample offsets from 0.0 to 1.0.
+  for (int offset_idx = 0; offset_idx <= kKernelOffsetCount; ++offset_idx) {
+    double subsample_offset =
+        static_cast<double>(offset_idx) / kKernelOffsetCount;
+
+    for (int i = 0; i < kKernelSize; ++i) {
+      // Compute the sinc with offset.
+      double s =
+          sinc_scale_factor * M_PI * (i - kKernelSize / 2 - subsample_offset);
+      double sinc = (!s ? 1.0 : sin(s) / s) * sinc_scale_factor;
+
+      // Compute Blackman window, matching the offset of the sinc().
+      double x = (i - subsample_offset) / kKernelSize;
+      double window =
+          kA0 - kA1 * cos(2.0 * M_PI * x) + kA2 * cos(4.0 * M_PI * x);
+
+      // Window the sinc() function and store at the correct offset.
+      kernel_storage_[i + offset_idx * kKernelSize] = sinc * window;
+    }
+  }
 }
 
 void InterleavedSincResampler::Read(float* destination, int frames) {

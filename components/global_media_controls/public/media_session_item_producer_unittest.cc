@@ -11,6 +11,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/unguessable_token.h"
@@ -21,6 +22,7 @@
 #include "media/base/media_switches.h"
 #include "services/media_session/public/cpp/test/mock_audio_focus_manager.h"
 #include "services/media_session/public/cpp/test/mock_media_controller_manager.h"
+#include "services/media_session/public/cpp/test/test_media_controller.h"
 #include "services/media_session/public/mojom/audio_focus.mojom.h"
 #include "services/media_session/public/mojom/media_session.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -69,7 +71,7 @@ class MediaSessionItemProducerTest : public testing::Test {
 
     producer_ = std::make_unique<MediaSessionItemProducer>(
         std::move(audio_focus_remote), std::move(controller_manager_remote),
-        &item_manager_, absl::nullopt);
+        &item_manager_, std::nullopt);
 
     audio_focus_manager_->Flush();
     testing::Mock::VerifyAndClearExpectations(audio_focus_manager_.get());
@@ -201,11 +203,12 @@ class MediaSessionItemProducerTest : public testing::Test {
   void SimulateMediaSeeked(const base::UnguessableToken& id) {
     auto item_itr = sessions().find(id.ToString());
     EXPECT_NE(sessions().end(), item_itr);
-    item_itr->second.MediaSessionPositionChanged(absl::nullopt);
+    item_itr->second.MediaSessionPositionChanged(std::nullopt);
   }
 
-  void SimulateNotificationClicked(const base::UnguessableToken& id) {
-    producer_->OnMediaItemUIClicked(id.ToString());
+  void SimulateNotificationClicked(const base::UnguessableToken& id,
+                                   bool activate_original_media) {
+    producer_->OnMediaItemUIClicked(id.ToString(), activate_original_media);
   }
 
   void SimulateDismissButtonClicked(const base::UnguessableToken& id) {
@@ -241,6 +244,11 @@ class MediaSessionItemProducerTest : public testing::Test {
 
   std::map<std::string, MediaSessionItemProducer::Session>& sessions() const {
     return producer_->sessions_;
+  }
+
+  void SetIdBlockedCallback(
+      base::RepeatingCallback<bool(const std::string&)> callback) {
+    producer_->SetIsIdBlockedCallback(std::move(callback));
   }
 
   test::MockMediaItemManager& item_manager() { return item_manager_; }
@@ -606,7 +614,7 @@ TEST_F(MediaSessionItemProducerTest, DelaysHidingNotifications_Interactions) {
 
   // If the user clicks to go back to the tab, it should reset the hide timer.
   ExpectHistogramInteractionDelayAfterPause(base::Minutes(59), 0);
-  SimulateNotificationClicked(id);
+  SimulateNotificationClicked(id, /*activate_original_media=*/true);
   ExpectHistogramInteractionDelayAfterPause(base::Minutes(59), 1);
   AdvanceClockMinutes(50);
   EXPECT_TRUE(HasActiveItems());
@@ -691,20 +699,67 @@ TEST_F(MediaSessionItemProducerTest, HidingNotification_TimerParams) {
   EXPECT_FALSE(HasActiveItems());
 }
 
-TEST_F(MediaSessionItemProducerTest, HidesSessionWithPresentation) {
-  const base::UnguessableToken id = SimulatePlayingControllableMedia();
-  EXPECT_TRUE(HasActiveItems());
-  SimulateSessionHasPresentation(id);
-  // The presentation gets its own item, so MediaSessionItemProducer's item has
-  // become redundant and gets hidden.
-  EXPECT_FALSE(HasActiveItems());
-}
-
 TEST_F(MediaSessionItemProducerTest, RefreshSessionWhenRemotePlaybackChanges) {
   EXPECT_CALL(item_manager(), ShowItem(_));
   const base::UnguessableToken id = SimulatePlayingControllableMedia();
   EXPECT_CALL(item_manager(), RefreshItem(id.ToString()));
   SimulateItemRefresh(id);
+}
+
+TEST_F(MediaSessionItemProducerTest, ClicksNotificationItem) {
+  // Start playing active media.
+  base::UnguessableToken id = SimulatePlayingControllableMedia();
+  auto item_itr = sessions().find(id.ToString());
+  ASSERT_NE(sessions().end(), item_itr);
+  auto* item = item_itr->second.item();
+
+  // Add a mock media controller for the notification item.
+  auto test_media_controller =
+      std::make_unique<media_session::test::TestMediaController>();
+  MediaSessionInfoPtr session_info(MediaSessionInfo::New());
+  session_info->playback_state =
+      media_session::mojom::MediaPlaybackState::kPlaying;
+  session_info->is_controllable = true;
+  item->SetController(test_media_controller->CreateMediaControllerRemote(),
+                      session_info.Clone());
+  SimulateNecessaryMetadata(id);
+
+  // Click the notification item without raising it.
+  EXPECT_EQ(0, test_media_controller->raise_count());
+  SimulateNotificationClicked(id, /*activate_original_media=*/false);
+  item->FlushForTesting();
+  EXPECT_EQ(0, test_media_controller->raise_count());
+
+  // Click the notification item and raise it.
+  SimulateNotificationClicked(id, /*activate_original_media=*/true);
+  item->FlushForTesting();
+  EXPECT_EQ(1, test_media_controller->raise_count());
+}
+
+TEST_F(MediaSessionItemProducerTest, SetIdBlockedCallback) {
+  // Simulate 2 controllable media sessions; one should be active(shown), the
+  // other one should be blocked (hidden).
+  base::UnguessableToken id = base::UnguessableToken::Create();
+  base::UnguessableToken id2 = base::UnguessableToken::Create();
+
+  base::MockCallback<base::RepeatingCallback<bool(const std::string&)>>
+      is_id_blocked_callback;
+  SetIdBlockedCallback(is_id_blocked_callback.Get());
+  EXPECT_CALL(is_id_blocked_callback, Run(id.ToString()))
+      .Times(1)
+      .WillOnce(Return(false));
+  EXPECT_CALL(is_id_blocked_callback, Run(id2.ToString()))
+      .Times(1)
+      .WillOnce(Return(true));
+
+  EXPECT_CALL(item_manager(), ShowItem(id.ToString()));
+  EXPECT_CALL(item_manager(), ShowItem(id2.ToString())).Times(0);
+
+  SimulatePlayingControllableMedia(id);
+  SimulatePlayingControllableMedia(id2);
+
+  // Ensure that the item manager was notified of the new item.
+  testing::Mock::VerifyAndClearExpectations(&item_manager());
 }
 
 }  // namespace global_media_controls

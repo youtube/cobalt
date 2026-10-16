@@ -6,8 +6,10 @@
 
 #include <stddef.h>
 
+#include <array>
 #include <vector>
 
+#include "base/containers/contains.h"
 #include "base/notreached.h"
 #include "base/strings/string_split.h"
 #include "base/values.h"
@@ -27,14 +29,15 @@ struct ContentSettingsStringMapping {
   ContentSetting content_setting;
   const char* content_setting_str;
 };
-const ContentSettingsStringMapping kContentSettingsStringMapping[] = {
-    {CONTENT_SETTING_DEFAULT, "default"},
-    {CONTENT_SETTING_ALLOW, "allow"},
-    {CONTENT_SETTING_BLOCK, "block"},
-    {CONTENT_SETTING_ASK, "ask"},
-    {CONTENT_SETTING_SESSION_ONLY, "session_only"},
-    {CONTENT_SETTING_DETECT_IMPORTANT_CONTENT, "detect_important_content"},
-};
+const auto kContentSettingsStringMapping =
+    std::to_array<ContentSettingsStringMapping>({
+        {CONTENT_SETTING_DEFAULT, "default"},
+        {CONTENT_SETTING_ALLOW, "allow"},
+        {CONTENT_SETTING_BLOCK, "block"},
+        {CONTENT_SETTING_ASK, "ask"},
+        {CONTENT_SETTING_SESSION_ONLY, "session_only"},
+        {CONTENT_SETTING_DETECT_IMPORTANT_CONTENT, "detect_important_content"},
+    });
 static_assert(std::size(kContentSettingsStringMapping) ==
                   CONTENT_SETTING_NUM_SETTINGS,
               "kContentSettingsToFromString should have "
@@ -122,37 +125,17 @@ PatternPair ParsePatternString(const std::string& pattern_str) {
 
 void GetRendererContentSettingRules(const HostContentSettingsMap* map,
                                     RendererContentSettingRules* rules) {
-#if !BUILDFLAG(IS_ANDROID)
-  map->GetSettingsForOneType(ContentSettingsType::IMAGES,
-                             &(rules->image_rules));
-  map->GetSettingsForOneType(ContentSettingsType::MIXEDSCRIPT,
-                             &(rules->mixed_content_rules));
-  // Auto dark web content settings is available only for Android, so ALLOW rule
-  // is added for all origins.
-  rules->auto_dark_content_rules.push_back(ContentSettingPatternSource(
-      ContentSettingsPattern::Wildcard(), ContentSettingsPattern::Wildcard(),
-      ContentSettingToValue(CONTENT_SETTING_ALLOW), std::string(),
-      map->IsOffTheRecord()));
+#if !BUILDFLAG(IS_IOS)
+  rules->mixed_content_rules =
+      map->GetSettingsForOneType(ContentSettingsType::MIXEDSCRIPT);
 #else
-  // Android doesn't use image content settings, so ALLOW rule is added for
-  // all origins.
-  rules->image_rules.push_back(ContentSettingPatternSource(
-      ContentSettingsPattern::Wildcard(), ContentSettingsPattern::Wildcard(),
-      ContentSettingToValue(CONTENT_SETTING_ALLOW), std::string(),
-      map->IsOffTheRecord()));
   // In Android active mixed content is hard blocked, with no option to allow
   // it.
   rules->mixed_content_rules.push_back(ContentSettingPatternSource(
       ContentSettingsPattern::Wildcard(), ContentSettingsPattern::Wildcard(),
-      ContentSettingToValue(CONTENT_SETTING_BLOCK), std::string(),
+      ContentSettingToValue(CONTENT_SETTING_BLOCK), ProviderType::kNone,
       map->IsOffTheRecord()));
-  map->GetSettingsForOneType(ContentSettingsType::AUTO_DARK_WEB_CONTENT,
-                             &(rules->auto_dark_content_rules));
 #endif
-  map->GetSettingsForOneType(ContentSettingsType::JAVASCRIPT,
-                             &(rules->script_rules));
-  map->GetSettingsForOneType(ContentSettingsType::POPUPS,
-                             &(rules->popup_redirect_rules));
 }
 
 bool IsMorePermissive(ContentSetting a, ContentSetting b) {
@@ -165,33 +148,33 @@ bool IsMorePermissive(ContentSetting a, ContentSetting b) {
       return true;
   }
   NOTREACHED();
-  return true;
 }
 
-// Currently only SessionModel::Durable constraints need to be persistent
+// Currently only mojom::SessionModel::DURABLE constraints need to be persistent
 // as they are only bounded by time and can persist through multiple browser
 // sessions.
 bool IsConstraintPersistent(const ContentSettingConstraints& constraints) {
-  return constraints.session_model == SessionModel::Durable;
-}
-
-// Convenience helper to calculate the expiration time of a constraint given a
-// desired |duration|
-base::Time GetConstraintExpiration(const base::TimeDelta duration) {
-  DCHECK(!duration.is_zero());
-  return base::Time::Now() + duration;
+  return constraints.session_model() == mojom::SessionModel::DURABLE;
 }
 
 bool CanTrackLastVisit(ContentSettingsType type) {
   // Last visit is not tracked for notification permission as it shouldn't be
   // auto-revoked.
-  if (type == ContentSettingsType::NOTIFICATIONS)
+  if (type == ContentSettingsType::NOTIFICATIONS) {
     return false;
+  }
 
   // Protocol handler don't actually use their content setting and don't have
   // a valid "initial default" value.
-  if (type == ContentSettingsType::PROTOCOL_HANDLERS)
+  if (type == ContentSettingsType::PROTOCOL_HANDLERS) {
     return false;
+  }
+
+  // Chooser based content settings will not be tracked by default.
+  // Only allowlisted ones should be tracked.
+  if (IsChooserPermissionEligibleForAutoRevocation(type)) {
+    return true;
+  }
 
   auto* info =
       content_settings::ContentSettingsRegistry::GetInstance()->Get(type);
@@ -215,25 +198,80 @@ base::TimeDelta GetCoarseVisitedTimePrecision() {
 bool CanBeAutoRevoked(ContentSettingsType type,
                       ContentSetting setting,
                       bool is_one_time) {
+  return CanBeAutoRevoked(type, ContentSettingToValue(setting), is_one_time);
+}
+
+bool CanBeAutoRevoked(ContentSettingsType type,
+                      const base::Value& value,
+                      bool is_one_time) {
   // The Permissions module in Safety check will revoke permissions after
   // a finite amount of time.
-  // We're only interested in expiring permissions that:
-  // 1. Are ALLOWed.
-  // 2. Fall back to ASK.
-  // 3. Are not already a one-time grant.
-  if (setting != CONTENT_SETTING_ALLOW) {
-    return false;
+  // We're only interested in expiring permissions that are either
+  // A. regular permissions (= ContentSettingsRegistry-based), which
+  //    1. Are ALLOWed.
+  //    2. Fall back to ASK.
+  //    3. Are not already a one-time grant.
+  // B. chooser permissions (= WebsiteSettingsRegistry-based), which
+  //    1. Are allowlisted.
+  //    2. Have a non-empty value.
+
+  auto* info =
+      content_settings::ContentSettingsRegistry::GetInstance()->Get(type);
+  if (info) {
+    return !is_one_time &&
+           ValueToContentSetting(value) == CONTENT_SETTING_ALLOW &&
+           CanTrackLastVisit(type);
   }
 
-  if (!CanTrackLastVisit(type)) {
-    return false;
-  }
+  // If the value is already empty, no need to revoke the permission.
+  return IsChooserPermissionEligibleForAutoRevocation(type) && !value.is_none();
+}
 
-  if (is_one_time) {
-    return false;
-  }
+bool IsChooserPermissionEligibleForAutoRevocation(ContentSettingsType type) {
+  // Currently, only File System Access is allowlisted for auto-revoking unused
+  // site permissions among chooser-based permissions.
+  return type == ContentSettingsType::FILE_SYSTEM_ACCESS_CHOOSER_DATA;
+}
 
-  return true;
+const std::vector<ContentSettingsType>& GetTypesWithTemporaryGrants() {
+  static base::NoDestructor<const std::vector<ContentSettingsType>> types{{
+#if !BUILDFLAG(IS_ANDROID)
+      ContentSettingsType::CAMERA_PAN_TILT_ZOOM,
+      ContentSettingsType::CAPTURED_SURFACE_CONTROL,
+#endif
+      ContentSettingsType::KEYBOARD_LOCK,
+      ContentSettingsType::GEOLOCATION,
+      ContentSettingsType::MEDIASTREAM_MIC,
+      ContentSettingsType::MEDIASTREAM_CAMERA,
+      ContentSettingsType::HAND_TRACKING,
+      ContentSettingsType::SMART_CARD_DATA,
+      ContentSettingsType::AR,
+      ContentSettingsType::VR,
+  }};
+  return *types;
+}
+
+const std::vector<ContentSettingsType>& GetTypesWithTemporaryGrantsInHcsm() {
+  static base::NoDestructor<const std::vector<ContentSettingsType>> types{{
+#if !BUILDFLAG(IS_ANDROID)
+      ContentSettingsType::CAMERA_PAN_TILT_ZOOM,
+      ContentSettingsType::CAPTURED_SURFACE_CONTROL,
+#endif
+      ContentSettingsType::KEYBOARD_LOCK,
+      ContentSettingsType::GEOLOCATION,
+      ContentSettingsType::MEDIASTREAM_MIC,
+      ContentSettingsType::MEDIASTREAM_CAMERA,
+      ContentSettingsType::HAND_TRACKING,
+      ContentSettingsType::AR,
+      ContentSettingsType::VR,
+  }};
+  return *types;
+}
+
+bool ShouldTypeExpireActively(ContentSettingsType type) {
+  return base::FeatureList::IsEnabled(
+             content_settings::features::kActiveContentSettingExpiry) &&
+         base::Contains(GetTypesWithTemporaryGrantsInHcsm(), type);
 }
 
 }  // namespace content_settings

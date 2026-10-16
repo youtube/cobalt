@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_SEGMENTATION_PLATFORM_INTERNAL_SEGMENTATION_UKM_HELPER_H_
 #define COMPONENTS_SEGMENTATION_PLATFORM_INTERNAL_SEGMENTATION_UKM_HELPER_H_
 
+#include <optional>
 #include <vector>
 
 #include "base/containers/flat_set.h"
@@ -14,7 +15,6 @@
 #include "components/segmentation_platform/public/model_provider.h"
 #include "components/segmentation_platform/public/proto/segmentation_platform.pb.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class Clock;
@@ -45,25 +45,33 @@ class SegmentationUkmHelper {
       const std::vector<float>& results);
 
   // Record segmentation model training data as UKM message.
-  // `input_tensors` contains the values for training inputs.
-  // `outputs` contains the values for outputs.
-  // `output_indexes` contains the indexes for outputs that needs to be included
-  // in the ukm message.
-  // `prediction_result` is the most recent model execution result.
-  // `selected_segment` is the recently selected segment for the feature that is
-  // tied to the ML model.
-  // Return the UKM source ID.
+  // `segment_id`: The segment ID of the model to record data.
+  // `model_version`: The current model version specified in model config.
+  // `ukm_source_id`: Optional UKM source ID to attach the URL to recorded data.
+  //                  The caller has to create the source and attach URL. If the
+  //                  value is kInvalidSourceId, then this function creates an
+  //                  empty source without URL.
+  // `input_tensors`: Contains the values for training inputs.
+  // `outputs`: Contains the values for outputs.
+  // `output_indexes`: Contains the indexes for outputs that needs to be
+  //                   included in the ukm message.
+  // `prediction_result`: The most recent model execution result.
+  // `selected_segment`: Legacy option no longer used in new models. The
+  //                     recently selected segment for the feature that is tied
+  //                     to the ML model.
+  // Returns the UKM source ID of the recorded data, invalid if not recorded.
   ukm::SourceId RecordTrainingData(
       SegmentId segment_id,
       int64_t model_version,
+      ukm::SourceId ukm_source_id,
       const ModelProvider::Request& input_tensors,
       const ModelProvider::Response& outputs,
       const std::vector<int>& output_indexes,
-      absl::optional<proto::PredictionResult> prediction_result,
-      absl::optional<SelectedSegment> selected_segment);
+      std::optional<proto::PredictionResult> prediction_result,
+      std::optional<SelectedSegment> selected_segment);
 
-  // Returns whether a segment is allowed to upload training tensors.
-  bool CanUploadTensors(const proto::SegmentInfo& segment_info) const;
+  // Returns whether a segment needs to upload training tensors.
+  bool IsUploadRequested(const proto::SegmentInfo& segment_info) const;
 
   // Helper method to encode a float number into int64.
   static int64_t FloatToInt64(float f);

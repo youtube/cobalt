@@ -25,7 +25,7 @@ class WebDocumentSubresourceFilter {
 
   virtual ~WebDocumentSubresourceFilter() = default;
   virtual LoadPolicy GetLoadPolicy(const WebURL& resource_url,
-                                   mojom::RequestContextType) = 0;
+                                   network::mojom::RequestDestination) = 0;
   virtual LoadPolicy GetLoadPolicyForWebSocketConnect(const WebURL&) = 0;
   virtual LoadPolicy GetLoadPolicyForWebTransportConnect(const WebURL&) = 0;
 
@@ -36,10 +36,6 @@ class WebDocumentSubresourceFilter {
   // Returns true if disallowed resource loads should be logged to the devtools
   // console.
   virtual bool ShouldLogToConsole() = 0;
-
-  // Report that the resource request corresponding to |request_id|  was tagged
-  // as an ad.
-  virtual void ReportAdRequestId(int request_id) {}
 };
 
 }  // namespace blink

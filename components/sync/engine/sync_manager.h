@@ -14,21 +14,20 @@
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
 #include "base/task/task_runner.h"
-#include "base/threading/thread_checker.h"
 #include "base/time/time.h"
-#include "components/sync/base/model_type.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/base/sync_invalidation.h"
 #include "components/sync/engine/active_devices_invalidation_info.h"
 #include "components/sync/engine/configure_reason.h"
 #include "components/sync/engine/connection_status.h"
+#include "components/sync/engine/data_type_connector.h"
 #include "components/sync/engine/engine_components_factory.h"
 #include "components/sync/engine/events/protocol_event.h"
-#include "components/sync/engine/model_type_connector.h"
 #include "components/sync/engine/net/http_post_provider_factory.h"
 #include "components/sync/engine/sync_credentials.h"
 #include "components/sync/engine/sync_encryption_handler.h"
+#include "components/sync/engine/sync_protocol_error.h"
 #include "components/sync/engine/sync_status.h"
-#include "components/sync/protocol/sync_protocol_error.h"
 #include "url/gurl.h"
 
 namespace syncer {
@@ -40,14 +39,12 @@ class ProtocolEvent;
 class SyncCycleSnapshot;
 struct SyncStatus;
 
-// Unless stated otherwise, all methods of SyncManager should be called on the
-// same thread.
+// Lives on the sync sequence.
 class SyncManager {
  public:
-  // An interface the embedding application implements to receive
-  // notifications from the SyncManager.  Register an observer via
-  // SyncManager::AddObserver.  All methods are called only on the
-  // sync thread.
+  // An interface the embedding application implements to receive notifications
+  // from the SyncManager. Register an observer via SyncManager::AddObserver.
+  // All methods are called only on the sync sequence.
   class Observer {
    public:
     // A round-trip sync-cycle took place and the syncer has resolved any
@@ -61,7 +58,7 @@ class SyncManager {
     virtual void OnActionableProtocolError(
         const SyncProtocolError& sync_protocol_error) = 0;
 
-    virtual void OnMigrationRequested(ModelTypeSet types) = 0;
+    virtual void OnMigrationRequested(DataTypeSet types) = 0;
 
     virtual void OnProtocolEvent(const ProtocolEvent& event) = 0;
 
@@ -81,7 +78,7 @@ class SyncManager {
 
     // Whether the local backend provided by the LoopbackServer should be used
     // and the location of the local sync backend storage.
-    bool enable_local_sync_backend;
+    bool enable_local_sync_backend = false;
     base::FilePath local_sync_backend_folder;
 
     // Used to communicate with the sync server.
@@ -90,21 +87,18 @@ class SyncManager {
     std::unique_ptr<SyncEncryptionHandler::Observer> encryption_observer_proxy;
 
     // Must outlive SyncManager.
-    raw_ptr<ExtensionsActivity> extensions_activity;
-
-    // Unqiuely identifies this client to the invalidation notification server.
-    std::string invalidator_client_id;
+    raw_ptr<ExtensionsActivity> extensions_activity = nullptr;
 
     std::unique_ptr<EngineComponentsFactory> engine_components_factory;
 
     // Must outlive SyncManager.
-    raw_ptr<SyncEncryptionHandler> encryption_handler;
+    raw_ptr<SyncEncryptionHandler> encryption_handler = nullptr;
 
-    // Carries shutdown requests across threads and will be used to cut short
+    // Carries shutdown requests across sequences and will be used to cut short
     // any network I/O and tell the syncer to exit early.
     //
     // Must outlive SyncManager.
-    raw_ptr<CancelationSignal> cancelation_signal;
+    raw_ptr<CancelationSignal> cancelation_signal = nullptr;
 
     // Define the polling interval. Must not be zero.
     base::TimeDelta poll_interval;
@@ -123,15 +117,15 @@ class SyncManager {
   SyncManager();
   virtual ~SyncManager();
 
-  // Initialize the sync manager using arguments from |args|.
+  // Initialize the sync manager using arguments from `args`.
   //
   // Note, args is passed by non-const pointer because it contains objects like
   // unique_ptr.
   virtual void Init(InitArgs* args) = 0;
 
-  virtual ModelTypeSet InitialSyncEndedTypes() = 0;
+  virtual DataTypeSet InitialSyncEndedTypes() = 0;
 
-  virtual ModelTypeSet GetConnectedTypes() = 0;
+  virtual DataTypeSet GetConnectedTypes() = 0;
 
   // Update tokens that we're using in Sync. Email must stay the same.
   virtual void UpdateCredentials(const SyncCredentials& credentials) = 0;
@@ -150,9 +144,9 @@ class SyncManager {
   // any configuration tasks needed as determined by the params. Once complete,
   // syncer will remain in CONFIGURATION_MODE until StartSyncingNormally is
   // called.
-  // |ready_task| is invoked when the configuration completes.
+  // `ready_task` is invoked when the configuration completes.
   virtual void ConfigureSyncer(ConfigureReason reason,
-                               ModelTypeSet to_download,
+                               DataTypeSet to_download,
                                SyncFeatureState sync_feature_state,
                                base::OnceClosure ready_task) = 0;
 
@@ -161,7 +155,7 @@ class SyncManager {
 
   // Inform the syncer that its cached information about a type is obsolete.
   virtual void OnIncomingInvalidation(
-      ModelType type,
+      DataType type,
       std::unique_ptr<SyncInvalidation> invalidation) = 0;
 
   // Adds a listener to be notified of sync events.
@@ -176,14 +170,14 @@ class SyncManager {
 
   virtual void ShutdownOnSyncThread() = 0;
 
-  // Returns non-owning pointer to ModelTypeConnector. In contrast with
-  // ModelTypeConnectorProxy all calls are executed synchronously, thus the
-  // pointer should be used on sync thread.
-  virtual ModelTypeConnector* GetModelTypeConnector() = 0;
+  // Returns non-owning pointer to DataTypeConnector. In contrast with
+  // DataTypeConnectorProxy all calls are executed synchronously, thus the
+  // pointer should be used on sync sequence.
+  virtual DataTypeConnector* GetDataTypeConnector() = 0;
 
   // Returns an instance of the main interface for registering sync types with
   // sync engine.
-  virtual std::unique_ptr<ModelTypeConnector> GetModelTypeConnectorProxy() = 0;
+  virtual std::unique_ptr<DataTypeConnector> GetDataTypeConnectorProxy() = 0;
 
   // Returns the cache_guid of the currently open database.
   // Requires that the SyncManager be initialized.
@@ -204,7 +198,7 @@ class SyncManager {
   virtual SyncEncryptionHandler* GetEncryptionHandler() = 0;
 
   // Ask the SyncManager to fetch updates for the given types.
-  virtual void RefreshTypes(ModelTypeSet types) = 0;
+  virtual void RefreshTypes(DataTypeSet types) = 0;
 
   // Returns any buffered protocol events.  Does not clear the buffer.
   virtual std::vector<std::unique_ptr<ProtocolEvent>>
@@ -214,9 +208,6 @@ class SyncManager {
   // chrome account. See ClientConfigParams proto message for more info.
   // Note: this does not trigger a sync cycle. It just updates the sync context.
   virtual void OnCookieJarChanged(bool account_mismatch) = 0;
-
-  // Updates invalidation client id.
-  virtual void UpdateInvalidationClientId(const std::string& client_id) = 0;
 
   // Updates the invalidation information from known active devices.
   virtual void UpdateActiveDevicesInvalidationInfo(

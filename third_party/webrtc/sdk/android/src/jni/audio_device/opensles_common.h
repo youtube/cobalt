@@ -69,7 +69,7 @@ typedef ScopedSLObject<SLObjectItf, const SLObjectItf_*> ScopedSLObjectItf;
 // Note: This class must be used single threaded and this is enforced by a
 // thread checker.
 class OpenSLEngineManager
-    : public rtc::RefCountedNonVirtual<OpenSLEngineManager> {
+    : public webrtc::RefCountedNonVirtual<OpenSLEngineManager> {
  public:
   OpenSLEngineManager();
   ~OpenSLEngineManager() = default;

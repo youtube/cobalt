@@ -11,6 +11,7 @@
 #include "ash/public/cpp/wallpaper/wallpaper_types.h"
 #include "base/functional/callback.h"
 #include "base/run_loop.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -25,10 +26,10 @@ const int kTestImageWidth = 5;
 const int kTestImageHeight = 2;
 const int kTargetWidth = 1;
 const int kTargetHeight = 1;
-const uint32_t kExpectedCenter = 0x02020202u;
-const uint32_t kExpectedCenterCropped = 0x03030303u;
-const uint32_t kExpectedStretch = 0x04040404u;
-const uint32_t kExpectedTile = 0;
+const uint32_t kExpectedCenter = 0xFF020202u;
+const uint32_t kExpectedCenterCropped = 0xFF030303u;
+const uint32_t kExpectedStretch = 0xFF040404u;
+const uint32_t kExpectedTile = 0xFF000000u;
 
 gfx::ImageSkia CreateTestImage(const gfx::Size& size) {
   SkBitmap src;
@@ -147,6 +148,24 @@ TEST_F(WallpaperResizerTest, ImageId) {
   resizer.StartResize(loop.QuitClosure());
   loop.Run();
   EXPECT_EQ(WallpaperResizer::GetImageId(image), resizer.original_image_id());
+}
+
+TEST_F(WallpaperResizerTest, RecordsDecodedSize) {
+  base::HistogramTester histogram_tester;
+  gfx::ImageSkia image = CreateTestImage(gfx::Size(3000, 3000));
+
+  WallpaperResizer resizer(image, gfx::Size(2000, 1000),
+                           WallpaperInfo("", WALLPAPER_LAYOUT_CENTER_CROPPED,
+                                         WallpaperType::kDefault,
+                                         base::Time::Now().LocalMidnight()));
+  histogram_tester.ExpectTotalCount("Ash.Wallpaper.DecodedSizeMB", 0);
+  base::RunLoop loop;
+  resizer.StartResize(loop.QuitClosure());
+  loop.Run();
+
+  // 3000x3000 image should be shrunk down to 2000x1000. 2000 * 1000 *
+  // 4 bytes per pixel (RGBA) ~= 8 MB.
+  histogram_tester.ExpectUniqueSample("Ash.Wallpaper.DecodedSizeMB", 8, 1);
 }
 
 }  // namespace wallpaper

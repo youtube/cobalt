@@ -6,11 +6,14 @@ package org.chromium.components.messages;
 
 import android.view.View;
 
+import org.chromium.build.annotations.NullMarked;
+
 /**
- * A class providing basic info required for messages to trigger stacking animation.
- * This is essentially a wrapper and proxy of {@link View}, exposing necessary info fulfilling the
- * minimum requirement.
+ * A class providing basic info required for messages to trigger stacking animation. This is
+ * essentially a wrapper and proxy of {@link View}, exposing necessary info fulfilling the minimum
+ * requirement.
  */
+@NullMarked
 public class MessageDimens {
     static MessageDimens from(MessageContainer container, View currentView) {
         View siblingView = container.getSiblingView(currentView);
@@ -48,6 +51,7 @@ public class MessageDimens {
         }
         return ((MessageBannerView) mView).getTitleHeightForAnimation();
     }
+
     int getDescriptionHeight() {
         assert mView instanceof MessageBannerView;
         if (!mView.isLaidOut()) {
@@ -66,8 +70,10 @@ public class MessageDimens {
     }
 
     private void measure() {
-        int maxWidth = Math.min(mView.getRootView().getWidth(),
-                mView.getResources().getDimensionPixelSize(R.dimen.message_max_width));
+        int maxWidth =
+                Math.min(
+                        mView.getRootView().getWidth(),
+                        mView.getResources().getDimensionPixelSize(R.dimen.message_max_width));
         int wSpec = View.MeasureSpec.makeMeasureSpec(maxWidth, View.MeasureSpec.AT_MOST);
         int hSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
         mView.measure(wSpec, hSpec);

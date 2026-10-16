@@ -17,6 +17,7 @@
 #include <limits>
 
 #include "common_audio/wav_header.h"
+#include "rtc_base/logging.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 
@@ -31,11 +32,24 @@
 
 namespace webrtc {
 
+namespace {
+const char* SampleFormatToStr(WavFile::SampleFormat format) {
+  switch (format) {
+    case WavFile::SampleFormat::kInt16:
+      return "int16";
+    case WavFile::SampleFormat::kFloat:
+      return "float";
+  }
+  RTC_CHECK_NOTREACHED();
+}
+}  // namespace
+
 static const float kSamples[] = {0.0, 10.0, 4e4, -1e9};
 
 // Write a tiny WAV file with the C++ interface and verify the result.
 TEST(WavWriterTest, MAYBE_CPP) {
-  const std::string outfile = test::OutputPath() + "wavtest1.wav";
+  const std::string outfile =
+      test::OutputPathWithRandomDirectory() + "wavtest1.wav";
   static const size_t kNumSamples = 3;
   {
     WavWriter w(outfile, 14099, 1);
@@ -112,7 +126,8 @@ TEST(WavWriterTest, LargeFile) {
          {WavFile::SampleFormat::kInt16, WavFile::SampleFormat::kFloat}) {
       for (WavFile::SampleFormat read_format :
            {WavFile::SampleFormat::kInt16, WavFile::SampleFormat::kFloat}) {
-        std::string outfile = test::OutputPath() + "wavtest3.wav";
+        std::string outdir = test::OutputPathWithRandomDirectory();
+        std::string outfile = outdir + "wavtest3.wav";
         float samples[kNumSamples];
         for (size_t i = 0; i < kNumSamples; i += kNumChannels) {
           // A nice periodic beeping sound.
@@ -123,6 +138,9 @@ TEST(WavWriterTest, LargeFile) {
                            std::sin(t * kToneHz * 2 * M_PI);
           samples[i] = std::pow(std::sin(t * 2 * 2 * M_PI), 10) * x;
           samples[i + 1] = std::pow(std::cos(t * 2 * 2 * M_PI), 10) * x;
+          // See https://issues.webrtc.org/issues/379973428
+          RTC_CHECK(isfinite(samples[i]));
+          RTC_CHECK(isfinite(samples[i + 1]));
         }
         {
           WavWriter w(outfile, kSampleRate, kNumChannels, wav_format);
@@ -130,7 +148,7 @@ TEST(WavWriterTest, LargeFile) {
           EXPECT_EQ(kNumChannels, w.num_channels());
           EXPECT_EQ(0u, w.num_samples());
           if (write_format == WavFile::SampleFormat::kFloat) {
-            float truncated_samples[kNumSamples];
+            int16_t truncated_samples[kNumSamples];
             for (size_t k = 0; k < kNumSamples; ++k) {
               truncated_samples[k] = static_cast<int16_t>(samples[k]);
             }
@@ -159,6 +177,14 @@ TEST(WavWriterTest, LargeFile) {
             EXPECT_EQ(kNumSamples, r.ReadSamples(kNumSamples, read_samples));
             for (size_t i = 0; i < kNumSamples; ++i) {
               EXPECT_NEAR(samples[i], read_samples[i], 1);
+              if (!isfinite(samples[i])) {
+                // See https://issues.webrtc.org/issues/379973428
+                RTC_LOG(LS_ERROR)
+                    << "samples[" << i << "] is not finite. "
+                    << "wav_format=" << SampleFormatToStr(wav_format)
+                    << ", write_format=" << SampleFormatToStr(write_format)
+                    << ", read_format=" << SampleFormatToStr(read_format);
+              }
             }
             EXPECT_EQ(0u, r.ReadSamples(kNumSamples, read_samples));
           } else {
@@ -166,10 +192,20 @@ TEST(WavWriterTest, LargeFile) {
             EXPECT_EQ(kNumSamples, r.ReadSamples(kNumSamples, read_samples));
             for (size_t i = 0; i < kNumSamples; ++i) {
               EXPECT_NEAR(samples[i], static_cast<float>(read_samples[i]), 1);
+              if (!isfinite(samples[i])) {
+                // See https://issues.webrtc.org/issues/379973428
+                RTC_LOG(LS_ERROR)
+                    << "samples[" << i << "] is not finite. "
+                    << "wav_format=" << SampleFormatToStr(wav_format)
+                    << ", write_format=" << SampleFormatToStr(write_format)
+                    << ", read_format=" << SampleFormatToStr(read_format);
+              }
             }
             EXPECT_EQ(0u, r.ReadSamples(kNumSamples, read_samples));
           }
         }
+        RTC_CHECK(test::RemoveFile(outfile));
+        RTC_CHECK(test::RemoveDir(outdir));
       }
     }
   }
@@ -177,7 +213,8 @@ TEST(WavWriterTest, LargeFile) {
 
 // Write a tiny WAV file with the C++ interface then read-reset-read.
 TEST(WavReaderTest, MAYBE_CPPReset) {
-  const std::string outfile = test::OutputPath() + "wavtest4.wav";
+  const std::string outfile =
+      test::OutputPathWithRandomDirectory() + "wavtest4.wav";
   static const size_t kNumSamples = 3;
   {
     WavWriter w(outfile, 14099, 1);

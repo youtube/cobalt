@@ -5,67 +5,33 @@
 #include "chrome/browser/ui/views/elevation_icon_setter.h"
 
 #include "base/functional/bind.h"
-#include "base/functional/callback.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/views/controls/button/label_button.h"
 
 #if BUILDFLAG(IS_WIN)
-#include <windows.h>
-#include <shellapi.h>
-
-#include "base/win/win_util.h"
 #include "ui/display/win/dpi.h"
-#include "ui/gfx/icon_util.h"
+#include "ui/gfx/win/get_elevation_icon.h"
 #endif
-
-
-// Helpers --------------------------------------------------------------------
-
-namespace {
-
-#if BUILDFLAG(IS_WIN)
-SkBitmap GetElevationIcon() {
-  if (!base::win::UserAccountControlIsEnabled())
-    return SkBitmap();
-
-  SHSTOCKICONINFO icon_info = { sizeof(SHSTOCKICONINFO) };
-  if (FAILED(SHGetStockIconInfo(SIID_SHIELD, SHGSI_ICON | SHGSI_SMALLICON,
-                                &icon_info)))
-    return SkBitmap();
-
-  SkBitmap icon = IconUtil::CreateSkBitmapFromHICON(
-      icon_info.hIcon,
-      gfx::Size(GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON)));
-  DestroyIcon(icon_info.hIcon);
-  return icon;
-}
-#endif
-
-}  // namespace
-
 
 // ElevationIconSetter --------------------------------------------------------
 
-ElevationIconSetter::ElevationIconSetter(views::LabelButton* button,
-                                         base::OnceClosure callback)
+ElevationIconSetter::ElevationIconSetter(views::LabelButton* button)
     : button_(button) {
 #if BUILDFLAG(IS_WIN)
   base::ThreadPool::CreateCOMSTATaskRunner(
       {base::MayBlock(), base::TaskPriority::USER_BLOCKING})
       ->PostTaskAndReplyWithResult(
-          FROM_HERE, base::BindOnce(&GetElevationIcon),
+          FROM_HERE, base::BindOnce(&gfx::win::GetElevationIcon),
           base::BindOnce(&ElevationIconSetter::SetButtonIcon,
-                         weak_factory_.GetWeakPtr(), std::move(callback)));
+                         weak_factory_.GetWeakPtr()));
 #endif
 }
 
-ElevationIconSetter::~ElevationIconSetter() {
-}
+ElevationIconSetter::~ElevationIconSetter() = default;
 
-void ElevationIconSetter::SetButtonIcon(base::OnceClosure callback,
-                                        const SkBitmap& icon) {
+void ElevationIconSetter::SetButtonIcon(const SkBitmap& icon) {
   if (!icon.isNull()) {
     float device_scale_factor = 1.0f;
 #if BUILDFLAG(IS_WIN)
@@ -73,13 +39,9 @@ void ElevationIconSetter::SetButtonIcon(base::OnceClosure callback,
     // mark this image as having been scaled for the current DPI already.
     device_scale_factor = display::win::GetDPIScale();
 #endif
-    button_->SetImage(
+    button_->SetImageModel(
         views::Button::STATE_NORMAL,
-        gfx::ImageSkia::CreateFromBitmap(icon, device_scale_factor));
-    button_->SizeToPreferredSize();
-    if (button_->parent())
-      button_->parent()->Layout();
-    if (!callback.is_null())
-      std::move(callback).Run();
+        ui::ImageModel::FromImageSkia(
+            gfx::ImageSkia::CreateFromBitmap(icon, device_scale_factor)));
   }
 }

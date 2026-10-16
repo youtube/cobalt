@@ -6,15 +6,15 @@
 
 #include <memory>
 #include <string>
-#include <unordered_map>
+#include <string_view>
 #include <utility>
 
+#include "base/containers/flat_map.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/webui_url_constants.h"
@@ -61,7 +61,6 @@ const char* TypeToString(extensions::Manifest::Type type) {
       break;
   }
   NOTREACHED();
-  return "";
 }
 
 const char* LocationToString(ManifestLocation loc) {
@@ -90,102 +89,138 @@ const char* LocationToString(ManifestLocation loc) {
       return "EXTERNAL_COMPONENT";
   }
   NOTREACHED();
-  return "";
 }
 
 base::Value::List CreationFlagsToList(int creation_flags) {
   base::Value::List flags_value;
-  if (creation_flags == extensions::Extension::NO_FLAGS)
+  if (creation_flags == extensions::Extension::NO_FLAGS) {
     flags_value.Append("NO_FLAGS");
-  if (creation_flags & extensions::Extension::REQUIRE_KEY)
+  }
+  if (creation_flags & extensions::Extension::REQUIRE_KEY) {
     flags_value.Append("REQUIRE_KEY");
-  if (creation_flags & extensions::Extension::REQUIRE_MODERN_MANIFEST_VERSION)
+  }
+  if (creation_flags & extensions::Extension::REQUIRE_MODERN_MANIFEST_VERSION) {
     flags_value.Append("REQUIRE_MODERN_MANIFEST_VERSION");
-  if (creation_flags & extensions::Extension::ALLOW_FILE_ACCESS)
+  }
+  if (creation_flags & extensions::Extension::ALLOW_FILE_ACCESS) {
     flags_value.Append("ALLOW_FILE_ACCESS");
-  if (creation_flags & extensions::Extension::FROM_WEBSTORE)
+  }
+  if (creation_flags & extensions::Extension::FROM_WEBSTORE) {
     flags_value.Append("FROM_WEBSTORE");
-  if (creation_flags & extensions::Extension::FOLLOW_SYMLINKS_ANYWHERE)
+  }
+  if (creation_flags & extensions::Extension::FOLLOW_SYMLINKS_ANYWHERE) {
     flags_value.Append("FOLLOW_SYMLINKS_ANYWHERE");
-  if (creation_flags & extensions::Extension::ERROR_ON_PRIVATE_KEY)
+  }
+  if (creation_flags & extensions::Extension::ERROR_ON_PRIVATE_KEY) {
     flags_value.Append("ERROR_ON_PRIVATE_KEY");
-  if (creation_flags & extensions::Extension::WAS_INSTALLED_BY_DEFAULT)
+  }
+  if (creation_flags & extensions::Extension::WAS_INSTALLED_BY_DEFAULT) {
     flags_value.Append("WAS_INSTALLED_BY_DEFAULT");
-  if (creation_flags & extensions::Extension::REQUIRE_PERMISSIONS_CONSENT)
+  }
+  if (creation_flags & extensions::Extension::REQUIRE_PERMISSIONS_CONSENT) {
     flags_value.Append("REQUIRE_PERMISSIONS_CONSENT");
-  if (creation_flags & extensions::Extension::IS_EPHEMERAL)
+  }
+  if (creation_flags & extensions::Extension::IS_EPHEMERAL) {
     flags_value.Append("IS_EPHEMERAL");
-  if (creation_flags & extensions::Extension::WAS_INSTALLED_BY_OEM)
+  }
+  if (creation_flags & extensions::Extension::WAS_INSTALLED_BY_OEM) {
     flags_value.Append("WAS_INSTALLED_BY_OEM");
-  if (creation_flags & extensions::Extension::MAY_BE_UNTRUSTED)
+  }
+  if (creation_flags & extensions::Extension::MAY_BE_UNTRUSTED) {
     flags_value.Append("MAY_BE_UNTRUSTED");
-  if (creation_flags & extensions::Extension::WITHHOLD_PERMISSIONS)
+  }
+  if (creation_flags & extensions::Extension::WITHHOLD_PERMISSIONS) {
     flags_value.Append("WITHHOLD_PERMISSIONS");
+  }
   return flags_value;
 }
 
-base::Value::List DisableReasonsToList(int disable_reasons) {
-  static_assert(extensions::disable_reason::DISABLE_REASON_LAST == 1 << 22,
+base::Value::List DisableReasonsToList(
+    const extensions::DisableReasonSet& disable_reasons) {
+  static_assert(extensions::disable_reason::DISABLE_REASON_LAST == 1 << 26,
                 "Please add your new disable reason here.");
 
   base::Value::List disable_reasons_value;
-  if (disable_reasons & extensions::disable_reason::DISABLE_USER_ACTION) {
+  if (disable_reasons.contains(
+          extensions::disable_reason::DISABLE_USER_ACTION)) {
     disable_reasons_value.Append("DISABLE_USER_ACTION");
   }
-  if (disable_reasons &
-      extensions::disable_reason::DISABLE_PERMISSIONS_INCREASE) {
+  if (disable_reasons.contains(
+          extensions::disable_reason::DISABLE_PERMISSIONS_INCREASE)) {
     disable_reasons_value.Append("DISABLE_PERMISSIONS_INCREASE");
   }
-  if (disable_reasons & extensions::disable_reason::DISABLE_RELOAD) {
+  if (disable_reasons.contains(extensions::disable_reason::DISABLE_RELOAD)) {
     disable_reasons_value.Append("DISABLE_RELOAD");
   }
-  if (disable_reasons &
-      extensions::disable_reason::DISABLE_UNSUPPORTED_REQUIREMENT) {
+  if (disable_reasons.contains(
+          extensions::disable_reason::DISABLE_UNSUPPORTED_REQUIREMENT)) {
     disable_reasons_value.Append("DISABLE_UNSUPPORTED_REQUIREMENT");
   }
-  if (disable_reasons & extensions::disable_reason::DISABLE_SIDELOAD_WIPEOUT) {
+  if (disable_reasons.contains(
+          extensions::disable_reason::DISABLE_SIDELOAD_WIPEOUT)) {
     disable_reasons_value.Append("DISABLE_SIDELOAD_WIPEOUT");
   }
-  if (disable_reasons &
-      extensions::disable_reason::DEPRECATED_DISABLE_UNKNOWN_FROM_SYNC) {
+  if (disable_reasons.contains(
+          extensions::disable_reason::DEPRECATED_DISABLE_UNKNOWN_FROM_SYNC)) {
     disable_reasons_value.Append("DEPRECATED_DISABLE_UNKNOWN_FROM_SYNC");
   }
-  if (disable_reasons & extensions::disable_reason::DISABLE_NOT_VERIFIED) {
+  if (disable_reasons.contains(
+          extensions::disable_reason::DISABLE_NOT_VERIFIED)) {
     disable_reasons_value.Append("DISABLE_NOT_VERIFIED");
   }
-  if (disable_reasons & extensions::disable_reason::DISABLE_GREYLIST) {
+  if (disable_reasons.contains(extensions::disable_reason::DISABLE_GREYLIST)) {
     disable_reasons_value.Append("DISABLE_GREYLIST");
   }
-  if (disable_reasons & extensions::disable_reason::DISABLE_CORRUPTED) {
+  if (disable_reasons.contains(extensions::disable_reason::DISABLE_CORRUPTED)) {
     disable_reasons_value.Append("DISABLE_CORRUPTED");
   }
-  if (disable_reasons & extensions::disable_reason::DISABLE_REMOTE_INSTALL) {
+  if (disable_reasons.contains(
+          extensions::disable_reason::DISABLE_REMOTE_INSTALL)) {
     disable_reasons_value.Append("DISABLE_REMOTE_INSTALL");
   }
-  if (disable_reasons &
-      extensions::disable_reason::DISABLE_EXTERNAL_EXTENSION) {
+  if (disable_reasons.contains(
+          extensions::disable_reason::DISABLE_EXTERNAL_EXTENSION)) {
     disable_reasons_value.Append("DISABLE_EXTERNAL_EXTENSION");
   }
-  if (disable_reasons &
-      extensions::disable_reason::DISABLE_UPDATE_REQUIRED_BY_POLICY) {
+  if (disable_reasons.contains(
+          extensions::disable_reason::DISABLE_UPDATE_REQUIRED_BY_POLICY)) {
     disable_reasons_value.Append("DISABLE_UPDATE_REQUIRED_BY_POLICY");
   }
-  if (disable_reasons &
-      extensions::disable_reason::DISABLE_CUSTODIAN_APPROVAL_REQUIRED) {
+  if (disable_reasons.contains(
+          extensions::disable_reason::DISABLE_CUSTODIAN_APPROVAL_REQUIRED)) {
     disable_reasons_value.Append("DISABLE_CUSTODIAN_APPROVAL_REQUIRED");
   }
-  if (disable_reasons & extensions::disable_reason::DISABLE_BLOCKED_BY_POLICY) {
+  if (disable_reasons.contains(
+          extensions::disable_reason::DISABLE_BLOCKED_BY_POLICY)) {
     disable_reasons_value.Append("DISABLE_BLOCKED_BY_POLICY");
   }
-  if (disable_reasons & extensions::disable_reason::DISABLE_REINSTALL) {
+  if (disable_reasons.contains(extensions::disable_reason::DISABLE_REINSTALL)) {
     disable_reasons_value.Append("DISABLE_REINSTALL");
   }
-  if (disable_reasons & extensions::disable_reason::DISABLE_NOT_ALLOWLISTED) {
+  if (disable_reasons.contains(
+          extensions::disable_reason::DISABLE_NOT_ALLOWLISTED)) {
     disable_reasons_value.Append("DISABLE_NOT_ALLOWLISTED");
   }
-  if (disable_reasons &
-      extensions::disable_reason::DISABLE_NOT_ASH_KEEPLISTED) {
-    disable_reasons_value.Append("DISABLE_NOT_ASH_KEEPLISTED");
+  if (disable_reasons.contains(
+          extensions::disable_reason::DEPRECATED_DISABLE_NOT_ASH_KEEPLISTED)) {
+    disable_reasons_value.Append("DEPRECATED_DISABLE_NOT_ASH_KEEPLISTED");
+  }
+  if (disable_reasons.contains(
+          extensions::disable_reason::
+              DISABLE_PUBLISHED_IN_STORE_REQUIRED_BY_POLICY)) {
+    disable_reasons_value.Append(
+        "DISABLE_PUBLISHED_IN_STORE_REQUIRED_BY_POLICY");
+  }
+  if (disable_reasons.contains(
+          extensions::disable_reason::DISABLE_UNSUPPORTED_MANIFEST_VERSION)) {
+    disable_reasons_value.Append("DISABLE_UNSUPPORTED_MANIFEST_VERSION");
+  }
+  if (disable_reasons.contains(extensions::disable_reason::
+                                   DISABLE_UNSUPPORTED_DEVELOPER_EXTENSION)) {
+    disable_reasons_value.Append("DISABLE_UNSUPPORTED_DEVELOPER_EXTENSION");
+  }
+  if (disable_reasons.contains(extensions::disable_reason::DISABLE_UNKNOWN)) {
+    disable_reasons_value.Append("DISABLE_UNKNOWN");
   }
 
   return disable_reasons_value;
@@ -194,14 +229,23 @@ base::Value::List DisableReasonsToList(int disable_reasons) {
 // The JSON we generate looks like this:
 // Note:
 // - tab_specific permissions can have 0 or more DICT entries with each tab id
-// pointing to the api, explicit_host, manifest and scriptable_host permission
-// lists.
+//   pointing to the api, explicit_host, manifest and scriptable_host permission
+//   lists.
 // - In some cases manifest or api permissions rather than just being a STRING
-// can be a DICT with the name keying a more complex object with detailed
-// information. This is the case for subclasses of ManifestPermission and
-// APIPermission which override the ToValue function.
+//   can be a DICT with the name keying a more complex object with detailed
+//   information. This is the case for subclasses of ManifestPermission and
+//   APIPermission which override the ToValue function.
+// - "background_page_keepalives" and "service_worker_keepalives" are mutually
+//    exclusive.
 //
 // [ {
+//    "background_page_keepalives": {
+//       "activities": [ {
+//          "extra_data": "render-frame",
+//          "type": "PROCESS_MANAGER"
+//       } ],
+//       "count": 1
+//    },
 //    "creation_flags": [ "ALLOW_FILE_ACCESS", "FROM_WEBSTORE" ],
 //    "disable_reasons": ["DISABLE_USER_ACTION"],
 //    "event_listeners": {
@@ -213,13 +257,6 @@ base::Value::List DisableReasonsToList(int disable_reasons) {
 //       } ]
 //    },
 //    "id": "bhloflhklmhfpedakmangadcdofhnnoh",
-//    "keepalive": {
-//       "activities": [ {
-//          "extra_data": "render-frame",
-//          "type": "PROCESS_MANAGER"
-//       } ],
-//       "count": 1
-//    },
 //    "location": "INTERNAL",
 //    "manifest_version": 2,
 //    "name": "Earth View from Google Earth",
@@ -251,6 +288,14 @@ base::Value::List DisableReasonsToList(int disable_reasons) {
 //          "manifest": [ ],
 //          "scriptable_hosts": [ ]
 //       },
+//    "service_worker_keepalives": {
+//      "activities": [ {
+//        "extra_data": "tabs.create",
+//        "timeout_type": "Default",
+//        "type": "API_FUNCTION"
+//      } ]
+//      "count": 1
+//    }
 //    "type": "TYPE_EXTENSION",
 //    "version": "2.18.5"
 // } ]
@@ -259,6 +304,12 @@ base::Value::List DisableReasonsToList(int disable_reasons) {
 //
 // LIST
 //  DICT
+//    "background_page_keepalives": DICT
+//      "activities": LIST
+//        DICT
+//          "extra_data": STRING
+//          "type": STRING
+//      "count": INT
 //    "creation_flags": LIST
 //      STRING
 //    "disable_reasons": LIST
@@ -273,12 +324,6 @@ base::Value::List DisableReasonsToList(int disable_reasons) {
 //          "is_lazy": STRING
 //          "url": STRING
 //    "id": STRING
-//    "keepalive": DICT
-//      "activities": LIST
-//        DICT
-//          "extra_data": STRING
-//          "type": STRING
-//      "count": INT
 //    "location": STRING
 //    "manifest_version": INT
 //    "name": STRING
@@ -314,40 +359,52 @@ base::Value::List DisableReasonsToList(int disable_reasons) {
 //          STRING
 //        "scriptable_hosts": LIST
 //          STRING
+//    "service_worker_keepalies": DICT
+//      "activities": LIST
+//        DICT
+//          "extra_data": STRING
+//          "timeout_type": STRING,
+//          "type": STRING
+//      "count": INT
 //    "type": STRING
 //    "version": STRING
 
-constexpr base::StringPiece kActivitesKey = "activites";
-constexpr base::StringPiece kCountKey = "count";
-constexpr base::StringPiece kEventNameKey = "event_name";
-constexpr base::StringPiece kEventsListenersKey = "event_listeners";
-constexpr base::StringPiece kExtraDataKey = "extra_data";
-constexpr base::StringPiece kFilterKey = "filter";
-constexpr base::StringPiece kInternalsCreationFlagsKey = "creation_flags";
-constexpr base::StringPiece kInternalsDisableReasonsKey = "disable_reasons";
-constexpr base::StringPiece kInternalsIdKey = "id";
-constexpr base::StringPiece kInternalsNameKey = "name";
-constexpr base::StringPiece kInternalsVersionKey = "version";
-constexpr base::StringPiece kIsForServiceWorkerKey = "is_for_service_worker";
-constexpr base::StringPiece kIsLazyKey = "is_lazy";
-constexpr base::StringPiece kListenersKey = "listeners";
-constexpr base::StringPiece kKeepaliveKey = "keepalive";
-constexpr base::StringPiece kListenerUrlKey = "url";
-constexpr base::StringPiece kLocationKey = "location";
-constexpr base::StringPiece kManifestVersionKey = "manifest_version";
-constexpr base::StringPiece kPathKey = "path";
-constexpr base::StringPiece kPermissionsKey = "permissions";
-constexpr base::StringPiece kPermissionsActiveKey = "active";
-constexpr base::StringPiece kPermissionsOptionalKey = "optional";
-constexpr base::StringPiece kPermissionsTabSpecificKey = "tab_specific";
-constexpr base::StringPiece kPermissionsWithheldKey = "withheld";
-constexpr base::StringPiece kPermissionsApiKey = "api";
-constexpr base::StringPiece kPermissionsManifestKey = "manifest";
-constexpr base::StringPiece kPermissionsExplicitHostsKey = "explicit_hosts";
-constexpr base::StringPiece kPermissionsScriptableHostsKey = "scriptable_hosts";
-constexpr base::StringPiece kTypeKey = "type";
+constexpr std::string_view kActivitesKey = "activites";
+constexpr std::string_view kBackgroundPageKeepalivesKey =
+    "background_page_keepalives";
+constexpr std::string_view kCountKey = "count";
+constexpr std::string_view kEventNameKey = "event_name";
+constexpr std::string_view kEventsListenersKey = "event_listeners";
+constexpr std::string_view kExtraDataKey = "extra_data";
+constexpr std::string_view kFilterKey = "filter";
+constexpr std::string_view kInternalsCreationFlagsKey = "creation_flags";
+constexpr std::string_view kInternalsDisableReasonsKey = "disable_reasons";
+constexpr std::string_view kInternalsIdKey = "id";
+constexpr std::string_view kInternalsGuidKey = "guid";
+constexpr std::string_view kInternalsNameKey = "name";
+constexpr std::string_view kInternalsVersionKey = "version";
+constexpr std::string_view kIsForServiceWorkerKey = "is_for_service_worker";
+constexpr std::string_view kIsLazyKey = "is_lazy";
+constexpr std::string_view kListenersKey = "listeners";
+constexpr std::string_view kListenerUrlKey = "url";
+constexpr std::string_view kLocationKey = "location";
+constexpr std::string_view kManifestVersionKey = "manifest_version";
+constexpr std::string_view kPathKey = "path";
+constexpr std::string_view kPermissionsKey = "permissions";
+constexpr std::string_view kPermissionsActiveKey = "active";
+constexpr std::string_view kPermissionsOptionalKey = "optional";
+constexpr std::string_view kPermissionsTabSpecificKey = "tab_specific";
+constexpr std::string_view kPermissionsWithheldKey = "withheld";
+constexpr std::string_view kPermissionsApiKey = "api";
+constexpr std::string_view kPermissionsManifestKey = "manifest";
+constexpr std::string_view kPermissionsExplicitHostsKey = "explicit_hosts";
+constexpr std::string_view kPermissionsScriptableHostsKey = "scriptable_hosts";
+constexpr std::string_view kServiceWorkerKeepalivesKey =
+    "service_worker_keepalives";
+constexpr std::string_view kTimeoutTypeKey = "timeout_type";
+constexpr std::string_view kTypeKey = "type";
 
-base::Value::Dict FormatKeepaliveData(
+base::Value::Dict FormatBackgroundPageKeepaliveData(
     extensions::ProcessManager* process_manager,
     const extensions::Extension* extension) {
   base::Value::Dict keepalive_data;
@@ -361,6 +418,39 @@ base::Value::Dict FormatKeepaliveData(
     activities_entry.Set(kTypeKey,
                          extensions::Activity::ToString(activity.first));
     activities_entry.Set(kExtraDataKey, activity.second);
+    activities_data.Append(std::move(activities_entry));
+  }
+  keepalive_data.Set(kActivitesKey, std::move(activities_data));
+  return keepalive_data;
+}
+
+base::Value::Dict FormatServiceWorkerKeepaliveData(
+    extensions::ProcessManager& process_manager,
+    const extensions::ExtensionId& extension_id) {
+  base::Value::Dict keepalive_data;
+  auto keepalives =
+      process_manager.GetServiceWorkerKeepaliveDataForRecords(extension_id);
+  keepalive_data.Set(kCountKey, base::checked_cast<int>(keepalives.size()));
+  base::Value::List activities_data;
+
+  auto get_timeout_type_value =
+      [](content::ServiceWorkerExternalRequestTimeoutType timeout_type) {
+        switch (timeout_type) {
+          case content::ServiceWorkerExternalRequestTimeoutType::kDefault:
+            return "Default";
+          case content::ServiceWorkerExternalRequestTimeoutType::
+              kDoesNotTimeout:
+            return "Does Not Timeout";
+        }
+      };
+
+  for (const auto& keepalive : keepalives) {
+    base::Value::Dict activities_entry;
+    activities_entry.Set(
+        kTypeKey, extensions::Activity::ToString(keepalive.activity_type));
+    activities_entry.Set(kExtraDataKey, keepalive.extra_data);
+    activities_entry.Set(kTimeoutTypeKey,
+                         get_timeout_type_value(keepalive.timeout_type));
     activities_data.Append(std::move(activities_entry));
   }
   keepalive_data.Set(kActivitesKey, std::move(activities_data));
@@ -436,9 +526,7 @@ void AddEventListenerData(extensions::EventRouter* event_router,
                           base::Value::List* data) {
   // A map of extension ID to the listener data for that extension,
   // which is of type LIST of DICTIONARY.
-  std::unordered_map<base::StringPiece, base::Value::List,
-                     base::StringPieceHash>
-      listeners_map;
+  base::flat_map<std::string_view, base::Value::List> listeners_map;
 
   // Build the map of extension IDs to the list of events.
   for (const auto& entry : event_router->listeners().listeners()) {
@@ -516,13 +604,18 @@ std::string ExtensionsInternalsSource::WriteToString() const {
   for (const auto& extension : extensions) {
     base::Value::Dict extension_data;
     extension_data.Set(kInternalsIdKey, extension->id());
+    extension_data.Set(kInternalsGuidKey, extension->guid());
     extension_data.Set(kInternalsCreationFlagsKey,
                        CreationFlagsToList(extension->creation_flags()));
     extension_data.Set(
         kInternalsDisableReasonsKey,
         DisableReasonsToList(prefs->GetDisableReasons(extension->id())));
-    extension_data.Set(kKeepaliveKey,
-                       FormatKeepaliveData(process_manager, extension.get()));
+    extension_data.Set(
+        kBackgroundPageKeepalivesKey,
+        FormatBackgroundPageKeepaliveData(process_manager, extension.get()));
+    extension_data.Set(
+        kServiceWorkerKeepalivesKey,
+        FormatServiceWorkerKeepaliveData(*process_manager, extension->id()));
     extension_data.Set(kLocationKey, LocationToString(extension->location()));
     extension_data.Set(kManifestVersionKey, extension->manifest_version());
     extension_data.Set(kInternalsNameKey, extension->name());

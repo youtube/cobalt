@@ -4,9 +4,18 @@
 
 #include "third_party/webrtc_overrides/low_precision_timer.h"
 
+#include <optional>
+#include <utility>
+
 #include "base/check.h"
+#include "base/check_op.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/location.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/synchronization/lock.h"
+#include "base/task/delay_policy.h"
 #include "base/task/sequenced_task_runner.h"
-#include "third_party/webrtc_overrides/task_queue_factory.h"
 #include "third_party/webrtc_overrides/timer_based_tick_provider.h"
 
 namespace blink {
@@ -50,9 +59,9 @@ base::TimeTicks LowPrecisionTimer::SchedulableCallback::Inactivate() {
   // cause deadlock.
   bool is_inactivated_by_callback =
       task_runner_->RunsTasksInCurrentSequence() && is_currently_running_;
-  std::unique_ptr<base::AutoLock> auto_active_lock;
+  std::optional<base::AutoLock> auto_active_lock;
   if (!is_inactivated_by_callback) {
-    auto_active_lock = std::make_unique<base::AutoLock>(active_lock_);
+    auto_active_lock.emplace(active_lock_);
   }
   is_active_ = false;
   repeated_delay_ = base::TimeDelta();  // Prevent automatic re-schedule.

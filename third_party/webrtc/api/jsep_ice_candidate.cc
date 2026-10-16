@@ -10,11 +10,15 @@
 
 #include "api/jsep_ice_candidate.h"
 
+#include <cstddef>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/algorithm/container.h"
 #include "absl/memory/memory.h"
+#include "api/candidate.h"
+#include "api/jsep.h"
 
 namespace webrtc {
 
@@ -26,7 +30,7 @@ int JsepIceCandidate::sdp_mline_index() const {
   return sdp_mline_index_;
 }
 
-const cricket::Candidate& JsepIceCandidate::candidate() const {
+const Candidate& JsepIceCandidate::candidate() const {
   return candidate_;
 }
 
@@ -61,7 +65,7 @@ bool JsepCandidateCollection::HasCandidate(
       });
 }
 
-size_t JsepCandidateCollection::remove(const cricket::Candidate& candidate) {
+size_t JsepCandidateCollection::remove(const Candidate& candidate) {
   auto iter = absl::c_find_if(
       candidates_, [&](const std::unique_ptr<JsepIceCandidate>& c) {
         return candidate.MatchesForRemoval(c->candidate());

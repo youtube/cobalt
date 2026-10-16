@@ -16,9 +16,9 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <unistd.h>
+
 #include <cstring>
 #include <ctime>
-
 #include <type_traits>
 
 #include "testing/gtest/include/gtest/gtest.h"

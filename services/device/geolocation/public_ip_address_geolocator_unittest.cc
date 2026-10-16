@@ -8,13 +8,14 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/run_loop.h"
 #include "base/strings/string_util.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
 #include "mojo/public/cpp/system/functions.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "services/device/public/mojom/geolocation_client_id.mojom.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/test/test_network_connection_tracker.h"
 #include "services/network/test/test_url_loader_factory.h"
@@ -25,6 +26,7 @@ namespace device {
 namespace {
 
 const char kTestGeolocationApiKey[] = "";
+using ::base::test::TestFuture;
 
 class PublicIpAddressGeolocatorTest : public testing::Test {
  public:
@@ -55,6 +57,7 @@ class PublicIpAddressGeolocatorTest : public testing::Test {
     receiver_set_.Add(
         std::make_unique<PublicIpAddressGeolocator>(
             PARTIAL_TRAFFIC_ANNOTATION_FOR_TESTS, notifier_.get(),
+            mojom::GeolocationClientId::kForTesting,
             base::BindRepeating(
                 &PublicIpAddressGeolocatorTest::OnGeolocatorBadMessage,
                 base::Unretained(this))),
@@ -75,25 +78,6 @@ class PublicIpAddressGeolocatorTest : public testing::Test {
   void OnGeolocatorBadMessage(const std::string& message) {
     receiver_set_.ReportBadMessage(message);
   }
-
-  // Invokes QueryNextPosition on |public_ip_address_geolocator_|, and runs
-  // |done_closure| when the response comes back.
-  void QueryNextPosition(base::OnceClosure done_closure) {
-    public_ip_address_geolocator_->QueryNextPosition(base::BindOnce(
-        &PublicIpAddressGeolocatorTest::OnQueryNextPositionResponse,
-        base::Unretained(this), std::move(done_closure)));
-  }
-
-  // Callback for QueryNextPosition() that records the result in |result_| and
-  // then invokes |done_closure|.
-  void OnQueryNextPositionResponse(base::OnceClosure done_closure,
-                                   mojom::GeopositionResultPtr result) {
-    result_ = std::move(result);
-    std::move(done_closure).Run();
-  }
-
-  // Result of the latest completed call to QueryNextPosition.
-  mojom::GeopositionResultPtr result_;
 
   // UniqueReceiverSet to mojom::Geolocation.
   mojo::UniqueReceiverSet<mojom::Geolocation> receiver_set_;
@@ -121,9 +105,8 @@ class PublicIpAddressGeolocatorTest : public testing::Test {
 // Basic test of a client invoking QueryNextPosition.
 TEST_F(PublicIpAddressGeolocatorTest, BindAndQuery) {
   // Invoke QueryNextPosition.
-  base::RunLoop loop;
-  QueryNextPosition(loop.QuitClosure());
-
+  TestFuture<mojom::GeopositionResultPtr> update_future;
+  public_ip_address_geolocator_->QueryNextPosition(update_future.GetCallback());
   ASSERT_EQ(1, test_url_loader_factory_.NumPending());
   const std::string& request_url =
       test_url_loader_factory_.pending_requests()->back().request.url.spec();
@@ -142,10 +125,10 @@ TEST_F(PublicIpAddressGeolocatorTest, BindAndQuery) {
                                        net::HTTP_OK);
 
   // Wait for QueryNextPosition to return.
-  loop.Run();
+  auto result = update_future.Take();
 
-  ASSERT_TRUE(result_->is_position());
-  const auto& position = *result_->get_position();
+  ASSERT_TRUE(result->is_position());
+  const auto& position = *result->get_position();
   EXPECT_THAT(position.accuracy, testing::Eq(100.0));
   EXPECT_THAT(position.latitude, testing::Eq(10.0));
   EXPECT_THAT(position.longitude, testing::Eq(20.0));
@@ -155,15 +138,20 @@ TEST_F(PublicIpAddressGeolocatorTest, BindAndQuery) {
 // Tests that multiple overlapping calls to QueryNextPosition result in a
 // connection error and reports a bad message.
 TEST_F(PublicIpAddressGeolocatorTest, ProhibitedOverlappingCalls) {
-  base::RunLoop loop;
-  public_ip_address_geolocator_.set_disconnect_handler(loop.QuitClosure());
+  TestFuture<void> disconnect_handler_future;
+  TestFuture<mojom::GeopositionResultPtr> never_fired_future;
+  public_ip_address_geolocator_.set_disconnect_handler(
+      disconnect_handler_future.GetCallback());
 
   // Issue two overlapping calls to QueryNextPosition.
-  QueryNextPosition(base::NullCallback());
-  QueryNextPosition(base::NullCallback());
+  public_ip_address_geolocator_->QueryNextPosition(
+      never_fired_future.GetCallback());
+  public_ip_address_geolocator_->QueryNextPosition(
+      never_fired_future.GetCallback());
 
   // This terminates only in case of connection error, which we expect.
-  loop.Run();
+  EXPECT_TRUE(disconnect_handler_future.Wait());
+  EXPECT_FALSE(never_fired_future.IsReady());
 
   // Verify that the geolocator reported a bad message.
   EXPECT_THAT(bad_messages_, testing::SizeIs(1));

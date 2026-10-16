@@ -9,7 +9,7 @@
 
 #include "libANGLE/renderer/vulkan/linux/xcb/WindowSurfaceVkXcb.h"
 
-#include "libANGLE/renderer/vulkan/RendererVk.h"
+#include "libANGLE/renderer/vulkan/vk_renderer.h"
 
 namespace rx
 {
@@ -20,7 +20,7 @@ WindowSurfaceVkXcb::WindowSurfaceVkXcb(const egl::SurfaceState &surfaceState,
     : WindowSurfaceVk(surfaceState, window), mXcbConnection(conn)
 {}
 
-angle::Result WindowSurfaceVkXcb::createSurfaceVk(vk::Context *context, gl::Extents *extentsOut)
+angle::Result WindowSurfaceVkXcb::createSurfaceVk(vk::ErrorContext *context)
 {
     VkXcbSurfaceCreateInfoKHR createInfo = {};
 
@@ -31,11 +31,11 @@ angle::Result WindowSurfaceVkXcb::createSurfaceVk(vk::Context *context, gl::Exte
     ANGLE_VK_TRY(context, vkCreateXcbSurfaceKHR(context->getRenderer()->getInstance(), &createInfo,
                                                 nullptr, &mSurface));
 
-    return getCurrentWindowSize(context, extentsOut);
+    return angle::Result::Continue;
 }
 
-angle::Result WindowSurfaceVkXcb::getCurrentWindowSize(vk::Context *context,
-                                                       gl::Extents *extentsOut)
+angle::Result WindowSurfaceVkXcb::getCurrentWindowSize(vk::ErrorContext *context,
+                                                       gl::Extents *extentsOut) const
 {
     xcb_get_geometry_cookie_t cookie =
         xcb_get_geometry(mXcbConnection, static_cast<xcb_drawable_t>(mNativeWindowType));
@@ -48,6 +48,24 @@ angle::Result WindowSurfaceVkXcb::getCurrentWindowSize(vk::Context *context,
     }
     ASSERT(reply);
     *extentsOut = gl::Extents(reply->width, reply->height, 1);
+    free(reply);
+    return angle::Result::Continue;
+}
+
+angle::Result WindowSurfaceVkXcb::getWindowVisibility(vk::ErrorContext *context,
+                                                      bool *isVisibleOut) const
+{
+    xcb_get_window_attributes_cookie_t cookie =
+        xcb_get_window_attributes(mXcbConnection, static_cast<xcb_window_t>(mNativeWindowType));
+    xcb_generic_error_t *error = nullptr;
+    xcb_get_window_attributes_reply_t *reply =
+        xcb_get_window_attributes_reply(mXcbConnection, cookie, &error);
+    if (error)
+    {
+        free(reply);
+        ANGLE_VK_CHECK(context, false, VK_ERROR_INITIALIZATION_FAILED);
+    }
+    *isVisibleOut = (reply->map_state == XCB_MAP_STATE_VIEWABLE);
     free(reply);
     return angle::Result::Continue;
 }

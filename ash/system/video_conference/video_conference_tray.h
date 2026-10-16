@@ -47,13 +47,18 @@ class Shelf;
 class TrayBubbleView;
 class TrayBubbleWrapper;
 
+using MediaApps = std::vector<crosapi::mojom::VideoConferenceMediaAppInfoPtr>;
+
 // A toggle icon button in the VC tray, which is used for toggling camera,
 // microphone, and screen sharing.
 class VideoConferenceTrayButton : public IconButton {
+  METADATA_HEADER(VideoConferenceTrayButton, IconButton)
+
  public:
   VideoConferenceTrayButton(PressedCallback callback,
                             const gfx::VectorIcon* icon,
                             const gfx::VectorIcon* toggled_icon,
+                            const gfx::VectorIcon* capturing_icon,
                             const int accessible_name_id);
 
   VideoConferenceTrayButton(const VideoConferenceTrayButton&) = delete;
@@ -96,6 +101,13 @@ class VideoConferenceTrayButton : public IconButton {
   // The accessible name for this button's capture type (camera, microphone, or
   // screen share).
   const int accessible_name_id_;
+
+  raw_ptr<const gfx::VectorIcon> icon_ = nullptr;
+
+  // The icon that will be displayed when `is_capturing_` is true. Note that a
+  // green dot indicator will be drawn in the bottom right corner of this icon
+  // when displaying.
+  raw_ptr<const gfx::VectorIcon> capturing_icon_ = nullptr;
 };
 
 // This class represents the VC Controls tray button in the status area and
@@ -105,9 +117,9 @@ class ASH_EXPORT VideoConferenceTray
       public TrayBackgroundView,
       public VideoConferenceTrayController::Observer,
       public VideoConferenceTrayEffectsManager::Observer {
- public:
-  METADATA_HEADER(VideoConferenceTray);
+  METADATA_HEADER(VideoConferenceTray, TrayBackgroundView)
 
+ public:
   explicit VideoConferenceTray(Shelf* shelf);
   VideoConferenceTray(const VideoConferenceTray&) = delete;
   VideoConferenceTray& operator=(const VideoConferenceTray&) = delete;
@@ -119,15 +131,19 @@ class ASH_EXPORT VideoConferenceTray
   IconButton* toggle_bubble_button() { return toggle_bubble_button_; }
 
   // TrayBackgroundView:
-  void CloseBubble() override;
+  void CloseBubbleInternal() override;
   TrayBubbleView* GetBubbleView() override;
   views::Widget* GetBubbleWidget() const override;
-  std::u16string GetAccessibleNameForTray() override;
   std::u16string GetAccessibleNameForBubble() override;
   void HideBubbleWithView(const TrayBubbleView* bubble_view) override;
-  void ClickedOutsideBubble() override;
+  void HideBubble(const TrayBubbleView* bubble_view) override;
+  void ClickedOutsideBubble(const ui::LocatedEvent& event) override;
+  // No need to override since this view doesn't have an active/inactive state.
+  void UpdateTrayItemColor(bool is_active) override {}
   void HandleLocaleChange() override;
   void AnchorUpdated() override;
+  void OnAnimationEnded() override;
+  bool ShouldEnterPushedState(const ui::Event& event) override;
 
   // VideoConferenceTrayController::Observer:
   void OnHasMediaAppStateChange() override;
@@ -136,6 +152,9 @@ class ASH_EXPORT VideoConferenceTray
   void OnCameraCapturingStateChange(bool is_capturing) override;
   void OnMicrophoneCapturingStateChange(bool is_capturing) override;
   void OnScreenSharingStateChange(bool is_capturing_screen) override;
+  void OnDlcDownloadStateChanged(
+      bool add_warning,
+      const std::u16string& feature_tile_title) override;
 
   // VideoConferenceTrayEffectsManager::Observer:
   void OnEffectSupportStateChanged(VcEffectId effect_id,
@@ -150,11 +169,18 @@ class ASH_EXPORT VideoConferenceTray
   // to the state in `VideoConferenceTrayController`.
   void UpdateTrayAndIconsState();
 
+  // Sets the visibility of the view `SetCameraBackgroundView' in the
+  // 'BubbleView`.
+  void SetBackgroundReplaceUiVisible(bool visible);
+
+  IconButton* GetToggleBubbleButtonForTest();
+
  private:
   friend class video_conference::BubbleViewTest;
   friend class video_conference::ReturnToAppPanelTest;
   friend class video_conference::ResourceDependencyTest;
   friend class video_conference::ToggleEffectsViewTest;
+  friend class VideoConferenceTrayControllerTest;
   friend class VideoConferenceTrayTest;
 
   // SessionObserver:
@@ -168,15 +194,25 @@ class ASH_EXPORT VideoConferenceTray
   void OnAudioButtonClicked(const ui::Event& event);
   void OnScreenShareButtonClicked(const ui::Event& event);
 
+  // Creates the bubble with the correct views after retrieving the list of
+  // `apps` from `VideoConferenceTrayController`.
+  void ConstructBubbleWithMediaApps(MediaApps apps);
+
   // Owned by the views hierarchy.
-  raw_ptr<VideoConferenceTrayButton, ExperimentalAsh> audio_icon_ = nullptr;
-  raw_ptr<VideoConferenceTrayButton, ExperimentalAsh> camera_icon_ = nullptr;
-  raw_ptr<VideoConferenceTrayButton, ExperimentalAsh> screen_share_icon_ =
-      nullptr;
-  raw_ptr<IconButton, ExperimentalAsh> toggle_bubble_button_ = nullptr;
+  raw_ptr<VideoConferenceTrayButton> audio_icon_ = nullptr;
+  raw_ptr<VideoConferenceTrayButton> camera_icon_ = nullptr;
+  raw_ptr<VideoConferenceTrayButton> screen_share_icon_ = nullptr;
+  raw_ptr<IconButton> toggle_bubble_button_ = nullptr;
 
   // The bubble that appears after clicking the tray button.
   std::unique_ptr<TrayBubbleWrapper> bubble_;
+
+  // True if the bubble is open or in the process of being opened.
+  bool bubble_open_ = false;
+
+  // True if we are already in the process of getting the media apps from
+  // `VideoConferenceTrayController()`.
+  bool getting_media_apps_ = false;
 
   base::WeakPtrFactory<VideoConferenceTray> weak_ptr_factory_{this};
 };

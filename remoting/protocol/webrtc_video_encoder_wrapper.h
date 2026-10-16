@@ -6,6 +6,7 @@
 #define REMOTING_PROTOCOL_WEBRTC_VIDEO_ENCODER_WRAPPER_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -16,7 +17,6 @@
 #include "remoting/base/running_samples.h"
 #include "remoting/base/session_options.h"
 #include "remoting/codec/webrtc_video_encoder.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/webrtc/api/video/video_codec_type.h"
 #include "third_party/webrtc/api/video_codecs/sdp_video_format.h"
 #include "third_party/webrtc/api/video_codecs/video_encoder.h"
@@ -168,11 +168,11 @@ class WebrtcVideoEncoderWrapper : public webrtc::VideoEncoder {
   base::TimeDelta current_frame_interval_ = base::Hertz(kTargetFrameRate);
 
   // Stores the timestamp of the last frame that was sent for encoding.
-  base::TimeDelta last_frame_received_timestamp_;
+  base::Time last_frame_received_timestamp_;
 
   // Represents the screen which is being encoded by this instance. Initialized
   // after the first captured frame has been received.
-  absl::optional<webrtc::ScreenId> screen_id_;
+  std::optional<webrtc::ScreenId> screen_id_;
 
   base::WeakPtr<VideoStreamEventRouter> video_stream_event_router_;
 

@@ -4,7 +4,9 @@
 
 #include "base/strings/pattern.h"
 #include "base/strings/stringprintf.h"
+#include "base/values.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -12,7 +14,6 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
-#include "extensions/common/value_builder.h"
 #include "extensions/test/test_extension_dir.h"
 #include "net/dns/mock_host_resolver.h"
 
@@ -21,15 +22,17 @@ namespace extensions {
 namespace {
 
 // Returns true if |window.scriptExecuted| is true for the given frame.
-bool WasFrameWithScriptLoaded(content::RenderFrameHost* rfh) {
-  if (!rfh)
+bool WasFrameWithScriptLoaded(content::RenderFrameHost* render_frame_host) {
+  if (!render_frame_host) {
     return false;
-  return content::EvalJs(rfh, "!!window.scriptExecuted").ExtractBool();
+  }
+  return content::EvalJs(render_frame_host, "!!window.scriptExecuted")
+      .ExtractBool();
 }
 
 class ExtensionCSPBypassTest : public ExtensionBrowserTest {
  public:
-  ExtensionCSPBypassTest() {}
+  ExtensionCSPBypassTest() = default;
 
   ExtensionCSPBypassTest(const ExtensionCSPBypassTest&) = delete;
   ExtensionCSPBypassTest& operator=(const ExtensionCSPBypassTest&) = delete;
@@ -51,14 +54,15 @@ class ExtensionCSPBypassTest : public ExtensionBrowserTest {
 
     std::string unique_name = base::StringPrintf(
         "component=%d, all_urls=%d", is_component, all_urls_permission);
-    DictionaryBuilder manifest;
-    manifest.Set("name", unique_name)
-        .Set("version", "1")
-        .Set("manifest_version", 2)
-        .Set("web_accessible_resources", ListBuilder().Append("*").Build());
+    auto manifest =
+        base::Value::Dict()
+            .Set("name", unique_name)
+            .Set("version", "1")
+            .Set("manifest_version", 2)
+            .Set("web_accessible_resources", base::Value::List().Append("*"));
 
     if (all_urls_permission) {
-      manifest.Set("permissions", ListBuilder().Append("<all_urls>").Build());
+      manifest.Set("permissions", base::Value::List().Append("<all_urls>"));
     }
     if (is_component) {
       // LoadExtensionAsComponent requires the manifest to contain a key.
@@ -68,7 +72,7 @@ class ExtensionCSPBypassTest : public ExtensionBrowserTest {
     }
 
     dir.WriteFile(FILE_PATH_LITERAL("script.js"), "");
-    dir.WriteManifest(manifest.ToJSON());
+    dir.WriteManifest(manifest);
 
     const Extension* extension = nullptr;
     if (is_component) {
@@ -82,7 +86,8 @@ class ExtensionCSPBypassTest : public ExtensionBrowserTest {
   }
 
   bool CanLoadScript(const Extension* extension) {
-    content::RenderFrameHost* rfh = web_contents()->GetPrimaryMainFrame();
+    content::RenderFrameHost* render_frame_host =
+        web_contents()->GetPrimaryMainFrame();
     std::string code = base::StringPrintf(
         R"(
         function canLoadScript() {
@@ -101,7 +106,7 @@ class ExtensionCSPBypassTest : public ExtensionBrowserTest {
         canLoadScript();
         )",
         extension->GetResourceURL("script.js").spec().c_str());
-    return EvalJs(rfh, code).ExtractBool();
+    return EvalJs(render_frame_host, code).ExtractBool();
   }
 
   content::RenderFrameHost* GetFrameByName(const std::string& name) {
@@ -159,10 +164,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionCSPBypassTest, InjectIframe) {
   // First, verify that adding an iframe to the page from the main world will
   // fail. Add the frame. Its onload event fires even if it's blocked
   // (see https://crbug.com/365457), and reports back.
-  bool result = false;
-  ASSERT_TRUE(content::ExecuteScriptAndExtractBool(web_contents(),
-                                                   "addIframe();", &result));
-  EXPECT_TRUE(result);
+  EXPECT_EQ(true, content::EvalJs(web_contents(), "addIframe();"));
 
   // Use WasFrameWithScriptLoaded() to check whether the target frame really
   // loaded.
@@ -173,9 +175,13 @@ IN_PROC_BROWSER_TEST_F(ExtensionCSPBypassTest, InjectIframe) {
   // Second, verify that adding an iframe to the page from the extension will
   // succeed. Click a button whose event handler runs in the extension's world
   // which bypasses CSP, and adds the iframe.
-  EXPECT_TRUE(content::ExecuteScriptAndExtractBool(
-      web_contents(), "document.querySelector('#addIframeButton').click();",
-      &result));
+  content::DOMMessageQueue message_queue;
+  EXPECT_TRUE(
+      content::ExecJs(browser()->tab_strip_model()->GetActiveWebContents(),
+                      "document.querySelector('#addIframeButton').click();"));
+  std::string ack;
+  EXPECT_TRUE(message_queue.WaitForMessage(&ack));
+  EXPECT_EQ("true", ack);
   frame = GetFrameByName("added-by-extension");
   ASSERT_TRUE(frame);
   EXPECT_TRUE(WasFrameWithScriptLoaded(frame));

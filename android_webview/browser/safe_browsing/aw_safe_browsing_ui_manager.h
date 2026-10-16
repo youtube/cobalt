@@ -9,6 +9,7 @@
 #include <string>
 
 #include "components/safe_browsing/content/browser/base_ui_manager.h"
+#include "components/security_interstitials/content/security_interstitial_page.h"
 #include "components/security_interstitials/core/unsafe_resource.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -29,6 +30,7 @@ namespace android_webview {
 // The Safe Browsing service is responsible for checking URLs against
 // anti-phishing and anti-malware tables. This is an Android WebView-specific UI
 // manager.
+// Lifetime: Singleton
 class AwSafeBrowsingUIManager : public safe_browsing::BaseUIManager {
  public:
   class UIManagerClient {
@@ -63,34 +65,20 @@ class AwSafeBrowsingUIManager : public safe_browsing::BaseUIManager {
 
   scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory();
 
-  // Called on the IO thread to get a SharedURLLoaderFactory that can be used on
-  // the IO thread. If kSafeBrowsingOnUIThread is enabled it's called on the UI
-  // thread.
-  scoped_refptr<network::SharedURLLoaderFactory>
-  GetURLLoaderFactoryOnSBThread();
-
  protected:
   ~AwSafeBrowsingUIManager() override;
 
  private:
-  safe_browsing::BaseBlockingPage* CreateBlockingPageForSubresource(
+  security_interstitials::SecurityInterstitialPage* CreateBlockingPage(
       content::WebContents* contents,
       const GURL& blocked_url,
-      const UnsafeResource& unsafe_resource) override;
-
-  // Called on the UI thread to create a URLLoaderFactory interface ptr for
-  // the SB thread.
-  void CreateURLLoaderFactoryForSB(
-      mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver);
+      const UnsafeResource& unsafe_resource,
+      bool forward_extension_event,
+      std::optional<base::TimeTicks> blocked_page_shown_timestamp) override;
 
   // This is what owns the URLRequestContext inside the network service. This is
   // used by SimpleURLLoader for Safe Browsing requests.
   std::unique_ptr<safe_browsing::SafeBrowsingNetworkContext> network_context_;
-
-  // A SharedURLLoaderFactory and its interfaceptr used on the SB thread.
-  mojo::Remote<network::mojom::URLLoaderFactory> url_loader_factory_on_sb_;
-  scoped_refptr<network::WeakWrapperSharedURLLoaderFactory>
-      shared_url_loader_factory_on_sb_;
 };
 
 }  // namespace android_webview

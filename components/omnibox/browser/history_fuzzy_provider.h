@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_OMNIBOX_BROWSER_HISTORY_FUZZY_PROVIDER_H_
 #define COMPONENTS_OMNIBOX_BROWSER_HISTORY_FUZZY_PROVIDER_H_
 
+#include <array>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -58,7 +59,7 @@ struct Edit {
 // an input string that escapes the trie into a string that is contained by it.
 struct Correction {
   // Tolerance schedules must use a `limit` of no more than `kMaxEdits`.
-  const static int kMaxEdits = 3;
+  constexpr static int kMaxEdits = 3;
 
   // Creates a new correction including this one plus a given `Edit`.
   Correction WithEdit(Edit edit) const;
@@ -73,9 +74,9 @@ struct Correction {
   // This is a fixed-size in-struct array instead of a vector because
   // finding and building corrections is performance critical and keeping this
   // struct simple on the stack is much faster than pounding on the allocator.
-  Edit edits[kMaxEdits] = {{Edit::Kind::KEEP, 0, '_'},
-                           {Edit::Kind::KEEP, 0, '_'},
-                           {Edit::Kind::KEEP, 0, '_'}};
+  std::array<Edit, kMaxEdits> edits = {Edit{Edit::Kind::KEEP, 0, '_'},
+                                       Edit{Edit::Kind::KEEP, 0, '_'},
+                                       Edit{Edit::Kind::KEEP, 0, '_'}};
 };
 
 // This utility struct defines how tolerance changes across the length
@@ -194,10 +195,6 @@ class HistoryFuzzyProvider : public HistoryProvider,
   HistoryFuzzyProvider(const HistoryFuzzyProvider&) = delete;
   HistoryFuzzyProvider& operator=(const HistoryFuzzyProvider&) = delete;
 
-  // Set a relevance hint to improve counterfactual in late-running providers
-  // where most match relevances are already determined.
-  void SetCounterfactualRelevanceHint(int relevance_hint);
-
   // HistoryProvider:
   // AutocompleteProvider. `minimal_changes` is ignored since there is no async
   // completion performed.
@@ -229,8 +226,8 @@ class HistoryFuzzyProvider : public HistoryProvider,
                     const history::VisitRow& new_visit) override;
 
   // Removes deleted (or all) URLs from trie.
-  void OnURLsDeleted(history::HistoryService* history_service,
-                     const history::DeletionInfo& deletion_info) override;
+  void OnHistoryDeletions(history::HistoryService* history_service,
+                          const history::DeletionInfo& deletion_info) override;
 
   // Record UMA histogram data for measuring usefulness of sub-providers.
   void RecordMatchConversion(const char* name, int count);
@@ -263,13 +260,6 @@ class HistoryFuzzyProvider : public HistoryProvider,
   int penalty_low_;
   int penalty_high_;
   size_t penalty_taper_length_;
-
-  // Cache counterfactual feature param.
-  bool counterfactual_;
-
-  // A relevance value below which counterfactual matches are less likely
-  // to be kept, if they were to be included in the full output match set.
-  int counterfactual_relevance_hint_{0};
 
   // Weak pointer factory for callback binding safety.
   base::WeakPtrFactory<HistoryFuzzyProvider> weak_ptr_factory_{this};

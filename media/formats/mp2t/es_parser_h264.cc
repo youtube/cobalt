@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/mp2t/es_parser_h264.h"
 
 #include <limits>
+#include <optional>
 
 #include "base/containers/adapters.h"
 #include "base/logging.h"
@@ -17,8 +23,7 @@
 #include "media/base/video_frame.h"
 #include "media/formats/common/offset_byte_queue.h"
 #include "media/formats/mp2t/mp2t_common.h"
-#include "media/video/h264_parser.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "media/parsers/h264_parser.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -210,10 +215,10 @@ void EsParserH264::Flush() {
   // Fail if this AUD's push fails allocation, since otherwise the behavior of
   // the subsequent parse would vary based on whether or not the system is
   // near-OOM.
-  // TODO(crbug.com/1266639): Consider plumbing parse failure for this push
+  // TODO(crbug.com/40204179): Consider plumbing parse failure for this push
   // failure case, instead of what used to OOM but now instead would fail this
   // CHECK.
-  CHECK(es_queue_->Push(aud, sizeof(aud)));
+  CHECK(es_queue_->Push(base::span(aud)));
 
   ParseFromEsQueue();
   es_adapter_.Flush();
@@ -439,9 +444,10 @@ bool EsParserH264::EmitFrame(int64_t access_unit_pos,
 
   // TODO(wolenetz/acolwell): Validate and use a common cross-parser TrackId
   // type and allow multiple video tracks. See https://crbug.com/341581.
+  auto es_span = base::span(es, base::checked_cast<size_t>(access_unit_size));
   scoped_refptr<StreamParserBuffer> stream_parser_buffer =
-      StreamParserBuffer::CopyFrom(es, access_unit_size, is_key_frame,
-                                   DemuxerStream::VIDEO, kMp2tVideoTrackId);
+      StreamParserBuffer::CopyFrom(es_span, is_key_frame, DemuxerStream::VIDEO,
+                                   kMp2tVideoTrackId);
   stream_parser_buffer->SetDecodeTimestamp(current_timing_desc.dts);
   stream_parser_buffer->set_timestamp(current_timing_desc.pts);
   if (base_decrypt_config) {
@@ -450,7 +456,6 @@ bool EsParserH264::EmitFrame(int64_t access_unit_pos,
         // As |base_decrypt_config| is specified, the stream is encrypted,
         // so this shouldn't happen.
         NOTREACHED();
-        break;
       case EncryptionScheme::kCenc:
         stream_parser_buffer->set_decrypt_config(
             DecryptConfig::CreateCencConfig(base_decrypt_config->key_id(),
@@ -478,11 +483,11 @@ bool EsParserH264::UpdateVideoDecoderConfig(const H264SPS* sps,
   int sar_width = (sps->sar_width == 0) ? 1 : sps->sar_width;
   int sar_height = (sps->sar_height == 0) ? 1 : sps->sar_height;
 
-  absl::optional<gfx::Size> coded_size = sps->GetCodedSize();
+  std::optional<gfx::Size> coded_size = sps->GetCodedSize();
   if (!coded_size)
     return false;
 
-  absl::optional<gfx::Rect> visible_rect = sps->GetVisibleRect();
+  std::optional<gfx::Rect> visible_rect = sps->GetVisibleRect();
   if (!visible_rect)
     return false;
 

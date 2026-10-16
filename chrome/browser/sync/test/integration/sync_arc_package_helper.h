@@ -10,9 +10,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "ash/components/arc/mojom/app.mojom-forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
+#include "chromeos/ash/experiences/arc/mojom/app.mojom-forward.h"
 
 class Profile;
 class SyncTest;
@@ -73,7 +73,7 @@ class SyncArcPackageHelper {
   // informaton as |profile2|.
   bool ArcPackageDetailsMatch(Profile* profile1, Profile* profile2);
 
-  raw_ptr<SyncTest, ExperimentalAsh> test_ = nullptr;
+  raw_ptr<SyncTest, DanglingUntriaged> test_ = nullptr;
   bool setup_completed_ = false;
 
   std::unordered_map<Profile*, std::unique_ptr<FakeAppInstance>> instance_map_;

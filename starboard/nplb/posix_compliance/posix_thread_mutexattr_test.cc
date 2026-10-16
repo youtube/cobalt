@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <errno.h>
 #include <pthread.h>
+#include <string.h>
 
 #include "testing/gtest/include/gtest/gtest.h"
 namespace nplb {
@@ -71,6 +73,65 @@ TEST(PosixMutexAttrTest, MutexAttrType) {
   result = pthread_mutexattr_destroy(&mattr);
   EXPECT_EQ(result, 0) << "pthread_mutexattr_destroy failed: "
                        << strerror(result);
+}
+
+TEST(PosixMutexAttrTest, MutexRecursiveBehavior) {
+  pthread_mutexattr_t mattr;
+  ASSERT_EQ(pthread_mutexattr_init(&mattr), 0);
+  ASSERT_EQ(pthread_mutexattr_settype(&mattr, PTHREAD_MUTEX_RECURSIVE), 0);
+
+  pthread_mutex_t mutex;
+  ASSERT_EQ(pthread_mutex_init(&mutex, &mattr), 0);
+
+  // Recursive mutex should allow multiple locks from the same thread.
+  EXPECT_EQ(pthread_mutex_lock(&mutex), 0);
+  EXPECT_EQ(pthread_mutex_lock(&mutex), 0);
+  EXPECT_EQ(pthread_mutex_trylock(&mutex), 0);
+
+  EXPECT_EQ(pthread_mutex_unlock(&mutex), 0);
+  EXPECT_EQ(pthread_mutex_unlock(&mutex), 0);
+  EXPECT_EQ(pthread_mutex_unlock(&mutex), 0);
+
+  EXPECT_EQ(pthread_mutex_destroy(&mutex), 0);
+  EXPECT_EQ(pthread_mutexattr_destroy(&mattr), 0);
+}
+
+TEST(PosixMutexAttrTest, MutexErrorCheckBehavior) {
+  pthread_mutexattr_t mattr;
+  ASSERT_EQ(pthread_mutexattr_init(&mattr), 0);
+  ASSERT_EQ(pthread_mutexattr_settype(&mattr, PTHREAD_MUTEX_ERRORCHECK), 0);
+
+  pthread_mutex_t mutex;
+  ASSERT_EQ(pthread_mutex_init(&mutex, &mattr), 0);
+
+  // Errorcheck mutex should return EDEADLK if locked again from the same
+  // thread.
+  EXPECT_EQ(pthread_mutex_lock(&mutex), 0);
+  EXPECT_EQ(pthread_mutex_lock(&mutex), EDEADLK);
+  EXPECT_EQ(pthread_mutex_trylock(&mutex), EBUSY);
+
+  EXPECT_EQ(pthread_mutex_unlock(&mutex), 0);
+
+  EXPECT_EQ(pthread_mutex_destroy(&mutex), 0);
+  EXPECT_EQ(pthread_mutexattr_destroy(&mattr), 0);
+}
+
+TEST(PosixMutexAttrTest, MutexNormalNonRecursiveBehavior) {
+  pthread_mutexattr_t mattr;
+  ASSERT_EQ(pthread_mutexattr_init(&mattr), 0);
+  ASSERT_EQ(pthread_mutexattr_settype(&mattr, PTHREAD_MUTEX_NORMAL), 0);
+
+  pthread_mutex_t mutex;
+  ASSERT_EQ(pthread_mutex_init(&mutex, &mattr), 0);
+
+  // Normal mutex should NOT allow multiple locks from the same thread.
+  EXPECT_EQ(pthread_mutex_lock(&mutex), 0);
+  EXPECT_EQ(pthread_mutex_trylock(&mutex), EBUSY);
+
+  EXPECT_EQ(pthread_mutex_unlock(&mutex), 0);
+
+  EXPECT_EQ(pthread_mutex_destroy(&mutex), 0);
+  EXPECT_EQ(pthread_mutexattr_destroy(&mattr), 0);
 }
 
 TEST(PosixMutexAttrTest, MutexAttrPshared) {

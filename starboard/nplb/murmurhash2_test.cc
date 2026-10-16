@@ -15,6 +15,8 @@
 // Thread joining is mostly tested in the other tests.
 
 #include "starboard/common/murmurhash2.h"
+
+#include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {

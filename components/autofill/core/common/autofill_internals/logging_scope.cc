@@ -28,7 +28,6 @@ const char* LoggingScopeToString(LoggingScope scope) {
 #undef AUTOFILL_TEMPLATE
 
   NOTREACHED();
-  return "";
 }
 
 LogBuffer& operator<<(LogBuffer& buf, LoggingScope scope) {

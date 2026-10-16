@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/flat_set.h"
 #include "components/history/core/browser/history_types.h"
 #include "url/gurl.h"
 
@@ -50,10 +51,9 @@ void CullNonProminentOrDuplicateClusters(
     std::vector<history::Cluster>& clusters,
     std::set<GURL>* seen_single_visit_cluster_urls);
 
-// Removes low scoring visits and clusters with less than`min_visits` visits
-// remaining.
-void HideAndCullLowScoringVisits(std::vector<history::Cluster>& clusters,
-                                 size_t min_visits);
+// Removes low scoring visits and clusters depending on `is_zero_query_state`.
+void CullVisitsThatShouldBeHidden(std::vector<history::Cluster>& clusters,
+                                  bool is_zero_query_state);
 
 // Coalesces the related searches off of individual visits and places them at
 // the cluster level with numerical limits defined by flags.
@@ -88,6 +88,9 @@ bool IsVisitInCategories(const history::ClusterVisit& visit,
 // categories in `categories`.
 bool IsClusterInCategories(const history::Cluster& cluster,
                            const base::flat_set<std::string>& categories);
+
+// Return the set of category ids associated with a given cluster.
+std::set<std::string> GetClusterCategoryIds(const history::Cluster& cluster);
 
 }  // namespace history_clusters
 

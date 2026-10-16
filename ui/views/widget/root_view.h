@@ -9,7 +9,9 @@
 #include <string>
 
 #include "base/memory/raw_ptr.h"
+#include "ui/accessibility/platform/ax_platform_node.h"
 #include "ui/events/event_processor.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/focus/focus_search.h"
 #include "ui/views/view.h"
@@ -52,9 +54,9 @@ class VIEWS_EXPORT RootView : public View,
                               public ViewTargeterDelegate,
                               public FocusTraversable,
                               public ui::EventProcessor {
- public:
-  METADATA_HEADER(RootView);
+  METADATA_HEADER(RootView, View)
 
+ public:
   // Creation and lifetime -----------------------------------------------------
   explicit RootView(Widget* widget);
   RootView(const RootView&) = delete;
@@ -97,8 +99,9 @@ class VIEWS_EXPORT RootView : public View,
 
   // Accessibility -------------------------------------------------------------
 
-  // Make an announcement through the screen reader, if present.
-  void AnnounceText(const std::u16string& text);
+  // See AXPlatformNode::AnnounceTextAs for documentation of this.
+  void AnnounceTextAs(const std::u16string& text,
+                      ui::AXPlatformNode::AnnouncementType announcement_type);
   View* GetAnnounceViewForTesting();
 
   // FocusTraversable:
@@ -121,15 +124,21 @@ class VIEWS_EXPORT RootView : public View,
   void OnMouseReleased(const ui::MouseEvent& event) override;
   void OnMouseCaptureLost() override;
   void OnMouseMoved(const ui::MouseEvent& event) override;
+  void OnMouseEntered(const ui::MouseEvent& event) override;
   void OnMouseExited(const ui::MouseEvent& event) override;
   bool OnMouseWheel(const ui::MouseWheelEvent& event) override;
   void SetMouseAndGestureHandler(View* new_handler) override;
   void SetMouseHandler(View* new_mouse_handler) override;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
   void UpdateParentLayer() override;
+
+  void UpdateAccessibleName();
+  void UpdateAccessibleURL(const GURL& url);
 
   const views::View* gesture_handler_for_testing() const {
     return gesture_handler_;
+  }
+  const views::View* mouse_pressed_handler_for_testing() const {
+    return mouse_pressed_handler_.get();
   }
 
  protected:
@@ -168,6 +177,11 @@ class VIEWS_EXPORT RootView : public View,
   // screen reader via an alert or live region update.
   AnnounceTextView* GetOrCreateAnnounceView();
 
+  // EventType::kMouseEntered events require the same handling as
+  // EventType::kMouseMoved, except that for the former we don't send
+  // EventType::kMouseMoved to |mouse_move_handler_|.
+  void HandleMouseEnteredOrMoved(const ui::MouseEvent& event);
+
   // |view| is the view receiving |event|. This function sends the event to all
   // the Views up the hierarchy that has |notify_enter_exit_on_child_| flag
   // turned on, but does not contain |sibling|.
@@ -192,7 +206,7 @@ class VIEWS_EXPORT RootView : public View,
   // Tree operations -----------------------------------------------------------
 
   // The host Widget
-  raw_ptr<Widget, DanglingUntriaged> widget_;
+  const raw_ptr<Widget, DanglingUntriaged> widget_;
 
   // Input ---------------------------------------------------------------------
 
@@ -200,14 +214,14 @@ class VIEWS_EXPORT RootView : public View,
   //                   ViewTargeter / RootViewTargeter.
 
   // The view currently handing down - drag - up
-  raw_ptr<View, DanglingUntriaged> mouse_pressed_handler_ = nullptr;
+  raw_ptr<View> mouse_pressed_handler_ = nullptr;
 
   // The view currently handling enter / exit
-  raw_ptr<View, DanglingUntriaged> mouse_move_handler_ = nullptr;
+  raw_ptr<View, AcrossTasksDanglingUntriaged> mouse_move_handler_ = nullptr;
 
   // The last view to handle a mouse click, so that we can determine if
   // a double-click lands on the same view as its single-click part.
-  raw_ptr<View, DanglingUntriaged> last_click_handler_ = nullptr;
+  raw_ptr<View, AcrossTasksDanglingUntriaged> last_click_handler_ = nullptr;
 
   // true if mouse_pressed_handler_ has been explicitly set
   bool explicit_mouse_handler_ = false;
@@ -219,7 +233,7 @@ class VIEWS_EXPORT RootView : public View,
   int last_mouse_event_y_ = -1;
 
   // The View currently handling gesture events.
-  raw_ptr<View, DanglingUntriaged> gesture_handler_ = nullptr;
+  raw_ptr<View, AcrossTasksDanglingUntriaged> gesture_handler_ = nullptr;
 
   // Used to indicate if the |gesture_handler_| member was set prior to the
   // processing of the current event (i.e., if |gesture_handler_| was set
@@ -241,15 +255,16 @@ class VIEWS_EXPORT RootView : public View,
   // bool activated_;
 
   // The parent FocusTraversable, used for focus traversal.
-  raw_ptr<FocusTraversable, DanglingUntriaged> focus_traversable_parent_ =
-      nullptr;
+  raw_ptr<FocusTraversable, AcrossTasksDanglingUntriaged>
+      focus_traversable_parent_ = nullptr;
 
   // The View that contains this RootView. This is used when we have RootView
   // wrapped inside native components, and is used for the focus traversal.
-  raw_ptr<View, DanglingUntriaged> focus_traversable_parent_view_ = nullptr;
+  raw_ptr<View, AcrossTasksDanglingUntriaged> focus_traversable_parent_view_ =
+      nullptr;
 
-  raw_ptr<View, DanglingUntriaged> event_dispatch_target_ = nullptr;
-  raw_ptr<View, DanglingUntriaged> old_dispatch_target_ = nullptr;
+  raw_ptr<View, AcrossTasksDanglingUntriaged> event_dispatch_target_ = nullptr;
+  raw_ptr<View, AcrossTasksDanglingUntriaged> old_dispatch_target_ = nullptr;
 
   // Drag and drop -------------------------------------------------------------
 
@@ -260,7 +275,10 @@ class VIEWS_EXPORT RootView : public View,
 
   // Hidden view used to make announcements to the screen reader via an alert or
   // live region update.
-  raw_ptr<AnnounceTextView, DanglingUntriaged> announce_view_ = nullptr;
+  raw_ptr<AnnounceTextView, AcrossTasksDanglingUntriaged> announce_view_ =
+      nullptr;
+
+  base::WeakPtrFactory<RootView> weak_factory_{this};
 };
 
 }  // namespace internal

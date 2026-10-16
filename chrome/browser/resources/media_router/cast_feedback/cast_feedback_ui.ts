@@ -2,23 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import './strings.m.js';
+import '/strings.m.js';
 import '//resources/cr_elements/cr_button/cr_button.js';
 import '//resources/cr_elements/cr_checkbox/cr_checkbox.js';
 import '//resources/cr_elements/cr_dialog/cr_dialog.js';
 import '//resources/cr_elements/cr_input/cr_input.js';
 import '//resources/cr_elements/cr_radio_button/cr_radio_button.js';
 import '//resources/cr_elements/cr_radio_group/cr_radio_group.js';
-import '//resources/cr_elements/cr_shared_style.css.js';
-import '//resources/cr_elements/cr_shared_vars.css.js';
 
-import {CrDialogElement} from '//resources/cr_elements/cr_dialog/cr_dialog.js';
+import type {CrDialogElement} from '//resources/cr_elements/cr_dialog/cr_dialog.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
-import {getTemplate} from './cast_feedback_ui.html.js';
+import {getCss} from './cast_feedback_ui.css.js';
+import {getHtml} from './cast_feedback_ui.html.js';
 
-enum FeedbackType {
+export enum FeedbackType {
   BUG = 'Bug',
   FEATURE_REQUEST = 'FeatureRequest',
   MIRRORING_QUALITY = 'MirroringQuality',
@@ -27,27 +27,10 @@ enum FeedbackType {
 }
 
 /**
- * Keep in sync with MediaRouterCastFeedbackEvent in enums.xml.
- */
-export enum FeedbackEvent {
-  OPENED = 0,
-  SENDING = 1,
-  RESENDING = 2,
-  SUCCEEDED = 3,
-  FAILED = 4,
-  MAX_VALUE = 4,
-}
-
-/**
  * See
  * https://docs.google.com/document/d/1c20VYdwpUPyBRQeAS0CMr6ahwWnb0s26gByomOwqDjk
  */
 export interface FeedbackUiBrowserProxy {
-  /**
-   * Records an event using Chrome Metrics.
-   */
-  recordEvent(event: FeedbackEvent): void;
-
   /**
    * Proxy for chrome.feedbackPrivate.sendFeedback().
    */
@@ -56,12 +39,6 @@ export interface FeedbackUiBrowserProxy {
 }
 
 export class FeedbackUiBrowserProxyImpl implements FeedbackUiBrowserProxy {
-  recordEvent(event: FeedbackEvent) {
-    chrome.send(
-        'metricsHandler:recordInHistogram',
-        ['MediaRouter.Cast.Feedback.Event', event, FeedbackEvent.MAX_VALUE]);
-  }
-
   sendFeedback(info: chrome.feedbackPrivate.FeedbackInfo) {
     return chrome.feedbackPrivate.sendFeedback(
         info, /*loadSystemInfo=*/ undefined, /*formOpenTime=*/ undefined);
@@ -80,109 +57,69 @@ let instance: FeedbackUiBrowserProxy|null = null;
 
 // Define static map of local DOM elements that have IDs.
 // https://polymer-library.polymer-project.org/3.0/docs/devguide/dom-template#node-finding
-export interface FeedbackUiElement {
+export interface CastFeedbackUiElement {
   $: {
     logsDialog: CrDialogElement,
     sendDialog: CrDialogElement,
   };
 }
 
-export class FeedbackUiElement extends PolymerElement {
+export class CastFeedbackUiElement extends CrLitElement {
   static get is() {
     return 'feedback-ui';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
-      allowContactByEmail_: {
-        type: Boolean,
-        value: false,
-      },
-
-      attachLogs_: {
-        type: Boolean,
-        value: true,
-      },
-
-      audioQuality_: String,
-      comments_: String,
-
-      /**
-       * Possible values of |FeedbackType| for use in HTML.
-       */
-      feedbackTypeEnum_: {
-        type: Object,
-        value: FeedbackType,
-      },
+      allowContactByEmail_: {type: Boolean},
+      attachLogs_: {type: Boolean},
+      audioQuality_: {type: String},
+      comments_: {type: String},
 
       /**
        * Controls which set of UI elements is displayed to the user.
        */
-      feedbackType_: {
-        type: String,
-        value: FeedbackType.BUG,
-      },
+      feedbackType_: {type: String},
 
-      hasNetworkSoftware_: String,
-      networkDescription_: String,
-
-      logData_: {
-        type: String,
-        value() {
-          return loadTimeData.getString('logData');
-        },
-      },
-
-      categoryTag_: {
-        type: String,
-        value() {
-          return loadTimeData.getString('categoryTag');
-        },
-      },
-
-      projectedContentUrl_: String,
-      sendDialogText_: String,
-      sendDialogIsInteractive_: Boolean,
-
-      /**
-       * Set by onFeedbackChanged_() to control whether the "submit" button is
-       * active.
-       */
-      sufficientFeedback_: {
-        type: Boolean,
-        computed:
-            'computeSufficientFeedback_(feedbackType_, videoSmoothness_, ' +
-            'videoQuality_, audioQuality_, comments_, visibleInSetup_)',
-      },
-
-      userEmail_: String,
-      videoQuality_: String,
-      videoSmoothness_: String,
-      visibleInSetup_: String,
+      hasNetworkSoftware_: {type: String},
+      networkDescription_: {type: String},
+      logData_: {type: String},
+      projectedContentUrl_: {type: String},
+      sendDialogText_: {type: String},
+      sendDialogIsInteractive_: {type: Boolean},
+      sufficientFeedback_: {type: Boolean},
+      userEmail_: {type: String},
+      videoQuality_: {type: String},
+      videoSmoothness_: {type: String},
+      visibleInSetup_: {type: String},
     };
   }
 
-  private allowContactByEmail_: boolean;
-  private attachLogs_: boolean;
-  private audioQuality_: string;
-  private comments_: string;
-  private feedbackType_: FeedbackType;
-  private hasNetworkSoftware_: string;
-  private networkDescription_: string;
-  private logData_: string;
-  private categoryTag_: string;
-  private projectedContentUrl_: string;
-  private sendDialogText_: string;
-  private sendDialogIsInteractive_: boolean;
-  private sufficientFeedback_: boolean;
-  private userEmail_: string;
-  private videoQuality_: string;
-  private videoSmoothness_: string;
-  private visibleInSetup_: string;
+  protected accessor allowContactByEmail_: boolean = false;
+  protected accessor attachLogs_: boolean = false;
+  protected accessor audioQuality_: string = '';
+  protected accessor comments_: string = '';
+  protected accessor feedbackType_: FeedbackType = FeedbackType.BUG;
+  protected accessor hasNetworkSoftware_: string = '';
+  private accessor networkDescription_: string = '';
+  protected accessor logData_: string = loadTimeData.getString('logData');
+  private categoryTag_: string = loadTimeData.getString('categoryTag');
+  protected accessor projectedContentUrl_: string = '';
+  protected accessor sendDialogText_: string = '';
+  protected accessor sendDialogIsInteractive_: boolean = false;
+  protected accessor sufficientFeedback_: boolean = false;
+  protected accessor userEmail_: string = '';
+  protected accessor videoQuality_: string = '';
+  protected accessor videoSmoothness_: string = '';
+  protected accessor visibleInSetup_: string = '';
 
   private browserProxy_: FeedbackUiBrowserProxy =
       FeedbackUiBrowserProxyImpl.getInstance();
@@ -198,14 +135,15 @@ export class FeedbackUiElement extends PolymerElement {
     chrome.feedbackPrivate.getUserEmail(email => {
       this.userEmail_ = email;
     });
-
-    this.browserProxy_.recordEvent(FeedbackEvent.OPENED);
   }
 
+  override willUpdate(changedProperties: PropertyValues<this>) {
+    super.willUpdate(changedProperties);
+    this.sufficientFeedback_ = this.computeSufficientFeedback_();
+  }
 
-  override ready() {
-    super.ready();
-    this.shadowRoot!.querySelector('#send-logs a')!.addEventListener(
+  override firstUpdated() {
+    this.shadowRoot.querySelector('#send-logs a')!.addEventListener(
         'click', event => {
           event.preventDefault();
           this.$.logsDialog.showModal();
@@ -225,7 +163,7 @@ export class FeedbackUiElement extends PolymerElement {
     }
   }
 
-  private showDefaultSection_(): boolean {
+  protected showDefaultSection_(): boolean {
     switch (this.feedbackType_) {
       case FeedbackType.MIRRORING_QUALITY:
       case FeedbackType.DISCOVERY:
@@ -235,15 +173,15 @@ export class FeedbackUiElement extends PolymerElement {
     }
   }
 
-  private showMirroringQualitySection_(): boolean {
+  protected showMirroringQualitySection_(): boolean {
     return this.feedbackType_ === FeedbackType.MIRRORING_QUALITY;
   }
 
-  private showDiscoverySection_(): boolean {
+  protected showDiscoverySection_(): boolean {
     return this.feedbackType_ === FeedbackType.DISCOVERY;
   }
 
-  private onSubmit_() {
+  protected onSubmit_() {
     const parts = [`Type: ${this.feedbackType_}`, ''];
 
     function append(label: string, value: string) {
@@ -287,7 +225,7 @@ export class FeedbackUiElement extends PolymerElement {
       };
     }
 
-    this.updateSendDialog_(FeedbackEvent.SENDING, 'sending', false);
+    this.updateSendDialog_('sending', false);
     this.$.sendDialog.showModal();
     this.trySendFeedback_(feedback, 0, 0);
   }
@@ -303,15 +241,15 @@ export class FeedbackUiElement extends PolymerElement {
       this.browserProxy_.sendFeedback(feedback).then(result => {
         if (result.status === chrome.feedbackPrivate.Status.SUCCESS) {
           this.feedbackSent = true;
-          this.updateSendDialog_(FeedbackEvent.SUCCEEDED, 'sendSuccess', true);
+          this.updateSendDialog_('sendSuccess', true);
         } else if (failureCount < this.maxResendAttempts) {
-          this.updateSendDialog_(FeedbackEvent.RESENDING, 'resending', false);
+          this.updateSendDialog_('resending', false);
           const sendDuration = Date.now() - sendStartTime;
           this.trySendFeedback_(
               feedback, failureCount + 1,
               Math.max(0, this.resendDelayMs - sendDuration));
         } else {
-          this.updateSendDialog_(FeedbackEvent.FAILED, 'sendFail', true);
+          this.updateSendDialog_('sendFail', true);
         }
       });
     }, delayMs);
@@ -320,14 +258,12 @@ export class FeedbackUiElement extends PolymerElement {
   /**
    * Updates the status of the "send" dialog and records the event.
    */
-  private updateSendDialog_(
-      event: FeedbackEvent, stringKey: string, isInteractive: boolean) {
-    this.browserProxy_.recordEvent(event);
+  private updateSendDialog_(stringKey: string, isInteractive: boolean) {
     this.sendDialogText_ = loadTimeData.getString(stringKey);
     this.sendDialogIsInteractive_ = isInteractive;
   }
 
-  private onSendDialogOk_() {
+  protected onSendDialogOk_() {
     if (this.feedbackSent) {
       chrome.send('close');
     } else {
@@ -335,24 +271,19 @@ export class FeedbackUiElement extends PolymerElement {
     }
   }
 
-  private onCancel_() {
+  protected onCancel_() {
     if (!this.comments_ ||
         confirm(loadTimeData.getString('discardConfirmation'))) {
       chrome.send('close');
     }
   }
 
-  private onLogsDialogOk_() {
+  protected onLogsDialogOk_() {
     this.$.logsDialog.close();
   }
 
   private getProductSpecificData_(): Array<{key: string, value: string}> {
     const data = [
-      {
-        key: 'global_media_controls_cast_start_stop',
-        value: String(
-            !!loadTimeData.getBoolean('globalMediaControlsCastStartStop')),
-      },
       {
         key: 'feedbackUserCtlConsent',
         value: String(!!this.allowContactByEmail_),
@@ -360,12 +291,52 @@ export class FeedbackUiElement extends PolymerElement {
     ];
     return data;
   }
+
+  protected onFeedbackTypeChanged_(e: CustomEvent<{value: FeedbackType}>) {
+    this.feedbackType_ = e.detail.value;
+  }
+
+  protected onVideoSmoothnessChanged_(e: CustomEvent<{value: string}>) {
+    this.videoSmoothness_ = e.detail.value;
+  }
+
+  protected onVideoQualityChanged_(e: CustomEvent<{value: string}>) {
+    this.videoQuality_ = e.detail.value;
+  }
+
+  protected onAudioQualityChanged_(e: CustomEvent<{value: string}>) {
+    this.audioQuality_ = e.detail.value;
+  }
+
+  protected onProjectedContentUrlChanged_(e: CustomEvent<{value: string}>) {
+    this.projectedContentUrl_ = e.detail.value;
+  }
+
+  protected onVisibleInSetupChanged_(e: CustomEvent<{value: string}>) {
+    this.visibleInSetup_ = e.detail.value;
+  }
+
+  protected onHasNetworkSoftwareChanged_(e: CustomEvent<{value: string}>) {
+    this.hasNetworkSoftware_ = e.detail.value;
+  }
+
+  protected onAllowContactByEmailChanged_(e: CustomEvent<{value: boolean}>) {
+    this.allowContactByEmail_ = e.detail.value;
+  }
+
+  protected onAttachLogsChanged_(e: CustomEvent<{value: boolean}>) {
+    this.attachLogs_ = e.detail.value;
+  }
+
+  protected onCommentsInput_(e: Event) {
+    this.comments_ = (e.target as HTMLTextAreaElement).value;
+  }
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'feedback-ui': FeedbackUiElement;
+    'feedback-ui': CastFeedbackUiElement;
   }
 }
 
-customElements.define(FeedbackUiElement.is, FeedbackUiElement);
+customElements.define(CastFeedbackUiElement.is, CastFeedbackUiElement);

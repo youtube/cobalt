@@ -7,14 +7,10 @@
 #include "base/functional/bind.h"
 #include "components/prefs/pref_change_registrar.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 PrefObserverBridge::PrefObserverBridge(id<PrefObserverDelegate> delegate)
     : delegate_(delegate) {}
 
-PrefObserverBridge::~PrefObserverBridge() {}
+PrefObserverBridge::~PrefObserverBridge() = default;
 
 void PrefObserverBridge::ObserveChangesForPreference(
     const std::string& pref_name,

@@ -8,7 +8,6 @@
 #include "third_party/blink/renderer/core/editing/position_with_affinity.h"
 #include "third_party/blink/renderer/core/editing/testing/editing_test_base.h"
 #include "third_party/blink/renderer/core/editing/text_affinity.h"
-#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 
 namespace blink {
 
@@ -26,7 +25,7 @@ TEST_F(HitTestingBidiTest,
   LoadAhem();
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent("<div dir=ltr><bdo dir=rtl>ABC</bdo>def</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() - 3;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -43,7 +42,7 @@ TEST_F(HitTestingBidiTest,
   LoadAhem();
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent("<div dir=ltr><bdo dir=rtl>ABC</bdo>def</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 3;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -60,7 +59,7 @@ TEST_F(HitTestingBidiTest,
   LoadAhem();
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent("<div dir=ltr>def<bdo dir=rtl>ABC</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 57;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -77,7 +76,7 @@ TEST_F(HitTestingBidiTest,
   LoadAhem();
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent("<div dir=ltr>def<bdo dir=rtl>ABC</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 63;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -93,7 +92,7 @@ TEST_F(HitTestingBidiTest, InLtrBlockAtLineBoundaryLeftSideOfLeftEdgeOfOneRun) {
   LoadAhem();
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent("<div dir=ltr><bdo dir=rtl>ABC</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() - 3;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -110,7 +109,7 @@ TEST_F(HitTestingBidiTest,
   LoadAhem();
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent("<div dir=ltr><bdo dir=rtl>ABC</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 3;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -127,7 +126,7 @@ TEST_F(HitTestingBidiTest,
   LoadAhem();
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent("<div dir=ltr><bdo dir=rtl>ABC</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -144,7 +143,7 @@ TEST_F(HitTestingBidiTest,
   LoadAhem();
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent("<div dir=ltr><bdo dir=rtl>ABC</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -161,7 +160,7 @@ TEST_F(HitTestingBidiTest,
   LoadAhem();
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent("<div dir=ltr>def<bdo dir=rtl>ABC</bdo>ghi</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -178,7 +177,7 @@ TEST_F(HitTestingBidiTest,
   LoadAhem();
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent("<div dir=ltr>def<bdo dir=rtl>ABC</bdo>ghi</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -195,7 +194,7 @@ TEST_F(HitTestingBidiTest,
   LoadAhem();
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent("<div dir=ltr>ghi<bdo dir=rtl>ABC</bdo>def</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 57;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -212,7 +211,7 @@ TEST_F(HitTestingBidiTest,
   LoadAhem();
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent("<div dir=ltr>ghi<bdo dir=rtl>ABC</bdo>def</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 63;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -228,7 +227,7 @@ TEST_F(HitTestingBidiTest, InLtrBlockLtrBaseRunLeftSideOfLeftEdgeOfOneRun) {
   LoadAhem();
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent("<div dir=ltr>def<bdo dir=rtl>ABC</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -244,7 +243,7 @@ TEST_F(HitTestingBidiTest, InLtrBlockLtrBaseRunRightSideOfLeftEdgeOfOneRun) {
   LoadAhem();
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent("<div dir=ltr>def<bdo dir=rtl>ABC</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -260,7 +259,7 @@ TEST_F(HitTestingBidiTest, InLtrBlockLtrBaseRunLeftSideOfRightEdgeOfOneRun) {
   LoadAhem();
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent("<div dir=ltr><bdo dir=rtl>ABC</bdo>def</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -276,7 +275,7 @@ TEST_F(HitTestingBidiTest, InLtrBlockLtrBaseRunRightSideOfRightEdgeOfOneRun) {
   LoadAhem();
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent("<div dir=ltr><bdo dir=rtl>ABC</bdo>def</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -294,7 +293,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>GHI<bdo dir=ltr>abc</bdo>DEF</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -314,7 +313,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>GHI<bdo dir=ltr>abc</bdo>DEF</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -334,7 +333,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 57;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -354,7 +353,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 63;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -373,7 +372,7 @@ TEST_F(HitTestingBidiTest, InLtrBlockRtlBaseRunLeftSideOfLeftEdgeOfOneRun) {
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr>abc</bdo>DEF</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -392,7 +391,7 @@ TEST_F(HitTestingBidiTest, InLtrBlockRtlBaseRunRightSideOfLeftEdgeOfOneRun) {
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr>abc</bdo>DEF</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -411,7 +410,7 @@ TEST_F(HitTestingBidiTest, InLtrBlockRtlBaseRunLeftSideOfRightEdgeOfOneRun) {
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -430,7 +429,7 @@ TEST_F(HitTestingBidiTest, InLtrBlockRtlBaseRunRightSideOfRightEdgeOfOneRun) {
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -450,7 +449,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left - 3;
   int y = div->OffsetTop() + 5;
@@ -471,7 +470,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 3;
   int y = div->OffsetTop() + 5;
@@ -492,7 +491,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>abc</bdo>DEF</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 57;
   int y = div->OffsetTop() + 5;
@@ -513,7 +512,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>abc</bdo>DEF</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 63;
   int y = div->OffsetTop() + 5;
@@ -533,7 +532,7 @@ TEST_F(HitTestingBidiTest, InRtlBlockAtLineBoundaryLeftSideOfLeftEdgeOfOneRun) {
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>abc</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left - 3;
   int y = div->OffsetTop() + 5;
@@ -554,7 +553,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>abc</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 3;
   int y = div->OffsetTop() + 5;
@@ -575,7 +574,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>abc</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -596,7 +595,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>abc</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -618,7 +617,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo>ghi</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -640,7 +639,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo>ghi</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -662,7 +661,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>ghi<bdo "
       "dir=rtl>ABC</bdo>def</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 57;
   int y = div->OffsetTop() + 5;
@@ -684,7 +683,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>ghi<bdo "
       "dir=rtl>ABC</bdo>def</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 63;
   int y = div->OffsetTop() + 5;
@@ -705,7 +704,7 @@ TEST_F(HitTestingBidiTest, InRtlBlockLtrBaseRunLeftSideOfLeftEdgeOfOneRun) {
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -726,7 +725,7 @@ TEST_F(HitTestingBidiTest, InRtlBlockLtrBaseRunRightSideOfLeftEdgeOfOneRun) {
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -747,7 +746,7 @@ TEST_F(HitTestingBidiTest, InRtlBlockLtrBaseRunLeftSideOfRightEdgeOfOneRun) {
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -768,7 +767,7 @@ TEST_F(HitTestingBidiTest, InRtlBlockLtrBaseRunRightSideOfRightEdgeOfOneRun) {
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -789,7 +788,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>GHI<bdo dir=ltr>abc</bdo>DEF</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -810,7 +809,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>GHI<bdo dir=ltr>abc</bdo>DEF</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -831,7 +830,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 57;
   int y = div->OffsetTop() + 5;
@@ -852,7 +851,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 63;
   int y = div->OffsetTop() + 5;
@@ -872,7 +871,7 @@ TEST_F(HitTestingBidiTest, InRtlBlockRtlBaseRunLeftSideOfLeftEdgeOfOneRun) {
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>abc</bdo>DEF</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -892,7 +891,7 @@ TEST_F(HitTestingBidiTest, InRtlBlockRtlBaseRunRightSideOfLeftEdgeOfOneRun) {
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>abc</bdo>DEF</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -912,7 +911,7 @@ TEST_F(HitTestingBidiTest, InRtlBlockRtlBaseRunLeftSideOfRightEdgeOfOneRun) {
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -932,7 +931,7 @@ TEST_F(HitTestingBidiTest, InRtlBlockRtlBaseRunRightSideOfRightEdgeOfOneRun) {
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -954,7 +953,7 @@ TEST_F(
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo></bdo>ghi</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() - 3;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -975,7 +974,7 @@ TEST_F(
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo></bdo>ghi</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 3;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -996,7 +995,7 @@ TEST_F(
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr>ghi<bdo dir=rtl><bdo dir=ltr>abc</bdo>DEF</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 87;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1017,7 +1016,7 @@ TEST_F(
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr>ghi<bdo dir=rtl><bdo dir=ltr>abc</bdo>DEF</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 93;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1037,7 +1036,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() - 3;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1057,7 +1056,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 3;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1077,7 +1076,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr>abc</bdo>DEF</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 57;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1097,7 +1096,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr>abc</bdo>DEF</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 63;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1117,7 +1116,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr>ghi<bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo></bdo>jkl</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1137,7 +1136,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr>ghi<bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo></bdo>jkl</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1157,7 +1156,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr>jkl<bdo dir=rtl><bdo dir=ltr>abc</bdo>DEF</bdo>ghi</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 87;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1177,7 +1176,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr>jkl<bdo dir=rtl><bdo dir=ltr>abc</bdo>DEF</bdo>ghi</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 93;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1197,7 +1196,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr>ghi<bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1217,7 +1216,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr>ghi<bdo dir=rtl>DEF<bdo dir=ltr>abc</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1237,7 +1236,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr>abc</bdo>DEF</bdo>ghi</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 57;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1257,7 +1256,7 @@ TEST_F(HitTestingBidiTest,
   InsertStyleElement("div {font: 10px/10px Ahem; width: 300px}");
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr>abc</bdo>DEF</bdo>ghi</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 63;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1278,7 +1277,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>JKL<bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1299,7 +1298,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>JKL<bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1320,7 +1319,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>GHI<bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 87;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1341,7 +1340,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>GHI<bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 93;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1362,7 +1361,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1383,7 +1382,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1404,7 +1403,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>GHI<bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 57;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1425,7 +1424,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>GHI<bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 63;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -1447,7 +1446,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>GHI<bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left - 3;
   int y = div->OffsetTop() + 5;
@@ -1470,7 +1469,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>GHI<bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 3;
   int y = div->OffsetTop() + 5;
@@ -1493,7 +1492,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 87;
   int y = div->OffsetTop() + 5;
@@ -1516,7 +1515,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 93;
   int y = div->OffsetTop() + 5;
@@ -1538,7 +1537,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left - 3;
   int y = div->OffsetTop() + 5;
@@ -1560,7 +1559,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 3;
   int y = div->OffsetTop() + 5;
@@ -1582,7 +1581,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 57;
   int y = div->OffsetTop() + 5;
@@ -1604,7 +1603,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 63;
   int y = div->OffsetTop() + 5;
@@ -1626,7 +1625,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>ghi<bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>jkl</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -1648,7 +1647,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>ghi<bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>jkl</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -1670,7 +1669,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>jkl<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo>ghi</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 87;
   int y = div->OffsetTop() + 5;
@@ -1692,7 +1691,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>jkl<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo>ghi</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 93;
   int y = div->OffsetTop() + 5;
@@ -1714,7 +1713,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>ghi<bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -1736,7 +1735,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>ghi<bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -1758,7 +1757,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo>ghi</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 57;
   int y = div->OffsetTop() + 5;
@@ -1780,7 +1779,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo>ghi</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 63;
   int y = div->OffsetTop() + 5;
@@ -1802,7 +1801,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>JKL<bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -1824,7 +1823,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>JKL<bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -1846,7 +1845,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>GHI<bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 87;
   int y = div->OffsetTop() + 5;
@@ -1868,7 +1867,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>GHI<bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 93;
   int y = div->OffsetTop() + 5;
@@ -1890,7 +1889,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -1912,7 +1911,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -1934,7 +1933,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>GHI<bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 57;
   int y = div->OffsetTop() + 5;
@@ -1956,7 +1955,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>GHI<bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 63;
   int y = div->OffsetTop() + 5;
@@ -1979,7 +1978,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>GHI<bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo></bdo>jkl</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() - 3;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2001,7 +2000,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>GHI<bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo></bdo>jkl</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 3;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2023,7 +2022,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=ltr>jkl<bdo dir=rtl><bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 117;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2045,7 +2044,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=ltr>jkl<bdo dir=rtl><bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 123;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2066,7 +2065,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>GHI<bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() - 3;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2087,7 +2086,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>GHI<bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 3;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2108,7 +2107,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 87;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2129,7 +2128,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo>GHI</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 93;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2150,7 +2149,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr>jkl<bdo dir=rtl>GHI<bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo></bdo>mno</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2171,7 +2170,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr>jkl<bdo dir=rtl>GHI<bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo></bdo>mno</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2192,7 +2191,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr>mno<bdo dir=rtl><bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo>GHI</bdo>jkl</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 117;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2214,7 +2213,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=ltr>mno<bdo dir=rtl><bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo>GHI</bdo>jkl</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 123;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2235,7 +2234,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr>jkl<bdo dir=rtl>GHI<bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2256,7 +2255,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr>jkl<bdo dir=rtl>GHI<bdo dir=ltr><bdo "
       "dir=rtl>ABC</bdo>def</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2277,7 +2276,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo>GHI</bdo>jkl</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 87;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2298,7 +2297,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr>def<bdo "
       "dir=rtl>ABC</bdo></bdo>GHI</bdo>jkl</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 93;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2319,7 +2318,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>MNO<bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2341,7 +2340,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>MNO<bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2363,7 +2362,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>JKL<bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>MNO</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 117;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2385,7 +2384,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>JKL<bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>MNO</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 123;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2406,7 +2405,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2428,7 +2427,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2450,7 +2449,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>JKL<bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 87;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2471,7 +2470,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>JKL<bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 93;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -2493,7 +2492,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>JKL<bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left - 3;
   int y = div->OffsetTop() + 5;
@@ -2516,7 +2515,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>JKL<bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 3;
   int y = div->OffsetTop() + 5;
@@ -2539,7 +2538,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 117;
   int y = div->OffsetTop() + 5;
@@ -2562,7 +2561,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 123;
   int y = div->OffsetTop() + 5;
@@ -2584,7 +2583,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left - 3;
   int y = div->OffsetTop() + 5;
@@ -2606,7 +2605,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 3;
   int y = div->OffsetTop() + 5;
@@ -2628,7 +2627,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 87;
   int y = div->OffsetTop() + 5;
@@ -2650,7 +2649,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 93;
   int y = div->OffsetTop() + 5;
@@ -2672,7 +2671,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>jkl<bdo dir=rtl>GHI<bdo "
       "dir=ltr><bdo dir=rtl>ABC</bdo>def</bdo></bdo>mno</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -2695,7 +2694,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>jkl<bdo dir=rtl>GHI<bdo "
       "dir=ltr><bdo dir=rtl>ABC</bdo>def</bdo></bdo>mno</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -2718,7 +2717,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>mno<bdo dir=rtl><bdo "
       "dir=ltr>def<bdo dir=rtl>ABC</bdo></bdo>GHI</bdo>jkl</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 117;
   int y = div->OffsetTop() + 5;
@@ -2742,7 +2741,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>mno<bdo dir=rtl><bdo "
       "dir=ltr>def<bdo dir=rtl>ABC</bdo></bdo>GHI</bdo>jkl</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 123;
   int y = div->OffsetTop() + 5;
@@ -2765,7 +2764,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>jkl<bdo dir=rtl>GHI<bdo "
       "dir=ltr><bdo dir=rtl>ABC</bdo>def</bdo></bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -2788,7 +2787,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>jkl<bdo dir=rtl>GHI<bdo "
       "dir=ltr><bdo dir=rtl>ABC</bdo>def</bdo></bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -2811,7 +2810,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl><bdo "
       "dir=ltr>def<bdo dir=rtl>ABC</bdo></bdo>GHI</bdo>jkl</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 87;
   int y = div->OffsetTop() + 5;
@@ -2834,7 +2833,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl><bdo "
       "dir=ltr>def<bdo dir=rtl>ABC</bdo></bdo>GHI</bdo>jkl</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 93;
   int y = div->OffsetTop() + 5;
@@ -2857,7 +2856,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>MNO<bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -2880,7 +2879,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>MNO<bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -2903,7 +2902,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>JKL<bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>MNO</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 117;
   int y = div->OffsetTop() + 5;
@@ -2926,7 +2925,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>JKL<bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>MNO</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 123;
   int y = div->OffsetTop() + 5;
@@ -2948,7 +2947,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -2971,7 +2970,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -2994,7 +2993,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>JKL<bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 87;
   int y = div->OffsetTop() + 5;
@@ -3016,7 +3015,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>JKL<bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 93;
   int y = div->OffsetTop() + 5;
@@ -3039,7 +3038,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>JKL<bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo></bdo>mno</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() - 3;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3062,7 +3061,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>JKL<bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo></bdo>mno</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 3;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3085,7 +3084,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=ltr>mno<bdo dir=rtl><bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 147;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3107,7 +3106,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=ltr>mno<bdo dir=rtl><bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 153;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3128,7 +3127,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>JKL<bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() - 3;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3149,7 +3148,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>JKL<bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 3;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3170,7 +3169,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 117;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3191,7 +3190,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>JKL</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 123;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3212,7 +3211,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr>mno<bdo dir=rtl>JKL<bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo></bdo>pqr</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3233,7 +3232,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr>mno<bdo dir=rtl>JKL<bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo></bdo>pqr</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3255,7 +3254,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr>pqr<bdo dir=rtl><bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>JKL</bdo>mno</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 147;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3277,7 +3276,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr>pqr<bdo dir=rtl><bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>JKL</bdo>mno</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 153;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3299,7 +3298,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr>mno<bdo dir=rtl>JKL<bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3320,7 +3319,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr>mno<bdo dir=rtl>JKL<bdo dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3341,7 +3340,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>JKL</bdo>mno</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 117;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3363,7 +3362,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>JKL</bdo>mno</div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 123;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3385,7 +3384,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>PQR<bdo dir=ltr><bdo dir=rtl>GHI<bdo "
       "dir=ltr><bdo dir=rtl>ABC</bdo>def</bdo></bdo>jkl</bdo>MNO</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3407,7 +3406,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>PQR<bdo dir=ltr><bdo dir=rtl>GHI<bdo "
       "dir=ltr><bdo dir=rtl>ABC</bdo>def</bdo></bdo>jkl</bdo>MNO</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3429,7 +3428,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>MNO<bdo dir=ltr>jkl<bdo dir=rtl><bdo "
       "dir=ltr>def<bdo dir=rtl>ABC</bdo></bdo>GHI</bdo></bdo>PQR</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 147;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3451,7 +3450,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>MNO<bdo dir=ltr>jkl<bdo dir=rtl><bdo "
       "dir=ltr>def<bdo dir=rtl>ABC</bdo></bdo>GHI</bdo></bdo>PQR</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 153;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3473,7 +3472,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl>GHI<bdo "
       "dir=ltr><bdo dir=rtl>ABC</bdo>def</bdo></bdo>jkl</bdo>MNO</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 27;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3495,7 +3494,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl>GHI<bdo "
       "dir=ltr><bdo dir=rtl>ABC</bdo>def</bdo></bdo>jkl</bdo>MNO</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 33;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3517,7 +3516,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>MNO<bdo dir=ltr>jkl<bdo dir=rtl><bdo "
       "dir=ltr>def<bdo dir=rtl>ABC</bdo></bdo>GHI</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 117;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3539,7 +3538,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=ltr><bdo dir=rtl>MNO<bdo dir=ltr>jkl<bdo dir=rtl><bdo "
       "dir=ltr>def<bdo dir=rtl>ABC</bdo></bdo>GHI</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int x = div->OffsetLeft() + 123;
   int y = div->OffsetTop() + 5;
   const EphemeralRange result(GetDocument().caretRangeFromPoint(x, y));
@@ -3562,7 +3561,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>MNO<bdo dir=ltr><bdo dir=rtl>GHI<bdo "
       "dir=ltr><bdo dir=rtl>ABC</bdo>def</bdo></bdo>jkl</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left - 3;
   int y = div->OffsetTop() + 5;
@@ -3586,7 +3585,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>MNO<bdo dir=ltr><bdo dir=rtl>GHI<bdo "
       "dir=ltr><bdo dir=rtl>ABC</bdo>def</bdo></bdo>jkl</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 3;
   int y = div->OffsetTop() + 5;
@@ -3610,7 +3609,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>jkl<bdo dir=rtl><bdo "
       "dir=ltr>def<bdo dir=rtl>ABC</bdo></bdo>GHI</bdo></bdo>MNO</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 147;
   int y = div->OffsetTop() + 5;
@@ -3634,7 +3633,7 @@ TEST_F(
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>jkl<bdo dir=rtl><bdo "
       "dir=ltr>def<bdo dir=rtl>ABC</bdo></bdo>GHI</bdo></bdo>MNO</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 153;
   int y = div->OffsetTop() + 5;
@@ -3657,7 +3656,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl>GHI<bdo "
       "dir=ltr><bdo dir=rtl>ABC</bdo>def</bdo></bdo>jkl</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left - 3;
   int y = div->OffsetTop() + 5;
@@ -3680,7 +3679,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl>GHI<bdo "
       "dir=ltr><bdo dir=rtl>ABC</bdo>def</bdo></bdo>jkl</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 3;
   int y = div->OffsetTop() + 5;
@@ -3703,7 +3702,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>jkl<bdo dir=rtl><bdo "
       "dir=ltr>def<bdo dir=rtl>ABC</bdo></bdo>GHI</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 117;
   int y = div->OffsetTop() + 5;
@@ -3726,7 +3725,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>jkl<bdo dir=rtl><bdo "
       "dir=ltr>def<bdo dir=rtl>ABC</bdo></bdo>GHI</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 123;
   int y = div->OffsetTop() + 5;
@@ -3750,7 +3749,7 @@ TEST_F(HitTestingBidiTest,
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>mno<bdo dir=rtl>JKL<bdo "
       "dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo></bdo>pqr</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -3774,7 +3773,7 @@ TEST_F(HitTestingBidiTest,
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>mno<bdo dir=rtl>JKL<bdo "
       "dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo></bdo>pqr</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -3798,7 +3797,7 @@ TEST_F(HitTestingBidiTest,
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>pqr<bdo dir=rtl><bdo "
       "dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>JKL</bdo>mno</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 147;
   int y = div->OffsetTop() + 5;
@@ -3822,7 +3821,7 @@ TEST_F(HitTestingBidiTest,
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>pqr<bdo dir=rtl><bdo "
       "dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>JKL</bdo>mno</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 153;
   int y = div->OffsetTop() + 5;
@@ -3846,7 +3845,7 @@ TEST_F(HitTestingBidiTest,
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>mno<bdo dir=rtl>JKL<bdo "
       "dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo></bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -3870,7 +3869,7 @@ TEST_F(HitTestingBidiTest,
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr>mno<bdo dir=rtl>JKL<bdo "
       "dir=ltr><bdo dir=rtl>DEF<bdo "
       "dir=ltr>abc</bdo></bdo>ghi</bdo></bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -3894,7 +3893,7 @@ TEST_F(HitTestingBidiTest,
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl><bdo "
       "dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>JKL</bdo>mno</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 117;
   int y = div->OffsetTop() + 5;
@@ -3918,7 +3917,7 @@ TEST_F(HitTestingBidiTest,
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl><bdo "
       "dir=ltr>ghi<bdo dir=rtl><bdo "
       "dir=ltr>abc</bdo>DEF</bdo></bdo>JKL</bdo>mno</bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 123;
   int y = div->OffsetTop() + 5;
@@ -3941,7 +3940,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>PQR<bdo dir=ltr><bdo dir=rtl>GHI<bdo "
       "dir=ltr><bdo dir=rtl>ABC</bdo>def</bdo></bdo>jkl</bdo>MNO</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -3964,7 +3963,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>PQR<bdo dir=ltr><bdo dir=rtl>GHI<bdo "
       "dir=ltr><bdo dir=rtl>ABC</bdo>def</bdo></bdo>jkl</bdo>MNO</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -3987,7 +3986,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>MNO<bdo dir=ltr>jkl<bdo dir=rtl><bdo "
       "dir=ltr>def<bdo dir=rtl>ABC</bdo></bdo>GHI</bdo></bdo>PQR</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 147;
   int y = div->OffsetTop() + 5;
@@ -4010,7 +4009,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>MNO<bdo dir=ltr>jkl<bdo dir=rtl><bdo "
       "dir=ltr>def<bdo dir=rtl>ABC</bdo></bdo>GHI</bdo></bdo>PQR</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 153;
   int y = div->OffsetTop() + 5;
@@ -4033,7 +4032,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl>GHI<bdo "
       "dir=ltr><bdo dir=rtl>ABC</bdo>def</bdo></bdo>jkl</bdo>MNO</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 27;
   int y = div->OffsetTop() + 5;
@@ -4056,7 +4055,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl><bdo dir=ltr><bdo dir=rtl>GHI<bdo "
       "dir=ltr><bdo dir=rtl>ABC</bdo>def</bdo></bdo>jkl</bdo>MNO</bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 33;
   int y = div->OffsetTop() + 5;
@@ -4079,7 +4078,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>MNO<bdo dir=ltr>jkl<bdo dir=rtl><bdo "
       "dir=ltr>def<bdo dir=rtl>ABC</bdo></bdo>GHI</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 117;
   int y = div->OffsetTop() + 5;
@@ -4102,7 +4101,7 @@ TEST_F(HitTestingBidiTest,
   SetBodyContent(
       "<div dir=rtl><bdo dir=rtl>MNO<bdo dir=ltr>jkl<bdo dir=rtl><bdo "
       "dir=ltr>def<bdo dir=rtl>ABC</bdo></bdo>GHI</bdo></bdo></bdo></div>");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* div = QuerySelector("div");
   int text_left = div->OffsetLeft() + 300 - div->textContent().length() * 10;
   int x = text_left + 123;
   int y = div->OffsetTop() + 5;

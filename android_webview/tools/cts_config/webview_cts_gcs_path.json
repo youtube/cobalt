@@ -1,195 +1,4 @@
 {
-  "M": {
-    "git": {
-      "tag_prefix": "android-cts-6.0"
-    },
-    "arch": {
-      "arm64": {
-        "filename": "arm64/M/android-cts-arm64-6.0_r32.zip",
-        "_origin": "https://dl.google.com/dl/android/cts/android-cts-6.0_r32-linux_x86-arm.zip",
-        "unzip_dir": "arm64/M/6.0_r32/"
-      },
-      "x86": {
-        "filename": "x86/M/android-cts-x86-6.0_r32.zip",
-        "_origin": "https://dl.google.com/dl/android/cts/android-cts-6.0_r32-linux_x86-x86.zip",
-        "unzip_dir": "x86/M/6.0_r32/"
-      }
-    },
-    "test_runs": [
-      {
-        "apk": "android-cts/repository/testcases/CtsWebkitTestCases.apk",
-        "excludes": [
-          {
-            "match": "android.webkit.cts.WebChromeClientTest#testOnJsBeforeUnloadIsCalled",
-            "_bug_id": "crbug.com/757007"
-          },
-          {
-            "match": "android.webkit.cts.WebViewClientTest#testDoUpdateVisitedHistory",
-            "_bug_id": "crbug.com/896022"
-          },
-          {
-            "match": "android.webkit.cts.WebViewClientTest#testLoadPage",
-            "_bug_id": "crbug.com/896022"
-          },
-          {
-            "match": "android.webkit.cts.WebViewClientTest#testOnFormResubmission",
-            "_bug_id": "crbug.com/896022"
-          },
-          {
-            "match": "android.webkit.cts.WebViewClientTest#testOnReceivedError",
-            "_bug_id": "crbug.com/896022"
-          },
-          {
-            "match": "android.webkit.cts.WebViewClientTest#testOnReceivedErrorForSubresource",
-            "_bug_id": "crbug.com/896022"
-          },
-          {
-            "match": "android.webkit.cts.WebViewClientTest#testOnReceivedHttpAuthRequest",
-            "_bug_id": "crbug.com/896022"
-          },
-          {
-            "match": "android.webkit.cts.WebViewClientTest#testOnReceivedHttpError",
-            "_bug_id": "crbug.com/896022"
-          },
-          {
-            "match": "android.webkit.cts.WebViewClientTest#testOnReceivedLoginRequest",
-            "_bug_id": "crbug.com/896022"
-          },
-          {
-            "match": "android.webkit.cts.WebViewClientTest#testOnScaleChanged",
-            "_bug_id": "crbug.com/896022"
-          },
-          {
-            "match": "android.webkit.cts.WebViewSslTest#testSecureServerRequiringClientCertDoesCancelRequest",
-            "_bug_id": "crbug.com/922400"
-          },
-          {
-            "match": "android.webkit.cts.WebViewClientTest#testShouldOverrideUrlLoading",
-            "_bug_id": "crbug.com/896022"
-          },
-          {
-            "match": "android.webkit.cts.WebViewClientTest#testShouldOverrideUrlLoadingOnCreateWindow",
-            "_bug_id": "crbug.com/896022"
-          },
-          {
-            "match": "android.webkit.cts.WebViewTest#testLoadDataWithBaseUrl",
-            "_bug_id": "crbug.com/900915"
-          },
-          {
-            "match": "android.webkit.cts.WebViewTest#testFlingScroll",
-            "_bug_id": "crbug.com/1230911"
-          },
-          {
-            "match": "android.webkit.cts.WebSettingsTest#testAppCacheEnabled",
-            "_bug_id": "crbug.com/1246334"
-          },
-          {
-            "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingHit",
-            "_bug_id": "crbug.com/1300977"
-          }
-        ]
-      },
-      {
-        "apk": "android-cts/repository/testcases/CtsWidgetTestCases.apk",
-        "includes": [
-          {
-            "match": "android.widget.cts.RemoteViewsActivityTest#testWebView"
-          }
-        ]
-      },
-      {
-        "apk": "android-cts/repository/testcases/CtsAssistTestCases.apk",
-        "voice_service": "android.assist.service/.MainInteractionService",
-        "additional_apks": [
-          {
-            "apk": "android-cts/repository/testcases/CtsAssistApp.apk"
-          },
-          {
-            "apk": "android-cts/repository/testcases/CtsAssistService.apk"
-          }
-        ],
-        "includes": [
-          {
-            "match": "android.assist.cts.WebViewTest#testWebView"
-          }
-        ]
-      },
-      {
-        "apk": "android-cts/repository/testcases/CtsTextTestCases.apk",
-        "includes": [
-          {
-            "match": "android.text.cts.EmojiTest#testEmojiGlyph"
-          }
-        ]
-      }
-    ]
-  },
-  "N": {
-    "git": {
-      "tag_prefix": "android-cts-7.0"
-    },
-    "arch": {
-      "arm64": {
-        "filename": "arm64/N/android-cts-arm64-7.0_r33.zip",
-        "_origin": "https://dl.google.com/dl/android/cts/android-cts-7.0_r33-linux_x86-arm.zip",
-        "unzip_dir": "arm64/N/7.0_r33/"
-      },
-      "x86": {
-        "filename": "x86/N/android-cts-x86-7.0_r33.zip",
-        "_origin": "https://dl.google.com/dl/android/cts/android-cts-7.0_r33-linux_x86-x86.zip",
-        "unzip_dir": "x86/N/7.0_r33/"
-      }
-    },
-    "test_runs": [
-      {
-        "apk": "android-cts/testcases/CtsWebkitTestCases.apk",
-        "excludes": [
-          {
-            "match": "android.webkit.cts.WebViewTest#testFlingScroll",
-            "_bug_id": "crbug.com/1230911"
-          },
-          {
-            "match": "android.webkit.cts.WebSettingsTest#testAppCacheEnabled",
-            "_bug_id": "crbug.com/1246334"
-          }
-        ]
-      },
-      {
-        "apk": "android-cts/testcases/CtsWidgetTestCases.apk",
-        "includes": [
-          {
-            "match": "android.widget.cts.RemoteViewsActivityTest#testWebView"
-          }
-        ]
-      },
-      {
-        "apk": "android-cts/testcases/CtsAssistTestCases.apk",
-        "voice_service": "android.assist.service/.MainInteractionService",
-        "additional_apks": [
-          {
-            "apk": "android-cts/testcases/CtsAssistApp.apk"
-          },
-          {
-            "apk": "android-cts/testcases/CtsAssistService.apk",
-            "force_full_mode": true
-          }
-        ],
-        "includes": [
-          {
-            "match": "android.assist.cts.WebViewTest#testWebView"
-          }
-        ]
-      },
-      {
-        "apk": "android-cts/testcases/CtsTextTestCases.apk",
-        "includes": [
-          {
-            "match": "android.text.cts.EmojiTest#testEmojiGlyph"
-          }
-        ]
-      }
-    ]
-  },
   "O": {
     "git": {
       "tag_prefix": "android-cts-8.0"
@@ -208,42 +17,26 @@
     },
     "test_runs": [
       {
-        "apk": "android-cts/testcases/CtsWebkitTestCases.apk"
+        "apk": "android-cts/testcases/CtsWebkitTestCases.apk",
+        "excludes": [
+          {
+            "match": "android.webkit.cts.WebViewTest#testPageScroll",
+            "_bug_id": "crbug.com/1482550"
+          },
+          {
+            "match": "android.webkit.cts.WebViewTest#testLoadUrl",
+            "_bug_id": "crbug.com/1450170"
+          }
+        ]
       },
       {
         "apk": "android-cts/testcases/CtsWebViewStartupApp.apk"
-      },
-      {
-        "apk": "android-cts/testcases/CtsAssistTestCases.apk",
-        "voice_service": "android.assist.service/.MainInteractionService",
-        "additional_apks": [
-          {
-            "apk": "android-cts/testcases/CtsAssistApp.apk"
-          },
-          {
-            "apk": "android-cts/testcases/CtsAssistService.apk",
-            "force_full_mode": true
-          }
-        ],
-        "includes": [
-          {
-            "match": "android.assist.cts.WebViewTest#testWebView"
-          }
-        ]
       },
       {
         "apk": "android-cts/testcases/CtsWidgetTestCases.apk",
         "includes": [
           {
             "match": "android.widget.cts.RemoteViewsActivityTest#testWebView"
-          }
-        ]
-      },
-      {
-        "apk": "android-cts/testcases/CtsTextTestCases.apk",
-        "includes": [
-          {
-            "match": "android.text.cts.EmojiTest#testEmojiGlyph"
           }
         ]
       }
@@ -270,35 +63,25 @@
         "apk": "android-cts/testcases/CtsWebkitTestCases.apk",
         "excludes": [
           {
+            "match": "android.webkit.cts.WebViewTest#testPageScroll",
+            "_bug_id": "crbug.com/1482550"
+          },
+          {
             "match": "android.webkit.cts.WebViewClientTest#testShouldOverrideUrlLoadingOnCreateWindow",
             "_bug_id": "crbug.com/1100950"
           },
           {
             "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingHit",
             "_bug_id": "crbug.com/1245351"
+          },
+          {
+            "match": "android.webkit.cts.WebViewTest#testLoadUrl",
+            "_bug_id": "crbug.com/1450170"
           }
         ]
       },
       {
         "apk": "android-cts/testcases/CtsWebViewStartupApp.apk"
-      },
-      {
-        "apk": "android-cts/testcases/CtsAssistTestCases.apk",
-        "voice_service": "android.assist.service/.MainInteractionService",
-        "additional_apks": [
-          {
-            "apk": "android-cts/testcases/CtsAssistApp.apk"
-          },
-          {
-            "apk": "android-cts/testcases/CtsAssistService.apk",
-            "force_full_mode": true
-          }
-        ],
-        "includes": [
-          {
-            "match": "android.assist.cts.WebViewTest#testWebView"
-          }
-        ]
       },
       {
         "apk": "android-cts/testcases/CtsWidgetTestCases.apk",
@@ -316,20 +99,24 @@
     },
     "arch": {
       "arm64": {
-        "filename": "arm64/Q/android-cts-arm64-10_r15.zip",
-        "_origin": "https://dl.google.com/dl/android/cts/android-cts-10_r15-linux_x86-arm.zip",
-        "unzip_dir": "arm64/Q/10_r15"
+        "filename": "arm64/Q/android-cts-arm64-10_r16.zip",
+        "_origin": "https://dl.google.com/dl/android/cts/android-cts-10_r16-linux_x86-arm.zip",
+        "unzip_dir": "arm64/Q/10_r16"
       },
       "x86": {
-        "filename": "x86/Q/android-cts-x86-10_r15.zip",
-        "_origin": "https://dl.google.com/dl/android/cts/android-cts-10_r15-linux_x86-x86.zip",
-        "unzip_dir": "x86/Q/10_r15"
+        "filename": "x86/Q/android-cts-x86-10_r16.zip",
+        "_origin": "https://dl.google.com/dl/android/cts/android-cts-10_r16-linux_x86-x86.zip",
+        "unzip_dir": "x86/Q/10_r16"
       }
     },
     "test_runs": [
       {
         "apk": "android-cts/testcases/CtsWebkitTestCases.apk",
         "excludes": [
+          {
+            "match": "android.webkit.cts.WebViewTest#testPageScroll",
+            "_bug_id": "crbug.com/1482550"
+          },
           {
             "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingMalwareCode",
             "_bug_id": "crbug.com/1245351"
@@ -349,6 +136,10 @@
           {
             "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingHitBackToSafety",
             "_bug_id": "crbug.com/1245351"
+          },
+          {
+            "match": "android.webkit.cts.WebViewTest#testLoadUrl",
+            "_bug_id": "crbug.com/1450170"
           }
         ]
       },
@@ -367,24 +158,6 @@
         "includes": [
           {
             "match": "android.widget.cts.RemoteViewsActivityTest#testWebView"
-          }
-        ]
-      },
-      {
-        "apk": "android-cts/testcases/CtsAssistTestCases.apk",
-        "voice_service": "android.assist.service/.MainInteractionService",
-        "additional_apks": [
-          {
-            "apk": "android-cts/testcases/CtsAssistApp.apk"
-          },
-          {
-            "apk": "android-cts/testcases/CtsAssistService.apk",
-            "force_full_mode": true
-          }
-        ],
-        "includes": [
-          {
-            "match": "android.assist.cts.WebViewTest#testWebView"
           }
         ]
       },
@@ -404,20 +177,24 @@
     },
     "arch": {
       "arm64": {
-        "filename": "arm64/R/android-cts-arm64-11_r11.zip",
-        "_origin": "https://dl.google.com/dl/android/cts/android-cts-11_r11-linux_x86-arm.zip",
-        "unzip_dir": "arm64/R/11_r11/"
+        "filename": "arm64/R/android-cts-arm64-11_r16.zip",
+        "_origin": "https://dl.google.com/dl/android/cts/android-cts-11_r16-linux_x86-arm.zip",
+        "unzip_dir": "arm64/R/11_r16/"
       },
       "x86": {
-        "filename": "x86/R/android-cts-x86-11_r11.zip",
-        "_origin": "https://dl.google.com/dl/android/cts/android-cts-11_r11-linux_x86-x86.zip",
-        "unzip_dir": "x86/R/11_r11/"
+        "filename": "x86/R/android-cts-x86-11_r16.zip",
+        "_origin": "https://dl.google.com/dl/android/cts/android-cts-11_r16-linux_x86-x86.zip",
+        "unzip_dir": "x86/R/11_r16/"
       }
     },
     "test_runs": [
       {
         "apk": "android-cts/testcases/CtsWebkitTestCases.apk",
         "excludes": [
+          {
+            "match": "android.webkit.cts.WebViewTest#testPageScroll",
+            "_bug_id": "crbug.com/1482550"
+          },
           {
             "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingMalwareCode",
             "_bug_id": "crbug.com/1245351"
@@ -455,23 +232,6 @@
         "includes": [
           {
             "match": "android.widget.cts.RemoteViewsActivityTest#testWebView"
-          }
-        ]
-      },
-      {
-        "apk": "android-cts/testcases/CtsAssistTestCases.apk",
-        "additional_apks": [
-          {
-            "apk": "android-cts/testcases/CtsAssistApp.apk"
-          },
-          {
-            "apk": "android-cts/testcases/CtsAssistService.apk",
-            "force_full_mode": true
-          }
-        ],
-        "includes": [
-          {
-            "match": "android.assist.cts.WebViewTest#testWebView"
           }
         ]
       },
@@ -540,20 +300,24 @@
     },
     "arch": {
       "arm64": {
-        "filename": "arm64/S/android-cts-arm64-12_r7.zip",
-        "_origin": "https://dl.google.com/dl/android/cts/android-cts-12_r7-linux_x86-arm.zip",
-        "unzip_dir": "arm64/S/12_r7/"
+        "filename": "arm64/S/android-cts-arm64-12_r14.zip",
+        "_origin": "https://dl.google.com/dl/android/cts/android-cts-12_r14-linux_x86-arm.zip",
+        "unzip_dir": "arm64/S/12_r14/"
       },
       "x86": {
-        "filename": "x86/S/android-cts-x86-12_r7.zip",
-        "_origin": "https://dl.google.com/dl/android/cts/android-cts-12_r7-linux_x86-x86.zip",
-        "unzip_dir": "x86/S/12_r7/"
+        "filename": "x86/S/android-cts-x86-12_r14.zip",
+        "_origin": "https://dl.google.com/dl/android/cts/android-cts-12_r14-linux_x86-x86.zip",
+        "unzip_dir": "x86/S/12_r14/"
       }
     },
     "test_runs": [
       {
         "apk": "android-cts/testcases/CtsWebkitTestCases.apk",
         "excludes": [
+          {
+            "match": "android.webkit.cts.WebViewTest#testPageScroll",
+            "_bug_id": "crbug.com/1482550"
+          },
           {
             "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingMalwareCode",
             "_bug_id": "crbug.com/1245351"
@@ -639,23 +403,6 @@
         ]
       },
       {
-        "apk": "android-cts/testcases/CtsAssistTestCases.apk",
-        "additional_apks": [
-          {
-            "apk": "android-cts/testcases/CtsAssistApp.apk"
-          },
-          {
-            "apk": "android-cts/testcases/CtsAssistService.apk",
-            "force_full_mode": true
-          }
-        ],
-        "includes": [
-          {
-            "match": "android.assist.cts.WebViewTest#testWebView"
-          }
-        ]
-      },
-      {
         "apk": "android-cts/testcases/CtsInputMethodTestCases.apk",
         "additional_apks": [
           {
@@ -703,20 +450,24 @@
     },
     "arch": {
       "arm64": {
-        "filename": "arm64/T/android-cts-arm64-13_r3.zip",
-        "_origin": "https://dl.google.com/dl/android/cts/android-cts-13_r3-linux_x86-arm.zip",
-        "unzip_dir": "arm64/T/13_r3/"
+        "filename": "arm64/T/android-cts-arm64-13_r10.zip",
+        "_origin": "https://dl.google.com/dl/android/cts/android-cts-13_r10-linux_x86-arm.zip",
+        "unzip_dir": "arm64/T/13_r10/"
       },
       "x86": {
-        "filename": "x86/T/android-cts-x86-13_r3.zip",
-        "_origin": "https://dl.google.com/dl/android/cts/android-cts-13_r3-linux_x86-x86.zip",
-        "unzip_dir": "x86/T/13_r3/"
+        "filename": "x86/T/android-cts-x86-13_r10.zip",
+        "_origin": "https://dl.google.com/dl/android/cts/android-cts-13_r10-linux_x86-x86.zip",
+        "unzip_dir": "x86/T/13_r10/"
       }
     },
     "test_runs": [
       {
         "apk": "android-cts/testcases/CtsWebkitTestCases.apk",
         "excludes": [
+          {
+            "match": "android.webkit.cts.WebViewTest#testPageScroll",
+            "_bug_id": "crbug.com/1482550"
+          },
           {
             "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingMalwareCode",
             "_bug_id": "crbug.com/1245351"
@@ -736,14 +487,6 @@
           {
             "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingHitBackToSafety",
             "_bug_id": "crbug.com/1245351"
-          },
-          {
-            "match": "android.webkit.cts.PacProcessorTest#testSetNetwork",
-            "_bug_id": "crbug.com/1368663"
-          },
-          {
-            "match": "android.webkit.cts.WebViewTest#testSetNetworkAvailable",
-            "_bug_id": "crbug.com/1368663"
           }
         ]
       },
@@ -810,20 +553,275 @@
         ]
       },
       {
-        "apk": "android-cts/testcases/CtsAssistTestCases.apk",
-        "additional_apks": [
+        "apk": "android-cts/testcases/CtsWidgetTestCases.apk",
+        "includes": [
           {
-            "apk": "android-cts/testcases/CtsAssistApp.apk"
+            "match": "android.widget.cts.RemoteViewsActivityTest#testWebView"
+          }
+        ]
+      },
+      {
+        "apk": "android-cts/testcases/CtsTextTestCases.apk",
+        "includes": [
+          {
+            "match": "android.text.cts.EmojiTest#testEmojiGlyphWebView"
+          }
+        ]
+      }
+    ]
+  },
+  "U": {
+    "git": {
+      "tag_prefix": "android-cts-14.0"
+    },
+    "arch": {
+      "arm64": {
+        "filename": "arm64/U/android-cts-arm64-14_r6.zip",
+        "_origin": "https://dl.google.com/dl/android/cts/android-cts-14_r6-linux_x86-arm.zip",
+        "unzip_dir": "arm64/U/14_r6/"
+      },
+      "x86": {
+        "filename": "x86/U/android-cts-x86-14_r6.zip",
+        "_origin": "https://dl.google.com/dl/android/cts/android-cts-14_r6-linux_x86-x86.zip",
+        "unzip_dir": "x86/U/14_r6/"
+      }
+    },
+    "test_runs": [
+      {
+        "apk": "android-cts/testcases/CtsWebkitTestCases.apk",
+        "excludes": [
+          {
+            "match": "android.webkit.cts.PacProcessorTest#testSetNetwork",
+            "arch": "arm64",
+            "_bug_id": "crbug.com/352385377"
           },
           {
-            "apk": "android-cts/testcases/CtsAssistService.apk",
+            "match": "android.webkit.cts.WebViewTest#testPageScroll",
+            "_bug_id": "crbug.com/1482550"
+          },
+          {
+            "match": "android.webkit.cts.WebViewTest#testSetNetworkAvailable",
+            "arch": "arm64",
+            "_bug_id": "crbug.com/352385377"
+          },
+          {
+            "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingMalwareCode",
+            "_bug_id": "crbug.com/1245351"
+          },
+          {
+            "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingPhishingCode",
+            "_bug_id": "crbug.com/1245351"
+          },
+          {
+            "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingUnwantedSoftwareCode",
+            "_bug_id": "crbug.com/1245351"
+          },
+          {
+            "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingBillingCode",
+            "_bug_id": "crbug.com/1245351"
+          },
+          {
+            "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingHitBackToSafety",
+            "_bug_id": "crbug.com/1245351"
+          }
+        ]
+      },
+      {
+        "apk": "android-cts/testcases/CtsWebViewStartupApp.apk",
+        "excludes": [
+          {
+            "match": "com.android.cts.webkit.WebViewDeviceSideStartupTest#testCookieManagerBlockingUiThread",
+            "mode": "instant",
+            "_bug_id": "crbug.com/1326440"
+          }
+        ]
+      },
+      {
+        "apk": "android-cts/testcases/CtsAutoFillServiceTestCases.apk",
+        "additional_apks": [
+          {
+            "apk": "android-cts/testcases/CtsMockInputMethod.apk",
+            "forced_queryable": true,
             "force_full_mode": true
           }
         ],
         "includes": [
           {
-            "match": "android.assist.cts.WebViewTest#testWebView"
+            "match": "android.autofillservice.cts.dropdown.WebViewActivityTest#*"
+          },
+          {
+            "match": "android.autofillservice.cts.servicebehavior.WebViewMultiScreenLoginActivityTest#*"
+          },
+          {
+            "match": "android.autofillservice.cts.inline.InlineAugmentedWebViewActivityTest#*"
+          },
+          {
+            "match": "android.autofillservice.cts.inline.InlineWebViewActivityTest#*"
           }
+        ],
+        "excludes": [
+          {
+            "match": "android.autofillservice.cts.dropdown.WebViewActivityTest#testAutofillAndSave",
+            "_bug_id": "crbug.com/1369088"
+          },
+          {
+            "match": "android.autofillservice.cts.dropdown.WebViewActivityTest#testAutofillAndSave_withExternalViews_loadWebViewFirst",
+            "_bug_id": "crbug.com/1369088"
+          },
+          {
+            "match": "android.autofillservice.cts.dropdown.WebViewActivityTest#testSaveOnly",
+            "_bug_id": "crbug.com/1369088"
+          },
+          {
+            "match": "android.autofillservice.cts.servicebehavior.WebViewMultiScreenLoginActivityTest#testSave_bothFieldsAtOnce",
+            "_bug_id": "crbug.com/1369088"
+          },
+          {
+            "match": "android.autofillservice.cts.servicebehavior.WebViewMultiScreenLoginActivityTest#testSave_eachFieldSeparately",
+            "_bug_id": "crbug.com/1369088"
+          }
+        ],
+        "setup_commands": [
+          "cmd autofill set bind-instant-service-allowed true"
+        ],
+        "teardown_commands": [
+          "cmd autofill set bind-instant-service-allowed false"
+        ]
+      },
+      {
+        "apk": "android-cts/testcases/CtsWidgetTestCases.apk",
+        "includes": [
+          {
+            "match": "android.widget.cts.RemoteViewsActivityTest#testWebView"
+          }
+        ]
+      },
+      {
+        "apk": "android-cts/testcases/CtsTextTestCases.apk",
+        "includes": [
+          {
+            "match": "android.text.cts.EmojiTest#testEmojiGlyphWebView"
+          }
+        ]
+      }
+    ]
+  },
+  "V": {
+    "git": {
+      "tag_prefix": "android-cts-15.0"
+    },
+    "arch": {
+      "arm64": {
+        "filename": "arm64/U/android-cts-arm64-15_r2.zip",
+        "_origin": "https://dl.google.com/dl/android/cts/android-cts-15_r2-linux_x86-arm.zip",
+        "unzip_dir": "arm64/U/15_r2/"
+      },
+      "x86": {
+        "filename": "x86/V/android-cts-x86-15_r2.zip",
+        "_origin": "https://dl.google.com/dl/android/cts/android-cts-15_r2-linux_x86-x86.zip",
+        "unzip_dir": "x86/V/15_r2/"
+      }
+    },
+    "test_runs": [
+      {
+        "apk": "android-cts/testcases/CtsWebkitTestCases.apk",
+        "excludes": [
+          {
+            "match": "android.webkit.cts.PacProcessorTest#testSetNetwork",
+            "arch": "arm64",
+            "_bug_id": "crbug.com/352385377"
+          },
+          {
+            "match": "android.webkit.cts.WebViewTest#testPageScroll",
+            "_bug_id": "crbug.com/1482550"
+          },
+          {
+            "match": "android.webkit.cts.WebViewTest#testSetNetworkAvailable",
+            "arch": "arm64",
+            "_bug_id": "crbug.com/352385377"
+          },
+          {
+            "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingMalwareCode",
+            "_bug_id": "crbug.com/1245351"
+          },
+          {
+            "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingPhishingCode",
+            "_bug_id": "crbug.com/1245351"
+          },
+          {
+            "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingUnwantedSoftwareCode",
+            "_bug_id": "crbug.com/1245351"
+          },
+          {
+            "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingBillingCode",
+            "_bug_id": "crbug.com/1245351"
+          },
+          {
+            "match": "android.webkit.cts.WebViewClientTest#testOnSafeBrowsingHitBackToSafety",
+            "_bug_id": "crbug.com/1245351"
+          }
+        ]
+      },
+      {
+        "apk": "android-cts/testcases/CtsWebViewStartupApp.apk",
+        "excludes": [
+          {
+            "match": "com.android.cts.webkit.WebViewDeviceSideStartupTest#testCookieManagerBlockingUiThread",
+            "mode": "instant",
+            "_bug_id": "crbug.com/1326440"
+          }
+        ]
+      },
+      {
+        "apk": "android-cts/testcases/CtsAutoFillServiceTestCases.apk",
+        "additional_apks": [
+          {
+            "apk": "android-cts/testcases/CtsMockInputMethod.apk",
+            "forced_queryable": true,
+            "force_full_mode": true
+          }
+        ],
+        "includes": [
+          {
+            "match": "android.autofillservice.cts.dropdown.WebViewActivityTest#*"
+          },
+          {
+            "match": "android.autofillservice.cts.servicebehavior.WebViewMultiScreenLoginActivityTest#*"
+          },
+          {
+            "match": "android.autofillservice.cts.inline.InlineAugmentedWebViewActivityTest#*"
+          },
+          {
+            "match": "android.autofillservice.cts.inline.InlineWebViewActivityTest#*"
+          }
+        ],
+        "excludes": [
+          {
+            "match": "android.autofillservice.cts.dropdown.WebViewActivityTest#testAutofillAndSave",
+            "_bug_id": "crbug.com/1369088"
+          },
+          {
+            "match": "android.autofillservice.cts.dropdown.WebViewActivityTest#testAutofillAndSave_withExternalViews_loadWebViewFirst",
+            "_bug_id": "crbug.com/1369088"
+          },
+          {
+            "match": "android.autofillservice.cts.dropdown.WebViewActivityTest#testSaveOnly",
+            "_bug_id": "crbug.com/1369088"
+          },
+          {
+            "match": "android.autofillservice.cts.servicebehavior.WebViewMultiScreenLoginActivityTest#testSave_bothFieldsAtOnce",
+            "_bug_id": "crbug.com/1369088"
+          },
+          {
+            "match": "android.autofillservice.cts.servicebehavior.WebViewMultiScreenLoginActivityTest#testSave_eachFieldSeparately",
+            "_bug_id": "crbug.com/1369088"
+          }
+        ],
+        "setup_commands": [
+          "cmd autofill set bind-instant-service-allowed true"
+        ],
+        "teardown_commands": [
+          "cmd autofill set bind-instant-service-allowed false"
         ]
       },
       {

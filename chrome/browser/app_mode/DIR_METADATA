@@ -1,3 +1,1 @@
-monorail: {
-  component: "OS>Software>Enterprise>Kiosk"
-}
+mixins: "//chrome/browser/ash/app_mode/COMMON_METADATA"

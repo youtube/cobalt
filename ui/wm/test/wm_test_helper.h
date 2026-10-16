@@ -16,6 +16,7 @@ class TestScreen;
 class Window;
 class WindowTreeHost;
 namespace client {
+class CursorShapeClient;
 class DefaultCaptureClient;
 class FocusClient;
 }
@@ -47,7 +48,8 @@ class WMTestHelper : public aura::client::WindowParentingClient {
 
   // Overridden from client::WindowParentingClient:
   aura::Window* GetDefaultParent(aura::Window* window,
-                                 const gfx::Rect& bounds) override;
+                                 const gfx::Rect& bounds,
+                                 const int64_t display_id) override;
 
  private:
   std::unique_ptr<WMState> wm_state_;
@@ -56,6 +58,7 @@ class WMTestHelper : public aura::client::WindowParentingClient {
   std::unique_ptr<wm::CompoundEventFilter> root_window_event_filter_;
   std::unique_ptr<aura::client::DefaultCaptureClient> capture_client_;
   std::unique_ptr<aura::client::FocusClient> focus_client_;
+  std::unique_ptr<aura::client::CursorShapeClient> cursor_shape_client_;
 };
 
 }  // namespace wm

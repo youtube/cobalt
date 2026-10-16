@@ -6,12 +6,19 @@
 #define CHROME_BROWSER_ENTERPRISE_CONNECTORS_ANALYSIS_CONTENT_ANALYSIS_FEATURES_H_
 
 #include "base/feature_list.h"
+#include "base/metrics/field_trial_params.h"
 
 namespace enterprise_connectors {
 
-// Controls whether the local content analysis feature can be used for any
-// service provider and/or policy configuration.
-BASE_DECLARE_FEATURE(kLocalContentAnalysisEnabled);
+// Controls uploading scanned data even after a metadata verdict
+// is received for content scans.
+BASE_DECLARE_FEATURE(kEnableAsyncUploadAfterVerdict);
+
+// Controls whether resumable upload is enabled on consumer scans.
+BASE_DECLARE_FEATURE(kEnableResumableUploadOnConsumerScan);
+
+// Controls the number of content analysis requests concurrently uploaded.
+BASE_DECLARE_FEATURE_PARAM(size_t, kParallelContentAnalysisRequestCount);
 
 }  // namespace enterprise_connectors
 

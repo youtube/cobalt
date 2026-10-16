@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromeos/components/cdm_factory_daemon/output_protection_impl.h"
 
 #include <utility>
@@ -14,7 +19,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/display/fake/fake_display_snapshot.h"
+#include "ui/display/manager/test/fake_display_snapshot.h"
 
 using chromeos::cdm::mojom::OutputProtection;
 using testing::_;
@@ -23,7 +28,7 @@ using testing::ReturnRef;
 
 constexpr uint64_t kFakeClientId = 1;
 constexpr int64_t kDisplayIds[] = {123, 234, 345, 456};
-const display::DisplayMode kDisplayMode{gfx::Size(1366, 768), false, 60.0f};
+const display::DisplayMode kDisplayMode({1366, 768}, false, 60.0f);
 
 namespace chromeos {
 
@@ -52,7 +57,8 @@ class MockDisplaySystemDelegate
   MOCK_METHOD(void,
               UnregisterClient,
               (display::ContentProtectionManager::ClientId));
-  MOCK_METHOD(const std::vector<display::DisplaySnapshot*>&,
+  MOCK_METHOD((const std::vector<
+                  raw_ptr<display::DisplaySnapshot, VectorExperimental>>&),
               cached_displays,
               (),
               (const));
@@ -87,7 +93,7 @@ class OutputProtectionImplTest : public testing::Test {
     UpdateDisplays(2);
 
     EXPECT_CALL(*delegate_, RegisterClient())
-        .WillOnce(Return(absl::optional<uint64_t>(kFakeClientId)));
+        .WillOnce(Return(std::optional<uint64_t>(kFakeClientId)));
   }
 
   void UpdateDisplays(size_t count) {
@@ -133,9 +139,11 @@ class OutputProtectionImplTest : public testing::Test {
   }
 
   mojo::Remote<OutputProtection> output_protection_mojo_;
-  raw_ptr<MockDisplaySystemDelegate> delegate_;  // Not owned.
+  raw_ptr<MockDisplaySystemDelegate, AcrossTasksDanglingUntriaged>
+      delegate_;  // Not owned.
   std::unique_ptr<display::DisplaySnapshot> displays_[std::size(kDisplayIds)];
-  std::vector<display::DisplaySnapshot*> cached_displays_;
+  std::vector<raw_ptr<display::DisplaySnapshot, VectorExperimental>>
+      cached_displays_;
 
  private:
   content::BrowserTaskEnvironment task_environment_;

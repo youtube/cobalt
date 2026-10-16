@@ -5,6 +5,7 @@
 #include "content/browser/renderer_host/direct_manipulation_helper_win.h"
 
 #include <objbase.h>
+
 #include <cmath>
 
 #include "base/logging.h"
@@ -165,7 +166,7 @@ void DirectManipulationHelper::SetSizeInPixels(
 void DirectManipulationHelper::OnPointerHitTest(WPARAM w_param) {
   // Update the device scale factor.
   event_handler_->SetDeviceScaleFactor(
-      display::win::ScreenWin::GetScaleFactorForHWND(window_));
+      display::win::GetScreenWin()->GetScaleFactorForHWND(window_));
 
   // Only DM_POINTERHITTEST can be the first message of input sequence of
   // touchpad input.

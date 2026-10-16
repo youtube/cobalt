@@ -4,9 +4,10 @@
 
 #include "ash/login/ui/login_test_utils.h"
 
+#include <algorithm>
+
 #include "ash/login/ui/login_big_user_view.h"
 #include "base/containers/adapters.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_split.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/events/test/event_generator.h"
@@ -37,7 +38,6 @@ const char* AuthTargetToString(AuthTarget target) {
       return kSecondaryName;
   }
   NOTREACHED();
-  return "";
 }
 
 LockContentsViewTestApi MakeLockContentsViewTestApi(LockContentsView* view) {
@@ -66,11 +66,11 @@ LoginPasswordView::TestApi MakeLoginPasswordTestApi(LockContentsView* view,
 }
 
 LoginUserInfo CreateUser(const std::string& email) {
-  return CreateUserWithType(email, user_manager::UserType::USER_TYPE_REGULAR);
+  return CreateUserWithType(email, user_manager::UserType::kRegular);
 }
 
 LoginUserInfo CreateChildUser(const std::string& email) {
-  return CreateUserWithType(email, user_manager::UserType::USER_TYPE_CHILD);
+  return CreateUserWithType(email, user_manager::UserType::kChild);
 }
 
 LoginUserInfo CreatePublicAccountUser(const std::string& email) {
@@ -80,7 +80,7 @@ LoginUserInfo CreatePublicAccountUser(const std::string& email) {
   user.basic_user_info.account_id = AccountId::FromUserEmail(email);
   user.basic_user_info.display_name = email_parts[0];
   user.basic_user_info.display_email = email;
-  user.basic_user_info.type = user_manager::USER_TYPE_PUBLIC_ACCOUNT;
+  user.basic_user_info.type = user_manager::UserType::kPublicAccount;
   user.public_account_info.emplace();
   user.public_account_info->device_enterprise_manager = email_parts[1];
   user.public_account_info->show_expanded_view = true;
@@ -89,7 +89,7 @@ LoginUserInfo CreatePublicAccountUser(const std::string& email) {
 
 bool HasFocusInAnyChildView(const views::View* view) {
   return view->HasFocus() ||
-         base::ranges::any_of(view->children(), [](const auto* v) {
+         std::ranges::any_of(view->children(), [](const views::View* v) {
            return HasFocusInAnyChildView(v);
          });
 }
@@ -116,7 +116,7 @@ bool TabThroughView(ui::test::EventGenerator* event_generator,
 // Performs a DFS for the first button in the views hierarchy
 // The last child is on the top of the z layer stack
 views::View* FindTopButton(views::View* current_view) {
-  for (auto* child : base::Reversed(current_view->children())) {
+  for (views::View* child : base::Reversed(current_view->children())) {
     if (views::Button::AsButton(child)) {
       return child;
     }

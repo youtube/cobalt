@@ -4,8 +4,13 @@
 
 #include "chrome/browser/ash/login/test/oobe_screens_utils.h"
 
+#include <string_view>
+
 #include "ash/constants/ash_features.h"
+#include "ash/shell.h"
+#include "ash/system/input_device_settings/input_device_settings_controller_impl.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
+#include "chrome/browser/ash/login/screens/consumer_update_screen.h"
 #include "chrome/browser/ash/login/screens/sync_consent_screen.h"
 #include "chrome/browser/ash/login/screens/update_screen.h"
 #include "chrome/browser/ash/login/test/js_checker.h"
@@ -13,10 +18,11 @@
 #include "chrome/browser/ash/login/test/oobe_screen_waiter.h"
 #include "chrome/browser/ash/login/test/test_condition_waiter.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/ui/webui/ash/login/consolidated_consent_screen_handler.h"
+#include "chrome/browser/ui/webui/ash/login/consumer_update_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/enrollment_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/fingerprint_setup_screen_handler.h"
+#include "chrome/browser/ui/webui/ash/login/gaia_info_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/guest_tos_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/marketing_opt_in_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/network_screen_handler.h"
@@ -25,15 +31,24 @@
 #include "chrome/browser/ui/webui/ash/login/update_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/user_creation_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/welcome_screen_handler.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_utils.h"
+#include "ui/events/devices/touchpad_device.h"
 
 namespace ash {
 namespace test {
 
 namespace {
+
+const ui::TouchpadDevice kSampleTouchpadInternal(1,
+                                                 ui::INPUT_DEVICE_INTERNAL,
+                                                 "kSampleTouchpadInternal",
+                                                 "",
+                                                 base::FilePath(),
+                                                 0x1111,
+                                                 0x4444,
+                                                 0);
 
 void WaitFor(OobeScreenId screen_id) {
   OobeScreenWaiter(screen_id).Wait();
@@ -49,6 +64,11 @@ void WaitForExit(OobeScreenId screen_id) {
 
 void WaitForWelcomeScreen() {
   WaitFor(WelcomeView::kScreenId);
+  // Wait until OOBE is fully initialized and the 'Get Started' button enabled.
+  OobeJS()
+      .CreateEnabledWaiter(true /* enabled */,
+                           {"connect", "welcomeScreen", "getStarted"})
+      ->Wait();
 }
 
 void TapWelcomeNext() {
@@ -79,6 +99,27 @@ void ExitUpdateScreenNoUpdate() {
   UpdateScreen* screen =
       WizardController::default_controller()->GetScreen<UpdateScreen>();
   screen->GetVersionUpdaterForTesting()->UpdateStatusChangedForTesting(status);
+}
+
+void WaitForConsumerUpdateScreen() {
+  if (!LoginDisplayHost::default_host()->GetWizardContext()->is_branded_build) {
+    return;
+  }
+  WaitFor(ConsumerUpdateScreenView::kScreenId);
+  OobeJS().CreateVisibilityWaiter(true, {"consumer-update"})->Wait();
+}
+
+void ExitConsumerUpdateScreenNoUpdate() {
+  if (!LoginDisplayHost::default_host()->GetWizardContext()->is_branded_build) {
+    return;
+  }
+  update_engine::StatusResult status;
+  status.set_current_operation(update_engine::Operation::ERROR);
+
+  ConsumerUpdateScreen* screen =
+      WizardController::default_controller()->GetScreen<ConsumerUpdateScreen>();
+  screen->get_version_updater_for_testing()->UpdateStatusChangedForTesting(
+      status);
 }
 
 void WaitForFingerprintScreen() {
@@ -138,8 +179,16 @@ void WaitForUserCreationScreen() {
   WaitFor(UserCreationView::kScreenId);
 }
 
+void TapForPersonalUseCrRadioButton() {
+  OobeJS().TapOnPath({"user-creation", "selfButton"});
+}
+
 void TapUserCreationNext() {
   OobeJS().TapOnPath({"user-creation", "nextButton"});
+}
+
+void WaitForGaiaInfoScreen() {
+  WaitFor(GaiaInfoScreenView::kScreenId);
 }
 
 void WaitForOobeJSReady() {
@@ -211,6 +260,12 @@ bool IsScanningRequestedOnErrorScreen() {
       {"error-message", "offline-network-control", "networkSelect"});
 }
 
+// Set Fake Touchpad device.
+void SetFakeTouchpadDevice() {
+  Shell::Get()->input_device_settings_controller()->OnTouchpadListUpdated(
+      {kSampleTouchpadInternal}, {});
+}
+
 LanguageReloadObserver::LanguageReloadObserver(WelcomeScreen* welcome_screen)
     : welcome_screen_(welcome_screen) {
   welcome_screen_->AddObserver(this);
@@ -232,7 +287,7 @@ OobeUiDestroyedWaiter::OobeUiDestroyedWaiter(OobeUI* oobe_ui) {
   oobe_ui_observation_.Observe(oobe_ui);
 }
 
-OobeUiDestroyedWaiter::~OobeUiDestroyedWaiter() {}
+OobeUiDestroyedWaiter::~OobeUiDestroyedWaiter() = default;
 
 void OobeUiDestroyedWaiter::Wait() {
   if (was_destroyed_)
@@ -254,7 +309,7 @@ void OobeUiDestroyedWaiter::OnDestroyingOobeUI() {
 
 // Start observing, tap/click and wait.
 void TapOnPathAndWaitForOobeToBeDestroyed(
-    std::initializer_list<base::StringPiece> element_ids) {
+    std::initializer_list<std::string_view> element_ids) {
   // Get the OOBE WebUI Controller (OobeUI) and start observing.
   content::WebContents* web_contents =
       LoginDisplayHost::default_host()->GetOobeWebContents();

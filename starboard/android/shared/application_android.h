@@ -15,10 +15,12 @@
 #ifndef STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_
 #define STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_
 
+#include "base/memory/raw_ptr.h"
 #include "starboard/android/shared/runtime_resource_overlay.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/command_line.h"
 #include "starboard/shared/starboard/application.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -27,7 +29,7 @@ using ::starboard::CommandLine;
 class ApplicationAndroid : public Application {
  public:
   ApplicationAndroid(std::unique_ptr<CommandLine> command_line,
-                     base::android::ScopedJavaGlobalRef<jobject> asset_manager,
+                     jni_zero::ScopedJavaGlobalRef<jobject> asset_manager,
                      const std::string& files_dir,
                      const std::string& cache_dir,
                      const std::string& native_library_dir);

@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -22,7 +23,6 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/system/invitation.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/memory/memory_pressure_listener.h"
@@ -30,7 +30,9 @@
 
 namespace IPC {
 class Channel;
+#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
 class MessageFilter;
+#endif
 }  // namespace IPC
 
 namespace content {
@@ -48,17 +50,6 @@ class CONTENT_EXPORT ChildProcessHostImpl : public ChildProcessHost,
 
   ~ChildProcessHostImpl() override;
 
-  // Returns a unique ID to identify a child process. On construction, this
-  // function will be used to generate the id_, but it is also used to generate
-  // IDs for the RenderProcessHost, which doesn't inherit from us, and whose IDs
-  // must be unique for all child processes.
-  //
-  // This function is threadsafe since RenderProcessHost is on the UI thread,
-  // but normally this will be used on the IO thread.
-  //
-  // This will never return ChildProcessHost::kInvalidUniqueID.
-  static int GenerateChildProcessUniqueId();
-
   // Derives a tracing process id from a child process id. Child process ids
   // cannot be used directly in child process for tracing due to security
   // reasons (see: discussion in crrev.com/1173263004). This method is meant to
@@ -71,27 +62,28 @@ class CONTENT_EXPORT ChildProcessHostImpl : public ChildProcessHost,
   // Never returns MemoryDumpManager::kInvalidTracingProcessId.
   // Returns only memory_instrumentation::mojom::kServiceTracingProcessId in
   // single-process mode.
+  static uint64_t ChildProcessIdToTracingProcessId(
+      ChildProcessId child_process_id);
+
+  // TODO(crbug.com/379869738): Deprecated, please use
+  // ChildProcessIdToTracingProcessId above.
   static uint64_t ChildProcessUniqueIdToTracingProcessId(int child_process_id);
 
   // ChildProcessHost implementation
   bool Send(IPC::Message* message) override;
   void ForceShutdown() override;
-  absl::optional<mojo::OutgoingInvitation>& GetMojoInvitation() override;
+  std::optional<mojo::OutgoingInvitation>& GetMojoInvitation() override;
   void CreateChannelMojo() override;
   bool IsChannelOpening() override;
+#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
   void AddFilter(IPC::MessageFilter* filter) override;
+#endif
   void BindReceiver(mojo::GenericPendingReceiver receiver) override;
+  void SetBatterySaverMode(bool battery_saver_mode_enabled) override;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   void ReinitializeLogging(uint32_t logging_dest,
                            base::ScopedFD log_file_descriptor) override;
-#endif
-
-// TODO(crbug.com/1328879): Remove this method when fixing the bug.
-#if BUILDFLAG(IS_CASTOS) || BUILDFLAG(IS_CAST_ANDROID)
-  void RunServiceDeprecated(
-      const std::string& service_name,
-      mojo::ScopedMessagePipeHandle service_pipe) override;
 #endif
 
   base::Process& GetPeerProcess();
@@ -131,7 +123,7 @@ class CONTENT_EXPORT ChildProcessHostImpl : public ChildProcessHost,
 
   // The outgoing Mojo invitation which must be consumed to bootstrap Mojo IPC
   // to the child process.
-  absl::optional<mojo::OutgoingInvitation> mojo_invitation_{absl::in_place};
+  std::optional<mojo::OutgoingInvitation> mojo_invitation_{std::in_place};
 
   const IpcMode ipc_mode_;
   raw_ptr<ChildProcessHostDelegate> delegate_;
@@ -141,10 +133,12 @@ class CONTENT_EXPORT ChildProcessHostImpl : public ChildProcessHost,
   mojo::Remote<mojom::ChildProcess> child_process_;
   mojo::Receiver<mojom::ChildProcessHost> receiver_{this};
 
+#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
   // Holds all the IPC message filters.  Since this object lives on the IO
   // thread, we don't have a IPC::ChannelProxy and so we manage filters
   // manually.
   std::vector<scoped_refptr<IPC::MessageFilter>> filters_;
+#endif
 };
 
 }  // namespace content

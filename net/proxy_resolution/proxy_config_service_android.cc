@@ -23,9 +23,11 @@
 #include "net/base/host_port_pair.h"
 #include "net/base/proxy_server.h"
 #include "net/base/proxy_string_util.h"
-#include "net/net_jni_headers/ProxyChangeListener_jni.h"
 #include "net/proxy_resolution/proxy_config_with_annotation.h"
 #include "url/third_party/mozilla/url_parse.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "net/net_jni_headers/ProxyChangeListener_jni.h"
 
 using base::android::AttachCurrentThread;
 using base::android::ConvertUTF8ToJavaString;
@@ -216,21 +218,23 @@ std::string ParseOverrideRules(
 
   for (const auto& rule : override_rules) {
     // Parse the proxy URL.
-    ProxyServer proxy_server =
-        ProxyUriToProxyServer(rule.proxy_url, ProxyServer::Scheme::SCHEME_HTTP);
-    if (!proxy_server.is_valid()) {
+    ProxyChain proxy_chain =
+        ProxyUriToProxyChain(rule.proxy_url, ProxyServer::Scheme::SCHEME_HTTP);
+    if (!proxy_chain.IsValid()) {
       return "Invalid Proxy URL: " + rule.proxy_url;
-    } else if (proxy_server.is_quic()) {
+    } else if (proxy_chain.is_multi_proxy()) {
+      return "Unsupported multi proxy chain: " + rule.proxy_url;
+    } else if (proxy_chain.is_single_proxy() && proxy_chain.First().is_quic()) {
       return "Unsupported proxy scheme: " + rule.proxy_url;
     }
 
     // Parse the URL scheme.
     if (base::EqualsCaseInsensitiveASCII(rule.url_scheme, "http")) {
-      proxy_rules->proxies_for_http.AddProxyServer(proxy_server);
+      proxy_rules->proxies_for_http.AddProxyChain(proxy_chain);
     } else if (base::EqualsCaseInsensitiveASCII(rule.url_scheme, "https")) {
-      proxy_rules->proxies_for_https.AddProxyServer(proxy_server);
+      proxy_rules->proxies_for_https.AddProxyChain(proxy_chain);
     } else if (rule.url_scheme == "*") {
-      proxy_rules->fallback_proxies.AddProxyServer(proxy_server);
+      proxy_rules->fallback_proxies.AddProxyChain(proxy_chain);
     } else {
       return "Unsupported URL scheme: " + rule.url_scheme;
     }

@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/notifications/request_system_proxy_credentials_view.h"
 
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -19,12 +20,14 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
 #include "ui/events/event.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
@@ -39,9 +42,9 @@
 namespace {
 
 class ErrorLabelView : public views::Label {
- public:
-  METADATA_HEADER(ErrorLabelView);
+  METADATA_HEADER(ErrorLabelView, views::Label)
 
+ public:
   explicit ErrorLabelView(bool show_error_label)
       : Label(l10n_util::GetStringUTF16(
             IDS_SYSTEM_PROXY_AUTH_DIALOG_ERROR_LABEL)) {
@@ -59,7 +62,7 @@ class ErrorLabelView : public views::Label {
   }
 };
 
-BEGIN_METADATA(ErrorLabelView, views::Label)
+BEGIN_METADATA(ErrorLabelView)
 END_METADATA
 
 }  // namespace
@@ -98,11 +101,11 @@ const std::string& RequestSystemProxyCredentialsView::GetProxyServer() const {
   return proxy_server_;
 }
 
-std::u16string RequestSystemProxyCredentialsView::GetUsername() const {
+std::u16string_view RequestSystemProxyCredentialsView::GetUsername() const {
   return username_textfield_->GetText();
 }
 
-std::u16string RequestSystemProxyCredentialsView::GetPassword() const {
+std::u16string_view RequestSystemProxyCredentialsView::GetPassword() const {
   return password_textfield_->GetText();
 }
 
@@ -111,7 +114,7 @@ void RequestSystemProxyCredentialsView::Init() {
   SetBorder(views::CreateEmptyBorder(provider->GetDialogInsetsForContentType(
       views::DialogContentType::kText, views::DialogContentType::kText)));
   SetButtonLabel(
-      ui::DIALOG_BUTTON_OK,
+      ui::mojom::DialogButton::kOk,
       l10n_util::GetStringUTF16(IDS_SYSTEM_PROXY_AUTH_DIALOG_OK_BUTTON));
 
   SetLayoutManager(std::make_unique<views::FlexLayout>())
@@ -159,7 +162,7 @@ void RequestSystemProxyCredentialsView::Init() {
   username_textfield_ =
       auth_container->AddChildView(std::make_unique<views::Textfield>());
   username_textfield_->SetEnabled(true);
-  username_textfield_->SetAccessibleName(username_label);
+  username_textfield_->GetViewAccessibility().SetName(*username_label);
 
   const int related_vertical_spacing =
       provider->GetDistanceMetric(views::DISTANCE_RELATED_CONTROL_VERTICAL);
@@ -173,7 +176,7 @@ void RequestSystemProxyCredentialsView::Init() {
   password_textfield_ = auth_container->AddChildView(
       std::make_unique<chromeos::PassphraseTextfield>());
   password_textfield_->SetEnabled(true);
-  password_textfield_->SetAccessibleName(password_label);
+  password_textfield_->GetViewAccessibility().SetName(*password_label);
   auth_container->AddPaddingRow(views::TableLayout::kFixedSize,
                                 related_vertical_spacing);
 
@@ -193,10 +196,10 @@ void RequestSystemProxyCredentialsView::Init() {
   error_container->SetFlexForView(error_label_, 1);
 }
 
-BEGIN_METADATA(RequestSystemProxyCredentialsView, views::DialogDelegateView)
+BEGIN_METADATA(RequestSystemProxyCredentialsView)
 ADD_READONLY_PROPERTY_METADATA(std::string, ProxyServer)
-ADD_READONLY_PROPERTY_METADATA(std::u16string, Username)
-ADD_READONLY_PROPERTY_METADATA(std::u16string, Password)
+ADD_READONLY_PROPERTY_METADATA(std::u16string_view, Username)
+ADD_READONLY_PROPERTY_METADATA(std::u16string_view, Password)
 END_METADATA
 
 }  // namespace ash

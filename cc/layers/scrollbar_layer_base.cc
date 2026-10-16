@@ -8,7 +8,7 @@
 #include <utility>
 
 #include "base/notreached.h"
-#include "cc/layers/painted_overlay_scrollbar_layer.h"
+#include "cc/layers/nine_patch_thumb_scrollbar_layer.h"
 #include "cc/layers/painted_scrollbar_layer.h"
 #include "cc/layers/scrollbar_layer_impl_base.h"
 #include "cc/layers/solid_color_scrollbar_layer.h"
@@ -31,7 +31,7 @@ scoped_refptr<ScrollbarLayerBase> ScrollbarLayerBase::CreateOrReuse(
     needed_type = kSolidColor;
   } else if (scrollbar->UsesNinePatchThumbResource()) {
     DCHECK(scrollbar->IsOverlay());
-    needed_type = kPaintedOverlay;
+    needed_type = kNinePatchThumb;
   }
 
   if (existing_layer &&
@@ -52,14 +52,13 @@ scoped_refptr<ScrollbarLayerBase> ScrollbarLayerBase::CreateOrReuse(
       return PaintedScrollbarLayer::CreateOrReuse(
           std::move(scrollbar),
           static_cast<PaintedScrollbarLayer*>(existing_layer));
-    case kPaintedOverlay:
-      return PaintedOverlayScrollbarLayer::CreateOrReuse(
+    case kNinePatchThumb:
+      return NinePatchThumbScrollbarLayer::CreateOrReuse(
           std::move(scrollbar),
-          static_cast<PaintedOverlayScrollbarLayer*>(existing_layer));
+          static_cast<NinePatchThumbScrollbarLayer*>(existing_layer));
   }
 
   NOTREACHED();
-  return nullptr;
 }
 
 void ScrollbarLayerBase::SetScrollElementId(ElementId element_id) {
@@ -70,17 +69,32 @@ void ScrollbarLayerBase::SetScrollElementId(ElementId element_id) {
   SetNeedsCommit();
 }
 
-void ScrollbarLayerBase::PushPropertiesTo(
+bool ScrollbarLayerBase::SetHasFindInPageTickmarks(
+    bool has_find_in_page_tickmarks) {
+  if (has_find_in_page_tickmarks_.Read(*this) == has_find_in_page_tickmarks) {
+    return false;
+  }
+  has_find_in_page_tickmarks_.Write(*this) = has_find_in_page_tickmarks;
+  SetNeedsPushProperties();
+  return true;
+}
+
+void ScrollbarLayerBase::PushDirtyPropertiesTo(
     LayerImpl* layer,
+    uint8_t dirty_flag,
     const CommitState& commit_state,
     const ThreadUnsafeCommitState& unsafe_state) {
-  Layer::PushPropertiesTo(layer, commit_state, unsafe_state);
+  Layer::PushDirtyPropertiesTo(layer, dirty_flag, commit_state, unsafe_state);
 
-  auto* scrollbar_layer_impl = static_cast<ScrollbarLayerImplBase*>(layer);
-  DCHECK_EQ(scrollbar_layer_impl->orientation(), orientation_);
-  DCHECK_EQ(scrollbar_layer_impl->is_left_side_vertical_scrollbar(),
-            is_left_side_vertical_scrollbar_);
-  scrollbar_layer_impl->SetScrollElementId(scroll_element_id_.Read(*this));
+  if (dirty_flag & kChangedGeneralProperty) {
+    auto* scrollbar_layer_impl = static_cast<ScrollbarLayerImplBase*>(layer);
+    DCHECK_EQ(scrollbar_layer_impl->orientation(), orientation_);
+    DCHECK_EQ(scrollbar_layer_impl->is_left_side_vertical_scrollbar(),
+              is_left_side_vertical_scrollbar_);
+    scrollbar_layer_impl->SetHasFindInPageTickmarks(
+        has_find_in_page_tickmarks_.Read(*this));
+    scrollbar_layer_impl->SetScrollElementId(scroll_element_id_.Read(*this));
+  }
 }
 
 bool ScrollbarLayerBase::IsScrollbarLayerForTesting() const {

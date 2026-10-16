@@ -24,9 +24,11 @@
 #include "content/browser/renderer_host/media/audio_input_device_manager.h"
 #include "content/browser/renderer_host/media/media_devices_manager.h"
 #include "content/browser/renderer_host/media/media_stream_manager.h"
+#include "content/browser/renderer_host/media/preferred_audio_output_device_manager.h"
 #include "content/public/browser/audio_stream_broker.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/media_device_id.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
@@ -64,7 +66,7 @@ void EnumerateOutputDevices(MediaStreamManager* media_stream_manager,
                             MediaDevicesManager::EnumerationCallback cb) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   MediaDevicesManager::BoolDeviceTypes device_types;
-  device_types[static_cast<size_t>(MediaDeviceType::MEDIA_AUDIO_OUTPUT)] = true;
+  device_types[static_cast<size_t>(MediaDeviceType::kMediaAudioOutput)] = true;
   media_stream_manager->media_devices_manager()->EnumerateDevices(
       device_types, std::move(cb));
 }
@@ -75,10 +77,9 @@ void TranslateDeviceId(const std::string& device_id,
                        const MediaDeviceEnumeration& device_array) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   for (const auto& device_info :
-       device_array[static_cast<size_t>(MediaDeviceType::MEDIA_AUDIO_OUTPUT)]) {
-    if (MediaStreamManager::DoesMediaDeviceIDMatchHMAC(
-            salt_and_origin.device_id_salt, salt_and_origin.origin, device_id,
-            device_info.device_id)) {
+       device_array[static_cast<size_t>(MediaDeviceType::kMediaAudioOutput)]) {
+    if (DoesRawMediaDeviceIDMatchHMAC(salt_and_origin, device_id,
+                                      device_info.device_id)) {
       cb.Run(device_info.device_id);
       break;
     }
@@ -86,17 +87,26 @@ void TranslateDeviceId(const std::string& device_id,
   // If we're unable to translate the device id, |cb| will not be run.
 }
 
+void GotSaltAndOrigin(
+    int process_id,
+    int frame_id,
+    base::OnceCallback<void(const MediaDeviceSaltAndOrigin& salt_and_origin,
+                            bool has_access)> cb,
+    const MediaDeviceSaltAndOrigin& salt_and_origin) {
+  bool access = MediaDevicesPermissionChecker().CheckPermissionOnUIThread(
+      MediaDeviceType::kMediaAudioOutput, process_id, frame_id);
+  GetIOThreadTaskRunner({})->PostTask(
+      FROM_HERE, base::BindOnce(std::move(cb), salt_and_origin, access));
+}
+
 void GetSaltOriginAndPermissionsOnUIThread(
     int process_id,
     int frame_id,
-    base::OnceCallback<void(MediaDeviceSaltAndOrigin salt_and_origin,
+    base::OnceCallback<void(const MediaDeviceSaltAndOrigin& salt_and_origin,
                             bool has_access)> cb) {
-  auto salt_and_origin = GetMediaDeviceSaltAndOrigin(process_id, frame_id);
-  bool access = MediaDevicesPermissionChecker().CheckPermissionOnUIThread(
-      MediaDeviceType::MEDIA_AUDIO_OUTPUT, process_id, frame_id);
-  GetIOThreadTaskRunner({})->PostTask(
-      FROM_HERE,
-      base::BindOnce(std::move(cb), std::move(salt_and_origin), access));
+  GetMediaDeviceSaltAndOrigin(
+      GlobalRenderFrameHostId(process_id, frame_id),
+      base::BindOnce(&GotSaltAndOrigin, process_id, frame_id, std::move(cb)));
 }
 
 }  // namespace
@@ -142,7 +152,7 @@ class RenderFrameAudioInputStreamFactory::Core final
   void AssociateInputAndOutputForAecAfterCheckingAccess(
       const base::UnguessableToken& input_stream_id,
       const std::string& output_device_id,
-      MediaDeviceSaltAndOrigin salt_and_origin,
+      const MediaDeviceSaltAndOrigin& salt_and_origin,
       bool access_granted);
 
   void AssociateTranslatedOutputDeviceForAec(
@@ -152,7 +162,7 @@ class RenderFrameAudioInputStreamFactory::Core final
   const raw_ptr<MediaStreamManager> media_stream_manager_;
   const int process_id_;
   const int frame_id_;
-  const url::Origin origin_;
+  const GlobalRenderFrameHostToken main_frame_token_;
 
   mojo::Receiver<RendererAudioInputStreamFactory> receiver_{this};
   // Always null-check this weak pointer before dereferencing it.
@@ -188,9 +198,10 @@ RenderFrameAudioInputStreamFactory::Core::Core(
     MediaStreamManager* media_stream_manager,
     RenderFrameHost* render_frame_host)
     : media_stream_manager_(media_stream_manager),
-      process_id_(render_frame_host->GetProcess()->GetID()),
+      process_id_(render_frame_host->GetProcess()->GetDeprecatedID()),
       frame_id_(render_frame_host->GetRoutingID()),
-      origin_(render_frame_host->GetLastCommittedOrigin()) {
+      main_frame_token_(
+          render_frame_host->GetMainFrame()->GetGlobalFrameToken()) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   ForwardingAudioStreamFactory::Core* tmp_factory =
@@ -322,15 +333,26 @@ void RenderFrameAudioInputStreamFactory::Core::
     AssociateInputAndOutputForAecAfterCheckingAccess(
         const base::UnguessableToken& input_stream_id,
         const std::string& output_device_id,
-        MediaDeviceSaltAndOrigin salt_and_origin,
+        const MediaDeviceSaltAndOrigin& salt_and_origin,
         bool access_granted) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   if (!forwarding_factory_ || !access_granted)
     return;
 
-  if (media::AudioDeviceDescription::IsDefaultDevice(output_device_id) ||
-      media::AudioDeviceDescription::IsCommunicationsDevice(output_device_id)) {
+  if (media::AudioDeviceDescription::IsDefaultDevice(output_device_id)) {
+    std::string override_device_id;
+    if (MediaStreamManager::GetPreferredOutputManagerInstance()) {
+      override_device_id =
+          MediaStreamManager::GetPreferredOutputManagerInstance()
+              ->GetPreferredSinkId(main_frame_token_);
+    }
+
+    forwarding_factory_->AssociateInputAndOutputForAec(
+        input_stream_id,
+        override_device_id.empty() ? output_device_id : override_device_id);
+  } else if (media::AudioDeviceDescription::IsCommunicationsDevice(
+                 output_device_id)) {
     forwarding_factory_->AssociateInputAndOutputForAec(input_stream_id,
                                                        output_device_id);
   } else {

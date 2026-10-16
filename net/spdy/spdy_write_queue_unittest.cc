@@ -2,8 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "net/spdy/spdy_write_queue.h"
 
+#include <array>
 #include <cstddef>
 #include <cstring>
 #include <string>
@@ -35,8 +41,8 @@ class SpdyWriteQueueTest : public ::testing::Test {};
 std::unique_ptr<SpdyBufferProducer> StringToProducer(const std::string& s) {
   auto data = std::make_unique<char[]>(s.size());
   std::memcpy(data.get(), s.data(), s.size());
-  auto frame = std::make_unique<spdy::SpdySerializedFrame>(data.release(),
-                                                           s.size(), true);
+  auto frame =
+      std::make_unique<spdy::SpdySerializedFrame>(std::move(data), s.size());
   auto buffer = std::make_unique<SpdyBuffer>(std::move(frame));
   return std::make_unique<SimpleBufferProducer>(std::move(buffer));
 }
@@ -257,10 +263,12 @@ TEST_F(SpdyWriteQueueTest, RemovePendingWritesForStreamsAfter) {
   stream3->set_stream_id(5);
   // No stream id assigned.
   std::unique_ptr<SpdyStream> stream4 = MakeTestStream(DEFAULT_PRIORITY);
-  base::WeakPtr<SpdyStream> streams[] = {
-    stream1->GetWeakPtr(), stream2->GetWeakPtr(),
-    stream3->GetWeakPtr(), stream4->GetWeakPtr()
-  };
+  auto streams = std::to_array<base::WeakPtr<SpdyStream>>({
+      stream1->GetWeakPtr(),
+      stream2->GetWeakPtr(),
+      stream3->GetWeakPtr(),
+      stream4->GetWeakPtr(),
+  });
 
   for (int i = 0; i < 100; ++i) {
     write_queue.Enqueue(DEFAULT_PRIORITY, spdy::SpdyFrameType::HEADERS,

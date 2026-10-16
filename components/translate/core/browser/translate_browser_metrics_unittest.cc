@@ -23,81 +23,13 @@ class MetricsRecorder {
  public:
   explicit MetricsRecorder(const char* key) : key_(key) {
     HistogramBase* histogram = StatisticsRecorder::FindHistogram(key_);
-    if (histogram)
+    if (histogram) {
       base_samples_ = histogram->SnapshotSamples();
+    }
   }
 
   MetricsRecorder(const MetricsRecorder&) = delete;
   MetricsRecorder& operator=(const MetricsRecorder&) = delete;
-
-  void CheckInitiationStatus(
-      int expected_disabled_by_prefs,
-      int expected_disabled_by_config,
-      int expected_disabled_by_build,
-      int expected_language_is_not_supported,
-      int expected_mime_type_is_not_supported,
-      int expected_url_is_not_supported,
-      int expected_similar_languages,
-      int expected_accept_languages,
-      int expected_auto_by_config,
-      int expected_auto_by_link,
-      int expected_show_infobar,
-      int expected_language_in_ulp,
-      int expected_aborted_by_ranker,
-      int expected_aborted_by_matches_previous_language) {
-    Snapshot();
-
-    EXPECT_EQ(
-        expected_disabled_by_prefs,
-        GetCountWithoutSnapshot(
-            TranslateBrowserMetrics::INITIATION_STATUS_DISABLED_BY_PREFS));
-    EXPECT_EQ(
-        expected_disabled_by_config,
-        GetCountWithoutSnapshot(
-            TranslateBrowserMetrics::INITIATION_STATUS_DISABLED_BY_CONFIG));
-    EXPECT_EQ(expected_disabled_by_build,
-              GetCountWithoutSnapshot(
-                  TranslateBrowserMetrics::INITIATION_STATUS_DISABLED_BY_KEY));
-    EXPECT_EQ(expected_language_is_not_supported,
-              GetCountWithoutSnapshot(
-                  TranslateBrowserMetrics::
-                      INITIATION_STATUS_LANGUAGE_IS_NOT_SUPPORTED));
-    EXPECT_EQ(expected_mime_type_is_not_supported,
-              GetCountWithoutSnapshot(
-                  TranslateBrowserMetrics::
-                      INITIATION_STATUS_MIME_TYPE_IS_NOT_SUPPORTED));
-    EXPECT_EQ(
-        expected_url_is_not_supported,
-        GetCountWithoutSnapshot(
-            TranslateBrowserMetrics::INITIATION_STATUS_URL_IS_NOT_SUPPORTED));
-    EXPECT_EQ(
-        expected_similar_languages,
-        GetCountWithoutSnapshot(
-            TranslateBrowserMetrics::INITIATION_STATUS_SIMILAR_LANGUAGES));
-    EXPECT_EQ(expected_accept_languages,
-              GetCountWithoutSnapshot(
-                  TranslateBrowserMetrics::INITIATION_STATUS_ACCEPT_LANGUAGES));
-    EXPECT_EQ(expected_auto_by_config,
-              GetCountWithoutSnapshot(
-                  TranslateBrowserMetrics::INITIATION_STATUS_AUTO_BY_CONFIG));
-    EXPECT_EQ(expected_auto_by_link,
-              GetCountWithoutSnapshot(
-                  TranslateBrowserMetrics::INITIATION_STATUS_AUTO_BY_LINK));
-    EXPECT_EQ(expected_show_infobar,
-              GetCountWithoutSnapshot(
-                  TranslateBrowserMetrics::INITIATION_STATUS_SHOW_INFOBAR));
-    EXPECT_EQ(expected_language_in_ulp,
-              GetCountWithoutSnapshot(
-                  TranslateBrowserMetrics::INITIATION_STATUS_LANGUAGE_IN_ULP));
-    EXPECT_EQ(
-        expected_aborted_by_ranker,
-        GetCountWithoutSnapshot(
-            TranslateBrowserMetrics::INITIATION_STATUS_ABORTED_BY_RANKER));
-    EXPECT_EQ(expected_aborted_by_matches_previous_language,
-              GetCountWithoutSnapshot(
-                  TranslateBrowserMetrics::
-                      INITIATION_STATUS_ABORTED_BY_MATCHES_PREVIOUS_LANGUAGE));
-  }
 
   void CheckTranslateHrefHintStatus(
       int expected_auto_translated,
@@ -122,31 +54,6 @@ class MetricsRecorder {
               GetCountWithoutSnapshot(static_cast<int>(
                   TranslateBrowserMetrics::HrefTranslateStatus::
                       kNoUiShownNotAutoTranslated)));
-  }
-
-  void CheckTranslateHrefHintPrefsFilterStatus(
-      int expected_not_in_blocklists,
-      int expected_language_in_blocklist,
-      int expected_site_in_blocklist,
-      int expected_both_language_and_site_in_blocklist) {
-    Snapshot();
-
-    EXPECT_EQ(expected_not_in_blocklists,
-              GetCountWithoutSnapshot(static_cast<int>(
-                  TranslateBrowserMetrics::HrefTranslatePrefsFilterStatus::
-                      kNotInBlocklists)));
-    EXPECT_EQ(expected_language_in_blocklist,
-              GetCountWithoutSnapshot(static_cast<int>(
-                  TranslateBrowserMetrics::HrefTranslatePrefsFilterStatus::
-                      kLanguageInBlocklist)));
-    EXPECT_EQ(expected_site_in_blocklist,
-              GetCountWithoutSnapshot(static_cast<int>(
-                  TranslateBrowserMetrics::HrefTranslatePrefsFilterStatus::
-                      kSiteInBlocklist)));
-    EXPECT_EQ(expected_both_language_and_site_in_blocklist,
-              GetCountWithoutSnapshot(static_cast<int>(
-                  TranslateBrowserMetrics::HrefTranslatePrefsFilterStatus::
-                      kBothLanguageAndSiteInBlocklist)));
   }
 
   void CheckMenuTranslationUnavailableReason(
@@ -194,17 +101,19 @@ class MetricsRecorder {
                       kSourceLangUnknown)));
   }
 
-  HistogramBase::Count GetTotalCount() {
+  HistogramBase::Count32 GetTotalCount() {
     Snapshot();
-    if (!samples_)
+    if (!samples_) {
       return 0;
-    HistogramBase::Count count = samples_->TotalCount();
-    if (!base_samples_)
+    }
+    HistogramBase::Count32 count = samples_->TotalCount();
+    if (!base_samples_) {
       return count;
+    }
     return count - base_samples_->TotalCount();
   }
 
-  HistogramBase::Count GetCount(HistogramBase::Sample value) {
+  HistogramBase::Count32 GetCount(HistogramBase::Sample32 value) {
     Snapshot();
     return GetCountWithoutSnapshot(value);
   }
@@ -212,17 +121,21 @@ class MetricsRecorder {
  private:
   void Snapshot() {
     HistogramBase* histogram = StatisticsRecorder::FindHistogram(key_);
-    if (!histogram)
+    if (!histogram) {
       return;
+    }
     samples_ = histogram->SnapshotSamples();
   }
 
-  HistogramBase::Count GetCountWithoutSnapshot(HistogramBase::Sample value) {
-    if (!samples_)
+  HistogramBase::Count32 GetCountWithoutSnapshot(
+      HistogramBase::Sample32 value) {
+    if (!samples_) {
       return 0;
-    HistogramBase::Count count = samples_->GetCount(value);
-    if (!base_samples_)
+    }
+    HistogramBase::Count32 count = samples_->GetCount(value);
+    if (!base_samples_) {
       return count;
+    }
     return count - base_samples_->GetCount(value);
   }
 
@@ -230,55 +143,6 @@ class MetricsRecorder {
   std::unique_ptr<HistogramSamples> base_samples_;
   std::unique_ptr<HistogramSamples> samples_;
 };
-
-TEST(TranslateBrowserMetricsTest, ReportInitiationStatus) {
-  MetricsRecorder recorder("Translate.InitiationStatus.v2");
-
-  recorder.CheckInitiationStatus(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  TranslateBrowserMetrics::ReportInitiationStatus(
-      TranslateBrowserMetrics::INITIATION_STATUS_DISABLED_BY_PREFS);
-  recorder.CheckInitiationStatus(1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  TranslateBrowserMetrics::ReportInitiationStatus(
-      TranslateBrowserMetrics::INITIATION_STATUS_DISABLED_BY_CONFIG);
-  recorder.CheckInitiationStatus(1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  TranslateBrowserMetrics::ReportInitiationStatus(
-      TranslateBrowserMetrics::INITIATION_STATUS_DISABLED_BY_KEY);
-  recorder.CheckInitiationStatus(1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  TranslateBrowserMetrics::ReportInitiationStatus(
-      TranslateBrowserMetrics::INITIATION_STATUS_LANGUAGE_IS_NOT_SUPPORTED);
-  recorder.CheckInitiationStatus(1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  TranslateBrowserMetrics::ReportInitiationStatus(
-      TranslateBrowserMetrics::INITIATION_STATUS_MIME_TYPE_IS_NOT_SUPPORTED);
-  recorder.CheckInitiationStatus(1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  TranslateBrowserMetrics::ReportInitiationStatus(
-      TranslateBrowserMetrics::INITIATION_STATUS_URL_IS_NOT_SUPPORTED);
-  recorder.CheckInitiationStatus(1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0);
-  TranslateBrowserMetrics::ReportInitiationStatus(
-      TranslateBrowserMetrics::INITIATION_STATUS_SIMILAR_LANGUAGES);
-  recorder.CheckInitiationStatus(1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0);
-  TranslateBrowserMetrics::ReportInitiationStatus(
-      TranslateBrowserMetrics::INITIATION_STATUS_ACCEPT_LANGUAGES);
-  recorder.CheckInitiationStatus(1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0);
-  TranslateBrowserMetrics::ReportInitiationStatus(
-      TranslateBrowserMetrics::INITIATION_STATUS_AUTO_BY_CONFIG);
-  recorder.CheckInitiationStatus(1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0);
-  TranslateBrowserMetrics::ReportInitiationStatus(
-      TranslateBrowserMetrics::INITIATION_STATUS_AUTO_BY_LINK);
-  recorder.CheckInitiationStatus(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0);
-  TranslateBrowserMetrics::ReportInitiationStatus(
-      TranslateBrowserMetrics::INITIATION_STATUS_SHOW_INFOBAR);
-  recorder.CheckInitiationStatus(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0);
-  TranslateBrowserMetrics::ReportInitiationStatus(
-      TranslateBrowserMetrics::INITIATION_STATUS_LANGUAGE_IN_ULP);
-  recorder.CheckInitiationStatus(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0);
-  TranslateBrowserMetrics::ReportInitiationStatus(
-      TranslateBrowserMetrics::INITIATION_STATUS_ABORTED_BY_RANKER);
-  recorder.CheckInitiationStatus(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0);
-  TranslateBrowserMetrics::ReportInitiationStatus(
-      TranslateBrowserMetrics::
-          INITIATION_STATUS_ABORTED_BY_MATCHES_PREVIOUS_LANGUAGE);
-  recorder.CheckInitiationStatus(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
-}
 
 TEST(TranslateBrowserMetricsTest, ReportMenuTranslationUnavailableReason) {
   MetricsRecorder recorder("Translate.MenuTranslation.UnavailableReasons");
@@ -317,45 +181,6 @@ TEST(TranslateBrowserMetricsTest, ReportMenuTranslationUnavailableReason) {
   recorder.CheckMenuTranslationUnavailableReason(1, 1, 1, 1, 1, 1, 1, 1);
 }
 
-TEST(TranslateBrowserMetricsTest, ReportedUnsupportedLanguageAtInitiation) {
-  const int ENGLISH = 25966;
-
-  MetricsRecorder recorder("Translate.UnsupportedLanguageAtInitiation");
-  EXPECT_EQ(0, recorder.GetTotalCount());
-  TranslateBrowserMetrics::ReportUnsupportedLanguageAtInitiation("en");
-  EXPECT_EQ(1, recorder.GetCount(ENGLISH));
-}
-
-TEST(TranslateBrowserMetricsTest, ReportedTranslateSourceLanguage) {
-  const int ENGLISH = -74147910;
-  const int FRENCH = 1704315002;
-
-  MetricsRecorder recorder("Translate.SourceLanguage");
-  EXPECT_EQ(0, recorder.GetTotalCount());
-
-  TranslateBrowserMetrics::ReportTranslateSourceLanguage("en");
-  TranslateBrowserMetrics::ReportTranslateSourceLanguage("fr");
-  TranslateBrowserMetrics::ReportTranslateSourceLanguage("en");
-
-  EXPECT_EQ(2, recorder.GetCount(ENGLISH));
-  EXPECT_EQ(1, recorder.GetCount(FRENCH));
-}
-
-TEST(TranslateBrowserMetricsTest, ReportedTranslateTargetLanguage) {
-  const int ENGLISH = -74147910;
-  const int FRENCH = 1704315002;
-
-  MetricsRecorder recorder("Translate.TargetLanguage");
-  EXPECT_EQ(0, recorder.GetTotalCount());
-
-  TranslateBrowserMetrics::ReportTranslateTargetLanguage("en");
-  TranslateBrowserMetrics::ReportTranslateTargetLanguage("fr");
-  TranslateBrowserMetrics::ReportTranslateTargetLanguage("en");
-
-  EXPECT_EQ(2, recorder.GetCount(ENGLISH));
-  EXPECT_EQ(1, recorder.GetCount(FRENCH));
-}
-
 TEST(TranslateBrowserMetricsTest, ReportTranslateHrefHintStatus) {
   MetricsRecorder recorder("Translate.HrefHint.Status");
   recorder.CheckTranslateHrefHintStatus(0, 0, 0, 0);
@@ -373,27 +198,6 @@ TEST(TranslateBrowserMetricsTest, ReportTranslateHrefHintStatus) {
       TranslateBrowserMetrics::HrefTranslateStatus::
           kNoUiShownNotAutoTranslated);
   recorder.CheckTranslateHrefHintStatus(1, 1, 1, 1);
-}
-
-TEST(TranslateBrowserMetricsTest, ReportTranslateHrefHintPrefsFilterStatus) {
-  MetricsRecorder recorder("Translate.HrefHint.PrefsFilterStatus");
-  recorder.CheckTranslateHrefHintPrefsFilterStatus(0, 0, 0, 0);
-  TranslateBrowserMetrics::ReportTranslateHrefHintPrefsFilterStatus(
-      TranslateBrowserMetrics::HrefTranslatePrefsFilterStatus::
-          kNotInBlocklists);
-  recorder.CheckTranslateHrefHintPrefsFilterStatus(1, 0, 0, 0);
-  TranslateBrowserMetrics::ReportTranslateHrefHintPrefsFilterStatus(
-      TranslateBrowserMetrics::HrefTranslatePrefsFilterStatus::
-          kLanguageInBlocklist);
-  recorder.CheckTranslateHrefHintPrefsFilterStatus(1, 1, 0, 0);
-  TranslateBrowserMetrics::ReportTranslateHrefHintPrefsFilterStatus(
-      TranslateBrowserMetrics::HrefTranslatePrefsFilterStatus::
-          kSiteInBlocklist);
-  recorder.CheckTranslateHrefHintPrefsFilterStatus(1, 1, 1, 0);
-  TranslateBrowserMetrics::ReportTranslateHrefHintPrefsFilterStatus(
-      TranslateBrowserMetrics::HrefTranslatePrefsFilterStatus::
-          kBothLanguageAndSiteInBlocklist);
-  recorder.CheckTranslateHrefHintPrefsFilterStatus(1, 1, 1, 1);
 }
 
 }  // namespace

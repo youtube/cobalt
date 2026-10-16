@@ -26,8 +26,8 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if !SB_IS(EVERGREEN_COMPATIBLE)
-#error These tests apply only to EVERGREEN_COMPATIBLE platforms.
+#if !BUILDFLAG(IS_STARBOARD)
+#error These tests apply only to Starboard platforms.
 #endif
 
 namespace nplb {
@@ -55,8 +55,11 @@ void ReadBuffer(const char* file_path, char* buffer, size_t buffer_size) {
 
 TEST(StorageTest, VerifyStorageDirectory) {
   std::vector<char> storage_dir(kSbFileMaxPath);
-  ASSERT_TRUE(SbSystemGetPath(kSbSystemPathStorageDirectory, storage_dir.data(),
-                              kSbFileMaxPath));
+  if (!SbSystemGetPath(kSbSystemPathStorageDirectory, storage_dir.data(),
+                       kSbFileMaxPath)) {
+    GTEST_SKIP() << "kSbSystemPathStorageDirectory is not implemented "
+                    "(not required for Evergreen Lite).";
+  }
 
   std::string file_path = storage_dir.data();
   file_path += kSbFileSepString;

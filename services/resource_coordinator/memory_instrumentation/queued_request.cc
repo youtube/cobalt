@@ -4,6 +4,10 @@
 
 #include "services/resource_coordinator/memory_instrumentation/queued_request.h"
 
+#include "base/containers/to_vector.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
+
 namespace memory_instrumentation {
 
 QueuedRequest::Args::Args(MemoryDumpType dump_type,
@@ -49,6 +53,25 @@ base::trace_event::MemoryDumpRequestArgs QueuedRequest::GetRequestArgs() {
   request_args.level_of_detail = args.level_of_detail;
   request_args.determinism = args.determinism;
   return request_args;
+}
+
+std::vector<mojom::MemDumpFlags> QueuedRequest::memory_dump_flags() const {
+  if (!args.memory_footprint_only) {
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
+    std::vector<mojom::MemDumpFlags> flags = {
+        mojom::MemDumpFlags::MEM_DUMP_COUNT_MAPPINGS,
+        mojom::MemDumpFlags::MEM_DUMP_PSS};
+    if (args.level_of_detail ==
+            base::trace_event::MemoryDumpLevelOfDetail::kDetailed ||
+        args.dump_type == base::trace_event::MemoryDumpType::kSummaryOnly) {
+      flags.push_back(mojom::MemDumpFlags::MEM_DUMP_DETAILED_STATS);
+    }
+    return flags;
+#else
+    return base::ToVector(OSMetrics::MemDumpFlagSet::All());
+#endif  // BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
+  }
+  return {};
 }
 
 QueuedVmRegionRequest::Response::Response() = default;

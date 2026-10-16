@@ -16,8 +16,11 @@
 #if BUILDFLAG(IS_IOS)
 #include "base/at_exit.h"                                 // nogncheck
 #include "base/command_line.h"                            // nogncheck
+#include "build/ios_buildflags.h"                         // nogncheck
 #include "content/public/common/content_switches.h"       // nogncheck
 #include "content/shell/app/ios/shell_application_ios.h"
+#include "content/shell/app/ios/web_tests_support_ios.h"
+#include "content/shell/common/shell_switches.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -46,7 +49,20 @@ int main() {
 
 #elif BUILDFLAG(IS_IOS)
 
-int main(int argc, const char** argv) {
+#define IOS_INIT_EXPORT __attribute__((visibility("default")))
+
+extern "C" IOS_INIT_EXPORT int ChildProcessMain(int argc, const char** argv) {
+  // Create this here since it's needed to start the crash handler.
+  base::AtExitManager at_exit;
+  base::CommandLine::Init(argc, argv);
+  content::ShellMainDelegate delegate;
+  content::ContentMainParams params(&delegate);
+  params.argc = argc;
+  params.argv = argv;
+  return content::ContentMain(std::move(params));
+}
+
+extern "C" IOS_INIT_EXPORT int ContentAppMain(int argc, const char** argv) {
   // Create this here since it's needed to start the crash handler.
   base::AtExitManager at_exit;
 
@@ -58,8 +74,13 @@ int main(int argc, const char** argv) {
 
   // The browser process has no --process-type argument.
   if (type.empty()) {
-    // We will create the ContentMainRunner once the UIApplication is ready.
-    return RunShellApplication(argc, argv);
+    if (switches::IsRunWebTestsSwitchPresent()) {
+      // We create a simple UIApplication to run the web tests.
+      return RunWebTestsFromIOSApp(argc, argv);
+    } else {
+      // We will create the ContentMainRunner once the UIApplication is ready.
+      return RunShellApplication(argc, argv);
+    }
   } else {
     content::ShellMainDelegate delegate;
     content::ContentMainParams params(&delegate);

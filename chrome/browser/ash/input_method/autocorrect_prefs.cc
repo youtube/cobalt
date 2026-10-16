@@ -10,6 +10,7 @@
 #include "base/feature_list.h"
 #include "base/strings/strcat.h"
 #include "base/values.h"
+#include "chrome/browser/ash/input_method/input_method_settings.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/scoped_user_pref_update.h"
 
@@ -32,19 +33,23 @@ AutocorrectPreference GetAutocorrectPrefFor(
   const base::Value* autocorrect_level = input_method_settings.FindByDottedPath(
       base::StrCat({engine_id, ".", autocorrect_pref_path}));
 
-  if (!autocorrect_level)
+  if (!autocorrect_level) {
     return AutocorrectPreference::kDefault;
-  if (!autocorrect_level->GetIfInt().has_value())
+  }
+  if (!autocorrect_level->GetIfInt().has_value()) {
     return AutocorrectPreference::kDefault;
-  if (autocorrect_level->GetIfInt().value() > 0)
+  }
+  if (autocorrect_level->GetIfInt().value() > 0) {
     return AutocorrectPreference::kEnabled;
+  }
   return AutocorrectPreference::kDisabled;
 }
 
 bool IsPkAutocorrectEnabledByDefault(const PrefService& pref_service,
                                      const std::string& engine_id) {
-  if (!base::FeatureList::IsEnabled(features::kAutocorrectByDefault))
+  if (!base::FeatureList::IsEnabled(features::kAutocorrectByDefault)) {
     return false;
+  }
 
   const base::Value::Dict& settings =
       pref_service.GetDict(prefs::kLanguageInputMethodSpecificSettings);
@@ -60,10 +65,14 @@ bool IsPkAutocorrectEnabledByDefault(const PrefService& pref_service,
 AutocorrectPreference GetPhysicalKeyboardAutocorrectPref(
     const PrefService& pref_service,
     const std::string& engine_id) {
+  if (!IsPhysicalKeyboardAutocorrectAllowed(pref_service)) {
+    return AutocorrectPreference::kDisabled;
+  }
   auto preference = GetAutocorrectPrefFor(kPkAutocorrectLevelPrefName,
                                           pref_service, engine_id);
-  if (!base::FeatureList::IsEnabled(features::kAutocorrectByDefault))
+  if (!base::FeatureList::IsEnabled(features::kAutocorrectByDefault)) {
     return preference;
+  }
   return (preference == AutocorrectPreference::kDefault &&
           IsPkAutocorrectEnabledByDefault(pref_service, engine_id))
              ? AutocorrectPreference::kEnabledByDefault
@@ -80,8 +89,9 @@ AutocorrectPreference GetVirtualKeyboardAutocorrectPref(
 bool SetPhysicalKeyboardAutocorrectAsEnabledByDefault(
     PrefService* pref_service,
     const std::string& engine_id) {
-  if (!base::FeatureList::IsEnabled(features::kAutocorrectByDefault))
+  if (!base::FeatureList::IsEnabled(features::kAutocorrectByDefault)) {
     return false;
+  }
   base::Value* result =
       ScopedDictPrefUpdate(pref_service,
                            prefs::kLanguageInputMethodSpecificSettings)

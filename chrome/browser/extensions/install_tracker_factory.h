@@ -6,9 +6,13 @@
 #define CHROME_BROWSER_EXTENSIONS_INSTALL_TRACKER_FACTORY_H_
 
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
+#include "extensions/buildflags/buildflags.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace base {
-template <typename T> struct DefaultSingletonTraits;
+template <typename T>
+class NoDestructor;
 }
 
 namespace extensions {
@@ -24,13 +28,13 @@ class InstallTrackerFactory : public ProfileKeyedServiceFactory {
   static InstallTrackerFactory* GetInstance();
 
  private:
-  friend struct base::DefaultSingletonTraits<InstallTrackerFactory>;
+  friend base::NoDestructor<InstallTrackerFactory>;
 
   InstallTrackerFactory();
   ~InstallTrackerFactory() override;
 
   // BrowserContextKeyedServiceFactory overrides:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 

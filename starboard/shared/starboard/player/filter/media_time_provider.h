@@ -33,6 +33,16 @@ class MediaTimeProvider {
                                       bool* is_underflow,
                                       double* playback_rate) = 0;
 
+  // Returns the latest timestamp (in microseconds) that has been written to the
+  // audio sink. This can be used to synchronize video frame submission with the
+  // audio track.
+  virtual int64_t GetAudioWriteHead() = 0;
+
+  // Adjusts a given media |timestamp| (in microseconds) to the current audio
+  // clock. This is used to calculate the adjusted presentation time of a video
+  // frame when variable speed playback or other clock adjustments are active.
+  virtual int64_t AdjustTimestampToAudioClock(int64_t timestamp) = 0;
+
  protected:
   virtual ~MediaTimeProvider() {}
 };

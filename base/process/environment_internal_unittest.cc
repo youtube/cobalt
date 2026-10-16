@@ -13,8 +13,7 @@
 
 using EnvironmentInternalTest = PlatformTest;
 
-namespace base {
-namespace internal {
+namespace base::internal {
 
 #if BUILDFLAG(IS_WIN)
 
@@ -95,7 +94,7 @@ TEST_F(EnvironmentInternalTest, AlterEnvironment) {
   const char* const a2[] = {"A=2", nullptr};
   const char* const a2b3[] = {"A=2", "B=3", nullptr};
   EnvironmentMap changes;
-  std::unique_ptr<char*[]> e;
+  base::HeapArray<char*> e;
 
   e = AlterEnvironment(empty, changes);
   EXPECT_TRUE(e[0] == nullptr);
@@ -157,5 +156,4 @@ TEST_F(EnvironmentInternalTest, AlterEnvironment) {
 
 #endif  // BUILDFLAG(IS_WIN)
 
-}  // namespace internal
-}  // namespace base
+}  // namespace base::internal

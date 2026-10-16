@@ -9,10 +9,6 @@
 #import "ios/chrome/common/ui/table_view/table_view_cells_constants.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 const CGFloat kSymbolSize = 18;
 }  // namespace
@@ -27,7 +23,7 @@ const CGFloat kSymbolSize = 18;
   if (self) {
     _symbolView = [[UIImageView alloc] init];
     _symbolView.translatesAutoresizingMaskIntoConstraints = NO;
-    _symbolView.contentMode = UIViewContentModeCenter;
+    _symbolView.contentMode = UIViewContentModeScaleToFill;
     [self addSubview:_symbolView];
 
     self.layer.cornerRadius = kColorfulBackgroundSymbolCornerRadius;

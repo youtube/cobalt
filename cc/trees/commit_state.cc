@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "cc/trees/commit_state.h"
+
 #include "components/viz/common/frame_sinks/copy_output_request.h"
 
 namespace cc {
@@ -18,6 +19,7 @@ CommitState::CommitState(const CommitState& prev)
       may_throttle_if_undrawn_frames(prev.may_throttle_if_undrawn_frames),
       prefers_reduced_motion(prev.prefers_reduced_motion),
       browser_controls_params(prev.browser_controls_params),
+      event_listener_properties(prev.event_listener_properties),
       bottom_controls_shown_ratio(prev.bottom_controls_shown_ratio),
       device_scale_factor(prev.device_scale_factor),
       external_page_scale_factor(prev.external_page_scale_factor),
@@ -31,6 +33,7 @@ CommitState::CommitState(const CommitState& prev)
       device_viewport_rect(prev.device_viewport_rect),
       visual_device_viewport_size(prev.visual_device_viewport_size),
       elastic_overscroll(prev.elastic_overscroll),
+      max_safe_area_insets(prev.max_safe_area_insets),
       hud_layer_id(prev.hud_layer_id),
       source_frame_number(prev.source_frame_number),
       selection(prev.selection),
@@ -39,12 +42,8 @@ CommitState::CommitState(const CommitState& prev)
       background_color(prev.background_color),
       viewport_property_ids(prev.viewport_property_ids),
       local_surface_id_from_parent(prev.local_surface_id_from_parent),
-      previous_surfaces_visual_update_duration(
-          prev.previous_surfaces_visual_update_duration),
-      visual_update_duration(prev.visual_update_duration) {
-  memcpy(event_listener_properties, prev.event_listener_properties,
-         sizeof(event_listener_properties));
-}
+      primary_main_frame_item_sequence_number(
+          prev.primary_main_frame_item_sequence_number) {}
 
 base::flat_set<viz::SurfaceRange> CommitState::SurfaceRanges() const {
   base::flat_set<viz::SurfaceRange> ranges;

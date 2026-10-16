@@ -11,11 +11,11 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <vector>
 
-#include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
@@ -45,16 +45,16 @@ namespace dcsctp {
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 constexpr int IDataChunk::kType;
 
-absl::optional<IDataChunk> IDataChunk::Parse(
-    rtc::ArrayView<const uint8_t> data) {
-  absl::optional<BoundedByteReader<kHeaderSize>> reader = ParseTLV(data);
+std::optional<IDataChunk> IDataChunk::Parse(
+    webrtc::ArrayView<const uint8_t> data) {
+  std::optional<BoundedByteReader<kHeaderSize>> reader = ParseTLV(data);
   if (!reader.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   uint8_t flags = reader->Load8<1>();
   TSN tsn(reader->Load32<4>());
   StreamID stream_identifier(reader->Load16<8>());
-  MID message_id(reader->Load32<12>());
+  MID mid(reader->Load32<12>());
   uint32_t ppid_or_fsn = reader->Load32<16>();
 
   Options options;
@@ -65,7 +65,7 @@ absl::optional<IDataChunk> IDataChunk::Parse(
   options.immediate_ack =
       ImmediateAckFlag((flags & (1 << kFlagsBitImmediateAck)) != 0);
 
-  return IDataChunk(tsn, stream_identifier, message_id,
+  return IDataChunk(tsn, stream_identifier, mid,
                     PPID(options.is_beginning ? ppid_or_fsn : 0),
                     FSN(options.is_beginning ? 0 : ppid_or_fsn),
                     std::vector<uint8_t>(reader->variable_data().begin(),
@@ -83,21 +83,21 @@ void IDataChunk::SerializeTo(std::vector<uint8_t>& out) const {
       (*options().immediate_ack ? (1 << kFlagsBitImmediateAck) : 0));
   writer.Store32<4>(*tsn());
   writer.Store16<8>(*stream_id());
-  writer.Store32<12>(*message_id());
+  writer.Store32<12>(*mid());
   writer.Store32<16>(options().is_beginning ? *ppid() : *fsn());
   writer.CopyToVariableData(payload());
 }
 
 std::string IDataChunk::ToString() const {
-  rtc::StringBuilder sb;
+  webrtc::StringBuilder sb;
   sb << "I-DATA, type=" << (options().is_unordered ? "unordered" : "ordered")
      << "::"
-     << (*options().is_beginning && *options().is_end
-             ? "complete"
-             : *options().is_beginning ? "first"
-                                       : *options().is_end ? "last" : "middle")
+     << (*options().is_beginning && *options().is_end ? "complete"
+         : *options().is_beginning                    ? "first"
+         : *options().is_end                          ? "last"
+                                                      : "middle")
      << ", tsn=" << *tsn() << ", stream_id=" << *stream_id()
-     << ", message_id=" << *message_id();
+     << ", mid=" << *mid();
 
   if (*options().is_beginning) {
     sb << ", ppid=" << *ppid();

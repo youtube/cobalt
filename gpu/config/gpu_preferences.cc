@@ -4,10 +4,14 @@
 
 #include "gpu/config/gpu_preferences.h"
 
+#include <string_view>
+
 #include "base/base64.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/system/sys_info.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "gpu/config/gpu_switches.h"
 #include "gpu/ipc/common/gpu_preferences.mojom.h"
 
@@ -16,7 +20,7 @@ namespace gpu {
 namespace {
 
 #if !BUILDFLAG(IS_ANDROID)
-size_t GetCustomGpuCacheSizeBytesIfExists(base::StringPiece switch_string) {
+size_t GetCustomGpuCacheSizeBytesIfExists(std::string_view switch_string) {
   const base::CommandLine& process_command_line =
       *base::CommandLine::ForCurrentProcess();
   size_t cache_size;
@@ -34,18 +38,65 @@ size_t GetCustomGpuCacheSizeBytesIfExists(base::StringPiece switch_string) {
 }  // namespace
 
 size_t GetDefaultGpuDiskCacheSize() {
+  size_t cache_size = 0;
 #if !BUILDFLAG(IS_ANDROID)
   size_t custom_cache_size =
       GetCustomGpuCacheSizeBytesIfExists(switches::kGpuDiskCacheSizeKB);
-  if (custom_cache_size)
-    return custom_cache_size;
-  return kDefaultMaxProgramCacheMemoryBytes;
+  if (custom_cache_size) {
+    cache_size = custom_cache_size;
+  } else {
+    cache_size = kDefaultMaxProgramCacheMemoryBytes;
+  }
 #else   // !BUILDFLAG(IS_ANDROID)
-  if (!base::SysInfo::IsLowEndDevice())
-    return kDefaultMaxProgramCacheMemoryBytes;
-  else
-    return kLowEndMaxProgramCacheMemoryBytes;
+  cache_size = base::SysInfo::IsLowEndDevice()
+                   ? kLowEndMaxProgramCacheMemoryBytes
+                   : kDefaultMaxProgramCacheMemoryBytes;
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+  if (base::FeatureList::IsEnabled(::features::kAggressiveShaderCacheLimits)) {
+    cache_size *= 2;
+  }
+  return cache_size;
+}
+
+std::string GrContextTypeToString(GrContextType type) {
+  switch (type) {
+    case GrContextType::kNone:
+      return "None";
+    case GrContextType::kGL:
+      return "GaneshGL";
+    case GrContextType::kVulkan:
+      return "GaneshVulkan";
+    case GrContextType::kGraphiteDawn:
+      return "GraphiteDawn";
+    case GrContextType::kGraphiteMetal:
+      return "GraphiteMetal";
+  }
+  NOTREACHED() << "GrContextType=" << static_cast<int>(type);
+}
+
+std::string SkiaBackendTypeToString(SkiaBackendType type) {
+  switch (type) {
+    case SkiaBackendType::kUnknown:
+      return "Unknown";
+    case SkiaBackendType::kNone:
+      return "None";
+    case SkiaBackendType::kGaneshGL:
+      return "GaneshGL";
+    case SkiaBackendType::kGaneshVulkan:
+      return "GaneshVulkan";
+    case SkiaBackendType::kGraphiteDawnVulkan:
+      return "GraphiteDawnVulkan";
+    case SkiaBackendType::kGraphiteDawnMetal:
+      return "GraphiteDawnMetal";
+    case SkiaBackendType::kGraphiteDawnD3D11:
+      return "GraphiteDawnD3D11";
+    case SkiaBackendType::kGraphiteDawnD3D12:
+      return "GraphiteDawnD3D12";
+    case SkiaBackendType::kGraphiteMetal:
+      return "GraphiteMetal";
+  }
+  NOTREACHED() << "SkiaBackendType=" << static_cast<int>(type);
 }
 
 GpuPreferences::GpuPreferences() = default;
@@ -56,13 +107,7 @@ GpuPreferences::~GpuPreferences() = default;
 
 std::string GpuPreferences::ToSwitchValue() {
   std::vector<uint8_t> serialized = gpu::mojom::GpuPreferences::Serialize(this);
-
-  std::string encoded;
-  base::Base64Encode(
-      base::StringPiece(reinterpret_cast<const char*>(serialized.data()),
-                        serialized.size()),
-      &encoded);
-  return encoded;
+  return base::Base64Encode(serialized);
 }
 
 bool GpuPreferences::FromSwitchValue(const std::string& data) {

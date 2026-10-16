@@ -11,7 +11,7 @@
 
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
-#include "base/strings/stringprintf.h"
+#include "base/strings/strcat.h"
 #include "base/values.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/version_info/channel.h"
@@ -21,6 +21,8 @@
 #include "content/public/test/browser_task_environment.h"
 #include "extensions/browser/api/declarative/test_rules_registry.h"
 #include "extensions/browser/api/declarative_webrequest/webrequest_constants.h"
+#include "extensions/browser/rules_registry_ids.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/api/declarative/declarative_constants.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
@@ -28,6 +30,8 @@
 #include "extensions/common/features/feature_channel.h"
 #include "extensions/common/features/feature_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace {
 const char kExtensionId[] = "foo";
@@ -56,7 +60,7 @@ class RulesRegistryServiceTest : public testing::Test {
  public:
   RulesRegistryServiceTest() = default;
 
-  ~RulesRegistryServiceTest() override {}
+  ~RulesRegistryServiceTest() override = default;
 
   void TearDown() override {
     // Make sure that deletion traits of all registries are executed.
@@ -70,20 +74,14 @@ class RulesRegistryServiceTest : public testing::Test {
 TEST_F(RulesRegistryServiceTest, TestConstructionAndMultiThreading) {
   RulesRegistryService registry_service(nullptr);
 
-  int key = RulesRegistryService::kDefaultRulesRegistryID;
-  TestRulesRegistry* ui_registry =
-      new TestRulesRegistry(content::BrowserThread::UI, "ui", key);
-
-  TestRulesRegistry* io_registry =
-      new TestRulesRegistry(content::BrowserThread::IO, "io", key);
+  int key = rules_registry_ids::kDefaultRulesRegistryID;
+  TestRulesRegistry* ui_registry = new TestRulesRegistry("ui", key);
 
   // Test registration.
 
   registry_service.RegisterRulesRegistry(base::WrapRefCounted(ui_registry));
-  registry_service.RegisterRulesRegistry(base::WrapRefCounted(io_registry));
 
   EXPECT_TRUE(registry_service.GetRulesRegistry(key, "ui").get());
-  EXPECT_TRUE(registry_service.GetRulesRegistry(key, "io").get());
   EXPECT_FALSE(registry_service.GetRulesRegistry(key, "foo").get());
 
   content::GetUIThreadTaskRunner({})->PostTask(
@@ -91,20 +89,10 @@ TEST_F(RulesRegistryServiceTest, TestConstructionAndMultiThreading) {
       base::BindOnce(&InsertRule, registry_service.GetRulesRegistry(key, "ui"),
                      "ui_task"));
 
-  content::GetIOThreadTaskRunner({})->PostTask(
-      FROM_HERE,
-      base::BindOnce(&InsertRule, registry_service.GetRulesRegistry(key, "io"),
-                     "io_task"));
-
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,
       base::BindOnce(&VerifyNumberOfRules,
                      registry_service.GetRulesRegistry(key, "ui"), 1));
-
-  content::GetIOThreadTaskRunner({})->PostTask(
-      FROM_HERE,
-      base::BindOnce(&VerifyNumberOfRules,
-                     registry_service.GetRulesRegistry(key, "io"), 1));
 
   base::RunLoop().RunUntilIdle();
 
@@ -125,14 +113,14 @@ TEST_F(RulesRegistryServiceTest, TestConstructionAndMultiThreading) {
       base::BindOnce(&VerifyNumberOfRules,
                      registry_service.GetRulesRegistry(key, "ui"), 0));
 
-  content::GetIOThreadTaskRunner({})->PostTask(
-      FROM_HERE,
-      base::BindOnce(&VerifyNumberOfRules,
-                     registry_service.GetRulesRegistry(key, "io"), 0));
-
   base::RunLoop().RunUntilIdle();
 }
 
+#if !BUILDFLAG(IS_ANDROID)
+// This test relies on declarativeWebRequest, which is deprecated and will not
+// be supported on desktop Android. We can't just replace it with
+// declarativeNetRequest because the test relies on the API being unavailable
+// on stable channel.
 TEST_F(RulesRegistryServiceTest, DefaultRulesRegistryRegistered) {
   struct {
     version_info::Channel channel;
@@ -143,9 +131,9 @@ TEST_F(RulesRegistryServiceTest, DefaultRulesRegistryRegistered) {
   };
 
   for (const auto& test_case : test_cases) {
-    SCOPED_TRACE(base::StringPrintf(
-        "Testing Channel %s",
-        version_info::GetChannelString(test_case.channel).c_str()));
+    SCOPED_TRACE(
+        base::StrCat({"Testing Channel ",
+                      version_info::GetChannelString(test_case.channel)}));
     ScopedCurrentChannel scoped_channel(test_case.channel);
 
     ASSERT_EQ(test_case.expect_api_enabled,
@@ -161,13 +149,13 @@ TEST_F(RulesRegistryServiceTest, DefaultRulesRegistryRegistered) {
     EXPECT_EQ(
         test_case.expect_api_enabled,
         registry_service
-                .GetRulesRegistry(RulesRegistryService::kDefaultRulesRegistryID,
+                .GetRulesRegistry(rules_registry_ids::kDefaultRulesRegistryID,
                                   declarative_webrequest_constants::kOnRequest)
                 .get() != nullptr);
 
     // Content rules registry should always be created.
     EXPECT_TRUE(registry_service.GetRulesRegistry(
-        RulesRegistryService::kDefaultRulesRegistryID,
+        rules_registry_ids::kDefaultRulesRegistryID,
         declarative_content_constants::kOnPageChanged));
     EXPECT_TRUE(registry_service.content_rules_registry());
 
@@ -177,5 +165,6 @@ TEST_F(RulesRegistryServiceTest, DefaultRulesRegistryRegistered) {
         kWebViewRulesRegistryID, declarative_webrequest_constants::kOnRequest));
   }
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace extensions

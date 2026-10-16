@@ -18,18 +18,19 @@ namespace web {
 // NativeTaskBridge) to perform the download
 class DownloadNativeTaskImpl final : public DownloadTaskImpl {
  public:
-  // Constructs a new DownloadSessionTaskImpl objects. `web_state`, `identifier`
+  // Constructs a new `DownloadNativeTaskImpl` object. `web_state`, `identifier`
   // and `download` must be valid.
   DownloadNativeTaskImpl(
       WebState* web_state,
       const GURL& original_url,
+      NSString* originating_host,
       NSString* http_method,
       const std::string& content_disposition,
       int64_t total_bytes,
       const std::string& mime_type,
       NSString* identifier,
       const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-      DownloadNativeTaskBridge* download) API_AVAILABLE(ios(15));
+      DownloadNativeTaskBridge* download);
 
   DownloadNativeTaskImpl(const DownloadNativeTaskImpl&) = delete;
   DownloadNativeTaskImpl& operator=(const DownloadNativeTaskImpl&) = delete;
@@ -48,9 +49,11 @@ class DownloadNativeTaskImpl final : public DownloadTaskImpl {
                           double fraction_complete);
 
   // Invoked when the NSURLResponse of WKDownload is received.
-  void OnResponseReceived(int http_error_code, NSString* mime_type);
+  void OnResponseReceived(int http_error_code,
+                          NSString* mime_type,
+                          NSURL* redirected_url);
 
-  DownloadNativeTaskBridge* download_bridge_ API_AVAILABLE(ios(15)) = nil;
+  DownloadNativeTaskBridge* download_bridge_ = nil;
 
   base::WeakPtrFactory<DownloadNativeTaskImpl> weak_factory_{this};
 };

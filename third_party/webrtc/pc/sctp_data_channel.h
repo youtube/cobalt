@@ -14,10 +14,10 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 
-#include "absl/types/optional.h"
 #include "api/data_channel_interface.h"
 #include "api/priority.h"
 #include "api/rtc_error.h"
@@ -46,15 +46,18 @@ class SctpDataChannelControllerInterface {
   // Sends the data to the transport.
   virtual RTCError SendData(StreamId sid,
                             const SendDataParams& params,
-                            const rtc::CopyOnWriteBuffer& payload) = 0;
+                            const CopyOnWriteBuffer& payload) = 0;
   // Adds the data channel SID to the transport for SCTP.
-  virtual void AddSctpDataStream(StreamId sid) = 0;
+  virtual void AddSctpDataStream(StreamId sid, PriorityValue priority) = 0;
   // Begins the closing procedure by sending an outgoing stream reset. Still
   // need to wait for callbacks to tell when this completes.
   virtual void RemoveSctpDataStream(StreamId sid) = 0;
   // Notifies the controller of state changes.
   virtual void OnChannelStateChanged(SctpDataChannel* data_channel,
                                      DataChannelInterface::DataState state) = 0;
+  virtual size_t buffered_amount(StreamId sid) const = 0;
+  virtual size_t buffered_amount_low_threshold(StreamId sid) const = 0;
+  virtual void SetBufferedAmountLowThreshold(StreamId sid, size_t bytes) = 0;
 
  protected:
   virtual ~SctpDataChannelControllerInterface() {}
@@ -75,7 +78,7 @@ struct InternalDataChannelInit : public DataChannelInit {
   // stream ids in situations where we cannot determine the SSL role from the
   // transport for purposes of generating a stream ID.
   // See: https://www.rfc-editor.org/rfc/rfc8832.html#name-protocol-overview
-  absl::optional<rtc::SSLRole> fallback_ssl_role;
+  std::optional<SSLRole> fallback_ssl_role;
 };
 
 // Helper class to allocate unique IDs for SCTP DataChannels.
@@ -85,8 +88,8 @@ class SctpSidAllocator {
   // Gets the first unused odd/even id based on the DTLS role. If `role` is
   // SSL_CLIENT, the allocated id starts from 0 and takes even numbers;
   // otherwise, the id starts from 1 and takes odd numbers.
-  // If a `StreamId` cannot be allocated, `StreamId::HasValue()` will be false.
-  StreamId AllocateSid(rtc::SSLRole role);
+  // If a `StreamId` cannot be allocated, `std::nullopt` is returned.
+  std::optional<StreamId> AllocateSid(SSLRole role);
 
   // Attempts to reserve a specific sid. Returns false if it's unavailable.
   bool ReserveSid(StreamId sid);
@@ -126,13 +129,13 @@ class SctpSidAllocator {
 //    OnClosingProcedureComplete callback and transition to kClosed.
 class SctpDataChannel : public DataChannelInterface {
  public:
-  static rtc::scoped_refptr<SctpDataChannel> Create(
-      rtc::WeakPtr<SctpDataChannelControllerInterface> controller,
+  static scoped_refptr<SctpDataChannel> Create(
+      WeakPtr<SctpDataChannelControllerInterface> controller,
       const std::string& label,
       bool connected_to_transport,
       const InternalDataChannelInit& config,
-      rtc::Thread* signaling_thread,
-      rtc::Thread* network_thread);
+      Thread* signaling_thread,
+      Thread* network_thread);
 
   // Instantiates an API proxy for a SctpDataChannel instance that will be
   // handed out to external callers.
@@ -141,9 +144,9 @@ class SctpDataChannel : public DataChannelInterface {
   // callbacks after the peerconnection has been closed. The data controller
   // will update the flag when closed, which will cancel any pending event
   // notifications.
-  static rtc::scoped_refptr<DataChannelInterface> CreateProxy(
-      rtc::scoped_refptr<SctpDataChannel> channel,
-      rtc::scoped_refptr<PendingTaskSafetyFlag> signaling_safety);
+  static scoped_refptr<DataChannelInterface> CreateProxy(
+      scoped_refptr<SctpDataChannel> channel,
+      scoped_refptr<PendingTaskSafetyFlag> signaling_safety);
 
   void RegisterObserver(DataChannelObserver* observer) override;
   void UnregisterObserver() override;
@@ -152,16 +155,12 @@ class SctpDataChannel : public DataChannelInterface {
   bool reliable() const override;
   bool ordered() const override;
 
-  // Backwards compatible accessors
-  uint16_t maxRetransmitTime() const override;
-  uint16_t maxRetransmits() const override;
-
-  absl::optional<int> maxPacketLifeTime() const override;
-  absl::optional<int> maxRetransmitsOpt() const override;
+  std::optional<int> maxPacketLifeTime() const override;
+  std::optional<int> maxRetransmitsOpt() const override;
   std::string protocol() const override;
   bool negotiated() const override;
   int id() const override;
-  Priority priority() const override;
+  PriorityValue priority() const override;
 
   uint64_t buffered_amount() const override;
   void Close() override;
@@ -187,8 +186,7 @@ class SctpDataChannel : public DataChannelInterface {
   // already finished.
   void OnTransportReady();
 
-  void OnDataReceived(DataMessageType type,
-                      const rtc::CopyOnWriteBuffer& payload);
+  void OnDataReceived(DataMessageType type, const CopyOnWriteBuffer& payload);
 
   // Sets the SCTP sid and adds to transport layer if not set yet. Should only
   // be called once.
@@ -207,6 +205,9 @@ class SctpDataChannel : public DataChannelInterface {
   // This method makes sure the DataChannel is disconnected and changes state
   // to kClosed.
   void OnTransportChannelClosed(RTCError error);
+  // Called when the amount of data buffered to be sent falls to or below the
+  // threshold set when calling `SetBufferedAmountLowThreshold`.
+  void OnBufferedAmountLow();
 
   DataChannelStats GetStats() const;
 
@@ -215,7 +216,7 @@ class SctpDataChannel : public DataChannelInterface {
   // stats purposes (see also `GetStats()`).
   int internal_id() const { return internal_id_; }
 
-  StreamId sid_n() const {
+  std::optional<StreamId> sid_n() const {
     RTC_DCHECK_RUN_ON(network_thread_);
     return id_n_;
   }
@@ -226,11 +227,11 @@ class SctpDataChannel : public DataChannelInterface {
 
  protected:
   SctpDataChannel(const InternalDataChannelInit& config,
-                  rtc::WeakPtr<SctpDataChannelControllerInterface> controller,
+                  WeakPtr<SctpDataChannelControllerInterface> controller,
                   const std::string& label,
                   bool connected_to_transport,
-                  rtc::Thread* signaling_thread,
-                  rtc::Thread* network_thread);
+                  Thread* signaling_thread,
+                  Thread* network_thread);
   ~SctpDataChannel() override;
 
  private:
@@ -251,31 +252,30 @@ class SctpDataChannel : public DataChannelInterface {
 
   void DeliverQueuedReceivedData() RTC_RUN_ON(network_thread_);
 
-  void SendQueuedDataMessages() RTC_RUN_ON(network_thread_);
   RTCError SendDataMessage(const DataBuffer& buffer, bool queue_if_blocked)
       RTC_RUN_ON(network_thread_);
-  bool QueueSendDataMessage(const DataBuffer& buffer)
-      RTC_RUN_ON(network_thread_);
 
-  void SendQueuedControlMessages() RTC_RUN_ON(network_thread_);
-  bool SendControlMessage(const rtc::CopyOnWriteBuffer& buffer)
+  bool SendControlMessage(const CopyOnWriteBuffer& buffer)
       RTC_RUN_ON(network_thread_);
 
   bool connected_to_transport() const RTC_RUN_ON(network_thread_) {
     return network_safety_->alive();
   }
+  void MaybeSendOnBufferedAmountChanged() RTC_RUN_ON(network_thread_);
 
-  rtc::Thread* const signaling_thread_;
-  rtc::Thread* const network_thread_;
-  StreamId id_n_ RTC_GUARDED_BY(network_thread_);
+  Thread* const signaling_thread_;
+  Thread* const network_thread_;
+  std::optional<StreamId> id_n_ RTC_GUARDED_BY(network_thread_) = std::nullopt;
   const int internal_id_;
   const std::string label_;
   const std::string protocol_;
-  const absl::optional<int> max_retransmit_time_;
-  const absl::optional<int> max_retransmits_;
-  const absl::optional<Priority> priority_;
+  const std::optional<int> max_retransmit_time_;
+  const std::optional<int> max_retransmits_;
+  const std::optional<PriorityValue> priority_;
   const bool negotiated_;
   const bool ordered_;
+  // See the body of `MaybeSendOnBufferedAmountChanged`.
+  size_t expected_buffer_amount_ = 0;
 
   DataChannelObserver* observer_ RTC_GUARDED_BY(network_thread_) = nullptr;
   std::unique_ptr<ObserverAdapter> observer_adapter_;
@@ -285,18 +285,14 @@ class SctpDataChannel : public DataChannelInterface {
   uint64_t bytes_sent_ RTC_GUARDED_BY(network_thread_) = 0;
   uint32_t messages_received_ RTC_GUARDED_BY(network_thread_) = 0;
   uint64_t bytes_received_ RTC_GUARDED_BY(network_thread_) = 0;
-  rtc::WeakPtr<SctpDataChannelControllerInterface> controller_
+  WeakPtr<SctpDataChannelControllerInterface> controller_
       RTC_GUARDED_BY(network_thread_);
   HandshakeState handshake_state_ RTC_GUARDED_BY(network_thread_) =
       kHandshakeInit;
   // Did we already start the graceful SCTP closing procedure?
   bool started_closing_procedure_ RTC_GUARDED_BY(network_thread_) = false;
-  // Control messages that always have to get sent out before any queued
-  // data.
-  PacketQueue queued_control_data_ RTC_GUARDED_BY(network_thread_);
   PacketQueue queued_received_data_ RTC_GUARDED_BY(network_thread_);
-  PacketQueue queued_send_data_ RTC_GUARDED_BY(network_thread_);
-  rtc::scoped_refptr<PendingTaskSafetyFlag> network_safety_ =
+  scoped_refptr<PendingTaskSafetyFlag> network_safety_ =
       PendingTaskSafetyFlag::CreateDetachedInactive();
 };
 

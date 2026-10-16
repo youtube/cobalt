@@ -30,8 +30,8 @@
 
 #include "include/v8config.h"
 
-// {LinuxPerfJitLogger} is only implemented on Linux.
-#if V8_OS_LINUX
+// {PerfJitLogger} is only implemented on Linux & Darwin.
+#if V8_OS_LINUX || V8_OS_DARWIN
 
 #include "src/logging/log.h"
 
@@ -39,17 +39,19 @@ namespace v8 {
 namespace internal {
 
 // Linux perf tool logging support.
-class LinuxPerfJitLogger : public CodeEventLogger {
+class PerfJitLogger : public CodeEventLogger {
  public:
-  explicit LinuxPerfJitLogger(Isolate* isolate);
-  ~LinuxPerfJitLogger() override;
+  explicit PerfJitLogger(Isolate* isolate);
+  ~PerfJitLogger() override;
 
-  void CodeMoveEvent(InstructionStream from, InstructionStream to) override {
+  void CodeMoveEvent(Tagged<InstructionStream> from,
+                     Tagged<InstructionStream> to) override {
     UNREACHABLE();  // Unsupported.
   }
-  void BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) override {}
-  void CodeDisableOptEvent(Handle<AbstractCode> code,
-                           Handle<SharedFunctionInfo> shared) override {}
+  void BytecodeMoveEvent(Tagged<BytecodeArray> from,
+                         Tagged<BytecodeArray> to) override {}
+  void CodeDisableOptEvent(DirectHandle<AbstractCode> code,
+                           DirectHandle<SharedFunctionInfo> shared) override {}
 
  private:
   void OpenJitDumpFile();
@@ -58,12 +60,12 @@ class LinuxPerfJitLogger : public CodeEventLogger {
   void CloseMarkerFile(void* marker_address);
 
   uint64_t GetTimestamp();
-  void LogRecordedBuffer(AbstractCode code,
-                         MaybeHandle<SharedFunctionInfo> maybe_shared,
-                         const char* name, int length) override;
+  void LogRecordedBuffer(Tagged<AbstractCode> code,
+                         MaybeDirectHandle<SharedFunctionInfo> maybe_shared,
+                         const char* name, size_t length) override;
 #if V8_ENABLE_WEBASSEMBLY
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
-                         int length) override;
+                         size_t length) override;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Extension added to V8 log file name to get the low-level log name.
@@ -75,15 +77,16 @@ class LinuxPerfJitLogger : public CodeEventLogger {
   static const int kLogBufferSize = 2 * MB;
 
   void WriteJitCodeLoadEntry(const uint8_t* code_pointer, uint32_t code_size,
-                             const char* name, int name_length);
+                             const char* name, size_t name_length);
 
-  void LogWriteBytes(const char* bytes, int size);
+  void LogWriteBytes(const char* bytes, size_t size);
   void LogWriteHeader();
-  void LogWriteDebugInfo(Code code, Handle<SharedFunctionInfo> shared);
+  void LogWriteDebugInfo(Tagged<Code> code,
+                         DirectHandle<SharedFunctionInfo> shared);
 #if V8_ENABLE_WEBASSEMBLY
   void LogWriteDebugInfo(const wasm::WasmCode* code);
 #endif  // V8_ENABLE_WEBASSEMBLY
-  void LogWriteUnwindingInfo(Code code);
+  void LogWriteUnwindingInfo(Tagged<Code> code);
 
   static const uint32_t kElfMachIA32 = 3;
   static const uint32_t kElfMachX64 = 62;
@@ -140,6 +143,6 @@ class LinuxPerfJitLogger : public CodeEventLogger {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_OS_LINUX
+#endif  // V8_OS_LINUX || V8_OS_DARWIN
 
 #endif  // V8_DIAGNOSTICS_PERF_JIT_H_

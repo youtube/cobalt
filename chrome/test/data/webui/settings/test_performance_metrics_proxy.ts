@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {BatterySaverModeState, HighEfficiencyModeExceptionListAction, PerformanceMetricsProxy} from 'chrome://settings/settings.js';
+import type {BatterySaverModeState, MemorySaverModeAggressiveness, MemorySaverModeExceptionListAction, MemorySaverModeState, PerformanceMetricsProxy} from 'chrome://settings/settings.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
 export class TestPerformanceMetricsProxy extends TestBrowserProxy implements
@@ -10,8 +10,11 @@ export class TestPerformanceMetricsProxy extends TestBrowserProxy implements
   constructor() {
     super([
       'recordBatterySaverModeChanged',
-      'recordHighEfficiencyModeChanged',
+      'recordMemorySaverModeChanged',
+      'recordMemorySaverModeAggressivenessChanged',
+      'recordDiscardRingTreatmentEnabledChanged',
       'recordExceptionListAction',
+      'recordPerformanceInterventionToggleButtonChanged',
     ]);
   }
 
@@ -19,11 +22,26 @@ export class TestPerformanceMetricsProxy extends TestBrowserProxy implements
     this.methodCalled('recordBatterySaverModeChanged', state);
   }
 
-  recordHighEfficiencyModeChanged(enabled: boolean) {
-    this.methodCalled('recordHighEfficiencyModeChanged', enabled);
+  recordMemorySaverModeChanged(state: MemorySaverModeState) {
+    this.methodCalled('recordMemorySaverModeChanged', state);
   }
 
-  recordExceptionListAction(action: HighEfficiencyModeExceptionListAction) {
+  recordMemorySaverModeAggressivenessChanged(
+      aggressiveness: MemorySaverModeAggressiveness) {
+    this.methodCalled(
+        'recordMemorySaverModeAggressivenessChanged', aggressiveness);
+  }
+
+  recordDiscardRingTreatmentEnabledChanged(enabled: boolean) {
+    this.methodCalled('recordDiscardRingTreatmentEnabledChanged', enabled);
+  }
+
+  recordExceptionListAction(action: MemorySaverModeExceptionListAction) {
     this.methodCalled('recordExceptionListAction', action);
+  }
+
+  recordPerformanceInterventionToggleButtonChanged(enabled: boolean) {
+    this.methodCalled(
+        'recordPerformanceInterventionToggleButtonChanged', enabled);
   }
 }

@@ -11,6 +11,8 @@
 #include "modules/pacing/interval_budget.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 
 #include "rtc_base/numerics/safe_conversions.h"
 
@@ -52,7 +54,7 @@ void IntervalBudget::UseBudget(size_t bytes) {
 }
 
 size_t IntervalBudget::bytes_remaining() const {
-  return rtc::saturated_cast<size_t>(std::max<int64_t>(0, bytes_remaining_));
+  return saturated_cast<size_t>(std::max<int64_t>(0, bytes_remaining_));
 }
 
 double IntervalBudget::budget_ratio() const {

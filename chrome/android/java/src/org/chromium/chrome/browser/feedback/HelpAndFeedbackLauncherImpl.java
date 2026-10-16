@@ -14,6 +14,7 @@ import android.text.TextUtils;
 
 import androidx.annotation.Nullable;
 
+import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
@@ -31,7 +32,6 @@ import java.util.Map;
 public class HelpAndFeedbackLauncherImpl implements HelpAndFeedbackLauncher {
     protected static final String FALLBACK_SUPPORT_URL =
             "https://support.google.com/chrome/topic/6069782";
-    private static final String TAG = "HelpAndFeedback";
 
     private static ProfileKeyedMap<HelpAndFeedbackLauncher> sProfileToLauncherMap;
     private final HelpAndFeedbackLauncherDelegate mDelegate;
@@ -47,31 +47,40 @@ public class HelpAndFeedbackLauncherImpl implements HelpAndFeedbackLauncher {
             sProfileToLauncherMap =
                     new ProfileKeyedMap<>(ProfileKeyedMap.NO_REQUIRED_CLEANUP_ACTION);
         }
-        return sProfileToLauncherMap.getForProfile(
-                profile, () -> new HelpAndFeedbackLauncherImpl(profile));
+        return sProfileToLauncherMap.getForProfile(profile, HelpAndFeedbackLauncherImpl::new);
     }
 
     private HelpAndFeedbackLauncherImpl(Profile profile) {
         mProfile = profile;
-        mDelegate = new HelpAndFeedbackLauncherDelegateImpl();
+
+        HelpAndFeedbackLauncherDelegate delegate =
+                ServiceLoaderUtil.maybeCreate(HelpAndFeedbackLauncherDelegate.class);
+        if (delegate == null) {
+            delegate = new FallbackHelpAndFeedbackLauncherDelegate();
+        }
+        mDelegate = delegate;
     }
 
     /**
      * Starts an activity showing a help page for the specified context ID.
      *
-     * @param activity The activity to use for starting the help activity and to take a
-     *                 screenshot of.
+     * @param activity The activity to use for starting the help activity and to take a screenshot
+     *     of.
      * @param helpContext One of the CONTEXT_* constants. This should describe the user's current
-     *                    context and will be used to show a more relevant help page.
+     *     context and will be used to show a more relevant help page.
      * @param url the current URL. May be null.
      */
     @Override
     public void show(final Activity activity, final String helpContext, @Nullable String url) {
         RecordUserAction.record("MobileHelpAndFeedback");
-        new ChromeFeedbackCollector(activity, null /* categoryTag */, null /* description */,
+        new ChromeFeedbackCollector(
+                activity,
+                /* categoryTag= */ null,
+                /* description= */ null,
                 new ScreenshotTask(activity),
                 new ChromeFeedbackCollector.InitParams(mProfile, url, helpContext),
-                collector -> mDelegate.show(activity, helpContext, collector), mProfile);
+                collector -> mDelegate.show(activity, helpContext, collector),
+                mProfile);
     }
 
     /**
@@ -85,16 +94,22 @@ public class HelpAndFeedbackLauncherImpl implements HelpAndFeedbackLauncher {
      * @param feedbackContext The context that describes the current feature being used.
      */
     @Override
-    public void showFeedback(final Activity activity, @Nullable String url,
-            @Nullable final String categoryTag, @ScreenshotMode int screenshotMode,
+    public void showFeedback(
+            final Activity activity,
+            @Nullable String url,
+            @Nullable final String categoryTag,
+            @ScreenshotMode int screenshotMode,
             @Nullable final String feedbackContext) {
         long startTime = SystemClock.elapsedRealtime();
-        new ChromeFeedbackCollector(activity, categoryTag, null /* description */,
+        new ChromeFeedbackCollector(
+                activity,
+                categoryTag,
+                /* description= */ null,
                 new ScreenshotTask(activity, screenshotMode),
                 new ChromeFeedbackCollector.InitParams(mProfile, url, feedbackContext),
-                (collector)
-                        -> {
-                    RecordHistogram.recordLongTimesHistogram("Feedback.Duration.FormOpenToSubmit",
+                (collector) -> {
+                    RecordHistogram.recordLongTimesHistogram(
+                            "Feedback.Duration.FormOpenToSubmit",
                             SystemClock.elapsedRealtime() - startTime);
                     mDelegate.showFeedback(activity, collector);
                 },
@@ -124,12 +139,19 @@ public class HelpAndFeedbackLauncherImpl implements HelpAndFeedbackLauncher {
      * @param feedContext Feed specific parameters (url, title, etc) to include with feedback.
      */
     @Override
-    public void showFeedback(final Activity activity, @Nullable String url,
-            @Nullable final String categoryTag, @Nullable final Map<String, String> feedContext) {
-        new FeedFeedbackCollector(activity, categoryTag, null /* description */,
+    public void showFeedback(
+            final Activity activity,
+            @Nullable String url,
+            @Nullable final String categoryTag,
+            @Nullable final Map<String, String> feedContext) {
+        new FeedFeedbackCollector(
+                activity,
+                categoryTag,
+                /* description= */ null,
                 new ScreenshotTask(activity),
                 new FeedFeedbackCollector.InitParams(mProfile, url, feedContext),
-                collector -> mDelegate.showFeedback(activity, collector), mProfile);
+                collector -> mDelegate.showFeedback(activity, collector),
+                mProfile);
     }
 
     /**

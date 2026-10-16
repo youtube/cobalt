@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/log.h"
+
 #include <android/log.h>
+#include <jni.h>
 #include <stdio.h>
 #include <unistd.h>
 
-#include <jni.h>
 #include <string>
 
 #include "starboard/android/shared/log_internal.h"
-#include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/log_mutex.h"
-#include "starboard/thread.h"
 
 void SbLog(SbLogPriority priority, const char* message) {
   int android_priority;

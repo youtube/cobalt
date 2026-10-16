@@ -40,7 +40,7 @@
 #define WEBRTC_SPL_MUL_16_U16(a, b) ((int32_t)(int16_t)(a) * (uint16_t)(b))
 
 // clang-format off
-// clang-format would choose some identation
+// clang-format would choose some indentation
 // leading to presubmit error (cpplint.py)
 #ifndef WEBRTC_ARCH_ARM_V7
 // For ARMv7 platforms, these are inline functions in spl_inl_armv7.h
@@ -389,36 +389,121 @@ int WebRtcSpl_ScaleAndAddVectorsWithRound_mips(const int16_t* in_vector1,
 #endif
 // End: Vector scaling operations.
 
-// iLBC specific functions. Implementations in ilbc_specific_functions.c.
-// Description at bottom of file.
+//
+// WebRtcSpl_ReverseOrderMultArrayElements(...)
+//
+// Performs the vector operation:
+//  out_vector[n] = (in_vector[n]*window[-n])>>right_shifts
+//
+// Input:
+//      - in_vector     : Input vector
+//      - window        : Window vector (should be reversed). The pointer
+//                        should be set to the last value in the vector
+//      - right_shifts  : Number of right bit shift to be applied after the
+//                        multiplication
+//      - vector_length : Number of elements in `in_vector`
+//
+// Output:
+//      - out_vector    : Output vector (can be same as `in_vector`)
+//
 void WebRtcSpl_ReverseOrderMultArrayElements(int16_t* out_vector,
                                              const int16_t* in_vector,
                                              const int16_t* window,
                                              size_t vector_length,
                                              int16_t right_shifts);
+
+//
+// WebRtcSpl_ElementwiseVectorMult(...)
+//
+// Performs the vector operation:
+//  out_vector[n] = (in_vector[n]*window[n])>>right_shifts
+//
+// Input:
+//      - in_vector     : Input vector
+//      - window        : Window vector.
+//      - right_shifts  : Number of right bit shift to be applied after the
+//                        multiplication
+//      - vector_length : Number of elements in `in_vector`
+//
+// Output:
+//      - out_vector    : Output vector (can be same as `in_vector`)
+//
 void WebRtcSpl_ElementwiseVectorMult(int16_t* out_vector,
                                      const int16_t* in_vector,
                                      const int16_t* window,
                                      size_t vector_length,
                                      int16_t right_shifts);
+
+//
+// WebRtcSpl_AddVectorsAndShift(...)
+//
+// Performs the vector operation:
+//  out_vector[k] = (in_vector1[k] + in_vector2[k])>>right_shifts
+//
+// Input:
+//      - in_vector1    : Input vector 1
+//      - in_vector2    : Input vector 2
+//      - right_shifts  : Number of right bit shift to be applied after the
+//                        multiplication
+//      - vector_length : Number of elements in `in_vector1` and `in_vector2`
+//
+// Output:
+//      - out_vector    : Output vector (can be same as `in_vector1`)
+//
 void WebRtcSpl_AddVectorsAndShift(int16_t* out_vector,
                                   const int16_t* in_vector1,
                                   const int16_t* in_vector2,
                                   size_t vector_length,
                                   int16_t right_shifts);
+
+//
+// WebRtcSpl_AddAffineVectorToVector(...)
+//
+// Adds an affine transformed vector to another vector `out_vector`, i.e,
+// performs
+//  out_vector[k] += (in_vector[k]*gain+add_constant)>>right_shifts
+//
+// Input:
+//      - in_vector     : Input vector
+//      - gain          : Gain value, used to multiply the in vector with
+//      - add_constant  : Constant value to add (usually 1<<(right_shifts-1),
+//                        but others can be used as well
+//      - right_shifts  : Number of right bit shifts (0-16)
+//      - vector_length : Number of samples in `in_vector` and `out_vector`
+//
+// Output:
+//      - out_vector    : Vector with the output
+//
 void WebRtcSpl_AddAffineVectorToVector(int16_t* out_vector,
                                        const int16_t* in_vector,
                                        int16_t gain,
                                        int32_t add_constant,
                                        int16_t right_shifts,
                                        size_t vector_length);
+
+//
+// WebRtcSpl_AffineTransformVector(...)
+//
+// Affine transforms a vector, i.e, performs
+//  out_vector[k] = (in_vector[k]*gain+add_constant)>>right_shifts
+//
+// Input:
+//      - in_vector     : Input vector
+//      - gain          : Gain value, used to multiply the in vector with
+//      - add_constant  : Constant value to add (usually 1<<(right_shifts-1),
+//                        but others can be used as well
+//      - right_shifts  : Number of right bit shifts (0-16)
+//      - vector_length : Number of samples in `in_vector` and `out_vector`
+//
+// Output:
+//      - out_vector    : Vector with the output
+//
 void WebRtcSpl_AffineTransformVector(int16_t* out_vector,
                                      const int16_t* in_vector,
                                      int16_t gain,
                                      int32_t add_constant,
                                      int16_t right_shifts,
                                      size_t vector_length);
-// End: iLBC specific functions.
 
 // Signal processing operations.
 
@@ -621,10 +706,8 @@ size_t WebRtcSpl_FilterAR(const int16_t* ar_coef,
                           int16_t* filter_state,
                           size_t filter_state_length,
                           int16_t* filter_state_low,
-                          size_t filter_state_low_length,
                           int16_t* out_vector,
-                          int16_t* out_vector_low,
-                          size_t out_vector_low_length);
+                          int16_t* out_vector_low);
 
 // WebRtcSpl_FilterMAFastQ12(...)
 //
@@ -1058,7 +1141,7 @@ void WebRtcSpl_SynthesisQMF(const int16_t* low_band,
 // meaning that the first sample of `in_vector` is copied to the last sample of
 // the `out_vector`. The procedure continues until the last sample of
 // `in_vector` has been copied to the first sample of `out_vector`. This
-// creates a reversed vector. Used in e.g. prediction in iLBC.
+// creates a reversed vector.
 //
 // Input:
 //      - in_vector     : Pointer to the first sample in a int16_t vector
@@ -1186,95 +1269,6 @@ void WebRtcSpl_SynthesisQMF(const int16_t* low_band,
 //
 // Output:
 //      - out_vector    : Output vector
-//
-
-//
-// WebRtcSpl_ReverseOrderMultArrayElements(...)
-//
-// Performs the vector operation:
-//  out_vector[n] = (in_vector[n]*window[-n])>>right_shifts
-//
-// Input:
-//      - in_vector     : Input vector
-//      - window        : Window vector (should be reversed). The pointer
-//                        should be set to the last value in the vector
-//      - right_shifts  : Number of right bit shift to be applied after the
-//                        multiplication
-//      - vector_length : Number of elements in `in_vector`
-//
-// Output:
-//      - out_vector    : Output vector (can be same as `in_vector`)
-//
-
-//
-// WebRtcSpl_ElementwiseVectorMult(...)
-//
-// Performs the vector operation:
-//  out_vector[n] = (in_vector[n]*window[n])>>right_shifts
-//
-// Input:
-//      - in_vector     : Input vector
-//      - window        : Window vector.
-//      - right_shifts  : Number of right bit shift to be applied after the
-//                        multiplication
-//      - vector_length : Number of elements in `in_vector`
-//
-// Output:
-//      - out_vector    : Output vector (can be same as `in_vector`)
-//
-
-//
-// WebRtcSpl_AddVectorsAndShift(...)
-//
-// Performs the vector operation:
-//  out_vector[k] = (in_vector1[k] + in_vector2[k])>>right_shifts
-//
-// Input:
-//      - in_vector1    : Input vector 1
-//      - in_vector2    : Input vector 2
-//      - right_shifts  : Number of right bit shift to be applied after the
-//                        multiplication
-//      - vector_length : Number of elements in `in_vector1` and `in_vector2`
-//
-// Output:
-//      - out_vector    : Output vector (can be same as `in_vector1`)
-//
-
-//
-// WebRtcSpl_AddAffineVectorToVector(...)
-//
-// Adds an affine transformed vector to another vector `out_vector`, i.e,
-// performs
-//  out_vector[k] += (in_vector[k]*gain+add_constant)>>right_shifts
-//
-// Input:
-//      - in_vector     : Input vector
-//      - gain          : Gain value, used to multiply the in vector with
-//      - add_constant  : Constant value to add (usually 1<<(right_shifts-1),
-//                        but others can be used as well
-//      - right_shifts  : Number of right bit shifts (0-16)
-//      - vector_length : Number of samples in `in_vector` and `out_vector`
-//
-// Output:
-//      - out_vector    : Vector with the output
-//
-
-//
-// WebRtcSpl_AffineTransformVector(...)
-//
-// Affine transforms a vector, i.e, performs
-//  out_vector[k] = (in_vector[k]*gain+add_constant)>>right_shifts
-//
-// Input:
-//      - in_vector     : Input vector
-//      - gain          : Gain value, used to multiply the in vector with
-//      - add_constant  : Constant value to add (usually 1<<(right_shifts-1),
-//                        but others can be used as well
-//      - right_shifts  : Number of right bit shifts (0-16)
-//      - vector_length : Number of samples in `in_vector` and `out_vector`
-//
-// Output:
-//      - out_vector    : Vector with the output
 //
 
 //
@@ -1464,9 +1458,6 @@ void WebRtcSpl_SynthesisQMF(const int16_t* low_band,
 //  - filter_state              : Current state (higher part) of the filter.
 //  - filter_state_length       : Length (in samples) of `filter_state`.
 //  - filter_state_low          : Current state (lower part) of the filter.
-//  - filter_state_low_length   : Length (in samples) of `filter_state_low`.
-//  - out_vector_low_length     : Maximum length (in samples) of
-//                                `out_vector_low`.
 //
 // Output:
 //  - filter_state              : Updated state (upper part) vector.

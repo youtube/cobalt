@@ -57,7 +57,6 @@ CSSScale* FromScaleXYZ(const CSSFunctionValue& value) {
       return CSSScale::Create(default_value, default_value, numeric_value);
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 
@@ -119,7 +118,6 @@ CSSScale* CSSScale::FromCSSValue(const CSSFunctionValue& value) {
       return FromScale3d(value);
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 

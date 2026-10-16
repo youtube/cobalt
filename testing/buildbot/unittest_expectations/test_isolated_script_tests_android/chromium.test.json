@@ -7,7 +7,6 @@
         "args": [
           "--gs-results-bucket=chromium-result-details"
         ],
-        "isolate_name": "foo_test",
         "merge": {
           "args": [
             "--bucket",
@@ -19,21 +18,11 @@
         },
         "name": "foo_test",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "os": "Linux"
-          },
-          "output_links": [
-            {
-              "link": [
-                "https://luci-logdog.appspot.com/v/?s",
-                "=android%2Fswarming%2Flogcats%2F",
-                "${TASK_ID}%2F%2B%2Funified_logcats"
-              ],
-              "name": "shard #${SHARD_INDEX} logcats"
-            }
-          ]
-        }
+          }
+        },
+        "test": "foo_test"
       }
     ]
   }

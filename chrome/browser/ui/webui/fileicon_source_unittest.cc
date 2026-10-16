@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/webui/fileicon_source.h"
 
+#include <array>
+
 #include "base/memory/ref_counted_memory.h"
 #include "base/strings/strcat.h"
 #include "build/build_config.h"
@@ -13,13 +15,13 @@
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/base/layout.h"
+#include "ui/base/resource/resource_scale_factor.h"
 
 namespace {
 
 class TestFileIconSource : public FileIconSource {
  public:
-  TestFileIconSource() {}
+  TestFileIconSource() = default;
 
   void FetchFileIcon(
       const base::FilePath& path,
@@ -28,13 +30,14 @@ class TestFileIconSource : public FileIconSource {
       content::URLDataSource::GotDataCallback callback) override {
     FetchFileIcon_(path, scale_factor, icon_size, callback);
   }
-  MOCK_METHOD4(FetchFileIcon_,
-               void(const base::FilePath& path,
-                    float scale_factor,
-                    IconLoader::IconSize icon_size,
-                    content::URLDataSource::GotDataCallback& callback));
+  MOCK_METHOD(void,
+              FetchFileIcon_,
+              (const base::FilePath& path,
+               float scale_factor,
+               IconLoader::IconSize icon_size,
+               content::URLDataSource::GotDataCallback& callback));
 
-  ~TestFileIconSource() override {}
+  ~TestFileIconSource() override = default;
 };
 
 class FileIconSourceTest : public testing::Test {
@@ -45,12 +48,14 @@ class FileIconSourceTest : public testing::Test {
   content::BrowserTaskEnvironment task_environment_;
 };
 
-const struct FetchFileIconExpectation {
+struct FetchFileIconExpectation {
   const char* request_path;
   const base::FilePath::CharType* unescaped_path;
   float scale_factor;
   IconLoader::IconSize size;
-} kBasicExpectations[] = {
+};
+
+constexpr auto kBasicExpectations = std::to_array<FetchFileIconExpectation>({
     {"?path=foo&bar", FILE_PATH_LITERAL("foo"), 1.0f, IconLoader::NORMAL},
     {"?path=foo&bar&scale=2x", FILE_PATH_LITERAL("foo"), 2.0f,
      IconLoader::NORMAL},
@@ -81,9 +86,9 @@ const struct FetchFileIconExpectation {
      FILE_PATH_LITERAL("c:\\users\\foo user\\bar.txt"), 1.0f,
      IconLoader::NORMAL},
     {"?path=c%3A%2Fusers%2F%C2%A9%202000.pdf",
-     FILE_PATH_LITERAL("c:\\users\\\xa9 2000.pdf"), 1.0f, IconLoader::NORMAL},
+     FILE_PATH_LITERAL("c:\\users\\\u00a9 2000.pdf"), 1.0f, IconLoader::NORMAL},
     {"?path=%E0%B6%9A%E0%B6%BB%E0%B7%9D%E0%B6%B8%E0%B7%8A",
-     FILE_PATH_LITERAL("\x0d9a\x0dbb\x0ddd\x0db8\x0dca"), 1.0f,
+     FILE_PATH_LITERAL("\u0d9a\u0dbb\u0ddd\u0db8\u0dca"), 1.0f,
      IconLoader::NORMAL},
     {"?path=%2Ffoo%2Fbar", FILE_PATH_LITERAL("\\foo\\bar"), 1.0f,
      IconLoader::NORMAL},
@@ -94,15 +99,15 @@ const struct FetchFileIconExpectation {
      IconLoader::NORMAL},
     {"?path=%2Ffoo&bar", FILE_PATH_LITERAL("/foo"), 1.0f, IconLoader::NORMAL},
     {"?path=%2Ffoo%2f%E0%B6%9A%E0%B6%BB%E0%B7%9D%E0%B6%B8%E0%B7%8A",
-     FILE_PATH_LITERAL("/foo/\xe0\xb6\x9a\xe0\xb6\xbb\xe0\xb7\x9d")
-         FILE_PATH_LITERAL("\xe0\xb6\xb8\xe0\xb7\x8a"),
+     FILE_PATH_LITERAL("/foo/\u0d9a\u0dbb\u0ddd")
+         FILE_PATH_LITERAL("\u0db8\u0dca"),
      1.0f, IconLoader::NORMAL},
     {"?path=%2Ffoo%2Fbar", FILE_PATH_LITERAL("/foo/bar"), 1.0f,
      IconLoader::NORMAL},
     {"?path=%2Fbaz%20(1).txt&iconsize=small", FILE_PATH_LITERAL("/baz (1).txt"),
      1.0f, IconLoader::SMALL},
 #endif
-};
+});
 
 // Test that the callback is NULL.
 MATCHER(CallbackIsNull, "") {
@@ -112,23 +117,18 @@ MATCHER(CallbackIsNull, "") {
 }  // namespace
 
 TEST_F(FileIconSourceTest, FileIconSource_Parse) {
-  std::vector<ui::ResourceScaleFactor> supported_scale_factors;
-  supported_scale_factors.push_back(ui::k100Percent);
-  supported_scale_factors.push_back(ui::k200Percent);
   ui::test::ScopedSetSupportedResourceScaleFactors scoped_supported(
-      supported_scale_factors);
+      {ui::k100Percent, ui::k200Percent});
 
-  for (unsigned i = 0; i < std::size(kBasicExpectations); i++) {
+  for (auto& expectation : kBasicExpectations) {
     auto source = std::make_unique<TestFileIconSource>();
     content::URLDataSource::GotDataCallback callback;
-    EXPECT_CALL(
-        *source.get(),
-        FetchFileIcon_(base::FilePath(kBasicExpectations[i].unescaped_path),
-                       kBasicExpectations[i].scale_factor,
-                       kBasicExpectations[i].size, CallbackIsNull()));
+    EXPECT_CALL(*source.get(),
+                FetchFileIcon_(base::FilePath(expectation.unescaped_path),
+                               expectation.scale_factor, expectation.size,
+                               CallbackIsNull()));
     source->StartDataRequest(
-        GURL(base::StrCat(
-            {"chrome://any-host/", kBasicExpectations[i].request_path})),
+        GURL(base::StrCat({"chrome://any-host/", expectation.request_path})),
         content::WebContents::Getter(), std::move(callback));
   }
 }

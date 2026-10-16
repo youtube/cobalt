@@ -4,18 +4,19 @@
 
 package org.chromium.chrome.browser.segmentation_platform;
 
-import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
 
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.segmentation_platform.SegmentationPlatformService;
 
-/**
- * This factory creates SegmentationPlatformService for the given {@link Profile}.
- */
+/** This factory creates SegmentationPlatformService for the given {@link Profile}. */
+@NullMarked
 public final class SegmentationPlatformServiceFactory {
-    private static SegmentationPlatformService sTestSegmentationPlatformService;
+    private static @Nullable SegmentationPlatformService sSegmentationPlatformServiceForTesting;
 
     // Don't instantiate me.
     private SegmentationPlatformServiceFactory() {}
@@ -26,25 +27,27 @@ public final class SegmentationPlatformServiceFactory {
      * @return The {@link SegmentationPlatformService} for the given profile.
      */
     public static SegmentationPlatformService getForProfile(Profile profile) {
-        if (sTestSegmentationPlatformService != null) return sTestSegmentationPlatformService;
+        if (sSegmentationPlatformServiceForTesting != null) {
+            return sSegmentationPlatformServiceForTesting;
+        }
 
         return SegmentationPlatformServiceFactoryJni.get().getForProfile(profile);
     }
 
     /**
      * Set a {@SegmentationPlatformService} to use for testing. All subsequent calls to {@link
-     * #getForProfile(Profile)} will return the test object rather than the real object.
+     * #getForProfile( Profile )} will return the test object rather than the real object.
      *
      * @param testService The {@SegmentationPlatformService} to use for testing, or null if the real
      *         service should be used.
      */
-    @VisibleForTesting
     public static void setForTests(@Nullable SegmentationPlatformService testService) {
-        sTestSegmentationPlatformService = testService;
+        sSegmentationPlatformServiceForTesting = testService;
+        ResettersForTesting.register(() -> sSegmentationPlatformServiceForTesting = null);
     }
 
     @NativeMethods
     interface Natives {
-        SegmentationPlatformService getForProfile(Profile profile);
+        SegmentationPlatformService getForProfile(@JniType("Profile*") Profile profile);
     }
 }

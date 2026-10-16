@@ -4,10 +4,10 @@
 
 #include "chromeos/ash/services/bluetooth_config/device_cache_impl.h"
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 
-#include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/task_environment.h"
@@ -96,7 +96,7 @@ class DeviceCacheImplTest : public testing::Test {
   void AddDevice(bool paired,
                  bool connected,
                  std::string* id_out,
-                 const absl::optional<int8_t> inquiry_rssi = absl::nullopt,
+                 const std::optional<int8_t> inquiry_rssi = std::nullopt,
                  const device::BluetoothDeviceType device_type =
                      device::BluetoothDeviceType::AUDIO,
                  DeviceImageInfo* image_info = nullptr) {
@@ -168,7 +168,7 @@ class DeviceCacheImplTest : public testing::Test {
   }
 
   void ChangeInquiryRssi(const std::string& device_id,
-                         const absl::optional<int8_t> inquiry_rssi) {
+                         const std::optional<int8_t> inquiry_rssi) {
     std::vector<NiceMockDevice>::iterator it = FindDevice(device_id);
     EXPECT_TRUE(it != mock_devices_.end());
 
@@ -183,7 +183,7 @@ class DeviceCacheImplTest : public testing::Test {
     fake_device_name_manager_.SetDeviceNickname(device_id, nickname);
   }
 
-  absl::optional<std::string> GetDeviceNickname(std::string address) {
+  std::optional<std::string> GetDeviceNickname(std::string address) {
     return fake_fast_pair_delegate_.GetDeviceNickname(address);
   }
 
@@ -227,8 +227,10 @@ class DeviceCacheImplTest : public testing::Test {
   }
 
  private:
-  std::vector<const device::BluetoothDevice*> GenerateDevices() {
-    std::vector<const device::BluetoothDevice*> devices;
+  std::vector<raw_ptr<const device::BluetoothDevice, VectorExperimental>>
+  GenerateDevices() {
+    std::vector<raw_ptr<const device::BluetoothDevice, VectorExperimental>>
+        devices;
     for (auto& device : mock_devices_)
       devices.push_back(device.get());
     return devices;
@@ -236,7 +238,7 @@ class DeviceCacheImplTest : public testing::Test {
 
   std::vector<NiceMockDevice>::iterator FindDevice(
       const std::string& device_id) {
-    return base::ranges::find(
+    return std::ranges::find(
         mock_devices_, device_id,
         &testing::NiceMock<device::MockBluetoothDevice>::GetIdentifier);
   }
@@ -510,11 +512,12 @@ TEST_F(DeviceCacheImplTest, PairedDeviceBluetoothClassChanges) {
   EXPECT_EQ(mojom::DeviceType::kHeadset,
             list[0]->device_properties->device_type);
 
-  // Change its device type to an unsupported type.
+  // Change its device type to an unsupported type. Bonded devices are expected
+  // to remain in the list even if they have an unsupported type.
   ChangeDeviceType(paired_device_id, device::BluetoothDeviceType::PHONE);
   EXPECT_EQ(3u, GetNumPairedDeviceListObserverEvents());
   list = GetPairedDevices();
-  EXPECT_EQ(0u, list.size());
+  EXPECT_EQ(1u, list.size());
 }
 
 TEST_F(DeviceCacheImplTest, PairedDeviceForgotten) {

@@ -43,9 +43,7 @@ import org.chromium.ui.base.TestActivity;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * Unit test for {@link CustomTabToolbarAnimationDelegate}.
- */
+/** Unit test for {@link CustomTabToolbarAnimationDelegate}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(shadows = {ShadowLooper.class, ShadowDrawable.class})
 @LooperMode(Mode.PAUSED)
@@ -57,15 +55,14 @@ public class BrandingSecurityButtonAnimationDelegateUnitTest {
     public ActivityScenarioRule<TestActivity> mActivityScenario =
             new ActivityScenarioRule<>(TestActivity.class);
 
-    @Spy
-    ImageButton mImageButton;
+    @Spy ImageButton mImageButton;
     Activity mActivity;
 
     private BrandingSecurityButtonAnimationDelegate mAnimationDelegate;
 
     @Before
     public void setup() {
-        mActivityScenario.getScenario().onActivity((activity -> mActivity = activity));
+        mActivityScenario.getScenario().onActivity(activity -> mActivity = activity);
 
         LinearLayout content = new LinearLayout(mActivity, null);
         content.setOrientation(LinearLayout.HORIZONTAL);
@@ -95,7 +92,8 @@ public class BrandingSecurityButtonAnimationDelegateUnitTest {
         setupInitialImageButtonState();
 
         mAnimationDelegate.updateDrawableResource(ICON_24_DP);
-        Assert.assertTrue("Drawable should be a TransitionDrawable during animation.",
+        Assert.assertTrue(
+                "Drawable should be a TransitionDrawable during animation.",
                 mImageButton.getDrawable() instanceof TransitionDrawable);
 
         // Advance looper so the animation finishes.
@@ -112,7 +110,8 @@ public class BrandingSecurityButtonAnimationDelegateUnitTest {
         setupInitialImageButtonState();
 
         mAnimationDelegate.updateDrawableResource(ICON_24_DP);
-        Assert.assertTrue("Drawable should be a TransitionDrawable during animation.",
+        Assert.assertTrue(
+                "Drawable should be a TransitionDrawable during animation.",
                 mImageButton.getDrawable() instanceof TransitionDrawable);
 
         // Advance half way through the animation.
@@ -135,18 +134,22 @@ public class BrandingSecurityButtonAnimationDelegateUnitTest {
         int width = drawable.getIntrinsicWidth();
         int height = drawable.getIntrinsicHeight();
 
-        BitmapDrawable d1 = BrandingSecurityButtonAnimationDelegate.resizeToBitmapDrawable(
-                resources, drawable, width, height);
+        BitmapDrawable d1 =
+                BrandingSecurityButtonAnimationDelegate.resizeToBitmapDrawable(
+                        resources, drawable, width, height);
         Assert.assertEquals(
                 "Width of the resized drawable is different.", width, d1.getIntrinsicWidth());
         Assert.assertEquals(
                 "Height of the resized drawable is different.", height, d1.getIntrinsicHeight());
 
-        BitmapDrawable d2 = BrandingSecurityButtonAnimationDelegate.resizeToBitmapDrawable(
-                resources, drawable, width * 2, height * 2);
+        BitmapDrawable d2 =
+                BrandingSecurityButtonAnimationDelegate.resizeToBitmapDrawable(
+                        resources, drawable, width * 2, height * 2);
         Assert.assertEquals(
-                "Width of the resized drawable is different.", width * 2, d2.getIntrinsicWidth());
-        Assert.assertEquals("Height of the resized drawable is different.", height * 2,
+                "Width of the resized drawable is different.", width * 2L, d2.getIntrinsicWidth());
+        Assert.assertEquals(
+                "Height of the resized drawable is different.",
+                height * 2L,
                 d2.getIntrinsicHeight());
     }
 
@@ -159,7 +162,7 @@ public class BrandingSecurityButtonAnimationDelegateUnitTest {
         int width = drawable.getIntrinsicWidth();
         int height = drawable.getIntrinsicHeight();
 
-        BitmapDrawable d3 = BrandingSecurityButtonAnimationDelegate.resizeToBitmapDrawable(
+        BrandingSecurityButtonAnimationDelegate.resizeToBitmapDrawable(
                 resources, drawable, width - 1, height - 1);
     }
 
@@ -176,7 +179,9 @@ public class BrandingSecurityButtonAnimationDelegateUnitTest {
 
     private void assertDrawableResource(@DrawableRes int drawableRes, Drawable drawable) {
         ShadowDrawable shadowDrawable = Shadows.shadowOf(drawable);
-        Assert.assertEquals("Drawable resource is not equal.", drawableRes,
+        Assert.assertEquals(
+                "Drawable resource is not equal.",
+                drawableRes,
                 shadowDrawable.getCreatedFromResId());
     }
 }

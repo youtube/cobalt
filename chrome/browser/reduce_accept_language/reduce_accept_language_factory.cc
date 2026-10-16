@@ -24,17 +24,26 @@ ReduceAcceptLanguageFactory* ReduceAcceptLanguageFactory::GetInstance() {
 ReduceAcceptLanguageFactory::ReduceAcceptLanguageFactory()
     : ProfileKeyedServiceFactory(
           "ReduceAcceptLanguage",
-          ProfileSelections::BuildForRegularAndIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/40257657): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOwnInstance)
+              .Build()) {
   DependsOn(HostContentSettingsMapFactory::GetInstance());
 }
 
 ReduceAcceptLanguageFactory::~ReduceAcceptLanguageFactory() = default;
 
-KeyedService* ReduceAcceptLanguageFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ReduceAcceptLanguageFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
   PrefService* prefs = profile->GetPrefs();
-  return new reduce_accept_language::ReduceAcceptLanguageService(
+  return std::make_unique<reduce_accept_language::ReduceAcceptLanguageService>(
       HostContentSettingsMapFactory::GetForProfile(context), prefs,
       profile->IsIncognitoProfile());
 }

@@ -12,7 +12,9 @@
 #include <vector>
 
 #include "base/containers/adapters.h"
+#include "base/debug/crash_logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_multi_source_observation.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_occlusion_tracker.h"
 #include "ui/compositor/layer.h"
@@ -29,10 +31,11 @@ namespace {
 void GetViewsWithAssociatedWindow(
     const aura::Window& parent_window,
     std::map<views::View*, aura::Window*>* hosted_windows) {
-  for (auto* child : parent_window.children()) {
+  for (aura::Window* child : parent_window.children()) {
     View* host_view = child->GetProperty(kHostViewKey);
-    if (host_view)
+    if (host_view) {
       (*hosted_windows)[host_view] = child;
+    }
   }
 }
 
@@ -47,6 +50,9 @@ void GetOrderOfViewsWithLayers(
     const std::map<views::View*, aura::Window*>& hosts,
     std::vector<views::View*>* order) {
   DCHECK(view);
+  SCOPED_CRASH_KEY_STRING64("GetOrderOfViewsWithLayers", "view_name",
+                            view->GetObjectName());
+
   DCHECK(parent_layer);
   DCHECK(order);
   if (view->layer() && view->layer()->parent() == parent_layer) {
@@ -56,8 +62,9 @@ void GetOrderOfViewsWithLayers(
     order->push_back(view);
   }
 
-  for (views::View* child : view->GetChildrenInZOrder())
+  for (views::View* child : view->GetChildrenInZOrder()) {
     GetOrderOfViewsWithLayers(child, parent_layer, hosts, order);
+  }
 }
 
 }  // namespace
@@ -87,67 +94,62 @@ class WindowReorderer::AssociationObserver : public aura::WindowObserver {
   // Not owned.
   raw_ptr<WindowReorderer> reorderer_;
 
-  std::set<aura::Window*> windows_;
+  base::ScopedMultiSourceObservation<aura::Window, aura::WindowObserver>
+      window_observations_{this};
 };
 
 WindowReorderer::AssociationObserver::AssociationObserver(
     WindowReorderer* reorderer)
     : reorderer_(reorderer) {}
 
-WindowReorderer::AssociationObserver::~AssociationObserver() {
-  while (!windows_.empty())
-    StopObserving(*windows_.begin());
-}
+WindowReorderer::AssociationObserver::~AssociationObserver() = default;
 
 void WindowReorderer::AssociationObserver::StartObserving(
     aura::Window* window) {
-  windows_.insert(window);
-  window->AddObserver(this);
+  window_observations_.AddObservation(window);
 }
 
 void WindowReorderer::AssociationObserver::StopObserving(aura::Window* window) {
-  windows_.erase(window);
-  window->RemoveObserver(this);
+  if (window_observations_.IsObservingSource(window)) {
+    window_observations_.RemoveObservation(window);
+  }
 }
 
 void WindowReorderer::AssociationObserver::OnWindowPropertyChanged(
     aura::Window* window,
     const void* key,
     intptr_t old) {
-  if (key == kHostViewKey)
+  if (key == kHostViewKey) {
     reorderer_->ReorderChildWindows();
+  }
 }
 
 void WindowReorderer::AssociationObserver::OnWindowDestroying(
     aura::Window* window) {
-  windows_.erase(window);
-  window->RemoveObserver(this);
+  StopObserving(window);
 }
 
 WindowReorderer::WindowReorderer(aura::Window* parent_window, View* root_view)
-    : parent_window_(parent_window),
-      root_view_(root_view),
-      association_observer_(new AssociationObserver(this)) {
-  parent_window_->AddObserver(this);
-  for (auto* window : parent_window_->children())
+    : association_observer_(new AssociationObserver(this)) {
+  view_observation_.Observe(root_view);
+  parent_window_observation_.Observe(parent_window);
+  for (aura::Window* window : parent_window->children()) {
     association_observer_->StartObserving(window);
+  }
   ReorderChildWindows();
 }
 
-WindowReorderer::~WindowReorderer() {
-  if (parent_window_) {
-    parent_window_->RemoveObserver(this);
-    // |association_observer_| stops observing any windows it is observing upon
-    // destruction.
-  }
-}
+WindowReorderer::~WindowReorderer() = default;
 
 void WindowReorderer::ReorderChildWindows() {
-  if (!parent_window_)
+  if (!parent_window_observation_.IsObserving() ||
+      !view_observation_.IsObserving()) {
     return;
+  }
 
+  aura::Window& parent_window = *parent_window_observation_.GetSource();
   std::map<View*, aura::Window*> hosted_windows;
-  GetViewsWithAssociatedWindow(*parent_window_, &hosted_windows);
+  GetViewsWithAssociatedWindow(parent_window, &hosted_windows);
 
   if (hosted_windows.empty()) {
     // Exit early if there are no views with associated windows.
@@ -158,8 +160,9 @@ void WindowReorderer::ReorderChildWindows() {
 
   // Compute the desired z-order of the layers based on the order of the views
   // with layers and views with associated windows in the view tree.
+  View* root_view = view_observation_.GetSource();
   std::vector<View*> view_with_layer_order;
-  GetOrderOfViewsWithLayers(root_view_, parent_window_->layer(), hosted_windows,
+  GetOrderOfViewsWithLayers(root_view, parent_window.layer(), hosted_windows,
                             &view_with_layer_order);
 
   std::vector<ui::Layer*> children_layer_order;
@@ -185,14 +188,16 @@ void WindowReorderer::ReorderChildWindows() {
     }
 
     DCHECK(!layers.empty());
-    if (window)
-      parent_window_->StackChildAtBottom(window);
+    if (window) {
+      parent_window.StackChildAtBottom(window);
+    }
 
-    for (ui::Layer* layer : layers)
+    for (ui::Layer* layer : layers) {
       children_layer_order.emplace_back(layer);
+    }
   }
   std::reverse(children_layer_order.begin(), children_layer_order.end());
-  parent_window_->layer()->StackChildrenAtBottom(children_layer_order);
+  parent_window.layer()->StackChildrenAtBottom(children_layer_order);
 }
 
 void WindowReorderer::OnWindowAdded(aura::Window* new_window) {
@@ -205,9 +210,13 @@ void WindowReorderer::OnWillRemoveWindow(aura::Window* window) {
 }
 
 void WindowReorderer::OnWindowDestroying(aura::Window* window) {
-  parent_window_->RemoveObserver(this);
-  parent_window_ = nullptr;
+  parent_window_observation_.Reset();
   association_observer_.reset();
+}
+
+void WindowReorderer::OnViewIsDeleting(View* observed_view) {
+  DCHECK(view_observation_.IsObservingSource(observed_view));
+  view_observation_.Reset();
 }
 
 }  // namespace views

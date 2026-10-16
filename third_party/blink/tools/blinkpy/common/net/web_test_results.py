@@ -28,9 +28,10 @@
 
 import collections
 import json
-from typing import Dict, List, NamedTuple, Optional
+from typing import Dict, List, Literal, NamedTuple, Optional, Set
 
 from blinkpy.common.memoized import memoized
+from blinkpy.common.net.rpc import Build, BuildStatus
 from blinkpy.web_tests.layout_package import json_results_generator
 from blinkpy.web_tests.models.test_failures import FailureImage
 from blinkpy.web_tests.models.typ_types import ResultType
@@ -40,19 +41,29 @@ class Artifact(NamedTuple):
     url: str
     digest: Optional[str] = None
 
+# All of the non-reftest baseline extensions we use.
+BASELINE_EXTENSIONS = ('.wav', '.txt', '.png')
+
+# For CLI compatibility, we would like a list of baseline extensions without
+# the leading dot.
+# TODO: Investigate changing the CLI.
+BaselineSuffix = Literal[tuple(ext[1:] for ext in BASELINE_EXTENSIONS)]
+
 
 class WebTestResult:
-    def __init__(self, test_name, result_dict,
-                 artifacts: Dict[str, List[Artifact]]):
+    def __init__(self,
+                 test_name,
+                 result_dict,
+                 artifacts: Optional[Dict[str, List[Artifact]]] = None):
         self._test_name = test_name
         self._result_dict = result_dict
-        self.artifacts = artifacts
+        self.artifacts = artifacts or {}
 
     def __repr__(self):
         return "WebTestResult(test_name=%s, result_dict=%s)" % \
             (repr(self._test_name), repr(self._result_dict))
 
-    def baselines_by_suffix(self) -> Dict[str, List[Artifact]]:
+    def baselines_by_suffix(self) -> Dict[BaselineSuffix, List[Artifact]]:
         baselines = {}
         # Add extensions for mismatches.
         for artifact_name, suffix in [
@@ -67,6 +78,32 @@ class WebTestResult:
 
     def test_name(self):
         return self._test_name
+
+    def merge_actual_result(self, other):
+        """Merge actual result from another WebTestResult to the current.
+
+        This won't touch any property associated the expectation or baselines,
+        assuming that should not change for the same platform.
+        """
+
+        assert self._test_name == other._test_name, 'Can not merge result from different test.'
+        self._result_dict['actual'] = (self._result_dict['actual'] + ' ' +
+                                       other._result_dict['actual'])
+        self._result_dict['is_unexpected'] = (
+            self._result_dict['is_unexpected']
+            or other._result_dict['is_unexpected'])
+
+        # merge all the actifacts except those started with 'expected_'
+        for key, artifacts in other.artifacts.items():
+            if key.startswith('expected_'):
+                continue
+            self.artifacts.setdefault(key, []).extend(other.artifacts[key])
+
+
+    @property
+    def bugs(self) -> Set[str]:
+        bugs = self._result_dict.get('bugs')
+        return {bug.strip() for bug in bugs.split(',')} if bugs else set()
 
     def did_pass_or_run_as_expected(self):
         return self.did_pass() or self.did_run_as_expected()
@@ -86,7 +123,6 @@ class WebTestResult:
     def is_missing_audio(self):
         return self._result_dict.get('is_missing_audio', False)
 
-    @memoized
     def actual_results(self):
         return self._result_dict['actual'].split()
 
@@ -111,7 +147,6 @@ class WebTestResult:
         return (self.is_missing_image() or self.is_missing_text()
                 or self.is_missing_audio())
 
-    @property
     def attempts(self) -> int:
         return len(self.actual_results())
 
@@ -126,8 +161,30 @@ def _flatten_test_results_trie(trie, sep: str = '/'):
             yield test_name, leaf
 
 
-# FIXME: This should be unified with ResultsSummary or other NRWT web tests code
-# in the web_tests package.
+class IncompleteResultsReason(NamedTuple):
+    build_status: Optional[BuildStatus] = None
+
+    # TODO(crbug.com/352762538): Add shard statuses (e.g., list of (shard index,
+    # exit code)).
+
+    def __str__(self) -> str:
+        if self.build_status is BuildStatus.INFRA_FAILURE:
+            return 'build failed due to infra'
+        elif self.build_status is BuildStatus.CANCELED:
+            return 'build was canceled'
+        elif self.build_status is BuildStatus.MISSING:
+            return 'build is missing and not triggered'
+        elif self.build_status is BuildStatus.COMPILE_FAILURE:
+            return 'build failed to compile'
+        elif self.build_status is BuildStatus.PATCH_FAILURE:
+            return 'build failed to apply patch'
+        elif self.build_status not in BuildStatus.COMPLETED:
+            return 'build is not complete'
+        return 'results are incomplete for an unknown reason'
+
+
+# TODO(crbug.com/406299273): This should be unified with ResultsSummary or other
+# NRWT web tests code in the web_tests package.
 # This doesn't belong in common.net, but we don't have a better place for it yet.
 class WebTestResults:
     @classmethod
@@ -154,8 +211,13 @@ class WebTestResults:
                                                        {}).items()
             }
             results.append(WebTestResult(test_name, fields, artifacts))
-        kwargs.setdefault('interrupted', json_dict.get('interrupted', False))
-        kwargs.setdefault('builder_name', json_dict.get('builder_name'))
+        if json_dict.get('interrupted'):
+            # Results JSON doesn't provide more specific information.
+            kwargs.setdefault('incomplete_reason', IncompleteResultsReason())
+        builder_name = json_dict.get('builder_name')
+        if builder_name:
+            build = Build(builder_name, json_dict.get('build_number'))
+            kwargs.setdefault('build', build)
         kwargs.setdefault('chromium_revision',
                           json_dict.get('chromium_revision'))
         return cls(results, **kwargs)
@@ -192,22 +254,34 @@ class WebTestResults:
                  results: List[WebTestResult],
                  chromium_revision: Optional[str] = None,
                  step_name: Optional[str] = None,
-                 interrupted: bool = False,
-                 builder_name: Optional[str] = None):
+                 incomplete_reason: Optional[IncompleteResultsReason] = None,
+                 build: Optional[Build] = None):
         self._results_by_name = collections.OrderedDict([
             (result.test_name(), result)
             for result in sorted(results, key=WebTestResult.test_name)
         ])
         self._chromium_revision = chromium_revision
         self._step_name = step_name
-        self.interrupted = interrupted
-        self.builder_name = builder_name
+        self.incomplete_reason = incomplete_reason
+        self.build = build
+
+    def merge_results(self, other):
+        """Merge web test results from another WebTestResults object to the current."""
+        for test_name, result in other._results_by_name.items():
+            if test_name in self._results_by_name:
+                self._results_by_name[test_name].merge_actual_result(result)
+            else:
+                self._results_by_name[test_name] = result
 
     def __iter__(self):
         yield from self._results_by_name.values()
 
     def __len__(self):
         return len(self._results_by_name)
+
+    @property
+    def builder_name(self) -> Optional[str]:
+        return self.build and self.build.builder_name
 
     def step_name(self):
         return self._step_name

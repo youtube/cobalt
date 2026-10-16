@@ -10,8 +10,12 @@
 #include <string>
 
 #include "remoting/base/session_options.h"
+#include "remoting/base/session_policies.h"
+#include "remoting/base/source_location.h"
 #include "remoting/protocol/message_pipe.h"
+#include "remoting/protocol/network_settings.h"
 #include "remoting/protocol/transport.h"
+#include "third_party/webrtc/modules/desktop_capture/desktop_capture_types.h"
 
 namespace remoting {
 class DesktopCapturer;
@@ -39,8 +43,11 @@ class ConnectionToClient {
     // Called when the network connection is authenticating
     virtual void OnConnectionAuthenticating() = 0;
 
-    // Called when the network connection is authenticated.
-    virtual void OnConnectionAuthenticated() = 0;
+    // Called when the network connection is authenticated. `session_policies`
+    // is nullptr if no session policies are specified, in which case local
+    // policies should be used.
+    virtual void OnConnectionAuthenticated(
+        const SessionPolicies* session_policies) = 0;
 
     // Called to request creation of video streams. May be called before or
     // after OnConnectionChannelsConnected().
@@ -82,12 +89,15 @@ class ConnectionToClient {
   virtual Session* session() = 0;
 
   // Disconnect the client connection.
-  virtual void Disconnect(ErrorCode error) = 0;
+  virtual void Disconnect(ErrorCode error,
+                          std::string_view error_details,
+                          const SourceLocation& error_location) = 0;
 
   // Start video stream that sends screen content from |desktop_capturer| to the
-  // client.
+  // client. |screen_id| should be webrtc::kFullDesktopScreenId for
+  // single-stream mode, or the screen being captured for multi-stream mode.
   virtual std::unique_ptr<VideoStream> StartVideoStream(
-      const std::string& stream_name,
+      webrtc::ScreenId screen_id,
       std::unique_ptr<DesktopCapturer> desktop_capturer) = 0;
 
   // Starts an audio stream. Returns nullptr if audio is not supported by the
@@ -110,6 +120,10 @@ class ConnectionToClient {
   // experimental behaviors, implementations can ignore this function if no
   // control logic can be applied.
   virtual void ApplySessionOptions(const SessionOptions& options) {}
+
+  // Applies network settings. The connection may be blocked until this method
+  // is called.
+  virtual void ApplyNetworkSettings(const NetworkSettings& settings) = 0;
 
   // Returns an interface for changing connection parameters after the
   // connection is established. nullptr will be returned if the connection does

@@ -46,7 +46,7 @@ autoninja -C out/fuzz $FUZZER_NAME
    ClusterFuzz:
 
 ```
-export ASAN_OPTIONS=redzone=256:print_summary=1:handle_sigill=1:allocator_release_to_os_interval_ms=500:print_suppressions=0:strict_memcmp=1:allow_user_segv_handler=0:use_sigaltstack=1:handle_sigfpe=1:handle_sigbus=1:detect_stack_use_after_return=0:alloc_dealloc_mismatch=0:detect_leaks=0:print_scariness=1:allocator_may_return_null=1:handle_abort=1:check_malloc_usable_size=0:detect_container_overflow=0:quarantine_size_mb=256:detect_odr_violation=0:symbolize=1:handle_segv=1:fast_unwind_on_fatal=1
+export ASAN_OPTIONS=redzone=256:print_summary=1:handle_sigill=1:allocator_release_to_os_interval_ms=500:print_suppressions=0:strict_memcmp=1:allow_user_segv_handler=0:use_sigaltstack=1:handle_sigfpe=1:handle_sigbus=1:detect_stack_use_after_return=0:alloc_dealloc_mismatch=0:detect_leaks=0:print_scariness=1:allocator_may_return_null=1:handle_abort=1:check_malloc_usable_size=0:detect_container_overflow=0:quarantine_size_mb=256:detect_odr_violation=0:symbolize=1:handle_segv=1:fast_unwind_on_fatal=0
 ```
 
 5. Run the fuzz target:
@@ -55,9 +55,16 @@ export ASAN_OPTIONS=redzone=256:print_summary=1:handle_sigill=1:allocator_releas
 out/fuzz/$FUZZER_NAME -runs=100 $TESTCASE_PATH
 ```
 
-If you see an un-symbolized stacktrace, please see the instructions [here].
-
 [File a bug] if you run into any issues.
+
+## Symbolizing stack traces
+
+Stack traces from ASAN builds are not symbolized by default. However, you
+can symbolize them by piping the output into:
+
+```
+src/tools/valgrind/asan/asan_symbolize.py
+```
 
 ## Crashes reported as Unreproducible
 
@@ -129,5 +136,4 @@ cause of a crash. You can leave the minimization running locally for a while
 
 
 [File a bug]: https://bugs.chromium.org/p/chromium/issues/entry?components=Tools%3EStability%3ElibFuzzer&comment=What%20problem%20are%20you%20seeing
-[here]: getting_started.md#symbolizing-a-stacktrace
 [these tips]: https://github.com/google/sanitizers/wiki/AddressSanitizerWindowsPort#debugging

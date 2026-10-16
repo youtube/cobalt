@@ -4,6 +4,7 @@
 
 #include "base/threading/hang_watcher.h"
 
+#include <algorithm>
 #include <atomic>
 #include <utility>
 
@@ -18,7 +19,6 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/power_monitor/power_monitor.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
@@ -29,8 +29,15 @@
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
 #include "base/trace_event/base_tracing.h"
+#include "base/uuid.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/base/attributes.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include <inttypes.h>
+
+#include "starboard/extension/crash_handler.h"
+#include "starboard/system.h"
+#endif
 
 namespace base {
 
@@ -44,8 +51,7 @@ namespace {
 enum class LoggingLevel { kNone = 0, kUmaOnly = 1, kUmaAndCrash = 2 };
 
 HangWatcher* g_instance = nullptr;
-ABSL_CONST_INIT thread_local internal::HangWatchState* hang_watch_state =
-    nullptr;
+constinit thread_local internal::HangWatchState* hang_watch_state = nullptr;
 std::atomic<bool> g_use_hang_watcher{false};
 std::atomic<HangWatcher::ProcessType> g_hang_watcher_process_type{
     HangWatcher::ProcessType::kBrowserProcess};
@@ -53,23 +59,50 @@ std::atomic<HangWatcher::ProcessType> g_hang_watcher_process_type{
 std::atomic<LoggingLevel> g_threadpool_log_level{LoggingLevel::kNone};
 std::atomic<LoggingLevel> g_io_thread_log_level{LoggingLevel::kNone};
 std::atomic<LoggingLevel> g_main_thread_log_level{LoggingLevel::kNone};
+std::atomic<LoggingLevel> g_compositor_thread_log_level{LoggingLevel::kNone};
+
 #if BUILDFLAG(IS_COBALT)
-std::atomic<LoggingLevel> g_browser_process_renderer_thread_log_level{LoggingLevel::kNone};
+std::atomic<bool> g_hang_reporting_enabled{true};
+
+std::atomic<int64_t> g_hang_watch_time_us{
+    WatchHangsInScope::kDefaultHangWatchTime.InMicroseconds()};
+std::atomic<int64_t> g_hang_watch_monitoring_period_us{
+    base::Seconds(10).InMicroseconds()};
+
+std::atomic<bool> g_enable_long_hang_detection{false};
+std::atomic<bool> g_enable_long_hang_kill{false};
+std::atomic<int> g_long_hang_timeout_seconds{20};
+
+std::atomic<LoggingLevel> g_browser_process_renderer_thread_log_level{
+    LoggingLevel::kNone};
+
+static std::atomic<HangWatcher::Delegate*> g_hang_watcher_delegate{nullptr};
 #endif
 
 // Indicates whether HangWatcher::Run() should return after the next monitoring.
 std::atomic<bool> g_keep_monitoring{true};
 
+// If true, indicates that this process's shutdown sequence has started. Once
+// flipped to true, cannot be un-flipped.
+std::atomic<bool> g_shutting_down{false};
+
 // Emits the hung thread count histogram. |count| is the number of threads
 // of type |thread_type| that were hung or became hung during the last
 // monitoring window. This function should be invoked for each thread type
-// encountered on each call to Monitor().
-void LogHungThreadCountHistogram(HangWatcher::ThreadType thread_type,
-                                 int count) {
+// encountered on each call to Monitor(). `sample_ticks` is the time at which
+// the sample was taken and `monitoring_period` is the interval being sampled.
+void LogStatusHistogram(HangWatcher::ThreadType thread_type,
+                        int count,
+                        TimeTicks sample_ticks,
+                        TimeDelta monitoring_period) {
   // In the case of unique threads like the IO or UI/Main thread a count does
   // not make sense.
   const bool any_thread_hung = count >= 1;
+  const bool shutting_down = g_shutting_down.load(std::memory_order_relaxed);
 
+  // Uses histogram macros instead of functions. This increases binary size
+  // slightly, but runs slightly faster. These histograms are logged pretty
+  // often, so we prefer improving runtime.
   const HangWatcher::ProcessType process_type =
       g_hang_watcher_process_type.load(std::memory_order_relaxed);
   switch (process_type) {
@@ -79,17 +112,37 @@ void LogHungThreadCountHistogram(HangWatcher::ThreadType thread_type,
     case HangWatcher::ProcessType::kBrowserProcess:
       switch (thread_type) {
         case HangWatcher::ThreadType::kIOThread:
-          UMA_HISTOGRAM_BOOLEAN(
-              "HangWatcher.IsThreadHung.BrowserProcess."
-              "IOThread",
-              any_thread_hung);
+          if (shutting_down) {
+            UMA_HISTOGRAM_BOOLEAN(
+                "HangWatcher.IsThreadHung.BrowserProcess.IOThread.Shutdown",
+                any_thread_hung);
+          } else {
+            UMA_HISTOGRAM_BOOLEAN(
+                "HangWatcher.IsThreadHung.BrowserProcess.IOThread.Normal",
+                any_thread_hung);
+          }
           break;
         case HangWatcher::ThreadType::kMainThread:
-          UMA_HISTOGRAM_BOOLEAN(
-              "HangWatcher.IsThreadHung.BrowserProcess."
-              "UIThread",
-              any_thread_hung);
+          if (shutting_down) {
+            UMA_HISTOGRAM_BOOLEAN(
+                "HangWatcher.IsThreadHung.BrowserProcess.UIThread.Shutdown",
+                any_thread_hung);
+          } else {
+            UMA_HISTOGRAM_BOOLEAN(
+                "HangWatcher.IsThreadHung.BrowserProcess.UIThread.Normal",
+                any_thread_hung);
+          }
           break;
+        case HangWatcher::ThreadType::kCompositorThread:
+          // The browser process does not have a thread that matches
+          // `HangWatcher::ThreadType::kCompositorThread`. Its main compositor
+          // logic runs on the main (UI) thread (due to single-threaded mode,
+          // see //cc/README.md). While separate "CompositorTileWorker" threads
+          // exist, they are distinct from this `kCompositorThread` type, which
+          // is for a dedicated main compositor thread (like in renderers).
+          // Therefore, this should not be logged for BrowserProcess.
+          CHECK(false) << "kCompositorThread type should not be logged for "
+                          "BrowserProcess";
         case HangWatcher::ThreadType::kThreadPoolThread:
           // Not recorded for now.
           break;
@@ -106,14 +159,16 @@ void LogHungThreadCountHistogram(HangWatcher::ThreadType thread_type,
 
     case HangWatcher::ProcessType::kGPUProcess:
       // Not recorded for now.
+      CHECK(!shutting_down);
       break;
 
     case HangWatcher::ProcessType::kRendererProcess:
+      CHECK(!shutting_down);
       switch (thread_type) {
         case HangWatcher::ThreadType::kIOThread:
-          UMA_HISTOGRAM_BOOLEAN(
-              "HangWatcher.IsThreadHung.RendererProcess."
-              "IOThread",
+          UMA_HISTOGRAM_SPLIT_BY_PROCESS_PRIORITY(
+              UMA_HISTOGRAM_BOOLEAN, sample_ticks, monitoring_period,
+              "HangWatcher.IsThreadHung.RendererProcess.IOThread",
               any_thread_hung);
           break;
 #if BUILDFLAG(IS_COBALT)
@@ -122,9 +177,15 @@ void LogHungThreadCountHistogram(HangWatcher::ThreadType thread_type,
           break;
 #endif
         case HangWatcher::ThreadType::kMainThread:
-          UMA_HISTOGRAM_BOOLEAN(
-              "HangWatcher.IsThreadHung.RendererProcess."
-              "MainThread",
+          UMA_HISTOGRAM_SPLIT_BY_PROCESS_PRIORITY(
+              UMA_HISTOGRAM_BOOLEAN, sample_ticks, monitoring_period,
+              "HangWatcher.IsThreadHung.RendererProcess.MainThread",
+              any_thread_hung);
+          break;
+        case HangWatcher::ThreadType::kCompositorThread:
+          UMA_HISTOGRAM_SPLIT_BY_PROCESS_PRIORITY(
+              UMA_HISTOGRAM_BOOLEAN, sample_ticks, monitoring_period,
+              "HangWatcher.IsThreadHung.RendererProcess.CompositorThread",
               any_thread_hung);
           break;
         case HangWatcher::ThreadType::kThreadPoolThread:
@@ -134,11 +195,11 @@ void LogHungThreadCountHistogram(HangWatcher::ThreadType thread_type,
       break;
 
     case HangWatcher::ProcessType::kUtilityProcess:
+      CHECK(!shutting_down);
       switch (thread_type) {
         case HangWatcher::ThreadType::kIOThread:
           UMA_HISTOGRAM_BOOLEAN(
-              "HangWatcher.IsThreadHung.UtilityProcess."
-              "IOThread",
+              "HangWatcher.IsThreadHung.UtilityProcess.IOThread",
               any_thread_hung);
           break;
 #if BUILDFLAG(IS_COBALT)
@@ -148,10 +209,14 @@ void LogHungThreadCountHistogram(HangWatcher::ThreadType thread_type,
 #endif
         case HangWatcher::ThreadType::kMainThread:
           UMA_HISTOGRAM_BOOLEAN(
-              "HangWatcher.IsThreadHung.UtilityProcess."
-              "MainThread",
+              "HangWatcher.IsThreadHung.UtilityProcess.MainThread",
               any_thread_hung);
           break;
+        case HangWatcher::ThreadType::kCompositorThread:
+          // Not recorded because the compositor doesn't run in utility
+          // processes, as of May 2025.
+          CHECK(false) << "kCompositorThread type should not be logged for "
+                          "UtilityProcess";
         case HangWatcher::ThreadType::kThreadPoolThread:
           // Not recorded for now.
           break;
@@ -174,6 +239,9 @@ bool ThreadTypeLoggingLevelGreaterOrEqual(HangWatcher::ThreadType thread_type,
     case HangWatcher::ThreadType::kThreadPoolThread:
       return g_threadpool_log_level.load(std::memory_order_relaxed) >=
              logging_level;
+    case HangWatcher::ThreadType::kCompositorThread:
+      return g_compositor_thread_log_level.load(std::memory_order_relaxed) >=
+             logging_level;
 #if BUILDFLAG(IS_COBALT)
     case HangWatcher::ThreadType::kRendererThread:
       return g_browser_process_renderer_thread_log_level.load(
@@ -184,13 +252,30 @@ bool ThreadTypeLoggingLevelGreaterOrEqual(HangWatcher::ThreadType thread_type,
 
 }  // namespace
 
-// Determines if the HangWatcher is activated. When false the HangWatcher
-// thread never started.
+#if BUILDFLAG(IS_COBALT)
+void HangWatcher::SetDelegate(Delegate* delegate) {
+  DCHECK(!g_instance) << "SetDelegate must be called before Start()";
+  g_hang_watcher_delegate.store(delegate, std::memory_order_relaxed);
+}
+#endif
+
+// Enables the HangWatcher. When disabled, the HangWatcher thread should not be
+// started. Enabled by default only on platforms where the generated data is
+// used, to avoid unnecessary overhead.
 BASE_FEATURE(kEnableHangWatcher,
              "EnableHangWatcher",
-             FEATURE_ENABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS) || \
+    BUILDFLAG(IS_LINUX)
+             FEATURE_ENABLED_BY_DEFAULT
+#elif BUILDFLAG(IS_COBALT)
+             FEATURE_ENABLED_BY_DEFAULT
+#else
+             FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 // Browser process.
+// Note: Do not use the prepared macro as of no need for a local cache.
 constexpr base::FeatureParam<int> kIOThreadLogLevel{
     &kEnableHangWatcher, "io_thread_log_level",
     static_cast<int>(LoggingLevel::kUmaOnly)};
@@ -200,13 +285,9 @@ constexpr base::FeatureParam<int> kUIThreadLogLevel{
 constexpr base::FeatureParam<int> kThreadPoolLogLevel{
     &kEnableHangWatcher, "threadpool_log_level",
     static_cast<int>(LoggingLevel::kUmaOnly)};
-#if BUILDFLAG(IS_COBALT)
-constexpr base::FeatureParam<int> kBrowserProcessRendererThreadLogLevel{
-    &kEnableHangWatcher, "browser_process_renderer_thread_log_level",
-    static_cast<int>(LoggingLevel::kUmaAndCrash)};
-#endif
 
 // GPU process.
+// Note: Do not use the prepared macro as of no need for a local cache.
 constexpr base::FeatureParam<int> kGPUProcessIOThreadLogLevel{
     &kEnableHangWatcher, "gpu_process_io_thread_log_level",
     static_cast<int>(LoggingLevel::kNone)};
@@ -218,6 +299,7 @@ constexpr base::FeatureParam<int> kGPUProcessThreadPoolLogLevel{
     static_cast<int>(LoggingLevel::kNone)};
 
 // Renderer process.
+// Note: Do not use the prepared macro as of no need for a local cache.
 constexpr base::FeatureParam<int> kRendererProcessIOThreadLogLevel{
     &kEnableHangWatcher, "renderer_process_io_thread_log_level",
     static_cast<int>(LoggingLevel::kUmaOnly)};
@@ -227,8 +309,12 @@ constexpr base::FeatureParam<int> kRendererProcessMainThreadLogLevel{
 constexpr base::FeatureParam<int> kRendererProcessThreadPoolLogLevel{
     &kEnableHangWatcher, "renderer_process_threadpool_log_level",
     static_cast<int>(LoggingLevel::kUmaOnly)};
+constexpr base::FeatureParam<int> kRendererProcessCompositorThreadLogLevel{
+    &kEnableHangWatcher, "renderer_process_compositor_thread_log_level",
+    static_cast<int>(LoggingLevel::kUmaOnly)};
 
 // Utility process.
+// Note: Do not use the prepared macro as of no need for a local cache.
 constexpr base::FeatureParam<int> kUtilityProcessIOThreadLogLevel{
     &kEnableHangWatcher, "utility_process_io_thread_log_level",
     static_cast<int>(LoggingLevel::kUmaOnly)};
@@ -245,13 +331,26 @@ constexpr const char* kThreadName = "HangWatcher";
 // Monitor(). Increasing or decreasing this does not modify the type of hangs
 // that can be detected. It instead increases the probability that a call to
 // Monitor() will happen at the right time to catch a hang. This has to be
-// balanced with power/cpu use concerns as busy looping would catch amost all
+// balanced with power/cpu use concerns as busy looping would catch almost all
 // hangs but present unacceptable overhead. NOTE: If this period is ever changed
 // then all metrics that depend on it like
 // HangWatcher.IsThreadHung need to be updated.
 constexpr auto kMonitoringPeriod = base::Seconds(10);
 
 WatchHangsInScope::WatchHangsInScope(TimeDelta timeout) {
+#if BUILDFLAG(IS_COBALT)
+  // Only override the timeout with the global configuration if the caller
+  // did not explicitly hardcode a custom timeout (e.g. for heavy startup
+  // tasks).
+  if (timeout == kDefaultHangWatchTime) {
+    int64_t watch_time_us =
+        g_hang_watch_time_us.load(std::memory_order_relaxed);
+    if (watch_time_us > 0) {
+      timeout = base::Microseconds(watch_time_us);
+    }
+  }
+#endif
+
   internal::HangWatchState* current_hang_watch_state =
       HangWatcher::IsEnabled()
           ? internal::HangWatchState::GetHangWatchStateForCurrentThread()
@@ -274,9 +373,9 @@ WatchHangsInScope::WatchHangsInScope(TimeDelta timeout) {
   auto [old_flags, old_deadline] =
       current_hang_watch_state->GetFlagsAndDeadline();
 
-  // TODO(crbug.com/1034046): Check whether we are over deadline already for the
-  // previous WatchHangsInScope here by issuing only one TimeTicks::Now()
-  // and resuing the value.
+  // TODO(crbug.com/40111620): Check whether we are over deadline already for
+  // the previous WatchHangsInScope here by issuing only one TimeTicks::Now()
+  // and reusing the value.
 
   previous_deadline_ = old_deadline;
   TimeTicks deadline = TimeTicks::Now() + timeout;
@@ -342,20 +441,78 @@ WatchHangsInScope::~WatchHangsInScope() {
   // Reset the deadline to the value it had before entering this
   // WatchHangsInScope.
   state->SetDeadline(previous_deadline_);
-  // TODO(crbug.com/1034046): Log when a WatchHangsInScope exits after its
+  // TODO(crbug.com/40111620): Log when a WatchHangsInScope exits after its
   // deadline and that went undetected by the HangWatcher.
 
   state->DecrementNestingLevel();
 }
 
+#if BUILDFLAG(IS_COBALT)
+LoggingLevel GetConfiguredLoggingLevel(HangWatcher::Delegate* delegate,
+                                       HangWatcher::ThreadType thread_type) {
+  return delegate->IsThreadDumpingEnabled(thread_type)
+             ? LoggingLevel::kUmaAndCrash
+             : LoggingLevel::kNone;
+}
+
+void HangWatcher::UpdateConfiguration() {
+  auto* delegate = g_hang_watcher_delegate.load(std::memory_order_relaxed);
+  if (!delegate) {
+    return;
+  }
+
+  g_hang_reporting_enabled.store(delegate->IsHangReportingEnabled(),
+                                 std::memory_order_relaxed);
+
+  g_hang_watch_time_us.store(delegate->GetHangWatchTime().InMicroseconds(),
+                             std::memory_order_relaxed);
+
+  g_hang_watch_monitoring_period_us.store(
+      delegate->GetHangWatchMonitoringPeriod().InMicroseconds(),
+      std::memory_order_relaxed);
+
+  // Update logging levels for thread scopes.
+  g_main_thread_log_level.store(
+      GetConfiguredLoggingLevel(delegate, HangWatcher::ThreadType::kMainThread),
+      std::memory_order_relaxed);
+
+  g_io_thread_log_level.store(
+      GetConfiguredLoggingLevel(delegate, HangWatcher::ThreadType::kIOThread),
+      std::memory_order_relaxed);
+
+  g_threadpool_log_level.store(
+      GetConfiguredLoggingLevel(delegate,
+                                HangWatcher::ThreadType::kThreadPoolThread),
+      std::memory_order_relaxed);
+
+  g_browser_process_renderer_thread_log_level.store(
+      GetConfiguredLoggingLevel(delegate,
+                                HangWatcher::ThreadType::kRendererThread),
+      std::memory_order_relaxed);
+
+  g_enable_long_hang_detection.store(delegate->IsLongHangDetectionEnabled(),
+                                     std::memory_order_relaxed);
+
+  g_enable_long_hang_kill.store(delegate->IsLongHangKillEnabled(),
+                                std::memory_order_relaxed);
+
+  g_long_hang_timeout_seconds.store(
+      static_cast<int>(delegate->GetLongHangTimeout().InSeconds()),
+      std::memory_order_relaxed);
+}
+#endif
+
 // static
-void HangWatcher::InitializeOnMainThread(ProcessType process_type) {
+void HangWatcher::InitializeOnMainThread(ProcessType process_type,
+                                         bool emit_crashes) {
   DCHECK(!g_use_hang_watcher);
+
+#if !BUILDFLAG(IS_COBALT)
+  // Cobalt manages HangWatcher configuration in UpdateConfiguration()
+  // in addition to this initialization method.
   DCHECK(g_io_thread_log_level == LoggingLevel::kNone);
   DCHECK(g_main_thread_log_level == LoggingLevel::kNone);
   DCHECK(g_threadpool_log_level == LoggingLevel::kNone);
-#if BUILDFLAG(IS_COBALT)
-  DCHECK(g_browser_process_renderer_thread_log_level == LoggingLevel::kNone);
 #endif
 
   bool enable_hang_watcher = base::FeatureList::IsEnabled(kEnableHangWatcher);
@@ -363,8 +520,9 @@ void HangWatcher::InitializeOnMainThread(ProcessType process_type) {
   // Do not start HangWatcher in the GPU process until the issue related to
   // invalid magic signature in the GPU WatchDog is fixed
   // (https://crbug.com/1297760).
-  if (process_type == ProcessType::kGPUProcess)
+  if (process_type == ProcessType::kGPUProcess) {
     enable_hang_watcher = false;
+  }
 
   g_use_hang_watcher.store(enable_hang_watcher, std::memory_order_relaxed);
 
@@ -373,84 +531,133 @@ void HangWatcher::InitializeOnMainThread(ProcessType process_type) {
 
   // If hang watching is disabled as a whole there is no need to read the
   // params.
-  if (!enable_hang_watcher)
+  if (!enable_hang_watcher) {
     return;
+  }
+
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Freeze detection: HangWatcher initialized";
+#endif
 
   // Retrieve thread-specific config for hang watching.
-  switch (process_type) {
-    case HangWatcher::ProcessType::kUnknownProcess:
-      break;
-
-    case HangWatcher::ProcessType::kBrowserProcess:
-      g_threadpool_log_level.store(
-          static_cast<LoggingLevel>(kThreadPoolLogLevel.Get()),
+  if (process_type == HangWatcher::ProcessType::kBrowserProcess) {
+    // Crashes are set to always emit. Override any feature flags.
+    if (emit_crashes) {
+      g_io_thread_log_level.store(
+          static_cast<LoggingLevel>(LoggingLevel::kUmaAndCrash),
           std::memory_order_relaxed);
+      g_main_thread_log_level.store(
+          static_cast<LoggingLevel>(LoggingLevel::kUmaAndCrash),
+          std::memory_order_relaxed);
+    } else {
       g_io_thread_log_level.store(
           static_cast<LoggingLevel>(kIOThreadLogLevel.Get()),
           std::memory_order_relaxed);
       g_main_thread_log_level.store(
           static_cast<LoggingLevel>(kUIThreadLogLevel.Get()),
           std::memory_order_relaxed);
-#if BUILDFLAG(IS_COBALT)
-      g_browser_process_renderer_thread_log_level.store(
-          static_cast<LoggingLevel>(
-              kBrowserProcessRendererThreadLogLevel.Get()),
-          std::memory_order_relaxed);
-#endif
-      break;
-    case HangWatcher::ProcessType::kGPUProcess:
-      g_threadpool_log_level.store(
-          static_cast<LoggingLevel>(kGPUProcessThreadPoolLogLevel.Get()),
-          std::memory_order_relaxed);
-      g_io_thread_log_level.store(
-          static_cast<LoggingLevel>(kGPUProcessIOThreadLogLevel.Get()),
-          std::memory_order_relaxed);
-      g_main_thread_log_level.store(
-          static_cast<LoggingLevel>(kGPUProcessMainThreadLogLevel.Get()),
-          std::memory_order_relaxed);
-      break;
+    }
 
-    case HangWatcher::ProcessType::kRendererProcess:
-      g_threadpool_log_level.store(
-          static_cast<LoggingLevel>(kRendererProcessThreadPoolLogLevel.Get()),
-          std::memory_order_relaxed);
-      g_io_thread_log_level.store(
-          static_cast<LoggingLevel>(kRendererProcessIOThreadLogLevel.Get()),
-          std::memory_order_relaxed);
-      g_main_thread_log_level.store(
-          static_cast<LoggingLevel>(kRendererProcessMainThreadLogLevel.Get()),
-          std::memory_order_relaxed);
-      break;
-
-    case HangWatcher::ProcessType::kUtilityProcess:
-      g_threadpool_log_level.store(
-          static_cast<LoggingLevel>(kUtilityProcessThreadPoolLogLevel.Get()),
-          std::memory_order_relaxed);
-      g_io_thread_log_level.store(
-          static_cast<LoggingLevel>(kUtilityProcessIOThreadLogLevel.Get()),
-          std::memory_order_relaxed);
-      g_main_thread_log_level.store(
-          static_cast<LoggingLevel>(kUtilityProcessMainThreadLogLevel.Get()),
-          std::memory_order_relaxed);
-      break;
+    g_threadpool_log_level.store(
+        static_cast<LoggingLevel>(kThreadPoolLogLevel.Get()),
+        std::memory_order_relaxed);
+  } else if (process_type == HangWatcher::ProcessType::kGPUProcess) {
+    g_threadpool_log_level.store(
+        static_cast<LoggingLevel>(kGPUProcessThreadPoolLogLevel.Get()),
+        std::memory_order_relaxed);
+    g_io_thread_log_level.store(
+        static_cast<LoggingLevel>(kGPUProcessIOThreadLogLevel.Get()),
+        std::memory_order_relaxed);
+    g_main_thread_log_level.store(
+        static_cast<LoggingLevel>(kGPUProcessMainThreadLogLevel.Get()),
+        std::memory_order_relaxed);
+  } else if (process_type == HangWatcher::ProcessType::kRendererProcess) {
+    g_threadpool_log_level.store(
+        static_cast<LoggingLevel>(kRendererProcessThreadPoolLogLevel.Get()),
+        std::memory_order_relaxed);
+    g_io_thread_log_level.store(
+        static_cast<LoggingLevel>(kRendererProcessIOThreadLogLevel.Get()),
+        std::memory_order_relaxed);
+    g_main_thread_log_level.store(
+        static_cast<LoggingLevel>(kRendererProcessMainThreadLogLevel.Get()),
+        std::memory_order_relaxed);
+    g_compositor_thread_log_level.store(
+        static_cast<LoggingLevel>(
+            kRendererProcessCompositorThreadLogLevel.Get()),
+        std::memory_order_relaxed);
+  } else if (process_type == HangWatcher::ProcessType::kUtilityProcess) {
+    g_threadpool_log_level.store(
+        static_cast<LoggingLevel>(kUtilityProcessThreadPoolLogLevel.Get()),
+        std::memory_order_relaxed);
+    g_io_thread_log_level.store(
+        static_cast<LoggingLevel>(kUtilityProcessIOThreadLogLevel.Get()),
+        std::memory_order_relaxed);
+    g_main_thread_log_level.store(
+        static_cast<LoggingLevel>(kUtilityProcessMainThreadLogLevel.Get()),
+        std::memory_order_relaxed);
   }
+
+#if BUILDFLAG(IS_COBALT)
+  // Apply configured overrides from H5VCC or Finch, if any,
+  // and read Cobalt-specific configuration.
+  UpdateConfiguration();
+#endif
 }
 
-void HangWatcher::UnitializeOnMainThreadForTesting() {
+void HangWatcher::UninitializeOnMainThreadForTesting() {
+#if BUILDFLAG(IS_COBALT)
+  g_hang_reporting_enabled.store(true, std::memory_order_relaxed);
+  g_hang_watch_time_us.store(
+      WatchHangsInScope::kDefaultHangWatchTime.InMicroseconds(),
+      std::memory_order_relaxed);
+  g_hang_watch_monitoring_period_us.store(kMonitoringPeriod.InMicroseconds(),
+                                          std::memory_order_relaxed);
+  g_enable_long_hang_detection.store(false, std::memory_order_relaxed);
+  g_enable_long_hang_kill.store(false, std::memory_order_relaxed);
+  g_long_hang_timeout_seconds.store(20, std::memory_order_relaxed);
+
+  g_browser_process_renderer_thread_log_level.store(LoggingLevel::kNone,
+                                                    std::memory_order_relaxed);
+#endif
   g_use_hang_watcher.store(false, std::memory_order_relaxed);
   g_threadpool_log_level.store(LoggingLevel::kNone, std::memory_order_relaxed);
   g_io_thread_log_level.store(LoggingLevel::kNone, std::memory_order_relaxed);
   g_main_thread_log_level.store(LoggingLevel::kNone, std::memory_order_relaxed);
-#if BUILDFLAG(IS_COBALT)
-  g_browser_process_renderer_thread_log_level.store(LoggingLevel::kNone,
-                                                    std::memory_order_relaxed);
-#endif
+  g_compositor_thread_log_level.store(LoggingLevel::kNone,
+                                      std::memory_order_relaxed);
+  g_shutting_down.store(false, std::memory_order_relaxed);
 }
 
 // static
 bool HangWatcher::IsEnabled() {
   return g_use_hang_watcher.load(std::memory_order_relaxed);
 }
+
+#if BUILDFLAG(IS_COBALT)
+// static
+void HangWatcher::Suspend() {
+  // suspends hang watching when the application is frozen.
+  g_use_hang_watcher.store(false, std::memory_order_relaxed);
+}
+
+// static
+void HangWatcher::Resume() {
+  if (g_instance) {
+    // resumes hang watching when the application is unfrozen, explicitly
+    // ignoring pre-freeze deadlines to prevent false hang reports.
+    base::AutoLock auto_lock(g_instance->watch_state_lock_);
+    base::TimeTicks latest_deadline;
+    for (const auto& state : g_instance->watch_states_) {
+      base::TimeTicks deadline = state->GetDeadline();
+      if (deadline > latest_deadline) {
+        latest_deadline = deadline;
+      }
+    }
+    g_instance->deadline_ignore_threshold_ = latest_deadline;
+  }
+  g_use_hang_watcher.store(true, std::memory_order_relaxed);
+}
+#endif
 
 // static
 bool HangWatcher::IsThreadPoolHangWatchingEnabled() {
@@ -461,6 +668,12 @@ bool HangWatcher::IsThreadPoolHangWatchingEnabled() {
 // static
 bool HangWatcher::IsIOThreadHangWatchingEnabled() {
   return g_io_thread_log_level.load(std::memory_order_relaxed) !=
+         LoggingLevel::kNone;
+}
+
+// static
+bool HangWatcher::IsCompositorThreadHangWatchingEnabled() {
+  return g_compositor_thread_log_level.load(std::memory_order_relaxed) !=
          LoggingLevel::kNone;
 }
 
@@ -498,8 +711,18 @@ void HangWatcher::InvalidateActiveExpectations() {
   state->SetIgnoreCurrentWatchHangsInScope();
 }
 
+// static
+void HangWatcher::SetShuttingDown() {
+  // memory_order_relaxed offers no memory order guarantees. In rare cases, we
+  // could falsely log to BrowserProcess.Normal instead of
+  // BrowserProcess.Shutdown. This is OK in practice.
+  bool was_shutting_down =
+      g_shutting_down.exchange(true, std::memory_order_relaxed);
+  DCHECK(!was_shutting_down);
+}
+
 HangWatcher::HangWatcher()
-    : monitor_period_(kMonitoringPeriod),
+    : monitoring_period_(kMonitoringPeriod),
       should_monitor_(WaitableEvent::ResetPolicy::AUTOMATIC),
       thread_(this, kThreadName),
       tick_clock_(base::DefaultTickClock::GetInstance()),
@@ -563,11 +786,13 @@ std::string HangWatcher::GetTimeSinceLastSystemPowerResumeCrashKeyValue()
   DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
 
   const TimeTicks last_system_power_resume_time =
-      PowerMonitor::GetLastSystemResumeTime();
-  if (last_system_power_resume_time.is_null())
+      PowerMonitor::GetInstance()->GetLastSystemResumeTime();
+  if (last_system_power_resume_time.is_null()) {
     return "Never suspended";
-  if (last_system_power_resume_time == TimeTicks::Max())
+  }
+  if (last_system_power_resume_time == TimeTicks::Max()) {
     return "Power suspended";
+  }
 
   const TimeDelta time_since_last_system_resume =
       TimeTicks::Now() - last_system_power_resume_time;
@@ -593,12 +818,14 @@ HangWatcher::~HangWatcher() {
 
 void HangWatcher::Start() {
   thread_.Start();
+  thread_started_ = true;
 }
 
 void HangWatcher::Stop() {
   g_keep_monitoring.store(false, std::memory_order_relaxed);
   should_monitor_.Signal();
   thread_.Join();
+  thread_started_ = false;
 
   // In production HangWatcher is always leaked but during testing it's possibly
   // stopped and restarted using a new instance. This makes sure the next call
@@ -620,18 +847,16 @@ void HangWatcher::Wait() {
     const base::TimeTicks time_before_wait = tick_clock_->NowTicks();
 
     // Sleep until next scheduled monitoring or until signaled.
-    const bool was_signaled = should_monitor_.TimedWait(monitor_period_);
+    const bool was_signaled = should_monitor_.TimedWait(monitoring_period_);
 
-    if (after_wait_callback_)
+    if (after_wait_callback_) {
       after_wait_callback_.Run(time_before_wait);
+    }
 
     const base::TimeTicks time_after_wait = tick_clock_->NowTicks();
     const base::TimeDelta wait_time = time_after_wait - time_before_wait;
     const bool wait_was_normal =
-        wait_time <= (monitor_period_ + kWaitDriftTolerance);
-
-    UMA_HISTOGRAM_TIMES("HangWatcher.SleepDrift.BrowserProcess",
-                        wait_time - monitor_period_);
+        wait_time <= (monitoring_period_ + kWaitDriftTolerance);
 
     if (!wait_was_normal) {
       // If the time spent waiting was too high it might indicate the machine is
@@ -659,8 +884,9 @@ void HangWatcher::Wait() {
     }
 
     // Stop waiting.
-    if (wait_was_normal || was_signaled)
+    if (wait_was_normal || was_signaled) {
       return;
+    }
   }
 }
 
@@ -670,9 +896,23 @@ void HangWatcher::Run() {
   DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
 
   while (g_keep_monitoring.load(std::memory_order_relaxed)) {
+#if BUILDFLAG(IS_COBALT)
+    int64_t period_us =
+        g_hang_watch_monitoring_period_us.load(std::memory_order_relaxed);
+    if (period_us > 0) {
+      monitoring_period_ = base::Microseconds(period_us);
+    }
+#endif
     Wait();
 
-    if (!IsWatchListEmpty() &&
+    bool has_work = !IsWatchListEmpty();
+#if BUILDFLAG(IS_COBALT)
+    // If the watch list is empty but we have an active hang UUID, we still
+    // have work to do (cleaning up the recovery state).
+    has_work = has_work || !active_hang_uuid_.empty();
+#endif
+
+    if (has_work &&
         g_keep_monitoring.load(std::memory_order_relaxed)) {
       Monitor();
       if (after_monitor_closure_for_testing_) {
@@ -689,6 +929,9 @@ HangWatcher* HangWatcher::GetInstance() {
 
 // static
 void HangWatcher::RecordHang() {
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Freeze detection: start reporting";
+#endif
   base::debug::DumpWithoutCrashing();
   NO_CODE_FOLDING();
 }
@@ -732,7 +975,8 @@ HangWatcher::WatchStateSnapShot::WatchStateSnapShot() = default;
 
 void HangWatcher::WatchStateSnapShot::Init(
     const HangWatchStates& watch_states,
-    base::TimeTicks deadline_ignore_threshold) {
+    base::TimeTicks deadline_ignore_threshold,
+    base::TimeDelta monitoring_period) {
   DCHECK(!initialized_);
 
   // No matter if the snapshot is actionable or not after this function
@@ -755,7 +999,7 @@ void HangWatcher::WatchStateSnapShot::Init(
   hung_counts_per_thread_type.fill(kInvalidHangCount);
 
   // Will be true if any of the hung threads has a logging level high enough,
-  // as defined through finch params, to warant dumping a crash.
+  // as defined through finch params, to warrant dumping a crash.
   bool any_hung_thread_has_dumping_enabled = false;
 
   // Copy hung thread information.
@@ -797,11 +1041,10 @@ void HangWatcher::WatchStateSnapShot::Init(
                                                LoggingLevel::kUmaOnly)) {
         const PlatformThreadId thread_id = watch_state.get()->GetThreadID();
         const auto track = perfetto::Track::FromPointer(
-            this, perfetto::ThreadTrack::ForThread(thread_id));
-        TRACE_EVENT_BEGIN("base", "HangWatcher::ThreadHung", track, deadline);
-        TRACE_EVENT_END("base", track, now);
-        // TODO(crbug.com/1021571): Remove this once fixed.
-        PERFETTO_INTERNAL_ADD_EMPTY_EVENT();
+            this, perfetto::ThreadTrack::ForThread(thread_id.raw()));
+        TRACE_EVENT_BEGIN("latency", "HangWatcher::ThreadHung", track,
+                          now - monitoring_period);
+        TRACE_EVENT_END("latency", track, now);
       }
 #endif
 
@@ -823,18 +1066,34 @@ void HangWatcher::WatchStateSnapShot::Init(
     }
   }
 
+  bool any_critical_thread_hung = false;
+  bool any_thread_hung = false;
   // Log the hung thread counts to histograms for each thread type if any thread
   // of the type were found.
   for (size_t i = 0; i < kHangCountArraySize; ++i) {
     const int hang_count = hung_counts_per_thread_type[i];
     const HangWatcher::ThreadType thread_type =
         static_cast<HangWatcher::ThreadType>(i);
-    if (hang_count != kInvalidHangCount &&
-        ThreadTypeLoggingLevelGreaterOrEqual(thread_type,
-                                             LoggingLevel::kUmaOnly)) {
-      LogHungThreadCountHistogram(thread_type, hang_count);
+    if (hang_count != kInvalidHangCount) {
+      if (hang_count > 0) {
+        any_thread_hung = true;
+      }
+
+      if (ThreadTypeLoggingLevelGreaterOrEqual(thread_type,
+                                               LoggingLevel::kUmaOnly)) {
+        LogStatusHistogram(thread_type, hang_count, now, monitoring_period);
+
+        if (hang_count > 0 && thread_type != ThreadType::kThreadPoolThread) {
+          any_critical_thread_hung = true;
+        }
+      }
     }
   }
+
+  UMA_HISTOGRAM_BOOLEAN("HangWatcher.IsThreadHung.Any", any_thread_hung);
+
+  UMA_HISTOGRAM_BOOLEAN("HangWatcher.IsThreadHung.AnyCritical",
+                        any_critical_thread_hung);
 
   // Three cases can invalidate this snapshot and prevent the capture of the
   // hang.
@@ -859,10 +1118,10 @@ void HangWatcher::WatchStateSnapShot::Init(
 
   // Sort |hung_watch_state_copies_| by order of decreasing hang severity so the
   // most severe hang is first in the list.
-  ranges::sort(hung_watch_state_copies_,
-               [](const WatchStateCopy& lhs, const WatchStateCopy& rhs) {
-                 return lhs.deadline < rhs.deadline;
-               });
+  std::ranges::sort(hung_watch_state_copies_,
+                    [](const WatchStateCopy& lhs, const WatchStateCopy& rhs) {
+                      return lhs.deadline < rhs.deadline;
+                    });
 }
 
 void HangWatcher::WatchStateSnapShot::Clear() {
@@ -885,7 +1144,8 @@ std::string HangWatcher::WatchStateSnapShot::PrepareHungThreadListCrashKey()
 
   // Add as many thread ids to the crash key as possible.
   for (const WatchStateCopy& copy : hung_watch_state_copies_) {
-    std::string fragment = base::NumberToString(copy.thread_id) + kSeparator;
+    std::string fragment =
+        base::NumberToString(copy.thread_id.raw()) + kSeparator;
     if (list_of_hung_thread_ids.size() + fragment.size() <
         static_cast<std::size_t>(debug::CrashKeySize::Size256)) {
       list_of_hung_thread_ids += fragment;
@@ -908,31 +1168,179 @@ bool HangWatcher::WatchStateSnapShot::IsActionable() const {
 HangWatcher::WatchStateSnapShot HangWatcher::GrabWatchStateSnapshotForTesting()
     const {
   WatchStateSnapShot snapshot;
-  snapshot.Init(watch_states_, deadline_ignore_threshold_);
+  snapshot.Init(watch_states_, deadline_ignore_threshold_, TimeDelta());
   return snapshot;
 }
 
+#if BUILDFLAG(IS_COBALT)
+void HangWatcher::RecordHangStarted() {
+  DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
+  if (!g_hang_reporting_enabled.load(std::memory_order_relaxed)) {
+    return;
+  }
+  if (!active_hang_uuid_.empty()) {
+    return;
+  }
+
+  active_hang_uuid_ = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  hang_start_time_ = tick_clock_->NowTicks();
+  std::string uuid_to_report = active_hang_uuid_;
+
+  {
+    base::AutoUnlock auto_unlock(watch_state_lock_);
+    auto* delegate = g_hang_watcher_delegate.load(std::memory_order_acquire);
+    if (delegate) {
+      delegate->RecordHangStarted(uuid_to_report);
+    }
+  }
+}
+
+void HangWatcher::CheckHangState() {
+  DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
+
+  if (active_hang_uuid_.empty()) {
+    return;
+  }
+
+  bool any_thread_hung = false;
+  base::TimeTicks now = tick_clock_->NowTicks();
+
+  // We iterate over the watch states to determine if ANY thread is currently
+  // physically hung. Note: We are ALREADY inside HangWatcher::Monitor(), so
+  // watch_state_lock_ is currently held by the caller. We do not need to
+  // acquire or release it here for the iteration.
+  for (const auto& watch_state : watch_states_) {
+    uint64_t flags;
+    base::TimeTicks deadline;
+    std::tie(flags, deadline) = watch_state->GetFlagsAndDeadline();
+
+    // Some threads can skip deadline for legitimate reason, we ignore them.
+    if (internal::HangWatchDeadline::IsFlagSet(
+            internal::HangWatchDeadline::Flag::kIgnoreCurrentWatchHangsInScope,
+            flags)) {
+      continue;
+    }
+
+    if (deadline <= now) {
+      any_thread_hung = true;
+      break;
+    }
+  }
+
+  // If all hangs cleared, mark last hang as recovered.
+  if (!any_thread_hung) {
+    std::string uuid_to_report = active_hang_uuid_;
+    active_hang_uuid_.clear();
+    hang_start_time_ = base::TimeTicks();
+    long_hang_logged_ = false;
+
+    {
+      // Unlock before calling out to the delegate to prevent deadlocks with
+      // embedder code.
+      base::AutoUnlock auto_unlock(watch_state_lock_);
+
+      auto* delegate = g_hang_watcher_delegate.load(std::memory_order_acquire);
+      if (delegate) {
+        delegate->RecordHangRecovered(uuid_to_report);
+      }
+    }
+  } else {
+    // If still hanging, check if this is a long hang by now.
+    CheckForLongHangs(now);
+  }
+}
+
+void HangWatcher::CheckForLongHangs(base::TimeTicks now) {
+  DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
+
+  if (!g_enable_long_hang_detection.load(std::memory_order_relaxed)) {
+    return;
+  }
+
+  if (active_hang_uuid_.empty() || hang_start_time_.is_null()) {
+    return;
+  }
+
+  // Prevent overly aggressive long hang timeouts. HangWatcher is designed
+  // to detect severe deadlocks, and values lower than 10 seconds risk
+  // false-positive fatal kills on heavily loaded or lower-end devices.
+  constexpr int kMinLongHangTimeoutSeconds = 10;
+  int timeout_seconds =
+      std::max(kMinLongHangTimeoutSeconds,
+               g_long_hang_timeout_seconds.load(std::memory_order_relaxed));
+  base::TimeDelta timeout = base::Seconds(timeout_seconds);
+
+  if (now - hang_start_time_ >= timeout) {
+    if (!long_hang_logged_) {
+      LOG(INFO) << "Freeze detection: Long hang detected! Emitting UMA metric.";
+      UMA_HISTOGRAM_BOOLEAN("HangWatcher.LongHang.Detected", true);
+      long_hang_logged_ = true;
+    }
+
+    if (g_enable_long_hang_kill.load(std::memory_order_relaxed)) {
+      if (force_kill_closure_for_testing_) {
+        force_kill_closure_for_testing_.Run();
+      } else {
+#if BUILDFLAG(IS_STARBOARD)
+        auto* crash_ext = static_cast<const CobaltExtensionCrashHandlerApi*>(
+            SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+        if (crash_ext && crash_ext->version >= 2 && crash_ext->SetString) {
+          crash_ext->SetString("HangWatcher-Reason", "Long_Hang_Timeout");
+        }
+#else
+        SCOPED_CRASH_KEY_STRING32("HangWatcher", "HangWatcher-Reason",
+                                  "Long_Hang_Timeout");
+#endif
+        LOG(FATAL) << "HangWatcher detected severe long hang. Forcing "
+                      "native abort.";
+      }
+    }
+  }
+}
+#endif
+
 void HangWatcher::Monitor() {
   DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
+
+#if BUILDFLAG(IS_COBALT)
+  // suspends monitoring when the application is frozen.
+  if (!IsEnabled()) {
+    return;
+  }
+#endif
+
   AutoLock auto_lock(watch_state_lock_);
 
   // If all threads unregistered since this function was invoked there's
   // nothing to do anymore.
-  if (watch_states_.empty())
+  if (watch_states_.empty()) {
+#if BUILDFLAG(IS_COBALT)
+    CheckHangState();
+#endif
     return;
+  }
 
-  watch_state_snapshot_.Init(watch_states_, deadline_ignore_threshold_);
+  watch_state_snapshot_.Init(watch_states_, deadline_ignore_threshold_,
+                             monitoring_period_);
 
   if (watch_state_snapshot_.IsActionable()) {
     DoDumpWithoutCrashing(watch_state_snapshot_);
   }
+
+#if BUILDFLAG(IS_COBALT)
+  CheckHangState();
+#endif
 
   watch_state_snapshot_.Clear();
 }
 
 void HangWatcher::DoDumpWithoutCrashing(
     const WatchStateSnapShot& watch_state_snapshot) {
-  TRACE_EVENT("base", "HangWatcher::DoDumpWithoutCrashing");
+  TRACE_EVENT("latency", "HangWatcher::DoDumpWithoutCrashing");
+
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Freeze detection: Triggering DumpWithoutCrashing. Actionable: " << watch_state_snapshot.IsActionable();
+#endif
 
   capture_in_progress_.store(true, std::memory_order_relaxed);
   base::AutoLock scope_lock(capture_lock_);
@@ -953,7 +1361,76 @@ void HangWatcher::DoDumpWithoutCrashing(
 
   SCOPED_CRASH_KEY_STRING32("HangWatcher", "seconds-since-last-resume",
                             GetTimeSinceLastSystemPowerResumeCrashKeyValue());
-#endif
+
+  SCOPED_CRASH_KEY_BOOL("HangWatcher", "shutting-down",
+                        g_shutting_down.load(std::memory_order_relaxed));
+
+#if BUILDFLAG(IS_COBALT)
+  int64_t configured_timeout =
+      g_hang_watch_time_us.load(std::memory_order_relaxed);
+  char timeout_buf[32];
+  snprintf(timeout_buf, sizeof(timeout_buf), "%" PRId64,
+           static_cast<int64_t>(configured_timeout /
+                                base::Time::kMicrosecondsPerSecond));
+  SCOPED_CRASH_KEY_STRING32("HangWatcher", "hang-timeout-sec", timeout_buf);
+
+  int64_t configured_period =
+      g_hang_watch_monitoring_period_us.load(std::memory_order_relaxed);
+  char period_buf[32];
+  snprintf(period_buf, sizeof(period_buf), "%" PRId64,
+           static_cast<int64_t>(configured_period /
+                                base::Time::kMicrosecondsPerSecond));
+  SCOPED_CRASH_KEY_STRING32("HangWatcher", "hang-period-sec", period_buf);
+
+  bool main_enabled = g_main_thread_log_level.load(std::memory_order_relaxed) >=
+                      LoggingLevel::kUmaAndCrash;
+  SCOPED_CRASH_KEY_BOOL("HangWatcher", "hang-dump-main", main_enabled);
+
+  bool io_enabled = g_io_thread_log_level.load(std::memory_order_relaxed) >=
+                    LoggingLevel::kUmaAndCrash;
+  SCOPED_CRASH_KEY_BOOL("HangWatcher", "hang-dump-io", io_enabled);
+
+  bool pool_enabled = g_threadpool_log_level.load(std::memory_order_relaxed) >=
+                      LoggingLevel::kUmaAndCrash;
+  SCOPED_CRASH_KEY_BOOL("HangWatcher", "hang-dump-pool", pool_enabled);
+
+  bool renderer_enabled =
+      g_browser_process_renderer_thread_log_level.load(
+          std::memory_order_relaxed) >= LoggingLevel::kUmaAndCrash;
+  SCOPED_CRASH_KEY_BOOL("HangWatcher", "hang-dump-renderer", renderer_enabled);
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Evergreen builds cannot currently use the crash key system directly and we
+  // instead use a Starboard extension to pass annotations from the Cobalt layer
+  // to Crashpad.
+  auto* crash_handler_extension =
+      static_cast<const CobaltExtensionCrashHandlerApi*>(
+          SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+  if (crash_handler_extension && crash_handler_extension->version >= 2 &&
+      crash_handler_extension->SetString) {
+    crash_handler_extension->SetString("list-of-hung-threads",
+                                       list_of_hung_thread_ids.c_str());
+    crash_handler_extension->SetString(
+        "seconds-since-last-resume",
+        GetTimeSinceLastSystemPowerResumeCrashKeyValue().c_str());
+    crash_handler_extension->SetString(
+        "shutting-down",
+        g_shutting_down.load(std::memory_order_relaxed) ? "true" : "false");
+
+    crash_handler_extension->SetString("hang-timeout-sec", timeout_buf);
+    crash_handler_extension->SetString("hang-period-sec", period_buf);
+    crash_handler_extension->SetString("hang-dump-main",
+                                       main_enabled ? "true" : "false");
+    crash_handler_extension->SetString("hang-dump-io",
+                                       io_enabled ? "true" : "false");
+    crash_handler_extension->SetString("hang-dump-pool",
+                                       pool_enabled ? "true" : "false");
+    crash_handler_extension->SetString("hang-dump-renderer",
+                                       renderer_enabled ? "true" : "false");
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(IS_NACL)
 
   // To avoid capturing more than one hang that blames a subset of the same
   // threads it's necessary to keep track of what is the furthest deadline
@@ -976,10 +1453,22 @@ void HangWatcher::DoDumpWithoutCrashing(
   base::TimeTicks latest_expired_deadline =
       watch_state_snapshot.GetHighestDeadline();
 
-  if (on_hang_closure_for_testing_)
+#if BUILDFLAG(IS_COBALT)
+  RecordHangStarted();
+#endif
+  if (on_hang_closure_for_testing_) {
     on_hang_closure_for_testing_.Run();
-  else
+  } else {
+#if BUILDFLAG(IS_COBALT)
+    if (g_hang_reporting_enabled.load(std::memory_order_relaxed)) {
+      RecordHang();
+    } else {
+      LOG(INFO) << "Freeze detection: RecordHang() skipped due to reporting disabled.";
+    }
+#else
     RecordHang();
+#endif  // BUILDFLAG(IS_COBALT)
+  }
 
   // Update after running the actual capture.
   deadline_ignore_threshold_ = latest_expired_deadline;
@@ -1000,7 +1489,11 @@ void HangWatcher::SetOnHangClosureForTesting(base::RepeatingClosure closure) {
 
 void HangWatcher::SetMonitoringPeriodForTesting(base::TimeDelta period) {
   DCHECK_CALLED_ON_VALID_THREAD(constructing_thread_checker_);
-  monitor_period_ = period;
+  monitoring_period_ = period;
+#if BUILDFLAG(IS_COBALT)
+  g_hang_watch_monitoring_period_us.store(period.InMicroseconds(),
+                                          std::memory_order_relaxed);
+#endif
 }
 
 void HangWatcher::SetAfterWaitCallbackForTesting(
@@ -1028,20 +1521,21 @@ void HangWatcher::BlockIfCaptureInProgress() {
   // captured. Only block on |capture_lock| if |capture_in_progress_| hints that
   // it's already held to avoid serializing all threads on this function when no
   // hang capture is in-progress.
-  if (capture_in_progress_.load(std::memory_order_relaxed))
+  if (capture_in_progress_.load(std::memory_order_relaxed)) {
     base::AutoLock hang_lock(capture_lock_);
+  }
 }
 
 void HangWatcher::UnregisterThread() {
   AutoLock auto_lock(watch_state_lock_);
 
-  auto it = ranges::find(
+  auto it = std::ranges::find(
       watch_states_,
       internal::HangWatchState::GetHangWatchStateForCurrentThread(),
       &std::unique_ptr<internal::HangWatchState>::get);
 
   // Thread should be registered to get unregistered.
-  DCHECK(it != watch_states_.end());
+  CHECK(it != watch_states_.end());
 
   watch_states_.erase(it);
 }
@@ -1116,7 +1610,7 @@ void HangWatchDeadline::SetDeadline(TimeTicks new_deadline) {
               std::memory_order_relaxed);
 }
 
-// TODO(crbug.com/1087026): Add flag DCHECKs here.
+// TODO(crbug.com/40132796): Add flag DCHECKs here.
 bool HangWatchDeadline::SetShouldBlockOnHang(uint64_t old_flags,
                                              TimeTicks old_deadline) {
   DCHECK(old_deadline <= Max()) << "Value too high to be represented.";
@@ -1155,15 +1649,17 @@ void HangWatchDeadline::UnsetIgnoreCurrentWatchHangsInScope() {
 
 void HangWatchDeadline::SetPersistentFlag(Flag flag) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (switch_bits_callback_for_testing_)
+  if (switch_bits_callback_for_testing_) {
     SwitchBitsForTesting();
+  }
   bits_.fetch_or(static_cast<uint64_t>(flag), std::memory_order_relaxed);
 }
 
 void HangWatchDeadline::ClearPersistentFlag(Flag flag) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (switch_bits_callback_for_testing_)
+  if (switch_bits_callback_for_testing_) {
     SwitchBitsForTesting();
+  }
   bits_.fetch_and(~(static_cast<uint64_t>(flag)), std::memory_order_relaxed);
 }
 
@@ -1215,17 +1711,7 @@ uint64_t HangWatchDeadline::SwitchBitsForTesting() {
 
 HangWatchState::HangWatchState(HangWatcher::ThreadType thread_type)
     : resetter_(&hang_watch_state, this, nullptr), thread_type_(thread_type) {
-// TODO(crbug.com/1223033): Remove this once macOS uses system-wide ids.
-// On macOS the thread ids used by CrashPad are not the same as the ones
-// provided by PlatformThread. Make sure to use the same for correct
-// attribution.
-#if BUILDFLAG(IS_MAC)
-  uint64_t thread_id;
-  pthread_threadid_np(pthread_self(), &thread_id);
-  thread_id_ = checked_cast<PlatformThreadId>(thread_id);
-#else
   thread_id_ = PlatformThread::CurrentId();
-#endif
 }
 
 HangWatchState::~HangWatchState() {
@@ -1329,5 +1815,13 @@ PlatformThreadId HangWatchState::GetThreadID() const {
 }
 
 }  // namespace internal
+
+#if BUILDFLAG(IS_COBALT)
+void HangWatcher::SetForceKillClosureForTesting(
+    base::RepeatingClosure closure) {
+  DCHECK_CALLED_ON_VALID_THREAD(constructing_thread_checker_);
+  force_kill_closure_for_testing_ = std::move(closure);
+}
+#endif
 
 }  // namespace base

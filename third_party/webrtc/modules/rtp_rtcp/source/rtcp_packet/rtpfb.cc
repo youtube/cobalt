@@ -10,11 +10,12 @@
 
 #include "modules/rtp_rtcp/source/rtcp_packet/rtpfb.h"
 
+#include <cstdint>
+
 #include "modules/rtp_rtcp/source/byte_io.h"
 
 namespace webrtc {
 namespace rtcp {
-constexpr uint8_t Rtpfb::kPacketType;
 // RFC 4585, Section 6.1: Feedback format.
 //
 // Common packet format:

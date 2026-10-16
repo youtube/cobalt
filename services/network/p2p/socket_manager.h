@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -35,7 +36,6 @@
 #include "services/network/public/cpp/p2p_socket_type.h"
 #include "services/network/public/mojom/p2p.mojom.h"
 #include "services/network/public/mojom/p2p_trusted.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 class URLRequestContext;
@@ -51,8 +51,8 @@ struct DefaultLocalAddresses {
   DefaultLocalAddresses();
   ~DefaultLocalAddresses();
 
-  absl::optional<net::IPAddress> default_ipv4_local_address;
-  absl::optional<net::IPAddress> default_ipv6_local_address;
+  std::optional<net::IPAddress> default_ipv4_local_address;
+  std::optional<net::IPAddress> default_ipv6_local_address;
 };
 
 // Owns all the P2P socket instances and dispatches Mojo calls from the
@@ -126,11 +126,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) P2PSocketManager
       mojo::PendingRemote<mojom::P2PNetworkNotificationClient> client) override;
   void GetHostAddress(
       const std::string& host_name,
-      bool enable_mdns,
-      mojom::P2PSocketManager::GetHostAddressCallback callback) override;
-  void GetHostAddressWithFamily(
-      const std::string& host_name,
-      int address_family,
+      std::optional<net::AddressFamily> address_family,
       bool enable_mdns,
       mojom::P2PSocketManager::GetHostAddressCallback callback) override;
   void CreateSocket(
@@ -139,6 +135,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) P2PSocketManager
       const P2PPortRange& port_range,
       const P2PHostAndIPEndPoint& remote_address,
       const net::MutableNetworkTrafficAnnotationTag& traffic_annotation,
+      const std::optional<base::UnguessableToken>& devtools_token,
       mojo::PendingRemote<mojom::P2PSocketClient> client,
       mojo::PendingReceiver<mojom::P2PSocket> receiver) override;
 
@@ -147,12 +144,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) P2PSocketManager
   void StopRtpDump(bool incoming, bool outgoing) override;
 
   void NetworkNotificationClientConnectionError();
-
-  void DoGetHostAddress(
-      const std::string& host_name,
-      absl::optional<int> address_family,
-      bool enable_mdns,
-      mojom::P2PSocketManager::GetHostAddressCallback callback);
 
   void OnAddressResolved(
       DnsRequest* request,

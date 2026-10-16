@@ -6,31 +6,27 @@ package org.chromium.chrome.browser.logo;
 
 import android.graphics.Bitmap;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import androidx.annotation.VisibleForTesting;
+
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.profiles.Profile;
 
-/**
- * Provides access to the search provider's logo via the C++ LogoService.
- */
+/** Provides access to the search provider's logo via the C++ LogoService. */
+@NullMarked
 public class LogoBridge {
-    /**
-     * A logo for a search provider (e.g. the Yahoo! logo or Google doodle).
-     */
+    /** A logo for a search provider (e.g. the Yahoo! logo or Google doodle). */
     public static class Logo {
-        /**
-         * The logo image. Non-null.
-         */
+        /** The logo image. Non-null. */
         public final Bitmap image;
 
-        /**
-         * The URL to navigate to when the user clicks on the logo. May be null.
-         */
+        /** The URL to navigate to when the user clicks on the logo. May be null. */
         public final String onClickUrl;
 
-        /**
-         * The accessibility text describing the logo. May be null.
-         */
+        /** The accessibility text describing the logo. May be null. */
         public final String altText;
 
         /**
@@ -38,7 +34,8 @@ public class LogoBridge {
          */
         public final String animatedLogoUrl;
 
-        Logo(Bitmap image, String onClickUrl, String altText, String animatedLogoUrl) {
+        @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+        public Logo(Bitmap image, String onClickUrl, String altText, String animatedLogoUrl) {
             this.image = image;
             this.onClickUrl = onClickUrl;
             this.altText = altText;
@@ -46,9 +43,7 @@ public class LogoBridge {
         }
     }
 
-    /**
-     * Observer for receiving the logo when it's available.
-     */
+    /** Observer for receiving the logo when it's available. */
     public interface LogoObserver {
         /**
          * Called when the cached or fresh logo is available. This may be called up to two times,
@@ -59,14 +54,6 @@ public class LogoBridge {
          */
         @CalledByNative("LogoObserver")
         void onLogoAvailable(Logo logo, boolean fromCache);
-
-        /**
-         * Called when it has been determined from server that the cached logo (or null) is still
-         * valid. This is independent from OnLogoAvailable and is intended for users who need to
-         * take some action that can only happen when a logo won't later change.
-         */
-        @CalledByNative("LogoObserver")
-        void onCachedLogoRevalidated();
     }
 
     private long mNativeLogoBridge;
@@ -108,8 +95,10 @@ public class LogoBridge {
 
     @NativeMethods
     public interface Natives {
-        long init(LogoBridge caller, Profile profile);
+        long init(LogoBridge caller, @JniType("Profile*") Profile profile);
+
         void getCurrentLogo(long nativeLogoBridge, LogoBridge caller, LogoObserver logoObserver);
+
         void destroy(long nativeLogoBridge, LogoBridge caller);
     }
 }

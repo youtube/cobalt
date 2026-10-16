@@ -12,7 +12,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -21,6 +20,8 @@
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "extensions/browser/disable_reason.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest.h"
 #include "net/dns/mock_host_resolver.h"
@@ -133,7 +134,7 @@ IN_PROC_BROWSER_TEST_F(ChromeAppAPITest, IsInstalled) {
       content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
                       kGetAppDetails)
           .ExtractString();
-  absl::optional<base::Value> result_value = base::JSONReader::Read(result);
+  std::optional<base::Value> result_value = base::JSONReader::Read(result);
   ASSERT_TRUE(result_value && result_value->is_dict());
   base::Value::Dict& app_details = result_value.value().GetDict();
 
@@ -214,19 +215,16 @@ IN_PROC_BROWSER_TEST_F(ChromeAppAPITest, InstallAndRunningState) {
   EXPECT_TRUE(IsAppInstalledInMainFrame());
 
   // Disable the extension and verify the state.
-  extensions::ExtensionService* service =
-      extensions::ExtensionSystem::Get(browser()->profile())
-          ->extension_service();
-  service->DisableExtension(
+  extension_registrar()->DisableExtension(
       extension->id(),
-      extensions::disable_reason::DISABLE_PERMISSIONS_INCREASE);
+      {extensions::disable_reason::DISABLE_PERMISSIONS_INCREASE});
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), app_url));
 
   EXPECT_EQ("disabled", InstallStateInMainFrame());
   EXPECT_EQ("cannot_run", RunningStateInMainFrame());
   EXPECT_FALSE(IsAppInstalledInMainFrame());
 
-  service->EnableExtension(extension->id());
+  extension_registrar()->EnableExtension(extension->id());
   EXPECT_EQ("installed", InstallStateInMainFrame());
   EXPECT_EQ("ready_to_run", RunningStateInMainFrame());
   EXPECT_FALSE(IsAppInstalledInMainFrame());
@@ -243,10 +241,11 @@ IN_PROC_BROWSER_TEST_F(ChromeAppAPITest, InstallAndRunningState) {
 
   // With --site-per-process, the iframe on nonapp.com will currently swap
   // processes and go into the hosted app process.
-  if (content::AreAllSitesIsolatedForTesting())
+  if (content::AreAllSitesIsolatedForTesting()) {
     EXPECT_TRUE(IsAppInstalledInIFrame());
-  else
+  } else {
     EXPECT_FALSE(IsAppInstalledInIFrame());
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(ChromeAppAPITest, InstallAndRunningStateFrame) {
@@ -270,6 +269,7 @@ class ChromeAppAPIFencedFrameTest : public ChromeAppAPITest {
     feature_list_.InitWithFeaturesAndParameters(
         {{blink::features::kFencedFrames, {}},
          {blink::features::kFencedFramesAPIChanges, {}},
+         {blink::features::kFencedFramesDefaultMode, {}},
          {features::kPrivacySandboxAdsAPIsOverride, {}}},
         {/* disabled_features */});
   }

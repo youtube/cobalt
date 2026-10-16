@@ -1,8 +1,8 @@
 # Run a smoke set of browser tests relevant to CfT (crbug.com/1421409)
-
 ChromeForTestingInfoBarTest.*
 ClientHintsBrowserTest.*
 RecordLanguagesMetricsBrowserTest.*
+CrSettingsAboutPageTest.AboutPage*
 
 # DevTools browser tests
 GlobalConfirmInfoBarTest.*
@@ -108,3 +108,6 @@ BrowserRootViewBrowserTest.*
 -WebRtcDesktopCaptureBrowserTest.CloseAndReopenNonSharedTab
 -WebRtcDesktopCaptureBrowserTest.SwitchSharedTabBackAndForth
 -WebRtcDesktopCaptureBrowserTest.TabCaptureProvides0HzWith0MinFpsConstraintAndStaticContent
+
+# Disable flaky tests.
+-ViewTransitionBrowserTest.NavigationCancelledBeforeScreenshot

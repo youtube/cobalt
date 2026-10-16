@@ -5,10 +5,10 @@
 #ifndef REMOTING_HOST_NATIVE_MESSAGING_NATIVE_MESSAGING_HELPERS_H_
 #define REMOTING_HOST_NATIVE_MESSAGING_NATIVE_MESSAGING_HELPERS_H_
 
+#include <optional>
 #include <string>
 
 #include "base/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace remoting {
 
@@ -23,7 +23,7 @@ bool ParseNativeMessageJson(const std::string& message,
 // is malformed.
 // For a request like this: {id: "abc", type: "hello"}, the response will be:
 // {id: "abc", type: "helloResponse"}.
-absl::optional<base::Value::Dict> CreateNativeMessageResponse(
+std::optional<base::Value::Dict> CreateNativeMessageResponse(
     const base::Value::Dict& request);
 
 // Adds hello response fields to |response|, which should be created by calling

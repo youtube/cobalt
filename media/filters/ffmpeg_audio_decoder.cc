@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/filters/ffmpeg_audio_decoder.h"
 
 #include <stdint.h>
@@ -20,6 +25,7 @@
 #include "media/base/audio_discard_helper.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/limits.h"
+#include "media/base/media_switches.h"
 #include "media/base/timestamp_constants.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/ffmpeg/ffmpeg_decoding_loop.h"
@@ -56,7 +62,8 @@ FFmpegAudioDecoder::FFmpegAudioDecoder(
       state_(DecoderState::kUninitialized),
       av_sample_format_(0),
       media_log_(media_log),
-      pool_(base::MakeRefCounted<AudioBufferMemoryPool>()) {
+      pool_(base::MakeRefCounted<AudioBufferMemoryPool>(
+          kFFmpegBufferAddressAlignment)) {
   DETACH_FROM_SEQUENCE(sequence_checker_);
 }
 
@@ -119,11 +126,6 @@ void FFmpegAudioDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
   DecodeCB decode_cb_bound =
       base::BindPostTaskToCurrentDefault(std::move(decode_cb));
 
-  if (!DecoderBuffer::DoSubsamplesMatch(*buffer)) {
-    std::move(decode_cb_bound).Run(DecoderStatus::Codes::kFailed);
-    return;
-  }
-
   if (state_ == DecoderState::kError) {
     std::move(decode_cb_bound).Run(DecoderStatus::Codes::kFailed);
     return;
@@ -162,6 +164,12 @@ void FFmpegAudioDecoder::DecodeBuffer(const DecoderBuffer& buffer,
     return;
   }
 
+  if (!buffer.end_of_stream() && buffer.is_encrypted()) {
+    DLOG(ERROR) << "Encrypted buffer not supported";
+    std::move(decode_cb).Run(DecoderStatus::Codes::kUnsupportedEncryptionMode);
+    return;
+  }
+
   if (!FFmpegDecode(buffer)) {
     state_ = DecoderState::kError;
     std::move(decode_cb).Run(DecoderStatus::Codes::kFailed);
@@ -176,12 +184,13 @@ void FFmpegAudioDecoder::DecodeBuffer(const DecoderBuffer& buffer,
 
 bool FFmpegAudioDecoder::FFmpegDecode(const DecoderBuffer& buffer) {
   AVPacket* packet = av_packet_alloc();
-  if (buffer.end_of_stream()) {
-    packet->data = NULL;
+  if (buffer.end_of_stream() || buffer.size() == 0) {
+    packet->data = nullptr;
     packet->size = 0;
   } else {
-    packet->data = const_cast<uint8_t*>(buffer.data());
-    packet->size = buffer.data_size();
+    auto buffer_span = base::span(buffer);
+    packet->data = const_cast<uint8_t*>(buffer_span.data());
+    packet->size = buffer_span.size();
     packet->pts =
         ConvertToTimeBase(codec_context_->time_base, buffer.timestamp());
 
@@ -321,7 +330,7 @@ bool FFmpegAudioDecoder::ConfigureDecoder(const AudioDecoderConfig& config) {
   ReleaseFFmpegResources();
 
   // Initialize AVCodecContext structure.
-  codec_context_.reset(avcodec_alloc_context3(NULL));
+  codec_context_.reset(avcodec_alloc_context3(nullptr));
   AudioDecoderConfigToAVCodecContext(config, codec_context_.get());
 
   codec_context_->opaque = this;
@@ -330,7 +339,7 @@ bool FFmpegAudioDecoder::ConfigureDecoder(const AudioDecoderConfig& config) {
   if (!config.should_discard_decoder_delay())
     codec_context_->flags2 |= AV_CODEC_FLAG2_SKIP_MANUAL;
 
-  AVDictionary* codec_options = NULL;
+  AVDictionary* codec_options = nullptr;
   if (config.codec() == AudioCodec::kOpus) {
     codec_context_->request_sample_fmt = AV_SAMPLE_FMT_FLT;
 
@@ -357,16 +366,6 @@ bool FFmpegAudioDecoder::ConfigureDecoder(const AudioDecoderConfig& config) {
   // Success!
   av_sample_format_ = codec_context_->sample_fmt;
 
-  if (codec_context_->ch_layout.nb_channels != config.channels()) {
-    MEDIA_LOG(ERROR, media_log_)
-        << "Audio configuration specified " << config.channels()
-        << " channels, but FFmpeg thinks the file contains "
-        << codec_context_->ch_layout.nb_channels << " channels";
-    ReleaseFFmpegResources();
-    state_ = DecoderState::kUninitialized;
-    return false;
-  }
-
   decoding_loop_ =
       std::make_unique<FFmpegDecodingLoop>(codec_context_.get(), true);
   ResetTimestampState(config);
@@ -391,8 +390,7 @@ int FFmpegAudioDecoder::GetAudioBuffer(struct AVCodecContext* s,
 
   // Since this routine is called by FFmpeg when a buffer is required for
   // audio data, use the values supplied by FFmpeg (ignoring the current
-  // settings). FFmpegDecode() gets to determine if the buffer is useable or
-  // not.
+  // settings). FFmpegDecode() gets to determine if the buffer is usable or not.
   AVSampleFormat format = static_cast<AVSampleFormat>(frame->format);
   SampleFormat sample_format =
       AVSampleFormatToSampleFormat(format, s->codec_id);

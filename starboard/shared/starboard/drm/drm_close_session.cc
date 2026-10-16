@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/drm.h"
+// clang-format on
 
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
@@ -25,5 +27,6 @@ void SbDrmCloseSession(SbDrmSystem drm_system,
     return;
   }
 
-  drm_system->CloseSession(session_id, session_id_size);
+  drm_system->CloseSession(
+      std::string_view(static_cast<const char*>(session_id), session_id_size));
 }

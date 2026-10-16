@@ -13,24 +13,20 @@ namespace safe_browsing {
 
 class SyncUtilsTest : public PlatformTest {
  public:
-  SyncUtilsTest() {}
+  SyncUtilsTest() = default;
 
   base::test::TaskEnvironment task_environment_;
 };
 
-TEST_F(SyncUtilsTest, AreSigninAndSyncSetUpForSafeBrowsingTokenFetches_Sync) {
+TEST_F(SyncUtilsTest, AreSigninAndSyncSetUpForSafeBrowsingTokenFetches) {
   std::unique_ptr<signin::IdentityTestEnvironment> identity_test_env =
       std::make_unique<signin::IdentityTestEnvironment>();
   signin::IdentityManager* identity_manager =
       identity_test_env->identity_manager();
   syncer::TestSyncService sync_service;
 
-  // For the purposes of this test, IdentityManager has no primary account.
-
   // Sync is disabled.
-  sync_service.SetDisableReasons(
-      {syncer::SyncService::DISABLE_REASON_USER_CHOICE});
-  sync_service.SetTransportState(syncer::SyncService::TransportState::DISABLED);
+  sync_service.SetSignedOut();
   EXPECT_FALSE(SyncUtils::AreSigninAndSyncSetUpForSafeBrowsingTokenFetches(
       &sync_service, identity_manager,
       /* user_has_enabled_enhanced_protection=*/true));
@@ -39,8 +35,9 @@ TEST_F(SyncUtilsTest, AreSigninAndSyncSetUpForSafeBrowsingTokenFetches_Sync) {
       /* user_has_enabled_enhanced_protection=*/false));
 
   // Sync is enabled.
-  sync_service.SetDisableReasons({});
-  sync_service.SetTransportState(syncer::SyncService::TransportState::ACTIVE);
+  AccountInfo account_info = identity_test_env->MakePrimaryAccountAvailable(
+      "foo@gmail.com", signin::ConsentLevel::kSync);
+  sync_service.SetSignedIn(signin::ConsentLevel::kSync, account_info);
   EXPECT_TRUE(SyncUtils::AreSigninAndSyncSetUpForSafeBrowsingTokenFetches(
       &sync_service, identity_manager,
       /* user_has_enabled_enhanced_protection=*/true));
@@ -48,64 +45,25 @@ TEST_F(SyncUtilsTest, AreSigninAndSyncSetUpForSafeBrowsingTokenFetches_Sync) {
       &sync_service, identity_manager,
       /* user_has_enabled_enhanced_protection=*/false));
 
-  // History sync is disabled.
+  // History sync is disabled. Fetches are only allowed if the user enabled
+  // enhanced protection explicitly.
   sync_service.GetUserSettings()->SetSelectedTypes(
       /* sync_everything */ false, {});
-  EXPECT_FALSE(SyncUtils::AreSigninAndSyncSetUpForSafeBrowsingTokenFetches(
+  EXPECT_TRUE(SyncUtils::AreSigninAndSyncSetUpForSafeBrowsingTokenFetches(
       &sync_service, identity_manager,
       /* user_has_enabled_enhanced_protection=*/true));
   EXPECT_FALSE(SyncUtils::AreSigninAndSyncSetUpForSafeBrowsingTokenFetches(
       &sync_service, identity_manager,
       /* user_has_enabled_enhanced_protection=*/false));
 
-  // Custom passphrase is enabled.
+  // Custom passphrase is enabled. Fetches are only allowed if the user enabled
+  // enhanced protection explicitly.
   sync_service.GetUserSettings()->SetSelectedTypes(
       false, {syncer::UserSelectableType::kHistory});
   sync_service.SetIsUsingExplicitPassphrase(true);
-  EXPECT_FALSE(SyncUtils::AreSigninAndSyncSetUpForSafeBrowsingTokenFetches(
-      &sync_service, identity_manager,
-      /* user_has_enabled_enhanced_protection=*/true));
-  EXPECT_FALSE(SyncUtils::AreSigninAndSyncSetUpForSafeBrowsingTokenFetches(
-      &sync_service, identity_manager,
-      /* user_has_enabled_enhanced_protection=*/false));
-}
-
-TEST_F(SyncUtilsTest,
-       AreSigninAndSyncSetUpForSafeBrowsingTokenFetches_IdentityManager) {
-  std::unique_ptr<signin::IdentityTestEnvironment> identity_test_env =
-      std::make_unique<signin::IdentityTestEnvironment>();
-  signin::IdentityManager* identity_manager =
-      identity_test_env->identity_manager();
-  syncer::TestSyncService sync_service;
-
-  // For the purposes of this test, disable sync.
-  sync_service.SetDisableReasons(
-      {syncer::SyncService::DISABLE_REASON_USER_CHOICE});
-  sync_service.SetTransportState(syncer::SyncService::TransportState::DISABLED);
-  sync_service.GetUserSettings()->SetSelectedTypes(
-      /* sync_everything */ false, {});
-
-  // If the user is not signed in, it should not be
-  // possible to perform URL lookups with tokens.
-  EXPECT_FALSE(SyncUtils::AreSigninAndSyncSetUpForSafeBrowsingTokenFetches(
-      &sync_service, identity_manager,
-      /* user_has_enabled_enhanced_protection=*/true));
-  EXPECT_FALSE(SyncUtils::AreSigninAndSyncSetUpForSafeBrowsingTokenFetches(
-      &sync_service, identity_manager,
-      /* user_has_enabled_enhanced_protection=*/false));
-
-  // Enhanced protection is on and the user is signed in: it should be possible
-  // to perform URL lookups with tokens (even though the
-  // kRealTimeLookupEnabledWithToken feature and sync/history sync are
-  // disabled).
-  identity_test_env->MakePrimaryAccountAvailable("test@example.com",
-                                                 signin::ConsentLevel::kSignin);
   EXPECT_TRUE(SyncUtils::AreSigninAndSyncSetUpForSafeBrowsingTokenFetches(
       &sync_service, identity_manager,
       /* user_has_enabled_enhanced_protection=*/true));
-
-  // Enhanced protection is *off* and the user is signed in: it should not be
-  // possible to perform URL lookups with tokens without sync being enabled.
   EXPECT_FALSE(SyncUtils::AreSigninAndSyncSetUpForSafeBrowsingTokenFetches(
       &sync_service, identity_manager,
       /* user_has_enabled_enhanced_protection=*/false));
@@ -121,8 +79,7 @@ TEST_F(SyncUtilsTest, IsHistorySyncEnabled) {
   // return true.
   sync_service.GetUserSettings()->SetSelectedTypes(
       /*sync_everything=*/false,
-      /*types=*/syncer::UserSelectableTypeSet(
-          syncer::UserSelectableType::kHistory));
+      /*types=*/{syncer::UserSelectableType::kHistory});
 
   EXPECT_TRUE(SyncUtils::IsHistorySyncEnabled(&sync_service));
 
@@ -134,8 +91,7 @@ TEST_F(SyncUtilsTest, IsHistorySyncEnabled) {
   // History is not being synced.
   sync_service.GetUserSettings()->SetSelectedTypes(
       /*sync_everything=*/false,
-      /*types=*/syncer::UserSelectableTypeSet(
-          syncer::UserSelectableType::kAutofill));
+      /*types=*/{syncer::UserSelectableType::kAutofill});
   EXPECT_FALSE(SyncUtils::IsHistorySyncEnabled(&sync_service));
 
   sync_service.GetUserSettings()->SetSelectedTypes(
@@ -143,17 +99,17 @@ TEST_F(SyncUtilsTest, IsHistorySyncEnabled) {
       /*types=*/syncer::UserSelectableTypeSet::All());
 
   // Local sync is enabled.
+  ASSERT_TRUE(SyncUtils::IsHistorySyncEnabled(&sync_service));
   sync_service.SetLocalSyncEnabled(true);
   EXPECT_FALSE(SyncUtils::IsHistorySyncEnabled(&sync_service));
 
   sync_service.SetLocalSyncEnabled(false);
 
-  // The sync feature is disabled.
-  sync_service.SetDisableReasons(
-      {syncer::SyncService::DISABLE_REASON_USER_CHOICE});
+  // The sync machinery is disabled for some reason (e.g. via enterprise
+  // policy).
+  ASSERT_TRUE(SyncUtils::IsHistorySyncEnabled(&sync_service));
+  sync_service.SetAllowedByEnterprisePolicy(false);
   EXPECT_FALSE(SyncUtils::IsHistorySyncEnabled(&sync_service));
-
-  sync_service.SetDisableReasons({});
 }
 
 }  // namespace safe_browsing

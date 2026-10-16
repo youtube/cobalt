@@ -26,6 +26,7 @@
 #include "ui/shell_dialogs/select_file_dialog.h"
 #include "ui/shell_dialogs/select_file_dialog_factory.h"
 #include "ui/shell_dialogs/select_file_policy.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 #include "url/gurl.h"
 
 namespace ash {
@@ -36,14 +37,6 @@ constexpr char kHandlerFunctionName[] = "handlerFunctionName";
 constexpr char kTestFilePath[] = "/test/file/path";
 
 }  // namespace
-
-class TestSelectFilePolicy : public ui::SelectFilePolicy {
- public:
-  TestSelectFilePolicy& operator=(const TestSelectFilePolicy&) = delete;
-
-  bool CanOpenSelectFileDialog() override { return true; }
-  void SelectFileDenied() override {}
-};
 
 // A test ui::SelectFileDialog.
 class TestSelectFileDialog : public ui::SelectFileDialog {
@@ -65,31 +58,25 @@ class TestSelectFileDialog : public ui::SelectFileDialog {
                       int file_type_index,
                       const base::FilePath::StringType& default_extension,
                       gfx::NativeWindow owning_window,
-                      void* params,
                       const GURL* caller) override {
     if (selected_path_.empty()) {
-      listener_->FileSelectionCanceled(params);
+      listener_->FileSelectionCanceled();
       return;
     }
 
-    // Put the selected path on the stack so that it stays valid for the
-    // duration of Listener::FileSelected() despite deleting the
-    // SelectFileDialog immediately. This is in line with the default behavior
-    // of SelectFileDialog.
-    base::FilePath selected_path = std::move(selected_path_);
-    listener_->FileSelected(selected_path, 0 /* index */, nullptr /* params */);
+    listener_->FileSelected(ui::SelectedFileInfo(selected_path_), /*index=*/0);
   }
 
   bool IsRunning(gfx::NativeWindow owning_window) const override {
     return true;
   }
-  void ListenerDestroyed() override {}
+  void ListenerDestroyed() override { listener_ = nullptr; }
   bool HasMultipleFileTypeChoicesImpl() override { return false; }
 
  private:
   ~TestSelectFileDialog() override = default;
 
-  // The simulatd file path selected by the user.
+  // The simulated file path selected by the user.
   base::FilePath selected_path_;
 };
 
@@ -125,7 +112,7 @@ class FakeScanningAppDelegate : public ScanningAppDelegate {
 
   std::unique_ptr<ui::SelectFilePolicy> CreateChromeSelectFilePolicy()
       override {
-    return std::make_unique<TestSelectFilePolicy>();
+    return nullptr;
   }
 
   std::string GetBaseNameFromPath(const base::FilePath& path) override {
@@ -158,6 +145,11 @@ class FakeScanningAppDelegate : public ScanningAppDelegate {
   }
 
   std::string GetScanSettingsFromPrefs() override { return scan_settings_; }
+
+  BindScanServiceCallback GetBindScanServiceCallback(
+      content::WebUI* web_ui) override {
+    return base::DoNothing();
+  }
 
   // Returns the file paths saved in OpenFilesInMediaApp().
   const std::vector<base::FilePath>& file_paths() const { return file_paths_; }
@@ -218,7 +210,7 @@ class ScanningHandlerTest : public testing::Test {
   content::BrowserTaskEnvironment task_environment_;
   content::TestWebUI web_ui_;
   std::unique_ptr<ScanningHandler> scanning_handler_;
-  raw_ptr<FakeScanningAppDelegate, ExperimentalAsh> fake_scanning_app_delegate_;
+  raw_ptr<FakeScanningAppDelegate> fake_scanning_app_delegate_;
   base::ScopedTempDir temp_dir_;
   base::FilePath my_files_path_;
 };
@@ -229,7 +221,7 @@ class ScanningHandlerTest : public testing::Test {
 TEST_F(ScanningHandlerTest, SelectDirectory) {
   const base::FilePath base_file_path("/this/is/a/test/directory/Base Name");
   ui::SelectFileDialog::SetFactory(
-      new TestSelectFileDialogFactory(base_file_path));
+      std::make_unique<TestSelectFileDialogFactory>(base_file_path));
 
   const size_t call_data_count_before_call = web_ui_.call_data().size();
   base::Value::List args;
@@ -249,7 +241,7 @@ TEST_F(ScanningHandlerTest, SelectDirectory) {
 // base name.
 TEST_F(ScanningHandlerTest, CancelDialog) {
   ui::SelectFileDialog::SetFactory(
-      new TestSelectFileDialogFactory(base::FilePath()));
+      std::make_unique<TestSelectFileDialogFactory>(base::FilePath()));
 
   const size_t call_data_count_before_call = web_ui_.call_data().size();
   base::Value::List args;

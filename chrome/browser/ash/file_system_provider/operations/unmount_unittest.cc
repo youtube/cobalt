@@ -19,9 +19,7 @@
 #include "extensions/browser/event_router.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace ash {
-namespace file_system_provider {
-namespace operations {
+namespace ash::file_system_provider::operations {
 namespace {
 
 const char kExtensionId[] = "mbflcebpggnecokmikipoihdbecnjfoj";
@@ -32,13 +30,13 @@ const int kRequestId = 2;
 
 class FileSystemProviderOperationsUnmountTest : public testing::Test {
  protected:
-  FileSystemProviderOperationsUnmountTest() {}
-  ~FileSystemProviderOperationsUnmountTest() override {}
+  FileSystemProviderOperationsUnmountTest() = default;
+  ~FileSystemProviderOperationsUnmountTest() override = default;
 
   void SetUp() override {
     file_system_info_ = ProvidedFileSystemInfo(
-        kExtensionId, MountOptions(kFileSystemId, "" /* display_name */),
-        base::FilePath(), false /* configurable */, true /* watchable */,
+        kExtensionId, MountOptions(kFileSystemId, /*display_name=*/""),
+        base::FilePath(), /*configurable=*/false, /*watchable=*/true,
         extensions::SOURCE_FILE, IconSet());
   }
 
@@ -48,7 +46,7 @@ class FileSystemProviderOperationsUnmountTest : public testing::Test {
 TEST_F(FileSystemProviderOperationsUnmountTest, Execute) {
   using extensions::api::file_system_provider::UnmountRequestedOptions;
 
-  util::LoggingDispatchEventImpl dispatcher(true /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/true);
   util::StatusCallbackLog callback_log;
 
   Unmount unmount(&dispatcher, file_system_info_,
@@ -67,15 +65,15 @@ TEST_F(FileSystemProviderOperationsUnmountTest, Execute) {
   const base::Value* options_as_value = &event_args[0];
   ASSERT_TRUE(options_as_value->is_dict());
 
-  UnmountRequestedOptions options;
-  ASSERT_TRUE(
-      UnmountRequestedOptions::Populate(options_as_value->GetDict(), options));
-  EXPECT_EQ(kFileSystemId, options.file_system_id);
-  EXPECT_EQ(kRequestId, options.request_id);
+  auto options =
+      UnmountRequestedOptions::FromValue(options_as_value->GetDict());
+  ASSERT_TRUE(options);
+  EXPECT_EQ(kFileSystemId, options->file_system_id);
+  EXPECT_EQ(kRequestId, options->request_id);
 }
 
 TEST_F(FileSystemProviderOperationsUnmountTest, Execute_NoListener) {
-  util::LoggingDispatchEventImpl dispatcher(false /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/false);
   util::StatusCallbackLog callback_log;
 
   Unmount unmount(&dispatcher, file_system_info_,
@@ -88,7 +86,7 @@ TEST_F(FileSystemProviderOperationsUnmountTest, OnSuccess) {
   using extensions::api::file_system_provider_internal::
       UnmountRequestedSuccess::Params;
 
-  util::LoggingDispatchEventImpl dispatcher(true /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/true);
   util::StatusCallbackLog callback_log;
 
   Unmount unmount(&dispatcher, file_system_info_,
@@ -96,14 +94,14 @@ TEST_F(FileSystemProviderOperationsUnmountTest, OnSuccess) {
 
   EXPECT_TRUE(unmount.Execute(kRequestId));
 
-  unmount.OnSuccess(kRequestId, RequestValue(), false /* has_more */);
+  unmount.OnSuccess(kRequestId, RequestValue(), /*has_more=*/false);
   ASSERT_EQ(1u, callback_log.size());
   base::File::Error event_result = callback_log[0];
   EXPECT_EQ(base::File::FILE_OK, event_result);
 }
 
 TEST_F(FileSystemProviderOperationsUnmountTest, OnError) {
-  util::LoggingDispatchEventImpl dispatcher(true /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/true);
   util::StatusCallbackLog callback_log;
 
   Unmount unmount(&dispatcher, file_system_info_,
@@ -117,6 +115,4 @@ TEST_F(FileSystemProviderOperationsUnmountTest, OnError) {
   EXPECT_EQ(base::File::FILE_ERROR_NOT_FOUND, event_result);
 }
 
-}  // namespace operations
-}  // namespace file_system_provider
-}  // namespace ash
+}  // namespace ash::file_system_provider::operations

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ash/printing/printers_sync_bridge.h"
+
 #include <memory>
 #include <string>
 #include <utility>
@@ -9,8 +11,7 @@
 #include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/test/task_environment.h"
-#include "chrome/browser/ash/printing/printers_sync_bridge.h"
-#include "components/sync/test/model_type_store_test_util.h"
+#include "components/sync/test/data_type_store_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace ash {
@@ -26,7 +27,7 @@ class PrintersSyncBridgeTest : public testing::Test {
  public:
   PrintersSyncBridgeTest() : task_environment_() {
     bridge_ = std::make_unique<PrintersSyncBridge>(
-        syncer::ModelTypeStoreTestUtil::FactoryForInMemoryStoreForTest(),
+        syncer::DataTypeStoreTestUtil::FactoryForInMemoryStoreForTest(),
         base::BindRepeating(
             base::IgnoreResult(&base::debug::DumpWithoutCrashing), FROM_HERE,
             base::Minutes(5)));
@@ -57,7 +58,7 @@ TEST_F(PrintersSyncBridgeTest, AddPrinterOverwrites) {
   overwrite->set_description(kLazerDescription);
   bridge_->AddPrinter(std::move(overwrite));
 
-  absl::optional<PrinterSpecifics> printer = bridge_->GetPrinter("0");
+  std::optional<PrinterSpecifics> printer = bridge_->GetPrinter("0");
   ASSERT_TRUE(printer.has_value());
   EXPECT_EQ("0", printer->id());
   EXPECT_EQ(kLazerDescription, printer->description());
@@ -77,7 +78,7 @@ TEST_F(PrintersSyncBridgeTest, UpdatePrinterMerge) {
   bool is_new = bridge_->UpdatePrinter(std::move(overwrite));
   EXPECT_FALSE(is_new);
 
-  absl::optional<PrinterSpecifics> printer = bridge_->GetPrinter("0");
+  std::optional<PrinterSpecifics> printer = bridge_->GetPrinter("0");
   ASSERT_TRUE(printer.has_value());
   EXPECT_EQ("0", printer->id());
   // Description is overwritten.
@@ -94,7 +95,7 @@ TEST_F(PrintersSyncBridgeTest, UpdatePrinterNewPrinter) {
   bool is_new = bridge_->UpdatePrinter(std::move(first));
   EXPECT_TRUE(is_new);
 
-  absl::optional<PrinterSpecifics> printer = bridge_->GetPrinter("0");
+  std::optional<PrinterSpecifics> printer = bridge_->GetPrinter("0");
   ASSERT_TRUE(printer.has_value());
   EXPECT_EQ("0", printer->id());
   EXPECT_EQ(kInkyDescription, printer->description());

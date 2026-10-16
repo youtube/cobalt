@@ -18,7 +18,6 @@
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "build/build_config.h"
 #include "components/viz/host/host_frame_sink_manager.h"
-#include "components/viz/service/display_embedder/server_shared_bitmap_manager.h"
 #include "components/viz/service/frame_sinks/frame_sink_manager_impl.h"
 #include "mojo/core/embedder/embedder.h"
 #include "third_party/skia/include/core/SkBlendMode.h"
@@ -63,14 +62,16 @@ class DemoWindowDelegate : public aura::WindowDelegate {
   // Overridden from WindowDelegate:
   gfx::Size GetMinimumSize() const override { return gfx::Size(); }
 
-  gfx::Size GetMaximumSize() const override { return gfx::Size(); }
+  std::optional<gfx::Size> GetMaximumSize() const override {
+    return std::nullopt;
+  }
 
   void OnBoundsChanged(const gfx::Rect& old_bounds,
                        const gfx::Rect& new_bounds) override {
     window_bounds_ = new_bounds;
   }
   gfx::NativeCursor GetCursor(const gfx::Point& point) override {
-    return gfx::kNullCursor;
+    return gfx::NativeCursor{};
   }
   int GetNonClientComponent(const gfx::Point& point) const override {
     return HTCAPTION;
@@ -123,7 +124,8 @@ class DemoWindowParentingClient : public aura::client::WindowParentingClient {
 
   // Overridden from aura::client::WindowParentingClient:
   aura::Window* GetDefaultParent(aura::Window* window,
-                                 const gfx::Rect& bounds) override {
+                                 const gfx::Rect& bounds,
+                                 const int64_t display_id) override {
     if (!capture_client_) {
       capture_client_ = std::make_unique<aura::client::DefaultCaptureClient>(
           window_->GetRootWindow());
@@ -182,15 +184,14 @@ int DemoMain() {
 
   // The ContextFactory must exist before any Compositors are created.
   viz::HostFrameSinkManager host_frame_sink_manager;
-  viz::ServerSharedBitmapManager server_shared_bitmap_manager;
   viz::FrameSinkManagerImpl frame_sink_manager{
-      viz::FrameSinkManagerImpl::InitParams(&server_shared_bitmap_manager)};
+      viz::FrameSinkManagerImpl::InitParams()};
   host_frame_sink_manager.SetLocalManager(&frame_sink_manager);
   frame_sink_manager.SetLocalClient(&host_frame_sink_manager);
   auto context_factory = std::make_unique<ui::InProcessContextFactory>(
       &host_frame_sink_manager, &frame_sink_manager, /*output_to_window=*/true);
 
-  base::PowerMonitor::Initialize(
+  base::PowerMonitor::GetInstance()->Initialize(
       std::make_unique<base::PowerMonitorDeviceSource>());
 
   std::unique_ptr<aura::Env> env = aura::Env::CreateInstance();
@@ -211,7 +212,8 @@ int DemoMain() {
   window1.Init(ui::LAYER_TEXTURED);
   window1.SetBounds(window1_bounds);
   window1.Show();
-  aura::client::ParentWindowWithContext(&window1, host->window(), gfx::Rect());
+  aura::client::ParentWindowWithContext(&window1, host->window(), gfx::Rect(),
+                                        display::kInvalidDisplayId);
 
   gfx::Rect window2_bounds(200, 200, 350, 350);
   DemoWindowDelegate window_delegate2(SK_ColorRED);
@@ -220,7 +222,8 @@ int DemoMain() {
   window2.Init(ui::LAYER_TEXTURED);
   window2.SetBounds(window2_bounds);
   window2.Show();
-  aura::client::ParentWindowWithContext(&window2, host->window(), gfx::Rect());
+  aura::client::ParentWindowWithContext(&window2, host->window(), gfx::Rect(),
+                                        display::kInvalidDisplayId);
 
   gfx::Rect window3_bounds(10, 10, 50, 50);
   DemoWindowDelegate window_delegate3(SK_ColorGREEN);
@@ -250,7 +253,8 @@ int main(int argc, char** argv) {
   // Disabling Direct Composition works around the limitation that
   // InProcessContextFactory doesn't work with Direct Composition, causing the
   // window to not render. See http://crbug.com/936249.
-  gl::SetGlWorkarounds(gl::GlWorkarounds{.disable_direct_composition = true});
+  base::CommandLine::ForCurrentProcess()->AppendSwitch(
+      switches::kDisableDirectComposition);
 
   // The exit manager is in charge of calling the dtors of singleton objects.
   base::AtExitManager exit_manager;

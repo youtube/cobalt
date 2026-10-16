@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "ui/ozone/demo/skia/skia_surfaceless_gl_renderer.h"
 
 #include <stddef.h>
@@ -14,12 +15,14 @@
 #include "base/functional/callback_helpers.h"
 #include "base/trace_event/trace_event.h"
 #include "third_party/skia/include/core/SkCanvas.h"
-#include "third_party/skia/include/core/SkDeferredDisplayListRecorder.h"
 #include "third_party/skia/include/core/SkTypeface.h"
-#include "third_party/skia/include/gpu/GrBackendSurface.h"
-#include "third_party/skia/include/gpu/GrDirectContext.h"
-#include "third_party/skia/include/gpu/gl/GrGLAssembleInterface.h"
-#include "third_party/skia/include/gpu/gl/GrGLInterface.h"
+#include "third_party/skia/include/gpu/ganesh/GrBackendSurface.h"
+#include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
+#include "third_party/skia/include/gpu/ganesh/SkSurfaceGanesh.h"
+#include "third_party/skia/include/gpu/ganesh/gl/GrGLAssembleInterface.h"
+#include "third_party/skia/include/gpu/ganesh/gl/GrGLBackendSurface.h"
+#include "third_party/skia/include/gpu/ganesh/gl/GrGLInterface.h"
+#include "third_party/skia/include/private/chromium/GrDeferredDisplayList.h"
 #include "ui/display/types/display_snapshot.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/rrect_f.h"
@@ -139,9 +142,9 @@ bool SurfacelessSkiaGlRenderer::BufferWrapper::Initialize(
   texture_info.fTarget = GL_TEXTURE_2D;
   texture_info.fID = gl_tex_;
   texture_info.fFormat = GL_BGRA8_EXT;
-  GrBackendTexture backend_texture(size_.width(), size_.height(),
-                                   GrMipMapped::kNo, texture_info);
-  sk_surface_ = SkSurface::MakeFromBackendTexture(
+  auto backend_texture = GrBackendTextures::MakeGL(
+      size_.width(), size_.height(), skgpu::Mipmapped::kNo, texture_info);
+  sk_surface_ = SkSurfaces::WrapBackendTexture(
       gr_context, backend_texture, kTopLeft_GrSurfaceOrigin, 0,
       kBGRA_8888_SkColorType, nullptr, nullptr);
   if (!sk_surface_) {
@@ -248,7 +251,7 @@ void SurfacelessSkiaGlRenderer::RenderFrame() {
   SkSurface* sk_surface = buffers_[back_buffer_]->sk_surface();
   if (use_ddl_) {
     StartDDLRenderThreadIfNecessary(sk_surface);
-    sk_surface->draw(GetDDL());
+    skgpu::ganesh::DrawDDL(sk_surface, GetDDL());
   } else {
     Draw(sk_surface->getCanvas(), NextFraction());
   }
@@ -265,7 +268,7 @@ void SurfacelessSkiaGlRenderer::RenderFrame() {
             /* enable_blend */ true, gfx::Rect(buffers_[back_buffer_]->size()),
             /* opacity */ 1.0f, gfx::OverlayPriorityHint::kNone,
             /* rounded_corners */ gfx::RRectF(), gfx::ColorSpace::CreateSRGB(),
-            /*hdr_metadata=*/absl::nullopt));
+            /*hdr_metadata=*/std::nullopt));
   }
 
   if (overlay_buffer_[0] && overlay_list.back().overlay_handled) {
@@ -277,7 +280,7 @@ void SurfacelessSkiaGlRenderer::RenderFrame() {
             /* enable_blend */ true, gfx::Rect(buffers_[back_buffer_]->size()),
             /* opacity */ 1.0f, gfx::OverlayPriorityHint::kNone,
             /* rounded_corners */ gfx::RRectF(), gfx::ColorSpace::CreateSRGB(),
-            /*hdr_metadata=*/absl::nullopt));
+            /*hdr_metadata=*/std::nullopt));
   }
 
   back_buffer_ ^= 1;
@@ -303,8 +306,8 @@ void SurfacelessSkiaGlRenderer::PostRenderFrameTask(
       break;
     case gfx::SwapResult::SWAP_SKIPPED:
     case gfx::SwapResult::SWAP_FAILED:
+    case gfx::SwapResult::SWAP_NON_SIMPLE_OVERLAYS_FAILED:
       LOG(FATAL) << "Failed to swap buffers";
-      break;
   }
 }
 

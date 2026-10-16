@@ -7,6 +7,7 @@
 #include "base/containers/adapters.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/devtools/devtools_window_testing.h"
@@ -22,10 +23,12 @@
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/browsing_data_filter_builder.h"
+#include "content/public/test/browser_test_utils.h"
 #include "content/public/test/browsing_data_remover_test_util.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/http/http_status_code.h"
 #include "net/test/embedded_test_server/http_response.h"
+#include "third_party/blink/public/common/navigation/preloading_headers.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -64,7 +67,6 @@ SearchPrefetchBaseBrowserTest::~SearchPrefetchBaseBrowserTest() = default;
 
 void SearchPrefetchBaseBrowserTest::SetUpOnMainThread() {
   InProcessBrowserTest::SetUpOnMainThread();
-
   host_resolver()->AddRule(kSearchDomain, "127.0.0.1");
   host_resolver()->AddRule(kSuggestDomain, "127.0.0.1");
 
@@ -75,7 +77,9 @@ void SearchPrefetchBaseBrowserTest::SetUpOnMainThread() {
   ASSERT_TRUE(model->loaded());
 
   SetDSEWithURL(
-      GetSearchServerQueryURL("{searchTerms}&{google:prefetchSource}"), false);
+      GetSearchServerQueryURL(
+          "{searchTerms}&{google:assistedQueryStats}{google:prefetchSource}"),
+      false);
 
   mock_cert_verifier_.mock_cert_verifier()->set_default_result(net::OK);
 }
@@ -107,7 +111,7 @@ GURL SearchPrefetchBaseBrowserTest::GetSearchServerQueryURLWithNoQuery(
 GURL SearchPrefetchBaseBrowserTest::GetCanonicalSearchURL(
     const GURL& prefetch_url) {
   GURL canonical_search_url;
-  EXPECT_TRUE(HasCanoncialPreloadingOmniboxSearchURL(
+  EXPECT_TRUE(HasCanonicalPreloadingOmniboxSearchURL(
       prefetch_url, browser()->profile(), &canonical_search_url));
   return canonical_search_url;
 }
@@ -132,7 +136,7 @@ SearchPrefetchBaseBrowserTest::GetSearchPrefetchAndNonPrefetch(
 
   TemplateURLRef::SearchTermsArgs search_terms_args =
       TemplateURLRef::SearchTermsArgs(base::ASCIIToUTF16(search_terms));
-  search_terms_args.is_prefetch = false;
+  search_terms_args.prefetch_param = "";
 
   GURL search_url =
       GURL(template_url_service->GetDefaultSearchProvider()
@@ -141,7 +145,7 @@ SearchPrefetchBaseBrowserTest::GetSearchPrefetchAndNonPrefetch(
                                    template_url_service->search_terms_data(),
                                    nullptr));
 
-  search_terms_args.is_prefetch = true;
+  search_terms_args.prefetch_param = "cs";
 
   GURL prefetch_url =
       GURL(template_url_service->GetDefaultSearchProvider()
@@ -155,7 +159,7 @@ SearchPrefetchBaseBrowserTest::GetSearchPrefetchAndNonPrefetch(
 
 void SearchPrefetchBaseBrowserTest::WaitUntilStatusChangesTo(
     const GURL& canonical_search_url,
-    absl::optional<SearchPrefetchStatus> status) {
+    std::optional<SearchPrefetchStatus> status) {
   auto* search_prefetch_service =
       SearchPrefetchServiceFactory::GetForProfile(browser()->profile());
   while (search_prefetch_service->GetSearchPrefetchStatusForTesting(
@@ -163,6 +167,14 @@ void SearchPrefetchBaseBrowserTest::WaitUntilStatusChangesTo(
     base::RunLoop run_loop;
     run_loop.RunUntilIdle();
   }
+}
+
+GURL SearchPrefetchBaseBrowserTest::GetRealPrefetchUrlForTesting(
+    const GURL& canonical_search_url) {
+  auto* search_prefetch_service =
+      SearchPrefetchServiceFactory::GetForProfile(browser()->profile());
+  return search_prefetch_service->GetRealPrefetchUrlForTesting(
+      canonical_search_url);
 }
 
 content::WebContents* SearchPrefetchBaseBrowserTest::GetWebContents() const {
@@ -182,7 +194,7 @@ void SearchPrefetchBaseBrowserTest::WaitForDuration(base::TimeDelta duration) {
 }
 
 void SearchPrefetchBaseBrowserTest::ClearBrowsingCacheData(
-    absl::optional<GURL> url_origin) {
+    std::optional<GURL> url_origin) {
   auto filter = content::BrowsingDataFilterBuilder::Create(
       url_origin ? content::BrowsingDataFilterBuilder::Mode::kDelete
                  : content::BrowsingDataFilterBuilder::Mode::kPreserve);
@@ -210,8 +222,6 @@ void SearchPrefetchBaseBrowserTest::SetDSEWithURL(const GURL& url,
       search_suggest_server_->GetURL(kSuggestDomain, "/?q={searchTerms}")
           .spec();
   data.prefetch_likely_navigations = dse_allows_prefetch;
-  data.side_search_param = "side_search";
-  data.side_image_search_param = "side_search_image";
 
   TemplateURL* template_url = model->Add(std::make_unique<TemplateURL>(data));
   ASSERT_TRUE(template_url);
@@ -271,10 +281,19 @@ SearchPrefetchBaseBrowserTest::HandleSearchRequest(
     return nullptr;
 
   bool is_prefetch =
-      request.headers.find("Purpose") != request.headers.end() &&
-      request.headers.find("Purpose")->second == "prefetch" &&
-      request.headers.find("Sec-Purpose") != request.headers.end() &&
-      request.headers.find("Sec-Purpose")->second == "prefetch";
+      request.headers.find(blink::kPurposeHeaderName) !=
+          request.headers.end() &&
+      request.headers.find(blink::kPurposeHeaderName)->second ==
+          blink::kSecPurposePrefetchHeaderValue &&
+      request.headers.find(blink::kSecPurposeHeaderName) !=
+          request.headers.end() &&
+      request.headers.find(blink::kSecPurposeHeaderName)->second ==
+          blink::kSecPurposePrefetchHeaderValue;
+  base::StringPairs response_headers{{"cache-control", "private, max-age=0"}};
+  if (is_prefetch) {
+    response_headers.emplace_back("No-Vary-Search",
+                                  "params=(\"pf\" \"gs_lcrp\")");
+  }
 
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE, base::BindOnce(&SearchPrefetchBaseBrowserTest::
@@ -282,12 +301,12 @@ SearchPrefetchBaseBrowserTest::HandleSearchRequest(
                                 base::Unretained(this), request, is_prefetch));
 
   if (base::Contains(static_files_, request.relative_url)) {
-    return CreateDeferrableResponse(
-        net::HTTP_OK,
-        {{"cache-control", "private, max-age=0"},
-         {"content-type", static_files_[request.relative_url].second}},
-        static_files_[request.relative_url].first);
+    response_headers.emplace_back("content-type",
+                                  static_files_[request.relative_url].second);
+    return CreateDeferrableResponse(net::HTTP_OK, response_headers,
+                                    static_files_[request.relative_url].first);
   }
+  response_headers.emplace_back("content-type", "text/html");
 
   // If this is an embedded search for load in iframe, parse out the iframe
   // URL and serve it as an iframe in the returned HTML.
@@ -299,25 +318,19 @@ SearchPrefetchBaseBrowserTest::HandleSearchRequest(
     content.append("\"/></body></html>");
 
     return CreateDeferrableResponse(
-        is_prefetch ? net::HTTP_BAD_GATEWAY : net::HTTP_OK,
-        {{"cache-control", "private, max-age=0"},
-         {"content-type", "text/html"}},
+        is_prefetch ? net::HTTP_BAD_GATEWAY : net::HTTP_OK, response_headers,
         content);
   }
 
   if (request.GetURL().spec().find("502_on_prefetch") != std::string::npos &&
       is_prefetch) {
-    return CreateDeferrableResponse(net::HTTP_BAD_GATEWAY,
-                                    {{"content-type", "text/html"}},
+    return CreateDeferrableResponse(net::HTTP_BAD_GATEWAY, response_headers,
                                     "<html><body>prefetch</body></html>");
   }
   std::string content = "<html><body> ";
   content.append(is_prefetch ? "prefetch" : "regular");
   content.append(" </body></html>");
-  return CreateDeferrableResponse(
-      net::HTTP_OK,
-      {{"content-type", "text/html"}, {"cache-control", "private, max-age=0"}},
-      content);
+  return CreateDeferrableResponse(net::HTTP_OK, response_headers, content);
 }
 
 void SearchPrefetchBaseBrowserTest::MonitorSearchResourceRequestOnUIThread(

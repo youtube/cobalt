@@ -5,7 +5,9 @@
 #include "chrome/browser/taskbar/taskbar_decorator_win.h"
 
 #include <objbase.h>
+
 #include <shobjidl.h>
+
 #include <wrl/client.h>
 
 #include <memory>
@@ -24,6 +26,7 @@
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_avatar_icon_util.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "skia/ext/font_utils.h"
 #include "skia/ext/image_operations.h"
 #include "skia/ext/legacy_display_globals.h"
 #include "skia/ext/platform_canvas.h"
@@ -147,7 +150,7 @@ void DrawTaskbarDecorationString(gfx::NativeWindow window,
   paint.reset();
   paint.setColor(kForegroundColor);
 
-  SkFont font;
+  SkFont font = skia::DefaultFont();
 
   SkRect bounds;
   int text_size = kMaxTextSize;

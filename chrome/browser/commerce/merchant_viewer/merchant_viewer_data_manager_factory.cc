@@ -40,7 +40,7 @@ MerchantViewerDataManagerFactory::MerchantViewerDataManagerFactory()
           "MerchantViewerDataManager",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
               .Build()) {
@@ -50,7 +50,8 @@ MerchantViewerDataManagerFactory::MerchantViewerDataManagerFactory()
 
 MerchantViewerDataManagerFactory::~MerchantViewerDataManagerFactory() = default;
 
-KeyedService* MerchantViewerDataManagerFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+MerchantViewerDataManagerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new MerchantViewerDataManager(context);
+  return std::make_unique<MerchantViewerDataManager>(context);
 }

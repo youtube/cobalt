@@ -10,14 +10,17 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/values.h"
+#include "chrome/browser/ash/login/signin/authentication_flow_auto_reload_manager.h"
 #include "chrome/browser/ui/webui/ash/login/check_passwords_against_cryptohome_helper.h"
-#include "chrome/browser/ui/webui/ash/login/online_login_helper.h"
+#include "chrome/browser/ui/webui/ash/login/online_login_utils.h"
+#include "chromeos/ash/components/login/auth/public/user_context.h"
+#include "components/login/base_screen_handler_utils.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "net/cookies/cookie_access_result.h"
 
 namespace ash {
 
-class InSessionPasswordSyncManager;
+class LockScreenReauthManager;
 
 class LockScreenReauthHandler : public content::WebUIMessageHandler {
  public:
@@ -26,23 +29,27 @@ class LockScreenReauthHandler : public content::WebUIMessageHandler {
 
   void RegisterMessages() override;
 
+  void OnJavascriptDisallowed() override;
+
   void ShowPasswordChangedScreen();
 
-  void ReloadGaia();
+  void ReloadGaiaAuthenticator();
 
   // WebUI message handlers.
-  void HandleInitialize(const base::Value::List&);
+  void HandleStartOnlineAuth(const base::Value::List&);
   void HandleCompleteAuthentication(const base::Value::List&);
   void HandleAuthenticatorLoaded(const base::Value::List&);
   void HandleUpdateUserPassword(const base::Value::List&);
   void HandleOnPasswordTyped(const base::Value::List& value);
   void HandleWebviewLoadAborted(int error_code);
+  void HandleGetDeviceId(const std::string& callback_id);
 
   bool IsAuthenticatorLoaded(base::OnceClosure callback);
 
-  void force_saml_redirect_for_testing() {
-    force_saml_redirect_for_testing_ = true;
-  }
+  // Activating the automatic reloading of authentication flow by the interval
+  // set in `DeviceAuthenticationFlowAutoReloadInterval` policy.
+  void ActivateAutoReload();
+  ash::AuthenticationFlowAutoReloadManager& GetAutoReloadManager();
 
  private:
   enum class AuthenticatorState { NOT_LOADED, LOADING, LOADED };
@@ -79,17 +86,26 @@ class LockScreenReauthHandler : public content::WebUIMessageHandler {
   // is the user password among the list of scraped passwords.
   void OnPasswordConfirmed(const std::string& password);
 
-  void LoadAuthenticatorParam();
+  // Finish the authentication
+  void FinishAuthentication(bool needs_saml_confirm_password,
+                            ::login::StringList scraped_saml_password,
+                            std::unique_ptr<UserContext> user_context,
+                            login::GaiaCookiesData gaia_cookies);
 
-  void LoadGaia(const login::GaiaContext& context);
+  void LoadAuthenticatorParam(bool force_reauth_gaia_page = false);
+
+  void LoadGaia(const login::GaiaContext& context,
+                bool force_reauth_gaia_page = false);
 
   // Callback that loads GAIA after version and stat consent information has
   // been retrieved.
   void LoadGaiaWithPartition(const login::GaiaContext& context,
+                             bool force_reauth_gaia_page,
                              const std::string& partition_name);
 
   // Called after the GAPS cookie, if present, is added to the cookie store.
   void OnSetCookieForLoadGaiaWithPartition(const login::GaiaContext& context,
+                                           bool force_reauth_gaia_page,
                                            const std::string& partition_name,
                                            net::CookieAccessResult result);
 
@@ -105,9 +121,6 @@ class LockScreenReauthHandler : public content::WebUIMessageHandler {
 
   AuthenticatorState authenticator_state_ = AuthenticatorState::NOT_LOADED;
 
-  // For testing only. Forces SAML redirect regardless of email.
-  bool force_saml_redirect_for_testing_ = false;
-
   // User non-canonicalized email for display
   std::string email_;
 
@@ -115,8 +128,7 @@ class LockScreenReauthHandler : public content::WebUIMessageHandler {
 
   ::login::StringList scraped_saml_passwords_;
 
-  raw_ptr<InSessionPasswordSyncManager, ExperimentalAsh>
-      password_sync_manager_ = nullptr;
+  raw_ptr<LockScreenReauthManager> lock_screen_reauth_manager_ = nullptr;
 
   std::unique_ptr<UserContext> user_context_;
 
@@ -126,10 +138,12 @@ class LockScreenReauthHandler : public content::WebUIMessageHandler {
   std::unique_ptr<LoginClientCertUsageObserver>
       extension_provided_client_cert_usage_observer_;
 
-  std::unique_ptr<OnlineLoginHelper> online_login_helper_;
+  std::unique_ptr<GaiaCookieRetriever> gaia_cookie_retriever_;
 
   // A test may be waiting for the authenticator to load.
   base::OnceClosure waiting_caller_;
+
+  ash::AuthenticationFlowAutoReloadManager auth_flow_auto_reload_manager_;
 
   base::WeakPtrFactory<LockScreenReauthHandler> weak_factory_{this};
 };

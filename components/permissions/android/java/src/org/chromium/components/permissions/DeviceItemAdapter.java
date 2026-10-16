@@ -4,6 +4,8 @@
 
 package org.chromium.components.permissions;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
@@ -18,23 +20,22 @@ import android.widget.ListView;
 import android.widget.TextView;
 
 import androidx.annotation.LayoutRes;
-import androidx.annotation.Nullable;
 import androidx.core.util.ObjectsCompat;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * An adapter for keeping track of which items to show in the dialog.
- */
-public class DeviceItemAdapter
-        extends ArrayAdapter<DeviceItemRow> implements AdapterView.OnItemClickListener {
-    /**
-     * Item holder for performance boost.
-     */
+/** An adapter for keeping track of which items to show in the dialog. */
+@NullMarked
+public class DeviceItemAdapter extends ArrayAdapter<DeviceItemRow>
+        implements AdapterView.OnItemClickListener {
+    /** Item holder for performance boost. */
     private static class ViewHolder {
-        private TextView mTextView;
-        private @Nullable ImageView mImageView;
+        private final TextView mTextView;
+        private final @Nullable ImageView mImageView;
 
         public ViewHolder(View view) {
             mImageView = (ImageView) view.findViewById(R.id.icon);
@@ -42,9 +43,7 @@ public class DeviceItemAdapter
         }
     }
 
-    /**
-     * An observer interface for item selection change in the adapter.
-     */
+    /** An observer interface for item selection change in the adapter. */
     public interface Observer {
         /**
          * Called when item selection changed in the adapter.
@@ -68,10 +67,10 @@ public class DeviceItemAdapter
     private int mSelectedItem = ListView.INVALID_POSITION;
 
     // Item descriptions are counted in a map.
-    private Map<String, Integer> mItemDescriptionMap = new HashMap<>();
+    private final Map<String, Integer> mItemDescriptionMap = new HashMap<>();
 
     // Map of keys to items so that we can access the items in O(1).
-    private Map<String, DeviceItemRow> mKeyToItemMap = new HashMap<>();
+    private final Map<String, DeviceItemRow> mKeyToItemMap = new HashMap<>();
 
     // True when there is at least one row with an icon.
     private boolean mHasIcon;
@@ -116,7 +115,10 @@ public class DeviceItemAdapter
      * @param icon Drawable to show next to the item.
      * @param iconDescription Description of the icon.
      */
-    public void addOrUpdate(String key, String description, @Nullable Drawable icon,
+    public void addOrUpdate(
+            String key,
+            String description,
+            @Nullable Drawable icon,
             @Nullable String iconDescription) {
         DeviceItemRow oldItem = mKeyToItemMap.get(key);
         if (oldItem != null) {
@@ -190,12 +192,13 @@ public class DeviceItemAdapter
      * @param position The index of the item.
      */
     public String getDisplayText(int position) {
-        DeviceItemRow item = getItem(position);
+        DeviceItemRow item = assumeNonNull(getItem(position));
         String description = item.mDescription;
-        int counter = mItemDescriptionMap.get(description);
-        return counter == 1 ? description
-                            : mResources.getString(R.string.item_chooser_item_name_with_id,
-                                    description, item.mKey);
+        int counter = assumeNonNull(mItemDescriptionMap.get(description));
+        return counter == 1
+                ? description
+                : mResources.getString(
+                        R.string.item_chooser_item_name_with_id, description, item.mKey);
     }
 
     /**
@@ -222,7 +225,7 @@ public class DeviceItemAdapter
     }
 
     @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
+    public View getView(int position, @Nullable View convertView, ViewGroup parent) {
         ViewHolder row;
         if (convertView == null) {
             convertView = mInflater.inflate(mRowLayoutResource, parent, false);
@@ -243,7 +246,7 @@ public class DeviceItemAdapter
             if (!mHasIcon) {
                 row.mImageView.setVisibility(View.GONE);
             } else {
-                DeviceItemRow item = getItem(position);
+                DeviceItemRow item = assumeNonNull(getItem(position));
                 if (item.mIcon != null) {
                     row.mImageView.setContentDescription(item.mIconDescription);
                     row.mImageView.setImageDrawable(item.mIcon);
@@ -277,9 +280,10 @@ public class DeviceItemAdapter
     }
 
     private void addToDescriptionsMap(String description) {
-        int count = mItemDescriptionMap.containsKey(description)
-                ? mItemDescriptionMap.get(description)
-                : 0;
+        int count =
+                mItemDescriptionMap.containsKey(description)
+                        ? mItemDescriptionMap.get(description)
+                        : 0;
         mItemDescriptionMap.put(description, count + 1);
     }
 

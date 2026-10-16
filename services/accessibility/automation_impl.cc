@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -45,6 +45,15 @@ void AutomationImpl::DispatchAccessibilityLocationChange(
     int node_id,
     const ui::AXRelativeBounds& bounds) {
   // TODO(crbug.com/1355633): Send location change to accessibility features.
+  // When implementing this method, cc an IPC security reviewer.
+}
+
+void AutomationImpl::DispatchAccessibilityScrollChange(
+    const ui::AXTreeID& tree_id,
+    int node_id,
+    int scroll_x,
+    int scroll_y) {
+  // TODO(crbug.com/262637071): Send location change to accessibility features.
   // When implementing this method, cc an IPC security reviewer.
 }
 

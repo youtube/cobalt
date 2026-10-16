@@ -15,6 +15,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/dialog_model.h"
 #include "ui/base/models/dialog_model_field.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/views/bubble/bubble_dialog_model_host.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/window/dialog_delegate.h"
@@ -46,12 +47,12 @@ void GuestSessionConfirmationDialog::Show() {
           .AddOkButton(
               base::BindOnce(&GuestSessionConfirmationDialog::OnConfirm,
                              g_dialog_->weak_ptr_factory_.GetWeakPtr()),
-              ui::DialogModelButton::Params().SetLabel(
+              ui::DialogModel::Button::Params().SetLabel(
                   l10n_util::GetStringUTF16(
                       IDS_GUEST_SESSION_CONFIRMATION_DIALOG_SIGN_OUT)))
           .AddCancelButton(
               base::DoNothing(),
-              ui::DialogModelButton::Params().SetLabel(
+              ui::DialogModel::Button::Params().SetLabel(
                   l10n_util::GetStringUTF16(
                       IDS_GUEST_SESSION_CONFIRMATION_DIALOG_CANCEL)))
           .AddParagraph(ui::DialogModelLabel(l10n_util::GetStringUTF16(
@@ -64,8 +65,8 @@ void GuestSessionConfirmationDialog::Show() {
   g_dialog_->dialog_model_ = dialog_model.get();
 
   auto bubble = views::BubbleDialogModelHost::CreateModal(
-      std::move(dialog_model), ui::MODAL_TYPE_SYSTEM);
-  bubble->SetOwnedByWidget(true);
+      std::move(dialog_model), ui::mojom::ModalType::kSystem);
+  bubble->SetOwnedByWidget(views::WidgetDelegate::OwnedByWidgetPassKey());
   views::Widget* widget =
       views::DialogDelegate::CreateDialogWidget(std::move(bubble),
                                                 /*context=*/nullptr,

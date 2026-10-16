@@ -193,9 +193,11 @@ bool CSSStyleSheetResource::CanUseSheet(const CSSParserContext* parser_context,
     // Grab |sheet_url|'s filename's extension (if present), and check whether
     // or not it maps to a `text/css` MIME type:
     String extension;
-    int last_dot = sheet_url.LastPathComponent().ReverseFind('.');
-    if (last_dot != -1)
-      extension = sheet_url.LastPathComponent().Substring(last_dot + 1);
+    String last_path_component = sheet_url.LastPathComponent().ToString();
+    int last_dot = last_path_component.ReverseFind('.');
+    if (last_dot != -1) {
+      extension = last_path_component.Substring(last_dot + 1);
+    }
     if (!EqualIgnoringASCIICase(
             MIMETypeRegistry::GetMIMETypeForExtension(extension), "text/css")) {
       if (parser_context) {
@@ -224,8 +226,9 @@ bool CSSStyleSheetResource::CanUseSheet(const CSSParserContext* parser_context,
 
 StyleSheetContents* CSSStyleSheetResource::CreateParsedStyleSheetFromCache(
     const CSSParserContext* context) {
-  if (!parsed_style_sheet_cache_)
+  if (!parsed_style_sheet_cache_) {
     return nullptr;
+  }
   if (parsed_style_sheet_cache_->HasFailedOrCanceledSubresources()) {
     SetParsedStyleSheetCache(nullptr);
     return nullptr;
@@ -236,17 +239,25 @@ StyleSheetContents* CSSStyleSheetResource::CreateParsedStyleSheetFromCache(
 
   // Contexts must be identical so we know we would get the same exact result if
   // we parsed again.
-  if (*parsed_style_sheet_cache_->ParserContext() != *context)
+  if (*parsed_style_sheet_cache_->ParserContext() != *context) {
     return nullptr;
+  }
+
+  // StyleSheetContents with @media queries are shared between different
+  // documents, in the same rendering process, which may evaluate these media
+  // queries differently. For instance, two documents rendered in different tabs
+  // or iframes with different sizes. In that case, an active stylesheet update
+  // in one document may clear the cached RuleSet in StyleSheetContents, that
+  // would otherwise be a valid cache for the other document.
+  //
+  // This should not be problematic as the case of continuously modifying,
+  // adding, or removing stylesheets, while at the same time have different
+  // media query evaluations in the different documents should be quite rare.
+
+  parsed_style_sheet_cache_->SetIsUsedFromResourceCache();
 
   DCHECK(!parsed_style_sheet_cache_->IsLoading());
-
-  // If the stylesheet has a media query, we need to clone the cached sheet
-  // due to potential differences in the rule set.
-  if (parsed_style_sheet_cache_->HasMediaQueries())
-    return parsed_style_sheet_cache_->Copy();
-
-  return parsed_style_sheet_cache_;
+  return parsed_style_sheet_cache_.Get();
 }
 
 void CSSStyleSheetResource::SaveParsedStyleSheet(StyleSheetContents* sheet) {

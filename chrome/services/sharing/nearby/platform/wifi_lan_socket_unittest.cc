@@ -16,8 +16,7 @@
 #include "services/network/public/mojom/tcp_socket.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace nearby {
-namespace chrome {
+namespace nearby::chrome {
 
 class WifiLanSocketTest : public ::testing::Test {
  public:
@@ -63,7 +62,7 @@ class WifiLanSocketTest : public ::testing::Test {
   base::test::TaskEnvironment task_environment_;
   mojo::ScopedDataPipeProducerHandle receive_stream_;
   mojo::ScopedDataPipeConsumerHandle send_stream_;
-  raw_ptr<ash::nearby::FakeTcpConnectedSocket, ExperimentalAsh>
+  raw_ptr<ash::nearby::FakeTcpConnectedSocket, DanglingUntriaged>
       fake_tcp_connected_socket_;
   mojo::SelfOwnedReceiverRef<network::mojom::TCPConnectedSocket>
       tcp_connected_socket_self_owned_receiver_ref_;
@@ -126,5 +125,4 @@ TEST_F(WifiLanSocketTest, Disconnect) {
   EXPECT_TRUE(wifi_lan_socket_->IsClosed());
 }
 
-}  // namespace chrome
-}  // namespace nearby
+}  // namespace nearby::chrome

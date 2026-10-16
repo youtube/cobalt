@@ -12,31 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/system.h"
+// clang-format on
 
-#include "sys/system_properties.h"
+#include <jni.h>
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "sys/system_properties.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 #define STRINGIZE_NO_EXPANSION(x) #x
 #define STRINGIZE(x) STRINGIZE_NO_EXPANSION(x)
 
 namespace {
 
-// TODO: b/372559388 - Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
+using jni_zero::AttachCurrentThread;
 using ::starboard::StarboardBridge;
 
-const char kFriendlyName[] = "Android";
 const char kUnknownValue[] = "unknown";
 
+#if !BUILDFLAG(IS_STARBOARD)
 // This is a format string template and the %s is meant to be replaced by
 // the Android release version number (e.g. "7.0" for Nougat).
 const char kPlatformNameFormat[] =
     "Linux " STRINGIZE(ANDROID_ABI) "; Android %s";
+#endif  // !BUILDFLAG(IS_STARBOARD)
 
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
@@ -68,6 +74,11 @@ bool GetAndroidSystemProperty(const char* system_property_name,
 // |value_length| is large enough to store the result, copy the result into
 // |out_value|.
 bool CopyAndroidPlatformName(char* out_value, int value_length) {
+#if BUILDFLAG(IS_STARBOARD)
+  // This feeds the User-Agent's OS-name field, which must be a recognized
+  // platform identifier rather than a "Linux <abi>"-style string.
+  return CopyStringAndTestIfSuccess(out_value, value_length, "AOSP");
+#else   // BUILDFLAG(IS_STARBOARD)
   // Get the Android version number (e.g. "7.0" for Nougat).
   const int kStringBufferSize = 256;
   char version_string_buffer[kStringBufferSize];
@@ -82,6 +93,7 @@ bool CopyAndroidPlatformName(char* out_value, int value_length) {
            version_string_buffer);
 
   return CopyStringAndTestIfSuccess(out_value, value_length, result_string);
+#endif  // BUILDFLAG(IS_STARBOARD)
 }
 
 }  // namespace
@@ -128,7 +140,8 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
                                       value_length, kUnknownValue);
 
     case kSbSystemPropertyFriendlyName:
-      return CopyStringAndTestIfSuccess(out_value, value_length, kFriendlyName);
+      return GetAndroidSystemProperty("ro.product.model", out_value,
+                                      value_length, kUnknownValue);
 
     case kSbSystemPropertyPlatformName:
       return CopyAndroidPlatformName(out_value, value_length);
@@ -157,6 +170,9 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyDeviceType:
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         starboard::kSystemDeviceTypeAndroidTV);
+    case kSbSystemPropertyCertificationScope:
+      return GetAndroidSystemProperty("ro.vendor.youtube.cert_scope", out_value,
+                                      value_length, "");
     default:
       SB_DLOG(WARNING) << __FUNCTION__
                        << ": Unrecognized property: " << property_id;

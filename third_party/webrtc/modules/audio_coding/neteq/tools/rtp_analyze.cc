@@ -10,13 +10,19 @@
 
 #include <stdio.h>
 
+#include <cstdint>
+#include <list>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "api/rtp_headers.h"
 #include "modules/audio_coding/neteq/tools/packet.h"
 #include "modules/audio_coding/neteq/tools/rtp_file_source.h"
+#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
+#include "rtc_base/checks.h"
 
 ABSL_FLAG(int, red, 117, "RTP payload type for RED");
 ABSL_FLAG(int,
@@ -110,9 +116,10 @@ int main(int argc, char* argv[]) {
             static_cast<int>(packet->virtual_packet_length_bytes()),
             packet->header().payloadType, packet->header().markerBit,
             packet->header().ssrc);
-    if (print_audio_level && packet->header().extension.hasAudioLevel) {
-      fprintf(out_file, " %5u (%1i)", packet->header().extension.audioLevel,
-              packet->header().extension.voiceActivity);
+    if (print_audio_level && packet->header().extension.audio_level()) {
+      fprintf(out_file, " %5d (%1i)",
+              packet->header().extension.audio_level()->level(),
+              packet->header().extension.audio_level()->voice_activity());
     }
     if (print_abs_send_time && packet->header().extension.hasAbsoluteSendTime) {
       if (cycles == -1) {

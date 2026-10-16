@@ -8,15 +8,18 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.StringRes;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.download.home.empty.EmptyProperties.State;
 import org.chromium.chrome.browser.download.internal.R;
 import org.chromium.ui.widget.LoadingView;
 
 /** A view that represents the visuals required for the empty state of the download home list. */
+@NullMarked
 class EmptyView {
     private final ViewGroup mView;
     private final View mEmptyContainer;
@@ -25,11 +28,21 @@ class EmptyView {
 
     /** Creates a new {@link EmptyView} instance from {@code context}. */
     public EmptyView(Context context) {
-        mView = (ViewGroup) LayoutInflater.from(context).inflate(
-                R.layout.downloads_empty_view, null);
-        mEmptyContainer = mView.findViewById(R.id.empty_container);
-        mEmptyView = (TextView) mView.findViewById(R.id.empty);
-        mLoadingView = (LoadingView) mView.findViewById(R.id.loading);
+        mView =
+                (ViewGroup)
+                        LayoutInflater.from(context)
+                                .inflate(R.layout.downloads_empty_state_view, null);
+
+        mEmptyContainer = mView.findViewById(R.id.empty_state_container);
+        mEmptyView = (TextView) mView.findViewById(R.id.empty_state_text_title);
+        ImageView emptyStateIcon = mView.findViewById(R.id.empty_state_icon);
+        emptyStateIcon.setImageResource(R.drawable.downloads_empty_state_illustration);
+        TextView emptyStateSubheadingView =
+                (TextView) mView.findViewById(R.id.empty_state_text_description);
+        emptyStateSubheadingView.setText(
+                R.string.download_manager_no_downloads_view_offline_or_share);
+
+        mLoadingView = (LoadingView) mView.findViewById(R.id.empty_state_loading);
     }
 
     /** The Android {@link View} representing the empty view. */
@@ -42,9 +55,9 @@ class EmptyView {
         mEmptyContainer.setVisibility(state == State.EMPTY ? View.VISIBLE : View.INVISIBLE);
 
         if (state == State.LOADING) {
-            mLoadingView.showLoadingUI();
+            mLoadingView.showLoadingUi();
         } else {
-            mLoadingView.hideLoadingUI();
+            mLoadingView.hideLoadingUi();
         }
     }
 

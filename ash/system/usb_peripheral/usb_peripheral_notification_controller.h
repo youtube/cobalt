@@ -39,6 +39,7 @@ class ASH_EXPORT UsbPeripheralNotificationController
   void OnInvalidUSB4CableWarning() override;
   void OnInvalidTBTCableWarning() override;
   void OnSpeedLimitingCableWarning() override;
+  void OnUsbDeviceOrEndpointLimit() override;
 
   // Stubs from PCIE Notification controller
   void OnLimitedPerformancePeripheralReceived() override {}
@@ -47,7 +48,7 @@ class ASH_EXPORT UsbPeripheralNotificationController
   void OnBillboardDeviceConnected() override {}
 
  private:
-  const raw_ptr<message_center::MessageCenter, ExperimentalAsh> message_center_;
+  const raw_ptr<message_center::MessageCenter> message_center_;
 };
 
 }  // namespace ash

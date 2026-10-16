@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/drm.h"
+// clang-format on
 
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
@@ -31,5 +33,7 @@ void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
     return;
   }
 
-  drm_system->UpdateServerCertificate(ticket, certificate, certificate_size);
+  drm_system->UpdateServerCertificate(
+      ticket, std::string_view(static_cast<const char*>(certificate),
+                               certificate_size));
 }

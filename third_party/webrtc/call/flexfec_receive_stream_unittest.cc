@@ -16,15 +16,13 @@
 
 #include "api/array_view.h"
 #include "api/call/transport.h"
+#include "api/environment/environment_factory.h"
 #include "api/rtp_headers.h"
-#include "api/rtp_parameters.h"
 #include "call/flexfec_receive_stream_impl.h"
 #include "call/rtp_stream_receiver_controller.h"
-#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/mocks/mock_recovered_packet_receiver.h"
 #include "modules/rtp_rtcp/mocks/mock_rtcp_rtt_stats.h"
 #include "modules/rtp_rtcp/source/byte_io.h"
-#include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/thread.h"
 #include "test/gmock.h"
@@ -35,7 +33,6 @@ namespace webrtc {
 
 namespace {
 
-using ::testing::_;
 using ::testing::Eq;
 using ::testing::Property;
 
@@ -54,7 +51,7 @@ FlexfecReceiveStream::Config CreateDefaultConfig(
   return config;
 }
 
-RtpPacketReceived ParsePacket(rtc::ArrayView<const uint8_t> packet) {
+RtpPacketReceived ParsePacket(ArrayView<const uint8_t> packet) {
   RtpPacketReceived parsed_packet(nullptr);
   EXPECT_TRUE(parsed_packet.Parse(packet));
   return parsed_packet;
@@ -88,16 +85,13 @@ class FlexfecReceiveStreamTest : public ::testing::Test {
   FlexfecReceiveStreamTest()
       : config_(CreateDefaultConfig(&rtcp_send_transport_)) {
     receive_stream_ = std::make_unique<FlexfecReceiveStreamImpl>(
-        Clock::GetRealTimeClock(), config_, &recovered_packet_receiver_,
-        &rtt_stats_);
+        CreateEnvironment(), config_, &recovered_packet_receiver_, &rtt_stats_);
     receive_stream_->RegisterWithTransport(&rtp_stream_receiver_controller_);
   }
 
-  ~FlexfecReceiveStreamTest() {
-    receive_stream_->UnregisterFromTransport();
-  }
+  ~FlexfecReceiveStreamTest() { receive_stream_->UnregisterFromTransport(); }
 
-  rtc::AutoThread main_thread_;
+  AutoThread main_thread_;
   MockTransport rtcp_send_transport_;
   FlexfecReceiveStream::Config config_;
   MockRecoveredPacketReceiver recovered_packet_receiver_;

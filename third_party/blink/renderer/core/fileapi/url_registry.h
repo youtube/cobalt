@@ -59,14 +59,8 @@ class CORE_EXPORT URLRegistry {
   virtual void UnregisterURL(const KURL&) = 0;
 
   // These are optional APIs
-  virtual URLRegistrable* Lookup(const String&) {
-    NOTREACHED();
-    return nullptr;
-  }
-  virtual bool Contains(const String&) {
-    NOTREACHED();
-    return false;
-  }
+  virtual URLRegistrable* Lookup(const String&) { NOTREACHED(); }
+  virtual bool Contains(const String&) { NOTREACHED(); }
 };
 
 }  // namespace blink

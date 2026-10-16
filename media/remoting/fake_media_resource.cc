@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -83,8 +84,7 @@ void FakeDemuxerStream::CreateFakeFrame(size_t size,
   base::TimeDelta pts = base::Milliseconds(pts_ms);
 
   // To DecoderBuffer
-  scoped_refptr<DecoderBuffer> input_buffer =
-      DecoderBuffer::CopyFrom(buffer.data(), size);
+  scoped_refptr<DecoderBuffer> input_buffer = DecoderBuffer::CopyFrom(buffer);
   input_buffer->set_timestamp(pts);
   input_buffer->set_is_key_frame(key_frame);
 

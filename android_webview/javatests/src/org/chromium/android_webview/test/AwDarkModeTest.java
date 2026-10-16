@@ -17,48 +17,52 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.UseParametersRunnerFactory;
 
 import org.chromium.android_webview.AwContents;
 import org.chromium.android_webview.AwDarkMode;
 import org.chromium.android_webview.AwSettings;
 import org.chromium.android_webview.DarkModeHelper;
 import org.chromium.android_webview.test.AwActivityTestRule.TestDependencyFactory;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CallbackHelper;
-import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.MinAndroidSdkLevel;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.net.test.util.TestWebServer;
 
 import java.util.concurrent.Callable;
 
-/**
- * The integration test for the dark mode.
- */
-@RunWith(AwJUnit4ClassRunner.class)
+/** The integration test for the dark mode. */
+@RunWith(Parameterized.class)
+@UseParametersRunnerFactory(AwJUnit4ClassRunnerWithParameters.Factory.class)
 @MinAndroidSdkLevel(Build.VERSION_CODES.P)
-public class AwDarkModeTest {
+public class AwDarkModeTest extends AwParameterizedTest {
     private static final String FILE = "/main.html";
     private static final String DATA =
             "<html><head><meta name=\"color-scheme\" content=\"dark light\"></head>"
-            + "<body>DarkMode</body></html>";
+                    + "<body>DarkMode</body></html>";
 
-    @Rule
-    public AwActivityTestRule mRule = new AwActivityTestRule();
+    @Rule public AwActivityTestRule mRule;
 
     private TestWebServer mWebServer;
     private AwTestContainerView mTestContainerView;
     private TestAwContentsClient mContentsClient;
-    private CallbackHelper mCallbackHelper = new CallbackHelper();
+    private final CallbackHelper mCallbackHelper = new CallbackHelper();
     private AwContents mAwContents;
+
+    public AwDarkModeTest(AwSettingsMutation param) {
+        this.mRule = new AwActivityTestRule(param.getMutation());
+    }
 
     @Before
     public void setUp() throws Exception {
         DarkModeHelper.setsLightThemeForTesting(DarkModeHelper.LightTheme.LIGHT_THEME_FALSE);
         mWebServer = TestWebServer.start();
         mContentsClient = new TestAwContentsClient();
-        mTestContainerView = mRule.createAwTestContainerViewOnMainSync(
-                mContentsClient, false, new TestDependencyFactory());
+        mTestContainerView =
+                mRule.createAwTestContainerViewOnMainSync(
+                        mContentsClient, false, new TestDependencyFactory());
         mAwContents = mTestContainerView.getAwContents();
         AwActivityTestRule.enableJavaScriptOnUiThread(mAwContents);
     }
@@ -91,30 +95,6 @@ public class AwDarkModeTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
-    @CommandLineFlags.Add({"disable-features=WebViewForceDarkModeMatchTheme"})
-    public void testLightThemeFalseWithMatchThemeDisabled() throws Throwable {
-        DarkModeHelper.setsLightThemeForTesting(DarkModeHelper.LightTheme.LIGHT_THEME_FALSE);
-        final String url = mWebServer.setResponse(FILE, DATA, null);
-        loadUrlSync(url);
-        assertEquals("true", getPrefersColorSchemeDark());
-        assertFalse(isForceDarkening());
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"AndroidWebView"})
-    @CommandLineFlags.Add({"enable-features=WebViewForceDarkModeMatchTheme"})
-    public void testLightThemeFalse() throws Throwable {
-        DarkModeHelper.setsLightThemeForTesting(DarkModeHelper.LightTheme.LIGHT_THEME_FALSE);
-        final String url = mWebServer.setResponse(FILE, DATA, null);
-        loadUrlSync(url);
-        assertEquals("true", getPrefersColorSchemeDark());
-        assertTrue(isForceDarkening());
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"AndroidWebView"})
     public void testConfigurationChanged() throws Throwable {
         DarkModeHelper.setsLightThemeForTesting(DarkModeHelper.LightTheme.LIGHT_THEME_TRUE);
         final String url = mWebServer.setResponse(FILE, DATA, null);
@@ -123,7 +103,8 @@ public class AwDarkModeTest {
         DarkModeHelper.setsLightThemeForTesting(DarkModeHelper.LightTheme.LIGHT_THEME_FALSE);
         Configuration newConfig = new Configuration();
         newConfig.uiMode = Configuration.UI_MODE_NIGHT_YES;
-        TestThreadUtils.runOnUiThreadBlocking(() -> mAwContents.onConfigurationChanged(newConfig));
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> mAwContents.getViewMethods().onConfigurationChanged(newConfig));
         loadUrlSync(url);
         assertEquals("true", getPrefersColorSchemeDark());
     }
@@ -237,11 +218,12 @@ public class AwDarkModeTest {
     }
 
     private boolean isForceDarkening() throws Throwable {
-        return TestThreadUtils.runOnUiThreadBlocking(new Callable<Boolean>() {
-            @Override
-            public Boolean call() {
-                return mAwContents.getSettings().isForceDarkApplied();
-            }
-        });
+        return ThreadUtils.runOnUiThreadBlocking(
+                new Callable<Boolean>() {
+                    @Override
+                    public Boolean call() {
+                        return mAwContents.getSettings().isForceDarkApplied();
+                    }
+                });
     }
 }

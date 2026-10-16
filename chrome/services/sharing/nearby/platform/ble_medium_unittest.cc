@@ -5,6 +5,7 @@
 #include "chrome/services/sharing/nearby/platform/ble_medium.h"
 
 #include <memory>
+#include <optional>
 
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -17,10 +18,8 @@
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "mojo/public/cpp/bindings/shared_remote.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-namespace nearby {
-namespace chrome {
+namespace nearby::chrome {
 
 namespace {
 
@@ -158,7 +157,7 @@ class BleMediumTest : public testing::Test {
               std::string(byte_array.data(), byte_array.size()));
   }
 
-  raw_ptr<bluetooth::FakeAdapter, ExperimentalAsh> fake_adapter_;
+  raw_ptr<bluetooth::FakeAdapter> fake_adapter_;
   mojo::SharedRemote<bluetooth::mojom::Adapter> remote_adapter_;
   std::unique_ptr<BleMedium> ble_medium_;
 
@@ -373,5 +372,4 @@ TEST_F(BleMediumTest, TestConnect) {
   EXPECT_FALSE(ble_medium_->Connect(ble_peripheral, kServiceId1, nullptr));
 }
 
-}  // namespace chrome
-}  // namespace nearby
+}  // namespace nearby::chrome

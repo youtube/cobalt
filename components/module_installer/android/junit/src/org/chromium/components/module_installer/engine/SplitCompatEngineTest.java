@@ -34,7 +34,6 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.components.module_installer.logger.Logger;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -42,19 +41,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Test suite for the SplitCompatEngine class.
- */
+/** Test suite for the SplitCompatEngine class. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class SplitCompatEngineTest {
-    @Mock
-    private Logger mLogger;
-    @Mock
-    private SplitInstallManager mManager;
-    @Mock
-    private SplitInstallRequest mInstallRequest;
-    @Mock
-    private Task<Integer> mTask;
+    @Mock private SplitInstallManager mManager;
+    @Mock private SplitInstallRequest mInstallRequest;
+    @Mock private Task<Integer> mTask;
 
     private SplitCompatEngine mInstaller;
     private SplitCompatEngineFacade mInstallerFacade;
@@ -66,7 +58,6 @@ public class SplitCompatEngineTest {
         mInstallerFacade = mock(SplitCompatEngineFacade.class);
 
         // Mock SplitCompatEngineFacade.
-        doReturn(mLogger).when(mInstallerFacade).getLogger();
         doReturn(mManager).when(mInstallerFacade).getSplitManager();
         doReturn(mInstallRequest).when(mInstallerFacade).createSplitInstallRequest(any());
 
@@ -95,9 +86,8 @@ public class SplitCompatEngineTest {
         // Arrange.
         String installedModule = "m1";
         String uninstalledModule = "m2";
-        Set<String> installedModules = new HashSet<String>() {
-            { add(installedModule); }
-        };
+        Set<String> installedModules = new HashSet<String>();
+        installedModules.add(installedModule);
         doReturn(installedModules).when(mManager).getInstalledModules();
 
         // Act & Assert.
@@ -116,7 +106,6 @@ public class SplitCompatEngineTest {
 
         // Assert.
         verify(mManager, times(1)).deferredInstall(moduleList);
-        verify(mLogger, times(1)).logRequestDeferredStart(moduleName);
     }
 
     @Test
@@ -124,7 +113,7 @@ public class SplitCompatEngineTest {
         // Arrange.
         String moduleName = "whenInstalling_verifyInstallSequence";
         InstallListener listener = mock(InstallListener.class);
-        InOrder inOrder = inOrder(mInstallerFacade, mManager, mLogger, mTask);
+        InOrder inOrder = inOrder(mInstallerFacade, mManager, mTask);
 
         // Act.
         mInstaller.install(moduleName, listener);
@@ -134,7 +123,6 @@ public class SplitCompatEngineTest {
         inOrder.verify(mInstallerFacade).createSplitInstallRequest(moduleName);
         inOrder.verify(mManager).startInstall(mInstallRequest);
         inOrder.verify(mTask).addOnFailureListener(any());
-        inOrder.verify(mLogger).logRequestStart(moduleName);
         inOrder.verifyNoMoreInteractions();
     }
 
@@ -164,7 +152,6 @@ public class SplitCompatEngineTest {
         Integer errorCode = -1;
         InstallListener listener = mock(InstallListener.class);
         ArgumentCaptor<OnFailureListener> arg = ArgumentCaptor.forClass(OnFailureListener.class);
-        doReturn(errorCode).when(mLogger).getUnknownRequestErrorCode();
 
         // Act.
         mInstaller.install(moduleName, listener);
@@ -172,7 +159,6 @@ public class SplitCompatEngineTest {
         arg.getValue().onFailure(new Exception(exceptionMessage));
 
         // Assert.
-        verify(mLogger, times(1)).logRequestFailure(moduleName, errorCode);
         verify(listener, times(1)).onComplete(false);
     }
 
@@ -189,24 +175,7 @@ public class SplitCompatEngineTest {
         arg.getValue().onFailure(new SplitInstallException(-1));
 
         // Assert.
-        verify(mLogger, times(1)).logRequestFailure(moduleName, -1);
         verify(listener, times(1)).onComplete(false);
-    }
-
-    @Test
-    public void whenInstallingWithException_verifyCanTryAgainAfterFailure() {
-        // Arrange.
-        String moduleName = "whenInstallingWithException_verifyCanTryAgainAfterFailure";
-        ArgumentCaptor<OnFailureListener> arg = ArgumentCaptor.forClass(OnFailureListener.class);
-
-        // Act.
-        mInstaller.install(moduleName, mock(InstallListener.class));
-        verify(mTask).addOnFailureListener(arg.capture());
-        arg.getValue().onFailure(new Exception(""));
-        mInstaller.install(moduleName, mock(InstallListener.class)); // 2nd call.
-
-        // Assert.
-        verify(mLogger, times(2)).logRequestStart(moduleName);
     }
 
     @Test
@@ -224,7 +193,7 @@ public class SplitCompatEngineTest {
         doReturn(status).when(state).status();
         doReturn(Arrays.asList(moduleName1, moduleName2)).when(state).moduleNames();
 
-        InOrder inOrder = inOrder(listener1, listener2, mManager, mLogger, mInstallerFacade);
+        InOrder inOrder = inOrder(listener1, listener2, mManager, mInstallerFacade);
         ArgumentCaptor<SplitInstallStateUpdatedListener> arg =
                 ArgumentCaptor.forClass(SplitInstallStateUpdatedListener.class);
 
@@ -237,10 +206,8 @@ public class SplitCompatEngineTest {
         // Assert.
         inOrder.verify(mInstallerFacade, times(1)).updateCrashKeys();
         inOrder.verify(listener1, times(1)).onComplete(true);
-        inOrder.verify(mLogger, times(1)).logStatus(moduleName1, status);
         inOrder.verify(listener2, times(1)).onComplete(true);
         inOrder.verify(mManager, times(1)).unregisterListener(any());
-        inOrder.verify(mLogger, times(1)).logStatus(moduleName2, status);
         inOrder.verifyNoMoreInteractions();
     }
 
@@ -261,7 +228,7 @@ public class SplitCompatEngineTest {
         doReturn(errorCode).when(state).errorCode();
         doReturn(Arrays.asList(moduleName1, moduleName2)).when(state).moduleNames();
 
-        InOrder inOrder = inOrder(listener1, listener2, mLogger, mManager);
+        InOrder inOrder = inOrder(listener1, listener2, mManager);
         ArgumentCaptor<SplitInstallStateUpdatedListener> arg =
                 ArgumentCaptor.forClass(SplitInstallStateUpdatedListener.class);
 
@@ -273,12 +240,8 @@ public class SplitCompatEngineTest {
 
         // Assert.
         inOrder.verify(listener1, times(1)).onComplete(false);
-        inOrder.verify(mLogger, times(1)).logStatusFailure(moduleName1, errorCode);
-        inOrder.verify(mLogger, times(1)).logStatus(moduleName1, status);
         inOrder.verify(listener2, times(1)).onComplete(false);
         inOrder.verify(mManager, times(1)).unregisterListener(any());
-        inOrder.verify(mLogger, times(1)).logStatusFailure(moduleName2, errorCode);
-        inOrder.verify(mLogger, times(1)).logStatus(moduleName2, status);
         inOrder.verifyNoMoreInteractions();
     }
 
@@ -295,7 +258,7 @@ public class SplitCompatEngineTest {
         doReturn(status).when(state).status();
         doReturn(Arrays.asList(moduleName)).when(state).moduleNames();
 
-        InOrder inOrder = inOrder(listener, mLogger);
+        InOrder inOrder = inOrder(listener);
         ArgumentCaptor<SplitInstallStateUpdatedListener> arg =
                 ArgumentCaptor.forClass(SplitInstallStateUpdatedListener.class);
 
@@ -305,7 +268,6 @@ public class SplitCompatEngineTest {
         arg.getValue().onStateUpdate(state);
 
         // Assert.
-        inOrder.verify(mLogger, times(1)).logStatus(moduleName, status);
         inOrder.verifyNoMoreInteractions();
     }
 }

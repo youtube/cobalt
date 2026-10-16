@@ -4,6 +4,9 @@
 
 #include "third_party/blink/renderer/core/editing/spellcheck/idle_spell_check_controller.h"
 
+#include <array>
+
+#include "base/check_deref.h"
 #include "base/debug/crash_logging.h"
 #include "base/time/time.h"
 #include "third_party/blink/public/platform/task_type.h"
@@ -24,6 +27,7 @@
 #include "third_party/blink/renderer/core/editing/visible_units.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/scheduler/scripted_idle_task_controller.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cancellable_task.h"
 
@@ -93,8 +97,10 @@ bool IdleSpellCheckController::IsSpellCheckingEnabled() const {
 }
 
 void IdleSpellCheckController::DisposeIdleCallback() {
-  if (idle_callback_handle_ != kInvalidHandle && GetExecutionContext())
-    GetDocument().CancelIdleCallback(idle_callback_handle_);
+  if (idle_callback_handle_ != kInvalidHandle && GetExecutionContext()) {
+    ScriptedIdleTaskController::From(*GetExecutionContext())
+        .CancelCallback(idle_callback_handle_);
+  }
   idle_callback_handle_ = kInvalidHandle;
 }
 
@@ -164,8 +170,9 @@ void IdleSpellCheckController::SetNeedsInvocation() {
 
   IdleRequestOptions* options = IdleRequestOptions::Create();
   options->setTimeout(kHotModeRequestTimeoutMS);
-  idle_callback_handle_ = GetDocument().RequestIdleCallback(
-      MakeGarbageCollected<IdleCallback>(this), options);
+  idle_callback_handle_ =
+      ScriptedIdleTaskController::From(CHECK_DEREF(GetExecutionContext()))
+          .RegisterCallback(MakeGarbageCollected<IdleCallback>(this), options);
   state_ = State::kHotModeRequested;
 }
 
@@ -195,8 +202,10 @@ void IdleSpellCheckController::ColdModeTimerFired() {
     return;
   }
 
-  idle_callback_handle_ = GetDocument().RequestIdleCallback(
-      MakeGarbageCollected<IdleCallback>(this), IdleRequestOptions::Create());
+  idle_callback_handle_ =
+      ScriptedIdleTaskController::From(CHECK_DEREF(GetExecutionContext()))
+          .RegisterCallback(MakeGarbageCollected<IdleCallback>(this),
+                            IdleRequestOptions::Create());
   state_ = State::kColdModeRequested;
 }
 
@@ -211,7 +220,7 @@ bool IdleSpellCheckController::NeedsHotModeCheckingUnderCurrentSelection()
   // already fully checked the current element.
   DCHECK(needs_invocation_for_changed_selection_);
   const Position& position =
-      GetWindow().GetFrame()->Selection().GetSelectionInDOMTree().Extent();
+      GetWindow().GetFrame()->Selection().GetSelectionInDOMTree().Focus();
   const auto* element = DynamicTo<Element>(HighestEditableRoot(position));
   if (!element || !element->isConnected())
     return false;
@@ -228,7 +237,7 @@ void IdleSpellCheckController::HotModeInvocation(IdleDeadline* deadline) {
 
   if (NeedsHotModeCheckingUnderCurrentSelection()) {
     requester.CheckSpellingAt(
-        GetWindow().GetFrame()->Selection().GetSelectionInDOMTree().Extent());
+        GetWindow().GetFrame()->Selection().GetSelectionInDOMTree().Focus());
   }
 
   const uint64_t watermark = last_processed_undo_step_sequence_;
@@ -245,7 +254,7 @@ void IdleSpellCheckController::HotModeInvocation(IdleDeadline* deadline) {
     // before using it.
     if (!step->EndingSelection().IsValidFor(GetDocument()))
       continue;
-    requester.CheckSpellingAt(step->EndingSelection().Extent());
+    requester.CheckSpellingAt(step->EndingSelection().Focus());
   }
 
   needs_invocation_for_changed_selection_ = false;
@@ -260,6 +269,22 @@ void IdleSpellCheckController::Invoke(IdleDeadline* deadline) {
   if (!IsSpellCheckingEnabled()) {
     Deactivate();
     return;
+  }
+
+  // If focus node has canonical position null then spellcheck should not
+  // be executed.
+  if (RuntimeEnabledFeatures::
+          CheckForCanonicalPositionInIdleSpellCheckEnabled()) {
+    Position selection_focus =
+        GetWindow().GetFrame()->Selection().GetSelectionInDOMTree().Focus();
+    if (selection_focus) {
+      GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
+      if (CanonicalPositionOf(EphemeralRange(selection_focus).StartPosition())
+              .IsNull()) {
+        Deactivate();
+        return;
+      }
+    }
   }
 
   if (state_ == State::kHotModeRequested) {
@@ -280,7 +305,7 @@ void IdleSpellCheckController::Invoke(IdleDeadline* deadline) {
     static auto* state_data = base::debug::AllocateCrashKeyString(
         "spellchecker-state-on-invocation", base::debug::CrashKeySize::Size32);
     base::debug::SetCrashKeyString(state_data, GetStateAsString());
-    NOTREACHED() << GetStateAsString();
+    DUMP_WILL_BE_NOTREACHED() << GetStateAsString();
     Deactivate();
   }
 }
@@ -294,9 +319,8 @@ void IdleSpellCheckController::ForceInvocationForTesting() {
     return;
 
   bool cross_origin_isolated_capability =
-      GetExecutionContext()
-          ? GetExecutionContext()->CrossOriginIsolatedCapability()
-          : false;
+      GetExecutionContext() &&
+      GetExecutionContext()->CrossOriginIsolatedCapability();
 
   auto* deadline = MakeGarbageCollected<IdleDeadline>(
       base::TimeTicks::Now() + kIdleSpellcheckTestTimeout,
@@ -312,7 +336,10 @@ void IdleSpellCheckController::ForceInvocationForTesting() {
       break;
     case State::kHotModeRequested:
     case State::kColdModeRequested:
-      GetDocument().CancelIdleCallback(idle_callback_handle_);
+      if (GetExecutionContext()) {
+        ScriptedIdleTaskController::From(*GetExecutionContext())
+            .CancelCallback(idle_callback_handle_);
+      }
       Invoke(deadline);
       break;
     case State::kInactive:
@@ -338,11 +365,11 @@ void IdleSpellCheckController::SetSpellCheckingDisabled(
 }
 
 const char* IdleSpellCheckController::GetStateAsString() const {
-  static const char* const kTexts[] = {
+  static const auto kTexts = std::to_array<const char*>({
 #define V(state) #state,
       FOR_EACH_IDLE_SPELL_CHECK_CONTROLLER_STATE(V)
 #undef V
-  };
+  });
 
   unsigned index = static_cast<unsigned>(state_);
   if (index < std::size(kTexts)) {

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://webui-test/mojo_webui_test_support.js';
-
 import {InfoDialogElement} from 'chrome://new-tab-page/lazy_load.js';
 import {assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
@@ -31,5 +29,18 @@ suite('NewTabPageModulesInfoDialogTest', () => {
 
     // Assert.
     assertFalse(infoDialog.$.dialog.open);
+  });
+
+  test('show-on-attach', () => {
+    // Arrange.
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    infoDialog = new InfoDialogElement();
+    infoDialog.showOnAttach = true;
+
+    // Act.
+    document.body.appendChild(infoDialog);
+
+    // Assert.
+    assertTrue(infoDialog.$.dialog.open);
   });
 });

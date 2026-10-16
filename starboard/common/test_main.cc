@@ -12,18 +12,68 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-
 #include "build/build_config.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include <string>
+#include <vector>
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
 #include "starboard/client_porting/wrap_main/wrap_main.h"
+#include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
+#include "starboard/testing/test_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+extern "C" {
+bool IsTestExecutable() {
+  return true;
+}
+}
+
 namespace {
-int InitAndRunAllTests(int argc, char** argv) {
-  ::testing::InitGoogleTest(&argc, argv);
+
+int RunTests(int argc, char** argv) {
+  starboard::RegisterPlatformTestEnvironments(argc, argv);
   return RUN_ALL_TESTS();
+}
+
+int InitAndRunAllTests(int argc, char** argv) {
+#if BUILDFLAG(IS_IOS_TVOS)
+  std::vector<std::string> arg_strings;
+  std::vector<char*> new_argv;
+  std::vector<char> cache_dir(kSbFileMaxPath, 0);
+  bool has_cache_dir = SbSystemGetPath(kSbSystemPathCacheDirectory,
+                                       cache_dir.data(), cache_dir.size());
+
+  const char kGTestOutputPrefix[] = "--gtest_output=xml:";
+  const size_t kGTestOutputPrefixLen = sizeof(kGTestOutputPrefix) - 1;
+
+  for (int i = 0; i < argc; ++i) {
+    std::string arg(argv[i]);
+    if (has_cache_dir &&
+        arg.compare(0, kGTestOutputPrefixLen, kGTestOutputPrefix) == 0) {
+      std::string file_path = arg.substr(kGTestOutputPrefixLen);
+      if (!file_path.empty() && file_path[0] != '/') {
+        arg = kGTestOutputPrefix + std::string(cache_dir.data()) + "/" +
+              file_path;
+      }
+    }
+    arg_strings.push_back(arg);
+  }
+  for (size_t i = 0; i < arg_strings.size(); ++i) {
+    new_argv.push_back(const_cast<char*>(arg_strings[i].c_str()));
+  }
+  new_argv.push_back(nullptr);
+  char** final_argv = new_argv.data();
+#else
+  char** final_argv = argv;
+#endif
+
+  ::testing::InitGoogleTest(&argc, final_argv);
+  return starboard::RunPlatformTestSuite(argc, final_argv, &RunTests);
 }
 }  // namespace
 
@@ -37,7 +87,7 @@ int main(int argc, char** argv) {
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }
 #endif  // !SB_IS(EVERGREEN)
-#else
+#else   // BUILDFLAG(IS_STARBOARD)
 // If the OS is not Starboard use the regular main e.g. ATV.
 int main(int argc, char** argv) {
   return InitAndRunAllTests(argc, argv);

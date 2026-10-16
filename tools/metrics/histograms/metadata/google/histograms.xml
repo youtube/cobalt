@@ -23,74 +23,128 @@ chromium-metrics-reviews@google.com.
 <histograms>
 
 <histogram name="GoogleUpdate.ErrorHresult" enum="Hresult"
-    expires_after="2023-06-26">
+    expires_after="never">
+<!-- expires-never: Core metric for monitoring on-demand updates. -->
+
   <owner>sorin@chromium.org</owner>
   <owner>waffles@chromium.org</owner>
   <summary>The HRESULT for a failed on-demand update check.</summary>
 </histogram>
 
-<histogram name="GoogleUpdate.InstallDetails.UpdateCohort" units="units"
-    expires_after="2024-06-01">
+<histogram name="GoogleUpdate.InstallDetails.UpdateCohortId"
+    enum="GoogleUpdateHashedCohortId" expires_after="never">
+<!-- expires-never: Core metric for monitoring per-milestone regressions. -->
+
   <owner>waffles@chromium.org</owner>
   <owner>chrome-metrics-team@google.com</owner>
   <owner>omaha-team@google.com</owner>
   <summary>
-    Store the hash of update cohort name as reported by Chrome Updater on
-    Windows. Recorded at the start of metrics service. Warning: this histogram
-    was expired from 2019-06-01 to 2023-01-23; data may be missing.
-  </summary>
-</histogram>
-
-<histogram name="GoogleUpdate.Result.Session" enum="BooleanSuccess"
-    expires_after="2020-10-15">
-<!-- Name completed by histogram_suffixes name="GoogleUpdate.Result.UpdateType" -->
-
-  <owner>dtrainor@chromium.org</owner>
-  <owner>nyquist@chromium.org</owner>
-  <summary>
-    (Android-only) Whether or not an update was successful when looking at the
-    Chrome version on the next session where there is no update in progress.
-  </summary>
-</histogram>
-
-<histogram name="GoogleUpdate.Result.TimeWindow" enum="BooleanSuccess"
-    expires_after="2020-10-15">
-<!-- Name completed by histogram_suffixes name="GoogleUpdate.Result.UpdateType" -->
-
-  <owner>dtrainor@chromium.org</owner>
-  <owner>nyquist@chromium.org</owner>
-  <summary>
-    (Android-only) Whether or not an update was successful within a specific
-    server-configured window of time (e.g. an update may not occur right after
-    the user attempts to start it, but if they update sometime in the next X
-    days, we can possibly attribute it to the update flow we started). An
-    example window value could be on the order of days (e.g. 2 days since an
-    update started).
-  </summary>
-</histogram>
-
-<histogram name="GoogleUpdate.StartingUpdateState"
-    enum="BooleanAlreadyUpdating" expires_after="2020-10-15">
-  <owner>dtrainor@chromium.org</owner>
-  <owner>nyquist@chromium.org</owner>
-  <summary>
-    (Android-only) Whether or not an update was being tracked as 'in progress'
-    when another update was started.
+    The base::PersistentHash of the browser's update cohort ID that was present
+    at the time of the metrics upload. This histogram is reported on every UMA
+    log on Windows. Unlike cohort name, cohort ID will generally be unique for
+    each rollout group and control group.
   </summary>
 </histogram>
 
 <histogram name="GoogleUpdate.UpdateErrorCode" enum="GoogleUpdateErrorCode"
-    expires_after="2023-09-17">
+    expires_after="never">
+<!-- expires-never: Core metric for monitoring on-demand updates. -->
+
   <owner>sorin@chromium.org</owner>
   <owner>waffles@chromium.org</owner>
   <summary>The error code for a failed on-demand update check.</summary>
 </histogram>
 
+<histogram name="GoogleUpdate.UpdaterHealth.ScheduledTaskCount" units="tasks"
+    expires_after="2026-03-12">
+  <owner>ganesh@chromium.org</owner>
+  <owner>omaha-support@google.com</owner>
+  <summary>
+    Number of scheduled tasks registered for the updater in the Windows task
+    scheduler. Recorded when the browser creates the main loop, and subsequently
+    at 5 hour intervals as long as the browser is running.
+  </summary>
+</histogram>
+
+<histogram name="GoogleUpdate.UpdaterHealth.ScheduledTaskEnabled"
+    enum="BooleanEnabled" expires_after="2026-03-12">
+  <owner>ganesh@chromium.org</owner>
+  <owner>omaha-support@google.com</owner>
+  <summary>
+    Records true if the scheduled task is enabled for the active updater in the
+    Windows task scheduler. Recorded when the browser creates the main loop, and
+    subsequently at 5 hour intervals as long as the browser is running.
+  </summary>
+</histogram>
+
+<histogram name="GoogleUpdate.UpdaterHealth.ScheduledTaskPresent"
+    enum="BooleanPresent" expires_after="2026-03-12">
+  <owner>ganesh@chromium.org</owner>
+  <owner>omaha-support@google.com</owner>
+  <summary>
+    Records true if the scheduled task is present for the active updater in the
+    Windows task scheduler. Recorded when the browser creates the main loop, and
+    subsequently at 5 hour intervals as long as the browser is running.
+  </summary>
+</histogram>
+
+<histogram name="GoogleUpdate.UpdaterHealth.ServiceEnabled.{Type}"
+    enum="BooleanEnabled" expires_after="2026-03-12">
+  <owner>ganesh@chromium.org</owner>
+  <owner>omaha-support@google.com</owner>
+  <summary>
+    Records true if the Windows service is enabled for the active updater.
+    Recorded when the browser creates the main loop, and subsequently at 5 hour
+    intervals as long as the browser is running. `Type` is either the
+    side-by-side service or the internal service.
+  </summary>
+  <token key="Type">
+    <variant name="Internal"
+        summary="&quot;Internal&quot; is for the internal service."/>
+    <variant name="SxS"
+        summary="&quot;SxS&quot; is for the side-by-side service."/>
+  </token>
+</histogram>
+
+<histogram name="GoogleUpdate.UpdaterHealth.ServicePresent.{Type}"
+    enum="BooleanPresent" expires_after="2026-03-12">
+  <owner>ganesh@chromium.org</owner>
+  <owner>omaha-support@google.com</owner>
+  <summary>
+    Records true if the Windows service is present for the active updater.
+    Recorded when the browser creates the main loop, and subsequently at 5 hour
+    intervals as long as the browser is running. `Type` is either the
+    side-by-side service or the internal service.
+  </summary>
+  <token key="Type">
+    <variant name="Internal"
+        summary="&quot;Internal&quot; is for the internal service."/>
+    <variant name="SxS"
+        summary="&quot;SxS&quot; is for the side-by-side service."/>
+  </token>
+</histogram>
+
+<histogram name="GoogleUpdate.UpdaterHealth.UpdaterValid" enum="BooleanValid"
+    expires_after="2026-03-12">
+  <owner>ganesh@chromium.org</owner>
+  <owner>omaha-support@google.com</owner>
+  <summary>
+    Records true if there is an active updater present on the system. Recorded
+    when the browser creates the main loop, and subsequently at 5 hour intervals
+    as long as the browser is running.
+  </summary>
+</histogram>
+
 <histogram name="GoogleUpdate.UpgradeResult" enum="GoogleUpdateUpgradeStatus"
-    expires_after="2023-08-27">
+    expires_after="never">
+<!-- expires-never: Core metric for monitoring on-demand updates. -->
+
   <owner>sorin@chromium.org</owner>
   <owner>waffles@chromium.org</owner>
-  <summary>The result of an on-demand update check.</summary>
+  <summary>
+    The result of an on-demand update check. Expired 2024-01-14, and revived
+    2024-07-16. Data is incomplete.
+  </summary>
 </histogram>
 
 </histograms>

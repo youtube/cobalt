@@ -10,10 +10,10 @@
 #include <utility>
 
 #include "base/functional/bind.h"
-#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
+#include "base/test/bind.h"
 #include "base/test/test_simple_task_runner.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_handle.h"
@@ -37,7 +37,7 @@ class CancellingNavigationSimulatorTest
     : public RenderViewHostImplTestHarness,
       public WebContentsObserver,
       public testing::WithParamInterface<
-          std::tuple<absl::optional<TestNavigationThrottle::ThrottleMethod>,
+          std::tuple<std::optional<TestNavigationThrottle::ThrottleMethod>,
                      TestNavigationThrottle::ResultSynchrony>> {
  public:
   CancellingNavigationSimulatorTest() {}
@@ -56,6 +56,7 @@ class CancellingNavigationSimulatorTest
     std::tie(cancel_time_, sync_) = GetParam();
     simulator_ = NavigationSimulator::CreateRendererInitiated(
         GURL("https://example.test"), main_rfh());
+    SetUpThrottleInserter();
   }
 
   void TearDown() override {
@@ -63,32 +64,39 @@ class CancellingNavigationSimulatorTest
     RenderViewHostImplTestHarness::TearDown();
   }
 
-  void DidStartNavigation(content::NavigationHandle* handle) override {
-    auto throttle = std::make_unique<TestNavigationThrottle>(handle);
-    throttle->SetCallback(
-        TestNavigationThrottle::WILL_FAIL_REQUEST,
-        base::BindRepeating(
-            &CancellingNavigationSimulatorTest::OnWillFailRequestCalled,
-            base::Unretained(this)));
-    if (cancel_time_.has_value()) {
-      throttle->SetResponse(cancel_time_.value(), sync_,
-                            NavigationThrottle::CANCEL);
-    }
-    handle->RegisterThrottleForTesting(
-        std::unique_ptr<TestNavigationThrottle>(std::move(throttle)));
+  void DidStartNavigation(NavigationHandle* handle) override {}
+
+  void SetUpThrottleInserter() {
+    throttle_inserter_ = std::make_unique<TestNavigationThrottleInserter>(
+        RenderViewHostTestHarness::web_contents(),
+        base::BindLambdaForTesting([&](NavigationThrottleRegistry& registry)
+                                       -> void {
+          auto throttle = std::make_unique<TestNavigationThrottle>(registry);
+          throttle->SetCallback(
+              TestNavigationThrottle::WILL_FAIL_REQUEST,
+              base::BindRepeating(
+                  &CancellingNavigationSimulatorTest::OnWillFailRequestCalled,
+                  base::Unretained(this)));
+          if (cancel_time_.has_value()) {
+            throttle->SetResponse(cancel_time_.value(), sync_,
+                                  NavigationThrottle::CANCEL);
+          }
+          registry.AddThrottle(std::move(throttle));
+        }));
   }
 
-  void DidFinishNavigation(content::NavigationHandle* handle) override {
+  void DidFinishNavigation(NavigationHandle* handle) override {
     did_finish_navigation_ = true;
   }
 
   void OnWillFailRequestCalled() { will_fail_request_called_ = true; }
 
-  absl::optional<TestNavigationThrottle::ThrottleMethod> cancel_time_;
+  std::optional<TestNavigationThrottle::ThrottleMethod> cancel_time_;
   TestNavigationThrottle::ResultSynchrony sync_;
   std::unique_ptr<NavigationSimulator> simulator_;
   bool did_finish_navigation_ = false;
   bool will_fail_request_called_ = false;
+  std::unique_ptr<TestNavigationThrottleInserter> throttle_inserter_;
   base::WeakPtrFactory<CancellingNavigationSimulatorTest> weak_ptr_factory_{
       this};
 };
@@ -111,7 +119,7 @@ class MethodCheckingNavigationSimulatorTest : public NavigationSimulatorTest,
     Observe(RenderViewHostImplTestHarness::web_contents());
   }
 
-  void DidFinishNavigation(content::NavigationHandle* handle) override {
+  void DidFinishNavigation(NavigationHandle* handle) override {
     did_finish_navigation_ = true;
     is_post_ = handle->IsPost();
   }
@@ -140,14 +148,22 @@ class ResponseHeadersCheckingNavigationSimulatorTest
     Observe(RenderViewHostImplTestHarness::web_contents());
   }
 
-  void DidFinishNavigation(content::NavigationHandle* handle) override {
-    if (handle->GetResponseHeaders()) {
-      response_headers_ = handle->GetResponseHeaders();
-    }
+  void DidFinishNavigation(NavigationHandle* handle) override {
+    EXPECT_TRUE(handle->GetResponseHeaders()->HasHeaderValue("My-Test-Header",
+                                                             "my-test-value"));
   }
 
-  raw_ptr<const net::HttpResponseHeaders> response_headers_;
+  scoped_refptr<net::HttpResponseHeaders> response_headers_;
 };
+
+// Test that NavigationSimulator accurately commits about:blank if the browser
+// requests a navigation to an empty URL.
+TEST_F(NavigationSimulatorTest, EmptyURL) {
+  std::unique_ptr<NavigationSimulator> simulator =
+      NavigationSimulator::CreateBrowserInitiated(GURL(), contents());
+  simulator->Commit();
+  EXPECT_EQ(GURL(url::kAboutBlankURL), main_rfh()->GetLastCommittedURL());
+}
 
 TEST_F(NavigationSimulatorTest, AutoAdvanceOff) {
   std::unique_ptr<NavigationSimulator> simulator =
@@ -216,14 +232,12 @@ TEST_F(ResponseHeadersCheckingNavigationSimulatorTest, CheckResponseHeaders) {
           GURL("https://example.test/"), main_rfh());
   simulator->Start();
 
-  auto response_headers =
+  response_headers_ =
       base::MakeRefCounted<net::HttpResponseHeaders>("HTTP/1.1 200 OK");
-  response_headers->SetHeader("My-Test-Header", "my-test-value");
-  simulator->SetResponseHeaders(response_headers);
+  response_headers_->SetHeader("My-Test-Header", "my-test-value");
+  simulator->SetResponseHeaders(response_headers_);
   simulator->ReadyToCommit();
   simulator->Commit();
-  EXPECT_TRUE(
-      response_headers_->HasHeaderValue("My-Test-Header", "my-test-value"));
 }
 
 // Stress test the navigation simulator by having a navigation throttle cancel
@@ -274,7 +288,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(TestNavigationThrottle::WILL_START_REQUEST,
                           TestNavigationThrottle::WILL_REDIRECT_REQUEST,
                           TestNavigationThrottle::WILL_PROCESS_RESPONSE,
-                          absl::nullopt),
+                          std::nullopt),
         ::testing::Values(TestNavigationThrottle::SYNCHRONOUS,
                           TestNavigationThrottle::ASYNCHRONOUS)));
 

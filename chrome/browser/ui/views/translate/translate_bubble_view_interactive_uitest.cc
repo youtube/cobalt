@@ -2,25 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/ui/views/translate/translate_bubble_view.h"
-
 #include <string>
 
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/i18n/base_i18n_switches.h"
-#include "base/strings/string_piece_forward.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/translate/translate_test_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/translate/translate_bubble_ui_action_logger.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/views/translate/translate_bubble_controller.h"
+#include "chrome/browser/ui/views/translate/translate_bubble_view.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -37,6 +37,7 @@
 #include "net/test/embedded_test_server/controllable_http_response.h"
 #include "ui/accessibility/ax_action_data.h"
 #include "ui/accessibility/ax_enums.mojom.h"
+#include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
 #include "ui/base/interaction/expect_call_in_scope.h"
 #include "ui/base/interaction/interaction_sequence.h"
@@ -54,6 +55,8 @@
 namespace translate {
 
 namespace {
+
+DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kTranslateSettingsElementId);
 
 static const char kTestValidScript[] =
     "var google = {};"
@@ -88,10 +91,11 @@ class TranslateBubbleViewUITest
  public:
   TranslateBubbleViewUITest() = default;
   ~TranslateBubbleViewUITest() override = default;
-  explicit TranslateBubbleViewUITest(const TranslateBubbleUiEvent&) = delete;
-  TranslateBubbleUiEvent& operator=(const TranslateBubbleUiEvent&) = delete;
 
   void SetUp() override {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitWithFeatures({language::kTranslateOpenSettings},
+                                         {});
     set_open_about_blank_on_browser_launch(true);
     TranslateManager::SetIgnoreMissingKeyForTesting(true);
     ASSERT_TRUE(embedded_test_server()->InitializeAndListen());
@@ -146,10 +150,26 @@ class TranslateBubbleViewUITest
     return steps;
   }
 
+  InteractiveTestApi::MultiStep WaitForBucket(
+      const std::string& histogram_name,
+      base::HistogramBase::Sample32 sample) {
+    return InteractiveTestApi::Steps(InteractiveTestApi::Do(
+        base::BindOnce(&TranslateBubbleViewUITest::WaitForBucketImpl,
+                       base::Unretained(this), histogram_name, sample)));
+  }
+
+  InteractiveTestApi::MultiStep WaitForLanguageSettingInNewTab(
+      ui::ElementIdentifier webcontents_id) {
+    return InteractiveTestApi::Steps(WaitForWebContentsNavigation(
+        webcontents_id,
+        GURL(chrome::GetSettingsUrl(chrome::kLanguageOptionsSubPage))));
+  }
+
   std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
       const net::test_server::HttpRequest& request) {
-    if (request.GetURL().path() != "/mock_translate_script.js")
+    if (request.GetURL().path() != "/mock_translate_script.js") {
       return nullptr;
+    }
 
     std::unique_ptr<net::test_server::BasicHttpResponse> http_response(
         new net::test_server::BasicHttpResponse);
@@ -163,7 +183,7 @@ class TranslateBubbleViewUITest
                                            const std::string& expected_lang) {
     ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
     if (GetParam() == "MultipleBubble") {
-      chrome::GenerateQRCodeFromPageAction(browser());
+      chrome::GenerateQRCode(browser());
     }
 
     while (expected_lang !=
@@ -179,10 +199,13 @@ class TranslateBubbleViewUITest
   }
 
   TranslateBubbleView* GetCurrentTranslateBubble() {
-    return TranslateBubbleController::FromWebContents(
-               browser()->tab_strip_model()->GetActiveWebContents())
+    return browser()
+        ->GetFeatures()
+        .translate_bubble_controller()
         ->GetTranslateBubble();
   }
+
+  base::HistogramTester& histograms_tester() { return histograms_tester_; }
 
  private:
   void WaitForTranslatedImpl(bool translated = true) {
@@ -197,6 +220,20 @@ class TranslateBubbleViewUITest
           ->Wait();
     }
   }
+
+  void WaitForBucketImpl(const std::string& histogram_name,
+                         base::HistogramBase::Sample32 sample) {
+    // Wait until the bucket is recorded.
+    base::RunLoop run_loop;
+    while (run_loop.running()) {
+      run_loop.RunUntilIdle();
+      if (histograms_tester().GetBucketCount(histogram_name, sample) > 0) {
+        run_loop.Quit();
+      }
+    }
+  }
+
+  base::HistogramTester histograms_tester_;
 };
 
 // Verify that source language tab is selected and highlighted by
@@ -232,7 +269,7 @@ IN_PROC_BROWSER_TEST_P(TranslateBubbleViewUITest, ClickLanguageTab) {
       WaitForTranslated(false),
       // P4.Tap on cancel button option in the Translate bubble popup box.
       PressButton(TranslateBubbleView::kCloseButton),
-      AfterHide(TranslateBubbleView::kIdentifier, base::DoNothing()));
+      WaitForHide(TranslateBubbleView::kIdentifier));
 }
 
 // Verify the "Choose another language" option from 3 dot menu.
@@ -250,7 +287,7 @@ IN_PROC_BROWSER_TEST_P(TranslateBubbleViewUITest, ChooseAnotherLanguage) {
       // V1. Verify that this dismisses the options menu and brings up a new
       // bubble with a combobox that populates a list of all available
       // languages.
-      AfterHide(TranslateBubbleView::kChangeTargetLanguage, base::DoNothing()),
+      WaitForHide(TranslateBubbleView::kChangeTargetLanguage),
       // P4. Select a language from the list and select translate.
       SelectDropdownItem(TranslateBubbleView::kTargetLanguageCombobox, 0),
       PressButton(TranslateBubbleView::kTargetLanguageDoneButton),
@@ -258,8 +295,7 @@ IN_PROC_BROWSER_TEST_P(TranslateBubbleViewUITest, ChooseAnotherLanguage) {
       // language tab shows updated target language. Source language tab is
       // no longer highlighted and the target language tab will be
       // highlighted once translation is completed.
-      AfterHide(TranslateBubbleView::kTargetLanguageCombobox,
-                base::DoNothing()),
+      WaitForHide(TranslateBubbleView::kTargetLanguageCombobox),
       WaitForTranslated(true),
       CheckViewProperty(
           TranslateBubbleView::kTargetLanguageTab,
@@ -270,6 +306,40 @@ IN_PROC_BROWSER_TEST_P(TranslateBubbleViewUITest, ChooseAnotherLanguage) {
       // V3. Verify that the page should revert to original language and source
       // language tab is selected.
       WaitForTranslated(false));
+}
+
+// Verify the "Open language settings" option from 3 dot menu.
+IN_PROC_BROWSER_TEST_P(TranslateBubbleViewUITest, ClickOpenLanguageSettings) {
+  // P1. Opened/Navigate to non english page.
+  GURL french_url = GURL(embedded_test_server()->GetURL("/french_page.html"));
+  NavigateAndWaitForLanguageDetection(french_url, "fr");
+
+  if (browser()->profile()->IsIncognitoProfile()) {
+    RunTestSequence(
+        views::InteractionSequenceViews::WithInitialView(
+            GetCurrentTranslateBubble()),
+        InstrumentNextTab(kTranslateSettingsElementId),
+        // P2. Click on Translate bubble > Click on 3 dot menu.
+        PressButton(TranslateBubbleView::kOptionsMenuButton),
+        // V1. Verify that the “Open language settings” option is not shown in
+        // incognito mode.
+        EnsureNotPresent(TranslateBubbleView::kOpenLanguageSettings));
+  } else {
+    RunTestSequence(
+        views::InteractionSequenceViews::WithInitialView(
+            GetCurrentTranslateBubble()),
+        InstrumentNextTab(kTranslateSettingsElementId),
+        // P2. Click on Translate bubble > Click on 3 dot menu.
+        PressButton(TranslateBubbleView::kOptionsMenuButton),
+        // P3. Click on the “Open language settings” option.
+        SelectMenuItem(TranslateBubbleView::kOpenLanguageSettings),
+        // V1. Verify that language settings tab is opened.
+        WaitForLanguageSettingInNewTab(kTranslateSettingsElementId),
+        // V2. Verify the histogram is recorded correctly.
+        WaitForBucket(translate::kTranslateUiInteractionEvent,
+                      static_cast<base::HistogramBase::Sample32>(
+                          translate::UIInteraction::kOpenLanguageSettings)));
+  }
 }
 
 // Verify the "Page is not in (source language)" option from 3 dot menu.
@@ -289,7 +359,7 @@ IN_PROC_BROWSER_TEST_P(TranslateBubbleViewUITest,
       // V1. Verify that this dismisses the options menu and brings up a new
       // bubble with a combobox that populates a list of all available
       // languages.
-      AfterHide(TranslateBubbleView::kChangeSourceLanguage, base::DoNothing()),
+      WaitForHide(TranslateBubbleView::kChangeSourceLanguage),
       // P4. Select a language from the list and select translate.
       // Item 0 is the detected language.
       SelectDropdownItem(TranslateBubbleView::kSourceLanguageCombobox, 1),
@@ -298,8 +368,7 @@ IN_PROC_BROWSER_TEST_P(TranslateBubbleViewUITest,
       // shows updated source language. Source language tab is no longer
       // highlighted and the target language tab will be highlighted once
       // the translation is completed.
-      AfterHide(TranslateBubbleView::kSourceLanguageCombobox,
-                base::DoNothing()),
+      WaitForHide(TranslateBubbleView::kSourceLanguageCombobox),
       WaitForTranslated(true),
       CheckViewProperty(
           TranslateBubbleView::kSourceLanguageTab,
@@ -320,8 +389,9 @@ IN_PROC_BROWSER_TEST_P(TranslateBubbleViewUITest, NetworkInterruption) {
   bool offline = false;
   content::URLLoaderInterceptor interceptor(base::BindLambdaForTesting(
       [&](content::URLLoaderInterceptor::RequestParams* params) -> bool {
-        if (!offline)
+        if (!offline) {
           return false;
+        }
         params->client->OnComplete(
             network::URLLoaderCompletionStatus(net::ERR_INTERNET_DISCONNECTED));
         return true;
@@ -366,7 +436,7 @@ IN_PROC_BROWSER_TEST_P(TranslateBubbleViewUITest, NetworkInterruption) {
                         l10n_util::GetStringUTF16(
                             IDS_TRANSLATE_BUBBLE_COULD_NOT_TRANSLATE_TITLE)),
       // V5. Wait for the bubble to be dismissed.
-      AfterHide(TranslateBubbleView::kChangeTargetLanguage, base::DoNothing()));
+      WaitForHide(TranslateBubbleView::kChangeTargetLanguage));
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

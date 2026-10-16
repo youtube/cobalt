@@ -8,9 +8,8 @@
 #include <string>
 #include <vector>
 
-#include "ash/components/arc/arc_features.h"
-#include "ash/components/arc/arc_util.h"
 #include "ash/public/cpp/app_types_util.h"
+#include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/feature_list.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -34,15 +33,15 @@
 #include "chrome/browser/ash/file_manager/fileapi_util.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/fileapi/external_file_url_util.h"
-#include "chrome/browser/ash/fusebox/fusebox_server.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sharesheet/sharesheet_service.h"
 #include "chrome/browser/sharesheet/sharesheet_service_factory.h"
 #include "chrome/browser/sharesheet/sharesheet_types.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
-#include "chrome/browser/ui/webui/settings/chromeos/constants/routes.mojom.h"
 #include "chrome/browser/webshare/prepare_directory_task.h"
 #include "chrome/common/chrome_paths_internal.h"
+#include "chromeos/ash/experiences/arc/arc_features.h"
+#include "chromeos/ash/experiences/arc/arc_util.h"
 #include "components/services/app_service/public/cpp/intent.h"
 #include "components/services/app_service/public/cpp/intent_util.h"
 #include "content/public/browser/browser_thread.h"
@@ -114,61 +113,10 @@ base::FilePath GetUserCacheFilePath(Profile* const profile) {
   return file_path.Append(kArcNearbyShareDirname);
 }
 
-void DestroySharedMonikers(const std::vector<fusebox::Moniker>& monikers) {
+void DeleteSharedFiles(const base::FilePath& file_path) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  if (monikers.empty()) {
-    return;
-  }
-
-  fusebox::Server* fusebox_server = fusebox::Server::GetInstance();
-  if (!fusebox_server) {
-    LOG(ERROR)
-        << "FuseBox server was unavailable when cleaning up shared files.";
-    return;
-  }
-
-  for (const fusebox::Moniker& moniker : monikers) {
-    fusebox_server->DestroyMoniker(moniker);
-  }
-}
-
-void DeleteFilesAndMonikers(const base::FilePath& file_path,
-                            const std::vector<fusebox::Moniker>& monikers) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  DestroySharedMonikers(monikers);
   base::ThreadPool::PostTask(FROM_HERE, {base::MayBlock()},
                              base::BindOnce(&DeletePathAndFiles, file_path));
-}
-
-absl::optional<fusebox::Moniker> ConvertToMoniker(Profile* profile,
-                                                  const GURL& content_url) {
-  GURL external_file_url = arc::ArcUrlToExternalFileUrl(content_url);
-
-  const base::FilePath virtual_path =
-      ash::ExternalFileURLToVirtualPath(external_file_url);
-
-  const storage::FileSystemURL fs_url =
-      file_manager::util::GetFileManagerFileSystemContext(profile)
-          ->CreateCrackedFileSystemURL(
-              blink::StorageKey::CreateFirstParty(
-                  file_manager::util::GetFilesAppOrigin()),
-              storage::kFileSystemTypeExternal, virtual_path);
-  if (!fs_url.is_valid()) {
-    LOG(ERROR) << "Failed to create moniker for invalid FileSystemURL.";
-    return absl::nullopt;
-  }
-
-  fusebox::Server* fusebox_server = fusebox::Server::GetInstance();
-  if (!fusebox_server) {
-    LOG(ERROR) << "FuseBox server was unavailable when creating moniker.";
-    return absl::nullopt;
-  }
-
-  return fusebox_server->CreateMoniker(fs_url, /*read_only=*/true);
-}
-
-bool FileSharingThroughFuseBoxEnabled() {
-  return base::FeatureList::IsEnabled(arc::kEnableArcNearbyShareFuseBox);
 }
 
 bool IsValidArcWindow(aura::Window* const window, uint32_t task_id) {
@@ -176,7 +124,7 @@ bool IsValidArcWindow(aura::Window* const window, uint32_t task_id) {
     return false;
   }
 
-  absl::optional<int> maybe_task_id = arc::GetWindowTaskId(window);
+  std::optional<int> maybe_task_id = arc::GetWindowTaskId(window);
   if (!maybe_task_id.has_value() || maybe_task_id.value() < 0 ||
       static_cast<uint32_t>(maybe_task_id.value()) != task_id) {
     return false;
@@ -293,8 +241,9 @@ void NearbyShareSessionImpl::OnArcWindowFound(aura::Window* const arc_window) {
 
   DVLOG(1) << __func__;
   arc_window_ = arc_window;
-  if (FileSharingThroughFuseBoxEnabled() || !share_info_->files.has_value()) {
-    // Either sharing text or sharing anything through FuseBox experiment.
+  if (!share_info_->files.has_value()) {
+    // When only sharing text, we don't need to prepare files, and can show the
+    // bubble immediately.
     ShowNearbyShareBubbleInArcWindow();
     return;
   }
@@ -320,10 +269,6 @@ apps::IntentPtr NearbyShareSessionImpl::ConvertShareIntentInfoToIntent() {
   DVLOG(1) << __func__;
   // Sharing files
   if (share_info_->files.has_value()) {
-    if (FileSharingThroughFuseBoxEnabled()) {
-      VLOG(1) << "Sharing files through FuseBox experiment.";
-      return ConvertShareIntentInfoToMonikerFileIntent();
-    }
     const auto share_file_paths = file_handler_->GetFilePaths();
     DCHECK_GT(share_file_paths.size(), 0u);
     const auto share_file_mime_types = file_handler_->GetMimeTypes();
@@ -352,36 +297,6 @@ apps::IntentPtr NearbyShareSessionImpl::ConvertShareIntentInfoToIntent() {
   return nullptr;
 }
 
-apps::IntentPtr
-NearbyShareSessionImpl::ConvertShareIntentInfoToMonikerFileIntent() {
-  std::vector<std::string> mime_types;
-  std::vector<GURL> file_paths;
-
-  std::vector<apps::IntentFilePtr> files;
-  for (const auto& file_info : *share_info_->files) {
-    absl::optional<fusebox::Moniker> moniker =
-        ConvertToMoniker(profile_, file_info->content_uri);
-    if (!moniker.has_value()) {
-      return nullptr;
-    }
-    GURL moniker_url = net::FilePathToFileURL(
-        base::FilePath(fusebox::MonikerMap::GetFilename(moniker.value())));
-    apps::IntentFilePtr file = std::make_unique<apps::IntentFile>(moniker_url);
-    file->mime_type = file_info->mime_type;
-    file->file_name = base::SafeBaseName::Create(file_info->name);
-    files.push_back(std::move(file));
-    shared_monikers_.push_back(moniker.value());
-  }
-
-  apps::IntentPtr intent = std::make_unique<apps::Intent>(
-      files.size() == 1 ? apps_util::kIntentActionSend
-                        : apps_util::kIntentActionSendMultiple);
-  intent->files = std::move(files);
-  intent->share_title = share_info_->title;
-
-  return intent;
-}
-
 void NearbyShareSessionImpl::OnPreparedDirectory(base::File::Error result) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   DCHECK(arc_window_);
@@ -401,8 +316,8 @@ void NearbyShareSessionImpl::OnPreparedDirectory(base::File::Error result) {
     return;
   }
 
-  // TODO(b/191232168): Figure out why PrepareDirectoryTask is flaky. Ignoring
-  // the error seem to always work otherwise will sometimes return error.
+  // PrepareDirectoryTask can sometimes be flaky but the error does not affect
+  // functionality. Log a warning when this happens and continue.
   PLOG_IF(WARNING, result != base::File::FILE_OK)
       << "Prepare Directory was not successful";
 
@@ -466,7 +381,7 @@ void NearbyShareSessionImpl::OnFileStreamingStarted() {
 }
 
 void NearbyShareSessionImpl::ShowNearbyShareBubbleInArcWindow(
-    absl::optional<base::File::Error> result) {
+    std::optional<base::File::Error> result) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   DCHECK(arc_window_);
 
@@ -518,8 +433,8 @@ void NearbyShareSessionImpl::ShowNearbyShareBubbleInArcWindow(
   sharesheet::CloseCallback close_callback =
       base::BindOnce(&NearbyShareSessionImpl::OnNearbyShareClosed,
                      weak_ptr_factory_.GetWeakPtr());
-  sharesheet::ActionCleanupCallback cleanup_callback = base::BindOnce(
-      &DeleteFilesAndMonikers, share_path, std::move(shared_monikers_));
+  sharesheet::ActionCleanupCallback cleanup_callback =
+      base::BindOnce(&DeleteSharedFiles, share_path);
 
   if (test_sharesheet_callback_) {
     test_sharesheet_callback_.Run(arc_window_.get(), std::move(intent),
@@ -571,9 +486,6 @@ void NearbyShareSessionImpl::CleanupSession(bool should_cleanup_files) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   DVLOG(1) << __func__;
-  if (should_cleanup_files) {
-    DestroySharedMonikers(shared_monikers_);
-  }
 
   // PrepareDirectoryTask must first relinquish ownership of |share_path|.
   prepare_directory_task_.reset();

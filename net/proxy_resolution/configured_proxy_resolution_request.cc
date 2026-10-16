@@ -91,8 +91,9 @@ int ConfiguredProxyResolutionRequest::QueryDidComplete(int result_code) {
   resolve_job_.reset();
 
   // Note that DidFinishResolvingProxy might modify |results_|.
-  int rv = service_->DidFinishResolvingProxy(url_, method_, results_,
-                                             result_code, net_log_);
+  int rv = service_->DidFinishResolvingProxy(url_, network_anonymization_key_,
+                                             method_, results_, result_code,
+                                             net_log_);
 
   // Make a note in the results which configuration was in use at the
   // time of the resolve.

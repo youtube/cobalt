@@ -6,13 +6,12 @@
 
 #include <fuzzer/FuzzedDataProvider.h>
 
+#include <algorithm>
 #include <string>
 
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
 #include "base/task/single_thread_task_runner.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_address.h"
@@ -150,7 +149,7 @@ int FuzzedDatagramClientSocket::Read(IOBuffer* buf,
   if (!data.empty()) {
     // If the response is not empty, consider it a successful read.
     result = data.size();
-    base::ranges::copy(data, buf->data());
+    std::ranges::copy(data, buf->data());
   } else {
     // If the response is empty, pick a random read error.
     result = data_provider_->PickValueInArray(kReadErrors);
@@ -214,6 +213,15 @@ int FuzzedDatagramClientSocket::SetDoNotFragment() {
   return OK;
 }
 
+int FuzzedDatagramClientSocket::SetRecvTos() {
+  return OK;
+}
+
+int FuzzedDatagramClientSocket::SetTos(DiffServCodePoint dscp,
+                                       EcnCodePoint ecn) {
+  return OK;
+}
+
 void FuzzedDatagramClientSocket::OnReadComplete(
     net::CompletionOnceCallback callback,
     int result) {
@@ -232,6 +240,12 @@ void FuzzedDatagramClientSocket::OnWriteComplete(
 
   write_pending_ = false;
   std::move(callback).Run(result);
+}
+
+DscpAndEcn FuzzedDatagramClientSocket::GetLastTos() const {
+  uint8_t tos;
+  data_provider_->ConsumeData(&tos, 1);
+  return TosToDscpAndEcn(tos);
 }
 
 }  // namespace net

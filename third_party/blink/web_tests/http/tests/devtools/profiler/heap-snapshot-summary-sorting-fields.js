@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {HeapProfilerTestRunner} from 'heap_profiler_test_runner';
+
 (async function() {
   TestRunner.addResult(`Tests sorting in Summary view of detailed heap snapshots.\n`);
-  await TestRunner.loadTestModule('heap_profiler_test_runner');
-  await TestRunner.showPanel('heap_profiler');
+  await TestRunner.showPanel('heap-profiler');
 
   var instanceCount = 10;
   function createHeapSnapshot() {

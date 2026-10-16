@@ -19,6 +19,7 @@
 #include "base/test/test_simple_task_runner.h"
 #include "chrome/browser/apps/app_shim/app_shim_host_bootstrap_mac.h"
 #include "chrome/common/mac/app_shim.mojom.h"
+#include "content/public/test/browser_task_environment.h"
 #include "ipc/ipc_message.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -49,6 +50,7 @@ class TestingAppShim : public chrome::mojom::AppShim {
  private:
   void OnShimConnectedDone(
       chrome::mojom::AppShimLaunchResult result,
+      variations::VariationsCommandLine feature_state,
       mojo::PendingReceiver<chrome::mojom::AppShim> app_shim_receiver) {
     received_launch_done_result_ = true;
     launch_done_result_ = result;
@@ -67,6 +69,14 @@ class TestingAppShim : public chrome::mojom::AppShim {
   void UpdateApplicationDockMenu(
       std::vector<chrome::mojom::ApplicationDockMenuItemPtr> dock_menu_items)
       override {}
+  void BindNotificationProvider(
+      mojo::PendingReceiver<mac_notifications::mojom::MacNotificationProvider>
+          provider) override {}
+  void RequestNotificationPermission(
+      RequestNotificationPermissionCallback callback) override {}
+  void BindChildHistogramFetcherFactory(
+      mojo::PendingReceiver<metrics::mojom::ChildHistogramFetcherFactory>
+          receiver) override {}
 
   bool received_launch_done_result_ = false;
   chrome::mojom::AppShimLaunchResult launch_done_result_ =
@@ -93,7 +103,8 @@ class TestingAppShimHostBootstrap : public AppShimHostBootstrap {
  public:
   explicit TestingAppShimHostBootstrap(
       mojo::PendingReceiver<chrome::mojom::AppShimHostBootstrap> host_receiver)
-      : AppShimHostBootstrap(getpid()), test_weak_factory_(this) {
+      : AppShimHostBootstrap(AuditTokenForCurrentProcess()),
+        test_weak_factory_(this) {
     // AppShimHost will bind to the receiver from ServeChannel. For testing
     // purposes, have this receiver passed in at creation.
     host_bootstrap_receiver_.Bind(std::move(host_receiver));
@@ -110,6 +121,15 @@ class TestingAppShimHostBootstrap : public AppShimHostBootstrap {
 
  private:
   base::WeakPtrFactory<TestingAppShimHostBootstrap> test_weak_factory_;
+
+  static audit_token_t AuditTokenForCurrentProcess() {
+    audit_token_t token;
+    mach_msg_type_number_t size = TASK_AUDIT_TOKEN_COUNT;
+    int kr = task_info(mach_task_self(), TASK_AUDIT_TOKEN, (task_info_t)&token,
+                       &size);
+    CHECK(kr == KERN_SUCCESS) << " Error getting audit token.";
+    return token;
+  }
 };
 
 const char kTestAppId[] = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -123,7 +143,7 @@ class AppShimHostTest : public testing::Test,
   }
   AppShimHostTest(const AppShimHostTest&) = delete;
   AppShimHostTest& operator=(const AppShimHostTest&) = delete;
-  ~AppShimHostTest() override {}
+  ~AppShimHostTest() override = default;
 
   void RunUntilIdle() { task_environment_.RunUntilIdle(); }
   scoped_refptr<base::SingleThreadTaskRunner> task_runner() {
@@ -170,7 +190,8 @@ class AppShimHostTest : public testing::Test,
   // AppShimHost::Client:
   void OnShimLaunchRequested(
       AppShimHost* host,
-      bool recreate_shims,
+      web_app::LaunchShimUpdateBehavior update_behavior,
+      web_app::ShimLaunchMode launch_mode,
       apps::ShimLaunchedCallback launched_callback,
       apps::ShimTerminatedCallback terminated_callback) override {}
   void OnShimProcessDisconnected(AppShimHost* host) override {
@@ -184,11 +205,15 @@ class AppShimHostTest : public testing::Test,
                          const std::vector<base::FilePath>& files) override {}
   void OnShimSelectedProfile(AppShimHost* host,
                              const base::FilePath& profile_path) override {}
+  void OnShimOpenedAppSettings(AppShimHost* host) override {}
   void OnShimOpenedUrls(AppShimHost* host,
                         const std::vector<GURL>& urls) override {}
   void OnShimOpenAppWithOverrideUrl(AppShimHost* host,
                                     const GURL& override_url) override {}
   void OnShimWillTerminate(AppShimHost* host) override {}
+  void OnNotificationPermissionStatusChanged(
+      AppShimHost* host,
+      mac_notifications::mojom::PermissionStatus status) override {}
 
   chrome::mojom::AppShimLaunchResult launch_result_ =
       chrome::mojom::AppShimLaunchResult::kSuccess;
@@ -204,7 +229,7 @@ class AppShimHostTest : public testing::Test,
   }
 
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
-  base::test::TaskEnvironment task_environment_;
+  content::BrowserTaskEnvironment task_environment_;
 
   std::unique_ptr<TestingAppShim> shim_;
 

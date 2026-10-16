@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_METRICS_SERVICES_MANAGER_CLIENT_H_
-#define COBALT_METRICS_SERVICES_MANAGER_CLIENT_H_
+#ifndef COBALT_BROWSER_METRICS_COBALT_METRICS_SERVICES_MANAGER_CLIENT_H_
+#define COBALT_BROWSER_METRICS_COBALT_METRICS_SERVICES_MANAGER_CLIENT_H_
 
 #include <memory>
 
@@ -40,17 +40,11 @@ class CobaltMetricsServicesManagerClient
 
   ~CobaltMetricsServicesManagerClient() override {}
 
-  std::unique_ptr<::metrics::MetricsServiceClient> CreateMetricsServiceClient()
-      override;
+  std::unique_ptr<::metrics::MetricsServiceClient> CreateMetricsServiceClient(
+      variations::SyntheticTrialRegistry* synthetic_trial_registry) override;
 
-  std::unique_ptr<variations::VariationsService> CreateVariationsService()
-      override;
-
-  // Returns whether metrics reporting is enabled.
-  bool IsMetricsReportingEnabled() override;
-
-  // Returns whether metrics consent is given.
-  bool IsMetricsConsentGiven() override;
+  std::unique_ptr<variations::VariationsService> CreateVariationsService(
+      variations::SyntheticTrialRegistry* synthetic_trial_registry) override;
 
   // Returns whether there are any Incognito browsers/tabs open. Cobalt has no
   // icognito mode.
@@ -65,8 +59,8 @@ class CobaltMetricsServicesManagerClient
     return nullptr;
   }
 
-  CobaltEnabledStateProvider* GetEnabledStateProvider() {
-    return enabled_state_provider_.get();
+  CobaltEnabledStateProvider& GetEnabledStateProvider() override {
+    return *enabled_state_provider_;
   }
 
   CobaltMetricsServiceClient* metrics_service_client() {
@@ -75,15 +69,19 @@ class CobaltMetricsServicesManagerClient
 
   ::metrics::MetricsStateManager* GetMetricsStateManager() override;
 
+  void ClearMetricsServiceClientRawPtrForTest() {
+    metrics_service_client_ = nullptr;
+  }
+
  private:
+  // EnabledStateProvider to communicate if the client has consented to metrics
+  // reporting, and if it's enabled.
+  std::unique_ptr<CobaltEnabledStateProvider> enabled_state_provider_;
+
   // MetricsStateManager which is passed as a parameter to service constructors.
   std::unique_ptr<::metrics::MetricsStateManager> metrics_state_manager_;
 
   base::raw_ptr<CobaltMetricsServiceClient> metrics_service_client_;
-
-  // EnabledStateProvider to communicate if the client has consented to metrics
-  // reporting, and if it's enabled.
-  std::unique_ptr<CobaltEnabledStateProvider> enabled_state_provider_;
 
   // Any prefs/state specific to Cobalt Metrics.
   const raw_ptr<PrefService> local_state_;
@@ -91,4 +89,4 @@ class CobaltMetricsServicesManagerClient
 
 }  // namespace cobalt
 
-#endif  // COBALT_METRICS_SERVICES_MANAGER_CLIENT_H_
+#endif  // COBALT_BROWSER_METRICS_COBALT_METRICS_SERVICES_MANAGER_CLIENT_H_

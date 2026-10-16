@@ -168,7 +168,16 @@
         "ASTC_12x12_UNORM_BLOCK": "VK_FORMAT_ASTC_12x12_UNORM_BLOCK",
         "ASTC_12x12_SRGB_BLOCK": "VK_FORMAT_ASTC_12x12_SRGB_BLOCK",
         "G8_B8_R8_3PLANE_420_UNORM": "VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM",
-        "G8_B8R8_2PLANE_420_UNORM": "VK_FORMAT_G8_B8R8_2PLANE_420_UNORM"
+        "G8_B8R8_2PLANE_420_UNORM": "VK_FORMAT_G8_B8R8_2PLANE_420_UNORM",
+        "R10X6G10X6B10X6A10X6_UNORM": "VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16",
+        "EXTERNAL0": "VK_FORMAT_UNDEFINED",
+        "EXTERNAL1": "VK_FORMAT_UNDEFINED",
+        "EXTERNAL2": "VK_FORMAT_UNDEFINED",
+        "EXTERNAL3": "VK_FORMAT_UNDEFINED",
+        "EXTERNAL4": "VK_FORMAT_UNDEFINED",
+        "EXTERNAL5": "VK_FORMAT_UNDEFINED",
+        "EXTERNAL6": "VK_FORMAT_UNDEFINED",
+        "EXTERNAL7": "VK_FORMAT_UNDEFINED"
     },
     "fallbacks": {
         "A16_FLOAT": {
@@ -198,6 +207,9 @@
         "L8A8_UNORM": {
             "image": "R8G8_UNORM"
         },
+        "L4A4_UNORM": {
+            "image": "R8G8_UNORM"
+        },
         "R4G4B4A4_UNORM": {
             "image": "R8G8B8A8_UNORM"
         },
@@ -211,9 +223,17 @@
             "buffer": "NONE",
             "image": "B8G8R8A8_UNORM"
         },
+        "B8G8R8X8_UNORM_SRGB": {
+            "buffer": "NONE",
+            "image": "B8G8R8A8_UNORM_SRGB"
+        },
         "R8G8B8X8_UNORM": {
             "buffer": "NONE",
             "image": "R8G8B8A8_UNORM"
+        },
+        "R8G8B8X8_UNORM_SRGB": {
+            "buffer": "NONE",
+            "image": "R8G8B8A8_UNORM_SRGB"
         },
         "D24_UNORM_X8_UINT": {
             "image": ["D24_UNORM_S8_UINT", "D32_FLOAT_S8X24_UINT"]
@@ -348,13 +368,13 @@
             "buffer": "R16G16B16A16_FLOAT"
         },
         "D32_FLOAT_S8X24_UINT": {
-            "image": ["D24_UNORM_S8_UINT", "D32_FLOAT_S8X24_UINT"]
+            "image": ["D24_UNORM_S8_UINT"]
         },
         "D24_UNORM_S8_UINT": {
-            "image": ["D32_FLOAT_S8X24_UINT", "D24_UNORM_S8_UINT"]
+            "image": ["D32_FLOAT_S8X24_UINT"]
         },
         "S8_UINT": {
-            "image": ["D24_UNORM_S8_UINT", "D32_FLOAT_S8X24_UINT", "S8_UINT"]
+            "image": ["D24_UNORM_S8_UINT", "D32_FLOAT_S8X24_UINT"]
         },
 
         "R8_USCALED": {

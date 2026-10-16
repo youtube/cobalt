@@ -9,8 +9,8 @@
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/extensions/api/settings_private/generated_pref.h"
 #include "chrome/browser/extensions/api/settings_private/generated_time_zone_pref_base.h"
+#include "chrome/browser/extensions/profile_util.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/common/extensions/api/settings_private.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -53,10 +53,11 @@ GeneratedResolveTimezoneByGeolocationOnOff::GetPrefObject() const {
   settings_api::PrefObject pref_object;
 
   pref_object.key = pref_name_;
-  pref_object.type = settings_api::PREF_TYPE_BOOLEAN;
-  pref_object.value = base::Value(g_browser_process->platform_part()
-                                      ->GetTimezoneResolverManager()
-                                      ->TimeZoneResolverShouldBeRunning());
+  pref_object.type = settings_api::PrefType::kBoolean;
+  pref_object.value =
+      base::Value(g_browser_process->platform_part()
+                      ->GetTimezoneResolverManager()
+                      ->TimeZoneResolverAllowedByTimeZoneConfigData());
 
   UpdateTimeZonePrefControlledBy(&pref_object);
 
@@ -72,14 +73,15 @@ SetPrefResult GeneratedResolveTimezoneByGeolocationOnOff::SetPref(
   // cannot deactivate automatic timezone.
   if (ash::system::TimeZoneResolverManager::
           IsTimeZoneResolutionPolicyControlled() ||
-      !profile_->IsSameOrParent(ProfileManager::GetPrimaryUserProfile())) {
+      !profile_->IsSameOrParent(profile_util::GetPrimaryUserProfile())) {
     return SetPrefResult::PREF_NOT_MODIFIABLE;
   }
 
   const bool new_value = value->GetBool();
-  const bool current_value = g_browser_process->platform_part()
-                                 ->GetTimezoneResolverManager()
-                                 ->TimeZoneResolverShouldBeRunning();
+  const bool current_value =
+      g_browser_process->platform_part()
+          ->GetTimezoneResolverManager()
+          ->TimeZoneResolverAllowedByTimeZoneConfigData();
   if (new_value == current_value)
     return SetPrefResult::SUCCESS;
 

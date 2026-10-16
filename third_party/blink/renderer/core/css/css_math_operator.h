@@ -5,7 +5,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSS_MATH_OPERATOR_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSS_MATH_OPERATOR_H_
 
-#include "third_party/blink/renderer/platform/wtf/forward.h"
+namespace WTF {
+class StringView;
+}  // namespace WTF
 
 namespace blink {
 
@@ -26,11 +28,30 @@ enum class CSSMathOperator {
   kMod,
   kRem,
   kHypot,
+  kAbs,
+  kSign,
+  kLog,
+  kExp,
+  kSqrt,
+  kProgress,
+  kCalcSize,
+  kMediaProgress,
+  kContainerProgress,
+  kPow,
+  kSin,
+  kCos,
+  kTan,
+  kAsin,
+  kAcos,
+  kAtan,
+  kAtan2,
+  kInvert,
   kInvalid
 };
 
 CSSMathOperator ParseCSSArithmeticOperator(const CSSParserToken& token);
-String ToString(CSSMathOperator);
+WTF::StringView ToString(CSSMathOperator);
+WTF::StringView ToRoundingStrategyString(CSSMathOperator);
 
 bool IsComparison(CSSMathOperator);
 

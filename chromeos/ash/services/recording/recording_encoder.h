@@ -11,6 +11,7 @@
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
 #include "chromeos/ash/services/recording/recording_file_io_helper.h"
+#include "chromeos/ash/services/recording/rgb_video_frame.h"
 #include "media/base/encoder_status.h"
 #include "media/base/video_encoder.h"
 #include "media/base/video_types.h"
@@ -30,6 +31,13 @@ enum class RecordingStatus;
 // while encoding audio or video frames.
 using OnFailureCallback =
     base::OnceCallback<void(mojom::RecordingStatus status)>;
+
+// Defines a callback that can be retrieved from the encoder in order to be
+// called repeatedly by the client to provide the audio buses along with their
+// timestamps so that they can get encoded and muxed with the video frames.
+using EncodeAudioCallback =
+    base::RepeatingCallback<void(std::unique_ptr<media::AudioBus> audio_bus,
+                                 base::TimeTicks audio_capture_time)>;
 
 // Defines a common interface for encoding audio and video frames. The concrete
 // implementation classes decides how encoding is done, and the type of the
@@ -55,6 +63,12 @@ class RecordingEncoder : public RecordingFileIoHelper::Delegate {
     // Size changes during recording require a reconfiguration of the video
     // encoder.
     virtual bool SupportsVideoFrameSizeChanges() const = 0;
+
+    // Returns whether the encoder supports the extracted `RgbVideoFrame` from
+    // the `media::VideoFrame` directly. This allows us to discard the
+    // `media::VideoFrame` very early upon reception so that it can be returned
+    // immediately to viz capturer buffer pool (see b/316588576).
+    virtual bool SupportsRgbVideoFrame() const = 0;
   };
 
   explicit RecordingEncoder(OnFailureCallback on_failure_callback);
@@ -75,14 +89,18 @@ class RecordingEncoder : public RecordingFileIoHelper::Delegate {
   virtual void InitializeVideoEncoder(
       const media::VideoEncoder::Options& video_encoder_options) = 0;
 
-  // Encodes and muxes the given video `frame`.
+  // Encodes and muxes the given video `frame`. Clients must check first
+  // `Capabilities::SupportsRgbVideoFrame()` to determine which frame type to
+  // provide (i.e. `media::VideoFrame` or `RgbVideoFrame`.
   virtual void EncodeVideo(scoped_refptr<media::VideoFrame> frame) = 0;
+  virtual void EncodeRgbVideo(RgbVideoFrame rgb_video_frame) = 0;
 
-  // Encodes and muxes the given audio frame in `audio_bus` captured at
-  // `capture_time`. Note that the underlying encoder type may not support
-  // encoding audio (e.g. the GIF encoder).
-  virtual void EncodeAudio(std::unique_ptr<media::AudioBus> audio_bus,
-                           base::TimeTicks capture_time) = 0;
+  // Returns a callback bound to this object that can be called repeatedly by
+  // the client to provide the audio buses along with their timestamps so that
+  // they can get encoded and muxed by the encoder.
+  // Note that the underlying encoder type may not support encoding audio (e.g.
+  // the GIF encoder).
+  virtual EncodeAudioCallback GetEncodeAudioCallback() = 0;
 
   // Audio and video encoders as well as the WebmMuxer may buffer several frames
   // before they're processed. It is important to flush all those buffers before

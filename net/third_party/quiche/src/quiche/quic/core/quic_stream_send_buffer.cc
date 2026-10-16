@@ -5,15 +5,21 @@
 #include "quiche/quic/core/quic_stream_send_buffer.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <utility>
 
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_interval.h"
-#include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/quic_interval_set.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_buffer_allocator.h"
+#include "quiche/common/quiche_mem_slice.h"
 
 namespace quic {
 
@@ -49,16 +55,13 @@ bool StreamPendingRetransmission::operator==(
 
 QuicStreamSendBuffer::QuicStreamSendBuffer(
     quiche::QuicheBufferAllocator* allocator)
-    : current_end_offset_(0),
-      stream_offset_(0),
-      allocator_(allocator),
-      stream_bytes_written_(0),
-      stream_bytes_outstanding_(0),
-      write_index_(-1) {}
+    : allocator_(allocator) {}
 
 QuicStreamSendBuffer::~QuicStreamSendBuffer() {}
 
 void QuicStreamSendBuffer::SaveStreamData(absl::string_view data) {
+  QUIC_DVLOG(2) << "Save stream data offset " << stream_offset_ << " length "
+                << data.length();
   QUICHE_DCHECK(!data.empty());
 
   // Latch the maximum data slice size.
@@ -83,11 +86,6 @@ void QuicStreamSendBuffer::SaveMemSlice(quiche::QuicheMemSlice slice) {
     return;
   }
   size_t length = slice.length();
-  // Need to start the offsets at the right interval.
-  if (interval_deque_.Empty()) {
-    const QuicStreamOffset end = stream_offset_ + length;
-    current_end_offset_ = std::max(current_end_offset_, end);
-  }
   BufferedSlice bs = BufferedSlice(std::move(slice), stream_offset_);
   interval_deque_.PushBack(std::move(bs));
   stream_offset_ += length;
@@ -97,7 +95,7 @@ QuicByteCount QuicStreamSendBuffer::SaveMemSliceSpan(
     absl::Span<quiche::QuicheMemSlice> span) {
   QuicByteCount total = 0;
   for (quiche::QuicheMemSlice& slice : span) {
-    if (slice.length() == 0) {
+    if (slice.empty()) {
       // Skip empty slices.
       continue;
     }
@@ -115,9 +113,6 @@ void QuicStreamSendBuffer::OnStreamDataConsumed(size_t bytes_consumed) {
 bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
                                            QuicByteCount data_length,
                                            QuicDataWriter* writer) {
-  QUIC_BUG_IF(quic_bug_12823_1, current_end_offset_ < offset)
-      << "Tried to write data out of sequence. last_offset_end:"
-      << current_end_offset_ << ", offset:" << offset;
   // The iterator returned from |interval_deque_| will automatically advance
   // the internal write index for the QuicIntervalDeque. The incrementing is
   // done in operator++.
@@ -138,9 +133,6 @@ bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
     }
     offset += copy_length;
     data_length -= copy_length;
-    const QuicStreamOffset new_end =
-        slice_it->offset + slice_it->slice.length();
-    current_end_offset_ = std::max(current_end_offset_, new_end);
   }
   return data_length == 0;
 }
@@ -148,6 +140,8 @@ bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
 bool QuicStreamSendBuffer::OnStreamDataAcked(
     QuicStreamOffset offset, QuicByteCount data_length,
     QuicByteCount* newly_acked_length) {
+  QUIC_DVLOG(2) << "Marking data acked at offset " << offset << " length "
+                << data_length;
   *newly_acked_length = 0;
   if (data_length == 0) {
     return true;
@@ -272,12 +266,6 @@ bool QuicStreamSendBuffer::FreeMemSlices(QuicStreamOffset start,
 void QuicStreamSendBuffer::CleanUpBufferedSlices() {
   while (!interval_deque_.Empty() &&
          interval_deque_.DataBegin()->slice.empty()) {
-    QUIC_BUG_IF(quic_bug_12823_2,
-                interval_deque_.DataBegin()->offset > current_end_offset_)
-        << "Fail to pop front from interval_deque_. Front element contained "
-           "a slice whose data has not all be written. Front offset "
-        << interval_deque_.DataBegin()->offset << " length "
-        << interval_deque_.DataBegin()->slice.length();
     interval_deque_.PopFront();
   }
 }

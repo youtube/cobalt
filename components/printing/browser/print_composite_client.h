@@ -21,10 +21,8 @@
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "printing/buildflags/buildflags.h"
-
-#if BUILDFLAG(ENABLE_TAGGED_PDF)
+#include "printing/mojom/print.mojom.h"
 #include "ui/accessibility/ax_tree_update_forward.h"
-#endif
 
 namespace printing {
 
@@ -44,10 +42,8 @@ class PrintCompositeClient
   // content::WebContentsObserver
   void RenderFrameDeleted(content::RenderFrameHost* render_frame_host) override;
 
-#if BUILDFLAG(ENABLE_TAGGED_PDF)
   void SetAccessibilityTree(int document_cookie,
                             const ui::AXTreeUpdate& accessibility_tree);
-#endif
 
   // Instructs the specified subframe to print.
   void PrintCrossProcessSubframe(const gfx::Rect& rect,
@@ -59,34 +55,40 @@ class PrintCompositeClient
   // document. The document can be collected from the individual pages,
   // avoiding the need to also send the entire document again as a large blob.
   // This is for compositing such a single preview page.
-  void DoCompositePageToPdf(
-      int cookie,
-      content::RenderFrameHost* render_frame_host,
-      const mojom::DidPrintContentParams& content,
-      mojom::PrintCompositor::CompositePageToPdfCallback callback);
+  void CompositePage(int cookie,
+                     content::RenderFrameHost* render_frame_host,
+                     const mojom::DidPrintContentParams& content,
+                     mojom::PrintCompositor::CompositePageCallback callback);
 
   // Notifies compositor to collect individual pages into a document
-  // when processing the individual pages for preview.
-  void DoPrepareForDocumentToPdf(
+  // when processing the individual pages for preview.  The `document_type`
+  // specified determines the format of the document passed back in the
+  // `callback` from `FinishDocumentComposition()`.
+  void PrepareToCompositeDocument(
       int document_cookie,
       content::RenderFrameHost* render_frame_host,
-      mojom::PrintCompositor::PrepareForDocumentToPdfCallback callback);
+      mojom::PrintCompositor::DocumentType document_type,
+      mojom::PrintCompositor::PrepareToCompositeDocumentCallback callback);
 
   // Notifies compositor of the total number of pages being concurrently
   // collected into the document, allowing for completion of the composition
-  // when all pages have been received.
-  void DoCompleteDocumentToPdf(
+  // when all pages have been received.  The format of the provided document
+  // is of the `document_type` specified in `PrepareToCompositeDocument()`.
+  void FinishDocumentComposition(
       int document_cookie,
       uint32_t pages_count,
-      mojom::PrintCompositor::CompleteDocumentToPdfCallback callback);
+      mojom::PrintCompositor::FinishDocumentCompositionCallback callback);
 
   // Used for compositing the entire document for print preview or actual
   // printing.
-  void DoCompositeDocumentToPdf(
+  void CompositeDocument(
       int cookie,
       content::RenderFrameHost* render_frame_host,
       const mojom::DidPrintContentParams& content,
-      mojom::PrintCompositor::CompositeDocumentToPdfCallback callback);
+      const ui::AXTreeUpdate& accessibility_tree,
+      mojom::GenerateDocumentOutline generate_document_outline,
+      mojom::PrintCompositor::DocumentType document_type,
+      mojom::PrintCompositor::CompositeDocumentCallback callback);
 
   // Get the concurrent composition status for a document.  Identifies if the
   // full document will be compiled from the individual pages; if not then a
@@ -101,24 +103,24 @@ class PrintCompositeClient
                            PrintSubframeContentBeforeCompositeClientCreation);
 
   // Callback functions for getting the replies.
-  static void OnDidCompositePageToPdf(
-      mojom::PrintCompositor::CompositePageToPdfCallback callback,
+  static void OnDidCompositePage(
+      mojom::PrintCompositor::CompositePageCallback callback,
       mojom::PrintCompositor::Status status,
       base::ReadOnlySharedMemoryRegion region);
 
-  void OnDidCompositeDocumentToPdf(
+  void OnDidCompositeDocument(
       int document_cookie,
-      mojom::PrintCompositor::CompositeDocumentToPdfCallback callback,
+      mojom::PrintCompositor::CompositeDocumentCallback callback,
       mojom::PrintCompositor::Status status,
       base::ReadOnlySharedMemoryRegion region);
 
-  static void OnDidPrepareForDocumentToPdf(
-      mojom::PrintCompositor::PrepareForDocumentToPdfCallback callback,
+  static void OnDidPrepareToCompositeDocument(
+      mojom::PrintCompositor::PrepareToCompositeDocumentCallback callback,
       mojom::PrintCompositor::Status status);
 
-  void OnDidCompleteDocumentToPdf(
+  void OnDidFinishDocumentComposition(
       int document_cookie,
-      mojom::PrintCompositor::CompleteDocumentToPdfCallback callback,
+      mojom::PrintCompositor::FinishDocumentCompositionCallback callback,
       mojom::PrintCompositor::Status status,
       base::ReadOnlySharedMemoryRegion region);
 
@@ -133,7 +135,8 @@ class PrintCompositeClient
   // Returns the created composite request.
   mojom::PrintCompositor* CreateCompositeRequest(
       int cookie,
-      content::RenderFrameHost* initiator_frame);
+      content::RenderFrameHost* initiator_frame,
+      mojom::PrintCompositor::DocumentType document_type);
 
   // Remove the existing composite request.
   void RemoveCompositeRequest(int cookie);
@@ -167,10 +170,12 @@ class PrintCompositeClient
   raw_ptr<content::RenderFrameHost> initiator_frame_ = nullptr;
 
   // Stores the pending subframes for the composited document.
-  base::flat_set<content::RenderFrameHost*> pending_subframes_;
+  base::flat_set<raw_ptr<content::RenderFrameHost, CtnExperimental>>
+      pending_subframes_;
 
   // Stores the printed subframes for the composited document.
-  base::flat_set<content::RenderFrameHost*> printed_subframes_;
+  base::flat_set<raw_ptr<content::RenderFrameHost, CtnExperimental>>
+      printed_subframes_;
 
   struct RequestedSubFrame {
     RequestedSubFrame(content::GlobalRenderFrameHostId rfh_id,

@@ -11,12 +11,16 @@
 #ifndef MODULES_AUDIO_CODING_ACM2_ACM_SEND_TEST_H_
 #define MODULES_AUDIO_CODING_ACM2_ACM_SEND_TEST_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
 #include "absl/strings/string_view.h"
 #include "api/audio/audio_frame.h"
+#include "api/environment/environment.h"
 #include "modules/audio_coding/include/audio_coding_module.h"
+#include "modules/audio_coding/include/audio_coding_module_typedefs.h"
 #include "modules/audio_coding/neteq/tools/packet_source.h"
 #include "system_wrappers/include/clock.h"
 
@@ -70,6 +74,7 @@ class AcmSendTestOldApi : public AudioPacketizationCallback,
   std::unique_ptr<Packet> CreatePacket();
 
   SimulatedClock clock_;
+  const Environment env_;
   std::unique_ptr<AudioCodingModule> acm_;
   InputAudioFile* audio_source_;
   int source_rate_hz_;

@@ -35,22 +35,17 @@ apps::AppTypeName GetHistogrameAppType(apps::AppType app_type) {
       return apps::AppTypeName::kUnknown;
     case apps::AppType::kArc:
       return apps::AppTypeName::kArc;
-    case apps::AppType::kBuiltIn:
     case apps::AppType::kCrostini:
       return apps::AppTypeName::kUnknown;
     case apps::AppType::kChromeApp:
       return apps::AppTypeName::kChromeApp;
     case apps::AppType::kWeb:
       return apps::AppTypeName::kWeb;
-    case apps::AppType::kMacOs:
     case apps::AppType::kPluginVm:
-    case apps::AppType::kStandaloneBrowser:
-    case apps::AppType::kStandaloneBrowserChromeApp:
     case apps::AppType::kRemote:
     case apps::AppType::kBorealis:
     case apps::AppType::kBruschetta:
     case apps::AppType::kExtension:
-    case apps::AppType::kStandaloneBrowserExtension:
       return apps::AppTypeName::kUnknown;
     case apps::AppType::kSystemWeb:
       return apps::AppTypeName::kSystemWeb;
@@ -63,7 +58,7 @@ AppLaunchHandler::AppLaunchHandler(Profile* profile) : profile_(profile) {}
 
 AppLaunchHandler::~AppLaunchHandler() = default;
 
-bool AppLaunchHandler::HasRestoreData() {
+bool AppLaunchHandler::HasRestoreData() const {
   return restore_data_ && !restore_data_->app_id_to_launch_list().empty();
 }
 
@@ -102,7 +97,7 @@ void AppLaunchHandler::OnAppTypeInitialized(apps::AppType app_type) {
 
 void AppLaunchHandler::OnAppRegistryCacheWillBeDestroyed(
     apps::AppRegistryCache* cache) {
-  apps::AppRegistryCache::Observer::Observe(nullptr);
+  app_registry_cache_observer_.Reset();
 }
 
 void AppLaunchHandler::LaunchApps() {
@@ -117,7 +112,7 @@ void AppLaunchHandler::LaunchApps() {
       apps::AppServiceProxyFactory::IsAppServiceAvailableForProfile(profile_));
   auto* cache = &apps::AppServiceProxyFactory::GetForProfile(profile_)
                      ->AppRegistryCache();
-  Observe(cache);
+  ObserveCache(cache);
   for (const auto app_type : cache->InitializedAppTypes()) {
     OnAppTypeInitialized(app_type);
   }
@@ -169,28 +164,27 @@ void AppLaunchHandler::LaunchApp(apps::AppType app_type,
     case apps::AppType::kChromeApp:
     case apps::AppType::kWeb:
     case apps::AppType::kSystemWeb:
-    case apps::AppType::kStandaloneBrowserChromeApp:
       if (ShouldLaunchSystemWebAppOrChromeApp(app_id, it->second))
         LaunchSystemWebAppOrChromeApp(app_type, app_id, it->second);
       break;
-    case apps::AppType::kStandaloneBrowser:
-      // For Lacros, we can't use the AppService launch interface to restore,
-      // but call Lacros interface to restore with session restore.
-      return;
-    case apps::AppType::kBuiltIn:
     case apps::AppType::kCrostini:
     case apps::AppType::kPluginVm:
     case apps::AppType::kUnknown:
-    case apps::AppType::kMacOs:
     case apps::AppType::kRemote:
     case apps::AppType::kBorealis:
     case apps::AppType::kBruschetta:
     case apps::AppType::kExtension:
-    case apps::AppType::kStandaloneBrowserExtension:
       NOTREACHED();
-      break;
   }
   restore_data_->RemoveApp(app_id);
+}
+
+void AppLaunchHandler::ObserveCache(apps::AppRegistryCache* source) {
+  DCHECK(source);
+  if (!app_registry_cache_observer_.IsObservingSource(source)) {
+    app_registry_cache_observer_.Reset();
+    app_registry_cache_observer_.Observe(source);
+  }
 }
 
 void AppLaunchHandler::LaunchSystemWebAppOrChromeApp(
@@ -200,8 +194,7 @@ void AppLaunchHandler::LaunchSystemWebAppOrChromeApp(
   auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile_);
   DCHECK(proxy);
 
-  if (app_type == apps::AppType::kChromeApp ||
-      app_type == apps::AppType::kStandaloneBrowserChromeApp) {
+  if (app_type == apps::AppType::kChromeApp) {
     OnExtensionLaunching(app_id);
   }
 

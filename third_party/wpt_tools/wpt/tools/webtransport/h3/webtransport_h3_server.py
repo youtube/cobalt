@@ -1,6 +1,5 @@
-# mypy: allow-subclassing-any, no-warn-return-any
-
 import asyncio
+import contextlib
 import logging
 import os
 import ssl
@@ -8,22 +7,27 @@ import sys
 import threading
 import traceback
 from enum import IntEnum
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, cast
 from urllib.parse import urlparse
-from typing import Any, Dict, List, Optional, Tuple
 
-# TODO(bashi): Remove import check suppressions once aioquic dependency is resolved.
-from aioquic.buffer import Buffer  # type: ignore
-from aioquic.asyncio import QuicConnectionProtocol, serve  # type: ignore
-from aioquic.asyncio.client import connect  # type: ignore
-from aioquic.h3.connection import H3_ALPN, FrameType, H3Connection, ProtocolError  # type: ignore
-from aioquic.h3.events import H3Event, HeadersReceived, WebTransportStreamDataReceived, DatagramReceived, DataReceived  # type: ignore
-from aioquic.quic.configuration import QuicConfiguration  # type: ignore
-from aioquic.quic.connection import logger as quic_connection_logger  # type: ignore
-from aioquic.quic.connection import stream_is_unidirectional
-from aioquic.quic.events import QuicEvent, ProtocolNegotiated, ConnectionTerminated, StreamReset  # type: ignore
-from aioquic.tls import SessionTicket  # type: ignore
+from aioquic.buffer import Buffer
+from aioquic.asyncio import QuicConnectionProtocol, serve
+from aioquic.asyncio.client import connect
+from aioquic.asyncio.protocol import QuicStreamAdapter
+from aioquic.h3.connection import H3_ALPN, FrameType, H3Connection, ProtocolError, SettingsError
+from aioquic.h3.events import H3Event, HeadersReceived, WebTransportStreamDataReceived, DatagramReceived, DataReceived
+from aioquic.quic.configuration import QuicConfiguration
+from aioquic.quic.connection import logger as quic_connection_logger
+from aioquic.quic.connection import (
+    stream_is_client_initiated,
+    stream_is_unidirectional,
+)
+from aioquic.quic.events import QuicEvent, ProtocolNegotiated, ConnectionTerminated, StreamReset
+from aioquic.tls import SessionTicket
 
-from tools.wptserve.wptserve import stash  # type: ignore
+from tools import localpaths  # noqa: F401
+from wptserve import stash
 from .capsule import H3Capsule, H3CapsuleDecoder, CapsuleType
 
 """
@@ -52,6 +56,11 @@ class H3DatagramSetting(IntEnum):
     RFC = 0x33
 
 
+class WebTransportHttp3Setting(IntEnum):
+    # https://datatracker.ietf.org/doc/html/draft-ietf-webtrans-http3-07#section-8.2
+    WEBTRANSPORT_MAX_SESSIONS_DRAFT07 = 0xc671706a
+
+
 class H3ConnectionWithDatagram(H3Connection):
     """
     A H3Connection subclass, to make it work with the latest
@@ -65,17 +74,24 @@ class H3ConnectionWithDatagram(H3Connection):
         self._datagram_setting: Optional[H3DatagramSetting] = None
 
     def _validate_settings(self, settings: Dict[int, int]) -> None:
-        super()._validate_settings(settings)
+        # aioquic doesn't recognize the RFC version of HTTP Datagrams yet.
+        # Intentionally don't call `super()._validate_settings(settings)` since
+        # it raises a SettingsError when only the RFC version is negotiated.
         if settings.get(H3DatagramSetting.RFC) == 1:
             self._datagram_setting = H3DatagramSetting.RFC
         elif settings.get(H3DatagramSetting.DRAFT04) == 1:
             self._datagram_setting = H3DatagramSetting.DRAFT04
+
+        if self._datagram_setting is None:
+            raise SettingsError("HTTP Datagrams support required")
 
     def _get_local_settings(self) -> Dict[int, int]:
         settings = super()._get_local_settings()
         settings[H3DatagramSetting.RFC] = 1
         settings[H3DatagramSetting.DRAFT04] = 1
         settings[H3ConnectionWithDatagram.ENABLE_CONNECT_PROTOCOL] = 1
+        # This connection can handle only one WebTransport session.
+        settings[WebTransportHttp3Setting.WEBTRANSPORT_MAX_SESSIONS_DRAFT07] = 1
         return settings
 
     @property
@@ -297,7 +313,8 @@ class WebTransportSession:
         self.request_headers = request_headers
 
         self._protocol: WebTransportH3Protocol = protocol
-        self._http: H3Connection = protocol._http
+        assert protocol._http is not None
+        self._http: H3ConnectionWithDatagram = protocol._http
 
         # Use the a shared default path for all handlers so that different
         # WebTransport sessions can access the same store easily.
@@ -309,8 +326,8 @@ class WebTransportSession:
     def stash(self) -> stash.Stash:
         """A Stash object for storing cross-session state."""
         if self._stash is None:
-            address, authkey = stash.load_env_config()
-            self._stash = stash.Stash(self._stash_path, address, authkey)
+            address, authkey = stash.load_env_config()  # type: ignore
+            self._stash = stash.Stash(self._stash_path, address, authkey)  # type: ignore
         return self._stash
 
     @property
@@ -395,9 +412,9 @@ class WebTransportSession:
         """
         if not self._protocol._allow_datagrams:
             _logger.warn(
-                "Sending a datagram while that's now allowed - discarding it")
+                "Sending a datagram while that's not allowed - discarding it")
             return
-        flow_id = self.session_id
+        stream_id = self.session_id
         if self._http.datagram_setting is not None:
             # We must have a WebTransport Session ID at this point because
             # an extended CONNECT request is already received.
@@ -405,8 +422,8 @@ class WebTransportSession:
             # TODO(yutakahirano): Make sure if this is the correct logic.
             # Chrome always use 0 for the initial stream and the initial flow
             # ID, we cannot check the correctness with it.
-            flow_id = self._protocol._session_stream_id // 4
-        self._http.send_datagram(flow_id=flow_id, data=data)
+            stream_id = self._protocol._session_stream_id
+        self._http.send_datagram(stream_id=stream_id, data=data)
 
     def stop_stream(self, stream_id: int, code: int) -> None:
         """
@@ -523,17 +540,25 @@ class WebTransportH3Server:
             except Exception as e:
                 _logger.warn(str(e))
 
-        configuration = QuicConfiguration(
-            alpn_protocols=H3_ALPN,
-            is_client=False,
-            max_datagram_frame_size=65536,
-            secrets_log_file=secrets_log_file,
-        )
+        # Workaround https://github.com/aiortc/aioquic/issues/567 with if/else
+        if secrets_log_file is not None:
+            configuration = QuicConfiguration(
+                alpn_protocols=H3_ALPN,
+                is_client=False,
+                max_datagram_frame_size=65536,
+                secrets_log_file=secrets_log_file,
+            )
+        else:
+            configuration = QuicConfiguration(
+                alpn_protocols=H3_ALPN,
+                is_client=False,
+                max_datagram_frame_size=65536,
+            )
 
         _logger.info("Starting WebTransport over HTTP/3 server on %s:%s",
                      self.host, self.port)
 
-        configuration.load_cert_chain(self.cert_path, self.key_path)
+        configuration.load_cert_chain(Path(self.cert_path), Path(self.key_path))
 
         ticket_store = SessionTicketStore()
 
@@ -589,6 +614,25 @@ async def _connect_server_with_timeout(host: str, port: int, timeout: float) -> 
     return True
 
 
+def _close_unusable_writer(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    # Starting in python3.11, `StreamWriter.__del__` implicitly `close()`s
+    # itself [0], if it has not done so already. Because aioquic sometimes
+    # models a unidirectional stream with a bidirectional transport [1], the
+    # `writer` here for a server -> client stream may log a benign but
+    # scary-looking exception when it's GC'ed and unsuccessfully writes EOF.
+    #
+    # For the purpose of checking connectivity, work around this for now by
+    # preemptively closing such streams and suppressing the resulting
+    # exceptions.
+    #
+    # [0]: https://github.com/python/cpython/blob/3.11/Lib/asyncio/streams.py#L413
+    # [1]: https://github.com/aiortc/aioquic/blob/1.2.0/src/aioquic/asyncio/protocol.py#L241
+    stream_id = cast(QuicStreamAdapter, writer.transport).stream_id
+    if stream_is_unidirectional(stream_id) and not stream_is_client_initiated(stream_id):
+        with contextlib.suppress(ValueError):
+            writer.close()
+
+
 async def _connect_to_server(host: str, port: int) -> None:
     configuration = QuicConfiguration(
         alpn_protocols=H3_ALPN,
@@ -596,5 +640,6 @@ async def _connect_to_server(host: str, port: int) -> None:
         verify_mode=ssl.CERT_NONE,
     )
 
-    async with connect(host, port, configuration=configuration) as protocol:
+    async with connect(host, port, configuration=configuration,
+                       stream_handler=_close_unusable_writer) as protocol:
         await protocol.ping()

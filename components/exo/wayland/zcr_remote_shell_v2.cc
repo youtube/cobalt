@@ -3,15 +3,13 @@
 // found in the LICENSE file.
 
 #include <aura-shell-server-protocol.h>
-#include <remote-shell-unstable-v2-server-protocol.h>
 
 #include "ash/wm/desks/desks_util.h"
 #include "components/exo/wayland/server_util.h"
 #include "components/exo/wayland/zcr_remote_shell_impl.h"
 #include "components/exo/wm_helper.h"
 
-namespace exo {
-namespace wayland {
+namespace exo::wayland {
 namespace {
 
 int RemoteSurfaceContainerV2(uint32_t container) {
@@ -107,6 +105,9 @@ const struct zcr_remote_surface_v2_interface remote_surface_implementation_v2 =
         zcr_remote_shell::remote_surface_set_bounds_in_output,
         zcr_remote_shell::remote_surface_set_resize_lock_type,
         zcr_remote_shell::remote_surface_set_float,
+        zcr_remote_shell::remote_surface_set_scale_factor,
+        zcr_remote_shell::remote_surface_set_window_corner_radii,
+        zcr_remote_shell::remote_surface_set_shadow_corner_radii
 };
 
 const struct zcr_notification_surface_v2_interface
@@ -130,6 +131,7 @@ const struct zcr_toast_surface_v2_interface toast_surface_implementation_v2 = {
       wl_resource_destroy(resource);
     },
     zcr_remote_shell::toast_surface_set_bounds_in_output,
+    zcr_remote_shell::toast_surface_set_scale_factor,
 };
 
 const struct zcr_remote_output_v2_interface remote_output_implementation_v2 = {
@@ -149,12 +151,9 @@ void remote_shell_get_remote_surface_v2(wl_client* client,
                                         wl_resource* surface,
                                         uint32_t container) {
   WaylandRemoteShell* shell = GetUserDataAs<WaylandRemoteShell>(resource);
-  double default_scale_factor = zcr_remote_shell::GetDefaultDeviceScaleFactor();
-
   std::unique_ptr<ClientControlledShellSurface> shell_surface =
       shell->CreateShellSurface(GetUserDataAs<Surface>(surface),
-                                RemoteSurfaceContainerV2(container),
-                                default_scale_factor);
+                                RemoteSurfaceContainerV2(container));
   if (!shell_surface) {
     wl_resource_post_error(resource, ZCR_REMOTE_SHELL_V2_ERROR_ROLE,
                            "surface has already been assigned a role");
@@ -220,8 +219,7 @@ void remote_shell_get_input_method_surface_v2(wl_client* client,
 
   std::unique_ptr<ClientControlledShellSurface> input_method_surface =
       GetUserDataAs<WaylandRemoteShell>(resource)->CreateInputMethodSurface(
-          GetUserDataAs<Surface>(surface),
-          zcr_remote_shell::GetDefaultDeviceScaleFactor());
+          GetUserDataAs<Surface>(surface));
   if (!input_method_surface) {
     wl_resource_post_error(resource, ZCR_REMOTE_SHELL_V2_ERROR_ROLE,
                            "Cannot create an IME surface");
@@ -248,8 +246,7 @@ void remote_shell_get_toast_surface_v2(wl_client* client,
 
   std::unique_ptr<ClientControlledShellSurface> toast_surface =
       GetUserDataAs<WaylandRemoteShell>(resource)->CreateToastSurface(
-          GetUserDataAs<Surface>(surface),
-          zcr_remote_shell::GetDefaultDeviceScaleFactor());
+          GetUserDataAs<Surface>(surface));
   if (!toast_surface) {
     wl_resource_post_error(resource, ZCR_REMOTE_SHELL_V2_ERROR_ROLE,
                            "Cannot create an toast surface");
@@ -311,5 +308,4 @@ void bind_remote_shell_v2(wl_client* client,
           /*use_default_scale_cancellation_default=*/false));
 }
 
-}  // namespace wayland
-}  // namespace exo
+}  // namespace exo::wayland

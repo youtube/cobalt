@@ -28,7 +28,8 @@ class MultiprofilesIntroDialog : public views::DialogDelegateView {
   MultiprofilesIntroDialog& operator=(const MultiprofilesIntroDialog&) = delete;
 
   // views::View overrides.
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
 
  private:
   explicit MultiprofilesIntroDialog(OnAcceptCallback on_accept);
@@ -36,7 +37,7 @@ class MultiprofilesIntroDialog : public views::DialogDelegateView {
 
   void InitDialog();
 
-  raw_ptr<views::Checkbox, ExperimentalAsh> never_show_again_checkbox_;
+  raw_ptr<views::Checkbox> never_show_again_checkbox_;
   OnAcceptCallback on_accept_;
 };
 

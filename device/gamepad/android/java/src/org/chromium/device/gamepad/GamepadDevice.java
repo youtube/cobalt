@@ -4,6 +4,8 @@
 
 package org.chromium.device.gamepad;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.annotation.SuppressLint;
 import android.os.Build;
 import android.os.CombinedVibration;
@@ -17,24 +19,24 @@ import android.view.MotionEvent;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 
-/**
- * Manages information related to each connected gamepad device.
- */
+/** Manages information related to each connected gamepad device. */
 @SuppressLint("NewApi") // VibratorManager requires API level 31.
+@NullMarked
 class GamepadDevice {
     // Axis ids are used as indices which are empirically always smaller than 256 so this allows
     // us to create cheap associative arrays.
-    @VisibleForTesting
-    static final int MAX_RAW_AXIS_VALUES = 256;
+    @VisibleForTesting static final int MAX_RAW_AXIS_VALUES = 256;
 
     // Keycodes are used as indices which are empirically always smaller than 256 so this allows
     // us to create cheap associative arrays.
-    @VisibleForTesting
-    static final int MAX_RAW_BUTTON_VALUES = 256;
+    @VisibleForTesting static final int MAX_RAW_BUTTON_VALUES = 256;
 
     // Allow for devices that have more buttons than the Standard Gamepad.
     static final int MAX_BUTTON_INDEX = CanonicalButtonIndex.COUNT;
@@ -46,27 +48,27 @@ class GamepadDevice {
 
     /** Keycodes which might be mapped by {@link GamepadMappings}. Keep sorted by keycode. */
     @VisibleForTesting
-    static final int RELEVANT_KEYCODES[] = {
-            KeyEvent.KEYCODE_DPAD_UP, // 0x13
-            KeyEvent.KEYCODE_DPAD_DOWN, // 0x14
-            KeyEvent.KEYCODE_DPAD_LEFT, // 0x15
-            KeyEvent.KEYCODE_DPAD_RIGHT, // 0x16
-            KeyEvent.KEYCODE_BUTTON_A, // 0x60
-            KeyEvent.KEYCODE_BUTTON_B, // 0x61
-            KeyEvent.KEYCODE_BUTTON_C, // 0x62
-            KeyEvent.KEYCODE_BUTTON_X, // 0x63
-            KeyEvent.KEYCODE_BUTTON_Y, // 0x64
-            KeyEvent.KEYCODE_BUTTON_Z, // 0x65
-            KeyEvent.KEYCODE_BUTTON_L1, // 0x66
-            KeyEvent.KEYCODE_BUTTON_R1, // 0x67
-            KeyEvent.KEYCODE_BUTTON_L2, // 0x68
-            KeyEvent.KEYCODE_BUTTON_R2, // 0x69
-            KeyEvent.KEYCODE_BUTTON_THUMBL, // 0x6a
-            KeyEvent.KEYCODE_BUTTON_THUMBR, // 0x6b
-            KeyEvent.KEYCODE_BUTTON_START, // 0x6c
-            KeyEvent.KEYCODE_BUTTON_SELECT, // 0x6d
-            KeyEvent.KEYCODE_BUTTON_MODE, // 0x6e
-            KeyEvent.KEYCODE_MEDIA_RECORD // 0x82
+    static final int[] RELEVANT_KEYCODES = {
+        KeyEvent.KEYCODE_DPAD_UP, // 0x13
+        KeyEvent.KEYCODE_DPAD_DOWN, // 0x14
+        KeyEvent.KEYCODE_DPAD_LEFT, // 0x15
+        KeyEvent.KEYCODE_DPAD_RIGHT, // 0x16
+        KeyEvent.KEYCODE_BUTTON_A, // 0x60
+        KeyEvent.KEYCODE_BUTTON_B, // 0x61
+        KeyEvent.KEYCODE_BUTTON_C, // 0x62
+        KeyEvent.KEYCODE_BUTTON_X, // 0x63
+        KeyEvent.KEYCODE_BUTTON_Y, // 0x64
+        KeyEvent.KEYCODE_BUTTON_Z, // 0x65
+        KeyEvent.KEYCODE_BUTTON_L1, // 0x66
+        KeyEvent.KEYCODE_BUTTON_R1, // 0x67
+        KeyEvent.KEYCODE_BUTTON_L2, // 0x68
+        KeyEvent.KEYCODE_BUTTON_R2, // 0x69
+        KeyEvent.KEYCODE_BUTTON_THUMBL, // 0x6a
+        KeyEvent.KEYCODE_BUTTON_THUMBR, // 0x6b
+        KeyEvent.KEYCODE_BUTTON_START, // 0x6c
+        KeyEvent.KEYCODE_BUTTON_SELECT, // 0x6d
+        KeyEvent.KEYCODE_BUTTON_MODE, // 0x6e
+        KeyEvent.KEYCODE_MEDIA_RECORD // 0x82
     };
 
     // The ID for the  Vibrator  that controls the strong rumble effect.
@@ -79,17 +81,17 @@ class GamepadDevice {
     // See  device::AbstractHapticGamepad::GetMaxEffectDurationMillis .
     static final long VIBRATION_DEFAULT_DURATION_MILLIS = 5000;
 
-    //@see VibrationEffect#MAX_AMPLITUDE
+    // @see VibrationEffect#MAX_AMPLITUDE
     static final int VIBRATION_MAX_AMPLITUDE = 255;
 
     // An id for the gamepad.
-    private int mDeviceId;
+    private final int mDeviceId;
     // The index of the gamepad in the Navigator.
-    private int mDeviceIndex;
+    private final int mDeviceIndex;
     // The vendor ID of the gamepad, or zero if the gamepad does not have a vendor ID.
-    private int mDeviceVendorId;
+    private final int mDeviceVendorId;
     // The product ID of the gamepad, or zero if the gamepad does not have a product ID.
-    private int mDeviceProductId;
+    private final int mDeviceProductId;
 
     // Last time the data for this gamepad was updated.
     private long mTimestamp;
@@ -115,17 +117,17 @@ class GamepadDevice {
     private final float[] mRawAxes = new float[MAX_RAW_AXIS_VALUES];
 
     // An identification string for the gamepad.
-    private String mDeviceName;
+    private final String mDeviceName;
 
     // Array of axes ids.
-    private int[] mAxes;
+    private final int[] mAxes;
 
     // Mappings to canonical gamepad
-    private GamepadMappings mMappings;
+    private final GamepadMappings mMappings;
 
     // True if the gamepad supports "dual-rumble" vibration effects.
     private boolean mSupportsDualRumble;
-    private VibratorManager mVibratorManager;
+    private @Nullable VibratorManager mVibratorManager;
 
     GamepadDevice(int index, InputDevice inputDevice) {
         mDeviceIndex = index;
@@ -163,10 +165,12 @@ class GamepadDevice {
             int[] vibratorIds = vibratorManager.getVibratorIds();
             if (vibratorIds.length >= 2) {
                 mSupportsDualRumble =
-                        vibratorManager.getVibrator(vibratorIds[FF_STRONG_MAGNITUDE_CHANNEL_IDX])
-                                .hasAmplitudeControl()
-                        && vibratorManager.getVibrator(vibratorIds[FF_WEAK_MAGNITUDE_CHANNEL_IDX])
-                                   .hasAmplitudeControl();
+                        vibratorManager
+                                        .getVibrator(vibratorIds[FF_STRONG_MAGNITUDE_CHANNEL_IDX])
+                                        .hasAmplitudeControl()
+                                && vibratorManager
+                                        .getVibrator(vibratorIds[FF_WEAK_MAGNITUDE_CHANNEL_IDX])
+                                        .hasAmplitudeControl();
                 if (mSupportsDualRumble) {
                     mVibratorManager = vibratorManager;
                 }
@@ -174,9 +178,7 @@ class GamepadDevice {
         }
     }
 
-    /**
-     * Updates the axes and buttons maping of a gamepad device to a standard gamepad format.
-     */
+    /** Updates the axes and buttons mapping of a gamepad device to a standard gamepad format. */
     public void updateButtonsAndAxesMapping() {
         mMappings.mapToStandardGamepad(mAxisValues, mButtonsValues, mRawAxes, mRawButtons);
     }
@@ -274,14 +276,16 @@ class GamepadDevice {
         }
         CombinedVibration.ParallelCombination effect = CombinedVibration.startParallel();
         if (strong > 0) {
-            effect.addVibrator(FF_STRONG_MAGNITUDE_CHANNEL_IDX,
+            effect.addVibrator(
+                    FF_STRONG_MAGNITUDE_CHANNEL_IDX,
                     VibrationEffect.createOneShot(VIBRATION_DEFAULT_DURATION_MILLIS, strong));
         }
         if (weak > 0) {
-            effect.addVibrator(FF_WEAK_MAGNITUDE_CHANNEL_IDX,
+            effect.addVibrator(
+                    FF_WEAK_MAGNITUDE_CHANNEL_IDX,
                     VibrationEffect.createOneShot(VIBRATION_DEFAULT_DURATION_MILLIS, weak));
         }
-        mVibratorManager.vibrate(effect.combine());
+        assumeNonNull(mVibratorManager).vibrate(effect.combine());
     }
 
     private int scaleMagnitude(double magnitude) {
@@ -289,11 +293,9 @@ class GamepadDevice {
         return (int) Math.round(magnitude * VIBRATION_MAX_AMPLITUDE);
     }
 
-    /**
-     * Stop all vibration for this gamepad.
-     */
+    /** Stop all vibration for this gamepad. */
     public void cancelVibration() {
-        mVibratorManager.cancel();
+        assumeNonNull(mVibratorManager).cancel();
     }
 
     /**
@@ -317,7 +319,8 @@ class GamepadDevice {
         // first 16 extra buttons as if they had KEYCODE_BUTTON_# keycodes.
         int keyCode = event.getKeyCode();
         int scanCode = event.getScanCode();
-        if (keyCode == KeyEvent.KEYCODE_UNKNOWN && scanCode >= MIN_BTN_TRIGGER_HAPPY
+        if (keyCode == KeyEvent.KEYCODE_UNKNOWN
+                && scanCode >= MIN_BTN_TRIGGER_HAPPY
                 && scanCode <= MAX_BTN_TRIGGER_HAPPY) {
             keyCode = KeyEvent.KEYCODE_BUTTON_1 + scanCode - MIN_BTN_TRIGGER_HAPPY;
         }

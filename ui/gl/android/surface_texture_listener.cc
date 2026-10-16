@@ -8,9 +8,6 @@
 
 #include "base/location.h"
 #include "base/task/single_thread_task_runner.h"
-#include "ui/gl/gl_jni_headers/SurfaceTextureListener_jni.h"
-
-using base::android::JavaParamRef;
 
 namespace gl {
 
@@ -23,15 +20,13 @@ SurfaceTextureListener::SurfaceTextureListener(base::RepeatingClosure callback,
 SurfaceTextureListener::~SurfaceTextureListener() {
 }
 
-void SurfaceTextureListener::Destroy(JNIEnv* env,
-                                     const JavaParamRef<jobject>& obj) {
+void SurfaceTextureListener::Destroy(JNIEnv* env) {
   if (!browser_loop_->DeleteSoon(FROM_HERE, this)) {
     delete this;
   }
 }
 
-void SurfaceTextureListener::FrameAvailable(JNIEnv* env,
-                                            const JavaParamRef<jobject>& obj) {
+void SurfaceTextureListener::FrameAvailable(JNIEnv* env) {
   if (!use_any_thread_ && !browser_loop_->BelongsToCurrentThread()) {
     browser_loop_->PostTask(FROM_HERE, callback_);
   } else {

@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
 #include "base/values.h"
@@ -43,20 +44,10 @@ apps::AppType PolicyStringToAppType(const std::string& app_type) {
     return apps::AppType::kExtension;
   if (app_type == "BRUSCHETTA")
     return apps::AppType::kBruschetta;
-  if (app_type == "BUILT-IN")
-    return apps::AppType::kBuiltIn;
   if (app_type == "CROSTINI")
     return apps::AppType::kCrostini;
   if (app_type == "EXTENSION")
     return apps::AppType::kChromeApp;
-  if (app_type == "LACROS-BROWSER")
-    return apps::AppType::kStandaloneBrowser;
-  if (app_type == "LACROS-CHROME-APP")
-    return apps::AppType::kStandaloneBrowserChromeApp;
-  if (app_type == "LACROS-EXTENSION")
-    return apps::AppType::kStandaloneBrowserExtension;
-  if (app_type == "MAC-OS")
-    return apps::AppType::kMacOs;
   if (app_type == "PLUGIN-VM")
     return apps::AppType::kPluginVm;
   if (app_type == "REMOTE")
@@ -65,11 +56,17 @@ apps::AppType PolicyStringToAppType(const std::string& app_type) {
     return apps::AppType::kSystemWeb;
   if (app_type == "WEB")
     return apps::AppType::kWeb;
-  if (app_type == "UNKNOWN")
+  // TODO(crbug.com/373972275): remove LACROS-BROWSER, BUILT-IN,
+  // LACROS-CHROME-APP and LACROS-EXTENSION once it's guaranteed that old
+  // LACROS-CHROME-APP and LACROS-EXTENSION entries got purged as it looks like
+  // they come from disk (PerfService).
+  if (app_type == "UNKNOWN" || app_type == "BUILT-IN" ||
+      app_type == "LACROS-EXTENSION" || app_type == "LACROS-CHROME-APP" ||
+      app_type == "LACROS-BROWSER") {
     return apps::AppType::kUnknown;
+  }
 
   NOTREACHED();
-  return apps::AppType::kUnknown;
 }
 
 std::string AppTypeToPolicyString(apps::AppType app_type) {
@@ -82,20 +79,10 @@ std::string AppTypeToPolicyString(apps::AppType app_type) {
       return "BROWSER-EXTENSION";
     case apps::AppType::kBruschetta:
       return "BRUSCHETTA";
-    case apps::AppType::kBuiltIn:
-      return "BUILT-IN";
     case apps::AppType::kCrostini:
       return "CROSTINI";
     case apps::AppType::kChromeApp:
       return "EXTENSION";
-    case apps::AppType::kStandaloneBrowser:
-      return "LACROS-BROWSER";
-    case apps::AppType::kStandaloneBrowserChromeApp:
-      return "LACROS-CHROME-APP";
-    case apps::AppType::kStandaloneBrowserExtension:
-      return "LACROS-EXTENSION";
-    case apps::AppType::kMacOs:
-      return "MAC-OS";
     case apps::AppType::kPluginVm:
       return "PLUGIN-VM";
     case apps::AppType::kRemote:
@@ -117,7 +104,6 @@ AppRestriction PolicyStringToAppRestriction(const std::string& restriction) {
     return AppRestriction::kTimeLimit;
 
   NOTREACHED();
-  return AppRestriction::kUnknown;
 }
 
 std::string AppRestrictionToPolicyString(const AppRestriction& restriction) {
@@ -128,25 +114,24 @@ std::string AppRestrictionToPolicyString(const AppRestriction& restriction) {
       return "TIME_LIMIT";
     default:
       NOTREACHED();
-      return "";
   }
 }
 
-absl::optional<AppId> AppIdFromDict(const base::Value::Dict* dict) {
+std::optional<AppId> AppIdFromDict(const base::Value::Dict* dict) {
   if (!dict) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   const std::string* id = dict->FindString(kAppId);
   if (!id || id->empty()) {
     DLOG(ERROR) << "Invalid id.";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   const std::string* type_string = dict->FindString(kAppType);
   if (!type_string || type_string->empty()) {
     DLOG(ERROR) << "Invalid type.";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return AppId(PolicyStringToAppType(*type_string), *id);
@@ -160,42 +145,42 @@ base::Value::Dict AppIdToDict(const AppId& app_id) {
   return dict;
 }
 
-absl::optional<AppId> AppIdFromAppInfoDict(const base::Value::Dict* dict) {
+std::optional<AppId> AppIdFromAppInfoDict(const base::Value::Dict* dict) {
   if (!dict) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   const base::Value::Dict* app_info = dict->FindDict(kAppInfoDict);
   if (!app_info) {
     DLOG(ERROR) << "Invalid app info dictionary.";
-    return absl::nullopt;
+    return std::nullopt;
   }
   return AppIdFromDict(app_info);
 }
 
-absl::optional<AppLimit> AppLimitFromDict(const base::Value::Dict& dict) {
+std::optional<AppLimit> AppLimitFromDict(const base::Value::Dict& dict) {
   const std::string* restriction_string = dict.FindString(kRestrictionEnum);
   if (!restriction_string || restriction_string->empty()) {
     DLOG(ERROR) << "Invalid restriction.";
-    return absl::nullopt;
+    return std::nullopt;
   }
   const AppRestriction restriction =
       PolicyStringToAppRestriction(*restriction_string);
 
-  absl::optional<int> daily_limit_mins = dict.FindInt(kDailyLimitInt);
+  std::optional<int> daily_limit_mins = dict.FindInt(kDailyLimitInt);
   if ((restriction == AppRestriction::kTimeLimit && !daily_limit_mins) ||
       (restriction == AppRestriction::kBlocked && daily_limit_mins)) {
     DLOG(ERROR) << "Invalid restriction.";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  absl::optional<base::TimeDelta> daily_limit;
+  std::optional<base::TimeDelta> daily_limit;
   if (daily_limit_mins) {
     daily_limit = base::Minutes(*daily_limit_mins);
     if (daily_limit &&
         (*daily_limit < base::Hours(0) || *daily_limit > base::Hours(24))) {
       DLOG(ERROR) << "Invalid daily limit.";
-      return absl::nullopt;
+      return std::nullopt;
     }
   }
 
@@ -204,7 +189,7 @@ absl::optional<AppLimit> AppLimitFromDict(const base::Value::Dict& dict) {
   if (!last_updated_string || last_updated_string->empty() ||
       !base::StringToInt64(*last_updated_string, &last_updated_millis)) {
     DLOG(ERROR) << "Invalid last updated time.";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   const base::Time last_updated =
@@ -226,24 +211,24 @@ base::Value::Dict AppLimitToDict(const AppLimit& limit) {
   return dict;
 }
 
-absl::optional<base::TimeDelta> ResetTimeFromDict(
+std::optional<base::TimeDelta> ResetTimeFromDict(
     const base::Value::Dict& dict) {
   const base::Value* reset_dict = dict.Find(kResetAtDict);
   if (!reset_dict || !reset_dict->is_dict()) {
     DLOG(ERROR) << "Invalid reset time dictionary.";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  absl::optional<int> hour = reset_dict->GetDict().FindInt(kHourInt);
+  std::optional<int> hour = reset_dict->GetDict().FindInt(kHourInt);
   if (!hour) {
     DLOG(ERROR) << "Invalid reset hour.";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  absl::optional<int> minutes = reset_dict->GetDict().FindInt(kMinInt);
+  std::optional<int> minutes = reset_dict->GetDict().FindInt(kMinInt);
   if (!minutes) {
     DLOG(ERROR) << "Invalid reset minutes.";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   const int hour_in_mins = base::Hours(1).InMinutes();
@@ -258,7 +243,7 @@ base::Value::Dict ResetTimeToDict(int hour, int minutes) {
   return dict;
 }
 
-absl::optional<bool> ActivityReportingEnabledFromDict(
+std::optional<bool> ActivityReportingEnabledFromDict(
     const base::Value::Dict& dict) {
   return dict.FindBool(kActivityReportingEnabled);
 }
@@ -278,14 +263,14 @@ std::map<AppId, AppLimit> AppLimitsFromDict(const base::Value::Dict& dict) {
       continue;
     }
 
-    absl::optional<AppId> app_id =
+    std::optional<AppId> app_id =
         AppIdFromAppInfoDict(&app_limits_dict.GetDict());
     if (!app_id) {
       DLOG(ERROR) << "Invalid app id.";
       continue;
     }
 
-    absl::optional<AppLimit> app_limit =
+    std::optional<AppLimit> app_limit =
         AppLimitFromDict(app_limits_dict.GetDict());
     if (!app_limit) {
       DLOG(ERROR) << "Invalid app limit.";

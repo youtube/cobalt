@@ -9,15 +9,16 @@ import android.net.Uri;
 import android.text.Html;
 import android.text.TextUtils;
 
-import org.chromium.base.ContentUriUtils;
+import org.jni_zero.CalledByNative;
+
 import org.chromium.base.ContextUtils;
-import org.chromium.base.annotations.CalledByNative;
+import org.chromium.base.FileProviderUtils;
+import org.chromium.build.annotations.NullMarked;
 
 import java.io.File;
 
-/**
- * Helper for issuing intents to the android framework.
- */
+/** Helper for issuing intents to the android framework. */
+@NullMarked
 public abstract class IntentHelper {
     private IntentHelper() {}
 
@@ -46,7 +47,7 @@ public abstract class IntentHelper {
             // up to be shared that way with a <paths> meta-data element, just use a file Uri
             // instead.
             try {
-                fileUri = ContentUriUtils.getContentUriFromFile(fileIn);
+                fileUri = FileProviderUtils.getContentUriFromFile(fileIn);
             } catch (IllegalArgumentException ex) {
                 fileUri = Uri.fromFile(fileIn);
             }

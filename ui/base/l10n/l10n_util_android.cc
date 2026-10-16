@@ -14,6 +14,8 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_util.h"
 #include "third_party/icu/source/common/unicode/uloc.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "ui/base/ui_base_jni_headers/LocalizationUtils_jni.h"
 
 using base::android::JavaParamRef;
@@ -40,6 +42,17 @@ bool IsLayoutRtl() {
   }
 
   return layout_rtl_cache;
+}
+
+bool ShouldMirrorBackForwardGestures() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  return static_cast<bool>(
+      Java_LocalizationUtils_shouldMirrorBackForwardGestures(env));
+}
+
+void SetRtlForTesting(bool is_rtl) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_LocalizationUtils_setRtlForTesting(env, is_rtl);  // IN-TEST
 }
 
 namespace {
@@ -91,7 +104,7 @@ std::u16string GetDisplayNameForLocale(const std::string& locale,
   ScopedJavaLocalRef<jstring> java_result(
       Java_LocalizationUtils_getDisplayNameForLocale(env, java_locale,
                                                      java_display_locale));
-  return ConvertJavaStringToUTF16(java_result);
+  return base::android::ConvertJavaStringToUTF16(java_result);
 }
 
 ScopedJavaLocalRef<jstring> JNI_LocalizationUtils_GetNativeUiLocale(

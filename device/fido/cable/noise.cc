@@ -2,12 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "device/fido/cable/noise.h"
 
 #include <string.h>
 
 #include "base/check_op.h"
-#include "base/sys_byteorder.h"
+#include "base/numerics/byte_conversions.h"
 #include "crypto/aead.h"
 #include "crypto/sha2.h"
 #include "device/fido/fido_constants.h"
@@ -48,6 +53,7 @@ void Noise::Init(Noise::HandshakeType type) {
   // See https://www.noiseprotocol.org/noise.html#the-handshakestate-object
   static const char kKNProtocolName[] = "Noise_KNpsk0_P256_AESGCM_SHA256";
   static const char kNKProtocolName[] = "Noise_NKpsk0_P256_AESGCM_SHA256";
+  static const char kNKNoPskProtocolName[] = "Noise_NK_P256_AESGCM_SHA256";
   static_assert(sizeof(kNKProtocolName) == sizeof(kKNProtocolName),
                 "protocol names are different lengths");
   static_assert(sizeof(kKNProtocolName) == crypto::kSHA256Length,
@@ -65,6 +71,12 @@ void Noise::Init(Noise::HandshakeType type) {
 
     case HandshakeType::kKNpsk0:
       memcpy(chaining_key_.data(), kKNProtocolName, sizeof(kKNProtocolName));
+      break;
+
+    case HandshakeType::kNK:
+      memset(chaining_key_.data(), 0, chaining_key_.size());
+      memcpy(chaining_key_.data(), kNKNoPskProtocolName,
+             sizeof(kNKNoPskProtocolName));
       break;
   }
 
@@ -94,15 +106,16 @@ void Noise::MixKeyAndHash(base::span<const uint8_t> ikm) {
        chaining_key_.data(), chaining_key_.size(), /*info=*/nullptr, 0);
   DCHECK_EQ(chaining_key_.size(), 32u);
   memcpy(chaining_key_.data(), output, 32);
-  MixHash(base::span<const uint8_t>(&output[32], 32u));
-  InitializeKey(base::span<const uint8_t, 32>(&output[64], 32u));
+  const auto [hash, key] = base::span(output).subspan<32>().split_at<32>();
+  MixHash(hash);
+  InitializeKey(key);
 }
 
 std::vector<uint8_t> Noise::EncryptAndHash(
     base::span<const uint8_t> plaintext) {
-  uint8_t nonce[12] = {0};
-  const uint32_t counter = base::ByteSwap(symmetric_nonce_);
-  memcpy(nonce, &counter, sizeof(counter));
+  uint8_t nonce[12] = {};
+  base::span(nonce).first<4u>().copy_from(
+      base::U32ToBigEndian(symmetric_nonce_));
   symmetric_nonce_++;
 
   crypto::Aead aead(crypto::Aead::AES_256_GCM);
@@ -112,11 +125,11 @@ std::vector<uint8_t> Noise::EncryptAndHash(
   return ciphertext;
 }
 
-absl::optional<std::vector<uint8_t>> Noise::DecryptAndHash(
+std::optional<std::vector<uint8_t>> Noise::DecryptAndHash(
     base::span<const uint8_t> ciphertext) {
-  uint8_t nonce[12] = {0};
-  const uint32_t counter = base::ByteSwap(symmetric_nonce_);
-  memcpy(nonce, &counter, sizeof(counter));
+  uint8_t nonce[12] = {};
+  base::span(nonce).first<4u>().copy_from(
+      base::U32ToBigEndian(symmetric_nonce_));
   symmetric_nonce_++;
 
   crypto::Aead aead(crypto::Aead::AES_256_GCM);
@@ -144,7 +157,7 @@ void Noise::MixHashPoint(const EC_POINT* point) {
 
 std::tuple<std::array<uint8_t, 32>, std::array<uint8_t, 32>>
 Noise::traffic_keys() const {
-  return HKDF2(chaining_key_, base::span<const uint8_t>());
+  return HKDF2(chaining_key_, {});
 }
 
 void Noise::InitializeKey(base::span<const uint8_t, 32> key) {

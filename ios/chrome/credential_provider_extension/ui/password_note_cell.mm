@@ -7,10 +7,6 @@
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/table_view/table_view_cells_constants.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // Height / width of the error icon.
@@ -31,7 +27,7 @@ const CGFloat kErrorIconLength = 20;
 
 - (instancetype)initWithStyle:(UITableViewCellStyle)style
               reuseIdentifier:(NSString*)reuseIdentifier {
-  if (self = [super initWithStyle:style reuseIdentifier:reuseIdentifier]) {
+  if ((self = [super initWithStyle:style reuseIdentifier:reuseIdentifier])) {
     _textLabel = [[UILabel alloc] init];
     _textLabel.adjustsFontForContentSizeCategory = YES;
     _textLabel.translatesAutoresizingMaskIntoConstraints = NO;

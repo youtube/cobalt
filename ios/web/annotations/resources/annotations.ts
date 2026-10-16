@@ -7,10 +7,9 @@
  * and pass it on to the annotations manager.
  */
 
-import {gCrWeb} from '//ios/web/public/js_messaging/resources/gcrweb.js';
-import {sendWebKitMessage} from '//ios/web/public/js_messaging/resources/utils.js'
-import {MS_DELAY_BEFORE_TRIGGER, NON_TEXT_NODE_NAMES, NO_DECORATION_NODE_NAMES}
-    from '//ios/web/annotations/resources/annotations_constants.js';
+import {MS_DELAY_BEFORE_TRIGGER, NO_DECORATION_NODE_NAMES, NON_TEXT_NODE_NAMES} from '//ios/web/annotations/resources/annotations_constants.js';
+import {gCrWebLegacy} from '//ios/web/public/js_messaging/resources/gcrweb.js';
+import {sendWebKitMessage} from '//ios/web/public/js_messaging/resources/utils.js';
 
 // Mark: Private properties
 
@@ -52,12 +51,9 @@ class Decoration {
  * Section (like find in page) is used to be able to find text even if
  * there are DOM changes between extraction and decoration. Using WeakRef
  * around nodes also avoids holding on to deleted nodes.
- * TODO(crbug.com/1350973): WeakRef starts in 14.5, remove checks once 14 is
- *   deprecated. This also means that < 14.5 sectionsNodes is never releasing
- *   nodes, even if they are released from the DOM.
  */
 class Section {
-  constructor(public node: Node|WeakRef<Node>, public index: number) {}
+  constructor(public node: WeakRef<Node>, public index: number) {}
 }
 
 /**
@@ -65,7 +61,7 @@ class Section {
  * `stopObserving`.
  */
 class MutationsDuringClickTracker {
-  mutationCount = 0;
+  hasMutations = false;
   mutationObserver: MutationObserver;
   mutationExtendId = 0;
 
@@ -74,7 +70,13 @@ class MutationsDuringClickTracker {
   constructor(private readonly initialEvent: Event) {
     this.mutationObserver =
         new MutationObserver((mutationList: MutationRecord[]) => {
-          this.mutationCount += mutationList.length;
+          for (const mutation of mutationList) {
+            if (mutation.target.contains(this.initialEvent.target as Node)) {
+              this.hasMutations = true;
+              this.stopObserving();
+              break;
+            }
+          }
         });
     this.mutationObserver.observe(
         document, {attributes: false, childList: true, subtree: true});
@@ -84,12 +86,7 @@ class MutationsDuringClickTracker {
   // or it was prevented or if any DOM mutations occurred.
   hasPreventativeActivity(event: Event): boolean {
     return event !== this.initialEvent || event.defaultPrevented ||
-        this.hasMutations();
-  }
-
-  // Returns true if DOM mutations occurred.
-  hasMutations(): boolean {
-    return this.mutationCount > 0;
+        this.hasMutations;
   }
 
   // Extends DOM observation by triggering `then` after de delay. This can be
@@ -110,8 +107,79 @@ class MutationsDuringClickTracker {
   }
 }
 
-const highlightTextColor = "#000";
-const highlightBackgroundColor = "rgba(20,111,225,0.25)";
+/**
+ * Searches page elements for "nointentdetection" meta tag. Returns true if
+ * "nointentdetection" meta tag is defined.
+ */
+function hasNoIntentDetection() {
+  const metas = document.getElementsByTagName('meta');
+  for (let i = 0; i < metas.length; i++) {
+    if (metas[i]!.getAttribute('name') === 'chrome' &&
+        metas[i]!.getAttribute('content') === 'nointentdetection') {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Returns all types in meta tags 'format-detection', where the type is
+// assigned 'no'.
+function noFormatDetectionTypes(): Set<string> {
+  const metas = document.getElementsByTagName('meta');
+  const types = new Set<string>();
+  for (const meta of metas) {
+    if (meta.getAttribute('name') !== 'format-detection') {
+      continue;
+    }
+    const content = meta.getAttribute('content');
+    if (!content) {
+      continue;
+    }
+    const matches = content.toLowerCase().matchAll(/([a-z]+)\s*=\s*([a-z]+)/g);
+    if (!matches) {
+      continue;
+    }
+    for (const match of matches) {
+      if (match && match[2] === 'no' && match[1]) {
+        types.add(match[1]);
+      }
+    }
+  }
+  return types;
+}
+
+/**
+ * Searches page elements for "notranslate" meta tag. Returns true if
+ * "notranslate" meta tag is defined.
+ */
+function hasNoTranslate(): boolean {
+  const metas = document.getElementsByTagName('meta');
+  for (let i = 0; i < metas.length; i++) {
+    if (metas[i]!.getAttribute('name') === 'google' &&
+        metas[i]!.getAttribute('content') === 'notranslate') {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Gets the content of a meta tag by httpEquiv for `httpEquiv`. The function is
+ * case insensitive.
+ */
+function getMetaContentByHttpEquiv(httpEquiv: string) {
+  const metaTags = document.getElementsByTagName('meta');
+  for (const metaTag of metaTags) {
+    if (metaTag.httpEquiv && metaTag.httpEquiv.toLowerCase() === httpEquiv) {
+      return metaTag.content;
+    }
+  }
+  return '';
+}
+
+const highlightTextColor = '#000';
+const highlightBackgroundColor = 'rgba(20,111,225,0.25)';
 const decorationStyles = 'border-bottom-width: 1px; ' +
     'border-bottom-style: dotted; ' +
     'background-color: transparent';
@@ -141,10 +209,28 @@ let sections: Section[];
  * @param seqId - id of extracted text to pass back.
  */
 function extractText(maxChars: number, seqId: number): void {
+  // If page is reloaded, remove decorations because the external cache
+  // will need to be rebuilt with new data.
+  if (decorations.length) {
+    removeDecorations();
+  }
+  const disabledTypes = noFormatDetectionTypes();
   sendWebKitMessage('annotations', {
     command: 'annotations.extractedText',
     text: getPageText(maxChars),
     seqId: seqId,
+    // When changing metadata please update i/w/p/a/annotations_text_observer.h
+    metadata: {
+      hasNoIntentDetection: hasNoIntentDetection(),
+      hasNoTranslate: hasNoTranslate(),
+      htmlLang: document.documentElement.lang,
+      httpContentLanguage: getMetaContentByHttpEquiv('content-language'),
+      wkNoTelephone: disabledTypes.has('telephone'),
+      wkNoEmail: disabledTypes.has('email'),
+      wkNoAddress: disabledTypes.has('address'),
+      wkNoDate: disabledTypes.has('date'),
+      wkNoUnit: disabledTypes.has('unit'),
+    },
   });
 }
 
@@ -155,22 +241,25 @@ function extractText(maxChars: number, seqId: number): void {
  */
 function decorateAnnotations(annotations: Annotation[]): void {
   // Avoid redoing without going through `removeDecorations` first.
-  if (decorations.length || !annotations.length)
+  if (decorations.length || !annotations.length) {
     return;
+  }
 
   let failures = 0;
   decorations = [];
 
-  // Last checks when bubbling up event.
+  // Check CHROME_ANNOTATION on capturing and bubbling event.
   document.addEventListener('click', handleTopTap.bind(document));
+  document.addEventListener('click', handleTopTap.bind(document), true);
 
   annotations = removeOverlappingAnnotations(annotations);
 
   // Reparse page finding annotations and styling them.
   let annotationIndex = 0;
   enumerateSectionsNodes((node, index, text) => {
-    if (!node.parentNode || text === '\n')
+    if (!node.parentNode || text === '\n') {
       return true;
+    }
 
     // Skip annotation with end before index. This would happen if some nodes
     // are deleted between text fetching and decorating.
@@ -202,7 +291,7 @@ function decorateAnnotations(annotations: Annotation[]): void {
         const annotationText =
             annotation.text.substring(annotationLeft, annotationRight);
         // Text has changed, forget the rest of this annotation.
-        if (nodeText != annotationText) {
+        if (nodeText !== annotationText) {
           failures++;
           annotationIndex++;
           continue;
@@ -247,7 +336,9 @@ function decorateAnnotations(annotations: Annotation[]): void {
   sendWebKitMessage('annotations', {
     command: 'annotations.decoratingComplete',
     successes: annotations.length - failures,
-    annotations: annotations.length
+    failures: failures,
+    annotations: annotations.length,
+    cancelled: [],
   });
 }
 
@@ -255,13 +346,14 @@ function decorateAnnotations(annotations: Annotation[]): void {
  * Remove current decorations.
  */
 function removeDecorations(): void {
-  for (let decoration of decorations) {
+  for (const decoration of decorations) {
     const replacements = decoration.replacements;
     const parentNode = replacements[0]!.parentNode;
-    if (!parentNode)
+    if (!parentNode) {
       return;
+    }
     parentNode.insertBefore(decoration.original, replacements[0]!);
-    for (let replacement of replacements) {
+    for (const replacement of replacements) {
       parentNode.removeChild(replacement);
     }
   }
@@ -269,16 +361,82 @@ function removeDecorations(): void {
 }
 
 /**
- * Removes any highlight on all annotations.
+ * Remove current decorations of a given type.
+ * @param type - the type of annotations to remove.
  */
-function removeHighlight(): void {
-  for (let decoration of decorations) {
-    for (let replacement of decoration.replacements) {
+function removeDecorationsWithType(type: string): void {
+  const remainingDecorations: Decoration[] = [];
+  for (const decoration of decorations) {
+    const replacements = decoration.replacements;
+    const parentNode = replacements[0]!.parentNode;
+    if (!parentNode) {
+      return;
+    }
+
+    let hasReplacementOfType = false;
+    let hasReplacementOfAnotherType = false;
+    for (const replacement of replacements) {
       if (!(replacement instanceof HTMLElement)) {
         continue;
       }
-      replacement.style.color = "";
-      replacement.style.background = "";
+      const element = replacement as HTMLElement;
+      const replacementType = element.getAttribute('data-type');
+      if (replacementType === type) {
+        hasReplacementOfType = true;
+      } else {
+        hasReplacementOfAnotherType = true;
+      }
+    }
+    if (!hasReplacementOfType) {
+      // This decoration is of another type, leave it as it is.
+      remainingDecorations.push(decoration);
+      continue;
+    }
+
+    if (!hasReplacementOfAnotherType) {
+      // Restore previous node
+      parentNode.insertBefore(decoration.original, replacements[0]!);
+      for (const replacement of replacements) {
+        parentNode.removeChild(replacement);
+      }
+      continue;
+    }
+
+    // The decoration is of mixed type. Just replace the <chrome_annotation>
+    // of `type` by a text node with same text content.
+    const newReplacements: Node[] = [];
+    for (const replacement of replacements) {
+      if (!(replacement instanceof HTMLElement)) {
+        newReplacements.push(replacement);
+        continue;
+      }
+      const element = replacement as HTMLElement;
+      const replacementType = element.getAttribute('data-type');
+      if (replacementType !== type) {
+        newReplacements.push(replacement);
+        continue;
+      }
+      const text = document.createTextNode(element.textContent ?? '');
+      parentNode.replaceChild(text, element);
+      newReplacements.push(text);
+    }
+    decoration.replacements = newReplacements;
+    remainingDecorations.push(decoration);
+  }
+  decorations = remainingDecorations;
+}
+
+/**
+ * Removes any highlight on all annotations.
+ */
+function removeHighlight(): void {
+  for (const decoration of decorations) {
+    for (const replacement of decoration.replacements) {
+      if (!(replacement instanceof HTMLElement)) {
+        continue;
+      }
+      replacement.style.color = '';
+      replacement.style.background = '';
     }
   }
 }
@@ -296,12 +454,13 @@ function removeHighlight(): void {
 function enumerateTextNodes(
     root: Node, process: EnumNodesFunction,
     includeShadowDOM: boolean = true,
-    filterInvisibles: boolean = false): void {
+    filterInvisibles: boolean = true): void {
   const nodes: Node[] = [root];
   let index = 0;
+  let isPreviousSpace = true;
 
   while (nodes.length > 0) {
-    let node = nodes.pop();
+    const node = nodes.pop();
     if (!node) {
       break;
     }
@@ -309,32 +468,43 @@ function enumerateTextNodes(
     // Formatting and filtering.
     if (node.nodeType === Node.ELEMENT_NODE) {
       // Reject non-text nodes such as scripts.
-      if (NON_TEXT_NODE_NAMES.has(node.nodeName)) {
+      if (!node.nodeName || NON_TEXT_NODE_NAMES.has(node.nodeName)) {
+        continue;
+      }
+      // Reject editable nodes.
+      if (node instanceof Element && node.getAttribute('contenteditable')) {
         continue;
       }
       if (node.nodeName === 'BR') {
-        if (!process(node, index, '\n'))
+        if (isPreviousSpace) {
+          continue;
+        }
+        if (!process(node, index, '\n')) {
           break;
+        }
+        isPreviousSpace = true;
         index += 1;
         continue;
       }
       const style = window.getComputedStyle(node as Element);
       // Only proceed if the element is visible or if invisibles are to be kept.
-      if (filterInvisibles && (style.display === 'none' ||
-          style.visibility === 'hidden')) {
+      if (filterInvisibles &&
+          (style.display === 'none' || style.visibility === 'hidden')) {
         continue;
       }
       // No need to add a line break before `body` as it is the first element.
       if (node.nodeName.toUpperCase() !== 'BODY' &&
-          style.display !== 'inline') {
-        if (!process(node, index, '\n'))
+          style.display !== 'inline' && !isPreviousSpace) {
+        if (!process(node, index, '\n')) {
           break;
+        }
+        isPreviousSpace = true;
         index += 1;
       }
 
       if (includeShadowDOM) {
         const element = node as Element;
-        if (element.shadowRoot && element.shadowRoot != node) {
+        if (element.shadowRoot && element.shadowRoot !== node) {
           nodes.push(element.shadowRoot);
           continue;
         }
@@ -347,8 +517,14 @@ function enumerateTextNodes(
         nodes.push(node.childNodes[childIdx]!);
       }
     } else if (node.nodeType === Node.TEXT_NODE && node.textContent) {
-      if (!process(node, index, node.textContent))
+      const isSpace = node.textContent.trim() === '';
+      if (isSpace && isPreviousSpace) {
+        continue;
+      }
+      if (!process(node, index, node.textContent)) {
         break;
+      }
+      isPreviousSpace = isSpace;
       index += node.textContent.length;
     }
   }
@@ -358,30 +534,30 @@ function enumerateTextNodes(
  * Alternative to `enumerateTextNodes` using sections.
  */
 function enumerateSectionsNodes(process: EnumNodesFunction): void {
-  for (let section of sections) {
-    const node: Node|undefined = window.WeakRef ?
-        (section.node as WeakRef<Node>).deref() :
-        section.node as Node;
-    if (!node)
+  for (const section of sections) {
+    const node: Node|undefined = section.node.deref();
+    if (!node) {
       continue;
+    }
 
     const text: string|null =
         node.nodeType === Node.ELEMENT_NODE ? '\n' : node.textContent;
-    if (text && !process(node, section.index, text))
+    if (text && !process(node, section.index, text)) {
       break;
+    }
   }
 }
 
 /**
- * Returns first `maxChars` text characters from the page.
+ * Returns first `maxChars` text characters from the page. If intents are
+ * disabled, return an empty string.
  * @param maxChars - maximum number of characters to parse out.
  */
 function getPageText(maxChars: number): string {
   const parts: string[] = [];
   sections = [];
   enumerateTextNodes(document.body, function(node, index, text) {
-    sections.push(new Section(window.WeakRef ?
-        new WeakRef<Node>(node) : node, index));
+    sections.push(new Section(new WeakRef<Node>(node), index));
     if (index + text.length > maxChars) {
       parts.push(text.substring(0, maxChars - index));
     } else {
@@ -394,14 +570,6 @@ function getPageText(maxChars: number): string {
 
 let mutationDuringClickObserver: MutationsDuringClickTracker|null;
 
-// Initiates a `mutationDuringClickObserver` that will be checked at document
-// level tab handler (`handleTopTap`), where it will be decided if any action
-// bubbling to objc is required (i.e. no DOM change occurs).
-function handleTap(event: Event) {
-  cancelObserver();
-  mutationDuringClickObserver = new MutationsDuringClickTracker(event);
-}
-
 // Stops observing DOM mutations.
 function cancelObserver(): void {
   mutationDuringClickObserver?.stopObserving();
@@ -411,29 +579,45 @@ function cancelObserver(): void {
 // Monitors taps at the top, document level. This checks if it is tap
 // triggered by an annotation and if no DOM mutation have happened while the
 // event is bubbling up. If it's the case, the annotation callback is called.
-function handleTopTap(event: Event) {
-  // Nothing happened to the page between `handleTap` and `handleTopTap`.
-  if (event.target instanceof HTMLElement &&
-      event.target.tagName === 'CHROME_ANNOTATION' &&
-      mutationDuringClickObserver &&
-      !mutationDuringClickObserver.hasPreventativeActivity(event)) {
-    const annotation = event.target;
-    mutationDuringClickObserver.extendObservation(() => {
-      if (mutationDuringClickObserver &&
-          !mutationDuringClickObserver.hasMutations()) {
-        highlightAnnotation(annotation);
-        sendWebKitMessage('annotations', {
-          command: 'annotations.onClick',
-          data: annotation.dataset['data'],
-          rect: rectFromElement(annotation),
-          text: annotation.dataset['annotation'],
+function handleTopTap(event: Event): void {
+  const annotation = event.target;
+  if (annotation instanceof HTMLElement &&
+      annotation.tagName === 'CHROME_ANNOTATION') {
+    if (event.eventPhase === Event.CAPTURING_PHASE) {
+      // Initiates a `mutationDuringClickObserver` that will be checked at
+      // bubble up phase where it will be decided if the click should be
+      // cancelled.
+      cancelObserver();
+      mutationDuringClickObserver = new MutationsDuringClickTracker(event);
+    } else if (mutationDuringClickObserver) {
+      // At BUBBLING_PHASE.
+      if (!mutationDuringClickObserver.hasPreventativeActivity(event)) {
+        mutationDuringClickObserver.extendObservation(() => {
+          if (mutationDuringClickObserver) {
+            highlightAnnotation(annotation);
+            onClickAnnotation(
+                annotation, mutationDuringClickObserver.hasMutations);
+          }
         });
-        cancelObserver();
+      } else {
+        onClickAnnotation(annotation, mutationDuringClickObserver.hasMutations);
       }
-    });
+    }
   } else {
     cancelObserver();
   }
+}
+
+// Sends click to browser side and cancel observer.
+function onClickAnnotation(annotation: HTMLElement, cancel: boolean): void {
+  sendWebKitMessage('annotations', {
+    command: 'annotations.onClick',
+    cancel: cancel,
+    data: annotation.dataset['data'],
+    rect: rectFromElement(annotation),
+    text: annotation.dataset['annotation'],
+  });
+  cancelObserver();
 }
 
 /**
@@ -444,8 +628,8 @@ function highlightAnnotation(annotation: HTMLElement) {
   // Using webkit edit selection kills a second tapping on the element and also
   // causes a merge with the edit menu in some circumstance.
   // Using custom highlight instead.
-  for (let decoration of decorations) {
-    for (let replacement of decoration.replacements) {
+  for (const decoration of decorations) {
+    for (const replacement of decoration.replacements) {
       if (!(replacement instanceof HTMLElement)) {
         continue;
       }
@@ -499,7 +683,7 @@ function replaceNode(
 
   let cursor = 0;
   const parts: Node[] = [];
-  for (let replacement of replacements) {
+  for (const replacement of replacements) {
     if (replacement.left > cursor) {
       parts.push(
           document.createTextNode(text.substring(cursor, replacement.left)));
@@ -508,19 +692,19 @@ function replaceNode(
     element.setAttribute('data-index', '' + replacement.index);
     element.setAttribute('data-data', replacement.data);
     element.setAttribute('data-annotation', replacement.annotationText);
+    element.setAttribute('data-type', replacement.type);
     element.setAttribute('role', 'link');
     // Use textContent not innerText, since setting innerText will cause
     // the text to be parsed and '\n' to be upgraded to <br>.
     element.textContent = replacement.text;
 
-    if (replacement.type == 'PHONE_NUMBER' || replacement.type == 'EMAIL') {
+    if (replacement.type === 'PHONE_NUMBER' || replacement.type === 'EMAIL') {
       element.style.cssText = decorationStylesForPhoneAndEmail;
     } else {
       element.style.cssText = decorationStyles;
     }
 
     element.style.borderBottomColor = textColor;
-    element.addEventListener('click', handleTap.bind(element), true);
     parts.push(element);
     cursor = replacement.right;
   }
@@ -528,7 +712,7 @@ function replaceNode(
     parts.push(document.createTextNode(text.substring(cursor, text.length)));
   }
 
-  for (let part of parts) {
+  for (const part of parts) {
     parentNode.insertBefore(part, node);
   }
   parentNode.removeChild(node);
@@ -546,13 +730,14 @@ function rectFromElement(element: Element) {
     x: domRect.x,
     y: domRect.y,
     width: domRect.width,
-    height: domRect.height
+    height: domRect.height,
   };
 }
 
-gCrWeb.annotations = {
+gCrWebLegacy.annotations = {
   extractText,
   decorateAnnotations,
   removeDecorations,
+  removeDecorationsWithType,
   removeHighlight,
 };

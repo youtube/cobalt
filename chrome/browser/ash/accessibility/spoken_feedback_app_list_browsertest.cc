@@ -12,6 +12,8 @@
 #include "ash/public/cpp/test/app_list_test_api.h"
 #include "ash/public/cpp/test/shell_test_api.h"
 #include "ash/shell.h"
+#include "base/memory/raw_ptr_exclusion.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/simple_test_tick_clock.h"
@@ -28,25 +30,30 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/interactive_test_utils.h"
+#include "chromeos/ash/services/assistant/public/cpp/features.h"
 #include "components/user_manager/user_names.h"
+#include "components/vector_icons/vector_icons.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/browsertest_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/compositor/scoped_animation_duration_scale_mode.h"
 #include "ui/display/display.h"
 #include "ui/display/manager/display_manager.h"
 #include "ui/events/base_event_utils.h"
+#include "ui/events/event_constants.h"
 #include "ui/events/test/event_generator.h"
 
 namespace ash {
 
 namespace {
 
-void SendKeyPressWithShiftAndControl(ui::KeyboardCode key) {
-  ASSERT_NO_FATAL_FAILURE(ASSERT_TRUE(ui_test_utils::SendKeyPressToWindowSync(
-      nullptr, key, true, true, false, false)));
+void SendKeyPressWithShiftAndControl(ui::test::EventGenerator* generator,
+                                     ui::KeyboardCode key) {
+  const int flags = ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN;
+  generator->PressAndReleaseKeyAndModifierKeys(key, flags);
 }
 
 class TestSearchResult : public ChromeSearchResult {
@@ -60,7 +67,7 @@ class TestSearchResult : public ChromeSearchResult {
   TestSearchResult(const TestSearchResult&) = delete;
   TestSearchResult& operator=(const TestSearchResult&) = delete;
 
-  ~TestSearchResult() override {}
+  ~TestSearchResult() override = default;
 
   // ChromeSearchResult overrides:
   void Open(int event_flags) override {}
@@ -71,8 +78,10 @@ class TestSearchProvider : public app_list::SearchProvider {
   TestSearchProvider(const std::string& prefix,
                      ChromeSearchResult::DisplayType display_type,
                      ChromeSearchResult::Category category,
-                     ChromeSearchResult::ResultType result_type)
-      : prefix_(prefix),
+                     ChromeSearchResult::ResultType result_type,
+                     app_list::SearchCategory search_category)
+      : SearchProvider(search_category),
+        prefix_(prefix),
         display_type_(display_type),
         category_(category),
         result_type_(result_type) {}
@@ -80,7 +89,7 @@ class TestSearchProvider : public app_list::SearchProvider {
   TestSearchProvider(const TestSearchProvider&) = delete;
   TestSearchProvider& operator=(const TestSearchProvider&) = delete;
 
-  ~TestSearchProvider() override {}
+  ~TestSearchProvider() override = default;
 
   // SearchProvider overrides:
   void Start(const std::u16string& query) override {
@@ -102,6 +111,11 @@ class TestSearchProvider : public app_list::SearchProvider {
     for (size_t i = 0; i < count_ + best_match_count_; ++i) {
       std::unique_ptr<ChromeSearchResult> result = create_result(i);
       result->SetBestMatch(i < best_match_count_);
+      if (result_type_ == ChromeSearchResult::ResultType::kImageSearch) {
+        result->SetIcon(ChromeSearchResult::IconInfo(
+            ui::ImageModel::FromVectorIcon(vector_icons::kGoogleColorIcon),
+            /*dimension=*/100));
+      }
       results.push_back(std::move(result));
     }
 
@@ -129,13 +143,15 @@ class TestSearchProvider : public app_list::SearchProvider {
 // through `apps_provder_ptr` and `web_provider_ptr`.
 void InitializeTestSearchProviders(
     app_list::SearchController* search_controller,
-    TestSearchProvider** apps_provider_ptr,
-    TestSearchProvider** web_provider_ptr) {
+    raw_ptr<TestSearchProvider>* apps_provider_ptr,
+    raw_ptr<TestSearchProvider>* web_provider_ptr,
+    raw_ptr<TestSearchProvider>* image_provider_ptr) {
   std::unique_ptr<TestSearchProvider> apps_provider =
       std::make_unique<TestSearchProvider>(
           "app", ChromeSearchResult::DisplayType::kList,
           ChromeSearchResult::Category::kApps,
-          ChromeSearchResult::ResultType::kInstalledApp);
+          ChromeSearchResult::ResultType::kInstalledApp,
+          app_list::SearchCategory::kApps);
   *apps_provider_ptr = apps_provider.get();
   search_controller->AddProvider(std::move(apps_provider));
 
@@ -143,9 +159,19 @@ void InitializeTestSearchProviders(
       std::make_unique<TestSearchProvider>(
           "item", ChromeSearchResult::DisplayType::kList,
           ChromeSearchResult::Category::kWeb,
-          ChromeSearchResult::ResultType::kOmnibox);
+          ChromeSearchResult::ResultType::kOmnibox,
+          app_list::SearchCategory::kWeb);
   *web_provider_ptr = web_provider.get();
   search_controller->AddProvider(std::move(web_provider));
+
+  std::unique_ptr<TestSearchProvider> image_provider =
+      std::make_unique<TestSearchProvider>(
+          "image", ChromeSearchResult::DisplayType::kImage,
+          ChromeSearchResult::Category::kFiles,
+          ChromeSearchResult::ResultType::kImageSearch,
+          app_list::SearchCategory::kImages);
+  *image_provider_ptr = image_provider.get();
+  search_controller->AddProvider(std::move(image_provider));
 }
 
 }  // namespace
@@ -169,6 +195,14 @@ class SpokenFeedbackAppListBaseTest : public LoggedInSpokenFeedbackTest {
 
     // Disable the app list nudge in the spoken feedback app list test.
     AppListTestApi().DisableAppListNudge(true);
+    AppListControllerImpl::SetSunfishNudgeDisabledForTest(true);
+
+    scoped_feature_list_.InitWithFeatures(
+        {features::kProductivityLauncherImageSearch,
+         features::kLauncherSearchControl,
+         features::kFeatureManagementLocalImageSearch},
+        {features::kScannerDogfood, features::kSunfishFeature,
+         ash::assistant::features::kEnableNewEntryPoint});
 
     LoggedInSpokenFeedbackTest::SetUp();
   }
@@ -205,7 +239,7 @@ class SpokenFeedbackAppListBaseTest : public LoggedInSpokenFeedbackTest {
   int MoveToFirstTestApp() {
     // Focus the shelf. This selects the launcher button.
     sm_.Call([this]() {
-      EXPECT_TRUE(PerformAcceleratorAction(AcceleratorAction::FOCUS_SHELF));
+      EXPECT_TRUE(PerformAcceleratorAction(AcceleratorAction::kFocusShelf));
     });
     sm_.ExpectSpeechPattern("Launcher");
     sm_.ExpectSpeech("Button");
@@ -252,13 +286,14 @@ class SpokenFeedbackAppListBaseTest : public LoggedInSpokenFeedbackTest {
   void ReadWindowTitle() {
     extensions::browsertest_util::ExecuteScriptInBackgroundPageNoWait(
         browser()->profile(), extension_misc::kChromeVoxExtensionId,
-        "import('/chromevox/background/"
+        "import('/chromevox/mv2/background/input/"
         "command_handler_interface.js').then(module => "
         "module.CommandHandlerInterface.instance.onCommand('readCurrentTitle'))"
         ";");
   }
 
  private:
+  base::test::ScopedFeatureList scoped_feature_list_;
   const SpokenFeedbackAppListTestVariant variant_;
   std::unique_ptr<ui::ScopedAnimationDurationScaleMode> zero_duration_mode_;
 };
@@ -320,15 +355,19 @@ class SpokenFeedbackAppListSearchTest
     // and best match status of results.
     search_controller->disable_ranking_for_test();
     InitializeTestSearchProviders(search_controller.get(), &apps_provider_,
-                                  &web_provider_);
+                                  &web_provider_, &image_provider_);
     ASSERT_TRUE(apps_provider_);
     ASSERT_TRUE(web_provider_);
+    ASSERT_TRUE(image_provider_);
     app_list_client->SetSearchControllerForTest(std::move(search_controller));
 
     ShellTestApi().SetTabletModeEnabledForTest(tablet_mode_);
   }
 
   void TearDownOnMainThread() override {
+    apps_provider_ = nullptr;
+    web_provider_ = nullptr;
+    image_provider_ = nullptr;
     AppListClientImpl::GetInstance()->SetSearchControllerForTest(nullptr);
     SpokenFeedbackAppListBaseTest::TearDownOnMainThread();
   }
@@ -340,7 +379,7 @@ class SpokenFeedbackAppListSearchTest
     } else {
       // Focus the home button and press it to open the bubble launcher.
       sm_.Call([this]() {
-        EXPECT_TRUE(PerformAcceleratorAction(AcceleratorAction::FOCUS_SHELF));
+        EXPECT_TRUE(PerformAcceleratorAction(AcceleratorAction::kFocusShelf));
       });
       sm_.ExpectSpeechPattern("Launcher");
       sm_.ExpectSpeech("Button");
@@ -355,8 +394,9 @@ class SpokenFeedbackAppListSearchTest
   // Whether the test runs in tablet mode.
   const bool tablet_mode_;
 
-  TestSearchProvider* apps_provider_ = nullptr;
-  TestSearchProvider* web_provider_ = nullptr;
+  raw_ptr<TestSearchProvider> apps_provider_ = nullptr;
+  raw_ptr<TestSearchProvider> web_provider_ = nullptr;
+  raw_ptr<TestSearchProvider> image_provider_ = nullptr;
 };
 
 // Instantiate test by user variant and tablet mode state.
@@ -381,7 +421,7 @@ IN_PROC_BROWSER_TEST_P(NotificationSpokenFeedbackAppListTest,
 
   // Focus the shelf. This selects the launcher button.
   sm_.Call([this]() {
-    EXPECT_TRUE(PerformAcceleratorAction(AcceleratorAction::FOCUS_SHELF));
+    EXPECT_TRUE(PerformAcceleratorAction(AcceleratorAction::kFocusShelf));
   });
   sm_.ExpectSpeechPattern("Launcher");
   sm_.ExpectSpeech("Button");
@@ -420,7 +460,7 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListTest,
 
   // Focus the shelf. This selects the launcher button.
   sm_.Call([this]() {
-    EXPECT_TRUE(PerformAcceleratorAction(AcceleratorAction::FOCUS_SHELF));
+    EXPECT_TRUE(PerformAcceleratorAction(AcceleratorAction::kFocusShelf));
   });
   sm_.ExpectSpeechPattern("Launcher");
   sm_.ExpectSpeech("Button");
@@ -460,7 +500,7 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListTest,
 
   // Focus the shelf. This selects the launcher button.
   sm_.Call([this]() {
-    EXPECT_TRUE(PerformAcceleratorAction(AcceleratorAction::FOCUS_SHELF));
+    EXPECT_TRUE(PerformAcceleratorAction(AcceleratorAction::kFocusShelf));
   });
   sm_.ExpectSpeechPattern("Launcher");
   sm_.ExpectSpeech("Button");
@@ -541,7 +581,7 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListTest, ClamshellLauncher) {
 
   // Focus the shelf. This selects the launcher button.
   sm_.Call([this]() {
-    EXPECT_TRUE(PerformAcceleratorAction(AcceleratorAction::FOCUS_SHELF));
+    EXPECT_TRUE(PerformAcceleratorAction(AcceleratorAction::kFocusShelf));
   });
   sm_.ExpectSpeechPattern("Launcher");
   sm_.ExpectSpeech("Button");
@@ -571,9 +611,8 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListTest, ClamshellLauncher) {
   // page because the bubble launcher apps grid is scrollable, not paged.
   sm_.Call([this]() { SendKeyPressWithControl(ui::VKEY_RIGHT); });
 
-  std::string expected_text;
-  sm_.ExpectSpeech(base::SStringPrintf(
-      &expected_text, "Moved to row 1, column %d.", test_item_index + 2));
+  sm_.ExpectSpeech(
+      base::StringPrintf("Moved to row 1, column %d.", test_item_index + 2));
 
   sm_.Replay();
 }
@@ -599,43 +638,38 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListTest, AppListReordering) {
   sm_.Call([this]() { SendKeyPressWithControl(ui::VKEY_RIGHT); });
   sm_.ExpectNextSpeechIsNot("Alert");
 
-  std::string expected_text;
-  sm_.ExpectSpeech(base::SStringPrintf(&expected_text,
-                                       "Moved to row 1, column %d.",
-                                       column_after_horizontal_move));
+  sm_.ExpectSpeech(base::StringPrintf("Moved to row 1, column %d.",
+                                      column_after_horizontal_move));
 
   // Move the focused item down.
   sm_.Call([this]() { SendKeyPressWithControl(ui::VKEY_DOWN); });
   sm_.ExpectNextSpeechIsNot("Alert");
-  sm_.ExpectSpeech(base::SStringPrintf(&expected_text,
-                                       "Moved to row 2, column %d.",
-                                       column_after_horizontal_move));
+  sm_.ExpectSpeech(base::StringPrintf("Moved to row 2, column %d.",
+                                      column_after_horizontal_move));
 
   // Move the focused item down.
   sm_.Call([this]() { SendKeyPressWithControl(ui::VKEY_DOWN); });
   sm_.ExpectNextSpeechIsNot("Alert");
-  sm_.ExpectSpeech(base::SStringPrintf(&expected_text,
-                                       "Moved to row 3, column %d.",
-                                       column_after_horizontal_move));
+  sm_.ExpectSpeech(base::StringPrintf("Moved to row 3, column %d.",
+                                      column_after_horizontal_move));
 
   // Move the focused item down.
   sm_.Call([this]() { SendKeyPressWithControl(ui::VKEY_DOWN); });
   sm_.ExpectNextSpeechIsNot("Alert");
-  sm_.ExpectSpeech(base::SStringPrintf(&expected_text,
-                                       "Moved to row 4, column %d.",
-                                       column_after_horizontal_move));
+  sm_.ExpectSpeech(base::StringPrintf("Moved to row 4, column %d.",
+                                      column_after_horizontal_move));
 
   // Move the focused item left.
   sm_.Call([this]() { SendKeyPressWithControl(ui::VKEY_LEFT); });
   sm_.ExpectNextSpeechIsNot("Alert");
-  sm_.ExpectSpeech(base::SStringPrintf(
-      &expected_text, "Moved to row 4, column %d.", original_column));
+  sm_.ExpectSpeech(
+      base::StringPrintf("Moved to row 4, column %d.", original_column));
 
   // Move the focused item back up.
   sm_.Call([this]() { SendKeyPressWithControl(ui::VKEY_UP); });
   sm_.ExpectNextSpeechIsNot("Alert");
-  sm_.ExpectSpeech(base::SStringPrintf(
-      &expected_text, "Moved to row 3, column %d.", original_column));
+  sm_.ExpectSpeech(
+      base::StringPrintf("Moved to row 3, column %d.", original_column));
 
   sm_.Replay();
 }
@@ -646,8 +680,11 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListTest, AppListFoldering) {
   EnableChromeVox();
   const int test_item_index = MoveToFirstTestApp();
 
+  auto* generator_ptr = event_generator();
   // Combine items and create a new folder.
-  sm_.Call([]() { SendKeyPressWithShiftAndControl(ui::VKEY_RIGHT); });
+  sm_.Call([generator_ptr]() {
+    SendKeyPressWithShiftAndControl(generator_ptr, ui::VKEY_RIGHT);
+  });
   sm_.ExpectNextSpeechIsNot("Alert");
   sm_.ExpectSpeech("Folder Unnamed");
   sm_.ExpectSpeech("Expanded");
@@ -659,15 +696,16 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListTest, AppListFoldering) {
   sm_.ExpectSpeech("Button");
 
   // Remove the first item from the folder back to the top level app list.
-  sm_.Call([]() { SendKeyPressWithShiftAndControl(ui::VKEY_LEFT); });
+  sm_.Call([generator_ptr]() {
+    SendKeyPressWithShiftAndControl(generator_ptr, ui::VKEY_LEFT);
+  });
 
   sm_.ExpectSpeech("app 1");
   sm_.ExpectSpeech("Button");
   sm_.ExpectNextSpeechIsNot("Alert");
 
-  std::string expected_text;
-  sm_.ExpectSpeech(base::SStringPrintf(
-      &expected_text, "Moved to row 1, column %d.", test_item_index + 1));
+  sm_.ExpectSpeech(
+      base::StringPrintf("Moved to row 1, column %d.", test_item_index + 1));
 
   sm_.Replay();
 }
@@ -680,7 +718,10 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListTest,
   MoveToFirstTestApp();
 
   // Combine items and create a new folder.
-  sm_.Call([]() { SendKeyPressWithShiftAndControl(ui::VKEY_RIGHT); });
+  auto* generator_ptr = event_generator();
+  sm_.Call([generator_ptr]() {
+    SendKeyPressWithShiftAndControl(generator_ptr, ui::VKEY_RIGHT);
+  });
   sm_.ExpectNextSpeechIsNot("Alert");
   sm_.ExpectSpeech("Folder Unnamed");
   sm_.ExpectSpeech("Expanded");
@@ -716,7 +757,7 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListTest,
     AppsGridView* grid_view = AppListTestApi().GetTopLevelAppsGridView();
     EXPECT_TRUE(grid_view);
     grid_view->ShowContextMenu(grid_view->GetBoundsInScreen().CenterPoint(),
-                               ui::MENU_SOURCE_KEYBOARD);
+                               ui::mojom::MenuSourceType::kKeyboard);
   });
   sm_.ExpectSpeech("menu opened");
 
@@ -736,7 +777,7 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListTest,
     AppsGridView* grid_view = AppListTestApi().GetTopLevelAppsGridView();
     EXPECT_TRUE(grid_view);
     grid_view->ShowContextMenu(grid_view->GetBoundsInScreen().CenterPoint(),
-                               ui::MENU_SOURCE_KEYBOARD);
+                               ui::mojom::MenuSourceType::kKeyboard);
   });
   sm_.ExpectSpeech("menu opened");
 
@@ -767,6 +808,7 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListSearchTest, LauncherSearch) {
     apps_provider_->set_best_match_count(2);
     apps_provider_->set_count(3);
     web_provider_->set_count(4);
+    image_provider_->set_count(3);
     SendKeyPress(ui::VKEY_G);
   });
 
@@ -781,6 +823,16 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListSearchTest, LauncherSearch) {
     sm_.Call([this]() { SendKeyPress(ui::VKEY_DOWN); });
     sm_.ExpectSpeech(base::StringPrintf("app %d", i));
     sm_.ExpectSpeech(base::StringPrintf("List item %d of 2", i + 1));
+  }
+
+  // Traverse image results.
+  for (int i = 0; i < 3; ++i) {
+    sm_.Call([this]() { SendKeyPress(ui::VKEY_DOWN); });
+    sm_.ExpectSpeech(base::StringPrintf("image %d", i));
+    sm_.ExpectSpeech(base::StringPrintf("List item %d of 3", i + 1));
+    if (i == 0) {
+      sm_.ExpectSpeech("List box");
+    }
   }
 
   // Traverse non-best-match app results.
@@ -805,9 +857,17 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListSearchTest, LauncherSearch) {
     }
   }
 
-  // Cycle focus to the close button.
+  // Cycle focus to the filter button.
+  sm_.Call([this]() { SendKeyPress(ui::VKEY_DOWN); });
+  sm_.ExpectSpeech("Toggle search result categories");
+
+  // Move focus to the close button.
   sm_.Call([this]() { SendKeyPress(ui::VKEY_DOWN); });
   sm_.ExpectSpeech("Clear searchbox text");
+
+  // Move focus back to the filter button.
+  sm_.Call([this]() { SendKeyPress(ui::VKEY_UP); });
+  sm_.ExpectSpeech("Toggle search result categories");
 
   // Go back to the last result.
   sm_.Call([this]() { SendKeyPress(ui::VKEY_UP); });
@@ -818,14 +878,24 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListSearchTest, LauncherSearch) {
     apps_provider_->set_best_match_count(0);
     apps_provider_->set_count(3);
     web_provider_->set_count(2);
+    image_provider_->set_count(2);
     SendKeyPress(ui::VKEY_A);
   });
 
   sm_.ExpectSpeech("A");
-  sm_.ExpectSpeech("app 0");
+  sm_.ExpectSpeech("image 0");
+  sm_.ExpectSpeech("List item 1 of 2");
+  sm_.ExpectSpeech("List box");
+
+  // Traverse image results.
+  for (int i = 1; i < 2; ++i) {
+    sm_.Call([this]() { SendKeyPress(ui::VKEY_DOWN); });
+    sm_.ExpectSpeech(base::StringPrintf("image %d", i));
+    sm_.ExpectSpeech(base::StringPrintf("List item %d of 2", i + 1));
+  }
 
   // Verify traversal works after result change.
-  for (int i = 1; i < 3; ++i) {
+  for (int i = 0; i < 3; ++i) {
     sm_.Call([this]() { SendKeyPress(ui::VKEY_DOWN); });
     sm_.ExpectSpeech(base::StringPrintf("app %d", i));
     sm_.ExpectSpeech(base::StringPrintf("List item %d of 3", i + 1));
@@ -867,9 +937,7 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListSearchTest,
   auto* clock_ptr = &clock;
   ui::SetEventTickClockForTesting(clock_ptr);
 
-  auto* root_window = Shell::Get()->GetPrimaryRootWindow();
-  ui::test::EventGenerator generator(root_window);
-  auto* generator_ptr = &generator;
+  auto* generator_ptr = event_generator();
 
   // Start touch exploration, and go to the third result in the UI (expected to
   // be "app 2").
@@ -880,14 +948,14 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListSearchTest,
 
     gfx::Point touch_point = target_view->GetBoundsInScreen().CenterPoint();
     ui::TouchEvent touch_press(
-        ui::ET_TOUCH_PRESSED, touch_point, base::TimeTicks::Now(),
+        ui::EventType::kTouchPressed, touch_point, base::TimeTicks::Now(),
         ui::PointerDetails(ui::EventPointerType::kTouch, 0));
     generator_ptr->Dispatch(&touch_press);
 
     clock_ptr->Advance(base::Seconds(1));
 
     ui::TouchEvent touch_move(
-        ui::ET_TOUCH_MOVED, touch_point, base::TimeTicks::Now(),
+        ui::EventType::kTouchMoved, touch_point, base::TimeTicks::Now(),
         ui::PointerDetails(ui::EventPointerType::kTouch, 0));
     generator_ptr->Dispatch(&touch_move);
   });
@@ -927,6 +995,61 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListSearchTest, VocalizeResultCount) {
   sm_.ExpectSpeech("A");
   sm_.ExpectSpeech("Displaying 5 results for ga");
 
+  sm_.Replay();
+}
+
+IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListSearchTest, SearchCategoryFilter) {
+  EnableChromeVox();
+  ShowAppList();
+
+  sm_.ExpectSpeechPattern("Search your *");
+  sm_.ExpectSpeech("Edit text");
+
+  sm_.Call([this]() {
+    apps_provider_->set_best_match_count(2);
+    apps_provider_->set_count(3);
+    web_provider_->set_count(4);
+    SendKeyPress(ui::VKEY_G);
+  });
+
+  sm_.ExpectSpeech("G");
+  sm_.ExpectSpeech("Displaying 8 results for g");
+
+  // Move focus to the close button.
+  sm_.Call([this]() { SendKeyPress(ui::VKEY_UP); });
+  sm_.ExpectSpeech("Clear searchbox text");
+
+  // Move focus to the filter button.
+  sm_.Call([this]() { SendKeyPress(ui::VKEY_UP); });
+  sm_.ExpectSpeech("Toggle search result categories");
+
+  // Open the filter menu.
+  sm_.Call([this]() { SendKeyPress(ui::VKEY_RETURN); });
+  sm_.ExpectSpeech("menu opened");
+
+  // Move focus to the category options.
+  sm_.Call([this]() { SendKeyPress(ui::VKEY_DOWN); });
+  sm_.ExpectSpeech("Apps");
+  sm_.ExpectSpeech("Checked");
+  sm_.ExpectSpeech("Your installed apps");
+
+  sm_.Call([this]() { SendKeyPress(ui::VKEY_DOWN); });
+  sm_.ExpectSpeech("Images");
+  sm_.ExpectSpeech("Checked");
+  sm_.ExpectSpeech("Image search by content and image previews");
+
+  sm_.Call([this]() { SendKeyPress(ui::VKEY_DOWN); });
+  sm_.ExpectSpeech("Websites");
+  sm_.ExpectSpeech("Checked");
+  sm_.ExpectSpeech("Websites including pages you've visited and open pages");
+
+  // Toggle the websites search category.
+  sm_.Call([this]() { SendKeyPress(ui::VKEY_RETURN); });
+  sm_.ExpectSpeech("Websites");
+  sm_.ExpectSpeech("Not checked");
+  sm_.ExpectSpeech("Websites including pages you've visited and open pages");
+
+  sm_.Call([this]() { SendKeyPress(ui::VKEY_ESCAPE); });
   sm_.Replay();
 }
 

@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "extensions/common/extension_id.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/image/image_skia.h"
 
@@ -36,13 +37,12 @@ class ExtensionInstalledBubbleModel {
   bool show_how_to_use() const { return show_how_to_use_; }
   bool show_how_to_manage() const { return show_how_to_manage_; }
   bool show_key_binding() const { return show_key_binding_; }
-  bool show_sign_in_promo() const { return show_sign_in_promo_; }
 
   std::u16string GetHowToUseText() const;
 
   gfx::ImageSkia MakeIconOfSize(const gfx::Size& size) const;
 
-  const std::string& extension_id() const { return extension_id_; }
+  const extensions::ExtensionId& extension_id() const { return extension_id_; }
   const std::string& extension_name() const { return extension_name_; }
 
  private:
@@ -59,14 +59,11 @@ class ExtensionInstalledBubbleModel {
   // Whether to show the extension's key binding in the install bubble.
   bool show_key_binding_ = false;
 
-  // Whether to show a signin promo in the install bubble.
-  bool show_sign_in_promo_ = false;
-
   std::u16string how_to_use_text_;
 
   const SkBitmap icon_;
 
-  const std::string extension_id_;
+  const extensions::ExtensionId extension_id_;
   const std::string extension_name_;
 };
 

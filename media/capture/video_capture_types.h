@@ -108,7 +108,7 @@ enum class VideoCaptureError {
   kCrosHalV3DeviceDelegateWrongNumberOfStreamsConfigured = 43,
   kCrosHalV3DeviceDelegateFailedToGetDefaultRequestSettings = 44,
   kCrosHalV3BufferManagerHalRequestedTooManyBuffers = 45,
-  kCrosHalV3BufferManagerFailedToCreateGpuMemoryBuffer = 46,
+  kCrosHalV3BufferManagerFailedToCreateMappableSI = 46,
   kCrosHalV3BufferManagerFailedToMapGpuMemoryBuffer = 47,
   kCrosHalV3BufferManagerUnsupportedVideoPixelFormat = 48,
   kCrosHalV3BufferManagerFailedToDupFd = 49,
@@ -209,7 +209,11 @@ enum class VideoCaptureError {
   kWinMediaFoundationSourceCreationFailed = 144,
   kWinDirectShowDeviceFilterCreationFailed = 145,
   kWinDirectShowDeviceInitializationFailed = 146,
-  kMaxValue = 146
+  kVideoCaptureDeviceFactorySecondCreateDenied = 147,
+  kScreenCaptureKitResetStreamError = 148,
+  kWinMediaFoundationCameraBusy = 149,
+  kWebRtcStartCaptureFailed = 150,
+  kMaxValue = 150
 };
 
 // WARNING: Do not change the values assigned to the entries. They are used for
@@ -236,14 +240,16 @@ enum class VideoCaptureFrameDropReason {
   kVideoTrackAdapterHasNoResolutionAdapters = 19,
   kResolutionAdapterFrameIsNotValid = 20,
   kResolutionAdapterWrappingFrameForCroppingFailed = 21,
-  kResolutionAdapterTimestampTooCloseToPrevious = 22,
+  // kResolutionAdapterTimestampTooCloseToPrevious = 22, // combined into 23.
   kResolutionAdapterFrameRateIsHigherThanRequested = 23,
   kResolutionAdapterHasNoCallbacks = 24,
   kVideoTrackFrameDelivererNotEnabledReplacingWithBlackFrame = 25,
   kRendererSinkFrameDelivererIsNotStarted = 26,
-  kCropVersionNotCurrent = 27,
+  kCropVersionNotCurrent_DEPRECATED = 27,
   kGpuMemoryBufferMapFailed = 28,
-  kMaxValue = 28
+  kSubCaptureTargetVersionNotCurrent = 29,
+  kPostProcessingFailed = 30,
+  kMaxValue = kPostProcessingFailed
 };
 
 // Assert that the int:frequency mapping is correct.

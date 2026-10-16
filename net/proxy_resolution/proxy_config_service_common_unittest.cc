@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "net/proxy_resolution/proxy_config_service_common_unittest.h"
 
 #include <string>
@@ -46,7 +51,8 @@ void MatchesProxyServerHelper(const char* failure_message,
     return;
   }
 
-  ProxyServer actual_proxy = actual_proxies.Get();
+  ASSERT_EQ(1u, actual_proxies.First().length());
+  ProxyServer actual_proxy = actual_proxies.First().First();
   std::string actual_proxy_string;
   if (actual_proxy.is_valid())
     actual_proxy_string = ProxyServerToProxyUri(actual_proxy);

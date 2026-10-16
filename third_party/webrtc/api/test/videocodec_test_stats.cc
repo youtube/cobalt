@@ -10,6 +10,10 @@
 
 #include "api/test/videocodec_test_stats.h"
 
+#include <cstddef>
+#include <map>
+#include <string>
+
 #include "rtc_base/strings/string_builder.h"
 
 namespace webrtc {
@@ -23,7 +27,7 @@ VideoCodecTestStats::FrameStatistics::FrameStatistics(size_t frame_number,
       spatial_idx(spatial_idx) {}
 
 std::string VideoCodecTestStats::FrameStatistics::ToString() const {
-  rtc::StringBuilder ss;
+  StringBuilder ss;
   for (const auto& entry : ToMap()) {
     if (ss.size() > 0) {
       ss << " ";
@@ -62,7 +66,7 @@ std::map<std::string, std::string> VideoCodecTestStats::FrameStatistics::ToMap()
 
 std::string VideoCodecTestStats::VideoStatistics::ToString(
     std::string prefix) const {
-  rtc::StringBuilder ss;
+  StringBuilder ss;
   for (const auto& entry : ToMap()) {
     if (ss.size() > 0) {
       ss << "\n";

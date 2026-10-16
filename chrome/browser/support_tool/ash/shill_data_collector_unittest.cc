@@ -4,8 +4,10 @@
 
 #include "chrome/browser/support_tool/ash/shill_data_collector.h"
 
+#include <algorithm>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -15,7 +17,6 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/run_loop.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
@@ -30,7 +31,6 @@
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using ::testing::ContainerEq;
 using ::testing::IsSupersetOf;
@@ -130,12 +130,13 @@ const PIIMap kPIIInTestData = {
      {"100.0.0.1", "100.0.0.2", "0:0:0:0:100:0:0:1"}},
     {redaction::PIIType::kURL, {"http://wpad.com/wpad.dat"}},
     {redaction::PIIType::kSSID,
-     {"\"7769666931\"\n", "stub_wifi_device1", "wifi1"}}};
+     {"\"7769666931\"\n", "stub_wifi_device1", "wifi1"}},
+    {redaction::PIIType::kMACAddress, {"0123456789ab", "23456789abcd"}}};
 
 // Types of all PII data contained in the test data
 const std::set<redaction::PIIType> kAllPIITypesInData = {
     redaction::PIIType::kIPAddress, redaction::PIIType::kURL,
-    redaction::PIIType::kSSID};
+    redaction::PIIType::kSSID, redaction::PIIType::kMACAddress};
 
 class ShillDataCollectorTest : public ::testing::Test {
  public:
@@ -195,18 +196,18 @@ TEST_F(ShillDataCollectorTest, CollectAndExportUnmaskedData) {
   ShillDataCollector data_collector;
 
   // Test data collection and PII detection.
-  base::test::TestFuture<absl::optional<SupportToolError>>
+  base::test::TestFuture<std::optional<SupportToolError>>
       test_future_collect_data;
   data_collector.CollectDataAndDetectPII(test_future_collect_data.GetCallback(),
                                          task_runner_for_redaction_tool_,
                                          redaction_tool_container_);
   // Check if CollectDataAndDetectPII call returned an error.
-  absl::optional<SupportToolError> error = test_future_collect_data.Get();
-  EXPECT_EQ(error, absl::nullopt);
+  std::optional<SupportToolError> error = test_future_collect_data.Get();
+  EXPECT_EQ(error, std::nullopt);
   PIIMap detected_pii = data_collector.GetDetectedPII();
   // Get the types of all PII data detected
   std::set<redaction::PIIType> detected_pii_types;
-  base::ranges::transform(
+  std::ranges::transform(
       detected_pii, std::inserter(detected_pii_types, detected_pii_types.end()),
       &PIIMap::value_type::first);
   // If set A is a subset of set B, then A unioned with B equals B
@@ -220,7 +221,7 @@ TEST_F(ShillDataCollectorTest, CollectAndExportUnmaskedData) {
   }
 
   // Check PII removal and data export.
-  base::test::TestFuture<absl::optional<SupportToolError>>
+  base::test::TestFuture<std::optional<SupportToolError>>
       test_future_export_data;
   base::FilePath output_dir = GetTempDirForOutput();
   // Export collected data to a directory and keep all PII.
@@ -230,7 +231,7 @@ TEST_F(ShillDataCollectorTest, CollectAndExportUnmaskedData) {
       test_future_export_data.GetCallback());
   // Check if ExportCollectedDataWithPII call returned an error.
   error = test_future_export_data.Get();
-  EXPECT_EQ(error, absl::nullopt);
+  EXPECT_EQ(error, std::nullopt);
   // Read the output file.
   std::string shill_logs;
   EXPECT_TRUE(base::ReadFileToString(
@@ -253,18 +254,18 @@ TEST_F(ShillDataCollectorTest, CollectAndExportMaskedData) {
   ShillDataCollector data_collector;
 
   // Test data collection and PII detection.
-  base::test::TestFuture<absl::optional<SupportToolError>>
+  base::test::TestFuture<std::optional<SupportToolError>>
       test_future_collect_data;
   data_collector.CollectDataAndDetectPII(test_future_collect_data.GetCallback(),
                                          task_runner_for_redaction_tool_,
                                          redaction_tool_container_);
   // Check if CollectDataAndDetectPII call returned an error.
-  absl::optional<SupportToolError> error = test_future_collect_data.Get();
-  EXPECT_EQ(error, absl::nullopt);
+  std::optional<SupportToolError> error = test_future_collect_data.Get();
+  EXPECT_EQ(error, std::nullopt);
   PIIMap detected_pii = data_collector.GetDetectedPII();
   // Get the types of all PII data detected
   std::set<redaction::PIIType> detected_pii_types;
-  base::ranges::transform(
+  std::ranges::transform(
       detected_pii, std::inserter(detected_pii_types, detected_pii_types.end()),
       &PIIMap::value_type::first);
   // If set A is a subset of set B, then A unioned with B equals B
@@ -278,7 +279,7 @@ TEST_F(ShillDataCollectorTest, CollectAndExportMaskedData) {
   }
 
   // Check PII removal and data export.
-  base::test::TestFuture<absl::optional<SupportToolError>>
+  base::test::TestFuture<std::optional<SupportToolError>>
       test_future_export_data;
   base::FilePath output_dir = GetTempDirForOutput();
   // Export collected data to a directory and remove all PII from it.
@@ -287,7 +288,7 @@ TEST_F(ShillDataCollectorTest, CollectAndExportMaskedData) {
       redaction_tool_container_, test_future_export_data.GetCallback());
   // Check if ExportCollectedDataWithPII call returned an error.
   error = test_future_export_data.Get();
-  EXPECT_EQ(error, absl::nullopt);
+  EXPECT_EQ(error, std::nullopt);
   // Read the output file.
   std::string shill_logs;
   EXPECT_TRUE(base::ReadFileToString(

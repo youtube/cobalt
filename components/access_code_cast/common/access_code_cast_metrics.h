@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_ACCESS_CODE_CAST_COMMON_ACCESS_CODE_CAST_METRICS_H_
 #define COMPONENTS_ACCESS_CODE_CAST_COMMON_ACCESS_CODE_CAST_METRICS_H_
 
+#include "base/component_export.h"
 #include "base/time/time.h"
 
 // NOTE: Do not renumber enums as that would confuse interpretation of
@@ -101,7 +102,8 @@ enum class AccessCodeCastUiTabSwitcherUsage {
   kMaxValue = kTabSwitcherUiShownAndUsedToSwitchTabs,
 };
 
-class AccessCodeCastMetrics {
+class COMPONENT_EXPORT(COMPONENTS_ACCESS_CODE_CAST_COMMON)
+    AccessCodeCastMetrics {
  public:
   AccessCodeCastMetrics();
   ~AccessCodeCastMetrics();
@@ -115,9 +117,13 @@ class AccessCodeCastMetrics {
   static const char kHistogramDialogCloseReason[];
   static const char kHistogramDialogLoadTime[];
   static const char kHistogramDialogOpenLocation[];
+  static const char kHistogramFreezeCount[];
+  static const char kHistogramFreezeDuration[];
+  static const char kHistogramNewDeviceRouteCreationDuration[];
   static const char kHistogramRememberedDevicesCount[];
   static const char kHistogramRouteDiscoveryTypeAndSource[];
   static const char kHistogramRouteDuration[];
+  static const char kHistogramSavedDeviceRouteCreationDuration[];
   static const char kHistogramUiTabSwitcherUsageType[];
   static const char kHistogramUiTabSwitchingCount[];
 
@@ -149,6 +155,13 @@ class AccessCodeCastMetrics {
   static void RecordDialogOpenLocation(
       AccessCodeCastDialogOpenLocation location);
 
+  // Records the number of times a mirroring session is paused during its
+  // duration.
+  static void RecordMirroringPauseCount(int count);
+
+  // Records the duration of time that a mirroring session is paused.
+  static void RecordMirroringPauseDuration(base::TimeDelta duration);
+
   // Records the count of cast devices which are currently being remembered
   // being the AccessCodeCastSinkService.
   static void RecordRememberedDevicesCount(int count);
@@ -167,6 +180,17 @@ class AccessCodeCastMetrics {
   // shown and actually used to switch tabs.
   static void RecordTabSwitcherUsageCase(
       AccessCodeCastUiTabSwitcherUsage usage);
+
+  // Records the time that it takes to connect to a saved device. It is a
+  // combination of the time to request a mirroring route + waiting for a
+  // success. It is only recorded if the request was successful.
+  static void RecordSavedDeviceConnectDuration(base::TimeDelta duration);
+
+  // Records the time it takes to connect to a new device. It is the combination
+  // of connecting to our server, validating the access code, constructing a
+  // cast device, opening a channel to that device, and then waiting for
+  // success.
+  static void RecordNewDeviceConnectDuration(base::TimeDelta duration);
 };
 
 #endif  // COMPONENTS_ACCESS_CODE_CAST_COMMON_ACCESS_CODE_CAST_METRICS_H_

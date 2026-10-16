@@ -9,10 +9,10 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/trace_event.h"
-#include "chrome/browser/sharing/proto/shared_clipboard_message.pb.h"
-#include "chrome/browser/sharing/proto/sharing_message.pb.h"
-#include "chrome/browser/sharing/sharing_device_source.h"
-#include "components/sync_device_info/device_info.h"
+#include "components/sharing_message/proto/shared_clipboard_message.pb.h"
+#include "components/sharing_message/proto/sharing_message.pb.h"
+#include "components/sharing_message/sharing_device_source.h"
+#include "components/sharing_message/sharing_target_device_info.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 
@@ -23,7 +23,7 @@ SharedClipboardMessageHandler::SharedClipboardMessageHandler(
 SharedClipboardMessageHandler::~SharedClipboardMessageHandler() = default;
 
 void SharedClipboardMessageHandler::OnMessage(
-    chrome_browser_sharing::SharingMessage message,
+    components_sharing_message::SharingMessage message,
     SharingMessageHandler::DoneCallback done_callback) {
   DCHECK(message.has_shared_clipboard_message());
   TRACE_EVENT0("sharing", "SharedClipboardMessageHandler::OnMessage");
@@ -31,10 +31,10 @@ void SharedClipboardMessageHandler::OnMessage(
   ui::ScopedClipboardWriter(ui::ClipboardBuffer::kCopyPaste)
       .WriteText(base::UTF8ToUTF16(message.shared_clipboard_message().text()));
 
-  std::unique_ptr<syncer::DeviceInfo> device =
+  std::optional<SharingTargetDeviceInfo> device =
       device_source_->GetDeviceByGuid(message.sender_guid());
   const std::string& device_name =
-      device ? device->client_name() : message.sender_device_name();
+      device.has_value() ? device->client_name() : message.sender_device_name();
   ShowNotification(device_name);
 
   std::move(done_callback).Run(/*response=*/nullptr);

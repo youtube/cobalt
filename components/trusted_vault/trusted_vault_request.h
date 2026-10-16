@@ -6,17 +6,19 @@
 #define COMPONENTS_TRUSTED_VAULT_TRUSTED_VAULT_REQUEST_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/functional/callback.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "components/trusted_vault/trusted_vault_access_token_fetcher.h"
 #include "components/trusted_vault/trusted_vault_connection.h"
 #include "components/trusted_vault/trusted_vault_histograms.h"
+#include "components/trusted_vault/trusted_vault_server_constants.h"
 #include "google_apis/gaia/core_account_id.h"
 #include "net/base/backoff_entry.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace network {
@@ -53,27 +55,33 @@ class TrustedVaultRequest : public TrustedVaultConnection::Request {
     kOtherError
   };
 
-  enum class HttpMethod { kGet, kPost };
+  enum class HttpMethod { kGet, kPost, kPatch };
 
   using CompletionCallback =
       base::OnceCallback<void(HttpStatus status,
                               const std::string& response_body)>;
 
+  using RecordFetchStatusCallback =
+      base::RepeatingCallback<void(int http_status, int net_error)>;
+
   // |callback| will be run upon completion and it's allowed to delete this
-  // object upon |callback| call. For GET requests, |serialized_request_proto|
-  // must be null. For |POST| requests, it can be either way (optional payload).
-  // |url_loader_factory| must not be null.
+  // object upon |callback| call. For |GET| requests, |serialized_request_proto|
+  // must be null. For |POST| and |PATCH| requests, it can be either way
+  // (optional payload). |url_loader_factory| must not be null.
   // |max_retry_duration| specifies for how long the request can be retried in
   // case of transient errors. There will be no retries when it is set to zero.
+  // |record_fetch_status_callback| may be used to record fetch outcomes in a
+  // histogram metric.
   TrustedVaultRequest(
+      const SecurityDomainId& security_domain_id,
       const CoreAccountId& account_id,
       HttpMethod http_method,
       const GURL& request_url,
-      const absl::optional<std::string>& serialized_request_proto,
+      const std::optional<std::string>& serialized_request_proto,
       base::TimeDelta max_retry_duration,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       std::unique_ptr<TrustedVaultAccessTokenFetcher> access_token_fetcher,
-      TrustedVaultURLFetchReasonForUMA reason_for_uma);
+      RecordFetchStatusCallback record_fetch_status_callback);
   TrustedVaultRequest(const TrustedVaultRequest& other) = delete;
   TrustedVaultRequest& operator=(const TrustedVaultRequest& other) = delete;
   ~TrustedVaultRequest() override;
@@ -87,7 +95,7 @@ class TrustedVaultRequest : public TrustedVaultConnection::Request {
   void OnAccessTokenFetched(
       TrustedVaultAccessTokenFetcher::AccessTokenInfoOrError
           access_token_info_or_error);
-  void OnURLLoadComplete(std::unique_ptr<std::string> response_body);
+  void OnURLLoadComplete(std::optional<std::string> response_body);
 
   std::unique_ptr<network::SimpleURLLoader> CreateURLLoader(
       const std::string& access_token) const;
@@ -102,13 +110,14 @@ class TrustedVaultRequest : public TrustedVaultConnection::Request {
       HttpStatus status,
       const std::string& response_body);
 
+  const SecurityDomainId security_domain_id_;
   const CoreAccountId account_id_;
   const HttpMethod http_method_;
   const GURL request_url_;
-  const absl::optional<std::string> serialized_request_proto_;
+  const std::optional<std::string> serialized_request_proto_;
   const scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
   const std::unique_ptr<TrustedVaultAccessTokenFetcher> access_token_fetcher_;
-  const TrustedVaultURLFetchReasonForUMA reason_for_uma_;
+  const RecordFetchStatusCallback record_fetch_status_callback_;
   const base::TimeTicks max_retry_time_;
 
   net::BackoffEntry backoff_entry_;

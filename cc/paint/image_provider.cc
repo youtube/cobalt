@@ -4,10 +4,10 @@
 
 #include "cc/paint/image_provider.h"
 
+#include <optional>
 #include <utility>
 
 #include "cc/paint/paint_record.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cc {
 
@@ -16,7 +16,7 @@ ImageProvider::ScopedResult::ScopedResult() = default;
 ImageProvider::ScopedResult::ScopedResult(DecodedDrawImage image)
     : image_(std::move(image)) {}
 
-ImageProvider::ScopedResult::ScopedResult(absl::optional<PaintRecord> record)
+ImageProvider::ScopedResult::ScopedResult(std::optional<PaintRecord> record)
     : record_(std::move(record)) {}
 
 ImageProvider::ScopedResult::ScopedResult(DecodedDrawImage image,

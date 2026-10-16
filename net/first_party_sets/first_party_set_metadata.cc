@@ -5,6 +5,7 @@
 #include "net/first_party_sets/first_party_set_metadata.h"
 
 #include <tuple>
+#include <utility>
 
 #include "base/types/optional_util.h"
 #include "net/first_party_sets/first_party_set_entry.h"
@@ -13,12 +14,10 @@ namespace net {
 
 FirstPartySetMetadata::FirstPartySetMetadata() = default;
 FirstPartySetMetadata::FirstPartySetMetadata(
-    const SamePartyContext& context,
-    const FirstPartySetEntry* frame_entry,
-    const FirstPartySetEntry* top_frame_entry)
-    : context_(context),
-      frame_entry_(base::OptionalFromPtr(frame_entry)),
-      top_frame_entry_(base::OptionalFromPtr(top_frame_entry)) {}
+    std::optional<FirstPartySetEntry> frame_entry,
+    std::optional<FirstPartySetEntry> top_frame_entry)
+    : frame_entry_(std::move(frame_entry)),
+      top_frame_entry_(std::move(top_frame_entry)) {}
 
 FirstPartySetMetadata::FirstPartySetMetadata(FirstPartySetMetadata&&) = default;
 FirstPartySetMetadata& FirstPartySetMetadata::operator=(
@@ -27,20 +26,14 @@ FirstPartySetMetadata& FirstPartySetMetadata::operator=(
 FirstPartySetMetadata::~FirstPartySetMetadata() = default;
 
 bool FirstPartySetMetadata::operator==(
-    const FirstPartySetMetadata& other) const {
-  return std::tie(context_, frame_entry_, top_frame_entry_) ==
-         std::tie(other.context_, other.frame_entry_, other.top_frame_entry_);
-}
+    const FirstPartySetMetadata& other) const = default;
 
 bool FirstPartySetMetadata::operator!=(
-    const FirstPartySetMetadata& other) const {
-  return !(*this == other);
-}
+    const FirstPartySetMetadata& other) const = default;
 
 std::ostream& operator<<(std::ostream& os,
                          const FirstPartySetMetadata& metadata) {
-  os << "{" << metadata.context() << ", "
-     << base::OptionalToPtr(metadata.frame_entry()) << ", "
+  os << "{" << base::OptionalToPtr(metadata.frame_entry()) << ", "
      << base::OptionalToPtr(metadata.top_frame_entry()) << "}";
   return os;
 }

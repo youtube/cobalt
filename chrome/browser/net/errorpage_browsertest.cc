@@ -59,6 +59,7 @@
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "content/public/common/isolated_world_ids.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
@@ -78,11 +79,11 @@
 #include "services/network/public/cpp/features.h"
 #include "ui/base/l10n/l10n_util.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_features.h"
 #include "chrome/browser/ash/system_web_apps/test_support/system_web_app_browsertest_base.h"  // nogncheck
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"  // nogncheck
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 using content::BrowserThread;
 using content::NavigationController;
@@ -244,7 +245,7 @@ class TestFailProvisionalLoadObserver : public content::WebContentsObserver {
   TestFailProvisionalLoadObserver& operator=(
       const TestFailProvisionalLoadObserver&) = delete;
 
-  ~TestFailProvisionalLoadObserver() override {}
+  ~TestFailProvisionalLoadObserver() override = default;
 
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override {
@@ -410,12 +411,12 @@ IN_PROC_BROWSER_TEST_F(DNSErrorPageTest, DNSError_DoReload) {
 
   // Clicking the reload button should load the error page again.
   content::TestNavigationObserver nav_observer(web_contents, 1);
-  // Can't use content::ExecuteScript because it waits for scripts to send
+  // Can't use content::ExecJs because it waits for scripts to send
   // notification that they've run, and scripts that trigger a navigation may
   // not send that notification.
   web_contents->GetPrimaryMainFrame()->ExecuteJavaScriptForTests(
       u"document.getElementById('reload-button').click();",
-      base::NullCallback());
+      base::NullCallback(), content::ISOLATED_WORLD_ID_GLOBAL);
   nav_observer.Wait();
   ExpectDisplayingErrorPage(browser(), net::ERR_NAME_NOT_RESOLVED);
 }
@@ -436,19 +437,20 @@ IN_PROC_BROWSER_TEST_F(DNSErrorPageTest,
   // Do a same-document navigation on the error page, which should not result
   // in a new navigation.
   web_contents->GetPrimaryMainFrame()->ExecuteJavaScriptForTests(
-      u"document.location='#';", base::NullCallback());
+      u"document.location='#';", base::NullCallback(),
+      content::ISOLATED_WORLD_ID_GLOBAL);
   content::WaitForLoadStop(web_contents);
   // Page being displayed should not change.
   ExpectDisplayingErrorPage(browser(), net::ERR_NAME_NOT_RESOLVED);
 
   // Clicking the reload button should load the error page again.
   content::TestNavigationObserver nav_observer2(web_contents);
-  // Can't use content::ExecuteScript because it waits for scripts to send
+  // Can't use content::ExecJs because it waits for scripts to send
   // notification that they've run, and scripts that trigger a navigation may
   // not send that notification.
   web_contents->GetPrimaryMainFrame()->ExecuteJavaScriptForTests(
       u"document.getElementById('reload-button').click();",
-      base::NullCallback());
+      base::NullCallback(), content::ISOLATED_WORLD_ID_GLOBAL);
   nav_observer2.Wait();
   ExpectDisplayingErrorPage(browser(), net::ERR_NAME_NOT_RESOLVED);
 }
@@ -486,9 +488,7 @@ IN_PROC_BROWSER_TEST_F(DNSErrorPageTest, MAYBE_IFrameDNSError_GoBack) {
 // This test fails regularly on win_rel trybots. See crbug.com/121540
 //
 // This fails on linux_aura bringup: http://crbug.com/163931
-#if BUILDFLAG(IS_WIN) ||                                       \
-    ((BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)) && \
-     defined(USE_AURA))
+#if BUILDFLAG(IS_WIN) || (BUILDFLAG(IS_LINUX) && defined(USE_AURA))
 #define MAYBE_IFrameDNSError_GoBackAndForward DISABLED_IFrameDNSError_GoBackAndForward
 #else
 #define MAYBE_IFrameDNSError_GoBackAndForward IFrameDNSError_GoBackAndForward
@@ -528,7 +528,8 @@ IN_PROC_BROWSER_TEST_F(DNSErrorPageTest, IFrameDNSError_JavaScript) {
     TestFailProvisionalLoadObserver fail_observer(wc);
     content::LoadStopObserver load_observer(wc);
     wc->GetPrimaryMainFrame()->ExecuteJavaScriptForTests(
-        base::ASCIIToUTF16(script), base::NullCallback());
+        base::ASCIIToUTF16(script), base::NullCallback(),
+        content::ISOLATED_WORLD_ID_GLOBAL);
     load_observer.Wait();
 
     // Ensure we saw the expected failure.
@@ -547,7 +548,8 @@ IN_PROC_BROWSER_TEST_F(DNSErrorPageTest, IFrameDNSError_JavaScript) {
   {
     content::LoadStopObserver load_observer(wc);
     wc->GetPrimaryMainFrame()->ExecuteJavaScriptForTests(
-        base::ASCIIToUTF16(script), base::NullCallback());
+        base::ASCIIToUTF16(script), base::NullCallback(),
+        content::ISOLATED_WORLD_ID_GLOBAL);
     load_observer.Wait();
   }
 
@@ -557,7 +559,8 @@ IN_PROC_BROWSER_TEST_F(DNSErrorPageTest, IFrameDNSError_JavaScript) {
     TestFailProvisionalLoadObserver fail_observer(wc);
     content::LoadStopObserver load_observer(wc);
     wc->GetPrimaryMainFrame()->ExecuteJavaScriptForTests(
-        base::ASCIIToUTF16(script), base::NullCallback());
+        base::ASCIIToUTF16(script), base::NullCallback(),
+        content::ISOLATED_WORLD_ID_GLOBAL);
     load_observer.Wait();
 
     EXPECT_EQ(fail_url, fail_observer.fail_url());
@@ -614,7 +617,7 @@ IN_PROC_BROWSER_TEST_F(DNSErrorPageTest, Incognito) {
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       incognito_browser,
-      URLRequestFailedJob::GetMockHttpUrl(net::ERR_NAME_NOT_RESOLVED)));
+      URLRequestFailedJob::GetMockHttpsUrl(net::ERR_NAME_NOT_RESOLVED)));
 
   // Verify that the expected error page is being displayed.
   ExpectDisplayingErrorPage(incognito_browser, net::ERR_NAME_NOT_RESOLVED);
@@ -737,7 +740,7 @@ IN_PROC_BROWSER_TEST_F(ErrorPageAutoReloadTest, MAYBE_AutoReload) {
   EXPECT_EQ(kRequestsToFail + 1, interceptor_requests());
 }
 
-// TODO(crbug.com/1350295): Test is flaky.
+// TODO(crbug.com/40856405): Test is flaky.
 IN_PROC_BROWSER_TEST_F(ErrorPageAutoReloadTest,
                        DISABLED_ManualReloadNotSuppressed) {
   GURL test_url("http://error.page.auto.reload");
@@ -760,7 +763,7 @@ IN_PROC_BROWSER_TEST_F(ErrorPageAutoReloadTest,
   content::TestNavigationObserver nav_observer(web_contents, 1);
   web_contents->GetPrimaryMainFrame()->ExecuteJavaScriptForTests(
       u"document.getElementById('reload-button').click();",
-      base::NullCallback());
+      base::NullCallback(), content::ISOLATED_WORLD_ID_GLOBAL);
   nav_observer.Wait();
   EXPECT_FALSE(IsDisplayingText(
       browser(), l10n_util::GetStringUTF8(
@@ -770,7 +773,7 @@ IN_PROC_BROWSER_TEST_F(ErrorPageAutoReloadTest,
 // Make sure that a same document navigation does not cause issues with the
 // auto-reload timer.  Note that this test was added due to this case causing
 // a crash.  On regression, this test may hang due to a crashed renderer.
-// TODO(crbug.com/1111535): Flaky.
+// TODO(crbug.com/40709227): Flaky.
 IN_PROC_BROWSER_TEST_F(ErrorPageAutoReloadTest,
                        DISABLED_IgnoresSameDocumentNavigation) {
   GURL test_url("http://error.page.auto.reload");
@@ -790,7 +793,8 @@ IN_PROC_BROWSER_TEST_F(ErrorPageAutoReloadTest,
   // Same-document navigation on an error page should not interrupt the
   // scheduled auto-reload which should still be pending on the WebContents.
   web_contents->GetPrimaryMainFrame()->ExecuteJavaScriptForTests(
-      u"document.location='#';", base::NullCallback());
+      u"document.location='#';", base::NullCallback(),
+      content::ISOLATED_WORLD_ID_GLOBAL);
 
   // Wait for the second auto reload to happen. It will succeed and update the
   // WebContents' title.
@@ -994,12 +998,23 @@ class ErrorPageForIDNTest : public InProcessBrowserTest {
   static const char kHostname[];
   static const char kHostnameJSUnicode[];
 
+  ErrorPageForIDNTest() {
+    // TODO(crbug.com/334954143) This test clears the AcceptLanguage Prefs which
+    // causes Accept-Language to not work correctly. Fix the tests when turning
+    // on the reduce accept-language feature.
+    scoped_feature_list_.InitWithFeatures(
+        {}, {network::features::kReduceAcceptLanguage});
+  }
+
   // InProcessBrowserTest:
   void SetUpOnMainThread() override {
     // Clear AcceptLanguages to force punycode decoding.
     browser()->profile()->GetPrefs()->SetString(
         language::prefs::kAcceptLanguages, std::string());
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 const char ErrorPageForIDNTest::kHostname[] =
@@ -1055,7 +1070,7 @@ IN_PROC_BROWSER_TEST_F(ErrorPageSniffTest,
   ExpectDisplayingErrorPage(browser(), net::ERR_INVALID_RESPONSE);
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // For ChromeOS, launches appropriate diagnostics app.
 void ClickDiagnosticsLink(Browser* browser) {
   DCHECK(IsDisplayingDiagnosticsLink(browser));
@@ -1065,9 +1080,7 @@ void ClickDiagnosticsLink(Browser* browser) {
 }
 
 // On ChromeOS "Running Connectivity Diagnostics" link on error page should
-// launch chrome://diagnostics/?connectivity app by default. Not running test on
-// LaCROS due to errors on Wayland initialization and to keep test to ChromeOS
-// devices.
+// launch chrome://diagnostics/?connectivity app by default.
 using ErrorPageOfflineAppLaunchTest = ash::SystemWebAppBrowserTestBase;
 
 IN_PROC_BROWSER_TEST_F(ErrorPageOfflineAppLaunchTest, DiagnosticsConnectivity) {
@@ -1090,6 +1103,6 @@ IN_PROC_BROWSER_TEST_F(ErrorPageOfflineAppLaunchTest, DiagnosticsConnectivity) {
       ::chrome::FindLastActive()->tab_strip_model()->GetActiveWebContents();
   EXPECT_EQ(expected_url, contents->GetVisibleURL());
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace

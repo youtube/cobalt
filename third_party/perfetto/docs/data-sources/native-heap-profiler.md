@@ -63,7 +63,7 @@ heap profiling can be enabled alongside any other tracing data sources.
 You can use the `tools/heap_profile` script. If you are having trouble
 make sure you are using the
 [latest version](
-https://raw.githubusercontent.com/google/perfetto/master/tools/heap_profile).
+https://raw.githubusercontent.com/google/perfetto/main/tools/heap_profile).
 
 You can target processes either by name (`-n com.example.myapp`) or by PID
 (`-p 1234`). In the first case, the heap profile will be initiated on both on
@@ -225,7 +225,7 @@ empty profile.
 On userdebug builds, all processes except for a small set of critical
 services can be profiled (to find the set of disallowed targets, look for
 `never_profile_heap` in [heapprofd.te](
-https://cs.android.com/android/platform/superproject/+/master:system/sepolicy/private/heapprofd.te?q=never_profile_heap).
+https://cs.android.com/android/platform/superproject/main/+/main:system/sepolicy/private/heapprofd.te?q=never_profile_heap).
 This restriction can be lifted by disabling SELinux by running
 `adb shell su root setenforce 0` or by passing `--disable-selinux` to the
 `heap_profile` script.
@@ -372,11 +372,14 @@ provide a deobfuscation map to turn them back into human readable.
 To do so, use the `PERFETTO_PROGUARD_MAP` environment variable, using the
 format `packagename=map_filename[:packagename=map_filename...]`, e.g.
 `PERFETTO_PROGUARD_MAP=com.example.pkg1=foo.txt:com.example.pkg2=bar.txt`.
-All tools
-(traceconv, trace_processor_shell, the heap_profile script) support specifying
-the `PERFETTO_PROGUARD_MAP` as an environment variable.
+All tools (traceconv, trace_processor_shell, the heap_profile script) support
+specifying the `PERFETTO_PROGUARD_MAP` as an environment variable.
 
-You can get a deobfuscation map for your trace using
+```
+PERFETTO_PROGUARD_MAP=com.example.pkg1=proguard_map1.txt:com.example.pkg2=proguard_map2.txt ./tools/heap_profile -n com.example.app
+```
+
+You can get a deobfuscation map for the trace you already collected using
 `tools/traceconv deobfuscate`. Then concatenate the resulting file to your
 trace to get a deobfuscated version of it (the input trace should be in the
 perfetto format, otherwise concatenation will not produce a reasonable output).
@@ -654,12 +657,28 @@ There is an **experimental** table that surfaces this information. The **API is
 subject to change**.
 
 ```sql
-select name, map_name, cumulative_size
-       from experimental_flamegraph
-       where ts = 8300973884377
-            and upid = 1
-            and profile_type = 'native'
-       order by abs(cumulative_size) desc;
+select
+  name,
+  map_name,
+  cumulative_size
+from experimental_flamegraph(
+  -- The type of the profile from which the flamegraph is being generated.
+  -- Always 'native' for native heap profiles.
+  'native',
+  -- The timestamp of the heap profile.
+  8300973884377,
+  -- Timestamp constraints: not relevant and always null for native heap
+  -- profiles.
+  NULL,
+  -- The upid of the heap profile.
+  1,
+  -- The upid group: not relevant and always null for native heap profiles.
+  NULL,
+  -- A regex for focusing on a particular node in the heapgraph: for advanced
+  -- use only.
+  NULL
+)
+order by abs(cumulative_size) desc;
 ```
 
 | name | map_name | cumulative_size |

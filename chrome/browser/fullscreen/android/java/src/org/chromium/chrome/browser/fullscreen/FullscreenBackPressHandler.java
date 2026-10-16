@@ -5,12 +5,14 @@
 package org.chromium.chrome.browser.fullscreen;
 
 import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 
 /**
  * A {@link BackPressHandler} which observes fullscreen mode and exits fullscreen mode if back
  * press is performed.
  */
+@NullMarked
 public class FullscreenBackPressHandler implements BackPressHandler {
     private final FullscreenManager mFullscreenManager;
 
@@ -20,8 +22,10 @@ public class FullscreenBackPressHandler implements BackPressHandler {
 
     @Override
     public @BackPressResult int handleBackPress() {
-        int res = mFullscreenManager.getPersistentFullscreenMode() ? BackPressResult.SUCCESS
-                                                                   : BackPressResult.FAILURE;
+        int res =
+                mFullscreenManager.getPersistentFullscreenMode()
+                        ? BackPressResult.SUCCESS
+                        : BackPressResult.FAILURE;
         mFullscreenManager.exitPersistentFullscreenMode();
         return res;
     }

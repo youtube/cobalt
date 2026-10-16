@@ -5,9 +5,10 @@
 #include "chrome/browser/icon_transcoder/svg_icon_transcoder.h"
 
 #include "base/base64.h"
+#include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/task/thread_pool.h"
-#include "chrome/browser/profiles/profile.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/codec/png_codec.h"
@@ -48,7 +49,8 @@ void SaveIconOnFileThread(const base::FilePath& icon_path,
 
 }  // namespace
 
-SvgIconTranscoder::SvgIconTranscoder(Profile* profile) : profile_(profile) {}
+SvgIconTranscoder::SvgIconTranscoder(content::BrowserContext* context)
+    : browser_context_(context) {}
 
 SvgIconTranscoder::~SvgIconTranscoder() {
   RemoveObserver();
@@ -100,9 +102,8 @@ void SvgIconTranscoder::Transcode(const std::string& svg_data,
   }
   // Form a data: uri from the svg_data starting at the <svg. Excess ASCII
   // whitespace is also removed.
-  std::string base64_svg;
-  base::Base64Encode(base::CollapseWhitespaceASCII(svg_data.substr(pos), false),
-                     &base64_svg);
+  std::string base64_svg = base::Base64Encode(
+      base::CollapseWhitespaceASCII(svg_data.substr(pos), false));
 
   GURL data_url(kSvgDataUrlPrefix + base64_svg);
 
@@ -115,7 +116,7 @@ void SvgIconTranscoder::Transcode(const std::string& svg_data,
 
 void SvgIconTranscoder::MaybeCreateWebContents() {
   if (!web_contents_) {
-    auto params = content::WebContents::CreateParams(profile_);
+    auto params = content::WebContents::CreateParams(browser_context_);
     params.initially_hidden = true;
     params.desired_renderer_state =
         content::WebContents::CreateParams::kInitializeAndWarmupRendererProcess;
@@ -179,12 +180,14 @@ void SvgIconTranscoder::OnDownloadImage(base::FilePath png_path,
       FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
       base::BindOnce(
           [](const SkBitmap& bitmap) {
-            std::vector<unsigned char> compressed;
-            if (!bitmap.empty() &&
-                gfx::PNGCodec::EncodeBGRASkBitmap(bitmap, false, &compressed)) {
-              return std::string(compressed.begin(), compressed.end());
+            if (bitmap.empty()) {
+              return std::string();
             }
-            return std::string();
+            std::optional<std::vector<uint8_t>> compressed =
+                gfx::PNGCodec::EncodeBGRASkBitmap(
+                    bitmap, /*discard_transparency=*/false);
+            return std::string(base::as_string_view(
+                compressed.value_or(std::vector<uint8_t>())));
           },
           bitmap),
       base::BindOnce(

@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
 
+#include <string>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "build/build_config.h"

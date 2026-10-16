@@ -21,9 +21,9 @@
 
 namespace webrtc {
 
-// Creates an instance of rtc::VideoSinkInterface<VideoFrame> from Java
+// Creates an instance of webrtc::VideoSinkInterface<VideoFrame> from Java
 // VideoSink.
-std::unique_ptr<rtc::VideoSinkInterface<VideoFrame>> JavaToNativeVideoSink(
+std::unique_ptr<VideoSinkInterface<VideoFrame>> JavaToNativeVideoSink(
     JNIEnv* jni,
     jobject video_sink);
 

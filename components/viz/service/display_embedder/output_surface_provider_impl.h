@@ -21,6 +21,10 @@
 #include "components/viz/service/display_embedder/output_device_backing.h"
 #endif
 
+namespace gpu {
+class Scheduler;
+}  // namespace gpu
+
 namespace viz {
 class GpuServiceImpl;
 class SoftwareOutputDevice;
@@ -51,6 +55,10 @@ class VIZ_SERVICE_EXPORT OutputSurfaceProviderImpl
       DisplayCompositorMemoryAndTaskController* gpu_dependency,
       const RendererSettings& renderer_settings,
       const DebugRendererSettings* debug_settings) override;
+
+  gpu::SharedImageManager* GetSharedImageManager() override;
+  gpu::SyncPointManager* GetSyncPointManager() override;
+  gpu::Scheduler* GetGpuScheduler() override;
 
  private:
   std::unique_ptr<SoftwareOutputDevice> CreateSoftwareOutputDeviceForPlatform(

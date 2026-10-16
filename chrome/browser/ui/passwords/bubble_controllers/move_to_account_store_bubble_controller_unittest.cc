@@ -29,7 +29,7 @@ namespace {
 
 using testing::Return;
 
-static std::unique_ptr<KeyedService> BuildTestSyncService(
+std::unique_ptr<KeyedService> BuildTestSyncService(
     content::BrowserContext* context) {
   return std::make_unique<syncer::TestSyncService>();
 }
@@ -41,11 +41,10 @@ class MoveToAccountStoreBubbleControllerTest : public ::testing::Test {
     profile_builder.AddTestingFactories(
         IdentityTestEnvironmentProfileAdaptor::
             GetIdentityTestEnvironmentFactories());
+    profile_builder.AddTestingFactory(
+        SyncServiceFactory::GetInstance(),
+        base::BindRepeating(&BuildTestSyncService));
     profile_ = profile_builder.Build();
-    // Make sure no real SyncService gets created (it's not needed for these
-    // tests, and it'd require more setup).
-    SyncServiceFactory::GetInstance()->SetTestingFactory(
-        profile(), base::BindRepeating(&BuildTestSyncService));
 
     web_contents_ =
         content::WebContentsTester::CreateTestWebContents(profile(), nullptr);
@@ -86,29 +85,38 @@ TEST_F(MoveToAccountStoreBubbleControllerTest, CloseExplicitly) {
   controller()->OnBubbleClosing();
 }
 
-TEST_F(MoveToAccountStoreBubbleControllerTest, AcceptMoveIfOptedIn) {
-  ON_CALL(*password_feature_manager(), IsOptedInForAccountStorage)
+TEST_F(MoveToAccountStoreBubbleControllerTest,
+       AcceptMoveIfAccountStorageEnabled) {
+  ON_CALL(*password_feature_manager(), IsAccountStorageEnabled)
       .WillByDefault(Return(true));
+  ON_CALL(*delegate(), GetState)
+      .WillByDefault(
+          Return(password_manager::ui::MOVE_CREDENTIAL_AFTER_LOG_IN_STATE));
   EXPECT_CALL(*delegate(), MovePasswordToAccountStore);
   controller()->AcceptMove();
 }
 
-TEST_F(MoveToAccountStoreBubbleControllerTest, AuthenticateMoveIfOptedOut) {
-  ON_CALL(*password_feature_manager(), IsOptedInForAccountStorage)
-      .WillByDefault(Return(false));
-  EXPECT_CALL(*delegate(), AuthenticateUserForAccountStoreOptInAndMovePassword);
-  controller()->AcceptMove();
+TEST_F(MoveToAccountStoreBubbleControllerTest, RejectMove) {
+  ON_CALL(*delegate(), GetState)
+      .WillByDefault(
+          Return(password_manager::ui::MOVE_CREDENTIAL_AFTER_LOG_IN_STATE));
+  EXPECT_CALL(*delegate(), BlockMovingPasswordToAccountStore);
+  controller()->RejectMove();
 }
 
-TEST_F(MoveToAccountStoreBubbleControllerTest, RejectMove) {
-  EXPECT_CALL(*delegate(), BlockMovingPasswordToAccountStore);
+TEST_F(MoveToAccountStoreBubbleControllerTest, RejectMoveForSelectedPassword) {
+  ON_CALL(*delegate(), GetState)
+      .WillByDefault(Return(
+          password_manager::ui::MOVE_CREDENTIAL_FROM_MANAGE_BUBBLE_STATE));
+  EXPECT_CALL(*delegate(), BlockMovingPasswordToAccountStore).Times(0);
   controller()->RejectMove();
 }
 
 TEST_F(MoveToAccountStoreBubbleControllerTest, ProvidesTitle) {
   PasswordBubbleControllerBase* controller_ptr = controller();
   EXPECT_EQ(controller_ptr->GetTitle(),
-            l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_MOVE_TITLE));
+            l10n_util::GetStringUTF16(
+                IDS_PASSWORD_MANAGER_SAVE_IN_ACCOUNT_BUBBLE_TITLE));
 }
 
 TEST_F(MoveToAccountStoreBubbleControllerTest, ProvidesProfileIcon) {

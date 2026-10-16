@@ -9,7 +9,6 @@
 
 #include "components/media_router/common/media_route_provider_helper.h"
 #include "components/media_router/common/mojom/media_route_provider_id.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/icu/source/common/unicode/uversion.h"
 
 namespace U_ICU_NAMESPACE {
@@ -67,8 +66,7 @@ class MediaSink {
   }
   mojom::MediaRouteProviderId provider_id() const { return provider_id_; }
 
-  bool operator==(const MediaSink& other) const;
-  bool operator!=(const MediaSink& other) const;
+  friend bool operator==(const MediaSink&, const MediaSink&) = default;
 
   // Compares |this| to |other| first by their icon types, then their names
   // using |collator|, and finally their IDs.

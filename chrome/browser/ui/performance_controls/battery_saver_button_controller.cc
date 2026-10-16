@@ -18,8 +18,8 @@ void BatterySaverButtonController::Init(
 
   delegate_ = delegate;
 
-  auto* manager = performance_manager::user_tuning::
-      UserPerformanceTuningManager::GetInstance();
+  auto* manager =
+      performance_manager::user_tuning::BatterySaverModeManager::GetInstance();
   battery_saver_observer_.Observe(manager);
 
   // Update the initial state of the delegate based on the current state
@@ -27,13 +27,14 @@ void BatterySaverButtonController::Init(
   UpdateVisibilityState(is_active);
 }
 
-void BatterySaverButtonController::OnBatterySaverModeChanged(bool is_active) {
+void BatterySaverButtonController::OnBatterySaverActiveChanged(bool is_active) {
   UpdateVisibilityState(is_active);
 }
 
 void BatterySaverButtonController::UpdateVisibilityState(bool is_active) {
-  if (is_active)
+  if (is_active) {
     delegate_->Show();
-  else
+  } else {
     delegate_->Hide();
+  }
 }

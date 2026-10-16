@@ -87,7 +87,7 @@ void RenderFrameHostImplPpapiSupport::Bind(
 void RenderFrameHostImplPpapiSupport::SetVolume(int32_t instance_id,
                                                 double volume) {
   auto it = pepper_plugin_instances_.find(instance_id);
-  DCHECK(it != pepper_plugin_instances_.end());
+  CHECK(it != pepper_plugin_instances_.end());
   it->second->SetVolume(volume);
 }
 
@@ -172,7 +172,7 @@ void RenderFrameHostImplPpapiSupport::DidDeleteOutOfProcessPepperInstance(
 void RenderFrameHostImplPpapiSupport::OpenChannelToPepperPlugin(
     const url::Origin& embedder_origin,
     const base::FilePath& path,
-    const absl::optional<url::Origin>& origin_lock,
+    const std::optional<url::Origin>& origin_lock,
     OpenChannelToPepperPluginCallback callback) {
   GetProcess()->pepper_renderer_connection()->OpenChannelToPepperPlugin(
       embedder_origin, path, origin_lock, std::move(callback));

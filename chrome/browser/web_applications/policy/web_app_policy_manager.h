@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_WEB_APPLICATIONS_POLICY_WEB_APP_POLICY_MANAGER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -13,19 +14,20 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/values.h"
-#include "build/chromeos_buildflags.h"
-#include "chrome/browser/web_applications/externally_installed_web_app_prefs.h"
+#include "build/build_config.h"
 #include "chrome/browser/web_applications/externally_managed_app_manager.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_policy_manager.h"
 #include "components/prefs/pref_change_registrar.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/render_frame_host.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/system_web_apps/types/system_web_app_delegate_map.h"
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ash/webui/system_apps/public/system_web_app_type.h"
 #include "chrome/browser/policy/system_features_disable_list_policy_handler.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#include "chromeos/ash/experiences/system_web_apps/types/system_web_app_delegate_map.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 class PrefService;
 class Profile;
@@ -36,8 +38,9 @@ class PrefRegistrySyncable;
 
 namespace web_app {
 
-class WebAppSyncBridge;
-class OsIntegrationManager;
+BASE_DECLARE_FEATURE(kDesktopPWAsForceUnregisterOSIntegration);
+
+class WebAppProvider;
 
 // Policy installation allows enterprise admins to control and manage
 // Web Apps on behalf of their managed users. This class tracks the policy that
@@ -57,19 +60,21 @@ class WebAppPolicyManager {
   WebAppPolicyManager& operator=(const WebAppPolicyManager&) = delete;
   ~WebAppPolicyManager();
 
-  void SetSubsystems(
-      ExternallyManagedAppManager* externally_managed_app_manager,
-      WebAppRegistrar* app_registrar,
-      WebAppSyncBridge* sync_bridge,
-      OsIntegrationManager* os_integration_manager);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+  void set_provider(base::PassKey<WebAppProvider>, WebAppProvider& provider) {
+    provider_ = &provider;
+  }
+
+#if BUILDFLAG(IS_CHROMEOS)
   void SetSystemWebAppDelegateMap(
       const ash::SystemWebAppDelegateMap* system_web_apps_delegate_map);
 #endif
 
+  void SetProvider(base::PassKey<WebAppProvider>, WebAppProvider& provider);
+
   // `policy_settings_and_force_installs_applied_` waits for the first
   // `SynchronizeInstalledApps` to finish if it's triggered on `Start`.
   void Start(base::OnceClosure policy_settings_and_force_installs_applied);
+  void Shutdown();
 
   void ReinstallPlaceholderAppIfNecessary(
       const GURL& url,
@@ -81,21 +86,21 @@ class WebAppPolicyManager {
   // disabled and notifies sync_bridge_ about the current app state.
   void OnDisableListPolicyChanged();
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Gets system web apps disabled by SystemFeaturesDisableList policy.
-  const std::set<ash::SystemWebAppType>& GetDisabledSystemWebApps() const;
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+  const absl::flat_hash_set<ash::SystemWebAppType>& GetDisabledSystemWebApps()
+      const;
 
-  // Gets ids of web apps disabled by SystemFeaturesDisableList policy.
-  const std::set<AppId>& GetDisabledWebAppsIds() const;
+  // Checks if UI mode of disabled web apps is hidden for `system_app_type`.
+  bool IsDisabledAppsModeHidden(
+      std::optional<ash::SystemWebAppType> system_app_type) const;
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   // Checks if web app is disabled by SystemFeaturesDisableList policy.
-  bool IsWebAppInDisabledList(const AppId& app_id) const;
+  bool IsWebAppInDisabledList(const webapps::AppId& app_id) const;
 
-  // Checks if UI mode of disabled web apps is hidden.
-  bool IsDisabledAppsModeHidden() const;
-
-  RunOnOsLoginPolicy GetUrlRunOnOsLoginPolicy(const AppId& app_id) const;
+  RunOnOsLoginPolicy GetUrlRunOnOsLoginPolicy(
+      const webapps::AppId& app_id) const;
 
   void SetOnAppsSynchronizedCompletedCallbackForTesting(
       base::OnceClosure callback);
@@ -107,22 +112,20 @@ class WebAppPolicyManager {
   void MaybeOverrideManifest(content::RenderFrameHost* frame_host,
                              blink::mojom::ManifestPtr& manifest) const;
 
-  bool IsPreventCloseEnabled(const AppId& app_id) const;
+  bool IsPreventCloseEnabled(const webapps::AppId& app_id) const;
+
+  void RefreshPolicyInstalledAppsForTesting(
+      bool allow_close_and_relaunch = false);
 
  private:
-  friend class WebAppPolicyManagerTest;
+  friend class WebAppPolicyManagerTestBase;
 
   struct WebAppSetting {
-    WebAppSetting();
-    WebAppSetting(const WebAppSetting&) = default;
-    WebAppSetting& operator=(const WebAppSetting&) = default;
-    ~WebAppSetting() = default;
+    bool Parse(const base::Value::Dict& dict, bool for_default_settings);
 
-    bool Parse(const base::Value& dict, bool for_default_settings);
-    void ResetSettings();
-
-    RunOnOsLoginPolicy run_on_os_login_policy;
-    bool prevent_close;
+    RunOnOsLoginPolicy run_on_os_login_policy = RunOnOsLoginPolicy::kAllowed;
+    bool prevent_close = false;
+    bool force_unregister_os_integration = false;
   };
 
   struct CustomManifestValues {
@@ -135,71 +138,72 @@ class WebAppPolicyManager {
     void SetName(const std::string& utf8_name);
     void SetIcon(const GURL& icon_gurl);
 
-    absl::optional<std::u16string> name;
-    absl::optional<std::vector<blink::Manifest::ImageResource>> icons;
+    std::optional<std::u16string> name;
+    std::optional<std::vector<blink::Manifest::ImageResource>> icons;
   };
 
-  void InitChangeRegistrarAndRefreshPolicy(bool enable_pwa_support);
+  void InitChangeRegistrarAndRefreshPolicy();
 
-  void RefreshPolicyInstalledApps();
-#if BUILDFLAG(IS_CHROMEOS)
-  void RefreshPolicyInstalledIsolatedWebApps();
-#endif
+  void RefreshPolicyInstalledApps(bool allow_close_and_relaunch = false);
   void ParsePolicySettings();
   void RefreshPolicySettings();
   void OnAppsSynchronized(
       std::map<GURL, ExternallyManagedAppManager::InstallResult>
           install_results,
-      std::map<GURL, bool> uninstall_results);
+      std::map<GURL, webapps::UninstallResultCode> uninstall_results);
+
   void ApplyPolicySettings();
+  void ApplyRunOnOsLoginPolicySettings(
+      base::OnceClosure policy_settings_applied_callback);
+  void ApplyForceOSUnregistrationPolicySettings(
+      base::OnceClosure policy_settings_applied_callback);
 
   void OverrideManifest(const GURL& custom_values_key,
                         blink::mojom::ManifestPtr& manifest) const;
-  RunOnOsLoginPolicy GetUrlRunOnOsLoginPolicyByUnhashedAppId(
-      const std::string& unhashed_app_id) const;
+  RunOnOsLoginPolicy GetUrlRunOnOsLoginPolicyByManifestId(
+      const std::string& manifest_id) const;
 
   // Parses install options from a `base::Value::Dict`, which represents one
   // entry of the kWepAppInstallForceList. If the value contains a custom_name
   // or custom_icon, it is inserted into the custom_manifest_values_by_url_ map.
-  ExternalInstallOptions ParseInstallPolicyEntry(
+  // If the install_url in the entry is invalid, returns a `std::nullopt`, so
+  // that installation can be skipped.
+  std::optional<ExternalInstallOptions> ParseInstallPolicyEntry(
       const base::Value::Dict& entry);
 
   void ObserveDisabledSystemFeaturesPolicy();
 
   void OnDisableModePolicyChanged();
 
-  void OnSyncPolicySettingsCommandsComplete(std::vector<std::string> app_ids);
+  void OnSyncPolicySettingsCommandsComplete();
 
   // Populates ids lists of web apps disabled by SystemFeaturesDisableList
   // policy.
   void PopulateDisabledWebAppsIdsLists();
   void OnWebAppForceInstallPolicyParsed();
 
-  raw_ptr<Profile> profile_;
-  raw_ptr<PrefService> pref_service_;
+  raw_ptr<Profile> profile_ = nullptr;
+  raw_ptr<PrefService> pref_service_ = nullptr;
+  raw_ptr<WebAppProvider> provider_ = nullptr;
 
-  // Used to install, uninstall, and update apps. Should outlive this class
-  // (owned by WebAppProvider).
-  raw_ptr<ExternallyManagedAppManager> externally_managed_app_manager_ =
-      nullptr;
-  raw_ptr<WebAppRegistrar> app_registrar_ = nullptr;
-  raw_ptr<WebAppSyncBridge> sync_bridge_ = nullptr;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   raw_ptr<const ash::SystemWebAppDelegateMap, DanglingUntriaged>
       system_web_apps_delegate_map_ = nullptr;
 #endif
-  raw_ptr<OsIntegrationManager, DanglingUntriaged> os_integration_manager_ =
-      nullptr;
   PrefChangeRegistrar pref_change_registrar_;
   PrefChangeRegistrar local_state_pref_change_registrar_;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // List of disabled system web apps, containing app types.
-  std::set<ash::SystemWebAppType> disabled_system_apps_;
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+  absl::flat_hash_set<ash::SystemWebAppType> disabled_system_apps_;
+
+  // List of disabled system web apps that shouldn't be hidden, containing app
+  // types. Should be a subset of `disabled_system_apps_`.
+  absl::flat_hash_set<ash::SystemWebAppType> disabled_system_apps_not_hidden_;
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   // List of disabled system and progressive web apps, containing app ids.
-  std::set<AppId> disabled_web_apps_;
+  absl::flat_hash_set<webapps::AppId> disabled_web_apps_;
 
   // Testing callbacks
   base::OnceClosure refresh_policy_settings_completed_;
@@ -210,15 +214,10 @@ class WebAppPolicyManager {
 
   base::flat_map<std::string, WebAppSetting> settings_by_url_;
   base::flat_map<GURL, CustomManifestValues> custom_manifest_values_by_url_;
-  std::unique_ptr<WebAppSetting> default_settings_;
-
-  ExternallyInstalledWebAppPrefs externally_installed_app_prefs_;
+  WebAppSetting default_settings_;
 
   base::OnceClosure policy_settings_and_force_installs_applied_;
 
-#if BUILDFLAG(IS_CHROMEOS)
-  std::unique_ptr<IsolatedWebAppPolicyManager> iwa_policy_manager_;
-#endif
 
   base::WeakPtrFactory<WebAppPolicyManager> weak_ptr_factory_{this};
 };

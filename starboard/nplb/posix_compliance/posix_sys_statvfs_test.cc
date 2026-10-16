@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/statvfs.h>
-
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
+#include <sys/statvfs.h>
 #include <unistd.h>
+
 #include <cmath>
 
 #include "starboard/configuration_constants.h"
@@ -33,15 +33,19 @@ TEST(PosixStatvfsTest, SunnyDay) {
       SbSystemGetPath(kSbSystemPathCacheDirectory, cache_path, kSbFileMaxPath));
 
   struct statvfs buf;
+  memset(&buf, 0, sizeof(buf));
   errno = 0;
   int result = statvfs(cache_path, &buf);
 
   ASSERT_EQ(result, 0) << "statvfs failed with error: " << strerror(errno);
 
-  EXPECT_GT(buf.f_bsize, static_cast<SbSystemCapabilityId>(0));
-  EXPECT_GT(buf.f_frsize, static_cast<SbSystemCapabilityId>(0));
+  EXPECT_GT(buf.f_bsize, 0UL);
+  EXPECT_GT(buf.f_frsize, 0UL);
   EXPECT_GT(buf.f_blocks, static_cast<fsblkcnt_t>(0));
-  EXPECT_GT(buf.f_files, static_cast<fsfilcnt_t>(0));
+  // POSIX does not require all filesystems to report a fixed total inode count
+  // (e.g., UBIFS and Btrfs report f_files == 0 and f_ffree == 0).
+  EXPECT_GE(buf.f_files, buf.f_ffree);
+  EXPECT_GT(buf.f_namemax, 0UL);
 }
 
 TEST(PosixStatvfsTest, RainyDayInvalidPath) {
@@ -67,7 +71,9 @@ TEST(PosixStatvfsTest, UsageChanges) {
       << "statvfs (before) failed: " << strerror(errno);
 
   ASSERT_GT(buf_before.f_bavail, static_cast<fsblkcnt_t>(0));
-  ASSERT_GT(buf_before.f_ffree, static_cast<fsfilcnt_t>(0));
+  if (buf_before.f_files > 0) {
+    ASSERT_GT(buf_before.f_ffree, static_cast<fsfilcnt_t>(0));
+  }
 
   char temp_file_path[kSbFileMaxPath];
   int result = snprintf(temp_file_path, kSbFileMaxPath, "%s/statvfs_temp.tmp",
@@ -114,7 +120,9 @@ TEST(PosixStatvfsTest, UsageChanges) {
       << "Filesystem did not reflect file creation.";
 
   EXPECT_EQ(buf_after_creation.f_blocks, buf_before.f_blocks);
-  EXPECT_EQ(buf_after_creation.f_files, buf_before.f_files);
+  // On some filesystems, f_files is not constant and may increase when new
+  // files are created. Only verify it doesn't decrease.
+  EXPECT_GE(buf_after_creation.f_files, buf_before.f_files);
 
   // Calculate the change in blocks after creation.
   const long long blocks_consumed =

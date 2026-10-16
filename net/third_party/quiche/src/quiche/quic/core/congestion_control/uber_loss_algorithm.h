@@ -5,7 +5,8 @@
 #ifndef QUICHE_QUIC_CORE_CONGESTION_CONTROL_UBER_LOSS_ALGORITHM_H_
 #define QUICHE_QUIC_CORE_CONGESTION_CONTROL_UBER_LOSS_ALGORITHM_H_
 
-#include "absl/types/optional.h"
+#include <optional>
+
 #include "quiche/quic/core/congestion_control/general_loss_algorithm.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_flags.h"
@@ -18,13 +19,13 @@ class QuicSentPacketManagerPeer;
 
 }  // namespace test
 
-struct QUIC_EXPORT_PRIVATE LossDetectionParameters {
+struct QUICHE_EXPORT LossDetectionParameters {
   // See GeneralLossAlgorithm for the meaning of reordering_(shift|threshold).
-  absl::optional<int> reordering_shift;
-  absl::optional<QuicPacketCount> reordering_threshold;
+  std::optional<int> reordering_shift;
+  std::optional<QuicPacketCount> reordering_threshold;
 };
 
-class QUIC_EXPORT_PRIVATE LossDetectionTunerInterface {
+class QUICHE_EXPORT LossDetectionTunerInterface {
  public:
   virtual ~LossDetectionTunerInterface() {}
 
@@ -41,7 +42,7 @@ class QUIC_EXPORT_PRIVATE LossDetectionTunerInterface {
 };
 
 // This class comprises multiple loss algorithms, each per packet number space.
-class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
+class QUICHE_EXPORT UberLossAlgorithm : public LossDetectionInterface {
  public:
   UberLossAlgorithm();
   UberLossAlgorithm(const UberLossAlgorithm&) = delete;

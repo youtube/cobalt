@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {ElementsTestRunner} from 'elements_test_runner';
+
+import * as Workspace from 'devtools/models/workspace/workspace.js';
+
 (async function() {
   TestRunner.addResult(`Tests that adding a new rule works after switching nodes.\n`);
-  await TestRunner.loadLegacyModule('elements'); await TestRunner.loadTestModule('elements_test_runner');
   await TestRunner.showPanel('elements');
   await TestRunner.loadHTML(`
       <div id="inspected" style="font-size: 12px">Text</div>
@@ -12,7 +16,7 @@
     `);
 
   ElementsTestRunner.selectNodeAndWaitForStyles('inspected', step1);
-  TestRunner.addSniffer(Workspace.UISourceCode.prototype, 'addRevision', onRevisionAdded);
+  TestRunner.addSniffer(Workspace.UISourceCode.UISourceCode.prototype, 'setWorkingCopy', onSetWorkingCopy);
 
   var treeElement;
   var hasResourceChanged;
@@ -28,7 +32,7 @@
   function step2() {
     var section = ElementsTestRunner.firstMatchedStyleSection();
     var newProperty = section.addNewBlankProperty();
-    newProperty.startEditing();
+    newProperty.startEditingName();
     textInputController.insertText('color');
     eventSender.keyDown(':');
     textInputController.insertText('maroon');
@@ -68,7 +72,7 @@
     TestRunner.completeTest();
   }
 
-  function onRevisionAdded(revision) {
+  function onSetWorkingCopy(revision) {
     revisionAdded = true;
     displayName = this.displayName();
     maybeCompleteTest();

@@ -31,14 +31,13 @@
 #include "third_party/blink/renderer/modules/peerconnection/rtc_certificate.h"
 
 #include "base/memory/ptr_util.h"
-#include "third_party/blink/renderer/platform/bindings/to_v8.h"
 #include "third_party/blink/renderer/platform/bindings/v8_binding.h"
 #include "third_party/webrtc/rtc_base/ssl_certificate.h"
 
 namespace blink {
 
 RTCCertificate::RTCCertificate(
-    rtc::scoped_refptr<rtc::RTCCertificate> certificate)
+    webrtc::scoped_refptr<webrtc::RTCCertificate> certificate)
     : certificate_(std::move(certificate)) {}
 
 DOMTimeStamp RTCCertificate::expires() const {
@@ -46,11 +45,11 @@ DOMTimeStamp RTCCertificate::expires() const {
 }
 
 HeapVector<Member<RTCDtlsFingerprint>> RTCCertificate::getFingerprints() {
-  std::unique_ptr<rtc::SSLCertificateStats> first_certificate_stats =
+  std::unique_ptr<webrtc::SSLCertificateStats> first_certificate_stats =
       certificate_->GetSSLCertificate().GetStats();
 
   HeapVector<Member<RTCDtlsFingerprint>> fingerprints;
-  for (rtc::SSLCertificateStats* certificate_stats =
+  for (webrtc::SSLCertificateStats* certificate_stats =
            first_certificate_stats.get();
        certificate_stats; certificate_stats = certificate_stats->issuer.get()) {
     RTCDtlsFingerprint* fingerprint = RTCDtlsFingerprint::Create();

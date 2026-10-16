@@ -5,6 +5,8 @@
 #ifndef UI_ACCESSIBILITY_PLATFORM_AUTOMATION_AUTOMATION_V8_ROUTER_H_
 #define UI_ACCESSIBILITY_PLATFORM_AUTOMATION_AUTOMATION_V8_ROUTER_H_
 
+#include "base/component_export.h"
+#include "base/values.h"
 #include "ui/accessibility/ax_enums.mojom-shared.h"
 #include "ui/accessibility/ax_event_generator.h"
 #include "ui/accessibility/platform/automation/automation_tree_manager_owner.h"
@@ -19,6 +21,8 @@ namespace ui {
 // for example in Extensions and in the AccessibilityService.
 class COMPONENT_EXPORT(AX_PLATFORM) AutomationV8Router {
  public:
+  virtual ~AutomationV8Router();
+
   // Throws an invalid argument exception in V8.
   virtual void ThrowInvalidArgumentsException(bool is_fatal = true) const = 0;
 

@@ -80,7 +80,6 @@ V8UnionAudioTrackOrTextTrackOrVideoTrack* TrackEvent::track() {
   }
 
   NOTREACHED();
-  return nullptr;
 }
 
 void TrackEvent::Trace(Visitor* visitor) const {

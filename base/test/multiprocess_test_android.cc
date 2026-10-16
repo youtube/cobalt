@@ -5,14 +5,18 @@
 #include "base/test/multiprocess_test.h"
 
 #include <string.h>
+
 #include <vector>
 
+#include "base/android/binder_box.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/base_switches.h"
 #include "base/check.h"
 #include "base/command_line.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "base/test/test_support_jni_headers/MainReturnCodeResult_jni.h"
 #include "base/test/test_support_jni_headers/MultiprocessTestClientLauncher_jni.h"
 
@@ -39,8 +43,8 @@ Process SpawnMultiProcessTestChild(const std::string& procname,
 
   android::ScopedJavaLocalRef<jobjectArray> fds =
       android::Java_MultiprocessTestClientLauncher_makeFdInfoArray(
-          env, base::android::ToJavaIntArray(env, fd_keys),
-          base::android::ToJavaIntArray(env, fd_fds));
+          env, android::ToJavaIntArray(env, fd_keys),
+          android::ToJavaIntArray(env, fd_fds));
 
   CommandLine command_line(base_command_line);
   if (!command_line.HasSwitch(switches::kTestChildProcess)) {
@@ -49,8 +53,9 @@ Process SpawnMultiProcessTestChild(const std::string& procname,
 
   android::ScopedJavaLocalRef<jobjectArray> j_argv =
       android::ToJavaArrayOfStrings(env, command_line.argv());
+
   jint pid = android::Java_MultiprocessTestClientLauncher_launchClient(
-      env, j_argv, fds);
+      env, j_argv, fds, base::android::PackBinderBox(env, options.binders));
   return Process(pid);
 }
 
@@ -60,15 +65,16 @@ bool WaitForMultiprocessTestChildExit(const Process& process,
   JNIEnv* env = android::AttachCurrentThread();
   DCHECK(env);
 
-  base::android::ScopedJavaLocalRef<jobject> result_code =
+  android::ScopedJavaLocalRef<jobject> result_code =
       android::Java_MultiprocessTestClientLauncher_waitForMainToReturn(
           env, process.Pid(), static_cast<int32_t>(timeout.InMilliseconds()));
   if (result_code.is_null() ||
-      Java_MainReturnCodeResult_hasTimedOut(env, result_code)) {
+      android::Java_MainReturnCodeResult_hasTimedOut(env, result_code)) {
     return false;
   }
   if (exit_code) {
-    *exit_code = Java_MainReturnCodeResult_getReturnCode(env, result_code);
+    *exit_code =
+        android::Java_MainReturnCodeResult_getReturnCode(env, result_code);
   }
   return true;
 }

@@ -4,17 +4,22 @@
 
 import("//build/config/chrome_build.gni")
 import("//build/config/ozone.gni")
+import("//build/config/ui.gni")
 import("//testing/test.gni")
 
 source_set("headless") {
   sources = [
+    "headless_mode_switches.h",
     "headless_mode_util.cc",
     "headless_mode_util.h",
   ]
 
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
   deps = [
     "//base",
     "//chrome/common:non_code_constants",
+    "//content/public/common",
     "//ui/gfx",
   ]
 
@@ -24,23 +29,47 @@ source_set("headless") {
       "//ui/ozone",
     ]
   }
+
+  if (is_win) {
+    deps += [ "//chrome/chrome_elf:chrome_elf_main_include" ]
+  }
 }
 
-source_set("command_processor") {
+source_set("metrics") {
   sources = [
-    "headless_command_processor.cc",
-    "headless_command_processor.h",
+    "headless_mode_metrics.cc",
+    "headless_mode_metrics.h",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   deps = [
     ":headless",
     "//base",
-    "//components/headless/command_handler",
+    "//components/headless/command_handler:switches",
     "//content/public/browser",
   ]
 }
 
 if (!is_android) {
+  source_set("command_processor") {
+    sources = [
+      "headless_command_processor.cc",
+      "headless_command_processor.h",
+    ]
+
+    configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+    deps = [
+      ":headless",
+      "//base",
+      "//chrome/common:non_code_constants",
+      "//components/headless/command_handler",
+      "//components/keep_alive_registry",
+      "//content/public/browser",
+    ]
+  }
+
   source_set("browser_tests") {
     testonly = true
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
@@ -52,6 +81,8 @@ if (!is_android) {
 
     if (is_linux || is_win || is_mac) {
       sources += [
+        "headless_mode_browsertest_utils.h",
+        "headless_mode_command_browsertest.cc",
         "headless_mode_devtooled_browsertest.cc",
         "headless_mode_devtooled_browsertest.h",
         "headless_mode_protocol_browsertest.cc",
@@ -79,6 +110,8 @@ if (!is_android) {
       "//chrome/browser",
       "//chrome/test:test_support",
       "//content/test:test_support",
+      "//pdf",
+      "//testing/gmock",
       "//testing/gtest",
     ]
 
@@ -88,10 +121,22 @@ if (!is_android) {
         "//chrome/browser/ui",
         "//components/devtools/simple_devtools_protocol_client",
         "//components/headless/clipboard",
+        "//components/headless/command_handler",
+        "//components/headless/command_handler:switches",
+        "//components/headless/select_file_dialog",
+        "//components/headless/test",
+        "//components/infobars/content",
         "//content/public/browser",
         "//ui/display",
         "//ui/gfx",
         "//ui/views",
+      ]
+    }
+
+    if (use_aura && is_win) {
+      deps += [
+        "//ui/aura",
+        "//ui/aura:test_support",
       ]
     }
 
@@ -102,6 +147,7 @@ if (!is_android) {
     data = [
       "test/data/",
       "//third_party/blink/web_tests/http/tests/inspector-protocol/resources/inspector-protocol-test.js",
+      "//third_party/blink/web_tests/http/tests/inspector-protocol/resources/http-interceptor.js",
     ]
   }
 }

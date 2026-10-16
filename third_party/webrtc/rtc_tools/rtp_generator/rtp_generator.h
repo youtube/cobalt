@@ -11,15 +11,17 @@
 #ifndef RTC_TOOLS_RTP_GENERATOR_RTP_GENERATOR_H_
 #define RTC_TOOLS_RTP_GENERATOR_RTP_GENERATOR_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "api/array_view.h"
 #include "api/call/transport.h"
-#include "api/media_types.h"
-#include "api/rtc_event_log/rtc_event_log.h"
-#include "api/task_queue/task_queue_factory.h"
-#include "api/video/builtin_video_bitrate_allocator_factory.h"
+#include "api/environment/environment.h"
+#include "api/video/video_bitrate_allocator_factory.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_encoder_factory.h"
 #include "call/call.h"
@@ -29,7 +31,6 @@
 #include "test/frame_generator_capturer.h"
 #include "test/rtp_file_reader.h"
 #include "test/rtp_file_writer.h"
-#include "video/config/video_encoder_config.h"
 
 namespace webrtc {
 
@@ -55,8 +56,8 @@ struct RtpGeneratorOptions {
 };
 
 // Attempts to parse RtpGeneratorOptions from a JSON file. Any failures
-// will result in absl::nullopt.
-absl::optional<RtpGeneratorOptions> ParseRtpGeneratorOptionsFromFile(
+// will result in std::nullopt.
+std::optional<RtpGeneratorOptions> ParseRtpGeneratorOptionsFromFile(
     const std::string& options_file);
 
 // The RtpGenerator allows generating of corpus material intended to be
@@ -92,11 +93,11 @@ class RtpGenerator final : public webrtc::Transport {
   // webrtc::Transport implementation
   // Captured RTP packets are written to the RTPDump file instead of over the
   // network.
-  bool SendRtp(const uint8_t* packet,
-               size_t length,
-               const webrtc::PacketOptions& options) override;
+  bool SendRtp(ArrayView<const uint8_t> packet,
+               const PacketOptions& options) override;
   // RTCP packets are ignored for now.
-  bool SendRtcp(const uint8_t* packet, size_t length) override;
+  bool SendRtcp(ArrayView<const uint8_t> packet,
+                const PacketOptions& options) override;
   // Returns the maximum duration
   int GetMaxDuration() const;
   // Waits until all video streams have finished.
@@ -105,18 +106,17 @@ class RtpGenerator final : public webrtc::Transport {
   test::RtpPacket DataToRtpPacket(const uint8_t* packet, size_t packet_len);
 
   const RtpGeneratorOptions options_;
+  const Environment env_;
   std::unique_ptr<VideoEncoderFactory> video_encoder_factory_;
   std::unique_ptr<VideoDecoderFactory> video_decoder_factory_;
   std::unique_ptr<VideoBitrateAllocatorFactory>
       video_bitrate_allocator_factory_;
-  std::unique_ptr<RtcEventLog> event_log_;
   std::unique_ptr<Call> call_;
   std::unique_ptr<test::RtpFileWriter> rtp_dump_writer_;
   std::vector<std::unique_ptr<test::FrameGeneratorCapturer>> frame_generators_;
   std::vector<VideoSendStream*> video_send_streams_;
   std::vector<uint32_t> durations_ms_;
   uint32_t start_ms_ = 0;
-  std::unique_ptr<TaskQueueFactory> task_queue_;
 };
 
 }  // namespace webrtc

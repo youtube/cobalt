@@ -2,13 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "device/fido/cable/cable_discovery_data.h"
 
+#include <algorithm>
 #include <cstring>
 
 #include "base/check_op.h"
 #include "base/i18n/string_compare.h"
-#include "base/ranges/algorithm.h"
+#include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "components/cbor/values.h"
@@ -64,8 +70,7 @@ bool CableDiscoveryData::operator==(const CableDiscoveryData& other) const {
       return v2.value() == other.v2.value();
 
     case CableDiscoveryData::Version::INVALID:
-      CHECK(false);
-      return false;
+      NOTREACHED();
   }
 }
 
@@ -110,13 +115,13 @@ Pairing::Pairing() = default;
 Pairing::~Pairing() = default;
 
 // static
-absl::optional<std::unique_ptr<Pairing>> Pairing::Parse(
+std::optional<std::unique_ptr<Pairing>> Pairing::Parse(
     const cbor::Value& cbor,
     tunnelserver::KnownDomainID domain,
     base::span<const uint8_t, kQRSeedSize> local_identity_seed,
     base::span<const uint8_t, 32> handshake_hash) {
   if (!cbor.is_map()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   const cbor::Value::MapValue& map = cbor.GetMap();
@@ -129,28 +134,35 @@ absl::optional<std::unique_ptr<Pairing>> Pairing::Parse(
   const cbor::Value::MapValue::const_iterator name_it =
       map.find(cbor::Value(5));
   if (name_it == map.end() || !name_it->second.is_string() ||
-      base::ranges::any_of(
+      std::ranges::any_of(
           its,
           [&map](const cbor::Value::MapValue::const_iterator& it) {
             return it == map.end() || !it->second.is_bytestring();
           }) ||
       its[3]->second.GetBytestring().size() !=
           std::tuple_size<decltype(pairing->peer_public_key_x962)>::value) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  pairing->tunnel_server_domain = tunnelserver::DecodeDomain(domain);
+  pairing->tunnel_server_domain = domain;
   pairing->contact_id = its[0]->second.GetBytestring();
   pairing->id = its[1]->second.GetBytestring();
   pairing->secret = its[2]->second.GetBytestring();
   const std::vector<uint8_t>& peer_public_key = its[3]->second.GetBytestring();
-  base::ranges::copy(peer_public_key, pairing->peer_public_key_x962.begin());
+  std::ranges::copy(peer_public_key, pairing->peer_public_key_x962.begin());
   pairing->name = name_it->second.GetString();
 
   if (!VerifyPairingSignature(local_identity_seed,
                               pairing->peer_public_key_x962, handshake_hash,
                               its[4]->second.GetBytestring())) {
-    return absl::nullopt;
+    return std::nullopt;
+  }
+
+  const auto play_services_tag_it = map.find(cbor::Value(999));
+  if (play_services_tag_it != map.end() &&
+      play_services_tag_it->second.is_bool() &&
+      play_services_tag_it->second.GetBool()) {
+    pairing->from_new_implementation = true;
   }
 
   return pairing;
@@ -186,6 +198,9 @@ bool Pairing::EqualPublicKeys(const std::unique_ptr<Pairing>& a,
                               const std::unique_ptr<Pairing>& b) {
   return a->peer_public_key_x962 == b->peer_public_key_x962;
 }
+
+Pairing::Pairing(const Pairing&) = default;
+Pairing& Pairing::operator=(const Pairing&) = default;
 
 }  // namespace cablev2
 

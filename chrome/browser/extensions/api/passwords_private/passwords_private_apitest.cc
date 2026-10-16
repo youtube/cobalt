@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -15,7 +16,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/observer_list.h"
-#include "base/strings/string_piece_forward.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -28,11 +28,18 @@
 #include "chrome/common/extensions/api/passwords_private.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/policy/core/browser/browser_policy_connector.h"
+#include "components/policy/core/common/mock_configuration_policy_provider.h"
+#include "components/policy/core/common/policy_map.h"
+#include "components/policy/core/common/policy_types.h"
+#include "components/policy/policy_constants.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
 #include "extensions/common/switches.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/l10n/time_format.h"
+
+using policy::PolicyMap;
+using testing::NiceMock;
 
 namespace extensions {
 
@@ -62,7 +69,26 @@ class PasswordsPrivateApiTest : public ExtensionApiTest {
                                                            test_delegate_);
   }
 
+  void SetUpInProcessBrowserTestFixture() override {
+    ExtensionApiTest::SetUpInProcessBrowserTestFixture();
+    policy_provider_.SetDefaultReturns(
+        /*is_initialization_complete_return=*/true,
+        /*is_first_policy_load_complete_return=*/true);
+    policy::BrowserPolicyConnector::SetPolicyProviderForTesting(
+        &policy_provider_);
+  }
+
+  void UpdateProviderPolicy(const PolicyMap& policy) {
+    PolicyMap policy_with_defaults = policy.Clone();
+#if BUILDFLAG(IS_CHROMEOS)
+    SetEnterpriseUsersDefaults(&policy_with_defaults);
+#endif
+    policy_provider_.UpdateChromePolicy(policy_with_defaults);
+  }
+
  protected:
+  NiceMock<policy::MockConfigurationPolicyProvider> policy_provider_;
+
   bool RunPasswordsSubtest(const std::string& subtest) {
     const std::string extension_url = "main.html?" + subtest;
     return RunExtensionTest("passwords_private",
@@ -72,6 +98,14 @@ class PasswordsPrivateApiTest : public ExtensionApiTest {
 
   bool importPasswordsWasTriggered() {
     return test_delegate_->ImportPasswordsTriggered();
+  }
+
+  bool fetch_family_members_was_triggered() {
+    return test_delegate_->FetchFamilyMembersTriggered();
+  }
+
+  bool share_password_was_triggered() {
+    return test_delegate_->SharePasswordTriggered();
   }
 
   bool continue_import_was_triggered() {
@@ -86,16 +120,8 @@ class PasswordsPrivateApiTest : public ExtensionApiTest {
     return test_delegate_->ExportPasswordsTriggered();
   }
 
-  bool cancelExportPasswordsWasTriggered() {
-    return test_delegate_->CancelExportPasswordsTriggered();
-  }
-
   bool start_password_check_triggered() {
     return test_delegate_->StartPasswordCheckTriggered();
-  }
-
-  bool stop_password_check_triggered() {
-    return test_delegate_->StopPasswordCheckTriggered();
   }
 
   void set_start_password_check_state(
@@ -103,26 +129,18 @@ class PasswordsPrivateApiTest : public ExtensionApiTest {
     test_delegate_->SetStartPasswordCheckState(state);
   }
 
-  bool IsOptedInForAccountStorage() {
-    return test_delegate_->IsOptedInForAccountStorage();
+  bool IsAccountStorageEnabled() {
+    return test_delegate_->IsAccountStorageEnabled();
   }
 
-  void SetOptedInForAccountStorage(bool opted_in) {
-    test_delegate_->SetAccountStorageOptIn(opted_in, nullptr);
+  void SetAccountStorageEnabled(bool enabled) {
+    test_delegate_->SetAccountStorageEnabled(enabled, nullptr);
   }
 
   void ResetPlaintextPassword() { test_delegate_->ResetPlaintextPassword(); }
 
   void AddCompromisedCredential(int id) {
     test_delegate_->AddCompromisedCredential(id);
-  }
-
-  void SetIsAccountStoreDefault(bool is_default) {
-    test_delegate_->SetIsAccountStoreDefault(is_default);
-  }
-
-  const std::string& last_change_flow_url() {
-    return test_delegate_->last_change_flow_url();
   }
 
   const std::vector<int>& last_moved_passwords() const {
@@ -141,22 +159,23 @@ class PasswordsPrivateApiTest : public ExtensionApiTest {
     return test_delegate_->get_exported_file_shown_in_shell();
   }
 
+  bool get_change_password_manager_pin_called() const {
+    return test_delegate_->get_change_password_manager_pin_called();
+  }
+
+  bool get_disconnect_cloud_authenticator_called() const {
+    return test_delegate_->get_disconnect_cloud_authenticator_called();
+  }
+
+  bool get_delete_all_password_manager_data_called() const {
+    return test_delegate_->get_delete_all_password_manager_data_called();
+  }
+
  private:
   scoped_refptr<TestPasswordsPrivateDelegate> test_delegate_;
 };
 
 }  // namespace
-
-IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest,
-                       IsAccountStoreDefaultWhenFalse) {
-  EXPECT_TRUE(RunPasswordsSubtest("isAccountStoreDefaultWhenFalse"))
-      << message_;
-}
-
-IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, IsAccountStoreDefaultWhenTrue) {
-  SetIsAccountStoreDefault(true);
-  EXPECT_TRUE(RunPasswordsSubtest("isAccountStoreDefaultWhenTrue")) << message_;
-}
 
 IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest,
                        GetUrlCollectionWhenUrlValidSucceeds) {
@@ -180,26 +199,46 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, AddPasswordWhenOperationFails) {
   EXPECT_TRUE(RunPasswordsSubtest("addPasswordWhenOperationFails")) << message_;
 }
 
-IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, ChangeSavedPasswordSucceeds) {
-  EXPECT_TRUE(RunPasswordsSubtest("changeSavedPasswordSucceeds")) << message_;
-}
-
 IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest,
-                       ChangeSavedPasswordWithIncorrectIdFails) {
-  EXPECT_TRUE(RunPasswordsSubtest("changeSavedPasswordWithIncorrectIdFails"))
+                       AddPasswordOperationDisabledByPolicy) {
+  // Set kPasswordManagerEnabled policy which corresponds to
+  // password_manager::prefs::kCredentialsEnableService.
+  PolicyMap policies;
+  policies.Set(policy::key::kPasswordManagerEnabled,
+               policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+               policy::POLICY_SOURCE_CLOUD, base::Value(false), nullptr);
+  UpdateProviderPolicy(policies);
+
+  EXPECT_TRUE(RunPasswordsSubtest("addPasswordOperationDisabledByPolicy"))
       << message_;
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest,
-                       ChangeSavedPasswordWithEmptyPasswordFails) {
-  EXPECT_TRUE(RunPasswordsSubtest("changeSavedPasswordWithEmptyPasswordFails"))
+                       ImportPasswordsOperationDisabledByPolicy) {
+  // Set kPasswordManagerEnabled policy which corresponds to
+  // password_manager::prefs::kCredentialsEnableService.
+  PolicyMap policies;
+  policies.Set(policy::key::kPasswordManagerEnabled,
+               policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+               policy::POLICY_SOURCE_CLOUD, base::Value(false), nullptr);
+  UpdateProviderPolicy(policies);
+
+  EXPECT_TRUE(RunPasswordsSubtest("importPasswordsOperationDisabledByPolicy"))
       << message_;
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest,
-                       ChangeSavedPasswordWithNoteSucceeds) {
-  EXPECT_TRUE(RunPasswordsSubtest("ChangeSavedPasswordWithNoteSucceeds"))
+                       ChangeCredentialChangePassword) {
+  EXPECT_TRUE(RunPasswordsSubtest("changeCredentialChangePassword"))
       << message_;
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, ChangeCredentialChangePasskey) {
+  EXPECT_TRUE(RunPasswordsSubtest("changeCredentialChangePasskey")) << message_;
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, ChangeCredentialNotFound) {
+  EXPECT_TRUE(RunPasswordsSubtest("changeCredentialNotFound")) << message_;
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest,
@@ -212,6 +251,10 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest,
                        RemoveAndUndoRemovePasswordException) {
   EXPECT_TRUE(RunPasswordsSubtest("removeAndUndoRemovePasswordException"))
       << message_;
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, RemovePasskey) {
+  EXPECT_TRUE(RunPasswordsSubtest("removePasskey")) << message_;
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, RequestPlaintextPassword) {
@@ -242,6 +285,18 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, GetPasswordExceptionList) {
   EXPECT_TRUE(RunPasswordsSubtest("getPasswordExceptionList")) << message_;
 }
 
+IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, FetchFamilyMembers) {
+  EXPECT_FALSE(fetch_family_members_was_triggered());
+  EXPECT_TRUE(RunPasswordsSubtest("fetchFamilyMembers")) << message_;
+  EXPECT_TRUE(fetch_family_members_was_triggered());
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, SharePassword) {
+  EXPECT_FALSE(share_password_was_triggered());
+  EXPECT_TRUE(RunPasswordsSubtest("sharePassword")) << message_;
+  EXPECT_TRUE(share_password_was_triggered());
+}
+
 IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, ImportPasswords) {
   EXPECT_FALSE(importPasswordsWasTriggered());
   EXPECT_TRUE(RunPasswordsSubtest("importPasswords")) << message_;
@@ -266,37 +321,31 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, ExportPasswords) {
   EXPECT_TRUE(exportPasswordsWasTriggered());
 }
 
-IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, CancelExportPasswords) {
-  EXPECT_FALSE(cancelExportPasswordsWasTriggered());
-  EXPECT_TRUE(RunPasswordsSubtest("cancelExportPasswords")) << message_;
-  EXPECT_TRUE(cancelExportPasswordsWasTriggered());
-}
-
 IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, RequestExportProgressStatus) {
   EXPECT_TRUE(RunPasswordsSubtest("requestExportProgressStatus")) << message_;
 }
 
-IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, IsNotOptedInForAccountStorage) {
-  EXPECT_TRUE(RunPasswordsSubtest("isNotOptedInForAccountStorage")) << message_;
+IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, AccountStorageIsDisabled) {
+  EXPECT_TRUE(RunPasswordsSubtest("accountStorageIsDisabled")) << message_;
 }
 
-IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, IsOptedInForAccountStorage) {
-  SetOptedInForAccountStorage(true);
-  EXPECT_TRUE(RunPasswordsSubtest("isOptedInForAccountStorage")) << message_;
+IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, AccountStorageIsEnabled) {
+  SetAccountStorageEnabled(true);
+  EXPECT_TRUE(RunPasswordsSubtest("accountStorageIsEnabled")) << message_;
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, GetInsecureCredentials) {
   EXPECT_TRUE(RunPasswordsSubtest("getInsecureCredentials")) << message_;
 }
 
-IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, OptInForAccountStorage) {
-  SetOptedInForAccountStorage(false);
-  EXPECT_TRUE(RunPasswordsSubtest("optInForAccountStorage")) << message_;
+IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, EnableAccountStorage) {
+  SetAccountStorageEnabled(false);
+  EXPECT_TRUE(RunPasswordsSubtest("enableAccountStorage")) << message_;
 }
 
-IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, OptOutForAccountStorage) {
-  SetOptedInForAccountStorage(true);
-  EXPECT_TRUE(RunPasswordsSubtest("optOutForAccountStorage")) << message_;
+IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, DisableAccountStorage) {
+  SetAccountStorageEnabled(true);
+  EXPECT_TRUE(RunPasswordsSubtest("disableAccountStorage")) << message_;
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, MuteInsecureCredentialFails) {
@@ -312,21 +361,6 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest,
 
 IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, UnmuteInsecureCredentialFails) {
   EXPECT_TRUE(RunPasswordsSubtest("unmuteInsecureCredentialFails")) << message_;
-}
-
-IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest,
-                       RecordChangePasswordFlowStarted) {
-  EXPECT_TRUE(RunPasswordsSubtest("recordChangePasswordFlowStarted"))
-      << message_;
-  EXPECT_EQ(last_change_flow_url(),
-            "https://example.com/.well-known/change-password");
-}
-
-IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest,
-                       RecordChangePasswordFlowStartedAppNoUrl) {
-  EXPECT_TRUE(RunPasswordsSubtest("recordChangePasswordFlowStartedAppNoUrl"))
-      << message_;
-  EXPECT_EQ(last_change_flow_url(), "");
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, StartPasswordCheck) {
@@ -345,12 +379,6 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, StartPasswordCheckFailed) {
   EXPECT_TRUE(start_password_check_triggered());
 }
 
-IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, StopPasswordCheck) {
-  EXPECT_FALSE(stop_password_check_triggered());
-  EXPECT_TRUE(RunPasswordsSubtest("stopPasswordCheck")) << message_;
-  EXPECT_TRUE(stop_password_check_triggered());
-}
-
 IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, GetPasswordCheckStatus) {
   EXPECT_TRUE(RunPasswordsSubtest("getPasswordCheckStatus")) << message_;
 }
@@ -367,7 +395,7 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, ExtendAuthValidity) {
   EXPECT_TRUE(get_authenticator_interaction_status());
 }
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest,
                        SwitchBiometricAuthBeforeFillingState) {
   EXPECT_FALSE(get_authenticator_interaction_status());
@@ -375,7 +403,8 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest,
       << message_;
   EXPECT_TRUE(get_authenticator_interaction_status());
 }
-#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)  ||
+        // BUILDFLAG(IS_CHROMEOS)
 
 IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, AddShortcut) {
   EXPECT_FALSE(get_add_shortcut_dialog_shown());
@@ -397,6 +426,29 @@ IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, ShowExportedFileInShell) {
   EXPECT_FALSE(get_exported_file_shown_in_shell());
   EXPECT_TRUE(RunPasswordsSubtest("showExportedFileInShell")) << message_;
   EXPECT_TRUE(get_exported_file_shown_in_shell());
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, ChangePasswordManagerPin) {
+  EXPECT_TRUE(RunPasswordsSubtest("changePasswordManagerPin"));
+  EXPECT_TRUE(get_change_password_manager_pin_called());
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, IsPasswordManagerPinAvailable) {
+  EXPECT_TRUE(RunPasswordsSubtest("isPasswordManagerPinAvailable"));
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, DisconnectCloudAuthenticator) {
+  EXPECT_TRUE(RunPasswordsSubtest("disconnectCloudAuthenticator"));
+  EXPECT_TRUE(get_disconnect_cloud_authenticator_called());
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest,
+                       IsConnectedToCloudAuthenticator) {
+  EXPECT_TRUE(RunPasswordsSubtest("isConnectedToCloudAuthenticator"));
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordsPrivateApiTest, DeleteAllPasswordManagerData) {
+  EXPECT_TRUE(RunPasswordsSubtest("deleteAllPasswordManagerData"));
 }
 
 }  // namespace extensions

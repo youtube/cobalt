@@ -63,9 +63,7 @@ std::pair<const char*, const char*> MessageForStatus(SVGParseStatus status) {
       return std::make_pair("Invalid value, ", ".");
     default:
       NOTREACHED();
-      break;
   }
-  return std::make_pair("", "");
 }
 
 bool DisableLocus(SVGParseStatus status) {

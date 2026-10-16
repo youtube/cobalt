@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 // clang-format off
-import {MetricsReporting, PrivacyPageBrowserProxy, ResolverOption, SecureDnsMode, SecureDnsSetting, SecureDnsUiManagementMode} from 'chrome://settings/settings.js';
+import type {MetricsReporting, PrivacyPageBrowserProxy, ResolverOption, SecureDnsSetting} from 'chrome://settings/settings.js';
+import {SecureDnsMode, SecureDnsUiManagementMode} from 'chrome://settings/settings.js';
 import {assertFalse} from 'chrome://webui-test/chai_assert.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
@@ -21,13 +22,11 @@ export class TestPrivacyPageBrowserProxy extends TestBrowserProxy implements
     super([
       'getMetricsReporting',
       'setMetricsReportingEnabled',
-      'showManageSslCertificates',
       'setBlockAutoplayEnabled',
       'getSecureDnsResolverList',
       'getSecureDnsSetting',
       'isValidConfig',
       'probeConfig',
-      'recordUserDropdownInteraction',
     ]);
 
     this.metricsReporting = {
@@ -39,9 +38,12 @@ export class TestPrivacyPageBrowserProxy extends TestBrowserProxy implements
       mode: SecureDnsMode.AUTOMATIC,
       config: '',
       managementMode: SecureDnsUiManagementMode.NO_OVERRIDE,
-      // <if expr="chromeos_ash">
+      // <if expr="is_chromeos">
+      osMode: SecureDnsMode.AUTOMATIC,
+      osConfig: '',
       dohWithIdentifiersActive: false,
       configForDisplay: '',
+      dohDomainConfigSet: false,
       // </if>
     };
 
@@ -55,10 +57,6 @@ export class TestPrivacyPageBrowserProxy extends TestBrowserProxy implements
 
   setMetricsReportingEnabled(enabled: boolean) {
     this.methodCalled('setMetricsReportingEnabled', enabled);
-  }
-
-  showManageSslCertificates() {
-    this.methodCalled('showManageSslCertificates');
   }
 
   setBlockAutoplayEnabled(enabled: boolean) {
@@ -111,10 +109,5 @@ export class TestPrivacyPageBrowserProxy extends TestBrowserProxy implements
     const result = this.probeConfigResults_[entry];
     assertFalse(result === undefined);
     return Promise.resolve(result || false);
-  }
-
-  recordUserDropdownInteraction(oldSelection: string, newSelection: string) {
-    this.methodCalled(
-        'recordUserDropdownInteraction', [oldSelection, newSelection]);
   }
 }

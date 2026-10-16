@@ -39,17 +39,15 @@ class CC_EXPORT UIResourceLayerImpl : public LayerImpl {
   // Sets a UV transform to be used at draw time. Defaults to (0, 0) and (1, 1).
   void SetUV(const gfx::PointF& top_left, const gfx::PointF& bottom_right);
 
-  // Sets an opacity value per vertex. It will be multiplied by the layer
-  // opacity value.
-  void SetVertexOpacity(const float vertex_opacity[4]);
-
+  mojom::LayerType GetLayerType() const override;
   std::unique_ptr<LayerImpl> CreateLayerImpl(
       LayerTreeImpl* tree_impl) const override;
   void PushPropertiesTo(LayerImpl* layer) override;
 
   bool WillDraw(DrawMode draw_mode,
                 viz::ClientResourceProvider* resource_provider) override;
-  void AppendQuads(viz::CompositorRenderPass* render_pass,
+  void AppendQuads(const AppendQuadsContext& context,
+                   viz::CompositorRenderPass* render_pass,
                    AppendQuadsData* append_quads_data) override;
 
   void AsValueInto(base::trace_event::TracedValue* state) const override;
@@ -64,10 +62,6 @@ class CC_EXPORT UIResourceLayerImpl : public LayerImpl {
 
   gfx::PointF uv_top_left_;
   gfx::PointF uv_bottom_right_;
-  float vertex_opacity_[4];
-
- private:
-  const char* LayerTypeAsString() const override;
 };
 
 }  // namespace cc

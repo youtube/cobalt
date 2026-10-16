@@ -8,12 +8,12 @@
 #include <memory>
 #include <vector>
 
+#include "include/cppgc/persistent.h"
+#include "include/v8-inspector.h"
 #include "src/base/macros.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/protocol/Schema.h"
-
-#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 
@@ -33,9 +33,9 @@ using protocol::Response;
 class V8InspectorSessionImpl : public V8InspectorSession,
                                public protocol::FrontendChannel {
  public:
-  static std::unique_ptr<V8InspectorSessionImpl> create(
+  static V8InspectorSessionImpl* create(
       V8InspectorImpl*, int contextGroupId, int sessionId,
-      V8Inspector::Channel*, StringView state,
+      V8Inspector::ManagedChannel*, StringView state,
       v8_inspector::V8Inspector::ClientTrustLevel,
       std::shared_ptr<V8DebuggerBarrier>);
   ~V8InspectorSessionImpl() override;
@@ -48,11 +48,11 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   V8SchemaAgentImpl* schemaAgent() { return m_schemaAgent.get(); }
   V8ProfilerAgentImpl* profilerAgent() { return m_profilerAgent.get(); }
   V8RuntimeAgentImpl* runtimeAgent() { return m_runtimeAgent.get(); }
+  V8HeapProfilerAgentImpl* heapProfilerAgent() {
+    return m_heapProfilerAgent.get();
+  }
   int contextGroupId() const { return m_contextGroupId; }
   int sessionId() const { return m_sessionId; }
-
-  std::unique_ptr<V8InspectorSession::CommandLineAPIScope>
-  initializeCommandLineAPIScope(int executionContextId) override;
 
   Response findInjectedScript(int contextId, InjectedScript*&);
   Response findInjectedScript(RemoteObjectIdBase*, InjectedScript*&);
@@ -100,15 +100,21 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   static const unsigned kInspectedObjectBufferSize = 5;
 
   void triggerPreciseCoverageDeltaUpdate(StringView occasion) override;
+  EvaluateResult evaluate(v8::Local<v8::Context> context, StringView expression,
+                          bool includeCommandLineAPI = false) override;
   void stop() override;
 
   V8Inspector::ClientTrustLevel clientTrustLevel() {
     return m_clientTrustLevel;
   }
 
+  void setWeakThis(std::weak_ptr<V8InspectorSessionImpl> weakThis) {
+    m_weakThis = std::move(weakThis);
+  }
+
  private:
   V8InspectorSessionImpl(V8InspectorImpl*, int contextGroupId, int sessionId,
-                         V8Inspector::Channel*, StringView state,
+                         V8Inspector::ManagedChannel*, StringView state,
                          V8Inspector::ClientTrustLevel,
                          std::shared_ptr<V8DebuggerBarrier>);
   protocol::DictionaryValue* agentState(const String16& name);
@@ -127,7 +133,7 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   int m_contextGroupId;
   int m_sessionId;
   V8InspectorImpl* m_inspector;
-  V8Inspector::Channel* m_channel;
+  cppgc::Persistent<V8Inspector::ManagedChannel> m_channel;
   bool m_customObjectFormatterEnabled;
 
   protocol::UberDispatcher m_dispatcher;
@@ -143,6 +149,20 @@ class V8InspectorSessionImpl : public V8InspectorSession,
       m_inspectedObjects;
   bool use_binary_protocol_ = false;
   V8Inspector::ClientTrustLevel m_clientTrustLevel = V8Inspector::kUntrusted;
+
+  // On each call to "dispatchProtocolMessage", the session turns the weakThis
+  // reference into a strong one, so nested run loops are not able to fully
+  // deconstruct the V8 session until we return from the
+  // "dispatchProtocolMessage" call (i.e. no freed "this" remains on the stack).
+  class KeepSessionAliveScope {
+   public:
+    explicit KeepSessionAliveScope(const V8InspectorSessionImpl& session)
+        : m_this(session.m_weakThis.lock()) {}
+
+   private:
+    std::shared_ptr<V8InspectorSessionImpl> m_this;
+  };
+  std::weak_ptr<V8InspectorSessionImpl> m_weakThis;
 };
 
 }  // namespace v8_inspector

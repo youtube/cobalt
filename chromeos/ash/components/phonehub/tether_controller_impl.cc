@@ -10,8 +10,7 @@
 #include "chromeos/ash/components/phonehub/util/histogram_util.h"
 #include "chromeos/ash/services/network_config/in_process_instance.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 namespace {
 
@@ -145,7 +144,7 @@ void TetherControllerImpl::AttemptTurningOnTethering() {
   multidevice_setup_client_->SetFeatureEnabledState(
       Feature::kInstantTethering,
       /*enabled=*/true,
-      /*auth_token=*/absl::nullopt,
+      /*auth_token=*/std::nullopt,
       base::BindOnce(&TetherControllerImpl::OnSetFeatureEnabled,
                      weak_ptr_factory_.GetWeakPtr()));
 }
@@ -464,5 +463,4 @@ TetherController::Status TetherControllerImpl::ComputeStatus() const {
   return Status::kConnectionUnavailable;
 }
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub

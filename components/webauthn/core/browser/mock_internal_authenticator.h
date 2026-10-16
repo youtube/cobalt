@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,10 +22,9 @@ class MockInternalAuthenticator : public webauthn::InternalAuthenticator {
       MakeCredential,
       void(blink::mojom::PublicKeyCredentialCreationOptionsPtr options,
            blink::mojom::Authenticator::MakeCredentialCallback callback));
-  MOCK_METHOD2(
-      GetAssertion,
-      void(blink::mojom::PublicKeyCredentialRequestOptionsPtr options,
-           blink::mojom::Authenticator::GetAssertionCallback callback));
+  MOCK_METHOD2(GetAssertion,
+               void(blink::mojom::PublicKeyCredentialRequestOptionsPtr options,
+                    GetAssertionCallback callback));
   MOCK_METHOD1(IsUserVerifyingPlatformAuthenticatorAvailable,
                void(blink::mojom::Authenticator::
                         IsUserVerifyingPlatformAuthenticatorAvailableCallback));

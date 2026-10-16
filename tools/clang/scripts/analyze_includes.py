@@ -13,8 +13,8 @@ $ autoninja -C out/Debug -v chrome | tee /tmp/build_log
 $ analyze_includes.py --target=chrome --revision=$(git rev-parse --short HEAD) \
     --json-out=/tmp/include-analysis.js /tmp/build_log
 
-(If you have goma access, add use_goma=true to the gn args, but not on Windows
-due to crbug.com/1223741#c9)
+(If you have reclient access, add use_reclient=true to the gn args, but not on
+Windows due to crbug.com/1223741#c9)
 
 The script takes roughly half an hour on a fast machine for the chrome build
 target, which is considered fast enough for batch job purposes for now.
@@ -35,7 +35,7 @@ import re
 import sys
 import unittest
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def parse_build(build_log, root_filter=None):
@@ -92,7 +92,7 @@ def parse_build(build_log, root_filter=None):
 
       if depth > prev_depth:
         if sys.platform != 'win32':
-          # TODO(crbug.com/1223741): Always assert.
+          # TODO(crbug.com/40187759): Always assert.
           assert depth == prev_depth + 1
         elif depth > prev_depth + 1:
           # Until the bug is fixed, skip these includes.
@@ -121,6 +121,11 @@ def parse_build(build_log, root_filter=None):
     m = ENTER_DIR_RE.match(line)
     if m:
       build_dir = m.group(1)
+      continue
+
+    if line.startswith('['):
+      # Some tool other than clang is running. Ignore its output.
+      skipping_root = True
       continue
 
   return roots, includes
@@ -200,6 +205,21 @@ class TestParseBuild(unittest.TestCase):
     self.assertEqual(includes['a.cc'], set(['a.h']))
     self.assertEqual(includes['a.h'], set())
     self.assertEqual(includes['out/foo/gen/c.c'], set())
+
+  def test_bindgen(self):
+    x = [
+        'ninja: Entering directory `out/foo\'',
+        '[123/234] clang -c ../../a.cc -o a.o',
+        '. ../../a.h',
+        '[124/234] bindgen -c ../../b.cc -o b.o',
+        '. ../../b.h',
+        '[125/234] clang -c ../../c.cc -o c.o',
+        '. ../../c.h',
+    ]
+    (roots, includes) = parse_build(x)
+    self.assertEqual(roots, set(['a.cc', 'c.cc']))
+    self.assertEqual(includes['a.cc'], set(['a.h']))
+    self.assertEqual(includes['c.cc'], set(['c.h']))
 
 
 def post_order_nodes(root, child_nodes):
@@ -443,7 +463,7 @@ def analyze(target, revision, build_log_file, json_file, root_filter):
       {
           'target': target,
           'revision': revision,
-          'date': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'),
+          'date': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC'),
           'files': names,
           'roots': [nr(x) for x in sorted(roots)],
           'includes': [[nr(x) for x in sorted(includes[n])] for n in names],
@@ -466,7 +486,7 @@ def main():
 
   parser = argparse.ArgumentParser(description='Analyze an #include graph.')
   parser.add_argument('build_log',
-                      type=argparse.FileType('r'),
+                      type=argparse.FileType('r', errors='replace'),
                       help='The build log to analyze (- for stdin).')
   parser.add_argument('--target',
                       help='The target that was built (e.g. chrome).')

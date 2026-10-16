@@ -39,6 +39,8 @@ class IdleService : public KeyedService,
   void OnIdleStateChange(
       const ui::IdlePollingService::State& polled_state) override;
 
+  base::TimeDelta GetTimeout() const;
+
  private:
   // Called when the IdleTimeout policy changes, via the
   // "idle_profile_close_timeout" pref it's mapped to.
@@ -54,6 +56,9 @@ class IdleService : public KeyedService,
   base::ScopedObservation<ui::IdlePollingService,
                           ui::IdlePollingService::Observer>
       polling_service_observation_{this};
+
+  class BrowserObserver;
+  std::unique_ptr<BrowserObserver> browser_observer_;
 
   base::WeakPtrFactory<IdleService> weak_ptr_factory_{this};
 };

@@ -7,12 +7,12 @@
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "content/public/browser/browser_thread.h"
 #include "ui/gfx/color_palette.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -42,7 +42,7 @@ class BorderView : public views::View {
 };
 
 void InitContentsBorderWidget(content::WebContents* web_contents) {
-  Browser* const browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* const browser = chrome::FindBrowserWithTab(web_contents);
   if (!browser) {
     return;
   }
@@ -54,7 +54,9 @@ void InitContentsBorderWidget(content::WebContents* web_contents) {
   }
 
   views::Widget* widget = new views::Widget;
-  views::Widget::InitParams params(views::Widget::InitParams::TYPE_POPUP);
+  views::Widget::InitParams params(
+      views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET,
+      views::Widget::InitParams::TYPE_POPUP);
   params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
   views::Widget* frame = browser_view->contents_web_view()->GetWidget();
   params.parent = frame->GetNativeView();
@@ -75,7 +77,7 @@ void InitContentsBorderWidget(content::WebContents* web_contents) {
   widget->SetVisibilityChangedAnimationsEnabled(false);
   widget->SetOpacity(0.50f);
 
-  // TODO(crbug.com/1276822): Associate each captured tab with its own widget.
+  // TODO(crbug.com/40207590): Associate each captured tab with its own widget.
   // Otherwise, if tab A captures B, and tab C captures D, and all are in
   // the same browser window, then either the A<-B or C<-D sessions ending,
   // hides the widget, and there's no good way of avoiding it (other than
@@ -98,7 +100,7 @@ void TabCaptureContentsBorderHelper::OnCapturerAdded(
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   DCHECK(!base::Contains(session_to_bounds_, capture_session_id));
 
-  session_to_bounds_[capture_session_id] = absl::nullopt;
+  session_to_bounds_[capture_session_id] = std::nullopt;
 
   Update();
 }
@@ -107,7 +109,7 @@ void TabCaptureContentsBorderHelper::OnCapturerRemoved(
     CaptureSessionId capture_session_id) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  // TODO(crbug.com/1294187): Destroy widget when the size of
+  // TODO(crbug.com/40213800): Destroy widget when the size of
   // `session_to_bounds_` hits 0. Same for `this`.
   session_to_bounds_.erase(capture_session_id);
 
@@ -122,7 +124,7 @@ void TabCaptureContentsBorderHelper::VisibilityUpdated() {
 
 void TabCaptureContentsBorderHelper::OnRegionCaptureRectChanged(
     CaptureSessionId capture_session_id,
-    const absl::optional<gfx::Rect>& region_capture_rect) {
+    const std::optional<gfx::Rect>& region_capture_rect) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   DCHECK(base::Contains(session_to_bounds_, capture_session_id));
 
@@ -131,7 +133,7 @@ void TabCaptureContentsBorderHelper::OnRegionCaptureRectChanged(
       region_capture_rect->height() >= kMinContentsBorderHeight) {
     session_to_bounds_[capture_session_id] = region_capture_rect;
   } else {
-    session_to_bounds_[capture_session_id] = absl::nullopt;
+    session_to_bounds_[capture_session_id] = std::nullopt;
   }
 
   UpdateBlueBorderLocation();
@@ -151,7 +153,7 @@ void TabCaptureContentsBorderHelper::Update() {
 
   content::WebContents* const web_contents = &GetWebContents();
 
-  Browser* const browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* const browser = chrome::FindBrowserWithTab(web_contents);
   if (!browser) {
     return;
   }
@@ -191,7 +193,7 @@ void TabCaptureContentsBorderHelper::UpdateBlueBorderLocation() {
 
   content::WebContents* const web_contents = &GetWebContents();
 
-  Browser* const browser = chrome::FindBrowserWithWebContents(web_contents);
+  Browser* const browser = chrome::FindBrowserWithTab(web_contents);
   if (!browser) {
     return;
   }
@@ -205,8 +207,8 @@ void TabCaptureContentsBorderHelper::UpdateBlueBorderLocation() {
   browser_view->SetContentBorderBounds(GetBlueBorderLocation());
 }
 
-absl::optional<gfx::Rect>
-TabCaptureContentsBorderHelper::GetBlueBorderLocation() const {
+std::optional<gfx::Rect> TabCaptureContentsBorderHelper::GetBlueBorderLocation()
+    const {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   DCHECK(!session_to_bounds_.empty()) << "No blue border should be shown.";
 
@@ -214,7 +216,7 @@ TabCaptureContentsBorderHelper::GetBlueBorderLocation() const {
   // one capture session. If there are more, fall back on drawing the border
   // around the entire tab.
   return (session_to_bounds_.size() == 1u) ? session_to_bounds_.begin()->second
-                                           : absl::nullopt;
+                                           : std::nullopt;
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(TabCaptureContentsBorderHelper);

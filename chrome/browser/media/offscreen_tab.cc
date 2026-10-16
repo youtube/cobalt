@@ -157,6 +157,7 @@ void OffscreenTab::Start(const GURL& start_url,
     params.starting_sandbox_flags = content::kPresentationReceiverSandboxFlags;
 
   offscreen_tab_web_contents_ = WebContents::Create(params);
+  offscreen_tab_web_contents_->SetOwnerLocationForDebug(FROM_HERE);
   offscreen_tab_web_contents_->SetDelegate(this);
   WebContentsObserver::Observe(offscreen_tab_web_contents_.get());
 
@@ -221,7 +222,7 @@ bool OffscreenTab::ShouldSuppressDialogs(WebContents* source) {
   DCHECK_EQ(offscreen_tab_web_contents_.get(), source);
   // Suppress all because there is no possible direct user interaction with
   // dialogs.
-  // TODO(crbug.com/734191): This does not suppress window.print().
+  // TODO(crbug.com/40526231): This does not suppress window.print().
   return true;
 }
 
@@ -234,7 +235,7 @@ bool OffscreenTab::ShouldFocusLocationBarByDefault(WebContents* source) {
   return true;
 }
 
-bool OffscreenTab::ShouldFocusPageAfterCrash() {
+bool OffscreenTab::ShouldFocusPageAfterCrash(content::WebContents* source) {
   // Never focus the page.  Not even after a crash.
   return false;
 }
@@ -257,7 +258,7 @@ bool OffscreenTab::HandleContextMenu(
 
 content::KeyboardEventProcessingResult OffscreenTab::PreHandleKeyboardEvent(
     WebContents* source,
-    const content::NativeWebKeyboardEvent& event) {
+    const input::NativeWebKeyboardEvent& event) {
   DCHECK_EQ(offscreen_tab_web_contents_.get(), source);
   // Intercept and silence all keyboard events before they can be sent to the
   // renderer.
@@ -282,6 +283,7 @@ bool OffscreenTab::CanDragEnter(WebContents* source,
 }
 
 bool OffscreenTab::IsWebContentsCreationOverridden(
+    content::RenderFrameHost* opener,
     content::SiteInstance* source_site_instance,
     content::mojom::WindowContainerType window_container_type,
     const GURL& opener_url,
@@ -341,7 +343,7 @@ void OffscreenTab::RequestMediaAccessPermission(
 
 bool OffscreenTab::CheckMediaAccessPermission(
     content::RenderFrameHost* render_frame_host,
-    const GURL& security_origin,
+    const url::Origin& security_origin,
     blink::mojom::MediaStreamType type) {
   return false;
 }

@@ -38,7 +38,7 @@
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/network_service.mojom.h"
 
-// TODO(crbug.com/181671): Write test to verify we handle the policy toggling.
+// TODO(crbug.com/40966307): Write test to verify we handle the policy toggling.
 IntranetRedirectDetector::IntranetRedirectDetector()
     : redirect_origin_(g_browser_process->local_state()->GetString(
           prefs::kLastKnownIntranetRedirectOrigin)) {
@@ -182,7 +182,7 @@ void IntranetRedirectDetector::OnSimpleLoaderComplete(
     std::unique_ptr<std::string> response_body) {
   // Delete the loader on this function's exit.
   auto it = simple_loaders_.find(source);
-  DCHECK(it != simple_loaders_.end());
+  CHECK(it != simple_loaders_.end());
   std::unique_ptr<network::SimpleURLLoader> simple_loader =
       std::move(it->second);
   simple_loaders_.erase(it);

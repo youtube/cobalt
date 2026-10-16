@@ -8,16 +8,16 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.feed.FeedServiceBridge;
 import org.chromium.chrome.browser.feed.R;
 import org.chromium.chrome.browser.feed.StreamKind;
 import org.chromium.chrome.browser.feed.v2.ContentOrder;
 import org.chromium.chrome.browser.feed.v2.FeedUserActionType;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.components.browser_ui.widget.chips.ChipProperties;
 import org.chromium.components.browser_ui.widget.chips.ChipView;
 import org.chromium.components.browser_ui.widget.chips.ChipViewBinder;
@@ -28,9 +28,8 @@ import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A coordinator for the feed options panel.
- */
+/** A coordinator for the feed options panel. */
+@NullMarked
 public class FeedOptionsCoordinator {
     /** Listener for change in options selection. */
     public interface OptionChangedListener {
@@ -46,40 +45,31 @@ public class FeedOptionsCoordinator {
     }
 
     private final FeedOptionsView mView;
-    private @Nullable FeedOptionsView mStickyHeaderOptionsView;
     private final Context mContext;
-    private List<PropertyModel> mChipModels;
-    private PropertyModel mModel;
-    @Nullable
-    private OptionChangedListener mOptionsListener;
+    private final List<PropertyModel> mChipModels;
+    private final PropertyModel mModel;
+    private @Nullable OptionChangedListener mOptionsListener;
 
     public FeedOptionsCoordinator(Context context) {
         // We don't use ChipsCoordinator here because RecyclerView does not play
         // nicely with the animations used, causing all chips to render with 0 height.
-        this(context,
-                (FeedOptionsView) LayoutInflater.from(context).inflate(
-                        R.layout.feed_options_panel, null, false),
-                ChromeFeatureList.isEnabled(ChromeFeatureList.FEED_HEADER_STICK_TO_TOP)
-                        ? (FeedOptionsView) LayoutInflater.from(context).inflate(
-                                R.layout.feed_options_panel, null, false)
-                        : null);
+        this(
+                context,
+                (FeedOptionsView)
+                        LayoutInflater.from(context)
+                                .inflate(R.layout.feed_options_panel, null, false));
     }
 
     @VisibleForTesting
-    FeedOptionsCoordinator(Context context, FeedOptionsView view,
-            @Nullable FeedOptionsView stickyHeaderOptionsView) {
+    FeedOptionsCoordinator(Context context, FeedOptionsView view) {
         mContext = context;
         mView = view;
-        mModel = new PropertyModel.Builder(FeedOptionsProperties.getAllKeys())
-                         .with(FeedOptionsProperties.VISIBILITY_KEY, false)
-                         .build();
+        mModel =
+                new PropertyModel.Builder(FeedOptionsProperties.getAllKeys())
+                        .with(FeedOptionsProperties.VISIBILITY_KEY, false)
+                        .build();
         PropertyModelChangeProcessor.create(mModel, mView, FeedOptionsCoordinator::bind);
 
-        if (stickyHeaderOptionsView != null) {
-            mStickyHeaderOptionsView = stickyHeaderOptionsView;
-            PropertyModelChangeProcessor.create(
-                    mModel, mStickyHeaderOptionsView, FeedOptionsCoordinator::bind);
-        }
         // Create chip models last, after all expected option views are created.
         mChipModels = createAndBindChips();
     }
@@ -92,12 +82,6 @@ public class FeedOptionsCoordinator {
     /** Returns the view that this coordinator manages. */
     public View getView() {
         return mView;
-    }
-
-    /** Returns the options view which should be added to the sticky header. */
-    public View getStickyHeaderOptionsView() {
-        assert mStickyHeaderOptionsView != null : "mStickyHeaderOptionsView is null!";
-        return mStickyHeaderOptionsView;
     }
 
     /** Toggles visibility of the options panel. */
@@ -132,8 +116,7 @@ public class FeedOptionsCoordinator {
         if (mOptionsListener != null) {
             mOptionsListener.onOptionChanged();
         }
-        @FeedUserActionType
-        int feedUserActionType;
+        @FeedUserActionType int feedUserActionType;
         switch (selectedOption.get(ChipProperties.ID)) {
             case ContentOrder.GROUPED:
                 feedUserActionType = FeedUserActionType.FOLLOWING_FEED_SELECTED_GROUP_BY_PUBLISHER;
@@ -148,35 +131,39 @@ public class FeedOptionsCoordinator {
         FeedServiceBridge.reportOtherUserAction(StreamKind.FOLLOWING, feedUserActionType);
     }
 
-    private PropertyModel createChipModel(@ContentOrder int id, @StringRes int textId,
-            boolean isSelected, @StringRes int contentDescriptionId) {
+    private PropertyModel createChipModel(
+            @ContentOrder int id,
+            @StringRes int textId,
+            boolean isSelected,
+            @StringRes int contentDescriptionId) {
         return new PropertyModel.Builder(ChipProperties.ALL_KEYS)
                 .with(ChipProperties.ID, id)
-                .with(ChipProperties.TEXT, mContext.getResources().getString(textId))
+                .with(ChipProperties.TEXT, mContext.getString(textId))
                 .with(ChipProperties.SELECTED, isSelected)
                 .with(ChipProperties.CLICK_HANDLER, this::onOptionSelected)
-                .with(ChipProperties.CONTENT_DESCRIPTION,
-                        mContext.getResources().getString(contentDescriptionId))
+                .with(ChipProperties.CONTENT_DESCRIPTION, mContext.getString(contentDescriptionId))
                 .build();
     }
 
     private List<PropertyModel> createAndBindChips() {
-        @ContentOrder
-        int currentSort = getSelectedOptionId();
+        @ContentOrder int currentSort = getSelectedOptionId();
         List<PropertyModel> chipModels = new ArrayList<>();
-        chipModels.add(createChipModel(ContentOrder.GROUPED, R.string.feed_sort_publisher,
-                currentSort == ContentOrder.GROUPED, R.string.feed_options_sort_by_grouped));
-        chipModels.add(createChipModel(ContentOrder.REVERSE_CHRON, R.string.latest,
-                currentSort == ContentOrder.REVERSE_CHRON, R.string.feed_options_sort_by_latest));
+        chipModels.add(
+                createChipModel(
+                        ContentOrder.GROUPED,
+                        R.string.feed_sort_publisher,
+                        currentSort == ContentOrder.GROUPED,
+                        R.string.feed_options_sort_by_grouped));
+        chipModels.add(
+                createChipModel(
+                        ContentOrder.REVERSE_CHRON,
+                        R.string.latest,
+                        currentSort == ContentOrder.REVERSE_CHRON,
+                        R.string.feed_options_sort_by_latest));
 
         for (PropertyModel model : chipModels) {
             ChipView chip = mView.createNewChip();
             PropertyModelChangeProcessor.create(model, chip, ChipViewBinder::bind);
-
-            if (mStickyHeaderOptionsView != null) {
-                ChipView stickyHeaderChip = mStickyHeaderOptionsView.createNewChip();
-                PropertyModelChangeProcessor.create(model, stickyHeaderChip, ChipViewBinder::bind);
-            }
         }
         return chipModels;
     }
@@ -184,8 +171,7 @@ public class FeedOptionsCoordinator {
     // Re-fetches the content order to ensure that the selected chip reflects
     // the current content order.
     private void updateSelectedChip() {
-        @ContentOrder
-        int currentSort = FeedServiceBridge.getContentOrderForWebFeed();
+        @ContentOrder int currentSort = FeedServiceBridge.getContentOrderForWebFeed();
         for (PropertyModel chip : mChipModels) {
             chip.set(ChipProperties.SELECTED, chip.get(ChipProperties.ID) == currentSort);
         }

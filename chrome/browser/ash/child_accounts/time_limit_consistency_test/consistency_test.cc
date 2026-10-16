@@ -8,18 +8,18 @@
 
 #include <memory.h>
 
+#include "base/strings/string_number_conversions.h"
+#include "base/test/protobuf_matchers.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/ash/child_accounts/time_limit_consistency_test/consistency_golden_converter.h"
 #include "chrome/browser/ash/child_accounts/time_limit_consistency_test/consistency_golden_loader.h"
 #include "chrome/browser/ash/child_accounts/time_limit_consistency_test/goldens/consistency_golden.pb.h"
-#include "chrome/browser/ash/child_accounts/time_limit_consistency_test/proto_matcher.h"
 #include "chrome/browser/ash/child_accounts/usage_time_limit_processor.h"
 #include "chromeos/ash/components/settings/timezone_settings.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace ash {
-namespace time_limit_consistency {
+namespace ash::time_limit_consistency {
 
 using TimeLimitConsistencyTest = testing::TestWithParam<GoldenParam>;
 
@@ -33,10 +33,10 @@ TEST_P(TimeLimitConsistencyTest, OutputMatchesGolden) {
   std::unique_ptr<icu::TimeZone> timezone(
       icu::TimeZone::createTimeZone(current_state.timezone().c_str()));
   base::Time current_time =
-      base::Time::FromJavaTime(current_state.time_millis());
-  base::Time usage_timestamp =
-      base::Time::FromJavaTime(current_state.usage_timestamp());
-  absl::optional<usage_time_limit::State> previous_state =
+      base::Time::FromMillisecondsSinceUnixEpoch(current_state.time_millis());
+  base::Time usage_timestamp = base::Time::FromMillisecondsSinceUnixEpoch(
+      current_state.usage_timestamp());
+  std::optional<usage_time_limit::State> previous_state =
       GenerateUnlockUsageLimitOverrideStateFromInput(golden_case.input());
 
   base::Value::Dict policy =
@@ -48,14 +48,14 @@ TEST_P(TimeLimitConsistencyTest, OutputMatchesGolden) {
   ConsistencyGoldenOutput actual_output =
       ConvertProcessorOutputToGoldenOutput(state);
 
-  EXPECT_THAT(actual_output, EqualsProto(golden_case.output()));
+  EXPECT_THAT(actual_output, base::test::EqualsProto(golden_case.output()));
 }
 
 // Generate the test case name from the metadata included in GoldenParam.
 static std::string GetTestCaseName(
     testing::TestParamInfo<GoldenParam> param_info) {
   return param_info.param.suite_name + "_" +
-         std::to_string(param_info.param.index);
+         base::NumberToString(param_info.param.index);
 }
 
 // Instantiate the test suite, creating one test case for each golden case
@@ -65,5 +65,4 @@ INSTANTIATE_TEST_SUITE_P(Parameterized,
                          testing::ValuesIn(LoadGoldenCases()),
                          GetTestCaseName);
 
-}  // namespace time_limit_consistency
-}  // namespace ash
+}  // namespace ash::time_limit_consistency

@@ -19,17 +19,17 @@
 #include "media/gpu/test/video_frame_helpers.h"
 
 namespace base {
-
 class WaitableEvent;
-
 }  // namespace base
 
-namespace media {
+namespace gpu {
+class TestSharedImageInterface;
+}  // namespace gpu
 
+namespace media {
 class VideoFrame;
 
 namespace test {
-
 class Image;
 
 // ImageProcessorClient is a client of ImageProcessor for testing purpose.
@@ -45,10 +45,10 @@ class ImageProcessorClient {
   // validation, writing to file) on each video frame produced by the
   // ImageProcessor.
   static std::unique_ptr<ImageProcessorClient> Create(
+      std::optional<ImageProcessor::CreateBackendCB> create_backend_cb,
       const ImageProcessor::PortConfig& input_config,
       const ImageProcessor::PortConfig& output_config,
       size_t num_buffers,
-      VideoRotation relative_rotation,
       std::vector<std::unique_ptr<VideoFrameProcessor>> frame_processors);
 
   ImageProcessorClient(const ImageProcessorClient&) = delete;
@@ -85,17 +85,19 @@ class ImageProcessorClient {
 
   // Create ImageProcessor with |input_config|, |output_config| and
   // |num_buffers|.
-  bool CreateImageProcessor(const ImageProcessor::PortConfig& input_config,
-                            const ImageProcessor::PortConfig& output_config,
-                            size_t num_buffers,
-                            VideoRotation relative_rotation);
+  bool CreateImageProcessor(
+      std::optional<ImageProcessor::CreateBackendCB> create_backend_cb,
+      const ImageProcessor::PortConfig& input_config,
+      const ImageProcessor::PortConfig& output_config,
+      size_t num_buffers);
 
   // Create |image_processor_| on |my_thread_|.
-  void CreateImageProcessorTask(const ImageProcessor::PortConfig& input_config,
-                                const ImageProcessor::PortConfig& output_config,
-                                size_t num_buffers,
-                                VideoRotation relative_rotation,
-                                base::WaitableEvent* done);
+  void CreateImageProcessorTask(
+      std::optional<ImageProcessor::CreateBackendCB> create_backend_cb,
+      const ImageProcessor::PortConfig& input_config,
+      const ImageProcessor::PortConfig& output_config,
+      size_t num_buffers,
+      base::WaitableEvent* done);
 
   // Call ImageProcessor::Process() on |my_thread_|.
   void ProcessTask(scoped_refptr<VideoFrame> input_frame,
@@ -116,6 +118,8 @@ class ImageProcessorClient {
   std::unique_ptr<ImageProcessor> image_processor_;
 
   std::unique_ptr<gpu::GpuMemoryBufferFactory> gpu_memory_buffer_factory_;
+
+  scoped_refptr<gpu::TestSharedImageInterface> test_sii_;
 
   // VideoFrameProcessors that will process the video frames produced by
   // |image_processor_|.

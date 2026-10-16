@@ -7,11 +7,13 @@
 
 #include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
+#include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/segmentation_platform/internal/execution/processing/custom_input_processor.h"
 #include "components/segmentation_platform/internal/execution/processing/feature_processor_state.h"
 #include "components/segmentation_platform/internal/metadata/metadata_utils.h"
 #include "components/segmentation_platform/public/proto/model_metadata.pb.h"
+#include "components/segmentation_platform/public/types/processed_value.h"
 
 namespace segmentation_platform::processing {
 
@@ -27,7 +29,7 @@ SqlFeatureProcessor::SqlFeatureProcessor(
 SqlFeatureProcessor::~SqlFeatureProcessor() = default;
 
 void SqlFeatureProcessor::Process(
-    std::unique_ptr<FeatureProcessorState> feature_processor_state,
+    FeatureProcessorState& feature_processor_state,
     QueryProcessorCallback callback) {
   DCHECK(!is_processed_);
   is_processed_ = true;
@@ -44,11 +46,11 @@ void SqlFeatureProcessor::Process(
     // Validate the proto::SqlFeature metadata.
     if (metadata_utils::ValidateMetadataSqlFeature(feature) !=
         metadata_utils::ValidationResult::kValidationSuccess) {
-      feature_processor_state->SetError(
+      feature_processor_state.SetError(
           stats::FeatureProcessingError::kSqlValidationError);
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(callback_),
-                                    std::move(feature_processor_state),
+
                                     std::move(result_)));
       return;
     }
@@ -69,16 +71,17 @@ void SqlFeatureProcessor::Process(
       prediction_time_, input_delegate_holder_);
   auto* custom_input_processor_ptr = custom_input_processor.get();
   custom_input_processor_ptr->ProcessIndexType<SqlFeatureAndBindValueIndices>(
-      std::move(bind_values), std::move(feature_processor_state),
+      std::move(bind_values), feature_processor_state,
       std::make_unique<base::flat_map<std::pair<int, int>, Tensor>>(),
       base::BindOnce(&SqlFeatureProcessor::OnCustomInputProcessed,
                      weak_ptr_factory_.GetWeakPtr(),
-                     std::move(custom_input_processor)));
+                     std::move(custom_input_processor),
+                     feature_processor_state.GetWeakPtr()));
 }
 
 void SqlFeatureProcessor::OnCustomInputProcessed(
     std::unique_ptr<CustomInputProcessor> custom_input_processor,
-    std::unique_ptr<FeatureProcessorState> feature_processor_state,
+    base::WeakPtr<FeatureProcessorState> feature_processor_state,
     base::flat_map<SqlFeatureAndBindValueIndices, Tensor> result) {
   // Validate the total number of bind values needed.
   size_t total_bind_values = 0;
@@ -92,9 +95,7 @@ void SqlFeatureProcessor::OnCustomInputProcessed(
     feature_processor_state->SetError(
         stats::FeatureProcessingError::kSqlBindValuesError);
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(std::move(callback_), std::move(feature_processor_state),
-                       std::move(result_)));
+        FROM_HERE, base::BindOnce(std::move(callback_), std::move(result_)));
     return;
   }
 
@@ -116,14 +117,13 @@ void SqlFeatureProcessor::OnCustomInputProcessed(
         feature_processor_state->SetError(
             stats::FeatureProcessingError::kResultTensorError);
         base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-            FROM_HERE, base::BindOnce(std::move(callback_),
-                                      std::move(feature_processor_state),
-                                      std::move(result_)));
+            FROM_HERE,
+            base::BindOnce(std::move(callback_), std::move(result_)));
         return;
       }
 
       // Append query params to the list.
-      const auto& custom_input_tensors =
+      const Tensor& custom_input_tensors =
           result[std::make_pair(sql_feature_index, bind_value_index)];
       current.bind_values.insert(current.bind_values.end(),
                                  custom_input_tensors.begin(),
@@ -132,15 +132,14 @@ void SqlFeatureProcessor::OnCustomInputProcessed(
   }
 
   // Send the queries to the ukm database to process.
-  ukm_database_->RunReadonlyQueries(
+  ukm_database_->RunReadOnlyQueries(
       std::move(processed_queries_),
       base::BindOnce(&SqlFeatureProcessor::OnQueriesRun,
-                     weak_ptr_factory_.GetWeakPtr(),
-                     std::move(feature_processor_state)));
+                     weak_ptr_factory_.GetWeakPtr(), feature_processor_state));
 }
 
 void SqlFeatureProcessor::OnQueriesRun(
-    std::unique_ptr<FeatureProcessorState> feature_processor_state,
+    base::WeakPtr<FeatureProcessorState> feature_processor_state,
     bool success,
     IndexedTensors result) {
   if (!success) {
@@ -148,9 +147,7 @@ void SqlFeatureProcessor::OnQueriesRun(
         stats::FeatureProcessingError::kSqlQueryRunError);
   }
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE,
-      base::BindOnce(std::move(callback_), std::move(feature_processor_state),
-                     std::move(result)));
+      FROM_HERE, base::BindOnce(std::move(callback_), std::move(result)));
 }
 
 }  // namespace segmentation_platform::processing

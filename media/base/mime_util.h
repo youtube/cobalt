@@ -6,24 +6,24 @@
 #define MEDIA_BASE_MIME_UTIL_H_
 
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "base/strings/string_piece_forward.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/media_export.h"
-#include "media/base/video_codecs.h"
+#include "media/base/media_types.h"
 
 namespace media {
 
 // Check to see if a particular MIME type is in the list of
 // supported/recognized MIME types.
-MEDIA_EXPORT bool IsSupportedMediaMimeType(base::StringPiece mime_type);
+MEDIA_EXPORT bool IsSupportedMediaMimeType(std::string_view mime_type);
 
 // Splits |codecs| separated by comma into |codecs_out|. Codecs in |codecs| may
 // or may not be quoted. For example, "\"aaa.b.c,dd.eee\"" and "aaa.b.c,dd.eee"
 // will both be split into {"aaa.b.c", "dd.eee"}.
 // See http://www.ietf.org/rfc/rfc4281.txt.
-MEDIA_EXPORT void SplitCodecs(base::StringPiece,
+MEDIA_EXPORT void SplitCodecs(std::string_view,
                               std::vector<std::string>* codecs_out);
 
 // Strips the profile and level info from |codecs| in place.  For example,
@@ -31,23 +31,18 @@ MEDIA_EXPORT void SplitCodecs(base::StringPiece,
 // See http://www.ietf.org/rfc/rfc4281.txt.
 MEDIA_EXPORT void StripCodecs(std::vector<std::string>* codecs);
 
-// Returns true if successfully parsed the given |mime_type| and |codec_id|,
-// setting |out_*| arguments to the parsed video codec, profile, and level.
+// Returns a parse result if |mime_type| and |codec_id| can be parsed.
 // Empty string |mime_type| indicates "no mime type". |mime_type| should be
 // provided whenever available for parsing and validation in combination with
-// |codec_id|. |out_is_ambiguous| will be true when the codec string is
-// incomplete such that some guessing was required to decide the codec, profile,
-// or level.
+// |codec_id|. If |allow_ambiguous_matches| is true, matches against
+// non-standard codec strings (e.g., vp9 vs vp9.0) will be allowed.
 //
-// Returns false if parsing fails (invalid string, or unrecognized video codec),
-// in which case values for |out_*| arguments are undefined.
-MEDIA_EXPORT bool ParseVideoCodecString(base::StringPiece mime_type,
-                                        base::StringPiece codec_id,
-                                        bool* out_is_ambiguous,
-                                        VideoCodec* out_codec,
-                                        VideoCodecProfile* out_profile,
-                                        uint8_t* out_level,
-                                        VideoColorSpace* out_colorspace);
+// Returns std::nullopt if parsing fails (invalid string, or unrecognized video
+// codec).
+MEDIA_EXPORT std::optional<VideoType> ParseVideoCodecString(
+    std::string_view mime_type,
+    std::string_view codec_id,
+    bool allow_ambiguous_matches = false);
 
 // Returns true if successfully parsed the given |mime_type| and |codec_id|,
 // setting |out_audio_codec| to found codec. Empty string |mime_type| indicates
@@ -58,8 +53,8 @@ MEDIA_EXPORT bool ParseVideoCodecString(base::StringPiece mime_type,
 //
 // Returns false if parsing fails (invalid string, or unrecognized audio codec),
 // in which case values for |out_*| arguments are undefined.
-MEDIA_EXPORT bool ParseAudioCodecString(base::StringPiece mime_type,
-                                        base::StringPiece codec_id,
+MEDIA_EXPORT bool ParseAudioCodecString(std::string_view mime_type,
+                                        std::string_view codec_id,
                                         bool* out_is_ambiguous,
                                         AudioCodec* out_codec);
 
@@ -88,12 +83,12 @@ enum class SupportsType {
 //   |mime_type| is supported but at least one of the codecs within |codecs| is
 //   not supported for the |mime_type|.
 MEDIA_EXPORT SupportsType
-IsSupportedMediaFormat(base::StringPiece mime_type,
+IsSupportedMediaFormat(std::string_view mime_type,
                        const std::vector<std::string>& codecs);
 
 // Similar to the above, but for encrypted formats.
 MEDIA_EXPORT SupportsType
-IsSupportedEncryptedMediaFormat(base::StringPiece mime_type,
+IsSupportedEncryptedMediaFormat(std::string_view mime_type,
                                 const std::vector<std::string>& codecs);
 
 }  // namespace media

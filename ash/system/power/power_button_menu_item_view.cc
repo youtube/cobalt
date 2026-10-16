@@ -5,6 +5,7 @@
 #include "ash/system/power/power_button_menu_item_view.h"
 
 #include "ash/style/ash_color_id.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
@@ -58,9 +59,10 @@ PowerButtonMenuItemView::PowerButtonMenuItemView(
   title_->SetLineHeight(kLineHeight);
   title_->SetMultiLine(true);
   title_->SetMaxLines(2);
-  title_->SetEnabledColorId(cros_tokens::kTextColorPrimary);
-  GetViewAccessibility().OverrideRole(ax::mojom::Role::kMenuItem);
-  GetViewAccessibility().OverrideName(title_->GetText());
+  title_->SetEnabledColor(cros_tokens::kTextColorPrimary);
+  GetViewAccessibility().SetRole(ax::mojom::Role::kMenuItem);
+  GetViewAccessibility().SetName(std::u16string(title_->GetText()),
+                                 ax::mojom::NameFrom::kAttribute);
 
   SetBorder(views::CreateEmptyBorder(
       gfx::Insets::TLBR(kItemBorderThickness, kItemBorderThickness,
@@ -69,11 +71,7 @@ PowerButtonMenuItemView::PowerButtonMenuItemView(
 
 PowerButtonMenuItemView::~PowerButtonMenuItemView() = default;
 
-const char* PowerButtonMenuItemView::GetClassName() const {
-  return "PowerButtonMenuItemView";
-}
-
-void PowerButtonMenuItemView::Layout() {
+void PowerButtonMenuItemView::Layout(PassKey) {
   const gfx::Rect rect(GetContentsBounds());
 
   gfx::Rect icon_rect(rect);
@@ -87,14 +85,15 @@ void PowerButtonMenuItemView::Layout() {
                                   kMenuItemHeight - kTitleTopPadding));
 }
 
-gfx::Size PowerButtonMenuItemView::CalculatePreferredSize() const {
+gfx::Size PowerButtonMenuItemView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   return gfx::Size(kMenuItemWidth + 2 * kItemBorderThickness,
                    kMenuItemHeight + 2 * kItemBorderThickness);
 }
 
 void PowerButtonMenuItemView::OnFocus() {
   parent()->SetFocusBehavior(FocusBehavior::NEVER);
-  NotifyAccessibilityEvent(ax::mojom::Event::kSelection, true);
+  NotifyAccessibilityEventDeprecated(ax::mojom::Event::kSelection, true);
   SchedulePaint();
 }
 
@@ -123,5 +122,8 @@ void PowerButtonMenuItemView::PaintButtonContents(gfx::Canvas* canvas) {
   flags.setStyle(cc::PaintFlags::Style::kStroke_Style);
   canvas->DrawRoundRect(bounds, kFocusedItemRoundRectRadiusDp, flags);
 }
+
+BEGIN_METADATA(PowerButtonMenuItemView)
+END_METADATA
 
 }  // namespace ash

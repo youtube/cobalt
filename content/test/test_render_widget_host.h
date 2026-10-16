@@ -19,9 +19,12 @@ class TestRenderWidgetHost : public RenderWidgetHostImpl {
   static std::unique_ptr<RenderWidgetHostImpl> Create(
       FrameTree* frame_tree,
       RenderWidgetHostDelegate* delegate,
+      viz::FrameSinkId frame_sink_id,
       base::SafeRef<SiteInstanceGroup> site_instance_group,
       int32_t routing_id,
-      bool hidden);
+      bool hidden,
+      bool renderer_initiated_creation);
+
   ~TestRenderWidgetHost() override;
 
   // RenderWidgetHostImpl overrides.
@@ -37,9 +40,11 @@ class TestRenderWidgetHost : public RenderWidgetHostImpl {
  private:
   TestRenderWidgetHost(FrameTree* frame_tree,
                        RenderWidgetHostDelegate* delegate,
+                       viz::FrameSinkId frame_sink_id,
                        base::SafeRef<SiteInstanceGroup> site_instance_group,
                        int32_t routing_id,
-                       bool hidden);
+                       bool hidden,
+                       bool renderer_initiated_creation);
   MockWidgetInputHandler input_handler_;
 };
 

@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/views/toolbar/reload_button.h"
+
 #include "build/build_config.h"
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/toolbar/reload_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/interactive_test_utils.h"
@@ -22,8 +23,9 @@ class ReloadButtonBrowserTest : public InProcessBrowserTest {
   }
 };
 
-// TODO(crbug.com/1344763): Fix flakiness on Win and Mac.
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+// TODO(crbug.com/40853146): Fix flakiness on Win and Mac.
+// TODO(crbug.com/41481789): Fix consistent failing on Linux.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 #define MAYBE_AllowExternalProtocols DISABLED_AllowExternalProtocols
 #else
 #define MAYBE_AllowExternalProtocols AllowExternalProtocols

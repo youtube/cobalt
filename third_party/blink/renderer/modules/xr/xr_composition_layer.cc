@@ -3,14 +3,18 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/modules/xr/xr_composition_layer.h"
+
+#include "third_party/blink/renderer/bindings/modules/v8/v8_xr_layer_layout.h"
+#include "third_party/blink/renderer/modules/xr/xr_graphics_binding.h"
 #include "third_party/blink/renderer/modules/xr/xr_session.h"
 
 namespace blink {
 
-XRCompositionLayer::XRCompositionLayer(XRSession* session) : XRLayer(session) {}
+XRCompositionLayer::XRCompositionLayer(XRGraphicsBinding* binding)
+    : XRLayer(binding->session()), binding_(binding) {}
 
-const String& XRCompositionLayer::layout() const {
-  return layout_;
+V8XRLayerLayout XRCompositionLayer::layout() const {
+  return V8XRLayerLayout(V8XRLayerLayout::Enum::kDefault);
 }
 
 bool XRCompositionLayer::blendTextureSourceAlpha() const {
@@ -21,12 +25,12 @@ void XRCompositionLayer::setBlendTextureSourceAlpha(bool value) {
   blend_texture_source_alpha_ = value;
 }
 
-absl::optional<bool> XRCompositionLayer::chromaticAberrationCorrection() const {
+std::optional<bool> XRCompositionLayer::chromaticAberrationCorrection() const {
   return chromatic_aberration_correction_;
 }
 
 void XRCompositionLayer::setChromaticAberrationCorrection(
-    absl::optional<bool> value) {
+    std::optional<bool> value) {
   chromatic_aberration_correction_ = value;
 }
 
@@ -59,6 +63,7 @@ void XRCompositionLayer::destroy() const {
 }
 
 void XRCompositionLayer::Trace(Visitor* visitor) const {
+  visitor->Trace(binding_);
   XRLayer::Trace(visitor);
 }
 

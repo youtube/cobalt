@@ -7,8 +7,6 @@
 
 #include <stdint.h>
 
-#include <cmath>
-
 #include "base/containers/circular_deque.h"
 #include "base/time/time.h"
 #include "media/base/media_export.h"
@@ -112,7 +110,7 @@ class MEDIA_EXPORT AudioClock {
 
  private:
   // Even with a ridiculously high sample rate of 256kHz, using 64 bits will
-  // permit tracking up to 416999965 days worth of time (that's 1141 millenia).
+  // permit tracking up to 416999965 days worth of time (that's 1141 millennia).
   //
   // 32 bits on the other hand would top out at measly 2 hours and 20 minutes.
   struct AudioData {
@@ -131,7 +129,7 @@ class MEDIA_EXPORT AudioClock {
   const double microseconds_per_frame_;
 
   base::circular_deque<AudioData> buffered_;
-  int64_t total_buffered_frames_;
+  int64_t total_buffered_frames_ = 0;
 
   // Use double rather than TimeDelta to avoid loss of partial microseconds when
   // converting between frames-written/delayed and time-passed (see conversion

@@ -27,13 +27,19 @@ SaveItemId GetNextSaveItemId() {
 // Constructor for SaveItem when creating each saving job.
 SaveItem::SaveItem(const GURL& url,
                    const Referrer& referrer,
+                   const net::IsolationInfo& isolation_info,
+                   network::mojom::RequestMode request_mode,
+                   bool is_outermost_main_frame,
                    SavePackage* package,
                    SaveFileCreateInfo::SaveFileSource save_source,
-                   int frame_tree_node_id,
-                   int container_frame_tree_node_id)
+                   FrameTreeNodeId frame_tree_node_id,
+                   FrameTreeNodeId container_frame_tree_node_id)
     : save_item_id_(GetNextSaveItemId()),
       url_(url),
       referrer_(referrer),
+      isolation_info_(isolation_info),
+      request_mode_(request_mode),
+      is_outermost_main_frame_(is_outermost_main_frame),
       frame_tree_node_id_(frame_tree_node_id),
       container_frame_tree_node_id_(container_frame_tree_node_id),
       received_bytes_(0),
@@ -62,7 +68,6 @@ void SaveItem::UpdateSize(int64_t bytes_so_far) {
 void SaveItem::Update(int64_t bytes_so_far) {
   if (state_ != IN_PROGRESS) {
     NOTREACHED();
-    return;
   }
   UpdateSize(bytes_so_far);
 }

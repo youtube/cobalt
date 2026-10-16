@@ -9,14 +9,13 @@
 #include <utility>
 #include <vector>
 
-#include "base/guid.h"
 #include "base/memory/ptr_util.h"
+#include "base/not_fatal_until.h"
 #include "base/path_service.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/keyed_service/core/simple_key_map.h"
 #include "components/origin_trials/browser/leveldb_persistence_provider.h"
 #include "components/origin_trials/browser/origin_trials.h"
-#include "components/origin_trials/common/features.h"
 #include "components/profile_metrics/browser_profile_type.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -65,7 +64,7 @@ HeadlessBrowserContextImpl::HeadlessBrowserContextImpl(
     : browser_(browser),
       context_options_(std::move(context_options)),
       permission_controller_delegate_(
-          std::make_unique<HeadlessPermissionManager>(this)),
+          std::make_unique<HeadlessPermissionManager>()),
       hints_delegate_(
           std::make_unique<HeadlessClientHintsControllerDelegate>()) {
   BrowserContextDependencyManager::GetInstance()->MarkBrowserContextLive(this);
@@ -189,10 +188,6 @@ bool HeadlessBrowserContextImpl::IsOffTheRecord() {
   return context_options_->incognito_mode();
 }
 
-content::ResourceContext* HeadlessBrowserContextImpl::GetResourceContext() {
-  return request_context_manager_->GetResourceContext();
-}
-
 content::DownloadManagerDelegate*
 HeadlessBrowserContextImpl::GetDownloadManagerDelegate() {
   return nullptr;
@@ -260,9 +255,6 @@ HeadlessBrowserContextImpl::GetReduceAcceptLanguageControllerDelegate() {
 
 content::OriginTrialsControllerDelegate*
 HeadlessBrowserContextImpl::GetOriginTrialsControllerDelegate() {
-  if (!origin_trials::features::IsPersistentOriginTrialsEnabled())
-    return nullptr;
-
   if (!origin_trials_controller_delegate_) {
     origin_trials_controller_delegate_ =
         std::make_unique<origin_trials::OriginTrials>(
@@ -294,25 +286,30 @@ HeadlessWebContents* HeadlessBrowserContextImpl::CreateWebContents(
 
 void HeadlessBrowserContextImpl::RegisterWebContents(
     std::unique_ptr<HeadlessWebContentsImpl> web_contents) {
-  DCHECK(web_contents);
-  web_contents_map_[web_contents->GetDevToolsAgentHostId()] =
-      std::move(web_contents);
+  CHECK(web_contents);
+  const uintptr_t key =
+      reinterpret_cast<uintptr_t>(web_contents->web_contents());
+  CHECK(key);
+  const bool inserted =
+      web_contents_map_.insert({key, std::move(web_contents)}).second;
+  CHECK(inserted);
 }
 
 void HeadlessBrowserContextImpl::DestroyWebContents(
     HeadlessWebContentsImpl* web_contents) {
-  auto it = web_contents_map_.find(web_contents->GetDevToolsAgentHostId());
-  DCHECK(it != web_contents_map_.end());
-  web_contents_map_.erase(it);
+  CHECK(web_contents);
+  const uintptr_t key =
+      reinterpret_cast<uintptr_t>(web_contents->web_contents());
+  CHECK(key);
+  size_t erased = web_contents_map_.erase(key);
+  CHECK(erased);
 }
 
-HeadlessWebContents*
-HeadlessBrowserContextImpl::GetWebContentsForDevToolsAgentHostId(
-    const std::string& devtools_agent_host_id) {
-  auto find_it = web_contents_map_.find(devtools_agent_host_id);
-  if (find_it == web_contents_map_.end())
-    return nullptr;
-  return find_it->second.get();
+HeadlessWebContentsImpl* HeadlessBrowserContextImpl::GetHeadlessWebContents(
+    const content::WebContents* web_contents) {
+  const uintptr_t key = reinterpret_cast<uintptr_t>(web_contents);
+  auto find_it = web_contents_map_.find(key);
+  return find_it == web_contents_map_.end() ? nullptr : find_it->second.get();
 }
 
 HeadlessBrowserImpl* HeadlessBrowserContextImpl::browser() const {
@@ -377,6 +374,13 @@ HeadlessBrowserContext::Builder&
 HeadlessBrowserContext::Builder::SetUserDataDir(
     const base::FilePath& user_data_dir) {
   options_->user_data_dir_ = user_data_dir;
+  return *this;
+}
+
+HeadlessBrowserContext::Builder&
+HeadlessBrowserContext::Builder::SetDiskCacheDir(
+    const base::FilePath& disk_cache_dir) {
+  options_->disk_cache_dir_ = disk_cache_dir;
   return *this;
 }
 

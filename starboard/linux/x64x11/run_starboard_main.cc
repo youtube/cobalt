@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/event.h"
-
 #include <malloc.h>
 #include <time.h>
 
@@ -25,7 +23,7 @@
 #include "starboard/shared/signal/suspend_signals.h"
 #include "starboard/shared/starboard/link_receiver.h"
 #include "starboard/shared/x11/application_x11.h"
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/common/command_line.h"
 #include "starboard/common/paths.h"
 #include "starboard/elf_loader/elf_loader_constants.h"

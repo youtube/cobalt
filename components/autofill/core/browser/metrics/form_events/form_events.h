@@ -9,7 +9,8 @@ namespace autofill::autofill_metrics {
 
 // Form Events for autofill.
 // These events are triggered separately for address and credit card forms.
-// Event IDs must not change as they are recorded in metrics.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
 enum FormEvent {
   // User interacted with a field of this kind of form. Logged only once per
   // page load.
@@ -23,36 +24,47 @@ enum FormEvent {
   // A server suggestion was used to fill the form.
   // When dealing with credit cards, this means a full server card was used
   // to fill.
-  FORM_EVENT_SERVER_SUGGESTION_FILLED = 4,
+  //
+  // Deprecated as full server cards are no longer offered as suggestions.
+  // FORM_EVENT_SERVER_SUGGESTION_FILLED = 4,
   // A masked server card suggestion was used to fill the form.
   FORM_EVENT_MASKED_SERVER_CARD_SUGGESTION_FILLED = 5,
-  // A suggestion was used to fill the form. The origin type (local or server
-  // or masked server card) of the first selected within a page load will
-  // determine which of the following will be fired. VIRTUAL_CARD is also an
-  // option later in the enum list.
+  // A suggestion was used to fill the form. The origin type (local or masked
+  // server card) of the first selected within a page load will determine which
+  // of the following will be fired. VIRTUAL_CARD is also an option later in the
+  // enum list.
+  //
+  // Full server cards are no longer offered as suggestions so the corresponding
+  // enum entry is deprecated.
   FORM_EVENT_LOCAL_SUGGESTION_FILLED_ONCE = 6,
-  FORM_EVENT_SERVER_SUGGESTION_FILLED_ONCE = 7,
+  // FORM_EVENT_SERVER_SUGGESTION_FILLED_ONCE = 7,
   FORM_EVENT_MASKED_SERVER_CARD_SUGGESTION_FILLED_ONCE = 8,
   // A form was submitted. Depending on the user filling a local, server,
   // masked server card, no suggestion, or virtual card (later in the enum
   // list), one of the following will be triggered. Only one of the following
   // four or virtual card will be triggered per page load.
+  //
+  // Full server cards are no longer offered as suggestions so the corresponding
+  // enum entry is deprecated.
   FORM_EVENT_NO_SUGGESTION_SUBMITTED_ONCE = 9,
   FORM_EVENT_LOCAL_SUGGESTION_SUBMITTED_ONCE = 10,
-  FORM_EVENT_SERVER_SUGGESTION_SUBMITTED_ONCE = 11,
+  // FORM_EVENT_SERVER_SUGGESTION_SUBMITTED_ONCE = 11,
   FORM_EVENT_MASKED_SERVER_CARD_SUGGESTION_SUBMITTED_ONCE = 12,
-  // A masked server card suggestion was selected to fill the form.
-  FORM_EVENT_MASKED_SERVER_CARD_SUGGESTION_SELECTED = 13,
-  // Same as above but only triggered once per page load.
-  FORM_EVENT_MASKED_SERVER_CARD_SUGGESTION_SELECTED_ONCE = 14,
+  // DEPRECATED IN M123, DO NOT USE. Use value 87 instead!
+  // DEPRECATED_FORM_EVENT_MASKED_SERVER_CARD_SUGGESTION_SELECTED = 13,
+  // DEPRECATED IN M123, DO NOT USE. Use value 88 instead!
+  // DEPRECATED_FORM_EVENT_MASKED_SERVER_CARD_SUGGESTION_SELECTED_ONCE = 14,
   // An autofillable form is about to be submitted. If the submission is not
   // interrupted by JavaScript, the "form submitted" events above will also be
   // logged. Depending on the user filling a local, server, masked server card,
   // no suggestion, or virtual card (later in the enum list), one of the
   // following will be triggered, at most once per page load.
+  //
+  // Full server cards are no longer offered as suggestions so the corresponding
+  // enum entry is deprecated.
   FORM_EVENT_NO_SUGGESTION_WILL_SUBMIT_ONCE = 15,
   FORM_EVENT_LOCAL_SUGGESTION_WILL_SUBMIT_ONCE = 16,
-  FORM_EVENT_SERVER_SUGGESTION_WILL_SUBMIT_ONCE = 17,
+  // FORM_EVENT_SERVER_SUGGESTION_WILL_SUBMIT_ONCE = 17,
   FORM_EVENT_MASKED_SERVER_CARD_SUGGESTION_WILL_SUBMIT_ONCE = 18,
   // A dropdown with suggestions was shown and a form was submitted after
   // that.
@@ -75,26 +87,29 @@ enum FormEvent {
   FORM_EVENT_SUBMIT_WITHOUT_SELECTING_SUGGESTIONS_FAIL_LUHN_CHECK_CARD = 25,
 
   // The form was changed dynamically. This value has been deprecated.
-  FORM_EVENT_DID_SEE_DYNAMIC_FORM = 26,
+  // DEPRECATED_FORM_EVENT_DID_SEE_DYNAMIC_FORM = 26,
+
   // The form was changed dynamically and was fillable.
-  FORM_EVENT_DID_SEE_FILLABLE_DYNAMIC_FORM = 27,
+  // DEPRECATED_FORM_EVENT_DID_SEE_FILLABLE_DYNAMIC_FORM = 27,
+
   // There was a dynamic change of the form and it got re-filled
   // automatically.
   FORM_EVENT_DID_DYNAMIC_REFILL = 28,
+
   // The form dynamically changed another time after the refill.
-  FORM_EVENT_DYNAMIC_CHANGE_AFTER_REFILL = 29,
-  // The popup was suppressed because the native view couldn't be created.
+  // DEPRECATED_FORM_EVENT_DYNAMIC_CHANGE_AFTER_REFILL = 29,
+
+  // The two events below are deprecated and no longer emitted.
   FORM_EVENT_POPUP_SUPPRESSED = 30,
-  // Same as above, but recoreded only once per page load.
   FORM_EVENT_POPUP_SUPPRESSED_ONCE = 31,
 
   // The form was parsed.
   FORM_EVENT_DID_PARSE_FORM = 32,
 
   // The user selected the "Hide Suggestions" item.
-  FORM_EVENT_USER_HIDE_SUGGESTIONS = 33,
+  // DEPRECATED_FORM_EVENT_USER_HIDE_SUGGESTIONS = 33,
   // Same as above, but recorded only once per page load.
-  FORM_EVENT_USER_HIDE_SUGGESTIONS_ONCE = 34,
+  // DEPRECATED_FORM_EVENT_USER_HIDE_SUGGESTIONS_ONCE = 34,
 
   // A virtual card suggestion was selected to fill the form.
   FORM_EVENT_VIRTUAL_CARD_SUGGESTION_SELECTED = 35,
@@ -170,10 +185,152 @@ enum FormEvent {
   // The selected credit card suggestion did not have metadata. Logged once per
   // page load.
   FORM_EVENT_CARD_SUGGESTION_WITHOUT_METADATA_SELECTED_ONCE = 67,
+  // The filled credit card suggestion had metadata.
+  FORM_EVENT_CARD_SUGGESTION_WITH_METADATA_FILLED = 68,
+  // The filled credit card suggestion had no metadata.
+  FORM_EVENT_CARD_SUGGESTION_WITHOUT_METADATA_FILLED = 69,
+  // A credit card was submitted after a suggestion was filled,
+  // and the suggested card had metadata. Logged once per page load.
+  FORM_EVENT_CARD_SUGGESTION_WITH_METADATA_SUBMITTED_ONCE = 70,
+  // A credit card was submitted after a suggestion was filled,
+  // and the suggested card had no metadata. Logged once per page load.
+  FORM_EVENT_CARD_SUGGESTION_WITHOUT_METADATA_SUBMITTED_ONCE = 71,
 
-  // Next form event should use 62 if possible. One note is that if the newly
-  // added events are a group of related events, maybe it is easier to continue
-  // using 68 to make sure they are in the same UKM metric.
+  // Metric logged when a server card with a matching deduplicated local
+  // suggestion was filled.
+  FORM_EVENT_SERVER_CARD_SUGGESTION_SELECTED_FOR_AN_EXISTING_LOCAL_CARD_ONCE =
+      72,
+  FORM_EVENT_SERVER_CARD_FILLED_FOR_AN_EXISTING_LOCAL_CARD_ONCE = 73,
+  FORM_EVENT_SERVER_CARD_SUBMITTED_FOR_AN_EXISTING_LOCAL_CARD_ONCE = 74,
+
+  // The filled credit card suggestion had metadata. Logged once per
+  // page load.
+  FORM_EVENT_CARD_SUGGESTION_WITH_METADATA_FILLED_ONCE = 75,
+  // The filled credit card suggestion had no metadata. Logged once per
+  // page load.
+  FORM_EVENT_CARD_SUGGESTION_WITHOUT_METADATA_FILLED_ONCE = 76,
+  // A credit card was about to be submitted after a suggestion was filled,
+  // and the suggested card had metadata. Logged once per page load.
+  FORM_EVENT_CARD_SUGGESTION_WITH_METADATA_WILL_SUBMIT_ONCE = 77,
+  // A credit card was about to be submitted after a suggestion was filled,
+  // and the suggested card had no metadata. Logged once per page load.
+  FORM_EVENT_CARD_SUGGESTION_WITHOUT_METADATA_WILL_SUBMIT_ONCE = 78,
+
+  // Metric logged when a credit card suggestion with cvc info was shown.
+  FORM_EVENT_SUGGESTION_FOR_CARD_WITH_CVC_SHOWN = 79,
+  // Metric logged when a credit card suggestion with cvc info was shown. Logged
+  // once per page load.
+  FORM_EVENT_SUGGESTION_FOR_CARD_WITH_CVC_SHOWN_ONCE = 80,
+  // Metric logged when a credit card suggestion with cvc info was selected.
+  FORM_EVENT_SUGGESTION_FOR_CARD_WITH_CVC_SELECTED = 81,
+  // Metric logged when a credit card suggestion with cvc info was selected.
+  // Logged once per page load.
+  FORM_EVENT_SUGGESTION_FOR_CARD_WITH_CVC_SELECTED_ONCE = 82,
+  // Metric logged when a credit card suggestion with cvc info was filled.
+  FORM_EVENT_SUGGESTION_FOR_CARD_WITH_CVC_FILLED = 83,
+  // Metric logged when a credit card suggestion with cvc info was filled.
+  // Logged once per page load.
+  FORM_EVENT_SUGGESTION_FOR_CARD_WITH_CVC_FILLED_ONCE = 84,
+  // Metric logged when form is about to be submitted after a credit card
+  // suggestion with cvc info was filled. Logged once per page load.
+  FORM_EVENT_SUGGESTION_FOR_CARD_WITH_CVC_WILL_SUBMIT_ONCE = 85,
+  // Metric logged when form was submitted after a credit card suggestion with
+  // cvc info was filled. Logged once per page load.
+  FORM_EVENT_SUGGESTION_FOR_CARD_WITH_CVC_SUBMITTED_ONCE = 86,
+
+  // A masked server card suggestion was selected to fill the form. Updated in
+  // M123 to include a fix for missing selection events.
+  FORM_EVENT_MASKED_SERVER_CARD_SUGGESTION_SELECTED = 87,
+  // Same as above but only triggered once per page load.
+  FORM_EVENT_MASKED_SERVER_CARD_SUGGESTION_SELECTED_ONCE = 88,
+
+  // Suggestions containing cards with a benefit available were shown.
+  FORM_EVENT_SUGGESTION_FOR_CARD_WITH_BENEFIT_AVAILABLE_SHOWN = 89,
+  // DEPRECATED in M128, DO NOT USE.
+  // Suggestions were shown, and no card had a benefit available.
+  DEPRECATED_FORM_EVENT_SUGGESTION_FOR_CARD_WITHOUT_BENEFIT_AVAILABLE_SHOWN =
+      90,
+  // Suggestions containing cards with a benefit available were shown. Logged
+  // once per page load.
+  FORM_EVENT_SUGGESTION_FOR_CARD_WITH_BENEFIT_AVAILABLE_SHOWN_ONCE = 91,
+  // DEPRECATED in M128, DO NOT USE.
+  // Suggestions were shown, and no card had a benefit available. Logged once
+  // per page load.
+  DEPRECATED_FORM_EVENT_SUGGESTION_FOR_CARD_WITHOUT_BENEFIT_AVAILABLE_SHOWN_ONCE =
+      92,
+  // A suggestion of a masked server card with a benefit available was
+  // selected.
+  FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_WITH_BENEFIT_AVAILABLE_SELECTED = 93,
+  // DEPRECATED in M128, DO NOT USE.
+  // A suggestion of a masked server card with no benefit available was
+  // selected.
+  DEPRECATED_FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_WITHOUT_BENEFIT_AVAILABLE_SELECTED =
+      94,
+  // A suggestion of a masked server card with a benefit available was
+  // selected. Logged once per page load.
+  FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_WITH_BENEFIT_AVAILABLE_SELECTED_ONCE =
+      95,
+  // DEPRECATED in M128, DO NOT USE.
+  // A suggestion of a masked server card with no benefit available was
+  // selected. Logged once per page load.
+  DEPRECATED_FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_WITHOUT_BENEFIT_AVAILABLE_SELECTED_ONCE =
+      96,
+  // A suggestion of a masked server card with a benefit available was filled.
+  FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_WITH_BENEFIT_AVAILABLE_FILLED = 97,
+  // DEPRECATED in M128, DO NOT USE.
+  // A suggestion of a masked server card with no benefit available was filled.
+  DEPRECATED_FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_WITHOUT_BENEFIT_AVAILABLE_FILLED =
+      98,
+  // A suggestion of a masked server card with a benefit available was filled.
+  // Logged once per page load.
+  FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_WITH_BENEFIT_AVAILABLE_FILLED_ONCE = 99,
+  // DEPRECATED in M128, DO NOT USE.
+  // A suggestion of a masked server card with no benefit available was filled.
+  // Logged once per page load.
+  DEPRECATED_FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_WITHOUT_BENEFIT_AVAILABLE_FILLED_ONCE =
+      100,
+  // DEPRECATED in M128, DO NOT USE. Duplicated with 103.
+  // A form was about to be submitted after a suggestion of a masked server
+  // card with a benefit available was filled. Logged once per page load.
+  DEPRECATED_FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_WITH_BENEFIT_AVAILABLE_WILL_SUBMIT_ONCE =
+      101,
+  // DEPRECATED in M128, DO NOT USE.
+  // A form was about to be submitted after a suggestion of a masked server
+  // card with no benefit available was filled. Logged once per page load.
+  DEPRECATED_FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_WITHOUT_BENEFIT_AVAILABLE_WILL_SUBMIT_ONCE =
+      102,
+  // A form was submitted after a suggestion of a masked server card with
+  // benefit available was filled. Logged once per page load.
+  FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_WITH_BENEFIT_AVAILABLE_SUBMITTED_ONCE =
+      103,
+  // DEPRECATED in M128, DO NOT USE.
+  // A form was submitted after a suggestion of a masked server card with no
+  // benefit available was filled. Logged once per page load.
+  DEPRECATED_FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_WITHOUT_BENEFIT_AVAILABLE_SUBMITTED_ONCE =
+      104,
+  // A masked server card suggestion is selected after suggestions containing
+  // cards with a benefit available were shown. The selected card can be any
+  // masked server card, even it has no available benefit. Logged once per
+  // page load.
+  FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_SELECTED_AFTER_CARD_WITH_BENEFIT_AVAILABLE_SHOWN_ONCE =
+      105,
+  // A masked server card suggestion is filled after suggestions containing
+  // cards with a benefit available were shown. The filled card can be any
+  // masked server card, even it has no available benefit. Logged once per
+  // page load.
+  FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_FILLED_AFTER_CARD_WITH_BENEFIT_AVAILABLE_SHOWN_ONCE =
+      106,
+  // A form is submitted after suggestions containing cards with a benefit
+  // available were shown and a masked server card suggestion was filled.
+  // The filled card can be any masked server card, even it has no available
+  // benefit. Logged once per page load.
+  FORM_EVENT_SUGGESTION_FOR_SERVER_CARD_SUBMITTED_AFTER_CARD_WITH_BENEFIT_AVAILABLE_SHOWN_ONCE =
+      107,
+
+  // A local card suggestion was selected to fill the form.
+  FORM_EVENT_LOCAL_CARD_SUGGESTION_SELECTED = 108,
+  // Same as above but only triggered once per page load.
+  FORM_EVENT_LOCAL_CARD_SUGGESTION_SELECTED_ONCE = 109,
 
   NUM_FORM_EVENTS,
 };

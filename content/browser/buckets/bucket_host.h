@@ -43,6 +43,10 @@ class BucketHost : public blink::mojom::BucketHost {
   // for the StorageBucket object.
   mojo::PendingRemote<blink::mojom::BucketHost> CreateStorageBucketBinding(
       base::WeakPtr<BucketContext> context);
+  // Pass a mojo data pipe sent from the renderer for the StorageBucket object.
+  void PassStorageBucketBinding(
+      base::WeakPtr<BucketContext> bucket_context,
+      mojo::PendingReceiver<blink::mojom::BucketHost> receiver);
 
   // blink::mojom::BucketHost
   void Persist(PersistCallback callback) override;
@@ -58,6 +62,9 @@ class BucketHost : public blink::mojom::BucketHost {
   void GetCaches(
       mojo::PendingReceiver<blink::mojom::CacheStorage> caches) override;
   void GetDirectory(GetDirectoryCallback callback) override;
+  void GetDirectoryForDevtools(
+      const std::vector<std::string>& directory_path_components,
+      GetDirectoryCallback callback) override;
 
   const storage::BucketId bucket_id() { return bucket_id_; }
 

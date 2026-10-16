@@ -6,21 +6,25 @@ package org.chromium.content_public.browser;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 /**
  * A utility class that allows the embedder to provide a Contacts Picker implementation to content.
  */
+@NullMarked
 public final class ContactsPicker {
     /**
      * The current delegate for the contacts picker, or null if navigator.contacts is not
      * supported.
      */
-    private static ContactsPickerDelegate sContactsPickerDelegate;
+    private static @Nullable ContactsPickerDelegate sContactsPickerDelegate;
 
     /**
      * The object that represents the currently visible contacts picker UI, or null if none is
      * visible.
      */
-    private static Object sPicker;
+    private static @Nullable Object sPicker;
 
     private ContactsPicker() {}
 
@@ -60,25 +64,37 @@ public final class ContactsPicker {
      *         the scheme omitted.
      * @return whether a contacts picker is successfully shown.
      */
-    public static boolean showContactsPicker(WebContents webContents,
-            ContactsPickerListener listener, boolean allowMultiple, boolean includeNames,
-            boolean includeEmails, boolean includeTel, boolean includeAddresses,
-            boolean includeIcons, String formattedOrigin) {
+    public static boolean showContactsPicker(
+            WebContents webContents,
+            ContactsPickerListener listener,
+            boolean allowMultiple,
+            boolean includeNames,
+            boolean includeEmails,
+            boolean includeTel,
+            boolean includeAddresses,
+            boolean includeIcons,
+            String formattedOrigin) {
         if (sContactsPickerDelegate == null) return false;
         assert sPicker == null;
 
         if (!canShowContactsPicker(webContents)) {
             return false;
         }
-        sPicker = sContactsPickerDelegate.showContactsPicker(webContents.getTopLevelNativeWindow(),
-                listener, allowMultiple, includeNames, includeEmails, includeTel, includeAddresses,
-                includeIcons, formattedOrigin);
+        sPicker =
+                sContactsPickerDelegate.showContactsPicker(
+                        webContents,
+                        listener,
+                        allowMultiple,
+                        includeNames,
+                        includeEmails,
+                        includeTel,
+                        includeAddresses,
+                        includeIcons,
+                        formattedOrigin);
         return true;
     }
 
-    /**
-     * Called when the contacts picker dialog has been dismissed.
-     */
+    /** Called when the contacts picker dialog has been dismissed. */
     public static void onContactsPickerDismissed() {
         assert sPicker != null;
         sPicker = null;

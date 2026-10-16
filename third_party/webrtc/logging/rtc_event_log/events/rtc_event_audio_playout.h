@@ -19,9 +19,12 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/array_view.h"
 #include "api/rtc_event_log/rtc_event.h"
 #include "api/units/timestamp.h"
 #include "logging/rtc_event_log/events/rtc_event_definition.h"
+#include "logging/rtc_event_log/events/rtc_event_field_encoding.h"
+#include "logging/rtc_event_log/events/rtc_event_log_parse_status.h"
 
 namespace webrtc {
 
@@ -52,7 +55,7 @@ class RtcEventAudioPlayout final : public RtcEvent {
 
   uint32_t ssrc() const { return ssrc_; }
 
-  static std::string Encode(rtc::ArrayView<const RtcEvent*> batch) {
+  static std::string Encode(ArrayView<const RtcEvent*> batch) {
     return RtcEventAudioPlayout::definition_.EncodeBatch(batch);
   }
 

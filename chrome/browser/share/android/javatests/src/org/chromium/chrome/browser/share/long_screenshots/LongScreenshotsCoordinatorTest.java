@@ -10,18 +10,19 @@ import static org.mockito.Mockito.verify;
 import androidx.fragment.app.FragmentActivity;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.share.long_screenshots.bitmap_generation.EntryManager;
 import org.chromium.chrome.browser.share.share_sheet.ChromeOptionShareCallback;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.modules.image_editor.ImageEditorModuleProvider;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.url.JUnitTestGURLs;
 
@@ -29,37 +30,33 @@ import org.chromium.url.JUnitTestGURLs;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class LongScreenshotsCoordinatorTest {
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
     private LongScreenshotsCoordinator mCoordinator;
 
-    @Mock
-    private FragmentActivity mActivity;
+    @Mock private FragmentActivity mActivity;
 
-    @Mock
-    private ChromeOptionShareCallback mChromeOptionShareCallback;
+    @Mock private ChromeOptionShareCallback mChromeOptionShareCallback;
 
-    @Mock
-    private ImageEditorModuleProvider mImageEditorModuleProviderMock;
+    @Mock private BottomSheetController mBottomSheetControllerMock;
 
-    @Mock
-    private BottomSheetController mBottomSheetControllerMock;
+    @Mock private Tab mTab;
 
-    @Mock
-    private Tab mTab;
+    @Mock private EntryManager mManager;
 
-    @Mock
-    private EntryManager mManager;
-
-    @Mock
-    private LongScreenshotsMediator mMediator;
+    @Mock private LongScreenshotsMediator mMediator;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
-
         // Instantiate the object under test.
-        mCoordinator = LongScreenshotsCoordinator.createForTests(mActivity, mTab,
-                JUnitTestGURLs.EXAMPLE_URL, mChromeOptionShareCallback, mBottomSheetControllerMock,
-                mImageEditorModuleProviderMock, mManager, mMediator);
+        mCoordinator =
+                LongScreenshotsCoordinator.createForTests(
+                        mActivity,
+                        mTab,
+                        JUnitTestGURLs.EXAMPLE_URL.getSpec(),
+                        mChromeOptionShareCallback,
+                        mBottomSheetControllerMock,
+                        mManager,
+                        mMediator);
     }
 
     @Test

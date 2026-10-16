@@ -13,8 +13,9 @@
 // limitations under the License.
 
 import m from 'mithril';
-
-import {PopupMenuButton, PopupMenuItem} from './popup_menu';
+import {Tree, TreeNode} from '../widgets/tree';
+import {PopupMenu} from '../widgets/menu';
+import {Button} from '../widgets/button';
 
 // This file implements a component for rendering JSON-like values (with
 // customisation options like context menu and action buttons).
@@ -26,9 +27,9 @@ import {PopupMenuButton, PopupMenuItem} from './popup_menu';
 // Leaf (non-dict and non-array) value which can be displayed to the user
 // together with the rendering customisation parameters.
 type StringValue = {
-  kind: 'STRING',
-  value: string,
-}&StringValueParams;
+  kind: 'STRING';
+  value: string;
+} & StringValueParams;
 
 // Helper function to create a StringValue from string together with optional
 // parameters.
@@ -42,8 +43,10 @@ export function value(value: string, params?: StringValueParams): StringValue {
 
 // Helper function to convert a potentially undefined value to StringValue or
 // null.
-export function maybeValue(v?: string, params?: StringValueParams): StringValue|
-    null {
+export function maybeValue(
+  v?: string,
+  params?: StringValueParams,
+): StringValue | null {
   if (!v) {
     return null;
   }
@@ -52,19 +55,21 @@ export function maybeValue(v?: string, params?: StringValueParams): StringValue|
 
 // A basic type for the JSON-like value, comprising a primitive type (string)
 // and composite types (arrays and dicts).
-export type Value = StringValue|Array|Dict;
+export type Value = StringValue | Array | Dict;
 
 // Dictionary type.
 export type Dict = {
-  kind: 'DICT',
-  items: {[name: string]: Value},
-}&ValueParams;
+  kind: 'DICT';
+  items: {[name: string]: Value};
+} & ValueParams;
 
 // Helper function to simplify creation of a dictionary.
 // This function accepts and filters out nulls as values in the passed
 // dictionary (useful for simplifying the code to render optional values).
 export function dict(
-    items: {[name: string]: Value|null}, params?: ValueParams): Dict {
+  items: {[name: string]: Value | null},
+  params?: ValueParams,
+): Dict {
   const result: {[name: string]: Value} = {};
   for (const [name, value] of Object.entries(items)) {
     if (value !== null) {
@@ -80,16 +85,17 @@ export function dict(
 
 // Array type.
 export type Array = {
-  kind: 'ARRAY', items: Value[];
-}&ValueParams;
+  kind: 'ARRAY';
+  items: Value[];
+} & ValueParams;
 
 // Helper function to simplify creation of an array.
 // This function accepts and filters out nulls in the passed array (useful for
 // simplifying the code to render optional values).
-export function array(items: (Value|null)[], params?: ValueParams): Array {
+export function array(items: (Value | null)[], params?: ValueParams): Array {
   return {
     kind: 'ARRAY',
-    items: items.filter((item: Value|null) => item !== null) as Value[],
+    items: items.filter((item: Value | null) => item !== null) as Value[],
     ...params,
   };
 }
@@ -100,11 +106,11 @@ type ButtonParams = {
   action: () => void;
   hoverText?: string;
   icon?: string;
-}
+};
 
 // Customisation parameters which apply to any Value (e.g. context menu).
 interface ValueParams {
-  contextMenu?: PopupMenuItem[];
+  contextMenu?: m.Child[];
 }
 
 // Customisation parameters which apply for a primitive value (e.g. showing
@@ -116,74 +122,76 @@ interface StringValueParams extends ValueParams {
 
 export function isArray(value: Value): value is Array {
   return value.kind === 'ARRAY';
-};
+}
 
 export function isDict(value: Value): value is Dict {
   return value.kind === 'DICT';
-};
+}
 
 export function isStringValue(value: Value): value is StringValue {
   return !isArray(value) && !isDict(value);
-};
+}
 
 // Recursively render the given value and its children, returning a list of
 // vnodes corresponding to the nodes of the table.
-function*
-    renderValue(name: string, value: Value, depth: number): Generator<m.Child> {
-  const row = [
-    m('th',
-      {
-        style: `padding-left: ${15 * depth}px`,
-      },
-      name,
-      value.contextMenu ? m(PopupMenuButton, {
-        icon: 'arrow_drop_down',
-        items: value.contextMenu,
-      }) :
-                          null),
+function renderValue(name: string, value: Value): m.Children {
+  const left = [
+    name,
+    value.contextMenu
+      ? m(
+          PopupMenu,
+          {
+            trigger: m(Button, {
+              icon: 'arrow_drop_down',
+            }),
+          },
+          value.contextMenu,
+        )
+      : null,
   ];
   if (isArray(value)) {
-    yield m('tr', row);
-    for (let i = 0; i < value.items.length; ++i) {
-      yield* renderValue(`[${i}]`, value.items[i], depth + 1);
-    }
-    return;
+    const nodes = value.items.map((value: Value, index: number) => {
+      return renderValue(`[${index}]`, value);
+    });
+    return m(TreeNode, {left, right: `array[${nodes.length}]`}, nodes);
   } else if (isDict(value)) {
-    yield m('tr', row);
+    const nodes: m.Children[] = [];
     for (const key of Object.keys(value.items)) {
-      yield* renderValue(key, value.items[key], depth + 1);
+      nodes.push(renderValue(key, value.items[key]));
     }
-    return;
-  }
-  const renderButton = (button?: ButtonParams) => {
-    if (!button) {
-      return null;
-    }
-    return m(
+    return m(TreeNode, {left, right: `dict`}, nodes);
+  } else {
+    const renderButton = (button?: ButtonParams) => {
+      if (!button) {
+        return null;
+      }
+      return m(
         'i.material-icons.grey',
         {
           onclick: button.action,
           title: button.hoverText,
         },
-        button.icon ? button.icon : 'call_made');
-  };
-  if (value.kind === 'STRING') {
-    row.push(
-        m('td',
-          renderButton(value.leftButton),
-          m('span', value.value),
-          renderButton(value.rightButton)));
-  }
-  yield m('tr', row);
-}
-
-// Render a given dictionary into a vnode.
-export function renderDict(dict: Dict): m.Child {
-  const rows: m.Child[] = [];
-  for (const key of Object.keys(dict.items)) {
-    for (const vnode of renderValue(key, dict.items[key], 0)) {
-      rows.push(vnode);
+        button.icon ?? 'call_made',
+      );
+    };
+    if (value.kind === 'STRING') {
+      const right = [
+        renderButton(value.leftButton),
+        m('span', value.value),
+        renderButton(value.rightButton),
+      ];
+      return m(TreeNode, {left, right});
+    } else {
+      return null;
     }
   }
-  return m('table.auto-layout', rows);
+}
+
+// Render a given dictionary to a tree.
+export function renderDict(dict: Dict): m.Child {
+  const rows: m.Children[] = [];
+  for (const key of Object.keys(dict.items)) {
+    rows.push(renderValue(key, dict.items[key]));
+  }
+  return m(Tree, rows);
 }

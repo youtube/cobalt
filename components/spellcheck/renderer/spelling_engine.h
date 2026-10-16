@@ -14,6 +14,10 @@ namespace service_manager {
 class LocalInterfaceProvider;
 }
 
+namespace spellcheck::mojom {
+class SpellCheckHost;
+}
+
 // Creates the platform's "native" spelling engine.
 class SpellingEngine* CreateNativeSpellingEngine(
     service_manager::LocalInterfaceProvider* embedder_provider);
@@ -21,16 +25,27 @@ class SpellingEngine* CreateNativeSpellingEngine(
 // Interface to different spelling engines.
 class SpellingEngine {
  public:
-  virtual ~SpellingEngine() {}
+  virtual ~SpellingEngine() = default;
 
   // Initialize spelling engine with browser-side info. Must be called before
   // any other functions are called.
   virtual void Init(base::File bdict_file) = 0;
   virtual bool InitializeIfNeeded() = 0;
   virtual bool IsEnabled() = 0;
-  virtual bool CheckSpelling(const std::u16string& word_to_check, int tag) = 0;
+
+  // Synchronously check spelling. `host` is only valid for the duration of the
+  // method call and should not be stored.
+  // TODO(https://crbug.com/367216585): Replace this method with an asynchronous
+  // API, since not all platforms (e.g. Android) supports synchronous
+  // spellchecking.
+  virtual bool CheckSpelling(const std::u16string& word_to_check,
+                             spellcheck::mojom::SpellCheckHost& host) = 0;
+
+  // Synchronously fill suggestion list. `host` is only valid for the duration
+  // of the method call and should not be stored.
   virtual void FillSuggestionList(
       const std::u16string& wrong_word,
+      spellcheck::mojom::SpellCheckHost& host,
       std::vector<std::u16string>* optional_suggestions) = 0;
 };
 

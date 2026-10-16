@@ -4,9 +4,11 @@
 ../../build/android/pylib/constants/__init__.py
 ../../build/android/pylib/constants/host_paths.py
 ../../build/android/pylib/utils/__init__.py
-../../build/android/pylib/utils/decorators.py
 ../../build/android/pylib/utils/logdog_helper.py
-../../build/android/pylib/utils/shared_preference_utils.py
+../../build/util/lib/__init__.py
+../../build/util/lib/common/__init__.py
+../../build/util/lib/common/decorators.py
+../../build/util/lib/common/google_storage_helper.py
 ../../components/variations/service/generate_ui_string_overrider.py
 ../../third_party/catapult/common/py_trace_event/py_trace_event/__init__.py
 ../../third_party/catapult/common/py_trace_event/py_trace_event/trace_event.py
@@ -18,8 +20,6 @@
 ../../third_party/catapult/common/py_trace_event/py_trace_event/trace_event_impl/perfetto_proto_classes.py
 ../../third_party/catapult/common/py_trace_event/py_trace_event/trace_event_impl/perfetto_trace_writer.py
 ../../third_party/catapult/common/py_trace_event/py_trace_event/trace_time.py
-../../third_party/catapult/common/py_trace_event/third_party/protobuf/encoder.py
-../../third_party/catapult/common/py_trace_event/third_party/protobuf/wire_format.py
 ../../third_party/catapult/common/py_utils/py_utils/__init__.py
 ../../third_party/catapult/common/py_utils/py_utils/atexit_with_log.py
 ../../third_party/catapult/common/py_utils/py_utils/binary_manager.py
@@ -78,11 +78,10 @@
 ../../third_party/catapult/devil/devil/android/device_signal.py
 ../../third_party/catapult/devil/devil/android/device_temp_file.py
 ../../third_party/catapult/devil/devil/android/device_utils.py
+../../third_party/catapult/devil/devil/android/devil_util.py
 ../../third_party/catapult/devil/devil/android/flag_changer.py
 ../../third_party/catapult/devil/devil/android/forwarder.py
-../../third_party/catapult/devil/devil/android/install_commands.py
 ../../third_party/catapult/devil/devil/android/logcat_monitor.py
-../../third_party/catapult/devil/devil/android/md5sum.py
 ../../third_party/catapult/devil/devil/android/ndk/__init__.py
 ../../third_party/catapult/devil/devil/android/ndk/abis.py
 ../../third_party/catapult/devil/devil/android/perf/__init__.py
@@ -115,7 +114,6 @@
 ../../third_party/catapult/devil/devil/utils/__init__.py
 ../../third_party/catapult/devil/devil/utils/cmd_helper.py
 ../../third_party/catapult/devil/devil/utils/geometry.py
-../../third_party/catapult/devil/devil/utils/host_utils.py
 ../../third_party/catapult/devil/devil/utils/lazy/__init__.py
 ../../third_party/catapult/devil/devil/utils/lazy/weak_constant.py
 ../../third_party/catapult/devil/devil/utils/logging_common.py
@@ -126,7 +124,6 @@
 ../../third_party/catapult/devil/devil/utils/run_tests_helper.py
 ../../third_party/catapult/devil/devil/utils/timeout_retry.py
 ../../third_party/catapult/devil/devil/utils/watchdog_timer.py
-../../third_party/catapult/devil/devil/utils/zip_utils.py
 ../../third_party/catapult/systrace/systrace/__init__.py
 ../../third_party/catapult/systrace/systrace/trace_result.py
 ../../third_party/catapult/systrace/systrace/tracing_agents/__init__.py
@@ -147,6 +144,7 @@
 ../../third_party/catapult/telemetry/telemetry/core/local_server.py
 ../../third_party/catapult/telemetry/telemetry/core/memory_cache_http_server.py
 ../../third_party/catapult/telemetry/telemetry/core/network_controller.py
+../../third_party/catapult/telemetry/telemetry/core/optparse_argparse_migration.py
 ../../third_party/catapult/telemetry/telemetry/core/os_version.py
 ../../third_party/catapult/telemetry/telemetry/core/platform.py
 ../../third_party/catapult/telemetry/telemetry/core/tracing_controller.py
@@ -247,7 +245,6 @@
 ../../third_party/catapult/telemetry/telemetry/internal/forwarders/__init__.py
 ../../third_party/catapult/telemetry/telemetry/internal/forwarders/android_forwarder.py
 ../../third_party/catapult/telemetry/telemetry/internal/forwarders/do_nothing_forwarder.py
-../../third_party/catapult/telemetry/telemetry/internal/forwarders/forwarder_utils.py
 ../../third_party/catapult/telemetry/telemetry/internal/forwarders/fuchsia_forwarder.py
 ../../third_party/catapult/telemetry/telemetry/internal/image_processing/__init__.py
 ../../third_party/catapult/telemetry/telemetry/internal/image_processing/image_util_numpy_impl.py
@@ -360,7 +357,6 @@
 ../../third_party/catapult/telemetry/telemetry/web_perf/timeline_interaction_record.py
 ../../third_party/catapult/telemetry/telemetry/wpr/__init__.py
 ../../third_party/catapult/telemetry/telemetry/wpr/archive_info.py
-../../third_party/catapult/telemetry/third_party/mock/mock.py
 ../../third_party/catapult/telemetry/third_party/png/png.py
 ../../third_party/catapult/telemetry/third_party/websocket-client/websocket/__init__.py
 ../../third_party/catapult/telemetry/third_party/websocket-client/websocket/_abnf.py
@@ -405,6 +401,7 @@
 ../../third_party/catapult/third_party/typ/typ/pool.py
 ../../third_party/catapult/third_party/typ/typ/printer.py
 ../../third_party/catapult/third_party/typ/typ/python_2_3_compat.py
+../../third_party/catapult/third_party/typ/typ/reduced_glob.py
 ../../third_party/catapult/third_party/typ/typ/result_sink.py
 ../../third_party/catapult/third_party/typ/typ/runner.py
 ../../third_party/catapult/third_party/typ/typ/stats.py
@@ -457,7 +454,10 @@
 ../../third_party/logdog/logdog/streamname.py
 ../../third_party/logdog/logdog/varint.py
 ../json_comment_eater/json_comment_eater.py
+../json_to_struct/aggregation.py
+../json_to_struct/class_generator.py
 ../json_to_struct/element_generator.py
+../json_to_struct/java_element_generator.py
 ../json_to_struct/json_to_struct.py
 ../json_to_struct/struct_generator.py
 ../variations/fieldtrial_to_struct.py
@@ -470,6 +470,7 @@ benchmarks/blink_perf.py
 benchmarks/blink_perf_unittest.py
 benchmarks/desktop_ui.py
 benchmarks/dummy_benchmark.py
+benchmarks/dummy_wpr_benchmark.py
 benchmarks/jetstream2.py
 benchmarks/loading.py
 benchmarks/loading_metrics_category.py
@@ -477,20 +478,18 @@ benchmarks/media.py
 benchmarks/memory.py
 benchmarks/octane.py
 benchmarks/power.py
-benchmarks/power_mobile.py
 benchmarks/press.py
 benchmarks/rasterize_and_record_micro.py
 benchmarks/rendering.py
 benchmarks/smoketests_versions_validator_unittest.py
 benchmarks/speedometer1.py
 benchmarks/speedometer2.py
+benchmarks/speedometer3.py
 benchmarks/startup_mobile.py
 benchmarks/system_health.py
 benchmarks/system_health_load_tests_smoke_test.py
 benchmarks/system_health_smoke_test.py
 benchmarks/system_health_unittest.py
-benchmarks/tab_switching.py
-benchmarks/tracing.py
 benchmarks/v8.py
 benchmarks/v8_browsing.py
 benchmarks/v8_helper.py
@@ -501,9 +500,6 @@ chrome_telemetry_build/__init__.py
 chrome_telemetry_build/chromium_config.py
 contrib/PRESUBMIT.py
 contrib/__init__.py
-contrib/blink_layoutng_perf/__init__.py
-contrib/blink_layoutng_perf/blink_layoutng_perf.py
-contrib/blink_layoutng_perf/loading_layout_ng.py
 contrib/blink_perf_cmdline/__init__.py
 contrib/blink_perf_cmdline/blink_perf_cmdline.py
 contrib/blink_perf_xml_http_request/__init__.py
@@ -532,6 +528,7 @@ contrib/cluster_telemetry/v8_loading_ct.py
 contrib/cluster_telemetry/v8_loading_runtime_stats_ct.py
 contrib/download_mobile/__init__.py
 contrib/download_mobile/download_mobile.py
+contrib/intelligence/companion.py
 contrib/leak_detection/__init__.py
 contrib/leak_detection/leak_detection.py
 contrib/leak_detection/page_sets.py
@@ -554,6 +551,17 @@ contrib/power/profiling_util_unittest.py
 contrib/power/stories.py
 contrib/power/top_sites_story.py
 contrib/power/wakeups.py
+contrib/shared_storage/__init__.py
+contrib/shared_storage/page_set.py
+contrib/shared_storage/pages.py
+contrib/shared_storage/shared_storage.py
+contrib/shared_storage/shared_storage_shared_page_state.py
+contrib/shared_storage/utils/__init__.py
+contrib/shared_storage/utils/file_util.py
+contrib/shared_storage/utils/histogram_list.py
+contrib/shared_storage/utils/process_results.py
+contrib/shared_storage/utils/util.py
+contrib/shared_storage/utils/xvfb.py
 contrib/system_health_scroll_jank/__init__.py
 contrib/system_health_scroll_jank/janky_story_set.py
 contrib/system_health_scroll_jank/system_health_scroll_jank.py
@@ -597,6 +605,8 @@ core/tbmv3/trace_processor.py
 core/testing.py
 core/upload_results_to_perf_dashboard.py
 cross_device_test_config.py
+json_constants.py
+json_util.py
 measurements/__init__.py
 measurements/dual_metric_measurement.py
 measurements/multipage_skpicture_printer.py
@@ -605,7 +615,13 @@ measurements/skpicture_printer.py
 page_sets/__init__.py
 page_sets/ad_frames.py
 page_sets/android_screen_restoration_shared_state.py
+page_sets/companion/__init__.py
+page_sets/companion/basic_companion_story.py
+page_sets/companion/browser_element_identifiers.py
+page_sets/companion/companion_stories.py
+page_sets/companion/histograms.py
 page_sets/cros_ui_cases.py
+page_sets/data/companion_test_sites.py
 page_sets/desktop_power.py
 page_sets/desktop_ui/__init__.py
 page_sets/desktop_ui/browser_element_identifiers.py
@@ -617,7 +633,6 @@ page_sets/desktop_ui/js_utils.py
 page_sets/desktop_ui/multitab_story.py
 page_sets/desktop_ui/new_tab_page_story.py
 page_sets/desktop_ui/omnibox_story.py
-page_sets/desktop_ui/side_search_story.py
 page_sets/desktop_ui/story_tags.py
 page_sets/desktop_ui/tab_search_story.py
 page_sets/desktop_ui/ui_devtools_utils.py
@@ -625,6 +640,7 @@ page_sets/desktop_ui/url_list.py
 page_sets/desktop_ui/webui_tab_strip_story.py
 page_sets/desktop_ui/webui_utils.py
 page_sets/dummy_story_set.py
+page_sets/dummy_wpr_story_set.py
 page_sets/google_pages.py
 page_sets/helpers/__init__.py
 page_sets/helpers/override_online.py
@@ -636,8 +652,6 @@ page_sets/intl_ja_zh.py
 page_sets/intl_ko_th_vi.py
 page_sets/jetstream2_pages.py
 page_sets/key_mobile_sites_smooth.py
-page_sets/loading_desktop.py
-page_sets/loading_mobile.py
 page_sets/login_helpers/__init__.py
 page_sets/login_helpers/autocad_login.py
 page_sets/login_helpers/chrome_login.py
@@ -687,6 +701,7 @@ page_sets/rendering/tough_webgl_cases.py
 page_sets/service_worker_micro_benchmark.py
 page_sets/speedometer1_pages.py
 page_sets/speedometer2_pages.py
+page_sets/speedometer3_pages.py
 page_sets/static_top_25_pages.py
 page_sets/story_set_unittest.py
 page_sets/system_health/__init__.py
@@ -697,7 +712,6 @@ page_sets/system_health/chrome_stories.py
 page_sets/system_health/loading_stories.py
 page_sets/system_health/long_running_stories.py
 page_sets/system_health/media_stories.py
-page_sets/system_health/multi_tab_stories.py
 page_sets/system_health/platforms.py
 page_sets/system_health/story_tags.py
 page_sets/system_health/system_health_stories.py

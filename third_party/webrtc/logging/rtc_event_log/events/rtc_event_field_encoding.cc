@@ -10,16 +10,21 @@
 
 #include "logging/rtc_event_log/events/rtc_event_field_encoding.h"
 
-#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
-#include <memory>
-#include <utility>
+#include <optional>
+#include <string>
+#include <vector>
 
+#include "absl/strings/string_view.h"
+#include "api/array_view.h"
+#include "api/rtc_event_log/rtc_event.h"
 #include "logging/rtc_event_log/encoder/bit_writer.h"
 #include "logging/rtc_event_log/encoder/var_int.h"
+#include "logging/rtc_event_log/events/fixed_length_encoding_parameters_v3.h"
 #include "logging/rtc_event_log/events/rtc_event_field_extraction.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
 
 using webrtc_event_logging::UnsignedDelta;
 
@@ -83,7 +88,7 @@ std::string EncodeSingleValue(uint64_t value, FieldType field_type) {
   return std::string();
 }
 
-absl::optional<FieldType> ConvertFieldType(uint64_t value) {
+std::optional<FieldType> ConvertFieldType(uint64_t value) {
   switch (value) {
     case static_cast<uint64_t>(FieldType::kFixed8):
       return FieldType::kFixed8;
@@ -96,13 +101,13 @@ absl::optional<FieldType> ConvertFieldType(uint64_t value) {
     case static_cast<uint64_t>(FieldType::kString):
       return FieldType::kString;
     default:
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 
 std::string EncodeDeltasV3(FixedLengthEncodingParametersV3 params,
                            uint64_t base,
-                           rtc::ArrayView<const uint64_t> values) {
+                           ArrayView<const uint64_t> values) {
   size_t outputbound = (values.size() * params.delta_bit_width() + 7) / 8;
   BitWriter writer(outputbound);
 
@@ -137,7 +142,7 @@ std::string EncodeDeltasV3(FixedLengthEncodingParametersV3 params,
 }
 
 EventEncoder::EventEncoder(EventParameters params,
-                           rtc::ArrayView<const RtcEvent*> batch) {
+                           ArrayView<const RtcEvent*> batch) {
   batch_size_ = batch.size();
   if (!batch.empty()) {
     // Encode event type.
@@ -180,7 +185,7 @@ void EventEncoder::EncodeField(const FieldParameters& params,
     RTC_DCHECK_EQ(values.size(), batch_size_);
   }
 
-  if (values.size() == 0) {
+  if (values.empty()) {
     // If all values for a particular field is empty/nullopt,
     // then we completely skip the field even if the the batch is non-empty.
     return;
@@ -205,9 +210,9 @@ void EventEncoder::EncodeField(const FieldParameters& params,
   const bool values_optional = values.size() != batch_size_;
 
   // Compute delta parameters
-  rtc::ArrayView<const uint64_t> all_values(values);
+  ArrayView<const uint64_t> all_values(values);
   uint64_t base = values[0];
-  rtc::ArrayView<const uint64_t> remaining_values(all_values.subview(1));
+  ArrayView<const uint64_t> remaining_values(all_values.subview(1));
 
   FixedLengthEncodingParametersV3 delta_params =
       FixedLengthEncodingParametersV3::CalculateParameters(
@@ -235,7 +240,7 @@ void EventEncoder::EncodeField(const FieldParameters& params,
                                const std::vector<absl::string_view>& values) {
   RTC_DCHECK_EQ(values.size(), batch_size_);
 
-  if (values.size() == 0) {
+  if (values.empty()) {
     // If all values for a particular field is empty/nullopt,
     // then we completely skip the field even if the the batch is non-empty.
     return;

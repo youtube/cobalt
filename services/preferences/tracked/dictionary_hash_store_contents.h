@@ -5,13 +5,11 @@
 #ifndef SERVICES_PREFERENCES_TRACKED_DICTIONARY_HASH_STORE_CONTENTS_H_
 #define SERVICES_PREFERENCES_TRACKED_DICTIONARY_HASH_STORE_CONTENTS_H_
 
+#include <string_view>
+
 #include "base/memory/raw_ref.h"
 #include "base/values.h"
 #include "services/preferences/tracked/hash_store_contents.h"
-
-namespace user_prefs {
-class PrefRegistrySyncable;
-}  // namespace user_prefs
 
 // Implements HashStoreContents by storing MACs in a DictionaryValue. The
 // DictionaryValue is presumed to be the contents of a PrefStore.
@@ -27,13 +25,10 @@ class DictionaryHashStoreContents : public HashStoreContents {
   DictionaryHashStoreContents& operator=(const DictionaryHashStoreContents&) =
       delete;
 
-  // Registers required preferences.
-  static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
-
   // HashStoreContents implementation
   bool IsCopyable() const override;
   std::unique_ptr<HashStoreContents> MakeCopy() const override;
-  base::StringPiece GetUMASuffix() const override;
+  std::string_view GetUMASuffix() const override;
   void Reset() override;
   bool GetMac(const std::string& path, std::string* out_value) override;
   bool GetSplitMacs(const std::string& path,

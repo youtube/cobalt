@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 // MtabWatcherLinux implementation.
 
 #include "components/storage_monitor/mtab_watcher_linux.h"
@@ -10,6 +15,8 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#include <array>
+
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/threading/scoped_blocking_call.h"
@@ -17,19 +24,19 @@
 namespace {
 
 // List of file systems we care about.
-const char* const kKnownFileSystems[] = {
-  "btrfs",
-  "ext2",
-  "ext3",
-  "ext4",
-  "fat",
-  "hfsplus",
-  "iso9660",
-  "msdos",
-  "ntfs",
-  "udf",
-  "vfat",
-};
+constexpr auto kKnownFileSystems = std::to_array<const char*>({
+    "btrfs",
+    "ext2",
+    "ext3",
+    "ext4",
+    "fat",
+    "hfsplus",
+    "iso9660",
+    "msdos",
+    "ntfs",
+    "udf",
+    "vfat",
+});
 
 }  // namespace
 
@@ -93,7 +100,6 @@ void MtabWatcherLinux::OnFilePathChanged(
     // This cannot happen unless FilePathWatcher is buggy. Just ignore this
     // notification and do nothing.
     NOTREACHED();
-    return;
   }
   if (error) {
     LOG(ERROR) << "Error watching " << mtab_path_.value();

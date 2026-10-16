@@ -4,17 +4,12 @@
 
 #include "device/fido/fido_transport_protocol.h"
 
+#include "base/notreached.h"
+
 namespace device {
 
-const char kUsbHumanInterfaceDevice[] = "usb";
-const char kNearFieldCommunication[] = "nfc";
-const char kBluetoothLowEnergy[] = "ble";
-const char kCable[] = "hybrid";
-const char kHybrid[] = "hybrid";
-const char kInternal[] = "internal";
-
-absl::optional<FidoTransportProtocol> ConvertToFidoTransportProtocol(
-    base::StringPiece protocol) {
+std::optional<FidoTransportProtocol> ConvertToFidoTransportProtocol(
+    std::string_view protocol) {
   if (protocol == kUsbHumanInterfaceDevice)
     return FidoTransportProtocol::kUsbHumanInterfaceDevice;
   else if (protocol == kNearFieldCommunication)
@@ -23,16 +18,13 @@ absl::optional<FidoTransportProtocol> ConvertToFidoTransportProtocol(
     return FidoTransportProtocol::kBluetoothLowEnergy;
   else if (protocol == kHybrid)
     return FidoTransportProtocol::kHybrid;
-  else if (protocol == kCable)
-    // This is the old name for "hybrid".
-    return FidoTransportProtocol::kHybrid;
   else if (protocol == kInternal)
     return FidoTransportProtocol::kInternal;
   else
-    return absl::nullopt;
+    return std::nullopt;
 }
 
-base::StringPiece ToString(FidoTransportProtocol protocol) {
+std::string_view ToString(FidoTransportProtocol protocol) {
   switch (protocol) {
     case FidoTransportProtocol::kUsbHumanInterfaceDevice:
       return kUsbHumanInterfaceDevice;
@@ -44,10 +36,8 @@ base::StringPiece ToString(FidoTransportProtocol protocol) {
       return kHybrid;
     case FidoTransportProtocol::kInternal:
       return kInternal;
-    case FidoTransportProtocol::kAndroidAccessory:
-      // The Android accessory transport is not exposed to the outside world and
-      // is considered a flavour of caBLE.
-      return kHybrid;
+    case FidoTransportProtocol::kDeprecatedAoa:
+      NOTREACHED();
   }
 }
 
@@ -60,8 +50,9 @@ AuthenticatorAttachment AuthenticatorAttachmentFromTransport(
     case FidoTransportProtocol::kNearFieldCommunication:
     case FidoTransportProtocol::kBluetoothLowEnergy:
     case FidoTransportProtocol::kHybrid:
-    case FidoTransportProtocol::kAndroidAccessory:
       return AuthenticatorAttachment::kCrossPlatform;
+    case FidoTransportProtocol::kDeprecatedAoa:
+      NOTREACHED();
   }
 }
 

@@ -6,7 +6,7 @@
 #define ASH_WM_TABLET_MODE_TABLET_MODE_MULTITASK_MENU_H_
 
 #include "ash/ash_export.h"
-#include "ash/wm/tablet_mode/tablet_mode_multitask_menu_event_handler.h"
+#include "ash/wm/tablet_mode/tablet_mode_multitask_menu_controller.h"
 #include "base/memory/raw_ptr.h"
 #include "ui/aura/window.h"
 #include "ui/display/display_observer.h"
@@ -19,7 +19,7 @@ class MultitaskMenuView;
 
 namespace ash {
 
-class TabletModeMultitaskMenuEventHandler;
+class TabletModeMultitaskMenuController;
 class TabletModeMultitaskMenuView;
 
 // Creates and maintains the multitask menu. Responsible for showing,
@@ -28,7 +28,7 @@ class ASH_EXPORT TabletModeMultitaskMenu
     : public views::WidgetFocusChangeListener,
       public display::DisplayObserver {
  public:
-  TabletModeMultitaskMenu(TabletModeMultitaskMenuEventHandler* event_handler,
+  TabletModeMultitaskMenu(TabletModeMultitaskMenuController* controller,
                           aura::Window* window);
 
   TabletModeMultitaskMenu(const TabletModeMultitaskMenu&) = delete;
@@ -39,11 +39,10 @@ class ASH_EXPORT TabletModeMultitaskMenu
   views::Widget* widget() { return widget_.get(); }
 
   // Performs a slide down animation on the menu (and cue if visible) if `show`
-  // is true, otherwise slide up animation.
+  // is true, otherwise a slide up animation.
   void Animate(bool show);
 
-  // Performs a fade out animation and closes the menu. Called when tap outside
-  // the menu dismisses it.
+  // Performs a fade out animation and closes the menu.
   void AnimateFadeOut();
 
   // Actions called by the event handler, where `initial_y` and `current_y` are
@@ -69,7 +68,7 @@ class ASH_EXPORT TabletModeMultitaskMenu
  private:
   // The event handler that created this multitask menu. Guaranteed to outlive
   // `this`.
-  raw_ptr<TabletModeMultitaskMenuEventHandler, ExperimentalAsh> event_handler_;
+  raw_ptr<TabletModeMultitaskMenuController> controller_;
 
   // Widget implementation that is created and maintained by `this`.
   views::UniqueWidgetPtr widget_ = std::make_unique<views::Widget>();

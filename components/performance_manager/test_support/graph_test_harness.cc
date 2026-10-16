@@ -9,16 +9,50 @@
 
 namespace performance_manager {
 
+int NextTestFrameRoutingId() {
+  static int next_frame_routing_id_;
+  return ++next_frame_routing_id_;
+}
+
+RenderProcessHostId NextTestRenderProcessHostId() {
+  static RenderProcessHostId::Generator id_generator;
+  return id_generator.GenerateNextId();
+}
+
+BrowserChildProcessHostId NextTestBrowserChildProcessHostId() {
+  static BrowserChildProcessHostId::Generator id_generator;
+  return id_generator.GenerateNextId();
+}
+
 TestGraphImpl::TestGraphImpl() = default;
 TestGraphImpl::~TestGraphImpl() = default;
 
 TestNodeWrapper<FrameNodeImpl> TestGraphImpl::CreateFrameNodeAutoId(
     ProcessNodeImpl* process_node,
     PageNodeImpl* page_node,
-    FrameNodeImpl* parent_frame_node) {
-  return TestNodeWrapper<FrameNodeImpl>::Create(this, process_node, page_node,
-                                                parent_frame_node,
-                                                ++next_frame_routing_id_);
+    FrameNodeImpl* parent_frame_node,
+    content::BrowsingInstanceId browsing_instance_id) {
+  return TestNodeWrapper<FrameNodeImpl>::Create(
+      this, process_node, page_node, parent_frame_node,
+      /*outer_document_for_fenced_frame=*/nullptr, NextTestFrameRoutingId(),
+      blink::LocalFrameToken(), browsing_instance_id);
+}
+
+TestNodeWrapper<ProcessNodeImpl> TestGraphImpl::CreateBrowserProcessNode() {
+  return TestNodeWrapper<ProcessNodeImpl>::Create(this,
+                                                  BrowserProcessNodeTag{});
+}
+
+TestNodeWrapper<ProcessNodeImpl> TestGraphImpl::CreateRendererProcessNode(
+    RenderProcessHostProxy proxy) {
+  return TestNodeWrapper<ProcessNodeImpl>::Create(this, std::move(proxy));
+}
+
+TestNodeWrapper<ProcessNodeImpl> TestGraphImpl::CreateBrowserChildProcessNode(
+    content::ProcessType process_type,
+    BrowserChildProcessHostProxy proxy) {
+  return TestNodeWrapper<ProcessNodeImpl>::Create(this, process_type,
+                                                  std::move(proxy));
 }
 
 GraphTestHarness::GraphTestHarness()

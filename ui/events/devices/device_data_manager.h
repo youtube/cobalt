@@ -15,7 +15,9 @@
 #include "base/observer_list.h"
 #include "ui/events/devices/device_hotplug_event_observer.h"
 #include "ui/events/devices/events_devices_export.h"
+#include "ui/events/devices/keyboard_device.h"
 #include "ui/events/devices/touch_device_transform.h"
+#include "ui/events/devices/touchpad_device.h"
 #include "ui/events/devices/touchscreen_device.h"
 
 namespace ui {
@@ -54,10 +56,11 @@ class EVENTS_DEVICES_EXPORT DeviceDataManager
   void SetTouchscreensEnabled(bool enabled);
 
   const std::vector<TouchscreenDevice>& GetTouchscreenDevices() const;
-  const std::vector<InputDevice>& GetKeyboardDevices() const;
+  const std::vector<KeyboardDevice>& GetKeyboardDevices() const;
   const std::vector<InputDevice>& GetMouseDevices() const;
   const std::vector<InputDevice>& GetPointingStickDevices() const;
-  const std::vector<InputDevice>& GetTouchpadDevices() const;
+  const std::vector<TouchpadDevice>& GetTouchpadDevices() const;
+  const std::vector<InputDevice>& GetGraphicsTabletDevices() const;
 
   // Returns all the uncategorized input devices, which means input devices
   // besides keyboards, touchscreens, mice and touchpads.
@@ -85,12 +88,14 @@ class EVENTS_DEVICES_EXPORT DeviceDataManager
   void OnTouchscreenDevicesUpdated(
       const std::vector<TouchscreenDevice>& devices) override;
   void OnKeyboardDevicesUpdated(
-      const std::vector<InputDevice>& devices) override;
+      const std::vector<KeyboardDevice>& devices) override;
   void OnMouseDevicesUpdated(
       const std::vector<InputDevice>& devices) override;
   void OnPointingStickDevicesUpdated(
       const std::vector<InputDevice>& devices) override;
   void OnTouchpadDevicesUpdated(
+      const std::vector<TouchpadDevice>& devices) override;
+  void OnGraphicsTabletDevicesUpdated(
       const std::vector<InputDevice>& devices) override;
   void OnUncategorizedDevicesUpdated(
       const std::vector<InputDevice>& devices) override;
@@ -111,6 +116,7 @@ class EVENTS_DEVICES_EXPORT DeviceDataManager
   void NotifyObserversMouseDeviceConfigurationChanged();
   void NotifyObserversPointingStickDeviceConfigurationChanged();
   void NotifyObserversTouchpadDeviceConfigurationChanged();
+  void NotifyObserversGraphicsTabletDeviceConfigurationChanged();
   void NotifyObserversUncategorizedDeviceConfigurationChanged();
   void NotifyObserversDeviceListsComplete();
   void NotifyObserversStylusStateChanged(StylusState stylus_state);
@@ -118,10 +124,11 @@ class EVENTS_DEVICES_EXPORT DeviceDataManager
   static DeviceDataManager* instance_;
 
   std::vector<TouchscreenDevice> touchscreen_devices_;
-  std::vector<InputDevice> keyboard_devices_;
+  std::vector<KeyboardDevice> keyboard_devices_;
   std::vector<InputDevice> mouse_devices_;
   std::vector<InputDevice> pointing_stick_devices_;
-  std::vector<InputDevice> touchpad_devices_;
+  std::vector<TouchpadDevice> touchpad_devices_;
+  std::vector<InputDevice> graphics_tablet_devices_;
   std::vector<InputDevice> uncategorized_devices_;
   bool device_lists_complete_ = false;
 

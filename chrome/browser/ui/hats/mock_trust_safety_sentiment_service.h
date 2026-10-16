@@ -37,20 +37,35 @@ class MockTrustSafetySentimentService : public TrustSafetySentimentService {
               (content::WebContents * web_contents),
               (override));
   MOCK_METHOD(void, SavedCard, (), (override));
-  MOCK_METHOD(void,
-              InteractedWithPrivacySandbox3,
-              (FeatureArea feature_area),
-              (override));
-  MOCK_METHOD(void,
-              InteractedWithPrivacySandbox4,
-              (FeatureArea feature_area),
-              (override));
   MOCK_METHOD(void, RanPasswordCheck, (), (override));
   MOCK_METHOD(void,
               ClearedBrowsingData,
               (browsing_data::BrowsingDataType datatype),
               (override));
   MOCK_METHOD(void, FinishedPrivacyGuide, (), (override));
+  MOCK_METHOD(void,
+              InteractedWithSafeBrowsingInterstitial,
+              (bool, safe_browsing::SBThreatType),
+              (override));
+  MOCK_METHOD(void,
+              InteractedWithDownloadWarningUI,
+              (DownloadItemWarningData::WarningSurface,
+               DownloadItemWarningData::WarningAction),
+              (override));
+  MOCK_METHOD(void,
+              ProtectResetOrCheckPasswordClicked,
+              (PasswordProtectionUIType),
+              (override));
+  MOCK_METHOD(void,
+              PhishedPasswordUpdateNotClicked,
+              (PasswordProtectionUIType, PasswordProtectionUIAction),
+              (override));
+  MOCK_METHOD(void, PhishedPasswordUpdateFinished, (), (override));
+  MOCK_METHOD(void,
+              TriggerSafetyHubSurvey,
+              (TrustSafetySentimentService::FeatureArea,
+               (std::map<std::string, bool>)),
+              (override));
 };
 
 std::unique_ptr<KeyedService> BuildMockTrustSafetySentimentService(

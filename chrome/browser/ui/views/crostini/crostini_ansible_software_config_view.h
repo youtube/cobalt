@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_CROSTINI_CROSTINI_ANSIBLE_SOFTWARE_CONFIG_VIEW_H_
 #define CHROME_BROWSER_UI_VIEWS_CROSTINI_CROSTINI_ANSIBLE_SOFTWARE_CONFIG_VIEW_H_
 
+#include <string_view>
+
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ash/crostini/ansible/ansible_management_service.h"
 #include "chrome/browser/ash/crostini/crostini_util.h"
@@ -24,6 +26,9 @@ class Profile;
 class CrostiniAnsibleSoftwareConfigView
     : public views::BubbleDialogDelegateView,
       public crostini::AnsibleManagementService::Observer {
+  METADATA_HEADER(CrostiniAnsibleSoftwareConfigView,
+                  views::BubbleDialogDelegateView)
+
  public:
   CrostiniAnsibleSoftwareConfigView(const CrostiniAnsibleSoftwareConfigView&) =
       delete;
@@ -31,14 +36,12 @@ class CrostiniAnsibleSoftwareConfigView
       const CrostiniAnsibleSoftwareConfigView&) = delete;
   ~CrostiniAnsibleSoftwareConfigView() override;
 
-  METADATA_HEADER(CrostiniAnsibleSoftwareConfigView);
-
   // views::DialogDelegateView:
   bool Accept() override;
   bool Cancel() override;
 
-  std::u16string GetSubtextLabelStringForTesting();
-  std::u16string GetProgressLabelStringForTesting();
+  std::u16string_view GetSubtextLabelStringForTesting();
+  std::u16string_view GetProgressLabelStringForTesting();
 
   // AnsibleManagementService::Observer
   void OnAnsibleSoftwareConfigurationStarted(
@@ -67,12 +70,12 @@ class CrostiniAnsibleSoftwareConfigView
 
   State state_ = State::CONFIGURING;
 
-  raw_ptr<views::Label, ExperimentalAsh> subtext_label_ = nullptr;
-  raw_ptr<views::Label, ExperimentalAsh> progress_label_ = nullptr;
-  raw_ptr<views::ProgressBar, ExperimentalAsh> progress_bar_ = nullptr;
+  raw_ptr<views::Label> subtext_label_ = nullptr;
+  raw_ptr<views::Label> progress_label_ = nullptr;
+  raw_ptr<views::ProgressBar> progress_bar_ = nullptr;
   base::FilePath default_container_ansible_filepath_;
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile> profile_;
 
   guest_os::GuestId container_id_;
   std::u16string container_name_;

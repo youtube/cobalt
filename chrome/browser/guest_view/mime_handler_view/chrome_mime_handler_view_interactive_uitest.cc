@@ -7,10 +7,11 @@
 #include "base/location.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
-#include "base/test/test_timeouts.h"
+#include "base/test/run_until.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/extension_apitest.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_test.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -36,9 +37,7 @@ namespace extensions {
 
 class ChromeMimeHandlerViewInteractiveUITest : public ExtensionApiTest {
  public:
-  ChromeMimeHandlerViewInteractiveUITest() {
-    GuestViewManager::set_factory_for_testing(&factory_);
-  }
+  ChromeMimeHandlerViewInteractiveUITest() = default;
 
   ~ChromeMimeHandlerViewInteractiveUITest() override = default;
 
@@ -50,22 +49,10 @@ class ChromeMimeHandlerViewInteractiveUITest : public ExtensionApiTest {
     ASSERT_TRUE(StartEmbeddedTestServer());
   }
 
-  // TODO(paulmeyer): This function is implemented over and over by the
-  // different GuestView test classes. It really needs to be refactored out to
-  // some kind of GuestViewTest base class.
   TestGuestViewManager* GetGuestViewManager() {
-    TestGuestViewManager* manager = static_cast<TestGuestViewManager*>(
-        TestGuestViewManager::FromBrowserContext(browser()->profile()));
-    // Test code may access the TestGuestViewManager before it would be created
-    // during creation of the first guest.
-    if (!manager) {
-      manager = static_cast<TestGuestViewManager*>(
-          GuestViewManager::CreateWithDelegate(
-              browser()->profile(),
-              ExtensionsAPIClient::Get()->CreateGuestViewManagerDelegate(
-                  browser()->profile())));
-    }
-    return manager;
+    return factory_.GetOrCreateTestGuestViewManager(
+        browser()->profile(),
+        ExtensionsAPIClient::Get()->CreateGuestViewManagerDelegate());
   }
 
   const Extension* LoadTestExtension() {
@@ -130,14 +117,8 @@ void WaitForFullscreenAnimation() {
 
 }  // namespace
 
-// TODO(1119576): Flaky under Lacros.
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#define MAYBE_EscapeExitsFullscreen DISABLED_EscapeExitsFullscreen
-#else
-#define MAYBE_EscapeExitsFullscreen EscapeExitsFullscreen
-#endif
 IN_PROC_BROWSER_TEST_F(ChromeMimeHandlerViewInteractiveUITest,
-                       MAYBE_EscapeExitsFullscreen) {
+                       EscapeExitsFullscreen) {
   // Use the testing subclass of MimeHandlerViewGuest.
   TestMimeHandlerViewGuest::RegisterTestGuestViewType(GetGuestViewManager());
 
@@ -147,8 +128,8 @@ IN_PROC_BROWSER_TEST_F(ChromeMimeHandlerViewInteractiveUITest,
   ResultCatcher catcher;
 
   // Set observer to watch for fullscreen.
-  FullscreenNotificationObserver fullscreen_waiter(browser());
-
+  ui_test_utils::FullscreenWaiter fullscreen_waiter(browser(),
+                                                    {.tab_fullscreen = true});
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("/testFullscreenEscape.csv")));
 
@@ -158,6 +139,7 @@ IN_PROC_BROWSER_TEST_F(ChromeMimeHandlerViewInteractiveUITest,
   ASSERT_TRUE(guest_view);
 
   auto* guest_rwh = guest_view->GetGuestMainFrame()->GetRenderWidgetHost();
+  ASSERT_TRUE(guest_rwh);
 
   // Wait for fullscreen mode.
   fullscreen_waiter.Wait();
@@ -170,13 +152,8 @@ IN_PROC_BROWSER_TEST_F(ChromeMimeHandlerViewInteractiveUITest,
       embedder_contents, 0, blink::WebMouseEvent::Button::kLeft,
       guest_rwh->GetView()->TransformPointToRootCoordSpace(gfx::Point(7, 7)));
 
-  while (!IsRenderWidgetHostFocused(guest_rwh)) {
-    base::RunLoop run_loop;
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE, run_loop.QuitClosure(), TestTimeouts::tiny_timeout());
-    run_loop.Run();
-  }
-
+  EXPECT_TRUE(base::test::RunUntil(
+      [&]() { return IsRenderWidgetHostFocused(guest_rwh); }));
   EXPECT_EQ(embedder_contents->GetFocusedFrame(),
             guest_view->GetGuestMainFrame());
 

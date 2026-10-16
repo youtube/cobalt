@@ -27,56 +27,55 @@
 
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
 #include "third_party/blink/renderer/core/dom/document.h"
-#include "third_party/blink/renderer/core/layout/layout_ruby.h"
-#include "third_party/blink/renderer/core/layout/ng/layout_ng_ruby_text.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 
 namespace blink {
 
-static const QualifiedName& NodeTypeToTagName(VTTNodeType node_type) {
-  DEFINE_STATIC_LOCAL(QualifiedName, c_tag, (g_null_atom, "c", g_null_atom));
-  DEFINE_STATIC_LOCAL(QualifiedName, v_tag, (g_null_atom, "v", g_null_atom));
+static const QualifiedName& NodeTypeToTagName(VttNodeType node_type) {
+  // Use predefined AtomicStrings in html_names to reduce AtomicString
+  // creation cost.
+  DEFINE_STATIC_LOCAL(QualifiedName, c_tag, (AtomicString("c")));
+  DEFINE_STATIC_LOCAL(QualifiedName, v_tag, (AtomicString("v")));
   DEFINE_STATIC_LOCAL(QualifiedName, lang_tag,
-                      (g_null_atom, "lang", g_null_atom));
-  DEFINE_STATIC_LOCAL(QualifiedName, b_tag, (g_null_atom, "b", g_null_atom));
-  DEFINE_STATIC_LOCAL(QualifiedName, u_tag, (g_null_atom, "u", g_null_atom));
-  DEFINE_STATIC_LOCAL(QualifiedName, i_tag, (g_null_atom, "i", g_null_atom));
+                      (html_names::kLangAttr.LocalName()));
+  DEFINE_STATIC_LOCAL(QualifiedName, b_tag, (html_names::kBTag.LocalName()));
+  DEFINE_STATIC_LOCAL(QualifiedName, u_tag, (html_names::kUTag.LocalName()));
+  DEFINE_STATIC_LOCAL(QualifiedName, i_tag, (html_names::kITag.LocalName()));
   DEFINE_STATIC_LOCAL(QualifiedName, ruby_tag,
-                      (g_null_atom, "ruby", g_null_atom));
-  DEFINE_STATIC_LOCAL(QualifiedName, rt_tag, (g_null_atom, "rt", g_null_atom));
+                      (html_names::kRubyTag.LocalName()));
+  DEFINE_STATIC_LOCAL(QualifiedName, rt_tag, (html_names::kRtTag.LocalName()));
   switch (node_type) {
-    case kVTTNodeTypeClass:
+    case VttNodeType::kClass:
       return c_tag;
-    case kVTTNodeTypeItalic:
+    case VttNodeType::kItalic:
       return i_tag;
-    case kVTTNodeTypeLanguage:
+    case VttNodeType::kLanguage:
       return lang_tag;
-    case kVTTNodeTypeBold:
+    case VttNodeType::kBold:
       return b_tag;
-    case kVTTNodeTypeUnderline:
+    case VttNodeType::kUnderline:
       return u_tag;
-    case kVTTNodeTypeRuby:
+    case VttNodeType::kRuby:
       return ruby_tag;
-    case kVTTNodeTypeRubyText:
+    case VttNodeType::kRubyText:
       return rt_tag;
-    case kVTTNodeTypeVoice:
+    case VttNodeType::kVoice:
       return v_tag;
-    case kVTTNodeTypeNone:
+    case VttNodeType::kNone:
     default:
       NOTREACHED();
-      return c_tag;  // Make the compiler happy.
   }
 }
 
-VTTElement::VTTElement(VTTNodeType node_type, Document* document)
+VTTElement::VTTElement(VttNodeType node_type, Document* document)
     : Element(NodeTypeToTagName(node_type), document, kCreateElement),
       is_past_node_(0),
-      web_vtt_node_type_(node_type) {}
+      vtt_node_type_(static_cast<unsigned>(node_type)) {}
 
 Element& VTTElement::CloneWithoutAttributesAndChildren(
     Document& factory) const {
   auto* clone = MakeGarbageCollected<VTTElement>(
-      static_cast<VTTNodeType>(web_vtt_node_type_), &factory);
+      static_cast<VttNodeType>(vtt_node_type_), &factory);
   clone->SetLanguage(language_);
   clone->SetTrack(track_);
   return *clone;
@@ -84,10 +83,10 @@ Element& VTTElement::CloneWithoutAttributesAndChildren(
 
 HTMLElement* VTTElement::CreateEquivalentHTMLElement(Document& document) {
   Element* html_element = nullptr;
-  switch (web_vtt_node_type_) {
-    case kVTTNodeTypeClass:
-    case kVTTNodeTypeLanguage:
-    case kVTTNodeTypeVoice:
+  switch (GetVttNodeType()) {
+    case VttNodeType::kClass:
+    case VttNodeType::kLanguage:
+    case VttNodeType::kVoice:
       html_element =
           document.CreateRawElement(html_names::kSpanTag, CreateElementFlags());
       html_element->setAttribute(html_names::kTitleAttr,
@@ -95,23 +94,23 @@ HTMLElement* VTTElement::CreateEquivalentHTMLElement(Document& document) {
       html_element->setAttribute(html_names::kLangAttr,
                                  getAttribute(LangAttributeName()));
       break;
-    case kVTTNodeTypeItalic:
+    case VttNodeType::kItalic:
       html_element =
           document.CreateRawElement(html_names::kITag, CreateElementFlags());
       break;
-    case kVTTNodeTypeBold:
+    case VttNodeType::kBold:
       html_element =
           document.CreateRawElement(html_names::kBTag, CreateElementFlags());
       break;
-    case kVTTNodeTypeUnderline:
+    case VttNodeType::kUnderline:
       html_element =
           document.CreateRawElement(html_names::kUTag, CreateElementFlags());
       break;
-    case kVTTNodeTypeRuby:
+    case VttNodeType::kRuby:
       html_element =
           document.CreateRawElement(html_names::kRubyTag, CreateElementFlags());
       break;
-    case kVTTNodeTypeRubyText:
+    case VttNodeType::kRubyText:
       html_element =
           document.CreateRawElement(html_names::kRtTag, CreateElementFlags());
       break;
@@ -142,16 +141,6 @@ void VTTElement::SetTrack(TextTrack* track) {
 void VTTElement::Trace(Visitor* visitor) const {
   visitor->Trace(track_);
   Element::Trace(visitor);
-}
-
-LayoutObject* VTTElement::CreateLayoutObject(const ComputedStyle& style) {
-  switch (web_vtt_node_type_) {
-    case kVTTNodeTypeRuby:
-      return MakeGarbageCollected<LayoutRubyAsInline>(this);
-    case kVTTNodeTypeRubyText:
-      return MakeGarbageCollected<LayoutNGRubyText>(this);
-  }
-  return LayoutObject::CreateObject(this, style);
 }
 
 }  // namespace blink

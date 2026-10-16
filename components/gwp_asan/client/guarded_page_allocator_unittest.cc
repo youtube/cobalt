@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/gwp_asan/client/guarded_page_allocator.h"
 
 #include <algorithm>
@@ -19,32 +24,41 @@
 #include "base/test/gtest_util.h"
 #include "base/threading/simple_thread.h"
 #include "build/build_config.h"
-#include "components/gwp_asan/common/lightweight_detector.h"
+#include "components/gwp_asan/client/gwp_asan.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace gwp_asan {
 namespace internal {
 
-static constexpr size_t kMaxMetadata = AllocatorState::kMaxMetadata;
-static constexpr size_t kMaxSlots = AllocatorState::kMaxRequestedSlots;
+static constexpr size_t kMaxMetadata = 2048;
+static constexpr size_t kMaxSlots = 8192;
 
 class BaseGpaTest : public testing::Test {
  protected:
   BaseGpaTest(size_t max_allocated_pages,
               size_t max_metadata,
               size_t max_slots,
-              bool is_partition_alloc,
-              LightweightDetector::State lightweight_detector_state =
-                  LightweightDetector::State::kDisabled,
-              size_t max_lightweight_detector_metadata = 0) {
-    gpa_.Init(max_allocated_pages, max_metadata, max_slots,
-              base::BindLambdaForTesting(
-                  [&](size_t allocations) { allocator_oom_ = true; }),
-              is_partition_alloc, lightweight_detector_state,
-              max_lightweight_detector_metadata);
+              bool is_partition_alloc)
+      : is_partition_alloc_(is_partition_alloc),
+        settings_{AllocatorSettings{
+            .max_allocated_pages = max_allocated_pages,
+            .num_metadata = max_metadata,
+            .total_pages = max_slots,
+            .sampling_frequency = 0u,
+        }} {}
+
+  void SetUp() override {
+    ASSERT_TRUE(gpa_.Init(settings_,
+                          base::BindLambdaForTesting([&](size_t allocations) {
+                            allocator_oom_ = true;
+                          }),
+                          is_partition_alloc_));
   }
 
+  void TearDown() override { gpa_.DestructForTesting(); }
+
+  const bool is_partition_alloc_;
+  const AllocatorSettings settings_;
   GuardedPageAllocator gpa_;
   bool allocator_oom_ = false;
 };
@@ -91,6 +105,8 @@ INSTANTIATE_TEST_SUITE_P(VaryPartitionAlloc,
                          GuardedPageAllocatorTest,
                          testing::Values(false, true));
 
+#if defined(GTEST_HAS_DEATH_TEST)
+
 TEST_P(GuardedPageAllocatorTest, SingleAllocDealloc) {
   char* buf = reinterpret_cast<char*>(gpa_.Allocate(base::GetPageSize()));
   EXPECT_NE(buf, nullptr);
@@ -109,6 +125,8 @@ TEST_P(GuardedPageAllocatorTest, CrashOnBadDeallocPointer) {
   gpa_.Deallocate(buf);
 }
 
+#endif  // defined(GTEST_HAS_DEATH_TEST)
+
 TEST_P(GuardedPageAllocatorTest, PointerIsMine) {
   void* buf = gpa_.Allocate(1);
   auto malloc_ptr = std::make_unique<char>();
@@ -119,6 +137,8 @@ TEST_P(GuardedPageAllocatorTest, PointerIsMine) {
   EXPECT_FALSE(gpa_.PointerIsMine(&stack_var));
   EXPECT_FALSE(gpa_.PointerIsMine(malloc_ptr.get()));
 }
+
+#if defined(GTEST_HAS_DEATH_TEST)
 
 TEST_P(GuardedPageAllocatorTest, GetRequestedSize) {
   void* buf = gpa_.Allocate(100);
@@ -148,6 +168,8 @@ TEST_P(GuardedPageAllocatorTest, RightAlignedAllocation) {
   EXPECT_DEATH(buf[GuardedPageAllocator::kGpaAllocAlignment] = 'A', "");
   gpa_.Deallocate(buf);
 }
+
+#endif  // defined(GTEST_HAS_DEATH_TEST)
 
 TEST_P(GuardedPageAllocatorTest, AllocationAlignment) {
   const uintptr_t page_size = base::GetPageSize();
@@ -190,7 +212,7 @@ class GuardedPageAllocatorParamTest
 
 TEST_P(GuardedPageAllocatorParamTest, AllocDeallocAllPages) {
   size_t num_allocations = GetParam();
-  char* bufs[kMaxMetadata];
+  std::array<char*, kMaxMetadata> bufs;
   for (size_t i = 0; i < num_allocations; i++) {
     bufs[i] = reinterpret_cast<char*>(gpa_.Allocate(1));
     EXPECT_NE(bufs[i], nullptr);
@@ -245,7 +267,7 @@ class ThreadedAllocCountDelegate : public base::DelegateSimpleThread::Delegate {
 // extra pages are allocated when there's concurrent calls to Allocate().
 TEST_P(GuardedPageAllocatorTest, ThreadedAllocCount) {
   constexpr size_t num_threads = 2;
-  std::array<void*, kMaxMetadata> allocations[num_threads];
+  std::array<std::array<void*, kMaxMetadata>, num_threads> allocations;
   {
     base::DelegateSimpleThreadPool threads("alloc_threads", num_threads);
     threads.Start();
@@ -393,71 +415,6 @@ TEST_F(GuardedPageAllocatorRawPtrTest, DeferDeallocation) {
   EXPECT_EQ(gpa_.Allocate(1), nullptr);
 }
 #endif  // BUILDFLAG(USE_PARTITION_ALLOC_AS_GWP_ASAN_STORE)
-
-constexpr size_t kMaxLightweightDetectorMetadata = 1;
-class LightweightDetectorAllocatorTest : public BaseGpaTest {
- public:
-  LightweightDetectorAllocatorTest()
-      : BaseGpaTest(kMaxMetadata,
-                    kMaxMetadata,
-                    kMaxSlots,
-                    /* is_partition_alloc = */ true,
-                    LightweightDetector::State::kEnabled,
-                    kMaxLightweightDetectorMetadata) {}
-};
-
-TEST_F(LightweightDetectorAllocatorTest, PoisonAlloc) {
-  uint64_t alloc;
-
-  gpa_.RecordLightweightDeallocation(&alloc, sizeof(alloc));
-  auto metadata_id = LightweightDetector::ExtractMetadataId(alloc);
-  EXPECT_TRUE(metadata_id.has_value());
-
-  auto& metadata = gpa_.state_.GetLightweightSlotMetadataById(
-      *metadata_id, gpa_.lightweight_detector_metadata_.get());
-  EXPECT_EQ(metadata.alloc_ptr, reinterpret_cast<uintptr_t>(&alloc));
-  EXPECT_EQ(metadata.alloc_size, sizeof(alloc));
-  EXPECT_EQ(metadata.alloc.trace_collected, false);
-  EXPECT_EQ(metadata.alloc.trace_len, 0u);
-  EXPECT_EQ(metadata.dealloc.trace_collected, true);
-  EXPECT_NE(metadata.dealloc.trace_len, 0u);
-}
-
-TEST_F(LightweightDetectorAllocatorTest, PoisonAllocUnaligned) {
-  // Allocations that aren't 64-bit aligned.
-  uint8_t alloc1[7];
-  uint8_t alloc2[9];
-
-  gpa_.RecordLightweightDeallocation(&alloc1, sizeof(alloc1));
-  gpa_.RecordLightweightDeallocation(&alloc2, sizeof(alloc2));
-
-  for (auto byte : alloc1) {
-    EXPECT_EQ(byte, LightweightDetector::kMetadataRemainder);
-  }
-  EXPECT_EQ(alloc2[sizeof(alloc2) - 1],
-            LightweightDetector::kMetadataRemainder);
-}
-
-TEST_F(LightweightDetectorAllocatorTest, SlotReuse) {
-  uint64_t alloc1;
-  uint64_t alloc2;
-
-  gpa_.RecordLightweightDeallocation(&alloc1, sizeof(alloc1));
-  auto alloc1_metadata_id = LightweightDetector::ExtractMetadataId(alloc1);
-  EXPECT_TRUE(alloc1_metadata_id.has_value());
-  auto& metadata_alloc1 = gpa_.state_.GetLightweightSlotMetadataById(
-      *alloc1_metadata_id, gpa_.lightweight_detector_metadata_.get());
-
-  gpa_.RecordLightweightDeallocation(&alloc2, sizeof(alloc2));
-  auto alloc2_metadata_id = LightweightDetector::ExtractMetadataId(alloc2);
-  auto& metadata_alloc2 = gpa_.state_.GetLightweightSlotMetadataById(
-      *alloc2_metadata_id, gpa_.lightweight_detector_metadata_.get());
-
-  // Since there's only one slot, it should be reused.
-  EXPECT_EQ(&metadata_alloc1, &metadata_alloc2);
-  EXPECT_NE(metadata_alloc1.lightweight_id, alloc1_metadata_id);
-  EXPECT_EQ(metadata_alloc2.lightweight_id, alloc2_metadata_id);
-}
 
 }  // namespace internal
 }  // namespace gwp_asan

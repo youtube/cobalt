@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "ash/constants/ash_features.h"
@@ -15,16 +16,20 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/values.h"
-#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
+#include "chrome/browser/ash/ownership/owner_key_loader.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash_factory.h"
 #include "chrome/browser/ash/policy/core/device_policy_builder.h"
+#include "chrome/browser/ash/profiles/profile_helper.h"
+#include "chrome/browser/ash/settings/cros_settings_holder.h"
 #include "chrome/browser/ash/settings/device_settings_provider.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
+#include "chrome/browser/ash/settings/scoped_test_device_settings_service.h"
 #include "chrome/browser/net/fake_nss_service.h"
 #include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chromeos/ash/components/browser_context_helper/annotated_account_id.h"
 #include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "components/ownership/mock_owner_key_util.h"
@@ -36,7 +41,6 @@
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace em = enterprise_management;
 
@@ -57,16 +61,22 @@ void NotReached() {
 
 class CrosSettingsTest : public testing::Test {
  protected:
-  CrosSettingsTest()
-      : local_state_(TestingBrowserProcess::GetGlobal()),
-        scoped_test_cros_settings_(local_state_.Get()) {}
-
-  ~CrosSettingsTest() override {}
+  CrosSettingsTest() = default;
+  ~CrosSettingsTest() override = default;
 
   void SetUp() override {
+    // Disable owner key migration.
+    feature_list_.InitWithFeatures(
+        /*enabled_features=*/{kStoreOwnerKeyInPrivateSlot},
+        /*disabled_features=*/{kMigrateOwnerKeyToPrivateSlot});
+
     device_policy_.Build();
 
     fake_session_manager_client_.set_device_policy(device_policy_.GetBlob());
+
+    // Initialize ProfileHelper including BrowserContextHelper.
+    ProfileHelper::Get();
+
     owner_key_util_->SetPublicKeyFromPrivateKey(
         *device_policy_.GetSigningKey());
     owner_key_util_->ImportPrivateKeyAndSetPublicKey(
@@ -91,9 +101,9 @@ class CrosSettingsTest : public testing::Test {
   OwnerSettingsServiceAsh* CreateOwnerSettingsService(
       const std::string& owner_email) {
     const AccountId account_id = AccountId::FromUserEmail(owner_email);
-    user_manager_.AddUser(account_id);
     profile_ = std::make_unique<TestingProfile>();
     profile_->set_profile_name(account_id.GetUserEmail());
+    ash::AnnotatedAccountId::Set(profile_.get(), account_id);
 
     FakeNssService::InitializeForBrowserContext(profile_.get(),
                                                 /*enable_system_slot=*/false);
@@ -142,19 +152,20 @@ class CrosSettingsTest : public testing::Test {
   }
 
   bool IsUserAllowed(const std::string& username,
-                     const absl::optional<user_manager::UserType>& user_type) {
+                     const std::optional<user_manager::UserType>& user_type) {
     return CrosSettings::Get()->IsUserAllowlisted(username, nullptr, user_type);
   }
 
+  base::test::ScopedFeatureList feature_list_;
   content::BrowserTaskEnvironment task_environment_{
       content::BrowserTaskEnvironment::IO_MAINLOOP};
 
-  ScopedTestingLocalState local_state_;
+  ScopedTestingLocalState local_state_{TestingBrowserProcess::GetGlobal()};
   ScopedStubInstallAttributes scoped_install_attributes_;
   ScopedTestDeviceSettingsService scoped_test_device_settings_;
-  ScopedTestCrosSettings scoped_test_cros_settings_;
+  CrosSettingsHolder cros_settings_holder_{ash::DeviceSettingsService::Get(),
+                                           local_state_.Get()};
 
-  FakeChromeUserManager user_manager_;
   FakeSessionManagerClient fake_session_manager_client_;
   scoped_refptr<ownership::MockOwnerKeyUtil> owner_key_util_{
       base::MakeRefCounted<ownership::MockOwnerKeyUtil>()};
@@ -395,9 +406,9 @@ TEST_F(CrosSettingsTest, AllowFamilyLinkAccountsWithEmptyAllowlist) {
   ExpectPref(kAccountsPrefUsers, base::Value(base::Value::Type::LIST));
   ExpectPref(kAccountsPrefFamilyLinkAccountsAllowed, base::Value(false));
 
-  EXPECT_FALSE(IsUserAllowed(kUser1, absl::nullopt));
-  EXPECT_FALSE(IsUserAllowed(kUser1, user_manager::USER_TYPE_CHILD));
-  EXPECT_FALSE(IsUserAllowed(kUser1, user_manager::USER_TYPE_REGULAR));
+  EXPECT_FALSE(IsUserAllowed(kUser1, std::nullopt));
+  EXPECT_FALSE(IsUserAllowed(kUser1, user_manager::UserType::kChild));
+  EXPECT_FALSE(IsUserAllowed(kUser1, user_manager::UserType::kRegular));
 }
 
 // DeviceFamilyLinkAccountsAllowed should not have any effect if the feature is
@@ -422,10 +433,10 @@ TEST_F(CrosSettingsTest, AllowFamilyLinkAccountsWithFeatureDisabled) {
   ExpectPref(kAccountsPrefUsers, base::Value(std::move(allowlist)));
   ExpectPref(kAccountsPrefFamilyLinkAccountsAllowed, base::Value(false));
 
-  EXPECT_TRUE(IsUserAllowed(kOwner, absl::nullopt));
-  EXPECT_FALSE(IsUserAllowed(kUser1, absl::nullopt));
-  EXPECT_FALSE(IsUserAllowed(kUser1, user_manager::USER_TYPE_CHILD));
-  EXPECT_FALSE(IsUserAllowed(kUser1, user_manager::USER_TYPE_REGULAR));
+  EXPECT_TRUE(IsUserAllowed(kOwner, std::nullopt));
+  EXPECT_FALSE(IsUserAllowed(kUser1, std::nullopt));
+  EXPECT_FALSE(IsUserAllowed(kUser1, user_manager::UserType::kChild));
+  EXPECT_FALSE(IsUserAllowed(kUser1, user_manager::UserType::kRegular));
 }
 
 TEST_F(CrosSettingsTest, AllowFamilyLinkAccountsWithAllowlist) {
@@ -447,10 +458,10 @@ TEST_F(CrosSettingsTest, AllowFamilyLinkAccountsWithAllowlist) {
   ExpectPref(kAccountsPrefUsers, base::Value(std::move(allowlist)));
   ExpectPref(kAccountsPrefFamilyLinkAccountsAllowed, base::Value(true));
 
-  EXPECT_TRUE(IsUserAllowed(kOwner, absl::nullopt));
-  EXPECT_FALSE(IsUserAllowed(kUser1, absl::nullopt));
-  EXPECT_TRUE(IsUserAllowed(kUser1, user_manager::USER_TYPE_CHILD));
-  EXPECT_FALSE(IsUserAllowed(kUser1, user_manager::USER_TYPE_REGULAR));
+  EXPECT_TRUE(IsUserAllowed(kOwner, std::nullopt));
+  EXPECT_FALSE(IsUserAllowed(kUser1, std::nullopt));
+  EXPECT_TRUE(IsUserAllowed(kUser1, user_manager::UserType::kChild));
+  EXPECT_FALSE(IsUserAllowed(kUser1, user_manager::UserType::kRegular));
 }
 
 }  // namespace ash

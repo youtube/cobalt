@@ -7,12 +7,13 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
-#include "components/autofill/core/browser/autofill_client.h"
+#include "components/autofill/core/browser/foundations/autofill_client.h"
+#include "ui/views/widget/widget.h"
 #include "ui/views/window/dialog_delegate.h"
 
 namespace content {
 class WebContents;
-}
+}  // namespace content
 
 namespace autofill {
 class EditAddressProfileDialogController;
@@ -22,9 +23,10 @@ class AddressEditorView;
 // flow triggered upon submitting a form with an address profile that is not
 // already saved. This dialog is opened when the user decides to edit the
 // address before saving it.
-class EditAddressProfileView : public AutofillBubbleBase,
-                               public views::DialogDelegateView {
+class EditAddressProfileView : public views::DialogDelegateView {
  public:
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kTopViewId);
+
   explicit EditAddressProfileView(
       EditAddressProfileDialogController* controller);
 
@@ -32,25 +34,29 @@ class EditAddressProfileView : public AutofillBubbleBase,
   EditAddressProfileView& operator=(const EditAddressProfileView&) = delete;
   ~EditAddressProfileView() override;
 
+  // Fill in the dialog with the information from the given web_content.
   void ShowForWebContents(content::WebContents* web_contents);
 
-  // AutofillBubbleBase:
-  void Hide() override;
-
   // views::DialogDelegateView
-  void WindowClosing() override;
+  View* GetInitiallyFocusedView() override;
   void ChildPreferredSizeChanged(views::View* child) override;
+
+  // Called by implementation of the class after the Widget has been
+  // synchronously closed.
+  void WidgetClosed();
 
   AddressEditorView* GetAddressEditorViewForTesting();
 
  private:
-  void OnUserDecision(
-      AutofillClient::SaveAddressProfileOfferUserDecision decision);
+  void OnUserDecision(AutofillClient::AddressPromptUserDecision decision);
   void UpdateActionButtonState(bool is_valid);
+  bool OnAcceptButtonClicked();
 
   raw_ptr<EditAddressProfileDialogController> controller_;
   raw_ptr<AddressEditorView> address_editor_view_ = nullptr;
   base::CallbackListSubscription on_is_valid_change_subscription_;
+  AutofillClient::AddressPromptUserDecision decision_ =
+      AutofillClient::AddressPromptUserDecision::kIgnored;
 };
 
 }  // namespace autofill

@@ -7,7 +7,7 @@
 
 #include <vector>
 
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "ui/views/layout/layout_types.h"
 #include "ui/views/views_export.h"
 
@@ -53,6 +53,16 @@ class VIEWS_EXPORT LayoutManager {
   // child of |host| its preferred size. Generally this is calculated using the
   // View::CalculatePreferredSize() on each of the children of |host|.
   virtual gfx::Size GetPreferredSize(const View* host) const = 0;
+
+  // Returns the preferred size under `available_size`.
+  //
+  // In complex view models, using this method may be time-consuming. Calling
+  // this method may invalidate the subview's layout manager cache (it will not
+  // invalidate the current view's cache) if the subview does not use this
+  // method.
+  virtual gfx::Size GetPreferredSize(
+      const View* host,
+      const SizeBounds& available_size) const = 0;
 
   // Returns the minimum size, which defaults to the preferred size. Layout
   // managers with the ability to collapse or hide child views may override this
@@ -102,13 +112,12 @@ class VIEWS_EXPORT LayoutManager {
   // Gets the child views of the specified view in paint order (reverse
   // Z-order). Defaults to returning host->children(). Called by
   // View::GetChildrenInZOrder().
-  virtual std::vector<View*> GetChildViewsInPaintOrder(const View* host) const;
+  virtual std::vector<raw_ptr<View, VectorExperimental>>
+  GetChildViewsInPaintOrder(const View* host) const;
 
  private:
   friend class views::View;
-  // This field is not a raw_ptr<> because of a reference to raw_ptr in
-  // not-rewritten platform specific code and #addr-of.
-  RAW_PTR_EXCLUSION View* view_setting_visibility_on_ = nullptr;
+  raw_ptr<View> view_setting_visibility_on_ = nullptr;
 };
 
 }  // namespace views

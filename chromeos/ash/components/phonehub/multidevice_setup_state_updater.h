@@ -12,8 +12,7 @@
 class PrefRegistrySimple;
 class PrefService;
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 // This class waits until a multi-device host phone is verified before enabling
 // the Phone Hub feature. This intent to enable the feature is persisted across
@@ -51,16 +50,13 @@ class MultideviceSetupStateUpdater
   void EnablePhoneHubIfAwaitingVerifiedHost();
   void UpdateIsAwaitingVerifiedHost();
 
-  raw_ptr<PrefService, ExperimentalAsh> pref_service_;
-  raw_ptr<multidevice_setup::MultiDeviceSetupClient, ExperimentalAsh>
-      multidevice_setup_client_;
-  raw_ptr<MultideviceFeatureAccessManager, ExperimentalAsh>
-      multidevice_feature_access_manager_;
+  raw_ptr<PrefService> pref_service_;
+  raw_ptr<multidevice_setup::MultiDeviceSetupClient> multidevice_setup_client_;
+  raw_ptr<MultideviceFeatureAccessManager> multidevice_feature_access_manager_;
   MultideviceFeatureAccessManager::AccessStatus notification_access_status_;
   MultideviceFeatureAccessManager::AccessStatus camera_roll_access_status_;
 };
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub
 
 #endif  // CHROMEOS_ASH_COMPONENTS_PHONEHUB_MULTIDEVICE_SETUP_STATE_UPDATER_H_

@@ -5,14 +5,11 @@
 #import "ios/web/js_messaging/web_view_web_state_map.h"
 
 #import <WebKit/WebKit.h>
+
 #import <memory>
 
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace web {
 

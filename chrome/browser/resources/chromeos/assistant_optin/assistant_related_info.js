@@ -10,7 +10,7 @@
  * Event 'loaded' will be fired when the page has been successfully loaded.
  */
 
-import '//resources/cr_elements/cr_lottie/cr_lottie.js';
+import '//resources/ash/common/cr_elements/cr_lottie/cr_lottie.js';
 import '//resources/polymer/v3_0/iron-icon/iron-icon.js';
 import '../components/buttons/oobe_next_button.js';
 import '../components/buttons/oobe_text_button.js';
@@ -20,14 +20,14 @@ import './assistant_common_styles.css.js';
 import './assistant_icons.html.js';
 import './setting_zippy.js';
 
-import {afterNextRender, html, mixinBehaviors, Polymer, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {afterNextRender, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {OobeDialogHostBehavior} from '../components/behaviors/oobe_dialog_host_behavior.js';
-import {OobeI18nBehavior, OobeI18nBehaviorInterface} from '../components/behaviors/oobe_i18n_behavior.js';
+import {OobeDialogHostMixin} from '../components/mixins/oobe_dialog_host_mixin.js';
+import {OobeI18nMixin} from '../components/mixins/oobe_i18n_mixin.js';
 
+import {getTemplate} from './assistant_related_info.html.js';
 import {BrowserProxyImpl} from './browser_proxy.js';
 import {AssistantNativeIconType, webviewStripLinksContentScript} from './utils.js';
-
 
 /**
  * Name of the screen.
@@ -40,7 +40,7 @@ const RELATED_INFO_SCREEN_ID = 'RelatedInfoScreen';
  * @extends {PolymerElement}
  */
 const AssistantRelatedInfoBase =
-    mixinBehaviors([OobeI18nBehavior, OobeDialogHostBehavior], PolymerElement);
+    OobeDialogHostMixin(OobeI18nMixin(PolymerElement));
 
 /**
  * @polymer
@@ -51,7 +51,7 @@ class AssistantRelatedInfo extends AssistantRelatedInfoBase {
   }
 
   static get template() {
-    return html`{__html_template__}`;
+    return getTemplate();
   }
 
   static get properties() {
@@ -218,7 +218,7 @@ class AssistantRelatedInfo extends AssistantRelatedInfoBase {
    * Handles event when animation webview cannot be loaded.
    */
   onWebViewErrorOccurred(details) {
-    if (details && details.error == 'net::ERR_ABORTED') {
+    if (details && details.error === 'net::ERR_ABORTED') {
       // Retry triggers net::ERR_ABORTED, so ignore it.
       // TODO(b/232592745): Replace with a state machine to handle aborts
       // gracefully and avoid duplicate reloads.
@@ -254,8 +254,10 @@ class AssistantRelatedInfo extends AssistantRelatedInfoBase {
     // The webview animation only starts playing when it is focused (in order
     // to make sure the animation and the caption are in sync).
     this.webview_.focus();
-    this.async(() => {
-      this.$['next-button'].focus();
+    setTimeout(() => {
+      if (!this.equalWeightButtons_) {
+        this.$['next-button'].focus();
+      }
     }, 300);
   }
 
@@ -267,14 +269,14 @@ class AssistantRelatedInfo extends AssistantRelatedInfoBase {
       return;
     }
     this.headerReceived_ = true;
-    if (details.statusCode == '404') {
-      if (details.url != this.getDefaultAnimationUrl_()) {
+    if (details.statusCode === 404) {
+      if (details.url !== this.getDefaultAnimationUrl_()) {
         this.reloadWithDefaultUrl_ = true;
         return;
       } else {
         this.onWebViewErrorOccurred();
       }
-    } else if (details.statusCode != '200') {
+    } else if (details.statusCode !== 200) {
       this.onWebViewErrorOccurred();
     }
   }
@@ -285,22 +287,7 @@ class AssistantRelatedInfo extends AssistantRelatedInfoBase {
   reloadContent(data) {
     this.skipActivityControl_ = !data['activityControlNeeded'];
     this.childName_ = data['childName'];
-    if (!data['useNativeIcons']) {
-      const url = this.isDarkModeActive_ ? 'info_outline_gm_grey500_24dp.png' :
-                                           'info_outline_gm_grey600_24dp.png';
-      this.$.zippy.setAttribute(
-          'icon-src',
-          'data:text/html;charset=utf-8,' +
-              encodeURIComponent(this.$.zippy.getWrappedIcon(
-                  'https://www.gstatic.com/images/icons/material/system/2x/' +
-                      url,
-                  this.i18n('assistantScreenContextTitle'),
-                  getComputedStyle(document.body)
-                      .getPropertyValue('--cros-bg-color'))));
-      this.$.zippy.nativeIconType = AssistantNativeIconType.NONE;
-    } else {
-      this.$.zippy.nativeIconType = AssistantNativeIconType.INFO;
-    }
+    this.$.zippy.nativeIconType = AssistantNativeIconType.INFO;
     this.equalWeightButtons_ = data['equalWeightButtons'];
 
     this.consentStringLoaded_ = true;
@@ -316,7 +303,9 @@ class AssistantRelatedInfo extends AssistantRelatedInfoBase {
     this.dispatchEvent(
         new CustomEvent('loaded', {bubbles: true, composed: true}));
     this.loading = false;
-    this.$['next-button'].focus();
+    if (!this.equalWeightButtons_) {
+      this.$['next-button'].focus();
+    }
     if (!this.hidden && !this.screenShown_) {
       this.browserProxy_.screenShown(RELATED_INFO_SCREEN_ID);
       this.screenShown_ = true;
@@ -333,7 +322,11 @@ class AssistantRelatedInfo extends AssistantRelatedInfoBase {
       this.reloadPage();
       this.initialized_ = true;
     } else {
-      afterNextRender(this, () => this.$['next-button'].focus());
+      afterNextRender(this, () => {
+        if (!this.equalWeightButtons_) {
+          this.$['next-button'].focus();
+        }
+      });
       this.browserProxy_.screenShown(RELATED_INFO_SCREEN_ID);
       this.screenShown_ = true;
     }
@@ -375,11 +368,6 @@ class AssistantRelatedInfo extends AssistantRelatedInfoBase {
           this.i18n('assistantRelatedInfoTitleForChild', childName) :
           this.i18n('assistantRelatedInfoTitle');
     }
-  }
-
-  getAnimationUrl_(isDarkMode) {
-    return './assistant_optin/assistant_related_info_' +
-        (isDarkMode ? 'dm' : 'lm') + '.json';
   }
 }
 

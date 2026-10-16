@@ -6,12 +6,13 @@ package org.chromium.chrome.browser.password_manager;
 
 import android.graphics.drawable.Drawable;
 
-import org.chromium.base.annotations.CalledByNative;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
 
 /**
  * Credential type which is used to represent credential which will be shown in account chooser
  * infobar.
- * */
+ */
 public class Credential {
     private final String mUsername;
     private final String mDisplayName;
@@ -29,8 +30,8 @@ public class Credential {
      * @param federation Identity provider name for this credential (empty for local credentials).
      * @param index position in array of credentials.
      */
-    public Credential(String username, String displayName, String originUrl, String federation,
-            int index) {
+    public Credential(
+            String username, String displayName, String originUrl, String federation, int index) {
         mUsername = username;
         mDisplayName = displayName;
         mOriginUrl = originUrl;
@@ -69,7 +70,11 @@ public class Credential {
 
     @CalledByNative
     private static Credential createCredential(
-            String username, String displayName, String originUrl, String federation, int index) {
+            @JniType("std::u16string") String username,
+            @JniType("std::u16string") String displayName,
+            @JniType("std::string") String originUrl,
+            @JniType("std::string") String federation,
+            int index) {
         return new Credential(username, displayName, originUrl, federation, index);
     }
 

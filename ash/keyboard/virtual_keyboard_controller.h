@@ -21,7 +21,7 @@
 namespace ash {
 
 // This class observes input device changes for the virtual keyboard.
-// TODO(https://crbug.com/849995): Should rename this to not confuse it with
+// TODO(crbug.com/41392988): Should rename this to not confuse it with
 // KeyboardController. |ForceShowKeyboardWithKeyset| also does not really
 // belong here based on the current class description.
 class ASH_EXPORT VirtualKeyboardController
@@ -42,6 +42,9 @@ class ASH_EXPORT VirtualKeyboardController
   // handwriting or voice. Works even in laptop mode.
   void ForceShowKeyboardWithKeyset(input_method::ImeKeyset keyset);
 
+  // Force enable the keyboard and show it, even in laptop mode.
+  void ForceShowKeyboard();
+
   // TabletModeObserver:
   void OnTabletModeEventsBlockingChanged() override;
 
@@ -53,13 +56,12 @@ class ASH_EXPORT VirtualKeyboardController
   void ToggleIgnoreExternalKeyboard();
 
   // KeyboardControllerObserver:
-  void OnKeyboardEnabledChanged(bool is_enabled) override;
   void OnKeyboardHidden(bool is_temporary_hide) override;
 
   // SessionObserver:
   void OnActiveUserSessionChanged(const AccountId& account_id) override;
 
-  const absl::optional<std::string>& GetInternalKeyboardName() const;
+  const std::optional<std::string>& GetInternalKeyboardName() const;
 
   const std::vector<ui::InputDevice>& GetExternalKeyboards() const;
 
@@ -78,15 +80,12 @@ class ASH_EXPORT VirtualKeyboardController
   // Updates the keyboard state.
   void UpdateKeyboardEnabled();
 
-  // Force enable the keyboard and show it, even in laptop mode.
-  void ForceShowKeyboard();
-
   // Callback function of |bluetooth_devices_observer_|. Called when the
   // bluetooth adapter or |device| changes.
   void OnBluetoothAdapterOrDeviceChanged(device::BluetoothDevice* device);
 
   // True if an internal keyboard is connected.
-  absl::optional<std::string> internal_keyboard_name_;
+  std::optional<std::string> internal_keyboard_name_;
   // Contains any potential external keyboards (May contain imposter keyboards).
   std::vector<ui::InputDevice> external_keyboards_;
   // Contains all touch screens devices (both internal and external).

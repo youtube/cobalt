@@ -43,7 +43,8 @@ class AuditorTest(unittest.TestCase):
     self.auditor_ui = AuditorUI(build_path,
                                 path_filters,
                                 no_filtering=False,
-                                test_only=True)
+                                test_only=True,
+                                skip_stale_build_check=True)
     self.auditor = self.auditor_ui.auditor
     self.auditor.file_filter.git_file_for_testing = (TEST_DATA_DIR /
                                                      "git_list.txt")
@@ -720,7 +721,7 @@ class AuditorTest(unittest.TestCase):
     """|self.sample_annotations| should include all those inside
     test_data/test_sample_annotations.cc"""
     expected = [
-        "ok_annotation", "syntax_error_annotation",
+        "ok_annotation", "ok_annotation_only_owner", "syntax_error_annotation",
         "incomplete_error_annotation", "invalid_assignment_annotation",
         "partially_populated_safe_listed", "missing_all_new_field_safe_listed",
         "ok_new_fields_safe_listed", "missing_new_fields_not_safe_listed",
@@ -810,7 +811,8 @@ class AuditorTest(unittest.TestCase):
     errors = self.auditor.run_all_checks([], True, Exporter.GROUPING_XML_PATH)
     self.assertTrue(errors)
     self.assertEqual(ErrorType.MISSING_NEW_FIELDS, errors[0].type)
-    self.assertTrue(errors[0].message.find('internal::contacts::email') >= 0)
+    self.assertTrue(errors[0].message.find(
+        'internal::contacts::email or internal::contacts::owners') >= 0)
 
   def test_user_data_unspecified(self) -> None:
     """Annotation user_data::type contains UNSPECIFIED value. Annotation Check
@@ -832,14 +834,8 @@ class AuditorTest(unittest.TestCase):
     auditor.parse_extractor_output(
         [self.sample_annotations["missing_all_new_field_safe_listed"]])
     self.assertTrue(auditor.extracted_annotations)
-    errors = auditor.run_all_checks([], True, Exporter.GROUPING_XML_PATH)
-    self.assertTrue(errors)
-    error_type = []
-    for error in errors:
-      self.assertTrue(error.type not in [
-          ErrorType.MISSING_NEW_FIELDS, ErrorType.INVALID_DATE_FORMAT,
-          ErrorType.INVALID_USER_DATA_TYPE, ErrorType.REMOVE_FROM_SAFE_LIST
-      ])
+    errors = auditor.run_all_checks([], False, Exporter.GROUPING_XML_PATH)
+    self.assertFalse(errors)
 
   def test_partially_populated_safe_listed_file(self) -> None:
     """Check annotation with last_reviewed but missing email fields,
@@ -892,10 +888,32 @@ class AuditorTest(unittest.TestCase):
     expected_contents = """Unique ID\tLast Update\tSender\tDescription\tTrigger\tData\tDestination\tCookies Allowed\tCookies Store\tSetting\tChrome Policy\tComments\tSource File
 supervised_user_refresh_token_fetcher\t\tSupervised Users\tFetches an OAuth2 refresh token scoped down to the Supervised User Sync scope and tied to the given Supervised User ID, identifying the Supervised User Profile to be created.\tCalled when creating a new Supervised User profile in Chromium to fetch OAuth credentials for using Sync with the new profile.\t"The request is authenticated with an OAuth2 access token identifying the Google account and contains the following information:
 * The Supervised User ID, a randomly generated 64-bit identifier for the profile.
-* The device name, to identify the refresh token in account management."\tGoogle\tNo\t\tUsers can disable this feature by toggling 'Let anyone add a person to Chrome' in Chromium settings, under People.\tSupervisedUserCreationEnabled: false, external_policy: ""\t\thttps://cs.chromium.org/chromium/src/?l=0
+* The device name, to identify the refresh token in account management."\tGoogle\tNo\t\tUsers can disable this feature by toggling 'Let anyone add a person to Chrome' in Chromium settings, under People.\tSupervisedUserCreationEnabled: false, external_policy: ""\t\thttps://cs.chromium.org/chromium/src/chrome/browser/supervised_user/legacy/supervised_user_refresh_token_fetcher.cc?l=166
 """
     self.assertEqual(expected_contents, tsv_contents)
 
+  def test_result_ok_only_owner(self) -> None:
+    """Annotation is complete with all new fields, and uses an owners file
+    instead of email for contact info. Check returns no errors related to
+    contact email or other new fields."""
+    self.auditor.parse_extractor_output(
+        [self.sample_annotations["ok_annotation_only_owner"]])
+    errors = self.auditor.run_all_checks([], False, Exporter.GROUPING_XML_PATH)
+
+    # Assert that correct annotation has been extracted and is OK (no errors).
+    self.assertTrue(self.auditor.extracted_annotations)
+    self.assertFalse(errors)
+
+  def test_run_all_checks_with_path_filter(self):
+    """Test run_all_checks with a path filter defined. This simulates how the
+    CQ auditor performs tests, since we only check updated files."""
+    path_filter = [
+        (TEST_DATA_DIR /
+         "test_sample_annotations.cc").relative_to(SRC_DIR).as_posix()
+    ]
+    errors = self.auditor.run_all_checks(path_filter, True,
+                                         Exporter.GROUPING_XML_PATH)
+    self.assertFalse(errors)
 
 if __name__ == "__main__":
   unittest.main()

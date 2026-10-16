@@ -5,8 +5,8 @@
 // https://gpuweb.github.io/gpuweb/
 
 [
-    Exposed=DedicatedWorker,
+    Exposed=Worker,
     ImplementedAs=GPU
 ] partial interface WorkerNavigator {
-    [SameObject, SecureContext, RuntimeEnabled=WebGPU] readonly attribute GPU gpu;
+    [SameObject, SecureContext] readonly attribute GPU gpu;
 };

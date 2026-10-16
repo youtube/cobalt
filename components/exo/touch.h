@@ -10,7 +10,6 @@
 #include "base/memory/raw_ptr.h"
 #include "components/exo/surface_observer.h"
 #include "ui/events/event_handler.h"
-#include "ui/gfx/geometry/point_f.h"
 
 namespace ui {
 class LocatedEvent;
@@ -59,15 +58,16 @@ class Touch : public ui::EventHandler,
   void CancelAllTouches();
 
   // The delegate instance that all events are dispatched to.
-  const raw_ptr<TouchDelegate, ExperimentalAsh> delegate_;
+  const raw_ptr<TouchDelegate, DanglingUntriaged> delegate_;
 
-  const raw_ptr<Seat, ExperimentalAsh> seat_;
+  const raw_ptr<Seat> seat_;
 
   // The delegate instance that all stylus related events are dispatched to.
-  raw_ptr<TouchStylusDelegate, ExperimentalAsh> stylus_delegate_ = nullptr;
+  raw_ptr<TouchStylusDelegate> stylus_delegate_ = nullptr;
 
   // Map of touch points to its focus surface.
-  base::flat_map<int, Surface*> touch_points_surface_map_;
+  base::flat_map<int, raw_ptr<Surface, CtnExperimental>>
+      touch_points_surface_map_;
 
   // Map of a touched surface to the count of touch pointers on that surface.
   base::flat_map<Surface*, int> surface_touch_count_map_;

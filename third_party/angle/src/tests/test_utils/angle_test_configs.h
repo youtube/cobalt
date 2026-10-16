@@ -26,16 +26,10 @@ namespace angle
 struct PlatformParameters
 {
     PlatformParameters();
-    PlatformParameters(EGLenum clientType,
-                       EGLint majorVersion,
+    PlatformParameters(EGLint majorVersion,
                        EGLint minorVersion,
-                       EGLint profileMask,
                        const EGLPlatformParameters &eglPlatformParameters);
-    PlatformParameters(EGLenum clientType,
-                       EGLint majorVersion,
-                       EGLint minorVersion,
-                       EGLint profileMask,
-                       GLESDriverType driver);
+    PlatformParameters(EGLint majorVersion, EGLint minorVersion, GLESDriverType driver);
 
     EGLint getRenderer() const;
     EGLint getDeviceType() const;
@@ -43,14 +37,13 @@ struct PlatformParameters
     bool isVulkan() const;
     bool isANGLE() const;
     bool isMetal() const;
-    bool isDesktopOpenGLFrontend() const;
+    bool isWebGPU() const;
 
     void initDefaultParameters();
 
     auto tie() const
     {
-        return std::tie(driver, noFixture, eglParameters, clientType, majorVersion, minorVersion,
-                        profileMask);
+        return std::tie(driver, noFixture, eglParameters, majorVersion, minorVersion);
     }
 
     // Helpers to enable and disable ANGLE features.  Expects a Feature::* value from
@@ -71,10 +64,8 @@ struct PlatformParameters
     GLESDriverType driver;
     bool noFixture;
     EGLPlatformParameters eglParameters;
-    EGLenum clientType;
     EGLint majorVersion;
     EGLint minorVersion;
-    EGLint profileMask;
 };
 
 const char *GetRendererName(EGLint renderer);
@@ -132,6 +123,8 @@ EGLPlatformParameters OPENGL_OR_GLES_NULL();
 EGLPlatformParameters VULKAN();
 EGLPlatformParameters VULKAN_NULL();
 EGLPlatformParameters VULKAN_SWIFTSHADER();
+
+EGLPlatformParameters WEBGPU();
 
 }  // namespace egl_platform
 
@@ -205,8 +198,6 @@ PlatformParameters ES31_VULKAN_SWIFTSHADER();
 PlatformParameters ES32_VULKAN();
 PlatformParameters ES32_VULKAN_NULL();
 PlatformParameters ES32_VULKAN_SWIFTSHADER();
-PlatformParameters GL32_CORE_VULKAN();
-PlatformParameters GL32_CORE_VULKAN_SWIFTSHADER();
 
 PlatformParameters ES1_METAL();
 PlatformParameters ES2_METAL();
@@ -218,12 +209,17 @@ PlatformParameters ES3_WGL();
 PlatformParameters ES1_EGL();
 PlatformParameters ES2_EGL();
 PlatformParameters ES3_EGL();
+PlatformParameters ES31_EGL();
+PlatformParameters ES32_EGL();
 
 PlatformParameters ES1_ANGLE_Vulkan_Secondaries();
 PlatformParameters ES2_ANGLE_Vulkan_Secondaries();
 PlatformParameters ES3_ANGLE_Vulkan_Secondaries();
 PlatformParameters ES31_ANGLE_Vulkan_Secondaries();
 PlatformParameters ES32_ANGLE_Vulkan_Secondaries();
+
+PlatformParameters ES2_WEBGPU();
+PlatformParameters ES3_WEBGPU();
 
 PlatformParameters ES1_Zink();
 PlatformParameters ES2_Zink();

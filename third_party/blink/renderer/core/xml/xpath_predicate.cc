@@ -90,7 +90,6 @@ Value NumericOp::Evaluate(EvaluationContext& context) const {
       return fmod(left_val, right_val);
   }
   NOTREACHED();
-  return 0.0;
 }
 
 EqTestOp::EqTestOp(Opcode opcode, Expression* lhs, Expression* rhs)
@@ -200,7 +199,6 @@ bool EqTestOp::Compare(EvaluationContext& context,
       return lhs.ToNumber() <= rhs.ToNumber();
   }
   NOTREACHED();
-  return false;
 }
 
 Value EqTestOp::Evaluate(EvaluationContext& context) const {

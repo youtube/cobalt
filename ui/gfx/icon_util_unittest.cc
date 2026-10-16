@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/354829279): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/gfx/icon_util.h"
 
 #include <stddef.h>
@@ -19,6 +24,7 @@
 #include "ui/gfx/icon_util_unittests_resource.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_family.h"
+#include "ui/gfx/image/image_unittest_util.h"
 
 namespace {
 
@@ -30,10 +36,9 @@ static const char kTempIconFilename[] = "temp_test_icon.ico";
 
 class IconUtilTest : public testing::Test {
  public:
-  using ScopedHICON = base::win::ScopedHICON;
-
   void SetUp() override {
-    ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &test_data_dir_));
+    ASSERT_TRUE(
+        base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_data_dir_));
     test_data_dir_ = test_data_dir_.Append(FILE_PATH_LITERAL("ui"))
                          .Append(FILE_PATH_LITERAL("gfx"))
                          .Append(FILE_PATH_LITERAL("test"))
@@ -51,16 +56,15 @@ class IconUtilTest : public testing::Test {
 
   // Given a file name for an .ico file and an image dimensions, this
   // function loads the icon and returns an HICON handle.
-  ScopedHICON LoadIconFromFile(const base::FilePath& filename,
-                               int width,
-                               int height) {
+  base::win::ScopedGDIObject<HICON>
+  LoadIconFromFile(const base::FilePath& filename, int width, int height) {
     HICON icon = static_cast<HICON>(LoadImage(NULL,
                                     filename.value().c_str(),
                                     IMAGE_ICON,
                                     width,
                                     height,
                                     LR_LOADTRANSPARENT | LR_LOADFROMFILE));
-    return ScopedHICON(icon);
+    return base::win::ScopedGDIObject<HICON>(icon);
   }
 
   SkBitmap CreateBlackSkBitmap(int width, int height) {
@@ -137,10 +141,9 @@ void IconUtilTest::CheckAllIconSizes(const base::FilePath& icon_filename,
     // Convert the PNG entry data back to a SkBitmap to ensure it's valid.
     ASSERT_GE(icon_data.length(),
               png_entry->dwImageOffset + png_entry->dwBytesInRes);
-    const unsigned char* png_bytes = reinterpret_cast<const unsigned char*>(
-        icon_data.data() + png_entry->dwImageOffset);
-    gfx::Image image = gfx::Image::CreateFrom1xPNGBytes(
-        png_bytes, png_entry->dwBytesInRes);
+    gfx::Image image =
+        gfx::Image::CreateFrom1xPNGBytes(base::as_byte_span(icon_data).subspan(
+            png_entry->dwImageOffset, png_entry->dwBytesInRes));
     SkBitmap bitmap = image.AsBitmap();
     EXPECT_EQ(256, bitmap.width());
     EXPECT_EQ(256, bitmap.height());
@@ -152,7 +155,7 @@ void IconUtilTest::CheckAllIconSizes(const base::FilePath& icon_filename,
 TEST_F(IconUtilTest, TestIconToBitmapInvalidParameters) {
   base::FilePath icon_filename = test_data_dir_.AppendASCII(kSmallIconName);
   gfx::Size icon_size(kSmallIconWidth, kSmallIconHeight);
-  ScopedHICON icon(
+  base::win::ScopedGDIObject<HICON> icon(
       LoadIconFromFile(icon_filename, icon_size.width(), icon_size.height()));
   ASSERT_TRUE(icon.is_valid());
 
@@ -172,7 +175,7 @@ TEST_F(IconUtilTest, TestIconToBitmapInvalidParameters) {
 // The following test case makes sure IconUtil::CreateHICONFromSkBitmap fails
 // gracefully when called with invalid input parameters.
 TEST_F(IconUtilTest, TestBitmapToIconInvalidParameters) {
-  ScopedHICON icon;
+  base::win::ScopedGDIObject<HICON> icon;
   std::unique_ptr<SkBitmap> bitmap;
 
   // Wrong bitmap format.
@@ -208,10 +211,8 @@ TEST_F(IconUtilTest, TestCreateIconFileInvalidParameters) {
       temp_directory_.GetPath().AppendASCII("<>?.ico");
 
   // Invalid file name.
-  SkBitmap bitmap;
   image_family.clear();
-  bitmap.allocN32Pixels(1, 1);
-  image_family.Add(gfx::Image::CreateFrom1xBitmap(bitmap));
+  image_family.Add(gfx::test::CreateImage(/*size=*/1));
   EXPECT_FALSE(IconUtil::CreateIconFileFromImageFamily(image_family,
                                                        invalid_icon_filename));
   EXPECT_FALSE(base::PathExists(invalid_icon_filename));
@@ -242,7 +243,7 @@ TEST_F(IconUtilTest, TestCreateSkBitmapFromHICON) {
   base::FilePath small_icon_filename =
       test_data_dir_.AppendASCII(kSmallIconName);
   gfx::Size small_icon_size(kSmallIconWidth, kSmallIconHeight);
-  ScopedHICON small_icon(LoadIconFromFile(
+  base::win::ScopedGDIObject<HICON> small_icon(LoadIconFromFile(
       small_icon_filename, small_icon_size.width(), small_icon_size.height()));
   ASSERT_TRUE(small_icon.is_valid());
   SkBitmap bitmap =
@@ -255,7 +256,7 @@ TEST_F(IconUtilTest, TestCreateSkBitmapFromHICON) {
   base::FilePath large_icon_filename =
       test_data_dir_.AppendASCII(kLargeIconName);
   gfx::Size large_icon_size(kLargeIconWidth, kLargeIconHeight);
-  ScopedHICON large_icon(LoadIconFromFile(
+  base::win::ScopedGDIObject<HICON> large_icon(LoadIconFromFile(
       large_icon_filename, large_icon_size.width(), large_icon_size.height()));
   ASSERT_TRUE(large_icon.is_valid());
   bitmap = IconUtil::CreateSkBitmapFromHICON(large_icon.get(), large_icon_size);
@@ -270,7 +271,8 @@ TEST_F(IconUtilTest, TestCreateSkBitmapFromHICON) {
 // dimensions color depth etc.
 TEST_F(IconUtilTest, TestBasicCreateHICONFromSkBitmap) {
   SkBitmap bitmap = CreateBlackSkBitmap(kSmallIconWidth, kSmallIconHeight);
-  ScopedHICON icon(IconUtil::CreateHICONFromSkBitmap(bitmap));
+  base::win::ScopedGDIObject<HICON> icon(
+      IconUtil::CreateHICONFromSkBitmap(bitmap));
   EXPECT_TRUE(icon.is_valid());
   ICONINFO icon_info;
   ASSERT_TRUE(GetIconInfo(icon.get(), &icon_info));
@@ -423,7 +425,8 @@ TEST_F(IconUtilTest, TestTransparentIcon) {
       IconUtil::CreateIconFileFromImageFamily(image_family, icon_filename));
 
   // Load icon and check that dot has same color.
-  ScopedHICON icon(LoadIconFromFile(icon_filename, size, size));
+  base::win::ScopedGDIObject<HICON> icon(
+      LoadIconFromFile(icon_filename, size, size));
   ASSERT_TRUE(icon.is_valid());
   SkBitmap bitmap_loaded =
       IconUtil::CreateSkBitmapFromHICON(icon.get(), gfx::Size(size, size));

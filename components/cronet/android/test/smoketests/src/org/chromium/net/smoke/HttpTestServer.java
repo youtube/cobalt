@@ -4,11 +4,11 @@
 
 package org.chromium.net.smoke;
 
-import android.os.ConditionVariable;
-import android.util.Log;
-
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+
+import android.os.ConditionVariable;
+import android.util.Log;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.Unpooled;
@@ -30,30 +30,30 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.CharsetUtil;
 
-/**
- * A simple HTTP server for testing.
- */
+/** A simple HTTP server for testing. */
 public class HttpTestServer implements TestSupport.TestServer {
     private static final String TAG = HttpTestServer.class.getSimpleName();
     private static final String HOST = "127.0.0.1";
     private static final int PORT = 8080;
 
     private Channel mServerChannel;
-    private ConditionVariable mStartBlock = new ConditionVariable();
-    private ConditionVariable mShutdownBlock = new ConditionVariable();
+    private final ConditionVariable mStartBlock = new ConditionVariable();
+    private final ConditionVariable mShutdownBlock = new ConditionVariable();
 
     @Override
     public boolean start() {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    HttpTestServer.this.run();
-                } catch (Exception e) {
-                    Log.e(TAG, "Unable to start HttpTestServer", e);
-                }
-            }
-        }).start();
+        new Thread(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    HttpTestServer.this.run();
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Unable to start HttpTestServer", e);
+                                }
+                            }
+                        })
+                .start();
         // Return false if the server cannot start within 5 seconds.
         return mStartBlock.block(5000);
     }
@@ -87,15 +87,16 @@ public class HttpTestServer implements TestSupport.TestServer {
             b.group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
                     .handler(new LoggingHandler(LogLevel.INFO))
-                    .childHandler(new ChannelInitializer<SocketChannel>() {
-                        @Override
-                        public void initChannel(SocketChannel ch) throws Exception {
-                            ChannelPipeline p = ch.pipeline();
-                            p.addLast(new HttpRequestDecoder());
-                            p.addLast(new HttpResponseEncoder());
-                            p.addLast(new TestServerHandler());
-                        }
-                    });
+                    .childHandler(
+                            new ChannelInitializer<SocketChannel>() {
+                                @Override
+                                public void initChannel(SocketChannel ch) throws Exception {
+                                    ChannelPipeline p = ch.pipeline();
+                                    p.addLast(new HttpRequestDecoder());
+                                    p.addLast(new HttpResponseEncoder());
+                                    p.addLast(new TestServerHandler());
+                                }
+                            });
 
             // Start listening fo incoming connections.
             mServerChannel = b.bind(PORT).sync().channel();
@@ -113,8 +114,9 @@ public class HttpTestServer implements TestSupport.TestServer {
     private static class TestServerHandler extends SimpleChannelInboundHandler {
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
-            FullHttpResponse response = new DefaultFullHttpResponse(
-                    HTTP_1_1, OK, Unpooled.copiedBuffer("Hello!", CharsetUtil.UTF_8));
+            FullHttpResponse response =
+                    new DefaultFullHttpResponse(
+                            HTTP_1_1, OK, Unpooled.copiedBuffer("Hello!", CharsetUtil.UTF_8));
             ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
         }
     }

@@ -4,12 +4,12 @@
 
 #include "third_party/blink/renderer/modules/payments/goods/digital_goods_type_converters.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/notreached.h"
 #include "components/digital_goods/mojom/digital_goods.mojom-blink.h"
 #include "components/payments/mojom/payment_request_data.mojom-blink-forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/digital_goods/digital_goods.mojom-blink.h"
 #include "third_party/blink/renderer/modules/payments/payment_event_data_conversion.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
@@ -78,7 +78,9 @@ blink::ItemDetails* TypeConverter<blink::ItemDetails*, ItemDetailsPtr>::Convert(
   WTF::Vector<WTF::String> icon_urls;
   if (input->icon_urls.has_value()) {
     for (const blink::KURL& icon_url : input->icon_urls.value()) {
-      icon_urls.push_back(icon_url.GetString());
+      if (icon_url.IsValid() && !icon_url.IsEmpty()) {
+        icon_urls.push_back(icon_url.GetString());
+      }
     }
   }
   output->setIconURLs(std::move(icon_urls));

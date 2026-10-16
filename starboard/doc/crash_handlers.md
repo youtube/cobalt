@@ -6,8 +6,8 @@ cache directory. This is done by:
 1. Adding the following files to the `starboard_platform` target's sources:
 
 ```
-'<(DEPTH)/starboard/shared/starboard/crash_handler.cc',
-'<(DEPTH)/starboard/shared/starboard/crash_handler.h',
+"//starboard/shared/starboard/crash_handler.cc",
+"//starboard/shared/starboard/crash_handler.h",
 ```
 
 2. Handling `kCobaltExtensionCrashHandlerName` in the implementation of
@@ -51,3 +51,8 @@ int main(int argc, char** argv) {
   ...
 }
 ```
+
+NOTE: platforms using Evergreen should not call
+`crashpad::InstallCrashpadHandler()` from their own application code. Starting
+with Cobalt 26, this function is now called from shared Evergreen code linked
+into the `loader_app`.

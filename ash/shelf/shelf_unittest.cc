@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "ash/shelf/shelf.h"
+
 #include <memory>
 #include <utility>
 
@@ -10,15 +12,15 @@
 #include "ash/root_window_controller.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/session/test_session_controller_client.h"
-#include "ash/shelf/shelf.h"
 #include "ash/shelf/shelf_app_button.h"
 #include "ash/shelf/shelf_controller.h"
 #include "ash/shelf/shelf_layout_manager.h"
-#include "ash/shelf/shelf_party_feature_pod_controller.h"
+#include "ash/shelf/shelf_navigation_widget.h"
 #include "ash/shelf/shelf_view.h"
 #include "ash/shelf/shelf_view_test_api.h"
 #include "ash/shelf/shelf_widget.h"
 #include "ash/shell.h"
+#include "ash/strings/grit/ash_strings.h"
 #include "ash/system/unified/feature_pod_button.h"
 #include "ash/test/ash_test_base.h"
 #include "base/functional/bind.h"
@@ -26,8 +28,16 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/scoped_feature_list.h"
 #include "components/session_manager/session_manager_types.h"
 #include "ui/aura/client/aura_constants.h"
+#include "ui/base/l10n/l10n_util.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
+#include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/animation/ink_drop.h"
+#include "ui/views/animation/ink_drop_host.h"
 #include "ui/wm/core/window_util.h"
 
 namespace ash {
@@ -64,8 +74,8 @@ class ShelfTest : public AshTestBase {
   }
 
  private:
-  raw_ptr<ShelfView, ExperimentalAsh> shelf_view_ = nullptr;
-  raw_ptr<ShelfModel, ExperimentalAsh> shelf_model_ = nullptr;
+  raw_ptr<ShelfView, DanglingUntriaged> shelf_view_ = nullptr;
+  raw_ptr<ShelfModel, DanglingUntriaged> shelf_model_ = nullptr;
   std::unique_ptr<ShelfViewTestAPI> test_;
 };
 
@@ -90,6 +100,26 @@ TEST_F(ShelfTest, StatusReflection) {
   ASSERT_EQ(--button_count, test_api()->GetButtonCount());
 }
 
+TEST_F(ShelfTest, AppIconInkDropBaseColor) {
+  // Initially we have the app list.
+  size_t button_count = test_api()->GetButtonCount();
+
+  // Add a running app.
+  ShelfItem item;
+  item.id = ShelfID("foo");
+  item.type = TYPE_APP;
+  item.status = STATUS_RUNNING;
+  int index = shelf_model()->Add(
+      item, std::make_unique<TestShelfItemDelegate>(item.id));
+
+  ASSERT_EQ(++button_count, test_api()->GetButtonCount());
+  ShelfAppButton* button = test_api()->GetButton(index);
+  EXPECT_EQ(button->GetColorProvider()->GetColor(
+                cros_tokens::kCrosSysRippleNeutralOnSubtle),
+            views::InkDrop::Get(button)->GetBaseColor());
+  EXPECT_EQ(1.0f, views::InkDrop::Get(button)->GetVisibleOpacity());
+}
+
 // Confirm that using the menu will clear the hover attribute. To avoid another
 // browser test we check this here.
 TEST_F(ShelfTest, CheckHoverAfterMenu) {
@@ -107,7 +137,7 @@ TEST_F(ShelfTest, CheckHoverAfterMenu) {
   ASSERT_EQ(++button_count, test_api()->GetButtonCount());
   ShelfAppButton* button = test_api()->GetButton(index);
   button->AddState(ShelfAppButton::STATE_HOVERED);
-  button->ShowContextMenu(gfx::Point(), ui::MENU_SOURCE_MOUSE);
+  button->ShowContextMenu(gfx::Point(), ui::mojom::MenuSourceType::kMouse);
   EXPECT_FALSE(button->state() & ShelfAppButton::STATE_HOVERED);
 
   // Remove it.
@@ -118,7 +148,8 @@ TEST_F(ShelfTest, CheckHoverAfterMenu) {
 TEST_F(ShelfTest, ToggleAutoHide) {
   std::unique_ptr<aura::Window> window =
       std::make_unique<aura::Window>(nullptr);
-  window->SetProperty(aura::client::kShowStateKey, ui::SHOW_STATE_NORMAL);
+  window->SetProperty(aura::client::kShowStateKey,
+                      ui::mojom::WindowShowState::kNormal);
   window->SetType(aura::client::WINDOW_TYPE_NORMAL);
   window->Init(ui::LAYER_TEXTURED);
   ParentWindowInPrimaryRootWindow(window.get());
@@ -132,7 +163,8 @@ TEST_F(ShelfTest, ToggleAutoHide) {
   shelf->SetAutoHideBehavior(ShelfAutoHideBehavior::kNever);
   EXPECT_EQ(ShelfAutoHideBehavior::kNever, shelf->auto_hide_behavior());
 
-  window->SetProperty(aura::client::kShowStateKey, ui::SHOW_STATE_MAXIMIZED);
+  window->SetProperty(aura::client::kShowStateKey,
+                      ui::mojom::WindowShowState::kMaximized);
   EXPECT_EQ(ShelfAutoHideBehavior::kNever, shelf->auto_hide_behavior());
 
   shelf->SetAutoHideBehavior(ShelfAutoHideBehavior::kAlways);
@@ -146,7 +178,8 @@ TEST_F(ShelfTest, ToggleAutoHide) {
 TEST_F(ShelfTest, DisableAutoHide) {
   // Create and activate a `window`.
   auto window = std::make_unique<aura::Window>(nullptr);
-  window->SetProperty(aura::client::kShowStateKey, ui::SHOW_STATE_NORMAL);
+  window->SetProperty(aura::client::kShowStateKey,
+                      ui::mojom::WindowShowState::kNormal);
   window->SetType(aura::client::WINDOW_TYPE_NORMAL);
   window->Init(ui::LAYER_TEXTURED);
   ParentWindowInPrimaryRootWindow(window.get());
@@ -189,7 +222,8 @@ TEST_F(ShelfTest, DisableAutoHide) {
 TEST_F(ShelfTest, ShelfHiddenOnScreenOnSecondaryDisplay) {
   for (const auto& state : {session_manager::SessionState::LOCKED,
                             session_manager::SessionState::LOGIN_PRIMARY}) {
-    SCOPED_TRACE(base::StringPrintf("Testing state: %d", state));
+    SCOPED_TRACE(
+        base::StringPrintf("Testing state: %d", static_cast<int>(state)));
     GetSessionControllerClient()->SetSessionState(state);
     UpdateDisplay("800x600,800x600");
 
@@ -201,6 +235,19 @@ TEST_F(ShelfTest, ShelfHiddenOnScreenOnSecondaryDisplay) {
     EXPECT_EQ(SHELF_VISIBLE, GetPrimaryShelf()->GetVisibilityState());
     EXPECT_EQ(SHELF_HIDDEN, GetSecondaryShelf()->GetVisibilityState());
   }
+}
+
+TEST_F(ShelfTest, ShelfNavigationWidgetAccessibleProperties) {
+  ShelfNavigationWidget::TestApi widget_api(
+      GetPrimaryShelf()->navigation_widget());
+  ui::AXNodeData data;
+
+  widget_api.GetWidgetDelegateView()
+      ->GetViewAccessibility()
+      .GetAccessibleNodeData(&data);
+  EXPECT_EQ(ax::mojom::Role::kToolbar, data.role);
+  EXPECT_EQ(l10n_util::GetStringUTF8(IDS_ASH_SHELF_ACCESSIBLE_NAME),
+            data.GetStringAttribute(ax::mojom::StringAttribute::kName));
 }
 
 using NoSessionShelfTest = NoSessionAshTestBase;
@@ -227,82 +274,6 @@ TEST_F(NoSessionShelfTest, SetAlignmentDuringDisplayDisconnect) {
   base::RunLoop().RunUntilIdle();
 
   // No crash.
-}
-
-class ShelfPartyQsTileTest : public NoSessionAshTestBase {
- public:
-  ShelfPartyQsTileTest() = default;
-  ShelfPartyQsTileTest(const ShelfPartyQsTileTest&) = delete;
-  ShelfPartyQsTileTest& operator=(const ShelfPartyQsTileTest&) = delete;
-  ~ShelfPartyQsTileTest() override = default;
-
-  // AshTestBase:
-  void SetUp() override {
-    AshTestBase::SetUp();
-    shelf_model_ = GetPrimaryShelf()->GetShelfViewForTesting()->model();
-    qs_tile_controller_ = std::make_unique<ShelfPartyFeaturePodController>();
-    qs_tile_button_view_.reset(qs_tile_controller_->CreateButton());
-  }
-
-  void TearDown() override {
-    qs_tile_controller_.reset();
-    qs_tile_button_view_.reset();
-    AshTestBase::TearDown();
-  }
-
- protected:
-  ShelfModel* shelf_model() { return shelf_model_; }
-  ShelfPartyFeaturePodController* qs_tile_controller() {
-    return qs_tile_controller_.get();
-  }
-  FeaturePodButton* qs_tile_button_view() { return qs_tile_button_view_.get(); }
-
- private:
-  raw_ptr<ShelfModel, ExperimentalAsh> shelf_model_ = nullptr;
-  std::unique_ptr<ShelfPartyFeaturePodController> qs_tile_controller_;
-  std::unique_ptr<FeaturePodButton> qs_tile_button_view_;
-};
-
-TEST_F(ShelfPartyQsTileTest, VisibleWhenUserSessionIsActive) {
-  EXPECT_FALSE(qs_tile_button_view()->GetVisible());
-  auto* session_controller = GetSessionControllerClient();
-  session_controller->SetSessionState(session_manager::SessionState::ACTIVE);
-  EXPECT_TRUE(qs_tile_button_view()->GetVisible());
-  session_controller->SetSessionState(session_manager::SessionState::LOCKED);
-  EXPECT_FALSE(qs_tile_button_view()->GetVisible());
-}
-
-TEST_F(ShelfPartyQsTileTest, InvisibleWhenEnterpriseManaged) {
-  auto* session_controller = GetSessionControllerClient();
-  session_controller->set_is_enterprise_managed(true);
-  session_controller->SetSessionState(session_manager::SessionState::ACTIVE);
-  EXPECT_FALSE(qs_tile_button_view()->GetVisible());
-}
-
-TEST_F(ShelfPartyQsTileTest, OnIconPressed) {
-  GetSessionControllerClient()->SetSessionState(
-      session_manager::SessionState::ACTIVE);
-  EXPECT_FALSE(shelf_model()->in_shelf_party());
-  EXPECT_FALSE(qs_tile_button_view()->IsToggled());
-  qs_tile_controller()->OnIconPressed();
-  EXPECT_TRUE(shelf_model()->in_shelf_party());
-  EXPECT_TRUE(qs_tile_button_view()->IsToggled());
-  qs_tile_controller()->OnIconPressed();
-  EXPECT_FALSE(shelf_model()->in_shelf_party());
-  EXPECT_FALSE(qs_tile_button_view()->IsToggled());
-}
-
-TEST_F(ShelfPartyQsTileTest, ShelfPartyToggled) {
-  GetSessionControllerClient()->SetSessionState(
-      session_manager::SessionState::ACTIVE);
-  EXPECT_FALSE(shelf_model()->in_shelf_party());
-  EXPECT_FALSE(qs_tile_button_view()->IsToggled());
-  shelf_model()->ToggleShelfParty();
-  EXPECT_TRUE(shelf_model()->in_shelf_party());
-  EXPECT_TRUE(qs_tile_button_view()->IsToggled());
-  shelf_model()->ToggleShelfParty();
-  EXPECT_FALSE(shelf_model()->in_shelf_party());
-  EXPECT_FALSE(qs_tile_button_view()->IsToggled());
 }
 
 }  // namespace

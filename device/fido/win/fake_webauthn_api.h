@@ -47,7 +47,8 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FakeWinWebAuthnApi : public WinWebAuthnApi {
   // AuthenticatorGetAssertion().
   bool InjectDiscoverableCredential(base::span<const uint8_t> credential_id,
                                     device::PublicKeyCredentialRpEntity rp,
-                                    device::PublicKeyCredentialUserEntity user);
+                                    device::PublicKeyCredentialUserEntity user,
+                                    std::optional<std::string> provider_name);
 
   // Inject the return value for WinWebAuthnApi::IsAvailable().
   void set_available(bool available) { is_available_ = available; }
@@ -74,6 +75,12 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FakeWinWebAuthnApi : public WinWebAuthnApi {
     large_blob_result_ = large_blob_result;
   }
 
+  // Sets whether large blob is reported to be supported on a make credential
+  // request. This only has an effect for version >= 3.
+  void set_large_blob_supported(bool supported) {
+    large_blob_supported_ = supported;
+  }
+
   void set_version(int version) { version_ = version; }
 
   // Returns a pointer to a copy of the last get credentials options passed to
@@ -96,6 +103,13 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FakeWinWebAuthnApi : public WinWebAuthnApi {
   // attachment=undefined.
   void set_preferred_attachment(int preferred_attachment) {
     preferred_attachment_ = preferred_attachment;
+  }
+
+  const std::map<std::vector<uint8_t>,
+                 RegistrationData,
+                 fido_parsing_utils::RangeLess>&
+  registrations() {
+    return registrations_;
   }
 
   // WinWebAuthnApi:
@@ -144,6 +158,7 @@ class COMPONENT_EXPORT(DEVICE_FIDO) FakeWinWebAuthnApi : public WinWebAuthnApi {
   int version_ = WEBAUTHN_API_VERSION_2;
   int transport_ = WEBAUTHN_CTAP_TRANSPORT_USB;
   int large_blob_result_ = WEBAUTHN_CRED_LARGE_BLOB_STATUS_SUCCESS;
+  bool large_blob_supported_ = true;
   int preferred_attachment_ = WEBAUTHN_AUTHENTICATOR_ATTACHMENT_CROSS_PLATFORM;
   HRESULT result_override_ = S_OK;
 

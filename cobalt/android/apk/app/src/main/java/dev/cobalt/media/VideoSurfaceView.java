@@ -18,16 +18,16 @@ import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.os.Build;
 import android.util.AttributeSet;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import androidx.annotation.NonNull;
+import androidx.annotation.VisibleForTesting;
+import dev.cobalt.coat.BaseStarboardBridge;
 import dev.cobalt.util.Log;
-import java.util.HashSet;
-import java.util.Set;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /**
  * A Surface view to be used by the video decoder. It informs the Starboard application when the
@@ -35,42 +35,39 @@ import org.chromium.base.annotations.NativeMethods;
  */
 @JNINamespace("starboard")
 public class VideoSurfaceView extends SurfaceView {
+  @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
   @NativeMethods
-  interface Natives {
+  public interface Natives {
     void onVideoSurfaceChanged(Surface surface);
-    void setNeedResetSurface();
   }
 
-  private static Surface sCurrentSurface = null;
-
-  private static final Set<String> sNeedResetSurfaceList = new HashSet<>();
-
-  static {
-    sNeedResetSurfaceList.add("Nexus Player");
-
-    // Reset video surface on nexus player to avoid b/159073388.
-    if (sNeedResetSurfaceList.contains(Build.MODEL)) {
-      // VideoSurfaceViewJni.get().setNeedResetSurface();
-    }
+  public static void notifyVideoSurfaceChanged(Surface surface) {
+    VideoSurfaceViewJni.get().onVideoSurfaceChanged(surface);
   }
+
+  @NonNull private final BaseStarboardBridge mBridge;
 
   public VideoSurfaceView(Context context) {
     super(context);
+    mBridge = getStarboardBridge(context);
     initialize(context);
   }
 
   public VideoSurfaceView(Context context, AttributeSet attrs) {
     super(context, attrs);
+    mBridge = getStarboardBridge(context);
     initialize(context);
   }
 
   public VideoSurfaceView(Context context, AttributeSet attrs, int defStyleAttr) {
     super(context, attrs, defStyleAttr);
+    mBridge = getStarboardBridge(context);
     initialize(context);
   }
 
   public VideoSurfaceView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
     super(context, attrs, defStyleAttr, defStyleRes);
+    mBridge = getStarboardBridge(context);
     initialize(context);
   }
 
@@ -83,14 +80,26 @@ public class VideoSurfaceView extends SurfaceView {
     // punch-out video when the position / size is animated.
   }
 
+  @NonNull
+  private static BaseStarboardBridge getStarboardBridge(Context context) {
+    Context appContext = context.getApplicationContext();
+    if (appContext instanceof BaseStarboardBridge.HostApplication) {
+      BaseStarboardBridge bridge =
+          ((BaseStarboardBridge.HostApplication) appContext).getStarboardBridge();
+      if (bridge != null) {
+        return bridge;
+      }
+    }
+    return BaseStarboardBridge.getInstance();
+  }
+
   private class SurfaceHolderCallback implements SurfaceHolder.Callback {
 
     boolean mSawInitialChange = false;
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-      sCurrentSurface = holder.getSurface();
-      VideoSurfaceViewJni.get().onVideoSurfaceChanged(sCurrentSurface);
+      mBridge.onVideoSurfaceCreated(holder.getSurface());
     }
 
     @Override
@@ -104,12 +113,12 @@ public class VideoSurfaceView extends SurfaceView {
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-      sCurrentSurface = null;
-      VideoSurfaceViewJni.get().onVideoSurfaceChanged(sCurrentSurface);
+      mBridge.onVideoSurfaceDestroyed(holder.getSurface());
     }
   }
 
   public static Surface getCurrentSurface() {
-    return sCurrentSurface;
+    BaseStarboardBridge bridge = BaseStarboardBridge.getInstance();
+    return bridge != null ? bridge.getVideoSurface() : null;
   }
 }

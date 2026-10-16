@@ -49,7 +49,6 @@ VkPipelineStageFlags GetPipelineStageFlags(const VkImageLayout layout) {
     default:
       NOTREACHED() << "layout=" << layout;
   }
-  return 0;
 }
 
 VkAccessFlags GetAccessMask(const VkImageLayout layout) {
@@ -79,7 +78,6 @@ VkAccessFlags GetAccessMask(const VkImageLayout layout) {
     default:
       NOTREACHED() << "layout=" << layout;
   }
-  return 0;
 }
 }  // namespace
 

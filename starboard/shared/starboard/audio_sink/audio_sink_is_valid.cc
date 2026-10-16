@@ -12,20 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/audio_sink.h"
-
-#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+// clang-format on
 
 bool SbAudioSinkIsValid(SbAudioSink audio_sink) {
-  using ::starboard::SbAudioSinkImpl;
-
-  SbAudioSinkPrivate::Type* type = SbAudioSinkImpl::GetPrimaryType();
-  if (type && type->IsValid(audio_sink)) {
-    return true;
-  }
-  type = SbAudioSinkImpl::GetFallbackType();
-  if (type && type->IsValid(audio_sink)) {
-    return true;
-  }
-  return false;
+  return audio_sink != kSbAudioSinkInvalid;
 }

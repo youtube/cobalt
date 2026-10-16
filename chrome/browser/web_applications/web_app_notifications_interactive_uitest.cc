@@ -3,12 +3,15 @@
 // found in the LICENSE file.
 
 #include "base/memory/raw_ptr.h"
+#include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/notifications/notification_display_service_tester.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
-#include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
+#include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
+#include "chrome/browser/web_applications/test/os_integration_test_override_impl.h"
+#include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -19,23 +22,27 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/color_utils.h"
 
+#if BUILDFLAG(IS_MAC)
+#include "chrome/browser/apps/app_shim/app_shim_manager_mac.h"
+#endif
+
 namespace web_app {
 
-class WebAppNotificationsBrowserTest : public WebAppControllerBrowserTest {
+class WebAppNotificationsBrowserTest : public WebAppBrowserTestBase {
  public:
-  WebAppNotificationsBrowserTest() = default;
+  using WebAppBrowserTestBase::WebAppBrowserTestBase;
   ~WebAppNotificationsBrowserTest() override = default;
 
   void SetUpOnMainThread() override {
     display_service_tester_ =
         std::make_unique<NotificationDisplayServiceTester>(profile());
 
-    WebAppControllerBrowserTest::SetUpOnMainThread();
+    WebAppBrowserTestBase::SetUpOnMainThread();
   }
 
   void TearDownOnMainThread() override {
     display_service_tester_.reset();
-    WebAppControllerBrowserTest::TearDownOnMainThread();
+    WebAppBrowserTestBase::TearDownOnMainThread();
   }
 
   NotificationDisplayServiceTester& display_service_tester() {
@@ -43,7 +50,7 @@ class WebAppNotificationsBrowserTest : public WebAppControllerBrowserTest {
     return *display_service_tester_;
   }
 
-  void SetAppBrowserForAppId(const AppId& app_id) {
+  void SetAppBrowserForAppId(const webapps::AppId& app_id) {
     Browser* app_browser = FindWebAppBrowser(profile(), app_id);
     ASSERT_TRUE(app_browser);
     app_browser_ = app_browser;
@@ -69,6 +76,20 @@ class WebAppNotificationsBrowserTest : public WebAppControllerBrowserTest {
     return js_result;
   }
 
+#if BUILDFLAG(IS_MAC)
+  std::string RequestAndRespondToPermission(
+      mac_notifications::mojom::RequestPermissionResult os_response,
+      permissions::PermissionRequestManager::AutoResponseType bubble_response =
+          permissions::PermissionRequestManager::NONE) {
+    apps::AppShimManager::Get()->SetNotificationPermissionResponseForTesting(
+        os_response);
+    content::WebContents* web_contents = GetActiveWebContents();
+    permissions::PermissionRequestManager::FromWebContents(web_contents)
+        ->set_auto_response_for_test(bubble_response);
+
+    return AwaitScript("requestPermission()").ExtractString();
+  }
+#else
   std::string RequestAndRespondToPermission(
       permissions::PermissionRequestManager::AutoResponseType bubble_response) {
     content::WebContents* web_contents = GetActiveWebContents();
@@ -77,9 +98,14 @@ class WebAppNotificationsBrowserTest : public WebAppControllerBrowserTest {
 
     return AwaitScript("requestPermission()").ExtractString();
   }
+#endif
 
   bool RequestAndAcceptPermission() {
     return "granted" == RequestAndRespondToPermission(
+#if BUILDFLAG(IS_MAC)
+                            mac_notifications::mojom::RequestPermissionResult::
+                                kPermissionGranted,
+#endif
                             permissions::PermissionRequestManager::ACCEPT_ALL);
   }
 
@@ -98,7 +124,7 @@ class WebAppNotificationsBrowserTest : public WebAppControllerBrowserTest {
   std::unique_ptr<NotificationDisplayServiceTester> display_service_tester_;
 
   // Can be different from browser();
-  raw_ptr<Browser, DanglingUntriaged> app_browser_ = nullptr;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> app_browser_ = nullptr;
 };
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -110,7 +136,7 @@ IN_PROC_BROWSER_TEST_F(WebAppNotificationsBrowserTest_IconAndTitleEnabled,
   const GURL app_url =
       https_server()->GetURL("/web_app_notifications/index.html");
 
-  const AppId app_id = InstallWebAppFromPage(browser(), app_url);
+  const webapps::AppId app_id = InstallWebAppFromPage(browser(), app_url);
   // The installation opens a new Browser window: |user_display_mode| is
   // kStandalone.
   SetAppBrowserForAppId(app_id);
@@ -191,7 +217,7 @@ IN_PROC_BROWSER_TEST_F(WebAppNotificationsBrowserTest_IconAndTitleDisabled,
   const GURL app_url =
       https_server()->GetURL("/web_app_notifications/index.html");
 
-  const AppId app_id = InstallWebAppFromPage(browser(), app_url);
+  const webapps::AppId app_id = InstallWebAppFromPage(browser(), app_url);
   // The installation opens a new Browser window: |user_display_mode| is
   // kStandalone.
   SetAppBrowserForAppId(app_id);
@@ -245,5 +271,87 @@ IN_PROC_BROWSER_TEST_F(WebAppNotificationsBrowserTest_IconAndTitleDisabled,
   }
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_MAC)
+class WebAppNotificationsBrowserTest_MacPermissions
+    : public WebAppNotificationsBrowserTest {
+ public:
+  WebAppNotificationsBrowserTest_MacPermissions()
+      : WebAppNotificationsBrowserTest(
+            {features::kAppShimNotificationAttribution},
+            {}) {}
+
+  void SetUpOnMainThread() override {
+    WebAppNotificationsBrowserTest::SetUpOnMainThread();
+
+    const GURL app_url =
+        https_server()->GetURL("/web_app_notifications/index.html");
+
+    const webapps::AppId app_id = InstallWebAppFromPage(browser(), app_url);
+    // The installation opens a new Browser window: |user_display_mode| is
+    // kStandalone.
+    SetAppBrowserForAppId(app_id);
+  }
+
+  void TearDownOnMainThread() override {
+    test::UninstallAllWebApps(browser()->profile());
+    WebAppNotificationsBrowserTest::TearDownOnMainThread();
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(WebAppNotificationsBrowserTest_MacPermissions, Granted) {
+  EXPECT_EQ("granted", RequestAndRespondToPermission(
+                           mac_notifications::mojom::RequestPermissionResult::
+                               kPermissionGranted));
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppNotificationsBrowserTest_MacPermissions,
+                       PreviouslyGranted_AcceptBubble) {
+  EXPECT_EQ("granted", RequestAndRespondToPermission(
+                           mac_notifications::mojom::RequestPermissionResult::
+                               kPermissionPreviouslyGranted,
+                           permissions::PermissionRequestManager::ACCEPT_ALL));
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppNotificationsBrowserTest_MacPermissions,
+                       PreviouslyGranted_DenyBubble) {
+  EXPECT_EQ("denied", RequestAndRespondToPermission(
+                          mac_notifications::mojom::RequestPermissionResult::
+                              kPermissionPreviouslyGranted,
+                          permissions::PermissionRequestManager::DENY_ALL));
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppNotificationsBrowserTest_MacPermissions,
+                       RequestFailed_AcceptBubble) {
+  EXPECT_EQ(
+      "granted",
+      RequestAndRespondToPermission(
+          mac_notifications::mojom::RequestPermissionResult::kRequestFailed,
+          permissions::PermissionRequestManager::ACCEPT_ALL));
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppNotificationsBrowserTest_MacPermissions,
+                       RequestFailed_DenyBubble) {
+  EXPECT_EQ(
+      "denied",
+      RequestAndRespondToPermission(
+          mac_notifications::mojom::RequestPermissionResult::kRequestFailed,
+          permissions::PermissionRequestManager::DENY_ALL));
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppNotificationsBrowserTest_MacPermissions, Denied) {
+  EXPECT_EQ("denied", RequestAndRespondToPermission(
+                          mac_notifications::mojom::RequestPermissionResult::
+                              kPermissionDenied));
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppNotificationsBrowserTest_MacPermissions,
+                       PreviouslyDenied) {
+  EXPECT_EQ("default", RequestAndRespondToPermission(
+                           mac_notifications::mojom::RequestPermissionResult::
+                               kPermissionPreviouslyDenied));
+}
+
+#endif
 
 }  // namespace web_app

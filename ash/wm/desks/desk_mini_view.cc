@@ -5,39 +5,62 @@
 #include "ash/wm/desks/desk_mini_view.h"
 
 #include <algorithm>
+#include <optional>
 
-#include "ash/accessibility/accessibility_controller_impl.h"
+#include "ash/accelerators/keyboard_code_util.h"
+#include "ash/accessibility/accessibility_controller.h"
 #include "ash/constants/ash_features.h"
+#include "ash/public/cpp/style/color_provider.h"
+#include "ash/resources/vector_icons/vector_icons.h"
+#include "ash/shelf/shelf.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
+#include "ash/style/ash_color_id.h"
 #include "ash/style/close_button.h"
 #include "ash/style/style_util.h"
-#include "ash/wm/desks/desk.h"
+#include "ash/wm/desks/desk_action_button.h"
 #include "ash/wm/desks/desk_action_context_menu.h"
 #include "ash/wm/desks/desk_action_view.h"
 #include "ash/wm/desks/desk_bar_view_base.h"
 #include "ash/wm/desks/desk_name_view.h"
 #include "ash/wm/desks/desk_preview_view.h"
 #include "ash/wm/desks/desk_textfield.h"
+#include "ash/wm/desks/desks_constants.h"
 #include "ash/wm/desks/desks_controller.h"
 #include "ash/wm/desks/desks_restore_util.h"
+#include "ash/wm/desks/templates/saved_desk_metrics_util.h"
+#include "ash/wm/desks/templates/saved_desk_presenter.h"
+#include "ash/wm/desks/templates/saved_desk_util.h"
 #include "ash/wm/float/float_controller.h"
-#include "ash/wm/overview/overview_constants.h"
 #include "ash/wm/overview/overview_grid.h"
 #include "ash/wm/overview/overview_utils.h"
+#include "ash/wm/wm_constants.h"
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/string_util.h"
+#include "base/trace_event/trace_event.h"
 #include "chromeos/constants/chromeos_features.h"
-#include "ui/accessibility/ax_enums.mojom.h"
+#include "ui/accessibility/ax_enums.mojom-forward.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/aura/window.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
+#include "ui/color/color_id.h"
 #include "ui/compositor/layer.h"
+#include "ui/display/screen.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/insets.h"
+#include "ui/gfx/geometry/size.h"
+#include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/background.h"
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/highlight_path_generator.h"
+#include "ui/views/controls/menu/menu_item_view.h"
+#include "ui/views/controls/menu/menu_types.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 
 namespace ash {
@@ -45,16 +68,14 @@ namespace ash {
 namespace {
 
 constexpr int kLabelPreviewSpacing = 8;
-
 constexpr int kCloseButtonMargin = 4;
-
 constexpr int kMinDeskNameViewWidth = 56;
-
-constexpr int kPreviewFocusRingRadiusOld = 6;
-
-// TODO(conniekxu): After CrOS Next is launched, remove
-// `kPreviewFocusRingRadiusOld`.
 constexpr int kPreviewFocusRingRadius = 10;
+constexpr int kShortcutViewBorderWidth = 6;
+constexpr int kShortcutViewBorderHeight = 3;
+constexpr int kShortcutViewHeight = 20;
+constexpr int kShortcutViewIconSize = 14;
+constexpr int kShortcutViewDistanceFromBottom = 4;
 
 gfx::Rect ConvertScreenRect(views::View* view, const gfx::Rect& screen_rect) {
   gfx::Point origin = screen_rect.origin();
@@ -69,6 +90,18 @@ bool ContainsAppWindows(Desk* desk) {
     return false;
   return desk->ContainsAppWindows() ||
          !DesksController::Get()->visible_on_all_desks_windows().empty();
+}
+
+// Returns true if the saved desks options are shown in the context menu, or if
+// they would have been shown but the Saved Desk UI revamp feature was not
+// enabled.
+bool ShouldRecordSavedDesksOptionsHistogram(Desk* desk,
+                                            DeskBarViewBase* bar_view) {
+  return desk->is_active() &&
+         (desk->ContainsAppWindows() ||
+          !DesksController::Get()->visible_on_all_desks_windows().empty()) &&
+         bar_view->type() == DeskBarViewBase::Type::kOverview &&
+         saved_desk_util::ShouldShowSavedDesksOptions();
 }
 
 }  // namespace
@@ -89,10 +122,14 @@ gfx::Rect DeskMiniView::GetDeskPreviewBounds(aura::Window* root_window) {
   return gfx::Rect(GetPreviewWidth(root_size, preview_height), preview_height);
 }
 
-DeskMiniView::DeskMiniView(DeskBarViewBase* owner_bar,
-                           aura::Window* root_window,
-                           Desk* desk)
+DeskMiniView::DeskMiniView(
+    DeskBarViewBase* owner_bar,
+    aura::Window* root_window,
+    Desk* desk,
+    base::WeakPtr<WindowOcclusionCalculator> window_occlusion_calculator)
     : owner_bar_(owner_bar), root_window_(root_window), desk_(desk) {
+  TRACE_EVENT0("ui", "DeskMiniView::DeskMiniView");
+
   DCHECK(root_window_);
   DCHECK(root_window_->IsRootWindow());
 
@@ -103,15 +140,6 @@ DeskMiniView::DeskMiniView(DeskBarViewBase* owner_bar,
   desk_name_view->set_controller(this);
   desk_name_view->SetText(desk_->name());
 
-  // Desks created by the new desk button are initialized with an empty name to
-  // encourage user to name the desk, but the `desk_name_view` needs a non-empty
-  // accessible name.
-  auto* desks_controller = DesksController::Get();
-  desk_name_view->SetAccessibleName(
-      desk_->name().empty() ? DesksController::GetDeskDefaultName(
-                                  desks_controller->GetDeskIndex(desk_))
-                            : desk_->name());
-
   SetPaintToLayer();
   layer()->SetFillsBoundsOpaquely(false);
 
@@ -120,48 +148,129 @@ DeskMiniView::DeskMiniView(DeskBarViewBase* owner_bar,
   desk_preview_ = AddChildView(std::make_unique<DeskPreviewView>(
       base::BindRepeating(&DeskMiniView::OnDeskPreviewPressed,
                           base::Unretained(this)),
-      this));
+      this, window_occlusion_calculator));
 
   views::FocusRing* preview_focus_ring = views::FocusRing::Get(desk_preview_);
+  preview_focus_ring->SetOutsetFocusRingDisabled(true);
   views::InstallRoundRectHighlightPathGenerator(
-      desk_preview_, gfx::Insets(kFocusRingHaloInset),
-      chromeos::features::IsJellyrollEnabled() ? kPreviewFocusRingRadius
-                                               : kPreviewFocusRingRadiusOld);
+      desk_preview_, gfx::Insets(kWindowMiniViewFocusRingHaloInset),
+      kPreviewFocusRingRadius);
 
-  preview_focus_ring->SetHasFocusPredicate([&](views::View* view) {
-    return (owner_bar_->dragged_item_over_bar() &&
-            IsPointOnMiniView(
-                owner_bar_->last_dragged_item_screen_location())) ||
-           desk_preview_->IsViewHighlighted() ||
-           (desk_ && desk_->is_active() && owner_bar_->overview_grid() &&
-            !owner_bar_->overview_grid()->IsShowingSavedDeskLibrary());
-  });
+  preview_focus_ring->SetHasFocusPredicate(base::BindRepeating(
+      [](const DeskMiniView* mini_view, const views::View* view) {
+        const auto* desk_preview = views::AsViewClass<DeskPreviewView>(view);
+        CHECK(desk_preview);
+        switch (mini_view->owner_bar()->type()) {
+          case DeskBarViewBase::Type::kOverview:
+            // Show focus ring for the overview bar when:
+            //   1) it's focused via focus manager;
+            if (desk_preview->HasFocus()) {
+              return true;
+            }
+            //   2) dragging an overview item over this mini view;
+            if (mini_view->owner_bar_->dragged_item_over_bar() &&
+                mini_view->IsPointOnMiniView(
+                    mini_view->owner_bar_
+                        ->last_dragged_item_screen_location())) {
+              return true;
+            }
+            //   3) it's the active desk and not currently showing library page;
+            if (mini_view->desk_ && mini_view->desk_->is_active() &&
+                mini_view->owner_bar_->overview_grid() &&
+                !mini_view->owner_bar_->overview_grid()
+                     ->IsShowingSavedDeskLibrary()) {
+              return true;
+            }
 
-  desk_name_view_ = AddChildView(std::move(desk_name_view));
-
-  const std::u16string initial_combine_desks_target_name =
-      desks_controller->GetCombineDesksTargetName(desk_);
+            return false;
+          case DeskBarViewBase::Type::kDeskButton:
+            // Show focus ring for the desk button bar when:
+            //   1) it's focused via focus manager;
+            if (desk_preview->HasFocus()) {
+              return true;
+            }
+            //   2) it's the active desk;
+            if (mini_view->desk_ && mini_view->desk_->is_active()) {
+              return true;
+            }
+            return false;
+        }
+      },
+      base::Unretained(this)));
 
   desk_action_view_ = AddChildView(std::make_unique<DeskActionView>(
-      initial_combine_desks_target_name,
-      /*combine_desks_callback=*/
-      base::BindRepeating(&DeskMiniView::OnRemovingDesk, base::Unretained(this),
-                          DeskCloseType::kCombineDesks),
-      /*close_all_callback=*/
-      base::BindRepeating(&DeskMiniView::OnRemovingDesk, base::Unretained(this),
-                          DeskCloseType::kCloseAllWindowsAndWait)));
-
-  context_menu_ = std::make_unique<DeskActionContextMenu>(
-      initial_combine_desks_target_name,
+      /*combine_desks_target_name=*/
+      DesksController::Get()->GetCombineDesksTargetName(desk_),
+      /*close_all_target_name=*/desk_->name(),
+      /*context_menu_callback_=*/
+      base::BindRepeating(&DeskMiniView::OpenContextMenu,
+                          base::Unretained(this),
+                          ui::mojom::MenuSourceType::kNone),
       /*combine_desks_callback=*/
       base::BindRepeating(&DeskMiniView::OnRemovingDesk, base::Unretained(this),
                           DeskCloseType::kCombineDesks),
       /*close_all_callback=*/
       base::BindRepeating(&DeskMiniView::OnRemovingDesk, base::Unretained(this),
                           DeskCloseType::kCloseAllWindowsAndWait),
-      base::BindRepeating(&DeskMiniView::OnContextMenuClosed,
-                          base::Unretained(this)));
+      /*focus_change_callback=*/
+      base::BindRepeating(&DeskMiniView::UpdateDeskButtonVisibility,
+                          base::Unretained(this)),
+      /*mini_view=*/this));
+
+  desk_name_view_ = AddChildView(std::move(desk_name_view));
+
+  if (owner_bar_->type() == DeskBarViewBase::Type::kDeskButton) {
+    desk_shortcut_view_ =
+        AddChildView(std::make_unique<views::BoxLayoutView>());
+    desk_shortcut_view_->SetOrientation(
+        views::BoxLayout::Orientation::kHorizontal);
+    desk_shortcut_view_->SetMainAxisAlignment(
+        views::BoxLayout::MainAxisAlignment::kCenter);
+    desk_shortcut_view_->SetCrossAxisAlignment(
+        views::BoxLayout::CrossAxisAlignment::kCenter);
+    desk_shortcut_view_->SetBorder(views::CreateEmptyBorder(gfx::Insets::TLBR(
+        kShortcutViewBorderHeight, kShortcutViewBorderWidth,
+        kShortcutViewBorderHeight, kShortcutViewBorderWidth)));
+    desk_shortcut_view_->SetBetweenChildSpacing(3);
+    const ui::ColorId background_color_id =
+        chromeos::features::IsSystemBlurEnabled()
+            ? static_cast<ui::ColorId>(kColorAshShieldAndBase80)
+            : cros_tokens::kCrosSysSystemBaseElevatedOpaque;
+    desk_shortcut_view_->SetBackground(
+        views::CreateSolidBackground(background_color_id));
+
+    desk_shortcut_view_->AddChildView(
+        std::make_unique<views::ImageView>(ui::ImageModel::FromVectorIcon(
+            kDeskBarShiftIcon, cros_tokens::kIconColorPrimary,
+            kShortcutViewIconSize)));
+    desk_shortcut_view_->AddChildView(std::make_unique<views::Label>(u"+"));
+    desk_shortcut_view_->AddChildView(
+        std::make_unique<views::ImageView>(ui::ImageModel::FromVectorIcon(
+            *GetSearchOrLauncherVectorIcon(), cros_tokens::kIconColorPrimary,
+            kShortcutViewIconSize)));
+    desk_shortcut_view_->AddChildView(std::make_unique<views::Label>(u"+"));
+    desk_shortcut_label_ =
+        desk_shortcut_view_->AddChildView(std::make_unique<views::Label>());
+
+    desk_shortcut_view_->SetPaintToLayer();
+    if (chromeos::features::IsSystemBlurEnabled()) {
+      desk_shortcut_view_->layer()->SetFillsBoundsOpaquely(false);
+      desk_shortcut_view_->layer()->SetBackgroundBlur(
+          ColorProvider::kBackgroundBlurSigma);
+      desk_shortcut_view_->layer()->SetBackdropFilterQuality(
+          ColorProvider::kBackgroundBlurQuality);
+    }
+
+    desk_shortcut_view_->layer()->SetRoundedCornerRadius(
+        gfx::RoundedCornersF(kShortcutViewHeight));
+    desk_shortcut_view_->SetVisible(false);
+    desk_shortcut_view_->SetCanProcessEventsWithinSubtree(false);
+  }
+
   UpdateDeskButtonVisibility();
+  GetViewAccessibility().SetRole(
+      desk_preview_->GetViewAccessibility().GetCachedRole());
+  UpdateAccessibleName();
 }
 
 DeskMiniView::~DeskMiniView() {
@@ -187,23 +296,75 @@ bool DeskMiniView::IsDeskNameBeingModified() const {
 }
 
 void DeskMiniView::UpdateDeskButtonVisibility() {
-  auto* controller = DesksController::Get();
+  CHECK(desk_);
 
-  // Don't show desk buttons when hovered while the dragged window is on
-  // the desk bar view.
-  // For switch access, setting desk buttons to visible allows users to
-  // navigate to it.
-  const bool visible =
-      controller->CanRemoveDesks() && !owner_bar_->dragged_item_over_bar() &&
-      !owner_bar_->IsDraggingDesk() &&
-      (IsMouseHovered() || force_show_desk_buttons_ ||
-       Shell::Get()->accessibility_controller()->IsSwitchAccessRunning());
+  auto get_visible = [this]() -> bool {
+    // If revamp is enabled, then we still want to show the save desk options,
+    // even if we can't remove the desk.
+    if (!features::IsForestFeatureEnabled() &&
+        !DesksController::Get()->CanRemoveDesks()) {
+      return false;
+    }
+    if (owner_bar_->dragged_item_over_bar()) {
+      return false;
+    }
+    // Don't show desk buttons when hovered while the dragged window.
+    if (owner_bar_->IsDraggingDesk()) {
+      return false;
+    }
+
+    // Hide the action view if the context menu is shown, unless one of its
+    // children has focus. Otherwise, we may reach a state where nothing has
+    // focus, and spoken feedback will not work properly. See
+    // http://b/356456321,
+    if (context_menu_ && !desk_action_view_->ChildHasFocus()) {
+      return false;
+    }
+
+    if (force_show_desk_buttons_) {
+      return true;
+    }
+    // For switch access, setting desk buttons to visible allows users to
+    // navigate to it.
+    if (Shell::Get()->accessibility_controller()->IsSwitchAccessRunning()) {
+      return true;
+    }
+    if (IsMouseHovered()) {
+      return true;
+    }
+
+    if (desk_preview_->HasFocus() || desk_action_view_->ChildHasFocus()) {
+      return true;
+    }
+
+    return false;
+  };
+
+  const bool visible = get_visible();
 
   // Only show the combine desks button if there are app windows in the desk,
   // or if the desk is active and there are windows that should be visible on
   // all desks.
-  desk_action_view_->SetCombineDesksButtonVisibility(ContainsAppWindows(desk_));
-  desk_action_view_->SetVisible(visible && !is_context_menu_open_);
+  if (features::IsForestFeatureEnabled()) {
+    auto* context_menu_button = desk_action_view_->context_menu_button();
+    context_menu_button->SetVisible(context_menu_button->CanShow());
+  } else {
+    auto* combine_desks_button = desk_action_view_->combine_desks_button();
+    combine_desks_button->SetVisible(combine_desks_button->CanShow());
+  }
+  auto* close_all_button = desk_action_view_->close_all_button();
+  close_all_button->SetVisible(close_all_button->CanShow());
+  desk_action_view_->SetVisible(visible);
+
+  // Only show the shortcut view on the first 8 desks in the desk button desk
+  // bar. Update the shortcut label to show the desk number for the shortcut.
+  if (!desk_->is_desk_being_removed() &&
+      owner_bar_->type() == DeskBarViewBase::Type::kDeskButton) {
+    const int desk_index = DesksController::Get()->GetDeskIndex(desk_);
+    desk_shortcut_view_->SetVisible(visible &&
+                                    desk_index < kDeskBarMaxDeskShortcut);
+    desk_shortcut_label_->SetText(base::NumberToString16(desk_index + 1));
+  }
 }
 
 void DeskMiniView::OnWidgetGestureTap(const gfx::Rect& screen_rect,
@@ -214,7 +375,7 @@ void DeskMiniView::OnWidgetGestureTap(const gfx::Rect& screen_rect,
   // the desk.
   const bool old_force_show_desk_buttons = force_show_desk_buttons_;
   force_show_desk_buttons_ =
-      !Shell::Get()->tablet_mode_controller()->InTabletMode() &&
+      !display::Screen::GetScreen()->InTabletMode() &&
       ((is_long_gesture && IsPointOnMiniView(screen_rect.CenterPoint())) ||
        (!is_long_gesture && desk_action_view_->GetVisible() &&
         desk_action_view_->HitTestRect(
@@ -224,23 +385,44 @@ void DeskMiniView::OnWidgetGestureTap(const gfx::Rect& screen_rect,
     UpdateDeskButtonVisibility();
 }
 
-void DeskMiniView::UpdateFocusColor() {
-  DCHECK(desk_);
-  absl::optional<ui::ColorId> new_focus_color_id;
+std::optional<ui::ColorId> DeskMiniView::GetFocusColor() const {
+  CHECK(desk_);
+  const ui::ColorId focused_desk_color_id = ui::kColorAshFocusRing;
+  const ui::ColorId active_desk_color_id = cros_tokens::kCrosSysTertiary;
 
-  if ((owner_bar_->dragged_item_over_bar() &&
-       IsPointOnMiniView(owner_bar_->last_dragged_item_screen_location())) ||
-      desk_preview_->IsViewHighlighted()) {
-    new_focus_color_id = ui::kColorAshFocusRing;
-  } else if (desk_->is_active() && owner_bar_->overview_grid() &&
-             !owner_bar_->overview_grid()->IsShowingSavedDeskLibrary()) {
-    new_focus_color_id = kColorAshCurrentDeskColor;
-  } else {
-    new_focus_color_id = absl::nullopt;
+  switch (owner_bar_->type()) {
+    case DeskBarViewBase::Type::kOverview: {
+      if (owner_bar_->dragged_item_over_bar() &&
+          IsPointOnMiniView(owner_bar_->last_dragged_item_screen_location())) {
+        return focused_desk_color_id;
+      }
+      if (desk_preview_->HasFocus()) {
+        return focused_desk_color_id;
+      }
+      if (desk_->is_active() && owner_bar_->overview_grid() &&
+          !owner_bar_->overview_grid()->IsShowingSavedDeskLibrary()) {
+        return active_desk_color_id;
+      }
+      return std::nullopt;
+    }
+    case DeskBarViewBase::Type::kDeskButton: {
+      if (desk_preview_->HasFocus()) {
+        return focused_desk_color_id;
+      }
+      if (desk_->is_active()) {
+        return active_desk_color_id;
+      }
+      return std::nullopt;
+    }
   }
+}
 
-  if (desk_preview_->focus_color_id() == new_focus_color_id)
+void DeskMiniView::UpdateFocusColor() {
+  std::optional<ui::ColorId> new_focus_color_id = GetFocusColor();
+
+  if (desk_preview_->focus_color_id() == new_focus_color_id) {
     return;
+  }
 
   auto* focus_ring = views::FocusRing::Get(desk_preview_);
 
@@ -265,23 +447,92 @@ bool DeskMiniView::IsPointOnMiniView(const gfx::Point& screen_location) const {
   return GetWidget() && HitTestPoint(point_in_view);
 }
 
-void DeskMiniView::OpenContextMenu(ui::MenuSourceType source) {
-  is_context_menu_open_ = true;
-  UpdateDeskButtonVisibility();
+void DeskMiniView::OpenContextMenu(ui::mojom::MenuSourceType source) {
+  DeskActionContextMenu::Config menu_config;
+  menu_config.on_context_menu_closed_callback = base::BindRepeating(
+      &DeskMiniView::OnContextMenuClosed, base::Unretained(this));
+
+  const bool show_on_top =
+      owner_bar_->type() == DeskBarViewBase::Type::kDeskButton &&
+      Shelf::ForWindow(root_window_)->IsHorizontalAlignment();
+  menu_config.anchor_position =
+      show_on_top ? views::MenuAnchorPosition::kBubbleTopRight
+                  : views::MenuAnchorPosition::kBubbleBottomRight;
+
+  // TODO(hewer): Clarify with UX if the On*ButtonPressed functions should
+  // appear when the context menu is not on the current desk or for the desks
+  // button.
+  // Don't show save options if there are no windows in the desk, or if the
+  // desk bar did not originate from overview.
+  if (saved_desk_util::ShouldShowSavedDesksOptionsForDesk(desk_,
+                                                          owner_bar_.get())) {
+    if (saved_desk_util::AreDesksTemplatesEnabled()) {
+      menu_config.save_template_target_name = desk_->name();
+      menu_config.save_template_callback =
+          base::BindRepeating(&DeskMiniView::OnSaveDeskAsTemplateButtonPressed,
+                              base::Unretained(this));
+    }
+
+    menu_config.save_later_target_name = desk_->name();
+    menu_config.save_later_callback = base::BindRepeating(
+        &DeskMiniView::OnSaveDeskForLaterButtonPressed, base::Unretained(this));
+  }
+
+  // Only add desk combine/close options if it's possible to remove a desk.
+  DesksController* desk_controller = DesksController::Get();
+  if (desk_controller->CanRemoveDesks()) {
+    menu_config.close_all_target_name = desk_->name();
+    menu_config.close_all_callback = base::BindRepeating(
+        &DeskMiniView::OnRemovingDesk, base::Unretained(this),
+        DeskCloseType::kCloseAllWindowsAndWait);
+
+    if (ContainsAppWindows(desk_)) {
+      menu_config.combine_desks_target_name =
+          desk_controller->GetCombineDesksTargetName(desk_);
+      menu_config.combine_desks_callback = base::BindRepeating(
+          &DeskMiniView::OnRemovingDesk, base::Unretained(this),
+          DeskCloseType::kCombineDesks);
+    }
+  }
+
+  // If neither close operations, nor the save desk options, nor profile
+  // selection are to be shown, then we don't show the menu.
+  if (!menu_config.save_template_callback && !menu_config.save_later_callback &&
+      !menu_config.close_all_callback) {
+    return;
+  }
+
+  base::UmaHistogramBoolean(
+      owner_bar_->type() == DeskBarViewBase::Type::kDeskButton
+          ? kDeskButtonDeskBarOpenContextMenuHistogramName
+          : kOverviewDeskBarOpenContextMenuHistogramName,
+      true);
+
+  // Holdback metrics for the Saved Desk UI revamp.
+  if (ShouldRecordSavedDesksOptionsHistogram(desk_, owner_bar_.get())) {
+    if (features::IsForestFeatureEnabled()) {
+      base::UmaHistogramBoolean(kSavedDeskMenuOptionsShownHistogramName, true);
+    } else {
+      base::UmaHistogramBoolean(kSavedDeskButtonsShownHistogramName, true);
+    }
+  }
 
   desk_preview_->SetHighlightOverlayVisibility(true);
-  context_menu_->UpdateCombineDesksTargetName(
-      DesksController::Get()->GetCombineDesksTargetName(desk_));
 
-  // Only show the combine desks context menu option if there are app windows in
-  // the desk, or if there are windows that should be visible on all desks.
-  context_menu_->SetCombineDesksMenuItemVisibility(ContainsAppWindows(desk_));
-
+  context_menu_ =
+      std::make_unique<DeskActionContextMenu>(std::move(menu_config), this);
   context_menu_->ShowContextMenuForView(
       this,
-      base::i18n::IsRTL() ? desk_preview_->GetBoundsInScreen().bottom_right()
-                          : desk_preview_->GetBoundsInScreen().bottom_left(),
+      show_on_top ? (base::i18n::IsRTL()
+                         ? desk_preview_->GetBoundsInScreen().top_right()
+                         : desk_preview_->GetBoundsInScreen().origin())
+                  : (base::i18n::IsRTL()
+                         ? desk_preview_->GetBoundsInScreen().bottom_right()
+                         : desk_preview_->GetBoundsInScreen().bottom_left()),
       source);
+
+  // Visibility can be affected by the presence of a context menu.
+  UpdateDeskButtonVisibility();
 }
 
 void DeskMiniView::MaybeCloseContextMenu() {
@@ -297,6 +548,25 @@ void DeskMiniView::OnRemovingDesk(DeskCloseType close_type) {
   if (!controller->CanRemoveDesks())
     return;
 
+  switch (close_type) {
+    case DeskCloseType::kCloseAllWindowsAndWait:
+      base::UmaHistogramBoolean(
+          owner_bar_->type() == DeskBarViewBase::Type::kDeskButton
+              ? kDeskButtonDeskBarCloseDeskHistogramName
+              : kOverviewDeskBarCloseDeskHistogramName,
+          true);
+      break;
+    case DeskCloseType::kCombineDesks:
+      base::UmaHistogramBoolean(
+          owner_bar_->type() == DeskBarViewBase::Type::kDeskButton
+              ? kDeskButtonDeskBarCombineDesksHistogramName
+              : kOverviewDeskBarCombineDesksHistogramName,
+          true);
+      break;
+    default:
+      break;
+  }
+
   // We want to avoid the possibility of getting triggered multiple times. We
   // therefore hide the buttons and mark ourselves (including children) as no
   // longer processing events.
@@ -304,15 +574,28 @@ void DeskMiniView::OnRemovingDesk(DeskCloseType close_type) {
 
   desk_action_view_->SetVisible(false);
 
-  controller->RemoveDesk(desk_, DesksCreationRemovalSource::kButton,
-                         close_type);
+  controller->RemoveDesk(
+      desk_,
+      owner_bar_->type() == DeskBarViewBase::Type::kDeskButton
+          ? DesksCreationRemovalSource::kDeskButtonDeskBarButton
+          : DesksCreationRemovalSource::kButton,
+      close_type);
 }
 
-const char* DeskMiniView::GetClassName() const {
-  return "DeskMiniView";
+void DeskMiniView::OnPreviewOrProfileAboutToBeFocusedByReverseTab() {
+  if ((!desk_action_view_->ChildHasFocus())) {
+    auto* combine_desks_button = desk_action_view_->combine_desks_button();
+    if (combine_desks_button) {
+      combine_desks_button->SetVisible(combine_desks_button->CanShow());
+    }
+    auto* close_all_button = desk_action_view_->close_all_button();
+    close_all_button->SetVisible(close_all_button->CanShow());
+    desk_action_view_->SetVisible(true);
+    desk_action_view_->close_all_button()->RequestFocus();
+  }
 }
 
-void DeskMiniView::Layout() {
+void DeskMiniView::Layout(PassKey) {
   const gfx::Rect preview_bounds = GetDeskPreviewBounds(root_window_);
   desk_preview_->SetBoundsRect(preview_bounds);
 
@@ -323,9 +606,20 @@ void DeskMiniView::Layout() {
           kCloseButtonMargin,
       kCloseButtonMargin, desk_action_view_size.width(),
       desk_action_view_size.height());
+
+  if (owner_bar_->type() == DeskBarViewBase::Type::kDeskButton) {
+    const int desk_shortcut_view_width =
+        desk_shortcut_view_->GetPreferredSize().width();
+    desk_shortcut_view_->SetBounds(
+        (preview_bounds.width() - desk_shortcut_view_width) / 2,
+        preview_bounds.height() - kShortcutViewHeight -
+            kShortcutViewDistanceFromBottom,
+        desk_shortcut_view_width, kShortcutViewHeight);
+  }
 }
 
-gfx::Size DeskMiniView::CalculatePreferredSize() const {
+gfx::Size DeskMiniView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   const gfx::Rect preview_bounds = GetDeskPreviewBounds(root_window_);
 
   // The preferred size takes into account only the width of the preview
@@ -337,46 +631,17 @@ gfx::Size DeskMiniView::CalculatePreferredSize() const {
                        desk_name_view_->GetPreferredSize().height()};
 }
 
-void DeskMiniView::GetAccessibleNodeData(ui::AXNodeData* node_data) {
-  desk_preview_->GetAccessibleNodeData(node_data);
-
-  // Note that the desk may have already been destroyed.
-  if (desk_) {
-    // Announce desk name.
-    node_data->AddStringAttribute(
-        ax::mojom::StringAttribute::kName,
-        l10n_util::GetStringFUTF8(IDS_ASH_DESKS_DESK_ACCESSIBLE_NAME,
-                                  desk_->name()));
-
-    node_data->AddStringAttribute(
-        ax::mojom::StringAttribute::kValue,
-        l10n_util::GetStringUTF8(
-            desk_->is_active()
-                ? IDS_ASH_DESKS_ACTIVE_DESK_MINIVIEW_A11Y_EXTRA_TIP
-                : IDS_ASH_DESKS_INACTIVE_DESK_MINIVIEW_A11Y_EXTRA_TIP));
-  }
-
-  // If the desk can be combined or closed, add a tip to let the user know they
-  // can use an accelerator.
-  if (!DesksController::Get()->CanRemoveDesks())
-    return;
-
-  const std::u16string target_desk_name =
-      DesksController::Get()->GetCombineDesksTargetName(desk_);
-  const std::string extra_tip = l10n_util::GetStringFUTF8(
-      IDS_ASH_OVERVIEW_CLOSABLE_DESK_MINIVIEW_A11Y_EXTRA_TIP, target_desk_name);
-
-  node_data->AddStringAttribute(ax::mojom::StringAttribute::kDescription,
-                                extra_tip);
-}
-
 void DeskMiniView::OnThemeChanged() {
   views::View::OnThemeChanged();
   UpdateFocusColor();
 }
 
 void DeskMiniView::OnContentChanged() {
-  DCHECK(desk_preview_);
+  // Bail out if the desk preview has not been set yet.
+  if (!desk_preview_) {
+    return;
+  }
+
   desk_preview_->RecreateDeskContentsMirrorLayers();
 }
 
@@ -396,6 +661,7 @@ void DeskMiniView::OnDeskDestroyed(const Desk* desk) {
 
   DCHECK_EQ(desk_, desk);
   desk_ = nullptr;
+  UpdateAccessibleName();
 
   // No need to remove `this` as an observer; it's done automatically.
 }
@@ -404,11 +670,11 @@ void DeskMiniView::OnDeskNameChanged(const std::u16string& new_name) {
   if (is_desk_name_being_modified_)
     return;
 
+  UpdateAccessibleName();
   desk_name_view_->SetText(new_name);
-  desk_name_view_->SetAccessibleName(new_name);
-  desk_preview_->SetAccessibleName(new_name);
+  desk_preview_->UpdateAccessibleName();
 
-  Layout();
+  InvalidateLayout();
 }
 
 void DeskMiniView::ContentsChanged(views::Textfield* sender,
@@ -427,7 +693,7 @@ void DeskMiniView::ContentsChanged(views::Textfield* sender,
     desk_name_view_->SetText(trimmed_new_contents);
   }
 
-  Layout();
+  InvalidateLayout();
 }
 
 bool DeskMiniView::HandleKeyEvent(views::Textfield* sender,
@@ -438,8 +704,9 @@ bool DeskMiniView::HandleKeyEvent(views::Textfield* sender,
   // Pressing enter or escape should blur the focus away from DeskNameView so
   // that editing the desk's name ends. Pressing tab should do the same, but is
   // handled in OverviewSession.
-  if (key_event.type() != ui::ET_KEY_PRESSED)
+  if (key_event.type() != ui::EventType::kKeyPressed) {
     return false;
+  }
 
   if (key_event.key_code() != ui::VKEY_RETURN &&
       key_event.key_code() != ui::VKEY_ESCAPE) {
@@ -462,7 +729,7 @@ bool DeskMiniView::HandleMouseEvent(views::Textfield* sender,
   DCHECK_EQ(sender, desk_name_view_);
 
   switch (mouse_event.type()) {
-    case ui::ET_MOUSE_PRESSED:
+    case ui::EventType::kMousePressed:
       // If this is the first mouse press on the DeskNameView, then it's not
       // focused yet. OnViewFocused() should not select all text, since it will
       // be undone by the mouse release event. Instead we defer it until we get
@@ -471,7 +738,7 @@ bool DeskMiniView::HandleMouseEvent(views::Textfield* sender,
         defer_select_all_ = true;
       break;
 
-    case ui::ET_MOUSE_RELEASED:
+    case ui::EventType::kMouseReleased:
       if (defer_select_all_) {
         defer_select_all_ = false;
         // The user may have already clicked and dragged to select some range
@@ -498,11 +765,6 @@ void DeskMiniView::OnViewFocused(views::View* observed_view) {
   // user pressed the escape key.
   should_commit_name_changes_ = true;
 
-  // Set the Overview highlight to move focus with the DeskNameView.
-  if (owner_bar_->overview_grid()) {
-    UpdateOverviewHighlightForFocus(desk_name_view_);
-  }
-
   if (!defer_select_all_)
     desk_name_view_->SelectAll(false);
 }
@@ -525,6 +787,12 @@ void DeskMiniView::OnViewBlurred(views::View* observed_view) {
         base::CollapseWhitespace(desk_name_view_->GetText(),
                                  /*trim_sequences_with_line_breaks=*/false),
         /*set_by_user=*/true);
+
+    base::UmaHistogramBoolean(
+        owner_bar_->type() == DeskBarViewBase::Type::kDeskButton
+            ? kDeskButtonDeskBarRenameDeskHistogramName
+            : kOverviewDeskBarRenameDeskHistogramName,
+        true);
   }
 
   // When committing the name, do not allow an empty desk name. Revert back to
@@ -555,16 +823,48 @@ void DeskMiniView::OnViewBlurred(views::View* observed_view) {
 }
 
 void DeskMiniView::OnContextMenuClosed() {
-  is_context_menu_open_ = false;
-  UpdateDeskButtonVisibility();
-  desk_preview_->SetHighlightOverlayVisibility(false);
+  context_menu_.reset();
+
+  // This mini view's desk may have been destroyed already. In that case, we are
+  // about to be destroyed and can't call functions that need a valid `desk_`.
+  if (desk_) {
+    UpdateDeskButtonVisibility();
+    desk_preview_->SetHighlightOverlayVisibility(false);
+  }
+}
+
+void DeskMiniView::OnSetLacrosProfileId(uint64_t lacros_profile_id) {
+  if (desk_) {
+    desk_->SetLacrosProfileId(lacros_profile_id);
+  }
 }
 
 void DeskMiniView::OnDeskPreviewPressed() {
   // If there is an ongoing desk activation, do nothing.
   DesksController* desks_controller = DesksController::Get();
-  if (!desks_controller->AreDesksBeingModified())
-    desks_controller->ActivateDesk(desk_, DesksSwitchSource::kMiniViewButton);
+  if (!desks_controller->AreDesksBeingModified()) {
+    base::UmaHistogramBoolean(
+        owner_bar_->type() == DeskBarViewBase::Type::kDeskButton
+            ? kDeskButtonDeskBarActivateDeskHistogramName
+            : kOverviewDeskBarActivateDeskHistogramName,
+        true);
+    desk_preview_->RequestFocus();
+    owner_bar_->HandleClickEvent(this);
+  }
+}
+
+void DeskMiniView::OnSaveDeskAsTemplateButtonPressed() {
+  CHECK(IsInOverviewSession());
+  base::UmaHistogramBoolean(kSaveAsTemplatePressedHistogramName, true);
+  GetOverviewSession()->saved_desk_presenter()->MaybeSaveActiveDeskAsSavedDesk(
+      DeskTemplateType::kTemplate, root_window_);
+}
+
+void DeskMiniView::OnSaveDeskForLaterButtonPressed() {
+  CHECK(IsInOverviewSession());
+  base::UmaHistogramBoolean(kSaveForLaterPressedHistogramName, true);
+  GetOverviewSession()->saved_desk_presenter()->MaybeSaveActiveDeskAsSavedDesk(
+      DeskTemplateType::kSaveAndRecall, root_window_);
 }
 
 void DeskMiniView::LayoutDeskNameView(const gfx::Rect& preview_bounds) {
@@ -574,7 +874,7 @@ void DeskMiniView::LayoutDeskNameView(const gfx::Rect& preview_bounds) {
   // display. The preview uses a border to display focus and the name view uses
   // a focus ring (which does not inset the view), so subtract the focus ring
   // from the size calculations so that the focus UI is aligned.
-  views::FocusRing* focus_ring = views::FocusRing::Get(desk_name_view_);
+  const views::FocusRing* focus_ring = views::FocusRing::Get(desk_name_view_);
   const int focus_ring_length =
       focus_ring->GetHaloThickness() - focus_ring->GetHaloInset();
   const int min_width = std::min(preview_bounds.width() - focus_ring_length,
@@ -592,5 +892,20 @@ void DeskMiniView::LayoutDeskNameView(const gfx::Rect& preview_bounds) {
                                   text_width, desk_name_view_size.height()};
   desk_name_view_->SetBoundsRect(desk_name_view_bounds);
 }
+
+void DeskMiniView::UpdateAccessibleName() {
+  if (desk_) {
+    // Add node name for the tast test. In `ash.LaunchSavedDesk`, it should have
+    // a node with the below name for the desk mini view.
+    GetViewAccessibility().SetName(l10n_util::GetStringFUTF8(
+        IDS_ASH_DESKS_DESK_ACCESSIBLE_NAME, desk_->name()));
+  } else {
+    GetViewAccessibility().SetName(
+        std::string(), ax::mojom::NameFrom::kAttributeExplicitlyEmpty);
+  }
+}
+
+BEGIN_METADATA(DeskMiniView)
+END_METADATA
 
 }  // namespace ash

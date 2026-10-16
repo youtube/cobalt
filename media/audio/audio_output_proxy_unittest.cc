@@ -114,12 +114,12 @@ class CallbackExposingMockOutputStream : public AudioOutputStream {
   MOCK_METHOD0(Close, void());
   MOCK_METHOD0(Flush, void());
 
-  absl::optional<AudioOutputStream::AudioSourceCallback*> GetCallback() {
+  std::optional<AudioOutputStream::AudioSourceCallback*> GetCallback() {
     return callback_;
   }
 
  private:
-  absl::optional<AudioOutputStream::AudioSourceCallback*> callback_;
+  std::optional<AudioOutputStream::AudioSourceCallback*> callback_;
 };
 
 class MockAudioManager : public AudioManagerBase {
@@ -143,7 +143,7 @@ class MockAudioManager : public AudioManagerBase {
   MOCK_METHOD0(GetTaskRunner, scoped_refptr<base::SingleThreadTaskRunner>());
   MOCK_METHOD0(GetWorkerTaskRunner,
                scoped_refptr<base::SingleThreadTaskRunner>());
-  MOCK_METHOD0(GetName, const char*());
+  MOCK_METHOD0(GetName, const std::string_view());
 
   MOCK_METHOD2(MakeLinearOutputStream,
                AudioOutputStream*(const AudioParameters& params,

@@ -7,23 +7,21 @@ package org.chromium.chrome.browser.password_check.helper;
 import android.content.Context;
 import android.graphics.Bitmap;
 
-import androidx.annotation.Nullable;
 import androidx.core.util.Pair;
 
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.password_check.CompromisedCredential;
 import org.chromium.chrome.browser.password_check.R;
 import org.chromium.components.favicon.IconType;
 import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.url.GURL;
 
-/**
- * Helper used to fetch or create an appropriate icon for a compromised credential.
- */
+/** Helper used to fetch or create an appropriate icon for a compromised credential. */
+@NullMarked
 public class PasswordCheckIconHelper {
-    /**
-     * Data object containing all data required to set an icon or construct a fallback.
-     */
+    /** Data object containing all data required to set an icon or construct a fallback. */
     public static class FaviconOrFallback {
         public final String mUrlOrAppName;
         public final @Nullable Bitmap mIcon;
@@ -32,8 +30,13 @@ public class PasswordCheckIconHelper {
         public final int mIconType;
         public final int mIconSize;
 
-        FaviconOrFallback(String urlOrAppName, @Nullable Bitmap icon, int fallbackColor,
-                boolean isFallbackColorDefault, int iconType, int iconSize) {
+        FaviconOrFallback(
+                String urlOrAppName,
+                @Nullable Bitmap icon,
+                int fallbackColor,
+                boolean isFallbackColorDefault,
+                int iconType,
+                int iconSize) {
             mUrlOrAppName = urlOrAppName;
             mIcon = icon;
             mFallbackColor = fallbackColor;
@@ -55,14 +58,28 @@ public class PasswordCheckIconHelper {
             CompromisedCredential credential, Callback<FaviconOrFallback> iconCallback) {
         final Pair<GURL, String> originAndFallback = getIconOriginAndFallback(credential);
         if (!originAndFallback.first.isValid()) {
-            iconCallback.onResult(new FaviconOrFallback(
-                    originAndFallback.second, null, 0, true, IconType.INVALID, mDesiredIconSize));
+            iconCallback.onResult(
+                    new FaviconOrFallback(
+                            originAndFallback.second,
+                            null,
+                            0,
+                            true,
+                            IconType.INVALID,
+                            mDesiredIconSize));
             return; // Abort because an invalid icon URLs will crash Chrome!
         }
-        mLargeIconBridge.getLargeIconForUrl(originAndFallback.first, mDesiredIconSize,
+        mLargeIconBridge.getLargeIconForUrl(
+                originAndFallback.first,
+                mDesiredIconSize,
                 (icon, fallbackColor, hasDefaultColor, type) -> {
-                    iconCallback.onResult(new FaviconOrFallback(originAndFallback.second, icon,
-                            fallbackColor, hasDefaultColor, type, mDesiredIconSize));
+                    iconCallback.onResult(
+                            new FaviconOrFallback(
+                                    originAndFallback.second,
+                                    icon,
+                                    fallbackColor,
+                                    hasDefaultColor,
+                                    type,
+                                    mDesiredIconSize));
                 });
     }
 

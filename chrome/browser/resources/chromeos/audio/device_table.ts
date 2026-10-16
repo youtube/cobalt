@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {$, getRequiredElement} from 'chrome://resources/js/util_ts.js';
-import {DeviceData} from './audio.mojom-webui.js';
-import {DeviceMap} from './device_page.js';
+import {$, getRequiredElement} from 'chrome://resources/js/util.js';
+
+import type {DeviceData} from './audio.mojom-webui.js';
+import type {DeviceMap} from './device_page.js';
 
 export class DeviceTable extends HTMLTableElement {
   private tbody: HTMLTableSectionElement;

@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <algorithm>
 #include <limits>
 #include <map>
 #include <set>
@@ -14,14 +15,59 @@
 #include <unordered_map>
 #include <vector>
 
+#include "base/check_is_test.h"
 #include "base/check_op.h"
-#include "base/ranges/algorithm.h"
+#include "base/feature_list.h"
 #include "base/time/time.h"
+#include "components/country_codes/country_codes.h"
 #include "components/prefs/pref_service.h"
+#include "components/regional_capabilities/regional_capabilities_utils.h"
+#include "components/search_engines/keyword_web_data_service.h"
+#include "components/search_engines/search_engine_choice/search_engine_choice_service.h"
+#include "components/search_engines/search_engine_choice/search_engine_choice_utils.h"
+#include "components/search_engines/search_engines_pref_names.h"
+#include "components/search_engines/search_engines_switches.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_prepopulate_data.h"
+#include "components/search_engines/template_url_prepopulate_data_resolver.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/search_engines/template_url_starter_pack_data.h"
+
+namespace {
+
+// Computes whether updates to the search engines database are needed.
+//
+// `metadata.HasBuiltinKeywordUpdate()` and
+// `metadata.HasStarterPackUpdate()` indicate the status for the
+// two types of search engines, and when they are `true`, individual fields
+// will contain the associated metadata that should be also added to the
+// database.
+WDKeywordsResult::Metadata ComputeMergeEnginesRequirements(
+    const TemplateURLPrepopulateData::Resolver& prepopulate_data_resolver,
+    const WDKeywordsResult::Metadata& keywords_metadata) {
+  WDKeywordsResult::Metadata out_metadata;
+
+  std::optional<TemplateURLPrepopulateData::BuiltinKeywordsMetadata>
+      builtin_keywords_metadata =
+          prepopulate_data_resolver.ComputeDatabaseUpdateRequirements(
+              keywords_metadata);
+  if (builtin_keywords_metadata.has_value()) {
+    out_metadata.builtin_keyword_data_version =
+        builtin_keywords_metadata->data_version;
+    out_metadata.builtin_keyword_country =
+        builtin_keywords_metadata->country_id;
+  }
+
+  const int starter_pack_data_version =
+      TemplateURLStarterPackData::GetDataVersion();
+  if (keywords_metadata.starter_pack_version < starter_pack_data_version) {
+    out_metadata.starter_pack_version = starter_pack_data_version;
+  }
+
+  return out_metadata;
+}
+
+}  // namespace
 
 std::u16string GetDefaultSearchEngineName(TemplateURLService* service) {
   DCHECK(service);
@@ -189,21 +235,21 @@ void MergeIntoEngineData(const TemplateURL* original_turl,
   DCHECK(original_turl->starter_pack_id() == 0 ||
          original_turl->starter_pack_id() == url_to_update->starter_pack_id);
   // When the user modified search engine's properties or search engine is
-  // imported from Play API data we need to preserve certain search engine
-  // properties from overriding with prepopulated data.
+  // imported from regulatory extensions we need to preserve certain search
+  // engine properties from overriding with prepopulated data.
   bool preserve_user_edits =
-      (merge_option != TemplateURLMergeOption::kOverwriteUserEdits &&
-       (!original_turl->safe_for_autoreplace() ||
-        original_turl->created_from_play_api()));
+      merge_option != TemplateURLMergeOption::kOverwriteUserEdits &&
+      (!original_turl->safe_for_autoreplace() ||
+       original_turl->CreatedByRegulatoryProgram());
   if (preserve_user_edits) {
     url_to_update->safe_for_autoreplace = original_turl->safe_for_autoreplace();
     url_to_update->SetShortName(original_turl->short_name());
     url_to_update->SetKeyword(original_turl->keyword());
-    if (original_turl->created_from_play_api()) {
-      // TODO(crbug/1002271): Search url from Play API might contain attribution
-      // info and therefore should be preserved through prepopulated data
-      // update. In the future we might decide to take different approach to
-      // pass attribution info to search providers.
+    if (original_turl->CreatedByRegulatoryProgram()) {
+      // TODO(crbug.com/40646573): Search url from Play API might contain
+      // attribution info and therefore should be preserved through prepopulated
+      // data update. In the future we might decide to take different approach
+      // to pass attribution info to search providers.
       url_to_update->SetURL(original_turl->url());
     }
   }
@@ -211,7 +257,7 @@ void MergeIntoEngineData(const TemplateURL* original_turl,
   url_to_update->sync_guid = original_turl->sync_guid();
   url_to_update->date_created = original_turl->date_created();
   url_to_update->last_modified = original_turl->last_modified();
-  url_to_update->created_from_play_api = original_turl->created_from_play_api();
+  url_to_update->regulatory_origin = original_turl->data().regulatory_origin;
 }
 
 ActionsFromCurrentData::ActionsFromCurrentData() = default;
@@ -243,12 +289,11 @@ ActionsFromCurrentData CreateActionsFromCurrentPrepopulateData(
     const TemplateURL* default_search_provider) {
   // Create a map to hold all provided |template_urls| that originally came from
   // prepopulate data (i.e. have a non-zero prepopulate_id()).
-  TemplateURL* play_api_turl = nullptr;
+  std::map<std::u16string_view, TemplateURL*> regulatory_entries;
   std::map<int, TemplateURL*> id_to_turl;
   for (auto& turl : existing_urls) {
-    if (turl->created_from_play_api()) {
-      DCHECK_EQ(nullptr, play_api_turl);
-      play_api_turl = turl.get();
+    if (turl->CreatedByRegulatoryProgram()) {
+      regulatory_entries.insert({turl->keyword(), turl.get()});
     }
     int prepopulate_id = turl->prepopulate_id();
     if (prepopulate_id > 0)
@@ -269,9 +314,9 @@ ActionsFromCurrentData CreateActionsFromCurrentPrepopulateData(
     if (existing_url_iter != id_to_turl.end()) {
       existing_url = existing_url_iter->second;
       id_to_turl.erase(existing_url_iter);
-    } else if (play_api_turl &&
-               play_api_turl->keyword() == prepopulated_url->keyword()) {
-      existing_url = play_api_turl;
+    } else if (auto iter = regulatory_entries.find(prepopulated_url->keyword());
+               iter != regulatory_entries.end()) {
+      existing_url = iter->second;
     }
 
     if (existing_url != nullptr) {
@@ -301,8 +346,8 @@ ActionsFromCurrentData CreateActionsFromCurrentPrepopulateData(
          (template_url->prepopulate_id() !=
           default_search_provider->prepopulate_id()) ||
          (template_url->keyword() != default_search_provider->keyword()))) {
-      if (template_url->created_from_play_api()) {
-        // Don't remove the entry created from Play API. Just reset
+      if (template_url->CreatedByRegulatoryProgram()) {
+        // Don't remove the entry created from regulatory extensions. Just reset
         // prepopulate_id for it.
         TemplateURLData data = template_url->data();
         data.prepopulate_id = 0;
@@ -314,6 +359,20 @@ ActionsFromCurrentData CreateActionsFromCurrentPrepopulateData(
   }
 
   return actions;
+}
+
+const std::string& GetDefaultSearchProviderGuidFromPrefs(PrefService& prefs) {
+  return base::FeatureList::IsEnabled(switches::kSearchEngineChoiceTrigger)
+             ? prefs.GetString(prefs::kDefaultSearchProviderGUID)
+             : prefs.GetString(prefs::kSyncedDefaultSearchProviderGUID);
+}
+
+void SetDefaultSearchProviderGuidToPrefs(PrefService& prefs,
+                                         const std::string& value) {
+  prefs.SetString(prefs::kSyncedDefaultSearchProviderGUID, value);
+  if (base::FeatureList::IsEnabled(switches::kSearchEngineChoiceTrigger)) {
+    prefs.SetString(prefs::kDefaultSearchProviderGUID, value);
+  }
 }
 
 void MergeEnginesFromStarterPackData(
@@ -400,11 +459,13 @@ void ApplyActionsFromCurrentData(
   DCHECK(template_urls);
 
   // Remove items.
-  for (const auto* removed_engine : actions.removed_engines) {
+  for (const TemplateURL* removed_engine : actions.removed_engines) {
     auto j = FindTemplateURL(template_urls, removed_engine);
-    DCHECK(j != template_urls->end());
+    CHECK(j != template_urls->end());
     DCHECK(!default_search_provider ||
-           (*j)->prepopulate_id() != default_search_provider->prepopulate_id());
+           (*j)->prepopulate_id() !=
+               default_search_provider->prepopulate_id() ||
+           (*j)->keyword() != default_search_provider->keyword());
     std::unique_ptr<TemplateURL> template_url = std::move(*j);
     template_urls->erase(j);
     if (service) {
@@ -431,24 +492,19 @@ void ApplyActionsFromCurrentData(
 }
 
 void GetSearchProvidersUsingKeywordResult(
-    const WDTypedResult& result,
+    const WDKeywordsResult& keyword_result,
     KeywordWebDataService* service,
     PrefService* prefs,
+    const TemplateURLPrepopulateData::Resolver& template_url_data_resolver,
     TemplateURLService::OwnedTemplateURLVector* template_urls,
     TemplateURL* default_search_provider,
     const SearchTermsData& search_terms_data,
-    int* new_resource_keyword_version,
-    int* new_resource_starter_pack_version,
+    WDKeywordsResult::Metadata& out_updated_keywords_metadata,
     std::set<std::string>* removed_keyword_guids) {
   DCHECK(template_urls);
   DCHECK(template_urls->empty());
-  DCHECK_EQ(KEYWORDS_RESULT, result.GetType());
-  DCHECK(new_resource_keyword_version);
 
-  WDKeywordsResult keyword_result = reinterpret_cast<
-      const WDResult<WDKeywordsResult>*>(&result)->GetValue();
-
-  for (auto& keyword : keyword_result.keywords) {
+  for (TemplateURLData keyword : keyword_result.keywords) {
     // Fix any duplicate encodings in the local database.  Note that we don't
     // adjust the last_modified time of this keyword; this way, we won't later
     // overwrite any changes on the sync server that happened to this keyword
@@ -463,56 +519,57 @@ void GetSearchProvidersUsingKeywordResult(
     template_urls->push_back(std::make_unique<TemplateURL>(keyword));
   }
 
-  *new_resource_keyword_version = keyword_result.builtin_keyword_version;
-  *new_resource_starter_pack_version = keyword_result.starter_pack_version;
+  out_updated_keywords_metadata = keyword_result.metadata;
   GetSearchProvidersUsingLoadedEngines(
-      service, prefs, template_urls, default_search_provider, search_terms_data,
-      new_resource_keyword_version, new_resource_starter_pack_version,
+      service, prefs, template_url_data_resolver, template_urls,
+      default_search_provider, search_terms_data, out_updated_keywords_metadata,
       removed_keyword_guids);
+
+  // If a data change happened, it should not cause a version downgrade.
+  // Upgrades (builtin > new) or feature-related merges (builtin == new) only
+  // are expected.
+  DCHECK(!out_updated_keywords_metadata.HasBuiltinKeywordData() ||
+         out_updated_keywords_metadata.builtin_keyword_data_version >=
+             keyword_result.metadata.builtin_keyword_data_version);
 }
 
 void GetSearchProvidersUsingLoadedEngines(
     KeywordWebDataService* service,
     PrefService* prefs,
+    const TemplateURLPrepopulateData::Resolver& template_url_data_resolver,
     TemplateURLService::OwnedTemplateURLVector* template_urls,
     TemplateURL* default_search_provider,
     const SearchTermsData& search_terms_data,
-    int* resource_keyword_version,
-    int* resource_starter_pack_version,
+    WDKeywordsResult::Metadata& in_out_keywords_metadata,
     std::set<std::string>* removed_keyword_guids) {
   DCHECK(template_urls);
-  DCHECK(resource_keyword_version);
   std::vector<std::unique_ptr<TemplateURLData>> prepopulated_urls =
-      TemplateURLPrepopulateData::GetPrepopulatedEngines(prefs, nullptr);
+      template_url_data_resolver.GetPrepopulatedEngines();
   RemoveDuplicatePrepopulateIDs(service, prepopulated_urls,
                                 default_search_provider, template_urls,
                                 search_terms_data, removed_keyword_guids);
 
-  const int prepopulate_resource_keyword_version =
-      TemplateURLPrepopulateData::GetDataVersion(prefs);
-  if (*resource_keyword_version < prepopulate_resource_keyword_version) {
+  WDKeywordsResult::Metadata required_metadata =
+      ComputeMergeEnginesRequirements(template_url_data_resolver,
+                                      in_out_keywords_metadata);
+
+  if (required_metadata.HasBuiltinKeywordData()) {
     MergeEnginesFromPrepopulateData(service, &prepopulated_urls, template_urls,
                                     default_search_provider,
                                     removed_keyword_guids);
-    *resource_keyword_version = prepopulate_resource_keyword_version;
-  } else {
-    *resource_keyword_version = 0;
   }
 
-  const int starter_pack_data_version =
-      TemplateURLStarterPackData::GetDataVersion();
-  bool overwrite_user_edits =
-      (*resource_starter_pack_version <
-       TemplateURLStarterPackData::GetFirstCompatibleDataVersion());
-  if (*resource_starter_pack_version < starter_pack_data_version) {
+  if (required_metadata.HasStarterPackData()) {
+    bool overwrite_user_edits =
+        (in_out_keywords_metadata.starter_pack_version <
+         TemplateURLStarterPackData::GetFirstCompatibleDataVersion());
     MergeEnginesFromStarterPackData(
         service, template_urls, default_search_provider, removed_keyword_guids,
         (overwrite_user_edits ? TemplateURLMergeOption::kOverwriteUserEdits
                               : TemplateURLMergeOption::kDefault));
-    *resource_starter_pack_version = starter_pack_data_version;
-  } else {
-    *resource_starter_pack_version = 0;
   }
+
+  in_out_keywords_metadata = required_metadata;
 }
 
 bool DeDupeEncodings(std::vector<std::string>* encodings) {
@@ -530,5 +587,5 @@ bool DeDupeEncodings(std::vector<std::string>* encodings) {
 TemplateURLService::OwnedTemplateURLVector::iterator FindTemplateURL(
     TemplateURLService::OwnedTemplateURLVector* urls,
     const TemplateURL* url) {
-  return base::ranges::find(*urls, url, &std::unique_ptr<TemplateURL>::get);
+  return std::ranges::find(*urls, url, &std::unique_ptr<TemplateURL>::get);
 }

@@ -12,7 +12,6 @@
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/forms/text_control_element.h"
 #include "third_party/blink/renderer/core/layout/layout_text_fragment.h"
-#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 
 namespace blink {
 
@@ -59,10 +58,11 @@ TEST_F(VisibleUnitsSentenceTest, startOfSentence) {
   SetBodyContent(body_content);
   ShadowRoot* shadow_root = SetShadowContent(shadow_content, "host");
 
-  Node* one = GetDocument().getElementById("one")->firstChild();
-  Node* two = GetDocument().getElementById("two")->firstChild();
-  Node* three = shadow_root->getElementById("three")->firstChild();
-  Node* four = shadow_root->getElementById("four")->firstChild();
+  Node* one = GetDocument().getElementById(AtomicString("one"))->firstChild();
+  Node* two = GetDocument().getElementById(AtomicString("two"))->firstChild();
+  Node* three =
+      shadow_root->getElementById(AtomicString("three"))->firstChild();
+  Node* four = shadow_root->getElementById(AtomicString("four"))->firstChild();
 
   EXPECT_EQ(Position(three, 0), StartOfSentencePosition(Position(*one, 0)));
   EXPECT_EQ(PositionInFlatTree(three, 0),
@@ -91,8 +91,8 @@ TEST_F(VisibleUnitsSentenceTest, startOfSentence) {
 
 TEST_F(VisibleUnitsSentenceTest, SentenceBoundarySkipTextControl) {
   SetBodyContent("foo <input value=\"xx. xx.\"> bar.");
-  const Node* foo = GetDocument().QuerySelector("input")->previousSibling();
-  const Node* bar = GetDocument().QuerySelector("input")->nextSibling();
+  const Node* foo = QuerySelector("input")->previousSibling();
+  const Node* bar = QuerySelector("input")->nextSibling();
 
   EXPECT_EQ(Position(bar, 5), EndOfSentence(Position(foo, 1)).GetPosition());
   EXPECT_EQ(PositionInFlatTree(bar, 5),

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "components/variations/hashing.h"
 
 #include <stddef.h>
@@ -25,9 +26,13 @@ TEST(HashingTest, HashName) {
                       {"abcdefghijklmonpqrstuvwxyz", 787728696u},
                       {"0123456789ABCDEF", 348858318U}};
 
-  for (size_t i = 0; i < std::size(known_hashes); ++i) {
-    EXPECT_EQ(known_hashes[i].hash_value, HashName(known_hashes[i].name));
+  for (const auto& hash_case : known_hashes) {
+    EXPECT_EQ(hash_case.hash_value, HashName(hash_case.name));
   }
+}
+
+TEST(HashingTest, HashNameAsHexString) {
+  EXPECT_EQ("37e4f786", HashNameAsHexString("a"));
 }
 
 }  // namespace variations

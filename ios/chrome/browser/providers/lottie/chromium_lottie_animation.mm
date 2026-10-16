@@ -2,18 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#import "base/apple/bundle_locations.h"
 #import "build/build_config.h"
 #import "ios/public/provider/chrome/browser/lottie/lottie_animation_api.h"
 #import "ios/public/provider/chrome/browser/lottie/lottie_animation_configuration.h"
 
 #if !BUILDFLAG(IS_IOS_MACCATALYST)
 #import <Lottie/Lottie.h>
+
 #import "base/check.h"
 #endif  // BUILDFLAG(IS_IOS_MACCATALYST)
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @interface ChromiumLottieAnimation : NSObject <LottieAnimation>
 
@@ -41,7 +39,7 @@
 
     _lottieAnimation = [LOTAnimationView
         animationNamed:config.animationName
-              inBundle:config.bundle == nil ? [NSBundle mainBundle]
+              inBundle:config.bundle == nil ? base::apple::FrameworkBundle()
                                             : config.bundle];
 #endif  // BUILDFLAG(IS_IOS_MACCATALYST)
   }
@@ -57,6 +55,12 @@
 - (void)stop {
 #if !BUILDFLAG(IS_IOS_MACCATALYST)
   [_lottieAnimation stop];
+#endif  // BUILDFLAG(IS_IOS_MACCATALYST)
+}
+
+- (void)pause {
+#if !BUILDFLAG(IS_IOS_MACCATALYST)
+  [_lottieAnimation pause];
 #endif  // BUILDFLAG(IS_IOS_MACCATALYST)
 }
 

@@ -53,7 +53,6 @@ perfetto_py_binary(
         ":trace_processor_py",
     ] + PERFETTO_CONFIG.deps.pandas_py,
     main = "tools/slice_breakdown.py",
-    python_version = "PY3",
 )
 
 # GN target: //python:trace_processor_table_generator
@@ -76,7 +75,25 @@ perfetto_py_binary(
         ":trace_processor_py",
     ] + PERFETTO_CONFIG.deps.pandas_py,
     main = "example.py",
-    python_version = "PY3",
+)
+
+# GN target: //python:sql_processing
+perfetto_py_library(
+    name = "sql_processing",
+    srcs = [
+        "generators/sql_processing/docs_extractor.py",
+        "generators/sql_processing/docs_parse.py",
+        "generators/sql_processing/utils.py",
+    ],
+)
+
+# GN target: //python:common
+perfetto_py_library(
+    name = "common",
+    srcs = [
+        "perfetto/common/exceptions.py",
+        "perfetto/common/query_result_iterator.py",
+    ],
 )
 
 # GN target: //python:experimental_slice_breakdown_lib
@@ -94,6 +111,17 @@ perfetto_py_library(
 # GN target: //python:trace_processor_py
 perfetto_py_library(
     name = "trace_processor_py",
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [
+        ":trace_processor_py_no_resolvers",
+    ] + PERFETTO_CONFIG.deps.tp_resolvers_py,
+)
+
+# GN target: //python:trace_processor_py_no_resolvers
+perfetto_py_library(
+    name = "trace_processor_py_no_resolvers",
     srcs = [
         "perfetto/trace_processor/__init__.py",
         "perfetto/trace_processor/api.py",
@@ -111,10 +139,14 @@ perfetto_py_library(
         "perfetto/trace_processor/trace_processor.descriptor",
     ],
     deps = [
+               ":common",
                ":trace_uri_resolver",
            ] + PERFETTO_CONFIG.deps.pandas_py +
            PERFETTO_CONFIG.deps.protobuf_py +
            PERFETTO_CONFIG.deps.tp_vendor_py,
+    tags = [
+        "avoid_dep",
+    ],
 )
 
 # GN target: //python:trace_uri_resolver

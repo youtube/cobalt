@@ -1,5 +1,7 @@
 #include "quiche/http2/test_tools/hpack_example.h"
 
+#include <string>
+
 // Tests of HpackExampleToStringOrDie.
 
 #include "quiche/common/platform/api/quiche_test.h"
@@ -34,11 +36,13 @@ TEST(HpackExampleToStringOrDie, GoodInput) {
   EXPECT_EQ(absl::string_view(kExpected, sizeof kExpected), bytes);
 }
 
+#ifdef GTEST_HAS_DEATH_TEST
 TEST(HpackExampleToStringOrDie, InvalidInput) {
-  EXPECT_DEATH(HpackExampleToStringOrDie("4"), "Truncated");
-  EXPECT_DEATH(HpackExampleToStringOrDie("4x"), "half");
-  EXPECT_DEATH(HpackExampleToStringOrDie(""), "empty");
+  EXPECT_QUICHE_DEATH(HpackExampleToStringOrDie("4"), "Truncated");
+  EXPECT_QUICHE_DEATH(HpackExampleToStringOrDie("4x"), "half");
+  EXPECT_QUICHE_DEATH(HpackExampleToStringOrDie(""), "empty");
 }
+#endif
 
 }  // namespace
 }  // namespace test

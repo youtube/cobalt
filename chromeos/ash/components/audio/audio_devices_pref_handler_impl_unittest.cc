@@ -7,16 +7,22 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 
+#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
+#include "audio_devices_pref_handler.h"
 #include "base/memory/ref_counted.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time_override.h"
 #include "chromeos/ash/components/audio/audio_device.h"
+#include "chromeos/ash/components/audio/audio_device_id.h"
 #include "chromeos/ash/components/audio/audio_devices_pref_handler.h"
 #include "chromeos/ash/components/dbus/audio/audio_node.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/prefs/testing_pref_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/cros_system_api/dbus/audio/dbus-constants.h"
 
 namespace ash {
 
@@ -26,8 +32,11 @@ const uint64_t kPresetInputId = 10001;
 const uint64_t kHeadphoneId = 10002;
 const uint64_t kInternalMicId = 10003;
 const uint64_t kPresetOutputId = 10004;
-const uint64_t kUSBMicId = 10005;
-const uint64_t kHDMIOutputId = 10006;
+const uint64_t kUsbOutputId = 10005;
+const uint64_t kUsbMicId = 10006;
+const uint64_t kHDMIOutputId = 10007;
+const uint64_t kBluetoothOutputId = 10008;
+const uint64_t kBluetoothMicId = 10009;
 const uint64_t kOtherTypeOutputId = 90001;
 const uint64_t kOtherTypeInputId = 90002;
 
@@ -55,7 +64,10 @@ const AudioNodeInfo kPresetInput = {true, kPresetInputId, "Fake input",
 const AudioNodeInfo kInternalMic = {true, kInternalMicId, "Fake Mic",
                                     "INTERNAL_MIC", "Internal Mic"};
 
-const AudioNodeInfo kUSBMic = {true, kUSBMicId, "Fake USB Mic", "USB",
+const AudioNodeInfo kUsbOutput = {false, kUsbOutputId, "Fake USB Output", "USB",
+                                  "USB Output"};
+
+const AudioNodeInfo kUSBMic = {true, kUsbMicId, "Fake USB Mic", "USB",
                                "USB Microphone"};
 
 const AudioNodeInfo kPresetOutput = {false, kPresetOutputId, "Fake output",
@@ -66,6 +78,12 @@ const AudioNodeInfo kHeadphone = {false, kHeadphoneId, "Fake Headphone",
 
 const AudioNodeInfo kHDMIOutput = {false, kHDMIOutputId, "HDMI output", "HDMI",
                                    "HDMI output"};
+
+const AudioNodeInfo kBluetoothOutput = {false, kBluetoothOutputId, "BT output",
+                                        "BLUETOOTH", "BT output"};
+
+const AudioNodeInfo kBluetoothMic = {true, kBluetoothMicId, "BT mic",
+                                     "BLUETOOTH", "BT mic"};
 
 const AudioNodeInfo kInputDeviceWithSpecialCharacters = {
     true, kOtherTypeInputId, "Fake ~!@#$%^&*()_+`-=<>?,./{}|[]\\\\Mic",
@@ -145,6 +163,11 @@ class AudioDevicesPrefHandlerTest : public testing::TestWithParam<bool> {
 
   void TearDown() override { audio_pref_handler_.reset(); }
 
+  void ResetPrefHandler() {
+    audio_pref_handler_.reset();
+    audio_pref_handler_ = new AudioDevicesPrefHandlerImpl(pref_service_.get());
+  }
+
  protected:
   void ReloadPrefHandler() {
     audio_pref_handler_ = new AudioDevicesPrefHandlerImpl(pref_service_.get());
@@ -173,6 +196,15 @@ class AudioDevicesPrefHandlerTest : public testing::TestWithParam<bool> {
     return CreateAudioDevice(IsInputTest() ? kInputDeviceWithSpecialCharacters
                                            : kOutputDeviceWithSpecialCharacters,
                              version);
+  }
+
+  AudioDevice GetBTDeviceWithVersion(int version) {
+    return CreateAudioDevice(IsInputTest() ? kBluetoothMic : kBluetoothOutput,
+                             version);
+  }
+
+  AudioDevice GetUsbDeviceWithVersion(int version) {
+    return CreateAudioDevice(IsInputTest() ? kUSBMic : kUsbOutput, version);
   }
 
   double GetSoundLevelValue(const AudioDevice& device) {
@@ -225,10 +257,28 @@ class AudioDevicesPrefHandlerTest : public testing::TestWithParam<bool> {
                          : AudioDevicesPrefHandler::kDefaultOutputVolumePercent;
   }
 
+  double GetDeviceDefaultSoundLevelValue(const AudioDevice& device) {
+    if (IsInputTest()) {
+      return AudioDevicesPrefHandler::kDefaultInputGainPercent;
+    }
+
+    switch (device.type) {
+      case AudioDeviceType::kBluetooth:
+        return AudioDevicesPrefHandler::kDefaultBluetoothOutputVolumePercent;
+      case AudioDeviceType::kUsb:
+        return AudioDevicesPrefHandler::kDefaultUsbOutputVolumePercent;
+      case AudioDeviceType::kHdmi:
+        return AudioDevicesPrefHandler::kDefaultHdmiOutputVolumePercent;
+      default:
+        return AudioDevicesPrefHandler::kDefaultOutputVolumePercent;
+    }
+  }
+
   bool IsInputTest() const { return GetParam(); }
 
   scoped_refptr<AudioDevicesPrefHandler> audio_pref_handler_;
   std::unique_ptr<TestingPrefServiceSimple> pref_service_;
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 INSTANTIATE_TEST_SUITE_P(Input, AudioDevicesPrefHandlerTest, Values(true));
@@ -237,39 +287,54 @@ INSTANTIATE_TEST_SUITE_P(Output, AudioDevicesPrefHandlerTest, Values(false));
 TEST_P(AudioDevicesPrefHandlerTest, TestDefaultValuesV1) {
   AudioDevice device = GetDeviceWithVersion(1);
   AudioDevice secondary_device = GetSecondaryDeviceWithVersion(1);
+  AudioDevice bt_device = GetBTDeviceWithVersion(1);
+  AudioDevice usb_device = GetUsbDeviceWithVersion(1);
 
-  // TODO(rkc): Once the bug with default preferences is fixed, fix this test
-  // also. http://crbug.com/442489
-  EXPECT_EQ(GetDefaultSoundLevelValue(), GetSoundLevelValue(device));
-  EXPECT_EQ(GetDefaultSoundLevelValue(), GetSoundLevelValue(secondary_device));
+  EXPECT_EQ(GetDeviceDefaultSoundLevelValue(device),
+            GetSoundLevelValue(device));
+  EXPECT_EQ(GetDeviceDefaultSoundLevelValue(secondary_device),
+            GetSoundLevelValue(secondary_device));
+  EXPECT_EQ(GetDeviceDefaultSoundLevelValue(bt_device),
+            GetSoundLevelValue(bt_device));
+  EXPECT_EQ(GetDeviceDefaultSoundLevelValue(usb_device),
+            GetSoundLevelValue(usb_device));
 
   EXPECT_FALSE(DeviceStateExists(device));
   EXPECT_FALSE(DeviceStateExists(secondary_device));
+  EXPECT_FALSE(DeviceStateExists(bt_device));
 
   EXPECT_FALSE(GetMute(device));
   EXPECT_FALSE(GetMute(secondary_device));
+  EXPECT_FALSE(GetMute(bt_device));
 
   EXPECT_EQ(0, GetUserPriority(device));
   EXPECT_EQ(0, GetUserPriority(secondary_device));
+  EXPECT_EQ(0, GetUserPriority(bt_device));
 }
 
 TEST_P(AudioDevicesPrefHandlerTest, TestDefaultValuesV2) {
   AudioDevice device = GetDeviceWithVersion(2);
   AudioDevice secondary_device = GetSecondaryDeviceWithVersion(2);
+  AudioDevice bt_device = GetBTDeviceWithVersion(2);
 
-  // TODO(rkc): Once the bug with default preferences is fixed, fix this test
-  // also. http://crbug.com/442489
-  EXPECT_EQ(GetDefaultSoundLevelValue(), GetSoundLevelValue(device));
-  EXPECT_EQ(GetDefaultSoundLevelValue(), GetSoundLevelValue(secondary_device));
+  EXPECT_EQ(GetDeviceDefaultSoundLevelValue(device),
+            GetSoundLevelValue(device));
+  EXPECT_EQ(GetDeviceDefaultSoundLevelValue(secondary_device),
+            GetSoundLevelValue(secondary_device));
+  EXPECT_EQ(GetDeviceDefaultSoundLevelValue(bt_device),
+            GetSoundLevelValue(bt_device));
 
   EXPECT_FALSE(DeviceStateExists(device));
   EXPECT_FALSE(DeviceStateExists(secondary_device));
+  EXPECT_FALSE(DeviceStateExists(bt_device));
 
   EXPECT_FALSE(GetMute(device));
   EXPECT_FALSE(GetMute(secondary_device));
+  EXPECT_FALSE(GetMute(bt_device));
 
   EXPECT_EQ(0, GetUserPriority(device));
   EXPECT_EQ(0, GetUserPriority(secondary_device));
+  EXPECT_EQ(0, GetUserPriority(bt_device));
 }
 
 TEST_P(AudioDevicesPrefHandlerTest, PrefsRegistered) {
@@ -277,13 +342,16 @@ TEST_P(AudioDevicesPrefHandlerTest, PrefsRegistered) {
   EXPECT_TRUE(pref_service_->FindPreference(prefs::kAudioDevicesVolumePercent));
   EXPECT_TRUE(pref_service_->FindPreference(prefs::kAudioDevicesMute));
   EXPECT_TRUE(pref_service_->FindPreference(prefs::kAudioOutputAllowed));
-  EXPECT_TRUE(pref_service_->FindPreference(prefs::kAudioVolumePercent));
   EXPECT_TRUE(pref_service_->FindPreference(prefs::kAudioMute));
   EXPECT_TRUE(pref_service_->FindPreference(prefs::kAudioDevicesState));
   EXPECT_TRUE(
       pref_service_->FindPreference(prefs::kAudioInputDevicesUserPriority));
   EXPECT_TRUE(
       pref_service_->FindPreference(prefs::kAudioOutputDevicesUserPriority));
+  EXPECT_TRUE(
+      pref_service_->FindPreference(prefs::kAudioInputDevicePreferenceSet));
+  EXPECT_TRUE(
+      pref_service_->FindPreference(prefs::kAudioOutputDevicePreferenceSet));
 }
 
 TEST_P(AudioDevicesPrefHandlerTest, SoundLevel) {
@@ -336,22 +404,6 @@ TEST_P(AudioDevicesPrefHandlerTest, SettingV2DeviceSoundLevelRemovesV1Entry) {
   ReloadPrefHandler();
   EXPECT_EQ(GetDefaultSoundLevelValue(), GetSoundLevelValue(device_v1));
   EXPECT_EQ(13.38, GetSoundLevelValue(device_v2));
-}
-
-TEST_P(AudioDevicesPrefHandlerTest, MigrateFromGlobalSoundLevelPref) {
-  if (IsInputTest()) {
-    // For any new input devices, the default volume is set from a constant
-    // rather than the default kAudioVolumePercent.
-    return;
-  }
-  pref_service_->SetDouble(prefs::kAudioVolumePercent, 13.37);
-
-  // For devices with v1 stable device id.
-  EXPECT_EQ(13.37, GetSoundLevelValue(GetDeviceWithVersion(1)));
-  EXPECT_EQ(13.37, GetSoundLevelValue(GetDeviceWithVersion(2)));
-
-  // For devices with v2 stable id.
-  EXPECT_EQ(13.37, GetSoundLevelValue(GetSecondaryDeviceWithVersion(2)));
 }
 
 TEST_P(AudioDevicesPrefHandlerTest, Mute) {
@@ -472,10 +524,48 @@ TEST_P(AudioDevicesPrefHandlerTest, TestSettingV2DeviceStateRemovesV1Entry) {
   ExpectDeviceStateEquals(device_v2, false, false);
 }
 
+TEST_P(AudioDevicesPrefHandlerTest, InputVoiceIsolationPrefRegistered) {
+  EXPECT_FALSE(audio_pref_handler_->GetVoiceIsolationState());
+  audio_pref_handler_->SetVoiceIsolationState(true);
+  EXPECT_TRUE(audio_pref_handler_->GetVoiceIsolationState());
+  audio_pref_handler_->SetVoiceIsolationState(false);
+  EXPECT_FALSE(audio_pref_handler_->GetVoiceIsolationState());
+}
+
+TEST_P(AudioDevicesPrefHandlerTest,
+       InputVoiceIsolationPreferredEffectPrefRegistered) {
+  // Default 0
+  EXPECT_EQ(audio_pref_handler_->GetVoiceIsolationPreferredEffect(), 0u);
+
+  const uint32_t kExpectedEffects[] = {
+      cras::AudioEffectType::EFFECT_TYPE_NOISE_CANCELLATION,
+      cras::AudioEffectType::EFFECT_TYPE_HFP_MIC_SR,
+      cras::AudioEffectType::EFFECT_TYPE_STYLE_TRANSFER,
+      cras::AudioEffectType::EFFECT_TYPE_BEAMFORMING,
+      cras::AudioEffectType::EFFECT_TYPE_NONE,
+  };
+  for (uint32_t effect : kExpectedEffects) {
+    audio_pref_handler_->SetVoiceIsolationPreferredEffect(effect);
+    EXPECT_EQ(audio_pref_handler_->GetVoiceIsolationPreferredEffect(), effect);
+  }
+}
+
 TEST_P(AudioDevicesPrefHandlerTest, InputNoiseCancellationPrefRegistered) {
   EXPECT_FALSE(audio_pref_handler_->GetNoiseCancellationState());
   audio_pref_handler_->SetNoiseCancellationState(true);
   EXPECT_TRUE(audio_pref_handler_->GetNoiseCancellationState());
+}
+
+TEST_P(AudioDevicesPrefHandlerTest, InputStyleTransferPrefRegistered) {
+  EXPECT_FALSE(audio_pref_handler_->GetStyleTransferState());
+  audio_pref_handler_->SetStyleTransferState(true);
+  EXPECT_TRUE(audio_pref_handler_->GetStyleTransferState());
+}
+
+TEST_P(AudioDevicesPrefHandlerTest, HfpMicSrPrefRegistered) {
+  EXPECT_FALSE(audio_pref_handler_->GetHfpMicSrState());
+  audio_pref_handler_->SetHfpMicSrState(true);
+  EXPECT_TRUE(audio_pref_handler_->GetHfpMicSrState());
 }
 
 TEST_P(AudioDevicesPrefHandlerTest, UserPriority) {
@@ -525,8 +615,7 @@ TEST_P(AudioDevicesPrefHandlerTest, DropLeastRecentlySeenDevices) {
   base::subtle::ScopedTimeClockOverrides time_override(
       []() {
         static int i = 0;
-        i++;
-        return base::Time::FromDoubleT(i);
+        return base::Time::FromSecondsSinceUnixEpoch(i++);
       },
       nullptr, nullptr);
 
@@ -567,6 +656,100 @@ TEST_P(AudioDevicesPrefHandlerTest, DropLeastRecentlySeenDevices) {
   EXPECT_EQ(kUserPriorityNone, GetUserPriority(d[0]));
   EXPECT_EQ(kUserPriorityNone, GetUserPriority(d[1]));
   EXPECT_NE(kUserPriorityNone, GetUserPriority(d[2]));
+}
+
+// Tests read and write audio device preference set pref.
+TEST_P(AudioDevicesPrefHandlerTest, PreferenceSet) {
+  AudioDevice device = GetDeviceWithVersion(2);
+  AudioDevice device2 = GetSecondaryDeviceWithVersion(2);
+  AudioDeviceList devices = {device, device2};
+
+  // No preferred device among this set of devices yet.
+  EXPECT_EQ(std::nullopt,
+            audio_pref_handler_->GetPreferredDeviceFromPreferenceSet(
+                device.is_input, devices));
+
+  // Set preferred device and verify.
+  audio_pref_handler_->UpdateDevicePreferenceSet(devices, device);
+  EXPECT_EQ(device.stable_device_id,
+            audio_pref_handler_->GetPreferredDeviceFromPreferenceSet(
+                device.is_input, devices));
+
+  // Set a different preferred device and verify.
+  audio_pref_handler_->UpdateDevicePreferenceSet(devices, device2);
+  EXPECT_EQ(device2.stable_device_id,
+            audio_pref_handler_->GetPreferredDeviceFromPreferenceSet(
+                device.is_input, devices));
+
+  // Set back to the first device and verify.
+  audio_pref_handler_->UpdateDevicePreferenceSet(devices, device);
+  EXPECT_EQ(device.stable_device_id,
+            audio_pref_handler_->GetPreferredDeviceFromPreferenceSet(
+                device.is_input, devices));
+}
+
+// Tests preference set pref shouldn't be updated if the preferred device does
+// not exist in the given device set.
+TEST_P(AudioDevicesPrefHandlerTest, PreferredDeviceNotExist) {
+  AudioDevice device = GetDeviceWithVersion(2);
+  AudioDevice device2 = GetSecondaryDeviceWithVersion(2);
+  AudioDevice device3 = GetBTDeviceWithVersion(2);
+  AudioDeviceList devices = {device, device2};
+
+  // No preferred device among this set of devices yet.
+  EXPECT_EQ(std::nullopt,
+            audio_pref_handler_->GetPreferredDeviceFromPreferenceSet(
+                device.is_input, devices));
+
+  // Set a preferred device which is not in the device set.
+  audio_pref_handler_->UpdateDevicePreferenceSet(devices, device3);
+
+  // Expect that no preferred device is set.
+  EXPECT_EQ(std::nullopt,
+            audio_pref_handler_->GetPreferredDeviceFromPreferenceSet(
+                device.is_input, devices));
+}
+
+// Tests read and write most recent activated device id list pref.
+TEST_P(AudioDevicesPrefHandlerTest, MostRecentActivatedDeviceIdList) {
+  AudioDevice device = GetDeviceWithVersion(2);
+  AudioDevice device2 = GetSecondaryDeviceWithVersion(2);
+
+  // No activated device yet.
+  EXPECT_TRUE(
+      audio_pref_handler_->GetMostRecentActivatedDeviceIdList(device.is_input)
+          .empty());
+
+  // Activate first device.
+  audio_pref_handler_->UpdateMostRecentActivatedDeviceIdList(device);
+  EXPECT_EQ(1u, audio_pref_handler_
+                    ->GetMostRecentActivatedDeviceIdList(device.is_input)
+                    .size());
+  EXPECT_EQ(
+      GetDeviceIdString(device),
+      audio_pref_handler_->GetMostRecentActivatedDeviceIdList(device.is_input)
+          .back());
+
+  // Activate second device.
+  audio_pref_handler_->UpdateMostRecentActivatedDeviceIdList(device2);
+  EXPECT_EQ(2u, audio_pref_handler_
+                    ->GetMostRecentActivatedDeviceIdList(device2.is_input)
+                    .size());
+  EXPECT_EQ(
+      GetDeviceIdString(device2),
+      audio_pref_handler_->GetMostRecentActivatedDeviceIdList(device2.is_input)
+          .back());
+
+  // Activate the first device again. Expect there are still two devices in the
+  // list. Expect this device is now in the end of the list.
+  audio_pref_handler_->UpdateMostRecentActivatedDeviceIdList(device);
+  EXPECT_EQ(2u, audio_pref_handler_
+                    ->GetMostRecentActivatedDeviceIdList(device.is_input)
+                    .size());
+  EXPECT_EQ(
+      GetDeviceIdString(device),
+      audio_pref_handler_->GetMostRecentActivatedDeviceIdList(device.is_input)
+          .back());
 }
 
 }  // namespace ash

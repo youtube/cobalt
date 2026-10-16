@@ -5,8 +5,11 @@
 #ifndef CHROME_BROWSER_EXTENSIONS_BLOCKLIST_FACTORY_H_
 #define CHROME_BROWSER_EXTENSIONS_BLOCKLIST_FACTORY_H_
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
+#include "extensions/buildflags/buildflags.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
 
@@ -22,13 +25,13 @@ class BlocklistFactory : public ProfileKeyedServiceFactory {
   static BlocklistFactory* GetInstance();
 
  private:
-  friend struct base::DefaultSingletonTraits<BlocklistFactory>;
+  friend base::NoDestructor<BlocklistFactory>;
 
   BlocklistFactory();
   ~BlocklistFactory() override;
 
   // BrowserContextKeyedServiceFactory
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 

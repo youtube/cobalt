@@ -7,20 +7,28 @@
 
 #include <stddef.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/ref_counted_memory.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "content/common/content_export.h"
-#include "content/services/auction_worklet/auction_downloader.h"
 #include "content/services/auction_worklet/auction_v8_helper.h"
+#include "content/services/auction_worklet/auction_worklet_service_impl.h"
+#include "content/services/auction_worklet/public/cpp/auction_downloader.h"
+#include "content/services/auction_worklet/public/cpp/auction_network_events_delegate.h"
+#include "content/services/auction_worklet/public/mojom/auction_worklet_service.mojom-forward.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "services/network/public/mojom/url_loader_factory.mojom-forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 #include "v8/include/v8-persistent-handle.h"
 
@@ -102,30 +110,35 @@ class CONTENT_EXPORT WorkletLoaderBase {
   };
 
   using LoadWorkletCallback =
-      base::OnceCallback<void(Result result,
-                              absl::optional<std::string> error_msg)>;
+      base::OnceCallback<void(std::vector<Result> results,
+                              std::optional<std::string> error_msg)>;
 
   explicit WorkletLoaderBase(const WorkletLoaderBase&) = delete;
   WorkletLoaderBase& operator=(const WorkletLoaderBase&) = delete;
 
  protected:
-  // Starts loading the resource on construction. Callback will be invoked
-  // asynchronously once the data has been fetched and compiled or an error has
-  // occurred, on the current thread. Destroying this is guaranteed to cancel
-  // the callback. `mime_type` will inform both download checking and the
-  // compilation method used.
-  WorkletLoaderBase(network::mojom::URLLoaderFactory* url_loader_factory,
-                    const GURL& source_url,
-                    AuctionDownloader::MimeType mime_type,
-                    scoped_refptr<AuctionV8Helper> v8_helper,
-                    scoped_refptr<AuctionV8Helper::DebugId> debug_id,
-                    LoadWorkletCallback load_worklet_callback);
+  // Starts loading the resource on construction. The same resource will be
+  // loaded in each of the threads associated with `v8_helpers` and `debug_ids`.
+  // Callback will be invoked on the current thread asynchronously once the data
+  // has been fetched and compiled on all V8 threads, or an error has occurred.
+  // Destroying this is guaranteed to cancel the callback. `mime_type` will
+  // inform both download checking and the compilation method used.
+  WorkletLoaderBase(
+      network::mojom::URLLoaderFactory* url_loader_factory,
+      mojo::PendingRemote<auction_worklet::mojom::AuctionNetworkEventsHandler>
+          auction_network_events_handler,
+      mojom::InProgressAuctionDownloadPtr in_progress_load,
+      AuctionDownloader::MimeType mime_type,
+      std::vector<scoped_refptr<AuctionV8Helper>> v8_helpers,
+      std::vector<scoped_refptr<AuctionV8Helper::DebugId>> debug_ids,
+      AuctionDownloader::ResponseStartedCallback response_started_callback,
+      LoadWorkletCallback load_worklet_callback);
   ~WorkletLoaderBase();
 
  private:
   void OnDownloadComplete(std::unique_ptr<std::string> body,
                           scoped_refptr<net::HttpResponseHeaders> headers,
-                          absl::optional<std::string> error_msg);
+                          std::optional<std::string> error_msg);
 
   static void HandleDownloadResultOnV8Thread(
       GURL source_url,
@@ -133,41 +146,55 @@ class CONTENT_EXPORT WorkletLoaderBase {
       scoped_refptr<AuctionV8Helper> v8_helper,
       scoped_refptr<AuctionV8Helper::DebugId> debug_id,
       std::unique_ptr<std::string> body,
-      absl::optional<std::string> error_msg,
+      std::optional<std::string> error_msg,
+      const std::optional<scoped_refptr<base::RefCountedBytes>>
+          cached_data_to_use,
       WorkletLoaderBase::Result::V8Data* out_data,
       scoped_refptr<base::SequencedTaskRunner> user_thread_task_runner,
       base::WeakPtr<WorkletLoaderBase> weak_instance);
 
-  static bool CompileJs(const std::string& body,
-                        scoped_refptr<AuctionV8Helper> v8_helper,
-                        const GURL& source_url,
-                        AuctionV8Helper::DebugId* debug_id,
-                        absl::optional<std::string>& error_msg,
-                        WorkletLoaderBase::Result::V8Data* out_data);
+  static bool CompileJs(
+      const std::string& body,
+      scoped_refptr<AuctionV8Helper> v8_helper,
+      const GURL& source_url,
+      AuctionV8Helper::DebugId* debug_id,
+      std::optional<std::string>& error_msg,
+      const std::optional<scoped_refptr<base::RefCountedBytes>>
+          cached_data_to_use,
+      std::optional<scoped_refptr<base::RefCountedBytes>>& cached_data_output,
+      WorkletLoaderBase::Result::V8Data* out_data);
 
   static bool CompileWasm(const std::string& body,
                           scoped_refptr<AuctionV8Helper> v8_helper,
                           const GURL& source_url,
                           AuctionV8Helper::DebugId* debug_id,
-                          absl::optional<std::string>& error_msg,
+                          std::optional<std::string>& error_msg,
                           WorkletLoaderBase::Result::V8Data* out_data);
 
-  void DeliverCallbackOnUserThread(bool success,
-                                   absl::optional<std::string> error_msg);
+  void DeliverCallbackOnUserThread(
+      bool success,
+      std::optional<std::string> error_msg,
+      bool download_success,
+      std::optional<scoped_refptr<base::RefCountedBytes>> cached_data);
 
   const GURL source_url_;
   const AuctionDownloader::MimeType mime_type_;
-  const scoped_refptr<AuctionV8Helper> v8_helper_;
-  const scoped_refptr<AuctionV8Helper::DebugId> debug_id_;
+  const std::vector<scoped_refptr<AuctionV8Helper>> v8_helpers_;
+  const std::vector<scoped_refptr<AuctionV8Helper::DebugId>> debug_ids_;
   const base::TimeTicks start_time_;
 
-  // We manage the result here until it's handed to the client, or we are
+  std::unique_ptr<std::string> body_;
+  std::optional<std::string> error_msg_;
+
+  size_t response_received_count_ = 0;
+
+  // We manage the results here until it's handed to the client, or we are
   // destroyed. The second case lets us clean up the V8 state w/o waiting for
   // main event loop to cleanup callbacks from V8 thread -> main, which can be
   // tricky at shutdown.
   //
   // See https://crbug.com/1421754
-  Result pending_result_;
+  std::vector<Result> pending_results_;
 
   std::unique_ptr<AuctionDownloader> auction_downloader_;
   LoadWorkletCallback load_worklet_callback_;
@@ -178,15 +205,33 @@ class CONTENT_EXPORT WorkletLoaderBase {
 // Utility for loading and compiling worklet JavaScript.
 class CONTENT_EXPORT WorkletLoader : public WorkletLoaderBase {
  public:
-  // Starts loading the resource on construction. Callback will be invoked
-  // asynchronously once the data has been fetched and compiled or an error has
-  // occurred, on the current thread. Destroying this is guaranteed to cancel
-  // the callback.
-  WorkletLoader(network::mojom::URLLoaderFactory* url_loader_factory,
-                const GURL& source_url,
-                scoped_refptr<AuctionV8Helper> v8_helper,
-                scoped_refptr<AuctionV8Helper::DebugId> debug_id,
-                LoadWorkletCallback load_worklet_callback);
+  using AllowTrustedScoringSignalsCallback =
+      base::OnceCallback<void(std::vector<url::Origin>)>;
+
+  // Starts loading the resource on construction. The same resource will be
+  // loaded in each of the threads associated with `v8_helpers`.
+  //
+  // `load_worklet_callback` will be invoked on the current thread
+  // asynchronously once the data has been fetched and compiled on all V8
+  // threads, or an error has occurred.
+  //
+  // If `allow_trusted_scoring_signals_callback` is specified, it will
+  // be invoked, on the current thread, with parsed contents of
+  // Ad-Auction-Allow-Trusted-Scoring-Signals-From header as soon as headers
+  // are available, unless the headers were enough for the request to be
+  // rejected.
+  //
+  // Destroying this is guaranteed to cancel any outstanding callbacks.
+  WorkletLoader(
+      network::mojom::URLLoaderFactory* url_loader_factory,
+      mojo::PendingRemote<auction_worklet::mojom::AuctionNetworkEventsHandler>
+          auction_network_events_handler,
+      mojom::InProgressAuctionDownloadPtr in_progress_load,
+      std::vector<scoped_refptr<AuctionV8Helper>> v8_helpers,
+      std::vector<scoped_refptr<AuctionV8Helper::DebugId>> debug_ids,
+      AllowTrustedScoringSignalsCallback allow_trusted_scoring_signals_callback,
+      LoadWorkletCallback load_worklet_callback);
+  ~WorkletLoader();
 
   // The returned value is a compiled script not bound to any context. It
   // can be repeatedly bound to different contexts and executed, without
@@ -195,19 +240,36 @@ class CONTENT_EXPORT WorkletLoader : public WorkletLoaderBase {
   // Should only be called on the V8 thread. Requires `result.success()` to be
   // true.
   static v8::Global<v8::UnboundScript> TakeScript(Result&& result);
+
+  // Parses a header describing which origins may provide trusted seller
+  // signals. It is expected to be a structured header list of strings,
+  // each of each is an https:// URL denoting the corresponding origin.
+  //
+  // Public for testing.
+  static std::vector<url::Origin> ParseAllowTrustedScoringSignalsFromHeader(
+      const std::string& allow_trusted_scoring_signals_from_header);
+
+ private:
+  void OnResponseStarted(const network::mojom::URLResponseHead&);
+
+  AllowTrustedScoringSignalsCallback allow_trusted_scoring_signals_callback_;
 };
 
 class CONTENT_EXPORT WorkletWasmLoader : public WorkletLoaderBase {
  public:
-  // Starts loading the resource on construction. Callback will be invoked
-  // asynchronously once the data has been fetched and compiled or an error has
-  // occurred, on the current thread. Destroying this is guaranteed to cancel
-  // the callback.
-  WorkletWasmLoader(network::mojom::URLLoaderFactory* url_loader_factory,
-                    const GURL& source_url,
-                    scoped_refptr<AuctionV8Helper> v8_helper,
-                    scoped_refptr<AuctionV8Helper::DebugId> debug_id,
-                    LoadWorkletCallback load_worklet_callback);
+  // Starts loading the resource on construction. The same resource will be
+  // loaded in each of the threads associated with `v8_helpers`. Callback will
+  // be invoked on the current thread asynchronously once the data has been
+  // fetched and compiled on all V8 threads, or an error has occurred.
+  // Destroying this is guaranteed to cancel the callback.
+  WorkletWasmLoader(
+      network::mojom::URLLoaderFactory* url_loader_factory,
+      mojo::PendingRemote<auction_worklet::mojom::AuctionNetworkEventsHandler>
+          auction_network_events_handler,
+      mojom::InProgressAuctionDownloadPtr in_progress_load,
+      std::vector<scoped_refptr<AuctionV8Helper>> v8_helpers,
+      std::vector<scoped_refptr<AuctionV8Helper::DebugId>> debug_ids,
+      LoadWorkletCallback load_worklet_callback);
 
   // The returned value is a module object. Since it's a JS object, it
   // should not be shared between contexts that must be isolated, as the code

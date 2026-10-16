@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ash/system_logs/single_log_file_log_source.h"
 
 #include "base/files/file_path.h"
@@ -57,7 +62,6 @@ base::FilePath::StringType GetLogFileSourceRelativeFilePathValue(
       return "power_manager/powerd.PREVIOUS";
   }
   NOTREACHED();
-  return base::FilePath::StringType();
 }
 
 // Returns the inode value of file at |path|, or 0 if it doesn't exist or is
@@ -92,7 +96,7 @@ SingleLogFileLogSource::SingleLogFileLogSource(SupportedSource source_type)
       file_cursor_position_(0),
       file_inode_(0) {}
 
-SingleLogFileLogSource::~SingleLogFileLogSource() {}
+SingleLogFileLogSource::~SingleLogFileLogSource() = default;
 
 // static
 void SingleLogFileLogSource::SetChromeStartTimeForTesting(

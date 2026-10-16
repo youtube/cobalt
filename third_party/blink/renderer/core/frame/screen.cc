@@ -29,7 +29,7 @@
 #include "third_party/blink/renderer/core/frame/screen.h"
 
 #include "base/numerics/safe_conversions.h"
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
 #include "third_party/blink/renderer/core/event_target_names.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -40,67 +40,48 @@
 
 namespace blink {
 
-namespace {
-
-}  // namespace
-
-Screen::Screen(LocalDOMWindow* window,
-               int64_t display_id,
-               bool use_size_override)
-    : ExecutionContextClient(window),
-      display_id_(display_id),
-      use_size_override_(use_size_override) {}
+Screen::Screen(LocalDOMWindow* window, int64_t display_id)
+    : ExecutionContextClient(window), display_id_(display_id) {}
 
 // static
 bool Screen::AreWebExposedScreenPropertiesEqual(
     const display::ScreenInfo& prev,
-    const display::ScreenInfo& current,
-    bool use_size_override) {
-  // height() and width() use rect.size() or size_override
-  gfx::Size prev_size = prev.rect.size();
-  if (prev.size_override && use_size_override)
-    prev_size = *prev.size_override;
-  gfx::Size current_size = current.rect.size();
-  if (current.size_override && use_size_override)
-    current_size = *current.size_override;
-  if (prev_size != current_size)
+    const display::ScreenInfo& current) {
+  // height() and width() use rect.size()
+  if (prev.rect.size() != current.rect.size()) {
     return false;
+  }
 
   // height() and width() use device_scale_factor
   // Note: comparing device_scale_factor is a bit of a lie as Screen only uses
   // this with the PhysicalPixelsQuirk (see width() / height() below).  However,
   // this value likely changes rarely and should not throw many false positives.
-  if (prev.device_scale_factor != current.device_scale_factor)
+  if (prev.device_scale_factor != current.device_scale_factor) {
     return false;
+  }
 
-  // availLeft() and availTop() use available_rect.origin()
-  if (prev.available_rect.origin() != current.available_rect.origin())
+  // avail[Left|Top|Width|Height]() use available_rect
+  if (prev.available_rect != current.available_rect) {
     return false;
-
-  // availHeight() and availWidth() use available_rect.size() or size_override
-  gfx::Size prev_avail_size = prev.available_rect.size();
-  if (prev.size_override && use_size_override)
-    prev_avail_size = *prev.size_override;
-  gfx::Size current_avail_size = current.available_rect.size();
-  if (current.size_override && use_size_override)
-    current_avail_size = *current.size_override;
-  if (prev_avail_size != current_avail_size)
-    return false;
+  }
 
   // colorDepth() and pixelDepth() use depth
-  if (prev.depth != current.depth)
+  if (prev.depth != current.depth) {
     return false;
+  }
 
   // isExtended()
-  if (prev.is_extended != current.is_extended)
+  if (prev.is_extended != current.is_extended) {
     return false;
+  }
 
   if (RuntimeEnabledFeatures::CanvasHDREnabled()) {
     // (red|green|blue)Primary(X|Y) and whitePoint(X|Y).
     const auto& prev_dcs = prev.display_color_spaces;
     const auto& current_dcs = current.display_color_spaces;
-    if (prev_dcs.GetPrimaries() != current_dcs.GetPrimaries())
+    if (prev_dcs.GetPrimaries() != current_dcs.GetPrimaries()) {
       return false;
+    }
 
     // highDynamicRangeHeadroom.
     if (prev_dcs.GetHDRMaxLuminanceRelative() !=
@@ -115,19 +96,38 @@ bool Screen::AreWebExposedScreenPropertiesEqual(
 int Screen::height() const {
   if (!DomWindow())
     return 0;
+
+  if (ShouldReduceScreenSize()) {
+    return DomWindow()->innerHeight();
+  }
+
   return GetRect(/*available=*/false).height();
 }
 
 int Screen::width() const {
   if (!DomWindow())
     return 0;
+
+  if (ShouldReduceScreenSize()) {
+    return DomWindow()->innerWidth();
+  }
+
   return GetRect(/*available=*/false).width();
 }
 
 unsigned Screen::colorDepth() const {
-  if (!DomWindow())
-    return 0;
-  return base::saturated_cast<unsigned>(GetScreenInfo().depth);
+  // "If the user agent does not know the color depth or does not want to
+  // return it for privacy considerations, it should return 24."
+  //
+  // https://drafts.csswg.org/cssom-view/#dom-screen-colordepth
+  unsigned unknown_color_depth = 24u;
+
+  if (!DomWindow() || ShouldReduceScreenSize()) {
+    return unknown_color_depth;
+  }
+  return GetScreenInfo().depth == 0
+             ? unknown_color_depth
+             : base::saturated_cast<unsigned>(GetScreenInfo().depth);
 }
 
 unsigned Screen::pixelDepth() const {
@@ -137,29 +137,49 @@ unsigned Screen::pixelDepth() const {
 int Screen::availLeft() const {
   if (!DomWindow())
     return 0;
+
+  if (ShouldReduceScreenSize()) {
+    return 0;
+  }
+
   return GetRect(/*available=*/true).x();
 }
 
 int Screen::availTop() const {
   if (!DomWindow())
     return 0;
+
+  if (ShouldReduceScreenSize()) {
+    return 0;
+  }
+
   return GetRect(/*available=*/true).y();
 }
 
 int Screen::availHeight() const {
   if (!DomWindow())
     return 0;
+
+  if (ShouldReduceScreenSize()) {
+    return DomWindow()->innerHeight();
+  }
+
   return GetRect(/*available=*/true).height();
 }
 
 int Screen::availWidth() const {
   if (!DomWindow())
     return 0;
+
+  if (ShouldReduceScreenSize()) {
+    return DomWindow()->innerWidth();
+  }
+
   return GetRect(/*available=*/true).width();
 }
 
 void Screen::Trace(Visitor* visitor) const {
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ExecutionContextClient::Trace(visitor);
   Supplementable<Screen>::Trace(visitor);
 }
@@ -172,12 +192,19 @@ ExecutionContext* Screen::GetExecutionContext() const {
   return ExecutionContextClient::GetExecutionContext();
 }
 
+bool Screen::ShouldReduceScreenSize() const {
+  // TODO(408932088): Take the current state of the window management permission
+  // (`mojom::blink::PermissionName::WINDOW_MANAGEMENT`) into account here.
+  return RuntimeEnabledFeatures::ReduceScreenSizeEnabled();
+}
+
 bool Screen::isExtended() const {
-  if (!DomWindow())
+  if (!DomWindow() || ShouldReduceScreenSize()) {
     return false;
+  }
   auto* context = GetExecutionContext();
   if (!context->IsFeatureEnabled(
-          mojom::blink::PermissionsPolicyFeature::kWindowManagement)) {
+          network::mojom::PermissionsPolicyFeature::kWindowManagement)) {
     return false;
   }
 
@@ -190,8 +217,6 @@ gfx::Rect Screen::GetRect(bool available) const {
   LocalFrame* frame = DomWindow()->GetFrame();
   const display::ScreenInfo& screen_info = GetScreenInfo();
   gfx::Rect rect = available ? screen_info.available_rect : screen_info.rect;
-  if (screen_info.size_override && use_size_override_)
-    rect.set_size(*screen_info.size_override);
   if (frame->GetSettings()->GetReportScreenSizeInPhysicalPixelsQuirk())
     return gfx::ScaleToRoundedRect(rect, screen_info.device_scale_factor);
   return rect;

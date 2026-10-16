@@ -5,12 +5,23 @@
 #include "third_party/blink/public/common/mediastream/media_stream_request.h"
 
 #include "base/check.h"
+#include "base/feature_list.h"
 #include "build/build_config.h"
 #include "media/base/audio_parameters.h"
 #include "media/base/channel_layout.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 
 namespace blink {
+namespace {
+// TODO(crbug.com/410466097): Disable the kill switch and remove it once
+// restrictOwnAudio has been launched. See
+// https://www.w3.org/TR/screen-capture/#dfn-restrictownaudio.
+// Note: The implementation of this kill switch is inverted, meaning that the
+// kill switch is active when the feature is enabled.
+BASE_FEATURE(kDisplayAudioCaptureKillSwitch,
+             "DisplayAudioCaptureKillSwitch",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+}  // namespace
 
 bool IsAudioInputMediaType(mojom::MediaStreamType type) {
   return (type == mojom::MediaStreamType::DEVICE_AUDIO_CAPTURE ||
@@ -38,8 +49,14 @@ bool IsVideoScreenCaptureMediaType(mojom::MediaStreamType type) {
 }
 
 bool IsDesktopCaptureMediaType(mojom::MediaStreamType type) {
-  return (type == mojom::MediaStreamType::GUM_DESKTOP_AUDIO_CAPTURE ||
+  return (IsAudioDesktopCaptureMediaType(type) ||
           IsVideoDesktopCaptureMediaType(type));
+}
+
+bool IsAudioDesktopCaptureMediaType(mojom::MediaStreamType type) {
+  return ((type == mojom::MediaStreamType::DISPLAY_AUDIO_CAPTURE &&
+           !base::FeatureList::IsEnabled(kDisplayAudioCaptureKillSwitch)) ||
+          type == mojom::MediaStreamType::GUM_DESKTOP_AUDIO_CAPTURE);
 }
 
 bool IsVideoDesktopCaptureMediaType(mojom::MediaStreamType type) {
@@ -101,7 +118,7 @@ MediaStreamDevice::MediaStreamDevice(
     const std::string& name,
     const media::VideoCaptureControlSupport& control_support,
     media::VideoFacingMode facing,
-    const absl::optional<std::string>& group_id)
+    const std::optional<std::string>& group_id)
     : type(type),
       id(id),
       video_control_support(control_support),
@@ -172,6 +189,11 @@ bool MediaStreamDevice::IsSameDevice(
          input.sample_rate() == other_device.input.sample_rate() &&
          input.channel_layout() == other_device.input.channel_layout() &&
          session_id_ == other_device.session_id_;
+}
+
+bool MediaStreamDevice::operator==(
+    const MediaStreamDevice& other_device) const {
+  return IsSameDevice(other_device);
 }
 
 blink::MediaStreamDevices ToMediaStreamDevicesList(

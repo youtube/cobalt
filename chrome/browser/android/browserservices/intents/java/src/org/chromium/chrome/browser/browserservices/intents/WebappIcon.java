@@ -6,23 +6,39 @@ package org.chromium.chrome.browser.browserservices.intents;
 
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.content.res.XmlResourceParser;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
+import android.text.TextUtils;
 import android.util.Base64;
 
-import androidx.annotation.VisibleForTesting;
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
 
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
+import java.io.IOException;
 
 /** Represents bitmap icon. Lazily converts icon format. */
+@NullMarked
 public class WebappIcon {
-    private byte[] mUnsafeData;
-    private String mEncoded;
-    private Bitmap mBitmap;
-    private String mWebApkPackageName;
+    public static final int ICON_WITH_URL_AND_HASH_SHELL_VERSION = 169;
+
+    private static final String TAG = "WebappIcon";
+
+    private byte @Nullable [] mUnsafeData;
+    private @Nullable String mEncoded;
+    private @Nullable Bitmap mBitmap;
+    private @Nullable String mWebApkPackageName;
     private int mResourceId;
     private boolean mIsTrusted;
+
+    private @Nullable String mIconUrl;
+    private @Nullable String mIconHash;
 
     public WebappIcon() {}
 
@@ -49,6 +65,30 @@ public class WebappIcon {
         mResourceId = resourceId;
     }
 
+    public WebappIcon(
+            String webApkPackageName, int resourceId, Resources res, int shellApkVersion) {
+        mWebApkPackageName = webApkPackageName;
+        mResourceId = resourceId;
+
+        if (shellApkVersion >= ICON_WITH_URL_AND_HASH_SHELL_VERSION) {
+            XmlResourceParser parser = res.getXml(mResourceId);
+            try {
+                int eventType = parser.getEventType();
+                while (eventType != XmlPullParser.END_DOCUMENT) {
+                    if (eventType == XmlPullParser.START_TAG
+                            && TextUtils.equals(parser.getName(), "bitmap")) {
+                        mIconUrl = parser.getAttributeValue(null, "iconUrl");
+                        mIconHash = parser.getAttributeValue(null, "iconHash");
+                    }
+                    eventType = parser.next();
+                }
+
+            } catch (XmlPullParserException | IOException e) {
+                Log.e(TAG, "Failed to parse icon XML", e);
+            }
+        }
+    }
+
     public byte[] data() {
         if (mUnsafeData != null) {
             return mUnsafeData;
@@ -63,19 +103,26 @@ public class WebappIcon {
         return mEncoded;
     }
 
-    public Bitmap bitmap() {
+    public @Nullable Bitmap bitmap() {
         if (mBitmap == null) {
             mBitmap = generateBitmap();
         }
         return mBitmap;
     }
 
-    @VisibleForTesting
     public int resourceIdForTesting() {
         return mResourceId;
     }
 
-    private Bitmap generateBitmap() {
+    public @Nullable String iconUrl() {
+        return mIconUrl;
+    }
+
+    public @Nullable String iconHash() {
+        return mIconHash;
+    }
+
+    private @Nullable Bitmap generateBitmap() {
         if (mEncoded != null && mIsTrusted) {
             return BitmapHelper.decodeBitmapFromString(mEncoded);
         }

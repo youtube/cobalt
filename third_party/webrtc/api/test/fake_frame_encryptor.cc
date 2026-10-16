@@ -10,6 +10,11 @@
 
 #include "api/test/fake_frame_encryptor.h"
 
+#include <cstddef>
+#include <cstdint>
+
+#include "api/array_view.h"
+#include "api/media_types.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {
@@ -17,11 +22,11 @@ FakeFrameEncryptor::FakeFrameEncryptor(uint8_t fake_key, uint8_t postfix_byte)
     : fake_key_(fake_key), postfix_byte_(postfix_byte) {}
 
 // FrameEncryptorInterface implementation
-int FakeFrameEncryptor::Encrypt(cricket::MediaType media_type,
-                                uint32_t ssrc,
-                                rtc::ArrayView<const uint8_t> additional_data,
-                                rtc::ArrayView<const uint8_t> frame,
-                                rtc::ArrayView<uint8_t> encrypted_frame,
+int FakeFrameEncryptor::Encrypt(MediaType /* media_type */,
+                                uint32_t /* ssrc */,
+                                ArrayView<const uint8_t> /* additional_data */,
+                                ArrayView<const uint8_t> frame,
+                                ArrayView<uint8_t> encrypted_frame,
                                 size_t* bytes_written) {
   if (fail_encryption_) {
     return static_cast<int>(FakeEncryptionStatus::FORCED_FAILURE);
@@ -37,9 +42,8 @@ int FakeFrameEncryptor::Encrypt(cricket::MediaType media_type,
   return static_cast<int>(FakeEncryptionStatus::OK);
 }
 
-size_t FakeFrameEncryptor::GetMaxCiphertextByteSize(
-    cricket::MediaType media_type,
-    size_t frame_size) {
+size_t FakeFrameEncryptor::GetMaxCiphertextByteSize(MediaType /* media_type */,
+                                                    size_t frame_size) {
   return frame_size + 1;
 }
 

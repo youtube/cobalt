@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
@@ -16,6 +17,7 @@
 #include "components/feed/core/v2/public/types.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/leveldb_proto/public/proto_database.h"
+#include "components/search_engines/template_url_service.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/web_resource/eula_accepted_notifier.h"
 
@@ -65,10 +67,11 @@ class FeedService : public KeyedService {
     // Returns a string which represents the top locale and region of the
     // device.
     virtual std::string GetLanguageTag() = 0;
+    // Returns the country code. Country code is in the format of uppercase ISO
+    // 3166-1 alpha-2.
+    virtual std::string GetCountry() = 0;
     // Returns display metrics for the device.
     virtual DisplayMetrics GetDisplayMetrics() = 0;
-    // Returns true if autoplay is enabled.
-    virtual bool IsAutoplayEnabled() = 0;
     // Returns how the tab group feature is enabled.
     virtual TabGroupEnabledState GetTabGroupEnabledState() = 0;
     // Clear all stored data.
@@ -77,12 +80,17 @@ class FeedService : public KeyedService {
     virtual void PrefetchImage(const GURL& url) = 0;
     // Register the synthetic field experiments for UMA.
     virtual void RegisterExperiments(const Experiments& experiments) = 0;
+    // Returns the synthetic field experiments.
+    virtual const Experiments& GetExperiments() const = 0;
     // Registers a synthetic field trial "FollowingFeedFollowCount".
     virtual void RegisterFollowingFeedFollowCountFieldTrial(
         size_t follow_count) = 0;
     // Registers a synthetic field trial "FeedUserSettings".
-    virtual void RegisterFeedUserSettingsFieldTrial(
-        base::StringPiece group) = 0;
+    virtual void RegisterFeedUserSettingsFieldTrial(std::string_view group) = 0;
+    // Returns the server-provided feed launch CUI metadata.
+    virtual const std::string& GetFeedLaunchCuiMetadata() const = 0;
+    // Sets the server-provided feed launch CUI metadata.
+    virtual void SetFeedLaunchCuiMetadata(const std::string& metadata) = 0;
   };
 
   // Construct a FeedService given an already constructed FeedStream.
@@ -103,7 +111,8 @@ class FeedService : public KeyedService {
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       scoped_refptr<base::SequencedTaskRunner> background_task_runner,
       const std::string& api_key,
-      const ChromeInfo& chrome_info);
+      const ChromeInfo& chrome_info,
+      TemplateURLService* template_url_service);
   static std::unique_ptr<FeedService> CreateForTesting(FeedApi* api);
   ~FeedService() override;
   FeedService(const FeedService&) = delete;
@@ -132,6 +141,12 @@ class FeedService : public KeyedService {
   // cases.
   bool IsSignedIn();
 
+  // Returns the synthetic field experiments.
+  const Experiments& GetExperiments() const;
+
+  // Returns the server-provided feed launch CUI metadata.
+  const std::string& GetFeedLaunchCuiMetadata() const;
+
  private:
   class StreamDelegateImpl;
   class NetworkDelegateImpl;
@@ -142,6 +157,8 @@ class FeedService : public KeyedService {
 #if BUILDFLAG(IS_ANDROID)
   void OnApplicationStateChange(base::android::ApplicationState state);
 #endif
+
+  void Shutdown() override;
 
   // These components are owned for construction of |FeedApi|. These will
   // be null if |FeedApi| is created externally.

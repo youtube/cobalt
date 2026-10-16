@@ -32,11 +32,18 @@
 
 namespace starboard {
 
+class JobQueue;
+
 typedef std::tuple<const char*, SbPlayerOutputMode> VideoTestParam;
 
 enum HeaacOption {
   kIncludeHeaac,
   kExcludeHeaac,
+};
+
+enum PassthroughOption {
+  kIncludePassthrough,
+  kExcludePassthrough,
 };
 
 // The function doesn't free the buffer, it assumes that the lifetime of the
@@ -49,11 +56,12 @@ void StubDeallocateSampleFunc(SbPlayer player,
 std::vector<const char*> GetSupportedAudioTestFiles(
     HeaacOption heaac_option,
     int max_channels,
-    const char* extra_mime_attributes = "");
+    PassthroughOption passthrough_option = kIncludePassthrough);
 std::vector<VideoTestParam> GetSupportedVideoTests();
 
 bool CreateAudioComponents(
     bool using_stub_decoder,
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     std::unique_ptr<AudioDecoder>* audio_decoder,
     std::unique_ptr<AudioRendererSink>* audio_renderer_sink);
@@ -61,8 +69,6 @@ bool CreateAudioComponents(
 ::testing::AssertionResult AlmostEqualTime(int64_t time1, int64_t time2);
 
 VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec);
-
-bool IsPartialAudioSupported();
 
 scoped_refptr<InputBuffer> GetAudioInputBuffer(VideoDmpReader* dmp_reader,
                                                size_t index);

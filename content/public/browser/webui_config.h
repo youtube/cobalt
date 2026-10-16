@@ -7,8 +7,9 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
+#include <type_traits>
 
-#include "base/strings/string_piece.h"
 #include "content/common/content_export.h"
 #include "url/gurl.h"
 
@@ -31,7 +32,7 @@ class WebUI;
 // all existing WebUI pages use this.
 class CONTENT_EXPORT WebUIConfig {
  public:
-  explicit WebUIConfig(base::StringPiece scheme, base::StringPiece host);
+  explicit WebUIConfig(std::string_view scheme, std::string_view host);
   virtual ~WebUIConfig();
   WebUIConfig(const WebUIConfig&) = delete;
   WebUIConfig& operator=(const WebUIConfig&) = delete;
@@ -45,6 +46,10 @@ class CONTENT_EXPORT WebUIConfig {
   // Returns whether the WebUI is enabled e.g. the necessary feature flags are
   // on/off, the WebUI is enabled in incognito, etc. Defaults to true.
   virtual bool IsWebUIEnabled(BrowserContext* browser_context);
+
+  // Returns whether the WebUI should be used for the given |url|. Not all
+  // WebUIs should be created for all requests to their host. Defaults to true.
+  virtual bool ShouldHandleURL(const GURL& url);
 
   // Returns a WebUIController for WebUI and GURL.
   //
@@ -72,14 +77,27 @@ class CONTENT_EXPORT WebUIConfig {
 template <typename T>
 class CONTENT_EXPORT DefaultWebUIConfig : public WebUIConfig {
  public:
-  explicit DefaultWebUIConfig(base::StringPiece scheme, base::StringPiece host)
+  explicit DefaultWebUIConfig(std::string_view scheme, std::string_view host)
       : WebUIConfig(scheme, host) {}
   ~DefaultWebUIConfig() override = default;
 
   std::unique_ptr<WebUIController> CreateWebUIController(
       WebUI* web_ui,
       const GURL& url) override {
-    return std::make_unique<T>(web_ui);
+    // Disallow dual constructibility.
+    // The controller can be constructed either by T(WebUI*) or
+    // T(WebUI*, const GURL&), ...
+    static_assert(std::is_constructible_v<T, WebUI*> ||
+                  std::is_constructible_v<T, WebUI*, const GURL&>);
+    // ..., but not both.
+    static_assert(!(std::is_constructible_v<T, WebUI*> &&
+                    std::is_constructible_v<T, WebUI*, const GURL&>));
+    if constexpr (std::is_constructible_v<T, WebUI*>) {
+      return std::make_unique<T>(web_ui);
+    }
+    if constexpr (std::is_constructible_v<T, WebUI*, const GURL&>) {
+      return std::make_unique<T>(web_ui, url);
+    }
   }
 };
 

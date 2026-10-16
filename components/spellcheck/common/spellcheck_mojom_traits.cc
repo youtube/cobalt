@@ -18,7 +18,6 @@ EnumTraits<spellcheck::mojom::Decoration, SpellCheckResult::Decoration>::
       return spellcheck::mojom::Decoration::kGrammar;
   }
   NOTREACHED();
-  return spellcheck::mojom::Decoration::kSpelling;
 }
 
 bool EnumTraits<spellcheck::mojom::Decoration, SpellCheckResult::Decoration>::
@@ -33,7 +32,6 @@ bool EnumTraits<spellcheck::mojom::Decoration, SpellCheckResult::Decoration>::
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 bool StructTraits<

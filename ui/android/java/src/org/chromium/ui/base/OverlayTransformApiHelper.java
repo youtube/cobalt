@@ -4,6 +4,8 @@
 
 package org.chromium.ui.base;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -14,23 +16,27 @@ import android.view.Window;
 
 import androidx.annotation.RequiresApi;
 
+import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.gfx.OverlayTransform;
 
 import java.lang.ref.WeakReference;
 
-/**
- * Helper class to avoid fail of ART's class verification for S_V2 APIs in old device.
- */
+/** Helper class to avoid fail of ART's class verification for S_V2 APIs in old device. */
 @RequiresApi(Build.VERSION_CODES.S_V2)
+@NullMarked
 final class OverlayTransformApiHelper
         implements AttachedSurfaceControl.OnBufferTransformHintChangedListener,
-                   Window.OnFrameMetricsAvailableListener {
+                Window.OnFrameMetricsAvailableListener {
+    private static final String TAG = "OverlayTransformAH";
+
     private final WindowAndroid mWindowAndroid;
     private final WeakReference<Window> mWindow;
     private boolean mBufferTransformListenerAdded;
     private boolean mFrameMetricsListenerAdded;
 
-    static OverlayTransformApiHelper create(WindowAndroid windowAndroid) {
+    static @Nullable OverlayTransformApiHelper create(WindowAndroid windowAndroid) {
         if (windowAndroid.getWindow() == null) return null;
         return new OverlayTransformApiHelper(windowAndroid);
     }
@@ -101,7 +107,8 @@ final class OverlayTransformApiHelper
         if (mFrameMetricsListenerAdded) return;
         Window window = mWindow.get();
         if (window == null) return;
-        window.addOnFrameMetricsAvailableListener(this, new Handler(Looper.myLooper()));
+        window.addOnFrameMetricsAvailableListener(
+                this, new Handler(assumeNonNull(Looper.myLooper())));
         mFrameMetricsListenerAdded = true;
     }
 
@@ -109,7 +116,15 @@ final class OverlayTransformApiHelper
         if (!mFrameMetricsListenerAdded) return;
         Window window = mWindow.get();
         if (window == null) return;
-        window.removeOnFrameMetricsAvailableListener(this);
+        try {
+            window.removeOnFrameMetricsAvailableListener(this);
+        } catch (IllegalArgumentException e) {
+            // Ignoring this unexplained exception. See crbug.com/367818761.
+            Log.w(
+                    TAG,
+                    "Ignoring IllegalArgumentException from removeOnFrameMetricsAvailableListener",
+                    e);
+        }
         mFrameMetricsListenerAdded = false;
     }
 
@@ -124,9 +139,9 @@ final class OverlayTransformApiHelper
         int bufferTransform;
         try {
             bufferTransform = surfacecontrol.getBufferTransformHint();
-        } catch (NullPointerException e) {
+        } catch (NullPointerException | IllegalStateException e) {
             // Can throw exception from implementation of getBufferTransformHint.
-            // See crbug.com/1358898.
+            // See crbug.com/1358898, crbug.com/1468179.
             return OverlayTransform.INVALID;
         }
         return toOverlayTransform(bufferTransform);
@@ -141,14 +156,14 @@ final class OverlayTransformApiHelper
             case SurfaceControl.BUFFER_TRANSFORM_MIRROR_VERTICAL:
                 return OverlayTransform.FLIP_VERTICAL;
             case SurfaceControl.BUFFER_TRANSFORM_ROTATE_90:
-                return OverlayTransform.ROTATE_90;
+                return OverlayTransform.ROTATE_CLOCKWISE_90;
             case SurfaceControl.BUFFER_TRANSFORM_ROTATE_180:
-                return OverlayTransform.ROTATE_180;
+                return OverlayTransform.ROTATE_CLOCKWISE_180;
             case SurfaceControl.BUFFER_TRANSFORM_ROTATE_270:
-                return OverlayTransform.ROTATE_270;
-            // Combination cases between BUFFER_TRANSFORM_MIRROR_HORIZONTAL,
-            // BUFFER_TRANSFORM_MIRROR_VERTICAL, BUFFER_TRANSFORM_ROTATE_90 are not handled
-            // because expected behavior is under-specified by android APIs
+                return OverlayTransform.ROTATE_CLOCKWISE_270;
+                // Combination cases between BUFFER_TRANSFORM_MIRROR_HORIZONTAL,
+                // BUFFER_TRANSFORM_MIRROR_VERTICAL, BUFFER_TRANSFORM_ROTATE_90 are not handled
+                // because expected behavior is under-specified by android APIs
             default:
                 // INVALID makes WindowAndroid fallback to display rotation
                 return OverlayTransform.INVALID;

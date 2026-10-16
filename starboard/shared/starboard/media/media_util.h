@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "starboard/common/size.h"
-#include "starboard/extension/enhanced_audio.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -33,17 +32,10 @@ namespace starboard {
 // of all its pointer members.
 struct AudioStreamInfo {
   AudioStreamInfo() = default;
-  template <typename StreamInfo>
-  explicit AudioStreamInfo(const StreamInfo& that) {
-    *this = that;
-  }
+  explicit AudioStreamInfo(const SbMediaAudioStreamInfo& that) { *this = that; }
   AudioStreamInfo& operator=(const SbMediaAudioStreamInfo& that);
-  AudioStreamInfo& operator=(
-      const CobaltExtensionEnhancedAudioMediaAudioStreamInfo& that);
 
   void ConvertTo(SbMediaAudioStreamInfo* audio_stream_info) const;
-  void ConvertTo(CobaltExtensionEnhancedAudioMediaAudioStreamInfo*
-                     audio_stream_info) const;
 
   // The member variables are the C++ mappings of the members of
   // `SbMediaAudioStreamInfo` defined in `media.h`.  Please refer to the comment
@@ -67,17 +59,10 @@ std::ostream& operator<<(std::ostream& os, const AudioStreamInfo& info);
 // of all its pointer members.
 struct AudioSampleInfo {
   AudioSampleInfo() = default;
-  template <typename SampleInfo>
-  explicit AudioSampleInfo(const SampleInfo& that) {
-    *this = that;
-  }
+  explicit AudioSampleInfo(const SbMediaAudioSampleInfo& that) { *this = that; }
   AudioSampleInfo& operator=(const SbMediaAudioSampleInfo& that);
-  AudioSampleInfo& operator=(
-      const CobaltExtensionEnhancedAudioMediaAudioSampleInfo& that);
 
   void ConvertTo(SbMediaAudioSampleInfo* audio_sample_info) const;
-  void ConvertTo(CobaltExtensionEnhancedAudioMediaAudioSampleInfo*
-                     audio_sample_info) const;
 
   // The member variables are the C++ mappings of the members of
   // `SbMediaAudioSampleInfo` defined in `media.h`.  Please refer to the comment
@@ -93,17 +78,10 @@ struct AudioSampleInfo {
 // of all its pointer members.
 struct VideoStreamInfo {
   VideoStreamInfo() = default;
-  template <typename StreamInfo>
-  explicit VideoStreamInfo(const StreamInfo& that) {
-    *this = that;
-  }
+  explicit VideoStreamInfo(const SbMediaVideoStreamInfo& that) { *this = that; }
   VideoStreamInfo& operator=(const SbMediaVideoStreamInfo& that);
-  VideoStreamInfo& operator=(
-      const CobaltExtensionEnhancedAudioMediaVideoStreamInfo& that);
 
   void ConvertTo(SbMediaVideoStreamInfo* video_stream_info) const;
-  void ConvertTo(CobaltExtensionEnhancedAudioMediaVideoStreamInfo*
-                     video_stream_info) const;
 
   // The member variables are the C++ mappings of the members of
   // `SbMediaVideoStreamInfo` defined in `media.h`.  Please refer to the comment
@@ -124,17 +102,10 @@ bool operator!=(const VideoStreamInfo& left, const VideoStreamInfo& right);
 // of all its pointer members.
 struct VideoSampleInfo {
   VideoSampleInfo() = default;
-  template <typename SampleInfo>
-  explicit VideoSampleInfo(const SampleInfo& that) {
-    *this = that;
-  }
+  explicit VideoSampleInfo(const SbMediaVideoSampleInfo& that) { *this = that; }
   VideoSampleInfo& operator=(const SbMediaVideoSampleInfo& that);
-  VideoSampleInfo& operator=(
-      const CobaltExtensionEnhancedAudioMediaVideoSampleInfo& that);
 
   void ConvertTo(SbMediaVideoSampleInfo* video_sample_info) const;
-  void ConvertTo(CobaltExtensionEnhancedAudioMediaVideoSampleInfo*
-                     video_sample_info) const;
 
   // The member variables are the C++ mappings of the members of
   // `SbMediaVideoSampleInfo` defined in `media.h`.  Please refer to the comment
@@ -166,15 +137,6 @@ bool IsAudioSampleInfoSubstantiallyDifferent(const AudioStreamInfo& left,
 // Durations are in microseconds.
 int AudioDurationToFrames(int64_t duration, int samples_per_second);
 int64_t AudioFramesToDuration(int frames, int samples_per_second);
-
-// Aliases to prevent breaking the RDK build on CI.
-// http://go/paste/5135494509887488
-// http://go/paste/5564566037725184
-// TODO: b/441955897 - Remove these aliases once RDK build on CI is updated
-namespace shared::starboard::media {
-using ::starboard::GetBytesPerSample;
-using ::starboard::IsSDRVideo;
-}  // namespace shared::starboard::media
 
 }  // namespace starboard
 

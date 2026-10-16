@@ -51,7 +51,7 @@ struct HTMLConstructionSiteTask {
   };
 
   explicit HTMLConstructionSiteTask(Operation op)
-      : operation(op), self_closing(false) {}
+      : operation(op), self_closing(false), dom_parts_needed({}) {}
 
   void Trace(Visitor* visitor) const {
     visitor->Trace(parent);
@@ -71,6 +71,7 @@ struct HTMLConstructionSiteTask {
   Member<Node> next_child;
   Member<Node> child;
   bool self_closing;
+  DOMPartsNeeded dom_parts_needed;
 };
 
 }  // namespace blink
@@ -96,7 +97,7 @@ class Document;
 class Element;
 class HTMLFormElement;
 class HTMLParserReentryPermit;
-enum class DeclarativeShadowRootType;
+class PartRoot;
 
 class HTMLConstructionSite final {
   DISALLOW_NEW();
@@ -106,13 +107,13 @@ class HTMLConstructionSite final {
 
   HTMLConstructionSite(HTMLParserReentryPermit*,
                        Document&,
-                       ParserContentPolicy);
+                       ParserContentPolicy,
+                       DocumentFragment*,
+                       Element*);
   HTMLConstructionSite(const HTMLConstructionSite&) = delete;
   HTMLConstructionSite& operator=(const HTMLConstructionSite&) = delete;
   ~HTMLConstructionSite();
   void Trace(Visitor*) const;
-
-  void InitFragmentParsing(DocumentFragment*, Element* context_element);
 
   void Detach();
 
@@ -146,8 +147,9 @@ class HTMLConstructionSite final {
   void InsertComment(AtomicHTMLToken*);
   void InsertCommentOnDocument(AtomicHTMLToken*);
   void InsertCommentOnHTMLHtmlElement(AtomicHTMLToken*);
+  void InsertDOMPart(AtomicHTMLToken*);
   void InsertHTMLElement(AtomicHTMLToken*);
-  void InsertHTMLTemplateElement(AtomicHTMLToken*, DeclarativeShadowRootType);
+  void InsertHTMLTemplateElement(AtomicHTMLToken*, String);
   void InsertSelfClosingHTMLElementDestroyingToken(AtomicHTMLToken*);
   void InsertFormattingElement(AtomicHTMLToken*);
   void InsertHTMLHeadElement(AtomicHTMLToken*);
@@ -201,16 +203,28 @@ class HTMLConstructionSite final {
   bool CurrentIsRootNode() {
     return open_elements_.TopNode() == open_elements_.RootNode();
   }
+  bool InParsePartsScope() { return open_elements_.InParsePartsScope(); }
+  void SetDOMPartsAllowedState(DOMPartsAllowed state) {
+    DCHECK(RuntimeEnabledFeatures::DOMPartsAPIEnabled());
+    open_elements_.SetDOMPartsAllowedState(state);
+  }
 
   Element* Head() const { return head_->GetElement(); }
   HTMLStackItem* HeadStackItem() const { return head_.Get(); }
 
-  bool IsFormElementPointerNonNull() const { return form_; }
+  bool IsFormElementPointerNonNull() const { return form_ != nullptr; }
   HTMLFormElement* TakeForm();
 
   ParserContentPolicy GetParserContentPolicy() {
     return parser_content_policy_;
   }
+
+  void FinishedTemplateElement(DocumentFragment* content_fragment);
+
+  static CustomElementDefinition* LookUpCustomElementDefinition(
+      Document&,
+      const QualifiedName&,
+      const AtomicString& is);
 
   class RedirectToFosterParentGuard {
     STACK_ALLOCATED();
@@ -247,6 +261,7 @@ class HTMLConstructionSite final {
 
   void AttachLater(ContainerNode* parent,
                    Node* child,
+                   const DOMPartsNeeded& dom_parts_needed = {},
                    bool self_closing = false);
 
   void FindFosterSite(HTMLConstructionSiteTask&);
@@ -258,11 +273,6 @@ class HTMLConstructionSite final {
 
   void ExecuteTask(HTMLConstructionSiteTask&);
   void QueueTask(const HTMLConstructionSiteTask&, bool flush_pending_text);
-
-  CustomElementDefinition* LookUpCustomElementDefinition(
-      Document&,
-      const QualifiedName&,
-      const AtomicString& is);
 
   void SetAttributes(Element* element, AtomicHTMLToken* token);
 
@@ -332,6 +342,32 @@ class HTMLConstructionSite final {
 
   PendingText pending_text_;
 
+  class PendingDOMParts final : public GarbageCollected<PendingDOMParts> {
+   public:
+    explicit PendingDOMParts(ContainerNode* attachment_root);
+
+    void AddNodePart(Comment& node_part_comment, Vector<String> metadata);
+    void AddNodePart(Vector<String> metadata);
+    void AddChildNodePartStart(Node& previous_sibling, Vector<String> metadata);
+    void AddChildNodePartEnd(Node& next_sibling);
+    void MaybeConstructNodePart(Node& last_node);
+    void ConstructDOMPartsIfNeeded(Node& last_node,
+                                   const DOMPartsNeeded& dom_parts_needed);
+
+    PartRoot* CurrentPartRoot() const;
+    void PushPartRoot(PartRoot* root);
+    PartRoot* PopPartRoot();
+
+    void Trace(Visitor*) const;
+
+   private:
+    Vector<String> pending_node_part_metadata_;
+    HeapVector<Member<PartRoot>> part_root_stack_;
+  };
+
+  // Only non-nullptr if RuntimeEnabledFeatures::DOMPartsAPIEnabled().
+  Member<PendingDOMParts> pending_dom_parts_;
+
   const ParserContentPolicy parser_content_policy_;
   const bool is_scripting_content_allowed_;
   bool is_parsing_fragment_;
@@ -346,9 +382,6 @@ class HTMLConstructionSite final {
 
   // Whether duplicate attribute was reported.
   bool reported_duplicate_attribute_ = false;
-
-  // Whether strings should be canonicalized (deduplicated).
-  bool canonicalize_whitespace_strings_ = true;
 };
 
 }  // namespace blink

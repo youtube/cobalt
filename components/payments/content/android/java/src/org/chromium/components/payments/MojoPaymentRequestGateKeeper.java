@@ -4,6 +4,8 @@
 
 package org.chromium.components.payments;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.mojo.system.MojoException;
 import org.chromium.payments.mojom.PaymentDetails;
 import org.chromium.payments.mojom.PaymentMethodData;
@@ -16,9 +18,10 @@ import org.chromium.payments.mojom.PaymentValidationErrors;
  * Guards against invalid mojo parameters and enforces correct call sequence from mojo IPC in the
  * untrusted renderer, so PaymentRequestService does not have to.
  */
+@NullMarked
 public class MojoPaymentRequestGateKeeper implements PaymentRequest {
     private final Delegate mDelegate;
-    private PaymentRequestService mPaymentRequestService;
+    private @Nullable PaymentRequestService mPaymentRequestService;
 
     /** The delegate of the class. */
     public interface Delegate {
@@ -43,8 +46,11 @@ public class MojoPaymentRequestGateKeeper implements PaymentRequest {
 
     // Implement PaymentRequest:
     @Override
-    public void init(PaymentRequestClient client, PaymentMethodData[] methodData,
-            PaymentDetails details, PaymentOptions options) {
+    public void init(
+            PaymentRequestClient client,
+            PaymentMethodData[] methodData,
+            PaymentDetails details,
+            PaymentOptions options) {
         if (mPaymentRequestService != null) {
             mPaymentRequestService.abortForInvalidDataFromRenderer(
                     ErrorStrings.ATTEMPTED_INITIALIZATION_TWICE);
@@ -64,9 +70,9 @@ public class MojoPaymentRequestGateKeeper implements PaymentRequest {
 
     // Implement PaymentRequest:
     @Override
-    public void show(boolean waitForUpdatedDetails) {
+    public void show(boolean waitForUpdatedDetails, boolean hadUserActivation) {
         if (mPaymentRequestService == null) return;
-        mPaymentRequestService.show(waitForUpdatedDetails);
+        mPaymentRequestService.show(waitForUpdatedDetails, hadUserActivation);
     }
 
     // Implement PaymentRequest:

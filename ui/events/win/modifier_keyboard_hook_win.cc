@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/events/win/keyboard_hook_win_base.h"
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
 
+#include <optional>
 #include <utility>
 
 #include "base/logging.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/events/event.h"
 #include "ui/events/event_utils.h"
 #include "ui/events/keycodes/dom/dom_code.h"
@@ -15,6 +18,7 @@
 #include "ui/events/keycodes/keyboard_code_conversion.h"
 #include "ui/events/win/events_win_utils.h"
 #include "ui/events/win/keyboard_hook_monitor_impl.h"
+#include "ui/events/win/keyboard_hook_win_base.h"
 #include "ui/gfx/native_widget_types.h"
 
 namespace ui {
@@ -109,7 +113,7 @@ bool IsModifierKey(DWORD vk) {
 
 class ModifierKeyboardHookWinImpl : public KeyboardHookWinBase {
  public:
-  ModifierKeyboardHookWinImpl(absl::optional<base::flat_set<DomCode>> dom_codes,
+  ModifierKeyboardHookWinImpl(std::optional<base::flat_set<DomCode>> dom_codes,
                               KeyEventCallback callback,
                               bool enable_hook_registration);
 
@@ -155,7 +159,7 @@ class ModifierKeyboardHookWinImpl : public KeyboardHookWinBase {
 ModifierKeyboardHookWinImpl* ModifierKeyboardHookWinImpl::instance_ = nullptr;
 
 ModifierKeyboardHookWinImpl::ModifierKeyboardHookWinImpl(
-    absl::optional<base::flat_set<DomCode>> dom_codes,
+    std::optional<base::flat_set<DomCode>> dom_codes,
     KeyEventCallback callback,
     bool enable_hook_registration)
     : KeyboardHookWinBase(std::move(dom_codes),
@@ -186,9 +190,9 @@ bool ModifierKeyboardHookWinImpl::Register() {
 }
 
 void ModifierKeyboardHookWinImpl::ClearModifierStates() {
-  BYTE keyboard_state[kKeyboardStateArraySize] = {0};
+  BYTE keyboard_state[kKeyboardStateArraySize] = {};
   if (!GetKeyboardState(keyboard_state)) {
-    DPLOG(ERROR) << "GetKeyboardState() failed: ";
+    PLOG(ERROR) << "GetKeyboardState() failed: ";
     return;
   }
 
@@ -203,7 +207,7 @@ void ModifierKeyboardHookWinImpl::ClearModifierStates() {
   keyboard_state[VK_RWIN] = kKeyUp;
 
   if (!SetKeyboardState(keyboard_state))
-    DPLOG(ERROR) << "SetKeyboardState() failed: ";
+    PLOG(ERROR) << "SetKeyboardState() failed: ";
 }
 
 bool ModifierKeyboardHookWinImpl::ProcessKeyEventMessage(WPARAM w_param,
@@ -255,7 +259,7 @@ bool ModifierKeyboardHookWinImpl::ProcessKeyEventMessage(WPARAM w_param,
   CHROME_MSG msg = {nullptr, static_cast<UINT>(w_param), non_located_vk,
                     GetLParamFromScanCode(scan_code), time_stamp};
   EventType event_type = EventTypeFromMSG(msg);
-  if (event_type == ET_KEY_PRESSED) {
+  if (event_type == EventType::kKeyPressed) {
     UpdateModifierState(vk, /*key_down=*/true);
     // We use the non-located vkey to determine whether a key event is a repeat
     // or not.  The exception is for AltGr which has a two key sequence which
@@ -263,7 +267,7 @@ bool ModifierKeyboardHookWinImpl::ProcessKeyEventMessage(WPARAM w_param,
     is_repeat = (last_key_down_ == non_located_vk) || altgr_sequence_count_ > 1;
     last_key_down_ = non_located_vk;
   } else {
-    DCHECK_EQ(event_type, ET_KEY_RELEASED);
+    DCHECK_EQ(event_type, EventType::kKeyReleased);
     UpdateModifierState(vk, /*key_down=*/false);
     altgr_sequence_count_ = 0;
     last_key_down_ = 0;
@@ -272,7 +276,7 @@ bool ModifierKeyboardHookWinImpl::ProcessKeyEventMessage(WPARAM w_param,
   std::unique_ptr<KeyEvent> key_event =
       std::make_unique<KeyEvent>(KeyEventFromMSG(msg));
   if (is_repeat)
-    key_event->set_flags(key_event->flags() | EF_IS_REPEAT);
+    key_event->SetFlags(key_event->flags() | EF_IS_REPEAT);
   ForwardCapturedKeyEvent(key_event.get());
 
   return true;
@@ -280,9 +284,9 @@ bool ModifierKeyboardHookWinImpl::ProcessKeyEventMessage(WPARAM w_param,
 
 void ModifierKeyboardHookWinImpl::UpdateModifierState(DWORD vk,
                                                       bool is_key_down) {
-  BYTE keyboard_state[kKeyboardStateArraySize] = {0};
+  BYTE keyboard_state[kKeyboardStateArraySize] = {};
   if (!GetKeyboardState(keyboard_state)) {
-    DPLOG(ERROR) << "GetKeyboardState() failed: ";
+    PLOG(ERROR) << "GetKeyboardState() failed: ";
     return;
   }
 
@@ -315,7 +319,7 @@ LRESULT CALLBACK ModifierKeyboardHookWinImpl::ProcessKeyEvent(int code,
 
 // static
 std::unique_ptr<KeyboardHook> KeyboardHook::CreateModifierKeyboardHook(
-    absl::optional<base::flat_set<DomCode>> dom_codes,
+    std::optional<base::flat_set<DomCode>> dom_codes,
     gfx::AcceleratedWidget accelerated_widget,
     KeyEventCallback callback) {
   std::unique_ptr<ModifierKeyboardHookWinImpl> keyboard_hook =
@@ -332,7 +336,7 @@ std::unique_ptr<KeyboardHook> KeyboardHook::CreateModifierKeyboardHook(
 // static
 std::unique_ptr<KeyboardHookWinBase>
 KeyboardHookWinBase::CreateModifierKeyboardHookForTesting(
-    absl::optional<base::flat_set<DomCode>> dom_codes,
+    std::optional<base::flat_set<DomCode>> dom_codes,
     KeyEventCallback callback) {
   return std::make_unique<ModifierKeyboardHookWinImpl>(
       std::move(dom_codes), std::move(callback),

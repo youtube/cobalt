@@ -6,12 +6,12 @@
 #define CHROMECAST_DEVICE_BLUETOOTH_LE_LE_SCAN_RESULT_H_
 
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/containers/span.h"
 #include "chromecast/public/bluetooth/bluetooth_types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace chromecast {
 namespace bluetooth {
@@ -43,18 +43,18 @@ struct LeScanResult {
 
   bool SetAdvData(base::span<const uint8_t> adv_data);
 
-  absl::optional<std::string> Name() const;
+  std::optional<std::string> Name() const;
 
-  absl::optional<uint8_t> Flags() const;
+  std::optional<uint8_t> Flags() const;
 
   using UuidList = std::vector<bluetooth_v2_shlib::Uuid>;
-  absl::optional<UuidList> AllServiceUuids() const;
-  absl::optional<UuidList> IncompleteListOf16BitServiceUuids() const;
-  absl::optional<UuidList> CompleteListOf16BitServiceUuids() const;
-  absl::optional<UuidList> IncompleteListOf32BitServiceUuids() const;
-  absl::optional<UuidList> CompleteListOf32BitServiceUuids() const;
-  absl::optional<UuidList> IncompleteListOf128BitServiceUuids() const;
-  absl::optional<UuidList> CompleteListOf128BitServiceUuids() const;
+  std::optional<UuidList> AllServiceUuids() const;
+  std::optional<UuidList> IncompleteListOf16BitServiceUuids() const;
+  std::optional<UuidList> CompleteListOf16BitServiceUuids() const;
+  std::optional<UuidList> IncompleteListOf32BitServiceUuids() const;
+  std::optional<UuidList> CompleteListOf32BitServiceUuids() const;
+  std::optional<UuidList> IncompleteListOf128BitServiceUuids() const;
+  std::optional<UuidList> CompleteListOf128BitServiceUuids() const;
 
   using ServiceDataMap =
       std::map<bluetooth_v2_shlib::Uuid, std::vector<uint8_t>>;

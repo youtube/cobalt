@@ -10,7 +10,7 @@
 
 #include <memory>
 
-#include "base/strings/string_piece.h"
+#include "base/memory/raw_span.h"
 #include "base/time/time.h"
 #include "media/audio/audio_handler.h"
 #include "media/base/media_export.h"
@@ -39,7 +39,7 @@ class MEDIA_EXPORT WavAudioHandler : public AudioHandler {
   // correctly, the returned scoped_ptr will be null. The underlying memory for
   // wav_data must survive for the lifetime of this class.
   static std::unique_ptr<WavAudioHandler> Create(
-      const base::StringPiece wav_data);
+      base::span<const uint8_t> wav_data);
 
   // AudioHandler:
   bool Initialize() override;
@@ -51,7 +51,7 @@ class MEDIA_EXPORT WavAudioHandler : public AudioHandler {
   void Reset() override;
 
   // Accessors.
-  const base::StringPiece& data() const { return audio_data_; }
+  base::span<const uint8_t> data() const { return audio_data_; }
   AudioFormat audio_format() const { return audio_format_; }
 
   int total_frames_for_testing() const {
@@ -63,14 +63,14 @@ class MEDIA_EXPORT WavAudioHandler : public AudioHandler {
 
  private:
   // Note: It is preferred to pass |audio_data| by value here.
-  WavAudioHandler(base::StringPiece audio_data,
+  WavAudioHandler(base::span<const uint8_t> audio_data,
                   uint16_t num_channels,
                   uint32_t sample_rate,
                   uint16_t bits_per_sample,
                   AudioFormat audio_format);
 
   // Data part of the |wav_data_|.
-  const base::StringPiece audio_data_;
+  const base::raw_span<const uint8_t> audio_data_;
   const uint16_t num_channels_;
   const uint32_t sample_rate_;
   const uint16_t bits_per_sample_;

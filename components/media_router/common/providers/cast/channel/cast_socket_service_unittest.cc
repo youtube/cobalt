@@ -10,7 +10,6 @@
 #include "base/test/test_simple_task_runner.h"
 #include "components/media_router/common/providers/cast/channel/cast_test_util.h"
 #include "content/public/test/browser_task_environment.h"
-
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -92,8 +91,8 @@ TEST_F(CastSocketServiceTest, TestOpenChannel) {
 
   cast_socket_service_->AddObserver(&mock_observer_);
   CastSocketOpenParams open_param(ip_endpoint, base::Seconds(20));
-  cast_socket_service_->OpenSocket(CastSocketService::NetworkContextGetter(),
-                                   open_param, mock_on_open_callback_.Get());
+  cast_socket_service_->OpenSocket(network::NetworkContextGetter(), open_param,
+                                   mock_on_open_callback_.Get());
 }
 
 }  // namespace cast_channel

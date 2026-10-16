@@ -18,7 +18,6 @@ uint32_t HashMessage(const google::protobuf::MessageLite& message) {
   std::string message_string;
   if (!message.SerializeToString(&message_string)) {
     NOTREACHED();
-    return 0;
   }
   return base::Hash(message_string);
 }

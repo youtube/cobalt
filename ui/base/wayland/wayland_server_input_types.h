@@ -7,23 +7,27 @@
 
 #include <text-input-extension-unstable-v1-server-protocol.h>
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
+#include <utility>
+
 #include "ui/base/ime/text_input_flags.h"
 #include "ui/base/ime/text_input_mode.h"
 #include "ui/base/ime/text_input_type.h"
 
 namespace ui::wayland {
 
+// TODO(crbug.com/374244480): consider removing these once exo is cleaned up.
+
 // Coverts zcr_extended_text_input::input_type into ui::TextInputType.
 // Returns nullopt if unknown type is given.
-// This can happen if wayland client (e.g. Lacros) and wayland compositor
-// (e.g. exo) have version skew, so that the wayland client sends a new
-// type that the wayland compositor cannot understand.
-absl::optional<TextInputType> ConvertToTextInputType(
+// This can happen if wayland client and wayland compositor (e.g. exo) have
+// version skew, so that the wayland client sends a new type that the wayland
+// compositor cannot understand.
+std::optional<TextInputType> ConvertToTextInputType(
     zcr_extended_text_input_v1_input_type wayland_input_type);
 
 // Converts zcr_extended_text_input::input_mode into ui::TextInputMode.
-absl::optional<TextInputMode> ConvertToTextInputMode(
+std::optional<TextInputMode> ConvertToTextInputMode(
     zcr_extended_text_input_v1_input_mode wayland_input_mode);
 
 // Converts a bit set of ui::TextInputFlags into a bit set of

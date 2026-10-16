@@ -35,8 +35,7 @@ indirectly, on `base` within the scope of a linker unit.
 More importantly, **no other place outside of `/base` should depend on the
 specific allocator**.
 If such a functional dependency is required that should be achieved using
-abstractions in `base` (see `/base/allocator/allocator_extension.h` and
-`/base/memory/`)
+abstractions in `base` (see `/base/memory/`)
 
 **Why `base` depends on `allocator`?**
 Because it needs to provide services that depend on the actual allocator
@@ -96,7 +95,7 @@ allocator shim (next point).
 This is taken care of by the headers in `allocator_shim_override_*`.
 
 *On Windows*: Windows' UCRT (Universal C Runtime) exports weak symbols, that we
-can override in `allocator_shim_override_ucr_symbols_win.h`.
+can override in `allocator_shim_override_ucrt_symbols_win.h`.
 
 *On Linux/CrOS*: the allocator symbols are defined as exported global symbols
 in `allocator_shim_override_libc_symbols.h` (for `malloc`, `free` and friends)

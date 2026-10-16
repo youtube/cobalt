@@ -6,6 +6,8 @@
 
 #include <stddef.h>
 
+#include <algorithm>
+#include <string_view>
 #include <utility>
 
 #include "base/check_op.h"
@@ -15,16 +17,13 @@
 #include "base/memory/ref_counted.h"
 #include "base/notreached.h"
 #include "base/observer_list.h"
-#include "base/ranges/algorithm.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/custom_handlers/pref_names.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
 #include "components/user_prefs/user_prefs.h"
 #include "content/public/browser/child_process_security_policy.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/url_util.h"
 
 using content::BrowserThread;
@@ -36,7 +35,7 @@ namespace {
 
 const ProtocolHandler& LookupHandler(
     const ProtocolHandlerRegistry::ProtocolHandlerMap& handler_map,
-    base::StringPiece scheme) {
+    std::string_view scheme) {
   auto p = handler_map.find(scheme);
 
   if (p != handler_map.end())
@@ -165,9 +164,9 @@ ProtocolHandlerRegistry::GetReplacedHandlers(
 void ProtocolHandlerRegistry::ClearDefault(const std::string& scheme) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  // TODO(jfernandez): If we want to use StringPiece as map's key for erasing,
-  // we would need to adapt the ProtocolHandlerMap, or just use the iterator
-  // got from find(scheme).
+  // TODO(jfernandez): If we want to use std::string_view as map's key for
+  // erasing, we would need to adapt the ProtocolHandlerMap, or just use the
+  // iterator got from find(scheme).
   default_handlers_.erase(scheme);
   Save();
   NotifyChanged();
@@ -223,7 +222,7 @@ void ProtocolHandlerRegistry::InitProtocolSettings() {
   }
 }
 
-int ProtocolHandlerRegistry::GetHandlerIndex(base::StringPiece scheme) const {
+int ProtocolHandlerRegistry::GetHandlerIndex(std::string_view scheme) const {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   const ProtocolHandler& candidate = GetHandlerFor(scheme);
   if (candidate.IsEmpty())
@@ -242,7 +241,7 @@ int ProtocolHandlerRegistry::GetHandlerIndex(base::StringPiece scheme) const {
 }
 
 ProtocolHandlerRegistry::ProtocolHandlerList
-ProtocolHandlerRegistry::GetHandlersFor(base::StringPiece scheme) const {
+ProtocolHandlerRegistry::GetHandlersFor(std::string_view scheme) const {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   auto p = protocol_handlers_.find(scheme);
   if (p == protocol_handlers_.end()) {
@@ -301,7 +300,7 @@ void ProtocolHandlerRegistry::GetRegisteredProtocols(
 }
 
 bool ProtocolHandlerRegistry::CanSchemeBeOverridden(
-    base::StringPiece scheme) const {
+    std::string_view scheme) const {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   const ProtocolHandlerList* handlers = GetHandlerList(scheme);
   // If we already have a handler for this scheme, we can add more.
@@ -328,7 +327,7 @@ bool ProtocolHandlerRegistry::IsRegisteredByUser(
 }
 
 bool ProtocolHandlerRegistry::HasPolicyRegisteredHandler(
-    base::StringPiece scheme) {
+    std::string_view scheme) {
   return (policy_protocol_handlers_.find(scheme) !=
           policy_protocol_handlers_.end());
 }
@@ -386,8 +385,7 @@ void ProtocolHandlerRegistry::RemoveIgnoredHandler(
     NotifyChanged();
 }
 
-bool ProtocolHandlerRegistry::IsHandledProtocol(
-    base::StringPiece scheme) const {
+bool ProtocolHandlerRegistry::IsHandledProtocol(std::string_view scheme) const {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return enabled_ && !GetHandlerFor(scheme).IsEmpty();
 }
@@ -427,7 +425,7 @@ void ProtocolHandlerRegistry::RemoveHandler(const ProtocolHandler& handler) {
     NotifyChanged();
 }
 
-void ProtocolHandlerRegistry::RemoveDefaultHandler(base::StringPiece scheme) {
+void ProtocolHandlerRegistry::RemoveDefaultHandler(std::string_view scheme) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   ProtocolHandler current_default = GetHandlerFor(scheme);
   if (!current_default.IsEmpty())
@@ -435,7 +433,7 @@ void ProtocolHandlerRegistry::RemoveDefaultHandler(base::StringPiece scheme) {
 }
 
 const ProtocolHandler& ProtocolHandlerRegistry::GetHandlerFor(
-    base::StringPiece scheme) const {
+    std::string_view scheme) const {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return LookupHandler(default_handlers_, scheme);
 }
@@ -506,7 +504,7 @@ void ProtocolHandlerRegistry::PromoteHandler(const ProtocolHandler& handler) {
   DCHECK(IsRegistered(handler));
   auto p = protocol_handlers_.find(handler.protocol());
   ProtocolHandlerList& list = p->second;
-  list.erase(base::ranges::find(list, handler));
+  list.erase(std::ranges::find(list, handler));
   list.insert(list.begin(), handler);
 }
 
@@ -528,7 +526,7 @@ void ProtocolHandlerRegistry::Save() {
 }
 
 const ProtocolHandlerRegistry::ProtocolHandlerList*
-ProtocolHandlerRegistry::GetHandlerList(base::StringPiece scheme) const {
+ProtocolHandlerRegistry::GetHandlerList(std::string_view scheme) const {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   auto p = protocol_handlers_.find(scheme);
   if (p == protocol_handlers_.end()) {
@@ -699,7 +697,7 @@ void ProtocolHandlerRegistry::EraseHandler(const ProtocolHandler& handler,
 
 void ProtocolHandlerRegistry::EraseHandler(const ProtocolHandler& handler,
                                            ProtocolHandlerList* list) {
-  list->erase(base::ranges::find(*list, handler));
+  list->erase(std::ranges::find(*list, handler));
 }
 
 void ProtocolHandlerRegistry::OnSetAsDefaultProtocolClientFinished(

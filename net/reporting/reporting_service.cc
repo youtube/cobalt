@@ -4,13 +4,16 @@
 
 #include "net/reporting/reporting_service.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/notimplemented.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
 #include "base/values.h"
@@ -24,7 +27,6 @@
 #include "net/reporting/reporting_delivery_agent.h"
 #include "net/reporting/reporting_header_parser.h"
 #include "net/reporting/reporting_uploader.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -71,22 +73,36 @@ class ReportingServiceImpl : public ReportingService {
                        origin, std::move(endpoints)));
   }
 
+  void SetEnterpriseReportingEndpoints(
+      const base::flat_map<std::string, GURL>& endpoints) override {
+    if (!base::FeatureList::IsEnabled(
+            net::features::kReportingApiEnableEnterpriseCookieIssues)) {
+      return;
+    }
+    context_->cache()->SetEnterpriseReportingEndpoints(endpoints);
+  }
+
   void SendReportsAndRemoveSource(
       const base::UnguessableToken& reporting_source) override {
     DCHECK(!reporting_source.is_empty());
-    context_->delivery_agent()->SendReportsForSource(reporting_source);
-    context_->cache()->SetExpiredSource(reporting_source);
+    // Queue expiration of the reporting sources as backlog tasks if the
+    // reporting service is not yet initialized, so that reports and expirations
+    // remain well-ordered.
+    DoOrBacklogTask(
+        base::BindOnce(&ReportingServiceImpl::DoSendReportsAndRemoveSource,
+                       base::Unretained(this), reporting_source));
   }
 
   void QueueReport(
       const GURL& url,
-      const absl::optional<base::UnguessableToken>& reporting_source,
+      const std::optional<base::UnguessableToken>& reporting_source,
       const NetworkAnonymizationKey& network_anonymization_key,
       const std::string& user_agent,
       const std::string& group,
       const std::string& type,
       base::Value::Dict body,
-      int depth) override {
+      int depth,
+      ReportingTargetType target_type) override {
     DCHECK(context_);
     DCHECK(context_->delegate());
     // If |reporting_source| is provided, it must not be empty.
@@ -109,7 +125,7 @@ class ReportingServiceImpl : public ReportingService {
                        base::Unretained(this), reporting_source,
                        FixupNetworkAnonymizationKey(network_anonymization_key),
                        std::move(sanitized_url), user_agent, group, type,
-                       std::move(body), depth, queued_ticks));
+                       std::move(body), depth, queued_ticks, target_type));
   }
 
   void ProcessReportToHeader(
@@ -119,7 +135,7 @@ class ReportingServiceImpl : public ReportingService {
     if (header_string.size() > kMaxJsonSize)
       return;
 
-    absl::optional<base::Value> header_value = base::JSONReader::Read(
+    std::optional<base::Value> header_value = base::JSONReader::Read(
         "[" + header_string + "]", base::JSON_PARSE_RFC, kMaxJsonDepth);
     if (!header_value)
       return;
@@ -163,8 +179,10 @@ class ReportingServiceImpl : public ReportingService {
     return base::Value(std::move(dict));
   }
 
-  std::vector<const ReportingReport*> GetReports() const override {
-    std::vector<const net::ReportingReport*> reports;
+  std::vector<raw_ptr<const ReportingReport, VectorExperimental>> GetReports()
+      const override {
+    std::vector<raw_ptr<const net::ReportingReport, VectorExperimental>>
+        reports;
     context_->cache()->GetReports(&reports);
     return reports;
   }
@@ -187,6 +205,12 @@ class ReportingServiceImpl : public ReportingService {
   }
 
  private:
+  void DoSendReportsAndRemoveSource(
+      const base::UnguessableToken& reporting_source) {
+    context_->delivery_agent()->SendReportsForSource(reporting_source);
+    context_->cache()->SetExpiredSource(reporting_source);
+  }
+
   void DoOrBacklogTask(base::OnceClosure task) {
     if (shut_down_)
       return;
@@ -202,7 +226,7 @@ class ReportingServiceImpl : public ReportingService {
   }
 
   void DoQueueReport(
-      const absl::optional<base::UnguessableToken>& reporting_source,
+      const std::optional<base::UnguessableToken>& reporting_source,
       const NetworkAnonymizationKey& network_anonymization_key,
       GURL sanitized_url,
       const std::string& user_agent,
@@ -210,11 +234,12 @@ class ReportingServiceImpl : public ReportingService {
       const std::string& type,
       base::Value::Dict body,
       int depth,
-      base::TimeTicks queued_ticks) {
+      base::TimeTicks queued_ticks,
+      ReportingTargetType target_type) {
     DCHECK(initialized_);
     context_->cache()->AddReport(
         reporting_source, network_anonymization_key, sanitized_url, user_agent,
-        group, type, std::move(body), depth, queued_ticks, 0 /* attempts */);
+        group, type, std::move(body), depth, queued_ticks, target_type);
   }
 
   void DoProcessReportToHeader(
@@ -327,9 +352,10 @@ ReportingService::~ReportingService() = default;
 std::unique_ptr<ReportingService> ReportingService::Create(
     const ReportingPolicy& policy,
     URLRequestContext* request_context,
-    ReportingCache::PersistentReportingStore* store) {
-  return std::make_unique<ReportingServiceImpl>(
-      ReportingContext::Create(policy, request_context, store));
+    ReportingCache::PersistentReportingStore* store,
+    const base::flat_map<std::string, GURL>& enterprise_reporting_endpoints) {
+  return std::make_unique<ReportingServiceImpl>(ReportingContext::Create(
+      policy, request_context, store, enterprise_reporting_endpoints));
 }
 
 // static

@@ -267,7 +267,7 @@ class VideoDecodePerfHistoryTest : public testing::Test {
     const auto& entries =
         test_recorder_->GetEntriesByName(UkmEntry::kEntryName);
     ASSERT_GE(entries.size(), 1U);
-    auto* entry = entries.back();
+    auto* entry = entries.back().get();
 
     // Verify stream properties. Make a key to ensure we check bucketed values.
     VideoDecodeStatsDB::VideoDescKey key =
@@ -890,7 +890,7 @@ TEST_P(VideoDecodePerfHistoryParamTest,
                      base::Unretained(this)));
 
   // Verify perf history returns is_smooth = true for entry that would be
-  // smooth per new smooth theshold.
+  // smooth per new smooth threshold.
   EXPECT_CALL(*this, MockGetPerfInfoCB(kIsSmooth, kIsNotPowerEfficient));
   perf_history_->GetPerfInfo(
       MakeFeaturesPtr(kKnownProfile, kKownSize, kSmoothFrameRateNew,

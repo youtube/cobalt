@@ -58,7 +58,7 @@ TEST_F(TrustedVaultAccessTokenFetcherFrontendTest,
   const CoreAccountId kAccountId =
       identity_env()
           ->MakePrimaryAccountAvailable("test@gmail.com",
-                                        signin::ConsentLevel::kSync)
+                                        signin::ConsentLevel::kSignin)
           .account_id;
   const std::string kAccessToken = "access_token";
 
@@ -94,7 +94,7 @@ TEST_F(TrustedVaultAccessTokenFetcherFrontendTest,
 TEST_F(TrustedVaultAccessTokenFetcherFrontendTest,
        ShouldRejectFetchAttemptForNonPrimaryAccount) {
   identity_env()->MakePrimaryAccountAvailable("test1@gmail.com",
-                                              signin::ConsentLevel::kSync);
+                                              signin::ConsentLevel::kSignin);
   const CoreAccountId kSecondaryAccountId =
       identity_env()->MakeAccountAvailable("test2@gmail.com").account_id;
 
@@ -113,7 +113,7 @@ TEST_F(TrustedVaultAccessTokenFetcherFrontendTest,
   const CoreAccountId kAccountId =
       identity_env()
           ->MakePrimaryAccountAvailable("test@gmail.com",
-                                        signin::ConsentLevel::kSync)
+                                        signin::ConsentLevel::kSignin)
           .account_id;
   const std::string kAccessToken = "access_token";
 
@@ -135,7 +135,7 @@ TEST_F(TrustedVaultAccessTokenFetcherFrontendTest,
   const CoreAccountId kAccountId =
       identity_env()
           ->MakePrimaryAccountAvailable("test@gmail.com",
-                                        signin::ConsentLevel::kSync)
+                                        signin::ConsentLevel::kSignin)
           .account_id;
   const std::string kAccessToken = "access_token";
 
@@ -155,7 +155,7 @@ TEST_F(TrustedVaultAccessTokenFetcherFrontendTest, ShouldAllowMultipleFetches) {
   const CoreAccountId kAccountId =
       identity_env()
           ->MakePrimaryAccountAvailable("test@gmail.com",
-                                        signin::ConsentLevel::kSync)
+                                        signin::ConsentLevel::kSignin)
           .account_id;
   const std::string kAccessToken = "access_token";
 
@@ -174,6 +174,33 @@ TEST_F(TrustedVaultAccessTokenFetcherFrontendTest, ShouldAllowMultipleFetches) {
   EXPECT_CALL(token_callback2, Run(HasExpectedToken(kAccessToken)));
   identity_env()->WaitForAccessTokenRequestIfNecessaryAndRespondWithToken(
       kAccountId, kAccessToken, base::Time::Now() + base::Hours(1));
+}
+
+// Regression test for crbug.com/427316421.
+TEST_F(TrustedVaultAccessTokenFetcherFrontendTest,
+       ShouldHandleDestructionWhenFullfillingPendingRequests) {
+  std::unique_ptr<TrustedVaultAccessTokenFetcherFrontend> frontend =
+      std::make_unique<TrustedVaultAccessTokenFetcherFrontend>(
+          identity_env()->identity_manager());
+
+  identity_env()->MakePrimaryAccountAvailable("test1@gmail.com",
+                                              signin::ConsentLevel::kSignin);
+  const CoreAccountId kSecondaryAccountId =
+      identity_env()->MakeAccountAvailable("test2@gmail.com").account_id;
+
+  base::MockCallback<TrustedVaultAccessTokenFetcher::TokenCallback>
+      token_callback;
+  EXPECT_CALL(
+      token_callback,
+      Run(HasUnexpectedError(
+          TrustedVaultAccessTokenFetcher::FetchingError::kNotPrimaryAccount)))
+      .WillOnce(
+          [&frontend](TrustedVaultAccessTokenFetcher::AccessTokenInfoOrError) {
+            // This is actually the main part of the test: there should be no
+            // crash/UAF when the frontend is destroyed inside the callback.
+            frontend.reset();
+          });
+  frontend->FetchAccessToken(kSecondaryAccountId, token_callback.Get());
 }
 
 }  // namespace

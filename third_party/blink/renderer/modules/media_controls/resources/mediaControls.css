@@ -4,6 +4,10 @@
 
 @namespace "http://www.w3.org/1999/xhtml";
 
+/* Rules in this and other mediaControls*.css files override rules from html.css
+   and other UA sheets regardless of specificity. See comment in
+   StyleResolver::MatchUARules(). */
+
 /**
  * Panel Structure
  */
@@ -13,7 +17,7 @@ video::-webkit-media-controls {
   writing-mode: horizontal-tb;
   width: inherit;
   height: inherit;
-  contain: paint;
+  contain: paint !important;
   direction: ltr;
   display: flex;
   flex-direction: column;
@@ -22,6 +26,11 @@ video::-webkit-media-controls {
   justify-content: flex-end;
   align-items: center;
   font-size: 14px;
+
+  /* The overflow menus use anchor positioning with explicit anchor-names.
+  Ensure those names stay scoped within each media element. */
+  /* TODO(crbug.com/341741271): Put this back when anchor pos is stable. */
+  /* anchor-scope: all; */
 
   margin-top: env(safe-area-inset-top);
   margin-left: env(safe-area-inset-left);
@@ -186,11 +195,15 @@ audio::-internal-media-controls-cast-button,
 video::-internal-media-controls-overflow-button,
 audio::-internal-media-controls-overflow-button,
 video::-webkit-media-controls-toggle-closed-captions-button,
+video::-webkit-media-controls-toggle-audio-descriptions-button,
 audio::-internal-media-controls-download-button,
 video::-internal-media-controls-download-button,
 audio::-internal-media-controls-playback-speed-button,
 video::-internal-media-controls-playback-speed-button,
-video::-internal-media-controls-picture-in-picture-button {
+video::-internal-media-controls-picture-in-picture-button,
+audio::-internal-media-controls-audio-track-selection-button,
+video::-internal-media-controls-audio-track-selection-button,
+video::-internal-media-controls-video-track-selection-button {
   appearance: -internal-media-control;
   background-size: 20px;
   background-repeat: no-repeat;
@@ -212,6 +225,10 @@ video::-internal-media-controls-picture-in-picture-button {
 
   /* Cursor: pointer will cause a highlight when touch on it, this will disable it */
   -webkit-tap-highlight-color: transparent;
+
+  /* These buttons form the anchor for anchor positioning. */
+  /* TODO(crbug.com/341741271): Put this back when anchor pos is stable. */
+  /* anchor-name: --internal-media-control-button-anchor; */
 }
 
 /*
@@ -336,7 +353,7 @@ video::-webkit-media-controls.sizing-large div[pseudo="-internal-media-controls-
 
 audio::-webkit-media-controls-play-button,
 video::-webkit-media-controls-play-button {
-  background-image: -internal-light-dark(url(ic_play_arrow.svg), url(ic_play_arrow_white.svg));
+  background-image: light-dark(url(ic_play_arrow.svg), url(ic_play_arrow_white.svg));
 }
 
 video::-webkit-media-controls:not(.audio-only) [pseudo="-webkit-media-controls-panel"] [pseudo="-webkit-media-controls-play-button"] {
@@ -345,7 +362,7 @@ video::-webkit-media-controls:not(.audio-only) [pseudo="-webkit-media-controls-p
 
 audio::-webkit-media-controls-mute-button,
 video::-webkit-media-controls-mute-button {
-  background-image: -internal-light-dark(url(ic_volume_up.svg), url(ic_volume_up_white.svg));
+  background-image: light-dark(url(ic_volume_up.svg), url(ic_volume_up_white.svg));
 }
 video::-webkit-media-controls:not(.audio-only) [pseudo="-webkit-media-controls-panel"] [pseudo="-webkit-media-controls-mute-button"] {
   background-image: url(ic_volume_up_white.svg);
@@ -353,7 +370,7 @@ video::-webkit-media-controls:not(.audio-only) [pseudo="-webkit-media-controls-p
 
 audio::-webkit-media-controls-mute-button.muted,
 video::-webkit-media-controls-mute-button.muted {
-  background-image: -internal-light-dark(url(ic_volume_off.svg), url(ic_volume_off_white.svg));
+  background-image: light-dark(url(ic_volume_off.svg), url(ic_volume_off_white.svg));
 }
 video::-webkit-media-controls:not(.audio-only) [pseudo="-webkit-media-controls-panel"] [pseudo="-webkit-media-controls-mute-button"].muted {
   background-image: url(ic_volume_off_white.svg);
@@ -369,7 +386,7 @@ video::-internal-media-controls-display-cutout-fullscreen-button {
 
 audio::-webkit-media-controls-fullscreen-button,
 video::-webkit-media-controls-fullscreen-button {
-  background-image: -internal-light-dark(url(ic_fullscreen.svg), url(ic_fullscreen_white.svg));
+  background-image: light-dark(url(ic_fullscreen.svg), url(ic_fullscreen_white.svg));
 }
 video::-webkit-media-controls:not(.audio-only) [pseudo="-webkit-media-controls-panel"] [pseudo="-webkit-media-controls-fullscreen-button"] {
   background-image: url(ic_fullscreen_white.svg);
@@ -377,7 +394,7 @@ video::-webkit-media-controls:not(.audio-only) [pseudo="-webkit-media-controls-p
 
 audio::-webkit-media-controls-fullscreen-button.fullscreen,
 video::-webkit-media-controls-fullscreen-button.fullscreen {
-  background-image: -internal-light-dark(url(ic_fullscreen_exit.svg), url(ic_fullscreen_exit_white.svg));
+  background-image: light-dark(url(ic_fullscreen_exit.svg), url(ic_fullscreen_exit_white.svg));
 }
 video::-webkit-media-controls:not(.audio-only) [pseudo="-webkit-media-controls-panel"] [pseudo="-webkit-media-controls-fullscreen-button"].fullscreen {
   background-image: url(ic_fullscreen_exit_white.svg);
@@ -397,47 +414,65 @@ video::-webkit-media-controls-fullscreen-button:disabled {
 
 audio::-internal-media-controls-cast-button,
 video::-internal-media-controls-cast-button {
-  background-image: -internal-light-dark(url(ic_cast_off.svg), url(ic_cast_off_white.svg));
+  background-image: light-dark(url(ic_cast_off.svg), url(ic_cast_off_white.svg));
 }
 
 audio::-internal-media-controls-cast-button.on,
 video::-internal-media-controls-cast-button.on {
-  background-image: -internal-light-dark(url(ic_cast_on.svg), url(ic_cast_on_white.svg));
+  background-image: light-dark(url(ic_cast_on.svg), url(ic_cast_on_white.svg));
 }
 
 audio::-webkit-media-controls-toggle-closed-captions-button {
   display: none;
 }
 
+audio::-webkit-media-controls-toggle-audio-descriptions-button {
+  display: none;
+}
+
 video::-webkit-media-controls-toggle-closed-captions-button {
-  background-image: -internal-light-dark(url(ic_subtitles.svg), url(ic_subtitles_white.svg));
+  background-image: light-dark(url(ic_subtitles.svg), url(ic_subtitles_white.svg));
+}
+
+video::-webkit-media-controls-toggle-audio-descriptions-button {
+  background-image: light-dark(url(ic_audio_descriptions.svg), url(ic_audio_descriptions.svg));
 }
 
 video::-webkit-media-controls-toggle-closed-captions-button.closed-captions {
-  background-image: -internal-light-dark(url(ic_closed_caption.svg), url(ic_closed_caption_white.svg));
+  background-image: light-dark(url(ic_closed_caption.svg), url(ic_closed_caption_white.svg));
 }
 
 video::-internal-media-controls-download-button,
 audio::-internal-media-controls-download-button {
-  background-image: -internal-light-dark(url(ic_download.svg), url(ic_download_white.svg));
+  background-image: light-dark(url(ic_download.svg), url(ic_download_white.svg));
 }
 
 video::-internal-media-controls-playback-speed-button,
 audio::-internal-media-controls-playback-speed-button {
-  background-image: -internal-light-dark(url(ic_playback_speed.svg), url(ic_playback_speed_white.svg));
+  background-image: light-dark(url(ic_playback_speed.svg), url(ic_playback_speed_white.svg));
+}
+
+video::-internal-media-controls-audio-track-selection-button,
+audio::-internal-media-controls-audio-track-selection-button {
+  background-image: light-dark(url(ic_audio_track.svg), url(ic_audio_track_white.svg));
+}
+
+video::-internal-media-controls-video-track-selection-button,
+audio::-internal-media-controls-video-track-selection-button {
+  background-image: light-dark(url(ic_video_track.svg), url(ic_video_track_white.svg));
 }
 
 video::-internal-media-controls-overflow-button,
 audio::-internal-media-controls-overflow-button {
-  background-image: -internal-light-dark(url(ic_menu.svg), url(ic_menu_white.svg));
+  background-image: light-dark(url(ic_menu.svg), url(ic_menu_white.svg));
 }
 
 video::-internal-media-controls-picture-in-picture-button {
-  background-image: -internal-light-dark(url(ic_picture_in_picture.svg), url(ic_picture_in_picture_white.svg));
+  background-image: light-dark(url(ic_picture_in_picture.svg), url(ic_picture_in_picture_white.svg));
 }
 
 video::-internal-media-controls-picture-in-picture-button.on {
-    background-image: -internal-light-dark(url(ic_picture_in_picture_exit.svg), url(ic_picture_in_picture_exit_white.svg));
+    background-image: light-dark(url(ic_picture_in_picture_exit.svg), url(ic_picture_in_picture_exit_white.svg));
 }
 
 video::-webkit-media-controls:not(.audio-only) [pseudo="-webkit-media-controls-panel"] [pseudo="-internal-media-controls-overflow-button"] {
@@ -575,7 +610,7 @@ input[pseudo="-webkit-media-controls-overlay-play-button" i]::-internal-media-co
   background-size: 50%;
   background-repeat: no-repeat;
   background-position: center center;
-  background-image: -internal-light-dark(url(ic_play_arrow.svg), url(ic_play_arrow_dark.svg));
+  background-image: light-dark(url(ic_play_arrow.svg), url(ic_play_arrow_dark.svg));
   background-color: rgba(255, 255, 255, .9);
   box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.10);
 
@@ -595,13 +630,13 @@ video::-webkit-media-controls.state-loading-metadata-playing input[pseudo="-webk
 audio::-webkit-media-controls.state-buffering input[pseudo="-webkit-media-controls-play-button" i],
 video::-webkit-media-controls.state-buffering input[pseudo="-webkit-media-controls-play-button" i],
 video::-webkit-media-controls.state-buffering input[pseudo="-webkit-media-controls-overlay-play-button" i]::-internal-media-controls-overlay-play-button-internal {
-  background-image: -internal-light-dark(url(ic_pause.svg), url(ic_pause_white.svg));
+  background-image: light-dark(url(ic_pause.svg), url(ic_pause_white.svg));
 }
 
 video::-webkit-media-controls.state-playing input[pseudo="-webkit-media-controls-overlay-play-button" i]::-internal-media-controls-overlay-play-button-internal,
 video::-webkit-media-controls.state-loading-metadata-playing input[pseudo="-webkit-media-controls-overlay-play-button" i]::-internal-media-controls-overlay-play-button-internal,
 video::-webkit-media-controls.state-buffering input[pseudo="-webkit-media-controls-overlay-play-button" i]::-internal-media-controls-overlay-play-button-internal {
-  background-image: -internal-light-dark(url(ic_pause.svg), url(ic_pause_dark.svg));
+  background-image: light-dark(url(ic_pause.svg), url(ic_pause_dark.svg));
 }
 
 /* For the play button inside the button panel, we want to use a white icon
@@ -718,13 +753,13 @@ video::-webkit-media-controls div[pseudo="-internal-media-controls-loading-panel
 
 div[pseudo="-internal-media-controls-loading-panel" i]::-internal-media-controls-loading-panel-spinner-mask-1-background {
   left: 0;
-    background-image: -internal-light-dark(url(default_100_percent/loading_mask_1.svg), url(default_100_percent/loading_mask_1_white.svg));
+    background-image: light-dark(url(default_100_percent/loading_mask_1.svg), url(default_100_percent/loading_mask_1_white.svg));
   background-position: center left;
 }
 
 div[pseudo="-internal-media-controls-loading-panel" i]::-internal-media-controls-loading-panel-spinner-mask-2-background {
   left: -100%;
-    background-image: -internal-light-dark(url(default_100_percent/loading_mask_2.svg), url(default_100_percent/loading_mask_2_white.svg));
+    background-image: light-dark(url(default_100_percent/loading_mask_2.svg), url(default_100_percent/loading_mask_2_white.svg));
   background-position: center right;
 }
 
@@ -733,7 +768,7 @@ input[pseudo="-webkit-media-controls-volume-slider" i]::-internal-media-controls
   appearance: -internal-media-control;
 
   flex: 1;
-  background: -internal-light-dark(rgba(0, 0, 0, .2), rgba(255, 255, 255, 0.2));
+  background: light-dark(rgba(0, 0, 0, .2), rgba(255, 255, 255, 0.2));
   border-radius: 2px;
   position: relative;
 }
@@ -746,9 +781,9 @@ video::-webkit-media-controls:not(.audio-only) input[pseudo="-webkit-media-contr
 input[pseudo="-webkit-media-controls-timeline" i]::-webkit-slider-thumb,
 input[pseudo="-webkit-media-controls-volume-slider" i]::-webkit-slider-thumb {
   appearance: -internal-media-control;
-  background: -internal-light-dark(rgba(0, 0, 0, .87), rgba(255, 255, 255, 0.87));
+  background: light-dark(rgba(0, 0, 0, .87), rgba(255, 255, 255, 0.87));
 
-  box-shadow: 0 0 10px 0 -internal-light-dark(#ffffff, #000000);
+  box-shadow: 0 0 10px 0 light-dark(#ffffff, #000000);
 
   width: 12px;
   height: 12px;
@@ -786,7 +821,7 @@ input[pseudo="-webkit-media-controls-volume-slider" i]::-internal-track-segment-
 
 input[pseudo="-webkit-media-controls-timeline" i]::-internal-track-segment-highlight-before,
 input[pseudo="-webkit-media-controls-volume-slider" i]::-internal-track-segment-highlight-before {
-  background: -internal-light-dark(rgba(0, 0, 0, .87), rgba(255, 255, 255, 0.87));
+  background: light-dark(rgba(0, 0, 0, .87), rgba(255, 255, 255, 0.87));
   border-radius: 100px;
 }
 video::-webkit-media-controls:not(.audio-only) input[pseudo="-webkit-media-controls-timeline" i]::-internal-track-segment-highlight-before,
@@ -796,7 +831,7 @@ video::-webkit-media-controls:not(.audio-only) input[pseudo="-webkit-media-contr
 
 input[pseudo="-webkit-media-controls-timeline" i]::-internal-track-segment-highlight-after,
 input[pseudo="-webkit-media-controls-volume-slider" i]::-internal-track-segment-highlight-after {
-  background: -internal-light-dark(rgba(0, 0, 0, .54), rgba(255, 255, 255, 0.54));
+  background: light-dark(rgba(0, 0, 0, .54), rgba(255, 255, 255, 0.54));
   border-radius: 2px;
 }
 video::-webkit-media-controls:not(.audio-only) input[pseudo="-webkit-media-controls-timeline" i]::-internal-track-segment-highlight-after,
@@ -857,9 +892,9 @@ video::-webkit-media-controls-time-remaining-display {
   opacity: 0.87;
   font-family: Roboto-Regular, Roboto, sans-serif;
   font-size: 14px;
-  color: -internal-light-dark(#000000, #ffffff);
+  color: light-dark(#000000, #ffffff);
   letter-spacing: 0;
-  text-shadow: 0 0 10px -internal-light-dark(#ffffff, #3b3b3b);
+  text-shadow: 0 0 10px light-dark(#ffffff, #3b3b3b);
 }
 video::-webkit-media-controls:not(.audio-only) [pseudo="-webkit-media-controls-current-time-display"],
 video::-webkit-media-controls:not(.audio-only) [pseudo="-webkit-media-controls-time-remaining-display"] {
@@ -876,6 +911,10 @@ audio::-internal-media-controls-text-track-list,
 video::-internal-media-controls-text-track-list,
 audio::-internal-media-controls-playback-speed-list,
 video::-internal-media-controls-playback-speed-list,
+audio::-internal-media-controls-audio-track-selection-list,
+video::-internal-media-controls-audio-track-selection-list,
+audio::-internal-media-controls-video-track-selection-list,
+video::-internal-media-controls-video-track-selection-list,
 audio::-internal-media-controls-overflow-menu-list,
 video::-internal-media-controls-overflow-menu-list {
   max-height: 250px;
@@ -884,16 +923,19 @@ video::-internal-media-controls-overflow-menu-list {
   overflow-y: auto;
   white-space: nowrap;
   font-size: 12px;
-  background: -internal-light-dark(#ffffff, #3B3B3B);
+  background: light-dark(#ffffff, #3B3B3B);
   box-shadow: 0 1px 9px 0 rgba(0,0,0,0.40);
   border-radius: 2px;
   transition: transform .3s ease-out, opacity .2s linear;
   transform-origin: bottom right;
   border:0;
   padding: 0;
+  inset: auto;
   /* Anchor the popover on the bottom right corner. */
-  bottom: calc(anchor(bottom) + 4px) !important;
-  right: calc(anchor(right) + 4px) !important;
+  /* TODO(crbug.com/341741271): Put this back when anchor pos is stable. */
+  /* position-anchor: --internal-media-control-button-anchor; */
+  /* bottom: calc(anchor(bottom) + 4px) !important; */
+  /* right: calc(anchor(right) + 4px) !important; */
 }
 
 audio::-internal-media-controls-overflow-menu-list:focus,
@@ -911,10 +953,14 @@ audio::-internal-media-controls-text-track-list-header,
 video::-internal-media-controls-text-track-list-header,
 audio::-internal-media-controls-playback-speed-list-header,
 video::-internal-media-controls-playback-speed-list-header,
+audio::-internal-media-controls-track-selection-list-header,
+video::-internal-media-controls-track-selection-list-header,
 audio::-internal-media-controls-text-track-list-item,
 video::-internal-media-controls-text-track-list-item,
 audio::-internal-media-controls-playback-speed-list-item,
 video::-internal-media-controls-playback-speed-list-item,
+audio::-internal-media-controls-track-selection-list-item,
+video::-internal-media-controls-track-selection-list-item,
 audio::-internal-media-controls-overflow-menu-list-item,
 video::-internal-media-controls-overflow-menu-list-item {
   display: flex;
@@ -923,8 +969,8 @@ video::-internal-media-controls-overflow-menu-list-item {
 
   font-family: Roboto-Regular, Roboto, sans-serif;
   font-size: 12px;
-  background-color: -internal-light-dark(#FFFFFF, #3B3B3B);
-  color: -internal-light-dark(rgba(0,0,0,0.87), rgba(255,255,255,0.87));
+  background-color: light-dark(#FFFFFF, #3B3B3B);
+  color: light-dark(rgba(0,0,0,0.87), rgba(255,255,255,0.87));
   letter-spacing: 0;
 
   line-height: 48px;
@@ -975,6 +1021,7 @@ label[pseudo="-internal-media-controls-overflow-menu-list-item"] div span {
 }
 
 label[pseudo="-internal-media-controls-text-track-list-item"] span,
+label[pseudo="-internal-media-controls-track-selection-list-item"] span,
 label[pseudo="-internal-media-controls-playback-speed-list-item"] span {
   line-height: normal;
   overflow: hidden;
@@ -1044,14 +1091,18 @@ audio::-internal-media-controls-text-track-list-header:focus,
 video::-internal-media-controls-text-track-list-header:focus,
 audio::-internal-media-controls-playback-speed-list-header:focus,
 video::-internal-media-controls-playback-speed-list-header:focus,
+audio::-internal-media-controls-track-selection-list-header:focus,
+video::-internal-media-controls-track-selection-list-header:focus,
 audio::-internal-media-controls-text-track-list-item:focus,
 video::-internal-media-controls-text-track-list-item:focus,
 audio::-internal-media-controls-playback-speed-list-item:focus,
 video::-internal-media-controls-playback-speed-list-item:focus,
+audio::-internal-media-controls-track-selection-list-item:focus,
+video::-internal-media-controls-track-selection-list-item:focus,
 audio::-internal-media-controls-overflow-menu-list-item:focus,
-video::-internal-media-controls-overflow-menu-list-item:focus {
-  background-color: -internal-light-dark(#e0e0e0, #545454);
-  color: -internal-light-dark(rgba(0,0,0,0.87), rgba(255,255,255,0.87));
+video::-internal-media-controls-overflow-menu-list-item:focus{
+  background-color: light-dark(#e0e0e0, #545454);
+  color: light-dark(rgba(0,0,0,0.87), rgba(255,255,255,0.87));
   outline: none;
 }
 
@@ -1059,10 +1110,14 @@ audio::-internal-media-controls-text-track-list-header:focus-visible,
 video::-internal-media-controls-text-track-list-header:focus-visible,
 audio::-internal-media-controls-playback-speed-list-header:focus-visible,
 video::-internal-media-controls-playback-speed-list-header:focus-visible,
+audio::-internal-media-controls-track-selection-list-header:focus-visible,
+video::-internal-media-controls-track-selection-list-header:focus-visible,
 audio::-internal-media-controls-text-track-list-item:focus-visible,
 video::-internal-media-controls-text-track-list-item:focus-visible,
 audio::-internal-media-controls-playback-speed-list-item:focus-visible,
 video::-internal-media-controls-playback-speed-list-item:focus-visible,
+audio::-internal-media-controls-track-selection-list-item:focus-visible,
+video::-internal-media-controls-track-selection-list-item:focus-visible,
 audio::-internal-media-controls-overflow-menu-list-item:focus-visible,
 video::-internal-media-controls-overflow-menu-list-item:focus-visible {
   border: 1px solid currentColor;
@@ -1070,17 +1125,21 @@ video::-internal-media-controls-overflow-menu-list-item:focus-visible {
 
 audio::-internal-media-controls-overflow-menu-list-item:active,
 video::-internal-media-controls-overflow-menu-list-item:active {
-  background-color: -internal-light-dark(#e0e0e0, #454545);
+  background-color: light-dark(#e0e0e0, #454545);
 }
 
 audio::-internal-media-controls-text-track-list-header,
 video::-internal-media-controls-text-track-list-header,
 audio::-internal-media-controls-playback-speed-list-header,
 video::-internal-media-controls-playback-speed-list-header,
+audio::-internal-media-controls-track-selection-list-header,
+video::-internal-media-controls-track-selection-list-header,
 audio::-internal-media-controls-text-track-list-item,
 video::-internal-media-controls-text-track-list-item,
 audio::-internal-media-controls-playback-speed-list-item,
-video::-internal-media-controls-playback-speed-list-item {
+video::-internal-media-controls-playback-speed-list-item,
+audio::-internal-media-controls-track-selection-list-item,
+video::-internal-media-controls-track-selection-list-item {
   padding-left: 58px;
   justify-content: space-between;
 }
@@ -1088,19 +1147,23 @@ video::-internal-media-controls-playback-speed-list-item {
 audio::-internal-media-controls-text-track-list-header,
 video::-internal-media-controls-text-track-list-header,
 audio::-internal-media-controls-playback-speed-list-header,
-video::-internal-media-controls-playback-speed-list-header {
+video::-internal-media-controls-playback-speed-list-header,
+audio::-internal-media-controls-track-selection-list-header,
+video::-internal-media-controls-track-selection-list-header {
   background-size: 18px;
   background-position: 20px center;
   background-repeat: no-repeat;
-  background-image: -internal-light-dark(url(ic_arrow_back.svg), url(ic_arrow_back_white.svg));
+  background-image: light-dark(url(ic_arrow_back.svg), url(ic_arrow_back_white.svg));
 }
 
 label[pseudo="-internal-media-controls-text-track-list-item"] *,
+label[pseudo="-internal-media-controls-track-selection-list-item"] *,
 label[pseudo="-internal-media-controls-playback-speed-list-item"] * {
   pointer-events: none;
 }
 
 label[pseudo="-internal-media-controls-text-track-list-item"] input,
+label[pseudo="-internal-media-controls-track-selection-list-item"] input,
 label[pseudo="-internal-media-controls-playback-speed-list-item"] input {
   appearance: none;
   width: 18px;
@@ -1110,6 +1173,7 @@ label[pseudo="-internal-media-controls-playback-speed-list-item"] input {
 }
 
 label[pseudo="-internal-media-controls-text-track-list-item"] input:checked,
+label[pseudo="-internal-media-controls-track-selection-list-item"] input:checked,
 label[pseudo="-internal-media-controls-playback-speed-list-item"] input:checked {
   background: url(ic_check_blue.svg) no-repeat center center;
 }
@@ -1133,7 +1197,7 @@ audio::-webkit-media-controls-enclosure,
 video::-webkit-media-controls.audio-only [pseudo="-webkit-media-controls-enclosure"] {
   max-height: 54px;
   flex-direction: row;
-  background: -internal-light-dark(#F1F3F4, rgba(59, 59, 59, .9));
+  background: light-dark(#F1F3F4, rgba(59, 59, 59, .9));
   border-radius: 100px;
   overflow: hidden;
 }
@@ -1192,7 +1256,7 @@ video::-webkit-media-controls.audio-only [pseudo="-internal-media-controls-overf
 
 .state-no-source input[pseudo="-webkit-media-controls-overlay-play-button" i]::-internal-media-controls-overlay-play-button-internal {
   opacity: .3;
-  background-image: -internal-light-dark(url(ic_no_source.svg), url(ic_no_source_dark.svg));
+  background-image: light-dark(url(ic_no_source.svg), url(ic_no_source_dark.svg));
 }
 
 /**
@@ -1241,10 +1305,11 @@ video::-webkit-media-controls.audio-only [pseudo="-internal-media-controls-anima
  * Text Tracks
  */
 video::-webkit-media-text-track-container {
-    position: relative;
+    position: relative !important;
     width: inherit;
     height: inherit;
     overflow: hidden;
+    contain: paint !important;
 
     font: 22px sans-serif;
     text-align: center;
@@ -1315,12 +1380,16 @@ video::cue(i) {
 }
 
 video::cue(rt) {
-    display: block;
+    display: ruby-text;
     font-size: 50%;
     line-height: normal;
     text-align: start;
     text-emphasis: none;
     text-indent: 0;
+}
+
+video::cue(ruby) {
+    display: ruby;
 }
 
 /*
@@ -1378,7 +1447,7 @@ video::-internal-media-controls-scrubbing-message {
 
 video::-internal-media-controls-text-track-list-kind-captions {
     appearance: none;
-    background-image: -internal-light-dark(url(ic_closed_caption.svg), url(ic_closed_caption_white.svg));
+    background-image: light-dark(url(ic_closed_caption.svg), url(ic_closed_caption_white.svg));
     background-size: 18px;
     background-repeat: no-repeat;
     background-position: center center;
@@ -1387,9 +1456,20 @@ video::-internal-media-controls-text-track-list-kind-captions {
     vertical-align: middle;
 }
 
+video::-internal-media-controls-text-track-list-kind-descriptions {
+  appearance: none;
+  background-image: light-dark(url(ic_audio_descriptions.svg), url(ic_audio_descriptions.svg));
+  background-size: 18px;
+  background-repeat: no-repeat;
+  background-position: center center;
+  height: 18px;
+  width: 18px;
+  vertical-align: middle;
+}
+
 video::-internal-media-controls-text-track-list-kind-subtitles {
     appearance: none;
-    background-image: -internal-light-dark(url(ic_subtitles.svg), url(ic_subtitles_white.svg));
+    background-image: light-dark(url(ic_subtitles.svg), url(ic_subtitles_white.svg));
     background-size: 18px;
     background-repeat: no-repeat;
     background-position: center center;
@@ -1549,10 +1629,14 @@ audio::-internal-media-controls-text-track-list {
   video::-internal-media-controls-text-track-list-header,
   audio::-internal-media-controls-playback-speed-list-header,
   video::-internal-media-controls-playback-speed-list-header,
+  audio::-internal-media-controls-track-selection-list-header,
+  video::-internal-media-controls-track-selection-list-header,
   audio::-internal-media-controls-text-track-list-item,
   video::-internal-media-controls-text-track-list-item,
   audio::-internal-media-controls-playback-speed-list-item,
   video::-internal-media-controls-playback-speed-list-item,
+  audio::-internal-media-controls-track-selection-list-item,
+  video::-internal-media-controls-track-selection-list-item,
   audio::-internal-media-controls-overflow-menu-list-item,
   video::-internal-media-controls-overflow-menu-list-item {
     background-color: Window;

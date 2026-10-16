@@ -6,6 +6,7 @@
 #define IOS_CHROME_BROWSER_SHARED_PUBLIC_COMMANDS_ACTIVITY_SERVICE_COMMANDS_H_
 
 @class ShareHighlightCommand;
+@class ActivityServiceShareURLCommand;
 
 @protocol ActivityServiceCommands <NSObject>
 
@@ -15,13 +16,16 @@
 - (void)stopAndStartSharingCoordinator;
 
 // Shows the share sheet for the current page.
-- (void)sharePage;
+- (void)showShareSheet;
 
 // Shows the share sheet for a link to the Chrome App in the App Store.
-- (void)shareChromeApp;
+- (void)showShareSheetForChromeApp;
 
 // Shows the share sheet for the page and currently highlighted text.
-- (void)shareHighlight:(ShareHighlightCommand*)command;
+- (void)showShareSheetForHighlight:(ShareHighlightCommand*)command;
+
+// Shows the share sheet for the URL sharing flow for the given command.
+- (void)showShareSheetForURL:(ActivityServiceShareURLCommand*)command;
 
 @end
 

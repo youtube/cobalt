@@ -15,11 +15,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingMetricsRecorder.getHistogramForType;
 import static org.chromium.chrome.browser.keyboard_accessory.sheet_tabs.AccessorySheetTabItemsModel.AccessorySheetDataPiece.Type.ADDRESS_INFO;
+import static org.chromium.chrome.browser.keyboard_accessory.sheet_tabs.AccessorySheetTabItemsModel.AccessorySheetDataPiece.Type.PLUS_ADDRESS_SECTION;
 import static org.chromium.chrome.browser.keyboard_accessory.sheet_tabs.AccessorySheetTabItemsModel.AccessorySheetDataPiece.Type.TITLE;
 import static org.chromium.chrome.browser.keyboard_accessory.sheet_tabs.AccessorySheetTabItemsModel.AccessorySheetDataPiece.getType;
-import static org.chromium.chrome.browser.keyboard_accessory.sheet_tabs.AccessorySheetTabMetricsRecorder.UMA_KEYBOARD_ACCESSORY_SHEET_SUGGESTIONS;
 
 import android.graphics.drawable.Drawable;
 
@@ -27,52 +26,50 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
-import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.metrics.UmaRecorderHolder;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.task.test.CustomShadowAsyncTask;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.keyboard_accessory.AccessorySuggestionType;
 import org.chromium.chrome.browser.keyboard_accessory.AccessoryTabType;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData.AccessorySheetData;
+import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData.PlusAddressInfo;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData.UserInfo;
 import org.chromium.chrome.browser.keyboard_accessory.data.PropertyProvider;
 import org.chromium.chrome.browser.keyboard_accessory.data.UserInfoField;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
-import org.chromium.chrome.test.util.browser.Features;
 import org.chromium.ui.modelutil.ListObservable;
 
-/**
- * Controller tests for the address accessory sheet.
- */
+/** Controller tests for the address accessory sheet. */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(manifest = Config.NONE, shadows = {CustomShadowAsyncTask.class})
-@Features.EnableFeatures({ChromeFeatureList.AUTOFILL_KEYBOARD_ACCESSORY})
+@Config(
+        manifest = Config.NONE,
+        shadows = {CustomShadowAsyncTask.class})
 public class AddressAccessorySheetControllerTest {
-    @Rule
-    public TestRule mFeaturesProcessorRule = new Features.JUnitProcessor();
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
-    @Mock
-    private AccessorySheetTabView mMockView;
-    @Mock
-    private ListObservable.ListObserver<Void> mMockItemListObserver;
+    @Mock private Profile mProfile;
+    @Mock private AccessorySheetTabView mMockView;
+    @Mock private ListObservable.ListObserver<Void> mMockItemListObserver;
 
     private AddressAccessorySheetCoordinator mCoordinator;
     private AccessorySheetTabItemsModel mSheetDataPieces;
 
     @Before
     public void setUp() {
-        UmaRecorderHolder.resetForTesting();
-        MockitoAnnotations.initMocks(this);
+        when(mMockView.getContext()).thenReturn(ContextUtils.getApplicationContext());
         AccessorySheetTabCoordinator.IconProvider.setIconForTesting(mock(Drawable.class));
-        mCoordinator = new AddressAccessorySheetCoordinator(RuntimeEnvironment.application, null);
+        mCoordinator =
+                new AddressAccessorySheetCoordinator(
+                        RuntimeEnvironment.application, mProfile, null);
         assertNotNull(mCoordinator);
         mSheetDataPieces = mCoordinator.getSheetDataPiecesForTesting();
     }
@@ -121,13 +118,21 @@ public class AddressAccessorySheetControllerTest {
 
         // If the coordinator receives a set of initial items, the model should report an insertion.
         testProvider.notifyObservers(
-                new AccessorySheetData(AccessoryTabType.ADDRESSES, "Addresses", ""));
+                new AccessorySheetData(
+                        AccessoryTabType.ADDRESSES,
+                        /* userInfoTitle= */ "Addresses",
+                        /* plusAddressTitle= */ "",
+                        /* warning= */ ""));
         verify(mMockItemListObserver).onItemRangeInserted(mSheetDataPieces, 0, 1);
         assertThat(mSheetDataPieces.size(), is(1));
 
         // If the coordinator receives a new set of items, the model should report a change.
         testProvider.notifyObservers(
-                new AccessorySheetData(AccessoryTabType.ADDRESSES, "Other Addresses", ""));
+                new AccessorySheetData(
+                        AccessoryTabType.ADDRESSES,
+                        /* userInfoTitle= */ "Other Addresses",
+                        /* plusAddressTitle= */ "",
+                        /* warning= */ ""));
         verify(mMockItemListObserver).onItemRangeChanged(mSheetDataPieces, 0, 1, null);
         assertThat(mSheetDataPieces.size(), is(1));
 
@@ -145,95 +150,70 @@ public class AddressAccessorySheetControllerTest {
     public void testSplitsTabDataToList() {
         final PropertyProvider<AccessorySheetData> testProvider = new PropertyProvider<>();
         final AccessorySheetData testData =
-                new AccessorySheetData(AccessoryTabType.ADDRESSES, "Addresses for this site", "");
+                new AccessorySheetData(
+                        AccessoryTabType.ADDRESSES,
+                        /* userInfoTitle= */ "",
+                        /* plusAddressTitle= */ "",
+                        /* warning= */ "");
+        testData.getPlusAddressInfoList()
+                .add(
+                        new PlusAddressInfo(
+                                "google.com",
+                                new UserInfoField.Builder()
+                                        .setSuggestionType(AccessorySuggestionType.PLUS_ADDRESS)
+                                        .setDisplayText("example@gmail.com")
+                                        .setA11yDescription("example@gmail.com")
+                                        .setCallback(field -> {})
+                                        .build()));
         testData.getUserInfoList().add(new UserInfo("", false));
-        testData.getUserInfoList().get(0).addField(
-                new UserInfoField("Name", "Name", "", false, null));
-        testData.getUserInfoList().get(0).addField(
-                new UserInfoField("Street", "Street", "", true, field -> {}));
+        testData.getUserInfoList()
+                .get(0)
+                .addField(
+                        new UserInfoField.Builder()
+                                .setSuggestionType(AccessorySuggestionType.NAME_FULL)
+                                .setDisplayText("Name")
+                                .setA11yDescription("Name")
+                                .build());
+        testData.getUserInfoList()
+                .get(0)
+                .addField(
+                        new UserInfoField.Builder()
+                                .setSuggestionType(AccessorySuggestionType.ADDRESS_LINE1)
+                                .setDisplayText("Street")
+                                .setA11yDescription("Street")
+                                .setIsObfuscated(true)
+                                .setCallback(field -> {})
+                                .build());
 
         mCoordinator.registerDataProvider(testProvider);
         testProvider.notifyObservers(testData);
 
-        assertThat(mSheetDataPieces.size(), is(1));
-        assertThat(getType(mSheetDataPieces.get(0)), is(ADDRESS_INFO));
-        assertThat(mSheetDataPieces.get(0).getDataPiece(), is(testData.getUserInfoList().get(0)));
+        assertThat(mSheetDataPieces.size(), is(2));
+        assertThat(getType(mSheetDataPieces.get(0)), is(PLUS_ADDRESS_SECTION));
+        assertThat(getType(mSheetDataPieces.get(1)), is(ADDRESS_INFO));
+        assertThat(
+                mSheetDataPieces.get(0).getDataPiece(),
+                is(testData.getPlusAddressInfoList().get(0)));
+        assertThat(mSheetDataPieces.get(1).getDataPiece(), is(testData.getUserInfoList().get(0)));
     }
 
     @Test
     public void testUsesTitleElementForEmptyState() {
         final PropertyProvider<AccessorySheetData> testProvider = new PropertyProvider<>();
         final AccessorySheetData testData =
-                new AccessorySheetData(AccessoryTabType.ADDRESSES, "No addresses", "");
+                new AccessorySheetData(
+                        AccessoryTabType.ADDRESSES,
+                        /* userInfoTitle= */ "No addresses",
+                        /* plusAddressTitle= */ "No saved plus addresses",
+                        /* warning= */ "");
         mCoordinator.registerDataProvider(testProvider);
 
         testProvider.notifyObservers(testData);
 
-        assertThat(mSheetDataPieces.size(), is(1));
+        assertThat(mSheetDataPieces.size(), is(2));
         assertThat(getType(mSheetDataPieces.get(0)), is(TITLE));
         assertThat(mSheetDataPieces.get(0).getDataPiece(), is(equalTo("No addresses")));
-
-        // As soon UserInfo is available, discard the title.
-        testData.getUserInfoList().add(new UserInfo("", false));
-        testData.getUserInfoList().get(0).addField(
-                new UserInfoField("Name", "Name", "", false, null));
-        testData.getUserInfoList().get(0).addField(
-                new UserInfoField("Address", "Address for Name", "", true, field -> {}));
-        testProvider.notifyObservers(testData);
-
-        assertThat(mSheetDataPieces.size(), is(1));
-        assertThat(getType(mSheetDataPieces.get(0)), is(ADDRESS_INFO));
-    }
-
-    @Test
-    public void testRecordsNoSuggestionsImpressionsWithoutInteractiveElements() {
-        final PropertyProvider<AccessorySheetData> testProvider = new PropertyProvider<>();
-        mCoordinator.registerDataProvider(testProvider);
-        assertThat(RecordHistogram.getHistogramTotalCountForTesting(
-                           UMA_KEYBOARD_ACCESSORY_SHEET_SUGGESTIONS),
-                is(0));
-        assertThat(getSuggestionsImpressions(AccessoryTabType.ADDRESSES, 0), is(0));
-        assertThat(getSuggestionsImpressions(AccessoryTabType.ALL, 0), is(0));
-
-        // If the tab is shown without interactive item, log "0" samples.
-        AccessorySheetData accessorySheetData =
-                new AccessorySheetData(AccessoryTabType.ADDRESSES, "No addresses!", "");
-        testProvider.notifyObservers(accessorySheetData);
-        mCoordinator.onTabShown();
-
-        assertThat(getSuggestionsImpressions(AccessoryTabType.ADDRESSES, 0), is(1));
-        assertThat(getSuggestionsImpressions(AccessoryTabType.ALL, 0), is(1));
-    }
-
-    @Test
-    public void testRecordsSelectableSuggestionsImpressionsWhenShown() {
-        final PropertyProvider<AccessorySheetData> testProvider = new PropertyProvider<>();
-        mCoordinator.registerDataProvider(testProvider);
-        assertThat(RecordHistogram.getHistogramTotalCountForTesting(
-                           UMA_KEYBOARD_ACCESSORY_SHEET_SUGGESTIONS),
-                is(0));
-        assertThat(getSuggestionsImpressions(AccessoryTabType.ADDRESSES, 1), is(0));
-        assertThat(getSuggestionsImpressions(AccessoryTabType.ALL, 1), is(0));
-
-        // Add only two interactive items - the third one should not be recorded.
-        AccessorySheetData accessorySheetData =
-                new AccessorySheetData(AccessoryTabType.ADDRESSES, "Addresses", "");
-        accessorySheetData.getUserInfoList().add(new UserInfo("", false));
-        accessorySheetData.getUserInfoList().get(0).addField(
-                new UserInfoField("Todd Tester", "Todd Tester", "0", false, result -> {}));
-        accessorySheetData.getUserInfoList().get(0).addField(
-                new UserInfoField("Main Street", "Main Street", "1", false, result -> {}));
-        accessorySheetData.getUserInfoList().get(0).addField(
-                new UserInfoField("Unselectable", "Unselectable", "-1", false, null));
-        testProvider.notifyObservers(accessorySheetData);
-        mCoordinator.onTabShown();
-
-        assertThat(getSuggestionsImpressions(AccessoryTabType.ADDRESSES, 2), is(1));
-        assertThat(getSuggestionsImpressions(AccessoryTabType.ALL, 2), is(1));
-    }
-
-    private int getSuggestionsImpressions(@AccessoryTabType int type, int sample) {
-        return RecordHistogram.getHistogramValueCountForTesting(
-                getHistogramForType(UMA_KEYBOARD_ACCESSORY_SHEET_SUGGESTIONS, type), sample);
+        assertThat(getType(mSheetDataPieces.get(1)), is(TITLE));
+        assertThat(mSheetDataPieces.get(1).getDataPiece(), is(equalTo("No saved plus addresses")));
     }
 }

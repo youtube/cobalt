@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -20,7 +21,6 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
-#include "build/chromeos_buildflags.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
 
 namespace device {
@@ -130,9 +130,11 @@ class TimeZoneMonitorLinuxImpl
     // still more paths are used. Just watch all three of these paths, because
     // false positives are harmless, assuming the false positive rate is
     // reasonable.
-    const char* const kFilesToWatch[] = {
-        "/etc/localtime", "/etc/timezone", "/etc/TZ",
-    };
+    const auto kFilesToWatch = std::to_array<const char*>({
+        "/etc/localtime",
+        "/etc/timezone",
+        "/etc/TZ",
+    });
     for (size_t index = 0; index < std::size(kFilesToWatch); ++index) {
       file_path_watchers_.push_back(std::make_unique<base::FilePathWatcher>());
       file_path_watchers_.back()->Watch(

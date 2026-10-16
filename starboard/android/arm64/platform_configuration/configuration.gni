@@ -15,4 +15,3 @@
 import("//starboard/android/shared/platform_configuration/configuration.gni")
 
 sabi_path = "//starboard/sabi/arm64/sabi-v$sb_api_version.json"
-sb_evergreen_compatible_package = true

@@ -9,14 +9,15 @@
 #include <dlfcn.h>
 #include <netdb.h>
 #include <unistd.h>
+
 #include <cstddef>
 #include <memory>
 #include <string>
 
-#include "android_webview/browser_jni_headers/AwPacProcessor_jni.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
@@ -30,6 +31,9 @@
 #include "net/base/network_isolation_key.h"
 #include "net/proxy_resolution/pac_file_data.h"
 #include "net/proxy_resolution/proxy_info.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "android_webview/browser_jni_headers/AwPacProcessor_jni.h"
 
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
@@ -186,7 +190,7 @@ class HostResolver : public proxy_resolver::ProxyHostResolver {
 
     bool DnsResolveImpl(const std::string& host) {
       struct addrinfo hints;
-      memset(&hints, 0, sizeof hints);
+      UNSAFE_TODO(memset(&hints, 0, sizeof hints));
       hints.ai_family = AF_INET;
 
       struct addrinfo* res = nullptr;
@@ -387,7 +391,7 @@ AwPacProcessor::~AwPacProcessor() {
 
 void AwPacProcessor::Destroy(base::WaitableEvent* event) {
   // Cancel all unfinished jobs to unblock calling thread.
-  for (auto* job : jobs_) {
+  for (Job* job : jobs_) {
     job->Cancel();
   }
 
@@ -436,14 +440,17 @@ bool AwPacProcessor::SetProxyScript(std::string script) {
 
 jboolean AwPacProcessor::SetProxyScript(JNIEnv* env,
                                         const JavaParamRef<jobject>& obj,
-                                        const JavaParamRef<jstring>& jscript) {
-  std::string script = ConvertJavaStringToUTF8(env, jscript);
+                                        std::string& script) {
   return SetProxyScript(script);
 }
 
 bool AwPacProcessor::MakeProxyRequest(std::string url, std::string* result) {
   MakeProxyRequestJob job(this, url);
   if (job.ExecSync()) {
+    if (job.proxy_info().ContainsMultiProxyChain()) {
+      // Multi-proxy chains cannot be represented as a PAC string.
+      return false;
+    }
     *result = job.proxy_info().ToPacString();
     return true;
   } else {
@@ -467,10 +474,7 @@ ScopedJavaLocalRef<jstring> AwPacProcessor::MakeProxyRequest(
 void AwPacProcessor::SetNetworkAndLinkAddresses(
     JNIEnv* env,
     net_handle_t net_handle,
-    const base::android::JavaParamRef<jobjectArray>& jlink_addresses) {
-  std::vector<std::string> string_link_addresses;
-  base::android::AppendJavaStringArrayToStringVector(env, jlink_addresses,
-                                                     &string_link_addresses);
+    const std::vector<std::string>& string_link_addresses) {
   std::vector<net::IPAddress> link_addresses;
   for (const std::string& address : string_link_addresses) {
     net::IPAddress ip_address;

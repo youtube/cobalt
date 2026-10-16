@@ -9,31 +9,34 @@
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/user_metrics.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/image_fetcher/image_fetcher_service_factory.h"
-#include "chrome/browser/image_service/image_service_factory.h"
+#include "chrome/browser/page_image_service/image_service_factory.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
+#include "chrome/browser/signin/chrome_signin_client.h"
+#include "chrome/browser/signin/signin_promo_util.h"
 #include "chrome/browser/ui/bookmarks/bookmark_editor.h"
 #include "chrome/browser/ui/bookmarks/recently_used_folders_combo_model.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/commerce/price_tracking/shopping_list_ui_tab_helper.h"
-#include "chrome/browser/ui/sync/sync_promo_ui.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/commerce/price_tracking_email_dialog_view.h"
 #include "chrome/browser/ui/views/commerce/price_tracking_view.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/browser/ui/views/commerce/shopping_collection_iph_view.h"
+#include "chrome/browser/ui/views/location_bar/star_view.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/browser/bookmark_utils.h"
 #include "components/bookmarks/common/bookmark_metrics.h"
 #include "components/commerce/core/commerce_feature_list.h"
+#include "components/commerce/core/metrics/metrics_utils.h"
 #include "components/commerce/core/price_tracking_utils.h"
 #include "components/commerce/core/shopping_service.h"
 #include "components/feature_engagement/public/feature_constants.h"
@@ -43,21 +46,25 @@
 #include "components/page_image_service/image_service.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_metrics.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/sync/service/local_data_description.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/dialog_model.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/views/bubble/bubble_dialog_model_host.h"
+#include "ui/views/controls/styled_label.h"
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ui/views/sync/bubble_sync_promo_view.h"
+#if !BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ui/signin/promos/bubble_signin_promo_view.h"
 #endif
 
 using base::UserMetricsAction;
@@ -68,9 +75,13 @@ using bookmarks::BookmarkNode;
 // BookmarkBubbleDelegate.
 views::BubbleDialogDelegate* BookmarkBubbleView::bookmark_bubble_ = nullptr;
 
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kBookmarkBubbleOkButtonId);
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kBookmarkFolderFieldId);
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kBookmarkNameFieldId);
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kBookmarkSecondaryButtonId);
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kBookmarkBubbleFrameViewId);
+
 namespace {
-DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kBookmarkName);
-DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kBookmarkFolder);
 
 void FetchImageForUrl(const GURL& url, Profile* profile) {
   page_image_service::ImageService* image_service =
@@ -107,34 +118,128 @@ gfx::ImageSkia GetFaviconForWebContents(content::WebContents* web_contents) {
   constexpr int kMainImageDimension = 112;
   gfx::ImageSkia centered_favicon =
       gfx::ImageSkiaOperations::CreateImageWithRoundRectBackground(
-          kMainImageDimension, 0, background_color, favicon);
+          gfx::SizeF(kMainImageDimension, kMainImageDimension), /*radius=*/0,
+          background_color, favicon);
   return centered_favicon;
 }
+
+base::OnceCallback<void()> CreatePriceTrackingEmailCallback(
+    Profile* profile,
+    views::View* anchor_view,
+    content::WebContents* web_contents,
+    const bookmarks::BookmarkNode* bookmark) {
+  if (!profile ||
+      commerce::IsEmailNotificationPrefSetByUser(profile->GetPrefs())) {
+    return base::DoNothing();
+  }
+
+  // Make sure we don't over-trigger the dialog.
+  auto* tracker =
+      feature_engagement::TrackerFactory::GetForBrowserContext(profile);
+  if (!tracker ||
+      !tracker->ShouldTriggerHelpUI(
+          feature_engagement::kIPHPriceTrackingEmailConsentFeature)) {
+    return base::DoNothing();
+  }
+
+  base::OnceCallback<void()> show_dialog_callback = base::BindOnce(
+      [](base::WeakPtr<content::WebContents> web_contents, Profile* profile,
+         views::View* anchor) {
+        if (!web_contents || !profile || !anchor) {
+          return;
+        }
+        PriceTrackingEmailDialogCoordinator(anchor).Show(
+            web_contents.get(), profile, base::DoNothing());
+      },
+      web_contents->GetWeakPtr(), profile, anchor_view);
+
+  return base::BindOnce(
+      [](Profile* profile, const bookmarks::BookmarkNode* node,
+         base::OnceCallback<void()> show_dialog) {
+        commerce::IsBookmarkPriceTracked(
+            commerce::ShoppingServiceFactory::GetForBrowserContext(profile),
+            BookmarkModelFactory::GetForBrowserContext(profile), node,
+            base::BindOnce(
+                [](base::OnceCallback<void()> show_dialog, bool is_tracked) {
+                  if (is_tracked) {
+                    std::move(show_dialog).Run();
+                  }
+                },
+                std::move(show_dialog)));
+      },
+      profile, bookmark, std::move(show_dialog_callback));
+}
+
+bool ShouldShowShoppingCollectionFootnote(Profile* profile,
+                                          bookmarks::BookmarkModel* model,
+                                          const bookmarks::BookmarkNode* node) {
+  if (!commerce::IsProductBookmark(model, node)) {
+    return false;
+  }
+
+  // Only show the IPH if the bookmark was saved to the shopping collection.
+  const bookmarks::BookmarkNode* collection =
+      commerce::GetShoppingCollectionBookmarkFolder(model);
+  if (!collection || node->parent()->uuid() != collection->uuid()) {
+    return false;
+  }
+
+  auto* tracker =
+      feature_engagement::TrackerFactory::GetForBrowserContext(profile);
+
+  if (!tracker || !tracker->ShouldTriggerHelpUI(
+                      feature_engagement::kIPHShoppingCollectionFeature)) {
+    return false;
+  }
+
+  // Immediately dismiss the explainer so that it doesn't prevent the IPH
+  // for other features from showing.
+  tracker->Dismissed(feature_engagement::kIPHShoppingCollectionFeature);
+
+  return true;
+}
+
 }  // namespace
 
 class BookmarkBubbleView::BookmarkBubbleDelegate
     : public ui::DialogModelDelegate {
  public:
-  BookmarkBubbleDelegate(std::unique_ptr<BubbleSyncPromoDelegate> delegate,
-                         Browser* browser,
-                         const GURL& url)
-      : delegate_(std::move(delegate)), browser_(browser), url_(url) {}
+  BookmarkBubbleDelegate(Browser* browser, const GURL& url)
+      : browser_(browser), url_(url) {}
 
-  void RemoveBookmark() {
+  // Handles presses on the secondary (usually cancel) button and returns
+  // whether the dialog should close as a result of the button press. In this
+  // case, the button is either a "cancel" button where pressing will close
+  // the dialog or an "edit" button which shows more options and then transforms
+  // into the cancel button.
+  bool HandleSecondaryButton() {
     base::RecordAction(UserMetricsAction("BookmarkBubble_Unstar"));
     should_apply_edits_ = false;
     bookmarks::BookmarkModel* model =
         BookmarkModelFactory::GetForBrowserContext(browser_->profile());
     const bookmarks::BookmarkNode* node =
         model->GetMostRecentlyAddedUserNodeForURL(url_);
-    if (node)
-      model->Remove(node, bookmarks::metrics::BookmarkEditSource::kUser);
+    if (node) {
+      model->Remove(node, bookmarks::metrics::BookmarkEditSource::kUser,
+                    FROM_HERE);
+    }
+
+    return true;
+  }
+
+  void SetCloseCallback(base::OnceCallback<void()> close_callback) {
+    close_callback_ = std::move(close_callback);
   }
 
   void OnWindowClosing() {
-    if (should_apply_edits_)
+    if (should_apply_edits_) {
       ApplyEdits();
+    }
     bookmark_bubble_ = nullptr;
+
+    if (close_callback_) {
+      std::move(close_callback_).Run();
+    }
   }
 
   void OnEditButton(const ui::Event& event) {
@@ -168,7 +273,7 @@ class BookmarkBubbleView::BookmarkBubbleDelegate
 
   void OnComboboxAction() {
     const auto* combobox =
-        dialog_model()->GetComboboxByUniqueId(kBookmarkFolder);
+        dialog_model()->GetComboboxByUniqueId(kBookmarkFolderFieldId);
     if (static_cast<size_t>(combobox->selected_index()) + 1 ==
         GetFolderModel()->GetItemCount()) {
       base::RecordAction(UserMetricsAction("BookmarkBubble_EditFromCombobox"));
@@ -185,10 +290,11 @@ class BookmarkBubbleView::BookmarkBubbleDelegate
         BookmarkModelFactory::GetForBrowserContext(browser_->profile());
     const bookmarks::BookmarkNode* node =
         model->GetMostRecentlyAddedUserNodeForURL(url_);
-    if (!node)
+    if (!node) {
       return;
+    }
     const std::u16string new_title =
-        dialog_model()->GetTextfieldByUniqueId(kBookmarkName)->text();
+        dialog_model()->GetTextfieldByUniqueId(kBookmarkNameFieldId)->text();
     if (new_title != node->GetTitle()) {
       model->SetTitle(node, new_title,
                       bookmarks::metrics::BookmarkEditSource::kUser);
@@ -198,93 +304,88 @@ class BookmarkBubbleView::BookmarkBubbleDelegate
 
     GetFolderModel()->MaybeChangeParent(
         node, dialog_model()
-                  ->GetComboboxByUniqueId(kBookmarkFolder)
+                  ->GetComboboxByUniqueId(kBookmarkFolderFieldId)
                   ->selected_index());
 
-    if (base::FeatureList::IsEnabled(features::kPowerBookmarksSidePanel)) {
-      browser_->window()->MaybeShowFeaturePromo(
-          feature_engagement::kIPHPowerBookmarksSidePanelFeature);
-    }
+    browser_->window()->MaybeShowFeaturePromo(
+        feature_engagement::kIPHPowerBookmarksSidePanelFeature);
   }
 
   RecentlyUsedFoldersComboModel* GetFolderModel() {
     DCHECK(dialog_model());
     return static_cast<RecentlyUsedFoldersComboModel*>(
         dialog_model()
-            ->GetComboboxByUniqueId(kBookmarkFolder)
+            ->GetComboboxByUniqueId(kBookmarkFolderFieldId)
             ->combobox_model());
   }
 
-  BubbleSyncPromoDelegate* delegate() { return delegate_.get(); }
-
  private:
-  std::unique_ptr<BubbleSyncPromoDelegate> delegate_;
   const raw_ptr<Browser> browser_;
   const GURL url_;
+  base::OnceCallback<void()> close_callback_;
 
   bool should_apply_edits_ = true;
 };
 
 // static
-void BookmarkBubbleView::ShowBubble(
-    views::View* anchor_view,
-    content::WebContents* web_contents,
-    views::Button* highlighted_button,
-    std::unique_ptr<BubbleSyncPromoDelegate> delegate,
-    Browser* browser,
-    const GURL& url,
-    bool already_bookmarked) {
-  if (bookmark_bubble_)
+void BookmarkBubbleView::ShowBubble(views::View* anchor_view,
+                                    content::WebContents* web_contents,
+                                    views::Button* highlighted_button,
+                                    Browser* browser,
+                                    const GURL& url,
+                                    bool already_bookmarked) {
+  // The only point where the star view can properly observe the bubble dialog
+  // delegate's widget is in this function, that's why star view is observing
+  // the widget from here after its creation.
+  auto* star_view = static_cast<StarView*>(highlighted_button);
+  if (bookmark_bubble_) {
+    if (star_view) {
+      star_view->OnBubbleWidgetChanged(bookmark_bubble_->GetWidget());
+    }
     return;
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-  BubbleSyncPromoDelegate* const delegate_ptr = delegate.get();
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+  }
   Profile* profile = browser->profile();
   bookmarks::BookmarkModel* bookmark_model =
       BookmarkModelFactory::GetForBrowserContext(profile);
   const bookmarks::BookmarkNode* bookmark_node =
       bookmark_model->GetMostRecentlyAddedUserNodeForURL(url);
 
-  auto bubble_delegate_unique = std::make_unique<BookmarkBubbleDelegate>(
-      std::move(delegate), browser, url);
-  BookmarkBubbleDelegate* bubble_delegate = bubble_delegate_unique.get();
-
   commerce::ShoppingService* shopping_service =
       commerce::ShoppingServiceFactory::GetForBrowserContext(profile);
-  absl::optional<commerce::ProductInfo> product_info = absl::nullopt;
-  gfx::Image product_image;
-  if (shopping_service->IsShoppingListEligible()) {
-    product_info = shopping_service->GetAvailableProductInfoForUrl(url);
-    auto* tab_helper =
-        commerce::ShoppingListUiTabHelper::FromWebContents(web_contents);
-    CHECK(tab_helper);
 
-    product_image = tab_helper->GetProductImage();
-  }
+  base::OnceCallback<void()> post_save_callback =
+      CreatePriceTrackingEmailCallback(profile, anchor_view, web_contents,
+                                       bookmark_node);
+
+  auto bubble_delegate_unique =
+      std::make_unique<BookmarkBubbleDelegate>(browser, url);
+  BookmarkBubbleDelegate* bubble_delegate = bubble_delegate_unique.get();
 
   auto dialog_model_builder =
       ui::DialogModel::Builder(std::move(bubble_delegate_unique));
-  if (base::FeatureList::IsEnabled(features::kPowerBookmarksSidePanel)) {
-    gfx::ImageSkia main_image = product_image.AsImageSkia();
 
-    if (product_image.IsEmpty()) {
-      // Fetch image from ImageService asynchronously
-      FetchImageForUrl(url, profile);
-      // Display favicon while awaiting ImageService response
-      const auto centered_favicon = GetFaviconForWebContents(web_contents);
-      main_image = centered_favicon;
-    }
-
-    dialog_model_builder.SetMainImage(
-        ui::ImageModel::FromImageSkia(main_image));
-  } else {
-    dialog_model_builder.AddExtraButton(
-        base::BindRepeating(&BookmarkBubbleDelegate::OnEditButton,
-                            base::Unretained(bubble_delegate)),
-        ui::DialogModelButton::Params()
-            .SetLabel(l10n_util::GetStringUTF16(IDS_BOOKMARK_BUBBLE_OPTIONS))
-            .AddAccelerator(ui::Accelerator(ui::VKEY_E, ui::EF_ALT_DOWN)));
+  std::optional<commerce::ProductInfo> product_info = std::nullopt;
+  if (shopping_service->IsShoppingListEligible()) {
+    product_info = shopping_service->GetAvailableProductInfoForUrl(url);
   }
+
+  if (product_info.has_value() && !product_info->image_url.is_empty()) {
+    HandleImageUrlResponse(profile, product_info->image_url);
+  } else {
+    // Fetch image from ImageService asynchronously
+    FetchImageForUrl(url, profile);
+  }
+
+  // Display favicon while awaiting one of the above options to load.
+  const auto centered_favicon = GetFaviconForWebContents(web_contents);
+  gfx::ImageSkia main_image = centered_favicon;
+
+  dialog_model_builder.SetMainImage(ui::ImageModel::FromImageSkia(main_image));
+
+  ui::ElementIdentifier initially_focused_field = kBookmarkNameFieldId;
+  std::u16string secondary_button_label =
+      l10n_util::GetStringUTF16(IDS_BOOKMARK_BUBBLE_REMOVE_BOOKMARK);
+
   dialog_model_builder
       .SetTitle(l10n_util::GetStringUTF16(
           already_bookmarked ? IDS_BOOKMARK_BUBBLE_PAGE_BOOKMARK
@@ -294,23 +395,25 @@ void BookmarkBubbleView::ShowBubble(
                          base::Unretained(bubble_delegate)))
       .AddOkButton(base::BindOnce(&BookmarkBubbleDelegate::ApplyEdits,
                                   base::Unretained(bubble_delegate)),
-                   ui::DialogModelButton::Params().SetLabel(
-                       l10n_util::GetStringUTF16(IDS_DONE)))
+                   ui::DialogModel::Button::Params()
+                       .SetLabel(l10n_util::GetStringUTF16(IDS_DONE))
+                       .SetId(kBookmarkBubbleOkButtonId))
       .AddCancelButton(
-          base::BindOnce(&BookmarkBubbleDelegate::RemoveBookmark,
-                         base::Unretained(bubble_delegate)),
-          ui::DialogModelButton::Params()
-              .SetLabel(l10n_util::GetStringUTF16(
-                  IDS_BOOKMARK_BUBBLE_REMOVE_BOOKMARK))
-              .AddAccelerator(ui::Accelerator(ui::VKEY_R, ui::EF_ALT_DOWN)))
+          base::BindRepeating(&BookmarkBubbleDelegate::HandleSecondaryButton,
+                              base::Unretained(bubble_delegate)),
+          ui::DialogModel::Button::Params()
+              .SetLabel(secondary_button_label)
+              .SetStyle(ui::ButtonStyle::kTonal)
+              .AddAccelerator(ui::Accelerator(ui::VKEY_R, ui::EF_ALT_DOWN))
+              .SetId(kBookmarkSecondaryButtonId))
       .AddTextfield(
-          kBookmarkName,
+          kBookmarkNameFieldId,
           l10n_util::GetStringUTF16(IDS_BOOKMARK_BUBBLE_NAME_LABEL),
           bookmark_node->GetTitle(),
           ui::DialogModelTextfield::Params().SetAccessibleName(
               l10n_util::GetStringUTF16(IDS_BOOKMARK_AX_BUBBLE_NAME_LABEL)))
       .AddCombobox(
-          kBookmarkFolder,
+          kBookmarkFolderFieldId,
           l10n_util::GetStringUTF16(IDS_BOOKMARK_BUBBLE_FOLDER_LABEL),
           std::make_unique<RecentlyUsedFoldersComboModel>(
               bookmark_model,
@@ -318,21 +421,28 @@ void BookmarkBubbleView::ShowBubble(
           ui::DialogModelCombobox::Params().SetCallback(
               base::BindRepeating(&BookmarkBubbleDelegate::OnComboboxAction,
                                   base::Unretained(bubble_delegate))))
-      .SetInitiallyFocusedField(kBookmarkName);
+      .SetInitiallyFocusedField(initially_focused_field);
 
-  if (product_info.has_value() && !product_image.IsEmpty()) {
+  if (commerce::CanTrackPrice(product_info)) {
     bool is_price_tracked = shopping_service->IsSubscribedFromCache(
         commerce::BuildUserSubscriptionForClusterId(
-            product_info->product_cluster_id));
-    if (!base::FeatureList::IsEnabled(features::kPowerBookmarksSidePanel)) {
-      dialog_model_builder.AddSeparator();
-    }
+            product_info->product_cluster_id.value()));
     dialog_model_builder.AddCustomField(
         std::make_unique<views::BubbleDialogModelHost::CustomView>(
-            std::make_unique<PriceTrackingView>(
-                profile, url, *product_image.ToImageSkia(), is_price_tracked),
+            std::make_unique<PriceTrackingView>(profile, url, is_price_tracked,
+                                                product_info.value()),
             views::BubbleDialogModelHost::FieldType::kControl),
         kPriceTrackingBookmarkViewElementId);
+
+    // When a user clicks to open bookmark bubble for a product page that is
+    // neither price tracked nor bookmarked, user will track the price of the
+    // product, and we'll record the UKM for this event.
+    // TODO(b/331277578): Move the track-by-default logic here.
+    if (!is_price_tracked && !already_bookmarked) {
+      commerce::metrics::RecordShoppingActionUKM(
+          web_contents->GetPrimaryMainFrame()->GetPageUkmSourceId(),
+          commerce::metrics::ShoppingAction::kPriceTracked);
+    }
   }
 
   // views:: land below, there's no agnostic reference to arrow / anchors /
@@ -341,32 +451,52 @@ void BookmarkBubbleView::ShowBubble(
       dialog_model_builder.Build(), anchor_view,
       views::BubbleBorder::TOP_RIGHT);
   bookmark_bubble_ = bubble.get();
-  if (highlighted_button)
+  if (highlighted_button) {
     bubble->SetHighlightedButton(highlighted_button);
+  }
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-  if (SyncPromoUI::ShouldShowSyncPromo(profile)) {
+  if (ShouldShowShoppingCollectionFootnote(profile, bookmark_model,
+                                           bookmark_node)) {
+    bubble->SetFootnoteView(
+        std::make_unique<commerce::ShoppingCollectionIphView>());
+  } else if (signin::ShouldShowBookmarkSignInPromo(*profile) ||
+             (signin::ShouldShowSyncPromo(*profile) &&
+              !base::FeatureList::IsEnabled(
+                  switches::kSyncEnableBookmarksInTransportMode))) {
+#if !BUILDFLAG(IS_CHROMEOS)
     // TODO(pbos): Consider adding model support for footnotes so that this does
     // not need to be tied to views.
     // TODO(pbos): Consider updating ::SetFootnoteView so that it can resize the
     // widget to account for it.
-    bubble->SetFootnoteView(std::make_unique<BubbleSyncPromoView>(
-        profile, delegate_ptr,
-        signin_metrics::AccessPoint::ACCESS_POINT_BOOKMARK_BUBBLE,
-        IDS_BOOKMARK_DICE_PROMO_SYNC_MESSAGE,
-        /*dice_signin_button_prominent=*/false));
-  }
+    bubble->SetFootnoteView(std::make_unique<BubbleSignInPromoView>(
+        web_contents, signin_metrics::AccessPoint::kBookmarkBubble,
+        syncer::LocalDataItemModel::DataId(bookmark_node->id()),
+        ui::ButtonStyle::kDefault));
+
+    ChromeSigninClient::
+        MaybeAddUserToBookmarksBubblePromoShownSyntheticFieldTrial();
 #endif
+  }
+
+  bubble_delegate->SetCloseCallback(std::move(post_save_callback));
 
   views::Widget* const widget =
       views::BubbleDialogDelegate::CreateBubble(std::move(bubble));
   widget->Show();
+
+  bookmark_bubble_->GetBubbleFrameView()->SetProperty(
+      views::kElementIdentifierKey, kBookmarkBubbleFrameViewId);
+
+  if (star_view) {
+    star_view->OnBubbleWidgetChanged(bookmark_bubble_->GetWidget());
+  }
 }
 
 // static
 void BookmarkBubbleView::Hide() {
-  if (bookmark_bubble_)
+  if (bookmark_bubble_) {
     bookmark_bubble_->GetWidget()->Close();
+  }
 }
 
 // static
@@ -390,7 +520,7 @@ void BookmarkBubbleView::HandleImageUrlResponse(const Profile* profile,
           destination: GOOGLE_OWNED_SERVICE
           internal {
             contacts {
-              email: "chrome-desktop-ui-sea@google.com"
+              email: "top-chrome-desktop-ui@google.com"
             }
           }
           user_data {

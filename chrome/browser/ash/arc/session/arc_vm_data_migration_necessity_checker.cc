@@ -7,16 +7,16 @@
 #include <string>
 #include <vector>
 
-#include "ash/components/arc/arc_features.h"
-#include "ash/components/arc/arc_prefs.h"
-#include "ash/components/arc/arc_util.h"
-#include "ash/components/arc/session/arc_vm_client_adapter.h"
 #include "base/feature_list.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_util.h"
 #include "chromeos/ash/components/cryptohome/cryptohome_parameters.h"
 #include "chromeos/ash/components/dbus/arc/arcvm_data_migrator_client.h"
 #include "chromeos/ash/components/dbus/arcvm_data_migrator/arcvm_data_migrator.pb.h"
+#include "chromeos/ash/experiences/arc/arc_features.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
+#include "chromeos/ash/experiences/arc/arc_util.h"
+#include "chromeos/ash/experiences/arc/session/arc_vm_client_adapter.h"
 #include "components/account_id/account_id.h"
 
 namespace arc {
@@ -72,7 +72,7 @@ void ArcVmDataMigrationNecessityChecker::OnArcVmDataMigratorStarted(
     bool result) {
   if (!result) {
     LOG(ERROR) << "Failed to start arcvm-data-migrator";
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
     return;
   }
 
@@ -88,7 +88,7 @@ void ArcVmDataMigrationNecessityChecker::OnArcVmDataMigratorStarted(
 
 void ArcVmDataMigrationNecessityChecker::OnHasDataToMigrateResponse(
     CheckCallback callback,
-    absl::optional<bool> response) {
+    std::optional<bool> response) {
   if (!response.has_value()) {
     LOG(ERROR) << "Failed to check whether /data has any content: "
                << "No valid D-Bus response";

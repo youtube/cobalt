@@ -7,6 +7,7 @@
 #include <stddef.h>
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 
@@ -16,7 +17,6 @@
 #include "base/location.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -25,10 +25,9 @@
 #include "chrome/test/base/testing_profile.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_utils.h"
-#include "extensions/browser/content_verifier.h"
+#include "extensions/browser/content_verifier/content_verifier.h"
 #include "extensions/common/extension_builder.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using extensions::URLPatternSet;
 
@@ -69,12 +68,10 @@ TEST_F(ExtensionUserScriptLoaderTest, NoScriptsWithCallbackAfterLoad) {
   scoped_refptr<const Extension> extension(ExtensionBuilder("Test").Build());
   ExtensionUserScriptLoader loader(&profile, *extension,
                                    /*state_store=*/nullptr,
-                                   /*listen_for_extension_system_loaded=*/true,
                                    /*content_verifier=*/nullptr);
   base::RunLoop run_loop;
-  auto on_load_complete = [&run_loop](
-                              UserScriptLoader* loader,
-                              const absl::optional<std::string>& error) {
+  auto on_load_complete = [&run_loop](UserScriptLoader* loader,
+                                      const std::optional<std::string>& error) {
     EXPECT_FALSE(error.has_value()) << *error;
     run_loop.Quit();
   };
@@ -90,22 +87,20 @@ TEST_F(ExtensionUserScriptLoaderTest, NoScriptsAddedWithCallback) {
   scoped_refptr<const Extension> extension(ExtensionBuilder("Test").Build());
   ExtensionUserScriptLoader loader(&profile, *extension,
                                    /*state_store=*/nullptr,
-                                   /*listen_for_extension_system_loaded=*/true,
                                    /*content_verifier=*/nullptr);
 
   // Use a flag instead of a RunLoop to verify that the callback was called
   // synchronously.
   bool callback_called = false;
   auto callback = [&callback_called](UserScriptLoader* loader,
-                                     const absl::optional<std::string>& error) {
+                                     const std::optional<std::string>& error) {
     // Check that there is at least an error message.
     EXPECT_TRUE(error.has_value());
     EXPECT_THAT(*error, testing::HasSubstr("No changes to loaded scripts"));
     callback_called = true;
   };
 
-  loader.AddScripts(std::make_unique<UserScriptList>(),
-                    base::BindLambdaForTesting(callback));
+  loader.AddScripts({}, base::BindLambdaForTesting(callback));
   EXPECT_TRUE(callback_called);
 }
 
@@ -116,7 +111,6 @@ TEST_F(ExtensionUserScriptLoaderTest, QueuedLoadWithCallback) {
   scoped_refptr<const Extension> extension(ExtensionBuilder("Test").Build());
   ExtensionUserScriptLoader loader(&profile, *extension,
                                    /*state_store=*/nullptr,
-                                   /*listen_for_extension_system_loaded=*/true,
                                    /*content_verifier=*/nullptr);
   base::RunLoop run_loop;
 
@@ -130,7 +124,7 @@ TEST_F(ExtensionUserScriptLoaderTest, QueuedLoadWithCallback) {
   // otherwise completes the test.
   auto on_load_complete = [&run_loop, &first_callback_fired](
                               UserScriptLoader* loader,
-                              const absl::optional<std::string>& error) {
+                              const std::optional<std::string>& error) {
     EXPECT_FALSE(error.has_value()) << *error;
     EXPECT_TRUE(loader->initial_load_complete());
     if (first_callback_fired)
@@ -278,24 +272,23 @@ TEST_F(ExtensionUserScriptLoaderTest, SkipBOMAtTheBeginning) {
   ASSERT_TRUE(base::WriteFile(path, content));
 
   auto user_script = std::make_unique<UserScript>();
-  user_script->set_id("_generated");
-  user_script->js_scripts().push_back(std::make_unique<UserScript::File>(
+  user_script->set_id("_mc_generated");
+  user_script->js_scripts().push_back(UserScript::Content::CreateFile(
       temp_dir_.GetPath(), path.BaseName(), GURL()));
 
-  auto user_scripts = std::make_unique<UserScriptList>();
-  user_scripts->push_back(std::move(user_script));
+  UserScriptList user_scripts;
+  user_scripts.push_back(std::move(user_script));
 
   TestingProfile profile;
   base::HistogramTester histogram_tester;
   scoped_refptr<const Extension> extension(ExtensionBuilder("Test").Build());
   ExtensionUserScriptLoader loader(&profile, *extension,
                                    /*state_store=*/nullptr,
-                                   /*listen_for_extension_system_loaded=*/true,
                                    /*content_verifier=*/nullptr);
   user_scripts = loader.LoadScriptsForTest(std::move(user_scripts));
 
   EXPECT_EQ(content.substr(3),
-            std::string((*user_scripts)[0]->js_scripts()[0]->GetContent()));
+            std::string(user_scripts[0]->js_scripts()[0]->GetContent()));
   // Verify that an entry has been recorded for the appropriate histograms and
   // that the length of the script is 0 kb.
   histogram_tester.ExpectUniqueSample(
@@ -312,32 +305,31 @@ TEST_F(ExtensionUserScriptLoaderTest, LeaveBOMNotAtTheBeginning) {
   ASSERT_TRUE(base::WriteFile(path, content));
 
   auto user_script = std::make_unique<UserScript>();
-  user_script->set_id("test");
-  user_script->js_scripts().push_back(std::make_unique<UserScript::File>(
+  user_script->set_id("_mc_test");
+  user_script->js_scripts().push_back(UserScript::Content::CreateFile(
       temp_dir_.GetPath(), path.BaseName(), GURL()));
 
-  auto user_scripts = std::make_unique<UserScriptList>();
-  user_scripts->push_back(std::move(user_script));
+  UserScriptList user_scripts;
+  user_scripts.push_back(std::move(user_script));
 
   TestingProfile profile;
   base::HistogramTester histogram_tester;
   scoped_refptr<const Extension> extension(ExtensionBuilder("Test").Build());
   ExtensionUserScriptLoader loader(&profile, *extension,
                                    /*state_store=*/nullptr,
-                                   /*listen_for_extension_system_loaded=*/true,
                                    /*content_verifier=*/nullptr);
   user_scripts = loader.LoadScriptsForTest(std::move(user_scripts));
 
   EXPECT_EQ(content,
-            std::string((*user_scripts)[0]->js_scripts()[0]->GetContent()));
+            std::string(user_scripts[0]->js_scripts()[0]->GetContent()));
   // Verify that an entry has been recorded for the appropriate histograms and
   // that the length of the script is 0 kb.
   histogram_tester.ExpectUniqueSample(
       "Extensions.ContentScripts.ContentScriptLength", 0, 1);
-  histogram_tester.ExpectTotalCount(
-      "Extensions.ContentScripts.ManifestContentScriptsLengthPerLoad", 0);
   histogram_tester.ExpectUniqueSample(
-      "Extensions.ContentScripts.DynamicContentScriptsLengthPerLoad", 0, 1);
+      "Extensions.ContentScripts.ManifestContentScriptsLengthPerLoad", 0, 1);
+  histogram_tester.ExpectTotalCount(
+      "Extensions.ContentScripts.DynamicContentScriptsLengthPerLoad", 0);
 }
 
 TEST_F(ExtensionUserScriptLoaderTest, ComponentExtensionContentScriptIsLoaded) {
@@ -348,23 +340,22 @@ TEST_F(ExtensionUserScriptLoaderTest, ComponentExtensionContentScriptIsLoaded) {
   const base::FilePath resource_path(FILE_PATH_LITERAL("main.js"));
 
   auto user_script = std::make_unique<UserScript>();
-  user_script->set_id("test");
-  user_script->js_scripts().push_back(std::make_unique<UserScript::File>(
-      extension_path, resource_path, GURL()));
+  user_script->set_id("_dc_test");
+  user_script->js_scripts().push_back(
+      UserScript::Content::CreateFile(extension_path, resource_path, GURL()));
 
-  auto user_scripts = std::make_unique<UserScriptList>();
-  user_scripts->push_back(std::move(user_script));
+  UserScriptList user_scripts;
+  user_scripts.push_back(std::move(user_script));
 
   TestingProfile profile;
   base::HistogramTester histogram_tester;
   scoped_refptr<const Extension> extension(ExtensionBuilder("Test").Build());
   ExtensionUserScriptLoader loader(&profile, *extension,
                                    /*state_store=*/nullptr,
-                                   /*listen_for_extension_system_loaded=*/true,
                                    /*content_verifier=*/nullptr);
   user_scripts = loader.LoadScriptsForTest(std::move(user_scripts));
 
-  EXPECT_FALSE((*user_scripts)[0]->js_scripts()[0]->GetContent().empty());
+  EXPECT_FALSE(user_scripts[0]->js_scripts()[0]->GetContent().empty());
   // Verify that an entry has been recorded for the appropriate histograms and
   // that the length of the script is 0 kb.
   histogram_tester.ExpectTotalCount(
@@ -390,28 +381,27 @@ TEST_F(ExtensionUserScriptLoaderTest, RecordScriptLengthUmas) {
 
   // Create a dynamic user script which specifies a 3kb and 2kb file.
   auto user_script_1 = std::make_unique<UserScript>();
-  user_script_1->set_id("dynamic");
-  user_script_1->js_scripts().push_back(std::make_unique<UserScript::File>(
+  user_script_1->set_id("_dc_dynamic");
+  user_script_1->js_scripts().push_back(UserScript::Content::CreateFile(
       temp_dir_.GetPath(), a_script_path.BaseName(), GURL()));
-  user_script_1->js_scripts().push_back(std::make_unique<UserScript::File>(
+  user_script_1->js_scripts().push_back(UserScript::Content::CreateFile(
       temp_dir_.GetPath(), b_script_path.BaseName(), GURL()));
 
   // Create a manifest user script which specifies a 1kb file.
   auto user_script_2 = std::make_unique<UserScript>();
-  user_script_2->set_id("_generated_manifest");
-  user_script_2->js_scripts().push_back(std::make_unique<UserScript::File>(
+  user_script_2->set_id("_mc_generated_manifest");
+  user_script_2->js_scripts().push_back(UserScript::Content::CreateFile(
       temp_dir_.GetPath(), c_script_path.BaseName(), GURL()));
 
-  auto user_scripts = std::make_unique<UserScriptList>();
-  user_scripts->push_back(std::move(user_script_1));
-  user_scripts->push_back(std::move(user_script_2));
+  UserScriptList user_scripts;
+  user_scripts.push_back(std::move(user_script_1));
+  user_scripts.push_back(std::move(user_script_2));
 
   TestingProfile profile;
   base::HistogramTester histogram_tester;
   scoped_refptr<const Extension> extension(ExtensionBuilder("Test").Build());
   ExtensionUserScriptLoader loader(&profile, *extension,
                                    /*state_store=*/nullptr,
-                                   /*listen_for_extension_system_loaded=*/true,
                                    /*content_verifier=*/nullptr);
   user_scripts = loader.LoadScriptsForTest(std::move(user_scripts));
 

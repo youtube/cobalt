@@ -12,6 +12,7 @@ import static org.chromium.chrome.browser.password_entry_edit.CredentialEditProp
 import static org.chromium.chrome.browser.password_entry_edit.CredentialEditProperties.URL_OR_APP;
 import static org.chromium.chrome.browser.password_entry_edit.CredentialEditProperties.USERNAME;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -19,9 +20,12 @@ import org.chromium.ui.modelutil.PropertyModel;
  * Maps {@link CredentialEditProperties} changes in a {@link PropertyModel} to the suitable methods
  * in {@link FederatedCredentialFragmentView}.
  */
+@NullMarked
 public class FederatedCredentialViewBinder {
-    static void bindFederatedCredentialView(PropertyModel model,
-            FederatedCredentialFragmentView fragmentView, PropertyKey propertyKey) {
+    static void bindFederatedCredentialView(
+            PropertyModel model,
+            FederatedCredentialFragmentView fragmentView,
+            PropertyKey propertyKey) {
         if (propertyKey == UI_ACTION_HANDLER) {
             fragmentView.setUiActionHandler(model.get(UI_ACTION_HANDLER));
         } else if (propertyKey == URL_OR_APP) {

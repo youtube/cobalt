@@ -4,9 +4,10 @@
 
 #include "components/media_router/browser/logger_impl.h"
 
+#include <string_view>
+
 #include "base/i18n/time_formatting.h"
 #include "base/json/json_string_value_serializer.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "components/media_router/browser/log_util.h"
 #include "components/media_router/common/media_source.h"
@@ -47,11 +48,11 @@ const char* AsString(mojom::LogCategory category) {
   }
 }
 
-base::StringPiece TruncateComponent(base::StringPiece component) {
+std::string_view TruncateComponent(std::string_view component) {
   return component.substr(0, kComponentMaxLength);
 }
 
-base::StringPiece TruncateMessage(base::StringPiece message) {
+std::string_view TruncateMessage(std::string_view message) {
   return message.substr(0, kMessageMaxLength);
 }
 
@@ -115,8 +116,9 @@ void LoggerImpl::Log(Severity severity,
       TruncateMessage(message), log_util::TruncateId(sink_id),
       MediaSource(media_source).TruncateForLogging(kSourceMaxLength),
       log_util::TruncateId(session_id));
-  if (entries_.size() > capacity_)
+  if (entries_.size() > capacity_) {
     entries_.pop_front();
+  }
 }
 
 std::string LoggerImpl::GetLogsAsJson() const {
@@ -132,19 +134,20 @@ std::string LoggerImpl::GetLogsAsJson() const {
 
 base::Value LoggerImpl::GetLogsAsValue() const {
   base::Value::List entries_val;
-  for (const auto& entry : entries_)
+  for (const auto& entry : entries_) {
     entries_val.Append(AsValue(entry));
+  }
   return base::Value(std::move(entries_val));
 }
 
 LoggerImpl::Entry::Entry(Severity severity,
                          mojom::LogCategory category,
                          base::Time time,
-                         base::StringPiece component,
-                         base::StringPiece message,
-                         base::StringPiece sink_id,
+                         std::string_view component,
+                         std::string_view message,
+                         std::string_view sink_id,
                          std::string media_source,
-                         base::StringPiece session_id)
+                         std::string_view session_id)
     : severity(severity),
       category(category),
       time(time),

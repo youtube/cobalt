@@ -6,6 +6,9 @@
 
 #include <stddef.h>
 
+#include <set>
+#include <string_view>
+
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_tokenizer.h"
@@ -15,14 +18,18 @@ namespace language {
 
 // static
 void LanguageUsageMetrics::RecordAcceptLanguages(
-    base::StringPiece accept_languages) {
-  std::set<int> languages;
-  ParseAcceptLanguages(accept_languages, &languages);
+    std::string_view accept_languages) {
+  std::vector<int> languages = ParseAcceptLanguages(accept_languages);
 
   UMA_HISTOGRAM_COUNTS_100("LanguageUsage.AcceptLanguage.Count",
                            languages.size());
   for (int language_code : languages) {
     base::UmaHistogramSparse("LanguageUsage.AcceptLanguage", language_code);
+  }
+
+  if (!languages.empty()) {
+    base::UmaHistogramSparse("LanguageUsage.AcceptLanguage.FirstAcceptLanguage",
+                             languages[0]);
   }
 }
 
@@ -48,8 +55,8 @@ void LanguageUsageMetrics::RecordPageLanguages(
 }
 
 // static
-int LanguageUsageMetrics::ToLanguageCodeHash(base::StringPiece locale) {
-  base::StringPiece language_part =
+int LanguageUsageMetrics::ToLanguageCodeHash(std::string_view locale) {
+  std::string_view language_part =
       locale.substr(0U, locale.find_first_of("-_"));
 
   int language_code = 0;
@@ -78,18 +85,19 @@ int LanguageUsageMetrics::ToLanguageCodeHash(base::StringPiece locale) {
 }
 
 // static
-void LanguageUsageMetrics::ParseAcceptLanguages(
-    base::StringPiece accept_languages,
-    std::set<int>* languages) {
-  languages->clear();
-  base::CStringTokenizer locales(
-      accept_languages.data(),
-      accept_languages.data() + accept_languages.size(), ",");
+std::vector<int> LanguageUsageMetrics::ParseAcceptLanguages(
+    std::string_view accept_languages) {
+  std::set<int> visited_languages;
+  std::vector<int> languages;
+
+  base::StringViewTokenizer locales(accept_languages, ",");
   while (locales.GetNext()) {
-    const int language_code = ToLanguageCodeHash(locales.token_piece());
-    if (language_code != 0)
-      languages->insert(language_code);
+    const int language_hash = ToLanguageCodeHash(locales.token_piece());
+    if (language_hash != 0 && visited_languages.insert(language_hash).second) {
+      languages.push_back(language_hash);
+    }
   }
+  return languages;
 }
 
 }  // namespace language

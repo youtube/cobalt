@@ -12,35 +12,45 @@
 namespace blink {
 
 class AudioContext;
-class ScriptPromiseResolver;
 class V8UnionAudioSinkOptionsOrString;
 
-class SetSinkIdResolver : public ScriptPromiseResolver {
+class SetSinkIdResolver final : public GarbageCollected<SetSinkIdResolver> {
  public:
-  static SetSinkIdResolver* Create(ScriptState*,
-                                   AudioContext&,
-                                   const V8UnionAudioSinkOptionsOrString&);
   SetSinkIdResolver(ScriptState*,
                     AudioContext&,
                     const V8UnionAudioSinkOptionsOrString&);
   SetSinkIdResolver(const SetSinkIdResolver&) = delete;
   SetSinkIdResolver& operator=(const SetSinkIdResolver&) = delete;
-  ~SetSinkIdResolver() override = default;
+  ~SetSinkIdResolver() = default;
+
+  void Trace(Visitor*) const;
 
   void Start();
 
-  void Trace(Visitor*) const override;
+  // Resolves the promise and sets `resolver_` to nullptr.
+  void Resolve();
+
+  // Rejects the promise with a DOMException and sets `resolver_` to nullptr.
+  void Reject(DOMException* exception);
+
+  // Rejects the promise with a v8::Local<v8::Value> and sets `resolver_` to
+  // nullptr. Used when creating an exception with
+  // V8ThrowDOMException::CreateOrEmpty.
+  void Reject(v8::Local<v8::Value>);
+
+  ScriptPromise<IDLUndefined> GetPromise();
 
  private:
+  // Will decide whether to resolve or reject the promise based on `status`.
+  // After this method returns, `resolver_` is set to nullptr.
+  void HandleOutputDeviceStatus(media::OutputDeviceStatus status);
+
   // This callback function is passed to 'AudioDestinationNode::SetSinkId()'.
   // When the device status is okay, 'NotifySetSinkIdIsDone()' gets invoked.
   void OnSetSinkIdComplete(media::OutputDeviceStatus status);
 
-  // This will update 'AudioContext::sink_id_' and dispatch event.
-  void NotifySetSinkIdIsDone();
-
   WeakMember<AudioContext> audio_context_;
-
+  Member<ScriptPromiseResolver<IDLUndefined>> resolver_;
   WebAudioSinkDescriptor sink_descriptor_;
 };
 }  // namespace blink

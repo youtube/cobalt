@@ -6,7 +6,6 @@
 
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/common/pref_names.h"
 #include "components/enterprise/browser/reporting/common_pref_names.h"
 #include "components/pref_registry/pref_registry_syncable.h"
@@ -19,6 +18,9 @@ const char kLastUploadVersion[] = "enterprise_reporting.last_upload_version";
 // The list of requests that have been uploaded to the server.
 const char kCloudExtensionRequestUploadedIds[] =
     "enterprise_reporting.extension_request.pending.ids";
+
+const char kCloudLegacyTechReportAllowlist[] =
+    "enterprise_reporting.legacy_tech.urls";
 
 const base::TimeDelta kDefaultReportFrequency = base::Hours(24);
 
@@ -37,16 +39,25 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(kCloudProfileReportingEnabled, false);
   registry->RegisterTimePref(kLastUploadTimestamp, base::Time());
   registry->RegisterTimePref(kLastUploadSucceededTimestamp, base::Time());
+  registry->RegisterTimePref(kLastSignalsUploadAttemptTimestamp, base::Time());
+  registry->RegisterTimePref(kLastSignalsUploadSucceededTimestamp,
+                             base::Time());
+  registry->RegisterStringPref(kLastSignalsUploadSucceededConfig,
+                               std::string());
   registry->RegisterStringPref(kLastUploadVersion, std::string());
-  // TODO(crbug.com/1298258): We reuse the report frequency pref for profile
+  // TODO(crbug.com/40215470): We reuse the report frequency pref for profile
   // reporting for now. This might need to be changed in the future.
   registry->RegisterTimeDeltaPref(kCloudReportingUploadFrequency,
                                   kDefaultReportFrequency);
-#if !BUILDFLAG(IS_ANDROID)
+  registry->RegisterBooleanPref(kUserSecuritySignalsReporting, false);
+  registry->RegisterBooleanPref(kUserSecurityAuthenticatedReporting, false);
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   registry->RegisterBooleanPref(prefs::kCloudExtensionRequestEnabled, false);
   registry->RegisterDictionaryPref(prefs::kCloudExtensionRequestIds);
   registry->RegisterDictionaryPref(kCloudExtensionRequestUploadedIds);
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
+  registry->RegisterListPref(kCloudLegacyTechReportAllowlist);
 }
 
 }  // namespace enterprise_reporting

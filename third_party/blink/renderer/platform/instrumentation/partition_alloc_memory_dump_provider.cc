@@ -4,11 +4,11 @@
 
 #include "third_party/blink/renderer/platform/instrumentation/partition_alloc_memory_dump_provider.h"
 
-#include "base/allocator/partition_allocator/partition_alloc.h"
 #include "base/format_macros.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/malloc_dump_provider.h"
 #include "base/trace_event/process_memory_dump.h"
+#include "partition_alloc/partition_alloc.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/partitions.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
@@ -39,7 +39,7 @@ bool PartitionAllocMemoryDumpProvider::OnMemoryDump(
   // This method calls memoryStats.partitionsDumpBucketStats with memory
   // statistics.
   WTF::Partitions::DumpMemoryStats(
-      level_of_detail != MemoryDumpLevelOfDetail::DETAILED,
+      level_of_detail != MemoryDumpLevelOfDetail::kDetailed,
       &partition_stats_dumper);
 
   base::trace_event::MemoryAllocatorDump* allocated_objects_dump =

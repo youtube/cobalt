@@ -14,36 +14,19 @@
 
 #include "media/starboard/sbplayer_interface.h"
 
+#include <atomic>
 #include <string>
 
 #include "base/logging.h"
-#include "starboard/extension/player_configuration.h"
 #include "starboard/system.h"
 
 namespace media {
 
-bool SbPlayerInterface::SetDecodeToTexturePreferred(bool preferred) {
-  const StarboardExtensionPlayerConfigurationApi* extension_api =
-      static_cast<const StarboardExtensionPlayerConfigurationApi*>(
-          SbSystemGetExtension(kStarboardExtensionPlayerConfigurationName));
-  if (!extension_api) {
-    return false;
-  }
+namespace {
 
-  DCHECK_EQ(extension_api->name,
-            // Avoid comparing raw string pointers for equal.
-            std::string(kStarboardExtensionPlayerConfigurationName));
-  DCHECK_EQ(extension_api->version, 1u);
+std::atomic<SbPlayerInterface*> g_sbplayer_interface_for_testing{nullptr};
 
-  // SetDecodeToTexturePreferred api could be NULL.
-  if (extension_api->SetDecodeToTexturePreferred) {
-    extension_api->SetDecodeToTexturePreferred(preferred);
-    return true;
-  } else {
-    LOG(INFO) << "DecodeToTextureModePreferred is not supported.";
-    return false;
-  }
-}
+}  // namespace
 
 SbPlayer DefaultSbPlayerInterface::Create(
     SbWindow window,
@@ -154,7 +137,7 @@ SbDecodeTarget DefaultSbPlayerInterface::GetCurrentFrame(SbPlayer player) {
   return current_frame;
 }
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
 SbPlayer DefaultSbPlayerInterface::CreateUrlPlayer(
     const char* url,
     SbWindow window,
@@ -188,7 +171,7 @@ void DefaultSbPlayerInterface::GetUrlPlayerExtraInfo(
     SbUrlPlayerExtraInfo* out_url_player_info) {
   SbUrlPlayerGetExtraInfo(player, out_url_player_info);
 }
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 bool DefaultSbPlayerInterface::GetAudioConfiguration(
     SbPlayer player,
@@ -201,6 +184,24 @@ bool DefaultSbPlayerInterface::GetAudioConfiguration(
   media_metrics_provider_.EndTrackingAction(
       MediaAction::SBPLAYER_GET_AUDIO_CONFIG);
   return audio_configuration;
+}
+
+void SetSbPlayerInterfaceForTesting(SbPlayerInterface* interface) {
+  g_sbplayer_interface_for_testing.store(interface, std::memory_order_release);
+}
+
+SbPlayerInterface* GetSbPlayerInterfaceForTesting() {
+  return g_sbplayer_interface_for_testing.load(std::memory_order_acquire);
+}
+
+ScopedSbPlayerInterfaceForTesting::ScopedSbPlayerInterfaceForTesting(
+    SbPlayerInterface* interface)
+    : previous_interface_(GetSbPlayerInterfaceForTesting()) {
+  SetSbPlayerInterfaceForTesting(interface);
+}
+
+ScopedSbPlayerInterfaceForTesting::~ScopedSbPlayerInterfaceForTesting() {
+  SetSbPlayerInterfaceForTesting(previous_interface_);
 }
 
 }  // namespace media

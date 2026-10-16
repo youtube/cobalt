@@ -15,27 +15,31 @@ import org.junit.Assert;
 
 import org.chromium.android_webview.AwConsoleMessage;
 import org.chromium.android_webview.AwRenderProcessGoneDetail;
+import org.chromium.android_webview.AwWebResourceRequest;
 import org.chromium.base.Callback;
 import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CallbackHelper;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.embedder_support.util.WebResourceResponseInfo;
 import org.chromium.content_public.browser.test.util.TestCallbackHelperContainer.OnEvaluateJavaScriptResultHelper;
 import org.chromium.content_public.browser.test.util.TestCallbackHelperContainer.OnPageCommitVisibleHelper;
 import org.chromium.content_public.browser.test.util.TestCallbackHelperContainer.OnPageFinishedHelper;
 import org.chromium.content_public.browser.test.util.TestCallbackHelperContainer.OnPageStartedHelper;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Supplier;
 
-import javax.annotation.concurrent.GuardedBy;
-
-/**
- * AwContentsClient subclass used for testing.
- */
+/** AwContentsClient subclass used for testing. */
 public class TestAwContentsClient extends NullContentsClient {
     private static final boolean TRACE = false;
     private static final String TAG = "TestAwContentsClient";
@@ -173,9 +177,7 @@ public class TestAwContentsClient extends NullContentsClient {
         return mOnFormResubmissionHelper;
     }
 
-    /**
-     * Callback helper for onFormResubmission.
-     */
+    /** Callback helper for onFormResubmission. */
     public static class OnFormResubmissionHelper extends CallbackHelper {
         // Number of times onFormResubmit is called.
         private int mResubmissions;
@@ -205,12 +207,11 @@ public class TestAwContentsClient extends NullContentsClient {
         }
     }
 
-    /**
-     * Callback helper for onScaleChangedScaled.
-     */
+    /** Callback helper for onScaleChangedScaled. */
     public static class OnScaleChangedHelper extends CallbackHelper {
         private float mPreviousScale;
         private float mCurrentScale;
+
         public void notifyCalled(float oldScale, float newScale) {
             mPreviousScale = oldScale;
             mCurrentScale = newScale;
@@ -239,9 +240,7 @@ public class TestAwContentsClient extends NullContentsClient {
         return mPictureListenerHelper;
     }
 
-    /**
-     * Callback helper for onReceivedTitle.
-     */
+    /** Callback helper for onReceivedTitle. */
     public static class OnReceivedTitleHelper extends CallbackHelper {
         private String mTitle;
 
@@ -249,6 +248,7 @@ public class TestAwContentsClient extends NullContentsClient {
             mTitle = title;
             super.notifyCalled();
         }
+
         public String getTitle() {
             return mTitle;
         }
@@ -288,7 +288,7 @@ public class TestAwContentsClient extends NullContentsClient {
 
     @Override
     public void onReceivedError(AwWebResourceRequest request, AwWebResourceError error) {
-        if (TRACE) Log.i(TAG, "onReceivedError " + request.url);
+        if (TRACE) Log.i(TAG, "onReceivedError " + request.getUrl());
         mOnReceivedErrorHelper.notifyCalled(request, error);
     }
 
@@ -303,9 +303,7 @@ public class TestAwContentsClient extends NullContentsClient {
         mAllowSslError = allow;
     }
 
-    /**
-     * CallbackHelper for OnDownloadStart.
-     */
+    /** CallbackHelper for OnDownloadStart. */
     public static class OnDownloadStartHelper extends CallbackHelper {
         private String mUrl;
         private String mUserAgent;
@@ -338,8 +336,12 @@ public class TestAwContentsClient extends NullContentsClient {
             return mContentLength;
         }
 
-        public void notifyCalled(String url, String userAgent, String contentDisposition,
-                String mimeType, long contentLength) {
+        public void notifyCalled(
+                String url,
+                String userAgent,
+                String contentDisposition,
+                String mimeType,
+                long contentLength) {
             mUrl = url;
             mUserAgent = userAgent;
             mContentDisposition = contentDisposition;
@@ -350,19 +352,18 @@ public class TestAwContentsClient extends NullContentsClient {
     }
 
     @Override
-    public void onDownloadStart(String url,
+    public void onDownloadStart(
+            String url,
             String userAgent,
             String contentDisposition,
             String mimeType,
             long contentLength) {
         if (TRACE) Log.i(TAG, "onDownloadStart " + url);
-        getOnDownloadStartHelper().notifyCalled(url, userAgent, contentDisposition, mimeType,
-                contentLength);
+        getOnDownloadStartHelper()
+                .notifyCalled(url, userAgent, contentDisposition, mimeType, contentLength);
     }
 
-    /**
-     * Callback helper for onCreateWindow.
-     */
+    /** Callback helper for onCreateWindow. */
     public static class OnCreateWindowHelper extends CallbackHelper {
         private boolean mIsDialog;
         private boolean mIsUserGesture;
@@ -397,9 +398,7 @@ public class TestAwContentsClient extends NullContentsClient {
         return mOnCreateWindowHelper.notifyCalled(isDialog, isUserGesture);
     }
 
-    /**
-     * CallbackHelper for OnReceivedLoginRequest.
-     */
+    /** CallbackHelper for OnReceivedLoginRequest. */
     public static class OnReceivedLoginRequestHelper extends CallbackHelper {
         private String mRealm;
         private String mAccount;
@@ -434,9 +433,7 @@ public class TestAwContentsClient extends NullContentsClient {
         getOnReceivedLoginRequestHelper().notifyCalled(realm, account, args);
     }
 
-    /**
-     * Method to pass back a FileChooserParamsImpl object back to users of the class.
-     */
+    /** Method to pass back a FileChooserParamsImpl object back to users of the class. */
     @Override
     public void showFileChooser(
             Callback<String[]> uploadFilePathsCallback, FileChooserParamsImpl fileChooserParams) {
@@ -444,9 +441,7 @@ public class TestAwContentsClient extends NullContentsClient {
         mShowFileChooserHelper.notifyCalled(fileChooserParams);
     }
 
-    /**
-     * Callback helper for showFileChooser.
-     */
+    /** Callback helper for showFileChooser. */
     public static class ShowFileChooserHelper extends CallbackHelper {
         private FileChooserParamsImpl mFileChooserParams;
         private String[] mFilesUploaded;
@@ -457,10 +452,8 @@ public class TestAwContentsClient extends NullContentsClient {
         }
 
         /**
-         * Need to mock the action of uploading files when a user selects files.
-         * This sets up plumbing to provide files to the showFileChooser callback.
-         *
-         * @param files
+         * Need to mock the action of uploading files when a user selects files. This sets up
+         * plumbing to provide files to the showFileChooser callback.
          */
         public void setChosenFilesToUpload(@NonNull String[] files) {
             mFilesUploaded = files;
@@ -487,32 +480,30 @@ public class TestAwContentsClient extends NullContentsClient {
     }
 
     private void logConsoleMessage(AwConsoleMessage consoleMessage) {
-        String formattedMessage = "[" + consoleMessage.sourceId() + ":"
-                + consoleMessage.lineNumber() + "] " + consoleMessage.message();
+        String formattedMessage =
+                "["
+                        + consoleMessage.sourceId()
+                        + ":"
+                        + consoleMessage.lineNumber()
+                        + "] "
+                        + consoleMessage.message();
         switch (consoleMessage.messageLevel()) {
-            case AwConsoleMessage.MESSAGE_LEVEL_TIP:
-            case AwConsoleMessage.MESSAGE_LEVEL_LOG:
-                Log.i(TAG, "onConsoleMessage " + formattedMessage);
-                break;
-            case AwConsoleMessage.MESSAGE_LEVEL_WARNING:
-                Log.w(TAG, "onConsoleMessage " + formattedMessage);
-                break;
-            case AwConsoleMessage.MESSAGE_LEVEL_ERROR:
-                Log.e(TAG, "onConsoleMessage " + formattedMessage);
-                break;
-            default:
-                // Should not be reached, but fall-through anyway.
-            case AwConsoleMessage.MESSAGE_LEVEL_DEBUG:
-                Log.d(TAG, "onConsoleMessage " + formattedMessage);
-                break;
+            case AwConsoleMessage.MESSAGE_LEVEL_TIP, AwConsoleMessage.MESSAGE_LEVEL_LOG -> Log.i(
+                    TAG, "onConsoleMessage " + formattedMessage);
+            case AwConsoleMessage.MESSAGE_LEVEL_WARNING -> Log.w(
+                    TAG, "onConsoleMessage " + formattedMessage);
+            case AwConsoleMessage.MESSAGE_LEVEL_ERROR -> Log.e(
+                    TAG, "onConsoleMessage " + formattedMessage);
+            case AwConsoleMessage.MESSAGE_LEVEL_DEBUG -> Log.d(
+                    TAG, "onConsoleMessage " + formattedMessage);
+            default -> throw new RuntimeException(
+                    "unrecognized log level: " + consoleMessage.messageLevel());
         }
     }
 
-    /**
-     * Callback helper for AddMessageToConsole.
-     */
+    /** Callback helper for AddMessageToConsole. */
     public static class AddMessageToConsoleHelper extends CallbackHelper {
-        private List<AwConsoleMessage> mMessages = new ArrayList<AwConsoleMessage>();
+        private final List<AwConsoleMessage> mMessages = new ArrayList<AwConsoleMessage>();
 
         public void clearMessages() {
             mMessages.clear();
@@ -558,9 +549,7 @@ public class TestAwContentsClient extends NullContentsClient {
         mOnScaleChangedHelper.notifyCalled(oldScale, newScale);
     }
 
-    /**
-     * Callback helper for PictureListener.
-     */
+    /** Callback helper for PictureListener. */
     public static class PictureListenerHelper extends CallbackHelper {
         // Generally null, depending on |invalidationOnly| in enableOnNewPicture()
         private Picture mPicture;
@@ -582,122 +571,304 @@ public class TestAwContentsClient extends NullContentsClient {
         mPictureListenerHelper.notifyCalled(picture);
     }
 
-    /**
-     * Callback helper for ShouldOverrideUrlLoading.
-     */
+    /** Callback helper for ShouldOverrideUrlLoading. */
     public static class ShouldOverrideUrlLoadingHelper extends CallbackHelper {
         private String mShouldOverrideUrlLoadingUrl;
         private boolean mShouldOverrideUrlLoadingReturnValue;
+        private String mUrlToOverride;
         private boolean mIsRedirect;
         private boolean mHasUserGesture;
         private boolean mIsOutermostMainFrame;
+        private Map<String, String> mRequestHeaders;
+
         void setShouldOverrideUrlLoadingUrl(String url) {
             mShouldOverrideUrlLoadingUrl = url;
         }
+
         void setShouldOverrideUrlLoadingReturnValue(boolean value) {
             mShouldOverrideUrlLoadingReturnValue = value;
         }
+
+        void setUrlToOverride(String urlToOverride) {
+            mUrlToOverride = urlToOverride;
+        }
+
         public String getShouldOverrideUrlLoadingUrl() {
             assert getCallCount() > 0;
             return mShouldOverrideUrlLoadingUrl;
         }
-        public boolean getShouldOverrideUrlLoadingReturnValue() {
+
+        public boolean getShouldOverrideUrlLoadingReturnValue(AwWebResourceRequest request) {
+            if (mUrlToOverride != null && !request.getUrl().equals(mUrlToOverride)) {
+                // If `mUrlToOverride` is set, only override requests with a matching URL.
+                return false;
+            }
+
             return mShouldOverrideUrlLoadingReturnValue;
         }
+
         public boolean isRedirect() {
             return mIsRedirect;
         }
+
         public boolean hasUserGesture() {
             return mHasUserGesture;
         }
+
         public boolean isOutermostMainFrame() {
             return mIsOutermostMainFrame;
         }
-        public void notifyCalled(String url, boolean isRedirect, boolean hasUserGesture,
-                boolean isOutermostMainFrame) {
+
+        public Map<String, String> requestHeaders() {
+            return mRequestHeaders;
+        }
+
+        public void notifyCalled(
+                String url,
+                boolean isRedirect,
+                boolean hasUserGesture,
+                boolean isOutermostMainFrame,
+                Map<String, String> requestHeaders) {
             mShouldOverrideUrlLoadingUrl = url;
             mIsRedirect = isRedirect;
             mHasUserGesture = hasUserGesture;
             mIsOutermostMainFrame = isOutermostMainFrame;
+            mRequestHeaders = requestHeaders;
             notifyCalled();
         }
     }
 
     @Override
     public boolean shouldOverrideUrlLoading(AwWebResourceRequest request) {
-        if (TRACE) Log.i(TAG, "shouldOverrideUrlLoading " + request.url);
+        if (TRACE) Log.i(TAG, "shouldOverrideUrlLoading " + request.getUrl());
         super.shouldOverrideUrlLoading(request);
         boolean returnValue =
-                mShouldOverrideUrlLoadingHelper.getShouldOverrideUrlLoadingReturnValue();
-        mShouldOverrideUrlLoadingHelper.notifyCalled(request.url, request.isRedirect,
-                request.hasUserGesture, request.isOutermostMainFrame);
+                mShouldOverrideUrlLoadingHelper.getShouldOverrideUrlLoadingReturnValue(request);
+        mShouldOverrideUrlLoadingHelper.notifyCalled(
+                request.getUrl(),
+                request.isRedirect(),
+                request.hasUserGesture(),
+                request.isOutermostMainFrame(),
+                request.getRequestHeaders());
         return returnValue;
     }
 
-    /**
-     * Callback helper for shouldInterceptRequest.
-     */
+    /** Callback helper for shouldInterceptRequest. */
     public static class ShouldInterceptRequestHelper extends CallbackHelper {
         private final List<String> mShouldInterceptRequestUrls = new ArrayList<>();
-        private final Map<String, WebResourceResponseInfo> mReturnValuesByUrls =
+        private final Map<String, BlockingQueue<WebResourceResponseInfo>> mInterceptResponsesByUrl =
                 Collections.synchronizedMap(new HashMap<>());
         private final Map<String, AwWebResourceRequest> mRequestsByUrls =
                 Collections.synchronizedMap(new HashMap<>());
 
-        @GuardedBy("mRequestCountLock") // Needs explicit locking for get-and-increment
-        private final Map<String, Integer> mRequestCountByUrl = new HashMap<>();
-        private final Object mRequestCountLock = new Object();
+        private final Map<String, Integer> mRequestCountByUrl =
+                Collections.synchronizedMap(new HashMap<>());
 
         private Runnable mRunnableForFirstTimeCallback;
         private boolean mRaiseExceptionWhenCalled;
-        // This is read on another thread, so needs to be marked volatile.
-        private volatile WebResourceResponseInfo mShouldInterceptRequestReturnValue;
+        private final BlockingQueue<WebResourceResponseInfo> mDefaultInterceptResponses =
+                new LinkedBlockingQueue<>();
+
         void setRaiseExceptionWhenCalled(boolean value) {
             mRaiseExceptionWhenCalled = value;
         }
+
         boolean getRaiseExceptionWhenCalled() {
             return mRaiseExceptionWhenCalled;
         }
-        void setReturnValue(WebResourceResponseInfo value) {
-            mShouldInterceptRequestReturnValue = value;
+
+        /**
+         * Enqueue a response to be returned if no url-mapped response is available.
+         *
+         * <p>The response will be sent as a text/html utf-8 encoded success response.
+         *
+         * @see #enqueueResponse(String, String, String, int, String, Map)
+         */
+        public void enqueueHtmlResponse(
+                @Nullable String data, @Nullable Map<String, String> responseHeaders) {
+            enqueueResponse("text/html", "utf-8", data, 200, "OK", responseHeaders);
         }
-        void setReturnValueForUrl(String url, WebResourceResponseInfo value) {
-            mReturnValuesByUrls.put(url, value);
+
+        /**
+         * Enqueue a response to be returned if no url-mapped response is available.
+         *
+         * @see #enqueueHtmlResponseForUrl(String, String, Map)
+         */
+        public void enqueueResponse(
+                @Nullable String mimeType,
+                @Nullable String encoding,
+                @Nullable String data,
+                int statusCode,
+                @Nullable String reasonPhrase,
+                @Nullable Map<String, String> responseHeaders) {
+            enqueueResponse(
+                    new WebResourceResponseInfo(
+                            mimeType,
+                            encoding,
+                            asStreamOrNull(data),
+                            statusCode,
+                            reasonPhrase,
+                            responseHeaders));
         }
+
+        /**
+         * Enqueue a response to be returned if no url-mapped response is available.
+         *
+         * <p>Streams must never be reused, which is why this method takes a Supplier for streams.
+         *
+         * @see #enqueueResponseForUrlWithStream(String, String, String, Supplier)
+         */
+        public void enqueueResponseWithStream(
+                @Nullable String mimeType,
+                @Nullable String encoding,
+                @Nullable Supplier<InputStream> data) {
+            enqueueResponse(
+                    new WebResourceResponseInfo(
+                            mimeType, encoding, data == null ? null : data.get()));
+        }
+
+        /**
+         * Enqueue a response to be returned if no url-mapped response is available.
+         *
+         * <p>Streams must never be reused, which is why this method takes a Supplier for streams.
+         *
+         * @see #enqueueResponseForUrlWithStream(String, String, String, Supplier)
+         */
+        public void enqueueResponseWithStream(
+                @Nullable String mimeType,
+                @Nullable String encoding,
+                @Nullable Supplier<InputStream> data,
+                int statusCode,
+                @Nullable String reasonPhrase,
+                @Nullable Map<String, String> responseHeaders) {
+            enqueueResponse(
+                    new WebResourceResponseInfo(
+                            mimeType,
+                            encoding,
+                            null != data ? data.get() : null,
+                            statusCode,
+                            reasonPhrase,
+                            responseHeaders));
+        }
+
+        /**
+         * Enqueue a default response to be used if no url-mapped response is available.
+         *
+         * <p>Prefer to use one of the other methods, which construct the response for you.
+         *
+         * @see #enqueueResponseForUrl(String, WebResourceResponseInfo)
+         */
+        public void enqueueResponse(WebResourceResponseInfo responseInfo) {
+            mDefaultInterceptResponses.add(responseInfo);
+        }
+
+        /**
+         * Enqueue a response for the specified URL.
+         *
+         * <p>The response will be sent as a text/html utf-8 encoded success response.
+         */
+        public void enqueueHtmlResponseForUrl(
+                String url, @Nullable String data, @Nullable Map<String, String> responseHeaders) {
+            enqueueResponseForUrl(url, "text/html", "utf-8", data, 200, "OK", responseHeaders);
+        }
+
+        /**
+         * Enqueue a response for the specified URL.
+         *
+         * <p>Streams must never be reused, which is why this method takes a Supplier for streams.
+         */
+        public void enqueueResponseForUrlWithStream(
+                String url,
+                @Nullable String mimeType,
+                @Nullable String encoding,
+                @Nullable Supplier<InputStream> data) {
+            enqueueResponseForUrl(
+                    url,
+                    new WebResourceResponseInfo(
+                            mimeType, encoding, data == null ? null : data.get()));
+        }
+
+        /** Enqueue a response for the specified URL. */
+        public void enqueueResponseForUrl(
+                String url,
+                @Nullable String mimeType,
+                @Nullable String encoding,
+                @Nullable String data,
+                int statusCode,
+                @Nullable String reasonPhrase,
+                @Nullable Map<String, String> responseHeaders) {
+            enqueueResponseForUrl(
+                    url,
+                    new WebResourceResponseInfo(
+                            mimeType,
+                            encoding,
+                            asStreamOrNull(data),
+                            statusCode,
+                            reasonPhrase,
+                            responseHeaders));
+        }
+
+        /**
+         * Enqueue a response for the specified URL.
+         *
+         * <p>Prefer to use one of the other methods, which construct the response for you.
+         */
+        public void enqueueResponseForUrl(String url, WebResourceResponseInfo responseInfo) {
+            mInterceptResponsesByUrl
+                    .computeIfAbsent(url, s -> new LinkedBlockingQueue<>())
+                    .add(responseInfo);
+        }
+
+        private static @Nullable InputStream asStreamOrNull(@Nullable String data) {
+            return data == null
+                    ? null
+                    : new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8));
+        }
+
         public List<String> getUrls() {
             assert getCallCount() > 0;
             return mShouldInterceptRequestUrls;
         }
-        public WebResourceResponseInfo getReturnValue(String url) {
-            WebResourceResponseInfo value = mReturnValuesByUrls.get(url);
-            if (value != null) return value;
-            return mShouldInterceptRequestReturnValue;
+
+        public void clearUrls() {
+            mShouldInterceptRequestUrls.clear();
         }
+
+        public WebResourceResponseInfo getReturnValue(String url) {
+            BlockingQueue<WebResourceResponseInfo> value = mInterceptResponsesByUrl.get(url);
+            if (value != null) {
+                WebResourceResponseInfo urlResponse = value.poll();
+                if (urlResponse != null) {
+                    return urlResponse;
+                }
+            }
+            // May return null if no more responses are enqueued, and that is fine.
+            return mDefaultInterceptResponses.poll();
+        }
+
         public AwWebResourceRequest getRequestsForUrl(String url) {
             assert getCallCount() > 0;
             assert mRequestsByUrls.containsKey(url);
             return mRequestsByUrls.get(url);
         }
+
         public int getRequestCountForUrl(String url) {
             assert getCallCount() > 0;
-            synchronized (mRequestCountLock) {
-                Integer count = mRequestCountByUrl.get(url);
-                return count != null ? count : 0;
-            }
+            return mRequestCountByUrl.getOrDefault(url, 0);
         }
+
         public void notifyCalled(AwWebResourceRequest request) {
-            mShouldInterceptRequestUrls.add(request.url);
-            mRequestsByUrls.put(request.url, request);
-            synchronized (mRequestCountLock) {
-                Integer count = mRequestCountByUrl.get(request.url);
-                mRequestCountByUrl.put(request.url, count == null ? 1 : count + 1);
-            }
+            mShouldInterceptRequestUrls.add(request.getUrl());
+            mRequestsByUrls.put(request.getUrl(), request);
+            // Increment by 1
+            mRequestCountByUrl.merge(request.getUrl(), 1, Integer::sum);
             if (mRunnableForFirstTimeCallback != null) {
                 mRunnableForFirstTimeCallback.run();
                 mRunnableForFirstTimeCallback = null;
             }
             notifyCalled();
         }
+
         public void runDuringFirstTimeCallback(Runnable r) {
             mRunnableForFirstTimeCallback = r;
         }
@@ -706,17 +877,15 @@ public class TestAwContentsClient extends NullContentsClient {
     @Override
     public WebResourceResponseInfo shouldInterceptRequest(AwWebResourceRequest request) {
         super.shouldInterceptRequest(request);
-        if (TRACE) Log.i(TAG, "shouldInterceptRequest " + request.url);
+        if (TRACE) Log.i(TAG, "shouldInterceptRequest " + request.getUrl());
         mShouldInterceptRequestHelper.notifyCalled(request);
         if (mShouldInterceptRequestHelper.getRaiseExceptionWhenCalled()) {
             throw new RuntimeException("Exception in ShouldInterceptRequestHelper");
         }
-        return mShouldInterceptRequestHelper.getReturnValue(request.url);
+        return mShouldInterceptRequestHelper.getReturnValue(request.getUrl());
     }
 
-    /**
-     * Callback helper for OnLoadedResource.
-     */
+    /** Callback helper for OnLoadedResource. */
     public static class OnLoadResourceHelper extends CallbackHelper {
         private String mLastLoadedResource;
 
@@ -738,9 +907,7 @@ public class TestAwContentsClient extends NullContentsClient {
         mOnLoadResourceHelper.notifyCalled(url);
     }
 
-    /**
-     * Callback helper for doUpdateVisitedHistory.
-     */
+    /** Callback helper for doUpdateVisitedHistory. */
     public static class DoUpdateVisitedHistoryHelper extends CallbackHelper {
         String mUrl;
         boolean mIsReload;
@@ -768,9 +935,7 @@ public class TestAwContentsClient extends NullContentsClient {
         getDoUpdateVisitedHistoryHelper().notifyCalled(url, isReload);
     }
 
-    /**
-     * CallbackHelper for onReceivedSslError.
-     */
+    /** CallbackHelper for onReceivedSslError. */
     public static class OnReceivedSslErrorHelper extends CallbackHelper {
         private SslError mSslError;
 
@@ -785,30 +950,29 @@ public class TestAwContentsClient extends NullContentsClient {
         }
     }
 
-    /**
-     * CallbackHelper for OnReceivedError.
-     */
+    /** CallbackHelper for OnReceivedError. */
     public static class OnReceivedErrorHelper extends CallbackHelper {
         private AwWebResourceRequest mRequest;
         private AwWebResourceError mError;
+
         public void notifyCalled(AwWebResourceRequest request, AwWebResourceError error) {
             mRequest = request;
             mError = error;
             notifyCalled();
         }
+
         public AwWebResourceRequest getRequest() {
             assert getCallCount() > 0;
             return mRequest;
         }
+
         public AwWebResourceError getError() {
             assert getCallCount() > 0;
             return mError;
         }
     }
 
-    /**
-     * CallbackHelper for OnReceivedHttpError.
-     */
+    /** CallbackHelper for OnReceivedHttpError. */
     public static class OnReceivedHttpErrorHelper extends CallbackHelper {
         private AwWebResourceRequest mRequest;
         private WebResourceResponseInfo mResponse;
@@ -818,10 +982,12 @@ public class TestAwContentsClient extends NullContentsClient {
             mResponse = response;
             notifyCalled();
         }
+
         public AwWebResourceRequest getRequest() {
             assert getCallCount() > 0;
             return mRequest;
         }
+
         public WebResourceResponseInfo getResponse() {
             assert getCallCount() > 0;
             return mResponse;
@@ -831,14 +997,12 @@ public class TestAwContentsClient extends NullContentsClient {
     @Override
     public void onReceivedHttpError(
             AwWebResourceRequest request, WebResourceResponseInfo response) {
-        if (TRACE) Log.i(TAG, "onReceivedHttpError " + request.url);
+        if (TRACE) Log.i(TAG, "onReceivedHttpError " + request.getUrl());
         super.onReceivedHttpError(request, response);
         mOnReceivedHttpErrorHelper.notifyCalled(request, response);
     }
 
-    /**
-     * CallbackHelper for onReceivedIcon.
-     */
+    /** CallbackHelper for onReceivedIcon. */
     public static class FaviconHelper extends CallbackHelper {
         private Bitmap mIcon;
 
@@ -860,11 +1024,9 @@ public class TestAwContentsClient extends NullContentsClient {
         mFaviconHelper.notifyFavicon(bitmap);
     }
 
-    /**
-     * CallbackHelper for onReceivedTouchIconUrl.
-     */
+    /** CallbackHelper for onReceivedTouchIconUrl. */
     public static class TouchIconHelper extends CallbackHelper {
-        private HashMap<String, Boolean> mTouchIcons = new HashMap<String, Boolean>();
+        private final HashMap<String, Boolean> mTouchIcons = new HashMap<String, Boolean>();
 
         public void notifyTouchIcon(String url, boolean precomposed) {
             mTouchIcons.put(url, precomposed);
@@ -887,9 +1049,7 @@ public class TestAwContentsClient extends NullContentsClient {
         mTouchIconHelper.notifyTouchIcon(url, precomposed);
     }
 
-    /**
-     * CallbackHelper for onRenderProcessGone.
-     */
+    /** CallbackHelper for onRenderProcessGone. */
     public static class RenderProcessGoneHelper extends CallbackHelper {
         private AwRenderProcessGoneDetail mDetail;
         private boolean mResponse;

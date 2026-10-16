@@ -28,24 +28,18 @@ class ChromeBrowserFieldTrials : public variations::PlatformFieldTrials {
   ~ChromeBrowserFieldTrials() override;
 
   // variations::PlatformFieldTrials:
-  void OnVariationsSetupComplete() override;
   void SetUpClientSideFieldTrials(
       bool has_seed,
       const variations::EntropyProviders& entropy_providers,
       base::FeatureList* feature_list) override;
   void RegisterSyntheticTrials() override;
+#if BUILDFLAG(IS_LINUX)
+  void RegisterFeatureOverrides(base::FeatureList* feature_list) override;
+#endif
 
  private:
   // Weak pointer to the local state prefs store.
-  const raw_ptr<PrefService, DanglingUntriaged> local_state_;
-
-#if BUILDFLAG(IS_ANDROID)
-  // VariationID to be used for FREMobileIdentityConsistencyFieldTrial.
-  // Set by SetUpClientSideTrials(...) and then used by
-  // RegisterSyntheticTrials().
-  variations::VariationID fre_consistency_trial_variation_id_ =
-      variations::EMPTY_ID;
-#endif  // BUILDFLAG(IS_ANDROID)
+  const raw_ptr<PrefService, AcrossTasksDanglingUntriaged> local_state_;
 };
 
 #endif  // CHROME_BROWSER_CHROME_BROWSER_FIELD_TRIALS_H_

@@ -38,7 +38,7 @@ class TooltipAuraTestApi;
 class VIEWS_EXPORT TooltipAura : public Tooltip, public WidgetObserver {
  public:
   static const char kWidgetName[];
-  // TODO(crbug.com/1410707): get cursor offset from actual cursor size.
+  // TODO(crbug.com/40254494): get cursor offset from actual cursor size.
   static constexpr int kCursorOffsetX = 10;
   static constexpr int kCursorOffsetY = 15;
 
@@ -56,6 +56,7 @@ class VIEWS_EXPORT TooltipAura : public Tooltip, public WidgetObserver {
 
   void AddObserver(wm::TooltipObserver* observer) override;
   void RemoveObserver(wm::TooltipObserver* observer) override;
+  void SetMaxWidth(int width) override;
 
   // Adjusts `anchor_point` to the bottom left of the cursor.
   static void AdjustToCursor(gfx::Rect* anchor_point);
@@ -94,18 +95,17 @@ class VIEWS_EXPORT TooltipAura : public Tooltip, public WidgetObserver {
   void Hide() override;
   bool IsVisible() override;
 
-  // WidgetObserver:
-  void OnWidgetDestroying(Widget* widget) override;
-
   // A callback to generate a `TooltipViewAura` instance.
   const TooltipViewFactory tooltip_view_factory_;
 
   // The widget containing the tooltip. May be NULL.
-  raw_ptr<TooltipWidget> widget_ = nullptr;
+  std::unique_ptr<TooltipWidget> widget_;
 
   // The window we're showing the tooltip for. Never NULL and valid while
   // showing.
   raw_ptr<aura::Window> tooltip_window_ = nullptr;
+
+  int max_width_;
 
   // Observes tooltip state change.
   base::ObserverList<wm::TooltipObserver> observers_;

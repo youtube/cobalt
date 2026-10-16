@@ -5,6 +5,9 @@
 #define COMPONENTS_OMNIBOX_BROWSER_ZERO_SUGGEST_VERBATIM_MATCH_PROVIDER_H_
 
 #include "base/memory/raw_ptr.h"
+#include "base/task/cancelable_task_tracker.h"
+#include "components/history/core/browser/history_types.h"
+#include "components/omnibox/browser/autocomplete_enums.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/omnibox/browser/history_url_provider.h"
@@ -25,10 +28,19 @@ class ZeroSuggestVerbatimMatchProvider : public AutocompleteProvider {
 
   // AutocompleteProvider:
   void Start(const AutocompleteInput& input, bool minimal_changes) override;
+  void Stop(AutocompleteStopReason stop_reason) override;
 
  private:
+  void OnPageTitleRetrieved(const AutocompleteInput& input,
+                            history::QueryURLResult result);
+  void CreateVerbatimMatch(const AutocompleteInput& input,
+                           std::u16string title);
+
   ~ZeroSuggestVerbatimMatchProvider() override;
   const raw_ptr<AutocompleteProviderClient> client_{nullptr};
+  base::CancelableTaskTracker task_tracker_;
+  base::WeakPtrFactory<ZeroSuggestVerbatimMatchProvider>
+      request_weak_ptr_factory_{this};
 };
 
 #endif  // COMPONENTS_OMNIBOX_BROWSER_ZERO_SUGGEST_VERBATIM_MATCH_PROVIDER_H_

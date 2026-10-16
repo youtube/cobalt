@@ -1,6 +1,7 @@
 #ifndef QUICHE_HTTP2_ADAPTER_MOCK_HTTP2_VISITOR_H_
 #define QUICHE_HTTP2_ADAPTER_MOCK_HTTP2_VISITOR_H_
 
+#include <algorithm>
 #include <cstdint>
 
 #include "quiche/http2/adapter/http2_visitor_interface.h"
@@ -18,7 +19,8 @@ class QUICHE_NO_EXPORT MockHttp2Visitor : public Http2VisitorInterface {
     ON_CALL(*this, OnFrameHeader).WillByDefault(testing::Return(true));
     ON_CALL(*this, OnBeginHeadersForStream)
         .WillByDefault(testing::Return(true));
-    ON_CALL(*this, OnHeaderForStream).WillByDefault(testing::Return(HEADER_OK));
+    ON_CALL(*this, OnHeaderForStream)
+        .WillByDefault(testing::Return(OnHeaderResult::HEADER_OK));
     ON_CALL(*this, OnEndHeadersForStream).WillByDefault(testing::Return(true));
     ON_CALL(*this, OnDataPaddingLength).WillByDefault(testing::Return(true));
     ON_CALL(*this, OnBeginDataForStream).WillByDefault(testing::Return(true));
@@ -32,6 +34,12 @@ class QUICHE_NO_EXPORT MockHttp2Visitor : public Http2VisitorInterface {
   }
 
   MOCK_METHOD(int64_t, OnReadyToSend, (absl::string_view serialized),
+              (override));
+  MOCK_METHOD(DataFrameHeaderInfo, OnReadyToSendDataForStream,
+              (Http2StreamId stream_id, size_t max_length), (override));
+  MOCK_METHOD(bool, SendDataFrame,
+              (Http2StreamId stream_id, absl::string_view frame_header,
+               size_t payload_bytes),
               (override));
   MOCK_METHOD(void, OnConnectionError, (ConnectionError error), (override));
   MOCK_METHOD(bool, OnFrameHeader,
@@ -110,6 +118,10 @@ class QUICHE_NO_EXPORT MockHttp2Visitor : public Http2VisitorInterface {
               (override));
 
   MOCK_METHOD(bool, OnMetadataEndForStream, (Http2StreamId stream_id),
+              (override));
+
+  MOCK_METHOD((std::pair<int64_t, bool>), PackMetadataForStream,
+              (Http2StreamId stream_id, uint8_t* dest, size_t dest_len),
               (override));
 
   MOCK_METHOD(void, OnErrorDebug, (absl::string_view message), (override));

@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/autofill/autofill_uitest.h"
+
 #include <string>
 
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
-#include "chrome/browser/autofill/autofill_uitest.h"
 #include "chrome/browser/autofill/autofill_uitest_util.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/platform_util.h"
@@ -17,10 +18,10 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
-#include "components/autofill/content/browser/content_autofill_driver_factory.h"
-#include "components/autofill/core/browser/autofill_test_utils.h"
-#include "components/autofill/core/browser/personal_data_manager.h"
-#include "components/autofill/core/browser/personal_data_manager_observer.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager_observer.h"
+#include "components/autofill/core/browser/foundations/browser_autofill_manager_test_api.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/test/browser_test_utils.h"
@@ -36,8 +37,10 @@ std::ostream& operator<<(std::ostream& os, ObservedUiEvents event) {
       return os << "kPreviewFormData";
     case ObservedUiEvents::kFormDataFilled:
       return os << "kFormDataFilled";
-    case ObservedUiEvents::kSuggestionShown:
-      return os << "kSuggestionShown";
+    case ObservedUiEvents::kSuggestionsShown:
+      return os << "kSuggestionsShown";
+    case ObservedUiEvents::kSuggestionsHidden:
+      return os << "kSuggestionsHidden";
     case ObservedUiEvents::kNoEvent:
       return os << "kNoEvent";
     default:
@@ -58,8 +61,8 @@ void TryToCloseAllPrompts(content::WebContents* web_contents) {
   top_level_view = platform_util::GetParent(top_level_view)
                        ? platform_util::GetParent(top_level_view)
                        : top_level_view;
-  views::Widget::Widgets all_widgets;
-  views::Widget::GetAllChildWidgets(top_level_view, &all_widgets);
+  views::Widget::Widgets all_widgets =
+      views::Widget::GetAllChildWidgets(top_level_view);
   for (views::Widget* w : all_widgets) {
     if (w->IsDialogBox())
       w->CloseWithReason(views::Widget::ClosedReason::kUnspecified);
@@ -87,7 +90,6 @@ void BrowserAutofillManagerTestDelegateImpl::SetIgnoreBackToBackMessages(
 }
 
 void BrowserAutofillManagerTestDelegateImpl::FireEvent(ObservedUiEvents event) {
-  DCHECK(event_waiter_);
   if (event_waiter_ && (!ignore_back_to_back_event_types_.contains(event) ||
                         last_event_ != event)) {
     event_waiter_->OnEvent(event);
@@ -104,10 +106,12 @@ void BrowserAutofillManagerTestDelegateImpl::DidFillFormData() {
 }
 
 void BrowserAutofillManagerTestDelegateImpl::DidShowSuggestions() {
-  FireEvent(ObservedUiEvents::kSuggestionShown);
+  FireEvent(ObservedUiEvents::kSuggestionsShown);
 }
 
-void BrowserAutofillManagerTestDelegateImpl::OnTextFieldChanged() {}
+void BrowserAutofillManagerTestDelegateImpl::DidHideSuggestions() {
+  FireEvent(ObservedUiEvents::kSuggestionsHidden);
+}
 
 void BrowserAutofillManagerTestDelegateImpl::SetExpectations(
     std::list<ObservedUiEvents> expected_events,
@@ -124,22 +128,30 @@ testing::AssertionResult BrowserAutofillManagerTestDelegateImpl::Wait() {
 // AutofillUiTest ----------------------------------------------------
 AutofillUiTest::AutofillUiTest(
     const test::AutofillTestEnvironment::Options& options)
-    : key_press_event_sink_(
-          base::BindRepeating(&AutofillUiTest::HandleKeyPressEvent,
-                              base::Unretained(this))),
-      autofill_test_environment_(options) {}
+    : autofill_test_environment_(options) {}
 
 AutofillUiTest::~AutofillUiTest() = default;
 
 void AutofillUiTest::SetUpOnMainThread() {
+  auto* client =
+      ChromeAutofillClient::FromWebContentsForTesting(GetWebContents());
+
   // Make autofill popup stay open by ignoring external changes when possible.
-  ChromeAutofillClient::FromWebContentsForTesting(GetWebContents())
-      ->KeepPopupOpenForTesting();
+  client->SetKeepPopupOpenForTesting(true);
+
   // Inject the test delegate into the BrowserAutofillManager of the main frame.
   RenderFrameHostChanged(
-      /* old_host = */ nullptr,
-      /* new_host = */ GetWebContents()->GetPrimaryMainFrame());
+      /*old_host=*/nullptr,
+      /*new_host=*/GetWebContents()->GetPrimaryMainFrame());
   Observe(GetWebContents());
+
+  // Refills normally only happen if the form changes within 1 second of the
+  // initial fill. On a slow bot, this may lead to flakiness. We hence set a
+  // very high limit.
+  test_api(test_api(*GetBrowserAutofillManager()).form_filler())
+      .set_limit_before_refill(base::Hours(1));
+  autofill_driver_factory_observation_.Observe(
+      &client->GetAutofillDriverFactory());
 
   // Wait for Personal Data Manager to be fully loaded to prevent that
   // spurious notifications deceive the tests.
@@ -160,7 +172,8 @@ void AutofillUiTest::TearDownOnMainThread() {
   // Make sure to close any showing popups prior to tearing down the UI.
   BrowserAutofillManager* autofill_manager = GetBrowserAutofillManager();
   if (autofill_manager)
-    autofill_manager->client()->HideAutofillPopup(PopupHidingReason::kTabGone);
+    autofill_manager->client().HideAutofillSuggestions(
+        SuggestionHidingReason::kTabGone);
   current_main_rfh_ = nullptr;
   InProcessBrowserTest::TearDownOnMainThread();
 }
@@ -198,7 +211,7 @@ void AutofillUiTest::SendKeyToPopup(content::RenderFrameHost* render_frame_host,
       render_frame_host->GetView()->GetRenderWidgetHost();
 
   // Route popup-targeted key presses via the render view host.
-  content::NativeWebKeyboardEvent event(
+  input::NativeWebKeyboardEvent event(
       blink::WebKeyboardEvent::Type::kRawKeyDown,
       blink::WebInputEvent::kNoModifiers, ui::EventTimeForNow());
   event.windows_key_code = key_code;
@@ -233,7 +246,7 @@ testing::AssertionResult AutofillUiTest::SendKeyToPopupAndWait(
     base::TimeDelta timeout,
     base::Location location) {
   // Route popup-targeted key presses via the render view host.
-  content::NativeWebKeyboardEvent event(
+  input::NativeWebKeyboardEvent event(
       blink::WebKeyboardEvent::Type::kRawKeyDown,
       blink::WebInputEvent::kNoModifiers, ui::EventTimeForNow());
   event.windows_key_code = key_code;
@@ -265,7 +278,7 @@ void AutofillUiTest::DoNothingAndWaitAndIgnoreEvents(base::TimeDelta timeout) {
 }
 
 bool AutofillUiTest::HandleKeyPressEvent(
-    const content::NativeWebKeyboardEvent& event) {
+    const input::NativeWebKeyboardEvent& event) {
   return true;
 }
 
@@ -279,14 +292,13 @@ content::RenderViewHost* AutofillUiTest::GetRenderViewHost() {
 
 BrowserAutofillManager* AutofillUiTest::GetBrowserAutofillManager() {
   ContentAutofillDriver* driver =
-      ContentAutofillDriverFactory::FromWebContents(GetWebContents())
-          ->DriverForFrame(current_main_rfh_);
+      ContentAutofillDriver::GetForRenderFrameHost(current_main_rfh_);
   // ContentAutofillDriver will be null if the current RenderFrameHost
   // is not owned by the current WebContents. This state appears to occur
   // when there is a web page popup during teardown
   if (!driver)
     return nullptr;
-  return static_cast<BrowserAutofillManager*>(driver->autofill_manager());
+  return static_cast<BrowserAutofillManager*>(&driver->GetAutofillManager());
 }
 
 void AutofillUiTest::RenderFrameHostChanged(
@@ -295,9 +307,26 @@ void AutofillUiTest::RenderFrameHostChanged(
   if (current_main_rfh_ != old_frame)
     return;
   current_main_rfh_ = new_frame;
-  BrowserAutofillManager* autofill_manager = GetBrowserAutofillManager();
-  if (autofill_manager)
-    autofill_manager->SetTestDelegate(test_delegate());
+  if (BrowserAutofillManager* autofill_manager = GetBrowserAutofillManager()) {
+    test_delegate()->Observe(*autofill_manager);
+  }
+}
+
+void AutofillUiTest::OnContentAutofillDriverFactoryDestroyed(
+    ContentAutofillDriverFactory& factory) {
+  autofill_driver_factory_observation_.Reset();
+}
+
+void AutofillUiTest::OnContentAutofillDriverCreated(
+    ContentAutofillDriverFactory& factory,
+    ContentAutofillDriver& driver) {
+  // Refills normally only happen if the form changes within 1 second of the
+  // initial fill. On a slow bot, this may lead to flakiness. We hence set a
+  // very high limit.
+  test_api(test_api(static_cast<BrowserAutofillManager&>(
+                        driver.GetAutofillManager()))
+               .form_filler())
+      .set_limit_before_refill(base::Hours(1));
 }
 
 }  // namespace autofill

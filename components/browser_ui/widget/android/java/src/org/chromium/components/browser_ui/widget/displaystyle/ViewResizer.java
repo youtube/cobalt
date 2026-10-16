@@ -4,29 +4,28 @@
 
 package org.chromium.components.browser_ui.widget.displaystyle;
 
-import android.content.res.Resources;
 import android.view.View;
 
-import androidx.core.view.ViewCompat;
+import org.chromium.build.annotations.NullMarked;
 
 /**
  * Changes a view's padding when switching between {@link UiConfig} display styles. If the display
  * style is {@link HorizontalDisplayStyle#REGULAR}, a predetermined value will be used to set the
  * lateral padding. If the display style is {@link HorizontalDisplayStyle#WIDE}, the lateral padding
- * will be calculated using the available screen width to keep the view constrained to
- * {@link UiConfig#WIDE_DISPLAY_STYLE_MIN_WIDTH_DP}
+ * will be calculated using the available screen width to keep the view constrained to {@link
+ * UiConfig#WIDE_DISPLAY_STYLE_MIN_WIDTH_DP}
  */
-public class ViewResizer implements DisplayStyleObserver {
+@NullMarked
+public class ViewResizer implements DisplayStyleObserver, View.OnLayoutChangeListener {
     /** The default value for the lateral padding. */
     private int mDefaultPaddingPixels;
+
     /** The minimum wide display value used for the lateral padding. */
     private int mMinWidePaddingPixels;
+
     private final View mView;
     private final DisplayStyleObserverAdapter mDisplayStyleObserver;
     protected final UiConfig mUiConfig;
-
-    @HorizontalDisplayStyle
-    private int mCurrentDisplayStyle;
 
     /**
      * @param view The view that will have its padding resized.
@@ -42,6 +41,7 @@ public class ViewResizer implements DisplayStyleObserver {
         mMinWidePaddingPixels = minWidePaddingPixels;
         mUiConfig = config;
         mDisplayStyleObserver = new DisplayStyleObserverAdapter(view, config, this);
+        view.addOnLayoutChangeListener(this);
     }
 
     /**
@@ -63,23 +63,18 @@ public class ViewResizer implements DisplayStyleObserver {
         return viewResizer;
     }
 
-    /**
-     * Attaches to the {@link UiConfig}.
-     */
+    /** Attaches to the {@link UiConfig}. */
     public void attach() {
         mDisplayStyleObserver.attach();
     }
 
-    /**
-     * Detaches from the {@link UiConfig}.
-     */
+    /** Detaches from the {@link UiConfig}. */
     public void detach() {
         mDisplayStyleObserver.detach();
     }
 
     @Override
     public void onDisplayStyleChanged(UiConfig.DisplayStyle newDisplayStyle) {
-        mCurrentDisplayStyle = newDisplayStyle.horizontal;
         updatePadding();
     }
 
@@ -98,34 +93,23 @@ public class ViewResizer implements DisplayStyleObserver {
 
     private void updatePadding() {
         int padding = computePadding();
-        ViewCompat.setPaddingRelative(
-                mView, padding, mView.getPaddingTop(), padding, mView.getPaddingBottom());
+        mView.setPaddingRelative(padding, mView.getPaddingTop(), padding, mView.getPaddingBottom());
     }
 
-    /**
-     * Computes the lateral padding to be applied to the associated view.
-     */
+    /** Computes the lateral padding to be applied to the associated view. */
     protected int computePadding() {
-        if (!isCurrentDisplayWide()) return mDefaultPaddingPixels;
-
-        // mUiConfig.getContext().getResources() is used here instead of mView.getResources()
-        // because lemon compression, somehow, causes the resources to return a different
-        // configuration.
-        Resources resources = mUiConfig.getContext().getResources();
-        int screenWidthDp = resources.getConfiguration().screenWidthDp;
-        float dpToPx = resources.getDisplayMetrics().density;
-        int padding =
-                (int) (((screenWidthDp - UiConfig.WIDE_DISPLAY_STYLE_MIN_WIDTH_DP) / 2.f) * dpToPx);
-        padding = Math.max(mMinWidePaddingPixels, padding);
-
-        return padding;
-    }
-
-    protected boolean isCurrentDisplayWide() {
-        return mCurrentDisplayStyle == HorizontalDisplayStyle.WIDE;
+        if (!mUiConfig.getCurrentDisplayStyle().isWide()) return mDefaultPaddingPixels;
+        return ViewResizerUtil.computePaddingForWideDisplay(
+                mUiConfig.getContext(), mView, mMinWidePaddingPixels);
     }
 
     protected int getMinWidePaddingPixels() {
         return mMinWidePaddingPixels;
+    }
+
+    @Override
+    public void onLayoutChange(
+            View view, int i, int i1, int i2, int i3, int i4, int i5, int i6, int i7) {
+        updatePadding();
     }
 }

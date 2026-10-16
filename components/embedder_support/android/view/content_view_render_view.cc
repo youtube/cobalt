@@ -13,13 +13,15 @@
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
 #include "cc/slim/layer.h"
-#include "components/embedder_support/android/view_jni_headers/ContentViewRenderView_jni.h"
 #include "content/public/browser/android/compositor.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/android/view_android.h"
 #include "ui/android/window_android.h"
 #include "ui/gfx/android/java_bitmap.h"
 #include "ui/gfx/geometry/size.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/embedder_support/android/view_jni_headers/ContentViewRenderView_jni.h"
 
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
@@ -33,7 +35,7 @@ ContentViewRenderView::ContentViewRenderView(JNIEnv* env,
   java_obj_.Reset(env, obj);
 }
 
-ContentViewRenderView::~ContentViewRenderView() {}
+ContentViewRenderView::~ContentViewRenderView() = default;
 
 // static
 static jlong JNI_ContentViewRenderView_Init(
@@ -90,23 +92,27 @@ void ContentViewRenderView::SurfaceDestroyed(JNIEnv* env,
   // detached and freed by OS.
   compositor_->PreserveChildSurfaceControls();
 
-  compositor_->SetSurface(nullptr, false);
+  compositor_->SetSurface(nullptr, false, nullptr);
   current_surface_format_ = 0;
 }
 
-void ContentViewRenderView::SurfaceChanged(
+std::optional<int> ContentViewRenderView::SurfaceChanged(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj,
     jint format,
     jint width,
     jint height,
-    const JavaParamRef<jobject>& surface) {
+    const JavaParamRef<jobject>& surface,
+    const JavaParamRef<jobject>& browser_input_token) {
+  std::optional<int> surface_handle = std::nullopt;
   if (current_surface_format_ != format) {
     current_surface_format_ = format;
-    compositor_->SetSurface(surface,
-                            true /* can_be_used_with_surface_control */);
+    surface_handle = compositor_->SetSurface(
+        surface, true /* can_be_used_with_surface_control */,
+        browser_input_token);
   }
   compositor_->SetWindowBounds(gfx::Size(width, height));
+  return surface_handle;
 }
 
 void ContentViewRenderView::SetOverlayVideoMode(

@@ -5,18 +5,29 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_PROOF_SOURCE_H_
 #define QUICHE_QUIC_CORE_CRYPTO_PROOF_SOURCE_H_
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
+#include "openssl/base.h"
+#include "openssl/pool.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/certificate_view.h"
 #include "quiche/quic/core/crypto/quic_crypto_proof.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
-#include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
 
@@ -26,7 +37,7 @@ class FakeProofSourceHandle;
 
 // CryptoBuffers is a RAII class to own a std::vector<CRYPTO_BUFFER*> and the
 // buffers the elements point to.
-struct QUIC_EXPORT_PRIVATE CryptoBuffers {
+struct QUICHE_EXPORT CryptoBuffers {
   CryptoBuffers() = default;
   CryptoBuffers(const CryptoBuffers&) = delete;
   CryptoBuffers(CryptoBuffers&&) = default;
@@ -37,18 +48,22 @@ struct QUIC_EXPORT_PRIVATE CryptoBuffers {
 
 // ProofSource is an interface by which a QUIC server can obtain certificate
 // chains and signatures that prove its identity.
-class QUIC_EXPORT_PRIVATE ProofSource {
+class QUICHE_EXPORT ProofSource {
  public:
   // Chain is a reference-counted wrapper for a vector of stringified
   // certificates.
-  struct QUIC_EXPORT_PRIVATE Chain : public quiche::QuicheReferenceCounted {
-    explicit Chain(const std::vector<std::string>& certs);
+  struct QUICHE_EXPORT Chain : public quiche::QuicheReferenceCounted {
+    Chain(const std::vector<std::string>& certs,
+          const std::string& trust_anchor_id = "");
     Chain(const Chain&) = delete;
     Chain& operator=(const Chain&) = delete;
 
     CryptoBuffers ToCryptoBuffers() const;
 
     const std::vector<std::string> certs;
+    // Trust anchor ID to be configured alongside the certificate. If empty, no
+    // trust anchor ID will be set.
+    const std::string trust_anchor_id;
 
    protected:
     ~Chain() override;
@@ -56,13 +71,13 @@ class QUIC_EXPORT_PRIVATE ProofSource {
 
   // Details is an abstract class which acts as a container for any
   // implementation-specific details that a ProofSource wants to return.
-  class QUIC_EXPORT_PRIVATE Details {
+  class QUICHE_EXPORT Details {
    public:
     virtual ~Details() {}
   };
 
   // Callback base class for receiving the results of an async call to GetProof.
-  class QUIC_EXPORT_PRIVATE Callback {
+  class QUICHE_EXPORT Callback {
    public:
     Callback() {}
     virtual ~Callback() {}
@@ -93,7 +108,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
   };
 
   // Base class for signalling the completion of a call to ComputeTlsSignature.
-  class QUIC_EXPORT_PRIVATE SignatureCallback {
+  class QUICHE_EXPORT SignatureCallback {
    public:
     SignatureCallback() {}
     virtual ~SignatureCallback() = default;
@@ -183,7 +198,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
   virtual QuicSignatureAlgorithmVector SupportedTlsSignatureAlgorithms()
       const = 0;
 
-  class QUIC_EXPORT_PRIVATE DecryptCallback {
+  class QUICHE_EXPORT DecryptCallback {
    public:
     DecryptCallback() = default;
     virtual ~DecryptCallback() = default;
@@ -201,7 +216,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
   // Encrypt/Seal operation and a potentially asynchronous Decrypt/Open
   // operation. This interface allows for ticket decryptions to be performed on
   // a remote service.
-  class QUIC_EXPORT_PRIVATE TicketCrypter {
+  class QUICHE_EXPORT TicketCrypter {
    public:
     TicketCrypter() = default;
     virtual ~TicketCrypter() = default;
@@ -241,31 +256,53 @@ class QUIC_EXPORT_PRIVATE ProofSource {
 // the operations in ProofSourceHandle completes.
 // TODO(wub): Consider deprecating ProofSource by moving all functionalities of
 // ProofSource into ProofSourceHandle.
-class QUIC_EXPORT_PRIVATE ProofSourceHandleCallback {
+class QUICHE_EXPORT ProofSourceHandleCallback {
  public:
   virtual ~ProofSourceHandleCallback() = default;
+
+  // Configuration to use for configuring the SSL object when handshaking
+  // locally.
+  struct LocalSSLConfig {
+    const ProofSource::Chain* chain;
+    QuicDelayedSSLConfig delayed_ssl_config;
+  };
+
+  // Functor to call to configure the SSL object.
+  using ConfigureSSLFunc = quiche::SingleUseCallback<absl::Status(
+      SSL& ssl, const SSL_PRIVATE_KEY_METHOD& key)>;
+
+  // Functor to call to select ALPN and configure ALPS.
+  using ALPNSelectFunc = quiche::SingleUseCallback<int(
+      SSL& ssl, const uint8_t** out, uint8_t* out_len, const uint8_t* in,
+      unsigned in_len)>;
+
+  // Configuration to use for configuring the SSL object when using a
+  // handshake-hints server.
+  struct HintsSSLConfig {
+    ConfigureSSLFunc configure_ssl;
+    ALPNSelectFunc select_alpn;
+    QuicDelayedSSLConfig delayed_ssl_config;
+  };
+
+  using SSLConfig = std::variant<LocalSSLConfig, HintsSSLConfig>;
 
   // Called when a ProofSourceHandle::SelectCertificate operation completes.
   // |ok| indicates whether the operation was successful.
   // |is_sync| indicates whether the operation completed synchronously, i.e.
   //      whether it is completed before ProofSourceHandle::SelectCertificate
   //      returned.
-  // |chain| the certificate chain in leaf-first order.
-  // |handshake_hints| (optional) handshake hints that can be used by
-  //      SSL_set_handshake_hints.
+  // |ssl_config| configuration used to configure the SSL object.
   // |ticket_encryption_key| (optional) encryption key to be used for minting
   //      TLS resumption tickets.
   // |cert_matched_sni| is true if the certificate matched the SNI hostname,
   //      false if a non-matching default cert was used.
-  // |delayed_ssl_config| contains SSL configs to be applied on the SSL object.
   //
   // When called asynchronously(is_sync=false), this method will be responsible
   // to continue the handshake from where it left off.
-  virtual void OnSelectCertificateDone(
-      bool ok, bool is_sync, const ProofSource::Chain* chain,
-      absl::string_view handshake_hints,
-      absl::string_view ticket_encryption_key, bool cert_matched_sni,
-      QuicDelayedSSLConfig delayed_ssl_config) = 0;
+  virtual void OnSelectCertificateDone(bool ok, bool is_sync,
+                                       SSLConfig ssl_config,
+                                       absl::string_view ticket_encryption_key,
+                                       bool cert_matched_sni) = 0;
 
   // Called when a ProofSourceHandle::ComputeSignature operation completes.
   virtual void OnComputeSignatureDone(
@@ -275,6 +312,10 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandleCallback {
   // Return true iff ProofSourceHandle::ComputeSignature won't be called later.
   // The handle can use this function to release resources promptly.
   virtual bool WillNotCallComputeSignature() const = 0;
+
+  // Get the TLS ciphersuite negotiated during the handshake, or nullopt if the
+  // handshake has not selected one yet.
+  virtual std::optional<uint16_t> GetCiphersuite() const = 0;
 };
 
 // ProofSourceHandle is an interface by which a TlsServerHandshaker can obtain
@@ -290,7 +331,7 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandleCallback {
 // be invoked.
 //
 // A handle will have at most one async operation pending at a time.
-class QUIC_EXPORT_PRIVATE ProofSourceHandle {
+class QUICHE_EXPORT ProofSourceHandle {
  public:
   virtual ~ProofSourceHandle() = default;
 
@@ -319,10 +360,10 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandle {
       const QuicSocketAddress& client_address,
       const QuicConnectionId& original_connection_id,
       absl::string_view ssl_capabilities, const std::string& hostname,
-      absl::string_view client_hello, const std::string& alpn,
-      absl::optional<std::string> alps,
+      const SSL_CLIENT_HELLO& client_hello, const std::string& alpn,
+      std::optional<std::string> alps,
       const std::vector<uint8_t>& quic_transport_params,
-      const absl::optional<std::vector<uint8_t>>& early_data_context,
+      const std::optional<std::vector<uint8_t>>& early_data_context,
       const QuicSSLConfig& ssl_config) = 0;
 
   // Starts a compute signature operation. If the operation is not cancelled
@@ -345,7 +386,7 @@ class QUIC_EXPORT_PRIVATE ProofSourceHandle {
 
 // Returns true if |chain| contains a parsable DER-encoded X.509 leaf cert and
 // it matches with |key|.
-QUIC_EXPORT_PRIVATE bool ValidateCertAndKey(
+QUICHE_EXPORT bool ValidateCertAndKey(
     const quiche::QuicheReferenceCountedPointer<ProofSource::Chain>& chain,
     const CertificatePrivateKey& key);
 

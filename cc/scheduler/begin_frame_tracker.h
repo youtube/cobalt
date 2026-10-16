@@ -16,7 +16,7 @@ namespace perfetto {
 class EventContext;
 namespace protos {
 namespace pbzero {
-class BeginImplFrameArgs;
+class BeginImplFrameArgsV2;
 }
 }  // namespace protos
 }  // namespace perfetto
@@ -66,6 +66,7 @@ class CC_EXPORT BeginFrameTracker {
   // **Must** only be called when **not** between the start and finish method
   // calls.
   const viz::BeginFrameArgs& Last() const;
+  bool HasLast() const;
 
   // Helper method to try and return a valid interval property. Defaults to
   // BFA::DefaultInterval() is no other interval can be found. Can be called at
@@ -75,7 +76,7 @@ class CC_EXPORT BeginFrameTracker {
   void AsProtozeroInto(
       perfetto::EventContext& ctx,
       base::TimeTicks now,
-      perfetto::protos::pbzero::BeginImplFrameArgs* dict) const;
+      perfetto::protos::pbzero::BeginImplFrameArgsV2* dict) const;
 
   // The following methods violate principles of how viz::BeginFrameArgs should
   // be used. These methods should only be used when there is no other choice.

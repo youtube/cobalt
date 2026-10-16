@@ -30,6 +30,7 @@ class ScopedFeatureList;
 namespace viz {
 class CopyOutputRequest;
 class CopyOutputResult;
+class TestInProcessContextProvider;
 }
 
 namespace cc {
@@ -46,7 +47,7 @@ class LayerTreePixelTest : public LayerTreeTest {
   std::unique_ptr<TestLayerTreeFrameSink> CreateLayerTreeFrameSink(
       const viz::RendererSettings& renderer_settings,
       double refresh_rate,
-      scoped_refptr<viz::ContextProvider> compositor_context_provider,
+      scoped_refptr<viz::RasterContextProvider> compositor_context_provider,
       scoped_refptr<viz::RasterContextProvider> worker_context_provider)
       override;
   std::unique_ptr<viz::DisplayCompositorMemoryAndTaskController>
@@ -137,6 +138,7 @@ class LayerTreePixelTest : public LayerTreeTest {
   int pending_texture_mailbox_callbacks_;
   gfx::Size enlarge_texture_amount_;
   int max_texture_size_ = 0;
+  scoped_refptr<viz::TestInProcessContextProvider> context_provider_sw_;
 
   // Used to create SkiaOutputSurfaceImpl.
   std::unique_ptr<base::test::ScopedFeatureList> scoped_feature_list_;

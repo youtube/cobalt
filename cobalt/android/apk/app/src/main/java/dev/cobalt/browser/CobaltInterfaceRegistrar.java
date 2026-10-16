@@ -15,29 +15,26 @@
 package dev.cobalt.browser;
 
 import dev.cobalt.browser.crashannotator.CrashAnnotatorImplFactory;
-import org.chromium.base.annotations.CalledByNative;
 import org.chromium.content_public.browser.InterfaceRegistrar;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.crashannotator.mojom.CrashAnnotator;
 import org.chromium.services.service_manager.InterfaceRegistry;
+import org.jni_zero.CalledByNative;
 
 /** Registers Mojo interface implementations exposed to C++ code at the Cobalt layer. */
 class CobaltInterfaceRegistrar {
-    @CalledByNative
-    private static void registerMojoInterfaces() {
-        InterfaceRegistrar.Registry.addRenderFrameHostRegistrar(
-            new CobaltRenderFrameHostInterfaceRegistrar());
-    }
+  @CalledByNative
+  private static void registerMojoInterfaces() {
+    InterfaceRegistrar.Registry.addRenderFrameHostRegistrar(
+        new CobaltRenderFrameHostInterfaceRegistrar());
+  }
 
-    private static class CobaltRenderFrameHostInterfaceRegistrar
-            implements InterfaceRegistrar<RenderFrameHost> {
-        @Override
-        public void registerInterfaces(
-                InterfaceRegistry registry,
-                final RenderFrameHost renderFrameHost) {
-            registry.addInterface(
-                CrashAnnotator.MANAGER,
-                new CrashAnnotatorImplFactory(renderFrameHost));
-        }
+  private static class CobaltRenderFrameHostInterfaceRegistrar
+      implements InterfaceRegistrar<RenderFrameHost> {
+    @Override
+    public void registerInterfaces(
+        InterfaceRegistry registry, final RenderFrameHost renderFrameHost) {
+      registry.addInterface(CrashAnnotator.MANAGER, new CrashAnnotatorImplFactory(renderFrameHost));
     }
+  }
 }

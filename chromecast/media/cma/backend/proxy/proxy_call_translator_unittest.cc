@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromecast/media/cma/backend/proxy/proxy_call_translator.h"
 
 #include <memory>
@@ -166,7 +171,6 @@ TEST_F(ProxyCallTranslatorTest, TestExternalResume) {
   target_buffer_info.buffer_id = buffer_id;
   target_buffer_info.timestamp_micros = timestamp;
 
-  // TODO(rwkeane): Validate the duration in the ResumeAsync call.
   EXPECT_CALL(*decoder_channel_, ResumeAsync(testing::_))
       .WillOnce(
           testing::WithArgs<0>(CompareTimestampInfos(buffer_id, timestamp)));

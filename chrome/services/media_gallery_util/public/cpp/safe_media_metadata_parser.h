@@ -34,16 +34,15 @@ class SafeMediaMetadataParser : public MediaParserProvider {
   // may read from different kinds of storage.
   class MediaDataSourceFactory {
    public:
-    typedef base::RepeatingCallback<void(
+    using MediaDataCallback = base::RepeatingCallback<void(
         chrome::mojom::MediaDataSource::ReadCallback callback,
-        std::unique_ptr<std::string> data)>
-        MediaDataCallback;
+        std::string data)>;
 
     virtual std::unique_ptr<chrome::mojom::MediaDataSource>
     CreateMediaDataSource(
         mojo::PendingReceiver<chrome::mojom::MediaDataSource> receiver,
         MediaDataCallback media_data_callback) = 0;
-    virtual ~MediaDataSourceFactory() {}
+    virtual ~MediaDataSourceFactory() = default;
   };
 
   SafeMediaMetadataParser(
@@ -75,7 +74,7 @@ class SafeMediaMetadataParser : public MediaParserProvider {
   // Invoked when the media data has been read, which will be sent back to
   // utility process soon. |data| might be partial content of the media data.
   void OnMediaDataReady(chrome::mojom::MediaDataSource::ReadCallback callback,
-                        std::unique_ptr<std::string> data);
+                        std::string data);
 
   const int64_t size_;
   const std::string mime_type_;

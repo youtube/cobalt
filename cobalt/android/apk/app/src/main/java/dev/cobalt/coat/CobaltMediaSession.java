@@ -16,7 +16,6 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
-import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Handler;
@@ -25,13 +24,13 @@ import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import androidx.annotation.Nullable;
-import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import java.util.List;
 import java.util.Set;
 import org.chromium.content_public.browser.MediaSession;
 import org.chromium.content_public.browser.MediaSessionObserver;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.media_session.mojom.MediaSessionAction;
 import org.chromium.services.media_session.MediaImage;
 import org.chromium.services.media_session.MediaMetadata;
@@ -39,8 +38,7 @@ import org.chromium.services.media_session.MediaPosition;
 
 /**
  * Cobalt MediaSession glue, as well as collection of state and logic to switch on/off Android OS
- * features used in media playback, such as audio focus, "KEEP_SCREEN_ON" mode, and "visible
- * behind".
+ * features used in media playback, such as audio focus and "visible behind".
  */
 public class CobaltMediaSession implements ArtworkLoader.Callback {
   // We do handle transport controls and set this flag on all API levels, even though it's
@@ -52,8 +50,8 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   private final Handler mMainHandler = new Handler(Looper.getMainLooper());
   private final Context mContext;
   private final ArtworkLoader mArtworkLoader;
-  private final Holder<Activity> mActivityHolder;
   private WebContents mWebContents;
+  private WebContentsObserver mWebContentsObserver;
   private MediaSessionCompat mMediaSession;
   private MediaSessionObserver mMediaSessionObserver;
   private boolean mIsControllable;
@@ -62,7 +60,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   private Set<Integer> mActions;
   private MediaPosition mPosition;
   private Bitmap mArtworkImage;
-  private MediaSessionCompat.Callback mMediaSessionCallback;
+  private final MediaSessionCompat.Callback mMediaSessionCallback;
   private LifecycleCallback mLifecycleCallback = null;
 
   // TODO: decouple LifecycleCallback and CobaltMediaSession implementation.
@@ -78,10 +76,8 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     }
   }
 
-  public CobaltMediaSession(
-      Context context, Holder<Activity> activityHolder, ArtworkDownloader artworkDownloader) {
+  public CobaltMediaSession(Context context, ArtworkDownloader artworkDownloader) {
     mContext = context;
-    mActivityHolder = activityHolder;
     mArtworkLoader = new ArtworkLoader(this, artworkDownloader);
     mMediaSessionCallback =
         new MediaSessionCompat.Callback() {
@@ -102,43 +98,36 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
 
           @Override
           public void onPlay() {
-            Log.i(TAG, "MediaSession action: PLAY");
             onReceiveAction(MediaSessionAction.PLAY);
           }
 
           @Override
           public void onPause() {
-            Log.i(TAG, "MediaSession action: PAUSE");
             onReceiveAction(MediaSessionAction.PAUSE);
           }
 
           @Override
           public void onSkipToPrevious() {
-            Log.i(TAG, "MediaSession action: SKIP PREVIOUS");
             onReceiveAction(MediaSessionAction.PREVIOUS_TRACK);
           }
 
           @Override
           public void onSkipToNext() {
-            Log.i(TAG, "MediaSession action: SKIP NEXT");
             onReceiveAction(MediaSessionAction.NEXT_TRACK);
           }
 
           @Override
           public void onFastForward() {
-            Log.i(TAG, "MediaSession action: FAST FORWARD");
             onReceiveAction(MediaSessionAction.SEEK_FORWARD);
           }
 
           @Override
           public void onRewind() {
-            Log.i(TAG, "MediaSession action: REWIND");
             onReceiveAction(MediaSessionAction.SEEK_BACKWARD);
           }
 
           @Override
           public void onSeekTo(long pos) {
-            Log.i(TAG, "MediaSession action: SEEK " + pos);
             // To be cautious, explicitly run the code on main loop .
             mMainHandler.post(
                 new Runnable() {
@@ -154,7 +143,6 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
 
           @Override
           public void onStop() {
-            Log.i(TAG, "MediaSession action: STOP");
             onReceiveAction(MediaSessionAction.STOP);
           }
         };
@@ -164,6 +152,12 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     if (mWebContents == webContents) {
       return;
     }
+
+    if (mWebContentsObserver != null) {
+      mWebContentsObserver.observe(null);
+      mWebContentsObserver = null;
+    }
+
     if (webContents == null) {
       cleanupMediaSessionObserver();
       mWebContents = null;
@@ -171,6 +165,18 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     }
 
     mWebContents = webContents;
+    mWebContentsObserver =
+        new WebContentsObserver(mWebContents) {
+          @Override
+          public void mediaSessionCreated(MediaSession mediaSession) {
+            setupMediaSessionObserver(mediaSession);
+          }
+
+          @Override
+          public void webContentsDestroyed() {
+            setWebContents(null);
+          }
+        };
     setupMediaSessionObserver(MediaSession.fromWebContents(mWebContents));
   }
 
@@ -210,6 +216,55 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     Log.i(TAG, "MediaSession has been deactivated.");
   }
 
+  private MediaSessionObserver createMediaSessionObserver(MediaSession mediaSession) {
+    return new MediaSessionObserver(mediaSession) {
+      @Override
+      public void mediaSessionDestroyed() {
+        // We always keep a MediaSession, so nothing to destroy here.
+        mMetadata = null;
+        mActions = null;
+        mPosition = null;
+        mArtworkImage = null;
+      }
+
+      @Override
+      public void mediaSessionStateChanged(boolean isControllable, boolean isPaused) {
+        mIsControllable = isControllable;
+        mIsPaused = isPaused;
+        updatePlaybackState();
+      }
+
+      @Override
+      public void mediaSessionMetadataChanged(MediaMetadata metadata) {
+        mMetadata = metadata;
+        updateMetadata();
+      }
+
+      @Override
+      public void mediaSessionActionsChanged(Set<Integer> actions) {
+        mActions = actions;
+        updatePlaybackState();
+      }
+
+      @Override
+      public void mediaSessionArtworkChanged(List<MediaImage> images) {
+        if (!images.isEmpty()) {
+          Bitmap bitmap = mArtworkLoader.getOrLoadArtwork(images);
+          if (bitmap != null) {
+            onArtworkLoaded(bitmap);
+          }
+        }
+      }
+
+      @Override
+      public void mediaSessionPositionChanged(@Nullable MediaPosition position) {
+        mPosition = position;
+        updateMetadata();
+        updatePlaybackState();
+      }
+    };
+  }
+
   private void cleanupMediaSessionObserver() {
     if (mMediaSessionObserver == null) {
       return;
@@ -224,66 +279,14 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     }
 
     cleanupMediaSessionObserver();
-    mMediaSessionObserver =
-        new MediaSessionObserver(mediaSession) {
-          @Override
-          public void mediaSessionDestroyed() {
-            // We always keep a MediaSession, so nothing to destroy here.
-            mMetadata = null;
-            mActions = null;
-            mPosition = null;
-            mArtworkImage = null;
-          }
-
-          @Override
-          public void mediaSessionStateChanged(boolean isControllable, boolean isPaused) {
-            mIsControllable = isControllable;
-            mIsPaused = isPaused;
-            updatePlaybackState();
-          }
-
-          @Override
-          public void mediaSessionMetadataChanged(MediaMetadata metadata) {
-            mMetadata = metadata;
-            updateMetadata();
-          }
-
-          @Override
-          public void mediaSessionActionsChanged(Set<Integer> actions) {
-            mActions = actions;
-            updatePlaybackState();
-          }
-
-          @Override
-          public void mediaSessionArtworkChanged(List<MediaImage> images) {
-            if (!images.isEmpty()) {
-              Bitmap bitmap = mArtworkLoader.getOrLoadArtwork(images);
-              if (bitmap != null) {
-                onArtworkLoaded(bitmap);
-              }
-            }
-          }
-
-          @Override
-          public void mediaSessionPositionChanged(@Nullable MediaPosition position) {
-            mPosition = position;
-            updateMetadata();
-            updatePlaybackState();
-          }
-        };
-  }
-
-  private void toggleKeepScreenOn(boolean keepScreenOn) {
-    CobaltActivity activity = (CobaltActivity) mActivityHolder.get();
-    if (activity != null) {
-      activity.toggleKeepScreenOn(keepScreenOn);
+    if (mediaSession != null) {
+      mMediaSessionObserver = createMediaSessionObserver(mediaSession);
     }
   }
 
   private void updatePlaybackState() {
     if (!mIsControllable) {
       deactivateMediaSession();
-      toggleKeepScreenOn(false);
       return;
     }
 
@@ -296,13 +299,8 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
 
     int state = PlaybackStateCompat.STATE_NONE;
     if (mMetadata != null) {
-      state =
-          (mIsPaused == true
-              ? PlaybackStateCompat.STATE_PAUSED
-              : PlaybackStateCompat.STATE_PLAYING);
+      state = mIsPaused ? PlaybackStateCompat.STATE_PAUSED : PlaybackStateCompat.STATE_PLAYING;
     }
-
-    toggleKeepScreenOn(state == PlaybackStateCompat.STATE_PLAYING);
 
     if (mPosition != null) {
       playbackStateBuilder.setState(

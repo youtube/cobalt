@@ -87,12 +87,23 @@ EXPORTS
     eglCreateDeviceANGLE
     eglReleaseDeviceANGLE
 
+    ; EGL_ANGLE_device_vulkan
+    eglLockVulkanQueueANGLE
+    eglUnlockVulkanQueueANGLE
+
+    ; EGL_ANGLE_external_context_and_surface
+    eglAcquireExternalContextANGLE
+    eglReleaseExternalContextANGLE
+
     ; EGL_ANGLE_feature_control
     eglQueryDisplayAttribANGLE
     eglQueryStringiANGLE
 
     ; EGL_ANGLE_metal_shared_event_sync
     eglCopyMetalSharedEventANGLE
+
+    ; EGL_ANGLE_no_error
+    eglSetValidationEnabledANGLE
 
     ; EGL_ANGLE_power_preference
     eglForceGPUSwitchANGLE
@@ -115,9 +126,6 @@ EXPORTS
     ; EGL_ANGLE_stream_producer_d3d_texture
     eglCreateStreamProducerD3DTextureANGLE
     eglStreamPostD3DTextureANGLE
-
-    ; EGL_ANGLE_swap_with_frame_token
-    eglSwapBuffersWithFrameTokenANGLE
 
     ; EGL_ANGLE_sync_control_rate
     eglGetMscRateANGLE
@@ -144,6 +152,9 @@ EXPORTS
     eglCreatePlatformPixmapSurfaceEXT
     eglCreatePlatformWindowSurfaceEXT
     eglGetPlatformDisplayEXT
+
+    ; EGL_EXT_surface_compression
+    eglQuerySupportedCompressionRatesEXT
 
     ; EGL_KHR_debug
     eglDebugMessageControlKHR

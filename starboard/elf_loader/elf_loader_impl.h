@@ -21,6 +21,7 @@
 #include "starboard/elf_loader/elf.h"
 #include "starboard/elf_loader/elf_hash_table.h"
 #include "starboard/elf_loader/elf_header.h"
+#include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/elf_loader/exported_symbols.h"
 #include "starboard/elf_loader/gnu_hash_table.h"
 #include "starboard/elf_loader/program_table.h"
@@ -33,7 +34,7 @@ class ElfLoaderImpl {
  public:
   ElfLoaderImpl();
   bool Load(const char* file_name,
-            bool use_compression,
+            CompressionType compression_type,
             bool use_memory_mapped_file);
   void* LookupSymbol(const char* symbol);
   ~ElfLoaderImpl();

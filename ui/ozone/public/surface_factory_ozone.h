@@ -6,7 +6,9 @@
 #define UI_OZONE_PUBLIC_SURFACE_FACTORY_OZONE_H_
 
 #include <stdint.h>
+
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/component_export.h"
@@ -14,13 +16,13 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/native_library.h"
 #include "gpu/vulkan/buildflags.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/buffer_types.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/native_pixmap.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/gfx/overlay_transform.h"
 #include "ui/gl/gl_implementation.h"
+#include "ui/ozone/public/drm_modifiers_filter.h"
 #include "ui/ozone/public/gl_ozone.h"
 
 #if BUILDFLAG(ENABLE_VULKAN)
@@ -148,7 +150,7 @@ class COMPONENT_EXPORT(OZONE_BASE) SurfaceFactoryOzone {
       gfx::Size size,
       gfx::BufferFormat format,
       gfx::BufferUsage usage,
-      absl::optional<gfx::Size> framebuffer_size = absl::nullopt);
+      std::optional<gfx::Size> framebuffer_size = std::nullopt);
 
   virtual bool CanCreateNativePixmapForFormat(gfx::BufferFormat format);
 
@@ -201,6 +203,14 @@ class COMPONENT_EXPORT(OZONE_BASE) SurfaceFactoryOzone {
       const GetProtectedNativePixmapCallback&
           get_protected_native_pixmap_callback);
 
+  // Returns whether the platform supports an external filter on DRM modifiers.
+  virtual bool SupportsDrmModifiersFilter() const;
+
+  // Sets the filter that can remove modifiers incompatible with usage elsewhere
+  // in Chrome.
+  virtual void SetDrmModifiersFilter(
+      std::unique_ptr<DrmModifiersFilter> filter);
+
   // Enumerates the BufferFormats that the platform can allocate (and use for
   // texturing) via CreateNativePixmap(), or returns empty if those could not be
   // retrieved or the platform doesn't know in advance.
@@ -208,8 +218,14 @@ class COMPONENT_EXPORT(OZONE_BASE) SurfaceFactoryOzone {
   virtual std::vector<gfx::BufferFormat> GetSupportedFormatsForTexturing()
       const;
 
+  // Enumerates the BufferFormats that the platform can import via
+  // CreateNativePixmapFromHandle() to use for GL, or returns empty if those
+  // could not be retrieved or the platform doesn't know in advance.
+  // Enumeration should not be assumed to take a trivial amount of time.
+  std::vector<gfx::BufferFormat> GetSupportedFormatsForGLNativePixmapImport();
+
   // This returns a preferred format for solid color image on Wayland.
-  virtual absl::optional<gfx::BufferFormat> GetPreferredFormatForSolidColor()
+  virtual std::optional<gfx::BufferFormat> GetPreferredFormatForSolidColor()
       const;
 
  protected:

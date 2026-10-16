@@ -18,15 +18,8 @@
 
 #include <atomic>
 
-#include "rtc_base/checks.h"
-#include "sdk/android/native_api/jni/jni_int_wrapper.h"
-#include "sdk/android/native_api/jni/scoped_java_ref.h"
+#include "third_party/jni_zero/jni_zero_internal.h"
 
-#define CHECK_CLAZZ(env, jcaller, clazz, ...) RTC_DCHECK(clazz);
-#define CHECK_NATIVE_PTR(env, jcaller, native_ptr, method_name, ...) \
-  RTC_DCHECK(native_ptr) << method_name;
-
-#define BASE_EXPORT
 #define JNI_REGISTRATION_EXPORT __attribute__((visibility("default")))
 
 #if defined(WEBRTC_ARCH_X86)
@@ -39,68 +32,15 @@
 #define JNI_GENERATOR_EXPORT extern "C" JNIEXPORT JNICALL
 #endif
 
-#define CHECK_EXCEPTION(jni)        \
-  RTC_CHECK(!jni->ExceptionCheck()) \
-      << (jni->ExceptionDescribe(), jni->ExceptionClear(), "")
-
-namespace webrtc {
-
-// This function will initialize `atomic_class_id` to contain a global ref to
-// the given class, and will return that ref on subsequent calls. The caller is
-// responsible to zero-initialize `atomic_class_id`. It's fine to
-// simultaneously call this on multiple threads referencing the same
-// `atomic_method_id`.
-jclass LazyGetClass(JNIEnv* env,
-                    const char* class_name,
-                    std::atomic<jclass>* atomic_class_id);
-
-// This class is a wrapper for JNIEnv Get(Static)MethodID.
-class MethodID {
- public:
-  enum Type {
-    TYPE_STATIC,
-    TYPE_INSTANCE,
-  };
-
-  // This function will initialize `atomic_method_id` to contain a ref to
-  // the given method, and will return that ref on subsequent calls. The caller
-  // is responsible to zero-initialize `atomic_method_id`. It's fine to
-  // simultaneously call this on multiple threads referencing the same
-  // `atomic_method_id`.
-  template <Type type>
-  static jmethodID LazyGet(JNIEnv* env,
-                           jclass clazz,
-                           const char* method_name,
-                           const char* jni_signature,
-                           std::atomic<jmethodID>* atomic_method_id);
-};
-
-}  // namespace webrtc
-
-// Re-export relevant classes into the namespaces the script expects.
-namespace base {
-namespace android {
-
-using webrtc::JavaParamRef;
-using webrtc::JavaRef;
-using webrtc::LazyGetClass;
-using webrtc::MethodID;
-using webrtc::ScopedJavaLocalRef;
-
-}  // namespace android
-}  // namespace base
-
+// Re-export helpers in the old jni_generator namespace.
+// TODO(b/319078685): Remove once all uses of the jni_generator has been
+// updated.
 namespace jni_generator {
-inline void CheckException(JNIEnv* env) {
-  CHECK_EXCEPTION(env);
-}
+using jni_zero::internal::kJniStackMarkerValue;
 
-// A 32 bit number could be an address on stack. Random 64 bit marker on the
-// stack is much less likely to be present on stack.
-constexpr uint64_t kJniStackMarkerValue = 0xbdbdef1bebcade1b;
-
-// Context about the JNI call with exception checked to be stored in stack.
-struct BASE_EXPORT JniJavaCallContextUnchecked {
+// TODO(b/319078685): Remove JniJavaCallContextUnchecked once all uses of the
+// jni_generator has been updated.
+struct JniJavaCallContextUnchecked {
   inline JniJavaCallContextUnchecked() {
 // TODO(ssid): Implement for other architectures.
 #if defined(__arm__) || defined(__aarch64__)
@@ -112,7 +52,7 @@ struct BASE_EXPORT JniJavaCallContextUnchecked {
   }
 
   // Force no inline to reduce code size.
-  template <base::android::MethodID::Type type>
+  template <jni_zero::MethodID::Type type>
   void Init(JNIEnv* env,
             jclass clazz,
             const char* method_name,
@@ -125,7 +65,7 @@ struct BASE_EXPORT JniJavaCallContextUnchecked {
     // Gets PC of the calling function.
     pc = reinterpret_cast<uintptr_t>(__builtin_return_address(0));
 
-    method_id = base::android::MethodID::LazyGet<type>(
+    method_id = jni_zero::MethodID::LazyGet<type>(
         env, clazz, method_name, jni_signature, atomic_method_id);
   }
 
@@ -142,10 +82,12 @@ struct BASE_EXPORT JniJavaCallContextUnchecked {
   jmethodID method_id;
 };
 
+// TODO(b/319078685): Remove JniJavaCallContextChecked once all uses of the
+// jni_generator has been updated.
 // Context about the JNI call with exception unchecked to be stored in stack.
-struct BASE_EXPORT JniJavaCallContextChecked {
+struct JniJavaCallContextChecked {
   // Force no inline to reduce code size.
-  template <base::android::MethodID::Type type>
+  template <jni_zero::MethodID::Type type>
   void Init(JNIEnv* env,
             jclass clazz,
             const char* method_name,
@@ -156,7 +98,7 @@ struct BASE_EXPORT JniJavaCallContextChecked {
     base.pc = reinterpret_cast<uintptr_t>(__builtin_return_address(0));
   }
 
-  ~JniJavaCallContextChecked() { jni_generator::CheckException(base.env1); }
+  ~JniJavaCallContextChecked() { jni_zero::CheckException(base.env1); }
 
   JniJavaCallContextUnchecked base;
 };
@@ -164,6 +106,7 @@ struct BASE_EXPORT JniJavaCallContextChecked {
 static_assert(sizeof(JniJavaCallContextChecked) ==
                   sizeof(JniJavaCallContextUnchecked),
               "Stack unwinder cannot work with structs of different sizes.");
+
 }  // namespace jni_generator
 
 #endif  // SDK_ANDROID_SRC_JNI_JNI_GENERATOR_HELPER_H_

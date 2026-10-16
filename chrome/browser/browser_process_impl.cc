@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "chrome/browser/browser_process_impl.h"
 
 #include <stddef.h>
@@ -9,6 +14,7 @@
 
 #include <algorithm>
 #include <map>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -21,7 +27,9 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
@@ -34,6 +42,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time/default_clock.h"
 #include "base/time/default_tick_clock.h"
+#include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -42,18 +51,21 @@
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/chrome_browser_main.h"
 #include "chrome/browser/chrome_content_browser_client.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/component_updater/chrome_component_updater_configurator.h"
+#include "chrome/browser/controlled_frame/controlled_frame_extensions_browser_api_provider.h"
 #include "chrome/browser/defaults.h"
 #include "chrome/browser/devtools/remote_debugging_server.h"
 #include "chrome/browser/download/download_request_limiter.h"
 #include "chrome/browser/download/download_status_updater.h"
+#include "chrome/browser/global_features.h"
 #include "chrome/browser/google/google_brand.h"
 #include "chrome/browser/gpu/gpu_mode_manager.h"
 #include "chrome/browser/icon_manager.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/lifetime/switch_utils.h"
+#include "chrome/browser/media/chrome_media_session_client.h"
+#include "chrome/browser/media/router/providers/cast/dual_media_sink_service.h"
 #include "chrome/browser/media/webrtc/webrtc_event_log_manager.h"
 #include "chrome/browser/media/webrtc/webrtc_log_uploader.h"
 #include "chrome/browser/metrics/chrome_feature_list_creator.h"
@@ -71,7 +83,7 @@
 #include "chrome/browser/printing/print_job_manager.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/resource_coordinator/resource_coordinator_parts.h"
-#include "chrome/browser/safe_browsing/safe_browsing_service.h"
+#include "chrome/browser/serial/serial_policy_allowed_ports.h"
 #include "chrome/browser/shell_integration.h"
 #include "chrome/browser/site_isolation/prefs_observer.h"
 #include "chrome/browser/ssl/secure_origin_prefs_observer.h"
@@ -79,7 +91,6 @@
 #include "chrome/browser/status_icons/status_tray.h"
 #include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/update_client/chrome_update_query_params_delegate.h"
-#include "chrome/browser/webapps/chrome_webapps_client.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/channel_info.h"
 #include "chrome/common/chrome_constants.h"
@@ -88,8 +99,9 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/installer/util/google_update_settings.h"
+#include "components/application_locale_storage/application_locale_storage.h"
 #include "components/breadcrumbs/core/application_breadcrumbs_logger.h"
 #include "components/breadcrumbs/core/breadcrumb_persistent_storage_util.h"
 #include "components/breadcrumbs/core/breadcrumbs_status.h"
@@ -97,6 +109,10 @@
 #include "components/component_updater/component_updater_service.h"
 #include "components/component_updater/timer_update_scheduler.h"
 #include "components/crash/core/common/crash_key.h"
+#include "components/embedder_support/origin_trials/origin_trials_settings_storage.h"
+#include "components/fingerprinting_protection_filter/browser/fingerprinting_protection_ruleset_publisher.h"
+#include "components/fingerprinting_protection_filter/common/fingerprinting_protection_filter_constants.h"
+#include "components/fingerprinting_protection_filter/common/fingerprinting_protection_filter_features.h"
 #include "components/gcm_driver/gcm_driver.h"
 #include "components/language/core/browser/pref_names.h"
 #include "components/metrics/metrics_pref_names.h"
@@ -104,6 +120,7 @@
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager_client.h"
 #include "components/network_time/network_time_tracker.h"
+#include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/permissions/permissions_client.h"
 #include "components/policy/core/common/policy_service.h"
 #include "components/prefs/json_pref_store.h"
@@ -111,7 +128,11 @@
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/content/browser/safe_browsing_service_interface.h"
 #include "components/sessions/core/session_id_generator.h"
-#include "components/subresource_filter/content/browser/ruleset_service.h"
+#include "components/signin/core/browser/active_primary_accounts_metrics_recorder.h"
+#include "components/subresource_filter/content/browser/safe_browsing_ruleset_publisher.h"
+#include "components/subresource_filter/content/shared/browser/ruleset_service.h"
+#include "components/subresource_filter/core/browser/subresource_filter_features.h"
+#include "components/subresource_filter/core/common/constants.h"
 #include "components/translate/core/browser/translate_download_manager.h"
 #include "components/ukm/ukm_service.h"
 #include "components/update_client/update_query_params.h"
@@ -122,21 +143,17 @@
 #include "content/public/browser/child_process_security_policy.h"
 #include "content/public/browser/network_quality_observer_factory.h"
 #include "content/public/browser/network_service_instance.h"
-#include "content/public/browser/notification_details.h"
 #include "content/public/browser/process_visibility_util.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/service_worker_context.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/common/content_switches.h"
-#include "content/public/common/network_service_util.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/constants.h"
 #include "media/media_buildflags.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "net/log/net_log.h"
 #include "ppapi/buildflags/buildflags.h"
 #include "printing/buildflags/buildflags.h"
-#include "services/device/public/cpp/geolocation/geolocation_manager.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "ui/base/idle/idle.h"
@@ -145,51 +162,60 @@
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/windows_version.h"
+#include "chrome/browser/browser_features.h"
+#include "chrome/browser/os_crypt/app_bound_encryption_provider_win.h"
+#include "components/app_launch_prefetch/app_launch_prefetch.h"
+#include "components/os_crypt/async/browser/dpapi_key_provider.h"
 #elif BUILDFLAG(IS_MAC)
 #include "chrome/browser/chrome_browser_main_mac.h"
 #include "chrome/browser/media/webrtc/system_media_capture_permissions_stats_mac.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "components/soda/soda_installer_impl_chromeos.h"
 #else
 #include "ui/message_center/message_center.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/accessibility/accessibility_prefs/android/accessibility_prefs_controller.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/ssl/chrome_security_state_client.h"
+#include "chrome/browser/webapps/webapps_client_android.h"
 #include "chrome/browser/webauthn/android/chrome_webauthn_client_android.h"
 #include "components/webauthn/android/webauthn_client_android.h"
 #else
 #include "chrome/browser/devtools/devtools_auto_opener.h"
+#include "chrome/browser/error_reporting/chrome_js_error_report_processor.h"
 #include "chrome/browser/gcm/gcm_product_util.h"
-#include "chrome/browser/hid/hid_policy_allowed_devices.h"
 #include "chrome/browser/hid/hid_system_tray_icon.h"
 #include "chrome/browser/intranet_redirect_detector.h"
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/resource_coordinator/tab_manager.h"
-#include "chrome/browser/serial/serial_policy_allowed_ports.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/usb/usb_system_tray_icon.h"
+#include "chrome/browser/web_applications/isolated_web_apps/iwa_identity_validator.h"
+#include "chrome/browser/webapps/webapps_client_desktop.h"
 #include "components/gcm_driver/gcm_client_factory.h"
 #include "components/gcm_driver/gcm_desktop_utils.h"
 #include "components/keep_alive_registry/keep_alive_registry.h"
 #endif
 
 #if BUILDFLAG(ENABLE_BACKGROUND_MODE)
-#include "chrome/browser/background/background_mode_manager.h"
+#include "chrome/browser/background/extensions/background_mode_manager.h"
+#endif
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#include "chrome/browser/extensions/chrome_extensions_browser_client.h"
+#include "chrome/common/initialize_extensions_client.h"
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/apps/platform_apps/chrome_apps_browser_api_provider.h"
-#include "chrome/browser/extensions/chrome_extensions_browser_client.h"
-#include "chrome/browser/extensions/event_router_forwarder.h"
 #include "chrome/browser/media_galleries/media_file_system_registry.h"
 #include "chrome/browser/ui/apps/chrome_app_window_client.h"
-#include "chrome/common/controlled_frame.h"
 #include "chrome/common/extensions/chrome_extensions_client.h"
-#include "chrome/common/initialize_extensions_client.h"
 #include "components/storage_monitor/storage_monitor.h"
 #include "extensions/common/context_data.h"
 #include "extensions/common/extension_l10n_util.h"
@@ -208,14 +234,9 @@
 #include "chrome/browser/sessions/exit_type_service.h"
 #endif
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/first_run/upgrade_util.h"
-#include "chrome/browser/ui/profile_picker.h"
-#include "components/enterprise/browser/controller/chrome_browser_cloud_management_controller.h"
-#endif
-
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/error_reporting/chrome_js_error_report_processor.h"  // nogncheck
+#include "chrome/browser/ui/profiles/profile_picker.h"
 #endif
 
 #if BUILDFLAG(ENABLE_CHROME_NOTIFICATIONS)
@@ -225,11 +246,29 @@
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/chromeos/extensions/telemetry/chromeos_telemetry_extensions_browser_api_provider.h"
 #include "chrome/browser/hid/hid_pinned_notification.h"
+#include "chrome/browser/screen_ai/screen_ai_downloader_chromeos.h"
+#include "chrome/browser/usb/usb_pinned_notification.h"
+#include "components/crash/core/app/crashpad.h"
 #elif !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/hid/hid_status_icon.h"
+#include "chrome/browser/screen_ai/screen_ai_downloader_non_chromeos.h"
+#include "chrome/browser/usb/usb_status_icon.h"
+#include "components/enterprise/browser/controller/chrome_browser_cloud_management_controller.h"
 #endif
 
-#if BUILDFLAG(IS_WIN) || (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS))
+#if BUILDFLAG(IS_LINUX)
+#include "chrome/browser/browser_features.h"
+#include "components/os_crypt/async/browser/fallback_linux_key_provider.h"
+#include "components/os_crypt/async/browser/freedesktop_secret_key_provider.h"
+#include "components/os_crypt/async/browser/secret_portal_key_provider.h"
+#include "components/password_manager/core/browser/password_manager_switches.h"
+#endif
+
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+#include "chrome/browser/safe_browsing/safe_browsing_service.h"
+#endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 // How often to check if the persistent instance of Chrome needs to restart
 // to install an update.
 static const int kUpdateCheckIntervalHours = 6;
@@ -252,12 +291,12 @@ BrowserProcessImpl::BrowserProcessImpl(StartupData* startup_data)
                                     ->TakeChromeBrowserPolicyConnector()),
       local_state_(
           startup_data->chrome_feature_list_creator()->TakePrefService()),
+      active_primary_accounts_metrics_recorder_(
+          std::make_unique<signin::ActivePrimaryAccountsMetricsRecorder>(
+              *local_state_)),
       platform_part_(std::make_unique<BrowserProcessPlatformPart>()) {
+  CHECK(!g_browser_process);
   g_browser_process = this;
-
-  // Initialize the SessionIdGenerator instance, providing a PrefService to
-  // ensure the persistent storage of current max SessionId.
-  sessions::SessionIdGenerator::GetInstance()->Init(local_state_.get());
 
   DCHECK(browser_policy_connector_);
   DCHECK(local_state_);
@@ -266,14 +305,7 @@ BrowserProcessImpl::BrowserProcessImpl(StartupData* startup_data)
 }
 
 void BrowserProcessImpl::Init() {
-  if (content::IsOutOfProcessNetworkService()) {
-    // Initialize NetLog source IDs to use an alternate starting value for
-    // the browser process. This needs to be done early in process startup
-    // before any NetLogSource objects might get created.
-    net::NetLog::Get()->InitializeSourceIdPartition();
-  }
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Forces creation of |metrics_services_manager_client_| if necessary
   // (typically this call is a no-op as MetricsServicesManager has already been
   // created).
@@ -285,7 +317,6 @@ void BrowserProcessImpl::Init() {
   download_status_updater_ = std::make_unique<DownloadStatusUpdater>();
 
 #if BUILDFLAG(ENABLE_PRINTING)
-  // Must be created after the NotificationService.
   print_job_manager_ = std::make_unique<printing::PrintJobManager>();
 #endif
 
@@ -296,28 +327,48 @@ void BrowserProcessImpl::Init() {
   ui::InitIdleMonitor();
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-  extensions::AppWindowClient::Set(ChromeAppWindowClient::GetInstance());
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+  EnsureExtensionsClientInitialized();
 
-  extension_event_router_forwarder_ =
-      base::MakeRefCounted<extensions::EventRouterForwarder>();
-
-  EnsureExtensionsClientInitialized(
-      controlled_frame::CreateAvailabilityCheckMap());
-
+  // Initialize the ExtensionsBrowserClient. This isn't in extension-specific
+  // code because a number of external concepts that extensions shouldn't know
+  // about leverage the extensions system, such as platform apps and controlled
+  // frame. On Android the ExtensionsBrowserClient is created elsewhere,
+  // as BrowserContextKeyedServices are initialized earlier on Android. However,
+  // ownership is transferred here, as this object lives long into shutdown, and
+  // ExtensionsBrowserClient must also live during most of shutdown.
+  // TODO(devlin): Move this block out of BrowserProcessImpl to somewhere like
+  // //chrome/browser/initialize_extensions_browser_client, analogous to
+  // `EnsureExtensionsClientInitialized()` above?
+#if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
+  extensions_browser_client_ = startup_data()->TakeExtensionsBrowserClient();
+#elif BUILDFLAG(ENABLE_EXTENSIONS)
   extensions_browser_client_ =
       std::make_unique<extensions::ChromeExtensionsBrowserClient>();
+#else
+  // Neither ENABLE_EXTENSIONS nor ENABLE_DESKTOP_ANDROID_EXTENSIONS are
+  // enabled. Unknown configuration.
+#error "Unknown configuration."
+#endif
+
+  extensions_browser_client_->Init();
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   extensions_browser_client_->AddAPIProvider(
       std::make_unique<chrome_apps::ChromeAppsBrowserAPIProvider>());
-  extensions::ExtensionsBrowserClient::Set(extensions_browser_client_.get());
-
+  extensions_browser_client_->AddAPIProvider(
+      std::make_unique<
+          controlled_frame::ControlledFrameExtensionsBrowserAPIProvider>());
 #if BUILDFLAG(IS_CHROMEOS)
   extensions_browser_client_->AddAPIProvider(
       std::make_unique<
           chromeos::ChromeOSTelemetryExtensionsBrowserAPIProvider>());
 #endif  // BUILDFLAG(IS_CHROMEOS)
-
+  extensions::AppWindowClient::Set(ChromeAppWindowClient::GetInstance());
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
+  extensions::ExtensionsBrowserClient::Set(extensions_browser_client_.get());
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 #if BUILDFLAG(ENABLE_CHROME_NOTIFICATIONS)
   message_center::MessageCenter::Initialize();
@@ -337,8 +388,19 @@ void BrowserProcessImpl::Init() {
   // Make sure permissions client has been set.
   ChromePermissionsClient::GetInstance();
 
+  // Make sure media session client has been set.
+  ChromeMediaSessionClient::GetInstance();
+
   // Make sure webapps client has been set.
-  webapps::ChromeWebappsClient::GetInstance();
+#if BUILDFLAG(IS_ANDROID)
+  webapps::WebappsClientAndroid::CreateSingleton();
+#else
+  webapps::WebappsClientDesktop::CreateSingleton();
+#endif
+
+#if !BUILDFLAG(IS_ANDROID)
+  web_app::IwaIdentityValidator::CreateSingleton();
+#endif
 
 #if !BUILDFLAG(IS_ANDROID)
   KeepAliveRegistry::GetInstance()->SetIsShuttingDown(false);
@@ -367,17 +429,37 @@ void BrowserProcessImpl::Init() {
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-  components::WebAuthnClientAndroid::SetClient(
+  webauthn::WebAuthnClientAndroid::SetClient(
       std::make_unique<ChromeWebAuthnClientAndroid>());
+  accessibility_prefs_controller_ =
+      std::make_unique<accessibility::AccessibilityPrefsController>(
+          local_state());
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(IS_CHROMEOS)
   hid_system_tray_icon_ = std::make_unique<HidPinnedNotification>();
+  usb_system_tray_icon_ = std::make_unique<UsbPinnedNotification>();
 #else
   hid_system_tray_icon_ = std::make_unique<HidStatusIcon>();
+  usb_system_tray_icon_ = std::make_unique<UsbStatusIcon>();
 #endif  // BUILDFLAG(IS_CHROMEOS)
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+  features_ = GlobalFeatures::CreateGlobalFeatures();
+  features_->Init();
+
+  // `Unretained` is safe as CallbackListSubscription does not outlive `this`.
+  on_locale_changed_callback_subscription_ =
+      features_->application_locale_storage()->RegisterOnLocaleChangedCallback(
+          base::BindRepeating(&BrowserProcessImpl::OnLocaleChanged,
+                              base::Unretained(this)));
+
+  // Initialize the locale.
+  const std::string& locale =
+      startup_data_->chrome_feature_list_creator()->actual_locale();
+  CHECK(!locale.empty());
+  features_->application_locale_storage()->Set(locale);
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -412,20 +494,22 @@ BrowserProcessImpl::~BrowserProcessImpl() {
 #if !BUILDFLAG(IS_ANDROID)
 void BrowserProcessImpl::StartTearDown() {
   TRACE_EVENT0("shutdown", "BrowserProcessImpl::StartTearDown");
-  // TODO(crbug.com/560486): Fix the tests that make the check of
+  // TODO(crbug.com/41222012): Fix the tests that make the check of
   // |tearing_down_| necessary in IsShuttingDown().
   tearing_down_ = true;
   DCHECK(IsShuttingDown());
 
-  platform_part()->BeginStartTearDown();
-
+  features_->Shutdown();
+  metrics_services_manager_client_ = nullptr;
   metrics_services_manager_.reset();
   intranet_redirect_detector_.reset();
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   if (safe_browsing_service_.get())
     safe_browsing_service()->ShutDown();
+#endif
   network_time_tracker_.reset();
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
   // Initial cleanup for ChromeBrowserCloudManagement, shutdown components that
   // depend on profile and notification system. For example, ProfileManager
   // observer and KeyServices observer need to be removed before profiles.
@@ -433,14 +517,13 @@ void BrowserProcessImpl::StartTearDown() {
       browser_policy_connector_->chrome_browser_cloud_management_controller();
   if (cloud_management_controller)
     cloud_management_controller->ShutDown();
-#endif
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
-#if !BUILDFLAG(IS_ANDROID)
-  // |hid_system_tray_icon_| must be destroyed before
-  // |system_notification_helper_| for ChromeOS and |status_tray_| for
+  // |hid_system_tray_icon_| and |usb_system_tray_icon_| must be destroyed
+  // before |system_notification_helper_| for ChromeOS and |status_tray_| for
   // non-ChromeOS.
   hid_system_tray_icon_.reset();
-#endif
+  usb_system_tray_icon_.reset();
 
   system_notification_helper_.reset();
 
@@ -449,7 +532,7 @@ void BrowserProcessImpl::StartTearDown() {
   // before the profiles, since if there are any still showing we will access
   // those things during teardown.
   notification_ui_manager_.reset();
-#endif
+#endif  // BUILDFLAG(ENABLE_CHROME_NOTIFICATIONS)
 
   // Debugger must be cleaned up before ProfileManager.
   remote_debugging_server_.reset();
@@ -457,26 +540,31 @@ void BrowserProcessImpl::StartTearDown() {
 
   battery_metrics_.reset();
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   // The Extensions Browser Client needs to teardown some members while the
   // profile manager is still alive.
   extensions_browser_client_->StartTearDown();
-#endif
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
   // Need to clear profiles (download managers) before the IO thread.
   {
     TRACE_EVENT0("shutdown",
                  "BrowserProcessImpl::StartTearDown:ProfileManager");
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
     // The desktop profile picker needs to be closed before the guest profile
     // can be destroyed.
     ProfilePicker::Hide();
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
     // `profile_manager_` must be destroyed before `background_mode_manager_`,
     // because the background mode manager does not stop observing profile
     // changes at destruction (notifying the observers would cause a use-after-
     // free).
     profile_manager_.reset();
+  }
+
+  if (media_router::DualMediaSinkService::HasInstance()) {
+    media_router::DualMediaSinkService::GetInstance()
+        ->StopObservingPrefChanges();
   }
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -488,12 +576,12 @@ void BrowserProcessImpl::StartTearDown() {
   // Valgrind would report a leak on almost every single browser_test.
   // TODO(gbillock): Make this unnecessary.
   storage_monitor::StorageMonitor::Destroy();
-#endif
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 #if BUILDFLAG(ENABLE_CHROME_NOTIFICATIONS)
   if (message_center::MessageCenter::Get())
     message_center::MessageCenter::Shutdown();
-#endif
+#endif  // BUILDFLAG(ENABLE_CHROME_NOTIFICATIONS)
 
   // The policy providers managed by |browser_policy_connector_| need to shut
   // down while the IO and FILE threads are still alive. The monitoring
@@ -527,7 +615,9 @@ void BrowserProcessImpl::StartTearDown() {
   // down.
   application_breadcrumbs_logger_.reset();
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
+#if !BUILDFLAG(IS_ANDROID)
 void BrowserProcessImpl::PostDestroyThreads() {
   // With the file_thread_ flushed, we can release any icon resources.
   icon_manager_.reset();
@@ -571,7 +661,7 @@ class RundownTaskCounter :
 
  private:
   friend class base::RefCountedThreadSafe<RundownTaskCounter>;
-  ~RundownTaskCounter() {}
+  ~RundownTaskCounter() = default;
 
   // Decrements the counter and releases the waitable event on transition to
   // zero.
@@ -635,11 +725,6 @@ void BrowserProcessImpl::FlushLocalStateAndReply(base::OnceClosure reply) {
   local_state_->CommitPendingWrite(std::move(reply));
 }
 
-device::GeolocationManager* BrowserProcessImpl::geolocation_manager() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return geolocation_manager_.get();
-}
-
 void BrowserProcessImpl::EndSession() {
   // Mark all the profiles as clean.
   ProfileManager* pm = profile_manager();
@@ -662,7 +747,7 @@ void BrowserProcessImpl::EndSession() {
   metrics::MetricsService* metrics = g_browser_process->metrics_service();
   if (metrics) {
     metrics->LogCleanShutdown();
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
     // The MetricsService may update Local State prefs in memory without
     // writing the updated prefs to disk, so schedule a Local State write now.
     //
@@ -677,6 +762,20 @@ void BrowserProcessImpl::EndSession() {
   // be terminated soon.
   // http://crbug.com/125207
   base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
+
+#if BUILDFLAG(IS_CHROMEOS_DEVICE)
+  // The browser is already shutting down, so the DeleteFile inside
+  // DeleteCrashpadIsReadyFile cannot causing UI jank. Also, this code
+  // cannot use other MayBlock threads, as the process will be disappearing
+  // momentarily.
+  {
+    base::ScopedAllowBlocking allow_delete;
+    // Crashes after this point will generate a bunch of unnecessary work
+    // in crash reporter, so call this function as late as possible, after
+    // approximately everything that can crash is complete.
+    crash_reporter::DeleteCrashpadIsReadyFile();
+  }
+#endif
 
   // We must write that the profile and metrics service shutdown cleanly,
   // otherwise on startup we'll think we crashed. So we block until done and
@@ -707,7 +806,9 @@ void BrowserProcessImpl::EndSession() {
 metrics_services_manager::MetricsServicesManager*
 BrowserProcessImpl::GetMetricsServicesManager() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!metrics_services_manager_) {
+  // Only create the objects if teardown hasn't started yet, as otherwise these
+  // may have already been destroyed.
+  if (!metrics_services_manager_ && !tearing_down_) {
     auto client =
         std::make_unique<ChromeMetricsServicesManagerClient>(local_state());
     metrics_services_manager_client_ = client.get();
@@ -720,13 +821,21 @@ BrowserProcessImpl::GetMetricsServicesManager() {
 
 metrics::MetricsService* BrowserProcessImpl::metrics_service() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return GetMetricsServicesManager()->GetMetricsService();
+  auto* metrics_services_manager = GetMetricsServicesManager();
+  if (metrics_services_manager) {
+    return metrics_services_manager->GetMetricsService();
+  }
+  return nullptr;
 }
 
-void BrowserProcessImpl::SetGeolocationManager(
-    std::unique_ptr<device::GeolocationManager> geolocation_manager) {
+embedder_support::OriginTrialsSettingsStorage*
+BrowserProcessImpl::GetOriginTrialsSettingsStorage() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  geolocation_manager_ = std::move(geolocation_manager);
+  if (!origin_trials_settings_storage_) {
+    origin_trials_settings_storage_ =
+        std::make_unique<embedder_support::OriginTrialsSettingsStorage>();
+  }
+  return origin_trials_settings_storage_.get();
 }
 
 SystemNetworkContextManager*
@@ -762,29 +871,31 @@ PrefService* BrowserProcessImpl::local_state() {
   return local_state_.get();
 }
 
+signin::ActivePrimaryAccountsMetricsRecorder*
+BrowserProcessImpl::active_primary_accounts_metrics_recorder() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return active_primary_accounts_metrics_recorder_.get();
+}
+
 variations::VariationsService* BrowserProcessImpl::variations_service() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return GetMetricsServicesManager()->GetVariationsService();
+  auto* metrics_services_manager = GetMetricsServicesManager();
+  if (metrics_services_manager) {
+    return metrics_services_manager->GetVariationsService();
+  }
+  return nullptr;
 }
 
 BrowserProcessPlatformPart* BrowserProcessImpl::platform_part() {
   return platform_part_.get();
 }
 
-extensions::EventRouterForwarder*
-BrowserProcessImpl::extension_event_router_forwarder() {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-  return extension_event_router_forwarder_.get();
-#else
-  return NULL;
-#endif
-}
-
 NotificationUIManager* BrowserProcessImpl::notification_ui_manager() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if BUILDFLAG(ENABLE_CHROME_NOTIFICATIONS)
-  if (!created_notification_ui_manager_)
+  if (!created_notification_ui_manager_ && !shutting_down_) {
     CreateNotificationUIManager();
+  }
   return notification_ui_manager_.get();
 #else
   return nullptr;
@@ -792,13 +903,9 @@ NotificationUIManager* BrowserProcessImpl::notification_ui_manager() {
 }
 
 NotificationPlatformBridge* BrowserProcessImpl::notification_platform_bridge() {
-#if BUILDFLAG(ENABLE_SYSTEM_NOTIFICATIONS)
   if (!created_notification_bridge_)
     CreateNotificationPlatformBridge();
   return notification_bridge_.get();
-#else
-  return nullptr;
-#endif
 }
 
 policy::ChromeBrowserPolicyConnector*
@@ -828,18 +935,30 @@ GpuModeManager* BrowserProcessImpl::gpu_mode_manager() {
 void BrowserProcessImpl::CreateDevToolsProtocolHandler() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #if !BUILDFLAG(IS_ANDROID)
-  // StartupBrowserCreator::LaunchBrowser can be run multiple times when browser
-  // is started with several profiles or existing browser process is reused.
-  if (!remote_debugging_server_) {
-    if (!local_state_->GetBoolean(prefs::kDevToolsRemoteDebuggingAllowed)) {
-      // Follow content/browser/devtools/devtools_http_handler.cc that reports
-      // its remote debugging port on stderr for symmetry.
+  auto maybe_remote_debugging_server =
+      RemoteDebuggingServer::GetInstance(local_state_.get());
+  if (maybe_remote_debugging_server.has_value()) {
+    remote_debugging_server_ = std::move(*maybe_remote_debugging_server);
+    return;
+  }
+
+  // For errors, follow content/browser/devtools/devtools_http_handler.cc that
+  // reports its remote debugging port on stderr for symmetry.
+  switch (maybe_remote_debugging_server.error()) {
+    case RemoteDebuggingServer::NotStartedReason::kNotRequested:
+      break;
+    case RemoteDebuggingServer::NotStartedReason::kDisabledByPolicy:
       fputs("\nDevTools remote debugging is disallowed by the system admin.\n",
             stderr);
       fflush(stderr);
-      return;
-    }
-    remote_debugging_server_ = std::make_unique<RemoteDebuggingServer>();
+      break;
+    case RemoteDebuggingServer::NotStartedReason::kDisabledByDefaultUserDataDir:
+      fputs(
+          "\nDevTools remote debugging requires a non-default data directory. "
+          "Specify this using --user-data-dir.\n",
+          stderr);
+      fflush(stderr);
+      break;
   }
 #endif
 }
@@ -868,7 +987,6 @@ printing::PrintJobManager* BrowserProcessImpl::print_job_manager() {
   return print_job_manager_.get();
 #else
   NOTREACHED();
-  return nullptr;
 #endif
 }
 
@@ -909,22 +1027,28 @@ IntranetRedirectDetector* BrowserProcessImpl::intranet_redirect_detector() {
 #endif
 
 const std::string& BrowserProcessImpl::GetApplicationLocale() {
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-  // TODO(crbug.com/1033644): Remove #if.
+#if !BUILDFLAG(IS_CHROMEOS)
+  // TODO(crbug.com/40663419): Remove #if.
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 #endif
-  DCHECK(!locale_.empty());
-  return locale_;
+
+  // TODO(crbug.com/407681800): Replace this with CHECK(features_) once we've
+  // confirmed no such code path exists.
+  if (!features_) {
+    return startup_data_->chrome_feature_list_creator()->actual_locale();
+  }
+
+  CHECK(features_->application_locale_storage());
+  const std::string& locale = features_->application_locale_storage()->Get();
+  DCHECK(!locale.empty());
+  return locale;
 }
 
 void BrowserProcessImpl::SetApplicationLocale(
     const std::string& actual_locale) {
-  // NOTE: this is called before any threads have been created in non-test
-  // environments.
-  locale_ = actual_locale;
-  ChromeContentBrowserClient::SetApplicationLocale(actual_locale);
-  translate::TranslateDownloadManager::GetInstance()->set_application_locale(
-      actual_locale);
+  CHECK(features_);
+  CHECK(features_->application_locale_storage());
+  features_->application_locale_storage()->Set(actual_locale);
 }
 
 DownloadStatusUpdater* BrowserProcessImpl::download_status_updater() {
@@ -976,7 +1100,6 @@ BrowserProcessImpl::resource_coordinator_parts() {
   return resource_coordinator_parts_.get();
 }
 
-#if !BUILDFLAG(IS_ANDROID)
 SerialPolicyAllowedPorts* BrowserProcessImpl::serial_policy_allowed_ports() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!serial_policy_allowed_ports_) {
@@ -986,20 +1109,31 @@ SerialPolicyAllowedPorts* BrowserProcessImpl::serial_policy_allowed_ports() {
   return serial_policy_allowed_ports_.get();
 }
 
-HidPolicyAllowedDevices* BrowserProcessImpl::hid_policy_allowed_devices() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!hid_policy_allowed_devices_) {
-    hid_policy_allowed_devices_ =
-        std::make_unique<HidPolicyAllowedDevices>(local_state());
-  }
-  return hid_policy_allowed_devices_.get();
-}
-
+#if !BUILDFLAG(IS_ANDROID)
 HidSystemTrayIcon* BrowserProcessImpl::hid_system_tray_icon() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return hid_system_tray_icon_.get();
 }
+
+UsbSystemTrayIcon* BrowserProcessImpl::usb_system_tray_icon() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return usb_system_tray_icon_.get();
+}
 #endif
+
+os_crypt_async::OSCryptAsync* BrowserProcessImpl::os_crypt_async() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return os_crypt_async_.get();
+}
+
+void BrowserProcessImpl::set_additional_os_crypt_async_provider_for_test(
+    size_t precedence,
+    std::unique_ptr<os_crypt_async::KeyProvider> provider) {
+  CHECK(!additional_provider_for_test_);
+  CHECK(!os_crypt_async_);
+  additional_provider_for_test_.emplace(
+      std::make_pair(precedence, std::move(provider)));
+}
 
 BuildState* BrowserProcessImpl::GetBuildState() {
 #if !BUILDFLAG(IS_ANDROID)
@@ -1018,21 +1152,33 @@ void BrowserProcessImpl::RegisterPrefs(PrefRegistrySimple* registry) {
 
   registry->RegisterBooleanPref(prefs::kAllowCrossOriginAuthPrompt, false);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   registry->RegisterBooleanPref(prefs::kEulaAccepted, false);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 
   registry->RegisterStringPref(language::prefs::kApplicationLocale,
                                std::string());
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   registry->RegisterStringPref(prefs::kOwnerLocale, std::string());
   registry->RegisterStringPref(prefs::kHardwareKeyboardLayout,
                                std::string());
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   registry->RegisterBooleanPref(metrics::prefs::kMetricsReportingEnabled,
                                 GoogleUpdateSettings::GetCollectStatsConsent());
   registry->RegisterBooleanPref(prefs::kDevToolsRemoteDebuggingAllowed, true);
+
+#if BUILDFLAG(IS_LINUX)
+  os_crypt_async::SecretPortalKeyProvider::RegisterLocalPrefs(registry);
+#endif
+}
+
+GlobalFeatures* BrowserProcessImpl::GetFeatures() {
+  return features_.get();
+}
+
+void BrowserProcessImpl::CreateGlobalFeaturesForTesting() {
+  NOTIMPLEMENTED();
 }
 
 DownloadRequestLimiter* BrowserProcessImpl::download_request_limiter() {
@@ -1043,18 +1189,14 @@ DownloadRequestLimiter* BrowserProcessImpl::download_request_limiter() {
   return download_request_limiter_.get();
 }
 
-BackgroundModeManager* BrowserProcessImpl::background_mode_manager() {
 #if BUILDFLAG(ENABLE_BACKGROUND_MODE)
+BackgroundModeManager* BrowserProcessImpl::background_mode_manager() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!background_mode_manager_)
     CreateBackgroundModeManager();
   return background_mode_manager_.get();
-#else
-  return nullptr;
-#endif
 }
 
-#if BUILDFLAG(ENABLE_BACKGROUND_MODE)
 void BrowserProcessImpl::set_background_mode_manager_for_test(
     std::unique_ptr<BackgroundModeManager> manager) {
   background_mode_manager_ = std::move(manager);
@@ -1068,6 +1210,7 @@ StatusTray* BrowserProcessImpl::status_tray() {
   return status_tray_.get();
 }
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 safe_browsing::SafeBrowsingService*
 BrowserProcessImpl::safe_browsing_service() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -1075,6 +1218,7 @@ BrowserProcessImpl::safe_browsing_service() {
     CreateSafeBrowsingService();
   return safe_browsing_service_.get();
 }
+#endif
 
 subresource_filter::RulesetService*
 BrowserProcessImpl::subresource_filter_ruleset_service() {
@@ -1084,13 +1228,22 @@ BrowserProcessImpl::subresource_filter_ruleset_service() {
   return subresource_filter_ruleset_service_.get();
 }
 
+subresource_filter::RulesetService*
+BrowserProcessImpl::fingerprinting_protection_ruleset_service() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!created_fingerprinting_protection_ruleset_service_ &&
+      fingerprinting_protection_filter::features::
+          IsFingerprintingProtectionFeatureEnabled()) {
+    CreateFingerprintingProtectionRulesetService();
+  }
+  return fingerprinting_protection_ruleset_service_.get();
+}
+
 StartupData* BrowserProcessImpl::startup_data() {
   return startup_data_;
 }
 
-// TODO(crbug.com/1052397): Revisit once build flag switch of lacros-chrome is
-// complete.
-#if BUILDFLAG(IS_WIN) || (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS))
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 void BrowserProcessImpl::StartAutoupdateTimer() {
   autoupdate_timer_.Start(FROM_HERE, base::Hours(kUpdateCheckIntervalHours),
                           this, &BrowserProcessImpl::OnAutoupdateTimer);
@@ -1145,7 +1298,7 @@ void BrowserProcessImpl::CreateProfileManager() {
 }
 
 void BrowserProcessImpl::PreCreateThreads() {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   // chrome-extension:// URLs are safe to request anywhere, but may only
   // commit (including in iframes) in extension processes.
   ChildProcessSecurityPolicy::GetInstance()->RegisterWebSafeIsolatedScheme(
@@ -1178,8 +1331,10 @@ void BrowserProcessImpl::PreCreateThreads() {
 
 void BrowserProcessImpl::PreMainMessageLoopRun() {
   TRACE_EVENT0("startup", "BrowserProcessImpl::PreMainMessageLoopRun");
-  SCOPED_UMA_HISTOGRAM_TIMER(
-      "Startup.BrowserProcessImpl_PreMainMessageLoopRunTime");
+
+  // Initialize the SessionIdGenerator instance, providing a PrefService to
+  // ensure the persistent storage of current max SessionId.
+  sessions::SessionIdGenerator::GetInstance()->Init(local_state_.get());
 
   // browser_policy_connector() is created very early because local_state()
   // needs policy to be initialized with the managed preference values.
@@ -1196,24 +1351,19 @@ void BrowserProcessImpl::PreMainMessageLoopRun() {
 
   ApplyMetricsReportingPolicy();
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-  ChromeJsErrorReportProcessor::Create();
-#endif
-
 #if BUILDFLAG(ENABLE_PLUGINS)
   content::PluginService::GetInstance()->SetFilter(
       ChromePluginServiceFilter::GetInstance());
 #endif  // BUILDFLAG(ENABLE_PLUGINS)
 
 #if !BUILDFLAG(IS_ANDROID)
+  ChromeJsErrorReportProcessor::Create();
   storage_monitor::StorageMonitor::Create();
 #endif
 
   platform_part_->PreMainMessageLoopRun();
 
-  if (base::FeatureList::IsEnabled(network_time::kNetworkTimeServiceQuerying)) {
-    CreateNetworkTimeTracker();
-  }
+  CreateNetworkTimeTracker();
 
   CreateNetworkQualityObserver();
 
@@ -1228,14 +1378,19 @@ void BrowserProcessImpl::PreMainMessageLoopRun() {
   soda_installer_impl_ = std::make_unique<speech::SodaInstallerImpl>();
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   soda_installer_impl_ = std::make_unique<speech::SodaInstallerImplChromeOS>();
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if !BUILDFLAG(IS_ANDROID)
+  screen_ai_download_ = screen_ai::ScreenAIInstallState::Create();
+#endif
 
   base::FilePath user_data_dir;
   bool result = base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir);
   DCHECK(result);
-  if (breadcrumbs::IsEnabled()) {
+  if (breadcrumbs::MaybeEnableBasedOnChannel(local_state_.get(),
+                                             chrome::GetChannel())) {
     // Start crash reporter listening for breadcrumb events. Collected
     // breadcrumbs will be attached to crash reports.
     breadcrumbs::CrashReporterBreadcrumbObserver::GetInstance();
@@ -1249,6 +1404,85 @@ void BrowserProcessImpl::PreMainMessageLoopRun() {
   } else {
     breadcrumbs::DeleteBreadcrumbFiles(user_data_dir);
   }
+
+  // OSCryptAsync provider configuration. If empty, this delegates all
+  // encryption operations to OSCrypt.
+  std::vector<std::pair<size_t, std::unique_ptr<os_crypt_async::KeyProvider>>>
+      providers;
+
+  if (additional_provider_for_test_) {
+    // Explicitly move the KeyProvider but leave the std::optional holding the
+    // pair, this ensures it can only be set once in testing.
+    providers.push_back(
+        std::make_pair(std::get<0>(*additional_provider_for_test_),
+                       std::move(std::get<1>(*additional_provider_for_test_))));
+  }
+
+#if BUILDFLAG(IS_WIN)
+  // The DPAPI key provider requires OSCrypt::Init to have already been called
+  // to initialize the key storage. This happens in
+  // ChromeBrowserMainPartsWin::PreCreateMainMessageLoop.
+  providers.emplace_back(std::make_pair(
+      /*precedence=*/10u,
+      std::make_unique<os_crypt_async::DPAPIKeyProvider>(local_state())));
+
+  providers.emplace_back(std::make_pair(
+      // Note: 15 is chosen to be higher than the 10 precedence above for
+      // DPAPI. This ensures that when the the provider is enabled for
+      // encryption, the App-Bound encryption key is used and not the DPAPI
+      // one.
+      /*precedence=*/15u,
+      std::make_unique<os_crypt_async::AppBoundEncryptionProviderWin>(
+          local_state())));
+#endif  // BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(IS_LINUX)
+  base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
+  if (cmd_line->GetSwitchValueASCII(password_manager::kPasswordStore) !=
+      "basic") {
+    if (base::FeatureList::IsEnabled(features::kDbusSecretPortal)) {
+      providers.emplace_back(
+          /*precedence=*/10u,
+          std::make_unique<os_crypt_async::SecretPortalKeyProvider>(
+              local_state(),
+              base::FeatureList::IsEnabled(
+                  features::kSecretPortalKeyProviderUseForEncryption)));
+    }
+    if (base::FeatureList::IsEnabled(
+            features::kUseFreedesktopSecretKeyProvider)) {
+      const auto password_store =
+          cmd_line->GetSwitchValueASCII(password_manager::kPasswordStore);
+      // Use a higher priority than the SecretPortalKeyProvider.
+      providers.emplace_back(
+          /*precedence=*/15u,
+          std::make_unique<os_crypt_async::FreedesktopSecretKeyProvider>(
+              password_store,
+              base::FeatureList::IsEnabled(
+                  features::kUseFreedesktopSecretKeyProviderForEncryption),
+              l10n_util::GetStringUTF8(IDS_PRODUCT_NAME), nullptr));
+      providers.emplace_back(
+          /*precedence=*/5u,
+          std::make_unique<os_crypt_async::FallbackLinuxKeyProvider>(
+              base::FeatureList::IsEnabled(
+                  features::kUseFreedesktopSecretKeyProviderForEncryption)));
+    }
+  }
+#endif  // BUILDFLAG(IS_LINUX)
+
+  os_crypt_async_ =
+      std::make_unique<os_crypt_async::OSCryptAsync>(std::move(providers));
+
+  // Trigger async initialization of OSCrypt key providers.
+  os_crypt_async_init_subscription_.emplace(
+      os_crypt_async_->GetInstance(base::BindOnce(
+          [](base::TimeTicks start_time, os_crypt_async::Encryptor encryptor,
+             bool success) {
+            base::UmaHistogramTimes("OSCrypt.AsyncInitialization.Time",
+                                    base::TimeTicks::Now() - start_time);
+            base::UmaHistogramBoolean("OSCrypt.AsyncInitialization.Result",
+                                      success);
+          },
+          base::TimeTicks::Now())));
 }
 
 void BrowserProcessImpl::CreateIconManager() {
@@ -1258,11 +1492,9 @@ void BrowserProcessImpl::CreateIconManager() {
 }
 
 void BrowserProcessImpl::CreateNotificationPlatformBridge() {
-#if BUILDFLAG(ENABLE_SYSTEM_NOTIFICATIONS)
   DCHECK(!notification_bridge_);
   notification_bridge_ = NotificationPlatformBridge::Create();
   created_notification_bridge_ = true;
-#endif
 }
 
 void BrowserProcessImpl::CreateNotificationUIManager() {
@@ -1291,7 +1523,7 @@ void BrowserProcessImpl::CreatePrintPreviewDialogController() {
 #if BUILDFLAG(ENABLE_PRINT_PREVIEW)
   DCHECK(!print_preview_dialog_controller_);
   print_preview_dialog_controller_ =
-      base::MakeRefCounted<printing::PrintPreviewDialogController>();
+      std::make_unique<printing::PrintPreviewDialogController>();
 #else
   NOTIMPLEMENTED();
 #endif
@@ -1307,6 +1539,7 @@ void BrowserProcessImpl::CreateBackgroundPrintingManager() {
 #endif
 }
 
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 void BrowserProcessImpl::CreateSafeBrowsingService() {
   DCHECK(!safe_browsing_service_);
   // Set this flag to true so that we don't retry indefinitely to
@@ -1319,22 +1552,50 @@ void BrowserProcessImpl::CreateSafeBrowsingService() {
         safe_browsing::GetSafeBrowsingServiceFactory());
   }
 
-  // TODO(crbug/925153): Port consumers of the |safe_browsing_service_| to use
-  // the interface in components/safe_browsing, and remove this cast.
+  // TODO(crbug.com/41437292): Port consumers of the |safe_browsing_service_| to
+  // use the interface in components/safe_browsing, and remove this cast.
   safe_browsing_service_ = static_cast<safe_browsing::SafeBrowsingService*>(
       safe_browsing::SafeBrowsingServiceInterface::CreateSafeBrowsingService());
   if (safe_browsing_service_)
     safe_browsing_service_->Initialize();
 }
+#endif
 
 void BrowserProcessImpl::CreateSubresourceFilterRulesetService() {
   DCHECK(!subresource_filter_ruleset_service_);
   created_subresource_filter_ruleset_service_ = true;
 
+  if (!base::FeatureList::IsEnabled(
+          subresource_filter::kSafeBrowsingSubresourceFilter)) {
+    return;
+  }
+
   base::FilePath user_data_dir;
   base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir);
+
   subresource_filter_ruleset_service_ =
-      subresource_filter::RulesetService::Create(local_state(), user_data_dir);
+      subresource_filter::RulesetService::Create(
+          subresource_filter::kSafeBrowsingRulesetConfig, local_state(),
+          user_data_dir,
+          subresource_filter::SafeBrowsingRulesetPublisher::Factory());
+}
+
+void BrowserProcessImpl::CreateFingerprintingProtectionRulesetService() {
+  CHECK(!fingerprinting_protection_ruleset_service_);
+  // Set this to true so that we don't retry indefinitely to
+  // create the service if there was an error.
+  created_fingerprinting_protection_ruleset_service_ = true;
+
+  base::FilePath user_data_dir;
+  base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir);
+
+  fingerprinting_protection_ruleset_service_ =
+      subresource_filter::RulesetService::Create(
+          fingerprinting_protection_filter::
+              kFingerprintingProtectionRulesetConfig,
+          local_state(), user_data_dir,
+          fingerprinting_protection_filter::
+              FingerprintingProtectionRulesetPublisher::Factory());
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -1354,7 +1615,6 @@ void BrowserProcessImpl::CreateGCMDriver() {
 
   gcm_driver_ = gcm::CreateGCMDriverDesktop(
       base::WrapUnique(new gcm::GCMClientFactory), local_state(), store_path,
-      /*remove_account_mappings_with_email_key=*/false,
       base::BindRepeating(&RequestProxyResolvingSocketFactory),
       system_network_context_manager()->GetSharedURLLoaderFactory(),
       content::GetNetworkConnectionTracker(), chrome::GetChannel(),
@@ -1371,7 +1631,8 @@ void BrowserProcessImpl::CreateNetworkTimeTracker() {
   network_time_tracker_ = std::make_unique<network_time::NetworkTimeTracker>(
       base::WrapUnique(new base::DefaultClock()),
       base::WrapUnique(new base::DefaultTickClock()), local_state(),
-      system_network_context_manager()->GetSharedURLLoaderFactory());
+      system_network_context_manager()->GetSharedURLLoaderFactory(),
+      std::nullopt);
 }
 
 void BrowserProcessImpl::ApplyDefaultBrowserPolicy() {
@@ -1387,6 +1648,18 @@ void BrowserProcessImpl::ApplyDefaultBrowserPolicy() {
     set_browser_worker->set_interactive_permitted(false);
     set_browser_worker->StartSetAsDefault(base::NullCallback());
   }
+}
+
+void BrowserProcessImpl::OnLocaleChanged(const std::string& new_locale) {
+  // TODO(crbug.com/406985310): The cache for IO thread should be integrated
+  // into ApplicationLocaleStorage.
+  ChromeContentBrowserClient::SetApplicationLocale(new_locale);
+
+  // TODO(crbug.com/406985310): Implement ApplicationLocaleStorage::Observer for
+  // TranslateDownloadManager, or refactor //components/translate so that it can
+  // directly depend on ApplicationLocaleStorage.
+  translate::TranslateDownloadManager::GetInstance()->set_application_locale(
+      new_locale);
 }
 
 void BrowserProcessImpl::Pin() {
@@ -1441,15 +1714,13 @@ void BrowserProcessImpl::Unpin() {
 
   chrome::ShutdownIfNeeded();
 
-  // TODO(crbug.com/967603): remove when root cause is found.
+  // TODO(crbug.com/40629374): remove when root cause is found.
   CHECK_EQ(BrowserList::GetInstance()->size(), 0u);
 #endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 // Mac is currently not supported.
-// TODO(crbug.com/1052397): Revisit once build flag switch of lacros-chrome is
-// complete.
-#if BUILDFLAG(IS_WIN) || (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS))
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 
 bool BrowserProcessImpl::IsRunningInBackground() const {
   // Check if browser is in the background.
@@ -1486,7 +1757,8 @@ void BrowserProcessImpl::RestartBackgroundInstance() {
   }
 
 #if BUILDFLAG(IS_WIN)
-  new_cl->AppendArg(switches::kPrefetchArgumentBrowserBackground);
+  new_cl->AppendArgNative(app_launch_prefetch::GetPrefetchSwitch(
+      app_launch_prefetch::SubprocessType::kBrowserBackground));
 #endif  // BUILDFLAG(IS_WIN)
 
   DLOG(WARNING) << "Shutting down current instance of the browser.";
@@ -1518,5 +1790,4 @@ void BrowserProcessImpl::OnPendingRestartResult(
     RestartBackgroundInstance();
   }
 }
-#endif  // BUILDFLAG(IS_WIN) || (BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS_LACROS))
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)

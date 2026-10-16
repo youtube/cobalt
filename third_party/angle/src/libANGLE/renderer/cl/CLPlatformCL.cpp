@@ -11,6 +11,7 @@
 #include "libANGLE/CLContext.h"
 #include "libANGLE/CLDevice.h"
 #include "libANGLE/CLPlatform.h"
+#include "libANGLE/cl_utils.h"
 #include "libANGLE/renderer/cl/CLContextCL.h"
 #include "libANGLE/renderer/cl/CLDeviceCL.h"
 #include "libANGLE/renderer/cl/cl_util.h"
@@ -48,8 +49,10 @@ CLPlatformCL::~CLPlatformCL() = default;
 
 CLPlatformImpl::Info CLPlatformCL::createInfo() const
 {
-    // Verify that the platform is valid
-    if (mNative == nullptr || mNative->getDispatch().clGetPlatformIDs == nullptr ||
+    // Verify that the platform is valid.
+    // We ignore clGetPlatformIDs for ICD case since the ICD Loader has already verified
+    // clIcdGetPlatformIDsKHR exists and is valid.
+    if (mNative == nullptr || (!mIsIcd && mNative->getDispatch().clGetPlatformIDs == nullptr) ||
         mNative->getDispatch().clGetPlatformInfo == nullptr ||
         mNative->getDispatch().clGetDeviceIDs == nullptr ||
         mNative->getDispatch().clGetDeviceInfo == nullptr ||
@@ -140,17 +143,10 @@ CLPlatformImpl::Info CLPlatformCL::createInfo() const
         return Info{};
     }
 
-    // TODO(jplate) Remove workaround after bug is fixed http://anglebug.com/6053
+    // TODO(jplate) Remove workaround after bug is fixed http://anglebug.com/42264583
     if (info.versionStr.compare(0u, 15u, "OpenCL 3.0 CUDA", 15u) == 0)
     {
         extensionStr.append(" cl_khr_depth_images cl_khr_image2d_from_buffer");
-    }
-
-    // Limit version number to supported version
-    if (info.versionStr[7] != '1')
-    {
-        info.versionStr[7] = '1';
-        info.versionStr[9] = '2';
     }
 
     const cl_version version = ExtractCLVersion(info.versionStr);
@@ -337,7 +333,7 @@ CLDeviceImpl::CreateDatas CLPlatformCL::createDevices() const
                         nullptr) == CL_SUCCESS)
                 {
                     // If default device found, select it
-                    if (types[index].isSet(CL_DEVICE_TYPE_DEFAULT))
+                    if (types[index].intersects(CL_DEVICE_TYPE_DEFAULT))
                     {
                         defaultIndex = index;
                     }
@@ -376,11 +372,12 @@ CLDeviceImpl::CreateDatas CLPlatformCL::createDevices() const
     return createDatas;
 }
 
-CLContextImpl::Ptr CLPlatformCL::createContext(cl::Context &context,
-                                               const cl::DevicePtrs &devices,
-                                               bool userSync,
-                                               cl_int &errorCode)
+angle::Result CLPlatformCL::createContext(cl::Context &context,
+                                          const cl::DevicePtrs &devices,
+                                          bool userSync,
+                                          CLContextImpl::Ptr *contextOut)
 {
+    cl_int errorCode                   = CL_SUCCESS;
     cl_context_properties properties[] = {
         CL_CONTEXT_PLATFORM, reinterpret_cast<cl_context_properties>(mNative),
         userSync && mPlatform.isVersionOrNewer(1u, 2u) ? CL_CONTEXT_INTEROP_USER_SYNC : 0, CL_TRUE,
@@ -395,28 +392,37 @@ CLContextImpl::Ptr CLPlatformCL::createContext(cl::Context &context,
     cl_context nativeContext = mNative->getDispatch().clCreateContext(
         properties, static_cast<cl_uint>(nativeDevices.size()), nativeDevices.data(),
         cl::Context::ErrorCallback, &context, &errorCode);
-    return CLContextImpl::Ptr(nativeContext != nullptr ? new CLContextCL(context, nativeContext)
-                                                       : nullptr);
+    ANGLE_CL_TRY(errorCode);
+
+    *contextOut = CLContextImpl::Ptr(
+        nativeContext != nullptr ? new CLContextCL(context, nativeContext) : nullptr);
+    return angle::Result::Continue;
 }
 
-CLContextImpl::Ptr CLPlatformCL::createContextFromType(cl::Context &context,
-                                                       cl::DeviceType deviceType,
-                                                       bool userSync,
-                                                       cl_int &errorCode)
+angle::Result CLPlatformCL::createContextFromType(cl::Context &context,
+                                                  cl::DeviceType deviceType,
+                                                  bool userSync,
+                                                  CLContextImpl::Ptr *contextOut)
 {
+    cl_int errorCode                   = CL_SUCCESS;
     cl_context_properties properties[] = {
         CL_CONTEXT_PLATFORM, reinterpret_cast<cl_context_properties>(mNative),
         userSync && mPlatform.isVersionOrNewer(1u, 2u) ? CL_CONTEXT_INTEROP_USER_SYNC : 0, CL_TRUE,
         0};
+
     cl_context nativeContext = mNative->getDispatch().clCreateContextFromType(
         properties, deviceType.get(), cl::Context::ErrorCallback, &context, &errorCode);
-    return CLContextImpl::Ptr(nativeContext != nullptr ? new CLContextCL(context, nativeContext)
-                                                       : nullptr);
+    ANGLE_CL_TRY(errorCode);
+
+    *contextOut = CLContextImpl::Ptr(
+        nativeContext != nullptr ? new CLContextCL(context, nativeContext) : nullptr);
+    return angle::Result::Continue;
 }
 
-cl_int CLPlatformCL::unloadCompiler()
+angle::Result CLPlatformCL::unloadCompiler()
 {
-    return mNative->getDispatch().clUnloadPlatformCompiler(mNative);
+    ANGLE_CL_TRY(mNative->getDispatch().clUnloadPlatformCompiler(mNative));
+    return angle::Result::Continue;
 }
 
 void CLPlatformCL::Initialize(CreateFuncs &createFuncs, bool isIcd)
@@ -436,14 +442,14 @@ void CLPlatformCL::Initialize(CreateFuncs &createFuncs, bool isIcd)
     for (KHRicdVendor *vendorIt = khrIcdVendors; vendorIt != nullptr; vendorIt = vendorIt->next)
     {
         cl_platform_id nativePlatform = vendorIt->platform;
-        createFuncs.emplace_back([nativePlatform](const cl::Platform &platform) {
-            return Ptr(new CLPlatformCL(platform, nativePlatform));
+        createFuncs.emplace_back([nativePlatform, isIcd](const cl::Platform &platform) {
+            return Ptr(new CLPlatformCL(platform, nativePlatform, isIcd));
         });
     }
 }
 
-CLPlatformCL::CLPlatformCL(const cl::Platform &platform, cl_platform_id native)
-    : CLPlatformImpl(platform), mNative(native)
+CLPlatformCL::CLPlatformCL(const cl::Platform &platform, cl_platform_id native, bool isIcd)
+    : CLPlatformImpl(platform), mNative(native), mIsIcd(isIcd)
 {}
 
 }  // namespace rx

@@ -25,6 +25,7 @@ PagePrintAnalysisRequest::PagePrintAnalysisRequest(
           std::move(callback),
           analysis_settings.cloud_or_local_settings),
       page_(std::move(page)) {
+  DCHECK(page_.IsValid());
   safe_browsing::IncrementCrashKey(
       safe_browsing::ScanningCrashKey::PENDING_PRINTS);
   safe_browsing::IncrementCrashKey(
@@ -39,19 +40,14 @@ PagePrintAnalysisRequest::~PagePrintAnalysisRequest() {
 void PagePrintAnalysisRequest::GetRequestData(DataCallback callback) {
   Data data;
   data.size = page_.GetSize();
-
-  // Only enforce a max size for cloud scans.
-  if (data.size >= kMaxPageSize
-      && cloud_or_local_settings().is_cloud_analysis()) {
-    std::move(callback).Run(
-        safe_browsing::BinaryUploadService::Result::FILE_TOO_LARGE,
-        std::move(data));
-    return;
-  }
-
   data.page = page_.Duplicate();
-  std::move(callback).Run(safe_browsing::BinaryUploadService::Result::SUCCESS,
-                          std::move(data));
+
+  std::move(callback).Run(
+      // Only enforce a max size for cloud scans.
+      data.size >= kMaxPageSize && cloud_or_local_settings().is_cloud_analysis()
+          ? safe_browsing::BinaryUploadService::Result::FILE_TOO_LARGE
+          : safe_browsing::BinaryUploadService::Result::SUCCESS,
+      std::move(data));
 }
 
 }  // namespace enterprise_connectors

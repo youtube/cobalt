@@ -14,7 +14,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -26,26 +27,21 @@ import org.chromium.components.favicon.LargeIconBridge.LargeIconCallback;
 import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
 
-/**
- * Unit tests for {@link ImageFetcher}.
- */
+/** Unit tests for {@link ImageFetcher}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class SuggestionsImageFetcherTest {
     public static final int IMAGE_SIZE_PX = 100;
-    public static final GURL URL = JUnitTestGURLs.getGURL(JUnitTestGURLs.EXAMPLE_URL);
+    public static final GURL URL = JUnitTestGURLs.EXAMPLE_URL;
 
-    @Rule
-    public SuggestionsDependenciesRule mSuggestionsDeps = new SuggestionsDependenciesRule();
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Rule public SuggestionsDependenciesRule mSuggestionsDeps = new SuggestionsDependenciesRule();
 
-    @Mock
-    private ThumbnailProvider mThumbnailProvider;
-    @Mock
-    private LargeIconBridge mLargeIconBridge;
+    @Mock private ThumbnailProvider mThumbnailProvider;
+    @Mock private LargeIconBridge mLargeIconBridge;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
 
         mSuggestionsDeps.getFactory().largeIconBridge = mLargeIconBridge;
         mSuggestionsDeps.getFactory().thumbnailProvider = mThumbnailProvider;

@@ -6,13 +6,13 @@
 
 #include <cstdlib>
 #include <memory>
+#include <set>
 #include <utility>
+#include <variant>
 
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
 #include "net/base/connection_endpoint_metadata.h"
 #include "net/base/features.h"
 #include "net/base/host_port_pair.h"
@@ -33,7 +33,6 @@
 #include "net/ssl/ssl_cert_request_info.h"
 #include "net/ssl/ssl_connection_status_flags.h"
 #include "net/ssl/ssl_info.h"
-#include "net/ssl/ssl_legacy_crypto_fallback.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 
@@ -47,60 +46,27 @@ constexpr base::TimeDelta kSSLHandshakeTimeout(base::Seconds(30));
 }  // namespace
 
 SSLSocketParams::SSLSocketParams(
-    scoped_refptr<TransportSocketParams> direct_params,
-    scoped_refptr<SOCKSSocketParams> socks_proxy_params,
-    scoped_refptr<HttpProxySocketParams> http_proxy_params,
+    ConnectJobParams nested_params,
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config,
-    PrivacyMode privacy_mode,
     NetworkAnonymizationKey network_anonymization_key)
-    : direct_params_(std::move(direct_params)),
-      socks_proxy_params_(std::move(socks_proxy_params)),
-      http_proxy_params_(std::move(http_proxy_params)),
+    : nested_params_(nested_params),
       host_and_port_(host_and_port),
       ssl_config_(ssl_config),
-      privacy_mode_(privacy_mode),
       network_anonymization_key_(network_anonymization_key) {
-  // Only one set of lower level ConnectJob params should be non-NULL.
-  DCHECK((direct_params_ && !socks_proxy_params_ && !http_proxy_params_) ||
-         (!direct_params_ && socks_proxy_params_ && !http_proxy_params_) ||
-         (!direct_params_ && !socks_proxy_params_ && http_proxy_params_));
+  CHECK(!nested_params_.is_ssl());
 }
 
 SSLSocketParams::~SSLSocketParams() = default;
 
 SSLSocketParams::ConnectionType SSLSocketParams::GetConnectionType() const {
-  if (direct_params_.get()) {
-    DCHECK(!socks_proxy_params_.get());
-    DCHECK(!http_proxy_params_.get());
-    return DIRECT;
-  }
-
-  if (socks_proxy_params_.get()) {
-    DCHECK(!http_proxy_params_.get());
+  if (nested_params_.is_socks()) {
     return SOCKS_PROXY;
   }
-
-  DCHECK(http_proxy_params_.get());
-  return HTTP_PROXY;
-}
-
-const scoped_refptr<TransportSocketParams>&
-SSLSocketParams::GetDirectConnectionParams() const {
-  DCHECK_EQ(GetConnectionType(), DIRECT);
-  return direct_params_;
-}
-
-const scoped_refptr<SOCKSSocketParams>&
-SSLSocketParams::GetSocksProxyConnectionParams() const {
-  DCHECK_EQ(GetConnectionType(), SOCKS_PROXY);
-  return socks_proxy_params_;
-}
-
-const scoped_refptr<HttpProxySocketParams>&
-SSLSocketParams::GetHttpProxyConnectionParams() const {
-  DCHECK_EQ(GetConnectionType(), HTTP_PROXY);
-  return http_proxy_params_;
+  if (nested_params_.is_http_proxy()) {
+    return HTTP_PROXY;
+  }
+  return DIRECT;
 }
 
 std::unique_ptr<SSLConnectJob> SSLConnectJob::Factory::Create(
@@ -152,22 +118,23 @@ LoadState SSLConnectJob::GetLoadState() const {
     case STATE_SOCKS_CONNECT_COMPLETE:
       return nested_connect_job_->GetLoadState();
     case STATE_TUNNEL_CONNECT_COMPLETE:
-      if (nested_socket_)
+      if (nested_socket_) {
         return LOAD_STATE_ESTABLISHING_PROXY_TUNNEL;
+      }
       return nested_connect_job_->GetLoadState();
     case STATE_SSL_CONNECT:
     case STATE_SSL_CONNECT_COMPLETE:
       return LOAD_STATE_SSL_HANDSHAKE;
     default:
       NOTREACHED();
-      return LOAD_STATE_IDLE;
   }
 }
 
 bool SSLConnectJob::HasEstablishedConnection() const {
   // If waiting on a nested ConnectJob, defer to that ConnectJob's state.
-  if (nested_connect_job_)
+  if (nested_connect_job_) {
     return nested_connect_job_->HasEstablishedConnection();
+  }
   // Otherwise, return true if a socket has been created.
   return nested_socket_ || ssl_socket_;
 }
@@ -194,6 +161,16 @@ void SSLConnectJob::OnNeedsProxyAuth(
                             std::move(restart_with_auth_callback));
 }
 
+Error SSLConnectJob::OnDestinationDnsAliasesResolved(
+    const std::set<std::string>& aliases,
+    ConnectJob* job) {
+  // Resolved DNS aliases should only be handled for direct connections.
+  if (params_->GetConnectionType() != SSLSocketParams::DIRECT) {
+    return OK;
+  }
+  return HandleDnsAliasesResolved(aliases);
+}
+
 ConnectionAttempts SSLConnectJob::GetConnectionAttempts() const {
   return connection_attempts_;
 }
@@ -216,8 +193,9 @@ base::TimeDelta SSLConnectJob::HandshakeTimeoutForTesting() {
 
 void SSLConnectJob::OnIOComplete(int result) {
   int rv = DoLoop(result);
-  if (rv != ERR_IO_PENDING)
+  if (rv != ERR_IO_PENDING) {
     NotifyDelegateOfCompletion(rv);  // Deletes |this|.
+  }
 }
 
 int SSLConnectJob::DoLoop(int result) {
@@ -259,8 +237,6 @@ int SSLConnectJob::DoLoop(int result) {
         break;
       default:
         NOTREACHED() << "bad state";
-        rv = ERR_FAILED;
-        break;
     }
   } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE);
 
@@ -274,10 +250,10 @@ int SSLConnectJob::DoTransportConnect() {
 
   next_state_ = STATE_TRANSPORT_CONNECT_COMPLETE;
   // If this is an ECH retry, connect to the same server as before.
-  absl::optional<TransportConnectJob::EndpointResultOverride>
+  std::optional<TransportConnectJob::EndpointResultOverride>
       endpoint_result_override;
   if (ech_retry_configs_) {
-    DCHECK(ssl_client_context()->config().EncryptedClientHelloEnabled());
+    DCHECK(ssl_client_context()->config().ech_enabled);
     DCHECK(endpoint_result_);
     endpoint_result_override.emplace(*endpoint_result_, dns_aliases_);
   }
@@ -333,8 +309,6 @@ int SSLConnectJob::DoTunnelConnect() {
   DCHECK(!TimerIsRunning());
 
   next_state_ = STATE_TUNNEL_CONNECT_COMPLETE;
-  scoped_refptr<HttpProxySocketParams> http_proxy_params =
-      params_->GetHttpProxyConnectionParams();
   nested_connect_job_ = std::make_unique<HttpProxyConnectJob>(
       priority(), socket_tag(), common_connect_job_params(),
       params_->GetHttpProxyConnectionParams(), this, &net_log());
@@ -388,16 +362,11 @@ int SSLConnectJob::DoSSLConnect() {
   endpoint_result_ = nested_connect_job_->GetHostResolverEndpointResult();
 
   SSLConfig ssl_config = params_->ssl_config();
+  ssl_config.ignore_certificate_errors =
+      *common_connect_job_params()->ignore_certificate_errors;
   ssl_config.network_anonymization_key = params_->network_anonymization_key();
-  ssl_config.privacy_mode = params_->privacy_mode();
-  // We do the fallback in both cases here to ensure we separate the effect of
-  // disabling sha1 from the effect of having a single automatic retry
-  // on a potentially unreliably network connection.
-  ssl_config.disable_sha1_server_signatures =
-      disable_legacy_crypto_with_fallback_ ||
-      !ssl_client_context()->config().InsecureHashesInTLSHandshakesEnabled();
 
-  if (ssl_client_context()->config().EncryptedClientHelloEnabled()) {
+  if (ssl_client_context()->config().ech_enabled) {
     if (ech_retry_configs_) {
       ssl_config.ech_config_list = *ech_retry_configs_;
     } else if (endpoint_result_) {
@@ -410,6 +379,12 @@ int SSLConnectJob::DoSSLConnect() {
     }
   }
 
+  net_log().AddEvent(NetLogEventType::SSL_CONNECT_JOB_SSL_CONNECT, [&] {
+    base::Value::Dict dict;
+    dict.Set("ech_enabled", ssl_client_context()->config().ech_enabled);
+    dict.Set("ech_config_list", NetLogBinaryValue(ssl_config.ech_config_list));
+    return dict;
+  });
   ssl_socket_ = client_socket_factory()->CreateSSLClientSocket(
       ssl_client_context(), std::move(nested_socket_), params_->host_and_port(),
       ssl_config);
@@ -425,15 +400,16 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
     server_address_ = IPEndPoint();
   }
 
-  // Many servers which negotiate SHA-1 server signatures in TLS 1.2 actually
-  // support SHA-2 but preferentially sign SHA-1 if available.
+  // Historically, many servers which negotiated SHA-1 server signatures in
+  // TLS 1.2 actually support SHA-2 but preferentially sign SHA-1 if available.
+  // In order to get accurate metrics while deprecating SHA-1, we initially
+  // connected with SHA-1 disabled and then retried with enabled.
   //
-  // To get more accurate metrics, initially connect with SHA-1 disabled. If
-  // this fails, retry with them enabled. This keeps the legacy algorithms
-  // working for now, but they will only appear in metrics and DevTools if the
-  // site relies on them.
+  // SHA-1 is now always disabled, but we retained the fallback to separate the
+  // effect of disabling SHA-1 from the effect of having a single automatic
+  // retry on a potentially unreliably network connection.
   //
-  // See https://crbug.com/658905.
+  // TODO(crbug.com/40085786): Remove this now redundant retry.
   if (disable_legacy_crypto_with_fallback_ &&
       (result == ERR_CONNECTION_CLOSED || result == ERR_CONNECTION_RESET ||
        result == ERR_SSL_PROTOCOL_ERROR ||
@@ -449,9 +425,9 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
   // control and experiment group.
   const bool is_ech_capable =
       endpoint_result_ && !endpoint_result_->metadata.ech_config_list.empty();
+  const bool ech_enabled = ssl_client_context()->config().ech_enabled;
 
-  if (!ech_retry_configs_ && result == ERR_ECH_NOT_NEGOTIATED &&
-      ssl_client_context()->config().EncryptedClientHelloEnabled()) {
+  if (!ech_retry_configs_ && result == ERR_ECH_NOT_NEGOTIATED && ech_enabled) {
     // We used ECH, and the server could not decrypt the ClientHello. However,
     // it was able to handshake with the public name and send authenticated
     // retry configs. If this is not the first time around, retry the connection
@@ -464,132 +440,18 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
     ech_retry_configs_ = ssl_socket_->GetECHRetryConfigs();
     net_log().AddEvent(
         NetLogEventType::SSL_CONNECT_JOB_RESTART_WITH_ECH_CONFIG_LIST, [&] {
-          base::Value::Dict dict;
-          dict.Set("bytes", NetLogBinaryValue(*ech_retry_configs_));
-          return dict;
+          return base::Value::Dict().Set(
+              "bytes", NetLogBinaryValue(*ech_retry_configs_));
         });
 
-    // TODO(https://crbug.com/1091403): Add histograms for how often this
-    // happens.
     ResetStateForRestart();
     next_state_ = GetInitialState(params_->GetConnectionType());
     return OK;
   }
 
-  const std::string& host = params_->host_and_port().host();
-  if (is_ech_capable &&
-      base::FeatureList::IsEnabled(features::kEncryptedClientHello)) {
-    // These values are persisted to logs. Entries should not be renumbered
-    // and numeric values should never be reused.
-    enum class ECHResult {
-      // The connection succeeded on the initial connection.
-      kSuccessInitial = 0,
-      // The connection failed on the initial connection, without providing
-      // retry configs.
-      kErrorInitial = 1,
-      // The connection succeeded after getting retry configs.
-      kSuccessRetry = 2,
-      // The connection failed after getting retry configs.
-      kErrorRetry = 3,
-      // The connection succeeded after getting a rollback signal.
-      kSuccessRollback = 4,
-      // The connection failed after getting a rollback signal.
-      kErrorRollback = 5,
-      kMaxValue = kErrorRollback,
-    };
-    const bool is_ok = result == OK;
-    ECHResult ech_result;
-    if (!ech_retry_configs_.has_value()) {
-      ech_result =
-          is_ok ? ECHResult::kSuccessInitial : ECHResult::kErrorInitial;
-    } else if (ech_retry_configs_->empty()) {
-      ech_result =
-          is_ok ? ECHResult::kSuccessRollback : ECHResult::kErrorRollback;
-    } else {
-      ech_result = is_ok ? ECHResult::kSuccessRetry : ECHResult::kErrorRetry;
-    }
-    base::UmaHistogramEnumeration("Net.SSL.ECHResult", ech_result);
-  }
-
-  if (result == OK) {
-    DCHECK(!connect_timing_.ssl_start.is_null());
-    base::TimeDelta connect_duration =
-        connect_timing_.ssl_end - connect_timing_.ssl_start;
-    UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency_2", connect_duration,
-                               base::Milliseconds(1), base::Minutes(1), 100);
-    if (is_ech_capable) {
-      UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency_ECH",
-                                 connect_duration, base::Milliseconds(1),
-                                 base::Minutes(1), 100);
-    }
-
-    SSLInfo ssl_info;
-    bool has_ssl_info = ssl_socket_->GetSSLInfo(&ssl_info);
-    DCHECK(has_ssl_info);
-
-    SSLVersion version =
-        SSLConnectionStatusToVersion(ssl_info.connection_status);
-    UMA_HISTOGRAM_ENUMERATION("Net.SSLVersion", version,
-                              SSL_CONNECTION_VERSION_MAX);
-    if (IsGoogleHost(host)) {
-      // Google hosts all support TLS 1.2, so any occurrences of TLS 1.0 or TLS
-      // 1.1 will be from an outdated insecure TLS MITM proxy, such as some
-      // antivirus configurations. TLS 1.0 and 1.1 are deprecated, so record
-      // these to see how prevalent they are. See https://crbug.com/896013.
-      UMA_HISTOGRAM_ENUMERATION("Net.SSLVersionGoogle", version,
-                                SSL_CONNECTION_VERSION_MAX);
-    }
-
-    uint16_t cipher_suite =
-        SSLConnectionStatusToCipherSuite(ssl_info.connection_status);
-    base::UmaHistogramSparse("Net.SSL_CipherSuite", cipher_suite);
-
-    if (ssl_info.key_exchange_group != 0) {
-      base::UmaHistogramSparse("Net.SSL_KeyExchange.ECDHE",
-                               ssl_info.key_exchange_group);
-    }
-
-    // Classify whether the connection required the legacy crypto fallback.
-    SSLLegacyCryptoFallback fallback = SSLLegacyCryptoFallback::kNoFallback;
-    if (!disable_legacy_crypto_with_fallback_) {
-      // Some servers, though they do not negotiate SHA-1, still fail the
-      // connection when SHA-1 is not offered. We believe these are servers
-      // which match the sent certificates against the ClientHello and then
-      // are configured with a SHA-1 certificate.
-      //
-      // SHA-1 certificate chains are no longer accepted, however servers may
-      // send extra unused certificates, most commonly a copy of the trust
-      // anchor. We only need to check for RSASSA-PKCS1-v1_5 signatures, because
-      // other SHA-1 signature types have already been removed from the
-      // ClientHello.
-      bool sent_sha1_cert = ssl_info.unverified_cert &&
-                            x509_util::HasRsaPkcs1Sha1Signature(
-                                ssl_info.unverified_cert->cert_buffer());
-      if (!sent_sha1_cert && ssl_info.unverified_cert) {
-        for (const auto& cert :
-             ssl_info.unverified_cert->intermediate_buffers()) {
-          if (x509_util::HasRsaPkcs1Sha1Signature(cert.get())) {
-            sent_sha1_cert = true;
-            break;
-          }
-        }
-      }
-      if (ssl_info.peer_signature_algorithm == SSL_SIGN_RSA_PKCS1_SHA1) {
-        fallback = sent_sha1_cert
-                       ? SSLLegacyCryptoFallback::kSentSHA1CertAndUsedSHA1
-                       : SSLLegacyCryptoFallback::kUsedSHA1;
-      } else {
-        fallback = sent_sha1_cert ? SSLLegacyCryptoFallback::kSentSHA1Cert
-                                  : SSLLegacyCryptoFallback::kUnknownReason;
-      }
-    }
-    UMA_HISTOGRAM_ENUMERATION("Net.SSLLegacyCryptoFallback2", fallback);
-  }
-
-  base::UmaHistogramSparse("Net.SSL_Connection_Error", std::abs(result));
-  if (is_ech_capable) {
-    base::UmaHistogramSparse("Net.SSL_Connection_Error_ECH", std::abs(result));
-  }
+  SSLClientSocket::RecordSSLConnectResult(ssl_socket_.get(), result,
+                                          is_ech_capable, ech_enabled,
+                                          ech_retry_configs_, connect_timing_);
 
   if (result == OK || IsCertificateError(result)) {
     SetSocket(std::move(ssl_socket_), std::move(dns_aliases_));
@@ -612,7 +474,6 @@ SSLConnectJob::State SSLConnectJob::GetInitialState(
       return STATE_SOCKS_CONNECT;
   }
   NOTREACHED();
-  return STATE_NONE;
 }
 
 int SSLConnectJob::ConnectInternal() {
@@ -632,8 +493,9 @@ void SSLConnectJob::ResetStateForRestart() {
 }
 
 void SSLConnectJob::ChangePriorityInternal(RequestPriority priority) {
-  if (nested_connect_job_)
+  if (nested_connect_job_) {
     nested_connect_job_->ChangePriority(priority);
+  }
 }
 
 }  // namespace net

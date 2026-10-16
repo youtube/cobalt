@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import <vector>
-
 #import <CoreGraphics/CoreGraphics.h>
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <WebKit/WebKit.h>
+
+#import <vector>
 
 #import "base/strings/stringprintf.h"
 #import "base/strings/sys_string_conversions.h"
@@ -15,18 +15,14 @@
 #import "base/values.h"
 #import "ios/web/common/web_view_creation_util.h"
 #import "ios/web/js_features/context_menu/context_menu_constants.h"
-#import "ios/web/js_messaging/web_view_js_utils.h"
+#import "ios/web/public/js_messaging/web_view_js_utils.h"
 #import "ios/web/public/test/javascript_test.h"
 #import "ios/web/public/test/js_test_util.h"
 #import "ios/web/test/fakes/crw_fake_script_message_handler.h"
-#import "net/base/mac/url_conversions.h"
+#import "net/base/apple/url_conversions.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // Unit tests for ios/web/web_state/js/resources/context_menu.js.
 
@@ -40,10 +36,6 @@ const char kRequestId[] = "UNIQUE_IDENTIFIER";
 
 // The base url for loaded web pages.
 const char kTestUrl[] = "https://chromium.test/";
-
-// A point in the web view's coordinate space on the link returned by
-// `GetHtmlForLink()`.
-const CGPoint kPointOnLink = {5.0, 2.0};
 
 // A point in the web view's coordinate space on the image returned by
 // `GetHtmlForImage()`.
@@ -68,9 +60,6 @@ const CGPoint kPointOutsideShadowDomLink = {50.0, 75.0};
 
 // A point in the web view's coordinate space outside of the document bounds.
 const CGPoint kPointOutsideDocument = {150.0, 150.0};
-
-// A point in the web view's coordinate space inside the surrounding text.
-const CGPoint kPointInsideSurroundingText = {90.0, 90.0};
 
 // A base64 encoded gif image of a single white pixel.
 const char kFallbackImageSource[] = "data:image/gif;base64,R0lGODlhAQABAIAAAP7/"
@@ -111,14 +100,22 @@ NSString* GetHtmlForPage(NSString* head, NSString* body) {
           head ? head : @"", body];
 }
 
-// Returns HTML for a link to `href`, display `text`, and inline `style`.
-NSString* GetHtmlForLink(const char* href,
+// Returns HTML for a link to `href`, with `text`, `id` and inline `style`.
+NSString* GetHtmlForLink(const char* id,
+                         const char* href,
                          const char* text,
                          const char* style) {
   std::string style_attribute =
       style ? base::StringPrintf("style=\"%s\" ", style) : "";
-  return [NSString stringWithFormat:@"<a %shref=\"%s\">%s</a>",
+  return [NSString stringWithFormat:@"<a id=\"%s\" %shref=\"%s\">%s</a>", id,
                                     style_attribute.c_str(), href, text];
+}
+
+// Returns HTML for a link to `href`, display `text`, and inline `style`.
+NSString* GetHtmlForLink(const char* href,
+                         const char* text,
+                         const char* style) {
+  return GetHtmlForLink("link", href, text, style);
 }
 
 // Returns HTML for an SVG shape which links to `href`.
@@ -218,13 +215,13 @@ class ContextMenuJsFindElementAtPointTest : public web::JavascriptTest {
  protected:
   // Returns details of the DOM element at the given `point` in the web view
   // viewport's coordinate space.
-  base::Value FindElementAtPoint(CGPoint point) {
+  base::Value::Dict FindElementAtPoint(CGPoint point) {
     bool gCrWeb_injected = web::test::WaitForInjectedScripts(web_view());
     if (!gCrWeb_injected) {
       // This EXPECT_TRUE call will always fail. However, add the conditional to
       // also return null and prevent further execution of this method.
       EXPECT_TRUE(gCrWeb_injected);
-      return base::Value();
+      return base::Value::Dict();
     }
 
     // Force layout
@@ -242,11 +239,12 @@ class ContextMenuJsFindElementAtPointTest : public web::JavascriptTest {
     }));
 
     if (!script_message_handler_.lastReceivedScriptMessage) {
-      return base::Value();
+      return base::Value::Dict();
     }
-    return web::ValueResultFromWKResult(
-               script_message_handler_.lastReceivedScriptMessage.body)
-        ->Clone();
+    return std::move(
+               *web::ValueResultFromWKResult(
+                   script_message_handler_.lastReceivedScriptMessage.body))
+        .TakeDict();
   }
 
   // Finds the element at the given `point` and compares it against
@@ -257,16 +255,16 @@ class ContextMenuJsFindElementAtPointTest : public web::JavascriptTest {
   // 15. Adding a fixed delay seems to give the webview enough time to make
   // itself ready for the test, but retrying allows for the delay to be as short
   // as possible.
-  // TODO(crbug.com/1219869): Find a better "ready" signal for the webview and
+  // TODO(crbug.com/40772520): Find a better "ready" signal for the webview and
   // remove this retry logic.
   void CheckElementResult(CGPoint point,
-                          const base::Value& expected_result,
-                          const std::vector<const char*>& ignored_keys) {
+                          const base::Value::Dict& expected_result,
+                          const std::vector<const char*>& ignored_keys = {}) {
     constexpr int kNumTries = 13;
     for (int i = 0; i < kNumTries; ++i) {
-      base::Value result = FindElementAtPoint(point);
+      base::Value::Dict result = FindElementAtPoint(point);
       for (const char* key : ignored_keys) {
-        result.RemoveKey(key);
+        result.Remove(key);
       }
       if (result == expected_result) {
         return;
@@ -276,9 +274,17 @@ class ContextMenuJsFindElementAtPointTest : public web::JavascriptTest {
     }
   }
 
-  void CheckElementResult(CGPoint point, const base::Value& expected_result) {
-    return CheckElementResult(point, expected_result,
-                              std::vector<const char*>());
+  void CheckElementResult(NSString* elementId,
+                          const base::Value::Dict& expected_result,
+                          const std::vector<const char*>& ignored_keys = {}) {
+    EXPECT_TRUE(WaitUntilConditionOrTimeout(kWaitForJSCompletionTimeout, ^{
+      base::Value::Dict result =
+          FindElementAtPoint(FindPointFromElement(elementId));
+      for (const char* key : ignored_keys) {
+        result.Remove(key);
+      }
+      return result == expected_result;
+    }));
   }
 
   // Returns web view's content size from the current web state.
@@ -294,13 +300,30 @@ class ContextMenuJsFindElementAtPointTest : public web::JavascriptTest {
   // Executes __gCrWeb.findElementAtPoint script with the given `point` in the
   // web view viewport's coordinate space.
   id ExecuteFindElementFromPointJavaScript(CGPoint point) {
-    CGSize size = GetWebViewContentSize();
+    CGFloat scale = web_view().scrollView.zoomScale;
     NSString* script = [NSString
         stringWithFormat:@"__gCrWeb.contextMenu.findElementAtPoint('%"
-                         @"s', %g, %g, %g, %g)",
-                         kRequestId, point.x, point.y, size.width, size.height];
+                         @"s', %g, %g)",
+                         kRequestId, point.x / scale, point.y / scale];
 
     return web::test::ExecuteJavaScript(web_view(), script);
+  }
+
+  // Returns point for the given `elementId`.
+  CGPoint FindPointFromElement(NSString* elementId) {
+    NSString* script = [NSString
+        stringWithFormat:
+            @"(function (){\n"
+            @"var bounds = "
+            @"document.getElementById('%@').getBoundingClientRect();\n"
+            @"return {x: bounds.x, y: bounds.y};\n"
+            @"})();",
+            elementId];
+
+    NSDictionary* body = web::test::ExecuteJavaScript(web_view(), script);
+    return CGPointMake(
+        [body[@"x"] floatValue] * web_view().scrollView.zoomScale,
+        [body[@"y"] floatValue] * web_view().scrollView.zoomScale);
   }
 
   // Handles script message responses sent from `web_view()`.
@@ -314,26 +337,28 @@ TEST_F(ContextMenuJsFindElementAtPointTest, FetchSurroundingText) {
       @"<html><head>"
        "<meta name=\"viewport\" content=\"user-scalable=no, width=100\">"
        "</head><body><div>This is the address's first line</div>"
-       "<p>Lorem ipsum<span>dolor sit amet. 49 WEST</span>27TH STREET "
+       "<p id=\"ips\">Lorem ipsum<span>dolor sit amet. 49 WEST</span>27TH "
+       "STREET "
        "reprehenderit sed cumque magni ut omnis sint est deserunt eveniet non "
        "omnis esse et debitis labore et Quis consequatur.</p>"
        "</body></html>";
 
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementTagName, "P");
-  expected_value.SetStringKey(
-      kContextMenuElementSurroundingText,
-      "This is the address's first line Lorem ipsum dolor sit amet. 49 WEST "
-      "27TH STREET reprehenderit sed cumque magni ut omnis sint est deserunt");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementTagName, "P")
+                            .Set(kContextMenuElementSurroundingText,
+                                 "This is the address's first line Lorem ipsum "
+                                 "dolor sit amet. 49 WEST "
+                                 "27TH STREET reprehenderit sed cumque magni "
+                                 "ut omnis sint est des");
 
   std::vector<const char*> ignored_keys;
   ignored_keys.push_back(kContextMenuElementInnerText);
   ignored_keys.push_back(kContextMenuElementTextOffset);
   ignored_keys.push_back(kContextMenuElementSurroundingTextOffset);
-  CheckElementResult(kPointInsideSurroundingText, expected_value, ignored_keys);
+  CheckElementResult(@"ips", expected_value, ignored_keys);
 }
 
 #pragma mark - Surrounding text edge cases
@@ -371,12 +396,12 @@ TEST_F(ContextMenuJsFindElementAtPointTest, FindImageElementAtPoint) {
   NSString* html = GetHtmlForPage(/*head=*/nil, GetHtmlForImage());
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementSource, kImageSource);
-  expected_value.SetStringKey(kContextMenuElementAlt, kImageAlt);
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementTagName, "img");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementSource, kImageSource)
+                            .Set(kContextMenuElementAlt, kImageAlt)
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementTagName, "img");
 
   CheckElementResult(kPointOnImage, expected_value);
 }
@@ -393,12 +418,12 @@ TEST_F(ContextMenuJsFindElementAtPointTest,
   NSString* html = GetHtmlForPage(/*head=*/nil, html_for_picture);
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementSource, kImageSource);
-  expected_value.SetStringKey(kContextMenuElementAlt, kImageAlt);
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementTagName, "img");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementSource, kImageSource)
+                            .Set(kContextMenuElementAlt, kImageAlt)
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementTagName, "img");
 
   CheckElementResult(kPointOnImage, expected_value);
 }
@@ -412,11 +437,11 @@ TEST_F(ContextMenuJsFindElementAtPointTest,
   NSString* html = GetHtmlForPage(/*head=*/nil, html_for_div);
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementSource, kImageSource);
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementTagName, "img");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementSource, kImageSource)
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementTagName, "img");
 
   CheckElementResult(kPointOnImage, expected_value);
 }
@@ -432,12 +457,12 @@ TEST_F(ContextMenuJsFindElementAtPointTest,
   NSString* html = GetHtmlForPage(/*head=*/nil, html_for_div);
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementSource, kImageSource);
-  expected_value.SetStringKey(kContextMenuElementAlt, kImageAlt);
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementTagName, "img");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementSource, kImageSource)
+                            .Set(kContextMenuElementAlt, kImageAlt)
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementTagName, "img");
 
   CheckElementResult(kPointOnImage, expected_value);
 }
@@ -453,10 +478,9 @@ TEST_F(ContextMenuJsFindElementAtPointTest,
   NSString* html = GetHtmlForPage(/*head=*/nil, html_for_div);
   ASSERT_TRUE(LoadHtml(html));
 
-  // Check that the paragraph was caught instead.
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementTagName, "DIV");
+  // Check that nothing was caught instead (no TagName).
+  auto expected_value =
+      base::Value::Dict().Set(kContextMenuElementRequestId, kRequestId);
 
   std::vector<const char*> ignored_keys;
   ignored_keys.push_back(kContextMenuElementTextOffset);
@@ -473,13 +497,13 @@ TEST_F(ContextMenuJsFindElementAtPointTest, FindImageElementWithTitleAtPoint) {
 
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementSource, kImageSource);
-  expected_value.SetStringKey(kContextMenuElementAlt, kImageAlt);
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementTitle, image_title);
-  expected_value.SetStringKey(kContextMenuElementTagName, "img");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementSource, kImageSource)
+                            .Set(kContextMenuElementAlt, kImageAlt)
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementTitle, image_title)
+                            .Set(kContextMenuElementTagName, "img");
 
   CheckElementResult(kPointOnImage, expected_value);
 }
@@ -490,12 +514,12 @@ TEST_F(ContextMenuJsFindElementAtPointTest,
   NSString* html = GetHtmlForPage(/*head=*/nil, GetHtmlForImage());
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementSource, kImageSource);
-  expected_value.SetStringKey(kContextMenuElementAlt, kImageAlt);
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementTagName, "img");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementSource, kImageSource)
+                            .Set(kContextMenuElementAlt, kImageAlt)
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementTagName, "img");
 
   CheckElementResult(kPointOnImage, expected_value);
 }
@@ -507,8 +531,8 @@ TEST_F(ContextMenuJsFindElementAtPointTest,
   NSString* html = GetHtmlForPage(/*head=*/nil, GetHtmlForImage());
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
+  auto expected_value =
+      base::Value::Dict().Set(kContextMenuElementRequestId, kRequestId);
 
   CheckElementResult(kPointOutsideDocument, expected_value);
 }
@@ -519,8 +543,8 @@ TEST_F(ContextMenuJsFindElementAtPointTest,
   NSString* html = GetHtmlForPage(/*head=*/nil, GetHtmlForImage());
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
+  auto expected_value =
+      base::Value::Dict().Set(kContextMenuElementRequestId, kRequestId);
 
   CheckElementResult(kPointOutsideImage, expected_value);
 }
@@ -535,13 +559,13 @@ TEST_F(ContextMenuJsFindElementAtPointTest, FindLinkImageAtPointForFileUrl) {
       /*head=*/nil, GetHtmlForLink(image_link, GetHtmlForImage()));
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementSource, kImageSource);
-  expected_value.SetStringKey(kContextMenuElementAlt, kImageAlt);
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementHyperlink, image_link);
-  expected_value.SetStringKey(kContextMenuElementTagName, "img");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementSource, kImageSource)
+                            .Set(kContextMenuElementAlt, kImageAlt)
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementHyperlink, image_link)
+                            .Set(kContextMenuElementTagName, "img");
 
   CheckElementResult(kPointOnImage, expected_value);
 }
@@ -555,8 +579,8 @@ TEST_F(ContextMenuJsFindElementAtPointTest,
       /*head=*/nil, GetHtmlForLink(image_link, GetHtmlForImage()));
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
+  auto expected_value =
+      base::Value::Dict().Set(kContextMenuElementRequestId, kRequestId);
 
   CheckElementResult(kPointOutsideDocument, expected_value);
 }
@@ -570,8 +594,8 @@ TEST_F(ContextMenuJsFindElementAtPointTest,
       /*head=*/nil, GetHtmlForLink(image_link, GetHtmlForImage()));
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
+  auto expected_value =
+      base::Value::Dict().Set(kContextMenuElementRequestId, kRequestId);
 
   CheckElementResult(kPointOutsideImage, expected_value);
 }
@@ -590,13 +614,13 @@ TEST_F(ContextMenuJsFindElementAtPointTest,
   std::string image_source =
       base::StringPrintf("%s%s", kTestUrl, relative_image_path);
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementSource, image_source);
-  expected_value.SetStringKey(kContextMenuElementAlt, kImageAlt);
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementHyperlink, image_link);
-  expected_value.SetStringKey(kContextMenuElementTagName, "img");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementSource, image_source)
+                            .Set(kContextMenuElementAlt, kImageAlt)
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementHyperlink, image_link)
+                            .Set(kContextMenuElementTagName, "img");
 
   CheckElementResult(kPointOnImage, expected_value);
 }
@@ -616,13 +640,13 @@ TEST_F(ContextMenuJsFindElementAtPointTest, FindImageLinkedToJavaScript) {
   std::string image_source =
       base::StringPrintf("%s%s", kTestUrl, relative_image_path);
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementSource, image_source);
-  expected_value.SetStringKey(kContextMenuElementAlt, kImageAlt);
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementHyperlink, image_link);
-  expected_value.SetStringKey(kContextMenuElementTagName, "img");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementSource, image_source)
+                            .Set(kContextMenuElementAlt, kImageAlt)
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementHyperlink, image_link)
+                            .Set(kContextMenuElementTagName, "img");
 
   CheckElementResult(kPointOnImage, expected_value);
 }
@@ -642,12 +666,12 @@ TEST_F(ContextMenuJsFindElementAtPointTest,
   std::string image_source =
       base::StringPrintf("%s%s", kTestUrl, relative_image_path);
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementSource, image_source);
-  expected_value.SetStringKey(kContextMenuElementAlt, kImageAlt);
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementTagName, "img");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementSource, image_source)
+                            .Set(kContextMenuElementAlt, kImageAlt)
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementTagName, "img");
 
   // Make sure the returned JSON does not have an 'href' key.
   CheckElementResult(kPointOnImage, expected_value);
@@ -667,12 +691,12 @@ TEST_F(ContextMenuJsFindElementAtPointTest,
   std::string image_source =
       base::StringPrintf("%s%s", kTestUrl, relative_image_path);
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementSource, image_source);
-  expected_value.SetStringKey(kContextMenuElementAlt, kImageAlt);
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementTagName, "img");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementSource, image_source)
+                            .Set(kContextMenuElementAlt, kImageAlt)
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementTagName, "img");
 
   // Make sure the returned JSON does not have an 'href' key.
   CheckElementResult(kPointOnImage, expected_value);
@@ -687,12 +711,12 @@ TEST_F(ContextMenuJsFindElementAtPointTest,
       /*head=*/nil, GetHtmlForLink(image_link, GetHtmlForImage()));
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementSource, kImageSource);
-  expected_value.SetStringKey(kContextMenuElementAlt, kImageAlt);
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementTagName, "img");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementSource, kImageSource)
+                            .Set(kContextMenuElementAlt, kImageAlt)
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementTagName, "img");
 
   // Make sure the returned JSON does not have an 'href' key.
   CheckElementResult(kPointOnImage, expected_value);
@@ -710,13 +734,12 @@ TEST_F(ContextMenuJsFindElementAtPointTest, LinkOfImageWithCalloutNone) {
 
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementInnerText, "");
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  base::Value bounding_box_expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementHyperlink, image_link);
-  expected_value.SetStringKey(kContextMenuElementTagName, "a");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementInnerText, "")
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementHyperlink, image_link)
+                            .Set(kContextMenuElementTagName, "a");
 
   CheckElementResult(kPointOnImage, expected_value);
 }
@@ -729,11 +752,11 @@ TEST_F(ContextMenuJsFindElementAtPointTest, FindSvgLinkAtPoint) {
   NSString* html = GetHtmlForPage(/*head=*/nil, GetHtmlForSvgLink(link));
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementHyperlink, link);
-  expected_value.SetStringKey(kContextMenuElementTagName, "a");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementHyperlink, link)
+                            .Set(kContextMenuElementTagName, "a");
 
   CheckElementResult(kPointOnSvgLink, expected_value);
 }
@@ -744,11 +767,11 @@ TEST_F(ContextMenuJsFindElementAtPointTest, FindSvgXlinkAtPoint) {
   NSString* html = GetHtmlForPage(/*head=*/nil, GetHtmlForSvgXlink(link));
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementHyperlink, link);
-  expected_value.SetStringKey(kContextMenuElementTagName, "a");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementHyperlink, link)
+                            .Set(kContextMenuElementTagName, "a");
 
   CheckElementResult(kPointOnSvgLink, expected_value);
 }
@@ -760,10 +783,9 @@ TEST_F(ContextMenuJsFindElementAtPointTest, FindSvgLinkAtPointOutsideElement) {
   NSString* html = GetHtmlForPage(/*head=*/nil, GetHtmlForSvgXlink(link));
   ASSERT_TRUE(LoadHtml(html));
 
-  // Check that the paragraph was caught instead.
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementTagName, "P");
+  // Check that nothing was caught instead (no TagName).
+  auto expected_value =
+      base::Value::Dict().Set(kContextMenuElementRequestId, kRequestId);
 
   std::vector<const char*> ignored_keys;
   ignored_keys.push_back(kContextMenuElementTextOffset);
@@ -787,15 +809,17 @@ TEST_F(ContextMenuJsFindElementAtPointTest, TextAreaStopsProximity) {
   ASSERT_TRUE(web::test::LoadHtml(
       web_view(), GetHtmlForPage(/*head=*/nil, body), GetTestURL()));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
+  auto expected_value =
+      base::Value::Dict().Set(kContextMenuElementRequestId, kRequestId);
 
   CheckElementResult(kPointOnImage, expected_value);
 }
 
 // Tests that __gCrWeb.findElementAtPoint reports "never" as the referrer
 // policy for pages that have an unsupported policy in a meta tag.
-TEST_F(ContextMenuJsFindElementAtPointTest, UnsupportedReferrerPolicy) {
+// TODO(crbug.com/351951385): Fix the flakiness in this test and re-enable.
+TEST_F(ContextMenuJsFindElementAtPointTest,
+       DISABLED_UnsupportedReferrerPolicy) {
   // A page with an unsupported referrer meta tag and an image.
   NSString* const head =
       @"<meta name=\"referrer\" content=\"unsupported-value\">";
@@ -803,22 +827,17 @@ TEST_F(ContextMenuJsFindElementAtPointTest, UnsupportedReferrerPolicy) {
 
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value result = FindElementAtPoint(kPointOnImage);
-  ASSERT_TRUE(result.is_dict());
-  std::string* policy = result.FindStringKey(kContextMenuElementReferrerPolicy);
+  base::Value::Dict result = FindElementAtPoint(FindPointFromElement(@"image"));
+  auto* policy = result.FindString(kContextMenuElementReferrerPolicy);
   ASSERT_TRUE(policy);
   EXPECT_STREQ("never", policy->c_str());
 }
 
 // Tests that __gCrWeb.findElementAtPoint finds an element at the bottom of a
 // very long page.
-TEST_F(ContextMenuJsFindElementAtPointTest, LinkOfTextFromTallPage) {
-  // TODO(crbug.com/1219869): Fix on iOS 15 and reenable. This test appears to
-  // fail flakily if the webview is not in the view hierarchy.
-  if (@available(iOS 15, *)) {
-    return;
-  }
-
+// TODO(crbug.com/40772520): Fix on iOS 15 and reenable. This test appears to
+// fail flakily if the webview is not in the view hierarchy.
+TEST_F(ContextMenuJsFindElementAtPointTest, DISABLED_LinkOfTextFromTallPage) {
   const char link[] = "http://destination/";
   NSString* body = @"<div style='height:4000px'></div>";
   body = [body stringByAppendingString:GetHtmlForLink(link, @"link")];
@@ -840,12 +859,12 @@ TEST_F(ContextMenuJsFindElementAtPointTest, LinkOfTextFromTallPage) {
   CGFloat offset = content_height - scroll_view_height;
   web_view().scrollView.contentOffset = CGPointMake(0.0, offset);
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementInnerText, "link");
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementHyperlink, link);
-  expected_value.SetStringKey(kContextMenuElementTagName, "a");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementInnerText, "link")
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementHyperlink, link)
+                            .Set(kContextMenuElementTagName, "a");
 
   // Link is at bottom of the page content.
   CheckElementResult(CGPointMake(50.0, content_height - 100), expected_value);
@@ -860,12 +879,12 @@ TEST_F(ContextMenuJsFindElementAtPointTest, ShadowDomLink) {
       GetHtmlForPage(/*head=*/nil, GetHtmlForShadowDomLink(link, @"link")),
       GetTestURL()));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementInnerText, "link");
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementHyperlink, link);
-  expected_value.SetStringKey(kContextMenuElementTagName, "a");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementInnerText, "link")
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementHyperlink, link)
+                            .Set(kContextMenuElementTagName, "a");
 
   CheckElementResult(kPointOnShadowDomLink, expected_value);
 }
@@ -879,10 +898,9 @@ TEST_F(ContextMenuJsFindElementAtPointTest, PointOutsideShadowDomLink) {
       GetHtmlForPage(/*head=*/nil, GetHtmlForShadowDomLink(link, @"link")),
       GetTestURL()));
 
-  // Check that the paragraph was caught instead.
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementTagName, "DIV");
+  // Check that nothing was caught instead (no TagName).
+  auto expected_value =
+      base::Value::Dict().Set(kContextMenuElementRequestId, kRequestId);
 
   std::vector<const char*> ignored_keys;
   ignored_keys.push_back(kContextMenuElementTextOffset);
@@ -899,14 +917,14 @@ TEST_F(ContextMenuJsFindElementAtPointTest, LinkOfTextWithoutCalloutProperty) {
 
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementInnerText, "link");
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementHyperlink, link);
-  expected_value.SetStringKey(kContextMenuElementTagName, "a");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementInnerText, "link")
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementHyperlink, link)
+                            .Set(kContextMenuElementTagName, "a");
 
-  CheckElementResult(kPointOnLink, expected_value);
+  CheckElementResult(@"link", expected_value);
 }
 
 // Tests that a callout information about a link is displayed when
@@ -920,14 +938,14 @@ TEST_F(ContextMenuJsFindElementAtPointTest, LinkOfTextWithCalloutDefault) {
 
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementInnerText, "link");
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementHyperlink, link);
-  expected_value.SetStringKey(kContextMenuElementTagName, "a");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementInnerText, "link")
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementHyperlink, link)
+                            .Set(kContextMenuElementTagName, "a");
 
-  CheckElementResult(kPointOnLink, expected_value);
+  CheckElementResult(@"link", expected_value);
 }
 
 // Tests that no callout information about a link is displayed when
@@ -941,18 +959,15 @@ TEST_F(ContextMenuJsFindElementAtPointTest, LinkOfTextWithCalloutNone) {
 
   ASSERT_TRUE(LoadHtml(html));
 
-  // Check that the paragraph was caught instead.
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementInnerText, "link");
-  expected_value.SetStringKey(kContextMenuElementSurroundingText, "link");
-  expected_value.SetStringKey(kContextMenuElementTagName, "P");
+  // Check that nothing was caught instead (no TagName).
+  auto expected_value =
+      base::Value::Dict().Set(kContextMenuElementRequestId, kRequestId);
 
   std::vector<const char*> ignored_keys;
   ignored_keys.push_back(kContextMenuElementTextOffset);
   ignored_keys.push_back(kContextMenuElementSurroundingTextOffset);
 
-  CheckElementResult(kPointOnLink, expected_value, ignored_keys);
+  CheckElementResult(@"link", expected_value, ignored_keys);
 }
 
 // Tests that -webkit-touch-callout property can be inherited from ancester
@@ -965,18 +980,15 @@ TEST_F(ContextMenuJsFindElementAtPointTest, LinkOfTextWithCalloutFromAncester) {
 
   ASSERT_TRUE(LoadHtml(html));
 
-  // Check that the paragraph was caught instead.
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementInnerText, "link");
-  expected_value.SetStringKey(kContextMenuElementSurroundingText, "link");
-  expected_value.SetStringKey(kContextMenuElementTagName, "P");
+  // Check that nothing was caught instead (no TagName).
+  auto expected_value =
+      base::Value::Dict().Set(kContextMenuElementRequestId, kRequestId);
 
   std::vector<const char*> ignored_keys;
   ignored_keys.push_back(kContextMenuElementTextOffset);
   ignored_keys.push_back(kContextMenuElementSurroundingTextOffset);
 
-  CheckElementResult(kPointOnLink, expected_value, ignored_keys);
+  CheckElementResult(@"link", expected_value, ignored_keys);
 }
 
 // Tests that setting -webkit-touch-callout property can override the value
@@ -991,14 +1003,14 @@ TEST_F(ContextMenuJsFindElementAtPointTest, LinkOfTextWithCalloutOverride) {
 
   ASSERT_TRUE(LoadHtml(html));
 
-  base::Value expected_value(base::Value::Type::DICT);
-  expected_value.SetStringKey(kContextMenuElementRequestId, kRequestId);
-  expected_value.SetStringKey(kContextMenuElementInnerText, "link");
-  expected_value.SetStringKey(kContextMenuElementReferrerPolicy, "default");
-  expected_value.SetStringKey(kContextMenuElementHyperlink, link);
-  expected_value.SetStringKey(kContextMenuElementTagName, "a");
+  auto expected_value = base::Value::Dict()
+                            .Set(kContextMenuElementRequestId, kRequestId)
+                            .Set(kContextMenuElementInnerText, "link")
+                            .Set(kContextMenuElementReferrerPolicy, "default")
+                            .Set(kContextMenuElementHyperlink, link)
+                            .Set(kContextMenuElementTagName, "a");
 
-  CheckElementResult(kPointOnLink, expected_value);
+  CheckElementResult(@"link", expected_value);
 }
 
 }  // namespace web

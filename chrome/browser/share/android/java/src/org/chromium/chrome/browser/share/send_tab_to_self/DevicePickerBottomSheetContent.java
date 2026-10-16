@@ -14,22 +14,22 @@ import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.StringRes;
+
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
-import org.chromium.components.sync_device_info.FormFactor;
 import org.chromium.ui.widget.Toast;
 
 import java.util.List;
 
 /**
- * Bottom sheet content to display a list of devices a user can send a tab to after they have
- * chosen to share it with themselves through the send-tab-to-self feature.
- * TODO(crbug.com/1219434): Make this and other helper UI bits package-private.
+ * Bottom sheet content to display a list of devices a user can send a tab to after they have chosen
+ * to share it with themselves through the send-tab-to-self feature.
  */
-public class DevicePickerBottomSheetContent implements BottomSheetContent, OnItemClickListener {
+class DevicePickerBottomSheetContent implements BottomSheetContent, OnItemClickListener {
     private final Context mContext;
     private final BottomSheetController mController;
     private ViewGroup mToolbarView;
@@ -39,8 +39,12 @@ public class DevicePickerBottomSheetContent implements BottomSheetContent, OnIte
     private final String mUrl;
     private final String mTitle;
 
-    public DevicePickerBottomSheetContent(Context context, String url, String title,
-            BottomSheetController controller, List<TargetDeviceInfo> targetDevices,
+    public DevicePickerBottomSheetContent(
+            Context context,
+            String url,
+            String title,
+            BottomSheetController controller,
+            List<TargetDeviceInfo> targetDevices,
             Profile profile) {
         mContext = context;
         mController = controller;
@@ -54,21 +58,30 @@ public class DevicePickerBottomSheetContent implements BottomSheetContent, OnIte
     }
 
     private void createToolbarView() {
-        mToolbarView = (ViewGroup) LayoutInflater.from(mContext).inflate(
-                R.layout.send_tab_to_self_device_picker_toolbar, null);
+        mToolbarView =
+                (ViewGroup)
+                        LayoutInflater.from(mContext)
+                                .inflate(R.layout.send_tab_to_self_device_picker_toolbar, null);
         TextView toolbarText = mToolbarView.findViewById(R.id.device_picker_toolbar);
         toolbarText.setText(R.string.send_tab_to_self_sheet_toolbar);
     }
 
     private void createContentView() {
-        mContentView = (ViewGroup) LayoutInflater.from(mContext).inflate(
-                R.layout.send_tab_to_self_device_picker_list, null);
+        mContentView =
+                (ViewGroup)
+                        LayoutInflater.from(mContext)
+                                .inflate(R.layout.send_tab_to_self_device_picker_list, null);
         ListView listView = mContentView.findViewById(R.id.device_picker_list);
         listView.setAdapter(mAdapter);
         listView.setOnItemClickListener(this);
 
-        listView.addFooterView(LayoutInflater.from(mContext).inflate(
-                R.layout.send_tab_to_self_device_picker_footer, null));
+        ViewGroup footerView =
+                (ViewGroup)
+                        LayoutInflater.from(mContext)
+                                .inflate(R.layout.send_tab_to_self_device_picker_footer, null);
+        ((ManageAccountDevicesLinkView) footerView.findViewById(R.id.manage_account_devices_link))
+                .setProfile(mProfile);
+        listView.addFooterView(footerView);
     }
 
     @Override
@@ -102,12 +115,6 @@ public class DevicePickerBottomSheetContent implements BottomSheetContent, OnIte
     }
 
     @Override
-    public int getPeekHeight() {
-        // Return DISABLED to ensure that the entire bottom sheet is shown.
-        return BottomSheetContent.HeightMode.DISABLED;
-    }
-
-    @Override
     public float getFullHeightRatio() {
         // Return WRAP_CONTENT to have the bottom sheet only open as far as it needs to display the
         // list of devices and nothing beyond that.
@@ -115,50 +122,37 @@ public class DevicePickerBottomSheetContent implements BottomSheetContent, OnIte
     }
 
     @Override
-    public int getSheetContentDescriptionStringId() {
-        return R.string.send_tab_to_self_content_description;
+    public @NonNull String getSheetContentDescription(Context context) {
+        return context.getString(R.string.send_tab_to_self_content_description);
     }
 
     @Override
-    public int getSheetHalfHeightAccessibilityStringId() {
+    public @StringRes int getSheetHalfHeightAccessibilityStringId() {
         return R.string.send_tab_to_self_sheet_half_height;
     }
 
     @Override
-    public int getSheetFullHeightAccessibilityStringId() {
+    public @StringRes int getSheetFullHeightAccessibilityStringId() {
         return R.string.send_tab_to_self_sheet_full_height;
     }
 
     @Override
-    public int getSheetClosedAccessibilityStringId() {
+    public @StringRes int getSheetClosedAccessibilityStringId() {
         return R.string.send_tab_to_self_sheet_closed;
     }
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        MetricsRecorder.recordSendingEvent(SendingEvent.CLICK_ITEM);
+        MetricsRecorder.recordCrossDeviceTabJourney();
         TargetDeviceInfo targetDeviceInfo = mAdapter.getItem(position);
 
         SendTabToSelfAndroidBridge.addEntry(mProfile, mUrl, mTitle, targetDeviceInfo.cacheGuid);
 
         Resources res = mContext.getResources();
 
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.SEND_TAB_TO_SELF_V2)
-                || ChromeFeatureList.isEnabled(ChromeFeatureList.UPCOMING_SHARING_FEATURES)) {
-            String deviceType = res.getString(R.string.send_tab_to_self_device_type_generic);
-            if (targetDeviceInfo.formFactor == FormFactor.PHONE) {
-                deviceType = res.getString(R.string.send_tab_to_self_device_type_phone);
-            } else if (targetDeviceInfo.formFactor == FormFactor.DESKTOP) {
-                deviceType = res.getString(R.string.send_tab_to_self_device_type_computer);
-            }
-
-            String toastMessage = res.getString(R.string.send_tab_to_self_v2_toast, deviceType);
-            Toast.makeText(mContext, toastMessage, Toast.LENGTH_SHORT).show();
-        } else {
-            String toastMessage =
-                    res.getString(R.string.send_tab_to_self_toast, targetDeviceInfo.deviceName);
-            Toast.makeText(mContext, toastMessage, Toast.LENGTH_SHORT).show();
-        }
+        String toastMessage =
+                res.getString(R.string.send_tab_to_self_toast, targetDeviceInfo.deviceName);
+        Toast.makeText(mContext, toastMessage, Toast.LENGTH_SHORT).show();
 
         mController.hideContent(this, true);
     }

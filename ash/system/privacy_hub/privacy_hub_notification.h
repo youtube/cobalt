@@ -5,14 +5,15 @@
 #ifndef ASH_SYSTEM_PRIVACY_HUB_PRIVACY_HUB_NOTIFICATION_H_
 #define ASH_SYSTEM_PRIVACY_HUB_PRIVACY_HUB_NOTIFICATION_H_
 
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
 
 #include "ash/ash_export.h"
-#include "ash/public/cpp/sensor_disabled_notification_delegate.h"
 #include "ash/public/cpp/system_notification_builder.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "ash/system/privacy_hub/sensor_disabled_notification_delegate.h"
+#include "ui/message_center/message_center_observer.h"
 #include "ui/message_center/public/cpp/notification_delegate.h"
 
 namespace ash {
@@ -28,8 +29,8 @@ class ASH_EXPORT PrivacyHubNotificationClickDelegate
       base::RepeatingClosure button_click);
 
   // message_center::NotificationDelegate:
-  void Click(const absl::optional<int>& button_index,
-             const absl::optional<std::u16string>& reply) override;
+  void Click(const std::optional<int>& button_index,
+             const std::optional<std::u16string>& reply) override;
 
   // When clicking on the notification message execute this `callback`.
   void SetMessageClickCallback(base::RepeatingClosure callback);
@@ -93,8 +94,24 @@ class ASH_EXPORT PrivacyHubNotificationDescriptor {
 
 // This class wraps `SystemNotificationBuilder` and adds additional constraints
 // and shared behavior that applies to all Privacy Hub notifications.
-class ASH_EXPORT PrivacyHubNotification {
+class ASH_EXPORT PrivacyHubNotification
+    : public message_center::MessageCenterObserver {
  public:
+  // Class used to encapsulate the logic whether a notification should be
+  // throttled (suppressed because it has been manually dismissed recently);
+  class Throttler {
+   public:
+    Throttler() = default;
+    Throttler(const Throttler&) = delete;
+    Throttler& operator=(const Throttler&) = delete;
+    virtual ~Throttler() = default;
+
+    // Returns `true` if the notification should be suppressed.
+    virtual bool ShouldThrottle() = 0;
+    // To be called when a notification is dismissed by the user.
+    virtual void RecordDismissalByUser() = 0;
+  };
+
   // Create a new notification.
   // When calling `Show() or `Update()`:
   // If `sensors_` is empty, the generic notification message from `descriptor`
@@ -122,7 +139,11 @@ class ASH_EXPORT PrivacyHubNotification {
   PrivacyHubNotification(PrivacyHubNotification&&) = delete;
   PrivacyHubNotification& operator=(PrivacyHubNotification&&) = delete;
 
-  ~PrivacyHubNotification();
+  ~PrivacyHubNotification() override;
+
+  // message_center::MessageCenterObserver:
+  void OnNotificationRemoved(const std::string& notification_id,
+                             bool by_user) override;
 
   // Show the notification to the user for at least `kMinShowTime`. Every time
   // `Show()` is called, the notification will pop up. For silent updates, use
@@ -152,7 +173,16 @@ class ASH_EXPORT PrivacyHubNotification {
   // `Show()` and `Hide()` are not going to work reliably.
   SystemNotificationBuilder& builder() { return builder_; }
 
+  // Sets a custom Throttler - the object that decides whether to suppress a
+  // notification due too too many repetitions.
+  void SetThrottler(std::unique_ptr<Throttler> throttler);
+
  private:
+  // Starts observation of dismissed messages
+  void StartDismissalObservation();
+  // Stops observation of dismissed messages
+  void StopDismissalObservation();
+
   // Get names of apps accessing sensors in `sensors_`. At most `number_of_apps`
   // elements will be returned.
   std::vector<std::u16string> GetAppsAccessingSensors(
@@ -192,8 +222,11 @@ class ASH_EXPORT PrivacyHubNotification {
   // determine if the notification is for the camera hardware switch to handle
   // it specially.
   NotificationCatalogName catalog_name_;
+
+  // Encapsulates the throttling logic for this notification.
+  std::unique_ptr<Throttler> throttler_;
 };
 
 }  // namespace ash
 
-#endif
+#endif  // ASH_SYSTEM_PRIVACY_HUB_PRIVACY_HUB_NOTIFICATION_H_

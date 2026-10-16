@@ -50,7 +50,7 @@ import "chromeos/services/network_health/public/mojom/network_health_types.mojom
 
 // Interface for getting device telemetry information. Implemented in
 // ash-chrome.
-[Stable, Uuid="f3dbbe3b-a810-43a9-889e-b130b4f94869"]
+[Uuid="f3dbbe3b-a810-43a9-889e-b130b4f94869"]
 interface TelemetryProbeService {
   // Returns telemetry information for the desired categories.
   //
@@ -74,8 +74,9 @@ interface TelemetryProbeService {
 
 // An enumeration of each category of information that cros_healthd can report.
 //
-// Next ID: 16
-[Stable, Extensible]
+// Next ID: 18
+// Next Version: 3
+[Extensible]
 enum ProbeCategoryEnum {
   [Default] kUnknown = 11,
   kBattery = 0,
@@ -93,13 +94,15 @@ enum ProbeCategoryEnum {
   kTpm = 13,
   kAudio = 14,
   kBus = 15,
+  [MinVersion=1] kDisplay = 16,
+  [MinVersion=2] kThermal = 17,
 };
 
 // An enumeration of the different categories of errors that can occur when
 // probing telemetry information.
 //
 // Next ID: 5
-[Stable, Extensible]
+[Extensible]
 enum ProbeErrorType {
   // Default value.
   [Default] kUnknown = 4,
@@ -116,7 +119,6 @@ enum ProbeErrorType {
 // Structure that contains error information for a telemetry probe.
 //
 // Next ID: 2
-[Stable]
 struct ProbeError {
   // The type of error that occurred.
   ProbeErrorType type@0;
@@ -128,7 +130,6 @@ struct ProbeError {
 // Information related to the main battery.
 //
 // Next ID: 14
-[Stable]
 struct ProbeBatteryInfo {
   // Cycle count.
   Int64Value? cycle_count@0;
@@ -166,7 +167,6 @@ struct ProbeBatteryInfo {
 
 // Battery probe result. Can either be populated with the BatteryInfo or an
 // error retrieving the information.
-[Stable]
 union ProbeBatteryResult {
   // Valid BatteryInfo. Null value if a battery is not present.
   ProbeBatteryInfo? battery_info;
@@ -177,7 +177,6 @@ union ProbeBatteryResult {
 // The info related to usb interfaces.
 //
 // NextMinVersion: 1, NextIndex: 5
-[Stable]
 struct ProbeUsbBusInterfaceInfo {
   // The zero-based number (index) of the interface.
   UInt8Value? interface_number@0;
@@ -196,7 +195,7 @@ struct ProbeUsbBusInterfaceInfo {
 // repo for the values. (https://github.com/fwupd/fwupd)
 //
 // NextMinVersion: 1, NextIndex: 14
-[Stable, Extensible]
+[Extensible]
 enum ProbeFwupdVersionFormat {
   // Unknown version format.
   [Default] kUnknown = 0,
@@ -229,7 +228,6 @@ enum ProbeFwupdVersionFormat {
 // The info related to a firmware version obtained from fwupd.
 //
 // NextMinVersion: 1, NextIndex: 2
-[Stable]
 struct ProbeFwupdFirmwareVersionInfo {
   // The string form of the firmware version.
   string? version@0;
@@ -240,7 +238,7 @@ struct ProbeFwupdFirmwareVersionInfo {
 // An enumeration of the usb version.
 //
 // NextMinVersion: 1, NextIndex: 5
-[Stable, Extensible]
+[Extensible]
 enum ProbeUsbVersion {
   // Can't determine the usb version.
   [Default] kUnknown = 0,
@@ -259,7 +257,7 @@ enum ProbeUsbVersion {
 //   - https://en.wikipedia.org/wiki/USB
 //
 // NextMinVersion: 1, NextIndex: 8
-[Stable, Extensible]
+[Extensible]
 enum ProbeUsbSpecSpeed {
   // Unknown speed.
   [Default] kUnknown = 0,
@@ -280,7 +278,6 @@ enum ProbeUsbSpecSpeed {
 // The info related to usb.
 //
 // NextMinVersion: 1, NextIndex: 9
-[Stable]
 struct ProbeUsbBusInfo {
   // These fields can be used to classify / identify the usb devices. See the
   // usb.ids database for the values. (https://github.com/gentoo/hwids)
@@ -306,7 +303,7 @@ struct ProbeUsbBusInfo {
 // The info related to a specific bus type.
 //
 // NextMinVersion: 1, NextIndex: 2
-[Stable, Extensible]
+[Extensible]
 union ProbeBusInfo {
   // Do not use, exists for forwards compatibility.
   [Default] bool unmapped_field@0;
@@ -316,7 +313,6 @@ union ProbeBusInfo {
 
 // Bus probe result. Can either be populated with the ProbeBusInfo or an error
 // retrieving the information.
-[Stable]
 union ProbeBusResult {
   // Valid ProbeBusInfo.
   array<ProbeBusInfo> bus_devices_info;
@@ -327,7 +323,6 @@ union ProbeBusResult {
 // Information related to a specific non-removable block device.
 //
 // Next ID: 12
-[Stable]
 struct ProbeNonRemovableBlockDeviceInfo {
   // The path of this storage on the system. It is useful if caller needs to
   // correlate with other information.
@@ -362,7 +357,6 @@ struct ProbeNonRemovableBlockDeviceInfo {
 
 // Non-removable block device probe result. Can either be populated with the
 // NonRemovableBlockDeviceInfo or an error retrieving the information.
-[Stable]
 union ProbeNonRemovableBlockDeviceResult {
   // Valid NonRemovableBlockDeviceInfo.
   array<ProbeNonRemovableBlockDeviceInfo> block_device_info;
@@ -374,7 +368,6 @@ union ProbeNonRemovableBlockDeviceResult {
 // Cached VPD read from sysfs.
 //
 // Next ID: 4
-[Stable]
 struct ProbeCachedVpdInfo {
   // Contents of /sys/firmware/vpd/rw/ActivateDate, if the device supports it.
   string? first_power_date@0;
@@ -388,7 +381,6 @@ struct ProbeCachedVpdInfo {
 
 // Cached VPD probe result. Can either be populated with the CachedVpdInfo or an
 // error retrieving the information.
-[Stable]
 union ProbeCachedVpdResult {
   // Valid CachedVpdInfo.
   ProbeCachedVpdInfo vpd_info;
@@ -399,7 +391,6 @@ union ProbeCachedVpdResult {
 // Information about a CPU's C-states.
 //
 // Next ID: 2
-[Stable]
 struct ProbeCpuCStateInfo {
   // Name of the state.
   string? name@0;
@@ -409,8 +400,8 @@ struct ProbeCpuCStateInfo {
 
 // Information related to a particular logical CPU.
 //
-// Next ID: 5
-[Stable]
+// Next ID: 6
+// Next MinVersion: 2
 struct ProbeLogicalCpuInfo {
   // The max CPU clock speed in kHz.
   UInt32Value? max_clock_speed_khz@0;
@@ -422,12 +413,13 @@ struct ProbeLogicalCpuInfo {
   UInt64Value? idle_time_ms@3;
   // Information about the logical CPU's time in various C-states.
   array<ProbeCpuCStateInfo> c_states@4;
+  // The core number this logical CPU corresponds to.
+  [MinVersion=1] UInt32Value? core_id@5;
 };
 
 // Information related to a particular physical CPU.
 //
 // Next ID: 2
-[Stable]
 struct ProbePhysicalCpuInfo {
   // The CPU model name.
   string? model_name@0;
@@ -438,7 +430,7 @@ struct ProbePhysicalCpuInfo {
 // An enumeration of CPU architectures.
 //
 // Next ID: 4
-[Stable, Extensible]
+[Extensible]
 enum ProbeCpuArchitectureEnum {
   [Default] kUnknown = 3,
   kX86_64 = 0,
@@ -449,7 +441,6 @@ enum ProbeCpuArchitectureEnum {
 // Information about the device's CPUs.
 //
 // Next ID: 3
-[Stable]
 struct ProbeCpuInfo {
   // Number of total threads available.
   UInt32Value? num_total_threads@0;
@@ -462,7 +453,6 @@ struct ProbeCpuInfo {
 
 // CPU probe result. Can either be populated with the CpuInfo or an error
 // retrieving the information.
-[Stable]
 union ProbeCpuResult {
   // Valid CpuInfo.
   ProbeCpuInfo cpu_info;
@@ -473,7 +463,6 @@ union ProbeCpuResult {
 // Timezone information.
 //
 // Next ID: 2
-[Stable]
 struct ProbeTimezoneInfo {
   // The timezone of the device in POSIX standard.
   string? posix@0;
@@ -483,7 +472,6 @@ struct ProbeTimezoneInfo {
 
 // Timezone probe result. Can either be populated with the TimezoneInfo or an
 // error retrieving the information.
-[Stable]
 union ProbeTimezoneResult {
   // Valid TimezoneInfo.
   ProbeTimezoneInfo timezone_info;
@@ -494,7 +482,6 @@ union ProbeTimezoneResult {
 // Memory information.
 //
 // Next ID: 4
-[Stable]
 struct ProbeMemoryInfo {
   // Total memory, in KiB.
   UInt32Value? total_memory_kib@0;
@@ -508,7 +495,6 @@ struct ProbeMemoryInfo {
 
 // Memory probe result. Can either be populated with the MemoryInfo or an
 // error retrieving the information.
-[Stable]
 union ProbeMemoryResult {
   // Valid MemoryInfo.
   ProbeMemoryInfo memory_info;
@@ -519,7 +505,6 @@ union ProbeMemoryResult {
 // Backlight information.
 //
 // Next ID: 3
-[Stable]
 struct ProbeBacklightInfo {
   // Path to this backlight on the system. Useful if the caller needs to
   // correlate with other information.
@@ -532,7 +517,6 @@ struct ProbeBacklightInfo {
 
 // Backlight probe result. Can either be populated with the BacklightInfo or an
 // error retrieving the information.
-[Stable]
 union ProbeBacklightResult {
   // Valid BacklightInfo.
   array<ProbeBacklightInfo> backlight_info;
@@ -541,7 +525,6 @@ union ProbeBacklightResult {
 };
 
 // Fan information.
-[Stable]
 struct ProbeFanInfo {
   // Fan speed in RPM.
   UInt32Value? speed_rpm@0;
@@ -549,7 +532,6 @@ struct ProbeFanInfo {
 
 // Fan probe result. Can either be populated with the FanInfo or an error
 // retrieving the information.
-[Stable]
 union ProbeFanResult {
   // A list of valid FanInfo.
   array<ProbeFanInfo> fan_info;
@@ -560,7 +542,6 @@ union ProbeFanResult {
 // Stateful partition info
 //
 // Next ID: 2
-[Stable]
 struct ProbeStatefulPartitionInfo {
   // Available space for user data storage in the device in bytes. Rounded down
   // to multiples of 100MiB (100 * 1024 * 1024 bytes).
@@ -571,7 +552,6 @@ struct ProbeStatefulPartitionInfo {
 
 // Stateful partition probe result. Can either be populated with a valid
 // StatefulPartitionInfo or an error retrieving the information.
-[Stable]
 union ProbeStatefulPartitionResult {
   // A valid StatefulPartitionInfo.
   ProbeStatefulPartitionInfo partition_info;
@@ -582,7 +562,7 @@ union ProbeStatefulPartitionResult {
 // The version of Google security chip(GSC).
 //
 // Next ID: 3
-[Stable, Extensible]
+[Extensible]
 enum ProbeTpmGSCVersion {
   // For the devices which cannot be classified.
   [Default] kNotGSC = 0,
@@ -595,7 +575,6 @@ enum ProbeTpmGSCVersion {
 // TPM version related information.
 //
 // Next ID: 7
-[Stable]
 struct ProbeTpmVersion {
   // GSC version.
   ProbeTpmGSCVersion gsc_version@0;
@@ -618,7 +597,6 @@ struct ProbeTpmVersion {
 // TPM status related information.
 //
 // Next ID: 3
-[Stable]
 struct ProbeTpmStatus {
   // Whether a TPM is enabled on the system.
   BoolValue? enabled@0;
@@ -631,7 +609,6 @@ struct ProbeTpmStatus {
 // TPM dictionary attack (DA) related information.
 //
 // Next ID: 4
-[Stable]
 struct ProbeTpmDictionaryAttack {
   // The current dictionary attack counter value.
   UInt32Value? counter@0;
@@ -649,7 +626,6 @@ struct ProbeTpmDictionaryAttack {
 //   - https://www.chromium.org/developers/design-documents/tpm-usage
 //
 // Next ID: 3
-[Stable]
 struct ProbeTpmInfo {
   // TPM version related information.
   ProbeTpmVersion? version@0;
@@ -661,7 +637,6 @@ struct ProbeTpmInfo {
 
 // TPM probe result. Can either be populated with the TpmInfo or an error
 // retrieving the information.
-[Stable]
 union ProbeTpmResult {
   // Valid TpmInfo.
   ProbeTpmInfo tpm_info;
@@ -672,7 +647,6 @@ union ProbeTpmResult {
 // Information related to one of a device's Bluetooth adapters.
 //
 // Next ID: 4
-[Stable]
 struct ProbeBluetoothAdapterInfo {
   // The name of the adapter.
   string? name@0;
@@ -686,7 +660,6 @@ struct ProbeBluetoothAdapterInfo {
 
 // Bluetooth probe result. Can either be populated with the BluetoothAdapterInfo
 // or an error retrieving the information.
-[Stable]
 union ProbeBluetoothResult {
   // Valid BluetoothAdapterInfo.
   array<ProbeBluetoothAdapterInfo> bluetooth_adapter_info;
@@ -697,7 +670,6 @@ union ProbeBluetoothResult {
 // OS Version information.
 // This structure decomposes a full version string
 // (e.g. "87.13544.59.0") into its parts.
-[Stable]
 struct ProbeOsVersion {
   // The OS version release milestone (e.g. "87").
   string? release_milestone@0;
@@ -713,7 +685,6 @@ struct ProbeOsVersion {
 //
 // Next ID: 3
 // Next Version: 3
-[Stable]
 struct ProbeOsInfo {
   // Contents of CrosConfig in /branding/oem-name.
   string? oem_name@0;
@@ -724,7 +695,6 @@ struct ProbeOsInfo {
 };
 
 // System Information.
-[Stable]
 struct ProbeSystemInfo {
   // The info related to the OS.
   ProbeOsInfo os_info@0;
@@ -732,7 +702,6 @@ struct ProbeSystemInfo {
 
 // System probe result. Can either be populated with the SystemInfo or an
 // error retrieving the information.
-[Stable]
 union ProbeSystemResult {
   // Valid SystemInfo.
   ProbeSystemInfo system_info;
@@ -742,7 +711,6 @@ union ProbeSystemResult {
 
 // Network probe result. Can either be populated with the NetworkHealthState
 // or an error retrieving the information.
-[Stable]
 union ProbeNetworkResult {
   // Valid NetworkHealthState.
   chromeos.network_health.mojom.NetworkHealthState network_health;
@@ -753,7 +721,6 @@ union ProbeNetworkResult {
 // Audio input node information.
 //
 // NextID: 5
-[Stable]
 struct ProbeAudioInputNodeInfo {
   // Node id.
   UInt64Value? id@0;
@@ -772,7 +739,6 @@ struct ProbeAudioInputNodeInfo {
 // Audio output node information.
 //
 // NextID: 5
-[Stable]
 struct ProbeAudioOutputNodeInfo {
   // Node id.
   UInt64Value? id@0;
@@ -791,7 +757,6 @@ struct ProbeAudioOutputNodeInfo {
 // Audio information.
 //
 // NextID: 6
-[Stable]
 struct ProbeAudioInfo {
   // Is the active output device mute or not.
   BoolValue? output_mute@0;
@@ -809,11 +774,148 @@ struct ProbeAudioInfo {
 
 // Audio probe result. Can either be populated with the ProbeAudioInfo or an
 // error retrieving the information.
-[Stable]
 union ProbeAudioResult {
   // Valid ProbeAudioInfo.
   ProbeAudioInfo audio_info;
   // The error that occurred attempting to retrieve the AudioInfo.
+  ProbeError error;
+};
+
+// An enumeration of display input type.
+//
+// NextMinVersion: 1, NextIndex: 3
+[Extensible]
+enum ProbeDisplayInputType {
+  // An enum value not defined in this version of the enum definition.
+  [Default] kUnmappedEnumField = 0,
+  // Digital input.
+  kDigital = 1,
+  // Analog input.
+  kAnalog = 2,
+};
+
+// NextMinVersion: 1, NextIndex: 15
+struct ProbeEmbeddedDisplayInfo {
+  // Privacy screen is supported or not.
+  bool? privacy_screen_supported@0;
+  // Privacy screen is enabled or not.
+  bool? privacy_screen_enabled@1;
+  // Display width in millimeters.
+  uint32? display_width@2;
+  // Display height in millimeters.
+  uint32? display_height@3;
+  // Horizontal resolution.
+  uint32? resolution_horizontal@4;
+  // Vertical resolution.
+  uint32? resolution_vertical@5;
+  // Refresh rate.
+  double? refresh_rate@6;
+  // Three letter manufacturer ID.
+  string? manufacturer@7;
+  // Manufacturer product code.
+  uint16? model_id@8;
+  // 32 bits serial number.
+  uint32? serial_number@9;
+  // Week of manufacture.
+  uint8? manufacture_week@10;
+  // Year of manufacture.
+  uint16? manufacture_year@11;
+  // EDID version.
+  string? edid_version@12;
+  // Digital or analog input.
+  ProbeDisplayInputType input_type@13;
+  // Name of display product.
+  string? display_name@14;
+};
+
+// NextMinVersion: 1, NextIndex: 13
+struct ProbeExternalDisplayInfo {
+  // Display width in millimeters.
+  uint32? display_width@0;
+  // Display height in millimeters.
+  uint32? display_height@1;
+  // Horizontal resolution.
+  uint32? resolution_horizontal@2;
+  // Vertical resolution.
+  uint32? resolution_vertical@3;
+  // Refresh rate.
+  double? refresh_rate@4;
+  // Three letter manufacturer ID.
+  string? manufacturer@5;
+  // Manufacturer product code.
+  uint16? model_id@6;
+  // 32 bits serial number.
+  uint32? serial_number@7;
+  // Week of manufacture.
+  uint8? manufacture_week@8;
+  // Year of manufacture.
+  uint16? manufacture_year@9;
+  // EDID version.
+  string? edid_version@10;
+  // Digital or analog input.
+  ProbeDisplayInputType input_type@11;
+  // Name of display product.
+  string? display_name@12;
+};
+
+// Display information.
+//
+// NextMinVersion: 1, NextIndex: 2
+struct ProbeDisplayInfo {
+  // Embedded display info.
+  ProbeEmbeddedDisplayInfo? embedded_display@0;
+  // External display info.
+  array<ProbeExternalDisplayInfo>? external_displays@1;
+};
+
+// Can either be populated with the Display result or an error retrieving the
+// information.
+union ProbeDisplayResult {
+  // Valid DisplayInfo.
+  ProbeDisplayInfo display_info;
+  // The error that occurred attempting to retrieve DisplayInfo.
+  ProbeError error;
+};
+
+// The location of sensor.
+//
+// NextMinVersion: 1, NextIndex: 3
+[Extensible]
+enum ProbeThermalSensorSource {
+  // For mojo backward compatibility, should not be used.
+  [Default] kUnmappedEnumField = 0,
+  // Thermal sensor is located in the EC.
+  kEc = 1,
+  // Thermal sensor is located in SysFs.
+  kSysFs = 2,
+};
+
+// Information about various thermal sensors.
+//
+// NextMinVersion: 1, NextIndex: 3
+struct ProbeThermalSensorInfo {
+  // Name of the thermal sensor.
+  string name@0;
+  // Temperature detected by the thermal sensor in celsius.
+  double temperature_celsius@1;
+  // Where the thermal sensor is detected from.
+  ProbeThermalSensorSource source@2;
+};
+
+// Thermal information.
+//
+// NextMinVersion: 1, NextIndex: 2
+struct ProbeThermalInfo {
+  // An array containing all the information retrieved for thermal sensors.
+  array<ProbeThermalSensorInfo> thermal_sensors@0;
+};
+
+// Can either be populated with the Thermal result or an error retrieving the
+// information.
+union ProbeThermalResult {
+  // Valid thermal info.
+  ProbeThermalInfo thermal_info;
+  // The error that occurred attempting to retrieve ThermalInfo.
   ProbeError error;
 };
 
@@ -825,9 +927,8 @@ union ProbeAudioResult {
 // attempt to fetch that information, and size zero if cros_healthd did attempt
 // to fetch that information, but was unable to.
 //
-// Next ID: 15
-// Next MinVersion: 3
-[Stable]
+// Next ID: 17
+// Next MinVersion: 5
 struct ProbeTelemetryInfo {
   // Information about the device's main battery. Only present when kBattery was
   // included in the categories input to ProbeTelemetryInfo.
@@ -877,10 +978,15 @@ struct ProbeTelemetryInfo {
   // Information about the bus devices. Only present when kBus was included
   // in the categories input to ProbeTelemetryInfo.
   [MinVersion=2] ProbeBusResult? bus_result@14;
+  // Information about the bus devices. Only present when kDisplay was included
+  // in the categories input to ProbeTelemetryInfo.
+  [MinVersion=3] ProbeDisplayResult? display_result@15;
+  // Information about the thermal temperatures. Only present when kThermal was
+  // included in the categories input to ProbeTelemetryInfo.
+  [MinVersion=4] ProbeThermalResult? thermal_result@16;
 };
 
 // Result of running /usr/share/cros/oemdata.sh script.
-[Stable]
 struct ProbeOemData {
   string? oem_data@0;
 };

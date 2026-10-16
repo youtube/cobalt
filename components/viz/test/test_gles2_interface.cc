@@ -2,16 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/viz/test/test_gles2_interface.h"
 
 #include "base/containers/contains.h"
+#include "base/containers/heap_array.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/numerics/safe_conversions.h"
 #include "components/viz/test/test_context_support.h"
 #include "gpu/GLES2/gl2extchromium.h"
+#include "gpu/command_buffer/common/gles2_cmd_utils.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -31,7 +40,7 @@ static unsigned NextContextId() {
 
 TestGLES2Interface::TestGLES2Interface() : context_id_(NextContextId()) {
   // For stream textures.
-  set_have_extension_egl_image(true);
+  test_capabilities_.egl_image_external = true;
   set_max_texture_size(2048);
 }
 
@@ -104,14 +113,6 @@ GLuint TestGLES2Interface::CreateProgram() {
 }
 
 void TestGLES2Interface::BindTexture(GLenum target, GLuint texture) {
-  if (times_bind_texture_succeeds_ >= 0) {
-    if (!times_bind_texture_succeeds_) {
-      LoseContextCHROMIUM(GL_GUILTY_CONTEXT_RESET_ARB,
-                          GL_INNOCENT_CONTEXT_RESET_ARB);
-    }
-    --times_bind_texture_succeeds_;
-  }
-
   if (!texture)
     return;
   DCHECK(base::Contains(textures_, texture));
@@ -120,7 +121,7 @@ void TestGLES2Interface::BindTexture(GLenum target, GLuint texture) {
 
 void TestGLES2Interface::GetIntegerv(GLenum pname, GLint* params) {
   if (pname == GL_MAX_TEXTURE_SIZE)
-    *params = test_capabilities_.max_texture_size;
+    *params = test_gl_capabilities_.max_texture_size;
   else if (pname == GL_ACTIVE_TEXTURE)
     *params = GL_TEXTURE0;
   else if (pname == GL_UNPACK_ALIGNMENT)
@@ -128,7 +129,7 @@ void TestGLES2Interface::GetIntegerv(GLenum pname, GLint* params) {
   else if (pname == GL_FRAMEBUFFER_BINDING)
     *params = current_framebuffer_;
   else if (pname == GL_MAX_SAMPLES)
-    *params = test_capabilities_.max_samples;
+    *params = test_gl_capabilities_.max_samples;
 }
 
 void TestGLES2Interface::GetShaderiv(GLuint shader,
@@ -184,7 +185,6 @@ void TestGLES2Interface::GetShaderPrecisionFormat(GLenum shadertype,
       break;
     default:
       NOTREACHED();
-      break;
   }
 }
 
@@ -286,14 +286,14 @@ void* TestGLES2Interface::MapBufferCHROMIUM(GLuint target, GLenum access) {
     --times_map_buffer_chromium_succeeds_;
   }
 
-  return buffers_[bound_buffer_[target]]->pixels.get();
+  return buffers_[bound_buffer_[target]]->pixels.data();
 }
 
 GLboolean TestGLES2Interface::UnmapBufferCHROMIUM(GLuint target) {
   DCHECK_GT(bound_buffer_.count(target), 0u);
   DCHECK_GT(buffers_.count(bound_buffer_[target]), 0u);
   DCHECK_EQ(target, buffers_[bound_buffer_[target]]->target);
-  buffers_[bound_buffer_[target]]->pixels = nullptr;
+  buffers_[bound_buffer_[target]]->pixels = {};
   return true;
 }
 
@@ -306,14 +306,16 @@ void TestGLES2Interface::BufferData(GLenum target,
   DCHECK_EQ(target, buffers_[bound_buffer_[target]]->target);
   Buffer* buffer = buffers_[bound_buffer_[target]].get();
   if (context_lost_) {
-    buffer->pixels = nullptr;
+    buffer->pixels = {};
     return;
   }
 
-  buffer->pixels.reset(new uint8_t[size]);
-  buffer->size = size;
-  if (data != nullptr)
-    memcpy(buffer->pixels.get(), data, size);
+  buffer->pixels = base::HeapArray<uint8_t>::Uninit(size);
+  if (data != nullptr) {
+    buffer->pixels.as_span().copy_from(
+        base::span<const uint8_t>(reinterpret_cast<const uint8_t*>(data),
+                                  base::checked_cast<size_t>(size)));
+  }
 }
 
 void TestGLES2Interface::GenSyncTokenCHROMIUM(GLbyte* sync_token) {
@@ -382,35 +384,11 @@ void TestGLES2Interface::GetQueryObjectuivEXT(GLuint id,
   }
 }
 
-void TestGLES2Interface::ProduceTextureDirectCHROMIUM(GLuint texture,
-                                                      GLbyte* mailbox) {
-  gpu::Mailbox gpu_mailbox = gpu::Mailbox::GenerateLegacyMailboxForTesting();
-  memcpy(mailbox, gpu_mailbox.name, sizeof(gpu_mailbox.name));
-}
-
-GLuint TestGLES2Interface::CreateAndConsumeTextureCHROMIUM(
-    const GLbyte* mailbox) {
-  GLuint texture_id;
-  GenTextures(1, &texture_id);
-  return texture_id;
-}
-
 GLuint TestGLES2Interface::CreateAndTexStorage2DSharedImageCHROMIUM(
     const GLbyte* mailbox) {
   GLuint texture_id;
   GenTextures(1, &texture_id);
   return texture_id;
-}
-
-void TestGLES2Interface::ResizeCHROMIUM(GLuint width,
-                                        GLuint height,
-                                        float device_scale,
-                                        GLcolorSpace color_space,
-                                        GLboolean has_alpha) {
-  reshape_called_ = true;
-  width_ = width;
-  height_ = height;
-  scale_factor_ = device_scale;
 }
 
 void TestGLES2Interface::LoseContextCHROMIUM(GLenum current, GLenum other) {
@@ -431,20 +409,21 @@ GLenum TestGLES2Interface::GetGraphicsResetStatusKHR() {
   return GL_NO_ERROR;
 }
 
-void TestGLES2Interface::set_times_bind_texture_succeeds(int times) {
-  times_bind_texture_succeeds_ = times;
-}
-
-void TestGLES2Interface::set_have_extension_egl_image(bool have) {
-  test_capabilities_.egl_image_external = have;
-}
-
-void TestGLES2Interface::set_support_texture_format_bgra8888(bool support) {
-  test_capabilities_.texture_format_bgra8888 = support;
-}
-
-void TestGLES2Interface::set_support_sync_query(bool support) {
-  test_capabilities_.sync_query = support;
+void TestGLES2Interface::ReadPixels(GLint x,
+                                    GLint y,
+                                    GLsizei width,
+                                    GLsizei height,
+                                    GLenum format,
+                                    GLenum type,
+                                    void* pixels) {
+  // Zero-initialize the destination buffer to appease MSAN. Note that we don't
+  // support non-default alignment or ES3 pixel store parameters, but that's ok
+  // since this is test-only code and MSAN will catch any uninitialized access.
+  uint32_t pixels_size = 0;
+  gpu::gles2::GLES2Util::ComputeImageDataSizes(
+      width, height, /*depth=*/1, format, type, /*alignment=*/4, &pixels_size,
+      /*opt_unpadded_row_size=*/nullptr, /*opt_padded_row_size=*/nullptr);
+  memset(pixels, 0, pixels_size);
 }
 
 void TestGLES2Interface::set_support_texture_half_float_linear(bool support) {
@@ -455,40 +434,13 @@ void TestGLES2Interface::set_support_texture_norm16(bool support) {
   test_capabilities_.texture_norm16 = support;
 }
 
-void TestGLES2Interface::set_msaa_is_slow(bool msaa_is_slow) {
-  test_capabilities_.msaa_is_slow = msaa_is_slow;
-}
-
 void TestGLES2Interface::set_gpu_rasterization(bool gpu_rasterization) {
   test_capabilities_.gpu_rasterization = gpu_rasterization;
 }
 
-void TestGLES2Interface::set_avoid_stencil_buffers(bool avoid_stencil_buffers) {
-  test_capabilities_.avoid_stencil_buffers = avoid_stencil_buffers;
-}
-
-void TestGLES2Interface::set_support_multisample_compatibility(bool support) {
-  test_capabilities_.multisample_compatibility = support;
-}
-
-void TestGLES2Interface::set_supports_scanout_shared_images(bool support) {
-  test_capabilities_.supports_scanout_shared_images = support;
-}
-
-void TestGLES2Interface::set_support_texture_npot(bool support) {
-  test_capabilities_.texture_npot = support;
-}
-
 void TestGLES2Interface::set_max_texture_size(int size) {
+  test_gl_capabilities_.max_texture_size = size;
   test_capabilities_.max_texture_size = size;
-}
-
-void TestGLES2Interface::set_supports_oop_raster(bool support) {
-  test_capabilities_.supports_oop_raster = support;
-}
-
-void TestGLES2Interface::set_supports_shared_image_swap_chain(bool support) {
-  test_capabilities_.shared_image_swap_chain = support;
 }
 
 void TestGLES2Interface::set_supports_gpu_memory_buffer_format(
@@ -588,7 +540,7 @@ size_t TestGLES2Interface::NumRenderbuffers() const {
   return renderbuffer_set_.size();
 }
 
-TestGLES2Interface::Buffer::Buffer() : target(0), size(0) {}
+TestGLES2Interface::Buffer::Buffer() : target(0) {}
 
 TestGLES2Interface::Buffer::~Buffer() = default;
 

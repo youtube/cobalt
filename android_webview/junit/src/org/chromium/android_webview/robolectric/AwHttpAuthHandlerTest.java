@@ -13,9 +13,7 @@ import org.robolectric.annotation.Config;
 import org.chromium.android_webview.AwHttpAuthHandler;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 
-/**
- * JUnit tests for AwHttpAuthHandler.
- */
+/** JUnit tests for AwHttpAuthHandler. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class AwHttpAuthHandlerTest {
@@ -57,20 +55,22 @@ public class AwHttpAuthHandlerTest {
     }
 
     private void throwsInBackground(Runnable r) {
-        Thread thread = new Thread(() -> {
-            try {
-                r.run();
-                Assert.fail("Should have thrown on background thread");
-            } catch (IllegalStateException e) {
-                // Smooth sailing, we expected this
-            }
-        });
+        Thread thread =
+                new Thread(
+                        () -> {
+                            try {
+                                r.run();
+                                Assert.fail("Should have thrown on background thread");
+                            } catch (IllegalStateException e) {
+                                // Smooth sailing, we expected this
+                            }
+                        });
         thread.start();
 
         try {
             thread.join();
         } catch (InterruptedException e) {
-            Assert.fail("Background thread interrupted");
+            throw new AssertionError("Background thread interrupted", e);
         }
     }
 }

@@ -16,12 +16,12 @@ import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 
-import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.widget.AppCompatTextView;
 
 import com.google.android.material.shape.MaterialShapeDrawable;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.feed.R;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 
@@ -30,6 +30,7 @@ import org.chromium.components.browser_ui.styles.SemanticColorUtils;
  *
  * Allows for setting of text inside the dot and animating the width when text changes.
  */
+@NullMarked
 public class SectionHeaderBadgeDrawable extends Drawable {
     private static final int ANIMATION_DURATION_MS = 400;
     private static final int ANIMATION_START_DELAY_MS = 1500;
@@ -41,8 +42,8 @@ public class SectionHeaderBadgeDrawable extends Drawable {
     private final float mTextSize;
 
     private String mText;
-    private ValueAnimator mAnimator;
-    private View mAnchor;
+    private @Nullable ValueAnimator mAnimator;
+    private @Nullable View mAnchor;
     private boolean mHasPendingAnimation;
 
     public SectionHeaderBadgeDrawable(Context context) {
@@ -73,7 +74,7 @@ public class SectionHeaderBadgeDrawable extends Drawable {
      *
      * @param text The text to show inside the dot.
      */
-    public void setText(String text) {
+    public void setText(@Nullable String text) {
         // Cast null to empty string first.
         final String finalText = (text == null) ? "" : text;
         // Do nothing if no change.
@@ -120,8 +121,11 @@ public class SectionHeaderBadgeDrawable extends Drawable {
         // Draws the full text with the top left corner at (centerX, centerY-(halfheight of text)).
         // We define halfheight as the average of ascent and descent to ensure the text does not
         // appear lopsided even if the font changes.
-        canvas.drawText(mText, bounds.centerX(),
-                bounds.centerY() - ((mPaint.descent() + mPaint.ascent()) / 2), mPaint);
+        canvas.drawText(
+                mText,
+                bounds.centerX(),
+                bounds.centerY() - ((mPaint.descent() + mPaint.ascent()) / 2),
+                mPaint);
     }
 
     @Override
@@ -209,15 +213,21 @@ public class SectionHeaderBadgeDrawable extends Drawable {
         int halfWidth = Math.max(radius, (textBounds.right - textBounds.left) / 2 + radius);
 
         // CenterY is the top of the bounding box + a custom vertical offset.
-        int centerY = anchorBounds.top
-                + mContext.getResources().getDimensionPixelSize(R.dimen.feed_badge_voffset)
-                + halfHeight;
+        int centerY =
+                anchorBounds.top
+                        + mContext.getResources().getDimensionPixelSize(R.dimen.feed_badge_voffset)
+                        + halfHeight;
         // CenterX is the right side of the bounding box + radius + offset.
-        int centerX = anchorBounds.right + halfWidth
-                - mContext.getResources().getDimensionPixelSize(R.dimen.feed_badge_hoffset);
+        int centerX =
+                anchorBounds.right
+                        + halfWidth
+                        - mContext.getResources().getDimensionPixelSize(R.dimen.feed_badge_hoffset);
 
         // The new bounds for the dot + any text to be rendered therein.
-        return new Rect(centerX - halfWidth, centerY - halfHeight, centerX + halfWidth,
+        return new Rect(
+                centerX - halfWidth,
+                centerY - halfHeight,
+                centerX + halfWidth,
                 centerY + halfHeight);
     }
 
@@ -230,38 +240,45 @@ public class SectionHeaderBadgeDrawable extends Drawable {
     private void setUpAndRunAnimation() {
         mAnimator = ValueAnimator.ofInt(0, 100);
         Rect bounds = getBounds();
+        assert mAnchor != null;
         Rect toBounds = calculateBounds(mAnchor, "");
-        mAnimator.addUpdateListener((ValueAnimator animation) -> {
-            float fraction = animation.getAnimatedFraction();
-            Rect newBounds =
-                    new Rect((int) (bounds.left - (bounds.left - toBounds.left) * fraction),
-                            (int) (bounds.top - (bounds.top - toBounds.top) * fraction),
-                            (int) (bounds.right - (bounds.right - toBounds.right) * fraction),
-                            (int) (bounds.bottom - (bounds.bottom - toBounds.bottom) * fraction));
-            mPaint.setAlpha((int) (255 - 255 * fraction));
-            mPaint.setTextSize(mTextSize - mTextSize * fraction);
-            setBounds(newBounds);
-            invalidateSelf();
-        });
-        mAnimator.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(Animator animator) {
-                mText = "";
-                invalidateSelf();
-            }
-        });
+        mAnimator.addUpdateListener(
+                (ValueAnimator animation) -> {
+                    float fraction = animation.getAnimatedFraction();
+                    Rect newBounds =
+                            new Rect(
+                                    (int) (bounds.left - (bounds.left - toBounds.left) * fraction),
+                                    (int) (bounds.top - (bounds.top - toBounds.top) * fraction),
+                                    (int)
+                                            (bounds.right
+                                                    - (bounds.right - toBounds.right) * fraction),
+                                    (int)
+                                            (bounds.bottom
+                                                    - (bounds.bottom - toBounds.bottom)
+                                                            * fraction));
+                    mPaint.setAlpha((int) (255 - 255 * fraction));
+                    mPaint.setTextSize(mTextSize - mTextSize * fraction);
+                    setBounds(newBounds);
+                    invalidateSelf();
+                });
+        mAnimator.addListener(
+                new AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationEnd(Animator animator) {
+                        mText = "";
+                        invalidateSelf();
+                    }
+                });
         mAnimator.setStartDelay(ANIMATION_START_DELAY_MS);
         mAnimator.setDuration(ANIMATION_DURATION_MS);
         mAnimator.start();
     }
 
-    @VisibleForTesting
     boolean getHasPendingAnimationForTest() {
         return mHasPendingAnimation;
     }
 
-    @VisibleForTesting
-    ValueAnimator getAnimatorForTest() {
+    @Nullable ValueAnimator getAnimatorForTest() {
         return mAnimator;
     }
 }

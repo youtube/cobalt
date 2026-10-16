@@ -6,22 +6,21 @@ on:
     - cron: '0 10 * * *'
   workflow_dispatch:
 
+permissions: {}
+
+env:
+  GITHUB_REPO: ${{ github.repository }}
+
 jobs:
   trigger_26:
     permissions:
       actions: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          ref: 26.android
-          persist-credentials: false
       - name: Trigger Nightly
         run: |
           set -x
-          gh workflow run android_26.android --ref 26.android -f nightly=true
-          gh workflow run linux_26.android --ref 26.android -f nightly=true
+          gh workflow run android_26.android --ref 26.android -f nightly=true --repo "${GITHUB_REPO}"
+          gh workflow run linux_26.android --ref 26.android -f nightly=true --repo "${GITHUB_REPO}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -33,7 +33,7 @@ FlatlandSysmemBufferManager::~FlatlandSysmemBufferManager() {
 }
 
 void FlatlandSysmemBufferManager::Initialize(
-    fuchsia::sysmem::AllocatorHandle sysmem_allocator,
+    fuchsia::sysmem2::AllocatorHandle sysmem_allocator,
     fuchsia::ui::composition::AllocatorHandle flatland_allocator) {
   base::AutoLock auto_lock(collections_lock_);
   DCHECK(collections_.empty());
@@ -41,8 +41,9 @@ void FlatlandSysmemBufferManager::Initialize(
   DCHECK(!sysmem_allocator_);
   sysmem_allocator_.Bind(std::move(sysmem_allocator));
   sysmem_allocator_->SetDebugClientInfo(
-      GetProcessName() + "-FlatlandSysmemBufferManager",
-      base::GetCurrentProcId());
+      std::move(fuchsia::sysmem2::AllocatorSetDebugClientInfoRequest{}
+                    .set_name(GetProcessName() + "-FlatlandSysmemBufferManager")
+                    .set_id(base::GetCurrentProcId())));
 
   DCHECK(!flatland_allocator_);
   flatland_allocator_.Bind(std::move(flatland_allocator));
@@ -68,21 +69,12 @@ FlatlandSysmemBufferManager::CreateNativePixmap(VkDevice vk_device,
       0, &pixmap_handle.buffer_collection_handle, &service_handle);
   ZX_DCHECK(status == ZX_OK, status);
 
-  // TODO(https://crbug.com/1380090): Register with flatland allocator and allow
-  // overlays for all buffers that have SCANOUT* usage and formats that Flatland
-  // accepts. Currently, we are only doing it for SCANOUT buffers and
-  // YUV_420_BIPLANAR buffers that are created from
-  // GpuMemoryBufferVideoFramePool.
-  const bool allow_overlay =
-      usage == gfx::BufferUsage::SCANOUT ||
-      (format == gfx::BufferFormat::YUV_420_BIPLANAR &&
-       usage == gfx::BufferUsage::SCANOUT_CPU_READ_WRITE);
   auto collection = base::MakeRefCounted<FlatlandSysmemBufferCollection>();
   if (!collection->Initialize(
           sysmem_allocator_.get(), flatland_allocator_.get(),
           flatland_surface_factory_, std::move(service_handle),
           /*token_channel=*/zx::channel(), size, format, usage, vk_device,
-          /*min_buffer_count=*/1, allow_overlay)) {
+          /*min_buffer_count=*/1, usage == gfx::BufferUsage::SCANOUT)) {
     return nullptr;
   }
 

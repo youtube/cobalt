@@ -12,6 +12,7 @@
 #include "third_party/blink/renderer/core/editing/visible_position.h"
 #include "third_party/blink/renderer/core/editing/visible_units.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/keywords.h"
 
 namespace blink {
 
@@ -25,7 +26,7 @@ class SampleCommand final : public CompositeEditCommand {
                         Node* ref_child,
                         EditingState*,
                         ShouldAssumeContentIsAlwaysEditable =
-                            kDoNotAssumeContentIsAlwaysEditable);
+                            ShouldAssumeContentIsAlwaysEditable(false));
   void InsertNodeAfter(Node*, Node*, EditingState*);
 
   void MoveParagraphContentsToNewBlockIfNecessary(const Position&,
@@ -87,8 +88,8 @@ TEST_F(CompositeEditCommandTest, insertNodeBefore) {
   SetBodyContent("<div contenteditable><b></b></div>");
   SampleCommand& sample = *MakeGarbageCollected<SampleCommand>(GetDocument());
   Node* insert_child = GetDocument().createTextNode("foo");
-  Element* ref_child = GetDocument().QuerySelector("b");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* ref_child = QuerySelector("b");
+  Element* div = QuerySelector("div");
 
   EditingState editing_state;
   sample.InsertNodeBefore(insert_child, ref_child, &editing_state);
@@ -100,7 +101,7 @@ TEST_F(CompositeEditCommandTest, insertNodeBeforeInUneditable) {
   SetBodyContent("<div><b></b></div>");
   SampleCommand& sample = *MakeGarbageCollected<SampleCommand>(GetDocument());
   Node* insert_child = GetDocument().createTextNode("foo");
-  Element* ref_child = GetDocument().QuerySelector("b");
+  Element* ref_child = QuerySelector("b");
 
   EditingState editing_state;
   sample.InsertNodeBefore(insert_child, ref_child, &editing_state);
@@ -111,8 +112,8 @@ TEST_F(CompositeEditCommandTest, insertNodeBeforeDisconnectedNode) {
   SetBodyContent("<div><b></b></div>");
   SampleCommand& sample = *MakeGarbageCollected<SampleCommand>(GetDocument());
   Node* insert_child = GetDocument().createTextNode("foo");
-  Element* ref_child = GetDocument().QuerySelector("b");
-  Element* div = GetDocument().QuerySelector("div");
+  Element* ref_child = QuerySelector("b");
+  Element* div = QuerySelector("div");
   div->remove();
 
   EditingState editing_state;
@@ -126,9 +127,9 @@ TEST_F(CompositeEditCommandTest, insertNodeBeforeWithDirtyLayoutTree) {
   SetBodyContent("<div><b></b></div>");
   SampleCommand& sample = *MakeGarbageCollected<SampleCommand>(GetDocument());
   Node* insert_child = GetDocument().createTextNode("foo");
-  Element* ref_child = GetDocument().QuerySelector("b");
-  Element* div = GetDocument().QuerySelector("div");
-  div->setAttribute(html_names::kContenteditableAttr, "true");
+  Element* ref_child = QuerySelector("b");
+  Element* div = QuerySelector("div");
+  div->setAttribute(html_names::kContenteditableAttr, keywords::kTrue);
 
   EditingState editing_state;
   sample.InsertNodeBefore(insert_child, ref_child, &editing_state);
@@ -144,7 +145,7 @@ TEST_F(CompositeEditCommandTest,
   SampleCommand& sample = *MakeGarbageCollected<SampleCommand>(GetDocument());
   Element* body = GetDocument().body();
   Node* text = body->lastChild();
-  body->setAttribute(html_names::kContenteditableAttr, "true");
+  body->setAttribute(html_names::kContenteditableAttr, keywords::kTrue);
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
 
   EditingState editing_state;
@@ -164,7 +165,7 @@ TEST_F(CompositeEditCommandTest,
   base::RunLoop().RunUntilIdle();
 
   SampleCommand& sample = *MakeGarbageCollected<SampleCommand>(GetDocument());
-  Element* input = GetDocument().QuerySelector("input");
+  Element* input = QuerySelector("input");
   Position pos = Position::BeforeNode(*input);
   EditingState editing_state;
 
@@ -181,7 +182,7 @@ TEST_F(CompositeEditCommandTest,
   SetBodyContent("<span></span><button><meter></meter></button>");
 
   SampleCommand& sample = *MakeGarbageCollected<SampleCommand>(GetDocument());
-  Element* button = GetDocument().QuerySelector("button");
+  Element* button = QuerySelector("button");
   Position pos = Position(button, 0);
   EditingState editing_state;
 
@@ -192,29 +193,11 @@ TEST_F(CompositeEditCommandTest,
             GetDocument().body()->innerHTML());
 }
 
-TEST_F(CompositeEditCommandTest,
-       MoveParagraphContentsToNewBlockWithButtonAndBr) {
-  GetDocument().setDesignMode("on");
-  InsertStyleElement("br { content: 'x'; }");
-  SetBodyContent("<button><br></button>");
-
-  SampleCommand& sample = *MakeGarbageCollected<SampleCommand>(GetDocument());
-  Element* button = GetDocument().QuerySelector("button");
-  Position pos = Position(button, 0);
-  EditingState editing_state;
-
-  // Should not crash
-  sample.MoveParagraphContentsToNewBlockIfNecessary(pos, &editing_state);
-  EXPECT_FALSE(editing_state.IsAborted());
-  EXPECT_EQ("<button><div><br></div><br></button>",
-            GetDocument().body()->innerHTML());
-}
-
 TEST_F(CompositeEditCommandTest, InsertNodeOnDisconnectedParent) {
   SetBodyContent("<p><b></b></p>");
   SampleCommand& sample = *MakeGarbageCollected<SampleCommand>(GetDocument());
-  Node* insert_child = GetDocument().QuerySelector("b");
-  Element* ref_child = GetDocument().QuerySelector("p");
+  Node* insert_child = QuerySelector("b");
+  Element* ref_child = QuerySelector("p");
   ref_child->remove();
   EditingState editing_state_before;
   // editing state should abort here.
@@ -232,9 +215,9 @@ TEST_F(CompositeEditCommandTest, MoveParagraphsWithBr) {
 
   EditingState editing_state;
   SampleCommand& sample = *MakeGarbageCollected<SampleCommand>(GetDocument());
-  Element* li = GetDocument().QuerySelector("li");
-  Element* br1 = GetDocument().QuerySelector("ol br");
-  Element* br2 = GetDocument().QuerySelector("ol + br");
+  Element* li = QuerySelector("li");
+  Element* br1 = QuerySelector("ol br");
+  Element* br2 = QuerySelector("ol + br");
   br1->setTextContent("x");
   UpdateAllLifecyclePhasesForTest();
 
@@ -263,10 +246,10 @@ TEST_F(CompositeEditCommandTest, MoveParagraphsWithInlineBlocks) {
 
   EditingState editing_state;
   SampleCommand& sample = *MakeGarbageCollected<SampleCommand>(GetDocument());
-  Element* div = GetDocument().QuerySelector("div");
-  Element* span1 = GetDocument().QuerySelector("span");
-  Element* span2 = GetDocument().QuerySelector("span + span");
-  Element* br = GetDocument().QuerySelector("br");
+  Element* div = QuerySelector("div");
+  Element* span1 = QuerySelector("span");
+  Element* span2 = QuerySelector("span + span");
+  Element* br = QuerySelector("br");
 
   // The start precedes the end, but when using MostFor/BackwardCaretPosition
   // to constrain the range, the resulting end would precede the start.
@@ -297,13 +280,13 @@ TEST_F(CompositeEditCommandTest, MoveParagraphsWithTableAndCaption) {
 
   EditingState editing_state;
   SampleCommand& sample = *MakeGarbageCollected<SampleCommand>(GetDocument());
-  Element* br = document.QuerySelector("br");
-  Element* input = document.QuerySelector("input");
+  Element* br = document.QuerySelector(AtomicString("br"));
+  Element* input = document.QuerySelector(AtomicString("input"));
 
   const VisiblePosition& start = VisiblePosition::FirstPositionInNode(*input);
   const VisiblePosition& end = VisiblePosition::AfterNode(*input);
   const VisiblePosition& destination = VisiblePosition::BeforeNode(*br);
-  EXPECT_EQ(start.DeepEquivalent(), Position(input, 0));
+  EXPECT_EQ(start.DeepEquivalent(), Position::BeforeNode(*input));
   EXPECT_EQ(end.DeepEquivalent(), Position::AfterNode(*input));
   EXPECT_EQ(destination.DeepEquivalent(), Position::BeforeNode(*br));
 

@@ -4,11 +4,16 @@
 
 #include "components/omnibox/browser/actions/history_clusters_action.h"
 
+#include <algorithm>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/escape.h"
-#include "base/strings/stringprintf.h"
+#include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "components/history_clusters/core/config.h"
@@ -20,17 +25,8 @@
 #include "components/omnibox/browser/actions/omnibox_action_concepts.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_result.h"
-#include "components/optimization_guide/core/entity_metadata.h"
-#include "components/prefs/pref_service.h"
 #include "components/strings/grit/components_strings.h"
 #include "net/base/url_util.h"
-
-#if BUILDFLAG(IS_ANDROID)
-#include "base/android/jni_android.h"
-#include "base/android/jni_string.h"
-#include "components/omnibox/browser/actions/omnibox_pedal_jni_wrapper.h"
-#include "url/android/gurl_android.h"
-#endif
 
 #if defined(SUPPORT_PEDALS_VECTOR_ICONS)
 #include "components/omnibox/browser/vector_icons.h"  // nogncheck
@@ -43,27 +39,23 @@ namespace {
 // A template function for recording enum metrics for shown and used journey
 // chips as well as their CTR metrics.
 template <class EnumT>
-void RecordShownUsedEnumAndCtrMetrics(const std::string& metric_name,
+void RecordShownUsedEnumAndCtrMetrics(std::string_view metric_name,
                                       EnumT val,
-                                      const std::string& label,
+                                      std::string_view label,
                                       bool executed) {
-  base::UmaHistogramEnumeration("Omnibox.ResumeJourneyShown." + metric_name,
-                                val);
+  base::UmaHistogramEnumeration(
+      base::StrCat({"Omnibox.ResumeJourneyShown.", metric_name}), val);
   if (executed) {
     base::UmaHistogramEnumeration(
-        "Omnibox.SuggestionUsed.ResumeJourney." + metric_name, val);
+        base::StrCat({"Omnibox.SuggestionUsed.ResumeJourney.", metric_name}),
+        val);
   }
 
   // Record the CTR metric.
   std::string ctr_metric_name =
-      base::StringPrintf("Omnibox.SuggestionUsed.ResumeJourney.%s.%s.CTR",
-                         metric_name.c_str(), label.c_str());
+      base::StrCat({"Omnibox.SuggestionUsed.ResumeJourney.", metric_name, ".",
+                    label, ".CTR"});
   base::UmaHistogramBoolean(ctr_metric_name, executed);
-}
-
-// Multiplies a keyword score by 100, and converts it to int.
-int TransformKeywordScoreForUma(float keyword_score) {
-  return static_cast<int>(keyword_score * 100);
 }
 
 }  // namespace
@@ -74,14 +66,14 @@ int TopRelevance(std::vector<AutocompleteMatch>::const_iterator matches_begin,
   if (matches_begin == matches_end)
     return 0;
   std::vector<int> relevances(matches_end - matches_begin);
-  base::ranges::transform(
+  std::ranges::transform(
       matches_begin, matches_end, relevances.begin(), [&](const auto& match) {
         return AutocompleteMatch::IsSearchType(match.type) ==
                        (filter == TopRelevanceFilter::FILTER_FOR_SEARCH_MATCHES)
                    ? match.relevance
                    : 0;
       });
-  return base::ranges::max(relevances);
+  return std::ranges::max(relevances);
 }
 
 bool IsNavigationIntent(int top_search_relevance,
@@ -92,22 +84,20 @@ bool IsNavigationIntent(int top_search_relevance,
 }
 
 GURL GetFullJourneysUrlForQuery(const std::string& query) {
-  return net::AppendOrReplaceQueryParameter(GURL(kChromeUIHistoryClustersURL),
-                                            "q", query);
+  return net::AppendOrReplaceQueryParameter(
+      GURL(GetChromeUIHistoryClustersURL()), "q", query);
 }
 
 HistoryClustersAction::HistoryClustersAction(
     const std::string& query,
-    const history::ClusterKeywordData& matched_keyword_data,
-    bool takes_over_match)
+    const history::ClusterKeywordData& matched_keyword_data)
     : OmniboxAction(
           OmniboxAction::LabelStrings(
               IDS_OMNIBOX_ACTION_HISTORY_CLUSTERS_SEARCH_HINT,
               IDS_OMNIBOX_ACTION_HISTORY_CLUSTERS_SEARCH_SUGGESTION_CONTENTS,
               IDS_ACC_OMNIBOX_ACTION_HISTORY_CLUSTERS_SEARCH_SUFFIX,
               IDS_ACC_OMNIBOX_ACTION_HISTORY_CLUSTERS_SEARCH),
-          GetFullJourneysUrlForQuery(query),
-          takes_over_match),
+          GetFullJourneysUrlForQuery(query)),
       matched_keyword_data_(matched_keyword_data),
       query_(query) {}
 
@@ -126,33 +116,11 @@ void HistoryClustersAction::RecordActionShown(size_t position,
   base::UmaHistogramBoolean("Omnibox.SuggestionUsed.ResumeJourneyCTR",
                             executed);
 
-  // Record cluster keyword score UMA metrics.
-  base::UmaHistogramCounts1000(
-      "Omnibox.ResumeJourneyShown.ClusterKeywordScore",
-      TransformKeywordScoreForUma(matched_keyword_data_.score));
-  if (executed) {
-    base::UmaHistogramCounts1000(
-        "Omnibox.SuggestionUsed.ResumeJourney.ClusterKeywordScore",
-        TransformKeywordScoreForUma(matched_keyword_data_.score));
-  }
-
   // Record cluster keyword type UMA metrics.
   RecordShownUsedEnumAndCtrMetrics<
       history::ClusterKeywordData::ClusterKeywordType>(
       "ClusterKeywordType", matched_keyword_data_.type,
       matched_keyword_data_.GetKeywordTypeLabel(), executed);
-
-  // Record entity collection UMA metrics.
-  if (matched_keyword_data_.entity_collections.empty()) {
-    return;
-  }
-  const auto& collection_str = matched_keyword_data_.entity_collections.front();
-  const optimization_guide::PageEntityCollection collection =
-      optimization_guide::GetPageEntityCollectionForString(collection_str);
-  const auto collection_label =
-      optimization_guide::GetPageEntityCollectionLabel(collection_str);
-  RecordShownUsedEnumAndCtrMetrics<optimization_guide::PageEntityCollection>(
-      "PageEntityCollection", collection, collection_label, executed);
 }
 
 void HistoryClustersAction::Execute(ExecutionContext& context) const {
@@ -174,23 +142,11 @@ const gfx::VectorIcon& HistoryClustersAction::GetVectorIcon() const {
 }
 #endif
 
-#if BUILDFLAG(IS_ANDROID)
-base::android::ScopedJavaLocalRef<jobject>
-HistoryClustersAction::GetOrCreateJavaObject(JNIEnv* env) const {
-  if (!j_omnibox_action_) {
-    j_omnibox_action_.Reset(
-        BuildHistoryClustersAction(env, strings_.hint, query_));
-  }
-  return base::android::ScopedJavaLocalRef<jobject>(j_omnibox_action_);
-}
-#endif
-
 HistoryClustersAction::~HistoryClustersAction() = default;
 
 // Should be invoked after `AutocompleteResult::AttachPedalsToMatches()`.
 void AttachHistoryClustersActions(
     history_clusters::HistoryClustersService* service,
-    PrefService* prefs,
     AutocompleteResult& result) {
 #if BUILDFLAG(IS_IOS)
   // Compile out this method for Mobile, which doesn't omnibox actions yet.
@@ -198,8 +154,9 @@ void AttachHistoryClustersActions(
   return;
 #else
 
-  if (!IsJourneysEnabledInOmnibox(service, prefs))
+  if (!service || !service->IsJourneysEnabledAndVisible()) {
     return;
+  }
 
   if (!GetConfig().omnibox_action)
     return;
@@ -207,14 +164,11 @@ void AttachHistoryClustersActions(
   if (result.empty())
     return;
 
-  // If there's any visible action in `result`, don't add a history cluster
-  // action to avoid over-crowding.
+  // If there's any action in `result`, don't add a history cluster action to
+  // avoid over-crowding.
   if (!GetConfig().omnibox_action_with_pedals &&
-      base::ranges::any_of(result, [](const auto& match) {
-        return base::ranges::any_of(match.actions, [](const auto& action) {
-          return !action->TakesOverMatch();
-        });
-      })) {
+      std::ranges::any_of(
+          result, [](const auto& match) { return !match.actions.empty(); })) {
     return;
   }
 
@@ -245,12 +199,11 @@ void AttachHistoryClustersActions(
 
     if (AutocompleteMatch::IsSearchType(match.type)) {
       std::string query = base::UTF16ToUTF8(match.contents);
-      absl::optional<history::ClusterKeywordData> matched_keyword_data =
+      std::optional<history::ClusterKeywordData> matched_keyword_data =
           service->DoesQueryMatchAnyCluster(query);
       if (matched_keyword_data) {
         match.actions.push_back(base::MakeRefCounted<HistoryClustersAction>(
-            query, std::move(matched_keyword_data.value()),
-            /*takes_over_match=*/false));
+            query, std::move(matched_keyword_data.value())));
       }
     }
 

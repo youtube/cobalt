@@ -11,11 +11,11 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <vector>
 
-#include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
@@ -35,11 +35,11 @@ namespace dcsctp {
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 constexpr int SSNTSNResetRequestParameter::kType;
 
-absl::optional<SSNTSNResetRequestParameter> SSNTSNResetRequestParameter::Parse(
-    rtc::ArrayView<const uint8_t> data) {
-  absl::optional<BoundedByteReader<kHeaderSize>> reader = ParseTLV(data);
+std::optional<SSNTSNResetRequestParameter> SSNTSNResetRequestParameter::Parse(
+    webrtc::ArrayView<const uint8_t> data) {
+  std::optional<BoundedByteReader<kHeaderSize>> reader = ParseTLV(data);
   if (!reader.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   ReconfigRequestSN request_sequence_number(reader->Load32<4>());
 
@@ -52,7 +52,7 @@ void SSNTSNResetRequestParameter::SerializeTo(std::vector<uint8_t>& out) const {
 }
 
 std::string SSNTSNResetRequestParameter::ToString() const {
-  rtc::StringBuilder sb;
+  webrtc::StringBuilder sb;
   sb << "SSN/TSN Reset Request, req_seq_nbr=" << *request_sequence_number();
   return sb.Release();
 }

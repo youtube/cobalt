@@ -40,7 +40,7 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
                           const quic::QuicSocketAddress& peer_address) = 0;
   };
 
-  QuicChromiumPacketReader(DatagramClientSocket* socket,
+  QuicChromiumPacketReader(std::unique_ptr<DatagramClientSocket> socket,
                            const quic::QuicClock* clock,
                            Visitor* visitor,
                            int yield_after_packets,
@@ -56,11 +56,17 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
   // and passing the data along to the quic::QuicConnection.
   void StartReading();
 
+  DatagramClientSocket* socket() { return socket_.get(); }
+
+  void CloseSocket();
+
  private:
   // A completion callback invoked when a read completes.
   void OnReadComplete(int result);
   // Return true if reading should continue.
   bool ProcessReadResult(int result);
+
+  std::unique_ptr<DatagramClientSocket> socket_;
 
 #if BUILDFLAG(IS_COBALT)
   // Version of StartReading that reads multiple packets per read call.
@@ -70,8 +76,6 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
   // Return true if reading should continue.
   bool ProcessMultiplePacketReadResult(int result);
 #endif
-
-  raw_ptr<DatagramClientSocket, DanglingUntriaged> socket_;
 
   raw_ptr<Visitor> visitor_;
   bool read_pending_ = false;

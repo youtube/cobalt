@@ -5,7 +5,6 @@
 #include "base/files/file_util.h"
 #include "base/test/simple_test_clock.h"
 #include "base/threading/thread_restrictions.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ssl/known_interception_disclosure_infobar_delegate.h"
 #include "chrome/browser/ui/browser.h"
@@ -30,16 +29,14 @@ namespace {
 size_t GetInfobarCount(content::WebContents* contents) {
   infobars::ContentInfoBarManager* infobar_manager =
       infobars::ContentInfoBarManager::FromWebContents(contents);
-  if (!infobar_manager)
-    return 0;
-  return infobar_manager->infobar_count();
+  return infobar_manager ? infobar_manager->infobars().size() : 0;
 }
 
 infobars::InfoBar* GetInfobar(content::WebContents* contents) {
   infobars::ContentInfoBarManager* infobar_manager =
       infobars::ContentInfoBarManager::FromWebContents(contents);
   DCHECK(infobar_manager);
-  return infobar_manager->infobar_at(0);
+  return infobar_manager->infobars()[0];
 }
 
 // Follows same logic as clicking the "Continue" button would.
@@ -48,9 +45,8 @@ void CloseInfobar(content::WebContents* contents) {
   if (!infobar)
     return;
 
-  ConfirmInfoBarDelegate* delegate =
-      static_cast<ConfirmInfoBarDelegate*>(infobar->delegate());
-  delegate->Accept();
+  ASSERT_TRUE(
+      static_cast<ConfirmInfoBarDelegate*>(infobar->delegate())->Accept());
   infobar->RemoveSelf();
 }
 
@@ -81,7 +77,7 @@ class KnownInterceptionDisclosureInfobarTest : public InProcessBrowserTest {
     }
     base::RunLoop run_loop;
     content::GetCertVerifierServiceFactory()->UpdateCRLSet(
-        base::as_bytes(base::make_span(crl_set_bytes)), run_loop.QuitClosure());
+        base::as_byte_span(crl_set_bytes), run_loop.QuitClosure());
     run_loop.Run();
   }
 
@@ -153,15 +149,8 @@ IN_PROC_BROWSER_TEST_F(KnownInterceptionDisclosureInfobarTest,
   EXPECT_EQ(0u, GetInfobarCount(tab));
 }
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#define MAYBE_CooldownResetsOnBrowserRestartDesktop \
-  DISABLED_CooldownResetsOnBrowserRestartDesktop
-#else
-#define MAYBE_CooldownResetsOnBrowserRestartDesktop \
-  CooldownResetsOnBrowserRestartDesktop
-#endif
 IN_PROC_BROWSER_TEST_F(KnownInterceptionDisclosureInfobarTest,
-                       MAYBE_CooldownResetsOnBrowserRestartDesktop) {
+                       CooldownResetsOnBrowserRestartDesktop) {
   const GURL kInterceptedUrl(https_server_.GetURL("/ssl/google.html"));
 
   // On restart, no infobar should be shown initially.

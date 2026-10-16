@@ -4,7 +4,6 @@
 
 #include "chrome/browser/apps/app_service/instance_registry_updater.h"
 
-#include "chrome/browser/ash/crosapi/browser_util.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "components/services/app_service/public/cpp/instance_registry.h"
@@ -29,7 +28,7 @@ static InstanceState GetState(bool visible, bool active) {
 }
 
 bool IsAshBrowserWindow(aura::Window* aura_window) {
-  for (auto* browser : *BrowserList::GetInstance()) {
+  for (Browser* browser : *BrowserList::GetInstance()) {
     BrowserWindow* window = browser->window();
     if (window && window->GetNativeWindow() == aura_window) {
       return true;
@@ -45,6 +44,9 @@ InstanceRegistryUpdater::InstanceRegistryUpdater(
     InstanceRegistry& instance_registry)
     : browser_app_instance_registry_(browser_app_instance_registry),
       instance_registry_(instance_registry) {
+  if (aura::Env::HasInstance()) {
+    env_observer_.Observe(aura::Env::GetInstance());
+  }
   browser_app_instance_registry_observation_.Observe(
       &*browser_app_instance_registry_);
 }
@@ -59,7 +61,7 @@ void InstanceRegistryUpdater::OnBrowserWindowAdded(
 void InstanceRegistryUpdater::OnBrowserWindowUpdated(
     const BrowserWindowInstance& instance) {
   InstanceState state =
-      GetState(instance.window->IsVisible(), instance.is_active);
+      GetState(instance.window->IsVisible(), instance.is_active());
   OnInstance(instance.id, instance.GetAppId(), instance.window, state);
 }
 
@@ -78,7 +80,7 @@ void InstanceRegistryUpdater::OnBrowserAppUpdated(
     const BrowserAppInstance& instance) {
   InstanceState state =
       GetState(instance.window->IsVisible(),
-               instance.is_browser_active && instance.is_web_contents_active);
+               instance.is_browser_active() && instance.is_web_contents_active);
   OnInstance(instance.id, instance.app_id, instance.window, state);
 }
 
@@ -94,8 +96,7 @@ void InstanceRegistryUpdater::OnWindowInitialized(aura::Window* window) {
 
 void InstanceRegistryUpdater::OnWindowVisibilityChanged(aura::Window* window,
                                                         bool visible) {
-  if (!crosapi::browser_util::IsLacrosWindow(window) &&
-      !IsAshBrowserWindow(window)) {
+  if (!IsAshBrowserWindow(window)) {
     return;
   }
   for (const BrowserAppInstance* instance :

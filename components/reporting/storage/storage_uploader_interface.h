@@ -7,9 +7,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <string_view>
 
 #include "base/functional/callback.h"
-#include "base/strings/string_piece.h"
 #include "components/reporting/proto/synced/record.pb.h"
 #include "components/reporting/proto/synced/record_constants.pb.h"
 #include "components/reporting/resources/resource_manager.h"
@@ -81,7 +81,7 @@ class UploaderInterface {
   // response). Called always, regardless of whether there were errors.
   virtual void Completed(Status final_status) = 0;
 
-  static base::StringPiece ReasonToString(UploadReason);
+  static std::string_view ReasonToString(UploadReason);
 
  protected:
   UploaderInterface();

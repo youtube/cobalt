@@ -10,12 +10,13 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/flat_map.h"
 #include "base/time/time.h"
+#include "base/types/optional_ref.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/data_transfer_policy/data_transfer_endpoint.h"
@@ -40,7 +41,8 @@ class TestClipboard : public Clipboard {
 
   // Clipboard overrides.
   void OnPreShutdown() override;
-  DataTransferEndpoint* GetSource(ClipboardBuffer buffer) const override;
+  std::optional<DataTransferEndpoint> GetSource(
+      ClipboardBuffer buffer) const override;
   const ClipboardSequenceNumberToken& GetSequenceNumber(
       ClipboardBuffer buffer) const override;
   std::vector<std::u16string> GetStandardFormats(
@@ -74,10 +76,10 @@ class TestClipboard : public Clipboard {
   void ReadPng(ClipboardBuffer buffer,
                const DataTransferEndpoint* data_dst,
                ReadPngCallback callback) const override;
-  void ReadCustomData(ClipboardBuffer buffer,
-                      const std::u16string& type,
-                      const DataTransferEndpoint* data_dst,
-                      std::u16string* result) const override;
+  void ReadDataTransferCustomData(ClipboardBuffer buffer,
+                                  const std::u16string& type,
+                                  const DataTransferEndpoint* data_dst,
+                                  std::u16string* result) const override;
   void ReadFilenames(ClipboardBuffer buffer,
                      const DataTransferEndpoint* data_dst,
                      std::vector<ui::FileInfo>* result) const override;
@@ -95,29 +97,24 @@ class TestClipboard : public Clipboard {
   void WritePortableAndPlatformRepresentations(
       ClipboardBuffer buffer,
       const ObjectMap& objects,
+      const std::vector<RawData>& raw_objects,
       std::vector<Clipboard::PlatformRepresentation> platform_representations,
-      std::unique_ptr<DataTransferEndpoint> data_src) override;
-  void WriteText(const char* text_data, size_t text_len) override;
-  void WriteHTML(const char* markup_data,
-                 size_t markup_len,
-                 const char* url_data,
-                 size_t url_len) override;
-  void WriteUnsanitizedHTML(const char* markup_data,
-                            size_t markup_len,
-                            const char* url_data,
-                            size_t url_len) override;
-  void WriteSvg(const char* markup_data, size_t markup_len) override;
-  void WriteRTF(const char* rtf_data, size_t data_len) override;
+      std::unique_ptr<DataTransferEndpoint> data_src,
+      uint32_t privacy_types) override;
+  void WriteText(std::string_view text) override;
+  void WriteHTML(std::string_view markup,
+                 std::optional<std::string_view> source_url) override;
+  void WriteSvg(std::string_view markup) override;
+  void WriteRTF(std::string_view rtf) override;
   void WriteFilenames(std::vector<ui::FileInfo> filenames) override;
-  void WriteBookmark(const char* title_data,
-                     size_t title_len,
-                     const char* url_data,
-                     size_t url_len) override;
+  void WriteBookmark(std::string_view title, std::string_view url) override;
   void WriteWebSmartPaste() override;
   void WriteBitmap(const SkBitmap& bitmap) override;
   void WriteData(const ClipboardFormatType& format,
-                 const char* data_data,
-                 size_t data_len) override;
+                 base::span<const uint8_t> data) override;
+  void WriteClipboardHistory() override;
+  void WriteUploadCloudClipboard() override;
+  void WriteConfidentialDataForPassword() override;
 
  private:
   struct DataStore {
@@ -126,29 +123,16 @@ class TestClipboard : public Clipboard {
     DataStore& operator=(const DataStore& other);
     ~DataStore();
     void Clear();
-    void SetDataSource(std::unique_ptr<DataTransferEndpoint> new_data_src);
-    DataTransferEndpoint* GetDataSource() const;
+    void SetDataSource(std::optional<DataTransferEndpoint> new_data_src);
+    std::optional<DataTransferEndpoint> GetDataSource() const;
     ClipboardSequenceNumberToken sequence_number;
     base::flat_map<ClipboardFormatType, std::string> data;
     std::string url_title;
     std::string html_src_url;
     std::vector<uint8_t> png;
     std::vector<ui::FileInfo> filenames;
-    std::unique_ptr<DataTransferEndpoint> data_src;
+    std::optional<DataTransferEndpoint> data_src;
   };
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // Used for syncing clipboard sources between Lacros and Ash in ChromeOS.
-  void AddClipboardSourceToDataOffer(const ClipboardBuffer buffer);
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-
-  // In Lacros, retrieves and parses the clipboard source DataTransferEndpoint
-  // from the DTE MIME type if no source is provided. In all cases,
-  // IsReadAllowed() is called and returned.
-  bool MaybeRetrieveSyncedSourceAndCheckIfReadIsAllowed(
-      ClipboardBuffer buffer,
-      const DataTransferEndpoint* data_src,
-      const DataTransferEndpoint* data_dst) const;
 
   // The non-const versions update the sequence number as a side effect.
   const DataStore& GetStore(ClipboardBuffer buffer) const;

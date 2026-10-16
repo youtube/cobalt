@@ -22,6 +22,7 @@
 #include "content/browser/worker_host/mock_shared_worker.h"
 #include "content/browser/worker_host/shared_worker_connector_impl.h"
 #include "content/browser/worker_host/shared_worker_service_impl.h"
+#include "content/browser/worker_host/worker_script_fetcher.h"
 #include "content/public/browser/shared_worker_instance.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_task_environment.h"
@@ -29,8 +30,6 @@
 #include "content/public/test/test_browser_context.h"
 #include "content/public/test/test_utils.h"
 #include "content/test/test_content_browser_client.h"
-#include "mojo/public/cpp/bindings/pending_associated_receiver.h"
-#include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "mojo/public/cpp/test_support/test_utils.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
@@ -65,7 +64,7 @@ class SharedWorkerHostTest : public testing::Test {
         &mock_render_process_host_factory_);
     site_instance_ =
         SiteInstanceImpl::CreateForTesting(&browser_context_, kWorkerUrl);
-    RenderProcessHost* rph = site_instance_->GetProcess();
+    RenderProcessHost* rph = site_instance_->GetOrCreateProcess();
 
     std::vector<std::unique_ptr<MockRenderProcessHost>>* processes =
         mock_render_process_host_factory_.GetProcesses();
@@ -83,11 +82,17 @@ class SharedWorkerHostTest : public testing::Test {
   SharedWorkerHostTest& operator=(const SharedWorkerHostTest&) = delete;
 
   base::WeakPtr<SharedWorkerHost> CreateHost() {
+    return CreateHostWithExtendedLifetime(/*extended_lifetime=*/false);
+  }
+
+  base::WeakPtr<SharedWorkerHost> CreateHostWithExtendedLifetime(
+      bool extended_lifetime) {
     SharedWorkerInstance instance(
         kWorkerUrl, blink::mojom::ScriptType::kClassic,
         network::mojom::CredentialsMode::kSameOrigin, "name",
         blink::StorageKey::CreateFirstParty(url::Origin::Create(kWorkerUrl)),
-        blink::mojom::SharedWorkerCreationContextType::kSecure);
+        blink::mojom::SharedWorkerCreationContextType::kSecure,
+        blink::mojom::SharedWorkerSameSiteCookies::kAll, extended_lifetime);
     auto host = std::make_unique<SharedWorkerHost>(
         &service_, instance, site_instance_,
         std::vector<network::mojom::ContentSecurityPolicyPtr>(),
@@ -118,7 +123,7 @@ class SharedWorkerHostTest : public testing::Test {
     auto subresource_loader_factories =
         std::make_unique<blink::PendingURLLoaderFactoryBundle>();
 
-    absl::optional<SubresourceLoaderParams> subresource_loader_params =
+    SubresourceLoaderParams subresource_loader_params =
         SubresourceLoaderParams();
     mojo::PendingRemote<network::mojom::URLLoaderFactory>
         loader_factory_remote =
@@ -127,41 +132,35 @@ class SharedWorkerHostTest : public testing::Test {
     // Set up for service worker.
     auto service_worker_handle =
         std::make_unique<ServiceWorkerMainResourceHandle>(
-            helper_->context_wrapper(), base::DoNothing());
-    mojo::PendingAssociatedRemote<blink::mojom::ServiceWorkerContainer>
-        client_remote;
-    mojo::PendingAssociatedReceiver<blink::mojom::ServiceWorkerContainerHost>
-        host_receiver;
-    auto container_info =
-        blink::mojom::ServiceWorkerContainerInfoForClient::New();
-    container_info->client_receiver =
-        client_remote.InitWithNewEndpointAndPassReceiver();
-    host_receiver =
-        container_info->host_remote.InitWithNewEndpointAndPassReceiver();
-
-    helper_->context()->CreateContainerHostForWorker(
-        std::move(host_receiver), mock_render_process_host_->GetID(),
-        std::move(client_remote), ServiceWorkerClientInfo(host->token()));
-    service_worker_handle->OnCreatedContainerHost(std::move(container_info));
+            helper_->context_wrapper(), base::DoNothing(),
+            /*fetch_event_client_id=*/"");
+    service_worker_handle->set_service_worker_client(
+        helper_->context()
+            ->service_worker_client_owner()
+            .CreateServiceWorkerClientForWorker(
+                mock_render_process_host_->GetDeprecatedID(),
+                ServiceWorkerClientInfo(host->token())),
+        net::IsolationInfo());
     host->SetServiceWorkerHandle(std::move(service_worker_handle));
 
     TestContentBrowserClient client;
-    host->Start(std::move(factory), std::move(main_script_load_params),
-                std::move(subresource_loader_factories),
-                nullptr /* controller */,
-                nullptr /* controller_service_worker_object_host */,
+    host->Start(std::move(factory),
                 blink::mojom::FetchClientSettingsObject::New(
                     network::mojom::ReferrerPolicy::kDefault,
-                    GURL() /* outgoing_referrer */,
+                    /*outgoing_referrer=*/GURL(),
                     blink::mojom::InsecureRequestsPolicy::kDoNotUpgrade),
-                final_response_url, &client);
+                &client,
+                WorkerScriptFetcherResult(
+                    std::move(subresource_loader_factories),
+                    std::move(main_script_load_params),
+                    PolicyContainerPolicies(), final_response_url));
   }
 
   MessagePortChannel AddClient(
       SharedWorkerHost* host,
       mojo::PendingRemote<blink::mojom::SharedWorkerClient> client) {
     GlobalRenderFrameHostId dummy_render_frame_host_id(
-        mock_render_process_host_->GetID(), 22);
+        mock_render_process_host_->GetDeprecatedID(), 22);
 
     blink::MessagePortDescriptorPair port_pair;
     MessagePortChannel local_port(port_pair.TakePort0());
@@ -169,6 +168,85 @@ class SharedWorkerHostTest : public testing::Test {
     host->AddClient(std::move(client), dummy_render_frame_host_id,
                     std::move(remote_port), kClientUkmSourceId);
     return local_port;
+  }
+
+  void RunNormalTest(bool extended_lifetime) {
+    base::WeakPtr<SharedWorkerHost> host = CreateHostWithExtendedLifetime(
+        /*extended_lifetime=*/extended_lifetime);
+
+    // Start the worker.
+    mojo::PendingRemote<blink::mojom::SharedWorkerFactory> factory;
+    MockSharedWorkerFactory factory_impl(
+        factory.InitWithNewPipeAndPassReceiver());
+    StartWorker(host.get(), std::move(factory));
+
+    // Add the initiating client.
+    MockSharedWorkerClient client;
+    mojo::PendingRemote<blink::mojom::SharedWorkerClient> remote_client;
+    client.Bind(remote_client.InitWithNewPipeAndPassReceiver());
+    MessagePortChannel local_port =
+        AddClient(host.get(), std::move(remote_client));
+    base::RunLoop().RunUntilIdle();
+
+    // The factory should have gotten the CreateSharedWorker message.
+    mojo::Remote<blink::mojom::SharedWorkerHost> worker_host;
+    mojo::PendingReceiver<blink::mojom::SharedWorker> worker_receiver;
+    EXPECT_TRUE(factory_impl.CheckReceivedCreateSharedWorker(
+        host->instance().url(), host->instance().name(),
+        host->content_security_policies(), &worker_host, &worker_receiver));
+    {
+      MockSharedWorker worker(std::move(worker_receiver));
+      base::RunLoop().RunUntilIdle();
+
+      // The worker and client should have gotten initial messages.
+      int connection_request_id;
+      MessagePortChannel port;
+      EXPECT_TRUE(worker.CheckReceivedConnect(&connection_request_id, &port));
+      EXPECT_TRUE(client.CheckReceivedOnCreated());
+      // Simulate events the shared worker would send.
+
+      // Create message pipes. We may need to keep |devtools_agent_receiver| and
+      // |devtools_agent_host_remote| if we want not to invoke connection error
+      // handlers.
+      mojo::PendingRemote<blink::mojom::DevToolsAgent> devtools_agent_remote;
+      mojo::PendingReceiver<blink::mojom::DevToolsAgent>
+          devtools_agent_receiver =
+              devtools_agent_remote.InitWithNewPipeAndPassReceiver();
+      mojo::PendingRemote<blink::mojom::DevToolsAgentHost>
+          devtools_agent_host_remote;
+      worker_host->OnReadyForInspection(
+          std::move(devtools_agent_remote),
+          devtools_agent_host_remote.InitWithNewPipeAndPassReceiver());
+
+      worker_host->OnConnected(connection_request_id);
+      base::RunLoop().RunUntilIdle();
+
+      // The client should be connected.
+      EXPECT_TRUE(client.CheckReceivedOnConnected({
+          blink::mojom::WebFeature::kCoepNoneSharedWorker,
+      }));
+
+      client.Close();
+      base::RunLoop().RunUntilIdle();
+      if (extended_lifetime) {
+        // Close the client. The host should detect that there are no clients
+        // left but the worker keeps on running due to the extended_lifetime`
+        // option.
+        EXPECT_FALSE(worker.CheckReceivedTerminate());
+      } else {
+        // Close the client. The host should detect that there are no clients
+        // left and ask the worker to terminate.
+        EXPECT_TRUE(worker.CheckReceivedTerminate());
+      }
+
+      // Simulate the worker terminating by breaking the Mojo connection when
+      // |worker| goes out of scope. `OnWorkerConnectionLost()` should be
+      // kicked.
+    }
+    base::RunLoop().RunUntilIdle();
+
+    // The host should have self-destructed.
+    EXPECT_FALSE(host);
   }
 
  protected:
@@ -184,72 +262,11 @@ class SharedWorkerHostTest : public testing::Test {
 };
 
 TEST_F(SharedWorkerHostTest, Normal) {
-  base::WeakPtr<SharedWorkerHost> host = CreateHost();
+  RunNormalTest(/*extended_lifetime=*/false);
+}
 
-  // Start the worker.
-  mojo::PendingRemote<blink::mojom::SharedWorkerFactory> factory;
-  MockSharedWorkerFactory factory_impl(
-      factory.InitWithNewPipeAndPassReceiver());
-  StartWorker(host.get(), std::move(factory));
-
-  // Add the initiating client.
-  MockSharedWorkerClient client;
-  mojo::PendingRemote<blink::mojom::SharedWorkerClient> remote_client;
-  client.Bind(remote_client.InitWithNewPipeAndPassReceiver());
-  MessagePortChannel local_port =
-      AddClient(host.get(), std::move(remote_client));
-  base::RunLoop().RunUntilIdle();
-
-  // The factory should have gotten the CreateSharedWorker message.
-  mojo::Remote<blink::mojom::SharedWorkerHost> worker_host;
-  mojo::PendingReceiver<blink::mojom::SharedWorker> worker_receiver;
-  EXPECT_TRUE(factory_impl.CheckReceivedCreateSharedWorker(
-      host->instance().url(), host->instance().name(),
-      host->content_security_policies(), &worker_host, &worker_receiver));
-  {
-    MockSharedWorker worker(std::move(worker_receiver));
-    base::RunLoop().RunUntilIdle();
-
-    // The worker and client should have gotten initial messages.
-    int connection_request_id;
-    MessagePortChannel port;
-    EXPECT_TRUE(worker.CheckReceivedConnect(&connection_request_id, &port));
-    EXPECT_TRUE(client.CheckReceivedOnCreated());
-    // Simulate events the shared worker would send.
-
-    // Create message pipes. We may need to keep |devtools_agent_receiver| and
-    // |devtools_agent_host_remote| if we want not to invoke connection error
-    // handlers.
-    mojo::PendingRemote<blink::mojom::DevToolsAgent> devtools_agent_remote;
-    mojo::PendingReceiver<blink::mojom::DevToolsAgent> devtools_agent_receiver =
-        devtools_agent_remote.InitWithNewPipeAndPassReceiver();
-    mojo::PendingRemote<blink::mojom::DevToolsAgentHost>
-        devtools_agent_host_remote;
-    worker_host->OnReadyForInspection(
-        std::move(devtools_agent_remote),
-        devtools_agent_host_remote.InitWithNewPipeAndPassReceiver());
-
-    worker_host->OnConnected(connection_request_id);
-    base::RunLoop().RunUntilIdle();
-
-    // The client should be connected.
-    EXPECT_TRUE(client.CheckReceivedOnConnected({
-        blink::mojom::WebFeature::kCoepNoneSharedWorker,
-    }));
-
-    // Close the client. The host should detect that there are no clients left
-    // and ask the worker to terminate.
-    client.Close();
-    base::RunLoop().RunUntilIdle();
-    EXPECT_TRUE(worker.CheckReceivedTerminate());
-
-    // Simulate the worker terminating by breaking the Mojo connection when
-    // |worker| goes out of scope.
-  }
-  base::RunLoop().RunUntilIdle();
-
-  // The host should have self-destructed.
-  EXPECT_FALSE(host);
+TEST_F(SharedWorkerHostTest, NormalWithExtendedLifetime) {
+  RunNormalTest(/*extended_lifetime=*/true);
 }
 
 TEST_F(SharedWorkerHostTest, TerminateBeforeStarting) {
@@ -384,7 +401,9 @@ TEST_F(SharedWorkerHostTest,
       network::mojom::CredentialsMode::kSameOrigin, "name",
       blink::StorageKey::CreateWithNonce(url::Origin::Create(kWorkerUrl),
                                          nonce),
-      blink::mojom::SharedWorkerCreationContextType::kSecure);
+      blink::mojom::SharedWorkerCreationContextType::kSecure,
+      blink::mojom::SharedWorkerSameSiteCookies::kNone,
+      /*extended_lifetime=*/false);
   auto host = std::make_unique<SharedWorkerHost>(
       &service_, instance, site_instance_,
       std::vector<network::mojom::ContentSecurityPolicyPtr>(),
@@ -427,7 +446,9 @@ TEST_F(SharedWorkerHostTestWithPNAEnabled,
       kWorkerUrl, blink::mojom::ScriptType::kClassic,
       network::mojom::CredentialsMode::kSameOrigin, "name",
       blink::StorageKey::CreateFirstParty(url::Origin::Create(kWorkerUrl)),
-      blink::mojom::SharedWorkerCreationContextType::kSecure);
+      blink::mojom::SharedWorkerCreationContextType::kSecure,
+      blink::mojom::SharedWorkerSameSiteCookies::kAll,
+      /*extended_lifetime=*/false);
   PolicyContainerPolicies policies;
   policies.cross_origin_embedder_policy.value =
       network::mojom::CrossOriginEmbedderPolicyValue::kRequireCorp;
@@ -458,9 +479,9 @@ TEST_F(SharedWorkerHostTestWithPNAEnabled,
   ASSERT_TRUE(params->client_security_state);
   EXPECT_TRUE(params->client_security_state->is_web_secure_context);
   EXPECT_EQ(params->client_security_state->ip_address_space,
-            network::mojom::IPAddressSpace::kLoopback);
-  EXPECT_EQ(params->client_security_state->local_network_request_policy,
-            network::mojom::LocalNetworkRequestPolicy::kPreflightWarn);
+            network::mojom::IPAddressSpace::kLocal);
+  EXPECT_EQ(params->client_security_state->private_network_request_policy,
+            network::mojom::PrivateNetworkRequestPolicy::kPreflightWarn);
   EXPECT_EQ(params->client_security_state->cross_origin_embedder_policy.value,
             network::mojom::CrossOriginEmbedderPolicyValue::kCredentialless);
 }

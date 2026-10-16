@@ -49,14 +49,17 @@ class FakeServiceWorkerContext : public ServiceWorkerContext {
       StatusCodeCallback callback) override;
   void UnregisterServiceWorker(const GURL& scope,
                                const blink::StorageKey& key,
-                               ResultCallback callback) override;
+                               StatusCodeCallback callback) override;
+  void UnregisterServiceWorkerImmediately(const GURL& scope,
+                                          const blink::StorageKey& key,
+                                          StatusCodeCallback callback) override;
   ServiceWorkerExternalRequestResult StartingExternalRequest(
       int64_t service_worker_version_id,
       content::ServiceWorkerExternalRequestTimeoutType timeout_type,
-      const std::string& request_uuid) override;
+      const base::Uuid& request_uuid) override;
   ServiceWorkerExternalRequestResult FinishedExternalRequest(
       int64_t service_worker_version_id,
-      const std::string& request_uuid) override;
+      const base::Uuid& request_uuid) override;
   size_t CountExternalRequestsForTest(const blink::StorageKey& key) override;
   bool ExecuteScriptForTest(
       const std::string& script,
@@ -69,20 +72,21 @@ class FakeServiceWorkerContext : public ServiceWorkerContext {
   void CheckHasServiceWorker(const GURL& url,
                              const blink::StorageKey& key,
                              CheckHasServiceWorkerCallback callback) override;
-  void CheckOfflineCapability(
-      const GURL& url,
-      const blink::StorageKey& key,
-      const ServiceWorkerContext::CheckOfflineCapabilityCallback callback)
-      override;
   void ClearAllServiceWorkersForTest(base::OnceClosure) override;
   void StartWorkerForScope(
       const GURL& scope,
       const blink::StorageKey& key,
       ServiceWorkerContext::StartWorkerCallback info_callback,
-      ServiceWorkerContext::StatusCodeCallback failure_callback) override;
+      ServiceWorkerContext::StatusCodeResponseCallback failure_callback)
+      override;
+  bool IsLiveStartingServiceWorker(int64_t service_worker_version_id) override;
   bool IsLiveRunningServiceWorker(int64_t service_worker_version_id) override;
   service_manager::InterfaceProvider& GetRemoteInterfaces(
       int64_t service_worker_version_id) override;
+  blink::AssociatedInterfaceProvider& GetRemoteAssociatedInterfaces(
+      int64_t service_worker_version_id) override;
+  void SetForceUpdateOnPageLoadForTesting(
+      bool force_update_on_page_load) override;
   void StartServiceWorkerAndDispatchMessage(
       const GURL& scope,
       const blink::StorageKey& key,
@@ -92,6 +96,9 @@ class FakeServiceWorkerContext : public ServiceWorkerContext {
       const GURL& document_url,
       const blink::StorageKey& key,
       StartServiceWorkerForNavigationHintCallback callback) override;
+  void WarmUpServiceWorker(const GURL& document_url,
+                           const blink::StorageKey& key,
+                           WarmUpServiceWorkerCallback callback) override;
   void StopAllServiceWorkersForStorageKey(
       const blink::StorageKey& key) override;
   void StopAllServiceWorkers(base::OnceClosure callback) override;

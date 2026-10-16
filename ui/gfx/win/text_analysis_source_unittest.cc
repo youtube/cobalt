@@ -4,6 +4,9 @@
 
 #include "ui/gfx/win/text_analysis_source.h"
 
+#include <string>
+#include <string_view>
+
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/win/direct_write.h"
 
@@ -17,8 +20,7 @@ namespace {
 DWRITE_READING_DIRECTION kReadingDirection =
     DWRITE_READING_DIRECTION_TOP_TO_BOTTOM;
 const wchar_t* kLocale = L"hi-in";
-const wchar_t kText[] = L"sample text";
-const size_t kTextLength = _countof(kText) - 1;
+constexpr std::wstring_view kText = L"sample text";
 
 }  // namespace
 
@@ -33,7 +35,7 @@ class TextAnalysisSourceTest : public testing::Test {
                                       kLocale, true /* ignoreUserOverride */,
                                       &number_substitution);
 
-    TextAnalysisSource::Create(&source_, kText, kLocale,
+    TextAnalysisSource::Create(&source_, kText.data(), kLocale,
                                number_substitution.Get(), kReadingDirection);
   }
 
@@ -51,12 +53,12 @@ TEST_F(TextAnalysisSourceTest, TestGetLocaleName) {
   hr = source_->GetLocaleName(0, &length, &locale_name);
 
   EXPECT_TRUE(SUCCEEDED(hr));
-  EXPECT_EQ(kTextLength, length);
+  EXPECT_EQ(kText.size(), length);
   EXPECT_STREQ(kLocale, locale_name);
 
   // Attempting to get a locale for a location that does not have a text chunk
   // should fail.
-  hr = source_->GetLocaleName(kTextLength, &length, &locale_name);
+  hr = source_->GetLocaleName(kText.size(), &length, &locale_name);
 
   EXPECT_TRUE(FAILED(hr));
 }
@@ -68,12 +70,12 @@ TEST_F(TextAnalysisSourceTest, TestGetNumberSubstitution) {
   hr = source_->GetNumberSubstitution(0, &length, &number_substitution);
 
   EXPECT_TRUE(SUCCEEDED(hr));
-  EXPECT_EQ(kTextLength, length);
+  EXPECT_EQ(kText.size(), length);
   EXPECT_NE(nullptr, number_substitution.Get());
 
   // Attempting to get a number substitution for a location that does not have
   // a text chunk should fail.
-  hr = source_->GetNumberSubstitution(kTextLength, &length,
+  hr = source_->GetNumberSubstitution(kText.size(), &length,
                                       &number_substitution);
 
   EXPECT_TRUE(FAILED(hr));
@@ -90,17 +92,15 @@ TEST_F(TextAnalysisSourceTest, TestGetTextAtPosition) {
   hr = source_->GetTextAtPosition(0, &text, &length);
 
   EXPECT_TRUE(SUCCEEDED(hr));
-  EXPECT_EQ(kTextLength, length);
-  EXPECT_STREQ(kText, text);
+  EXPECT_EQ(kText, std::wstring_view(text, length));
 
   hr = source_->GetTextAtPosition(5, &text, &length);
 
   EXPECT_TRUE(SUCCEEDED(hr));
-  EXPECT_EQ(kTextLength - 5, length);
-  EXPECT_STREQ(kText + 5, text);
+  EXPECT_EQ(kText.substr(5), std::wstring_view(text, length));
 
   // Trying to get a text chunk past the end should return null.
-  hr = source_->GetTextAtPosition(kTextLength, &text, &length);
+  hr = source_->GetTextAtPosition(kText.size(), &text, &length);
 
   EXPECT_TRUE(SUCCEEDED(hr));
   EXPECT_EQ(nullptr, text);
@@ -119,14 +119,12 @@ TEST_F(TextAnalysisSourceTest, TestGetTextBeforePosition) {
   hr = source_->GetTextBeforePosition(5, &text, &length);
 
   EXPECT_TRUE(SUCCEEDED(hr));
-  EXPECT_EQ(5u, length);
-  EXPECT_STREQ(kText, text);
+  EXPECT_EQ(kText.substr(0, 5), std::wstring_view(text, length));
 
-  hr = source_->GetTextBeforePosition(kTextLength, &text, &length);
+  hr = source_->GetTextBeforePosition(kText.size(), &text, &length);
 
   EXPECT_TRUE(SUCCEEDED(hr));
-  EXPECT_EQ(kTextLength, length);
-  EXPECT_STREQ(kText, text);
+  EXPECT_EQ(kText, std::wstring_view(text, length));
 }
 
 }  // namespace win

@@ -3,8 +3,8 @@
 // Generated using tools/cldr/cldr-to-icu/build-icu-data.xml
 yo_BJ{
     ExemplarCharacters{
-        "[a á à b d e é è ɛ {ɛ\u0301} {ɛ\u0300} f g {gb} h i í ì j k l m n o ó ò ɔ {ɔ"
-        "\u0301} {ɔ\u0300} p r s {sh} t u ú ù w y]"
+        "[aáà b d eéè ɛ{ɛ́}{ɛ̀} f g {gb} h iíì j k l m n oóò ɔ{ɔ́}{ɔ̀} p r s {sh} t u"
+        "úù w y]"
     }
     NumberElements{
         latn{
@@ -63,15 +63,7 @@ yo_BJ{
     }
     calendar{
         gregorian{
-            AmPmMarkers{
-                "Àárɔ̀",
-                "Ɔ̀sán",
-            }
             AmPmMarkersAbbr{
-                "Àárɔ̀",
-                "Ɔ̀sán",
-            }
-            AmPmMarkersNarrow{
                 "Àárɔ̀",
                 "Ɔ̀sán",
             }
@@ -85,15 +77,6 @@ yo_BJ{
                         "Ɔjɔ́b",
                         "Ɛt",
                         "Àbám",
-                    }
-                    narrow{
-                        "À",
-                        "A",
-                        "Ì",
-                        "Ɔ",
-                        "Ɔ",
-                        "Ɛ",
-                        "À",
                     }
                     wide{
                         "Ɔjɔ́ Àìkú",
@@ -126,22 +109,6 @@ yo_BJ{
                     }
                 }
             }
-            dayPeriod{
-                stand-alone{
-                    abbreviated{
-                        am{"Àárɔ̀"}
-                        pm{"Ɔ̀sán"}
-                    }
-                    narrow{
-                        am{"Àárɔ̀"}
-                        pm{"Ɔ̀sán"}
-                    }
-                    wide{
-                        am{"Àárɔ̀"}
-                        pm{"Ɔ̀sán"}
-                    }
-                }
-            }
             eras{
                 wide%variant{
                     "Sáájú ìgbà mímɔ̀",
@@ -163,20 +130,6 @@ yo_BJ{
                         "Ɔ̀wà",
                         "Bél",
                         "Ɔ̀pɛ",
-                    }
-                    narrow{
-                        "S",
-                        "È",
-                        "Ɛ",
-                        "Ì",
-                        "Ɛ̀",
-                        "Ò",
-                        "A",
-                        "Ò",
-                        "O",
-                        "Ɔ̀",
-                        "B",
-                        "Ɔ̀",
                     }
                     wide{
                         "Oshù Shɛ́rɛ́",
@@ -260,12 +213,6 @@ yo_BJ{
                         "Kɛt",
                         "Kɛr",
                     }
-                    wide{
-                        "Ìdámɛ́rin kíní",
-                        "Ìdámɛ́rin Kejì",
-                        "Ìdámɛ́rin Kɛta",
-                        "Ìdámɛ́rin Kɛrin",
-                    }
                 }
             }
         }
@@ -285,9 +232,6 @@ yo_BJ{
         }
         dayOfYear{
             dn{"Ɔjɔ́ inú ɔdún"}
-        }
-        dayOfYear-narrow{
-            dn{"Ɔjɔ́ inú ɔd."}
         }
         dayOfYear-short{
             dn{"Ɔjɔ́ inú ɔd."}
@@ -330,9 +274,6 @@ yo_BJ{
         quarter{
             dn{"Ìdá mɛ́rin"}
         }
-        quarter-narrow{
-            dn{"Ìdá mɛ́rin"}
-        }
         sat-narrow{
             relative{
                 "-1"{"Ab sɛ́yìn"}
@@ -358,12 +299,6 @@ yo_BJ{
             }
         }
         second{
-            dn{"Ìsɛ́jú Ààyá"}
-        }
-        second-narrow{
-            dn{"Ìsɛ́jú Ààyá"}
-        }
-        second-short{
             dn{"Ìsɛ́jú Ààyá"}
         }
         sun{
@@ -513,28 +448,16 @@ yo_BJ{
             }
             relativePeriod{"ɔ̀sɛ̀ ti {0}"}
         }
-        week-short{
-            relativePeriod{"ɔ̀sɛ̀ ti {0}"}
-        }
         weekOfMonth{
             dn{"Ɔshɛ̀ inú Oshù"}
         }
         weekday{
             dn{"Ɔjɔ́ tó wà láàárín ɔ̀sɛ̀"}
         }
-        weekday-narrow{
-            dn{"ɔjɔ́ inú ɔshɛ̀."}
-        }
         weekday-short{
             dn{"ɔjɔ́ inú ɔshɛ̀."}
         }
         weekdayOfMonth{
-            dn{"ɔjɔ́ ɔshɛ̀ inú oshù"}
-        }
-        weekdayOfMonth-narrow{
-            dn{"ɔjɔ́ ɔshɛ̀ inú oshù"}
-        }
-        weekdayOfMonth-short{
             dn{"ɔjɔ́ ɔshɛ̀ inú oshù"}
         }
         year{
@@ -559,8 +482,6 @@ yo_BJ{
         }
     }
     measurementSystemNames{
-        UK{"Ilɛ̀ Gɛ̀ɛ́sì"}
-        US{"Orílɛ̀-Èdè Amɛ́ríkà"}
         metric{"Mɛ́tíríìkì"}
     }
 }

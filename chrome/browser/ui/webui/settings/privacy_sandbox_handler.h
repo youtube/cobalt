@@ -7,6 +7,7 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/privacy_sandbox/privacy_sandbox_countries.h"
 #include "chrome/browser/ui/webui/settings/settings_page_ui_handler.h"
 
 class PrivacySandboxService;
@@ -39,8 +40,19 @@ class PrivacySandboxHandler : public SettingsPageUIHandler {
   void HandleSetTopicAllowed(const base::Value::List& args);
   void HandleGetTopicsState(const base::Value::List& args);
   void HandleTopicsToggleChanged(const base::Value::List& args);
+  void HandleGetFirstLevelTopics(const base::Value::List& args);
+  void HandleGetChildTopicsCurrentlyAssigned(const base::Value::List& args);
+  // Determines if the Ad Topics card in the Privacy Guide should be displayed.
+  // This requires the PrivacySandboxAdTopicsContentParity feature to be enabled
+  // AND the user to be located in a Privacy Sandbox Consent Country.
+  void HandlePrivacySandboxPrivacyGuideShouldShowAdTopicsCard(
+      const base::Value::List& args);
+  // Determines if the Ad Topics Content Parity should be shown.
+  void HandleShouldShowPrivacySandboxAdTopicsContentParity(
+      const base::Value::List& args);
 
-  PrivacySandboxService* GetPrivacySandboxService();
+  virtual PrivacySandboxCountries* GetPrivacySandboxCountries();
+  virtual PrivacySandboxService* GetPrivacySandboxService();
 
   void OnFledgeJoiningSitesRecieved(const std::string& callback_id,
                                     std::vector<std::string> joining_sites);

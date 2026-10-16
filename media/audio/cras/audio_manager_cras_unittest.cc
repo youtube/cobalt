@@ -378,10 +378,6 @@ TEST_F(AudioManagerCrasTest, LookupDefaultOutputDeviceWithProperGroupId) {
 constexpr int kAecTestGroupId = 9;
 constexpr int kNoAecFlaggedGroupId = 0;
 
-bool ExperimentalAecActive(const AudioParameters& params) {
-  return params.effects() & AudioParameters::EXPERIMENTAL_ECHO_CANCELLER;
-}
-
 bool AecActive(const AudioParameters& params) {
   return params.effects() & AudioParameters::ECHO_CANCELLER;
 }
@@ -443,12 +439,15 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(AudioManagerCrasTestAEC, DefaultBehavior) {
   AudioParameters params = audio_manager_->GetInputStreamParameters("");
+  EXPECT_TRUE(AecActive(params));
   auto aec_supported = std::get<0>(GetParam());
+  auto ns_supported = std::get<2>(GetParam());
+  auto agc_supported = std::get<3>(GetParam());
 
-  EXPECT_TRUE(ExperimentalAecActive(params));
-  EXPECT_EQ(AecActive(params), aec_supported);
-  EXPECT_FALSE(NsActive(params));
-  EXPECT_FALSE(AgcActive(params));
+  // The current implementation is such that noise suppression and gain
+  // control are not applied in CRAS if a tuned AEC is used.
+  EXPECT_EQ(NsActive(params), ns_supported && (!aec_supported));
+  EXPECT_EQ(AgcActive(params), agc_supported && (!aec_supported));
 }
 
 TEST_P(AudioManagerCrasTestAEC, DefaultBehaviorSystemAecEnforcedByPolicy) {
@@ -475,10 +474,13 @@ TEST_P(AudioManagerCrasTestAEC,
 
 TEST_P(AudioManagerCrasTestAEC, BehaviorWithCrOSEnforceSystemAecDisallowed) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(media::kCrOSSystemAEC);
+  std::vector<base::test::FeatureRef> enabled_features;
+  std::vector<base::test::FeatureRef> disabled_features;
+  disabled_features.emplace_back(media::kCrOSEnforceSystemAec);
+  disabled_features.emplace_back(media::kCrOSSystemAEC);
+  feature_list.InitWithFeatures(enabled_features, disabled_features);
   AudioParameters params = audio_manager_->GetInputStreamParameters("");
 
-  EXPECT_TRUE(ExperimentalAecActive(params));
   EXPECT_FALSE(AecActive(params));
   EXPECT_FALSE(NsActive(params));
   EXPECT_FALSE(AgcActive(params));
@@ -491,7 +493,6 @@ TEST_P(AudioManagerCrasTestAEC, BehaviorWithCrOSEnforceSystemAecNsAgc) {
 
   auto aec_supported = std::get<0>(GetParam());
 
-  EXPECT_TRUE(ExperimentalAecActive(params));
   EXPECT_TRUE(AecActive(params));
   if (aec_supported) {
     EXPECT_FALSE(NsActive(params));
@@ -512,7 +513,6 @@ TEST_P(AudioManagerCrasTestAEC, BehaviorWithCrOSEnforceSystemAecNsAndAecAgc) {
 
   auto aec_supported = std::get<0>(GetParam());
 
-  EXPECT_TRUE(ExperimentalAecActive(params));
   EXPECT_TRUE(AecActive(params));
   if (aec_supported) {
     EXPECT_FALSE(NsActive(params));
@@ -532,7 +532,6 @@ TEST_P(AudioManagerCrasTestAEC,
 
   auto aec_supported = std::get<0>(GetParam());
 
-  EXPECT_TRUE(ExperimentalAecActive(params));
   EXPECT_TRUE(AecActive(params));
   if (aec_supported) {
     EXPECT_FALSE(NsActive(params));
@@ -551,7 +550,6 @@ TEST_P(AudioManagerCrasTestAEC, BehaviorWithCrOSEnforceSystemAecNs) {
   auto aec_supported = std::get<0>(GetParam());
   auto agc_supported = std::get<3>(GetParam());
 
-  EXPECT_TRUE(ExperimentalAecActive(params));
   EXPECT_TRUE(AecActive(params));
   if (aec_supported) {
     EXPECT_FALSE(NsActive(params));
@@ -570,7 +568,6 @@ TEST_P(AudioManagerCrasTestAEC, BehaviorWithCrOSEnforceSystemAecAgc) {
   auto aec_supported = std::get<0>(GetParam());
   auto ns_supported = std::get<2>(GetParam());
 
-  EXPECT_TRUE(ExperimentalAecActive(params));
   EXPECT_TRUE(AecActive(params));
   if (aec_supported) {
     EXPECT_FALSE(NsActive(params));
@@ -590,7 +587,6 @@ TEST_P(AudioManagerCrasTestAEC, BehaviorWithCrOSEnforceSystemAec) {
   auto ns_supported = std::get<2>(GetParam());
   auto agc_supported = std::get<3>(GetParam());
 
-  EXPECT_TRUE(ExperimentalAecActive(params));
   EXPECT_TRUE(AecActive(params));
   if (aec_supported) {
     EXPECT_FALSE(NsActive(params));
@@ -654,7 +650,8 @@ TEST_P(AudioManagerCrasTestDSP, BehaviorWithoutAnyEnforcedEffects) {
   feature_list.InitWithFeatures(enabled_features_, disabled_features_);
   AudioParameters params = audio_manager_->GetInputStreamParameters("");
 
-  EXPECT_FALSE(DspAecAllowed(params));
+  auto aec_on_dsp_allowed = std::get<0>(GetParam());
+  EXPECT_EQ(DspAecAllowed(params), aec_on_dsp_allowed);
   EXPECT_FALSE(DspNsAllowed(params));
   EXPECT_FALSE(DspAgcAllowed(params));
 }

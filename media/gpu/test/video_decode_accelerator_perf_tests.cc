@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <algorithm>
 #include <numeric>
 #include <vector>
 
+#include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/files/file_util.h"
 #include "base/json/json_writer.h"
@@ -15,13 +21,16 @@
 #include "media/base/media_switches.h"
 #include "media/base/test_data_util.h"
 #include "media/gpu/buildflags.h"
-#include "media/gpu/test/video.h"
+#include "media/gpu/test/video_bitstream.h"
 #include "media/gpu/test/video_player/decoder_listener.h"
 #include "media/gpu/test/video_player/decoder_wrapper.h"
 #include "media/gpu/test/video_player/frame_renderer_dummy.h"
 #include "media/gpu/test/video_player/video_player_test_environment.h"
-#include "sandbox/linux/services/resource_limits.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+#include "sandbox/linux/services/resource_limits.h"  // nogncheck
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
 
 namespace media {
 namespace test {
@@ -36,7 +45,6 @@ constexpr const char* usage_msg =
            [-v=<level>] [--vmodule=<config>] [--output_folder]
            ([--use-legacy]|[--use_vd_vda]) [--linear_output]
            [--use-gl=<backend>] [--ozone-platform=<platform>]
-           [--disable_vaapi_lock]
            [--gtest_help] [--help]
            [<video path>] [<video metadata path>]
 )";
@@ -75,13 +83,7 @@ The following arguments are supported:
                         swiftshader (software rendering)
   --ozone-platform      specify which Ozone platform to use, possible values
                         depend on build configuration but normally include
-                        x11, drm, wayland, and headless
-  --disable_vaapi_lock  disable the global VA-API lock if applicable,
-                        i.e., only on devices that use the VA-API with a libva
-                        backend that's known to be thread-safe and only in
-                        portions of the Chrome stack that should be able to
-                        deal with the absence of the lock
-                        (not the VaapiVideoDecodeAccelerator).)""") +
+                        x11, drm, wayland, and headless.)""") +
 #if defined(ARCH_CPU_ARM_FAMILY)
     R"""(
   --disable-libyuv      use hw format conversion instead of libYUV.
@@ -331,7 +333,7 @@ class VideoDecoderTest : public ::testing::Test {
   // simulated. The |vsync_rate| is used during simulated rendering, if 0 Vsync
   // is disabled.
   std::unique_ptr<DecoderListener> CreateDecoderListener(
-      const Video* video,
+      const VideoBitstream* video,
       uint32_t render_frame_rate = 0,
       uint32_t vsync_rate = 0) {
     LOG_ASSERT(video);
@@ -364,7 +366,7 @@ class VideoDecoderTest : public ::testing::Test {
 
     // Make sure the event timeout is at least as long as the video's duration.
     video_player->SetEventWaitTimeout(
-        std::max(kDefaultEventWaitTimeout, g_env->Video()->GetDuration()));
+        std::max(kDefaultEventWaitTimeout, g_env->Video()->Duration()));
     return video_player;
   }
 
@@ -412,11 +414,13 @@ TEST_F(VideoDecoderTest, MeasureCappedPerformance) {
 // then decide how to aggregate/report those metrics.
 // Play multiple videos simultaneously from start to finish.
 TEST_F(VideoDecoderTest, MeasureUncappedPerformance_TenConcurrentDecoders) {
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
   // Set RLIMIT_NOFILE soft limit to its hard limit value.
   if (sandbox::ResourceLimits::AdjustCurrent(
           RLIMIT_NOFILE, std::numeric_limits<long long int>::max())) {
     DPLOG(ERROR) << "Unable to increase soft limit of RLIMIT_NOFILE";
   }
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
 
   constexpr size_t kNumConcurrentDecoders = 10;
 
@@ -447,7 +451,7 @@ TEST_F(VideoDecoderTest, MeasureUncappedPerformance_TenConcurrentDecoders) {
 
 int main(int argc, char** argv) {
   // Set the default test data path.
-  media::test::Video::SetTestDataPath(media::GetTestDataPath());
+  media::test::VideoBitstream::SetTestDataPath(media::GetTestDataPath());
 
   // Print the help message if requested. This needs to be done before
   // initializing gtest, to overwrite the default gtest help message.
@@ -479,10 +483,12 @@ int main(int argc, char** argv) {
   base::CommandLine::SwitchMap switches = cmd_line->GetSwitches();
   for (base::CommandLine::SwitchMap::const_iterator it = switches.begin();
        it != switches.end(); ++it) {
-    if (it->first.find("gtest_") == 0 ||               // Handled by GoogleTest
-        it->first == "ozone-platform" ||               // Handled by Chrome
-        it->first == "use-gl" ||                       // Handled by Chrome
-        it->first == "v" || it->first == "vmodule") {  // Handled by Chrome
+    if (it->first.find("gtest_") == 0 ||  // Handled by GoogleTest
+        it->first == "ozone-platform" ||  // Handled by Chrome
+        it->first == "use-gl" ||          // Handled by Chrome
+                                          // Options below handled by Chrome
+        it->first == "v" || it->first == "vmodule" ||
+        it->first == "enable-features" || it->first == "disable-features") {
       continue;
     }
 
@@ -496,8 +502,6 @@ int main(int argc, char** argv) {
       implementation = media::test::DecoderImplementation::kVDVDA;
     } else if (it->first == "linear_output") {
       linear_output = true;
-    } else if (it->first == "disable_vaapi_lock") {
-      disabled_features.push_back(media::kGlobalVaapiLock);
 #if defined(ARCH_CPU_ARM_FAMILY)
     } else if (it->first == "disable-libyuv") {
       enabled_features.clear();
@@ -508,6 +512,8 @@ int main(int argc, char** argv) {
       return EXIT_FAILURE;
     }
   }
+
+  disabled_features.push_back(media::kGlobalVaapiLock);
 
   if (use_legacy && use_vd_vda) {
     std::cout << "--use-legacy and --use_vd_vda cannot be enabled together.\n"
@@ -526,6 +532,14 @@ int main(int argc, char** argv) {
   // Add the command line flag for HEVC testing which will be checked by the
   // video decoder to allow clear HEVC decoding.
   cmd_line->AppendSwitch("enable-clear-hevc-for-testing");
+
+#if BUILDFLAG(USE_V4L2_CODEC)
+  std::unique_ptr<base::FeatureList> feature_list =
+      std::make_unique<base::FeatureList>();
+  feature_list->InitFromCommandLine(
+      cmd_line->GetSwitchValueASCII(switches::kEnableFeatures),
+      cmd_line->GetSwitchValueASCII(switches::kDisableFeatures));
+#endif
 
   // Set up our test environment.
   media::test::VideoPlayerTestEnvironment* test_environment =

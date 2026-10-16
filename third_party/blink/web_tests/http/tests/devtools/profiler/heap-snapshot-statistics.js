@@ -2,11 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {HeapProfilerTestRunner} from 'heap_profiler_test_runner';
+
+import * as ProfilerModule from 'devtools/panels/profiler/profiler.js';
+
 (async function() {
   'use strict';
   TestRunner.addResult(`Tests Statistics view of detailed heap snapshots.\n`);
-  await TestRunner.loadTestModule('heap_profiler_test_runner');
-  await TestRunner.showPanel('heap_profiler');
+  await TestRunner.showPanel('heap-profiler');
 
   function createHeapSnapshot() {
     var builder = new HeapProfilerTestRunner.HeapSnapshotBuilder();
@@ -37,16 +41,17 @@
     var systemObj =
         new HeapProfilerTestRunner.HeapNode('SystemObject', 900000000, HeapProfilerTestRunner.HeapNode.Type.object);
     strongRoots.linkNode(systemObj, HeapProfilerTestRunner.HeapEdge.Type.internal, '0');
+    builder.extraNativeBytes = 10;
     return builder.generateSnapshot();
   }
 
   HeapProfilerTestRunner.runHeapSnapshotTestSuite([function testStatistics(next) {
-    TestRunner.addSniffer(Profiler.HeapSnapshotView.prototype, 'retrieveStatistics', step1);
+    TestRunner.addSniffer(ProfilerModule.HeapSnapshotView.HeapSnapshotView.prototype, 'retrieveStatistics', step1);
     HeapProfilerTestRunner.takeAndOpenSnapshot(createHeapSnapshot, () => {});
 
     async function step1(arg, result) {
       var statistics = await result;
-      TestRunner.addResult(JSON.stringify(statistics));
+      TestRunner.addResult(JSON.stringify(statistics, null, '  '));
       setTimeout(next, 0);
     }
   }]);

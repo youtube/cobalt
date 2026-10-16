@@ -4,7 +4,6 @@
 <translation id="1002108253973310084">কোনো অমিল প্ৰ'ট'কলৰ সংস্কৰণ চিনাক্ত কৰা হৈছিল। অনুগ্ৰহ কৰি নিশ্চিত কৰক যে আপোনাৰ দুয়োটা কম্পিউটাৰতে ছফৱেৰটোৰ শেহতীয়া সংস্কৰণ ইনষ্টল কৰা আছে আৰু আকৌ চেষ্টা কৰক।</translation>
 <translation id="1008557486741366299">এতিয়া নহয়</translation>
 <translation id="1201402288615127009">পৰৱৰ্তী</translation>
-<translation id="1296511125400541222">Copyright 2023 The Chromium Authors. সকলো চৰ্ত সংৰক্ষিত।</translation>
 <translation id="1297009705180977556"><ph name="HOSTNAME" />লৈ সংযোগ কৰাত কিবা আসোঁৱাহ হৈছে</translation>
 <translation id="1450760146488584666">আপুনি অনুৰোধ কৰা বস্তুটো নাই।</translation>
 <translation id="1480046233931937785">স্বীকৃতি</translation>
@@ -29,7 +28,7 @@
 <translation id="2329392777730037872">ক্লায়েণ্টৰ ডিভাইচটোত <ph name="URL" /> খুলিব পৰা নগ’ল।</translation>
 <translation id="2359808026110333948">অব্যাহত ৰাখক</translation>
 <translation id="2366718077645204424">হ‘ষ্টৰ সৈতে সংযোগ কৰিব পৰা নগ‘ল। এইটো সম্ভৱতঃ আপুনি ব্যৱহাৰ কৰি থকা নেটৱৰ্কটোৰ কনফিগাৰেশ্বনৰ কাৰণে হৈছে।</translation>
-<translation id="2370754117186920852"><ph name="OPTIONAL_OFFLINE_REASON" />  অন্তিমবাৰ অনলাইন দেখা গৈছিল <ph name="RELATIVE_TIMESTAMP" />ত।</translation>
+<translation id="242591256144136845">Copyright 2025 Google LLC. সকলো চৰ্ত সংৰক্ষিত।</translation>
 <translation id="2504109125669302160"><ph name="PRODUCT_NAME" />ক সাধ্য সুবিধাসমূহৰ অনুমতি দিয়ক</translation>
 <translation id="2509394361235492552"><ph name="HOSTNAME" />ৰ সৈতে সংযোজিত</translation>
 <translation id="2540992418118313681">আপুনি এই কম্পিউটাৰটো আন ব্যৱহাৰকাৰীয়ে ব্যৱহাৰ কৰিবলৈ বা চাবলৈ শ্বেয়াৰ কৰিবনে?</translation>
@@ -40,7 +39,8 @@
 <translation id="2699970397166997657">Chromoting</translation>
 <translation id="2758123043070977469">বিশ্বাসযোগ্যতা প্ৰমাণীকৰণ কৰি থাকোঁতে কিবা আসোঁৱাহ হ’ল।</translation>
 <translation id="2803375539583399270">পিন দিয়ক</translation>
-<translation id="2919669478609886916">আপুনি বৰ্তমান এই মেচিনটো অন্য এজন ব্যৱহাৰকাৰীৰ সৈতে শ্বেয়াৰ কৰি আছে। আপুনি শ্বেয়াৰ কৰি থাকিব বিচাৰেনে?</translation>
+<translation id="2919669478609886916">আপুনি বৰ্তমান এই মেচিনটো অন্য এগৰাকী ব্যৱহাৰকাৰীৰ সৈতে শ্বেয়াৰ কৰি আছে। আপুনি শ্বেয়াৰ কৰি থাকিব বিচাৰেনে?</translation>
+<translation id="2929683002824598593">ডিভাইচ শ্বেয়াৰ কৰক</translation>
 <translation id="2939145106548231838">হ’ষ্টৰ বাবে বিশ্বাসযোগ্যতা সত্যাপন কৰক</translation>
 <translation id="3027681561976217984">স্পর্শ ম’ড</translation>
 <translation id="3106379468611574572">ৰিম'ট কম্পিউটাৰে সংযোগৰ অনুৰোধলৈ সঁহাৰি জনোৱা নাই। এইটো যে অনলাইন হৈ আছে সেয়া সত্যাপন কৰি আকৌ চেষ্টা কৰক।</translation>
@@ -54,7 +54,6 @@
 <translation id="3423542133075182604">সুৰক্ষাৰ চাবি ৰিম’টিং প্ৰক্ৰিয়া</translation>
 <translation id="3581045510967524389">নেটৱৰ্কৰ সৈতে সংযোগ কৰিব পৰা নগ’ল৷ অনুগ্ৰহ কৰি আপোনাৰ ডিভাইচ অনলাইন হৈ আছেনে নাই চাওক৷</translation>
 <translation id="3596628256176442606">এই সেৱাটোৱে Chromoting ক্লাইণ্টৰ অন্তৰ্গামী সংযোগসমূহ সক্ষম কৰে।</translation>
-<translation id="369442766917958684">অফলাইন।</translation>
 <translation id="3695446226812920698">কেনেকৈ কৰিব সেয়া জানক</translation>
 <translation id="3776024066357219166">আপোনাৰ Chrome ৰিম’ট ডেস্কটপ ছেশ্বন অন্ত পৰিছে।</translation>
 <translation id="3858860766373142691">নাম</translation>
@@ -89,12 +88,12 @@
 <translation id="4808503597364150972">অনুগ্ৰহ কৰি <ph name="HOSTNAME" />ৰ বাবে আপোনাৰ পিন দিয়ক।</translation>
 <translation id="4812684235631257312">আয়োজক</translation>
 <translation id="4867841927763172006">PrtScn পঠিয়াওক</translation>
-<translation id="4960795469833295568">স্বত্বাধিকাৰ ২০২৩ Google LLC। সকলো চৰ্ত সংৰক্ষিত।</translation>
 <translation id="4974476491460646149"><ph name="HOSTNAME" />ৰ সংযোগ বন্ধ</translation>
 <translation id="4985296110227979402">ৰিম’ট এক্সেছৰ বাবে আপুনি প্ৰথমে নিজৰ কম্পিউটাৰটো ছেট আপ কৰিব লাগিব</translation>
 <translation id="4987330545941822761">Chrome ৰিম’ট ডেস্কটপে URLসমূহ স্থানীয়ভাৱে খুলিবলৈ ব্ৰাউজাৰটো চিনাক্ত কৰিব পৰা নাই। অনুগ্ৰহ কৰি এইটোক তলৰ সূচীখনৰ পৰা বাছনি কৰক।</translation>
 <translation id="5064360042339518108"><ph name="HOSTNAME" /> (অফলাইন হৈ আছে)</translation>
 <translation id="507204348399810022">আপুনি নিশ্চিতভাৱে <ph name="HOSTNAME" />ৰ ৰিম‘ট সংযোগ অক্ষম কৰিব বিচাৰেনে?</translation>
+<translation id="5095424396646120601">ক্রেশ্ব ৰিপ'ৰ্ট কৰা</translation>
 <translation id="5170982930780719864">অমান্য হ'ষ্টৰ আইডি।</translation>
 <translation id="5204575267916639804">সঘনে উত্থাপিত প্ৰশ্ন</translation>
 <translation id="5222676887888702881">ছাইন আউট কৰক</translation>
@@ -107,7 +106,6 @@
 <translation id="5601503069213153581">পিন</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5708869785009007625">আপোনাৰ ডেস্কট’প বৰ্তমান <ph name="USER" />ৰ সৈতে শ্বেয়াৰ কৰা হৈছে৷</translation>
-<translation id="5750083143895808682"><ph name="EMAIL_ADDRESS" /> ৰূপে ছাইন ইন কৰা হৈছে।</translation>
 <translation id="579702532610384533">পুনৰ সংযোগ কৰক</translation>
 <translation id="5810269635982033450">স্ক্ৰীণে ট্ৰেকপেড হিচাপে কার্য কৰে</translation>
 <translation id="5823554426827907568"><ph name="CLIENT_USERNAME" />এ আপোনাৰ স্ক্ৰীনখন চাবলৈ আৰু আপোনাৰ কীব’ৰ্ড আৰু মাউছ নিয়ন্ত্ৰণ কৰিবলৈ এক্সেছৰ অনুৰোধ কৰিছে। যদি এই অনুৰোধটো আপোনাৰ বাবে অনাকাংক্ষিত, ''<ph name="IDS_SHARE_CONFIRM_DIALOG_DECLINE" />''ত টিপক। অন্যথা, সাজু হ’লে সংযোগটোক অনুমতি দিবলৈ ''<ph name="IDS_SHARE_CONFIRM_DIALOG_CONFIRM" />'' বাছনি কৰক।</translation>
@@ -119,12 +117,14 @@
 <translation id="6099500228377758828">Chrome ৰিম’ট ডেস্কটপ সেৱা</translation>
 <translation id="6122191549521593678">অনলাইন</translation>
 <translation id="6178645564515549384">ৰিম'ট সহায়তাৰ বাবে স্থানীয় মেছেজিং হ'ষ্ট</translation>
-<translation id="618120821413932081">ৱিণ্ড’ৰ আকাৰৰ সৈতে মিলাবলৈ ৰিম'ট ৰিজ'লিউছন আপডে'ট কৰক</translation>
+<translation id="618120821413932081">ৱিণ্ড’ৰ আকাৰৰ সৈতে মিলাবলৈ ৰিম'ট ৰিজ'লিউশ্বন আপডে'ট কৰক</translation>
 <translation id="6223301979382383752">স্ক্রীণ ৰেকৰ্ডিঙৰ অগ্ৰাধিকাৰসমূহ খোলক</translation>
+<translation id="6252344563748670011"><ph name="CLIENT_USERNAME" />এ আপোনাৰ স্ক্ৰীনখন চাবলৈ আৰু আপোনাৰ কীব’ৰ্ড আৰু মাউছ নিয়ন্ত্ৰণ কৰিবলৈ এক্সেছৰ অনুৰোধ কৰিছে। আপুনি আপোনাৰ ডিভাইচটো শ্বেয়াৰ কৰিব বিচাৰেনে?</translation>
 <translation id="6284412385303060032">ব্যৱহাৰকাৰী-নিৰ্দিষ্ট ছেশ্বনত চলি থকা হ’ষ্টলৈ সলনি কৰি কাৰ্টেইন ম’ড ব্যৱহাৰৰ সুবিধা দিবলৈ ক’নছ’ল লজিক স্ক্ৰীনত চলি থকা হ’ষ্টক বন্ধ কৰা হৈছে।</translation>
 <translation id="6542902059648396432">সমস্যাৰ অভিযোগ দিয়ক…</translation>
 <translation id="6583902294974160967">সহায়</translation>
 <translation id="6612717000975622067">Ctrl-Alt-Del দবাই পঠিয়াওক</translation>
+<translation id="6625262630437221505">{0,plural, =1{যদি আপুনি কাৰ্যব্যৱস্থা গ্ৰহণ নকৰে, তেন্তে আপোনাৰ ডিভাইচে # ছেকেণ্ডত স্বয়ংক্ৰিয়ভাৱে শ্বেয়াৰ কৰিবলৈ আৰম্ভ কৰিব।}one{যদি আপুনি কাৰ্যব্যৱস্থা গ্ৰহণ নকৰে, তেন্তে আপোনাৰ ডিভাইচে # ছেকেণ্ডত স্বয়ংক্ৰিয়ভাৱে শ্বেয়াৰ কৰিবলৈ আৰম্ভ কৰিব।}other{যদি আপুনি কাৰ্যব্যৱস্থা গ্ৰহণ নকৰে, তেন্তে আপোনাৰ ডিভাইচে # ছেকেণ্ডত স্বয়ংক্ৰিয়ভাৱে শ্বেয়াৰ কৰিবলৈ আৰম্ভ কৰিব।}}</translation>
 <translation id="6654753848497929428">শ্বেয়াৰ কৰক</translation>
 <translation id="677755392401385740">এই ব্যৱহাৰকাৰীজনৰ বাবে হ’ষ্ট আৰম্ভ কৰা হৈছে: <ph name="HOST_USERNAME" />৷</translation>
 <translation id="6902524959760471898"><ph name="PRODUCT_NAME" /> ক্লায়েণ্টত এটা URL খুলিবলৈ সহায় কৰা এপ্লিকেশ্বন</translation>
@@ -138,6 +138,7 @@
 <translation id="7067321367069083429">স্ক্ৰীণখনে টাচ্চ স্ক্ৰীনৰ দৰে আচৰণ কৰে</translation>
 <translation id="7116737094673640201">Chrome ৰিম’ট ডেস্কটপলৈ স্বাগতম</translation>
 <translation id="7144878232160441200">পুনৰ চেষ্টা কৰক</translation>
+<translation id="7298392173540380852">Copyright 2021 The Chromium Authors. সকলো চৰ্ত সংৰক্ষিত।</translation>
 <translation id="7312846573060934304">হ’ষ্ট অফলাইন আছে।</translation>
 <translation id="7319983568955948908">শ্বেয়াৰ কৰা বন্ধ কৰক</translation>
 <translation id="7359298090707901886">স্থানীয় মেচিনটোত URL খুলিবলৈ বাছনি কৰা ব্ৰাউজাৰটো ব্যৱহাৰ কৰিব নোৱাৰি।</translation>

@@ -9,6 +9,7 @@
 
 #include "libANGLE/renderer/renderer_utils.h"
 
+#include "common/base/anglebase/numerics/checked_math.h"
 #include "common/string_utils.h"
 #include "common/system_utils.h"
 #include "common/utilities.h"
@@ -23,8 +24,8 @@
 #include "libANGLE/renderer/Format.h"
 #include "platform/Feature.h"
 
-#include <string.h>
 #include <cctype>
+#include <cstring>
 
 namespace angle
 {
@@ -64,13 +65,32 @@ bool FeatureNameMatch(const std::string &a, const std::string &b)
 }
 }  // anonymous namespace
 
-// FeatureSetBase implementation
-void FeatureSetBase::overrideFeatures(const std::vector<std::string> &featureNames, bool enabled)
+void FeatureInfo::applyOverride(bool state)
 {
+    enabled     = state;
+    hasOverride = true;
+}
+
+// FeatureSetBase implementation
+void FeatureSetBase::reset()
+{
+    for (const auto &iter : members)
+    {
+        FeatureInfo *feature = iter.second;
+        feature->enabled     = false;
+        feature->hasOverride = false;
+    }
+}
+
+std::string FeatureSetBase::overrideFeatures(const std::vector<std::string> &featureNames,
+                                             bool enabled)
+{
+    std::stringstream featureStream;
+
     for (const std::string &name : featureNames)
     {
         const bool hasWildcard = name.back() == '*';
-        for (auto iter : members)
+        for (const auto &iter : members)
         {
             const std::string &featureName = iter.first;
             FeatureInfo *feature           = iter.second;
@@ -80,7 +100,13 @@ void FeatureSetBase::overrideFeatures(const std::vector<std::string> &featureNam
                 continue;
             }
 
-            feature->enabled = enabled;
+            feature->applyOverride(enabled);
+
+            if (featureStream.str().empty())
+            {
+                featureStream << "Feature overrides: ";
+            }
+            featureStream << featureName << (enabled ? " enabled, " : " disabled, ");
 
             // If name has a wildcard, try to match it with all features.  Otherwise, bail on first
             // match, as names are unique.
@@ -90,13 +116,20 @@ void FeatureSetBase::overrideFeatures(const std::vector<std::string> &featureNam
             }
         }
     }
+
+    if (!featureStream.str().empty())
+    {
+        featureStream << std::endl;
+    }
+
+    return featureStream.str();
 }
 
 void FeatureSetBase::populateFeatureList(FeatureList *features) const
 {
-    for (FeatureMap::const_iterator it = members.begin(); it != members.end(); it++)
+    for (const auto &member : members)
     {
-        features->push_back(it->second);
+        features->push_back(member.second);
     }
 }
 }  // namespace angle
@@ -217,7 +250,7 @@ void WriteFloatColor(const gl::ColorF &color,
 }
 
 template <int cols, int rows, bool IsColumnMajor>
-inline int GetFlattenedIndex(int col, int row)
+constexpr inline int GetFlattenedIndex(int col, int row)
 {
     if (IsColumnMajor)
     {
@@ -240,7 +273,10 @@ void ExpandMatrix(T *target, const GLfloat *value)
 {
     static_assert(colsSrc <= colsDst && rowsSrc <= rowsDst, "Can only expand!");
 
-    constexpr int kDstFlatSize = colsDst * rowsDst;
+    // Clamp the staging data's size to the last written value so that data packed just after this
+    // matrix is not overwritten.
+    constexpr int kDstFlatSize =
+        GetFlattenedIndex<colsDst, rowsDst, IsDstColumnMajor>(colsSrc - 1, rowsSrc - 1) + 1;
     T staging[kDstFlatSize]    = {0};
 
     for (int r = 0; r < rowsSrc; r++)
@@ -365,6 +401,7 @@ PackPixelsParams::PackPixelsParams()
     : destFormat(nullptr),
       outputPitch(0),
       packBuffer(nullptr),
+      reverseRowOrder(false),
       offset(0),
       rotation(SurfaceRotation::Identity)
 {}
@@ -510,6 +547,32 @@ void PackPixels(const PackPixelsParams &params,
     }
 }
 
+angle::Result GetPackPixelsParams(const gl::InternalFormat &sizedFormatInfo,
+                                  GLuint outputPitch,
+                                  const gl::PixelPackState &packState,
+                                  gl::Buffer *packBuffer,
+                                  const gl::Rectangle &area,
+                                  const gl::Rectangle &clippedArea,
+                                  rx::PackPixelsParams *paramsOut,
+                                  GLuint *skipBytesOut)
+{
+    angle::CheckedNumeric<GLuint> checkedSkipBytes = *skipBytesOut;
+    checkedSkipBytes += (clippedArea.x - area.x) * sizedFormatInfo.pixelBytes +
+                        (clippedArea.y - area.y) * outputPitch;
+    if (!checkedSkipBytes.AssignIfValid(skipBytesOut))
+    {
+        return angle::Result::Stop;
+    }
+
+    angle::FormatID angleFormatID =
+        angle::Format::InternalFormatToID(sizedFormatInfo.sizedInternalFormat);
+    const angle::Format &angleFormat = angle::Format::Get(angleFormatID);
+
+    *paramsOut = rx::PackPixelsParams(clippedArea, angleFormat, outputPitch,
+                                      packState.reverseRowOrder, packBuffer, 0);
+    return angle::Result::Continue;
+}
+
 bool FastCopyFunctionMap::has(angle::FormatID formatID) const
 {
     return (get(formatID) != nullptr);
@@ -646,10 +709,6 @@ void CopyImageCHROMIUM(const uint8_t *sourceData,
 }
 
 // IncompleteTextureSet implementation.
-IncompleteTextureSet::IncompleteTextureSet() : mIncompleteTextureBufferAttachment(nullptr) {}
-
-IncompleteTextureSet::~IncompleteTextureSet() {}
-
 void IncompleteTextureSet::onDestroy(const gl::Context *context)
 {
     // Clear incomplete textures.
@@ -663,11 +722,6 @@ void IncompleteTextureSet::onDestroy(const gl::Context *context)
                 incompleteTexture.set(context, nullptr);
             }
         }
-    }
-    if (mIncompleteTextureBufferAttachment != nullptr)
-    {
-        mIncompleteTextureBufferAttachment->onDestroy(context);
-        mIncompleteTextureBufferAttachment = nullptr;
     }
 }
 
@@ -713,6 +767,7 @@ angle::Result IncompleteTextureSet::getIncompleteTexture(
     gl::Texture *tex =
         new gl::Texture(implFactory, {std::numeric_limits<GLuint>::max()}, createType);
     angle::UniqueObjectPointer<gl::Texture, gl::Context> t(tex, context);
+    gl::Buffer *incompleteTextureBufferAttachment = nullptr;
 
     // This is a bit of a kludge but is necessary to consume the error.
     gl::Context *mutableContext = const_cast<gl::Context *>(context);
@@ -720,9 +775,9 @@ angle::Result IncompleteTextureSet::getIncompleteTexture(
     if (createType == gl::TextureType::Buffer)
     {
         constexpr uint32_t kBufferInitData = 0;
-        mIncompleteTextureBufferAttachment =
+        incompleteTextureBufferAttachment =
             new gl::Buffer(implFactory, {std::numeric_limits<GLuint>::max()});
-        ANGLE_TRY(mIncompleteTextureBufferAttachment->bufferData(
+        ANGLE_TRY(incompleteTextureBufferAttachment->bufferData(
             mutableContext, gl::BufferBinding::Texture, &kBufferInitData, sizeof(kBufferInitData),
             gl::BufferUsage::StaticDraw));
     }
@@ -737,6 +792,7 @@ angle::Result IncompleteTextureSet::getIncompleteTexture(
         ANGLE_TRY(t->setStorage(mutableContext, createType, 1,
                                 incompleteTextureParam.sizedInternalFormat, colorSize));
     }
+    t->markInternalIncompleteTexture();
 
     if (type == gl::TextureType::CubeMap)
     {
@@ -771,7 +827,8 @@ angle::Result IncompleteTextureSet::getIncompleteTexture(
     }
     else if (type == gl::TextureType::Buffer)
     {
-        ANGLE_TRY(t->setBuffer(context, mIncompleteTextureBufferAttachment,
+        ASSERT(incompleteTextureBufferAttachment != nullptr);
+        ANGLE_TRY(t->setBuffer(context, incompleteTextureBufferAttachment,
                                incompleteTextureParam.sizedInternalFormat));
     }
     else
@@ -979,6 +1036,288 @@ void GetMatrixUniform(GLenum type, NonFloatT *dataOut, const NonFloatT *source, 
     UNREACHABLE();
 }
 
+BufferAndLayout::BufferAndLayout() = default;
+
+BufferAndLayout::~BufferAndLayout() = default;
+
+template <typename T>
+ANGLE_NOINLINE void UpdateBufferWithLayoutStrided(GLsizei count,
+                                                  uint32_t arrayIndex,
+                                                  int componentCount,
+                                                  const T *v,
+                                                  const sh::BlockMemberInfo &layoutInfo,
+                                                  angle::MemoryBuffer *uniformData)
+{
+    const int elementSize = sizeof(T) * componentCount;
+    uint8_t *dst          = uniformData->data() + layoutInfo.offset;
+    int maxIndex          = arrayIndex + count;
+    for (int writeIndex = arrayIndex, readIndex = 0; writeIndex < maxIndex;
+         writeIndex++, readIndex++)
+    {
+        const int arrayOffset = writeIndex * layoutInfo.arrayStride;
+        uint8_t *writePtr     = dst + arrayOffset;
+        const T *readPtr      = v + (readIndex * componentCount);
+        ASSERT(writePtr + elementSize <= uniformData->data() + uniformData->size());
+        memcpy(writePtr, readPtr, elementSize);
+    }
+}
+
+template <typename T>
+ANGLE_INLINE void UpdateBufferWithLayout(GLsizei count,
+                                         uint32_t arrayIndex,
+                                         int componentCount,
+                                         const T *v,
+                                         const sh::BlockMemberInfo &layoutInfo,
+                                         angle::MemoryBuffer *uniformData)
+{
+    const int elementSize = sizeof(T) * componentCount;
+    uint8_t *dst = uniformData->data() + layoutInfo.offset;
+    if (ANGLE_LIKELY(layoutInfo.arrayStride == 0) ||
+        ANGLE_LIKELY(layoutInfo.arrayStride == elementSize))
+    {
+        uint32_t arrayOffset = arrayIndex * layoutInfo.arrayStride;
+        uint8_t *writePtr    = dst + arrayOffset;
+        ASSERT(writePtr + (elementSize * count) <= uniformData->data() + uniformData->size());
+        memcpy(writePtr, v, elementSize * count);
+    }
+    else
+    {
+        // Have to respect the arrayStride between each element of the array.
+        UpdateBufferWithLayoutStrided(count, arrayIndex, componentCount, v, layoutInfo,
+                                      uniformData);
+    }
+}
+
+template <typename T>
+void ReadFromBufferWithLayout(int componentCount,
+                              uint32_t arrayIndex,
+                              T *dst,
+                              const sh::BlockMemberInfo &layoutInfo,
+                              const angle::MemoryBuffer *uniformData)
+{
+    ASSERT(layoutInfo.offset != -1);
+
+    const int elementSize = sizeof(T) * componentCount;
+    const uint8_t *source = uniformData->data() + layoutInfo.offset;
+
+    if (layoutInfo.arrayStride == 0 || layoutInfo.arrayStride == elementSize)
+    {
+        const uint8_t *readPtr = source + arrayIndex * layoutInfo.arrayStride;
+        memcpy(dst, readPtr, elementSize);
+    }
+    else
+    {
+        // Have to respect the arrayStride between each element of the array.
+        const int arrayOffset  = arrayIndex * layoutInfo.arrayStride;
+        const uint8_t *readPtr = source + arrayOffset;
+        memcpy(dst, readPtr, elementSize);
+    }
+}
+
+template <typename T>
+ANGLE_NOINLINE void SetUniformAsBool(const gl::ProgramExecutable *executable,
+                                     GLint location,
+                                     GLsizei count,
+                                     const T *v,
+                                     GLenum entryPointType,
+                                     DefaultUniformBlockMap *defaultUniformBlocks,
+                                     gl::ShaderBitSet *defaultUniformBlocksDirty)
+{
+    const gl::VariableLocation &locationInfo = executable->getUniformLocations()[location];
+    const gl::LinkedUniform &linkedUniform   = executable->getUniforms()[locationInfo.index];
+
+    for (const gl::ShaderType shaderType : executable->getLinkedShaderStages())
+    {
+        BufferAndLayout &uniformBlock         = *(*defaultUniformBlocks)[shaderType];
+        const sh::BlockMemberInfo &layoutInfo = uniformBlock.uniformLayout[location];
+
+        // Assume an offset of -1 means the block is unused.
+        if (layoutInfo.offset == -1)
+        {
+            continue;
+        }
+
+        const GLint componentCount = linkedUniform.getElementComponents();
+
+        ASSERT(linkedUniform.getType() == gl::VariableBoolVectorType(entryPointType));
+
+        GLint initialArrayOffset =
+            locationInfo.arrayIndex * layoutInfo.arrayStride + layoutInfo.offset;
+        for (GLint i = 0; i < count; i++)
+        {
+            GLint elementOffset = i * layoutInfo.arrayStride + initialArrayOffset;
+            GLint *dst = reinterpret_cast<GLint *>(uniformBlock.uniformData.data() + elementOffset);
+            const T *source = v + i * componentCount;
+
+            for (int c = 0; c < componentCount; c++)
+            {
+                dst[c] = (source[c] == static_cast<T>(0)) ? GL_FALSE : GL_TRUE;
+            }
+        }
+
+        defaultUniformBlocksDirty->set(shaderType);
+    }
+}
+
+template <typename T>
+void SetUniform(const gl::ProgramExecutable *executable,
+                GLint location,
+                GLsizei count,
+                const T *v,
+                GLenum entryPointType,
+                DefaultUniformBlockMap *defaultUniformBlocks,
+                gl::ShaderBitSet *defaultUniformBlocksDirty)
+{
+    const gl::VariableLocation &locationInfo = executable->getUniformLocations()[location];
+    const gl::LinkedUniform &linkedUniform   = executable->getUniforms()[locationInfo.index];
+
+    ASSERT(!linkedUniform.isSampler());
+
+    if (ANGLE_LIKELY(linkedUniform.getType() == entryPointType))
+    {
+        for (const gl::ShaderType shaderType : executable->getLinkedShaderStages())
+        {
+            BufferAndLayout &uniformBlock         = *(*defaultUniformBlocks)[shaderType];
+            const sh::BlockMemberInfo &layoutInfo = uniformBlock.uniformLayout[location];
+
+            // Assume an offset of -1 means the block is unused.
+            if (layoutInfo.offset == -1)
+            {
+                continue;
+            }
+
+            const GLint componentCount = linkedUniform.getElementComponents();
+            UpdateBufferWithLayout(count, locationInfo.arrayIndex, componentCount, v, layoutInfo,
+                                   &uniformBlock.uniformData);
+            defaultUniformBlocksDirty->set(shaderType);
+        }
+    }
+    else
+    {
+        SetUniformAsBool(executable, location, count, v, entryPointType, defaultUniformBlocks,
+                         defaultUniformBlocksDirty);
+    }
+}
+template void SetUniform<GLint>(const gl::ProgramExecutable *executable,
+                                GLint location,
+                                GLsizei count,
+                                const GLint *v,
+                                GLenum entryPointType,
+                                DefaultUniformBlockMap *defaultUniformBlocks,
+                                gl::ShaderBitSet *defaultUniformBlocksDirty);
+template void SetUniform<GLuint>(const gl::ProgramExecutable *executable,
+                                 GLint location,
+                                 GLsizei count,
+                                 const GLuint *v,
+                                 GLenum entryPointType,
+                                 DefaultUniformBlockMap *defaultUniformBlocks,
+                                 gl::ShaderBitSet *defaultUniformBlocksDirty);
+template void SetUniform<GLfloat>(const gl::ProgramExecutable *executable,
+                                  GLint location,
+                                  GLsizei count,
+                                  const GLfloat *v,
+                                  GLenum entryPointType,
+                                  DefaultUniformBlockMap *defaultUniformBlocks,
+                                  gl::ShaderBitSet *defaultUniformBlocksDirty);
+
+template <int cols, int rows>
+void SetUniformMatrixfv(const gl::ProgramExecutable *executable,
+                        GLint location,
+                        GLsizei count,
+                        GLboolean transpose,
+                        const GLfloat *value,
+                        DefaultUniformBlockMap *defaultUniformBlocks,
+                        gl::ShaderBitSet *defaultUniformBlocksDirty)
+{
+    const gl::VariableLocation &locationInfo = executable->getUniformLocations()[location];
+    const gl::LinkedUniform &linkedUniform   = executable->getUniforms()[locationInfo.index];
+
+    for (const gl::ShaderType shaderType : executable->getLinkedShaderStages())
+    {
+        BufferAndLayout &uniformBlock         = *(*defaultUniformBlocks)[shaderType];
+        const sh::BlockMemberInfo &layoutInfo = uniformBlock.uniformLayout[location];
+
+        // Assume an offset of -1 means the block is unused.
+        if (layoutInfo.offset == -1)
+        {
+            continue;
+        }
+
+        SetFloatUniformMatrixGLSL<cols, rows>::Run(
+            locationInfo.arrayIndex, linkedUniform.getBasicTypeElementCount(), count, transpose,
+            value, uniformBlock.uniformData.data() + layoutInfo.offset);
+
+        defaultUniformBlocksDirty->set(shaderType);
+    }
+}
+
+#define ANGLE_SET_UNIFORM_MATRIX_FV_SPECIALIZATION(cols, rows)                                   \
+    template void SetUniformMatrixfv<cols, rows>(                                                \
+        const gl::ProgramExecutable *executable, GLint location, GLsizei count,                  \
+        GLboolean transpose, const GLfloat *value, DefaultUniformBlockMap *defaultUniformBlocks, \
+        gl::ShaderBitSet *defaultUniformBlocksDirty)
+ANGLE_SET_UNIFORM_MATRIX_FV_SPECIALIZATION(2, 2);
+ANGLE_SET_UNIFORM_MATRIX_FV_SPECIALIZATION(2, 3);
+ANGLE_SET_UNIFORM_MATRIX_FV_SPECIALIZATION(2, 4);
+ANGLE_SET_UNIFORM_MATRIX_FV_SPECIALIZATION(3, 2);
+ANGLE_SET_UNIFORM_MATRIX_FV_SPECIALIZATION(3, 3);
+ANGLE_SET_UNIFORM_MATRIX_FV_SPECIALIZATION(3, 4);
+ANGLE_SET_UNIFORM_MATRIX_FV_SPECIALIZATION(4, 2);
+ANGLE_SET_UNIFORM_MATRIX_FV_SPECIALIZATION(4, 3);
+ANGLE_SET_UNIFORM_MATRIX_FV_SPECIALIZATION(4, 4);
+
+template <typename T>
+void GetUniform(const gl::ProgramExecutable *executable,
+                GLint location,
+                T *v,
+                GLenum entryPointType,
+                const DefaultUniformBlockMap *defaultUniformBlocks)
+{
+    const gl::VariableLocation &locationInfo = executable->getUniformLocations()[location];
+    const gl::LinkedUniform &linkedUniform   = executable->getUniforms()[locationInfo.index];
+
+    ASSERT(!linkedUniform.isSampler() && !linkedUniform.isImage());
+
+    const gl::ShaderType shaderType = linkedUniform.getFirstActiveShaderType();
+    ASSERT(shaderType != gl::ShaderType::InvalidEnum);
+
+    const BufferAndLayout &uniformBlock   = *(*defaultUniformBlocks)[shaderType];
+    const sh::BlockMemberInfo &layoutInfo = uniformBlock.uniformLayout[location];
+
+    ASSERT(linkedUniform.getUniformTypeInfo().componentType == entryPointType ||
+           linkedUniform.getUniformTypeInfo().componentType ==
+               gl::VariableBoolVectorType(entryPointType));
+
+    if (gl::IsMatrixType(linkedUniform.getType()))
+    {
+        const uint8_t *ptrToElement = uniformBlock.uniformData.data() + layoutInfo.offset +
+                                      (locationInfo.arrayIndex * layoutInfo.arrayStride);
+        GetMatrixUniform(linkedUniform.getType(), v, reinterpret_cast<const T *>(ptrToElement),
+                         false);
+    }
+    else
+    {
+        ReadFromBufferWithLayout(linkedUniform.getElementComponents(), locationInfo.arrayIndex, v,
+                                 layoutInfo, &uniformBlock.uniformData);
+    }
+}
+
+template void GetUniform<GLint>(const gl::ProgramExecutable *executable,
+                                GLint location,
+                                GLint *v,
+                                GLenum entryPointType,
+                                const DefaultUniformBlockMap *defaultUniformBlocks);
+template void GetUniform<GLuint>(const gl::ProgramExecutable *executable,
+                                 GLint location,
+                                 GLuint *v,
+                                 GLenum entryPointType,
+                                 const DefaultUniformBlockMap *defaultUniformBlocks);
+template void GetUniform<GLfloat>(const gl::ProgramExecutable *executable,
+                                  GLint location,
+                                  GLfloat *v,
+                                  GLenum entryPointType,
+                                  const DefaultUniformBlockMap *defaultUniformBlocks);
+
 const angle::Format &GetFormatFromFormatType(GLenum format, GLenum type)
 {
     GLenum sizedInternalFormat    = gl::GetInternalFormatInfo(format, type).sizedInternalFormat;
@@ -991,15 +1330,10 @@ angle::Result ComputeStartVertex(ContextImpl *contextImpl,
                                  GLint baseVertex,
                                  GLint *firstVertexOut)
 {
-    // The entire index range should be within the limits of a 32-bit uint because the largest
-    // GL index type is GL_UNSIGNED_INT.
-    ASSERT(indexRange.start <= std::numeric_limits<uint32_t>::max() &&
-           indexRange.end <= std::numeric_limits<uint32_t>::max());
-
     // The base vertex is only used in DrawElementsIndirect. Given the assertion above and the
     // type of mBaseVertex (GLint), adding them both as 64-bit ints is safe.
     int64_t startVertexInt64 =
-        static_cast<int64_t>(baseVertex) + static_cast<int64_t>(indexRange.start);
+        static_cast<int64_t>(baseVertex) + static_cast<int64_t>(indexRange.start());
 
     // OpenGL ES 3.2 spec section 10.5: "Behavior of DrawElementsOneInstance is undefined if the
     // vertex ID is negative for any element"
@@ -1029,7 +1363,8 @@ angle::Result GetVertexRangeInfo(const gl::Context *context,
     {
         gl::IndexRange indexRange;
         ANGLE_TRY(context->getState().getVertexArray()->getIndexRange(
-            context, indexTypeOrInvalid, vertexOrIndexCount, indices, &indexRange));
+            context, indexTypeOrInvalid, vertexOrIndexCount, indices,
+            context->getState().isPrimitiveRestartEnabled(), &indexRange));
         ANGLE_TRY(ComputeStartVertex(context->getImplementation(), indexRange, baseVertex,
                                      startVertexOut));
         *vertexCountOut = indexRange.vertexCount();
@@ -1070,36 +1405,13 @@ gl::Rectangle ClipRectToScissor(const gl::State &glState, const gl::Rectangle &r
     return clippedRect;
 }
 
-void LogFeatureStatus(const angle::FeatureSetBase &features,
-                      const std::vector<std::string> &featureNames,
-                      bool enabled)
+void ApplyFeatureOverrides(angle::FeatureSetBase *features,
+                           const angle::FeatureOverrides &overrides)
 {
-    for (const std::string &name : featureNames)
-    {
-        const bool hasWildcard = name.back() == '*';
-        for (auto iter : features.getFeatures())
-        {
-            const std::string &featureName = iter.first;
+    std::stringstream featureStream;
 
-            if (!angle::FeatureNameMatch(featureName, name))
-            {
-                continue;
-            }
-
-            INFO() << "Feature: " << featureName << (enabled ? " enabled" : " disabled");
-
-            if (!hasWildcard)
-            {
-                break;
-            }
-        }
-    }
-}
-
-void ApplyFeatureOverrides(angle::FeatureSetBase *features, const egl::DisplayState &state)
-{
-    features->overrideFeatures(state.featureOverridesEnabled, true);
-    features->overrideFeatures(state.featureOverridesDisabled, false);
+    featureStream << features->overrideFeatures(overrides.enabled, true);
+    featureStream << features->overrideFeatures(overrides.disabled, false);
 
     // Override with environment as well.
     constexpr char kAngleFeatureOverridesEnabledEnvName[]  = "ANGLE_FEATURE_OVERRIDES_ENABLED";
@@ -1115,11 +1427,42 @@ void ApplyFeatureOverrides(angle::FeatureSetBase *features, const egl::DisplaySt
         angle::GetCachedStringsFromEnvironmentVarOrAndroidProperty(
             kAngleFeatureOverridesDisabledEnvName, kAngleFeatureOverridesDisabledPropertyName, ":");
 
-    features->overrideFeatures(overridesEnabled, true);
-    LogFeatureStatus(*features, overridesEnabled, true);
+    featureStream << features->overrideFeatures(overridesEnabled, true);
+    featureStream << features->overrideFeatures(overridesDisabled, false);
 
-    features->overrideFeatures(overridesDisabled, false);
-    LogFeatureStatus(*features, overridesDisabled, false);
+    if (!featureStream.str().empty())
+    {
+        INFO() << featureStream.str();
+    }
+}
+
+void StreamEmulatedLineLoopIndices(gl::DrawElementsType glIndexType,
+                                   GLsizei indexCount,
+                                   const uint8_t *srcPtr,
+                                   uint8_t *outPtr,
+                                   bool shouldConvertUint8)
+{
+    switch (glIndexType)
+    {
+        case gl::DrawElementsType::UnsignedByte:
+            if (shouldConvertUint8)
+            {
+                CopyLineLoopIndicesWithRestart<uint8_t, uint16_t>(indexCount, srcPtr, outPtr);
+            }
+            else
+            {
+                CopyLineLoopIndicesWithRestart<uint8_t, uint8_t>(indexCount, srcPtr, outPtr);
+            }
+            break;
+        case gl::DrawElementsType::UnsignedShort:
+            CopyLineLoopIndicesWithRestart<uint16_t, uint16_t>(indexCount, srcPtr, outPtr);
+            break;
+        case gl::DrawElementsType::UnsignedInt:
+            CopyLineLoopIndicesWithRestart<uint32_t, uint32_t>(indexCount, srcPtr, outPtr);
+            break;
+        default:
+            UNREACHABLE();
+    }
 }
 
 void GetSamplePosition(GLsizei sampleCount, size_t index, GLfloat *xy)
@@ -1163,20 +1506,31 @@ void GetSamplePosition(GLsizei sampleCount, size_t index, GLfloat *xy)
 #define DRAW_CALL(drawType, instanced, bvbi) DRAW_##drawType##instanced##bvbi
 
 #define MULTI_DRAW_BLOCK(drawType, instanced, bvbi, hasDrawID, hasBaseVertex, hasBaseInstance) \
-    for (GLsizei drawID = 0; drawID < drawcount; ++drawID)                                     \
+    do                                                                                         \
     {                                                                                          \
-        if (ANGLE_NOOP_DRAW(instanced))                                                        \
+        bool anyDraw = false;                                                                  \
+        for (GLsizei drawID = 0; drawID < drawcount; ++drawID)                                 \
         {                                                                                      \
-            ANGLE_TRY(contextImpl->handleNoopDrawEvent());                                     \
-            continue;                                                                          \
+            if (ANGLE_NOOP_DRAW(instanced))                                                    \
+            {                                                                                  \
+                ANGLE_TRY(contextImpl->handleNoopDrawEvent());                                 \
+                continue;                                                                      \
+            }                                                                                  \
+            ANGLE_SET_DRAW_ID_UNIFORM(hasDrawID)(drawID);                                      \
+            ANGLE_SET_BASE_VERTEX_UNIFORM(hasBaseVertex)(baseVertices[drawID]);                \
+            ANGLE_SET_BASE_INSTANCE_UNIFORM(hasBaseInstance)(baseInstances[drawID]);           \
+            ANGLE_TRY(DRAW_CALL(drawType, instanced, bvbi));                                   \
+            ANGLE_MARK_TRANSFORM_FEEDBACK_USAGE(instanced);                                    \
+            gl::MarkShaderStorageUsage(context);                                               \
+            anyDraw = true;                                                                    \
         }                                                                                      \
-        ANGLE_SET_DRAW_ID_UNIFORM(hasDrawID)(drawID);                                          \
-        ANGLE_SET_BASE_VERTEX_UNIFORM(hasBaseVertex)(baseVertices[drawID]);                    \
-        ANGLE_SET_BASE_INSTANCE_UNIFORM(hasBaseInstance)(baseInstances[drawID]);               \
-        ANGLE_TRY(DRAW_CALL(drawType, instanced, bvbi));                                       \
-        ANGLE_MARK_TRANSFORM_FEEDBACK_USAGE(instanced);                                        \
-        gl::MarkShaderStorageUsage(context);                                                   \
-    }
+        /* reset the uniform to zero for non-multi-draw uses of the program */                 \
+        ANGLE_SET_DRAW_ID_UNIFORM(hasDrawID)(0);                                               \
+        if (!anyDraw)                                                                          \
+        {                                                                                      \
+            ANGLE_TRY(contextImpl->handleNoopMultiDrawEvent());                                \
+        }                                                                                      \
+    } while (0)
 
 angle::Result MultiDrawArraysGeneral(ContextImpl *contextImpl,
                                      const gl::Context *context,
@@ -1185,15 +1539,15 @@ angle::Result MultiDrawArraysGeneral(ContextImpl *contextImpl,
                                      const GLsizei *counts,
                                      GLsizei drawcount)
 {
-    gl::Program *programObject = context->getState().getLinkedProgram(context);
-    const bool hasDrawID       = programObject && programObject->hasDrawIDUniform();
+    gl::ProgramExecutable *executable = context->getState().getLinkedProgramExecutable(context);
+    const bool hasDrawID              = executable->hasDrawIDUniform();
     if (hasDrawID)
     {
-        MULTI_DRAW_BLOCK(ARRAYS, _, _, 1, 0, 0)
+        MULTI_DRAW_BLOCK(ARRAYS, _, _, 1, 0, 0);
     }
     else
     {
-        MULTI_DRAW_BLOCK(ARRAYS, _, _, 0, 0, 0)
+        MULTI_DRAW_BLOCK(ARRAYS, _, _, 0, 0, 0);
     }
 
     return angle::Result::Continue;
@@ -1233,15 +1587,15 @@ angle::Result MultiDrawArraysInstancedGeneral(ContextImpl *contextImpl,
                                               const GLsizei *instanceCounts,
                                               GLsizei drawcount)
 {
-    gl::Program *programObject = context->getState().getLinkedProgram(context);
-    const bool hasDrawID       = programObject && programObject->hasDrawIDUniform();
+    gl::ProgramExecutable *executable = context->getState().getLinkedProgramExecutable(context);
+    const bool hasDrawID              = executable->hasDrawIDUniform();
     if (hasDrawID)
     {
-        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _, 1, 0, 0)
+        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _, 1, 0, 0);
     }
     else
     {
-        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _, 0, 0, 0)
+        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _, 0, 0, 0);
     }
 
     return angle::Result::Continue;
@@ -1255,15 +1609,15 @@ angle::Result MultiDrawElementsGeneral(ContextImpl *contextImpl,
                                        const GLvoid *const *indices,
                                        GLsizei drawcount)
 {
-    gl::Program *programObject = context->getState().getLinkedProgram(context);
-    const bool hasDrawID       = programObject && programObject->hasDrawIDUniform();
+    gl::ProgramExecutable *executable = context->getState().getLinkedProgramExecutable(context);
+    const bool hasDrawID              = executable->hasDrawIDUniform();
     if (hasDrawID)
     {
-        MULTI_DRAW_BLOCK(ELEMENTS, _, _, 1, 0, 0)
+        MULTI_DRAW_BLOCK(ELEMENTS, _, _, 1, 0, 0);
     }
     else
     {
-        MULTI_DRAW_BLOCK(ELEMENTS, _, _, 0, 0, 0)
+        MULTI_DRAW_BLOCK(ELEMENTS, _, _, 0, 0, 0);
     }
 
     return angle::Result::Continue;
@@ -1306,15 +1660,15 @@ angle::Result MultiDrawElementsInstancedGeneral(ContextImpl *contextImpl,
                                                 const GLsizei *instanceCounts,
                                                 GLsizei drawcount)
 {
-    gl::Program *programObject = context->getState().getLinkedProgram(context);
-    const bool hasDrawID       = programObject && programObject->hasDrawIDUniform();
+    gl::ProgramExecutable *executable = context->getState().getLinkedProgramExecutable(context);
+    const bool hasDrawID              = executable->hasDrawIDUniform();
     if (hasDrawID)
     {
-        MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _, 1, 0, 0)
+        MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _, 1, 0, 0);
     }
     else
     {
-        MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _, 0, 0, 0)
+        MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _, 0, 0, 0);
     }
 
     return angle::Result::Continue;
@@ -1329,26 +1683,26 @@ angle::Result MultiDrawArraysInstancedBaseInstanceGeneral(ContextImpl *contextIm
                                                           const GLuint *baseInstances,
                                                           GLsizei drawcount)
 {
-    gl::Program *programObject = context->getState().getLinkedProgram(context);
-    const bool hasDrawID       = programObject && programObject->hasDrawIDUniform();
-    const bool hasBaseInstance = programObject && programObject->hasBaseInstanceUniform();
-    ResetBaseVertexBaseInstance resetUniforms(programObject, false, hasBaseInstance);
+    gl::ProgramExecutable *executable = context->getState().getLinkedProgramExecutable(context);
+    const bool hasDrawID              = executable->hasDrawIDUniform();
+    const bool hasBaseInstance        = executable->hasBaseInstanceUniform();
+    ResetBaseVertexBaseInstance resetUniforms(executable, false, hasBaseInstance);
 
     if (hasDrawID && hasBaseInstance)
     {
-        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _BASE_INSTANCE, 1, 0, 1)
+        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _BASE_INSTANCE, 1, 0, 1);
     }
     else if (hasDrawID)
     {
-        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _BASE_INSTANCE, 1, 0, 0)
+        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _BASE_INSTANCE, 1, 0, 0);
     }
     else if (hasBaseInstance)
     {
-        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _BASE_INSTANCE, 0, 0, 1)
+        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _BASE_INSTANCE, 0, 0, 1);
     }
     else
     {
-        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _BASE_INSTANCE, 0, 0, 0)
+        MULTI_DRAW_BLOCK(ARRAYS, _INSTANCED, _BASE_INSTANCE, 0, 0, 0);
     }
 
     return angle::Result::Continue;
@@ -1365,11 +1719,11 @@ angle::Result MultiDrawElementsInstancedBaseVertexBaseInstanceGeneral(ContextImp
                                                                       const GLuint *baseInstances,
                                                                       GLsizei drawcount)
 {
-    gl::Program *programObject = context->getState().getLinkedProgram(context);
-    const bool hasDrawID       = programObject && programObject->hasDrawIDUniform();
-    const bool hasBaseVertex   = programObject && programObject->hasBaseVertexUniform();
-    const bool hasBaseInstance = programObject && programObject->hasBaseInstanceUniform();
-    ResetBaseVertexBaseInstance resetUniforms(programObject, hasBaseVertex, hasBaseInstance);
+    gl::ProgramExecutable *executable = context->getState().getLinkedProgramExecutable(context);
+    const bool hasDrawID              = executable->hasDrawIDUniform();
+    const bool hasBaseVertex          = executable->hasBaseVertexUniform();
+    const bool hasBaseInstance        = executable->hasBaseInstanceUniform();
+    ResetBaseVertexBaseInstance resetUniforms(executable, hasBaseVertex, hasBaseInstance);
 
     if (hasDrawID)
     {
@@ -1377,22 +1731,22 @@ angle::Result MultiDrawElementsInstancedBaseVertexBaseInstanceGeneral(ContextImp
         {
             if (hasBaseInstance)
             {
-                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 1, 1, 1)
+                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 1, 1, 1);
             }
             else
             {
-                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 1, 1, 0)
+                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 1, 1, 0);
             }
         }
         else
         {
             if (hasBaseInstance)
             {
-                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 1, 0, 1)
+                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 1, 0, 1);
             }
             else
             {
-                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 1, 0, 0)
+                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 1, 0, 0);
             }
         }
     }
@@ -1402,22 +1756,22 @@ angle::Result MultiDrawElementsInstancedBaseVertexBaseInstanceGeneral(ContextImp
         {
             if (hasBaseInstance)
             {
-                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 0, 1, 1)
+                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 0, 1, 1);
             }
             else
             {
-                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 0, 1, 0)
+                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 0, 1, 0);
             }
         }
         else
         {
             if (hasBaseInstance)
             {
-                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 0, 0, 1)
+                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 0, 0, 1);
             }
             else
             {
-                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 0, 0, 0)
+                MULTI_DRAW_BLOCK(ELEMENTS, _INSTANCED, _BASE_VERTEX_BASE_INSTANCE, 0, 0, 0);
             }
         }
     }
@@ -1425,27 +1779,27 @@ angle::Result MultiDrawElementsInstancedBaseVertexBaseInstanceGeneral(ContextImp
     return angle::Result::Continue;
 }
 
-ResetBaseVertexBaseInstance::ResetBaseVertexBaseInstance(gl::Program *programObject,
+ResetBaseVertexBaseInstance::ResetBaseVertexBaseInstance(gl::ProgramExecutable *executable,
                                                          bool resetBaseVertex,
                                                          bool resetBaseInstance)
-    : mProgramObject(programObject),
+    : mExecutable(executable),
       mResetBaseVertex(resetBaseVertex),
       mResetBaseInstance(resetBaseInstance)
 {}
 
 ResetBaseVertexBaseInstance::~ResetBaseVertexBaseInstance()
 {
-    if (mProgramObject)
+    if (mExecutable)
     {
         // Reset emulated uniforms to zero to avoid affecting other draw calls
         if (mResetBaseVertex)
         {
-            mProgramObject->setBaseVertexUniform(0);
+            mExecutable->setBaseVertexUniform(0);
         }
 
         if (mResetBaseInstance)
         {
-            mProgramObject->setBaseInstanceUniform(0);
+            mExecutable->setBaseInstanceUniform(0);
         }
     }
 }
@@ -1709,6 +2063,7 @@ const gl::ColorGeneric AdjustBorderColor(const angle::ColorGeneric &borderColorG
 
     return adjustedBorderColor;
 }
+
 template const gl::ColorGeneric AdjustBorderColor<true>(
     const angle::ColorGeneric &borderColorGeneric,
     const angle::Format &format,
@@ -1718,4 +2073,114 @@ template const gl::ColorGeneric AdjustBorderColor<false>(
     const angle::Format &format,
     bool stencilMode);
 
+bool TextureHasAnyRedefinedLevels(const gl::CubeFaceArray<gl::TexLevelMask> &redefinedLevels)
+{
+    for (gl::TexLevelMask faceRedefinedLevels : redefinedLevels)
+    {
+        if (faceRedefinedLevels.any())
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool IsTextureLevelRedefined(const gl::CubeFaceArray<gl::TexLevelMask> &redefinedLevels,
+                             gl::TextureType textureType,
+                             gl::LevelIndex level)
+{
+    gl::TexLevelMask redefined = redefinedLevels[0];
+
+    if (textureType == gl::TextureType::CubeMap)
+    {
+        for (size_t face = 1; face < gl::kCubeFaceCount; ++face)
+        {
+            redefined |= redefinedLevels[face];
+        }
+    }
+
+    return redefined.test(level.get());
+}
+
+bool TextureRedefineLevel(const TextureLevelAllocation levelAllocation,
+                          const TextureLevelDefinition levelDefinition,
+                          bool immutableFormat,
+                          uint32_t levelCount,
+                          const uint32_t layerIndex,
+                          const gl::ImageIndex &index,
+                          gl::LevelIndex imageFirstAllocatedLevel,
+                          gl::CubeFaceArray<gl::TexLevelMask> *redefinedLevels)
+{
+    // If the level that's being redefined is outside the level range of the allocated
+    // image, the application is free to use any size or format.  Any data uploaded to it
+    // will live in staging area until the texture base/max level is adjusted to include
+    // this level, at which point the image will be recreated.
+    //
+    // Otherwise, if the level that's being redefined has a different format or size,
+    // only release the image if it's single-mip, and keep the uploaded data staged.
+    // Otherwise the image is mip-incomplete anyway and will be eventually recreated when
+    // needed.  Only exception to this latter is if all the levels of the texture are
+    // redefined such that the image becomes mip-complete in the end.
+    // redefinedLevels is used during syncState to support this use-case.
+    //
+    // Note that if the image has multiple mips, there could be a copy from one mip
+    // happening to the other, which means the image cannot be released.
+    //
+    // In summary:
+    //
+    // - If the image has a single level, and that level is being redefined, release the
+    //   image.
+    // - Otherwise keep the image intact (another mip may be the source of a copy), and
+    //   make sure any updates to this level are staged.
+    gl::LevelIndex levelIndexGL(index.getLevelIndex());
+    const bool isCompatibleRedefinition =
+        levelAllocation == TextureLevelAllocation::WithinAllocatedImage &&
+        levelDefinition == TextureLevelDefinition::Compatible;
+    const bool isCubeMap = index.getType() == gl::TextureType::CubeMap;
+
+    // Mark the level as incompatibly redefined if that's the case.  Note that if the level
+    // was previously incompatibly defined, then later redefined to be compatible, the
+    // corresponding bit should clear.
+    if (levelAllocation == TextureLevelAllocation::WithinAllocatedImage)
+    {
+        // Immutable texture should never have levels redefined.
+        ASSERT(isCompatibleRedefinition || !immutableFormat);
+
+        const uint32_t redefinedFace = isCubeMap ? layerIndex : 0;
+        (*redefinedLevels)[redefinedFace].set(levelIndexGL.get(), !isCompatibleRedefinition);
+    }
+
+    const bool isUpdateToSingleLevelImage =
+        levelCount == 1 && imageFirstAllocatedLevel == levelIndexGL;
+
+    // If incompatible, and redefining the single-level image, the caller will release the texture
+    // so it can be recreated immediately.  This is needed so that the texture can be reallocated
+    // with the correct format/size.
+    //
+    // This is not done for cubemaps because every face may be separately redefined.  Note
+    // that this is not possible for texture arrays in general.
+    bool shouldReleaseImage = !isCompatibleRedefinition && isUpdateToSingleLevelImage && !isCubeMap;
+    return shouldReleaseImage;
+}
+
+void TextureRedefineGenerateMipmapLevels(gl::LevelIndex baseLevel,
+                                         gl::LevelIndex maxLevel,
+                                         gl::LevelIndex firstGeneratedLevel,
+                                         gl::CubeFaceArray<gl::TexLevelMask> *redefinedLevels)
+{
+    static_assert(gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS < 32,
+                  "levels mask assumes 32-bits is enough");
+    // Generate bitmask for (baseLevel, maxLevel]. `+1` because bitMask takes `the number of bits`
+    // but levels start counting from 0
+    gl::TexLevelMask levelsMask(angle::BitMask<uint32_t>(maxLevel.get() + 1));
+    levelsMask &= static_cast<uint32_t>(~angle::BitMask<uint32_t>(firstGeneratedLevel.get()));
+    // Remove (baseLevel, maxLevel] from redefinedLevels. These levels are no longer incompatibly
+    // defined if they previously were.  The corresponding bits in redefinedLevels should be
+    // cleared.
+    for (size_t face = 0; face < gl::kCubeFaceCount; ++face)
+    {
+        (*redefinedLevels)[face] &= ~levelsMask;
+    }
+}
 }  // namespace rx

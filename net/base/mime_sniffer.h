@@ -8,11 +8,24 @@
 #include <stddef.h>
 
 #include <string>
+#include <string_view>
 
-#include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 
 class GURL;
+
+// -----------------------------------------------------------------------------
+// When the MIME type of a resource is sniffed, it will potentially be used in
+// a manner other than that the server-provided Content-Type indicated it should
+// be used in. This may have security implications. As such, MIME sniffing
+// should generally not be expanded to cover more types of files, to sniff more
+// files, or to more aggressively sniff already supported MIME types.
+//
+// Please do not increased the capabilities of the MIME sniffer. MIME sniffing
+// only continues to be supported because of the many sites that depend on the
+// existing behavior, not because it's a good idea. Most sites are working with
+// the MIME sniffer as-is, so there's no need to expand upon it.
+// -----------------------------------------------------------------------------
 
 namespace net {
 
@@ -36,7 +49,7 @@ enum class ForceSniffFileUrlsForHtml {
 // |mime_type| is the current mime type, e.g. from the Content-Type header.
 // Returns true if the mime type should be sniffed.
 NET_EXPORT bool ShouldSniffMimeType(const GURL& url,
-                                    base::StringPiece mime_type);
+                                    std::string_view mime_type);
 
 // Guess a mime type from the first few bytes of content an its URL.  Always
 // assigns |result| with its best guess of a mime type.
@@ -53,7 +66,7 @@ NET_EXPORT bool ShouldSniffMimeType(const GURL& url,
 // |result| will be populated with a putative MIME type, but the method should
 // be called again with more of the content.
 NET_EXPORT bool SniffMimeType(
-    base::StringPiece content,
+    std::string_view content,
     const GURL& url,
     const std::string& type_hint,
     ForceSniffFileUrlsForHtml force_sniff_file_url_for_html,
@@ -70,12 +83,12 @@ NET_EXPORT bool SniffMimeType(
 // |content| contains the bytes to sniff.
 // |result| is address at which to place the sniffed mime type.
 // Returns true if a MIME type match was found.
-NET_EXPORT bool SniffMimeTypeFromLocalData(base::StringPiece content,
+NET_EXPORT bool SniffMimeTypeFromLocalData(std::string_view content,
                                            std::string* result);
 
 // Returns true if |content| contains bytes that are control codes that do
 // not usually appear in plain text.
-NET_EXPORT_PRIVATE bool LooksLikeBinary(base::StringPiece content);
+NET_EXPORT_PRIVATE bool LooksLikeBinary(std::string_view content);
 
 }  // namespace net
 

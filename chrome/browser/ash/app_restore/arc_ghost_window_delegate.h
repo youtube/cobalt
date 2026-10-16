@@ -39,7 +39,8 @@ class ArcGhostWindowDelegate
                        int64_t display_id,
                        const gfx::Rect& bounds_in_screen,
                        bool is_resize,
-                       int bounds_change) override;
+                       int bounds_change,
+                       bool is_adjusted_bounds) override;
 
   void OnDragStarted(int component) override;
 
@@ -67,7 +68,7 @@ class ArcGhostWindowDelegate
   int64_t display_id_;
   double scale_factor_;
   chromeos::WindowStateType window_state_;
-  raw_ptr<exo::ClientControlledShellSurface, ExperimentalAsh> shell_surface_;
+  raw_ptr<exo::ClientControlledShellSurface> shell_surface_;
 
   base::ScopedObservation<ArcGhostWindowHandler,
                           ArcGhostWindowHandler::Observer>

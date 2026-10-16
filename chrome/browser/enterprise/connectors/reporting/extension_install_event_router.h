@@ -7,7 +7,15 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/enterprise/connectors/reporting/realtime_reporting_client.h"
+#include "components/enterprise/common/proto/synced/browser_events.pb.h"
+#include "components/keyed_service/content/browser_context_keyed_service_factory.h"
+#include "components/keyed_service/core/keyed_service.h"
 #include "extensions/browser/extension_registry_observer.h"
+
+namespace base {
+template <typename T>
+struct DefaultSingletonTraits;
+}
 
 namespace extensions {
 class ExtensionRegistry;
@@ -15,11 +23,12 @@ class ExtensionRegistry;
 
 namespace enterprise_connectors {
 
-// An event router that observes Safe Browsing events and notifies listeners.
-// The router also uploads events to the chrome reporting server side API if
-// the kRealtimeReportingFeature feature is enabled.
+// A keyed service that observes extension install events and uploads events to
+// the chrome reporting server side API if the
+// "OnSecurityEventEnterpriseConnector" policy is set to the proper value.
 class ExtensionInstallEventRouter
-    : public extensions::ExtensionRegistryObserver {
+    : public extensions::ExtensionRegistryObserver,
+      public KeyedService {
  public:
   explicit ExtensionInstallEventRouter(content::BrowserContext* context);
 
@@ -34,16 +43,46 @@ class ExtensionInstallEventRouter
   void OnExtensionInstalled(content::BrowserContext* browser_context,
                             const extensions::Extension* extension,
                             bool is_update) override;
-
-  void StartObserving();
+  void OnExtensionUninstalled(content::BrowserContext* browser_context,
+                              const extensions::Extension* extension,
+                              extensions::UninstallReason reason) override;
 
  private:
-  raw_ptr<RealtimeReportingClient, DanglingUntriaged> reporting_client_ =
-      nullptr;
+  raw_ptr<RealtimeReportingClient, AcrossTasksDanglingUntriaged>
+      reporting_client_ = nullptr;
   raw_ptr<extensions::ExtensionRegistry, DanglingUntriaged>
       extension_registry_ = nullptr;
+  void ReportExtensionInstallEvent(const extensions::Extension* extension,
+                                   const char* extension_action);
+  void ReportExtensionInstallEvent(
+      const extensions::Extension* extension,
+      const ::chrome::cros::reporting::proto::BrowserExtensionInstallEvent::
+          ExtensionAction extension_action);
+};
+
+class ExtensionInstallEventRouterFactory
+    : public BrowserContextKeyedServiceFactory {
+ public:
+  static ExtensionInstallEventRouterFactory* GetInstance();
+  static ExtensionInstallEventRouter* GetForBrowserContext(
+      content::BrowserContext* context);
+
+ protected:
+  bool ServiceIsCreatedWithBrowserContext() const override;
+
+ private:
+  ExtensionInstallEventRouterFactory();
+  ~ExtensionInstallEventRouterFactory() override;
+  friend struct base::DefaultSingletonTraits<
+      ExtensionInstallEventRouterFactory>;
+
+  // BrowserContextKeyedServiceFactory:
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
+      content::BrowserContext* context) const override;
+  content::BrowserContext* GetBrowserContextToUse(
+      content::BrowserContext* context) const override;
 };
 
 }  // namespace enterprise_connectors
 
-#endif  // CHROME_BROWSER_ENTERPRISE_CONNECTORS_REPORTING_REPORTING_SERVICE_SETTINGS_H_
+#endif  // CHROME_BROWSER_ENTERPRISE_CONNECTORS_REPORTING_EXTENSION_INSTALL_EVENT_ROUTER_H_

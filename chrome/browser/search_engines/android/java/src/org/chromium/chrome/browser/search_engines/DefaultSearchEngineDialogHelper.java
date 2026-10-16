@@ -10,8 +10,8 @@ import android.widget.Button;
 import android.widget.RadioGroup;
 import android.widget.RadioGroup.OnCheckedChangeListener;
 
-import androidx.annotation.Nullable;
-
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.widget.RadioButtonLayout;
 import org.chromium.components.search_engines.TemplateUrl;
 
@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 
 /** Handles user interactions with a user dialog that lets them pick a default search engine. */
+@NullMarked
 public class DefaultSearchEngineDialogHelper implements OnCheckedChangeListener, OnClickListener {
     /** Handles interactions with the TemplateUrlService and LocaleManager. */
     public interface Delegate {
@@ -46,9 +47,7 @@ public class DefaultSearchEngineDialogHelper implements OnCheckedChangeListener,
     private final Runnable mFinishRunnable;
     private final Button mConfirmButton;
 
-    /**
-     * List of search engine keywords in the order shown to the user.
-     */
+    /** List of search engine keywords in the order shown to the user. */
     private final List<String> mSearchEngineKeywords;
 
     /**
@@ -58,10 +57,8 @@ public class DefaultSearchEngineDialogHelper implements OnCheckedChangeListener,
      */
     private String mCurrentlySelectedKeyword;
 
-    /**
-     * Keyword that is both selected and confirmed (with a click to {@link #mConfirmButton}).
-     */
-    private String mConfirmedKeyword;
+    /** Keyword that is both selected and confirmed (with a click to {@link #mConfirmButton}). */
+    private @Nullable String mConfirmedKeyword;
 
     /**
      * Constructs a DefaultSearchEngineDialogHelper.
@@ -72,8 +69,12 @@ public class DefaultSearchEngineDialogHelper implements OnCheckedChangeListener,
      * @param confirmButton  Button that the user clicks on to confirm their selection.
      * @param finishRunnable Runs after the user has confirmed their selection.
      */
-    public DefaultSearchEngineDialogHelper(@SearchEnginePromoType int dialogType, Delegate delegate,
-            RadioButtonLayout controls, Button confirmButton, Runnable finishRunnable) {
+    public DefaultSearchEngineDialogHelper(
+            @SearchEnginePromoType int dialogType,
+            Delegate delegate,
+            RadioButtonLayout controls,
+            Button confirmButton,
+            Runnable finishRunnable) {
         mDialogType = dialogType;
         mConfirmButton = confirmButton;
         mConfirmButton.setOnClickListener(this);
@@ -101,15 +102,13 @@ public class DefaultSearchEngineDialogHelper implements OnCheckedChangeListener,
     }
 
     /** @return Keyword that corresponds to the search engine that is currently selected. */
-    @Nullable
-    public final String getCurrentlySelectedKeyword() {
+    public final @Nullable String getCurrentlySelectedKeyword() {
         // TODO(yusufo): All callers should check getConfirmedKeyword below.
         return mCurrentlySelectedKeyword;
     }
 
     /** @return Keyword that corresponds to the search engine that is selected and confirmed. */
-    @Nullable
-    public final String getConfirmedKeyword() {
+    public final @Nullable String getConfirmedKeyword() {
         return mConfirmedKeyword;
     }
 

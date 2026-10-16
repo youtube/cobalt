@@ -12,17 +12,39 @@ import("//tools/grit/preprocess_if_expr.gni")
 import("//tools/polymer/css_to_wrapper.gni")
 import("//tools/polymer/html_to_wrapper.gni")
 import("//tools/typescript/ts_library.gni")
+import("//tools/typescript/webui_path_mappings.gni")
+import("//ui/webui/resources/tools/bundle_js.gni")
+import("//ui/webui/resources/tools/bundle_js_excludes.gni")
+import("//ui/webui/resources/tools/eslint_ts.gni")
+import("//ui/webui/resources/tools/generate_code_cache.gni")
 import("//ui/webui/resources/tools/generate_grd.gni")
 import("//ui/webui/resources/tools/minify_js.gni")
-import("//ui/webui/resources/tools/optimize_webui.gni")
 import("//ui/webui/webui_features.gni")
 
 if (use_blink) {
   import("//chrome/common/features.gni")
 }
 
-# See documentation at https://chromium.googlesource.com/chromium/src/+/HEAD/docs/webui_build_configuration.md#build_webui
+if (is_chromeos) {
+  # Folders hosting Ash-only WebUIs. Should be kept in sync with
+  # //tools/typescript/path_utils.py. This is used later in this file to choose
+  # a CrOS-specific default TS config file for some targets.
+  ash_folders = [
+    # Source code folders
+    "//ash/webui",
+    "//chrome/browser/resources/ash",
+    "//chrome/browser/resources/chromeos",
+    "//chrome/browser/resources/dlp_internals",
+    "//chromeos/ash/components/kiosk/vision/webui",
+    "//ui/file_manager",
 
+    # Test folders
+    "//chrome/test/data/webui/chromeos",
+    "//chrome/test/data/webui/cr_components/chromeos",
+  ]
+}
+
+# See documentation at https://chromium.googlesource.com/chromium/src/+/HEAD/docs/webui_build_configuration.md#build_webui
 template("build_webui") {
   not_needed([ "target_name" ])
 
@@ -40,13 +62,13 @@ template("build_webui") {
     optimize = invoker.optimize
   }
 
-  minify_and_bundle = optimize && defined(invoker.optimize_webui_in_files)
-  if (!minify_and_bundle) {
-    minify_only = optimize && !defined(invoker.optimize_webui_in_files)
-  }
+  minify = optimize
+  bundle = optimize && defined(invoker.optimize_webui_in_files)
 
-  enable_source_maps = false
-  if (defined(invoker.enable_source_maps)) {
+  has_ts_in_files =
+      defined(invoker.web_component_files) || defined(invoker.ts_files)
+  enable_source_maps = enable_webui_inline_sourcemaps && has_ts_in_files
+  if (defined(invoker.enable_source_maps) && has_ts_in_files) {
     assert(!invoker.enable_source_maps || !optimize)
     enable_source_maps = invoker.enable_source_maps
   }
@@ -59,19 +81,26 @@ template("build_webui") {
     generate_grd_target_name = "build_grdp"
   }
 
+  generate_code_cache = false
+  if (defined(invoker.generate_code_cache)) {
+    generate_code_cache = invoker.generate_code_cache
+  }
+
   ### Compute the lists of files that are used across multiple targets.
 
-  # At least one of `web_component_files` or 'non_web_component_files` must be
-  # defined.
-  assert(defined(invoker.web_component_files) ||
-         defined(invoker.non_web_component_files))
+  # At least one of `web_component_files`, `css_files`, `mojo_files`, or
+  # 'ts_files` must be defined. Otherwise, the build rule does not actually
+  # generate any input for TS compiler.
+  assert(has_ts_in_files || defined(invoker.css_files) ||
+         defined(invoker.mojo_files))
 
-  ts_files = []
+  all_ts_files = []
   if (defined(invoker.web_component_files)) {
-    ts_files += invoker.web_component_files
+    all_ts_files += invoker.web_component_files
   }
-  if (defined(invoker.non_web_component_files)) {
-    ts_files += invoker.non_web_component_files
+
+  if (defined(invoker.ts_files)) {
+    all_ts_files += invoker.ts_files
   }
 
   if (defined(invoker.web_component_files) ||
@@ -79,8 +108,16 @@ template("build_webui") {
     # Files that are passed as input to html_to_wrapper().
     html_files = []
     if (defined(invoker.web_component_files)) {
-      foreach(f, invoker.web_component_files) {
+      web_component_ts_files =
+          filter_include(invoker.web_component_files, [ "*.ts" ])
+      foreach(f, web_component_ts_files) {
         html_files += [ string_replace(f, ".ts", ".html") ]
+      }
+
+      web_component_js_files =
+          filter_include(invoker.web_component_files, [ "*.js" ])
+      foreach(f, web_component_js_files) {
+        html_files += [ string_replace(f, ".js", ".html") ]
       }
     }
     if (defined(invoker.icons_html_files)) {
@@ -122,31 +159,41 @@ template("build_webui") {
         filter_include(invoker.static_files, non_preprocessed_files_filter)
     static_preprocessed_files =
         filter_exclude(invoker.static_files, non_preprocessed_files_filter)
+
+    static_js_files = filter_include(invoker.static_files, [ "*.js" ])
+    assert(static_js_files == [],
+           "JS files not allowed in static_files, found: " +
+               string_join(", ", static_js_files))
+  }
+
+  preprocessor_defines = []
+  if (use_blink) {
+    preprocessor_defines += chrome_grit_defines
+  }
+  if (defined(invoker.preprocessor_defines)) {
+    preprocessor_defines += invoker.preprocessor_defines
   }
 
   ### Define the various targets that are required by the build pipeline.
 
   # Specifically the order in which these targets are executed is:
   #
-  #  1) preprocess_if_expr()
-  #  2) create_js_source_maps() (only if |invoker.enable_source_maps| flag is
-  #     true)
-  #  3) html_to_wrapper(), css_to_wrapper()
-  #  4) ts_library()
-  #  5) merge_js_source_maps() (only if the |invoker.enable_source_maps| flag is
-  #     true)
-  #  6) optimize_webui() (only if invoker.optimize && defined(invoker.optimize_webui_in_files))
-  #  7) minify_js() (only if invoker.optimize && !defined(invoker.optimize_webui_in_files))
-  #  8) generate_grd()
-  #  9) grit()
+  #   1) preprocess_if_expr()
+  #   2) create_js_source_maps() (only if `invoker.enable_source_maps=true`)
+  #   3) html_to_wrapper(), css_to_wrapper()
+  #   4) ts_library()
+  #   5) eslint_ts() (only if `invoker.enable_type_aware_eslint_checks=true`)
+  #   6) merge_js_source_maps() (only if `invoker.enable_source_maps=true`)
+  #   7) optimize_webui() (only if invoker.optimize && defined(invoker.optimize_webui_in_files))
+  #   8) minify_js() (only if invoker.optimize && !defined(invoker.optimize_webui_in_files))
+  #   9) generate_grd()
+  #  10) grit()
 
   if (defined(invoker.static_files)) {
     preprocess_if_expr("preprocess_static_files") {
       visibility = [ ":$generate_grd_target_name" ]
 
-      if (use_blink) {
-        defines = chrome_grit_defines
-      }
+      defines = preprocessor_defines
 
       in_folder = "."
       out_folder = preprocess_dir
@@ -155,26 +202,27 @@ template("build_webui") {
     }
   }
 
-  preprocess_if_expr("preprocess_ts_files") {
-    visibility = [
-      ":build_ts",
-      ":html_wrapper_files",
-    ]
-    if (enable_source_maps) {
-      visibility += [ ":create_source_maps" ]
-    }
+  if (has_ts_in_files) {
+    preprocess_if_expr("preprocess_ts_files") {
+      visibility = [
+        ":build_ts",
+        ":html_wrapper_files",
+        ":lint",
+      ]
+      if (enable_source_maps) {
+        visibility += [ ":create_source_maps" ]
+      }
 
-    if (use_blink) {
-      defines = chrome_grit_defines
-    }
+      defines = preprocessor_defines
 
-    in_folder = "."
-    out_folder = preprocess_dir
-    if (enable_source_maps) {
-      out_folder = "${preprocess_dir}/_tmp"
-      enable_removal_comments = enable_source_maps
+      in_folder = "."
+      out_folder = preprocess_dir
+      if (enable_source_maps) {
+        out_folder = "${preprocess_dir}/_tmp"
+        enable_removal_comments = enable_source_maps
+      }
+      in_files = all_ts_files
     }
-    in_files = ts_files
   }
 
   if (enable_source_maps) {
@@ -183,8 +231,15 @@ template("build_webui") {
       # ":html_wrapper_files".
       inline_sourcemaps = true
 
-      sources =
-          filter_include(get_target_outputs(":preprocess_ts_files"), [ "*.ts" ])
+      sources = filter_include(
+              get_target_outputs(":preprocess_ts_files"),
+              [
+                "*.ts",
+
+                # TODO(crbug.com/40167175): Remove once we no longer pass JS
+                # files to build_webui.
+                "*.js",
+              ])
       originals = []
       outputs = []
 
@@ -204,9 +259,7 @@ template("build_webui") {
         ":html_wrapper_files",
       ]
 
-      if (use_blink) {
-        defines = chrome_grit_defines
-      }
+      defines = preprocessor_defines
 
       in_folder = "."
       out_folder = preprocess_dir
@@ -260,11 +313,28 @@ template("build_webui") {
   }
 
   if (defined(invoker.mojo_files_deps)) {
+    mojo_base_path = "."
+    if (defined(invoker.mojo_base_path)) {
+      mojo_base_path = invoker.mojo_base_path
+    }
+
     copy("copy_mojo") {
       visibility = [ ":build_ts" ]
       deps = invoker.mojo_files_deps
       sources = invoker.mojo_files
-      outputs = [ "${preprocess_dir}/{{source_file_part}}" ]
+      outputs = [ "${preprocess_dir}/${mojo_base_path}/{{source_file_part}}" ]
+    }
+  }
+
+  if (defined(invoker.ts_deps)) {
+    webui_path_mappings("build_path_map") {
+      ts_deps = invoker.ts_deps
+      visibility = [ ":build_ts" ]
+
+      webui_context_type = "relative"
+      if (defined(invoker.webui_context_type)) {
+        webui_context_type = invoker.webui_context_type
+      }
     }
   }
 
@@ -282,6 +352,7 @@ template("build_webui") {
         ":$generate_grd_target_name",
         ":build_bundle",
         ":build_min_js",
+        ":lint",
       ]
 
       if (enable_source_maps) {
@@ -291,25 +362,59 @@ template("build_webui") {
 
     if (defined(invoker.ts_tsconfig_base)) {
       tsconfig_base = invoker.ts_tsconfig_base
-    } else {
-      if ((defined(invoker.web_component_files) ||
-           defined(invoker.icons_html_files)) &&
-          (!defined(invoker.html_to_wrapper_template) ||
-           invoker.html_to_wrapper_template != "native")) {
-        # Default tsconfig is tsconfig_base_polymer.json for Polymer UIs.
-        # tsconfig_base is left unset (defaults to
-        # //tools/typescript/tsconfig_base.json) for non-Polymer UIs.
-        tsconfig_base = "//tools/typescript/tsconfig_base_polymer.json"
+    } else if (defined(invoker.ts_deps)) {
+      # Default tsconfig is set to tsconfig_base_polymer.json for targets
+      # with a Polymer dependency, set to tsconfig_base_lit.json for
+      # targets with a Lit dependency and no Polymer dependency, and left
+      # unset (defaults to //tools/typescript/tsconfig_base.json) for other
+      # non-Polymer, non-Lit targets.
+      has_polymer =
+          filter_include(invoker.ts_deps,
+                         [ "//third_party/polymer/v3_0:library" ]) != []
+      has_lit = filter_include(invoker.ts_deps,
+                               [ "//third_party/lit/v3_0:build_ts" ]) != []
+      if (has_polymer) {
+        if (has_lit) {
+          # Config with Lit parameters also for migrating UIs.
+          tsconfig_base = "//tools/typescript/tsconfig_base_mixed.json"
+        } else {
+          tsconfig_base = "//tools/typescript/tsconfig_base_polymer.json"
+        }
+
+        # Detect whether the target corresponds to an Ash-only WebUI and use
+        # tsconfig_base_polymer_cros.json instead in such cases.
+        if (is_chromeos) {
+          is_ash_webui = false
+          target_dir = get_label_info(":build_ts", "dir")
+
+          foreach(prefix, ash_folders) {
+            if (!is_ash_webui) {
+              is_ash_webui =
+                  string_replace(target_dir, prefix, "") != target_dir
+            }
+          }
+
+          if (is_ash_webui) {
+            tsconfig_base = "//tools/typescript/tsconfig_base_polymer_cros.json"
+          }
+        }
+      } else if (has_lit) {
+        tsconfig_base = "//tools/typescript/tsconfig_base_lit.json"
       }
     }
 
-    in_files = ts_files
-    extra_deps = []
+    in_files = all_ts_files
+    if (defined(invoker.ts_deps)) {
+      path_mappings_file = "$target_gen_dir/path_mappings_build_path_map.json"
+      extra_deps = [ ":build_path_map" ]
+    } else {
+      extra_deps = []
+    }
     if (enable_source_maps) {
       # ts_library()'s |enable_source_maps| param inherited from the outer
       # scope's enable_source_maps
       extra_deps += [ ":create_source_maps" ]
-    } else {
+    } else if (has_ts_in_files) {
       extra_deps += [ ":preprocess_ts_files" ]
     }
 
@@ -323,12 +428,14 @@ template("build_webui") {
       extra_deps += [ ":css_wrapper_files" ]
     }
 
+    deps = [ "//tools/typescript/definitions:build_ts" ]
     if (defined(invoker.ts_deps)) {
-      deps = invoker.ts_deps
+      deps += invoker.ts_deps
     }
 
+    definitions = [ "//tools/typescript/definitions/strings.d.ts" ]
     if (defined(invoker.ts_definitions)) {
-      definitions = invoker.ts_definitions
+      definitions += invoker.ts_definitions
     }
 
     if (defined(invoker.ts_path_mappings)) {
@@ -352,11 +459,29 @@ template("build_webui") {
     }
   }
 
+  enable_type_aware_eslint_checks =
+      !defined(invoker.enable_type_aware_eslint_checks) ||
+      invoker.enable_type_aware_eslint_checks
+
+  if (enable_type_aware_eslint_checks) {
+    eslint_ts("lint") {
+      in_folder = preprocess_dir
+      in_files = filter_exclude(all_ts_files, [ "*.js" ])
+      tsconfig = "$target_gen_dir/tsconfig_build_ts.json"
+      deps = [ ":build_ts" ]
+      if (enable_source_maps) {
+        deps += [ ":create_source_maps" ]
+      } else {
+        deps += [ ":preprocess_ts_files" ]
+      }
+    }
+  }
+
   if (enable_source_maps) {
     merge_js_source_maps("merge_source_maps") {
       deps = [ ":build_ts" ]
       manifest_files =
-          filter_include(get_target_outputs(":build_ts"), [ "*.manifest" ])
+          filter_include(get_target_outputs(":build_ts"), [ "*_manifest.json" ])
       js_files = filter_include(get_target_outputs(":build_ts"), [ "*.js" ])
 
       sources = []
@@ -370,17 +495,16 @@ template("build_webui") {
     }
   }
 
-  if (minify_and_bundle) {
-    bundle_manifest = "bundle_manifest.json"
-
-    optimize_webui("build_bundle") {
-      visibility = [ ":$generate_grd_target_name" ]
+  if (bundle) {
+    bundle_js("build_bundle") {
+      visibility = [ ":build_min_js" ]
       host = invoker.optimize_webui_host
       input = rebase_path(ts_out_dir, root_build_dir)
       js_module_in_files = invoker.optimize_webui_in_files
-      out_manifest = "$target_gen_dir/$bundle_manifest"
+      out_folder = "$target_gen_dir/bundled"
+      excludes = BUNDLE_JS_EXCLUDES
       if (defined(invoker.optimize_webui_excludes)) {
-        excludes = invoker.optimize_webui_excludes
+        excludes += invoker.optimize_webui_excludes
       }
 
       if (defined(invoker.optimize_webui_external_paths)) {
@@ -389,17 +513,93 @@ template("build_webui") {
 
       deps = [ ":build_ts" ]
     }
-  } else if (minify_only) {
+  }
+
+  if (minify) {
     minify_js("build_min_js") {
-      visibility = [ ":$generate_grd_target_name" ]
+      visibility = [
+        ":$generate_grd_target_name",
+        ":build_code_cache",
+      ]
       in_folder = ts_out_dir
-      out_folder = "$target_gen_dir/minified"
-      in_files = []
-      js_files = filter_include(get_target_outputs(":build_ts"), [ "*.js" ])
-      foreach(_js_file, js_files) {
-        in_files += [ string_replace(_js_file, "$ts_out_dir/", "") ]
+      in_target = ":build_ts"
+      if (bundle) {
+        in_folder = "$target_gen_dir/bundled"
+        in_target = ":build_bundle"
       }
-      deps = [ ":build_ts" ]
+      out_folder = "$target_gen_dir/minified"
+
+      js_files = filter_include(get_target_outputs(in_target), [ "*.js" ])
+      in_files = []
+      foreach(_js_file, js_files) {
+        in_files += [ string_replace(_js_file, "$in_folder/", "") ]
+      }
+
+      deps = [ in_target ]
+    }
+  }
+
+  if (generate_code_cache) {
+    generate_code_cache_grd_prefix = grd_prefix + "_code_cache"
+    generate_code_cache_grd_target_name = "build_code_cache_grd"
+    if (generate_grdp) {
+      generate_code_cache_grd_target_name = "build_code_cache_grdp"
+    }
+
+    generate_code_cache("build_code_cache") {
+      visibility = [ ":$generate_code_cache_grd_target_name" ]
+
+      # Rebase the minified file paths under the minified directory.
+      minified_outputs =
+          filter_include(get_target_outputs(":build_min_js"), [ "*.js" ])
+      in_files = []
+      foreach(minified_output, minified_outputs) {
+        in_files += [ rebase_path(minified_output, "$target_gen_dir/minified") ]
+      }
+
+      in_folder = "$target_gen_dir/minified"
+      out_folder = "$target_gen_dir/code_cache"
+      out_manifest = "$target_gen_dir/build_code_cache_manifest.json"
+
+      deps = [ ":build_min_js" ]
+    }
+
+    generate_grd(generate_code_cache_grd_target_name) {
+      if (!generate_grdp) {
+        visibility = [ ":code_cache_resources_grit" ]
+      }
+      if (defined(invoker.grd_resource_path_prefix)) {
+        resource_path_prefix = invoker.grd_resource_path_prefix
+      }
+      grd_prefix = generate_code_cache_grd_prefix
+      out_grd = "$target_gen_dir/code_cache_resources.grd"
+      if (generate_grdp) {
+        out_grd = "$target_gen_dir/code_cache_resources.grdp"
+      }
+      manifest_files = [ "$target_gen_dir/build_code_cache_manifest.json" ]
+      deps = [ ":build_code_cache" ]
+    }
+
+    if (!generate_grdp) {
+      grit("code_cache_resources") {
+        enable_input_discovery_for_gn_analyze = false
+        source = "$target_gen_dir/code_cache_resources.grd"
+
+        outputs = [
+          "grit/${generate_code_cache_grd_prefix}_resources.h",
+          "grit/${generate_code_cache_grd_prefix}_resources_map.cc",
+          "grit/${generate_code_cache_grd_prefix}_resources_map.h",
+          "${generate_code_cache_grd_prefix}_resources.pak",
+        ]
+
+        grit_output_dir = "$root_gen_dir/chrome"
+        if (defined(invoker.grit_output_dir)) {
+          grit_output_dir = invoker.grit_output_dir
+        }
+        output_dir = grit_output_dir
+
+        deps = [ ":$generate_code_cache_grd_target_name" ]
+      }
     }
   }
 
@@ -426,29 +626,26 @@ template("build_webui") {
           [ "${target_gen_dir}/preprocess_static_files_manifest.json" ]
     }
 
-    if (minify_and_bundle) {
-      deps += [ ":build_bundle" ]
-      manifest_files += [ "$target_gen_dir/$bundle_manifest" ]
-      resource_path_rewrites = []
-      foreach(f, invoker.optimize_webui_in_files) {
-        name = get_path_info(f, "name")
-        output_file = string_replace(f, "${name}.js", "${name}.rollup.js")
-        resource_path_rewrites += [ "${output_file}|${f}" ]
-      }
-    } else if (minify_only) {
+    if (optimize) {
       deps += [ ":build_min_js" ]
-      manifest_files += [ "$target_gen_dir/minify_js_manifest.json" ]
-    } else {
-      if (enable_source_maps) {
-        deps += [ ":merge_source_maps" ]
-        manifest_files +=
-            filter_include(get_target_outputs(":merge_source_maps"),
-                           [ "*.manifest" ])
-      } else {
-        deps += [ ":build_ts" ]
-        manifest_files +=
-            filter_include(get_target_outputs(":build_ts"), [ "*.manifest" ])
+      manifest_files += filter_include(get_target_outputs(":build_min_js"),
+                                       [ "*_manifest.json" ])
+      if (bundle) {
+        resource_path_rewrites = []
+        foreach(f, invoker.optimize_webui_in_files) {
+          name = get_path_info(f, "name")
+          output_file = string_replace(f, "${name}.js", "${name}.rollup.js")
+          resource_path_rewrites += [ "${output_file}|${f}" ]
+        }
       }
+    } else if (enable_source_maps) {
+      deps += [ ":merge_source_maps" ]
+      manifest_files += filter_include(get_target_outputs(":merge_source_maps"),
+                                       [ "*_manifest__processed.json" ])
+    } else {
+      deps += [ ":build_ts" ]
+      manifest_files +=
+          filter_include(get_target_outputs(":build_ts"), [ "*_manifest.json" ])
     }
 
     if (defined(invoker.extra_grdp_deps)) {
@@ -459,14 +656,16 @@ template("build_webui") {
     if (defined(invoker.grd_resource_path_prefix)) {
       resource_path_prefix = invoker.grd_resource_path_prefix
     }
+
+    if (enable_type_aware_eslint_checks) {
+      # Adding as a dependency so that it runs as part of the build, even though
+      # this `generate_grd()` target does not use any outputs from it.
+      deps += [ ":lint" ]
+    }
   }
 
   if (!generate_grdp) {
     grit("resources") {
-      if (use_blink) {
-        defines = chrome_grit_defines
-      }
-
       # These arguments are needed since the grd is generated at build time.
       enable_input_discovery_for_gn_analyze = false
       source = "$target_gen_dir/resources.grd"
@@ -483,6 +682,11 @@ template("build_webui") {
       if (defined(invoker.grit_output_dir)) {
         grit_output_dir = invoker.grit_output_dir
       }
+
+      grit_flags = [
+        "-E",
+        "add_filepath_to_resource_map=${load_webui_from_disk}",
+      ]
 
       output_dir = grit_output_dir
     }

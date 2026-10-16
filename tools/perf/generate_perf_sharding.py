@@ -123,6 +123,7 @@ def _DumpJson(data, output_path):
             newline='') if sys.version_info.major == 3 else open(
                 output_path, 'wb') as output_file:
     json.dump(data, output_file, indent=4, separators=(',', ': '))
+    output_file.write('\n')
 
 
 def _LoadTimingData(args):
@@ -147,8 +148,8 @@ def GenerateShardMap(builder, num_of_shards, debug=False):
   if builder:
     with open(builder.timing_file_path) as f:
       timing_data = json.load(f)
-  benchmarks_to_shard = (
-      list(builder.benchmark_configs) + list(builder.executables))
+  benchmarks_to_shard = (list(builder.benchmark_configs) +
+                         list(builder.executables) + list(builder.crossbench))
   repeat_config = cross_device_test_config.TARGET_DEVICES.get(builder.name, {})
   sharding_map = sharding_map_generator.generate_sharding_map(
       benchmarks_to_shard,
@@ -198,7 +199,7 @@ def _FilterTimingData(builder, output_path=None):
     timing_dataset = json.load(f)
   story_full_names = set()
   for benchmark_config in builder.benchmark_configs:
-    for story in benchmark_config.stories:
+    for story in benchmark_config.exhaustive_stories:
       story_full_names.add('/'.join([benchmark_config.name, story]))
   # When benchmarks are abridged or stories are removed, we want that
   # to be reflected in the timing data right away.
@@ -285,10 +286,12 @@ def _ParseBenchmarks(shard_map_path):
   for shard, benchmarks_in_shard in shard_map.items():
     if "extra_infos" in shard:
       continue
-    if benchmarks_in_shard.get('benchmarks'):
-      all_benchmarks |= set(benchmarks_in_shard['benchmarks'].keys())
-    if benchmarks_in_shard.get('executables'):
-      all_benchmarks |= set(benchmarks_in_shard['executables'].keys())
+    if benchmarks := benchmarks_in_shard.get('benchmarks'):
+      all_benchmarks |= set(benchmarks.keys())
+    if executables := benchmarks_in_shard.get('executables'):
+      all_benchmarks |= set(executables.keys())
+    if crossbench := benchmarks_in_shard.get('crossbench'):
+      all_benchmarks |= {b['display_name'] for b in crossbench.values()}
   return frozenset(all_benchmarks)
 
 
@@ -316,16 +319,18 @@ def _ValidateShardMaps(args):
   for platform in bot_platforms.ALL_PLATFORMS:
     if platform.pinpoint_only:
       continue
-    platform_benchmark_names = set(
-        b.name for b in platform.benchmark_configs) | set(
-            e.name for e in platform.executables)
+    platform_benchmark_names = {
+        b.name
+        for b in (platform.benchmark_configs | platform.executables
+                  | platform.crossbench)
+    }
     shard_map_benchmark_names = _ParseBenchmarks(platform.shards_map_file_path)
     for benchmark in platform_benchmark_names - shard_map_benchmark_names:
       errors.append(
           'Benchmark {benchmark} is supposed to be scheduled on platform '
           '{platform} according to '
           'bot_platforms.py, but it is not yet scheduled. If this is a new '
-          'benchmark, please rename it to UNSCHEDULED_{benchmark}, and then '
+          'benchmark, please set {benchmark}.SCHEDULED = False, and then '
           'contact '
           'Telemetry and Chrome Client Infra team to schedule the benchmark. '
           'You can email chrome-benchmarking-request@ to get started.'.format(
@@ -335,13 +340,14 @@ def _ValidateShardMaps(args):
           'Benchmark {benchmark} is scheduled on shard map {path}, but '
           'bot_platforms.py '
           'says that it should not be on that shard map. This could be because '
-          'the benchmark was deleted. If that is the case, you can use '
+          'the benchmark was deleted or {benchmark}.SCHEDULED is not True. '
+          'If that is the case, you can use '
           '`generate_perf_sharding deschedule` to deschedule the benchmark '
-          'from the shard map.'.format(
-              benchmark=benchmark, path=platform.shards_map_file_path))
+          'from the shard map.'.format(benchmark=benchmark,
+                                       path=platform.shards_map_file_path))
 
   # Check that every official benchmark is scheduled on some shard map.
-  # TODO(crbug.com/963614): Note that this check can be deleted if we
+  # TODO(crbug.com/40627632): Note that this check can be deleted if we
   # find some way other than naming the benchmark with prefix "UNSCHEDULED_"
   # to make it clear that a benchmark is not running.
   scheduled_benchmarks = set()
@@ -354,8 +360,8 @@ def _ValidateShardMaps(args):
       bot_platforms.OFFICIAL_BENCHMARK_NAMES - scheduled_benchmarks):
     errors.append(
         'Benchmark {benchmark} is an official benchmark, but it is not '
-        'scheduled to run anywhere. please rename it to '
-        'UNSCHEDULED_{benchmark}'.format(benchmark=benchmark))
+        'scheduled to run anywhere. please set '
+        '{benchmark}.SCHEDULED = False'.format(benchmark=benchmark))
 
   for error in errors:
     print('*', error, '\n', file=sys.stderr)

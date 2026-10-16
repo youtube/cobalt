@@ -4,6 +4,8 @@
 
 #include "net/test/url_request/url_request_failed_job.h"
 
+#include <array>
+
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
@@ -23,11 +25,11 @@ namespace {
 const char kMockHostname[] = "mock.failed.request";
 
 // String names of failure phases matching FailurePhase enum.
-const char* kFailurePhase[]{
+auto kFailurePhase = std::to_array<const char*>({
     "start",      // START
     "readsync",   // READ_SYNC
     "readasync",  // READ_ASYNC
-};
+});
 
 static_assert(std::size(kFailurePhase) ==
                   URLRequestFailedJob::FailurePhase::MAX_FAILURE_PHASE,

@@ -26,12 +26,12 @@ class AudibleContentsTracker : public BrowserListObserver,
   // interface has been created for ease of testing.
   class Observer {
    public:
-    Observer() {}
+    Observer() = default;
 
     Observer(const Observer&) = delete;
     Observer& operator=(const Observer&) = delete;
 
-    virtual ~Observer() {}
+    virtual ~Observer() = default;
 
     // Invoked when a first audio source starts playing after a period of no
     // audio sources.
@@ -72,7 +72,7 @@ class AudibleContentsTracker : public BrowserListObserver,
   raw_ptr<Observer> observer_;
 
   // The set of WebContents that are currently playing audio.
-  std::set<content::WebContents*> audible_contents_;
+  std::set<raw_ptr<content::WebContents, SetExperimental>> audible_contents_;
 };
 
 }  // namespace metrics

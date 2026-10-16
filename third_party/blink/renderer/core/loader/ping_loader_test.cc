@@ -51,7 +51,7 @@ class PingLocalFrameClient : public EmptyLocalFrameClient {
     return URLLoaderMockFactory::GetSingletonInstance()->CreateURLLoader();
   }
 
-  void DispatchWillSendRequest(ResourceRequest& request) override {
+  void DispatchFinalizeRequest(ResourceRequest& request) override {
     if (request.GetKeepalive())
       ping_request_ = PartialResourceRequest(request);
   }
@@ -75,8 +75,7 @@ class PingLoaderTest : public PageTestBase {
 
   void SetDocumentURL(const KURL& url) {
     GetFrame().Loader().CommitNavigation(
-        WebNavigationParams::CreateWithHTMLBufferForTesting(
-            SharedBuffer::Create(), url),
+        WebNavigationParams::CreateWithEmptyHTMLForTesting(url),
         nullptr /* extra_data */);
     blink::test::RunPendingTasks();
     ASSERT_EQ(url.GetString(), GetDocument().Url().GetString());
@@ -92,7 +91,7 @@ class PingLoaderTest : public PageTestBase {
     const PartialResourceRequest& ping_request = client_->PingRequest();
     if (!ping_request.IsNull()) {
       EXPECT_EQ(destination_url.GetString(),
-                ping_request.HttpHeaderField("Ping-To"));
+                ping_request.HttpHeaderField(AtomicString("Ping-To")));
     }
     // Serve the ping request, since it will otherwise bleed in to the next
     // test, and once begun there is no way to cancel it directly.
@@ -110,7 +109,7 @@ TEST_F(PingLoaderTest, HTTPSToHTTPS) {
   const PartialResourceRequest& ping_request = PingAndGetRequest(ping_url);
   ASSERT_FALSE(ping_request.IsNull());
   EXPECT_EQ(ping_url, ping_request.Url());
-  EXPECT_EQ(String(), ping_request.HttpHeaderField("Ping-From"));
+  EXPECT_EQ(String(), ping_request.HttpHeaderField(AtomicString("Ping-From")));
 }
 
 TEST_F(PingLoaderTest, HTTPToHTTPS) {
@@ -121,7 +120,7 @@ TEST_F(PingLoaderTest, HTTPToHTTPS) {
   ASSERT_FALSE(ping_request.IsNull());
   EXPECT_EQ(ping_url, ping_request.Url());
   EXPECT_EQ(document_url.GetString(),
-            ping_request.HttpHeaderField("Ping-From"));
+            ping_request.HttpHeaderField(AtomicString("Ping-From")));
 }
 
 TEST_F(PingLoaderTest, NonHTTPPingTarget) {
@@ -157,12 +156,29 @@ TEST_F(PingLoaderTest, ViolationPriority) {
   url_test_helpers::RegisterMockedURLLoad(
       ping_url, test::CoreTestDataPath("bar.html"), "text/html");
   PingLoader::SendViolationReport(GetFrame().DomWindow(), ping_url,
-                                  EncodedFormData::Create());
+                                  EncodedFormData::Create(), false);
   url_test_helpers::ServeAsynchronousRequests();
   const PartialResourceRequest& request = client_->PingRequest();
   ASSERT_FALSE(request.IsNull());
   ASSERT_EQ(request.Url(), ping_url);
   EXPECT_EQ(ResourceLoadPriority::kVeryLow, request.Priority());
+}
+
+TEST_F(PingLoaderTest, FrameAncestorsViolationHasOpaqueOrigin) {
+  SetDocumentURL(KURL("http://localhost/foo.html"));
+
+  KURL ping_url("https://localhost/bar.html");
+  // TODO(crbug.com/41337257): We should use the mock functionality
+  // via |PageTestBase::dummy_page_holder_|.
+  url_test_helpers::RegisterMockedURLLoad(
+      ping_url, test::CoreTestDataPath("bar.html"), "text/html");
+  PingLoader::SendViolationReport(GetFrame().DomWindow(), ping_url,
+                                  EncodedFormData::Create(), true);
+  url_test_helpers::ServeAsynchronousRequests();
+  const PartialResourceRequest& request = client_->PingRequest();
+  ASSERT_FALSE(request.IsNull());
+  ASSERT_EQ(request.Url(), ping_url);
+  EXPECT_EQ(request.HttpHeaderField(AtomicString("Origin")), String());
 }
 
 TEST_F(PingLoaderTest, BeaconPriority) {

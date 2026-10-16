@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/base/ime/win/tsf_text_store.h"
 
 #include <initguid.h>  // for GUID_NULL and GUID_PROP_INPUTSCOPE
@@ -14,6 +19,7 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/win/scoped_com_initializer.h"
 #include "base/win/scoped_variant.h"
@@ -36,6 +42,9 @@ namespace {
 class MockTextInputClient : public TextInputClient {
  public:
   ~MockTextInputClient() override {}
+  base::WeakPtr<TextInputClient> AsWeakPtr() override {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
   MOCK_METHOD1(SetCompositionText, void(const ui::CompositionText&));
   MOCK_METHOD1(ConfirmCompositionText, size_t(bool));
   MOCK_METHOD0(ClearCompositionText, void());
@@ -51,6 +60,11 @@ class MockTextInputClient : public TextInputClient {
   MOCK_CONST_METHOD0(CanComposeInline, bool());
   MOCK_CONST_METHOD0(GetCaretBounds, gfx::Rect());
   MOCK_CONST_METHOD0(GetSelectionBoundingBox, gfx::Rect());
+  MOCK_CONST_METHOD1(GetProximateCharacterBounds,
+                     std::optional<gfx::Rect>(const gfx::Range&));
+  MOCK_CONST_METHOD2(GetProximateCharacterIndexFromPoint,
+                     std::optional<size_t>(const gfx::Point&,
+                                           IndexFromPointFlags));
   MOCK_CONST_METHOD2(GetCompositionCharacterBounds, bool(size_t, gfx::Rect*));
   MOCK_CONST_METHOD0(HasCompositionText, bool());
   MOCK_CONST_METHOD0(GetFocusReason, ui::TextInputClient::FocusReason());
@@ -75,9 +89,12 @@ class MockTextInputClient : public TextInputClient {
   MOCK_METHOD3(SetActiveCompositionForAccessibility,
                void(const gfx::Range&, const std::u16string&, bool));
   MOCK_METHOD2(GetActiveTextInputControlLayoutBounds,
-               void(absl::optional<gfx::Rect>* control_bounds,
-                    absl::optional<gfx::Rect>* selection_bounds));
+               void(std::optional<gfx::Rect>* control_bounds,
+                    std::optional<gfx::Rect>* selection_bounds));
   MOCK_METHOD0(GetTextEditingContext, ui::TextInputClient::EditingContext());
+
+ private:
+  base::WeakPtrFactory<MockTextInputClient> weak_ptr_factory_{this};
 };
 
 class MockImeKeyEventDispatcher : public ImeKeyEventDispatcher {
@@ -432,6 +449,37 @@ TEST_F(TSFTextStoreTest, GetStatusTest) {
   EXPECT_EQ((ULONG)TS_SD_INPUTPANEMANUALDISPLAYENABLE, status.dwDynamicFlags);
   EXPECT_EQ((ULONG)(TS_SS_TRANSITORY | TS_SS_NOHIDDENTEXT),
             status.dwStaticFlags);
+
+  text_store_->UseEmptyTextStore(true);
+  status = {};
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_NONE));
+  EXPECT_EQ(S_OK, text_store_->GetStatus(&status));
+  EXPECT_EQ((ULONG)TS_SD_READONLY, status.dwDynamicFlags & TS_SD_READONLY);
+
+  status = {};
+  text_store_->UseEmptyTextStore(false);
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
+  EXPECT_EQ(S_OK, text_store_->GetStatus(&status));
+  EXPECT_EQ((ULONG)0, status.dwDynamicFlags & TS_SD_READONLY);
+}
+
+TEST_F(TSFTextStoreTest, DummyLockTest) {
+  HRESULT result = kInvalidResult;
+  text_store_->UseEmptyTextStore(false);
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
+  EXPECT_EQ(S_OK,
+            text_store_->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &result));
+
+  text_store_->UseEmptyTextStore(true);
+  EXPECT_EQ(E_FAIL,
+            text_store_->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &result));
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_NONE));
+  EXPECT_EQ(E_FAIL,
+            text_store_->RequestLock(TS_LF_READWRITE | TS_LF_SYNC, &result));
 }
 
 TEST_F(TSFTextStoreTest, QueryInsertTest) {
@@ -543,6 +591,8 @@ class SyncRequestLockTestCallback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, SynchronousRequestLockTest) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   SyncRequestLockTestCallback callback(text_store_.get());
   EXPECT_CALL(*sink_, OnLockGranted(_))
       .WillOnce(Invoke(&callback, &SyncRequestLockTestCallback::LockGranted1))
@@ -647,6 +697,8 @@ class AsyncRequestLockTestCallback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, AsynchronousRequestLockTest) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   AsyncRequestLockTestCallback callback(text_store_.get());
   EXPECT_CALL(*sink_, OnLockGranted(_))
       .WillOnce(Invoke(&callback, &AsyncRequestLockTestCallback::LockGranted1))
@@ -734,6 +786,8 @@ class RequestLockTextChangeTestCallback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, RequestLockOnTextChangeTest) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   RequestLockTextChangeTestCallback callback(text_store_.get());
   EXPECT_CALL(*sink_, OnLockGranted(_))
       .WillOnce(
@@ -844,6 +898,8 @@ class SelectionTestCallback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, SetGetSelectionTest) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   SelectionTestCallback callback(text_store_.get());
   EXPECT_CALL(*sink_, OnLockGranted(_))
       .WillOnce(Invoke(&callback, &SelectionTestCallback::ReadLockGranted))
@@ -1042,6 +1098,8 @@ class SetGetTextTestCallback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, SetGetTextTest) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   SetGetTextTestCallback callback(text_store_.get());
   EXPECT_CALL(*sink_, OnLockGranted(_))
       .WillOnce(Invoke(&callback, &SetGetTextTestCallback::ReadLockGranted))
@@ -1133,6 +1191,8 @@ class InsertTextAtSelectionTestCallback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, InsertTextAtSelectionTest) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   InsertTextAtSelectionTestCallback callback(text_store_.get());
   EXPECT_CALL(*sink_, OnLockGranted(_))
       .WillOnce(Invoke(&callback,
@@ -1321,6 +1381,8 @@ class ScenarioTestCallback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, ScenarioTest) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   ScenarioTestCallback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, SetCompositionText(_))
       .WillOnce(Invoke(&callback, &ScenarioTestCallback::SetCompositionText1))
@@ -1430,6 +1492,8 @@ class GetTextExtTestCallback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, GetTextExtTest) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   GetTextExtTestCallback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, GetCaretBounds())
       .WillRepeatedly(
@@ -1635,6 +1699,14 @@ TEST_F(TSFTextStoreTest, RetrieveRequestedAttrs) {
   }
 }
 
+TEST_F(TSFTextStoreTest, SendOnUrlChanged) {
+  text_store_->UseEmptyTextStore(true);
+  EXPECT_TRUE(text_store_->MaybeSendOnUrlChanged());
+
+  text_store_->UseEmptyTextStore(false);
+  EXPECT_FALSE(text_store_->MaybeSendOnUrlChanged());
+}
+
 class KeyEventTestCallback : public TSFTextStoreTestCallback {
  public:
   explicit KeyEventTestCallback(TSFTextStore* text_store)
@@ -1684,7 +1756,7 @@ class KeyEventTestCallback : public TSFTextStoreTestCallback {
   }
 
   ui::EventDispatchDetails DispatchKeyEventPostIME1(KeyEvent* key) {
-    EXPECT_EQ(ui::ET_KEY_PRESSED, key->type());
+    EXPECT_EQ(ui::EventType::kKeyPressed, key->type());
     EXPECT_EQ(VKEY_PROCESSKEY, key->key_code());
     return ui::EventDispatchDetails();
   }
@@ -1733,13 +1805,13 @@ class KeyEventTestCallback : public TSFTextStoreTestCallback {
   }
 
   ui::EventDispatchDetails DispatchKeyEventPostIME2(KeyEvent* key) {
-    EXPECT_EQ(ui::ET_KEY_RELEASED, key->type());
+    EXPECT_EQ(ui::EventType::kKeyReleased, key->type());
     EXPECT_EQ(VKEY_PROCESSKEY, key->key_code());
     return ui::EventDispatchDetails();
   }
 
   ui::EventDispatchDetails DispatchKeyEventPostIME3a(KeyEvent* key) {
-    EXPECT_EQ(ui::ET_KEY_PRESSED, key->type());
+    EXPECT_EQ(ui::EventType::kKeyPressed, key->type());
     EXPECT_EQ(VKEY_PROCESSKEY, key->key_code());
     return ui::EventDispatchDetails();
   }
@@ -1765,7 +1837,7 @@ class KeyEventTestCallback : public TSFTextStoreTestCallback {
   }
 
   ui::EventDispatchDetails DispatchKeyEventPostIME3b(KeyEvent* key) {
-    EXPECT_EQ(ui::ET_KEY_RELEASED, key->type());
+    EXPECT_EQ(ui::EventType::kKeyReleased, key->type());
     EXPECT_EQ(VKEY_PROCESSKEY, key->key_code());
     return ui::EventDispatchDetails();
   }
@@ -1777,6 +1849,8 @@ class KeyEventTestCallback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, KeyEventTest) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   KeyEventTestCallback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, SetCompositionText(_))
       .WillOnce(Invoke(&callback, &KeyEventTestCallback::SetCompositionText1))
@@ -1881,6 +1955,8 @@ class AccessibilityEventTestCallback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, AccessibilityEventTest) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   AccessibilityEventTestCallback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, SetCompositionText(_))
       .WillOnce(Invoke(&callback,
@@ -2423,6 +2499,8 @@ class DiffingAlgorithmTestCallback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, DiffingAlgorithmTest) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   DiffingAlgorithmTestCallback callback(text_store_.get());
 
   EXPECT_CALL(*sink_, OnTextChange(_, _))
@@ -2629,7 +2707,7 @@ class RegressionTestCallback : public TSFTextStoreTestCallback {
   }
 
   ui::EventDispatchDetails DispatchKeyEventPostIME1(KeyEvent* key) {
-    EXPECT_EQ(ui::ET_KEY_PRESSED, key->type());
+    EXPECT_EQ(ui::EventType::kKeyPressed, key->type());
     EXPECT_EQ(VKEY_PROCESSKEY, key->key_code());
     return ui::EventDispatchDetails();
   }
@@ -2674,13 +2752,13 @@ class RegressionTestCallback : public TSFTextStoreTestCallback {
   }
 
   ui::EventDispatchDetails DispatchKeyEventPostIME2a(KeyEvent* key) {
-    EXPECT_EQ(ui::ET_KEY_RELEASED, key->type());
+    EXPECT_EQ(ui::EventType::kKeyReleased, key->type());
     EXPECT_EQ(VKEY_PROCESSKEY, key->key_code());
     return ui::EventDispatchDetails();
   }
 
   ui::EventDispatchDetails DispatchKeyEventPostIME2b(KeyEvent* key) {
-    EXPECT_EQ(ui::ET_KEY_PRESSED, key->type());
+    EXPECT_EQ(ui::EventType::kKeyPressed, key->type());
     EXPECT_EQ(VKEY_PROCESSKEY, key->key_code());
     return ui::EventDispatchDetails();
   }
@@ -2744,7 +2822,7 @@ class RegressionTestCallback : public TSFTextStoreTestCallback {
   }
 
   ui::EventDispatchDetails DispatchKeyEventPostIME4(KeyEvent* key) {
-    EXPECT_EQ(ui::ET_KEY_RELEASED, key->type());
+    EXPECT_EQ(ui::EventType::kKeyReleased, key->type());
     EXPECT_EQ(VKEY_PROCESSKEY, key->key_code());
     return ui::EventDispatchDetails();
   }
@@ -2790,7 +2868,7 @@ class RegressionTestCallback : public TSFTextStoreTestCallback {
   }
 
   ui::EventDispatchDetails DispatchKeyEventPostIME5(KeyEvent* key) {
-    EXPECT_EQ(ui::ET_KEY_PRESSED, key->type());
+    EXPECT_EQ(ui::EventType::kKeyPressed, key->type());
     EXPECT_EQ(VKEY_PROCESSKEY, key->key_code());
     return ui::EventDispatchDetails();
   }
@@ -2834,6 +2912,8 @@ class RegressionTestCallback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, RegressionTest) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   RegressionTestCallback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, SetCompositionText(_))
       .WillOnce(Invoke(&callback, &RegressionTestCallback::SetCompositionText1))
@@ -2972,6 +3052,8 @@ class RegressionTest2Callback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, RegressionTest2) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   RegressionTest2Callback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, SetCompositionText(_))
       .WillOnce(
@@ -3074,6 +3156,8 @@ class RegressionTest3Callback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, RegressionTest3) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   RegressionTest3Callback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, SetCompositionText(_))
       .WillOnce(
@@ -3172,6 +3256,8 @@ class RegressionTest4Callback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, RegressionTest4) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   RegressionTest4Callback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, SetCompositionText(_))
       .WillOnce(
@@ -3316,6 +3402,8 @@ class RegressionTest5Callback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, RegressionTest5) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   RegressionTest5Callback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, SetCompositionText(_))
       .WillOnce(
@@ -3415,6 +3503,8 @@ class RegressionTest6Callback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, RegressionTest6) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   RegressionTest6Callback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, SetCompositionText(_))
       .WillOnce(
@@ -3492,6 +3582,8 @@ class UnderlineStyleTestCallback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, UnderlineStyleTest) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   UnderlineStyleTestCallback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, SetCompositionText(_))
       .WillOnce(
@@ -3583,6 +3675,8 @@ class RegressionTest7Callback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, RegressionTest7) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   RegressionTest7Callback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, SetCompositionFromExistingText(_, _))
       .WillOnce(
@@ -3674,6 +3768,8 @@ class RegressionTest8Callback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, RegressionTest8) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   RegressionTest8Callback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, SetCompositionText(_))
       .WillOnce(
@@ -3810,6 +3906,8 @@ class RegressionTest9Callback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, RegressionTest9) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   RegressionTest9Callback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, SetCompositionText(_))
       .WillOnce(
@@ -3948,6 +4046,8 @@ class RegressionTest10Callback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, RegressionTest10) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   RegressionTest10Callback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, SetCompositionText(_))
       .WillOnce(
@@ -4052,6 +4152,8 @@ class RegressionTest11Callback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, RegressionTest11) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   RegressionTest11Callback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, SetCompositionText(_))
       .WillOnce(
@@ -4132,6 +4234,8 @@ class RegressionTest12Callback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, RegressionTest12) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   RegressionTest12Callback callback(text_store_.get());
 
   EXPECT_CALL(text_input_client_, ExtendSelectionAndDelete(_, _)).Times(1);
@@ -4225,6 +4329,8 @@ class RegressionTest13Callback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, RegressionTest13) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   RegressionTest13Callback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, ExtendSelectionAndDelete(_, _)).Times(1);
   EXPECT_CALL(text_input_client_, InsertText(_, _)).Times(0);
@@ -4330,6 +4436,8 @@ class RegressionTest14Callback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, RegressionTest14) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   RegressionTest14Callback callback(text_store_.get());
   EXPECT_CALL(text_input_client_, InsertText(_, _)).Times(0);
   EXPECT_CALL(text_input_client_, SetCompositionText(_))
@@ -4413,6 +4521,8 @@ class MultipleSetTextCallback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, MultipleSetText) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   MultipleSetTextCallback callback(text_store_.get());
   EXPECT_CALL(*sink_, OnLockGranted(_))
       .WillOnce(Invoke(&callback, &MultipleSetTextCallback::LockGranted1))
@@ -4531,6 +4641,8 @@ class TextInputClientReentrancyTestCallback : public TSFTextStoreTestCallback {
 };
 
 TEST_F(TSFTextStoreTest, TextInputClientReentrancTest) {
+  EXPECT_CALL(text_input_client_, GetTextInputType())
+      .WillRepeatedly(Return(TEXT_INPUT_TYPE_TEXT));
   TextInputClientReentrancyTestCallback callback(text_store_.get());
   EXPECT_CALL(*sink_, OnLockGranted(_))
       .WillOnce(Invoke(&callback,

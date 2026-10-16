@@ -12,6 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
+#include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_forward.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
@@ -129,7 +130,7 @@ class AppServiceWrapper : public apps::AppRegistryCache::Observer,
   // size |size_hint_in_dp|.
   void GetAppIcon(const AppId& app_id,
                   int size_hint_in_dp,
-                  base::OnceCallback<void(absl::optional<gfx::ImageSkia>)>
+                  base::OnceCallback<void(std::optional<gfx::ImageSkia>)>
                       on_icon_ready) const;
 
   // Returns app service id for the app identified by |app_id|.
@@ -169,7 +170,15 @@ class AppServiceWrapper : public apps::AppRegistryCache::Observer,
 
   base::ObserverList<EventListener> listeners_;
 
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
+  base::ScopedObservation<apps::InstanceRegistry,
+                          apps::InstanceRegistry::Observer>
+      instance_registry_observation_{this};
+
+  base::ScopedObservation<apps::AppRegistryCache,
+                          apps::AppRegistryCache::Observer>
+      app_registry_cache_observer_{this};
+
+  const raw_ptr<Profile> profile_;
 };
 
 }  // namespace app_time

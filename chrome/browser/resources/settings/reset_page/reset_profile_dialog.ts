@@ -13,23 +13,23 @@
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
 import 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
+import 'chrome://resources/cr_elements/cr_spinner_style.css.js';
 import 'chrome://resources/js/action_link.js';
 import 'chrome://resources/cr_elements/action_link.css.js';
-import 'chrome://resources/polymer/v3_0/paper-spinner/paper-spinner-lite.js';
 import '../settings_shared.css.js';
 
-import {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import {CrCheckboxElement} from 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
-import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
+import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import type {CrCheckboxElement} from 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
+import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {PaperSpinnerLiteElement} from 'chrome://resources/polymer/v3_0/paper-spinner/paper-spinner-lite.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {loadTimeData} from '../i18n_setup.js';
 import {routes} from '../route.js';
 import {Router} from '../router.js';
 
-import {ResetBrowserProxy, ResetBrowserProxyImpl} from './reset_browser_proxy.js';
+import type {ResetBrowserProxy} from './reset_browser_proxy.js';
+import {ResetBrowserProxyImpl} from './reset_browser_proxy.js';
 import {getTemplate} from './reset_profile_dialog.html.js';
 
 export interface SettingsResetProfileDialogElement {
@@ -37,7 +37,6 @@ export interface SettingsResetProfileDialogElement {
     cancel: CrButtonElement,
     dialog: CrDialogElement,
     reset: CrButtonElement,
-    resetSpinner: PaperSpinnerLiteElement,
     sendSettings: CrCheckboxElement,
   };
 }
@@ -78,10 +77,10 @@ export class SettingsResetProfileDialogElement extends
     };
   }
 
-  private isTriggered_: boolean;
-  private triggeredResetToolName_: string;
-  private resetRequestOrigin_: string;
-  private clearingInProgress_: boolean;
+  declare private isTriggered_: boolean;
+  declare private triggeredResetToolName_: string;
+  declare private resetRequestOrigin_: string;
+  declare private clearingInProgress_: boolean;
   private browserProxy_: ResetBrowserProxy =
       ResetBrowserProxyImpl.getInstance();
 
@@ -137,13 +136,8 @@ export class SettingsResetProfileDialogElement extends
         this.showDialog_();
       });
     } else {
-      // For the non-triggered reset dialog, a '#cct' hash indicates that the
-      // reset request came from the Chrome Cleanup Tool by launching Chrome
-      // with the startup URL chrome://settings/resetProfileSettings#cct.
-      const origin = window.location.hash.slice(1).toLowerCase() === 'cct' ?
-          'cct' :
-          Router.getInstance().getQueryParameters().get('origin');
-      this.resetRequestOrigin_ = origin || '';
+      this.resetRequestOrigin_ =
+          Router.getInstance().getQueryParameters().get('origin') || '';
       this.showDialog_();
     }
   }

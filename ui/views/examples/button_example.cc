@@ -7,19 +7,24 @@
 #include <memory>
 #include <utility>
 
+#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/scoped_canvas.h"
 #include "ui/gfx/skia_paint_util.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/animation/ink_drop_highlight.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/button/md_text_button.h"
+#include "ui/views/controls/button/md_text_button_with_down_arrow.h"
 #include "ui/views/examples/examples_color_id.h"
 #include "ui/views/examples/examples_window.h"
 #include "ui/views/examples/grit/views_examples_resources.h"
@@ -51,14 +56,14 @@ class SolidRoundRectPainterWithShadow : public Painter {
  public:
   SolidRoundRectPainterWithShadow(SkColor bg_color,
                                   SkColor stroke_color,
-                                  float radius,
+                                  const gfx::RoundedCornersF& corner_radii,
                                   const gfx::Insets& insets,
                                   SkBlendMode blend_mode,
                                   bool antialias,
                                   bool has_shadow)
       : bg_color_(bg_color),
         stroke_color_(stroke_color),
-        radius_(radius),
+        corner_radii_(corner_radii),
         insets_(insets),
         blend_mode_(blend_mode),
         antialias_(antialias),
@@ -76,7 +81,9 @@ class SolidRoundRectPainterWithShadow : public Painter {
   void Paint(gfx::Canvas* canvas, const gfx::Size& size) override {
     gfx::ScopedCanvas scoped_canvas(canvas);
     const float scale = canvas->UndoDeviceScaleFactor();
-    float scaled_radius = radius_ * scale;
+    // Taking one of the radiuses and using it. |DrawRoundRect()| doesn't
+    // support setting radii separately.
+    float scaled_radius = corner_radii_.upper_left() * scale;
 
     gfx::Rect inset_rect(size);
     inset_rect.Inset(insets_);
@@ -120,7 +127,7 @@ class SolidRoundRectPainterWithShadow : public Painter {
  private:
   const SkColor bg_color_;
   const SkColor stroke_color_;
-  const float radius_;
+  const gfx::RoundedCornersF corner_radii_;
   const gfx::Insets insets_;
   const SkBlendMode blend_mode_;
   const bool antialias_;
@@ -132,6 +139,8 @@ class SolidRoundRectPainterWithShadow : public Painter {
 // library. This is a prototype of a potential way to implement such an effect
 // by overriding the hover effect to draw a new background with a shadow.
 class FabButton : public views::MdTextButton {
+  METADATA_HEADER(FabButton, views::MdTextButton)
+
  public:
   using MdTextButton::MdTextButton;
   FabButton(const FabButton&) = delete;
@@ -143,8 +152,8 @@ class FabButton : public views::MdTextButton {
         ExamplesColorIds::kColorButtonBackgroundFab);
     SetBackground(CreateBackgroundFromPainter(
         std::make_unique<SolidRoundRectPainterWithShadow>(
-            bg_color, SK_ColorTRANSPARENT, GetCornerRadiusValue(),
-            gfx::Insets(), SkBlendMode::kSrcOver, true, use_shadow_)));
+            bg_color, SK_ColorTRANSPARENT, GetCornerRadii(), gfx::Insets(),
+            SkBlendMode::kSrcOver, true, use_shadow_)));
   }
 
   void OnHoverChanged() {
@@ -165,28 +174,8 @@ class FabButton : public views::MdTextButton {
   bool use_shadow_ = false;
 };
 
-class IconAndTextButton : public views::MdTextButton {
- public:
-  IconAndTextButton(PressedCallback callback,
-                    const std::u16string& text,
-                    const gfx::VectorIcon& icon)
-      : MdTextButton(callback, text), icon_(icon) {}
-  IconAndTextButton(const IconAndTextButton&) = delete;
-  IconAndTextButton& operator=(const IconAndTextButton&) = delete;
-  ~IconAndTextButton() override = default;
-
-  void OnThemeChanged() override {
-    views::MdTextButton::OnThemeChanged();
-
-    // Use the text color for the associated vector image.
-    SetImageModel(
-        views::Button::ButtonState::STATE_NORMAL,
-        ui::ImageModel::FromVectorIcon(*icon_, label()->GetEnabledColor()));
-  }
-
- private:
-  const raw_ref<const gfx::VectorIcon> icon_;
-};
+BEGIN_METADATA(FabButton)
+END_METADATA
 
 ButtonExample::ButtonExample() : ExampleBase("Button") {
   ui::ResourceBundle& rb = ui::ResourceBundle::GetSharedInstance();
@@ -197,7 +186,6 @@ ButtonExample::~ButtonExample() = default;
 
 void ButtonExample::CreateExampleView(View* container) {
   container->SetUseDefaultFillLayout(true);
-  ui::ResourceBundle& rb = ui::ResourceBundle::GetSharedInstance();
 
   auto view = Builder<BoxLayoutView>()
                   .SetOrientation(BoxLayout::Orientation::kVertical)
@@ -224,12 +212,15 @@ void ButtonExample::CreateExampleView(View* container) {
                                    .SetIsDefault(true),
                                Builder<MdTextButton>()
                                    .CopyAddressTo(&md_tonal_button_)
-                                   .SetStyle(MdTextButton::Style::kTonal)
+                                   .SetStyle(ui::ButtonStyle::kTonal)
                                    .SetText(u"Tonal"),
                                Builder<MdTextButton>()
                                    .CopyAddressTo(&md_text_button_)
-                                   .SetStyle(MdTextButton::Style::kText)
+                                   .SetStyle(ui::ButtonStyle::kText)
                                    .SetText(u"Material Text"),
+                               Builder<MdTextButton>()
+                                   .CopyAddressTo(&md_icon_text_button_)
+                                   .SetText(u"Material Text with Icon"),
                                Builder<ImageButton>()
                                    .CopyAddressTo(&image_button_)
                                    .SetAccessibleName(l10n_util::GetStringUTF16(
@@ -239,12 +230,9 @@ void ButtonExample::CreateExampleView(View* container) {
                                        &ButtonExample::ImageButtonPressed,
                                        base::Unretained(this))))
                   .Build();
-
-  view->AddChildView(std::make_unique<IconAndTextButton>(
-      base::BindRepeating(&ButtonExample::ImageButtonPressed,
-                          base::Unretained(this)),
-      l10n_util::GetStringUTF16(IDS_COLORED_DIALOG_CHOOSER_BUTTON),
-      views::kInfoIcon));
+  md_icon_text_button_->SetImageModel(
+      views::Button::ButtonState::STATE_NORMAL,
+      ui::ImageModel::FromVectorIcon(views::kInfoIcon));
   view->AddChildView(std::make_unique<FabButton>(
       base::BindRepeating(&ButtonExample::ImageButtonPressed,
                           base::Unretained(this)),
@@ -254,26 +242,30 @@ void ButtonExample::CreateExampleView(View* container) {
       base::BindRepeating(&ButtonExample::ImageButtonPressed,
                           base::Unretained(this)),
       views::kLaunchIcon, u"Icon button"));
+  view->AddChildView(std::make_unique<views::MdTextButtonWithDownArrow>(
+      base::BindRepeating(&ButtonExample::ImageButtonPressed,
+                          base::Unretained(this)),
+      u"TextButton with down arrow"));
 
-  image_button_->SetImage(ImageButton::STATE_NORMAL,
-                          rb.GetImageNamed(IDR_CLOSE).ToImageSkia());
-  image_button_->SetImage(ImageButton::STATE_HOVERED,
-                          rb.GetImageNamed(IDR_CLOSE_H).ToImageSkia());
-  image_button_->SetImage(ImageButton::STATE_PRESSED,
-                          rb.GetImageNamed(IDR_CLOSE_P).ToImageSkia());
+  image_button_->SetImageModel(ImageButton::STATE_NORMAL,
+                               ui::ImageModel::FromResourceId(IDR_CLOSE));
+  image_button_->SetImageModel(ImageButton::STATE_HOVERED,
+                               ui::ImageModel::FromResourceId(IDR_CLOSE_H));
+  image_button_->SetImageModel(ImageButton::STATE_PRESSED,
+                               ui::ImageModel::FromResourceId(IDR_CLOSE_P));
 
   container->AddChildView(std::move(view));
 }
 
 void ButtonExample::LabelButtonPressed(LabelButton* label_button,
                                        const ui::Event& event) {
-  PrintStatus("Label Button Pressed! count: %d", ++count_);
+  PrintStatus(base::StringPrintf("Label Button Pressed! count: %d", ++count_));
   if (event.IsControlDown()) {
     if (event.IsShiftDown()) {
-      label_button->SetText(
-          label_button->GetText().empty()
-              ? kLongText
-              : label_button->GetText().length() > 50 ? kLabelButton : u"");
+      label_button->SetText(label_button->GetText().empty() ? kLongText
+                            : label_button->GetText().length() > 50
+                                ? kLabelButton
+                                : u"");
     } else if (event.IsAltDown()) {
       label_button->SetImageModel(
           Button::STATE_NORMAL,
@@ -288,7 +280,7 @@ void ButtonExample::LabelButtonPressed(LabelButton* label_button,
   } else if (event.IsShiftDown()) {
     if (event.IsAltDown()) {
       // Toggle focusability.
-      label_button->IsAccessibilityFocusable()
+      label_button->GetViewAccessibility().IsAccessibilityFocusable()
           ? label_button->SetFocusBehavior(View::FocusBehavior::NEVER)
           : label_button->SetFocusBehavior(
                 PlatformStyle::kDefaultFocusBehavior);
@@ -297,11 +289,11 @@ void ButtonExample::LabelButtonPressed(LabelButton* label_button,
     label_button->SetIsDefault(!label_button->GetIsDefault());
   }
   example_view()->GetLayoutManager()->Layout(example_view());
-  PrintViewHierarchy(example_view());
+  LOG(ERROR) << '\n' << PrintViewHierarchy(example_view());
 }
 
 void ButtonExample::ImageButtonPressed() {
-  PrintStatus("Image Button Pressed! count: %d", ++count_);
+  PrintStatus(base::StringPrintf("Image Button Pressed! count: %d", ++count_));
 }
 
 }  // namespace views::examples

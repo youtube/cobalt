@@ -18,7 +18,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/base/macros.h"
 #include "third_party/abseil-cpp/absl/types/span.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "util/ref_counted.h"
 
 namespace ipcz::test {
@@ -50,6 +49,11 @@ extern const char kMultiprocessTestDriverName[];
 class TestDriver;
 
 using TestNodeFactory = std::unique_ptr<TestNode> (*)();
+
+struct TransportPair {
+  IpczDriverHandle ours;
+  IpczDriverHandle theirs;
+};
 
 // Type used to package metadata about a MULTINODE_TEST_NODE() or
 // MULTINODE_TEST() invocation.
@@ -86,13 +90,24 @@ struct TestNodeDetails {
 // making multinode tests easier to read and write.
 class TestNode : public internal::TestBase {
  public:
+  using TransportPair = ::ipcz::test::TransportPair;
+
   // Exposes interaction with one node spawned by another.
-  class TestNodeController : public RefCounted {
+  class TestNodeController : public RefCounted<TestNodeController> {
    public:
     // Blocks until the spawned node has terminated. Returns true if the node
     // executed and terminated cleanly, or false if it encountered at least one
     // test expectation failure while running.
     virtual bool WaitForShutdown() = 0;
+
+    // Creates a new pair of transports suitable for connecting the calling
+    // node with the TestNode controlled by this object.
+    virtual TransportPair CreateNewTransports() = 0;
+
+   protected:
+    friend class RefCounted<TestNodeController>;
+
+    virtual ~TestNodeController() = default;
   };
 
   virtual ~TestNode();
@@ -122,7 +137,7 @@ class TestNode : public internal::TestBase {
 
   // One-time initialization. Called internally during test setup. Should never
   // be called by individual test code.
-  void Initialize(TestDriver* test_driver);
+  void Initialize(TestDriver* test_driver, const std::string& feature_set);
 
   // May be called at most once by the TestNode body to connect initial
   // `portals` to the node that spawned this one. Extra `flags` may be passed to
@@ -195,10 +210,6 @@ class TestNode : public internal::TestBase {
   // non-broker) node to another non-broker node. Most tests should not use this
   // directly, but should instead connect to other nodes using the more
   // convenient helpers ConnectToBroker() or SpawnTestNode().
-  struct TransportPair {
-    IpczDriverHandle ours;
-    IpczDriverHandle theirs;
-  };
   TransportPair CreateTransports();
 
   // Creates a pair of transport appropriate for connecting two broker nodes
@@ -206,7 +217,7 @@ class TestNode : public internal::TestBase {
   TransportPair CreateBrokerToBrokerTransports();
 
   // Helper used to support multiprocess TestNode invocation.
-  int RunAsChild(TestDriver* test_driver);
+  int RunAsChild(TestDriver* test_driver, const std::string& feature_set);
 
   // Sets the transport to use when connecting to a broker via ConnectBroker.
   // Must only be called once.
@@ -222,6 +233,7 @@ class TestNode : public internal::TestBase {
                                             IpczDriverHandle& our_transport);
 
   TestDriver* test_driver_ = nullptr;
+  std::string feature_set_{"Default"};
   IpczHandle node_ = IPCZ_INVALID_HANDLE;
   IpczDriverHandle transport_ = IPCZ_INVALID_DRIVER_HANDLE;
   std::vector<Ref<TestNodeController>> spawned_nodes_;
@@ -256,9 +268,8 @@ class TestDriver {
   // pair and pass `theirs` to some newly spawned test node. If
   // `for_broker_target` is true, `theirs` will be suitable for passing to a
   // broker node; otherwise it must be passed to a non-broker.
-  virtual TestNode::TransportPair CreateTransports(
-      TestNode& source,
-      bool for_broker_target) const = 0;
+  virtual TransportPair CreateTransports(TestNode& source,
+                                         bool for_broker_target) const = 0;
 
   // Spawns a new TestNode instance for a TestNode described by `details`,
   // passing `their_transport` to the new node so it can establish a connection.
@@ -267,6 +278,7 @@ class TestDriver {
   virtual Ref<TestNode::TestNodeController> SpawnTestNode(
       TestNode& source,
       const TestNodeDetails& details,
+      const std::string& feature_set,
       IpczDriverHandle our_transport,
       IpczDriverHandle their_transport) = 0;
 
@@ -310,7 +322,8 @@ class MultinodeTestNodeRegistration {
   }
 };
 
-using MultinodeTestFactory = std::function<testing::Test*(TestDriver*)>;
+using MultinodeTestFactory =
+    std::function<testing::Test*(TestDriver*, const std::string& feature_set)>;
 void RegisterMultinodeTest(const char* test_suite_name,
                            const char* test_name,
                            const char* filename,
@@ -326,8 +339,11 @@ class MultinodeTestRegistration {
                             const char* test_name,
                             const char* filename,
                             int line) {
-    RegisterMultinodeTest(test_suite_name, test_name, filename, line,
-                          [](TestDriver* driver) { return new Test(driver); });
+    RegisterMultinodeTest(
+        test_suite_name, test_name, filename, line,
+        [](TestDriver* driver, const std::string& feature_set) {
+          return new Test(driver, feature_set);
+        });
   }
 };
 
@@ -372,35 +388,36 @@ void RegisterMultinodeTests();
 #define MULTINODE_TEST_CLASS_NAME(name) name##_Test
 #define MULTINODE_TEST_REGISTRATION_NAME(name) kRegister_##name##_Test
 
-#define MULTINODE_TEST(fixture, test_name)                                   \
-  class MULTINODE_TEST_CLASS_NAME(test_name) : public fixture {              \
-   public:                                                                   \
-    static constexpr ::ipcz::test::TestNodeDetails kDetails = {              \
-        .name = #fixture "_" #test_name "_Node",                             \
-        .factory = nullptr,                                                  \
-        .is_broker = true,                                                   \
-    };                                                                       \
-    explicit MULTINODE_TEST_CLASS_NAME(test_name)(::ipcz::test::TestDriver * \
-                                                  test_driver) {             \
-      TestNode::Initialize(test_driver);                                     \
-    }                                                                        \
-    ~MULTINODE_TEST_CLASS_NAME(test_name)() override = default;              \
-    MULTINODE_TEST_CLASS_NAME(test_name)                                     \
-    (const MULTINODE_TEST_CLASS_NAME(test_name) &) = delete;                 \
-    void operator=(const MULTINODE_TEST_CLASS_NAME(test_name) &) = delete;   \
-    const ::ipcz::test::TestNodeDetails& GetDetails() const override {       \
-      return kDetails;                                                       \
-    }                                                                        \
-                                                                             \
-   private:                                                                  \
-    void TestBody() override;                                                \
-  };                                                                         \
-  namespace {                                                                \
-  ::ipcz::test::MultinodeTestRegistration<                                   \
-      MULTINODE_TEST_CLASS_NAME(test_name)>                                  \
-      MULTINODE_TEST_REGISTRATION_NAME(test_name){                           \
-          #fixture, MULTINODE_TEST_NAME(test_name), __FILE__, __LINE__};     \
-  }                                                                          \
+#define MULTINODE_TEST(fixture, test_name)                                 \
+  class MULTINODE_TEST_CLASS_NAME(test_name) : public fixture {            \
+   public:                                                                 \
+    static constexpr ::ipcz::test::TestNodeDetails kDetails = {            \
+        .name = #fixture "_" #test_name "_Node",                           \
+        .factory = nullptr,                                                \
+        .is_broker = true,                                                 \
+    };                                                                     \
+    explicit MULTINODE_TEST_CLASS_NAME(test_name)(                         \
+        ::ipcz::test::TestDriver * test_driver,                            \
+        const std::string& feature_set) {                                  \
+      TestNode::Initialize(test_driver, feature_set);                      \
+    }                                                                      \
+    ~MULTINODE_TEST_CLASS_NAME(test_name)() override = default;            \
+    MULTINODE_TEST_CLASS_NAME(test_name)                                   \
+    (const MULTINODE_TEST_CLASS_NAME(test_name) &) = delete;               \
+    void operator=(const MULTINODE_TEST_CLASS_NAME(test_name) &) = delete; \
+    const ::ipcz::test::TestNodeDetails& GetDetails() const override {     \
+      return kDetails;                                                     \
+    }                                                                      \
+                                                                           \
+   private:                                                                \
+    void TestBody() override;                                              \
+  };                                                                       \
+  namespace {                                                              \
+  ::ipcz::test::MultinodeTestRegistration<                                 \
+      MULTINODE_TEST_CLASS_NAME(test_name)>                                \
+      MULTINODE_TEST_REGISTRATION_NAME(test_name){                         \
+          #fixture, MULTINODE_TEST_NAME(test_name), __FILE__, __LINE__};   \
+  }                                                                        \
   void MULTINODE_TEST_CLASS_NAME(test_name)::TestBody()
 
 #endif  // IPCZ_SRC_TEST_MULTINODE_TEST_H_

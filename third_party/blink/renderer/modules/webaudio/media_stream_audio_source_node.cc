@@ -33,6 +33,12 @@
 #include "third_party/blink/renderer/modules/webaudio/audio_graph_tracer.h"
 #include "third_party/blink/renderer/modules/webaudio/media_stream_audio_source_handler.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/feature_list.h"
+#include "media/base/media_switches.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+
 namespace blink {
 
 MediaStreamAudioSourceNode::MediaStreamAudioSourceNode(
@@ -46,17 +52,16 @@ MediaStreamAudioSourceNode::MediaStreamAudioSourceNode(
       media_stream_(media_stream) {
   SetHandler(MediaStreamAudioSourceHandler::Create(
       *this, std::move(audio_source_provider)));
-  WebRtcLogMessage(String::Format("MSASN::%s({audio_track=[kind: %s, id: "
-                                  "%s, label: %s, enabled: "
-                                  "%d, muted: %d]}, {handler=0x%" PRIXPTR
-                                  "}, [this=0x%" PRIXPTR "])",
-                                  __func__, audio_track->kind().Utf8().c_str(),
-                                  audio_track->id().Utf8().c_str(),
-                                  audio_track->label().Utf8().c_str(),
-                                  audio_track->enabled(), audio_track->muted(),
-                                  reinterpret_cast<uintptr_t>(&Handler()),
-                                  reinterpret_cast<uintptr_t>(this))
-                       .Utf8());
+  SendLogMessage(
+      __func__,
+      String::Format(
+          "({audio_track=[kind: %s, id: "
+          "%s, label: %s, enabled: "
+          "%d, muted: %d]}, {handler=0x%" PRIXPTR "}, [this=0x%" PRIXPTR "])",
+          audio_track->kind().Utf8().c_str(), audio_track->id().Utf8().c_str(),
+          audio_track->label().Utf8().c_str(), audio_track->enabled(),
+          audio_track->muted(), reinterpret_cast<uintptr_t>(&Handler()),
+          reinterpret_cast<uintptr_t>(this)));
 }
 
 MediaStreamAudioSourceNode* MediaStreamAudioSourceNode::Create(
@@ -95,7 +100,8 @@ MediaStreamAudioSourceNode* MediaStreamAudioSourceNode::Create(
   // 1.24.1. Step 5: The step is out of order because the constructor needs
   // this provider, which is [[input track]] from the spec.
   std::unique_ptr<AudioSourceProvider> provider =
-      audio_track->CreateWebAudioSource(context.sampleRate());
+      audio_track->CreateWebAudioSource(context.sampleRate(),
+                                        context.PlatformBufferDuration());
 
   // 1.24.1. Step 4.
   MediaStreamAudioSourceNode* node =
@@ -103,7 +109,11 @@ MediaStreamAudioSourceNode* MediaStreamAudioSourceNode::Create(
           context, media_stream, audio_track, std::move(provider));
 
   // Initializes the node with the stereo output channel.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  node->SetFormat(1, context.sampleRate());
+#else
   node->SetFormat(2, context.sampleRate());
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Lets the context know this source node started.
   context.NotifySourceNodeStartedProcessing(node);
@@ -136,7 +146,7 @@ bool MediaStreamAudioSourceNode::HasPendingActivity() const {
   // The node stays alive as long as the context is running. It also will not
   // be collected until the context is suspended or stopped.
   // (See https://crbug.com/937231)
-  return context()->ContextState() == BaseAudioContext::kRunning;
+  return context()->ContextState() == V8AudioContextState::Enum::kRunning;
 }
 
 void MediaStreamAudioSourceNode::Trace(Visitor* visitor) const {
@@ -149,6 +159,13 @@ void MediaStreamAudioSourceNode::Trace(Visitor* visitor) const {
 MediaStreamAudioSourceHandler&
 MediaStreamAudioSourceNode::GetMediaStreamAudioSourceHandler() const {
   return static_cast<MediaStreamAudioSourceHandler&>(Handler());
+}
+
+void MediaStreamAudioSourceNode::SendLogMessage(const char* const function_name,
+                                                const String& message) {
+  WebRtcLogMessage(
+      String::Format("[WA]MSASN::%s %s", function_name, message.Utf8().c_str())
+          .Utf8());
 }
 
 }  // namespace blink

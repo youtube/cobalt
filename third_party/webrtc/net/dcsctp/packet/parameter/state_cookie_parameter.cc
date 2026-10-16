@@ -11,11 +11,11 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <vector>
 
-#include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
@@ -28,11 +28,11 @@ namespace dcsctp {
 
 constexpr int StateCookieParameter::kType;
 
-absl::optional<StateCookieParameter> StateCookieParameter::Parse(
-    rtc::ArrayView<const uint8_t> data) {
-  absl::optional<BoundedByteReader<kHeaderSize>> reader = ParseTLV(data);
+std::optional<StateCookieParameter> StateCookieParameter::Parse(
+    webrtc::ArrayView<const uint8_t> data) {
+  std::optional<BoundedByteReader<kHeaderSize>> reader = ParseTLV(data);
   if (!reader.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return StateCookieParameter(reader->variable_data());
 }
@@ -43,7 +43,7 @@ void StateCookieParameter::SerializeTo(std::vector<uint8_t>& out) const {
 }
 
 std::string StateCookieParameter::ToString() const {
-  rtc::StringBuilder sb;
+  webrtc::StringBuilder sb;
   sb << "State Cookie parameter (cookie_length=" << data_.size() << ")";
   return sb.Release();
 }

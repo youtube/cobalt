@@ -20,34 +20,34 @@ Timing::V8Delay* Timing::Delay::ToV8Delay() const {
   return MakeGarbageCollected<V8Delay>(AsTimeValue().InMillisecondsF());
 }
 
-String Timing::FillModeString(FillMode fill_mode) {
+V8FillMode::Enum Timing::FillModeEnum(FillMode fill_mode) {
   switch (fill_mode) {
     case FillMode::NONE:
-      return "none";
+      return V8FillMode::Enum::kNone;
     case FillMode::FORWARDS:
-      return "forwards";
+      return V8FillMode::Enum::kForwards;
     case FillMode::BACKWARDS:
-      return "backwards";
+      return V8FillMode::Enum::kBackwards;
     case FillMode::BOTH:
-      return "both";
+      return V8FillMode::Enum::kBoth;
     case FillMode::AUTO:
-      return "auto";
+      return V8FillMode::Enum::kAuto;
   }
-  NOTREACHED();
-  return "none";
 }
 
-Timing::FillMode Timing::StringToFillMode(const String& fill_mode) {
-  if (fill_mode == "none")
-    return Timing::FillMode::NONE;
-  if (fill_mode == "backwards")
-    return Timing::FillMode::BACKWARDS;
-  if (fill_mode == "both")
-    return Timing::FillMode::BOTH;
-  if (fill_mode == "forwards")
-    return Timing::FillMode::FORWARDS;
-  DCHECK_EQ(fill_mode, "auto");
-  return Timing::FillMode::AUTO;
+Timing::FillMode Timing::EnumToFillMode(V8FillMode::Enum fill_mode) {
+  switch (fill_mode) {
+    case V8FillMode::Enum::kNone:
+      return Timing::FillMode::NONE;
+    case V8FillMode::Enum::kBackwards:
+      return Timing::FillMode::BACKWARDS;
+    case V8FillMode::Enum::kBoth:
+      return Timing::FillMode::BOTH;
+    case V8FillMode::Enum::kForwards:
+      return Timing::FillMode::FORWARDS;
+    case V8FillMode::Enum::kAuto:
+      return Timing::FillMode::AUTO;
+  }
 }
 
 String Timing::PlaybackDirectionString(PlaybackDirection playback_direction) {
@@ -62,7 +62,6 @@ String Timing::PlaybackDirectionString(PlaybackDirection playback_direction) {
       return "alternate-reverse";
   }
   NOTREACHED();
-  return "normal";
 }
 
 Timing::FillMode Timing::ResolvedFillMode(bool is_keyframe_effect) const {
@@ -81,7 +80,7 @@ EffectTiming* Timing::ConvertToEffectTiming() const {
   // Specified values used here so that inputs match outputs for JS API calls
   effect_timing->setDelay(start_delay.ToV8Delay());
   effect_timing->setEndDelay(end_delay.ToV8Delay());
-  effect_timing->setFill(FillModeString(fill_mode));
+  effect_timing->setFill(FillModeEnum(fill_mode));
   effect_timing->setIterationStart(iteration_start);
   effect_timing->setIterations(iteration_count);
   V8UnionCSSNumericValueOrStringOrUnrestrictedDouble* duration;
@@ -102,8 +101,8 @@ EffectTiming* Timing::ConvertToEffectTiming() const {
 
 // Converts values to CSSNumberish based on corresponding timeline type
 V8CSSNumberish* Timing::ToComputedValue(
-    absl::optional<AnimationTimeDelta> time,
-    absl::optional<AnimationTimeDelta> max_time) const {
+    std::optional<AnimationTimeDelta> time,
+    std::optional<AnimationTimeDelta> max_time) const {
   if (time) {
     // A valid timeline_duration indicates use of progress based timeline. We
     // need to convert values to percentages using timeline_duration as 100%
@@ -140,8 +139,8 @@ ComputedEffectTiming* Timing::getComputedTiming(
     computed_timing->setCurrentIteration(
         calculated_timing.current_iteration.value());
   } else {
-    computed_timing->setProgress(absl::nullopt);
-    computed_timing->setCurrentIteration(absl::nullopt);
+    computed_timing->setProgress(std::nullopt);
+    computed_timing->setCurrentIteration(std::nullopt);
   }
 
   // For the EffectTiming members, getComputedTiming is equivalent to getTiming
@@ -154,7 +153,7 @@ ComputedEffectTiming* Timing::getComputedTiming(
   computed_timing->setDelay(start_delay.ToV8Delay());
   computed_timing->setEndDelay(end_delay.ToV8Delay());
   computed_timing->setFill(
-      Timing::FillModeString(ResolvedFillMode(is_keyframe_effect)));
+      Timing::FillModeEnum(ResolvedFillMode(is_keyframe_effect)));
   computed_timing->setIterationStart(iteration_start);
   computed_timing->setIterations(iteration_count);
 
@@ -182,56 +181,63 @@ ComputedEffectTiming* Timing::getComputedTiming(
 }
 
 Timing::CalculatedTiming Timing::CalculateTimings(
-    absl::optional<AnimationTimeDelta> local_time,
-    bool at_progress_timeline_boundary,
+    std::optional<AnimationTimeDelta> local_time,
     bool is_idle,
     const NormalizedTiming& normalized_timing,
     AnimationDirection animation_direction,
     bool is_keyframe_effect,
-    absl::optional<double> playback_rate) const {
+    std::optional<double> playback_rate) const {
   const AnimationTimeDelta active_duration = normalized_timing.active_duration;
   const AnimationTimeDelta duration = normalized_timing.iteration_duration;
 
-  Timing::Phase current_phase =
-      CalculatePhase(normalized_timing, local_time,
-                     at_progress_timeline_boundary, animation_direction);
+  Timing::Phase current_phase = TimingCalculations::CalculatePhase(
+      normalized_timing, local_time, animation_direction);
 
-  const absl::optional<AnimationTimeDelta> active_time = CalculateActiveTime(
-      normalized_timing, ResolvedFillMode(is_keyframe_effect), local_time,
-      current_phase);
+  const std::optional<AnimationTimeDelta> active_time =
+      TimingCalculations::CalculateActiveTime(
+          normalized_timing, ResolvedFillMode(is_keyframe_effect), local_time,
+          current_phase);
 
-  absl::optional<double> progress;
+  std::optional<double> progress;
 
-  const absl::optional<double> overall_progress = CalculateOverallProgress(
-      current_phase, active_time, duration, iteration_count, iteration_start);
-  const absl::optional<double> simple_iteration_progress =
-      CalculateSimpleIterationProgress(current_phase, overall_progress,
-                                       iteration_start, active_time,
-                                       active_duration, iteration_count);
-  const absl::optional<double> current_iteration =
-      CalculateCurrentIteration(current_phase, active_time, iteration_count,
-                                overall_progress, simple_iteration_progress);
+  const std::optional<double> overall_progress =
+      TimingCalculations::CalculateOverallProgress(current_phase, active_time,
+                                                   duration, iteration_count,
+                                                   iteration_start);
+  const std::optional<double> simple_iteration_progress =
+      TimingCalculations::CalculateSimpleIterationProgress(
+          current_phase, overall_progress, iteration_start, active_time,
+          active_duration, iteration_count);
+  const std::optional<double> current_iteration =
+      TimingCalculations::CalculateCurrentIteration(
+          current_phase, active_time, iteration_count, overall_progress,
+          simple_iteration_progress);
   const bool current_direction_is_forwards =
-      IsCurrentDirectionForwards(current_iteration, direction);
-  const absl::optional<double> directed_progress = CalculateDirectedProgress(
-      simple_iteration_progress, current_iteration, direction);
+      TimingCalculations::IsCurrentDirectionForwards(current_iteration,
+                                                     direction);
+  const std::optional<double> directed_progress =
+      TimingCalculations::CalculateDirectedProgress(
+          simple_iteration_progress, current_iteration, direction);
 
-  progress = CalculateTransformedProgress(current_phase, directed_progress,
-                                          current_direction_is_forwards,
-                                          timing_function);
+  progress = TimingCalculations::CalculateTransformedProgress(
+      current_phase, directed_progress, current_direction_is_forwards,
+      timing_function);
 
   AnimationTimeDelta time_to_next_iteration = AnimationTimeDelta::Max();
   // Conditionally compute the time to next iteration, which is only
   // applicable if the iteration duration is non-zero.
   if (!duration.is_zero()) {
     const AnimationTimeDelta start_offset =
-        MultiplyZeroAlwaysGivesZero(duration, iteration_start);
+        TimingCalculations::MultiplyZeroAlwaysGivesZero(duration,
+                                                        iteration_start);
     DCHECK_GE(start_offset, AnimationTimeDelta());
-    const absl::optional<AnimationTimeDelta> offset_active_time =
-        CalculateOffsetActiveTime(active_duration, active_time, start_offset);
-    const absl::optional<AnimationTimeDelta> iteration_time =
-        CalculateIterationTime(duration, active_duration, offset_active_time,
-                               start_offset, current_phase, *this);
+    const std::optional<AnimationTimeDelta> offset_active_time =
+        TimingCalculations::CalculateOffsetActiveTime(
+            active_duration, active_time, start_offset);
+    const std::optional<AnimationTimeDelta> iteration_time =
+        TimingCalculations::CalculateIterationTime(
+            duration, active_duration, offset_active_time, start_offset,
+            current_phase, *this);
     if (iteration_time) {
       // active_time cannot be null if iteration_time is not null.
       DCHECK(active_time);

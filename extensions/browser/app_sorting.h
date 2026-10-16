@@ -11,6 +11,7 @@
 
 #include "components/sync/model/string_ordinal.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/extension_id.h"
 
 namespace extensions {
 
@@ -35,17 +36,17 @@ class AppSorting {
   virtual void FixNTPOrdinalCollisions() = 0;
 
   // This ensures that the extension has valid ordinals, and if it doesn't then
-  // properly initialize them. |suggested_page| will be used if it is valid and
+  // properly initialize them. `suggested_page` will be used if it is valid and
   // the extension has no valid user-set page ordinal.
   virtual void EnsureValidOrdinals(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       const syncer::StringOrdinal& suggested_page) = 0;
 
-  // Gets the default ordinals for |extension_id|. Returns false if no default
-  // ordinals for |extension_id| is defined. Otherwise, returns true and
+  // Gets the default ordinals for `extension_id`. Returns false if no default
+  // ordinals for `extension_id` is defined. Otherwise, returns true and
   // ordinals is updated with corresponding ordinals.
   virtual bool GetDefaultOrdinals(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       syncer::StringOrdinal* page_ordinal,
       syncer::StringOrdinal* app_launch_ordinal) = 0;
 
@@ -56,18 +57,18 @@ class AppSorting {
                                 const std::string& predecessor_extension_id,
                                 const std::string& successor_extension_id) = 0;
 
-  // Get the application launch ordinal for an app with |extension_id|. This
+  // Get the application launch ordinal for an app with `extension_id`. This
   // determines the order in which the app appears on the page it's on in the
   // New Tab Page (Note that you can compare app launch ordinals only if the
   // apps are on the same page). A string value close to |a*| generally
   // indicates top left. If the extension has no launch ordinal, an invalid
   // StringOrdinal is returned.
   virtual syncer::StringOrdinal GetAppLaunchOrdinal(
-      const std::string& extension_id) const = 0;
+      const ExtensionId& extension_id) const = 0;
 
-  // Sets a specific launch ordinal for an app with |extension_id|.
+  // Sets a specific launch ordinal for an app with `extension_id`.
   virtual void SetAppLaunchOrdinal(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       const syncer::StringOrdinal& new_app_launch_ordinal) = 0;
 
   // Returns a StringOrdinal that is lower than any app launch ordinal for the
@@ -88,19 +89,19 @@ class AppSorting {
   // if all pages are full.
   virtual syncer::StringOrdinal GetNaturalAppPageOrdinal() const = 0;
 
-  // Get the page ordinal for an app with |extension_id|. This determines
+  // Get the page ordinal for an app with `extension_id`. This determines
   // which page an app will appear on in page-based NTPs.  If the app has no
   // page specified, an invalid StringOrdinal is returned.
   virtual syncer::StringOrdinal GetPageOrdinal(
-      const std::string& extension_id) const = 0;
+      const ExtensionId& extension_id) const = 0;
 
-  // Sets a specific page ordinal for an app with |extension_id|.
+  // Sets a specific page ordinal for an app with `extension_id`.
   virtual void SetPageOrdinal(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       const syncer::StringOrdinal& new_page_ordinal) = 0;
 
   // Removes the ordinal values for an app.
-  virtual void ClearOrdinals(const std::string& extension_id) = 0;
+  virtual void ClearOrdinals(const ExtensionId& extension_id) = 0;
 
   // Convert the page StringOrdinal value to its integer equivalent. This takes
   // O(# of apps) worst-case.
@@ -114,7 +115,7 @@ class AppSorting {
 
   // Hides an extension from the new tab page, or makes a previously hidden
   // extension visible.
-  virtual void SetExtensionVisible(const std::string& extension_id,
+  virtual void SetExtensionVisible(const ExtensionId& extension_id,
                                    bool visible) = 0;
 };
 

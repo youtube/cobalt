@@ -21,7 +21,9 @@
 */
 
 #include <dirent.h>
+#include <errno.h>
 #include <sys/stat.h>
+
 #include <string>
 
 #include "starboard/configuration_constants.h"
@@ -58,24 +60,6 @@ TEST(PosixDirectoryOpenTest, SunnyDayWithNullError) {
   DIR* directory = opendir(path.c_str());
   EXPECT_TRUE(directory != NULL);
   EXPECT_TRUE(closedir(directory) == 0);
-}
-
-TEST(PosixDirectoryOpenTest, ManySunnyDay) {
-  std::string path = GetTempDir();
-  EXPECT_FALSE(path.empty());
-  EXPECT_TRUE(FileExists(path.c_str())) << "Filename is " << path.c_str();
-
-  const int kMany = kSbFileMaxOpen;
-  std::vector<DIR*> directories(kMany, 0);
-
-  for (size_t i = 0; i < directories.size(); ++i) {
-    directories[i] = opendir(path.c_str());
-    EXPECT_TRUE(directories[i] != NULL);
-  }
-
-  for (size_t i = 0; i < directories.size(); ++i) {
-    EXPECT_TRUE(closedir(directories[i]) == 0);
-  }
 }
 
 TEST(PosixDirectoryOpenTest, FailsInvalidPath) {
@@ -116,6 +100,33 @@ TEST(PosixDirectoryOpenTest, FailsRegularFile) {
   EXPECT_FALSE(directory != NULL);
   if (directory != NULL) {
     closedir(directory);
+  }
+}
+
+// ENOTDIR: The path names a file rather than a directory, for static content.
+TEST(PosixDirectoryOpenTest, FailsRegularFileStaticContent) {
+  for (auto path : GetFileTestsFilePaths()) {
+    errno = 0;
+    DIR* directory = opendir(path.c_str());
+    EXPECT_EQ(directory, nullptr) << path;
+    EXPECT_EQ(errno, ENOTDIR) << path;
+    if (directory != NULL) {
+      closedir(directory);
+    }
+  }
+}
+
+// ENOENT: The path does not exist, for static content.
+TEST(PosixDirectoryOpenTest, FailsMissingStaticContent) {
+  for (auto dir_path : GetFileTestsDirectoryPaths()) {
+    std::string path = dir_path + kSbFileSepChar + "does_not_exist";
+    errno = 0;
+    DIR* directory = opendir(path.c_str());
+    EXPECT_EQ(directory, nullptr) << path;
+    EXPECT_EQ(errno, ENOENT) << path;
+    if (directory != NULL) {
+      closedir(directory);
+    }
   }
 }
 

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "base/memory/raw_span.h"
 #include "base/memory/ref_counted.h"
 #include "base/time/time.h"
 #include "crypto/rsa_private_key.h"
@@ -33,8 +34,8 @@ TEST(X509UtilTest, CreateKeyAndSelfSigned) {
 
   ASSERT_TRUE(private_key.get());
 
-  scoped_refptr<X509Certificate> cert(X509Certificate::CreateFromBytes(
-      base::as_bytes(base::make_span(der_cert))));
+  scoped_refptr<X509Certificate> cert(
+      X509Certificate::CreateFromBytes(base::as_byte_span(der_cert)));
   ASSERT_TRUE(cert.get());
 
   EXPECT_EQ("subject", cert->subject().common_name);
@@ -142,8 +143,8 @@ TEST(X509UtilTest, CreateSelfSigned) {
       private_key->key(), x509_util::DIGEST_SHA256, "CN=subject", 1,
       base::Time::Now(), base::Time::Now() + base::Days(1), {}, &der_cert));
 
-  scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromBytes(
-      base::as_bytes(base::make_span(der_cert)));
+  scoped_refptr<X509Certificate> cert =
+      X509Certificate::CreateFromBytes(base::as_byte_span(der_cert));
   ASSERT_TRUE(cert.get());
 
   EXPECT_EQ("subject", cert->subject().GetDisplayName());
@@ -724,7 +725,7 @@ TEST(X509UtilTest, SignatureVerifierInitWithCertificate) {
   struct Test {
     const char* cert;
     crypto::SignatureVerifier::SignatureAlgorithm algorithm;
-    base::span<const uint8_t> signature;
+    base::raw_span<const uint8_t> signature;
     bool ok;
   } kTests[] = {
       // The certificate must support the digitalSignature key usage.

@@ -11,8 +11,11 @@
 
 #include "base/files/scoped_file.h"
 #include "base/functional/bind.h"
+#include "base/test/mock_callback.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/re2/src/re2/re2.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/keyboard_codes.h"
@@ -22,8 +25,17 @@
 #include "ui/events/ozone/evdev/event_factory_evdev.h"
 #include "ui/events/ozone/evdev/keyboard_evdev.h"
 #include "ui/events/ozone/evdev/testing/fake_cursor_delegate_evdev.h"
+#include "ui/events/ozone/features.h"
 #include "ui/events/ozone/layout/stub/stub_keyboard_layout_engine.h"
 #include "ui/events/test/scoped_event_test_tick_clock.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "base/test/metrics/histogram_tester.h"
+#include "ui/events/ozone/evdev/microphone_mute_key_metrics.h"
+#endif
+
+using testing::_;
+using testing::DoubleNear;
 
 namespace ui {
 
@@ -57,6 +69,98 @@ class MockEventConverterEvdevImpl : public EventConverterEvdevImpl {
 
 }  // namespace ui
 
+constexpr char kDefaultDeviceLogDescription[] =
+    R"(class=ui::EventConverterEvdevImpl id=1
+ keyboard_type=ui::KeyboardType::NOT_KEYBOARD
+ has_keyboard=1
+ has_touchpad=0
+ has_caps_lock_led=0
+ has_stylus_switch=0
+base class=ui::EventConverterEvdev id=1
+ path="/dev/input/test-device"
+member class=ui::InputDevice id=1
+ input_device_type=ui::InputDeviceType::INPUT_DEVICE_UNKNOWN
+ name=""
+ phys=""
+ enabled=1
+ suspected_keyboard_imposter=0
+ suspected_mouse_imposter=0
+ sys_path=""
+ vendor_id=0000
+ product_id=0000
+ version=0000
+)";
+
+constexpr char kLogitechKeyboardK120LogDescription[] =
+    R"(class=ui::EventConverterEvdevImpl id=1
+ keyboard_type=ui::KeyboardType::VALID_KEYBOARD
+ has_keyboard=1
+ has_touchpad=0
+ has_caps_lock_led=1
+ has_stylus_switch=0
+base class=ui::EventConverterEvdev id=1
+ path="/dev/input/test-device"
+member class=ui::InputDevice id=1
+ input_device_type=ui::InputDeviceType::INPUT_DEVICE_USB
+ name="Logitech USB Keyboard"
+ phys=""
+ enabled=1
+ suspected_keyboard_imposter=0
+ suspected_mouse_imposter=0
+ sys_path=""
+ vendor_id=046D
+ product_id=C31C
+ version=0110
+)";
+
+constexpr char kDrawciaStylusGarageLogDescription[] =
+    R"(class=ui::EventConverterEvdevImpl id=1
+ keyboard_type=ui::KeyboardType::NOT_KEYBOARD
+ has_keyboard=1
+ has_touchpad=0
+ has_caps_lock_led=0
+ has_stylus_switch=1
+base class=ui::EventConverterEvdev id=1
+ path="/dev/input/test-device"
+member class=ui::InputDevice id=1
+ input_device_type=ui::InputDeviceType::INPUT_DEVICE_UNKNOWN
+ name="PRP0001:00"
+ phys=""
+ enabled=1
+ suspected_keyboard_imposter=0
+ suspected_mouse_imposter=0
+ sys_path=""
+ vendor_id=0001
+ product_id=0001
+ version=0100
+)";
+
+constexpr char kRedrixTouchpadLogDescription[] =
+    R"(class=ui::EventConverterEvdevImpl id=1
+ keyboard_type=ui::KeyboardType::NOT_KEYBOARD
+ has_keyboard=1
+ has_touchpad=1
+ has_caps_lock_led=0
+ has_stylus_switch=0
+base class=ui::EventConverterEvdev id=1
+ path="/dev/input/test-device"
+member class=ui::InputDevice id=1
+ input_device_type=ui::InputDeviceType::INPUT_DEVICE_INTERNAL
+ name="ELAN2703:00 04F3:323B Touchpad"
+ phys=""
+ enabled=1
+ suspected_keyboard_imposter=0
+ suspected_mouse_imposter=0
+ sys_path=""
+ vendor_id=04F3
+ product_id=323B
+ version=0100
+)";
+
+#if BUILDFLAG(IS_CHROMEOS)
+const double kThreshold = 0.2f;
+#endif
+
 // Test fixture.
 class EventConverterEvdevImplTest : public testing::Test {
  public:
@@ -79,6 +183,11 @@ class EventConverterEvdevImplTest : public testing::Test {
     cursor_ = std::make_unique<ui::FakeCursorDelegateEvdev>();
 
     keyboard_layout_engine_ = std::make_unique<ui::StubKeyboardLayoutEngine>();
+    // Inject custom table for phone mic mute related tests.
+    keyboard_layout_engine_->SetCustomLookupTableForTesting({
+        {ui::DomCode::MICROPHONE_MUTE_TOGGLE, ui::DomKey::MICROPHONE_TOGGLE,
+         ui::DomKey::MICROPHONE_TOGGLE, ui::VKEY_MICROPHONE_MUTE_TOGGLE},
+    });
     device_manager_ = ui::CreateDeviceManagerForTest();
     event_factory_ = ui::CreateEventFactoryEvdevForTest(
         cursor_.get(), device_manager_.get(), keyboard_layout_engine_.get(),
@@ -130,7 +239,7 @@ class EventConverterEvdevImplTest : public testing::Test {
 
   base::test::SingleThreadTaskEnvironment task_environment_{
       base::test::SingleThreadTaskEnvironment::MainThreadType::UI};
-  std::unique_ptr<ui::KeyboardLayoutEngine> keyboard_layout_engine_;
+  std::unique_ptr<ui::StubKeyboardLayoutEngine> keyboard_layout_engine_;
   std::unique_ptr<ui::FakeCursorDelegateEvdev> cursor_;
   std::unique_ptr<ui::DeviceManager> device_manager_;
   std::unique_ptr<ui::EventFactoryEvdev> event_factory_;
@@ -141,6 +250,55 @@ class EventConverterEvdevImplTest : public testing::Test {
   std::vector<std::unique_ptr<ui::Event>> dispatched_events_;
 
   base::ScopedFD events_out_;
+};
+
+class EventConverterEvdevImplLogTest : public EventConverterEvdevImplTest {
+ public:
+  EventConverterEvdevImplLogTest() = default;
+
+  EventConverterEvdevImplLogTest(const EventConverterEvdevImplLogTest&) =
+      delete;
+  EventConverterEvdevImplLogTest& operator=(
+      const EventConverterEvdevImplLogTest&) = delete;
+
+  void SetUp() override {}  // Do not SetUpDevice by default
+
+  void AdjustId(ui::EventDeviceInfo& devinfo,
+                uint16_t input_id::*field,
+                uint16_t value) {
+    input_id id = {.bustype = devinfo.bustype(),
+                   .vendor = devinfo.vendor_id(),
+                   .product = devinfo.product_id(),
+                   .version = devinfo.version()};
+    id.*field = value;
+    devinfo.SetId(id);
+  }
+
+  void AdjustAxis(ui::EventDeviceInfo& devinfo,
+                  unsigned int code,
+                  int32_t input_absinfo::*field,
+                  int32_t value) {
+    input_absinfo ai = devinfo.GetAbsInfoByCode(code);
+    ai.*field = value;
+    devinfo.SetAbsInfo(code, ai);
+  }
+
+  std::string LogSubst(std::string description,
+                       std::string key,
+                       std::string replacement) {
+    EXPECT_TRUE(RE2::Replace(&description, "\n(\\s*" + key + ")=[^\n]+\n",
+                             "\n\\1=" + replacement + "\n"));
+    return description;
+  }
+
+  void Check(const ui::EventDeviceInfo& devinfo, std::string comparison) {
+    SetUpDevice(devinfo);
+
+    std::stringstream output;
+    device()->DescribeForLog(output);
+
+    EXPECT_EQ(output.str(), comparison);
+  }
 };
 
 // Test fixture which defers device set up, tests need to call SetUpDevice().
@@ -155,8 +313,33 @@ class DeferDeviceSetUpEventConverterEvdevImplTest
       const DeferDeviceSetUpEventConverterEvdevImplTest&) = delete;
 
   // Overridden from EventConverterEvdevImplTest:
-  void SetUp() override {}
+  void SetUp() override {
+    scoped_feature_list_ = std::make_unique<base::test::ScopedFeatureList>();
+  }
+
+ protected:
+  std::unique_ptr<base::test::ScopedFeatureList> scoped_feature_list_;
+#if BUILDFLAG(IS_CHROMEOS)
+  base::HistogramTester histogram_tester_;
+#endif
 };
+
+TEST_F(EventConverterEvdevImplTest, BlockTelephonyMicMuteKeyByDefault) {
+  ui::MockEventConverterEvdevImpl* dev = device();
+
+  struct input_event mock_kernel_queue[] = {
+      {{0, 0}, EV_MSC, MSC_SCAN, 0xb002f},
+      {{0, 0}, EV_KEY, KEY_MICMUTE, 1},
+      {{0, 0}, EV_SYN, SYN_REPORT, 0},
+
+      {{0, 0}, EV_MSC, MSC_SCAN, 0xb002f},
+      {{0, 0}, EV_KEY, KEY_MICMUTE, 0},
+      {{0, 0}, EV_SYN, SYN_REPORT, 0},
+  };
+
+  dev->ProcessEvents(mock_kernel_queue, std::size(mock_kernel_queue));
+  EXPECT_EQ(0u, size());
+}
 
 TEST_F(EventConverterEvdevImplTest, KeyPress) {
   ui::MockEventConverterEvdevImpl* dev = device();
@@ -177,13 +360,13 @@ TEST_F(EventConverterEvdevImplTest, KeyPress) {
   ui::KeyEvent* event;
 
   event = dispatched_event(0);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
   EXPECT_EQ(ui::VKEY_BACK, event->key_code());
   EXPECT_EQ(0x7002au, event->scan_code());
   EXPECT_EQ(0, event->flags());
 
   event = dispatched_event(1);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
   EXPECT_EQ(ui::VKEY_BACK, event->key_code());
   EXPECT_EQ(0x7002au, event->scan_code());
   EXPECT_EQ(0, event->flags());
@@ -216,13 +399,13 @@ TEST_F(EventConverterEvdevImplTest, KeyRepeat) {
   ui::KeyEvent* event;
 
   event = dispatched_event(0);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
   EXPECT_EQ(ui::VKEY_BACK, event->key_code());
   EXPECT_EQ(0x7002au, event->scan_code());
   EXPECT_EQ(0, event->flags());
 
   event = dispatched_event(1);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
   EXPECT_EQ(ui::VKEY_BACK, event->key_code());
   EXPECT_EQ(0x7002au, event->scan_code());
   EXPECT_EQ(0, event->flags());
@@ -261,25 +444,25 @@ TEST_F(EventConverterEvdevImplTest, KeyWithModifier) {
   ui::KeyEvent* event;
 
   event = dispatched_event(0);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
   EXPECT_EQ(ui::VKEY_SHIFT, event->key_code());
   EXPECT_EQ(0x700e1u, event->scan_code());
   EXPECT_EQ(ui::EF_SHIFT_DOWN, event->flags());
 
   event = dispatched_event(1);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
   EXPECT_EQ(ui::VKEY_A, event->key_code());
   EXPECT_EQ(0x70004u, event->scan_code());
   EXPECT_EQ(ui::EF_SHIFT_DOWN, event->flags());
 
   event = dispatched_event(2);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
   EXPECT_EQ(ui::VKEY_A, event->key_code());
   EXPECT_EQ(0x70004u, event->scan_code());
   EXPECT_EQ(ui::EF_SHIFT_DOWN, event->flags());
 
   event = dispatched_event(3);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
   EXPECT_EQ(ui::VKEY_SHIFT, event->key_code());
   EXPECT_EQ(0x700e1u, event->scan_code());
   EXPECT_EQ(0, event->flags());
@@ -320,37 +503,37 @@ TEST_F(EventConverterEvdevImplTest, KeyWithDuplicateModifier) {
   ui::KeyEvent* event;
 
   event = dispatched_event(0);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
   EXPECT_EQ(ui::VKEY_CONTROL, event->key_code());
   EXPECT_EQ(0x700e1u, event->scan_code());
   EXPECT_EQ(ui::EF_CONTROL_DOWN, event->flags());
 
   event = dispatched_event(1);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
   EXPECT_EQ(ui::VKEY_CONTROL, event->key_code());
   EXPECT_EQ(0x700e5u, event->scan_code());
   EXPECT_EQ(ui::EF_CONTROL_DOWN, event->flags());
 
   event = dispatched_event(2);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
   EXPECT_EQ(ui::VKEY_Z, event->key_code());
   EXPECT_EQ(0x7001du, event->scan_code());
   EXPECT_EQ(ui::EF_CONTROL_DOWN, event->flags());
 
   event = dispatched_event(3);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
   EXPECT_EQ(ui::VKEY_Z, event->key_code());
   EXPECT_EQ(0x7001du, event->scan_code());
   EXPECT_EQ(ui::EF_CONTROL_DOWN, event->flags());
 
   event = dispatched_event(4);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
   EXPECT_EQ(ui::VKEY_CONTROL, event->key_code());
   EXPECT_EQ(0x700e1u, event->scan_code());
   EXPECT_EQ(ui::EF_CONTROL_DOWN, event->flags());
 
   event = dispatched_event(5);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
   EXPECT_EQ(ui::VKEY_CONTROL, event->key_code());
   EXPECT_EQ(0x700e5u, event->scan_code());
   EXPECT_EQ(0, event->flags());
@@ -375,13 +558,13 @@ TEST_F(EventConverterEvdevImplTest, KeyWithLock) {
   ui::KeyEvent* event;
 
   event = dispatched_event(0);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
   EXPECT_EQ(ui::VKEY_CAPITAL, event->key_code());
   EXPECT_EQ(0x70039u, event->scan_code());
   EXPECT_EQ(ui::EF_MOD3_DOWN, event->flags());
 
   event = dispatched_event(1);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
   EXPECT_EQ(ui::VKEY_CAPITAL, event->key_code());
   EXPECT_EQ(0x70039u, event->scan_code());
   EXPECT_EQ(ui::EF_NONE, event->flags());
@@ -404,76 +587,12 @@ TEST_F(EventConverterEvdevImplTest, MouseButton) {
   ui::MouseEvent* event;
 
   event = dispatched_mouse_event(0);
-  EXPECT_EQ(ui::ET_MOUSE_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kMousePressed, event->type());
   EXPECT_EQ(true, event->IsLeftMouseButton());
 
   event = dispatched_mouse_event(1);
-  EXPECT_EQ(ui::ET_MOUSE_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kMouseReleased, event->type());
   EXPECT_EQ(true, event->IsLeftMouseButton());
-}
-
-// Test that BTN_BACK and BTN_SIDE are treated as the same button.
-TEST_F(EventConverterEvdevImplTest, MouseBackButton) {
-  ui::MockEventConverterEvdevImpl* dev = device();
-
-  struct input_event mock_kernel_queue[] = {
-      {{0, 0}, EV_KEY, BTN_SIDE, 1},
-      {{0, 0}, EV_SYN, SYN_REPORT, 0},
-
-      {{0, 0}, EV_KEY, BTN_BACK, 1},
-      {{0, 0}, EV_SYN, SYN_REPORT, 0},
-
-      {{0, 0}, EV_KEY, BTN_SIDE, 0},
-      {{0, 0}, EV_SYN, SYN_REPORT, 0},
-
-      {{0, 0}, EV_KEY, BTN_BACK, 0},
-      {{0, 0}, EV_SYN, SYN_REPORT, 0}
-  };
-
-  dev->ProcessEvents(mock_kernel_queue, std::size(mock_kernel_queue));
-  EXPECT_EQ(2u, size());
-
-  ui::MouseEvent* event = nullptr;
-
-  event = dispatched_mouse_event(0);
-  EXPECT_EQ(ui::ET_MOUSE_PRESSED, event->type());
-  EXPECT_EQ(ui::EF_BACK_MOUSE_BUTTON, event->changed_button_flags());
-
-  event = dispatched_mouse_event(1);
-  EXPECT_EQ(ui::ET_MOUSE_RELEASED, event->type());
-  EXPECT_EQ(ui::EF_BACK_MOUSE_BUTTON, event->changed_button_flags());
-}
-
-// Test that BTN_FORWARD and BTN_EXTRA are treated as the same button.
-TEST_F(EventConverterEvdevImplTest, MouseForwardButton) {
-  ui::MockEventConverterEvdevImpl* dev = device();
-
-  struct input_event mock_kernel_queue[] = {
-      {{0, 0}, EV_KEY, BTN_FORWARD, 1},
-      {{0, 0}, EV_SYN, SYN_REPORT, 0},
-
-      {{0, 0}, EV_KEY, BTN_EXTRA, 1},
-      {{0, 0}, EV_SYN, SYN_REPORT, 0},
-
-      {{0, 0}, EV_KEY, BTN_EXTRA, 0},
-      {{0, 0}, EV_SYN, SYN_REPORT, 0},
-
-      {{0, 0}, EV_KEY, BTN_FORWARD, 0},
-      {{0, 0}, EV_SYN, SYN_REPORT, 0}
-  };
-
-  dev->ProcessEvents(mock_kernel_queue, std::size(mock_kernel_queue));
-  EXPECT_EQ(2u, size());
-
-  ui::MouseEvent* event = nullptr;
-
-  event = dispatched_mouse_event(0);
-  EXPECT_EQ(ui::ET_MOUSE_PRESSED, event->type());
-  EXPECT_EQ(ui::EF_FORWARD_MOUSE_BUTTON, event->changed_button_flags());
-
-  event = dispatched_mouse_event(1);
-  EXPECT_EQ(ui::ET_MOUSE_RELEASED, event->type());
-  EXPECT_EQ(ui::EF_FORWARD_MOUSE_BUTTON, event->changed_button_flags());
 }
 
 TEST_F(EventConverterEvdevImplTest, MouseMove) {
@@ -491,7 +610,7 @@ TEST_F(EventConverterEvdevImplTest, MouseMove) {
   ui::MouseEvent* event;
 
   event = dispatched_mouse_event(0);
-  EXPECT_EQ(ui::ET_MOUSE_MOVED, event->type());
+  EXPECT_EQ(ui::EventType::kMouseMoved, event->type());
   EXPECT_EQ(cursor()->GetLocation(), gfx::PointF(4, 2));
 }
 
@@ -525,11 +644,11 @@ TEST_F(EventConverterEvdevImplTest, ShouldReleaseKeysOnUnplug) {
   EXPECT_EQ(2u, size());
 
   ui::KeyEvent* event = dispatched_event(0);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
   EXPECT_EQ(ui::VKEY_A, event->key_code());
 
   event = dispatched_event(1);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
   EXPECT_EQ(ui::VKEY_A, event->key_code());
 }
 
@@ -547,11 +666,11 @@ TEST_F(EventConverterEvdevImplTest, ShouldReleaseKeysOnSynDropped) {
   EXPECT_EQ(2u, size());
 
   ui::KeyEvent* event = dispatched_event(0);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
   EXPECT_EQ(ui::VKEY_A, event->key_code());
 
   event = dispatched_event(1);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
   EXPECT_EQ(ui::VKEY_A, event->key_code());
 }
 
@@ -570,11 +689,11 @@ TEST_F(EventConverterEvdevImplTest, ShouldReleaseKeysOnDisable) {
   EXPECT_EQ(2u, size());
 
   ui::KeyEvent* event = dispatched_event(0);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
   EXPECT_EQ(ui::VKEY_A, event->key_code());
 
   event = dispatched_event(1);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
   EXPECT_EQ(ui::VKEY_A, event->key_code());
 }
 
@@ -600,16 +719,16 @@ TEST_F(EventConverterEvdevImplTest, SetAllowedKeys) {
 
   ASSERT_EQ(4u, size());
   ui::KeyEvent* event = dispatched_event(0);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
   EXPECT_EQ(ui::VKEY_A, event->key_code());
   event = dispatched_event(1);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
   EXPECT_EQ(ui::VKEY_A, event->key_code());
   event = dispatched_event(2);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
   EXPECT_EQ(ui::VKEY_POWER, event->key_code());
   event = dispatched_event(3);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
   EXPECT_EQ(ui::VKEY_POWER, event->key_code());
 
   ClearDispatchedEvents();
@@ -620,10 +739,10 @@ TEST_F(EventConverterEvdevImplTest, SetAllowedKeys) {
 
   ASSERT_EQ(2u, size());
   event = dispatched_event(0);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
   EXPECT_EQ(ui::VKEY_POWER, event->key_code());
   event = dispatched_event(1);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
   EXPECT_EQ(ui::VKEY_POWER, event->key_code());
 
   ClearDispatchedEvents();
@@ -631,16 +750,16 @@ TEST_F(EventConverterEvdevImplTest, SetAllowedKeys) {
   dev->ProcessEvents(mock_kernel_queue, std::size(mock_kernel_queue));
 
   event = dispatched_event(0);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
   EXPECT_EQ(ui::VKEY_A, event->key_code());
   event = dispatched_event(1);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
   EXPECT_EQ(ui::VKEY_A, event->key_code());
   event = dispatched_event(2);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
   EXPECT_EQ(ui::VKEY_POWER, event->key_code());
   event = dispatched_event(3);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
   EXPECT_EQ(ui::VKEY_POWER, event->key_code());
 }
 
@@ -661,7 +780,7 @@ TEST_F(EventConverterEvdevImplTest, SetAllowedKeysBlockedKeyPressed) {
   dev->ProcessEvents(key_press, std::size(key_press));
   ASSERT_EQ(1u, size());
   ui::KeyEvent* event = dispatched_event(0);
-  EXPECT_EQ(ui::ET_KEY_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
 
   // Block all key events. Calling SetAllowKeys() should dispatch a synthetic
   // key release for VKEY_A.
@@ -670,12 +789,72 @@ TEST_F(EventConverterEvdevImplTest, SetAllowedKeysBlockedKeyPressed) {
   dev->SetKeyFilter(true /* enable_filter */, allowed_keys);
   ASSERT_EQ(1u, size());
   event = dispatched_event(0);
-  EXPECT_EQ(ui::ET_KEY_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
 
   // The real key release should be dropped, whenever it comes.
   ClearDispatchedEvents();
   dev->ProcessEvents(key_release, std::size(key_release));
   ASSERT_EQ(0u, size());
+}
+
+TEST_F(EventConverterEvdevImplTest, SetBlockModifiers) {
+  ui::MockEventConverterEvdevImpl* dev = device();
+
+  struct input_event key_press[] = {
+      {{0, 0}, EV_KEY, KEY_LEFTMETA, 1},
+      {{0, 0}, EV_SYN, SYN_REPORT, 0},
+  };
+  struct input_event key_release[] = {
+      {{0, 0}, EV_KEY, KEY_LEFTMETA, 0},
+      {{0, 0}, EV_SYN, SYN_REPORT, 0},
+  };
+
+  dev->ProcessEvents(key_press, std::size(key_press));
+  ASSERT_EQ(1u, size());
+  ui::KeyEvent* event = dispatched_event(0);
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
+
+  dev->ProcessEvents(key_release, std::size(key_release));
+  ASSERT_EQ(2u, size());
+  event = dispatched_event(1);
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
+
+  dev->SetBlockModifiers(true);
+
+  dev->ProcessEvents(key_press, std::size(key_press));
+  ASSERT_EQ(2u, size());
+  dev->ProcessEvents(key_release, std::size(key_release));
+  ASSERT_EQ(2u, size());
+}
+
+TEST_F(EventConverterEvdevImplTest, SetBlockModifiersWithModifierHeldDown) {
+  ui::MockEventConverterEvdevImpl* dev = device();
+
+  struct input_event key_press[] = {
+      {{0, 0}, EV_KEY, KEY_LEFTCTRL, 1},
+      {{0, 0}, EV_SYN, SYN_REPORT, 0},
+  };
+  struct input_event key_release[] = {
+      {{0, 0}, EV_KEY, KEY_LEFTCTRL, 0},
+      {{0, 0}, EV_SYN, SYN_REPORT, 0},
+  };
+
+  dev->ProcessEvents(key_press, std::size(key_press));
+  ASSERT_EQ(1u, size());
+  ui::KeyEvent* event = dispatched_event(0);
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
+
+  dev->SetBlockModifiers(true);
+  ASSERT_EQ(2u, size());
+  event = dispatched_event(1);
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
+  EXPECT_EQ(ui::VKEY_CONTROL, event->key_code());
+
+  dev->ProcessEvents(key_release, std::size(key_release));
+  ASSERT_EQ(2u, size());
+
+  dev->SetBlockModifiers(false);
+  ASSERT_EQ(2u, size());
 }
 
 TEST_F(EventConverterEvdevImplTest, ShouldSwapMouseButtonsFromUserPreference) {
@@ -700,25 +879,26 @@ TEST_F(EventConverterEvdevImplTest, ShouldSwapMouseButtonsFromUserPreference) {
 
   SetTestNowSeconds(1510019415);
   ClearDispatchedEvents();
-  GetInputController()->SetPrimaryButtonRight(absl::nullopt, false);
+  GetInputController()->SetPrimaryButtonRight(device()->input_device().id,
+                                              false);
   dev->ProcessEvents(mock_kernel_queue, std::size(mock_kernel_queue));
   EXPECT_EQ(4u, size());
 
   ui::MouseEvent* event;
   event = dispatched_mouse_event(0);
-  EXPECT_EQ(ui::ET_MOUSE_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kMousePressed, event->type());
   EXPECT_EQ(true, event->IsLeftMouseButton());
 
   event = dispatched_mouse_event(1);
-  EXPECT_EQ(ui::ET_MOUSE_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kMouseReleased, event->type());
   EXPECT_EQ(true, event->IsLeftMouseButton());
 
   event = dispatched_mouse_event(2);
-  EXPECT_EQ(ui::ET_MOUSE_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kMousePressed, event->type());
   EXPECT_EQ(true, event->IsRightMouseButton());
 
   event = dispatched_mouse_event(3);
-  EXPECT_EQ(ui::ET_MOUSE_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kMouseReleased, event->type());
   EXPECT_EQ(true, event->IsRightMouseButton());
 
   // Captured from Evoluent VerticalMouse 4.
@@ -740,25 +920,85 @@ TEST_F(EventConverterEvdevImplTest, ShouldSwapMouseButtonsFromUserPreference) {
   SetTestNowSeconds(1510019417);
 
   ClearDispatchedEvents();
-  GetInputController()->SetPrimaryButtonRight(absl::nullopt, true);
+  GetInputController()->SetPrimaryButtonRight(device()->input_device().id,
+                                              true);
   dev->ProcessEvents(mock_kernel_queue2, std::size(mock_kernel_queue2));
   EXPECT_EQ(4u, size());
 
   event = dispatched_mouse_event(0);
-  EXPECT_EQ(ui::ET_MOUSE_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kMousePressed, event->type());
   EXPECT_EQ(true, event->IsRightMouseButton());
 
   event = dispatched_mouse_event(1);
-  EXPECT_EQ(ui::ET_MOUSE_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kMouseReleased, event->type());
   EXPECT_EQ(true, event->IsRightMouseButton());
 
   event = dispatched_mouse_event(2);
-  EXPECT_EQ(ui::ET_MOUSE_PRESSED, event->type());
+  EXPECT_EQ(ui::EventType::kMousePressed, event->type());
   EXPECT_EQ(true, event->IsLeftMouseButton());
 
   event = dispatched_mouse_event(3);
-  EXPECT_EQ(ui::ET_MOUSE_RELEASED, event->type());
+  EXPECT_EQ(ui::EventType::kMouseReleased, event->type());
   EXPECT_EQ(true, event->IsLeftMouseButton());
+}
+
+TEST_F(DeferDeviceSetUpEventConverterEvdevImplTest,
+       DisableBlockTelephonyDevicePhoneMute) {
+  // By default Block Phone Mic Mute is enabled. We disable it and validate that
+  // events are processed.
+  scoped_feature_list_->InitAndDisableFeature(
+      ui::kBlockTelephonyDevicePhoneMute);
+  SetUpDevice(ui::EventDeviceInfo());
+  ui::MockEventConverterEvdevImpl* dev = device();
+
+  struct input_event mock_kernel_queue[] = {
+      {{0, 0}, EV_MSC, MSC_SCAN, 0x0b002f},
+      {{0, 0}, EV_KEY, KEY_MICMUTE, 1},
+      {{0, 0}, EV_SYN, SYN_REPORT, 0},
+
+      {{0, 0}, EV_MSC, MSC_SCAN, 0x0b002f},
+      {{0, 0}, EV_KEY, KEY_MICMUTE, 0},
+      {{0, 0}, EV_SYN, SYN_REPORT, 0},
+  };
+
+  dev->ProcessEvents(mock_kernel_queue, std::size(mock_kernel_queue));
+  EXPECT_EQ(2u, size());
+
+  ui::KeyEvent* event;
+
+  event = dispatched_event(0);
+  EXPECT_EQ(ui::EventType::kKeyPressed, event->type());
+  EXPECT_EQ(ui::VKEY_MICROPHONE_MUTE_TOGGLE, event->key_code());
+  EXPECT_EQ(0xb002fu, event->scan_code());
+  EXPECT_EQ(0, event->flags());
+
+  event = dispatched_event(1);
+  EXPECT_EQ(ui::EventType::kKeyReleased, event->type());
+  EXPECT_EQ(ui::VKEY_MICROPHONE_MUTE_TOGGLE, event->key_code());
+  EXPECT_EQ(0xb002fu, event->scan_code());
+  EXPECT_EQ(0, event->flags());
+}
+
+TEST_F(DeferDeviceSetUpEventConverterEvdevImplTest,
+       EnableBlockTelephonyDevicePhoneMute) {
+  // We enable the flag it and validate that events are not processed.
+  scoped_feature_list_->InitAndEnableFeature(
+      ui::kBlockTelephonyDevicePhoneMute);
+  SetUpDevice(ui::EventDeviceInfo());
+  ui::MockEventConverterEvdevImpl* dev = device();
+
+  struct input_event mock_kernel_queue[] = {
+      {{0, 0}, EV_MSC, MSC_SCAN, 0x0b002f},
+      {{0, 0}, EV_KEY, KEY_MICMUTE, 1},
+      {{0, 0}, EV_SYN, SYN_REPORT, 0},
+
+      {{0, 0}, EV_MSC, MSC_SCAN, 0x0b002f},
+      {{0, 0}, EV_KEY, KEY_MICMUTE, 0},
+      {{0, 0}, EV_SYN, SYN_REPORT, 0},
+  };
+
+  dev->ProcessEvents(mock_kernel_queue, std::size(mock_kernel_queue));
+  EXPECT_EQ(0u, size());
 }
 
 TEST_F(DeferDeviceSetUpEventConverterEvdevImplTest, KeyboardHasKeys) {
@@ -773,4 +1013,245 @@ TEST_F(DeferDeviceSetUpEventConverterEvdevImplTest, KeyboardHasKeys) {
   EXPECT_TRUE(ui::EvdevBitUint64IsSet(key_bits.data(), 30));
   // BTN_A shouldn't be supported.
   EXPECT_FALSE(ui::EvdevBitUint64IsSet(key_bits.data(), 305));
+}
+
+#if BUILDFLAG(IS_CHROMEOS)
+TEST_F(DeferDeviceSetUpEventConverterEvdevImplTest,
+       ShouldInvokeValidInputCallbackForInternalKeyboard) {
+  // Setup device to be jinlon internal keyboard.
+  ui::EventDeviceInfo devinfo;
+  CapabilitiesToDeviceInfo(ui::kJinlonKeyboard, &devinfo);
+  SetUpDevice(devinfo);
+
+  ui::MockEventConverterEvdevImpl* dev = device();
+  base::MockCallback<ui::EventConverterEvdev::ReceivedValidInputCallback>
+      keyboard_used;
+  EXPECT_CALL(keyboard_used, Run(_, DoubleNear(620.170, kThreshold)));
+
+  static_cast<ui::EventConverterEvdev*>(dev)->SetReceivedValidInputCallback(
+      keyboard_used.Get());
+
+  struct input_event mock_kernel_queue[] = {
+      {{620, 170000}, EV_MSC, MSC_SCAN, 0x70004},
+      {{620, 170000}, EV_KEY, KEY_A, 1},
+      {{620, 170000}, EV_SYN, SYN_REPORT, 0},
+
+      {{620, 170010}, EV_MSC, MSC_SCAN, 0x70004},
+      {{620, 170010}, EV_KEY, KEY_A, 0},
+      {{620, 170010}, EV_SYN, SYN_REPORT, 0},
+  };
+  SetTestNowSeconds(621);
+
+  dev->ProcessEvents(mock_kernel_queue, std::size(mock_kernel_queue));
+  ASSERT_EQ(2u, size());
+}
+
+TEST_F(DeferDeviceSetUpEventConverterEvdevImplTest,
+       MicrophoneMuteTogglingPhoneMuteScanCode) {
+  SetUpDevice(ui::EventDeviceInfo());
+  ui::MockEventConverterEvdevImpl* dev = device();
+
+  // Telephony device phone mute scan code.
+  struct input_event mock_kernel_queue[] = {
+      {{0, 0}, EV_MSC, MSC_SCAN, 0x0b002f},
+      {{0, 0}, EV_KEY, KEY_MICMUTE, 1},
+      {{0, 0}, EV_SYN, SYN_REPORT, 0},
+
+      {{0, 0}, EV_MSC, MSC_SCAN, 0x0b002f},
+      {{0, 0}, EV_KEY, KEY_MICMUTE, 0},
+      {{0, 0}, EV_SYN, SYN_REPORT, 0},
+  };
+
+  dev->ProcessEvents(mock_kernel_queue, std::size(mock_kernel_queue));
+  histogram_tester_.ExpectUniqueSample(
+      ui::kMicrophoneMuteToggleDevicesHistogramName,
+      ui::MicrophoneMuteToggleDevices::kPhoneMuteOtherNotKeyboard, 1);
+}
+
+TEST_F(DeferDeviceSetUpEventConverterEvdevImplTest,
+       MicrophoneMuteTogglingSystemMuteScanCode) {
+  SetUpDevice(ui::EventDeviceInfo());
+  ui::MockEventConverterEvdevImpl* dev = device();
+
+  // System microphone mute scan code.
+  struct input_event mock_kernel_queue[] = {
+      {{0, 0}, EV_MSC, MSC_SCAN, 0x0100a9},
+      {{0, 0}, EV_KEY, KEY_MICMUTE, 1},
+      {{0, 0}, EV_SYN, SYN_REPORT, 0},
+
+      {{0, 0}, EV_MSC, MSC_SCAN, 0x0100a9},
+      {{0, 0}, EV_KEY, KEY_MICMUTE, 0},
+      {{0, 0}, EV_SYN, SYN_REPORT, 0},
+  };
+
+  dev->ProcessEvents(mock_kernel_queue, std::size(mock_kernel_queue));
+  histogram_tester_.ExpectUniqueSample(
+      ui::kMicrophoneMuteToggleDevicesHistogramName,
+      ui::MicrophoneMuteToggleDevices::kSystemMicrophoneMuteOtherNotKeyboard,
+      1);
+}
+
+TEST_F(DeferDeviceSetUpEventConverterEvdevImplTest,
+       MicrophoneMuteTogglingStartOrStopMicCaptureScanCode) {
+  SetUpDevice(ui::EventDeviceInfo());
+  ui::MockEventConverterEvdevImpl* dev = device();
+
+  // Start or stop microphone capture scan code.
+  struct input_event mock_kernel_queue[] = {
+      {{0, 0}, EV_MSC, MSC_SCAN, 0x0c00d5},
+      {{0, 0}, EV_KEY, KEY_MICMUTE, 1},
+      {{0, 0}, EV_SYN, SYN_REPORT, 0},
+
+      {{0, 0}, EV_MSC, MSC_SCAN, 0x0c00d5},
+      {{0, 0}, EV_KEY, KEY_MICMUTE, 0},
+      {{0, 0}, EV_SYN, SYN_REPORT, 0},
+  };
+
+  dev->ProcessEvents(mock_kernel_queue, std::size(mock_kernel_queue));
+  histogram_tester_.ExpectUniqueSample(
+      ui::kMicrophoneMuteToggleDevicesHistogramName,
+      ui::MicrophoneMuteToggleDevices::
+          kStartOrStopMicrophoneCaptureOtherNotKeyboard,
+      1);
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+// Verify log conversions for EventDeviceInfoImpl, base EventDeviceInfo,
+// and InputDevice member.
+TEST_F(EventConverterEvdevImplLogTest, Basic) {
+  Check(ui::EventDeviceInfo(), kDefaultDeviceLogDescription);
+}
+
+TEST_F(EventConverterEvdevImplLogTest, BasicKeyboard) {
+  ui::EventDeviceInfo devinfo;
+  ui::CapabilitiesToDeviceInfo(ui::kLogitechKeyboardK120, &devinfo);
+  Check(devinfo, kLogitechKeyboardK120LogDescription);
+}
+
+TEST_F(EventConverterEvdevImplLogTest, BasicStylusGarage) {
+  ui::EventDeviceInfo devinfo;
+  ui::CapabilitiesToDeviceInfo(ui::kDrawciaStylusGarage, &devinfo);
+  Check(devinfo, kDrawciaStylusGarageLogDescription);
+}
+
+TEST_F(EventConverterEvdevImplLogTest, BasicTouchpad) {
+  ui::EventDeviceInfo devinfo;
+  ui::CapabilitiesToDeviceInfo(ui::kRedrixTouchpad, &devinfo);
+  Check(devinfo, kRedrixTouchpadLogDescription);
+}
+
+// Twiddle each field that can reasonably be changed independently.
+TEST_F(EventConverterEvdevImplLogTest, ChangeVendor) {
+  ui::EventDeviceInfo devinfo;
+  AdjustId(devinfo, &input_id::vendor, 0x0ABC);
+
+  std::string log = LogSubst(kDefaultDeviceLogDescription, "vendor_id", "0ABC");
+  Check(devinfo, log);
+}
+
+TEST_F(EventConverterEvdevImplLogTest, ChangeProduct) {
+  ui::EventDeviceInfo devinfo;
+  AdjustId(devinfo, &input_id::product, 0x0105);
+
+  std::string log =
+      LogSubst(kDefaultDeviceLogDescription, "product_id", "0105");
+  Check(devinfo, log);
+}
+
+TEST_F(EventConverterEvdevImplLogTest, ChangeVersion) {
+  ui::EventDeviceInfo devinfo;
+  AdjustId(devinfo, &input_id::version, 0xDEF0);
+
+  std::string log = LogSubst(kDefaultDeviceLogDescription, "version", "DEF0");
+  Check(devinfo, log);
+}
+
+TEST_F(EventConverterEvdevImplLogTest, ChangeName) {
+  ui::EventDeviceInfo devinfo;
+  devinfo.SetName("changed the name");
+
+  std::string log =
+      LogSubst(kDefaultDeviceLogDescription, "name", "\"changed the name\"");
+  Check(devinfo, log);
+}
+
+TEST_F(EventConverterEvdevImplLogTest, ChangeInputDeviceType) {
+  ui::EventDeviceInfo devinfo;
+  devinfo.SetDeviceType(ui::InputDeviceType::INPUT_DEVICE_USB);
+
+  std::string log = LogSubst(kDefaultDeviceLogDescription, "input_device_type",
+                             "ui::InputDeviceType::INPUT_DEVICE_USB");
+  Check(devinfo, log);
+}
+
+TEST_F(EventConverterEvdevImplLogTest, ChangeEnabled) {
+  ui::EventDeviceInfo devinfo;
+  SetUpDevice(devinfo);
+
+  device()->SetEnabled(false);
+
+  std::stringstream output;
+  device()->DescribeForLog(output);
+  std::string log = LogSubst(kDefaultDeviceLogDescription, "enabled", "0");
+  EXPECT_EQ(output.str(), log);
+}
+
+TEST_F(EventConverterEvdevImplLogTest, ChangeKeyboardImposter) {
+  ui::EventDeviceInfo devinfo;
+  SetUpDevice(devinfo);
+
+  device()->SetSuspectedKeyboardImposter(true);
+
+  std::stringstream output;
+  device()->DescribeForLog(output);
+  std::string log = LogSubst(kDefaultDeviceLogDescription,
+                             "suspected_keyboard_imposter", "1");
+  EXPECT_EQ(output.str(), log);
+}
+
+TEST_F(EventConverterEvdevImplLogTest, ChangeMouseImposter) {
+  ui::EventDeviceInfo devinfo;
+  SetUpDevice(devinfo);
+
+  device()->SetSuspectedMouseImposter(true);
+
+  std::stringstream output;
+  device()->DescribeForLog(output);
+  std::string log =
+      LogSubst(kDefaultDeviceLogDescription, "suspected_mouse_imposter", "1");
+  EXPECT_EQ(output.str(), log);
+}
+
+TEST_F(EventConverterEvdevImplLogTest, ChangeKeyboardType) {
+  ui::EventDeviceInfo devinfo;
+
+  std::array<unsigned long, EVDEV_BITS_TO_LONGS(EV_CNT)> ev_bits = {};
+  std::array<unsigned long, EVDEV_BITS_TO_LONGS(KEY_CNT)> key_bits = {};
+  ui::EvdevSetBit(ev_bits.data(), EV_KEY);
+  for (int key = KEY_ESC; key <= KEY_D; key++) {
+    ui::EvdevSetBit(key_bits.data(), key);
+  }
+
+  devinfo.SetEventTypes(ev_bits.data(), ev_bits.size());
+  devinfo.SetKeyEvents(key_bits.data(), key_bits.size());
+
+  std::string log = LogSubst(kDefaultDeviceLogDescription, "keyboard_type",
+                             "ui::KeyboardType::VALID_KEYBOARD");
+  Check(devinfo, log);
+}
+
+TEST_F(EventConverterEvdevImplLogTest, ChangeCapslockLED) {
+  ui::EventDeviceInfo devinfo;
+
+  std::array<unsigned long, EVDEV_BITS_TO_LONGS(EV_CNT)> ev_bits = {};
+  std::array<unsigned long, EVDEV_BITS_TO_LONGS(LED_CNT)> led_bits = {};
+  ui::EvdevSetBit(ev_bits.data(), EV_LED);
+  ui::EvdevSetBit(led_bits.data(), LED_CAPSL);
+
+  devinfo.SetEventTypes(ev_bits.data(), ev_bits.size());
+  devinfo.SetLedEvents(led_bits.data(), led_bits.size());
+
+  std::string log =
+      LogSubst(kDefaultDeviceLogDescription, "has_caps_lock_led", "1");
+  Check(devinfo, log);
 }

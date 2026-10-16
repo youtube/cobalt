@@ -6,6 +6,7 @@
 #define QUICHE_BALSA_NOOP_BALSA_VISITOR_H_
 
 #include <cstddef>
+#include <memory>
 
 #include "absl/strings/string_view.h"
 #include "quiche/balsa/balsa_visitor_interface.h"
@@ -30,11 +31,9 @@ class QUICHE_EXPORT NoOpBalsaVisitor : public BalsaVisitorInterface {
   void OnRawBodyInput(absl::string_view /*input*/) override {}
   void OnBodyChunkInput(absl::string_view /*input*/) override {}
   void OnHeaderInput(absl::string_view /*input*/) override {}
-  void OnHeader(absl::string_view /*key*/,
-                absl::string_view /*value*/) override {}
   void OnTrailerInput(absl::string_view /*input*/) override {}
   void ProcessHeaders(const BalsaHeaders& /*headers*/) override {}
-  void ProcessTrailers(const BalsaHeaders& /*trailer*/) override {}
+  void OnTrailers(std::unique_ptr<BalsaHeaders> /*trailers*/) override {}
 
   void OnRequestFirstLineInput(absl::string_view /*line_input*/,
                                absl::string_view /*method_input*/,
@@ -46,7 +45,7 @@ class QUICHE_EXPORT NoOpBalsaVisitor : public BalsaVisitorInterface {
                                 absl::string_view /*reason_input*/) override {}
   void OnChunkLength(size_t /*chunk_length*/) override {}
   void OnChunkExtensionInput(absl::string_view /*input*/) override {}
-  void OnInterimHeaders(BalsaHeaders /*headers*/) override {}
+  void OnInterimHeaders(std::unique_ptr<BalsaHeaders> /*headers*/) override {}
   void ContinueHeaderDone() override {}
   void HeaderDone() override {}
   void MessageDone() override {}

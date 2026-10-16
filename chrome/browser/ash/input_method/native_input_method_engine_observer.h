@@ -4,29 +4,32 @@
 #ifndef CHROME_BROWSER_ASH_INPUT_METHOD_NATIVE_INPUT_METHOD_ENGINE_OBSERVER_H_
 #define CHROME_BROWSER_ASH_INPUT_METHOD_NATIVE_INPUT_METHOD_ENGINE_OBSERVER_H_
 
+#include <optional>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ash/input_method/assistive_suggester.h"
 #include "chrome/browser/ash/input_method/assistive_suggester_switch.h"
 #include "chrome/browser/ash/input_method/autocorrect_manager.h"
+#include "chrome/browser/ash/input_method/editor_event_sink.h"
 #include "chrome/browser/ash/input_method/grammar_manager.h"
 #include "chrome/browser/ash/input_method/input_method_engine.h"
 #include "chrome/browser/ash/input_method/pref_change_recorder.h"
 #include "chrome/browser/ash/input_method/suggestions_collector.h"
+#include "chrome/browser/ash/lobster/lobster_event_sink.h"
 #include "chrome/browser/ui/ash/keyboard/chrome_keyboard_controller_client.h"
 #include "chromeos/ash/services/ime/public/cpp/assistive_suggestions.h"
 #include "chromeos/ash/services/ime/public/mojom/connection_factory.mojom.h"
 #include "chromeos/ash/services/ime/public/mojom/input_engine.mojom.h"
 #include "chromeos/ash/services/ime/public/mojom/input_method.mojom.h"
 #include "chromeos/ash/services/ime/public/mojom/input_method_host.mojom.h"
-#include "chromeos/ash/services/ime/public/mojom/japanese_settings.mojom.h"
+#include "chromeos/ash/services/ime/public/mojom/input_method_user_data.mojom.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/ime/ash/text_input_method.h"
 #include "ui/base/ime/character_composer.h"
 
@@ -48,6 +51,8 @@ class NativeInputMethodEngineObserver : public InputMethodEngineObserver,
   // to e2e Tast tests and unit tests, then dismantle this for-test-only flag.
   NativeInputMethodEngineObserver(
       PrefService* prefs,
+      EditorEventSink* editor_event_sink,
+      LobsterEventSink* lobster_event_sink,
       std::unique_ptr<InputMethodEngineObserver> ime_base_observer,
       std::unique_ptr<AssistiveSuggester> assistive_suggester,
       std::unique_ptr<AutocorrectManager> autocorrect_manager,
@@ -61,7 +66,6 @@ class NativeInputMethodEngineObserver : public InputMethodEngineObserver,
   void OnFocus(const std::string& engine_id,
                int context_id,
                const TextInputMethod::InputContext& context) override;
-  void OnTouch(ui::EventPointerType pointerType) override;
   void OnBlur(const std::string& engine_id, int context_id) override;
   void OnKeyEvent(const std::string& engine_id,
                   const ui::KeyEvent& event,
@@ -101,17 +105,26 @@ class NativeInputMethodEngineObserver : public InputMethodEngineObserver,
   void FinishComposition() override;
   void DeleteSurroundingText(uint32_t num_before_cursor,
                              uint32_t num_after_cursor) override;
+  void ReplaceSurroundingText(uint32_t num_before_cursor,
+                              uint32_t num_after_cursor,
+                              const std::u16string& text) override;
   void HandleAutocorrect(
       ime::mojom::AutocorrectSpanPtr autocorrect_span) override;
   void RequestSuggestions(ime::mojom::SuggestionsRequestPtr request,
                           RequestSuggestionsCallback callback) override;
   void DisplaySuggestions(
-      const std::vector<ime::AssistiveSuggestion>& suggestions) override;
+      const std::vector<ime::AssistiveSuggestion>& suggestions,
+      const std::optional<ime::SuggestionsTextContext>& context) override;
   void UpdateCandidatesWindow(ime::mojom::CandidatesWindowPtr window) override;
   void RecordUkm(ime::mojom::UkmEntryPtr entry) override;
-  void ReportKoreanAction(ime::mojom::KoreanAction action) override;
-  void ReportKoreanSettings(ime::mojom::KoreanSettingsPtr settings) override;
-  void ReportSuggestionOpportunity(ime::AssistiveSuggestionMode mode) override;
+  void DEPRECATED_ReportKoreanAction(ime::mojom::KoreanAction action) override;
+  void DEPRECATED_ReportKoreanSettings(
+      ime::mojom::KoreanSettingsPtr settings) override;
+  void DEPRECATED_ReportSuggestionOpportunity(
+      ime::AssistiveSuggestionMode mode) override;
+  void DEPRECATED_ReportHistogramSample(
+      ime::mojom::BucketedHistogramPtr histogram,
+      uint16_t value) override;
   void UpdateQuickSettings(
       ime::mojom::InputMethodQuickSettingsPtr quick_settings) override;
 
@@ -155,9 +168,10 @@ class NativeInputMethodEngineObserver : public InputMethodEngineObserver,
 
   void OnConnectionFactoryBound(bool bound);
 
-  void OnJapaneseSettingsReceived(ime::mojom::JapaneseConfigPtr config);
-  void OnJapaneseDecoderConnected(bool bound);
   void ConnectToImeService(const std::string& engine_id);
+
+  void SetJapanesePrefsFromLegacyConfig(
+      ime::mojom::JapaneseLegacyConfigResponsePtr response);
 
   void HandleOnFocusAsyncForNativeMojoEngine(
       const std::string& engine_id,
@@ -172,15 +186,16 @@ class NativeInputMethodEngineObserver : public InputMethodEngineObserver,
                   bool on_focus_success,
                   ime::mojom::InputMethodMetadataPtr metadata);
 
-  raw_ptr<PrefService, ExperimentalAsh> prefs_ = nullptr;
+  // Not owned by this class.
+  raw_ptr<PrefService> prefs_ = nullptr;
+  raw_ptr<EditorEventSink> editor_event_sink_;
+  raw_ptr<LobsterEventSink> lobster_event_sink_;
 
   std::unique_ptr<InputMethodEngineObserver> ime_base_observer_;
   mojo::Remote<ime::mojom::InputEngineManager> remote_manager_;
   mojo::Remote<ime::mojom::ConnectionFactory> connection_factory_;
+  mojo::Remote<ime::mojom::InputMethodUserDataService> user_data_service_;
   mojo::AssociatedRemote<ime::mojom::InputMethod> input_method_;
-  // TODO(b/232341104): Delete this connection once Japanese settings have been
-  // migrated completely
-  mojo::AssociatedRemote<ime::mojom::JapaneseDecoder> japanese_decoder_;
   mojo::AssociatedReceiver<ime::mojom::InputMethodHost> host_receiver_{this};
 
   std::unique_ptr<AssistiveSuggester> assistive_suggester_;
@@ -188,13 +203,13 @@ class NativeInputMethodEngineObserver : public InputMethodEngineObserver,
   std::unique_ptr<SuggestionsCollector> suggestions_collector_;
   std::unique_ptr<GrammarManager> grammar_manager_;
 
-  absl::optional<PrefChangeRecorder> pref_change_recorder_;
+  std::optional<PrefChangeRecorder> pref_change_recorder_;
 
   ui::CharacterComposer character_composer_;
 
   SurroundingText last_surrounding_text_;
 
-  absl::optional<TextClient> text_client_;
+  std::optional<TextClient> text_client_;
 
   // |use_ime_service| should always be |true| in prod code, and may only be
   // |false| in browser tests that need to avoid connecting to the Mojo IME

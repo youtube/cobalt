@@ -68,9 +68,9 @@ void HttpErrorNavigationThrottle::OnBodyReadable(MojoResult) {
       NavigationRequest::From(navigation_handle())->response_body();
   // See how many bytes are in the body, without consuming anything from the
   // response body data pipe.
-  uint32_t num_bytes = 0;
-  MojoResult result =
-      body.ReadData(nullptr, &num_bytes, MOJO_READ_DATA_FLAG_QUERY);
+  size_t num_bytes = 0;
+  MojoResult result = body.ReadData(MOJO_READ_DATA_FLAG_QUERY,
+                                    base::span<uint8_t>(), num_bytes);
 
   switch (result) {
     case MOJO_RESULT_OK:
@@ -86,7 +86,6 @@ void HttpErrorNavigationThrottle::OnBodyReadable(MojoResult) {
       return;
     default:
       NOTREACHED();
-      return;
   }
 
   // Stop watching for signals.

@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/342213636): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "content/public/test/test_download_http_response.h"
 
 #include <inttypes.h>
 
 #include <algorithm>
 
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
@@ -138,9 +144,7 @@ TestDownloadHttpResponse::Parameters::Parameters()
       size(102400),
       pattern_generator_seed(1),
       support_byte_ranges(true),
-      support_partial_response(true),
-      connection_type(
-          net::HttpResponseInfo::ConnectionInfo::CONNECTION_INFO_UNKNOWN) {}
+      support_partial_response(true) {}
 
 TestDownloadHttpResponse::Parameters::Parameters(const Parameters& that) =
     default;
@@ -176,10 +180,9 @@ void TestDownloadHttpResponse::StartServing(
     const TestDownloadHttpResponse::Parameters& parameters,
     const GURL& url) {
   base::AutoLock lock(*g_lock.Pointer());
-  auto iter = g_parameters_map.Get().find(url);
-  if (iter != g_parameters_map.Get().end())
-    g_parameters_map.Get().erase(iter);
-  g_parameters_map.Get().emplace(url, parameters);
+  auto& parameters_map = g_parameters_map.Get();
+  parameters_map.erase(url);
+  parameters_map.emplace(url, parameters);
 }
 
 // static
@@ -330,14 +333,12 @@ std::string TestDownloadHttpResponse::GetDefaultResponseHeaders() {
   // Send partial response.
   if (parameters_.support_partial_response && parameters_.support_byte_ranges) {
     bool has_if_range =
-        request_.headers.find(net::HttpRequestHeaders::kIfRange) !=
-        request_.headers.end();
+        base::Contains(request_.headers, net::HttpRequestHeaders::kIfRange);
     if (((has_if_range &&
           request_.headers.at(net::HttpRequestHeaders::kIfRange) ==
               parameters_.etag) ||
          (!has_if_range &&
-          request_.headers.find(net::HttpRequestHeaders::kRange) !=
-              request_.headers.end())) &&
+          base::Contains(request_.headers, net::HttpRequestHeaders::kRange))) &&
         HandleRangeAssumingValidatorMatch(headers)) {
       return headers;
     }
@@ -345,8 +346,7 @@ std::string TestDownloadHttpResponse::GetDefaultResponseHeaders() {
 
   // Send precondition failed for "If-Match" request header.
   if (parameters_.support_partial_response && parameters_.support_byte_ranges &&
-      request_.headers.find(net::HttpRequestHeaders::kIfMatch) !=
-          request_.headers.end()) {
+      base::Contains(request_.headers, net::HttpRequestHeaders::kIfMatch)) {
     if (request_.headers.at(net::HttpRequestHeaders::kIfMatch) !=
             parameters_.etag ||
         !HandleRangeAssumingValidatorMatch(headers)) {

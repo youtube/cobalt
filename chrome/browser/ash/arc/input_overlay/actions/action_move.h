@@ -12,7 +12,9 @@
 
 namespace arc::input_overlay {
 // UI specs.
-constexpr int kActionMoveMinRadius = 99;
+inline constexpr int kActionMoveMinRadius = 99;
+
+class TouchInjector;
 
 // ActionMoveKey transforms key/mouse events to touch events with touch
 // move involved.
@@ -24,8 +26,9 @@ class ActionMove : public Action {
   ~ActionMove() override;
 
   // Override from Action.
-  bool ParseFromJson(const base::Value& value) override;
-  bool InitFromEditor() override;
+  bool ParseFromJson(const base::Value::Dict& value) override;
+  bool InitByAddingNewAction(const gfx::Point& target_pos) override;
+  void InitByChangingActionType(Action* action) override;
   bool RewriteEvent(const ui::Event& origin,
                     const bool is_mouse_locked,
                     const gfx::Transform* rotation_transform,
@@ -36,6 +39,7 @@ class ActionMove : public Action {
       DisplayOverlayController* display_overlay_controller) override;
   void UnbindInput(const InputElement& input_element) override;
   std::unique_ptr<ActionProto> ConvertToProtoIfCustomized() const override;
+  ActionType GetType() const override;
 
   void set_move_distance(int move_distance) { move_distance_ = move_distance; }
   int move_distance() { return move_distance_; }
@@ -60,7 +64,7 @@ class ActionMove : public Action {
   //     {}
   //   ]
   // }
-  bool ParseJsonFromKeyboard(const base::Value& value);
+  bool ParseJsonFromKeyboard(const base::Value::Dict& value);
   // Json value format:
   // {
   //   "id": 0,
@@ -84,7 +88,7 @@ class ActionMove : public Action {
   //       {}
   //   }
   // }
-  bool ParseJsonFromMouse(const base::Value& value);
+  bool ParseJsonFromMouse(const base::Value::Dict& value);
   bool RewriteKeyEvent(const ui::KeyEvent* key_event,
                        const gfx::RectF& content_bounds,
                        const gfx::Transform* rotation_transform,
@@ -103,10 +107,9 @@ class ActionMove : public Action {
 
   // For mouse-bound move.
   // Return the bounds in the root window.
-  absl::optional<gfx::RectF> CalculateApplyArea(
-      const gfx::RectF& content_bound);
-  // Transform mouse location from app window to the |target_area_| if
-  // |target_area_| exists. Input values are in root window's coordinate system.
+  std::optional<gfx::RectF> CalculateApplyArea(const gfx::RectF& content_bound);
+  // Transform mouse location from app window to the `target_area_` if
+  // `target_area_` exists. Input values are in root window's coordinate system.
   // Return the point pixel to the host window's.
   gfx::PointF TransformLocationInPixels(const gfx::RectF& content_bounds,
                                         const gfx::PointF& point);

@@ -7,19 +7,24 @@
 
 #include "base/check_op.h"
 #include "base/dcheck_is_on.h"
-#include "third_party/blink/renderer/platform/graphics/graphics_types.h"
+#include "third_party/blink/renderer/platform/graphics/paint/display_item_client_types.h"
 #include "third_party/blink/renderer/platform/graphics/paint_invalidation_reason.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/assertions.h"
 #include "third_party/blink/renderer/platform/wtf/hash_functions.h"
 #include "third_party/blink/renderer/platform/wtf/hash_traits.h"
+#include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 #include "ui/gfx/geometry/rect.h"
 
 #if DCHECK_IS_ON()
 #include "third_party/blink/renderer/platform/json/json_values.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #endif
+
+namespace WTF {
+class String;
+}  // namespace WTF
 
 namespace blink {
 
@@ -125,6 +130,9 @@ class PLATFORM_EXPORT DisplayItem {
     // include content that does not paint. Hit test data ensure a layer exists
     // and is sized properly even if no content would otherwise be painted.
     kHitTest,
+    // Web plugin needs a separate id to avoid conflict with the hit test data
+    // for LayoutReplaced.
+    kWebPluginHitTest,
 
     // Used for paint chunks that contain region capture data.
     kRegionCapture,
@@ -134,8 +142,6 @@ class PLATFORM_EXPORT DisplayItem {
     kScrollHitTest,
     // Used to prevent composited scrolling on the resize handle.
     kResizerScrollHitTest,
-    // Used to prevent composited scrolling on plugins with wheel handlers.
-    kPluginScrollHitTest,
     // Used to prevent composited scrolling and set touch action region, on
     // custom scrollbars and non-composited native scrollbars.
     kScrollbarHitTest,
@@ -171,9 +177,9 @@ class PLATFORM_EXPORT DisplayItem {
 
     // The no-argument version is for operator<< which is used in DCHECK and
     // unit tests.
-    String ToString() const;
+    WTF::String ToString() const;
     // This version will output the debug name of the client.
-    String ToString(const PaintArtifact&) const;
+    WTF::String ToString(const PaintArtifact&) const;
 
     const DisplayItemClientId client_id;
     const Type type;
@@ -277,12 +283,10 @@ class PLATFORM_EXPORT DisplayItem {
   bool IsSubsequenceTombstone() const {
     return !is_not_tombstone_ && client_id_ == kInvalidDisplayItemClientId;
   }
-  static String TypeAsDebugString(DisplayItem::Type);
-  String AsDebugString(const PaintArtifact&) const;
-  String IdAsString(const PaintArtifact&) const;
-  void PropertiesAsJSON(JSONObject&,
-                        const PaintArtifact&,
-                        bool client_known_to_be_alive = false) const;
+  static WTF::String TypeAsDebugString(DisplayItem::Type);
+  WTF::String AsDebugString(const PaintArtifact&) const;
+  WTF::String IdAsString(const PaintArtifact&) const;
+  void PropertiesAsJSON(JSONObject&, const PaintArtifact&) const;
 #endif
 
  protected:

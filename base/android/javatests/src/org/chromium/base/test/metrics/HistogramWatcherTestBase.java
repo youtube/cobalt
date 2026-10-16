@@ -22,16 +22,17 @@ import org.chromium.base.test.util.HistogramWatcher;
  */
 public class HistogramWatcherTestBase {
     protected static final String TIMES_HISTOGRAM_1 = "TimesHistogram1";
-    protected static final String TIMES_HISTOGRAM_2 = "TimesHistogram2";
-    protected static final String TIMES_HISTOGRAM_3 = "TimesHistogram3";
     protected static final String BOOLEAN_HISTOGRAM = "BooleanHistogram";
     protected static final String EXACT_LINEAR_HISTOGRAM_1 = "ExactLinearHistogram"; // max 10
     protected static final String EXACT_LINEAR_HISTOGRAM_2 = "ExactLinearHistogram2"; // max 20
     protected static final String EXACT_LINEAR_HISTOGRAM_3 = "ExactLinearHistogram3"; // max 30
     protected static final String ENUM_HISTOGRAM = "EnumHistogram"; // max 10
 
-    @IntDef({TestScenario.WITHOUT_NATIVE, TestScenario.TRANSITION_TO_NATIVE,
-            TestScenario.WITH_NATIVE})
+    @IntDef({
+        TestScenario.WITHOUT_NATIVE,
+        TestScenario.TRANSITION_TO_NATIVE,
+        TestScenario.WITH_NATIVE
+    })
     protected @interface TestScenario {
         int WITHOUT_NATIVE = 0;
         int TRANSITION_TO_NATIVE = 1;
@@ -63,11 +64,12 @@ public class HistogramWatcherTestBase {
     protected void doTestFourTimesHistograms_success(@TestScenario int scenario) {
         // Arrange
         maybeLoadNativeFirst(scenario);
-        mWatcher = HistogramWatcher.newBuilder()
-                           .expectIntRecord(TIMES_HISTOGRAM_1, 6000)
-                           .expectIntRecord(TIMES_HISTOGRAM_1, 7000)
-                           .expectIntRecordTimes(TIMES_HISTOGRAM_1, 8000, 2)
-                           .build();
+        mWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(TIMES_HISTOGRAM_1, 6000)
+                        .expectIntRecord(TIMES_HISTOGRAM_1, 7000)
+                        .expectIntRecordTimes(TIMES_HISTOGRAM_1, 8000, 2)
+                        .build();
 
         // Act
         RecordHistogram.recordTimesHistogram(TIMES_HISTOGRAM_1, 6000);
@@ -83,11 +85,12 @@ public class HistogramWatcherTestBase {
     protected void doTestExtraRecord_failure(@TestScenario int scenario) {
         // Arrange
         maybeLoadNativeFirst(scenario);
-        mWatcher = HistogramWatcher.newBuilder()
-                           .expectIntRecord(TIMES_HISTOGRAM_1, 6000)
-                           .expectIntRecord(TIMES_HISTOGRAM_1, 7000)
-                           .expectIntRecordTimes(TIMES_HISTOGRAM_1, 8000, 2)
-                           .build();
+        mWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(TIMES_HISTOGRAM_1, 6000)
+                        .expectIntRecord(TIMES_HISTOGRAM_1, 7000)
+                        .expectIntRecordTimes(TIMES_HISTOGRAM_1, 8000, 2)
+                        .build();
 
         // Act
         RecordHistogram.recordTimesHistogram(TIMES_HISTOGRAM_1, 6000);
@@ -114,12 +117,13 @@ public class HistogramWatcherTestBase {
     protected void doTestExtraRecordAllowed_success(@TestScenario int scenario) {
         // Arrange
         maybeLoadNativeFirst(scenario);
-        mWatcher = HistogramWatcher.newBuilder()
-                           .expectIntRecord(ENUM_HISTOGRAM, 6)
-                           .expectIntRecord(ENUM_HISTOGRAM, 7)
-                           .expectIntRecordTimes(ENUM_HISTOGRAM, 8, 2)
-                           .allowExtraRecordsForHistogramsAbove()
-                           .build();
+        mWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(ENUM_HISTOGRAM, 6)
+                        .expectIntRecord(ENUM_HISTOGRAM, 7)
+                        .expectIntRecordTimes(ENUM_HISTOGRAM, 8, 2)
+                        .allowExtraRecordsForHistogramsAbove()
+                        .build();
 
         // Act
         RecordHistogram.recordEnumeratedHistogram(ENUM_HISTOGRAM, 6, 10);
@@ -137,12 +141,13 @@ public class HistogramWatcherTestBase {
     protected void doTestExtraRecordAllowed_failure(@TestScenario int scenario) {
         // Arrange
         maybeLoadNativeFirst(scenario);
-        mWatcher = HistogramWatcher.newBuilder()
-                           .expectIntRecord(ENUM_HISTOGRAM, 6)
-                           .expectIntRecord(ENUM_HISTOGRAM, 7)
-                           .expectIntRecordTimes(ENUM_HISTOGRAM, 8, 2)
-                           .allowExtraRecordsForHistogramsAbove()
-                           .build();
+        mWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(ENUM_HISTOGRAM, 6)
+                        .expectIntRecord(ENUM_HISTOGRAM, 7)
+                        .expectIntRecordTimes(ENUM_HISTOGRAM, 8, 2)
+                        .allowExtraRecordsForHistogramsAbove()
+                        .build();
 
         // Act
         RecordHistogram.recordEnumeratedHistogram(ENUM_HISTOGRAM, 6, 10);
@@ -167,10 +172,11 @@ public class HistogramWatcherTestBase {
     protected void doTestExtraRecordAllowedAny_success(@TestScenario int scenario) {
         // Arrange
         maybeLoadNativeFirst(scenario);
-        mWatcher = HistogramWatcher.newBuilder()
-                           .expectAnyRecordTimes(BOOLEAN_HISTOGRAM, 3)
-                           .allowExtraRecordsForHistogramsAbove()
-                           .build();
+        mWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectAnyRecordTimes(BOOLEAN_HISTOGRAM, 3)
+                        .allowExtraRecordsForHistogramsAbove()
+                        .build();
 
         // Act
         RecordHistogram.recordBooleanHistogram(BOOLEAN_HISTOGRAM, false);
@@ -186,10 +192,11 @@ public class HistogramWatcherTestBase {
     protected void doTestExtraRecordAllowedAny_failure(@TestScenario int scenario) {
         // Arrange
         maybeLoadNativeFirst(scenario);
-        mWatcher = HistogramWatcher.newBuilder()
-                           .expectAnyRecordTimes(BOOLEAN_HISTOGRAM, 3)
-                           .allowExtraRecordsForHistogramsAbove()
-                           .build();
+        mWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectAnyRecordTimes(BOOLEAN_HISTOGRAM, 3)
+                        .allowExtraRecordsForHistogramsAbove()
+                        .build();
 
         // Act
         RecordHistogram.recordBooleanHistogram(BOOLEAN_HISTOGRAM, false);
@@ -211,11 +218,12 @@ public class HistogramWatcherTestBase {
     protected void doTestMissingLastRecord_failure(@TestScenario int scenario) {
         // Arrange
         maybeLoadNativeFirst(scenario);
-        mWatcher = HistogramWatcher.newBuilder()
-                           .expectIntRecord(TIMES_HISTOGRAM_1, 6000)
-                           .expectIntRecord(TIMES_HISTOGRAM_1, 7000)
-                           .expectIntRecordTimes(TIMES_HISTOGRAM_1, 8000, 2)
-                           .build();
+        mWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(TIMES_HISTOGRAM_1, 6000)
+                        .expectIntRecord(TIMES_HISTOGRAM_1, 7000)
+                        .expectIntRecordTimes(TIMES_HISTOGRAM_1, 8000, 2)
+                        .build();
 
         // Act
         RecordHistogram.recordTimesHistogram(TIMES_HISTOGRAM_1, 6000);
@@ -321,14 +329,15 @@ public class HistogramWatcherTestBase {
     protected void doTestMultipleHistograms_success(@TestScenario int scenario) {
         // Arrange
         maybeLoadNativeFirst(scenario);
-        mWatcher = HistogramWatcher.newBuilder()
-                           .expectIntRecord(EXACT_LINEAR_HISTOGRAM_1, 5)
-                           .expectIntRecord(EXACT_LINEAR_HISTOGRAM_1, 6)
-                           .expectIntRecord(EXACT_LINEAR_HISTOGRAM_2, 15)
-                           .expectIntRecord(EXACT_LINEAR_HISTOGRAM_2, 16)
-                           .expectIntRecord(EXACT_LINEAR_HISTOGRAM_3, 25)
-                           .expectIntRecord(EXACT_LINEAR_HISTOGRAM_3, 26)
-                           .build();
+        mWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(EXACT_LINEAR_HISTOGRAM_1, 5)
+                        .expectIntRecord(EXACT_LINEAR_HISTOGRAM_1, 6)
+                        .expectIntRecord(EXACT_LINEAR_HISTOGRAM_2, 15)
+                        .expectIntRecord(EXACT_LINEAR_HISTOGRAM_2, 16)
+                        .expectIntRecord(EXACT_LINEAR_HISTOGRAM_3, 25)
+                        .expectIntRecord(EXACT_LINEAR_HISTOGRAM_3, 26)
+                        .build();
 
         // Act
         RecordHistogram.recordExactLinearHistogram(EXACT_LINEAR_HISTOGRAM_1, 5, 10);
@@ -346,14 +355,15 @@ public class HistogramWatcherTestBase {
     protected void doTestMultipleHistograms_failure(@TestScenario int scenario) {
         // Arrange
         maybeLoadNativeFirst(scenario);
-        mWatcher = HistogramWatcher.newBuilder()
-                           .expectIntRecord(EXACT_LINEAR_HISTOGRAM_1, 5)
-                           .expectIntRecord(EXACT_LINEAR_HISTOGRAM_1, 6)
-                           .expectIntRecord(EXACT_LINEAR_HISTOGRAM_2, 15)
-                           .expectIntRecord(EXACT_LINEAR_HISTOGRAM_2, 16)
-                           .expectIntRecord(EXACT_LINEAR_HISTOGRAM_3, 25)
-                           .expectIntRecord(EXACT_LINEAR_HISTOGRAM_3, 26)
-                           .build();
+        mWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(EXACT_LINEAR_HISTOGRAM_1, 5)
+                        .expectIntRecord(EXACT_LINEAR_HISTOGRAM_1, 6)
+                        .expectIntRecord(EXACT_LINEAR_HISTOGRAM_2, 15)
+                        .expectIntRecord(EXACT_LINEAR_HISTOGRAM_2, 16)
+                        .expectIntRecord(EXACT_LINEAR_HISTOGRAM_3, 25)
+                        .expectIntRecord(EXACT_LINEAR_HISTOGRAM_3, 26)
+                        .build();
 
         // Act
         RecordHistogram.recordExactLinearHistogram(EXACT_LINEAR_HISTOGRAM_1, 5, 10);
@@ -379,9 +389,10 @@ public class HistogramWatcherTestBase {
     protected void doTestExpectIntRecords_success(@TestScenario int scenario) {
         // Arrange
         maybeLoadNativeFirst(scenario);
-        mWatcher = HistogramWatcher.newBuilder()
-                           .expectIntRecords(EXACT_LINEAR_HISTOGRAM_1, 5, 7, 6, 5)
-                           .build();
+        mWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(EXACT_LINEAR_HISTOGRAM_1, 5, 7, 6, 5)
+                        .build();
 
         // Act
         RecordHistogram.recordExactLinearHistogram(EXACT_LINEAR_HISTOGRAM_1, 6, 10);
@@ -397,9 +408,10 @@ public class HistogramWatcherTestBase {
     protected void doTestExpectIntRecords_failure(@TestScenario int scenario) {
         // Arrange
         maybeLoadNativeFirst(scenario);
-        mWatcher = HistogramWatcher.newBuilder()
-                           .expectIntRecords(EXACT_LINEAR_HISTOGRAM_1, 5, 7, 6, 5)
-                           .build();
+        mWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(EXACT_LINEAR_HISTOGRAM_1, 5, 7, 6, 5)
+                        .build();
 
         // Act
         RecordHistogram.recordExactLinearHistogram(EXACT_LINEAR_HISTOGRAM_1, 6, 10);
@@ -438,11 +450,12 @@ public class HistogramWatcherTestBase {
     protected void doTestMissingFirstRecord_failure(@TestScenario int scenario) {
         // Arrange
         maybeLoadNativeFirst(scenario);
-        mWatcher = HistogramWatcher.newBuilder()
-                           .expectIntRecord(TIMES_HISTOGRAM_1, 6000)
-                           .expectIntRecord(TIMES_HISTOGRAM_1, 7000)
-                           .expectIntRecord(TIMES_HISTOGRAM_1, 8000)
-                           .build();
+        mWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(TIMES_HISTOGRAM_1, 6000)
+                        .expectIntRecord(TIMES_HISTOGRAM_1, 7000)
+                        .expectIntRecord(TIMES_HISTOGRAM_1, 8000)
+                        .build();
 
         // Act
         RecordHistogram.recordTimesHistogram(TIMES_HISTOGRAM_1, 7000);
@@ -465,11 +478,12 @@ public class HistogramWatcherTestBase {
     protected void doTestMissingMiddleRecord_failure(@TestScenario int scenario) {
         // Arrange
         maybeLoadNativeFirst(scenario);
-        mWatcher = HistogramWatcher.newBuilder()
-                           .expectIntRecord(TIMES_HISTOGRAM_1, 6000)
-                           .expectIntRecord(TIMES_HISTOGRAM_1, 7000)
-                           .expectIntRecord(TIMES_HISTOGRAM_1, 8000)
-                           .build();
+        mWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(TIMES_HISTOGRAM_1, 6000)
+                        .expectIntRecord(TIMES_HISTOGRAM_1, 7000)
+                        .expectIntRecord(TIMES_HISTOGRAM_1, 8000)
+                        .build();
 
         // Act
         RecordHistogram.recordTimesHistogram(TIMES_HISTOGRAM_1, 6000);
@@ -504,8 +518,10 @@ public class HistogramWatcherTestBase {
     protected static void assertContains(String expectedSubstring, String actualString) {
         Assert.assertNotNull(actualString);
         if (!actualString.contains(expectedSubstring)) {
-            Assert.fail(String.format(
-                    "Substring <%s> not found in string <%s>", expectedSubstring, actualString));
+            Assert.fail(
+                    String.format(
+                            "Substring <%s> not found in string <%s>",
+                            expectedSubstring, actualString));
         }
     }
 }

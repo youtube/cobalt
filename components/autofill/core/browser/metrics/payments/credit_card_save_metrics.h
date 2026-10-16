@@ -5,8 +5,8 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_METRICS_PAYMENTS_CREDIT_CARD_SAVE_METRICS_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_METRICS_PAYMENTS_CREDIT_CARD_SAVE_METRICS_H_
 
-#include "components/autofill/core/browser/autofill_client.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
+#include "components/autofill/core/browser/payments/payments_autofill_client.h"
 
 namespace autofill::autofill_metrics {
 
@@ -69,14 +69,8 @@ enum CardUploadDecision {
   // A pair of dropdowns for the user to select expiration date was surfaced
   // in the offer-to-save dialog.
   USER_REQUESTED_TO_PROVIDE_EXPIRATION_DATE = 1 << 14,
-  // All the required conditions were satisfied even though the form is
-  // unfocused after the user entered information into it.
-  UPLOAD_OFFERED_FROM_NON_FOCUSABLE_FIELD = 1 << 15,
   // The card does not satisfy any of the ranges of supported BIN ranges.
   UPLOAD_NOT_OFFERED_UNSUPPORTED_BIN_RANGE = 1 << 16,
-  // All the required conditions were satisfied even though the form is
-  // dynamic changed.
-  UPLOAD_OFFERED_FROM_DYNAMIC_CHANGE_FORM = 1 << 17,
   // The legal message was invalid.
   UPLOAD_NOT_OFFERED_INVALID_LEGAL_MESSAGE = 1 << 18,
   // Update |kNumCardUploadDecisionMetrics| when adding new enum here.
@@ -91,13 +85,13 @@ enum class CardUploadEnabled {
   kSyncServiceNull = 0,
   kSyncServicePaused = 1,
   kSyncServiceMissingAutofillWalletDataActiveType = 2,
-  kSyncServiceMissingAutofillProfileActiveType = 3,
+  kSyncServiceMissingAutofillSelectedType = 3,
   // Deprecated: kAccountWalletStorageUploadDisabled = 4,
   kUsingExplicitSyncPassphrase = 5,
   kLocalSyncEnabled = 6,
-  kPaymentsIntegrationDisabled = 7,
-  kEmailEmpty = 8,
-  kEmailDomainNotSupported = 9,
+  // Deprecated: kPaymentsIntegrationDisabled = 7,
+  // Deprecated: kEmailEmpty = 8,
+  // Deprecated: kEmailDomainNotSupported = 9,
   // Deprecated: kAutofillUpstreamDisabled = 10,
   // Deprecated: kCardUploadEnabled = 11,
   kUnsupportedCountry = 12,
@@ -105,6 +99,9 @@ enum class CardUploadEnabled {
   kEnabledByFlag = 14,
   kMaxValue = kEnabledByFlag,
 };
+
+// TODO(crbug.com/395731509): Refactor Save Card offer metrics across all
+// platforms.
 
 // Metrics to track event when the save card prompt is offered.
 enum class SaveCardPromptOffer {
@@ -116,7 +113,10 @@ enum class SaveCardPromptOffer {
   // The prompt is not shown because the prompt has been declined by the user
   // too many times.
   kNotShownMaxStrikesReached = 1,
-  kMaxValue = kNotShownMaxStrikesReached,
+  // The prompt is not shown because the required delay since last strike has
+  // not passed.
+  kNotShownRequiredDelay = 2,
+  kMaxValue = kNotShownRequiredDelay,
 };
 
 enum class SaveCardPromptResult {
@@ -184,8 +184,9 @@ void LogCardUploadDecisionsUkm(ukm::UkmRecorder* ukm_recorder,
 
 // Records the reason for why (or why not) card upload was enabled for the
 // user.
-void LogCardUploadEnabledMetric(CardUploadEnabled metric,
-                                AutofillSyncSigninState sync_state);
+void LogCardUploadEnabledMetric(
+    CardUploadEnabled metric,
+    AutofillMetrics::PaymentsSigninState sync_state);
 
 // When credit card save is not offered (either at all on mobile or by simply
 // not showing the bubble on desktop), logs the occurrence.
@@ -203,29 +204,58 @@ void LogSaveCardCardholderNamePrefilled(bool prefilled);
 // from its prefilled value or not.
 void LogSaveCardCardholderNameWasEdited(bool edited);
 
-void LogSaveCardPromptOfferMetric(SaveCardPromptOffer metric,
-                                  bool is_uploading,
-                                  bool is_reshow,
-                                  AutofillClient::SaveCreditCardOptions options,
-                                  security_state::SecurityLevel security_level,
-                                  AutofillSyncSigninState sync_state);
+void LogSaveCardPromptOfferMetric(
+    SaveCardPromptOffer metric,
+    bool is_uploading,
+    bool is_reshow,
+    payments::PaymentsAutofillClient::SaveCreditCardOptions options,
+    AutofillMetrics::PaymentsSigninState sync_state);
 
+// `has_saved_cards` indicates that local or server cards existed before the
+// save prompt was accepted/denied.
 void LogSaveCardPromptResultMetric(
     SaveCardPromptResult metric,
     bool is_uploading,
     bool is_reshow,
-    AutofillClient::SaveCreditCardOptions options,
-    security_state::SecurityLevel security_level,
-    AutofillSyncSigninState sync_state);
+    payments::PaymentsAutofillClient::SaveCreditCardOptions options,
+    AutofillMetrics::PaymentsSigninState sync_state,
+    bool has_saved_cards);
+
+void LogSaveCvcPromptOfferMetric(SaveCardPromptOffer metric,
+                                 bool is_uploading,
+                                 bool is_reshow);
+
+void LogSaveCvcPromptResultMetric(SaveCardPromptResult metric,
+                                  bool is_uploading,
+                                  bool is_reshow);
+
+void LogCvcInfoBarMetric(AutofillMetrics::InfoBarMetric metric,
+                         bool is_uploading);
 
 void LogSaveCardRequestExpirationDateReasonMetric(
     SaveCardRequestExpirationDateReason metric);
+
+void LogCreditCardUploadRanLocalSaveFallbackMetric(bool new_local_card_added);
+
+void LogCreditCardUploadLoadingViewShownMetric(bool is_shown);
+
+void LogCreditCardUploadConfirmationViewShownMetric(bool is_shown,
+                                                    bool is_card_uploaded);
+
+void LogCreditCardUploadLoadingViewResultMetric(SaveCardPromptResult metric);
+
+void LogCreditCardUploadConfirmationViewResultMetric(
+    SaveCardPromptResult metric,
+    bool is_card_uploaded);
+
+void LogGetCardUploadDetailsRequestLatencyMetric(base::TimeDelta duration,
+                                                 bool is_successful);
 
 // Clank-specific metrics.
 void LogSaveCreditCardPromptResult(
     SaveCreditCardPromptResult event,
     bool is_upload,
-    AutofillClient::SaveCreditCardOptions options);
+    payments::PaymentsAutofillClient::SaveCreditCardOptions options);
 
 }  // namespace autofill::autofill_metrics
 

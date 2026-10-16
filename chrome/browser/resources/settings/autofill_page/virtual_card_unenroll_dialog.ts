@@ -14,8 +14,8 @@ import 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
 import '../settings_shared.css.js';
 
-import {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
+import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './virtual_card_unenroll_dialog.html.js';
@@ -51,9 +51,7 @@ export class SettingsVirtualCardUnenrollDialogElement extends PolymerElement {
     };
   }
 
-  creditCard: chrome.autofillPrivate.CreditCardEntry;
-  private title_: string;
-  private label_: string;
+  declare creditCard: chrome.autofillPrivate.CreditCardEntry;
 
   close() {
     this.$.dialog.close();

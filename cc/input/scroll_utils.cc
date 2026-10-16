@@ -24,24 +24,35 @@ gfx::Vector2dF ScrollUtils::ResolveScrollPercentageToPixels(
 
   // Resolve and clamp horizontal scroll
   if (delta_x > 0)
-    delta_x = delta_x * std::min(scroller.width(), viewport.width());
+    delta_x =
+        std::max(1.0f, delta_x * std::min(scroller.width(), viewport.width()));
 
   // Resolve and clamps vertical scroll.
   if (delta_y > 0)
-    delta_y = delta_y * std::min(scroller.height(), viewport.height());
+    delta_y = std::max(
+        1.0f, delta_y * std::min(scroller.height(), viewport.height()));
 
   return gfx::Vector2dF(std::copysign(delta_x, sign_x),
                         std::copysign(delta_y, sign_y));
 }
 
-gfx::Vector2dF ScrollUtils::ResolvePixelScrollToPercentageForTesting(
-    const gfx::Vector2dF& delta,
-    const gfx::SizeF& scroller,
-    const gfx::SizeF& viewport) {
-  float delta_x = delta.x() / std::min(scroller.width(), viewport.width());
-  float delta_y = delta.y() / std::min(scroller.height(), viewport.height());
+// static
+int ScrollUtils::CalculateMinPageSnap(int length) {
+  const int min_page_step = length * kMinFractionToStepWhenSnapPaging;
+  return std::max(min_page_step, 1);
+}
 
-  return gfx::Vector2dF(delta_x, delta_y);
+// static
+int ScrollUtils::CalculateMaxPageSnap(int length) {
+  return std::max(length, 1);
+}
+
+// static
+int ScrollUtils::CalculatePageStep(int length) {
+  const int min_page_step = length * kMinFractionToStepWhenPaging;
+  const int page_step =
+      std::max(min_page_step, length - kMaxOverlapBetweenPages);
+  return std::max(page_step, 1);
 }
 
 }  // namespace cc

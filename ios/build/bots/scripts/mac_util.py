@@ -3,8 +3,10 @@
 # found in the LICENSE file.
 
 import distutils.version
+import json
 import logging
 import subprocess
+from typing import Union, Tuple
 
 LOGGER = logging.getLogger(__name__)
 
@@ -34,6 +36,28 @@ def is_macos_13_or_higher():
   """Returns true if the current MacOS version is 13 or higher"""
   return distutils.version.LooseVersion(
       '13.0') <= distutils.version.LooseVersion(version())
+
+
+def kill_usbmuxd():
+  """kills the current usbmuxd process"""
+  cmd = [
+      'sudo',
+      '/usr/bin/killall',
+      '-v',
+      'usbmuxd',
+  ]
+  subprocess.check_call(cmd)
+
+
+def stop_usbmuxd():
+  """stops the current usbmuxd process"""
+  cmd = [
+      'sudo',
+      '/bin/launchctl',
+      'stop',
+      'com.apple.usbmuxd',
+  ]
+  subprocess.check_call(cmd)
 
 
 def run_codesign_check(dir_path):

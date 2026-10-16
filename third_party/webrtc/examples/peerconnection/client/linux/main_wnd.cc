@@ -15,6 +15,7 @@
 #include <gdk/gdkkeysyms.h>
 #include <glib-object.h>
 #include <glib.h>
+#include <glibconfig.h>
 #include <gobject/gclosure.h>
 #include <gtk/gtk.h>
 #include <stddef.h>
@@ -22,17 +23,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <cstdint>
 #include <map>
-#include <utility>
 
+#include "api/media_stream_interface.h"
+#include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
+#include "api/video/video_frame.h"
 #include "api/video/video_frame_buffer.h"
 #include "api/video/video_rotation.h"
 #include "api/video/video_source_interface.h"
+#include "examples/peerconnection/client/main_wnd.h"
+#include "examples/peerconnection/client/peer_connection_client.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "third_party/libyuv/include/libyuv/convert.h"
 #include "third_party/libyuv/include/libyuv/convert_from.h"
 
 namespace {
@@ -77,7 +80,7 @@ gboolean SimulateLastRowActivated(gpointer data) {
   GtkTreeModel* model = gtk_tree_view_get_model(tree_view);
 
   // "if iter is NULL, then the number of toplevel nodes is returned."
-  int rows = gtk_tree_model_iter_n_children(model, NULL);
+  int rows = gtk_tree_model_iter_n_children(model, nullptr);
   GtkTreePath* lastpath = gtk_tree_path_new_from_indices(rows - 1, -1);
 
   // Select the last item in the list
@@ -151,13 +154,13 @@ GtkMainWnd::GtkMainWnd(const char* server,
                        int port,
                        bool autoconnect,
                        bool autocall)
-    : window_(NULL),
-      draw_area_(NULL),
-      vbox_(NULL),
-      server_edit_(NULL),
-      port_edit_(NULL),
-      peer_list_(NULL),
-      callback_(NULL),
+    : window_(nullptr),
+      draw_area_(nullptr),
+      vbox_(nullptr),
+      server_edit_(nullptr),
+      port_edit_(nullptr),
+      peer_list_(nullptr),
+      callback_(nullptr),
       server_(server),
       autoconnect_(autoconnect),
       autocall_(autocall) {
@@ -175,7 +178,7 @@ void GtkMainWnd::RegisterObserver(MainWndCallback* callback) {
 }
 
 bool GtkMainWnd::IsWindow() {
-  return window_ != NULL && GTK_IS_WINDOW(window_);
+  return window_ != nullptr && GTK_IS_WINDOW(window_);
 }
 
 void GtkMainWnd::MessageBox(const char* caption,
@@ -223,7 +226,7 @@ void GtkMainWnd::QueueUIThreadCallback(int msg_id, void* data) {
 }
 
 bool GtkMainWnd::Create() {
-  RTC_DCHECK(window_ == NULL);
+  RTC_DCHECK(window_ == nullptr);
 
   window_ = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   if (window_) {
@@ -238,7 +241,7 @@ bool GtkMainWnd::Create() {
     SwitchToConnectUI();
   }
 
-  return window_ != NULL;
+  return window_ != nullptr;
 }
 
 bool GtkMainWnd::Destroy() {
@@ -246,7 +249,7 @@ bool GtkMainWnd::Destroy() {
     return false;
 
   gtk_widget_destroy(window_);
-  window_ = NULL;
+  window_ = nullptr;
 
   return true;
 }
@@ -255,13 +258,13 @@ void GtkMainWnd::SwitchToConnectUI() {
   RTC_LOG(LS_INFO) << __FUNCTION__;
 
   RTC_DCHECK(IsWindow());
-  RTC_DCHECK(vbox_ == NULL);
+  RTC_DCHECK(vbox_ == nullptr);
 
   gtk_container_set_border_width(GTK_CONTAINER(window_), 10);
 
   if (peer_list_) {
     gtk_widget_destroy(peer_list_);
-    peer_list_ = NULL;
+    peer_list_ = nullptr;
   }
 
   vbox_ = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
@@ -306,13 +309,13 @@ void GtkMainWnd::SwitchToPeerList(const Peers& peers) {
     gtk_container_set_border_width(GTK_CONTAINER(window_), 0);
     if (vbox_) {
       gtk_widget_destroy(vbox_);
-      vbox_ = NULL;
-      server_edit_ = NULL;
-      port_edit_ = NULL;
+      vbox_ = nullptr;
+      server_edit_ = nullptr;
+      port_edit_ = nullptr;
     } else if (draw_area_) {
       gtk_widget_destroy(draw_area_);
-      draw_area_ = NULL;
-      draw_buffer_.reset();
+      draw_area_ = nullptr;
+      draw_buffer_.SetSize(0);
     }
 
     peer_list_ = gtk_tree_view_new();
@@ -339,12 +342,12 @@ void GtkMainWnd::SwitchToPeerList(const Peers& peers) {
 void GtkMainWnd::SwitchToStreamingUI() {
   RTC_LOG(LS_INFO) << __FUNCTION__;
 
-  RTC_DCHECK(draw_area_ == NULL);
+  RTC_DCHECK(draw_area_ == nullptr);
 
   gtk_container_set_border_width(GTK_CONTAINER(window_), 0);
   if (peer_list_) {
     gtk_widget_destroy(peer_list_);
-    peer_list_ = NULL;
+    peer_list_ = nullptr;
   }
 
   draw_area_ = gtk_drawing_area_new();
@@ -356,12 +359,12 @@ void GtkMainWnd::SwitchToStreamingUI() {
 
 void GtkMainWnd::OnDestroyed(GtkWidget* widget, GdkEvent* event) {
   callback_->Close();
-  window_ = NULL;
-  draw_area_ = NULL;
-  vbox_ = NULL;
-  server_edit_ = NULL;
-  port_edit_ = NULL;
-  peer_list_ = NULL;
+  window_ = nullptr;
+  draw_area_ = nullptr;
+  vbox_ = nullptr;
+  server_edit_ = nullptr;
+  port_edit_ = nullptr;
+  peer_list_ = nullptr;
 }
 
 void GtkMainWnd::OnClicked(GtkWidget* widget) {
@@ -389,7 +392,7 @@ void GtkMainWnd::OnKeyPress(GtkWidget* widget, GdkEventKey* key) {
       case GDK_KEY_KP_Enter:
       case GDK_KEY_Return:
         if (vbox_) {
-          OnClicked(NULL);
+          OnClicked(nullptr);
         } else if (peer_list_) {
           // OnRowActivated will be called automatically when the user
           // presses enter.
@@ -405,7 +408,7 @@ void GtkMainWnd::OnKeyPress(GtkWidget* widget, GdkEventKey* key) {
 void GtkMainWnd::OnRowActivated(GtkTreeView* tree_view,
                                 GtkTreePath* path,
                                 GtkTreeViewColumn* column) {
-  RTC_DCHECK(peer_list_ != NULL);
+  RTC_DCHECK(peer_list_ != nullptr);
   GtkTreeIter iter;
   GtkTreeModel* model;
   GtkTreeSelection* selection =
@@ -424,68 +427,29 @@ void GtkMainWnd::OnRedraw() {
   gdk_threads_enter();
 
   VideoRenderer* remote_renderer = remote_renderer_.get();
-  if (remote_renderer && remote_renderer->image() != NULL &&
-      draw_area_ != NULL) {
-    width_ = remote_renderer->width();
-    height_ = remote_renderer->height();
-
-    if (!draw_buffer_.get()) {
-      draw_buffer_size_ = (width_ * height_ * 4) * 4;
-      draw_buffer_.reset(new uint8_t[draw_buffer_size_]);
-      gtk_widget_set_size_request(draw_area_, width_ * 2, height_ * 2);
+  if (remote_renderer && !remote_renderer->image().empty() &&
+      draw_area_ != nullptr) {
+    if (width_ != remote_renderer->width() ||
+        height_ != remote_renderer->height()) {
+      width_ = remote_renderer->width();
+      height_ = remote_renderer->height();
+      gtk_widget_set_size_request(draw_area_, remote_renderer->width(),
+                                  remote_renderer->height());
     }
-
-    const uint32_t* image =
-        reinterpret_cast<const uint32_t*>(remote_renderer->image());
-    uint32_t* scaled = reinterpret_cast<uint32_t*>(draw_buffer_.get());
-    for (int r = 0; r < height_; ++r) {
-      for (int c = 0; c < width_; ++c) {
-        int x = c * 2;
-        scaled[x] = scaled[x + 1] = image[c];
-      }
-
-      uint32_t* prev_line = scaled;
-      scaled += width_ * 2;
-      memcpy(scaled, prev_line, (width_ * 2) * 4);
-
-      image += width_;
-      scaled += width_ * 2;
-    }
-
-    VideoRenderer* local_renderer = local_renderer_.get();
-    if (local_renderer && local_renderer->image()) {
-      image = reinterpret_cast<const uint32_t*>(local_renderer->image());
-      scaled = reinterpret_cast<uint32_t*>(draw_buffer_.get());
-      // Position the local preview on the right side.
-      scaled += (width_ * 2) - (local_renderer->width() / 2);
-      // right margin...
-      scaled -= 10;
-      // ... towards the bottom.
-      scaled += (height_ * width_ * 4) - ((local_renderer->height() / 2) *
-                                          (local_renderer->width() / 2) * 4);
-      // bottom margin...
-      scaled -= (width_ * 2) * 5;
-      for (int r = 0; r < local_renderer->height(); r += 2) {
-        for (int c = 0; c < local_renderer->width(); c += 2) {
-          scaled[c / 2] = image[c + r * local_renderer->width()];
-        }
-        scaled += width_ * 2;
-      }
-    }
-
+    draw_buffer_.SetData(remote_renderer->image());
     gtk_widget_queue_draw(draw_area_);
   }
-
+  // Here we can draw the local preview as well if we want....
   gdk_threads_leave();
 }
 
 void GtkMainWnd::Draw(GtkWidget* widget, cairo_t* cr) {
   cairo_format_t format = CAIRO_FORMAT_ARGB32;
   cairo_surface_t* surface = cairo_image_surface_create_for_data(
-      draw_buffer_.get(), format, width_ * 2, height_ * 2,
-      cairo_format_stride_for_width(format, width_ * 2));
+      draw_buffer_.data(), format, width_, height_,
+      cairo_format_stride_for_width(format, width_));
   cairo_set_source_surface(cr, surface, 0, 0);
-  cairo_rectangle(cr, 0, 0, width_ * 2, height_ * 2);
+  cairo_rectangle(cr, 0, 0, width_, height_);
   cairo_fill(cr);
   cairo_surface_destroy(surface);
 }
@@ -497,7 +461,7 @@ GtkMainWnd::VideoRenderer::VideoRenderer(
       height_(0),
       main_wnd_(main_wnd),
       rendered_track_(track_to_render) {
-  rendered_track_->AddOrUpdateSink(this, rtc::VideoSinkWants());
+  rendered_track_->AddOrUpdateSink(this, webrtc::VideoSinkWants());
 }
 
 GtkMainWnd::VideoRenderer::~VideoRenderer() {
@@ -513,14 +477,15 @@ void GtkMainWnd::VideoRenderer::SetSize(int width, int height) {
 
   width_ = width;
   height_ = height;
-  image_.reset(new uint8_t[width * height * 4]);
+  // ARGB
+  image_.SetSize(width * height * 4);
   gdk_threads_leave();
 }
 
 void GtkMainWnd::VideoRenderer::OnFrame(const webrtc::VideoFrame& video_frame) {
   gdk_threads_enter();
 
-  rtc::scoped_refptr<webrtc::I420BufferInterface> buffer(
+  webrtc::scoped_refptr<webrtc::I420BufferInterface> buffer(
       video_frame.video_frame_buffer()->ToI420());
   if (video_frame.rotation() != webrtc::kVideoRotation_0) {
     buffer = webrtc::I420Buffer::Rotate(*buffer, video_frame.rotation());
@@ -536,7 +501,7 @@ void GtkMainWnd::VideoRenderer::OnFrame(const webrtc::VideoFrame& video_frame) {
   // native endianness.
   libyuv::I420ToARGB(buffer->DataY(), buffer->StrideY(), buffer->DataU(),
                      buffer->StrideU(), buffer->DataV(), buffer->StrideV(),
-                     image_.get(), width_ * 4, buffer->width(),
+                     image_.data(), width_ * 4, buffer->width(),
                      buffer->height());
 
   gdk_threads_leave();

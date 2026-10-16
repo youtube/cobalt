@@ -391,10 +391,6 @@ assertDoesNotThrow(function() { return new Sealed(); });
 Sealed.prototype.prototypeExists = true;
 assertTrue((new Sealed()).prototypeExists);
 
-obj = new Int32Array(10);
-Object.seal(obj);
-assertTrue(Object.isSealed(obj));
-
 // Test packed element array built-in functions with seal.
 function testPackedSealedArray1(obj) {
   assertTrue(Object.isSealed(obj));
@@ -411,7 +407,10 @@ function testPackedSealedArray1(obj) {
 
   // Verify search, filter, iterator
   obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
-  assertTrue(%HasPackedElements(obj));
+  if(!%IsExperimentalUndefinedDoubleEnabled()) {
+    // TODO(385155404): Consider reenabling when we can transition back to packed.
+    assertTrue(%HasPackedElements(obj));
+  }
   Object.seal(obj);
   assertTrue(Object.isSealed(obj));
   assertFalse(Object.isFrozen(obj));
@@ -457,13 +456,19 @@ function testPackedSealedArray1(obj) {
   }
 };
 obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
-assertTrue(%HasPackedElements(obj));
+if(!%IsExperimentalUndefinedDoubleEnabled()) {
+  // TODO(385155404): Consider reenabling when we can transition back to packed.
+  assertTrue(%HasPackedElements(obj));
+}
 Object.seal(obj);
 testPackedSealedArray1(obj);
 
 // Verify after transition from preventExtensions
 obj = new Array(undefined, null, 1, -1, 'a', Symbol("test"));
-assertTrue(%HasPackedElements(obj));
+if(!%IsExperimentalUndefinedDoubleEnabled()) {
+  // TODO(385155404): Consider reenabling when we can transition back to packed.
+  assertTrue(%HasPackedElements(obj));
+}
 Object.preventExtensions(obj);
 Object.seal(obj);
 testPackedSealedArray1(obj);

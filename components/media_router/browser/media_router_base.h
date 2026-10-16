@@ -34,15 +34,16 @@ class MediaRouterBase : public MediaRouter {
       override;
 
  protected:
-  FRIEND_TEST_ALL_PREFIXES(MediaRouterMojoImplTest,
+  FRIEND_TEST_ALL_PREFIXES(MediaRouterDesktopTest,
                            PresentationConnectionStateChangedCallback);
-  FRIEND_TEST_ALL_PREFIXES(MediaRouterMojoImplTest,
+  FRIEND_TEST_ALL_PREFIXES(MediaRouterDesktopTest,
                            PresentationConnectionStateChangedCallbackRemoved);
   FRIEND_TEST_ALL_PREFIXES(MediaRouterBaseTest, CreatePresentationIds);
   FRIEND_TEST_ALL_PREFIXES(MediaRouterBaseTest, NotifyCallbacks);
-  FRIEND_TEST_ALL_PREFIXES(PresentationServiceDelegateImplTest,
+  FRIEND_TEST_ALL_PREFIXES(ControllerPresentationServiceDelegateImplTest,
                            ListenForConnectionStateChange);
-  FRIEND_TEST_ALL_PREFIXES(PresentationServiceDelegateImplTest, GetMediaRoutes);
+  FRIEND_TEST_ALL_PREFIXES(ControllerPresentationServiceDelegateImplTest,
+                           GetMediaRoutes);
 
   MediaRouterBase();
 

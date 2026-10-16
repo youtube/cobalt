@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 
@@ -167,7 +172,8 @@ TEST(ChannelReaderTest, TrimBuffer) {
     EXPECT_GE(reader.input_overflow_buf_.capacity(), message.size());
 
     // Write and process payload
-    reader.AppendData(message.payload(), message.payload_size());
+    reader.AppendData(message.payload_bytes().data(),
+                      message.payload_bytes().size());
     EXPECT_EQ(ChannelReader::DISPATCH_FINISHED,
               reader.ProcessIncomingMessages());
 

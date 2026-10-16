@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
@@ -18,8 +19,7 @@
 #include "chromeos/ash/services/nearby/public/mojom/nearby_connections_types.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace nearby {
-namespace chrome {
+namespace nearby::chrome {
 
 namespace {
 
@@ -29,18 +29,18 @@ namespace {
 void WriteDataBlocking(const std::string& message,
                        mojo::ScopedDataPipeProducerHandle* receive_stream) {
   mojo::ScopedDataPipeProducerHandle& stream = *receive_stream;
-  uint32_t message_pos = 0;
-  while (message_pos < message.size()) {
-    uint32_t written_size = message.size() - message_pos;
-    MojoResult result = stream->WriteData(
-        message.data() + message_pos, &written_size, MOJO_WRITE_DATA_FLAG_NONE);
+  base::span<const uint8_t> bytes = base::as_byte_span(message);
+  while (!bytes.empty()) {
+    size_t bytes_written = 0;
+    MojoResult result =
+        stream->WriteData(bytes, MOJO_WRITE_DATA_FLAG_NONE, bytes_written);
     // |result| might be MOJO_RESULT_SHOULD_WAIT in which
     // case we need to retry until the reader has emptied
     // the mojo pipe enough.
-    if (result == MOJO_RESULT_OK)
-      message_pos += written_size;
+    if (result == MOJO_RESULT_OK) {
+      bytes = bytes.subspan(bytes_written);
+    }
   }
-  EXPECT_EQ(message.size(), message_pos);
 }
 
 }  // namespace
@@ -96,14 +96,14 @@ class InputStreamImplTest : public ::testing::Test {
 
 TEST_F(InputStreamImplTest, Read) {
   std::string message = "ReceivedMessage";
-  uint32_t message_size = message.size();
-  EXPECT_EQ(MOJO_RESULT_OK,
-            receive_stream_->WriteData(message.data(), &message_size,
-                                       MOJO_WRITE_DATA_FLAG_NONE));
-  EXPECT_EQ(message.size(), message_size);
+  size_t bytes_written = 0;
+  EXPECT_EQ(MOJO_RESULT_OK, receive_stream_->WriteData(
+                                base::as_byte_span(message),
+                                MOJO_WRITE_DATA_FLAG_NONE, bytes_written));
+  EXPECT_EQ(message.size(), bytes_written);
 
   ExceptionOr<ByteArray> exception_or_byte_array =
-      input_stream_->Read(message_size);
+      input_stream_->Read(message.size());
   ASSERT_TRUE(exception_or_byte_array.ok());
 
   ByteArray& byte_array = exception_or_byte_array.result();
@@ -204,20 +204,19 @@ TEST_F(InputStreamImplTest, CloseCalledFromMultipleThreads) {
 TEST_F(InputStreamImplTest, ResetHandle) {
   // Setup a message to receive that would work if the connection was not reset.
   std::string message = "ReceivedMessage";
-  uint32_t message_size = message.size();
-  EXPECT_EQ(MOJO_RESULT_OK,
-            receive_stream_->WriteData(message.data(), &message_size,
-                                       MOJO_WRITE_DATA_FLAG_NONE));
-  EXPECT_EQ(message.size(), message_size);
+  size_t bytes_written = 0;
+  EXPECT_EQ(MOJO_RESULT_OK, receive_stream_->WriteData(
+                                base::as_byte_span(message),
+                                MOJO_WRITE_DATA_FLAG_NONE, bytes_written));
+  EXPECT_EQ(message.size(), bytes_written);
 
   // Reset the pipe on the other side to trigger a peer_reset state.
   receive_stream_.reset();
 
   ExceptionOr<ByteArray> exception_or_byte_array =
-      input_stream_->Read(message_size);
+      input_stream_->Read(message.size());
   ASSERT_FALSE(exception_or_byte_array.ok());
   EXPECT_EQ(Exception::kIo, exception_or_byte_array.exception());
 }
 
-}  // namespace chrome
-}  // namespace nearby
+}  // namespace nearby::chrome

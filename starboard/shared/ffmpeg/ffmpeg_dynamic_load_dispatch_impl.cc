@@ -66,7 +66,7 @@ class FFMPEGDispatchImpl {
                               int avformat,
                               int avutil);
 
-  bool is_valid() const { return avcodec_ && avformat_ && avutil_; }
+  bool AreLibrariesLoaded() const { return avcodec_ && avformat_ && avutil_; }
 
   FFMPEGDispatch* get_ffmpeg_dispatch();
 
@@ -150,8 +150,9 @@ FFMPEGDispatch* FFMPEGDispatchImpl::get_ffmpeg_dispatch() {
       }
     }
   }
+  FFMPEGDispatch* result = AreLibrariesLoaded() ? ffmpeg_ : nullptr;
   pthread_mutex_unlock(&mutex_);
-  return ffmpeg_;
+  return result;
 }
 
 const int kMaxVersionedLibraryNameLength = 32;
@@ -177,7 +178,7 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
       dlclose(avutil_);
       avutil_ = NULL;
     }
-    SB_DCHECK(!is_valid());
+    SB_DCHECK(!AreLibrariesLoaded());
   };
 
   for (auto version_iterator = versions_.rbegin();
@@ -209,11 +210,11 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
       reset_av_libraries();
       continue;
     }
-    SB_DCHECK(is_valid());
+    SB_DCHECK(AreLibrariesLoaded());
     break;
   }
 
-  if (is_valid()) {
+  if (AreLibrariesLoaded()) {
     return true;
   }
 
@@ -246,12 +247,12 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
     return false;
   }
 
-  SB_DCHECK(is_valid());
+  SB_DCHECK(AreLibrariesLoaded());
   return true;
 }
 
 void FFMPEGDispatchImpl::LoadSymbols() {
-  SB_DCHECK(is_valid());
+  SB_DCHECK(AreLibrariesLoaded());
   // Load the desired symbols from the shared libraries. Note: If a symbol is
   // listed as a '.text' entry in the output of 'objdump -T' on the shared
   // library file, then it is directly available from it.
@@ -347,10 +348,6 @@ bool FFMPEGDispatch::RegisterSpecialization(int specialization,
                                             int avutil) {
   return FFMPEGDispatchImpl::GetInstance()->RegisterSpecialization(
       specialization, avcodec, avformat, avutil);
-}
-
-bool FFMPEGDispatch::is_valid() const {
-  return FFMPEGDispatchImpl::GetInstance()->is_valid();
 }
 
 int FFMPEGDispatch::specialization_version() const {

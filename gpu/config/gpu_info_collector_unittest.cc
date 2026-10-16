@@ -25,6 +25,8 @@
 #include "ui/gl/gl_utils.h"
 #include "ui/gl/init/gl_factory.h"
 #include "ui/gl/test/gl_surface_test_support.h"
+#include "ui/gl/gl_version_info.h"
+#include "build/buildflag.h"
 
 using ::gl::MockGLInterface;
 using ::testing::Return;
@@ -89,12 +91,12 @@ class GPUInfoCollectorTest
         test_values_.gpu.driver_version = "195.36.24";
         test_values_.pixel_shader_version = "1.50";
         test_values_.vertex_shader_version = "1.50";
-        test_values_.gl_renderer = "Quadro FX 380/PCI/SSE2";
-        test_values_.gl_vendor = "NVIDIA Corporation";
-        test_values_.gl_version = "3.2.0 NVIDIA 195.36.24";
+        test_values_.gl_renderer = "ANGLE (Quadro FX 380/PCI/SSE2)";
+        test_values_.gl_vendor = "Google Inc. (NVIDIA Corporation)";
+        test_values_.gl_version = "OpenGL ES 3.2.0 NVIDIA 195.36.24";
         test_values_.gl_extensions =
             "GL_OES_packed_depth_stencil GL_EXT_texture_format_BGRA8888 "
-            "GL_EXT_read_format_bgra";
+            "GL_EXT_read_format_bgra GL_NV_framebuffer_multisample";
         gl_shading_language_version_ = "1.50 NVIDIA via Cg compiler";
         break;
       }
@@ -105,9 +107,10 @@ class GPUInfoCollectorTest
         test_values_.gpu.driver_version = "1.6.18";
         test_values_.pixel_shader_version = "1.20";
         test_values_.vertex_shader_version = "1.20";
-        test_values_.gl_renderer = "NVIDIA GeForce GT 120 OpenGL Engine";
-        test_values_.gl_vendor = "NVIDIA Corporation";
-        test_values_.gl_version = "2.1 NVIDIA-1.6.18";
+        test_values_.gl_renderer =
+            "ANGLE (NVIDIA GeForce GT 120 OpenGL Engine)";
+        test_values_.gl_vendor = "Google Inc. (NVIDIA Corporation)";
+        test_values_.gl_version = "OpenGL ES 2.1 NVIDIA-1.6.18";
         test_values_.gl_extensions =
             "GL_OES_packed_depth_stencil GL_EXT_texture_format_BGRA8888 "
             "GL_EXT_read_format_bgra GL_EXT_framebuffer_multisample";
@@ -121,18 +124,17 @@ class GPUInfoCollectorTest
         test_values_.gpu.driver_version = "";
         test_values_.pixel_shader_version = "1.40";
         test_values_.vertex_shader_version = "1.40";
-        test_values_.gl_renderer = "Quadro FX 380/PCI/SSE2";
-        test_values_.gl_vendor = "NVIDIA Corporation";
-        test_values_.gl_version = "3.1.0";
+        test_values_.gl_renderer = "ANGLE (Quadro FX 380/PCI/SSE2)";
+        test_values_.gl_vendor = "Google Inc. (NVIDIA Corporation)";
+        test_values_.gl_version = "OpenGL ES 3.1.0";
         test_values_.gl_extensions =
             "GL_OES_packed_depth_stencil GL_EXT_texture_format_BGRA8888 "
-            "GL_EXT_read_format_bgra";
+            "GL_EXT_read_format_bgra GL_ANGLE_framebuffer_multisample";
         gl_shading_language_version_ = "1.40 NVIDIA via Cg compiler";
         break;
       }
       default: {
         NOTREACHED();
-        break;
       }
     }
 
@@ -145,37 +147,53 @@ class GPUInfoCollectorTest
     context_->MakeCurrent(surface_.get());
 
     EXPECT_CALL(*gl_, GetString(GL_VERSION))
-        .WillRepeatedly(Return(reinterpret_cast<const GLubyte*>(
-            test_values_.gl_version.c_str())));
-
+        .WillRepeatedly(Return(
+            reinterpret_cast<const GLubyte*>(test_values_.gl_version.c_str())));
     EXPECT_CALL(*gl_, GetString(GL_RENDERER))
         .WillRepeatedly(Return(reinterpret_cast<const GLubyte*>(
             test_values_.gl_renderer.c_str())));
 
-    // Now that that expectation is set up, we can call this helper function.
-    if (gl::WillUseGLGetStringForExtensions()) {
+#if BUILDFLAG(IS_COBALT)
+    // Cobalt queries extensions individually using glGetStringi on ES3+ contexts.
+    // We split the extension string and mock GetStringi expectations accordingly.
+    split_extensions_ = base::SplitString(
+        test_values_.gl_extensions, " ",
+        base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    gfx::ExtensionSet extension_set(gfx::MakeExtensionSet(test_values_.gl_extensions));
+
+    gl::GLVersionInfo gl_info(test_values_.gl_version.c_str(),
+                              test_values_.gl_renderer.c_str(),
+                              extension_set);
+
+    if (gl_info.is_es3) {
+      EXPECT_CALL(*gl_, GetIntegerv(GL_NUM_EXTENSIONS, _))
+          .WillRepeatedly(SetArgPointee<1>(split_extensions_.size()));
+      EXPECT_CALL(*gl_, GetStringi(GL_EXTENSIONS, _))
+          .WillRepeatedly(::testing::Invoke([this](GLenum name, GLuint index) -> const GLubyte* {
+            if (name == GL_EXTENSIONS && index < split_extensions_.size()) {
+              return reinterpret_cast<const GLubyte*>(split_extensions_[index].c_str());
+            }
+            return nullptr;
+          }));
+    } else {
       EXPECT_CALL(*gl_, GetString(GL_EXTENSIONS))
           .WillRepeatedly(Return(reinterpret_cast<const GLubyte*>(
               test_values_.gl_extensions.c_str())));
-    } else {
-      split_extensions_.clear();
-      split_extensions_ = base::SplitString(
-          test_values_.gl_extensions, " ",
-          base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-      EXPECT_CALL(*gl_, GetIntegerv(GL_NUM_EXTENSIONS, _))
-          .WillRepeatedly(SetArgPointee<1>(split_extensions_.size()));
-      for (size_t ii = 0; ii < split_extensions_.size(); ++ii) {
-        EXPECT_CALL(*gl_, GetStringi(GL_EXTENSIONS, ii))
-            .WillRepeatedly(Return(reinterpret_cast<const uint8_t*>(
-                split_extensions_[ii].c_str())));
-      }
+      EXPECT_CALL(*gl_, GetError())
+          .WillRepeatedly(Return(GL_NO_ERROR));
     }
+#else // !BUILDFLAG(IS_COBALT)
+    EXPECT_CALL(*gl_, GetString(GL_EXTENSIONS))
+        .WillRepeatedly(Return(reinterpret_cast<const GLubyte*>(
+            test_values_.gl_extensions.c_str())));
+#endif
+
     EXPECT_CALL(*gl_, GetString(GL_SHADING_LANGUAGE_VERSION))
         .WillRepeatedly(Return(reinterpret_cast<const GLubyte*>(
             gl_shading_language_version_)));
     EXPECT_CALL(*gl_, GetString(GL_VENDOR))
-        .WillRepeatedly(Return(reinterpret_cast<const GLubyte*>(
-            test_values_.gl_vendor.c_str())));
+        .WillRepeatedly(Return(
+            reinterpret_cast<const GLubyte*>(test_values_.gl_vendor.c_str())));
     EXPECT_CALL(*gl_, GetString(GL_RENDERER))
         .WillRepeatedly(Return(reinterpret_cast<const GLubyte*>(
             test_values_.gl_renderer.c_str())));
@@ -242,10 +260,8 @@ TEST_P(GPUInfoCollectorTest, CollectGraphicsInfoGL) {
   }
 #endif
 
-  EXPECT_EQ(test_values_.pixel_shader_version,
-            gpu_info.pixel_shader_version);
-  EXPECT_EQ(test_values_.vertex_shader_version,
-            gpu_info.vertex_shader_version);
+  EXPECT_EQ(test_values_.pixel_shader_version, gpu_info.pixel_shader_version);
+  EXPECT_EQ(test_values_.vertex_shader_version, gpu_info.vertex_shader_version);
   EXPECT_EQ(test_values_.gl_version, gpu_info.gl_version);
   EXPECT_EQ(test_values_.gl_renderer, gpu_info.gl_renderer);
   EXPECT_EQ(test_values_.gl_vendor, gpu_info.gl_vendor);

@@ -4,8 +4,9 @@
 
 #include "third_party/blink/renderer/modules/clipboard/clipboard_item.h"
 
-#include "net/base/mime_util.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/mojom/clipboard/clipboard.mojom-blink.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_function.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/modules/clipboard/clipboard.h"
@@ -16,26 +17,60 @@
 
 namespace blink {
 
+class UnionToBlobResolverFunction final
+    : public ThenCallable<V8UnionBlobOrString,
+                          UnionToBlobResolverFunction,
+                          Blob> {
+ public:
+  explicit UnionToBlobResolverFunction(const String& mime_type)
+      : mime_type_(mime_type) {}
+
+  Blob* React(ScriptState* script_state, V8UnionBlobOrString* union_value) {
+    if (union_value->IsBlob()) {
+      return union_value->GetAsBlob();
+    } else if (union_value->IsString()) {
+      // ClipboardItem::getType() returns a Blob, so we need to convert the
+      // string to a Blob here.
+      return Blob::Create(union_value->GetAsString().Span8(), mime_type_);
+    }
+    return nullptr;
+  }
+
+ private:
+  String mime_type_;
+};
+
 // static
 ClipboardItem* ClipboardItem::Create(
-    const HeapVector<std::pair<String, ScriptPromise>>& items,
+    const HeapVector<
+        std::pair<String, MemberScriptPromise<V8UnionBlobOrString>>>&
+        representations,
     ExceptionState& exception_state) {
   // Check that incoming dictionary isn't empty. If it is, it's possible that
-  // Javascript bindings implicitly converted an Object (like a ScriptPromise)
-  // into {}, an empty dictionary.
-  if (!items.size()) {
+  // Javascript bindings implicitly converted an Object (like a
+  // ScriptPromise<V8UnionBlobOrString>) into {}, an empty dictionary.
+  if (!representations.size()) {
     exception_state.ThrowTypeError("Empty dictionary argument");
     return nullptr;
   }
-  return MakeGarbageCollected<ClipboardItem>(items);
+  return MakeGarbageCollected<ClipboardItem>(representations);
 }
 
 ClipboardItem::ClipboardItem(
-    const HeapVector<std::pair<String, ScriptPromise>>& items) {
-  DCHECK(items.size());
-  for (const auto& item : items) {
-    String web_custom_format = Clipboard::ParseWebCustomFormat(item.first);
-    if (!web_custom_format.empty()) {
+    const HeapVector<
+        std::pair<String, MemberScriptPromise<V8UnionBlobOrString>>>&
+        representations) {
+  for (const auto& representation : representations) {
+    String web_custom_format =
+        Clipboard::ParseWebCustomFormat(representation.first);
+    if (web_custom_format.empty()) {
+      // Any arbitrary type can be added to ClipboardItem, but there may not be
+      // any read/write support for that type.
+      // TODO(caseq,japhet): we can't pass typed promises from bindings yet, but
+      // when we can, the type cast below should go away.
+      representations_.emplace_back(representation.first,
+                                    representation.second);
+    } else {
       // Types with "web " prefix are special, so we do some level of MIME type
       // parsing here to get a valid web custom format type.
       // We want to ensure that the string after removing the "web " prefix is
@@ -43,49 +78,61 @@ ClipboardItem::ClipboardItem(
       // e.g. "web text/html" is a web custom MIME type & "text/html" is a
       // well-known MIME type. Removing the "web " prefix makes it hard to
       // differentiate between the two.
-      std::string web_top_level_mime_type;
-      std::string web_mime_sub_type;
-      if (net::ParseMimeTypeWithoutParameter(web_custom_format.Utf8(),
-                                             &web_top_level_mime_type,
-                                             &web_mime_sub_type)) {
-        String web_custom_format_string = String::Format(
-            "%s%s/%s", ui::kWebClipboardFormatPrefix,
-            web_top_level_mime_type.c_str(), web_mime_sub_type.c_str());
-        items_.emplace_back(web_custom_format_string, item.second);
-        custom_format_items_.push_back(web_custom_format_string);
-        continue;
-      }
+      // TODO(caseq,japhet): we can't pass typed promises from bindings yet, but
+      // when we can, the type cast below should go away.
+      String web_custom_format_string =
+          String::Format("%s%s", ui::kWebClipboardFormatPrefix,
+                         web_custom_format.Utf8().c_str());
+      representations_.emplace_back(web_custom_format_string,
+                                    representation.second);
+      custom_format_types_.push_back(web_custom_format_string);
     }
-    // Any arbitrary type can be added to ClipboardItem, but there may not be
-    // any read/write support for that type.
-    items_.push_back(item);
   }
 }
 
 Vector<String> ClipboardItem::types() const {
   Vector<String> types;
-  types.ReserveInitialCapacity(items_.size());
-  for (const auto& item : items_) {
+  types.ReserveInitialCapacity(representations_.size());
+  for (const auto& item : representations_) {
     types.push_back(item.first);
   }
   return types;
 }
 
-ScriptPromise ClipboardItem::getType(ScriptState* script_state,
-                                     const String& type,
-                                     ExceptionState& exception_state) const {
-  for (const auto& item : items_) {
-    if (type == item.first)
-      return item.second;
+ScriptPromise<Blob> ClipboardItem::getType(
+    ScriptState* script_state,
+    const String& type,
+    ExceptionState& exception_state) const {
+  for (const auto& item : representations_) {
+    if (type == item.first) {
+      return item.second.Unwrap().Then(
+          script_state,
+          MakeGarbageCollected<UnionToBlobResolverFunction>(type));
+    }
   }
 
   exception_state.ThrowDOMException(DOMExceptionCode::kNotFoundError,
                                     "The type was not found");
-  return ScriptPromise();
+  return ScriptPromise<Blob>();
+}
+
+// static
+bool ClipboardItem::supports(const String& type) {
+  if (type.length() >= mojom::blink::ClipboardHost::kMaxFormatSize) {
+    return false;
+  }
+
+  if (!Clipboard::ParseWebCustomFormat(type).empty()) {
+    return true;
+  }
+
+  // TODO(https://crbug.com/1029857): Add support for other types.
+  return type == ui::kMimeTypePng || type == ui::kMimeTypePlainText ||
+         type == ui::kMimeTypeHtml || type == ui::kMimeTypeSvg;
 }
 
 void ClipboardItem::Trace(Visitor* visitor) const {
-  visitor->Trace(items_);
+  visitor->Trace(representations_);
   ScriptWrappable::Trace(visitor);
 }
 

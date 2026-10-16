@@ -4,6 +4,7 @@
 
 #include "ash/assistant/model/assistant_response.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "ash/assistant/model/assistant_response_observer.h"
@@ -13,7 +14,6 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/unguessable_token.h"
 #include "chromeos/ash/services/assistant/public/cpp/assistant_service.h"
 #include "chromeos/ash/services/assistant/public/cpp/features.h"
@@ -96,7 +96,7 @@ class AssistantResponse::Processor {
   }
 
   // |response_| should outlive the Processor.
-  const raw_ptr<AssistantResponse, ExperimentalAsh> response_;
+  const raw_ptr<AssistantResponse> response_;
   ProcessingCallback callback_;
 
   int processing_count_ = 0;
@@ -216,7 +216,7 @@ bool AssistantResponse::ContainsPendingUiElement(
     const AssistantUiElement* element) const {
   DCHECK(element);
 
-  return base::ranges::any_of(
+  return std::ranges::any_of(
       pending_ui_elements_,
       [element](const std::unique_ptr<PendingUiElement>& other) {
         return *other->ui_element == *element;

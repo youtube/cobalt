@@ -57,6 +57,21 @@ configure_environment () {
   env | sort
 }
 
+configure_gob_auth () {
+  # Authenticate git to *.googlesource.com (depot_tools clone, gclient sync)
+  # via the active gcloud identity (GCE service account on Linux DinD runners,
+  # or Keystore service account activated by setup_mac on macOS).
+  # Expiry timestamp set to 3600s so curl drops the cookie if expired rather
+  # than getting HTTP 400 from GoB.
+  set +x
+  local token
+  token="$(gcloud auth print-access-token)"
+  printf '.googlesource.com\tTRUE\t/\tTRUE\t%d\to\t%s\n' \
+    "$(( $(date +%s) + 3600 ))" "${token}" > "${HOME}/.gitcookies"
+  set -x
+  git config --global http.cookiefile "${HOME}/.gitcookies"
+}
+
 configure_dind_environment () {
   export REGISTRY_PATH="$(get_registry_bucket_path)"
 
@@ -78,6 +93,7 @@ get_registry_authentication_token () {
   # workers to access GCP hosted container/artifiact registries.
   # go/gcs-tpc-bigstore-user-guide#authentication-http-bearer-tokensaccess-tokens
   local svc_account="${REGISTRY_METADATA}/instance/service-accounts/default"
+  gcloud config set account "$(curl -s -H 'Metadata-Flavor: Google' "${svc_account}/email")"
   local access_token=$(curl -H 'Metadata-Flavor: Google' ${svc_account}/token | cut -d'"' -f 4)
   echo "${access_token}"
   set -x
@@ -119,7 +135,7 @@ init_gcloud () {
 
 
 is_release_build () {
-  [[ "${KOKORO_ROOT_JOB_TYPE}" == "RELEASE" ]]
+  [[ "${KOKORO_ROOT_JOB_TYPE:-}" == "RELEASE" ]]
 }
 
 
@@ -186,17 +202,6 @@ run_package_release_pipeline () {
     # Create release package
     export PYTHONPATH="${WORKSPACE_COBALT}"
 
-    local package_platform="linux"
-    if [[ "${PLATFORM}" =~ "android" ]]; then
-      package_platform="android"
-    elif [[ "${PLATFORM}" =~ "evergreen-arm-hardfp-rdk" ]]; then
-      package_platform="evergreen-arm-hardfp-rdk"
-    elif [[ "${PLATFORM}" =~ "evergreen-arm-hardfp-raspi" ]]; then
-      package_platform="evergreen-arm-hardfp-raspi"
-    elif [[ "${PLATFORM}" =~ "evergreen-x64" ]]; then
-      package_platform="evergreen-x64"
-    fi
-
     # IMPORTANT: chromedriver must be built without starboardizations. We ensure
     # that the biary is built with the linux-x64x11-no-starboard config in a
     # previous build step. Then copy the file into this out directory to
@@ -209,12 +214,20 @@ run_package_release_pipeline () {
       cp "${src_out}/chromedriver" "${dst_out}/chromedriver"
     fi
 
+    # Use config-specific (e.g. package_devel.json) if it exists, otherwise fallback to package.json.
+    local json_path="${WORKSPACE_COBALT}/cobalt/build/${PACKAGE_PLATFORM}/package.json"
+    local config_json_path="${WORKSPACE_COBALT}/cobalt/build/${PACKAGE_PLATFORM}/package_${CONFIG}.json"
+    if [[ -f "${config_json_path}" ]]; then
+      json_path="${config_json_path}"
+    fi
+
     # NOTE: Name is required because the Json recipe is not platform and config
     # specific. GCS upload is also done separately because the Json recipe is
     # not branch, date, and build number specific though this can be added.
     python3 "${WORKSPACE_COBALT}/cobalt/build/packager.py" \
+      --print_contents \
       --name="${PLATFORM}_${CONFIG}" \
-      --json_path="${WORKSPACE_COBALT}/cobalt/build/${package_platform}/package.json" \
+      --json_path="${json_path}" \
       --out_dir="${out_dir}" \
       --package_dir="${package_dir}"
 
@@ -223,7 +236,7 @@ run_package_release_pipeline () {
     if [[ "$(get_kokoro_env)" == "qa" ]]; then
       bucket="cobalt-internal-build-artifacts-qa"
     fi
-    local gcs_archive_path="gs://${bucket}/${PLATFORM}_${KOKORO_GOB_BRANCH_src}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
+    local gcs_archive_path="gs://${bucket}/${PLATFORM}${GCS_PLATFORM_SUFFIX:-}_${KOKORO_GOB_BRANCH_src}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
     init_gcloud
     # Ensure that only package directory contents are uploaded and not the
     # directory itself.

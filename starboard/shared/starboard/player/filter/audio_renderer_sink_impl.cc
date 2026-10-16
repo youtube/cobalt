@@ -14,11 +14,14 @@
 
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 
+#include <algorithm>
 #include <string>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
@@ -29,7 +32,6 @@ AudioRendererSinkImpl::AudioRendererSinkImpl()
              int channels,
              int sampling_frequency_hz,
              SbMediaAudioSampleType audio_sample_type,
-             SbMediaAudioFrameStorageType audio_frame_storage_type,
              SbAudioSinkFrameBuffers frame_buffers,
              int frame_buffers_size_in_frames,
              SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
@@ -38,9 +40,9 @@ AudioRendererSinkImpl::AudioRendererSinkImpl()
              void* context) {
             return SbAudioSinkImpl::Create(
                 channels, sampling_frequency_hz, audio_sample_type,
-                audio_frame_storage_type, frame_buffers,
-                frame_buffers_size_in_frames, update_source_status_func,
-                consume_frames_func, error_func, context);
+                frame_buffers, frame_buffers_size_in_frames,
+                update_source_status_func, consume_frames_func, error_func,
+                context);
           }) {}
 
 AudioRendererSinkImpl::AudioRendererSinkImpl(
@@ -55,42 +57,47 @@ AudioRendererSinkImpl::~AudioRendererSinkImpl() {
   Stop();
 }
 
-bool AudioRendererSinkImpl::IsAudioSampleTypeSupported(
-    SbMediaAudioSampleType audio_sample_type) const {
-  return SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type);
-}
-
-bool AudioRendererSinkImpl::IsAudioFrameStorageTypeSupported(
-    SbMediaAudioFrameStorageType audio_frame_storage_type) const {
-  return SbAudioSinkIsAudioFrameStorageTypeSupported(audio_frame_storage_type);
-}
-
-int AudioRendererSinkImpl::GetNearestSupportedSampleFrequency(
-    int sampling_frequency_hz) const {
-  return SbAudioSinkGetNearestSupportedSampleFrequency(sampling_frequency_hz);
+void AudioRendererSinkImpl::GetAudioRendererParams(
+    const AudioStreamInfo& audio_stream_info,
+    int* max_cached_frames,
+    int* min_frames_per_append) const {
+  SB_CHECK(max_cached_frames);
+  SB_CHECK(min_frames_per_append);
+  *min_frames_per_append = kDefaultAudioSinkMinFramesPerAppend;
+  // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
+  // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
+  int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
+      audio_stream_info.number_of_channels,
+      SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
+          ? kSbMediaAudioSampleTypeFloat32
+          : kSbMediaAudioSampleTypeInt16Deprecated,
+      audio_stream_info.samples_per_second);
+  // Audio renderer would sleep for a while if it thinks there're enough
+  // frames in the sink. The sleeping time is 1/4 of |max_cached_frames|. So, to
+  // maintain required min buffer size of audio sink, the |max_cached_frames|
+  // need to be larger than |min_frames_required| * 4/3.
+  *max_cached_frames = static_cast<int>(min_frames_required * 1.4) +
+                       kDefaultAudioSinkMinFramesPerAppend;
+  *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
 }
 
 bool AudioRendererSinkImpl::HasStarted() const {
   return SbAudioSinkIsValid(audio_sink_);
 }
 
-void AudioRendererSinkImpl::Start(
-    int64_t media_start_time,
-    int channels,
-    int sampling_frequency_hz,
-    SbMediaAudioSampleType audio_sample_type,
-    SbMediaAudioFrameStorageType audio_frame_storage_type,
-    SbAudioSinkFrameBuffers frame_buffers,
-    int frames_per_channel,
-    RenderCallback* render_callback) {
+void AudioRendererSinkImpl::Start(int64_t media_start_time,
+                                  int channels,
+                                  int sampling_frequency_hz,
+                                  SbMediaAudioSampleType audio_sample_type,
+                                  SbAudioSinkFrameBuffers frame_buffers,
+                                  int frames_per_channel,
+                                  RenderCallback* render_callback) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(!HasStarted());
   SB_DCHECK_GT(channels, 0);
   SB_DCHECK_LE(channels, SbAudioSinkGetMaxChannels());
   SB_DCHECK_GT(sampling_frequency_hz, 0);
   SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type));
-  SB_DCHECK(
-      SbAudioSinkIsAudioFrameStorageTypeSupported(audio_frame_storage_type));
   SB_DCHECK(frame_buffers);
   SB_DCHECK_GT(frames_per_channel, 0);
 
@@ -98,7 +105,7 @@ void AudioRendererSinkImpl::Start(
   render_callback_ = render_callback;
   audio_sink_ = create_audio_sink_func_(
       media_start_time, channels, sampling_frequency_hz, audio_sample_type,
-      audio_frame_storage_type, frame_buffers, frames_per_channel,
+      frame_buffers, frames_per_channel,
       &AudioRendererSinkImpl::UpdateSourceStatusFunc,
       &AudioRendererSinkImpl::ConsumeFramesFunc,
       &AudioRendererSinkImpl::ErrorFunc, this);
@@ -109,6 +116,16 @@ void AudioRendererSinkImpl::Start(
   // support play/pause.
   audio_sink_->SetPlaybackRate(playback_rate_);
   audio_sink_->SetVolume(volume_);
+}
+
+bool AudioRendererSinkImpl::IsAudioSampleTypeSupported(
+    SbMediaAudioSampleType audio_sample_type) const {
+  return SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type);
+}
+
+int AudioRendererSinkImpl::GetNearestSupportedSampleFrequency(
+    int sampling_frequency_hz) const {
+  return SbAudioSinkGetNearestSupportedSampleFrequency(sampling_frequency_hz);
 }
 
 void AudioRendererSinkImpl::Stop() {
@@ -132,9 +149,6 @@ void AudioRendererSinkImpl::SetVolume(double volume) {
 
 void AudioRendererSinkImpl::SetPlaybackRate(double playback_rate) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(playback_rate == 0.0 || playback_rate == 1.0)
-      << "Playback rate on audio sink can only be set to 0 or 1, "
-      << "but is now set to " << playback_rate;
 
   playback_rate_ = playback_rate;
   if (HasStarted()) {

@@ -22,16 +22,16 @@ SkFontTableTag kCpalTag = SkSetFourByteTag('C', 'P', 'A', 'L');
 namespace blink {
 
 /* static */
-absl::optional<uint16_t> OpenTypeCpalLookup::FirstThemedPalette(
+std::optional<uint16_t> OpenTypeCpalLookup::FirstThemedPalette(
     sk_sp<SkTypeface> typeface,
     PaletteUse palette_use) {
   if (!typeface || !typeface->getTableSize(kCpalTag))
-    return absl::nullopt;
+    return std::nullopt;
 
   hb::unique_ptr<hb_face_t> face(HbFaceFromSkTypeface(typeface));
 
   if (!face || !hb_ot_color_has_palettes(face.get()))
-    return absl::nullopt;
+    return std::nullopt;
 
   int num_palettes = hb_ot_color_palette_get_count(face.get());
 
@@ -43,7 +43,37 @@ absl::optional<uint16_t> OpenTypeCpalLookup::FirstThemedPalette(
     if (hb_ot_color_palette_get_flags(face.get(), i) == desired_flag)
       return i;
   }
-  return absl::nullopt;
+  return std::nullopt;
+}
+
+Vector<Color> OpenTypeCpalLookup::RetrieveColorRecords(
+    sk_sp<SkTypeface> typeface,
+    unsigned palette_index) {
+  hb::unique_ptr<hb_face_t> face(HbFaceFromSkTypeface(typeface));
+
+  if (!face) {
+    return Vector<Color>();
+  }
+
+  unsigned num_colors = hb_ot_color_palette_get_colors(
+      face.get(), palette_index, 0, nullptr, nullptr);
+  if (!num_colors) {
+    return Vector<Color>();
+  }
+
+  std::unique_ptr<hb_color_t[]> colors =
+      std::make_unique<hb_color_t[]>(num_colors);
+  if (!hb_ot_color_palette_get_colors(face.get(), palette_index, 0, &num_colors,
+                                      colors.get())) {
+    return Vector<Color>();
+  }
+  Vector<Color> color_records(num_colors);
+  for (unsigned i = 0; i < num_colors; i++) {
+    color_records[i] =
+        Color(hb_color_get_red(colors[i]), hb_color_get_green(colors[i]),
+              hb_color_get_blue(colors[i]), hb_color_get_alpha(colors[i]));
+  }
+  return color_records;
 }
 
 }  // namespace blink

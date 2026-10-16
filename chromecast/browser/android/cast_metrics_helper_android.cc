@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 #include "chromecast/base/metrics/cast_metrics_helper.h"
-#include "chromecast/browser/jni_headers/CastMetricsHelper_jni.h"
 
-using base::android::JavaParamRef;
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chromecast/browser/android/jni_headers/CastMetricsHelper_jni.h"
 
 namespace chromecast {
 namespace shell {

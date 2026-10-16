@@ -1,28 +1,21 @@
-// Copyright 2020 The Chromium Authors
+// Copyright 2024 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef IOS_CHROME_BROWSER_SHARED_PUBLIC_COMMANDS_WHATS_NEW_COMMANDS_H_
 #define IOS_CHROME_BROWSER_SHARED_PUBLIC_COMMANDS_WHATS_NEW_COMMANDS_H_
 
-// Commands to control the display of user eduction promotional UI.
-@protocol DefaultPromoCommands <NSObject>
+// Commands related to What's new.
+@protocol WhatsNewCommands
 
-// Display a tailored modal promotional UI about the iOS14 default browser
-// feature.
-- (void)showTailoredPromoStaySafe;
+// Shows what's new.
+- (void)showWhatsNew;
 
-// Display a tailored modal promotional UI about the iOS14 default browser
-// feature.
-- (void)showTailoredPromoMadeForIOS;
+// Dismisses what's new.
+- (void)dismissWhatsNew;
 
-// Display a tailored modal promotional UI about the iOS14 default browser
-// feature.
-- (void)showTailoredPromoAllTabs;
-
-// Display a regular modal promotional UI about the iOS14 default browser
-// feature.
-- (void)showDefaultBrowserFullscreenPromo;
+// Shows what's new IPH.
+- (void)showWhatsNewIPH;
 
 @end
 

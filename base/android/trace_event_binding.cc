@@ -2,20 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/android/trace_event_binding.h"
+
 #include <jni.h>
 
 #include <set>
 
 #include "base/android/jni_string.h"
-#include "base/android/trace_event_binding.h"
-#include "base/base_jni_headers/TraceEvent_jni.h"
+#include "base/compiler_specific.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/trace_event/base_tracing.h"
 #include "base/tracing_buildflags.h"
 
 #if BUILDFLAG(ENABLE_BASE_TRACING)
 #include "base/trace_event/trace_event_impl.h"  // no-presubmit-check
+#include "third_party/perfetto/include/perfetto/tracing/track.h"  // no-presubmit-check nogncheck
+#include "third_party/perfetto/protos/perfetto/config/chrome/chrome_config.gen.h"  // nogncheck
 #endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "base/tasks_minimal_jni/TraceEvent_jni.h"
 
 namespace base {
 namespace android {
@@ -28,35 +34,61 @@ constexpr const char kAndroidViewHierarchyTraceCategory[] =
     TRACE_DISABLED_BY_DEFAULT("android_view_hierarchy");
 constexpr const char kAndroidViewHierarchyEventName[] = "AndroidView";
 
-class TraceEnabledObserver
-    : public trace_event::TraceLog::EnabledStateObserver {
+class TraceEnabledObserver : public perfetto::TrackEventSessionObserver {
  public:
+  static TraceEnabledObserver* GetInstance() {
+    static base::NoDestructor<TraceEnabledObserver> instance;
+    return instance.get();
+  }
+
+  // perfetto::TrackEventSessionObserver implementation
+  void OnSetup(const perfetto::DataSourceBase::SetupArgs& args) override {
+    event_name_filtering_per_session_[args.internal_instance_index] =
+        args.config->chrome_config().event_package_name_filter_enabled();
+  }
+
+  void OnStart(const perfetto::DataSourceBase::StartArgs&) override {
+    JNIEnv* env = jni_zero::AttachCurrentThread();
+    base::android::Java_TraceEvent_setEnabled(env, true);
+    base::android::Java_TraceEvent_setEventNameFilteringEnabled(
+        env, EventNameFilteringEnabled());
+  }
+
+  void OnStop(const perfetto::DataSourceBase::StopArgs& args) override {
+    event_name_filtering_per_session_.erase(args.internal_instance_index);
+
+    JNIEnv* env = jni_zero::AttachCurrentThread();
+    base::android::Java_TraceEvent_setEnabled(
+        env, !event_name_filtering_per_session_.empty());
+    base::android::Java_TraceEvent_setEventNameFilteringEnabled(
+        env, EventNameFilteringEnabled());
+  }
+
+ private:
+  friend class base::NoDestructor<TraceEnabledObserver>;
+  TraceEnabledObserver() = default;
   ~TraceEnabledObserver() override = default;
 
-  // trace_event::TraceLog::EnabledStateObserver:
-  void OnTraceLogEnabled() override {
-    JNIEnv* env = base::android::AttachCurrentThread();
-    base::android::Java_TraceEvent_setEnabled(env, true);
-    if (base::trace_event::TraceLog::GetInstance()
-            ->GetCurrentTraceConfig()
-            .IsEventPackageNameFilterEnabled()) {
-      base::android::Java_TraceEvent_setEventNameFilteringEnabled(env, true);
+  // Return true if event name filtering is requested by at least one tracing
+  // session.
+  bool EventNameFilteringEnabled() const {
+    bool event_name_filtering_enabled = false;
+    for (const auto& entry : event_name_filtering_per_session_) {
+      if (entry.second) {
+        event_name_filtering_enabled = true;
+      }
     }
+    return event_name_filtering_enabled;
   }
-  void OnTraceLogDisabled() override {
-    JNIEnv* env = base::android::AttachCurrentThread();
-    base::android::Java_TraceEvent_setEnabled(env, false);
-    base::android::Java_TraceEvent_setEventNameFilteringEnabled(env, false);
-  }
+
+  std::unordered_map<uint32_t, bool> event_name_filtering_per_session_;
 };
 
 }  // namespace
 
 static void JNI_TraceEvent_RegisterEnabledObserver(JNIEnv* env) {
-  bool enabled = trace_event::TraceLog::GetInstance()->IsEnabled();
-  base::android::Java_TraceEvent_setEnabled(env, enabled);
-  trace_event::TraceLog::GetInstance()->AddOwnedEnabledStateObserver(
-      std::make_unique<TraceEnabledObserver>());
+  base::android::Java_TraceEvent_setEnabled(env, base::TrackEvent::IsEnabled());
+  base::TrackEvent::AddSessionObserver(TraceEnabledObserver::GetInstance());
 }
 
 static jboolean JNI_TraceEvent_ViewHierarchyDumpEnabled(JNIEnv* env) {
@@ -70,7 +102,6 @@ static void JNI_TraceEvent_InitViewHierarchyDump(
     JNIEnv* env,
     jlong id,
     const JavaParamRef<jobject>& obj) {
-  SCOPED_UMA_HISTOGRAM_TIMER("Tracing.ViewHierarchyDump.DumpDuration");
   TRACE_EVENT(
       kAndroidViewHierarchyTraceCategory, kAndroidViewHierarchyEventName,
       perfetto::TerminatingFlow::ProcessScoped(static_cast<uint64_t>(id)),
@@ -155,9 +186,8 @@ namespace {
 // Boilerplate for safely converting Java data to TRACE_EVENT data.
 class TraceEventDataConverter {
  public:
-  TraceEventDataConverter(JNIEnv* env, jstring jname, jstring jarg)
-      : name_(ConvertJavaStringToUTF8(env, jname)),
-        has_arg_(jarg != nullptr),
+  TraceEventDataConverter(JNIEnv* env, jstring jarg)
+      : has_arg_(jarg != nullptr),
         arg_(jarg ? ConvertJavaStringToUTF8(env, jarg) : "") {}
 
   TraceEventDataConverter(const TraceEventDataConverter&) = delete;
@@ -166,12 +196,10 @@ class TraceEventDataConverter {
   ~TraceEventDataConverter() = default;
 
   // Return saved values to pass to TRACE_EVENT macros.
-  const char* name() { return name_.c_str(); }
   const char* arg_name() { return has_arg_ ? "arg" : nullptr; }
-  const std::string& arg() { return arg_; }
+  const std::string& arg() const LIFETIME_BOUND { return arg_; }
 
  private:
-  std::string name_;
   bool has_arg_;
   std::string arg_;
 };
@@ -181,18 +209,20 @@ class TraceEventDataConverter {
 static void JNI_TraceEvent_Instant(JNIEnv* env,
                                    const JavaParamRef<jstring>& jname,
                                    const JavaParamRef<jstring>& jarg) {
-  TraceEventDataConverter converter(env, jname, jarg);
+  TraceEventDataConverter converter(env, jarg);
+
   if (converter.arg_name()) {
-    TRACE_EVENT_INSTANT(internal::kJavaTraceCategory, nullptr,
-                        converter.arg_name(), converter.arg(),
-                        [&](::perfetto::EventContext& ctx) {
-                          ctx.event()->set_name(converter.name());
-                        });
+    TRACE_EVENT_INSTANT(
+        internal::kJavaTraceCategory, nullptr, converter.arg_name(),
+        converter.arg(), [&](::perfetto::EventContext& ctx) {
+          ctx.event()->set_name(ConvertJavaStringToUTF8(env, jname));
+        });
   } else {
-    TRACE_EVENT_INSTANT(internal::kJavaTraceCategory, nullptr,
-                        [&](::perfetto::EventContext& ctx) {
-                          ctx.event()->set_name(converter.name());
-                        });
+    TRACE_EVENT_INSTANT(
+        internal::kJavaTraceCategory, nullptr,
+        [&](::perfetto::EventContext& ctx) {
+          ctx.event()->set_name(ConvertJavaStringToUTF8(env, jname));
+        });
   }
 }
 
@@ -202,10 +232,9 @@ static void JNI_TraceEvent_InstantAndroidIPC(JNIEnv* env,
   TRACE_EVENT_INSTANT(
       internal::kJavaTraceCategory, "AndroidIPC",
       [&](perfetto::EventContext ctx) {
-        TraceEventDataConverter converter(env, jname, nullptr);
         auto* event = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>();
         auto* android_ipc = event->set_android_ipc();
-        android_ipc->set_name(converter.name());
+        android_ipc->set_name(ConvertJavaStringToUTF8(env, jname));
         android_ipc->set_dur_ms(jdur);
       });
 }
@@ -247,29 +276,253 @@ static void JNI_TraceEvent_InstantAndroidToolbar(JNIEnv* env,
 
 #endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
+static void JNI_TraceEvent_WebViewStartupTotalFactoryInit(JNIEnv* env,
+                                                          jlong start_time_ms,
+                                                          jlong duration_ms) {
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+  auto t = perfetto::Track::ThreadScoped(
+      reinterpret_cast<void*>(trace_event::GetNextGlobalTraceId()));
+  TRACE_EVENT_BEGIN("android_webview.timeline",
+                    "WebView.Startup.CreationTime.TotalFactoryInitTime", t,
+                    TimeTicks() + Milliseconds(start_time_ms));
+  TRACE_EVENT_END("android_webview.timeline", t,
+                  TimeTicks() + Milliseconds(start_time_ms + duration_ms));
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+}
+
+static void JNI_TraceEvent_WebViewStartupStage1(JNIEnv* env,
+                                                jlong start_time_ms,
+                                                jlong duration_ms) {
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+  auto t = perfetto::Track::ThreadScoped(
+      reinterpret_cast<void*>(trace_event::GetNextGlobalTraceId()));
+  TRACE_EVENT_BEGIN("android_webview.timeline",
+                    "WebView.Startup.CreationTime.Stage1.FactoryInit", t,
+                    TimeTicks() + Milliseconds(start_time_ms));
+  TRACE_EVENT_END("android_webview.timeline", t,
+                  TimeTicks() + Milliseconds(start_time_ms + duration_ms));
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+}
+
+static void JNI_TraceEvent_WebViewStartupFirstInstance(
+    JNIEnv* env,
+    jlong start_time_ms,
+    jlong duration_ms,
+    jboolean included_global_startup) {
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+  auto t = perfetto::Track::ThreadScoped(
+      reinterpret_cast<void*>(trace_event::GetNextGlobalTraceId()));
+  if (included_global_startup) {
+    TRACE_EVENT_BEGIN(
+        "android_webview.timeline",
+        "WebView.Startup.CreationTime.FirstInstanceWithGlobalStartup", t,
+        TimeTicks() + Milliseconds(start_time_ms));
+  } else {
+    TRACE_EVENT_BEGIN(
+        "android_webview.timeline",
+        "WebView.Startup.CreationTime.FirstInstanceWithoutGlobalStartup", t,
+        TimeTicks() + Milliseconds(start_time_ms));
+  }
+
+  TRACE_EVENT_END("android_webview.timeline", t,
+                  TimeTicks() + Milliseconds(start_time_ms + duration_ms));
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+}
+
+static void JNI_TraceEvent_WebViewStartupNotFirstInstance(JNIEnv* env,
+                                                          jlong start_time_ms,
+                                                          jlong duration_ms) {
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+  auto t = perfetto::Track::ThreadScoped(
+      reinterpret_cast<void*>(trace_event::GetNextGlobalTraceId()));
+  TRACE_EVENT_BEGIN("android_webview.timeline",
+                    "WebView.Startup.CreationTime.NotFirstInstance", t,
+                    TimeTicks() + Milliseconds(start_time_ms));
+  TRACE_EVENT_END("android_webview.timeline", t,
+                  TimeTicks() + Milliseconds(start_time_ms + duration_ms));
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+}
+
+static void JNI_TraceEvent_WebViewStartupStartChromiumLocked(
+    JNIEnv* env,
+    jlong start_time_ms,
+    jlong duration_ms,
+    jint start_call_site,
+    jint finish_call_site,
+    jint startup_mode) {
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+  auto t = perfetto::Track::ThreadScoped(
+      reinterpret_cast<void*>(trace_event::GetNextGlobalTraceId()));
+  TRACE_EVENT_BEGIN(
+      "android_webview.timeline",
+      "WebView.Startup.CreationTime.StartChromiumLocked", t,
+      TimeTicks() + Milliseconds(start_time_ms),
+      [&](perfetto::EventContext ctx) {
+        auto* webview_startup =
+            ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>()
+                ->set_webview_startup();
+        webview_startup->set_start_call_site(
+            (perfetto::protos::pbzero::perfetto_pbzero_enum_WebViewStartup::
+                 CallSite)start_call_site);
+        webview_startup->set_finish_call_site(
+            (perfetto::protos::pbzero::perfetto_pbzero_enum_WebViewStartup::
+                 CallSite)finish_call_site);
+        webview_startup->set_startup_mode(
+            (perfetto::protos::pbzero::perfetto_pbzero_enum_WebViewStartup::
+                 StartupMode)startup_mode);
+      });
+  TRACE_EVENT_END("android_webview.timeline", t,
+                  TimeTicks() + Milliseconds(start_time_ms + duration_ms));
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+}
+
+static void JNI_TraceEvent_StartupActivityStart(JNIEnv* env,
+                                                jlong activity_id,
+                                                jlong start_time_ms) {
+  TRACE_EVENT_INSTANT(
+      "interactions", "Startup.ActivityStart",
+      TimeTicks() + Milliseconds(start_time_ms),
+      [&](perfetto::EventContext ctx) {
+        auto* start_up = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>()
+                             ->set_startup();
+        start_up->set_activity_id(activity_id);
+      });
+}
+
+static void JNI_TraceEvent_StartupLaunchCause(JNIEnv* env,
+                                              jlong activity_id,
+                                              jlong start_time_ms,
+                                              jint cause) {
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+  using Startup = perfetto::protos::pbzero::StartUp;
+  auto launchType = Startup::OTHER;
+  switch (cause) {
+    case Startup::CUSTOM_TAB:
+      launchType = Startup::CUSTOM_TAB;
+      break;
+    case Startup::TWA:
+      launchType = Startup::TWA;
+      break;
+    case Startup::RECENTS:
+      launchType = Startup::RECENTS;
+      break;
+    case Startup::RECENTS_OR_BACK:
+      launchType = Startup::RECENTS_OR_BACK;
+      break;
+    case Startup::FOREGROUND_WHEN_LOCKED:
+      launchType = Startup::FOREGROUND_WHEN_LOCKED;
+      break;
+    case Startup::MAIN_LAUNCHER_ICON:
+      launchType = Startup::MAIN_LAUNCHER_ICON;
+      break;
+    case Startup::MAIN_LAUNCHER_ICON_SHORTCUT:
+      launchType = Startup::MAIN_LAUNCHER_ICON_SHORTCUT;
+      break;
+    case Startup::HOME_SCREEN_WIDGET:
+      launchType = Startup::HOME_SCREEN_WIDGET;
+      break;
+    case Startup::OPEN_IN_BROWSER_FROM_MENU:
+      launchType = Startup::OPEN_IN_BROWSER_FROM_MENU;
+      break;
+    case Startup::EXTERNAL_SEARCH_ACTION_INTENT:
+      launchType = Startup::EXTERNAL_SEARCH_ACTION_INTENT;
+      break;
+    case Startup::NOTIFICATION:
+      launchType = Startup::NOTIFICATION;
+      break;
+    case Startup::EXTERNAL_VIEW_INTENT:
+      launchType = Startup::EXTERNAL_VIEW_INTENT;
+      break;
+    case Startup::OTHER_CHROME:
+      launchType = Startup::OTHER_CHROME;
+      break;
+    case Startup::WEBAPK_CHROME_DISTRIBUTOR:
+      launchType = Startup::WEBAPK_CHROME_DISTRIBUTOR;
+      break;
+    case Startup::WEBAPK_OTHER_DISTRIBUTOR:
+      launchType = Startup::WEBAPK_OTHER_DISTRIBUTOR;
+      break;
+    case Startup::HOME_SCREEN_SHORTCUT:
+      launchType = Startup::HOME_SCREEN_SHORTCUT;
+      break;
+    case Startup::SHARE_INTENT:
+      launchType = Startup::SHARE_INTENT;
+      break;
+    case Startup::NFC:
+      launchType = Startup::NFC;
+      break;
+    default:
+      break;
+  }
+
+  TRACE_EVENT_INSTANT(
+      "interactions,startup", "Startup.LaunchCause",
+      TimeTicks() + Milliseconds(start_time_ms),
+      [&](perfetto::EventContext ctx) {
+        auto* start_up = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>()
+                             ->set_startup();
+        start_up->set_activity_id(activity_id);
+        start_up->set_launch_cause(launchType);
+      });
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+}
+
+static void JNI_TraceEvent_StartupTimeToFirstVisibleContent2(
+    JNIEnv* env,
+    jlong activity_id,
+    jlong start_time_ms,
+    jlong duration_ms) {
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+  [[maybe_unused]] const perfetto::Track track(
+      base::trace_event::GetNextGlobalTraceId(),
+      perfetto::ProcessTrack::Current());
+  TRACE_EVENT_BEGIN(
+      "interactions,startup", "Startup.TimeToFirstVisibleContent2", track,
+      TimeTicks() + Milliseconds(start_time_ms),
+      [&](perfetto::EventContext ctx) {
+        auto* start_up = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>()
+                             ->set_startup();
+        start_up->set_activity_id(activity_id);
+      });
+
+  TRACE_EVENT_END("interactions,startup", track,
+                  TimeTicks() + Milliseconds(start_time_ms + duration_ms));
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+}
+
 static void JNI_TraceEvent_Begin(JNIEnv* env,
                                  const JavaParamRef<jstring>& jname,
                                  const JavaParamRef<jstring>& jarg) {
-  TraceEventDataConverter converter(env, jname, jarg);
+  TraceEventDataConverter converter(env, jarg);
   if (converter.arg_name()) {
-    TRACE_EVENT_BEGIN(internal::kJavaTraceCategory, nullptr,
-                      converter.arg_name(), converter.arg(),
-                      [&](::perfetto::EventContext& ctx) {
-                        ctx.event()->set_name(converter.name());
-                      });
+    TRACE_EVENT_BEGIN(
+        internal::kJavaTraceCategory, nullptr, converter.arg_name(),
+        converter.arg(), [&](::perfetto::EventContext& ctx) {
+          ctx.event()->set_name(ConvertJavaStringToUTF8(env, jname));
+        });
   } else {
-    TRACE_EVENT_BEGIN(internal::kJavaTraceCategory, nullptr,
-                      [&](::perfetto::EventContext& ctx) {
-                        ctx.event()->set_name(converter.name());
-                      });
+    TRACE_EVENT_BEGIN(
+        internal::kJavaTraceCategory, nullptr,
+        [&](::perfetto::EventContext& ctx) {
+          ctx.event()->set_name(ConvertJavaStringToUTF8(env, jname));
+        });
   }
 }
 
+static void JNI_TraceEvent_BeginWithIntArg(JNIEnv* env,
+                                           const JavaParamRef<jstring>& jname,
+                                           jint jarg) {
+  TRACE_EVENT_BEGIN(
+      internal::kJavaTraceCategory, nullptr, "arg", jarg,
+      [&](::perfetto::EventContext& ctx) {
+        ctx.event()->set_name(ConvertJavaStringToUTF8(env, jname));
+      });
+}
+
 static void JNI_TraceEvent_End(JNIEnv* env,
-                               const JavaParamRef<jstring>& jname,
                                const JavaParamRef<jstring>& jarg,
                                jlong jflow) {
-  TraceEventDataConverter converter(env, jname, jarg);
+  TraceEventDataConverter converter(env, jarg);
   bool has_arg = converter.arg_name();
   bool has_flow = jflow != 0;
   if (has_arg && has_flow) {
@@ -290,34 +543,29 @@ static void JNI_TraceEvent_End(JNIEnv* env,
 
 static void JNI_TraceEvent_BeginToplevel(JNIEnv* env,
                                          const JavaParamRef<jstring>& jtarget) {
-  std::string target = ConvertJavaStringToUTF8(env, jtarget);
-  TRACE_EVENT_BEGIN(internal::kToplevelTraceCategory, nullptr,
-                    [&](::perfetto::EventContext& ctx) {
-                      ctx.event()->set_name(target.c_str());
-                    });
+  TRACE_EVENT_BEGIN(
+      internal::kToplevelTraceCategory, nullptr,
+      [&](::perfetto::EventContext& ctx) {
+        ctx.event()->set_name(ConvertJavaStringToUTF8(env, jtarget));
+      });
 }
 
-static void JNI_TraceEvent_EndToplevel(JNIEnv* env,
-                                       const JavaParamRef<jstring>& jtarget) {
-  std::string target = ConvertJavaStringToUTF8(env, jtarget);
+static void JNI_TraceEvent_EndToplevel(JNIEnv* env) {
   TRACE_EVENT_END(internal::kToplevelTraceCategory);
 }
 
 static void JNI_TraceEvent_StartAsync(JNIEnv* env,
                                       const JavaParamRef<jstring>& jname,
                                       jlong jid) {
-  TraceEventDataConverter converter(env, jname, nullptr);
-  TRACE_EVENT_BEGIN(internal::kJavaTraceCategory, nullptr,
-                    perfetto::Track(static_cast<uint64_t>(jid)),
-                    [&](::perfetto::EventContext& ctx) {
-                      ctx.event()->set_name(converter.name());
-                    });
+  TRACE_EVENT_BEGIN(
+      internal::kJavaTraceCategory, nullptr,
+      perfetto::Track(static_cast<uint64_t>(jid)),
+      [&](::perfetto::EventContext& ctx) {
+        ctx.event()->set_name(ConvertJavaStringToUTF8(env, jname));
+      });
 }
 
-static void JNI_TraceEvent_FinishAsync(JNIEnv* env,
-                                       const JavaParamRef<jstring>& jname,
-                                       jlong jid) {
-  TraceEventDataConverter converter(env, jname, nullptr);
+static void JNI_TraceEvent_FinishAsync(JNIEnv* env, jlong jid) {
   TRACE_EVENT_END(internal::kJavaTraceCategory,
                   perfetto::Track(static_cast<uint64_t>(jid)));
 }

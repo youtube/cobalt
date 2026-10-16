@@ -5,13 +5,13 @@
 #ifndef CHROMEOS_ASH_COMPONENTS_PHONEHUB_CAMERA_ROLL_DOWNLOAD_MANAGER_H_
 #define CHROMEOS_ASH_COMPONENTS_PHONEHUB_CAMERA_ROLL_DOWNLOAD_MANAGER_H_
 
+#include <optional>
+
 #include "base/functional/callback.h"
 #include "chromeos/ash/components/phonehub/proto/phonehub_api.pb.h"
 #include "chromeos/ash/services/secure_channel/public/mojom/secure_channel_types.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 // Manages photo and videos files downloaded via Camera Roll. Files will be
 // created under the Downloads folder and added to the Holding Space tray.
@@ -48,7 +48,7 @@ class CameraRollDownloadManager {
   // error.
   using CreatePayloadFilesCallback = base::OnceCallback<void(
       CreatePayloadFilesResult,
-      absl::optional<secure_channel::mojom::PayloadFilesPtr>)>;
+      std::optional<secure_channel::mojom::PayloadFilesPtr>)>;
   virtual void CreatePayloadFiles(
       int64_t payload_id,
       const proto::CameraRollItemMetadata& item_metadata,
@@ -67,7 +67,6 @@ class CameraRollDownloadManager {
   CameraRollDownloadManager() = default;
 };
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub
 
 #endif  // CHROMEOS_ASH_COMPONENTS_PHONEHUB_CAMERA_ROLL_DOWNLOAD_MANAGER_H_

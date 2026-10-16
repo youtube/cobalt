@@ -10,6 +10,7 @@
 
 #include "base/auto_reset.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "v8/include/v8.h"
 
 namespace extensions {
@@ -17,7 +18,7 @@ namespace binding {
 
 class ContextInvalidationData;
 
-// Returns true if the given |context| is considered valid. Contexts can be
+// Returns true if the given `context` is considered valid. Contexts can be
 // invalidated if various objects or scripts hold onto references after when
 // blink releases the context, but we don't want to handle interactions past
 // this point. Additionally, simply checking if gin::PerContextData exists is
@@ -26,10 +27,10 @@ class ContextInvalidationData;
 // points. See https://crbug.com/772071.
 bool IsContextValid(v8::Local<v8::Context> context);
 
-// Same as above, but throws an exception in the |context| if it is invalid.
+// Same as above, but throws an exception in the `context` if it is invalid.
 bool IsContextValidOrThrowError(v8::Local<v8::Context> context);
 
-// Marks the given |context| as invalid.
+// Marks the given `context` as invalid.
 void InvalidateContext(v8::Local<v8::Context> context);
 
 // A helper class to watch for context invalidation. If the context is
@@ -51,7 +52,7 @@ class ContextInvalidationListener {
  private:
   base::OnceClosure on_invalidated_;
 
-  ContextInvalidationData* context_invalidation_data_ = nullptr;
+  raw_ptr<ContextInvalidationData> context_invalidation_data_ = nullptr;
 };
 
 // Returns the string version of the current platform, one of "chromeos",

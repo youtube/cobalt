@@ -6,11 +6,13 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIASTREAM_PROCESSED_LOCAL_AUDIO_SOURCE_H_
 
 #include <string>
+#include "third_party/blink/public/common/buildflags.h"
 
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"
 #include "media/base/audio_capturer_source.h"
+#include "media/base/audio_glitch_info.h"
 #include "third_party/blink/renderer/modules/mediastream/media_constraints.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_level_calculator.h"
@@ -76,8 +78,8 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
     return audio_processing_properties_;
   }
 
-  absl::optional<blink::AudioProcessingProperties>
-  GetAudioProcessingProperties() const final;
+  std::optional<blink::AudioProcessingProperties> GetAudioProcessingProperties()
+      const final;
 
   // Valid after the source is started (when the first track is connected). Will
   // return nullptr if WebRTC stats are no available for the current
@@ -91,12 +93,6 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
 
   void SetOutputDeviceForAec(const std::string& output_device_id);
 
-  // Returns true if ProcessedLocalAudioSource produces audio at the processing
-  // sample rate, false if it outputs audio at the device sample rate. This only
-  // applies for stream type DEVICE_AUDIO_CAPTURE, for other stream types the
-  // output is always at the processing sample rate.
-  static bool OutputAudioAtProcessingSampleRate();
-
  protected:
   // MediaStreamAudioSource implementation.
   void* GetClassIdentifier() const final;
@@ -108,8 +104,8 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
   void OnCaptureStarted() override;
   void Capture(const media::AudioBus* audio_source,
                base::TimeTicks audio_capture_time,
-               double volume,
-               bool key_pressed) override;
+               const media::AudioGlitchInfo& glitch_info,
+               double volume) override;
   void OnCaptureError(media::AudioCapturerSource::ErrorCode code,
                       const std::string& message) override;
   void OnCaptureMuted(bool is_muted) override;
@@ -121,7 +117,7 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
   // Capture().
   void DeliverProcessedAudio(const media::AudioBus& processed_audio,
                              base::TimeTicks audio_capture_time,
-                             absl::optional<double> new_volume);
+                             std::optional<double> new_volume);
 
   // Update the device (source) mic volume.
   void SetVolume(double volume);
@@ -144,7 +140,9 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
   // TODO(crbug.com/704136): Consider moving ProcessedLocalAudioSource to
   // Oilpan and use Member<> here.
   WeakPersistent<LocalFrame> consumer_frame_;
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
   WeakPersistent<PeerConnectionDependencyFactory> dependency_factory_;
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
   blink::AudioProcessingProperties audio_processing_properties_;
   int num_requested_channels_;
@@ -173,6 +171,8 @@ class MODULES_EXPORT ProcessedLocalAudioSource final
   bool force_report_nonzero_energy_ = false;
 
   bool allow_invalid_render_frame_id_for_testing_;
+
+  media::AudioGlitchInfo::Accumulator glitch_info_accumulator_;
 
   // Provides weak pointers for tasks posted by this instance.
   base::WeakPtrFactory<ProcessedLocalAudioSource> weak_factory_{this};

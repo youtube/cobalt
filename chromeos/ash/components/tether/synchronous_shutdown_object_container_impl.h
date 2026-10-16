@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
+#include "chromeos/ash/components/network/network_handler.h"
 #include "chromeos/ash/components/tether/synchronous_shutdown_object_container.h"
 
 class PrefService;
@@ -27,9 +28,7 @@ class SecureChannelClient;
 }
 
 class NetworkConnect;
-class NetworkConnectionHandler;
 class NetworkStateHandler;
-class TechnologyStateController;
 
 namespace tether {
 
@@ -42,7 +41,6 @@ class DeviceIdTetherNetworkGuidMap;
 class GmsCoreNotificationsStateTrackerImpl;
 class HostScanner;
 class HostScanScheduler;
-class HostScanDevicePrioritizerImpl;
 class HotspotUsageDurationTracker;
 class KeepAliveScheduler;
 class HostConnectionMetricsLogger;
@@ -71,10 +69,8 @@ class SynchronousShutdownObjectContainerImpl
         GmsCoreNotificationsStateTrackerImpl*
             gms_core_notifications_state_tracker,
         PrefService* pref_service,
-        NetworkStateHandler* network_state_handler,
-        TechnologyStateController* technology_state_controller,
+        NetworkHandler* network_handler,
         NetworkConnect* network_connect,
-        NetworkConnectionHandler* network_connection_handler,
         session_manager::SessionManager* session_manager,
         device_sync::DeviceSyncClient* device_sync_client,
         secure_channel::SecureChannelClient* secure_channel_client);
@@ -87,9 +83,8 @@ class SynchronousShutdownObjectContainerImpl
         GmsCoreNotificationsStateTrackerImpl*
             gms_core_notifications_state_tracker,
         PrefService* pref_service,
-        NetworkStateHandler* network_state_handler,
+        NetworkHandler* network_handler,
         NetworkConnect* network_connect,
-        NetworkConnectionHandler* network_connection_handler,
         session_manager::SessionManager* session_manager,
         device_sync::DeviceSyncClient* device_sync_client,
         secure_channel::SecureChannelClient* secure_channel_client) = 0;
@@ -119,16 +114,14 @@ class SynchronousShutdownObjectContainerImpl
       GmsCoreNotificationsStateTrackerImpl*
           gms_core_notifications_state_tracker,
       PrefService* pref_service,
-      NetworkStateHandler* network_state_handler,
-      TechnologyStateController* technology_state_controller,
+      NetworkHandler* network_handler,
       NetworkConnect* network_connect,
-      NetworkConnectionHandler* network_connection_handler,
       session_manager::SessionManager* session_manager,
       device_sync::DeviceSyncClient* device_sync_client,
       secure_channel::SecureChannelClient* secure_channel_client);
 
  private:
-  raw_ptr<NetworkStateHandler, ExperimentalAsh> network_state_handler_;
+  raw_ptr<NetworkStateHandler> network_state_handler_;
 
   std::unique_ptr<NetworkListSorter> network_list_sorter_;
   std::unique_ptr<TetherHostResponseRecorder> tether_host_response_recorder_;
@@ -136,7 +129,6 @@ class SynchronousShutdownObjectContainerImpl
       device_id_tether_network_guid_map_;
   std::unique_ptr<TetherSessionCompletionLogger>
       tether_session_completion_logger_;
-  std::unique_ptr<HostScanDevicePrioritizerImpl> host_scan_device_prioritizer_;
   std::unique_ptr<WifiHotspotConnector> wifi_hotspot_connector_;
   std::unique_ptr<ActiveHost> active_host_;
   std::unique_ptr<ActiveHostNetworkStateUpdater>

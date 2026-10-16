@@ -194,7 +194,6 @@ void OAuth2LoginManager::OnStateChanged(
     case signin_metrics::AccountReconcilorState::kScheduled:
     case signin_metrics::AccountReconcilorState::kInactive:
       NOTREACHED();
-      break;
   }
 
   RecordSessionRestoreOutcome(session_restore_outcome, session_restore_state);

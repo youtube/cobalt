@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import "components/remote_cocoa/app_shim/native_widget_ns_window_bridge.h"
-
 #import <Cocoa/Cocoa.h>
 
 #import "base/mac/mac_util.h"
 #include "base/run_loop.h"
+#import "components/remote_cocoa/app_shim/native_widget_ns_window_bridge.h"
 #import "ui/base/cocoa/nswindow_test_util.h"
 #include "ui/base/hit_test.h"
 #include "ui/base/test/ui_controls.h"
@@ -33,12 +32,13 @@ class BridgedNativeWidgetUITest : public WidgetTest {
     SetUpForInteractiveTests();
     WidgetTest::SetUp();
 
+    widget_delegate_ = std::make_unique<WidgetDelegate>();
+
     Widget::InitParams init_params =
-        CreateParams(Widget::InitParams::TYPE_WINDOW);
-    init_params.ownership = Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
+        CreateParams(Widget::InitParams::CLIENT_OWNS_WIDGET,
+                     Widget::InitParams::TYPE_WINDOW);
     init_params.bounds = gfx::Rect(100, 100, 300, 200);
-    init_params.delegate = new views::WidgetDelegate;
-    init_params.delegate->SetOwnedByWidget(true);
+    init_params.delegate = widget_delegate_.get();
 
     // Provide a resizable Widget by default, as macOS doesn't correctly restore
     // the window size when coming out of fullscreen if the window is not
@@ -61,6 +61,7 @@ class BridgedNativeWidgetUITest : public WidgetTest {
   }
 
  protected:
+  std::unique_ptr<WidgetDelegate> widget_delegate_;
   std::unique_ptr<Widget> widget_;
 };
 

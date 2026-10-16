@@ -5,11 +5,11 @@
 #include "chrome/browser/ash/arc/tracing/arc_system_model.h"
 
 #include <cstdio>
-
+#include <optional>
 #include <set>
 
+#include "base/compiler_specific.h"
 #include "base/strings/stringprintf.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace arc {
 
@@ -23,22 +23,25 @@ constexpr char kKeyThreads[] = "threads";
 
 bool LoadThreads(const base::Value* value,
                  ArcSystemModel::ThreadMap* out_threads) {
-  if (!value || !value->is_dict())
+  if (!value || !value->is_dict()) {
     return false;
+  }
 
   for (const auto it : value->GetDict()) {
     int tid;
-    if (sscanf(it.first.c_str(), "%d", &tid) != 1)
+    if (UNSAFE_TODO(sscanf(it.first.c_str(), "%d", &tid)) != 1) {
       return false;
+    }
 
-    if (!it.second.is_dict())
+    if (!it.second.is_dict()) {
       return false;
+    }
 
     const std::string* name = it.second.GetDict().FindString(kKeyName);
     if (!name) {
       return false;
     }
-    const absl::optional<int> pid = it.second.GetDict().FindInt(kKeyPid);
+    const std::optional<int> pid = it.second.GetDict().FindInt(kKeyPid);
     if (!pid) {
       return false;
     }
@@ -49,16 +52,14 @@ bool LoadThreads(const base::Value* value,
   return true;
 }
 
-base::Value::Dict SerializeThreads(
-    const ArcSystemModel::ThreadMap& threads) {
+base::Value::Dict SerializeThreads(const ArcSystemModel::ThreadMap& threads) {
   base::Value::Dict result;
 
   for (auto& thread_info : threads) {
     base::Value::Dict entry;
     entry.Set(kKeyPid, base::Value(thread_info.second.pid));
     entry.Set(kKeyName, base::Value(thread_info.second.name));
-    result.Set(base::StringPrintf("%d", thread_info.first),
-                  std::move(entry));
+    result.Set(base::StringPrintf("%d", thread_info.first), std::move(entry));
   }
 
   return result;
@@ -95,13 +96,15 @@ void ArcSystemModel::Trim(uint64_t trim_timestamp) {
       trim_timestamp, ArcCpuEvent::Type::kActive /* does not matter */,
       0 /* tid, does not matter */);
   for (auto& cpu_events : all_cpu_events_) {
-    if (cpu_events.empty())
+    if (cpu_events.empty()) {
       continue;
+    }
     auto cpu_cut_pos =
         std::lower_bound(cpu_events.begin(), cpu_events.end(), cpu_trim_point,
                          CompareByTimestampPred<ArcCpuEvent>);
-    if (cpu_cut_pos == cpu_events.begin())
+    if (cpu_cut_pos == cpu_events.begin()) {
       continue;  // Nothing to trim.
+    }
     // Keep the last message for this CPU, that would be clamped to
     // |trim_timestamp|.
     if (cpu_cut_pos == cpu_events.end() ||
@@ -140,11 +143,13 @@ void ArcSystemModel::Trim(uint64_t trim_timestamp) {
 
 void ArcSystemModel::CloseRangeForValueEvents(uint64_t max_timestamp) {
   std::map<ArcValueEvent::Type, std::pair<uint64_t, int>> last_timestamps;
-  for (const auto& it : memory_events_)
+  for (const auto& it : memory_events_) {
     last_timestamps[it.type] = {it.timestamp, it.value};
+  }
   for (const auto& it : last_timestamps) {
-    if (it.second.first < max_timestamp)
+    if (it.second.first < max_timestamp) {
       memory_events_.emplace_back(max_timestamp, it.first, it.second.second);
+    }
   }
 }
 
@@ -163,8 +168,9 @@ base::Value::Dict ArcSystemModel::Serialize() const {
 }
 
 bool ArcSystemModel::Load(const base::Value* root) {
-  if (!root || !root->is_dict())
+  if (!root || !root->is_dict()) {
     return false;
+  }
 
   if (!LoadThreads(root->GetDict().Find(kKeyThreads), &thread_map_)) {
     return false;

@@ -32,6 +32,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.Batch;
@@ -39,12 +40,9 @@ import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.ui.test.util.BlankUiTestActivity;
 
-/**
- * Test for {@link ConfirmManagedSyncDataDialogCoordinator}
- */
+/** Test for {@link ConfirmManagedSyncDataDialogCoordinator} */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Batch(Batch.PER_CLASS)
@@ -58,8 +56,7 @@ public class ConfirmManagedSyncDataDialogTest {
     @Rule
     public final MockitoRule mMockitoRule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 
-    @Mock
-    private ConfirmManagedSyncDataDialogCoordinator.Listener mListenerMock;
+    @Mock private ConfirmManagedSyncDataDialogCoordinator.Listener mListenerMock;
 
     @Before
     public void setUp() {
@@ -71,7 +68,7 @@ public class ConfirmManagedSyncDataDialogTest {
     public void testListenerOnConfirmWhenPositiveButtonClicked() {
         showManagedSyncDataDialog();
 
-        onView(withText(R.string.policy_dialog_proceed)).inRoot(isDialog()).perform(click());
+        onView(withText(R.string.continue_button)).inRoot(isDialog()).perform(click());
 
         verify(mListenerMock).onConfirm();
     }
@@ -112,7 +109,8 @@ public class ConfirmManagedSyncDataDialogTest {
         Activity activity = mActivityTestRule.getActivity();
         mActivityTestRule.recreateActivity();
         ApplicationTestUtils.waitForActivityState(mActivityTestRule.getActivity(), Stage.RESUMED);
-        Assert.assertTrue("The recreated activity should not be the same as the old activity",
+        Assert.assertTrue(
+                "The recreated activity should not be the same as the old activity",
                 mActivityTestRule.getActivity() != activity);
 
         onView(withText(R.string.sign_in_managed_account)).check(doesNotExist());
@@ -120,10 +118,13 @@ public class ConfirmManagedSyncDataDialogTest {
     }
 
     private void showManagedSyncDataDialog() {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            new ConfirmManagedSyncDataDialogCoordinator(mActivityTestRule.getActivity(),
-                    mActivityTestRule.getActivity().getModalDialogManager(), mListenerMock,
-                    TEST_DOMAIN);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    new ConfirmManagedSyncDataDialogCoordinator(
+                            mActivityTestRule.getActivity(),
+                            mActivityTestRule.getActivity().getModalDialogManager(),
+                            mListenerMock,
+                            TEST_DOMAIN);
+                });
     }
 }

@@ -10,18 +10,19 @@
 
 #include "media/base/test_utils.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <string>
+#include <vector>
 
-#include "api/video/video_frame.h"
-#include "api/video/video_source_interface.h"
+#include "media/base/stream_params.h"
 
-namespace cricket {
+namespace webrtc {
 
-cricket::StreamParams CreateSimStreamParams(
-    const std::string& cname,
-    const std::vector<uint32_t>& ssrcs) {
-  cricket::StreamParams sp;
-  cricket::SsrcGroup sg(cricket::kSimSsrcGroupSemantics, ssrcs);
+StreamParams CreateSimStreamParams(const std::string& cname,
+                                   const std::vector<uint32_t>& ssrcs) {
+  StreamParams sp;
+  SsrcGroup sg(kSimSsrcGroupSemantics, ssrcs);
   sp.ssrcs = ssrcs;
   sp.ssrc_groups.push_back(sg);
   sp.cname = cname;
@@ -29,33 +30,26 @@ cricket::StreamParams CreateSimStreamParams(
 }
 
 // There should be an rtx_ssrc per ssrc.
-cricket::StreamParams CreateSimWithRtxStreamParams(
+StreamParams CreateSimWithRtxStreamParams(
     const std::string& cname,
     const std::vector<uint32_t>& ssrcs,
     const std::vector<uint32_t>& rtx_ssrcs) {
-  cricket::StreamParams sp = CreateSimStreamParams(cname, ssrcs);
+  StreamParams sp = CreateSimStreamParams(cname, ssrcs);
   for (size_t i = 0; i < ssrcs.size(); ++i) {
-    sp.ssrcs.push_back(rtx_ssrcs[i]);
-    std::vector<uint32_t> fid_ssrcs;
-    fid_ssrcs.push_back(ssrcs[i]);
-    fid_ssrcs.push_back(rtx_ssrcs[i]);
-    cricket::SsrcGroup fid_group(cricket::kFidSsrcGroupSemantics, fid_ssrcs);
-    sp.ssrc_groups.push_back(fid_group);
+    sp.AddFidSsrc(ssrcs[i], rtx_ssrcs[i]);
   }
   return sp;
 }
 
-cricket::StreamParams CreatePrimaryWithFecFrStreamParams(
-    const std::string& cname,
-    uint32_t primary_ssrc,
-    uint32_t flexfec_ssrc) {
-  cricket::StreamParams sp;
-  cricket::SsrcGroup sg(cricket::kFecFrSsrcGroupSemantics,
-                        {primary_ssrc, flexfec_ssrc});
+// There should be one fec ssrc per ssrc.
+StreamParams CreatePrimaryWithFecFrStreamParams(const std::string& cname,
+                                                uint32_t primary_ssrc,
+                                                uint32_t flexfec_ssrc) {
+  StreamParams sp;
   sp.ssrcs = {primary_ssrc};
-  sp.ssrc_groups.push_back(sg);
   sp.cname = cname;
+  sp.AddFecFrSsrc(primary_ssrc, flexfec_ssrc);
   return sp;
 }
 
-}  // namespace cricket
+}  // namespace webrtc

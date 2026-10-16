@@ -31,9 +31,7 @@
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
 #include "starboard/system.h"
-#include "starboard/thread.h"
 #include "starboard/time_zone.h"
-#include "starboard/types.h"
 #include "starboard/window.h"
 
 // This doesn't really belong here, but ensures that SB_COMPILE_ASSERT works in

@@ -50,6 +50,7 @@ class SbPlayerTestFixture {
     struct VideoSamplesDescriptor {
       int start_index = 0;
       int samples_count = 0;
+      int64_t timestamp_offset = 0;
       bool is_end_of_stream = false;
     };
 
@@ -60,7 +61,9 @@ class SbPlayerTestFixture {
                                     int64_t discarded_duration_from_front,
                                     int64_t discarded_duration_from_back);
     GroupedSamples& AddAudioEOS();
-    GroupedSamples& AddVideoSamples(int start_index, int number_of_samples);
+    GroupedSamples& AddVideoSamples(int start_index,
+                                    int number_of_samples,
+                                    int64_t timestamp_offset = 0);
     GroupedSamples& AddVideoEOS();
 
     friend class GroupedSamplesIterator;
@@ -87,6 +90,9 @@ class SbPlayerTestFixture {
   void WaitForPlayerEndOfStream();
   int64_t GetCurrentMediaTime() const;
 
+  void SwitchVideoDmp(const char* new_video_filename);
+  void SwitchAudioDmp(const char* new_audio_filename);
+
   void SetAudioWriteDuration(int64_t duration);
 
   SbPlayer GetPlayer() const { return player_; }
@@ -94,8 +100,11 @@ class SbPlayerTestFixture {
   bool HasVideo() const { return video_dmp_reader_ != nullptr; }
 
   int64_t GetAudioSampleTimestamp(int index) const;
+  int64_t GetVideoSampleTimestamp(int index) const;
   int ConvertDurationToAudioBufferCount(int64_t duration) const;
   int ConvertDurationToVideoBufferCount(int64_t duration) const;
+
+  bool HasError() const { return error_occurred_.load(); }
 
  private:
   static constexpr int64_t kDefaultWaitForPlayerStateTimeout = 5'000'000LL;
@@ -159,7 +168,9 @@ class SbPlayerTestFixture {
                          int64_t timestamp_offset,
                          int64_t discarded_duration_from_front,
                          int64_t discarded_duration_from_back);
-  void WriteVideoSamples(int start_index, int samples_to_write);
+  void WriteVideoSamples(int start_index,
+                         int samples_to_write,
+                         int64_t timestamp_offset = 0);
   void WriteEndOfStream(SbMediaType media_type);
 
   // Checks if there are pending callback events and, if so, logs the received
@@ -197,6 +208,7 @@ class SbPlayerTestFixture {
   std::string max_video_capabilities_;
   std::unique_ptr<starboard::VideoDmpReader> audio_dmp_reader_;
   std::unique_ptr<starboard::VideoDmpReader> video_dmp_reader_;
+  std::vector<std::unique_ptr<starboard::VideoDmpReader>> retired_dmp_readers_;
   starboard::FakeGraphicsContextProvider* fake_graphics_context_provider_;
 
   SbPlayer player_ = kSbPlayerInvalid;

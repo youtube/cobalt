@@ -1,18 +1,22 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include "chrome/browser/ash/crosapi/parent_access_ash.h"
 
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "chrome/browser/ash/crosapi/parent_access_ash.h"
-
 #include "base/memory/raw_ptr.h"
-#include "base/run_loop.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "chrome/browser/ui/webui/ash/parent_access/parent_access_dialog.h"
+#include "extensions/browser/extension_util.h"
+#include "extensions/common/extension.h"
+#include "extensions/common/extension_builder.h"
+#include "extensions/common/permissions/permission_set.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -21,6 +25,8 @@
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_unittest_util.h"
 #include "url/gurl.h"
+
+using crosapi::mojom::ParentAccessResultPtr;
 
 class FakeParentAccessDialogProvider : public ash::ParentAccessDialogProvider {
  public:
@@ -54,8 +60,8 @@ class FakeParentAccessDialogProvider : public ash::ParentAccessDialogProvider {
 namespace {
 constexpr char test_url[] = "http://example.com";
 const std::u16string test_child_display_name = u"child display name";
-const gfx::ImageSkia test_favicon =
-    gfx::ImageSkia::CreateFrom1xBitmap(gfx::test::CreateBitmap(1, 2));
+const gfx::ImageSkia test_favicon = gfx::test::CreateImageSkia(1, 2);
+const std::u16string test_extension_name = u"extension";
 }  // namespace
 
 class ParentAccessAshTest : public testing::Test {
@@ -79,7 +85,7 @@ class ParentAccessAshTest : public testing::Test {
   base::test::TaskEnvironment task_environment_;
   mojo::Remote<crosapi::mojom::ParentAccess> parent_access_remote_;
   std::unique_ptr<crosapi::ParentAccessAsh> parent_access_ash_;
-  raw_ptr<FakeParentAccessDialogProvider, ExperimentalAsh> dialog_provider_;
+  raw_ptr<FakeParentAccessDialogProvider, DanglingUntriaged> dialog_provider_;
 };
 
 // Tests that the correct parameters were passed through to the dialog for
@@ -104,151 +110,158 @@ TEST_F(ParentAccessAshTest, GetWebsiteParentApprovalParams) {
       test_child_display_name);
 
   // Encode the test bitmap.
-  std::vector<uint8_t> favicon_bitmap;
-  gfx::PNGCodec::FastEncodeBGRASkBitmap(*test_favicon.bitmap(), false,
-                                        &favicon_bitmap);
+  std::optional<std::vector<uint8_t>> favicon_bitmap =
+      gfx::PNGCodec::FastEncodeBGRASkBitmap(*test_favicon.bitmap(), false);
   // Make sure it's there.
   EXPECT_EQ(
       params->flow_type_params->get_web_approvals_params()->favicon_png_bytes,
-      favicon_bitmap);
+      favicon_bitmap.value());
+}
+
+TEST_F(ParentAccessAshTest, GetExtensionParentApprovalParams) {
+  parent_access_ash_->GetExtensionParentApproval(
+      test_extension_name, test_child_display_name,
+      extensions::util::GetDefaultExtensionIcon(), {}, false,
+      base::DoNothing());
+
+  parent_access_ui::mojom::ParentAccessParamsPtr params =
+      dialog_provider_->GetLastParamsReceived();
+
+  // Verify request params.
+  EXPECT_EQ(
+      params->flow_type,
+      parent_access_ui::mojom::ParentAccessParams::FlowType::kExtensionAccess);
+  EXPECT_EQ(params->is_disabled, false);
+  EXPECT_EQ(params->flow_type_params->get_extension_approvals_params()
+                ->child_display_name,
+            test_child_display_name);
+  EXPECT_EQ(params->flow_type_params->get_extension_approvals_params()
+                ->extension_name,
+            test_extension_name);
+  std::optional<std::vector<uint8_t>> icon_bitmap =
+      gfx::PNGCodec::FastEncodeBGRASkBitmap(
+          *extensions::util::GetDefaultExtensionIcon().bitmap(), false);
+  EXPECT_EQ(params->flow_type_params->get_extension_approvals_params()
+                ->icon_png_bytes,
+            icon_bitmap.value());
+}
+
+TEST_F(ParentAccessAshTest, GetExtensionApprovalParamsForExtensionDisabled) {
+  parent_access_ash_->GetExtensionParentApproval(
+      test_extension_name, test_child_display_name,
+      extensions::util::GetDefaultExtensionIcon(), {}, true, base::DoNothing());
+
+  parent_access_ui::mojom::ParentAccessParamsPtr params =
+      dialog_provider_->GetLastParamsReceived();
+
+  // Verify request params.
+  EXPECT_EQ(
+      params->flow_type,
+      parent_access_ui::mojom::ParentAccessParams::FlowType::kExtensionAccess);
+  EXPECT_EQ(params->is_disabled, true);
 }
 
 // Makes sure the correct result is returned by the crosapi when the request is
 // approved.
 TEST_F(ParentAccessAshTest, GetWebsiteParentApproval_Approved) {
-  base::RunLoop run_loop;
+  base::test::TestFuture<ParentAccessResultPtr> future;
   parent_access_ash_->GetWebsiteParentApproval(
       GURL(test_url), test_child_display_name, test_favicon,
-      base::BindOnce(
-          [](base::OnceClosure quit_closure,
-             crosapi::mojom::ParentAccessResultPtr result) {
-            // The request was approved.
-            EXPECT_TRUE(result->is_approved());
-            EXPECT_EQ(result->get_approved()->parent_access_token, "ABC123");
-            EXPECT_EQ(
-                result->get_approved()->parent_access_token_expire_timestamp,
-                base::Time::FromDoubleT(123456UL));
-            std::move(quit_closure).Run();
-          },
-          run_loop.QuitClosure()));
+      future.GetCallback());
 
   auto dialog_result = std::make_unique<ash::ParentAccessDialog::Result>();
   dialog_result->status = ash::ParentAccessDialog::Result::Status::kApproved;
   dialog_result->parent_access_token = "ABC123";
   dialog_result->parent_access_token_expire_timestamp =
-      base::Time::FromDoubleT(123456UL);
+      base::Time::FromSecondsSinceUnixEpoch(123456UL);
   dialog_provider_->TriggerCallbackWithResult(std::move(dialog_result));
-  run_loop.Run();
+
+  const ParentAccessResultPtr result = future.Take();
+  ASSERT_TRUE(result->is_approved());
+  EXPECT_EQ(result->get_approved()->parent_access_token, "ABC123");
+  EXPECT_EQ(result->get_approved()->parent_access_token_expire_timestamp,
+            base::Time::FromSecondsSinceUnixEpoch(123456UL));
 }
 
 // Makes sure the correct result is returned by the crosapi when the request
 // is declined.
 TEST_F(ParentAccessAshTest, GetWebsiteParentApproval_Declined) {
-  base::RunLoop run_loop;
+  base::test::TestFuture<ParentAccessResultPtr> future;
   parent_access_ash_->GetWebsiteParentApproval(
       GURL(test_url), test_child_display_name, test_favicon,
-      base::BindOnce(
-          [](base::OnceClosure quit_closure,
-             crosapi::mojom::ParentAccessResultPtr result) {
-            // The request was declined.
-            EXPECT_TRUE(result->is_declined());
-            std::move(quit_closure).Run();
-          },
-          run_loop.QuitClosure()));
+      future.GetCallback());
 
   auto dialog_result = std::make_unique<ash::ParentAccessDialog::Result>();
   dialog_result->status = ash::ParentAccessDialog::Result::Status::kDeclined;
   dialog_provider_->TriggerCallbackWithResult(std::move(dialog_result));
-  run_loop.Run();
+
+  const ParentAccessResultPtr result = future.Take();
+  EXPECT_TRUE(result->is_declined());
 }
 
 // Makes sure an cancel result is returned by the crosapi when the request
 // is canceled.
 TEST_F(ParentAccessAshTest, GetWebsiteParentApproval_Canceled) {
-  base::RunLoop run_loop;
+  base::test::TestFuture<ParentAccessResultPtr> future;
   parent_access_ash_->GetWebsiteParentApproval(
       GURL(test_url), test_child_display_name, test_favicon,
-      base::BindOnce(
-          [](base::OnceClosure quit_closure,
-             crosapi::mojom::ParentAccessResultPtr result) {
-            // The request had an was canceled.
-            EXPECT_TRUE(result->is_canceled());
-            std::move(quit_closure).Run();
-          },
-          run_loop.QuitClosure()));
+      future.GetCallback());
 
   auto dialog_result = std::make_unique<ash::ParentAccessDialog::Result>();
   dialog_result->status = ash::ParentAccessDialog::Result::Status::kCanceled;
   dialog_provider_->TriggerCallbackWithResult(std::move(dialog_result));
-  run_loop.Run();
+
+  const ParentAccessResultPtr result = future.Take();
+  EXPECT_TRUE(result->is_canceled());
 }
 
 // Makes sure an error result is returned by the crosapi when the request
 // had an error.
 TEST_F(ParentAccessAshTest, GetWebsiteParentApproval_Error) {
-  base::RunLoop run_loop;
+  base::test::TestFuture<ParentAccessResultPtr> future;
   parent_access_ash_->GetWebsiteParentApproval(
       GURL(test_url), test_child_display_name, test_favicon,
-      base::BindOnce(
-          [](base::OnceClosure quit_closure,
-             crosapi::mojom::ParentAccessResultPtr result) {
-            // The request had an unknown error.
-            EXPECT_TRUE(result->is_error());
-            EXPECT_EQ(result->get_error()->type,
-                      crosapi::mojom::ParentAccessErrorResult::Type::kUnknown);
-            std::move(quit_closure).Run();
-          },
-          run_loop.QuitClosure()));
+      future.GetCallback());
 
   auto dialog_result = std::make_unique<ash::ParentAccessDialog::Result>();
   dialog_result->status = ash::ParentAccessDialog::Result::Status::kError;
   dialog_provider_->TriggerCallbackWithResult(std::move(dialog_result));
-  run_loop.Run();
+
+  const ParentAccessResultPtr result = future.Take();
+  ASSERT_TRUE(result->is_error());
+  EXPECT_EQ(result->get_error()->type,
+            crosapi::mojom::ParentAccessErrorResult::Type::kUnknown);
 }
 
 // Makes sure only one ParentAccess request can exist at a time..
 TEST_F(ParentAccessAshTest, GetWebsiteParentApproval_AlreadyVisible) {
-  base::RunLoop successful_show_run_loop;
+  base::test::TestFuture<ParentAccessResultPtr> successful_show_future;
   parent_access_ash_->GetWebsiteParentApproval(
       GURL(test_url), test_child_display_name, test_favicon,
-      base::BindOnce(
-          [](base::OnceClosure quit_closure,
-             crosapi::mojom::ParentAccessResultPtr result) {
-            // The request was approved.
-            EXPECT_TRUE(result->is_approved());
-            std::move(quit_closure).Run();
-          },
-          successful_show_run_loop.QuitClosure()));
+      successful_show_future.GetCallback());
 
   dialog_provider_->SetNextShowError(
       ash::ParentAccessDialogProvider::ShowError::kDialogAlreadyVisible);
 
   // Show dialog again, should be blocked because it is already visible.
-  base::RunLoop already_visible_run_loop;
+  base::test::TestFuture<ParentAccessResultPtr> already_visible_future;
   parent_access_ash_->GetWebsiteParentApproval(
       GURL(test_url), test_child_display_name, test_favicon,
-      base::BindOnce(
-          [](base::OnceClosure quit_closure,
-             crosapi::mojom::ParentAccessResultPtr result) {
-            // There was an error showing the ParentAccessUI
-            EXPECT_TRUE(result->is_error());
-            // The error was that it is already visible.
-            EXPECT_EQ(
-                result->get_error()->type,
-                crosapi::mojom::ParentAccessErrorResult::Type::kAlreadyVisible);
-            std::move(quit_closure).Run();
-          },
-          already_visible_run_loop.QuitClosure()));
+      already_visible_future.GetCallback());
 
-  // The second run loop completes.
-  already_visible_run_loop.Run();
+  const ParentAccessResultPtr already_visible_result =
+      already_visible_future.Take();
+  ASSERT_TRUE(already_visible_result->is_error());
+  // The error was that it is already visible.
+  EXPECT_EQ(already_visible_result->get_error()->type,
+            crosapi::mojom::ParentAccessErrorResult::Type::kAlreadyVisible);
 
   auto dialog_result = std::make_unique<ash::ParentAccessDialog::Result>();
   dialog_result->status = ash::ParentAccessDialog::Result::Status::kApproved;
   dialog_provider_->TriggerCallbackWithResult(std::move(dialog_result));
 
-  // The original run loop completes.
-  successful_show_run_loop.Run();
+  const ParentAccessResultPtr show_result = successful_show_future.Take();
+  EXPECT_TRUE(show_result->is_approved());
 }
 
 // Makes sure regular users can't request parent access.
@@ -256,18 +269,92 @@ TEST_F(ParentAccessAshTest, GetWebsiteParentApproval_NotAChildUser) {
   dialog_provider_->SetNextShowError(
       ash::ParentAccessDialogProvider::ShowError::kNotAChildUser);
 
-  base::RunLoop run_loop;
+  base::test::TestFuture<ParentAccessResultPtr> future;
   parent_access_ash_->GetWebsiteParentApproval(
       GURL(test_url), test_child_display_name, test_favicon,
-      base::BindOnce(
-          [](base::OnceClosure quit_closure,
-             crosapi::mojom::ParentAccessResultPtr result) {
-            EXPECT_TRUE(result->is_error());
-            EXPECT_EQ(
-                result->get_error()->type,
-                crosapi::mojom::ParentAccessErrorResult::Type::kNotAChildUser);
-            std::move(quit_closure).Run();
-          },
-          run_loop.QuitClosure()));
-  run_loop.Run();
+      future.GetCallback());
+
+  const ParentAccessResultPtr result = future.Take();
+  ASSERT_TRUE(result->is_error());
+  EXPECT_EQ(result->get_error()->type,
+            crosapi::mojom::ParentAccessErrorResult::Type::kNotAChildUser);
+}
+
+TEST_F(ParentAccessAshTest, GetExtensionParentApproval_Canceled) {
+  base::test::TestFuture<ParentAccessResultPtr> future;
+  parent_access_ash_->GetExtensionParentApproval(
+      test_extension_name, test_child_display_name,
+      extensions::util::GetDefaultExtensionIcon(), {}, true,
+      future.GetCallback());
+
+  auto dialog_result = std::make_unique<ash::ParentAccessDialog::Result>();
+  dialog_result->status = ash::ParentAccessDialog::Result::Status::kCanceled;
+  dialog_provider_->TriggerCallbackWithResult(std::move(dialog_result));
+
+  const ParentAccessResultPtr result = future.Take();
+  EXPECT_TRUE(result->is_canceled());
+}
+
+TEST_F(ParentAccessAshTest, GetExtensionParentApproval_Error) {
+  base::test::TestFuture<ParentAccessResultPtr> future;
+  parent_access_ash_->GetExtensionParentApproval(
+      test_extension_name, test_child_display_name,
+      extensions::util::GetDefaultExtensionIcon(), {}, true,
+      future.GetCallback());
+
+  auto dialog_result = std::make_unique<ash::ParentAccessDialog::Result>();
+  dialog_result->status = ash::ParentAccessDialog::Result::Status::kError;
+  dialog_provider_->TriggerCallbackWithResult(std::move(dialog_result));
+
+  const ParentAccessResultPtr result = future.Take();
+  ASSERT_TRUE(result->is_error());
+  EXPECT_EQ(result->get_error()->type,
+            crosapi::mojom::ParentAccessErrorResult::Type::kUnknown);
+}
+
+TEST_F(ParentAccessAshTest, GetExtensionParentApproval_AlreadyVisible) {
+  base::test::TestFuture<ParentAccessResultPtr> successful_show_future;
+  parent_access_ash_->GetExtensionParentApproval(
+      test_extension_name, test_child_display_name,
+      extensions::util::GetDefaultExtensionIcon(), {}, true,
+      successful_show_future.GetCallback());
+
+  dialog_provider_->SetNextShowError(
+      ash::ParentAccessDialogProvider::ShowError::kDialogAlreadyVisible);
+
+  // Show dialog again, should be blocked because it is already visible.
+  base::test::TestFuture<ParentAccessResultPtr> already_visible_future;
+  parent_access_ash_->GetExtensionParentApproval(
+      test_extension_name, test_child_display_name,
+      extensions::util::GetDefaultExtensionIcon(), {}, true,
+      already_visible_future.GetCallback());
+
+  const ParentAccessResultPtr already_visible_result =
+      already_visible_future.Take();
+  ASSERT_TRUE(already_visible_result->is_error());
+  EXPECT_EQ(already_visible_result->get_error()->type,
+            crosapi::mojom::ParentAccessErrorResult::Type::kAlreadyVisible);
+
+  auto dialog_result = std::make_unique<ash::ParentAccessDialog::Result>();
+  dialog_result->status = ash::ParentAccessDialog::Result::Status::kApproved;
+  dialog_provider_->TriggerCallbackWithResult(std::move(dialog_result));
+
+  const ParentAccessResultPtr show_result = successful_show_future.Take();
+  EXPECT_TRUE(show_result->is_approved());
+}
+
+TEST_F(ParentAccessAshTest, GetExtensionParentApproval_NotAChildUser) {
+  dialog_provider_->SetNextShowError(
+      ash::ParentAccessDialogProvider::ShowError::kNotAChildUser);
+
+  base::test::TestFuture<ParentAccessResultPtr> future;
+  parent_access_ash_->GetExtensionParentApproval(
+      test_extension_name, test_child_display_name,
+      extensions::util::GetDefaultExtensionIcon(), {}, true,
+      future.GetCallback());
+
+  const ParentAccessResultPtr result = future.Take();
+  ASSERT_TRUE(result->is_error());
+  EXPECT_EQ(result->get_error()->type,
+            crosapi::mojom::ParentAccessErrorResult::Type::kNotAChildUser);
 }

@@ -42,19 +42,21 @@ class ContentViewRenderView : public content::CompositorClient {
                       const base::android::JavaParamRef<jobject>& obj);
   void SurfaceDestroyed(JNIEnv* env,
                         const base::android::JavaParamRef<jobject>& obj);
-  void SurfaceChanged(JNIEnv* env,
-                      const base::android::JavaParamRef<jobject>& obj,
-                      jint format,
-                      jint width,
-                      jint height,
-                      const base::android::JavaParamRef<jobject>& surface);
+  void SurfaceChanged(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jobject>& obj,
+      jint format,
+      jint width,
+      jint height,
+      const base::android::JavaParamRef<jobject>& surface,
+      const base::android::JavaParamRef<jobject>& surface_control,
+      const base::android::JavaParamRef<jobject>& host_input_token);
   void SetOverlayVideoMode(JNIEnv* env,
                            const base::android::JavaParamRef<jobject>& obj,
                            bool enabled);
 
   // CompositorClient implementation
   void UpdateLayerTreeHost() override;
-  void DidSwapFrame(int pending_frames) override;
 
  private:
   ~ContentViewRenderView() override;

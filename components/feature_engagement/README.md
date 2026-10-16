@@ -74,7 +74,7 @@ In addition, since each feature might have preconditions that must be met within
 the time window configured for the experiment, the frontend needs to inform the
 backend whenever such events happen.
 
-To ensure that it is possible to use whether a feature has been used or not as
+To ensure that it is possible to know whether a feature has been used or not as
 input to the algorithm to decide whether to show IPH and for tracking purposes,
 the frontend needs to inform whenever the feature has been used.
 
@@ -159,7 +159,7 @@ you would have to add it to the following places:
 1.  `//components/feature_engagement/public/feature_constants.h`:
 
     ```c++
-    BASE_DECLARE_FEATURE(kIPHGoatTeleportationFeature);
+    FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHGoatTeleportationFeature);
     ```
 
 1.  `//components/feature_engagement/public/feature_list.cc`:
@@ -442,6 +442,18 @@ How to select a feature or features is described below.
     *   Enabled IPH_GoatTeleportationFeature
 1.  Restart Chrome
 
+
+## Feature Grouping
+
+Sometimes, it's desirable to have one list of rules apply to many different
+features. For example, you may have a set of 3 similar features and want to
+show one to the user each week. Each feature can declare itself part of one
+or more groups. Groups have their own extra configuration, and then when a
+feature is checked, all the group configuration properties are checked as
+well. Thus, for a feature to show, its own configuration and all of its
+groups' configurations must be met. Effectively, the strictest set of rules
+will apply.
+
 ## Configuration Format
 
 Each In-Product Help feature must have its own feature configuration
@@ -467,6 +479,7 @@ Format:
   "event_???": "{EventConfig}",
   "snooze_params": "{SnoozeParams}"
   "tracking_only": "{Boolean}"
+  "groups": {GroupList},
   "x_???": "..."
  }
 ```
@@ -543,6 +556,10 @@ into the same field trial.
     *   Enabled snooze capability for in-product help bubbles.
     *   By default, an in-product help is not snoozable and is dismissed until triggered again.
     *   See [SnoozeParams](#SnoozeParams) below for details.
+*   `groups`
+    *   List of groups this feature is part of.
+    *   The feature will be subject to all items from its groups' configurations.
+    *   See [GroupList](#GroupList) below for details.
 *   `tracking_only`
     *   Set to true if in-product help should never trigger.
     *   Tracker::ShouldTriggerHelpUI(...) will always return false, but if all
@@ -806,6 +823,66 @@ The IPH bubble will be force dismissed after 2 snoozes, which means it will be s
 max_limit:2,snooze_interval:4
 ```
 
+### GroupList
+
+Format: `[comma-separated list]`
+
+This is a comma-separated list of group names that this feature is part of.
+
+### GroupConfig
+
+The `GroupConfig` fields `session_rate` and `event_trigger` are required, and
+there can be an arbitrary amount of other `event_???` entries. Like features,
+the group fields can also have an optional name prefix.
+
+
+```
+{
+  "session_rate": "{Comparator}",
+  "event_trigger": "{EventConfig}",
+  "event_???": "{EventConfig}",
+  "x_???": "..."
+ }
+```
+
+* `session_rate` __REQUIRED__
+    * Similar to the [FeatureConfig](#FeatureConfig) field of the same name.
+    * The count of total In-Product Help displayed in the current end user session must
+      meet all session rates: the base feature's and those of any of its groups.
+
+* `event_trigger` __REQUIRED__
+    * Similar to the [FeatureConfig](#FeatureConfig) field of the same name.
+    * Automatically increments whenever any feature in this group is triggered.
+
+* `event_???`
+    * Similar to the [FeatureConfig](#FeatureConfig) field of the same name.
+
+**Examples**
+
+There are 2 features that trigger once per month each. The overarching group causes
+only one of the 2 to trigger every week.
+
+```
+DownloadHomeIPH: {
+  "availability": ">=30",
+  "session_rate": "<1",
+  "event_used": "name:download_home_opened;comparator:any;window:90;storage:360",
+  "event_trigger": "name:download_home_iph_trigger;comparator:==0;window:30;storage:30",
+  "groups": "DownloadGroup",
+}
+DownloadCustomIPH: {
+  "availability": ">=30",
+  "session_rate": "<1",
+  "event_used": "name:download_custom_opened;comparator:any;window:90;storage:360",
+  "event_trigger": "name:download_custom_iph_trigger;comparator:==0;window:30;storage:30",
+  "groups": "DownloadGroup",
+}
+DownloadGroup: {
+  "session_rate": "<1",
+  "event_trigger": "name:download_group_trigger;comparator:==0;window:7;storage:30",
+}
+```
+
 ### Manual testing using field trial configurations
 
 Usually, the options for testing IPHs provided in
@@ -875,6 +952,18 @@ a debug build of chrome with the following command line arguments:
 --vmodule=tracker_impl*=2,event_model_impl*=2,persistent_availability_store*=2,chrome_variations_configuration*=3
 ```
 
+## Automated External Testing (Tast)
+
+If you want to restrict the IPH that can show when launching Chrome as an
+external process as part of a test, use the `--propagate-iph-for-testing`
+switch:
+
+ * `chrome --propagate-iph-for-testing`
+   - disables all IPH
+ * `chrome --propagate-iph-for-testing=IPH_GoatTeleportationFeature,IPH_FlyingCowFeature`
+   - disables all IPH except for "IPH_GoatTeleportationFeature" and
+   "IPH_FlyingCowFeature".
+
 ## Development of `//components/feature_engagement`
 
 ### Testing
@@ -918,7 +1007,7 @@ The configuration will look like this:
 In `//components/feature_engagement/public/feature_constants.h`:
 
 ```c++
-BASE_DECLARE_FEATURE(kIPHPasswordInfobarFeature);
+FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHPasswordInfobarFeature);
 ```
 
 In `//components/feature_engagement/public/event_constants.h`

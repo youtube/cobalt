@@ -56,8 +56,9 @@ void SigninErrorController::Update() {
     error_changed = true;
   }
 
-  if (!error_changed)
+  if (!error_changed) {
     return;
+  }
 
   if (auth_error_.state() == prev_error_state &&
       error_account_id_ == prev_account_id) {
@@ -66,8 +67,9 @@ void SigninErrorController::Update() {
   }
 
   signin_metrics::LogAuthError(auth_error_);
-  for (auto& observer : observer_list_)
+  for (auto& observer : observer_list_) {
     observer.OnErrorChanged();
+  }
 }
 
 bool SigninErrorController::UpdateSecondaryAccountErrors(
@@ -146,19 +148,21 @@ void SigninErrorController::OnEndBatchOfRefreshTokenStateChanges() {
 
 void SigninErrorController::OnErrorStateOfRefreshTokenUpdatedForAccount(
     const CoreAccountInfo& account_info,
-    const GoogleServiceAuthError& error) {
+    const GoogleServiceAuthError& error,
+    signin_metrics::SourceForRefreshTokenOperation token_operation_source) {
   Update();
 }
 
 void SigninErrorController::OnPrimaryAccountChanged(
     const signin::PrimaryAccountChangeEvent& event) {
-  if (event.GetEventTypeFor(signin::ConsentLevel::kSync) ==
+  if (event.GetEventTypeFor(signin::ConsentLevel::kSignin) ==
       signin::PrimaryAccountChangeEvent::Type::kNone) {
     return;
   }
   // Ignore updates to the primary account if not in PRIMARY_ACCOUNT mode.
-  if (account_mode_ != AccountMode::PRIMARY_ACCOUNT)
+  if (account_mode_ != AccountMode::PRIMARY_ACCOUNT) {
     return;
+  }
 
   Update();
 }

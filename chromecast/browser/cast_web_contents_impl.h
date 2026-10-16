@@ -7,8 +7,10 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/flat_map.h"
@@ -27,7 +29,6 @@
 #include "chromecast/mojo/remote_interfaces.h"
 #include "components/media_control/browser/media_blocker.h"
 #include "components/on_load_script_injector/browser/on_load_script_injector_host.h"
-#include "components/url_rewrite/browser/url_request_rewrite_rules_manager.h"
 #include "content/public/browser/render_process_host_observer.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -36,7 +37,6 @@
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/favicon/favicon_url.mojom-forward.h"
 
 namespace content {
@@ -63,8 +63,6 @@ class CastWebContentsImpl : public CastWebContents,
 
   content::WebContents* web_contents() const override;
   PageState page_state() const override;
-  url_rewrite::UrlRequestRewriteRulesManager* url_rewrite_rules_manager()
-      override;
   const media_control::MediaBlocker* media_blocker() const override;
 
   // CastWebContents implementation:
@@ -83,8 +81,6 @@ class CastWebContentsImpl : public CastWebContents,
   void AddRendererFeatures(base::Value::Dict features) override;
   void SetInterfacesForRenderer(
       mojo::PendingRemote<mojom::RemoteInterfaces> remote_interfaces) override;
-  void SetUrlRewriteRules(
-      url_rewrite::mojom::UrlRequestRewriteRulesPtr rules) override;
   void LoadUrl(const GURL& url) override;
   void ClosePage() override;
   void Stop(int error_code) override;
@@ -94,7 +90,7 @@ class CastWebContentsImpl : public CastWebContents,
   void BlockMediaLoading(bool blocked) override;
   void BlockMediaStarting(bool blocked) override;
   void EnableBackgroundVideoPlayback(bool enabled) override;
-  void AddBeforeLoadJavaScript(uint64_t id, base::StringPiece script) override;
+  void AddBeforeLoadJavaScript(uint64_t id, std::string_view script) override;
   void PostMessageToMainFrame(
       const std::string& target_origin,
       const std::string& data,
@@ -153,11 +149,6 @@ class CastWebContentsImpl : public CastWebContents,
       content::WebContentsObserver::MediaStoppedReason reason) override;
 
  private:
-  // Constructor used to create inner CastWebContents. This allows inner
-  // contents to share the same URL rewrite rules as the root.
-  CastWebContentsImpl(content::WebContents* web_contents,
-                      mojom::CastWebViewParamsPtr params,
-                      CastWebContents* parent);
   void OnPageLoading();
   void OnPageLoaded();
   void UpdatePageState();
@@ -170,23 +161,20 @@ class CastWebContentsImpl : public CastWebContents,
   std::vector<chromecast::shell::mojom::FeaturePtr> GetRendererFeatures();
   void OnBindingsReceived(
       std::vector<chromecast::mojom::ApiBindingPtr> bindings);
-  bool OnPortConnected(base::StringPiece port_name,
+  bool OnPortConnected(std::string_view port_name,
                        std::unique_ptr<cast_api_bindings::MessagePort> port);
 
   content::WebContents* web_contents_;
   mojom::CastWebViewParamsPtr params_;
-  absl::optional<url_rewrite::UrlRequestRewriteRulesManager>
-      url_rewrite_rules_manager_;
   PageState page_state_;
   PageState last_state_;
   shell::RemoteDebuggingServer* const remote_debugging_server_;
   std::unique_ptr<CastMediaBlocker> media_blocker_;
-  absl::optional<std::vector<std::string>> activity_url_filter_;
+  std::optional<std::vector<std::string>> activity_url_filter_;
 
   // Retained so that this observer can be removed before being destroyed:
   content::RenderProcessHost* main_process_host_;
 
-  CastWebContents* const parent_cast_web_contents_ = nullptr;
   base::flat_set<std::unique_ptr<CastWebContents>> inner_contents_;
   base::Value::Dict renderer_features_;
 

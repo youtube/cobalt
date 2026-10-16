@@ -3,9 +3,16 @@
 # found in the LICENSE file.
 
 import logging
+import os
 import sys
-from .finch_skia_gold_properties import FinchSkiaGoldProperties
-from .finch_skia_gold_session_manager import FinchSkiaGoldSessionManager
+
+_THIS_DIR = os.path.abspath(os.path.dirname(__file__))
+_CHROMIUM_SRC_DIR = os.path.realpath(os.path.join(_THIS_DIR, '..', '..', '..'))
+
+# //build imports.
+sys.path.append(os.path.join(_CHROMIUM_SRC_DIR, 'build'))
+from skia_gold_common.skia_gold_properties import SkiaGoldProperties
+from skia_gold_common.skia_gold_session_manager import SkiaGoldSessionManager
 
 # This is the corpus used by skia gold to identify the data set.
 # We are not using the same corpus as the rest of the skia gold chromium tests.
@@ -14,9 +21,10 @@ CORPUS = 'finch-smoke-tests'
 
 
 class FinchSkiaGoldUtil:
+
   def __init__(self, temp_dir, args):
-    self._skia_gold_properties = FinchSkiaGoldProperties(args)
-    self._skia_gold_session_manager = FinchSkiaGoldSessionManager(
+    self._skia_gold_properties = SkiaGoldProperties(args)
+    self._skia_gold_session_manager = SkiaGoldSessionManager(
         temp_dir, self._skia_gold_properties)
     self._skia_gold_session = self._GetSkiaGoldSession()
     self._retry_without_patch = False
@@ -51,8 +59,7 @@ class FinchSkiaGoldUtil:
     """
     key_input = {}
     key_input['platform'] = _get_platform()
-    return self._skia_gold_session_manager.GetSkiaGoldSession(
-        key_input, CORPUS)
+    return self._skia_gold_session_manager.GetSkiaGoldSession(key_input, CORPUS)
 
 
 def _get_platform():
@@ -69,8 +76,8 @@ def _get_platform():
     return 'mac'
 
   raise RuntimeError(
-    'Unsupported platform: %s. Only Linux (linux*) and Mac (darwin) and '
-    'Windows (win32 or cygwin) are supported' % sys.platform)
+      'Unsupported platform: %s. Only Linux (linux*) and Mac (darwin) and '
+      'Windows (win32 or cygwin) are supported' % sys.platform)
 
 
 def _output_local_diff_files(skia_gold_session, image_name):
@@ -130,7 +137,6 @@ def log_skia_gold_status_code(skia_gold_session, image_name, status, error):
     logging.error('Local diff files:')
     _output_local_diff_files(skia_gold_session, image_name)
   else:
-    logging.error(
-        'Given unhandled SkiaGoldSession StatusCode %s with error %s', status,
-        error)
+    logging.error('Given unhandled SkiaGoldSession StatusCode %s with error %s',
+                  status, error)
   return triage_link

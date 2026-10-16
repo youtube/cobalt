@@ -1,16 +1,16 @@
-/* Copyright (c) 2018, Google Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
+// Copyright 2018 The BoringSSL Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "test_state.h"
 
@@ -151,34 +151,30 @@ bool TestState::Serialize(CBB *cbb) const {
 
 std::unique_ptr<TestState> TestState::Deserialize(CBS *cbs, SSL_CTX *ctx) {
   CBS in, pending_session, text;
-  std::unique_ptr<TestState> out_state(new TestState());
+  auto state = std::make_unique<TestState>();
   uint16_t version;
   constexpr uint16_t kVersion = 0;
   uint64_t sec, usec;
-  if (!CBS_get_u24_length_prefixed(cbs, &in) ||
-      !CBS_get_u16(&in, &version) ||
+  if (!CBS_get_u24_length_prefixed(cbs, &in) ||  //
+      !CBS_get_u16(&in, &version) ||             //
       version > kVersion ||
       !CBS_get_u24_length_prefixed(&in, &pending_session) ||
-      !CBS_get_u16_length_prefixed(&in, &text)) {
+      !CBS_get_u16_length_prefixed(&in, &text) ||
+      !CBS_get_asn1_uint64(&in, &sec) ||   //
+      !CBS_get_asn1_uint64(&in, &usec) ||  //
+      usec >= 1000000) {
     return nullptr;
   }
   if (CBS_len(&pending_session)) {
-    out_state->pending_session = SSL_SESSION_parse(
+    state->pending_session = SSL_SESSION_parse(
         &pending_session, ctx->x509_method, ctx->pool);
-    if (!out_state->pending_session) {
+    if (!state->pending_session) {
       return nullptr;
     }
   }
-  out_state->msg_callback_text = std::string(
+  state->msg_callback_text = std::string(
       reinterpret_cast<const char *>(CBS_data(&text)), CBS_len(&text));
-  // TODO(2020-05-01): Make this unconditional & merge into above.
-  if (CBS_len(&in) > 0) {
-    if (!CBS_get_asn1_uint64(&in, &sec) ||
-        !CBS_get_asn1_uint64(&in, &usec)) {
-      return nullptr;
-    }
-    g_clock.tv_sec = sec;
-    g_clock.tv_usec = usec;
-  }
-  return out_state;
+  g_clock.tv_sec = sec;
+  g_clock.tv_usec = usec;
+  return state;
 }

@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {PageCallbackRouter, PageHandlerFactory, PageHandlerRemote, Tab, TabGroupVisualData} from './tab_strip.mojom-webui.js';
+import type {Tab, TabGroupVisualData} from './tab_strip.mojom-webui.js';
+import {PageCallbackRouter, PageHandlerFactory, PageHandlerRemote} from './tab_strip.mojom-webui.js';
 
 /**
  * These values are persisted to logs and should not be renumbered or re-used.
@@ -122,7 +123,7 @@ export class TabsApiProxyImpl implements TabsApiProxy {
   }
 
   isVisible() {
-    // TODO(crbug.com/1234500): Move this call out of tabs_api_proxy
+    // TODO(crbug.com/40781526): Move this call out of tabs_api_proxy
     // since it's not related to tabs API.
     return document.visibilityState === 'visible';
   }

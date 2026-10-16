@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "third_party/blink/public/common/messaging/string_message_codec.h"
 
 #include <string>
+#include <variant>
 
 #include "base/containers/span.h"
 #include "base/functional/overloaded.h"
@@ -12,7 +18,6 @@
 #include "base/test/task_environment.h"
 #include "mojo/public/cpp/base/big_buffer.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "v8/include/v8.h"
 
 namespace blink {
@@ -27,6 +32,7 @@ WebMessagePayload DecodeWithV8(const TransferableMessage& message) {
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
   v8::Isolate* isolate = v8::Isolate::New(params);
   {
+    v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope scope(isolate);
     v8::TryCatch try_catch(isolate);
 
@@ -55,8 +61,8 @@ WebMessagePayload DecodeWithV8(const TransferableMessage& message) {
       v8::Local<v8::String> js_str = value->ToString(context).ToLocalChecked();
       std::u16string str;
       str.resize(js_str->Length());
-      js_str->Write(isolate, reinterpret_cast<uint16_t*>(&str[0]), 0,
-                    str.size());
+      js_str->WriteV2(isolate, 0, str.size(),
+                      reinterpret_cast<uint16_t*>(&str[0]));
       result = str;
     }
     if (value->IsArrayBuffer()) {
@@ -86,6 +92,7 @@ TransferableMessage EncodeWithV8(const WebMessagePayload& message,
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
   v8::Isolate* isolate = v8::Isolate::New(params);
   {
+    v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope scope(isolate);
     v8::TryCatch try_catch(isolate);
 
@@ -94,7 +101,7 @@ TransferableMessage EncodeWithV8(const WebMessagePayload& message,
     v8::ValueSerializer serializer(isolate);
     serializer.WriteHeader();
 
-    absl::visit(
+    std::visit(
         base::Overloaded{
             [&](const std::u16string& str) {
               v8::Local<v8::String> message_as_value =
@@ -110,7 +117,7 @@ TransferableMessage EncodeWithV8(const WebMessagePayload& message,
               // Create a new JS ArrayBuffer, then transfer into serializer.
               v8::Local<v8::ArrayBuffer> message_as_array_buffer =
                   v8::ArrayBuffer::New(isolate, array_buffer->GetLength());
-              array_buffer->CopyInto(base::make_span(
+              array_buffer->CopyInto(base::span(
                   reinterpret_cast<uint8_t*>(message_as_array_buffer->Data()),
                   message_as_array_buffer->ByteLength()));
               if (transferable) {
@@ -144,23 +151,23 @@ TransferableMessage EncodeWithV8(const WebMessagePayload& message,
   return transferable_message;
 }
 
-void CheckStringEQ(const absl::optional<WebMessagePayload>& optional_payload,
+void CheckStringEQ(const std::optional<WebMessagePayload>& optional_payload,
                    const std::u16string& str) {
   EXPECT_TRUE(optional_payload);
   auto& payload = optional_payload.value();
-  EXPECT_TRUE(absl::holds_alternative<std::u16string>(payload));
-  EXPECT_EQ(str, absl::get<std::u16string>(payload));
+  EXPECT_TRUE(std::holds_alternative<std::u16string>(payload));
+  EXPECT_EQ(str, std::get<std::u16string>(payload));
 }
 
-void CheckVectorEQ(const absl::optional<WebMessagePayload>& optional_payload,
+void CheckVectorEQ(const std::optional<WebMessagePayload>& optional_payload,
                    const std::vector<uint8_t>& buffer) {
   EXPECT_TRUE(optional_payload);
   auto& payload = optional_payload.value();
   EXPECT_TRUE(
-      absl::holds_alternative<std::unique_ptr<WebMessageArrayBufferPayload>>(
+      std::holds_alternative<std::unique_ptr<WebMessageArrayBufferPayload>>(
           payload));
   auto& array_buffer =
-      absl::get<std::unique_ptr<WebMessageArrayBufferPayload>>(payload);
+      std::get<std::unique_ptr<WebMessageArrayBufferPayload>>(payload);
   EXPECT_EQ(buffer.size(), array_buffer->GetLength());
 
   auto span = array_buffer->GetAsSpanIfPossible();
@@ -170,7 +177,7 @@ void CheckVectorEQ(const absl::optional<WebMessagePayload>& optional_payload,
   }
 
   std::vector<uint8_t> temp(array_buffer->GetLength());
-  array_buffer->CopyInto(base::make_span(temp));
+  array_buffer->CopyInto(base::span(temp));
   EXPECT_EQ(temp, buffer);
 }
 
@@ -323,8 +330,8 @@ TEST(StringMessageCodecTest, InvalidDecode) {
       {0xff, 0x15, 0xfe, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
        0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0x10, '"',  0x01, 'a'});
   ASSERT_TRUE(valid_payload.has_value());
-  ASSERT_TRUE(absl::holds_alternative<std::u16string>(*valid_payload));
-  EXPECT_EQ(absl::get<std::u16string>(*valid_payload), u"a");
+  ASSERT_TRUE(std::holds_alternative<std::u16string>(*valid_payload));
+  EXPECT_EQ(std::get<std::u16string>(*valid_payload), u"a");
 }
 
 }  // namespace

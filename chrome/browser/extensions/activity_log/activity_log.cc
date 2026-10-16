@@ -15,21 +15,19 @@
 #include "base/functional/bind.h"
 #include "base/json/json_string_value_serializer.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/one_shot_event.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_checker.h"
 #include "base/values.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/activity_log/activity_action_constants.h"
 #include "chrome/browser/extensions/activity_log/counting_policy.h"
 #include "chrome/browser/extensions/activity_log/fullstream_ui_policy.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/no_state_prefetch_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
@@ -46,7 +44,6 @@
 #include "extensions/browser/extensions_browser_client.h"
 #include "extensions/browser/renderer_startup_helper.h"
 #include "extensions/common/extension.h"
-#include "extensions/common/extension_messages.h"
 #include "extensions/common/features/feature.h"
 #include "extensions/common/features/feature_provider.h"
 #include "extensions/common/hashed_extension_id.h"
@@ -196,12 +193,12 @@ class ApiInfoDatabase {
       api_database_[info.api_name] = &info;
     }
   }
-  virtual ~ApiInfoDatabase() {}
+  virtual ~ApiInfoDatabase() = default;
 
   // The map is keyed by API name only, since API names aren't be repeated
   // across multiple action types in kApiInfoTable.  However, the action type
   // should still be checked before returning a positive match.
-  std::map<std::string, const ApiInfo*> api_database_;
+  std::map<std::string, raw_ptr<const ApiInfo, CtnExperimental>> api_database_;
 
   friend struct base::DefaultSingletonTraits<ApiInfoDatabase>;
 };
@@ -214,15 +211,15 @@ bool GetUrlForTabId(int tab_id,
                     GURL* url,
                     bool* is_incognito) {
   content::WebContents* contents = nullptr;
-  Browser* browser = nullptr;
+  WindowController* window = nullptr;
   bool found =
       ExtensionTabUtil::GetTabById(tab_id, profile,
                                    true,  // Search incognito tabs, too.
-                                   &browser, nullptr, &contents, nullptr);
+                                   &window, &contents, nullptr);
 
-  if (found) {
+  if (found && window) {
     *url = contents->GetURL();
-    *is_incognito = browser->profile()->IsOffTheRecord();
+    *is_incognito = window->profile()->IsOffTheRecord();
     return true;
   } else {
     return false;
@@ -355,8 +352,8 @@ ActivityLog* SafeGetActivityLog(content::BrowserContext* browser_context) {
   // the thread hops.
   // TODO(devlin): We should probably be doing this more extensively throughout
   // extensions code.
-  if (g_browser_process->IsShuttingDown() ||
-      !g_browser_process->profile_manager()->IsValidProfile(browser_context)) {
+  if (ExtensionsBrowserClient::Get()->IsShuttingDown() ||
+      !ExtensionsBrowserClient::Get()->IsValidContext(browser_context)) {
     return nullptr;
   }
   return ActivityLog::GetInstance(browser_context);
@@ -648,7 +645,7 @@ void ActivityLog::LogAction(scoped_refptr<Action> action) {
                        base::CompareCase::SENSITIVE) &&
       action->other()) {
     base::Value::Dict& other = action->mutable_other();
-    absl::optional<int> dom_verb = other.FindInt(constants::kActionDomVerb);
+    std::optional<int> dom_verb = other.FindInt(constants::kActionDomVerb);
     if (dom_verb == DomActionType::METHOD)
       other.Set(constants::kActionDomVerb, DomActionType::XHR);
   }
@@ -674,8 +671,8 @@ void ActivityLog::OnScriptsExecuted(content::WebContents* web_contents,
     return;
   ExtensionRegistry* registry = ExtensionRegistry::Get(profile_);
   for (const auto& extension_id : extension_ids) {
-    const Extension* extension = registry->GetExtensionById(
-        extension_id.first, ExtensionRegistry::ENABLED);
+    const Extension* extension =
+        registry->enabled_extensions().GetByID(extension_id.first);
     if (!extension || IsExtensionAllowlisted(extension->id()))
       continue;
 

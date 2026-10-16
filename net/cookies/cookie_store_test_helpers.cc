@@ -4,6 +4,7 @@
 
 #include "net/cookies/cookie_store_test_helpers.h"
 
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -15,7 +16,7 @@
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/cookies/cookie_store.h"
 #include "net/cookies/cookie_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "net/http/http_util.h"
 #include "url/gurl.h"
 
 using net::registry_controlled_domains::GetDomainAndRegistry;
@@ -50,7 +51,7 @@ std::unique_ptr<CookieChangeSubscription>
 DelayedCookieMonsterChangeDispatcher::AddCallbackForCookie(
     const GURL& url,
     const std::string& name,
-    const absl::optional<CookiePartitionKey>& cookie_partition_key,
+    const std::optional<CookiePartitionKey>& cookie_partition_key,
     CookieChangeCallback callback) {
   ADD_FAILURE();
   return nullptr;
@@ -58,7 +59,7 @@ DelayedCookieMonsterChangeDispatcher::AddCallbackForCookie(
 std::unique_ptr<CookieChangeSubscription>
 DelayedCookieMonsterChangeDispatcher::AddCallbackForUrl(
     const GURL& url,
-    const absl::optional<CookiePartitionKey>& cookie_partition_key,
+    const std::optional<CookiePartitionKey>& cookie_partition_key,
     CookieChangeCallback callback) {
   ADD_FAILURE();
   return nullptr;
@@ -73,8 +74,10 @@ DelayedCookieMonsterChangeDispatcher::AddCallbackForAllChanges(
 DelayedCookieMonster::DelayedCookieMonster()
     : cookie_monster_(std::make_unique<CookieMonster>(nullptr /* store */,
                                                       nullptr /* netlog */)),
-      result_(CookieAccessResult(CookieInclusionStatus(
-          CookieInclusionStatus::EXCLUDE_FAILURE_TO_STORE))) {}
+      result_(
+          CookieAccessResult(CookieInclusionStatus::MakeFromReasonsForTesting(
+              /*exclusions=*/{CookieInclusionStatus::ExclusionReason::
+                                  EXCLUDE_FAILURE_TO_STORE}))) {}
 
 DelayedCookieMonster::~DelayedCookieMonster() = default;
 
@@ -97,13 +100,29 @@ void DelayedCookieMonster::SetCanonicalCookieAsync(
     const GURL& source_url,
     const CookieOptions& options,
     SetCookiesCallback callback,
-    absl::optional<CookieAccessResult> cookie_access_result) {
+    std::optional<CookieAccessResult> cookie_access_result) {
   did_run_ = false;
   cookie_monster_->SetCanonicalCookieAsync(
       std::move(cookie), source_url, options,
       base::BindOnce(&DelayedCookieMonster::SetCookiesInternalCallback,
                      base::Unretained(this)),
       std::move(cookie_access_result));
+  DCHECK_EQ(did_run_, true);
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&DelayedCookieMonster::InvokeSetCookiesCallback,
+                     base::Unretained(this), std::move(callback)),
+      base::Milliseconds(kDelayedTime));
+}
+
+void DelayedCookieMonster::SetUnsafeCanonicalCookieForTestAsync(
+    std::unique_ptr<CanonicalCookie> cookie,
+    SetCookiesCallback callback) {
+  did_run_ = false;
+  cookie_monster_->SetUnsafeCanonicalCookieForTestAsync(
+      std::move(cookie),
+      base::BindOnce(&DelayedCookieMonster::SetCookiesInternalCallback,
+                     base::Unretained(this)));
   DCHECK_EQ(did_run_, true);
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
@@ -184,7 +203,7 @@ CookieChangeDispatcher& DelayedCookieMonster::GetChangeDispatcher() {
 }
 
 void DelayedCookieMonster::SetCookieableSchemes(
-    const std::vector<std::string>& schemes,
+    std::vector<std::string> schemes,
     SetCookieableSchemesCallback callback) {
   ADD_FAILURE();
 }
@@ -272,7 +291,7 @@ CallbackCounter::~CallbackCounter() = default;
 
 std::string FutureCookieExpirationString() {
   return "; expires=" +
-         base::TimeFormatHTTP(base::Time::Now() + base::Days(365));
+         HttpUtil::TimeFormatHTTP(base::Time::Now() + base::Days(365));
 }
 
 }  // namespace net

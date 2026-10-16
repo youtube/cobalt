@@ -10,18 +10,19 @@
 
 #include "modules/rtp_rtcp/source/rtcp_packet/sender_report.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <utility>
+#include <vector>
 
 #include "modules/rtp_rtcp/source/byte_io.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/common_header.h"
+#include "modules/rtp_rtcp/source/rtcp_packet/report_block.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
 namespace webrtc {
 namespace rtcp {
-constexpr uint8_t SenderReport::kPacketType;
-constexpr size_t SenderReport::kMaxNumberOfReportBlocks;
-constexpr size_t SenderReport::kSenderBaseLength;
 //    Sender report (SR) (RFC 3550).
 //     0                   1                   2                   3
 //     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1

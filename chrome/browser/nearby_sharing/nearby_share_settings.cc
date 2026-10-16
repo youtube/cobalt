@@ -6,11 +6,10 @@
 
 #include "base/metrics/histogram_functions.h"
 #include "base/values.h"
-#include "chrome/browser/nearby_sharing/common/nearby_share_enums.h"
 #include "chrome/browser/nearby_sharing/common/nearby_share_features.h"
 #include "chrome/browser/nearby_sharing/common/nearby_share_prefs.h"
-#include "chrome/browser/nearby_sharing/logging/logging.h"
 #include "chromeos/constants/chromeos_features.h"
+#include "components/cross_device/logging/logging.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 
@@ -53,6 +52,14 @@ NearbyShareSettings::NearbyShareSettings(
     base::UmaHistogramEnumeration("Nearby.Share.VisibilityChoice",
                                   GetVisibility());
   }
+
+  // In Quick Share v2, the 'Selected contacts' visibility is deprecated. Set
+  // user visibility, if in 'Selected contacts', to 'Your devices'.
+  if (chromeos::features::IsQuickShareV2Enabled()) {
+    if (GetVisibility() == nearby_share::mojom::Visibility::kSelectedContacts) {
+      SetVisibility(nearby_share::mojom::Visibility::kYourDevices);
+    }
+  }
 }
 
 NearbyShareSettings::~NearbyShareSettings() {
@@ -63,10 +70,11 @@ bool NearbyShareSettings::GetEnabled() const {
   return pref_service_->GetBoolean(prefs::kNearbySharingEnabledPrefName);
 }
 
-FastInitiationNotificationState
+nearby_share::mojom::FastInitiationNotificationState
 NearbyShareSettings::GetFastInitiationNotificationState() const {
-  return static_cast<FastInitiationNotificationState>(pref_service_->GetInteger(
-      prefs::kNearbySharingFastInitiationNotificationStatePrefName));
+  return static_cast<nearby_share::mojom::FastInitiationNotificationState>(
+      pref_service_->GetInteger(
+          prefs::kNearbySharingFastInitiationNotificationStatePrefName));
 }
 
 void NearbyShareSettings::SetIsFastInitiationHardwareSupported(
@@ -86,14 +94,28 @@ std::string NearbyShareSettings::GetDeviceName() const {
   return local_device_data_manager_->GetDeviceName();
 }
 
-DataUsage NearbyShareSettings::GetDataUsage() const {
+NearbyShareSettings::DataUsage NearbyShareSettings::GetDataUsage() const {
   return static_cast<DataUsage>(
       pref_service_->GetInteger(prefs::kNearbySharingDataUsageName));
 }
 
-Visibility NearbyShareSettings::GetVisibility() const {
-  return static_cast<Visibility>(
-      pref_service_->GetInteger(prefs::kNearbySharingBackgroundVisibilityName));
+nearby_share::mojom::Visibility NearbyShareSettings::GetVisibility() const {
+  int visibility_int =
+      pref_service_->GetInteger(prefs::kNearbySharingBackgroundVisibilityName);
+
+  // If Visibility is set to kYourDevices and Self Share is toggled from enabled
+  // to disabled, `visibility_int` will have a greater enum value than
+  // `Visibility::kMaxValue`, causing UB. In this case, the visibility is set to
+  // kNoOne instead.
+  if (visibility_int >
+      static_cast<int>(nearby_share::mojom::Visibility::kMaxValue)) {
+    pref_service_->SetInteger(
+        prefs::kNearbySharingBackgroundVisibilityName,
+        static_cast<int>(nearby_share::mojom::Visibility::kNoOne));
+    return nearby_share::mojom::Visibility::kNoOne;
+  } else {
+    return static_cast<nearby_share::mojom::Visibility>(visibility_int);
+  }
 }
 
 const std::vector<std::string> NearbyShareSettings::GetAllowedContacts() const {
@@ -127,7 +149,8 @@ void NearbyShareSettings::GetEnabled(base::OnceCallback<void(bool)> callback) {
 }
 
 void NearbyShareSettings::GetFastInitiationNotificationState(
-    base::OnceCallback<void(FastInitiationNotificationState)> callback) {
+    base::OnceCallback<
+        void(nearby_share::mojom::FastInitiationNotificationState)> callback) {
   std::move(callback).Run(GetFastInitiationNotificationState());
 }
 
@@ -139,15 +162,16 @@ void NearbyShareSettings::GetIsFastInitiationHardwareSupported(
 void NearbyShareSettings::SetEnabled(bool enabled) {
   DCHECK(!enabled || IsOnboardingComplete());
   pref_service_->SetBoolean(prefs::kNearbySharingEnabledPrefName, enabled);
-  if (enabled && GetVisibility() == Visibility::kUnknown) {
-    NS_LOG(ERROR) << "Nearby Share enabled with visibility unset. Setting "
-                     "visibility to kNoOne.";
-    SetVisibility(Visibility::kNoOne);
+  if (enabled && GetVisibility() == nearby_share::mojom::Visibility::kUnknown) {
+    CD_LOG(ERROR, Feature::NS)
+        << "Nearby Share enabled with visibility unset. Setting "
+           "visibility to kNoOne.";
+    SetVisibility(nearby_share::mojom::Visibility::kNoOne);
   }
 }
 
 void NearbyShareSettings::SetFastInitiationNotificationState(
-    FastInitiationNotificationState state) {
+    nearby_share::mojom::FastInitiationNotificationState state) {
   pref_service_->SetInteger(
       prefs::kNearbySharingFastInitiationNotificationStatePrefName,
       static_cast<int>(state));
@@ -202,6 +226,8 @@ void NearbyShareSettings::GetVisibility(
 
 void NearbyShareSettings::SetVisibility(
     nearby_share::mojom::Visibility visibility) {
+  DCHECK(pref_service_);
+
   pref_service_->SetInteger(prefs::kNearbySharingBackgroundVisibilityName,
                             static_cast<int>(visibility));
 }
@@ -248,7 +274,8 @@ void NearbyShareSettings::OnEnabledPrefChanged() {
 }
 
 void NearbyShareSettings::OnFastInitiationNotificationStatePrefChanged() {
-  FastInitiationNotificationState state = GetFastInitiationNotificationState();
+  nearby_share::mojom::FastInitiationNotificationState state =
+      GetFastInitiationNotificationState();
   for (auto& remote : observers_set_) {
     remote->OnFastInitiationNotificationStateChanged(state);
   }
@@ -262,7 +289,7 @@ void NearbyShareSettings::OnDataUsagePrefChanged() {
 }
 
 void NearbyShareSettings::OnVisibilityPrefChanged() {
-  Visibility visibility = GetVisibility();
+  nearby_share::mojom::Visibility visibility = GetVisibility();
   for (auto& remote : observers_set_) {
     remote->OnVisibilityChanged(visibility);
   }
@@ -293,10 +320,11 @@ void NearbyShareSettings::ProcessFastInitiationNotificationParentPrefChanged(
   // If the user explicitly disabled notifications, toggling the Nearby Share
   // feature does not re-enable the notification sub-feature.
   if (GetFastInitiationNotificationState() ==
-      FastInitiationNotificationState::kDisabledByUser) {
+      nearby_share::mojom::FastInitiationNotificationState::kDisabledByUser) {
     return;
   }
   SetFastInitiationNotificationState(
-      enabled ? FastInitiationNotificationState::kEnabled
-              : FastInitiationNotificationState::kDisabledByFeature);
+      enabled ? nearby_share::mojom::FastInitiationNotificationState::kEnabled
+              : nearby_share::mojom::FastInitiationNotificationState::
+                    kDisabledByFeature);
 }

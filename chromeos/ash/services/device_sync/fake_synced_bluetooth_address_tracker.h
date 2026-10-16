@@ -51,7 +51,7 @@ class FakeSyncedBluetoothAddressTrackerFactory
       CryptAuthScheduler* cryptauth_scheduler,
       PrefService* pref_service) override;
 
-  raw_ptr<SyncedBluetoothAddressTracker, ExperimentalAsh> last_created_ =
+  raw_ptr<SyncedBluetoothAddressTracker, DanglingUntriaged> last_created_ =
       nullptr;
 };
 

@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/views/safe_browsing/tailored_security_desktop_dialog_manager.h"
+
 #include "base/command_line.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/metrics/user_action_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
-#include "chrome/browser/ui/views/safe_browsing/tailored_security_desktop_dialog_manager.h"
-#include "chrome/common/chrome_features.h"
 #include "components/safe_browsing/core/browser/tailored_security_service/tailored_security_outcome.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
@@ -56,7 +55,7 @@ void ClickButton(views::BubbleDialogDelegate* bubble_delegate,
   // unintended.
   bubble_delegate->ResetViewShownTimeStampForTesting();
   gfx::Point center(button->width() / 2, button->height() / 2);
-  const ui::MouseEvent event(ui::ET_MOUSE_PRESSED, center, center,
+  const ui::MouseEvent event(ui::EventType::kMousePressed, center, center,
                              ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
                              ui::EF_LEFT_MOUSE_BUTTON);
   button->OnMousePressed(event);
@@ -72,11 +71,6 @@ class TailoredSecurityDesktopDialogManagerTest
   TailoredSecurityDesktopDialogManagerTest() {
     dialog_manager_ =
         std::make_unique<safe_browsing::TailoredSecurityDesktopDialogManager>();
-    if (GetParam().use_dark_theme) {
-      features_.InitAndEnableFeature(features::kWebUIDarkMode);
-    } else {
-      features_.Init();
-    }
   }
 
   TailoredSecurityDesktopDialogManagerTest(
@@ -124,7 +118,6 @@ class TailoredSecurityDesktopDialogManagerTest
   }
 
  private:
-  base::test::ScopedFeatureList features_;
   std::unique_ptr<safe_browsing::TailoredSecurityDesktopDialogManager>
       dialog_manager_;
 };

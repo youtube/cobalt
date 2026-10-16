@@ -18,12 +18,10 @@
 #include "base/timer/timer.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/viz/host/gpu_host_impl.h"
 #include "content/browser/child_process_host_impl.h"
 #include "content/browser/gpu/gpu_data_manager_impl.h"
 #include "content/browser/gpu/gpu_disk_cache_factory.h"
-#include "content/browser/gpu/gpu_memory_buffer_manager_singleton.h"
 #include "content/browser/gpu/gpu_process_host.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -104,10 +102,12 @@ class BrowserGpuChannelHostFactory::EstablishRequest
   // that case we make the sync mojo call since we're on the UI thread and
   // therefore can't wait for an async mojo reply on the same thread.
   void Establish(bool sync);
-  void OnEstablished(mojo::ScopedMessagePipeHandle channel_handle,
-                     const gpu::GPUInfo& gpu_info,
-                     const gpu::GpuFeatureInfo& gpu_feature_info,
-                     viz::GpuHostImpl::EstablishChannelStatus status);
+  void OnEstablished(
+      mojo::ScopedMessagePipeHandle channel_handle,
+      const gpu::GPUInfo& gpu_info,
+      const gpu::GpuFeatureInfo& gpu_feature_info,
+      const gpu::SharedImageCapabilities& shared_image_capabilities,
+      viz::GpuHostImpl::EstablishChannelStatus status);
   void Finish();
   void FinishAndRunCallbacksOnMain();
   void FinishOnMain();
@@ -181,6 +181,7 @@ void BrowserGpuChannelHostFactory::EstablishRequest::OnEstablished(
     mojo::ScopedMessagePipeHandle channel_handle,
     const gpu::GPUInfo& gpu_info,
     const gpu::GpuFeatureInfo& gpu_feature_info,
+    const gpu::SharedImageCapabilities& shared_image_capabilities,
     viz::GpuHostImpl::EstablishChannelStatus status) {
   if (!channel_handle.is_valid() &&
       status == viz::GpuHostImpl::EstablishChannelStatus::kGpuHostInvalid &&
@@ -205,8 +206,8 @@ void BrowserGpuChannelHostFactory::EstablishRequest::OnEstablished(
 
   if (channel_handle.is_valid()) {
     gpu_channel_ = base::MakeRefCounted<gpu::GpuChannelHost>(
-        gpu_client_id_, gpu_info, gpu_feature_info, std::move(channel_handle),
-        GetIOThreadTaskRunner({}));
+        gpu_client_id_, gpu_info, gpu_feature_info, shared_image_capabilities,
+        std::move(channel_handle), GetIOThreadTaskRunner({}));
   }
   Finish();
 }
@@ -234,8 +235,9 @@ void BrowserGpuChannelHostFactory::EstablishRequest::FinishOnMain() {
 void BrowserGpuChannelHostFactory::EstablishRequest::RunCallbacksOnMain() {
   std::vector<gpu::GpuChannelEstablishedCallback> established_callbacks;
   established_callbacks_.swap(established_callbacks);
-  for (auto&& callback : std::move(established_callbacks))
+  for (auto& callback : established_callbacks) {
     std::move(callback).Run(gpu_channel_);
+  }
 }
 
 void BrowserGpuChannelHostFactory::EstablishRequest::Wait() {
@@ -287,19 +289,12 @@ void BrowserGpuChannelHostFactory::CloseChannel() {
     gpu_channel_->DestroyChannel();
     gpu_channel_ = nullptr;
   }
-
-  // This will unblock any other threads waiting on CreateGpuMemoryBuffer()
-  // requests. It runs before IO and thread pool threads are stopped to avoid
-  // shutdown hangs.
-  gpu_memory_buffer_manager_->Shutdown();
 }
 
 BrowserGpuChannelHostFactory::BrowserGpuChannelHostFactory()
     : gpu_client_id_(ChildProcessHostImpl::GenerateChildProcessUniqueId()),
       gpu_client_tracing_id_(
-          memory_instrumentation::mojom::kServiceTracingProcessId),
-      gpu_memory_buffer_manager_(
-          new GpuMemoryBufferManagerSingleton(gpu_client_id_)) {}
+          memory_instrumentation::mojom::kServiceTracingProcessId) {}
 
 BrowserGpuChannelHostFactory::~BrowserGpuChannelHostFactory() {
   DCHECK(BrowserThread::CurrentlyOn(BrowserThread::UI));
@@ -324,7 +319,6 @@ scoped_refptr<gpu::GpuChannelHost>
 BrowserGpuChannelHostFactory::EstablishGpuChannelSync() {
 #if BUILDFLAG(IS_ANDROID)
   NOTREACHED();
-  return nullptr;
 #else
   EstablishGpuChannel(gpu::GpuChannelEstablishedCallback(), true);
   return gpu_channel_;
@@ -335,11 +329,11 @@ void BrowserGpuChannelHostFactory::EstablishGpuChannel(
     gpu::GpuChannelEstablishedCallback callback,
     bool sync) {
   if (gpu_channel_.get() && gpu_channel_->IsLost()) {
-// TODO(crbug.com/1248936): DCHECKs are disabled during automated testing on
+// TODO(crbug.com/40790884): DCHECKs are disabled during automated testing on
 // CrOS and this check failed when tested on an experimental builder. Revert
 // https://crrev.com/c/3174621 to enable it. See go/chrome-dcheck-on-cros
 // or http://crbug.com/1113456 for more details.
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
     DCHECK(!pending_request_.get());
 #endif
     // Recreate the channel if it has been lost.
@@ -393,11 +387,6 @@ void BrowserGpuChannelHostFactory::EstablishGpuChannel(
   DCHECK(gpu_channel_);
   for (auto& cb : callbacks)
     std::move(cb).Run(gpu_channel_);
-}
-
-gpu::GpuMemoryBufferManager*
-BrowserGpuChannelHostFactory::GetGpuMemoryBufferManager() {
-  return gpu_memory_buffer_manager_.get();
 }
 
 // Ensures that any pending timeout is cancelled when we are backgrounded.

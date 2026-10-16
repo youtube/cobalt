@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <vector>
 
+#include "base/containers/to_vector.h"
 #include "base/functional/callback_helpers.h"
-#include "base/ranges/algorithm.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/vr/test/multi_class_browser_test.h"
@@ -15,6 +16,8 @@
 
 // Browser tests for indicators shown at various phases of an immersive session.
 
+// TODO(https://crbug.com/381000093): Fix tests on Android
+#if !BUILDFLAG(IS_ANDROID)
 namespace vr {
 
 namespace {
@@ -44,13 +47,10 @@ struct TestContentSettings {
 // Helpers
 std::vector<TestContentSettings> ExtractFrom(
     const std::vector<TestIndicatorSetting>& test_indicator_settings) {
-  std::vector<TestContentSettings> test_content_settings;
-  base::ranges::transform(
-      test_indicator_settings, std::back_inserter(test_content_settings),
-      [](const TestIndicatorSetting& s) {
+  return base::ToVector(
+      test_indicator_settings, [](const TestIndicatorSetting& s) {
         return TestContentSettings{s.content_setting_type, s.content_setting};
       });
-  return test_content_settings;
 }
 
 void SetMultipleContentSetting(
@@ -93,8 +93,7 @@ void TestIndicatorOnAccessForContentType(
 
   auto utils = UiUtils::Create();
   // Check if the location indicator shows.
-  utils->PerformActionAndWaitForVisibilityStatus(element_name, true,
-                                                 base::DoNothing());
+  utils->WaitForVisibilityStatus(element_name, true);
 
   t->EndSessionOrFail();
 }
@@ -112,8 +111,8 @@ void TestForInitialIndicatorForContentType(
   auto utils = UiUtils::Create();
   // Check if the location indicator shows.
   for (const TestIndicatorSetting& setting : test_indicator_settings)
-    utils->PerformActionAndWaitForVisibilityStatus(
-        setting.element_name, setting.element_visibility, base::DoNothing());
+    utils->WaitForVisibilityStatus(setting.element_name,
+                                   setting.element_visibility);
 
   t->EndSessionOrFail();
 }
@@ -222,3 +221,4 @@ WEBXR_VR_ALL_RUNTIMES_BROWSER_TEST_F(
 }
 
 }  // namespace vr
+#endif  // if !BUILDFLAG(IS_ANDROID)

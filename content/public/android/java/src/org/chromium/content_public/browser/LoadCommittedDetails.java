@@ -4,8 +4,10 @@
 
 package org.chromium.content_public.browser;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.url.GURL;
 
 /**
@@ -13,6 +15,7 @@ import org.chromium.url.GURL;
  * {@link WebContentsObserver#navigationEntryCommitted(LoadCommittedDetails)}.
  */
 @JNINamespace("content")
+@NullMarked
 public class LoadCommittedDetails {
     private final boolean mDidReplaceEntry;
     private final int mPreviousEntryIndex;
@@ -22,8 +25,12 @@ public class LoadCommittedDetails {
     private final int mHttpStatusCode;
 
     @CalledByNative
-    public LoadCommittedDetails(int previousEntryIndex, GURL previousMainFrameUrl,
-            boolean didReplaceEntry, boolean isSameDocument, boolean isMainFrame,
+    public LoadCommittedDetails(
+            int previousEntryIndex,
+            GURL previousMainFrameUrl,
+            boolean didReplaceEntry,
+            boolean isSameDocument,
+            boolean isMainFrame,
             int httpStatusCode) {
         mPreviousEntryIndex = previousEntryIndex;
         mPreviousMainFrameUrl = previousMainFrameUrl;

@@ -6,12 +6,21 @@
 #define COMPONENTS_MEMORY_SYSTEM_PARAMETERS_H_
 
 #include <string>
+#include <string_view>
 
-#include "base/strings/string_piece.h"
-#include "components/metrics/call_stack_profile_params.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
+#include "components/sampling_profiler/process_type.h"
 #include "components/version_info/channel.h"
 
 namespace memory_system {
+
+#if BUILDFLAG(IS_COBALT)
+enum class CobaltMemoryAttributionInclusion {
+  kInclude,
+  kDoNotInclude,
+};
+#endif
 
 // Configuration objects for all memory subsystem components. The parameters are
 // divided by component. The type of the data corresponds to the type used by
@@ -21,7 +30,7 @@ namespace memory_system {
 // GWP-ASan specific parameters, please see
 // components/gwp_asan/client/gwp_asan.h for details.
 struct GwpAsanParameters {
-  GwpAsanParameters(bool boost_sampling, base::StringPiece process_type);
+  GwpAsanParameters(bool boost_sampling, std::string_view process_type);
 
   bool boost_sampling;
   std::string process_type;
@@ -32,10 +41,10 @@ struct GwpAsanParameters {
 struct ProfilingClientParameters {
   ProfilingClientParameters(
       version_info::Channel channel,
-      metrics::CallStackProfileParams::Process process_type);
+      sampling_profiler::ProfilerProcessType process_type);
 
   version_info::Channel channel;
-  metrics::CallStackProfileParams::Process process_type;
+  sampling_profiler::ProfilerProcessType process_type;
 };
 
 // Dispatcher specific parameters, please see
@@ -53,7 +62,7 @@ struct DispatcherParameters {
     // PoissonAllocationSampler will become enabled in the course of the
     // runtime.
     //
-    // TODO(https://crbug.com/1411454): Clarify for which components we need to
+    // TODO(crbug.com/40062835): Clarify for which components we need to
     // enforce PoissonAllocationSampler.
     kEnforce,
   };
@@ -69,10 +78,23 @@ struct DispatcherParameters {
 
   explicit DispatcherParameters(
       PoissonAllocationSamplerInclusion poisson_allocation_sampler_inclusion,
-      AllocationTraceRecorderInclusion allocation_trace_recorder_inclusion);
+      AllocationTraceRecorderInclusion allocation_trace_recorder_inclusion,
+      std::string_view process_type
+#if BUILDFLAG(IS_COBALT)
+      // Cobalt memory attribution can introduce performance overhead, so it is
+      // excluded by default unless explicitly requested.
+      , CobaltMemoryAttributionInclusion cobalt_memory_attribution_inclusion =
+            CobaltMemoryAttributionInclusion::kDoNotInclude
+#endif
+  );
 
   PoissonAllocationSamplerInclusion poisson_allocation_sampler_inclusion;
   AllocationTraceRecorderInclusion allocation_trace_recorder_inclusion;
+  std::string process_type;
+#if BUILDFLAG(IS_COBALT)
+  CobaltMemoryAttributionInclusion cobalt_memory_attribution_inclusion =
+      CobaltMemoryAttributionInclusion::kDoNotInclude;
+#endif
 };
 
 }  // namespace memory_system

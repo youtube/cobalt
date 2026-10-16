@@ -5,6 +5,7 @@
 #ifndef EXTENSIONS_COMMON_MANIFEST_HANDLERS_KIOSK_MODE_INFO_H_
 #define EXTENSIONS_COMMON_MANIFEST_HANDLERS_KIOSK_MODE_INFO_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -12,19 +13,18 @@
 #include "extensions/common/extension_id.h"
 #include "extensions/common/manifest.h"
 #include "extensions/common/manifest_handler.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace extensions {
 
 struct SecondaryKioskAppInfo {
   SecondaryKioskAppInfo() = delete;
   SecondaryKioskAppInfo(const extensions::ExtensionId& id,
-                        const absl::optional<bool>& enabled_on_launch);
+                        const std::optional<bool>& enabled_on_launch);
   SecondaryKioskAppInfo(const SecondaryKioskAppInfo& other);
   ~SecondaryKioskAppInfo();
 
   const extensions::ExtensionId id;
-  const absl::optional<bool> enabled_on_launch;
+  const std::optional<bool> enabled_on_launch;
 };
 
 struct KioskModeInfo : public Extension::ManifestData {
@@ -41,7 +41,7 @@ struct KioskModeInfo : public Extension::ManifestData {
                 bool always_update);
   ~KioskModeInfo() override;
 
-  // Gets the KioskModeInfo for |extension|, or NULL if none was
+  // Gets the KioskModeInfo for `extension`, or NULL if none was
   // specified.
   static KioskModeInfo* Get(const Extension* extension);
 
@@ -51,10 +51,10 @@ struct KioskModeInfo : public Extension::ManifestData {
   // Whether the extension or app should only be available in kiosk mode.
   static bool IsKioskOnly(const Extension* extension);
 
-  // Returns true if |extension| declares kiosk secondary apps.
+  // Returns true if `extension` declares kiosk secondary apps.
   static bool HasSecondaryApps(const Extension* extension);
 
-  // Whether the given |version_string| is a valid ChromeOS platform version.
+  // Whether the given `version_string` is a valid ChromeOS platform version.
   // The acceptable format is major[.minor[.micro]].
   static bool IsValidPlatformVersion(const std::string& version_string);
 

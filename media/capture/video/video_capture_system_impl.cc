@@ -4,11 +4,11 @@
 
 #include "media/capture/video/video_capture_system_impl.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/ranges/algorithm.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "media/base/scoped_async_trace.h"
@@ -88,6 +88,12 @@ VideoCaptureSystemImpl::~VideoCaptureSystemImpl() = default;
 void VideoCaptureSystemImpl::GetDeviceInfosAsync(
     DeviceInfoCallback result_callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
+#if BUILDFLAG(IS_COBALT)
+  if (!factory_) {
+    std::move(result_callback).Run(std::vector<VideoCaptureDeviceInfo>());
+    return;
+  }
+#endif
   device_enum_request_queue_.push_back(base::BindOnce(
       &DeviceInfosCallbackTrampoline, std::move(result_callback),
       ScopedCaptureTrace::CreateIfEnabled("GetDeviceInfosAsync")));
@@ -104,6 +110,12 @@ VideoCaptureErrorOrDevice VideoCaptureSystemImpl::CreateDevice(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("video_and_image_capture"),
                "VideoCaptureSystemImpl::CreateDevice");
   DCHECK(thread_checker_.CalledOnValidThread());
+#if BUILDFLAG(IS_COBALT)
+  if (!factory_) {
+    return VideoCaptureErrorOrDevice(
+        VideoCaptureError::kVideoCaptureSystemDeviceIdNotFound);
+  }
+#endif
   const VideoCaptureDeviceInfo* device_info = LookupDeviceInfoFromId(device_id);
   if (!device_info) {
     return VideoCaptureErrorOrDevice(
@@ -115,10 +127,10 @@ VideoCaptureErrorOrDevice VideoCaptureSystemImpl::CreateDevice(
 const VideoCaptureDeviceInfo* VideoCaptureSystemImpl::LookupDeviceInfoFromId(
     const std::string& device_id) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  auto iter = base::ranges::find(devices_info_cache_, device_id,
-                                 [](const VideoCaptureDeviceInfo& device_info) {
-                                   return device_info.descriptor.device_id;
-                                 });
+  auto iter = std::ranges::find(devices_info_cache_, device_id,
+                                [](const VideoCaptureDeviceInfo& device_info) {
+                                  return device_info.descriptor.device_id;
+                                });
   if (iter == devices_info_cache_.end())
     return nullptr;
   return &(*iter);

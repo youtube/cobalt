@@ -4,25 +4,26 @@
 
 #include "chrome/common/crash_keys.h"
 
+#include <array>
 #include <deque>
+#include <string_view>
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/format_macros.h"
 #include "base/no_destructor.h"
-#include "base/strings/string_number_conversions.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/common/chrome_switches.h"
 #include "components/crash/core/common/crash_key.h"
 #include "components/crash/core/common/crash_keys.h"
-#include "components/flags_ui/flags_ui_switches.h"
+#include "components/webui/flags/flags_ui_switches.h"
 #include "content/public/common/content_switches.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "components/crash/core/app/crash_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 #include "ui/gl/gl_switches.h"
@@ -31,14 +32,28 @@
 namespace crash_keys {
 namespace {
 
+constexpr std::string_view kStringAnnotationsSwitch = "string-annotations";
+
 // A convenient wrapper around a crash key and its name.
+//
+// The CrashKey contract requires that CrashKeyStrings are never
+// moved, copied, or deleted (see
+// third_party/crashpad/crashpad/client/annotation.h); since this class holds
+// a CrashKeyString, it likewise cannot be moved, copied, or deleted.
 class CrashKeyWithName {
  public:
   explicit CrashKeyWithName(std::string name)
       : name_(std::move(name)), crash_key_(name_.c_str()) {}
+  CrashKeyWithName(const CrashKeyWithName&) = delete;
+  CrashKeyWithName& operator=(const CrashKeyWithName&) = delete;
+  CrashKeyWithName(CrashKeyWithName&&) = delete;
+  CrashKeyWithName& operator=(CrashKeyWithName&&) = delete;
+  ~CrashKeyWithName() = delete;
 
+  std::string_view Name() const { return name_; }
+  std::string_view Value() const { return crash_key_.value(); }
   void Clear() { crash_key_.Clear(); }
-  void Set(base::StringPiece value) { crash_key_.Set(value); }
+  void Set(std::string_view value) { crash_key_.Set(value); }
 
  private:
   std::string name_;
@@ -46,7 +61,7 @@ class CrashKeyWithName {
 };
 
 void SplitAndPopulateCrashKeys(std::deque<CrashKeyWithName>& crash_keys,
-                               base::StringPiece comma_separated_feature_list,
+                               std::string_view comma_separated_feature_list,
                                std::string crash_key_name_prefix) {
   // Crash keys are indestructable so we can not simply empty the deque.
   // Instead we must keep the previous crash keys alive and clear their values.
@@ -92,45 +107,47 @@ void HandleEnableDisableFeatures(const base::CommandLine& command_line) {
 
 // Return true if we DON'T want to upload this flag to the crash server.
 bool IsBoringSwitch(const std::string& flag) {
-  static const char* const kIgnoreSwitches[] = {
-    switches::kEnableLogging,
-    switches::kFlagSwitchesBegin,
-    switches::kFlagSwitchesEnd,
-    switches::kLoggingLevel,
-    switches::kProcessType,
-    switches::kV,
-    switches::kVModule,
-    // This is a serialized buffer which won't fit in the default 64 bytes
-    // anyways. Should be switches::kGpuPreferences but we run into linking
-    // errors on Windows if we try to use that directly.
-    "gpu-preferences",
-    switches::kEnableFeatures,
-    switches::kDisableFeatures,
+  static const auto kIgnoreSwitches = std::to_array<std::string_view>({
+      kStringAnnotationsSwitch,
+      switches::kEnableLogging,
+      switches::kFlagSwitchesBegin,
+      switches::kFlagSwitchesEnd,
+      switches::kLoggingLevel,
+      switches::kProcessType,
+      switches::kV,
+      switches::kVModule,
+      // This is a serialized buffer which won't fit in the default 64 bytes
+      // anyways. Should be switches::kGpuPreferences but we run into linking
+      // errors on Windows if we try to use that directly.
+      "gpu-preferences",
+      switches::kEnableFeatures,
+      switches::kDisableFeatures,
 #if BUILDFLAG(IS_MAC)
-    switches::kMetricsClientID,
-#elif BUILDFLAG(IS_CHROMEOS_ASH)
-    // --crash-loop-before is a "boring" switch because it is redundant;
-    // crash_reporter separately informs the crash server if it is doing
-    // crash-loop handling.
-    crash_reporter::switches::kCrashLoopBefore,
-    switches::kRegisterPepperPlugins,
-    switches::kUseGL,
-    switches::kUserDataDir,
-    // Cros/CC flags are specified as raw strings to avoid dependency.
-    "child-wallpaper-large",
-    "child-wallpaper-small",
-    "default-wallpaper-large",
-    "default-wallpaper-small",
-    "guest-wallpaper-large",
-    "guest-wallpaper-small",
-    "enterprise-enable-forced-re-enrollment",
-    "enterprise-enrollment-initial-modulus",
-    "enterprise-enrollment-modulus-limit",
-    "login-profile",
-    "login-user",
-    "use-cras",
+      switches::kMetricsClientID,
+#elif BUILDFLAG(IS_CHROMEOS)
+      // --crash-loop-before is a "boring" switch because it is redundant;
+      // crash_reporter separately informs the crash server if it is doing
+      // crash-loop handling.
+      crash_reporter::switches::kCrashLoopBefore,
+      switches::kRegisterPepperPlugins,
+      switches::kUseGL,
+      switches::kUserDataDir,
+      // Cros/CC flags are specified as raw strings to avoid dependency.
+      "child-wallpaper-large",
+      "child-wallpaper-small",
+      "default-wallpaper-large",
+      "default-wallpaper-small",
+      "guest-wallpaper-large",
+      "guest-wallpaper-small",
+      "enterprise-enable-forced-re-enrollment",
+      "enterprise-enable-forced-re-enrollment-on-flex",
+      "enterprise-enrollment-initial-modulus",
+      "enterprise-enrollment-modulus-limit",
+      "login-profile",
+      "login-user",
+      "use-cras",
 #endif
-  };
+  });
 
 #if BUILDFLAG(IS_WIN)
   // Just about everything has this, don't bother.
@@ -149,40 +166,55 @@ bool IsBoringSwitch(const std::string& flag) {
   return false;
 }
 
-}  // namespace
-
-void SetCrashKeysFromCommandLine(const base::CommandLine& command_line) {
-  HandleEnableDisableFeatures(command_line);
-  SetSwitchesFromCommandLine(command_line, &IsBoringSwitch);
+std::deque<CrashKeyWithName>& GetCommandLineStringAnnotations() {
+  static base::NoDestructor<std::deque<CrashKeyWithName>>
+      command_line_string_annotations;
+  return *command_line_string_annotations;
 }
 
-void SetActiveExtensions(const std::set<std::string>& extensions) {
-  static crash_reporter::CrashKeyString<4> num_extensions("num-extensions");
-  num_extensions.Set(base::NumberToString(extensions.size()));
-
-  using ExtensionIDKey = crash_reporter::CrashKeyString<64>;
-  static ExtensionIDKey extension_ids[] = {
-      {"extension-1", ExtensionIDKey::Tag::kArray},
-      {"extension-2", ExtensionIDKey::Tag::kArray},
-      {"extension-3", ExtensionIDKey::Tag::kArray},
-      {"extension-4", ExtensionIDKey::Tag::kArray},
-      {"extension-5", ExtensionIDKey::Tag::kArray},
-      {"extension-6", ExtensionIDKey::Tag::kArray},
-      {"extension-7", ExtensionIDKey::Tag::kArray},
-      {"extension-8", ExtensionIDKey::Tag::kArray},
-      {"extension-9", ExtensionIDKey::Tag::kArray},
-      {"extension-10", ExtensionIDKey::Tag::kArray},
-  };
-
-  auto it = extensions.begin();
-  for (size_t i = 0; i < std::size(extension_ids); ++i) {
-    if (it == extensions.end()) {
-      extension_ids[i].Clear();
-    } else {
-      extension_ids[i].Set(*it);
-      ++it;
-    }
+void SetStringAnnotations(const base::CommandLine& command_line) {
+  // This is only meant to be used to pass annotations from the browser to
+  // children and not to be used on the browser command line.
+  if (!command_line.HasSwitch(switches::kProcessType)) {
+    return;
   }
+  base::StringPairs annotations;
+  if (!base::SplitStringIntoKeyValuePairs(
+          command_line.GetSwitchValueASCII(kStringAnnotationsSwitch), '=', ',',
+          &annotations)) {
+    return;
+  }
+  for (const auto& [key, value] : annotations) {
+    GetCommandLineStringAnnotations().emplace_back(key).Set(value);
+  }
+}
+
+}  // namespace
+
+void AllocateCrashKeyInBrowserAndChildren(std::string_view key,
+                                          std::string_view value) {
+  GetCommandLineStringAnnotations().emplace_back(std::string(key)).Set(value);
+}
+
+void AppendStringAnnotationsCommandLineSwitch(base::CommandLine* command_line) {
+  std::string string_annotations;
+  for (const auto& crash_key : GetCommandLineStringAnnotations()) {
+    if (!string_annotations.empty()) {
+      string_annotations.push_back(',');
+    }
+    string_annotations = base::StrCat(
+        {string_annotations, crash_key.Name(), "=", crash_key.Value()});
+  }
+  if (string_annotations.empty()) {
+    return;
+  }
+  command_line->AppendSwitchASCII(kStringAnnotationsSwitch, string_annotations);
+}
+
+void SetCrashKeysFromCommandLine(const base::CommandLine& command_line) {
+  SetStringAnnotations(command_line);
+  HandleEnableDisableFeatures(command_line);
+  SetSwitchesFromCommandLine(command_line, &IsBoringSwitch);
 }
 
 }  // namespace crash_keys

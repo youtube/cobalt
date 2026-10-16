@@ -86,10 +86,12 @@ IN_PROC_BROWSER_TEST_F(ImageWriterPrivateApiTest, TestWriteFromFile) {
       "test_temp", test_utils_.GetTempDir());
 
   base::FilePath selected_image(test_utils_.GetImagePath());
-  FileSystemChooseEntryFunction::SkipPickerAndAlwaysSelectPathForTest picker(
-      selected_image);
+  const FileSystemChooseEntryFunction::TestOptions test_options{
+      .path_to_be_picked = &selected_image};
+  auto reset_options =
+      FileSystemChooseEntryFunction::SetOptionsForTesting(test_options);
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
   auto set_up_utility_client_callbacks = [](FakeImageWriterClient* client) {
     std::vector<int> progress_list{0, 50, 100};
     client->SimulateProgressOnWrite(progress_list, true);

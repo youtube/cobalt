@@ -12,6 +12,7 @@
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_registry_update.h"
+#include "chrome/browser/web_applications/web_app_sync_bridge.h"
 
 namespace web_app {
 
@@ -32,7 +33,7 @@ class ClearBrowsingDataCommandTest : public WebAppTest {
   FakeWebAppProvider* provider() { return web_app_provider_; }
 
  private:
-  raw_ptr<FakeWebAppProvider> web_app_provider_;
+  raw_ptr<FakeWebAppProvider, DanglingUntriaged> web_app_provider_ = nullptr;
 };
 
 TEST_F(ClearBrowsingDataCommandTest, ClearLastLaunchTimeForAllTimes) {
@@ -53,7 +54,8 @@ TEST_F(ClearBrowsingDataCommandTest, ClearLastLaunchTimeForAllTimes) {
   auto app_id3 = web_app3->app_id();
 
   {
-    ScopedRegistryUpdate update(&provider()->sync_bridge_unsafe());
+    ScopedRegistryUpdate update =
+        provider()->sync_bridge_unsafe().BeginUpdate();
     update->CreateApp(std::move(web_app1));
     update->CreateApp(std::move(web_app2));
     update->CreateApp(std::move(web_app3));
@@ -97,7 +99,8 @@ TEST_F(ClearBrowsingDataCommandTest, ClearLastLaunchTimeForSpecificTimeRange) {
   auto app_id3 = web_app3->app_id();
 
   {
-    ScopedRegistryUpdate update(&provider()->sync_bridge_unsafe());
+    ScopedRegistryUpdate update =
+        provider()->sync_bridge_unsafe().BeginUpdate();
     update->CreateApp(std::move(web_app1));
     update->CreateApp(std::move(web_app2));
     update->CreateApp(std::move(web_app3));
@@ -129,11 +132,7 @@ TEST_F(ClearBrowsingDataCommandTest,
   base::test::TestFuture<void> future;
   provider()->scheduler().ClearWebAppBrowsingData(
       base::Time(), base::Time::Now(), future.GetCallback());
-
-  EXPECT_EQ(provider()->command_manager().GetCommandCountForTesting(), 0u);
-
   Init();
-  EXPECT_EQ(provider()->command_manager().GetCommandCountForTesting(), 1u);
   EXPECT_TRUE(future.Wait());
 }
 
@@ -155,7 +154,8 @@ TEST_F(ClearBrowsingDataCommandTest, ClearLastBadgingTimeForAllTimes) {
   auto app_id3 = web_app3->app_id();
 
   {
-    ScopedRegistryUpdate update(&provider()->sync_bridge_unsafe());
+    ScopedRegistryUpdate update =
+        provider()->sync_bridge_unsafe().BeginUpdate();
     update->CreateApp(std::move(web_app1));
     update->CreateApp(std::move(web_app2));
     update->CreateApp(std::move(web_app3));
@@ -200,7 +200,8 @@ TEST_F(ClearBrowsingDataCommandTest, ClearLastBadgingTimeForSpecificTimeRange) {
   auto app_id3 = web_app3->app_id();
 
   {
-    ScopedRegistryUpdate update(&provider()->sync_bridge_unsafe());
+    ScopedRegistryUpdate update =
+        provider()->sync_bridge_unsafe().BeginUpdate();
     update->CreateApp(std::move(web_app1));
     update->CreateApp(std::move(web_app2));
     update->CreateApp(std::move(web_app3));

@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ash/policy/reporting/arc_app_install_event_log_manager.h"
 
 #include <iterator>
 #include <map>
 #include <vector>
 
-#include "ash/components/arc/arc_prefs.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/json/json_string_value_serializer.h"
@@ -26,6 +30,7 @@
 #include "chrome/browser/profiles/reporting_util.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/system/fake_statistics_provider.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
 #include "components/policy/core/common/cloud/cloud_policy_client.h"
 #include "components/policy/core/common/cloud/mock_cloud_policy_client.h"
 #include "components/policy/core/common/cloud/realtime_reporting_job_configuration.h"
@@ -301,10 +306,8 @@ class ArcAppInstallEventLogManagerTest : public testing::Test {
   std::unique_ptr<base::ScopedMockTimeMessageLoopTaskRunner>
       scoped_main_task_runner_;
 
-  raw_ptr<base::TestSimpleTaskRunner, ExperimentalAsh> log_task_runner_ =
-      nullptr;
-  raw_ptr<base::TestMockTimeTaskRunner, ExperimentalAsh> main_task_runner_ =
-      nullptr;
+  raw_ptr<base::TestSimpleTaskRunner> log_task_runner_ = nullptr;
+  raw_ptr<base::TestMockTimeTaskRunner> main_task_runner_ = nullptr;
 
   const base::FilePath log_file_path_;
   const std::set<std::string> packages_;

@@ -30,10 +30,6 @@
 namespace discardable_memory {
 namespace {
 
-BASE_FEATURE(kShorterPeriodicPurge,
-             "ShorterPeriodicPurge",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Global atomic to generate unique discardable shared memory IDs.
 base::AtomicSequenceNumber g_next_discardable_shared_memory_id;
 
@@ -150,7 +146,7 @@ void* ClientDiscardableSharedMemoryManager::DiscardableMemoryImpl::data()
     DCHECK(is_locked());
   }
 #endif
-  return reinterpret_cast<void*>(span_->start() * base::GetPageSize());
+  return span_->memory().data();
 }
 
 bool ClientDiscardableSharedMemoryManager::DiscardableMemoryImpl::is_locked()
@@ -241,8 +237,8 @@ ClientDiscardableSharedMemoryManager::AllocateLockedDiscardableMemory(
   base::AutoLock lock(lock_);
 
   if (!is_purge_scheduled_) {
-    task_runner_->PostDelayedTask(
-        FROM_HERE,
+    base::PostDelayedMemoryReductionTask(
+        task_runner_, FROM_HERE,
         base::BindOnce(&ClientDiscardableSharedMemoryManager::ScheduledPurge,
                        this),
         kScheduledPurgeInterval);
@@ -251,7 +247,7 @@ ClientDiscardableSharedMemoryManager::AllocateLockedDiscardableMemory(
 
   DCHECK_NE(size, 0u);
 
-  auto size_in_kb = static_cast<base::HistogramBase::Sample>(size / 1024);
+  auto size_in_kb = static_cast<base::HistogramBase::Sample32>(size / 1024);
   UMA_HISTOGRAM_CUSTOM_COUNTS("Memory.DiscardableAllocationSize",
                               size_in_kb,  // In KiB
                               1,
@@ -288,9 +284,8 @@ ClientDiscardableSharedMemoryManager::AllocateLockedDiscardableMemory(
     // Attempt to lock |free_span|. Delete span and search free lists again
     // if locking failed.
     if (free_span->shared_memory()->Lock(
-            free_span->start() * base::GetPageSize() -
-                reinterpret_cast<size_t>(free_span->shared_memory()->memory()),
-            free_span->length() * base::GetPageSize()) ==
+            free_span->first_block() * base::GetPageSize(),
+            free_span->num_blocks() * base::GetPageSize()) ==
         base::DiscardableSharedMemory::FAILED) {
       DCHECK(!free_span->shared_memory()->IsMemoryResident());
       // We have to release purged memory before |free_span| can be destroyed.
@@ -310,9 +305,6 @@ ClientDiscardableSharedMemoryManager::AllocateLockedDiscardableMemory(
     // at least one span from the free lists.
     MemoryUsageChanged(heap_->GetSize(), heap_->GetFreelistSize());
 
-    // Memory in this span is no longer held in the freelist, so we don't want
-    // to count it towards the total of dirty freelist memory.
-    heap_->dirty_freed_memory_page_count_ -= free_span->MarkAsClean();
     auto discardable_memory =
         std::make_unique<DiscardableMemoryImpl>(this, std::move(free_span));
     allocated_memory_.insert(discardable_memory.get());
@@ -361,9 +353,8 @@ ClientDiscardableSharedMemoryManager::AllocateLockedDiscardableMemory(
     std::unique_ptr<DiscardableSharedMemoryHeap::Span> leftover =
         heap_->Split(new_span.get(), pages);
     leftover->shared_memory()->Unlock(
-        leftover->start() * base::GetPageSize() -
-            reinterpret_cast<size_t>(leftover->shared_memory()->memory()),
-        leftover->length() * base::GetPageSize());
+        leftover->first_block() * base::GetPageSize(),
+        leftover->num_blocks() * base::GetPageSize());
     leftover->set_is_locked(false);
     heap_->MergeIntoFreeListsClean(std::move(leftover));
   }
@@ -398,10 +389,6 @@ bool ClientDiscardableSharedMemoryManager::OnMemoryDump(
                                total_size - freelist_size);
   }
 
-  base::UmaHistogramCounts1M(
-      "Memory.Discardable.FreelistSize.Dirty",
-      heap_->dirty_freed_memory_page_count_ * base::GetPageSize() / 1024);
-
   return heap_->OnMemoryDump(args, pmd);
 }
 
@@ -418,20 +405,18 @@ void ClientDiscardableSharedMemoryManager::BackgroundPurge() {
   PurgeUnlockedMemory(base::TimeDelta());
 }
 
-void ClientDiscardableSharedMemoryManager::ScheduledPurge() {
+void ClientDiscardableSharedMemoryManager::ScheduledPurge(
+    base::MemoryReductionTaskContext task_type) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // From local testing and UMA, memory usually accumulates slowly in renderers,
   // and can sit idle for hours. We purge only the old memory, as this should
-  // recover the memory without adverse latency effects.
-  // TODO(crbug.com/1123679): Determine if |kMinAgeForScheduledPurge| and the
-  // constant from |ScheduledPurge| need to be tuned.
-  if (base::FeatureList::IsEnabled(kShorterPeriodicPurge)) {
-    PurgeUnlockedMemory(
-        ClientDiscardableSharedMemoryManager::kMinAgeForScheduledPurge / 2);
-  } else {
-    PurgeUnlockedMemory(
-        ClientDiscardableSharedMemoryManager::kMinAgeForScheduledPurge);
-  }
+  // recover the memory without adverse latency effects. If |task_type| is
+  // |kProactive|, we instead purge all memory.
+  const base::TimeDelta min_age =
+      task_type == base::MemoryReductionTaskContext::kProactive
+          ? base::TimeDelta::Min()
+          : ClientDiscardableSharedMemoryManager::kMinAgeForScheduledPurge;
+  PurgeUnlockedMemory(min_age);
 
   bool should_schedule = false;
   {
@@ -441,8 +426,8 @@ void ClientDiscardableSharedMemoryManager::ScheduledPurge() {
   }
 
   if (should_schedule) {
-    task_runner_->PostDelayedTask(
-        FROM_HERE,
+    base::PostDelayedMemoryReductionTask(
+        task_runner_, FROM_HERE,
         base::BindOnce(&ClientDiscardableSharedMemoryManager::ScheduledPurge,
                        this),
         kScheduledPurgeInterval);
@@ -499,9 +484,8 @@ bool ClientDiscardableSharedMemoryManager::LockSpan(
   if (!span->shared_memory())
     return false;
 
-  size_t offset = span->start() * base::GetPageSize() -
-                  reinterpret_cast<size_t>(span->shared_memory()->memory());
-  size_t length = span->length() * base::GetPageSize();
+  size_t offset = span->first_block() * base::GetPageSize();
+  size_t length = span->num_blocks() * base::GetPageSize();
 
   switch (span->shared_memory()->Lock(offset, length)) {
     case base::DiscardableSharedMemory::SUCCESS:
@@ -516,15 +500,13 @@ bool ClientDiscardableSharedMemoryManager::LockSpan(
   }
 
   NOTREACHED();
-  return false;
 }
 
 void ClientDiscardableSharedMemoryManager::UnlockSpan(
     DiscardableSharedMemoryHeap::Span* span) {
   DCHECK(span->shared_memory());
-  size_t offset = span->start() * base::GetPageSize() -
-                  reinterpret_cast<size_t>(span->shared_memory()->memory());
-  size_t length = span->length() * base::GetPageSize();
+  size_t offset = span->first_block() * base::GetPageSize();
+  size_t length = span->num_blocks() * base::GetPageSize();
 
   span->set_is_locked(false);
   return span->shared_memory()->Unlock(offset, length);

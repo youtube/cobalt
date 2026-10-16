@@ -6,10 +6,13 @@
 #define COMPONENTS_PAYMENTS_CONTENT_PAYMENT_METHOD_MANIFEST_TABLE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "base/strings/cstring_view.h"
 #include "base/time/time.h"
+#include "components/payments/content/browser_binding/browser_bound_key_metadata.h"
 #include "components/webdata/common/web_database_table.h"
 
 class WebDatabase;
@@ -37,6 +40,11 @@ struct SecurePaymentConfirmationCredential;
 //                         payment confirmation method. Historically it also
 //                         stored instrument information, hence the name and
 //                         the (no longer used) label and icon fields.
+//                         This table is only used when credential store APIs
+//                         are unavailable: This is controlled by the
+//                         platform-specific
+//                         SecurePaymentConfirmationUseCredentialStoreAPIs flag:
+//                         On Android, currently, this table is not used.
 //
 //   credential_id         The WebAuthn credential identifier blob. Primary key.
 //   relying_party_id      The relying party identifier string.
@@ -44,6 +52,15 @@ struct SecurePaymentConfirmationCredential;
 //   icon                  The serialized SkBitmap blob.
 //   data_created          The creation date in micro seconds from 1601-01-01
 //                         00:00:00 UTC.
+//
+// secure_payment_confirmation_browser_bound_key
+//                         This table stores browser bound key information for
+//                         payment credentials. The primary key of this table is
+//                         the pair of `credential_id` and `relying_party_id`.
+//
+//   credential_id         The WebAuthn credential identifier blob.
+//   relying_party_id      The relying party identifier string.
+//   browser_bound_key_id  The identifier of the browser bound key.
 class PaymentMethodManifestTable : public WebDatabaseTable {
  public:
   PaymentMethodManifestTable();
@@ -96,7 +113,7 @@ class PaymentMethodManifestTable : public WebDatabaseTable {
   //
   // Returns true if all statements execute successfully. If a statement fails,
   // stops and returns false. Calls should be wrapped in ASSERT_TRUE().
-  bool ExecuteForTest(const char* sql);
+  bool ExecuteForTest(const base::cstring_view sql);
 
   // Raze the database to the ground for testing.
   //
@@ -105,7 +122,8 @@ class PaymentMethodManifestTable : public WebDatabaseTable {
   bool RazeForTest();
 
   // Returns true if a column with the given name exists in the given table.
-  bool DoesColumnExistForTest(const char* table_name, const char* column_name);
+  bool DoesColumnExistForTest(const base::cstring_view table_name,
+                              const base::cstring_view column_name);
 
   // Gets the list of secure payment confirmation credentials for the given list
   // of `credential_ids`.
@@ -119,6 +137,36 @@ class PaymentMethodManifestTable : public WebDatabaseTable {
   GetSecurePaymentConfirmationCredentials(
       std::vector<std::vector<uint8_t>> credential_ids,
       const std::string& relying_party_id);
+
+  // Sets a browser bound key identifier for the credential id, relying party id
+  // pair. If a browser bound key exists, no updates are performed and false is
+  // returned.
+  //
+  // Returns whether the browser bound key id was set.
+  bool SetBrowserBoundKey(std::vector<uint8_t> credential_id,
+                          std::string_view relying_party_id,
+                          std::vector<uint8_t> browser_bound_key_id);
+
+  // Gets the browser bound key id for the given credential id, relying party id
+  // pair.
+  //
+  // Returns the browser bound key id or nullopt when not found (or error
+  // occurred during retrieval).
+  std::optional<std::vector<uint8_t>> GetBrowserBoundKey(
+      std::vector<uint8_t> credential_id,
+      std::string_view relying_party_id);
+
+  // Gets all browser bound key entries.
+  //
+  // Returns the possibly empty vector of entries or an empty vector when a read
+  // error occurs.
+  std::vector<BrowserBoundKeyMetadata> GetAllBrowserBoundKeys();
+
+  // Deletes the given browser bound key entries by relying_party_id and
+  // credential_id.
+  bool DeleteBrowserBoundKeys(
+      std::vector<BrowserBoundKeyMetadata::RelyingPartyAndCredentialId>
+          passkeys);
 };
 
 }  // namespace payments

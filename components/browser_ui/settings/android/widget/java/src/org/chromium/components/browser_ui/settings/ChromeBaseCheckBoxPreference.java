@@ -11,26 +11,36 @@ import android.widget.TextView;
 import androidx.preference.CheckBoxPreference;
 import androidx.preference.PreferenceViewHolder;
 
-/**
- * Contains the basic functionality that should be shared by all CheckBoxPreference in Chrome.
- */
-public class ChromeBaseCheckBoxPreference extends CheckBoxPreference {
-    private ManagedPreferenceDelegate mManagedPrefDelegate;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
-    /**
-     * Constructor for inflating from XML.
-     */
-    public ChromeBaseCheckBoxPreference(Context context, AttributeSet attrs) {
-        super(context, attrs);
+/** Contains the basic functionality that should be shared by all CheckBoxPreference in Chrome. */
+@NullMarked
+public class ChromeBaseCheckBoxPreference extends CheckBoxPreference {
+    /** Indicates if the preference uses a custom layout. */
+    private final boolean mHasCustomLayout;
+
+    private @Nullable ManagedPreferenceDelegate mManagedPrefDelegate;
+
+    /** Constructor for use in Java. */
+    public ChromeBaseCheckBoxPreference(Context context) {
+        this(context, null);
     }
 
-    /**
-     * Sets the ManagedPreferenceDelegate which will determine whether this preference is managed.
-     */
+    /** Constructor for inflating from XML. */
+    public ChromeBaseCheckBoxPreference(Context context, @Nullable AttributeSet attrs) {
+        super(context, attrs);
+        mHasCustomLayout = ManagedPreferencesUtils.isCustomLayoutApplied(context, attrs);
+    }
+
+    /** Sets the ManagedPreferenceDelegate which will determine whether this preference is managed. */
     public void setManagedPreferenceDelegate(ManagedPreferenceDelegate delegate) {
         mManagedPrefDelegate = delegate;
         ManagedPreferencesUtils.initPreference(
-                mManagedPrefDelegate, this, /*allowManagedIcon=*/true, /*hasCustomLayout=*/true);
+                mManagedPrefDelegate,
+                this,
+                /* allowManagedIcon= */ true,
+                /* hasCustomLayout= */ mHasCustomLayout);
     }
 
     @Override

@@ -1,55 +1,16 @@
-/*
- * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
- * project.
- */
-/* ====================================================================
- * Copyright (c) 2015 The OpenSSL Project.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *
- * 3. All advertising materials mentioning features or use of this
- *    software must display the following acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
- *
- * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
- *    endorse or promote products derived from this software without
- *    prior written permission. For written permission, please contact
- *    licensing@OpenSSL.org.
- *
- * 5. Products derived from this software may not be called "OpenSSL"
- *    nor may "OpenSSL" appear in their names without prior written
- *    permission of the OpenSSL Project.
- *
- * 6. Redistributions of any form whatsoever must retain the following
- *    acknowledgment:
- *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
- *
- * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
- * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
- * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- * OF THE POSSIBILITY OF SUCH DAMAGE.
- * ====================================================================
- */
+// Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <openssl/evp.h>
 
@@ -58,21 +19,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-OPENSSL_MSVC_PRAGMA(warning(push))
-OPENSSL_MSVC_PRAGMA(warning(disable: 4702))
-
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
 
-OPENSSL_MSVC_PRAGMA(warning(pop))
-
 #include <gtest/gtest.h>
 
+#include <openssl/bn.h>
 #include <openssl/bytestring.h>
 #include <openssl/crypto.h>
 #include <openssl/digest.h>
+#include <openssl/dh.h>
 #include <openssl/dsa.h>
 #include <openssl/err.h>
 #include <openssl/rsa.h>
@@ -125,7 +83,7 @@ static int GetKeyType(FileTest *t, const std::string &name) {
   return EVP_PKEY_NONE;
 }
 
-static int GetRSAPadding(FileTest *t, int *out, const std::string &name) {
+static bool GetRSAPadding(FileTest *t, int *out, const std::string &name) {
   if (name == "PKCS1") {
     *out = RSA_PKCS1_PADDING;
     return true;
@@ -136,6 +94,10 @@ static int GetRSAPadding(FileTest *t, int *out, const std::string &name) {
   }
   if (name == "OAEP") {
     *out = RSA_PKCS1_OAEP_PADDING;
+    return true;
+  }
+  if (name == "None") {
+    *out = RSA_NO_PADDING;
     return true;
   }
   ADD_FAILURE() << "Unknown RSA padding mode: " << name;
@@ -245,6 +207,60 @@ static bool ImportKey(FileTest *t, KeyMap *key_map,
   return true;
 }
 
+static bool GetOptionalBignum(FileTest *t, bssl::UniquePtr<BIGNUM> *out,
+                              const std::string &key) {
+  if (!t->HasAttribute(key)) {
+    *out = nullptr;
+    return true;
+  }
+
+  std::vector<uint8_t> bytes;
+  if (!t->GetBytes(&bytes, key)) {
+    return false;
+  }
+
+  out->reset(BN_bin2bn(bytes.data(), bytes.size(), nullptr));
+  return *out != nullptr;
+}
+
+static bool ImportDHKey(FileTest *t, KeyMap *key_map) {
+  bssl::UniquePtr<BIGNUM> p, q, g, pub_key, priv_key;
+  if (!GetOptionalBignum(t, &p, "P") ||  //
+      !GetOptionalBignum(t, &q, "Q") ||  //
+      !GetOptionalBignum(t, &g, "G") ||
+      !GetOptionalBignum(t, &pub_key, "Public") ||
+      !GetOptionalBignum(t, &priv_key, "Private")) {
+    return false;
+  }
+
+  bssl::UniquePtr<DH> dh(DH_new());
+  if (dh == nullptr || !DH_set0_pqg(dh.get(), p.get(), q.get(), g.get())) {
+    return false;
+  }
+  // |DH_set0_pqg| takes ownership on success.
+  p.release();
+  q.release();
+  g.release();
+
+  if (!DH_set0_key(dh.get(), pub_key.get(), priv_key.get())) {
+    return false;
+  }
+  // |DH_set0_key| takes ownership on success.
+  pub_key.release();
+  priv_key.release();
+
+  bssl::UniquePtr<EVP_PKEY> pkey(EVP_PKEY_new());
+  if (pkey == nullptr || !EVP_PKEY_set1_DH(pkey.get(), dh.get())) {
+    return false;
+  }
+
+  // Save the key for future tests.
+  const std::string &key_name = t->GetParameter();
+  EXPECT_EQ(0u, key_map->count(key_name)) << "Duplicate key: " << key_name;
+  (*key_map)[key_name] = std::move(pkey);
+  return true;
+}
+
 // SetupContext configures |ctx| based on attributes in |t|, with the exception
 // of the signing digest which must be configured externally.
 static bool SetupContext(FileTest *t, KeyMap *key_map, EVP_PKEY_CTX *ctx) {
@@ -297,6 +313,9 @@ static bool SetupContext(FileTest *t, KeyMap *key_map, EVP_PKEY_CTX *ctx) {
     if (!EVP_PKEY_derive_set_peer(ctx, derive_peer_key)) {
       return false;
     }
+  }
+  if (t->HasAttribute("DiffieHellmanPad") && !EVP_PKEY_CTX_set_dh_pad(ctx, 1)) {
+    return false;
   }
   return true;
 }
@@ -366,6 +385,10 @@ static bool TestEVP(FileTest *t, KeyMap *key_map) {
 
   if (t->GetType() == "PublicKey") {
     return ImportKey(t, key_map, EVP_parse_public_key, EVP_marshal_public_key);
+  }
+
+  if (t->GetType() == "DHKey") {
+    return ImportDHKey(t, key_map);
   }
 
   // Load the key.

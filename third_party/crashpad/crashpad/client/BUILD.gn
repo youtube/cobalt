@@ -33,6 +33,8 @@ crashpad_static_library("client") {
 
   if (crashpad_is_ios) {
     sources += [
+      "crash_handler_base_ios.cc",
+      "crash_handler_base_ios.h",
       "crashpad_client_ios.cc",
       "ios_handler/exception_processor.h",
       "ios_handler/exception_processor.mm",
@@ -45,6 +47,18 @@ crashpad_static_library("client") {
       "simulate_crash_ios.h",
       "upload_behavior_ios.h",
     ]
+
+    if (!crashpad_is_tvos) {
+      sources += [
+        "crash_handler_ios.cc",
+        "crash_handler_ios.h",
+      ]
+    } else {
+      sources += [
+        "crash_handler_tvos.cc",
+        "crash_handler_tvos.h",
+      ]
+    }
   }
 
   if (crashpad_is_linux || crashpad_is_android) {
@@ -92,10 +106,7 @@ crashpad_static_library("client") {
     "../util",
   ]
 
-  deps = [
-    ":common",
-    "$mini_chromium_source_parent:chromeos_buildflags",
-  ]
+  deps = [ ":common" ]
 
   if (is_starboard) {
     deps += [ "//starboard/elf_loader:evergreen_info" ]
@@ -104,6 +115,10 @@ crashpad_static_library("client") {
   if (crashpad_is_win) {
     libs = [ "rpcrt4.lib" ]
     cflags = [ "/wd4201" ]  # nonstandard extension used : nameless struct/union
+  }
+
+  if (crashpad_is_apple) {
+    deps += [ "../build:apple_enable_arc" ]
   }
 
   if (crashpad_is_ios) {
@@ -144,7 +159,7 @@ static_library("common") {
     "simple_string_dictionary.h",
   ]
 
-  if (crashpad_is_mac || crashpad_is_ios) {
+  if (crashpad_is_apple) {
     sources += [ "crash_report_database_mac.mm" ]
   }
   if (crashpad_is_win) {
@@ -168,17 +183,19 @@ static_library("common") {
   ]
   deps = [ "../util" ]
   configs += [ "../build:flock_always_supported_defines" ]
+
+  if (crashpad_is_apple) {
+    deps += [ "../build:apple_enable_arc" ]
+  }
 }
 
 crashpad_executable("ring_buffer_annotation_load_test") {
   testonly = true
-  sources = [
-    "ring_buffer_annotation_load_test_main.cc",
-  ]
+  sources = [ "ring_buffer_annotation_load_test_main.cc" ]
   deps = [
     ":client",
-    "../tools:tool_support",
     "$mini_chromium_source_parent:base",
+    "../tools:tool_support",
   ]
 }
 
@@ -189,6 +206,7 @@ source_set("client_test") {
     "annotation_list_test.cc",
     "annotation_test.cc",
     "crash_report_database_test.cc",
+    "crashpad_info_test.cc",
     "length_delimited_ring_buffer_test.cc",
     "prune_crash_reports_test.cc",
     "ring_buffer_annotation_test.cc",
@@ -233,11 +251,19 @@ source_set("client_test") {
     data_deps = [ "../handler:crashpad_handler" ]
   }
 
+  if (crashpad_is_apple) {
+    deps += [ "../build:apple_enable_arc" ]
+  }
+
   if (crashpad_is_win) {
     data_deps += [
       "../handler:crashpad_handler_console",
       "../handler/win/wer:crashpad_wer_handler",
     ]
+  }
+
+  if (crashpad_is_ios) {
+    deps += [ "../minidump" ]
   }
 }
 

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 /** @fileoverview Definitions for chrome.passwordsPrivate API */
-// TODO(crbug.com/1203307): Auto-generate this file.
+// TODO(crbug.com/40179454): Auto-generate this file.
 
 import {ChromeEvent} from './chrome_event.js';
 
@@ -76,6 +76,31 @@ declare global {
         VALID = 'VALID',
       }
 
+      export enum FamilyFetchStatus {
+        UNKNOWN_ERROR = 'UNKNOWN_ERROR',
+        NO_MEMBERS = 'NO_MEMBERS',
+        SUCCESS = 'SUCCESS',
+      }
+
+      export interface PublicKey {
+        value: string;
+        version: number;
+      }
+
+      export interface RecipientInfo {
+        userId: string;
+        email: string;
+        displayName: string;
+        profileImageUrl: string;
+        isEligible: boolean;
+        publicKey?: PublicKey;
+      }
+
+      export interface FamilyFetchResults {
+        status: FamilyFetchStatus;
+        familyMembers: RecipientInfo[];
+      }
+
       export interface ImportEntry {
         status: ImportEntryStatus;
         url: string;
@@ -111,17 +136,18 @@ declare global {
       }
 
       export interface PasswordUiEntry {
-        urls: UrlCollection;
-        affiliatedDomains?: DomainInfo[];
+        isPasskey: boolean;
+        affiliatedDomains: DomainInfo[];
         username: string;
+        displayName?: string;
         password?: string;
         federationText?: string;
         id: number;
         storedIn: PasswordStoreSet;
-        isAndroidCredential: boolean;
         note?: string;
         changePasswordUrl?: string;
         compromisedInfo?: CompromisedInfo;
+        creationTime?: number;
       }
 
       export interface CredentialGroup {
@@ -157,20 +183,14 @@ declare global {
         useAccountStore: boolean;
       }
 
-      export interface ChangeSavedPasswordParams {
-        username: string;
-        password: string;
-        note?: string;
-      }
-
       export interface PasswordUiEntryList {
         entries: PasswordUiEntry[];
       }
 
       export function recordPasswordsPageAccessInSettings(): void;
-      export function changeSavedPassword(
-          id: number, params: ChangeSavedPasswordParams): Promise<number>;
-      export function removeSavedPassword(
+      export function changeCredential(credential: PasswordUiEntry):
+          Promise<void>;
+      export function removeCredential(
           id: number, fromStores: PasswordStoreSet): void;
       export function removePasswordException(id: number): void;
       export function undoRemoveSavedPasswordOrException(): void;
@@ -182,6 +202,9 @@ declare global {
       export function getCredentialGroups(): Promise<CredentialGroup[]>;
       export function getPasswordExceptionList(): Promise<ExceptionEntry[]>;
       export function movePasswordsToAccount(ids: number[]): void;
+      export function fetchFamilyMembers(): Promise<FamilyFetchResults>;
+      export function sharePassword(id: number, recipients: RecipientInfo[]):
+          Promise<void>;
       export function importPasswords(toStore: PasswordStoreSet):
           Promise<ImportResults>;
       export function continueImport(selectedIds: number[]):
@@ -190,9 +213,8 @@ declare global {
       export function exportPasswords(): Promise<void>;
       export function requestExportProgressStatus():
           Promise<ExportProgressStatus>;
-      export function cancelExportPasswords(): void;
-      export function isOptedInForAccountStorage(): Promise<boolean>;
-      export function optInForAccountStorage(optIn: boolean): void;
+      export function isAccountStorageEnabled(): Promise<boolean>;
+      export function setAccountStorageEnabled(enabled: boolean): void;
       export function getInsecureCredentials(): Promise<PasswordUiEntry[]>;
       export function getCredentialsWithReusedPassword():
           Promise<PasswordUiEntryList[]>;
@@ -200,19 +222,20 @@ declare global {
           Promise<void>;
       export function unmuteInsecureCredential(credential: PasswordUiEntry):
           Promise<void>;
-      export function recordChangePasswordFlowStarted(
-          credential: PasswordUiEntry): void;
       export function startPasswordCheck(): Promise<void>;
-      export function stopPasswordCheck(): Promise<void>;
       export function getPasswordCheckStatus(): Promise<PasswordCheckStatus>;
-      export function isAccountStoreDefault(): Promise<boolean>;
       export function getUrlCollection(url: string):
           Promise<UrlCollection|null>;
       export function addPassword(options: AddPasswordOptions): Promise<void>;
       export function extendAuthValidity(): Promise<void>;
-      export function switchBiometricAuthBeforeFillingState(): void;
+      export function switchBiometricAuthBeforeFillingState(): Promise<boolean>;
       export function showAddShortcutDialog(): void;
       export function showExportedFileInShell(filePath: string): void;
+      export function changePasswordManagerPin(): Promise<boolean>;
+      export function isPasswordManagerPinAvailable(): Promise<boolean>;
+      export function disconnectCloudAuthenticator(): Promise<boolean>;
+      export function isConnectedToCloudAuthenticator(): Promise<boolean>;
+      export function deleteAllPasswordManagerData(): Promise<boolean>;
 
       export const onSavedPasswordsListChanged:
           ChromeEvent<(entries: PasswordUiEntry[]) => void>;
@@ -220,8 +243,8 @@ declare global {
           ChromeEvent<(entries: ExceptionEntry[]) => void>;
       export const onPasswordsFileExportProgress:
           ChromeEvent<(progress: PasswordExportProgress) => void>;
-      export const onAccountStorageOptInStateChanged:
-          ChromeEvent<(optInState: boolean) => void>;
+      export const onAccountStorageEnabledStateChanged:
+          ChromeEvent<(enabledState: boolean) => void>;
       export const onInsecureCredentialsChanged:
           ChromeEvent<(credentials: PasswordUiEntry[]) => void>;
       export const onPasswordCheckStatusChanged:

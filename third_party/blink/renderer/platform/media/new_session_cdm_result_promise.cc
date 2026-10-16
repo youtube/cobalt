@@ -28,7 +28,6 @@ CdmResultForUMA ConvertStatusToUMAResult(SessionInitStatus status) {
       return SESSION_ALREADY_EXISTS;
   }
   NOTREACHED();
-  return INVALID_STATE_ERROR;
 }
 
 }  // namespace
@@ -46,7 +45,6 @@ static WebContentDecryptionModuleResult::SessionStatus ConvertStatus(
       return WebContentDecryptionModuleResult::kSessionAlreadyExists;
   }
   NOTREACHED();
-  return WebContentDecryptionModuleResult::kSessionNotFound;
 }
 
 NewSessionCdmResultPromise::NewSessionCdmResultPromise(

@@ -13,14 +13,17 @@ import android.os.PersistableBundle;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.TimeUtils;
+import org.chromium.build.NullUtil;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import javax.annotation.concurrent.GuardedBy;
 
-/**
- * Class that interacts with the Android JobScheduler to upload Minidumps at appropriate times.
- */
-public abstract class MinidumpUploadJobService
-        extends JobService implements MinidumpUploadJob.UploadsFinishedCallback {
+/** Class that interacts with the Android JobScheduler to upload Minidumps at appropriate times. */
+@NullMarked
+public abstract class MinidumpUploadJobService extends JobService
+        implements MinidumpUploadJob.UploadsFinishedCallback {
     private static final String TAG = "MinidumpJobService";
 
     // Initial back-off time for upload-job, i.e. the minimum delay when a job is retried. A retry
@@ -34,12 +37,16 @@ public abstract class MinidumpUploadJobService
     private static final int JOB_BACKOFF_POLICY = JobInfo.BACKOFF_POLICY_EXPONENTIAL;
 
     private final Object mLock = new Object();
+
     @GuardedBy("mLock")
-    private MinidumpUploadJob mActiveJob;
+    private @Nullable MinidumpUploadJob mActiveJob;
+
     @GuardedBy("mLock")
-    private JobParameters mActiveJobParams;
+    private @Nullable JobParameters mActiveJobParams;
+
     @GuardedBy("mLock")
     private long mActiveJobStartTime;
+
     @GuardedBy("mLock")
     private boolean mShouldReschedule;
 
@@ -52,8 +59,9 @@ public abstract class MinidumpUploadJobService
     public static void scheduleUpload(JobInfo.Builder jobInfoBuilder) {
         Log.i(TAG, "Scheduling upload of all pending minidumps.");
         JobScheduler scheduler =
-                (JobScheduler) ContextUtils.getApplicationContext().getSystemService(
-                        Context.JOB_SCHEDULER_SERVICE);
+                (JobScheduler)
+                        ContextUtils.getApplicationContext()
+                                .getSystemService(Context.JOB_SCHEDULER_SERVICE);
         JobInfo uploadJob =
                 jobInfoBuilder
                         .setBackoffCriteria(JOB_INITIAL_BACKOFF_TIME_IN_MS, JOB_BACKOFF_POLICY)
@@ -62,6 +70,7 @@ public abstract class MinidumpUploadJobService
         assert result == JobScheduler.RESULT_SUCCESS;
     }
 
+    @Initializer
     @Override
     public boolean onStartJob(JobParameters params) {
         synchronized (mLock) {
@@ -71,14 +80,13 @@ public abstract class MinidumpUploadJobService
             // 2) each time a job is scheduled, it has the same params.getExtras().
             mShouldReschedule = mActiveJob != null;
             if (mShouldReschedule) {
+                NullUtil.assumeNonNull(mActiveJobParams);
                 // Querying size forces unparcelling, which changes the output of toString().
                 assert params.getExtras().size() + mActiveJobParams.getExtras().size() < 10000;
-                assert params.getExtras()
-                                .toString()
-                                .equals(mActiveJobParams.getExtras().toString())
-                    : params.getExtras()
-                                .toString()
-                        + " vs " + mActiveJobParams.getExtras().toString();
+                assert params.getExtras().toString().equals(mActiveJobParams.getExtras().toString())
+                        : params.getExtras().toString()
+                                + " vs "
+                                + mActiveJobParams.getExtras().toString();
                 return false;
             }
 
@@ -120,9 +128,7 @@ public abstract class MinidumpUploadJobService
         recordMinidumpUploadingTime(TimeUtils.uptimeMillis() - startTime);
     }
 
-    /**
-     * Records minidump uploading time.
-     */
+    /** Records minidump uploading time. */
     protected void recordMinidumpUploadingTime(long taskDurationMs) {}
 
     /**

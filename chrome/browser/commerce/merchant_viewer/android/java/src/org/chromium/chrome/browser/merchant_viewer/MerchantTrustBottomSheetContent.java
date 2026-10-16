@@ -4,19 +4,25 @@
 
 package org.chromium.chrome.browser.merchant_viewer;
 
+import android.content.Context;
 import android.view.View;
+
+import androidx.annotation.StringRes;
 
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 
 /**
  * An implementation of {@link BottomSheetContent} for the merchant trust bottom sheet experience.
  */
+@NullMarked
 public class MerchantTrustBottomSheetContent implements BottomSheetContent {
     /** Ratio of the height when in half mode. */
     private static final float HALF_HEIGHT_RATIO = 0.6f;
+
     /** Ratio of the height when in full mode. Used in half-open variation. */
     public static final float FULL_HEIGHT_RATIO = 0.9f;
 
@@ -27,11 +33,12 @@ public class MerchantTrustBottomSheetContent implements BottomSheetContent {
     private final ObservableSupplierImpl<Boolean> mBackPressStateChangedSupplier =
             new ObservableSupplierImpl<>();
 
-    /**
-     * Creates a new instance.
-     */
-    public MerchantTrustBottomSheetContent(View toolbarView, View contentView,
-            Supplier<Integer> verticalScrollOffset, Runnable backPressHandler) {
+    /** Creates a new instance. */
+    public MerchantTrustBottomSheetContent(
+            View toolbarView,
+            View contentView,
+            Supplier<Integer> verticalScrollOffset,
+            Runnable backPressHandler) {
         mToolbarView = toolbarView;
         mContentView = contentView;
         mVerticalScrollOffset = verticalScrollOffset;
@@ -68,11 +75,6 @@ public class MerchantTrustBottomSheetContent implements BottomSheetContent {
     }
 
     @Override
-    public int getPeekHeight() {
-        return HeightMode.DISABLED;
-    }
-
-    @Override
     public float getHalfHeightRatio() {
         return HALF_HEIGHT_RATIO;
     }
@@ -99,22 +101,22 @@ public class MerchantTrustBottomSheetContent implements BottomSheetContent {
     }
 
     @Override
-    public int getSheetContentDescriptionStringId() {
-        return R.string.merchant_viewer_preview_sheet_description;
+    public String getSheetContentDescription(Context context) {
+        return context.getString(R.string.merchant_viewer_preview_sheet_description);
     }
 
     @Override
-    public int getSheetHalfHeightAccessibilityStringId() {
+    public @StringRes int getSheetHalfHeightAccessibilityStringId() {
         return R.string.merchant_viewer_preview_sheet_opened_half;
     }
 
     @Override
-    public int getSheetFullHeightAccessibilityStringId() {
+    public @StringRes int getSheetFullHeightAccessibilityStringId() {
         return R.string.merchant_viewer_preview_sheet_opened_full;
     }
 
     @Override
-    public int getSheetClosedAccessibilityStringId() {
+    public @StringRes int getSheetClosedAccessibilityStringId() {
         return R.string.merchant_viewer_preview_sheet_closed;
     }
 }

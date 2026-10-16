@@ -4,20 +4,22 @@
 
 #include "media/filters/source_buffer_state.h"
 
+#include <algorithm>
 #include <set>
+#include <string_view>
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/types/cxx23_to_underlying.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "media/base/media_switches.h"
 #include "media/base/media_track.h"
 #include "media/base/media_tracks.h"
 #include "media/base/mime_util.h"
 #include "media/base/stream_parser.h"
+#include "media/base/video_codec_string_parsers.h"
 #include "media/filters/chunk_demuxer.h"
 #include "media/filters/frame_processor.h"
 #include "media/filters/source_buffer_stream.h"
@@ -34,25 +36,20 @@ enum {
 
 namespace {
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::atomic<int> g_max_pending_bytes_per_parse{StreamParser::kMaxPendingBytesPerParse};  // 128KiB
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 base::TimeDelta EndTimestamp(const StreamParser::BufferQueue& queue) {
   return queue.back()->timestamp() + queue.back()->duration();
 }
 
-// Check the input |text_configs| and |bytestream_ids| and return false if
+// Check the input |bytestream_ids| and return false if
 // duplicate track ids are detected.
-bool CheckBytestreamTrackIds(
-    const MediaTracks& tracks,
-    const StreamParser::TextTrackConfigMap& text_configs) {
+bool CheckBytestreamTrackIds(const MediaTracks& tracks) {
   std::set<StreamParser::TrackId> bytestream_ids;
   for (const auto& track : tracks.tracks()) {
-    const StreamParser::TrackId& track_id = track->bytestream_track_id();
-    if (bytestream_ids.find(track_id) != bytestream_ids.end()) {
-      return false;
-    }
-    bytestream_ids.insert(track_id);
-  }
-  for (const auto& text_track : text_configs) {
-    const StreamParser::TrackId& track_id = text_track.first;
+    const StreamParser::TrackId& track_id = track->stream_id();
     if (bytestream_ids.find(track_id) != bytestream_ids.end()) {
       return false;
     }
@@ -61,7 +58,7 @@ bool CheckBytestreamTrackIds(
   return true;
 }
 
-unsigned GetMSEBufferSizeLimitIfExists(base::StringPiece switch_string) {
+unsigned GetMSEBufferSizeLimitIfExists(std::string_view switch_string) {
   auto* command_line = base::CommandLine::ForCurrentProcess();
   unsigned memory_limit;
   if (command_line->HasSwitch(switch_string) &&
@@ -73,6 +70,13 @@ unsigned GetMSEBufferSizeLimitIfExists(base::StringPiece switch_string) {
 }
 
 }  // namespace
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// static
+void SourceBufferState::SetMaxPendingBytesPerParseOverride(int max_bytes) {
+  g_max_pending_bytes_per_parse = max_bytes;
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // List of time ranges for each SourceBuffer.
 // static
@@ -135,28 +139,33 @@ SourceBufferState::SourceBufferState(
     MediaLog* media_log)
     : timestamp_offset_during_append_(nullptr),
       parsing_media_segment_(false),
-      stream_parser_(stream_parser.release()),
-      frame_processor_(frame_processor.release()),
+      stream_parser_(std::move(stream_parser)),
+      frame_processor_(std::move(frame_processor)),
       create_demuxer_stream_cb_(std::move(create_demuxer_stream_cb)),
       media_log_(media_log),
       state_(UNINITIALIZED) {
   DCHECK(create_demuxer_stream_cb_);
   DCHECK(frame_processor_);
+  DCHECK(stream_parser_);
 }
 
 SourceBufferState::~SourceBufferState() {
   Shutdown();
 }
 
-void SourceBufferState::Init(
-    StreamParser::InitCB init_cb,
-    const std::string& expected_codecs,
-    const StreamParser::EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
-    NewTextTrackCB new_text_track_cb) {
+void SourceBufferState::Init(StreamParser::InitCB init_cb,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+                             std::string_view mime_type,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+                             std::optional<std::string_view> expected_codecs,
+                             const StreamParser::EncryptedMediaInitDataCB&
+                                 encrypted_media_init_data_cb) {
   DCHECK_EQ(state_, UNINITIALIZED);
   init_cb_ = std::move(init_cb);
   encrypted_media_init_data_cb_ = encrypted_media_init_data_cb;
-  new_text_track_cb_ = std::move(new_text_track_cb);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  mime_type_ = mime_type;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   state_ = PENDING_PARSER_CONFIG;
   InitializeParser(expected_codecs);
 }
@@ -204,10 +213,22 @@ void SourceBufferState::SetParseWarningCallback(
   frame_processor_->SetParseWarningCallback(std::move(parse_warning_cb));
 }
 
-bool SourceBufferState::AppendToParseBuffer(const uint8_t* data,
-                                            size_t length) {
-  return stream_parser_->AppendToParseBuffer(data, length);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+bool SourceBufferState::AppendToParseBuffer(
+    base::span<const uint8_t> data,
+    base::ScopedClosureRunner release_runner) {
+  // Parsers that borrow `data` must never be handed a null runner, so route
+  // that case to the copying overload. This is the only place that decides
+  // between the two.
+  return release_runner ? stream_parser_->AppendToParseBuffer(
+                              data, std::move(release_runner))
+                        : stream_parser_->AppendToParseBuffer(data);
 }
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+bool SourceBufferState::AppendToParseBuffer(base::span<const uint8_t> data) {
+  return stream_parser_->AppendToParseBuffer(data);
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 StreamParser::ParseStatus SourceBufferState::RunSegmentParserLoop(
     base::TimeDelta append_window_start,
@@ -224,7 +245,11 @@ StreamParser::ParseStatus SourceBufferState::RunSegmentParserLoop(
   // TODO(wolenetz): Curry and pass a NewBuffersCB here bound with append window
   // and timestamp offset pointer. See http://crbug.com/351454.
   StreamParser::ParseStatus result =
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      stream_parser_->Parse(g_max_pending_bytes_per_parse);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
       stream_parser_->Parse(StreamParser::kMaxPendingBytesPerParse);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (result == StreamParser::ParseStatus::kFailed) {
     MEDIA_LOG(ERROR, media_log_)
@@ -291,10 +316,6 @@ void SourceBufferState::Remove(base::TimeDelta start,
   for (const auto& it : video_streams_) {
     it.second->Remove(start, end, duration);
   }
-
-  for (const auto& it : text_streams_) {
-    it.second->Remove(start, end, duration);
-  }
 }
 
 bool SourceBufferState::EvictCodedFrames(base::TimeDelta media_time,
@@ -303,8 +324,6 @@ bool SourceBufferState::EvictCodedFrames(base::TimeDelta media_time,
   for (const auto& it : audio_streams_)
     total_buffered_size += it.second->GetMemoryUsage();
   for (const auto& it : video_streams_)
-    total_buffered_size += it.second->GetMemoryUsage();
-  for (const auto& it : text_streams_)
     total_buffered_size += it.second->GetMemoryUsage();
 
   DVLOG(3) << __func__ << " media_time=" << media_time.InSecondsF()
@@ -325,15 +344,6 @@ bool SourceBufferState::EvictCodedFrames(base::TimeDelta media_time,
         media_time, static_cast<size_t>(estimated_new_size));
   }
   for (const auto& it : video_streams_) {
-    uint64_t curr_size = it.second->GetMemoryUsage();
-    if (curr_size == 0)
-      continue;
-    uint64_t estimated_new_size = newDataSize * curr_size / total_buffered_size;
-    DCHECK_LE(estimated_new_size, SIZE_MAX);
-    success &= it.second->EvictCodedFrames(
-        media_time, static_cast<size_t>(estimated_new_size));
-  }
-  for (const auto& it : text_streams_) {
     uint64_t curr_size = it.second->GetMemoryUsage();
     if (curr_size == 0)
       continue;
@@ -368,10 +378,6 @@ void SourceBufferState::OnMemoryPressure(
     it.second->OnMemoryPressure(media_time, memory_pressure_level,
                                 force_instant_gc);
   }
-  for (const auto& it : text_streams_) {
-    it.second->OnMemoryPressure(media_time, memory_pressure_level,
-                                force_instant_gc);
-  }
 }
 
 Ranges<base::TimeDelta> SourceBufferState::GetBufferedRanges(
@@ -382,9 +388,6 @@ Ranges<base::TimeDelta> SourceBufferState::GetBufferedRanges(
     ranges_list.push_back(it.second->GetBufferedRanges(duration));
 
   for (const auto& it : video_streams_)
-    ranges_list.push_back(it.second->GetBufferedRanges(duration));
-
-  for (const auto& it : text_streams_)
     ranges_list.push_back(it.second->GetBufferedRanges(duration));
 
   return ComputeRangesIntersection(ranges_list, ended);
@@ -398,10 +401,6 @@ base::TimeDelta SourceBufferState::GetLowestPresentationTimestamp() const {
   }
 
   for (const auto& it : video_streams_) {
-    min_pts = std::min(min_pts, it.second->GetLowestPresentationTimestamp());
-  }
-
-  for (const auto& it : text_streams_) {
     min_pts = std::min(min_pts, it.second->GetLowestPresentationTimestamp());
   }
 
@@ -424,10 +423,6 @@ base::TimeDelta SourceBufferState::GetHighestPresentationTimestamp() const {
     max_pts = std::max(max_pts, it.second->GetHighestPresentationTimestamp());
   }
 
-  for (const auto& it : text_streams_) {
-    max_pts = std::max(max_pts, it.second->GetHighestPresentationTimestamp());
-  }
-
   return max_pts;
 }
 
@@ -442,10 +437,6 @@ base::TimeDelta SourceBufferState::GetMaxBufferedDuration() const {
     max_duration = std::max(max_duration, it.second->GetBufferedDuration());
   }
 
-  for (const auto& it : text_streams_) {
-    max_duration = std::max(max_duration, it.second->GetBufferedDuration());
-  }
-
   return max_duration;
 }
 
@@ -455,10 +446,6 @@ void SourceBufferState::StartReturningData() {
   }
 
   for (const auto& it : video_streams_) {
-    it.second->StartReturningData();
-  }
-
-  for (const auto& it : text_streams_) {
     it.second->StartReturningData();
   }
 }
@@ -471,10 +458,6 @@ void SourceBufferState::AbortReads() {
   for (const auto& it : video_streams_) {
     it.second->AbortReads();
   }
-
-  for (const auto& it : text_streams_) {
-    it.second->AbortReads();
-  }
 }
 
 void SourceBufferState::Seek(base::TimeDelta seek_time) {
@@ -483,10 +466,6 @@ void SourceBufferState::Seek(base::TimeDelta seek_time) {
   }
 
   for (const auto& it : video_streams_) {
-    it.second->Seek(seek_time);
-  }
-
-  for (const auto& it : text_streams_) {
     it.second->Seek(seek_time);
   }
 }
@@ -499,10 +478,6 @@ void SourceBufferState::CompletePendingReadIfPossible() {
   for (const auto& it : video_streams_) {
     it.second->CompletePendingReadIfPossible();
   }
-
-  for (const auto& it : text_streams_) {
-    it.second->CompletePendingReadIfPossible();
-  }
 }
 
 void SourceBufferState::OnSetDuration(base::TimeDelta duration) {
@@ -511,10 +486,6 @@ void SourceBufferState::OnSetDuration(base::TimeDelta duration) {
   }
 
   for (const auto& it : video_streams_) {
-    it.second->OnSetDuration(duration);
-  }
-
-  for (const auto& it : text_streams_) {
     it.second->OnSetDuration(duration);
   }
 }
@@ -527,10 +498,6 @@ void SourceBufferState::MarkEndOfStream() {
   for (const auto& it : video_streams_) {
     it.second->MarkEndOfStream();
   }
-
-  for (const auto& it : text_streams_) {
-    it.second->MarkEndOfStream();
-  }
 }
 
 void SourceBufferState::UnmarkEndOfStream() {
@@ -541,10 +508,6 @@ void SourceBufferState::UnmarkEndOfStream() {
   for (const auto& it : video_streams_) {
     it.second->UnmarkEndOfStream();
   }
-
-  for (const auto& it : text_streams_) {
-    it.second->UnmarkEndOfStream();
-  }
 }
 
 void SourceBufferState::Shutdown() {
@@ -553,10 +516,6 @@ void SourceBufferState::Shutdown() {
   }
 
   for (const auto& it : video_streams_) {
-    it.second->Shutdown();
-  }
-
-  for (const auto& it : text_streams_) {
     it.second->Shutdown();
   }
 }
@@ -574,14 +533,8 @@ void SourceBufferState::SetMemoryLimits(DemuxerStream::Type type,
         it.second->SetStreamMemoryLimit(memory_limit);
       }
       break;
-    case DemuxerStream::TEXT:
-      for (const auto& it : text_streams_) {
-        it.second->SetStreamMemoryLimit(memory_limit);
-      }
-      break;
     case DemuxerStream::UNKNOWN:
       NOTREACHED();
-      break;
   }
 }
 
@@ -596,22 +549,19 @@ bool SourceBufferState::IsSeekWaitingForData() const {
       return true;
   }
 
-  // NOTE: We are intentionally not checking the text tracks
-  // because text tracks are discontinuous and may not have data
-  // for the seek position. This is ok and playback should not be
-  // stalled because we don't have cues. If cues, with timestamps after
-  // the seek time, eventually arrive they will be delivered properly
-  // in response to ChunkDemuxerStream::Read() calls.
-
   return false;
 }
 
-void SourceBufferState::InitializeParser(const std::string& expected_codecs) {
+void SourceBufferState::InitializeParser(
+    std::optional<std::string_view> expected_codecs) {
   expected_audio_codecs_.clear();
   expected_video_codecs_.clear();
 
   std::vector<std::string> expected_codecs_parsed;
-  SplitCodecs(expected_codecs, &expected_codecs_parsed);
+  if ((strict_codec_expectations_ = expected_codecs.has_value())) {
+    DVLOG(1) << __func__ << " expected_codecs=" << expected_codecs.value();
+    SplitCodecs(expected_codecs.value(), &expected_codecs_parsed);
+  }
 
   std::vector<AudioCodec> expected_acodecs;
   std::vector<VideoCodec> expected_vcodecs;
@@ -633,10 +583,9 @@ void SourceBufferState::InitializeParser(const std::string& expected_codecs) {
       base::BindOnce(&SourceBufferState::OnSourceInitDone,
                      base::Unretained(this)),
       base::BindRepeating(&SourceBufferState::OnNewConfigs,
-                          base::Unretained(this), expected_codecs),
+                          base::Unretained(this)),
       base::BindRepeating(&SourceBufferState::OnNewBuffers,
                           base::Unretained(this)),
-      !new_text_track_cb_,
       base::BindRepeating(&SourceBufferState::OnEncryptedMediaInitData,
                           base::Unretained(this)),
       base::BindRepeating(&SourceBufferState::OnNewMediaSegment,
@@ -646,20 +595,15 @@ void SourceBufferState::InitializeParser(const std::string& expected_codecs) {
       media_log_);
 }
 
-bool SourceBufferState::OnNewConfigs(
-    std::string expected_codecs,
-    std::unique_ptr<MediaTracks> tracks,
-    const StreamParser::TextTrackConfigMap& text_configs) {
+bool SourceBufferState::OnNewConfigs(std::unique_ptr<MediaTracks> tracks) {
   DCHECK(tracks.get());
-  DVLOG(1) << __func__ << " expected_codecs=" << expected_codecs
-           << " tracks=" << tracks->tracks().size();
   DCHECK_GE(state_, PENDING_PARSER_CONFIG);
 
   // Check that there is no clashing bytestream track ids.
-  if (!CheckBytestreamTrackIds(*tracks, text_configs)) {
+  if (!CheckBytestreamTrackIds(*tracks)) {
     MEDIA_LOG(ERROR, media_log_) << "Duplicate bytestream track ids detected";
     for (const auto& track : tracks->tracks()) {
-      const StreamParser::TrackId& track_id = track->bytestream_track_id();
+      const StreamParser::TrackId& track_id = track->stream_id();
       MEDIA_LOG(DEBUG, media_log_) << TrackTypeToStr(track->type()) << " track "
                                    << " bytestream track id=" << track_id;
     }
@@ -684,23 +628,25 @@ bool SourceBufferState::OnNewConfigs(
 
   FrameProcessor::TrackIdChanges track_id_changes;
   for (const auto& track : tracks->tracks()) {
-    const auto& track_id = track->bytestream_track_id();
+    const auto& track_id = track->stream_id();
 
-    if (track->type() == MediaTrack::Audio) {
+    if (track->type() == MediaTrack::Type::kAudio) {
       AudioDecoderConfig audio_config = tracks->getAudioConfig(track_id);
       DVLOG(1) << "Audio track_id=" << track_id
                << " config: " << audio_config.AsHumanReadableString();
       DCHECK(audio_config.IsValidConfig());
 
-      const auto& it =
-          base::ranges::find(expected_acodecs, audio_config.codec());
-      if (it == expected_acodecs.end()) {
-        MEDIA_LOG(ERROR, media_log_) << "Audio stream codec "
-                                     << GetCodecName(audio_config.codec())
-                                     << " doesn't match SourceBuffer codecs.";
-        return false;
+      if (strict_codec_expectations_) {
+        const auto& it =
+            std::ranges::find(expected_acodecs, audio_config.codec());
+        if (it == expected_acodecs.end()) {
+          MEDIA_LOG(ERROR, media_log_)
+              << "Audio stream codec " << GetCodecName(audio_config.codec())
+              << " doesn't match SourceBuffer codecs.";
+          return false;
+        }
+        expected_acodecs.erase(it);
       }
-      expected_acodecs.erase(it);
 
       ChunkDemuxerStream* stream = nullptr;
       if (!first_init_segment_received_) {
@@ -739,10 +685,13 @@ bool SourceBufferState::OnNewConfigs(
       }
 
       track->set_id(stream->media_track_id());
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      audio_config.set_mime_type(mime_type_);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       frame_processor_->OnPossibleAudioConfigUpdate(audio_config);
       success &= stream->UpdateAudioConfig(audio_config, allow_codec_changes,
                                            media_log_);
-    } else if (track->type() == MediaTrack::Video) {
+    } else if (track->type() == MediaTrack::Type::kVideo) {
       VideoDecoderConfig video_config = tracks->getVideoConfig(track_id);
       DVLOG(1) << "Video track_id=" << track_id
                << " config: " << video_config.AsHumanReadableString();
@@ -774,15 +723,17 @@ bool SourceBufferState::OnNewConfigs(
       }
 #endif  // BUILDFLAG(ENABLE_PLATFORM_ENCRYPTED_DOLBY_VISION)
 
-      const auto& it =
-          base::ranges::find(expected_vcodecs, video_config.codec());
-      if (it == expected_vcodecs.end()) {
-        MEDIA_LOG(ERROR, media_log_) << "Video stream codec "
-                                     << GetCodecName(video_config.codec())
-                                     << " doesn't match SourceBuffer codecs.";
-        return false;
+      if (strict_codec_expectations_) {
+        const auto& it =
+            std::ranges::find(expected_vcodecs, video_config.codec());
+        if (it == expected_vcodecs.end()) {
+          MEDIA_LOG(ERROR, media_log_)
+              << "Video stream codec " << GetCodecName(video_config.codec())
+              << " doesn't match SourceBuffer codecs.";
+          return false;
+        }
+        expected_vcodecs.erase(it);
       }
-      expected_vcodecs.erase(it);
 
       ChunkDemuxerStream* stream = nullptr;
       if (!first_init_segment_received_) {
@@ -822,11 +773,14 @@ bool SourceBufferState::OnNewConfigs(
       }
 
       track->set_id(stream->media_track_id());
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      video_config.set_mime_type(mime_type_);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       success &= stream->UpdateVideoConfig(video_config, allow_codec_changes,
                                            media_log_);
     } else {
       MEDIA_LOG(ERROR, media_log_) << "Error: unsupported media track type "
-                                   << track->type();
+                                   << base::to_underlying(track->type());
       return false;
     }
   }
@@ -841,73 +795,6 @@ bool SourceBufferState::OnNewConfigs(
                                    << GetCodecName(vcodec) << " track.";
     }
     return false;
-  }
-
-  if (text_streams_.empty()) {
-    for (auto itr = text_configs.begin(); itr != text_configs.end(); ++itr) {
-      ChunkDemuxerStream* const text_stream =
-          create_demuxer_stream_cb_.Run(DemuxerStream::TEXT);
-      if (!frame_processor_->AddTrack(itr->first, text_stream)) {
-        success &= false;
-        MEDIA_LOG(ERROR, media_log_) << "Failed to add text track ID "
-                                     << itr->first << " to frame processor.";
-        break;
-      }
-      text_stream->UpdateTextConfig(itr->second, media_log_);
-      text_streams_[itr->first] = text_stream;
-      new_text_track_cb_.Run(text_stream, itr->second);
-    }
-  } else {
-    const size_t text_count = text_streams_.size();
-    if (text_configs.size() != text_count) {
-      success &= false;
-      MEDIA_LOG(ERROR, media_log_)
-          << "The number of text track configs changed.";
-    } else if (text_count == 1) {
-      auto config_itr = text_configs.begin();
-      auto stream_itr = text_streams_.begin();
-      ChunkDemuxerStream* text_stream = stream_itr->second;
-      TextTrackConfig old_config = text_stream->text_track_config();
-      TextTrackConfig new_config(
-          config_itr->second.kind(), config_itr->second.label(),
-          config_itr->second.language(), old_config.id());
-      if (!new_config.Matches(old_config)) {
-        success &= false;
-        MEDIA_LOG(ERROR, media_log_)
-            << "New text track config does not match old one.";
-      } else {
-        StreamParser::TrackId old_id = stream_itr->first;
-        StreamParser::TrackId new_id = config_itr->first;
-        if (new_id != old_id) {
-          track_id_changes[old_id] = new_id;
-          text_streams_.erase(old_id);
-          text_streams_[new_id] = text_stream;
-        }
-      }
-    } else {
-      for (auto config_itr = text_configs.begin();
-           config_itr != text_configs.end(); ++config_itr) {
-        auto stream_itr = text_streams_.find(config_itr->first);
-        if (stream_itr == text_streams_.end()) {
-          success &= false;
-          MEDIA_LOG(ERROR, media_log_)
-              << "Unexpected text track configuration for track ID "
-              << config_itr->first;
-          break;
-        }
-
-        const TextTrackConfig& new_config = config_itr->second;
-        ChunkDemuxerStream* stream = stream_itr->second;
-        TextTrackConfig old_config = stream->text_track_config();
-        if (!new_config.Matches(old_config)) {
-          success &= false;
-          MEDIA_LOG(ERROR, media_log_) << "New text track config for track ID "
-                                       << config_itr->first
-                                       << " does not match old one.";
-          break;
-        }
-      }
-    }
   }
 
   if (audio_streams_.empty() && video_streams_.empty()) {
@@ -960,6 +847,7 @@ void SourceBufferState::SetStreamMemoryLimits() {
     for (const auto& it : video_streams_)
       it.second->SetStreamMemoryLimit(video_buf_size_limit);
   }
+
 }
 
 void SourceBufferState::OnNewMediaSegment() {

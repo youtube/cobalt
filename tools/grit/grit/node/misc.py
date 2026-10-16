@@ -240,8 +240,8 @@ def _ComputeIds(root, predetermined_tids):
               'avoid conflicts with system-defined resource IDs.')
 
       if tid not in predetermined_tids and id in predetermined_ids:
-        raise exception.IdRangeOverlap('ID %d overlaps between %s and %s'
-                                       % (id, tid, predetermined_ids[tid]))
+        raise exception.IdRangeOverlap('ID %d overlaps between %s and %s' %
+                                       (id, tid, predetermined_ids[id]))
 
       ids[id] = tid
       tids[tid] = id
@@ -362,10 +362,10 @@ class GritNode(base.Node):
                               empty.OutputsNode))
 
   def _IsValidAttribute(self, name, value):
-    if name not in ['base_dir', 'first_ids_file', 'source_lang_id',
-                    'latest_public_release', 'current_release',
-                    'enc_check', 'tc_project', 'grit_version',
-                    'output_all_resource_defines']:
+    if name not in [
+        'base_dir', 'first_ids_file', 'source_lang_id', 'latest_public_release',
+        'current_release', 'enc_check', 'tc_project', 'grit_version'
+    ]:
       return False
     if name in ['latest_public_release', 'current_release'] and value.strip(
       '0123456789') != '':

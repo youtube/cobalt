@@ -2,63 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/command_line.h"
-#include "base/functional/callback_forward.h"
-#include "base/run_loop.h"
-#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/browser_features.h"
+#include "chrome/browser/ui/ash/test_util.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
-#include "chrome/test/base/in_process_browser_test.h"
-#include "chromeos/ui/base/tablet_state.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "ash/constants/ash_switches.h"
-#include "ash/public/cpp/test/shell_test_api.h"
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/crosapi/mojom/test_controller.mojom-test-utils.h"
-#include "chromeos/lacros/lacros_service.h"
-#include "ui/display/display_observer.h"
-#include "ui/display/screen.h"
-#endif
+#include "ui/base/mojom/window_show_state.mojom.h"
 
 namespace {
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-// Runs the specified callback when a change to tablet state is detected.
-class TabletModeWatcher : public display::DisplayObserver {
- public:
-  explicit TabletModeWatcher(base::RepeatingClosure cb,
-                             display::TabletState current_tablet_state)
-      : cb_(cb), current_tablet_state_(current_tablet_state) {}
-  void OnDisplayTabletStateChanged(display::TabletState state) override {
-    // Skip if the notified TabletState is same as the current state.
-    // This required since it may notify the current tablet state when the
-    // observer is added (e.g. WaylandScreen::AddObserver()). In such cases, we
-    // need to ignore the initial notification so that we can only catch
-    // meeningful notifications for testing.
-    if (current_tablet_state_ == state)
-      return;
-
-    cb_.Run();
-  }
-
- private:
-  base::RepeatingClosure cb_;
-  display::TabletState current_tablet_state_;
-};
-#endif
-
-class TabletModePageBehaviorTest : public InProcessBrowserTest {
+class TabletModePageBehaviorTest : public ChromeOSBrowserUITest {
  public:
   TabletModePageBehaviorTest() = default;
 
@@ -68,52 +29,11 @@ class TabletModePageBehaviorTest : public InProcessBrowserTest {
 
   ~TabletModePageBehaviorTest() override = default;
 
-  // InProcessBrowserTest:
+  // ChromeOSBrowserUITest:
   void SetUp() override {
     scoped_feature_list_.InitAndEnableFeature(
         features::kDoubleTapToZoomInTabletMode);
-    InProcessBrowserTest::SetUp();
-  }
-
-  void SetUpDefaultCommandLine(base::CommandLine* command_line) override {
-    InProcessBrowserTest::SetUpDefaultCommandLine(command_line);
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    command_line->AppendSwitch(ash::switches::kAshEnableTabletMode);
-#endif
-  }
-
-  void TearDownOnMainThread() override {
-    if (InTabletMode()) {
-      SetTabletMode(false);
-    }
-    InProcessBrowserTest::TearDownOnMainThread();
-  }
-
-  void SetTabletMode(bool enable) {
-    DCHECK(InTabletMode() != enable);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    ash::ShellTestApi().SetTabletModeEnabledForTest(enable);
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-    base::RunLoop run_loop;
-    TabletModeWatcher watcher(run_loop.QuitClosure(),
-                              chromeos::TabletState::Get()->state());
-    display::Screen::GetScreen()->AddObserver(&watcher);
-    crosapi::mojom::TestControllerAsyncWaiter controller(
-        chromeos::LacrosService::Get()
-            ->GetRemote<crosapi::mojom::TestController>()
-            .get());
-    if (enable)
-      controller.EnterTabletMode();
-    else
-      controller.ExitTabletMode();
-    run_loop.Run();
-    display::Screen::GetScreen()->RemoveObserver(&watcher);
-#endif
-  }
-
-  bool InTabletMode() const {
-    return chromeos::TabletState::Get()->InTabletMode();
+    ChromeOSBrowserUITest::SetUp();
   }
 
   content::WebContents* GetActiveWebContents(Browser* browser) const {
@@ -163,8 +83,7 @@ IN_PROC_BROWSER_TEST_F(TabletModePageBehaviorTest,
 
   // Now enable tablet mode, and expect that the same page's web prefs get
   // updated.
-  SetTabletMode(true);
-  ASSERT_TRUE(InTabletMode());
+  EnterTabletMode();
   ValidateWebPrefs(web_contents, true /* tablet_mode_enabled */);
 
   // Any newly added pages should have the correct tablet mode prefs.
@@ -174,8 +93,7 @@ IN_PROC_BROWSER_TEST_F(TabletModePageBehaviorTest,
   ValidateWebPrefs(web_contents_2, true /* tablet_mode_enabled */);
 
   // Disable tablet mode and expect both pages's prefs are updated.
-  SetTabletMode(false);
-  ASSERT_FALSE(InTabletMode());
+  ExitTabletMode();
   ValidateWebPrefs(web_contents, false /* tablet_mode_enabled */);
   ValidateWebPrefs(web_contents_2, false /* tablet_mode_enabled */);
 }
@@ -191,8 +109,7 @@ IN_PROC_BROWSER_TEST_F(TabletModePageBehaviorTest, ExcludeInternalPages) {
 
   // Now enable tablet mode, and expect that this internal page's web prefs
   // remain unaffected as if tablet mode is off.
-  SetTabletMode(true);
-  ASSERT_TRUE(InTabletMode());
+  EnterTabletMode();
   ValidateWebPrefs(web_contents, false /* tablet_mode_enabled */);
 }
 
@@ -203,7 +120,7 @@ IN_PROC_BROWSER_TEST_F(TabletModePageBehaviorTest, ExcludeHostedApps) {
   Browser::CreateParams params = Browser::CreateParams::CreateForApp(
       "test_browser_app", true /* trusted_source */, gfx::Rect(),
       browser()->profile(), true);
-  params.initial_show_state = ui::SHOW_STATE_DEFAULT;
+  params.initial_show_state = ui::mojom::WindowShowState::kDefault;
   Browser* browser = Browser::Create(params);
   AddBlankTabAndShow(browser);
 
@@ -213,8 +130,7 @@ IN_PROC_BROWSER_TEST_F(TabletModePageBehaviorTest, ExcludeHostedApps) {
 
   // Now enable tablet mode, and expect that the page's web prefs of this hosted
   // app remain unaffected as if tablet mode is off.
-  SetTabletMode(true);
-  ASSERT_TRUE(InTabletMode());
+  EnterTabletMode();
   ValidateWebPrefs(web_contents, false /* tablet_mode_enabled */);
 }
 
@@ -228,8 +144,7 @@ IN_PROC_BROWSER_TEST_F(TabletModePageBehaviorTest, IncludeNTPs) {
                chrome::kChromeUINewTabPageURL);
 
   // Mobile-style Blink prefs should be applied to the NTP in tablet mode.
-  SetTabletMode(true);
-  ASSERT_TRUE(InTabletMode());
+  EnterTabletMode();
   ValidateWebPrefs(web_contents, true /* tablet_mode_enabled */);
 }
 

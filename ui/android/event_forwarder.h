@@ -38,11 +38,19 @@ class UI_ANDROID_EXPORT EventForwarder {
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& obj);
 
+  // |oldest_event_time| and |latest_event_time| would be same for a MotionEvent
+  // without any historical events attached to it. For cases when there are
+  // historical events |oldest_event_time| will be the event time of earliest
+  // input i.e. MotionEvent.getHistoricalEventTimeNanos(0) and
+  // |latest_event_time| will be the event time of most recent event i.e.
+  // MotionEvent.getEventTimeNanos().
   jboolean OnTouchEvent(
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& obj,
       const base::android::JavaParamRef<jobject>& motion_event,
-      jlong time_ns,
+      jlong oldest_event_time_ns,
+      jlong latest_event_time_ns,
+      jlong down_time_ms,
       jint android_action,
       jint pointer_count,
       jint history_size,
@@ -57,6 +65,8 @@ class UI_ANDROID_EXPORT EventForwarder {
       jfloat touch_major_1,
       jfloat touch_minor_0,
       jfloat touch_minor_1,
+      jfloat pressure_0,
+      jfloat pressure_1,
       jfloat orientation_0,
       jfloat orientation_1,
       jfloat tilt_0,
@@ -68,7 +78,8 @@ class UI_ANDROID_EXPORT EventForwarder {
       jint android_gesture_classification,
       jint android_button_state,
       jint android_meta_state,
-      jboolean is_touch_handle_event);
+      jboolean is_touch_handle_event,
+      jboolean is_latest_event_time_resampled);
 
   void OnMouseEvent(JNIEnv* env,
                     const base::android::JavaParamRef<jobject>& obj,
@@ -93,7 +104,11 @@ class UI_ANDROID_EXPORT EventForwarder {
                    jfloat screen_x,
                    jfloat screen_y,
                    const base::android::JavaParamRef<jobjectArray>& j_mimeTypes,
-                   const base::android::JavaParamRef<jstring>& j_content);
+                   const base::android::JavaParamRef<jstring>& j_content,
+                   const base::android::JavaParamRef<jobjectArray>& j_filenames,
+                   const base::android::JavaParamRef<jstring>& j_text,
+                   const base::android::JavaParamRef<jstring>& j_html,
+                   const base::android::JavaParamRef<jstring>& j_url);
 
   jboolean OnGestureEvent(JNIEnv* env,
                           const base::android::JavaParamRef<jobject>& jobj,
@@ -105,7 +120,8 @@ class UI_ANDROID_EXPORT EventForwarder {
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& obj,
       const base::android::JavaParamRef<jobject>& motion_event,
-      jlong time_ns);
+      jlong event_time_ns,
+      jlong down_time_ms);
 
   jboolean OnKeyUp(JNIEnv* env,
                    const base::android::JavaParamRef<jobject>& obj,
@@ -150,6 +166,8 @@ class UI_ANDROID_EXPORT EventForwarder {
 
   void RemoveObserver(Observer* observer);
 
+  float GetCurrentTouchSequenceYOffset();
+
  private:
   friend class ViewAndroid;
 
@@ -157,10 +175,16 @@ class UI_ANDROID_EXPORT EventForwarder {
 
   base::android::ScopedJavaLocalRef<jobject> GetJavaObject();
 
+  // last_x_pos_ & last_y_pos_ are only used for trace events (see b/315762684
+  // for a relevant investigation). They are useful in debugging but could be
+  // removed easily if needed.
+  float last_x_pos_{-1.0};
+  float last_y_pos_{-1.0};
   const raw_ptr<ViewAndroid> view_;
   base::android::ScopedJavaGlobalRef<jobject> java_obj_;
 
   base::ObserverList<Observer> observers_;
+  bool send_touch_moves_to_observers;
 };
 
 }  // namespace ui

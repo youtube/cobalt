@@ -13,6 +13,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/strings/grit/ui_strings.h"
+#include "ui/webui/webui_util.h"
 
 namespace ash {
 
@@ -21,12 +22,11 @@ AccountManagerErrorUI::AccountManagerErrorUI(content::WebUI* web_ui)
   content::WebUIDataSource* html_source =
       content::WebUIDataSource::CreateAndAdd(
           Profile::FromWebUI(web_ui), chrome::kChromeUIAccountManagerErrorHost);
+  webui::EnableTrustedTypesCSP(html_source);
 
   web_ui->RegisterMessageCallback(
       "closeDialog", base::BindRepeating(&WebDialogUI::CloseDialog,
                                          weak_factory_.GetWeakPtr()));
-
-  html_source->DisableTrustedTypesCSP();
 
   html_source->UseStringsJs();
   html_source->EnableReplaceI18nInJS();

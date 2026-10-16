@@ -4,13 +4,15 @@
 
 #include "services/network/shared_dictionary/shared_dictionary_disk_cache.h"
 
+#include <limits>
+
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_id_helper.h"
 
 namespace network {
 namespace {
 
-void RunTaksAndCallback(
+void RunTaskAndCallback(
     base::OnceCallback<int(net::CompletionOnceCallback)> task,
     net::CompletionOnceCallback callback) {
   auto split_callback = base::SplitOnceCallback(std::move(callback));
@@ -39,7 +41,7 @@ SharedDictionaryDiskCache::SharedDictionaryDiskCache() = default;
 void SharedDictionaryDiskCache::Initialize(
     const base::FilePath& cache_directory_path,
 #if BUILDFLAG(IS_ANDROID)
-    base::android::ApplicationStatusListener* app_status_listener,
+    disk_cache::ApplicationStatusListenerGetter app_status_listener_getter,
 #endif  // BUILDFLAG(IS_ANDROID)
     scoped_refptr<disk_cache::BackendFileOperationsFactory>
         file_operations_factory) {
@@ -48,7 +50,7 @@ void SharedDictionaryDiskCache::Initialize(
   disk_cache::BackendResult result = CreateCacheBackend(
       cache_directory_path,
 #if BUILDFLAG(IS_ANDROID)
-      app_status_listener,
+      app_status_listener_getter,
 #endif  // BUILDFLAG(IS_ANDROID)
       std::move(file_operations_factory),
       base::BindOnce(&SharedDictionaryDiskCache::DidCreateBackend,
@@ -63,21 +65,24 @@ SharedDictionaryDiskCache::~SharedDictionaryDiskCache() = default;
 disk_cache::BackendResult SharedDictionaryDiskCache::CreateCacheBackend(
     const base::FilePath& cache_directory_path,
 #if BUILDFLAG(IS_ANDROID)
-    base::android::ApplicationStatusListener* app_status_listener,
+    disk_cache::ApplicationStatusListenerGetter app_status_listener_getter,
 #endif  // BUILDFLAG(IS_ANDROID)
     scoped_refptr<disk_cache::BackendFileOperationsFactory>
         file_operations_factory,
     disk_cache::BackendResultCallback callback) {
+  CHECK(!cache_directory_path.empty());
+
   // We use APP_CACHE to avoid the auto-eviction.
+  // Also we use std::numeric_limits<int64_t>::max() for `max_bytes`, because
+  // the cache size is controlled by the SharedDictionaryManagerOnDisk.
   return disk_cache::CreateCacheBackend(
-      cache_directory_path.empty() ? net::MEMORY_CACHE : net::APP_CACHE,
-      net::CACHE_BACKEND_SIMPLE, file_operations_factory.get(),
-      cache_directory_path, /*max_bytes=*/0,
-      disk_cache::ResetHandling::kResetOnError, /*net_log=*/nullptr,
-      std::move(callback)
+      net::APP_CACHE, net::CACHE_BACKEND_SIMPLE, file_operations_factory.get(),
+      cache_directory_path, /*max_bytes=*/std::numeric_limits<int64_t>::max(),
+      disk_cache::ResetHandling::kResetOnError,
+      /*net_log=*/nullptr, std::move(callback)
 #if BUILDFLAG(IS_ANDROID)
-          ,
-      app_status_listener
+                               ,
+      std::move(app_status_listener_getter)
 #endif  // BUILDFLAG(IS_ANDROID));
   );
 }
@@ -89,7 +94,6 @@ disk_cache::EntryResult SharedDictionaryDiskCache::OpenOrCreateEntry(
   switch (state_) {
     case State::kBeforeInitialize:
       NOTREACHED();
-      return disk_cache::EntryResult::MakeError(net::ERR_FAILED);
     case State::kInitializing:
       // It is safe to use Unretained() below because
       // `pending_disk_cache_tasks_` is owned by `this` and the passed task
@@ -116,14 +120,13 @@ int SharedDictionaryDiskCache::DoomEntry(const std::string& key,
   switch (state_) {
     case State::kBeforeInitialize:
       NOTREACHED();
-      return net::ERR_FAILED;
     case State::kInitializing:
       // It is safe to use Unretained() below because
       // `pending_disk_cache_tasks_` is owned by `this` and the passed task
       // `SharedDictionaryDiskCache::DoomEntry()` will be called only when
       // `this` is available.
       pending_disk_cache_tasks_.push_back(
-          base::BindOnce(&RunTaksAndCallback,
+          base::BindOnce(&RunTaskAndCallback,
                          base::BindOnce(&SharedDictionaryDiskCache::DoomEntry,
                                         base::Unretained(this), key),
                          std::move(callback)));
@@ -140,14 +143,13 @@ int SharedDictionaryDiskCache::ClearAll(net::CompletionOnceCallback callback) {
   switch (state_) {
     case State::kBeforeInitialize:
       NOTREACHED();
-      return net::ERR_FAILED;
     case State::kInitializing:
       // It is safe to use Unretained() below because
       // `pending_disk_cache_tasks_` is owned by `this` and the passed task
       // `SharedDictionaryDiskCache::ClearAll()` will be called only when `this`
       // is available.
       pending_disk_cache_tasks_.push_back(
-          base::BindOnce(&RunTaksAndCallback,
+          base::BindOnce(&RunTaskAndCallback,
                          base::BindOnce(&SharedDictionaryDiskCache::ClearAll,
                                         base::Unretained(this)),
                          std::move(callback)));
@@ -157,6 +159,31 @@ int SharedDictionaryDiskCache::ClearAll(net::CompletionOnceCallback callback) {
       return backend_->DoomAllEntries(std::move(callback));
     case State::kFailed:
       return net::ERR_FAILED;
+  }
+}
+
+void SharedDictionaryDiskCache::CreateIterator(
+    base::OnceCallback<void(std::unique_ptr<disk_cache::Backend::Iterator>)>
+        callback) {
+  switch (state_) {
+    case State::kBeforeInitialize:
+      NOTREACHED();
+    case State::kInitializing:
+      // It is safe to use Unretained() below because
+      // `pending_disk_cache_tasks_` is owned by `this` and the passed task
+      // `SharedDictionaryDiskCache::CreateIterator()` will be called only when
+      // `this` is available.
+      pending_disk_cache_tasks_.push_back(
+          base::BindOnce(&SharedDictionaryDiskCache::CreateIterator,
+                         base::Unretained(this), std::move(callback)));
+      return;
+    case State::kInitialized:
+      DCHECK(backend_);
+      std::move(callback).Run(backend_->CreateIterator());
+      return;
+    case State::kFailed:
+      std::move(callback).Run(nullptr);
+      return;
   }
 }
 

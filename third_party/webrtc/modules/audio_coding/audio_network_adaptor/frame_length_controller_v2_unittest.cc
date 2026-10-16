@@ -10,8 +10,8 @@
 
 #include "modules/audio_coding/audio_network_adaptor/frame_length_controller_v2.h"
 
-#include <algorithm>
 #include <memory>
+#include <optional>
 
 #include "modules/audio_coding/audio_network_adaptor/controller.h"
 #include "modules/audio_coding/audio_network_adaptor/include/audio_network_adaptor_config.h"
@@ -62,8 +62,8 @@ class FrameLengthControllerV2Test : public testing::Test {
       std::make_unique<FrameLengthControllerV2>(kANASupportedFrameLengths,
                                                 kMinPayloadBitrateBps,
                                                 /*use_slow_adaptation=*/false);
-  absl::optional<int> target_audio_bitrate_bps_;
-  absl::optional<int> overhead_bytes_per_packet_;
+  std::optional<int> target_audio_bitrate_bps_;
+  std::optional<int> overhead_bytes_per_packet_;
 };
 
 // Don't return any decision if we haven't received all required network

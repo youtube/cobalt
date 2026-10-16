@@ -4,6 +4,10 @@
 
 #include "quiche/quic/core/crypto/quic_client_session_cache.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "quiche/quic/core/quic_clock.h"
 
 namespace quic {
@@ -45,7 +49,7 @@ void QuicClientSessionCache::Insert(const QuicServerId& server_id,
                                     const TransportParameters& params,
                                     const ApplicationState* application_state) {
   QUICHE_DCHECK(session) << "TLS session is not inserted into client cache.";
-  auto iter = cache_.Lookup(server_id);
+  auto iter = cache_.Lookup(server_id.cache_key());
   if (iter == cache_.end()) {
     CreateAndInsertEntry(server_id, std::move(session), params,
                          application_state);
@@ -69,7 +73,7 @@ void QuicClientSessionCache::Insert(const QuicServerId& server_id,
 
 std::unique_ptr<QuicResumptionState> QuicClientSessionCache::Lookup(
     const QuicServerId& server_id, QuicWallTime now, const SSL_CTX* /*ctx*/) {
-  auto iter = cache_.Lookup(server_id);
+  auto iter = cache_.Lookup(server_id.cache_key());
   if (iter == cache_.end()) return nullptr;
 
   if (!IsValid(iter->second->PeekSession(), now.ToUNIXSeconds())) {
@@ -97,7 +101,7 @@ std::unique_ptr<QuicResumptionState> QuicClientSessionCache::Lookup(
 }
 
 void QuicClientSessionCache::ClearEarlyData(const QuicServerId& server_id) {
-  auto iter = cache_.Lookup(server_id);
+  auto iter = cache_.Lookup(server_id.cache_key());
   if (iter == cache_.end()) return;
   for (auto& session : iter->second->sessions) {
     if (session) {
@@ -112,7 +116,7 @@ void QuicClientSessionCache::OnNewTokenReceived(const QuicServerId& server_id,
   if (token.empty()) {
     return;
   }
-  auto iter = cache_.Lookup(server_id);
+  auto iter = cache_.Lookup(server_id.cache_key());
   if (iter == cache_.end()) {
     return;
   }
@@ -143,7 +147,7 @@ void QuicClientSessionCache::CreateAndInsertEntry(
     entry->application_state =
         std::make_unique<ApplicationState>(*application_state);
   }
-  cache_.Insert(server_id, std::move(entry));
+  cache_.Insert(server_id.cache_key(), std::move(entry));
 }
 
 QuicClientSessionCache::Entry::Entry() = default;

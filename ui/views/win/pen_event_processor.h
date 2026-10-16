@@ -8,10 +8,11 @@
 #include <windows.h>
 
 #include <memory>
+#include <optional>
 
 #include "base/memory/raw_ptr.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/events/event.h"
+#include "ui/events/win/stylus_handwriting_properties_win.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/sequential_id_generator.h"
 #include "ui/views/views_export.h"
@@ -55,6 +56,8 @@ class VIEWS_EXPORT PenEventProcessor {
       const POINTER_INFO& pointer_info,
       const gfx::Point& point,
       const ui::PointerDetails& pointer_details,
+      const std::optional<ui::StylusHandwritingPropertiesWin>&
+          handwriting_details,
       int32_t device_id);
 
   raw_ptr<ui::SequentialIDGenerator> id_generator_;
@@ -66,7 +69,7 @@ class VIEWS_EXPORT PenEventProcessor {
   base::flat_map<UINT32, bool> sent_mouse_down_;
   base::flat_map<UINT32, bool> sent_touch_start_;
 
-  absl::optional<ui::PointerId> eraser_pointer_id_;
+  std::optional<ui::PointerId> eraser_pointer_id_;
 
   PenIdHandler pen_id_handler_;
 };

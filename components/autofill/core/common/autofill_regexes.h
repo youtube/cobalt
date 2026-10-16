@@ -8,11 +8,11 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/no_destructor.h"
 #include "base/sequence_checker.h"
-#include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
 #include "base/types/strong_alias.h"
 #include "third_party/icu/source/i18n/unicode/regex.h"
@@ -30,13 +30,13 @@ using ThreadSafe = base::StrongAlias<struct ThreadSafeTag, bool>;
 // May also be used to initialize `static base::NoDestructor<icu::RegexPattern>`
 // function-scope variables.
 std::unique_ptr<const icu::RegexPattern> CompileRegex(
-    base::StringPiece16 regex);
+    std::u16string_view regex);
 
 // Returns true if `regex` is found in `input`.
 // If `groups` is non-null, it gets resized and the found capture groups
 // are written into it.
 // Thread-safe.
-bool MatchesRegex(base::StringPiece16 input,
+bool MatchesRegex(std::u16string_view input,
                   const icu::RegexPattern& regex_pattern,
                   std::vector<std::u16string>* groups = nullptr);
 
@@ -45,12 +45,19 @@ bool MatchesRegex(base::StringPiece16 input,
 //
 // This function is thread-safe.
 template <const char16_t regex[]>
-bool MatchesRegex(base::StringPiece16 input,
+bool MatchesRegex(std::u16string_view input,
                   std::vector<std::u16string>* groups = nullptr) {
   static base::NoDestructor<std::unique_ptr<const icu::RegexPattern>>
       regex_pattern(CompileRegex(regex));
   return MatchesRegex(input, **regex_pattern, groups);
 }
+
+// Splits `input` into up to `max_groups` segments. Returns a vector of segments
+// in case of success or `std::nullopt` otherwise.
+std::optional<std::vector<std::u16string>> SplitByRegex(
+    std::u16string_view input,
+    const icu::RegexPattern& regex_pattern,
+    size_t max_groups);
 
 // A cache of compiled regex patterns. It can be configured to be thread-safe
 // (using a mutex) or not (in which case it uses a sequence checker).
@@ -67,7 +74,7 @@ class AutofillRegexCache {
   // The returned object is thread-safe in any case (because it's const).
   // Although the returned pointer is guaranteed to be non-nullptr, we do not
   // return a reference to avoid accidental copies.
-  const icu::RegexPattern* GetRegexPattern(base::StringPiece16 regex);
+  const icu::RegexPattern* GetRegexPattern(std::u16string_view regex);
 
  private:
   // `MatchesPattern()` uses the lock if `thread_safe_`. Otherwise, it validates
@@ -84,4 +91,4 @@ class AutofillRegexCache {
 
 }  // namespace autofill
 
-#endif  // COMPONENTS_AUTOFILL_CORE_BROWSER_AUTOFILL_REGEXES_H_
+#endif  // COMPONENTS_AUTOFILL_CORE_COMMON_AUTOFILL_REGEXES_H_

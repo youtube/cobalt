@@ -31,7 +31,6 @@ gfx::mojom::RRectFType GfxRRectFTypeToMojo(gfx::RRectF::Type type) {
       return gfx::mojom::RRectFType::kComplex;
   }
   NOTREACHED();
-  return gfx::mojom::RRectFType::kEmpty;
 }
 
 gfx::RRectF::Type MojoRRectFTypeToGfx(gfx::mojom::RRectFType type) {
@@ -50,7 +49,6 @@ gfx::RRectF::Type MojoRRectFTypeToGfx(gfx::mojom::RRectFType type) {
       return gfx::RRectF::Type::kComplex;
   }
   NOTREACHED();
-  return gfx::RRectF::Type::kEmpty;
 }
 
 }  // namespace

@@ -46,7 +46,7 @@ class CORE_EXPORT SVGImageElement final
 
   void Trace(Visitor*) const override;
 
-  bool CurrentFrameHasSingleSecurityOrigin() const;
+  bool HasSingleSecurityOrigin() const;
 
   SVGAnimatedLength* x() const { return x_.Get(); }
   SVGAnimatedLength* y() const { return y_.Get(); }
@@ -60,30 +60,23 @@ class CORE_EXPORT SVGImageElement final
     return GetImageLoader().HasPendingActivity();
   }
 
-  ScriptPromise decode(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> decode(ScriptState*, ExceptionState&);
 
   // Exposed for testing.
   ImageResourceContent* CachedImage() const {
     return GetImageLoader().GetContent();
   }
 
-  bool IsDefaultIntrinsicSize() const {
-    return is_default_overridden_intrinsic_size_;
-  }
-
   void SetImageForTest(ImageResourceContent* content) {
     GetImageLoader().SetImageForTest(content);
   }
+
+  bool SelfHasRelativeLengths() const override;
 
  private:
   bool IsStructurallyExternal() const override {
     return !HrefString().IsNull();
   }
-
-  void CollectStyleForPresentationAttribute(
-      const QualifiedName&,
-      const AtomicString&,
-      MutableCSSPropertyValueSet*) override;
 
   void SvgAttributeChanged(const SvgAttributeChangedParams&) override;
   void ParseAttribute(const AttributeModificationParams&) override;
@@ -96,11 +89,14 @@ class CORE_EXPORT SVGImageElement final
 
   bool HaveLoadedRequiredResources() override;
 
-  bool SelfHasRelativeLengths() const override;
   void DidMoveToNewDocument(Document& old_document) override;
   SVGImageLoader& GetImageLoader() const override { return *image_loader_; }
 
-  bool is_default_overridden_intrinsic_size_;
+  SVGAnimatedPropertyBase* PropertyFromAttribute(
+      const QualifiedName& attribute_name) const override;
+  void SynchronizeAllSVGAttributes() const override;
+  void CollectExtraStyleForPresentationAttribute(
+      HeapVector<CSSPropertyValue, 8>& style) override;
 
   Member<SVGAnimatedLength> x_;
   Member<SVGAnimatedLength> y_;

@@ -14,10 +14,9 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <optional>
 
-#include "absl/types/optional.h"
-
-namespace rtc {
+namespace webrtc {
 
 /**
  * This class implements exponential moving average for time series
@@ -63,9 +62,17 @@ class EventBasedExponentialMovingAverage {
   double sample_variance_ = std::numeric_limits<double>::infinity();
   // This is the ratio between variance of the estimate and variance of samples.
   double estimator_variance_ = 1;
-  absl::optional<int64_t> last_observation_timestamp_;
+  std::optional<int64_t> last_observation_timestamp_;
 };
 
+}  //  namespace webrtc
+
+// Re-export symbols from the webrtc namespace for backwards compatibility.
+// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
+#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
+namespace rtc {
+using ::webrtc::EventBasedExponentialMovingAverage;
 }  // namespace rtc
+#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_NUMERICS_EVENT_BASED_EXPONENTIAL_MOVING_AVERAGE_H_

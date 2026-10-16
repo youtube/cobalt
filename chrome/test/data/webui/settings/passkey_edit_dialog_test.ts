@@ -6,7 +6,8 @@
  * @fileoverview Tests for the passkeys subpage.
  */
 
-import {CrInputElement, Passkey, PasskeysBrowserProxy, PasskeysBrowserProxyImpl, SettingsPasskeysSubpageElement} from 'chrome://settings/lazy_load.js';
+import type {CrInputElement, Passkey, PasskeysBrowserProxy, SettingsPasskeysSubpageElement} from 'chrome://settings/lazy_load.js';
+import {PasskeysBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
@@ -112,7 +113,7 @@ function setInputField(dialog: HTMLElement, input: string) {
   const menu = dialog.shadowRoot!.querySelector<HTMLElement>('#dialog')!;
   const inputField = menu.querySelector<HTMLInputElement>('#usernameInput');
   assertTrue(!!inputField);
-  inputField!.value = input;
+  inputField.value = input;
 }
 
 /**
@@ -136,7 +137,7 @@ suite('PasskeysSubpage', function() {
   let browserProxy: TestPasskeysBrowserProxy;
   let page: SettingsPasskeysSubpageElement;
 
-  setup(async function() {
+  setup(function() {
     browserProxy = new TestPasskeysBrowserProxy();
     PasskeysBrowserProxyImpl.setInstance(browserProxy);
     document.body.innerHTML = window.trustedTypes!.emptyHTML;

@@ -25,11 +25,13 @@ struct CodeOps {
   Address instruction_start() const { return code->instruction_start(); }
   Address instruction_end() const { return code->instruction_end(); }
   int instruction_size() const { return code->instruction_size(); }
-  const byte* relocation_start() const { return code->relocation_start(); }
-  const byte* relocation_end() const { return code->relocation_end(); }
+  const uint8_t* relocation_start() const { return code->relocation_start(); }
+  const uint8_t* relocation_end() const { return code->relocation_end(); }
   int relocation_size() const { return code->relocation_size(); }
   Address code_comments() const { return code->code_comments(); }
   int code_comments_size() const { return code->code_comments_size(); }
+  Address jump_table_info() const { return code->jump_table_info(); }
+  int jump_table_info_size() const { return code->jump_table_info_size(); }
 };
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -45,13 +47,15 @@ struct WasmCodeOps {
                                      code->instructions().size());
   }
   int instruction_size() const { return code->instructions().length(); }
-  const byte* relocation_start() const { return code->reloc_info().begin(); }
-  const byte* relocation_end() const {
+  const uint8_t* relocation_start() const { return code->reloc_info().begin(); }
+  const uint8_t* relocation_end() const {
     return code->reloc_info().begin() + code->reloc_info().length();
   }
   int relocation_size() const { return code->reloc_info().length(); }
   Address code_comments() const { return code->code_comments(); }
   int code_comments_size() const { return code->code_comments_size(); }
+  Address jump_table_info() const { return code->jump_table_info(); }
+  int jump_table_info_size() const { return code->jump_table_info_size(); }
 };
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -68,10 +72,10 @@ struct CodeDescOps {
     return instruction_start() + code_desc->instr_size;
   }
   int instruction_size() const { return code_desc->instr_size; }
-  const byte* relocation_start() const {
+  const uint8_t* relocation_start() const {
     return code_desc->buffer + code_desc->reloc_offset;
   }
-  const byte* relocation_end() const {
+  const uint8_t* relocation_end() const {
     return code_desc->buffer + code_desc->buffer_size;
   }
   int relocation_size() const { return code_desc->reloc_size; }
@@ -79,6 +83,10 @@ struct CodeDescOps {
     return instruction_start() + code_desc->code_comments_offset;
   }
   int code_comments_size() const { return code_desc->code_comments_size; }
+  Address jump_table_info() const {
+    return instruction_start() + code_desc->jump_table_info_offset;
+  }
+  int jump_table_info_size() const { return code_desc->jump_table_info_size; }
 };
 }  // namespace
 
@@ -107,11 +115,13 @@ DISPATCH(Address, constant_pool)
 DISPATCH(Address, instruction_start)
 DISPATCH(Address, instruction_end)
 DISPATCH(int, instruction_size)
-DISPATCH(const byte*, relocation_start)
-DISPATCH(const byte*, relocation_end)
+DISPATCH(const uint8_t*, relocation_start)
+DISPATCH(const uint8_t*, relocation_end)
 DISPATCH(int, relocation_size)
 DISPATCH(Address, code_comments)
 DISPATCH(int, code_comments_size)
+DISPATCH(Address, jump_table_info)
+DISPATCH(int, jump_table_info_size)
 
 #undef DISPATCH
 #undef HANDLE_WASM

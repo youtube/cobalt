@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_VIZ_SERVICE_DISPLAY_OVERLAY_PROCESSOR_SURFACE_CONTROL_H_
 #define COMPONENTS_VIZ_SERVICE_DISPLAY_OVERLAY_PROCESSOR_SURFACE_CONTROL_H_
 
+#include <optional>
+
 #include "components/viz/service/display/overlay_processor_using_strategy.h"
 
 namespace viz {
@@ -16,6 +18,8 @@ class VIZ_SERVICE_EXPORT OverlayProcessorSurfaceControl
   OverlayProcessorSurfaceControl();
   ~OverlayProcessorSurfaceControl() override;
 
+  static std::optional<gfx::ColorSpace> GetOverrideColorSpace();
+
   bool IsOverlaySupported() const override;
 
   bool NeedsSurfaceDamageRectList() const override;
@@ -24,17 +28,15 @@ class VIZ_SERVICE_EXPORT OverlayProcessorSurfaceControl
   void SetDisplayTransformHint(gfx::OverlayTransform transform) override;
   void SetViewportSize(const gfx::Size& size) override;
   void AdjustOutputSurfaceOverlay(
-      absl::optional<OutputSurfaceOverlayPlane>* output_surface_plane) override;
+      std::optional<OutputSurfaceOverlayPlane>* output_surface_plane) override;
   void CheckOverlaySupportImpl(
       const OverlayProcessorInterface::OutputSurfaceOverlayPlane* primary_plane,
       OverlayCandidateList* candidates) override;
   gfx::Rect GetOverlayDamageRectForOutputSurface(
       const OverlayCandidate& overlay) const override;
+  bool SupportsFlipRotateTransform() const override;
 
  private:
-  // Historically, android media was hardcoding color space to srgb. This
-  // indicates that we going to use real one.
-  const bool use_real_color_space_;
   gfx::OverlayTransform display_transform_ = gfx::OVERLAY_TRANSFORM_NONE;
   gfx::Size viewport_size_;
 };

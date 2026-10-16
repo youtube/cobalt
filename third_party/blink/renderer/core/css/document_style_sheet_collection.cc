@@ -34,6 +34,7 @@
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/css/style_sheet_candidate.h"
+#include "third_party/blink/renderer/core/css/style_sheet_contents.h"
 #include "third_party/blink/renderer/core/css/style_sheet_list.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/processing_instruction.h"
@@ -74,12 +75,19 @@ void DocumentStyleSheetCollection::CollectStyleSheetsFromCandidates(
     CSSStyleSheet* css_sheet = To<CSSStyleSheet>(sheet);
     collector.AppendActiveStyleSheet(std::make_pair(
         css_sheet, rule_set_scope.RuleSetForSheet(engine, css_sheet)));
+
+    if (css_sheet->Contents()->GetRuleSetDiff()) {
+      collector.AppendRuleSetDiff(css_sheet->Contents()->GetRuleSetDiff());
+      css_sheet->Contents()->ClearRuleSetDiff();
+    }
   }
-  if (!GetTreeScope().HasAdoptedStyleSheets()) {
+
+  const TreeScope& tree_scope = GetTreeScope();
+  if (!tree_scope.HasAdoptedStyleSheets()) {
     return;
   }
 
-  for (CSSStyleSheet* sheet : *GetTreeScope().AdoptedStyleSheets()) {
+  for (CSSStyleSheet* sheet : *tree_scope.AdoptedStyleSheets()) {
     if (!sheet ||
         !sheet->CanBeActivated(
             GetDocument().GetStyleEngine().PreferredStylesheetSetName())) {
@@ -102,8 +110,8 @@ void DocumentStyleSheetCollection::CollectStyleSheets(
         GetDocument().GetStyleEngine().RuleSetForSheet(*sheet.second)));
   }
   CollectStyleSheetsFromCandidates(engine, collector);
-  if (CSSStyleSheet* inspector_sheet =
-          GetDocument().GetStyleEngine().InspectorStyleSheet()) {
+  for (CSSStyleSheet* inspector_sheet :
+       GetDocument().GetStyleEngine().InspectorStyleSheets()) {
     collector.AppendActiveStyleSheet(std::make_pair(
         inspector_sheet,
         GetDocument().GetStyleEngine().RuleSetForSheet(*inspector_sheet)));

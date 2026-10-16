@@ -15,9 +15,8 @@ owners:
 - bartfab@chromium.org
 schema:
   type: integer
-supported_chrome_os_management:
-- google_cloud
 supported_on:
 - chrome_os:43-
 tags: []
 type: int
+generate_device_proto: False

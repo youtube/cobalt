@@ -24,7 +24,6 @@ component("cpp") {
 
   deps = [
     "//base",
-    "//build:chromeos_buildflags",
     "//skia",
     "//ui/base",
     "//ui/gfx",
@@ -32,7 +31,10 @@ component("cpp") {
     "//url",
   ]
 
-  if (is_chromeos_ash) {
-    deps += [ "//ash/constants" ]
+  if (is_chromeos) {
+    deps += [
+      "//ash/constants",
+      "//chromeos/constants",
+    ]
   }
 }

@@ -7,16 +7,20 @@
 #include <utility>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/run_loop.h"
+#include "base/strings/stringprintf.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/values_test_util.h"
 #include "base/values.h"
 #include "chromeos/ash/components/dbus/hermes/hermes_clients.h"
 #include "chromeos/ash/components/dbus/hermes/hermes_manager_client.h"
 #include "chromeos/ash/components/dbus/shill/shill_clients.h"
+#include "chromeos/ash/components/dbus/shill/shill_device_client.h"
 #include "chromeos/ash/components/dbus/shill/shill_manager_client.h"
 #include "chromeos/ash/components/dbus/shill/shill_profile_client.h"
 #include "chromeos/ash/components/dbus/shill/shill_service_client.h"
@@ -28,21 +32,31 @@
 #include "chromeos/ash/components/network/fake_network_connection_handler.h"
 #include "chromeos/ash/components/network/managed_cellular_pref_handler.h"
 #include "chromeos/ash/components/network/managed_network_configuration_handler_impl.h"
+#include "chromeos/ash/components/network/mock_network_metadata_store.h"
 #include "chromeos/ash/components/network/mock_network_state_handler.h"
 #include "chromeos/ash/components/network/network_configuration_handler.h"
 #include "chromeos/ash/components/network/network_connection_handler.h"
 #include "chromeos/ash/components/network/network_device_handler.h"
+#include "chromeos/ash/components/network/network_handler.h"
+#include "chromeos/ash/components/network/network_handler_test_helper.h"
+#include "chromeos/ash/components/network/network_metadata_store.h"
 #include "chromeos/ash/components/network/network_policy_observer.h"
 #include "chromeos/ash/components/network/network_profile_handler.h"
 #include "chromeos/ash/components/network/network_state.h"
+#include "chromeos/ash/components/network/policy_util.h"
 #include "chromeos/ash/components/network/prohibited_technologies_handler.h"
 #include "chromeos/ash/components/network/proxy/ui_proxy_config_service.h"
+#include "chromeos/ash/components/network/shill_property_util.h"
 #include "chromeos/ash/components/network/technology_state_controller.h"
 #include "chromeos/ash/components/network/test_cellular_esim_profile_handler.h"
+#include "chromeos/ash/components/network/text_message_suppression_state.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
+#include "chromeos/ash/services/network_config/public/cpp/cros_network_config_test_helper.h"
 #include "chromeos/components/onc/onc_signature.h"
 #include "chromeos/components/onc/onc_test_utils.h"
 #include "chromeos/components/onc/onc_utils.h"
 #include "chromeos/components/onc/onc_validator.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "components/onc/onc_pref_names.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/proxy_config/pref_proxy_config_tracker_impl.h"
@@ -62,6 +76,9 @@ namespace ash {
 
 using testing::ElementsAre;
 using testing::IsEmpty;
+using testing::Optional;
+using testing::Pointee;
+using ::testing::Return;
 
 namespace {
 
@@ -100,6 +117,8 @@ constexpr char kTestGuidEthernetEap[] = "policy_ethernet_eap";
 
 constexpr char kTestEuiccPath[] = "/org/chromium/Hermes/Euicc/0";
 constexpr char kTestEid[] = "12345678901234567890123456789012";
+constexpr char kTestCellularServicePath[] = "cellular_service_path";
+constexpr char kTestCellularGuid[] = "cellular_guid";
 
 // A valid but empty (no networks and no certificates) and unencrypted
 // configuration.
@@ -123,14 +142,25 @@ class TestNetworkPolicyObserver : public NetworkPolicyObserver {
     policies_applied_count_++;
   }
 
+  void PoliciesChanged(const std::string& userhash) override {
+    if (userhash.empty() && on_shared_profile_policies_changed_) {
+      std::move(on_shared_profile_policies_changed_).Run();
+    }
+  }
+
   int GetPoliciesAppliedCountAndReset() {
     int count = policies_applied_count_;
     policies_applied_count_ = 0;
     return count;
   }
 
+  void RunOnSharedProfilePoliciesChanged(base::OnceClosure action) {
+    on_shared_profile_policies_changed_ = std::move(action);
+  }
+
  private:
   int policies_applied_count_ = 0;
+  base::OnceClosure on_shared_profile_policies_changed_;
 };
 
 }  // namespace
@@ -202,6 +232,11 @@ class ManagedNetworkConfigurationHandlerTest : public testing::Test {
     managed_network_configuration_handler_.reset(
         new ManagedNetworkConfigurationHandlerImpl());
 
+    network_metadata_store_ =
+        base::WrapUnique(new testing::NiceMock<MockNetworkMetadataStore>());
+    managed_network_configuration_handler_
+        ->set_network_metadata_store_for_testing(network_metadata_store_.get());
+
     PrefProxyConfigTrackerImpl::RegisterProfilePrefs(user_prefs_.registry());
     PrefProxyConfigTrackerImpl::RegisterPrefs(local_state_.registry());
     ::onc::RegisterProfilePrefs(user_prefs_.registry());
@@ -210,18 +245,22 @@ class ManagedNetworkConfigurationHandlerTest : public testing::Test {
     ui_proxy_config_service_ = std::make_unique<UIProxyConfigService>(
         &user_prefs_, &local_state_, network_state_handler_.get(),
         network_profile_handler_.get());
+    network_handler_test_helper_ = std::make_unique<NetworkHandlerTestHelper>();
+    NetworkHandler* network_handler = NetworkHandler::Get();
     managed_network_configuration_handler_->Init(
         cellular_policy_handler_.get(), managed_cellular_pref_handler_.get(),
         network_state_handler_.get(), network_profile_handler_.get(),
         network_configuration_handler_.get(), network_device_handler_.get(),
-        prohibited_technologies_handler_.get());
+        prohibited_technologies_handler_.get(),
+        network_handler->hotspot_controller());
     managed_network_configuration_handler_->set_ui_proxy_config_service(
         ui_proxy_config_service_.get());
+    managed_network_configuration_handler_->set_user_prefs(&user_prefs_);
     managed_network_configuration_handler_->AddObserver(&policy_observer_);
     cellular_policy_handler_->Init(
         cellular_esim_profile_handler_.get(), cellular_esim_installer_.get(),
-        network_profile_handler_.get(), network_state_handler_.get(),
-        managed_cellular_pref_handler_.get(),
+        cellular_inhibitor_.get(), network_profile_handler_.get(),
+        network_state_handler_.get(), managed_cellular_pref_handler_.get(),
         managed_network_configuration_handler_.get());
     prohibited_technologies_handler_->Init(
         managed_network_configuration_handler_.get(),
@@ -234,6 +273,7 @@ class ManagedNetworkConfigurationHandlerTest : public testing::Test {
     // Run remaining tasks.
     base::RunLoop().RunUntilIdle();
     ResetManagedNetworkConfigurationHandler();
+    network_handler_test_helper_.reset();
     cellular_policy_handler_.reset();
     cellular_esim_installer_.reset();
     cellular_esim_profile_handler_.reset();
@@ -289,7 +329,7 @@ class ManagedNetworkConfigurationHandlerTest : public testing::Test {
                  const std::string& userhash,
                  const std::string& path_to_onc) {
     if (path_to_onc.empty()) {
-      absl::optional<base::Value::Dict> policy =
+      std::optional<base::Value::Dict> policy =
           chromeos::onc::ReadDictionaryFromJson(kEmptyUnencryptedConfiguration);
       if (!policy.has_value()) {
         return false;
@@ -311,7 +351,7 @@ class ManagedNetworkConfigurationHandlerTest : public testing::Test {
                                        /*log_warnings=*/true);
     validator.SetOncSource(onc_source);
     chromeos::onc::Validator::Result validation_result;
-    absl::optional<base::Value::Dict> validated_policy =
+    std::optional<base::Value::Dict> validated_policy =
         validator.ValidateAndRepairObject(
             &chromeos::onc::kToplevelConfigurationSignature, policy,
             &validation_result);
@@ -357,6 +397,10 @@ class ManagedNetworkConfigurationHandlerTest : public testing::Test {
     managed_network_configuration_handler_.reset();
   }
 
+  NetworkHandlerTestHelper* network_handler_test_helper() {
+    return network_handler_test_helper_.get();
+  }
+
   bool PropertiesMatch(const base::Value::Dict& v1,
                        const base::Value::Dict& v2) {
     if (v1 == v2)
@@ -381,13 +425,39 @@ class ManagedNetworkConfigurationHandlerTest : public testing::Test {
         CellularConnectionHandler::kWaitingForAutoConnectTimeout);
   }
 
+  void SetArcAlwaysOnUserPrefs(std::string package_name,
+                               bool vpn_configured_allowed = false) {
+    user_prefs_.SetUserPref(arc::prefs::kAlwaysOnVpnPackage,
+                            base::Value(package_name));
+    user_prefs_.SetUserPref(prefs::kVpnConfigAllowed,
+                            base::Value(vpn_configured_allowed));
+  }
+
   ProhibitedTechnologiesHandler* prohibited_technologies_handler() {
     return prohibited_technologies_handler_.get();
+  }
+
+  void ConfigureCellularService(const std::string& service_path,
+                                const std::string& type) {
+    base::Value::Dict properties;
+    shill_property_util::SetSSID(service_path, &properties);
+    properties.Set(shill::kNameProperty, service_path);
+    properties.Set(shill::kGuidProperty, kTestCellularGuid);
+    properties.Set(shill::kTypeProperty, type);
+    properties.Set(shill::kStateProperty, shill::kStateIdle);
+    properties.Set(shill::kProfileProperty,
+                   NetworkProfileHandler::GetSharedProfilePath());
+
+    network_configuration_handler_->CreateShillConfiguration(
+        std::move(properties), base::DoNothing(),
+        base::BindOnce(&ErrorCallback));
+    base::RunLoop().RunUntilIdle();
   }
 
  protected:
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::test::ScopedFeatureList feature_list_;
 
   TestNetworkPolicyObserver policy_observer_;
   std::unique_ptr<MockNetworkStateHandler> network_state_handler_;
@@ -408,6 +478,8 @@ class ManagedNetworkConfigurationHandlerTest : public testing::Test {
   std::unique_ptr<CellularPolicyHandler> cellular_policy_handler_;
   std::unique_ptr<ProhibitedTechnologiesHandler>
       prohibited_technologies_handler_;
+  std::unique_ptr<NetworkHandlerTestHelper> network_handler_test_helper_;
+  std::unique_ptr<MockNetworkMetadataStore> network_metadata_store_;
 
   sync_preferences::TestingPrefServiceSyncable user_prefs_;
   TestingPrefServiceSimple local_state_, device_prefs_;
@@ -425,10 +497,8 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, RemoveIrrelevantFields) {
   std::string service_path =
       GetShillServiceClient()->FindServiceMatchingGUID(kTestGuidManagedWifi);
   ASSERT_FALSE(service_path.empty());
-  const base::Value::Dict* properties =
-      GetShillServiceClient()->GetServiceProperties(service_path);
-  ASSERT_TRUE(properties);
-  EXPECT_THAT(*properties, DictionaryHasValues(expected_shill_properties));
+  EXPECT_THAT(GetShillServiceClient()->GetServiceProperties(service_path),
+              Pointee(DictionaryHasValues(expected_shill_properties)));
 }
 
 // A network policy uses a variable expansion which is set after the policy has
@@ -629,6 +699,45 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, SetPolicyProhibitedTechnology) {
       IsEmpty());
 }
 
+TEST_F(ManagedNetworkConfigurationHandlerTest, ModifyCustomApns) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(/*enabled_features=*/
+                                       {features::kApnRevamp,
+                                        features::kAllowApnModificationPolicy},
+                                       /*disabled_features=*/{});
+  ConfigureCellularService(kTestCellularServicePath, shill::kTypeCellular);
+
+  auto custom_apn_list = base::Value::List().Append(
+      base::Value::Dict()
+          .Set(::onc::cellular_apn::kAccessPointName, "apn1")
+          .Set(::onc::cellular_apn::kState, ::onc::cellular_apn::kStateEnabled)
+          .Set(::onc::cellular_apn::kApnTypes,
+               base::Value::List().Append(
+                   ::onc::cellular_apn::kApnTypeDefault)));
+  EXPECT_CALL(*(network_metadata_store_.get()),
+              GetCustomApnList(kTestCellularGuid))
+      .WillRepeatedly(Return(&custom_apn_list));
+
+  // Set 'AllowApnModification' policy.
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        "policy/policy_allow_apn_modification.onc"));
+  base::RunLoop().RunUntilIdle();
+
+  std::optional<base::Value::List> shill_custom_apns =
+      network_handler_test_helper()->GetServiceListProperty(
+          kTestCellularServicePath, shill::kCellularCustomApnListProperty);
+  ASSERT_FALSE(shill_custom_apns.has_value());
+
+  EXPECT_TRUE(SetPolicy(
+      ::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+      "managed_cellular_no_recommended_allow_apn_modification_true.onc"));
+  base::RunLoop().RunUntilIdle();
+
+  shill_custom_apns = network_handler_test_helper()->GetServiceListProperty(
+      "service_path_for_cellular_guid", shill::kCellularCustomApnListProperty);
+  ASSERT_TRUE(shill_custom_apns.has_value());
+}
+
 TEST_F(ManagedNetworkConfigurationHandlerTest, SetPolicyManagedCellular) {
   InitializeStandardProfiles();
   InitializeEuicc();
@@ -650,7 +759,7 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, SetPolicyManagedCellular) {
   EXPECT_THAT(*properties, DictionaryHasValues(expected_shill_properties));
   const std::string* iccid = properties->FindString(shill::kIccidProperty);
   ASSERT_TRUE(iccid);
-  EXPECT_TRUE(managed_cellular_pref_handler_->GetSmdpAddressFromIccid(*iccid));
+  EXPECT_TRUE(managed_cellular_pref_handler_->GetESimMetadata(*iccid));
 
   // Verify that applying a new cellular policy with same ICCID should update
   // the old shill configuration.
@@ -665,7 +774,7 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, SetPolicyManagedCellular) {
   const base::Value::Dict* properties2 =
       GetShillServiceClient()->GetServiceProperties(service_path);
   ASSERT_TRUE(properties2);
-  absl::optional<bool> auto_connect =
+  std::optional<bool> auto_connect =
       properties2->FindBool(shill::kAutoConnectProperty);
   ASSERT_TRUE(*auto_connect);
 }
@@ -697,10 +806,8 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, SetPolicyManageUnconfigured) {
   std::string service_path =
       GetShillServiceClient()->FindServiceMatchingGUID(kTestGuidManagedWifi);
   ASSERT_FALSE(service_path.empty());
-  const base::Value::Dict* properties =
-      GetShillServiceClient()->GetServiceProperties(service_path);
-  ASSERT_TRUE(properties);
-  EXPECT_THAT(*properties, DictionaryHasValues(expected_shill_properties));
+  EXPECT_THAT(GetShillServiceClient()->GetServiceProperties(service_path),
+              Pointee(DictionaryHasValues(expected_shill_properties)));
 }
 
 TEST_F(ManagedNetworkConfigurationHandlerTest, EnableManagedCredentialsWiFi) {
@@ -715,10 +822,8 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, EnableManagedCredentialsWiFi) {
   std::string service_path =
       GetShillServiceClient()->FindServiceMatchingGUID(kTestGuidManagedWifi);
   ASSERT_FALSE(service_path.empty());
-  const base::Value::Dict* properties =
-      GetShillServiceClient()->GetServiceProperties(service_path);
-  ASSERT_TRUE(properties);
-  EXPECT_THAT(*properties, DictionaryHasValues(expected_shill_properties));
+  EXPECT_THAT(GetShillServiceClient()->GetServiceProperties(service_path),
+              Pointee(DictionaryHasValues(expected_shill_properties)));
 }
 
 TEST_F(ManagedNetworkConfigurationHandlerTest, EnableManagedCredentialsVPN) {
@@ -770,10 +875,8 @@ TEST_F(ManagedNetworkConfigurationHandlerTest,
   std::string service_path =
       GetShillServiceClient()->FindServiceMatchingGUID(kTestGuidEthernetEap);
   ASSERT_FALSE(service_path.empty());
-  const base::Value::Dict* properties =
-      GetShillServiceClient()->GetServiceProperties(service_path);
-  ASSERT_TRUE(properties);
-  EXPECT_THAT(*properties, DictionaryHasValues(expected_shill_properties));
+  EXPECT_THAT(GetShillServiceClient()->GetServiceProperties(service_path),
+              Pointee(DictionaryHasValues(expected_shill_properties)));
 }
 
 TEST_F(ManagedNetworkConfigurationHandlerTest, SetPolicyIgnoreUnmodified) {
@@ -890,10 +993,8 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, SetPolicyManageUnmanaged) {
   std::string service_path =
       GetShillServiceClient()->FindServiceMatchingGUID(kTestGuidManagedWifi);
   ASSERT_FALSE(service_path.empty());
-  const base::Value::Dict* properties =
-      GetShillServiceClient()->GetServiceProperties(service_path);
-  ASSERT_TRUE(properties);
-  EXPECT_THAT(*properties, DictionaryHasValues(expected_shill_properties));
+  EXPECT_THAT(GetShillServiceClient()->GetServiceProperties(service_path),
+              Pointee(DictionaryHasValues(expected_shill_properties)));
 }
 
 TEST_F(ManagedNetworkConfigurationHandlerTest, SetPolicyUpdateManagedNewGUID) {
@@ -901,6 +1002,8 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, SetPolicyUpdateManagedNewGUID) {
   SetUpEntry("policy/shill_managed_wifi1.json", kUser1ProfilePath,
              "old_entry_path");
 
+  // Note that this test case expects that the UIData user settings are copied
+  // to the entry with the new GUID.
   base::Value::Dict expected_shill_properties = test_utils::ReadTestDictionary(
       "policy/shill_policy_on_unmanaged_wifi1.json");
 
@@ -922,10 +1025,8 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, SetPolicyUpdateManagedNewGUID) {
   std::string service_path =
       GetShillServiceClient()->FindServiceMatchingGUID(kTestGuidManagedWifi);
   ASSERT_FALSE(service_path.empty());
-  const base::Value::Dict* properties =
-      GetShillServiceClient()->GetServiceProperties(service_path);
-  ASSERT_TRUE(properties);
-  EXPECT_THAT(*properties, DictionaryHasValues(expected_shill_properties));
+  EXPECT_THAT(GetShillServiceClient()->GetServiceProperties(service_path),
+              Pointee(DictionaryHasValues(expected_shill_properties)));
 }
 
 TEST_F(ManagedNetworkConfigurationHandlerTest, SetPolicyUpdateManagedVPN) {
@@ -1058,10 +1159,8 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, SetPolicyReapplyToManaged) {
     std::string service_path =
         GetShillServiceClient()->FindServiceMatchingGUID(kTestGuidManagedWifi);
     ASSERT_FALSE(service_path.empty());
-    const base::Value::Dict* properties =
-        GetShillServiceClient()->GetServiceProperties(service_path);
-    ASSERT_TRUE(properties);
-    EXPECT_THAT(*properties, DictionaryHasValues(expected_shill_properties));
+    EXPECT_THAT(GetShillServiceClient()->GetServiceProperties(service_path),
+                Pointee(DictionaryHasValues(expected_shill_properties)));
   }
 
   // If we apply the policy again, without change, then the Shill profile will
@@ -1074,10 +1173,8 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, SetPolicyReapplyToManaged) {
     std::string service_path =
         GetShillServiceClient()->FindServiceMatchingGUID(kTestGuidManagedWifi);
     ASSERT_FALSE(service_path.empty());
-    const base::Value::Dict* properties =
-        GetShillServiceClient()->GetServiceProperties(service_path);
-    ASSERT_TRUE(properties);
-    EXPECT_THAT(*properties, DictionaryHasValues(expected_shill_properties));
+    EXPECT_THAT(GetShillServiceClient()->GetServiceProperties(service_path),
+                Pointee(DictionaryHasValues(expected_shill_properties)));
   }
 }
 
@@ -1129,10 +1226,8 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, SetPolicyIgnoreUnmanaged) {
   std::string service_path =
       GetShillServiceClient()->FindServiceMatchingGUID(kTestGuidManagedWifi);
   ASSERT_FALSE(service_path.empty());
-  const base::Value::Dict* properties =
-      GetShillServiceClient()->GetServiceProperties(service_path);
-  ASSERT_TRUE(properties);
-  EXPECT_THAT(*properties, DictionaryHasValues(expected_shill_properties));
+  EXPECT_THAT(GetShillServiceClient()->GetServiceProperties(service_path),
+              Pointee(DictionaryHasValues(expected_shill_properties)));
 }
 
 // Regression test for b/237657704.
@@ -1193,14 +1288,586 @@ TEST_F(ManagedNetworkConfigurationHandlerTest,
   std::string service_path =
       GetShillServiceClient()->FindServiceMatchingGUID("policy_wifi1");
   ASSERT_FALSE(service_path.empty());
+  EXPECT_THAT(
+      GetShillServiceClient()->GetServiceProperties(service_path),
+      Pointee(DictionaryHasValues(
+          base::Value::Dict()
+              .Set(shill::kWifiHexSsid, "7769666931")
+              .Set(shill::kPassphraseProperty, "policy's passphrase"))));
+}
+
+// There is a policy with a Recommended field.
+// The RecommendedValuesAreEphemeralAccessor policy is not enabled.
+// Tests that initial policy application does not reset "Recommended" fields,
+// even when `TriggerEphemeralNetworkConfigActions` is called.
+TEST_F(ManagedNetworkConfigurationHandlerTest,
+       ResetRecommendedFields_Disabled_Initial) {
+  policy_util::SetEphemeralNetworkPoliciesEnabled();
+
+  InitializeStandardProfiles();
+  const std::string kOriginalEntryPath = "orig_entry_path";
+  base::Value::Dict original_wifi_config = base::test::ParseJsonDict(R"(
+    {
+      "AutoConnect": true,
+      "GUID": "guid_wifi1",
+      "Mode": "managed",
+      "EAP.EAP": "PEAP",
+      "EAP.Identity": "user_identity",
+      "EAP.Password": "user_password",
+      "Profile": "/profile/default",
+      "SecurityClass": "802_1x",
+      "SaveCredentials": true,
+      "Type": "wifi",
+      "WiFi.HexSSID": "7769666931",
+      "UIData": "{\"onc_source\":\"device_policy\"}"
+    })");
+  GetShillProfileClient()->AddEntry(
+      NetworkProfileHandler::GetSharedProfilePath(), kOriginalEntryPath,
+      std::move(original_wifi_config));
+
+  // Call TriggerEphemeralNetworkConfigActions when policies are available
+  // In production code, EphemeralNetworkConfigHandler will do this.
+  policy_observer_.RunOnSharedProfilePoliciesChanged(base::BindOnce(
+      &ManagedNetworkConfigurationHandlerImpl::
+          TriggerEphemeralNetworkConfigActions,
+      base::Unretained(managed_network_configuration_handler_.get())));
+
+  const char* const onc_policy = R"(
+    {
+      "GlobalNetworkConfiguration": {
+      },
+      "NetworkConfigurations": [
+        {
+          "GUID": "guid_wifi1",
+          "Type": "WiFi",
+          "Name": "Managed wifi1",
+          "WiFi": {
+            "HexSSID": "7769666931", // "wifi1"
+            "SSID": "wifi1",
+            "Security": "WPA-EAP",
+            "EAP": {
+              "Outer": "PEAP",
+              "Inner": "MSCHAPv2",
+              "SaveCredentials": true,
+              "Recommended": ["Identity", "Password"]
+            }
+          }
+        }
+      ],
+      "Type": "UnencryptedConfiguration"
+    })";
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy)));
+  base::RunLoop().RunUntilIdle();
+
+  // The entry still exists and has kept the user-provided Passphrase.
+  std::string profile_path;
+  EXPECT_THAT(
+      GetShillProfileClient()->GetService(kOriginalEntryPath, &profile_path),
+      Optional(DictionaryHasValue(shill::kEapPasswordProperty,
+                                  base::Value("user_password"))));
+}
+
+// There is a policy with a Recommended field.
+// The RecommendedValuesAreEphemeralAccessor policy is enabled.
+// Tests that initial policy application resets "Recommended" fields by
+// re-creating the configuration.
+TEST_F(ManagedNetworkConfigurationHandlerTest,
+       ResetRecommendedFields_Enabled_Initial) {
+  policy_util::SetEphemeralNetworkPoliciesEnabled();
+
+  InitializeStandardProfiles();
+  const std::string kOriginalEntryPath = "orig_entry_path";
+  base::Value::Dict original_wifi_config = base::test::ParseJsonDict(R"(
+    {
+      "AutoConnect": true,
+      "GUID": "guid_wifi1",
+      "Mode": "managed",
+      "EAP.EAP": "PEAP",
+      "EAP.Identity": "user_identity",
+      "EAP.Password": "user_password",
+      "Profile": "/profile/default",
+      "SecurityClass": "802_1x",
+      "SaveCredentials": true,
+      "Type": "wifi",
+      "WiFi.HexSSID": "7769666931",
+      "UIData": "{\"onc_source\":\"device_policy\"}"
+    })");
+  GetShillProfileClient()->AddEntry(
+      NetworkProfileHandler::GetSharedProfilePath(), kOriginalEntryPath,
+      std::move(original_wifi_config));
+
+  // Call TriggerEphemeralNetworkConfigActions when policies are available
+  // In production code, EphemeralNetworkConfigHandler will do this.
+  policy_observer_.RunOnSharedProfilePoliciesChanged(base::BindOnce(
+      &ManagedNetworkConfigurationHandlerImpl::
+          TriggerEphemeralNetworkConfigActions,
+      base::Unretained(managed_network_configuration_handler_.get())));
+
+  const char* const onc_policy = R"(
+    {
+      "GlobalNetworkConfiguration": {
+        "RecommendedValuesAreEphemeral": true
+      },
+      "NetworkConfigurations": [
+        {
+          "GUID": "guid_wifi1",
+          "Type": "WiFi",
+          "Name": "Managed wifi1",
+          "WiFi": {
+            "HexSSID": "7769666931", // "wifi1"
+            "SSID": "wifi1",
+            "Security": "WPA-EAP",
+            "EAP": {
+              "Outer": "PEAP",
+              "Inner": "MSCHAPv2",
+              "SaveCredentials": true,
+              "Recommended": ["Identity", "Password"]
+            }
+          }
+        }
+      ],
+      "Type": "UnencryptedConfiguration"
+    })";
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy)));
+  base::RunLoop().RunUntilIdle();
+
+  // The original entry has been wiped.
+  EXPECT_FALSE(GetShillProfileClient()->HasService(kOriginalEntryPath));
+
+  // A new one has been created.
+  std::string service_path =
+      GetShillServiceClient()->FindServiceMatchingGUID("guid_wifi1");
+  ASSERT_FALSE(service_path.empty());
   const base::Value::Dict* properties =
       GetShillServiceClient()->GetServiceProperties(service_path);
   ASSERT_TRUE(properties);
-  EXPECT_THAT(*properties, DictionaryHasValue(shill::kWifiHexSsid,
-                                              base::Value("7769666931")));
-  EXPECT_THAT(*properties,
-              DictionaryHasValue(shill::kPassphraseProperty,
-                                 base::Value("policy's passphrase")));
+  EXPECT_THAT(properties->FindString(shill::kEapPasswordProperty),
+              testing::IsNull());
+}
+
+// There is a policy with a Recommended field.
+// The RecommendedValuesAreEphemeralAccessor policy is enabled.
+// Tests that a `TriggerEphemeralNetworkConfigActions` call triggered after the
+// initial policy application leads to clearing of the Recommended fields by
+// re-creating the configuration.
+TEST_F(ManagedNetworkConfigurationHandlerTest,
+       ResetRecommendedFields_Enabled_AfterInitialApplication) {
+  policy_util::SetEphemeralNetworkPoliciesEnabled();
+
+  const std::string kOncWifiGuid = "guid_wifi1";
+  const std::string kTestPassword = "test_password";
+
+  InitializeStandardProfiles();
+  const std::string onc_policy = base::StringPrintf(R"(
+    {
+      "GlobalNetworkConfiguration": {
+        "RecommendedValuesAreEphemeral": true
+      },
+      "NetworkConfigurations": [
+        {
+          "GUID": "%s",
+          "Type": "WiFi",
+          "Name": "Managed wifi1",
+          "WiFi": {
+            "HexSSID": "7769666931", // "wifi1"
+            "SSID": "wifi1",
+            "Security": "WPA-EAP",
+            "EAP": {
+              "Outer": "PEAP",
+              "Inner": "MSCHAPv2",
+              "SaveCredentials": true,
+              "Recommended": ["Identity", "Password"]
+            }
+          }
+        }
+      ],
+      "Type": "UnencryptedConfiguration"
+    })",
+                                                    kOncWifiGuid.c_str());
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy)));
+  base::RunLoop().RunUntilIdle();
+
+  // Set a recommended field.
+  std::string initial_service_path =
+      GetShillServiceClient()->FindServiceMatchingGUID(kOncWifiGuid);
+  EXPECT_TRUE(GetShillServiceClient()->SetServiceProperty(
+      initial_service_path, shill::kEapPasswordProperty,
+      base::Value(kTestPassword)));
+
+  managed_network_configuration_handler_
+      ->TriggerEphemeralNetworkConfigActions();
+  base::RunLoop().RunUntilIdle();
+
+  // The config does not have the recommended field value anymore.
+  std::string new_service_path =
+      GetShillServiceClient()->FindServiceMatchingGUID(kOncWifiGuid);
+  {
+    const base::Value::Dict* properties =
+        GetShillServiceClient()->GetServiceProperties(new_service_path);
+    ASSERT_TRUE(properties);
+    EXPECT_THAT(properties->FindString(shill::kEapPasswordProperty),
+                testing::IsNull());
+  }
+
+  // Set a recommended field again.
+  EXPECT_TRUE(GetShillServiceClient()->SetServiceProperty(
+      new_service_path, shill::kEapPasswordProperty,
+      base::Value(kTestPassword)));
+
+  // Re-apply policy.
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy)));
+  base::RunLoop().RunUntilIdle();
+
+  // The re-application of policy (without TriggerEphemeralNetworkConfigActions)
+  // did not wipe the recommended field or re-create the entry.
+  EXPECT_THAT(GetShillServiceClient()->GetServiceProperties(new_service_path),
+              Pointee(DictionaryHasValue(shill::kEapPasswordProperty,
+                                         base::Value(kTestPassword))));
+}
+
+// There is a policy with a Recommended field.
+// The RecommendedValuesAreEphemeralAccessor policy is enabled.
+// The feature flags/policies guarding it are however disabled.
+TEST_F(ManagedNetworkConfigurationHandlerTest,
+       ResetRecommendedFields_Enabled_FeatureOff) {
+  InitializeStandardProfiles();
+  const std::string kOriginalEntryPath = "orig_entry_path";
+  base::Value::Dict original_wifi_config = base::test::ParseJsonDict(R"(
+    {
+      "AutoConnect": true,
+      "GUID": "guid_wifi1",
+      "Mode": "managed",
+      "EAP.EAP": "PEAP",
+      "EAP.Identity": "user_identity",
+      "EAP.Password": "user_password",
+      "Profile": "/profile/default",
+      "SecurityClass": "802_1x",
+      "SaveCredentials": true,
+      "Type": "wifi",
+      "WiFi.HexSSID": "7769666931",
+      "UIData": "{\"onc_source\":\"device_policy\"}"
+    })");
+  GetShillProfileClient()->AddEntry(
+      NetworkProfileHandler::GetSharedProfilePath(), kOriginalEntryPath,
+      std::move(original_wifi_config));
+
+  // Don't call TriggerEphemeralNetworkConfigActions - it will only be called in
+  // production code if the feature is enabled.
+  const char* const onc_policy = R"(
+    {
+      "GlobalNetworkConfiguration": {
+        "RecommendedValuesAreEphemeral": true
+      },
+      "NetworkConfigurations": [
+        {
+          "GUID": "guid_wifi1",
+          "Type": "WiFi",
+          "Name": "Managed wifi1",
+          "WiFi": {
+            "HexSSID": "7769666931", // "wifi1"
+            "SSID": "wifi1",
+            "Security": "WPA-EAP",
+            "EAP": {
+              "Outer": "PEAP",
+              "Inner": "MSCHAPv2",
+              "SaveCredentials": true,
+              "Recommended": ["Identity", "Password"]
+            }
+          }
+        }
+      ],
+      "Type": "UnencryptedConfiguration"
+    })";
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy)));
+  base::RunLoop().RunUntilIdle();
+
+  // The entry still exists and has kept the user-provided Passphrase.
+  std::string profile_path;
+  EXPECT_THAT(
+      GetShillProfileClient()->GetService(kOriginalEntryPath, &profile_path),
+      Optional(DictionaryHasValue(shill::kEapPasswordProperty,
+                                  base::Value("user_password"))));
+}
+
+// There is a policy with no Recommended field.
+// The RecommendedValuesAreEphemeralAccessor policy is enabled.
+// Tests that initial policy application does not attempt to re-create the
+// configuration (because no field in there is Recommended).
+TEST_F(ManagedNetworkConfigurationHandlerTest,
+       ResetRecommendedFields_Enabled_NoFieldRecommended_Initial) {
+  policy_util::SetEphemeralNetworkPoliciesEnabled();
+
+  InitializeStandardProfiles();
+  const std::string kOriginalEntryPath = "orig_entry_path";
+  base::Value::Dict original_wifi_config = base::test::ParseJsonDict(R"(
+    {
+      "AutoConnect": true,
+      "GUID": "guid_wifi1",
+      "Mode": "managed",
+      "EAP.EAP": "PEAP",
+      "EAP.Identity": "user_identity",
+      "EAP.Password": "user_password",
+      "Profile": "/profile/default",
+      "SecurityClass": "802_1x",
+      "SaveCredentials": true,
+      "Type": "wifi",
+      "WiFi.HexSSID": "7769666931",
+      "UIData": "{\"onc_source\":\"device_policy\"}"
+    })");
+  GetShillProfileClient()->AddEntry(
+      NetworkProfileHandler::GetSharedProfilePath(), kOriginalEntryPath,
+      std::move(original_wifi_config));
+
+  // Call TriggerEphemeralNetworkConfigActions when policies are available
+  // In production code, EphemeralNetworkConfigHandler will do this.
+  policy_observer_.RunOnSharedProfilePoliciesChanged(base::BindOnce(
+      &ManagedNetworkConfigurationHandlerImpl::
+          TriggerEphemeralNetworkConfigActions,
+      base::Unretained(managed_network_configuration_handler_.get())));
+
+  const char* const onc_policy = R"(
+    {
+      "GlobalNetworkConfiguration": {
+        "RecommendedValuesAreEphemeral": true
+      },
+      "NetworkConfigurations": [
+        {
+          "GUID": "guid_wifi1",
+          "Type": "WiFi",
+          "Name": "Managed wifi1",
+          "WiFi": {
+            "HexSSID": "7769666931", // "wifi1"
+            "SSID": "wifi1",
+            "Security": "WPA-EAP",
+            "EAP": {
+              "Outer": "PEAP",
+              "Inner": "MSCHAPv2",
+              "SaveCredentials": true,
+              "Identity": "user_identity",
+              "Password": "user_password"
+            }
+          }
+        }
+      ],
+      "Type": "UnencryptedConfiguration"
+    })";
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy)));
+  base::RunLoop().RunUntilIdle();
+
+  // The original entry has been preserved.
+  EXPECT_TRUE(GetShillProfileClient()->HasService(kOriginalEntryPath));
+}
+
+// There is an unmanaged entry.
+// The UserCreatedNetworkConfigurationsAreEphemeral policy is not enabled.
+// Tests that initial policy application does not delete the entry even when
+// `TriggerEphemeralNetworkConfigActions` is called.
+TEST_F(ManagedNetworkConfigurationHandlerTest,
+       RemoveUnmanagedConfigs_Disabled_Initial) {
+  policy_util::SetEphemeralNetworkPoliciesEnabled();
+
+  InitializeStandardProfiles();
+  SetUpEntry("policy/shill_unmanaged_wifi1.json",
+             NetworkProfileHandler::GetSharedProfilePath(), "old_entry_path");
+  ASSERT_TRUE(GetShillProfileClient()->HasService("old_entry_path"));
+
+  policy_observer_.RunOnSharedProfilePoliciesChanged(base::BindOnce(
+      &ManagedNetworkConfigurationHandlerImpl::
+          TriggerEphemeralNetworkConfigActions,
+      base::Unretained(managed_network_configuration_handler_.get())));
+
+  const char* const onc_policy = R"(
+    {
+      "GlobalNetworkConfiguration": {
+      },
+      "Type": "UnencryptedConfiguration"
+    })";
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy)));
+  base::RunLoop().RunUntilIdle();
+
+  // The entry still exists.
+  EXPECT_TRUE(GetShillProfileClient()->HasService("old_entry_path"));
+}
+
+// There is an unmanaged entry.
+// The UserCreatedNetworkConfigurationsAreEphemeral policy is enabled.
+// Tests that initial policy application deletes the entry when
+// `TriggerEphemeralNetworkConfigActions` is called.
+TEST_F(ManagedNetworkConfigurationHandlerTest,
+       RemoveUnmanagedConfigs_Enabled_Initial) {
+  policy_util::SetEphemeralNetworkPoliciesEnabled();
+
+  InitializeStandardProfiles();
+  SetUpEntry("policy/shill_unmanaged_wifi1.json",
+             NetworkProfileHandler::GetSharedProfilePath(), "old_entry_path");
+
+  ASSERT_TRUE(GetShillProfileClient()->HasService("old_entry_path"));
+
+  policy_observer_.RunOnSharedProfilePoliciesChanged(base::BindOnce(
+      &ManagedNetworkConfigurationHandlerImpl::
+          TriggerEphemeralNetworkConfigActions,
+      base::Unretained(managed_network_configuration_handler_.get())));
+
+  const char* const onc_policy = R"(
+    {
+      "GlobalNetworkConfiguration": {
+        "UserCreatedNetworkConfigurationsAreEphemeral": true
+      },
+      "Type": "UnencryptedConfiguration"
+    })";
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy)));
+  base::RunLoop().RunUntilIdle();
+
+  // The entry has been removed.
+  EXPECT_FALSE(GetShillProfileClient()->HasService("old_entry_path"));
+}
+
+// There is an unmanaged entry.
+// The UserCreatedNetworkConfigurationsAreEphemeral policy is enabled.
+// The feature flags/policies guarding it are however disabled.
+TEST_F(ManagedNetworkConfigurationHandlerTest,
+       RemoveUnmanagedConfigs_Enabled_FeatureOff) {
+  InitializeStandardProfiles();
+  SetUpEntry("policy/shill_unmanaged_wifi1.json",
+             NetworkProfileHandler::GetSharedProfilePath(), "old_entry_path");
+
+  ASSERT_TRUE(GetShillProfileClient()->HasService("old_entry_path"));
+
+  // Don't call TriggerEphemeralNetworkConfigActions - it will only be called in
+  // production code if the feature is enabled.
+
+  const char* const onc_policy = R"(
+    {
+      "GlobalNetworkConfiguration": {
+        "UserCreatedNetworkConfigurationsAreEphemeral": true
+      },
+      "Type": "UnencryptedConfiguration"
+    })";
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy)));
+  base::RunLoop().RunUntilIdle();
+
+  // The entry is still there
+  EXPECT_TRUE(GetShillProfileClient()->HasService("old_entry_path"));
+}
+
+// There is an unmanaged entry.
+// The UserCreatedNetworkConfigurationsAreEphemeral policy is enabled.
+// Tests that a `TriggerEphemeralNetworkConfigActions` call triggered after the
+// initial policy application leads to deletion of the unmanaged entry.
+TEST_F(ManagedNetworkConfigurationHandlerTest,
+       RemoveUnmanagedConfigs_Enabled_AfterInitialApplication) {
+  policy_util::SetEphemeralNetworkPoliciesEnabled();
+
+  InitializeStandardProfiles();
+  SetUpEntry("policy/shill_unmanaged_wifi1.json",
+             NetworkProfileHandler::GetSharedProfilePath(), "old_entry_path");
+  ASSERT_TRUE(GetShillProfileClient()->HasService("old_entry_path"));
+
+  const char* const onc_policy = R"(
+    {
+      "GlobalNetworkConfiguration": {
+        "UserCreatedNetworkConfigurationsAreEphemeral": true
+      },
+      "Type": "UnencryptedConfiguration"
+    })";
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy)));
+  base::RunLoop().RunUntilIdle();
+
+  // The entry is still there.
+  EXPECT_TRUE(GetShillProfileClient()->HasService("old_entry_path"));
+
+  managed_network_configuration_handler_
+      ->TriggerEphemeralNetworkConfigActions();
+  base::RunLoop().RunUntilIdle();
+
+  // The entry has been removed.
+  EXPECT_FALSE(GetShillProfileClient()->HasService("old_entry_path"));
+
+  // Re-create it and test that re-applying policies does not trigger the
+  // "ephemeral network config" actions.
+  SetUpEntry("policy/shill_unmanaged_wifi1.json", kUser1ProfilePath,
+             "old_entry_path");
+  ASSERT_TRUE(GetShillProfileClient()->HasService("old_entry_path"));
+
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy)));
+  base::RunLoop().RunUntilIdle();
+
+  // The entry is still there
+  EXPECT_TRUE(GetShillProfileClient()->HasService("old_entry_path"));
+}
+
+// There is a policy with a Recommended field.
+// The RecommendedValuesAreEphemeralAccessor policy is enabled.
+// Tests that initial policy application does not reset "Recommended" fields,
+// if `TriggerEphemeralNetworkConfigActions` is not called.
+TEST_F(ManagedNetworkConfigurationHandlerTest,
+       NoEphemeralNetworkConfigActionsTriggered) {
+  // Don't call `TriggerEphemeralNetworkConfigActions`.
+  const std::string original_entry_path = "orig_entry_path";
+  base::Value::Dict original_wifi_config = base::test::ParseJsonDict(R"(
+    {
+      "AutoConnect": true,
+      "GUID": "guid_wifi1",
+      "Mode": "managed",
+      "EAP.EAP": "PEAP",
+      "EAP.Identity": "user_identity",
+      "EAP.Password": "user_password",
+      "Profile": "/profile/default",
+      "SecurityClass": "802_1x",
+      "SaveCredentials": true,
+      "Type": "wifi",
+      "WiFi.HexSSID": "7769666931",
+      "UIData": "{\"onc_source\":\"device_policy\"}"
+    })");
+  GetShillProfileClient()->AddEntry(
+      NetworkProfileHandler::GetSharedProfilePath(), original_entry_path,
+      std::move(original_wifi_config));
+
+  const char* const onc_policy = R"(
+    {
+      "GlobalNetworkConfiguration": {
+      },
+      "NetworkConfigurations": [
+        {
+          "GUID": "guid_wifi1",
+          "Type": "WiFi",
+          "Name": "Managed wifi1",
+          "WiFi": {
+            "HexSSID": "7769666931", // "wifi1"
+            "SSID": "wifi1",
+            "Security": "WPA-EAP",
+            "EAP": {
+              "Outer": "PEAP",
+              "Inner": "MSCHAPv2",
+              "SaveCredentials": true,
+              "Recommended": ["Identity", "Password"]
+            }
+          }
+        }
+      ],
+      "Type": "UnencryptedConfiguration"
+    })";
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy)));
+  base::RunLoop().RunUntilIdle();
+
+  // The entry still exists and has kept the user-provided Passphrase.
+  std::string profile_path;
+  EXPECT_THAT(
+      GetShillProfileClient()->GetService(original_entry_path, &profile_path),
+      Optional(DictionaryHasValue(shill::kEapPasswordProperty,
+                                  base::Value("user_password"))));
 }
 
 TEST_F(ManagedNetworkConfigurationHandlerTest, AutoConnectDisallowed) {
@@ -1238,15 +1905,15 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, AutoConnectDisallowed) {
                                /*global_network_config=*/base::Value::Dict());
 
   base::RunLoop get_properties_run_loop;
-  absl::optional<base::Value::Dict> dictionary;
+  std::optional<base::Value::Dict> dictionary;
   managed_handler()->GetManagedProperties(
       kUser1, wifi2_service_path,
       base::BindOnce(
-          [](absl::optional<base::Value::Dict>* dictionary_out,
+          [](std::optional<base::Value::Dict>* dictionary_out,
              base::RepeatingClosure quit_closure,
              const std::string& service_path,
-             absl::optional<base::Value::Dict> dictionary,
-             absl::optional<std::string> error) {
+             std::optional<base::Value::Dict> dictionary,
+             std::optional<std::string> error) {
             if (dictionary) {
               *dictionary_out = std::move(*dictionary);
             } else {
@@ -1279,10 +1946,8 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, LateProfileLoading) {
   std::string service_path =
       GetShillServiceClient()->FindServiceMatchingGUID(kTestGuidManagedWifi);
   ASSERT_FALSE(service_path.empty());
-  const base::Value::Dict* properties =
-      GetShillServiceClient()->GetServiceProperties(service_path);
-  ASSERT_TRUE(properties);
-  EXPECT_THAT(*properties, DictionaryHasValues(expected_shill_properties));
+  EXPECT_THAT(GetShillServiceClient()->GetServiceProperties(service_path),
+              Pointee(DictionaryHasValues(expected_shill_properties)));
 }
 
 TEST_F(ManagedNetworkConfigurationHandlerTest,
@@ -1318,6 +1983,7 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, AllowOnlyPolicyWiFiToConnect) {
 
   // Check ManagedNetworkConfigurationHandler policy accessors.
   EXPECT_TRUE(managed_handler()->AllowCellularSimLock());
+  EXPECT_TRUE(managed_handler()->AllowCellularHotspot());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyCellularNetworks());
   EXPECT_TRUE(managed_handler()->AllowOnlyPolicyWiFiToConnect());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnectIfAvailable());
@@ -1347,6 +2013,7 @@ TEST_F(ManagedNetworkConfigurationHandlerTest,
 
   // Check ManagedNetworkConfigurationHandler policy accessors.
   EXPECT_TRUE(managed_handler()->AllowCellularSimLock());
+  EXPECT_TRUE(managed_handler()->AllowCellularHotspot());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyCellularNetworks());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnect());
   EXPECT_TRUE(managed_handler()->AllowOnlyPolicyWiFiToConnectIfAvailable());
@@ -1375,6 +2042,7 @@ TEST_F(ManagedNetworkConfigurationHandlerTest,
 
   // Check ManagedNetworkConfigurationHandler policy accessors.
   EXPECT_TRUE(managed_handler()->AllowCellularSimLock());
+  EXPECT_TRUE(managed_handler()->AllowCellularHotspot());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyCellularNetworks());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnect());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnectIfAvailable());
@@ -1400,7 +2068,155 @@ TEST_F(ManagedNetworkConfigurationHandlerTest,
 
   // Check ManagedNetworkConfigurationHandler policy accessors.
   EXPECT_TRUE(managed_handler()->AllowCellularSimLock());
+  EXPECT_TRUE(managed_handler()->AllowCellularHotspot());
   EXPECT_TRUE(managed_handler()->AllowOnlyPolicyCellularNetworks());
+  EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnect());
+  EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnectIfAvailable());
+  EXPECT_FALSE(managed_handler()->AllowOnlyPolicyNetworksToAutoconnect());
+  EXPECT_TRUE(managed_handler()->GetBlockedHexSSIDs().empty());
+}
+
+TEST_F(ManagedNetworkConfigurationHandlerTest, DisconnectWiFiOnEthernet) {
+  policy_util::SetEphemeralNetworkPoliciesEnabled();
+
+  const char* const onc_policy_connected = R"(
+      {
+        "GlobalNetworkConfiguration": {
+          "DisconnectWiFiOnEthernet": "WhenConnected"
+        },
+        "Type": "UnencryptedConfiguration"
+      })";
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy_connected)));
+  FastForwardProfileRefreshDelay();
+  base::RunLoop().RunUntilIdle();
+  auto properties =
+      ShillManagerClient::Get()->GetTestInterface()->GetStubProperties();
+  EXPECT_NE(properties.FindString(shill::kDisconnectWiFiOnEthernetProperty),
+            nullptr);
+  EXPECT_EQ(*properties.FindString(shill::kDisconnectWiFiOnEthernetProperty),
+            std::string(shill::kDisconnectWiFiOnEthernetConnected));
+
+  // Unknown policy value should reset property value to Off.
+  const char* const onc_policy_invalid = R"(
+      {
+        "GlobalNetworkConfiguration": {
+          "DisconnectWiFiOnEthernet": "Unknown"
+        },
+        "Type": "UnencryptedConfiguration"
+      })";
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy_invalid)));
+  FastForwardProfileRefreshDelay();
+  base::RunLoop().RunUntilIdle();
+  properties =
+      ShillManagerClient::Get()->GetTestInterface()->GetStubProperties();
+  EXPECT_NE(properties.FindString(shill::kDisconnectWiFiOnEthernetProperty),
+            nullptr);
+  EXPECT_EQ(*properties.FindString(shill::kDisconnectWiFiOnEthernetProperty),
+            std::string(shill::kDisconnectWiFiOnEthernetOff));
+
+  const char* const onc_policy_online = R"(
+      {
+        "GlobalNetworkConfiguration": {
+          "DisconnectWiFiOnEthernet": "WhenOnline"
+        },
+        "Type": "UnencryptedConfiguration"
+      })";
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy_online)));
+  FastForwardProfileRefreshDelay();
+  base::RunLoop().RunUntilIdle();
+  properties =
+      ShillManagerClient::Get()->GetTestInterface()->GetStubProperties();
+  EXPECT_NE(properties.FindString(shill::kDisconnectWiFiOnEthernetProperty),
+            nullptr);
+  EXPECT_EQ(*properties.FindString(shill::kDisconnectWiFiOnEthernetProperty),
+            std::string(shill::kDisconnectWiFiOnEthernetOnline));
+
+  // Field not existing in policy should leave property value unchanged.
+  const char* const onc_policy_off = R"(
+      {
+        "GlobalNetworkConfiguration": {},
+        "Type": "UnencryptedConfiguration"
+      })";
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy_off)));
+  FastForwardProfileRefreshDelay();
+  base::RunLoop().RunUntilIdle();
+  properties =
+      ShillManagerClient::Get()->GetTestInterface()->GetStubProperties();
+  EXPECT_NE(properties.FindString(shill::kDisconnectWiFiOnEthernetProperty),
+            nullptr);
+  EXPECT_EQ(*properties.FindString(shill::kDisconnectWiFiOnEthernetProperty),
+            std::string(shill::kDisconnectWiFiOnEthernetOnline));
+}
+
+TEST_F(ManagedNetworkConfigurationHandlerTest,
+       RecommendedValuesAreEphemeralAccessor) {
+  policy_util::SetEphemeralNetworkPoliciesEnabled();
+
+  EXPECT_FALSE(managed_handler()->RecommendedValuesAreEphemeral());
+
+  const char* const onc_policy = R"(
+      {
+        "GlobalNetworkConfiguration": {
+          "RecommendedValuesAreEphemeral": true
+        },
+        "Type": "UnencryptedConfiguration"
+      })";
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy)));
+  FastForwardProfileRefreshDelay();
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_TRUE(managed_handler()->RecommendedValuesAreEphemeral());
+}
+
+TEST_F(ManagedNetworkConfigurationHandlerTest,
+       UserCreatedNetworkConfigurationsAreEphemeral) {
+  policy_util::SetEphemeralNetworkPoliciesEnabled();
+
+  EXPECT_FALSE(
+      managed_handler()->UserCreatedNetworkConfigurationsAreEphemeral());
+
+  const char* const onc_policy = R"(
+      {
+        "GlobalNetworkConfiguration": {
+          "UserCreatedNetworkConfigurationsAreEphemeral": true
+        },
+        "Type": "UnencryptedConfiguration"
+      })";
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy)));
+  FastForwardProfileRefreshDelay();
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_TRUE(
+      managed_handler()->UserCreatedNetworkConfigurationsAreEphemeral());
+}
+
+TEST_F(ManagedNetworkConfigurationHandlerTest, AllowApnModification) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(/*enabled_features=*/
+                                       {features::kApnRevamp,
+                                        features::kAllowApnModificationPolicy},
+                                       /*disabled_features=*/{});
+
+  // TODO(b/333100319): When feature is fully enabled, test
+  // AllowApnModification() in other unit tests to be consistent.
+  EXPECT_TRUE(managed_handler()->AllowApnModification());
+
+  // Set 'AllowApnModification' policy.
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        "policy/policy_allow_apn_modification.onc"));
+  base::RunLoop().RunUntilIdle();
+
+  // Check ManagedNetworkConfigurationHandler policy accessors.
+  EXPECT_FALSE(managed_handler()->AllowApnModification());
+  EXPECT_TRUE(managed_handler()->AllowCellularHotspot());
+  EXPECT_TRUE(managed_handler()->AllowCellularSimLock());
+  EXPECT_FALSE(managed_handler()->AllowOnlyPolicyCellularNetworks());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnect());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnectIfAvailable());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyNetworksToAutoconnect());
@@ -1414,7 +2230,65 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, AllowCellularSimLock) {
   base::RunLoop().RunUntilIdle();
 
   // Check ManagedNetworkConfigurationHandler policy accessors.
+  EXPECT_TRUE(managed_handler()->AllowCellularHotspot());
   EXPECT_FALSE(managed_handler()->AllowCellularSimLock());
+  EXPECT_FALSE(managed_handler()->AllowOnlyPolicyCellularNetworks());
+  EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnect());
+  EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnectIfAvailable());
+  EXPECT_FALSE(managed_handler()->AllowOnlyPolicyNetworksToAutoconnect());
+  EXPECT_TRUE(managed_handler()->GetBlockedHexSSIDs().empty());
+}
+
+TEST_F(ManagedNetworkConfigurationHandlerTest, AllowTextMessages) {
+  EXPECT_TRUE(
+      SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                "policy/policy_empty_global_network_configuration.onc"));
+  // Check that the field returns Unset when it isn't set.
+  EXPECT_EQ(managed_handler()->GetAllowTextMessages(),
+            PolicyTextMessageSuppressionState::kUnset);
+
+  // Set 'AllowTextMessages' policy to Suppress.
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        "policy/policy_allow_text_messages_suppress.onc"));
+
+  // Check that the field is updated to Suppress.
+  EXPECT_EQ(managed_handler()->GetAllowTextMessages(),
+            PolicyTextMessageSuppressionState::kSuppress);
+
+  // Set 'AllowTextMessages' policy to Unset.
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        "policy/policy_allow_text_messages_unset.onc"));
+
+  // Check that the field is updated to Unset.
+  EXPECT_EQ(managed_handler()->GetAllowTextMessages(),
+            PolicyTextMessageSuppressionState::kUnset);
+
+  // Set 'AllowTextMessages' policy to Allow.
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        "policy/policy_allow_text_messages_allow.onc"));
+
+  // Check that the field is updated to Allow.
+  EXPECT_EQ(managed_handler()->GetAllowTextMessages(),
+            PolicyTextMessageSuppressionState::kAllow);
+
+  // Check other ManagedNetworkConfigurationHandler policy accessors.
+  EXPECT_TRUE(managed_handler()->AllowCellularSimLock());
+  EXPECT_FALSE(managed_handler()->AllowOnlyPolicyCellularNetworks());
+  EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnect());
+  EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnectIfAvailable());
+  EXPECT_FALSE(managed_handler()->AllowOnlyPolicyNetworksToAutoconnect());
+  EXPECT_TRUE(managed_handler()->GetBlockedHexSSIDs().empty());
+}
+
+TEST_F(ManagedNetworkConfigurationHandlerTest, AllowCellularHotspot) {
+  // Set 'AllowCellularHotspot' policy.
+  EXPECT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        "policy/policy_allow_cellular_hotspot.onc"));
+  base::RunLoop().RunUntilIdle();
+
+  // Check ManagedNetworkConfigurationHandler policy accessors.
+  EXPECT_FALSE(managed_handler()->AllowCellularHotspot());
+  EXPECT_TRUE(managed_handler()->AllowCellularSimLock());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyCellularNetworks());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnect());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnectIfAvailable());
@@ -1441,6 +2315,7 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, GetBlacklistedHexSSIDs) {
 
   // Check ManagedNetworkConfigurationHandler policy accessors.
   EXPECT_TRUE(managed_handler()->AllowCellularSimLock());
+  EXPECT_TRUE(managed_handler()->AllowCellularHotspot());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyCellularNetworks());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnect());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnectIfAvailable());
@@ -1466,6 +2341,7 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, GetBlockedHexSSIDs) {
 
   // Check ManagedNetworkConfigurationHandler policy accessors.
   EXPECT_TRUE(managed_handler()->AllowCellularSimLock());
+  EXPECT_TRUE(managed_handler()->AllowCellularHotspot());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyCellularNetworks());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnect());
   EXPECT_FALSE(managed_handler()->AllowOnlyPolicyWiFiToConnectIfAvailable());
@@ -1552,19 +2428,19 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, ActiveProxySettingsPreference) {
                                /*network_configs_onc=*/base::Value::List(),
                                /*global_network_config=*/base::Value::Dict());
 
-  absl::optional<base::Value::Dict> dictionary_before_pref;
-  absl::optional<base::Value::Dict> dictionary_after_pref;
+  std::optional<base::Value::Dict> dictionary_before_pref;
+  std::optional<base::Value::Dict> dictionary_after_pref;
 
   base::RunLoop get_initial_properties_run_loop;
   // Get properties and verify that proxy is used.
   managed_handler()->GetManagedProperties(
       kUser1, wifi_service_path,
       base::BindOnce(
-          [](absl::optional<base::Value::Dict>* dictionary_out,
+          [](std::optional<base::Value::Dict>* dictionary_out,
              base::RepeatingClosure quit_closure,
              const std::string& service_path,
-             absl::optional<base::Value::Dict> dictionary,
-             absl::optional<std::string> error) {
+             std::optional<base::Value::Dict> dictionary,
+             std::optional<std::string> error) {
             if (dictionary) {
               *dictionary_out = std::move(*dictionary);
             } else {
@@ -1592,11 +2468,11 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, ActiveProxySettingsPreference) {
   managed_handler()->GetManagedProperties(
       kUser1, wifi_service_path,
       base::BindOnce(
-          [](absl::optional<base::Value::Dict>* dictionary_out,
+          [](std::optional<base::Value::Dict>* dictionary_out,
              base::RepeatingClosure quit_closure,
              const std::string& service_path,
-             absl::optional<base::Value::Dict> dictionary,
-             absl::optional<std::string> error) {
+             std::optional<base::Value::Dict> dictionary,
+             std::optional<std::string> error) {
             if (dictionary) {
               *dictionary_out = std::move(*dictionary);
             } else {
@@ -1616,6 +2492,24 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, ActiveProxySettingsPreference) {
   ASSERT_TRUE(dictionary_after_pref.has_value());
   ASSERT_NE(dictionary_before_pref, dictionary_after_pref);
   ASSERT_EQ(*policy_after_pref, "Direct");
+}
+
+TEST_F(ManagedNetworkConfigurationHandlerTest, IsProhibitedFromConfiguringVpn) {
+  arc::prefs::RegisterProfilePrefs(user_prefs_.registry());
+  user_prefs_.registry()->RegisterBooleanPref(prefs::kVpnConfigAllowed, true);
+
+  for (const std::string& package_name : {"", "package_name"}) {
+    for (const bool vpn_configure_allowed : {true, false}) {
+      SetArcAlwaysOnUserPrefs(package_name, vpn_configure_allowed);
+      if (package_name.empty() || vpn_configure_allowed) {
+        EXPECT_FALSE(managed_network_configuration_handler_
+                         ->IsProhibitedFromConfiguringVpn());
+        continue;
+      }
+      EXPECT_TRUE(managed_network_configuration_handler_
+                      ->IsProhibitedFromConfiguringVpn());
+    }
+  }
 }
 
 }  // namespace ash

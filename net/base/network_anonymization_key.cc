@@ -2,15 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 #include "net/base/network_anonymization_key.h"
+
+#include <atomic>
+#include <optional>
+
 #include "base/feature_list.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/unguessable_token.h"
 #include "base/values.h"
 #include "net/base/features.h"
 #include "net/base/net_export.h"
 #include "net/base/network_isolation_key.h"
+#include "net/base/network_isolation_partition.h"
 #include "net/base/schemeful_site.h"
 #include "net/cookies/site_for_cookies.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
@@ -22,26 +27,30 @@ bool g_partition_by_default = false;
 
 // True if NAK::IsPartitioningEnabled has been called, and the value of
 // `g_partition_by_default` cannot be changed.
-bool g_partition_by_default_locked = false;
+constinit std::atomic<bool> g_partition_by_default_locked = false;
 
 }  // namespace
 
 NetworkAnonymizationKey::NetworkAnonymizationKey(
     const SchemefulSite& top_frame_site,
     bool is_cross_site,
-    absl::optional<base::UnguessableToken> nonce)
+    std::optional<base::UnguessableToken> nonce,
+    NetworkIsolationPartition network_isolation_partition)
     : top_frame_site_(top_frame_site),
       is_cross_site_(is_cross_site),
-      nonce_(nonce) {
+      nonce_(nonce),
+      network_isolation_partition_(network_isolation_partition) {
   DCHECK(top_frame_site_.has_value());
 }
 
 NetworkAnonymizationKey NetworkAnonymizationKey::CreateFromFrameSite(
     const SchemefulSite& top_frame_site,
     const SchemefulSite& frame_site,
-    absl::optional<base::UnguessableToken> nonce) {
+    std::optional<base::UnguessableToken> nonce,
+    NetworkIsolationPartition network_isolation_partition) {
   bool is_cross_site = top_frame_site != frame_site;
-  return NetworkAnonymizationKey(top_frame_site, is_cross_site, nonce);
+  return NetworkAnonymizationKey(top_frame_site, is_cross_site, nonce,
+                                 network_isolation_partition);
 }
 
 NetworkAnonymizationKey NetworkAnonymizationKey::CreateFromNetworkIsolationKey(
@@ -52,24 +61,21 @@ NetworkAnonymizationKey NetworkAnonymizationKey::CreateFromNetworkIsolationKey(
     return NetworkAnonymizationKey();
   }
 
-  switch (NetworkIsolationKey::GetMode()) {
-    case NetworkIsolationKey::Mode::kFrameSiteEnabled:
-      return CreateFromFrameSite(
-          network_isolation_key.GetTopFrameSite().value(),
-          network_isolation_key.GetFrameSite().value(),
-          network_isolation_key.GetNonce());
-    case NetworkIsolationKey::Mode::kCrossSiteFlagEnabled:
-      return NetworkAnonymizationKey(
-          network_isolation_key.GetTopFrameSite().value(),
-          network_isolation_key.GetIsCrossSite().value(),
-          network_isolation_key.GetNonce());
-  }
+  return CreateFromFrameSite(
+      network_isolation_key.GetTopFrameSite().value(),
+      network_isolation_key
+          .GetFrameSiteForNetworkAnonymizationKey(
+              NetworkIsolationKey::NetworkAnonymizationKeyPassKey())
+          .value(),
+      network_isolation_key.GetNonce(),
+      network_isolation_key.GetNetworkIsolationPartition());
 }
 
 NetworkAnonymizationKey::NetworkAnonymizationKey()
-    : top_frame_site_(absl::nullopt),
+    : top_frame_site_(std::nullopt),
       is_cross_site_(false),
-      nonce_(absl::nullopt) {}
+      nonce_(std::nullopt),
+      network_isolation_partition_(NetworkIsolationPartition::kGeneral) {}
 
 NetworkAnonymizationKey::NetworkAnonymizationKey(
     const NetworkAnonymizationKey& network_anonymization_key) = default;
@@ -105,6 +111,13 @@ std::string NetworkAnonymizationKey::ToDebugString() const {
     str += " (with nonce " + nonce_->ToString() + ")";
   }
 
+  if (network_isolation_partition_ != NetworkIsolationPartition::kGeneral) {
+    str +=
+        " (" +
+        NetworkIsolationPartitionToDebugString(network_isolation_partition_) +
+        ")";
+  }
+
   return str;
 }
 
@@ -132,7 +145,7 @@ bool NetworkAnonymizationKey::ToValue(base::Value* out_value) const {
   if (IsTransient())
     return false;
 
-  absl::optional<std::string> top_frame_value =
+  std::optional<std::string> top_frame_value =
       SerializeSiteWithNonce(*top_frame_site_);
   if (!top_frame_value)
     return false;
@@ -140,6 +153,8 @@ bool NetworkAnonymizationKey::ToValue(base::Value* out_value) const {
   list.Append(std::move(top_frame_value).value());
 
   list.Append(IsCrossSite());
+
+  list.Append(base::strict_cast<int32_t>(network_isolation_partition_));
 
   *out_value = base::Value(std::move(list));
   return true;
@@ -159,64 +174,69 @@ bool NetworkAnonymizationKey::FromValue(
   }
 
   // Check the format.
-  if (list.size() != 2 || !list[0].is_string() || !list[1].is_bool()) {
+  // While migrating to using NetworkIsolationPartition, continue supporting
+  // values of length 2 for a few months.
+  // TODO(abigailkatcoff): Stop support for lists of length 2 after a few
+  // months.
+  if (list.size() < 2 || list.size() > 3 || !list[0].is_string() ||
+      !list[1].is_bool()) {
     return false;
   }
 
   // Check top_level_site is valid for any key scheme
-  absl::optional<SchemefulSite> top_frame_site =
-      SchemefulSite::DeserializeWithNonce(list[0].GetString());
+  std::optional<SchemefulSite> top_frame_site =
+      SchemefulSite::DeserializeWithNonce(
+          base::PassKey<NetworkAnonymizationKey>(), list[0].GetString());
   if (!top_frame_site) {
     return false;
   }
 
   bool is_cross_site = list[1].GetBool();
 
-  *network_anonymization_key =
-      NetworkAnonymizationKey(top_frame_site.value(), is_cross_site);
+  NetworkIsolationPartition network_isolation_partition =
+      NetworkIsolationPartition::kGeneral;
+  if (list.size() == 3) {
+    if (!list[2].is_int() ||
+        list[2].GetInt() >
+            base::strict_cast<int32_t>(NetworkIsolationPartition::kMaxValue) ||
+        list[2].GetInt() < 0) {
+      return false;
+    }
+    network_isolation_partition =
+        static_cast<NetworkIsolationPartition>(list[2].GetInt());
+  }
+
+  *network_anonymization_key = NetworkAnonymizationKey(
+      top_frame_site.value(), is_cross_site, /*nonce=*/std::nullopt,
+      network_isolation_partition);
   return true;
 }
 
 std::string NetworkAnonymizationKey::GetSiteDebugString(
-    const absl::optional<SchemefulSite>& site) const {
+    const std::optional<SchemefulSite>& site) const {
   return site ? site->GetDebugString() : "null";
 }
 
-absl::optional<std::string> NetworkAnonymizationKey::SerializeSiteWithNonce(
+std::optional<std::string> NetworkAnonymizationKey::SerializeSiteWithNonce(
     const SchemefulSite& site) {
-  return *(const_cast<SchemefulSite&>(site).SerializeWithNonce());
+  return *(const_cast<SchemefulSite&>(site).SerializeWithNonce(
+      base::PassKey<NetworkAnonymizationKey>()));
 }
 
 // static
 bool NetworkAnonymizationKey::IsPartitioningEnabled() {
-  g_partition_by_default_locked = true;
+  g_partition_by_default_locked.store(true, std::memory_order_relaxed);
   return g_partition_by_default ||
          base::FeatureList::IsEnabled(
-             features::kSplitHostCacheByNetworkIsolationKey) ||
-         base::FeatureList::IsEnabled(
-             features::kPartitionConnectionsByNetworkIsolationKey) ||
-         base::FeatureList::IsEnabled(
-             features::kPartitionHttpServerPropertiesByNetworkIsolationKey) ||
-         base::FeatureList::IsEnabled(
-             features::kPartitionSSLSessionsByNetworkIsolationKey) ||
-         base::FeatureList::IsEnabled(
-             features::kPartitionNelAndReportingByNetworkIsolationKey);
+             features::kPartitionConnectionsByNetworkIsolationKey);
 }
 
 // static
 void NetworkAnonymizationKey::PartitionByDefault() {
-  DCHECK(!g_partition_by_default_locked);
+  DCHECK(!g_partition_by_default_locked.load(std::memory_order_relaxed));
   // Only set the global if none of the relevant features are overridden.
   if (!base::FeatureList::GetInstance()->IsFeatureOverridden(
-          "SplitHostCacheByNetworkIsolationKey") &&
-      !base::FeatureList::GetInstance()->IsFeatureOverridden(
-          "PartitionConnectionsByNetworkIsolationKey") &&
-      !base::FeatureList::GetInstance()->IsFeatureOverridden(
-          "PartitionHttpServerPropertiesByNetworkIsolationKey") &&
-      !base::FeatureList::GetInstance()->IsFeatureOverridden(
-          "PartitionSSLSessionsByNetworkIsolationKey") &&
-      !base::FeatureList::GetInstance()->IsFeatureOverridden(
-          "PartitionNelAndReportingByNetworkIsolationKey")) {
+          "PartitionConnectionsByNetworkIsolationKey")) {
     g_partition_by_default = true;
   }
 }
@@ -224,7 +244,13 @@ void NetworkAnonymizationKey::PartitionByDefault() {
 // static
 void NetworkAnonymizationKey::ClearGlobalsForTesting() {
   g_partition_by_default = false;
-  g_partition_by_default_locked = false;
+  g_partition_by_default_locked.store(false);
+}
+
+NET_EXPORT std::ostream& operator<<(std::ostream& os,
+                                    const NetworkAnonymizationKey& nak) {
+  os << nak.ToDebugString();
+  return os;
 }
 
 }  // namespace net

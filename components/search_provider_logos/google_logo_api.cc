@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "components/search_provider_logos/google_logo_api.h"
 
 #include <stdint.h>
 
 #include <algorithm>
 #include <memory>
+#include <string_view>
 
 #include "base/base64.h"
 #include "base/check.h"
@@ -19,7 +25,6 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/ref_counted_memory.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/values.h"
 #include "components/google/core/common/google_util.h"
@@ -150,7 +155,7 @@ std::unique_ptr<EncodedLogo> ParseDoodleLogoResponse(
     base::Time response_time,
     bool* parsing_failed) {
   // The response may start with )]}'. Ignore this.
-  base::StringPiece response_sp(*response);
+  std::string_view response_sp(*response);
   if (base::StartsWith(response_sp, kResponsePreamble)) {
     response_sp.remove_prefix(strlen(kResponsePreamble));
   }
@@ -220,10 +225,10 @@ std::unique_ptr<EncodedLogo> ParseDoodleLogoResponse(
   if (is_simple || is_animated) {
     const base::Value::Dict* image = ddljson->FindDict("large_image");
     if (image) {
-      if (absl::optional<int> width_px = image->FindInt("width")) {
+      if (std::optional<int> width_px = image->FindInt("width")) {
         logo->metadata.width_px = *width_px;
       }
-      if (absl::optional<int> height_px = image->FindInt("height")) {
+      if (std::optional<int> height_px = image->FindInt("height")) {
         logo->metadata.height_px = *height_px;
       }
     }
@@ -234,10 +239,10 @@ std::unique_ptr<EncodedLogo> ParseDoodleLogoResponse(
               dark_image->FindString("background_color")) {
         logo->metadata.dark_background_color = *background_color;
       }
-      if (absl::optional<int> width_px = dark_image->FindInt("width")) {
+      if (std::optional<int> width_px = dark_image->FindInt("width")) {
         logo->metadata.dark_width_px = *width_px;
       }
-      if (absl::optional<int> height_px = dark_image->FindInt("height")) {
+      if (std::optional<int> height_px = dark_image->FindInt("height")) {
         logo->metadata.dark_height_px = *height_px;
       }
     }
@@ -248,60 +253,14 @@ std::unique_ptr<EncodedLogo> ParseDoodleLogoResponse(
        logo->metadata.type == LogoType::SIMPLE);
 
   if (is_eligible_for_share_button) {
-    const base::Value::Dict* share_button = ddljson->FindDict("share_button");
     const std::string* short_link_ptr = ddljson->FindString("short_link");
     // The short link in the doodle proto is an incomplete URL with the format
     // //g.co/*, //doodle.gle/* or //google.com?doodle=*.
     // Complete the URL if possible.
-    if (share_button && short_link_ptr && short_link_ptr->find("//") == 0) {
+    if (short_link_ptr && short_link_ptr->find("//") == 0) {
       std::string short_link_str = *short_link_ptr;
       short_link_str.insert(0, "https:");
       logo->metadata.short_link = GURL(std::move(short_link_str));
-      if (logo->metadata.short_link.is_valid()) {
-        if (absl::optional<int> offset_x = share_button->FindInt("offset_x")) {
-          logo->metadata.share_button_x = *offset_x;
-        }
-        if (absl::optional<int> offset_y = share_button->FindInt("offset_y")) {
-          logo->metadata.share_button_y = *offset_y;
-        }
-        if (absl::optional<double> opacity =
-                share_button->FindDouble("opacity")) {
-          logo->metadata.share_button_opacity = *opacity;
-        }
-        if (const std::string* icon = share_button->FindString("icon_image")) {
-          logo->metadata.share_button_icon = *icon;
-        }
-        if (const std::string* bg_color =
-                share_button->FindString("background_color")) {
-          logo->metadata.share_button_bg = *bg_color;
-        }
-      }
-    }
-    const base::Value::Dict* dark_share_button =
-        ddljson->FindDict("dark_share_button");
-    if (dark_share_button) {
-      if (logo->metadata.short_link.is_valid()) {
-        if (absl::optional<int> offset_x =
-                dark_share_button->FindInt("offset_x")) {
-          logo->metadata.dark_share_button_x = *offset_x;
-        }
-        if (absl::optional<int> offset_y =
-                dark_share_button->FindInt("offset_y")) {
-          logo->metadata.dark_share_button_y = *offset_y;
-        }
-        if (absl::optional<double> opacity =
-                dark_share_button->FindDouble("opacity")) {
-          logo->metadata.dark_share_button_opacity = *opacity;
-        }
-        if (const std::string* icon =
-                dark_share_button->FindString("icon_image")) {
-          logo->metadata.dark_share_button_icon = *icon;
-        }
-        if (const std::string* bg_color =
-                dark_share_button->FindString("background_color")) {
-          logo->metadata.dark_share_button_bg = *bg_color;
-        }
-      }
     }
   }
 
@@ -373,7 +332,7 @@ std::unique_ptr<EncodedLogo> ParseDoodleLogoResponse(
 
   base::TimeDelta time_to_live;
   // The JSON doesn't guarantee the number to fit into an int.
-  if (absl::optional<double> ttl_ms = ddljson->FindDouble("time_to_live_ms")) {
+  if (std::optional<double> ttl_ms = ddljson->FindDouble("time_to_live_ms")) {
     time_to_live = base::Milliseconds(*ttl_ms);
     logo->metadata.can_show_after_expiration = false;
   } else {

@@ -7,7 +7,6 @@
 import subprocess
 import unittest
 from unittest.mock import patch, MagicMock
-import distutils.version
 
 import mac_util
 import test_runner_test
@@ -47,6 +46,26 @@ class TestRunCodesignCheck(test_runner_test.TestCase):
     success, return_error = mac_util.run_codesign_check("testdir/Xcode.app")
     self.assertEqual(success, False)
     self.assertEqual(return_error, error)
+
+
+class TestKillUsbMuxd(test_runner_test.TestCase):
+
+  @patch('subprocess.check_call')
+  def test_run_kill_usbmuxd_succeeds(self, mock_check_call):
+    mock_check_call.return_value = MagicMock()
+    mac_util.kill_usbmuxd()
+    mock_check_call.assert_called_with(
+        ['sudo', '/usr/bin/killall', '-v', 'usbmuxd'])
+
+
+class TestStopUsbMuxd(test_runner_test.TestCase):
+
+  @patch('subprocess.check_call')
+  def test_run_stop_usbmuxd_succeeds(self, mock_check_call):
+    mock_check_call.return_value = MagicMock()
+    mac_util.stop_usbmuxd()
+    mock_check_call.assert_called_with(
+        ['sudo', '/bin/launchctl', 'stop', 'com.apple.usbmuxd'])
 
 
 if __name__ == '__main__':

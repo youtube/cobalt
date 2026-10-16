@@ -1,49 +1,69 @@
 <!-- A page that is used to test that a dynamic form fill feature works properly when select options are added/removed. -->
 <body>
-  <form name="addr1.1" id="form1" action="https://example.com/" method="post">
-    Name: <input type="text" name="firstname" id="firstname" autocomplete="given-name"><br>
-    Address: <input type="text" name="address1" id="address1"><br>
-    City: <input type="text" name="city" id="city"><br>
-    State: <select name="state" id="state">
+  <form action="https://example.com/" method="post">
+    Name: <input type="text" id="firstname" autocomplete="given-name"><br>
+    Address: <input type="text" id="address1"><br>
+    City: <input type="text" id="city"><br>
+    State: <div id="state_div">
       <option value="ON">ON</option>
       <option value="QC">QC</option>
       <option value="AB">AB</option>
-    </select> <br>
-    Zip: <input name="zip" id="zip"> <br>
-    Country: <select name="country" id="country" onchange="CountryChanged()">
+    </div> <br>
+    Zip: <input id="zip"> <br>
+    Country: <select id="country" onchange="CountryChanged()">
       <option value="CA">Canada</option>
       <option value="US">United States</option>
     </select> <br>
-    Company: <input name="company" id="company"> <br>
-    Email: <input name="email" id="email"> <br>
-    Phone: <input name="phone" id="phone"> <br>
     <input type="reset" value="Reset">
     <input type="submit" value="Submit" id="profile_submit">
   </form>
+  <!-- Used by test to double check GET parameter parsing -->
+  <input type="checkbox" id="is_async"/>
 </body>
 
 <script>
+function Init() {
+  let state_div = document.getElementById("state_div");
+  let state_select = document.createElement("select");
+  state_select.id = "state";
+  while (state_div.children.length > 0) {
+    state_select.appendChild(state_div.children[0]);
+  }
+
+  state_div.parentNode.replaceChild(state_select, state_div);
+}
+
+function GetBoolQueryParameter(parameter) {
+  return (new URLSearchParams(window.location.search).get(parameter)) == "true";
+}
+
 function CountryChanged() {
-  var first_name_input = document.getElementById("firstname");
-  // Reset the value of the first name field.
-  first_name_input.value = '';
+  const is_async = GetBoolQueryParameter("is_async");
+  document.getElementById("is_async").checked = is_async;
+
+  if (is_async) {
+    // Update 'state' <select> asynchronously so that
+    // AutofillAgent::SelectControlSelectionChanged() triggers the refill not
+    // AutofillAgent::TriggerRefillIfNeeded().
+    window.setTimeout(CountryChangedImpl, 0);
+    return;
+  }
+  CountryChangedImpl();
+}
+
+function CountryChangedImpl() {
   window['refill'] = true;
   console.log('An event happened that should trigger a refill.');
 
-  // Reset the value of the address field.
-  document.getElementById("address1").value = '';
-
-  // Get the select object.
-  var state_select = document.getElementById("state");
-
-  // Remove the provinces options.
-  for (var i=0; i<state_select.length; i++) {
-     state_select.remove(i);
+  // Replace the provinces with states. The state should get selected by refill.
+  let state_select = document.getElementById("state");
+  while (state_select.length > 0) {
+     state_select.remove(0);
   }
-
-  // Add the states options.
-  state_select.options[0] = new Option('WA', 'WA');
-  state_select.options[1] = new Option('MA', 'MA');
-  state_select.options[2] = new Option('TX', 'TX');
+  state_select.appendChild(new Option('WA', 'WA'));
+  state_select.appendChild(new Option('MA', 'MA'));
+  state_select.appendChild(new Option('TX', 'TX'));
 }
+
+Init();
 </script>

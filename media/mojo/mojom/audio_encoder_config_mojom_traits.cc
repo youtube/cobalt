@@ -4,7 +4,8 @@
 
 #include "media/mojo/mojom/audio_encoder_config_mojom_traits.h"
 
-#include "base/cxx17_backports.h"
+#include <algorithm>
+
 #include "base/numerics/safe_conversions.h"
 #include "media/base/limits.h"
 #include "mojo/public/cpp/base/time_mojom_traits.h"
@@ -22,7 +23,6 @@ media::mojom::AacOutputFormat EnumTraits<media::mojom::AacOutputFormat,
       return media::mojom::AacOutputFormat::kAAC;
   }
   NOTREACHED();
-  return media::mojom::AacOutputFormat::kAAC;
 }
 
 // static
@@ -39,7 +39,6 @@ bool EnumTraits<media::mojom::AacOutputFormat,
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 // static

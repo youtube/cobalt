@@ -8,13 +8,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
+#include "mojo/public/cpp/bindings/struct_traits.h"
 #include "third_party/blink/public/common/common_export.h"
-#include "third_party/blink/public/common/url_pattern.h"
+#include "third_party/blink/public/common/safe_url_pattern.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom-forward.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom-shared.h"
 #include "third_party/blink/public/mojom/manifest/manifest_launch_handler.mojom-forward.h"
@@ -63,8 +64,8 @@ class BLINK_COMMON_EXPORT Manifest {
     bool operator==(const ShortcutItem& other) const;
 
     std::u16string name;
-    absl::optional<std::u16string> short_name;
-    absl::optional<std::u16string> description;
+    std::optional<std::u16string> short_name;
+    std::optional<std::u16string> description;
     GURL url;
     std::vector<ImageResource> icons;
   };
@@ -83,9 +84,9 @@ class BLINK_COMMON_EXPORT Manifest {
 
     bool operator==(const ShareTargetParams& other) const;
 
-    absl::optional<std::u16string> title;
-    absl::optional<std::u16string> text;
-    absl::optional<std::u16string> url;
+    std::optional<std::u16string> title;
+    std::optional<std::u16string> text;
+    std::optional<std::u16string> url;
     std::vector<FileFilter> files;
   };
 
@@ -119,7 +120,7 @@ class BLINK_COMMON_EXPORT Manifest {
     // The platform on which the application can be found. This can be any
     // string, and is interpreted by the consumer of the object. Empty if the
     // parsing failed.
-    absl::optional<std::u16string> platform;
+    std::optional<std::u16string> platform;
 
     // URL at which the application can be found. One of |url| and |id| must be
     // present. Empty if the parsing failed or the field was not present.
@@ -128,20 +129,26 @@ class BLINK_COMMON_EXPORT Manifest {
     // An id which is used to represent the application on the platform. One of
     // |url| and |id| must be present. Empty if the parsing failed or the field
     // was not present.
-    absl::optional<std::u16string> id;
+    std::optional<std::u16string> id;
   };
 
-  // This struct replicates ManifestLaunchHandler with an added copy
-  // constructor, this enables containing classes to have a default copy
-  // constructor.
-  // TODO(crbug.com/1236358): Use mojom::blink::ManifestLaunchHandler directly
-  // when it can support copy/move.
+  // This class wraps mojom::blink::ManifestLaunchHandler but with the following
+  // changes:
+  // 1. Copy constructor support (See crbug.com/1236358).
+  // 2. Additional client mode parsing so that callsites don't have to worry
+  // about invalid values of the client_mode in the manifest.
+  // 3. Ability to determine if the client mode was directly provided in the
+  // manifest.
   // See ManifestLaunchHandler for class comments.
-  struct BLINK_COMMON_EXPORT LaunchHandler {
+  class BLINK_COMMON_EXPORT LaunchHandler {
+   public:
     using ClientMode = mojom::ManifestLaunchHandler_ClientMode;
 
     LaunchHandler();
-    explicit LaunchHandler(ClientMode client_mode);
+    explicit LaunchHandler(std::optional<ClientMode> client_mode);
+
+    ClientMode parsed_client_mode() const;
+    bool client_mode_valid_and_specified() const;
 
     bool operator==(const LaunchHandler& other) const;
     bool operator!=(const LaunchHandler& other) const;
@@ -149,7 +156,11 @@ class BLINK_COMMON_EXPORT Manifest {
     bool TargetsExistingClients() const;
     bool NeverNavigateExistingClients() const;
 
-    ClientMode client_mode;
+   private:
+    friend struct mojo::StructTraits<
+        blink::mojom::ManifestLaunchHandlerDataView,
+        ::blink::Manifest::LaunchHandler>;
+    std::optional<ClientMode> client_mode_;
   };
 
   // Structure containing translations for the translatable manifest fields.
@@ -159,9 +170,9 @@ class BLINK_COMMON_EXPORT Manifest {
 
     bool operator==(const TranslationItem& other) const;
 
-    absl::optional<std::string> name;
-    absl::optional<std::string> short_name;
-    absl::optional<std::string> description;
+    std::optional<std::string> name;
+    std::optional<std::string> short_name;
+    std::optional<std::string> description;
   };
 
   // Parameters for the home tab customisation to the tab strip.
@@ -172,7 +183,7 @@ class BLINK_COMMON_EXPORT Manifest {
     bool operator==(const HomeTabParams& other) const;
 
     std::vector<ImageResource> icons;
-    std::vector<UrlPattern> scope_patterns;
+    std::vector<SafeUrlPattern> scope_patterns;
   };
 
   // Parameters for the new tab button customisation to the tab strip.
@@ -182,7 +193,7 @@ class BLINK_COMMON_EXPORT Manifest {
 
     bool operator==(const NewTabButtonParams& other) const;
 
-    absl::optional<GURL> url;
+    std::optional<GURL> url;
   };
 
   // Structure containing customisations for the tab strip.
@@ -193,9 +204,8 @@ class BLINK_COMMON_EXPORT Manifest {
     bool operator==(const TabStrip& other) const;
 
     using Visibility = blink::mojom::TabStripMemberVisibility;
-    using HomeTab = absl::variant<Visibility, blink::Manifest::HomeTabParams>;
-    using NewTabButton =
-        absl::variant<Visibility, blink::Manifest::NewTabButtonParams>;
+    using HomeTab = std::variant<Visibility, blink::Manifest::HomeTabParams>;
+    using NewTabButton = blink::Manifest::NewTabButtonParams;
 
     HomeTab home_tab;
     NewTabButton new_tab_button;

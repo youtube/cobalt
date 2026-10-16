@@ -9,6 +9,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "components/apdu/apdu_response.h"
 #include "components/cbor/writer.h"
@@ -27,12 +28,12 @@ AuthenticatorGetInfoResponse DefaultAuthenticatorInfo() {
 
 // static
 std::unique_ptr<MockFidoDevice> MockFidoDevice::MakeU2f() {
-  return std::make_unique<MockFidoDevice>(ProtocolVersion::kU2f, absl::nullopt);
+  return std::make_unique<MockFidoDevice>(ProtocolVersion::kU2f, std::nullopt);
 }
 
 // static
 std::unique_ptr<MockFidoDevice> MockFidoDevice::MakeCtap(
-    absl::optional<AuthenticatorGetInfoResponse> device_info) {
+    std::optional<AuthenticatorGetInfoResponse> device_info) {
   if (!device_info) {
     device_info = DefaultAuthenticatorInfo();
   }
@@ -50,13 +51,13 @@ MockFidoDevice::MakeU2fWithGetInfoExpectation() {
   device->StubGetDisplayName();
   device->ExpectWinkedAtLeastOnce();
   device->ExpectCtap2CommandAndRespondWith(
-      CtapRequestCommand::kAuthenticatorGetInfo, absl::nullopt);
+      CtapRequestCommand::kAuthenticatorGetInfo, std::nullopt);
   return device;
 }
 
 // static
 std::unique_ptr<MockFidoDevice> MockFidoDevice::MakeCtapWithGetInfoExpectation(
-    absl::optional<base::span<const uint8_t>> get_info_response) {
+    std::optional<base::span<const uint8_t>> get_info_response) {
   if (!get_info_response) {
     get_info_response = test_data::kTestAuthenticatorGetInfoResponse;
   }
@@ -72,11 +73,11 @@ std::unique_ptr<MockFidoDevice> MockFidoDevice::MakeCtapWithGetInfoExpectation(
 }
 
 std::vector<uint8_t> MockFidoDevice::EncodeCBORRequest(
-    std::pair<CtapRequestCommand, absl::optional<cbor::Value>> request) {
+    std::pair<CtapRequestCommand, std::optional<cbor::Value>> request) {
   std::vector<uint8_t> request_bytes;
 
   if (request.second) {
-    absl::optional<std::vector<uint8_t>> cbor_bytes =
+    std::optional<std::vector<uint8_t>> cbor_bytes =
         cbor::Writer::Write(*request.second);
     DCHECK(cbor_bytes);
     request_bytes = std::move(*cbor_bytes);
@@ -94,7 +95,7 @@ MATCHER_P(IsCtap2Command, expected_command, "") {
 MockFidoDevice::MockFidoDevice() = default;
 MockFidoDevice::MockFidoDevice(
     ProtocolVersion protocol_version,
-    absl::optional<AuthenticatorGetInfoResponse> device_info)
+    std::optional<AuthenticatorGetInfoResponse> device_info)
     : MockFidoDevice() {
   set_supported_protocol(protocol_version);
   if (device_info) {
@@ -131,13 +132,13 @@ void MockFidoDevice::StubGetId() {
   // Use a counter to keep the device ID unique.
   static size_t i = 0;
   EXPECT_CALL(*this, GetId())
-      .WillRepeatedly(
-          testing::Return(base::StrCat({"mockdevice", std::to_string(i++)})));
+      .WillRepeatedly(testing::Return(
+          base::StrCat({"mockdevice", base::NumberToString(i++)})));
 }
 
 void MockFidoDevice::ExpectCtap2CommandAndRespondWith(
     CtapRequestCommand command,
-    absl::optional<base::span<const uint8_t>> response,
+    std::optional<base::span<const uint8_t>> response,
     base::TimeDelta delay,
     testing::Matcher<base::span<const uint8_t>> request_matcher) {
   auto data = fido_parsing_utils::MaterializeOrNull(response);
@@ -164,7 +165,7 @@ void MockFidoDevice::ExpectCtap2CommandAndRespondWithError(
 
 void MockFidoDevice::ExpectRequestAndRespondWith(
     base::span<const uint8_t> request,
-    absl::optional<base::span<const uint8_t>> response,
+    std::optional<base::span<const uint8_t>> response,
     base::TimeDelta delay) {
   auto data = fido_parsing_utils::MaterializeOrNull(response);
   auto send_response = [data(std::move(data)), delay](DeviceCallback& cb) {

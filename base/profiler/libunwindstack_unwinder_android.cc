@@ -9,13 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Elf.h"
-#include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Error.h"
-#include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Maps.h"
-#include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Memory.h"
-#include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Regs.h"
-#include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Unwinder.h"
-
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/notreached.h"
@@ -24,6 +17,12 @@
 #include "base/profiler/profile_builder.h"
 #include "base/trace_event/base_tracing.h"
 #include "build/build_config.h"
+#include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Elf.h"
+#include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Error.h"
+#include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Maps.h"
+#include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Memory.h"
+#include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Regs.h"
+#include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Unwinder.h"
 
 #if defined(ARCH_CPU_ARM_FAMILY) && defined(ARCH_CPU_32_BITS)
 #include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/MachineArm.h"
@@ -39,8 +38,8 @@ namespace {
 class NonElfModule : public ModuleCache::Module {
  public:
   explicit NonElfModule(unwindstack::MapInfo* map_info)
-      : start_(map_info->start()),
-        size_(map_info->end() - start_),
+      : start_(static_cast<uintptr_t>(map_info->start())),
+        size_(static_cast<uintptr_t>(map_info->end() - start_)),
         map_info_name_(map_info->name()) {}
   ~NonElfModule() override = default;
 
@@ -72,17 +71,45 @@ std::unique_ptr<unwindstack::Regs> CreateFromRegisterContext(
       reinterpret_cast<void*>(&thread_context->regs[0])));
 #else   // #if defined(ARCH_CPU_ARM_FAMILY) && defined(ARCH_CPU_32_BITS)
   NOTREACHED();
-  return nullptr;
 #endif  // #if defined(ARCH_CPU_ARM_FAMILY) && defined(ARCH_CPU_32_BITS)
+}
+
+// The WriteLibunwindstackTraceEventArgs callers below get implicitly ifdef'ed
+// out as well, when ENABLE_BASE_TRACING is disabled.
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+void WriteLibunwindstackTraceEventArgs(unwindstack::ErrorCode error_code,
+                                       std::optional<int> num_frames,
+                                       perfetto::EventContext& ctx) {
+  auto* track_event = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>();
+  auto* libunwindstack_unwinder = track_event->set_libunwindstack_unwinder();
+  using ProtoEnum = perfetto::protos::pbzero::LibunwindstackUnwinder::ErrorCode;
+  libunwindstack_unwinder->set_error_code(static_cast<ProtoEnum>(error_code));
+  if (num_frames.has_value()) {
+    libunwindstack_unwinder->set_num_frames(*num_frames);
+  }
+}
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
+
+bool IsJavaModule(const base::ModuleCache::Module* module) {
+  if (!module) {
+    return false;
+  }
+
+  const auto path = module->GetDebugBasename();
+  const std::string& debug_basename = path.value();
+
+  return debug_basename.find("chrome.apk") != std::string::npos ||
+         debug_basename.find("base.apk") != std::string::npos;
 }
 
 }  // namespace
 
 LibunwindstackUnwinderAndroid::LibunwindstackUnwinderAndroid()
-    : memory_regions_map_(NativeUnwinderAndroid::CreateMemoryRegionsMap(
-          /*use_updatable_maps=*/true)),
-      process_memory_(std::shared_ptr<unwindstack::Memory>(
-          memory_regions_map_->TakeMemory().release())) {
+    : memory_regions_map_(
+          static_cast<NativeUnwinderAndroidMemoryRegionsMapImpl*>(
+              NativeUnwinderAndroid::CreateMemoryRegionsMap(
+                  /*use_updatable_maps=*/false)
+                  .release())) {
   TRACE_EVENT_INSTANT(
       TRACE_DISABLED_BY_DEFAULT("cpu_profiler"),
       "LibunwindstackUnwinderAndroid::LibunwindstackUnwinderAndroid");
@@ -100,8 +127,8 @@ bool LibunwindstackUnwinderAndroid::CanUnwindFrom(
 unwindstack::JitDebug* LibunwindstackUnwinderAndroid::GetOrCreateJitDebug(
     unwindstack::ArchEnum arch) {
   if (!jit_debug_) {
-    jit_debug_ =
-        unwindstack::CreateJitDebug(arch, process_memory_, search_libs_);
+    jit_debug_ = unwindstack::CreateJitDebug(
+        arch, memory_regions_map_->memory(), search_libs_);
   }
   return jit_debug_.get();
 }
@@ -109,13 +136,14 @@ unwindstack::JitDebug* LibunwindstackUnwinderAndroid::GetOrCreateJitDebug(
 unwindstack::DexFiles* LibunwindstackUnwinderAndroid::GetOrCreateDexFiles(
     unwindstack::ArchEnum arch) {
   if (!dex_files_) {
-    dex_files_ =
-        unwindstack::CreateDexFiles(arch, process_memory_, search_libs_);
+    dex_files_ = unwindstack::CreateDexFiles(
+        arch, memory_regions_map_->memory(), search_libs_);
   }
   return dex_files_.get();
 }
 
 UnwindResult LibunwindstackUnwinderAndroid::TryUnwind(
+    UnwinderStateCapture* capture_state,
     RegisterContext* thread_context,
     uintptr_t stack_top,
     std::vector<Frame>* stack) {
@@ -137,14 +165,19 @@ UnwindResult LibunwindstackUnwinderAndroid::TryUnwind(
   std::unique_ptr<unwindstack::Regs> regs =
       CreateFromRegisterContext(thread_context);
   DCHECK(regs);
-  unwindstack::Unwinder unwinder(kMaxFrames, memory_regions_map_->GetMaps(),
-                                 regs.get(), process_memory_);
+
+  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("cpu_profiler.debug"),
+                    "libunwindstack::Unwind");
+  unwindstack::Unwinder unwinder(kMaxFrames, memory_regions_map_->maps(),
+                                 regs.get(), memory_regions_map_->memory());
 
   unwinder.SetJitDebug(GetOrCreateJitDebug(regs->Arch()));
   unwinder.SetDexFiles(GetOrCreateDexFiles(regs->Arch()));
 
   unwinder.Unwind(/*initial_map_names_to_skip=*/nullptr,
                   /*map_suffixes_to_ignore=*/nullptr);
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("cpu_profiler.debug"));
+
   // Currently libunwindstack doesn't support warnings.
   UnwindValues values =
       UnwindValues{unwinder.LastErrorCode(), /*unwinder.warnings()*/ 0,
@@ -152,9 +185,11 @@ UnwindResult LibunwindstackUnwinderAndroid::TryUnwind(
 
   if (values.error_code != unwindstack::ERROR_NONE) {
     TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("cpu_profiler.debug"),
-                        "TryUnwind Failure", "error", values.error_code,
-                        "warning", values.warnings, "num_frames",
-                        values.frames.size());
+                        "Libunwindstack Failure",
+                        [&values](perfetto::EventContext& ctx) {
+                          WriteLibunwindstackTraceEventArgs(
+                              values.error_code, values.frames.size(), ctx);
+                        });
   }
   if (values.frames.empty()) {
     return UnwindResult::kCompleted;
@@ -172,15 +207,31 @@ UnwindResult LibunwindstackUnwinderAndroid::TryUnwind(
 
   for (const unwindstack::FrameData& frame : values.frames) {
     const ModuleCache::Module* module =
-        module_cache()->GetModuleForAddress(frame.pc);
+        module_cache()->GetModuleForAddress(static_cast<uintptr_t>(frame.pc));
     if (module == nullptr && frame.map_info != nullptr) {
-      auto module_for_caching =
-          std::make_unique<NonElfModule>(frame.map_info.get());
-      module = module_for_caching.get();
-      module_cache()->AddCustomNativeModule(std::move(module_for_caching));
+      // Try searching for the module with same module start.
+      module = module_cache()->GetModuleForAddress(
+          static_cast<uintptr_t>(frame.map_info->start()));
+      if (module == nullptr) {
+        auto module_for_caching =
+            std::make_unique<NonElfModule>(frame.map_info.get());
+        module = module_for_caching.get();
+        module_cache()->AddCustomNativeModule(std::move(module_for_caching));
+      }
+      if (frame.pc < frame.map_info->start() ||
+          frame.pc >= frame.map_info->end()) {
+        TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("cpu_profiler"),
+                            "PC out of map range",
+                            [&values](perfetto::EventContext& ctx) {
+                              WriteLibunwindstackTraceEventArgs(
+                                  values.error_code, std::nullopt, ctx);
+                            });
+      }
     }
-    stack->emplace_back(frame.pc, module, frame.function_name);
+    std::string function_name = IsJavaModule(module) ? frame.function_name : "";
+    stack->emplace_back(frame.pc, module, std::move(function_name));
   }
   return UnwindResult::kCompleted;
 }
+
 }  // namespace base

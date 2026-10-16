@@ -4,12 +4,13 @@
 
 #include "rlz/chromeos/lib/rlz_value_store_chromeos.h"
 
+#include <algorithm>
+#include <string_view>
 #include <tuple>
 
 #include "base/base_paths.h"
+#include "base/compiler_specific.h"
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
-#include "base/cxx17_backports.h"
 #include "base/files/file_util.h"
 #include "base/files/important_file_writer.h"
 #include "base/functional/bind.h"
@@ -18,10 +19,8 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/values.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
@@ -142,12 +141,10 @@ void SetRlzPingSent(int retry_count) {
 // Callback invoked for DebugDaemonClient::SetRlzPingSent.
 void OnSetRlzPingSent(int retry_count, bool success) {
   if (success) {
-    UMA_HISTOGRAM_BOOLEAN("Rlz.SetRlzPingSent", true);
     return;
   }
 
   if (retry_count >= RlzValueStoreChromeOS::kMaxRetryCount) {
-    UMA_HISTOGRAM_BOOLEAN("Rlz.SetRlzPingSent", false);
     LOG(ERROR) << "Setting " << ash::system::kShouldSendRlzPingKey
                << " failed after " << RlzValueStoreChromeOS::kMaxRetryCount
                << " attempts.";
@@ -158,21 +155,21 @@ void OnSetRlzPingSent(int retry_count, bool success) {
 }
 
 // Copy |value| without empty children.
-absl::optional<base::Value> CopyWithoutEmptyChildren(const base::Value& value) {
+std::optional<base::Value> CopyWithoutEmptyChildren(const base::Value& value) {
   switch (value.type()) {
     case base::Value::Type::DICT: {
       base::Value::Dict dict;
       const base::Value::Dict& dict_in = value.GetDict();
 
       for (auto it = dict_in.begin(); it != dict_in.end(); ++it) {
-        absl::optional<base::Value> item_copy =
+        std::optional<base::Value> item_copy =
             CopyWithoutEmptyChildren(it->second);
         if (item_copy)
           dict.Set(it->first, std::move(*item_copy));
       }
 
       if (dict.empty())
-        return absl::nullopt;
+        return std::nullopt;
 
       return base::Value(std::move(dict));
     }
@@ -182,13 +179,13 @@ absl::optional<base::Value> CopyWithoutEmptyChildren(const base::Value& value) {
       list.reserve(value.GetList().size());
 
       for (const base::Value& item : value.GetList()) {
-        absl::optional<base::Value> item_copy = CopyWithoutEmptyChildren(item);
+        std::optional<base::Value> item_copy = CopyWithoutEmptyChildren(item);
         if (item_copy)
           list.Append(std::move(*item_copy));
       }
 
       if (list.empty())
-        return absl::nullopt;
+        return std::nullopt;
 
       return base::Value(std::move(list));
     }
@@ -274,7 +271,7 @@ bool RlzValueStoreChromeOS::ReadAccessPointRlz(AccessPoint access_point,
   const std::string* rlz_value = rlz_store_.FindStringByDottedPath(
       GetKeyName(kAccessPointKey, access_point));
   if (rlz_value && rlz_value->size() < rlz_size) {
-    strncpy(rlz, rlz_value->c_str(), rlz_size);
+    UNSAFE_TODO(strncpy(rlz, rlz_value->c_str(), rlz_size));
     return true;
   }
   if (rlz_size > 0)
@@ -362,8 +359,9 @@ bool RlzValueStoreChromeOS::AddStatefulEvent(Product product,
                                              const char* event_rlz) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (strcmp(event_rlz, "CAF") == 0)
+  if (UNSAFE_TODO(strcmp(event_rlz, "CAF")) == 0) {
     SetRlzPingSent(/*retry_count=*/0);
+  }
 
   return AddValueToList(GetKeyName(kStatefulEventKey, product),
                         base::Value(event_rlz));
@@ -376,10 +374,10 @@ bool RlzValueStoreChromeOS::IsStatefulEvent(Product product,
   const bool event_exists = ListContainsValue(
       GetKeyName(kStatefulEventKey, product), base::Value(event_rlz));
 
-  if (strcmp(event_rlz, "CAF") == 0) {
+  if (UNSAFE_TODO(strcmp(event_rlz, "CAF")) == 0) {
     ash::system::StatisticsProvider* stats =
         ash::system::StatisticsProvider::GetInstance();
-    if (const absl::optional<base::StringPiece> should_send_rlz_ping_value =
+    if (const std::optional<std::string_view> should_send_rlz_ping_value =
             stats->GetMachineStatistic(ash::system::kShouldSendRlzPingKey)) {
       if (should_send_rlz_ping_value ==
           ash::system::kShouldSendRlzPingValueFalse) {
@@ -456,9 +454,7 @@ void RlzValueStoreChromeOS::WriteStore() {
   base::Value copy = CopyWithoutEmptyChildren(base::Value(rlz_store_.Clone()))
                          .value_or(base::Value(base::Value::Type::DICT));
   if (!serializer.Serialize(copy)) {
-    LOG(ERROR) << "Failed to serialize RLZ data";
-    NOTREACHED();
-    return;
+    NOTREACHED() << "Failed to serialize RLZ data";
   }
   if (!base::ImportantFileWriter::WriteFileAtomically(store_path_, json_data))
     LOG(ERROR) << "Error writing RLZ store";

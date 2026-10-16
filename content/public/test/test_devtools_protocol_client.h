@@ -6,14 +6,16 @@
 #define CONTENT_PUBLIC_TEST_TEST_DEVTOOLS_PROTOCOL_CLIENT_H_
 
 #include <memory>
+#include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/functional/function_ref.h"
 #include "base/values.h"
 #include "content/public/browser/devtools_agent_host.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 
@@ -25,7 +27,11 @@ class TestDevToolsProtocolClient : public DevToolsAgentHostClient {
   TestDevToolsProtocolClient();
   ~TestDevToolsProtocolClient() override;
 
- protected:
+  void AttachToFrameTreeHost(RenderFrameHost* frame);
+  void AttachToWebContents(WebContents* web_contents);
+  void AttachToTabTarget(WebContents* web_contents);
+  void AttachToBrowserTarget();
+
   const base::Value::Dict* SendCommand(std::string method,
                                        base::Value::Dict params,
                                        bool wait = true) {
@@ -52,10 +58,6 @@ class TestDevToolsProtocolClient : public DevToolsAgentHostClient {
                                               const std::string session_id,
                                               bool wait);
 
-  void AttachToWebContents(WebContents* web_contents);
-  void AttachToTabTarget(WebContents* web_contents);
-  void AttachToBrowserTarget();
-
   void DetachProtocolClient() {
     if (agent_host_) {
       agent_host_->DetachClient(this);
@@ -63,15 +65,7 @@ class TestDevToolsProtocolClient : public DevToolsAgentHostClient {
     }
   }
 
-  bool HasExistingNotification() const { return !notifications_.empty(); }
-  bool HasExistingNotification(const std::string& notification) const;
-
-  base::Value::Dict WaitForNotification(const std::string& notification,
-                                        bool allow_existing);
-
-  base::Value::Dict WaitForNotification(const std::string& notification) {
-    return WaitForNotification(notification, false);
-  }
+  void ClearNotifications() { notifications_.clear(); }
 
   // Waits for a notification whose params, when passed to |matcher|, returns
   // true. Existing notifications are allowed.
@@ -79,7 +73,22 @@ class TestDevToolsProtocolClient : public DevToolsAgentHostClient {
       const std::string& notification,
       const NotificationMatcher& matcher);
 
-  void ClearNotifications() { notifications_.clear(); }
+  base::Value::Dict WaitForNotification(const std::string& notification,
+                                        bool allow_existing);
+
+ protected:
+  void DispatchProtocolMessage(DevToolsAgentHost* agent_host,
+                               base::span<const uint8_t> message) override;
+
+  bool HasExistingNotification() const { return !notifications_.empty(); }
+  bool HasExistingNotification(const std::string& notification) const;
+  bool HasExistingNotificationMatching(
+      base::FunctionRef<bool(const base::Value::Dict&)> pred) const;
+
+
+  base::Value::Dict WaitForNotification(const std::string& notification) {
+    return WaitForNotification(notification, false);
+  }
 
   void set_agent_host_can_close() { agent_host_can_close_ = true; }
 
@@ -96,6 +105,15 @@ class TestDevToolsProtocolClient : public DevToolsAgentHostClient {
     may_read_local_files_ = may_read_local_files;
   }
 
+  void SetMayWriteLocalFiles(bool may_write_local_files) {
+    may_write_local_files_ = may_write_local_files;
+  }
+
+  void SetNotAttachableHosts(
+      const std::set<std::string>& not_attachable_hosts) {
+    not_attachable_hosts_ = not_attachable_hosts;
+  }
+
   const base::Value::Dict* result() const;
   const base::Value::Dict* error() const;
   int received_responses_count() const { return received_responses_count_; }
@@ -108,13 +126,13 @@ class TestDevToolsProtocolClient : public DevToolsAgentHostClient {
   void WaitForResponse();
   void RunLoopUpdatingQuitClosure();
 
-  void DispatchProtocolMessage(DevToolsAgentHost* agent_host,
-                               base::span<const uint8_t> message) override;
   void AgentHostClosed(DevToolsAgentHost* agent_host) override;
-  absl::optional<url::Origin> GetNavigationInitiatorOrigin() override;
+  std::optional<url::Origin> GetNavigationInitiatorOrigin() override;
   bool AllowUnsafeOperations() override;
   bool IsTrusted() override;
   bool MayReadLocalFiles() override;
+  bool MayWriteLocalFiles() override;
+  bool MayAttachToURL(const GURL& url, bool is_webui) override;
 
   int last_sent_id_ = 0;
   int waiting_for_command_result_id_ = 0;
@@ -132,8 +150,10 @@ class TestDevToolsProtocolClient : public DevToolsAgentHostClient {
 
   bool allow_unsafe_operations_ = true;
   bool is_trusted_ = true;
-  absl::optional<url::Origin> navigation_initiator_origin_;
+  std::optional<url::Origin> navigation_initiator_origin_;
   bool may_read_local_files_ = true;
+  bool may_write_local_files_ = true;
+  std::set<std::string> not_attachable_hosts_;
 };
 
 }  // namespace content

@@ -38,71 +38,24 @@ namespace perfetto {
 namespace profiling {
 namespace {
 
-void RunAndValidateParseLines(std::string raw_contents) {
-  std::istringstream stream(raw_contents);
-  auto read_callback = [&stream](char* buffer, size_t size) {
-    stream.get(buffer, static_cast<int>(size), '\0');
-    return strlen(buffer);
-  };
-  std::vector<std::string> lines = GetLines(read_callback);
-  std::istringstream validation(raw_contents);
-  for (const std::string& actual : lines) {
-    std::string expected;
-    getline(validation, expected);
-    EXPECT_EQ(actual, expected);
-  }
-}
-
-TEST(LocalSymbolizerTest, ParseLineWindows) {
-  std::string file_name;
-  uint32_t lineno;
-  ASSERT_TRUE(
-      ParseLlvmSymbolizerLine("C:\\Foo\\Bar.cc:123:1", &file_name, &lineno));
-  EXPECT_EQ(file_name, "C:\\Foo\\Bar.cc");
-  EXPECT_EQ(lineno, 123u);
-}
-
-TEST(LocalSymbolizerTest, ParseLinesExpectedOutput) {
-  std::string raw_contents =
-      "FSlateRHIRenderingPolicy::DrawElements(FRHICommandListImmediate&, "
-      "FSlateBackBuffer&, TRefCountPtr<FRHITexture2D>&, "
-      "TRefCountPtr<FRHITexture2D>&, TRefCountPtr<FRHITexture2D>&, int, "
-      "TArray<FSlateRenderBatch, TSizedDefaultAllocator<32> > const&, "
-      "FSlateRenderingParams const&)\n"
-      "F:/P4/EngineReleaseA/Engine/Source/Runtime/SlateRHIRenderer/"
-      "Private\\SlateRHIRenderingPolicy.cpp:1187:19\n";
-  RunAndValidateParseLines(raw_contents);
-}
-
-TEST(LocalSymbolizerTest, ParseLinesErrorOutput) {
-  std::string raw_contents =
-      "LLVMSymbolizer: error reading file: No such file or directory\n"
-      "??\n"
-      "??:0:0\n";
-  RunAndValidateParseLines(raw_contents);
-}
-
-TEST(LocalSymbolizerTest, ParseLinesSingleCharRead) {
-  std::string raw_contents =
-      "FSlateRHIRenderingPolicy::DrawElements(FRHICommandListImmediate&, "
-      "FSlateBackBuffer&, TRefCountPtr<FRHITexture2D>&, "
-      "TRefCountPtr<FRHITexture2D>&, TRefCountPtr<FRHITexture2D>&, int, "
-      "TArray<FSlateRenderBatch, TSizedDefaultAllocator<32> > const&, "
-      "FSlateRenderingParams const&)\n"
-      "F:/P4/EngineReleaseA/Engine/Source/Runtime/SlateRHIRenderer/"
-      "Private\\SlateRHIRenderingPolicy.cpp:1187:19\n";
-  std::istringstream stream(raw_contents);
-  auto read_callback = [&stream](char* buffer, size_t) {
-    stream.get(buffer, 1, '\0');
-    return strlen(buffer);
-  };
-  std::vector<std::string> lines = GetLines(read_callback);
-  std::istringstream validation(raw_contents);
-  for (const std::string& actual : lines) {
-    std::string expected;
-    getline(validation, expected);
-    EXPECT_EQ(actual, expected);
-  }
+TEST(LocalSymbolizerTest, ParseJsonLine) {
+  std::vector<SymbolizedFrame> result;
+  ASSERT_TRUE(ParseLlvmSymbolizerJsonLine(
+      "{\"Address\":\"0x1b72f\",\"ModuleName\":\"...\",\"Symbol\":[{\"Column\":"
+      "0,\"Discriminator\":0,\"FileName\":\"foo.h\",\"FunctionName\":\"foo\","
+      "\"Line\":10,\"StartAddress\":\"\",\"StartFileName\":\"...\","
+      "\"StartLine\":0},{\"Column\":"
+      "0,\"Discriminator\":0,\"FileName\":\"bar.h\",\"FunctionName\":\"bar\","
+      "\"Line\":20,\"StartAddress\":\"\",\"StartFileName\":\"...\","
+      "\"StartLine\":0}]}",
+      &result));
+  EXPECT_EQ(result.size(), 2u);
+  EXPECT_EQ(result[0].file_name, "foo.h");
+  EXPECT_EQ(result[0].function_name, "foo");
+  EXPECT_EQ(result[0].line, 10u);
+  EXPECT_EQ(result[1].file_name, "bar.h");
+  EXPECT_EQ(result[1].function_name, "bar");
+  EXPECT_EQ(result[1].line, 20u);
 }
 
 // Creates a very simple ELF file content with the first 20 bytes of `build_id`
@@ -199,11 +152,13 @@ TEST(LocalBinaryIndexerTest, NOMSAN_Symlinks) {
   tmp.AddFile("real/dir1/elf2", CreateElfWithBuildId("BBBBBBBBBBBBBBBBBBBB"));
   tmp.AddFile("real/dir1/elf3", CreateElfWithBuildId("CCCCCCCCCCCCCCCCCCCC"));
   tmp.AddDir("sym");
-  symlink(tmp.AbsolutePath("real/elf1").c_str(),
-          tmp.AbsolutePath("sym/elf1").c_str());
+  EXPECT_EQ(symlink(tmp.AbsolutePath("real/elf1").c_str(),
+                    tmp.AbsolutePath("sym/elf1").c_str()),
+            0);
   tmp.TrackFile("sym/elf1");
-  symlink(tmp.AbsolutePath("real/dir1").c_str(),
-          tmp.AbsolutePath("sym/dir1").c_str());
+  EXPECT_EQ(symlink(tmp.AbsolutePath("real/dir1").c_str(),
+                    tmp.AbsolutePath("sym/dir1").c_str()),
+            0);
   tmp.TrackFile("sym/dir1");
 
   LocalBinaryIndexer indexer({tmp.AbsolutePath("sym")});
@@ -235,8 +190,9 @@ TEST(LocalBinaryIndexerTest, NOMSAN_RecursiveSymlinks) {
   tmp.AddDir("main");
   tmp.AddFile("main/elf1", CreateElfWithBuildId("AAAAAAAAAAAAAAAAAAAA"));
   tmp.AddDir("main/dir1");
-  symlink(tmp.AbsolutePath("main").c_str(),
-          tmp.AbsolutePath("main/dir1/sym").c_str());
+  EXPECT_EQ(symlink(tmp.AbsolutePath("main").c_str(),
+                    tmp.AbsolutePath("main/dir1/sym").c_str()),
+            0);
   tmp.TrackFile("main/dir1/sym");
 
   LocalBinaryIndexer indexer({tmp.AbsolutePath("main")});

@@ -4,19 +4,27 @@
 
 #include "quiche/quic/core/crypto/crypto_utils.h"
 
+#include <cstdint>
+#include <memory>
 #include <string>
+#include <vector>
 
-#include "absl/base/macros.h"
-#include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/quic_utils.h"
+#include "absl/types/span.h"
+#include "openssl/err.h"
+#include "openssl/ssl.h"
+#include "quiche/quic/core/crypto/crypto_protocol.h"
+#include "quiche/quic/core/crypto/quic_encrypter.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_test.h"
-#include "quiche/quic/test_tools/quic_test_utils.h"
-#include "quiche/common/test_tools/quiche_test_utils.h"
 
 namespace quic {
 namespace test {
 namespace {
+
+using ::testing::AllOf;
+using ::testing::HasSubstr;
 
 class CryptoUtilsTest : public QuicTest {};
 
@@ -169,7 +177,8 @@ TEST_F(CryptoUtilsTest, ValidateServerVersionsWithDowngrade) {
 // Test that the library is using the correct labels for each version, and
 // therefore generating correct obfuscators, using the test vectors in appendix
 // A of each RFC or internet-draft.
-TEST_F(CryptoUtilsTest, ValidateCryptoLabels) {
+TEST_F(CryptoUtilsTest, ValidateCryptoLabelsHeapless) {
+  SetQuicReloadableFlag(quic_heapless_obfuscator, true);
   // if the number of HTTP/3 QUIC versions has changed, we need to change the
   // expected_keys hardcoded into this test. Regrettably, this is not a
   // compile-time constant.
@@ -255,6 +264,125 @@ TEST_F(CryptoUtilsTest, ValidateCryptoLabels) {
                                           &crypters);
     EXPECT_EQ(crypters.encrypter->GetKey(), expected_key);
   }
+}
+
+TEST_F(CryptoUtilsTest, ValidateCryptoLabelsHeap) {
+  SetQuicReloadableFlag(quic_heapless_obfuscator, false);
+  // if the number of HTTP/3 QUIC versions has changed, we need to change the
+  // expected_keys hardcoded into this test. Regrettably, this is not a
+  // compile-time constant.
+  EXPECT_EQ(AllSupportedVersionsWithTls().size(), 3u);
+  const char draft_29_key[] = {// test vector from draft-ietf-quic-tls-29, A.1
+                               0x14,
+                               static_cast<char>(0x9d),
+                               0x0b,
+                               0x16,
+                               0x62,
+                               static_cast<char>(0xab),
+                               static_cast<char>(0x87),
+                               0x1f,
+                               static_cast<char>(0xbe),
+                               0x63,
+                               static_cast<char>(0xc4),
+                               static_cast<char>(0x9b),
+                               0x5e,
+                               0x65,
+                               0x5a,
+                               0x5d};
+  const char v1_key[] = {// test vector from RFC 9001, A.1
+                         static_cast<char>(0xcf),
+                         0x3a,
+                         0x53,
+                         0x31,
+                         0x65,
+                         0x3c,
+                         0x36,
+                         0x4c,
+                         static_cast<char>(0x88),
+                         static_cast<char>(0xf0),
+                         static_cast<char>(0xf3),
+                         0x79,
+                         static_cast<char>(0xb6),
+                         0x06,
+                         0x7e,
+                         0x37};
+  const char v2_08_key[] = {// test vector from draft-ietf-quic-v2-08
+                            static_cast<char>(0x82),
+                            static_cast<char>(0xdb),
+                            static_cast<char>(0x63),
+                            static_cast<char>(0x78),
+                            static_cast<char>(0x61),
+                            static_cast<char>(0xd5),
+                            static_cast<char>(0x5e),
+                            0x1d,
+                            static_cast<char>(0x01),
+                            static_cast<char>(0x1f),
+                            0x19,
+                            static_cast<char>(0xea),
+                            0x71,
+                            static_cast<char>(0xd5),
+                            static_cast<char>(0xd2),
+                            static_cast<char>(0xa7)};
+  const char connection_id[] =  // test vector from both docs
+      {static_cast<char>(0x83),
+       static_cast<char>(0x94),
+       static_cast<char>(0xc8),
+       static_cast<char>(0xf0),
+       0x3e,
+       0x51,
+       0x57,
+       0x08};
+  const QuicConnectionId cid(connection_id, sizeof(connection_id));
+  const char* key_str;
+  size_t key_size;
+  for (const ParsedQuicVersion& version : AllSupportedVersionsWithTls()) {
+    if (version == ParsedQuicVersion::Draft29()) {
+      key_str = draft_29_key;
+      key_size = sizeof(draft_29_key);
+    } else if (version == ParsedQuicVersion::RFCv1()) {
+      key_str = v1_key;
+      key_size = sizeof(v1_key);
+    } else {  // draft-ietf-quic-v2-01
+      key_str = v2_08_key;
+      key_size = sizeof(v2_08_key);
+    }
+    const absl::string_view expected_key{key_str, key_size};
+
+    CrypterPair crypters;
+    CryptoUtils::CreateInitialObfuscators(Perspective::IS_SERVER, version, cid,
+                                          &crypters);
+    EXPECT_EQ(crypters.encrypter->GetKey(), expected_key);
+  }
+}
+
+TEST_F(CryptoUtilsTest, GetSSLErrorStack) {
+  ERR_clear_error();
+  const int line = (OPENSSL_PUT_ERROR(SSL, SSL_R_WRONG_SSL_VERSION), __LINE__);
+  std::string error_location = absl::StrCat("crypto_utils_test.cc:", line);
+  EXPECT_THAT(CryptoUtils::GetSSLErrorStack(),
+              AllOf(HasSubstr(error_location), HasSubstr("WRONG_SSL_VERSION")));
+  EXPECT_TRUE(CryptoUtils::GetSSLErrorStack().empty());
+  ERR_clear_error();
+}
+
+// The heapless version of GenerateNextKeyPhaseSecret is sometimes called so
+// that the output is written into the memory that contains the input. This
+// test verifies that the result is no different than if the output goes
+// elsewhere.
+TEST_F(CryptoUtilsTest, NextKeyPhaseOnItself) {
+  std::vector<uint8_t> start_secret = {1, 2,  3,  4,  5,  6,  7,  8,
+                                       9, 10, 11, 12, 13, 14, 15, 16};
+  std::vector<uint8_t> separate_result;
+  separate_result.resize(start_secret.size());
+  CryptoUtils::GenerateNextKeyPhaseSecret(
+      EVP_sha256(), ParsedQuicVersion::RFCv1(),
+      absl::Span<const uint8_t>(start_secret),
+      absl::Span<uint8_t>(separate_result));
+  CryptoUtils::GenerateNextKeyPhaseSecret(
+      EVP_sha256(), ParsedQuicVersion::RFCv1(),
+      absl::Span<const uint8_t>(start_secret),
+      absl::Span<uint8_t>(start_secret));
+  EXPECT_EQ(separate_result, start_secret);
 }
 
 }  // namespace

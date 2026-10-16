@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -18,14 +19,19 @@ import androidx.annotation.DrawableRes;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.vectordrawable.graphics.drawable.VectorDrawableCompat;
 
+import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 /**
  * Implementation of BitmapDrawable that allows to tint the color of the drawable for all
  * bitmap drawable states.
  */
+@NullMarked
 public class TintedDrawable extends BitmapDrawable {
-    /**
-     * The set of colors that just be used for tinting this bitmap drawable.
-     */
+    private static final String TAG = "TD";
+
+    /** The set of colors that just be used for tinting this bitmap drawable. */
     protected ColorStateList mTint;
 
     public TintedDrawable(Context context, Bitmap bitmap) {
@@ -45,6 +51,16 @@ public class TintedDrawable extends BitmapDrawable {
         return true;
     }
 
+    @Override
+    public void draw(Canvas canvas) {
+        // Add extra method to stack and logging for https://crbug.com/1457791.
+        final @Nullable Bitmap bitmap = getBitmap();
+        if (bitmap != null && bitmap.isRecycled()) {
+            Log.e(TAG, "Trying to draw with recycled BitmapDrawable.");
+        }
+        super.draw(canvas);
+    }
+
     /**
      * Sets the tint color for the given Drawable for all button states.
      * @param tint The set of colors to use to color the ImageButton.
@@ -55,29 +71,28 @@ public class TintedDrawable extends BitmapDrawable {
         updateTintColor();
     }
 
-    /**
-     * Sets the tint color for the given Drawable for all states.
-     * @param tint The tint.
-     */
     @Override
     public void setTint(@ColorInt int tint) {
+        // Use our bespoke tint implementation instead of calling into the base class.
         setTint(ColorStateList.valueOf(tint));
     }
 
-    /**
-     * Factory method for creating a {@link TintedDrawable} with a resource id.
-     */
+    @Override
+    public void setTintList(ColorStateList tint) {
+        // Use our bespoke tint implementation instead of calling into the base class.
+        setTint(tint);
+    }
+
+    /** Factory method for creating a {@link TintedDrawable} with a resource id. */
     public static TintedDrawable constructTintedDrawable(Context context, int drawableId) {
         assert !isVectorDrawable(context, drawableId)
-            : "TintedDrawable doesn't support "
-              + "VectorDrawables! Please use UiUtils.getTintedDrawable() instead.";
+                : "TintedDrawable doesn't support "
+                        + "VectorDrawables! Please use UiUtils.getTintedDrawable() instead.";
         Bitmap icon = BitmapFactory.decodeResource(context.getResources(), drawableId);
         return new TintedDrawable(context, icon);
     }
 
-    /**
-     * Factory method for creating a {@link TintedDrawable} with a resource id and specific tint.
-     */
+    /** Factory method for creating a {@link TintedDrawable} with a resource id and specific tint. */
     public static TintedDrawable constructTintedDrawable(
             Context context, int drawableId, int tintColorId) {
         TintedDrawable drawable = constructTintedDrawable(context, drawableId);

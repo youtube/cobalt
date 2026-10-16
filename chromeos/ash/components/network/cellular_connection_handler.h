@@ -6,6 +6,7 @@
 #define CHROMEOS_ASH_COMPONENTS_NETWORK_CELLULAR_CONNECTION_HANDLER_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/containers/queue.h"
 #include "base/gtest_prod_util.h"
@@ -18,7 +19,6 @@
 #include "chromeos/ash/components/network/network_state_handler.h"
 #include "chromeos/ash/components/network/network_state_handler_observer.h"
 #include "dbus/object_path.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -70,7 +70,8 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) CellularConnectionHandler
     kCouldNotFindRelevantESimProfile = 5,
     kEnableProfileFailed = 6,
     kTimeoutWaitingForConnectable = 7,
-    kMaxValue = kTimeoutWaitingForConnectable
+    kSimLocked = 8,
+    kMaxValue = kSimLocked
   };
 
   CellularConnectionHandler();
@@ -132,9 +133,9 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) CellularConnectionHandler
         ErrorCallback error_callback);
     ~ConnectionRequestMetadata();
 
-    absl::optional<std::string> iccid;
-    absl::optional<dbus::ObjectPath> euicc_path;
-    absl::optional<dbus::ObjectPath> profile_path;
+    std::optional<std::string> iccid;
+    std::optional<dbus::ObjectPath> euicc_path;
+    std::optional<dbus::ObjectPath> profile_path;
     std::unique_ptr<CellularInhibitor::InhibitLock> inhibit_lock;
     // A boolean indicating that if the connection switches the SIM profile and
     // requires enabling the profile first.
@@ -158,7 +159,7 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) CellularConnectionHandler
   // Timeout waiting for a cellular network to auto connect after switch
   // profile.
   static const base::TimeDelta kWaitingForAutoConnectTimeout;
-  static absl::optional<std::string> ResultToErrorString(
+  static std::optional<std::string> ResultToErrorString(
       PrepareCellularConnectionResult result);
 
   // NetworkStateHandlerObserver:
@@ -169,6 +170,7 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) CellularConnectionHandler
                                      const std::string& old_guid,
                                      const std::string& new_guid) override;
   void NetworkConnectionStateChanged(const NetworkState* network) override;
+  void DevicePropertiesUpdated(const DeviceState* device) override;
 
   void ProcessRequestQueue();
   void TransitionToConnectionState(ConnectionState state);
@@ -179,8 +181,8 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) CellularConnectionHandler
                                  bool auto_connected);
 
   const NetworkState* GetNetworkStateForCurrentOperation() const;
-  absl::optional<dbus::ObjectPath> GetEuiccPathForCurrentOperation() const;
-  absl::optional<dbus::ObjectPath> GetProfilePathForCurrentOperation() const;
+  std::optional<dbus::ObjectPath> GetEuiccPathForCurrentOperation() const;
+  std::optional<dbus::ObjectPath> GetProfilePathForCurrentOperation() const;
 
   void CheckServiceStatus();
   void OnInhibitScanResult(
@@ -191,10 +193,9 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) CellularConnectionHandler
   void EnableProfile();
   void OnEnableCarrierProfileResult(HermesResponseStatus status);
 
-  void UninhibitScans(
-      const absl::optional<std::string>& error_before_uninhibit);
+  void UninhibitScans(const std::optional<std::string>& error_before_uninhibit);
   void OnUninhibitScanResult(
-      const absl::optional<std::string>& error_before_uninhibit,
+      const std::optional<std::string>& error_before_uninhibit,
       bool success);
   void HandleNetworkPropertiesUpdate();
   void CheckForConnectable();
@@ -205,12 +206,11 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) CellularConnectionHandler
 
   base::OneShotTimer timer_;
 
-  raw_ptr<NetworkStateHandler, ExperimentalAsh> network_state_handler_ =
-      nullptr;
+  raw_ptr<NetworkStateHandler> network_state_handler_ = nullptr;
   base::ScopedObservation<NetworkStateHandler, NetworkStateHandlerObserver>
       network_state_handler_observer_{this};
-  raw_ptr<CellularInhibitor, ExperimentalAsh> cellular_inhibitor_ = nullptr;
-  raw_ptr<CellularESimProfileHandler, ExperimentalAsh>
+  raw_ptr<CellularInhibitor> cellular_inhibitor_ = nullptr;
+  raw_ptr<CellularESimProfileHandler, DanglingUntriaged>
       cellular_esim_profile_handler_ = nullptr;
 
   ConnectionState state_ = ConnectionState::kIdle;

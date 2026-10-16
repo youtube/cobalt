@@ -6,26 +6,25 @@ on:
     - cron: '0 10 * * *'
   workflow_dispatch:
 
+permissions: {}
+
+env:
+  GITHUB_REPO: ${{ github.repository }}
+
 jobs:
   trigger_25:
     permissions:
       actions: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          ref: 25.lts.1+
-          persist-credentials: false
       - name: Trigger Nightly
         run: |
           set -x
-          gh workflow run android_25.lts.1+ --ref 25.lts.1+ -f nightly=true
-          gh workflow run evergreen_25.lts.1+ --ref 25.lts.1+ -f nightly=true
-          gh workflow run linux_25.lts.1+ --ref 25.lts.1+ -f nightly=true
-          gh workflow run raspi-2_25.lts.1+ --ref 25.lts.1+ -f nightly=true
-          gh workflow run win32_25.lts.1+ --ref 25.lts.1+ -f nightly=true
-          gh workflow run xb1_25.lts.1+ --ref 25.lts.1+ -f nightly=true
+          gh workflow run android_25.lts.1+ --ref 25.lts.1+ -f nightly=true --repo "${GITHUB_REPO}"
+          gh workflow run evergreen_25.lts.1+ --ref 25.lts.1+ -f nightly=true --repo "${GITHUB_REPO}"
+          gh workflow run linux_25.lts.1+ --ref 25.lts.1+ -f nightly=true --repo "${GITHUB_REPO}"
+          gh workflow run raspi-2_25.lts.1+ --ref 25.lts.1+ -f nightly=true --repo "${GITHUB_REPO}"
+          gh workflow run win32_25.lts.1+ --ref 25.lts.1+ -f nightly=true --repo "${GITHUB_REPO}"
+          gh workflow run xb1_25.lts.1+ --ref 25.lts.1+ -f nightly=true --repo "${GITHUB_REPO}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

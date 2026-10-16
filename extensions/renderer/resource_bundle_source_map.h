@@ -9,6 +9,9 @@
 #include <memory>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
+#include "base/synchronization/lock.h"
+#include "base/thread_annotations.h"
 #include "extensions/renderer/source_map.h"
 #include "v8/include/v8-forward.h"
 
@@ -47,8 +50,10 @@ class ResourceBundleSourceMap : public SourceMap {
     mutable std::unique_ptr<std::string> cached;
   };
 
-  const ui::ResourceBundle* resource_bundle_;
-  std::map<std::string, ResourceInfo> resource_map_;
+  raw_ptr<const ui::ResourceBundle, DanglingUntriaged> resource_bundle_;
+
+  mutable base::Lock lock_;
+  std::map<std::string, ResourceInfo> resource_map_ GUARDED_BY(lock_);
 };
 
 }  // namespace extensions

@@ -8,7 +8,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "media/parsers/media_parsers_export.h"
+#include <array>
+
+#include "base/containers/span.h"
+#include "media/base/media_export.h"
 
 namespace media {
 
@@ -82,11 +85,11 @@ struct JpegHuffmanTable {
 };
 
 // K.3.3.1 "Specification of typical tables for DC difference coding"
-MEDIA_PARSERS_EXPORT
+MEDIA_EXPORT
 extern const JpegHuffmanTable kDefaultDcTable[kJpegMaxHuffmanTableNumBaseline];
 
 // K.3.3.2 "Specification of typical tables for AC coefficient coding"
-MEDIA_PARSERS_EXPORT
+MEDIA_EXPORT
 extern const JpegHuffmanTable kDefaultAcTable[kJpegMaxHuffmanTableNumBaseline];
 
 // Parsing result of JPEG DQT marker.
@@ -95,11 +98,11 @@ struct JpegQuantizationTable {
   uint8_t value[kDctSize];  // baseline only supports 8 bits quantization table
 };
 
-MEDIA_PARSERS_EXPORT extern const uint8_t kZigZag8x8[64];
+MEDIA_EXPORT extern const uint8_t kZigZag8x8[64];
 
 // Table K.1 Luminance quantization table
 // Table K.2 Chrominance quantization table
-MEDIA_PARSERS_EXPORT
+MEDIA_EXPORT
 extern const JpegQuantizationTable kDefaultQuantTable[2];
 
 // Parsing result of a JPEG component.
@@ -117,7 +120,7 @@ struct JpegFrameHeader {
   uint16_t coded_width;
   uint16_t coded_height;
   uint8_t num_components;
-  JpegComponent components[kJpegMaxComponents];
+  std::array<JpegComponent, kJpegMaxComponents> components;
 };
 
 // Parsing result of JPEG SOS marker.
@@ -127,7 +130,8 @@ struct JpegScanHeader {
     uint8_t component_selector;
     uint8_t dc_selector;
     uint8_t ac_selector;
-  } components[kJpegMaxComponents];
+  };
+  std::array<Component, kJpegMaxComponents> components;
 };
 
 struct JpegParseResult {
@@ -147,18 +151,15 @@ struct JpegParseResult {
 // Parses JPEG picture in |buffer| with |length|.  Returns true iff header is
 // valid and JPEG baseline sequential process is present. If parsed
 // successfully, |result| is the parsed result.
-MEDIA_PARSERS_EXPORT
-bool ParseJpegPicture(const uint8_t* buffer,
-                      size_t length,
+MEDIA_EXPORT
+bool ParseJpegPicture(base::span<const uint8_t> buffer,
                       JpegParseResult* result);
 
 // Parses the first image of JPEG stream in |buffer| with |length|.  Returns
 // true iff header is valid and JPEG baseline sequential process is present.
 // If parsed successfully, |result| is the parsed result.
-MEDIA_PARSERS_EXPORT
-bool ParseJpegStream(const uint8_t* buffer,
-                     size_t length,
-                     JpegParseResult* result);
+MEDIA_EXPORT
+bool ParseJpegStream(base::span<const uint8_t> buffer, JpegParseResult* result);
 
 }  // namespace media
 

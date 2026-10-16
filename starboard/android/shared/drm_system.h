@@ -15,58 +15,68 @@
 #ifndef STARBOARD_ANDROID_SHARED_DRM_SYSTEM_H_
 #define STARBOARD_ANDROID_SHARED_DRM_SYSTEM_H_
 
+// clang-format off
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
+// clang-format on
 
 #include <jni.h>
 
 #include <atomic>
+#include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "starboard/android/shared/drm_session_id_mapper.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
-#include "starboard/common/thread.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
 
-class DrmSystem : public ::SbDrmSystemPrivate,
-                  public MediaDrmBridge::Host,
-                  private Thread {
+class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
  public:
-  DrmSystem(std::string_view key_system,
+  struct Callbacks {
+    SbDrmSessionUpdateRequestFunc update_request;
+    SbDrmSessionUpdatedFunc session_updated;
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed;
+    SbDrmSessionClosedFunc session_closed;
+  };
+  static std::unique_ptr<DrmSystem> Create(std::string_view key_system,
+                                           void* context,
+                                           Callbacks callbacks);
+
+  DrmSystem(PassKey<DrmSystem>,
+            std::string_view key_system,
             void* context,
-            SbDrmSessionUpdateRequestFunc update_request_callback,
-            SbDrmSessionUpdatedFunc session_updated_callback,
-            SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
+            Callbacks callbacks);
 
   ~DrmSystem() override;
   // SbDrmSystemPrivate override begins
-  void GenerateSessionUpdateRequest(int ticket,
-                                    const char* type,
-                                    const void* initialization_data,
-                                    int initialization_data_size) override;
+  void GenerateSessionUpdateRequest(
+      int ticket,
+      std::string_view type,
+      std::string_view initialization_data) override;
   void UpdateSession(int ticket,
-                     const void* key,
-                     int key_size,
-                     const void* session_id,
-                     int session_id_size) override;
-  void CloseSession(const void* session_id_data, int session_id_size) override;
+                     std::string_view key,
+                     std::string_view session_id) override;
+  void CloseSession(std::string_view session_id) override;
   DecryptStatus Decrypt(InputBuffer* buffer) override;
 
   bool IsServerCertificateUpdatable() override { return false; }
   void UpdateServerCertificate(int ticket,
-                               const void* certificate,
-                               int certificate_size) override {}
-  const void* GetMetrics(int* size) override;
+                               std::string_view certificate) override {}
+  std::optional<std::string_view> GetMetrics() override;
   // SbDrmSystemPrivate override ends.
 
-  jobject GetMediaCrypto() const { return media_drm_bridge_->GetMediaCrypto(); }
+  const jni_zero::JavaRef<jobject>& GetMediaCrypto() const {
+    return media_drm_bridge_->GetMediaCrypto();
+  }
 
   // MediaDrmBridge::Host methods.
   void OnSessionUpdate(int ticket,
@@ -81,7 +91,6 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
   void OnInsufficientOutputProtection();
 
-  bool is_valid() const { return media_drm_bridge_->is_valid(); }
   bool require_secured_decoder() const {
     return IsWidevineL1(key_system_.c_str());
   }
@@ -97,14 +106,13 @@ class DrmSystem : public ::SbDrmSystemPrivate,
                          std::string_view initialization_data);
     ~SessionUpdateRequest() = default;
 
-    void Generate(const MediaDrmBridge* media_drm_bridge) const;
-    MediaDrmBridge::OperationResult GenerateWithAppProvisioning(
+    MediaDrmBridge::OperationResult Generate(
         const MediaDrmBridge* media_drm_bridge) const;
 
-    // Returns the ticket and resets it to kSbDrmTicketInvalid. This function
-    // should only be called when the ticket is valid, otherwise the program
-    // will crash.
-    int ReleaseTicket();
+    // Returns the ticket. On the first call, it returns a valid ticket and
+    // resets its internal state to kSbDrmTicketInvalid. Subsequent calls will
+    // return `kSbDrmTicketInvalid`, which means a spontaneous drm request.
+    int TakeTicket();
 
    private:
     int ticket_;
@@ -114,34 +122,22 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
   void HandlePendingRequests();
-  void GenerateSessionUpdateRequestWithAppProvisioning(
+  void GenerateSessionUpdateRequest(
       std::unique_ptr<SessionUpdateRequest> request);
-  void UpdateSessionWithAppProvisioning(int ticket,
-                                        std::string_view key,
-                                        std::string_view session_id);
-
-  // From Thread.
-  void Run() override;
 
   const std::string key_system_;
-  void* context_;
-  SbDrmSessionUpdateRequestFunc update_request_callback_;
-  SbDrmSessionUpdatedFunc session_updated_callback_;
-  // TODO: Update key statuses to Cobalt.
-  SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
+  const raw_ptr<void> context_;
+  const Callbacks callbacks_;
 
   std::mutex mutex_;
 
   std::vector<std::unique_ptr<SessionUpdateRequest>>
       deferred_session_update_requests_;  // Guarded by |mutex_|.
 
-  std::unordered_map<std::string, std::vector<SbDrmKeyId>> cached_drm_key_ids_;
+  std::map<std::string, std::vector<SbDrmKeyId>, std::less<>>
+      cached_drm_key_ids_;
   bool hdcp_lost_;
   std::atomic_bool created_media_crypto_session_{false};
-
-  std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
-
-  ThreadChecker thread_checker_;
 
   // Manages the mapping between the EME session ID in the C++ layer and the
   // MediaDrm session ID in the Java layer. Most of the time, we can use the
@@ -151,8 +147,14 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   // provisioned, we can't get a MediaDrm session ID (which can be generated
   // only after provisioning). In such scenarios, `DrmSystem` still needs an EME
   // session ID to interact with the Cobalt CDM module.
-  const std::unique_ptr<DrmSessionIdMapper>
-      session_id_mapper_;  //  Guarded by |mutex_|.
+  DrmSessionIdMapper session_id_mapper_;  //  Guarded by |mutex_|.
+
+  // Guaranteed to be non-null for any instance returned by the factory method.
+  // However, it can be null during destruction if the factory method fails
+  // to create the bridge and destroys the instance.
+  const std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
+
+  ThreadChecker thread_checker_;
 };
 
 }  // namespace starboard

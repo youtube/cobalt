@@ -26,4 +26,4 @@ void InitializeStarboardFeatures();
 
 }  // namespace cobalt::features
 
-#endif  // COBALT_COMMON_FEATURES_STARBOARD_FEATURES_INITIALIZATION_H
+#endif  // COBALT_COMMON_FEATURES_STARBOARD_FEATURES_INITIALIZATION_H_

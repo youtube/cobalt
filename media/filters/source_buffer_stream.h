@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/logging.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
@@ -30,7 +31,6 @@
 #include "media/base/media_log.h"
 #include "media/base/ranges.h"
 #include "media/base/stream_parser_buffer.h"
-#include "media/base/text_track_config.h"
 #include "media/base/video_decoder_config.h"
 #include "media/filters/source_buffer_range.h"
 
@@ -48,7 +48,7 @@ enum class SourceBufferStreamStatus {
   kEndOfStream
 };
 
-enum class SourceBufferStreamType { kAudio, kVideo, kText };
+enum class SourceBufferStreamType { kAudio, kVideo };
 
 // See file-level comment for complete description.
 class MEDIA_EXPORT SourceBufferStream {
@@ -66,7 +66,6 @@ class MEDIA_EXPORT SourceBufferStream {
                      MediaLog* media_log);
   SourceBufferStream(const VideoDecoderConfig& video_config,
                      MediaLog* media_log);
-  SourceBufferStream(const TextTrackConfig& text_config, MediaLog* media_log);
 
   SourceBufferStream(const SourceBufferStream&) = delete;
   SourceBufferStream& operator=(const SourceBufferStream&) = delete;
@@ -158,7 +157,6 @@ class MEDIA_EXPORT SourceBufferStream {
 
   const AudioDecoderConfig& GetCurrentAudioDecoderConfig();
   const VideoDecoderConfig& GetCurrentVideoDecoderConfig();
-  const TextTrackConfig& GetCurrentTextTrackConfig();
 
   // Notifies this object that the audio config has changed and buffers in
   // future Append() calls should be associated with this new config.
@@ -180,7 +178,11 @@ class MEDIA_EXPORT SourceBufferStream {
   base::TimeDelta GetMaxInterbufferDistance() const;
 
   void set_memory_limit(size_t memory_limit) {
+    DVLOG(2) << __func__ << ": Override memory limit from " << memory_limit_
+             << " to " << memory_limit << ".";
+
     memory_limit_ = memory_limit;
+    memory_limit_overridden_ = true;
   }
 
   // A helper function for detecting video/audio config change, so that we
@@ -323,8 +325,8 @@ class MEDIA_EXPORT SourceBufferStream {
   // have a keyframe after |timestamp| then kNoTimestamp is returned.
   base::TimeDelta FindKeyframeAfterTimestamp(const base::TimeDelta timestamp);
 
-  // Returns "VIDEO" for a video SourceBufferStream, "AUDIO" for an audio
-  // stream, and "TEXT" for a text stream.
+  // Returns "VIDEO" for a video SourceBufferStream and "AUDIO" for an audio
+  // stream.
   std::string GetStreamTypeName() const;
 
   // (Audio only) If |new_buffers| overlap existing buffers, trims end of
@@ -422,9 +424,6 @@ class MEDIA_EXPORT SourceBufferStream {
   std::vector<AudioDecoderConfig> audio_configs_;
   std::vector<VideoDecoderConfig> video_configs_;
 
-  // Holds the text config for this stream.
-  TextTrackConfig text_track_config_;
-
   // True if more data needs to be appended before the Seek() can complete,
   // false if no Seek() has been requested or the Seek() is completed.
   bool seek_pending_ = false;
@@ -503,6 +502,11 @@ class MEDIA_EXPORT SourceBufferStream {
   // eviction heuristic can cause the result to vary from the value set in
   // constructor.
   size_t memory_limit_;
+
+  // Set to true in |set_memory_limit()| to signal that the |memory_limit_| has
+  // been overridden, and |memory_limit_| shouldn't be updated again in
+  // |UpdateAudioConfig()| or |UpdateVideoConfig()|.
+  bool memory_limit_overridden_ = false;
 
   // Indicates that a kConfigChanged status has been reported by GetNextBuffer()
   // and GetCurrentXXXDecoderConfig() must be called to update the current

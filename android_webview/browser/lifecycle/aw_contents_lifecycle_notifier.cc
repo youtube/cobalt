@@ -2,12 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "android_webview/browser/lifecycle/aw_contents_lifecycle_notifier.h"
 
 #include <utility>
 
-#include "android_webview/browser_jni_headers/AwContentsLifecycleNotifier_jni.h"
+#include "base/containers/contains.h"
 #include "content/public/browser/browser_thread.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "android_webview/browser_jni_headers/AwContentsLifecycleNotifier_jni.h"
 
 using base::android::AttachCurrentThread;
 using content::BrowserThread;
@@ -53,6 +61,8 @@ AwContentsLifecycleNotifier::AwContentsLifecycleNotifier(
   EnsureOnValidSequence();
   DCHECK(!g_instance);
   g_instance = this;
+  JNIEnv* env = AttachCurrentThread();
+  java_ref_.Reset(Java_AwContentsLifecycleNotifier_getInstance(env));
 }
 
 AwContentsLifecycleNotifier::~AwContentsLifecycleNotifier() {
@@ -66,7 +76,7 @@ void AwContentsLifecycleNotifier::OnWebViewCreated(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   has_aw_contents_ever_created_ = true;
   bool first_created = !HasAwContentsInstance();
-  DCHECK(aw_contents_to_data_.find(aw_contents) == aw_contents_to_data_.end());
+  DCHECK(!base::Contains(aw_contents_to_data_, aw_contents));
 
   aw_contents_to_data_.emplace(aw_contents, AwContentsData());
   state_count_[ToIndex(AwContentsState::kDetached)]++;
@@ -74,7 +84,7 @@ void AwContentsLifecycleNotifier::OnWebViewCreated(
 
   if (first_created) {
     Java_AwContentsLifecycleNotifier_onFirstWebViewCreated(
-        AttachCurrentThread());
+        AttachCurrentThread(), java_ref_);
   }
 }
 
@@ -82,7 +92,7 @@ void AwContentsLifecycleNotifier::OnWebViewDestroyed(
     const AwContents* aw_contents) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   const auto it = aw_contents_to_data_.find(aw_contents);
-  DCHECK(it != aw_contents_to_data_.end());
+  CHECK(it != aw_contents_to_data_.end());
 
   state_count_[ToIndex(it->second.aw_content_state)]--;
   DCHECK(state_count_[ToIndex(it->second.aw_content_state)] >= 0);
@@ -91,7 +101,7 @@ void AwContentsLifecycleNotifier::OnWebViewDestroyed(
 
   if (!HasAwContentsInstance()) {
     Java_AwContentsLifecycleNotifier_onLastWebViewDestroyed(
-        AttachCurrentThread());
+        AttachCurrentThread(), java_ref_);
   }
 }
 
@@ -190,6 +200,9 @@ void AwContentsLifecycleNotifier::UpdateAppState() {
     if (previous_in_foreground && on_lose_foreground_callback_) {
       on_lose_foreground_callback_.Run();
     }
+
+    Java_AwContentsLifecycleNotifier_onAppStateChanged(
+        AttachCurrentThread(), java_ref_, static_cast<jint>(app_state_));
   }
 }
 
@@ -203,8 +216,13 @@ bool AwContentsLifecycleNotifier::HasAwContentsInstance() const {
 
 AwContentsLifecycleNotifier::AwContentsData*
 AwContentsLifecycleNotifier::GetAwContentsData(const AwContents* aw_contents) {
-  DCHECK(aw_contents_to_data_.find(aw_contents) != aw_contents_to_data_.end());
+  DCHECK(base::Contains(aw_contents_to_data_, aw_contents));
   return &aw_contents_to_data_.at(aw_contents);
+}
+
+void AwContentsLifecycleNotifier::InitForTesting() {  // IN-TEST
+  Java_AwContentsLifecycleNotifier_initialize(        // IN-TEST
+      AttachCurrentThread());
 }
 
 }  // namespace android_webview

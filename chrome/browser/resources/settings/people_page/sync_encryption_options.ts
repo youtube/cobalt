@@ -10,14 +10,15 @@ import '//resources/cr_elements/cr_shared_style.css.js';
 import '../settings_shared.css.js';
 import '../settings_vars.css.js';
 
-import {CrInputElement} from '//resources/cr_elements/cr_input/cr_input.js';
+import type {CrInputElement} from '//resources/cr_elements/cr_input/cr_input.js';
 // <if expr="chromeos_ash">
-import {CrRadioGroupElement} from '//resources/cr_elements/cr_radio_group/cr_radio_group.js';
+import type {CrRadioGroupElement} from '//resources/cr_elements/cr_radio_group/cr_radio_group.js';
 // </if>
 
-import {assert} from '//resources/js/assert_ts.js';
+import {assert} from '//resources/js/assert.js';
 import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {SyncBrowserProxyImpl, SyncPrefs, SyncStatus} from '/shared/settings/people_page/sync_browser_proxy.js';
+import type {SyncPrefs, SyncStatus} from '/shared/settings/people_page/sync_browser_proxy.js';
+import {SyncBrowserProxyImpl} from '/shared/settings/people_page/sync_browser_proxy.js';
 
 import {getTemplate} from './sync_encryption_options.html.js';
 
@@ -87,13 +88,13 @@ export class SettingsSyncEncryptionOptionsElement extends PolymerElement {
     };
   }
 
-  syncPrefs: SyncPrefs|null;
-  syncStatus: SyncStatus|null;
-  existingPassphraseLabel: string;
-  private creatingNewPassphrase_: boolean;
-  private passphrase_: string;
-  private confirmation_: string;
-  private disableEncryptionOptions_: boolean;
+  declare syncPrefs: SyncPrefs|null;
+  declare syncStatus: SyncStatus|null;
+  declare existingPassphraseLabel: string;
+  declare private creatingNewPassphrase_: boolean;
+  declare private passphrase_: string;
+  declare private confirmation_: string;
+  declare private disableEncryptionOptions_: boolean;
   private isSettingEncryptionPassphrase_: boolean;
 
   constructor() {
@@ -182,7 +183,7 @@ export class SettingsSyncEncryptionOptionsElement extends PolymerElement {
     SyncBrowserProxyImpl.getInstance()
         .setEncryptionPassphrase(this.passphrase_)
         .then(successfullySet => {
-          // TODO(crbug.com/1139060): Rename the event, there is no change if
+          // TODO(crbug.com/40725814): Rename the event, there is no change if
           // |successfullySet| is false. It should also mention 'encryption
           // passphrase' in its name.
           this.dispatchEvent(new CustomEvent('passphrase-changed', {

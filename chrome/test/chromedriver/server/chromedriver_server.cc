@@ -2,13 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 
+#include <array>
 #include <locale>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -27,14 +34,15 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/single_thread_task_executor.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/test/chromedriver/constants/version.h"
+#include "chrome/test/chromedriver/keycode_text_conversion.h"
 #include "chrome/test/chromedriver/logging.h"
 #include "chrome/test/chromedriver/server/http_handler.h"
 #include "chrome/test/chromedriver/server/http_server.h"
@@ -43,13 +51,10 @@
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/log/net_log_source.h"
-#include "third_party/abseil-cpp/absl/base/attributes.h"
 
 namespace {
 
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_LINUX)
 // Ensure that there is a writable shared memory directory. We use
 // network::SimpleURLLoader to connect to Chrome, and it calls
 // base::subtle::PlatformSharedMemoryRegion::Create to get a shared memory
@@ -112,8 +117,8 @@ void HandleRequestOnIOThread(
                               send_response_func)));
 }
 
-ABSL_CONST_INIT thread_local HttpServer* server_ipv4 = nullptr;
-ABSL_CONST_INIT thread_local HttpServer* server_ipv6 = nullptr;
+constinit thread_local HttpServer* server_ipv4 = nullptr;
+constinit thread_local HttpServer* server_ipv6 = nullptr;
 
 void StopServerOnIOThread() {
   delete server_ipv4;
@@ -151,6 +156,7 @@ void StartServerOnIOThread(
       cmd_task_runner);
   int ipv4_status = temp_server->Start(port, allow_remote, true);
   if (ipv4_status == net::OK) {
+    port = temp_server->LocalAddress().port();
     server_ipv4 = temp_server.release();
   } else if (ipv4_status == net::ERR_ADDRESS_IN_USE) {
     // ERR_ADDRESS_IN_USE causes an immediate exit, since it indicates the port
@@ -169,6 +175,7 @@ void StartServerOnIOThread(
       cmd_task_runner);
   int ipv6_status = temp_server->Start(port, allow_remote, false);
   if (ipv6_status == net::OK) {
+    port = temp_server->LocalAddress().port();
     server_ipv6 = temp_server.release();
   } else if (ipv6_status == net::ERR_ADDRESS_IN_USE) {
     printf("IPv6 port not available. Exiting...\n");
@@ -237,7 +244,17 @@ void StartServerOnIOThread(
     printf("Unable to start server with either IPv4 or IPv6. Exiting...\n");
     exit(1);
   }
-  printf("%s was started successfully.\n", kChromeDriverProductShortName);
+
+  base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
+  if (!cmd_line->HasSwitch("silent") &&
+      cmd_line->GetSwitchValueASCII("log-level") != "OFF") {
+    printf("%s was started successfully on port %u.\n",
+           kChromeDriverProductShortName, port);
+  }
+  if (cmd_line->HasSwitch("log-path")) {
+    VLOG(0) << kChromeDriverProductShortName
+            << " was started successfully on port " << port;
+  }
   fflush(stdout);
 }
 
@@ -293,7 +310,7 @@ int main(int argc, char *argv[]) {
 #endif
 
   // Parse command line flags.
-  uint16_t port = 9515;
+  uint16_t port = 0;
   int adb_port = 5037;
   bool allow_remote = false;
   std::vector<net::IPAddress> allowed_ips;
@@ -303,43 +320,49 @@ int main(int argc, char *argv[]) {
   std::string url_base;
   if (cmd_line->HasSwitch("h") || cmd_line->HasSwitch("help")) {
     std::string options;
-    const char* const kOptionAndDescriptions[] = {
-      "port=PORT",
-      "port to listen on",
-      "adb-port=PORT",
-      "adb server port",
-      "log-path=FILE",
-      "write server log to file instead of stderr, "
-      "increases log level to INFO",
-      "log-level=LEVEL",
-      "set log level: ALL, DEBUG, INFO, WARNING, SEVERE, OFF",
-      "verbose",
-      "log verbosely (equivalent to --log-level=ALL)",
-      "silent",
-      "log nothing (equivalent to --log-level=OFF)",
-      "append-log",
-      "append log file instead of rewriting",
-      "replayable",
-      "(experimental) log verbosely and don't truncate long "
-      "strings so that the log can be replayed.",
-      "version",
-      "print the version number and exit",
-      "url-base",
-      "base URL path prefix for commands, e.g. wd/url",
-      "readable-timestamp",
-      "add readable timestamps to log",
-      "enable-chrome-logs",
-      "show logs from the browser (overrides other logging options)",
-      "bidi-mapper-path",
-      "custom bidi mapper path",
-    // TODO(crbug.com/1052397): Revisit the macro expression once build flag
-    // switch of lacros-chrome is complete.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
-      "disable-dev-shm-usage",
-      "do not use /dev/shm "
-      "(add this switch if seeing errors related to shared memory)",
+    const auto kOptionAndDescriptions = std::to_array<const char*>({
+        "port=PORT",
+        "port to listen on",
+        "adb-port=PORT",
+        "adb server port",
+        "log-path=FILE",
+        "write server log to file instead of stderr, "
+        "increases log level to INFO",
+        "log-level=LEVEL",
+        "set log level: ALL, DEBUG, INFO, WARNING, SEVERE, OFF",
+        "verbose",
+        "log verbosely (equivalent to --log-level=ALL)",
+        "silent",
+        "log nothing (equivalent to --log-level=OFF)",
+        "append-log",
+        "append log file instead of rewriting",
+        "replayable",
+        "(experimental) log verbosely and don't truncate long "
+        "strings so that the log can be replayed.",
+        "version",
+        "print the version number and exit",
+        "url-base",
+        "base URL path prefix for commands, e.g. wd/url",
+        "readable-timestamp",
+        "add readable timestamps to log",
+        "enable-chrome-logs",
+        "show logs from the browser (overrides other logging options)",
+        "bidi-mapper-path=PATH",
+        "custom bidi mapper path",
+        "debug-bidi-mapper",
+        "(experimental) run bidi mapper in a visible tab for debugging purposes",
+#if BUILDFLAG(IS_LINUX)
+        "disable-dev-shm-usage",
+        "do not use /dev/shm "
+        "(add this switch if seeing errors related to shared memory)",
 #endif
-    };
+        // TODO(crbug.com/354135326): This is a temporary flag needed to
+        // smooothly migrate the web platform tests to auto-assigned port.
+        // This switch will be removed in M132. Don't rely on it!
+        "ignore-explicit-port",
+        "(experimental) ignore the port specified explicitly, "
+        "find a free port instead",
+    });
     for (size_t i = 0; i < std::size(kOptionAndDescriptions) - 1; i += 2) {
       options += base::StringPrintf(
           "  --%-30s%s\n",
@@ -378,6 +401,9 @@ int main(int argc, char *argv[]) {
     }
     port = static_cast<uint16_t>(cmd_line_port);
   }
+  if (cmd_line->HasSwitch("ignore-explicit-port")) {
+    port = 0;
+  }
   if (cmd_line->HasSwitch("adb-port")) {
     if (!base::StringToInt(cmd_line->GetSwitchValueASCII("adb-port"),
                            &adb_port)) {
@@ -404,7 +430,7 @@ int main(int argc, char *argv[]) {
     if (!allowlist_ip_strs.empty()) {
       // Convert IP address strings into net::IPAddress objects.
       for (const auto& ip_str : allowlist_ip_strs) {
-        base::StringPiece ip_str_piece(ip_str);
+        std::string_view ip_str_piece(ip_str);
         if (ip_str_piece.size() >= 2 && ip_str_piece.front() == '[' &&
             ip_str_piece.back() == ']') {
           ip_str_piece.remove_prefix(1);
@@ -451,18 +477,26 @@ int main(int argc, char *argv[]) {
     fflush(stdout);
   }
 
-  if (!InitLogging(port)) {
+  if (!InitLogging()) {
     printf("Unable to initialize logging. Exiting...\n");
     return 1;
   }
 
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+  if (cmd_line->HasSwitch("log-path")) {
+    VLOG(0) << "Starting " << kChromeDriverProductFullName << " "
+            << kChromeDriverVersion << " on port " << port;
+    VLOG(0) << GetPortProtectionMessage();
+  }
+
+#if BUILDFLAG(IS_LINUX)
   EnsureSharedMemory(cmd_line);
 #endif
 
   mojo::core::Init();
+
+#if BUILDFLAG(IS_OZONE)
+  InitializeOzoneKeyboardEngineManager();
+#endif
 
   base::ThreadPoolInstance::CreateAndStartWithDefaultParams(
       kChromeDriverProductShortName);

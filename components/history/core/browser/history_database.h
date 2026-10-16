@@ -14,19 +14,14 @@
 #include "components/history/core/browser/download_database.h"
 #include "components/history/core/browser/history_types.h"
 #include "components/history/core/browser/sync/history_sync_metadata_database.h"
-#include "components/history/core/browser/sync/typed_url_sync_metadata_database.h"
 #include "components/history/core/browser/url_database.h"
 #include "components/history/core/browser/visit_annotations_database.h"
 #include "components/history/core/browser/visit_database.h"
+#include "components/history/core/browser/visited_link_database.h"
 #include "components/history/core/browser/visitsegment_database.h"
 #include "sql/database.h"
 #include "sql/init_status.h"
 #include "sql/meta_table.h"
-
-#if BUILDFLAG(IS_ANDROID)
-#include "components/history/core/browser/android/android_cache_database.h"
-#include "components/history/core/browser/android/android_urls_database.h"
-#endif
 
 namespace base {
 class FilePath;
@@ -48,13 +43,10 @@ namespace history {
 // as the storage interface. Logic for manipulating this storage layer should
 // be in HistoryBackend.cc.
 class HistoryDatabase : public DownloadDatabase,
-#if BUILDFLAG(IS_ANDROID)
-                        public AndroidURLsDatabase,
-                        public AndroidCacheDatabase,
-#endif
                         public URLDatabase,
                         public VisitDatabase,
                         public VisitAnnotationsDatabase,
+                        public VisitedLinkDatabase,
                         public VisitSegmentDatabase {
  public:
   // Must call Init() to complete construction. Although it can be created on
@@ -87,7 +79,13 @@ class HistoryDatabase : public DownloadDatabase,
   // Counts the number of unique Hosts visited in the last month.
   int CountUniqueHostsVisitedLastMonth();
 
-  // Counts the number of unique domains (eLTD+1) visited within
+  // Gets unique domains (eTLD+1) visited within the time range
+  // [`begin_time`, `end_time`) for local and synced visits sorted in
+  // reverse-chronological order.
+  DomainsVisitedResult GetUniqueDomainsVisited(base::Time begin_time,
+                                               base::Time end_time);
+
+  // Counts the number of unique domains (eTLD+1) visited within
   // [`begin_time`, `end_time`).
   // The return value is a pair of (local, all), where "local" only counts
   // domains that were visited on this device, whereas "all" also counts
@@ -173,8 +171,6 @@ class HistoryDatabase : public DownloadDatabase,
   // foreign visits, i.e. visits coming from other syncing devices.
   // Note that this only counts visits *not* pending deletion (see below) - as
   // soon as a deletion operation is started, this will get set to false.
-  // TODO(crbug.com/1365291): After syncer::HISTORY has launched, consider
-  // whether this bit is still required.
   bool MayContainForeignVisits();
   void SetMayContainForeignVisits(bool may_contain_foreign_visits);
 
@@ -186,15 +182,10 @@ class HistoryDatabase : public DownloadDatabase,
 
   // Retrieves/updates the bit that indicates whether the DB may contain any
   // visits known to sync.
-  // TODO(crbug.com/1365291): After syncer::HISTORY has launched, consider
-  // whether this bit is still required.
   bool KnownToSyncVisitsExist();
   void SetKnownToSyncVisitsExist(bool exist);
 
   // Sync metadata storage ----------------------------------------------------
-
-  // Returns the sub-database used for storing Sync metadata for Typed URLs.
-  TypedURLSyncMetadataDatabase* GetTypedURLMetadataDB();
 
   // Returns the sub-database used for storing Sync metadata for History.
   HistorySyncMetadataDatabase* GetHistoryMetadataDB();
@@ -202,11 +193,6 @@ class HistoryDatabase : public DownloadDatabase,
   sql::Database& GetDBForTesting();
 
  private:
-#if BUILDFLAG(IS_ANDROID)
-  // AndroidProviderBackend uses the `db_`.
-  friend class AndroidProviderBackend;
-  FRIEND_TEST_ALL_PREFIXES(AndroidURLsMigrationTest, MigrateToVersion22);
-#endif
   friend class ::InMemoryURLIndexTest;
 
   // Overridden from URLDatabase, DownloadDatabase, VisitDatabase, and
@@ -229,6 +215,14 @@ class HistoryDatabase : public DownloadDatabase,
   void MigrateTimeEpoch();
 #endif
 
+  bool MigrateRemoveTypedUrlMetadata();
+
+#if BUILDFLAG(IS_ANDROID)
+  // The android_urls table ceased usage in 91.0.4438.0. This method drops the
+  // table if it exists.
+  bool DropAndroidUrlsTable();
+#endif
+
   // ---------------------------------------------------------------------------
 
   sql::Database db_;
@@ -237,8 +231,7 @@ class HistoryDatabase : public DownloadDatabase,
   // Most of the sub-DBs (URLDatabase etc.) are integrated into HistoryDatabase
   // via inheritance. However, that can lead to "diamond inheritance" issues
   // when multiple of these base classes define the same methods. Therefore the
-  // Sync metadata DBs are integrated via composition instead.
-  TypedURLSyncMetadataDatabase typed_url_metadata_db_;
+  // Sync metadata DB is integrated via composition instead.
   HistorySyncMetadataDatabase history_metadata_db_;
 
   base::Time cached_early_expiration_threshold_;

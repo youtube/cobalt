@@ -27,7 +27,7 @@ namespace webrtc {
 namespace {
 
 VideoFrame Create2x2Frame(uint16_t frame_id) {
-  rtc::scoped_refptr<I420Buffer> buffer =
+  scoped_refptr<I420Buffer> buffer =
       I420Buffer::Create(/*width=*/2, /*height=*/2);
   memset(buffer->MutableDataY(), static_cast<uint8_t>(frame_id), 4);
   memset(buffer->MutableDataU(), static_cast<uint8_t>(frame_id + 1), 1);
@@ -40,7 +40,7 @@ VideoFrame Create2x2Frame(uint16_t frame_id) {
 }
 
 void AssertHasFrame(FramesStorage& storage, uint16_t frame_id) {
-  absl::optional<VideoFrame> frame = storage.Get(frame_id);
+  std::optional<VideoFrame> frame = storage.Get(frame_id);
   ASSERT_TRUE(frame.has_value()) << "Frame " << frame_id << " wasn't found";
   EXPECT_EQ(frame->id(), frame_id);
 }

@@ -9,13 +9,15 @@
 #include <vector>
 
 #include "android_webview/browser/aw_print_manager.h"
-#include "android_webview/browser_jni_headers/AwPdfExporter_jni.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/functional/bind.h"
 #include "content/public/browser/browser_thread.h"
 #include "printing/print_settings.h"
 #include "printing/units.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "android_webview/browser_jni_headers/AwPdfExporter_jni.h"
 
 using base::android::JavaParamRef;
 using base::android::JavaRef;
@@ -84,10 +86,18 @@ void AwPdfExporter::ExportToPdf(JNIEnv* env,
 }
 
 namespace {
+
 // Converts from 1/1000 of inches to device units using DPI.
 int MilsToDots(int val, int dpi) {
-  return static_cast<int>(printing::ConvertUnitFloat(val, 1000, dpi));
+  return static_cast<int>(
+      printing::ConvertUnitFloat(val, printing::kMilsPerInch, dpi));
 }
+
+int MilsToDeviceMicrons(int val, int dpi) {
+  return printing::ConvertUnit(MilsToDots(val, dpi), printing::kPointsPerInch,
+                               printing::kMicronsPerInch);
+}
+
 }  // namespace
 
 std::unique_ptr<printing::PrintSettings> AwPdfExporter::CreatePdfSettings(
@@ -96,6 +106,17 @@ std::unique_ptr<printing::PrintSettings> AwPdfExporter::CreatePdfSettings(
     const printing::PageRanges& page_ranges) {
   auto settings = std::make_unique<printing::PrintSettings>();
   int dpi = Java_AwPdfExporter_getDpi(env, obj);
+  printing::PageMargins margins;
+  margins.left =
+      MilsToDeviceMicrons(Java_AwPdfExporter_getLeftMargin(env, obj), dpi);
+  margins.right =
+      MilsToDeviceMicrons(Java_AwPdfExporter_getRightMargin(env, obj), dpi);
+  margins.top =
+      MilsToDeviceMicrons(Java_AwPdfExporter_getTopMargin(env, obj), dpi);
+  margins.bottom =
+      MilsToDeviceMicrons(Java_AwPdfExporter_getBottomMargin(env, obj), dpi);
+  settings->SetCustomMargins(margins);
+
   int width = Java_AwPdfExporter_getPageWidth(env, obj);
   int height = Java_AwPdfExporter_getPageHeight(env, obj);
   gfx::Size physical_size_device_units;
@@ -116,13 +137,6 @@ std::unique_ptr<printing::PrintSettings> AwPdfExporter::CreatePdfSettings(
   settings->SetPrinterPrintableArea(physical_size_device_units,
                                     printable_area_device_units, true);
 
-  printing::PageMargins margins;
-  margins.left = MilsToDots(Java_AwPdfExporter_getLeftMargin(env, obj), dpi);
-  margins.right = MilsToDots(Java_AwPdfExporter_getRightMargin(env, obj), dpi);
-  margins.top = MilsToDots(Java_AwPdfExporter_getTopMargin(env, obj), dpi);
-  margins.bottom =
-      MilsToDots(Java_AwPdfExporter_getBottomMargin(env, obj), dpi);
-  settings->SetCustomMargins(margins);
   settings->set_should_print_backgrounds(true);
   return settings;
 }

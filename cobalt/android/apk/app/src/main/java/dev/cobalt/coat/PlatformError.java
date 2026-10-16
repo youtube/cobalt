@@ -25,13 +25,22 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import androidx.annotation.IntDef;
+import androidx.annotation.NonNull;
+import androidx.annotation.VisibleForTesting;
+import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.NativeMethods;
 
-/** Shows an ErrorDialog to inform the user of a Starboard platform error. */
+/**
+ * Shows an ErrorDialog to inform the user of a network platform error. The dialog should appear if
+ * the device has no wifi or ethernet connection. It should also appear in cases of "weak" internet
+ * (ie. connected to a network that doesn't have internet like a router that was just unplugged) as
+ * well as if the connection is experiencing DNS resolution errors. Prompts the user to retry or to
+ * navigate to the device's network settings menu.
+ */
 public class PlatformError
     implements DialogInterface.OnClickListener, DialogInterface.OnDismissListener {
 
@@ -53,26 +62,39 @@ public class PlatformError
   // Button IDs for CONNECTION_ERROR
   private static final int RETRY_BUTTON = 1;
   private static final int NETWORK_SETTINGS_BUTTON = 2;
+  private static final int DISMISS_BUTTON = 3;
 
-  private final Holder<Activity> activityHolder;
-  private final @ErrorType int errorType;
-  private final long data;
-  private final Handler uiThreadHandler;
+  private final Holder<Activity> mActivityHolder;
+  private final @ErrorType int mErrorType;
+  private final long mData;
+  private final Handler mUiThreadHandler;
+  @NonNull private final String mUrl;
+  private final boolean mDisableDismissButton;
 
-  private Dialog dialog;
-  private int response;
+  private Dialog mDialog;
+  private int mResponse;
 
-  public PlatformError(Holder<Activity> activityHolder, @ErrorType int errorType, long data) {
-    this.activityHolder = activityHolder;
-    this.errorType = errorType;
-    this.data = data;
-    uiThreadHandler = new Handler(Looper.getMainLooper());
-    response = CANCELLED;
+  /**
+   * @param url The URL that caused the navigation error.
+   */
+  public PlatformError(
+      Holder<Activity> activityHolder,
+      @ErrorType int errorType,
+      long data,
+      String url,
+      boolean disableDismissButton) {
+    mActivityHolder = activityHolder;
+    mErrorType = errorType;
+    mData = data;
+    mUrl = url == null ? "" : url;
+    mDisableDismissButton = disableDismissButton;
+    mUiThreadHandler = new Handler(Looper.getMainLooper());
+    mResponse = CANCELLED;
   }
 
   /** Display the error. */
   public void raise() {
-    uiThreadHandler.post(
+    mUiThreadHandler.post(
         new Runnable() {
           @Override
           public void run() {
@@ -81,51 +103,89 @@ public class PlatformError
         });
   }
 
+  public void setResponse(@Response int response) {
+    mResponse = response;
+  }
+
   private void showDialogOnUiThread() {
-    Activity activity = activityHolder.get();
+    Activity activity = mActivityHolder.get();
     if (activity == null) {
-      sendResponse(CANCELLED, data);
+      sendResponse(CANCELLED, mData);
       return;
     }
     ErrorDialog.Builder dialogBuilder = new ErrorDialog.Builder(activity);
-    switch (errorType) {
+    switch (mErrorType) {
       case CONNECTION_ERROR:
         dialogBuilder
             .setMessage(R.string.starboard_platform_connection_error)
             .addButton(RETRY_BUTTON, R.string.starboard_platform_retry)
             .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings);
+        if (!mDisableDismissButton) {
+          dialogBuilder.addButton(DISMISS_BUTTON, R.string.starboard_platform_dismiss);
+        }
         break;
       default:
-        Log.e(TAG, "Unknown platform error " + errorType);
+        Log.e(TAG, "Unknown platform error " + mErrorType);
         return;
     }
-    dialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
-    dialog.show();
+    StartupGuard.getInstance().disarm();
+    mDialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
+    mDialog.show();
+  }
+
+  public void dismiss() {
+    mUiThreadHandler.post(
+        () -> {
+          if (mDialog != null) {
+            mDialog.dismiss();
+          }
+        });
+  }
+
+  public boolean isShowing() {
+    return mDialog != null && mDialog.isShowing();
+  }
+
+  /** Performs retry of the failed URL loading. */
+  public void retry() {
+    if (Looper.myLooper() != Looper.getMainLooper()) {
+      mUiThreadHandler.post(this::retry);
+      return;
+    }
+    mResponse = POSITIVE;
+    if (mDialog != null) {
+      mDialog.dismiss();
+    }
+    if (mActivityHolder.get() instanceof CobaltActivity activity) {
+      activity.reloadUrl(mUrl);
+    }
+  }
+
+  public boolean isRetryPending() {
+    return isShowing() || mResponse != POSITIVE;
   }
 
   @Override
   public void onClick(DialogInterface dialogInterface, int whichButton) {
-    if (errorType == CONNECTION_ERROR) {
-      CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
+    if (mErrorType == CONNECTION_ERROR) {
+      Activity activity = mActivityHolder.get();
       switch (whichButton) {
         case NETWORK_SETTINGS_BUTTON:
-          response = POSITIVE;
-          if (cobaltActivity != null) {
-            cobaltActivity.mShouldReloadOnResume = true;
+          mResponse = POSITIVE;
+          if (activity != null) {
             try {
-              cobaltActivity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
+              activity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
             } catch (ActivityNotFoundException e) {
               Log.e(TAG, "Failed to start activity for ACTION_WIFI_SETTINGS.");
             }
           }
-          dialog.dismiss();
           break;
         case RETRY_BUTTON:
-          response = POSITIVE;
-          if (cobaltActivity != null) {
-            cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
-          }
-          dialog.dismiss();
+          retry();
+          break;
+        case DISMISS_BUTTON:
+          mResponse = NEGATIVE;
+          mDialog.dismiss();
           break;
         default: // fall out
       }
@@ -134,12 +194,8 @@ public class PlatformError
 
   @Override
   public void onDismiss(DialogInterface dialogInterface) {
-    dialog = null;
-      CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
-      if (cobaltActivity != null && response == CANCELLED) {
-        cobaltActivity.mShouldReloadOnResume = true;
-        cobaltActivity.getStarboardBridge().requestSuspend();
-      }
+    mDialog = null;
+    sendResponse(mResponse, mData);
   }
 
   /** Informs Starboard when the error is dismissed. */
@@ -150,5 +206,15 @@ public class PlatformError
   @NativeMethods
   interface Natives {
     void sendResponse(@PlatformError.Response int response, long data);
+  }
+
+  @VisibleForTesting
+  void setDialog(Dialog dialog) {
+    this.mDialog = dialog;
+  }
+
+  @VisibleForTesting
+  int getResponse() {
+    return mResponse;
   }
 }

@@ -165,11 +165,10 @@ TEST_F(RefCountedFragmentTest, Move) {
 }
 
 TEST_F(RefCountedFragmentTest, Free) {
-  auto node = MakeRefCounted<Node>(Node::Type::kNormal, kTestDriver,
-                                   IPCZ_INVALID_DRIVER_HANDLE);
+  auto node = MakeRefCounted<Node>(Node::Type::kNormal, kTestDriver);
   DriverMemoryWithMapping buffer = NodeLinkMemory::AllocateMemory(kTestDriver);
-  auto memory =
-      NodeLinkMemory::Create(std::move(node), std::move(buffer.mapping));
+  auto memory = NodeLinkMemory::Create(std::move(node), LinkSide::kA,
+                                       Features{}, std::move(buffer.mapping));
 
   // Allocate a ton of fragments and let them be released by FragmentRef on
   // destruction. If the fragments aren't freed properly, allocations will fail
@@ -178,8 +177,7 @@ TEST_F(RefCountedFragmentTest, Free) {
   for (size_t i = 0; i < kNumAllocations; ++i) {
     Fragment fragment = memory->AllocateFragment(sizeof(TestObject));
     EXPECT_TRUE(fragment.is_addressable());
-    FragmentRef<TestObject> ref(RefCountedFragment::kAdoptExistingRef, memory,
-                                fragment);
+    FragmentRef<TestObject> ref(kAdoptExistingRef, memory, fragment);
   }
 }
 

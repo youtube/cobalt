@@ -8,13 +8,20 @@
 
 #include "base/auto_reset.h"
 #include "base/check_op.h"
+#include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
+#include "base/scoped_observation.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "ui/aura/window_observer.h"
 #include "ui/base/ui_base_types.h"
+#include "ui/compositor/compositor.h"
 #include "ui/events/gestures/gesture_recognizer.h"
+#include "ui/gfx/geometry/insets.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/native_widget_types.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/views/controls/menu/menu_controller.h"
 #include "ui/views/controls/menu/menu_host_root_view.h"
@@ -49,14 +56,12 @@ namespace internal {
 class PreMenuEventDispatchHandler : public ui::EventHandler,
                                     aura::WindowObserver {
  public:
-  PreMenuEventDispatchHandler(const MenuController* controller,
+  PreMenuEventDispatchHandler(MenuController* controller,
                               SubmenuView* submenu,
                               aura::Window* window)
-      : menu_controller_(const_cast<MenuController*>(controller)),
-        submenu_(submenu),
-        window_(window) {
-    window_->AddPreTargetHandler(this);
-    window_->AddObserver(this);
+      : menu_controller_(controller->AsWeakPtr()), submenu_(submenu) {
+    window_observation_.Observe(window);
+    window->AddPreTargetHandler(this);
   }
 
   PreMenuEventDispatchHandler(const PreMenuEventDispatchHandler&) = delete;
@@ -72,22 +77,25 @@ class PreMenuEventDispatchHandler : public ui::EventHandler,
 
   // aura::WindowObserver overrides.
   void OnWindowDestroying(aura::Window* window) override {
-    DCHECK(window_ == window);
+    DCHECK(window_observation_.IsObserving());
+    DCHECK_EQ(window_observation_.GetSource(), window);
     StopObserving();
   }
 
  private:
   void StopObserving() {
-    if (!window_)
+    if (!window_observation_.IsObserving()) {
       return;
-    window_->RemovePreTargetHandler(this);
-    window_->RemoveObserver(this);
-    window_ = nullptr;
+    }
+    window_observation_.GetSource()->RemovePreTargetHandler(this);
+    window_observation_.Reset();
   }
 
-  raw_ptr<MenuController, DanglingUntriaged> menu_controller_;
-  raw_ptr<SubmenuView, DanglingUntriaged> submenu_;
-  raw_ptr<aura::Window, DanglingUntriaged> window_;
+  base::ScopedObservation<aura::Window, aura::WindowObserver>
+      window_observation_{this};
+  // Non-null unless the menu is closing.
+  const base::WeakPtr<MenuController> menu_controller_;
+  const raw_ptr<SubmenuView> submenu_;
 };
 #endif  // USE_AURA
 
@@ -115,47 +123,46 @@ MenuHost::MenuHost(SubmenuView* submenu) : submenu_(submenu) {
   set_auto_release_capture(false);
 }
 
-MenuHost::~MenuHost() {
-  if (owner_)
-    owner_->RemoveObserver(this);
-  CHECK(!IsInObserverList());
-}
+MenuHost::~MenuHost() = default;
 
 void MenuHost::InitMenuHost(const InitParams& init_params) {
   TRACE_EVENT0("views", "MenuHost::InitMenuHost");
-  Widget::InitParams params(Widget::InitParams::TYPE_MENU);
-  const MenuController* menu_controller =
+  Widget::InitParams params(Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET,
+                            Widget::InitParams::TYPE_MENU);
+  MenuController* menu_controller =
       submenu_->GetMenuItem()->GetMenuController();
-  const MenuConfig& menu_config = MenuConfig::instance();
-  bool rounded_border = menu_config.CornerRadiusForMenu(menu_controller) != 0;
   bool bubble_border = submenu_->GetScrollViewContainer() &&
                        submenu_->GetScrollViewContainer()->HasBubbleBorder();
-  params.shadow_type =
-      (bubble_border || (menu_config.use_bubble_border && rounded_border))
-          ? Widget::InitParams::ShadowType::kNone
-          : Widget::InitParams::ShadowType::kDrop;
-  params.opacity = (bubble_border || rounded_border)
+  params.name = "MenuHost";
+  params.shadow_type = bubble_border ? Widget::InitParams::ShadowType::kNone
+                                     : Widget::InitParams::ShadowType::kDrop;
+
+  const int corner_radius =
+      MenuConfig::instance().CornerRadiusForMenu(menu_controller);
+  params.opacity = (bubble_border || corner_radius)
                        ? Widget::InitParams::WindowOpacity::kTranslucent
                        : Widget::InitParams::WindowOpacity::kOpaque;
+  // bubble_border draws rounded corners if it exists. Otherwise, let the
+  // platform draw the corners.
+  if (!bubble_border) {
+    params.corner_radius = corner_radius;
+  }
   params.parent = init_params.parent ? init_params.parent->GetNativeView()
-                                     : gfx::kNullNativeView;
+                                     : gfx::NativeView();
   params.context = init_params.context ? init_params.context->GetNativeWindow()
-                                       : gfx::kNullNativeWindow;
+                                       : gfx::NativeWindow();
   params.bounds = init_params.bounds;
 
 #if defined(USE_AURA)
-  // TODO(msisov): remove kMenutype once positioning of anchored windows
-  // finally migrates to a new path.
-  params.init_properties_container.SetProperty(aura::client::kMenuType,
-                                               init_params.menu_type);
   params.init_properties_container.SetProperty(aura::client::kOwnedWindowAnchor,
                                                init_params.owned_window_anchor);
 #endif
   // If MenuHost has no parent widget, it needs to be marked
   // Activatable, so that calling Show in ShowMenuHost will
   // get keyboard focus.
-  if (init_params.parent == nullptr)
+  if (init_params.parent == nullptr) {
     params.activatable = Widget::InitParams::Activatable::kYes;
+  }
 
 #if BUILDFLAG(IS_WIN)
   // On Windows use the software compositor to ensure that we don't block
@@ -164,6 +171,24 @@ void MenuHost::InitMenuHost(const InitParams& init_params) {
   params.force_software_compositing = true;
 #endif
   Init(std::move(params));
+  std::optional<std::string> show_menu_host_duration_histogram =
+      menu_controller->TakeShowMenuHostDurationHistogram();
+  CHECK(!menu_controller->TakeShowMenuHostDurationHistogram().has_value());
+  if (show_menu_host_duration_histogram.has_value()) {
+    // Register callback to emit histogram to measure the time from when the
+    // menu host is initialized to successful presentation of the next frame
+    // handled by the compositor of menu host's widget.
+    GetCompositor()->RequestSuccessfulPresentationTimeForNextFrame(
+        base::BindOnce(
+            [](std::string histogram, base::TimeTicks menu_host_init_time,
+               const viz::FrameTimingDetails& frame_timing_details) {
+              base::TimeTicks presentation_time =
+                  frame_timing_details.presentation_feedback.timestamp;
+              UMA_HISTOGRAM_TIMES(histogram,
+                                  presentation_time - menu_host_init_time);
+            },
+            show_menu_host_duration_histogram.value(), base::TimeTicks::Now()));
+  }
 
 #if defined(USE_AURA)
   pre_dispatch_handler_ =
@@ -171,13 +196,11 @@ void MenuHost::InitMenuHost(const InitParams& init_params) {
           menu_controller, submenu_, GetNativeView());
 #endif
 
-  DCHECK(!owner_);
-  owner_ = init_params.parent.get();
-  if (owner_)
-    owner_->AddObserver(this);
-
+  DCHECK(!GetOwner());
+  if (init_params.parent) {
+    owner_observation_.Observe(init_params.parent);
+  }
   native_view_for_gestures_ = init_params.native_view_for_gestures;
-
   SetContentsView(init_params.contents_view);
   ShowMenuHost(init_params.do_capture);
 }
@@ -191,6 +214,7 @@ void MenuHost::ShowMenuHost(bool do_capture) {
   // process of showing.
   base::AutoReset<bool> reseter(&ignore_capture_lost_, true);
   ShowInactive();
+
   if (do_capture) {
     MenuController* menu_controller =
         submenu_->GetMenuItem()->GetMenuController();
@@ -200,16 +224,18 @@ void MenuHost::ShowMenuHost(bool do_capture) {
       // gesture events instead of being dropped.
       gfx::NativeView source_view = native_view_for_gestures_
                                         ? native_view_for_gestures_
-                                        : owner_->GetNativeView();
+                                        : GetOwner()->GetNativeView();
       internal::TransferGesture(GetGestureRecognizer(), source_view,
                                 GetNativeView());
     } else {
       GetGestureRecognizer()->CancelActiveTouchesExcept(nullptr);
     }
+
     // If MenuHost has no parent widget, it needs to call Show to get focus,
     // so that it will get keyboard events.
-    if (owner_ == nullptr)
+    if (GetOwner() == nullptr) {
       Show();
+    }
     native_widget_private()->SetCapture();
   }
 }
@@ -217,11 +243,11 @@ void MenuHost::ShowMenuHost(bool do_capture) {
 void MenuHost::HideMenuHost() {
   MenuController* menu_controller =
       submenu_->GetMenuItem()->GetMenuController();
-  if (owner_ && menu_controller &&
+  if (GetOwner() && menu_controller &&
       menu_controller->send_gesture_events_to_owner()) {
     gfx::NativeView target_view = native_view_for_gestures_
                                       ? native_view_for_gestures_
-                                      : owner_->GetNativeView();
+                                      : GetOwner()->GetNativeView();
     internal::TransferGesture(GetGestureRecognizer(), GetNativeView(),
                               target_view);
   }
@@ -234,10 +260,11 @@ void MenuHost::HideMenuHost() {
 void MenuHost::DestroyMenuHost() {
   HideMenuHost();
   destroying_ = true;
-  static_cast<MenuHostRootView*>(GetRootView())->ClearSubmenu();
+  submenu_ = nullptr;
 #if defined(USE_AURA)
   pre_dispatch_handler_.reset();
 #endif
+  static_cast<MenuHostRootView*>(GetRootView())->ClearSubmenu();
   Close();
 }
 
@@ -254,8 +281,9 @@ void MenuHost::SetMenuHostOwnedWindowAnchor(
 }
 
 void MenuHost::ReleaseMenuHostCapture() {
-  if (native_widget_private()->HasCapture())
+  if (native_widget_private()->HasCapture()) {
     native_widget_private()->ReleaseCapture();
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -266,16 +294,19 @@ internal::RootView* MenuHost::CreateRootView() {
 }
 
 void MenuHost::OnMouseCaptureLost() {
-  if (destroying_ || ignore_capture_lost_)
+  if (destroying_ || ignore_capture_lost_) {
     return;
+  }
 
-  if (!ViewsDelegate::GetInstance()->ShouldCloseMenuIfMouseCaptureLost())
+  if (!ViewsDelegate::GetInstance()->ShouldCloseMenuIfMouseCaptureLost()) {
     return;
+  }
 
   MenuController* menu_controller =
       submenu_->GetMenuItem()->GetMenuController();
-  if (menu_controller && !menu_controller->drag_in_progress())
+  if (menu_controller && !menu_controller->drag_in_progress()) {
     menu_controller->Cancel(MenuController::ExitType::kAll);
+  }
   Widget::OnMouseCaptureLost();
 }
 
@@ -290,13 +321,15 @@ void MenuHost::OnNativeWidgetDestroyed() {
 }
 
 void MenuHost::OnOwnerClosing() {
-  if (destroying_)
+  if (destroying_) {
     return;
+  }
 
   MenuController* menu_controller =
       submenu_->GetMenuItem()->GetMenuController();
-  if (menu_controller && !menu_controller->drag_in_progress())
+  if (menu_controller && !menu_controller->drag_in_progress()) {
     menu_controller->Cancel(MenuController::ExitType::kAll);
+  }
 }
 
 void MenuHost::OnDragWillStart() {
@@ -309,40 +342,46 @@ void MenuHost::OnDragWillStart() {
 void MenuHost::OnDragComplete() {
   // If we are being destroyed there is no guarantee that the menu items are
   // available.
-  if (destroying_)
+  if (destroying_) {
     return;
+  }
   MenuController* menu_controller =
       submenu_->GetMenuItem()->GetMenuController();
-  if (!menu_controller)
+  if (!menu_controller) {
     return;
-
-  bool should_close = true;
-  // If the view came from outside menu code (i.e., not a MenuItemView), we
-  // should consult the MenuDelegate to determine whether or not to close on
-  // exit.
-  if (!menu_controller->did_initiate_drag()) {
-    MenuDelegate* menu_delegate = submenu_->GetMenuItem()->GetDelegate();
-    should_close = menu_delegate ? menu_delegate->ShouldCloseOnDragComplete()
-                                 : should_close;
   }
-  menu_controller->OnDragComplete(should_close);
 
-  // We may have lost capture in the drag and drop, but are remaining open.
-  // Return capture so we get MouseCaptureLost events.
-  if (!should_close)
-    native_widget_private()->SetCapture();
+  bool should_close =
+      menu_controller->exit_type() != MenuController::ExitType::kNone;
+  if (auto* const delegate = submenu_->GetMenuItem()->GetDelegate()) {
+    should_close |= delegate->ShouldCloseOnDragComplete();
+  }
+
+  menu_controller->OnDragComplete(should_close);
 }
 
 Widget* MenuHost::GetPrimaryWindowWidget() {
-  return owner_ ? owner_->GetPrimaryWindowWidget()
-                : Widget::GetPrimaryWindowWidget();
+  return GetOwner() ? GetOwner()->GetPrimaryWindowWidget()
+                    : Widget::GetPrimaryWindowWidget();
+}
+
+gfx::Insets MenuHost::GetCustomInsetsInDIP() const {
+#if BUILDFLAG(IS_OZONE)
+  if (submenu_) {
+    return submenu_->GetScrollViewContainer()->outside_border_insets();
+  }
+#endif  // BUILDFLAG(IS_OZONE)
+  return gfx::Insets();
 }
 
 void MenuHost::OnWidgetDestroying(Widget* widget) {
-  DCHECK_EQ(owner_, widget);
-  owner_->RemoveObserver(this);
-  owner_ = nullptr;
-  native_view_for_gestures_ = nullptr;
+  DCHECK_EQ(GetOwner(), widget);
+  owner_observation_.Reset();
+  native_view_for_gestures_ = gfx::NativeView();
+}
+
+Widget* MenuHost::GetOwner() {
+  return owner_observation_.GetSource();
 }
 
 }  // namespace views

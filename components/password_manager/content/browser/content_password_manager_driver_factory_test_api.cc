@@ -4,32 +4,23 @@
 
 #include "components/password_manager/content/browser/content_password_manager_driver_factory_test_api.h"
 
-#include "components/password_manager/content/browser/content_password_manager_driver.h"
-
 namespace password_manager {
 
 // static
 std::unique_ptr<ContentPasswordManagerDriverFactory>
 ContentPasswordManagerDriverFactoryTestApi::Create(
     content::WebContents* web_contents,
-    PasswordManagerClient* password_manager_client,
-    autofill::AutofillClient* autofill_client) {
+    PasswordManagerClient* password_manager_client) {
   return base::WrapUnique(new ContentPasswordManagerDriverFactory(
-      web_contents, password_manager_client, autofill_client));
+      web_contents, password_manager_client));
 }
 
-ContentPasswordManagerDriverFactoryTestApi::
-    ContentPasswordManagerDriverFactoryTestApi(
-        ContentPasswordManagerDriverFactory* factory)
-    : factory_(factory) {}
-
-void ContentPasswordManagerDriverFactoryTestApi::SetAutofillClient(
-    autofill::AutofillClient* autofill_client) {
-  factory_->autofill_client_ = autofill_client;
-  for (auto& [rfh, driver] : factory_->frame_driver_map_) {
-    driver.GetPasswordAutofillManager()->set_autofill_client_for_test(
-        autofill_client);
-  }
+// static
+ContentPasswordManagerDriver*
+ContentPasswordManagerDriverFactoryTestApi::GetDriverForFrame(
+    ContentPasswordManagerDriverFactory* factory,
+    content::RenderFrameHost* render_frame_host) {
+  return factory->GetDriverForFrame(render_frame_host);
 }
 
 }  // namespace password_manager

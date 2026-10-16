@@ -2,13 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/power_metrics/energy_impact_mac.h"
 
 #include <Foundation/Foundation.h>
 #import <IOKit/IOKitLib.h>
 
-#include "base/mac/foundation_util.h"
-#include "base/mac/scoped_cftyperef.h"
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/mac/scoped_ioobject.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/time/time.h"
@@ -21,23 +26,23 @@ namespace {
 
 NSDictionary* MaybeGetDictionaryFromPath(const base::FilePath& path) {
   // The folder where the energy coefficient plist files are stored.
-  NSString* plist_path_string = base::SysUTF8ToNSString(path.value().c_str());
-  return [NSDictionary dictionaryWithContentsOfFile:plist_path_string];
+  return [NSDictionary
+      dictionaryWithContentsOfURL:base::apple::FilePathToNSURL(path)
+                            error:nil];
 }
 
 double GetNamedCoefficientOrZero(NSDictionary* dict, NSString* key) {
-  NSObject* value = [dict objectForKey:key];
-  NSNumber* num = base::mac::ObjCCast<NSNumber>(value);
-  return [num floatValue];
+  NSNumber* num = base::apple::ObjCCast<NSNumber>(dict[key]);
+  return num.floatValue;
 }
 
 }  // namespace
 
-absl::optional<EnergyImpactCoefficients>
+std::optional<EnergyImpactCoefficients>
 ReadCoefficientsForCurrentMachineOrDefault() {
-  absl::optional<std::string> board_id = internal::GetBoardIdForThisMachine();
+  std::optional<std::string> board_id = internal::GetBoardIdForThisMachine();
   if (!board_id.has_value())
-    return absl::nullopt;
+    return std::nullopt;
 
   return internal::ReadCoefficientsForBoardIdOrDefault(
       base::FilePath(FILE_PATH_LITERAL("/usr/share/pmenergy")),
@@ -48,7 +53,7 @@ double ComputeEnergyImpactForResourceUsage(
     const coalition_resource_usage& data_sample,
     const EnergyImpactCoefficients& coefficients,
     const mach_timebase_info_data_t& mach_timebase) {
-  // TODO(https://crbug.com/1249536): The below coefficients are not used
+  // TODO(crbug.com/40197639): The below coefficients are not used
   // for now. Their units are unknown, and in the case of the network-related
   // coefficients, it's not clear how to sample the data.
   //
@@ -108,16 +113,18 @@ double ComputeEnergyImpactForResourceUsage(
 
 namespace internal {
 
-absl::optional<EnergyImpactCoefficients> ReadCoefficientsFromPath(
+std::optional<EnergyImpactCoefficients> ReadCoefficientsFromPath(
     const base::FilePath& plist_file) {
   @autoreleasepool {
     NSDictionary* dict = MaybeGetDictionaryFromPath(plist_file);
-    if (!dict)
-      return absl::nullopt;
+    if (!dict) {
+      return std::nullopt;
+    }
 
-    NSDictionary* energy_constants = [dict objectForKey:@"energy_constants"];
-    if (!energy_constants)
-      return absl::nullopt;
+    NSDictionary* energy_constants = dict[@"energy_constants"];
+    if (!energy_constants) {
+      return std::nullopt;
+    }
 
     EnergyImpactCoefficients coefficients{};
     coefficients.kcpu_time =
@@ -159,7 +166,7 @@ absl::optional<EnergyImpactCoefficients> ReadCoefficientsFromPath(
   }
 }
 
-absl::optional<EnergyImpactCoefficients> ReadCoefficientsForBoardIdOrDefault(
+std::optional<EnergyImpactCoefficients> ReadCoefficientsForBoardIdOrDefault(
     const base::FilePath& directory,
     const std::string& board_id) {
   auto coefficients = ReadCoefficientsFromPath(
@@ -171,23 +178,23 @@ absl::optional<EnergyImpactCoefficients> ReadCoefficientsForBoardIdOrDefault(
       directory.Append(FILE_PATH_LITERAL("default.plist")));
 }
 
-absl::optional<std::string> GetBoardIdForThisMachine() {
+std::optional<std::string> GetBoardIdForThisMachine() {
   base::mac::ScopedIOObject<io_service_t> platform_expert(
       IOServiceGetMatchingService(kIOMasterPortDefault,
                                   IOServiceMatching("IOPlatformExpertDevice")));
   if (!platform_expert)
-    return absl::nullopt;
+    return std::nullopt;
 
   // This is what libpmenergy is observed to do in order to retrieve the correct
   // coefficients file for the local computer.
-  base::ScopedCFTypeRef<CFDataRef> board_id_data(
-      base::mac::CFCast<CFDataRef>(IORegistryEntryCreateCFProperty(
-          platform_expert, CFSTR("board-id"), kCFAllocatorDefault, 0)));
+  base::apple::ScopedCFTypeRef<CFDataRef> board_id_data(
+      base::apple::CFCast<CFDataRef>(IORegistryEntryCreateCFProperty(
+          platform_expert.get(), CFSTR("board-id"), kCFAllocatorDefault, 0)));
 
   if (!board_id_data)
-    return absl::nullopt;
+    return std::nullopt;
 
-  return reinterpret_cast<const char*>(CFDataGetBytePtr(board_id_data));
+  return reinterpret_cast<const char*>(CFDataGetBytePtr(board_id_data.get()));
 }
 
 }  // namespace internal

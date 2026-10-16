@@ -1,16 +1,16 @@
-// Copyright (c) 2021, Google Inc.
+// Copyright 2021 The BoringSSL Authors
 //
-// Permission to use, copy, modify, and/or distribute this software for any
-// purpose with or without fee is hereby granted, provided that the above
-// copyright notice and this permission notice appear in all copies.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-// SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-// OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-// CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package subprocess
 
@@ -21,7 +21,7 @@ import (
 	"fmt"
 )
 
-// The following structures reflect the JSON of ACVP hash tests. See
+// The following structures reflect the JSON of ACVP XTS tests. See
 // https://pages.nist.gov/ACVP/draft-celi-acvp-symmetric.html
 
 type xtsTestVectorSet struct {
@@ -59,7 +59,7 @@ type xtsTestResponse struct {
 // encrypt/decrypt with AES-XTS.
 type xts struct{}
 
-func (h *xts) Process(vectorSet []byte, m Transactable) (interface{}, error) {
+func (h *xts) Process(vectorSet []byte, m Transactable) (any, error) {
 	var parsed xtsTestVectorSet
 	if err := json.Unmarshal(vectorSet, &parsed); err != nil {
 		return nil, err
@@ -67,6 +67,7 @@ func (h *xts) Process(vectorSet []byte, m Transactable) (interface{}, error) {
 
 	var ret []xtsTestGroupResponse
 	for _, group := range parsed.Groups {
+		group := group
 		response := xtsTestGroupResponse{
 			ID: group.ID,
 		}
@@ -88,6 +89,7 @@ func (h *xts) Process(vectorSet []byte, m Transactable) (interface{}, error) {
 		funcName := "AES-XTS/" + group.Direction
 
 		for _, test := range group.Tests {
+			test := test
 			if group.KeyLen != len(test.KeyHex)*4/2 {
 				return nil, fmt.Errorf("test case %d/%d contains hex message of length %d but specifies a key length of %d (remember that XTS keys are twice the length of the underlying key size)", group.ID, test.ID, len(test.KeyHex), group.KeyLen)
 			}
@@ -126,22 +128,26 @@ func (h *xts) Process(vectorSet []byte, m Transactable) (interface{}, error) {
 				return nil, fmt.Errorf("failed to decode hex in test case %d/%d: %s", group.ID, test.ID, err)
 			}
 
-			result, err := m.Transact(funcName, 1, key, msg, tweak[:])
-			if err != nil {
-				return nil, fmt.Errorf("submodule failed on test case %d/%d: %s", group.ID, test.ID, err)
-			}
+			m.TransactAsync(funcName, 1, [][]byte{key, msg, tweak[:]}, func(result [][]byte) error {
+				testResponse := xtsTestResponse{ID: test.ID}
+				if decrypt {
+					testResponse.PlaintextHex = hex.EncodeToString(result[0])
+				} else {
+					testResponse.CiphertextHex = hex.EncodeToString(result[0])
+				}
 
-			testResponse := xtsTestResponse{ID: test.ID}
-			if decrypt {
-				testResponse.PlaintextHex = hex.EncodeToString(result[0])
-			} else {
-				testResponse.CiphertextHex = hex.EncodeToString(result[0])
-			}
-
-			response.Tests = append(response.Tests, testResponse)
+				response.Tests = append(response.Tests, testResponse)
+				return nil
+			})
 		}
 
-		ret = append(ret, response)
+		m.Barrier(func() {
+			ret = append(ret, response)
+		})
+	}
+
+	if err := m.Flush(); err != nil {
+		return nil, err
 	}
 
 	return ret, nil

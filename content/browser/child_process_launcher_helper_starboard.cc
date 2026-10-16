@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <optional>
+
 #include "base/notreached.h"
 #include "content/browser/child_process_launcher_helper.h"
 #include "content/browser/child_process_launcher_helper_posix.h"
@@ -19,10 +21,10 @@
 namespace content {
 namespace internal {
 
-absl::optional<mojo::NamedPlatformChannel>
+std::optional<mojo::NamedPlatformChannel>
 ChildProcessLauncherHelper::CreateNamedPlatformChannelOnLauncherThread() {
   NOTIMPLEMENTED();
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void ChildProcessLauncherHelper::BeforeLaunchOnClientThread() {
@@ -85,17 +87,10 @@ void ChildProcessLauncherHelper::ForceNormalProcessTerminationSync(
   NOTIMPLEMENTED();
 }
 
-void ChildProcessLauncherHelper::SetProcessBackgroundedOnLauncherThread(
-    base::Process process,
-    bool is_background) {
-  NOTIMPLEMENTED();
-}
-
 // static
 base::File OpenFileToShare(const base::FilePath& path,
                            base::MemoryMappedFile::Region* region) {
   NOTREACHED();
-  return base::File();
 }
 
 }  // namespace internal

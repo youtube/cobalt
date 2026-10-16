@@ -4,14 +4,16 @@
 
 #include "components/desks_storage/core/desk_model.h"
 
+#include <string_view>
+
 #include "ash/public/cpp/desk_template.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/uuid.h"
 #include "components/desks_storage/core/desk_model_observer.h"
 #include "components/desks_storage/core/desk_template_conversion.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace desks_storage {
 
@@ -34,7 +36,7 @@ DeskModel::GetTemplateJsonStatus ConvertGetEntryStatusToTemplateJsonStatus(
 
 DeskModel::GetAllEntriesResult::GetAllEntriesResult(
     GetAllEntriesStatus status,
-    std::vector<const ash::DeskTemplate*> entries)
+    std::vector<raw_ptr<const ash::DeskTemplate, VectorExperimental>> entries)
     : status(status), entries(std::move(entries)) {}
 DeskModel::GetAllEntriesResult::GetAllEntriesResult(
     GetAllEntriesResult& other) = default;
@@ -73,7 +75,7 @@ void DeskModel::GetTemplateJson(const base::Uuid& uuid,
 void DeskModel::SetPolicyDeskTemplates(const std::string& policy_json) {
   policy_entries_.clear();
 
-  base::StringPiece raw_json = base::StringPiece(policy_json);
+  std::string_view raw_json = std::string_view(policy_json);
   auto parsed_list = base::JSONReader::ReadAndReturnValueWithError(raw_json);
   if (!parsed_list.has_value())
     return;
@@ -84,11 +86,10 @@ void DeskModel::SetPolicyDeskTemplates(const std::string& policy_json) {
   }
 
   for (auto& desk_template : parsed_list->GetList()) {
-    std::unique_ptr<ash::DeskTemplate> dt =
-        desk_template_conversion::ParseDeskTemplateFromSource(
-            desk_template, ash::DeskTemplateSource::kPolicy);
-    if (dt) {
-      policy_entries_.push_back(std::move(dt));
+    auto dt = desk_template_conversion::ParseDeskTemplateFromBaseValue(
+        desk_template, ash::DeskTemplateSource::kPolicy);
+    if (dt.has_value()) {
+      policy_entries_.push_back(std::move(dt.value()));
     } else {
       LOG(WARNING) << "Failed to parse admin template from JSON: "
                    << desk_template;
@@ -123,8 +124,9 @@ void DeskModel::HandleTemplateConversionToPolicyJson(
   }
 
   base::Value::List template_list;
-  template_list.Append(desk_template_conversion::SerializeDeskTemplateAsPolicy(
-      entry.get(), app_cache));
+  template_list.Append(
+      desk_template_conversion::SerializeDeskTemplateAsBaseValue(entry.get(),
+                                                                 app_cache));
 
   std::move(callback).Run(GetTemplateJsonStatus::kOk,
                           base::Value(std::move(template_list)));

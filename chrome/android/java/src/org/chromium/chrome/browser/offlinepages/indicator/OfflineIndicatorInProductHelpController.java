@@ -9,10 +9,11 @@ import android.os.Handler;
 
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.download.OfflineContentAvailabilityStatusProvider;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.status_indicator.StatusIndicatorCoordinator;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
-import org.chromium.chrome.browser.user_education.IPHCommandBuilder;
+import org.chromium.chrome.browser.user_education.IphCommandBuilder;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.components.feature_engagement.FeatureConstants;
 
@@ -29,13 +30,16 @@ public class OfflineIndicatorInProductHelpController
     private final UserEducationHelper mUserEducationHelper;
     private final StatusIndicatorCoordinator mCoordinator;
 
-    public OfflineIndicatorInProductHelpController(final Activity activity,
-            final ToolbarManager toolbarManager, final AppMenuHandler appMenuHandler,
+    public OfflineIndicatorInProductHelpController(
+            final Activity activity,
+            Profile profile,
+            final ToolbarManager toolbarManager,
+            final AppMenuHandler appMenuHandler,
             final StatusIndicatorCoordinator coordinator) {
         mActivity = activity;
         mToolbarManager = toolbarManager;
         mAppMenuHandler = appMenuHandler;
-        mUserEducationHelper = new UserEducationHelper(mActivity, mHandler);
+        mUserEducationHelper = new UserEducationHelper(mActivity, profile, mHandler);
 
         assert coordinator != null;
         mCoordinator = coordinator;
@@ -49,7 +53,7 @@ public class OfflineIndicatorInProductHelpController
     @Override
     public void onStatusIndicatorShowAnimationEnd() {
         if (!OfflineContentAvailabilityStatusProvider.getInstance()
-                        .isPersistentContentAvailable()) {
+                .isPersistentContentAvailable()) {
             // Don't show the IPH if Download Home would be empty.
             return;
         }
@@ -66,11 +70,12 @@ public class OfflineIndicatorInProductHelpController
         // StatusIndicator at the moment, but if different StatusIndicators are added in the
         // future, then it will be important to make sure that Chrome only shows this IPH for the
         // offline indicator, and not for other StatusIndicators.
-        mUserEducationHelper.requestShowIPH(
-                new IPHCommandBuilder(mActivity.getResources(),
-                        FeatureConstants.DOWNLOAD_INDICATOR_FEATURE,
-                        R.string.iph_download_indicator_text,
-                        R.string.iph_download_home_accessibility_text)
+        mUserEducationHelper.requestShowIph(
+                new IphCommandBuilder(
+                                mActivity.getResources(),
+                                FeatureConstants.DOWNLOAD_INDICATOR_FEATURE,
+                                R.string.iph_download_indicator_text,
+                                R.string.iph_download_home_accessibility_text)
                         .setAnchorView(mToolbarManager.getMenuButtonView())
                         .setOnShowCallback(this::turnOnHighlightForDownloadsMenuItem)
                         .setOnDismissCallback(this::turnOffHighlightForDownloadsMenuItem)

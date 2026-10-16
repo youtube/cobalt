@@ -11,7 +11,7 @@
 #include <string>
 
 #include "base/memory/raw_ptr.h"
-#include "components/sync/base/model_type.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/test/sessions_hierarchy.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -26,8 +26,8 @@ class FakeServer;
 // on FakeServer so that its interface is not polluted.
 class FakeServerVerifier {
  public:
-  // Creates a FakeServerVerifier for |fake_server|. This class does not take
-  // ownership of |fake_server|.
+  // Creates a FakeServerVerifier for `fake_server`. This class does not take
+  // ownership of `fake_server`.
   explicit FakeServerVerifier(FakeServer* fake_server);
 
   FakeServerVerifier(const FakeServerVerifier&) = delete;
@@ -35,28 +35,28 @@ class FakeServerVerifier {
 
   virtual ~FakeServerVerifier();
 
-  // Returns a successful result if there are |expected_count| entities with the
-  // given |model_type|. A failure is returned if the count does not match or
+  // Returns a successful result if there are `expected_count` entities with the
+  // given `data_type`. A failure is returned if the count does not match or
   // verification can't take place.
   testing::AssertionResult VerifyEntityCountByType(
       size_t expected_count,
-      syncer::ModelType model_type) const;
+      syncer::DataType data_type) const;
 
-  // Returns a successful result if there are |expected_count| entities with the
-  // given |model_type| and |name|. A failure is returned if the count does not
+  // Returns a successful result if there are `expected_count` entities with the
+  // given `data_type` and `name`. A failure is returned if the count does not
   // match or verification can't take place.
   testing::AssertionResult VerifyEntityCountByTypeAndName(
       size_t expected_count,
-      syncer::ModelType model_type,
+      syncer::DataType data_type,
       const std::string& name) const;
 
-  // Returns a successful result if |expected_sessions| matches the sessions
+  // Returns a successful result if `expected_sessions` matches the sessions
   // hierarchy present on the server. This method only supports one session.
   testing::AssertionResult VerifySessions(
       const SessionsHierarchy& expected_sessions);
 
-  // Returns a successful result if |expected_urls| matches the URLs (within
-  // ModelType::HISTORY) on the server.
+  // Returns a successful result if `expected_urls` matches the URLs (within
+  // DataType::HISTORY) on the server.
   testing::AssertionResult VerifyHistory(
       const std::multiset<GURL>& expected_urls);
 

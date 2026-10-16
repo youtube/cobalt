@@ -2,15 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/display/manager/test/action_logger_util.h"
 
 #include <stddef.h>
 
 #include "base/format_macros.h"
 #include "base/strings/stringprintf.h"
+#include "ui/display/types/display_color_management.h"
 #include "ui/display/types/display_mode.h"
 #include "ui/display/types/display_snapshot.h"
-#include "ui/display/types/gamma_ramp_rgb_entry.h"
 #include "ui/display/types/native_display_delegate.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/size.h"
@@ -23,8 +28,8 @@ std::string GetCrtcAction(
       "crtc(display_id=[%" PRId64 "],x=%d,y=%d,mode=[%s],enable_vrr=%d)",
       display_config_params.id, display_config_params.origin.x(),
       display_config_params.origin.y(),
-      display_config_params.mode.has_value()
-          ? display_config_params.mode.value()->ToString().c_str()
+      display_config_params.mode
+          ? display_config_params.mode->ToStringForTest().c_str()
           : "NULL",
       display_config_params.enable_vrr);
 }
@@ -41,36 +46,27 @@ std::string GetSetHdcpKeyPropAction(int64_t display_id, bool success) {
                             display_id, success);
 }
 
-std::string SetColorMatrixAction(int64_t display_id,
-                                 const std::vector<float>& color_matrix) {
-  std::string ctm;
-  for (size_t i = 0; i < color_matrix.size(); ++i)
-    ctm += base::StringPrintf(",ctm[%" PRIuS "]=%f", i, color_matrix[i]);
-
-  return base::StringPrintf("set_color_matrix(id=%" PRId64 "%s)", display_id,
-                            ctm.c_str());
+std::string SetColorCalibrationAction(
+    int64_t display_id,
+    const display::ColorCalibration& calibration) {
+  return base::StringPrintf("set_color_calibration(id=%" PRId64 ")",
+                            display_id);
 }
 
-std::string SetGammaCorrectionAction(
+std::string SetColorTemperatureAdjustmentAction(
     int64_t display_id,
-    const std::vector<display::GammaRampRGBEntry>& degamma_lut,
-    const std::vector<display::GammaRampRGBEntry>& gamma_lut) {
-  std::string degamma_table;
-  for (size_t i = 0; i < degamma_lut.size(); ++i) {
-    degamma_table += base::StringPrintf(",degamma[%" PRIuS "]=%04x%04x%04x", i,
-                                        degamma_lut[i].r, degamma_lut[i].g,
-                                        degamma_lut[i].b);
-  }
-  std::string gamma_table;
-  for (size_t i = 0; i < gamma_lut.size(); ++i) {
-    gamma_table +=
-        base::StringPrintf(",gamma[%" PRIuS "]=%04x%04x%04x", i, gamma_lut[i].r,
-                           gamma_lut[i].g, gamma_lut[i].b);
-  }
+    const display::ColorTemperatureAdjustment& cta) {
+  return base::StringPrintf(
+      "set_color_temperature_adjustment(id=%" PRId64 ",cta[%1.2f,%1.2f,%1.2f)",
+      display_id, cta.srgb_matrix.vals[0][0], cta.srgb_matrix.vals[1][1],
+      cta.srgb_matrix.vals[2][2]);
+}
 
-  return base::StringPrintf("set_gamma_correction(id=%" PRId64 "%s%s)",
-                            display_id, degamma_table.c_str(),
-                            gamma_table.c_str());
+std::string SetGammaAdjustmentAction(int64_t display_id,
+                                     const display::GammaAdjustment& gamma) {
+  return base::StringPrintf("set_gamma_adjustment(id=%" PRId64 "%s)",
+                            display_id,
+                            gamma.curve.ToActionString("gamma").c_str());
 }
 
 std::string SetPrivacyScreenAction(int64_t display_id, bool enabled) {

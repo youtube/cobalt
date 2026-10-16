@@ -4,8 +4,15 @@
 
 #include "device/fido/cable/v2_authenticator.h"
 
+#include <algorithm>
+#include <string_view>
+#include <variant>
+
+#include "base/containers/flat_set.h"
 #include "base/feature_list.h"
+#include "base/json/json_reader.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/strings/string_number_conversions.h"
@@ -17,29 +24,29 @@
 #include "components/cbor/writer.h"
 #include "components/device_event_log/device_event_log.h"
 #include "crypto/random.h"
+#include "device/fido/cable/v2_constants.h"
 #include "device/fido/cable/v2_handshake.h"
 #include "device/fido/cable/websocket_adapter.h"
 #include "device/fido/cbor_extract.h"
 #include "device/fido/features.h"
 #include "device/fido/fido_constants.h"
 #include "device/fido/fido_parsing_utils.h"
+#include "device/fido/network_context_factory.h"
 #include "device/fido/public_key_credential_descriptor.h"
 #include "device/fido/public_key_credential_params.h"
 #include "device/fido/public_key_credential_rp_entity.h"
 #include "device/fido/public_key_credential_user_entity.h"
 #include "net/base/isolation_info.h"
 #include "net/cookies/site_for_cookies.h"
+#include "net/storage_access_api/status.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/mojom/network_context.mojom.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "third_party/blink/public/mojom/webauthn/authenticator.mojom.h"
 #include "third_party/boringssl/src/include/openssl/aes.h"
 #include "third_party/boringssl/src/include/openssl/ec_key.h"
 #include "third_party/boringssl/src/include/openssl/obj.h"
 
-namespace device {
-namespace cablev2 {
-namespace authenticator {
+namespace device::cablev2::authenticator {
 
 using device::CtapDeviceResponseCode;
 using device::CtapRequestCommand;
@@ -84,9 +91,8 @@ constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
         })");
 
 struct MakeCredRequest {
-  // All fields below are not a raw_ptr<T> because cbor_extract.cc would
-  // cast the raw_ptr<T> to a void*, skipping an AddRef() call and causing a
-  // ref-counting mismatch.
+  // RAW_PTR_EXCLUSION: cbor_extract.cc would cast the raw_ptr<T> to a void*,
+  // skipping an AddRef() call and causing a ref-counting mismatch.
   RAW_PTR_EXCLUSION const std::vector<uint8_t>* client_data_hash;
   RAW_PTR_EXCLUSION const std::string* rp_id;
   RAW_PTR_EXCLUSION const std::string* rp_name;
@@ -96,7 +102,6 @@ struct MakeCredRequest {
   RAW_PTR_EXCLUSION const cbor::Value::ArrayValue* cred_params;
   RAW_PTR_EXCLUSION const cbor::Value::ArrayValue* excluded_credentials;
   RAW_PTR_EXCLUSION const bool* resident_key;
-  RAW_PTR_EXCLUSION const std::string* device_public_key_attestation;
   RAW_PTR_EXCLUSION const cbor::Value* prf;
 };
 
@@ -134,16 +139,6 @@ static constexpr StepOrByte<MakeCredRequest> kMakeCredParseSteps[] = {
 
     Map<MakeCredRequest>(Is::kOptional),
     IntKey<MakeCredRequest>(6),
-      Map<MakeCredRequest>(Is::kOptional),
-      StringKey<MakeCredRequest>(), 'd', 'e', 'v', 'i', 'c', 'e',
-                                    'P', 'u', 'b', 'K', 'e', 'y', '\0',
-        // The presence of the attestation type is used to detect when DPK is
-        // requested.
-        ELEMENT(Is::kRequired, MakeCredRequest, device_public_key_attestation),
-        StringKey<MakeCredRequest>(), 'a', 't', 't', 'e', 's', 't', 'a', 't',
-                                      'i', 'o', 'n', '\0',
-      Stop<MakeCredRequest>(),
-
       ELEMENT(Is::kOptional, MakeCredRequest, prf),
       StringKey<MakeCredRequest>(), 'p', 'r', 'f', '\0',
     Stop<MakeCredRequest>(),
@@ -159,9 +154,8 @@ static constexpr StepOrByte<MakeCredRequest> kMakeCredParseSteps[] = {
 };
 
 struct AttestationObject {
-  // All fields below are not a raw_ptr<T> because cbor_extract.cc would
-  // cast the raw_ptr<T> to a void*, skipping an AddRef() call and causing a
-  // ref-counting mismatch.
+  // RAW_PTR_EXCLUSION: cbor_extract.cc would cast the raw_ptr<T> to a void*,
+  // skipping an AddRef() call and causing a ref-counting mismatch.
   RAW_PTR_EXCLUSION const std::string* fmt;
   RAW_PTR_EXCLUSION const std::vector<uint8_t>* auth_data;
   RAW_PTR_EXCLUSION const cbor::Value* statement;
@@ -183,13 +177,11 @@ static constexpr StepOrByte<AttestationObject> kAttObjParseSteps[] = {
 };
 
 struct GetAssertionRequest {
-  // All fields below are not a raw_ptr<T> because cbor_extract.cc would
-  // cast the raw_ptr<T> to a void*, skipping an AddRef() call and causing a
-  // ref-counting mismatch.
+  // RAW_PTR_EXCLUSION: cbor_extract.cc would cast the raw_ptr<T> to a void*,
+  // skipping an AddRef() call and causing a ref-counting mismatch.
   RAW_PTR_EXCLUSION const std::string* rp_id;
   RAW_PTR_EXCLUSION const std::vector<uint8_t>* client_data_hash;
   RAW_PTR_EXCLUSION const cbor::Value::ArrayValue* allowed_credentials;
-  RAW_PTR_EXCLUSION const std::string* device_public_key_attestation;
   RAW_PTR_EXCLUSION const std::vector<uint8_t>* prf_eval_first;
   RAW_PTR_EXCLUSION const std::vector<uint8_t>* prf_eval_second;
   RAW_PTR_EXCLUSION const cbor::Value* prf_eval_by_cred;
@@ -208,16 +200,6 @@ static constexpr StepOrByte<GetAssertionRequest> kGetAssertionParseSteps[] = {
 
     Map<GetAssertionRequest>(Is::kOptional),
     IntKey<GetAssertionRequest>(4),
-      Map<GetAssertionRequest>(Is::kOptional),
-      StringKey<GetAssertionRequest>(), 'd', 'e', 'v', 'i', 'c', 'e',
-                                        'P', 'u', 'b', 'K', 'e', 'y', '\0',
-        // The presence of the attestation type is used to detect when DPK is
-        // requested.
-        ELEMENT(Is::kRequired, GetAssertionRequest, device_public_key_attestation),
-        StringKey<GetAssertionRequest>(), 'a', 't', 't', 'e', 's', 't', 'a', 't',
-                                          'i', 'o', 'n', '\0',
-      Stop<GetAssertionRequest>(),
-
       Map<GetAssertionRequest>(Is::kOptional),
       StringKey<GetAssertionRequest>(), 'p', 'r', 'f', '\0',
         Map<GetAssertionRequest>(Is::kOptional),
@@ -259,10 +241,7 @@ std::vector<uint8_t> BuildGetInfoResponse() {
   transports.emplace_back("internal");
 
   cbor::Value::ArrayValue extensions;
-  extensions.emplace_back("devicePubKey");
-  if (base::FeatureList::IsEnabled(kWebAuthnPRFAsAuthenticator)) {
-    extensions.emplace_back("prf");
-  }
+  extensions.emplace_back("prf");
 
   cbor::Value::MapValue response_map;
   response_map.emplace(1, std::move(versions));
@@ -281,7 +260,7 @@ std::array<uint8_t, device::cablev2::kNonceSize> RandomNonce() {
 }
 
 using GeneratePairingDataCallback =
-    base::OnceCallback<absl::optional<cbor::Value>(
+    base::OnceCallback<std::optional<cbor::Value>(
         base::span<const uint8_t, device::kP256X962Length> peer_public_key_x962,
         device::cablev2::HandshakeHash)>;
 
@@ -291,23 +270,25 @@ class TunnelTransport : public Transport {
  public:
   TunnelTransport(
       Platform* platform,
-      network::mojom::NetworkContext* network_context,
+      NetworkContextFactory network_context_factory,
       base::span<const uint8_t> secret,
       base::span<const uint8_t, device::kP256X962Length> peer_identity,
-      GeneratePairingDataCallback generate_pairing_data)
+      GeneratePairingDataCallback generate_pairing_data,
+      base::flat_set<Feature> features)
       : platform_(platform),
-        tunnel_id_(device::cablev2::Derive<EXTENT(tunnel_id_)>(
+        tunnel_id_(device::cablev2::Derive<kTunnelIdSize>(
             secret,
             base::span<uint8_t>(),
             DerivedValueType::kTunnelID)),
-        eid_key_(device::cablev2::Derive<EXTENT(eid_key_)>(
+        eid_key_(device::cablev2::Derive<kEIDKeySize>(
             secret,
             base::span<const uint8_t>(),
             device::cablev2::DerivedValueType::kEIDKey)),
-        network_context_(network_context),
+        network_context_factory_(std::move(network_context_factory)),
         peer_identity_(device::fido_parsing_utils::Materialize(peer_identity)),
         generate_pairing_data_(std::move(generate_pairing_data)),
-        secret_(fido_parsing_utils::Materialize(secret)) {
+        secret_(fido_parsing_utils::Materialize(secret)),
+        features_(std::move(features)) {
     DCHECK_EQ(state_, State::kNone);
     state_ = State::kConnecting;
 
@@ -321,7 +302,7 @@ class TunnelTransport : public Transport {
 
   TunnelTransport(
       Platform* platform,
-      network::mojom::NetworkContext* network_context,
+      NetworkContextFactory network_context_factory,
       base::span<const uint8_t> secret,
       base::span<const uint8_t, device::cablev2::kClientNonceSize> client_nonce,
       std::array<uint8_t, device::cablev2::kRoutingIdSize> routing_id,
@@ -329,12 +310,13 @@ class TunnelTransport : public Transport {
       bssl::UniquePtr<EC_KEY> local_identity)
       : platform_(platform),
         tunnel_id_(fido_parsing_utils::Materialize(tunnel_id)),
-        eid_key_(device::cablev2::Derive<EXTENT(eid_key_)>(
+        eid_key_(device::cablev2::Derive<kEIDKeySize>(
             secret,
             client_nonce,
             device::cablev2::DerivedValueType::kEIDKey)),
-        network_context_(network_context),
+        network_context_factory_(network_context_factory),
         secret_(fido_parsing_utils::Materialize(secret)),
+        features_({Feature::kCTAP}),
         local_identity_(std::move(local_identity)) {
     DCHECK_EQ(state_, State::kNone);
 
@@ -367,11 +349,14 @@ class TunnelTransport : public Transport {
         base::Milliseconds(250));
   }
 
-  void Write(std::vector<uint8_t> data) override {
+  void Write(PayloadType payload_type, std::vector<uint8_t> data) override {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     DCHECK_EQ(state_, kReady);
 
-    data.insert(data.begin(), static_cast<uint8_t>(MessageType::kCTAP));
+    data.insert(data.begin(),
+                static_cast<uint8_t>(payload_type == PayloadType::kCTAP
+                                         ? MessageType::kCTAP
+                                         : MessageType::kJSON));
     if (!crypter_->Encrypt(&data)) {
       FIDO_LOG(ERROR) << "Failed to encrypt response";
       return;
@@ -392,24 +377,26 @@ class TunnelTransport : public Transport {
   void StartWebSocket() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-    network_context_->CreateWebSocket(
+    network_context_factory_.Run()->CreateWebSocket(
         target_, {device::kCableWebSocketProtocol}, net::SiteForCookies(),
-        net::IsolationInfo(), /*additional_headers=*/{},
-        network::mojom::kBrowserProcessId, url::Origin::Create(target_),
+        net::StorageAccessApiStatus::kNone, net::IsolationInfo(),
+        /*additional_headers=*/{}, network::mojom::kBrowserProcessId,
+        url::Origin::Create(target_),
         network::mojom::kWebSocketOptionBlockAllCookies,
         net::MutableNetworkTrafficAnnotationTag(kTrafficAnnotation),
         websocket_client_->BindNewHandshakeClientPipe(),
         /*url_loader_network_observer=*/mojo::NullRemote(),
         /*auth_handler=*/mojo::NullRemote(),
         /*header_client=*/mojo::NullRemote(),
-        /*throttling_profile_id=*/absl::nullopt);
+        /*throttling_profile_id=*/std::nullopt);
     FIDO_LOG(DEBUG) << "Creating WebSocket to " << target_.spec();
   }
 
   void OnTunnelReady(
       WebSocketAdapter::Result result,
-      absl::optional<std::array<uint8_t, device::cablev2::kRoutingIdSize>>
-          routing_id) {
+      std::optional<std::array<uint8_t, device::cablev2::kRoutingIdSize>>
+          routing_id,
+      WebSocketAdapter::ConnectSignalSupport) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     DCHECK(state_ == State::kConnecting || state_ == State::kConnectingPaired);
     bool ok = (result == WebSocketAdapter::Result::OK);
@@ -447,13 +434,13 @@ class TunnelTransport : public Transport {
 
     ble_advert_ =
         platform_->SendBLEAdvert(eid::Encrypt(plaintext_eid, eid_key_));
-    psk_ = device::cablev2::Derive<EXTENT(psk_)>(
+    psk_ = device::cablev2::Derive<kPSKSize>(
         secret_, plaintext_eid, device::cablev2::DerivedValueType::kPSK);
 
     update_callback_.Run(Platform::Status::TUNNEL_SERVER_CONNECT);
   }
 
-  void OnTunnelData(absl::optional<base::span<const uint8_t>> msg) {
+  void OnTunnelData(std::optional<base::span<const uint8_t>> msg) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
     if (!msg) {
@@ -477,12 +464,15 @@ class TunnelTransport : public Transport {
         update_callback_.Run(Platform::Status::HANDSHAKE_COMPLETE);
         websocket_client_->Write(response);
         crypter_ = std::move(result->first);
-        crypter_->UseNewConstruction();
 
         cbor::Value::MapValue post_handshake_msg;
-        post_handshake_msg.emplace(1, BuildGetInfoResponse());
+        post_handshake_msg.emplace(3, ToCBOR(features_));
 
-        absl::optional<std::vector<uint8_t>> post_handshake_msg_bytes;
+        if (features_.contains(Feature::kCTAP)) {
+          post_handshake_msg.emplace(1, BuildGetInfoResponse());
+        }
+
+        std::optional<std::vector<uint8_t>> post_handshake_msg_bytes;
         post_handshake_msg_bytes =
             cbor::Writer::Write(cbor::Value(std::move(post_handshake_msg)));
         if (!post_handshake_msg_bytes) {
@@ -499,7 +489,7 @@ class TunnelTransport : public Transport {
         if (state_ == State::kConnected) {
           // Linking information can be sent at any time. We always send it
           // immediately after the post-handshake message.
-          absl::optional<cbor::Value> pairing_data(
+          std::optional<cbor::Value> pairing_data(
               std::move(generate_pairing_data_)
                   .Run(*peer_identity_, result->second));
 
@@ -520,7 +510,7 @@ class TunnelTransport : public Transport {
           if (pairing_data) {
             cbor::Value::MapValue update_msg_for_measurement;
             update_msg_for_measurement.emplace(1, pairing_data->Clone());
-            absl::optional<std::vector<uint8_t>> cbor_bytes =
+            std::optional<std::vector<uint8_t>> cbor_bytes =
                 cbor::Writer::Write(
                     cbor::Value(std::move(update_msg_for_measurement)));
 
@@ -537,7 +527,7 @@ class TunnelTransport : public Transport {
             update_msg.emplace(1, std::move(*pairing_data));
           }
 
-          absl::optional<std::vector<uint8_t>> update_msg_bytes =
+          std::optional<std::vector<uint8_t>> update_msg_bytes =
               cbor::Writer::Write(cbor::Value(std::move(update_msg)));
           if (!update_msg_bytes) {
             FIDO_LOG(ERROR) << "failed to encode update message";
@@ -592,6 +582,7 @@ class TunnelTransport : public Transport {
           }
 
           case MessageType::kCTAP:
+          case MessageType::kJSON:
             break;
 
           case MessageType::kUpdate:
@@ -609,7 +600,10 @@ class TunnelTransport : public Transport {
           update_callback_.Run(Platform::Status::REQUEST_RECEIVED);
           first_message_ = false;
         }
-        update_callback_.Run(std::move(plaintext));
+        update_callback_.Run(std::make_pair(message_type == MessageType::kJSON
+                                                ? PayloadType::kJSON
+                                                : PayloadType::kCTAP,
+                                            std::move(plaintext)));
         break;
       }
 
@@ -618,17 +612,36 @@ class TunnelTransport : public Transport {
     }
   }
 
-  const raw_ptr<Platform> platform_;
+  static cbor::Value ToCBOR(const base::flat_set<Feature>& features) {
+    cbor::Value::ArrayValue ret;
+    for (const auto feature : features) {
+      switch (feature) {
+        case Feature::kCTAP:
+          ret.emplace_back("ctap");
+          break;
+        case Feature::kDigitialIdentities:
+          ret.emplace_back("dc");
+          break;
+      }
+    }
+    std::ranges::sort(ret, [](const auto& a, const auto& b) {
+      return a.GetString() < b.GetString();
+    });
+    return cbor::Value(std::move(ret));
+  }
+
+  const raw_ptr<Platform, DanglingUntriaged> platform_;
   State state_ = State::kNone;
   const std::array<uint8_t, kTunnelIdSize> tunnel_id_;
   const std::array<uint8_t, kEIDKeySize> eid_key_;
   std::unique_ptr<WebSocketAdapter> websocket_client_;
   std::unique_ptr<Crypter> crypter_;
-  const raw_ptr<network::mojom::NetworkContext> network_context_;
-  const absl::optional<std::array<uint8_t, kP256X962Length>> peer_identity_;
+  NetworkContextFactory network_context_factory_;
+  const std::optional<std::array<uint8_t, kP256X962Length>> peer_identity_;
   std::array<uint8_t, kPSKSize> psk_;
   GeneratePairingDataCallback generate_pairing_data_;
   const std::vector<uint8_t> secret_;
+  const base::flat_set<Feature> features_;
   bssl::UniquePtr<EC_KEY> local_identity_;
   GURL target_;
   std::unique_ptr<Platform::BLEAdvert> ble_advert_;
@@ -659,15 +672,15 @@ class CTAP2Processor : public Transaction {
       return;
     }
 
-    if (auto* error = absl::get_if<Platform::Error>(&update)) {
+    if (auto* error = std::get_if<Platform::Error>(&update)) {
       have_completed_ = true;
       platform_->OnCompleted(*error);
       return;
-    } else if (auto* status = absl::get_if<Platform::Status>(&update)) {
+    } else if (auto* status = std::get_if<Platform::Status>(&update)) {
       platform_->OnStatus(*status);
       return;
-    } else if (absl::get_if<Transport::Disconnected>(&update)) {
-      absl::optional<Platform::Error> maybe_error;
+    } else if (std::get_if<Transport::Disconnected>(&update)) {
+      std::optional<Platform::Error> maybe_error;
       if (!transaction_received_) {
         maybe_error = Platform::Error::UNEXPECTED_EOF;
       } else if (!transaction_done_) {
@@ -678,34 +691,38 @@ class CTAP2Processor : public Transaction {
       return;
     }
 
-    std::vector<uint8_t>& msg = absl::get<std::vector<uint8_t>>(update);
-    const absl::variant<std::vector<uint8_t>, Platform::Error> result =
-        ProcessCTAPMessage(msg);
-    if (const auto* error = absl::get_if<Platform::Error>(&result)) {
+    auto& msg = std::get<std::pair<PayloadType, std::vector<uint8_t>>>(update);
+    if (msg.first != PayloadType::kCTAP) {
+      have_completed_ = true;
+      platform_->OnCompleted(Platform::Error::INVALID_CTAP);
+      return;
+    }
+    const std::variant<std::vector<uint8_t>, Platform::Error> result =
+        ProcessCTAPMessage(msg.second);
+    if (const auto* error = std::get_if<Platform::Error>(&result)) {
       have_completed_ = true;
       platform_->OnCompleted(*error);
       return;
     }
 
     const std::vector<uint8_t>& response =
-        absl::get<std::vector<uint8_t>>(result);
+        std::get<std::vector<uint8_t>>(result);
     if (response.empty()) {
       // Response is pending.
       return;
     }
 
-    transport_->Write(std::move(response));
+    transport_->Write(PayloadType::kCTAP, std::move(response));
   }
 
-  absl::variant<std::vector<uint8_t>, Platform::Error> ProcessCTAPMessage(
+  std::variant<std::vector<uint8_t>, Platform::Error> ProcessCTAPMessage(
       base::span<const uint8_t> message_bytes) {
     if (message_bytes.empty()) {
       return Platform::Error::INVALID_CTAP;
     }
-    const auto command = message_bytes[0];
-    const auto cbor_bytes = message_bytes.subspan(1);
+    const auto [command, cbor_bytes] = message_bytes.split_at<1>();
 
-    absl::optional<cbor::Value> payload;
+    std::optional<cbor::Value> payload;
     if (!cbor_bytes.empty()) {
       payload = cbor::Reader::Read(cbor_bytes);
       if (!payload) {
@@ -713,14 +730,13 @@ class CTAP2Processor : public Transaction {
                         << base::HexEncode(cbor_bytes);
         return Platform::Error::INVALID_CTAP;
       }
-      FIDO_LOG(DEBUG) << "<- (" << base::HexEncode(&command, 1) << ") "
+      FIDO_LOG(DEBUG) << "<- (" << base::HexEncode(command) << ") "
                       << cbor::DiagnosticWriter::Write(*payload);
     } else {
-      FIDO_LOG(DEBUG) << "<- (" << base::HexEncode(&command, 1)
-                      << ") <no payload>";
+      FIDO_LOG(DEBUG) << "<- (" << base::HexEncode(command) << ") <no payload>";
     }
 
-    switch (command) {
+    switch (command[0]) {
       case static_cast<uint8_t>(
           device::CtapRequestCommand::kAuthenticatorGetInfo): {
         if (payload) {
@@ -728,7 +744,7 @@ class CTAP2Processor : public Transaction {
           return Platform::Error::INVALID_CTAP;
         }
 
-        absl::optional<std::vector<uint8_t>> response = BuildGetInfoResponse();
+        std::optional<std::vector<uint8_t>> response = BuildGetInfoResponse();
         if (!response) {
           return Platform::Error::INTERNAL_ERROR;
         }
@@ -773,13 +789,6 @@ class CTAP2Processor : public Transaction {
                : device::ResidentKeyRequirement::kDiscouraged,
             device::UserVerificationRequirement::kRequired);
 
-        if (make_cred_request.device_public_key_attestation) {
-          // Play Services doesn't support any of the devicePubKey parameters so
-          // this code doesn't bother parsing them nor passing them on.
-          params->device_public_key =
-              blink::mojom::DevicePublicKeyRequest::New();
-        }
-
         if (make_cred_request.prf) {
           params->prf_enable = true;
         }
@@ -793,8 +802,8 @@ class CTAP2Processor : public Transaction {
                 *make_cred_request.cred_params, cbor::Value("alg"),
                 base::BindRepeating(
                     [](std::vector<
-                           device::PublicKeyCredentialParams::CredentialInfo>*
-                           out,
+                           device::PublicKeyCredentialParams::CredentialInfo>
+                           * out,
                        const cbor::Value& value) -> bool {
                       if (!value.is_integer()) {
                         return false;
@@ -840,6 +849,8 @@ class CTAP2Processor : public Transaction {
         }
 
         auto params = blink::mojom::PublicKeyCredentialRequestOptions::New();
+        params->extensions =
+            blink::mojom::AuthenticationExtensionsClientInputs::New();
         params->challenge = *get_assertion_request.client_data_hash;
         params->relying_party_id = *get_assertion_request.rp_id;
         params->user_verification =
@@ -851,25 +862,18 @@ class CTAP2Processor : public Transaction {
           return Platform::Error::INTERNAL_ERROR;
         }
 
-        if (get_assertion_request.device_public_key_attestation) {
-          // Play Services doesn't support any of the devicePubKey parameters so
-          // this code doesn't bother parsing them nor passing them on.
-          params->device_public_key =
-              blink::mojom::DevicePublicKeyRequest::New();
-        }
-
         if (get_assertion_request.prf_eval_first) {
-          params->prf = true;
+          params->extensions->prf = true;
           auto values = blink::mojom::PRFValues::New();
           values->first = *get_assertion_request.prf_eval_first;
           if (get_assertion_request.prf_eval_second) {
             values->second = *get_assertion_request.prf_eval_second;
           }
-          params->prf_inputs.emplace_back(std::move(values));
+          params->extensions->prf_inputs.emplace_back(std::move(values));
         }
 
         if (get_assertion_request.prf_eval_by_cred) {
-          params->prf = true;
+          params->extensions->prf = true;
           if (!get_assertion_request.prf_eval_by_cred->is_map()) {
             return Platform::Error::INVALID_CTAP;
           }
@@ -898,7 +902,7 @@ class CTAP2Processor : public Transaction {
               values->second = second_it->second.GetBytestring();
             }
 
-            params->prf_inputs.emplace_back(std::move(values));
+            params->extensions->prf_inputs.emplace_back(std::move(values));
           }
         }
 
@@ -922,7 +926,7 @@ class CTAP2Processor : public Transaction {
 
       default:
         FIDO_LOG(ERROR) << "Received unknown command "
-                        << static_cast<unsigned>(command);
+                        << static_cast<unsigned>(command[0]);
         return Platform::Error::INVALID_CTAP;
     }
   }
@@ -931,7 +935,6 @@ class CTAP2Processor : public Transaction {
       bool was_discoverable_credential_request,
       uint32_t ctap_status,
       base::span<const uint8_t> attestation_object_bytes,
-      absl::optional<base::span<const uint8_t>> device_public_key_signature,
       bool prf_enabled) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     DCHECK_LE(ctap_status, 0xFFu);
@@ -939,7 +942,7 @@ class CTAP2Processor : public Transaction {
     std::vector<uint8_t> response = {base::checked_cast<uint8_t>(ctap_status)};
     if (ctap_status == static_cast<uint8_t>(CtapDeviceResponseCode::kSuccess)) {
       // TODO: pass response parameters from the Java side.
-      absl::optional<cbor::Value> cbor_attestation_object =
+      std::optional<cbor::Value> cbor_attestation_object =
           cbor::Reader::Read(attestation_object_bytes);
       if (!cbor_attestation_object || !cbor_attestation_object->is_map()) {
         FIDO_LOG(ERROR) << "invalid CBOR attestation object";
@@ -955,16 +958,12 @@ class CTAP2Processor : public Transaction {
       }
 
       cbor::Value::MapValue response_map;
-      response_map.emplace(1, base::StringPiece(*attestation_object.fmt));
+      response_map.emplace(1, std::string_view(*attestation_object.fmt));
       response_map.emplace(
           2, base::span<const uint8_t>(*attestation_object.auth_data));
       response_map.emplace(3, attestation_object.statement->Clone());
 
       cbor::Value::MapValue unsigned_extension_outputs;
-      if (device_public_key_signature) {
-        unsigned_extension_outputs.emplace(kExtensionDevicePublicKey,
-                                           *device_public_key_signature);
-      }
       if (prf_enabled) {
         cbor::Value::MapValue prf;
         prf.emplace(kExtensionPRFEnabled, true);
@@ -974,7 +973,7 @@ class CTAP2Processor : public Transaction {
         response_map.emplace(6, std::move(unsigned_extension_outputs));
       }
 
-      absl::optional<std::vector<uint8_t>> response_payload =
+      std::optional<std::vector<uint8_t>> response_payload =
           cbor::Writer::Write(cbor::Value(std::move(response_map)));
       if (!response_payload) {
         return;
@@ -996,7 +995,7 @@ class CTAP2Processor : public Transaction {
       platform_->OnStatus(Platform::Status::FIRST_TRANSACTION_DONE);
       transaction_done_ = true;
     }
-    transport_->Write(std::move(response));
+    transport_->Write(PayloadType::kCTAP, std::move(response));
   }
 
   void OnGetAssertionResponse(
@@ -1050,17 +1049,13 @@ class CTAP2Processor : public Transaction {
       }
 
       cbor::Value::MapValue unsigned_extension_outputs;
-      if (auth_response->device_public_key) {
-        unsigned_extension_outputs.emplace(
-            kExtensionDevicePublicKey,
-            auth_response->device_public_key->signature);
-      }
-      if (auth_response->prf_results) {
+      if (auth_response->extensions->prf_results) {
         cbor::Value::MapValue prf, results;
-        results.emplace(kExtensionPRFFirst, auth_response->prf_results->first);
-        if (auth_response->prf_results->second) {
+        results.emplace(kExtensionPRFFirst,
+                        auth_response->extensions->prf_results->first);
+        if (auth_response->extensions->prf_results->second) {
           results.emplace(kExtensionPRFSecond,
-                          *auth_response->prf_results->second);
+                          *auth_response->extensions->prf_results->second);
         }
         prf.emplace(kExtensionPRFResults, std::move(results));
         unsigned_extension_outputs.emplace(kExtensionPRF, std::move(prf));
@@ -1069,7 +1064,7 @@ class CTAP2Processor : public Transaction {
         response_map.emplace(8, std::move(unsigned_extension_outputs));
       }
 
-      absl::optional<std::vector<uint8_t>> response_payload =
+      std::optional<std::vector<uint8_t>> response_payload =
           cbor::Writer::Write(cbor::Value(std::move(response_map)));
       if (!response_payload) {
         return;
@@ -1091,7 +1086,7 @@ class CTAP2Processor : public Transaction {
       platform_->OnStatus(Platform::Status::FIRST_TRANSACTION_DONE);
       transaction_done_ = true;
     }
-    transport_->Write(std::move(response));
+    transport_->Write(PayloadType::kCTAP, std::move(response));
   }
 
   // CopyCredIds parses a series of `PublicKeyCredentialDescriptor`s from `in`
@@ -1128,9 +1123,69 @@ class CTAP2Processor : public Transaction {
   base::WeakPtrFactory<CTAP2Processor> weak_factory_{this};
 };
 
+class DigitalIdentityProcessor : public Transaction {
+ public:
+  DigitalIdentityProcessor(std::unique_ptr<Transport> transport,
+                           std::unique_ptr<Platform> platform,
+                           PayloadType response_payload_type,
+                           std::vector<uint8_t> response)
+      : transport_(std::move(transport)),
+        platform_(std::move(platform)),
+        response_payload_type_(response_payload_type),
+        response_(std::move(response)) {
+    transport_->StartReading(base::BindRepeating(
+        &DigitalIdentityProcessor::OnTransportUpdate, base::Unretained(this)));
+  }
+
+ private:
+  void OnTransportUpdate(Transport::Update update) {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    CHECK(!have_completed_);
+
+    if (auto* error = std::get_if<Platform::Error>(&update)) {
+      have_completed_ = true;
+      platform_->OnCompleted(*error);
+      return;
+    } else if (auto* status = std::get_if<Platform::Status>(&update)) {
+      platform_->OnStatus(*status);
+      return;
+    } else if (std::get_if<Transport::Disconnected>(&update)) {
+      have_completed_ = true;
+      platform_->OnCompleted(std::nullopt);
+      return;
+    }
+
+    auto& msg = std::get<std::pair<PayloadType, std::vector<uint8_t>>>(update);
+    if (msg.first != PayloadType::kJSON) {
+      have_completed_ = true;
+      platform_->OnCompleted(Platform::Error::INVALID_JSON);
+      return;
+    }
+
+    std::optional<base::Value> json = base::JSONReader::Read(
+        std::string_view(reinterpret_cast<const char*>(msg.second.data()),
+                         msg.second.size()),
+        base::JSON_PARSE_RFC);
+    if (!json) {
+      have_completed_ = true;
+      platform_->OnCompleted(Platform::Error::INVALID_JSON);
+      return;
+    }
+
+    transport_->Write(response_payload_type_, response_);
+  }
+
+  const std::unique_ptr<Transport> transport_;
+  const std::unique_ptr<Platform> platform_;
+  const PayloadType response_payload_type_;
+  const std::vector<uint8_t> response_;
+  bool have_completed_ = false;
+  SEQUENCE_CHECKER(sequence_checker_);
+};
+
 static std::array<uint8_t, 32> DerivePairedSecret(
     base::span<const uint8_t, kRootSecretSize> root_secret,
-    const absl::optional<base::span<const uint8_t>>& contact_id,
+    const std::optional<base::span<const uint8_t>>& contact_id,
     base::span<const uint8_t, kPairingIDSize> pairing_id) {
   base::span<const uint8_t, kRootSecretSize> secret = root_secret;
 
@@ -1142,14 +1197,14 @@ static std::array<uint8_t, 32> DerivePairedSecret(
     // first using the contact ID to derive a secret from the root secret, and
     // then using the pairing ID to generate a secret from that.
     per_contact_id_secret =
-        device::cablev2::Derive<EXTENT(per_contact_id_secret)>(
+        device::cablev2::Derive<per_contact_id_secret.size()>(
             root_secret, *contact_id,
             device::cablev2::DerivedValueType::kPerContactIDSecret);
     secret = per_contact_id_secret;
   }
 
   std::array<uint8_t, 32> paired_secret;
-  paired_secret = device::cablev2::Derive<EXTENT(paired_secret)>(
+  paired_secret = device::cablev2::Derive<paired_secret.size()>(
       secret, pairing_id, device::cablev2::DerivedValueType::kPairedSecret);
 
   return paired_secret;
@@ -1160,7 +1215,7 @@ class PairingDataGenerator {
   static GeneratePairingDataCallback GetClosure(
       base::span<const uint8_t, kRootSecretSize> root_secret,
       const std::string& name,
-      absl::optional<std::vector<uint8_t>> contact_id) {
+      std::optional<std::vector<uint8_t>> contact_id) {
     auto* generator =
         new PairingDataGenerator(root_secret, name, std::move(contact_id));
     return base::BindOnce(&PairingDataGenerator::Generate,
@@ -1170,16 +1225,16 @@ class PairingDataGenerator {
  private:
   PairingDataGenerator(base::span<const uint8_t, kRootSecretSize> root_secret,
                        const std::string& name,
-                       absl::optional<std::vector<uint8_t>> contact_id)
+                       std::optional<std::vector<uint8_t>> contact_id)
       : root_secret_(fido_parsing_utils::Materialize(root_secret)),
         name_(name),
         contact_id_(std::move(contact_id)) {}
 
-  absl::optional<cbor::Value> Generate(
+  std::optional<cbor::Value> Generate(
       base::span<const uint8_t, device::kP256X962Length> peer_public_key_x962,
       device::cablev2::HandshakeHash handshake_hash) {
     if (!contact_id_) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     std::array<uint8_t, kPairingIDSize> pairing_id;
@@ -1213,7 +1268,7 @@ class PairingDataGenerator {
 
   const std::array<uint8_t, kRootSecretSize> root_secret_;
   const std::string name_;
-  absl::optional<std::vector<uint8_t>> contact_id_;
+  std::optional<std::vector<uint8_t>> contact_id_;
 };
 
 }  // namespace
@@ -1232,24 +1287,86 @@ std::unique_ptr<Transaction> TransactWithPlaintextTransport(
 
 std::unique_ptr<Transaction> TransactFromQRCode(
     std::unique_ptr<Platform> platform,
-    network::mojom::NetworkContext* network_context,
+    NetworkContextFactory network_context_factory,
     base::span<const uint8_t, kRootSecretSize> root_secret,
     const std::string& authenticator_name,
     base::span<const uint8_t, 16> qr_secret,
     base::span<const uint8_t, kP256X962Length> peer_identity,
-    absl::optional<std::vector<uint8_t>> contact_id) {
+    std::optional<std::vector<uint8_t>> contact_id) {
   auto generate_pairing_data = PairingDataGenerator::GetClosure(
       root_secret, authenticator_name, std::move(contact_id));
 
   Platform* const platform_ptr = platform.get();
   return std::make_unique<CTAP2Processor>(
-      std::make_unique<TunnelTransport>(platform_ptr, network_context,
-                                        qr_secret, peer_identity,
-                                        std::move(generate_pairing_data)),
+      std::make_unique<TunnelTransport>(
+          platform_ptr, std::move(network_context_factory), qr_secret,
+          peer_identity, std::move(generate_pairing_data),
+          base::flat_set<Feature>{Feature::kCTAP}),
       std::move(platform));
 }
 
+std::unique_ptr<Transaction> TransactDigitalIdentityFromQRCodeForTesting(
+    std::unique_ptr<Platform> platform,
+    NetworkContextFactory network_context_factory,
+    base::span<const uint8_t, 16> qr_secret,
+    base::span<const uint8_t, kP256X962Length> peer_identity,
+    PayloadType response_payload_type,
+    std::vector<uint8_t> response) {
+  auto no_pairing_data = base::BindOnce(
+      [](base::span<const uint8_t, device::kP256X962Length>
+             peer_public_key_x962,
+         device::cablev2::HandshakeHash) -> std::optional<cbor::Value> {
+        return std::nullopt;
+      });
+
+  Platform* const platform_ptr = platform.get();
+  return std::make_unique<DigitalIdentityProcessor>(
+      std::make_unique<TunnelTransport>(
+          platform_ptr, std::move(network_context_factory), qr_secret,
+          peer_identity, std::move(no_pairing_data),
+          base::flat_set<Feature>{Feature::kDigitialIdentities}),
+      std::move(platform), response_payload_type, std::move(response));
+}
+
+std::unique_ptr<Transaction> TransactFromQRCodeDeprecated(
+    std::unique_ptr<Platform> platform,
+    network::mojom::NetworkContext* network_context,
+    base::span<const uint8_t, kRootSecretSize> root_secret,
+    const std::string& authenticator_name,
+    base::span<const uint8_t, 16> qr_secret,
+    base::span<const uint8_t, kP256X962Length> peer_identity,
+    std::optional<std::vector<uint8_t>> contact_id) {
+  NetworkContextFactory factory = base::BindRepeating(
+      [](network::mojom::NetworkContext* network_context) {
+        return network_context;
+      },
+      network_context);
+  return TransactFromQRCode(std::move(platform), std::move(factory),
+                            root_secret, authenticator_name, qr_secret,
+                            peer_identity, std::move(contact_id));
+}
+
 std::unique_ptr<Transaction> TransactFromFCM(
+    std::unique_ptr<Platform> platform,
+    NetworkContextFactory network_context_factory,
+    base::span<const uint8_t, kRootSecretSize> root_secret,
+    std::array<uint8_t, kRoutingIdSize> routing_id,
+    base::span<const uint8_t, kTunnelIdSize> tunnel_id,
+    base::span<const uint8_t, kPairingIDSize> pairing_id,
+    base::span<const uint8_t, kClientNonceSize> client_nonce,
+    std::optional<base::span<const uint8_t>> contact_id) {
+  const std::array<uint8_t, 32> paired_secret =
+      DerivePairedSecret(root_secret, contact_id, pairing_id);
+
+  Platform* const platform_ptr = platform.get();
+  return std::make_unique<CTAP2Processor>(
+      std::make_unique<TunnelTransport>(
+          platform_ptr, std::move(network_context_factory), paired_secret,
+          client_nonce, routing_id, tunnel_id, IdentityKey(root_secret)),
+      std::move(platform));
+}
+
+std::unique_ptr<Transaction> TransactFromFCMDeprecated(
     std::unique_ptr<Platform> platform,
     network::mojom::NetworkContext* network_context,
     base::span<const uint8_t, kRootSecretSize> root_secret,
@@ -1257,18 +1374,15 @@ std::unique_ptr<Transaction> TransactFromFCM(
     base::span<const uint8_t, kTunnelIdSize> tunnel_id,
     base::span<const uint8_t, kPairingIDSize> pairing_id,
     base::span<const uint8_t, kClientNonceSize> client_nonce,
-    absl::optional<base::span<const uint8_t>> contact_id) {
-  const std::array<uint8_t, 32> paired_secret =
-      DerivePairedSecret(root_secret, contact_id, pairing_id);
-
-  Platform* const platform_ptr = platform.get();
-  return std::make_unique<CTAP2Processor>(
-      std::make_unique<TunnelTransport>(platform_ptr, network_context,
-                                        paired_secret, client_nonce, routing_id,
-                                        tunnel_id, IdentityKey(root_secret)),
-      std::move(platform));
+    std::optional<base::span<const uint8_t>> contact_id) {
+  NetworkContextFactory factory = base::BindRepeating(
+      [](network::mojom::NetworkContext* network_context) {
+        return network_context;
+      },
+      network_context);
+  return TransactFromFCM(std::move(platform), std::move(factory), root_secret,
+                         std::move(routing_id), tunnel_id, pairing_id,
+                         client_nonce, std::move(contact_id));
 }
 
-}  // namespace authenticator
-}  // namespace cablev2
-}  // namespace device
+}  // namespace device::cablev2::authenticator

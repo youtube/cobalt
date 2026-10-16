@@ -15,11 +15,13 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <vector>
 
+#include "absl/strings/string_view.h"
+#include "api/environment/environment.h"
 #include "api/fec_controller_override.h"
 #include "api/sequence_checker.h"
-#include "api/task_queue/task_queue_factory.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_bitrate_allocation.h"
 #include "api/video/video_frame.h"
@@ -35,12 +37,15 @@ namespace test {
 
 class FakeEncoder : public VideoEncoder {
  public:
-  explicit FakeEncoder(Clock* clock);
+  explicit FakeEncoder(const Environment& env_);
   virtual ~FakeEncoder() = default;
 
   // Sets max bitrate. Not thread-safe, call before registering the encoder.
   void SetMaxBitrate(int max_kbps) RTC_LOCKS_EXCLUDED(mutex_);
   void SetQp(int qp) RTC_LOCKS_EXCLUDED(mutex_);
+
+  void SetImplementationName(absl::string_view implementation_name)
+      RTC_LOCKS_EXCLUDED(mutex_);
 
   void SetFecControllerOverride(
       FecControllerOverride* fec_controller_override) override;
@@ -55,13 +60,13 @@ class FakeEncoder : public VideoEncoder {
   int32_t Release() override;
   void SetRates(const RateControlParameters& parameters)
       RTC_LOCKS_EXCLUDED(mutex_) override;
-  EncoderInfo GetEncoderInfo() const override;
+  EncoderInfo GetEncoderInfo() const RTC_LOCKS_EXCLUDED(mutex_) override;
 
   int GetConfiguredInputFramerate() const RTC_LOCKS_EXCLUDED(mutex_);
   int GetNumInitializations() const RTC_LOCKS_EXCLUDED(mutex_);
   const VideoCodec& config() const RTC_LOCKS_EXCLUDED(mutex_);
 
-  static const char* kImplementationName;
+  static constexpr char kImplementationName[] = "fake_encoder";
 
  protected:
   struct FrameInfo {
@@ -90,13 +95,13 @@ class FakeEncoder : public VideoEncoder {
   // `buffer`.
   virtual CodecSpecificInfo EncodeHook(
       EncodedImage& encoded_image,
-      rtc::scoped_refptr<EncodedImageBuffer> buffer);
+      scoped_refptr<EncodedImageBuffer> buffer);
 
   void SetRatesLocked(const RateControlParameters& parameters)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
+  const Environment env_;
   FrameInfo last_frame_info_ RTC_GUARDED_BY(mutex_);
-  Clock* const clock_;
 
   VideoCodec config_ RTC_GUARDED_BY(mutex_);
   int num_initializations_ RTC_GUARDED_BY(mutex_);
@@ -107,7 +112,8 @@ class FakeEncoder : public VideoEncoder {
   uint32_t counter_ RTC_GUARDED_BY(mutex_);
   mutable Mutex mutex_;
   bool used_layers_[kMaxSimulcastStreams];
-  absl::optional<int> qp_ RTC_GUARDED_BY(mutex_);
+  std::optional<int> qp_ RTC_GUARDED_BY(mutex_);
+  std::optional<std::string> implementation_name_ RTC_GUARDED_BY(mutex_);
 
   // Current byte debt to be payed over a number of frames.
   // The debt is acquired by keyframes overshooting the bitrate target.
@@ -116,13 +122,13 @@ class FakeEncoder : public VideoEncoder {
 
 class FakeH264Encoder : public FakeEncoder {
  public:
-  explicit FakeH264Encoder(Clock* clock);
+  explicit FakeH264Encoder(const Environment& env);
   virtual ~FakeH264Encoder() = default;
 
  private:
   CodecSpecificInfo EncodeHook(
       EncodedImage& encoded_image,
-      rtc::scoped_refptr<EncodedImageBuffer> buffer) override;
+      scoped_refptr<EncodedImageBuffer> buffer) override;
 
   int idr_counter_ RTC_GUARDED_BY(local_mutex_);
   Mutex local_mutex_;
@@ -130,7 +136,7 @@ class FakeH264Encoder : public FakeEncoder {
 
 class DelayedEncoder : public test::FakeEncoder {
  public:
-  DelayedEncoder(Clock* clock, int delay_ms);
+  DelayedEncoder(const Environment& env, int delay_ms);
   virtual ~DelayedEncoder() = default;
 
   void SetDelay(int delay_ms);
@@ -148,8 +154,7 @@ class DelayedEncoder : public test::FakeEncoder {
 // as it is called from the task queue in VideoStreamEncoder.
 class MultithreadedFakeH264Encoder : public test::FakeH264Encoder {
  public:
-  MultithreadedFakeH264Encoder(Clock* clock,
-                               TaskQueueFactory* task_queue_factory);
+  explicit MultithreadedFakeH264Encoder(const Environment& env);
   virtual ~MultithreadedFakeH264Encoder() = default;
 
   int32_t InitEncode(const VideoCodec* config,
@@ -164,7 +169,6 @@ class MultithreadedFakeH264Encoder : public test::FakeH264Encoder {
   int32_t Release() override;
 
  protected:
-  TaskQueueFactory* const task_queue_factory_;
   int current_queue_ RTC_GUARDED_BY(sequence_checker_);
   std::unique_ptr<TaskQueueBase, TaskQueueDeleter> queue1_
       RTC_GUARDED_BY(sequence_checker_);

@@ -14,12 +14,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "base/containers/span.h"
-#include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/ntlm/ntlm_constants.h"
 
@@ -134,7 +134,7 @@ NET_EXPORT_PRIVATE void GenerateNtlmHashV2(
 // [8-15]   - |timestamp|                         (Timestamp)
 // [16-23]  - |client_challenge|                  (Client challenge)
 // [24-27]  - 0x00000000                          (Reserved - all zero)
-NET_EXPORT_PRIVATE std::vector<uint8_t> GenerateProofInputV2(
+NET_EXPORT_PRIVATE std::array<uint8_t, kProofInputLenV2> GenerateProofInputV2(
     uint64_t timestamp,
     base::span<const uint8_t, kChallengeLen> client_challenge);
 

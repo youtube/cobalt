@@ -9,11 +9,12 @@
 #include "ash/public/cpp/shell_window_ids.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/shell.h"
-#include "ash/style/ash_color_id.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
@@ -32,9 +33,12 @@ LoginErrorBubble::LoginErrorBubble()
 LoginErrorBubble::LoginErrorBubble(base::WeakPtr<views::View> anchor_view)
     : LoginBaseBubbleView(std::move(anchor_view)) {
   alert_icon_ = AddChildView(std::make_unique<views::ImageView>());
-  alert_icon_->SetPreferredSize(gfx::Size(kAlertIconSizeDp, kAlertIconSizeDp));
   alert_icon_->SetImage(ui::ImageModel::FromVectorIcon(
-      kLockScreenAlertIcon, kColorAshIconColorPrimary));
+      kLockScreenAlertIcon,
+      static_cast<ui::ColorId>(cros_tokens::kCrosSysOnSurface),
+      kAlertIconSizeDp));
+
+  GetViewAccessibility().SetRole(ax::mojom::Role::kAlertDialog);
 }
 
 LoginErrorBubble::~LoginErrorBubble() = default;
@@ -55,12 +59,7 @@ void LoginErrorBubble::SetTextContent(const std::u16string& message) {
   SetContent(login_views_utils::CreateBubbleLabel(message, this));
 }
 
-void LoginErrorBubble::GetAccessibleNodeData(ui::AXNodeData* node_data) {
-  node_data->role = ax::mojom::Role::kAlertDialog;
-  node_data->SetName(GetAccessibleName());
-}
-
-BEGIN_METADATA(LoginErrorBubble, LoginBaseBubbleView)
+BEGIN_METADATA(LoginErrorBubble)
 END_METADATA
 
 }  // namespace ash

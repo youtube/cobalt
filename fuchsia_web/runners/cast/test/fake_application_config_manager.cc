@@ -4,21 +4,24 @@
 
 #include "fuchsia_web/runners/cast/test/fake_application_config_manager.h"
 
+#include <fuchsia/io/cpp/fidl.h>
+#include <fuchsia/unknown/cpp/fidl.h>
 #include <fuchsia/web/cpp/fidl.h>
 
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/logging.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 constexpr char FakeApplicationConfigManager::kFakeAgentUrl[] =
     "fuchsia-pkg://fuchsia.com/fake_agent#meta/fake_agent.cmx";
 
 // static
 chromium::cast::ApplicationConfig FakeApplicationConfigManager::CreateConfig(
-    base::StringPiece id,
+    std::string_view id,
     const GURL& url) {
   chromium::cast::ApplicationConfig app_config;
   app_config.set_id(std::string(id));
@@ -43,7 +46,7 @@ void FakeApplicationConfigManager::AddAppConfig(
   id_to_config_[app_config.id()] = std::move(app_config);
 }
 
-void FakeApplicationConfigManager::AddApp(base::StringPiece id,
+void FakeApplicationConfigManager::AddApp(std::string_view id,
                                           const GURL& url) {
   AddAppConfig(CreateConfig(id, url));
 }
@@ -60,7 +63,7 @@ void FakeApplicationConfigManager::GetConfig(std::string id,
   // ContextDirectoryProviders contain move-only fuchsia.io.Directory resources,
   // so if those are present then remove them, manually clone them, then
   // put them back.
-  absl::optional<std::vector<fuchsia::web::ContentDirectoryProvider>>
+  std::optional<std::vector<fuchsia::web::ContentDirectoryProvider>>
       content_directories;
   chromium::cast::ApplicationConfig& config = it->second;
   if (config.has_content_directories_for_isolated_application()) {
@@ -82,12 +85,12 @@ void FakeApplicationConfigManager::GetConfig(std::string id,
       // Borrow the directory handle to clone it.
       fuchsia::io::DirectorySyncPtr sync_ptr;
       sync_ptr.Bind(std::move(*content_directory.mutable_directory()));
-      fidl::InterfaceHandle<fuchsia::io::Node> node;
-      status = sync_ptr->Clone(fuchsia::io::OpenFlags::CLONE_SAME_RIGHTS,
-                               node.NewRequest());
-      ZX_CHECK(status == ZX_OK, status) << "Clone content directory";
-      entry.set_directory(
-          fidl::InterfaceHandle<fuchsia::io::Directory>(node.TakeChannel()));
+      fidl::InterfaceHandle<fuchsia::io::Directory> cloned;
+      status =
+          sync_ptr->Clone(fidl::InterfaceRequest<fuchsia::unknown::Cloneable>(
+              cloned.NewRequest().TakeChannel()));
+      ZX_CHECK(status == ZX_OK, status) << "Clone2 content directory";
+      entry.set_directory(std::move(cloned));
       *content_directory.mutable_directory() = sync_ptr.Unbind();
 
       result.mutable_content_directories_for_isolated_application()->push_back(

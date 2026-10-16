@@ -8,9 +8,9 @@
 #include <stddef.h>
 
 #include "chromeos/ash/components/phonehub/connection_scheduler.h"
+#include "chromeos/ash/components/phonehub/phone_hub_structured_metrics_logger.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 class FakeConnectionScheduler : public ConnectionScheduler {
  public:
@@ -23,12 +23,11 @@ class FakeConnectionScheduler : public ConnectionScheduler {
 
  private:
   // ConnectionScheduler:
-  void ScheduleConnectionNow() override;
+  void ScheduleConnectionNow(DiscoveryEntryPoint entry_point) override;
 
   size_t num_schedule_connection_now_calls_ = 0u;
 };
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub
 
 #endif  // CHROMEOS_ASH_COMPONENTS_PHONEHUB_FAKE_CONNECTION_SCHEDULER_H_

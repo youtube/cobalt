@@ -7,19 +7,22 @@
 
 #include <stddef.h>
 
+#include <deque>
 #include <functional>
 #include <memory>
-#include <queue>
+#include <optional>
 #include <set>
 #include <utility>
 #include <vector>
 
 #include "base/base_export.h"
+#include "base/compiler_specific.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/intrusive_heap.h"
 #include "base/dcheck_is_on.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
@@ -30,14 +33,13 @@
 #include "base/task/sequence_manager/atomic_flag_set.h"
 #include "base/task/sequence_manager/enqueue_order.h"
 #include "base/task/sequence_manager/fence.h"
-#include "base/task/sequence_manager/lazily_deallocated_deque.h"
 #include "base/task/sequence_manager/sequenced_task_source.h"
 #include "base/task/sequence_manager/task_queue.h"
+#include "base/task/sequence_manager/tasks.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time_override.h"
 #include "base/trace_event/base_tracing_forward.h"
 #include "base/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class LazyNow;
@@ -74,20 +76,11 @@ class WakeUpQueue;
 // queue is selected, it round-robins between the |immediate_work_queue| and
 // |delayed_work_queue|.  The reason for this is we want to make sure delayed
 // tasks (normally the most common type) don't starve out immediate work.
-class BASE_EXPORT TaskQueueImpl {
+class BASE_EXPORT TaskQueueImpl : public TaskQueue {
  public:
   // Initializes the state of all the task queue features. Must be invoked
   // after FeatureList initialization and while Chrome is still single-threaded.
   static void InitializeFeatures();
-
-  // Sets the global cached state of the RemoveCanceledTasksInTaskQueue feature
-  // according to its enabled state. Must be invoked after FeatureList
-  // initialization.
-  static void ApplyRemoveCanceledTasksInTaskQueue();
-
-  // Resets the global cached state of the RemoveCanceledTasksInTaskQueue
-  // feature according to its default state.
-  static void ResetRemoveCanceledTasksInTaskQueueForTesting();
 
   TaskQueueImpl(SequenceManagerImpl* sequence_manager,
                 WakeUpQueue* wake_up_queue,
@@ -95,7 +88,7 @@ class BASE_EXPORT TaskQueueImpl {
 
   TaskQueueImpl(const TaskQueueImpl&) = delete;
   TaskQueueImpl& operator=(const TaskQueueImpl&) = delete;
-  ~TaskQueueImpl();
+  ~TaskQueueImpl() override;
 
   // Types of queues TaskQueueImpl is maintaining internally.
   enum class WorkQueueType { kImmediate, kDelayed };
@@ -108,8 +101,8 @@ class BASE_EXPORT TaskQueueImpl {
   struct DeferredNonNestableTask {
     Task task;
 
-    // `task_queue` is not a raw_ptr<...> for performance reasons (based on
-    // analysis of sampling profiler data and tab_search:top100:2020).
+    // RAW_PTR_EXCLUSION: Performance reasons (based on analysis of sampling
+    // profiler data and tab_search:top100:2020).
     RAW_PTR_EXCLUSION internal::TaskQueueImpl* task_queue;
 
     WorkQueueType work_queue_type;
@@ -124,33 +117,41 @@ class BASE_EXPORT TaskQueueImpl {
   using TaskExecutionTraceLogger =
       RepeatingCallback<void(perfetto::EventContext&, const Task&)>;
 
-  // May be called from any thread.
-  scoped_refptr<SingleThreadTaskRunner> CreateTaskRunner(
-      TaskType task_type) const;
-
   // TaskQueue implementation.
-  const char* GetName() const;
-  QueueName GetProtoName() const;
-  bool IsQueueEnabled() const;
-  void SetQueueEnabled(bool enabled);
-  void SetShouldReportPostedTasksWhenDisabled(bool should_report);
-  bool IsEmpty() const;
-  size_t GetNumberOfPendingTasks() const;
-  bool HasTaskToRunImmediatelyOrReadyDelayedTask() const;
-  absl::optional<WakeUp> GetNextDesiredWakeUp();
-  void SetQueuePriority(TaskQueue::QueuePriority priority);
-  TaskQueue::QueuePriority GetQueuePriority() const;
-  void AddTaskObserver(TaskObserver* task_observer);
-  void RemoveTaskObserver(TaskObserver* task_observer);
-  void InsertFence(TaskQueue::InsertFencePosition position);
-  void InsertFenceAt(TimeTicks time);
-  void RemoveFence();
-  bool HasActiveFence();
-  bool BlockedByFence() const;
-  void SetThrottler(TaskQueue::Throttler* throttler);
-  void ResetThrottler();
+  const char* GetName() const override;
+  bool IsQueueEnabled() const override;
+  bool IsEmpty() const override;
+  size_t GetNumberOfPendingTasks() const override;
+  bool HasTaskToRunImmediatelyOrReadyDelayedTask() const override;
+  std::optional<WakeUp> GetNextDesiredWakeUp() override;
+  void SetQueuePriority(TaskQueue::QueuePriority priority) override;
+  TaskQueue::QueuePriority GetQueuePriority() const override;
+  void AddTaskObserver(TaskObserver* task_observer) override;
+  void RemoveTaskObserver(TaskObserver* task_observer) override;
+  void InsertFence(TaskQueue::InsertFencePosition position) override;
+  void InsertFenceAt(TimeTicks time) override;
+  void RemoveFence() override;
+  bool HasActiveFence() override;
+  bool BlockedByFence() const override;
+  void SetThrottler(TaskQueue::Throttler* throttler) override;
+  void ResetThrottler() override;
+  void UpdateWakeUp(LazyNow* lazy_now) override;
+  void SetShouldReportPostedTasksWhenDisabled(bool should_report) override;
+  scoped_refptr<SingleThreadTaskRunner> CreateTaskRunner(
+      TaskType task_type) const override;
+  const scoped_refptr<SingleThreadTaskRunner>& task_runner() const override;
+  void SetOnTaskStartedHandler(OnTaskStartedHandler handler) override;
+  void SetOnTaskCompletedHandler(OnTaskCompletedHandler handler) override;
+  [[nodiscard]] std::unique_ptr<TaskQueue::OnTaskPostedCallbackHandle>
+  AddOnTaskPostedHandler(OnTaskPostedHandler handler) override;
+  void SetTaskExecutionTraceLogger(TaskExecutionTraceLogger logger) override;
+  std::unique_ptr<QueueEnabledVoter> CreateQueueEnabledVoter() override;
+  void RemoveCancelledTasks() override;
 
+  void SetQueueEnabled(bool enabled);
   void UnregisterTaskQueue();
+
+  QueueName GetProtoName() const;
 
   // Returns true if a (potentially hypothetical) task with the specified
   // |enqueue_order| could run on the queue. Must be called from the main
@@ -182,11 +183,6 @@ class BASE_EXPORT TaskQueueImpl {
   bool HasTaskToRunImmediately() const;
   bool HasTaskToRunImmediatelyLocked() const
       EXCLUSIVE_LOCKS_REQUIRED(any_thread_lock_);
-
-  bool has_pending_high_resolution_tasks() const {
-    return main_thread_only()
-        .delayed_incoming_queue.has_pending_high_resolution_tasks();
-  }
 
   WorkQueue* delayed_work_queue() {
     return main_thread_only().delayed_work_queue.get();
@@ -244,35 +240,12 @@ class BASE_EXPORT TaskQueueImpl {
   // addition MaybeShrinkQueue is called on all internal queues.
   void ReclaimMemory(TimeTicks now);
 
-  // Allows wrapping TaskQueue to set a handler to subscribe for notifications
-  // about started and completed tasks.
-  void SetOnTaskStartedHandler(OnTaskStartedHandler handler);
   void OnTaskStarted(const Task& task,
                      const TaskQueue::TaskTiming& task_timing);
-
-  // |task_timing| may be passed in Running state and may not have the end time,
-  // so that the handler can run an additional task that is counted as a part of
-  // the main task.
-  // The handler can call TaskTiming::RecordTaskEnd, which is optional, to
-  // finalize the task, and use the resulting timing.
-  void SetOnTaskCompletedHandler(OnTaskCompletedHandler handler);
   void OnTaskCompleted(const Task& task,
                        TaskQueue::TaskTiming* task_timing,
                        LazyNow* lazy_now);
   bool RequiresTaskTiming() const;
-
-  // Add a callback for adding custom functionality for processing posted task.
-  // Callback will be dispatched while holding a scheduler lock. As a result,
-  // callback should not call scheduler APIs directly, as this can lead to
-  // deadlocks. For example, PostTask should not be called directly and
-  // ScopedDeferTaskPosting::PostOrDefer should be used instead. `handler` must
-  // not be a null callback.
-  [[nodiscard]] std::unique_ptr<TaskQueue::OnTaskPostedCallbackHandle>
-  AddOnTaskPostedHandler(OnTaskPostedHandler handler);
-
-  // Set a callback to fill trace event arguments associated with the task
-  // execution.
-  void SetTaskExecutionTraceLogger(TaskExecutionTraceLogger logger);
 
   WeakPtr<SequenceManagerImpl> GetSequenceManagerWeakPtr();
 
@@ -282,14 +255,19 @@ class BASE_EXPORT TaskQueueImpl {
   // and this queue can be safely deleted on any thread.
   bool IsUnregistered() const;
 
-  // Updates this queue's next wake up time in the time domain,
-  // taking into account the desired run time of queued tasks and
-  // policies enforced by the Throttler.
-  void UpdateWakeUp(LazyNow* lazy_now);
+  // Called by the associated sequence manager when it becomes bound. Updates
+  // the weak pointer stored in voters with one bound to the correct thread.
+  void CompleteInitializationOnBoundThread();
+
+  void AddQueueEnabledVoter(bool voter_is_enabled,
+                            TaskQueue::QueueEnabledVoter& voter);
+  void RemoveQueueEnabledVoter(bool voter_is_enabled,
+                               TaskQueue::QueueEnabledVoter& voter);
+  void OnQueueEnabledVoteChanged(bool enabled);
 
  protected:
   // Sets this queue's next wake up time to |wake_up| in the time domain.
-  void SetNextWakeUp(LazyNow* lazy_now, absl::optional<WakeUp> wake_up);
+  void SetNextWakeUp(LazyNow* lazy_now, std::optional<WakeUp> wake_up);
 
  private:
   friend class WorkQueue;
@@ -311,6 +289,7 @@ class BASE_EXPORT TaskQueueImpl {
 
     bool PostTask(PostedTask task);
     DelayedTaskHandle PostCancelableTask(PostedTask task);
+    bool RunOrPostTask(PostedTask task);
 
     void StartAcceptingOperations() {
       operations_controller_.StartAcceptingOperations();
@@ -331,15 +310,16 @@ class BASE_EXPORT TaskQueueImpl {
 
     base::internal::OperationsController operations_controller_;
     // Pointer might be stale, access guarded by |operations_controller_|
-    raw_ptr<TaskQueueImpl> outer_;
+    // RAW_PTR_EXCLUSION: Performance reasons (based on analysis of
+    // speedometer3).
+    RAW_PTR_EXCLUSION TaskQueueImpl* outer_ = nullptr;
   };
 
   class TaskRunner final : public SingleThreadTaskRunner {
    public:
-    explicit TaskRunner(
-        scoped_refptr<GuardedTaskPoster> task_poster,
-        scoped_refptr<const AssociatedThreadId> associated_thread,
-        TaskType task_type);
+    explicit TaskRunner(scoped_refptr<GuardedTaskPoster> task_poster,
+                        scoped_refptr<AssociatedThreadId> associated_thread,
+                        TaskType task_type);
 
     bool PostDelayedTask(const Location& location,
                          OnceClosure callback,
@@ -362,13 +342,17 @@ class BASE_EXPORT TaskQueueImpl {
     bool PostNonNestableDelayedTask(const Location& location,
                                     OnceClosure callback,
                                     TimeDelta delay) final;
+    bool RunOrPostTask(subtle::RunOrPostTaskPassKey,
+                       const Location& from_here,
+                       OnceClosure task) final;
+    bool BelongsToCurrentThread() const final;
     bool RunsTasksInCurrentSequence() const final;
 
    private:
     ~TaskRunner() final;
 
     const scoped_refptr<GuardedTaskPoster> task_poster_;
-    const scoped_refptr<const AssociatedThreadId> associated_thread_;
+    const scoped_refptr<AssociatedThreadId> associated_thread_;
     const TaskType task_type_;
   };
 
@@ -385,7 +369,9 @@ class BASE_EXPORT TaskQueueImpl {
     void UnregisterTaskQueue() { task_queue_impl_ = nullptr; }
 
    private:
-    raw_ptr<TaskQueueImpl> task_queue_impl_;
+    // RAW_PTR_EXCLUSION: Performance reasons (based on analysis of
+    // speedometer3).
+    RAW_PTR_EXCLUSION TaskQueueImpl* task_queue_impl_ = nullptr;
     const scoped_refptr<const AssociatedThreadId> associated_thread_;
   };
 
@@ -402,14 +388,10 @@ class BASE_EXPORT TaskQueueImpl {
     Task take_top();
     bool empty() const { return queue_.empty(); }
     size_t size() const { return queue_.size(); }
-    const Task& top() const { return queue_.top(); }
+    const Task& top() const LIFETIME_BOUND { return queue_.top(); }
     void swap(DelayedIncomingQueue* other);
 
-    bool has_pending_high_resolution_tasks() const {
-      return pending_high_res_tasks_;
-    }
-
-    // TODO(crbug.com/1155905): we pass SequenceManager to be able to record
+    // TODO(crbug.com/40735653): we pass SequenceManager to be able to record
     // crash keys. Remove this parameter after chasing down this crash.
     void SweepCancelledTasks(SequenceManagerImpl* sequence_manager);
     Value::List AsValue(TimeTicks now) const;
@@ -419,9 +401,6 @@ class BASE_EXPORT TaskQueueImpl {
       bool operator()(const Task& lhs, const Task& rhs) const;
     };
     IntrusiveHeap<Task, Compare> queue_;
-
-    // Number of pending tasks in the queue that need high resolution timing.
-    int pending_high_res_tasks_ = 0;
   };
 
   struct MainThreadOnly {
@@ -435,11 +414,11 @@ class BASE_EXPORT TaskQueueImpl {
     std::unique_ptr<WorkQueue> delayed_work_queue;
     std::unique_ptr<WorkQueue> immediate_work_queue;
     DelayedIncomingQueue delayed_incoming_queue;
-    ObserverList<TaskObserver>::Unchecked task_observers;
+    ObserverList<TaskObserver>::UncheckedAndDanglingUntriaged task_observers;
     HeapHandle heap_handle;
     bool is_enabled = true;
-    absl::optional<Fence> current_fence;
-    absl::optional<TimeTicks> delayed_fence;
+    std::optional<Fence> current_fence;
+    std::optional<TimeTicks> delayed_fence;
     // Snapshots the next sequence number when the queue is unblocked, otherwise
     // it contains EnqueueOrder::none(). If the EnqueueOrder of a task just
     // popped from this queue is greater than this, it means that the queue was
@@ -462,7 +441,7 @@ class BASE_EXPORT TaskQueueImpl {
     //    kNormalPriority, this snapshots the next sequence number. The
     //    EnqueueOrder of any already queued task will compare less than this.
     //
-    // TODO(crbug.com/1249857): Change this to use `TaskOrder`.
+    // TODO(crbug.com/40791504): Change this to use `TaskOrder`.
     EnqueueOrder
         enqueue_order_at_which_we_became_unblocked_with_normal_priority;
     OnTaskStartedHandler on_task_started_handler;
@@ -470,15 +449,18 @@ class BASE_EXPORT TaskQueueImpl {
     TaskExecutionTraceLogger task_execution_trace_logger;
     // Last reported wake up, used only in UpdateWakeUp to avoid
     // excessive calls.
-    absl::optional<WakeUp> scheduled_wake_up;
+    std::optional<WakeUp> scheduled_wake_up;
     // If false, queue will be disabled. Used only for tests.
     bool is_enabled_for_test = true;
     // The time at which the task queue was disabled, if it is currently
     // disabled.
-    absl::optional<TimeTicks> disabled_time;
+    std::optional<TimeTicks> disabled_time;
     // Whether or not the task queue should emit tracing events for tasks
     // posted to this queue when it is disabled.
     bool should_report_posted_tasks_when_disabled = false;
+
+    int enabled_voter_count = 0;
+    int voter_count = 0;
   };
 
   void PostTask(PostedTask task);
@@ -502,20 +484,9 @@ class BASE_EXPORT TaskQueueImpl {
   void MoveReadyImmediateTasksToImmediateWorkQueueLocked()
       EXCLUSIVE_LOCKS_REQUIRED(any_thread_lock_);
 
-#if BUILDFLAG(IS_COBALT)
-  void RecordQueuingDelayedTaskMetrics(const Task& pending_task,
-                                       LazyNow* lazy_now) {}
-#else
-  // Records the delay for some tasks in the main thread and the size of the
-  // |delayed_incoming_queue| pseudorandomly in a histogram.
-  void RecordQueuingDelayedTaskMetrics(const Task& pending_task,
-                                       LazyNow* lazy_now);
-#endif
-
   // LazilyDeallocatedDeque use TimeTicks to figure out when to resize.  We
   // should use real time here always.
-  using TaskDeque =
-      LazilyDeallocatedDeque<Task, subtle::TimeTicksNowIgnoringOverride>;
+  using TaskDeque = std::deque<Task>;
 
   // Extracts all the tasks from the immediate incoming queue and swaps it with
   // |queue| which must be empty.
@@ -561,10 +532,19 @@ class BASE_EXPORT TaskQueueImpl {
 
   TaskQueue::QueuePriority DefaultPriority() const;
 
-  QueueName name_;
-  const raw_ptr<SequenceManagerImpl, DanglingUntriaged> sequence_manager_;
+  bool AreAllQueueEnabledVotersEnabled() const {
+    return main_thread_only().enabled_voter_count ==
+           main_thread_only().voter_count;
+  }
 
-  const scoped_refptr<const AssociatedThreadId> associated_thread_;
+  // Returns whether the queue is enabled. May be invoked from any thread.
+  bool IsQueueEnabledFromAnyThread() const;
+
+  QueueName name_;
+  const raw_ptr<SequenceManagerImpl, AcrossTasksDanglingUntriaged>
+      sequence_manager_;
+
+  const scoped_refptr<AssociatedThreadId> associated_thread_;
 
   const scoped_refptr<GuardedTaskPoster> task_poster_;
 
@@ -576,8 +556,7 @@ class BASE_EXPORT TaskQueueImpl {
       TracingOnly();
       ~TracingOnly();
 
-      bool is_enabled = true;
-      absl::optional<TimeTicks> disabled_time;
+      std::optional<TimeTicks> disabled_time;
       bool should_report_posted_tasks_when_disabled = false;
     };
 
@@ -586,12 +565,10 @@ class BASE_EXPORT TaskQueueImpl {
 
     TaskDeque immediate_incoming_queue;
 
-    // True if main_thread_only().immediate_work_queue is empty.
     bool immediate_work_queue_empty = true;
-
     bool post_immediate_task_should_schedule_work = true;
-
     bool unregistered = false;
+    bool is_enabled = true;
 
     base::flat_map<raw_ptr<OnTaskPostedCallbackHandleImpl>, OnTaskPostedHandler>
         on_task_posted_handlers;
@@ -611,11 +588,11 @@ class BASE_EXPORT TaskQueueImpl {
 
   MainThreadOnly main_thread_only_;
   MainThreadOnly& main_thread_only() {
-    DCHECK_CALLED_ON_VALID_THREAD(associated_thread_->thread_checker);
+    associated_thread_->AssertInSequenceWithCurrentThread();
     return main_thread_only_;
   }
-  const MainThreadOnly& main_thread_only() const {
-    DCHECK_CALLED_ON_VALID_THREAD(associated_thread_->thread_checker);
+  const MainThreadOnly& main_thread_only() const LIFETIME_BOUND {
+    associated_thread_->AssertInSequenceWithCurrentThread();
     return main_thread_only_;
   }
 
@@ -629,6 +606,10 @@ class BASE_EXPORT TaskQueueImpl {
   const bool should_monitor_quiescence_;
   const bool should_notify_observers_;
   const bool delayed_fence_allowed_;
+
+  const scoped_refptr<SingleThreadTaskRunner> default_task_runner_;
+
+  base::WeakPtrFactory<TaskQueueImpl> voter_weak_ptr_factory_{this};
 };
 
 }  // namespace sequence_manager::internal

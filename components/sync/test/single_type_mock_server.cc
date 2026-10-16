@@ -5,6 +5,7 @@
 #include "components/sync/test/single_type_mock_server.h"
 
 #include "components/sync/base/time.h"
+#include "components/sync/protocol/collaboration_metadata.h"
 #include "components/sync/protocol/data_type_progress_marker.pb.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
 #include "components/sync/protocol/sync.pb.h"
@@ -14,9 +15,9 @@ using google::protobuf::RepeatedPtrField;
 
 namespace syncer {
 
-SingleTypeMockServer::SingleTypeMockServer(ModelType type)
+SingleTypeMockServer::SingleTypeMockServer(DataType type)
     : type_(type),
-      type_root_id_(ModelTypeToProtocolRootTag(type)),
+      type_root_id_(DataTypeToProtocolRootTag(type)),
       progress_marker_token_("non_null_progress_token") {}
 
 SingleTypeMockServer::~SingleTypeMockServer() = default;
@@ -29,7 +30,7 @@ sync_pb::SyncEntity SingleTypeMockServer::TypeRootUpdate() {
   entity.set_version(1000);
   entity.set_ctime(TimeToProtoTime(base::Time::UnixEpoch()));
   entity.set_mtime(TimeToProtoTime(base::Time::UnixEpoch()));
-  entity.set_server_defined_unique_tag(ModelTypeToProtocolRootTag(type_));
+  entity.set_server_defined_unique_tag(DataTypeToProtocolRootTag(type_));
   entity.set_deleted(false);
   AddDefaultFieldValue(type_, entity.mutable_specifics());
 
@@ -62,6 +63,17 @@ sync_pb::SyncEntity SingleTypeMockServer::UpdateFromServer(
   entity.set_mtime(TimeToProtoTime(mtime));
   entity.set_name("Name: " + tag_hash.value());
 
+  return entity;
+}
+
+sync_pb::SyncEntity SingleTypeMockServer::UpdateFromServer(
+    int64_t version_offset,
+    const ClientTagHash& tag_hash,
+    const sync_pb::EntitySpecifics& specifics,
+    const CollaborationMetadata& collaboration_metadata) {
+  sync_pb::SyncEntity entity =
+      UpdateFromServer(version_offset, tag_hash, specifics);
+  *entity.mutable_collaboration() = collaboration_metadata.ToRemoteProto();
   return entity;
 }
 
@@ -128,7 +140,7 @@ size_t SingleTypeMockServer::GetNumCommitMessages() const {
   return commit_messages_.size();
 }
 
-sync_pb::ClientToServerMessage SingleTypeMockServer::GetNthCommitMessage(
+const sync_pb::ClientToServerMessage& SingleTypeMockServer::GetNthCommitMessage(
     size_t n) const {
   DCHECK_LT(n, GetNumCommitMessages());
   return commit_messages_[n];
@@ -149,11 +161,21 @@ sync_pb::DataTypeProgressMarker SingleTypeMockServer::GetProgress() const {
   sync_pb::DataTypeProgressMarker progress;
   progress.set_data_type_id(type_);
   progress.set_token(progress_marker_token_);
-  if (return_gc_directive_) {
+  if (return_gc_directive_version_watermark_) {
     progress.mutable_gc_directive()->set_type(
         sync_pb::GarbageCollectionDirective::VERSION_WATERMARK);
     // The value of version watermark is not used, so just provide some number.
     progress.mutable_gc_directive()->set_version_watermark(123);
+  }
+  if (SharedTypes().Has(type_)) {
+    // Always provide gc_directive for active collaborations for the shared
+    // types.
+    sync_pb::GarbageCollectionDirective::CollaborationGarbageCollection*
+        collaboration_gc =
+            progress.mutable_gc_directive()->mutable_collaboration_gc();
+    for (const std::string& collaboration_id : active_collaborations_) {
+      collaboration_gc->add_active_collaboration_ids(collaboration_id);
+    }
   }
   return progress;
 }
@@ -185,8 +207,21 @@ void SingleTypeMockServer::SetServerVersion(const ClientTagHash& tag_hash,
   server_versions_[tag_hash] = version;
 }
 
-void SingleTypeMockServer::SetReturnGcDirective(bool return_gc_directive) {
-  return_gc_directive_ = return_gc_directive;
+void SingleTypeMockServer::SetReturnGcDirectiveVersionWatermark(
+    bool return_gc_directive) {
+  return_gc_directive_version_watermark_ = return_gc_directive;
+}
+
+void SingleTypeMockServer::AddCollaboration(
+    const std::string& collaboration_id) {
+  // Should be used for the shared types only.
+  CHECK(SharedTypes().Has(type_));
+  active_collaborations_.insert(collaboration_id);
+}
+
+void SingleTypeMockServer::RemoveCollaboration(
+    const std::string& collaboration_id) {
+  active_collaborations_.erase(collaboration_id);
 }
 
 }  // namespace syncer

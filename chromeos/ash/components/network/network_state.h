@@ -6,18 +6,19 @@
 #define CHROMEOS_ASH_COMPONENTS_NETWORK_NETWORK_STATE_H_
 
 #include <stdint.h>
-#include <sstream>
 
 #include <memory>
+#include <optional>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "base/gtest_prod_util.h"
 #include "base/values.h"
 #include "chromeos/ash/components/network/managed_state.h"
+#include "chromeos/ash/components/network/network_config.h"
 #include "chromeos/services/network_config/public/mojom/cros_network_config.mojom-forward.h"
 #include "components/onc/onc_constants.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/cros_system_api/dbus/shill/dbus-constants.h"
 #include "url/gurl.h"
 
@@ -53,24 +54,24 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
     std::string type;
   };
 
+  // This is reflected by network/enums.xml:NetworkPortalState.
   enum class PortalState {
     // The network is not connected or the portal state is not available.
     kUnknown,
     // The network is connected and no portal is detected.
     kOnline,
     // A portal is suspected but no redirect was provided.
+    // TODO(b/336931625): Remove the kPortalSuspected field.
     kPortalSuspected,
     // The network is in a portal state with a redirect URL.
     kPortal,
-    // A proxy requiring authentication is detected.
-    kProxyAuthRequired,
     // The network is connected but no internet is available and no proxy was
     // detected.
     kNoInternet,
     kMaxValue = kNoInternet  // For UMA_HISTOGRAM_ENUMERATION
   };
-  friend std::ostream& operator<<(std::ostream& stream,
-                                  const PortalState& portal_state);
+
+  friend std::ostream& operator<<(std::ostream& stream, PortalState state);
 
   // ManagedState overrides
   // If you change this method, update GetProperties too.
@@ -118,26 +119,31 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
 
   int priority() const { return priority_; }
 
-  const absl::optional<base::Value::Dict>& proxy_config() const {
+  const std::optional<base::Value::Dict>& proxy_config() const {
     return proxy_config_;
   }
-  const absl::optional<base::Value::Dict>& ipv4_config() const {
+  // TODO(b/340974631): Deprecate this getter and use network_config() instead.
+  const std::optional<base::Value::Dict>& ipv4_config() const {
     return ipv4_config_;
   }
+  // TODO(b/340974631): Deprecate this getter and use network_config() instead.
   std::string GetIpAddress() const;
+  // TODO(b/340974631): Deprecate this getter and use network_config() instead.
   std::string GetGateway() const;
   GURL GetWebProxyAutoDiscoveryUrl() const;
 
   // Network service property accessors.
   // Link speeds are set when service is connected or link speeds get updated
-  // during the connection. When link speeds are not set, absl::nullopt is
+  // during the connection. When link speeds are not set, std::nullopt is
   // returned.
-  const absl::optional<uint32_t> max_uplink_speed_kbps() const {
+  const std::optional<uint32_t> max_uplink_speed_kbps() const {
     return max_uplink_speed_kbps_;
   }
-  const absl::optional<uint32_t> max_downlink_speed_kbps() const {
+  const std::optional<uint32_t> max_downlink_speed_kbps() const {
     return max_downlink_speed_kbps_;
   }
+
+  const NetworkConfig* network_config() const { return network_config_.get(); }
 
   // Wireless property accessors
   bool connectable() const { return connectable_; }
@@ -155,7 +161,8 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
     blocked_by_policy_ = blocked_by_policy;
   }
   bool hidden_ssid() const { return hidden_ssid_; }
-
+  const std::string& passpoint_id() const { return passpoint_id_; }
+  bool metered() const { return metered_; }
   // Wifi property accessors
   const std::string& eap_method() const { return eap_method_; }
   const std::vector<uint8_t>& raw_ssid() const { return raw_ssid_; }
@@ -167,6 +174,7 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
   const std::string& activation_type() const { return activation_type_; }
   const std::string& activation_state() const { return activation_state_; }
   bool allow_roaming() const { return allow_roaming_; }
+  const std::string& payment_method() const { return payment_method_; }
   const std::string& payment_url() const { return payment_url_; }
   const std::string& payment_post_data() const { return payment_post_data_; }
   bool cellular_out_of_credits() const { return cellular_out_of_credits_; }
@@ -232,11 +240,8 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
   // service.
   bool IsNonShillCellularNetwork() const;
 
-  PortalState shill_portal_state() const { return shill_portal_state_; }
-
-  // Returns the captive portal state for the network, prioritizing Chrome
-  // portal detection results if set.
-  PortalState GetPortalState() const;
+  // Returns the state of automatic captive portal detection for the network.
+  PortalState portal_state() const { return portal_state_; }
 
   // Returns true if the security type is non-empty and not 'none'.
   bool IsSecure() const;
@@ -275,6 +280,10 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
     kUnknown = 6,
     kMaxValue = kUnknown,
   };
+
+  friend std::ostream& operator<<(std::ostream& stream,
+                                  NetworkTechnologyType type);
+
   NetworkTechnologyType GetNetworkTechnologyType() const;
 
   // Setters for testing.
@@ -304,7 +313,6 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
   constexpr static const int kSignalStrengthChangeThreshold = 5;
 
  private:
-  friend class MobileActivatorTest;
   friend class NetworkStateHandler;
   friend class NetworkStateTest;
 
@@ -312,15 +320,10 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
   // exists, and validates |name_|. Returns true if |name_| changes.
   bool UpdateName(const base::Value::Dict& properties);
 
-  // Uses the Shill connection state and PortalDetectionFailedStatus to generate
-  // |shill_portal_state_|.
+  // Uses the Shill connection state to generate |portal_state_|.
   void UpdateCaptivePortalState(const base::Value::Dict& properties);
 
   void SetVpnProvider(const std::string& id, const std::string& type);
-
-  void set_chrome_portal_state(PortalState portal_state) {
-    chrome_portal_state_ = portal_state;
-  }
 
   // Set to true if the network is a member of Manager.Services.
   bool visible_ = false;
@@ -340,8 +343,9 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
   std::vector<uint8_t> raw_ssid_;  // Unknown encoding. Not necessarily UTF-8.
   int priority_ = 0;  // kPriority, used for organizing known networks.
   ::onc::ONCSource onc_source_ = ::onc::ONC_SOURCE_UNKNOWN;
-  absl::optional<uint32_t> max_uplink_speed_kbps_;
-  absl::optional<uint32_t> max_downlink_speed_kbps_;
+  std::optional<uint32_t> max_uplink_speed_kbps_;
+  std::optional<uint32_t> max_downlink_speed_kbps_;
+  std::unique_ptr<NetworkConfig> network_config_;
 
   // Last non empty Service.Error property. Expected to be cleared via
   // ClearError() when a connection attempt is initiated and when an associated
@@ -354,7 +358,7 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
 
   // Cached copy of the Shill Service IPConfig object. For ipv6 properties use
   // the ip_configs_ property in the corresponding DeviceState.
-  absl::optional<base::Value::Dict> ipv4_config_;
+  std::optional<base::Value::Dict> ipv4_config_;
 
   // Wireless properties, used for icons and Connect logic.
   bool connectable_ = false;
@@ -366,6 +370,8 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
   int frequency_ = 0;
   bool blocked_by_policy_ = false;
   bool hidden_ssid_ = false;
+  std::string passpoint_id_;
+  bool metered_ = false;
 
   // Cellular properties, used for icons, Connect, and Activation.
   std::string eid_;
@@ -376,6 +382,7 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
   std::string roaming_;
   bool allow_roaming_ = false;
   bool provider_requires_roaming_ = false;
+  std::string payment_method_;
   std::string payment_url_;
   std::string payment_post_data_;
   bool cellular_out_of_credits_ = false;
@@ -389,8 +396,7 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
   std::string tether_carrier_;
   int battery_percentage_ = 0;
 
-  PortalState shill_portal_state_ = PortalState::kUnknown;
-  PortalState chrome_portal_state_ = PortalState::kUnknown;
+  PortalState portal_state_ = PortalState::kUnknown;
 
   // Whether the current device has already connected to the tether host device
   // providing the hotspot corresponding to this NetworkState.
@@ -401,16 +407,20 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkState : public ManagedState {
 
   // TODO(pneubeck): Remove this once (Managed)NetworkConfigurationHandler
   // provides proxy configuration. crbug.com/241775
-  absl::optional<base::Value::Dict> proxy_config_;
+  std::optional<base::Value::Dict> proxy_config_;
 
   // Set while a network connect request is queued. Cleared on connect or
   // if the request is aborted.
   bool connect_requested_ = false;
 };
 
-std::ostream& COMPONENT_EXPORT(CHROMEOS_NETWORK) operator<<(
-    std::ostream& stream,
-    const NetworkState::PortalState& portal_state);
+COMPONENT_EXPORT(CHROMEOS_NETWORK)
+std::ostream& operator<<(std::ostream& stream,
+                         NetworkState::PortalState portal_state);
+
+COMPONENT_EXPORT(CHROMEOS_NETWORK)
+std::ostream& operator<<(std::ostream& stream,
+                         NetworkState::NetworkTechnologyType type);
 
 }  // namespace ash
 

@@ -29,7 +29,6 @@ HotwordType HotwordTypeProtoToIdl(const mri::HotwordDetection::Type& type) {
       return HotwordType::kOkGoogle;
   }
   NOTREACHED() << "Unknown hotword type: " << type;
-  return HotwordType::kUnknownType;
 }
 
 Hotword HotwordProtoToIdl(const mri::HotwordDetection::Hotword& hotword) {
@@ -160,7 +159,6 @@ LightCondition LightConditionProtoToIdl(
       return LightCondition::kBlackFrame;
     default:
       NOTREACHED() << "Unknown light condition: " << condition;
-      return LightCondition::kUnspecified;
   }
 }
 
@@ -289,7 +287,6 @@ FramePerceptionType FramePerceptionTypeProtoToIdl(int type) {
       return FramePerceptionType::kMotionDetection;
   }
   NOTREACHED() << "Unknown frame perception type: " << type;
-  return FramePerceptionType::kUnknownType;
 }
 
 EntityType EntityTypeProtoToIdl(const mri::Entity& entity) {
@@ -474,7 +471,6 @@ Status StateStatusProtoToIdl(const mri::State& state) {
       return Status::kNone;
   }
   NOTREACHED() << "Reached status not in switch.";
-  return Status::kNone;
 }
 
 mri::State::Status StateStatusIdlToProto(const State& state) {
@@ -496,7 +492,6 @@ mri::State::Status StateStatusIdlToProto(const State& state) {
       return mri::State::STATUS_UNSPECIFIED;
   }
   NOTREACHED() << "Reached status not in switch.";
-  return mri::State::STATUS_UNSPECIFIED;
 }
 
 Feature FeatureProtoToIdl(int feature) {
@@ -515,7 +510,6 @@ Feature FeatureProtoToIdl(int feature) {
       return Feature::kNone;
   }
   NOTREACHED() << "Reached feature not in switch.";
-  return Feature::kNone;
 }
 
 mri::State::Feature FeatureIdlToProto(const Feature& feature) {
@@ -534,7 +528,6 @@ mri::State::Feature FeatureIdlToProto(const Feature& feature) {
       return mri::State::FEATURE_UNSET;
   }
   NOTREACHED() << "Reached feature not in switch.";
-  return mri::State::FEATURE_UNSET;
 }
 
 base::Value NamedTemplateArgumentValueProtoToValue(
@@ -549,7 +542,6 @@ base::Value NamedTemplateArgumentValueProtoToValue(
   }
   NOTREACHED() << "Unknown NamedTemplateArgument::ValueCase "
                << named_template_argument.value_case();
-  return base::Value();
 }
 
 bool NamedTemplateArgumentProtoToIdl(
@@ -560,9 +552,9 @@ bool NamedTemplateArgumentProtoToIdl(
   base::Value value =
       NamedTemplateArgumentValueProtoToValue(named_template_argument_proto);
 
-  named_template_argument->value.emplace();
-  if (!NamedTemplateArgument::Value::Populate(
-          value, *named_template_argument->value)) {
+  named_template_argument->value =
+      NamedTemplateArgument::Value::FromValue(value);
+  if (!named_template_argument->value) {
     return false;
   }
 

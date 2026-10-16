@@ -4,14 +4,14 @@
 
 #include "fuchsia_web/webengine/browser/web_engine_browser_main_parts.h"
 
-#include <fuchsia/ui/scenic/cpp/fidl.h>
 #include <fuchsia/web/cpp/fidl.h>
+#include <lib/inspect/component/cpp/component.h>
 #include <lib/sys/cpp/component_context.h>
 #include <lib/sys/cpp/outgoing_directory.h>
-#include <lib/sys/inspect/cpp/component.h>
 #include <utility>
 #include <vector>
 
+#include <lib/async/default.h>
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/files/important_file_writer_cleaner.h"
@@ -140,7 +140,7 @@ std::unique_ptr<media::FuchsiaCdmManager> CreateCdmManager() {
   std::string cdm_data_directory =
       command_line->GetSwitchValueASCII(switches::kCdmDataDirectory);
 
-  absl::optional<uint64_t> cdm_data_quota_bytes;
+  std::optional<uint64_t> cdm_data_quota_bytes;
   if (command_line->HasSwitch(switches::kCdmDataQuotaBytes)) {
     uint64_t value = 0;
     CHECK(base::StringToUint64(
@@ -152,24 +152,6 @@ std::unique_ptr<media::FuchsiaCdmManager> CreateCdmManager() {
   return std::make_unique<media::FuchsiaCdmManager>(
       std::move(create_key_system_callbacks),
       base::FilePath(cdm_data_directory), cdm_data_quota_bytes);
-}
-
-// Checks the supported ozone platform with Scenic if no arg is specified
-// already.
-void MaybeSetOzonePlatformArg(base::CommandLine* launch_args) {
-  if (launch_args->HasSwitch(switches::kOzonePlatform))
-    return;
-
-  fuchsia::ui::scenic::ScenicSyncPtr scenic;
-  zx_status_t status =
-      base::ComponentContextForProcess()->svc()->Connect(scenic.NewRequest());
-  ZX_CHECK(status == ZX_OK, status) << "Couldn't connect to Scenic.";
-
-  bool scenic_uses_flatland = false;
-  status = scenic->UsesFlatland(&scenic_uses_flatland);
-  ZX_CHECK(status == ZX_OK, status) << "UsesFlatland()";
-  launch_args->AppendSwitchNative(switches::kOzonePlatform,
-                                  scenic_uses_flatland ? "flatland" : "scenic");
 }
 
 }  // namespace
@@ -195,11 +177,6 @@ WebEngineBrowserMainParts::browser_contexts() const {
   return contexts;
 }
 
-int WebEngineBrowserMainParts::PreEarlyInitialization() {
-  MaybeSetOzonePlatformArg(base::CommandLine::ForCurrentProcess());
-  return content::BrowserMainParts::PreEarlyInitialization();
-}
-
 void WebEngineBrowserMainParts::PostEarlyInitialization() {
   base::ImportantFileWriterCleaner::GetInstance().Initialize();
 }
@@ -208,10 +185,10 @@ int WebEngineBrowserMainParts::PreMainMessageLoopRun() {
   DCHECK_EQ(context_bindings_.size(), 0u);
 
   // Initialize the |component_inspector_| to allow diagnostics to be published.
-  component_inspector_ = std::make_unique<sys::ComponentInspector>(
-      base::ComponentContextForProcess());
+  component_inspector_ = std::make_unique<inspect::ComponentInspector>(
+      async_get_default_dispatcher(), inspect::PublishOptions{});
   fuchsia_component_support::PublishVersionInfoToInspect(
-      component_inspector_.get());
+      &component_inspector_->root());
 
   // Add a node providing memory details for this whole web instance.
   memory_inspector_ =
@@ -268,7 +245,7 @@ int WebEngineBrowserMainParts::PreMainMessageLoopRun() {
                           base::Unretained(this)));
 
   // Configure Ozone with an Aura implementation of the Screen abstraction.
-  screen_ = std::make_unique<aura::ScopedScreenOzone>();
+  screen_ = std::make_unique<aura::ScreenOzone>();
 
   // Create the FuchsiaCdmManager at startup rather than on-demand, to allow it
   // to perform potentially expensive startup work in the background.
@@ -290,7 +267,7 @@ int WebEngineBrowserMainParts::PreMainMessageLoopRun() {
       fidl::InterfaceRequestHandler<fuchsia::web::FrameHost>(fit::bind_member(
           this, &WebEngineBrowserMainParts::HandleFrameHostRequest)));
 
-  // TODO(crbug.com/1315601): Create a base::ProcessLifecycle instance here, to
+  // TODO(crbug.com/42050460): Create a base::ProcessLifecycle instance here, to
   // trigger graceful shutdown on component stop, when migrated to CFv2.
 
   // Manage network-quality signals and send them to renderers. Provides input
@@ -304,7 +281,7 @@ int WebEngineBrowserMainParts::PreMainMessageLoopRun() {
   // requests to the service directory.
   base::ComponentContextForProcess()->outgoing()->ServeFromStartupInfo();
 
-  // TODO(crbug.com/1163073): Update tests to make a service connection to the
+  // TODO(crbug.com/40162984): Update tests to make a service connection to the
   // Context and remove this workaround.
   fidl::InterfaceRequest<fuchsia::web::Context>& request = GetTestRequest();
   if (request)

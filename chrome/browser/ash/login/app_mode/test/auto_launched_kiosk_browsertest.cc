@@ -4,38 +4,44 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "apps/test/app_window_waiter.h"
+#include "base/auto_reset.h"
 #include "base/callback_list.h"
 #include "base/command_line.h"
-#include "base/files/file_path.h"
+#include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
 #include "base/test/gtest_tags.h"
-#include "base/values.h"
+#include "base/test/scoped_feature_list.h"
+#include "chrome/browser/ash/app_mode/app_launch_utils.h"
 #include "chrome/browser/ash/app_mode/fake_cws.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_launch_error.h"
-#include "chrome/browser/ash/app_mode/kiosk_app_manager.h"
-#include "chrome/browser/ash/login/app_mode/kiosk_launch_controller.h"
+#include "chrome/browser/ash/app_mode/kiosk_chrome_app_manager.h"
+#include "chrome/browser/ash/app_mode/kiosk_test_helper.h"
 #include "chrome/browser/ash/login/app_mode/test/kiosk_apps_mixin.h"
 #include "chrome/browser/ash/login/test/device_state_mixin.h"
 #include "chrome/browser/ash/login/test/local_state_mixin.h"
 #include "chrome/browser/ash/login/test/login_manager_mixin.h"
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
 #include "chrome/browser/ash/login/test/oobe_screen_waiter.h"
-#include "chrome/browser/ash/policy/core/device_local_account.h"
+#include "chrome/browser/ash/login/test/scoped_policy_update.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/browsertest_util.h"
+#include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
 #include "chrome/browser/lifetime/termination_notification.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/webui/ash/login/reset_screen_handler.h"
-#include "chrome/common/chrome_constants.h"
 #include "chrome/common/pref_names.h"
-#include "chromeos/ash/components/dbus/dbus_thread_manager.h"
+#include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
-#include "chromeos/ash/components/dbus/shill/shill_manager_client.h"
-#include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
+#include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
+#include "chromeos/ash/components/policy/device_local_account/device_local_account_type.h"
 #include "components/crx_file/crx_verifier.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
 #include "extensions/browser/app_window/app_window.h"
@@ -45,17 +51,11 @@
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/result_catcher.h"
 #include "net/dns/mock_host_resolver.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace ash {
+
 namespace {
-
-namespace em = ::enterprise_management;
-
-// This is a simple test that only sends an extension message when app launch is
-// requested. Webstore data json is in
-//   chrome/test/data/chromeos/app_mode/webstore/inlineinstall/
-//       detail/gbcgichpbeeimejckkpgnaighpndpped
-constexpr char kTestNonKioskEnabledApp[] = "gbcgichpbeeimejckkpgnaighpndpped";
 
 // Primary kiosk app that runs tests for chrome.management API.
 // The tests are run on the kiosk app launch event.
@@ -88,6 +88,10 @@ class AutoLaunchedKioskTest : public OobeBaseTest {
   AutoLaunchedKioskTest()
       : verifier_format_override_(crx_file::VerifierFormat::CRX3) {
     device_state_.set_domain("domain.com");
+    // Force allow Chrome Apps in Kiosk, since they are default disabled since
+    // M138.
+    scoped_feature_list_.InitFromCommandLine("AllowChromeAppsInKioskSessions",
+                                             "");
   }
 
   AutoLaunchedKioskTest(const AutoLaunchedKioskTest&) = delete;
@@ -96,15 +100,18 @@ class AutoLaunchedKioskTest : public OobeBaseTest {
   ~AutoLaunchedKioskTest() override = default;
 
   virtual std::string GetTestAppId() const {
-    return KioskAppsMixin::kKioskAppId;
+    return KioskAppsMixin::kTestChromeAppId;
   }
+
+  virtual std::string GetTestAppAccountId() const {
+    return KioskAppsMixin::kEnterpriseKioskAccountId;
+  }
+
   virtual std::vector<std::string> GetTestSecondaryAppIds() const {
     return std::vector<std::string>();
   }
 
   void SetUp() override {
-    skip_splash_wait_override_ =
-        KioskLaunchController::SkipSplashScreenWaitForTesting();
     login_manager_.set_session_restore_enabled();
     login_manager_.SetDefaultLoginSwitches(
         {std::make_pair("test_switch_1", ""),
@@ -133,22 +140,16 @@ class AutoLaunchedKioskTest : public OobeBaseTest {
 
     std::unique_ptr<ScopedDevicePolicyUpdate> device_policy_update =
         device_state_.RequestDevicePolicyUpdate();
-    em::DeviceLocalAccountsProto* const device_local_accounts =
-        device_policy_update->policy_payload()->mutable_device_local_accounts();
-    device_local_accounts->set_auto_login_id(
-        KioskAppsMixin::kEnterpriseKioskAccountId);
 
-    em::DeviceLocalAccountInfoProto* const account =
-        device_local_accounts->add_account();
-    account->set_account_id(KioskAppsMixin::kEnterpriseKioskAccountId);
-    account->set_type(em::DeviceLocalAccountInfoProto::ACCOUNT_TYPE_KIOSK_APP);
-    account->mutable_kiosk_app()->set_app_id(GetTestAppId());
+    KioskAppsMixin::AppendAutoLaunchKioskAccount(
+        device_policy_update->policy_payload(), GetTestAppId(),
+        GetTestAppAccountId());
 
     device_policy_update.reset();
 
     std::unique_ptr<ScopedUserPolicyUpdate> device_local_account_policy_update =
         device_state_.RequestDeviceLocalAccountPolicyUpdate(
-            KioskAppsMixin::kEnterpriseKioskAccountId);
+            GetTestAppAccountId());
     device_local_account_policy_update.reset();
 
     MixinBasedInProcessBrowserTest::SetUpInProcessBrowserTestFixture();
@@ -181,8 +182,7 @@ class AutoLaunchedKioskTest : public OobeBaseTest {
 
   const std::string GetTestAppUserId() const {
     return policy::GenerateDeviceLocalAccountUserId(
-        KioskAppsMixin::kEnterpriseKioskAccountId,
-        policy::DeviceLocalAccount::TYPE_KIOSK_APP);
+        GetTestAppAccountId(), policy::DeviceLocalAccountType::kKioskApp);
   }
 
   bool CloseAppWindow(const std::string& app_id) {
@@ -211,12 +211,12 @@ class AutoLaunchedKioskTest : public OobeBaseTest {
   }
 
   bool IsKioskAppAutoLaunched(const std::string& app_id) {
-    KioskAppManager::App app;
-    if (!KioskAppManager::Get()->GetApp(app_id, &app)) {
+    auto app = KioskChromeAppManager::Get()->GetApp(app_id);
+    if (!app.has_value()) {
       ADD_FAILURE() << "App " << app_id << " not found.";
       return false;
     }
-    return app.was_auto_launched_with_zero_delay;
+    return app->was_auto_launched_with_zero_delay;
   }
 
   void ExpectCommandLineHasDefaultPolicySwitches(
@@ -235,11 +235,15 @@ class AutoLaunchedKioskTest : public OobeBaseTest {
   DeviceStateMixin device_state_{
       &mixin_host_, DeviceStateMixin::State::OOBE_COMPLETED_CLOUD_ENROLLED};
 
- private:
   FakeCWS fake_cws_;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+
   extensions::SandboxedUnpacker::ScopedVerifierFormatOverrideForTest
       verifier_format_override_;
-  std::unique_ptr<base::AutoReset<bool>> skip_splash_wait_override_;
+  base::AutoReset<bool> skip_splash_wait_override_ =
+      KioskTestHelper::SkipSplashScreenWait();
 
   LoginManagerMixin login_manager_{&mixin_host_, {}};
 };
@@ -255,9 +259,9 @@ IN_PROC_BROWSER_TEST_F(AutoLaunchedKioskTest, PRE_CrashRestore) {
 
   EXPECT_TRUE(app_window_loaded_listener_->WaitUntilSatisfied());
 
-  EXPECT_TRUE(IsKioskAppAutoLaunched(KioskAppsMixin::kKioskAppId));
+  EXPECT_TRUE(IsKioskAppAutoLaunched(KioskAppsMixin::kTestChromeAppId));
 
-  ASSERT_TRUE(CloseAppWindow(KioskAppsMixin::kKioskAppId));
+  ASSERT_TRUE(CloseAppWindow(KioskAppsMixin::kTestChromeAppId));
 }
 
 IN_PROC_BROWSER_TEST_F(AutoLaunchedKioskTest, CrashRestore) {
@@ -273,9 +277,9 @@ IN_PROC_BROWSER_TEST_F(AutoLaunchedKioskTest, CrashRestore) {
 
   EXPECT_TRUE(app_window_loaded_listener_->WaitUntilSatisfied());
 
-  EXPECT_TRUE(IsKioskAppAutoLaunched(KioskAppsMixin::kKioskAppId));
+  EXPECT_TRUE(IsKioskAppAutoLaunched(KioskAppsMixin::kTestChromeAppId));
 
-  ASSERT_TRUE(CloseAppWindow(KioskAppsMixin::kKioskAppId));
+  ASSERT_TRUE(CloseAppWindow(KioskAppsMixin::kTestChromeAppId));
 }
 
 class AutoLaunchedKioskPowerWashRequestedTest
@@ -320,13 +324,13 @@ IN_PROC_BROWSER_TEST_F(AutoLaunchedKioskEphemeralUsersTest, Launches) {
 
   EXPECT_TRUE(app_window_loaded_listener_->WaitUntilSatisfied());
 
-  EXPECT_TRUE(IsKioskAppAutoLaunched(KioskAppsMixin::kKioskAppId));
+  EXPECT_TRUE(IsKioskAppAutoLaunched(KioskAppsMixin::kTestChromeAppId));
 }
 
 // Used to test app auto-launch flow when the launched app is not kiosk enabled.
 class AutoLaunchedNonKioskEnabledAppTest : public AutoLaunchedKioskTest {
  public:
-  AutoLaunchedNonKioskEnabledAppTest() {}
+  AutoLaunchedNonKioskEnabledAppTest() = default;
 
   AutoLaunchedNonKioskEnabledAppTest(
       const AutoLaunchedNonKioskEnabledAppTest&) = delete;
@@ -335,7 +339,13 @@ class AutoLaunchedNonKioskEnabledAppTest : public AutoLaunchedKioskTest {
 
   ~AutoLaunchedNonKioskEnabledAppTest() override = default;
 
-  std::string GetTestAppId() const override { return kTestNonKioskEnabledApp; }
+  std::string GetTestAppId() const override {
+    // Chrome app without the `kiosk_enabled` field in the manifest. The source
+    // code is in:
+    //   //chrome/test/data/chromeos/app_mode/apps_and_extensions/
+    //     non_kiosk_enabled_app/src/
+    return "gbcgichpbeeimejckkpgnaighpndpped";
+  }
 };
 
 IN_PROC_BROWSER_TEST_F(AutoLaunchedNonKioskEnabledAppTest, NotLaunched) {
@@ -343,11 +353,11 @@ IN_PROC_BROWSER_TEST_F(AutoLaunchedNonKioskEnabledAppTest, NotLaunched) {
   // session flags.
   ASSERT_TRUE(termination_subscription_);
 
-  EXPECT_TRUE(IsKioskAppAutoLaunched(kTestNonKioskEnabledApp));
+  EXPECT_TRUE(IsKioskAppAutoLaunched(GetTestAppId()));
 
   ExtensionTestMessageListener listener("launchRequested");
 
-  // App launch should be canceled, and user session stopped.
+  // App launch should be canceled, and kiosk session stopped.
   base::RunLoop run_loop;
   auto subscription =
       browser_shutdown::AddAppTerminatingCallback(run_loop.QuitClosure());
@@ -361,7 +371,7 @@ IN_PROC_BROWSER_TEST_F(AutoLaunchedNonKioskEnabledAppTest, NotLaunched) {
 // Used to test management API availability in kiosk sessions.
 class ManagementApiKioskTest : public AutoLaunchedKioskTest {
  public:
-  ManagementApiKioskTest() {}
+  ManagementApiKioskTest() = default;
 
   ManagementApiKioskTest(const ManagementApiKioskTest&) = delete;
   ManagementApiKioskTest& operator=(const ManagementApiKioskTest&) = delete;
@@ -378,6 +388,9 @@ class ManagementApiKioskTest : public AutoLaunchedKioskTest {
 };
 
 IN_PROC_BROWSER_TEST_F(ManagementApiKioskTest, ManagementApi) {
+  // TODO(https://crbug.com/40804030): Remove this when updated to use MV3.
+  extensions::ScopedTestMV2Enabler mv2_enabler;
+
   // The tests expects to recieve two test result messages:
   //  * result for tests run by the secondary kiosk app.
   //  * result for tests run by the primary kiosk app.

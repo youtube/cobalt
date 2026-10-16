@@ -9,9 +9,9 @@
 #include <string>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "components/messages/android/message_enums.h"
 #include "components/messages/android/message_wrapper.h"
-#include "components/messages/android/throttler/domain_session_throttler.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -51,14 +51,15 @@ class InstallableAmbientBadgeMessageController {
   void DismissMessage();
 
  private:
-  static messages::DomainSessionThrottler* GetThrottler();
-
   void HandleInstallButtonClicked();
   void HandleMessageDismissed(messages::DismissReason dismiss_reason);
 
   raw_ptr<InstallableAmbientBadgeClient> client_;
   std::unique_ptr<messages::MessageWrapper> message_;
   url::Origin save_origin_;
+
+  base::WeakPtrFactory<InstallableAmbientBadgeMessageController> weak_factory_{
+      this};
 };
 
 }  // namespace webapps

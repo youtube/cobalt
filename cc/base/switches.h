@@ -8,12 +8,12 @@
 #define CC_BASE_SWITCHES_H_
 
 #include "base/check.h"
+#include "build/build_config.h"
 #include "cc/base/base_export.h"
 
 // Since cc is used from the render process, anything that goes here also needs
 // to be added to render_process_host_impl.cc.
 
-namespace cc {
 namespace switches {
 
 // Switches for the renderer compositor only.
@@ -60,18 +60,21 @@ CC_BASE_EXPORT extern const char kCompositedRenderPassBorders[];
 CC_BASE_EXPORT extern const char kCompositedSurfaceBorders[];
 CC_BASE_EXPORT extern const char kCompositedLayerBorders[];
 
-CC_BASE_EXPORT extern const char kUIEnableLayerLists[];
-
 CC_BASE_EXPORT extern const char kEnableClippedImageScaling[];
-
-CC_BASE_EXPORT extern const char kAnimatedImageResume[];
 
 // Test related.
 CC_BASE_EXPORT extern const char kCCLayerTreeTestNoTimeout[];
 CC_BASE_EXPORT extern const char kCCLayerTreeTestLongTimeout[];
 CC_BASE_EXPORT extern const char kCCScrollAnimationDurationForTesting[];
 
+#if BUILDFLAG(IS_COBALT)
+CC_BASE_EXPORT extern const char kCCImageCacheLimitItems[];
+CC_BASE_EXPORT extern const char kCCImageCacheLimitMbs[];
+CC_BASE_EXPORT extern const char kDecodedImageWorkingSetBudgetBytes[];
+// Avoid reuse resource.
+CC_BASE_EXPORT extern const char kAvoidCCReuseResource[];
+#endif
+
 }  // namespace switches
-}  // namespace cc
 
 #endif  // CC_BASE_SWITCHES_H_

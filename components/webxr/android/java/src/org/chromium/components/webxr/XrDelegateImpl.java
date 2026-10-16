@@ -6,23 +6,21 @@ package org.chromium.components.webxr;
 
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.webxr.XrSessionCoordinator.SessionType;
 
 /**
- * This class provides methods to interact with and query the state of any Xr
- * specific runtimes. Notably, it serves as a "wrapper" to abstract and
- * coordinate any AR or VR specific states. It will only be compiled into Chrome
- * if either |enable_arcore| or |enable_cardboard| are set, and attempts to load
- * the relevant concrete implementations for the various XR Runtime Delegate
+ * This class provides methods to interact with and query the state of any Xr specific runtimes.
+ * Notably, it serves as a "wrapper" to abstract and coordinate any AR or VR specific states. It
+ * will only be compiled into Chrome if either |enable_arcore| or |enable_cardboard| are set, and
+ * attempts to load the relevant concrete implementations for the various XR Runtime Delegate
  * interfaces.
  */
+@NullMarked
 public class XrDelegateImpl implements XrDelegate {
-    private static final String TAG = "XrDelegateImpl";
-    private static final boolean DEBUG_LOGS = false;
-
     private @SessionType int mActiveSession = SessionType.NONE;
 
-    private ObservableSupplierImpl<Boolean> mHasActiveSessionSupplier =
+    private final ObservableSupplierImpl<Boolean> mHasActiveSessionSupplier =
             new ObservableSupplierImpl<>();
 
     public XrDelegateImpl() {
@@ -40,7 +38,7 @@ public class XrDelegateImpl implements XrDelegate {
 
     @Override
     public boolean onBackPressed() {
-        return XrSessionCoordinator.onBackPressed();
+        return XrSessionCoordinator.endActiveSession();
     }
 
     @Override

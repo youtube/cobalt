@@ -6,6 +6,7 @@
 #define CONTENT_BROWSER_BACK_FORWARD_CACHE_BROWSERTEST_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
@@ -23,8 +24,7 @@
 #include "content/public/test/content_mock_cert_verifier.h"
 #include "content/test/content_browser_test_utils_internal.h"
 #include "testing/gmock/include/gmock/gmock.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/blink/public/mojom/back_forward_cache_not_restored_reasons.mojom-blink.h"
+#include "third_party/blink/public/mojom/back_forward_cache_not_restored_reasons.mojom.h"
 
 namespace content {
 
@@ -36,6 +36,12 @@ using ReasonsMatcher = testing::Matcher<
     const blink::mojom::BackForwardCacheNotRestoredReasonsPtr&>;
 using SameOriginMatcher = testing::Matcher<
     const blink::mojom::SameOriginBfcacheNotRestoredDetailsPtr&>;
+using BlockingDetailsReasonsMatcher =
+    testing::Matcher<const blink::mojom::BFCacheBlockingDetailedReasonPtr&>;
+using SourceLocationMatcher =
+    testing::Matcher<const blink::mojom::ScriptSourceLocationPtr&>;
+using BlockingDetailsMatcher =
+    testing::Matcher<const blink::mojom::BlockingDetailsPtr&>;
 
 // Match RenderFrameHostImpl* that are in the BackForwardCache.
 MATCHER(InBackForwardCache, "") {
@@ -99,7 +105,7 @@ class BackForwardCacheBrowserTest
 
   std::string DepictFrameTree(FrameTreeNode* node);
 
-  bool HistogramContainsIntValue(base::HistogramBase::Sample sample,
+  bool HistogramContainsIntValue(base::HistogramBase::Sample32 sample,
                                  std::vector<base::Bucket> histogram_values);
 
   void EvictByJavaScript(RenderFrameHostImpl* rfh);
@@ -138,15 +144,32 @@ class BackForwardCacheBrowserTest
                         BlockListedFeatures block_listed);
 
   ReasonsMatcher MatchesNotRestoredReasons(
-      const testing::Matcher<blink::mojom::BFCacheBlocked>& blocked,
-      const absl::optional<testing::Matcher<std::string>>& id,
-      const absl::optional<testing::Matcher<std::string>>& name,
-      const absl::optional<testing::Matcher<std::string>>& src,
-      const absl::optional<SameOriginMatcher>& same_origin_details);
+      const std::optional<testing::Matcher<std::string>>& id,
+      const std::optional<testing::Matcher<std::string>>& name,
+      const std::optional<testing::Matcher<std::string>>& src,
+      const std::vector<BlockingDetailsReasonsMatcher>& reasons,
+      const std::optional<SameOriginMatcher>& same_origin_details);
+
   SameOriginMatcher MatchesSameOriginDetails(
-      const testing::Matcher<std::string>& url,
-      const std::vector<testing::Matcher<std::string>>& reasons,
+      const testing::Matcher<GURL>& url,
       const std::vector<ReasonsMatcher>& children);
+
+  // Used in tests that ensure source location is sent to the renderer side from
+  // the browser one
+  BlockingDetailsReasonsMatcher MatchesDetailedReason(
+      const testing::Matcher<std::string>& name,
+      const std::optional<SourceLocationMatcher>& source);
+
+  // Used in tests that ensure source location is sent to the browser side from
+  // the renderer one.
+  BlockingDetailsMatcher MatchesBlockingDetails(
+      const std::optional<SourceLocationMatcher>& source);
+
+  SourceLocationMatcher MatchesSourceLocation(
+      const testing::Matcher<GURL>& url,
+      const testing::Matcher<std::string>& function_name,
+      const testing::Matcher<uint64_t>& line_number,
+      const testing::Matcher<uint64_t>& column_number);
 
   // Access the tree result of NotRestoredReason for the last main frame
   // navigation.
@@ -251,8 +274,17 @@ class PageLifecycleStateManagerTestDelegate
   base::OnceClosure disable_eviction_sent_;
 };
 
-// Gets the value of a key in local storage by evaluating JS.
+// Gets the value of a key in local storage by evaluating JS. Use
+// `WaitForLocalStorage` if you are dealing with multiple renderer processes.
 EvalJsResult GetLocalStorage(RenderFrameHostImpl* rfh, std::string key);
+
+// Because we are dealing with multiple renderer processes and the storage
+// service, we sometimes need to wait for the storage changes to show up the
+// renderer. See https://crbug.com/1494646.
+// Returns whether the expected value was found (so timeouts can be recognized).
+[[nodiscard]] bool WaitForLocalStorage(RenderFrameHostImpl* rfh,
+                                       std::string key,
+                                       std::string expected_value);
 
 }  // namespace content
 

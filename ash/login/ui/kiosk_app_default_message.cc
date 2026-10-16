@@ -8,11 +8,13 @@
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/style/ash_color_id.h"
+#include "ash/style/typography.h"
 #include "ash/system/tray/tray_popup_utils.h"
 #include "ash/system/tray/tray_utils.h"
 #include "components/vector_icons/vector_icons.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/image/image_skia_operations.h"
@@ -35,15 +37,9 @@ constexpr int kTitleLineHeight = 20;
 }  // namespace
 
 KioskAppDefaultMessage::KioskAppDefaultMessage()
-    : LoginBaseBubbleView(/*anchor_view=*/nullptr),
-      background_animator_(
-          /* Don't pass the Shelf so the translucent color is always used. */
-          nullptr,
-          Shell::Get()->wallpaper_controller()) {
+    : LoginBaseBubbleView(/*anchor_view=*/nullptr) {
   auto* layout_provider = views::LayoutProvider::Get();
   set_persistent(true);
-  background_animator_.Init(ShelfBackgroundType::kDefaultBg);
-  background_animator_observation_.Observe(&background_animator_);
 
   views::FlexLayout* layout =
       SetLayoutManager(std::make_unique<views::FlexLayout>());
@@ -66,24 +62,27 @@ KioskAppDefaultMessage::KioskAppDefaultMessage()
   title_->SetText(l10n_util::GetStringUTF16(IDS_SHELF_KIOSK_APP_SETUP));
   title_->SetLineHeight(kTitleLineHeight);
   title_->SetMultiLine(true);
-  title_->SetEnabledColorId(kColorAshTextColorPrimary);
-  TrayPopupUtils::SetLabelFontList(title_,
-                                   TrayPopupUtils::FontStyle::kSmallTitle);
+  title_->SetEnabledColor(kColorAshTextColorPrimary);
+  title_->SetAutoColorReadabilityEnabled(false);
+  TypographyProvider::Get()->StyleLabel(TypographyToken::kCrosBody2, *title_);
 }
 
 KioskAppDefaultMessage::~KioskAppDefaultMessage() = default;
 
-gfx::Size KioskAppDefaultMessage::CalculatePreferredSize() const {
+gfx::Size KioskAppDefaultMessage::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   auto* layout_provider = views::LayoutProvider::Get();
 
   // width = left_margin + icon_width + component_distance + title_width +
   // right_margin
-  int width = icon_->CalculatePreferredSize().width() +
-              layout_provider->GetDistanceMetric(
-                  views::DISTANCE_RELATED_CONTROL_HORIZONTAL) +
-              title_->CalculatePreferredSize().width() +
-              2 * layout_provider->GetDistanceMetric(
-                      views::DISTANCE_DIALOG_CONTENT_MARGIN_TOP_CONTROL);
+  int width =
+      icon_->CalculatePreferredSize({}).width() +
+      layout_provider->GetDistanceMetric(
+          views::DISTANCE_RELATED_CONTROL_HORIZONTAL) +
+      title_->CalculatePreferredSize(views::SizeBounds(title_->width(), {}))
+          .width() +
+      2 * layout_provider->GetDistanceMetric(
+              views::DISTANCE_DIALOG_CONTENT_MARGIN_TOP_CONTROL);
   // height = upper_margin + icon_height + lower_margin
   int height =
       kIconSize + 2 * layout_provider->GetDistanceMetric(
@@ -97,5 +96,8 @@ gfx::Point KioskAppDefaultMessage::CalculatePosition() {
                     parent()->GetLocalBounds().height() / 2) -
          gfx::Vector2d(width() / 2, height());
 }
+
+BEGIN_METADATA(KioskAppDefaultMessage)
+END_METADATA
 
 }  // namespace ash

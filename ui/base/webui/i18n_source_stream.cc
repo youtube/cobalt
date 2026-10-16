@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "base/check.h"
-#include "base/strings/string_piece.h"
 #include "net/base/io_buffer.h"
 
 namespace ui {
@@ -17,7 +16,7 @@ I18nSourceStream::~I18nSourceStream() {}
 
 std::unique_ptr<I18nSourceStream> I18nSourceStream::Create(
     std::unique_ptr<SourceStream> upstream,
-    SourceStream::SourceType type,
+    net::SourceStreamType type,
     const TemplateReplacements* replacements) {
   DCHECK(replacements);
   std::unique_ptr<I18nSourceStream> source(
@@ -26,7 +25,7 @@ std::unique_ptr<I18nSourceStream> I18nSourceStream::Create(
 }
 
 I18nSourceStream::I18nSourceStream(std::unique_ptr<SourceStream> upstream,
-                                   SourceStream::SourceType type,
+                                   net::SourceStreamType type,
                                    const TemplateReplacements* replacements)
     : FilterSourceStream(type, std::move(upstream)),
       replacements_(replacements) {}

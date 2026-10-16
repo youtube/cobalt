@@ -28,7 +28,9 @@
     [CEReactions] attribute unsigned long cols;
     [CEReactions, Reflect] attribute DOMString dirName;
     [CEReactions, Reflect] attribute boolean disabled;
-    [ImplementedAs=formOwner] readonly attribute HTMLFormElement? form;
+    // Until ReferenceTarget is enabled, this will only ever return HTMLFormElement.
+    // https://github.com/whatwg/html/pull/10995
+    [ImplementedAs=formForBinding] readonly attribute HTMLElement? form;
     [CEReactions, RaisesException=Setter] attribute long maxLength;
     [CEReactions, RaisesException=Setter] attribute long minLength;
     [CEReactions, Reflect] attribute DOMString name;
@@ -40,7 +42,7 @@
 
     readonly attribute DOMString type;
     [CEReactions] attribute DOMString defaultValue;
-    [CEReactions, ImplementedAs=valueForBinding] attribute [TreatNullAs=EmptyString] DOMString value;
+    [CEReactions, ImplementedAs=valueForBinding] attribute [LegacyNullToEmptyString] DOMString value;
     readonly attribute unsigned long textLength;
 
     readonly attribute boolean willValidate;

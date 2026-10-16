@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/media_galleries/chromeos/mtp_device_object_enumerator.h"
 
 #include <stddef.h>
@@ -21,9 +26,9 @@ struct MtpFileEntryData {
 };
 
 const MtpFileEntryData kTestCases[] = {
-  { "Foo", 123, false, 321 },
-  { "Bar", 234, true, 432 },
-  { "Baaz", 345, false, 543 },
+    {"Foo", 123, false, 321},
+    {"Bar", 234, true, 432},
+    {"Baaz", 345, false, 543},
 };
 
 void TestEnumeratorIsEmpty(MTPDeviceObjectEnumerator* enumerator) {

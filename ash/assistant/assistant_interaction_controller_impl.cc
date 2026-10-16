@@ -4,9 +4,10 @@
 
 #include "ash/assistant/assistant_interaction_controller_impl.h"
 
+#include <optional>
 #include <utility>
 
-#include "ash/accessibility/accessibility_controller_impl.h"
+#include "ash/accessibility/accessibility_controller.h"
 #include "ash/assistant/assistant_controller_impl.h"
 #include "ash/assistant/model/assistant_interaction_model_observer.h"
 #include "ash/assistant/model/assistant_query.h"
@@ -37,14 +38,13 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "net/base/url_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/display/screen.h"
+#include "ui/display/tablet_state.h"
 
 namespace ash {
 
 namespace {
-
-using assistant::features::IsWaitSchedulingEnabled;
 
 // Android.
 constexpr char kAndroidIntentScheme[] = "intent://";
@@ -52,13 +52,9 @@ constexpr char kAndroidIntentPrefix[] = "#Intent";
 
 // Helpers ---------------------------------------------------------------------
 
-ash::TabletModeController* GetTabletModeController() {
-  return Shell::Get()->tablet_mode_controller();
-}
-
 // Returns true if device is in tablet mode, false otherwise.
 bool IsTabletMode() {
-  return GetTabletModeController()->InTabletMode();
+  return display::Screen::GetScreen()->InTabletMode();
 }
 
 bool launch_with_mic_open() {
@@ -89,7 +85,7 @@ AssistantInteractionControllerImpl::AssistantInteractionControllerImpl(
   model_.AddObserver(this);
 
   assistant_controller_observation_.Observe(AssistantController::Get());
-  tablet_mode_controller_observation_.Observe(GetTabletModeController());
+  display_observation_.Observe(display::Screen::GetScreen());
 }
 
 AssistantInteractionControllerImpl::~AssistantInteractionControllerImpl() {
@@ -161,7 +157,7 @@ void AssistantInteractionControllerImpl::OnDeepLinkReceived(
 
   if (type == DeepLinkType::kReminders) {
     using ReminderAction = assistant::util::ReminderAction;
-    const absl::optional<ReminderAction>& action =
+    const std::optional<ReminderAction>& action =
         GetDeepLinkParamAsRemindersAction(params, DeepLinkParam::kAction);
 
     // We treat reminders deeplinks without an action as web deep links.
@@ -177,7 +173,7 @@ void AssistantInteractionControllerImpl::OnDeepLinkReceived(
         break;
 
       case ReminderAction::kEdit:
-        const absl::optional<std::string>& client_id =
+        const std::optional<std::string>& client_id =
             GetDeepLinkParam(params, DeepLinkParam::kClientId);
         if (client_id && !client_id.value().empty()) {
           model_.SetPendingQuery(std::make_unique<AssistantTextQuery>(
@@ -194,7 +190,7 @@ void AssistantInteractionControllerImpl::OnDeepLinkReceived(
   if (type != DeepLinkType::kQuery)
     return;
 
-  const absl::optional<std::string>& query =
+  const std::optional<std::string>& query =
       GetDeepLinkParam(params, DeepLinkParam::kQuery);
 
   if (!query.has_value())
@@ -235,8 +231,8 @@ void AssistantInteractionControllerImpl::OnDeepLinkReceived(
 void AssistantInteractionControllerImpl::OnUiVisibilityChanged(
     AssistantVisibility new_visibility,
     AssistantVisibility old_visibility,
-    absl::optional<AssistantEntryPoint> entry_point,
-    absl::optional<AssistantExitPoint> exit_point) {
+    std::optional<AssistantEntryPoint> entry_point,
+    std::optional<AssistantExitPoint> exit_point) {
   switch (new_visibility) {
     case AssistantVisibility::kClosed:
       // When the UI is closed we need to stop any active interaction. We also
@@ -434,7 +430,6 @@ void AssistantInteractionControllerImpl::OnInteractionFinished(
       // Interactions resolving due to mic timeout are already handled above
       // outside the switch.
       NOTREACHED();
-      break;
     case AssistantInteractionResolution::kInterruption:  // fallthrough
     case AssistantInteractionResolution::kNormal:
       // No special handling required.
@@ -504,9 +499,9 @@ void AssistantInteractionControllerImpl::OnSuggestionPressed(
   AssistantQuerySource query_source;
   switch (suggestion->type) {
     case AssistantSuggestionType::kBetterOnboarding:
+      // There should be no more `AssistantSuggestionType::KBetterOnboarding` as
+      // the ui gets removed. Leave the code as is.
       query_source = AssistantQuerySource::kBetterOnboarding;
-      base::UmaHistogramEnumeration("Assistant.BetterOnboarding.Click",
-                                    suggestion->better_onboarding_type);
       break;
     case AssistantSuggestionType::kConversationStarter:
       query_source = AssistantQuerySource::kConversationStarter;
@@ -528,15 +523,13 @@ void AssistantInteractionControllerImpl::OnSuggestionPressed(
       query_source);
 }
 
-void AssistantInteractionControllerImpl::OnTabletModeStarted() {
-  OnTabletModeChanged();
-}
+void AssistantInteractionControllerImpl::OnDisplayTabletStateChanged(
+    display::TabletState state) {
+  // Ignore the state in the process of changing the tablet state.
+  if (display::IsTabletStateChanging(state)) {
+    return;
+  }
 
-void AssistantInteractionControllerImpl::OnTabletModeEnded() {
-  OnTabletModeChanged();
-}
-
-void AssistantInteractionControllerImpl::OnTabletModeChanged() {
   // The default input modality is different for tablet and normal mode.
   // Change input modality to the new default input modality.
   if (!HasActiveInteraction() && !IsVisible())
@@ -648,7 +641,6 @@ void AssistantInteractionControllerImpl::OnTtsStarted(bool due_to_error) {
 }
 
 void AssistantInteractionControllerImpl::OnWaitStarted() {
-  DCHECK(IsWaitSchedulingEnabled());
   if (!HasActiveInteraction()) {
     DVLOG(1) << "Assistant: Dropping response outside of active interaction";
     return;

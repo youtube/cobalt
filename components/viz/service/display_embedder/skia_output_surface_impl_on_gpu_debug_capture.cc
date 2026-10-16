@@ -22,12 +22,14 @@
 #include "components/viz/service/display_embedder/skia_output_surface_dependency.h"
 #include "components/viz/service/display_embedder/skia_render_copy_results.h"
 #include "gpu/command_buffer/common/mailbox.h"
-#include "gpu/command_buffer/common/mailbox_holder.h"
+#include "gpu/command_buffer/common/shared_image_usage.h"
+#include "gpu/command_buffer/service/graphite_shared_context.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_factory.h"
 #include "gpu/vulkan/buildflags.h"
 #include "skia/buildflags.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "third_party/libyuv/include/libyuv/planar_functions.h"
-
+#include "third_party/skia/include/gpu/graphite/Context.h"
 #include "ui/gfx/color_space.h"
 
 // We only include the functionality for gpu buffer capture iif the visual
@@ -44,7 +46,7 @@ struct DebuggerCaptureBufferSharedImageInfo {
   gfx::ColorSpace color_space;
   GrSurfaceOrigin surface_origin;
   SkAlphaType alpha_type;
-  uint32_t usage;
+  gpu::SharedImageUsageSet usage;
   gpu::Mailbox mailbox;
 };
 
@@ -65,7 +67,7 @@ void DebuggerCaptureBufferCallback(
                          gfx::Vector2dF(), gfx::SizeF(si_info->size));
   DBG_DRAW_RECTANGLE_OPT_BUFF_UV(
       "skia_gpu.captured_buffer.image", DBG_OPT_BLACK, gfx::Vector2dF(),
-      gfx::SizeF(si_info->size), &submit_id, DEFAULT_UV);
+      gfx::SizeF(si_info->size), &submit_id, DBG_DEFAULT_UV);
 
   viz::VizDebugger::BufferInfo buffer_info;
   buffer_info.bitmap.setInfo(SkImageInfo::MakeN32(
@@ -83,15 +85,18 @@ namespace viz {
 void AttemptDebuggerBufferCapture(
     ImageContextImpl* context,
     gpu::SharedContextState* context_state,
-    gpu::SharedImageRepresentationFactory* shared_image_representation_factory,
-    GrDirectContext* gr_direct_context) {
-  if (!context_state->MakeCurrent(nullptr)) {
-    DLOG(ERROR) << "Failed to make context state current.";
+    gpu::SharedImageRepresentationFactory* representation_factory) {
+  CHECK(context_state);
+  if (!context_state->IsCurrent(nullptr)) {
+    // There should already be a current context from the caller of this
+    // function. We don't make a context current to avoid needing to reset it
+    // afterwards.
+    DLOG(ERROR) << "No current context state.";
     return;
   }
 
-  auto representation = shared_image_representation_factory->ProduceSkia(
-      context->mailbox_holder().mailbox, context_state);
+  auto representation =
+      representation_factory->ProduceSkia(context->mailbox(), context_state);
 
   if (!representation) {
     DLOG(ERROR) << "Failed to make produce skia representation.";
@@ -108,15 +113,18 @@ void AttemptDebuggerBufferCapture(
     DLOG(ERROR) << "Failed to make begin read from representation";
     return;
   }
+  // Perform ApplyBackendSurfaceEndState() on the ScopedReadAccess before
+  // exiting.
+  absl::Cleanup cleanup = [&]() { scoped_read->ApplyBackendSurfaceEndState(); };
 
   if (!begin_semaphores_readback.empty()) {
-    bool result = gr_direct_context->wait(begin_semaphores_readback.size(),
-                                          begin_semaphores_readback.data(),
-                                          /*deleteSemaphoresAfterWait=*/false);
+    bool result = context_state->gr_context()->wait(
+        begin_semaphores_readback.size(), begin_semaphores_readback.data(),
+        /*deleteSemaphoresAfterWait=*/false);
     DCHECK(result);
   }
 
-  auto skimage = scoped_read->CreateSkImage(gr_direct_context);
+  auto skimage = scoped_read->CreateSkImage(context_state);
 
   if (!skimage) {
     DLOG(ERROR) << "Failed to create SkImage from scoped read";
@@ -134,16 +142,27 @@ void AttemptDebuggerBufferCapture(
   auto si_info = std::make_unique<DebuggerCaptureBufferSharedImageInfo>();
   si_info->si_format = context->format();
   si_info->size = gfx::Size(dst_info.width(), dst_info.height());
-  si_info->color_space = gfx::ColorSpace(*context->color_space());
+  si_info->color_space = representation->color_space();
   si_info->surface_origin = context->origin();
   si_info->alpha_type = context->alpha_type();
   si_info->usage = gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
-  si_info->mailbox = context->mailbox_holder().mailbox;
+  si_info->mailbox = context->mailbox();
 
-  skimage->asyncRescaleAndReadPixels(
-      dst_info, SkIRect::MakeWH(texture_size.width(), texture_size.height()),
-      SkSurface::RescaleGamma::kSrc, SkSurface::RescaleMode::kRepeatedLinear,
-      &DebuggerCaptureBufferCallback, si_info.release());
+  if (auto* graphite_shared_context =
+          context_state->graphite_shared_context()) {
+    // SkImage/SkSurface asyncRescaleAndReadPixels methods won't be implemented
+    // for Graphite. Instead the equivalent methods will be on Graphite Context.
+    graphite_shared_context->asyncRescaleAndReadPixels(
+        skimage.get(), dst_info,
+        SkIRect::MakeWH(texture_size.width(), texture_size.height()),
+        SkSurface::RescaleGamma::kSrc, SkSurface::RescaleMode::kRepeatedLinear,
+        base::BindOnce(&DebuggerCaptureBufferCallback), si_info.release());
+  } else {
+    skimage->asyncRescaleAndReadPixels(
+        dst_info, SkIRect::MakeWH(texture_size.width(), texture_size.height()),
+        SkSurface::RescaleGamma::kSrc, SkSurface::RescaleMode::kRepeatedLinear,
+        &DebuggerCaptureBufferCallback, si_info.release());
+  }
 }
 
 }  // namespace viz
@@ -152,7 +171,6 @@ namespace viz {
 void AttemptDebuggerBufferCapture(
     ImageContextImpl* context,
     gpu::SharedContextState* context_state,
-    gpu::SharedImageRepresentationFactory* shared_image_representation_factory,
-    GrDirectContext* gr_direct_context);
+    gpu::SharedImageRepresentationFactory* representation_factory);
 }  // namespace viz
 #endif  // VIZ_DEBUGGER_IS_ON()

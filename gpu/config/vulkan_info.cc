@@ -2,7 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "gpu/config/vulkan_info.h"
+
+#include <string_view>
 
 #include "gpu/ipc/common/vulkan_info.mojom.h"
 #include "gpu/ipc/common/vulkan_info_mojom_traits.h"
@@ -57,7 +64,7 @@ void VulkanInfo::SetEnabledInstanceExtensions(
 }
 
 void VulkanInfo::SetEnabledInstanceExtensions(
-    const std::vector<base::StringPiece>& extensions) {
+    const std::vector<std::string_view>& extensions) {
   enabled_instance_extensions.clear();
   for (const auto& extension : extensions) {
     bool found = false;

@@ -6,24 +6,24 @@
 
 #include <stddef.h>
 
+#include <optional>
 #include <string>
 
 #include "base/files/file_path.h"
 #include "base/strings/utf_string_conversions.h"
 #include "services/network/public/cpp/resource_request_body.h"
 #include "services/network/public/mojom/referrer_policy.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/page_state/page_state_serialization.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value.h"
 
 namespace blink {
 namespace {
 
-base::FilePath ToFilePath(const absl::optional<std::u16string>& s) {
+base::FilePath ToFilePath(const std::optional<std::u16string>& s) {
   return s ? base::FilePath::FromUTF16Unsafe(*s) : base::FilePath();
 }
 
-void ToFilePathVector(const std::vector<absl::optional<std::u16string>>& input,
+void ToFilePathVector(const std::vector<std::optional<std::u16string>>& input,
                       std::vector<base::FilePath>* output) {
   output->clear();
   output->reserve(input.size());
@@ -86,8 +86,8 @@ PageState PageState::CreateForTesting(
     if (optional_body_data) {
       std::string body_data(optional_body_data);
       state.top.http_body.request_body = new network::ResourceRequestBody();
-      state.top.http_body.request_body->AppendBytes(body_data.data(),
-                                                    body_data.size());
+      state.top.http_body.request_body->AppendCopyOfBytes(
+          base::as_byte_span(body_data));
     }
     if (optional_body_file_path) {
       state.top.http_body.request_body = new network::ResourceRequestBody();

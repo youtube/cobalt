@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/audio_sink.h"
-
 #include <limits>
 
+#include "starboard/audio_sink.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {

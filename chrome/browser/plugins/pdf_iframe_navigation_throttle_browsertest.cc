@@ -55,7 +55,7 @@ class PDFIFrameNavigationThrottleBrowserTest : public InProcessBrowserTest {
   }
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     InProcessBrowserTest::SetUp();
   }
 
@@ -84,10 +84,10 @@ class PDFIFrameNavigationThrottleBrowserTest : public InProcessBrowserTest {
   BlockAllPluginServiceFilter block_all_plugins_;
 };
 
-// TODO(1205920): The PDF viewer cannot currently be prerendered correctly. Once
-// this is supported, this test should be re-enabled.
-// This test checks that the throttle is able to navigate the iframe'd PDF to
-// the fallback HTML content even while it is prerendering.
+// TODO(crbug.com/40180674): The PDF viewer cannot currently be prerendered
+// correctly. Once this is supported, this test should be re-enabled. This test
+// checks that the throttle is able to navigate the iframe'd PDF to the fallback
+// HTML content even while it is prerendering.
 IN_PROC_BROWSER_TEST_F(PDFIFrameNavigationThrottleBrowserTest,
                        DISABLED_HTMLFallbackInPrerender) {
   const GURL kUrl(embedded_test_server()->GetURL("/empty.html"));

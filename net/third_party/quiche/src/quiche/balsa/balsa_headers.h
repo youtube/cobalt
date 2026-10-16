@@ -12,6 +12,7 @@
 #include <functional>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -23,13 +24,14 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/balsa/balsa_enums.h"
 #include "quiche/balsa/header_api.h"
+#include "quiche/balsa/http_validation_policy.h"
 #include "quiche/balsa/standard_header_map.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace gfe2 {
 class Http2HeaderValidator;
@@ -282,13 +284,13 @@ class QUICHE_EXPORT BalsaBuffer {
     can_write_to_contiguous_buffer_ = b.can_write_to_contiguous_buffer_;
   }
 
-  const char* StartOfFirstBlock() const {
+  char* StartOfFirstBlock() const {
     QUICHE_BUG_IF(bug_if_1182_1, blocks_.empty())
         << "First block not allocated yet!";
     return blocks_.empty() ? nullptr : blocks_[0].buffer.get();
   }
 
-  const char* EndOfFirstBlock() const {
+  char* EndOfFirstBlock() const {
     QUICHE_BUG_IF(bug_if_1182_2, blocks_.empty())
         << "First block not allocated yet!";
     return blocks_.empty() ? nullptr : blocks_[0].start_of_unused_bytes();
@@ -834,9 +836,10 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
   void DumpToString(std::string* str) const;
   std::string DebugString() const override;
 
-  bool ForEachHeader(std::function<bool(const absl::string_view key,
-                                        const absl::string_view value)>
-                         fn) const override;
+  bool ForEachHeader(
+      quiche::UnretainedCallback<bool(const absl::string_view key,
+                                      const absl::string_view value)>
+          fn) const override;
 
   void DumpToPrefixedString(const char* spaces, std::string* str) const;
 
@@ -1007,8 +1010,8 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
   absl::string_view Authority() const override;
   void ReplaceOrAppendAuthority(absl::string_view value) override;
   void RemoveAuthority() override;
-  void ApplyToCookie(
-      std::function<void(absl::string_view cookie)> f) const override;
+  void ApplyToCookie(quiche::UnretainedCallback<void(absl::string_view cookie)>
+                         f) const override;
 
   void set_enforce_header_policy(bool enforce) override {
     enforce_header_policy_ = enforce;
@@ -1042,9 +1045,10 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
   friend class HTTPMessage;
   friend class test::BalsaHeadersTestPeer;
 
-  friend bool ParseHTTPFirstLine(const char* begin, const char* end,
-                                 bool is_request, BalsaHeaders* headers,
-                                 BalsaFrameEnums::ErrorCode* error_code);
+  friend bool ParseHTTPFirstLine(
+      char* begin, char* end, bool is_request, BalsaHeaders* headers,
+      BalsaFrameEnums::ErrorCode* error_code,
+      HttpValidationPolicy::FirstLineValidationOption whitespace_option);
 
   // Reverse iterators have been removed for lack of use, refer to
   // cl/30618773 in case they are needed.
@@ -1071,11 +1075,11 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
     balsa_buffer_.NoMoreWriteToContiguousBuffer();
   }
 
-  const char* OriginalHeaderStreamBegin() const {
+  char* OriginalHeaderStreamBegin() const {
     return balsa_buffer_.StartOfFirstBlock();
   }
 
-  const char* OriginalHeaderStreamEnd() const {
+  char* OriginalHeaderStreamEnd() const {
     return balsa_buffer_.EndOfFirstBlock();
   }
 
@@ -1175,10 +1179,14 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
 
 // Base class for iterating the headers in a BalsaHeaders object, returning a
 // pair of string_view's for each header.
-class QUICHE_EXPORT BalsaHeaders::iterator_base
-    : public std::iterator<std::forward_iterator_tag,
-                           std::pair<absl::string_view, absl::string_view>> {
+class QUICHE_EXPORT BalsaHeaders::iterator_base {
  public:
+  using iterator_category = std::forward_iterator_tag;
+  using value_type = std::pair<absl::string_view, absl::string_view>;
+  using difference_type = std::ptrdiff_t;
+  using pointer = value_type*;
+  using reference = value_type&;
+
   iterator_base() : headers_(nullptr), idx_(0) {}
 
   std::pair<absl::string_view, absl::string_view>& operator*() const {
@@ -1258,13 +1266,12 @@ class QUICHE_EXPORT BalsaHeaders::iterator_base
                          absl::string_view(stream_begin + line.value_begin_idx,
                                            line.ValuesLength()));
     }
-    return value_.value();
+    return *value_;
   }
 
   const BalsaHeaders* headers_;
   HeaderLines::size_type idx_;
-  mutable absl::optional<std::pair<absl::string_view, absl::string_view>>
-      value_;
+  mutable std::optional<std::pair<absl::string_view, absl::string_view>> value_;
 };
 
 // A const iterator for all the header lines.

@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {CapabilitiesResponse, Cdd, ColorOption, DEFAULT_MAX_COPIES, Destination, DestinationOrigin, DestinationStore, DpiOption, DuplexOption, ExtensionDestinationInfo, GooglePromotedDestinationId, LocalDestinationInfo, MeasurementSystemUnitType, MediaSizeCapability, MediaSizeOption, NativeInitialSettings, PageOrientationOption, VendorCapabilityValueType} from 'chrome://print/print_preview.js';
-import {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
-import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import type {CapabilitiesResponse, Cdd, ColorOption, DocumentSettings, DpiOption, DuplexOption, ExtensionDestinationInfo, LocalDestinationInfo, MediaSizeCapability, MediaSizeOption, NativeInitialSettings, PageOrientationOption} from 'chrome://print/print_preview.js';
+import {createDocumentSettings as createDefaultDocumentSettings, DEFAULT_MAX_COPIES, Destination, DestinationOrigin, DestinationStore, GooglePromotedDestinationId, MeasurementSystemUnitType, VendorCapabilityValueType} from 'chrome://print/print_preview.js';
+import type {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
+import {WebUiListenerMixinLit} from 'chrome://resources/cr_elements/web_ui_listener_mixin_lit.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import {assertEquals} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 
@@ -23,20 +24,23 @@ export function getDefaultInitialSettings(isPdf: boolean = false):
     documentTitle: 'title',
     documentHasSelection: true,
     shouldPrintSelectionOnly: false,
-    previewIsFromArc: false,
     printerName: 'FooDevice',
     serializedAppStateStr: null,
     serializedDefaultDestinationSelectionRulesStr: null,
     destinationsManaged: false,
     uiLocale: 'en-us',
     unitType: MeasurementSystemUnitType.IMPERIAL,
-    isDriveMounted: true,
   };
+}
+
+export function createDocumentSettings(
+    ...overrides: Array<Partial<DocumentSettings>>): DocumentSettings {
+  return Object.assign(createDefaultDocumentSettings(), ...overrides);
 }
 
 export function getCddTemplate(
     printerId: string, printerName?: string): CapabilitiesResponse {
-  const template: CapabilitiesResponse = {
+  return {
     printer: {
       deviceName: printerId,
       printerName: printerName || '',
@@ -92,10 +96,6 @@ export function getCddTemplate(
       },
     },
   };
-  // <if expr="is_chromeos">
-  template.capabilities!.printer.pin = {supported: true};
-  // </if>
-  return template;
 }
 
 /**
@@ -131,7 +131,7 @@ export function getCddTemplateWithAdvancedSettings(
   }
 
   // Add new capability.
-  template.capabilities!.printer.vendor_capability!.push({
+  template.capabilities!.printer.vendor_capability.push({
     display_name: 'Paper Type',
     id: 'paperType',
     type: 'SELECT',
@@ -148,7 +148,7 @@ export function getCddTemplateWithAdvancedSettings(
     return template;
   }
 
-  template.capabilities!.printer.vendor_capability!.push({
+  template.capabilities!.printer.vendor_capability.push({
     display_name: 'Watermark',
     id: 'watermark',
     type: 'TYPED_VALUE',
@@ -168,6 +168,22 @@ export function getCddTemplateWithAdvancedSettings(
     typed_value_cap: {
       default: '',
       value_type: VendorCapabilityValueType.BOOLEAN,
+    },
+  });
+
+  if (numSettings < 5) {
+    return template;
+  }
+
+  template.capabilities!.printer.vendor_capability.push({
+    display_name: 'Quality',
+    id: 'print-quality',
+    type: 'SELECT',
+    select_cap: {
+      option: [
+        {display_name: 'Draft', value: '3'},
+        {display_name: 'Normal', value: '4', is_default: true},
+      ],
     },
   });
 
@@ -209,7 +225,7 @@ export function getPdfPrinter(): {capabilities: Cdd} {
  */
 export function getDefaultMediaSize(device: CapabilitiesResponse):
     MediaSizeOption {
-  const size = device.capabilities!.printer.media_size!.option!.find(
+  const size = device.capabilities!.printer.media_size!.option.find(
       opt => !!opt.is_default);
   return {
     width_microns: size!.width_microns,
@@ -223,7 +239,7 @@ export function getDefaultMediaSize(device: CapabilitiesResponse):
  */
 export function getDefaultOrientation(device: CapabilitiesResponse): string {
   const options = device.capabilities!.printer.page_orientation!.option;
-  const orientation = options!.find(opt => !!opt.is_default)!.type;
+  const orientation = options.find(opt => !!opt.is_default)!.type;
   assert(orientation);
   return orientation;
 }
@@ -278,12 +294,6 @@ export function getExtensionDestinations(): ExtensionPrinters {
 export function getDestinations(localDestinations: LocalDestinationInfo[]):
     Destination[] {
   const destinations: Destination[] = [];
-  // <if expr="not is_chromeos">
-  const origin = DestinationOrigin.LOCAL;
-  // </if>
-  // <if expr="is_chromeos">
-  const origin = DestinationOrigin.CROS;
-  // </if>
   // Five destinations. FooDevice is the system default.
   [{deviceName: 'ID1', printerName: 'One'},
    {deviceName: 'ID2', printerName: 'Two'},
@@ -291,8 +301,8 @@ export function getDestinations(localDestinations: LocalDestinationInfo[]):
    {deviceName: 'ID4', printerName: 'Four'},
    {deviceName: 'FooDevice', printerName: 'FooName'}]
       .forEach(info => {
-        const destination =
-            new Destination(info.deviceName, origin, info.printerName);
+        const destination = new Destination(
+            info.deviceName, DestinationOrigin.LOCAL, info.printerName);
         localDestinations.push(info);
         destinations.push(destination);
       });
@@ -331,16 +341,19 @@ export function getMediaSizeCapabilityWithCustomNames(): MediaSizeCapability {
  * @param parentElement The element that receives the input-change event.
  * @return Promise that resolves when the input-change event has fired.
  */
-export function triggerInputEvent(
+export async function triggerInputEvent(
     inputElement: HTMLInputElement|CrInputElement, input: string,
     parentElement: HTMLElement): Promise<void> {
   inputElement.value = input;
+  if (inputElement.tagName === 'CR-INPUT') {
+    await (inputElement as CrInputElement).updateComplete;
+  }
   inputElement.dispatchEvent(
       new CustomEvent('input', {composed: true, bubbles: true}));
-  return eventToPromise('input-change', parentElement);
+  return await eventToPromise('input-change', parentElement);
 }
 
-const TestListenerElementBase = WebUiListenerMixin(PolymerElement);
+const TestListenerElementBase = WebUiListenerMixinLit(CrLitElement);
 class TestListenerElement extends TestListenerElementBase {
   static get is() {
     return 'test-listener-element';
@@ -364,16 +377,6 @@ export function createDestinationStore(): DestinationStore {
       testListenerElement.addWebUiListener.bind(testListenerElement));
 }
 
-// <if expr="is_chromeos">
-/**
- * @return The Google Drive destination.
- */
-export function getGoogleDriveDestination(): Destination {
-  return new Destination(
-      'Save to Drive CrOS', DestinationOrigin.LOCAL, 'Save to Google Drive');
-}
-// </if>
-
 /** @return The Save as PDF destination. */
 export function getSaveAsPdfDestination(): Destination {
   return new Destination(
@@ -390,6 +393,7 @@ export function getSaveAsPdfDestination(): Destination {
 export function selectOption(
     section: HTMLElement, option: string): Promise<void> {
   const select = section.shadowRoot!.querySelector('select')!;
+  select.focus();
   select.value = option;
   select.dispatchEvent(new CustomEvent('change'));
   return eventToPromise('process-select-change', section);

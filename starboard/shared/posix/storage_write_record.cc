@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/common/storage.h"
+// clang-format on
 
 #include <fcntl.h>
 
@@ -52,8 +54,6 @@ bool SbStorageWriteRecord(SbStorageRecord record,
   if (!starboard::IsValid(temp_file)) {
     return false;
   }
-
-  ftruncate(temp_file, 0);
 
   const char* source = data;
   int64_t to_write = data_size;

@@ -68,12 +68,13 @@ class ASH_EXPORT PciePeripheralNotificationController
   void OnInvalidUSB4CableWarning() override {}
   void OnInvalidTBTCableWarning() override {}
   void OnSpeedLimitingCableWarning() override {}
+  void OnUsbDeviceOrEndpointLimit() override {}
 
  private:
   friend class PciePeripheralNotificationControllerTest;
 
   // MessageCenter for adding notifications.
-  const raw_ptr<message_center::MessageCenter, ExperimentalAsh> message_center_;
+  const raw_ptr<message_center::MessageCenter> message_center_;
 };
 
 }  // namespace ash

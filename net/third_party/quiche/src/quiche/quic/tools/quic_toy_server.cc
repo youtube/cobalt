@@ -4,6 +4,8 @@
 
 #include "quiche/quic/tools/quic_toy_server.h"
 
+#include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -35,10 +37,6 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, generate_dynamic_responses, false,
     "If true, then URLs which have a numeric path will send a dynamically "
     "generated response of that many bytes.");
-
-DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, quic_ietf_draft, false,
-                                "Only enable IETF draft versions. This also "
-                                "enables required internal QUIC flags.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, quic_versions, "",
@@ -91,21 +89,20 @@ QuicToyServer::MemoryCacheBackendFactory::CreateBackend() {
     for (absl::string_view destination : absl::StrSplit(
              quiche::GetQuicheCommandLineFlag(FLAGS_connect_proxy_destinations),
              ',', absl::SkipEmpty())) {
-      absl::optional<QuicServerId> destination_server_id =
+      std::optional<QuicServerId> destination_server_id =
           QuicServerId::ParseFromHostPortString(destination);
       QUICHE_CHECK(destination_server_id.has_value());
-      connect_proxy_destinations.insert(
-          std::move(destination_server_id).value());
+      connect_proxy_destinations.insert(*std::move(destination_server_id));
     }
 
     absl::flat_hash_set<QuicServerId> connect_udp_proxy_targets;
     for (absl::string_view target : absl::StrSplit(
              quiche::GetQuicheCommandLineFlag(FLAGS_connect_udp_proxy_targets),
              ',', absl::SkipEmpty())) {
-      absl::optional<QuicServerId> target_server_id =
+      std::optional<QuicServerId> target_server_id =
           QuicServerId::ParseFromHostPortString(target);
       QUICHE_CHECK(target_server_id.has_value());
-      connect_udp_proxy_targets.insert(std::move(target_server_id).value());
+      connect_udp_proxy_targets.insert(*std::move(target_server_id));
     }
 
     QUICHE_CHECK(!connect_proxy_destinations.empty() ||
@@ -132,19 +129,7 @@ QuicToyServer::QuicToyServer(BackendFactory* backend_factory,
     : backend_factory_(backend_factory), server_factory_(server_factory) {}
 
 int QuicToyServer::Start() {
-  ParsedQuicVersionVector supported_versions;
-  if (quiche::GetQuicheCommandLineFlag(FLAGS_quic_ietf_draft)) {
-    QuicVersionInitializeSupportForIetfDraft();
-    for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-      // Add all versions that supports IETF QUIC.
-      if (version.HasIetfQuicFrames() &&
-          version.handshake_protocol == quic::PROTOCOL_TLS1_3) {
-        supported_versions.push_back(version);
-      }
-    }
-  } else {
-    supported_versions = AllSupportedVersions();
-  }
+  ParsedQuicVersionVector supported_versions = AllSupportedVersions();
   std::string versions_string =
       quiche::GetQuicheCommandLineFlag(FLAGS_quic_versions);
   if (!versions_string.empty()) {

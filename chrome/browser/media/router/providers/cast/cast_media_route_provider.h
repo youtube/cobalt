@@ -10,12 +10,15 @@
 #include <vector>
 
 #include "base/containers/flat_map.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/media/router/providers/cast/cast_app_discovery_service.h"
-#include "chrome/browser/media/router/providers/cast/dual_media_sink_service.h"
+#include "components/media_router/common/discovery/media_sink_service_base.h"
+#include "components/media_router/common/mojom/debugger.mojom.h"
 #include "components/media_router/common/mojom/logger.mojom.h"
 #include "components/media_router/common/mojom/media_router.mojom.h"
+#include "content/public/browser/frame_tree_node_id.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -60,14 +63,12 @@ class CastMediaRouteProvider : public mojom::MediaRouteProvider {
                    const url::Origin& origin,
                    int32_t frame_tree_node_id,
                    base::TimeDelta timeout,
-                   bool incognito,
                    CreateRouteCallback callback) override;
   void JoinRoute(const std::string& media_source,
                  const std::string& presentation_id,
                  const url::Origin& origin,
                  int32_t frame_tree_node_id,
                  base::TimeDelta timeout,
-                 bool incognito,
                  JoinRouteCallback callback) override;
   void TerminateRoute(const std::string& route_id,
                       TerminateRouteCallback callback) override;
@@ -78,16 +79,13 @@ class CastMediaRouteProvider : public mojom::MediaRouteProvider {
   void StartObservingMediaSinks(const std::string& media_source) override;
   void StopObservingMediaSinks(const std::string& media_source) override;
   void StartObservingMediaRoutes() override;
-  void StartListeningForRouteMessages(const std::string& route_id) override;
-  void StopListeningForRouteMessages(const std::string& route_id) override;
   void DetachRoute(const std::string& route_id) override;
-  void EnableMdnsDiscovery() override;
   void DiscoverSinksNow() override;
-  void CreateMediaRouteController(
+  void BindMediaController(
       const std::string& route_id,
       mojo::PendingReceiver<mojom::MediaController> media_controller,
       mojo::PendingRemote<mojom::MediaStatusObserver> observer,
-      CreateMediaRouteControllerCallback callback) override;
+      BindMediaControllerCallback callback) override;
   void GetState(GetStateCallback callback) override;
 
   CastActivityManager* GetCastActivityManagerForTest() {
@@ -95,6 +93,7 @@ class CastMediaRouteProvider : public mojom::MediaRouteProvider {
   }
 
  private:
+  friend class CastMediaRouteProviderTest;
   FRIEND_TEST_ALL_PREFIXES(CastMediaRouteProviderTest,
                            GetRemotePlaybackCompatibleSinks);
 
@@ -107,10 +106,6 @@ class CastMediaRouteProvider : public mojom::MediaRouteProvider {
   void OnSinkQueryUpdated(const MediaSource::Id& source_id,
                           const std::vector<MediaSinkInternal>& sinks);
 
-  // Broadcasts a message with |app_ids| and |requests| to all sinks.
-  void BroadcastMessageToSinks(const std::vector<std::string>& app_ids,
-                               const cast_channel::BroadcastRequest& request);
-
   // Binds |this| to the Mojo receiver passed into the ctor.
   mojo::Receiver<mojom::MediaRouteProvider> receiver_{this};
 
@@ -119,6 +114,9 @@ class CastMediaRouteProvider : public mojom::MediaRouteProvider {
 
   // Mojo remote to the logger owned by the Media Router.
   mojo::Remote<mojom::Logger> logger_;
+
+  // Mojo remote to the debugger owned by the Media Router.
+  mojo::Remote<mojom::Debugger> debugger_;
 
   // Non-owned pointer to the Cast MediaSinkServiceBase instance.
   const raw_ptr<MediaSinkServiceBase> media_sink_service_;

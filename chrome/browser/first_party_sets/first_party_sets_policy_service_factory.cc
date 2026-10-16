@@ -4,10 +4,12 @@
 
 #include "chrome/browser/first_party_sets/first_party_sets_policy_service_factory.h"
 
-#include "base/memory/singleton.h"
 #include "base/no_destructor.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/first_party_sets/first_party_sets_policy_service.h"
 #include "chrome/browser/first_party_sets/first_party_sets_pref_names.h"
+#include "chrome/browser/privacy_sandbox/privacy_sandbox_settings_factory.h"
+#include "chrome/browser/privacy_sandbox/tracking_protection_settings_factory.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile_selections.h"
 #include "components/keyed_service/content/browser_context_keyed_service_factory.h"
@@ -19,8 +21,9 @@ namespace first_party_sets {
 
 namespace {
 
-BrowserContextKeyedServiceFactory::TestingFactory* GetTestingFactory() {
-  static base::NoDestructor<BrowserContextKeyedServiceFactory::TestingFactory>
+FirstPartySetsPolicyServiceFactory::GlobalTestingFactory* GetTestingFactory() {
+  static base::NoDestructor<
+      FirstPartySetsPolicyServiceFactory::GlobalTestingFactory>
       instance;
   return instance.get();
 }
@@ -39,28 +42,42 @@ FirstPartySetsPolicyServiceFactory::GetForBrowserContext(
 // static
 FirstPartySetsPolicyServiceFactory*
 FirstPartySetsPolicyServiceFactory::GetInstance() {
-  return base::Singleton<FirstPartySetsPolicyServiceFactory>::get();
+  static base::NoDestructor<FirstPartySetsPolicyServiceFactory> instance;
+  return instance.get();
 }
 
 void FirstPartySetsPolicyServiceFactory::SetTestingFactoryForTesting(
-    TestingFactory test_factory) {
+    GlobalTestingFactory test_factory) {
   *GetTestingFactory() = std::move(test_factory);
 }
 
 FirstPartySetsPolicyServiceFactory::FirstPartySetsPolicyServiceFactory()
     : ProfileKeyedServiceFactory(
           "FirstPartySetsPolicyService",
-          ProfileSelections::BuildRedirectedInIncognito()) {}
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/40257657): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOwnInstance)
+              .Build()) {
+  DependsOn(HostContentSettingsMapFactory::GetInstance());
+  DependsOn(PrivacySandboxSettingsFactory::GetInstance());
+  DependsOn(TrackingProtectionSettingsFactory::GetInstance());
+}
 
 FirstPartySetsPolicyServiceFactory::~FirstPartySetsPolicyServiceFactory() =
     default;
 
-KeyedService* FirstPartySetsPolicyServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+FirstPartySetsPolicyServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   if (!GetTestingFactory()->is_null()) {
-    return GetTestingFactory()->Run(context).release();
+    return GetTestingFactory()->Run(context);
   }
-  return new FirstPartySetsPolicyService(context);
+  return std::make_unique<FirstPartySetsPolicyService>(context);
 }
 
 bool FirstPartySetsPolicyServiceFactory::ServiceIsCreatedWithBrowserContext()
@@ -70,8 +87,7 @@ bool FirstPartySetsPolicyServiceFactory::ServiceIsCreatedWithBrowserContext()
 
 void FirstPartySetsPolicyServiceFactory::RegisterProfilePrefs(
     user_prefs::PrefRegistrySyncable* registry) {
-  registry->RegisterDictionaryPref(kFirstPartySetsOverrides,
-                                   base::Value::Dict());
+  registry->RegisterDictionaryPref(kRelatedWebsiteSetsOverrides);
 }
 
 }  // namespace first_party_sets

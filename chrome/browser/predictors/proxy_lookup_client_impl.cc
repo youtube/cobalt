@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/check_is_test.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/task/common/task_annotator.h"
@@ -29,14 +30,14 @@ ProxyLookupClientImpl::ProxyLookupClientImpl(
                                      receiver_.BindNewPipeAndPassRemote());
   receiver_.set_disconnect_handler(
       base::BindOnce(&ProxyLookupClientImpl::OnProxyLookupComplete,
-                     base::Unretained(this), net::ERR_ABORTED, absl::nullopt));
+                     base::Unretained(this), net::ERR_ABORTED, std::nullopt));
 }
 
 ProxyLookupClientImpl::~ProxyLookupClientImpl() = default;
 
 void ProxyLookupClientImpl::OnProxyLookupComplete(
     int32_t net_error,
-    const absl::optional<net::ProxyInfo>& proxy_info) {
+    const std::optional<net::ProxyInfo>& proxy_info) {
   UMA_HISTOGRAM_TIMES("Navigation.Preconnect.ProxyLookupLatency",
                       base::TimeTicks::Now() - proxy_lookup_start_time_);
 
@@ -44,12 +45,17 @@ void ProxyLookupClientImpl::OnProxyLookupComplete(
   // executed via RunTask() and thus have a non-delayed PendingTask associated
   // with it.
   auto* task = base::TaskAnnotator::CurrentTaskForThread();
-  DCHECK(task);
-  DCHECK(task->delayed_run_time.is_null());
+  if (!task) {
+    // The `task` can be null in base::ScopedMockTimeMessageLoopTaskRunner scope
+    // in test.
+    CHECK_IS_TEST();
+  }
+  DCHECK(!task || task->delayed_run_time.is_null());
   // The task will have a null |queue_time| if run synchronously (this happens
   // in unit tests, for example).
-  base::TimeTicks queue_time =
-      !task->queue_time.is_null() ? task->queue_time : base::TimeTicks::Now();
+  base::TimeTicks queue_time = (task && !task->queue_time.is_null())
+                                   ? task->queue_time
+                                   : base::TimeTicks::Now();
   UMA_HISTOGRAM_TIMES("Navigation.Preconnect.ProxyLookupCallbackQueueingTime",
                       base::TimeTicks::Now() - queue_time);
 

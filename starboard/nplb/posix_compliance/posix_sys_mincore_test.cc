@@ -11,11 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/mman.h>
-#include <unistd.h>
-
 #include <errno.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #include "testing/gtest/include/gtest/gtest.h"
 

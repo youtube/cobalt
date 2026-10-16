@@ -4,6 +4,8 @@
 
 #include "ui/ozone/public/overlay_surface_candidate.h"
 
+#include <variant>
+
 #include "ui/gfx/geometry/rect_conversions.h"
 
 namespace ui {
@@ -26,13 +28,22 @@ bool OverlaySurfaceCandidate::operator<(
   int rheight = param.buffer_size.height();
   gfx::Rect lrect = gfx::ToNearestRect(display_rect);
   gfx::Rect rrect = gfx::ToNearestRect(param.display_rect);
+  gfx::OverlayTransform ltransform =
+      std::holds_alternative<gfx::OverlayTransform>(transform)
+          ? std::get<gfx::OverlayTransform>(transform)
+          : gfx::OVERLAY_TRANSFORM_INVALID;
+  gfx::OverlayTransform rtransform =
+      std::holds_alternative<gfx::OverlayTransform>(param.transform)
+          ? std::get<gfx::OverlayTransform>(param.transform)
+          : gfx::OVERLAY_TRANSFORM_INVALID;
 
-  return std::tie(plane_z_order, format, lrect, lwidth, lheight, transform,
+  return std::tie(plane_z_order, format, lrect, lwidth, lheight, ltransform,
                   crop_rect, is_opaque, opacity, native_pixmap_unique_id,
-                  color_space) <
+                  color_space, overlay_type) <
          std::tie(param.plane_z_order, param.format, rrect, rwidth, rheight,
-                  param.transform, param.crop_rect, param.is_opaque,
-                  param.opacity, param.native_pixmap_unique_id, color_space);
+                  rtransform, param.crop_rect, param.is_opaque, param.opacity,
+                  param.native_pixmap_unique_id, color_space,
+                  param.overlay_type);
 }
 
 }  // namespace ui

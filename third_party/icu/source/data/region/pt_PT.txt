@@ -82,5 +82,6 @@ pt_PT{
         CI{"Costa do Marfim"}
         CZ{"República Checa"}
         NZ{"Aotearoa"}
+        TR{"Türkiye"}
     }
 }

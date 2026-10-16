@@ -10,10 +10,6 @@
 #import "ios/web/public/web_state.h"
 #import "ios/web/public/web_state_observer.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using base::test::ios::kWaitForActionTimeout;
 using base::test::ios::WaitUntilConditionOrTimeout;
 
@@ -244,7 +240,7 @@ TEST_F(FaviconCallbackTest, EmptyFaviconUrl) {
   const std::vector<FaviconURL>& favicons =
       observer()->favicon_url_candidates();
   ASSERT_EQ(1U, favicons.size());
-  // TODO(crbug.com/721852): This result is not correct.
+  // TODO(crbug.com/41319193): This result is not correct.
   EXPECT_EQ(GURL("https://chromium.test/"), favicons[0].icon_url);
   EXPECT_EQ(FaviconURL::IconType::kFavicon, favicons[0].icon_type);
   ASSERT_TRUE(favicons[0].icon_sizes.empty());

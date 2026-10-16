@@ -29,6 +29,7 @@
  */
 
 #include <string.h>
+
 #include "base/test/test_suite.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/partitions.h"

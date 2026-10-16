@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "content/browser/notifications/blink_notification_service_impl.h"
+
 #include <stdint.h>
+
 #include <memory>
+#include <optional>
 #include <set>
 #include <utility>
 #include <vector>
@@ -15,7 +19,6 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_simple_task_runner.h"
 #include "base/time/time.h"
-#include "content/browser/notifications/blink_notification_service_impl.h"
 #include "content/browser/notifications/platform_notification_context_impl.h"
 #include "content/browser/service_worker/embedded_worker_test_helper.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
@@ -35,7 +38,6 @@
 #include "mojo/public/cpp/system/functions.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/notifications/notification_constants.h"
 #include "third_party/blink/public/common/notifications/notification_resources.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
@@ -44,9 +46,15 @@
 #include "third_party/blink/public/mojom/permissions/permission_status.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration_options.mojom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/gfx/image/image_unittest_util.h"
 
 using ::testing::_;
 using ::testing::Return;
+
+MATCHER_P(PermissionTypeMatcher, id, "") {
+  return ::testing::Matches(::testing::Eq(id))(
+      blink::PermissionDescriptorToPermissionType(arg));
+}
 
 namespace content {
 
@@ -54,18 +62,8 @@ namespace {
 
 const char kTestOrigin[] = "https://example.com";
 const char kTestServiceWorkerUrl[] = "https://example.com/sw.js";
-const char kBadMessageImproperNotificationImage[] =
-    "Received an unexpected message with image while notification images are "
-    "disabled.";
 const char kBadMessageInvalidNotificationTriggerTimestamp[] =
     "Received an invalid notification trigger timestamp.";
-
-SkBitmap CreateBitmap(int width, int height, SkColor color) {
-  SkBitmap bitmap;
-  bitmap.allocN32Pixels(width, height);
-  bitmap.eraseColor(color);
-  return bitmap;
-}
 
 class MockNonPersistentNotificationListener
     : public blink::mojom::NonPersistentNotificationListener {
@@ -276,7 +274,7 @@ class BlinkNotificationServiceImplTest : public ::testing::Test {
     if (success) {
       get_notification_resources_ = notification_resources;
     } else {
-      get_notification_resources_ = absl::nullopt;
+      get_notification_resources_ = std::nullopt;
     }
     std::move(quit_closure).Run();
   }
@@ -304,7 +302,7 @@ class BlinkNotificationServiceImplTest : public ::testing::Test {
     notification_service_remote_->DisplayNonPersistentNotification(
         token, platform_notification_data, notification_resources,
         std::move(event_listener_remote));
-    // TODO(https://crbug.com/787459): Pass a callback to
+    // TODO(crbug.com/40551046): Pass a callback to
     // DisplayNonPersistentNotification instead of waiting for all tasks to run
     // here; a callback parameter will be needed anyway to enable
     // non-persistent notification event acknowledgements - see bug.
@@ -367,7 +365,7 @@ class BlinkNotificationServiceImplTest : public ::testing::Test {
     return get_notifications_data_;
   }
 
-  absl::optional<blink::NotificationResources>
+  std::optional<blink::NotificationResources>
   GetNotificationResourcesFromContextSync(const std::string& notification_id) {
     base::RunLoop run_loop;
     notification_context_->ReadNotificationResources(
@@ -412,13 +410,15 @@ class BlinkNotificationServiceImplTest : public ::testing::Test {
         static_cast<MockPermissionManager*>(
             browser_context_.GetPermissionControllerDelegate());
 
-    ON_CALL(*mock_permission_manager,
-            GetPermissionStatusForCurrentDocument(
-                blink::PermissionType::NOTIFICATIONS, _))
+    ON_CALL(
+        *mock_permission_manager,
+        GetPermissionStatusForCurrentDocument(
+            PermissionTypeMatcher(blink::PermissionType::NOTIFICATIONS), _, _))
         .WillByDefault(Return(permission_status));
-    ON_CALL(*mock_permission_manager,
-            GetPermissionStatusForWorker(blink::PermissionType::NOTIFICATIONS,
-                                         _, _))
+    ON_CALL(
+        *mock_permission_manager,
+        GetPermissionStatusForWorker(
+            PermissionTypeMatcher(blink::PermissionType::NOTIFICATIONS), _, _))
         .WillByDefault(Return(permission_status));
   }
 
@@ -463,7 +463,7 @@ class BlinkNotificationServiceImplTest : public ::testing::Test {
 
   std::vector<NotificationDatabaseData> get_notifications_data_;
 
-  absl::optional<blink::NotificationResources> get_notification_resources_;
+  std::optional<blink::NotificationResources> get_notification_resources_;
 
   bool read_notification_data_callback_result_ = false;
 
@@ -541,29 +541,12 @@ TEST_F(BlinkNotificationServiceImplTest,
   SetPermissionStatus(blink::mojom::PermissionStatus::GRANTED);
 
   blink::NotificationResources resources;
-  resources.image = CreateBitmap(200, 100, SK_ColorMAGENTA);
+  resources.image = gfx::test::CreateBitmap(200, 100, SK_ColorMAGENTA);
   DisplayNonPersistentNotification(
       "token", blink::PlatformNotificationData(), resources,
       non_persistent_notification_listener_.GetRemote());
 
   EXPECT_EQ(1u, GetDisplayedNotifications().size());
-}
-
-TEST_F(BlinkNotificationServiceImplTest,
-       DisplayNonPersistentNotificationWithContentImageSwitchOff) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndDisableFeature(
-      features::kNotificationContentImage);
-  SetPermissionStatus(blink::mojom::PermissionStatus::GRANTED);
-
-  ASSERT_TRUE(bad_messages_.empty());
-  blink::NotificationResources resources;
-  resources.image = CreateBitmap(200, 100, SK_ColorMAGENTA);
-  DisplayNonPersistentNotification(
-      "token", blink::PlatformNotificationData(), resources,
-      non_persistent_notification_listener_.GetRemote());
-  EXPECT_EQ(1u, bad_messages_.size());
-  EXPECT_EQ(kBadMessageImproperNotificationImage, bad_messages_[0]);
 }
 
 TEST_F(BlinkNotificationServiceImplTest,
@@ -574,7 +557,7 @@ TEST_F(BlinkNotificationServiceImplTest,
   RegisterServiceWorker(&registration);
 
   blink::NotificationResources resources;
-  resources.image = CreateBitmap(200, 100, SK_ColorMAGENTA);
+  resources.image = gfx::test::CreateBitmap(200, 100, SK_ColorMAGENTA);
   DisplayPersistentNotificationSync(
       registration->id(), blink::PlatformNotificationData(), resources);
 
@@ -585,25 +568,6 @@ TEST_F(BlinkNotificationServiceImplTest,
   RunAllTasksUntilIdle();
 
   EXPECT_EQ(1u, GetDisplayedNotifications().size());
-}
-
-TEST_F(BlinkNotificationServiceImplTest,
-       DisplayPersistentNotificationWithContentImageSwitchOff) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndDisableFeature(
-      features::kNotificationContentImage);
-  SetPermissionStatus(blink::mojom::PermissionStatus::GRANTED);
-
-  scoped_refptr<ServiceWorkerRegistration> registration;
-  RegisterServiceWorker(&registration);
-
-  ASSERT_TRUE(bad_messages_.empty());
-  blink::NotificationResources resources;
-  resources.image = CreateBitmap(200, 100, SK_ColorMAGENTA);
-  DisplayPersistentNotificationSync(
-      registration->id(), blink::PlatformNotificationData(), resources);
-  EXPECT_EQ(1u, bad_messages_.size());
-  EXPECT_EQ(kBadMessageImproperNotificationImage, bad_messages_[0]);
 }
 
 TEST_F(BlinkNotificationServiceImplTest,
@@ -798,9 +762,6 @@ TEST_F(BlinkNotificationServiceImplTest, GetNotificationsWithFilter) {
 }
 
 TEST_F(BlinkNotificationServiceImplTest, GetTriggeredNotificationsWithFilter) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(features::kNotificationTriggers);
-
   SetPermissionStatus(blink::mojom::PermissionStatus::GRANTED);
 
   scoped_refptr<ServiceWorkerRegistration> registration;
@@ -838,9 +799,6 @@ TEST_F(BlinkNotificationServiceImplTest, GetTriggeredNotificationsWithFilter) {
 }
 
 TEST_F(BlinkNotificationServiceImplTest, ResourcesStoredForTriggered) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(features::kNotificationTriggers);
-
   SetPermissionStatus(blink::mojom::PermissionStatus::GRANTED);
 
   scoped_refptr<ServiceWorkerRegistration> registration;
@@ -852,7 +810,8 @@ TEST_F(BlinkNotificationServiceImplTest, ResourcesStoredForTriggered) {
   scheduled_notification_data.show_trigger_timestamp = timestamp;
 
   blink::NotificationResources resources;
-  resources.notification_icon = CreateBitmap(10, 10, SK_ColorMAGENTA);
+  resources.notification_icon =
+      gfx::test::CreateBitmap(/*size=*/10, SK_ColorMAGENTA);
 
   blink::PlatformNotificationData displayed_notification_data;
   displayed_notification_data.tag = "tagB";
@@ -889,9 +848,6 @@ TEST_F(BlinkNotificationServiceImplTest, ResourcesStoredForTriggered) {
 }
 
 TEST_F(BlinkNotificationServiceImplTest, NotCallingDisplayForTriggered) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(features::kNotificationTriggers);
-
   SetPermissionStatus(blink::mojom::PermissionStatus::GRANTED);
 
   scoped_refptr<ServiceWorkerRegistration> registration;
@@ -912,9 +868,6 @@ TEST_F(BlinkNotificationServiceImplTest, NotCallingDisplayForTriggered) {
 }
 
 TEST_F(BlinkNotificationServiceImplTest, RejectsTriggerTimestampOverAYear) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(features::kNotificationTriggers);
-
   ASSERT_TRUE(bad_messages_.empty());
 
   SetPermissionStatus(blink::mojom::PermissionStatus::GRANTED);

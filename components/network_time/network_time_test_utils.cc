@@ -16,45 +16,46 @@ namespace network_time {
 
 // Update as follows:
 //
-// curl -i "http://clients2.google.com/time/1/current?cup2key=7:123123123"
+// curl -i "http://clients2.google.com/time/1/current?cup2key=9:123123123"
 //
-// where 7 is the key version and 123123123 is the nonce.  Copy the response
+// where 9 is the key version and 123123123 is the nonce.  Copy the response
 // and the x-cup-server-proof header into |kGoodTimeResponseBody| and
 // |kGoodTimeResponseServerProofHeader| respectively, and the
 // 'current_time_millis' value of the response into
 // |kGoodTimeResponseHandlerJsTime|.  Do this five times, so that the five
 // requests appear in order below.
 const char* kGoodTimeResponseBody[] = {
-    ")]}'\n{\"current_time_millis\":1676407030473,\"server_nonce\":-7."
-    "963518832647831E9}",
-    ")]}'\n{\"current_time_millis\":1676407054804,\"server_nonce\":2."
-    "660379914224199E64}",
-    ")]}'\n{\"current_time_millis\":1676407071199,\"server_nonce\":5."
-    "150419571081495E-301}",
-    ")]}'\n{\"current_time_millis\":1676407085288,\"server_nonce\":-2."
-    "3616379802443122E-151}",
-    ")]}'\n{\"current_time_millis\":1676407147062,\"server_nonce\":2."
-    "848761209101163E-158}"};
+    ")]}'\n{\"current_time_millis\":1740704215210,\"server_nonce\":9."
+    "745905051023761E19}",
+    ")]}'\n{\"current_time_millis\":1740704303680,\"server_nonce\":5."
+    "980509301132054E-279}",
+    ")]}'\n{\"current_time_millis\":1740704348254,\"server_nonce\":-1."
+    "9206278609497336E158}",
+    ")]}'\n{\"current_time_millis\":1740704410539,\"server_nonce\":2."
+    "8152807398526608E54}",
+    ")]}'\n{\"current_time_millis\":1740704459047,\"server_nonce\":2."
+    "934095446221426E135}"};
 
 const char* kGoodTimeResponseServerProofHeader[] = {
-    "304402200b875bcd9391c08c319504ea4cac3703b58f50797c99ed008068d232c62f0"
-    "86802207babace8807a911ef7af424abdadac5ba118b06d1c68ddbe6c79e0f36da972"
-    "18:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "30450220600b8b15525d52aa939f8174a24b63d3eb2b7543cf1d3a36eabd572518ec5"
-    "118022100d6e79c05701e981308d22e95f945a4a1b7cc2b2ce9c67b87fbec44e3d4b2"
-    "c4a5:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "3045022100f78429f21c9b5e4db283b7b4a81d2f91f51969aae4e9960edf0b82f21c3"
-    "7c84a02200aa5e9e56bbf3cb16441355759425a31b0052fb371dfcb972d127cf185fe"
-    "5424:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "3045022015af65192d3f5024e068cee411b29c6c9093c159a6f5b7e7e8b9726a7eca3"
-    "fa30221008dd1d69dc5e3cf364bb69366b3cc434a057fdf2c52475d92492eaca45f4b"
-    "2ecf:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "3045022100ca8b4a4af0bfacdcbb589ee8d0a7fb0e20e618bcf380c775e0aa573ef9d"
-    "12f300220367ac76938af4b630d8c8ddef72b0c1e59630f505b110a1f3b18cd42229e"
-    "4035:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"};
+    "3045022100a2bd5c42903ba33e71fab61df42c4d92100e7f3af1e5123ac127be7972349f10"
+    "02207cc0cd0a3b96f9ee1bb1d7e405f35f8adabfa757c368c253fe4eee65baa39300:"
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "304502206642abea1998c7bcba589d0381da0a3b630c4d400b8bc1e066da22f21d9e628b02"
+    "2100efef9b1be15f5c4de123c14daf0155fe4512156491c871c0170e1da7df53c769:"
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "304402201ef61d4f677e3837b661e79c6a9e153ee3e46444600565a2aeff603e60ab2b6102"
+    "2077c6c22b5324575bdafe956d282ab2b5ac6d6ed2fb4204277530726fa3404c4c:"
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "3046022100e263fe9c2541fb98ebcf5f7998f0957b4f3994d565cf0e97b9eaf33fb14ad6a8"
+    "022100fa7d688f4fc929d31ab79a155f0b119739d0a7e5ab84da69495cdc47dbcb4a93:"
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "30460221008fa418b8a9f934ff1ae305f9e956faf0e73c8c1cab05437e43d3d5bd2aa22a3b"
+    "022100f98811ca4b3663e94b6ce1ee7b1214e00ff9944e8bd37121f36b78c57d0f7261:"
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+};
 
 const double kGoodTimeResponseHandlerJsTime[] = {
-    1676407030473, 1676407054804, 1676407071199, 1676407085288, 1676407147062};
+    1740704215210, 1740704303680, 1740704348254, 1740704410539, 1740704459047};
 
 std::unique_ptr<net::test_server::HttpResponse> GoodTimeResponseHandler(
     const net::test_server::HttpRequest& request) {
@@ -67,15 +68,14 @@ std::unique_ptr<net::test_server::HttpResponse> GoodTimeResponseHandler(
   return std::unique_ptr<net::test_server::HttpResponse>(response);
 }
 
-FieldTrialTest::FieldTrialTest() {}
+FieldTrialTest::FieldTrialTest() = default;
 
-FieldTrialTest::~FieldTrialTest() {}
+FieldTrialTest::~FieldTrialTest() = default;
 
 void FieldTrialTest::SetFeatureParams(
     bool enable,
     float query_probability,
-    NetworkTimeTracker::FetchBehavior fetch_behavior,
-    NetworkTimeTracker::ClockDriftSamples clock_drift_samples) {
+    NetworkTimeTracker::FetchBehavior fetch_behavior) {
   scoped_feature_list_.Reset();
   if (!enable) {
     scoped_feature_list_.InitAndDisableFeature(kNetworkTimeServiceQuerying);
@@ -86,13 +86,10 @@ void FieldTrialTest::SetFeatureParams(
   params["RandomQueryProbability"] = base::NumberToString(query_probability);
   // See string format defined by `base::TimeDeltaFromString`.
   params["CheckTimeInterval"] = "360s";
-  params["ClockDriftSampleDistance"] = "2s";
   std::string fetch_behavior_param;
   switch (fetch_behavior) {
     case NetworkTimeTracker::FETCH_BEHAVIOR_UNKNOWN:
       NOTREACHED();
-      fetch_behavior_param = "unknown";
-      break;
     case NetworkTimeTracker::FETCHES_IN_BACKGROUND_ONLY:
       fetch_behavior_param = "background-only";
       break;
@@ -104,23 +101,6 @@ void FieldTrialTest::SetFeatureParams(
       break;
   }
   params["FetchBehavior"] = fetch_behavior_param;
-
-  std::string num_clock_drift_samples;
-  switch (clock_drift_samples) {
-    case NetworkTimeTracker::ClockDriftSamples::NO_SAMPLES:
-      num_clock_drift_samples = "0";
-      break;
-    case NetworkTimeTracker::ClockDriftSamples::TWO_SAMPLES:
-      num_clock_drift_samples = "2";
-      break;
-    case NetworkTimeTracker::ClockDriftSamples::FOUR_SAMPLES:
-      num_clock_drift_samples = "4";
-      break;
-    case NetworkTimeTracker::ClockDriftSamples::SIX_SAMPLES:
-      num_clock_drift_samples = "6";
-      break;
-  }
-  params["ClockDriftSamples"] = num_clock_drift_samples;
 
   scoped_feature_list_.InitAndEnableFeatureWithParameters(
       kNetworkTimeServiceQuerying, params);

@@ -9,21 +9,22 @@ import android.graphics.BitmapFactory;
 
 import androidx.annotation.VisibleForTesting;
 
+import jp.tomorrowkey.android.gifplayer.BaseGifImage;
+
 import org.chromium.base.Callback;
 import org.chromium.base.Log;
 import org.chromium.base.StreamUtil;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 
-import jp.tomorrowkey.android.gifplayer.BaseGifImage;
-
-/**
- * ImageFetcher implementation that uses a disk cache.
- */
+/** ImageFetcher implementation that uses a disk cache. */
+@NullMarked
 public class CachedImageFetcher extends ImageFetcher {
     private static final String TAG = "CachedImageFetcher";
 
@@ -34,6 +35,7 @@ public class CachedImageFetcher extends ImageFetcher {
          * @param filePath The path to the image on disk (including the filename).
          * @return The Bitmap that's on disk or null if the there's no file or the decoding failed.
          */
+        @Nullable
         Bitmap tryToLoadImageFromDisk(String filePath) {
             if (new File(filePath).exists()) {
                 return BitmapFactory.decodeFile(filePath, null);
@@ -41,6 +43,7 @@ public class CachedImageFetcher extends ImageFetcher {
                 return null;
             }
         }
+
         /**
          * Attempt to load a BaseGifImage from disk with the given filepath.
          *
@@ -48,6 +51,7 @@ public class CachedImageFetcher extends ImageFetcher {
          * @return The BaseGifImage that's on disk or null if the there's no file or the decoding
          *         failed.
          */
+        @Nullable
         BaseGifImage tryToLoadGifFromDisk(String filePath) {
             FileInputStream fileInputStream = null;
             try {
@@ -68,7 +72,7 @@ public class CachedImageFetcher extends ImageFetcher {
         }
     }
 
-    private ImageLoader mImageLoader;
+    private final ImageLoader mImageLoader;
 
     /**
      * Creates a CachedImageFetcher with the given bridge.
@@ -86,54 +90,74 @@ public class CachedImageFetcher extends ImageFetcher {
         // Do nothing, this lives for the lifetime of the application.
     }
 
-    /**
-     * Tries to load the gif from disk, if not it falls back to the bridge.
-     */
+    /** Tries to load the gif from disk, if not it falls back to the bridge. */
     @Override
-    public void fetchGif(final ImageFetcher.Params params, Callback<BaseGifImage> callback) {
+    public void fetchGif(
+            final ImageFetcher.Params params, Callback<@Nullable BaseGifImage> callback) {
         long startTimeMillis = System.currentTimeMillis();
-        PostTask.postTask(TaskTraits.USER_VISIBLE, () -> {
-            // Try to read the gif from disk, then post back to the ui thread.
-            String filePath = getImageFetcherBridge().getFilePath(params.url);
-            BaseGifImage cachedGif = mImageLoader.tryToLoadGifFromDisk(filePath);
-            PostTask.postTask(TaskTraits.UI_USER_VISIBLE, () -> {
-                continueFetchGifAfterDisk(params, callback, cachedGif, startTimeMillis);
-            });
-        });
+        PostTask.postTask(
+                TaskTraits.USER_VISIBLE,
+                () -> {
+                    // Try to read the gif from disk, then post back to the ui thread.
+                    String filePath = getImageFetcherBridge().getFilePath(params.url);
+                    BaseGifImage cachedGif = mImageLoader.tryToLoadGifFromDisk(filePath);
+                    PostTask.postTask(
+                            TaskTraits.UI_USER_VISIBLE,
+                            () -> {
+                                continueFetchGifAfterDisk(
+                                        params, callback, cachedGif, startTimeMillis);
+                            });
+                });
     }
 
     @VisibleForTesting
-    void continueFetchGifAfterDisk(final ImageFetcher.Params params,
-            Callback<BaseGifImage> callback, BaseGifImage cachedGif, long startTimeMillis) {
+    void continueFetchGifAfterDisk(
+            final ImageFetcher.Params params,
+            Callback<@Nullable BaseGifImage> callback,
+            @Nullable BaseGifImage cachedGif,
+            long startTimeMillis) {
         if (cachedGif != null) {
             callback.onResult(cachedGif);
             reportEvent(params.clientName, ImageFetcherEvent.JAVA_DISK_CACHE_HIT);
             getImageFetcherBridge().reportCacheHitTime(params.clientName, startTimeMillis);
         } else {
-            getImageFetcherBridge().fetchGif(getConfig(), params, (BaseGifImage gifFromNative) -> {
-                callback.onResult(gifFromNative);
-                getImageFetcherBridge().reportTotalFetchTimeFromNative(
-                        params.clientName, startTimeMillis);
-            });
+            getImageFetcherBridge()
+                    .fetchGif(
+                            getConfig(),
+                            params,
+                            (@Nullable BaseGifImage gifFromNative) -> {
+                                callback.onResult(gifFromNative);
+                                getImageFetcherBridge()
+                                        .reportTotalFetchTimeFromNative(
+                                                params.clientName, startTimeMillis);
+                            });
         }
     }
 
     @Override
-    public void fetchImage(final Params params, Callback<Bitmap> callback) {
+    public void fetchImage(final Params params, Callback<@Nullable Bitmap> callback) {
         long startTimeMillis = System.currentTimeMillis();
-        PostTask.postTask(TaskTraits.USER_VISIBLE, () -> {
-            // Try to read the bitmap from disk, then post back to the ui thread.
-            String filePath = getImageFetcherBridge().getFilePath(params.url);
-            Bitmap bitmap = mImageLoader.tryToLoadImageFromDisk(filePath);
-            PostTask.postTask(TaskTraits.UI_USER_VISIBLE, () -> {
-                continueFetchImageAfterDisk(params, callback, bitmap, startTimeMillis);
-            });
-        });
+        PostTask.postTask(
+                TaskTraits.USER_VISIBLE,
+                () -> {
+                    // Try to read the bitmap from disk, then post back to the ui thread.
+                    String filePath = getImageFetcherBridge().getFilePath(params.url);
+                    Bitmap bitmap = mImageLoader.tryToLoadImageFromDisk(filePath);
+                    PostTask.postTask(
+                            TaskTraits.UI_USER_VISIBLE,
+                            () -> {
+                                continueFetchImageAfterDisk(
+                                        params, callback, bitmap, startTimeMillis);
+                            });
+                });
     }
 
     @VisibleForTesting
-    void continueFetchImageAfterDisk(final ImageFetcher.Params params, Callback<Bitmap> callback,
-            Bitmap cachedBitmap, long startTimeMillis) {
+    void continueFetchImageAfterDisk(
+            final ImageFetcher.Params params,
+            Callback<@Nullable Bitmap> callback,
+            @Nullable Bitmap cachedBitmap,
+            long startTimeMillis) {
         if (cachedBitmap != null) {
             // In case the image's dimensions on disk don't match the desired dimensions.
             if (params.shouldResize) {
@@ -143,11 +167,16 @@ public class CachedImageFetcher extends ImageFetcher {
             reportEvent(params.clientName, ImageFetcherEvent.JAVA_DISK_CACHE_HIT);
             getImageFetcherBridge().reportCacheHitTime(params.clientName, startTimeMillis);
         } else {
-            getImageFetcherBridge().fetchImage(getConfig(), params, (Bitmap bitmapFromNative) -> {
-                callback.onResult(bitmapFromNative);
-                getImageFetcherBridge().reportTotalFetchTimeFromNative(
-                        params.clientName, startTimeMillis);
-            });
+            getImageFetcherBridge()
+                    .fetchImage(
+                            getConfig(),
+                            params,
+                            (@Nullable Bitmap bitmapFromNative) -> {
+                                callback.onResult(bitmapFromNative);
+                                getImageFetcherBridge()
+                                        .reportTotalFetchTimeFromNative(
+                                                params.clientName, startTimeMillis);
+                            });
         }
     }
 

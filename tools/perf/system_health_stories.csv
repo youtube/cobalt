@@ -102,6 +102,7 @@ load:search:baidu:2018,,"desktop,mobile","2018,international"
 load:search:ebay:2018,,"desktop,mobile",2018
 load:search:flipkart:2018,,desktop,"2018,international"
 load:search:google:2018,,"desktop,mobile",2018
+load:search:naver:2023,,mobile,"2023,international"
 load:search:taobao:2018,,desktop,"2018,international"
 load:search:taobao:2019,,mobile,"2019,international"
 load:search:yahoo:2018,,"desktop,mobile",2018
@@ -120,9 +121,8 @@ load:tools:stackoverflow:2018,Load a typical question & answer page of stackover
 load:tools:weather:2019,,"desktop,mobile","2019,health_check,javascript_heavy"
 load_accessibility:media:wikipedia:2018,"Wikipedia page on Accessibility. Long, but very simple, clean layout.",desktop,"2018,accessibility"
 load_accessibility:shopping:amazon:2018,Amazon results page. Good example of a site with a data table.,desktop,"2018,accessibility"
+load_accessibility:tech:codesearch:2025,web_contents_impl.cc. Good example of a very large page.,desktop,"2025,accessibility"
 long_running:tools:gmail-background,,"desktop,mobile",2016
 long_running:tools:gmail-foreground,,"desktop,mobile","2016,health_check"
-multitab:misc:typical24,"Load 24 different web sites in 24 tabs, then cycle through each tab.",desktop,"2016,tabs_switching"
-multitab:misc:typical24:2018,"Load 24 different web sites in 24 tabs, then cycle through each tab.",desktop,"2018,international,tabs_switching"
 play:media:google_play_music,"Browse the songs list in music.google.com, then play a song.",desktop,"2016,health_check"
 play:media:soundcloud:2018,"Load soundcloud.com, search for ""Smooth Jazz"", then play a song.",desktop,2018

@@ -4,6 +4,9 @@
 
 #include "quiche/quic/core/http/quic_headers_stream.h"
 
+#include <algorithm>
+#include <utility>
+
 #include "absl/base/macros.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -55,12 +58,10 @@ void QuicHeadersStream::MaybeReleaseSequencerBuffer() {
   }
 }
 
-bool QuicHeadersStream::OnStreamFrameAcked(QuicStreamOffset offset,
-                                           QuicByteCount data_length,
-                                           bool fin_acked,
-                                           QuicTime::Delta ack_delay_time,
-                                           QuicTime receive_timestamp,
-                                           QuicByteCount* newly_acked_length) {
+bool QuicHeadersStream::OnStreamFrameAcked(
+    QuicStreamOffset offset, QuicByteCount data_length, bool fin_acked,
+    QuicTime::Delta ack_delay_time, QuicTime receive_timestamp,
+    QuicByteCount* newly_acked_length, bool is_retransmission) {
   QuicIntervalSet<QuicStreamOffset> newly_acked(offset, offset + data_length);
   newly_acked.Difference(bytes_acked());
   for (const auto& acked : newly_acked) {
@@ -106,7 +107,7 @@ bool QuicHeadersStream::OnStreamFrameAcked(QuicStreamOffset offset,
   }
   return QuicStream::OnStreamFrameAcked(offset, data_length, fin_acked,
                                         ack_delay_time, receive_timestamp,
-                                        newly_acked_length);
+                                        newly_acked_length, is_retransmission);
 }
 
 void QuicHeadersStream::OnStreamFrameRetransmitted(QuicStreamOffset offset,

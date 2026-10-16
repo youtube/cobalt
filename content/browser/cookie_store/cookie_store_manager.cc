@@ -4,15 +4,14 @@
 
 #include "content/browser/cookie_store/cookie_store_manager.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/ranges/algorithm.h"
 #include "base/sequence_checker.h"
 #include "content/browser/cookie_store/cookie_change_subscriptions.pb.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
-#include "content/browser/service_worker/embedded_worker_status.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/service_worker/service_worker_metrics.h"
 #include "content/browser/service_worker/service_worker_registration.h"
@@ -25,7 +24,7 @@
 #include "net/cookies/cookie_partition_key.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "services/network/public/mojom/network_context.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/service_worker/embedded_worker_status.h"
 #include "third_party/blink/public/common/service_worker/service_worker_scope_match.h"
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
@@ -232,7 +231,7 @@ void CookieStoreManager::AddSubscriptions(
     auto new_subscription = std::make_unique<CookieChangeSubscription>(
         std::move(mojo_subscription), service_worker_registration->id());
 
-    auto existing_subscription_it = base::ranges::find(
+    auto existing_subscription_it = std::ranges::find(
         subscriptions, *new_subscription,
         &std::unique_ptr<CookieChangeSubscription>::operator*);
     if (existing_subscription_it == subscriptions.end())
@@ -240,7 +239,7 @@ void CookieStoreManager::AddSubscriptions(
   }
 
   ActivateSubscriptions(
-      base::make_span(subscriptions).subspan(old_subscriptions_size));
+      base::span(subscriptions).subspan(old_subscriptions_size));
   StoreSubscriptions(service_worker_registration_id, storage_key, subscriptions,
                      std::move(callback));
 }
@@ -330,7 +329,7 @@ void CookieStoreManager::RemoveSubscriptions(
   }
 
   for (auto& subscription : all_subscriptions) {
-    auto target_subscription_it = base::ranges::find(
+    auto target_subscription_it = std::ranges::find(
         target_subscriptions, *subscription,
         &std::unique_ptr<CookieChangeSubscription>::operator*);
     if (target_subscription_it == target_subscriptions.end()) {
@@ -526,7 +525,7 @@ void CookieStoreManager::DeactivateSubscriptions(
     subscription->RemoveFromList();
   }
   auto it = subscriptions_by_url_key_.find(url_key);
-  DCHECK(it != subscriptions_by_url_key_.end());
+  CHECK(it != subscriptions_by_url_key_.end());
   if (it->second.empty())
     subscriptions_by_url_key_.erase(it);
 }
@@ -561,11 +560,14 @@ void CookieStoreManager::OnCookieChange(const net::CookieChangeInfo& change) {
     return;
   }
 
-  if (change.cause == net::CookieChangeCause::OVERWRITE) {
+  if (change.cause == net::CookieChangeCause::OVERWRITE ||
+      change.cause == net::CookieChangeCause::INSERTED_NO_CHANGE_OVERWRITE) {
     // Cookie overwrites generate an OVERWRITE event with the old cookie data
-    // and an INSERTED event with the new cookie data. The Cookie Store API
-    // only reports new cookie information, so OVERWRITE events doesn't need to
-    // be dispatched to service workers.
+    // and an INSERTED event with the new cookie data if the cookie changed and
+    // INSERTED_NO_CHANGE_OVERWRITE if the overwrite did not result in an
+    // observable change to the cookie. The Cookie Store API only reports new
+    // cookie information, so OVERWRITE events doesn't need to be dispatched to
+    // service workers or not at all if it does not result in a change.
     return;
   }
 
@@ -600,6 +602,8 @@ void CookieStoreManager::OnCookieChange(const net::CookieChangeInfo& change) {
         registration_id,
         base::BindOnce(
             [](base::WeakPtr<CookieStoreManager> manager,
+               BrowserContext* browser_context,
+               ContentBrowserClient* content_browser_client,
                const net::CookieChangeInfo& change,
                blink::ServiceWorkerStatusCode find_status,
                scoped_refptr<ServiceWorkerRegistration> registration) {
@@ -609,6 +613,14 @@ void CookieStoreManager::OnCookieChange(const net::CookieChangeInfo& change) {
               DCHECK(registration);
               if (!manager)
                 return;
+
+              if (content_browser_client && !change.cookie.IsPartitioned() &&
+                  !content_browser_client->IsFullCookieAccessAllowed(
+                      browser_context, /*web_contents=*/nullptr,
+                      registration->scope(), registration->key(),
+                      /*overrides=*/{})) {
+                return;
+              }
 
               // If the change is for a partition cookie, we check that its
               // partition key matches the StorageKey's top-level site.
@@ -631,15 +643,17 @@ void CookieStoreManager::OnCookieChange(const net::CookieChangeInfo& change) {
                 return;
               }
 
-              // TODO(crbug.com/1427879): Third-party partitioned workers should
-              // not have access to unpartitioned state when third-party cookie
-              // blocking is on.
-              // TODO(crbug.com/1427879): Should RSA grant unpartitioned cookie
+              // TODO(crbug.com/40063772): Third-party partitioned workers
+              // should not have access to unpartitioned state when third-party
+              // cookie blocking is on.
+              // TODO(crbug.com/40063772): Should RSA grant unpartitioned cookie
               // access?
 
               manager->DispatchChangeEvent(std::move(registration), change);
             },
-            weak_factory_.GetWeakPtr(), change));
+            weak_factory_.GetWeakPtr(),
+            service_worker_context_->browser_context(),
+            GetContentClient()->browser(), change));
   }
 }
 
@@ -658,7 +672,7 @@ void CookieStoreManager::BindReceiverForFrame(
   RenderFrameHostImpl* render_frame_host_impl =
       static_cast<RenderFrameHostImpl*>(render_frame_host);
   storage_partition->GetCookieStoreManager()->BindReceiver(
-      std::move(receiver), render_frame_host_impl->storage_key());
+      std::move(receiver), render_frame_host_impl->GetStorageKey());
 }
 
 // static
@@ -684,7 +698,8 @@ void CookieStoreManager::DispatchChangeEvent(
 
   scoped_refptr<ServiceWorkerVersion> active_version =
       registration->active_version();
-  if (active_version->running_status() != EmbeddedWorkerStatus::RUNNING) {
+  if (active_version->running_status() !=
+      blink::EmbeddedWorkerStatus::kRunning) {
     active_version->RunAfterStartWorker(
         ServiceWorkerMetrics::EventType::COOKIE_CHANGE,
         base::BindOnce(&CookieStoreManager::DidStartWorkerForChangeEvent,

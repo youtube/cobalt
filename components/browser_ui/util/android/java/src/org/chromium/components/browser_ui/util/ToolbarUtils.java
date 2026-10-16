@@ -10,9 +10,11 @@ import android.widget.ImageView;
 import androidx.appcompat.widget.ActionMenuView;
 import androidx.appcompat.widget.Toolbar;
 
-/**
- * A helper class for Toolbars.
- */
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
+/** A helper class for Toolbars. */
+@NullMarked
 public class ToolbarUtils {
     /**
      * A helper that is used to set the visibility of the overflow menu view in a given activity.
@@ -43,15 +45,15 @@ public class ToolbarUtils {
     }
 
     /**
-     * Finds the menu view in the action bar. Then, finds the overflow button in the menu view.
-     * If either is unable to be found, returns null. Otherwise, returns the overflow menu button.
-     * TODO(https://crbug.com/1250824): Rework how we do this by adding an id to the overflow menu
-     * button. This would allow us to findViewById().
-     *.
+     * Finds the menu view in the action bar. Then, finds the overflow button in the menu view. If
+     * either is unable to be found, returns null. Otherwise, returns the overflow menu button.
+     * TODO(crbug.com/40198147): Rework how we do this by adding an id to the overflow menu button.
+     * This would allow us to findViewById(). .
+     *
      * @param toolbar The toolbar that may contain the overflow menu item.
      * @return The overflow menu button if found, null otherwise (e.g. no menu exists).
      */
-    private static View getOverflowMenuItemFromToolbar(Toolbar toolbar) {
+    private static @Nullable View getOverflowMenuItemFromToolbar(Toolbar toolbar) {
         // Find the menu in the toolbar if it exists. Return null if it does not.
         int i = toolbar.getChildCount();
         ActionMenuView menuView = null;

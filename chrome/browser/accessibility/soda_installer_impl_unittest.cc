@@ -85,6 +85,7 @@ class SodaInstallerImplTest : public testing::Test {
 
   void Init() {
     soda_installer_impl_->Init(pref_service_.get(), pref_service_.get());
+    task_environment_.RunUntilIdle();
   }
 
   void SetUninstallTimer() {
@@ -158,6 +159,14 @@ TEST_F(SodaInstallerImplTest, UninstallLanguagePacks) {
   ASSERT_TRUE(IsLanguagePackInstalled(kJapaneseLocale));
 }
 
+TEST_F(SodaInstallerImplTest, AvailableLanguagesTest) {
+  auto actual_available_langs = soda_installer_impl_->GetAvailableLanguages();
+  auto expected_available_langs =
+      soda_installer_impl_->GetLiveCaptionEnabledLanguages();
+  EXPECT_THAT(actual_available_langs,
+              ::testing::UnorderedElementsAreArray(expected_available_langs));
+}
+
 TEST_F(SodaInstallerImplTest, UninstallSodaAfterThirtyDays) {
   Init();
   ASSERT_TRUE(IsSodaInstalled());
@@ -177,6 +186,28 @@ TEST_F(SodaInstallerImplTest, UninstallSodaAfterThirtyDays) {
   // The uninstallation process doesn't start until Init() is called again.
   Init();
   ASSERT_FALSE(IsSodaInstalled());
+}
+
+TEST_F(SodaInstallerImplTest, ReregisterSodaWithinThirtyDays) {
+  Init();
+  ASSERT_TRUE(IsSodaInstalled());
+
+  // Turn off features that use SODA so that the uninstall timer can be set.
+  SetLiveCaptionEnabled(false);
+  SetUninstallTimer();
+  ASSERT_TRUE(IsSodaInstalled());
+
+  // Fast forward SODA and manually uninstall SODA to simulate a browser
+  // restart.
+  SetSodaInstallerInitialized(false);
+  FastForwardBy(base::Days(1));
+  GetInstance()->UninstallSodaForTesting();
+  ASSERT_FALSE(IsSodaInstalled());
+
+  // SODA should be registered because so it recently used within the last 30
+  // days.
+  Init();
+  ASSERT_TRUE(IsSodaInstalled());
 }
 
 // Tests that SODA stays installed if thirty days pass and a feature using SODA

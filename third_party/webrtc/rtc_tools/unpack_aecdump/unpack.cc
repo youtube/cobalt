@@ -25,17 +25,16 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "api/function_view.h"
+#include "common_audio/channel_buffer.h"
 #include "common_audio/include/audio_util.h"
 #include "common_audio/wav_file.h"
 #include "modules/audio_processing/test/protobuf_utils.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/ignore_wundef.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/system/arch.h"
 
-RTC_PUSH_IGNORING_WUNDEF()
+// Generated at build-time by the protobuf compiler.
 #include "modules/audio_processing/debug.pb.h"
-RTC_POP_IGNORING_WUNDEF()
 
 ABSL_FLAG(std::string,
           input_file,
@@ -148,7 +147,8 @@ void WriteFloatData(const float* const* data,
                     RawFile* raw_file) {
   size_t length = num_channels * samples_per_channel;
   std::unique_ptr<float[]> buffer(new float[length]);
-  Interleave(data, samples_per_channel, num_channels, buffer.get());
+  InterleavedView<float> view(buffer.get(), samples_per_channel, num_channels);
+  Interleave(data, samples_per_channel, num_channels, view);
   if (raw_file) {
     raw_file->WriteSamples(buffer.get(), length);
   }
@@ -199,8 +199,8 @@ class RuntimeSettingWriter {
  public:
   RuntimeSettingWriter(
       std::string name,
-      rtc::FunctionView<bool(const Event)> is_exporter_for,
-      rtc::FunctionView<std::string(const Event)> get_timeline_label)
+      FunctionView<bool(const Event)> is_exporter_for,
+      FunctionView<std::string(const Event)> get_timeline_label)
       : setting_name_(std::move(name)),
         is_exporter_for_(is_exporter_for),
         get_timeline_label_(get_timeline_label) {}
@@ -215,7 +215,7 @@ class RuntimeSettingWriter {
   void WriteEvent(const Event& event, int frame_count) {
     RTC_DCHECK(is_exporter_for_(event));
     if (file_ == nullptr) {
-      rtc::StringBuilder file_name;
+      StringBuilder file_name;
       file_name << setting_name_ << frame_offset_ << ".txt";
       file_ = OpenFile(file_name.str(), "wb");
     }
@@ -245,8 +245,8 @@ class RuntimeSettingWriter {
   FILE* file_ = nullptr;
   int frame_offset_ = 0;
   const std::string setting_name_;
-  const rtc::FunctionView<bool(Event)> is_exporter_for_;
-  const rtc::FunctionView<std::string(Event)> get_timeline_label_;
+  const FunctionView<bool(Event)> is_exporter_for_;
+  const FunctionView<std::string(Event)> get_timeline_label_;
 };
 
 // Returns RuntimeSetting exporters for runtime setting types defined in
@@ -292,7 +292,7 @@ std::vector<RuntimeSettingWriter> RuntimeSettingWriters() {
 }
 
 std::string GetWavFileIndex(int init_index, int frame_count) {
-  rtc::StringBuilder suffix;
+  StringBuilder suffix;
   if (absl::GetFlag(FLAGS_use_init_suffix)) {
     suffix << "_" << init_index;
   } else {
@@ -334,7 +334,7 @@ int do_main(int argc, char* argv[]) {
   std::unique_ptr<RawFile> input_raw_file;
   std::unique_ptr<RawFile> output_raw_file;
 
-  rtc::StringBuilder callorder_raw_name;
+  StringBuilder callorder_raw_name;
   callorder_raw_name << absl::GetFlag(FLAGS_callorder_file) << ".char";
   FILE* callorder_char_file = WritingCallOrderFile()
                                   ? OpenFile(callorder_raw_name.str(), "wb")
@@ -574,21 +574,21 @@ int do_main(int argc, char* argv[]) {
         // their sample rate or number of channels.
 
         std::string suffix = GetWavFileIndex(init_count, frame_count);
-        rtc::StringBuilder reverse_name;
+        StringBuilder reverse_name;
         reverse_name << absl::GetFlag(FLAGS_reverse_file) << suffix << ".wav";
         reverse_wav_file.reset(new WavWriter(
             reverse_name.str(), reverse_sample_rate, num_reverse_channels));
-        rtc::StringBuilder input_name;
+        StringBuilder input_name;
         input_name << absl::GetFlag(FLAGS_input_file) << suffix << ".wav";
         input_wav_file.reset(new WavWriter(input_name.str(), input_sample_rate,
                                            num_input_channels));
-        rtc::StringBuilder output_name;
+        StringBuilder output_name;
         output_name << absl::GetFlag(FLAGS_output_file) << suffix << ".wav";
         output_wav_file.reset(new WavWriter(
             output_name.str(), output_sample_rate, num_output_channels));
 
         if (WritingCallOrderFile()) {
-          rtc::StringBuilder callorder_name;
+          StringBuilder callorder_name;
           callorder_name << absl::GetFlag(FLAGS_callorder_file) << suffix
                          << ".char";
           callorder_char_file = OpenFile(callorder_name.str(), "wb");

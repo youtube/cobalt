@@ -12,16 +12,17 @@
 namespace ash {
 
 class ASH_EXPORT Switch : public views::ToggleButton {
- public:
-  METADATA_HEADER(Switch);
+  METADATA_HEADER(Switch, views::ToggleButton)
 
+ public:
   explicit Switch(PressedCallback callback = PressedCallback());
   Switch(const Switch&) = delete;
   Switch& operator=(const Switch&) = delete;
   ~Switch() override;
 
   // views::View:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& /*available_size*/) const override;
 
  private:
   // views::ToggleButton:

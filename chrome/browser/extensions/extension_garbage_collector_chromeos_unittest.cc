@@ -32,7 +32,6 @@
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/install_flag.h"
 #include "extensions/common/extension_builder.h"
-#include "extensions/common/value_builder.h"
 #include "ppapi/buildflags/buildflags.h"
 
 #if BUILDFLAG(ENABLE_PLUGINS)
@@ -164,11 +163,8 @@ TEST_F(ExtensionGarbageCollectorChromeOSUnitTest, SharedExtensions) {
   scoped_refptr<const Extension> extension2 =
       CreateExtension(kExtensionId2, "1.0", path_id2_1);
   GetExtensionPrefs()->SetDelayedInstallInfo(
-      extension2.get(),
-      Extension::ENABLED,
-      kInstallFlagNone,
-      ExtensionPrefs::DELAY_REASON_WAIT_FOR_IDLE,
-      syncer::StringOrdinal(),
+      extension2.get(), /*disable_reasons=*/{}, kInstallFlagNone,
+      ExtensionPrefs::DelayReason::kWaitForIdle, syncer::StringOrdinal(),
       std::string());
   EXPECT_TRUE(base::PathExists(path_id2_1));
 

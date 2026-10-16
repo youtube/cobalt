@@ -8,6 +8,7 @@
 
 #include "base/command_line.h"
 #include "base/lazy_instance.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
@@ -27,11 +28,8 @@ namespace errors = manifest_errors;
 
 using api::extensions_manifest_types::ContentCapabilities;
 
-ContentCapabilitiesInfo::ContentCapabilitiesInfo() {
-}
-
-ContentCapabilitiesInfo::~ContentCapabilitiesInfo() {
-}
+ContentCapabilitiesInfo::ContentCapabilitiesInfo() = default;
+ContentCapabilitiesInfo::~ContentCapabilitiesInfo() = default;
 
 static base::LazyInstance<ContentCapabilitiesInfo>::DestructorAtExit
     g_empty_content_capabilities_info = LAZY_INSTANCE_INITIALIZER;
@@ -44,11 +42,8 @@ const ContentCapabilitiesInfo& ContentCapabilitiesInfo::Get(
   return info ? *info : g_empty_content_capabilities_info.Get();
 }
 
-ContentCapabilitiesHandler::ContentCapabilitiesHandler() {
-}
-
-ContentCapabilitiesHandler::~ContentCapabilitiesHandler() {
-}
+ContentCapabilitiesHandler::ContentCapabilitiesHandler() = default;
+ContentCapabilitiesHandler::~ContentCapabilitiesHandler() = default;
 
 bool ContentCapabilitiesHandler::Parse(Extension* extension,
                                        std::u16string* error) {
@@ -61,10 +56,12 @@ bool ContentCapabilitiesHandler::Parse(Extension* extension,
     return false;
   }
 
-  std::unique_ptr<ContentCapabilities> capabilities(
-      ContentCapabilities::FromValueDeprecated(*value, error));
-  if (!capabilities)
+  auto capabilities = ContentCapabilities::FromValue(*value);
+  if (!capabilities.has_value()) {
+    *error = base::StrCat(
+        {errors::kInvalidContentCapabilitiesParsedValue, capabilities.error()});
     return false;
+  }
 
   int supported_schemes = URLPattern::SCHEME_HTTPS;
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(

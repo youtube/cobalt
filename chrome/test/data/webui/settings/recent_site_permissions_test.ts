@@ -4,7 +4,8 @@
 
 // clang-format off
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {ContentSetting, ContentSettingsTypes, SettingsRecentSitePermissionsElement, SiteSettingSource, SiteSettingsPrefsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
+import type {SettingsRecentSitePermissionsElement} from 'chrome://settings/lazy_load.js';
+import {ContentSetting, ContentSettingsTypes, SiteSettingSource, SiteSettingsPrefsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
 import {Router, routes} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {isChildVisible, isVisible} from 'chrome://webui-test/test_util.js';
@@ -52,6 +53,14 @@ suite('CrSettingsRecentSitePermissionsTest', function() {
     // explicit assertions are included.
     const origin = 'https://bar.com';
     for (const contentSettingType of Object.values(ContentSettingsTypes)) {
+      if (contentSettingType === ContentSettingsTypes.STORAGE_ACCESS ||
+          contentSettingType ===
+              ContentSettingsTypes.TOP_LEVEL_STORAGE_ACCESS) {
+        // Skip permission types that are not single origin; in the actual
+        // implementation, getRecentSitePermissions only lists single origin
+        // permissions.
+        continue;
+      }
       Router.getInstance().navigateTo(routes.BASIC);
       await flushTasks();
       const mockData = [{

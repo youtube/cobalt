@@ -45,7 +45,7 @@ class D3DTextureSurfaceWGL : public SurfaceWGL
     egl::Error makeCurrent(const gl::Context *context) override;
     egl::Error unMakeCurrent(const gl::Context *context) override;
 
-    egl::Error swap(const gl::Context *context) override;
+    egl::Error swap(const gl::Context *context, SurfaceSwapFeedback *feedback) override;
     egl::Error postSubBuffer(const gl::Context *context,
                              EGLint x,
                              EGLint y,
@@ -56,7 +56,7 @@ class D3DTextureSurfaceWGL : public SurfaceWGL
                             gl::Texture *texture,
                             EGLint buffer) override;
     egl::Error releaseTexImage(const gl::Context *context, EGLint buffer) override;
-    void setSwapInterval(EGLint interval) override;
+    void setSwapInterval(const egl::Display *display, EGLint interval) override;
 
     EGLint getWidth() const override;
     EGLint getHeight() const override;
@@ -65,7 +65,7 @@ class D3DTextureSurfaceWGL : public SurfaceWGL
     EGLint getSwapBehavior() const override;
 
     HDC getDC() const override;
-    const angle::Format *getD3DTextureColorFormat() const override;
+    const angle::Format *getClientBufferTextureColorFormat() const override;
 
     egl::Error attachToFramebuffer(const gl::Context *context,
                                    gl::Framebuffer *framebuffer) override;

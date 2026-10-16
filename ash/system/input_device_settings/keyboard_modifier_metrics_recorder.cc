@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ash/system/input_device_settings/keyboard_modifier_metrics_recorder.h"
 
 #include <cstdint>
 #include <memory>
+#include <string_view>
 
 #include "ash/constants/ash_features.h"
 #include "ash/session/session_controller_impl.h"
@@ -16,7 +22,6 @@
 #include "base/functional/callback_forward.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece_forward.h"
 #include "components/prefs/pref_member.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
@@ -24,13 +29,13 @@
 
 namespace ash {
 namespace {
-constexpr base::StringPiece kModifierMetricPrefix =
+constexpr std::string_view kModifierMetricPrefix =
     "ChromeOS.Settings.Keyboard.Modifiers.";
-constexpr base::StringPiece kModifierMetricIndividualChangedSuffix =
+constexpr std::string_view kModifierMetricIndividualChangedSuffix =
     "RemappedTo.Changed";
-constexpr base::StringPiece kModifierMetricIndividualInitSuffix =
+constexpr std::string_view kModifierMetricIndividualInitSuffix =
     "RemappedTo.Started";
-constexpr base::StringPiece kModifierMetricHash =
+constexpr std::string_view kModifierMetricHash =
     "ChromeOS.Settings.Keyboard.Modifiers.Hash";
 
 // The modifier hash is made up of `kNumModifiers` blocks of
@@ -66,9 +71,10 @@ constexpr int kNumModifiers =
 // 32-bit int will fit without any overflow or UB.
 // Modifier hash is limited to 32 bits as metrics can only handle 32 bit ints.
 static_assert((sizeof(int32_t) * 8) >= (kModifierHashWidth * kNumModifiers));
-// `kIsoLevel5ShiftMod3` is not a valid modifier for the purposes of these
-// metrics so there is 1 less modifier than the max value.
-static_assert(static_cast<int>(ui::mojom::ModifierKey::kMaxValue) - 1 <=
+// `kIsoLevel5ShiftMod3`, `kQuickInsert`, and `kFunction` are not valid
+// modifiers for this metric. Therefore there are 3 less values here than are
+// contained in the enum.
+static_assert(static_cast<int>(ui::mojom::ModifierKey::kMaxValue) - 3 <=
               kMaxModifierValue);
 
 constexpr ui::mojom::ModifierKey GetDefaultModifier(size_t index) {
@@ -216,8 +222,7 @@ void KeyboardModifierMetricsRecorder::RecordModifierRemappingHash() {
   // If the computed hash matches the hash when settings are in a default state,
   // the metric should not be published.
   if (hash != kDefaultModifierHash) {
-    base::UmaHistogramSparse(std::string(kModifierMetricHash),
-                             static_cast<int>(hash));
+    base::UmaHistogramSparse(kModifierMetricHash, static_cast<int>(hash));
   }
 }
 

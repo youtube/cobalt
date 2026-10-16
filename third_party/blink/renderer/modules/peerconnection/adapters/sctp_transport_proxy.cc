@@ -22,7 +22,7 @@ std::unique_ptr<SctpTransportProxy> SctpTransportProxy::Create(
     LocalFrame& frame,
     scoped_refptr<base::SingleThreadTaskRunner> proxy_thread,
     scoped_refptr<base::SingleThreadTaskRunner> host_thread,
-    rtc::scoped_refptr<webrtc::SctpTransportInterface> sctp_transport,
+    webrtc::scoped_refptr<webrtc::SctpTransportInterface> sctp_transport,
     Delegate* delegate) {
   DCHECK(proxy_thread->BelongsToCurrentThread());
   std::unique_ptr<SctpTransportProxy> proxy =
@@ -39,25 +39,25 @@ SctpTransportProxy::SctpTransportProxy(
     LocalFrame& frame,
     scoped_refptr<base::SingleThreadTaskRunner> proxy_thread,
     scoped_refptr<base::SingleThreadTaskRunner> host_thread,
-    rtc::scoped_refptr<webrtc::SctpTransportInterface> sctp_transport,
+    webrtc::scoped_refptr<webrtc::SctpTransportInterface> sctp_transport,
     Delegate* delegate)
     : proxy_thread_(std::move(proxy_thread)),
       host_thread_(std::move(host_thread)),
       sctp_transport_(std::move(sctp_transport)),
-      delegate_(delegate) {}
+      delegate_(MakeUnwrappingCrossThreadHandle(delegate)) {}
 
 void SctpTransportProxy::StartOnHostThread() {
   DCHECK(host_thread_->BelongsToCurrentThread());
   sctp_transport_->RegisterObserver(this);
   PostCrossThreadTask(
       *proxy_thread_, FROM_HERE,
-      CrossThreadBindOnce(&Delegate::OnStartCompleted, delegate_,
+      CrossThreadBindOnce(&Delegate::OnStartCompleted,
+                          MakeUnwrappingCrossThreadHandle(delegate_),
                           sctp_transport_->Information()));
 }
 
 void SctpTransportProxy::OnStateChange(webrtc::SctpTransportInformation info) {
   DCHECK(host_thread_->BelongsToCurrentThread());
-  DCHECK(delegate_);
   // Closed is the last state that can happen, so unregister when we see this.
   // Unregistering allows us to safely delete the proxy independent of the
   // state of the webrtc::SctpTransport.
@@ -66,10 +66,11 @@ void SctpTransportProxy::OnStateChange(webrtc::SctpTransportInformation info) {
   }
   PostCrossThreadTask(
       *proxy_thread_, FROM_HERE,
-      CrossThreadBindOnce(&Delegate::OnStateChange, delegate_, info));
+      CrossThreadBindOnce(&Delegate::OnStateChange,
+                          MakeUnwrappingCrossThreadHandle(delegate_), info));
   if (info.state() == webrtc::SctpTransportState::kClosed) {
     // Don't hold on to |delegate| any more.
-    delegate_ = nullptr;
+    delegate_.Clear();
   }
 }
 

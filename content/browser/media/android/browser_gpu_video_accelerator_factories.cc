@@ -24,35 +24,25 @@ void OnGpuChannelEstablished(
     GpuVideoAcceleratorFactoriesCallback callback,
     scoped_refptr<gpu::GpuChannelHost> gpu_channel_host) {
   gpu::ContextCreationAttribs attributes;
-  attributes.alpha_size = -1;
-  attributes.red_size = 8;
-  attributes.green_size = 8;
-  attributes.blue_size = 8;
-  attributes.stencil_size = 0;
-  attributes.depth_size = 0;
-  attributes.samples = 0;
-  attributes.sample_buffers = 0;
   attributes.bind_generates_resource = false;
   attributes.enable_raster_interface = true;
-
-  gpu::GpuChannelEstablishFactory* factory =
-      BrowserMainLoop::GetInstance()->gpu_channel_establish_factory();
+  attributes.enable_gpu_rasterization = true;
+  attributes.enable_gles2_interface = false;
+  attributes.enable_grcontext = false;
 
   int32_t stream_id = kGpuStreamIdDefault;
   gpu::SchedulingPriority stream_priority = kGpuStreamPriorityUI;
 
   constexpr bool automatic_flushes = false;
   constexpr bool support_locking = false;
-  constexpr bool support_grcontext = true;
 
   auto context_provider =
       base::MakeRefCounted<viz::ContextProviderCommandBuffer>(
-          std::move(gpu_channel_host), factory->GetGpuMemoryBufferManager(),
-          stream_id, stream_priority, gpu::kNullSurfaceHandle,
+          std::move(gpu_channel_host), stream_id, stream_priority,
           GURL(std::string("chrome://gpu/"
                            "BrowserGpuVideoAcceleratorFactories::"
                            "CreateGpuVideoAcceleratorFactories")),
-          automatic_flushes, support_locking, support_grcontext,
+          automatic_flushes, support_locking,
           gpu::SharedMemoryLimits::ForMailboxContext(), attributes,
           viz::command_buffer_metrics::ContextType::UNKNOWN);
   context_provider->BindToCurrentSequence();
@@ -152,22 +142,9 @@ BrowserGpuVideoAcceleratorFactories::CreateVideoEncodeAccelerator() {
   return nullptr;
 }
 
-std::unique_ptr<gfx::GpuMemoryBuffer>
-BrowserGpuVideoAcceleratorFactories::CreateGpuMemoryBuffer(
-    const gfx::Size& size,
-    gfx::BufferFormat format,
-    gfx::BufferUsage usage) {
-  return nullptr;
-}
-
 bool BrowserGpuVideoAcceleratorFactories::
     ShouldUseGpuMemoryBuffersForVideoFrames(bool for_media_stream) const {
   return false;
-}
-
-unsigned BrowserGpuVideoAcceleratorFactories::ImageTextureTarget(
-    gfx::BufferFormat format) {
-  return -1;
 }
 
 media::GpuVideoAcceleratorFactories::OutputFormat
@@ -179,13 +156,6 @@ BrowserGpuVideoAcceleratorFactories::VideoFrameOutputFormat(
 gpu::SharedImageInterface*
 BrowserGpuVideoAcceleratorFactories::SharedImageInterface() {
   NOTREACHED();
-  return nullptr;
-}
-
-gpu::GpuMemoryBufferManager*
-BrowserGpuVideoAcceleratorFactories::GpuMemoryBufferManager() {
-  NOTREACHED();
-  return nullptr;
 }
 
 base::UnsafeSharedMemoryRegion
@@ -198,10 +168,15 @@ BrowserGpuVideoAcceleratorFactories::GetTaskRunner() {
   return nullptr;
 }
 
-absl::optional<media::VideoEncodeAccelerator::SupportedProfiles>
+std::optional<media::VideoEncodeAccelerator::SupportedProfiles>
 BrowserGpuVideoAcceleratorFactories::
     GetVideoEncodeAcceleratorSupportedProfiles() {
   return media::VideoEncodeAccelerator::SupportedProfiles();
+}
+
+std::optional<media::SupportedVideoDecoderConfigs>
+BrowserGpuVideoAcceleratorFactories::GetSupportedVideoDecoderConfigs() {
+  return std::nullopt;
 }
 
 bool BrowserGpuVideoAcceleratorFactories::IsEncoderSupportKnown() {

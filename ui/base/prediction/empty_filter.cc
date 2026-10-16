@@ -7,8 +7,8 @@
 
 namespace ui {
 
-EmptyFilter::EmptyFilter() {}
-EmptyFilter::~EmptyFilter() {}
+EmptyFilter::EmptyFilter() = default;
+EmptyFilter::~EmptyFilter() = default;
 
 bool EmptyFilter::Filter(const base::TimeTicks& timestamp,
                          gfx::PointF* position) const {
@@ -18,11 +18,5 @@ bool EmptyFilter::Filter(const base::TimeTicks& timestamp,
 const char* EmptyFilter::GetName() const {
   return features::kFilterNameEmpty;
 }
-
-InputFilter* EmptyFilter::Clone() {
-  return new EmptyFilter();
-}
-
-void EmptyFilter::Reset() {}
 
 }  // namespace ui

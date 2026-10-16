@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/threading/scoped_blocking_call_internal.h"
 
 #include <algorithm>
@@ -20,18 +25,17 @@
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/base/attributes.h"
 
 namespace base {
 namespace internal {
 
 namespace {
 
-ABSL_CONST_INIT thread_local BlockingObserver* blocking_observer = nullptr;
+constinit thread_local BlockingObserver* blocking_observer = nullptr;
 
 // Last ScopedBlockingCall instantiated on this thread.
-ABSL_CONST_INIT thread_local UncheckedScopedBlockingCall*
-    last_scoped_blocking_call = nullptr;
+constinit thread_local UncheckedScopedBlockingCall* last_scoped_blocking_call =
+    nullptr;
 
 // These functions can be removed, and the calls below replaced with direct
 // variable accesses, once the MSAN workaround is not necessary.
@@ -144,8 +148,9 @@ IOJankMonitoringWindow::MonitorNextJankWindowIfNecessary(TimeTicks recent_now) {
   {
     AutoLock lock(current_jank_window_lock());
 
-    if (!reporting_callback_storage())
+    if (!reporting_callback_storage()) {
       return nullptr;
+    }
 
     scoped_refptr<IOJankMonitoringWindow>& current_jank_window_ref =
         current_jank_window_storage();
@@ -199,7 +204,7 @@ IOJankMonitoringWindow::MonitorNextJankWindowIfNecessary(TimeTicks recent_now) {
   // beats us to it. Adjust the timing to alleviate any drift in the timer. Do
   // this outside the lock to avoid scheduling tasks while holding it.
   ThreadPool::PostDelayedTask(
-      FROM_HERE, BindOnce([]() {
+      FROM_HERE, BindOnce([] {
         IOJankMonitoringWindow::MonitorNextJankWindowIfNecessary(
             TimeTicks::Now());
       }),
@@ -211,8 +216,9 @@ IOJankMonitoringWindow::MonitorNextJankWindowIfNecessary(TimeTicks recent_now) {
 // NO_THREAD_SAFETY_ANALYSIS because ~RefCountedThreadSafe() guarantees we're
 // the last ones to access this state (and ordered after all other accesses).
 IOJankMonitoringWindow::~IOJankMonitoringWindow() NO_THREAD_SAFETY_ANALYSIS {
-  if (canceled_)
+  if (canceled_) {
     return;
+  }
 
   int janky_intervals_count = 0;
   int total_jank_count = 0;
@@ -238,13 +244,15 @@ void IOJankMonitoringWindow::OnBlockingCallCompleted(TimeTicks call_start,
   // comparison operators).
   DCHECK_LE(call_start, call_end);
 
-  if (call_end - call_start < kIOJankInterval)
+  if (call_end - call_start < kIOJankInterval) {
     return;
+  }
 
   // Make sure the chain of |next_| pointers is sufficient to reach
   // |call_end| (e.g. if this runs before the delayed task kicks in)
-  if (call_end >= start_time_ + kMonitoringWindow)
+  if (call_end >= start_time_ + kMonitoringWindow) {
     MonitorNextJankWindowIfNecessary(call_end);
+  }
 
   // Begin attributing jank to the first interval in which it appeared, no
   // matter how far into the interval the jank began.
@@ -275,8 +283,9 @@ void IOJankMonitoringWindow::AddJank(int local_jank_start_index,
     // unconditionally as it is only thread-safe to read |canceled| in
     // ~IOJankMonitoringWindow().
     AutoLock lock(intervals_lock_);
-    for (int i = local_jank_start_index; i < local_jank_end_index; ++i)
+    for (int i = local_jank_start_index; i < local_jank_end_index; ++i) {
       ++intervals_jank_count_[i];
+    }
   }
 
   if (jank_end_index != local_jank_end_index) {
@@ -355,8 +364,9 @@ UncheckedScopedBlockingCall::~UncheckedScopedBlockingCall() {
   // prevents side effect.
   ScopedClearLastError save_last_error;
   DCHECK_EQ(this, GetLastScopedBlockingCall());
-  if (blocking_observer_ && !previous_scoped_blocking_call_)
+  if (blocking_observer_ && !previous_scoped_blocking_call_) {
     blocking_observer_->BlockingEnded();
+  }
 }
 
 }  // namespace internal

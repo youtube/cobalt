@@ -11,6 +11,7 @@
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/test/profile_test_helper.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
+#include "chrome/test/interaction/interactive_browser_test.h"
 
 class KeyedService;
 
@@ -27,7 +28,8 @@ namespace ash {
 enum class SystemWebAppType;
 class SystemWebAppManager;
 
-class SystemWebAppBrowserTestBase : public MixinBasedInProcessBrowserTest {
+class SystemWebAppBrowserTestBase
+    : public InteractiveBrowserTestT<MixinBasedInProcessBrowserTest> {
  public:
   // Subclasses should call |SetSystemWebAppInstallation| in their constructor
   // to specify a test system web app to install.
@@ -106,8 +108,6 @@ class SystemWebAppBrowserTestBase : public MixinBasedInProcessBrowserTest {
   content::WebContents* LaunchApp(apps::AppLaunchParams&& params,
                                   bool wait_for_load,
                                   Browser** out_browser);
-
-  web_app::OsIntegrationManager::ScopedSuppressForTesting os_hooks_suppress_;
 
   std::unique_ptr<TestSystemWebAppInstallation> installation_ = nullptr;
 };

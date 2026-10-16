@@ -18,9 +18,39 @@
 #include "gpu/command_buffer/service/texture_manager.h"
 #include "gpu/config/gpu_preferences.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include <algorithm>
+
+#include "base/feature_list.h"
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace gpu {
 
 size_t DiscardableCacheSizeLimit() {
+#if BUILDFLAG(IS_COBALT)
+  // When kCobaltGpuDiscardableCacheLimit is enabled, which is the default on
+  // 3P/Starboard platforms, Cobalt replaces the upstream per-platform defaults
+  // below with a single Finch-controlled limit. It is disabled by default on
+  // Android TV, where Cobalt runs in low-end device mode and already gets 1 MB
+  // below. Callers only reach this function when
+  // --force-gpu-mem-discardable-limit-mb is unset, so that switch still takes
+  // precedence. A negative parameter is invalid and falls back to the upstream
+  // defaults.
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltGpuDiscardableCacheLimit)) {
+    const int limit_mb =
+        base::features::kCobaltGpuDiscardableCacheLimitMb.Get();
+    if (limit_mb >= 0) {
+      // Values above 256 MB, the largest upstream default (kLargeCacheSizeBytes
+      // below), are capped. This also keeps the byte count within a 32-bit
+      // size_t.
+      constexpr int kMaxLimitMb = 256;
+      return static_cast<size_t>(std::min(limit_mb, kMaxLimitMb)) * 1024 * 1024;
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
 // Cache size values are designed to roughly correspond to existing image cache
 // sizes for 1-1.5 renderers. These will be updated as more types of data are
 // moved to this cache.
@@ -67,7 +97,6 @@ size_t DiscardableCacheSizeLimitForPressure(
 
     default:
       NOTREACHED();
-      return 0;
   }
 }
 
@@ -113,7 +142,7 @@ bool ServiceDiscardableManager::OnMemoryDump(
   using base::trace_event::MemoryAllocatorDump;
   using base::trace_event::MemoryDumpLevelOfDetail;
 
-  if (args.level_of_detail == MemoryDumpLevelOfDetail::BACKGROUND) {
+  if (args.level_of_detail == MemoryDumpLevelOfDetail::kBackground) {
     std::string dump_name =
         base::StringPrintf("gpu/discardable_cache/cache_0x%" PRIXPTR,
                            reinterpret_cast<uintptr_t>(this));
@@ -292,7 +321,7 @@ bool ServiceDiscardableManager::IsEntryLockedForTesting(
     uint32_t texture_id,
     gles2::TextureManager* texture_manager) const {
   auto found = entries_.Peek({texture_id, texture_manager});
-  DCHECK(found != entries_.end());
+  CHECK(found != entries_.end());
 
   return found->second.handle.IsLockedForTesting();
 }
@@ -301,7 +330,7 @@ gles2::TextureRef* ServiceDiscardableManager::UnlockedTextureRefForTesting(
     uint32_t texture_id,
     gles2::TextureManager* texture_manager) const {
   auto found = entries_.Peek({texture_id, texture_manager});
-  DCHECK(found != entries_.end());
+  CHECK(found != entries_.end());
 
   return found->second.unlocked_texture_ref.get();
 }

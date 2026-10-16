@@ -6,14 +6,14 @@
 
 #include <cmath>
 #include <cstddef>
+#include <string_view>
 #include <utility>
 
 #include "base/strings/string_util.h"
 #include "base/values.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace base {
-namespace trace_event {
+namespace base::trace_event {
 
 TEST(TraceEventArgumentTest, InitializerListCreatedContainers) {
   std::string json;
@@ -125,9 +125,8 @@ TEST(TraceEventArgumentTest, StringAndPointerConstructors) {
           {"literal_var", "literal"},
           {"std_string_var", std::string("std::string value")},
           {"string_from_function", SayHello()},
-          {"string_from_lambda", []() { return std::string("hello"); }()},
-          {"base_string_piece_var",
-           base::StringPiece("base::StringPiece value")},
+          {"string_from_lambda", [] { return std::string("hello"); }()},
+          {"base_string_piece_var", std::string_view("std::string_view value")},
           {"const_char_ptr_var", const_char_ptr_var},
           {"void_nullptr", static_cast<void*>(nullptr)},
           {"int_nullptr", static_cast<int*>(nullptr)},
@@ -139,7 +138,7 @@ TEST(TraceEventArgumentTest, StringAndPointerConstructors) {
       "\"std_string_var\":\"std::string value\","
       "\"string_from_function\":\"hello world\","
       "\"string_from_lambda\":\"hello\","
-      "\"base_string_piece_var\":\"base::StringPiece value\","
+      "\"base_string_piece_var\":\"std::string_view value\","
       "\"const_char_ptr_var\":\"const char* value\","
       "\"void_nullptr\":\"0x0\","
       "\"int_nullptr\":\"0x0\","
@@ -207,10 +206,11 @@ TEST(TraceEventArgumentTest, Hierarchy) {
 TEST(TraceEventArgumentTest, LongStrings) {
   std::string kLongString = "supercalifragilisticexpialidocious";
   std::string kLongString2 = "0123456789012345678901234567890123456789";
-  char kLongString3[4096];
-  for (size_t i = 0; i < sizeof(kLongString3); ++i)
+  std::array<char, 4096> kLongString3;
+  for (size_t i = 0; i < kLongString3.size(); ++i) {
     kLongString3[i] = 'a' + (i % 25);
-  kLongString3[sizeof(kLongString3) - 1] = '\0';
+  }
+  kLongString3.back() = '\0';
 
   std::unique_ptr<TracedValue> value(new TracedValue());
   value->SetString("a", "short");
@@ -219,14 +219,15 @@ TEST(TraceEventArgumentTest, LongStrings) {
   value->AppendString(kLongString2);
   value->AppendString("");
   value->BeginDictionary();
-  value->SetString("a", kLongString3);
+  value->SetString("a", kLongString3.data());
   value->EndDictionary();
   value->EndArray();
 
   std::string json;
   value->AppendAsTraceFormat(&json);
   EXPECT_EQ("{\"a\":\"short\",\"b\":\"" + kLongString + "\",\"c\":[\"" +
-                kLongString2 + "\",\"\",{\"a\":\"" + kLongString3 + "\"}]}",
+                kLongString2 + "\",\"\",{\"a\":\"" + kLongString3.data() +
+                "\"}]}",
             json);
 }
 
@@ -285,5 +286,4 @@ TEST(TraceEventArgumentTest, NanAndInfinityJSON) {
       formatted_json);
 }
 
-}  // namespace trace_event
-}  // namespace base
+}  // namespace base::trace_event

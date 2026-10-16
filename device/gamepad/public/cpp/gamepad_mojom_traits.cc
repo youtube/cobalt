@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "device/gamepad/public/cpp/gamepad_mojom_traits.h"
 
 #include "base/containers/span.h"
@@ -76,8 +81,6 @@ EnumTraits<device::mojom::GamepadHapticActuatorType,
   }
 
   NOTREACHED();
-  return device::mojom::GamepadHapticActuatorType::
-      GamepadHapticActuatorTypeVibration;
 }
 
 // static
@@ -101,7 +104,6 @@ bool EnumTraits<device::mojom::GamepadHapticActuatorType,
   }
 
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -187,7 +189,6 @@ EnumTraits<device::mojom::GamepadMapping, device::GamepadMapping>::ToMojom(
   }
 
   NOTREACHED();
-  return device::mojom::GamepadMapping::GamepadMappingNone;
 }
 
 // static
@@ -207,7 +208,6 @@ bool EnumTraits<device::mojom::GamepadMapping, device::GamepadMapping>::
   }
 
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -224,7 +224,6 @@ EnumTraits<device::mojom::GamepadHand, device::GamepadHand>::ToMojom(
   }
 
   NOTREACHED();
-  return device::mojom::GamepadHand::GamepadHandNone;
 }
 
 // static
@@ -244,7 +243,6 @@ bool EnumTraits<device::mojom::GamepadHand, device::GamepadHand>::FromMojom(
   }
 
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -255,7 +253,7 @@ StructTraits<device::mojom::GamepadDataView, device::Gamepad>::id(
   while (id_length < device::Gamepad::kIdLengthCap && r.id[id_length] != 0) {
     id_length++;
   }
-  return base::make_span(reinterpret_cast<const uint16_t*>(r.id), id_length);
+  return base::span(reinterpret_cast<const uint16_t*>(r.id), id_length);
 }
 
 // static

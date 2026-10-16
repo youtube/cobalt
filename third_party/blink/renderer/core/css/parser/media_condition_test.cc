@@ -5,9 +5,9 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/css/media_list.h"
 #include "third_party/blink/renderer/core/css/media_query.h"
+#include "third_party/blink/renderer/core/css/parser/css_parser_token_stream.h"
 #include "third_party/blink/renderer/core/css/parser/css_tokenizer.h"
 #include "third_party/blink/renderer/core/css/parser/media_query_parser.h"
-#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 namespace blink {
@@ -43,22 +43,18 @@ TEST(MediaConditionParserTest, Basic) {
       {"(width: 1px), screen", "not all"},
       {"screen, (width: 1px)", "not all"},
       {"screen, (width: 1px), print", "not all"},
-
-      {nullptr, nullptr}  // Do not remove the terminator line.
   };
 
-  for (unsigned i = 0; test_cases[i].input; ++i) {
-    SCOPED_TRACE(test_cases[i].input);
-    StringView str(test_cases[i].input);
-    CSSTokenizer tokenizer(str);
-    const auto [tokens, offsets] = tokenizer.TokenizeToEOFWithOffsets();
+  for (const MediaConditionTestCase& test_case : test_cases) {
+    SCOPED_TRACE(test_case.input);
+    StringView str(test_case.input);
+    CSSParserTokenStream stream(str);
     MediaQuerySet* media_condition_query_set =
-        MediaQueryParser::ParseMediaCondition(
-            CSSParserTokenRange(tokens),
-            CSSParserTokenOffsets(tokens, std::move(offsets), str), nullptr);
-    String query_text = media_condition_query_set->MediaText();
+        MediaQueryParser::ParseMediaCondition(stream, nullptr);
+    String query_text =
+        stream.AtEnd() ? media_condition_query_set->MediaText() : "not all";
     const char* expected_text =
-        test_cases[i].output ? test_cases[i].output : test_cases[i].input;
+        test_case.output ? test_case.output : test_case.input;
     EXPECT_EQ(String(expected_text), query_text);
   }
 }

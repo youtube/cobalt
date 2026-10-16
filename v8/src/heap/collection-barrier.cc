@@ -4,23 +4,24 @@
 
 #include "src/heap/collection-barrier.h"
 
+#include <memory>
+
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
-#include "src/execution/isolate.h"
+#include "src/execution/isolate-inl.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
-#include "src/heap/local-heap.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope.h"
 
 namespace v8 {
 namespace internal {
 
-CollectionBarrier::CollectionBarrier(Heap* heap)
-    : heap_(heap),
-      foreground_task_runner_(V8::GetCurrentPlatform()->GetForegroundTaskRunner(
-          reinterpret_cast<v8::Isolate*>(heap->isolate()))) {}
+CollectionBarrier::CollectionBarrier(
+    Heap* heap, std::shared_ptr<v8::TaskRunner> foreground_task_runner)
+    : heap_(heap), foreground_task_runner_(foreground_task_runner) {}
 
 bool CollectionBarrier::WasGCRequested() {
   return collection_requested_.load();
@@ -52,7 +53,12 @@ class BackgroundCollectionInterruptTask : public CancelableTask {
 
  private:
   // v8::internal::CancelableTask overrides.
-  void RunInternal() override { heap_->CheckCollectionRequested(); }
+  void RunInternal() override {
+    // Set the current isolate such that trusted pointer tables etc are
+    // available and the cage base is set correctly for multi-cage mode.
+    SetCurrentIsolateScope isolate_scope(heap_->isolate());
+    heap_->CheckCollectionRequested();
+  }
 
   Heap* heap_;
 };
@@ -109,16 +115,23 @@ bool CollectionBarrier::AwaitCollectionBackground(LocalHeap* local_heap) {
         std::make_unique<BackgroundCollectionInterruptTask>(heap_));
   }
 
-  ParkedScope scope(local_heap);
-  base::MutexGuard guard(&mutex_);
+  bool collection_performed = false;
+  local_heap->ExecuteWhileParked([this, &collection_performed]() {
+    base::MutexGuard guard(&mutex_);
 
-  while (block_for_collection_) {
-    if (shutdown_requested_) return false;
-    cv_wakeup_.Wait(&mutex_);
-  }
+    while (block_for_collection_) {
+      if (shutdown_requested_) {
+        collection_performed = false;
+        return;
+      }
+      cv_wakeup_.Wait(&mutex_);
+    }
 
-  // Collection may have been cancelled while blocking for it.
-  return collection_performed_;
+    // Collection may have been cancelled while blocking for it.
+    collection_performed = collection_performed_;
+  });
+
+  return collection_performed;
 }
 
 void CollectionBarrier::StopTimeToCollectionTimer() {

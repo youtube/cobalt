@@ -8,46 +8,55 @@ import android.content.Context;
 import android.content.res.ColorStateList;
 
 import androidx.annotation.ColorInt;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 import org.chromium.base.ObserverList;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 
-/**
- * An abstract class that provides the current theme color.
- */
+/** An abstract class that provides the current theme color. */
+@NullMarked
 public abstract class ThemeColorProvider {
-    /**
-     * An interface to be notified about changes to the theme color.
-     */
+    /** An interface to be notified about changes to the theme color. */
     public interface ThemeColorObserver {
         /**
          * @param color The new color the observer should use.
          * @param shouldAnimate Whether the change of color should be animated.
          */
-        void onThemeColorChanged(int color, boolean shouldAnimate);
+        void onThemeColorChanged(@ColorInt int color, boolean shouldAnimate);
     }
 
-    /**
-     * An interface to be notified about changes to the tint.
-     */
+    /** An interface to be notified about changes to the tint. */
     public interface TintObserver {
         /**
-         * @param tint The new tint the observer should use.
+         * @param tint The new tint the observer should use, without applying Activity state
+         *     (focused vs unfocused) rules. This should be used for elements that don't adjust tint
+         *     based on Activity focus.
+         * @param activityFocusTint The tint the observer should use including consideration for
+         *     whether the Activity is focused. This should be used for elements that do adjust tint
+         *     based on Activity focus.
          * @param brandedColorScheme The {@link BrandedColorScheme} the observer should use.
          */
-        void onTintChanged(ColorStateList tint, @BrandedColorScheme int brandedColorScheme);
+        void onTintChanged(
+                @Nullable ColorStateList tint,
+                @Nullable ColorStateList activityFocusTint,
+                @BrandedColorScheme int brandedColorScheme);
     }
 
     /** Current primary color. */
-    private int mPrimaryColor;
+    private @ColorInt int mPrimaryColor;
 
-    /** The current {@link BrandedColorScheme}. */
+    /** The {@link BrandedColorScheme} for the current theme. */
     private @Nullable @BrandedColorScheme Integer mBrandedColorScheme;
 
-    /** The current tint. */
-    private ColorStateList mTint;
+    /**
+     * The primary icon tint for the current theme, that does not take the activity focus state into
+     * account.
+     */
+    private @Nullable ColorStateList mTint;
+
+    /** The icon tint for the current theme, that takes the activity focus state into account. */
+    private @Nullable ColorStateList mActivityFocusTint;
 
     /** List of {@link ThemeColorObserver}s. These are used to broadcast events to listeners. */
     private final ObserverList<ThemeColorObserver> mThemeColorObservers;
@@ -59,14 +68,14 @@ public abstract class ThemeColorProvider {
      * @param context The {@link Context} that is used to retrieve color related resources.
      */
     public ThemeColorProvider(Context context) {
-        mThemeColorObservers = new ObserverList<ThemeColorObserver>();
-        mTintObservers = new ObserverList<TintObserver>();
+        mThemeColorObservers = new ObserverList<>();
+        mTintObservers = new ObserverList<>();
         mTint = ThemeUtils.getThemedToolbarIconTint(context, BrandedColorScheme.APP_DEFAULT);
     }
 
     /**
      * @param observer Adds a {@link ThemeColorObserver} that will be notified when the theme color
-     *                 changes. This method does not trigger the observer.
+     *     changes. This method does not trigger the observer.
      */
     public void addThemeColorObserver(ThemeColorObserver observer) {
         mThemeColorObservers.addObserver(observer);
@@ -97,16 +106,23 @@ public abstract class ThemeColorProvider {
     /**
      * @return The current theme color of this provider.
      */
-    @ColorInt
-    public int getThemeColor() {
+    public @ColorInt int getThemeColor() {
         return mPrimaryColor;
     }
 
     /**
-     * @return The current tint of this provider.
+     * @return The current tint of this provider, that does not take the activity focus state into
+     *     account.
      */
-    public ColorStateList getTint() {
+    public @Nullable ColorStateList getTint() {
         return mTint;
+    }
+
+    /**
+     * @return The tint that takes the current activity's focus state into account.
+     */
+    public @Nullable ColorStateList getActivityFocusTint() {
+        return mActivityFocusTint;
     }
 
     /**
@@ -116,15 +132,13 @@ public abstract class ThemeColorProvider {
         return mBrandedColorScheme != null ? mBrandedColorScheme : BrandedColorScheme.APP_DEFAULT;
     }
 
-    /**
-     * Clears out the observer lists.
-     */
+    /** Clears out the observer lists. */
     public void destroy() {
         mThemeColorObservers.clear();
         mTintObservers.clear();
     }
 
-    protected void updatePrimaryColor(int color, boolean shouldAnimate) {
+    protected void updatePrimaryColor(@ColorInt int color, boolean shouldAnimate) {
         if (mPrimaryColor == color) return;
         mPrimaryColor = color;
         for (ThemeColorObserver observer : mThemeColorObservers) {
@@ -133,13 +147,16 @@ public abstract class ThemeColorProvider {
     }
 
     protected void updateTint(
-            @NonNull ColorStateList tint, @BrandedColorScheme int brandedColorScheme) {
-        if (tint == mTint) return;
+            @Nullable ColorStateList tint,
+            @Nullable ColorStateList activityFocusTint,
+            @BrandedColorScheme int brandedColorScheme) {
+        if (tint == mTint && activityFocusTint == mActivityFocusTint) return;
         mTint = tint;
+        mActivityFocusTint = activityFocusTint;
         mBrandedColorScheme = brandedColorScheme;
 
         for (TintObserver observer : mTintObservers) {
-            observer.onTintChanged(tint, brandedColorScheme);
+            observer.onTintChanged(tint, activityFocusTint, brandedColorScheme);
         }
     }
 }

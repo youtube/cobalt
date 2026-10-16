@@ -4,6 +4,7 @@
 
 #include <stddef.h>
 
+#include <array>
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
@@ -34,8 +35,8 @@ void AddGalleryPermission(MediaGalleryPrefId gallery,
 // Test the MediaGalleries permissions functions.
 class MediaGalleriesPermissionsTest : public extensions::ExtensionPrefsTest {
  protected:
-  MediaGalleriesPermissionsTest() {}
-  ~MediaGalleriesPermissionsTest() override {}
+  MediaGalleriesPermissionsTest() = default;
+  ~MediaGalleriesPermissionsTest() override = default;
 
   // This is the same implementation as ExtensionPrefsTest::TearDown(), except
   // for also resetting the ExtensionPrefs used by |gallery_prefs_| after
@@ -115,10 +116,12 @@ class MediaGalleriesPermissionsTest : public extensions::ExtensionPrefsTest {
       raw_ptr<std::vector<MediaGalleryPermission>> expectation;
     };
 
-    const TestData test_data[] = {{&extension1_id_, &extension1_expectation_},
-                                  {&extension2_id_, &extension2_expectation_},
-                                  {&extension3_id_, &extension3_expectation_},
-                                  {&extension4_id_, &extension4_expectation_}};
+    const auto test_data = std::to_array<TestData>({
+        {&extension1_id_, &extension1_expectation_},
+        {&extension2_id_, &extension2_expectation_},
+        {&extension3_id_, &extension3_expectation_},
+        {&extension4_id_, &extension4_expectation_},
+    });
     for (size_t i = 0; i < std::size(test_data); i++) {
       std::vector<MediaGalleryPermission> actual =
           gallery_prefs_->GetGalleryPermissionsFromPrefs(*test_data[i].id);

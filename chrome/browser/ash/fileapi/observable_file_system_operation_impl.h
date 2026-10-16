@@ -19,6 +19,7 @@ class ObservableFileSystemOperationImpl
  public:
   ObservableFileSystemOperationImpl(
       const AccountId& account_id,
+      storage::OperationType type,
       const storage::FileSystemURL& url,
       storage::FileSystemContext* file_system_context,
       std::unique_ptr<storage::FileSystemOperationContext> operation_context);
@@ -30,18 +31,6 @@ class ObservableFileSystemOperationImpl
 
  private:
   // storage::FileSystemOperationImpl:
-  void Copy(const storage::FileSystemURL& src,
-            const storage::FileSystemURL& dst,
-            CopyOrMoveOptionSet options,
-            ErrorBehavior error_behavior,
-            std::unique_ptr<storage::CopyOrMoveHookDelegate>
-                copy_or_move_hook_delegate,
-            StatusCallback callback) override;
-  void CopyFileLocal(const storage::FileSystemURL& src,
-                     const storage::FileSystemURL& dst,
-                     CopyOrMoveOptionSet options,
-                     const CopyFileProgressCallback& progress_callback,
-                     StatusCallback callback) override;
   void Move(const storage::FileSystemURL& src,
             const storage::FileSystemURL& dst,
             CopyOrMoveOptionSet options,

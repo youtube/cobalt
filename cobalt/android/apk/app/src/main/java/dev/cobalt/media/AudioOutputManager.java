@@ -24,29 +24,30 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Build;
+import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.util.Log;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.atomic.AtomicBoolean;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /** Creates and destroys AudioTrackBridge and handles the volume change. */
 @JNINamespace("starboard")
 public class AudioOutputManager {
-  private List<AudioTrackBridge> audioTrackBridgeList;
-  private Context context;
+  @NonNull private final List<AudioTrackBridge> mAudioTrackBridgeList;
+  private final Context mContext;
 
-  AtomicBoolean hasAudioDeviceChanged = new AtomicBoolean(false);
-  boolean hasRegisteredAudioDeviceCallback = false;
+  boolean mHasRegisteredAudioDeviceCallback = false;
 
   public AudioOutputManager(Context context) {
-    this.context = context;
-    audioTrackBridgeList = new ArrayList<AudioTrackBridge>();
+    mContext = context;
+    // CopyOnWriteArrayList allows thread-safe UI iteration without locking native threads.
+    mAudioTrackBridgeList = new CopyOnWriteArrayList<AudioTrackBridge>();
   }
 
   @CalledByNative
@@ -54,6 +55,7 @@ public class AudioOutputManager {
       int sampleType,
       int sampleRate,
       int channelCount,
+      int maxSamplesPerWrite,
       int preferredBufferSizeInBytes,
       int tunnelModeAudioSessionId,
       boolean isWebAudio) {
@@ -62,6 +64,7 @@ public class AudioOutputManager {
             sampleType,
             sampleRate,
             channelCount,
+            maxSamplesPerWrite,
             preferredBufferSizeInBytes,
             tunnelModeAudioSessionId,
             isWebAudio);
@@ -69,37 +72,66 @@ public class AudioOutputManager {
       Log.e(TAG, "AudioTrackBridge has invalid audio track");
       return null;
     }
-    audioTrackBridgeList.add(audioTrackBridge);
-    hasAudioDeviceChanged.set(false);
+    mAudioTrackBridgeList.add(audioTrackBridge);
 
-    if (hasRegisteredAudioDeviceCallback || isWebAudio) {
+    if (mHasRegisteredAudioDeviceCallback || isWebAudio) {
       return audioTrackBridge;
     }
 
-    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
     audioManager.registerAudioDeviceCallback(
         new AudioDeviceCallback() {
           // Since registering a callback triggers an immediate call to onAudioDevicesAdded() with
-          // current devices, don't set |hasAudioDeviceChanged| for this initial call.
-          private boolean initialDevicesAdded = false;
+          // current devices, don't notify tracks for this initial call.
+          private boolean mInitialDevicesAdded = false;
 
-          private void handleConnectedDeviceChange(AudioDeviceInfo[] devices) {
+          private void handleConnectedDeviceChange(AudioDeviceInfo[] devices, boolean isAdded) {
+            AudioDeviceInfo relevantDevice = null;
             for (AudioDeviceInfo info : devices) {
               // TODO: Determine if AudioDeviceInfo.TYPE_HDMI_EARC should be checked in API 31.
               if (info.isSink()
                   && (info.getType() == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
                       || info.getType() == AudioDeviceInfo.TYPE_HDMI_ARC
                       || info.getType() == AudioDeviceInfo.TYPE_HDMI)) {
-                // TODO: Avoid destroying the AudioTrack if the new devices can support the current
-                // AudioFormat.
-                Log.v(
-                    TAG,
-                    "Setting |hasAudioDeviceChanged| to true for audio device %s, %s.",
-                    info.getProductName(),
-                    getDeviceTypeName(info.getType()));
-                hasAudioDeviceChanged.set(true);
+                relevantDevice = info;
                 break;
               }
+            }
+            if (relevantDevice == null) {
+              return;
+            }
+
+            String eventName = isAdded ? "added" : "removed";
+            // If all active audio tracks are PCM and seamless switching is enabled, Android OS
+            // automatically handles dynamic routing (e.g. to Bluetooth A2DP or built-in speakers)
+            // without requiring player recreation. While player recreation is avoided, an audio
+            // sink flush (RESET_AND_CONTINUE) is still performed to reset timestamps and latency.
+            // Only flag player recreation (RESTART_PLAYER) if seamless switching is disabled or
+            // there is an active passthrough track that cannot be routed to incompatible sinks.
+            if (AudioOutputManagerJni.get().isSeamlessAudioSwitchingEnabled()
+                && !hasActivePassthroughTrack(mAudioTrackBridgeList)) {
+              Log.i(
+                  TAG,
+                  "Audio device %s: %s (%s). Notifying active tracks (RESET_AND_CONTINUE) "
+                      + "for seamless PCM playback.",
+                  eventName,
+                  relevantDevice.getProductName(),
+                  getDeviceTypeName(relevantDevice.getType()));
+              for (AudioTrackBridge bridge : mAudioTrackBridgeList) {
+                bridge.onAudioDeviceChanged(AudioDeviceChange.RESET_AND_CONTINUE);
+              }
+              return;
+            }
+
+            Log.i(
+                TAG,
+                "Audio device %s: %s (%s). Notifying active tracks (RESTART_PLAYER) "
+                    + "to renegotiate audio capabilities.",
+                eventName,
+                relevantDevice.getProductName(),
+                getDeviceTypeName(relevantDevice.getType()));
+            for (AudioTrackBridge bridge : mAudioTrackBridgeList) {
+              bridge.onAudioDeviceChanged(AudioDeviceChange.RESTART_PLAYER);
             }
           }
 
@@ -107,30 +139,30 @@ public class AudioOutputManager {
           public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
             Log.v(
                 TAG,
-                "onAudioDevicesAdded() called, |initialDevicesAdded| is: %b.",
-                initialDevicesAdded);
-            if (initialDevicesAdded) {
-              handleConnectedDeviceChange(addedDevices);
+                "onAudioDevicesAdded() called, |mInitialDevicesAdded| is: %b.",
+                mInitialDevicesAdded);
+            if (mInitialDevicesAdded) {
+              handleConnectedDeviceChange(addedDevices, /* isAdded= */ true);
               return;
             }
-            initialDevicesAdded = true;
+            mInitialDevicesAdded = true;
           }
 
           @Override
           public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
             Log.v(TAG, "onAudioDevicesRemoved() called.");
-            handleConnectedDeviceChange(removedDevices);
+            handleConnectedDeviceChange(removedDevices, /* isAdded= */ false);
           }
         },
         null);
-    hasRegisteredAudioDeviceCallback = true;
+    mHasRegisteredAudioDeviceCallback = true;
     return audioTrackBridge;
   }
 
   @CalledByNative
   void destroyAudioTrackBridge(AudioTrackBridge audioTrackBridge) {
     audioTrackBridge.release();
-    audioTrackBridgeList.remove(audioTrackBridge);
+    mAudioTrackBridgeList.remove(audioTrackBridge);
   }
 
   /** Stores info from AudioDeviceInfo to be passed to the native app. */
@@ -159,7 +191,7 @@ public class AudioOutputManager {
       return false;
     }
 
-    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
     AudioDeviceInfo[] deviceInfos = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
 
     if (index >= 0 && index < deviceInfos.length) {
@@ -188,6 +220,22 @@ public class AudioOutputManager {
       return true;
     }
 
+    return false;
+  }
+
+  private static boolean isPassthroughEncoding(int encoding) {
+    return encoding == AudioFormat.ENCODING_AC3
+        || encoding == AudioFormat.ENCODING_E_AC3
+        || encoding == AudioFormat.ENCODING_E_AC3_JOC;
+  }
+
+  private static boolean hasActivePassthroughTrack(
+      @NonNull List<AudioTrackBridge> audioTrackBridges) {
+    for (AudioTrackBridge bridge : audioTrackBridges) {
+      if (isPassthroughEncoding(bridge.getSampleType())) {
+        return true;
+      }
+    }
     return false;
   }
 
@@ -296,7 +344,7 @@ public class AudioOutputManager {
   public void dumpAllOutputDevices() {
     Log.i(TAG, "Dumping all audio output devices:");
 
-    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
     AudioDeviceInfo[] deviceInfos = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
 
     for (AudioDeviceInfo info : deviceInfos) {
@@ -313,19 +361,9 @@ public class AudioOutputManager {
   /** Returns the minimum buffer size of AudioTrack. */
   @CalledByNative
   int getMinBufferSize(int sampleType, int sampleRate, int channelCount) {
-    int channelConfig;
-    switch (channelCount) {
-      case 1:
-        channelConfig = AudioFormat.CHANNEL_OUT_MONO;
-        break;
-      case 2:
-        channelConfig = AudioFormat.CHANNEL_OUT_STEREO;
-        break;
-      case 6:
-        channelConfig = AudioFormat.CHANNEL_OUT_5POINT1;
-        break;
-      default:
-        throw new RuntimeException("Unsupported channel count: " + channelCount);
+    final int channelConfig = getChannelMaskForChannelCount(channelCount);
+    if (channelConfig == AudioFormat.CHANNEL_INVALID) {
+      throw new RuntimeException("Unsupported channel count: " + channelCount);
     }
     return AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType);
   }
@@ -348,17 +386,55 @@ public class AudioOutputManager {
             sampleSizeInBytes,
             numberOfChannels,
             AudioTrackBridge.AV_SYNC_HEADER_V1_SIZE);
-        return -1;
+        return TunnelModeAudioSessionId.NONE;
       }
     }
-    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
     return audioManager.generateAudioSessionId();
+  }
+
+  /**
+   * Returns whether audio with `encoding`, `sampleRate` and `channelCount` can be played directly
+   * (i.e. without going through the software mixer and resampler of the Android audio framework).
+   *
+   * <p>When `requireHwAvSync` is true, the check uses the same AudioAttributes (with
+   * FLAG_HW_AV_SYNC) as the tunnel mode AudioTrack created in AudioTrackBridge. It always returns
+   * false on API levels lower than 29, where direct playback support cannot be queried.
+   */
+  @CalledByNative
+  boolean getDirectPlaybackSupport(
+      int encoding, int sampleRate, int channelCount, boolean requireHwAvSync) {
+    if (Build.VERSION.SDK_INT < 29) {
+      Log.i(
+          TAG,
+          "getDirectPlaybackSupport() returns false, as direct playback support cannot be queried"
+              + " on api %d.",
+          Build.VERSION.SDK_INT);
+      return false;
+    }
+
+    final AudioAttributes attributes = getDefaultAudioAttributes(requireHwAvSync);
+
+    try {
+      final AudioFormat format = getAudioFormat(encoding, sampleRate, channelCount);
+      return isDirectPlaybackSupported(format, attributes);
+    } catch (IllegalArgumentException e) {
+      Log.w(
+          TAG,
+          "getDirectPlaybackSupport() failed to query encoding %d, sample rate %d, channel count"
+              + " %d: ",
+          encoding,
+          sampleRate,
+          channelCount,
+          e);
+      return false;
+    }
   }
 
   /** Returns whether passthrough on `encoding` is supported. */
   @CalledByNative
   boolean hasPassthroughSupportFor(int encoding) {
-    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+    AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
     AudioDeviceInfo[] deviceInfos = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
 
     // Some devices have issues on reporting playback capability and managing routing when Bluetooth
@@ -376,6 +452,7 @@ public class AudioOutputManager {
 
     // Sample rate is not provided when the function is called, assume it is 48000.
     final int defaultSurroundSampleRate = 48000;
+    final int defaultSurroundChannelCount = 6;
 
     if (hasPassthroughSupportForV23(deviceInfos, encoding)) {
       Log.i(
@@ -393,7 +470,8 @@ public class AudioOutputManager {
             Build.VERSION.SDK_INT);
         return false;
       }
-      if (hasDirectSurroundPlaybackSupportForV29(encoding, defaultSurroundSampleRate)) {
+      if (hasDirectSurroundPlaybackSupportForV29(
+          encoding, defaultSurroundSampleRate, defaultSurroundChannelCount)) {
         Log.i(
             TAG,
             "Passthrough on encoding %d is supported, as"
@@ -414,8 +492,8 @@ public class AudioOutputManager {
     try {
       AudioTrack audioTrack =
           new AudioTrack(
-              getDefaultAudioAttributes(),
-              getPassthroughAudioFormatFor(encoding, defaultSurroundSampleRate),
+              getDefaultAudioAttributes(/* requireHwAvSync= */ false),
+              getAudioFormat(encoding, defaultSurroundSampleRate, defaultSurroundChannelCount),
               AudioTrack.getMinBufferSize(48000, AudioFormat.CHANNEL_OUT_5POINT1, encoding),
               AudioTrack.MODE_STREAM,
               AudioManager.AUDIO_SESSION_ID_GENERATE);
@@ -481,11 +559,13 @@ public class AudioOutputManager {
   }
 
   @RequiresApi(29)
-  /** Returns whether direct playback on surround `encoding` is supported for API 29 and above. */
-  private boolean hasDirectSurroundPlaybackSupportForV29(int encoding, int sampleRate) {
-    if (encoding != AudioFormat.ENCODING_AC3
-        && encoding != AudioFormat.ENCODING_E_AC3
-        && encoding != AudioFormat.ENCODING_E_AC3_JOC) {
+  /**
+   * Returns whether direct playback on surround `encoding` with `sampleRate` and `channelCount` is
+   * supported for API 29 and above.
+   */
+  private boolean hasDirectSurroundPlaybackSupportForV29(
+      int encoding, int sampleRate, int channelCount) {
+    if (!isPassthroughEncoding(encoding)) {
       Log.w(
           TAG,
           "hasDirectSurroundPlaybackSupportForV29() encountered unsupported encoding %d.",
@@ -495,36 +575,83 @@ public class AudioOutputManager {
 
     boolean supported =
         AudioTrack.isDirectPlaybackSupported(
-            getPassthroughAudioFormatFor(encoding, sampleRate), getDefaultAudioAttributes());
+            getAudioFormat(encoding, sampleRate, channelCount),
+            getDefaultAudioAttributes(/* requireHwAvSync= */ false));
     Log.i(TAG, "isDirectPlaybackSupported() for encoding %d returned %b.", encoding, supported);
     return supported;
   }
 
+  /**
+   * Returns whether audio in `format` can be played directly with `attributes`, i.e. without going
+   * through the software mixer of the Android audio framework. Always returns false on API levels
+   * lower than 29, where direct playback support cannot be queried.
+   */
+  private boolean isDirectPlaybackSupported(AudioFormat format, AudioAttributes attributes) {
+    if (Build.VERSION.SDK_INT < 29) {
+      return false;
+    }
+    if (Build.VERSION.SDK_INT < 33) {
+      return AudioTrack.isDirectPlaybackSupported(format, attributes);
+    }
+    // AudioTrack.isDirectPlaybackSupported() is deprecated in API 33.
+    AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+    return audioManager.getDirectPlaybackSupport(format, attributes)
+        != AudioManager.DIRECT_PLAYBACK_NOT_SUPPORTED;
+  }
+
   // TODO: Move utility functions into a separate class.
-  /** Returns AudioFormat for surround `encoding` and `sampleRate`. */
-  static AudioFormat getPassthroughAudioFormatFor(int encoding, int sampleRate) {
+  /**
+   * Returns AudioFormat for `encoding`, `sampleRate` and `channelCount`.
+   *
+   * @throws IllegalArgumentException if `channelCount` isn't supported, or if any of the parameters
+   *     is rejected by AudioFormat.Builder.
+   */
+  static AudioFormat getAudioFormat(int encoding, int sampleRate, int channelCount) {
+    final int channelMask = getChannelMaskForChannelCount(channelCount);
+    if (channelMask == AudioFormat.CHANNEL_INVALID) {
+      throw new IllegalArgumentException("Unsupported channel count " + channelCount);
+    }
     return new AudioFormat.Builder()
-        .setChannelMask(AudioFormat.CHANNEL_OUT_5POINT1)
+        .setChannelMask(channelMask)
         .setEncoding(encoding)
         .setSampleRate(sampleRate)
         .build();
   }
 
-  /** Returns default AudioAttributes for surround playbacks. */
-  static AudioAttributes getDefaultAudioAttributes() {
+  /**
+   * Returns the AudioFormat channel mask for `channelCount`, or AudioFormat.CHANNEL_INVALID if
+   * `channelCount` isn't supported.
+   */
+  static int getChannelMaskForChannelCount(int channelCount) {
+    switch (channelCount) {
+      case 1:
+        return AudioFormat.CHANNEL_OUT_MONO;
+      case 2:
+        return AudioFormat.CHANNEL_OUT_STEREO;
+      case 6:
+        return AudioFormat.CHANNEL_OUT_5POINT1;
+      default:
+        return AudioFormat.CHANNEL_INVALID;
+    }
+  }
+
+  /**
+   * Returns default AudioAttributes for media playbacks. When `requireHwAvSync` is true, the
+   * returned AudioAttributes has FLAG_HW_AV_SYNC set, which is required by tunnel mode.
+   */
+  static AudioAttributes getDefaultAudioAttributes(boolean requireHwAvSync) {
     // TODO: Turn this into a static variable after it is moved into a separate class.
-    return new AudioAttributes.Builder()
-        .setUsage(AudioAttributes.USAGE_MEDIA)
-        .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
-        .build();
+    AudioAttributes.Builder builder =
+        new AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE);
+    if (requireHwAvSync) {
+      builder.setFlags(AudioAttributes.FLAG_HW_AV_SYNC);
+    }
+    return builder.build();
   }
 
-  @CalledByNative
-  private boolean getAndResetHasAudioDeviceChanged() {
-    return hasAudioDeviceChanged.getAndSet(false);
-  }
-
-  private static AudioDeviceCallback audioDeviceCallback =
+  private static AudioDeviceCallback sAudioDeviceCallback =
       new AudioDeviceCallback() {
         @Override
         public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
@@ -537,20 +664,55 @@ public class AudioOutputManager {
         }
       };
 
-  private static boolean audioDeviceListenerAdded = false;
+  private static final AtomicInteger sAudioDeviceListenerRefCount = new AtomicInteger(0);
 
   public static void addAudioDeviceListener(Context context) {
-    if (audioDeviceListenerAdded) {
+    if (context == null) {
       return;
     }
 
-    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-    audioManager.registerAudioDeviceCallback(audioDeviceCallback, null);
-    audioDeviceListenerAdded = true;
+    Context appContext = context.getApplicationContext();
+    if (appContext == null) {
+      appContext = context;
+    }
+    AudioManager audioManager = (AudioManager) appContext.getSystemService(Context.AUDIO_SERVICE);
+    if (audioManager == null) {
+      return;
+    }
+    if (sAudioDeviceListenerRefCount.getAndIncrement() == 0) {
+      audioManager.registerAudioDeviceCallback(sAudioDeviceCallback, null);
+    }
+  }
+
+  public static void removeAudioDeviceListener(Context context) {
+    if (context == null) {
+      return;
+    }
+
+    Context appContext = context.getApplicationContext();
+    if (appContext == null) {
+      appContext = context;
+    }
+    AudioManager audioManager = (AudioManager) appContext.getSystemService(Context.AUDIO_SERVICE);
+    if (audioManager == null) {
+      return;
+    }
+    int previousCount;
+    do {
+      previousCount = sAudioDeviceListenerRefCount.get();
+      if (previousCount == 0) {
+        return;
+      }
+    } while (!sAudioDeviceListenerRefCount.compareAndSet(previousCount, previousCount - 1));
+    if (previousCount == 1) {
+      audioManager.unregisterAudioDeviceCallback(sAudioDeviceCallback);
+    }
   }
 
   @NativeMethods
   interface Natives {
     void onAudioDeviceChanged();
+
+    boolean isSeamlessAudioSwitchingEnabled();
   }
 }

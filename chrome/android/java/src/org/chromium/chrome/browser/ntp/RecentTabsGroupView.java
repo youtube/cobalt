@@ -13,19 +13,22 @@ import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.recent_tabs.ForeignSessionHelper.ForeignSession;
 import org.chromium.components.browser_ui.widget.TintedDrawable;
 
 /**
- * Header view shown above each group of items on the Recent Tabs page. Shows the name of the
- * group (e.g. "Recently closed" or "Jim's Laptop"), an icon, last synced time, and a button to
- * expand or collapse the group.
+ * Header view shown above each group of items on the Recent Tabs page. Shows the name of the group
+ * (e.g. "Recently closed" or "Jim's Laptop"), an icon, last synced time, and a button to expand or
+ * collapse the group.
  */
+@NullMarked
 public class RecentTabsGroupView extends RelativeLayout {
 
     /** Drawable levels for the device type icon and the expand/collapse arrow. */
     private static final int DRAWABLE_LEVEL_COLLAPSED = 0;
+
     private static final int DRAWABLE_LEVEL_EXPANDED = 1;
 
     private RecentTabsGroupView mRow;
@@ -47,17 +50,20 @@ public class RecentTabsGroupView extends RelativeLayout {
     public void onFinishInflate() {
         super.onFinishInflate();
         mRow = getRootView().findViewById(R.id.recent_tabs_group_view);
-        mTimeLabel = (TextView) findViewById(R.id.time_label);
-        mDeviceLabel = (TextView) findViewById(R.id.device_label);
-        mExpandCollapseIcon = (ImageView) findViewById(R.id.expand_collapse_icon);
+        mTimeLabel = findViewById(R.id.time_label);
+        mDeviceLabel = findViewById(R.id.device_label);
+        mExpandCollapseIcon = findViewById(R.id.expand_collapse_icon);
 
         // Create drawable for expand/collapse arrow.
         LevelListDrawable collapseIcon = new LevelListDrawable();
-        collapseIcon.addLevel(DRAWABLE_LEVEL_COLLAPSED, DRAWABLE_LEVEL_COLLAPSED,
+        collapseIcon.addLevel(
+                DRAWABLE_LEVEL_COLLAPSED,
+                DRAWABLE_LEVEL_COLLAPSED,
                 TintedDrawable.constructTintedDrawable(
                         getContext(), R.drawable.ic_expand_more_black_24dp));
-        TintedDrawable collapse = TintedDrawable.constructTintedDrawable(
-                getContext(), R.drawable.ic_expand_less_black_24dp);
+        TintedDrawable collapse =
+                TintedDrawable.constructTintedDrawable(
+                        getContext(), R.drawable.ic_expand_less_black_24dp);
         collapseIcon.addLevel(DRAWABLE_LEVEL_EXPANDED, DRAWABLE_LEVEL_EXPANDED, collapse);
         mExpandCollapseIcon.setImageDrawable(collapseIcon);
     }
@@ -102,8 +108,11 @@ public class RecentTabsGroupView extends RelativeLayout {
 
     private void configureExpandedCollapsed(boolean isExpanded) {
         String description =
-                getResources().getString(isExpanded ? R.string.accessibility_collapse_section_header
-                                                    : R.string.accessibility_expand_section_header);
+                getResources()
+                        .getString(
+                                isExpanded
+                                        ? R.string.accessibility_collapse_section_header
+                                        : R.string.accessibility_expand_section_header);
         mExpandCollapseIcon.setContentDescription(description);
 
         int level = isExpanded ? DRAWABLE_LEVEL_EXPANDED : DRAWABLE_LEVEL_COLLAPSED;
@@ -111,9 +120,12 @@ public class RecentTabsGroupView extends RelativeLayout {
     }
 
     private void setGroupViewHeight(boolean isTimeLabelVisible) {
-        mRow.setMinimumHeight(getResources().getDimensionPixelOffset(isTimeLabelVisible
-                        ? R.dimen.recent_tabs_foreign_session_group_item_height
-                        : R.dimen.recent_tabs_default_group_item_height));
+        mRow.setMinimumHeight(
+                getResources()
+                        .getDimensionPixelOffset(
+                                isTimeLabelVisible
+                                        ? R.dimen.recent_tabs_foreign_session_group_item_height
+                                        : R.dimen.recent_tabs_default_group_item_height));
     }
 
     private CharSequence getTimeString(ForeignSession session) {
@@ -131,8 +143,8 @@ public class RecentTabsGroupView extends RelativeLayout {
         } else if (hoursElapsed > 0L) {
             relativeTime = res.getQuantityString(R.plurals.n_hours_ago, hoursElapsed, hoursElapsed);
         } else if (minutesElapsed > 0L) {
-            relativeTime = res.getQuantityString(R.plurals.n_minutes_ago, minutesElapsed,
-                    minutesElapsed);
+            relativeTime =
+                    res.getQuantityString(R.plurals.n_minutes_ago, minutesElapsed, minutesElapsed);
         } else {
             relativeTime = res.getString(R.string.just_now);
         }

@@ -7,7 +7,7 @@
  * authenticator.js is used from TypeScript files.
  */
 
-import {PasswordAttributes} from './saml_password_attributes.js';
+import type {PasswordAttributes} from './saml_password_attributes.js';
 
 export interface SyncTrustedVaultKey {
   keyMaterial: ArrayBuffer;
@@ -26,7 +26,6 @@ export interface SyncTrustedVaultKeys {
 }
 
 export interface AuthCompletedCredentials {
-  chooseWhatToSync: boolean;
   email: string;
   gaiaId: string;
   passwordAttributes: PasswordAttributes;
@@ -39,12 +38,15 @@ export interface AuthCompletedCredentials {
   trusted: boolean;
   usingSAML: boolean;
   isAvailableInArc?: boolean;
+  scrapedSAMLPasswords?: string[];
 }
 
 export interface AuthParams {
   authMode: AuthMode;
   clientId: string;
+  clientVersion?: string;
   constrained: string;
+  doSamlRedirect?: boolean;
   dontResizeNonEmbeddedPages: boolean;
   emailDomain: string;
   email: string;
@@ -53,6 +55,7 @@ export interface AuthParams {
   extractSamlPasswordAttributes: boolean;
   flow: string;
   forceDarkMode: boolean;
+  frameUrl: URL;
   gaiaPath: string;
   gaiaUrl: string;
   hl: string;
@@ -60,13 +63,15 @@ export interface AuthParams {
   isDeviceOwner: boolean;
   isLoginPrimaryAccount: boolean;
   isSupervisedUser: boolean;
+  needPassword?: boolean;
   platformVersion: string;
   readOnlyEmail: boolean;
   samlAclUrl: string;
   service: string;
   showTos: string;
-  ssoProfile: string;
+  ssoProfile?: string;
   urlParameterToAutofillSAMLUsername: string;
+  [key: string]: AuthParams[keyof AuthParams];
 }
 
 export enum AuthMode {
@@ -80,8 +85,28 @@ export enum AuthFlow {
   SAML = 0,
 }
 
+export const SUPPORTED_PARAMS: string[];
+
+type ChangeEvent<T> = CustomEvent<{oldValue: T, newValue: T}>;
+
+export type AuthCompletedEvent = CustomEvent<AuthCompletedCredentials>;
+export type AuthDomainChangeEvent = ChangeEvent<string>;
+export type AuthFlowChangeEvent = ChangeEvent<AuthFlow>;
+export type LoadAbortEvent = CustomEvent<{error_code: number, src: string}>;
+
 export class Authenticator extends EventTarget {
   constructor(webview: HTMLElement|string);
   getAccountsResponse(accounts: string[]): void;
+  getDeviceIdResponse(deviceId: string): void;
   load(authMode: AuthMode, data: AuthParams): void;
+  sendMessageToWebview(messageType: string, messageData?: string|Object): void;
+  setWebviewPartition(newWebviewPartitionName: string): void;
+  resetWebview(): void;
+  resetStates(): void;
+  reload(): void;
+
+  insecureContentBlockedCallback: ((url: string) => void)|null;
+  missingGaiaInfoCallback: (() => void)|null;
+  samlApiUsedCallback: ((isThirdPartyIdP: boolean) => void)|null;
+  recordSamlProviderCallback: ((x509Certificate: string) => void)|null;
 }

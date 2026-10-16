@@ -26,8 +26,9 @@ namespace {
 
 void HashSpecifics(const sync_pb::EntitySpecifics& specifics,
                    std::string* hash) {
-  DCHECK_GT(specifics.ByteSize(), 0);
-  base::Base64Encode(base::SHA1HashString(specifics.SerializeAsString()), hash);
+  DCHECK_GT(specifics.ByteSizeLong(), 0u);
+  *hash =
+      base::Base64Encode(base::SHA1HashString(specifics.SerializeAsString()));
 }
 
 }  // namespace
@@ -61,7 +62,7 @@ bool SyncedBookmarkTrackerEntity::MatchesData(
 bool SyncedBookmarkTrackerEntity::MatchesSpecificsHash(
     const sync_pb::EntitySpecifics& specifics) const {
   DCHECK(!metadata_.is_deleted());
-  DCHECK_GT(specifics.ByteSize(), 0);
+  DCHECK_GT(specifics.ByteSizeLong(), 0u);
   std::string hash;
   HashSpecifics(specifics, &hash);
   return hash == metadata_.specifics_hash();

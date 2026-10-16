@@ -8,4 +8,6 @@
     Exposed=ServiceWorker
 ] interface InstallEvent : ExtendableEvent {
     constructor(DOMString type, optional ExtendableEventInit eventInitDict = {});
+    // https://w3c.github.io/ServiceWorker/#ref-for-dom-installevent-addroutes
+    [CallWith=ScriptState, RaisesException, MeasureAs=ServiceWorkerStaticRouter_AddRoutes] Promise<undefined> addRoutes((RouterRule or sequence<RouterRule>) rules);
 };

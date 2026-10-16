@@ -4,51 +4,100 @@
 
 #include "content/renderer/accessibility/ax_tree_snapshotter_impl.h"
 
+#include <set>
+
+#include "base/metrics/field_trial_params.h"
+#include "base/metrics/histogram_functions.h"
 #include "content/renderer/render_frame_impl.h"
-#include "third_party/blink/public/web/web_ax_context.h"
 #include "third_party/blink/public/web/web_ax_object.h"
-#include "third_party/blink/public/web/web_document.h"
 #include "third_party/blink/public/web/web_frame.h"
-#include "ui/accessibility/ax_tree_serializer.h"
+#include "ui/accessibility/ax_error_types.h"
 #include "ui/accessibility/ax_tree_update.h"
 
-using blink::WebAXContext;
-using blink::WebAXObject;
-using blink::WebDocument;
+// Simple macro to make recording histograms easier to read in the code below.
+#define RECORD_ERROR(histogram)                                       \
+  base::UmaHistogramEnumeration(kAXTreeSnapshotterErrorHistogramName, \
+                                AXTreeSnapshotErrorReason::k##histogram)
+
+using ErrorSet = std::set<ui::AXSerializationErrorFlag>;
 
 namespace content {
 
+constexpr char kAXTreeSnapshotterErrorHistogramName[] =
+    "Accessibility.AXTreeSnapshotter.Snapshot.Error";
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(AXTreeSnapshotErrorReason)
+enum class AXTreeSnapshotErrorReason {
+  kGenericSerializationError = 0,
+  kNoWebFrame = 1,
+  kNoActiveDocument = 2,
+  kNoExistingAXObjectCache = 3,
+  kSerializeMaxNodesReached = 4,
+  kSerializeTimeoutReached = 5,
+  kSerializeMaxNodesAndTimeoutReached = 6,
+  kMaxValue = kSerializeMaxNodesAndTimeoutReached,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/accessibility/enums.xml:AXTreeSnapshotErrorReason)
+
 AXTreeSnapshotterImpl::AXTreeSnapshotterImpl(RenderFrameImpl* render_frame,
                                              ui::AXMode ax_mode)
-    : render_frame_(render_frame) {
-  DCHECK(render_frame->GetWebFrame());
-  blink::WebDocument document_ = render_frame->GetWebFrame()->GetDocument();
-  context_ = std::make_unique<WebAXContext>(document_, ax_mode);
+    : content::RenderFrameObserver(render_frame), ax_mode_(ax_mode) {
+  // Do not generate inline textboxes, which are expensive to create and just
+  // present extra noise to snapshot consumers.
+  ax_mode.set_mode(ui::AXMode::kInlineTextBoxes, false);
+
+  CHECK(render_frame->GetWebFrame());
+  document_ = render_frame->GetWebFrame()->GetDocument();
 }
 
 AXTreeSnapshotterImpl::~AXTreeSnapshotterImpl() = default;
 
-void AXTreeSnapshotterImpl::Snapshot(size_t max_node_count,
+void AXTreeSnapshotterImpl::Snapshot(size_t max_nodes,
                                      base::TimeDelta timeout,
                                      ui::AXTreeUpdate* response) {
-  if (!render_frame_->GetWebFrame())
-    return;
-  context_->UpdateAXForAllDocuments();
+  base::UmaHistogramBoolean("Accessibility.AXTreeSnapshotter.Snapshot.Request",
+                            true);
 
-  if (context_->SerializeEntireTree(max_node_count, timeout, response)) {
+  if (!render_frame() || !render_frame()->GetWebFrame()) {
+    RECORD_ERROR(NoWebFrame);
     return;
   }
 
-  // It failed again. Clear the response object because it might have errors.
-  *response = ui::AXTreeUpdate();
-  LOG(WARNING) << "Unable to serialize accessibility tree.";
+  if (!document_.IsActive()) {
+    RECORD_ERROR(NoActiveDocument);
+    return;
+  }
 
-  // As a sanity check, node_id_to_clear and event_from should be uninitialized
-  // if this is a full tree snapshot. They'd only be set to something if
-  // this was indeed a partial update to the tree (which we don't want).
-  DCHECK_EQ(0, response->node_id_to_clear);
-  DCHECK_EQ(ax::mojom::EventFrom::kNone, response->event_from);
-  DCHECK_EQ(ax::mojom::Action::kNone, response->event_from_action);
+  SerializeTreeWithLimits(max_nodes, timeout, response);
+}
+
+void AXTreeSnapshotterImpl::OnDestruct() {
+  // Must implement OnDestruct(), but no need to do anything.
+}
+
+void AXTreeSnapshotterImpl::SerializeTreeWithLimits(
+    size_t max_nodes,
+    base::TimeDelta timeout,
+    ui::AXTreeUpdate* response) {
+  ErrorSet out_error;
+  document_.SnapshotAccessibilityTree(max_nodes, timeout, response, ax_mode_,
+                                      &out_error);
+
+  ErrorSet::iterator max_nodes_iter =
+      out_error.find(ui::AXSerializationErrorFlag::kMaxNodesReached);
+  ErrorSet::iterator timeout_iter =
+      out_error.find(ui::AXSerializationErrorFlag::kTimeoutReached);
+
+  if (max_nodes_iter != out_error.end() && timeout_iter != out_error.end()) {
+    RECORD_ERROR(SerializeMaxNodesAndTimeoutReached);
+  } else if (max_nodes_iter != out_error.end()) {
+    RECORD_ERROR(SerializeMaxNodesReached);
+  } else if (timeout_iter != out_error.end()) {
+    RECORD_ERROR(SerializeTimeoutReached);
+  }
 }
 
 }  // namespace content

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<link rel="help" href="https://drafts.csswg.org/css-values-4/#comp-func">
+<link rel="help" href="https://drafts.csswg.org/css-values-4/#exponent-funcs">
 <link rel="help" href="https://drafts.csswg.org/css-values-4/#numbers">
 <link rel="help" href="https://drafts.csswg.org/css-values-4/#calc-type-checking">
 <link rel="author" title="Apple Inc">
@@ -28,6 +28,10 @@ test_math_used('calc(log((1 + 1) /2)  / log(e) + exp(0*1)*2 * log(e))', '2', {ty
 test_math_used('calc(log((3 + 1) /2, 2)  / log(e) + exp(0*1)*2 * log(e))', '3', {type:'number', approx:0.1});
 test_math_used('calc(log((3 + 1) /2, 2)  / log(e, e) + exp(0*1)*2 * log(e, e))', '3', {type:'number', approx:0.1});
 test_math_used('calc(exp(0) + 1)', '2', {type:'number', approx:0.1});
+
+// Test unresolved at parse time
+test_math_used('calc(e - exp(sibling-index()))', '0', {type:'number', approx:0.1});
+test_math_used('calc(log(exp(2 * sibling-index())))', '2', {type:'number', approx:0.1});
 
 // Test nesting
 test_math_used('calc(log(exp(1)))', '1', {type:'number', approx:0.1});

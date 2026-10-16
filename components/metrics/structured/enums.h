@@ -5,12 +5,7 @@
 #ifndef COMPONENTS_METRICS_STRUCTURED_ENUMS_H_
 #define COMPONENTS_METRICS_STRUCTURED_ENUMS_H_
 
-#include "third_party/metrics_proto/structured_data.pb.h"
-
-namespace metrics {
-namespace structured {
-
-using EventType = StructuredEventProto_EventType;
+namespace metrics::structured {
 
 // Specifies the type of identifier attached to an event.
 enum class IdType {
@@ -29,7 +24,6 @@ enum class IdScope {
   kPerDevice = 1,
 };
 
-}  // namespace structured
-}  // namespace metrics
+}  // namespace metrics::structured
 
 #endif  // COMPONENTS_METRICS_STRUCTURED_ENUMS_H_

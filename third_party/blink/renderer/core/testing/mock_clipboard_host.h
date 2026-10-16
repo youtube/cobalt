@@ -7,6 +7,7 @@
 
 #include "build/build_config.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/common/common_export.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/clipboard/clipboard.mojom-blink.h"
@@ -31,6 +32,9 @@ class MockClipboardHost : public mojom::blink::ClipboardHost {
   void WriteRtf(const String& rtf_text);
   void WriteFiles(mojom::blink::ClipboardFilesPtr files);
 
+  // Method to simulate clipboard data change only for testing.
+  void OnClipboardDataChanged();
+
  private:
   // mojom::ClipboardHost
   void GetSequenceNumber(mojom::ClipboardBuffer clipboard_buffer,
@@ -52,14 +56,16 @@ class MockClipboardHost : public mojom::blink::ClipboardHost {
                ReadPngCallback callback) override;
   void ReadFiles(mojom::ClipboardBuffer clipboard_buffer,
                  ReadFilesCallback callback) override;
-  void ReadCustomData(mojom::ClipboardBuffer clipboard_buffer,
-                      const String& type,
-                      ReadCustomDataCallback callback) override;
+  void ReadDataTransferCustomData(
+      mojom::ClipboardBuffer clipboard_buffer,
+      const String& type,
+      ReadDataTransferCustomDataCallback callback) override;
   void WriteText(const String& text) override;
   void WriteHtml(const String& markup, const KURL& url) override;
   void WriteSvg(const String& markup) override;
   void WriteSmartPasteMarker() override;
-  void WriteCustomData(const HashMap<String, String>& data) override;
+  void WriteDataTransferCustomData(
+      const HashMap<String, String>& data) override;
   void WriteBookmark(const String& url, const String& title) override;
   void WriteImage(const SkBitmap& bitmap) override;
   void CommitWrite() override;
@@ -70,12 +76,15 @@ class MockClipboardHost : public mojom::blink::ClipboardHost {
       ReadUnsanitizedCustomFormatCallback callback) override;
   void WriteUnsanitizedCustomFormat(const String& format,
                                     mojo_base::BigBuffer data) override;
+  void RegisterClipboardListener(
+      mojo::PendingRemote<mojom::blink::ClipboardListener> listener) override;
 #if BUILDFLAG(IS_MAC)
   void WriteStringToFindPboard(const String& text) override;
 #endif
   Vector<String> ReadStandardFormatNames();
 
   mojo::ReceiverSet<mojom::blink::ClipboardHost> receivers_;
+  mojo::Remote<mojom::blink::ClipboardListener> clipboard_listener_;
   ClipboardSequenceNumberToken sequence_number_;
   String plain_text_ = g_empty_string;
   String html_text_ = g_empty_string;

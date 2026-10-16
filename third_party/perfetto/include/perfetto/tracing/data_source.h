@@ -33,6 +33,7 @@
 
 #include "perfetto/protozero/message_handle.h"
 #include "perfetto/tracing/buffer_exhausted_policy.h"
+#include "perfetto/tracing/core/flush_flags.h"
 #include "perfetto/tracing/core/forward_decls.h"
 #include "perfetto/tracing/internal/basic_types.h"
 #include "perfetto/tracing/internal/data_source_internal.h"
@@ -70,6 +71,10 @@ template <typename, const internal::TrackEventCategoryRegistry*>
 class TrackEventDataSource;
 }  // namespace internal
 
+namespace shlib {
+class TrackEvent;
+}  // namespace shlib
+
 namespace test {
 class DataSourceInternalForTest;
 }  // namespace test
@@ -87,11 +92,16 @@ class PERFETTO_EXPORT_COMPONENT DataSourceBase {
   // OnSetup() is invoked when tracing is configured. In most cases this happens
   // just before starting the trace. In the case of deferred start (see
   // deferred_start in trace_config.proto) start might happen later.
+  //
+  // Can be called from any thread.
   class SetupArgs {
    public:
     // This is valid only within the scope of the OnSetup() call and must not
     // be retained.
     const DataSourceConfig* config = nullptr;
+
+    // Backend type.
+    BackendType backend_type = kUnspecifiedBackend;
 
     // The index of this data source instance (0..kMaxDataSourceInstances - 1).
     uint32_t internal_instance_index = 0;
@@ -103,9 +113,12 @@ class PERFETTO_EXPORT_COMPONENT DataSourceBase {
     // The index of this data source instance (0..kMaxDataSourceInstances - 1).
     uint32_t internal_instance_index = 0;
   };
+  // Invoked after tracing is actually started.
+  //
+  // Can be called from any thread.
   virtual void OnStart(const StartArgs&);
 
-  class StopArgs {
+  class PERFETTO_EXPORT_COMPONENT StopArgs {
    public:
     virtual ~StopArgs();
 
@@ -132,6 +145,11 @@ class PERFETTO_EXPORT_COMPONENT DataSourceBase {
     // The index of this data source instance (0..kMaxDataSourceInstances - 1).
     uint32_t internal_instance_index = 0;
   };
+  // Invoked before tracing is stopped.
+  //
+  // Can be called from any thread. Blocking this for too long it's not a good
+  // idea and can cause deadlocks. Use HandleAsynchronously() to postpone
+  // disabling the data source instance.
   virtual void OnStop(const StopArgs&);
 
   class ClearIncrementalStateArgs {
@@ -139,6 +157,10 @@ class PERFETTO_EXPORT_COMPONENT DataSourceBase {
     // The index of this data source instance (0..kMaxDataSourceInstances - 1).
     uint32_t internal_instance_index = 0;
   };
+  // Invoked before marking the thread local per-instance incremental state
+  // outdated.
+  //
+  // Can be called from any thread.
   virtual void WillClearIncrementalState(const ClearIncrementalStateArgs&);
 
   class FlushArgs {
@@ -153,11 +175,23 @@ class PERFETTO_EXPORT_COMPONENT DataSourceBase {
 
     // The index of this data source instance (0..kMaxDataSourceInstances - 1).
     uint32_t internal_instance_index = 0;
+
+    // The reason and initiator of the flush. See flush_flags.h .
+    FlushFlags flush_flags;
   };
   // Called when the tracing service requests a Flush. Users can override this
   // to tell other threads to flush their TraceContext for this data source
   // (the library cannot execute code on all the threads on its own).
+  //
+  // Can be called from any thread. Blocking this for too long it's not a good
+  // idea and can cause deadlocks. Use HandleAsynchronously() to postpone
+  // sending the flush acknowledgement to the service.
   virtual void OnFlush(const FlushArgs&);
+
+  // Determines whether a startup session can be adopted by a service-initiated
+  // tracing session (i.e. whether their configs are compatible).
+  virtual bool CanAdoptStartupSession(const DataSourceConfig& startup_config,
+                                      const DataSourceConfig& service_config);
 };
 
 struct DefaultDataSourceTraits {
@@ -190,6 +224,22 @@ struct DefaultDataSourceTraits {
   }
 };
 
+// Holds the type for a DataSource. Accessed by the static Trace() method
+// fastpaths. This allows redefinitions under a component where a component
+// specific export macro is used.
+// Due to C2086 (redefinition) error on MSVC/clang-cl, internal::DataSourceType
+// can't be a static data member. To avoid explicit specialization after
+// instantiation error, type() needs to be in a template helper class that's
+// instantiated independently from DataSource. See b/280777748.
+template <typename DerivedDataSource,
+          typename DataSourceTraits = DefaultDataSourceTraits>
+struct DataSourceHelper {
+  static internal::DataSourceType& type() {
+    static perfetto::internal::DataSourceType type_;
+    return type_;
+  }
+};
+
 // Templated base class meant to be derived by embedders to create a custom data
 // source. DerivedDataSource must be the type of the derived class itself, e.g.:
 // class MyDataSource : public DataSource<MyDataSource> {...}.
@@ -200,6 +250,7 @@ template <typename DerivedDataSource,
           typename DataSourceTraits = DefaultDataSourceTraits>
 class DataSource : public DataSourceBase {
   struct DefaultTracePointTraits;
+  using Helper = DataSourceHelper<DerivedDataSource, DataSourceTraits>;
 
  public:
   // The BufferExhaustedPolicy to use for TraceWriters of this DataSource.
@@ -207,6 +258,9 @@ class DataSource : public DataSourceBase {
   // drop data on shared memory overruns.
   constexpr static BufferExhaustedPolicy kBufferExhaustedPolicy =
       BufferExhaustedPolicy::kDrop;
+
+  // Whether the kBufferExhaustedPolicy policy above is overridable via config.
+  constexpr static bool kBufferExhaustedPolicyConfigurable = false;
 
   // When this flag is false, we cannot have multiple instances of this data
   // source. When a data source is already active and if we attempt
@@ -286,7 +340,8 @@ class DataSource : public DataSourceBase {
     // validity before using it. After checking, the handle is guaranteed to
     // remain valid until the handle goes out of scope.
     LockedHandle<DerivedDataSource> GetDataSourceLocked() const {
-      auto* internal_state = type_.static_state()->TryGet(instance_index_);
+      auto* internal_state =
+          Helper::type().static_state()->TryGet(instance_index_);
       if (!internal_state)
         return LockedHandle<DerivedDataSource>();
       std::unique_lock<std::recursive_mutex> lock(internal_state->lock);
@@ -304,7 +359,7 @@ class DataSource : public DataSourceBase {
 
     typename DataSourceTraits::IncrementalStateType* GetIncrementalState() {
       return static_cast<typename DataSourceTraits::IncrementalStateType*>(
-          type_.GetIncrementalState(tls_inst_, instance_index_));
+          Helper::type().GetIncrementalState(tls_inst_, instance_index_));
     }
 
    private:
@@ -382,20 +437,20 @@ class DataSource : public DataSourceBase {
       typename Traits::TracePointData trace_point_data = {}) {
     PERFETTO_DCHECK(cached_instances);
 
-    if (!type_.TracePrologue<DataSourceTraits, Traits>(
+    if (!Helper::type().template TracePrologue<DataSourceTraits, Traits>(
             &tls_state_, &cached_instances, trace_point_data)) {
       return;
     }
 
     for (internal::DataSourceType::InstancesIterator it =
-             type_.BeginIteration<Traits>(cached_instances, tls_state_,
-                                          trace_point_data);
-         it.instance;
-         type_.NextIteration<Traits>(&it, tls_state_, trace_point_data)) {
+             Helper::type().template BeginIteration<Traits>(
+                 cached_instances, tls_state_, trace_point_data);
+         it.instance; Helper::type().template NextIteration<Traits>(
+             &it, tls_state_, trace_point_data)) {
       tracing_fn(TraceContext(it.instance, it.i));
     }
 
-    type_.TraceEpilogue(tls_state_);
+    Helper::type().TraceEpilogue(tls_state_);
   }
 
   // Registers the data source on all tracing backends, including ones that
@@ -413,18 +468,26 @@ class DataSource : public DataSourceBase {
                        const Args&... constructor_args) {
     // Silences -Wunused-variable warning in case the trace method is not used
     // by the translation unit that declares the data source.
-    (void)type_;
     (void)tls_state_;
 
     auto factory = [constructor_args...]() {
       return std::unique_ptr<DataSourceBase>(
           new DerivedDataSource(constructor_args...));
     };
-    internal::DataSourceParams params{
-        DerivedDataSource::kSupportsMultipleInstances,
-        DerivedDataSource::kRequiresCallbacksUnderLock};
-    return type_.Register(
-        descriptor, factory, params, DerivedDataSource::kBufferExhaustedPolicy,
+    constexpr bool no_flush =
+        std::is_same_v<decltype(&DerivedDataSource::OnFlush),
+                       decltype(&DataSourceBase::OnFlush)>;
+    internal::DataSourceParams params;
+    params.requires_callbacks_under_lock =
+        DerivedDataSource::kRequiresCallbacksUnderLock;
+    params.supports_multiple_instances =
+        DerivedDataSource::kSupportsMultipleInstances;
+    params.default_buffer_exhausted_policy =
+        DerivedDataSource::kBufferExhaustedPolicy;
+    params.buffer_exhausted_policy_configurable =
+        DerivedDataSource::kBufferExhaustedPolicyConfigurable;
+    return Helper::type().Register(
+        descriptor, factory, params, no_flush,
         GetCreateTlsFn(
             static_cast<typename DataSourceTraits::TlsStateType*>(nullptr)),
         GetCreateIncrementalStateFn(
@@ -435,11 +498,12 @@ class DataSource : public DataSourceBase {
 
   // Updates the data source descriptor.
   static void UpdateDescriptor(const DataSourceDescriptor& descriptor) {
-    type_.UpdateDescriptor(descriptor);
+    Helper::type().UpdateDescriptor(descriptor);
   }
 
  private:
   friend ::perfetto::test::DataSourceInternalForTest;
+  friend ::perfetto::shlib::TrackEvent;
   // Traits for customizing the behavior of a specific trace point.
   struct DefaultTracePointTraits {
     // By default, every call to DataSource::Trace() will record trace events
@@ -456,7 +520,7 @@ class DataSource : public DataSourceBase {
     // implement per-category enabled states.
     struct TracePointData {};
     static constexpr std::atomic<uint32_t>* GetActiveInstances(TracePointData) {
-      return type_.valid_instances();
+      return Helper::type().valid_instances();
     }
   };
 
@@ -506,10 +570,6 @@ class DataSource : public DataSourceBase {
     return nullptr;
   }
 
-  // The type of this data source. Accessed by the static Trace() method
-  // fastpaths.
-  static internal::DataSourceType type_;
-
   // This TLS object is a cached raw pointer and has deliberately no destructor.
   // The Platform implementation is supposed to create and manage the lifetime
   // of the Platform::ThreadLocalObject and take care of destroying it.
@@ -517,16 +577,12 @@ class DataSource : public DataSourceBase {
   // destructors) that we need to defer to the embedder. In chromium's platform
   // implementation, for instance, the tls slot is implemented using
   // chromium's base::ThreadLocalStorage.
-  static PERFETTO_THREAD_LOCAL internal::DataSourceThreadLocalState* tls_state_;
+  static thread_local internal::DataSourceThreadLocalState* tls_state_;
 };
 
 // static
 template <typename T, typename D>
-internal::DataSourceType DataSource<T, D>::type_;
-// static
-template <typename T, typename D>
-PERFETTO_THREAD_LOCAL internal::DataSourceThreadLocalState*
-    DataSource<T, D>::tls_state_;
+thread_local internal::DataSourceThreadLocalState* DataSource<T, D>::tls_state_;
 
 }  // namespace perfetto
 
@@ -534,7 +590,7 @@ PERFETTO_THREAD_LOCAL internal::DataSourceThreadLocalState*
 // the macro invocation (e.g., "MACRO(...);") to avoid warnings about extra
 // semicolons.
 #define PERFETTO_INTERNAL_SWALLOW_SEMICOLON() \
-  extern int perfetto_internal_unused
+  [[maybe_unused]] extern int perfetto_internal_unused
 
 // This macro must be used once for each data source next to the data source's
 // declaration.
@@ -547,16 +603,11 @@ PERFETTO_THREAD_LOCAL internal::DataSourceThreadLocalState*
 // where a component specific export macro is used.
 #define PERFETTO_DECLARE_DATA_SOURCE_STATIC_MEMBERS_WITH_ATTRS(attrs, ...) \
   template <>                                                              \
-  attrs perfetto::internal::DataSourceType                                 \
-      perfetto::DataSource<__VA_ARGS__>::type_
+  attrs perfetto::internal::DataSourceType&                                \
+  perfetto::DataSourceHelper<__VA_ARGS__>::type()
 
 // This macro must be used once for each data source in one source file to
 // allocate static storage for the data source's static state.
-//
-// Note: if MSVC fails with a C2086 (redefinition) error here, use the
-// permissive- flag to enable standards-compliant mode. See
-// https://developercommunity.visualstudio.com/content/problem/319447/
-// explicit-specialization-of-static-data-member-inco.html.
 #define PERFETTO_DEFINE_DATA_SOURCE_STATIC_MEMBERS(...)  \
   PERFETTO_DEFINE_DATA_SOURCE_STATIC_MEMBERS_WITH_ATTRS( \
       PERFETTO_COMPONENT_EXPORT, __VA_ARGS__)
@@ -566,7 +617,11 @@ PERFETTO_THREAD_LOCAL internal::DataSourceThreadLocalState*
 // where a component specific export macro is used.
 #define PERFETTO_DEFINE_DATA_SOURCE_STATIC_MEMBERS_WITH_ATTRS(attrs, ...) \
   template <>                                                             \
-  attrs perfetto::internal::DataSourceType                                \
-      perfetto::DataSource<__VA_ARGS__>::type_ {}
+  perfetto::internal::DataSourceType&                                     \
+  perfetto::DataSourceHelper<__VA_ARGS__>::type() {                       \
+    static perfetto::internal::DataSourceType type_;                      \
+    return type_;                                                         \
+  }                                                                       \
+  PERFETTO_INTERNAL_SWALLOW_SEMICOLON()
 
 #endif  // INCLUDE_PERFETTO_TRACING_DATA_SOURCE_H_

@@ -309,7 +309,7 @@ uint64_t ServiceWorkerDiskCache::GetNextCallId() {
 void ServiceWorkerDiskCache::DidGetEntryResult(uint64_t call_id,
                                                disk_cache::EntryResult result) {
   auto it = active_entry_calls_.find(call_id);
-  DCHECK(it != active_entry_calls_.end());
+  CHECK(it != active_entry_calls_.end());
   EntryCallback callback = std::move(it->second);
   active_entry_calls_.erase(it);
 
@@ -325,7 +325,7 @@ void ServiceWorkerDiskCache::DidGetEntryResult(uint64_t call_id,
 
 void ServiceWorkerDiskCache::DidDoomEntry(uint64_t call_id, int net_error) {
   auto it = active_doom_calls_.find(call_id);
-  DCHECK(it != active_doom_calls_.end());
+  CHECK(it != active_doom_calls_.end());
   net::CompletionOnceCallback callback = std::move(it->second);
   active_doom_calls_.erase(it);
 

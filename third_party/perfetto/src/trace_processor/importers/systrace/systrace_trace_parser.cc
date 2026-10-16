@@ -17,6 +17,7 @@
 #include "src/trace_processor/importers/systrace/systrace_trace_parser.h"
 
 #include "perfetto/base/logging.h"
+#include "perfetto/base/status.h"
 #include "perfetto/ext/base/string_splitter.h"
 #include "perfetto/ext/base/string_utils.h"
 #include "src/trace_processor/forwarding_trace_parser.h"
@@ -65,9 +66,9 @@ SystraceTraceParser::SystraceTraceParser(TraceProcessorContext* ctx)
     : line_parser_(ctx), ctx_(ctx) {}
 SystraceTraceParser::~SystraceTraceParser() = default;
 
-util::Status SystraceTraceParser::Parse(TraceBlobView blob) {
+base::Status SystraceTraceParser::Parse(TraceBlobView blob) {
   if (state_ == ParseState::kEndOfSystrace)
-    return util::OkStatus();
+    return base::OkStatus();
   partial_buf_.insert(partial_buf_.end(), blob.data(),
                       blob.data() + blob.size());
 
@@ -121,7 +122,7 @@ util::Status SystraceTraceParser::Parse(TraceBlobView blob) {
         break;
       } else if (!base::StartsWith(buffer, "#") && !buffer.empty()) {
         SystraceLine line;
-        util::Status status = line_tokenizer_.Tokenize(buffer, &line);
+        base::Status status = line_tokenizer_.Tokenize(buffer, &line);
         if (status.ok()) {
           line_parser_.ParseLine(std::move(line));
         } else {
@@ -155,7 +156,7 @@ util::Status SystraceTraceParser::Parse(TraceBlobView blob) {
               static_cast<size_t>((buffer.data() + buffer.size()) - cmd_start));
           if (!pid || !ppid) {
             PERFETTO_ELOG("Could not parse line '%s'", buffer.c_str());
-            return util::ErrStatus("Could not parse PROCESS DUMP line");
+            return base::ErrStatus("Could not parse PROCESS DUMP line");
           }
           ctx_->process_tracker->SetProcessMetadata(pid.value(), ppid, name,
                                                     base::StringView());
@@ -176,7 +177,7 @@ util::Status SystraceTraceParser::Parse(TraceBlobView blob) {
               ctx_->storage->mutable_string_pool()->InternString(cmd);
           if (!tid || !tgid) {
             PERFETTO_ELOG("Could not parse line '%s'", buffer.c_str());
-            return util::ErrStatus("Could not parse PROCESS DUMP line");
+            return base::ErrStatus("Could not parse PROCESS DUMP line");
           }
           UniqueTid utid =
               ctx_->process_tracker->UpdateThread(tid.value(), tgid.value());
@@ -197,10 +198,12 @@ util::Status SystraceTraceParser::Parse(TraceBlobView blob) {
   } else {
     partial_buf_.erase(partial_buf_.begin(), start_it);
   }
-  return util::OkStatus();
+  return base::OkStatus();
 }
 
-void SystraceTraceParser::NotifyEndOfFile() {}
+base::Status SystraceTraceParser::NotifyEndOfFile() {
+  return base::OkStatus();
+}
 
 }  // namespace trace_processor
 }  // namespace perfetto

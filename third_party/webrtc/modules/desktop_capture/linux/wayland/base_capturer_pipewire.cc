@@ -73,6 +73,7 @@ void BaseCapturerPipeWire::OnScreenCastRequestResult(RequestResponse result,
   // then it'll set it to the right value again soon enough.
   capturer_failed_ = false;
   if (result != RequestResponse::kSuccess ||
+      !options_.screencast_stream() ||
       !options_.screencast_stream()->StartScreenCastStream(
           stream_node_id, fd, options_.get_width(), options_.get_height(),
           options_.prefer_cursor_embedded(),
@@ -82,8 +83,10 @@ void BaseCapturerPipeWire::OnScreenCastRequestResult(RequestResponse result,
                       << static_cast<uint>(result);
   } else if (ScreenCastPortal* screencast_portal = GetScreenCastPortal()) {
     if (!screencast_portal->RestoreToken().empty()) {
+      const SourceId token_id =
+          selected_source_id_ ? selected_source_id_ : source_id_;
       RestoreTokenManager::GetInstance().AddToken(
-          source_id_, screencast_portal->RestoreToken());
+          token_id, screencast_portal->RestoreToken());
     }
   }
 
@@ -110,6 +113,7 @@ void BaseCapturerPipeWire::OnScreenCastSessionClosed() {
   if (!capturer_failed_) {
     options_.screencast_stream()->StopScreenCastStream();
   }
+  capturer_failed_ = true;
 }
 
 void BaseCapturerPipeWire::UpdateResolution(uint32_t width, uint32_t height) {
@@ -137,7 +141,7 @@ void BaseCapturerPipeWire::Start(Callback* callback) {
         ScreenCastPortal::PersistMode::kTransient);
     if (selected_source_id_) {
       screencast_portal->SetRestoreToken(
-          RestoreTokenManager::GetInstance().TakeToken(selected_source_id_));
+          RestoreTokenManager::GetInstance().GetToken(selected_source_id_));
     }
   }
 
@@ -155,7 +159,7 @@ void BaseCapturerPipeWire::CaptureFrame() {
     return;
   }
 
-  int64_t capture_start_time_nanos = rtc::TimeNanos();
+  int64_t capture_start_time_nanos = webrtc::TimeNanos();
   std::unique_ptr<DesktopFrame> frame =
       options_.screencast_stream()->CaptureFrame();
 
@@ -168,8 +172,8 @@ void BaseCapturerPipeWire::CaptureFrame() {
   // the frame, see ScreenCapturerX11::CaptureFrame.
 
   frame->set_capturer_id(DesktopCapturerId::kWaylandCapturerLinux);
-  frame->set_capture_time_ms((rtc::TimeNanos() - capture_start_time_nanos) /
-                             rtc::kNumNanosecsPerMillisec);
+  frame->set_capture_time_ms((webrtc::TimeNanos() - capture_start_time_nanos) /
+                             webrtc::kNumNanosecsPerMillisec);
   callback_->OnCaptureResult(Result::SUCCESS, std::move(frame));
 }
 

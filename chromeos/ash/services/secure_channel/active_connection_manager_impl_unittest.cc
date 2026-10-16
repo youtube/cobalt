@@ -4,16 +4,18 @@
 
 #include "chromeos/ash/services/secure_channel/active_connection_manager_impl.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
+#include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/test/gtest_util.h"
 #include "base/test/task_environment.h"
 #include "base/unguessable_token.h"
+#include "chromeos/ash/services/secure_channel/client_connection_parameters.h"
 #include "chromeos/ash/services/secure_channel/connection_details.h"
 #include "chromeos/ash/services/secure_channel/fake_active_connection_manager.h"
 #include "chromeos/ash/services/secure_channel/fake_authenticated_channel.h"
@@ -38,7 +40,8 @@ class FakeMultiplexedChannelFactory : public MultiplexedChannelImpl::Factory {
 
   ~FakeMultiplexedChannelFactory() override = default;
 
-  base::flat_map<ConnectionDetails, FakeMultiplexedChannel*>&
+  base::flat_map<ConnectionDetails,
+                 raw_ptr<FakeMultiplexedChannel, CtnExperimental>>&
   connection_details_to_active_channel_map() {
     return connection_details_to_active_channel_map_;
   }
@@ -81,23 +84,20 @@ class FakeMultiplexedChannelFactory : public MultiplexedChannelImpl::Factory {
     EXPECT_EQ(1u, num_deleted);
   }
 
-  raw_ptr<const MultiplexedChannel::Delegate, ExperimentalAsh>
+  raw_ptr<const MultiplexedChannel::Delegate, DanglingUntriaged>
       expected_delegate_;
 
-  raw_ptr<AuthenticatedChannel, ExperimentalAsh>
-      next_expected_authenticated_channel_ = nullptr;
+  raw_ptr<AuthenticatedChannel> next_expected_authenticated_channel_ = nullptr;
 
-  base::flat_map<ConnectionDetails, FakeMultiplexedChannel*>
+  base::flat_map<ConnectionDetails,
+                 raw_ptr<FakeMultiplexedChannel, CtnExperimental>>
       connection_details_to_active_channel_map_;
 };
 
 std::vector<base::UnguessableToken> ClientListToIdList(
     const std::vector<std::unique_ptr<ClientConnectionParameters>>&
         client_list) {
-  std::vector<base::UnguessableToken> id_list;
-  base::ranges::transform(client_list, std::back_inserter(id_list),
-                          &ClientConnectionParameters::id);
-  return id_list;
+  return base::ToVector(client_list, &ClientConnectionParameters::id);
 }
 
 }  // namespace
@@ -248,7 +248,7 @@ TEST_F(SecureChannelActiveConnectionManagerImplTest, EdgeCases) {
   // fail, since one already exists.
   client_list.push_back(
       std::make_unique<FakeClientConnectionParameters>("feature"));
-  EXPECT_DCHECK_DEATH(active_connection_manager()->AddActiveConnection(
+  EXPECT_NOTREACHED_DEATH(active_connection_manager()->AddActiveConnection(
       std::make_unique<FakeAuthenticatedChannel>(), std::move(client_list),
       ConnectionDetails("deviceId", ConnectionMedium::kBluetoothLowEnergy)));
 
@@ -261,12 +261,12 @@ TEST_F(SecureChannelActiveConnectionManagerImplTest, EdgeCases) {
   // Try to add another channel; this should still fail while disconnecting.
   client_list.push_back(
       std::make_unique<FakeClientConnectionParameters>("feature"));
-  EXPECT_DCHECK_DEATH(active_connection_manager()->AddActiveConnection(
+  EXPECT_NOTREACHED_DEATH(active_connection_manager()->AddActiveConnection(
       std::make_unique<FakeAuthenticatedChannel>(), std::move(client_list),
       ConnectionDetails("deviceId", ConnectionMedium::kBluetoothLowEnergy)));
 
   // Try to add an additional client; this should also fail while disconnecting.
-  EXPECT_DCHECK_DEATH(active_connection_manager()->AddClientToChannel(
+  EXPECT_NOTREACHED_DEATH(active_connection_manager()->AddClientToChannel(
       std::make_unique<FakeClientConnectionParameters>("feature"),
       ConnectionDetails("deviceId", ConnectionMedium::kBluetoothLowEnergy)));
 
@@ -275,7 +275,7 @@ TEST_F(SecureChannelActiveConnectionManagerImplTest, EdgeCases) {
             GetConnectionState("deviceId"));
 
   // Try to add an additional client; this should also fail while disconnected.
-  EXPECT_DCHECK_DEATH(active_connection_manager()->AddClientToChannel(
+  EXPECT_NOTREACHED_DEATH(active_connection_manager()->AddClientToChannel(
       std::make_unique<FakeClientConnectionParameters>("feature"),
       ConnectionDetails("deviceId", ConnectionMedium::kBluetoothLowEnergy)));
 }

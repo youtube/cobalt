@@ -9,13 +9,14 @@ import android.util.Pair;
 
 import androidx.annotation.Nullable;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNIAdditionalImport;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
-import org.chromium.components.payments.PaymentApp;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.payments.PaymentFeatureList;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.payments.mojom.PaymentEventResponseType;
@@ -24,13 +25,8 @@ import org.chromium.url.GURL;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Native bridge for interacting with service worker based payment apps.
- */
-@JNIAdditionalImport({PaymentApp.class})
+/** Native bridge for interacting with service worker based payment apps. */
 public class ServiceWorkerPaymentAppBridge {
-    private static final String TAG = "SWPaymentApp";
-
     /** The interface for checking whether there is an installed SW payment app. */
     public static interface HasServiceWorkerPaymentAppsCallback {
         /**
@@ -54,45 +50,52 @@ public class ServiceWorkerPaymentAppBridge {
     /* package */ ServiceWorkerPaymentAppBridge() {}
 
     /**
-     * Checks whether there is a installed SW payment app.
+     * Checks whether there is a installed SW payment app in the profile.
      *
+     * @param profile The profile for which the installed SW payment app will be checked for.
      * @param callback The callback to return result.
      */
-    public static void hasServiceWorkerPaymentApps(HasServiceWorkerPaymentAppsCallback callback) {
+    public static void hasServiceWorkerPaymentApps(
+            Profile profile, HasServiceWorkerPaymentAppsCallback callback) {
         ThreadUtils.assertOnUiThread();
 
         if (!PaymentFeatureList.isEnabled(PaymentFeatureList.SERVICE_WORKER_PAYMENT_APPS)) {
-            PostTask.postTask(TaskTraits.UI_DEFAULT, new Runnable() {
-                @Override
-                public void run() {
-                    callback.onHasServiceWorkerPaymentAppsResponse(false);
-                }
-            });
+            PostTask.postTask(
+                    TaskTraits.UI_DEFAULT,
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            callback.onHasServiceWorkerPaymentAppsResponse(false);
+                        }
+                    });
             return;
         }
-        ServiceWorkerPaymentAppBridgeJni.get().hasServiceWorkerPaymentApps(callback);
+        ServiceWorkerPaymentAppBridgeJni.get().hasServiceWorkerPaymentApps(profile, callback);
     }
 
     /**
-     * Gets all installed SW payment apps' information.
+     * Gets all installed SW payment apps' information in the profile.
      *
+     * @param profile The profile for which the installed SW payment apps will be checked for.
      * @param callback The callback to return result.
      */
     public static void getServiceWorkerPaymentAppsInfo(
-            GetServiceWorkerPaymentAppsInfoCallback callback) {
+            Profile profile, GetServiceWorkerPaymentAppsInfoCallback callback) {
         ThreadUtils.assertOnUiThread();
 
         if (!PaymentFeatureList.isEnabled(PaymentFeatureList.SERVICE_WORKER_PAYMENT_APPS)) {
-            PostTask.postTask(TaskTraits.UI_DEFAULT, new Runnable() {
-                @Override
-                public void run() {
-                    callback.onGetServiceWorkerPaymentAppsInfo(
-                            new HashMap<String, Pair<String, Bitmap>>());
-                }
-            });
+            PostTask.postTask(
+                    TaskTraits.UI_DEFAULT,
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            callback.onGetServiceWorkerPaymentAppsInfo(
+                                    new HashMap<String, Pair<String, Bitmap>>());
+                        }
+                    });
             return;
         }
-        ServiceWorkerPaymentAppBridgeJni.get().getServiceWorkerPaymentAppsInfo(callback);
+        ServiceWorkerPaymentAppBridgeJni.get().getServiceWorkerPaymentAppsInfo(profile, callback);
     }
 
     /**
@@ -100,13 +103,13 @@ public class ServiceWorkerPaymentAppBridge {
      *
      * @param paymentRequestWebContents The web contents in the opened window. Can be null.
      * @param responseType The type of response for payment event, used to decide the user-visible
-     *         error message, defined in {@link PaymentEventResponseType}.
+     *     error message, defined in {@link PaymentEventResponseType}.
      */
     public static void onClosingPaymentAppWindow(
             @Nullable WebContents paymentRequestWebContents, int responseType) {
         if (paymentRequestWebContents == null || paymentRequestWebContents.isDestroyed()) return;
-        ServiceWorkerPaymentAppBridgeJni.get().onClosingPaymentAppWindow(
-                paymentRequestWebContents, responseType);
+        ServiceWorkerPaymentAppBridgeJni.get()
+                .onClosingPaymentAppWindow(paymentRequestWebContents, responseType);
     }
 
     /**
@@ -118,9 +121,10 @@ public class ServiceWorkerPaymentAppBridge {
     public static void onOpeningPaymentAppWindow(
             WebContents paymentRequestWebContents, WebContents paymentHandlerWebContents) {
         if (paymentRequestWebContents == null || paymentRequestWebContents.isDestroyed()) return;
-        ServiceWorkerPaymentAppBridgeJni.get().onOpeningPaymentAppWindow(
-                /*paymentRequestWebContents=*/paymentRequestWebContents,
-                /*paymentHandlerWebContents=*/paymentHandlerWebContents);
+        ServiceWorkerPaymentAppBridgeJni.get()
+                .onOpeningPaymentAppWindow(
+                        /* paymentRequestWebContents= */ paymentRequestWebContents,
+                        /* paymentHandlerWebContents= */ paymentHandlerWebContents);
     }
 
     /**
@@ -147,7 +151,10 @@ public class ServiceWorkerPaymentAppBridge {
     @SuppressWarnings("unchecked")
     @CalledByNative
     private static void addPaymentAppInfo(
-            Object appsInfo, String scope, @Nullable String name, @Nullable Bitmap icon) {
+            Object appsInfo,
+            @JniType("std::string") String scope,
+            @JniType("std::string") String name,
+            @Nullable Bitmap icon) {
         ((Map<String, Pair<String, Bitmap>>) appsInfo).put(scope, new Pair<>(name, icon));
     }
 
@@ -159,13 +166,21 @@ public class ServiceWorkerPaymentAppBridge {
 
         callback.onGetServiceWorkerPaymentAppsInfo(((Map<String, Pair<String, Bitmap>>) appsInfo));
     }
+
     @NativeMethods
     interface Natives {
-        void hasServiceWorkerPaymentApps(HasServiceWorkerPaymentAppsCallback callback);
-        void getServiceWorkerPaymentAppsInfo(GetServiceWorkerPaymentAppsInfoCallback callback);
+        void hasServiceWorkerPaymentApps(
+                @JniType("Profile*") Profile profile, HasServiceWorkerPaymentAppsCallback callback);
+
+        void getServiceWorkerPaymentAppsInfo(
+                @JniType("Profile*") Profile profile,
+                GetServiceWorkerPaymentAppsInfoCallback callback);
+
         void onClosingPaymentAppWindow(WebContents paymentRequestWebContents, int reason);
+
         void onOpeningPaymentAppWindow(
                 WebContents paymentRequestWebContents, WebContents paymentHandlerWebContents);
+
         long getSourceIdForPaymentAppFromScope(GURL swScope);
     }
 }

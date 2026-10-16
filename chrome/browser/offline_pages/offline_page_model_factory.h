@@ -11,7 +11,7 @@
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }  // namespace base
 
 namespace content {
@@ -41,10 +41,10 @@ class OfflinePageModelFactory : public SimpleKeyedServiceFactory {
   OfflinePageModelFactory& operator=(const OfflinePageModelFactory&) = delete;
 
  private:
-  friend struct base::DefaultSingletonTraits<OfflinePageModelFactory>;
+  friend base::NoDestructor<OfflinePageModelFactory>;
 
   OfflinePageModelFactory();
-  ~OfflinePageModelFactory() override {}
+  ~OfflinePageModelFactory() override = default;
 
   std::unique_ptr<KeyedService> BuildServiceInstanceFor(
       SimpleFactoryKey* key) const override;

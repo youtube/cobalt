@@ -11,15 +11,65 @@
 #include "base/feature_list.h"
 #include "media/base/media_log.h"
 #include "media/base/media_switches.h"
+#include "media/base/video_codecs.h"
 #include "media/base/win/mf_helpers.h"
 #include "media/gpu/windows/av1_guids.h"
-#include "media/gpu/windows/d3d11_copying_texture_wrapper.h"
 #include "media/gpu/windows/d3d11_status.h"
 #include "media/gpu/windows/supported_profile_helpers.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gl/direct_composition_support.h"
 
 namespace media {
+
+namespace {
+
+GUID GetD3D11DecoderGUID(const VideoCodecProfile& profile,
+                         uint8_t bit_depth,
+                         VideoChromaSampling chroma_sampling,
+                         ComD3D11Device device) {
+  switch (profile) {
+    case H264PROFILE_BASELINE:
+    case H264PROFILE_MAIN:
+    case H264PROFILE_EXTENDED:
+    case H264PROFILE_HIGH:
+    case H264PROFILE_HIGH10PROFILE:
+    case H264PROFILE_HIGH422PROFILE:
+    case H264PROFILE_HIGH444PREDICTIVEPROFILE:
+    case H264PROFILE_SCALABLEBASELINE:
+    case H264PROFILE_SCALABLEHIGH:
+    case H264PROFILE_STEREOHIGH:
+    case H264PROFILE_MULTIVIEWHIGH:
+      return D3D11_DECODER_PROFILE_H264_VLD_NOFGT;
+    case VP9PROFILE_PROFILE0:
+      return D3D11_DECODER_PROFILE_VP9_VLD_PROFILE0;
+    case VP9PROFILE_PROFILE2:
+      return D3D11_DECODER_PROFILE_VP9_VLD_10BIT_PROFILE2;
+    case AV1PROFILE_PROFILE_MAIN:
+      return DXVA_ModeAV1_VLD_Profile0;
+    case AV1PROFILE_PROFILE_HIGH:
+      return DXVA_ModeAV1_VLD_Profile1;
+    case AV1PROFILE_PROFILE_PRO:
+      return DXVA_ModeAV1_VLD_Profile2;
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+    // Per DirectX Video Acceleration Specification for High Efficiency Video
+    // Coding - 7.4, DXVA_ModeHEVC_VLD_Main GUID can be used for both main and
+    // main still picture profile.
+    case HEVCPROFILE_MAIN:
+    case HEVCPROFILE_MAIN_STILL_PICTURE:
+      return D3D11_DECODER_PROFILE_HEVC_VLD_MAIN;
+    case HEVCPROFILE_MAIN10:
+      return D3D11_DECODER_PROFILE_HEVC_VLD_MAIN10;
+    case HEVCPROFILE_REXT:
+      return GetHEVCRangeExtensionGUID(
+          bit_depth, chroma_sampling,
+          SupportsHEVCRangeExtensionDXVAProfile(device));
+#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+    default:
+      return {};
+  }
+}
+
+}  // namespace
 
 D3D11DecoderConfigurator::D3D11DecoderConfigurator(
     DXGI_FORMAT decoder_output_dxgifmt,
@@ -43,98 +93,50 @@ std::unique_ptr<D3D11DecoderConfigurator> D3D11DecoderConfigurator::Create(
     uint8_t bit_depth,
     VideoChromaSampling chroma_sampling,
     MediaLog* media_log,
-    bool use_shared_handle) {
+    bool use_shared_handle,
+    ComD3D11Device device) {
   // Decoder swap chains do not support shared resources. More info in
   // https://crbug.com/911847. To enable Kaby Lake+ systems for using shared
   // handle, we disable decode swap chain support if shared handle is enabled.
   const bool supports_nv12_decode_swap_chain =
       gl::DirectCompositionDecodeSwapChainSupported() && !use_shared_handle;
 
-  DXGI_FORMAT decoder_dxgi_format = DXGI_FORMAT_UNKNOWN;
-  // Assume YUV420 format.
-  switch (bit_depth) {
-    case 8:
-      decoder_dxgi_format = DXGI_FORMAT_NV12;
-      break;
-    case 10:
-      decoder_dxgi_format = DXGI_FORMAT_P010;
-      break;
-    case 12:
-      decoder_dxgi_format = DXGI_FORMAT_P016;
-      break;
-    default:
-      MEDIA_LOG(WARNING, media_log)
-          << "D3D11VideoDecoder does not support bit depth "
-          << base::strict_cast<int>(bit_depth);
-      return nullptr;
+  DXGI_FORMAT decoder_dxgi_format =
+      GetOutputDXGIFormat(bit_depth, chroma_sampling);
+  if (decoder_dxgi_format == DXGI_FORMAT_UNKNOWN) {
+    MEDIA_LOG(WARNING, media_log)
+        << "D3D11VideoDecoder does not support bit depth "
+        << base::strict_cast<int>(bit_depth)
+        << " with chroma subsampling format "
+        << VideoChromaSamplingToString(chroma_sampling);
+    return nullptr;
   }
 
-  GUID decoder_guid = {};
-  if (config.codec() == VideoCodec::kH264) {
-    decoder_guid = D3D11_DECODER_PROFILE_H264_VLD_NOFGT;
-  } else if (config.profile() == VP9PROFILE_PROFILE0) {
-    decoder_guid = D3D11_DECODER_PROFILE_VP9_VLD_PROFILE0;
-  } else if (config.profile() == VP9PROFILE_PROFILE2) {
-    decoder_guid = D3D11_DECODER_PROFILE_VP9_VLD_10BIT_PROFILE2;
-  } else if (config.profile() == AV1PROFILE_PROFILE_MAIN) {
-    decoder_guid = DXVA_ModeAV1_VLD_Profile0;
-  } else if (config.profile() == AV1PROFILE_PROFILE_HIGH) {
-    decoder_guid = DXVA_ModeAV1_VLD_Profile1;
-  } else if (config.profile() == AV1PROFILE_PROFILE_PRO) {
-    decoder_guid = DXVA_ModeAV1_VLD_Profile2;
-  }
+  GUID decoder_guid =
+      GetD3D11DecoderGUID(config.profile(), bit_depth, chroma_sampling, device);
 #if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
-  else if (config.profile() == HEVCPROFILE_MAIN) {
-    decoder_guid = D3D11_DECODER_PROFILE_HEVC_VLD_MAIN;
-  } else if (config.profile() == HEVCPROFILE_MAIN10) {
-    decoder_guid = D3D11_DECODER_PROFILE_HEVC_VLD_MAIN10;
-  } else if (config.profile() == HEVCPROFILE_REXT) {
-    // TODO(crbug.com/1345568): Enable 8-bit 444 decoding when AYUV
-    // is added into video pixel format histogram enumerations.
-    if (bit_depth == 8) {
-      if (chroma_sampling == VideoChromaSampling::k420) {
-        decoder_guid = DXVA_ModeHEVC_VLD_Main_Intel;
-        decoder_dxgi_format = DXGI_FORMAT_NV12;
-      } else {
-        MEDIA_LOG(INFO, media_log)
-            << "D3D11VideoDecoder does not support HEVC range extension "
-            << config.codec() << " with chroma subsampling format "
-            << VideoChromaSamplingToString(chroma_sampling) << " and bit depth "
-            << base::strict_cast<int>(bit_depth);
-        return nullptr;
-      }
-    } else if (bit_depth == 10) {
-      if (chroma_sampling == VideoChromaSampling::k420) {
-        decoder_guid = DXVA_ModeHEVC_VLD_Main10_Intel;
-        decoder_dxgi_format = DXGI_FORMAT_P010;
-      } else if (chroma_sampling == VideoChromaSampling::k422) {
-        decoder_guid = DXVA_ModeHEVC_VLD_Main422_10_Intel;
-        decoder_dxgi_format = DXGI_FORMAT_Y210;
-      } else if (chroma_sampling == VideoChromaSampling::k444) {
-        decoder_guid = DXVA_ModeHEVC_VLD_Main444_10_Intel;
-        decoder_dxgi_format = DXGI_FORMAT_Y410;
-      }
-    } else if (bit_depth == 12) {
-      // TODO(crbug.com/1345568): Enable 12-bit 422/444 decoding.
-      // 12-bit decoding with 422 & 444 format does not work well
-      // on Intel platforms.
-      if (chroma_sampling == VideoChromaSampling::k420) {
-        decoder_guid = DXVA_ModeHEVC_VLD_Main12_Intel;
-        decoder_dxgi_format = DXGI_FORMAT_P016;
-      } else {
-        MEDIA_LOG(INFO, media_log)
-            << "D3D11VideoDecoder does not support HEVC range extension "
-            << config.codec() << " with chroma subsampling format "
-            << VideoChromaSamplingToString(chroma_sampling) << " and bit depth "
-            << base::strict_cast<int>(bit_depth);
-        return nullptr;
-      }
+  if (decoder_guid == DXVA_ModeHEVC_VLD_Main12) {
+    constexpr UINT kNVIDIADeviceId = 0x10DE;
+    ComDXGIDevice dxgi_device;
+    if (SUCCEEDED(device.As(&dxgi_device)) &&
+        GetGPUVendorID(dxgi_device) == kNVIDIADeviceId) {
+      // NVIDIA driver requires output format to be P010 for HEVC 12b420 range
+      // extension profile.
+      decoder_dxgi_format = DXGI_FORMAT_P010;
     }
   }
 #endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
-  else {
-    MEDIA_LOG(INFO, media_log)
-        << "D3D11VideoDecoder does not support codec " << config.codec();
+  if (decoder_guid == GUID()) {
+    if (config.profile() == HEVCPROFILE_REXT) {
+      MEDIA_LOG(INFO, media_log)
+          << "D3D11VideoDecoder does not support HEVC range extension "
+          << config.codec() << " with chroma subsampling format "
+          << VideoChromaSamplingToString(chroma_sampling) << " and bit depth "
+          << base::strict_cast<int>(bit_depth);
+    } else {
+      MEDIA_LOG(INFO, media_log)
+          << "D3D11VideoDecoder does not support codec " << config.codec();
+    }
     return nullptr;
   }
 

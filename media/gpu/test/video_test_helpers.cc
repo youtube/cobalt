@@ -2,85 +2,92 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/test/video_test_helpers.h"
 
+#include <array>
 #include <limits>
+#include <numeric>
 
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
+#include "base/containers/span_writer.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/memory/shared_memory_mapping.h"
+#include "base/numerics/byte_conversions.h"
 #include "base/stl_util.h"
-#include "gpu/ipc/common/gpu_memory_buffer_support.h"
+#include "components/viz/common/resources/shared_image_format.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
+#include "gpu/command_buffer/client/test_shared_image_interface.h"
 #include "media/base/format_utils.h"
 #include "media/base/video_codecs.h"
 #include "media/base/video_frame_layout.h"
-#include "media/filters/vp9_parser.h"
-#include "media/gpu/test/video.h"
+#include "media/gpu/test/raw_video.h"
 #include "media/gpu/test/video_frame_helpers.h"
-#include "media/parsers/vp8_parser.h"
+#include "media/media_buildflags.h"
 #include "mojo/public/cpp/system/buffer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/libyuv/include/libyuv/planar_functions.h"
 
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+// These includes are used for non-ChromeOS platforms as well.
+// TODO(crbug.com/414455717): Consider renaming them.
 #include "media/gpu/chromeos/platform_video_frame_utils.h"
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif
 
-namespace media {
-namespace test {
+namespace media::test {
+
 namespace {
 constexpr uint16_t kIvfFileHeaderSize = 32;
 constexpr size_t kIvfFrameHeaderSize = 12;
 
-bool IsH264SPSNALU(const uint8_t* data, size_t size) {
-  // Check if this is an H264 SPS NALU w/ a 3 or 4 byte start code.
-  return (size >= 4 && data[0] == 0x0 && data[1] == 0x0 && data[2] == 0x1 &&
-          (data[3] & 0x1f) == 0x7) ||
-         (size >= 5 && data[0] == 0x0 && data[1] == 0x0 && data[2] == 0x0 &&
-          data[3] == 0x1 && (data[4] & 0x1f) == 0x7);
-}
-
-bool IsHevcSPSNALU(const uint8_t* data, size_t size) {
-  // Check if this is an HEVC SPS NALU w/ a 3 or 4 byte start code.
-  return (size >= 4 && data[0] == 0x0 && data[1] == 0x0 && data[2] == 0x1 &&
-          (data[3] & 0x7e) == 0x42) ||
-         (size >= 5 && data[0] == 0x0 && data[1] == 0x0 && data[2] == 0x0 &&
-          data[3] == 0x1 && (data[4] & 0x7e) == 0x42);
-}
+constexpr size_t kNALUHeaderSize = 4;
+constexpr size_t kNALUReducedHeaderSize = 3;
 
 // If |reverse| is true , GetNextFrame() for a frame returns frames in a
 // round-trip playback fashion (0, 1,.., |num_frames| - 2, |num_frames| - 1,
-// |num_frames| - 1, |num_frames_| - 2,.., 1, 0, 0, 1,..).
+// |num_frames| - 2, |num_frames_| - 3,.., 1, 0, 1, 2,..).
 // If |reverse| is false, GetNextFrame() just loops the stream (0, 1,..,
 // |num_frames| - 2, |num_frames| - 1, 0, 1,..).
 uint32_t GetReadFrameIndex(uint32_t frame_index,
                            bool reverse,
                            uint32_t num_frames) {
+  CHECK_GT(num_frames, 1u);
   if (!reverse)
     return frame_index % num_frames;
-
-  const uint32_t number_of_loops = frame_index / num_frames;
-  const bool is_even_loop = number_of_loops % 2 == 0;
-  const uint32_t local_index = frame_index % num_frames;
-  return is_even_loop ? local_index : num_frames - local_index - 1;
+  // 0, .., num_frames - 1, num_frames - 2
+  // 0-num_frame, num_frames - 1, ... 1, 0, 1, nu
+  const size_t num_frames_in_loop = num_frames + num_frames - 2;
+  frame_index = frame_index % num_frames_in_loop;
+  if (frame_index < num_frames) {
+    return frame_index;
+  }
+  frame_index -= num_frames;
+  return num_frames - 2 - frame_index;
 }
-}  // namespace
 
-IvfFileHeader GetIvfFileHeader(const base::span<const uint8_t>& data) {
+}  // anonymous namespace
+
+IvfFileHeader GetIvfFileHeader(base::span<const uint8_t> data) {
   LOG_ASSERT(data.size_bytes() == 32u);
   IvfFileHeader file_header;
-  memcpy(&file_header, data.data(), sizeof(IvfFileHeader));
-  file_header.ByteSwap();
+  base::byte_span_from_ref(file_header).copy_from(data.first<32u>());
   return file_header;
 }
 
-IvfFrameHeader GetIvfFrameHeader(const base::span<const uint8_t>& data) {
+IvfFrameHeader GetIvfFrameHeader(base::span<const uint8_t> data) {
   LOG_ASSERT(data.size_bytes() == 12u);
-  IvfFrameHeader frame_header{};
-  memcpy(&frame_header.frame_size, data.data(), 4);
-  memcpy(&frame_header.timestamp, &data[4], 8);
+  IvfFrameHeader frame_header;
+  auto [frame_size, timestamp] = data.first<12u>().split_at<4u>();
+  frame_header.frame_size = base::U32FromLittleEndian(frame_size);
+  frame_header.timestamp = base::U64FromLittleEndian(timestamp);
   return frame_header;
 }
 
@@ -94,60 +101,88 @@ bool IvfWriter::WriteFileHeader(VideoCodec codec,
                                 const gfx::Size& resolution,
                                 uint32_t frame_rate,
                                 uint32_t num_frames) {
-  char ivf_header[kIvfFileHeaderSize] = {};
-  // Bytes 0-3 of an IVF file header always contain the signature 'DKIF'.
-  strcpy(&ivf_header[0], "DKIF");
   constexpr uint16_t kVersion = 0;
-  auto write16 = [&ivf_header](int i, uint16_t v) {
-    memcpy(&ivf_header[i], &v, sizeof(v));
-  };
-  auto write32 = [&ivf_header](int i, uint32_t v) {
-    memcpy(&ivf_header[i], &v, sizeof(v));
-  };
 
-  write16(4, kVersion);
-  write16(6, kIvfFileHeaderSize);
+  char ivf_header[kIvfFileHeaderSize] = {};
+  auto writer = base::SpanWriter(base::as_writable_byte_span(ivf_header));
+  // Bytes 0-3 of an IVF file header always contain the signature 'DKIF'.
+  writer.Write(base::as_byte_span({'D', 'K', 'I', 'F'}));
+
+  writer.WriteU16LittleEndian(kVersion);
+  writer.WriteU16LittleEndian(kIvfFileHeaderSize);
   switch (codec) {
     case VideoCodec::kVP8:
-      strcpy(&ivf_header[8], "VP80");
+      writer.Write(base::as_byte_span({'V', 'P', '8', '0'}));
       break;
     case VideoCodec::kVP9:
-      strcpy(&ivf_header[8], "VP90");
+      writer.Write(base::as_byte_span({'V', 'P', '9', '0'}));
       break;
     case VideoCodec::kAV1:
-      strcpy(&ivf_header[8], "AV01");
+      writer.Write(base::as_byte_span({'A', 'V', '0', '1'}));
       break;
     default:
       LOG(ERROR) << "Unknown codec: " << GetCodecName(codec);
       return false;
   }
 
-  write16(12, resolution.width());
-  write16(14, resolution.height());
-  write32(16, frame_rate);
-  write32(20, 1);
-  write32(24, num_frames);
+  writer.WriteU16LittleEndian(resolution.width());
+  writer.WriteU16LittleEndian(resolution.height());
+  writer.WriteU32LittleEndian(frame_rate);
+  writer.WriteU32LittleEndian(1u);
+  writer.WriteU32LittleEndian(num_frames);
   // Reserved.
-  write32(28, 0);
-  return output_file_.WriteAtCurrentPos(ivf_header, kIvfFileHeaderSize) ==
-         static_cast<int>(kIvfFileHeaderSize);
+  writer.WriteU32LittleEndian(0u);
+  CHECK_EQ(writer.remaining(), 0u);
+
+  return output_file_.WriteAtCurrentPosAndCheck(base::as_byte_span(ivf_header));
 }
 
 bool IvfWriter::WriteFrame(uint32_t data_size,
                            uint64_t timestamp,
                            const uint8_t* data) {
-  char ivf_frame_header[kIvfFrameHeaderSize] = {};
+  std::array<char, kIvfFrameHeaderSize> ivf_frame_header = {};
   memcpy(&ivf_frame_header[0], &data_size, sizeof(data_size));
   memcpy(&ivf_frame_header[4], &timestamp, sizeof(timestamp));
-  bool success =
-      output_file_.WriteAtCurrentPos(ivf_frame_header, kIvfFrameHeaderSize) ==
-          static_cast<int>(kIvfFrameHeaderSize) &&
-      output_file_.WriteAtCurrentPos(reinterpret_cast<const char*>(data),
-                                     data_size) == static_cast<int>(data_size);
-  return success;
+  if (!output_file_.WriteAtCurrentPosAndCheck(
+          base::as_byte_span(ivf_frame_header))) {
+    return false;
+  }
+  auto data_span = UNSAFE_TODO(base::span(data, data_size));
+  return output_file_.WriteAtCurrentPosAndCheck(data_span);
 }
 
-EncodedDataHelper::EncodedDataHelper(const std::vector<uint8_t>& stream,
+// static
+std::unique_ptr<EncodedDataHelper> EncodedDataHelper::Create(
+    base::span<const uint8_t> stream,
+    VideoCodec codec) {
+  if (codec == VideoCodec::kH264) {
+    return std::make_unique<EncodedDataHelperH26x>(std::move(stream), codec);
+  }
+  if (codec == VideoCodec::kHEVC) {
+    // Depending on ENABLE_HEVC_PARSER_AND_HW_DECODER, use a sophisticated H265
+    // parser or the same NALU hunter as EncodedDataHelperH26x.
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+    return std::make_unique<EncodedDataHelperH265>(std::move(stream), codec);
+#else
+    return std::make_unique<EncodedDataHelperH26x>(std::move(stream), codec);
+#endif
+  }
+  if (codec == VideoCodec::kVP8 || codec == VideoCodec::kVP9 ||
+      codec == VideoCodec::kAV1) {
+    return std::make_unique<EncodedDataHelperIVF>(std::move(stream), codec);
+  }
+  NOTREACHED() << "Unsupported codec " << GetCodecName(codec);
+}
+
+// static
+bool EncodedDataHelper::HasConfigInfo(base::span<const uint8_t> data,
+                                      VideoCodec codec) {
+  CHECK(codec == media::VideoCodec::kH264 || codec == media::VideoCodec::kHEVC)
+      << "Unsupported codec " << GetCodecName(codec);
+  return EncodedDataHelperH26x::HasConfigInfo(data, codec);
+}
+
+EncodedDataHelper::EncodedDataHelper(base::span<const uint8_t> stream,
                                      VideoCodec codec)
     : data_(std::string(reinterpret_cast<const char*>(stream.data()),
                         stream.size())),
@@ -157,95 +192,294 @@ EncodedDataHelper::~EncodedDataHelper() {
   base::STLClearObject(&data_);
 }
 
-bool EncodedDataHelper::IsNALHeader(const std::string& data, size_t pos) {
-  return data[pos] == 0 && data[pos + 1] == 0 && data[pos + 2] == 0 &&
-         data[pos + 3] == 1;
+void EncodedDataHelper::Rewind() {
+  next_pos_to_parse_ = 0;
 }
 
-scoped_refptr<DecoderBuffer> EncodedDataHelper::GetNextBuffer() {
-  switch (codec_) {
-    case VideoCodec::kH264:
-    case VideoCodec::kHEVC:
-      return GetNextFragment();
-    case VideoCodec::kVP8:
-    case VideoCodec::kVP9:
-    case VideoCodec::kAV1:
-      return GetNextFrame();
-    default:
-      NOTREACHED();
-      return nullptr;
+bool EncodedDataHelper::ReachEndOfStream() const {
+  return next_pos_to_parse_ == data_.size();
+}
+
+EncodedDataHelperH26x::EncodedDataHelperH26x(base::span<const uint8_t> stream,
+                                             VideoCodec codec)
+    : EncodedDataHelper(std::move(stream), codec) {}
+
+// static
+bool EncodedDataHelperH26x::HasConfigInfo(base::span<const uint8_t> data,
+                                          VideoCodec codec) {
+  // Check if this is an H264 SPS NALU w/ a kNALUReducedHeaderSize or
+  // kNALUHeaderSize byte start code.
+  if (codec == media::VideoCodec::kH264) {
+    return (data.size() > kNALUReducedHeaderSize && data[0] == 0x0 &&
+            data[1] == 0x0 && data[2] == 0x1 &&
+            (data[kNALUReducedHeaderSize] & 0x1f) == 0x7) ||
+           (data.size() > kNALUHeaderSize && data[0] == 0x0 && data[1] == 0x0 &&
+            data[2] == 0x0 && data[3] == 0x1 &&
+            (data[kNALUHeaderSize] & 0x1f) == 0x7);
   }
+  CHECK_EQ(codec, media::VideoCodec::kHEVC);
+  return (data.size() > kNALUReducedHeaderSize && data[0] == 0x0 &&
+          data[1] == 0x0 && data[2] == 0x1 &&
+          (data[kNALUReducedHeaderSize] & 0x7e) == 0x42) ||
+         (data.size() > kNALUHeaderSize && data[0] == 0x0 && data[1] == 0x0 &&
+          data[2] == 0x0 && data[3] == 0x1 &&
+          (data[kNALUHeaderSize] & 0x7e) == 0x42);
 }
 
-scoped_refptr<DecoderBuffer> EncodedDataHelper::GetNextFragment() {
-  if (next_pos_to_decode_ == 0) {
-    size_t skipped_fragments_count = 0;
-    if (!LookForSPS(&skipped_fragments_count)) {
-      next_pos_to_decode_ = 0;
+scoped_refptr<DecoderBuffer> EncodedDataHelperH26x::GetNextBuffer() {
+  if (next_pos_to_parse_ == 0) {
+    if (!LookForSPS()) {
+      next_pos_to_parse_ = 0;
       return nullptr;
     }
-    num_skipped_fragments_ += skipped_fragments_count;
   }
 
-  size_t start_pos = next_pos_to_decode_;
+  size_t start_pos = next_pos_to_parse_;
   size_t next_nalu_pos = GetBytesForNextNALU(start_pos);
 
-  // Update next_pos_to_decode_.
-  next_pos_to_decode_ = next_nalu_pos;
+  // Update next_pos_to_parse_.
+  next_pos_to_parse_ = next_nalu_pos;
   return DecoderBuffer::CopyFrom(
-      reinterpret_cast<const uint8_t*>(&data_[start_pos]),
-      next_nalu_pos - start_pos);
+      base::as_byte_span(data_).subspan(start_pos, next_nalu_pos - start_pos));
 }
 
-size_t EncodedDataHelper::GetBytesForNextNALU(size_t start_pos) {
+size_t EncodedDataHelperH26x::GetBytesForNextNALU(size_t start_pos) {
   size_t pos = start_pos;
-  if (pos + 4 > data_.size())
+  if (pos + kNALUHeaderSize > data_.size()) {
     return pos;
+  }
   if (!IsNALHeader(data_, pos)) {
     ADD_FAILURE();
     return std::numeric_limits<std::size_t>::max();
   }
-  pos += 4;
-  while (pos + 4 <= data_.size() && !IsNALHeader(data_, pos)) {
+  pos += kNALUHeaderSize;
+  while (pos + kNALUHeaderSize <= data_.size() && !IsNALHeader(data_, pos)) {
     ++pos;
   }
-  if (pos + 3 >= data_.size())
+  if (pos + kNALUReducedHeaderSize >= data_.size()) {
     pos = data_.size();
+  }
   return pos;
 }
 
-bool EncodedDataHelper::LookForSPS(size_t* skipped_fragments_count) {
-  *skipped_fragments_count = 0;
-  while (next_pos_to_decode_ + 4 < data_.size()) {
+bool EncodedDataHelperH26x::IsNALHeader(const std::string& data, size_t pos) {
+  return data[pos] == 0 && data[pos + 1] == 0 && data[pos + 2] == 0 &&
+         data[pos + 3] == 1;
+}
+
+bool EncodedDataHelperH26x::LookForSPS() {
+  while (next_pos_to_parse_ + kNALUHeaderSize < data_.size()) {
     if (codec_ == VideoCodec::kH264 &&
-        (data_[next_pos_to_decode_ + 4] & 0x1f) == 0x7) {
+        (data_[next_pos_to_parse_ + kNALUHeaderSize] & 0x1f) == 0x7) {
       return true;
     } else if (codec_ == VideoCodec::kHEVC &&
-               (data_[next_pos_to_decode_ + 4] & 0x7e) == 0x42) {
+               (data_[next_pos_to_parse_ + kNALUHeaderSize] & 0x7e) == 0x42) {
       return true;
     }
-    *skipped_fragments_count += 1;
-    next_pos_to_decode_ = GetBytesForNextNALU(next_pos_to_decode_);
+    next_pos_to_parse_ = GetBytesForNextNALU(next_pos_to_parse_);
   }
   return false;
 }
 
-scoped_refptr<DecoderBuffer> EncodedDataHelper::GetNextFrame() {
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+EncodedDataHelperH265::EncodedDataHelperH265(base::span<const uint8_t> stream,
+                                             VideoCodec codec)
+    : EncodedDataHelper(std::move(stream), codec),
+      h265_parser_(std::make_unique<H265Parser>()) {
+  h265_parser_->SetStream(reinterpret_cast<uint8_t*>(data_.data()),
+                          data_.size());
+}
+
+EncodedDataHelperH265::~EncodedDataHelperH265() = default;
+
+scoped_refptr<DecoderBuffer> EncodedDataHelperH265::GetNextBuffer() {
+  CHECK(h265_parser_);
+  // This method is expected to send back DecoderBuffers with full frames, but
+  // oftentimes NALUs are only slices and part of a frame. HEVC uses SPS/PPS/SEI
+  // NALUs and "data" NALU's |first_slice_segment_in_pic_flag| flag to delimit
+  // those full frames; these  mark what's loosely called "first-slice" (of a
+  // frame) or a "(new) frame boundary":
+  //
+  // - VPS/SPS/PPS/SEI etc NALUs always mark a new frame boundary.
+  // - A |first_slice_segment_in_pic_flag| of 1/true also marks a new frame
+  //   boundary.
+  // - A |first_slice_segment_in_pic_flag| of 0/false means that the current
+  //   slice is part of a larger frame (and should be stored for later
+  //   reassembly.
+  //
+  // Note how we can only tell that a full frame is seen when we parse the
+  // _next_ NALU (or the stream ends). This complicates the code below greatly,
+  // since it needs to accumulate NALUs for later reassembly.
+
+  while (true) {
+    H265NALU nalu;
+    {
+      const auto result = h265_parser_->AdvanceToNextNALU(&nalu);
+      if (result == H265Parser::kEOStream) {
+        // |h265_parser_| has consumed all the data that was passed to it. This
+        // inherently signals a frame boundary.
+        auto decoder_buffer = ReassembleNALUs(previous_nalus_);
+        previous_nalus_.clear();
+        return decoder_buffer;
+      }
+      if (result == H265Parser::kInvalidStream ||
+          result == H265Parser::kUnsupportedStream) {
+        LOG(ERROR) << __func__ << " Invalid or unsupported bitstream";
+        return nullptr;
+      }
+      CHECK_EQ(result, H265Parser::kOk);
+    }
+    CHECK_LE(nalu.data,
+             reinterpret_cast<uint8_t*>(data_.data()) + data_.size());
+    CHECK_LE(nalu.data + nalu.size,
+             reinterpret_cast<uint8_t*>(data_.data()) + data_.size());
+
+    struct NALUMetadata nalu_metadata;
+    nalu_metadata.start_pointer =
+        reinterpret_cast<uint8_t*>(data_.data()) + next_pos_to_parse_;
+    nalu_metadata.start_index = next_pos_to_parse_;
+    nalu_metadata.header_size = nalu.data - nalu_metadata.start_pointer;
+    nalu_metadata.size_with_header = nalu_metadata.header_size + nalu.size;
+    VLOG(2) << "NALU (" << nalu.nal_unit_type << ") found " << nalu_metadata
+            << " next_pos_to_parse_=" << next_pos_to_parse_;
+
+    next_pos_to_parse_ += nalu_metadata.size_with_header;
+
+    bool is_new_frame_boundary = false;
+    switch (nalu.nal_unit_type) {
+      case H265NALU::SPS_NUT: {
+        int sps_id;
+        const auto result = h265_parser_->ParseSPS(&sps_id);
+        if (result != H265Parser::kOk) {
+          LOG(ERROR) << __func__ << "Error parsing SPS";
+          return nullptr;
+        }
+        is_new_frame_boundary = true;
+        break;
+      }
+      case H265NALU::PPS_NUT: {
+        int pps_id;
+        const auto result = h265_parser_->ParsePPS(nalu, &pps_id);
+        if (result != H265Parser::kOk) {
+          LOG(ERROR) << __func__ << "Error parsing PPS";
+          return nullptr;
+        }
+        is_new_frame_boundary = true;
+        break;
+      }
+      case H265NALU::BLA_W_LP:
+      case H265NALU::BLA_W_RADL:
+      case H265NALU::BLA_N_LP:
+      case H265NALU::IDR_W_RADL:
+      case H265NALU::IDR_N_LP:
+      case H265NALU::TRAIL_N:
+      case H265NALU::TRAIL_R:
+      case H265NALU::TSA_N:
+      case H265NALU::TSA_R:
+      case H265NALU::STSA_N:
+      case H265NALU::STSA_R:
+      case H265NALU::RADL_N:
+      case H265NALU::RADL_R:
+      case H265NALU::RASL_N:
+      case H265NALU::RASL_R:
+      case H265NALU::CRA_NUT: {
+        auto current_slice_header = std::make_unique<H265SliceHeader>();
+        const auto result = h265_parser_->ParseSliceHeader(
+            nalu, current_slice_header.get(), previous_slice_header_.get());
+        if (result != H265Parser::kOk) {
+          LOG(ERROR) << __func__ << "Error parsing slice header";
+          return nullptr;
+        }
+
+        is_new_frame_boundary =
+            current_slice_header->first_slice_segment_in_pic_flag;
+        VLOG_IF(4, is_new_frame_boundary) << "|is_new_frame_boundary|";
+
+        previous_slice_header_ = std::move(current_slice_header);
+        break;
+      }
+      default:  // Not a special NALU. Assume it marks the start of a new frame.
+        is_new_frame_boundary = true;
+        break;
+    }
+
+    if (!is_new_frame_boundary) {
+      VLOG(3) << "Storing current NALU " << nalu_metadata;
+      previous_nalus_.push_back(std::move(nalu_metadata));
+      continue;
+    }
+
+    const bool is_stand_alone_NALU = nalu.nal_unit_type >= H265NALU::VPS_NUT;
+    if (previous_nalus_.empty() && is_stand_alone_NALU) {
+      // Nothing stored from before, return the current NALU instantly (this is
+      // the case for e.g. SPS/PPS/SEI).
+      VLOG(3) << "Returning current NALU " << nalu_metadata;
+      return DecoderBuffer::CopyFrom(base::as_byte_span(data_).subspan(
+          nalu_metadata.start_index, nalu_metadata.size_with_header));
+    }
+
+    if (previous_nalus_.empty()) {
+      VLOG(3) << "Storing current NALU " << nalu_metadata;
+      previous_nalus_.push_back(std::move(nalu_metadata));
+      continue;
+    }
+
+    // Accumulate what we have and send it; store |nalu_metadata| for later.
+    auto decoder_buffer = ReassembleNALUs(previous_nalus_);
+    previous_nalus_.clear();
+    VLOG(3) << "Storing current NALU " << nalu_metadata;
+    previous_nalus_.push_back(std::move(nalu_metadata));
+    return decoder_buffer;
+  }
+}
+
+bool EncodedDataHelperH265::ReachEndOfStream() const {
+  return EncodedDataHelper::ReachEndOfStream() && previous_nalus_.empty();
+}
+
+void EncodedDataHelperH265::Rewind() {
+  h265_parser_->Reset();
+  h265_parser_->SetStream(reinterpret_cast<uint8_t*>(data_.data()),
+                          data_.size());
+  previous_nalus_.clear();
+  EncodedDataHelper::Rewind();
+}
+
+scoped_refptr<DecoderBuffer> EncodedDataHelperH265::ReassembleNALUs(
+    const std::vector<struct NALUMetadata>& nalus) {
+  if (nalus.empty()) {
+    return nullptr;
+  }
+  const size_t total_size = std::accumulate(
+      nalus.begin(), nalus.end(), 0, [](size_t total, NALUMetadata metadata) {
+        return total + metadata.size_with_header;
+      });
+  VLOG(4) << "Reassembling " << nalus.size() << " NALUs, " << total_size << "B";
+  return DecoderBuffer::CopyFrom(base::as_byte_span(data_).subspan(
+      nalus.begin()->start_index, total_size));
+}
+#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+
+EncodedDataHelperIVF::EncodedDataHelperIVF(base::span<const uint8_t> stream,
+                                           VideoCodec codec)
+    : EncodedDataHelper(std::move(stream), codec) {}
+
+scoped_refptr<DecoderBuffer> EncodedDataHelperIVF::GetNextBuffer() {
   // Helpful description: http://wiki.multimedia.cx/index.php?title=IVF
   // Only IVF video files are supported. The first 4bytes of an IVF video file's
   // header should be "DKIF".
-  if (next_pos_to_decode_ == 0) {
+  if (next_pos_to_parse_ == 0) {
     if (data_.size() < kIvfFileHeaderSize) {
       LOG(ERROR) << "data is too small";
       return nullptr;
     }
     auto ivf_header = GetIvfFileHeader(base::span<const uint8_t>(
         reinterpret_cast<const uint8_t*>(&data_[0]), kIvfFileHeaderSize));
-    if (strncmp(ivf_header.signature, "DKIF", 4) != 0) {
+    if (strncmp(ivf_header.signature, "DKIF", kNALUHeaderSize) != 0) {
       LOG(ERROR) << "Unexpected data encountered while parsing IVF header";
       return nullptr;
     }
-    next_pos_to_decode_ = kIvfFileHeaderSize;  // Skip IVF header.
+    next_pos_to_parse_ = kIvfFileHeaderSize;  // Skip IVF header.
   }
 
   std::vector<IvfFrame> ivf_frames;
@@ -286,8 +520,9 @@ scoped_refptr<DecoderBuffer> EncodedDataHelper::GetNextFrame() {
   // Standard stream case.
   if (ivf_frames.size() == 1) {
     return DecoderBuffer::CopyFrom(
-        reinterpret_cast<const uint8_t*>(ivf_frames[0].data),
-        ivf_frames[0].header.frame_size);
+        // TODO(crbug.com/40284755): spanify `IvfFrame`.
+        UNSAFE_TODO(base::span(ivf_frames[0].data.get(),
+                               ivf_frames[0].header.frame_size)));
   }
 
   if (ivf_frames.size() > 3) {
@@ -300,69 +535,47 @@ scoped_refptr<DecoderBuffer> EncodedDataHelper::GetNextFrame() {
   std::vector<uint32_t> frame_sizes;
   frame_sizes.reserve(ivf_frames.size());
   for (const IvfFrame& ivf : ivf_frames) {
-    data.append(reinterpret_cast<char*>(ivf.data), ivf.header.frame_size);
+    data.append(reinterpret_cast<const char*>(ivf.data.get()),
+                ivf.header.frame_size);
     frame_sizes.push_back(ivf.header.frame_size);
   }
 
-  // Copy frame_sizes information to DecoderBuffer's side data. Since side_data
-  // is uint8_t*, we need to copy as uint8_t from uint32_t. The copied data is
-  // recognized as uint32_t in VD(A).
-  const uint8_t* side_data =
-      reinterpret_cast<const uint8_t*>(frame_sizes.data());
-  size_t side_data_size =
-      frame_sizes.size() * sizeof(uint32_t) / sizeof(uint8_t);
-
-  return DecoderBuffer::CopyFrom(reinterpret_cast<const uint8_t*>(data.data()),
-                                 data.size(), side_data, side_data_size);
+  auto buffer = DecoderBuffer::CopyFrom(base::as_byte_span(data));
+  buffer->WritableSideData().spatial_layers = frame_sizes;
+  return buffer;
 }
 
-absl::optional<IvfFrameHeader> EncodedDataHelper::GetNextIvfFrameHeader()
+std::optional<IvfFrameHeader> EncodedDataHelperIVF::GetNextIvfFrameHeader()
     const {
-  const size_t pos = next_pos_to_decode_;
+  const size_t pos = next_pos_to_parse_;
   // Read VP8/9 frame size from IVF header.
   if (pos + kIvfFrameHeaderSize > data_.size()) {
     LOG(ERROR) << "Unexpected data encountered while parsing IVF frame header";
-    return absl::nullopt;
+    return std::nullopt;
   }
   return GetIvfFrameHeader(base::span<const uint8_t>(
       reinterpret_cast<const uint8_t*>(&data_[pos]), kIvfFrameHeaderSize));
 }
 
-absl::optional<IvfFrame> EncodedDataHelper::ReadNextIvfFrame() {
+std::optional<IvfFrame> EncodedDataHelperIVF::ReadNextIvfFrame() {
   auto frame_header = GetNextIvfFrameHeader();
   if (!frame_header)
-    return absl::nullopt;
+    return std::nullopt;
 
   // Skip IVF frame header.
-  const size_t pos = next_pos_to_decode_ + kIvfFrameHeaderSize;
+  const size_t pos = next_pos_to_parse_ + kIvfFrameHeaderSize;
 
   // Make sure we are not reading out of bounds.
   if (pos + frame_header->frame_size > data_.size()) {
     LOG(ERROR) << "Unexpected data encountered while parsing IVF frame header";
-    next_pos_to_decode_ = data_.size();
-    return absl::nullopt;
+    next_pos_to_parse_ = data_.size();
+    return std::nullopt;
   }
 
-  // Update next_pos_to_decode_.
-  next_pos_to_decode_ = pos + frame_header->frame_size;
+  // Update next_pos_to_parse_.
+  next_pos_to_parse_ = pos + frame_header->frame_size;
 
   return IvfFrame{*frame_header, reinterpret_cast<uint8_t*>(&data_[pos])};
-}
-
-// static
-bool EncodedDataHelper::HasConfigInfo(const uint8_t* data,
-                                      size_t size,
-                                      VideoCodecProfile profile) {
-  if (profile >= H264PROFILE_MIN && profile <= H264PROFILE_MAX) {
-    // Check if this is an SPS NALU w/ a 3 or 4 byte start code.
-    return IsH264SPSNALU(data, size);
-  } else if (profile >= HEVCPROFILE_MIN && profile <= HEVCPROFILE_MAX) {
-    return IsHevcSPSNALU(data, size);
-  }
-
-  LOG(FATAL) << "HasConfigInfo() should be called only for H264/HEVC stream: "
-             << GetProfileName(profile);
-  return false;
 }
 
 struct AlignedDataHelper::VideoFrameData {
@@ -381,38 +594,55 @@ struct AlignedDataHelper::VideoFrameData {
   gfx::GpuMemoryBufferHandle gmb_handle;
 };
 
-AlignedDataHelper::AlignedDataHelper(const std::vector<uint8_t>& stream,
-                                     uint32_t num_frames,
+AlignedDataHelper::AlignedDataHelper(const RawVideo* video,
                                      uint32_t num_read_frames,
                                      bool reverse,
-                                     VideoPixelFormat pixel_format,
-                                     const gfx::Size& src_coded_size,
-                                     const gfx::Size& dst_coded_size,
-                                     const gfx::Rect& visible_rect,
+                                     const gfx::Size& aligned_coded_size,
                                      const gfx::Size& natural_size,
                                      uint32_t frame_rate,
                                      VideoFrame::StorageType storage_type)
-    : num_frames_(num_frames),
+    : video_(video),
+      num_frames_(video_->NumFrames()),
       num_read_frames_(num_read_frames),
       reverse_(reverse),
+      create_frame_mode_(num_frames_ > RawVideo::kLimitedReadFrames
+                             ? CreateFrameMode::kOnDemand
+                             : CreateFrameMode::kAllAtOnce),
       storage_type_(storage_type),
-      visible_rect_(visible_rect),
+      visible_rect_(video_->VisibleRect()),
       natural_size_(natural_size),
       time_stamp_interval_(base::Seconds(/*secs=*/0u)),
-      elapsed_frame_time_(base::Seconds(/*secs=*/0u)) {
+      elapsed_frame_time_(base::Seconds(/*secs=*/0u)),
+      test_sii_(base::MakeRefCounted<gpu::TestSharedImageInterface>()) {
   // If the frame_rate is passed in, then use that timing information
   // to generate timestamps that increment according the frame_rate.
   // Otherwise timestamps will be generated when GetNextFrame() is called
   UpdateFrameRate(frame_rate);
 
   if (storage_type_ == VideoFrame::STORAGE_GPU_MEMORY_BUFFER) {
-    InitializeGpuMemoryBufferFrames(stream, pixel_format, src_coded_size,
-                                    dst_coded_size);
+// TODO(crbug.com/414430336): Consider restricting to IS_CHROMEOS.
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+    layout_ = GetPlatformVideoFrameLayout(
+        video_->PixelFormat(), aligned_coded_size,
+        gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE);
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   } else {
-    LOG_ASSERT(storage_type == VideoFrame::STORAGE_SHMEM);
-    InitializeAlignedMemoryFrames(stream, pixel_format, src_coded_size,
-                                  dst_coded_size);
+    layout_ = CreateVideoFrameLayout(video_->PixelFormat(), aligned_coded_size,
+                                     kPlatformBufferAlignment);
   }
+  LOG_ASSERT(layout_) << "Failed creating VideoFrameLayout";
+
+  if (create_frame_mode_ == CreateFrameMode::kOnDemand) {
+    return;
+  }
+
+  video_frame_data_.resize(num_frames_);
+  for (size_t i = 0; i < num_frames_; i++) {
+    video_frame_data_[i] =
+        CreateVideoFrameData(storage_type_, video->GetFrame(i),
+                             video_->FrameLayout(), *layout_, test_sii_.get());
+  }
+
   LOG_ASSERT(video_frame_data_.size() == num_frames_)
       << "Failed to initialize VideoFrames";
 }
@@ -450,42 +680,57 @@ scoped_refptr<VideoFrame> AlignedDataHelper::GetNextFrame() {
 
   elapsed_frame_time_ += time_stamp_interval_;
 
-  uint32_t read_frame_index =
+  const uint32_t read_frame_index =
       GetReadFrameIndex(frame_index_++, reverse_, num_frames_);
+  if (create_frame_mode_ == CreateFrameMode::kOnDemand) {
+    auto frame_data = video_->GetFrame(read_frame_index);
+    VideoFrameData video_frame_data =
+        CreateVideoFrameData(storage_type_, frame_data, video_->FrameLayout(),
+                             *layout_, test_sii_.get());
+    return CreateVideoFrameFromVideoFrameData(video_frame_data,
+                                              frame_timestamp);
+  } else {
+    return CreateVideoFrameFromVideoFrameData(
+        video_frame_data_[read_frame_index], frame_timestamp);
+  }
+}
+
+scoped_refptr<VideoFrame> AlignedDataHelper::CreateVideoFrameFromVideoFrameData(
+    const VideoFrameData& video_frame_data,
+    base::TimeDelta frame_timestamp) const {
   if (storage_type_ == VideoFrame::STORAGE_GPU_MEMORY_BUFFER) {
-    const auto& gmb_handle = video_frame_data_[read_frame_index].gmb_handle;
+    const auto& gmb_handle = video_frame_data.gmb_handle;
     auto dup_handle = gmb_handle.Clone();
     if (dup_handle.is_null()) {
       LOG(ERROR) << "Failed duplicating GpuMemoryBufferHandle";
       return nullptr;
     }
 
-    absl::optional<gfx::BufferFormat> buffer_format =
+    std::optional<gfx::BufferFormat> buffer_format =
         VideoPixelFormatToGfxBufferFormat(layout_->format());
     if (!buffer_format) {
       LOG(ERROR) << "Unexpected format: " << layout_->format();
       return nullptr;
     }
 
-    // Create GpuMemoryBuffer from GpuMemoryBufferHandle.
-    gpu::GpuMemoryBufferSupport support;
-    auto gpu_memory_buffer = support.CreateGpuMemoryBufferImplFromHandle(
-        std::move(dup_handle), layout_->coded_size(), *buffer_format,
+    const auto si_usage = gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY |
+                          gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
+    auto shared_image = test_sii_->CreateSharedImage(
+        {viz::GetSharedImageFormat(*buffer_format), layout_->coded_size(),
+         gfx::ColorSpace(), gpu::SharedImageUsageSet(si_usage),
+         "AlignedDataHelper"},
+        gpu::kNullSurfaceHandle,
         gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE,
-        base::DoNothing());
-    if (!gpu_memory_buffer) {
-      LOG(ERROR) << "Failed to create GpuMemoryBuffer from "
-                 << "GpuMemoryBufferHandle";
+        std::move(dup_handle));
+    if (!shared_image) {
+      LOG(ERROR) << "Failed to create a mappable shared image.";
       return nullptr;
     }
-
-    gpu::MailboxHolder dummy_mailbox[media::VideoFrame::kMaxPlanes];
-    return media::VideoFrame::WrapExternalGpuMemoryBuffer(
-        visible_rect_, natural_size_, std::move(gpu_memory_buffer),
-        dummy_mailbox, base::DoNothing() /* mailbox_holder_release_cb_ */,
-        frame_timestamp);
+    return media::VideoFrame::WrapMappableSharedImage(
+        std::move(shared_image), test_sii_->GenVerifiedSyncToken(),
+        base::NullCallback(), visible_rect_, natural_size_, frame_timestamp);
   } else {
-    const auto& shmem_region = video_frame_data_[read_frame_index].shmem_region;
+    const auto& shmem_region = video_frame_data.shmem_region;
     auto dup_region = shmem_region.Duplicate();
     if (!dup_region.IsValid()) {
       LOG(ERROR) << "Failed duplicating shmem region";
@@ -493,7 +738,7 @@ scoped_refptr<VideoFrame> AlignedDataHelper::GetNextFrame() {
     }
     base::ReadOnlySharedMemoryMapping mapping = shmem_region.Map();
     uint8_t* buf = const_cast<uint8_t*>(mapping.GetMemoryAs<uint8_t>());
-    uint8_t* data[3] = {};
+    std::array<uint8_t*, 3> data = {};
     for (size_t i = 0; i < layout_->planes().size(); i++)
       data[i] = buf + layout_->planes()[i].offset;
 
@@ -506,199 +751,96 @@ scoped_refptr<VideoFrame> AlignedDataHelper::GetNextFrame() {
   }
 }
 
-void AlignedDataHelper::InitializeAlignedMemoryFrames(
-    const std::vector<uint8_t>& stream,
-    const VideoPixelFormat pixel_format,
-    const gfx::Size& src_coded_size,
-    const gfx::Size& dst_coded_size) {
-  ASSERT_NE(pixel_format, PIXEL_FORMAT_UNKNOWN);
-
-  // Calculate padding in bytes to be added after each plane required to keep
-  // starting addresses of all planes at a byte boundary required by the
-  // platform. This padding will be added after each plane when copying to the
-  // temporary file.
-  // At the same time we also need to take into account coded_size requested by
-  // the VEA; each row of |src_strides| bytes in the original file needs to be
-  // copied into a row of |strides_| bytes in the aligned file.
-  size_t video_frame_size;
-  layout_ = GetAlignedVideoFrameLayout(pixel_format, dst_coded_size,
-                                       kPlatformBufferAlignment, nullptr,
-                                       &video_frame_size);
-  LOG_ASSERT(video_frame_size > 0UL);
-
-  std::vector<size_t> src_plane_rows;
-  size_t src_video_frame_size = 0;
-  auto src_layout = GetAlignedVideoFrameLayout(
-      pixel_format, src_coded_size, 1u /* alignment */, &src_plane_rows,
-      &src_video_frame_size);
-  LOG_ASSERT(stream.size() % src_video_frame_size == 0U)
-      << "Stream byte size is not a product of calculated frame byte size";
-
-  LOG_ASSERT(video_frame_size > 0UL);
-  video_frame_data_.resize(num_frames_);
-  const size_t num_planes = VideoFrame::NumPlanes(pixel_format);
-  const uint8_t* src_frame_ptr = &stream[0];
-  for (size_t i = 0; i < num_frames_; i++) {
-    auto mapped_region =
-        base::ReadOnlySharedMemoryRegion::Create(video_frame_size);
-    ASSERT_TRUE(mapped_region.IsValid()) << "Failed allocating a region";
-    base::WritableSharedMemoryMapping& mapping = mapped_region.mapping;
-    ASSERT_TRUE(mapping.IsValid());
-    uint8_t* buffer = mapping.GetMemoryAs<uint8_t>();
-    for (size_t j = 0; j < num_planes; j++) {
-      auto src_plane_layout = src_layout.planes()[j];
-      auto dst_plane_layout = layout_->planes()[j];
-      const uint8_t* src_ptr = src_frame_ptr + src_plane_layout.offset;
-      uint8_t* dst_ptr = &buffer[dst_plane_layout.offset];
-      libyuv::CopyPlane(src_ptr, src_plane_layout.stride, dst_ptr,
-                        dst_plane_layout.stride, src_plane_layout.stride,
-                        src_plane_rows[j]);
-    }
-    src_frame_ptr += src_video_frame_size;
-    video_frame_data_[i] = VideoFrameData(std::move(mapped_region.region));
-  }
-}
-
-void AlignedDataHelper::InitializeGpuMemoryBufferFrames(
-    const std::vector<uint8_t>& stream,
-    const VideoPixelFormat pixel_format,
-    const gfx::Size& src_coded_size,
-    const gfx::Size& dst_coded_size) {
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
-  layout_ = GetPlatformVideoFrameLayout(
-      pixel_format, dst_coded_size,
-      gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE);
-  ASSERT_TRUE(layout_) << "Failed getting platform VideoFrameLayout";
-
-  std::vector<size_t> src_plane_rows;
-  size_t src_video_frame_size = 0;
-  auto src_layout = GetAlignedVideoFrameLayout(
-      pixel_format, src_coded_size, 1u /* alignment */, &src_plane_rows,
-      &src_video_frame_size);
-  LOG_ASSERT(stream.size() % src_video_frame_size == 0U)
-      << "Stream byte size is not a product of calculated frame byte size";
-
-  const size_t num_planes = VideoFrame::NumPlanes(pixel_format);
-  const uint8_t* src_frame_ptr = &stream[0];
-  for (size_t i = 0; i < num_frames_; i++) {
+// static
+AlignedDataHelper::VideoFrameData AlignedDataHelper::CreateVideoFrameData(
+    VideoFrame::StorageType storage_type,
+    const RawVideo::FrameData& src_frame,
+    const VideoFrameLayout& src_layout,
+    const VideoFrameLayout& dst_layout,
+    gpu::TestSharedImageInterface* test_sii) {
+  LOG_ASSERT(gfx::Rect(dst_layout.coded_size())
+                 .Contains(gfx::Rect(src_layout.coded_size())))
+      << "The destination buffer resolution must not be smaller than the "
+         "source buffer resolution";
+  const VideoPixelFormat pixel_format = src_layout.format();
+  const gfx::Size& resolution = src_layout.coded_size();
+  if (storage_type == VideoFrame::STORAGE_GPU_MEMORY_BUFFER) {
+// TODO(crbug.com/414430336): Consider restricting to IS_CHROMEOS.
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+    // First write into on-memory frame.
     auto memory_frame =
-        VideoFrame::CreateFrame(pixel_format, dst_coded_size, visible_rect_,
-                                natural_size_, base::TimeDelta());
+        VideoFrame::CreateFrame(pixel_format, resolution, gfx::Rect(resolution),
+                                resolution, base::TimeDelta());
     LOG_ASSERT(!!memory_frame) << "Failed creating VideoFrame";
-    for (size_t j = 0; j < num_planes; j++) {
-      libyuv::CopyPlane(src_frame_ptr + src_layout.planes()[j].offset,
-                        src_layout.planes()[j].stride,
-                        memory_frame->writable_data(j), memory_frame->stride(j),
-                        src_layout.planes()[j].stride, src_plane_rows[j]);
+    for (size_t i = 0; i < src_layout.planes().size(); i++) {
+      libyuv::CopyPlane(
+          src_frame.plane_addrs[i], src_frame.strides[i],
+          memory_frame->writable_data(i), memory_frame->stride(i),
+          VideoFrame::RowBytes(i, pixel_format, resolution.width()),
+          VideoFrame::Rows(i, pixel_format, resolution.height()));
     }
-    src_frame_ptr += src_video_frame_size;
-    auto frame = CloneVideoFrame(
-        memory_frame.get(), *layout_, VideoFrame::STORAGE_GPU_MEMORY_BUFFER,
-        gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE);
+    // Create GpuMemoryBuffer VideoFrame from the on-memory VideoFrame.
+    auto frame =
+        CloneVideoFrame(memory_frame.get(), dst_layout, test_sii,
+                        VideoFrame::STORAGE_GPU_MEMORY_BUFFER,
+                        gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE);
     LOG_ASSERT(!!frame) << "Failed creating GpuMemoryBuffer VideoFrame";
+
     auto gmb_handle = CreateGpuMemoryBufferHandle(frame.get());
     LOG_ASSERT(!gmb_handle.is_null())
         << "Failed creating GpuMemoryBufferHandle";
-    video_frame_data_.push_back(VideoFrameData(std::move(gmb_handle)));
+    return VideoFrameData(std::move(gmb_handle));
+#else
+    NOTREACHED();
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+  } else {
+    const size_t dst_video_frame_size =
+        dst_layout.planes().back().offset + dst_layout.planes().back().size;
+    auto mapped_region =
+        base::ReadOnlySharedMemoryRegion::Create(dst_video_frame_size);
+    LOG_ASSERT(mapped_region.IsValid()) << "Failed allocating a region";
+    base::WritableSharedMemoryMapping& mapping = mapped_region.mapping;
+    LOG_ASSERT(mapping.IsValid());
+    uint8_t* buffer = mapping.GetMemoryAs<uint8_t>();
+    for (size_t i = 0; i < src_layout.planes().size(); i++) {
+      auto dst_plane_layout = dst_layout.planes()[i];
+      uint8_t* dst_ptr = &buffer[dst_plane_layout.offset];
+      libyuv::CopyPlane(
+          src_frame.plane_addrs[i], src_frame.strides[i], dst_ptr,
+          dst_plane_layout.stride,
+          VideoFrame::RowBytes(i, pixel_format, resolution.width()),
+          VideoFrame::Rows(i, pixel_format, resolution.height()));
+    }
+    return VideoFrameData(std::move(mapped_region.region));
   }
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
 }
 
 // static
-VideoFrameLayout AlignedDataHelper::GetAlignedVideoFrameLayout(
-    VideoPixelFormat pixel_format,
-    const gfx::Size& dimension,
-    const uint32_t alignment,
-    std::vector<size_t>* plane_rows,
-    size_t* video_frame_size) {
-  auto layout =
-      CreateVideoFrameLayout(pixel_format, dimension, alignment, plane_rows);
-  LOG_ASSERT(layout) << "Failed creating VideoFrameLayout";
-  if (video_frame_size) {
-    const auto& plane = layout->planes().back();
-    *video_frame_size = plane.offset + plane.size;
-  }
-  return *layout;
-}
-
-// static
-std::unique_ptr<RawDataHelper> RawDataHelper::Create(Video* video,
-                                                     bool reverse) {
-  size_t frame_size = 0;
-  VideoPixelFormat pixel_format = video->PixelFormat();
-  const size_t num_planes = VideoFrame::NumPlanes(pixel_format);
-  size_t strides[VideoFrame::kMaxPlanes] = {};
-  size_t plane_sizes[VideoFrame::kMaxPlanes] = {};
-  const gfx::Size& resolution = video->Resolution();
-  // Calculate size of frames and their planes.
-  for (size_t i = 0; i < num_planes; ++i) {
-    const size_t bytes_per_line =
-        VideoFrame::RowBytes(i, pixel_format, resolution.width());
-    const size_t plane_size =
-        bytes_per_line * VideoFrame::Rows(i, pixel_format, resolution.height());
-    strides[i] = bytes_per_line;
-    plane_sizes[i] = plane_size;
-    frame_size += plane_size;
-  }
-
-  // Verify whether calculated frame size is valid.
-  const size_t data_size = video->Data().size();
-  if (frame_size == 0 || data_size % frame_size != 0 ||
-      data_size / frame_size != video->NumFrames()) {
-    LOG(ERROR) << "Invalid frame_size=" << frame_size
-               << ", file size=" << data_size;
-    return nullptr;
-  }
-
-  std::vector<ColorPlaneLayout> planes(num_planes);
-  size_t offset = 0;
-  for (size_t i = 0; i < num_planes; ++i) {
-    planes[i].stride =
-        VideoFrame::RowBytes(i, pixel_format, resolution.width());
-    planes[i].offset = offset;
-    planes[i].size = plane_sizes[i];
-    offset += plane_sizes[i];
-  }
-  auto layout = VideoFrameLayout::CreateWithPlanes(pixel_format, resolution,
-                                                   std::move(planes));
-  if (!layout) {
-    LOG(ERROR) << "Failed to create VideoFrameLayout";
-    return nullptr;
-  }
-
-  return base::WrapUnique(
-      new RawDataHelper(video, reverse, frame_size, *layout));
-}
-
-RawDataHelper::RawDataHelper(Video* video,
-                             bool reverse,
-                             size_t frame_size,
-                             const VideoFrameLayout& layout)
-    : video_(video),
-      reverse_(reverse),
-      frame_size_(frame_size),
-      layout_(layout) {}
+RawDataHelper::RawDataHelper(const RawVideo* video, bool reverse)
+    : video_(video), reverse_(reverse) {}
 
 RawDataHelper::~RawDataHelper() = default;
 
-scoped_refptr<const VideoFrame> RawDataHelper::GetFrame(size_t index) {
+scoped_refptr<const VideoFrame> RawDataHelper::GetFrame(size_t index) const {
   uint32_t read_frame_index =
       GetReadFrameIndex(index, reverse_, video_->NumFrames());
-  size_t offset = frame_size_ * read_frame_index;
-  uint8_t* frame_data[VideoFrame::kMaxPlanes] = {};
+  std::array<uint8_t*, VideoFrame::kMaxPlanes> frame_data = {};
   const size_t num_planes = VideoFrame::NumPlanes(video_->PixelFormat());
+  RawVideo::FrameData src_frame = video_->GetFrame(read_frame_index);
   for (size_t i = 0; i < num_planes; ++i) {
-    frame_data[i] = reinterpret_cast<uint8_t*>(video_->Data().data()) + offset;
-    offset += layout_->planes()[i].size;
+    // The data is never modified but WrapExternalYuvDataWithLayout() only
+    // accepts non-const pointer.
+    frame_data[i] = const_cast<uint8_t*>(src_frame.plane_addrs[i]);
   }
 
-  scoped_refptr<const VideoFrame> video_frame =
+  scoped_refptr<VideoFrame> video_frame =
       VideoFrame::WrapExternalYuvDataWithLayout(
-          *layout_, video_->VisibleRect(), video_->VisibleRect().size(),
-          frame_data[0], frame_data[1], frame_data[2],
-          base::TimeTicks::Now().since_origin());
+          video_->FrameLayout(), video_->VisibleRect(),
+          video_->VisibleRect().size(), frame_data[0], frame_data[1],
+          frame_data[2], base::TimeTicks::Now().since_origin());
+  video_frame->AddDestructionObserver(
+      base::DoNothingWithBoundArgs(std::move(src_frame)));
   return video_frame;
 }
 
-}  // namespace test
-}  // namespace media
+}  // namespace media::test

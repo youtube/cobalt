@@ -4,7 +4,6 @@
 <translation id="1002108253973310084">ଏକ ଅସଙ୍ଗତ ପ୍ରୋଟୋକଲ୍ ସଂସ୍କରଣ ଚିହ୍ନଟ କରଯାଇଥିଲା। ଦୟାକରି ଆପଣ ସଫ୍ଟୱେର୍‌ର ନବୀନତମ ସଂସ୍କରଣ ଉଭୟ କମ୍ପ୍ୟୁଟର୍‌ରେ ଅପ୍‌ଡେଟ୍ କରିଥିବା ସୁନିଶ୍ଚିତ କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।</translation>
 <translation id="1008557486741366299">ଏବେ ନୁହେଁ</translation>
 <translation id="1201402288615127009">ପରବର୍ତ୍ତୀ</translation>
-<translation id="1296511125400541222">କପିରାଇଟ 2023 The Chromium Authors। ସମସ୍ତ ଅଧିକାର ସଂରକ୍ଷିତ ଅଛି।</translation>
 <translation id="1297009705180977556"><ph name="HOSTNAME" />କୁ ସଂଯୋଗ କରିବାରେ ତ୍ରୁଟି</translation>
 <translation id="1450760146488584666">ଅନୁରୋଧ କରାଯାଇଥିବା ଅବ୍‌ଜେକ୍ଟଟି ବିଦ୍ୟମାନ ନାହିଁ।</translation>
 <translation id="1480046233931937785">କ୍ରେଡିଟ୍</translation>
@@ -28,7 +27,7 @@
 <translation id="2329392777730037872">କ୍ଲାଏଣ୍ଟରେ <ph name="URL" /> ଖୋଲିବା ବିଫଳ ହୋଇଛି।</translation>
 <translation id="2359808026110333948">ଜାରି ରଖନ୍ତୁ</translation>
 <translation id="2366718077645204424">ହୋଷ୍ଟ ପାଖରେ ପହଞ୍ଚି ପାରିଲା ନାହିଁ। ଏହା ସମ୍ଭବତଃ ଆପଣ ବ୍ୟବହାର କରୁଥିବା ନେଟ୍‍ୱାର୍କର କନଫିଗ୍‌ରେସନ୍ କାରଣରୁ ହୋଇଛି।</translation>
-<translation id="2370754117186920852"><ph name="OPTIONAL_OFFLINE_REASON" /> ଶେଷଥର<ph name="RELATIVE_TIMESTAMP" /> ଅନ୍‌ଲାଇନ୍‌ରେ ଦେଖାଯାଇଥିଲେ।</translation>
+<translation id="242591256144136845">କପିରାଇଟ 2025 Google LLC। ସମସ୍ତ ଅଧିକାର ସଂରକ୍ଷିତ ଅଛି।</translation>
 <translation id="2504109125669302160"><ph name="PRODUCT_NAME" />କୁ ’ଆକ୍ସେସିବିଲିଟୀ’ ଅନୁମତି ଦିଅନ୍ତୁ</translation>
 <translation id="2509394361235492552"><ph name="HOSTNAME" /> ସହ ସଂଯୁକ୍ତ ଅଛି</translation>
 <translation id="2540992418118313681">ଆପଣ ଦେଖିବା ଏବଂ ନିୟନ୍ତ୍ରଣ କରିବା ପାଇଁ ଏହି କମ୍ପ୍ୟୁଟରକୁ ଅନ୍ୟ ଜଣେ ୟୁଜର ସହ ସେୟାର କରିବାକୁ ଚାହିଁବେ?</translation>
@@ -40,6 +39,7 @@
 <translation id="2758123043070977469">ପ୍ରମାଣିକରଣ ସମୟରେ ଏକ ସମସ୍ୟା ହୋଇଛି, ଦୟାକରି ପୁଣି ଲଗ୍‍ଇନ୍‍ କରନ୍ତୁ।</translation>
 <translation id="2803375539583399270">PIN ଲେଖନ୍ତୁ</translation>
 <translation id="2919669478609886916">ଆପଣ ବର୍ତ୍ତମାନ ଏହି ମେସିନକୁ ଅନ୍ୟ ଜଣେ ୟୁଜରଙ୍କ ସହ ସେୟାର କରୁଛନ୍ତି। ଆପଣ କ’ଣ ସେୟାରିଂ ଜାରି ରଖିବାକୁ ଚାହୁଁଛନ୍ତି?</translation>
+<translation id="2929683002824598593">ଡିଭାଇସ ସେୟାର କରନ୍ତୁ</translation>
 <translation id="2939145106548231838">ହୋଷ୍ଟ କରିବାକୁ ପ୍ରମାଣିକୃତ କରନ୍ତୁ</translation>
 <translation id="3027681561976217984">ଟଚ୍ ମୋଡ୍</translation>
 <translation id="3106379468611574572">ରିମୋଟ୍ କମ୍ପ୍ୟୁଟର୍ ସଂଯୋଗ ଅନୁରୋଧଗୁଡ଼ିକୁ କୌଣସି ପ୍ରତିକ୍ରିୟା ଜଣାଉନାହିଁ। ଦୟାକରି ଏହା ଅନ୍‌ଲାଇନ୍ ଥିବା ଯାଞ୍ଚ କରନ୍ତୁ ଏବଂ ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।</translation>
@@ -53,7 +53,6 @@
 <translation id="3423542133075182604">ସୁରକ୍ଷା କୀ ରିମୋଟିଂ ପ୍ରକ୍ରିୟା</translation>
 <translation id="3581045510967524389">ନେଟ୍‌ୱର୍କ ସହିତ ସଂଯୋଗ କରାଯାଇପାରିଲା ନାହିଁ। ଦୟାକରି ଆପଣଙ୍କର ଡିଭାଇସ୍ ଅନ୍‌ଲାଇନ୍ ଥିବା ଯାଞ୍ଚ କରନ୍ତୁ।</translation>
 <translation id="3596628256176442606">ଏହି ସେବା Chromoting କ୍ଲାଏଣ୍ଟମାନଙ୍କ ଠାରୁ ଇନ୍‌କମିଂ ସଂଯୋଗ ସକ୍ଷମ କରେ।</translation>
-<translation id="369442766917958684">ଅଫ୍‍ଲାଇନ୍ ଅଛି।</translation>
 <translation id="3695446226812920698">କିପରି ହେବ ତାହା ଜାଣନ୍ତୁ</translation>
 <translation id="3776024066357219166">ଆପଣଙ୍କର Chrome ରିମୋଟ୍ ଡେସ୍କଟପ୍‌ର ସମୟ ଅବଧି ସମାପ୍ତ ହୋଇଛି।</translation>
 <translation id="3858860766373142691">ନାମ</translation>
@@ -75,7 +74,7 @@
 <translation id="4405930547258349619">କୋର୍ ଲାଇବ୍ରେରୀ</translation>
 <translation id="443560535555262820">ଆକ୍ସେସିବିଲିଟୀ ପସନ୍ଦଗୁଡ଼ିକୁ ଖୋଲନ୍ତୁ</translation>
 <translation id="4450893287417543264">ଆଉ ଦେଖାନ୍ତୁ ନାହିଁ</translation>
-<translation id="4513946894732546136">Feedback</translation>
+<translation id="4513946894732546136">ମତାମତ</translation>
 <translation id="4563926062592110512">କ୍ଲାଏଣ୍ଟ ବିଚ୍ଛିନ୍ନ ହୋଇଛନ୍ତି: <ph name="CLIENT_USERNAME" />।</translation>
 <translation id="4618411825115957973"><ph name="URL_FORWARDER_NAME" />କୁ ସଠିକ୍ ଭାବରେ କନଫିଗର୍ କରାଯାଇନାହିଁ। ଦୟାକରି ଏକ ଭିନ୍ନ ଡିଫଲ୍ଟ ୱେବ୍ ବ୍ରାଉଜର୍ ବାଛି, URL ଫରୱାର୍ଡିଂକୁ ପୁଣି ସକ୍ଷମ କରନ୍ତୁ।</translation>
 <translation id="4635770493235256822">ରିମୋଟ୍‌ ଡିଭାଇସ୍‌ଗୁଡ଼ିକ</translation>
@@ -84,16 +83,16 @@
 <translation id="4741792197137897469">ପ୍ରମାଣିକରଣ ବିଫଳ ହୋ‍ଇଛି। ଦୟାକରି, ପୁଣି Chromeରେ ସାଇନ୍‌ ଇନ୍‍ କରନ୍ତୁ।</translation>
 <translation id="4784508858340177375">X ସର୍ଭର୍ କ୍ରାସ୍ ହୋଇଛି କିମ୍ବା ଆରମ୍ଭ କରିବାରେ ବିଫଳ ହୋଇଛି।</translation>
 <translation id="4798680868612952294">ମାଉସ୍ ବିକଳ୍ପ</translation>
-<translation id="4804818685124855865">ବିଚ୍ଛିନ୍ନ କରନ୍ତୁ</translation>
+<translation id="4804818685124855865">ଡିସକନେକ୍ଟ କରନ୍ତୁ</translation>
 <translation id="4808503597364150972"><ph name="HOSTNAME" /> ନିମନ୍ତେ ଆପଣଙ୍କର PIN ଲେଖନ୍ତୁ।</translation>
 <translation id="4812684235631257312">ହୋଷ୍ଟ</translation>
 <translation id="4867841927763172006">ପ୍ରିଣ୍ଟସ୍କ୍ରିନ୍‌ ପଠାନ୍ତୁ</translation>
-<translation id="4960795469833295568">କପିରାଇଟ 2023 Google LLC। ସମସ୍ତ ଅଧିକାର ସଂରକ୍ଷିତ ଅଛି।</translation>
 <translation id="4974476491460646149"><ph name="HOSTNAME" /> ପାଇଁ ସଂଯୋଗ ବନ୍ଦ ଅଛି</translation>
 <translation id="4985296110227979402">ରିମୋଟ୍‍ ଆକ୍ସେସ୍‌ ପାଇଁ ଆପଣ ପ୍ରଥମେ ଆପଣଙ୍କର କମ୍ପ୍ୟୁଟର୍‌ ସେଟ୍‍ ଅପ୍‍ କରିବା ଦରକାର</translation>
 <translation id="4987330545941822761">URLଗୁଡ଼ିକୁ ସ୍ଥାନୀୟ ଭାବେ ଖୋଲିବା ପାଇଁ Chrome ରିମୋଟ୍ ଡେସ୍କଟପ୍ ବ୍ରାଉଜର୍ ସ୍ଥିର କରିପାରିବ ନାହିଁ। ଦୟାକରି ନିମ୍ନରେ ଥିବା ତାଲିକାରୁ ଏହାକୁ ବାଛନ୍ତୁ।</translation>
 <translation id="5064360042339518108"><ph name="HOSTNAME" /> (ଅଫ୍‌ଲାଇନ୍)</translation>
 <translation id="507204348399810022">ଆପଣ ନିଶ୍ଚିତ ରୂପେ<ph name="HOSTNAME" /> ପାଇଁ ଥିବା ରିମୋଟ୍ ସଂଯୋଗକୁ ଅକ୍ଷମ କରିବାକୁ ଚାହାନ୍ତି କି?</translation>
+<translation id="5095424396646120601">କ୍ରାସ ରିପୋର୍ଟ</translation>
 <translation id="5170982930780719864">ଅବୈଧ ହୋଷ୍ଟ id।</translation>
 <translation id="5204575267916639804">FAQ</translation>
 <translation id="5222676887888702881">ସାଇନ୍ ଆଉଟ୍ କରନ୍ତୁ</translation>
@@ -106,7 +105,6 @@
 <translation id="5601503069213153581">PIN</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5708869785009007625">ଆପଣଙ୍କର ଡେସ୍କଟପ ବର୍ତ୍ତମାନ <ph name="USER" />ଙ୍କ ସହ ସେୟାର କରାଯାଇଛି।</translation>
-<translation id="5750083143895808682"><ph name="EMAIL_ADDRESS" />ରେ ସାଇନ୍-ଇନ୍ କରିଛନ୍ତି।</translation>
 <translation id="579702532610384533">ପୁନଃସଂଯୋଗ କରନ୍ତୁ</translation>
 <translation id="5810269635982033450">ଏକ ଟ୍ରାକ୍‌ପ୍ୟାଡ୍ ଭଳି ସ୍କ୍ରିନ୍ କାର୍ଯ୍ୟ କରେ</translation>
 <translation id="5823554426827907568"><ph name="CLIENT_USERNAME" /> ଆପଣଙ୍କ ସ୍କ୍ରିନକୁ ଦେଖିବା ଏବଂ ଆପଣଙ୍କ କୀବୋର୍ଡ ଓ ମାଉସକୁ ନିୟନ୍ତ୍ରଣ କରିବା ପାଇଁ ଆକ୍ସେସର ଅନୁରୋଧ କରିଛନ୍ତି। ଯଦି ଆପଣ ଏହି ଅନୁରୋଧ ପାଇବାକୁ ଆଶା କରୁନାହାଁନ୍ତି, ତେବେ ''<ph name="IDS_SHARE_CONFIRM_DIALOG_DECLINE" />''କୁ ଦବାନ୍ତୁ। ନଚେତ ସଂଯୋଗଟି ପ୍ରସ୍ତୁତ ହେଲେ ଏହାକୁ ଅନୁମତି ଦେବା ପାଇଁ ''<ph name="IDS_SHARE_CONFIRM_DIALOG_CONFIRM" />''କୁ ଚୟନ କରନ୍ତୁ।</translation>
@@ -120,10 +118,12 @@
 <translation id="6178645564515549384">ରିମୋଟ୍ ଆସିଷ୍ଟାଣ୍ଟ ପାଇଁ ସ୍ଥାନୀୟ ମେସେଜିଂ ହୋଷ୍ଟ</translation>
 <translation id="618120821413932081">ୱିଣ୍ଡୋ ସହିତ ମେଳ କରିବାକୁ ରିମୋଟ୍ ରିଜୋଲ୍ୟୁସନ୍ ଅପ୍‌ଡେଟ୍ କରନ୍ତୁ</translation>
 <translation id="6223301979382383752">ସ୍କ୍ରିନ୍ ରେକର୍ଡିଂ ପସନ୍ଦଗୁଡ଼ିକୁ ଖୋଲନ୍ତୁ</translation>
+<translation id="6252344563748670011"><ph name="CLIENT_USERNAME" /> ଆପଣଙ୍କ ସ୍କ୍ରିନକୁ ଦେଖିବା ଏବଂ ଆପଣଙ୍କ କୀବୋର୍ଡ ଓ ମାଉସକୁ ନିୟନ୍ତ୍ରଣ କରିବା ପାଇଁ ଆକ୍ସେସର ଅନୁରୋଧ କରିଛନ୍ତି। ଆପଣ ଆପଣଙ୍କର ଡିଭାଇସ ସେୟାର କରିବାକୁ ଚାହୁଁଛନ୍ତି?</translation>
 <translation id="6284412385303060032">ୟୁଜର-ନିର୍ଦ୍ଦିଷ୍ଟ ସେସନରେ ଚାଲୁଥିବା ହୋଷ୍ଟକୁ ସ୍ୱିଚ କରି କର୍ଟନ ମୋଡକୁ ସମର୍ଥନ କରିବା ପାଇଁ କନସୋଲ ଲଜିକ ସ୍କ୍ରିନରେ ଚାଲୁଥିବା ହୋଷ୍ଟ ବନ୍ଦ ହୋଇଯାଇଛି।</translation>
 <translation id="6542902059648396432">ଏକ ସମସ୍ୟା ରିପୋର୍ଟ କରନ୍ତୁ…</translation>
 <translation id="6583902294974160967">ସମର୍ଥନ</translation>
 <translation id="6612717000975622067">Ctrl-Alt-Del ପଠାନ୍ତୁ</translation>
+<translation id="6625262630437221505">{0,plural, =1{ଯଦି ଆପଣ ପଦକ୍ଷେପ ନ ନିଅନ୍ତି, ତେବେ ଆପଣଙ୍କ ଡିଭାଇସ୍ # ସେକେଣ୍ଡ ମଧ୍ୟରେ ସ୍ୱତଃ ସେୟାରିଂ ଆରମ୍ଭ କରିବ।}other{ଯଦି ଆପଣ ପଦକ୍ଷେପ ନ ନିଅନ୍ତି, ତେବେ ଆପଣଙ୍କ ଡିଭାଇସ୍ # ସେକେଣ୍ଡ ମଧ୍ୟରେ ସ୍ୱତଃ ସେୟାରିଂ ଆରମ୍ଭ କରିବ।}}</translation>
 <translation id="6654753848497929428">ସେୟାର୍‍ କରନ୍ତୁ</translation>
 <translation id="677755392401385740">ଏହି ୟୁଜରଙ୍କ ପାଇଁ ହୋଷ୍ଟ ଷ୍ଟାର୍ଟ ହୋଇଛି: <ph name="HOST_USERNAME" />।</translation>
 <translation id="6902524959760471898"><ph name="PRODUCT_NAME" /> କ୍ଲାଏଣ୍ଟରେ ଏକ URL ଖୋଲିବାକୁ ସହାୟକ ଆପ୍ଲିକେସନ୍</translation>
@@ -137,6 +137,7 @@
 <translation id="7067321367069083429">ଏହି ସ୍କ୍ରିନ୍‌ ଏକ ସ୍ପର୍ଶ ସ୍କ୍ରିନ୍‍ ପରି କାର୍ଯ୍ୟ କରେ</translation>
 <translation id="7116737094673640201">Chrome ରିମୋଟ୍ ଡେସ୍କଟପ୍‌କୁ ସ୍ଵାଗତ</translation>
 <translation id="7144878232160441200">ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ</translation>
+<translation id="7298392173540380852">କପିରାଇଟ 2025 The Chromium Authors। ସମସ୍ତ ଅଧିକାର ସଂରକ୍ଷିତ ଅଛି।</translation>
 <translation id="7312846573060934304">ହୋଷ୍ଟ ଅଫ୍‌ଲାଇନ୍‌ ଅଛି</translation>
 <translation id="7319983568955948908">ସେୟାର୍‍ କରିବା ବନ୍ଦ କରନ୍ତୁ</translation>
 <translation id="7359298090707901886">ସ୍ଥାନୀୟ ମେସିନରେ URLଗୁଡ଼ିକୁ ଖୋଲିବା ପାଇଁ ବଛାଯାଇଥିବା ବ୍ରାଉଜରକୁ ବ୍ୟବହାର କରାଯାଇପାରିବ ନାହିଁ।</translation>

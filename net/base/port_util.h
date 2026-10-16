@@ -8,8 +8,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <string_view>
+
 #include "base/containers/span.h"
-#include "base/strings/string_piece.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/net_export.h"
 
 namespace net {
@@ -25,7 +27,9 @@ NET_EXPORT bool IsWellKnownPort(int port);
 // Checks if the port is allowed for the specified scheme.  Ports set as allowed
 // with SetExplicitlyAllowedPorts() or by using ScopedPortException() will be
 // considered allowed for any scheme.
-NET_EXPORT bool IsPortAllowedForScheme(int port, base::StringPiece url_scheme);
+NET_EXPORT bool IsPortAllowedForScheme(int port, std::string_view url_scheme);
+
+NET_EXPORT bool IsPortAllowedForIpEndpoint(const IPEndPoint& endpoint);
 
 // Returns the number of explicitly allowed ports; for testing.
 NET_EXPORT_PRIVATE size_t GetCountOfExplicitlyAllowedPorts();
@@ -43,6 +47,10 @@ NET_EXPORT void SetExplicitlyAllowedPorts(
 // SetExplicitlyAllowedPorts() itself, as there are still callers that pass
 // other ports.
 NET_EXPORT bool IsAllowablePort(int port);
+
+// For testing: reloads the restricted ports set by the feature flag
+// `kRestrictAbusePortsOnLocalhost`.
+NET_EXPORT_PRIVATE void ReloadLocalhostRestrictedPortsForTesting();
 
 class NET_EXPORT ScopedPortException {
  public:

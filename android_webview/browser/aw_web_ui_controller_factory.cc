@@ -4,8 +4,9 @@
 
 #include "android_webview/browser/aw_web_ui_controller_factory.h"
 
+#include "android_webview/browser/safe_browsing/aw_safe_browsing_local_state_delegate_impl.h"
+#include "android_webview/browser/safe_browsing/aw_safe_browsing_ui.h"
 #include "base/memory/ptr_util.h"
-#include "components/safe_browsing/content/browser/web_ui/safe_browsing_ui.h"
 #include "components/safe_browsing/core/common/web_ui_constants.h"
 #include "content/public/browser/web_ui.h"
 #include "url/gurl.h"
@@ -22,7 +23,7 @@ const WebUI::TypeID kSafeBrowsingID = &kSafeBrowsingID;
 typedef WebUIController* (*WebUIFactoryFunctionPointer)(WebUI* web_ui,
                                                         const GURL& url);
 
-// Template for defining WebUIFactoryFunctionPointer.
+// Template for defining WebUIFactoryFunction.
 template <class T>
 WebUIController* NewWebUI(WebUI* web_ui, const GURL& url) {
   return new T(web_ui);
@@ -33,7 +34,7 @@ WebUIFactoryFunctionPointer GetWebUIFactoryFunctionPointer(const GURL& url) {
   // the Developer UI Dynamic Feature Module (DevUI DFM). Therefore the hosts
   // here must not appear in IsWebUiHostInDevUiDfm().
   if (url.host() == safe_browsing::kChromeUISafeBrowsingHost) {
-    return &NewWebUI<safe_browsing::SafeBrowsingUI>;
+    return &NewWebUI<safe_browsing::AWSafeBrowsingUI>;
   }
 
   return nullptr;

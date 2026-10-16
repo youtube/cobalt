@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "chrome/browser/resource_coordinator/tab_load_tracker.h"
 
 #include <utility>
@@ -10,7 +11,6 @@
 #include "base/containers/contains.h"
 #include "base/observer_list.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/preloading/prefetch/no_state_prefetch/chrome_no_state_prefetch_contents_delegate.h"
 #include "chrome/browser/resource_coordinator/resource_coordinator_parts.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_contents.h"
 #include "content/public/browser/navigation_controller.h"
@@ -43,7 +43,7 @@ TabLoadTracker::LoadingState TabLoadTracker::GetLoadingState(
     content::WebContents* web_contents) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto it = tabs_.find(web_contents);
-  DCHECK(it != tabs_.end());
+  CHECK(it != tabs_.end());
   return it->second.loading_state;
 }
 
@@ -86,7 +86,7 @@ void TabLoadTracker::TransitionStateForTesting(
     content::WebContents* web_contents,
     LoadingState loading_state) {
   auto it = tabs_.find(web_contents);
-  DCHECK(it != tabs_.end());
+  CHECK(it != tabs_.end());
   TransitionState(it, loading_state);
 }
 
@@ -112,7 +112,7 @@ void TabLoadTracker::StartTracking(content::WebContents* web_contents) {
 void TabLoadTracker::StopTracking(content::WebContents* web_contents) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto it = tabs_.find(web_contents);
-  DCHECK(it != tabs_.end());
+  CHECK(it != tabs_.end());
 
   auto loading_state = it->second.loading_state;
   DCHECK_NE(0u, state_counts_[static_cast<size_t>(it->second.loading_state)]);
@@ -131,14 +131,14 @@ void TabLoadTracker::PrimaryPageChanged(content::WebContents* web_contents) {
     return;
 
   auto it = tabs_.find(web_contents);
-  DCHECK(it != tabs_.end());
+  CHECK(it != tabs_.end());
   TransitionState(it, LOADING);
 }
 
 void TabLoadTracker::DidStopLoading(content::WebContents* web_contents) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto it = tabs_.find(web_contents);
-  DCHECK(it != tabs_.end());
+  CHECK(it != tabs_.end());
 
   // Corner case: An unloaded tab that starts loading but never receives a
   // response transitions to the LOADED state when loading stops, without
@@ -146,6 +146,10 @@ void TabLoadTracker::DidStopLoading(content::WebContents* web_contents) {
   // respond or when there is no network connection.
   if (it->second.loading_state == LoadingState::UNLOADED)
     TransitionState(it, LOADED);
+}
+
+void TabLoadTracker::WasDiscarded(content::WebContents* web_contents) {
+  TransitionToUnloaded(web_contents);
 }
 
 void TabLoadTracker::RenderProcessGone(content::WebContents* web_contents,
@@ -164,13 +168,7 @@ void TabLoadTracker::RenderProcessGone(content::WebContents* web_contents,
   // died because of a crash (e.g. bugs, compromised renderer) or been killed by
   // the OS (e.g. OOM on Android). Note: discarded tabs may reach this method,
   // but exit early because of |status|.
-  auto it = tabs_.find(web_contents);
-  DCHECK(it != tabs_.end());
-  // The tab could already be UNLOADED if it hasn't yet started loading. This
-  // can happen if the renderer crashes between the UNLOADED and LOADING states.
-  if (it->second.loading_state == UNLOADED)
-    return;
-  TransitionState(it, UNLOADED);
+  TransitionToUnloaded(web_contents);
 }
 
 void TabLoadTracker::OnPageStoppedLoading(content::WebContents* web_contents) {
@@ -209,6 +207,17 @@ TabLoadTracker::LoadingState TabLoadTracker::DetermineLoadingState(
   return loading_state;
 }
 
+void TabLoadTracker::TransitionToUnloaded(content::WebContents* web_contents) {
+  auto it = tabs_.find(web_contents);
+  CHECK(it != tabs_.end());
+  // The tab could already be UNLOADED if it hasn't yet started loading. This
+  // can happen if the renderer crashes between the UNLOADED and LOADING states.
+  if (it->second.loading_state == UNLOADED) {
+    return;
+  }
+  TransitionState(it, UNLOADED);
+}
+
 void TabLoadTracker::TransitionState(TabMap::iterator it,
                                      LoadingState loading_state) {
   LoadingState previous_state = it->second.loading_state;
@@ -229,8 +238,8 @@ void TabLoadTracker::TransitionState(TabMap::iterator it,
     observer.OnLoadingStateChange(web_contents, previous_state, loading_state);
 }
 
-TabLoadTracker::Observer::Observer() {}
+TabLoadTracker::Observer::Observer() = default;
 
-TabLoadTracker::Observer::~Observer() {}
+TabLoadTracker::Observer::~Observer() = default;
 
 }  // namespace resource_coordinator

@@ -12,12 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "media/base/demuxer_memory_limit.h"
+// clang-format on
+
+#include <atomic>
 
 #include "base/logging.h"
 #include "build/build_config.h"
-#include "media/base/decoder_buffer.h"
 #include "media/base/video_codecs.h"
+#include "media/starboard/decoder_buffer_memory_info.h"
 
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
 #error "This file only works with Starboard media."
@@ -25,6 +29,11 @@
 
 namespace media {
 namespace {
+
+// |g_video_buffer_size_reduction_percent| is process-wide, and is currently set
+// by h5vcc flags.
+std::atomic<std::optional<int>> g_video_buffer_size_reduction_percent{
+    std::nullopt};
 
 int GetBitsPerPixel(const VideoDecoderConfig& video_config) {
   bool is_hdr = false;
@@ -53,29 +62,45 @@ int GetBitsPerPixel(const VideoDecoderConfig& video_config) {
 
 }  // namespace
 
+void SetVideoBufferSizeReductionPercent(int reduction_pct) {
+  CHECK_GT(reduction_pct, 0);
+  CHECK_LT(reduction_pct, 100);
+  g_video_buffer_size_reduction_percent = reduction_pct;
+}
+
 size_t GetDemuxerStreamAudioMemoryLimit(
     const AudioDecoderConfig* /*audio_config*/) {
-  return DecoderBuffer::Allocator::GetInstance()->GetAudioBufferBudget();
+  return GetAudioDecoderBufferLimitBytes();
 }
 
 size_t GetDemuxerStreamVideoMemoryLimit(
-    Demuxer::DemuxerTypes /*demuxer_type*/,
+    DemuxerType /*demuxer_type*/,
     const VideoDecoderConfig* video_config) {
+  size_t limit;
   if (!video_config) {
-    return DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(
-        VideoCodec::kH264, 1920, 1080, 8);
+    limit = GetVideoDecoderBufferLimitBytes(
+        VideoCodec::kH264, /*resolution=*/{1920, 1080}, /*bits_per_pixel=*/8);
+  } else {
+    limit = GetVideoDecoderBufferLimitBytes(video_config->codec(),
+                                            video_config->visible_rect().size(),
+                                            GetBitsPerPixel(*video_config));
   }
 
-  auto codec = video_config->codec();
-  auto width = video_config->visible_rect().size().width();
-  auto height = video_config->visible_rect().size().height();
-  auto bits_per_pixel = GetBitsPerPixel(*video_config);
+  std::optional<int> reduction_pct =
+      g_video_buffer_size_reduction_percent.load();
+  if (!reduction_pct.has_value()) {
+    return limit;
+  }
 
-  return DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(
-      codec, width, height, bits_per_pixel);
+  // Multiplying limit by uint64_t remaining_pct preserves full precision and
+  // automatically promotes the calculation to 64-bit to prevent 32-bit
+  // overflow.
+  const uint64_t remaining_pct = 100 - reduction_pct.value();
+
+  return static_cast<size_t>((limit * remaining_pct) / 100);
 }
 
-size_t GetDemuxerMemoryLimit(Demuxer::DemuxerTypes demuxer_type) {
+size_t GetDemuxerMemoryLimit(DemuxerType demuxer_type) {
   return GetDemuxerStreamAudioMemoryLimit(nullptr) +
          GetDemuxerStreamVideoMemoryLimit(demuxer_type, nullptr);
 }

@@ -2,16 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "device/bluetooth/public/cpp/bluetooth_uuid.h"
 
 #include <stddef.h>
 
+#include <array>
 #include <sstream>
 
-#include "base/strings/string_piece.h"
 #include "build/build_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_WIN)
+#include <rpc.h>
+#endif
 
 namespace device {
 
@@ -185,7 +190,8 @@ TEST(BluetoothUUIDTest, BluetoothUUID_CaseInsensitive) {
   struct TestCase {
     const std::string input_uuid;
     const std::string expected_value;
-  } test_cases[] = {
+  };
+  auto test_cases = std::to_array<TestCase>({
       {"1abc", k16Bit},
       {"1ABC", k16Bit},
       {"1aBc", k16Bit},
@@ -195,7 +201,7 @@ TEST(BluetoothUUIDTest, BluetoothUUID_CaseInsensitive) {
       {"00001abc-0000-1000-8000-00805f9b34fb", k128Bit},
       {"00001ABC-0000-1000-8000-00805F9B34FB", k128Bit},
       {"00001aBc-0000-1000-8000-00805F9b34fB", k128Bit},
-  };
+  });
 
   for (size_t i = 0; i < std::size(test_cases); ++i) {
     SCOPED_TRACE("Input UUID: " + test_cases[i].input_uuid);

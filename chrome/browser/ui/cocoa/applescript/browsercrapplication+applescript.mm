@@ -2,14 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import "chrome/browser/ui/cocoa/applescript/browsercrapplication+applescript.h"
-
 #include <Foundation/Foundation.h>
 
 #include <map>
 
-#import "base/mac/foundation_util.h"
-#import "base/mac/scoped_nsobject.h"
+#import "base/apple/foundation_util.h"
 #include "base/notreached.h"
 #import "chrome/browser/app_controller_mac.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
@@ -19,6 +16,7 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
 #import "chrome/browser/ui/cocoa/applescript/bookmark_folder_applescript.h"
+#import "chrome/browser/ui/cocoa/applescript/browsercrapplication+applescript.h"
 #import "chrome/browser/ui/cocoa/applescript/constants_applescript.h"
 #import "chrome/browser/ui/cocoa/applescript/error_applescript.h"
 #import "chrome/browser/ui/cocoa/applescript/window_applescript.h"
@@ -30,7 +28,7 @@ using bookmarks::BookmarkModel;
 
 - (NSArray*)appleScriptWindows {
   std::map<NSWindow*, Browser*> browsers;
-  for (auto* browser : *BrowserList::GetInstance()) {
+  for (Browser* browser : *BrowserList::GetInstance()) {
     if (browser->IsAttemptingToCloseBrowser()) {
       continue;
     }
@@ -46,8 +44,8 @@ using bookmarks::BookmarkModel;
       continue;
     }
 
-    WindowAppleScript* aWindow = [[[WindowAppleScript alloc]
-        initWithBrowser:browser_it->second] autorelease];
+    WindowAppleScript* aWindow =
+        [[WindowAppleScript alloc] initWithBrowser:browser_it->second];
     [aWindow setContainer:self property:AppleScript::kWindowsProperty];
     [result addObject:aWindow];
   }
@@ -80,10 +78,7 @@ using bookmarks::BookmarkModel;
 }
 
 - (BookmarkFolderAppleScript*)otherBookmarks {
-  AppController* appDelegate =
-      base::mac::ObjCCastStrict<AppController>(NSApp.delegate);
-
-  Profile* lastProfile = appDelegate.lastProfile;
+  Profile* lastProfile = AppController.sharedController.lastProfile;
   if (!lastProfile) {
     AppleScript::SetError(AppleScript::Error::kGetProfile);
     return nil;
@@ -96,19 +91,15 @@ using bookmarks::BookmarkModel;
     return nil;
   }
 
-  BookmarkFolderAppleScript* otherBookmarks =
-      [[[BookmarkFolderAppleScript alloc]
-          initWithBookmarkNode:model->other_node()] autorelease];
+  BookmarkFolderAppleScript* otherBookmarks = [[BookmarkFolderAppleScript alloc]
+      initWithBookmarkNode:model->other_node()];
   [otherBookmarks setContainer:self
                       property:AppleScript::kBookmarkFoldersProperty];
   return otherBookmarks;
 }
 
 - (BookmarkFolderAppleScript*)bookmarksBar {
-  AppController* appDelegate =
-      base::mac::ObjCCastStrict<AppController>(NSApp.delegate);
-
-  Profile* lastProfile = appDelegate.lastProfile;
+  Profile* lastProfile = AppController.sharedController.lastProfile;
   if (!lastProfile) {
     AppleScript::SetError(AppleScript::Error::kGetProfile);
     return nil;
@@ -121,8 +112,8 @@ using bookmarks::BookmarkModel;
     return nullptr;
   }
 
-  BookmarkFolderAppleScript* bookmarksBar = [[[BookmarkFolderAppleScript alloc]
-      initWithBookmarkNode:model->bookmark_bar_node()] autorelease];
+  BookmarkFolderAppleScript* bookmarksBar = [[BookmarkFolderAppleScript alloc]
+      initWithBookmarkNode:model->bookmark_bar_node()];
   [bookmarksBar setContainer:self
                     property:AppleScript::kBookmarkFoldersProperty];
   return bookmarksBar;

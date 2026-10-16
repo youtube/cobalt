@@ -15,11 +15,16 @@ mojom("mojom") {
   enable_js_fuzzing = false
 
   sources = [
+    "auction_network_events_handler.mojom",
     "auction_shared_storage_host.mojom",
     "auction_worklet_service.mojom",
     "bidder_worklet.mojom",
+    "in_progress_auction_download.mojom",
     "private_aggregation_request.mojom",
+    "real_time_reporting.mojom",
+    "reject_reason.mojom",
     "seller_worklet.mojom",
+    "trusted_signals_cache.mojom",
   ]
   deps = [
     "//content/common:mojo_bindings",
@@ -41,7 +46,10 @@ mojom("mojom") {
 
 # See comment at the top of //content/BUILD.gn for how this works.
 group("for_content_tests") {
-  visibility = [ "//content/test/*" ]
+  visibility = [
+    "//content/services/auction_worklet/public/cpp:test_support",
+    "//content/test/*",
+  ]
   if (is_cobalt) {
     visibility += [
       "//cobalt/testing:*",
@@ -51,8 +59,14 @@ group("for_content_tests") {
   if (!is_component_build) {
     public_deps = [ ":mojom" ]
   } else {
-    # Normally this won't happen for component builds, but mojo shared gets its
-    # own component, so the usual "it's all content/" logic doesn't apply.
-    public_deps = [ ":mojom_shared" ]
+    public_deps = [
+      # Normally this won't happen for component builds, but mojo shared gets its
+      # own component, so the usual "it's all content/" logic doesn't apply.
+      ":mojom_shared",
+
+      # Ensure //content/common:mojo_bindings is built without depending on
+      # internals.
+      "//content/public/common",
+    ]
   }
 }

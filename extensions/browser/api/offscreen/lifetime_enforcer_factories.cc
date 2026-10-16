@@ -92,7 +92,10 @@ constexpr ReasonAndFactoryMethodPair kReasonAndFactoryMethodPairs[] = {
     {api::offscreen::Reason::kWebRtc, &CreateEmptyEnforcer},
     {api::offscreen::Reason::kClipboard, &CreateEmptyEnforcer},
     {api::offscreen::Reason::kLocalStorage, &CreateEmptyEnforcer},
-    {api::offscreen::Reason::kWorkers, &CreateEmptyEnforcer}};
+    {api::offscreen::Reason::kWorkers, &CreateEmptyEnforcer},
+    {api::offscreen::Reason::kBatteryStatus, &CreateEmptyEnforcer},
+    {api::offscreen::Reason::kMatchMedia, &CreateEmptyEnforcer},
+    {api::offscreen::Reason::kGeolocation, &CreateEmptyEnforcer}};
 
 static_assert(std::size(kReasonAndFactoryMethodPairs) ==
                   base::to_underlying(api::offscreen::Reason::kMaxValue),
@@ -116,15 +119,16 @@ LifetimeEnforcerFactories::GetLifetimeEnforcer(
         notify_inactive_callback) {
   if (g_testing_override) {
     auto iter = g_testing_override->map().find(reason);
-    if (iter != g_testing_override->map().end())
+    if (iter != g_testing_override->map().end()) {
       return iter->second.Run(offscreen_document,
                               std::move(termination_callback),
                               std::move(notify_inactive_callback));
+    }
   }
 
   auto& factories = GetFactoriesInstance();
   auto iter = factories.map_.find(reason);
-  DCHECK(iter != factories.map_.end())
+  CHECK(iter != factories.map_.end())
       << "No factory registered for: " << api::offscreen::ToString(reason);
   return iter->second.Run(offscreen_document, std::move(termination_callback),
                           std::move(notify_inactive_callback));

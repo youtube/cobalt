@@ -8,11 +8,13 @@ import cpp_util
 from json_parse import OrderedDict
 import schema_util
 
+
 class _TypeDependency(object):
   """Contains information about a dependency a namespace has on a type: the
   type's model, and whether that dependency is "hard" meaning that it cannot be
   forward declared.
   """
+
   def __init__(self, type_, hard=False):
     self.type_ = type_
     self.hard = hard
@@ -25,6 +27,7 @@ class CppTypeGenerator(object):
   """Manages the types of properties and provides utilities for getting the
   C++ type out of a model.Property
   """
+
   def __init__(self, model, namespace_resolver, default_namespace=None):
     """Creates a cpp_type_generator. The given root_namespace should be of the
     format extensions::api::sub. The generator will generate code suitable for
@@ -40,39 +43,25 @@ class CppTypeGenerator(object):
     typename in an optional, for the regular case, or uses a base::expected for
     when it should support string errors.
     """
-    return (('base::expected<{typename}, std::u16string>'
-        if support_errors else 'absl::optional<{typename}>')
-          .format(typename=typename))
-
-  def IsEnumModernised(self, type_):
-    """ Determines if a given enum type belongs to a namespace set with the
-    attribute [modernised_enums]
-    """
-    return type_.namespace.compiler_options.get('modernised_enums', False)
-
+    return (('base::expected<{typename}, std::u16string>' if support_errors else
+             'std::optional<{typename}>').format(typename=typename))
 
   def GetEnumNoneValue(self, type_, full_name=True):
     """Gets the enum value in the given model. Property indicating no value has
     been set.
     """
-    if self.IsEnumModernised(type_):
-      prefix = ''
-      if full_name:
-        classname = cpp_util.Classname(type_.name)
-        prefix = '{typename}::'.format(typename=classname)
-      return '{enum_name}kNone'.format(enum_name=prefix)
-
-    return '%s_NONE' % self.FollowRef(type_).unix_name.upper()
+    prefix = ''
+    if full_name:
+      classname = cpp_util.Classname(type_.name)
+      prefix = '{typename}::'.format(typename=classname)
+    return '{enum_name}kNone'.format(enum_name=prefix)
 
   def GetEnumDefaultValue(self, type_, current_namespace):
     """Gets the representation for an enum default initialised, which is the
     typename with a default initialiser. e.g. MyEnum().
     """
-    namespace = ('%s::' % type_.namespace.unix_name
-      if current_namespace and current_namespace != type_.namespace else '')
-
-    return '{namespace}{typename}()'.format(
-      namespace=namespace,typename=cpp_util.Classname(type_.name))
+    cpp_type = self.GetCppType(type_)
+    return '{cpp_type}()'.format(cpp_type=cpp_type)
 
   def FormatStringForEnumValue(self, name):
     """Formats a string enum entry to the common constant format favoured by the
@@ -86,13 +75,25 @@ class CppTypeGenerator(object):
       CamelCaseWithUpperFirst: kCamelCaseWithUpperFirst.
       x86_64: kX86_64
       x86_ARCH: kX86Arch
+      '': EmptyString
+      kConstantSupport: kConstantSupport.
     """
+
+    if not name:
+      return 'EmptyString'
+
+    # For cases where the enum entry is something like kValue, an exception is
+    # made to drop the initial `k` to avoid generating a key that looks like
+    # kKvalue, which is less readable than kValue.
+    if len(name) > 1 and name.startswith('k') and name[1].isupper():
+      name = name[1:]
+
     change_to_upper = True
     last_was_lower = True
     result = ''
     for char in name:
       if char in {'_', '-'}:
-        change_to_upper=True
+        change_to_upper = True
       elif change_to_upper:
         # Numbers must be kept separate, for better readability (e.g. kX86_64).
         if char.isnumeric() and result and result[-1].isnumeric():
@@ -112,14 +113,6 @@ class CppTypeGenerator(object):
 
     return result
 
-  def GetEnumLastValue(self, type_):
-    """Gets the enum value in the given model.Property indicating the last value
-    for the type.
-    """
-    # TODO(crbug.com/1421546): This function should be deleted once all enums
-    # are migrated to scoped ones.
-    return '%s_LAST' % self.FollowRef(type_).unix_name.upper()
-
   def GetEnumValue(self, type_, enum_value, full_name=True):
     """Gets the enum value of the given model.Property of the given type.
 
@@ -128,26 +121,15 @@ class CppTypeGenerator(object):
 
     e.g Enum::kValue
     """
-    if self.IsEnumModernised(type_):
-      prefix = ''
-      if full_name:
-        classname = cpp_util.Classname(type_.name)
-        prefix = '{classname}::'.format(classname=classname)
-      # We kCamelCase the string, also removing any _ from the name, to allow
-      # SHOUTY_CASE keys to be kCamelCase as well.
-      return '{prefix}k{name}'.format(
-                prefix=prefix,
-                name=self.FormatStringForEnumValue(enum_value.name))
-    else:
-      prefix = (type_.cpp_enum_prefix_override or
-                self.FollowRef(type_).unix_name)
-      value = cpp_util.Classname(enum_value.name.upper())
-      value = '%s_%s' % (prefix.upper(), value)
-      # To avoid collisions with built-in OS_* preprocessor definitions, we add
-      # a trailing slash to enum names that start with OS_.
-      if value.startswith('OS_'):
-        value += '_'
-      return value
+    prefix = ''
+    if full_name:
+      classname = cpp_util.Classname(type_.name)
+      prefix = '{classname}::'.format(classname=classname)
+    # We kCamelCase the string, also removing any _ from the name, to allow
+    # SHOUTY_CASE keys to be kCamelCase as well.
+    return '{prefix}k{name}'.format(prefix=prefix,
+                                    name=self.FormatStringForEnumValue(
+                                        enum_value.name))
 
   def GetCppType(self, type_, is_optional=False):
     """Translates a model.Property or model.Type into its C++ type.
@@ -175,8 +157,7 @@ class CppTypeGenerator(object):
       cpp_type = 'double'
     elif type_.property_type == PropertyType.STRING:
       cpp_type = 'std::string'
-    elif type_.property_type in (PropertyType.ENUM,
-                                 PropertyType.OBJECT,
+    elif type_.property_type in (PropertyType.ENUM, PropertyType.OBJECT,
                                  PropertyType.CHOICES):
       if self._default_namespace is type_.namespace:
         cpp_type = cpp_util.Classname(type_.name)
@@ -184,8 +165,7 @@ class CppTypeGenerator(object):
         cpp_namespace = cpp_util.GetCppNamespace(
             type_.namespace.environment.namespace_pattern,
             type_.namespace.unix_name)
-        cpp_type = '%s::%s' % (cpp_namespace,
-                               cpp_util.Classname(type_.name))
+        cpp_type = '%s::%s' % (cpp_namespace, cpp_util.Classname(type_.name))
     elif type_.property_type == PropertyType.ANY:
       cpp_type = 'base::Value'
     elif type_.property_type == PropertyType.FUNCTION:
@@ -199,7 +179,10 @@ class CppTypeGenerator(object):
         cpp_type = 'base::Value::Dict'
     elif type_.property_type == PropertyType.ARRAY:
       item_cpp_type = self.GetCppType(type_.item_type)
-      cpp_type = 'std::vector<%s>' % item_cpp_type
+      if item_cpp_type == 'base::Value':
+        cpp_type = 'base::Value::List'
+      else:
+        cpp_type = 'std::vector<%s>' % item_cpp_type
     elif type_.property_type == PropertyType.BINARY:
       cpp_type = 'std::vector<uint8_t>'
     else:
@@ -210,18 +193,17 @@ class CppTypeGenerator(object):
     # TODO(kalman): change this - but it's an exceedingly far-reaching change.
     if not self.FollowRef(type_).property_type == PropertyType.ENUM:
       if is_optional:
-        if cpp_util.ShouldUseAbslOptional(self.FollowRef(type_)):
-          cpp_type = 'absl::optional<%s>' % cpp_type
+        if cpp_util.ShouldUseStdOptional(self.FollowRef(type_)):
+          cpp_type = 'std::optional<%s>' % cpp_type
         else:
           cpp_type = 'std::unique_ptr<%s>' % cpp_type
 
     return cpp_type
 
   def IsCopyable(self, type_):
-    return not (self.FollowRef(type_).property_type in (PropertyType.ANY,
-                                                        PropertyType.ARRAY,
-                                                        PropertyType.OBJECT,
-                                                        PropertyType.CHOICES))
+    return not (self.FollowRef(type_).property_type
+                in (PropertyType.ANY, PropertyType.ARRAY, PropertyType.OBJECT,
+                    PropertyType.CHOICES))
 
   def GenerateForwardDeclarations(self):
     """Returns the forward declarations for self._default_namespace.
@@ -229,17 +211,16 @@ class CppTypeGenerator(object):
     c = Code()
     for namespace, deps in self._NamespaceTypeDependencies().items():
       filtered_deps = [
-        dep for dep in deps
-        # Add more ways to forward declare things as necessary.
-        if (not dep.hard and
-            dep.type_.property_type in (PropertyType.CHOICES,
-                                        PropertyType.OBJECT))]
+          dep for dep in deps
+          # Add more ways to forward declare things as necessary.
+          if (not dep.hard and dep.type_.property_type in (PropertyType.CHOICES,
+                                                           PropertyType.OBJECT))
+      ]
       if not filtered_deps:
         continue
 
       cpp_namespace = cpp_util.GetCppNamespace(
-          namespace.environment.namespace_pattern,
-          namespace.unix_name)
+          namespace.environment.namespace_pattern, namespace.unix_name)
       c.Concat(cpp_util.OpenNamespace(cpp_namespace))
       for dep in filtered_deps:
         c.Append('struct %s;' % dep.type_.name)
@@ -251,23 +232,22 @@ class CppTypeGenerator(object):
     """
     c = Code()
 
-    # The inclusion of the StringPiece header is dependent on either the
+    # The inclusion of the std::string_view header is dependent on either the
     # presence of enums, or manifest keys.
-    include_string_piece = (self._default_namespace.manifest_keys or
-        any(type_.property_type is PropertyType.ENUM for type_ in
-            self._default_namespace.types.values()))
+    include_string_view = (self._default_namespace.manifest_keys or any(
+        type_.property_type is PropertyType.ENUM
+        for type_ in self._default_namespace.types.values()))
 
-    if include_string_piece:
-      c.Append('#include "base/strings/string_piece.h"')
+    if include_string_view:
+      c.Append('#include <string_view>')
 
     # The header for `base::expected` should be included whenever error messages
     # are supposed to be returned, which only occurs with object, choices, or
     # functions.
-    if (generate_error_messages and (
-        len(self._default_namespace.functions.values()) or
-        any(type_.property_type in
-            [PropertyType.OBJECT, PropertyType.CHOICES] for type_ in
-            self._default_namespace.types.values()))):
+    if (generate_error_messages
+        and (len(self._default_namespace.functions.values()) or any(
+            type_.property_type in [PropertyType.OBJECT, PropertyType.CHOICES]
+            for type_ in self._default_namespace.types.values()))):
       c.Append('#include "base/types/expected.h"')
 
     # Note: It's possible that there are multiple dependencies from the same
@@ -378,11 +358,7 @@ class CppTypeGenerator(object):
         cpp_value = '"%s"' % cpp_value
         cpp_type = 'char'
         cpp_name = '%s[]' % cpp_name
-      c.Append(line % {
-        "type": cpp_type,
-        "name": cpp_name,
-        "value": cpp_value
-      })
+      c.Append(line % {"type": cpp_type, "name": cpp_name, "value": cpp_value})
     else:
       has_child_code = False
       c.Sblock('namespace %s {' % prop.name)

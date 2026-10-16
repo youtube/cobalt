@@ -18,17 +18,14 @@ import androidx.annotation.Nullable;
 import androidx.test.espresso.contrib.AccessibilityChecks;
 import androidx.test.runner.lifecycle.Stage;
 
-import com.google.android.apps.common.testing.accessibility.framework.ClickableSpanViewCheck;
-import com.google.android.apps.common.testing.accessibility.framework.DuplicateClickableBoundsViewCheck;
-import com.google.android.apps.common.testing.accessibility.framework.EditableContentDescViewCheck;
-import com.google.android.apps.common.testing.accessibility.framework.SpeakableTextPresentInfoCheck;
-import com.google.android.apps.common.testing.accessibility.framework.SpeakableTextPresentViewCheck;
-import com.google.android.apps.common.testing.accessibility.framework.TouchTargetSizeViewCheck;
+import com.google.android.apps.common.testing.accessibility.framework.checks.ClickableSpanCheck;
+import com.google.android.apps.common.testing.accessibility.framework.checks.DuplicateClickableBoundsCheck;
+import com.google.android.apps.common.testing.accessibility.framework.checks.EditableContentDescCheck;
+import com.google.android.apps.common.testing.accessibility.framework.checks.SpeakableTextPresentCheck;
+import com.google.android.apps.common.testing.accessibility.framework.checks.TouchTargetSizeCheck;
 
 import org.junit.Assert;
-import org.junit.rules.TestRule;
-import org.junit.runner.Description;
-import org.junit.runners.model.Statement;
+import org.junit.rules.ExternalResource;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
@@ -40,7 +37,7 @@ import org.chromium.base.test.util.ApplicationTestUtils;
  *
  * @param <T> The type of Activity this Rule will use.
  */
-public class BaseActivityTestRule<T extends Activity> implements TestRule {
+public class BaseActivityTestRule<T extends Activity> extends ExternalResource {
     private static final String TAG = "BaseActivityTestRule";
 
     private final Class<T> mActivityClass;
@@ -80,13 +77,20 @@ public class BaseActivityTestRule<T extends Activity> implements TestRule {
         //
         // TODO(AccessibilityChecks): Complete above audits and ideally suppress no checks.
         try {
-            AccessibilityChecks.enable().setSuppressingResultMatcher(anyOf(
-                    matchesCheckNames(is(TouchTargetSizeViewCheck.class.getSimpleName())),
-                    matchesCheckNames(is(ClickableSpanViewCheck.class.getSimpleName())),
-                    matchesCheckNames(is(EditableContentDescViewCheck.class.getSimpleName())),
-                    matchesCheckNames(is(DuplicateClickableBoundsViewCheck.class.getSimpleName())),
-                    matchesCheckNames(is(SpeakableTextPresentInfoCheck.class.getSimpleName())),
-                    matchesCheckNames(is(SpeakableTextPresentViewCheck.class.getSimpleName()))));
+            AccessibilityChecks.enable()
+                    .setSuppressingResultMatcher(
+                            anyOf(
+                                    matchesCheckNames(
+                                            is(TouchTargetSizeCheck.class.getSimpleName())),
+                                    matchesCheckNames(is(ClickableSpanCheck.class.getSimpleName())),
+                                    matchesCheckNames(
+                                            is(EditableContentDescCheck.class.getSimpleName())),
+                                    matchesCheckNames(
+                                            is(
+                                                    DuplicateClickableBoundsCheck.class
+                                                            .getSimpleName())),
+                                    matchesCheckNames(
+                                            is(SpeakableTextPresentCheck.class.getSimpleName()))));
         } catch (IllegalStateException e) {
             // Suppress IllegalStateException for AccessibilityChecks already enabled.
         }
@@ -94,19 +98,10 @@ public class BaseActivityTestRule<T extends Activity> implements TestRule {
 
     @Override
     @CallSuper
-    public Statement apply(final Statement base, final Description desc) {
-        return new Statement() {
-            @Override
-            public void evaluate() throws Throwable {
-                try {
-                    base.evaluate();
-                } finally {
-                    if (mFinishActivity && mActivity != null) {
-                        ApplicationTestUtils.finishActivity(mActivity);
-                    }
-                }
-            }
-        };
+    protected void after() {
+        if (mFinishActivity && mActivity != null) {
+            finishActivity();
+        }
     }
 
     /**
@@ -125,9 +120,7 @@ public class BaseActivityTestRule<T extends Activity> implements TestRule {
         return mActivity;
     }
 
-    /**
-     * Set the Activity to be used by this TestRule.
-     */
+    /** Set the Activity to be used by this TestRule. */
     public void setActivity(T activity) {
         mActivity = activity;
     }
@@ -139,16 +132,20 @@ public class BaseActivityTestRule<T extends Activity> implements TestRule {
     /**
      * Launches the Activity under test using the provided intent. If the provided intent is null,
      * an explicit intent targeting the Activity is created and used.
+     *
+     * @return The activity launched as a result of this method.
      */
-    public void launchActivity(@Nullable Intent startIntent) {
+    public T launchActivity(@Nullable Intent startIntent) {
         if (startIntent == null) {
             startIntent = getActivityIntent();
         } else {
             String packageName = ContextUtils.getApplicationContext().getPackageName();
-            Assert.assertTrue(TextUtils.equals(startIntent.getPackage(), packageName)
-                    || (startIntent.getComponent() != null
-                            && TextUtils.equals(
-                                    startIntent.getComponent().getPackageName(), packageName)));
+            Assert.assertTrue(
+                    TextUtils.equals(startIntent.getPackage(), packageName)
+                            || (startIntent.getComponent() != null
+                                    && TextUtils.equals(
+                                            startIntent.getComponent().getPackageName(),
+                                            packageName)));
         }
 
         startIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -156,13 +153,34 @@ public class BaseActivityTestRule<T extends Activity> implements TestRule {
         Log.d(TAG, String.format("Launching activity %s", mActivityClass.getName()));
 
         final Intent intent = startIntent;
-        mActivity = ApplicationTestUtils.waitForActivityWithClass(mActivityClass, Stage.CREATED,
-                () -> ContextUtils.getApplicationContext().startActivity(intent));
+        // Android system pauses the activity on delivering an intent to an existing activity.
+        // https://developer.android.com/reference/android/app/Activity#onNewIntent(android.content.Intent)
+        Stage targetStage =
+                ((startIntent.getFlags() & Intent.FLAG_ACTIVITY_SINGLE_TOP) != 0
+                                && mActivity != null
+                                && !mActivity.isFinishing())
+                        ? Stage.PAUSED
+                        : Stage.CREATED;
+        mActivity =
+                ApplicationTestUtils.waitForActivityWithClass(
+                        mActivityClass,
+                        targetStage,
+                        () -> ContextUtils.getApplicationContext().startActivity(intent));
+        return mActivity;
     }
 
     /**
-     * Recreates the Activity, blocking until finished.
-     * After calling this, getActivity() returns the new Activity.
+     * Finishes the Activity, blocking until finished. After calling this, getActivity() returns
+     * null.
+     */
+    public void finishActivity() {
+        ApplicationTestUtils.finishActivity(getActivity());
+        setActivity(null);
+    }
+
+    /**
+     * Recreates the Activity, blocking until finished. After calling this, getActivity() returns
+     * the new Activity.
      */
     public void recreateActivity() {
         setActivity(ApplicationTestUtils.recreateActivity(getActivity()));

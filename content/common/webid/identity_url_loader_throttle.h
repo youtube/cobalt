@@ -6,13 +6,19 @@
 #define CONTENT_COMMON_WEBID_IDENTITY_URL_LOADER_THROTTLE_H_
 
 #include <memory>
+#include <string_view>
 
 #include "base/functional/callback.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/weak_ptr.h"
 #include "content/common/content_export.h"
 #include "content/public/common/web_identity.h"
 #include "third_party/blink/public/common/loader/url_loader_throttle.h"
 #include "url/gurl.h"
+
+namespace net {
+class HttpResponseHeaders;
+}  // namespace net
 
 namespace content {
 
@@ -42,9 +48,15 @@ class CONTENT_EXPORT IdentityUrlLoaderThrottle
       net::HttpRequestHeaders* modified_cors_exempt_request_headers) override;
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(IdentityUrlLoaderThrottleTest, HeaderHasToken);
+
   void HandleResponseOrRedirect(
       const GURL& response_url,
       const network::mojom::URLResponseHead& response_head);
+
+  static bool HeaderHasToken(const net::HttpResponseHeaders& headers,
+                             std::string_view header_name,
+                             std::string_view token);
 
   GURL request_url_;
   SetIdpStatusCallback set_idp_status_cb_;

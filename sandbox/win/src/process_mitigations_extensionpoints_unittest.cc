@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "sandbox/win/src/process_mitigations.h"
-
 #include <windows.h>
 
 #include <psapi.h>
 
+#include "base/compiler_specific.h"
 #include "base/scoped_native_library.h"
 #include "base/win/registry.h"
 #include "base/win/startup_information.h"
 #include "base/win/win_util.h"
+#include "sandbox/win/src/process_mitigations.h"
 #include "sandbox/win/tests/common/controller.h"
 #include "sandbox/win/tests/integration_tests/hooking_dll.h"
 #include "sandbox/win/tests/integration_tests/hooking_win_proc.h"
@@ -311,7 +311,7 @@ void TestWin8ExtensionPointAppInitWrapper(bool is_success_test) {
         wchar_t name[MAX_PATH] = {};
         if (::GetModuleFileNameExW(proc_info.hProcess, module, name,
                                    MAX_PATH) &&
-            ::wcsstr(name, hooking_dll::g_hook_dll_file)) {
+            UNSAFE_TODO(::wcsstr(name, hooking_dll::g_hook_dll_file))) {
           // Found it.
           dll_loaded = true;
           break;

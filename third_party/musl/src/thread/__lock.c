@@ -1,4 +1,3 @@
-#if !defined(STARBOARD)
 #include "pthread_impl.h"
 
 /* This lock primitive combines a flag (in the sign bit) and a
@@ -61,4 +60,3 @@ void __unlock(volatile int *l)
 		}
 	}
 }
-#endif

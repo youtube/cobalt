@@ -56,12 +56,7 @@ SVGLinearGradientElement::SVGLinearGradientElement(Document& document)
           this,
           svg_names::kY2Attr,
           SVGLengthMode::kHeight,
-          SVGLength::Initial::kPercent0)) {
-  AddToPropertyMap(x1_);
-  AddToPropertyMap(y1_);
-  AddToPropertyMap(x2_);
-  AddToPropertyMap(y2_);
-}
+          SVGLength::Initial::kPercent0)) {}
 
 void SVGLinearGradientElement::Trace(Visitor* visitor) const {
   visitor->Trace(x1_);
@@ -76,9 +71,7 @@ void SVGLinearGradientElement::SvgAttributeChanged(
   const QualifiedName& attr_name = params.name;
   if (attr_name == svg_names::kX1Attr || attr_name == svg_names::kX2Attr ||
       attr_name == svg_names::kY1Attr || attr_name == svg_names::kY2Attr) {
-    SVGElement::InvalidationGuard invalidation_guard(this);
-    UpdateRelativeLengthsInformation();
-    InvalidateGradient(layout_invalidation_reason::kAttributeChanged);
+    InvalidateGradient();
     return;
   }
 
@@ -160,6 +153,27 @@ bool SVGLinearGradientElement::SelfHasRelativeLengths() const {
   return x1_->CurrentValue()->IsRelative() ||
          y1_->CurrentValue()->IsRelative() ||
          x2_->CurrentValue()->IsRelative() || y2_->CurrentValue()->IsRelative();
+}
+
+SVGAnimatedPropertyBase* SVGLinearGradientElement::PropertyFromAttribute(
+    const QualifiedName& attribute_name) const {
+  if (attribute_name == svg_names::kX1Attr) {
+    return x1_.Get();
+  } else if (attribute_name == svg_names::kY1Attr) {
+    return y1_.Get();
+  } else if (attribute_name == svg_names::kX2Attr) {
+    return x2_.Get();
+  } else if (attribute_name == svg_names::kY2Attr) {
+    return y2_.Get();
+  } else {
+    return SVGGradientElement::PropertyFromAttribute(attribute_name);
+  }
+}
+
+void SVGLinearGradientElement::SynchronizeAllSVGAttributes() const {
+  SVGAnimatedPropertyBase* attrs[]{x1_.Get(), y1_.Get(), x2_.Get(), y2_.Get()};
+  SynchronizeListOfSVGAttributes(attrs);
+  SVGGradientElement::SynchronizeAllSVGAttributes();
 }
 
 }  // namespace blink

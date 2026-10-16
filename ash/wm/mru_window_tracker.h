@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "ash/ash_export.h"
+#include "base/memory/raw_ptr.h"
 #include "ui/aura/window_observer.h"
 #include "ui/wm/public/activation_change_observer.h"
 
@@ -27,16 +28,19 @@ enum DesksMruType {
   kActiveDesk,
 };
 
-// A predicate that determines whether |window| can be included in the MRU
+// A predicate that determines whether `window` can be included in the MRU
 // window list.
 bool CanIncludeWindowInMruList(aura::Window* window);
+
+// A predicate that determines whether `window` is an app type.
+bool CanIncludeWindowInAppMruList(aura::Window* window);
 
 // Maintains a most recently used list of windows. This is used for window
 // cycling using Alt+Tab and overview mode.
 class ASH_EXPORT MruWindowTracker : public wm::ActivationChangeObserver,
                                     public aura::WindowObserver {
  public:
-  using WindowList = std::vector<aura::Window*>;
+  using WindowList = std::vector<raw_ptr<aura::Window, VectorExperimental>>;
 
   MruWindowTracker();
 
@@ -98,7 +102,8 @@ class ASH_EXPORT MruWindowTracker : public wm::ActivationChangeObserver,
   // `WindowRestoreController`.
   void OnWindowAlteredByWindowRestore(aura::Window* window);
 
-  const std::vector<aura::Window*>& GetMruWindowsForTesting() {
+  const std::vector<raw_ptr<aura::Window, VectorExperimental>>&
+  GetMruWindowsForTesting() {
     return mru_windows_;
   }
 
@@ -119,7 +124,7 @@ class ASH_EXPORT MruWindowTracker : public wm::ActivationChangeObserver,
   // through, sorted such that the most recently used window comes last. Note
   // that this ordering differs from the lists returned by the
   // `Build*Window*List` functions, which are reversed.
-  std::vector<aura::Window*> mru_windows_;
+  std::vector<raw_ptr<aura::Window, VectorExperimental>> mru_windows_;
 
   bool ignore_window_activations_ = false;
 };

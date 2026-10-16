@@ -1,21 +1,26 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "remoting/host/desktop_capturer_wrapper.h"
 
+#include <cstdint>
 #include <memory>
 #include <utility>
 
+#include "base/check.h"
+#include "base/functional/callback.h"
 #include "base/logging.h"
+#include "base/notimplemented.h"
+#include "base/threading/thread_checker.h"
 #include "build/build_config.h"
-#include "third_party/webrtc/modules/desktop_capture/desktop_capture_options.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_capturer.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_frame.h"
+#include "third_party/webrtc/modules/desktop_capture/shared_memory.h"
 
-#if BUILDFLAG(IS_LINUX)
-#include "remoting/host/linux/wayland_desktop_capturer.h"
-#include "remoting/host/linux/wayland_utils.h"
+#if defined(WEBRTC_USE_GIO)
+#include "base/notreached.h"
+#include "third_party/webrtc/modules/desktop_capture/desktop_capture_metadata.h"
 #endif
 
 namespace remoting {
@@ -29,18 +34,10 @@ DesktopCapturerWrapper::~DesktopCapturerWrapper() {
 }
 
 void DesktopCapturerWrapper::CreateCapturer(
-    const webrtc::DesktopCaptureOptions& options) {
+    base::OnceCallback<std::unique_ptr<webrtc::DesktopCapturer>()> creator) {
   DCHECK(!capturer_);
 
-#if BUILDFLAG(IS_LINUX)
-  if (IsRunningWayland()) {
-    capturer_ = std::make_unique<WaylandDesktopCapturer>(options);
-  } else {
-    capturer_ = webrtc::DesktopCapturer::CreateScreenCapturer(options);
-  }
-#else
-  capturer_ = webrtc::DesktopCapturer::CreateScreenCapturer(options);
-#endif
+  capturer_ = std::move(creator).Run();
 
   if (!capturer_) {
     LOG(ERROR) << "Failed to initialize screen capturer.";
@@ -106,17 +103,7 @@ void DesktopCapturerWrapper::OnCaptureResult(
   callback_->OnCaptureResult(result, std::move(frame));
 }
 
-bool DesktopCapturerWrapper::SupportsFrameCallbacks() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-#if BUILDFLAG(IS_LINUX)
-  return capturer_ && IsRunningWayland();
-#else
-  return false;
-#endif
-}
-
-void DesktopCapturerWrapper::SetMaxFrameRate(uint32_t max_frame_rate) {
+void DesktopCapturerWrapper::SetMaxFrameRate(std::uint32_t max_frame_rate) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (capturer_) {

@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     git \
     xz-utils \
+    zstd \
     jq \
     libasound2 \
     libatk-bridge2.0-0 \
@@ -20,7 +21,15 @@ RUN apt-get update && apt-get install -y \
     libxkbcommon-x11-0 \
     xvfb \
     x11-utils \
+    fuse-overlayfs \
     && rm -rf /var/lib/apt/lists/*
+
+ARG GCLOUD=google-cloud-cli-linux-x86_64.tar.gz
+RUN cd /tmp \
+    && curl -L -O "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/${GCLOUD}" \
+    && tar xf "${GCLOUD}" -C /usr/local --strip-components=1 google-cloud-sdk/bin google-cloud-sdk/lib \
+    && rm "${GCLOUD}" \
+    && gcloud --version
 
 # This locale satisfies SbSystemGetLocaleIdTest.
 ENV LANG en_US.UTF-8

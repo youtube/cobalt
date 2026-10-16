@@ -6,15 +6,16 @@ package org.chromium.media;
 
 import android.media.MediaCodecInfo.CodecProfileLevel;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.build.annotations.MainDex;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
+import org.chromium.build.annotations.NullMarked;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @JNINamespace("media")
-@MainDex
+@NullMarked
 class CodecProfileLevelList {
     private static final String TAG = "CodecProfileLevelList";
 
@@ -27,9 +28,12 @@ class CodecProfileLevelList {
     public boolean addCodecProfileLevel(String mime, CodecProfileLevel codecProfileLevel) {
         try {
             int codec = getCodecFromMime(mime);
-            mList.add(new CodecProfileLevelAdapter(codec,
-                    mediaCodecProfileToChromiumMediaProfile(codec, codecProfileLevel.profile),
-                    mediaCodecLevelToChromiumMediaLevel(codec, codecProfileLevel.level)));
+            mList.add(
+                    new CodecProfileLevelAdapter(
+                            codec,
+                            mediaCodecProfileToChromiumMediaProfile(
+                                    codec, codecProfileLevel.profile),
+                            mediaCodecLevelToChromiumMediaLevel(codec, codecProfileLevel.level)));
             return true;
         } catch (UnsupportedCodecProfileException e) {
             return false;
@@ -155,9 +159,7 @@ class CodecProfileLevelList {
                 }
             case VideoCodec.DOLBY_VISION:
                 switch (profile) {
-                        // Profile 0, 1, 2, 3, 6 are not supported for new applications.
-                    case CodecProfileLevel.DolbyVisionProfileDvheDtr:
-                        return VideoCodecProfile.DOLBYVISION_PROFILE4;
+                        // Profile 0, 1, 2, 3, 4, 6 are not supported for new applications.
                     case CodecProfileLevel.DolbyVisionProfileDvheStn:
                         return VideoCodecProfile.DOLBYVISION_PROFILE5;
                     case CodecProfileLevel.DolbyVisionProfileDvheDtb:
@@ -178,6 +180,8 @@ class CodecProfileLevelList {
         switch (codec) {
             case VideoCodec.H264:
                 switch (level) {
+                    case CodecProfileLevel.AVCLevel1b:
+                        return 9;
                     case CodecProfileLevel.AVCLevel1:
                         return 10;
                     case CodecProfileLevel.AVCLevel11:
@@ -210,6 +214,12 @@ class CodecProfileLevelList {
                         return 51;
                     case CodecProfileLevel.AVCLevel52:
                         return 52;
+                    case CodecProfileLevel.AVCLevel6:
+                        return 60;
+                    case CodecProfileLevel.AVCLevel61:
+                        return 61;
+                    case CodecProfileLevel.AVCLevel62:
+                        return 62;
                     default:
                         throw new UnsupportedCodecProfileException();
                 }

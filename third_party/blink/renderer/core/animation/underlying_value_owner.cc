@@ -3,14 +3,17 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/core/animation/underlying_value_owner.h"
+#include "third_party/blink/renderer/platform/heap/persistent.h"
 
 #include <memory>
 
 namespace blink {
 
 struct NullValueWrapper {
-  NullValueWrapper() : value(nullptr) {}
-  const InterpolationValue value;
+  NullValueWrapper()
+      : value(MakeGarbageCollected<InterpolationValueGCed>(nullptr)) {}
+
+  const Persistent<const InterpolationValueGCed> value;
 };
 
 InterpolableValue& UnderlyingValueOwner::MutableInterpolableValue() {
@@ -18,25 +21,25 @@ InterpolableValue& UnderlyingValueOwner::MutableInterpolableValue() {
 }
 
 void UnderlyingValueOwner::SetInterpolableValue(
-    std::unique_ptr<InterpolableValue> interpolable_value) {
+    InterpolableValue* interpolable_value) {
   DCHECK(type_);
-  MutableValue().interpolable_value = std::move(interpolable_value);
+  MutableValue().interpolable_value = interpolable_value;
 }
 
 const NonInterpolableValue* UnderlyingValueOwner::GetNonInterpolableValue()
     const {
   DCHECK(value_);
-  return value_->non_interpolable_value.get();
+  return value_->non_interpolable_value.Get();
 }
 
 void UnderlyingValueOwner::SetNonInterpolableValue(
-    scoped_refptr<const NonInterpolableValue> non_interpolable_value) {
+    const NonInterpolableValue* non_interpolable_value) {
   MutableValue().non_interpolable_value = non_interpolable_value;
 }
 
 const InterpolationValue& UnderlyingValueOwner::Value() const {
   DEFINE_STATIC_LOCAL(NullValueWrapper, null_value_wrapper, ());
-  return *this ? *value_ : null_value_wrapper.value;
+  return *this ? *value_ : null_value_wrapper.value->underlying();
 }
 
 void UnderlyingValueOwner::Set(std::nullptr_t) {
@@ -45,10 +48,10 @@ void UnderlyingValueOwner::Set(std::nullptr_t) {
   value_ = nullptr;
 }
 
-void UnderlyingValueOwner::Set(const InterpolationType& type,
+void UnderlyingValueOwner::Set(const InterpolationType* type,
                                const InterpolationValue& value) {
   DCHECK(value);
-  type_ = &type;
+  type_ = type;
   // By clearing |value_owner_| we will perform a copy before attempting to
   // mutate |value_|, thus upholding the const contract for this instance of
   // interpolationValue.
@@ -56,15 +59,15 @@ void UnderlyingValueOwner::Set(const InterpolationType& type,
   value_ = &value;
 }
 
-void UnderlyingValueOwner::Set(const InterpolationType& type,
+void UnderlyingValueOwner::Set(const InterpolationType* type,
                                InterpolationValue&& value) {
   DCHECK(value);
-  type_ = &type;
+  type_ = type;
   value_owner_ = std::move(value);
   value_ = &value_owner_;
 }
 
-void UnderlyingValueOwner::Set(std::unique_ptr<TypedInterpolationValue> value) {
+void UnderlyingValueOwner::Set(TypedInterpolationValue* value) {
   if (value)
     Set(value->GetType(), std::move(value->MutableValue()));
   else

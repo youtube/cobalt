@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- android_chrome_strings.grd contains strings for the keyboard accessory in Chrome for Android. -->
-<grit current_release="1" latest_public_release="0" output_all_resource_defines="false">
+<grit current_release="1" latest_public_release="0">
   <outputs>
     <output filename="values-af/android_keyboard_accessory_strings.xml" lang="af" type="android" />
     <output filename="values-am/android_keyboard_accessory_strings.xml" lang="am" type="android" />
@@ -184,10 +184,7 @@
       <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_CLOSED" desc="Accessibility string read when the all passwords bottom sheet showing a list of the user's credentials is closed.">
         List of credentials to be filled on touch is closed.
       </message>
-      <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_TITLE" desc="The title string for the all passwords bottom sheet showing a list of the user's credentials.">
-        Passwords
-      </message>
-      <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_TITLE_GPM" desc="The title string for the all passwords bottom sheet showing a list of the user's credentials when the `Select password` button is clicked.">
+      <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_TITLE" desc="The title string for the all passwords bottom sheet showing a list of the user's credentials when the `Select password` button is clicked.">
         Select password
       </message>
       <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_SEARCH_HINT" desc="The label for a search button appears in all passwords bottom sheet.">
@@ -196,22 +193,13 @@
       <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_NO_PASSWORD" desc="The title for the disabled button on the all passwords bottom sheet UI when a credential doesn't contain a password.">
         No password
       </message>
-      <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_WARNING_DIALOG_MESSAGE_FIRST" desc="The first paragraph in the warning message showing when the `User other password` button is clicked.">
-        If you trust <ph name="ORIGIN">%s<ex>example.com</ex></ph>, you can use a saved password for another site.
-      </message>
-      <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_WARNING_DIALOG_MESSAGE_SECOND" desc="The second paragraph in the warning message showing when the `User other password` button is clicked.">
-        Try to use a unique password for every site.
-      </message>
       <message name="IDS_ALL_PASSWORDS_BOTTOM_SHEET_SUBTITLE" desc="The subtitle string for the all passwords bottom sheet showing when the `Select password` button is clicked.">
         If you trust <ph name="ORIGIN">%s<ex>example.com</ex></ph>, you can use a saved password to sign in
       </message>
-      <message name="IDS_AUTOFILL_KEYBOARD_ACCESSORY_CONTENT_DESCRIPTION" desc="The text announced by the screen reader when the password suggestions are shown.">
-        Passwords available
-      </message>
-      <message name="IDS_AUTOFILL_KEYBOARD_ACCESSORY_MODERN_CONTENT_DESCRIPTION" desc="The text announced by the screen reader when there are autofill suggestions are shown.">
+      <message name="IDS_AUTOFILL_KEYBOARD_ACCESSORY_CONTENT_DESCRIPTION" desc="The text announced by the screen reader when there are autofill suggestions are shown.">
         Autofill suggestions available above the keyboard
       </message>
-      <message name="IDS_AUTOFILL_KEYBOARD_ACCESSORY_MODERN_CONTENT_FALLBACK_DESCRIPTION" desc="The text announced by the screen reader when the fallback buttons are shown.">
+      <message name="IDS_AUTOFILL_KEYBOARD_ACCESSORY_CONTENT_FALLBACK_DESCRIPTION" desc="The text announced by the screen reader when the fallback buttons are shown.">
         Alternative filling options available above the keyboard
       </message>
       <message name="IDS_KEYBOARD_ACCESSORY_SHEET_HIDE" desc="Description for the active icon button that closes an accessory sheet and brings back the keyboard.">
@@ -220,23 +208,35 @@
       <message name="IDS_IPH_KEYBOARD_ACCESSORY_FILL_WITH_CHROME" desc="Text in In-Product-Help bubble suggesting to use an autofill suggestion provided by Chrome.">
         Use Chrome autofill suggestion
       </message>
+      <message name="IDS_IPH_KEYBOARD_ACCESSORY_HOME_WORK_PROFILE_SUGGESTION" desc="Text in the In-Product-Help bubble for a home or work Autofill profile suggestion.">
+        Your home and work addresses are now available in Chrome
+      </message>
       <message name="IDS_IPH_KEYBOARD_ACCESSORY_SWIPE_FOR_MORE" desc="Text in In-Product-Help bubble suggesting to scroll the accessory to reveal more suggestions.">
         Swipe to see more suggestions
       </message>
       <message name="IDS_PASSWORD_GENERATION_ACCESSORY_BUTTON" desc="Text for the button used to generate a password.">
         Suggest strong password
       </message>
-      <message name="IDS_PASSWORD_GENERATION_ACCESSORY_BUTTON_SHORT" desc="Shortened text for the button used to generate a password. This is used for devices with small screen.">
-        Suggest password
-      </message>
       <message name="IDS_PASSWORD_ACCESSORY_SHEET_TOGGLE" desc="Description for the icon button used to open and close the password accessory sheet.">
         Show saved passwords and password options
+      </message>
+      <message name="IDS_PASSWORD_ACCESSORY_PASSKEY_LABEL" desc="Label for a chip that fills a Passkey on selection.">
+        Passkey
+      </message>
+      <message name="IDS_PASSWORD_ACCESSORY_SHEET_CONTENT_DESCRIPTION" desc="Accessibility label for the individual password container.">
+        Password
       </message>
       <message name="IDS_ADDRESS_ACCESSORY_SHEET_TITLE" desc="Text used as title for the address accessory sheet.">
         Addresses
       </message>
+      <message name="IDS_ADDRESS_ACCESSORY_SHEET_CONTENT_DESCRIPTION" desc="Accessibility label for the individual address container.">
+        Address
+      </message>
       <message name="IDS_ADDRESS_ACCESSORY_SHEET_TOGGLE" desc="Description for the icon button used to open and close the address accessory sheet.">
         Show saved addresses
+      </message>
+      <message name="IDS_CREDIT_CARD_ACCESSORY_SHEET_CONTENT_DESCRIPTION" desc="Accessibility label for the individual payment method container.">
+        Payment method
       </message>
       <message name="IDS_CREDIT_CARD_ACCESSORY_SHEET_TOGGLE" desc="Description for the icon button used to open and close the payment method accessory sheet, where users' saved payment methods (e.g., credit cards) are shown for use when filling web forms.">
         Show saved payment methods
@@ -244,8 +244,20 @@
       <message name="IDS_IPH_KEYBOARD_ACCESSORY_PAYMENT_VIRTUAL_CARDS" desc="Text used for the In-Product-Help bubble suggesting that the current credit card suggestion is a virtual card.">
         Use your virtual card for added security
       </message>
+      <message name="IDS_IPH_KEYBOARD_ACCESSORY_PAYMENT_VIRTUAL_CARDS_DISABLED" desc="Text used for the In-Product-Help bubble informing that the suggestion is disabled because the merchant does not accept virtual credit cards.">
+        Merchant doesn’t accept this virtual card
+      </message>
+      <message name="IDS_IPH_KEYBOARD_ACCESSORY_VIRTUAL_CARD_CVC_FILL_FEATURE" desc="Text used for the In-Product-Help bubble suggesting the user use their virtual card suggestion for a standalone CVC field.">
+        Use CVC for this virtual card
+      </message>
       <message name="IDS_IPH_KEYBOARD_ACCESSORY_PAYMENT_OFFER" desc="Text used for the In-Product-Help bubble suggesting that the current credit card suggestion has a card linked offer attached.">
         Cashback linked
+      </message>
+      <message name="IDS_MORE_PASSKEYS" desc="Title of the chip that opens Android Credential Manager UI. The user can select passkeys from other providers there.">
+        More passkeys
+      </message>
+      <message name="IDS_SELECT_PASSKEY" desc="Title of the button that opens Android Credential Manager UI when there are no passkeys in the keyboard accessory. The user can select passkeys from other providers there.">
+        Select passkey
       </message>
     </messages>
   </release>

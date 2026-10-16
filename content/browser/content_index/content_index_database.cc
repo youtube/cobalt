@@ -4,11 +4,12 @@
 
 #include "content/browser/content_index/content_index_database.h"
 
+#include <optional>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "base/barrier_closure.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/memory/ptr_util.h"
 #include "base/time/time.h"
 #include "content/browser/background_fetch/storage/image_helpers.h"
@@ -16,12 +17,11 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
-// TODO(crbug.com/973844): Move image utility functions to common library.
+// TODO(crbug.com/40631965): Move image utility functions to common library.
 using content::background_fetch::DeserializeIcon;
 using content::background_fetch::SerializeIcon;
 
@@ -104,16 +104,16 @@ blink::mojom::ContentDescriptionPtr DescriptionFromProto(
   return result;
 }
 
-absl::optional<ContentIndexEntry> EntryFromSerializedProto(
+std::optional<ContentIndexEntry> EntryFromSerializedProto(
     int64_t service_worker_registration_id,
     const std::string& serialized_proto) {
   proto::ContentEntry entry_proto;
   if (!entry_proto.ParseFromString(serialized_proto))
-    return absl::nullopt;
+    return std::nullopt;
 
   GURL launch_url(entry_proto.launch_url());
   if (!launch_url.is_valid())
-    return absl::nullopt;
+    return std::nullopt;
 
   auto description = DescriptionFromProto(entry_proto.description());
   base::Time registration_time = base::Time::FromDeltaSinceWindowsEpoch(
@@ -148,7 +148,7 @@ void ContentIndexDatabase::AddEntry(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (blocked_origins_.count(origin)) {
-    // TODO(crbug.com/973844): Does this need a more specific error?
+    // TODO(crbug.com/40631965): Does this need a more specific error?
     std::move(callback).Run(blink::mojom::ContentIndexError::STORAGE_ERROR);
     return;
   }
@@ -474,7 +474,7 @@ void ContentIndexDatabase::DidGetEntries(
 
   if (!corrupted_sw_ids.empty()) {
     // Remove soon-to-be-deleted entries.
-    base::EraseIf(entries, [&corrupted_sw_ids](const auto& entry) {
+    std::erase_if(entries, [&corrupted_sw_ids](const auto& entry) {
       return corrupted_sw_ids.count(entry.service_worker_registration_id);
     });
 
@@ -507,7 +507,7 @@ void ContentIndexDatabase::DidGetEntry(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (status != blink::ServiceWorkerStatusCode::kOk) {
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
     return;
   }
 
@@ -613,12 +613,13 @@ void ContentIndexDatabase::BlockOrigin(const url::Origin& origin) {
 
 void ContentIndexDatabase::UnblockOrigin(const url::Origin& origin) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(blocked_origins_.count(origin));
   auto it = blocked_origins_.find(origin);
-  if (it->second == 1)
+  CHECK(it != blocked_origins_.end());
+  if (it->second == 1) {
     blocked_origins_.erase(it);
-  else
+  } else {
     it->second--;
+  }
 }
 
 void ContentIndexDatabase::Shutdown() {

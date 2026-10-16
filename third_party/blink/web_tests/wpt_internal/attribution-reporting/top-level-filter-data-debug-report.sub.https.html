@@ -3,7 +3,7 @@
 <meta name=timeout content=long>
 <script src="/resources/testharness.js"></script>
 <script src="/resources/testharnessreport.js"></script>
-<script src="resources/helpers.js"></script>
+<script src="/attribution-reporting/resources/helpers.js"></script>
 <script>
 attribution_reporting_promise_test(async t => {
   const host = 'https://{{host}}';
@@ -19,7 +19,6 @@ attribution_reporting_promise_test(async t => {
       },
     },
     {
-      cookie: attributionDebugCookie,
       trigger: {
         debug_reporting: true,
         event_trigger_data: [{}],

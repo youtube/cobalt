@@ -5,12 +5,12 @@
 #include "chromeos/ash/components/attestation/attestation_flow_adaptive.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/logging.h"
 #include "chromeos/ash/components/attestation/attestation_flow.h"
 #include "chromeos/ash/components/dbus/constants/attestation_constants.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 namespace attestation {
@@ -22,8 +22,7 @@ struct AttestationFlowAdaptive::GetCertificateParams {
   bool force_new_key;
   ::attestation::KeyType key_crypto_type;
   std::string key_name;
-  absl::optional<AttestationFlow::CertProfileSpecificData>
-      profile_specific_data;
+  std::optional<AttestationFlow::CertProfileSpecificData> profile_specific_data;
 };
 
 // Consructs the object with `AttestationFlowTypeDecider` and
@@ -40,8 +39,7 @@ AttestationFlowAdaptive::AttestationFlowAdaptive(
     std::unique_ptr<ServerProxy> server_proxy,
     std::unique_ptr<AttestationFlowTypeDecider> type_decider,
     std::unique_ptr<AttestationFlowFactory> factory)
-    : AttestationFlow(/*server_proxy=*/nullptr),
-      server_proxy_(std::move(server_proxy)),
+    : server_proxy_(std::move(server_proxy)),
       raw_server_proxy_(server_proxy_.get()),
       attestation_flow_type_decider_(std::move(type_decider)),
       attestation_flow_factory_(std::move(factory)) {}
@@ -55,7 +53,7 @@ void AttestationFlowAdaptive::GetCertificate(
     bool force_new_key,
     ::attestation::KeyType key_crypto_type,
     const std::string& key_name,
-    const absl::optional<AttestationFlow::CertProfileSpecificData>&
+    const std::optional<AttestationFlow::CertProfileSpecificData>&
         profile_specific_data,
     CertificateCallback callback) {
   GetCertificateParams params = {

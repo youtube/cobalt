@@ -11,6 +11,9 @@
 #include "modules/audio_coding/neteq/underrun_optimizer.h"
 
 #include <algorithm>
+#include <optional>
+
+#include "api/neteq/tick_timer.h"
 
 namespace webrtc {
 
@@ -24,15 +27,15 @@ constexpr int kBucketSizeMs = 20;
 UnderrunOptimizer::UnderrunOptimizer(const TickTimer* tick_timer,
                                      int histogram_quantile,
                                      int forget_factor,
-                                     absl::optional<int> start_forget_weight,
-                                     absl::optional<int> resample_interval_ms)
+                                     std::optional<int> start_forget_weight,
+                                     std::optional<int> resample_interval_ms)
     : tick_timer_(tick_timer),
       histogram_(kDelayBuckets, forget_factor, start_forget_weight),
       histogram_quantile_(histogram_quantile),
       resample_interval_ms_(resample_interval_ms) {}
 
 void UnderrunOptimizer::Update(int relative_delay_ms) {
-  absl::optional<int> histogram_update;
+  std::optional<int> histogram_update;
   if (resample_interval_ms_) {
     if (!resample_stopwatch_) {
       resample_stopwatch_ = tick_timer_->GetNewStopwatch();

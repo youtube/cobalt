@@ -4,8 +4,10 @@
 
 import 'chrome://password-manager/password_manager.js';
 
-import {Page, PasswordManagerImpl, Router, SyncBrowserProxyImpl} from 'chrome://password-manager/password_manager.js';
+import {Page, PASSWORD_NOTE_MAX_CHARACTER_COUNT, PasswordManagerImpl, Router, SyncBrowserProxyImpl} from 'chrome://password-manager/password_manager.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
+import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {isVisible} from 'chrome://webui-test/test_util.js';
 
@@ -16,9 +18,11 @@ import {createAffiliatedDomain, createPasswordEntry} from './test_util.js';
 suite('AddPasswordDialogTest', function() {
   let passwordManager: TestPasswordManagerProxy;
   let syncProxy: TestSyncBrowserProxy;
+  let metricsTracker: MetricsTracker;
 
   setup(function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    metricsTracker = fakeMetricsPrivate();
     passwordManager = new TestPasswordManagerProxy();
     PasswordManagerImpl.setInstance(passwordManager);
     syncProxy = new TestSyncBrowserProxy();
@@ -35,6 +39,7 @@ suite('AddPasswordDialogTest', function() {
 
     // Make url invalid
     dialog.$.websiteInput.value = 'abc';
+    await dialog.$.websiteInput.updateComplete;
     dialog.$.websiteInput.dispatchEvent(new CustomEvent('input'));
     assertEquals('abc', await passwordManager.whenCalled('getUrlCollection'));
     await flushTasks();
@@ -46,6 +51,7 @@ suite('AddPasswordDialogTest', function() {
     // Now make URL valid again
     passwordManager.reset();
     dialog.$.websiteInput.value = 'www';
+    await dialog.$.websiteInput.updateComplete;
     dialog.$.websiteInput.dispatchEvent(new CustomEvent('input'));
     assertEquals('www', await passwordManager.whenCalled('getUrlCollection'));
     await flushTasks();
@@ -53,6 +59,7 @@ suite('AddPasswordDialogTest', function() {
 
     // But after losing focus url is no longer valid due to missing '.'
     dialog.$.websiteInput.dispatchEvent(new CustomEvent('blur'));
+    await dialog.$.websiteInput.updateComplete;
     assertTrue(dialog.$.websiteInput.invalid);
     assertEquals(
         dialog.i18n('missingTLD', 'www.com'),
@@ -77,6 +84,7 @@ suite('AddPasswordDialogTest', function() {
 
     // Enter website for which user has a saved password.
     dialog.$.websiteInput.value = 'www.example.com';
+    await dialog.$.websiteInput.updateComplete;
     dialog.$.websiteInput.dispatchEvent(new CustomEvent('input'));
     assertEquals(
         'www.example.com',
@@ -86,6 +94,7 @@ suite('AddPasswordDialogTest', function() {
 
     // Update username to the same value and observe error.
     dialog.$.usernameInput.value = 'test';
+    await dialog.$.usernameInput.updateComplete;
     assertTrue(dialog.$.usernameInput.invalid);
     assertEquals(
         dialog.i18n('usernameAlreadyUsed', 'www.example.com'),
@@ -94,6 +103,7 @@ suite('AddPasswordDialogTest', function() {
 
     // Update username and observe no error.
     dialog.$.usernameInput.value = 'test2';
+    await dialog.$.usernameInput.updateComplete;
     assertFalse(dialog.$.usernameInput.invalid);
     assertTrue(dialog.$.viewExistingPasswordLink.hidden);
 
@@ -101,6 +111,7 @@ suite('AddPasswordDialogTest', function() {
     // error again.
     passwordManager.reset();
     dialog.$.websiteInput.value = 'www.example2.com';
+    await dialog.$.websiteInput.updateComplete;
     dialog.$.websiteInput.dispatchEvent(new CustomEvent('input'));
     assertEquals(
         'www.example2.com',
@@ -155,21 +166,31 @@ suite('AddPasswordDialogTest', function() {
     await flushTasks();
     assertFalse(dialog.$.noteInput.invalid);
     assertEquals(
-        dialog.i18n('passwordNoteCharacterCountWarning', 1000),
+        dialog.i18n(
+            'passwordNoteCharacterCountWarning',
+            PASSWORD_NOTE_MAX_CHARACTER_COUNT),
         dialog.$.noteInput.firstFooter);
     assertEquals(
-        dialog.i18n('passwordNoteCharacterCount', 900, 1000),
+        dialog.i18n(
+            'passwordNoteCharacterCount', 900,
+            PASSWORD_NOTE_MAX_CHARACTER_COUNT),
         dialog.$.noteInput.secondFooter);
 
-    // After 1000 characters note is no longer valid.
-    dialog.$.noteInput.value = '.'.repeat(1000);
+    // After PASSWORD_NOTE_MAX_CHARACTER_COUNT + 1 characters note is no longer
+    // valid.
+    dialog.$.noteInput.value =
+        '.'.repeat(PASSWORD_NOTE_MAX_CHARACTER_COUNT + 1);
     await flushTasks();
     assertTrue(dialog.$.noteInput.invalid);
     assertEquals(
-        dialog.i18n('passwordNoteCharacterCountWarning', 1000),
+        dialog.i18n(
+            'passwordNoteCharacterCountWarning',
+            PASSWORD_NOTE_MAX_CHARACTER_COUNT),
         dialog.$.noteInput.firstFooter);
     assertEquals(
-        dialog.i18n('passwordNoteCharacterCount', 1000, 1000),
+        dialog.i18n(
+            'passwordNoteCharacterCount', PASSWORD_NOTE_MAX_CHARACTER_COUNT + 1,
+            PASSWORD_NOTE_MAX_CHARACTER_COUNT),
         dialog.$.noteInput.secondFooter);
     assertTrue(dialog.$.addButton.disabled);
   });
@@ -185,12 +206,19 @@ suite('AddPasswordDialogTest', function() {
     dialog.$.usernameInput.value = 'test';
     dialog.$.passwordInput.value = 'lastPass';
     dialog.$.noteInput.value = 'secret note.';
+    await dialog.$.websiteInput.updateComplete;
     dialog.$.websiteInput.dispatchEvent(new CustomEvent('input'));
 
     await passwordManager.whenCalled('getUrlCollection');
 
     assertFalse(dialog.$.addButton.disabled);
     dialog.$.addButton.click();
+
+    assertEquals(
+        1,
+        metricsTracker.count(
+            'PasswordManager.PasswordNoteActionInSettings2',
+            /*NOTE_ADDED_IN_ADD_DIALOG*/ 0));
 
     const params = await passwordManager.whenCalled('addPassword');
 
@@ -217,6 +245,7 @@ suite('AddPasswordDialogTest', function() {
     // Enter website
     dialog.$.websiteInput.value = 'www.example.com';
     dialog.$.usernameInput.value = 'test';
+    await dialog.$.websiteInput.updateComplete;
     dialog.$.websiteInput.dispatchEvent(new CustomEvent('input'));
     await passwordManager.whenCalled('getUrlCollection');
 
@@ -229,9 +258,8 @@ suite('AddPasswordDialogTest', function() {
         dialog.$.websiteInput.value, Router.getInstance().currentRoute.details);
   });
 
-  test('account picker shows preferred storage account', async function() {
-    passwordManager.data.isOptedInAccountStorage = true;
-    passwordManager.data.isAccountStorageDefault = true;
+  test('storage picker shown if account storage enabled', async function() {
+    passwordManager.data.isAccountStorageEnabled = true;
     syncProxy.syncInfo = {
       isEligibleForAccountStorage: true,
       isSyncingPasswords: false,
@@ -241,15 +269,15 @@ suite('AddPasswordDialogTest', function() {
     document.body.appendChild(dialog);
     await flushTasks();
 
+    // "Account" is selected by default.
     assertTrue(isVisible(dialog.$.storePicker));
     assertEquals(
         chrome.passwordsPrivate.PasswordStoreSet.ACCOUNT,
         dialog.$.storePicker.value);
   });
 
-  test('account picker shows preferred storage device', async function() {
-    passwordManager.data.isOptedInAccountStorage = true;
-    passwordManager.data.isAccountStorageDefault = false;
+  test('storage picker hidden if account storage disabled', async function() {
+    passwordManager.data.isAccountStorageEnabled = false;
     syncProxy.syncInfo = {
       isEligibleForAccountStorage: true,
       isSyncingPasswords: false,
@@ -259,14 +287,11 @@ suite('AddPasswordDialogTest', function() {
     document.body.appendChild(dialog);
     await flushTasks();
 
-    assertTrue(isVisible(dialog.$.storePicker));
-    assertEquals(
-        chrome.passwordsPrivate.PasswordStoreSet.DEVICE,
-        dialog.$.storePicker.value);
+    assertFalse(isVisible(dialog.$.storePicker));
   });
 
   test('save to account', async function() {
-    passwordManager.data.isOptedInAccountStorage = true;
+    passwordManager.data.isAccountStorageEnabled = true;
     syncProxy.syncInfo = {
       isEligibleForAccountStorage: true,
       isSyncingPasswords: false,
@@ -284,9 +309,14 @@ suite('AddPasswordDialogTest', function() {
     dialog.$.usernameInput.value = 'test';
     dialog.$.passwordInput.value = 'lastPass';
     dialog.$.noteInput.value = 'secret note.';
+    await dialog.$.websiteInput.updateComplete;
     dialog.$.websiteInput.dispatchEvent(new CustomEvent('input'));
 
-    await passwordManager.whenCalled('getUrlCollection');
+    await Promise.all([
+      passwordManager.whenCalled('getUrlCollection'),
+      dialog.$.usernameInput.updateComplete,
+      dialog.$.passwordInput.updateComplete,
+    ]);
 
     assertFalse(dialog.$.addButton.disabled);
     dialog.$.addButton.click();
@@ -301,7 +331,7 @@ suite('AddPasswordDialogTest', function() {
   });
 
   test('save to device', async function() {
-    passwordManager.data.isOptedInAccountStorage = true;
+    passwordManager.data.isAccountStorageEnabled = true;
     syncProxy.syncInfo = {
       isEligibleForAccountStorage: true,
       isSyncingPasswords: false,
@@ -319,9 +349,14 @@ suite('AddPasswordDialogTest', function() {
     dialog.$.usernameInput.value = 'test';
     dialog.$.passwordInput.value = 'lastPass';
     dialog.$.noteInput.value = 'secret note.';
+    await dialog.$.websiteInput.updateComplete;
     dialog.$.websiteInput.dispatchEvent(new CustomEvent('input'));
 
-    await passwordManager.whenCalled('getUrlCollection');
+    await Promise.all([
+      passwordManager.whenCalled('getUrlCollection'),
+      dialog.$.usernameInput.updateComplete,
+      dialog.$.passwordInput.updateComplete,
+    ]);
 
     assertFalse(dialog.$.addButton.disabled);
     dialog.$.addButton.click();
@@ -341,13 +376,27 @@ suite('AddPasswordDialogTest', function() {
     await flushTasks();
 
     assertFalse(dialog.$.websiteInput.invalid);
-
+    assertFalse(dialog.$.websiteInput.hasAttribute('show-error-message'));
+    assertEquals(null, dialog.$.websiteInput.errorMessage);
+    // Simulate losing focus.
     dialog.$.websiteInput.dispatchEvent(new CustomEvent('blur'));
-    await flushTasks();
+    await dialog.$.websiteInput.updateComplete;
 
     assertTrue(dialog.$.websiteInput.invalid);
+    assertFalse(dialog.$.websiteInput.hasAttribute('show-error-message'));
+    assertEquals('', dialog.$.websiteInput.errorMessage);
+
+    // Simulate losing focus.
+    dialog.$.websiteInput.value = 'abc';
+    await dialog.$.websiteInput.updateComplete;
+    dialog.$.websiteInput.dispatchEvent(new CustomEvent('blur'));
+    await dialog.$.websiteInput.updateComplete;
+
+    assertTrue(dialog.$.websiteInput.invalid);
+    assertTrue(dialog.$.websiteInput.hasAttribute('show-error-message'));
     assertEquals(
-        dialog.i18n('notValidWebsite'), dialog.$.websiteInput.errorMessage);
+        dialog.i18n('missingTLD', 'abc.com'),
+        dialog.$.websiteInput.errorMessage);
   });
 
   test('error when leaving password blank', async function() {
@@ -358,6 +407,7 @@ suite('AddPasswordDialogTest', function() {
     assertFalse(dialog.$.passwordInput.invalid);
 
     dialog.$.passwordInput.dispatchEvent(new CustomEvent('blur'));
+    await dialog.$.websiteInput.updateComplete;
     await flushTasks();
 
     assertTrue(dialog.$.passwordInput.invalid);

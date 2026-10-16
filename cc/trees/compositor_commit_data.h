@@ -6,14 +6,15 @@
 #define CC_TREES_COMPOSITOR_COMMIT_DATA_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "cc/cc_export.h"
 #include "cc/input/browser_controls_state.h"
 #include "cc/input/scroll_snap_data.h"
+#include "cc/input/snap_selection_strategy.h"
 #include "cc/paint/element_id.h"
 #include "cc/trees/layer_tree_host_client.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/transform.h"
 #include "ui/gfx/geometry/vector2d.h"
 
@@ -32,7 +33,7 @@ struct CC_EXPORT CompositorCommitData {
     ScrollUpdateInfo();
     ScrollUpdateInfo(ElementId id,
                      gfx::Vector2dF delta,
-                     absl::optional<TargetSnapAreaElementIds> snap_target_ids);
+                     std::optional<TargetSnapAreaElementIds> snap_target_ids);
     ScrollUpdateInfo(const ScrollUpdateInfo& other);
     ScrollUpdateInfo& operator=(const ScrollUpdateInfo&);
     ElementId element_id;
@@ -41,7 +42,7 @@ struct CC_EXPORT CompositorCommitData {
     // The target snap area element ids of the scrolling element.
     // This will have a value if the scrolled element's scroll node has snap
     // container data and the scroll delta is non-zero.
-    absl::optional<TargetSnapAreaElementIds> snap_target_element_ids;
+    std::optional<TargetSnapAreaElementIds> snap_target_element_ids;
 
     bool operator==(const ScrollUpdateInfo& other) const {
       return element_id == other.element_id &&
@@ -97,21 +98,44 @@ struct CC_EXPORT CompositorCommitData {
   bool browser_controls_constraint_changed = false;
 
   struct ScrollEndInfo {
+    ScrollEndInfo();
+    ~ScrollEndInfo();
     // Set to true when a scroll gesture being handled on the compositor has
     // ended.
+    // TODO(crbug.com/372627916): This is not used when
+    // MultiImplOnlyScrollAnimations is enabled. Remove it when deleting the old
+    // code path.
     bool scroll_gesture_did_end = false;
 
+    // TODO(crbug.com/372627916): These are not used when
+    // MultiImplOnlyScrollAnimations is enabled. Remove them when deleting the
+    // old code path.
     bool gesture_affects_outer_viewport_scroll = false;
+    bool gesture_affects_inner_viewport_scroll = false;
+
+    // The set of containers for which an impl scroll has ended between this
+    // commit and the last.
+    base::flat_set<ElementId> done_containers;
   };
   ScrollEndInfo scroll_end_data;
 
   // Tracks whether there is an ongoing compositor-driven animation for a
-  // scroll.
+  // scroll, excluding autoscrolls (i.e., a continuous scroll animation
+  // initiated by pressing on a scrollbar button).
   bool ongoing_scroll_animation = false;
+
+  // Tracks whether there is an ongoing compositor-driven scroll animation for
+  // a pressed scrollbar part.
+  bool is_auto_scrolling = false;
 
   // Tracks different methods of scrolling (e.g. wheel, touch, precision
   // touchpad, etc.).
   ManipulationInfo manipulation_info = kManipulationInfoNone;
+
+  // This tracks the strategy cc will use to snap at the end of the current
+  // scroll based on the scroll updates so far. The main thread will use this to
+  // determine whether to fire scrollsnapchanging or not.
+  std::unique_ptr<SnapSelectionStrategy> snap_strategy;
 };
 
 }  // namespace cc

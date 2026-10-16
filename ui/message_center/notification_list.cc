@@ -4,6 +4,7 @@
 
 #include "ui/message_center/notification_list.h"
 
+#include <string>
 #include <utility>
 
 #include "base/check.h"
@@ -11,7 +12,6 @@
 #include "base/functional/bind.h"
 #include "base/time/time.h"
 #include "base/values.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/gfx/image/image.h"
 #include "ui/message_center/message_center.h"
 #include "ui/message_center/notification_blocker.h"
@@ -19,14 +19,32 @@
 #include "ui/message_center/public/cpp/notification.h"
 #include "ui/message_center/public/cpp/notification_types.h"
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include <vector>
+
+#include "ash/constants/ash_features.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 namespace message_center {
 
 namespace {
 
+// Constants -------------------------------------------------------------------
+
+#if BUILDFLAG(IS_CHROMEOS)
+
+// A notification created within this time period is exempted from over-limit
+// removal. NOTE: Used only if the notification limit feature is enabled.
+constexpr base::TimeDelta kRemovalExemptionPeriod = base::Seconds(1);
+
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+// Helpers ---------------------------------------------------------------------
+
 bool ShouldShowNotificationAsPopup(const Notification& notification,
                                    const NotificationBlockers& blockers,
                                    const NotificationBlocker* except) {
-  for (auto* blocker : blockers) {
+  for (message_center::NotificationBlocker* blocker : blockers) {
     if (blocker != except &&
         !blocker->ShouldShowNotificationAsPopup(notification)) {
       return false;
@@ -74,6 +92,36 @@ NotificationList::NotificationList(MessageCenter* message_center)
     : message_center_(message_center), quiet_mode_(false) {}
 
 NotificationList::~NotificationList() = default;
+
+#if BUILDFLAG(IS_CHROMEOS)
+std::vector<std::string> NotificationList::GetTopKRemovableNotificationIds(
+    size_t count) const {
+  CHECK(ash::features::IsNotificationLimitEnabled());
+
+  std::vector<std::string> found_ids;
+  const base::Time current_time = base::Time::NowFromSystemTime();
+  for (const auto& state_by_notification : base::Reversed(notifications_)) {
+    const Notification& notification = *state_by_notification.first;
+
+    // Skip the following notifications:
+    // 1. Parent notifications with grouped children because this kind
+    //    of notification is a container of child notifications.
+    // 2. Pinned notifications.
+    // 3. Notifications created within a defined time threshold.
+    if (notification.pinned() || notification.group_parent() ||
+        current_time - notification.timestamp() <= kRemovalExemptionPeriod) {
+      continue;
+    }
+
+    found_ids.push_back(notification.id());
+    if (found_ids.size() == count) {
+      break;
+    }
+  }
+
+  return found_ids;
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 void NotificationList::SetNotificationsShown(
     const NotificationBlockers& blockers,
@@ -185,7 +233,7 @@ bool NotificationList::SetNotificationImage(const std::string& notification_id,
   if (iter == notifications_.end()) {
     return false;
   }
-  iter->first->set_image(image);
+  iter->first->SetImage(image);
   return true;
 }
 
@@ -302,19 +350,14 @@ NotificationList::GetPopupNotificationsWithoutBlocker(
 void NotificationList::MarkSinglePopupAsShown(const std::string& id,
                                               bool mark_notification_as_read) {
   auto iter = GetNotification(id);
-  DCHECK(iter != notifications_.end());
+  CHECK(iter != notifications_.end());
 
   NotificationState* state = &iter->second;
-  const Notification& notification = *iter->first;
-
   if (iter->second.shown_as_popup) {
     return;
   }
 
-  // System notification is marked as shown only when marked as read.
-  if (notification.priority() != SYSTEM_PRIORITY || mark_notification_as_read) {
-    state->shown_as_popup = true;
-  }
+  state->shown_as_popup = true;
 
   // The popup notification is already marked as read when it's displayed.
   // Set the is_read back to false if necessary.
@@ -340,7 +383,7 @@ void NotificationList::MarkSinglePopupAsDisplayed(const std::string& id) {
 
 void NotificationList::ResetSinglePopup(const std::string& id) {
   auto iter = GetNotification(id);
-  DCHECK(iter != notifications_.end());
+  CHECK(iter != notifications_.end());
 
   NotificationState* state = &iter->second;
   // `shown_as_popup` should be true if quiet mode is enabled.
@@ -409,8 +452,9 @@ NotificationList::GetVisibleNotificationsWithoutBlocker(
     const NotificationBlocker* ignored_blocker) const {
   Notifications result;
   for (const auto& tuple : notifications_) {
-    auto it = (base::ranges::find_if(
-        blockers, [&ignored_blocker, &tuple](auto* blocker) {
+    auto it = (std::ranges::find_if(
+        blockers, [&ignored_blocker,
+                   &tuple](message_center::NotificationBlocker* blocker) {
           return blocker != ignored_blocker &&
                  !blocker->ShouldShowNotification(*tuple.first);
         }));
@@ -467,7 +511,7 @@ void NotificationList::PushNotification(
     // For critical ChromeOS system notifications, we ignore the standard quiet
     // mode behaviour and show the notification anyways.
     bool effective_quiet_mode = quiet_mode_;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     effective_quiet_mode &= notification->system_notification_warning_level() !=
                             SystemNotificationWarningLevel::CRITICAL_WARNING;
 #endif

@@ -62,18 +62,66 @@ enum class ManagePasswordsReferrer {
   // Deprecated as part of APC removal.
   // kAutomatedPasswordChangeSuccessLink = 14,
 
-  // On Mac and Win after enabling Biometric authentication before filling
-  // a confirmation dialog is shown with an instructions on how to control the
-  // feature from settings.
+  // On Mac, Win and ChromeOS after enabling Biometric authentication before
+  // filling a confirmation dialog is shown with an instructions on how to
+  // control the feature from settings.
   kBiometricAuthenticationBeforeFillingDialog = 15,
 
-  // On Desktop, the Password Manager item was clicked in the Chrome menu.
+  // The Password Manager item was clicked in the Chrome menu.
   kChromeMenuItem = 16,
+
+  // On Desktop, the bubble that notifies the user that some of the password
+  // stored for the current site have been received via the password sharing
+  // feature from other users.
+  kSharedPasswordsNotificationBubble = 17,
+
+  // On iOS, the Search Passwords homescreen widget that opens the Password
+  // manager in search mode.
+  kSearchPasswordsWidget = 18,
+
+  // On Desktop, the Google Password Manager link was clicked in the footer of
+  // AddUsername bubble.
+  kAddUsernameBubble = 19,
+
+  // On iOS, the "Manage Passwords" omnibox pedal suggestion was tapped.
+  kOmniboxPedalSuggestion = 20,
+
+  // On Desktop, link clicked in the DefaultStoreChanged bubble.
+  // Deprecated: kDefaultStoreChangedBubble = 21,
+
+  // Corresponds to the manage password details bubble when clicking on the key
+  // icon and navigating to the details view of a particular password.
+  kManagePasswordDetailsBubble = 22,
+
+  // On Desktop, the bubble that notifies the user that a passkey was saved.
+  kPasskeySavedConfirmationBubble = 23,
+
+  // On Desktop, the bubble that notifies the user that a passkey was deleted.
+  kPasskeyDeletedConfirmationBubble = 24,
+
+  // On Desktop, the bubble that notifies the user that a passkey was updated.
+  kPasskeyUpdatedConfirmationBubble = 25,
+
+  // On the desktop, the bubble notifies the user that a passkey was deleted
+  // because it was not accepted.
+  kPasskeyNotAcceptedBubble = 26,
+
+  // The warning (Android only) informs the user that they may loose access to
+  // their passwords because the transition to UPM has not happened.
+  kAccessLossWarning = 27,
+
+  // The bubble that notifies the user that a passkey was created automatically
+  // in GPM to upgrade an existing, matching password credential.
+  kPasskeyUpgradeBubble = 28,
+
+  // The bubble informing user about the password change flow state (shown when
+  // clicking on the omnibox icon while the password change is running).
+  kPasswordChangeInfoBubble = 29,
 
   // NOTE: When adding a new value to this enum that applies or could apply to
   // Android, make sure it is correctly handled by the internal credential
   // manager launcher java implementation.
-  kMaxValue = kChromeMenuItem,
+  kMaxValue = kPasswordChangeInfoBubble,
 };
 
 }  // namespace password_manager

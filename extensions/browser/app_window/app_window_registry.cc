@@ -4,12 +4,12 @@
 
 #include "extensions/browser/app_window/app_window_registry.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
 #include "base/containers/contains.h"
 #include "base/observer_list.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/stringprintf.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "content/public/browser/browser_context.h"
@@ -80,7 +80,7 @@ void AppWindowRegistry::AppWindowShown(AppWindow* app_window, bool was_hidden) {
 
 void AppWindowRegistry::RemoveAppWindow(AppWindow* app_window) {
   const AppWindowList::iterator it =
-      base::ranges::find(app_windows_, app_window);
+      std::ranges::find(app_windows_, app_window);
   if (it != app_windows_.end())
     app_windows_.erase(it);
   for (auto& observer : observers_)
@@ -184,7 +184,7 @@ void AppWindowRegistry::AddAppWindowToList(AppWindow* app_window) {
 
 void AppWindowRegistry::BringToFront(AppWindow* app_window) {
   const AppWindowList::iterator it =
-      base::ranges::find(app_windows_, app_window);
+      std::ranges::find(app_windows_, app_window);
   if (it != app_windows_.end())
     app_windows_.erase(it);
   app_windows_.push_front(app_window);
@@ -233,9 +233,10 @@ AppWindowRegistry::Factory::Factory()
 
 AppWindowRegistry::Factory::~Factory() = default;
 
-KeyedService* AppWindowRegistry::Factory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AppWindowRegistry::Factory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new AppWindowRegistry(context);
+  return std::make_unique<AppWindowRegistry>(context);
 }
 
 bool AppWindowRegistry::Factory::ServiceIsCreatedWithBrowserContext() const {
@@ -244,8 +245,8 @@ bool AppWindowRegistry::Factory::ServiceIsCreatedWithBrowserContext() const {
 
 content::BrowserContext* AppWindowRegistry::Factory::GetBrowserContextToUse(
     content::BrowserContext* context) const {
-  return ExtensionsBrowserClient::Get()->GetRedirectedContextInIncognito(
-      context, /*force_guest_profile=*/true, /*force_system_profile=*/false);
+  return ExtensionsBrowserClient::Get()->GetContextRedirectedToOriginal(
+      context);
 }
 
 }  // namespace extensions

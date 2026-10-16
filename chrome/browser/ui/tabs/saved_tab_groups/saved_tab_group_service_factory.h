@@ -5,11 +5,13 @@
 #ifndef CHROME_BROWSER_UI_TABS_SAVED_TAB_GROUPS_SAVED_TAB_GROUP_SERVICE_FACTORY_H_
 #define CHROME_BROWSER_UI_TABS_SAVED_TAB_GROUPS_SAVED_TAB_GROUP_SERVICE_FACTORY_H_
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_keyed_service.h"
 
 class Profile;
+
+namespace tab_groups {
 
 class SavedTabGroupServiceFactory : public ProfileKeyedServiceFactory {
  public:
@@ -22,11 +24,13 @@ class SavedTabGroupServiceFactory : public ProfileKeyedServiceFactory {
   static SavedTabGroupKeyedService* GetForProfile(Profile* profile);
 
  private:
-  friend struct base::DefaultSingletonTraits<SavedTabGroupServiceFactory>;
+  friend base::NoDestructor<SavedTabGroupServiceFactory>;
 
   // BrowserContextKeyedServiceFactory overrides.
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
+
+}  // namespace tab_groups
 
 #endif  // CHROME_BROWSER_UI_TABS_SAVED_TAB_GROUPS_SAVED_TAB_GROUP_SERVICE_FACTORY_H_

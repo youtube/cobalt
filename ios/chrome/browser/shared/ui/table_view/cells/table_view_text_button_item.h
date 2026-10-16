@@ -13,13 +13,13 @@
 @interface TableViewTextButtonItem : TableViewItem
 
 // Text being displayed above the button.
-@property(nonatomic, readwrite, strong) NSString* text;
+@property(nonatomic, readwrite, copy) NSString* text;
 
 // Text being displayed above the button alignment.
 @property(nonatomic, readwrite, assign) NSTextAlignment textAlignment;
 
 // Text for cell button.
-@property(nonatomic, readwrite, strong) NSString* buttonText;
+@property(nonatomic, readwrite, copy) NSString* buttonText;
 
 // Button text color.
 @property(nonatomic, strong) UIColor* buttonTextColor;
@@ -37,7 +37,7 @@
 @property(nonatomic, assign) BOOL boldButtonText;
 
 // Accessibility identifier that will assigned to the button.
-@property(nonatomic, strong) NSString* buttonAccessibilityIdentifier;
+@property(nonatomic, copy) NSString* buttonAccessibilityIdentifier;
 
 // Whether the Item's button should be enabled or not. Button is enabled by
 // default.
@@ -46,6 +46,24 @@
 // If YES the item's button width will expand to match the cell's. If NO the
 // button will maintain its intrinsic size based on its title. NO by default.
 @property(nonatomic, assign) BOOL disableButtonIntrinsicWidth;
+
+// Whether the Item's button should display an activity indicator. Default is
+// NO.
+@property(nonatomic, assign) BOOL showsActivityIndicator;
+
+// Activity Indicator color. If nil, the activity indicator will be of a solid
+// white color.
+@property(nonatomic, strong) UIColor* activityIndicatorColor;
+
+// Whether the Item's button should display a checkmark image indicating action
+// has been completed. Default is NO.
+@property(nonatomic, assign) BOOL showsCheckmark;
+
+// Checkmark image color. If nil, defaults to kBlue700Color.
+@property(nonatomic, strong) UIColor* checkmarkColor;
+
+// Accessibility label that will assigned to the button.
+@property(nonatomic, copy) NSString* buttonAccessibilityLabel;
 
 @end
 

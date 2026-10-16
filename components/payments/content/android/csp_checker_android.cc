@@ -4,8 +4,10 @@
 
 #include "components/payments/content/android/csp_checker_android.h"
 
-#include "components/payments/content/android/jni_headers/CSPCheckerBridge_jni.h"
 #include "url/android/gurl_android.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/payments/content/android/jni_headers/CSPCheckerBridge_jni.h"
 
 namespace payments {
 
@@ -52,7 +54,7 @@ void CSPCheckerAndroid::AllowConnectToSource(
     const GURL& url_before_redirects,
     bool did_follow_redirect,
     base::OnceCallback<void(bool)> result_callback) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   if (!env)
     return;
 

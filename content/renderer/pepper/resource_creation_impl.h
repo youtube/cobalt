@@ -9,7 +9,6 @@
 
 #include "base/functional/callback.h"
 #include "content/common/content_export.h"
-#include "content/renderer/pepper/ppb_video_decoder_impl.h"
 #include "ppapi/thunk/resource_creation_api.h"
 
 namespace content {
@@ -23,14 +22,6 @@ class PepperPluginInstanceImpl;
 class CONTENT_EXPORT ResourceCreationImpl
     : public ppapi::thunk::ResourceCreationAPI {
  public:
-  using CreateVideoDecoderDevImplCallback = base::RepeatingCallback<
-      PP_Resource(PP_Instance, PP_Resource, PP_VideoDecoder_Profile)>;
-
-  void SetCreateVideoDecoderDevImplCallbackForTesting(
-      const CreateVideoDecoderDevImplCallback& callback) {
-    create_video_decoder_dev_impl_callback_ = callback;
-  }
-
   explicit ResourceCreationImpl(PepperPluginInstanceImpl* instance);
 
   ResourceCreationImpl(const ResourceCreationImpl&) = delete;
@@ -61,8 +52,9 @@ class CONTENT_EXPORT ResourceCreationImpl
   PP_Resource CreateGraphics3DRaw(
       PP_Instance instance,
       PP_Resource share_context,
-      const gpu::ContextCreationAttribs& attrib_helper,
+      const ppapi::Graphics3DContextAttribs& context_attribs,
       gpu::Capabilities* capabilities,
+      gpu::GLCapabilities* gl_capabilities,
       const base::UnsafeSharedMemoryRegion** shared_state,
       gpu::CommandBufferId* command_buffer_id) override;
   PP_Resource CreateHostResolver(PP_Instance instance) override;
@@ -140,10 +132,6 @@ class CONTENT_EXPORT ResourceCreationImpl
                                     const PP_FloatPoint* wheel_ticks,
                                     PP_Bool scroll_by_page) override;
   PP_Resource CreateX509CertificatePrivate(PP_Instance instance) override;
-
- private:
-  CreateVideoDecoderDevImplCallback create_video_decoder_dev_impl_callback_ =
-      base::BindRepeating(&PPB_VideoDecoder_Impl::Create);
 };
 
 }  // namespace content

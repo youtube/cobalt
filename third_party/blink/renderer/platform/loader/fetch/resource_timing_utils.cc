@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/platform/loader/fetch/resource_timing_utils.h"
+
 #include "base/containers/contains.h"
 #include "base/notreached.h"
 #include "base/time/time.h"
@@ -12,10 +13,12 @@
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
 #include "third_party/blink/renderer/platform/loader/fetch/delivery_type_names.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_load_timing.h"
+#include "third_party/blink/renderer/platform/loader/fetch/service_worker_router_info.h"
 #include "third_party/blink/renderer/platform/network/http_names.h"
 #include "third_party/blink/renderer/platform/network/http_parsers.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -85,15 +88,23 @@ mojom::blink::ResourceTimingInfoPtr CreateResourceTimingInfo(
     }
   }
 
+  info->service_worker_router_info =
+      response->GetServiceWorkerRouterInfo()
+          ? response->GetServiceWorkerRouterInfo()->ToMojo()
+          : nullptr;
+
   bool allow_response_details = response->IsCorsSameOrigin();
 
   info->content_type = g_empty_string;
+  info->content_encoding = g_empty_string;
 
   if (allow_response_details) {
     info->response_status = response->HttpStatusCode();
     if (!response->HttpContentType().IsNull()) {
-      info->content_type = response->HttpContentType();
+      info->content_type = MinimizedMIMEType(response->HttpContentType());
     }
+
+    info->content_encoding = response->GetFilteredHttpContentEncoding();
   }
 
   bool expose_body_sizes =
@@ -104,6 +115,8 @@ mojom::blink::ResourceTimingInfoPtr CreateResourceTimingInfo(
   if (expose_body_sizes && response) {
     info->encoded_body_size = response->EncodedBodyLength();
     info->decoded_body_size = response->DecodedBodyLength();
+    info->service_worker_response_source =
+        response->GetServiceWorkerResponseSource();
   }
 
   return info;

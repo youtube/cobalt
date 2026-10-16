@@ -2,14 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <vector>
 
 #include "base/containers/flat_map.h"
+#include "base/containers/heap_array.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/strings/stringprintf.h"
@@ -84,9 +91,9 @@ GLuint LoadShader(const GLenum type, const char* const src) {
     GLint len = 0;
     glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
     if (len > 1) {
-      std::unique_ptr<char[]> error_log(new char[len]);
-      glGetShaderInfoLog(shader, len, nullptr, error_log.get());
-      LOG(ERROR) << "Error compiling shader: " << error_log.get();
+      auto error_log = base::HeapArray<char>::WithSize(len);
+      glGetShaderInfoLog(shader, len, nullptr, error_log.data());
+      LOG(ERROR) << "Error compiling shader: " << error_log.data();
     }
   }
   CHECK_NE(0, compiled);
@@ -107,13 +114,12 @@ GLenum GLFormatToStorageFormat(GLenum format) {
     case GL_RGBA:
       return GL_RGBA8;
     case GL_LUMINANCE:
-      return GL_LUMINANCE8;
+      return GL_LUMINANCE8_EXT;
     case GL_RED:
       return GL_R8;
     default:
       NOTREACHED();
   }
-  return 0;
 }
 
 void GenerateTextureData(const gfx::Size& size,
@@ -147,7 +153,7 @@ bool CompareBufferToRGBABuffer(GLenum format,
     for (int x = 0; x < size.width(); ++x) {
       int rgba_index = y * rgba_stride + x * GLFormatBytePerPixel(GL_RGBA);
       int pixels_index = y * pixels_stride + x * bytes_per_pixel;
-      uint8_t expected[4] = {0};
+      uint8_t expected[4] = {0, 0, 0, 0};
       switch (format) {
         case GL_LUMINANCE:  // (L_t, L_t, L_t, 1)
           expected[1] = pixels[pixels_index];
@@ -216,11 +222,11 @@ class TextureUploadPerfTest : public testing::Test {
     // used to draw a quad on the offscreen surface.
     vertex_shader_ = LoadShader(GL_VERTEX_SHADER, kVertexShader);
 
-    bool is_gles = gl_context_->GetVersionInfo()->is_es;
-    fragment_shader_ = LoadShader(
-        GL_FRAGMENT_SHADER,
-        base::StringPrintf("%s%s", is_gles ? kShaderDefaultFloatPrecision : "",
-                           kFragmentShader).c_str());
+    fragment_shader_ =
+        LoadShader(GL_FRAGMENT_SHADER,
+                   base::StringPrintf("%s%s", kShaderDefaultFloatPrecision,
+                                      kFragmentShader)
+                       .c_str());
     program_object_ = glCreateProgram();
     CHECK_NE(0u, program_object_);
 
@@ -456,7 +462,7 @@ TEST_F(TextureUploadPerfTest, upload) {
   formats.push_back(GL_RGBA);
 
   if (!gl_context_->GetVersionInfo()->is_es3) {
-    // Used by default for ResourceProvider::yuv_resource_format_.
+    // Used by default.
     formats.push_back(GL_LUMINANCE);
   }
 
@@ -466,8 +472,7 @@ TEST_F(TextureUploadPerfTest, upload) {
                               gl_context_->HasExtension("GL_ARB_texture_rg");
 
   if (has_texture_rg) {
-    // Used as ResourceProvider::yuv_resource_format_ if
-    // {ARB,EXT}_texture_rg are available.
+    // Used if {ARB,EXT}_texture_rg are available.
     formats.push_back(GL_RED);
   }
 
@@ -495,7 +500,7 @@ TEST_F(TextureUploadPerfTest, upload) {
 TEST_F(TextureUploadPerfTest, renaming) {
   gfx::Size texture_size(fbo_size_.width() / 2, fbo_size_.height() / 2);
 
-  std::vector<uint8_t> pixels[4];
+  std::array<std::vector<uint8_t>, 4> pixels;
   for (int i = 0; i < 4; ++i) {
     GenerateTextureData(texture_size, 4, i + 1, &pixels[i]);
   }
@@ -503,10 +508,12 @@ TEST_F(TextureUploadPerfTest, renaming) {
   ui::ScopedMakeCurrent smc(gl_context_.get(), surface_.get());
   GenerateVertexBuffer(texture_size);
 
-  gfx::Vector2dF positions[] = {gfx::Vector2dF(0.f, 0.f),
-                                gfx::Vector2dF(1.f, 0.f),
-                                gfx::Vector2dF(0.f, 1.f),
-                                gfx::Vector2dF(1.f, 1.f)};
+  auto positions = std::to_array<gfx::Vector2dF>({
+      gfx::Vector2dF(0.f, 0.f),
+      gfx::Vector2dF(1.f, 0.f),
+      gfx::Vector2dF(0.f, 1.f),
+      gfx::Vector2dF(1.f, 1.f),
+  });
   GLuint texture_id = CreateGLTexture(GL_RGBA, texture_size, true);
 
   MeasurementTimers upload_and_draw_timers(gpu_timing_client_.get());

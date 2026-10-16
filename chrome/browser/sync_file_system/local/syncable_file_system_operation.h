@@ -32,6 +32,7 @@ class SyncableFileSystemOperation : public storage::FileSystemOperation {
   // Exposed for std::make_unique. Instances should be obtained from the factory
   // method SyncFileSystemBackend::CreateFileSystemOperation().
   SyncableFileSystemOperation(
+      storage::OperationType type,
       const storage::FileSystemURL& url,
       storage::FileSystemContext* file_system_context,
       std::unique_ptr<storage::FileSystemOperationContext> operation_context,
@@ -70,7 +71,7 @@ class SyncableFileSystemOperation : public storage::FileSystemOperation {
   void FileExists(const storage::FileSystemURL& url,
                   StatusCallback callback) override;
   void GetMetadata(const storage::FileSystemURL& url,
-                   int fields,
+                   GetMetadataFieldSet fields,
                    GetMetadataCallback callback) override;
   void ReadDirectory(const storage::FileSystemURL& url,
                      const ReadDirectoryCallback& callback) override;

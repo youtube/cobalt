@@ -18,9 +18,11 @@ BoxReflection BoxReflectionForPaintLayer(const PaintLayer& layer,
                                          const ComputedStyle& style) {
   const StyleReflection* reflect_style = style.BoxReflect();
 
-  LayoutBox* layout_box = layer.GetLayoutBox();
-  gfx::Size frame_size = layout_box->PixelSnappedBorderBoxSize(
-      layout_box->FirstFragment().PaintOffset());
+  const LayoutBox* layout_box = layer.GetLayoutBox();
+  // TODO(crbug.com/962299): Only correct if the paint offset is correct.
+  gfx::Size frame_size = PhysicalRect(layout_box->FirstFragment().PaintOffset(),
+                                      layout_box->Size())
+                             .PixelSnappedSize();
   BoxReflection::ReflectionDirection direction =
       BoxReflection::kVerticalReflection;
   float offset = 0;
@@ -52,25 +54,24 @@ BoxReflection BoxReflectionForPaintLayer(const PaintLayer& layer,
   if (!mask_nine_piece.HasImage())
     return BoxReflection(direction, offset, PaintRecord(), gfx::RectF());
 
-  PhysicalRect mask_rect(PhysicalOffset(),
-                         layer.GetLayoutBox()->FrameRect().Size());
+  PhysicalRect mask_rect(PhysicalOffset(), layer.GetLayoutBox()->Size());
   PhysicalRect mask_bounding_rect(mask_rect);
   mask_bounding_rect.Expand(style.ImageOutsets(mask_nine_piece));
 
-  auto* builder = MakeGarbageCollected<PaintRecordBuilder>();
+  PaintRecordBuilder builder;
   {
-    GraphicsContext& context = builder->Context();
+    GraphicsContext& context = builder.Context();
     DrawingRecorder recorder(context, layer.GetLayoutObject(),
                              DisplayItem::kReflectionMask);
     Node* node = nullptr;
     const LayoutObject* layout_object = &layer.GetLayoutObject();
     for (; layout_object && !node; layout_object = layout_object->Parent())
       node = layout_object->GeneratingNode();
-    NinePieceImagePainter::Paint(builder->Context(), layer.GetLayoutObject(),
+    NinePieceImagePainter::Paint(builder.Context(), layer.GetLayoutObject(),
                                  layer.GetLayoutObject().GetDocument(), node,
                                  mask_rect, style, mask_nine_piece);
   }
-  return BoxReflection(direction, offset, builder->EndRecording(),
+  return BoxReflection(direction, offset, builder.EndRecording(),
                        gfx::RectF(mask_bounding_rect));
 }
 

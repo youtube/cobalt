@@ -15,29 +15,27 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MOCK_AUDIO_DECODER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MOCK_AUDIO_DECODER_H_
 
-#include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
-
-#include "testing/gmock/include/gmock/gmock.h"
+#include <optional>
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/types.h"
+#include "testing/gmock/include/gmock/gmock.h"
 
 namespace starboard {
 
 class MockAudioDecoder : public AudioDecoder {
  public:
-  MockAudioDecoder(SbMediaAudioSampleType sample_type,
-                   SbMediaAudioFrameStorageType storage_type,
-                   int samples_per_second) {}
+  MockAudioDecoder(SbMediaAudioSampleType sample_type, int samples_per_second) {
+  }
 
   MOCK_METHOD2(Initialize, void(const OutputCB&, const ErrorCB&));
   MOCK_METHOD2(Decode, void(const InputBuffers&, const ConsumedCB&));
   MOCK_METHOD0(WriteEndOfStream, void());
-  MOCK_METHOD1(Read, scoped_refptr<DecodedAudio>(int*));
+  MOCK_METHOD1(Read, std::optional<DecodedAudio>(int*));
   MOCK_METHOD0(Reset, void());
 };
 

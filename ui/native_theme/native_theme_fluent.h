@@ -5,6 +5,9 @@
 #ifndef UI_NATIVE_THEME_NATIVE_THEME_FLUENT_H_
 #define UI_NATIVE_THEME_NATIVE_THEME_FLUENT_H_
 
+#include <optional>
+
+#include "base/component_export.h"
 #include "ui/native_theme/native_theme_base.h"
 
 namespace gfx {
@@ -18,7 +21,8 @@ class SkTypeface;
 
 namespace ui {
 
-class NATIVE_THEME_EXPORT NativeThemeFluent : public NativeThemeBase {
+class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeFluent
+    : public NativeThemeBase {
  public:
   explicit NativeThemeFluent(bool should_only_use_dark_colors);
 
@@ -29,35 +33,46 @@ class NATIVE_THEME_EXPORT NativeThemeFluent : public NativeThemeBase {
 
   static NativeThemeFluent* web_instance();
 
-  void PaintArrowButton(cc::PaintCanvas* canvas,
-                        const ColorProvider* color_provider,
-                        const gfx::Rect& rect,
-                        Part direction,
-                        State state,
-                        ColorScheme color_scheme,
-                        const ScrollbarArrowExtraParams& arrow) const override;
+  void PaintArrowButton(
+      cc::PaintCanvas* canvas,
+      const ColorProvider* color_provider,
+      const gfx::Rect& rect,
+      Part direction,
+      State state,
+      ColorScheme color_scheme,
+      bool in_forced_colors,
+      const ScrollbarArrowExtraParams& extra_params) const override;
   void PaintScrollbarTrack(cc::PaintCanvas* canvas,
                            const ColorProvider* color_provider,
                            Part part,
                            State state,
                            const ScrollbarTrackExtraParams& extra_params,
                            const gfx::Rect& rect,
-                           ColorScheme color_scheme) const override;
+                           ColorScheme color_scheme,
+                           bool in_forced_colors) const override;
   void PaintScrollbarThumb(cc::PaintCanvas* canvas,
                            const ColorProvider* color_provider,
                            Part part,
                            State state,
                            const gfx::Rect& rect,
-                           ScrollbarOverlayColorTheme theme,
+                           const ScrollbarThumbExtraParams& extra_params,
                            ColorScheme color_scheme) const override;
+  gfx::Insets GetScrollbarSolidColorThumbInsets(Part part) const override;
+  SkColor4f GetScrollbarThumbColor(
+      const ui::ColorProvider& color_provider,
+      State state,
+      const ScrollbarThumbExtraParams& extra) const override;
   void PaintScrollbarCorner(cc::PaintCanvas* canvas,
                             const ColorProvider* color_provider,
                             State state,
                             const gfx::Rect& rect,
+                            const ScrollbarTrackExtraParams& extra_params,
                             ColorScheme color_scheme) const override;
   gfx::Size GetPartSize(Part part,
                         State state,
                         const ExtraParams& extra) const override;
+  int GetPaintedScrollbarTrackInset() const override;
+  float GetContrastRatioForState(State state, Part part) const override;
 
  private:
   friend class NativeThemeFluentTest;
@@ -65,13 +80,17 @@ class NATIVE_THEME_EXPORT NativeThemeFluent : public NativeThemeBase {
   void PaintButton(cc::PaintCanvas* canvas,
                    const ColorProvider* color_provider,
                    const gfx::Rect& rect,
-                   ColorScheme color_scheme) const;
+                   Part direction,
+                   ColorScheme color_scheme,
+                   bool in_forced_colors,
+                   const ScrollbarArrowExtraParams& extra_params) const;
   void PaintArrow(cc::PaintCanvas* canvas,
                   const ColorProvider* color_provider,
                   const gfx::Rect& rect,
                   Part part,
                   State state,
-                  ColorScheme color_scheme) const;
+                  ColorScheme color_scheme,
+                  const ScrollbarArrowExtraParams& extra_params) const;
 
   // Calculates and returns the position and dimensions of the scaled arrow rect
   // within the scrollbar button rect. The goal is to keep the arrow in the
@@ -90,13 +109,22 @@ class NATIVE_THEME_EXPORT NativeThemeFluent : public NativeThemeBase {
                        int max_arrow_rect_side) const;
 
   // Returns true if the font with arrow icons is present on the device.
-  bool ArrowIconsAvailable() const { return typeface_.get(); }
+  bool ArrowIconsAvailable() const {
+    return typeface_.has_value() && typeface_.value().get();
+  }
 
   const char* GetArrowCodePointForScrollbarPart(Part part) const;
 
+  // Used by Overlay Fluent scrollbars to paint buttons with rounded corners.
+  void PaintRoundedButton(cc::PaintCanvas* canvas,
+                          SkRect rect,
+                          cc::PaintFlags paint_flags,
+                          NativeTheme::Part direction) const;
+
   // The value stores a shared pointer to SkTypeface with the font family, which
-  // contains arrow icons.
-  sk_sp<SkTypeface> typeface_;
+  // contains arrow icons. The typeface is lazily loaded the first time
+  // PaintArrow is called.
+  mutable std::optional<sk_sp<SkTypeface>> typeface_;
 };
 
 }  // namespace ui

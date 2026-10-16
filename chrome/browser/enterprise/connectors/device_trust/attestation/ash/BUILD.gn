@@ -2,19 +2,26 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
-
-assert(is_chromeos_ash)
+assert(is_chromeos)
 
 source_set("ash") {
-  sources = [ "ash_attestation_service.cc" ]
+  sources = [
+    "ash_attestation_cleanup_manager.cc",
+    "ash_attestation_service_impl.cc",
+  ]
 
-  public = [ "ash_attestation_service.h" ]
+  public = [
+    "ash_attestation_cleanup_manager.h",
+    "ash_attestation_service.h",
+    "ash_attestation_service_impl.h",
+  ]
 
   deps = [
-    "//chrome/browser/ash",
+    "//chrome/browser/ash/attestation",
     "//chrome/browser/enterprise/connectors/device_trust/common",
     "//chrome/browser/profiles:profile",
+    "//chromeos/ash/components/dbus/constants",
+    "//chromeos/ash/components/install_attributes",
     "//components/device_signals/core/common",
   ]
 

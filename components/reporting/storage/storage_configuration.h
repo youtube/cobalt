@@ -6,12 +6,12 @@
 #define COMPONENTS_REPORTING_STORAGE_STORAGE_CONFIGURATION_H_
 
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/files/file_path.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "components/reporting/proto/synced/record_constants.pb.h"
 #include "components/reporting/resources/resource_manager.h"
@@ -47,7 +47,7 @@ class StorageOptions {
   virtual QueuesOptionsList ProduceQueuesOptions() const;
 
   StorageOptions& set_signature_verification_public_key(
-      base::StringPiece signature_verification_public_key) {
+      std::string_view signature_verification_public_key) {
     signature_verification_public_key_ =
         std::string(signature_verification_public_key);
     return *this;
@@ -67,7 +67,7 @@ class StorageOptions {
     return *this;
   }
   const base::FilePath& directory() const { return directory_; }
-  base::StringPiece signature_verification_public_key() const {
+  std::string_view signature_verification_public_key() const {
     return signature_verification_public_key_;
   }
   size_t max_record_size() const { return max_record_size_; }

@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 source_set("https_only_mode") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "https_only_mode_blocking_page.h",
     "https_only_mode_blocking_page.mm",
@@ -19,10 +18,10 @@ source_set("https_only_mode") {
   deps = [
     ":feature",
     "//base",
-    "//components/keyed_service/core:core",
+    "//components/keyed_service/core",
     "//components/security_interstitials/core",
     "//ios/components/security_interstitials",
-    "//ios/web/public:public",
+    "//ios/web/public",
     "//ios/web/public/navigation",
     "//net",
     "//services/metrics/public/cpp:metrics_cpp",
@@ -49,7 +48,6 @@ source_set("test_util") {
 }
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [ "https_only_mode_blocking_page_unittest.mm" ]
   deps = [

@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/modules/encryptedmedia/media_key_system_access.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/memory/ptr_util.h"
 #include "base/numerics/safe_conversions.h"
@@ -24,7 +25,7 @@
 #include "third_party/blink/renderer/modules/encryptedmedia/encrypted_media_utils.h"
 #include "third_party/blink/renderer/modules/encryptedmedia/media_key_session.h"
 #include "third_party/blink/renderer/modules/encryptedmedia/media_keys.h"
-#include "third_party/blink/renderer/modules/encryptedmedia/media_keys_controller.h"
+#include "third_party/blink/renderer/platform/allow_discouraged_type.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/timer.h"
 
@@ -41,10 +42,10 @@ namespace {
 class NewCdmResultPromise : public ContentDecryptionModuleResultPromise {
  public:
   NewCdmResultPromise(
-      ScriptState* script_state,
+      ScriptPromiseResolver<MediaKeys>* resolver,
       const MediaKeysConfig& config,
-      const WebVector<WebEncryptedMediaSessionType>& supported_session_types)
-      : ContentDecryptionModuleResultPromise(script_state,
+      const std::vector<WebEncryptedMediaSessionType>& supported_session_types)
+      : ContentDecryptionModuleResultPromise(resolver,
                                              config,
                                              EmeApiType::kCreateMediaKeys),
         config_(config),
@@ -57,30 +58,31 @@ class NewCdmResultPromise : public ContentDecryptionModuleResultPromise {
 
   // ContentDecryptionModuleResult implementation.
   void CompleteWithContentDecryptionModule(
-      WebContentDecryptionModule* cdm) override {
+      std::unique_ptr<WebContentDecryptionModule> cdm) override {
     // NOTE: Continued from step 2.8 of createMediaKeys().
 
     if (!IsValidToFulfillPromise())
       return;
 
     // 2.9. Let media keys be a new MediaKeys object.
-    auto* media_keys = MakeGarbageCollected<MediaKeys>(
-        GetExecutionContext(), supported_session_types_, base::WrapUnique(cdm),
-        config_);
+    auto* media_keys = MakeGarbageCollected<MediaKeys>(GetExecutionContext(),
+                                                       supported_session_types_,
+                                                       std::move(cdm), config_);
 
     // 2.10. Resolve promise with media keys.
-    Resolve(media_keys);
+    Resolve<MediaKeys>(media_keys);
   }
 
  private:
   MediaKeysConfig config_;
-  WebVector<WebEncryptedMediaSessionType> supported_session_types_;
+  std::vector<WebEncryptedMediaSessionType> supported_session_types_
+      ALLOW_DISCOURAGED_TYPE("Matches WebMediaKeySystemConfiguration");
 };
 
 // These methods are the inverses of those with the same names in
 // NavigatorRequestMediaKeySystemAccess.
 Vector<String> ConvertInitDataTypes(
-    const WebVector<media::EmeInitDataType>& init_data_types) {
+    const std::vector<media::EmeInitDataType>& init_data_types) {
   Vector<String> result(base::checked_cast<wtf_size_t>(init_data_types.size()));
   for (wtf_size_t i = 0; i < result.size(); i++)
     result[i] =
@@ -89,7 +91,7 @@ Vector<String> ConvertInitDataTypes(
 }
 
 HeapVector<Member<MediaKeySystemMediaCapability>> ConvertCapabilities(
-    const WebVector<WebMediaKeySystemMediaCapability>& capabilities) {
+    const std::vector<WebMediaKeySystemMediaCapability>& capabilities) {
   HeapVector<Member<MediaKeySystemMediaCapability>> result(
       base::checked_cast<wtf_size_t>(capabilities.size()));
   for (wtf_size_t i = 0; i < result.size(); i++) {
@@ -119,7 +121,6 @@ HeapVector<Member<MediaKeySystemMediaCapability>> ConvertCapabilities(
       case WebMediaKeySystemMediaCapability::EncryptionScheme::kUnrecognized:
         NOTREACHED()
             << "Unrecognized encryption scheme should never be returned.";
-        break;
     }
 
     result[i] = capability;
@@ -128,7 +129,7 @@ HeapVector<Member<MediaKeySystemMediaCapability>> ConvertCapabilities(
 }
 
 Vector<String> ConvertSessionTypes(
-    const WebVector<WebEncryptedMediaSessionType>& session_types) {
+    const std::vector<WebEncryptedMediaSessionType>& session_types) {
   Vector<String> result(base::checked_cast<wtf_size_t>(session_types.size()));
   for (wtf_size_t i = 0; i < result.size(); i++)
     result[i] = EncryptedMediaUtils::ConvertFromSessionType(session_types[i]);
@@ -190,10 +191,10 @@ MediaKeySystemConfiguration* MediaKeySystemAccess::getConfiguration() const {
   // |distinctiveIdentifier|, |persistentState|, and |sessionTypes| are always
   // set by requestMediaKeySystemAccess().
   result->setDistinctiveIdentifier(
-      EncryptedMediaUtils::ConvertMediaKeysRequirementToString(
+      EncryptedMediaUtils::ConvertMediaKeysRequirementToEnum(
           configuration.distinctive_identifier));
   result->setPersistentState(
-      EncryptedMediaUtils::ConvertMediaKeysRequirementToString(
+      EncryptedMediaUtils::ConvertMediaKeysRequirementToEnum(
           configuration.persistent_state));
   result->setSessionTypes(ConvertSessionTypes(configuration.session_types));
 
@@ -202,7 +203,8 @@ MediaKeySystemConfiguration* MediaKeySystemAccess::getConfiguration() const {
   return result;
 }
 
-ScriptPromise MediaKeySystemAccess::createMediaKeys(ScriptState* script_state) {
+ScriptPromise<MediaKeys> MediaKeySystemAccess::createMediaKeys(
+    ScriptState* script_state) {
   // From http://w3c.github.io/encrypted-media/#createMediaKeys
   // (Reordered to be able to pass values into the promise constructor.)
   // 2.4 Let configuration be the value of this object's configuration value.
@@ -212,9 +214,11 @@ ScriptPromise MediaKeySystemAccess::createMediaKeys(ScriptState* script_state) {
 
   // 1. Let promise be a new promise.
   MediaKeysConfig config = {keySystem(), UseHardwareSecureCodecs()};
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<MediaKeys>>(script_state);
   NewCdmResultPromise* helper = MakeGarbageCollected<NewCdmResultPromise>(
-      script_state, config, configuration.session_types);
-  ScriptPromise promise = helper->Promise();
+      resolver, config, configuration.session_types);
+  auto promise = resolver->Promise();
 
   // 2. Asynchronously create and initialize the MediaKeys object.
   // 2.1 Let cdm be the CDM corresponding to this object.

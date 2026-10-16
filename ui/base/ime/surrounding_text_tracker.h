@@ -7,11 +7,11 @@
 
 #include <deque>
 #include <string>
+#include <string_view>
+#include <variant>
 
 #include "base/component_export.h"
 #include "base/functional/callback.h"
-#include "base/strings/string_piece.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "ui/base/ime/text_input_client.h"
 #include "ui/gfx/range/range.h"
 
@@ -27,7 +27,15 @@ struct CompositionText;
 // processed in a common manner.
 class COMPONENT_EXPORT(UI_BASE_IME) SurroundingTextTracker {
  public:
-  struct State {
+  struct COMPONENT_EXPORT(UI_BASE_IME) State {
+    // Returns the range of the surrounding text in UTF-16.
+    gfx::Range GetSurroundingTextRange() const;
+
+    // Returns the string piece of the composition range of the
+    // |surrounding_text|.
+    // If composition is out of the range, nullopt will be returned.
+    std::optional<std::u16string_view> GetCompositionText() const;
+
     // Whole surrounding text, specifically this may include composition text.
     std::u16string surrounding_text;
 
@@ -52,8 +60,15 @@ class COMPONENT_EXPORT(UI_BASE_IME) SurroundingTextTracker {
 
   const State& predicted_state() const { return predicted_state_; }
 
-  // Resets the internal state, including held histories.
+  // Resets the internal state, including composition state, surrounding text
+  // and held histories. Used when the entire state needs to be reset.
+  // TODO(b/267944900): Investigate if this is still needed once
+  // kWaylandCancelComposition flag is enabled by default.
   void Reset();
+
+  // Resets only the composition state and held histories.
+  // Used when only the composition state is cancelled by the input field.
+  void CancelComposition();
 
   enum class UpdateResult {
     // Expected update entry is found in |expected_updates_|.
@@ -68,7 +83,7 @@ class COMPONENT_EXPORT(UI_BASE_IME) SurroundingTextTracker {
   // Otherwise, forgets everything and reset by the state of the given
   // arguments, then returns kHistoryIsReset.
   // Note intentiontally ignored composition text.
-  UpdateResult Update(const base::StringPiece16 surrounding_text,
+  UpdateResult Update(const std::u16string_view surrounding_text,
                       size_t utf16_offset,
                       const gfx::Range& selection);
 
@@ -79,7 +94,7 @@ class COMPONENT_EXPORT(UI_BASE_IME) SurroundingTextTracker {
   void OnSetCompositionFromExistingText(const gfx::Range& range);
   void OnConfirmCompositionText(bool keep_selection);
   void OnClearCompositionText();
-  void OnInsertText(const base::StringPiece16 text,
+  void OnInsertText(const std::u16string_view text,
                     TextInputClient::InsertTextCursorBehavior cursor_behavior);
   void OnExtendSelectionAndDelete(size_t before, size_t after);
 
@@ -100,7 +115,7 @@ class COMPONENT_EXPORT(UI_BASE_IME) SurroundingTextTracker {
     ~Entry();
   };
 
-  void ResetInternal(base::StringPiece16 surrounding_text,
+  void ResetInternal(std::u16string_view surrounding_text,
                      size_t utf16_offset,
                      const gfx::Range& selection);
 

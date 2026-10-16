@@ -12,7 +12,7 @@
 
 #include "base/containers/circular_deque.h"
 #include "base/files/file_path.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
 #include "chrome/browser/sync_file_system/file_change.h"
 #include "chrome/browser/sync_file_system/sync_status_code.h"
@@ -62,6 +62,8 @@ class LocalFileChangeTracker : public storage::FileUpdateObserver,
   void OnCreateFile(const storage::FileSystemURL& url) override;
   void OnCreateFileFrom(const storage::FileSystemURL& url,
                         const storage::FileSystemURL& src) override;
+  void OnMoveFileFrom(const storage::FileSystemURL& url,
+                      const storage::FileSystemURL& src) override;
   void OnRemoveFile(const storage::FileSystemURL& url) override;
   void OnModifyFile(const storage::FileSystemURL& url) override;
   void OnCreateDirectory(const storage::FileSystemURL& url) override;

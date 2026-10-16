@@ -10,10 +10,13 @@
 
 #include "sdk/android/src/jni/video_decoder_wrapper.h"
 
+#include "absl/memory/memory.h"
+#include "api/environment/environment.h"
 #include "api/video/render_resolution.h"
 #include "api/video/video_frame.h"
 #include "api/video_codecs/video_decoder.h"
 #include "modules/video_coding/include/video_codec_interface.h"
+#include "modules/video_coding/include/video_error_codes.h"
 #include "modules/video_coding/utility/vp8_header_parser.h"
 #include "modules/video_coding/utility/vp9_uncompressed_header_parser.h"
 #include "rtc_base/logging.h"
@@ -31,12 +34,12 @@ namespace jni {
 
 namespace {
 // RTP timestamps are 90 kHz.
-const int64_t kNumRtpTicksPerMillisec = 90000 / rtc::kNumMillisecsPerSec;
+const int64_t kNumRtpTicksPerMillisec = 90000 / kNumMillisecsPerSec;
 
 template <typename Dst, typename Src>
-inline absl::optional<Dst> cast_optional(const absl::optional<Src>& value) {
-  return value ? absl::optional<Dst>(rtc::dchecked_cast<Dst, Src>(*value))
-               : absl::nullopt;
+inline std::optional<Dst> cast_optional(const std::optional<Src>& value) {
+  return value ? std::optional<Dst>(dchecked_cast<Dst, Src>(*value))
+               : std::nullopt;
 }
 }  // namespace
 
@@ -100,15 +103,15 @@ int32_t VideoDecoderWrapper::Decode(const EncodedImage& image_param,
   EncodedImage input_image(image_param);
   // We use RTP timestamp for capture time because capture_time_ms_ is always 0.
   input_image.capture_time_ms_ =
-      input_image.Timestamp() / kNumRtpTicksPerMillisec;
+      input_image.RtpTimestamp() / kNumRtpTicksPerMillisec;
 
   FrameExtraInfo frame_extra_info;
   frame_extra_info.timestamp_ns =
-      input_image.capture_time_ms_ * rtc::kNumNanosecsPerMillisec;
-  frame_extra_info.timestamp_rtp = input_image.Timestamp();
+      input_image.capture_time_ms_ * kNumNanosecsPerMillisec;
+  frame_extra_info.timestamp_rtp = input_image.RtpTimestamp();
   frame_extra_info.timestamp_ntp = input_image.ntp_time_ms_;
   frame_extra_info.qp =
-      qp_parsing_enabled_ ? ParseQP(input_image) : absl::nullopt;
+      qp_parsing_enabled_ ? ParseQP(input_image) : std::nullopt;
   {
     MutexLock lock(&frame_extra_infos_lock_);
     frame_extra_infos_.push_back(frame_extra_info);
@@ -186,10 +189,10 @@ void VideoDecoderWrapper::OnDecodedFrame(
       JavaToNativeFrame(env, j_frame, frame_extra_info.timestamp_rtp);
   frame.set_ntp_time_ms(frame_extra_info.timestamp_ntp);
 
-  absl::optional<int32_t> decoding_time_ms =
+  std::optional<int32_t> decoding_time_ms =
       JavaToNativeOptionalInt(env, j_decode_time_ms);
 
-  absl::optional<uint8_t> decoder_qp =
+  std::optional<uint8_t> decoder_qp =
       cast_optional<uint8_t, int32_t>(JavaToNativeOptionalInt(env, j_qp));
   // If the decoder provides QP values itself, no need to parse the bitstream.
   // Enable QP parsing if decoder does not provide QP values itself.
@@ -228,13 +231,13 @@ int32_t VideoDecoderWrapper::HandleReturnCode(JNIEnv* jni,
   return WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE;
 }
 
-absl::optional<uint8_t> VideoDecoderWrapper::ParseQP(
+std::optional<uint8_t> VideoDecoderWrapper::ParseQP(
     const EncodedImage& input_image) {
   if (input_image.qp_ != -1) {
     return input_image.qp_;
   }
 
-  absl::optional<uint8_t> qp;
+  std::optional<uint8_t> qp;
   switch (decoder_settings_.codec_type()) {
     case kVideoCodecVP8: {
       int qp_int;
@@ -255,6 +258,12 @@ absl::optional<uint8_t> VideoDecoderWrapper::ParseQP(
       qp = h264_bitstream_parser_.GetLastSliceQp();
       break;
     }
+#ifdef RTC_ENABLE_H265
+    case kVideoCodecH265:
+      h265_bitstream_parser_.ParseBitstream(input_image);
+      qp = h265_bitstream_parser_.GetLastSliceQp();
+      break;
+#endif
     default:
       break;  // Default is to not provide QP.
   }
@@ -263,16 +272,15 @@ absl::optional<uint8_t> VideoDecoderWrapper::ParseQP(
 
 std::unique_ptr<VideoDecoder> JavaToNativeVideoDecoder(
     JNIEnv* jni,
-    const JavaRef<jobject>& j_decoder) {
-  const jlong native_decoder =
-      Java_VideoDecoder_createNativeVideoDecoder(jni, j_decoder);
-  VideoDecoder* decoder;
-  if (native_decoder == 0) {
-    decoder = new VideoDecoderWrapper(jni, j_decoder);
+    const JavaRef<jobject>& j_decoder,
+    jlong webrtcEnvRef) {
+  if (jlong native_decoder =
+          Java_VideoDecoder_createNative(jni, j_decoder, webrtcEnvRef);
+      native_decoder != 0) {
+    return absl::WrapUnique(reinterpret_cast<VideoDecoder*>(native_decoder));
   } else {
-    decoder = reinterpret_cast<VideoDecoder*>(native_decoder);
+    return std::make_unique<VideoDecoderWrapper>(jni, j_decoder);
   }
-  return std::unique_ptr<VideoDecoder>(decoder);
 }
 
 }  // namespace jni

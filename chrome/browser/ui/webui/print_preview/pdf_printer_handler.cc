@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/check.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/files/file_path.h"
@@ -19,7 +20,6 @@
 #include "base/task/thread_pool.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/app_mode/app_mode_utils.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/download/download_prefs.h"
@@ -44,22 +44,25 @@
 #include "printing/units.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/geometry/size.h"
+#include "ui/gfx/native_widget_types.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_MAC)
 #include "chrome/common/printing/printer_capabilities_mac.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/drive/drive_integration_service.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ui/ash/holding_space/holding_space_keyed_service.h"
 #include "chrome/browser/ui/ash/holding_space/holding_space_keyed_service_factory.h"
+#include "components/drive/file_system_core_util.h"
 #include "components/user_manager/user.h"
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/crosapi/mojom/drive_integration_service.mojom.h"
-#include "chromeos/crosapi/mojom/holding_space_service.mojom.h"
-#include "chromeos/lacros/lacros_service.h"
+#endif
+
+#if defined(USE_AURA)
+#include "ui/aura/window.h"
 #endif
 
 namespace printing {
@@ -71,14 +74,14 @@ constexpr base::FilePath::CharType kPdfExtension[] = FILE_PATH_LITERAL("pdf");
 class PrintingContextDelegate : public PrintingContext::Delegate {
  public:
   // PrintingContext::Delegate methods.
-  gfx::NativeView GetParentView() override { return nullptr; }
+  gfx::NativeView GetParentView() override { return gfx::NativeView(); }
   std::string GetAppLocale() override {
     return g_browser_process->GetApplicationLocale();
   }
 };
 
 const AccountId& GetAccountId(Profile* profile) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   const auto* user = ash::ProfileHelper::Get()->GetUserByProfile(profile);
   return user ? user->GetAccountId() : EmptyAccountId();
 #else
@@ -88,10 +91,12 @@ const AccountId& GetAccountId(Profile* profile) {
 
 gfx::Size GetDefaultPdfMediaSizeMicrons() {
   PrintingContextDelegate delegate;
-  // The `PrintingContext` for "Save as PDF" does need to make system printing
-  // calls.
-  auto printing_context(
-      PrintingContext::Create(&delegate, /*skip_system_calls=*/false));
+  // The `PrintingContext` for "Save as PDF" does not need to make system
+  // printing calls, it just relies on localization plus hardcoded defaults
+  // from `PrintingContext::UsePdfSettings()`.  This means that OOP support
+  // is unnecessary in this case.
+  auto printing_context(PrintingContext::Create(
+      &delegate, PrintingContext::OutOfProcessBehavior::kDisabled));
   printing_context->UsePdfSettings();
   gfx::Size pdf_media_size = printing_context->GetPdfPaperSizeDeviceUnits();
   float device_microns_per_device_unit =
@@ -104,7 +109,7 @@ gfx::Size GetDefaultPdfMediaSizeMicrons() {
 base::Value::Dict GetPdfCapabilities(
     const std::string& locale,
     PrinterSemanticCapsAndDefaults::Papers custom_papers) {
-  using cloud_devices::printer::MediaType;
+  using cloud_devices::printer::MediaSize;
 
   cloud_devices::CloudDeviceDescription description;
   cloud_devices::printer::OrientationCapability orientation;
@@ -124,29 +129,41 @@ base::Value::Dict GetPdfCapabilities(
   }
   color.SaveTo(&description);
 
-  static const MediaType kPdfMedia[] = {
-      MediaType::ISO_A0,   MediaType::ISO_A1,    MediaType::ISO_A2,
-      MediaType::ISO_A3,   MediaType::ISO_A4,    MediaType::ISO_A5,
-      MediaType::NA_LEGAL, MediaType::NA_LETTER, MediaType::NA_LEDGER};
-  const gfx::Size default_media_size = GetDefaultPdfMediaSizeMicrons();
-  cloud_devices::printer::Media default_media(std::string(), std::string(),
-                                              default_media_size);
-  if (!default_media.MatchBySize() ||
-      !base::Contains(kPdfMedia, default_media.type)) {
-    default_media = cloud_devices::printer::Media(
-        locale == "en-US" ? MediaType::NA_LETTER : MediaType::ISO_A4);
+  static constexpr MediaSize kPdfMedia[] = {
+      MediaSize::ISO_A0,   MediaSize::ISO_A1,    MediaSize::ISO_A2,
+      MediaSize::ISO_A3,   MediaSize::ISO_A4,    MediaSize::ISO_A5,
+      MediaSize::NA_LEGAL, MediaSize::NA_LETTER, MediaSize::NA_LEDGER};
+  cloud_devices::printer::Media default_media =
+      cloud_devices::printer::MediaBuilder()
+          .WithSizeAndDefaultPrintableArea(GetDefaultPdfMediaSizeMicrons())
+          .WithNameMaybeBasedOnSize(/*custom_display_name=*/"",
+                                    /*vendor_id=*/"")
+          .Build();
+  if (!base::Contains(kPdfMedia, default_media.size_name)) {
+    default_media =
+        cloud_devices::printer::MediaBuilder()
+            .WithStandardName(locale == "en-US" ? MediaSize::NA_LETTER
+                                                : MediaSize::ISO_A4)
+            .WithSizeAndPrintableAreaBasedOnStandardName()
+            .Build();
   }
   cloud_devices::printer::MediaCapability media;
   for (const auto& pdf_media : kPdfMedia) {
-    cloud_devices::printer::Media media_option(pdf_media);
+    cloud_devices::printer::Media media_option =
+        cloud_devices::printer::MediaBuilder()
+            .WithStandardName(pdf_media)
+            .WithSizeAndPrintableAreaBasedOnStandardName()
+            .Build();
     media.AddDefaultOption(media_option,
-                           default_media.type == media_option.type);
+                           default_media.size_name == media_option.size_name);
   }
   for (const PrinterSemanticCapsAndDefaults::Paper& paper : custom_papers) {
-    cloud_devices::printer::Media media_option(paper.display_name,
-                                               paper.vendor_id, paper.size_um,
-                                               paper.printable_area_um);
-    media.AddOption(media_option);
+    media.AddOption(cloud_devices::printer::MediaBuilder()
+                        .WithCustomName(paper.display_name(), paper.vendor_id())
+                        .WithSizeAndPrintableArea(paper.size_um(),
+                                                  paper.printable_area_um())
+                        .WithBorderlessVariant(paper.has_borderless_variant())
+                        .Build());
   }
   media.SaveTo(&description);
 
@@ -169,28 +186,24 @@ void PrintToPdfCallback(scoped_refptr<base::RefCountedMemory> data,
 
 // Callback that runs after `PrintToPdfCallback()` returns.
 void OnPdfPrintedCallback(const AccountId& account_id,
-                          bool from_incognito_profile,
                           const base::FilePath& path,
                           base::OnceClosure pdf_file_saved_closure) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   Profile* profile =
       ash::ProfileHelper::Get()->GetProfileByAccountId(account_id);
   if (profile) {
     ash::HoldingSpaceKeyedService* holding_space_keyed_service =
         ash::HoldingSpaceKeyedServiceFactory::GetInstance()->GetService(
             profile);
-    if (holding_space_keyed_service)
-      holding_space_keyed_service->AddPrintedPdf(path, from_incognito_profile);
-  }
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-  auto* service = chromeos::LacrosService::Get();
-  if (service && service->IsAvailable<crosapi::mojom::HoldingSpaceService>()) {
-    service->GetRemote<crosapi::mojom::HoldingSpaceService>()->AddPrintedPdf(
-        path, from_incognito_profile);
+    if (holding_space_keyed_service) {
+      holding_space_keyed_service->AddItemOfType(
+          ash::HoldingSpaceItem::Type::kPrintedPdf, path);
+    }
   }
 #endif
-  if (!pdf_file_saved_closure.is_null())
+  if (!pdf_file_saved_closure.is_null()) {
     std::move(pdf_file_saved_closure).Run();
+  }
 }
 
 base::FilePath CreateDirectoryIfNotExists(const base::FilePath& path) {
@@ -202,8 +215,9 @@ base::FilePath CreateDirectoryIfNotExists(const base::FilePath& path) {
 
 base::FilePath SelectSaveDirectory(const base::FilePath& path,
                                    const base::FilePath& default_path) {
-  if (base::DirectoryExists(path))
+  if (base::DirectoryExists(path)) {
     return path;
+  }
   return CreateDirectoryIfNotExists(default_path);
 }
 
@@ -232,8 +246,9 @@ PdfPrinterHandler::PdfPrinterHandler(
       sticky_settings_(sticky_settings) {}
 
 PdfPrinterHandler::~PdfPrinterHandler() {
-  if (select_file_dialog_.get())
+  if (select_file_dialog_.get()) {
     select_file_dialog_->ListenerDestroyed();
+  }
 }
 
 void PdfPrinterHandler::Reset() {
@@ -287,11 +302,10 @@ void PdfPrinterHandler::StartPrint(
   DCHECK(!print_callback_);
   print_callback_ = std::move(callback);
 
-  PrintPreviewDialogController* dialog_controller =
-      PrintPreviewDialogController::GetInstance();
+  auto* dialog_controller = PrintPreviewDialogController::GetInstance();
+  CHECK(dialog_controller);
   content::WebContents* initiator =
-      dialog_controller ? dialog_controller->GetInitiator(preview_web_contents_)
-                        : nullptr;
+      dialog_controller->GetInitiator(preview_web_contents_);
 
   GURL initiator_url;
   bool is_savable = false;
@@ -311,19 +325,18 @@ void PdfPrinterHandler::StartPrint(
   SelectFile(path, initiator, prompt_user);
 }
 
-void PdfPrinterHandler::FileSelected(const base::FilePath& path,
-                                     int /* index */,
-                                     void* /* params */) {
+void PdfPrinterHandler::FileSelected(const ui::SelectedFileInfo& file,
+                                     int /* index */) {
   // Update downloads location and save sticky settings.
   DownloadPrefs* download_prefs = DownloadPrefs::FromBrowserContext(profile_);
-  download_prefs->SetSaveFilePath(path.DirName());
+  download_prefs->SetSaveFilePath(file.path().DirName());
   sticky_settings_->SaveInPrefs(profile_->GetPrefs());
-  print_to_pdf_path_ = path;
+  print_to_pdf_path_ = file.path();
   select_file_dialog_.reset();
   PostPrintToPdfTask();
 }
 
-void PdfPrinterHandler::FileSelectionCanceled(void* params) {
+void PdfPrinterHandler::FileSelectionCanceled() {
   std::move(print_callback_).Run(base::Value("PDFPrintCanceled"));
   select_file_dialog_.reset();
 }
@@ -344,7 +357,7 @@ base::FilePath PdfPrinterHandler::GetFileNameForPrintJobTitle(
   DCHECK(!job_title.empty());
 #if BUILDFLAG(IS_WIN)
   base::FilePath::StringType print_job_title(base::AsWString(job_title));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX)
   base::FilePath::StringType print_job_title = base::UTF16ToUTF8(job_title);
 #endif
 
@@ -353,8 +366,9 @@ base::FilePath PdfPrinterHandler::GetFileNameForPrintJobTitle(
   base::FilePath::StringType ext = default_filename.Extension();
   if (!ext.empty()) {
     ext = ext.substr(1);
-    if (ext == kPdfExtension)
+    if (ext == kPdfExtension) {
       return default_filename;
+    }
   }
   return default_filename.AddExtension(kPdfExtension);
 }
@@ -380,8 +394,9 @@ base::FilePath PdfPrinterHandler::GetFileNameForURL(const GURL& url) {
     name = base::FilePath::FromUTF16Unsafe(
         url_formatter::IDNToUnicode(url.host()));
   }
-  if (name.AsUTF8Unsafe() == url.host())
+  if (name.AsUTF8Unsafe() == url.host()) {
     return name.AddExtension(kPdfExtension);
+  }
   return name.ReplaceExtension(kPdfExtension);
 }
 
@@ -417,32 +432,7 @@ void PdfPrinterHandler::SelectFile(const base::FilePath& default_filename,
 
   sticky_settings_->SaveInPrefs(profile_->GetPrefs());
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  auto* service = chromeos::LacrosService::Get();
-  if (use_drive_mount_ && service &&
-      service->IsAvailable<crosapi::mojom::DriveIntegrationService>()) {
-    service->GetRemote<crosapi::mojom::DriveIntegrationService>()
-        ->GetMountPointPath(
-            base::BindOnce(&PdfPrinterHandler::OnSaveLocationReady,
-                           weak_ptr_factory_.GetWeakPtr(),
-                           std::move(default_filename), prompt_user));
-    return;
-  }
-#endif
-
-#if BUILDFLAG(IS_FUCHSIA)
-  // Fuchsia does not support system dialog yet. So skip the dialog
-  // and store the default download directory. See crbug.com/1226242 for the
-  // details.
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
-      base::BindOnce(&CreateDirectoryIfNotExists, GetSaveLocation()),
-      base::BindOnce(&PdfPrinterHandler::OnSaveLocationReady,
-                     weak_ptr_factory_.GetWeakPtr(), default_filename,
-                     /*prompt_user=*/false));
-#else
   OnSaveLocationReady(default_filename, prompt_user, GetSaveLocation());
-#endif
 }
 
 void PdfPrinterHandler::OnSaveLocationReady(
@@ -483,31 +473,32 @@ void PdfPrinterHandler::PostPrintToPdfTask() {
       FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
       base::BindOnce(&PrintToPdfCallback, print_data_, print_to_pdf_path_),
       base::BindOnce(&OnPdfPrintedCallback, GetAccountId(profile_),
-                     profile_->IsIncognitoProfile(), print_to_pdf_path_,
-                     std::move(pdf_file_saved_closure_)));
+                     print_to_pdf_path_, std::move(pdf_file_saved_closure_)));
 
   print_to_pdf_path_.clear();
 
-  if (print_callback_)
+  if (print_callback_) {
     std::move(print_callback_).Run(base::Value());
+  }
 }
 
 void PdfPrinterHandler::OnGotUniqueFileName(const base::FilePath& path) {
-  FileSelected(path, 0, nullptr);
+  FileSelected(ui::SelectedFileInfo(path), 0);
 }
 
 void PdfPrinterHandler::OnDirectorySelected(const base::FilePath& filename,
                                             const base::FilePath& directory) {
   // Early return if the select file dialog is already active.
-  if (select_file_dialog_)
+  if (select_file_dialog_) {
     return;
+  }
 
   base::FilePath path = directory.Append(filename);
 
   // Prompts the user to select the file.
   ui::SelectFileDialog::FileTypeInfo file_type_info;
   file_type_info.extensions.resize(1);
-  file_type_info.extensions[0].push_back(FILE_PATH_LITERAL("pdf"));
+  file_type_info.extensions[0].push_back(kPdfExtension);
   file_type_info.include_all_files = true;
   // Print Preview requires native paths to write PDF files.
   // Note that Chrome OS save-as dialog has Google Drive as a saving location
@@ -517,17 +508,28 @@ void PdfPrinterHandler::OnDirectorySelected(const base::FilePath& filename,
   file_type_info.allowed_paths =
       ui::SelectFileDialog::FileTypeInfo::NATIVE_PATH;
 
+  gfx::NativeView owning_window = preview_web_contents_->GetNativeView();
+#if defined(USE_AURA)
+  if (!owning_window->IsVisible()) {
+    auto* dialog_controller = PrintPreviewDialogController::GetInstance();
+    CHECK(dialog_controller);
+    auto* initiator = dialog_controller->GetInitiator(preview_web_contents_);
+    if (initiator) {
+      owning_window = initiator->GetNativeView();
+    }
+  }
+#endif
+
   select_file_dialog_ =
       ui::SelectFileDialog::Create(this, nullptr /*policy already checked*/);
   select_file_dialog_->SelectFile(
       ui::SelectFileDialog::SELECT_SAVEAS_FILE, std::u16string(), path,
-      &file_type_info, 0, base::FilePath::StringType(),
-      platform_util::GetTopLevel(preview_web_contents_->GetNativeView()),
-      nullptr);
+      &file_type_info, 0, kPdfExtension,
+      platform_util::GetTopLevel(owning_window), nullptr);
 }
 
 base::FilePath PdfPrinterHandler::GetSaveLocation() const {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   drive::DriveIntegrationService* drive_service =
       drive::DriveIntegrationServiceFactory::GetForProfile(profile_);
   if (use_drive_mount_ && drive_service && drive_service->IsMounted()) {

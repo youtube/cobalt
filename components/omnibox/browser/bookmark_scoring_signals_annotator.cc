@@ -10,6 +10,7 @@
 
 #include "base/i18n/case_conversion.h"
 #include "base/i18n/unicodestring.h"
+#include "base/memory/raw_ptr.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/browser/bookmark_node.h"
 #include "components/bookmarks/browser/titled_url_index.h"
@@ -26,15 +27,13 @@ using ::bookmarks::TitledUrlIndex;
 
 BookmarkScoringSignalsAnnotator::BookmarkScoringSignalsAnnotator(
     AutocompleteProviderClient* client) {
-  local_or_syncable_bookmark_model_ =
-      client ? client->GetLocalOrSyncableBookmarkModel() : nullptr;
+  bookmark_model_ = client ? client->GetBookmarkModel() : nullptr;
 }
 
 void BookmarkScoringSignalsAnnotator::AnnotateResult(
     const AutocompleteInput& input,
     AutocompleteResult* result) {
-  // TODO(https://crbug.com/1424825): Add support for account bookmarks.
-  if (!local_or_syncable_bookmark_model_) {
+  if (!bookmark_model_) {
     return;
   }
 
@@ -51,13 +50,13 @@ void BookmarkScoringSignalsAnnotator::AnnotateResult(
 
   for (auto& match : *result) {
     // Skip ineligible matches.
-    if (!IsEligibleMatch(match)) {
+    if (!match.IsMlSignalLoggingEligible()) {
       continue;
     }
 
     // Initialize the scoring signals if needed.
     if (!match.scoring_signals) {
-      match.scoring_signals = absl::make_optional<ScoringSignals>();
+      match.scoring_signals = std::make_optional<ScoringSignals>();
     }
 
     // Skip this match if it already has bookmark signals.
@@ -65,14 +64,10 @@ void BookmarkScoringSignalsAnnotator::AnnotateResult(
       continue;
     }
 
-    std::vector<const bookmarks::BookmarkNode*> nodes;
-    local_or_syncable_bookmark_model_->GetNodesByURL(match.destination_url,
-                                                     &nodes);
-    if (nodes.empty()) {
-      return;
-    }
+    std::vector<raw_ptr<const bookmarks::BookmarkNode, VectorExperimental>>
+        nodes = bookmark_model_->GetNodesByURL(match.destination_url);
 
-    for (const auto* node : nodes) {
+    for (const bookmarks::BookmarkNode* node : nodes) {
       const std::u16string lower_title = base::i18n::ToLower(
           TitledUrlIndex::Normalize(node->GetTitledUrlNodeTitle()));
       query_parser::QueryWordVector title_words;

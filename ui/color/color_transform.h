@@ -5,10 +5,11 @@
 #ifndef UI_COLOR_COLOR_TRANSFORM_H_
 #define UI_COLOR_COLOR_TRANSFORM_H_
 
+#include <optional>
+
 #include "base/component_export.h"
 #include "base/functional/callback.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/color_utils.h"
@@ -18,7 +19,8 @@ namespace ui {
 class ColorMixer;
 
 // Callback is a function which transforms an |input| color, optionally using a
-// |mixer| (to obtain other colors).
+// |mixer| (to obtain other colors). Do not depend on the callback running
+// except if it's necessary for the final color.
 using Callback =
     base::RepeatingCallback<SkColor(SkColor input, const ColorMixer& mixer)>;
 
@@ -36,10 +38,15 @@ class COMPONENT_EXPORT(COLOR) ColorTransform {
   ColorTransform& operator=(const ColorTransform&);
   ~ColorTransform();
 
+  // Returns true if the result of this transform will return the same result
+  // regardless of other transforms within the same ColorRecipe.
+  bool invariant() const { return invariant_; }
+
   SkColor Run(SkColor input_color, const ColorMixer& mixer) const;
 
  private:
   Callback callback_;
+  bool invariant_ = false;
 };
 
 // Functions to create common transforms:
@@ -59,8 +66,8 @@ COMPONENT_EXPORT(COLOR)
 ColorTransform BlendForMinContrast(
     ColorTransform foreground_transform,
     ColorTransform background_transform,
-    absl::optional<ColorTransform> high_contrast_foreground_transform =
-        absl::nullopt,
+    std::optional<ColorTransform> high_contrast_foreground_transform =
+        std::nullopt,
     float contrast_ratio = color_utils::kMinimumReadableContrastRatio);
 
 // A transform which blends the result of |transform| toward the color with max

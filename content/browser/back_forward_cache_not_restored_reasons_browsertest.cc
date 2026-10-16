@@ -2,17 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "content/browser/back_forward_cache_browsertest.h"
+#include <optional>
 
+#include "content/browser/back_forward_cache_browsertest.h"
+#include "content/browser/back_forward_cache_test_util.h"
 #include "content/browser/renderer_host/navigation_request.h"
 #include "content/browser/web_contents/web_contents_impl.h"
+#include "content/common/content_navigation_policy.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/content_browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "content/shell/browser/shell.h"
 #include "third_party/blink/public/common/features.h"
-#include "third_party/blink/public/mojom/back_forward_cache_not_restored_reasons.mojom-blink.h"
+#include "third_party/blink/public/mojom/back_forward_cache_not_restored_reasons.mojom.h"
+
 namespace content {
 using NotRestoredReason = BackForwardCacheMetrics::NotRestoredReason;
 using NotRestoredReasons =
@@ -20,7 +24,21 @@ using NotRestoredReasons =
 
 // Exists to group the tests and for test history.
 class BackForwardCacheBrowserTestWithNotRestoredReasons
-    : public BackForwardCacheBrowserTest {};
+    : public BackForwardCacheBrowserTest {
+ protected:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    EnableFeatureAndSetParams(kAllowCrossOriginNotRestoredReasons, "", "");
+    BackForwardCacheBrowserTest::SetUpCommandLine(command_line);
+  }
+};
+
+namespace {
+// WebXR's source location isn't reported on ChromeOS, so those variables won't
+// be used on that OS.
+const std::string kBlockingReasonFunction = "";
+const int kBlockingReasonLineNumber = 5;
+const int kBlockingReasonColumnNumber = 14;
+}  // namespace
 
 // NotRestoredReasons are not reported when the page is successfully restored
 // from back/forward cache.
@@ -53,7 +71,7 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTestWithNotRestoredReasons,
   ASSERT_TRUE(NavigateToURL(shell(), url_a));
   RenderFrameHostImplWrapper rfh_a(current_frame_host());
   rfh_a->UseDummyStickyBackForwardCacheDisablingFeatureForTesting();
-  std::string rfh_a_url = rfh_a->GetLastCommittedURL().spec();
+  GURL rfh_a_url = rfh_a->GetLastCommittedURL();
 
   // 2) Navigate to B.
   ASSERT_TRUE(NavigateToURL(shell(), url_b));
@@ -66,10 +84,11 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTestWithNotRestoredReasons,
                     {}, {}, FROM_HERE);
   // Expect that NotRestoredReasons are reported.
   auto rfh_a_result = MatchesNotRestoredReasons(
-      blink::mojom::BFCacheBlocked::kYes, /*id=*/absl::nullopt,
-      /*name=*/absl::nullopt, /*src=*/absl::nullopt,
+      /*id=*/std::nullopt,
+      /*name=*/std::nullopt, /*src=*/std::nullopt, /*reasons=*/
+      {MatchesDetailedReason("Dummy", /*source=*/std::nullopt)},
       MatchesSameOriginDetails(
-          /*url=*/rfh_a_url, /*reasons=*/{"Dummy"}, /*children=*/{}));
+          /*url=*/rfh_a_url, /*children=*/{}));
   EXPECT_THAT(current_frame_host()->NotRestoredReasonsForTesting(),
               rfh_a_result);
   EXPECT_TRUE(rfh_b->IsInBackForwardCache());
@@ -98,9 +117,9 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTestWithNotRestoredReasons,
       rfh_a_1->child_at(0)->current_frame_host());
   RenderFrameHostImplWrapper rfh_b(rfh_a_1->child_at(1)->current_frame_host());
   RenderFrameHostImplWrapper rfh_a_3(rfh_b->child_at(0)->current_frame_host());
-  std::string rfh_a_1_url = rfh_a_1->GetLastCommittedURL().spec();
-  std::string rfh_a_2_url = rfh_a_2->GetLastCommittedURL().spec();
-  std::string rfh_b_url = rfh_b->GetLastCommittedURL().spec();
+  GURL rfh_a_1_url = rfh_a_1->GetLastCommittedURL();
+  GURL rfh_a_2_url = rfh_a_2->GetLastCommittedURL();
+  GURL rfh_b_url = rfh_b->GetLastCommittedURL();
 
   rfh_a_3->UseDummyStickyBackForwardCacheDisablingFeatureForTesting();
 
@@ -125,23 +144,22 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTestWithNotRestoredReasons,
 
   // Expect that id and name are reported for both |rfh_b| and |rfh_a_2|.
   // Note that |rfh_a_3| is masked because it's a child of |rfh_b|.
-  auto rfh_b_result =
-      MatchesNotRestoredReasons(blink::mojom::BFCacheBlocked::kYes,
-                                /*id=*/"rfh_b_id", /*name=*/"rfh_b_name",
-                                /*src=*/rfh_b_url, absl::nullopt);
-
+  auto rfh_b_result = MatchesNotRestoredReasons(
+      /*id=*/"rfh_b_id", /*name=*/"rfh_b_name",
+      /*src=*/rfh_b_url.spec(), /*reasons=*/
+      {MatchesDetailedReason("masked", /*source=*/std::nullopt)},
+      /*same_origin_details=*/std::nullopt);
   auto rfh_a_2_result = MatchesNotRestoredReasons(
-      blink::mojom::BFCacheBlocked::kNo,
       /*id=*/"rfh_a_2_id", /*name=*/"rfh_a_2_name",
-      /*src=*/rfh_a_2_url,
+      /*src=*/rfh_a_2_url.spec(), /*reasons=*/{},
       MatchesSameOriginDetails(
-          /*url=*/rfh_a_2_url, /*reasons=*/{}, /*children=*/{}));
+          /*url=*/rfh_a_2_url, /*children=*/{}));
   auto rfh_a_1_result = MatchesNotRestoredReasons(
-      blink::mojom::BFCacheBlocked::kNo, /*id=*/absl::nullopt,
-      /*name=*/absl::nullopt, /*src=*/absl::nullopt,
+      /*id=*/std::nullopt,
+      /*name=*/std::nullopt, /*src=*/std::nullopt,
+      /*reasons=*/{},
       MatchesSameOriginDetails(
           /*url=*/rfh_a_1_url,
-          /*reasons=*/{},
           /*children=*/{rfh_a_2_result, rfh_b_result}));
 
   EXPECT_THAT(current_frame_host()->NotRestoredReasonsForTesting(),
@@ -166,10 +184,10 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTestWithNotRestoredReasons,
       rfh_a_1->child_at(1)->current_frame_host());
   RenderFrameHostImplWrapper rfh_a_4(
       rfh_a_3->child_at(0)->current_frame_host());
-  std::string rfh_a_1_url = rfh_a_1->GetLastCommittedURL().spec();
-  std::string rfh_a_2_url = rfh_a_2->GetLastCommittedURL().spec();
-  std::string rfh_a_3_url = rfh_a_3->GetLastCommittedURL().spec();
-  std::string rfh_a_4_url = rfh_a_4->GetLastCommittedURL().spec();
+  GURL rfh_a_1_url = rfh_a_1->GetLastCommittedURL();
+  GURL rfh_a_2_url = rfh_a_2->GetLastCommittedURL();
+  GURL rfh_a_3_url = rfh_a_3->GetLastCommittedURL();
+  GURL rfh_a_4_url = rfh_a_4->GetLastCommittedURL();
 
   rfh_a_1->UseDummyStickyBackForwardCacheDisablingFeatureForTesting();
   rfh_a_2->UseDummyStickyBackForwardCacheDisablingFeatureForTesting();
@@ -187,37 +205,39 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTestWithNotRestoredReasons,
   // of null.
   EXPECT_EQ(true, EvalJs(current_frame_host(),
                          "document.getElementById('child-0').name == ''"));
-  auto rfh_a_2_result =
-      MatchesNotRestoredReasons(blink::mojom::BFCacheBlocked::kYes,
-                                /*id=*/"child-0", /*name=*/"",
-                                /*src=*/rfh_a_2_url,
-                                MatchesSameOriginDetails(
-                                    /*url=*/rfh_a_2_url,
-                                    /*reasons=*/{"Dummy"},
-                                    /*children=*/{}));
-  auto rfh_a_4_result =
-      MatchesNotRestoredReasons(blink::mojom::BFCacheBlocked::kYes,
-                                /*id=*/"child-0", /*name=*/"",
-                                /*src=*/rfh_a_4_url,
-                                MatchesSameOriginDetails(
-                                    /*url=*/rfh_a_4_url,
-                                    /*reasons=*/{"Dummy"},
-                                    /*children=*/{}));
+  auto rfh_a_2_result = MatchesNotRestoredReasons(
+      /*id=*/"child-0", /*name=*/std::nullopt,
+      /*src=*/rfh_a_2_url.spec(),
+      /*reasons=*/
+      {MatchesDetailedReason("Dummy", /*source=*/std::nullopt)},
+      MatchesSameOriginDetails(
+          /*url=*/rfh_a_2_url,
+          /*children=*/{}));
+  auto rfh_a_4_result = MatchesNotRestoredReasons(
+      /*id=*/"child-0", /*name=*/std::nullopt,
+      /*src=*/rfh_a_4_url.spec(),
+      /*reasons=*/
+      {MatchesDetailedReason("Dummy", /*source=*/std::nullopt)},
+      MatchesSameOriginDetails(
+          /*url=*/rfh_a_4_url,
+          /*children=*/{}));
   EXPECT_EQ(true, EvalJs(current_frame_host(),
                          "document.getElementById('child-1').name == ''"));
   auto rfh_a_3_result = MatchesNotRestoredReasons(
-      blink::mojom::BFCacheBlocked::kNo, /*id=*/"child-1",
-      /*name=*/"",
-      /*src=*/rfh_a_3_url,
+      /*id=*/"child-1",
+      /*name=*/std::nullopt,
+      /*src=*/rfh_a_3_url.spec(),
+      /*reasons=*/{},
       MatchesSameOriginDetails(
           /*url=*/rfh_a_3_url,
-          /*reasons=*/{}, /*children=*/{rfh_a_4_result}));
+          /*children=*/{rfh_a_4_result}));
   auto rfh_a_1_result = MatchesNotRestoredReasons(
-      blink::mojom::BFCacheBlocked::kYes, /*id=*/absl::nullopt,
-      /*name=*/absl::nullopt, /*src=*/absl::nullopt,
+      /*id=*/std::nullopt,
+      /*name=*/std::nullopt, /*src=*/std::nullopt,
+      /*reasons=*/
+      {MatchesDetailedReason("Dummy", /*source=*/std::nullopt)},
       MatchesSameOriginDetails(
           /*url=*/rfh_a_1_url,
-          /*reasons=*/{"Dummy"},
           /*children=*/{rfh_a_2_result, rfh_a_3_result}));
   EXPECT_THAT(current_frame_host()->NotRestoredReasonsForTesting(),
               rfh_a_1_result);
@@ -287,7 +307,7 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTestWithNotRestoredReasons,
   OpenPopup(rfh_a.get(), url_a, "");
   EXPECT_EQ(2u, rfh_a->GetSiteInstance()->GetRelatedActiveContentsCount());
   rfh_a->GetBackForwardCacheMetrics()->SetObserverForTesting(this);
-  std::string rfh_a_url = rfh_a->GetLastCommittedURL().spec();
+  GURL rfh_a_url = rfh_a->GetLastCommittedURL();
 
   // 2) Navigate to B. The previous document can't enter the BackForwardCache,
   // because of the popup.
@@ -310,18 +330,22 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTestWithNotRestoredReasons,
   EXPECT_THAT(
       GetTreeResult()->GetDocumentResult(),
       MatchesDocumentResult(
-          NotRestoredReasons(NotRestoredReason::kRelatedActiveContentsExist,
-                             NotRestoredReason::kBrowsingInstanceNotSwapped),
+          NotRestoredReasons({NotRestoredReason::kRelatedActiveContentsExist,
+                              NotRestoredReason::kBrowsingInstanceNotSwapped}),
           BlockListedFeatures()));
 
   // Both reasons are recorded and sent to the renderer.
-  // BrowsingInstanceNotSwapped is masked as internal error.
+  // TODO(crbug.com/40275090): BrowsingInstanceNotSwapped should not be reported
+  // as internal-error.
   auto rfh_a_result = MatchesNotRestoredReasons(
-      blink::mojom::BFCacheBlocked::kYes, /*id=*/absl::nullopt,
-      /*name=*/absl::nullopt, /*src=*/absl::nullopt,
+      /*id=*/std::nullopt,
+      /*name=*/std::nullopt, /*src=*/std::nullopt,
+      /*reasons=*/
+      {MatchesDetailedReason("non-trivial-browsing-context-group",
+                             /*source=*/std::nullopt),
+       MatchesDetailedReason("masked", /*source=*/std::nullopt)},
       MatchesSameOriginDetails(
           /*url=*/rfh_a_url,
-          /*reasons=*/{"Related active contents", "Internal error"},
           /*children=*/{}));
   EXPECT_THAT(current_frame_host()->NotRestoredReasonsForTesting(),
               rfh_a_result);
@@ -367,14 +391,14 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTestWithNotRestoredReasons,
   auto reasons =
       navigation_request->commit_params().not_restored_reasons.Clone();
   // The reasons have not been reset yet.
-  auto rfh_a_result =
-      MatchesNotRestoredReasons(blink::mojom::BFCacheBlocked::kYes,
-                                /*id=*/absl::nullopt, /*name=*/absl::nullopt,
-                                /*src=*/absl::nullopt,
-                                MatchesSameOriginDetails(
-                                    /*url=*/url_a_redirect.spec(),
-                                    /*reasons=*/{"JavaScript execution"},
-                                    /*children=*/{}));
+  auto rfh_a_result = MatchesNotRestoredReasons(
+      /*id=*/std::nullopt, /*name=*/std::nullopt,
+      /*src=*/std::nullopt,
+      /*reasons=*/
+      {MatchesDetailedReason("masked", /*source=*/std::nullopt)},
+      MatchesSameOriginDetails(
+          /*url=*/url_a_redirect,
+          /*children=*/{}));
 
   EXPECT_THAT(reasons, rfh_a_result);
 
@@ -401,6 +425,323 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTestWithNotRestoredReasons,
   EXPECT_TRUE(ExecJs(current_frame_host(),
                      "performance.getEntriesByType('navigation')[0]."
                      "notRestoredReasons == null"));
+}
+
+// Test that after reload, NotRestoredReasons are reset.
+IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTestWithNotRestoredReasons,
+                       Reload) {
+  CreateHttpsServer();
+  ASSERT_TRUE(https_server()->Start());
+
+  GURL url_a(https_server()->GetURL("a.com", kBlockingPagePath));
+  GURL url_b(https_server()->GetURL("b.com", "/title1.html"));
+
+  // 1) Navigate to a bfcache blocking page.
+  ASSERT_TRUE(NavigateToURL(shell(), url_a));
+  RenderFrameHostImplWrapper rfh_a(current_frame_host());
+
+  // 2) Navigate to B.
+  ASSERT_TRUE(NavigateToURL(shell(), url_b));
+  ASSERT_TRUE(rfh_a.WaitUntilRenderFrameDeleted());
+
+  // 3) Navigate back.
+  ASSERT_TRUE(HistoryGoBack(web_contents()));
+
+  // Blocking reasons should be recorded.
+  ExpectNotRestored({NotRestoredReason::kBlocklistedFeatures},
+                    {kBlockingReasonEnum}, {}, {}, {}, FROM_HERE);
+  // Expect that NotRestoredReasons and the blocking feature's source location
+  // are reported.
+  std::optional<SourceLocationMatcher> expected_source = MatchesSourceLocation(
+      url_a, kBlockingReasonFunction, kBlockingReasonLineNumber,
+      kBlockingReasonColumnNumber);
+  auto rfh_a_result = MatchesNotRestoredReasons(
+      /*id=*/std::nullopt, /*name=*/std::nullopt,
+      /*src=*/std::nullopt,
+      /*reasons=*/
+      {MatchesDetailedReason(kBlockingReasonString,
+                             /*source=*/expected_source)},
+      MatchesSameOriginDetails(
+          /*url=*/url_a,
+          /*children=*/{}));
+  EXPECT_THAT(current_frame_host()->NotRestoredReasonsForTesting(),
+              rfh_a_result);
+
+  // Reload
+  {
+    TestNavigationObserver observer(web_contents());
+    web_contents()->GetController().Reload(content::ReloadType::BYPASSING_CACHE,
+                                           false);  // check_for_repost
+    observer.Wait();
+  }
+  // Expect that NotRestoredReasons are reset to null after reload.
+  EXPECT_TRUE(current_frame_host()->NotRestoredReasonsForTesting().is_null());
+  EXPECT_TRUE(ExecJs(current_frame_host(),
+                     "performance.getEntriesByType('navigation')[0]."
+                     "type == 'reload'"));
+  EXPECT_EQ(true, EvalJs(current_frame_host(),
+                         "performance.getEntriesByType('navigation')[0]."
+                         "notRestoredReasons === null"));
+}
+
+// Frame attributes are reported as null when they are not set.
+IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTestWithNotRestoredReasons,
+                       IframesWithoutAttributes) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url_a(embedded_test_server()->GetURL(
+      "a.com",
+      "/back_forward_cache/page_with_iframes_without_attributes.html"));
+  GURL url_b(embedded_test_server()->GetURL("b.com", "/title1.html"));
+  // 1) Navigate to A and use dummy blocking feature in a subframe.
+  ASSERT_TRUE(NavigateToURL(shell(), url_a));
+  RenderFrameHostImplWrapper rfh_a(current_frame_host());
+  RenderFrameHostImplWrapper rfh_a_1(ChildFrameAt(current_frame_host(), 0));
+  rfh_a_1->UseDummyStickyBackForwardCacheDisablingFeatureForTesting();
+  GURL rfh_a_url = rfh_a->GetLastCommittedURL();
+  GURL rfh_a_1_url = rfh_a_1->GetLastCommittedURL();
+
+  // 2) Navigate to B.
+  ASSERT_TRUE(NavigateToURL(shell(), url_b));
+  RenderFrameHostImplWrapper rfh_b(current_frame_host());
+
+  // 3) Navigate back.
+  ASSERT_TRUE(HistoryGoBack(web_contents()));
+  ExpectNotRestored({NotRestoredReason::kBlocklistedFeatures},
+                    {blink::scheduler::WebSchedulerTrackedFeature::kDummy}, {},
+                    {}, {}, FROM_HERE);
+  // Expect that NotRestoredReasons are reported, and all the cross-origin
+  // blocked value are masked.
+  auto rfh_a_1_result = MatchesNotRestoredReasons(
+      /*id=*/std::nullopt, /*name=*/std::nullopt,
+      /*src=*/rfh_a_1_url.spec(),
+      /*reasons=*/{MatchesDetailedReason("Dummy", /*source=*/std::nullopt)},
+      MatchesSameOriginDetails(
+          /*url=*/rfh_a_1_url,
+          /*children=*/{}));
+  auto rfh_a_result = MatchesNotRestoredReasons(
+      /*id=*/std::nullopt,
+      /*name=*/std::nullopt, /*src=*/std::nullopt, /*reasons=*/{},
+      MatchesSameOriginDetails(
+          /*url=*/rfh_a_url,
+          /*children=*/{rfh_a_1_result}));
+  EXPECT_THAT(current_frame_host()->NotRestoredReasonsForTesting(),
+              rfh_a_result);
+  EXPECT_TRUE(rfh_b->IsInBackForwardCache());
+}
+
+class BackForwardCacheBrowserTestWithUpdatedNotRestoredReasons
+    : public BackForwardCacheBrowserTestWithNotRestoredReasons,
+      public ::testing::WithParamInterface<bool> {
+ public:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    if (UseUpdatedNames()) {
+      EnableFeatureAndSetParams(
+          blink::features::kBackForwardCacheUpdateNotRestoredReasonsName, "",
+          "");
+    } else {
+      DisableFeature(
+          blink::features::kBackForwardCacheUpdateNotRestoredReasonsName);
+    }
+
+    BackForwardCacheBrowserTestWithNotRestoredReasons::SetUpCommandLine(
+        command_line);
+  }
+  bool UseUpdatedNames() { return GetParam(); }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    BackForwardCacheBrowserTestWithUpdatedNotRestoredReasons,
+    ::testing::Bool());
+
+IN_PROC_BROWSER_TEST_P(BackForwardCacheBrowserTestWithUpdatedNotRestoredReasons,
+                       CloneReportedAsNull) {
+  ukm::TestAutoSetUkmRecorder recorder;
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL url1(embedded_test_server()->GetURL("/title1.html"));
+  const GURL url2(embedded_test_server()->GetURL("/title2.html"));
+
+  EXPECT_TRUE(NavigateToURL(shell(), url1));
+  EXPECT_TRUE(NavigateToURL(shell(), url2));
+
+  // Clone the tab and load the page.
+  std::unique_ptr<WebContents> new_tab = shell()->web_contents()->Clone();
+  WebContentsImpl* new_tab_impl = static_cast<WebContentsImpl*>(new_tab.get());
+  WebContentsObserver::Observe(new_tab.get());
+  NavigationController& new_controller = new_tab_impl->GetController();
+  {
+    TestNavigationObserver clone_observer(new_tab.get());
+    new_controller.LoadIfNecessary();
+    clone_observer.Wait();
+  }
+
+  ASSERT_TRUE(HistoryGoBack(new_tab.get()));
+
+  std::string not_restored_reasons = "BackForwardCache.NotRestoredReasons";
+  std::vector<ukm::TestAutoSetUkmRecorder::HumanReadableUkmMetrics>
+      recorded_not_restored_reasons =
+          recorder.FilteredHumanReadableMetricForEntry("HistoryNavigation",
+                                                       not_restored_reasons);
+  ASSERT_EQ(recorded_not_restored_reasons.size(), 1u);
+  EXPECT_EQ(recorded_not_restored_reasons[0][not_restored_reasons],
+            1 << static_cast<int>(
+                BackForwardCacheMetrics::NotRestoredReason::kSessionRestored));
+  if (UseUpdatedNames()) {
+    EXPECT_EQ(
+        EvalJs(
+            new_tab_impl->GetPrimaryFrameTree().root()->current_frame_host(),
+            "performance.getEntriesByType('navigation')[0].notRestoredReasons"),
+        nullptr);
+    EXPECT_TRUE(new_tab_impl->GetPrimaryFrameTree()
+                    .root()
+                    ->current_frame_host()
+                    ->NotRestoredReasonsForTesting()
+                    .is_null());
+  } else {
+    // Expect that NotRestoredReasons are reported.
+    auto rfh_a_result = MatchesNotRestoredReasons(
+        /*id=*/"",
+        /*name=*/"", /*src=*/"", /*reasons=*/
+        {MatchesDetailedReason("session-restored", /*source=*/std::nullopt)},
+        MatchesSameOriginDetails(
+            /*url=*/url1, /*children=*/{}));
+
+    EXPECT_THAT(new_tab_impl->GetPrimaryFrameTree()
+                    .root()
+                    ->current_frame_host()
+                    ->NotRestoredReasonsForTesting(),
+                rfh_a_result);
+  }
+}
+
+class BackForwardCacheBrowserTestWithNotRestoredReasonsProactiveSwapOptOut
+    : public BackForwardCacheBrowserTestWithNotRestoredReasons {
+ public:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    EnableFeatureAndSetParams(blink::features::kRelOpenerBcgDependencyHint, "",
+                              "");
+    BackForwardCacheBrowserTestWithNotRestoredReasons::SetUpCommandLine(
+        command_line);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(
+    BackForwardCacheBrowserTestWithNotRestoredReasonsProactiveSwapOptOut,
+    NavigateWithRelOpener) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL url_1(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  const GURL url_2(embedded_test_server()->GetURL("a.com", "/title2.html"));
+
+  ASSERT_TRUE(NavigateToURL(shell(), url_1));
+  current_frame_host()->GetBackForwardCacheMetrics()->SetObserverForTesting(
+      this);
+
+  // The document can't enter the BackForwardCache because rel=opener opts out
+  // of the proactive BrowsingInstance swap.
+  TestNavigationObserver nav_observer(web_contents());
+  EXPECT_TRUE(ExecJs(web_contents(), JsReplace(R"(
+    let anchor = document.createElement('a');
+    anchor.href = $1;
+    anchor.rel = 'opener';
+    anchor.text = 'Link';
+    document.body.appendChild(anchor);
+    anchor.click();
+  )",
+                                               url_2)));
+  nav_observer.Wait();
+
+  ASSERT_TRUE(HistoryGoBack(web_contents()));
+
+  ExpectNotRestored(
+      {NotRestoredReason::kBrowsingInstanceNotSwapped}, {},
+      {ShouldSwapBrowsingInstance::kNo_InitiatorRequestedNoProactiveSwap}, {},
+      {}, FROM_HERE);
+  // Make sure that the tree result also has the same reasons. BrowsingInstance
+  // NotSwapped can only be known at commit time.
+  EXPECT_THAT(
+      GetTreeResult()->GetDocumentResult(),
+      MatchesDocumentResult(
+          NotRestoredReasons({NotRestoredReason::kBrowsingInstanceNotSwapped}),
+          BlockListedFeatures()));
+
+  // The reason is recorded and sent to the renderer.
+  // TODO(crbug.com/40275090): BrowsingInstanceNotSwapped should not be reported
+  // as internal-error.
+  std::optional<std::string> frame_attribute;
+  if (!ShouldCreateNewHostForAllFrames()) {
+    // Depending on whether the RenderFrameHost changed or not, the frame
+    // attributes will either be std::nullopt or an empty string, due to how the
+    // NotRestoredReasons object is created. Ultimately, this difference doesn't
+    // really matter that much as the difference is not web-exposed.
+    frame_attribute = "";
+  }
+  auto reasons = MatchesNotRestoredReasons(
+      /*id=*/frame_attribute,
+      /*name=*/frame_attribute, /*src=*/frame_attribute,
+      /*reasons=*/
+      {MatchesDetailedReason("masked", /*source=*/std::nullopt)},
+      MatchesSameOriginDetails(
+          /*url=*/url_1,
+          /*children=*/{}));
+  EXPECT_THAT(current_frame_host()->NotRestoredReasonsForTesting(), reasons);
+}
+
+class BackForwardCacheBrowserTestWithNotRestoredReasonsMaskCrossOrigin
+    : public BackForwardCacheBrowserTest {
+ protected:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    DisableFeature(kAllowCrossOriginNotRestoredReasons);
+    BackForwardCacheBrowserTest::SetUpCommandLine(command_line);
+  }
+};
+
+// NotRestoredReasons are masked for all the cross origin iframes.
+IN_PROC_BROWSER_TEST_F(
+    BackForwardCacheBrowserTestWithNotRestoredReasonsMaskCrossOrigin,
+    AllCrossOriginMasked) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url_a(embedded_test_server()->GetURL(
+      "a.com", "/cross_site_iframe_factory.html?a(b(c),d)"));
+  GURL url_b(embedded_test_server()->GetURL("b.com", "/title1.html"));
+  // 1) Navigate to A and use dummy blocking feature in a cross-origin subframe.
+  ASSERT_TRUE(NavigateToURL(shell(), url_a));
+  RenderFrameHostImplWrapper rfh_a(current_frame_host());
+  RenderFrameHostImplWrapper rfh_a_1(ChildFrameAt(current_frame_host(), 0));
+  RenderFrameHostImplWrapper rfh_a_2(ChildFrameAt(current_frame_host(), 1));
+  rfh_a_1->UseDummyStickyBackForwardCacheDisablingFeatureForTesting();
+  GURL rfh_a_url = rfh_a->GetLastCommittedURL();
+  GURL rfh_a_1_url = rfh_a_1->GetLastCommittedURL();
+  GURL rfh_a_2_url = rfh_a_2->GetLastCommittedURL();
+
+  // 2) Navigate to B.
+  ASSERT_TRUE(NavigateToURL(shell(), url_b));
+  RenderFrameHostImplWrapper rfh_b(current_frame_host());
+
+  // 3) Navigate back.
+  ASSERT_TRUE(HistoryGoBack(web_contents()));
+  ExpectNotRestored({NotRestoredReason::kBlocklistedFeatures},
+                    {blink::scheduler::WebSchedulerTrackedFeature::kDummy}, {},
+                    {}, {}, FROM_HERE);
+  // Expect that NotRestoredReasons are reported, and all the cross-origin
+  // blocked value are masked.
+  auto rfh_a_1_result = MatchesNotRestoredReasons(
+      /*id=*/"child-0", /*name=*/std::nullopt,
+      /*src=*/rfh_a_1_url.spec(), /*reasons=*/{},
+      /*same_origin_details=*/std::nullopt);
+  auto rfh_a_2_result = MatchesNotRestoredReasons(
+      /*id=*/"child-1", /*name=*/std::nullopt,
+      /*src=*/rfh_a_2_url.spec(), /*reasons=*/{},
+      /*same_origin_details=*/std::nullopt);
+  auto rfh_a_result = MatchesNotRestoredReasons(
+      /*id=*/std::nullopt,
+      /*name=*/std::nullopt, /*src=*/std::nullopt, /*reasons=*/
+      {MatchesDetailedReason("masked", /*source=*/std::nullopt)},
+      MatchesSameOriginDetails(
+          /*url=*/rfh_a_url,
+          /*children=*/{rfh_a_1_result, rfh_a_2_result}));
+  EXPECT_THAT(current_frame_host()->NotRestoredReasonsForTesting(),
+              rfh_a_result);
+  EXPECT_TRUE(rfh_b->IsInBackForwardCache());
 }
 
 }  // namespace content

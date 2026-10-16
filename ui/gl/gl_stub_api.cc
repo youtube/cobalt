@@ -6,7 +6,7 @@
 
 namespace gl {
 
-GLStubApi::GLStubApi() {}
+GLStubApi::GLStubApi() = default;
 
 GLStubApi::~GLStubApi() = default;
 
@@ -32,20 +32,12 @@ void GLStubApi::glGenBuffersARBFn(GLsizei n, GLuint* buffers) {
 
 void GLStubApi::glGenerateMipmapEXTFn(GLenum target) {}
 
-void GLStubApi::glGenFencesAPPLEFn(GLsizei n, GLuint* fences) {
-  GenHelper(n, fences);
-}
-
 void GLStubApi::glGenFencesNVFn(GLsizei n, GLuint* fences) {
   GenHelper(n, fences);
 }
 
 void GLStubApi::glGenFramebuffersEXTFn(GLsizei n, GLuint* framebuffers) {
   GenHelper(n, framebuffers);
-}
-
-GLuint GLStubApi::glGenPathsNVFn(GLsizei range) {
-  return 1;
 }
 
 void GLStubApi::glGenQueriesFn(GLsizei n, GLuint* ids) {
@@ -87,7 +79,7 @@ void GLStubApi::glGetIntegervFn(GLenum pname, GLint* params) {
     case GL_MAX_COLOR_ATTACHMENTS_EXT:
       *params = 4;
       break;
-    case GL_MAX_DRAW_BUFFERS_ARB:
+    case GL_MAX_DRAW_BUFFERS:
       *params = 4;
       break;
     case GL_MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS:
@@ -109,7 +101,7 @@ void GLStubApi::glGetIntegervFn(GLenum pname, GLint* params) {
       *params = 8;
       break;
     case GL_MAX_TEXTURE_SIZE:
-    case GL_MAX_RECTANGLE_TEXTURE_SIZE_ARB:
+    case GL_MAX_RECTANGLE_TEXTURE_SIZE_ANGLE:
       *params = 2048;
       break;
     case GL_MAX_CUBE_MAP_TEXTURE_SIZE:
@@ -123,9 +115,6 @@ void GLStubApi::glGetIntegervFn(GLenum pname, GLint* params) {
       break;
     case GL_MAX_VARYING_VECTORS:
       *params = 8;
-      break;
-    case GL_MAX_VARYING_FLOATS:
-      *params = 32;
       break;
     case GL_MAX_VERTEX_UNIFORM_VECTORS:
       *params = 128;
@@ -272,19 +261,11 @@ GLboolean GLStubApi::glIsEnabledFn(GLenum cap) {
   return GL_TRUE;
 }
 
-GLboolean GLStubApi::glIsFenceAPPLEFn(GLuint fence) {
-  return GL_TRUE;
-}
-
 GLboolean GLStubApi::glIsFenceNVFn(GLuint fence) {
   return GL_TRUE;
 }
 
 GLboolean GLStubApi::glIsFramebufferEXTFn(GLuint framebuffer) {
-  return GL_TRUE;
-}
-
-GLboolean GLStubApi::glIsPathNVFn(GLuint path) {
   return GL_TRUE;
 }
 
@@ -321,10 +302,6 @@ GLboolean GLStubApi::glIsTransformFeedbackFn(GLuint id) {
 }
 
 GLboolean GLStubApi::glIsVertexArrayOESFn(GLuint array) {
-  return GL_TRUE;
-}
-
-GLboolean GLStubApi::glTestFenceAPPLEFn(GLuint fence) {
   return GL_TRUE;
 }
 

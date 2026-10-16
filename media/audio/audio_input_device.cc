@@ -2,13 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/audio/audio_input_device.h"
 
 #include <stdint.h>
+
 #include <utility>
 #include <vector>
 
 #include "audio_device_stats_reporter.h"
+#include "base/atomicops.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -23,6 +30,7 @@
 #include "build/build_config.h"
 #include "media/audio/audio_manager_base.h"
 #include "media/base/audio_bus.h"
+#include "media/base/media_switches.h"
 
 namespace media {
 
@@ -33,6 +41,9 @@ namespace {
 // dependent how fast the renderer process can pick up captured data from
 // shared memory.
 const int kRequestedSharedMemoryCount = 10;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+const int kStarboardRequestedSharedMemoryCount = 32;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // The number of seconds with missing callbacks before we report a capture
 // error. The value is based on that the Mac audio implementation can defer
@@ -66,7 +77,7 @@ class AudioInputDevice::AudioThreadCallback
     : public AudioDeviceThread::Callback {
  public:
   AudioThreadCallback(const AudioParameters& audio_parameters,
-                      base::ReadOnlySharedMemoryRegion shared_memory_region,
+                      base::UnsafeSharedMemoryRegion shared_memory_region,
                       uint32_t total_segments,
                       bool enable_uma,
                       CaptureCallback* capture_callback,
@@ -82,10 +93,14 @@ class AudioInputDevice::AudioThreadCallback
   // Called whenever we receive notifications about pending data.
   void Process(uint32_t pending_data) override;
 
+  void OnSocketError() override;
+
+  bool WillConfirmReadsViaShmem() const override;
+
  private:
   const bool enable_uma_;
-  base::ReadOnlySharedMemoryRegion shared_memory_region_;
-  base::ReadOnlySharedMemoryMapping shared_memory_mapping_;
+  base::UnsafeSharedMemoryRegion shared_memory_region_;
+  base::WritableSharedMemoryMapping shared_memory_mapping_;
   const base::TimeTicks start_time_;
   size_t current_segment_id_;
   uint32_t last_buffer_id_;
@@ -101,6 +116,7 @@ class AudioInputDevice::AudioThreadCallback
   base::RepeatingClosure got_data_callback_;
 
   AudioDeviceStatsReporter stats_reporter_;
+  const bool confirm_reads_via_shmem_;
 };
 
 AudioInputDevice::AudioInputDevice(std::unique_ptr<AudioInputIPC> ipc,
@@ -127,6 +143,9 @@ void AudioInputDevice::Initialize(const AudioParameters& params,
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(params.IsValid());
   DCHECK(!callback_);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "AudioInputDevice::Initialize: params=" << params.AsHumanReadableString();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   audio_parameters_ = params;
   callback_ = callback;
 }
@@ -141,8 +160,11 @@ void AudioInputDevice::Start() {
     return;
 
   state_ = CREATING_STREAM;
-  ipc_->CreateStream(this, audio_parameters_, agc_is_enabled_,
-                     kRequestedSharedMemoryCount);
+  int segment_count = kRequestedSharedMemoryCount;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  segment_count = kStarboardRequestedSharedMemoryCount;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+  ipc_->CreateStream(this, audio_parameters_, agc_is_enabled_, segment_count);
 }
 
 void AudioInputDevice::Stop() {
@@ -224,7 +246,7 @@ void AudioInputDevice::SetOutputDeviceForAec(
 }
 
 void AudioInputDevice::OnStreamCreated(
-    base::ReadOnlySharedMemoryRegion shared_memory_region,
+    base::UnsafeSharedMemoryRegion shared_memory_region,
     base::SyncSocket::ScopedHandle socket_handle,
     bool initially_muted) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -283,9 +305,13 @@ void AudioInputDevice::OnStreamCreated(
                                 base::Unretained(alive_checker_.get()))
           : base::DoNothing();
 
+  int segment_count = kRequestedSharedMemoryCount;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  segment_count = kStarboardRequestedSharedMemoryCount;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   audio_callback_ = std::make_unique<AudioInputDevice::AudioThreadCallback>(
       audio_parameters_, std::move(shared_memory_region),
-      kRequestedSharedMemoryCount, enable_uma_, callback_,
+      segment_count, enable_uma_, callback_,
       notify_alive_closure);
   audio_thread_ = std::make_unique<AudioDeviceThread>(
       audio_callback_.get(), std::move(socket_handle), "AudioInputDevice",
@@ -319,7 +345,7 @@ void AudioInputDevice::OnError(AudioCapturerSource::ErrorCode code) {
         code, code == AudioCapturerSource::ErrorCode::kSystemPermissions
                   ? "Unable to open due to failing an OS Permissions check."
                   : "Maximum allowed input device limit reached or an OS "
-                    "failure occured.");
+                    "failure occurred.");
   } else {
     // Don't dereference the callback object if the audio thread
     // is stopped or stopping.  That could mean that the callback
@@ -369,7 +395,7 @@ void AudioInputDevice::DetectedDeadInputStream() {
 // AudioInputDevice::AudioThreadCallback
 AudioInputDevice::AudioThreadCallback::AudioThreadCallback(
     const AudioParameters& audio_parameters,
-    base::ReadOnlySharedMemoryRegion shared_memory_region,
+    base::UnsafeSharedMemoryRegion shared_memory_region,
     uint32_t total_segments,
     bool enable_uma,
     CaptureCallback* capture_callback,
@@ -388,8 +414,9 @@ AudioInputDevice::AudioThreadCallback::AudioThreadCallback(
                                             audio_parameters.sample_rate()),
       frames_since_last_got_data_callback_(0),
       got_data_callback_(std::move(got_data_callback_)),
-      stats_reporter_(audio_parameters,
-                      AudioDeviceStatsReporter::Type::kInput) {
+      stats_reporter_(audio_parameters, AudioDeviceStatsReporter::Type::kInput),
+      confirm_reads_via_shmem_(
+          base::FeatureList::IsEnabled(kAudioInputConfirmReadsViaShmem)) {
   // CHECK that the shared memory is large enough. The memory allocated must
   // be at least as large as expected.
   CHECK_LE(memory_length_, shared_memory_region_.GetSize());
@@ -428,11 +455,9 @@ void AudioInputDevice::AudioThreadCallback::Process(uint32_t pending_data) {
   // The shared memory represents parameters, size of the data buffer and the
   // actual data buffer containing audio data. Map the memory into this
   // structure and parse out parameters and the data area.
-  const uint8_t* ptr =
-      static_cast<const uint8_t*>(shared_memory_mapping_.memory());
+  uint8_t* ptr = static_cast<uint8_t*>(shared_memory_mapping_.memory());
   ptr += current_segment_id_ * segment_length_;
-  const AudioInputBuffer* buffer =
-      reinterpret_cast<const AudioInputBuffer*>(ptr);
+  AudioInputBuffer* buffer = reinterpret_cast<AudioInputBuffer*>(ptr);
 
   // Usually this will be equal but in the case of low sample rate (e.g. 8kHz,
   // the buffer may be bigger (on mac at least)).
@@ -483,8 +508,15 @@ void AudioInputDevice::AudioThreadCallback::Process(uint32_t pending_data) {
   base::TimeDelta delay = now_time - capture_time;
   stats_reporter_.ReportCallback(delay, glitch_info);
 
-  capture_callback_->Capture(audio_bus, capture_time, buffer->params.volume,
-                             buffer->params.key_pressed);
+  capture_callback_->Capture(audio_bus, capture_time, glitch_info,
+                             buffer->params.volume);
+  if (confirm_reads_via_shmem_) {
+    // Use Release_Store to create a memory barrier that ensures that
+    // callback_capture_->Capture() doesn't get moved to after has_unread_data
+    // has been changed, which would risk that the other side overwrites the
+    // memory while being used in Capture().
+    base::subtle::Release_Store(&(buffer->params.has_unread_data), 0);
+  }
 
   if (++current_segment_id_ >= total_segments_)
     current_segment_id_ = 0u;
@@ -492,7 +524,17 @@ void AudioInputDevice::AudioThreadCallback::Process(uint32_t pending_data) {
   TRACE_EVENT_END2(
       "audio", "AudioInputDevice::AudioThreadCallback::Process",
       "capture_time (ms)", (capture_time - base::TimeTicks()).InMillisecondsF(),
-      "now_time (ms)", (now_time - base::TimeTicks()).InMillisecondsF());
+      "capture_delay (ms)", (now_time - capture_time).InMillisecondsF());
+}
+
+void AudioInputDevice::AudioThreadCallback::OnSocketError() {
+  capture_callback_->OnCaptureError(
+      AudioCapturerSource::ErrorCode::kSocketError,
+      "Socket closed unexpectedly");
+}
+
+bool AudioInputDevice::AudioThreadCallback::WillConfirmReadsViaShmem() const {
+  return confirm_reads_via_shmem_;
 }
 
 }  // namespace media

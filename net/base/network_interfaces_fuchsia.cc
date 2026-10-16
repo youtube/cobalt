@@ -7,15 +7,16 @@
 #include <fuchsia/net/interfaces/cpp/fidl.h>
 #include <zircon/types.h>
 
+#include <optional>
 #include <string>
 #include <utility>
 
 #include "base/logging.h"
+#include "base/notimplemented.h"
 #include "net/base/fuchsia/network_interface_cache.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/network_change_notifier_fuchsia.h"
 #include "net/base/network_interfaces.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 namespace internal {
@@ -24,9 +25,9 @@ namespace {
 IPAddress FuchsiaIpAddressToIPAddress(const fuchsia::net::IpAddress& address) {
   switch (address.Which()) {
     case fuchsia::net::IpAddress::kIpv4:
-      return IPAddress(address.ipv4().addr.data(), address.ipv4().addr.size());
+      return IPAddress(address.ipv4().addr);
     case fuchsia::net::IpAddress::kIpv6:
-      return IPAddress(address.ipv6().addr.data(), address.ipv6().addr.size());
+      return IPAddress(address.ipv6().addr);
     default:
       return IPAddress();
   }
@@ -35,11 +36,11 @@ IPAddress FuchsiaIpAddressToIPAddress(const fuchsia::net::IpAddress& address) {
 }  // namespace
 
 // static
-absl::optional<InterfaceProperties> InterfaceProperties::VerifyAndCreate(
+std::optional<InterfaceProperties> InterfaceProperties::VerifyAndCreate(
     fuchsia::net::interfaces::Properties properties) {
   if (!internal::VerifyCompleteInterfaceProperties(properties))
-    return absl::nullopt;
-  return absl::make_optional(InterfaceProperties(std::move(properties)));
+    return std::nullopt;
+  return std::make_optional(InterfaceProperties(std::move(properties)));
 }
 
 InterfaceProperties::InterfaceProperties(
@@ -94,7 +95,7 @@ void InterfaceProperties::AppendNetworkInterfaces(
     const int kAttributes = 0;
     interfaces->emplace_back(
         properties_.name(), properties_.name(), properties_.id(),
-        internal::ConvertConnectionType(properties_.device_class()),
+        internal::ConvertConnectionType(properties_.port_class()),
         std::move(address), fidl_address.addr().prefix_len, kAttributes);
   }
 }
@@ -117,15 +118,15 @@ bool InterfaceProperties::IsPubliclyRoutable() const {
 }
 
 NetworkChangeNotifier::ConnectionType ConvertConnectionType(
-    const fuchsia::net::interfaces::DeviceClass& device_class) {
+    const fuchsia::net::interfaces::PortClass& device_class) {
   switch (device_class.Which()) {
-    case fuchsia::net::interfaces::DeviceClass::kLoopback:
+    case fuchsia::net::interfaces::PortClass::kLoopback:
       return NetworkChangeNotifier::CONNECTION_NONE;
-    case fuchsia::net::interfaces::DeviceClass::kDevice:
+    case fuchsia::net::interfaces::PortClass::kDevice:
       switch (device_class.device()) {
-        case fuchsia::hardware::network::DeviceClass::WLAN:
+        case fuchsia::hardware::network::PortClass::WLAN_CLIENT:
           return NetworkChangeNotifier::CONNECTION_WIFI;
-        case fuchsia::hardware::network::DeviceClass::ETHERNET:
+        case fuchsia::hardware::network::PortClass::ETHERNET:
           return NetworkChangeNotifier::CONNECTION_ETHERNET;
         default:
           return NetworkChangeNotifier::CONNECTION_UNKNOWN;
@@ -149,7 +150,7 @@ bool VerifyCompleteInterfaceProperties(
   }
   if (!properties.has_online())
     return false;
-  if (!properties.has_device_class())
+  if (!properties.has_port_class())
     return false;
   if (!properties.has_has_default_ipv4_route())
     return false;

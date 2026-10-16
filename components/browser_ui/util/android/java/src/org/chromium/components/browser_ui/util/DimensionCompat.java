@@ -15,21 +15,21 @@ import android.view.WindowInsets;
 import androidx.annotation.Px;
 import androidx.annotation.RequiresApi;
 
-import org.chromium.base.ApiCompatibilityUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
-/**
- * Collection of methods computing various height dimensions that differ by OS build version.
- */
+/** Collection of methods computing various height dimensions that differ by OS build version. */
+@NullMarked
 public abstract class DimensionCompat {
     protected final Activity mActivity;
-    protected final Runnable mPositionUpdater;
+    protected final @Nullable Runnable mPositionUpdater;
 
     /**
      * @param activity {@link Activity} in which the UI dimensions are queried
      * @param positionUpdater {@link Runnable} to be invoked to reflect the app content frame
      *        size updates if it resizes dynamically in the course of app lifecycle.
      */
-    public static DimensionCompat create(Activity activity, Runnable positionUpdater) {
+    public static DimensionCompat create(Activity activity, @Nullable Runnable positionUpdater) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             return new DimensionCompatLegacy(activity, positionUpdater);
         }
@@ -40,13 +40,17 @@ public abstract class DimensionCompat {
     public abstract void updatePosition();
 
     /**
-     * Returns window height. In multi-window mode, returns the window height of the current app
-     * excluding the navigation bar. In non-MW mode, it includes the navigation bar height as well.
+     * Returns window height including all system bar areas. In multi-window mode, returns the
+     * window height of the current app excluding the navigation bar. In non-MW mode, it includes
+     * the navigation bar height as well.
      */
     public abstract @Px int getWindowHeight();
 
+    /** Returns window width */
+    public abstract @Px int getWindowWidth();
+
     /** Returns the status bar height */
-    public abstract @Px int getStatusbarHeight();
+    public abstract @Px int getStatusBarHeight();
 
     /** Returns the bottom navigation bar height */
     public abstract @Px int getNavbarHeight();
@@ -54,12 +58,13 @@ public abstract class DimensionCompat {
     /** Implementation that supports R+ */
     @RequiresApi(Build.VERSION_CODES.R)
     private static class DimensionCompatR extends DimensionCompat {
-        private DimensionCompatR(Activity activity, Runnable positionUpdater) {
+        private DimensionCompatR(Activity activity, @Nullable Runnable positionUpdater) {
             super(activity, positionUpdater);
         }
 
         @Override
         public void updatePosition() {
+            if (mPositionUpdater == null) return;
             mPositionUpdater.run();
         }
 
@@ -71,8 +76,15 @@ public abstract class DimensionCompat {
 
         @Override
         @Px
-        public int getStatusbarHeight() {
-            return mActivity.getWindowManager()
+        public int getWindowWidth() {
+            return mActivity.getWindowManager().getCurrentWindowMetrics().getBounds().width();
+        }
+
+        @Override
+        @Px
+        public int getStatusBarHeight() {
+            return mActivity
+                    .getWindowManager()
                     .getCurrentWindowMetrics()
                     .getWindowInsets()
                     .getInsets(WindowInsets.Type.statusBars())
@@ -82,7 +94,8 @@ public abstract class DimensionCompat {
         @Override
         @Px
         public int getNavbarHeight() {
-            return mActivity.getWindowManager()
+            return mActivity
+                    .getWindowManager()
                     .getCurrentWindowMetrics()
                     .getWindowInsets()
                     .getInsets(WindowInsets.Type.navigationBars())
@@ -90,14 +103,14 @@ public abstract class DimensionCompat {
         }
     }
 
-    DimensionCompat(Activity activity, Runnable positionUpdater) {
+    DimensionCompat(Activity activity, @Nullable Runnable positionUpdater) {
         mActivity = activity;
         mPositionUpdater = positionUpdater;
     }
 
     /** Implementation that supports version below R */
     private static class DimensionCompatLegacy extends DimensionCompat {
-        private DimensionCompatLegacy(Activity activity, Runnable positionUpdater) {
+        private DimensionCompatLegacy(Activity activity, @Nullable Runnable positionUpdater) {
             super(activity, positionUpdater);
         }
 
@@ -106,47 +119,46 @@ public abstract class DimensionCompat {
             // On pre-R devices, We wait till the layout is complete and get the content
             // |android.R.id.content| view height. See |getAppUsableScreenHeightFromContent|.
             View contentFrame = mActivity.findViewById(android.R.id.content);
-
             // Maybe invoked before layout inflation? Simply return here - position update will be
             // attempted later again by |onPostInflationStartUp|.
             if (contentFrame == null) return;
 
-            contentFrame.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
-                @Override
-                public void onLayoutChange(View v, int left, int top, int right, int bottom,
-                        int oldLeft, int oldTop, int oldRight, int oldBottom) {
-                    contentFrame.removeOnLayoutChangeListener(this);
-                    mPositionUpdater.run();
-                }
-            });
+            contentFrame.addOnLayoutChangeListener(
+                    new View.OnLayoutChangeListener() {
+                        @Override
+                        public void onLayoutChange(
+                                View v,
+                                int left,
+                                int top,
+                                int right,
+                                int bottom,
+                                int oldLeft,
+                                int oldTop,
+                                int oldRight,
+                                int oldBottom) {
+                            contentFrame.removeOnLayoutChangeListener(this);
+                            if (mPositionUpdater == null) return;
+                            mPositionUpdater.run();
+                        }
+                    });
         }
 
-        // TODO(jinsukkim): Explore the way to use androidx.window.WindowManager or
-        // androidx.window.java.WindowInfoRepoJavaAdapter once the androidx API get finalized and is
-        // available in Chromium to use #getCurrentWindowMetrics()/#currentWindowMetrics() to get
-        // the height of the display our Window currently in.
-        //
-        // The #getRealMetrics() method will give the physical size of the screen, which is
-        // generally fine when the app is not in multi-window mode and #getMetrics() will give the
-        // height excludes the decor views, so not suitable for our case. But in multi-window mode,
-        // we have no much choice, the closest way is to use #getMetrics() method, because we need
-        // to handle rotation.
         @Override
         @Px
         public int getWindowHeight() {
-            DisplayMetrics displayMetrics = new DisplayMetrics();
-            if (ApiCompatibilityUtils.isInMultiWindowMode(mActivity)) {
-                mActivity.getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
-            } else {
-                mActivity.getWindowManager().getDefaultDisplay().getRealMetrics(displayMetrics);
-            }
-            return displayMetrics.heightPixels;
+            return getDisplayMetrics().heightPixels;
+        }
+
+        @Override
+        @Px
+        public int getWindowWidth() {
+            return getDisplayMetrics().widthPixels;
         }
 
         @Override
         @SuppressWarnings({"DiscouragedApi", "InternalInsetResource"})
         @Px
-        public int getStatusbarHeight() {
+        public int getStatusBarHeight() {
             int statusBarHeight = 0;
             final int statusBarHeightResourceId =
                     mActivity.getResources().getIdentifier("status_bar_height", "dimen", "android");
@@ -170,8 +182,29 @@ public abstract class DimensionCompat {
             // On some devices, only one returns the right height, the other returning a height
             // bigger that the actual value. Heuristically we choose the smaller of the two.
             return getWindowHeight()
-                    - Math.max(getAppUsableScreenHeightFromContent(),
+                    - Math.max(
+                            getAppUsableScreenHeightFromContent(),
                             getAppUsableScreenHeightFromDisplay());
+        }
+
+        // TODO(jinsukkim): Explore the way to use androidx.window.WindowManager or
+        // androidx.window.java.WindowInfoRepoJavaAdapter once the androidx API get finalized and is
+        // available in Chromium to use #getCurrentWindowMetrics()/#currentWindowMetrics() to get
+        // the height of the display our Window currently in.
+        //
+        // The #getRealMetrics() method will give the physical size of the screen, which is
+        // generally fine when the app is not in multi-window mode and #getMetrics() will give the
+        // height excludes the decor views, so not suitable for our case. But in multi-window mode,
+        // we have no much choice, the closest way is to use #getMetrics() method, because we need
+        // to handle rotation.
+        private DisplayMetrics getDisplayMetrics() {
+            DisplayMetrics displayMetrics = new DisplayMetrics();
+            if (mActivity.isInMultiWindowMode()) {
+                mActivity.getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+            } else {
+                mActivity.getWindowManager().getDefaultDisplay().getRealMetrics(displayMetrics);
+            }
+            return displayMetrics;
         }
 
         private int getAppUsableScreenHeightFromContent() {
@@ -180,7 +213,7 @@ public abstract class DimensionCompat {
             // matter) doesn't have the top action bar. So getting the height of |content| is
             // enough.
             View contentFrame = mActivity.findViewById(android.R.id.content);
-            return contentFrame.getHeight() + getStatusbarHeight();
+            return contentFrame.getHeight() + getStatusBarHeight();
         }
 
         private int getAppUsableScreenHeightFromDisplay() {

@@ -4,14 +4,13 @@
 
 #import "ios/web/webui/mojo_facade.h"
 
+#import <Foundation/Foundation.h>
 #import <stdint.h>
 
 #import <limits>
 #import <tuple>
 #import <utility>
 #import <vector>
-
-#import <Foundation/Foundation.h>
 
 #import "base/base64.h"
 #import "base/functional/bind.h"
@@ -22,14 +21,10 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/values.h"
 #import "ios/web/public/js_messaging/web_frame.h"
-#import "ios/web/public/js_messaging/web_frame_util.h"
+#import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/thread/web_thread.h"
 #import "ios/web/public/web_state.h"
 #import "mojo/public/cpp/bindings/generic_pending_receiver.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace web {
 
@@ -98,7 +93,7 @@ void MojoFacade::HandleMojoBindInterface(base::Value::Dict args) {
   const std::string* interface_name = args.FindString("interfaceName");
   CHECK(interface_name);
 
-  absl::optional<int> pipe_id = args.FindInt("requestHandle");
+  std::optional<int> pipe_id = args.FindInt("requestHandle");
   CHECK(pipe_id.has_value());
 
   mojo::ScopedMessagePipeHandle pipe = TakePipeFromId(*pipe_id);
@@ -108,7 +103,7 @@ void MojoFacade::HandleMojoBindInterface(base::Value::Dict args) {
 }
 
 void MojoFacade::HandleMojoHandleClose(base::Value::Dict args) {
-  absl::optional<int> pipe_id = args.FindInt("handle");
+  std::optional<int> pipe_id = args.FindInt("handle");
   CHECK(pipe_id.has_value());
 
   // Will close once out of scope.
@@ -125,7 +120,7 @@ base::Value MojoFacade::HandleMojoCreateMessagePipe(base::Value::Dict args) {
 }
 
 base::Value MojoFacade::HandleMojoHandleWriteMessage(base::Value::Dict args) {
-  absl::optional<int> pipe_id = args.FindInt("handle");
+  std::optional<int> pipe_id = args.FindInt("handle");
   CHECK(pipe_id.has_value());
   mojo::MessagePipeHandle pipe = GetPipeFromId(*pipe_id);
   CHECK(pipe.is_valid());
@@ -143,7 +138,7 @@ base::Value MojoFacade::HandleMojoHandleWriteMessage(base::Value::Dict args) {
     int one_handle = (*handles_list)[i].GetInt();
     handles[i] = TakePipeFromId(one_handle);
   }
-  absl::optional<std::vector<uint8_t>> bytes = base::Base64Decode(*buffer);
+  std::optional<std::vector<uint8_t>> bytes = base::Base64Decode(*buffer);
   if (!bytes) {
     return base::Value(static_cast<int>(MOJO_RESULT_INVALID_ARGUMENT));
   }
@@ -193,37 +188,69 @@ base::Value MojoFacade::HandleMojoHandleReadMessage(base::Value::Dict args) {
   return base::Value(std::move(result));
 }
 
-base::Value MojoFacade::HandleMojoHandleWatch(base::Value::Dict args) {
-  absl::optional<int> pipe_id = args.FindInt("handle");
-  CHECK(pipe_id.has_value());
-  absl::optional<int> signals = args.FindInt("signals");
-  CHECK(signals.has_value());
-  absl::optional<int> callback_id = args.FindInt("callbackId");
-  CHECK(callback_id.has_value());
+void MojoFacade::ArmOnNotifyWatcher(int watch_id) {
+  auto watcher_it = watchers_.find(watch_id);
+  if (watcher_it == watchers_.end()) {
+    return;
+  }
+  watcher_it->second->ArmOrNotify();
+}
 
-  mojo::SimpleWatcher::ReadyCallback callback = base::BindRepeating(
-      ^(int inner_callback_id, MojoResult result) {
-        NSString* script = [NSString
-            stringWithFormat:
-                @"Mojo.internal.watchCallbacksHolder.callCallback(%d, %d)",
-                inner_callback_id, result];
-        web::WebFrame* main_frame = web::GetMainFrame(web_state_);
-        if (main_frame) {
-          main_frame->ExecuteJavaScript(base::SysNSStringToUTF16(script));
+void MojoFacade::OnWatcherCallback(int callback_id,
+                                   int watch_id,
+                                   MojoResult result) {
+  web::WebFrame* main_frame =
+      web_state_->GetPageWorldWebFramesManager()->GetMainWebFrame();
+  if (!main_frame) {
+    return;
+  }
+
+  NSString* script =
+      [NSString stringWithFormat:
+                    @"Mojo.internal.watchCallbacksHolder.callCallback(%d, %d)",
+                    callback_id, result];
+  auto callback = base::BindOnce(
+      [](base::WeakPtr<MojoFacade> facade, int watch_id, const base::Value*,
+         NSError*) {
+        if (facade) {
+          facade->ArmOnNotifyWatcher(watch_id);
         }
       },
-      *callback_id);
+      weak_ptr_factory_.GetWeakPtr(), watch_id);
+  // The watcher will be rearmed in `callback` after `script` is executed.
+  // `script` calls JS watcher callback which is expected to synchronously read
+  // data from the handle (via readMessage). That way, the behavior matches C++
+  // mojo SimpleWatcher with ArmingPolicy::AUTOMATIC.
+  main_frame->ExecuteJavaScript(base::SysNSStringToUTF16(script),
+                                std::move(callback));
+}
+
+base::Value MojoFacade::HandleMojoHandleWatch(base::Value::Dict args) {
+  std::optional<int> pipe_id = args.FindInt("handle");
+  CHECK(pipe_id.has_value());
+  std::optional<int> signals = args.FindInt("signals");
+  CHECK(signals.has_value());
+  std::optional<int> callback_id = args.FindInt("callbackId");
+  CHECK(callback_id.has_value());
+  const int watch_id = ++last_watch_id_;
+
+  // Note: base::Unretained() is safe because `this` owns all the watchers.
+  auto callback =
+      base::BindRepeating(&MojoFacade::OnWatcherCallback,
+                          base::Unretained(this), *callback_id, watch_id);
+
   auto watcher = std::make_unique<mojo::SimpleWatcher>(
-      FROM_HERE, mojo::SimpleWatcher::ArmingPolicy::AUTOMATIC);
+      FROM_HERE, mojo::SimpleWatcher::ArmingPolicy::MANUAL);
 
   mojo::MessagePipeHandle pipe = GetPipeFromId(*pipe_id);
   watcher->Watch(pipe, *signals, callback);
-  watchers_.insert(std::make_pair(++last_watch_id_, std::move(watcher)));
-  return base::Value(last_watch_id_);
+  watcher->ArmOrNotify();
+  watchers_.insert(std::make_pair(watch_id, std::move(watcher)));
+  return base::Value(watch_id);
 }
 
 void MojoFacade::HandleMojoWatcherCancel(base::Value::Dict args) {
-  absl::optional<int> watch_id = args.FindInt("watchId");
+  std::optional<int> watch_id = args.FindInt("watchId");
   CHECK(watch_id.has_value());
   watchers_.erase(*watch_id);
 }

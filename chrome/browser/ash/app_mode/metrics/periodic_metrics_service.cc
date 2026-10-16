@@ -53,17 +53,17 @@ base::TimeDelta GetDeviceIdlePeriod() {
 }
 
 template <typename ResultType>
-absl::optional<ResultType> GetSavedEnumFromKioskMetrics(
+std::optional<ResultType> GetSavedEnumFromKioskMetrics(
     const PrefService* prefs,
     const std::string& key_name) {
   const base::Value::Dict& metrics_dict = prefs->GetDict(prefs::kKioskMetrics);
   const auto* result_value = metrics_dict.Find(key_name);
   if (!result_value) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   auto result = result_value->GetIfInt();
   if (!result.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return static_cast<ResultType>(result.value());
 }
@@ -99,7 +99,6 @@ class DiskSpaceCalculator {
     base::FilePath path;
     if (!base::PathService::Get(base::DIR_HOME, &path)) {
       NOTREACHED();
-      return;
     }
     base::ThreadPool::PostTaskAndReplyWithResult(
         FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
@@ -183,7 +182,6 @@ void PeriodicMetricsService::RecordChromeProcessCount() const {
   base::FilePath chrome_path;
   if (!base::PathService::Get(base::FILE_EXE, &chrome_path)) {
     NOTREACHED();
-    return;
   }
   base::FilePath::StringType exe_name = chrome_path.BaseName().value();
   int process_count = base::GetProcessCount(exe_name, nullptr);
@@ -191,10 +189,9 @@ void PeriodicMetricsService::RecordChromeProcessCount() const {
 }
 
 void PeriodicMetricsService::RecordPreviousInternetAccessInfo() const {
-  absl::optional<KioskInternetAccessInfo>
-      previous_session_internet_access_info =
-          GetSavedEnumFromKioskMetrics<KioskInternetAccessInfo>(
-              prefs_, kKioskInternetAccessInfo);
+  std::optional<KioskInternetAccessInfo> previous_session_internet_access_info =
+      GetSavedEnumFromKioskMetrics<KioskInternetAccessInfo>(
+          prefs_, kKioskInternetAccessInfo);
 
   if (previous_session_internet_access_info.has_value()) {
     base::UmaHistogramEnumeration(
@@ -204,7 +201,7 @@ void PeriodicMetricsService::RecordPreviousInternetAccessInfo() const {
 }
 
 void PeriodicMetricsService::RecordPreviousUserActivity() const {
-  absl::optional<KioskUserActivity> previous_session_user_activity =
+  std::optional<KioskUserActivity> previous_session_user_activity =
       GetSavedEnumFromKioskMetrics<KioskUserActivity>(prefs_,
                                                       kKioskUserActivity);
 

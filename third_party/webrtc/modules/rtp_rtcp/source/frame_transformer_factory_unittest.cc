@@ -10,21 +10,17 @@
 
 #include "api/frame_transformer_factory.h"
 
-#include <cstdio>
+#include <algorithm>
+#include <cstdint>
 #include <memory>
-#include <utility>
 #include <vector>
 
-#include "absl/memory/memory.h"
-#include "api/call/transport.h"
+#include "api/array_view.h"
 #include "api/test/mock_transformable_audio_frame.h"
 #include "api/test/mock_transformable_video_frame.h"
-#include "call/video_receive_stream.h"
-#include "modules/rtp_rtcp/source/rtp_descriptor_authentication.h"
-#include "rtc_base/event.h"
+#include "api/video/video_frame_metadata.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/mock_frame_transformer.h"
 
 namespace webrtc {
 namespace {
@@ -39,10 +35,8 @@ TEST(FrameTransformerFactory, CloneAudioFrame) {
   NiceMock<MockTransformableAudioFrame> original_frame;
   uint8_t data[10];
   std::fill_n(data, 10, 5);
-  rtc::ArrayView<uint8_t> data_view(data);
+  ArrayView<uint8_t> data_view(data);
   ON_CALL(original_frame, GetData()).WillByDefault(Return(data_view));
-  RTPHeader rtp_header;
-  ON_CALL(original_frame, GetHeader()).WillByDefault(ReturnRef(rtp_header));
   auto cloned_frame = CloneAudioFrame(&original_frame);
 
   EXPECT_THAT(cloned_frame->GetData(), ElementsAreArray(data));
@@ -52,9 +46,9 @@ TEST(FrameTransformerFactory, CloneVideoFrame) {
   NiceMock<MockTransformableVideoFrame> original_frame;
   uint8_t data[10];
   std::fill_n(data, 10, 5);
-  rtc::ArrayView<uint8_t> data_view(data);
+  ArrayView<uint8_t> data_view(data);
   EXPECT_CALL(original_frame, GetData()).WillRepeatedly(Return(data_view));
-  webrtc::VideoFrameMetadata metadata;
+  VideoFrameMetadata metadata;
   std::vector<uint32_t> csrcs{123, 321};
   // Copy csrcs rather than moving so we can compare in an EXPECT_EQ later.
   metadata.SetCsrcs(csrcs);

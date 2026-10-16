@@ -16,7 +16,6 @@
 
 #include "base/base64url.h"
 #include "base/functional/bind.h"
-#include "base/strings/string_piece_forward.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
@@ -55,7 +54,7 @@ class CobaltMetricsLogUploaderTest : public ::testing::Test {
                         int error_code,
                         bool was_https,
                         bool force_discard,
-                        base::StringPiece app_locale) {
+                        std::string_view app_locale) {
     upload_complete_called_ = true;
     response_code_ = response_code;
     error_code_ = error_code;
@@ -142,8 +141,8 @@ TEST_F(CobaltMetricsLogUploaderTest, UploadLogNoListenerBound) {
   ::metrics::ReportingInfo reporting_info;
   // No listener, so OnMetrics shouldn't be called.
   EXPECT_CALL(mock_listener_, OnMetrics(_, _)).Times(0);
-  uploader_->UploadLog("test_data", "test_hash", "test_signature",
-                       reporting_info);
+  uploader_->UploadLog("test_data", metrics::LogMetadata(), "test_hash",
+                       "test_signature", reporting_info);
   task_environment_.RunUntilIdle();
 
   EXPECT_TRUE(upload_complete_called_);
@@ -164,8 +163,8 @@ TEST_F(CobaltMetricsLogUploaderTest, UploadLogListenerConnectionClosed) {
   ::metrics::ReportingInfo reporting_info;
   // StrictMock ensures OnMetrics is not called after disconnection.
 
-  uploader_->UploadLog("test_data", "test_hash", "test_signature",
-                       reporting_info);
+  uploader_->UploadLog("test_data", metrics::LogMetadata(), "test_hash",
+                       "test_signature", reporting_info);
   task_environment_.RunUntilIdle();
 
   EXPECT_TRUE(upload_complete_called_);
@@ -193,8 +192,8 @@ TEST_F(CobaltMetricsLogUploaderTest, UploadLogNonUmaServiceType) {
   ::metrics::ReportingInfo reporting_info;
   // StrictMock ensures OnMetrics is not called for non-UMA types.
 
-  uploader_->UploadLog("test_data_for_ukm", "ukm_hash", "ukm_signature",
-                       reporting_info);
+  uploader_->UploadLog("test_data_for_ukm", metrics::LogMetadata(), "ukm_hash",
+                       "ukm_signature", reporting_info);
   task_environment_.RunUntilIdle();
 
   EXPECT_TRUE(upload_complete_called_);
@@ -230,8 +229,9 @@ TEST_F(CobaltMetricsLogUploaderTest, UploadLogUmaServiceTypeSuccessfulUpload) {
   EXPECT_CALL(mock_listener_, OnMetrics(_, _))
       .WillOnce(
           DoAll(SaveArg<0>(&captured_type), SaveArg<1>(&captured_payload)));
-  uploader_->UploadLog(compressed_log_data, "test_hash_uma",
-                       "test_signature_uma", reporting_info_proto);
+  uploader_->UploadLog(compressed_log_data, metrics::LogMetadata(),
+                       "test_hash_uma", "test_signature_uma",
+                       reporting_info_proto);
   task_environment_.RunUntilIdle();  // Ensure Mojo message is processed.
 
   EXPECT_TRUE(upload_complete_called_);
@@ -292,7 +292,7 @@ TEST_F(CobaltMetricsLogUploaderTest, SetOnUploadCompleteCallbackIsUsed) {
   auto upload_complete_cb =
       [&](int response_code_param, int /*error_code_param*/,
           bool /*was_https_param*/, bool /*force_discard_param*/,
-          base::StringPiece /*app_locale_param*/) {
+          std::string_view /*app_locale_param*/) {
         custom_callback_fired = true;
         cb_response_code = response_code_param;
       };
@@ -304,7 +304,8 @@ TEST_F(CobaltMetricsLogUploaderTest, SetOnUploadCompleteCallbackIsUsed) {
       base::BindLambdaForTesting(upload_complete_cb));
 
   ::metrics::ReportingInfo reporting_info;
-  uploader_->UploadLog("dummy_data", "hash", "sig", reporting_info);
+  uploader_->UploadLog("dummy_data", metrics::LogMetadata(), "hash", "sig",
+                       reporting_info);
   task_environment_.RunUntilIdle();
 
   EXPECT_TRUE(custom_callback_fired);

@@ -1,97 +1,102 @@
-// Copyright 2022 The Chromium Authors
+// Copyright 2023 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "chrome/browser/signin/bound_session_credentials/bound_session_refresh_cookie_fetcher.h"
 
-#include "base/functional/callback.h"
-#include "base/task/sequenced_task_runner.h"
-#include "base/time/time.h"
-#include "components/signin/public/base/signin_client.h"
-#include "mojo/public/cpp/bindings/callback_helpers.h"
-#include "net/cookies/canonical_cookie.h"
-#include "services/network/public/mojom/cookie_manager.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
 
-BoundSessionRefreshCookieFetcher::BoundSessionRefreshCookieFetcher(
-    SigninClient* client,
-    const GURL& url,
-    const std::string& cookie_name)
-    : client_(client), url_(url), cookie_name_(cookie_name) {}
+// static
+// TODO(b/273920907): Update the `traffic_annotation` setting once a mechanism
+// allowing the user to disable the feature is implemented.
+const net::NetworkTrafficAnnotationTag
+    BoundSessionRefreshCookieFetcher::kTrafficAnnotation =
+        net::DefineNetworkTrafficAnnotation("gaia_auth_rotate_bound_cookies",
+                                            R"(
+        semantics {
+          sender: "Chrome - Google authentication API"
+          description:
+            "This request is used to rotate bound Google authentication "
+            "cookies."
+          trigger:
+            "This request is triggered in a bound session when the bound Google"
+            " authentication cookies are soon to expire."
+          user_data {
+            type: ACCESS_TOKEN
+          }
+          data: "Request includes cookies and a signed token proving that a"
+                " request comes from the same device as was registered before."
+          destination: GOOGLE_OWNED_SERVICE
+          internal {
+            contacts {
+                email: "chrome-signin-team@google.com"
+            }
+          }
+          last_reviewed: "2024-05-30"
+        }
+        policy {
+          cookies_allowed: YES
+          cookies_store: "user"
+          setting:
+             "This feature cannot be disabled in settings, but this request "
+             "won't be made unless the user signs in to google.com."
+          chrome_policy: {
+            BoundSessionCredentialsEnabled {
+              BoundSessionCredentialsEnabled: false
+            }
+          }
+        })");
 
-BoundSessionRefreshCookieFetcher::~BoundSessionRefreshCookieFetcher() = default;
-
-void BoundSessionRefreshCookieFetcher::Start(
-    RefreshCookieCompleteCallback callback) {
-  const base::TimeDelta kMaxAge = base::Minutes(10);
-  DCHECK(!callback_);
-  callback_ = std::move(callback);
-
-  constexpr base::TimeDelta kFakeNetworkRequestEquivalentDelay(
-      base::Milliseconds(100));
-  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-      FROM_HERE,
-      base::BindOnce(
-          &BoundSessionRefreshCookieFetcher::OnRefreshCookieCompleted,
-          weak_ptr_factory_.GetWeakPtr(),
-          CreateFakeCookie(base::Time::Now() + kMaxAge)),
-      kFakeNetworkRequestEquivalentDelay);
-}
-
-void BoundSessionRefreshCookieFetcher::OnRefreshCookieCompleted(
-    std::unique_ptr<net::CanonicalCookie> cookie) {
-  InsertCookieInCookieJar(std::move(cookie));
-}
-
-void BoundSessionRefreshCookieFetcher::InsertCookieInCookieJar(
-    std::unique_ptr<net::CanonicalCookie> cookie) {
-  DCHECK(client_);
-  base::OnceCallback<void(net::CookieAccessResult)> callback =
-      base::BindOnce(&BoundSessionRefreshCookieFetcher::OnCookieSet,
-                     weak_ptr_factory_.GetWeakPtr(), cookie->ExpiryDate());
-  net::CookieOptions options;
-  options.set_include_httponly();
-  // Permit it to set a SameSite cookie if it wants to.
-  options.set_same_site_cookie_context(
-      net::CookieOptions::SameSiteCookieContext::MakeInclusive());
-  client_->GetCookieManager()->SetCanonicalCookie(
-      *cookie, url_, options,
-      mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-          std::move(callback),
-          net::CookieAccessResult(net::CookieInclusionStatus(
-              net::CookieInclusionStatus::EXCLUDE_UNKNOWN_ERROR))));
-}
-
-void BoundSessionRefreshCookieFetcher::OnCookieSet(
-    base::Time expiry_date,
-    net::CookieAccessResult access_result) {
-  bool success = access_result.status.IsInclude();
-  if (!success) {
-    std::move(callback_).Run(absl::nullopt);
-  } else {
-    std::move(callback_).Run(expiry_date);
+// static
+bool BoundSessionRefreshCookieFetcher::IsPersistentError(Result result) {
+  switch (result) {
+    case Result::kSuccess:
+    case Result::kConnectionError:
+    case Result::kServerTransientError:
+    case Result::kServerUnexepectedResponse:
+      return false;
+    case Result::kServerPersistentError:
+    case Result::kChallengeRequiredUnexpectedFormat:
+    case Result::kChallengeRequiredLimitExceeded:
+    case Result::kChallengeRequiredSessionIdMismatch:
+    case Result::kSignChallengeFailed:
+      return true;
   }
-  // |This| may be destroyed
 }
 
-std::unique_ptr<net::CanonicalCookie>
-BoundSessionRefreshCookieFetcher::CreateFakeCookie(
-    base::Time cookie_expiration) {
-  constexpr char kFakeCookieValue[] = "FakeCookieValue";
+// static
+bool BoundSessionRefreshCookieFetcher::IsTransientError(Result result) {
+  return result == Result::kConnectionError ||
+         result == Result::kServerTransientError ||
+         result == Result::kServerUnexepectedResponse;
+}
 
-  base::Time now = base::Time::Now();
-  // Create fake SIDTS cookie until the server endpoint is available.
-  std::unique_ptr<net::CanonicalCookie> new_cookie =
-      net::CanonicalCookie::CreateSanitizedCookie(
-          /*url=*/url_, /*name=*/cookie_name_,
-          /*value=*/kFakeCookieValue,
-          /*domain=*/url_.host(), /*path=*/"/",
-          /*creation_time=*/now, /*expiration_time=*/cookie_expiration,
-          /*last_access_time=*/now, /*secure=*/true,
-          /*http_only=*/true, net::CookieSameSite::UNSPECIFIED,
-          net::CookiePriority::COOKIE_PRIORITY_HIGH,
-          /*same_party=*/true, /*partition_key=*/absl::nullopt);
-
-  DCHECK(new_cookie);
-  return new_cookie;
+std::ostream& operator<<(
+    std::ostream& os,
+    const BoundSessionRefreshCookieFetcher::Result& result) {
+  switch (result) {
+    case BoundSessionRefreshCookieFetcher::Result::kSuccess:
+      return os << "Cookie rotation request finished with success.";
+    case BoundSessionRefreshCookieFetcher::Result::kConnectionError:
+      return os << "Cookie rotation request finished with Connection error.";
+    case BoundSessionRefreshCookieFetcher::Result::kServerTransientError:
+      return os << "Cookie rotation request finished with Server transient "
+                   "error.";
+    case BoundSessionRefreshCookieFetcher::Result::kServerPersistentError:
+      return os << "Cookie rotation request finished with Server Persistent "
+                   "error.";
+    case BoundSessionRefreshCookieFetcher::Result::kServerUnexepectedResponse:
+      return os << "Cookie rotation request didn't set the expected cookies.";
+    case BoundSessionRefreshCookieFetcher::Result::
+        kChallengeRequiredUnexpectedFormat:
+      return os << "Challenge required unexpected format.";
+    case BoundSessionRefreshCookieFetcher::Result::
+        kChallengeRequiredLimitExceeded:
+      return os << "Challenge required limit exceeded.";
+    case BoundSessionRefreshCookieFetcher::Result::kSignChallengeFailed:
+      return os << "Sign challenge failed on cookie rotation request.";
+    case BoundSessionRefreshCookieFetcher::Result::
+        kChallengeRequiredSessionIdMismatch:
+      return os << "Challenge required session ID mismatch.";
+  }
 }

@@ -10,29 +10,27 @@
 #import <UIKit/UIKit.h>
 #import <stddef.h>
 #import <stdint.h>
+
 #import <cmath>
 
+#import "base/apple/foundation_util.h"
 #import "base/check.h"
 #import "base/check_op.h"
 #import "base/ios/ios_util.h"
-#import "base/mac/foundation_util.h"
 #import "base/notreached.h"
 #import "base/numerics/math_constants.h"
-#import "ios/chrome/browser/flags/system_flags.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/dynamic_type_util.h"
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
+#import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 #import "ui/base/resource/resource_bundle.h"
 #import "ui/gfx/ios/uikit_util.h"
 #import "ui/gfx/scoped_cg_context_save_gstate_mac.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 void SetA11yLabelAndUiAutomationName(
     NSObject<UIAccessibilityIdentification>* element,
@@ -53,6 +51,40 @@ void MaybeSetUILabelScaledFont(BOOL maybe, UILabel* label, UIFont* font) {
   } else {
     label.font = font;
   }
+}
+
+UIFont* PreferredFontForTextStyle(UIFontTextStyle style,
+                                  std::optional<UIFontWeight> weight,
+                                  std::optional<CGFloat> max_size) {
+  // Fallback to using the simpler method if no weight or max_size was given.
+  if (!weight.has_value() && !max_size.has_value()) {
+    return [UIFont preferredFontForTextStyle:style];
+  }
+
+  // Get a "base font", with the given style and weight.
+  UITraitCollection* default_traits =
+      [UITraitCollection traitCollectionWithPreferredContentSizeCategory:
+                             UIContentSizeCategoryLarge];
+  UIFont* base_font;
+  if (weight.has_value()) {
+    UIFontDescriptor* descriptor =
+        [UIFontDescriptor preferredFontDescriptorWithTextStyle:style
+                                 compatibleWithTraitCollection:default_traits];
+    base_font = [UIFont systemFontOfSize:descriptor.pointSize
+                                  weight:weight.value()];
+  } else {
+    base_font = [UIFont preferredFontForTextStyle:style
+                    compatibleWithTraitCollection:default_traits];
+  }
+
+  // Return a scaled version of the base font, that can be adjusted
+  // automatically by setting adjustsFontForContentSizeCategory.
+  UIFontMetrics* metrics = [UIFontMetrics metricsForTextStyle:style];
+  if (max_size.has_value()) {
+    return [metrics scaledFontForFont:base_font
+                     maximumPointSize:max_size.value()];
+  }
+  return [metrics scaledFontForFont:base_font];
 }
 
 void SetUITextFieldScaledFont(UITextField* textField, UIFont* font) {
@@ -76,21 +108,30 @@ UIFont* CreateDynamicFont(UIFontTextStyle style, UIFontWeight weight) {
   return [UIFont systemFontOfSize:fontDescriptor.pointSize weight:weight];
 }
 
+UIFont* CreateDynamicFont(UIFontTextStyle style,
+                          UIFontWeight weight,
+                          id<UITraitEnvironment> environment) {
+  UIFontDescriptor* fontDescriptor = [UIFontDescriptor
+      preferredFontDescriptorWithTextStyle:style
+             compatibleWithTraitCollection:environment.traitCollection];
+  return [UIFont systemFontOfSize:fontDescriptor.pointSize weight:weight];
+}
+
 UIImage* CaptureViewWithOption(UIView* view,
                                CGFloat scale,
                                CaptureViewOption option) {
-  UIGraphicsBeginImageContextWithOptions(view.bounds.size, NO /* not opaque */,
-                                         scale);
-  if (option != kClientSideRendering) {
+  UIGraphicsImageRendererFormat* format =
+      [UIGraphicsImageRendererFormat preferredFormat];
+  format.scale = scale;
+  format.opaque = NO;
+  UIGraphicsImageRenderer* renderer =
+      [[UIGraphicsImageRenderer alloc] initWithSize:view.bounds.size
+                                             format:format];
+
+  return [renderer imageWithActions:^(UIGraphicsImageRendererContext* context) {
     [view drawViewHierarchyInRect:view.bounds
-               afterScreenUpdates:option == kAfterScreenUpdate];
-  } else {
-    CGContext* context = UIGraphicsGetCurrentContext();
-    [view.layer renderInContext:context];
-  }
-  UIImage* image = UIGraphicsGetImageFromCurrentImageContext();
-  UIGraphicsEndImageContext();
-  return image;
+               afterScreenUpdates:option == kClientSideRendering];
+  }];
 }
 
 UIImage* CaptureView(UIView* view, CGFloat scale) {
@@ -99,13 +140,22 @@ UIImage* CaptureView(UIView* view, CGFloat scale) {
 
 UIImage* GreyImage(UIImage* image) {
   DCHECK(image);
+  UIGraphicsImageRendererFormat* format =
+      [UIGraphicsImageRendererFormat preferredFormat];
   // Grey images are always non-retina to improve memory performance.
-  UIGraphicsBeginImageContextWithOptions(image.size, YES, 1.0);
+  format.scale = 1;
+  format.opaque = YES;
   CGRect greyImageRect = CGRectMake(0, 0, image.size.width, image.size.height);
-  [image drawInRect:greyImageRect blendMode:kCGBlendModeLuminosity alpha:1.0];
-  UIImage* greyImage = UIGraphicsGetImageFromCurrentImageContext();
-  UIGraphicsEndImageContext();
-  return greyImage;
+  UIGraphicsImageRenderer* renderer =
+      [[UIGraphicsImageRenderer alloc] initWithSize:greyImageRect.size
+                                             format:format];
+  return [renderer imageWithActions:^(UIGraphicsImageRendererContext* context) {
+    UIBezierPath* background = [UIBezierPath bezierPathWithRect:greyImageRect];
+    [UIColor.blackColor set];
+    [background fill];
+
+    [image drawInRect:greyImageRect blendMode:kCGBlendModeLuminosity alpha:1.0];
+  }];
 }
 
 UIImage* NativeReversibleImage(int imageID, BOOL reversible) {
@@ -119,48 +169,6 @@ UIImage* NativeReversibleImage(int imageID, BOOL reversible) {
 
 UIImage* NativeImage(int imageID) {
   return NativeReversibleImage(imageID, NO);
-}
-
-UIImage* TintImage(UIImage* image, UIColor* color) {
-  DCHECK(image);
-  DCHECK(image.CGImage);
-  DCHECK_GE(image.size.width * image.size.height, 1);
-  DCHECK(color);
-
-  CGRect rect = {CGPointZero, image.size};
-
-  UIGraphicsBeginImageContextWithOptions(rect.size /* bitmap size */,
-                                         NO /* opaque? */,
-                                         0.0 /* main screen scale */);
-  CGContextRef imageContext = UIGraphicsGetCurrentContext();
-  CGContextSetShouldAntialias(imageContext, true);
-  CGContextSetInterpolationQuality(imageContext, kCGInterpolationHigh);
-
-  // CoreGraphics and UIKit uses different axis. UIKit's y points downards,
-  // while CoreGraphic's points upwards. To keep the image correctly oriented,
-  // apply a mirror around the X axis by inverting the Y coordinates.
-  CGContextScaleCTM(imageContext, 1, -1);
-  CGContextTranslateCTM(imageContext, 0, -rect.size.height);
-
-  CGContextDrawImage(imageContext, rect, image.CGImage);
-  CGContextSetBlendMode(imageContext, kCGBlendModeSourceIn);
-  CGContextSetFillColorWithColor(imageContext, color.CGColor);
-  CGContextFillRect(imageContext, rect);
-
-  UIImage* outputImage = UIGraphicsGetImageFromCurrentImageContext();
-  UIGraphicsEndImageContext();
-
-  // Port the cap insets to the new image.
-  if (!UIEdgeInsetsEqualToEdgeInsets(image.capInsets, UIEdgeInsetsZero)) {
-    outputImage = [outputImage resizableImageWithCapInsets:image.capInsets];
-  }
-
-  // Port the flipping status to the new image.
-  if (image.flipsForRightToLeftLayoutDirection) {
-    outputImage = [outputImage imageFlippedForRightToLeftLayoutDirection];
-  }
-
-  return outputImage;
 }
 
 UIInterfaceOrientation GetInterfaceOrientation(UIWindow* window) {
@@ -196,25 +204,28 @@ UIImage* CircularImageFromImage(UIImage* image, CGFloat width) {
   CGRect frame =
       CGRectMakeAlignedAndCenteredAt(width / 2.0, width / 2.0, width);
 
-  UIGraphicsBeginImageContextWithOptions(frame.size, NO, 0.0);
-  CGContextRef context = UIGraphicsGetCurrentContext();
+  UIGraphicsImageRendererFormat* format =
+      [UIGraphicsImageRendererFormat preferredFormat];
+  format.opaque = NO;
 
-  CGContextBeginPath(context);
-  CGContextAddEllipseInRect(context, frame);
-  CGContextClosePath(context);
-  CGContextClip(context);
+  UIGraphicsImageRenderer* renderer =
+      [[UIGraphicsImageRenderer alloc] initWithSize:frame.size format:format];
+  return
+      [renderer imageWithActions:^(UIGraphicsImageRendererContext* UIContext) {
+        CGContextRef context = UIContext.CGContext;
+        CGContextBeginPath(context);
+        CGContextAddEllipseInRect(context, frame);
+        CGContextClosePath(context);
+        CGContextClip(context);
 
-  CGFloat scaleX = frame.size.width / image.size.width;
-  CGFloat scaleY = frame.size.height / image.size.height;
-  CGFloat scale = std::max(scaleX, scaleY);
-  CGContextScaleCTM(context, scale, scale);
+        CGFloat scaleX = frame.size.width / image.size.width;
+        CGFloat scaleY = frame.size.height / image.size.height;
+        CGFloat scale = std::max(scaleX, scaleY);
+        CGContextScaleCTM(context, scale, scale);
 
-  [image drawInRect:CGRectMake(0, 0, image.size.width, image.size.height)];
-
-  image = UIGraphicsGetImageFromCurrentImageContext();
-  UIGraphicsEndImageContext();
-
-  return image;
+        [image
+            drawInRect:CGRectMake(0, 0, image.size.width, image.size.height)];
+      }];
 }
 
 bool IsPortrait(UIWindow* window) {
@@ -241,15 +252,6 @@ bool IsCompactHeight(id<UITraitEnvironment> environment) {
 
 bool IsCompactHeight(UITraitCollection* traitCollection) {
   return traitCollection.verticalSizeClass == UIUserInterfaceSizeClassCompact;
-}
-
-bool IsRegularXRegularSizeClass(id<UITraitEnvironment> environment) {
-  return IsRegularXRegularSizeClass(environment.traitCollection);
-}
-
-bool IsRegularXRegularSizeClass(UITraitCollection* traitCollection) {
-  return traitCollection.verticalSizeClass == UIUserInterfaceSizeClassRegular &&
-         traitCollection.horizontalSizeClass == UIUserInterfaceSizeClassRegular;
 }
 
 bool ShouldShowCompactToolbar(id<UITraitEnvironment> environment) {
@@ -286,6 +288,31 @@ UIView* GetFirstResponderSubview(UIView* view) {
 UIResponder* GetFirstResponder() {
   DCHECK(NSThread.isMainThread);
   return GetFirstResponderSubview(GetAnyKeyWindow());
+}
+
+UIResponder* GetFirstResponderInWindowScene(UIWindowScene* windowScene) {
+  DCHECK(NSThread.isMainThread);
+  if (!windowScene) {
+    return nil;
+  }
+
+  // First checking the key window for this window scene.
+  UIResponder* responder = GetFirstResponderSubview(windowScene.keyWindow);
+  if (responder) {
+    return responder;
+  }
+
+  for (UIWindow* window in windowScene.windows) {
+    if (window.isKeyWindow) {
+      continue;
+    }
+    responder = GetFirstResponderSubview(window);
+    if (responder) {
+      return responder;
+    }
+  }
+
+  return nil;
 }
 
 // Trigger a haptic vibration for the user selecting an action. This is a no-op
@@ -361,19 +388,24 @@ NSAttributedString* TextForTabCount(int count, CGFloat font_size) {
                                          }];
 }
 
-void RegisterEditMenuItem(UIMenuItem* item) {
-  UIMenuController* menu = [UIMenuController sharedMenuController];
-  NSArray<UIMenuItem*>* items = [menu menuItems];
-
-  for (UIMenuItem* existingItem in items) {
-    if ([existingItem action] == [item action]) {
-      return;
-    }
+NSAttributedString* TextForTabGroupCount(int count, CGFloat font_size) {
+  NSString* string;
+  if (count <= 0) {
+    string = @"";
+  } else if (count < 100) {
+    string = [NSString stringWithFormat:@"+%d", count];
+  } else {
+    string = @"99+";
   }
 
-  items = items ? [items arrayByAddingObject:item] : @[ item ];
+  UIFont* font = [UIFont systemFontOfSize:font_size weight:UIFontWeightMedium];
+  UIFontDescriptor* descriptor = [font.fontDescriptor
+      fontDescriptorWithDesign:UIFontDescriptorSystemDesignRounded];
+  font = [UIFont fontWithDescriptor:descriptor size:font_size];
 
-  [menu setMenuItems:items];
+  return
+      [[NSAttributedString alloc] initWithString:string
+                                      attributes:@{NSFontAttributeName : font}];
 }
 
 UIView* ViewHierarchyRootForView(UIView* view) {
@@ -386,4 +418,75 @@ UIView* ViewHierarchyRootForView(UIView* view) {
   }
 
   return ViewHierarchyRootForView(view.superview);
+}
+
+bool IsScrollViewScrolledToTop(UIScrollView* scroll_view) {
+  return scroll_view.contentOffset.y <= -scroll_view.adjustedContentInset.top;
+}
+
+bool IsScrollViewScrolledToBottom(UIScrollView* scroll_view) {
+  CGFloat scrollable_height = scroll_view.contentSize.height +
+                              scroll_view.adjustedContentInset.bottom -
+                              scroll_view.bounds.size.height;
+  return scroll_view.contentOffset.y >= scrollable_height;
+}
+
+CGFloat DeviceCornerRadius() {
+  UIUserInterfaceIdiom idiom = [[UIDevice currentDevice] userInterfaceIdiom];
+
+  UIWindow* window = nil;
+  for (UIScene* scene in UIApplication.sharedApplication.connectedScenes) {
+    UIWindowScene* windowScene =
+        base::apple::ObjCCastStrict<UIWindowScene>(scene);
+    UIWindow* firstWindow = [windowScene.windows firstObject];
+    if (firstWindow) {
+      window = firstWindow;
+      break;
+    }
+  }
+
+  const BOOL isRoundedDevice =
+      (idiom == UIUserInterfaceIdiomPhone && window.safeAreaInsets.bottom);
+  return isRoundedDevice ? 40.0 : 0.0;
+}
+
+bool IsBottomOmniboxAvailable() {
+  return ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE;
+}
+
+NSArray<UITrait>* TraitCollectionSetForTraits(NSArray<UITrait>* traits) {
+  if (base::FeatureList::IsEnabled(kEnableTraitCollectionRegistration) &&
+      traits) {
+    return traits;
+  }
+
+  static dispatch_once_t once;
+  static NSArray<UITrait>* everyUIMutableTrait = nil;
+  dispatch_once(&once, ^{
+    // This is a list of all the UITraits provided by iOS. This was generated
+    // from Apple's documentation on UIMutableTraits and is subject to change
+    // with subsequent releases of iOS. See
+    // https://developer.apple.com/documentation/uikit/uimutabletraits?language=objc
+    NSMutableArray<UITrait>* mutableTraits = [@[
+      UITraitAccessibilityContrast.class, UITraitActiveAppearance.class,
+      UITraitDisplayGamut.class, UITraitDisplayScale.class,
+      UITraitForceTouchCapability.class, UITraitHorizontalSizeClass.class,
+      UITraitImageDynamicRange.class, UITraitLayoutDirection.class,
+      UITraitLegibilityWeight.class, UITraitPreferredContentSizeCategory.class,
+      UITraitSceneCaptureState.class, UITraitToolbarItemPresentationSize.class,
+      UITraitTypesettingLanguage.class, UITraitUserInterfaceIdiom.class,
+      UITraitUserInterfaceLevel.class, UITraitUserInterfaceStyle.class,
+      UITraitVerticalSizeClass.class
+    ] mutableCopy];
+
+#if defined(__IPHONE_18_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_18_0
+    if (@available(iOS 18, *)) {
+      [mutableTraits addObject:UITraitListEnvironment.class];
+    }
+#endif
+
+    everyUIMutableTrait = [NSArray arrayWithArray:mutableTraits];
+  });
+
+  return everyUIMutableTrait;
 }

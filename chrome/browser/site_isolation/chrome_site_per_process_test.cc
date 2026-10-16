@@ -18,12 +18,12 @@
 ChromeSitePerProcessTest::ChromeSitePerProcessTest() {
   feature_list_.InitWithFeatures(
       /*enabled_features=*/{},
-      // TODO(crbug.com/1394910): Use HTTPS URLs in tests to avoid having to
+      // TODO(crbug.com/40248833): Use HTTPS URLs in tests to avoid having to
       // disable this feature.
       /*disabled_features=*/{features::kHttpsUpgrades});
 }
 
-ChromeSitePerProcessTest::~ChromeSitePerProcessTest() {}
+ChromeSitePerProcessTest::~ChromeSitePerProcessTest() = default;
 
 void ChromeSitePerProcessTest::SetUpCommandLine(
     base::CommandLine* command_line) {
@@ -38,7 +38,7 @@ void ChromeSitePerProcessTest::SetUpOnMainThread() {
   // Serve from the root so that flash_object.html can load the swf file.
   // Needed for the PluginWithRemoteTopFrame test.
   base::FilePath test_data_dir;
-  CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &test_data_dir));
+  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_data_dir));
   embedded_test_server()->ServeFilesFromDirectory(test_data_dir);
 
   // Add content/test/data for cross_site_iframe_factory.html

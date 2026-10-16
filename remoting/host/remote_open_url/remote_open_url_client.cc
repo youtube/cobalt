@@ -37,7 +37,6 @@ std::unique_ptr<RemoteOpenUrlClient::Delegate> CreateDelegate() {
   return std::make_unique<RemoteOpenUrlClientDelegateWin>();
 #else
   NOTREACHED();
-  return nullptr;
 #endif
 }
 
@@ -123,7 +122,7 @@ void RemoteOpenUrlClient::Open(const base::CommandLine::StringType& arg,
 }
 
 void RemoteOpenUrlClient::OnOpenUrlResponse(mojom::OpenUrlResult result) {
-  timeout_timer_.AbandonAndStop();
+  timeout_timer_.Stop();
   switch (result) {
     case mojom::OpenUrlResult::SUCCESS:
       HOST_LOG << "The URL is successfully opened on the client.";

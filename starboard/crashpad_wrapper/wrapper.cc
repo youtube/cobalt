@@ -14,11 +14,12 @@
 
 #include "starboard/crashpad_wrapper/wrapper.h"
 
+#include <string.h>
 #include <sys/stat.h>
 
-#include <string.h>
-
 #include <map>
+#include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/files/file_path.h"
@@ -31,10 +32,14 @@
 #include "starboard/common/log.h"
 #include "starboard/common/system_property.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/crashpad_wrapper/native_stability_reader.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/loader_app_metrics.h"
+#include "starboard/extension/native_stability.h"
 #include "starboard/system.h"
 #include "third_party/crashpad/crashpad/snapshot/sanitized/sanitization_information.h"
+#include "third_party/crashpad/crashpad/util/posix/signals.h"
+#include "util/misc/capture_context.h"
 
 using starboard::kSystemPropertyMaxLength;
 
@@ -46,13 +51,20 @@ const char kCrashpadUserAgentStringKey[] = "user_agent_string";
 const char kCrashpadCertScopeKey[] = "cert_scope";
 
 namespace {
+
 // TODO: Get evergreen information from installation.
 const std::string kCrashpadVersion = "1.0.0.0";
-#if defined(STARBOARD_BUILD_TYPE_GOLD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 const std::string kUploadUrl("https://clients2.google.com/cr/report");
 #else
 const std::string kUploadUrl("https://clients2.google.com/cr/staging_report");
 #endif
+
+static constexpr ::crashpad::SanitizationInformation kSanitizationInfo = {
+    /*allowed_annotations_address=*/0,
+    /*target_module_address=*/0,
+    /*allowed_memory_ranges_address=*/0,
+    /*sanitize_stacks=*/1};
 
 ::crashpad::CrashpadClient* GetCrashpadClient() {
   static auto* crashpad_client = new ::crashpad::CrashpadClient();
@@ -66,22 +78,15 @@ base::FilePath GetPathToCrashpadHandlerBinary() {
     LOG(ERROR) << "Couldn't retrieve path to crashpad_handler binary.";
     return base::FilePath("");
   }
+#if defined(OS_ANDROID)
+  return base::FilePath(exe_path.data()).Append("libcrashpad_handler.so");
+#else   // defined(OS_ANDROID)
   base::FilePath exe_dir_path = base::FilePath(exe_path.data()).DirName();
   std::string handler_path(exe_dir_path.value());
   handler_path.push_back(kSbFileSepChar);
-#if defined(OS_ANDROID)
-  // Path to the extracted native library.
-  handler_path.append("arm/libcrashpad_handler.so");
-#else  // defined(OS_ANDROID)
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  // TODO: b/406511608 - we probably want to be able to expect the binary to be
-  // in the executable directory itself, without the native_target subdir.
   handler_path.append("native_target/crashpad_handler");
-#else   // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  handler_path.append("crashpad_handler");
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#endif  // defined(OS_ANDROID)
   return base::FilePath(handler_path.c_str());
+#endif  // defined(OS_ANDROID)
 }
 
 base::FilePath GetDatabasePath() {
@@ -119,7 +124,7 @@ bool InitializeCrashpadDatabase(const base::FilePath database_directory_path) {
 }
 
 std::string GetProductName() {
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
   return "Cobalt_Evergreen";
 #else
   return "Cobalt";
@@ -140,14 +145,17 @@ std::map<std::string, std::string> GetPlatformInfo() {
     platform_info.insert({"system_integrator_name", value.data()});
   }
 
-#if defined(STARBOARD_BUILD_TYPE_DEBUG)
-  platform_info.insert({"build_configuration", "debug"});
-#elif defined(STARBOARD_BUILD_TYPE_DEVEL)
-  platform_info.insert({"build_configuration", "devel"});
-#elif defined(STARBOARD_BUILD_TYPE_QA)
-  platform_info.insert({"build_configuration", "qa"});
-#elif defined(STARBOARD_BUILD_TYPE_GOLD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   platform_info.insert({"build_configuration", "gold"});
+#elif defined(OFFICIAL_BUILD)
+  platform_info.insert({"build_configuration", "qa"});
+#elif defined(NDEBUG)
+  platform_info.insert({"build_configuration", "devel"});
+#else
+  // Note: |debug| builds will incorrectly be caught by the previous condition
+  // until the todo comment in cobalt/build/gn.py, attached to b/423038377, is
+  // addressed.
+  platform_info.insert({"build_configuration", "debug"});
 #endif
 
   result = SbSystemGetProperty(kSbSystemPropertyUserAgentAuxField, value.data(),
@@ -209,10 +217,15 @@ void RecordStatus(CrashpadInstallationStatus status) {
 
 }  // namespace
 
+// Android has its own InstallCrashpadHandler(), in wrapper_android.cc, which
+// copies the CA certificates before calling InstallCrashpadHandlerImpl().
+#if !defined(OS_ANDROID)
 void InstallCrashpadHandler(const std::string& ca_certificates_path) {
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  LOG(WARNING) << "ca_certificates_path is unused:" << ca_certificates_path;
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  InstallCrashpadHandlerImpl(ca_certificates_path);
+}
+#endif  // !defined(OS_ANDROID)
+
+void InstallCrashpadHandlerImpl(const std::string& ca_certificates_path) {
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
 
   const base::FilePath handler_path = GetPathToCrashpadHandlerBinary();
@@ -232,14 +245,17 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
       {kCrashpadVersionKey, kCrashpadVersion},
       {kCrashpadProductKey, product_name}};
 
-  // Without this argument the handler's report upload thread, when the handler
-  // is started in response to a crash, will perform its first periodic scan for
-  // pending reports before that crash is handled. This scan is not needed -
-  // a scan is triggered via CrashReportUploadThread::ReportPending after the
-  // crash is handled - and we can simplify the concurrency model and avoid
-  // thread contention by skipping it, especially now that upload scans trigger
-  // report pruning upon completion.
-  const std::vector<std::string> default_arguments = {"--no-periodic-tasks"};
+  const std::vector<std::string> default_arguments = {
+      // Without this argument the handler's report upload thread, when the
+      // handler is started in response to a crash, will perform its first
+      // periodic scan for pending reports before that crash is handled. This
+      // scan is not needed - a scan is triggered via
+      // CrashReportUploadThread::ReportPending after the crash is handled - and
+      // we can simplify the concurrency model and avoid thread contention by
+      // skipping it, especially now that upload scans trigger report pruning
+      // upon completion.
+      "--no-periodic-tasks",
+      base::StringPrintf("--sanitization-information=%p", &kSanitizationInfo)};
 
   const std::map<std::string, std::string> platform_info = GetPlatformInfo();
   default_annotations.insert(platform_info.begin(), platform_info.end());
@@ -261,22 +277,13 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
 
   if (!client->StartHandlerAtCrash(handler_path, database_directory_path,
                                    default_metrics_dir, kUploadUrl,
-// TODO: b/446932156 - pass Cobalt's CA store path to the handler.
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-                                   ca_certificates_path,
-#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+                                   base::FilePath(ca_certificates_path.c_str()),
                                    default_annotations, default_arguments)) {
     LOG(ERROR) << "Failed to install the signal handler";
     RecordStatus(
         CrashpadInstallationStatus::kFailedSignalHandlerInstallationFailed);
     return;
   }
-
-// TODO: b/446933116 - pass sanitization information to the handler.
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  ::crashpad::SanitizationInformation sanitization_info = {0, 0, 0, 1};
-  client->SendSanitizationInformationToHandler(sanitization_info);
-#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
   // |InsertCrashpadAnnotation| is injected into the extension implementation
   // to avoid a build dependency from the extension implementation on this
@@ -285,9 +292,23 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   auto crash_handler_extension =
       static_cast<const CobaltExtensionCrashHandlerApi*>(
           SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
-  if (crash_handler_extension && crash_handler_extension->version >= 3) {
+  if (crash_handler_extension && crash_handler_extension->version >= 3 &&
+      crash_handler_extension->RegisterSetStringCallback) {
     crash_handler_extension->RegisterSetStringCallback(
         &InsertCrashpadAnnotation);
+  }
+  if (crash_handler_extension && crash_handler_extension->version >= 4 &&
+      crash_handler_extension->RegisterDumpWithoutCrashingCallback) {
+    crash_handler_extension->RegisterDumpWithoutCrashingCallback(
+        &DumpWithoutCrashingWrapper);
+  }
+
+  auto native_stability_extension =
+      static_cast<const StarboardExtensionNativeStabilityApi*>(
+          SbSystemGetExtension(kStarboardExtensionNativeStabilityName));
+  if (native_stability_extension && native_stability_extension->version >= 1 &&
+      native_stability_extension->RegisterReadReportsCallback) {
+    native_stability_extension->RegisterReadReportsCallback(&ReadReports);
   }
 
   RecordStatus(CrashpadInstallationStatus::kSucceeded);
@@ -301,6 +322,16 @@ bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info) {
 bool InsertCrashpadAnnotation(const char* key, const char* value) {
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
   return client->InsertAnnotationForHandler(key, value);
+}
+
+void DumpWithoutCrashingWrapper() {
+  ::crashpad::NativeCPUContext context;
+  ::crashpad::CaptureContext(&context);
+  ::crashpad::CrashpadClient::DumpWithoutCrash(&context);
+}
+
+int ReadReports(SbNativeStabilityReport* reports, int max_num_reports) {
+  return ReadReportsFromDatabase(GetDatabasePath(), reports, max_num_reports);
 }
 
 }  // namespace crashpad

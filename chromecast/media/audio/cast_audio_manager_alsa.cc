@@ -2,13 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromecast/media/audio/cast_audio_manager_alsa.h"
 
+#include <string_view>
 #include <utility>
 
 #include "base/logging.h"
 #include "base/memory/free_deleter.h"
-#include "base/strings/string_piece.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chromecast/media/api/cma_backend_factory.h"
 #include "chromecast/media/audio/audio_buildflags.h"
@@ -34,7 +39,7 @@ const int kCommunicationsInputBufferSize = 160;  // 10 ms.
 
 // Since "default" and "dmix" devices are virtual devices mapped to real
 // devices, we remove them from the list to avoiding duplicate counting.
-constexpr base::StringPiece kInvalidAudioInputDevices[] = {
+constexpr std::string_view kInvalidAudioInputDevices[] = {
     "default",
     "dmix",
     "null",
@@ -87,7 +92,6 @@ CastAudioManagerAlsa::CastAudioManagerAlsa(
     base::RepeatingCallback<CmaBackendFactory*()> backend_factory_getter,
     scoped_refptr<base::SingleThreadTaskRunner> browser_task_runner,
     scoped_refptr<base::SingleThreadTaskRunner> media_task_runner,
-    external_service_support::ExternalConnector* connector,
     bool use_mixer)
     : CastAudioManager(std::move(audio_thread),
                        audio_log_factory,
@@ -95,7 +99,6 @@ CastAudioManagerAlsa::CastAudioManagerAlsa(
                        std::move(backend_factory_getter),
                        browser_task_runner,
                        media_task_runner,
-                       connector,
                        use_mixer),
       wrapper_(new ::media::AlsaWrapper()) {}
 

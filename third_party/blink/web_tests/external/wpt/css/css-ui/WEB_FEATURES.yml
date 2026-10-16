@@ -1,0 +1,13 @@
+features:
+- name: accent-color
+  files:
+  - accent-color-*
+- name: appearance
+  files:
+  - appearance-*
+- name: outline
+  files:
+  - outline-*
+- name: user-select
+  files:
+  - user-select-*

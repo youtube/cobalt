@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/metrics/metrics_hashes.h"
+#include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/simple_test_clock.h"
@@ -19,9 +20,11 @@
 #include "components/segmentation_platform/internal/constants.h"
 #include "components/segmentation_platform/internal/database/mock_signal_database.h"
 #include "components/segmentation_platform/internal/database/mock_signal_storage_config.h"
+#include "components/segmentation_platform/internal/database/mock_ukm_database.h"
 #include "components/segmentation_platform/internal/database/signal_storage_config.h"
+#include "components/segmentation_platform/internal/database/storage_service.h"
 #include "components/segmentation_platform/internal/database/test_segment_info_database.h"
-#include "components/segmentation_platform/internal/execution/default_model_manager.h"
+#include "components/segmentation_platform/internal/mock_ukm_data_manager.h"
 #include "components/segmentation_platform/public/config.h"
 #include "components/segmentation_platform/public/proto/aggregation.pb.h"
 #include "components/segmentation_platform/public/proto/segmentation_platform.pb.h"
@@ -32,6 +35,7 @@
 
 using ::base::test::RunOnceCallback;
 using ::testing::_;
+using ::testing::Return;
 using ::testing::SetArgReferee;
 
 namespace segmentation_platform {
@@ -40,11 +44,12 @@ using SegmentId = proto::SegmentId;
 using SignalType = proto::SignalType;
 using Aggregation = proto::Aggregation;
 using SignalIdentifier = std::pair<uint64_t, SignalType>;
-using CleanupItem = std::tuple<uint64_t, SignalType, base::Time>;
 
 namespace {
 constexpr uint64_t kLatestCompactionDaysAgo = 2;
 constexpr uint64_t kEarliestCompactionDaysAgo = 60;
+// Event hash for non UKM signals.
+static const uint64_t kNonUkmEventHash = 0;
 
 std::string kTestSegmentationKey = "some_key";
 
@@ -62,45 +67,6 @@ struct SignalData {
 
 }  // namespace
 
-// Noop version. For database calls, just passes the calls to the DB.
-// TODO(shaktisahu): Move this class to its own file.
-class TestDefaultModelManager : public DefaultModelManager {
- public:
-  TestDefaultModelManager()
-      : DefaultModelManager(nullptr, base::flat_set<SegmentId>()) {}
-  ~TestDefaultModelManager() override = default;
-
-  void GetAllSegmentInfoFromDefaultModel(
-      const base::flat_set<SegmentId>& segment_ids,
-      MultipleSegmentInfoCallback callback) override {
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback),
-                                  DefaultModelManager::SegmentInfoList()));
-  }
-
-  void GetAllSegmentInfoFromBothModels(
-      const base::flat_set<SegmentId>& segment_ids,
-      SegmentInfoDatabase* segment_database,
-      MultipleSegmentInfoCallback callback) override {
-    segment_database->GetSegmentInfoForSegments(
-        segment_ids,
-        base::BindOnce(
-            [](DefaultModelManager::MultipleSegmentInfoCallback callback,
-               std::unique_ptr<SegmentInfoDatabase::SegmentInfoList> db_list) {
-              DefaultModelManager::SegmentInfoList list;
-              for (auto& pair : *db_list) {
-                list.push_back(std::make_unique<
-                               DefaultModelManager::SegmentInfoWrapper>());
-                list.back()->segment_source =
-                    DefaultModelManager::SegmentSource::DATABASE;
-                list.back()->segment_info.Swap(&pair.second);
-              }
-              std::move(callback).Run(std::move(list));
-            },
-            std::move(callback)));
-  }
-};
-
 std::set<DatabaseMaintenanceImpl::SignalIdentifier> GetSignalIds(
     std::vector<SignalData> signal_datas) {
   std::set<DatabaseMaintenanceImpl::SignalIdentifier> signal_ids;
@@ -113,7 +79,7 @@ std::set<DatabaseMaintenanceImpl::SignalIdentifier> GetSignalIds(
 std::vector<CleanupItem> GetCleanupItems(std::vector<SignalData> signal_datas) {
   std::vector<CleanupItem> cleanup_items;
   for (auto& sd : signal_datas) {
-    cleanup_items.emplace_back(sd.name_hash, sd.signal_type,
+    cleanup_items.emplace_back(sd.name_hash, kNonUkmEventHash, sd.signal_type,
                                sd.earliest_needed_timestamp);
   }
   return cleanup_items;
@@ -126,18 +92,35 @@ class DatabaseMaintenanceImplTest : public testing::Test {
 
   void SetUp() override {
     SegmentationPlatformService::RegisterProfilePrefs(prefs_.registry());
-    segment_info_database_ = std::make_unique<test::TestSegmentInfoDatabase>();
-    signal_database_ = std::make_unique<MockSignalDatabase>();
-    signal_storage_config_ = std::make_unique<MockSignalStorageConfig>();
+    auto segment_info_database =
+        std::make_unique<test::TestSegmentInfoDatabase>();
+    segment_info_database_ = segment_info_database.get();
+    auto signal_database = std::make_unique<MockSignalDatabase>();
+    signal_database_ = signal_database.get();
+    auto signal_storage_config = std::make_unique<MockSignalStorageConfig>();
+    signal_storage_config_ = signal_storage_config.get();
+    mock_ukm_data_manager_ = std::make_unique<MockUkmDataManager>();
+    mock_ukm_database_ = std::unique_ptr<MockUkmDatabase>();
+    storage_service_ = std::make_unique<StorageService>(
+        std::move(segment_info_database), std::move(signal_database),
+        std::move(signal_storage_config), nullptr, nullptr,
+        mock_ukm_data_manager_.get());
     base::flat_set<SegmentId> segment_ids = {
         SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_NEW_TAB,
         SegmentId::OPTIMIZATION_TARGET_SEGMENTATION_SHARE};
-    default_model_manager_ = std::make_unique<TestDefaultModelManager>();
     database_maintenance_ = std::make_unique<DatabaseMaintenanceImpl>(
-        segment_ids, &clock_, segment_info_database_.get(),
-        signal_database_.get(), signal_storage_config_.get(),
-        default_model_manager_.get(), &prefs_);
+        segment_ids, &clock_, storage_service_.get(), &prefs_);
     clock_.SetNow(base::Time::Now());
+  }
+
+  void TearDown() override {
+    database_maintenance_.reset();
+    segment_info_database_ = nullptr;
+    signal_database_ = nullptr;
+    signal_storage_config_ = nullptr;
+    storage_service_.reset();
+    mock_ukm_data_manager_.reset();
+    mock_ukm_database_.reset();
   }
 
   // Adds the provided features to the SegmentInfoDatabase.
@@ -163,8 +146,7 @@ class DatabaseMaintenanceImplTest : public testing::Test {
           break;
         }
         default: {
-          CHECK(false) << "Incorrect SignalType";
-          break;
+          NOTREACHED() << "Incorrect SignalType";
         }
       }
     }
@@ -206,7 +188,7 @@ class DatabaseMaintenanceImplTest : public testing::Test {
     cleanup_items.erase(
         std::remove_if(cleanup_items.begin(), cleanup_items.end(),
                        [](CleanupItem item) {
-                         return std::get<0>(item) ==
+                         return item.name_hash ==
                                 base::HashMetricName("Failed");
                        }),
         cleanup_items.end());
@@ -232,10 +214,12 @@ class DatabaseMaintenanceImplTest : public testing::Test {
 
   std::unique_ptr<Config> config_;
   base::SimpleTestClock clock_;
-  std::unique_ptr<test::TestSegmentInfoDatabase> segment_info_database_;
-  std::unique_ptr<MockSignalDatabase> signal_database_;
-  std::unique_ptr<MockSignalStorageConfig> signal_storage_config_;
-  std::unique_ptr<TestDefaultModelManager> default_model_manager_;
+  std::unique_ptr<MockUkmDatabase> mock_ukm_database_;
+  std::unique_ptr<MockUkmDataManager> mock_ukm_data_manager_;
+  std::unique_ptr<StorageService> storage_service_;
+  raw_ptr<test::TestSegmentInfoDatabase> segment_info_database_;
+  raw_ptr<MockSignalDatabase> signal_database_;
+  raw_ptr<MockSignalStorageConfig> signal_storage_config_;
 
   std::unique_ptr<DatabaseMaintenanceImpl> database_maintenance_;
   TestingPrefServiceSimple prefs_;

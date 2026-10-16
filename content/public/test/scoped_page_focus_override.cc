@@ -5,7 +5,9 @@
 #include "content/public/test/scoped_page_focus_override.h"
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/containers/span.h"
 #include "base/functional/callback.h"
@@ -14,7 +16,6 @@
 #include "base/run_loop.h"
 #include "base/values.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 
@@ -33,13 +34,13 @@ ScopedPageFocusOverride::~ScopedPageFocusOverride() {
 void ScopedPageFocusOverride::DispatchProtocolMessage(
     DevToolsAgentHost* agent_host,
     base::span<const uint8_t> message) {
-  base::StringPiece message_str(reinterpret_cast<const char*>(message.data()),
-                                message.size());
-  absl::optional<base::Value> parsed_message =
+  std::string_view message_str(reinterpret_cast<const char*>(message.data()),
+                               message.size());
+  std::optional<base::Value> parsed_message =
       base::JSONReader::Read(message_str);
   ASSERT_TRUE(parsed_message.has_value());
 
-  absl::optional<int> id = parsed_message->GetDict().FindInt("id");
+  std::optional<int> id = parsed_message->GetDict().FindInt("id");
   if (!id || !*id || *id != last_sent_id_)
     return;
 
@@ -58,8 +59,7 @@ void ScopedPageFocusOverride::SetFocusEmulationEnabled(bool enabled) {
 
   std::string json_command;
   base::JSONWriter::Write(command, &json_command);
-  agent_host_->DispatchProtocolMessage(
-      this, base::as_bytes(base::make_span(json_command)));
+  agent_host_->DispatchProtocolMessage(this, base::as_byte_span(json_command));
 
   base::RunLoop run_loop;
   EXPECT_FALSE(run_loop_quit_closure_);

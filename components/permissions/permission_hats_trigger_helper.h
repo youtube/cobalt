@@ -6,9 +6,14 @@
 #define COMPONENTS_PERMISSIONS_PERMISSION_HATS_TRIGGER_HELPER_H_
 
 #include <map>
+#include <optional>
 #include <utility>
 
+#include "base/time/time.h"
+#include "components/content_settings/core/common/content_settings.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/messages/android/message_enums.h"
+#include "components/permissions/features.h"
 #include "components/permissions/permission_util.h"
 #include "constants.h"
 
@@ -44,32 +49,89 @@ class PermissionHatsTriggerHelper {
     BUCKET_GT20    // >20
   };
 
-  struct PromptParametersForHaTS {
-    PromptParametersForHaTS(
+  struct PreviewParametersForHats {
+    PreviewParametersForHats();
+    PreviewParametersForHats(bool was_visible,
+                             bool dropdown_was_interacted,
+                             bool was_prompt_combined,
+                             base::TimeDelta time_to_decision,
+                             base::TimeDelta time_to_visible);
+
+    PreviewParametersForHats(const PreviewParametersForHats& other);
+    PreviewParametersForHats& operator=(const PreviewParametersForHats& other);
+
+    // Merges parameters contained in `other` with the parameters in the current
+    // instance. The aggregation logic is as follows:
+    // - `was_visible` becomes true if `other.was_visible` is true.
+    // - `dropdown_was_interacted` becomes true if
+    // `other.dropdown_was_interacted` is true.
+    // - `time_to_decision` becomes `max(time_to_decision,
+    // other.time_to_decision)`.
+    // - `time_to_visible` becomes `max(time_to_visible,
+    // other.time_to_visible)`.
+    void MergeParameters(const PreviewParametersForHats& other);
+
+    std::string ToString() const;
+
+    bool was_visible = false;
+    bool dropdown_was_interacted = false;
+    bool was_prompt_combined = false;
+    base::TimeDelta time_to_decision;
+    base::TimeDelta time_to_visible;
+  };
+
+  struct PromptParametersForHats {
+    PromptParametersForHats(
         permissions::RequestType request_type,
-        absl::optional<permissions::PermissionAction> action,
+        std::optional<permissions::PermissionAction> action,
         permissions::PermissionPromptDisposition prompt_disposition,
         permissions::PermissionPromptDispositionReason
             prompt_disposition_reason,
         permissions::PermissionRequestGestureType gesture_type,
         const std::string& channel,
         const std::string& survey_display_time,
-        absl::optional<base::TimeDelta> prompt_display_duration,
+        std::optional<base::TimeDelta> prompt_display_duration,
         OneTimePermissionPromptsDecidedBucket one_time_prompts_decided_bucket,
-        absl::optional<GURL> gurl);
-    PromptParametersForHaTS(const PromptParametersForHaTS& other);
-    ~PromptParametersForHaTS();
+        std::optional<GURL> gurl,
+        std::optional<
+            permissions::feature_params::PermissionElementPromptPosition>
+            pepc_prompt_position,
+        ContentSetting initial_permission_status,
+        std::optional<PreviewParametersForHats> preview_parameters =
+            std::nullopt);
+    PromptParametersForHats(const PromptParametersForHats& other);
+    ~PromptParametersForHats();
 
     permissions::RequestType request_type;
-    absl::optional<permissions::PermissionAction> action;
+    std::optional<permissions::PermissionAction> action;
     permissions::PermissionPromptDisposition prompt_disposition;
     permissions::PermissionPromptDispositionReason prompt_disposition_reason;
     permissions::PermissionRequestGestureType gesture_type;
     std::string channel;
     std::string survey_display_time;
-    absl::optional<base::TimeDelta> prompt_display_duration;
+    std::optional<base::TimeDelta> prompt_display_duration;
     OneTimePermissionPromptsDecidedBucket one_time_prompts_decided_bucket;
     std::string url;
+    std::optional<permissions::feature_params::PermissionElementPromptPosition>
+        pepc_prompt_position;
+    ContentSetting initial_permission_status;
+    std::optional<PreviewParametersForHats> preview_parameters;
+  };
+
+  struct SurveyParametersForHats {
+    explicit SurveyParametersForHats(
+        double trigger_probability,
+        std::optional<std::string> supplied_trigger_id = std::nullopt,
+        std::optional<std::u16string> custom_survey_invitation = std::nullopt,
+        std::optional<messages::MessageIdentifier> message_identifier =
+            std::nullopt);
+    SurveyParametersForHats(const SurveyParametersForHats& other);
+    ~SurveyParametersForHats();
+
+    double trigger_probability;
+    std::optional<std::string> supplied_trigger_id;
+    std::optional<std::u16string> custom_survey_invitation;
+    std::optional<messages::MessageIdentifier> message_identifier;
   };
 
   struct SurveyProductSpecificData {
@@ -77,7 +139,7 @@ class PermissionHatsTriggerHelper {
     ~SurveyProductSpecificData();
 
     static SurveyProductSpecificData PopulateFrom(
-        PromptParametersForHaTS prompt_parameters);
+        PromptParametersForHats prompt_parameters);
 
     const SurveyBitsData survey_bits_data;
     const SurveyStringData survey_string_data;
@@ -95,7 +157,7 @@ class PermissionHatsTriggerHelper {
   static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 
   static bool ArePromptTriggerCriteriaSatisfied(
-      PromptParametersForHaTS prompt_parameters);
+      PromptParametersForHats prompt_parameters);
 
   static OneTimePermissionPromptsDecidedBucket GetOneTimePromptsDecidedBucket(
       PrefService* pref_service);
@@ -110,6 +172,14 @@ class PermissionHatsTriggerHelper {
   // have decided.
   static std::string GetOneTimePromptsDecidedBucketString(
       OneTimePermissionPromptsDecidedBucket bucket);
+
+  // Returns the survey parameters corresponding to a specific
+  // request type. Returns empty value if there is a configuration error or the
+  // passed request type is not configured.
+  static std::optional<SurveyParametersForHats>
+  GetSurveyParametersForRequestType(RequestType request_type);
+
+  static void SetIsTest();
 };
 
 }  // namespace permissions

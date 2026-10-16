@@ -23,18 +23,18 @@ typedef NS_ENUM(NSInteger, CWVPermissionDecision) {
   CWVPermissionDecisionPrompt,
   CWVPermissionDecisionGrant,
   CWVPermissionDecisionDeny,
-} API_AVAILABLE(ios(15.0));
+};
 
 typedef NS_ENUM(NSInteger, CWVMediaCaptureType) {
   CWVMediaCaptureTypeCamera,
   CWVMediaCaptureTypeMicrophone,
   CWVMediaCaptureTypeCameraAndMicrophone,
-} API_AVAILABLE(ios(15.0));
+};
 
 // UI delegate interface for a CWVWebView.  Embedders can implement the
 // functions in order to customize library behavior.
 CWV_EXPORT
-@protocol CWVUIDelegate<NSObject>
+@protocol CWVUIDelegate <NSObject>
 
 @optional
 // Instructs the delegate to create a new browsing window (f.e. in response to
@@ -56,7 +56,7 @@ CWV_EXPORT
     requestMediaCapturePermissionForType:(CWVMediaCaptureType)type
                          decisionHandler:
                              (void (^)(CWVPermissionDecision decision))
-                                 decisionHandler API_AVAILABLE(ios(15.0));
+                                 decisionHandler;
 
 // Instructs the delegate to show UI in response to window.alert JavaScript
 // call.
@@ -97,7 +97,7 @@ CWV_EXPORT
 // webView:contextMenuForElement:willCommitWithAnimator:].
 - (void)webView:(CWVWebView*)webView
     contextMenuWillCommitWithAnimator:
-           (id<UIContextMenuInteractionCommitAnimating>)animator;
+        (id<UIContextMenuInteractionCommitAnimating>)animator;
 
 @end
 

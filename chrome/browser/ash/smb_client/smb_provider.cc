@@ -17,8 +17,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
-namespace ash {
-namespace smb_client {
+namespace ash::smb_client {
 
 SmbProvider::SmbProvider()
     : provider_id_(file_system_provider::ProviderId::CreateFromNativeId("smb")),
@@ -33,7 +32,8 @@ SmbProvider::~SmbProvider() = default;
 std::unique_ptr<file_system_provider::ProvidedFileSystemInterface>
 SmbProvider::CreateProvidedFileSystem(
     Profile* profile,
-    const file_system_provider::ProvidedFileSystemInfo& file_system_info) {
+    const file_system_provider::ProvidedFileSystemInfo& file_system_info,
+    file_system_provider::CacheManager* cache_manager) {
   DCHECK(profile);
   return std::make_unique<SmbFileSystem>(file_system_info);
 }
@@ -57,7 +57,6 @@ const file_system_provider::IconSet& SmbProvider::GetIconSet() const {
 
 file_system_provider::RequestManager* SmbProvider::GetRequestManager() {
   NOTREACHED();
-  return nullptr;
 }
 
 bool SmbProvider::RequestMount(
@@ -70,5 +69,4 @@ bool SmbProvider::RequestMount(
   return true;
 }
 
-}  // namespace smb_client
-}  // namespace ash
+}  // namespace ash::smb_client

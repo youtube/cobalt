@@ -4,7 +4,7 @@
 
 // Use the <code>chrome.enterprise.remoteApps</code> API to add remote apps to
 // the ChromeOS launcher.
-[modernised_enums, platforms=("chromeos", "lacros")]
+[platforms=("chromeos")]
 namespace enterprise.remoteApps {
   callback VoidCallback = void ();
   callback StringCallback = void (DOMString result);
@@ -69,6 +69,13 @@ namespace enterprise.remoteApps {
     // the SortLauncherOptions.
     static void sortLauncher(
         SortLauncherOptions options,
+        optional VoidCallback callback);
+
+    // Set the list of apps to be pinned on the shelf. Any apps that are
+    // currently pinned and not present in `appIds` will be unpinned. Can be
+    // called with an empty list to unpin all the apps.
+    [nodoc] static void setPinnedApps(
+        DOMString[] appIds,
         optional VoidCallback callback);
   };
 

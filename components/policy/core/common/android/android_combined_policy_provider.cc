@@ -8,8 +8,11 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
-#include "components/policy/android/jni_headers/CombinedPolicyProvider_jni.h"
 #include "components/policy/core/common/android/policy_converter.h"
+#include "components/policy/core/common/policy_logger.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/policy/android/jni_headers/CombinedPolicyProvider_jni.h"
 
 using base::android::AttachCurrentThread;
 using base::android::JavaParamRef;
@@ -40,7 +43,7 @@ AndroidCombinedPolicyProvider::~AndroidCombinedPolicyProvider() {
   java_combined_policy_provider_.Reset();
 }
 
-void AndroidCombinedPolicyProvider::RefreshPolicies() {
+void AndroidCombinedPolicyProvider::RefreshPolicies(PolicyFetchReason reason) {
   JNIEnv* env = AttachCurrentThread();
   Java_CombinedPolicyProvider_refreshPolicies(env,
                                               java_combined_policy_provider_);
@@ -56,6 +59,8 @@ void AndroidCombinedPolicyProvider::FlushPolicies(
 // static
 void AndroidCombinedPolicyProvider::SetShouldWaitForPolicy(
     bool should_wait_for_policy) {
+  VLOG_POLICY(2, POLICY_PROCESSING)
+      << "SetShouldWaitForPolicy: " << should_wait_for_policy;
   g_wait_for_policies = should_wait_for_policy;
 }
 

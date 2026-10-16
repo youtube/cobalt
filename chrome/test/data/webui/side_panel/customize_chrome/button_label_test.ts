@@ -2,19 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://webui-test/mojo_webui_test_support.js';
 import 'chrome://customize-chrome-side-panel.top-chrome/button_label.js';
 
-import {ButtonLabelElement} from 'chrome://customize-chrome-side-panel.top-chrome/button_label.js';
+import type {ButtonLabelElement} from 'chrome://customize-chrome-side-panel.top-chrome/button_label.js';
 import {assertEquals} from 'chrome://webui-test/chai_assert.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {assertNotStyle, assertStyle} from './test_support.js';
-
 
 suite('ButtonLabelTest', () => {
   let buttonLabelElement: ButtonLabelElement;
 
-  setup(async () => {
+  setup(() => {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     buttonLabelElement =
         document.createElement('customize-chrome-button-label');
@@ -26,6 +25,7 @@ suite('ButtonLabelTest', () => {
       async () => {
         // Act.
         buttonLabelElement.label = 'foo';
+        await microtasksFinished();
 
         // Assert.
         assertEquals('foo', buttonLabelElement.$.label.textContent);
@@ -38,6 +38,7 @@ suite('ButtonLabelTest', () => {
         // Act.
         buttonLabelElement.label = 'foo';
         buttonLabelElement.labelDescription = 'bar';
+        await microtasksFinished();
 
         // Assert.
         assertNotStyle(

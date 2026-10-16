@@ -9,12 +9,13 @@
 #include <cstdint>
 #include <list>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
+#include "quiche/http2/core/http2_frame_decoder_adapter.h"
 #include "quiche/quic/core/http/http_frames.h"
 #include "quiche/quic/core/http/quic_header_list.h"
 #include "quiche/quic/core/http/quic_headers_stream.h"
@@ -25,14 +26,15 @@
 #include "quiche/quic/core/qpack/qpack_encoder.h"
 #include "quiche/quic/core/qpack/qpack_receive_stream.h"
 #include "quiche/quic/core/qpack/qpack_send_stream.h"
+#include "quiche/quic/core/qpack/value_splitting_header_list.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/spdy/core/http2_frame_decoder_adapter.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/http/http_header_block.h"
 
 namespace quic {
 
@@ -42,9 +44,9 @@ class QuicSpdySessionPeer;
 
 class WebTransportHttp3UnidirectionalStream;
 
-QUIC_EXPORT_PRIVATE extern const size_t kMaxUnassociatedWebTransportStreams;
+QUICHE_EXPORT extern const size_t kMaxUnassociatedWebTransportStreams;
 
-class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
+class QUICHE_EXPORT Http3DebugVisitor {
  public:
   Http3DebugVisitor();
   Http3DebugVisitor(const Http3DebugVisitor&) = delete;
@@ -81,6 +83,7 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   virtual void OnGoAwayFrameReceived(const GoAwayFrame& /*frame*/) = 0;
   virtual void OnPriorityUpdateFrameReceived(
       const PriorityUpdateFrame& /*frame*/) = 0;
+  virtual void OnOriginFrameReceived(const OriginFrame& /*frame*/) {}
   virtual void OnAcceptChFrameReceived(const AcceptChFrame& /*frame*/) {}
 
   // Incoming HTTP/3 frames on request or push streams.
@@ -108,7 +111,7 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
                                QuicByteCount /*payload_length*/) = 0;
   virtual void OnHeadersFrameSent(
       QuicStreamId /*stream_id*/,
-      const spdy::Http2HeaderBlock& /*header_block*/) = 0;
+      const quiche::HttpHeaderBlock& /*header_block*/) = 0;
 
   // 0-RTT related events.
   virtual void OnSettingsFrameResumed(const SettingsFrame& /*frame*/) = 0;
@@ -124,13 +127,33 @@ enum class HttpDatagramSupport : uint8_t {
                    // version.
 };
 
-QUIC_EXPORT_PRIVATE std::string HttpDatagramSupportToString(
+// Versions of WebTransport over HTTP/3 protocol extension.
+enum class WebTransportHttp3Version : uint8_t {
+  // <https://www.ietf.org/archive/id/draft-ietf-webtrans-http3-02.html>
+  // The first version to be ever publicly shipped in Chrome. Sometimes referred
+  // to as "draft-00", since draft-02 was backwards-compatible with draft-00.
+  kDraft02,
+  // <https://www.ietf.org/archive/id/draft-ietf-webtrans-http3-07.html>
+  // See the changelog in the appendix for differences between draft-02 and
+  // draft-07.
+  kDraft07,
+};
+using WebTransportHttp3VersionSet = BitMask<WebTransportHttp3Version, uint8_t>;
+
+// Note that by default, WebTransport is not enabled. Thus, those are the
+// versions primarily used in the tools and unit tests.
+inline constexpr WebTransportHttp3VersionSet
+    kDefaultSupportedWebTransportVersions =
+        WebTransportHttp3VersionSet({WebTransportHttp3Version::kDraft02,
+                                     WebTransportHttp3Version::kDraft07});
+
+QUICHE_EXPORT std::string HttpDatagramSupportToString(
     HttpDatagramSupport http_datagram_support);
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+QUICHE_EXPORT std::ostream& operator<<(
     std::ostream& os, const HttpDatagramSupport& http_datagram_support);
 
 // A QUIC session for HTTP.
-class QUIC_EXPORT_PRIVATE QuicSpdySession
+class QUICHE_EXPORT QuicSpdySession
     : public QuicSession,
       public QpackEncoder::DecoderStreamErrorDelegate,
       public QpackDecoder::EncoderStreamErrorDelegate {
@@ -138,7 +161,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Does not take ownership of |connection| or |visitor|.
   QuicSpdySession(QuicConnection* connection, QuicSession::Visitor* visitor,
                   const QuicConfig& config,
-                  const ParsedQuicVersionVector& supported_versions);
+                  const ParsedQuicVersionVector& supported_versions,
+                  QuicPriorityType priority_type = QuicPriorityType::kHttp);
   QuicSpdySession(const QuicSpdySession&) = delete;
   QuicSpdySession& operator=(const QuicSpdySession&) = delete;
 
@@ -166,14 +190,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
                                   size_t frame_len,
                                   const QuicHeaderList& header_list);
 
-  // Called by |headers_stream_| when push promise headers have been
-  // completely received.  |fin| will be true if the fin flag was set
-  // in the headers.
-  virtual void OnPromiseHeaderList(QuicStreamId stream_id,
-                                   QuicStreamId promised_stream_id,
-                                   size_t frame_len,
-                                   const QuicHeaderList& header_list);
-
   // Called by |headers_stream_| when a PRIORITY frame has been received for a
   // stream. This method will only be called for server streams.
   virtual void OnPriorityFrame(QuicStreamId stream_id,
@@ -183,6 +199,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // stream.  Returns false and closes connection if |stream_id| is invalid.
   bool OnPriorityUpdateForRequestStream(QuicStreamId stream_id,
                                         HttpStreamPriority priority);
+
+  // Called when an HTTP/3 ORIGIN frame has been received.
+  // This method will only be called for client sessions.
+  virtual void OnOriginFrame(const OriginFrame& /*frame*/) {}
 
   // Called when an HTTP/3 ACCEPT_CH frame has been received.
   // This method will only be called for client sessions.
@@ -204,7 +224,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // If provided, |ack_notifier_delegate| will be registered to be notified when
   // we have seen ACKs for all packets resulting from this call.
   virtual size_t WriteHeadersOnHeadersStream(
-      QuicStreamId id, spdy::Http2HeaderBlock headers, bool fin,
+      QuicStreamId id, quiche::HttpHeaderBlock headers, bool fin,
       const spdy::SpdyStreamPrecedence& precedence,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener);
@@ -232,12 +252,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // before encryption gets established.
   void SendHttp3GoAway(QuicErrorCode error_code, const std::string& reason);
 
-  // Write |headers| for |promised_stream_id| on |original_stream_id| in a
-  // PUSH_PROMISE frame to peer.
-  virtual void WritePushPromise(QuicStreamId original_stream_id,
-                                QuicStreamId promised_stream_id,
-                                spdy::Http2HeaderBlock headers);
-
   QpackEncoder* qpack_encoder();
   QpackDecoder* qpack_decoder();
   QuicHeadersStream* headers_stream() { return headers_stream_; }
@@ -252,8 +266,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Called when an HTTP/3 SETTINGS frame is received via ALPS.
   // Returns an error message if an error has occurred, or nullopt otherwise.
   // May or may not close the connection on error.
-  absl::optional<std::string> OnSettingsFrameViaAlps(
-      const SettingsFrame& frame);
+  std::optional<std::string> OnSettingsFrameViaAlps(const SettingsFrame& frame);
 
   // Called when a setting is parsed from a SETTINGS frame received on the
   // control stream or from cached application state.
@@ -276,6 +289,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
       uint64_t qpack_maximum_dynamic_table_capacity) {
     qpack_maximum_dynamic_table_capacity_ =
         qpack_maximum_dynamic_table_capacity;
+  }
+
+  uint64_t qpack_maximum_dynamic_table_capacity() const {
+    return qpack_maximum_dynamic_table_capacity_;
   }
 
   // Must not be called after Initialize().
@@ -311,15 +328,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Called when the size of the compressed frame payload is available.
   void OnCompressedFrameSize(size_t frame_len);
 
-  // Called when a PUSH_PROMISE frame has been received.
-  // TODO(b/171463363): Remove.
-  void OnPushPromise(spdy::SpdyStreamId stream_id,
-                     spdy::SpdyStreamId promised_stream_id);
-
   // Called when the complete list of headers is available.
   void OnHeaderList(const QuicHeaderList& header_list);
-
-  QuicStreamId promised_stream_id() const { return promised_stream_id_; }
 
   // Initialze HTTP/3 unidirectional streams if |unidirectional| is true and
   // those streams are not initialized yet.
@@ -339,6 +349,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // received or sent.
   bool goaway_received() const;
   bool goaway_sent() const;
+  std::optional<uint64_t> last_received_http3_goaway_id() {
+    return last_received_http3_goaway_id_;
+  }
 
   // Log header compression ratio histogram.
   // |using_qpack| is true for QPACK, false for HPACK.
@@ -370,8 +383,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Decode SETTINGS from |cached_state| and apply it to the session.
   bool ResumeApplicationState(ApplicationState* cached_state) override;
 
-  absl::optional<std::string> OnAlpsData(const uint8_t* alps_data,
-                                         size_t alps_length) override;
+  std::optional<std::string> OnAlpsData(const uint8_t* alps_data,
+                                        size_t alps_length) override;
 
   // Called when ACCEPT_CH frame is parsed out of data received in TLS ALPS
   // extension.
@@ -396,6 +409,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Indicates whether the HTTP/3 session supports WebTransport.
   bool SupportsWebTransport();
 
+  // If SupportsWebTransport() is true, returns the version of WebTransport
+  // currently in use (which is the highest version supported by both peers).
+  std::optional<WebTransportHttp3Version> SupportedWebTransportVersion();
+
   // Indicates whether both the peer and us support HTTP/3 Datagrams.
   bool SupportsH3Datagram() const;
 
@@ -416,7 +433,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   bool ShouldBufferRequestsUntilSettings() {
     return version().UsesHttp3() && perspective() == Perspective::IS_SERVER &&
            (ShouldNegotiateWebTransport() ||
-            LocalHttpDatagramSupport() == HttpDatagramSupport::kRfcAndDraft04);
+            LocalHttpDatagramSupport() == HttpDatagramSupport::kRfcAndDraft04 ||
+            force_buffer_requests_until_settings_);
   }
 
   // Returns if the incoming bidirectional streams should process data.  This is
@@ -454,10 +472,16 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   QuicSpdyStream* GetOrCreateSpdyDataStream(const QuicStreamId stream_id);
 
-  // Indicates whether the client should check that the
-  // `Sec-Webtransport-Http3-Draft` header is valid.
-  // TODO(vasilvv): remove this once this is enabled in Chromium.
-  virtual bool ShouldValidateWebTransportVersion() const;
+  // Returns a pointer to the incoming QPACK encoder stream (the one that
+  // belongs to the local decoding context). Might return nullptr.
+  QpackReceiveStream* GetQpackEncoderReceiveStream() const {
+    return qpack_encoder_receive_stream_;
+  }
+
+  void OnConfigNegotiated() override;
+
+  // Returns true if the SETTINGS frame has been received from the peer.
+  bool settings_received() const { return settings_received_; }
 
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
@@ -478,7 +502,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Indicates whether the underlying backend can accept and process
   // WebTransport sessions over HTTP/3.
-  virtual bool ShouldNegotiateWebTransport();
+  virtual WebTransportHttp3VersionSet LocallySupportedWebTransportVersions()
+      const;
+  bool ShouldNegotiateWebTransport() const;
 
   // Returns true if there are open HTTP requests.
   bool ShouldKeepConnectionAlive() const override;
@@ -487,13 +513,16 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   bool UsesPendingStreamForFrame(QuicFrameType type,
                                  QuicStreamId stream_id) const override;
 
-  // Processes incoming unidirectional streams; parses the stream type, and
-  // creates a new stream of the corresponding type.  Returns the pointer to the
-  // newly created stream, or nullptr if the stream type is not yet available.
-  QuicStream* ProcessPendingStream(PendingStream* pending) override;
+  // Called when a STREAM_FRAME is received on |pending| stream or
+  // ProcessAllPendingStreams() gets called. Processes incoming unidirectional
+  // streams; parses the stream type, and creates a new stream of the
+  // corresponding type. Returns the pointer to the newly created stream, or
+  // nullptr if the stream type is not yet available.
+  QuicStream* ProcessReadUnidirectionalPendingStream(
+      PendingStream* pending) override;
 
   size_t WriteHeadersOnHeadersStreamImpl(
-      QuicStreamId id, spdy::Http2HeaderBlock headers, bool fin,
+      QuicStreamId id, quiche::HttpHeaderBlock headers, bool fin,
       QuicStreamId parent_stream_id, int weight, bool exclusive,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener);
@@ -516,11 +545,12 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Initializes HTTP/3 unidirectional streams if not yet initialzed.
   virtual void MaybeInitializeHttp3UnidirectionalStreams();
 
-  // QuicConnectionVisitorInterface method.
+  // QuicConnectionVisitorInterface methods.
   void BeforeConnectionCloseSent() override;
+  void MaybeBundleOpportunistically() override;
 
   // Called whenever a datagram is dequeued or dropped from datagram_queue().
-  virtual void OnDatagramProcessed(absl::optional<MessageStatus> status);
+  virtual void OnDatagramProcessed(std::optional<MessageStatus> status);
 
   // Returns which version of the HTTP/3 datagram extension we should advertise
   // in settings and accept remote settings for.
@@ -532,23 +562,41 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // available.
   void SendInitialData();
 
+  // Sends any data which should be sent after the initial SETTINGS frame.
+  virtual void SendInitialDataAfterSettings() {}
+
+  // Override to skip checking for qpack_decoder_send_stream_ given decoder data
+  // is always bundled opportunistically.
+  bool CheckStreamWriteBlocked(QuicStream* stream) const override;
+
+  // Disables the use of Huffman encoding for QPACK headers.
+  void DisableHuffmanEncoding() {
+    huffman_encoding_ = HuffmanEncoding::kDisabled;
+  }
+
+  // Disables cookie crumbling for QPACK headers.
+  void DisableCookieCrumbling() {
+    cookie_crumbling_ = CookieCrumbling::kDisabled;
+  }
+
+  QuicSendControlStream* send_control_stream() { return send_control_stream_; }
+
  private:
   friend class test::QuicSpdySessionPeer;
 
   class SpdyFramerVisitor;
 
   // Proxies OnDatagramProcessed() calls to the session.
-  class QUIC_EXPORT_PRIVATE DatagramObserver
-      : public QuicDatagramQueue::Observer {
+  class QUICHE_EXPORT DatagramObserver : public QuicDatagramQueue::Observer {
    public:
     explicit DatagramObserver(QuicSpdySession* session) : session_(session) {}
-    void OnDatagramProcessed(absl::optional<MessageStatus> status) override;
+    void OnDatagramProcessed(std::optional<MessageStatus> status) override;
 
    private:
     QuicSpdySession* session_;  // not owned
   };
 
-  struct QUIC_EXPORT_PRIVATE BufferedWebTransportStream {
+  struct QUICHE_EXPORT BufferedWebTransportStream {
     WebTransportSessionId session_id;
     QuicStreamId stream_id;
   };
@@ -570,6 +618,18 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   bool VerifySettingIsZeroOrOne(uint64_t id, uint64_t value);
 
+  // Computes the highest WebTransport version supported by both peers.
+  std::optional<WebTransportHttp3Version> NegotiatedWebTransportVersion()
+      const {
+    return (LocallySupportedWebTransportVersions() &
+            peer_web_transport_versions_)
+        .Max();
+  }
+
+  bool ValidateWebTransportSettingsConsistency();
+
+  HuffmanEncoding huffman_encoding_ = HuffmanEncoding::kEnabled;
+  CookieCrumbling cookie_crumbling_ = CookieCrumbling::kEnabled;
   std::unique_ptr<QpackEncoder> qpack_encoder_;
   std::unique_ptr<QpackDecoder> qpack_decoder_;
 
@@ -616,7 +676,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Data about the stream whose headers are being processed.
   QuicStreamId stream_id_;
-  QuicStreamId promised_stream_id_;
   size_t frame_len_;
   bool fin_;
 
@@ -639,21 +698,20 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // The identifier in the most recently received GOAWAY frame.  Unset if no
   // GOAWAY frame has been received yet.
-  absl::optional<uint64_t> last_received_http3_goaway_id_;
+  std::optional<uint64_t> last_received_http3_goaway_id_;
   // The identifier in the most recently sent GOAWAY frame.  Unset if no GOAWAY
   // frame has been sent yet.
-  absl::optional<uint64_t> last_sent_http3_goaway_id_;
+  std::optional<uint64_t> last_sent_http3_goaway_id_;
 
   // Whether both this endpoint and our peer support HTTP datagrams and which
   // draft is in use for this session.
   HttpDatagramSupport http_datagram_support_ = HttpDatagramSupport::kNone;
 
-  // Whether the peer has indicated WebTransport support.
-  bool peer_supports_webtransport_ = false;
+  // WebTransport protocol versions supported by the peer.
+  WebTransportHttp3VersionSet peer_web_transport_versions_;
 
-  // Whether any settings have been received, either from the peer or from a
-  // session ticket.
-  bool any_settings_received_ = false;
+  // Whether the SETTINGS frame has been received on the control stream.
+  bool settings_received_ = false;
 
   // If ShouldBufferRequestsUntilSettings() is true, all streams that are
   // blocked by that are tracked here.
@@ -667,6 +725,17 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // On the server side, if true, advertise and accept extended CONNECT method.
   // On the client side, true if the peer advertised extended CONNECT.
   bool allow_extended_connect_;
+
+  // Since WebTransport is versioned by renumbering
+  // SETTINGS_WEBTRANSPORT_MAX_SESSIONS, the max sessions value depends on the
+  // version we end up picking.  This is only stored on the client, as the
+  // server cannot initiate WebTransport sessions.
+  absl::flat_hash_map<WebTransportHttp3Version, QuicStreamCount>
+      max_webtransport_sessions_;
+
+  // Allows forcing ShouldBufferRequestsUntilSettings() to true via
+  // a connection option.
+  bool force_buffer_requests_until_settings_;
 };
 
 }  // namespace quic

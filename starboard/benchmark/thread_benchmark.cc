@@ -15,7 +15,6 @@
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
 namespace starboard {
-namespace benchmark {
 namespace {
 
 void BM_IntegerAccumulation(::benchmark::State& state) {
@@ -32,5 +31,4 @@ void BM_IntegerAccumulation(::benchmark::State& state) {
 BENCHMARK(BM_IntegerAccumulation)->DenseThreadRange(1, 8)->UseRealTime();
 
 }  // namespace
-}  // namespace benchmark
 }  // namespace starboard

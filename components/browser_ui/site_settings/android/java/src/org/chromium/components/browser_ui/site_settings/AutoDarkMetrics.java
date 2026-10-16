@@ -7,14 +7,14 @@ package org.chromium.components.browser_ui.site_settings;
 import androidx.annotation.IntDef;
 
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.content_settings.ContentSettingsType;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/**
- * Metrics recording functions for {@link ContentSettingsType.AUTO_DARK_WEB_CONTENT}.
- */
+/** Metrics recording functions for {@link ContentSettingsType.AUTO_DARK_WEB_CONTENT}. */
+@NullMarked
 public final class AutoDarkMetrics {
     /**
      * Source from which auto dark web content settings changed. This includes both changes to the
@@ -23,10 +23,12 @@ public final class AutoDarkMetrics {
      * This is used for histograms and should therefore be treated as append-only.
      * See AndroidAutoDarkModeSettingsChangeSource in tools/metrics/histograms/enums.xml.
      */
-    @IntDef({AutoDarkSettingsChangeSource.THEME_SETTINGS,
-            AutoDarkSettingsChangeSource.SITE_SETTINGS_GLOBAL,
-            AutoDarkSettingsChangeSource.APP_MENU,
-            AutoDarkSettingsChangeSource.SITE_SETTINGS_EXCEPTION_LIST})
+    @IntDef({
+        AutoDarkSettingsChangeSource.THEME_SETTINGS,
+        AutoDarkSettingsChangeSource.SITE_SETTINGS_GLOBAL,
+        AutoDarkSettingsChangeSource.APP_MENU,
+        AutoDarkSettingsChangeSource.SITE_SETTINGS_EXCEPTION_LIST
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface AutoDarkSettingsChangeSource {
         int THEME_SETTINGS = 0;
@@ -45,8 +47,9 @@ public final class AutoDarkMetrics {
      */
     public static void recordAutoDarkSettingsChangeSource(
             @AutoDarkSettingsChangeSource int source, boolean enabled) {
-        String histogram = "Android.DarkTheme.AutoDarkMode.SettingsChangeSource."
-                + (enabled ? "Enabled" : "Disabled");
+        String histogram =
+                "Android.DarkTheme.AutoDarkMode.SettingsChangeSource."
+                        + (enabled ? "Enabled" : "Disabled");
         RecordHistogram.recordEnumeratedHistogram(
                 histogram, source, AutoDarkSettingsChangeSource.NUM_ENTRIES);
     }

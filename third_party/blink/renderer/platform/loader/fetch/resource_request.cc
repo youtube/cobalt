@@ -30,15 +30,18 @@
 
 #include "base/unguessable_token.h"
 #include "net/base/request_priority.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy.h"
 #include "services/network/public/mojom/ip_address_space.mojom-blink.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
 #include "services/network/public/mojom/web_bundle_handle.mojom-blink.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/platform/web_url_request.h"
+#include "third_party/blink/renderer/platform/loader/subresource_integrity.h"
 #include "third_party/blink/renderer/platform/network/encoded_form_data.h"
 #include "third_party/blink/renderer/platform/network/http_names.h"
 #include "third_party/blink/renderer/platform/network/network_utils.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/weborigin/referrer.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
@@ -88,7 +91,6 @@ ResourceRequestHead::ResourceRequestHead(const KURL& url)
     : url_(url),
       timeout_interval_(default_timeout_interval_),
       http_method_(http_names::kGET),
-      allow_stored_credentials_(true),
       report_upload_progress_(false),
       has_user_gesture_(false),
       has_text_fragment_token_(false),
@@ -96,13 +98,27 @@ ResourceRequestHead::ResourceRequestHead(const KURL& url)
       use_stream_on_response_(false),
       keepalive_(false),
       browsing_topics_(false),
+      ad_auction_headers_(false),
+      shared_storage_writable_opted_in_(false),
+      shared_storage_writable_eligible_(false),
       allow_stale_response_(false),
-      cache_mode_(mojom::blink::FetchCacheMode::kDefault),
       skip_service_worker_(false),
       download_to_cache_only_(false),
       site_for_cookies_set_(false),
       is_form_submission_(false),
       priority_incremental_(net::kDefaultPriorityIncremental),
+      is_ad_resource_(false),
+      upgrade_if_insecure_(false),
+      is_revalidating_(false),
+      is_automatic_upgrade_(false),
+      is_from_origin_dirty_style_sheet_(false),
+      is_fetch_like_api_(false),
+      is_fetch_later_api_(false),
+      is_favicon_(false),
+      prefetch_maybe_for_top_level_navigation_(false),
+      shared_dictionary_writer_enabled_(false),
+      requires_upgrade_for_loader_(false),
+      cache_mode_(mojom::blink::FetchCacheMode::kDefault),
       initial_priority_(ResourceLoadPriority::kUnresolved),
       priority_(ResourceLoadPriority::kUnresolved),
       intra_priority_value_(0),
@@ -115,7 +131,8 @@ ResourceRequestHead::ResourceRequestHead(const KURL& url)
       referrer_string_(Referrer::ClientReferrerString()),
       referrer_policy_(network::mojom::ReferrerPolicy::kDefault),
       cors_preflight_policy_(
-          network::mojom::CorsPreflightPolicy::kConsiderPreflight) {}
+          network::mojom::CorsPreflightPolicy::kConsiderPreflight),
+      target_address_space_(network::mojom::IPAddressSpace::kUnknown) {}
 
 ResourceRequestHead::ResourceRequestHead(const ResourceRequestHead&) = default;
 
@@ -205,6 +222,8 @@ std::unique_ptr<ResourceRequest> ResourceRequestHead::CreateRedirectRequest(
   request->SetCredentialsMode(GetCredentialsMode());
   request->SetKeepalive(GetKeepalive());
   request->SetBrowsingTopics(GetBrowsingTopics());
+  request->SetAdAuctionHeaders(GetAdAuctionHeaders());
+  request->SetSharedStorageWritableOptedIn(GetSharedStorageWritableOptedIn());
   request->SetPriority(Priority());
   request->SetPriorityIncremental(PriorityIncremental());
 
@@ -221,10 +240,12 @@ std::unique_ptr<ResourceRequest> ResourceRequestHead::CreateRedirectRequest(
   request->SetFromOriginDirtyStyleSheet(IsFromOriginDirtyStyleSheet());
   request->SetRecursivePrefetchToken(RecursivePrefetchToken());
   request->SetFetchLikeAPI(IsFetchLikeAPI());
+  request->SetFetchLaterAPI(IsFetchLaterAPI());
   request->SetFavicon(IsFavicon());
   request->SetAttributionReportingSupport(GetAttributionReportingSupport());
   request->SetAttributionReportingEligibility(
       GetAttributionReportingEligibility());
+  request->SetAttributionReportingSrcToken(GetAttributionSrcToken());
 
   return request;
 }
@@ -238,6 +259,12 @@ const KURL& ResourceRequestHead::Url() const {
 }
 
 void ResourceRequestHead::SetUrl(const KURL& url) {
+  // Loading consists of a number of phases. After cache lookup the url should
+  // not change (otherwise checks would not be valid). This DCHECK verifies
+  // that.
+#if DCHECK_IS_ON()
+  DCHECK(is_set_url_allowed_);
+#endif
   url_ = url;
 }
 
@@ -344,14 +371,6 @@ void ResourceRequest::SetHttpBody(scoped_refptr<EncodedFormData> http_body) {
   body_.SetFormBody(std::move(http_body));
 }
 
-bool ResourceRequestHead::AllowStoredCredentials() const {
-  return allow_stored_credentials_;
-}
-
-void ResourceRequestHead::SetAllowStoredCredentials(bool allow_credentials) {
-  allow_stored_credentials_ = allow_credentials;
-}
-
 ResourceLoadPriority ResourceRequestHead::InitialPriority() const {
   return initial_priority_;
 }
@@ -387,8 +406,10 @@ void ResourceRequestHead::SetPriorityIncremental(bool priority_incremental) {
 void ResourceRequestHead::AddHttpHeaderField(const AtomicString& name,
                                              const AtomicString& value) {
   HTTPHeaderMap::AddResult result = http_header_fields_.Add(name, value);
-  if (!result.is_new_entry)
-    result.stored_value->value = result.stored_value->value + ", " + value;
+  if (!result.is_new_entry) {
+    String new_value = WTF::StrCat({result.stored_value->value, ", ", value});
+    result.stored_value->value = AtomicString(new_value);
+  }
 }
 
 void ResourceRequestHead::AddHTTPHeaderFields(
@@ -439,6 +460,24 @@ const CacheControlHeader& ResourceRequestHead::GetCacheControlHeader() const {
   return cache_control_header_cache_;
 }
 
+void ResourceRequestHead::SetFetchIntegrity(
+    const String& integrity,
+    const FeatureContext* feature_context) {
+  fetch_integrity_ = integrity;
+
+  IntegrityMetadataSet metadata;
+  SubresourceIntegrity::ParseIntegrityAttribute(integrity, metadata,
+                                                feature_context);
+  SetExpectedPublicKeys(metadata);
+}
+
+void ResourceRequestHead::SetExpectedPublicKeys(
+    const IntegrityMetadataSet& metadata) {
+  for (const auto& public_key : metadata.public_keys) {
+    expected_public_keys_.push_back(public_key.digest);
+  }
+}
+
 bool ResourceRequestHead::CacheControlContainsNoCache() const {
   return GetCacheControlHeader().contains_no_cache;
 }
@@ -468,6 +507,31 @@ bool ResourceRequestHead::NeedsHTTPOrigin() const {
   // For non-GET and non-HEAD methods, always send an Origin header so the
   // server knows we support this feature.
   return true;
+}
+
+bool ResourceRequest::IsFeatureEnabledForSubresourceRequestAssumingOptIn(
+    const network::PermissionsPolicy* policy,
+    network::mojom::PermissionsPolicyFeature feature,
+    const url::Origin& origin) {
+  if (!policy) {
+    return false;
+  }
+
+  bool browsing_topics_opted_in =
+      (feature == network::mojom::PermissionsPolicyFeature::kBrowsingTopics ||
+       feature == network::mojom::PermissionsPolicyFeature::
+                      kBrowsingTopicsBackwardCompatible) &&
+      GetBrowsingTopics();
+  bool shared_storage_opted_in =
+      feature == network::mojom::PermissionsPolicyFeature::kSharedStorage &&
+      GetSharedStorageWritableOptedIn();
+
+  if (!browsing_topics_opted_in && !shared_storage_opted_in) {
+    return false;
+  }
+
+  return policy->IsFeatureEnabledForOrigin(
+      feature, origin, /*override_default_policy_to_all=*/true);
 }
 
 }  // namespace blink

@@ -4,17 +4,18 @@
 
 package org.chromium.components.payments;
 
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.payments.mojom.PaymentDetails;
 import org.chromium.payments.mojom.PaymentValidationErrors;
 
 import java.nio.ByteBuffer;
 
-/**
- * Static class to represent a JNI interface to a C++ validation library.
- */
+/** Static class to represent a JNI interface to a C++ validation library. */
 @JNINamespace("payments")
+@NullMarked
 public class PaymentValidator {
     public static boolean validatePaymentDetails(PaymentDetails details) {
         if (details == null) {
@@ -33,6 +34,7 @@ public class PaymentValidator {
     @NativeMethods
     interface Natives {
         boolean validatePaymentDetailsAndroid(ByteBuffer buffer);
+
         boolean validatePaymentValidationErrorsAndroid(ByteBuffer buffer);
     }
-};
+}

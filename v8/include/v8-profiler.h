@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "cppgc/common.h"          // NOLINT(build/include_directory)
 #include "v8-local-handle.h"       // NOLINT(build/include_directory)
 #include "v8-message.h"            // NOLINT(build/include_directory)
 #include "v8-persistent-handle.h"  // NOLINT(build/include_directory)
@@ -69,6 +70,10 @@ class V8_EXPORT CpuProfileNode {
   struct LineTick {
     /** The 1-based number of the source line where the function originates. */
     int line;
+
+    /** The 1-based number of the source column where the function originates.
+     */
+    int column;
 
     /** The count of samples associated with the source line. */
     unsigned int hit_count;
@@ -417,8 +422,11 @@ class V8_EXPORT CpuProfiler {
    * Synchronously collect current stack sample in all profilers attached to
    * the |isolate|. The call does not affect number of ticks recorded for
    * the current top node.
+   * |trace_id| is an optional identifier set to the collected sample.
+   * this is useful to associate the sample with a trace event.
    */
-  static void CollectSample(Isolate* isolate);
+  static void CollectSample(
+      Isolate* isolate, const std::optional<uint64_t> trace_id = std::nullopt);
 
   /**
    * Disposes the CPU profiler object.
@@ -596,7 +604,6 @@ class V8_EXPORT HeapGraphNode {
     kBigInt = 13,        // BigInt.
     kObjectShape = 14,   // Internal data used for tracking the shapes (or
                          // "hidden classes") of JS objects.
-    kWasmObject = 15,    // A WasmGC struct or array.
   };
 
   /** Returns node type (see HeapGraphNode::Type). */
@@ -899,8 +906,27 @@ class V8_EXPORT EmbedderGraph {
   /**
    * Returns a node corresponding to the given V8 value. Ownership is not
    * transferred. The result pointer is valid while the graph is alive.
+   *
+   * For now the variant that takes v8::Data is not marked as abstract for
+   * compatibility, but embedders who subclass EmbedderGraph are expected to
+   * implement it. Then in the implementation of the variant that takes
+   * v8::Value, they can simply forward the call to the one that takes
+   * v8::Local<v8::Data>.
    */
   virtual Node* V8Node(const v8::Local<v8::Value>& value) = 0;
+
+  /**
+   * Returns a node corresponding to the given V8 value. Ownership is not
+   * transferred. The result pointer is valid while the graph is alive.
+   *
+   * For API compatibility, this default implementation just checks that the
+   * data is a v8::Value and forward it to the variant that takes v8::Value,
+   * which is currently required to be implemented. In the future we'll remove
+   * the v8::Value variant, and make this variant that takes v8::Data abstract
+   * instead. If the embedder subclasses v8::EmbedderGraph and also use
+   * v8::TracedReference<v8::Data>, they must override this variant.
+   */
+  virtual Node* V8Node(const v8::Local<v8::Data>& value);
 
   /**
    * Adds the given node to the graph and takes ownership of the node.
@@ -918,7 +944,22 @@ class V8_EXPORT EmbedderGraph {
    */
   virtual void AddEdge(Node* from, Node* to, const char* name = nullptr) = 0;
 
+  /**
+   * Adds a count of bytes that are not associated with any particular Node.
+   * An embedder may use this to represent the size of nodes which were omitted
+   * from this EmbedderGraph despite being retained by the graph, or other
+   * overhead costs. This number will contribute to the total size in a heap
+   * snapshot, without being represented in the object graph.
+   */
+  virtual void AddNativeSize(size_t size) {}
+
   virtual ~EmbedderGraph() = default;
+};
+
+class QueryObjectPredicate {
+ public:
+  virtual ~QueryObjectPredicate() = default;
+  virtual bool Filter(v8::Local<v8::Object> object) = 0;
 };
 
 /**
@@ -927,6 +968,10 @@ class V8_EXPORT EmbedderGraph {
  */
 class V8_EXPORT HeapProfiler {
  public:
+  void QueryObjects(v8::Local<v8::Context> context,
+                    QueryObjectPredicate* predicate,
+                    std::vector<v8::Global<v8::Object>>* objects);
+
   enum SamplingFlags {
     kSamplingNoFlags = 0,
     kSamplingForceGC = 1 << 0,
@@ -946,7 +991,7 @@ class V8_EXPORT HeapProfiler {
 
   /**
    * Callback function invoked during heap snapshot generation to retrieve
-   * the detachedness state of an object referenced by a TracedReference.
+   * the detachedness state of a JS object referenced by a TracedReference.
    *
    * The callback takes Local<Value> as parameter to allow the embedder to
    * unpack the TracedReference into a Local and reuse that Local for different
@@ -1054,6 +1099,11 @@ class V8_EXPORT HeapProfiler {
      * Mode for dealing with numeric values, see `NumericsMode`.
      */
     NumericsMode numerics_mode = NumericsMode::kHideNumericValues;
+    /**
+     * Whether stack is considered as a root set.
+     */
+    cppgc::EmbedderStackState stack_state =
+        cppgc::EmbedderStackState::kMayContainHeapPointers;
   };
 
   /**
@@ -1074,6 +1124,12 @@ class V8_EXPORT HeapProfiler {
       ActivityControl* control,
       ObjectNameResolver* global_object_name_resolver = nullptr,
       bool hide_internals = true, bool capture_numeric_value = false);
+
+  /**
+   * Obtains list of Detached JS Wrapper Objects. This functon calls garbage
+   * collection, then iterates over traced handles in the isolate
+   */
+  std::vector<v8::Local<v8::Value>> GetDetachedJSWrapperObjects();
 
   /**
    * Starts tracking of heap objects population statistics. After calling
@@ -1163,6 +1219,18 @@ class V8_EXPORT HeapProfiler {
                                         void* data);
 
   void SetGetDetachednessCallback(GetDetachednessCallback callback, void* data);
+
+  /**
+   * Returns whether the heap profiler is currently taking a snapshot.
+   */
+  bool IsTakingSnapshot();
+
+  /**
+   * Allocates a copy of the provided string within the heap snapshot generator
+   * and returns a pointer to the copy. May only be called during heap snapshot
+   * generation.
+   */
+  const char* CopyNameForHeapSnapshot(const char* name);
 
   /**
    * Default value of persistent handle class ID. Must not be used to

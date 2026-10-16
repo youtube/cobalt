@@ -136,7 +136,6 @@ DisplayPlacement::Position CalculateDisplayPosition(
         : DisplayPlacement::Position::BOTTOM;
   }
   NOTREACHED() << "CalculateDisplayPosition relies on touching DisplayInfos.";
-  return DisplayPlacement::Position::RIGHT;
 }
 
 DisplayPlacement CalculateDisplayPlacement(

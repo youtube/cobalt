@@ -4,12 +4,15 @@
 
 #include "device/fido/cable/fido_cable_handshake_handler.h"
 
+#include <algorithm>
+#include <array>
+#include <string_view>
 #include <tuple>
 #include <utility>
 
+#include "base/containers/map_util.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "components/cbor/reader.h"
@@ -47,8 +50,8 @@ constexpr size_t kClientHelloMessageSize = 58;
 
 constexpr size_t kCableHandshakeMacMessageSize = 16;
 
-absl::optional<std::array<uint8_t, kClientHelloMessageSize>>
-ConstructHandshakeMessage(base::StringPiece handshake_key,
+std::optional<std::array<uint8_t, kClientHelloMessageSize>>
+ConstructHandshakeMessage(std::string_view handshake_key,
                           base::span<const uint8_t, 16> client_random_nonce) {
   cbor::Value::MapValue map;
   map.emplace(0, kCableClientHelloMessage);
@@ -58,20 +61,20 @@ ConstructHandshakeMessage(base::StringPiece handshake_key,
 
   crypto::HMAC hmac(crypto::HMAC::SHA256);
   if (!hmac.Init(handshake_key))
-    return absl::nullopt;
+    return std::nullopt;
 
   std::array<uint8_t, kCableHandshakeMacMessageSize> client_hello_mac;
-  if (!hmac.Sign(fido_parsing_utils::ConvertToStringPiece(*client_hello),
-                 client_hello_mac.data(), client_hello_mac.size())) {
-    return absl::nullopt;
+  if (!hmac.Sign(base::as_string_view(*client_hello), client_hello_mac.data(),
+                 client_hello_mac.size())) {
+    return std::nullopt;
   }
 
   DCHECK_EQ(kClientHelloMessageSize,
             client_hello->size() + client_hello_mac.size());
   std::array<uint8_t, kClientHelloMessageSize> handshake_message;
-  base::ranges::copy(*client_hello, handshake_message.begin());
-  base::ranges::copy(client_hello_mac,
-                     handshake_message.begin() + client_hello->size());
+  std::ranges::copy(*client_hello, handshake_message.begin());
+  std::ranges::copy(client_hello_mac,
+                    handshake_message.begin() + client_hello->size());
 
   return handshake_message;
 }
@@ -87,13 +90,11 @@ FidoCableV1HandshakeHandler::FidoCableV1HandshakeHandler(
     : cable_device_(cable_device),
       nonce_(fido_parsing_utils::Materialize(nonce)),
       session_pre_key_(fido_parsing_utils::Materialize(session_pre_key)),
-      handshake_key_(crypto::HkdfSha256(
-          fido_parsing_utils::ConvertToStringPiece(session_pre_key_),
-          fido_parsing_utils::ConvertToStringPiece(nonce_),
-          kCableHandshakeKeyInfo,
-          /*derived_key_size=*/32)) {
-  crypto::RandBytes(client_session_random_.data(),
-                    client_session_random_.size());
+      handshake_key_(crypto::HkdfSha256(base::as_string_view(session_pre_key_),
+                                        base::as_string_view(nonce_),
+                                        kCableHandshakeKeyInfo,
+                                        /*derived_key_size=*/32)) {
+  crypto::RandBytes(client_session_random_);
 }
 
 FidoCableV1HandshakeHandler::~FidoCableV1HandshakeHandler() = default;
@@ -104,7 +105,7 @@ void FidoCableV1HandshakeHandler::InitiateCableHandshake(
       ConstructHandshakeMessage(handshake_key_, client_session_random_);
   if (!handshake_message) {
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+        FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
     return;
   }
 
@@ -126,9 +127,8 @@ bool FidoCableV1HandshakeHandler::ValidateAuthenticatorHandshakeMessage(
   const auto authenticator_hello = response.first(
       kCableAuthenticatorHandshakeMessageSize - kCableHandshakeMacMessageSize);
   if (!hmac.VerifyTruncated(
-          fido_parsing_utils::ConvertToStringPiece(authenticator_hello),
-          fido_parsing_utils::ConvertToStringPiece(
-              response.subspan(authenticator_hello.size())))) {
+          base::as_string_view(authenticator_hello),
+          base::as_string_view(response.subspan(authenticator_hello.size())))) {
     return false;
   }
 
@@ -147,33 +147,38 @@ bool FidoCableV1HandshakeHandler::ValidateAuthenticatorHandshakeMessage(
     return false;
   }
 
-  const auto authenticator_random_nonce =
-      authenticator_hello_cbor->GetMap().find(cbor::Value(1));
-  if (authenticator_random_nonce == authenticator_hello_cbor->GetMap().end() ||
-      !authenticator_random_nonce->second.is_bytestring() ||
-      authenticator_random_nonce->second.GetBytestring().size() != 16) {
+  const auto* authenticator_random_nonce =
+      base::FindOrNull(authenticator_hello_cbor->GetMap(), cbor::Value(1));
+  if (!authenticator_random_nonce ||
+      !authenticator_random_nonce->is_bytestring()) {
+    return false;
+  }
+
+  auto sized_nonce_span =
+      base::span(authenticator_random_nonce->GetBytestring())
+          .to_fixed_extent<16>();
+  if (!sized_nonce_span) {
     return false;
   }
 
   cable_device_->SetV1EncryptionData(
-      base::make_span<32>(
-          GetEncryptionKeyAfterSuccessfulHandshake(base::make_span<16>(
-              authenticator_random_nonce->second.GetBytestring()))),
+      base::as_byte_span(
+          GetEncryptionKeyAfterSuccessfulHandshake(*sized_nonce_span)),
       nonce_);
 
   return true;
 }
 
-std::vector<uint8_t>
+std::array<uint8_t, 32>
 FidoCableV1HandshakeHandler::GetEncryptionKeyAfterSuccessfulHandshake(
     base::span<const uint8_t, 16> authenticator_random_nonce) const {
   std::vector<uint8_t> nonce_message;
   fido_parsing_utils::Append(&nonce_message, nonce_);
   fido_parsing_utils::Append(&nonce_message, client_session_random_);
   fido_parsing_utils::Append(&nonce_message, authenticator_random_nonce);
-  return crypto::HkdfSha256(session_pre_key_, crypto::SHA256Hash(nonce_message),
-                            kCableDeviceEncryptionKeyInfo,
-                            /*derived_key_length=*/32);
+  return crypto::HkdfSha256<32>(session_pre_key_,
+                                crypto::SHA256Hash(nonce_message),
+                                kCableDeviceEncryptionKeyInfo);
 }
 
 }  // namespace device

@@ -25,7 +25,8 @@ AppDiscoveryService* AppDiscoveryServiceFactory::GetForProfile(
 
 // static
 AppDiscoveryServiceFactory* AppDiscoveryServiceFactory::GetInstance() {
-  return base::Singleton<AppDiscoveryServiceFactory>::get();
+  static base::NoDestructor<AppDiscoveryServiceFactory> instance;
+  return instance.get();
 }
 
 AppDiscoveryServiceFactory::AppDiscoveryServiceFactory()
@@ -36,13 +37,18 @@ AppDiscoveryServiceFactory::AppDiscoveryServiceFactory()
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOwnInstance)
               .WithGuest(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOwnInstance)
               .Build()) {}
 
 AppDiscoveryServiceFactory::~AppDiscoveryServiceFactory() = default;
 
-KeyedService* AppDiscoveryServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AppDiscoveryServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new AppDiscoveryService(Profile::FromBrowserContext(context));
+  return std::make_unique<AppDiscoveryService>(
+      Profile::FromBrowserContext(context));
 }
 
 }  // namespace apps

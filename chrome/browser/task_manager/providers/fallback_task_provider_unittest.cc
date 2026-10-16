@@ -4,8 +4,10 @@
 
 #include <stdint.h>
 
+#include <vector>
+
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_mock_time_message_loop_task_runner.h"
 #include "chrome/browser/task_manager/providers/fallback_task_provider.h"
@@ -34,7 +36,7 @@ class FakeTask : public Task {
 
   int GetChildProcessUniqueID() const override { return 0; }
 
-  const Task* GetParentTask() const override { return nullptr; }
+  base::WeakPtr<Task> GetParentTask() const override { return nullptr; }
 
   SessionID GetTabId() const override { return SessionID::InvalidValue(); }
 
@@ -60,7 +62,7 @@ class FakeTaskProvider : public TaskProvider {
 
   void TaskRemoved(Task* task) {
     NotifyObserverTaskRemoved(task);
-    base::Erase(task_provider_tasks_, task);
+    std::erase(task_provider_tasks_, task);
   }
 
  private:
@@ -72,7 +74,7 @@ class FakeTaskProvider : public TaskProvider {
 
   void StopUpdating() override {}
 
-  std::vector<Task*> task_provider_tasks_;
+  std::vector<raw_ptr<Task, VectorExperimental>> task_provider_tasks_;
 };
 
 // Defines a test for the child process task provider and the child process
@@ -103,7 +105,7 @@ class FallbackTaskProviderTest : public testing::Test,
 
   void TaskRemoved(Task* task) override {
     EXPECT_TRUE(base::Contains(seen_tasks_, task));
-    base::Erase(seen_tasks_, task);
+    std::erase(seen_tasks_, task);
   }
 
   // This adds tasks to the first primary subprovider.
@@ -171,12 +173,14 @@ class FallbackTaskProviderTest : public testing::Test,
   }
 
   // This is the vector of tasks the FallbackTaskProvider has told us about.
-  std::vector<Task*> seen_tasks() { return seen_tasks_; }
+  std::vector<raw_ptr<Task, VectorExperimental>> seen_tasks() {
+    return seen_tasks_;
+  }
 
  private:
   content::BrowserTaskEnvironment task_environment_;
   std::unique_ptr<FallbackTaskProvider> task_provider_;
-  std::vector<Task*> seen_tasks_;
+  std::vector<raw_ptr<Task, VectorExperimental>> seen_tasks_;
 };
 
 TEST_F(FallbackTaskProviderTest, BasicTest) {

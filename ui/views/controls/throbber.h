@@ -7,6 +7,7 @@
 
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "ui/color/color_provider.h"
 #include "ui/views/view.h"
 
 namespace views {
@@ -14,9 +15,10 @@ namespace views {
 // Throbbers display an animation, usually used as a status indicator.
 
 class VIEWS_EXPORT Throbber : public View {
+  METADATA_HEADER(Throbber, View)
+
  public:
-  METADATA_HEADER(Throbber);
-  Throbber();
+  explicit Throbber(int diameter = kDefaultDiameter);
 
   Throbber(const Throbber&) = delete;
   Throbber& operator=(const Throbber&) = delete;
@@ -33,12 +35,19 @@ class VIEWS_EXPORT Throbber : public View {
   void SetChecked(bool checked);
 
   // Overridden from View:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const SizeBounds& /*available_size*/) const override;
   void OnPaint(gfx::Canvas* canvas) override;
+
+  int GetDiameter() const { return diameter_; }
+  void SetColorId(ui::ColorId color) { color_id_ = color; }
 
  protected:
   // Specifies whether the throbber is currently animating or not
   bool IsRunning() const;
+
+  // The default diameter of a Throbber.
+  static constexpr int kDefaultDiameter = 16;
 
  private:
   base::TimeTicks start_time_;  // Time when Start was called.
@@ -46,6 +55,11 @@ class VIEWS_EXPORT Throbber : public View {
 
   // Whether or not we should display a checkmark.
   bool checked_ = false;
+
+  const int diameter_;
+
+  // Overrides the default color, ui::kColorThrobber, if set.
+  std::optional<ui::ColorId> color_id_;
 };
 
 BEGIN_VIEW_BUILDER(VIEWS_EXPORT, Throbber, View)
@@ -57,9 +71,10 @@ END_VIEW_BUILDER
 // pauses in the work stops and starts, and only starts its throbber after
 // a small amount of work time has passed.
 class VIEWS_EXPORT SmoothedThrobber : public Throbber {
+  METADATA_HEADER(SmoothedThrobber, Throbber)
+
  public:
-  METADATA_HEADER(SmoothedThrobber);
-  SmoothedThrobber();
+  explicit SmoothedThrobber(int diameter = kDefaultDiameter);
 
   SmoothedThrobber(const SmoothedThrobber&) = delete;
   SmoothedThrobber& operator=(const SmoothedThrobber&) = delete;

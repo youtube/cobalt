@@ -10,18 +10,18 @@
 
 import 'chrome://resources/cr_elements/icons.html.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
-import 'chrome://resources/polymer/v3_0/iron-flex-layout/iron-flex-layout-classes.js';
-import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
+import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import '../settings_shared.css.js';
 import './incompatible_application_item.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {loadTimeData} from '../i18n_setup.js';
 
-import {IncompatibleApplication, IncompatibleApplicationsBrowserProxyImpl} from './incompatible_applications_browser_proxy.js';
+import type {IncompatibleApplication} from './incompatible_applications_browser_proxy.js';
+import {IncompatibleApplicationsBrowserProxyImpl} from './incompatible_applications_browser_proxy.js';
 import {getTemplate} from './incompatible_applications_page.html.js';
 
 const SettingsIncompatibleApplicationsPageElementBase =
@@ -89,12 +89,12 @@ export class SettingsIncompatibleApplicationsPageElement extends
     };
   }
 
-  private hasAdminRights_: boolean;
-  private applications_: IncompatibleApplication[];
-  private isDone_: boolean;
-  private subtitleText_: string;
-  private subtitleNoAdminRightsText_: string;
-  private listTitleText_: string;
+  declare private hasAdminRights_: boolean;
+  declare private applications_: IncompatibleApplication[];
+  declare private isDone_: boolean;
+  declare private subtitleText_: string;
+  declare private subtitleNoAdminRightsText_: string;
+  declare private listTitleText_: string;
 
   override ready() {
     super.ready();

@@ -4,124 +4,184 @@
 
 #include "chrome/browser/web_applications/chromeos_web_app_experiments.h"
 
+#include <string_view>
+
+#include "ash/constants/web_app_id_constants.h"
 #include "base/containers/contains.h"
 #include "base/no_destructor.h"
-#include "chrome/browser/web_applications/web_app_id_constants.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
+#include "chrome/browser/chromeos/upload_office_to_cloud/upload_office_to_cloud.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chromeos/constants/chromeos_features.h"
-#include "content/public/browser/web_contents.h"
+#include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
+#include "url/gurl.h"
+#include "url/url_constants.h"
 
 namespace web_app {
 
 namespace {
 
-constexpr const char* kMicrosoftOfficeWebAppExperimentScopeExtensions[] = {
-    // The Office editors (Word, Excel, PowerPoint) are located on the
-    // OneDrive origin.
-    "https://onedrive.live.com/",
-
-    // Links to opening Office editors go via this URL shortener origin.
-    "https://1drv.ms/",
-
-    // The old branding of the Microsoft 365 web app. Many links within
-    // Microsoft 365 still link to the old www.office.com origin.
-    "https://www.office.com/",
-};
-
-const char kOneDriveBusinessDomain[] = "sharepoint.com";
-
-struct FallbackPageThemeColor {
-  const char* page_url_piece;
-  SkColor page_theme_color;
-};
-
-constexpr FallbackPageThemeColor
-    kMicrosoftOfficeWebAppExperimentFallbackPageThemeColors[] = {
-        // Word theme color.
-        {.page_url_piece = "file%2cdocx",
-         .page_theme_color = SkColorSetRGB(0x18, 0x5A, 0xBD)},
-
-        // Excel theme color.
-        {.page_url_piece = "file%2cxlsx",
-         .page_theme_color = SkColorSetRGB(0x10, 0x7C, 0x41)},
-
-        // PowerPoint theme color.
-        {.page_url_piece = "file%2cpptx",
-         .page_theme_color = SkColorSetRGB(0xC4, 0x3E, 0x1C)},
-};
+constexpr const char* kMicrosoft365ManifestId = "?from=Homescreen";
 
 bool g_always_enabled_for_testing = false;
 
-bool IsExperimentEnabled(const AppId& app_id) {
-  return g_always_enabled_for_testing || app_id == kMicrosoft365AppId;
+bool IsExperimentEnabled(const webapps::AppId& app_id) {
+  return g_always_enabled_for_testing || app_id == ash::kMicrosoft365AppId;
 }
 
-absl::optional<std::vector<const char* const>>&
+// IsValidScopeExtenion returns whether a url can be successfully turned into
+// a scope extension or not.
+bool IsValidScopeExtension(const GURL& url) {
+  return url.is_valid() && url.IsStandard() && url.has_host() &&
+         !base::StartsWith(url.host(), ".");
+}
+
+std::vector<std::string> GetListFromFinchParam(const std::string& finch_param) {
+  return base::SplitString(finch_param, ",",
+                           base::WhitespaceHandling::TRIM_WHITESPACE,
+                           base::SplitResult::SPLIT_WANT_NONEMPTY);
+}
+
+std::optional<std::vector<const char*>>&
 GetScopeExtensionsOverrideForTesting() {
-  static base::NoDestructor<absl::optional<std::vector<const char* const>>>
+  static base::NoDestructor<std::optional<std::vector<const char*>>>
       scope_extensions;
   return *scope_extensions;
 }
 
 }  // namespace
 
-base::span<const char* const> ChromeOsWebAppExperiments::GetScopeExtensions(
-    const AppId& app_id) {
+ScopeExtensions ChromeOsWebAppExperiments::GetScopeExtensions(
+    const webapps::AppId& app_id) {
   DCHECK(chromeos::features::IsUploadOfficeToCloudEnabled());
 
-  if (!IsExperimentEnabled(app_id))
-    return {};
-
-  if (GetScopeExtensionsOverrideForTesting())
-    return *GetScopeExtensionsOverrideForTesting();
-
-  return kMicrosoftOfficeWebAppExperimentScopeExtensions;
-}
-
-size_t ChromeOsWebAppExperiments::GetExtendedScopeScore(
-    const AppId& app_id,
-    base::StringPiece url_spec) {
-  DCHECK(chromeos::features::IsUploadOfficeToCloudEnabled());
-
-  size_t best_score = 0;
-  for (const char* scope : GetScopeExtensions(app_id)) {
-    size_t score =
-        base::StartsWith(url_spec, scope, base::CompareCase::SENSITIVE)
-            ? strlen(scope)
-            : 0;
-    best_score = std::max(best_score, score);
+  ScopeExtensions extensions;
+  if (!IsExperimentEnabled(app_id)) {
+    return extensions;
   }
 
-  // Check the OneDrive Business domain separately as this has a different URL
-  // format.
-  GURL url = GURL(url_spec);
-  if (url.DomainIs(kOneDriveBusinessDomain)) {
-    best_score = std::max(best_score, strlen(kOneDriveBusinessDomain));
+  if (GetScopeExtensionsOverrideForTesting()) {
+    for (const auto* origin : *GetScopeExtensionsOverrideForTesting()) {
+      extensions.insert(ScopeExtensionInfo::CreateForOrigin(
+          url::Origin::Create(GURL(origin))));
+    }
+    return extensions;
+  }
+
+  const auto microsoft365_scope_extension_urls = GetListFromFinchParam(
+      chromeos::features::kMicrosoft365ScopeExtensionsURLs.Get());
+  for (const auto& url_string : microsoft365_scope_extension_urls) {
+    const GURL url = GURL(url_string);
+    if (!IsValidScopeExtension(url)) {
+      LOG(WARNING) << "Skipping invalid M365 scope extension URL from Finch: "
+                   << url_string;
+      continue;
+    }
+    extensions.insert(
+        ScopeExtensionInfo::CreateForOrigin(url::Origin::Create(GURL(url))));
+  }
+  const auto microsoft365_scope_extension_domains = GetListFromFinchParam(
+      chromeos::features::kMicrosoft365ScopeExtensionsDomains.Get());
+  for (const auto& url_string : microsoft365_scope_extension_domains) {
+    const GURL url = GURL(url_string);
+    if (!IsValidScopeExtension(url)) {
+      LOG(WARNING)
+          << "Skipping invalid M365 scope extension domain from Finch: "
+          << url_string;
+      continue;
+    }
+    extensions.insert(ScopeExtensionInfo::CreateForOrigin(
+        url::Origin::Create(GURL(url)), /*has_origin_wildcard*/ true));
+  }
+  return extensions;
+}
+
+bool ChromeOsWebAppExperiments::ShouldAddLinkPreference(
+    const webapps::AppId& app_id,
+    Profile* profile) {
+  return IsExperimentEnabled(app_id) &&
+         chromeos::cloud_upload::IsMicrosoftOfficeOneDriveIntegrationAutomated(
+             profile);
+}
+
+int ChromeOsWebAppExperiments::GetExtendedScopeScore(
+    const webapps::AppId& app_id,
+    std::string_view url_spec) {
+  DCHECK(chromeos::features::IsUploadOfficeToCloudEnabled());
+
+  const GURL url = GURL(url_spec);
+  const auto extensions = GetScopeExtensions(app_id);
+  int best_score = 0;
+  for (const ScopeExtensionInfo& scope : extensions) {
+    const GURL scope_origin = scope.origin.GetURL();
+    int score;
+    if (scope.has_origin_wildcard) {
+      score =
+          url.DomainIs(scope_origin.host()) ? scope_origin.spec().length() : 0;
+    } else {
+      score = base::StartsWith(url_spec, scope_origin.spec(),
+                               base::CompareCase::SENSITIVE)
+                  ? scope_origin.spec().length()
+                  : 0;
+    }
+    best_score = std::max(best_score, score);
   }
   return best_score;
 }
 
-absl::optional<SkColor> ChromeOsWebAppExperiments::GetFallbackPageThemeColor(
-    const AppId& app_id,
-    content::WebContents* web_contents) {
+bool ChromeOsWebAppExperiments::IgnoreManifestColor(
+    const webapps::AppId& app_id) {
   DCHECK(chromeos::features::IsUploadOfficeToCloudEnabled());
+  return IsExperimentEnabled(app_id);
+}
 
-  if (!IsExperimentEnabled(app_id))
-    return absl::nullopt;
+bool ChromeOsWebAppExperiments::IsNavigationCapturingReimplEnabledForTargetApp(
+    const webapps::AppId& target_app_id) {
+  return ::chromeos::features::IsOfficeNavigationCapturingReimplEnabled() &&
+         IsExperimentEnabled(target_app_id);
+}
 
-  if (!web_contents)
-    return absl::nullopt;
+bool ChromeOsWebAppExperiments::IsNavigationCapturingReimplEnabledForSourceApp(
+    const webapps::AppId& source_app_id,
+    const GURL& url) {
+  // Until Navigation Capturing Reimplementation is fully enabled, hardcode
+  // specific destination URLs for the typical scenarios in which we want the
+  // user to stay inside the Office PWA (note that URLs that are already within
+  // the PWA's scope are covered by
+  // `IsNavigationCapturingReimplEnabledForTargetApp()`).
+  return ::chromeos::features::IsOfficeNavigationCapturingReimplEnabled() &&
+         IsExperimentEnabled(source_app_id) && url == url::kAboutBlankURL;
+}
 
-  const GURL& url = web_contents->GetLastCommittedURL();
-  if (!url.is_valid())
-    return absl::nullopt;
+bool ChromeOsWebAppExperiments::ShouldLaunchForRedirectedNavigation(
+    const webapps::AppId& target_app_id) {
+  return IsExperimentEnabled(target_app_id);
+}
 
-  for (const FallbackPageThemeColor& fallback_theme_color :
-       kMicrosoftOfficeWebAppExperimentFallbackPageThemeColors) {
-    if (base::Contains(url.spec(), fallback_theme_color.page_url_piece))
-      return fallback_theme_color.page_theme_color;
+void ChromeOsWebAppExperiments::MaybeOverrideManifest(
+    content::RenderFrameHost* frame_host,
+    blink::mojom::ManifestPtr& manifest) {
+  if (!::chromeos::features::IsMicrosoft365ManifestOverrideEnabled()) {
+    return;
   }
 
-  return absl::nullopt;
+  const auto pwa_start_url_origin = url::Origin::Create(manifest->start_url);
+  std::string pwa_start_url_path =
+      manifest->start_url.GetWithoutFilename().path();
+
+  const auto microsoft365_manifest_urls = GetListFromFinchParam(
+      chromeos::features::kMicrosoft365ManifestUrls.Get());
+
+  for (const auto& url_string : microsoft365_manifest_urls) {
+    GURL microsoft365_manifest_url = GURL(url_string);
+
+    if (pwa_start_url_origin.IsSameOriginWith(microsoft365_manifest_url) &&
+        pwa_start_url_path == microsoft365_manifest_url.path()) {
+      manifest->id =
+          GURL(pwa_start_url_origin.GetURL().spec() + kMicrosoft365ManifestId);
+    }
+  }
 }
 
 void ChromeOsWebAppExperiments::SetAlwaysEnabledForTesting() {
@@ -129,7 +189,7 @@ void ChromeOsWebAppExperiments::SetAlwaysEnabledForTesting() {
 }
 
 void ChromeOsWebAppExperiments::SetScopeExtensionsForTesting(
-    std::vector<const char* const> scope_extensions_override) {
+    std::vector<const char*> scope_extensions_override) {
   GetScopeExtensionsOverrideForTesting() = std::move(scope_extensions_override);
 }
 

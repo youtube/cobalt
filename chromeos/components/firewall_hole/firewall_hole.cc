@@ -29,7 +29,6 @@ const char* PortTypeToString(FirewallHole::PortType type) {
       return "UDP";
   }
   NOTREACHED();
-  return nullptr;
 }
 
 void PortReleased(FirewallHole::PortType type,

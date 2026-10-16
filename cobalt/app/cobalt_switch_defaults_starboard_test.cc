@@ -17,17 +17,17 @@
 #include <vector>
 
 #include "base/base_switches.h"
-#include "base/files/file_path.h"
+#include "build/buildflag.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
-#include "cobalt_switch_defaults_starboard.h"
+#include "cobalt_switch_defaults.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/switches.h"
 #include "ui/gl/gl_switches.h"
-#include "ui/ozone/public/ozone_switches.h"
 
 namespace cobalt {
 namespace {
@@ -54,6 +54,46 @@ TEST(CobaltSwitchDefaultsTest, MergeDisabledFeatures) {
   std::string disabled_features =
       GetSwitchValue(cmd_line_pxr, ::switches::kDisableFeatures);
   EXPECT_EQ(std::string("PersistentOriginTrials,Vulkan"), disabled_features);
+}
+
+TEST(CobaltSwitchDefaultsTest, MergeEnabledFeatures) {
+  const auto input_argv =
+      std::to_array<const char*>({"PROGRAM", "--enable-features=UseFoo"});
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  std::string enabled_features =
+      GetSwitchValue(cmd_line_pxr, ::switches::kEnableFeatures);
+  EXPECT_EQ(std::string("UseFoo,DefaultEnableANGLEValidation, "
+                        "SmallerInterestArea, "
+                        "ReclaimPrepaintTilesWhenIdle, "
+                        "ReclaimOldPrepaintTiles, "
+                        "WebAudioRemoveAudioDestinationResampler, "
+                        "DomStorageSmartFlushing"),
+            enabled_features);
+}
+
+TEST(CobaltSwitchDefaultsTest, MergeEnabledBlinkFeatures) {
+  const auto input_argv =
+      std::to_array<const char*>({"PROGRAM", "--enable-blink-features=UseFoo"});
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  EXPECT_EQ(std::string("UseFoo,PreciseMemoryInfo"),
+            GetSwitchValue(cmd_line_pxr, ::switches::kEnableBlinkFeatures));
+}
+
+TEST(CobaltSwitchDefaultsTest, MergeJavaScriptFlags) {
+  const auto input_argv =
+      std::to_array<const char*>({"PROGRAM", "--js-flags=--expose-gc"});
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  // V8 flags are last-wins, so defaults are prepended and the caller's flags
+  // come last.
+  EXPECT_EQ(std::string("--no-decommit-pooled-pages --no-concurrent-marking,"
+                        "--expose-gc"),
+            GetSwitchValue(cmd_line_pxr, blink::switches::kJavaScriptFlags));
 }
 
 TEST(CobaltSwitchDefaultsTest, ConsistentWindowSizes) {
@@ -103,14 +143,12 @@ TEST(CobaltSwitchDefaultsTest, AlwaysEnabledSwitches) {
   const int input_argc = static_cast<int>(input_argv.size());
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
-  std::vector<const char*> always_on_switches {
-    ::switches::kForceVideoOverlays, ::switches::kSingleProcess,
-        ::switches::kIgnoreGpuBlocklist,
+  std::vector<const char*> always_on_switches{
+      ::switches::kSingleProcess, ::switches::kIgnoreGpuBlocklist,
 #if BUILDFLAG(IS_ANDROID)
-        ::switches::kUserLevelMemoryPressureSignalParams,
+      ::switches::kUserLevelMemoryPressureSignalParams,
 #endif  // BUILDFLAG(IS_ANDROID)
-        sandbox::policy::switches::kNoSandbox
-  };
+      sandbox::policy::switches::kNoSandbox, ::switches::kHideScrollbars};
 
   for (const auto& switch_key : always_on_switches) {
     EXPECT_TRUE(HasSwitch(cmd_line_pxr, switch_key));
@@ -155,7 +193,7 @@ TEST(CobaltSwitchDefaultsTest, StartupURLDefault) {
   const int input_argc = static_cast<int>(input_argv.size());
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
-  EXPECT_EQ("https://www.youtube.com/tv/splash",
+  EXPECT_EQ("https://www.youtube.com/tv",
             cmd_line_pxr.get_startup_url_for_test());
   EXPECT_EQ("", GetSwitchValue(cmd_line_pxr, cobalt::switches::kInitialURL));
 }

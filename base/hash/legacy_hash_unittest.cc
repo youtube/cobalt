@@ -6,15 +6,16 @@
 
 #include <stdint.h>
 
-#include "base/strings/string_piece.h"
+#include <string_view>
+
+#include "base/containers/span.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace base {
-namespace legacy {
+namespace base::legacy {
 
 TEST(LegacyHashTest, CityHashV103) {
   constexpr struct {
-    StringPiece input;
+    std::string_view input;
     uint64_t output;
     uint64_t output_with_seed;
   } kTestCases[] = {
@@ -24,15 +25,13 @@ TEST(LegacyHashTest, CityHashV103) {
   };
   for (const auto& test_case : kTestCases) {
     SCOPED_TRACE(test_case.input);
-    auto bytes = as_bytes(make_span(test_case.input));
-    EXPECT_EQ(test_case.output, CityHash64(bytes));
+    EXPECT_EQ(test_case.output, CityHash64(as_byte_span(test_case.input)));
   }
   for (const auto& test_case : kTestCases) {
     SCOPED_TRACE(test_case.input);
-    auto bytes = as_bytes(make_span(test_case.input));
-    EXPECT_EQ(test_case.output_with_seed, CityHash64WithSeed(bytes, 112358));
+    EXPECT_EQ(test_case.output_with_seed,
+              CityHash64WithSeed(as_byte_span(test_case.input), 112358));
   }
 }
 
-}  // namespace legacy
-}  // namespace base
+}  // namespace base::legacy

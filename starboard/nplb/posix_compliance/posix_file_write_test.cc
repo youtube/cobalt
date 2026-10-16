@@ -158,7 +158,7 @@ TYPED_TEST(PosixFileWriteTest, WriteZeroBytes) {
 
   file = open(filename.c_str(), O_RDONLY);
   ASSERT_GE(file, 0) << strerror(errno);
-  struct stat info {};
+  struct stat info{};
   result = fstat(file, &info);
   EXPECT_TRUE(result == 0);
   EXPECT_EQ(0, info.st_size);
@@ -216,7 +216,7 @@ TYPED_TEST(PosixFileWriteTest, PwriteBeyondEndOfFile) {
   ASSERT_EQ(static_cast<ssize_t>(write_size), bytes_pwritten);
   EXPECT_EQ(0, lseek(file, 0, SEEK_CUR));  // Offset should not change
 
-  struct stat info {};
+  struct stat info{};
   ASSERT_EQ(0, fstat(file, &info));
   EXPECT_EQ(static_cast<off_t>(offset + write_size),
             info.st_size);  // File should be extended
@@ -362,7 +362,7 @@ TYPED_TEST(PosixFileWriteTest, WritevEmpty) {
   EXPECT_NE(bytes_written, -1) << "writev() failed: " << strerror(errno);
   EXPECT_EQ(0, bytes_written);
 
-  struct stat info {};
+  struct stat info{};
   ASSERT_EQ(0, fstat(file, &info)) << strerror(errno);
   EXPECT_EQ(0, info.st_size);
 

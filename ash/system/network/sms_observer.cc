@@ -6,15 +6,19 @@
 
 #include <memory>
 
+#include "ash/constants/ash_features.h"
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/notification_utils.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/system/tray/tray_constants.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
+#include "chromeos/ash/components/network/metrics/cellular_network_metrics_logger.h"
 #include "chromeos/ash/components/network/network_event_log.h"
 #include "chromeos/ash/components/network/network_handler.h"
+#include "chromeos/ash/components/network/network_sms_handler.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/message_center/message_center.h"
 
@@ -42,7 +46,7 @@ void ShowNotification(const base::Value::Dict* message,
   // TODO(estade): should SMS notifications really be shown to all users?
   notification = ash::CreateSystemNotificationPtr(
       message_center::NOTIFICATION_TYPE_SIMPLE,
-      SmsObserver::kNotificationPrefix + std::to_string(message_id),
+      SmsObserver::kNotificationPrefix + base::NumberToString(message_id),
       base::ASCIIToUTF16(message_number),
       base::CollapseWhitespace(base::UTF8ToUTF16(message_text),
                                false /* trim_sequences_with_line_breaks */),
@@ -60,41 +64,41 @@ SmsObserver::SmsObserver() {
   // TODO(armansito): SMS could be a special case for cellular that requires a
   // user (perhaps the owner) to be logged in. If that is the case, then an
   // additional check should be done before subscribing for SMS notifications.
-  if (NetworkHandler::IsInitialized())
-    NetworkHandler::Get()->network_sms_handler()->AddObserver(this);
+  if (NetworkHandler::IsInitialized()) {
+      NetworkHandler::Get()->text_message_provider()->AddObserver(this);
+  }
 }
 
 SmsObserver::~SmsObserver() {
   if (NetworkHandler::IsInitialized()) {
-    NetworkHandler::Get()->network_sms_handler()->RemoveObserver(this);
+      NetworkHandler::Get()->text_message_provider()->RemoveObserver(this);
   }
 }
 
-void SmsObserver::MessageReceived(const base::Value::Dict& message) {
-  const std::string* message_text =
-      message.FindString(NetworkSmsHandler::kTextKey);
-  if (!message_text) {
-    NET_LOG(ERROR) << "SMS message contains no content.";
-    return;
-  }
-  // TODO(armansito): A message might be due to a special "Message Waiting"
+void SmsObserver::MessageReceived(const std::string& guid,
+                                  const TextMessageData& message_data) {
+  // TODO(b/328445717): A message might be due to a special "Message Waiting"
   // state that the message is in. Once SMS handling moves to shill, such
   // messages should be filtered there so that this check becomes unnecessary.
-  if (message_text->empty()) {
-    NET_LOG(DEBUG) << "SMS has empty content text. Ignoring.";
+  if (!message_data.text.has_value() || message_data.text->empty()) {
+    NET_LOG(ERROR) << "SMS message contains no or empty content.";
     return;
   }
-  const std::string* message_number =
-      message.FindString(NetworkSmsHandler::kNumberKey);
-  if (!message_number) {
+  if (!message_data.number.has_value() || message_data.number->empty()) {
     NET_LOG(DEBUG) << "SMS contains no number. Ignoring.";
     return;
   }
-
-  NET_LOG(DEBUG) << "Received SMS from: " << *message_number
-                 << " with text: " << *message_text;
   message_id_++;
-  ShowNotification(&message, *message_text, *message_number, message_id_);
+  // TODO(b/295169036) Remove unused message dictionary once suppress text
+  // messages feature flag is removed.
+  ShowNotification(/*message=*/nullptr, *message_data.text,
+                   *message_data.number, message_id_);
+
+  if (NetworkHandler::IsInitialized()) {
+    NetworkHandler::Get()
+        ->text_message_provider()
+        ->LogTextMessageNotificationMetrics(guid);
+  }
 }
 
 }  // namespace ash

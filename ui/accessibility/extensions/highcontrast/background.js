@@ -1,119 +1,59 @@
-// Copyright 2014 The Chromium Authors
+// Copyright (c) 2014 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-class Background {
-  constructor() {
-    this.init_();
-  }
+importScripts("common.js");
 
-  /**
-   * @param {function(chrome.tabs.Tab)} tabCallback A function that performs
-   *     some action on each tab.
-   * @private
-   */
-  forAllTabs_(tabCallback) {
-    chrome.windows.getAll({'populate': true}, function(windows) {
-      for (const window of windows) {
-        for (const tab of window.tabs) {
-          if (isDisallowedUrl(tab.url)) {
-            continue;
-          }
-          tabCallback(tab);
+function injectContentScripts() {
+  chrome.windows.getAll({'populate': true}, windows => {
+    for (const w of windows) {
+      for (const tab of w.tabs) {
+        var url = tab.url;
+        if (url.indexOf('chrome') == 0 || url.indexOf('about') == 0) {
+          continue;
         }
+        chrome.scripting.executeScript({
+            target: { tabId: tab.id, allFrames: true },
+            files: [ 'common.js', 'highcontrast.js' ],
+            injectImmediately: true,
+        });
       }
-    });
-  }
-
-  /** @public */
-  injectContentScripts() {
-    this.forAllTabs_(tab => chrome.tabs.executeScript(
-        tab.id,
-        {file: 'highcontrast.js', allFrames: true}));
-  }
-
-  /** @private */
-  updateTabs_() {
-    this.forAllTabs_(tab => {
-      const msg = {
-        'enabled': Storage.enabled,
-        'scheme': Storage.getSiteScheme(siteFromUrl(tab.url))
-      };
-      chrome.tabs.sendRequest(tab.id, msg);
-    });
-  }
-
-  /** @private */
-  toggleEnabled_() {
-    Storage.enabled = !Storage.enabled;
-    this.updateTabs_();
-  }
-
-  /**
-   * @param {string} url
-   * @private
-   */
-  toggleSite_(url) {
-    const site = siteFromUrl(url);
-    let scheme = Storage.getSiteScheme(site);
-    if (scheme > 0) {
-      scheme = 0;
-    } else if (Storage.scheme > 0) {
-      scheme = Storage.scheme;
-    } else {
-      scheme = Storage.SCHEME.defaultValue;
     }
-    Storage.setSiteScheme(site, scheme);
-    this.updateTabs_();
+  });
+}
+
+function toggleEnabled() {
+  setEnabled(!getEnabled());
+}
+
+function toggleSite(url) {
+  var site = siteFromUrl(url);
+  var scheme = getSiteScheme(site);
+  if (scheme > 0) {
+    scheme = 0;
+  } else if (getDefaultScheme() > 0) {
+    scheme = getDefaultScheme();
+  } else {
+    scheme = DEFAULT_SCHEME;
   }
+  setSiteScheme(site, scheme);
+}
 
-  /**
-   * @param {*} request
-   * @param {chrome.runtime.MessageSender} sender
-   * @param {function} sendResponse
-   * @private
-   */
-  handleRequest_(request, sender, sendResponse) {
-    if (request['updateTabs']) {
-      this.updateTabs_();
-    }
-    if (request['toggle_global']) {
-      this.toggleEnabled_();
-    }
-    if (request['toggle_site']) {
-      this.toggleSite_(sender.tab ? sender.tab.url : 'www.example.com');
-    }
-    if (request['init']) {
-      let scheme = Storage.scheme;
-      if (sender.tab) {
-        scheme = Storage.getSiteScheme(siteFromUrl(sender.tab.url));
-      }
-      const msg = {
-        'enabled': Storage.enabled,
-        'scheme': scheme
-      };
-      sendResponse(msg);
-    }
-  }
+async function init() {
+  injectContentScripts();
 
-  /** @private */
-  init_() {
-    this.injectContentScripts();
-    this.updateTabs_();
-
-    chrome.extension.onRequest.addListener(this.handleRequest_.bind(this));
-
-    chrome.storage.onChanged.addListener(this.updateTabs_.bind(this));
-
-    if (navigator.appVersion.indexOf('Mac') != -1) {
-      chrome.browserAction.setTitle({'title': 'High Contrast (Cmd+Shift+F11)'});
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message['toggle_global']) {
+      toggleEnabled();
     }
+    if (message['toggle_site']) {
+      toggleSite(sender.tab ? sender.tab.url : 'www.example.com');
+    }
+  });
+
+  if (navigator.appVersion.indexOf('Mac') != -1) {
+    chrome.action.setTitle({'title': 'High Contrast (Cmd+Shift+F11)'});
   }
 }
 
-self.addEventListener('install', () => {
-  importScripts('common.js');
-  importScripts('storage.js');
-  Storage.initialize();
-  const background = new Background();
-});
+self.addEventListener('install', init);

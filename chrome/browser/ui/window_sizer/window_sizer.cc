@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/common/chrome_switches.h"
 #include "components/prefs/pref_service.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/base/ui_base_switches.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
@@ -34,6 +35,12 @@ namespace {
 const int kMinVisibleHeight = 30;
 // Minimum width of the visible part of a window.
 const int kMinVisibleWidth = 30;
+
+#if BUILDFLAG(IS_CHROMEOS)
+// This specifies the minimum percentage of a window's dimension (either width
+// or height) that must remain visible with the display area.
+constexpr float kMinVisibleRatio = 0.3f;
+#endif
 
 BrowserWindow* FindMostRecentBrowserWindow(
     base::FunctionRef<bool(Browser*)> matcher) {
@@ -58,40 +65,46 @@ class DefaultStateProvider : public WindowSizer::StateProvider {
   DefaultStateProvider& operator=(const DefaultStateProvider&) = delete;
 
   // Overridden from WindowSizer::StateProvider:
-  bool GetPersistentState(gfx::Rect* bounds,
-                          gfx::Rect* work_area,
-                          ui::WindowShowState* show_state) const override {
+  bool GetPersistentState(
+      gfx::Rect* bounds,
+      gfx::Rect* work_area,
+      ui::mojom::WindowShowState* show_state) const override {
     DCHECK(bounds);
     DCHECK(show_state);
 
-    if (!browser_ || !browser_->profile()->GetPrefs())
+    if (!browser_ || !browser_->profile()->GetPrefs()) {
       return false;
+    }
 
     const base::Value::Dict* pref =
         chrome::GetWindowPlacementDictionaryReadOnly(
             chrome::GetWindowName(browser_), browser_->profile()->GetPrefs());
 
-    absl::optional<gfx::Rect> pref_bounds = RectFromPrefixedPref(pref, "");
-    absl::optional<gfx::Rect> pref_area =
+    std::optional<gfx::Rect> pref_bounds = RectFromPrefixedPref(pref, "");
+    std::optional<gfx::Rect> pref_area =
         RectFromPrefixedPref(pref, "work_area_");
-    absl::optional<bool> maximized =
-        pref ? pref->FindBool("maximized") : absl::nullopt;
+    std::optional<bool> maximized =
+        pref ? pref->FindBool("maximized") : std::nullopt;
 
-    if (!pref_bounds || !maximized)
+    if (!pref_bounds || !maximized) {
       return false;
+    }
 
     *bounds = pref_bounds.value();
-    if (pref_area)
+    if (pref_area) {
       *work_area = pref_area.value();
-    if (*show_state == ui::SHOW_STATE_DEFAULT && maximized.value())
-      *show_state = ui::SHOW_STATE_MAXIMIZED;
+    }
+    if (*show_state == ui::mojom::WindowShowState::kDefault &&
+        maximized.value()) {
+      *show_state = ui::mojom::WindowShowState::kMaximized;
+    }
 
     return true;
   }
 
   bool GetLastActiveWindowState(
       gfx::Rect* bounds,
-      ui::WindowShowState* show_state) const override {
+      ui::mojom::WindowShowState* show_state) const override {
     DCHECK(show_state);
     // Legacy Applications and Devtools are always restored with the same
     // position.
@@ -114,8 +127,9 @@ class DefaultStateProvider : public WindowSizer::StateProvider {
            app_id = browser_->app_controller()->app_id(),
            display = display::Screen::GetScreen()->GetDisplayForNewWindows()](
               Browser* browser) {
-            if (browser->profile() != profile)
+            if (browser->profile() != profile) {
               return false;
+            }
             if (!web_app::AppBrowserController::IsForWebApp(browser, app_id)) {
               return false;
             }
@@ -135,14 +149,21 @@ class DefaultStateProvider : public WindowSizer::StateProvider {
     }
 
     if (window) {
-#if BUILDFLAG(IS_CHROMEOS)
-      if (window->IsVisible())
-        *bounds = window->GetRestoredBounds();
-#else
       *bounds = window->GetRestoredBounds();
+
+      // On Mac GetRestoredBounds already returns the maximized bounds for
+      // maximized windows. Additionally creating a window with a maximized
+      // show state results in an invisible window if the window is a PWA
+      // (i.e. out-of-process remote cocoa) window
+      // (https://crbug.com/1441966). Never using WindowShowState::kMaximized
+      // on Mac is also consistent with NativeWidgetMac::Show, which does not
+      // support WindowShowState::kMaximized either.
+#if !BUILDFLAG(IS_MAC)
+      if (*show_state == ui::mojom::WindowShowState::kDefault &&
+          window->IsMaximized()) {
+        *show_state = ui::mojom::WindowShowState::kMaximized;
+      }
 #endif
-      if (*show_state == ui::SHOW_STATE_DEFAULT && window->IsMaximized())
-        *show_state = ui::SHOW_STATE_MAXIMIZED;
       return true;
     }
 
@@ -150,21 +171,23 @@ class DefaultStateProvider : public WindowSizer::StateProvider {
   }
 
  private:
-  static absl::optional<gfx::Rect> RectFromPrefixedPref(
+  static std::optional<gfx::Rect> RectFromPrefixedPref(
       const base::Value::Dict* pref,
       const std::string& prefix) {
-    if (!pref)
-      return absl::nullopt;
+    if (!pref) {
+      return std::nullopt;
+    }
 
-    absl::optional<int> top, left, bottom, right;
+    std::optional<int> top, left, bottom, right;
 
     top = pref->FindInt(prefix + "top");
     left = pref->FindInt(prefix + "left");
     bottom = pref->FindInt(prefix + "bottom");
     right = pref->FindInt(prefix + "right");
 
-    if (!top || !left || !bottom || !right)
-      return absl::nullopt;
+    if (!top || !left || !bottom || !right) {
+      return std::nullopt;
+    }
 
     return gfx::Rect(left.value(), top.value(),
                      std::max(0, right.value() - left.value()),
@@ -176,13 +199,6 @@ class DefaultStateProvider : public WindowSizer::StateProvider {
   // If set, is used as the reference browser for GetLastActiveWindowState.
   raw_ptr<const Browser> browser_;
 };
-
-// This function, unlike base::clamp(), does not check if `min` is greater than
-// `max`, and returns a bogus answer if it is. TODO(crbug.com/1235666) migrate
-// all code that calls this function to use base::clamp() instead.
-constexpr int BrokenClampThatShouldNotBeUsed(int value, int min, int max) {
-  return std::min(std::max(value, min), max);
-}
 
 }  // namespace
 
@@ -197,7 +213,7 @@ void WindowSizer::GetBrowserWindowBoundsAndShowState(
     const gfx::Rect& specified_bounds,
     const Browser* browser,
     gfx::Rect* window_bounds,
-    ui::WindowShowState* show_state) {
+    ui::mojom::WindowShowState* show_state) {
   return GetBrowserWindowBoundsAndShowState(
       std::make_unique<DefaultStateProvider>(browser), specified_bounds,
       browser, window_bounds, show_state);
@@ -211,7 +227,7 @@ void WindowSizer::GetBrowserWindowBoundsAndShowState(
     const gfx::Rect& specified_bounds,
     const Browser* browser,
     gfx::Rect* bounds,
-    ui::WindowShowState* show_state) {
+    ui::mojom::WindowShowState* show_state) {
   DCHECK(bounds);
   DCHECK(show_state);
 #if BUILDFLAG(IS_CHROMEOS)
@@ -229,14 +245,16 @@ void WindowSizer::GetBrowserWindowBoundsAndShowState(
 void WindowSizer::DetermineWindowBoundsAndShowState(
     const gfx::Rect& specified_bounds,
     gfx::Rect* bounds,
-    ui::WindowShowState* show_state) {
+    ui::mojom::WindowShowState* show_state) {
   if (bounds->IsEmpty()) {
     // See if there's last active window's placement information.
-    if (GetLastActiveWindowBounds(bounds, show_state))
+    if (GetLastActiveWindowBounds(bounds, show_state)) {
       return;
+    }
     // See if there's saved placement information.
-    if (GetSavedWindowBounds(bounds, show_state))
+    if (GetSavedWindowBounds(bounds, show_state)) {
       return;
+    }
 
     // No saved placement, figure out some sensible default size based on
     // the user's screen size.
@@ -263,12 +281,13 @@ void WindowSizer::AdjustWorkAreaForPlatform(gfx::Rect& work_area) {}
 
 bool WindowSizer::GetLastActiveWindowBounds(
     gfx::Rect* bounds,
-    ui::WindowShowState* show_state) const {
+    ui::mojom::WindowShowState* show_state) const {
   DCHECK(bounds);
   DCHECK(show_state);
   if (!state_provider_.get() ||
-      !state_provider_->GetLastActiveWindowState(bounds, show_state))
+      !state_provider_->GetLastActiveWindowState(bounds, show_state)) {
     return false;
+  }
   bounds->Offset(kWindowTilePixels, kWindowTilePixels);
   AdjustBoundsToBeVisibleOnDisplay(
       display::Screen::GetScreen()->GetDisplayMatching(*bounds), gfx::Rect(),
@@ -276,16 +295,16 @@ bool WindowSizer::GetLastActiveWindowBounds(
   return true;
 }
 
-bool WindowSizer::GetSavedWindowBounds(gfx::Rect* bounds,
-                                       ui::WindowShowState* show_state) const {
+bool WindowSizer::GetSavedWindowBounds(
+    gfx::Rect* bounds,
+    ui::mojom::WindowShowState* show_state) const {
   DCHECK(bounds);
   DCHECK(show_state);
   gfx::Rect saved_work_area;
-  if (!state_provider_.get() ||
-      !state_provider_->GetPersistentState(bounds,
-                                           &saved_work_area,
-                                           show_state))
+  if (!state_provider_.get() || !state_provider_->GetPersistentState(
+                                    bounds, &saved_work_area, show_state)) {
     return false;
+  }
   AdjustBoundsToBeVisibleOnDisplay(GetDisplayForNewWindow(*bounds),
                                    saved_work_area, bounds);
   return true;
@@ -307,7 +326,7 @@ gfx::Rect WindowSizer::GetDefaultWindowBounds(
   gfx::Rect screen_size =
       display::Screen::GetScreen()->GetPrimaryDisplay().bounds();
   double width_to_height =
-    static_cast<double>(screen_size.width()) / screen_size.height();
+      static_cast<double>(screen_size.width()) / screen_size.height();
 
   // The least wide a screen can be to qualify for the halving described above.
   static const int kMinScreenWidthForWindowHalving = 1600;
@@ -318,8 +337,8 @@ gfx::Rect WindowSizer::GetDefaultWindowBounds(
     // Halve the work area, subtracting aesthetic padding on either side.
     // The padding is set so that two windows, side by side have
     // kWindowTilePixels between screen edge and each other.
-    default_width = static_cast<int>(work_area.width() / 2. -
-        1.5 * kWindowTilePixels);
+    default_width =
+        static_cast<int>(work_area.width() / 2. - 1.5 * kWindowTilePixels);
   }
 #endif  // !BUILDFLAG(IS_MAC)
   return gfx::Rect(kWindowTilePixels + work_area.x(),
@@ -331,79 +350,89 @@ void WindowSizer::AdjustBoundsToBeVisibleOnDisplay(
     const display::Display& display,
     const gfx::Rect& saved_work_area,
     gfx::Rect* bounds) const {
-  DCHECK(bounds);
+  CHECK(bounds);
 
   // If |bounds| is empty, reset to the default size.
   if (bounds->IsEmpty()) {
     gfx::Rect default_bounds = GetDefaultWindowBounds(display);
-    if (bounds->height() <= 0)
+    if (bounds->height() <= 0) {
       bounds->set_height(default_bounds.height());
-    if (bounds->width() <= 0)
+    }
+    if (bounds->width() <= 0) {
       bounds->set_width(default_bounds.width());
+    }
   }
 
   // Ensure the minimum height and width.
   bounds->set_height(std::max(kMinVisibleHeight, bounds->height()));
   bounds->set_width(std::max(kMinVisibleWidth, bounds->width()));
 
-  gfx::Rect work_area = display.work_area();
+  const gfx::Rect work_area = display.work_area();
+  CHECK(!work_area.IsEmpty());
   // Ensure that the title bar is not above the work area.
-  if (bounds->y() < work_area.y())
+  if (bounds->y() < work_area.y()) {
     bounds->set_y(work_area.y());
+  }
 
   // Reposition and resize the bounds if the saved_work_area is different from
   // the current work area and the current work area doesn't completely contain
   // the bounds.
-  if (!saved_work_area.IsEmpty() &&
-      saved_work_area != work_area &&
+  if (!saved_work_area.IsEmpty() && saved_work_area != work_area &&
       !work_area.Contains(*bounds)) {
-    bounds->set_width(std::min(bounds->width(), work_area.width()));
-    bounds->set_height(std::min(bounds->height(), work_area.height()));
-    // TODO(crbug.com/1235666): Make sure these use correct ranges (lo <= hi)
-    // and migrate to base::clamp().
-    bounds->set_x(BrokenClampThatShouldNotBeUsed(
-        bounds->x(), work_area.x(), work_area.right() - bounds->width()));
-    bounds->set_y(BrokenClampThatShouldNotBeUsed(
-        bounds->y(), work_area.y(), work_area.bottom() - bounds->height()));
+    bounds->AdjustToFit(work_area);
   }
 
 #if BUILDFLAG(IS_MAC)
-  // Limit the maximum height.  On the Mac the sizer is on the
-  // bottom-right of the window, and a window cannot be moved "up"
-  // past the menubar.  If the window is too tall you'll never be able
-  // to shrink it again.  Windows does not have this limitation
-  // (e.g. can be resized from the top).
   bounds->set_height(std::min(work_area.height(), bounds->height()));
 
   // On mac, we want to be aggressive about repositioning windows that are
   // partially offscreen.  If the window is partially offscreen horizontally,
   // move it to be flush with the left edge of the work area.
-  if (bounds->x() < work_area.x() || bounds->right() > work_area.right())
+  if (bounds->x() < work_area.x() || bounds->right() > work_area.right()) {
     bounds->set_x(work_area.x());
+  }
 
   // If the window is partially offscreen vertically, move it to be flush with
   // the top of the work area.
-  if (bounds->y() < work_area.y() || bounds->bottom() > work_area.bottom())
+  if (bounds->y() < work_area.y() || bounds->bottom() > work_area.bottom()) {
     bounds->set_y(work_area.y());
+  }
 #else
-  // On non-Mac platforms, we are less aggressive about repositioning.  Simply
-  // ensure that at least kMinVisibleWidth * kMinVisibleHeight is visible.
-  const int min_y = work_area.y() + kMinVisibleHeight - bounds->height();
-  const int min_x = work_area.x() + kMinVisibleWidth - bounds->width();
-  const int max_y = work_area.bottom() - kMinVisibleHeight;
-  const int max_x = work_area.right() - kMinVisibleWidth;
-  // TODO(crbug.com/1235666): Make sure these use correct ranges (lo <= hi)
-  // and migrate to base::clamp().
-  bounds->set_y(BrokenClampThatShouldNotBeUsed(bounds->y(), min_y, max_y));
-  bounds->set_x(BrokenClampThatShouldNotBeUsed(bounds->x(), min_x, max_x));
+  // On non-Mac platforms, we are less aggressive about repositioning. Simply
+  // ensure that at least kMinVisibleWidth * kMinVisibleHeight is visible or
+  // `kMinVisibleRatio` of width and height is visible on ChromeOS.
+  int min_visible_width = kMinVisibleWidth;
+  int min_visible_height = kMinVisibleHeight;
+#if BUILDFLAG(IS_CHROMEOS)
+  min_visible_width = std::max(
+      min_visible_width, base::ClampRound(bounds->width() * kMinVisibleRatio));
+  min_visible_height =
+      std::max(min_visible_height,
+               base::ClampRound(bounds->height() * kMinVisibleRatio));
+#endif  // BUILDFLAG(IS_CHROMEOS)
+  const int min_y = work_area.y() + min_visible_height - bounds->height();
+  const int min_x = work_area.x() + min_visible_width - bounds->width();
+  const int max_y = work_area.bottom() - min_visible_height;
+  const int max_x = work_area.right() - min_visible_width;
+  // Reposition and resize the bounds to make it fully visible inside the work
+  // area if the work area and bounds are both small.
+  // `min_x >= max_x` happens when `work_area.width() + bounds.width() <= 2 *
+  // min_visible_width`. Similar for `min_y >= max_y` in height dimension.
+  if (min_x >= max_x || min_y >= max_y) {
+    bounds->AdjustToFit(work_area);
+  } else {
+    bounds->set_y(std::clamp(bounds->y(), min_y, max_y));
+    bounds->set_x(std::clamp(bounds->x(), min_x, max_x));
+  }
 #endif  // BUILDFLAG(IS_MAC)
 }
 
 // static
-ui::WindowShowState WindowSizer::GetWindowDefaultShowState(
+ui::mojom::WindowShowState WindowSizer::GetWindowDefaultShowState(
     const Browser* browser) {
-  if (!browser)
-    return ui::SHOW_STATE_DEFAULT;
+  if (!browser) {
+    return ui::mojom::WindowShowState::kDefault;
+  }
 
   // Only tabbed browsers and dev tools use the command line.
   bool use_command_line =
@@ -417,7 +446,7 @@ ui::WindowShowState WindowSizer::GetWindowDefaultShowState(
 
   if (use_command_line && base::CommandLine::ForCurrentProcess()->HasSwitch(
                               switches::kStartMaximized)) {
-    return ui::SHOW_STATE_MAXIMIZED;
+    return ui::mojom::WindowShowState::kMaximized;
   }
 
   return browser->initial_show_state();

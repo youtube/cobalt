@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -31,7 +32,6 @@
 #include "gpu/command_buffer/common/id_allocator.h"
 #include "gpu/command_buffer/common/raster_cmd_format.h"
 #include "gpu/raster_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cc {
 class TransferCacheSerializeHelper;
@@ -116,36 +116,21 @@ class RASTER_EXPORT RasterImplementation : public RasterInterface,
   // RasterInterface implementation.
   void CopySharedImage(const gpu::Mailbox& source_mailbox,
                        const gpu::Mailbox& dest_mailbox,
-                       GLenum dest_target,
                        GLint xoffset,
                        GLint yoffset,
                        GLint x,
                        GLint y,
                        GLsizei width,
-                       GLsizei height,
-                       GLboolean unpack_flip_y,
-                       GLboolean unpack_premultiply_alpha) override;
+                       GLsizei height) override;
 
   void WritePixels(const gpu::Mailbox& dest_mailbox,
                    int dst_x_offset,
                    int dst_y_offset,
-                   int dst_plane_index,
                    GLenum texture_target,
                    const SkPixmap& src_sk_pixmap) override;
 
-  void ConvertYUVAMailboxesToRGB(
-      const gpu::Mailbox& dest_mailbox,
-      SkYUVColorSpace planes_yuv_color_space,
-      const SkColorSpace* planes_rgb_color_space,
-      SkYUVAInfo::PlaneConfig plane_config,
-      SkYUVAInfo::Subsampling subsampling,
-      const gpu::Mailbox yuva_plane_mailboxes[]) override;
-
-  void ConvertRGBAToYUVAMailboxes(SkYUVColorSpace planes_yuv_color_space,
-                                  SkYUVAInfo::PlaneConfig plane_config,
-                                  SkYUVAInfo::Subsampling subsampling,
-                                  const gpu::Mailbox yuva_plane_mailboxes[],
-                                  const gpu::Mailbox& source_mailbox) override;
+  void WritePixelsYUV(const gpu::Mailbox& dest_mailbox,
+                      const SkYUVAPixmaps& src_yuv_pixmap) override;
 
   void BeginRasterCHROMIUM(SkColor4f sk_color_4f,
                            GLboolean needs_clear,
@@ -154,6 +139,7 @@ class RASTER_EXPORT RasterImplementation : public RasterInterface,
                            GLboolean can_use_lcd_text,
                            GLboolean visible,
                            const gfx::ColorSpace& color_space,
+                           float hdr_headroom,
                            const GLbyte* mailbox) override;
   void RasterCHROMIUM(const cc::DisplayItemList* list,
                       cc::ImageProvider* provider,
@@ -163,6 +149,7 @@ class RASTER_EXPORT RasterImplementation : public RasterInterface,
                       const gfx::Vector2dF& post_translate,
                       const gfx::Vector2dF& post_scale,
                       bool requires_clear,
+                      const ScrollOffsetMap* raster_inducing_scroll_offsets,
                       size_t* max_op_size_hint) override;
   SyncToken ScheduleImageDecode(base::span<const uint8_t> encoded_data,
                                 const gfx::Size& output_size,
@@ -195,7 +182,7 @@ class RASTER_EXPORT RasterImplementation : public RasterInterface,
       const gfx::Point& paste_location,
       base::OnceCallback<void()> release_mailbox,
       base::OnceCallback<void(bool)> readback_done) override;
-  void ReadbackImagePixels(const gpu::Mailbox& source_mailbox,
+  bool ReadbackImagePixels(const gpu::Mailbox& source_mailbox,
                            const SkImageInfo& dst_info,
                            GLuint dst_row_bytes,
                            int src_x,
@@ -203,6 +190,8 @@ class RASTER_EXPORT RasterImplementation : public RasterInterface,
                            int plane_index,
                            void* dst_pixels) override;
   GLuint CreateAndConsumeForGpuRaster(const gpu::Mailbox& mailbox) override;
+  GLuint CreateAndConsumeForGpuRaster(
+      const scoped_refptr<gpu::ClientSharedImage>& shared_image) override;
   void DeleteGpuRasterTexture(GLuint texture) override;
   void BeginGpuRaster() override;
   void EndGpuRaster() override;
@@ -309,6 +298,24 @@ class RASTER_EXPORT RasterImplementation : public RasterInterface,
   void UnmapRasterCHROMIUM(uint32_t raster_written_size,
                            uint32_t total_written_size);
 
+#if BUILDFLAG(IS_COBALT)
+  // Fast path for Cobalt in-process direct raster. Passes a pointer payload
+  // wrapping the finalized DisplayItemList and image transfer cache IDs to
+  // the GPU raster decoder, bypassing PaintOp serialization. Returns false if
+  // any unsupported features (e.g. gainmap images) require fallback to
+  // standard serialization.
+  bool RasterCHROMIUMInProcess(
+      const cc::DisplayItemList* list,
+      cc::ImageProvider* provider,
+      const gfx::Size& content_size,
+      const gfx::Rect& full_raster_rect,
+      const gfx::Rect& playback_rect,
+      const gfx::Vector2dF& post_translate,
+      const gfx::Vector2dF& post_scale,
+      bool requires_clear,
+      const ScrollOffsetMap* raster_inducing_scroll_offsets);
+#endif  // BUILDFLAG(IS_COBALT)
+
   // Returns the last error and clears it. Useful for debugging.
   const std::string& GetLastError() { return last_error_; }
 
@@ -340,7 +347,7 @@ class RASTER_EXPORT RasterImplementation : public RasterInterface,
       SyncToken* decode_sync_token,
       ClientDiscardableHandle handle);
 
-  void ReadbackImagePixelsINTERNAL(const gpu::Mailbox& source_mailbox,
+  bool ReadbackImagePixelsINTERNAL(const gpu::Mailbox& source_mailbox,
                                    const SkImageInfo& dst_info,
                                    GLuint dst_row_bytes,
                                    int src_x,
@@ -391,8 +398,8 @@ class RASTER_EXPORT RasterImplementation : public RasterInterface,
   // Used to check for single threaded access.
   int use_count_;
 
-  absl::optional<ScopedMappedMemoryPtr> font_mapped_buffer_;
-  absl::optional<ScopedTransferBufferPtr> raster_mapped_buffer_;
+  std::optional<ScopedMappedMemoryPtr> font_mapped_buffer_;
+  std::optional<ScopedTransferBufferPtr> raster_mapped_buffer_;
 
   base::RepeatingCallback<void(const char*, int32_t)> error_message_callback_;
 
@@ -407,7 +414,7 @@ class RASTER_EXPORT RasterImplementation : public RasterInterface,
   ClientFontManager font_manager_;
 
   mutable base::Lock lost_lock_;
-  bool lost_;
+  bool lost_ GUARDED_BY(lost_lock_);
 
   // To avoid repeated allocations when searching the rtrees, hold onto this
   // vector between RasterCHROMIUM calls.  It is not valid outside of that
@@ -423,7 +430,7 @@ class RASTER_EXPORT RasterImplementation : public RasterInterface,
     bool can_use_lcd_text = false;
     sk_sp<SkColorSpace> color_space;
   };
-  absl::optional<RasterProperties> raster_properties_;
+  std::optional<RasterProperties> raster_properties_;
 
   uint32_t max_inlined_entry_size_;
   ClientTransferCache transfer_cache_;

@@ -2,7 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/webm/webm_parser.h"
+
+#include <array>
+
+#include "base/containers/span.h"
+#include "base/memory/raw_span.h"
 
 // This file contains code to parse WebM file elements. It was created
 // from information in the Matroska spec.
@@ -13,17 +23,22 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <cstring>
 #include <iomanip>
 #include <limits>
 
 #include "base/check_op.h"
-#include "base/cxx17_backports.h"
 #include "base/logging.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
+#include "build/build_config.h"
 #include "media/formats/webm/webm_constants.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/formats/common/segmented_byte_queue.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
 
@@ -53,9 +68,7 @@ struct ElementIdInfo {
 struct ListElementInfo {
   int id_;
   int level_;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #reinterpret-cast-trivial-type, #global-scope
-  RAW_PTR_EXCLUSION const ElementIdInfo* id_info_;
+  base::raw_span<const ElementIdInfo> id_info_;
   int id_info_count_;
 };
 
@@ -72,12 +85,16 @@ static const ElementIdInfo kEBMLHeaderIds[] = {
     {UINT, kWebMIdDocTypeReadVersion},
 };
 
-static const ElementIdInfo kSegmentIds[] = {
-    {LIST, kWebMIdSeekHead}, {LIST, kWebMIdInfo},
-    {LIST, kWebMIdCluster},  {LIST, kWebMIdTracks},
-    {LIST, kWebMIdCues},     {SKIP_LIST, kWebMIdAttachments},
-    {LIST, kWebMIdChapters}, {LIST, kWebMIdTags},
-};
+static const auto kSegmentIds = std::to_array<ElementIdInfo>({
+    {LIST, kWebMIdSeekHead},
+    {LIST, kWebMIdInfo},
+    {LIST, kWebMIdCluster},
+    {LIST, kWebMIdTracks},
+    {LIST, kWebMIdCues},
+    {SKIP_LIST, kWebMIdAttachments},
+    {LIST, kWebMIdChapters},
+    {LIST, kWebMIdTags},
+});
 
 static const ElementIdInfo kSeekHeadIds[] = {
     {LIST, kWebMIdSeek},
@@ -387,7 +404,7 @@ static const ElementIdInfo kSimpleTagIds[] = {
 #define LIST_ELEMENT_INFO(id, level, id_info) \
   { (id), (level), (id_info), std::size(id_info) }
 
-static const ListElementInfo kListElementInfo[] = {
+static const auto kListElementInfo = std::to_array<ListElementInfo>({
     LIST_ELEMENT_INFO(kWebMIdCluster, 1, kClusterIds),
     LIST_ELEMENT_INFO(kWebMIdEBMLHeader, 0, kEBMLHeaderIds),
     LIST_ELEMENT_INFO(kWebMIdSegment, 0, kSegmentIds),
@@ -437,7 +454,7 @@ static const ListElementInfo kListElementInfo[] = {
     LIST_ELEMENT_INFO(kWebMIdColour, 4, kColourIds),
     LIST_ELEMENT_INFO(kWebMIdColorVolumeMetadata, 5, kColorVolumeMetadataIds),
     LIST_ELEMENT_INFO(kWebMIdProjection, 4, kProjectionIds),
-};
+});
 
 // Parses an element header id or size field. These fields are variable length
 // encoded. The first byte indicates how many bytes the field occupies.
@@ -460,11 +477,13 @@ static int ParseWebMElementHeaderField(const uint8_t* buf,
   DCHECK(buf);
   DCHECK(num);
 
-  if (size < 0)
+  if (size < 0) {
     return -1;
+  }
 
-  if (size == 0)
+  if (size == 0) {
     return 0;
+  }
 
   int mask = 0x80;
   uint8_t ch = buf[0];
@@ -481,12 +500,14 @@ static int ParseWebMElementHeaderField(const uint8_t* buf,
     mask = 0x80 | mask >> 1;
   }
 
-  if (extra_bytes == -1)
+  if (extra_bytes == -1) {
     return -1;
+  }
 
   // Return 0 if we need more data.
-  if ((1 + extra_bytes) > size)
+  if ((1 + extra_bytes) > size) {
     return 0;
+  }
 
   int bytes_used = 1;
 
@@ -496,8 +517,9 @@ static int ParseWebMElementHeaderField(const uint8_t* buf,
     *num = (*num << 8) | ch;
   }
 
-  if (all_ones)
+  if (all_ones) {
     *num = std::numeric_limits<int64_t>::max();
+  }
 
   return bytes_used;
 }
@@ -511,29 +533,33 @@ int WebMParseElementHeader(const uint8_t* buf,
   DCHECK(id);
   DCHECK(element_size);
 
-  if (size == 0)
+  if (size == 0) {
     return 0;
+  }
 
   int64_t tmp = 0;
   int num_id_bytes = ParseWebMElementHeaderField(buf, size, 4, false, &tmp);
 
-  if (num_id_bytes <= 0)
+  if (num_id_bytes <= 0) {
     return num_id_bytes;
+  }
 
-  if (tmp == std::numeric_limits<int64_t>::max())
+  if (tmp == std::numeric_limits<int64_t>::max()) {
     tmp = kWebMReservedId;
+  }
 
   *id = static_cast<int>(tmp);
 
-  int num_size_bytes = ParseWebMElementHeaderField(buf + num_id_bytes,
-                                                   size - num_id_bytes,
-                                                   8, true, &tmp);
+  int num_size_bytes = ParseWebMElementHeaderField(
+      buf + num_id_bytes, size - num_id_bytes, 8, true, &tmp);
 
-  if (num_size_bytes <= 0)
+  if (num_size_bytes <= 0) {
     return num_size_bytes;
+  }
 
-  if (tmp == std::numeric_limits<int64_t>::max())
+  if (tmp == std::numeric_limits<int64_t>::max()) {
     tmp = kWebMUnknownSize;
+  }
 
   *element_size = tmp;
   DVLOG(3) << "WebMParseElementHeader() : id " << std::hex << *id << std::dec
@@ -541,18 +567,62 @@ int WebMParseElementHeader(const uint8_t* buf,
   return num_id_bytes + num_size_bytes;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+int WebMParseElementHeader(SegmentedByteQueue& queue,
+                           int offset,
+                           int size,
+                           int* id,
+                           int64_t* element_size) {
+  DCHECK_GE(offset, 0);
+  DCHECK_GE(size, 0);
+
+  // Read the header in place, which works for all but the rare header that
+  // straddles a segment boundary.
+  base::span<const uint8_t> contiguous_data =
+      queue.PeekContiguousData(base::checked_cast<size_t>(offset));
+  int contiguous_size =
+      std::min(size, base::checked_cast<int>(contiguous_data.size()));
+  if (contiguous_size == 0) {
+    return 0;
+  }
+
+  int result = WebMParseElementHeader(contiguous_data.data(), contiguous_size,
+                                      id, element_size);
+
+  // A zero only means that the header is incomplete within this segment, so
+  // gather the rest of it from the following ones.
+  if (result != 0 || contiguous_size == size) {
+    return result;
+  }
+
+  // An element header is at most a 4 byte ID followed by an 8 byte size.
+  constexpr int kMaxElementHeaderSize = 12;
+  std::optional<base::span<const uint8_t>> header = queue.PeekLinearizedData(
+      base::checked_cast<size_t>(offset),
+      base::checked_cast<size_t>(std::min(size, kMaxElementHeaderSize)));
+  if (!header) {
+    return -1;
+  }
+
+  return WebMParseElementHeader(header->data(),
+                                base::checked_cast<int>(header->size()), id,
+                                element_size);
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 // Finds ElementType for a specific ID.
 static ElementType FindIdType(int id,
-                              const ElementIdInfo* id_info,
+                              base::span<const ElementIdInfo> id_info,
                               int id_info_count) {
-
   // Check for global element IDs that can be anywhere.
-  if (id == kWebMIdVoid || id == kWebMIdCRC32)
+  if (id == kWebMIdVoid || id == kWebMIdCRC32) {
     return SKIP;
+  }
 
   for (int i = 0; i < id_info_count; ++i) {
-    if (id == id_info[i].id_)
+    if (id == id_info[i].id_) {
       return id_info[i].type_;
+    }
   }
 
   return UNKNOWN;
@@ -561,17 +631,19 @@ static ElementType FindIdType(int id,
 // Finds ListElementInfo for a specific ID.
 static const ListElementInfo* FindListInfo(int id) {
   for (size_t i = 0; i < std::size(kListElementInfo); ++i) {
-    if (id == kListElementInfo[i].id_)
+    if (id == kListElementInfo[i].id_) {
       return &kListElementInfo[i];
+    }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 static int FindListLevel(int id) {
   const ListElementInfo* list_info = FindListInfo(id);
-  if (list_info)
+  if (list_info) {
     return list_info->level_;
+  }
 
   return -1;
 }
@@ -580,22 +652,26 @@ static int ParseUInt(const uint8_t* buf,
                      int size,
                      int id,
                      WebMParserClient* client) {
-  if ((size <= 0) || (size > 8))
+  if ((size <= 0) || (size > 8)) {
     return -1;
+  }
 
   // Read in the big-endian integer.
   uint64_t value = 0;
-  for (int i = 0; i < size; ++i)
+  for (int i = 0; i < size; ++i) {
     value = (value << 8) | buf[i];
+  }
 
   // We use int64_t in place of uint64_t everywhere for convenience.  See this
   // bug
   // for more details: http://crbug.com/366750#c3
-  if (!base::IsValueInRangeForNumericType<int64_t>(value))
+  if (!base::IsValueInRangeForNumericType<int64_t>(value)) {
     return -1;
+  }
 
-  if (!client->OnUInt(id, value))
+  if (!client->OnUInt(id, value)) {
     return -1;
+  }
 
   return size;
 }
@@ -604,15 +680,17 @@ static int ParseFloat(const uint8_t* buf,
                       int size,
                       int id,
                       WebMParserClient* client) {
-  if ((size != 4) && (size != 8))
+  if ((size != 4) && (size != 8)) {
     return -1;
+  }
 
   double value = -1;
 
   // Read the bytes from big-endian form into a native endian integer.
   int64_t tmp = 0;
-  for (int i = 0; i < size; ++i)
+  for (int i = 0; i < size; ++i) {
     tmp = (tmp << 8) | buf[i];
+  }
 
   // Use a union to convert the integer bit pattern into a floating point
   // number.
@@ -634,8 +712,9 @@ static int ParseFloat(const uint8_t* buf,
     return -1;
   }
 
-  if (!client->OnFloat(id, value))
+  if (!client->OnFloat(id, value)) {
     return -1;
+  }
 
   return size;
 }
@@ -652,7 +731,7 @@ static int ParseString(const uint8_t* buf,
                        int id,
                        WebMParserClient* client) {
   const uint8_t* end = static_cast<const uint8_t*>(memchr(buf, '\0', size));
-  int length = (end != NULL) ? static_cast<int>(end - buf) : size;
+  int length = (end != nullptr) ? static_cast<int>(end - buf) : size;
   std::string str(reinterpret_cast<const char*>(buf), length);
   return client->OnString(id, str) ? size : -1;
 }
@@ -666,7 +745,7 @@ static int ParseNonListElement(ElementType type,
   DCHECK_GE(size, element_size);
 
   int result = -1;
-  switch(type) {
+  switch (type) {
     case LIST:
       NOTIMPLEMENTED();
       result = -1;
@@ -700,7 +779,7 @@ WebMParserClient::~WebMParserClient() = default;
 
 WebMParserClient* WebMParserClient::OnListStart(int id) {
   DVLOG(1) << "Unexpected list element start with ID " << std::hex << id;
-  return NULL;
+  return nullptr;
 }
 
 bool WebMParserClient::OnListEnd(int id) {
@@ -722,6 +801,16 @@ bool WebMParserClient::OnBinary(int id, const uint8_t* data, int size) {
   DVLOG(1) << "Unexpected binary element with ID " << std::hex << id;
   return false;
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+bool WebMParserClient::OnBinary(int id,
+                                SegmentedByteQueue& queue,
+                                int offset,
+                                int size) {
+  DVLOG(1) << "Unexpected binary element with ID " << std::hex << id;
+  return false;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 bool WebMParserClient::OnString(int id, const std::string& str) {
   DVLOG(1) << "Unexpected string element with ID " << std::hex << id;
@@ -747,11 +836,13 @@ void WebMListParser::Reset() {
 int WebMListParser::Parse(const uint8_t* buf, int size) {
   DCHECK(buf);
 
-  if (size < 0 || state_ == PARSE_ERROR || state_ == DONE_PARSING_LIST)
+  if (size < 0 || state_ == PARSE_ERROR || state_ == DONE_PARSING_LIST) {
     return -1;
+  }
 
-  if (size == 0)
+  if (size == 0) {
     return 0;
+  }
 
   const uint8_t* cur = buf;
   int cur_size = size;
@@ -760,16 +851,18 @@ int WebMListParser::Parse(const uint8_t* buf, int size) {
   while (cur_size > 0 && state_ != PARSE_ERROR && state_ != DONE_PARSING_LIST) {
     int element_id = 0;
     int64_t element_size = 0;
-    int result = WebMParseElementHeader(cur, cur_size, &element_id,
-                                        &element_size);
+    int result =
+        WebMParseElementHeader(cur, cur_size, &element_id, &element_size);
 
-    if (result < 0)
+    if (result < 0) {
       return result;
+    }
 
-    if (result == 0)
+    if (result == 0) {
       return bytes_parsed;
+    }
 
-    switch(state_) {
+    switch (state_) {
       case NEED_LIST_HEADER: {
         if (element_id != root_id_) {
           ChangeState(PARSE_ERROR);
@@ -778,15 +871,15 @@ int WebMListParser::Parse(const uint8_t* buf, int size) {
 
         // Only allow Segment & Cluster to have an unknown size.
         if (element_size == kWebMUnknownSize &&
-            (element_id != kWebMIdSegment) &&
-            (element_id != kWebMIdCluster)) {
+            (element_id != kWebMIdSegment) && (element_id != kWebMIdCluster)) {
           ChangeState(PARSE_ERROR);
           return -1;
         }
 
         ChangeState(INSIDE_LIST);
-        if (!OnListStart(root_id_, element_size))
+        if (!OnListStart(root_id_, element_size)) {
           return -1;
+        }
 
         break;
       }
@@ -796,8 +889,9 @@ int WebMListParser::Parse(const uint8_t* buf, int size) {
         const uint8_t* element_data = cur + header_size;
         int element_data_size = cur_size - header_size;
 
-        if (element_size < element_data_size)
+        if (element_size < element_data_size) {
           element_data_size = element_size;
+        }
 
         result = ParseListElement(header_size, element_id, element_size,
                                   element_data, element_data_size);
@@ -808,8 +902,9 @@ int WebMListParser::Parse(const uint8_t* buf, int size) {
           return -1;
         }
 
-        if (result == 0)
+        if (result == 0) {
           return bytes_parsed;
+        }
 
         break;
       }
@@ -827,6 +922,98 @@ int WebMListParser::Parse(const uint8_t* buf, int size) {
 
   return (state_ == PARSE_ERROR) ? -1 : bytes_parsed;
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+int WebMListParser::Parse(SegmentedByteQueue& queue, int offset, int size) {
+  DCHECK_GE(offset, 0);
+
+  if (size < 0 || state_ == PARSE_ERROR || state_ == DONE_PARSING_LIST) {
+    return -1;
+  }
+
+  if (size == 0) {
+    return 0;
+  }
+
+  int cur_offset = offset;
+  int cur_size = size;
+  int bytes_parsed = 0;
+
+  while (cur_size > 0 && state_ != PARSE_ERROR && state_ != DONE_PARSING_LIST) {
+    int element_id = 0;
+    int64_t element_size = 0;
+    int result = WebMParseElementHeader(queue, cur_offset, cur_size,
+                                        &element_id, &element_size);
+
+    if (result < 0) {
+      return result;
+    }
+
+    if (result == 0) {
+      return bytes_parsed;
+    }
+
+    switch (state_) {
+      case NEED_LIST_HEADER: {
+        if (element_id != root_id_) {
+          ChangeState(PARSE_ERROR);
+          return -1;
+        }
+
+        // Only allow Segment & Cluster to have an unknown size.
+        if (element_size == kWebMUnknownSize &&
+            (element_id != kWebMIdSegment) && (element_id != kWebMIdCluster)) {
+          ChangeState(PARSE_ERROR);
+          return -1;
+        }
+
+        ChangeState(INSIDE_LIST);
+        if (!OnListStart(root_id_, element_size)) {
+          return -1;
+        }
+
+        break;
+      }
+
+      case INSIDE_LIST: {
+        int header_size = result;
+        int element_data_offset = cur_offset + header_size;
+        int element_data_size = cur_size - header_size;
+
+        if (element_size < element_data_size) {
+          element_data_size = element_size;
+        }
+
+        result = ParseListElement(header_size, element_id, element_size, queue,
+                                  element_data_offset, element_data_size);
+
+        DCHECK_LE(result, header_size + element_data_size);
+        if (result < 0) {
+          ChangeState(PARSE_ERROR);
+          return -1;
+        }
+
+        if (result == 0) {
+          return bytes_parsed;
+        }
+
+        break;
+      }
+      case DONE_PARSING_LIST:
+      case PARSE_ERROR:
+        // Shouldn't be able to get here.
+        NOTIMPLEMENTED();
+        break;
+    }
+
+    cur_offset += result;
+    cur_size -= result;
+    bytes_parsed += result;
+  }
+
+  return (state_ == PARSE_ERROR) ? -1 : bytes_parsed;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 bool WebMListParser::IsParsingComplete() const {
   return state_ == DONE_PARSING_LIST;
@@ -862,12 +1049,14 @@ int WebMListParser::ParseListElement(int header_size,
     // we know it and dispatch the end of list calls.
     list_state.size_ = list_state.bytes_parsed_;
 
-    if (!OnListEnd())
+    if (!OnListEnd()) {
       return -1;
+    }
 
     // Check to see if all open lists have ended.
-    if (list_state_stack_.size() == 0)
+    if (list_state_stack_.size() == 0) {
       return 0;
+    }
 
     list_state = list_state_stack_.back();
   }
@@ -882,69 +1071,202 @@ int WebMListParser::ParseListElement(int header_size,
   if (id_type == LIST) {
     list_state.bytes_parsed_ += header_size;
 
-    if (!OnListStart(id, element_size))
+    if (!OnListStart(id, element_size)) {
       return -1;
+    }
     return header_size;
   }
 
   // Make sure we have the entire element before trying to parse a non-list
   // element.
-  if (size < element_size)
+  if (size < element_size) {
     return 0;
+  }
 
-  int bytes_parsed = ParseNonListElement(id_type, id, element_size,
-                                         data, size, list_state.client_);
+  int bytes_parsed = ParseNonListElement(id_type, id, element_size, data, size,
+                                         list_state.client_);
   DCHECK_LE(bytes_parsed, size);
 
   // Return if an error occurred or we need more data.
   // Note: bytes_parsed is 0 for a successful parse of a size 0 element. We
   // need to check the element_size to disambiguate the "need more data" case
   // from a successful parse.
-  if (bytes_parsed < 0 || (bytes_parsed == 0 && element_size != 0))
+  if (bytes_parsed < 0 || (bytes_parsed == 0 && element_size != 0)) {
     return bytes_parsed;
+  }
 
   int result = header_size + bytes_parsed;
   list_state.bytes_parsed_ += result;
 
   // See if we have reached the end of the current list.
   if (list_state.bytes_parsed_ == list_state.size_) {
-    if (!OnListEnd())
+    if (!OnListEnd()) {
       return -1;
+    }
   }
 
   return result;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+int WebMListParser::ParseListElement(int header_size,
+                                     int id,
+                                     int64_t element_size,
+                                     SegmentedByteQueue& queue,
+                                     int offset,
+                                     int size) {
+  DCHECK_GT(list_state_stack_.size(), 0u);
+
+  ListState& list_state = list_state_stack_.back();
+  DCHECK(list_state.element_info_);
+
+  const ListElementInfo* element_info = list_state.element_info_;
+  ElementType id_type =
+      FindIdType(id, element_info->id_info_, element_info->id_info_count_);
+
+  // Unexpected ID.
+  if (id_type == UNKNOWN) {
+    if (list_state.size_ != kWebMUnknownSize ||
+        !IsSiblingOrAncestor(list_state.id_, id)) {
+      DVLOG(1) << "No ElementType info for ID 0x" << std::hex << id;
+      return -1;
+    }
+
+    // We've reached the end of a list of unknown size. Update the size now that
+    // we know it and dispatch the end of list calls.
+    list_state.size_ = list_state.bytes_parsed_;
+
+    if (!OnListEnd()) {
+      return -1;
+    }
+
+    // Check to see if all open lists have ended.
+    if (list_state_stack_.size() == 0) {
+      return 0;
+    }
+
+    list_state = list_state_stack_.back();
+  }
+
+  // Make sure the whole element can fit inside the current list.
+  int64_t total_element_size = header_size + element_size;
+  if (list_state.size_ != kWebMUnknownSize &&
+      list_state.size_ < list_state.bytes_parsed_ + total_element_size) {
+    return -1;
+  }
+
+  if (id_type == LIST) {
+    list_state.bytes_parsed_ += header_size;
+
+    if (!OnListStart(id, element_size)) {
+      return -1;
+    }
+    return header_size;
+  }
+
+  // Make sure we have the entire element before trying to parse a non-list
+  // element.
+  if (size < element_size) {
+    return 0;
+  }
+
+  int bytes_parsed = -1;
+  if (id_type == BINARY) {
+    // Hand the element over as a range, so that a client able to consume it
+    // without contiguous memory, such as WebMClusterParser with frame data,
+    // can avoid a copy entirely.
+    bytes_parsed = list_state.client_->OnBinary(
+                       id, queue, offset, base::checked_cast<int>(element_size))
+                       ? base::checked_cast<int>(element_size)
+                       : -1;
+  } else if (id_type == SKIP) {
+    // Skipped elements are never read, so there is nothing to do.
+    bytes_parsed = base::checked_cast<int>(element_size);
+  } else {
+    // What is left are UINT, FLOAT and STRING. All but STRING are at most 8
+    // bytes, so fail on a bogus size before linearizing it.
+    if (id_type != STRING && element_size > 8) {
+      return -1;
+    }
+
+    // A zero-size element has nothing to linearize, but still needs a valid
+    // pointer, as ParseString() passes it to memchr().
+    static constexpr uint8_t kNoData[1] = {};
+    base::span<const uint8_t> data = base::span(kNoData).first(0u);
+    if (element_size > 0) {
+      std::optional<base::span<const uint8_t>> linearized =
+          queue.PeekLinearizedData(base::checked_cast<size_t>(offset),
+                                   base::checked_cast<size_t>(element_size));
+      if (!linearized) {
+        // The bytes are known to be available, so this is an allocation
+        // failure.
+        return -1;
+      }
+      data = *linearized;
+    }
+    bytes_parsed = ParseNonListElement(id_type, id, element_size, data.data(),
+                                       base::checked_cast<int>(data.size()),
+                                       list_state.client_);
+  }
+  DCHECK_LE(bytes_parsed, size);
+
+  // Return if an error occurred or we need more data.
+  // Note: bytes_parsed is 0 for a successful parse of a size 0 element. We
+  // need to check the element_size to disambiguate the "need more data" case
+  // from a successful parse.
+  if (bytes_parsed < 0 || (bytes_parsed == 0 && element_size != 0)) {
+    return bytes_parsed;
+  }
+
+  int result = header_size + bytes_parsed;
+  list_state.bytes_parsed_ += result;
+
+  // See if we have reached the end of the current list.
+  if (list_state.bytes_parsed_ == list_state.size_) {
+    if (!OnListEnd()) {
+      return -1;
+    }
+  }
+
+  return result;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 bool WebMListParser::OnListStart(int id, int64_t size) {
   const ListElementInfo* element_info = FindListInfo(id);
-  if (!element_info)
+  if (!element_info) {
     return false;
+  }
 
   int current_level = root_level_ + list_state_stack_.size() - 1;
-  if (current_level + 1 != element_info->level_)
+  if (current_level + 1 != element_info->level_) {
     return false;
+  }
 
-  WebMParserClient* current_list_client = NULL;
+  WebMParserClient* current_list_client = nullptr;
   if (!list_state_stack_.empty()) {
     // Make sure the new list doesn't go past the end of the current list.
     ListState current_list_state = list_state_stack_.back();
     if (current_list_state.size_ != kWebMUnknownSize &&
-        current_list_state.size_ < current_list_state.bytes_parsed_ + size)
+        current_list_state.size_ < current_list_state.bytes_parsed_ + size) {
       return false;
+    }
     current_list_client = current_list_state.client_;
   } else {
     current_list_client = root_client_;
   }
 
   WebMParserClient* new_list_client = current_list_client->OnListStart(id);
-  if (!new_list_client)
+  if (!new_list_client) {
     return false;
+  }
 
-  ListState new_list_state = { id, size, 0, element_info, new_list_client };
+  ListState new_list_state = {id, size, 0, element_info, new_list_client};
   list_state_stack_.push_back(new_list_state);
 
-  if (size == 0)
+  if (size == 0) {
     return OnListEnd();
+  }
 
   return true;
 }
@@ -956,12 +1278,13 @@ bool WebMListParser::OnListEnd() {
     int64_t bytes_parsed = list_state.bytes_parsed_;
     int id = list_state.id_;
 
-    if (bytes_parsed != list_state.size_)
+    if (bytes_parsed != list_state.size_) {
       break;
+    }
 
     list_state_stack_.pop_back();
 
-    WebMParserClient* client = NULL;
+    WebMParserClient* client = nullptr;
     if (!list_state_stack_.empty()) {
       // Update the bytes_parsed_ for the parent element.
       list_state_stack_.back().bytes_parsed_ += bytes_parsed;
@@ -970,14 +1293,16 @@ bool WebMListParser::OnListEnd() {
       client = root_client_;
     }
 
-    if (!client->OnListEnd(id))
+    if (!client->OnListEnd(id)) {
       return false;
+    }
   }
 
   DCHECK_GE(lists_ended, 1);
 
-  if (list_state_stack_.empty())
+  if (list_state_stack_.empty()) {
     ChangeState(DONE_PARSING_LIST);
+  }
 
   return true;
 }
@@ -986,8 +1311,9 @@ bool WebMListParser::IsSiblingOrAncestor(int id_a, int id_b) const {
   if (id_a == kWebMIdCluster) {
     // kWebMIdCluster siblings.
     for (size_t i = 0; i < std::size(kSegmentIds); i++) {
-      if (kSegmentIds[i].id_ == id_b)
+      if (kSegmentIds[i].id_ == id_b) {
         return true;
+      }
     }
   } else if (id_a != kWebMIdSegment) {
     return false;

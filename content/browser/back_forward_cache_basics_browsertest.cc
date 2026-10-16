@@ -2,9 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "content/browser/back_forward_cache_browsertest.h"
+#include <array>
 
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/stringprintf.h"
+#include "base/test/bind.h"
+#include "content/browser/back_forward_cache_browsertest.h"
 #include "content/browser/web_contents/web_contents_impl.h"
+#include "content/common/content_navigation_policy.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/web_contents.h"
@@ -16,6 +21,7 @@
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/url_loader_interceptor.h"
 #include "content/shell/browser/shell.h"
+#include "content/test/content_browser_test_utils_internal.h"
 #include "net/test/embedded_test_server/controllable_http_response.h"
 
 // This file contains back/forward-cache tests that test basic functionality,
@@ -189,6 +195,93 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
   ExpectRestored(FROM_HERE);
 }
 
+// Navigate from A to B, go back and forward.
+IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, StartAndStopLoading) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url_a(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  GURL url_b(embedded_test_server()->GetURL("b.com", "/title2.html"));
+
+  int start_loading_count = 0;
+  int stop_loading_a_count = 0;
+  int stop_loading_b_count = 0;
+
+  // 1) Navigate to A.
+  EXPECT_TRUE(NavigateToURL(shell(), url_a));
+
+  // 2) Navigate to B.
+  EXPECT_TRUE(NavigateToURL(shell(), url_b));
+
+  // Add LoadingStartObserver to check the the DidStartLoading in step 3) and 4)
+  // will be fired.
+  LoadingStartObserver start_observer(
+      shell()->web_contents(),
+      base::BindLambdaForTesting([&]() { start_loading_count++; }));
+
+  // Add LoadingStopObserver to check the the DidStopLoading in step 3) and 4)
+  // will be fired. The loading URL can be captured at this point to validate
+  // url_a loading or url_b loading.
+  LoadingStopObserver stop_observer(
+      shell()->web_contents(), base::BindLambdaForTesting([&]() {
+        GURL url = shell()->web_contents()->GetLastCommittedURL();
+        if (url == url_a) {
+          stop_loading_a_count++;
+        } else if (url == url_b) {
+          stop_loading_b_count++;
+        }
+      }));
+
+  // 3) Go back to A.
+  ASSERT_TRUE(HistoryGoBack(web_contents()));
+  EXPECT_EQ(start_loading_count, 1);
+  EXPECT_EQ(stop_loading_a_count, 1);
+  EXPECT_EQ(stop_loading_b_count, 0);
+  ExpectRestored(FROM_HERE);
+
+  // 4) Go forward to B.
+  ASSERT_TRUE(HistoryGoForward(web_contents()));
+  EXPECT_EQ(start_loading_count, 2);
+  EXPECT_EQ(stop_loading_a_count, 1);
+  EXPECT_EQ(stop_loading_b_count, 1);
+  ExpectRestored(FROM_HERE);
+}
+
+IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, DidFinishLoadNotCalled) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url_a(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  GURL url_b(embedded_test_server()->GetURL("b.com", "/page_with_iframe.html"));
+
+  int did_finish_load_count = 0;
+
+  // Set up a LoadFinishObserver to observe the DidFinishLoad event.
+  LoadFinishObserver load_finish_observer(
+      shell()->web_contents(),
+      base::BindLambdaForTesting(
+          [&](RenderFrameHost* render_frame_host, const GURL& validated_url) {
+            did_finish_load_count++;
+          }));
+
+  // 1) Navigate to A. DidFinishLoad will be called once.
+  EXPECT_TRUE(NavigateToURL(shell(), url_a));
+  EXPECT_EQ(did_finish_load_count, 1);
+
+  // 2) Navigate to B. DidFinishLoad will be called once for the main frame and
+  // once for iframe.
+  EXPECT_TRUE(NavigateToURL(shell(), url_b));
+  EXPECT_EQ(did_finish_load_count, 3);
+
+  // 3) Go back to A. DidFinishLoad should not be called in the back forward
+  // cache navigation.
+  ASSERT_TRUE(HistoryGoBack(web_contents()));
+  EXPECT_EQ(did_finish_load_count, 3);
+  ExpectRestored(FROM_HERE);
+
+  // 4) Go forward to B. DidFinishLoad should not be called in the back forward
+  // cache navigation.
+  ASSERT_TRUE(HistoryGoForward(web_contents()));
+  EXPECT_EQ(did_finish_load_count, 3);
+  ExpectRestored(FROM_HERE);
+}
+
 // The current page can't enter the BackForwardCache if another page can script
 // it. This can happen when one document opens a popup using window.open() for
 // instance. It prevents the BackForwardCache from being used.
@@ -202,13 +295,18 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, WindowOpen) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url_a(embedded_test_server()->GetURL("a.com", "/title1.html"));
   GURL url_b(embedded_test_server()->GetURL("b.com", "/title1.html"));
+  base::HistogramTester histograms;
 
   // 1) Navigate to A and open a popup.
   ASSERT_TRUE(NavigateToURL(shell(), url_a));
   RenderFrameHostImplWrapper rfh_a(current_frame_host());
   EXPECT_EQ(1u, rfh_a->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(1u, rfh_a->GetSiteInstance()->GetActiveDocumentCount(
+                    rfh_a->last_committed_url_derived_site_info()));
   Shell* popup = OpenPopup(rfh_a.get(), url_a, "");
   EXPECT_EQ(2u, rfh_a->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(2u, rfh_a->GetSiteInstance()->GetActiveDocumentCount(
+                    rfh_a->last_committed_url_derived_site_info()));
   rfh_a->GetBackForwardCacheMetrics()->SetObserverForTesting(this);
 
   // 2) Navigate to B. The previous document can't enter the BackForwardCache,
@@ -232,17 +330,33 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, WindowOpen) {
   EXPECT_THAT(
       GetTreeResult()->GetDocumentResult(),
       MatchesDocumentResult(
-          NotRestoredReasons(NotRestoredReason::kRelatedActiveContentsExist,
-                             NotRestoredReason::kBrowsingInstanceNotSwapped),
+          NotRestoredReasons({NotRestoredReason::kRelatedActiveContentsExist,
+                              NotRestoredReason::kBrowsingInstanceNotSwapped}),
           BlockListedFeatures()));
+
+  // Make sure that histograms for related active contents are updated with info
+  // about A's related active contents.
+  histograms.ExpectUniqueSample(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents.Count2",
+      2, 1);
+  histograms.ExpectUniqueSample(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents."
+      "IsPotentiallySyncAccessible2",
+      BackForwardCacheMetrics::RelatedActiveContentsSyncAccessInfo::
+          kPotentiallySyncAccessible,
+      1);
 
   // 4) Make the popup drop the window.opener connection. It happens when the
   //    user does an omnibox-initiated navigation, which happens in a new
   //    BrowsingInstance.
   RenderFrameHostImplWrapper rfh_a_new(current_frame_host());
   EXPECT_EQ(2u, rfh_a_new->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(2u, rfh_a_new->GetSiteInstance()->GetActiveDocumentCount(
+                    rfh_a_new->last_committed_url_derived_site_info()));
   ASSERT_TRUE(NavigateToURL(popup, url_b));
   EXPECT_EQ(1u, rfh_a_new->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(1u, rfh_a_new->GetSiteInstance()->GetActiveDocumentCount(
+                    rfh_a_new->last_committed_url_derived_site_info()));
 
   // 5) Navigate to B again. As the scripting relationship with the popup is
   // now severed, the current page (|rfh_a_new|) can enter back-forward cache.
@@ -258,6 +372,247 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, WindowOpen) {
   ASSERT_TRUE(WaitForLoadStop(web_contents()));
   EXPECT_FALSE(rfh_b_new.IsRenderFrameDeleted());
   EXPECT_TRUE(rfh_b_new->IsInBackForwardCache());
+
+  // Expect the histograms aren't updated, since a BrowsingInstance swap
+  // happened.
+  histograms.ExpectTotalCount(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents.Count2",
+      1);
+  histograms.ExpectTotalCount(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents."
+      "IsPotentiallySyncAccessible2",
+      1);
+}
+
+// Similar with WindowOpen above, but open a cross-site page in the popup.
+IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, WindowOpenCrossSite) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url_a(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  GURL url_b(embedded_test_server()->GetURL("b.com", "/title1.html"));
+  GURL url_c(embedded_test_server()->GetURL("c.com", "/title1.html"));
+  base::HistogramTester histograms;
+
+  // 1) Navigate to A and open a cross-site popup B.
+  ASSERT_TRUE(NavigateToURL(shell(), url_a));
+  RenderFrameHostImplWrapper rfh_a(current_frame_host());
+  EXPECT_EQ(1u, rfh_a->GetSiteInstance()->GetRelatedActiveContentsCount());
+  Shell* popup = OpenPopup(rfh_a.get(), url_b, "");
+  WebContentsImpl* popup_contents =
+      static_cast<WebContentsImpl*>(popup->web_contents());
+  EXPECT_TRUE(WaitForLoadStop(popup_contents));
+  FrameTreeNode* popup_root = popup_contents->GetPrimaryFrameTree().root();
+  EXPECT_EQ(popup_root->opener(), web_contents()->GetPrimaryFrameTree().root());
+
+  // The popup and the original tab are related active contents.
+  RenderFrameHostImplWrapper rfh_b(popup_root->current_frame_host());
+  EXPECT_EQ(2u, rfh_a->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(2u, rfh_b->GetSiteInstance()->GetRelatedActiveContentsCount());
+  // A and B use different SiteInstances if site isolation or default
+  // SiteInstanceGroups are turned on, and share the same SiteInstance
+  // otherwise.
+  if (AreStrictSiteInstancesEnabled()) {
+    EXPECT_NE(rfh_a->GetSiteInstance(), rfh_b->GetSiteInstance());
+  } else {
+    EXPECT_EQ(rfh_a->GetSiteInstance(), rfh_b->GetSiteInstance());
+  }
+  EXPECT_TRUE(rfh_a->GetSiteInstance()->IsRelatedSiteInstance(
+      rfh_b->GetSiteInstance()));
+  EXPECT_EQ(1u, rfh_a->GetSiteInstance()->GetActiveDocumentCount(
+                    rfh_a->last_committed_url_derived_site_info()));
+  EXPECT_EQ(1u, rfh_b->GetSiteInstance()->GetActiveDocumentCount(
+                    rfh_b->last_committed_url_derived_site_info()));
+
+  // 2) Navigate to C in the popup. The B document can't enter the
+  // BackForwardCache, because of the opener.
+  ASSERT_TRUE(NavigateToURLFromRenderer(rfh_b.get(), url_c));
+
+  if (AreStrictSiteInstancesEnabled() || ShouldCreateNewHostForAllFrames()) {
+    ASSERT_TRUE(rfh_b.WaitUntilRenderFrameDeleted());
+  } else {
+    ASSERT_FALSE(rfh_b->IsInBackForwardCache());
+  }
+  RenderFrameHostImplWrapper rfh_c(popup_root->current_frame_host());
+  EXPECT_EQ(2u, rfh_a->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(2u, rfh_c->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_TRUE(rfh_a->GetSiteInstance()->IsRelatedSiteInstance(
+      rfh_c->GetSiteInstance()));
+
+  // 3) Go back to B. It should not be restored from the back/forward cache.
+  ASSERT_TRUE(HistoryGoBack(popup_contents));
+  // Make sure that histograms for related active contents are updated with info
+  // about B's related active contents.
+  histograms.ExpectUniqueSample(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents.Count2",
+      2, 1);
+
+  // A and B are different sites (even though they might share the same
+  // SiteInstance when site isolation is turned off), which means B can't be
+  // synchronously accessible by other pages.
+  histograms.ExpectUniqueSample(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents."
+      "IsPotentiallySyncAccessible2",
+      BackForwardCacheMetrics::RelatedActiveContentsSyncAccessInfo::
+          kNoSyncAccess,
+      1);
+}
+
+// Similar with WindowOpenCrossSite above, but navigate the popup same-site
+// instead of cross site.
+IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
+                       WindowOpenCrossSiteNavigateSameSite) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url_a(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  GURL url_b1(embedded_test_server()->GetURL("b.com", "/title1.html"));
+  GURL url_b2(embedded_test_server()->GetURL("b.com", "/title2.html"));
+  base::HistogramTester histograms;
+
+  // 1) Navigate to A and open a cross-site popup B1.
+  ASSERT_TRUE(NavigateToURL(shell(), url_a));
+  RenderFrameHostImplWrapper rfh_a(current_frame_host());
+  EXPECT_EQ(1u, rfh_a->GetSiteInstance()->GetRelatedActiveContentsCount());
+  Shell* popup = OpenPopup(rfh_a.get(), url_b1, "");
+  WebContentsImpl* popup_contents =
+      static_cast<WebContentsImpl*>(popup->web_contents());
+  EXPECT_TRUE(WaitForLoadStop(popup_contents));
+  FrameTreeNode* popup_root = popup_contents->GetPrimaryFrameTree().root();
+  EXPECT_EQ(popup_root->opener(), web_contents()->GetPrimaryFrameTree().root());
+
+  // The popup and the original tab are related active contents.
+  RenderFrameHostImplWrapper rfh_b1(popup_root->current_frame_host());
+  EXPECT_EQ(2u, rfh_a->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(2u, rfh_b1->GetSiteInstance()->GetRelatedActiveContentsCount());
+  // A and B use different SiteInstances if site isolation or default
+  // SiteInstanceGroups are turned on, and share the same SiteInstance
+  // otherwise.
+  if (AreStrictSiteInstancesEnabled()) {
+    EXPECT_NE(rfh_a->GetSiteInstance(), rfh_b1->GetSiteInstance());
+  } else {
+    EXPECT_EQ(rfh_a->GetSiteInstance(), rfh_b1->GetSiteInstance());
+  }
+  EXPECT_TRUE(rfh_a->GetSiteInstance()->IsRelatedSiteInstance(
+      rfh_b1->GetSiteInstance()));
+  EXPECT_EQ(1u, rfh_a->GetSiteInstance()->GetActiveDocumentCount(
+                    rfh_a->last_committed_url_derived_site_info()));
+  EXPECT_EQ(1u, rfh_b1->GetSiteInstance()->GetActiveDocumentCount(
+                    rfh_b1->last_committed_url_derived_site_info()));
+
+  // 2) Navigate to B2 in the popup. The B1 document can't enter the
+  // BackForwardCache, because of the opener.
+  ASSERT_TRUE(NavigateToURLFromRenderer(rfh_b1.get(), url_b2));
+
+  if (ShouldCreateNewHostForAllFrames()) {
+    ASSERT_TRUE(rfh_b1.WaitUntilRenderFrameDeleted());
+  } else {
+    ASSERT_FALSE(rfh_b1->IsInBackForwardCache());
+  }
+
+  RenderFrameHostImplWrapper rfh_b2(popup_root->current_frame_host());
+  EXPECT_EQ(2u, rfh_a->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(2u, rfh_b2->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_TRUE(rfh_a->GetSiteInstance()->IsRelatedSiteInstance(
+      rfh_b2->GetSiteInstance()));
+
+  // 3) Go back to B1. It should not be restored from the back/forward cache.
+  ASSERT_TRUE(HistoryGoBack(popup_contents));
+  // Make sure that histograms for related active contents are updated with info
+  // about B1's related active contents.
+  histograms.ExpectUniqueSample(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents.Count2",
+      2, 1);
+
+  // A and B1 are different sites (even though they might share the same
+  // SiteInstance when site isolation is turned off), which means B1 can't be
+  // synchronously accessible by other pages. Note: Even though B1 and B2
+  // are same site and end up using the same SiteInstance and BrowsingInstance,
+  // the documents are not active at the same time (as B2 replaces B1), so those
+  // aren't counted as potentially having synchronous access to each other.
+  histograms.ExpectUniqueSample(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents."
+      "IsPotentiallySyncAccessible2",
+      BackForwardCacheMetrics::RelatedActiveContentsSyncAccessInfo::
+          kNoSyncAccess,
+      1);
+}
+
+// Similar with WindowOpen above, but open a cross-site page that has an iframe
+// that is same-site with the opener.
+IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
+                       WindowOpenCrossSiteWithSameSiteChild) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url_a(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  GURL url_b_with_a_iframe(embedded_test_server()->GetURL(
+      "b.com", "/cross_site_iframe_factory.html?b(a)"));
+  GURL url_c(embedded_test_server()->GetURL("c.com", "/title1.html"));
+  base::HistogramTester histograms;
+
+  // 1) Navigate to A and open a cross-site popup B.
+  ASSERT_TRUE(NavigateToURL(shell(), url_a));
+  RenderFrameHostImplWrapper rfh_a(current_frame_host());
+  EXPECT_EQ(1u, rfh_a->GetSiteInstance()->GetRelatedActiveContentsCount());
+  Shell* popup = OpenPopup(rfh_a.get(), url_b_with_a_iframe, "");
+  WebContentsImpl* popup_contents =
+      static_cast<WebContentsImpl*>(popup->web_contents());
+  EXPECT_TRUE(WaitForLoadStop(popup_contents));
+  FrameTreeNode* popup_root = popup_contents->GetPrimaryFrameTree().root();
+  EXPECT_EQ(popup_root->opener(), web_contents()->GetPrimaryFrameTree().root());
+
+  // The popup and the original tab are related active contents.
+  RenderFrameHostImplWrapper rfh_b(popup_root->current_frame_host());
+  EXPECT_EQ(2u, rfh_a->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(2u, rfh_b->GetSiteInstance()->GetRelatedActiveContentsCount());
+
+  // The opener A and the iframe A uses the same SiteInstance. Meanwhile, A and
+  // B use different SiteInstances if site isolation or default
+  // SiteInstanceGroups are turned on, and share the same SiteInstance
+  // otherwise.
+  RenderFrameHostImplWrapper rfh_a_iframe(
+      rfh_b->child_at(0)->current_frame_host());
+  EXPECT_EQ(rfh_a->GetSiteInstance(), rfh_a_iframe->GetSiteInstance());
+  if (AreStrictSiteInstancesEnabled()) {
+    EXPECT_NE(rfh_a->GetSiteInstance(), rfh_b->GetSiteInstance());
+  } else {
+    EXPECT_EQ(rfh_a->GetSiteInstance(), rfh_b->GetSiteInstance());
+  }
+  EXPECT_TRUE(rfh_a->GetSiteInstance()->IsRelatedSiteInstance(
+      rfh_b->GetSiteInstance()));
+  EXPECT_EQ(2u, rfh_a->GetSiteInstance()->GetActiveDocumentCount(
+                    rfh_a->last_committed_url_derived_site_info()));
+  EXPECT_EQ(2u, rfh_a_iframe->GetSiteInstance()->GetActiveDocumentCount(
+                    rfh_a_iframe->last_committed_url_derived_site_info()));
+  EXPECT_EQ(1u, rfh_b->GetSiteInstance()->GetActiveDocumentCount(
+                    rfh_b->last_committed_url_derived_site_info()));
+
+  // 2) Navigate to C in the popup. The B document can't enter the
+  // BackForwardCache, because of the opener.
+  ASSERT_TRUE(NavigateToURLFromRenderer(rfh_b.get(), url_c));
+
+  if (AreStrictSiteInstancesEnabled() || ShouldCreateNewHostForAllFrames()) {
+    ASSERT_TRUE(rfh_b.WaitUntilRenderFrameDeleted());
+  } else {
+    ASSERT_FALSE(rfh_b->IsInBackForwardCache());
+  }
+  RenderFrameHostImplWrapper rfh_c(popup_root->current_frame_host());
+  EXPECT_EQ(2u, rfh_a->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(2u, rfh_c->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_TRUE(rfh_a->GetSiteInstance()->IsRelatedSiteInstance(
+      rfh_c->GetSiteInstance()));
+
+  // 3) Go back to B. It should not be restored from the back/forward cache.
+  ASSERT_TRUE(HistoryGoBack(popup_contents));
+  // Make sure that histograms for related active contents are updated with info
+  // about B's related active contents.
+  histograms.ExpectUniqueSample(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents.Count2",
+      2, 1);
+
+  // As there is another document in another page that uses A's SiteInstance,
+  // A is marked as potentially synchronously accessible from another page.
+  histograms.ExpectUniqueSample(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents."
+      "IsPotentiallySyncAccessible2",
+      BackForwardCacheMetrics::RelatedActiveContentsSyncAccessInfo::
+          kPotentiallySyncAccessible,
+      1);
 }
 
 // A popup will prevent a page from entering BFCache. Test that after closing a
@@ -269,15 +624,20 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, WindowOpenThenClose) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url_a(embedded_test_server()->GetURL("a.test", "/title1.html"));
   GURL url_b(embedded_test_server()->GetURL("b.test", "/title2.html"));
+  base::HistogramTester histograms;
 
   // Navigate to A.
   ASSERT_TRUE(NavigateToURL(shell(), url_a));
   RenderFrameHostImplWrapper rfh_a(current_frame_host());
   EXPECT_EQ(1u, rfh_a->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(1u, rfh_a->GetSiteInstance()->GetActiveDocumentCount(
+                    rfh_a->last_committed_url_derived_site_info()));
 
   // Open a popup.
   Shell* popup = OpenPopup(rfh_a.get(), url_a, "");
   EXPECT_EQ(2u, rfh_a->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(2u, rfh_a->GetSiteInstance()->GetActiveDocumentCount(
+                    rfh_a->last_committed_url_derived_site_info()));
 
   // Start navigating to B, the response will be delayed.
   TestNavigationObserver observer(web_contents());
@@ -291,6 +651,8 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, WindowOpenThenClose) {
   ASSERT_TRUE(rfh_popup.WaitUntilRenderFrameDeleted());
 
   EXPECT_EQ(1u, rfh_a->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(1u, rfh_a->GetSiteInstance()->GetActiveDocumentCount(
+                    rfh_a->last_committed_url_derived_site_info()));
 
   // Send the response.
   response.Send(net::HTTP_OK, "text/html", "foo");
@@ -307,6 +669,336 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, WindowOpenThenClose) {
   // A is restored from BFCache.
   EXPECT_FALSE(rfh_a.IsRenderFrameDeleted());
   ExpectRestored(FROM_HERE);
+
+  // Expect no related active contents.
+  histograms.ExpectTotalCount(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents.Count2",
+      0);
+  histograms.ExpectTotalCount(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents."
+      "IsPotentiallySyncAccessible2",
+      0);
+}
+
+enum class NavigationSiteType {
+  kSameSite,
+  kCrossSite,
+};
+
+class BackForwardCacheBrowserTestWithVaryingNavigationSite
+    : public BackForwardCacheBrowserTest,
+      public ::testing::WithParamInterface<NavigationSiteType> {
+ protected:
+  bool NavigateSameSite() {
+    return GetParam() == NavigationSiteType::kSameSite;
+  }
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         BackForwardCacheBrowserTestWithVaryingNavigationSite,
+                         ::testing::Values(NavigationSiteType::kSameSite,
+                                           NavigationSiteType::kCrossSite));
+
+// Tests that RelatedActiveContents-related metrics is not logged when the
+// BrowsingInstance swap didn't happen, but not because of the existence of
+// related active contents, but due to other BFCache blockers.
+IN_PROC_BROWSER_TEST_P(BackForwardCacheBrowserTestWithVaryingNavigationSite,
+                       RelatedActiveContentsLoggingOnPageWithBlockingFeature) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url_1(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  GURL url_2(embedded_test_server()->GetURL(
+      NavigateSameSite() ? "a.com" : "b.com", "/title2.html"));
+  base::HistogramTester histograms;
+
+  // 1) Navigate to `url_1`.
+  EXPECT_TRUE(NavigateToURL(shell(), url_1));
+  RenderFrameHostImplWrapper rfh_url_1(current_frame_host());
+  scoped_refptr<SiteInstance> rfh_url_1_si = rfh_url_1->GetSiteInstance();
+  ASSERT_EQ(1u, rfh_url_1_si->GetRelatedActiveContentsCount());
+
+  // 2) Mark the `url_1` document as using a feature that's blocking BFCache.
+  rfh_url_1->UseDummyStickyBackForwardCacheDisablingFeatureForTesting();
+
+  // 3) Navigate to `url_2`. The BrowsingInstance stays the same, as `rfh_url_1`
+  // is not eligible for back/forward cache because of the sticky feature, so
+  // there's no need to do a BrowsingInstance swap.
+  ASSERT_TRUE(NavigateToURLFromRenderer(shell(), url_2));
+  ASSERT_TRUE(current_frame_host()->GetSiteInstance()->IsRelatedSiteInstance(
+      rfh_url_1_si.get()));
+
+  // 4) Go back to `url_1`.
+  ASSERT_TRUE(HistoryGoBack(web_contents()));
+
+  // 5) The page should not be restored from BFCache, and should not log
+  // RelatedActiveContents histogram entries.
+  ExpectNotRestored(
+      {NotRestoredReason::kBlocklistedFeatures,
+       NotRestoredReason::kBrowsingInstanceNotSwapped},
+      {blink::scheduler::WebSchedulerTrackedFeature::kDummy},
+      {ShouldSwapBrowsingInstance::kNo_NotNeededForBackForwardCache}, {}, {},
+      FROM_HERE);
+
+  histograms.ExpectTotalCount(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents."
+      "Count2",
+      0);
+  histograms.ExpectTotalCount(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents."
+      "IsPotentiallySyncAccessible2",
+      0);
+}
+
+// Tests that RelatedActiveContents-related metrics is logged when the
+// BrowsingInstance swap didn't happen because it has related active contents
+// alongside other BFCache blockers.
+IN_PROC_BROWSER_TEST_P(
+    BackForwardCacheBrowserTestWithVaryingNavigationSite,
+    RelatedActiveContentsLoggingOnPageWithBlockingFeatureAndRAC) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url_1(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  GURL url_2(embedded_test_server()->GetURL(
+      NavigateSameSite() ? "a.com" : "b.com", "/title2.html"));
+  base::HistogramTester histograms;
+
+  // 1) Navigate to `url_1`.
+  ASSERT_TRUE(NavigateToURL(shell(), url_1));
+  RenderFrameHostImplWrapper rfh_url_1(current_frame_host());
+  scoped_refptr<SiteInstance> rfh_url_1_si = rfh_url_1->GetSiteInstance();
+  ASSERT_EQ(1u, rfh_url_1_si->GetRelatedActiveContentsCount());
+
+  // 2) Open a popup so that the related active contents count increases.
+  Shell* popup = OpenPopup(rfh_url_1.get(), url_2, "");
+  WebContentsImpl* popup_contents =
+      static_cast<WebContentsImpl*>(popup->web_contents());
+  ASSERT_TRUE(WaitForLoadStop(popup_contents));
+  ASSERT_EQ(2u, rfh_url_1_si->GetRelatedActiveContentsCount());
+
+  // 3) Mark the `url_1` document as using a feature that's blocking BFCache.
+  rfh_url_1->UseDummyStickyBackForwardCacheDisablingFeatureForTesting();
+
+  // 4) Navigate to `url_2`. The BrowsingInstance stays the same, as `rfh_url_1`
+  // is not eligible for back/forward cache because of the sticky feature and
+  // the opener, so there's no need to do a BrowsingInstance swap.
+  ASSERT_TRUE(NavigateToURLFromRenderer(shell(), url_2));
+  ASSERT_TRUE(current_frame_host()->GetSiteInstance()->IsRelatedSiteInstance(
+      rfh_url_1_si.get()));
+
+  // 5) Go back to `url_1`.
+  ASSERT_TRUE(HistoryGoBack(web_contents()));
+
+  // 6) The page should not be restored from BFCache, but it should log
+  // RelatedActiveContents metrics because the related active contents
+  // count is > 1.
+  if (ShouldCreateNewHostForAllFrames() ||
+      (!NavigateSameSite() && AreStrictSiteInstancesEnabled())) {
+    ExpectNotRestored(
+        {NotRestoredReason::kRelatedActiveContentsExist,
+         NotRestoredReason::kBlocklistedFeatures,
+         NotRestoredReason::kBrowsingInstanceNotSwapped},
+        {blink::scheduler::WebSchedulerTrackedFeature::kDummy},
+        {ShouldSwapBrowsingInstance::kNo_HasRelatedActiveContents}, {}, {},
+        FROM_HERE);
+  } else {
+    ExpectNotRestored(
+        {NotRestoredReason::kBrowsingInstanceNotSwapped}, {},
+        {ShouldSwapBrowsingInstance::kNo_HasRelatedActiveContents}, {}, {},
+        FROM_HERE);
+  }
+
+  histograms.ExpectUniqueSample(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents."
+      "Count2",
+      2, 1);
+
+  if (NavigateSameSite()) {
+    histograms.ExpectUniqueSample(
+        "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents."
+        "IsPotentiallySyncAccessible2",
+        BackForwardCacheMetrics::RelatedActiveContentsSyncAccessInfo::
+            kPotentiallySyncAccessible,
+        1);
+  } else {
+    histograms.ExpectUniqueSample(
+        "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents."
+        "IsPotentiallySyncAccessible2",
+        BackForwardCacheMetrics::RelatedActiveContentsSyncAccessInfo::
+            kNoSyncAccess,
+        1);
+  }
+}
+
+// Test that if a page has an openee sharing the same BrowsingInstance but it
+// is no longer active (pending deletion, etc) it won't prevent the opener from
+// getting BFCached.
+IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
+                       WindowOpen_SameSitePopupPendingDeletion) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url_a1(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  GURL url_a2(embedded_test_server()->GetURL("a.com", "/title2.html"));
+  GURL url_b(embedded_test_server()->GetURL("b.com", "/title1.html"));
+  base::HistogramTester histograms;
+
+  // 1) Navigate to A1 and open a popup to A2.
+  ASSERT_TRUE(NavigateToURL(shell(), url_a1));
+  RenderFrameHostImplWrapper rfh_a1(current_frame_host());
+  Shell* popup = OpenPopup(rfh_a1.get(), url_a2, "");
+  RenderFrameHostImplWrapper popup_rfh_a2(
+      popup->web_contents()->GetPrimaryMainFrame());
+  EXPECT_EQ(2u, rfh_a1->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(2u,
+            popup_rfh_a2->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_TRUE(popup_rfh_a2->GetSiteInstance()->IsRelatedSiteInstance(
+      rfh_a1->GetSiteInstance()));
+
+  // 2) Navigate to B in the opener.  A1 can't enter the BackForwardCache,
+  // because of the popup.
+  ASSERT_TRUE(NavigateToURLFromRenderer(rfh_a1.get(), url_b));
+  if (ShouldCreateNewHostForAllFrames() || AreStrictSiteInstancesEnabled()) {
+    ASSERT_TRUE(rfh_a1.WaitUntilRenderFrameDeleted());
+  } else {
+    ASSERT_FALSE(rfh_a1->IsInBackForwardCache());
+  }
+
+  // 3) Go back to A1. The related active contents relationship with the popup
+  // is retained.
+  ASSERT_TRUE(HistoryGoBack(web_contents()));
+  RenderFrameHostImplWrapper rfh_a1_new(current_frame_host());
+  EXPECT_EQ(2u, rfh_a1_new->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(2u,
+            popup_rfh_a2->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_TRUE(popup_rfh_a2->GetSiteInstance()->IsRelatedSiteInstance(
+      rfh_a1_new->GetSiteInstance()));
+
+  // Make sure that histograms for related active contents are updated with info
+  // about A1's related active contents.
+  histograms.ExpectUniqueSample(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents.Count2",
+      2, 1);
+  histograms.ExpectUniqueSample(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents."
+      "IsPotentiallySyncAccessible2",
+      BackForwardCacheMetrics::RelatedActiveContentsSyncAccessInfo::
+          kPotentiallySyncAccessible,
+      1);
+
+  // 4) Make the popup drop the window.opener connection. It happens when the
+  //    user does a cross-site omnibox-initiated navigation, which gets a new
+  //    BrowsingInstance. Also, make sure that we keep the popup's A2 RFH around
+  //    after navigation, to test if it is still counted as an opener that
+  //    prevents BFCaching of A1, by preventing it from getting deleted.
+  popup_rfh_a2->DoNotDeleteForTesting();
+  ASSERT_TRUE(NavigateToURL(popup, url_b));
+  EXPECT_TRUE(popup_rfh_a2->IsPendingDeletion());
+
+  // Verify that the related active contents relationship is gone now that A2 is
+  // no longer active.
+  RenderFrameHostImplWrapper popup_rfh_b(
+      popup->web_contents()->GetPrimaryMainFrame());
+  EXPECT_FALSE(popup_rfh_b->GetSiteInstance()->IsRelatedSiteInstance(
+      rfh_a1_new->GetSiteInstance()));
+  EXPECT_EQ(1u,
+            popup_rfh_b->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(1u, rfh_a1_new->GetSiteInstance()->GetRelatedActiveContentsCount());
+
+  // 5) Navigate to B again from A1. As the scripting relationship with the
+  // popup is now severed, A1 can enter back-forward cache.
+  ASSERT_TRUE(NavigateToURLFromRenderer(rfh_a1_new.get(), url_b));
+  EXPECT_TRUE(rfh_a1_new->IsInBackForwardCache());
+
+  // 6) Go back to A1. Expect the histograms aren't updated, since a
+  // BrowsingInstance swap happened.
+  ASSERT_TRUE(HistoryGoBack(web_contents()));
+  histograms.ExpectTotalCount(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents.Count2",
+      1);
+  histograms.ExpectTotalCount(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents."
+      "IsPotentiallySyncAccessible2",
+      1);
+}
+
+// Tests that a page that has a same-site same-process but unrelated page (no
+// opener relationship) won't be treated as having a potential sync accessor.
+IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
+                       WindowOpen_UnrelatedSameSiteAndProcessTab) {
+  // Ensure that A1 and A2 will share the same renderer process when possible.
+  RenderProcessHost::SetMaxRendererProcessCount(1);
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url_a1(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  GURL url_a2(embedded_test_server()->GetURL("a.com", "/title2.html"));
+  GURL url_b(embedded_test_server()->GetURL("b.com", "/title1.html"));
+  base::HistogramTester histograms;
+
+  // 1) Navigate to A1 and open an unrelated new tab to A2.
+  ASSERT_TRUE(NavigateToURL(shell(), url_a1));
+  Shell* shell2 =
+      Shell::CreateNewWindow(shell()->web_contents()->GetBrowserContext(),
+                             url_a2, nullptr, gfx::Size());
+  ASSERT_TRUE(WaitForLoadStop(shell2->web_contents()));
+
+  // A1 and A2 do not share the same BrowsingInstance, and are not related
+  // active contents. However, they might share the same process due to the
+  // process limit.
+  RenderFrameHostImplWrapper rfh_a1(current_frame_host());
+  RenderFrameHostImplWrapper rfh_a2(
+      shell2->web_contents()->GetPrimaryMainFrame());
+  EXPECT_EQ(1u, rfh_a1->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(1u, rfh_a2->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_FALSE(rfh_a2->GetSiteInstance()->IsRelatedSiteInstance(
+      rfh_a1->GetSiteInstance()));
+  if (!AreStrictSiteInstancesEnabled()) {
+    EXPECT_EQ(rfh_a1->GetProcess(), rfh_a2->GetProcess());
+  }
+
+  // 2) Navigate to B in the opener. A1 can enter BackForwardCache because it
+  // has no related active contents.
+  ASSERT_TRUE(NavigateToURLFromRenderer(rfh_a1.get(), url_b));
+  EXPECT_TRUE(rfh_a1->IsInBackForwardCache());
+
+  // 3) Go back to A1, restoring the page from BackForwardCache. No related
+  // active contents metrics will be logged.
+  ASSERT_TRUE(HistoryGoBack(web_contents()));
+  ExpectRestored(FROM_HERE);
+  histograms.ExpectTotalCount(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents.Count2",
+      0);
+  histograms.ExpectTotalCount(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents."
+      "IsPotentiallySyncAccessible2",
+      0);
+
+  // 4) Now, open a B popup from A1. A1 and B should be related active contents,
+  // while A2 stays unaffected.
+  Shell* popup = OpenPopup(rfh_a1.get(), url_b, "");
+  RenderFrameHostImplWrapper rfh_b(
+      popup->web_contents()->GetPrimaryMainFrame());
+  EXPECT_EQ(2u, rfh_a1->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(1u, rfh_a2->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_EQ(2u, rfh_b->GetSiteInstance()->GetRelatedActiveContentsCount());
+  EXPECT_TRUE(rfh_b->GetSiteInstance()->IsRelatedSiteInstance(
+      rfh_a1->GetSiteInstance()));
+
+  // 5) Navigate to B again from A1, now A1 can't enter BackForwardCache because
+  // it has related active contents.
+  ASSERT_TRUE(NavigateToURLFromRenderer(rfh_a1.get(), url_b));
+  if (ShouldCreateNewHostForAllFrames() || AreStrictSiteInstancesEnabled()) {
+    ASSERT_TRUE(rfh_a1.WaitUntilRenderFrameDeleted());
+  } else {
+    ASSERT_FALSE(rfh_a1->IsInBackForwardCache());
+  }
+
+  // 3) Go back to A1, restoring the page from BackForwardCache. Related active
+  // contents metrics will be logged.
+  ASSERT_TRUE(HistoryGoBack(web_contents()));
+  histograms.ExpectUniqueSample(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents.Count2",
+      2, 1);
+  histograms.ExpectUniqueSample(
+      "BackForwardCache.HistoryNavigationOutcome.RelatedActiveContents."
+      "IsPotentiallySyncAccessible2",
+      BackForwardCacheMetrics::RelatedActiveContentsSyncAccessInfo::
+          kNoSyncAccess,
+      1);
 }
 
 // Navigate from A(B) to C and go back.
@@ -347,7 +1039,7 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, BasicIframe) {
 }
 
 // Similar to BackForwardCacheBrowserTest.SubframeSurviveCache*
-// Test case: a1(b2) -> c3 -> a1(b2)
+// Test case: url_1(b2) -> c3 -> url_1(b2)
 IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, SubframeSurviveCache1) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url_a(embedded_test_server()->GetURL(
@@ -356,12 +1048,12 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, SubframeSurviveCache1) {
 
   std::vector<RenderFrameDeletedObserver*> rfh_observer;
 
-  // 1) Navigate to a1(b2).
+  // 1) Navigate to url_1(b2).
   EXPECT_TRUE(NavigateToURL(shell(), url_a));
-  RenderFrameHostImpl* a1 = current_frame_host();
-  RenderFrameHostImpl* b2 = a1->child_at(0)->current_frame_host();
-  RenderFrameDeletedObserver a1_observer(a1), b2_observer(b2);
-  rfh_observer.insert(rfh_observer.end(), {&a1_observer, &b2_observer});
+  RenderFrameHostImpl* url_1 = current_frame_host();
+  RenderFrameHostImpl* b2 = url_1->child_at(0)->current_frame_host();
+  RenderFrameDeletedObserver url_1_observer(url_1), b2_observer(b2);
+  rfh_observer.insert(rfh_observer.end(), {&url_1_observer, &b2_observer});
   EXPECT_TRUE(ExecJs(b2, "window.alive = 'I am alive';"));
 
   // 2) Navigate to c3.
@@ -370,13 +1062,13 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, SubframeSurviveCache1) {
   RenderFrameDeletedObserver c3_observer(c3);
   rfh_observer.push_back(&c3_observer);
   ASSERT_THAT(rfh_observer, Each(Not(Deleted())));
-  EXPECT_THAT(Elements({a1, b2}), Each(InBackForwardCache()));
+  EXPECT_THAT(Elements({url_1, b2}), Each(InBackForwardCache()));
   EXPECT_THAT(c3, Not(InBackForwardCache()));
 
-  // 3) Go back to a1(b2).
+  // 3) Go back to url_1(b2).
   ASSERT_TRUE(HistoryGoBack(web_contents()));
   ASSERT_THAT(rfh_observer, Each(Not(Deleted())));
-  EXPECT_THAT(Elements({a1, b2}), Each(Not(InBackForwardCache())));
+  EXPECT_THAT(Elements({url_1, b2}), Each(Not(InBackForwardCache())));
   EXPECT_THAT(c3, InBackForwardCache());
 
   // Even after a new IPC round trip with the renderer, b2 must still be alive.
@@ -387,7 +1079,7 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, SubframeSurviveCache1) {
 }
 
 // Similar to BackForwardCacheBrowserTest.SubframeSurviveCache*
-// Test case: a1(b2) -> b3 -> a1(b2).
+// Test case: url_1(b2) -> b3 -> url_1(b2).
 IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, SubframeSurviveCache2) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url_a(embedded_test_server()->GetURL(
@@ -396,12 +1088,12 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, SubframeSurviveCache2) {
 
   std::vector<RenderFrameDeletedObserver*> rfh_observer;
 
-  // 1) Navigate to a1(b2).
+  // 1) Navigate to url_1(b2).
   EXPECT_TRUE(NavigateToURL(shell(), url_a));
-  RenderFrameHostImpl* a1 = current_frame_host();
-  RenderFrameHostImpl* b2 = a1->child_at(0)->current_frame_host();
-  RenderFrameDeletedObserver a1_observer(a1), b2_observer(b2);
-  rfh_observer.insert(rfh_observer.end(), {&a1_observer, &b2_observer});
+  RenderFrameHostImpl* url_1 = current_frame_host();
+  RenderFrameHostImpl* b2 = url_1->child_at(0)->current_frame_host();
+  RenderFrameDeletedObserver url_1_observer(url_1), b2_observer(b2);
+  rfh_observer.insert(rfh_observer.end(), {&url_1_observer, &b2_observer});
   EXPECT_TRUE(ExecJs(b2, "window.alive = 'I am alive';"));
 
   // 2) Navigate to b3.
@@ -410,14 +1102,14 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, SubframeSurviveCache2) {
   RenderFrameDeletedObserver b3_observer(b3);
   rfh_observer.push_back(&b3_observer);
   ASSERT_THAT(rfh_observer, Each(Not(Deleted())));
-  EXPECT_THAT(Elements({a1, b2}), Each(InBackForwardCache()));
+  EXPECT_THAT(Elements({url_1, b2}), Each(InBackForwardCache()));
   EXPECT_THAT(b3, Not(InBackForwardCache()));
 
-  // 3) Go back to a1(b2).
+  // 3) Go back to url_1(b2).
   ASSERT_TRUE(HistoryGoBack(web_contents()));
   ASSERT_THAT(rfh_observer, Each(Not(Deleted())));
-  EXPECT_EQ(a1, current_frame_host());
-  EXPECT_THAT(Elements({a1, b2}), Each(Not(InBackForwardCache())));
+  EXPECT_EQ(url_1, current_frame_host());
+  EXPECT_THAT(Elements({url_1, b2}), Each(Not(InBackForwardCache())));
   EXPECT_THAT(b3, InBackForwardCache());
 
   // Even after a new IPC round trip with the renderer, b2 must still be alive.
@@ -428,7 +1120,7 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, SubframeSurviveCache2) {
 }
 
 // Similar to BackForwardCacheBrowserTest.tSubframeSurviveCache*
-// Test case: a1(b2) -> b3(a4) -> a1(b2) -> b3(a4)
+// Test case: url_1(b2) -> b3(a4) -> url_1(b2) -> b3(a4)
 IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, SubframeSurviveCache3) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url_a(embedded_test_server()->GetURL(
@@ -438,12 +1130,12 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, SubframeSurviveCache3) {
 
   std::vector<RenderFrameDeletedObserver*> rfh_observer;
 
-  // 1) Navigate to a1(b2).
+  // 1) Navigate to url_1(b2).
   EXPECT_TRUE(NavigateToURL(shell(), url_a));
-  RenderFrameHostImpl* a1 = current_frame_host();
-  RenderFrameHostImpl* b2 = a1->child_at(0)->current_frame_host();
-  RenderFrameDeletedObserver a1_observer(a1), b2_observer(b2);
-  rfh_observer.insert(rfh_observer.end(), {&a1_observer, &b2_observer});
+  RenderFrameHostImpl* url_1 = current_frame_host();
+  RenderFrameHostImpl* b2 = url_1->child_at(0)->current_frame_host();
+  RenderFrameDeletedObserver url_1_observer(url_1), b2_observer(b2);
+  rfh_observer.insert(rfh_observer.end(), {&url_1_observer, &b2_observer});
   EXPECT_TRUE(ExecJs(b2, "window.alive = 'I am alive';"));
 
   // 2) Navigate to b3(a4)
@@ -453,15 +1145,15 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, SubframeSurviveCache3) {
   RenderFrameDeletedObserver b3_observer(b3), a4_observer(a4);
   rfh_observer.insert(rfh_observer.end(), {&b3_observer, &a4_observer});
   ASSERT_THAT(rfh_observer, Each(Not(Deleted())));
-  EXPECT_THAT(Elements({a1, b2}), Each(InBackForwardCache()));
+  EXPECT_THAT(Elements({url_1, b2}), Each(InBackForwardCache()));
   EXPECT_THAT(Elements({b3, a4}), Each(Not(InBackForwardCache())));
   EXPECT_TRUE(ExecJs(a4, "window.alive = 'I am alive';"));
 
-  // 3) Go back to a1(b2).
+  // 3) Go back to url_1(b2).
   ASSERT_TRUE(HistoryGoBack(web_contents()));
   ASSERT_THAT(rfh_observer, Each(Not(Deleted())));
-  EXPECT_EQ(a1, current_frame_host());
-  EXPECT_THAT(Elements({a1, b2}), Each(Not(InBackForwardCache())));
+  EXPECT_EQ(url_1, current_frame_host());
+  EXPECT_THAT(Elements({url_1, b2}), Each(Not(InBackForwardCache())));
   EXPECT_THAT(Elements({b3, a4}), Each(InBackForwardCache()));
 
   // Even after a new IPC round trip with the renderer, b2 must still be alive.
@@ -474,7 +1166,7 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, SubframeSurviveCache3) {
   ASSERT_TRUE(HistoryGoForward(web_contents()));
   ASSERT_THAT(rfh_observer, Each(Not(Deleted())));
   EXPECT_EQ(b3, current_frame_host());
-  EXPECT_THAT(Elements({a1, b2}), Each(InBackForwardCache()));
+  EXPECT_THAT(Elements({url_1, b2}), Each(InBackForwardCache()));
   EXPECT_THAT(Elements({b3, a4}), Each(Not(InBackForwardCache())));
 
   // Even after a new IPC round trip with the renderer, a4 must still be alive.
@@ -485,7 +1177,7 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, SubframeSurviveCache3) {
 }
 
 // Similar to BackForwardCacheBrowserTest.SubframeSurviveCache*
-// Test case: a1(b2) -> b3 -> a4 -> b5 -> a1(b2).
+// Test case: url_1(b2) -> b3 -> a4 -> b5 -> url_1(b2).
 IN_PROC_BROWSER_TEST_F(HighCacheSizeBackForwardCacheBrowserTest,
                        SubframeSurviveCache4) {
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -496,12 +1188,12 @@ IN_PROC_BROWSER_TEST_F(HighCacheSizeBackForwardCacheBrowserTest,
 
   std::vector<RenderFrameDeletedObserver*> rfh_observer;
 
-  // 1) Navigate to a1(b2).
+  // 1) Navigate to url_1(b2).
   EXPECT_TRUE(NavigateToURL(shell(), url_ab));
-  RenderFrameHostImpl* a1 = current_frame_host();
-  RenderFrameHostImpl* b2 = a1->child_at(0)->current_frame_host();
-  RenderFrameDeletedObserver a1_observer(a1), b2_observer(b2);
-  rfh_observer.insert(rfh_observer.end(), {&a1_observer, &b2_observer});
+  RenderFrameHostImpl* url_1 = current_frame_host();
+  RenderFrameHostImpl* b2 = url_1->child_at(0)->current_frame_host();
+  RenderFrameDeletedObserver url_1_observer(url_1), b2_observer(b2);
+  rfh_observer.insert(rfh_observer.end(), {&url_1_observer, &b2_observer});
   EXPECT_TRUE(ExecJs(b2, "window.alive = 'I am alive';"));
 
   // 2) Navigate to b3.
@@ -510,7 +1202,7 @@ IN_PROC_BROWSER_TEST_F(HighCacheSizeBackForwardCacheBrowserTest,
   RenderFrameDeletedObserver b3_observer(b3);
   rfh_observer.push_back(&b3_observer);
   ASSERT_THAT(rfh_observer, Each(Not(Deleted())));
-  EXPECT_THAT(Elements({a1, b2}), Each(InBackForwardCache()));
+  EXPECT_THAT(Elements({url_1, b2}), Each(InBackForwardCache()));
   EXPECT_THAT(b3, Not(InBackForwardCache()));
 
   // 3) Navigate to a4.
@@ -526,15 +1218,15 @@ IN_PROC_BROWSER_TEST_F(HighCacheSizeBackForwardCacheBrowserTest,
   RenderFrameDeletedObserver b5_observer(b5);
   rfh_observer.push_back(&b5_observer);
   ASSERT_THAT(rfh_observer, Each(Not(Deleted())));
-  EXPECT_THAT(Elements({a1, b2, b3, a4}), Each(InBackForwardCache()));
+  EXPECT_THAT(Elements({url_1, b2, b3, a4}), Each(InBackForwardCache()));
   EXPECT_THAT(b5, Not(InBackForwardCache()));
 
-  // 3) Go back to a1(b2).
+  // 3) Go back to url_1(b2).
   ASSERT_TRUE(HistoryGoToOffset(web_contents(), -3));
-  EXPECT_EQ(a1, current_frame_host());
+  EXPECT_EQ(url_1, current_frame_host());
   ASSERT_THAT(rfh_observer, Each(Not(Deleted())));
   EXPECT_THAT(Elements({b3, a4, b5}), Each(InBackForwardCache()));
-  EXPECT_THAT(Elements({a1, b2}), Each(Not(InBackForwardCache())));
+  EXPECT_THAT(Elements({url_1, b2}), Each(Not(InBackForwardCache())));
 
   // Even after a new IPC round trip with the renderer, b2 must still be alive.
   EXPECT_EQ("I am alive", EvalJs(b2, "window.alive"));
@@ -649,6 +1341,7 @@ IN_PROC_BROWSER_TEST_P(BackForwardCacheStillLoadingBrowserTest,
 
   // 2) Navigate away.
   RenderFrameHostImplWrapper rfh_a(current_frame_host());
+  rfh_a->DisableUnloadTimerForTesting();
   shell()->LoadURL(embedded_test_server()->GetURL("b.com", "/title1.html"));
   ASSERT_TRUE(WaitForLoadStop(web_contents()));
 
@@ -669,7 +1362,6 @@ class BackForwardCacheStillNavigatingBrowserTest
     switch (GetParam()) {
       case TestFrameType::kMainFrame:
         NOTREACHED();
-        return "";
       case TestFrameType::kSubFrame:
         return "/back_forward_cache/controllable_subframe.html";
       case TestFrameType::kSubFrameOfSubframe:
@@ -817,8 +1509,7 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
   web_contents()->GetController().GoBack();
   EXPECT_FALSE(WaitForLoadStop(shell()->web_contents()));
   ExpectNotRestored(
-      {NotRestoredReason::kHTTPStatusNotOK, NotRestoredReason::kNoResponseHead,
-       NotRestoredReason::kErrorDocument},
+      {NotRestoredReason::kHTTPStatusNotOK, NotRestoredReason::kErrorDocument},
       {}, {}, {}, {}, FROM_HERE);
 }
 
@@ -972,18 +1663,17 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
 IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
                        EventsForPageIneligibleAfterPagehidePersisted) {
   ASSERT_TRUE(CreateHttpsServer()->Start());
-  GURL url_1(https_server()->GetURL("a.com", "/title1.html"));
+  GURL url_1(https_server()->GetURL("a.com", kBlockingPagePath));
   GURL url_2(https_server()->GetURL("a.com", "/title2.html"));
 
   // 1) Navigate to |url_1|.
   EXPECT_TRUE(NavigateToURL(shell(), url_1));
   RenderFrameHostImpl* rfh_1 = current_frame_host();
   RenderFrameDeletedObserver delete_observer_rfh_1(rfh_1);
-  // 2) Use BroadcastChannel (a non-sticky blocklisted feature), so that we
+  // 2) The page uses a non-sticky blocklisted feature, so that we
   // would still do a RFH swap on same-site navigation and fire the 'pagehide'
   // event during commit of the new page with 'persisted' set to true, but the
   // page will not be eligible for back-forward cache after commit.
-  EXPECT_TRUE(ExecJs(rfh_1, "window.foo = new BroadcastChannel('foo');"));
 
   EXPECT_TRUE(ExecJs(rfh_1, R"(
     window.onpagehide = (e) => {
@@ -1047,8 +1737,10 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
 
   // "pagehide", "visibilitychange", and "unload" events will be dispatched.
   int num_messages_received = 0;
-  std::string expected_messages[] = {"\"pagehide.not_persisted\"",
-                                     "\"visibilitychange.hidden\""};
+  const auto expected_messages = std::to_array<std::string>({
+      "\"pagehide.not_persisted\"",
+      "\"visibilitychange.hidden\"",
+  });
   std::string message;
   while (dom_message_queue.PopMessage(&message)) {
     EXPECT_EQ(expected_messages[num_messages_received], message);
@@ -1077,9 +1769,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 // Test pagehide's persisted value and whether the page can be BFCached when a
 // sticky/non-sticky feature is used on the mainframe/subframe.
+//
+// TODO(crbug.com/40913015): Flaky on all platforms.
 IN_PROC_BROWSER_TEST_P(
     BackForwardCacheBrowserTestWithVaryingFrameAndFeatureStickinessType,
-    TestPagehidePersistedValue) {
+    DISABLED_TestPagehidePersistedValue) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url_a(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
@@ -1144,53 +1838,53 @@ IN_PROC_BROWSER_TEST_P(
 IN_PROC_BROWSER_TEST_F(HighCacheSizeBackForwardCacheBrowserTest,
                        CanCacheMultiplesPagesOnSameDomain) {
   ASSERT_TRUE(embedded_test_server()->Start());
-  GURL url_a1(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  GURL url_1(embedded_test_server()->GetURL("a.com", "/title1.html"));
   GURL url_b2(embedded_test_server()->GetURL("b.com", "/title1.html"));
   GURL url_a3(embedded_test_server()->GetURL("a.com", "/title2.html"));
   GURL url_b4(embedded_test_server()->GetURL("b.com", "/title2.html"));
 
-  // 1) Navigate to A1.
-  EXPECT_TRUE(NavigateToURL(shell(), url_a1));
-  RenderFrameHostImpl* rfh_a1 = current_frame_host();
+  // 1) Navigate to url_1.
+  EXPECT_TRUE(NavigateToURL(shell(), url_1));
+  RenderFrameHostImpl* rfh_url_1 = current_frame_host();
 
   // 2) Navigate to B2.
   EXPECT_TRUE(NavigateToURL(shell(), url_b2));
   RenderFrameHostImpl* rfh_b2 = current_frame_host();
-  EXPECT_TRUE(rfh_a1->IsInBackForwardCache());
+  EXPECT_TRUE(rfh_url_1->IsInBackForwardCache());
 
   // 3) Navigate to A3.
   EXPECT_TRUE(NavigateToURL(shell(), url_a3));
   RenderFrameHostImpl* rfh_a3 = current_frame_host();
-  EXPECT_TRUE(rfh_a1->IsInBackForwardCache());
+  EXPECT_TRUE(rfh_url_1->IsInBackForwardCache());
   EXPECT_TRUE(rfh_b2->IsInBackForwardCache());
-  // A1 and A3 shouldn't be treated as the same site instance.
-  EXPECT_NE(rfh_a1->GetSiteInstance(), rfh_a3->GetSiteInstance());
+  // url_1 and A3 shouldn't be treated as the same site instance.
+  EXPECT_NE(rfh_url_1->GetSiteInstance(), rfh_a3->GetSiteInstance());
 
   // 4) Navigate to B4.
-  // Make sure we can store A1 and A3 in the cache at the same time.
+  // Make sure we can store url_1 and A3 in the cache at the same time.
   EXPECT_TRUE(NavigateToURL(shell(), url_b4));
   RenderFrameHostImpl* rfh_b4 = current_frame_host();
-  EXPECT_TRUE(rfh_a1->IsInBackForwardCache());
+  EXPECT_TRUE(rfh_url_1->IsInBackForwardCache());
   EXPECT_TRUE(rfh_b2->IsInBackForwardCache());
   EXPECT_TRUE(rfh_a3->IsInBackForwardCache());
 
   // 5) Go back to A3.
-  // Make sure we can restore A3, while A1 remains in the cache.
+  // Make sure we can restore A3, while url_1 remains in the cache.
   ASSERT_TRUE(HistoryGoBack(web_contents()));
-  EXPECT_TRUE(rfh_a1->IsInBackForwardCache());
+  EXPECT_TRUE(rfh_url_1->IsInBackForwardCache());
   EXPECT_TRUE(rfh_b2->IsInBackForwardCache());
   EXPECT_TRUE(rfh_b4->IsInBackForwardCache());
   EXPECT_EQ(rfh_a3, current_frame_host());
   // B2 and B4 shouldn't be treated as the same site instance.
   EXPECT_NE(rfh_b2->GetSiteInstance(), rfh_b4->GetSiteInstance());
 
-  // 6) Do a history navigation back to A1.
-  // Make sure we can restore A1, while coming from A3.
+  // 6) Do a history navigation back to url_1.
+  // Make sure we can restore url_1, while coming from A3.
   ASSERT_TRUE(HistoryGoToIndex(web_contents(), 0));
   EXPECT_TRUE(rfh_b2->IsInBackForwardCache());
   EXPECT_TRUE(rfh_b4->IsInBackForwardCache());
   EXPECT_TRUE(rfh_a3->IsInBackForwardCache());
-  EXPECT_EQ(rfh_a1, current_frame_host());
+  EXPECT_EQ(rfh_url_1, current_frame_host());
 }
 
 IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest, Encoding) {
@@ -1247,8 +1941,8 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
 
 // On windows, the expected value is off by ~20ms. In order to get the
 // feature out to canary, the test is disabled for WIN.
-// TODO(crbug.com/1022191): Fix this for Win.
-// TODO(crbug.com/1211428): Flaky on other platforms.
+// TODO(crbug.com/40657468): Fix this for Win.
+// TODO(crbug.com/40767606): Flaky on other platforms.
 // Make sure we are exposing the duration between back navigation's
 // navigationStart and the page's original navigationStart through pageshow
 // event's timeStamp, and that we aren't modifying
@@ -1496,10 +2190,10 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
 
   // Check that the value for 'pagehide_storage' and 'visibilitychange_storage'
   // are set correctly.
-  EXPECT_EQ("dispatched_once",
-            GetLocalStorage(main_frame_3, "pagehide_storage"));
-  EXPECT_EQ("dispatched_once",
-            GetLocalStorage(main_frame_3, "visibilitychange_storage"));
+  EXPECT_TRUE(
+      WaitForLocalStorage(main_frame_3, "pagehide_storage", "dispatched_once"));
+  EXPECT_TRUE(WaitForLocalStorage(main_frame_3, "visibilitychange_storage",
+                                  "dispatched_once"));
 }
 
 // Tests that the history value saved in the renderer is updated correctly when

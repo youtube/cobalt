@@ -162,6 +162,8 @@ std::string GetCellularLockType(mojom::LockType lock_type) {
       return "sim-pin";
     case mojom::LockType::kSimPuk:
       return "sim-puk";
+    case mojom::LockType::kNetworkPin:
+      return "network-pin";
   }
 }
 
@@ -216,7 +218,6 @@ void AddTypePropertiesToLog(const mojom::NetworkTypeProperties& type_props,
       break;
     case mojom::NetworkType::kUnsupported:
       NOTREACHED();
-      break;
   }
 }
 
@@ -265,7 +266,6 @@ std::string GetNetworkType(mojom::NetworkType type) {
       return "Ethernet";
     case mojom::NetworkType::kUnsupported:
       NOTREACHED();
-      return "";
   }
 }
 

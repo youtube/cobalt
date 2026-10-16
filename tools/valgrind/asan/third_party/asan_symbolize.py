@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #===- lib/asan/scripts/asan_symbolize.py -----------------------------------===#
 #
 # Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -400,7 +400,7 @@ class BreakpadSymbolizer(Symbolizer):
 
 
 class SymbolizationLoop(object):
-  def __init__(self, plugin_proxy=None, dsym_hint_producer=None):
+  def __init__(self, plugin_proxy=None, dsym_hint_producer=None, extra_binary_path=None):
     self.plugin_proxy = plugin_proxy
     if sys.platform == 'win32':
       # ASan on Windows uses dbghelp.dll to symbolize in-process, which works
@@ -419,6 +419,16 @@ class SymbolizationLoop(object):
       self.frame_no = 0
       self.process_line = self.process_line_posix
       self.using_module_map = plugin_proxy.has_plugin(ModuleMapPlugIn.get_name())
+
+      # Cobalt customizations
+      self.extra_binary_path = extra_binary_path
+      if extra_binary_path:
+        self.process_line = self.maybe_process_line_evergreen
+      self.base_addr = None
+      self.load_addr_re = re.compile(r'Load start=(0x[0-9a-fA-F]+)')
+      self.unknown_module_re = re.compile(
+          r'^( *#(\d+) *)(0x[0-9a-fA-F]+) *\(<unknown module>\)(.*)')
+      # End Cobalt customizations
 
   def symbolize_address(self, addr, binary, offset, arch):
     # On non-Darwin (i.e. on platforms without .dSYM debug info) always use
@@ -488,17 +498,48 @@ class SymbolizationLoop(object):
   def process_line_echo(self, line):
     return [line.rstrip()]
 
+  # Cobalt customizations
+  def check_for_base_addr(self, line):
+    if self.base_addr:
+      return
+    match = self.load_addr_re.search(line)
+    if match:
+      self.base_addr = int(match.group(1), 16)
+
+  def maybe_process_line_evergreen(self, line):
+    self.check_for_base_addr(line)
+    if self.base_addr is not None:
+      match = self.unknown_module_re.match(line.rstrip())
+      if match:
+        return self.process_match_evergreen(match)
+    return self.process_line_posix(line)
+    
+  def process_match_evergreen(self, unknown_module_match):
+    _, frameno_str, addrstr, _ = unknown_module_match.groups()
+    if frameno_str == '0':
+      # Assume that frame #0 is the first frame of new stack trace.
+      self.frame_no = 0
+
+    addr = int(addrstr, 16)
+    offset = addr - self.base_addr
+    arch = guess_arch(addrstr)
+    symbolized_line = self.symbolize_address(addrstr, self.extra_binary_path, offset, arch)
+    return self.get_symbolized_lines(symbolized_line)
+  # End Cobalt customizations
+
   def process_line_posix(self, line):
     self.current_line = line.rstrip()
     # Unsymbolicated:
     # #0 0x7f6e35cf2e45  (/blah/foo.so+0x11fe45)
+    # or
+    # CRASH LOG: #0 0x7f6e35cf2e45  (/blah/foo.so+0x11fe45)
     # Partially symbolicated:
     # #0 0x7f6e35cf2e45 in foo (foo.so+0x11fe45)
     # NOTE: We have to very liberal with symbol
     # names in the regex because it could be an
     # Objective-C or C++ demangled name.
     stack_trace_line_format = (
-        '^( *#([0-9]+) *)(0x[0-9a-f]+) *(?:in *.+)? *\((.*)\+(0x[0-9a-f]+)\)')
+        '^((?:CRASH LOG:)? *#([0-9]+) *)(0x[0-9a-f]+) *(?:in *.+)? *\((.*)\+(0x[0-9a-f]+)\)')
     match = re.match(stack_trace_line_format, line)
     if not match:
       logging.debug('Line "{}" does not match regex'.format(line))

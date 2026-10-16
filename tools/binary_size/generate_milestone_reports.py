@@ -39,7 +39,7 @@ _GSUTIL = os.path.join(_DIR_SOURCE_ROOT, 'third_party', 'depot_tools',
 
 _PUSH_URL = 'gs://chrome-supersize/milestones/'
 
-_DESIRED_CPUS = ['arm', 'arm_64']
+_DESIRED_CPUS = ['arm', 'arm_64', 'high-arm_64']
 _DESIRED_APKS = ['Monochrome.apk', 'AndroidWebview.apk', 'TrichromeGoogle']
 
 # Versions are manually gathered from
@@ -99,6 +99,30 @@ _DESIRED_VERSIONS = [
     '111.0.5563.31',
     '112.0.5615.7',
     '113.0.5672.10',
+    '114.0.5735.4',
+    '115.0.5790.5',
+    '116.0.5845.20',
+    '117.0.5938.5',
+    '118.0.5993.5',
+    '119.0.6045.7',
+    '120.0.6099.18',
+    '121.0.6167.7',
+    '122.0.6261.8',
+    '123.0.6312.54',
+    '124.0.6367.47',
+    '125.0.6422.3',
+    '126.0.6478.16',
+    '127.0.6533.27',
+    '128.0.6613.20',
+    '129.0.6668.32',
+    '130.0.6723.20',
+    '131.0.6778.20',
+    '132.0.6834.24',
+    '133.0.6943.20',
+    '134.0.6998.48',
+    '135.0.7049.24',
+    '136.0.7103.52',
+    '137.0.7151.20',
 ]
 
 
@@ -118,11 +142,19 @@ def _IsBundle(apk, version):
 def _EnumerateReports():
   for cpu, apk in itertools.product(_DESIRED_CPUS, _DESIRED_APKS):
     versions = _DESIRED_VERSIONS
-    # Webview .size files do not exist before M71.
-    if apk == 'AndroidWebview.apk':
+    if cpu == 'high-arm_64':
+      if apk != 'TrichromeGoogle':
+        continue
+      versions = [v for v in versions if _VersionMajor(v) >= 126]
+    elif apk == 'AndroidWebview.apk':
+      # Webview .size files do not exist before M71.
       versions = [v for v in versions if _VersionMajor(v) >= 71]
     elif apk == 'TrichromeGoogle':
       versions = [v for v in versions if _VersionMajor(v) >= 88]
+
+    # Switched to high-end only.
+    if cpu == 'arm_64':
+      versions = [v for v in versions if _VersionMajor(v) < 127]
 
     for version in versions:
       yield Report(cpu, apk, version)
@@ -135,6 +167,8 @@ class Report(collections.namedtuple('Report', 'cpu,apk,version')):
     if not local and self.apk == 'TrichromeGoogle' and _VersionMajor(
         self.version) < 91:
       template = '{version}/{cpu}/for-signing-only/{apk}.size'
+    elif self.cpu == 'high-arm_64':
+      template = '{version}/{cpu}/{apk}6432.size'
     else:
       template = '{version}/{cpu}/{apk}.size'
 

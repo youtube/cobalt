@@ -167,15 +167,15 @@ bool Relocations::ApplyRelocations(const rel_t* rel, size_t rel_count) {
     return true;
   }
 
+  bool could_resolve_all = true;
   for (size_t rel_n = 0; rel_n < rel_count; rel++, rel_n++) {
     SB_DLOG(INFO) << "  Relocation " << rel_n + 1 << " of " << rel_count;
 
     if (!ApplyRelocation(rel)) {
-      return false;
+      could_resolve_all = false;
     }
   }
-
-  return true;
+  return could_resolve_all;
 }
 
 bool Relocations::ApplyRelocation(const rel_t* rel) {

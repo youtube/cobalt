@@ -11,25 +11,28 @@
 
 #include <stdint.h>
 
+#include <atomic>
 #include <map>
 #include <memory>
+#include <optional>
 
 #include "base/base_export.h"
-#include "base/compiler_specific.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_samples.h"
+#include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/persistent_memory_allocator.h"
 
 namespace base {
-
-class PersistentHistogramAllocator;
-class PersistentSampleMapRecords;
 
 // The logic here is similar to that of SampleMap but with different data
 // structures. Changes here likely need to be duplicated there.
 class BASE_EXPORT PersistentSampleMap : public HistogramSamples {
  public:
+  using SampleToCountMap =
+      std::map<HistogramBase::Sample32,
+               raw_ptr<std::atomic<HistogramBase::Count32>, CtnExperimental>>;
+
   // Constructs a persistent sample map using a PersistentHistogramAllocator
   // as the data source for persistent records.
   PersistentSampleMap(uint64_t id,
@@ -42,69 +45,73 @@ class BASE_EXPORT PersistentSampleMap : public HistogramSamples {
   ~PersistentSampleMap() override;
 
   // HistogramSamples:
-  void Accumulate(HistogramBase::Sample value,
-                  HistogramBase::Count count) override;
-  HistogramBase::Count GetCount(HistogramBase::Sample value) const override;
-  HistogramBase::Count TotalCount() const override;
+  void Accumulate(HistogramBase::Sample32 value,
+                  HistogramBase::Count32 count) override;
+  HistogramBase::Count32 GetCount(HistogramBase::Sample32 value) const override;
+  HistogramBase::Count32 TotalCount() const override;
   std::unique_ptr<SampleCountIterator> Iterator() const override;
   std::unique_ptr<SampleCountIterator> ExtractingIterator() override;
+  bool IsDefinitelyEmpty() const override;
 
   // Uses a persistent-memory |iterator| to locate and return information about
-  // the next record holding information for a PersistentSampleMap. The record
+  // the next record holding information for a PersistentSampleMap (in
+  // particular, the reference and the sample |value| it holds). The record
   // could be for any Map so return the |sample_map_id| as well.
   static PersistentMemoryAllocator::Reference GetNextPersistentRecord(
       PersistentMemoryAllocator::Iterator& iterator,
-      uint64_t* sample_map_id);
+      uint64_t* sample_map_id,
+      HistogramBase::Sample32* value);
 
   // Creates a new record in an |allocator| storing count information for a
   // specific sample |value| of a histogram with the given |sample_map_id|.
   static PersistentMemoryAllocator::Reference CreatePersistentRecord(
       PersistentMemoryAllocator* allocator,
       uint64_t sample_map_id,
-      HistogramBase::Sample value);
+      HistogramBase::Sample32 value);
 
  protected:
-  // Performs arithemetic. |op| is ADD or SUBTRACT.
+  // Performs arithmetic. |op| is ADD or SUBTRACT.
   bool AddSubtractImpl(SampleCountIterator* iter, Operator op) override;
 
   // Gets a pointer to a "count" corresponding to a given |value|. Returns NULL
   // if sample does not exist.
-  HistogramBase::Count* GetSampleCountStorage(HistogramBase::Sample value);
+  std::atomic<HistogramBase::Count32>* GetSampleCountStorage(
+      HistogramBase::Sample32 value) const;
 
   // Gets a pointer to a "count" corresponding to a given |value|, creating
-  // the sample (initialized to zero) if it does not already exists.
-  HistogramBase::Count* GetOrCreateSampleCountStorage(
-      HistogramBase::Sample value);
+  // the sample (initialized to zero) if it does not already exist.
+  std::atomic<HistogramBase::Count32>* GetOrCreateSampleCountStorage(
+      HistogramBase::Sample32 value);
 
  private:
   // Gets the object that manages persistent records. This returns the
   // |records_| member after first initializing it if necessary.
-  PersistentSampleMapRecords* GetRecords();
+  PersistentSampleMapRecords* GetRecords() const;
 
-  // Imports samples from persistent memory by iterating over all sample
-  // records found therein, adding them to the sample_counts_ map. If a
-  // count for the sample |until_value| is found, stop the import and return
-  // a pointer to that counter. If that value is not found, null will be
-  // returned after all currently available samples have been loaded. Pass
-  // true for |import_everything| to force the importing of all available
-  // samples even if a match is found.
-  HistogramBase::Count* ImportSamples(HistogramBase::Sample until_value,
-                                      bool import_everything);
+  // Imports samples from persistent memory by iterating over all sample records
+  // found therein, adding them to the sample_counts_ map. If a count for the
+  // sample |until_value| is found, stop the import and return a pointer to that
+  // counter. If that value is not found, null will be returned after all
+  // currently available samples have been loaded. Pass a nullopt for
+  // |until_value| to force the importing of all available samples (null will
+  // always be returned in this case).
+  std::atomic<HistogramBase::Count32>* ImportSamples(
+      std::optional<HistogramBase::Sample32> until_value = std::nullopt) const;
 
   // All created/loaded sample values and their associated counts. The storage
   // for the actual Count numbers is owned by the |records_| object and its
   // underlying allocator.
-  std::map<HistogramBase::Sample, HistogramBase::Count*> sample_counts_;
+  mutable SampleToCountMap sample_counts_;
 
   // The allocator that manages histograms inside persistent memory. This is
   // owned externally and is expected to live beyond the life of this object.
-  raw_ptr<PersistentHistogramAllocator> allocator_;
+  mutable raw_ptr<PersistentHistogramAllocator> allocator_;
 
-  // The object that manages sample records inside persistent memory. This is
-  // owned by the |allocator_| object (above) and so, like it, is expected to
-  // live beyond the life of this object. This value is lazily-initialized on
-  // first use via the GetRecords() accessor method.
-  raw_ptr<PersistentSampleMapRecords> records_ = nullptr;
+  // The object that manages sample records inside persistent memory. The
+  // underlying data used is owned by the |allocator_| object (above). This
+  // value is lazily-initialized on first use via the GetRecords() accessor
+  // method.
+  mutable std::unique_ptr<PersistentSampleMapRecords> records_ = nullptr;
 };
 
 }  // namespace base

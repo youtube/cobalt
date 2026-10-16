@@ -5,6 +5,7 @@
 #include "components/policy/core/common/cloud/reporting_job_configuration_base.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -18,10 +19,10 @@
 #include "components/policy/core/common/cloud/cloud_policy_util.h"
 #include "components/policy/core/common/cloud/device_management_service.h"
 #include "components/policy/core/common/cloud/dm_auth.h"
+#include "components/policy/core/common/features.h"
 #include "components/version_info/version_info.h"
 #include "google_apis/google_api_keys.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace policy {
@@ -42,6 +43,12 @@ const char
         "osPlatform";
 const char ReportingJobConfigurationBase::DeviceDictionaryBuilder::kName[] =
     "name";
+const char
+    ReportingJobConfigurationBase::DeviceDictionaryBuilder::kDeviceFqdn[] =
+        "deviceFqdn";
+const char
+    ReportingJobConfigurationBase::DeviceDictionaryBuilder::kNetworkName[] =
+        "networkName";
 
 // static
 base::Value::Dict
@@ -54,7 +61,31 @@ ReportingJobConfigurationBase::DeviceDictionaryBuilder::BuildDeviceDictionary(
   device_dictionary.Set(kOSVersion, GetOSVersion());
   device_dictionary.Set(kOSPlatform, GetOSPlatform());
   device_dictionary.Set(kName, GetDeviceName());
+  if (base::FeatureList::IsEnabled(
+          policy::features::kEnhancedSecurityEventFields)) {
+    device_dictionary.Set(kDeviceFqdn, GetDeviceFqdn());
+    device_dictionary.Set(kNetworkName, GetNetworkName());
+  }
   return device_dictionary;
+}
+
+// static
+::chrome::cros::reporting::proto::Device
+ReportingJobConfigurationBase::DeviceDictionaryBuilder::BuildDeviceProto(
+    const std::string& dm_token,
+    const std::string& client_id) {
+  ::chrome::cros::reporting::proto::Device device;
+  device.set_dm_token(dm_token);
+  device.set_client_id(client_id);
+  device.set_os_version(GetOSVersion());
+  device.set_os_platform(GetOSPlatform());
+  device.set_name(GetDeviceName());
+  if (base::FeatureList::IsEnabled(
+          policy::features::kEnhancedSecurityEventFields)) {
+    device.set_device_fqdn(GetDeviceFqdn());
+    device.set_network_name(GetNetworkName());
+  }
+  return device;
 }
 
 // static
@@ -87,10 +118,22 @@ ReportingJobConfigurationBase::DeviceDictionaryBuilder::GetNamePath() {
   return GetStringPath(kName);
 }
 
+//static
+std::string
+ReportingJobConfigurationBase::DeviceDictionaryBuilder::GetDeviceFqdnPath() {
+  return GetStringPath(kDeviceFqdn);
+}
+
+// static
+std::string
+ReportingJobConfigurationBase::DeviceDictionaryBuilder::GetNetworkNamePath() {
+  return GetStringPath(kNetworkName);
+}
+
 // static
 std::string
 ReportingJobConfigurationBase::DeviceDictionaryBuilder::GetStringPath(
-    base::StringPiece leaf_name) {
+    std::string_view leaf_name) {
   return base::JoinString({kDeviceKey, leaf_name}, ".");
 }
 
@@ -122,11 +165,30 @@ ReportingJobConfigurationBase::BrowserDictionaryBuilder::BuildBrowserDictionary(
     browser_dictionary.Set(kBrowserId, browser_id.AsUTF8Unsafe());
   }
 
-  if (include_device_info)
+  if (include_device_info) {
     browser_dictionary.Set(kMachineUser, GetOSUsername());
+  }
 
   browser_dictionary.Set(kChromeVersion, version_info::GetVersionNumber());
   return browser_dictionary;
+}
+
+// static
+::chrome::cros::reporting::proto::Browser
+ReportingJobConfigurationBase::BrowserDictionaryBuilder::BuildBrowserProto(
+    bool include_device_info) {
+  ::chrome::cros::reporting::proto::Browser browser;
+  base::FilePath browser_id;
+  if (base::PathService::Get(base::DIR_EXE, &browser_id)) {
+    browser.set_browser_id(browser_id.AsUTF8Unsafe());
+  }
+
+  if (include_device_info) {
+    browser.set_machine_user(GetOSUsername());
+  }
+
+  browser.set_chrome_version(std::string(version_info::GetVersionNumber()));
+  return browser;
 }
 
 // static
@@ -156,7 +218,7 @@ std::string ReportingJobConfigurationBase::BrowserDictionaryBuilder::
 // static
 std::string
 ReportingJobConfigurationBase::BrowserDictionaryBuilder::GetStringPath(
-    base::StringPiece leaf_name) {
+    std::string_view leaf_name) {
   return base::JoinString({kBrowserKey, leaf_name}, ".");
 }
 
@@ -181,6 +243,7 @@ std::string ReportingJobConfigurationBase::GetPayload() {
 }
 
 std::string ReportingJobConfigurationBase::GetUmaName() {
+  DCHECK(ShouldRecordUma());
   return GetUmaString() + GetJobTypeAsString(GetType());
 }
 
@@ -213,7 +276,7 @@ void ReportingJobConfigurationBase::OnURLLoadComplete(
     int net_error,
     int response_code,
     const std::string& response_body) {
-  absl::optional<base::Value> response = base::JSONReader::Read(response_body);
+  std::optional<base::Value> response = base::JSONReader::Read(response_body);
 
   // Parse the response even if |response_code| is not a success since the
   // response data may contain an error message.
@@ -247,10 +310,9 @@ void ReportingJobConfigurationBase::OnURLLoadComplete(
     }
   }
 
-  auto response_dict =
-      response && response->is_dict()
-          ? absl::make_optional(std::move(*response).TakeDict())
-          : absl::nullopt;
+  auto response_dict = response && response->is_dict()
+                           ? std::make_optional(std::move(*response).TakeDict())
+                           : std::nullopt;
   std::move(callback_).Run(job, status, response_code,
                            std::move(response_dict));
 }
@@ -280,7 +342,8 @@ ReportingJobConfigurationBase::ReportingJobConfigurationBase(
     UploadCompleteCallback callback)
     : JobConfigurationBase(type,
                            std::move(auth_data),
-                           /*oauth_token=*/absl::nullopt,
+                           /*oauth_token=*/std::nullopt,
+                           /*use_cookies=*/false,
                            factory),
       callback_(std::move(callback)),
       server_url_(server_url) {}

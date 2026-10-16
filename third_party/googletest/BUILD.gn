@@ -24,11 +24,11 @@ config("gtest_config") {
     # and other systems, we tell gtest to always use its internal engine.
     "GTEST_HAS_POSIX_RE=0",
 
-    # Enables C++11 features.
-    "GTEST_LANG_CXX11=1",
-
-    # Prevents gtest from including both <tr1/tuple> and <tuple>.
-    "GTEST_HAS_TR1_TUPLE=0",
+    # Use Abseil, but without flags support: Abseil flags uses the
+    # `FastTypeId<T>()` pattern internally, which is known to be broken in
+    # subtle ways in the component build.
+    "GTEST_HAS_ABSL",
+    "GTEST_NO_ABSL_FLAGS",
   ]
 
   # Gtest headers need to be able to find themselves.
@@ -41,14 +41,14 @@ config("gtest_config") {
     cflags = [ "/wd4800" ]  # Unused variable warning.
   }
 
-  # TODO: b/399507045 - Cobalt: Fix build errors related to print API's, remove hack
+  configs = [
+    "//third_party/abseil-cpp:absl_include_config",
+    "//third_party/re2:re2_config",
+  ]
+
+  # TODO: b/399507045 - Cobalt: Fix build errors, remove hack
   if (is_cobalt && enable_cobalt_hermetic_hacks) {
     include_dirs -= [ "custom" ]
-  } else {
-  if (gtest_enable_absl_printers) {
-    configs = [ "//third_party/abseil-cpp:absl_include_config" ]
-    defines += [ "GTEST_HAS_ABSL=1" ]
-  }
   }
 }
 
@@ -60,8 +60,9 @@ config("gmock_config") {
   ]
 
   if (is_clang) {
-    # TODO(tikuta): remove this when the issue is fixed.
-    # https://github.com/google/googletest/issues/533
+    # TODO(crbug.com/40616204): remove this when we migrated to new MOCK_METHOD
+    # macro.
+    # ref: https://google.github.io/googletest/gmock_cook_book.html#old-style-mock_methodn-macros
     cflags = [ "-Wno-inconsistent-missing-override" ]
   }
 
@@ -136,8 +137,10 @@ source_set("gtest") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
 
   defines = []
-  deps = []
-  public_deps = []
+
+  # googletest only needs `absl`, but this makes gn check happier.
+  deps = [ "//third_party/abseil-cpp:absl_full" ]
+  public_deps = [ "//third_party/re2" ]
   if (is_nacl || !build_with_chromium || is_starboard) {
     defines += [ "GTEST_DISABLE_PRINT_STACK_TRACE" ]
     sources -= [
@@ -153,10 +156,6 @@ source_set("gtest") {
       "//third_party/fuchsia-sdk/sdk/pkg/fdio",
       "//third_party/fuchsia-sdk/sdk/pkg/zx",
     ]
-  }
-
-  if (gtest_enable_absl_printers) {
-    deps += [ "//third_party/abseil-cpp:absl" ]
   }
 
   if (is_cobalt_hermetic_build) {
@@ -175,11 +174,6 @@ source_set("gtest") {
       ]
       sources += [ "src/googletest/src/gtest-port.cc" ]
       configs += [ "//build/config/compiler:chromium_code" ]
-
-      # TODO: b/399507045 - Cobalt: Fix build errors related to print API's, remove hack
-      if (gtest_enable_absl_printers) {
-        deps -= [ "//third_party/abseil-cpp:absl" ]
-      }
     }
   }
 }
@@ -221,8 +215,10 @@ source_set("gmock") {
     "src/googlemock/src/gmock.cc",
   ]
 
-  public_deps = [ ":gtest" ]
+  # googlemock only needs `absl`, but this makes gn check happier.
+  deps = [ "//third_party/abseil-cpp:absl_full" ]
 
+  public_deps = [ ":gtest" ]
   public_configs = [ ":gmock_config" ]
 }
 

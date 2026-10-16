@@ -4,10 +4,8 @@
 
 #include "chromeos/ash/components/network/hotspot_state_handler.h"
 
-#include "ash/constants/ash_features.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/values.h"
 #include "chromeos/ash/components/dbus/shill/shill_clients.h"
@@ -16,6 +14,8 @@
 #include "chromeos/ash/components/network/network_state_handler.h"
 #include "chromeos/ash/components/network/network_state_test_helper.h"
 #include "chromeos/ash/services/hotspot_config/public/mojom/cros_hotspot_config.mojom.h"
+#include "chromeos/dbus/power/fake_power_manager_client.h"
+#include "chromeos/dbus/power/power_policy_controller.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/cros_system_api/dbus/shill/dbus-constants.h"
 
@@ -40,8 +40,9 @@ class TestObserver : public HotspotStateHandler::Observer {
 class HotspotStateHandlerTest : public ::testing::Test {
  public:
   void SetUp() override {
-    feature_list_.InitAndEnableFeature(features::kHotspot);
-
+    chromeos::PowerManagerClient::InitializeFake();
+    power_client_ = chromeos::FakePowerManagerClient::Get();
+    chromeos::PowerPolicyController::Initialize(power_client_);
     if (hotspot_state_handler_ &&
         hotspot_state_handler_->HasObserver(&observer_)) {
       hotspot_state_handler_->RemoveObserver(&observer_);
@@ -57,12 +58,13 @@ class HotspotStateHandlerTest : public ::testing::Test {
     network_state_test_helper_.ClearServices();
     hotspot_state_handler_->RemoveObserver(&observer_);
     hotspot_state_handler_.reset();
+    EXPECT_EQ(false, power_client_->policy().system_wake_lock());
   }
 
  protected:
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  base::test::ScopedFeatureList feature_list_;
+  raw_ptr<chromeos::FakePowerManagerClient> power_client_;
   base::HistogramTester histogram_tester_;
   std::unique_ptr<HotspotStateHandler> hotspot_state_handler_;
   TestObserver observer_;
@@ -132,22 +134,23 @@ TEST_F(HotspotStateHandlerTest, GetHotspotActiveClientCount) {
 
   EXPECT_EQ(0u, hotspot_state_handler_->GetHotspotActiveClientCount());
   EXPECT_EQ(1u, observer_.hotspot_status_changed_count());
+  EXPECT_EQ(false, power_client_->policy().system_wake_lock());
 
   // Update tethering status with one active client.
-  base::Value::List active_clients_list;
-  base::Value::Dict client;
-  client.Set(shill::kTetheringStatusClientIPv4Property, "IPV4:001");
-  client.Set(shill::kTetheringStatusClientHostnameProperty, "hostname1");
-  client.Set(shill::kTetheringStatusClientMACProperty, "persist");
-  active_clients_list.Append(std::move(client));
-  status_dict.Set(shill::kTetheringStatusClientsProperty,
-                  std::move(active_clients_list));
+  status_dict.Set(
+      shill::kTetheringStatusClientsProperty,
+      base::Value::List().Append(
+          base::Value::Dict()
+              .Set(shill::kTetheringStatusClientIPv4Property, "IPV4:001")
+              .Set(shill::kTetheringStatusClientHostnameProperty, "hostname1")
+              .Set(shill::kTetheringStatusClientMACProperty, "persist")));
   network_state_test_helper_.manager_test()->SetManagerProperty(
       shill::kTetheringStatusProperty, base::Value(status_dict.Clone()));
   base::RunLoop().RunUntilIdle();
 
   EXPECT_EQ(1u, hotspot_state_handler_->GetHotspotActiveClientCount());
   EXPECT_EQ(2u, observer_.hotspot_status_changed_count());
+  EXPECT_EQ(true, power_client_->policy().system_wake_lock());
 
   status_dict.Set(shill::kTetheringStatusStateProperty,
                   shill::kTetheringStateIdle);
@@ -158,6 +161,7 @@ TEST_F(HotspotStateHandlerTest, GetHotspotActiveClientCount) {
 
   EXPECT_EQ(0u, hotspot_state_handler_->GetHotspotActiveClientCount());
   EXPECT_EQ(3u, observer_.hotspot_status_changed_count());
+  EXPECT_EQ(false, power_client_->policy().system_wake_lock());
 }
 
 }  // namespace ash

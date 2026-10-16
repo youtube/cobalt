@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "base/base_export.h"
+#include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
@@ -96,12 +97,12 @@ class BASE_EXPORT ThreadPool {
   // Though RepeatingCallback is convertible to OnceCallback, we need a
   // CallbackType template since we can not use template deduction and object
   // conversion at once on the overload resolution.
-  // TODO(crbug.com/714018): Update all callers of the RepeatingCallback version
-  // to use OnceCallback and remove the CallbackType template.
+  // TODO(crbug.com/40516732): Update all callers of the RepeatingCallback
+  // version to use OnceCallback and remove the CallbackType template.
   template <template <typename> class CallbackType,
             typename TaskReturnType,
-            typename ReplyArgType,
-            typename = EnableIfIsBaseCallback<CallbackType>>
+            typename ReplyArgType>
+    requires(IsBaseCallback<CallbackType<void()>>)
   static bool PostTaskAndReplyWithResult(
       const Location& from_here,
       CallbackType<TaskReturnType()> task,
@@ -146,12 +147,12 @@ class BASE_EXPORT ThreadPool {
   // Though RepeatingCallback is convertible to OnceCallback, we need a
   // CallbackType template since we can not use template deduction and object
   // conversion at once on the overload resolution.
-  // TODO(crbug.com/714018): Update all callers of the RepeatingCallback version
-  // to use OnceCallback and remove the CallbackType template.
+  // TODO(crbug.com/40516732): Update all callers of the RepeatingCallback
+  // version to use OnceCallback and remove the CallbackType template.
   template <template <typename> class CallbackType,
             typename TaskReturnType,
-            typename ReplyArgType,
-            typename = EnableIfIsBaseCallback<CallbackType>>
+            typename ReplyArgType>
+    requires(IsBaseCallback<CallbackType<void()>>)
   static bool PostTaskAndReplyWithResult(
       const Location& from_here,
       const TaskTraits& traits,
@@ -223,6 +224,16 @@ class BASE_EXPORT ThreadPool {
       SingleThreadTaskRunnerThreadMode thread_mode =
           SingleThreadTaskRunnerThreadMode::SHARED);
 #endif  // BUILDFLAG(IS_WIN)
+
+  // Returns a SequencedTaskRunner whose PostTask invocations result in
+  // scheduling tasks using |traits|. Tasks run one at a time in posting order.
+  // Returns the existing `SequenceTaskRunner` for 'path', or creates it.
+  // Ensures tasks accessing the same `path` are sequenced, even if posted from
+  // `SequencedTaskRunner`s obtained in different contexts. The same `traits`
+  // must be provided to all calls with the same `path`.
+  static scoped_refptr<SequencedTaskRunner>
+  CreateSequencedTaskRunnerForResource(const TaskTraits& traits,
+                                       const base::FilePath& path);
 };
 
 }  // namespace base

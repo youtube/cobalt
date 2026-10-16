@@ -4,25 +4,25 @@
 
 #import "ios/chrome/test/earl_grey/chrome_egtest_bundle_main.h"
 
+#import <UIKit/UIKit.h>
 #import <XCTest/XCTest.h>
+#import <grpc/grpc.h>
+#import <grpcpp/grpcpp.h>
 #import <objc/runtime.h>
+
 #import <memory>
 
+#import "base/apple/bundle_locations.h"
 #import "base/at_exit.h"
 #import "base/check.h"
 #import "base/command_line.h"
+#import "base/debug/stack_trace.h"
 #import "base/i18n/icu_util.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/types/fixed_array.h"
 #import "ios/chrome/test/earl_grey/chrome_egtest_plugin_client.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 #import "ui/base/resource/resource_bundle.h"
-
-#import <grpc/grpc.h>
-#import <grpcpp/grpcpp.h>
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using chrome_egtest_plugin::TestPluginClient;
 using grpc::Channel;
@@ -42,7 +42,7 @@ class TestMain {
 
     // Convert NSArray to the required input type of `base::CommandLine::Init`.
     int argc = arguments.count;
-    const char* argv[argc];
+    base::FixedArray<const char*> argv(argc);
     std::vector<std::string> argv_store;
     // Avoid using std::vector::push_back (or any other method that could cause
     // the vector to grow) as this will cause the std::string to be copied or
@@ -58,7 +58,12 @@ class TestMain {
 
     // Initialize the CommandLine with arguments. ResourceBundle requires
     // CommandLine to exist.
-    base::CommandLine::Init(argc, argv);
+    base::CommandLine::Init(argc, argv.data());
+
+    // Configures the default framework bundle to point to the test module
+    // bundle instead of the test runner app.
+    base::apple::SetOverrideFrameworkBundle(
+        [NSBundle bundleForClass:[ChromeEGTestBundleMain class]]);
 
     base::i18n::InitializeICU();
 
@@ -79,7 +84,7 @@ class TestMain {
  private:
   base::AtExitManager exit_manager_;
 };
-}
+}  // namespace
 
 @class XCTSourceCodeSymbolInfo;
 @protocol XCTSymbolInfoProviding <NSObject>
@@ -96,6 +101,9 @@ class TestMain {
   std::unique_ptr<TestMain> _testMain;
   std::unique_ptr<TestPluginClient> _testPluginClient;
 }
+
+@property BOOL pluginsEnabled;
+
 @end
 
 @implementation ChromeEGTestBundleMain
@@ -104,6 +112,7 @@ class TestMain {
   if ((self = [super init])) {
     [[XCTestObservationCenter sharedTestObservationCenter]
         addTestObserver:self];
+    self.pluginsEnabled = NO;
   }
 
   // initializing test plugin client iff test plugin server is running on the
@@ -120,23 +129,29 @@ class TestMain {
   if (enabledPlugins.size() == 0) {
     NSLog(@"iOS test runner is not running, or no test plugins are enabled. "
           @"Test plugins feature will not be used.");
+    _testPluginClient.reset();
+
   } else {
-    _testPluginClient->set_is_service_enabled(true);
+    self.pluginsEnabled = YES;
     NSLog(@"At least one test plugin is enabled. Test plugins features will be "
           @"used throughout tests executions");
   }
   return self;
 }
 
-// -waitForQuiescenceIncludingAnimationsIdle tends to introduce a long
+// -waitForQuiescenceIncludingAnimationsIdle:isPreEvent: tends to introduce an
 // unnecessary delay, as EarlGrey already checks for animations to complete.
 // Swizzling and skipping the following call speeds up test runs.
 - (void)disableWaitForIdle {
-  SEL originalSelector =
-      NSSelectorFromString(@"waitForQuiescenceIncludingAnimationsIdle:");
+  SEL originalSelector = NSSelectorFromString(
+      @"waitForQuiescenceIncludingAnimationsIdle:isPreEvent:");
   SEL swizzledSelector = @selector(skipQuiescenceDelay);
   Method originalMethod = class_getInstanceMethod(
       objc_getClass("XCUIApplicationProcess"), originalSelector);
+  if (originalMethod == nil) {
+    NSLog(@"Could not swizzle waitForQuiescenceIncludingAnimationsIdle.");
+    return;
+  }
   Method swizzledMethod =
       class_getInstanceMethod([self class], swizzledSelector);
   method_exchangeImplementations(originalMethod, swizzledMethod);
@@ -177,6 +192,13 @@ class TestMain {
 }
 
 - (void)testBundleDidFinish:(NSBundle*)testBundle {
+  if (self.pluginsEnabled) {
+    NSLog(@"calling testBundleWillFinish to test plugin server");
+    std::string deviceName =
+        base::SysNSStringToUTF8(UIDevice.currentDevice.name);
+    _testPluginClient->TestBundleWillFinish(deviceName);
+  }
+
   [[XCTestObservationCenter sharedTestObservationCenter]
       removeTestObserver:self];
 
@@ -184,27 +206,36 @@ class TestMain {
 }
 
 - (void)testCaseWillStart:(XCTestCase*)testCase {
-  if (_testPluginClient->is_service_enabled()) {
+  if (self.pluginsEnabled) {
     NSLog(@"calling testCaseWillStart to test plugin server");
     std::string testName = base::SysNSStringToUTF8(testCase.name);
-    _testPluginClient->TestCaseWillStart(testName);
+    std::string deviceName =
+        base::SysNSStringToUTF8(UIDevice.currentDevice.name);
+    _testPluginClient->TestCaseWillStart(testName, deviceName);
   }
 }
 
 // this is called when test case failed unexpectedly
 - (void)testCase:(XCTestCase*)testCase didRecordIssue:(XCTIssue*)issue {
-  if (_testPluginClient->is_service_enabled()) {
+  if (self.pluginsEnabled) {
     NSLog(@"calling testCaseDidFail to test plugin server");
     std::string testName = base::SysNSStringToUTF8(testCase.name);
-    _testPluginClient->TestCaseDidFail(testName);
+    std::string deviceName =
+        base::SysNSStringToUTF8(UIDevice.currentDevice.name);
+    _testPluginClient->TestCaseDidFail(testName, deviceName);
   }
+  NSString* current_stack =
+      base::SysUTF8ToNSString(base::debug::StackTrace().ToString());
+  NSLog(@"%@", current_stack);
 }
 
 - (void)testCaseDidFinish:(XCTestCase*)testCase {
-  if (_testPluginClient->is_service_enabled()) {
+  if (self.pluginsEnabled) {
     NSLog(@"calling testCaseDidFinish to test plugin server");
     std::string testName = base::SysNSStringToUTF8(testCase.name);
-    _testPluginClient->TestCaseDidFinish(testName);
+    std::string deviceName =
+        base::SysNSStringToUTF8(UIDevice.currentDevice.name);
+    _testPluginClient->TestCaseDidFinish(testName, deviceName);
   }
 }
 

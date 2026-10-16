@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/login/screens/update_required_screen.h"
 
 #include <memory>
+#include <optional>
 
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
@@ -20,18 +21,18 @@
 #include "chrome/browser/ash/login/test/login_manager_mixin.h"
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
 #include "chrome/browser/ash/login/test/oobe_screen_waiter.h"
-#include "chrome/browser/ash/login/ui/login_display_host.h"
 #include "chrome/browser/ash/login/version_updater/version_updater.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/ash/net/network_portal_detector_test_impl.h"
 #include "chrome/browser/ash/policy/core/device_policy_builder.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_browser_test.h"
 #include "chrome/browser/ash/policy/handlers/minimum_version_policy_test_helpers.h"
+#include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/webui/ash/login/error_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/oobe_ui.h"
 #include "chrome/browser/ui/webui/ash/login/update_required_screen_handler.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
 #include "chromeos/ash/components/dbus/update_engine/fake_update_engine_client.h"
@@ -41,7 +42,6 @@
 #include "components/user_manager/user_manager.h"
 #include "content/public/test/browser_test.h"
 #include "dbus/object_path.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/chromeos/devicetype_utils.h"
@@ -124,17 +124,15 @@ void SetConnected(const std::string& service_path) {
 
 void WaitForConfirmationDialogToOpen() {
   test::OobeJS()
-      .CreateWaiter(
-          test::GetOobeElementPath({kEolDeleteUsersDataConfirmDialog}) +
-          ".open")
+      .CreateWaiter(test::GetOobeElementPath(kEolDeleteUsersDataConfirmDialog) +
+                    ".open")
       ->Wait();
 }
 
 void WaitForConfirmationDialogToClose() {
   test::OobeJS()
-      .CreateWaiter(
-          test::GetOobeElementPath({kEolDeleteUsersDataConfirmDialog}) +
-          ".open === false")
+      .CreateWaiter(test::GetOobeElementPath(kEolDeleteUsersDataConfirmDialog) +
+                    ".open === false")
       ->Wait();
 }
 
@@ -156,7 +154,7 @@ class UpdateRequiredScreenTest : public OobeBaseTest {
 
     // Set up fake networks.
     network_state_test_helper_ = std::make_unique<NetworkStateTestHelper>(
-        true /*use_default_devices_and_services*/);
+        /*use_default_devices_and_services=*/true);
     network_state_test_helper_->manager_test()->SetupDefaultEnvironment();
     // Fake networks have been set up. Connect to WiFi network.
     SetConnected(kWifiServicePath);
@@ -199,10 +197,10 @@ class UpdateRequiredScreenTest : public OobeBaseTest {
   }
 
  protected:
-  raw_ptr<UpdateRequiredScreen, ExperimentalAsh> update_required_screen_;
+  raw_ptr<UpdateRequiredScreen> update_required_screen_;
   // Error screen - owned by OobeUI.
   // Version updater - owned by `update_required_screen_`.
-  raw_ptr<VersionUpdater, ExperimentalAsh> version_updater_ = nullptr;
+  raw_ptr<VersionUpdater> version_updater_ = nullptr;
 
   // Handles network connections
   std::unique_ptr<NetworkStateTestHelper> network_state_test_helper_;
@@ -274,7 +272,7 @@ IN_PROC_BROWSER_TEST_F(UpdateRequiredScreenTest, TestEolReached) {
 // Test to verify that clicking on the confirm button on the popup in case of
 // update required and end-of-life reached, deletes all users on the device.
 IN_PROC_BROWSER_TEST_F(UpdateRequiredScreenTest, TestEolDeleteUsersConfirm) {
-  EXPECT_EQ(user_manager::UserManager::Get()->GetUsers().size(), 2u);
+  EXPECT_EQ(user_manager::UserManager::Get()->GetPersistedUsers().size(), 2u);
   update_engine_client()->set_eol_date(
       base::DefaultClock::GetInstance()->Now() - base::Days(1));
   ShowUpdateRequiredScreen();
@@ -290,13 +288,13 @@ IN_PROC_BROWSER_TEST_F(UpdateRequiredScreenTest, TestEolDeleteUsersConfirm) {
 
   test::OobeJS().CreateVisibilityWaiter(true, kEolNoUsersDataMsg)->Wait();
   test::OobeJS().ExpectHiddenPath(kEolDeleteUsersDataMessage);
-  EXPECT_EQ(user_manager::UserManager::Get()->GetUsers().size(), 0u);
+  EXPECT_EQ(user_manager::UserManager::Get()->GetPersistedUsers().size(), 0u);
 }
 
 // Test to verify that clicking on the cancel button on the popup in case of
 // update required and end-of-life reached, does not delete any user.
 IN_PROC_BROWSER_TEST_F(UpdateRequiredScreenTest, TestEolDeleteUsersCancel) {
-  EXPECT_EQ(user_manager::UserManager::Get()->GetUsers().size(), 2u);
+  EXPECT_EQ(user_manager::UserManager::Get()->GetPersistedUsers().size(), 2u);
   update_engine_client()->set_eol_date(
       base::DefaultClock::GetInstance()->Now() - base::Days(1));
   ShowUpdateRequiredScreen();
@@ -312,7 +310,7 @@ IN_PROC_BROWSER_TEST_F(UpdateRequiredScreenTest, TestEolDeleteUsersCancel) {
 
   test::OobeJS().ExpectVisiblePath(kEolDeleteUsersDataMessage);
   test::OobeJS().ExpectHiddenPath(kEolNoUsersDataMsg);
-  EXPECT_EQ(user_manager::UserManager::Get()->GetUsers().size(), 2u);
+  EXPECT_EQ(user_manager::UserManager::Get()->GetPersistedUsers().size(), 2u);
 }
 
 IN_PROC_BROWSER_TEST_F(UpdateRequiredScreenTest, TestEolReachedAdminMessage) {
@@ -572,7 +570,7 @@ class UpdateRequiredScreenPolicyPresentTest : public OobeBaseTest {
 // still shows the update required screen to block user sign in.
 IN_PROC_BROWSER_TEST_F(UpdateRequiredScreenPolicyPresentTest,
                        TestUpdateRequiredScreen) {
-  EXPECT_EQ(user_manager::UserManager::Get()->GetUsers().size(), 0u);
+  EXPECT_EQ(user_manager::UserManager::Get()->GetPersistedUsers().size(), 0u);
   OobeScreenWaiter update_screen_waiter(UpdateRequiredView::kScreenId);
   update_screen_waiter.set_assert_next_screen();
   update_screen_waiter.Wait();

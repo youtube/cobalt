@@ -12,7 +12,6 @@
 #include "base/synchronization/lock.h"
 #include "base/task/lazy_thread_pool_task_runner.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/common/chrome_paths.h"
 #include "components/crash/core/app/crashpad.h"
 
@@ -33,7 +32,7 @@ base::LazyInstance<base::Lock>::Leaky g_posix_client_id_lock =
 const char kConsentToSendStats[] = "Consent To Send Stats";
 
 void SetConsentFilePermissionIfNeeded(const base::FilePath& consent_file) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // The consent file needs to be world readable. See http://crbug.com/383003
   int permissions;
   if (base::GetPosixFilePermissions(consent_file, &permissions) &&
@@ -55,13 +54,12 @@ GoogleUpdateSettings::CollectStatsConsentTaskRunner() {
 }
 
 // static
-bool GoogleUpdateSettings::GetCollectStatsConsent() {
-  base::FilePath consent_file;
-  base::PathService::Get(chrome::DIR_USER_DATA, &consent_file);
-  consent_file = consent_file.Append(kConsentToSendStats);
-
-  if (!base::DirectoryExists(consent_file.DirName()))
+bool GoogleUpdateSettings::GetCollectStatsConsentFromDir(
+    const base::FilePath& consent_dir) {
+  if (!base::DirectoryExists(consent_dir)) {
     return false;
+  }
+  base::FilePath consent_file = consent_dir.Append(kConsentToSendStats);
 
   std::string tmp_guid;
   bool consented = base::ReadFileToString(consent_file, &tmp_guid);
@@ -75,6 +73,13 @@ bool GoogleUpdateSettings::GetCollectStatsConsent() {
 }
 
 // static
+bool GoogleUpdateSettings::GetCollectStatsConsent() {
+  base::FilePath consent_dir;
+  base::PathService::Get(chrome::DIR_USER_DATA, &consent_dir);
+  return GetCollectStatsConsentFromDir(consent_dir);
+}
+
+// static
 bool GoogleUpdateSettings::SetCollectStatsConsent(bool consented) {
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   crash_reporter::SetUploadConsent(consented);
@@ -82,8 +87,9 @@ bool GoogleUpdateSettings::SetCollectStatsConsent(bool consented) {
 
   base::FilePath consent_dir;
   base::PathService::Get(chrome::DIR_USER_DATA, &consent_dir);
-  if (!base::DirectoryExists(consent_dir))
+  if (!base::DirectoryExists(consent_dir)) {
     return false;
+  }
 
   base::AutoLock lock(g_posix_client_id_lock.Get());
 
@@ -94,8 +100,9 @@ bool GoogleUpdateSettings::SetCollectStatsConsent(bool consented) {
   }
 
   const std::string& client_id = g_posix_client_id.Get();
-  if (base::PathExists(consent_file) && client_id.empty())
+  if (base::PathExists(consent_file) && client_id.empty()) {
     return true;
+  }
 
   if (!base::WriteFile(consent_file, client_id)) {
     return false;
@@ -112,8 +119,9 @@ GoogleUpdateSettings::LoadMetricsClientInfo() {
   auto client_info = std::make_unique<metrics::ClientInfo>();
 
   base::AutoLock lock(g_posix_client_id_lock.Get());
-  if (g_posix_client_id.Get().empty())
+  if (g_posix_client_id.Get().empty()) {
     return nullptr;
+  }
   client_info->client_id = g_posix_client_id.Get();
 
   return client_info;
@@ -124,8 +132,9 @@ GoogleUpdateSettings::LoadMetricsClientInfo() {
 void GoogleUpdateSettings::StoreMetricsClientInfo(
     const metrics::ClientInfo& client_info) {
   // Make sure that user has consented to send crashes.
-  if (!GoogleUpdateSettings::GetCollectStatsConsent())
+  if (!GoogleUpdateSettings::GetCollectStatsConsent()) {
     return;
+  }
 
   {
     // Since user has consented, write the metrics id to the file.

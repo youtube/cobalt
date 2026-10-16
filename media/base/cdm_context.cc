@@ -22,8 +22,8 @@ Decryptor* CdmContext::GetDecryptor() {
   return nullptr;
 }
 
-absl::optional<base::UnguessableToken> CdmContext::GetCdmId() const {
-  return absl::nullopt;
+std::optional<base::UnguessableToken> CdmContext::GetCdmId() const {
+  return std::nullopt;
 }
 
 std::string CdmContext::CdmIdToString(const base::UnguessableToken* cdm_id) {
@@ -50,6 +50,10 @@ MediaCryptoContext* CdmContext::GetMediaCryptoContext() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 SbDrmSystem CdmContext::GetSbDrmSystem() {
   return kSbDrmSystemInvalid;
+}
+
+std::optional<std::string> CdmContext::GetKeySystem() const {
+  return std::nullopt;
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 

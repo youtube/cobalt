@@ -4,13 +4,13 @@
 
 #include "components/power_bookmarks/storage/power_bookmark_database_impl.h"
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
-#include "base/ranges/algorithm.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
@@ -94,7 +94,7 @@ class PowerBookmarkDatabaseImplTest : public testing::Test {
   base::HistogramTester* histogram() { return &histogram_; }
 
   void InsertBadlyFormattedProtoToDB() {
-    sql::Database db;
+    sql::Database db(sql::test::kTestTag);
     EXPECT_TRUE(db.Open(db_file_path()));
 
     static constexpr char kCreatePowerSaveSql[] =
@@ -179,7 +179,7 @@ TEST_F(PowerBookmarkDatabaseImplTest, InitDatabase) {
   }
 
   {
-    sql::Database db;
+    sql::Database db(sql::test::kTestTag);
     EXPECT_TRUE(db.Open(db_file_path()));
 
     // Database should have 4 tables: meta, saves, blobs and sync_meta.
@@ -210,7 +210,7 @@ TEST_F(PowerBookmarkDatabaseImplTest, DatabaseNewVersion) {
 
   // Create an empty database with a newer schema version (version=1000000).
   {
-    sql::Database db;
+    sql::Database db(sql::test::kTestTag);
     EXPECT_TRUE(db.Open(db_file_path()));
 
     sql::MetaTable meta_table;
@@ -242,7 +242,7 @@ TEST_F(PowerBookmarkDatabaseImplTest, DatabaseHasSchemaNoMeta) {
 
   // Drop meta table.
   {
-    sql::Database db;
+    sql::Database db(sql::test::kTestTag);
     EXPECT_TRUE(db.Open(db_file_path()));
     sql::MetaTable::DeleteTableForTesting(&db);
   }
@@ -424,7 +424,7 @@ TEST_F(PowerBookmarkDatabaseImplTest, GetPowersForURLUnspecifiedType) {
   EXPECT_EQ(kMockType, stored_powers[0]->power_type());
 }
 
-// // TODO(crbug.com/1383289): Re-enable this test.
+// // TODO(crbug.com/40877748): Re-enable this test.
 #if defined(MEMORY_SANITIZER)
 #define MAYBE_GetPowersForURLDeserializingProtoFails \
   DISABLED_GetPowersForURLDeserializingProtoFails
@@ -510,7 +510,7 @@ TEST_F(PowerBookmarkDatabaseImplTest, GetPowerOverviewsForType) {
   EXPECT_EQ(EpochAndSeconds(4), boogle_power->time_modified());
 }
 
-// // TODO(crbug.com/1383289): Re-enable this test.
+// // TODO(crbug.com/40877748): Re-enable this test.
 #if defined(MEMORY_SANITIZER)
 #define MAYBE_GetPowerOverviewsForTypeDeserializingProtoFails \
   DISABLED_GetPowerOverviewsForTypeDeserializingProtoFails
@@ -931,6 +931,10 @@ TEST_F(PowerBookmarkDatabaseImplTest, GetPowersForGUIDs) {
   EXPECT_EQ(2u, stored_powers.size());
   EXPECT_EQ(kGoogleUrl, stored_powers[0]->url());
   EXPECT_EQ(kGoogleUrl, stored_powers[1]->url());
+
+  stored_powers = pbdb->GetPowersForGUIDs({guid1});
+  EXPECT_EQ(1u, stored_powers.size());
+  EXPECT_EQ(kGoogleUrl, stored_powers[0]->url());
 }
 
 TEST_F(PowerBookmarkDatabaseImplTest, GetPowerForGUID) {

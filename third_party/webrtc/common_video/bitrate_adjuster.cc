@@ -12,8 +12,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 
 #include "rtc_base/logging.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/time_utils.h"
 
 namespace webrtc {
@@ -67,14 +71,14 @@ uint32_t BitrateAdjuster::GetAdjustedBitrateBps() const {
   return adjusted_bitrate_bps_;
 }
 
-absl::optional<uint32_t> BitrateAdjuster::GetEstimatedBitrateBps() {
+std::optional<uint32_t> BitrateAdjuster::GetEstimatedBitrateBps() {
   MutexLock lock(&mutex_);
-  return bitrate_tracker_.Rate(rtc::TimeMillis());
+  return bitrate_tracker_.Rate(TimeMillis());
 }
 
 void BitrateAdjuster::Update(size_t frame_size) {
   MutexLock lock(&mutex_);
-  uint32_t current_time_ms = rtc::TimeMillis();
+  uint32_t current_time_ms = TimeMillis();
   bitrate_tracker_.Update(frame_size, current_time_ms);
   UpdateBitrate(current_time_ms);
 }

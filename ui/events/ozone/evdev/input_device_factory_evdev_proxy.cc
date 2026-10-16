@@ -41,6 +41,14 @@ void ForwardGetStylusSwitchStateReply(
   reply_runner->PostTask(FROM_HERE, base::BindOnce(std::move(reply), state));
 }
 
+void ForwardDescribeForLogReply(
+    scoped_refptr<base::SingleThreadTaskRunner> reply_runner,
+    InputController::DescribeForLogReply reply,
+    const std::string& result) {
+  // Thread hop back to UI for reply.
+  reply_runner->PostTask(FROM_HERE, base::BindOnce(std::move(reply), result));
+}
+
 }  // namespace
 
 InputDeviceFactoryEvdevProxy::InputDeviceFactoryEvdevProxy(
@@ -121,6 +129,17 @@ void InputDeviceFactoryEvdevProxy::GetTouchEventLog(
                          std::move(reply))));
 }
 
+void InputDeviceFactoryEvdevProxy::DescribeForLog(
+    InputController::DescribeForLogReply reply) const {
+  task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          &InputDeviceFactoryEvdev::DescribeForLog, input_device_factory_,
+          base::BindOnce(&ForwardDescribeForLogReply,
+                         base::SingleThreadTaskRunner::GetCurrentDefault(),
+                         std::move(reply))));
+}
+
 void InputDeviceFactoryEvdevProxy::GetGesturePropertiesService(
     mojo::PendingReceiver<ozone::mojom::GesturePropertiesService> receiver) {
   task_runner_->PostTask(
@@ -162,6 +181,13 @@ void InputDeviceFactoryEvdevProxy::SetHapticTouchpadEffectForNextButtonRelease(
       base::BindOnce(
           &InputDeviceFactoryEvdev::SetHapticTouchpadEffectForNextButtonRelease,
           input_device_factory_, effect, strength));
+}
+
+void InputDeviceFactoryEvdevProxy::DisableKeyboardImposterCheck() {
+  task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&InputDeviceFactoryEvdev::DisableKeyboardImposterCheck,
+                     input_device_factory_));
 }
 
 }  // namespace ui

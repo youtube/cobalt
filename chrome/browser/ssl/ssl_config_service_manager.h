@@ -55,8 +55,6 @@ class SSLConfigServiceManager {
   // cached list of parsed SSL/TLS cipher suites that are disabled.
   void OnDisabledCipherSuitesChange(PrefService* local_state);
 
-  void CacheVariationsPolicy(PrefService* local_state);
-
   PrefChangeRegistrar local_state_change_registrar_;
 
   // The local_state prefs.
@@ -66,15 +64,13 @@ class SSLConfigServiceManager {
   StringPrefMember ssl_version_max_;
   StringListPrefMember h2_client_cert_coalescing_host_patterns_;
   BooleanPrefMember post_quantum_enabled_;
+#if BUILDFLAG(IS_CHROMEOS)
+  BooleanPrefMember device_post_quantum_enabled_;
+#endif
   BooleanPrefMember ech_enabled_;
-  BooleanPrefMember insecure_hash_enabled_;
 
   // The cached list of disabled SSL cipher suites.
   std::vector<uint16_t> disabled_cipher_suites_;
-
-  // variations_unrestricted_ is true iff the ChromeVariations policy has not
-  // been set to anything more restrictive than the default NO_RESTRICTIONS.
-  bool variations_unrestricted_ = true;
 
   mojo::RemoteSet<network::mojom::SSLConfigClient> ssl_config_client_set_;
 };

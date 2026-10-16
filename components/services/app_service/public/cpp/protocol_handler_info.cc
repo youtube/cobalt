@@ -13,21 +13,11 @@ ProtocolHandlerInfo::ProtocolHandlerInfo(const ProtocolHandlerInfo& other) =
 
 ProtocolHandlerInfo::~ProtocolHandlerInfo() = default;
 
-bool operator==(const ProtocolHandlerInfo& handler1,
-                const ProtocolHandlerInfo& handler2) {
-  return handler1.protocol == handler2.protocol && handler1.url == handler2.url;
-}
-
-bool operator!=(const ProtocolHandlerInfo& handler1,
-                const ProtocolHandlerInfo& handler2) {
-  return !(handler1 == handler2);
-}
-
 base::Value ProtocolHandlerInfo::AsDebugValue() const {
-  base::Value root(base::Value::Type::DICT);
-  root.SetStringKey("protocol", protocol);
-  root.SetStringKey("url", url.spec());
-  return root;
+  base::Value::Dict root;
+  root.Set("protocol", protocol);
+  root.Set("url", url.spec());
+  return base::Value(std::move(root));
 }
 
 }  // namespace apps

@@ -6,52 +6,49 @@
 #define COMPONENTS_LENS_LENS_URL_UTILS_H_
 
 #include <string>
+#include <vector>
 
 #include "components/lens/lens_entrypoints.h"
 #include "components/lens/lens_metadata.mojom.h"
-#include "components/lens/lens_rendering_environment.h"
-#include "ui/gfx/geometry/size_f.h"
 
 class GURL;
 
 namespace lens {
 
 // Query parameter for the payload.
-constexpr char kPayloadQueryParameter[] = "p";
+inline constexpr char kPayloadQueryParameter[] = "p";
 // Query parameter for the translate source language.
-constexpr char kTranslateSourceQueryParameter[] = "sourcelang";
+inline constexpr char kTranslateSourceQueryParameter[] = "sourcelang";
 // Query parameter for the translate target language.
-constexpr char kTranslateTargetQueryParameter[] = "targetlang";
+inline constexpr char kTranslateTargetQueryParameter[] = "targetlang";
 // Query parameter for the filter type.
-constexpr char kFilterTypeQueryParameter[] = "filtertype";
-constexpr char kTranslateFilterTypeQueryParameterValue[] = "tr";
+inline constexpr char kFilterTypeQueryParameter[] = "filtertype";
+inline constexpr char kTranslateFilterTypeQueryParameterValue[] = "tr";
+inline constexpr char kLensRequestQueryParameter[] = "vsrid";
+inline constexpr char kUnifiedDrillDownQueryParameter[] = "udm";
+inline constexpr char kLensSurfaceQueryParameter[] = "lns_surface";
 
 // Appends logs to query param as a string
-extern void AppendLogsQueryParam(
+void AppendLogsQueryParam(
     std::string* query_string,
     const std::vector<lens::mojom::LatencyLogPtr>& log_data);
 
 // Returns a modified GURL with appended or replaced parameters depending on the
-// entrypoint and other parameters. The width and height of the side panel
-// initial size are ignored if they are 0 or if the request is not a side panel
-// request.
-extern GURL AppendOrReplaceQueryParametersForLensRequest(
-    const GURL& url,
-    lens::EntryPoint ep,
-    lens::RenderingEnvironment re,
-    bool is_side_panel_request,
-    const gfx::Size& side_panel_initial_size_upper_bound);
+// entrypoint and other parameters.
+GURL AppendOrReplaceQueryParametersForLensRequest(const GURL& url,
+                                                  EntryPoint ep);
 
 // Returns a query string with all relevant query parameters. Needed for when a
-// GURL is unavailable to append to. The width and height of the side panel
-// initial size are ignored if they are 0 or if the request is not a side panel
-// request.
-extern std::string GetQueryParametersForLensRequest(
-    lens::EntryPoint ep,
-    bool is_side_panel_request,
-    const gfx::Size& side_panel_initial_size_upper_bound,
-    bool is_full_screen_region_search_request,
-    bool is_companion_request = false);
+// GURL is unavailable to append to.
+std::string GetQueryParametersForLensRequest(EntryPoint ep);
+
+// Check if the lens URL is a valid results page. This is done by checking if
+// the URL has a payload parameter.
+bool IsValidLensResultUrl(const GURL& url);
+
+// Returns true if the given URL corresponds to a Lens mWeb result page. This is
+// done by checking the URL and its parameters.
+bool IsLensMWebResult(const GURL& url);
 
 }  // namespace lens
 

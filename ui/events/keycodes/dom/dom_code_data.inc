@@ -95,7 +95,6 @@ DOM_CODE_DECLARATION {
   //            USB     evdev    XKB     Win     Mac   Code
   DOM_CODE(0x000010, 0x0000, 0x0000, 0x0000, 0xffff, "Hyper", HYPER),
   DOM_CODE(0x000011, 0x0000, 0x0000, 0x0000, 0xffff, "Super", SUPER),
-  DOM_CODE(0x000012, 0x0000, 0x0000, 0x0000, 0xffff, "Fn", FN),
   DOM_CODE(0x000013, 0x0000, 0x0000, 0x0000, 0xffff, "FnLock", FN_LOCK),
   DOM_CODE(0x000014, 0x0000, 0x0000, 0x0000, 0xffff, "Suspend", SUSPEND),
   DOM_CODE(0x000015, 0x0000, 0x0000, 0x0000, 0xffff, "Resume", RESUME),
@@ -107,11 +106,16 @@ DOM_CODE_DECLARATION {
 
   // Sleep could be encoded as USB#0c0032, but there's no corresponding WakeUp
   // in the 0x0c USB page.
-  //            USB     evdev    XKB     Win     Mac
+  //            USB     evdev    XKB     Win   Mac
   DOM_CODE(0x010082, 0x008e, 0x0096, 0xe05f, 0xffff, "Sleep", SLEEP), // SystemSleep
   DOM_CODE(0x010083, 0x008f, 0x0097, 0xe063, 0xffff, "WakeUp", WAKE_UP),
+  DOM_CODE(0x010097, 0x01d0, 0x01d8, 0x0000, 0xffff, "Fn", FN),
+  DOM_CODE(0x01009b, 0x024f, 0x0257, 0x0000, 0xffff, NULL,
+             DO_NOT_DISTURB), // System Do Not Disturb
   DOM_CODE(0x0100a9, 0x00f8, 0x0100, 0x0000, 0xffff, NULL,
              MICROPHONE_MUTE_TOGGLE),  // Microphone Mute Toggle
+  DOM_CODE(0x0100aa, 0x024e, 0x0256, 0x0000, 0xffff, NULL,
+             ACCESSIBILITY),  // System Accessibility Binding
   DOM_CODE(0x0100b5, 0x00e3, 0x00eb, 0x0000, 0xffff, "DisplayToggleIntExt",
              DISPLAY_TOGGLE_INT_EXT),  // System Display Toggle Int/Ext
 
@@ -479,6 +483,7 @@ DOM_CODE_DECLARATION {
   DOM_CODE(0x0c0073, 0x0250, 0x0258, 0x0000, 0xffff, NULL, BRIGHTNESS_MINIMIUM),
   DOM_CODE(0x0c0074, 0x0251, 0x0259, 0x0000, 0xffff, NULL, BRIGHTNESS_MAXIMUM),
   DOM_CODE(0x0c0075, 0x00f4, 0x00fc, 0x0000, 0xffff, NULL, BRIGHTNESS_AUTO),
+  DOM_CODE(0x0c0078, 0x024d, 0x0255, 0x0000, 0xffff, NULL, CAMERA_ACCESS_TOGGLE),
   DOM_CODE(0x0c0079, 0x00e6, 0x00ee, 0x0000, 0xffff, NULL, KBD_ILLUM_UP),
   DOM_CODE(0x0c007a, 0x00e5, 0x00ed, 0x0000, 0xffff, NULL, KBD_ILLUM_DOWN),
   DOM_CODE(0x0c007c, 0x00e4, 0x00ec, 0x0000, 0xffff, NULL,

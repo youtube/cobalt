@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/nearby_sharing/local_device_data/nearby_share_local_device_data_manager.h"
-#include "chrome/browser/nearby_sharing/logging/logging.h"
+
+#include "base/strings/to_string.h"
+#include "components/cross_device/logging/logging.h"
 
 const size_t kNearbyShareDeviceNameMaxLength = 32;
 
@@ -41,11 +43,11 @@ void NearbyShareLocalDeviceDataManager::NotifyLocalDeviceDataChanged(
     bool did_device_name_change,
     bool did_full_name_change,
     bool did_icon_change) {
-  NS_LOG(INFO) << __func__ << ": did_device_name_change="
-               << (did_device_name_change ? "true" : "false")
-               << ", did_full_name_change="
-               << (did_full_name_change ? "true" : "false")
-               << ", did_icon_change=" << (did_icon_change ? "true" : "false");
+  CD_LOG(INFO, Feature::NS)
+      << __func__
+      << ": did_device_name_change=" << base::ToString(did_device_name_change)
+      << ", did_full_name_change=" << base::ToString(did_full_name_change)
+      << ", did_icon_change=" << base::ToString(did_icon_change);
   for (auto& observer : observers_) {
     observer.OnLocalDeviceDataChanged(did_device_name_change,
                                       did_full_name_change, did_icon_change);

@@ -18,6 +18,7 @@ import androidx.test.core.app.ApplicationProvider;
 import org.hamcrest.Matchers;
 
 import org.chromium.base.ApplicationStatus;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.params.ParameterProvider;
 import org.chromium.base.test.params.ParameterSet;
 import org.chromium.base.test.util.CallbackHelper;
@@ -28,19 +29,17 @@ import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.customtabs.CustomTabActivityTestRule;
 import org.chromium.chrome.browser.customtabs.CustomTabsConnection;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.test.ChromeActivityTestRule;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.browser.tabmodel.TabClosureParams;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.content_public.browser.BrowserStartupController;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 /**
- * This class provides helper methods for launching any Urls in CCT or Tabs.
- * This also provides parameters for tests. Parameters include pair of activity types.
- *
+ * This class provides helper methods for launching any Urls in CCT or Tabs. This also provides
+ * parameters for tests. Parameters include pair of activity types.
  */
 public class IncognitoDataTestUtils {
     public enum ActivityType {
@@ -57,10 +56,12 @@ public class IncognitoDataTestUtils {
             this.cct = cct;
         }
 
-        public Tab launchUrl(ChromeTabbedActivityTestRule chromeTabbedActivityRule,
-                CustomTabActivityTestRule customTabActivityTestRule, String url) {
+        public Tab launchUrl(
+                FreshCtaTransitTestRule chromeTabbedActivityRule,
+                CustomTabActivityTestRule customTabActivityTestRule,
+                String url) {
             if (cct) {
-                return launchUrlInCCT(customTabActivityTestRule, url, incognito);
+                return launchUrlInCct(customTabActivityTestRule, url, incognito);
             } else {
                 return launchUrlInTab(chromeTabbedActivityRule, url, incognito);
             }
@@ -87,9 +88,10 @@ public class IncognitoDataTestUtils {
 
                     if (activity1.incognito == firstIncognito
                             && activity2.incognito == secondIncognito) {
-                        tests.add(new ParameterSet()
-                                          .value(activity1.toString(), activity2.toString())
-                                          .name(activity1.toString() + "_" + activity2.toString()));
+                        tests.add(
+                                new ParameterSet()
+                                        .value(activity1.toString(), activity2.toString())
+                                        .name(activity1.toString() + "_" + activity2.toString()));
                     }
                 }
             }
@@ -98,9 +100,9 @@ public class IncognitoDataTestUtils {
         }
 
         /**
-         * A class providing test parameters encapsulating different Activity type pairs where
-         * the Activity from which we check the leak from is Regular mode, and the leak to is
-         * Incognito mode.
+         * A class providing test parameters encapsulating different Activity type pairs where the
+         * Activity from which we check the leak from is Regular mode, and the leak to is Incognito
+         * mode.
          */
         public static class RegularToIncognito implements ParameterProvider {
             @Override
@@ -110,9 +112,9 @@ public class IncognitoDataTestUtils {
         }
 
         /**
-         * A class providing test parameters encapsulating different Activity type pairs where
-         * the Activity from which we check the leak from is Incognito mode, and the leak to is
-         * Regular mode.
+         * A class providing test parameters encapsulating different Activity type pairs where the
+         * Activity from which we check the leak from is Incognito mode, and the leak to is Regular
+         * mode.
          */
         public static class IncognitoToRegular implements ParameterProvider {
             @Override
@@ -122,9 +124,9 @@ public class IncognitoDataTestUtils {
         }
 
         /**
-         * A class providing test parameters encapsulating different Activity type pairs where
-         * the Activity from which we check the leak from is Incognito mode, and the leak to is
-         * also Incognito mode.
+         * A class providing test parameters encapsulating different Activity type pairs where the
+         * Activity from which we check the leak from is Incognito mode, and the leak to is also
+         * Incognito mode.
          */
         public static class IncognitoToIncognito implements ParameterProvider {
             @Override
@@ -134,9 +136,9 @@ public class IncognitoDataTestUtils {
         }
 
         /**
-         * A class providing test parameters encapsulating different Activity type pairs where
-         * the Activity from which we check the leak from is Regular mode, and the leak to is
-         * also Regular mode.
+         * A class providing test parameters encapsulating different Activity type pairs where the
+         * Activity from which we check the leak from is Regular mode, and the leak to is also
+         * Regular mode.
          */
         public static class RegularToRegular implements ParameterProvider {
             @Override
@@ -169,11 +171,11 @@ public class IncognitoDataTestUtils {
     }
 
     private static Tab launchUrlInTab(
-            ChromeTabbedActivityTestRule testRule, String url, boolean incognito) {
+            FreshCtaTransitTestRule testRule, String url, boolean incognito) {
         // This helps to bring back the "existing" chrome tabbed activity to foreground
         // in case the custom tab activity was launched before.
         if (!isChromeTabbedActivityRunningOnTop()) {
-            testRule.startMainActivityOnBlankPage();
+            testRule.startOnBlankPage();
         }
 
         Tab tab = testRule.loadUrlInNewTab(url, incognito);
@@ -186,11 +188,13 @@ public class IncognitoDataTestUtils {
         return tab;
     }
 
-    private static Tab launchUrlInCCT(
+    private static Tab launchUrlInCct(
             CustomTabActivityTestRule testRule, String url, boolean incognito) {
         Context context = ApplicationProvider.getApplicationContext();
-        Intent intent = incognito ? createMinimalIncognitoCustomTabIntent(context, url)
-                                  : createMinimalCustomTabIntent(context, url);
+        Intent intent =
+                incognito
+                        ? createMinimalIncognitoCustomTabIntent(context, url)
+                        : createMinimalCustomTabIntent(context, url);
 
         testRule.startCustomTabActivityWithIntent(intent);
         Tab tab = testRule.getActivity().getActivityTab();
@@ -203,32 +207,39 @@ public class IncognitoDataTestUtils {
         return tab;
     }
 
-    public static void closeTabs(ChromeActivityTestRule testRule) {
+    public static void closeTabs(FreshCtaTransitTestRule testRule) {
         ChromeActivity activity = testRule.getActivity();
         if (activity == null) return;
-        activity.getTabModelSelector().getModel(false).closeAllTabs();
-        activity.getTabModelSelector().getModel(true).closeAllTabs();
+        activity.getTabModelSelector()
+                .getModel(false)
+                .getTabRemover()
+                .closeTabs(TabClosureParams.closeAllTabs().build(), /* allowDialog= */ false);
+        activity.getTabModelSelector()
+                .getModel(true)
+                .getTabRemover()
+                .closeTabs(TabClosureParams.closeAllTabs().build(), /* allowDialog= */ false);
     }
 
-    // Warming up CCT so that the native is initialized before we access the CCT_INCOGNITO
-    // feature flag.
+    // Warming up CCT so that the native is initialized before we access feature flags.
     public static void fireAndWaitForCctWarmup() throws TimeoutException {
         CallbackHelper startUpCallback = new CallbackHelper();
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            BrowserStartupController.getInstance().addStartupCompletedObserver(
-                    new BrowserStartupController.StartupCallback() {
-                        @Override
-                        public void onSuccess() {
-                            startUpCallback.notifyCalled();
-                        }
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    BrowserStartupController.getInstance()
+                            .addStartupCompletedObserver(
+                                    new BrowserStartupController.StartupCallback() {
+                                        @Override
+                                        public void onSuccess() {
+                                            startUpCallback.notifyCalled();
+                                        }
 
-                        @Override
-                        public void onFailure() {
-                            // Need a successful startup for test.
-                            assert false;
-                        }
-                    });
-        });
+                                        @Override
+                                        public void onFailure() {
+                                            // Need a successful startup for test.
+                                            assert false;
+                                        }
+                                    });
+                });
 
         CustomTabsConnection.getInstance().warmup(0);
         startUpCallback.waitForCallback(0);

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_RUNTIME_DEEPLINK_EVENT_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_RUNTIME_DEEPLINK_EVENT_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_RUNTIME_DEEP_LINK_EVENT_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_RUNTIME_DEEP_LINK_EVENT_H_
 
 #include "third_party/blink/renderer/modules/event_modules.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
@@ -42,4 +42,4 @@ class MODULES_EXPORT DeepLinkEvent final : public Event {
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_RUNTIME_DEEPLINK_EVENT_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_RUNTIME_DEEP_LINK_EVENT_H_

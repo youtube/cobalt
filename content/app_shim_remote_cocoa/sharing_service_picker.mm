@@ -4,25 +4,18 @@
 
 #include "content/app_shim_remote_cocoa/sharing_service_picker.h"
 
+#include <string>
 #include <utility>
 
-#include "base/mac/scoped_nsobject.h"
 #include "base/strings/sys_string_conversions.h"
 #include "third_party/blink/public/mojom/webshare/webshare.mojom.h"
 #include "url/gurl.h"
 
-@interface SharingServicePicker
-    : NSObject <NSSharingServiceDelegate, NSSharingServicePickerDelegate>
-// Displays the NSSharingServicePicker which is positioned center and overlaps
-// WebContents and the Non Client area.
-- (void)show;
-@end
-
 @implementation SharingServicePicker {
-  base::scoped_nsobject<NSSharingServicePicker> picker_;
+  NSSharingServicePicker* __strong picker_;
   remote_cocoa::mojom::RenderWidgetHostNSView::ShowSharingServicePickerCallback
       callback_;
-  NSView* view_;
+  NSView* __strong view_;
 }
 
 - (instancetype)initWithItems:(NSArray*)items
@@ -30,8 +23,8 @@
                                    ShowSharingServicePickerCallback)cb
                          view:(NSView*)view {
   if ((self = [super init])) {
-    picker_.reset([[NSSharingServicePicker alloc] initWithItems:items]);
-    picker_.get().delegate = self;
+    picker_ = [[NSSharingServicePicker alloc] initWithItems:items];
+    picker_.delegate = self;
     callback_ = std::move(cb);
     view_ = view;
   }
@@ -49,10 +42,9 @@
 }
 
 - (void)show {
-  NSRect viewFrame = [view_ frame];
-  CGSize size = viewFrame.size;
-  NSRect rect = NSMakeRect(size.width / 2, size.height, 1, 1);
-  [picker_ showRelativeToRect:rect ofView:view_ preferredEdge:NSMaxXEdge];
+  NSPoint location = [view_.window mouseLocationOutsideOfEventStream];
+  NSRect rect = NSMakeRect(location.x, location.y, 1.0, 1.0);
+  [picker_ showRelativeToRect:rect ofView:view_ preferredEdge:NSMinYEdge];
 }
 
 - (void)sharingService:(NSSharingService*)sharingService
@@ -77,38 +69,7 @@
 - (NSWindow*)sharingService:(NSSharingService*)sharingService
     sourceWindowForShareItems:(NSArray*)items
           sharingContentScope:(NSSharingContentScope*)sharingContentScope {
-  return [view_ window];
+  return view_.window;
 }
 
 @end
-
-namespace remote_cocoa {
-
-void ShowSharingServicePickerForView(
-    NSView* view,
-    const std::string& title,
-    const std::string& text,
-    const std::string& url,
-    const std::vector<std::string>& file_paths,
-    mojom::RenderWidgetHostNSView::ShowSharingServicePickerCallback callback) {
-  NSString* ns_title = base::SysUTF8ToNSString(title);
-  NSString* ns_url = base::SysUTF8ToNSString(url);
-  NSString* ns_text = base::SysUTF8ToNSString(text);
-
-  NSMutableArray* items =
-      [NSMutableArray arrayWithArray:@[ ns_title, ns_url, ns_text ]];
-
-  for (const auto& file_path : file_paths) {
-    NSString* ns_file_path = base::SysUTF8ToNSString(file_path);
-    NSURL* file_url = [NSURL fileURLWithPath:ns_file_path];
-    [items addObject:file_url];
-  }
-
-  base::scoped_nsobject<SharingServicePicker> picker(
-      [[SharingServicePicker alloc] initWithItems:items
-                                         callback:std::move(callback)
-                                             view:view]);
-  [picker.get() show];
-}
-
-}  // namespace remote_cocoa

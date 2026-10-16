@@ -28,6 +28,10 @@ FakeTileManagerClient::CreateTilesWithResourceIterator() {
   return nullptr;
 }
 
+viz::SharedImageFormat FakeTileManagerClient::GetTileFormat() const {
+  return viz::SinglePlaneFormat::kRGBA_8888;
+}
+
 TargetColorParams FakeTileManagerClient::GetTargetColorParams(
     gfx::ContentColorUsage /*content_color_usage*/) const {
   TargetColorParams result;
@@ -44,7 +48,7 @@ size_t FakeTileManagerClient::GetFrameIndexForImage(
 }
 
 int FakeTileManagerClient::GetMSAASampleCountForRaster(
-    const scoped_refptr<DisplayItemList>& display_list) {
+    const DisplayItemList& display_list) const {
   return 0;
 }
 

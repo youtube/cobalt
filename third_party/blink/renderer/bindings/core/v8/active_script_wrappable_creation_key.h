@@ -1,4 +1,4 @@
-// Copyright 2023 The Chromium Authors. All rights reserved.
+// Copyright 2023 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -42,7 +42,6 @@ class ActiveScriptWrappableCreationKey final {
   friend class EventSource;
   friend class FetchEvent;
   friend class FileReader;
-  friend class FileSystemDirectoryIterator;
   friend class FileWriter;
   friend class FontFace;
   template <typename NativeFrameType>
@@ -67,6 +66,7 @@ class ActiveScriptWrappableCreationKey final {
   friend class MediaSource;
   friend class MediaRecorder;
   friend class MediaStream;
+  friend class MediaStreamAudioDestinationNode;
   friend class MediaStreamAudioSourceNode;
   friend class MediaStreamTrack;
   friend class MessagePort;
@@ -89,9 +89,7 @@ class ActiveScriptWrappableCreationKey final {
   friend class ReadableStreamDefaultReader;
   friend class RemotePlayback;
   friend class ReportingObserver;
-  friend class Request;
   friend class ResizeObserver;
-  friend class Response;
   friend class RTCDataChannel;
   friend class RTCIceTransport;
   friend class RTCPeerConnection;
@@ -100,7 +98,6 @@ class ActiveScriptWrappableCreationKey final {
   friend class SerialPort;
   friend class ServiceWorker;
   friend class ServiceWorkerRegistration;
-  friend class SharedStorageIterator;
   friend class SharedWorker;
   friend class SmartCardReader;
   friend class SmartCardReaderPresenceObserver;
@@ -109,8 +106,8 @@ class ActiveScriptWrappableCreationKey final {
   friend class SVGImageElement;
   friend class TCPSocket;
   friend class UDPSocket;
-  friend class ViewTransition;
   friend class WakeLockSentinel;
+  friend class WebPrintJob;
   friend class WebSocketStream;
   friend class WebTransport;
   friend class WorkerGlobalScope;

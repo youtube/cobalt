@@ -7,26 +7,19 @@
 
 #import <UIKit/UIKit.h>
 
+#import "ios/chrome/app/application_delegate/app_init_stage.h"
 #import "ios/chrome/app/application_delegate/app_state_agent.h"
 #import "ios/chrome/app/application_delegate/app_state_observer.h"
+#import "ios/chrome/app/background_refresh/background_refresh_app_agent_audience.h"
+#import "ios/chrome/browser/device_orientation/ui_bundled/portait_orientation_manager.h"
+#import "ios/chrome/browser/scoped_ui_blocker/ui_bundled/ui_blocker_manager.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state_observer.h"
-#import "ios/chrome/browser/ui/scoped_ui_blocker/ui_blocker_manager.h"
 
-@class AppState;
-@protocol BrowserLauncher;
-class ChromeBrowserState;
 @class CommandDispatcher;
-@protocol ConnectionInformation;
-typedef NS_ENUM(NSUInteger, DefaultPromoType);
+@class ProfileState;
 @class SceneState;
-@class MainApplicationDelegate;
-@class MemoryWarningHelper;
-@class MetricsMediator;
+@class DeferredInitializationRunner;
 @protocol StartupInformation;
-
-namespace base {
-class TimeTicks;
-}
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -46,46 +39,25 @@ enum class PostCrashAction {
 
 // Represents the application state and responds to application state changes
 // and system events.
-@interface AppState : NSObject <UIBlockerManager, SceneStateObserver>
+@interface AppState : NSObject <BackgroundRefreshAudience,
+                                PortraitOrientationManager,
+                                SceneStateObserver,
+                                UIBlockerManager>
 
 - (instancetype)init NS_UNAVAILABLE;
 
-- (instancetype)
-initWithBrowserLauncher:(id<BrowserLauncher>)browserLauncher
-     startupInformation:(id<StartupInformation>)startupInformation
-    applicationDelegate:(MainApplicationDelegate*)applicationDelegate
-    NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithStartupInformation:
+    (id<StartupInformation>)startupInformation NS_DESIGNATED_INITIALIZER;
 
 // Dispatcher for app-level commands for multiwindow use cases.
 // Most features should use the browser-level dispatcher instead.
 @property(nonatomic, strong) CommandDispatcher* appCommandDispatcher;
 
-// The ChromeBrowserState associated with the main (non-OTR) browsing mode.
-@property(nonatomic, assign) ChromeBrowserState* mainBrowserState;
-
 // Container for startup information.
 @property(nonatomic, weak) id<StartupInformation> startupInformation;
 
-// YES if the user has ever interacted with the application. May be NO if the
-// application has been woken up by the system for background work.
-@property(nonatomic, readonly) BOOL userInteracted;
-
 // YES if the sign-in upgrade promo has been presented to the user, once.
 @property(nonatomic) BOOL signinUpgradePromoPresentedOnce;
-
-// YES if the default browser fullscreen promo has met the qualifications to be
-// shown after the last cold start.
-@property(nonatomic) BOOL shouldShowDefaultBrowserPromo;
-
-// The type of default browser fullscreen promo that should be shown to the
-// user.
-@property(nonatomic) DefaultPromoType defaultBrowserPromoTypeToShow;
-
-// YES if the sign-out prompt should be shown to the user when the scene becomes
-// active and enters the foreground. This can happen if the policies have
-// changed since the last cold start, meaning the user was signed out during
-// startup.
-@property(nonatomic) BOOL shouldShowForceSignOutPrompt;
 
 // Indicates what action, if any, is taken after a crash (stash tabs, show NTP,
 // show safe mode).
@@ -94,62 +66,19 @@ initWithBrowserLauncher:(id<BrowserLauncher>)browserLauncher
 // YES if the app is resuming from safe mode.
 @property(nonatomic) BOOL resumingFromSafeMode;
 
-// The last window which received a tap.
-@property(nonatomic, weak) UIWindow* lastTappedWindow;
-
-// The SceneSession ID for the last session, where the Device doesn't support
-// multiple windows.
-@property(nonatomic, strong) NSString* previousSingleWindowSessionID;
-
-// Timestamp of when a scene was last becoming active. Can be null.
-@property(nonatomic, assign) base::TimeTicks lastTimeInForeground;
-
 // The initialization stage the app is currently at.
-@property(nonatomic, readonly) InitStage initStage;
-
-// This flag is set when the first scene has initialized its UI and never
-// resets.
-@property(nonatomic, readonly) BOOL firstSceneHasInitializedUI;
+@property(nonatomic, readonly) AppInitStage initStage;
 
 // YES if the views being presented should only support the portrait
 // orientation.
 @property(nonatomic, readonly) BOOL portraitOnly;
 
-// YES if the application is getting terminated.
-@property(nonatomic, readonly) BOOL appIsTerminating;
+// All agents that have been attached. Use -addAgent: and -removeAgent: to
+// add and remove agents.
+@property(nonatomic, readonly) NSArray<id<AppStateAgent>>* connectedAgents;
 
-// Saves the launchOptions to be used from -newTabFromLaunchOptions. If the
-// application is in background, initialize the browser to basic. If not, launch
-// the browser.
-// Returns whether additional delegate handling should be performed (call to
-// -performActionForShortcutItem or -openURL by the system for example)
-- (BOOL)requiresHandlingAfterLaunchWithOptions:(NSDictionary*)launchOptions
-                               stateBackground:(BOOL)stateBackground;
-
-// Logs duration of the session and records that chrome is no longer in cold
-// start.
-- (void)willResignActive;
-
-// Called when the application is getting terminated. It stops all outgoing
-// requests, config updates, clears the device sharing manager and stops the
-// mainChrome instance.
-- (void)applicationWillTerminate:(UIApplication*)application;
-
-// Called when the application discards set of scene sessions, these sessions
-// can no longer be accessed and all their associated data should be destroyed.
-- (void)application:(UIApplication*)application
-    didDiscardSceneSessions:(NSSet<UISceneSession*>*)sceneSessions;
-
-// Called when going into the background. iOS already broadcasts, so
-// stakeholders can register for it directly.
-- (void)applicationDidEnterBackground:(UIApplication*)application
-                         memoryHelper:(MemoryWarningHelper*)memoryHelper;
-
-// Called when returning to the foreground. Resets and uploads the metrics.
-// Starts the browser to foreground if needed.
-- (void)applicationWillEnterForeground:(UIApplication*)application
-                       metricsMediator:(MetricsMediator*)metricsMediator
-                          memoryHelper:(MemoryWarningHelper*)memoryHelper;
+// Can be used to schedule deferred initialization tasks.
+@property(nonatomic, readonly) DeferredInitializationRunner* deferredRunner;
 
 // Returns the foreground and active scene, if there is one.
 - (SceneState*)foregroundActiveScene;
@@ -161,6 +90,9 @@ initWithBrowserLauncher:(id<BrowserLauncher>)browserLauncher
 // active.
 - (NSArray<SceneState*>*)foregroundScenes;
 
+// Returns a list of all known ProfileStates.
+- (NSArray<ProfileState*>*)profileStates;
+
 // Adds an observer to this app state. The observers will be notified about
 // app state changes per AppStateObserver protocol.
 // The observer will be *immediately* notified about the latest init stage
@@ -170,6 +102,10 @@ initWithBrowserLauncher:(id<BrowserLauncher>)browserLauncher
 // Removes the observer. It's safe to call this at any time, including from
 // AppStateObserver callbacks.
 - (void)removeObserver:(id<AppStateObserver>)observer;
+
+// Informs the AppState of the creation/destruction of a ProfileState.
+- (void)profileStateCreated:(ProfileState*)profileState;
+- (void)profileStateDestroyed:(ProfileState*)profileState;
 
 // Adds a new agent. Agents are owned by the app state.
 // This automatically sets the app state on the `agent`.
@@ -186,6 +122,10 @@ initWithBrowserLauncher:(id<BrowserLauncher>)browserLauncher
 // finally return to the runloop. It is an error to queue more than one
 // transition at once.
 - (void)queueTransitionToNextInitStage;
+
+// Queue the transition (as defined above) to the very first initialization
+// stage.
+- (void)startInitialization;
 
 @end
 

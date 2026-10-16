@@ -10,8 +10,12 @@
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/debug/leak_annotations.h"
+#include "base/environment.h"
+#include "base/logging.h"
+#include "base/nix/xdg_util.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
+#include "ui/base/ui_base_switches.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gtk/gtk_stubs.h"
 
@@ -21,8 +25,6 @@ namespace gtk {
 // functions should be annotated with DISABLE_CFI_DLSYM.
 
 namespace {
-
-const char kGtkVersionFlag[] = "gtk-version";
 
 struct Gdk3Rgba {
   gdouble r;
@@ -87,14 +89,16 @@ void* GetLibGtk4(bool check = true) {
 }
 
 void* GetLibGtk() {
-  if (GtkCheckVersion(4))
+  if (GtkCheckVersion(4)) {
     return GetLibGtk4();
+  }
   return GetLibGtk3();
 }
 
 bool LoadGtk3() {
-  if (!GetLibGtk3(false))
+  if (!GetLibGtk3(false)) {
     return false;
+  }
   ui_gtk::InitializeGdk_pixbuf(GetLibGdkPixbuf());
   ui_gtk::InitializeGdk(GetLibGdk3());
   ui_gtk::InitializeGtk(GetLibGtk3());
@@ -102,8 +106,9 @@ bool LoadGtk3() {
 }
 
 bool LoadGtk4() {
-  if (!GetLibGtk4(false))
+  if (!GetLibGtk4(false)) {
     return false;
+  }
   // In GTK4 mode, we require some newer gio symbols that aren't available
   // in Ubuntu Xenial or Debian Stretch.  Fortunately, GTK4 itself depends
   // on a newer version of glib (which provides gio), so if we're using
@@ -116,15 +121,41 @@ bool LoadGtk4() {
   return true;
 }
 
-bool LoadGtkImpl() {
+bool LoadGtkImpl(ui::LinuxUiBackend backend) {
+  // If GTK3 or GTK4 is somehow already loaded, then the preloaded library must
+  // be used, because GTK3 and GTK4 have conflicting symbols and cannot be
+  // loaded simultaneously.
+  if (dlopen("libgtk-3.so.0", RTLD_LAZY | RTLD_GLOBAL | RTLD_NOLOAD)) {
+    return LoadGtk3();
+  }
+  if (dlopen("libgtk-4.so.1", RTLD_LAZY | RTLD_GLOBAL | RTLD_NOLOAD)) {
+    return LoadGtk4();
+  }
+
   auto* cmd = base::CommandLine::ForCurrentProcess();
   unsigned int gtk_version;
-  if (!base::StringToUint(cmd->GetSwitchValueASCII(kGtkVersionFlag),
+  if (!base::StringToUint(cmd->GetSwitchValueASCII(switches::kGtkVersionFlag),
                           &gtk_version)) {
     gtk_version = 0;
   }
-  // Prefer GTK3 for now as the GTK4 ecosystem is still immature.
-  return gtk_version == 4 ? LoadGtk4() || LoadGtk3() : LoadGtk3() || LoadGtk4();
+  auto env = base::Environment::Create();
+  const auto desktop = base::nix::GetDesktopEnvironment(env.get());
+  if (!gtk_version && desktop == base::nix::DESKTOP_ENVIRONMENT_GNOME) {
+    // GNOME is currently the only desktop to support GTK4 starting with version
+    // 42+. Try to match the loaded GTK version with the GNOME GTK version.
+    // Checking the GNOME version is not necessary since GTK4 is available iff
+    // GNOME is version 42+. This is the case for Debian, Ubuntu, and the
+    // RPM-based distributions that are supported.
+    gtk_version = 4;
+  }
+  // Default to GTK4 on GNOME except on X11 where GTK IMEs are still immature.
+  // This may be enabled unconditionally when support for Ubuntu 22.04 ends,
+  // since IME issues have been addressed in later releases. Allow the command
+  // line switch to override this.
+  return gtk_version == 4 && (cmd->HasSwitch(switches::kGtkVersionFlag) ||
+                              backend == ui::LinuxUiBackend::kWayland)
+             ? LoadGtk4() || LoadGtk3()
+             : LoadGtk3() || LoadGtk4();
 }
 
 gfx::Insets InsetsFromGtkBorder(const GtkBorder& border) {
@@ -134,8 +165,8 @@ gfx::Insets InsetsFromGtkBorder(const GtkBorder& border) {
 
 }  // namespace
 
-bool LoadGtk() {
-  static bool loaded = LoadGtkImpl();
+bool LoadGtk(ui::LinuxUiBackend backend) {
+  static bool loaded = LoadGtkImpl(backend);
   return loaded;
 }
 
@@ -153,8 +184,9 @@ bool GtkCheckVersion(uint32_t major, uint32_t minor, uint32_t micro) {
 DISABLE_CFI_DLSYM
 bool GtkInitCheck(int* argc, char** argv) {
   static void* gtk_init_check = DlSym(GetLibGtk(), "gtk_init_check");
-  if (GtkCheckVersion(4))
+  if (GtkCheckVersion(4)) {
     return DlCast<gboolean()>(gtk_init_check)();
+  }
 
   {
     // http://crbug.com/423873
@@ -229,8 +261,8 @@ SkColor GtkStyleContextGetBackgroundColor(GtkStyleContext* context) {
 }
 
 DISABLE_CFI_DLSYM
-absl::optional<SkColor> GtkStyleContextLookupColor(GtkStyleContext* context,
-                                                   const gchar* color_name) {
+std::optional<SkColor> GtkStyleContextLookupColor(GtkStyleContext* context,
+                                                  const gchar* color_name) {
   DCHECK(!GtkCheckVersion(4));
   static void* lookup_color =
       DlSym(GetLibGtk(), "gtk_style_context_lookup_color");
@@ -239,7 +271,7 @@ absl::optional<SkColor> GtkStyleContextLookupColor(GtkStyleContext* context,
           context, color_name, &color)) {
     return GdkRgbaToSkColor(color);
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 DISABLE_CFI_DLSYM
@@ -287,8 +319,9 @@ void GtkRenderIcon(GtkStyleContext* context,
 DISABLE_CFI_DLSYM
 GtkWidget* GtkToplevelWindowNew() {
   static void* window_new = DlSym(GetLibGtk(), "gtk_window_new");
-  if (GtkCheckVersion(4))
+  if (GtkCheckVersion(4)) {
     return DlCast<GtkWidget*()>(window_new)();
+  }
   return DlCast<GtkWidget*(GtkWindowType)>(window_new)(GTK_WINDOW_TOPLEVEL);
 }
 
@@ -306,6 +339,7 @@ void GtkCssProviderLoadFromData(GtkCssProvider* css_provider,
   }
 }
 
+DISABLE_CFI_DLSYM
 ScopedGObject<GListModel> Gtk4FileChooserGetFiles(GtkFileChooser* dialog) {
   DCHECK(GtkCheckVersion(4));
   static void* get = DlSym(GetLibGtk(), "gtk_file_chooser_get_files");

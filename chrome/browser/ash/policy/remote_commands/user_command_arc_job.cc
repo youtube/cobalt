@@ -6,7 +6,6 @@
 
 #include <utility>
 
-#include "ash/components/arc/mojom/policy.mojom.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/memory/ref_counted.h"
@@ -15,6 +14,7 @@
 #include "base/time/time.h"
 #include "chrome/browser/ash/arc/policy/arc_policy_bridge.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chromeos/ash/experiences/arc/mojom/policy.mojom.h"
 #include "components/policy/core/common/remote_commands/remote_command_job.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 
@@ -56,7 +56,7 @@ void UserCommandArcJob::RunImpl(CallbackWithResult result_callback) {
     // ARC is not enabled for this profile, fail the remote command.
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(result_callback),
-                                  ResultType::kFailure, absl::nullopt));
+                                  ResultType::kFailure, std::nullopt));
     return;
   }
 
@@ -68,7 +68,7 @@ void UserCommandArcJob::RunImpl(CallbackWithResult result_callback) {
             result == arc::mojom::CommandResultType::IGNORED;
         std::move(result_callback)
             .Run(command_failed ? ResultType::kFailure : ResultType::kSuccess,
-                 absl::nullopt);
+                 std::nullopt);
       },
       std::move(result_callback));
 

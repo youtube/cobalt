@@ -4,12 +4,15 @@
 
 package org.chromium.content_public.browser;
 
+import org.chromium.build.annotations.NullMarked;
+
 import java.util.Objects;
 
 /**
  * Identifies a RenderFrameHost.
  * See the native equivalent: content::GlobalRenderFrameHostId.
  */
+@NullMarked
 public final class GlobalRenderFrameHostId {
     // Note that this is an internal identifier, not the PID from the OS.
     private final int mChildId;
@@ -23,6 +26,7 @@ public final class GlobalRenderFrameHostId {
     public int childId() {
         return mChildId;
     }
+
     public int frameRoutingId() {
         return mFrameRoutingId;
     }

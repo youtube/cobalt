@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_button.h"
 #include "extensions/common/extension.h"
@@ -112,13 +113,23 @@ class ExtensionsToolbarUITest : public DialogBrowserTest {
   // title. Extension must use 'extensions/blocked_actions/content_scripts'.
   bool DidInjectScript(content::WebContents* web_contents);
 
+  // Navigate to `url` in the currently active web contents.
+  void NavigateTo(const GURL& url);
+
+  // Adds a a site access request for `extension` in `web_contents`.
+  void AddHostAccessRequest(const extensions::Extension& extension,
+                            content::WebContents* web_contents);
+
   // Waits for the extensions container to animate (on pin, unpin, pop-out,
   // etc.)
   void WaitForAnimation();
 
  private:
-  raw_ptr<Browser, DanglingUntriaged> incognito_browser_ = nullptr;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> incognito_browser_ = nullptr;
   std::vector<scoped_refptr<const extensions::Extension>> extensions_;
+
+  // TODO(https://crbug.com/40804030): Remove this when updated to use MV3.
+  extensions::ScopedTestMV2Enabler mv2_enabler_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSIONS_TOOLBAR_INTERACTIVE_UITEST_H_

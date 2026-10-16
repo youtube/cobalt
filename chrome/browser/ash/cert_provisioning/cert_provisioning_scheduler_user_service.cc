@@ -7,6 +7,7 @@
 #include "base/no_destructor.h"
 #include "chrome/browser/ash/platform_keys/platform_keys_service_factory.h"
 #include "chrome/browser/invalidation/profile_invalidation_provider_factory.h"
+#include "chrome/browser/policy/cloud/user_fm_registration_token_uploader_factory.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 
 namespace ash {
@@ -22,6 +23,15 @@ CertProvisioningSchedulerUserService::CertProvisioningSchedulerUserService(
 
 CertProvisioningSchedulerUserService::~CertProvisioningSchedulerUserService() =
     default;
+
+void CertProvisioningSchedulerUserService::Shutdown() {
+  // The scheduler uses invalidations and depends on
+  // `ProfileInvalidationProvider`. Invalidation service is destroyed on
+  // Shutdown call and expects all invalidators to be unregistered before that.
+  // Destroy `scheduler_` and its invalidators on service's shutdown to fulfill
+  // this requirement.
+  scheduler_.reset();
+}
 
 // ================ CertProvisioningSchedulerUserServiceFactory ================
 
@@ -43,14 +53,14 @@ CertProvisioningSchedulerUserServiceFactory::GetInstance() {
 
 CertProvisioningSchedulerUserServiceFactory::
     CertProvisioningSchedulerUserServiceFactory()
-    : ProfileKeyedServiceFactory(
-          "CertProvisioningSchedulerUserService",
-          ProfileSelections::Builder()
-              .WithGuest(ProfileSelections::kRegularProfileDefault)
-              .WithAshInternals(ProfileSelection::kNone)
-              .Build()) {
+    : ProfileKeyedServiceFactory("CertProvisioningSchedulerUserService",
+                                 ProfileSelections::Builder()
+                                     .WithGuest(ProfileSelection::kOriginalOnly)
+                                     .WithAshInternals(ProfileSelection::kNone)
+                                     .Build()) {
   DependsOn(platform_keys::PlatformKeysServiceFactory::GetInstance());
   DependsOn(invalidation::ProfileInvalidationProviderFactory::GetInstance());
+  DependsOn(policy::UserFmRegistrationTokenUploaderFactory::GetInstance());
 }
 
 bool CertProvisioningSchedulerUserServiceFactory::
@@ -58,15 +68,15 @@ bool CertProvisioningSchedulerUserServiceFactory::
   return true;
 }
 
-KeyedService*
-CertProvisioningSchedulerUserServiceFactory::BuildServiceInstanceFor(
-    content::BrowserContext* context) const {
+std::unique_ptr<KeyedService> CertProvisioningSchedulerUserServiceFactory::
+    BuildServiceInstanceForBrowserContext(
+        content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
   if (!profile || !profile->GetProfilePolicyConnector()->IsManaged()) {
     return nullptr;
   }
 
-  return new CertProvisioningSchedulerUserService(profile);
+  return std::make_unique<CertProvisioningSchedulerUserService>(profile);
 }
 
 }  // namespace cert_provisioning

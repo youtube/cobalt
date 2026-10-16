@@ -11,8 +11,7 @@
 #include "storage/browser/file_system/file_stream_reader.h"
 #include "storage/browser/file_system/file_stream_writer.h"
 
-namespace ash {
-namespace smb_client {
+namespace ash::smb_client {
 
 SmbFsFileSystemBackendDelegate::SmbFsFileSystemBackendDelegate(Profile* profile)
     : async_file_util_(std::make_unique<SmbFsAsyncFileUtil>(profile)) {}
@@ -34,7 +33,6 @@ SmbFsFileSystemBackendDelegate::CreateFileStreamReader(
     const base::Time& expected_modification_time,
     storage::FileSystemContext* context) {
   NOTREACHED();
-  return nullptr;
 }
 
 std::unique_ptr<storage::FileStreamWriter>
@@ -43,20 +41,11 @@ SmbFsFileSystemBackendDelegate::CreateFileStreamWriter(
     int64_t offset,
     storage::FileSystemContext* context) {
   NOTREACHED();
-  return nullptr;
 }
 
 storage::WatcherManager* SmbFsFileSystemBackendDelegate::GetWatcherManager(
     storage::FileSystemType type) {
   NOTREACHED();
-  return nullptr;
 }
 
-void SmbFsFileSystemBackendDelegate::GetRedirectURLForContents(
-    const storage::FileSystemURL& url,
-    storage::URLCallback callback) {
-  NOTREACHED();
-}
-
-}  // namespace smb_client
-}  // namespace ash
+}  // namespace ash::smb_client

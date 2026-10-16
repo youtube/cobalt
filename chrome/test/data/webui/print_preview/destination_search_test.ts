@@ -2,25 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Destination, DestinationOrigin, DestinationStore, DestinationStoreEventType, NativeLayerImpl, PrintPreviewDestinationDialogElement} from 'chrome://print/print_preview.js';
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {assertEquals, assertNotEquals} from 'chrome://webui-test/chai_assert.js';
+import 'chrome://print/print_preview.js';
+
+import type {DestinationStore, PrintPreviewDestinationDialogElement} from 'chrome://print/print_preview.js';
+import {Destination, DestinationOrigin, DestinationStoreEventType, NativeLayerImpl} from 'chrome://print/print_preview.js';
+import {assertEquals, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 
 import {NativeLayerStub} from './native_layer_stub.js';
 import {createDestinationStore, getCddTemplate, setupTestListenerElement} from './print_preview_test_utils.js';
 
-const destination_search_test = {
-  suiteName: 'DestinationSearchTest',
-  TestNames: {
-    GetCapabilitiesSucceeds: 'get capabilities succeeds',
-    GetCapabilitiesFails: 'get capabilities fails',
-  },
-};
-
-Object.assign(window, {destination_search_test: destination_search_test});
-
-suite(destination_search_test.suiteName, function() {
+suite('DestinationSearchTest', function() {
   let dialog: PrintPreviewDestinationDialogElement;
 
   let destinationStore: DestinationStore;
@@ -39,8 +31,7 @@ suite(destination_search_test.suiteName, function() {
     nativeLayer.setLocalDestinationCapabilities(
         getCddTemplate('FooDevice', 'FooName'));
     destinationStore.init(
-        false /* pdfPrinterDisabled */, false /* isDriveMounted */,
-        'FooDevice' /* printerName */,
+        false /* pdfPrinterDisabled */, 'FooDevice' /* printerName */,
         '' /* serializedDefaultDestinationSelectionRulesStr */,
         [] /* recentDestinations */);
 
@@ -50,70 +41,52 @@ suite(destination_search_test.suiteName, function() {
     document.body.appendChild(dialog);
     return nativeLayer.whenCalled('getPrinterCapabilities').then(function() {
       dialog.show();
-      flush();
       nativeLayer.reset();
     });
   });
 
-  /** @param destination The destination to simulate selection of. */
-  function simulateDestinationSelect(destination: Destination) {
-    // Fake destinationListItem.
-    const item = document.createElement('print-preview-destination-list-item');
-    item.destination = destination;
+  function simulateDestinationSelect(destId: string) {
+    const destination =
+        new Destination(destId, DestinationOrigin.LOCAL, 'displayName');
 
     // Get print list and fire event.
     const list =
-        dialog.shadowRoot!.querySelector('print-preview-destination-list')!;
+        dialog.shadowRoot.querySelector('print-preview-destination-list');
+    assertTrue(!!list);
     list.dispatchEvent(new CustomEvent(
-        'destination-selected', {bubbles: true, composed: true, detail: item}));
-  }
-
-  /**
-   * Adds a destination to the dialog and simulates selection of the
-   * destination.
-   * @param destId The ID for the destination.
-   */
-  function requestSetup(destId: string) {
-    const dest =
-        new Destination(destId, DestinationOrigin.LOCAL, 'displayName');
-
-    // Add the destination to the list.
-    simulateDestinationSelect(dest);
+        'destination-selected',
+        {bubbles: true, composed: true, detail: destination}));
   }
 
   // Tests that a destination is selected if the user clicks on it and
   // capabilities fetch succeeds.
-  test(
-      destination_search_test.TestNames.GetCapabilitiesSucceeds,
-      async function() {
-        const destId = '00112233DEADBEEF';
-        nativeLayer.setLocalDestinationCapabilities(getCddTemplate(destId));
+  test('GetCapabilitiesSucceeds', async function() {
+    const destId = '00112233DEADBEEF';
+    nativeLayer.setLocalDestinationCapabilities(getCddTemplate(destId));
 
-        const waiter = eventToPromise(
-            DestinationStoreEventType.DESTINATION_SELECT, destinationStore);
-        requestSetup(destId);
-        const results = await Promise.all(
-            [nativeLayer.whenCalled('getPrinterCapabilities'), waiter]);
-        const actualId = results[0].destinationId;
-        assertEquals(destId, actualId);
-        // After setup or capabilities fetch succeeds, the destination
-        // should be selected.
-        assertNotEquals(null, destinationStore.selectedDestination);
-        assertEquals(destId, destinationStore.selectedDestination!.id);
-      });
+    const waiter = eventToPromise(
+        DestinationStoreEventType.DESTINATION_SELECT, destinationStore);
+    simulateDestinationSelect(destId);
+    const results = await Promise.all(
+        [nativeLayer.whenCalled('getPrinterCapabilities'), waiter]);
+    const actualId = results[0].destinationId;
+    assertEquals(destId, actualId);
+    // After setup or capabilities fetch succeeds, the destination
+    // should be selected.
+    assertNotEquals(null, destinationStore.selectedDestination);
+    assertEquals(destId, destinationStore.selectedDestination!.id);
+  });
 
   // Tests what happens when capabilities cannot be retrieved for the chosen
   // destination. The destination will still be selected in this case.
-  test(
-      destination_search_test.TestNames.GetCapabilitiesFails, async function() {
-        const destId = '001122DEADBEEF';
-        nativeLayer.setLocalDestinationCapabilities(
-            getCddTemplate(destId), true);
-        requestSetup(destId);
-        const args = await nativeLayer.whenCalled('getPrinterCapabilities');
-        assertEquals(destId, args.destinationId);
-        // The destination is selected even though capabilities cannot be
-        // retrieved.
-        assertEquals(destId, destinationStore.selectedDestination!.id);
-      });
+  test('GetCapabilitiesFails', async function() {
+    const destId = '001122DEADBEEF';
+    nativeLayer.setLocalDestinationCapabilities(getCddTemplate(destId), true);
+    simulateDestinationSelect(destId);
+    const args = await nativeLayer.whenCalled('getPrinterCapabilities');
+    assertEquals(destId, args.destinationId);
+    // The destination is selected even though capabilities cannot be
+    // retrieved.
+    assertEquals(destId, destinationStore.selectedDestination!.id);
+  });
 });

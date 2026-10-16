@@ -17,6 +17,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.CallbackUtils;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
@@ -27,7 +29,6 @@ import org.chromium.chrome.browser.suggestions.tile.TileSource;
 import org.chromium.chrome.browser.suggestions.tile.TileTitleSource;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.url.GURL;
 
 import java.io.ByteArrayOutputStream;
@@ -40,14 +41,11 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Instrumentation tests for {@link MostVisitedSitesMetadataUtils}.
- */
+/** Instrumentation tests for {@link MostVisitedSitesMetadataUtils}. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class MostVisitedSitesMetadataUtilsTest {
-    @Rule
-    public ChromeTabbedActivityTestRule mTestSetupRule = new ChromeTabbedActivityTestRule();
+    @Rule public ChromeTabbedActivityTestRule mTestSetupRule = new ChromeTabbedActivityTestRule();
 
     private MostVisitedSitesMetadataUtils mMostVisitedSitesMetadataUtils;
 
@@ -103,23 +101,26 @@ public class MostVisitedSitesMetadataUtilsTest {
     @Test
     @SmallTest
     public void testCurrentNotNull() {
-        mMostVisitedSitesMetadataUtils.setCurrentTaskForTesting(() -> {});
+        mMostVisitedSitesMetadataUtils.setCurrentTaskForTesting(CallbackUtils.emptyRunnable());
 
-        Runnable task1 = ()
-                -> mMostVisitedSitesMetadataUtils.saveSuggestionListsToFile(
-                        createFakeSiteSuggestionTiles1());
+        Runnable task1 =
+                () ->
+                        mMostVisitedSitesMetadataUtils.saveSuggestionListsToFile(
+                                createFakeSiteSuggestionTiles1());
 
         List<Tile> task2Tiles = createFakeSiteSuggestionTiles2();
         Runnable task2 = () -> mMostVisitedSitesMetadataUtils.saveSuggestionListsToFile(task2Tiles);
 
         // If current task is not null, all saving tasks should be set as pending task.
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            task1.run();
-            task2.run();
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    task1.run();
+                    task2.run();
+                });
 
         // newTopSites1 should be skipped and newTopSites2 should be the pending task.
-        assertEquals(task2Tiles.size(),
+        assertEquals(
+                task2Tiles.size(),
                 mMostVisitedSitesMetadataUtils.getPendingTaskTilesNumForTesting());
     }
 
@@ -133,9 +134,9 @@ public class MostVisitedSitesMetadataUtilsTest {
 
         // Set and run current task.
         assertNull(mMostVisitedSitesMetadataUtils.getCurrentTaskForTesting());
-        TestThreadUtils.runOnUiThreadBlocking(
-                ()
-                        -> mMostVisitedSitesMetadataUtils.saveSuggestionListsToFile(
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        mMostVisitedSitesMetadataUtils.saveSuggestionListsToFile(
                                 createFakeSiteSuggestionTiles1()));
 
         // When current task is not finished, set pending task.
@@ -183,17 +184,27 @@ public class MostVisitedSitesMetadataUtilsTest {
         List<Tile> sitesAfterRestore = MostVisitedSitesMetadataUtils.restoreFileToSuggestionLists();
         // Ensure that the new suggestion equals to old suggestion.
         assertEquals(1, sitesAfterRestore.size());
-        assertEquals(sitesAfterRestore.get(0).getData(), expectedSiteSuggestion);
+        assertEquals(expectedSiteSuggestion, sitesAfterRestore.get(0).getData());
     }
 
     private static List<Tile> createFakeSiteSuggestionTiles1() {
         List<Tile> suggestionTiles = new ArrayList<>();
-        SiteSuggestion data = new SiteSuggestion("0 TOP_SITES", new GURL("https://www.foo.com"),
-                TileTitleSource.TITLE_TAG, TileSource.TOP_SITES, TileSectionType.PERSONALIZED);
+        SiteSuggestion data =
+                new SiteSuggestion(
+                        "0 TOP_SITES",
+                        new GURL("https://www.foo.com"),
+                        TileTitleSource.TITLE_TAG,
+                        TileSource.TOP_SITES,
+                        TileSectionType.PERSONALIZED);
         suggestionTiles.add(new Tile(data, 0));
 
-        data = new SiteSuggestion("1 ALLOWLIST", new GURL("https://www.bar.com"),
-                TileTitleSource.UNKNOWN, TileSource.ALLOWLIST, TileSectionType.PERSONALIZED);
+        data =
+                new SiteSuggestion(
+                        "1 ALLOWLIST",
+                        new GURL("https://www.bar.com"),
+                        TileTitleSource.UNKNOWN,
+                        TileSource.ALLOWLIST,
+                        TileSectionType.PERSONALIZED);
         suggestionTiles.add(new Tile(data, 1));
 
         return suggestionTiles;
@@ -201,8 +212,13 @@ public class MostVisitedSitesMetadataUtilsTest {
 
     private static List<Tile> createFakeSiteSuggestionTiles2() {
         List<Tile> suggestionTiles = new ArrayList<>();
-        SiteSuggestion data = new SiteSuggestion("0 TOP_SITES", new GURL("https://www.baz.com"),
-                TileTitleSource.TITLE_TAG, TileSource.TOP_SITES, TileSectionType.PERSONALIZED);
+        SiteSuggestion data =
+                new SiteSuggestion(
+                        "0 TOP_SITES",
+                        new GURL("https://www.baz.com"),
+                        TileTitleSource.TITLE_TAG,
+                        TileSource.TOP_SITES,
+                        TileSectionType.PERSONALIZED);
         suggestionTiles.add(new Tile(data, 0));
 
         return suggestionTiles;

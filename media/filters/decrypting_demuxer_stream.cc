@@ -78,10 +78,12 @@ void DecryptingDemuxerStream::Read(uint32_t count, ReadCB read_cb) {
   DCHECK_EQ(state_, kIdle) << state_;
   DCHECK(read_cb);
   CHECK(!read_cb_) << "Overlapping reads are not supported.";
-  DCHECK_EQ(count, 1u) << "DecryptingDemuxerStream only reads a single-buffer.";
 
   read_cb_ = base::BindPostTaskToCurrentDefault(std::move(read_cb));
   state_ = kPendingDemuxerRead;
+
+  // TODO(https://crbugs.com/1501730): Enable batch decoding for encrypted
+  // stream. It is allowed to only read 1 sample when requested multiple.
   demuxer_stream_->Read(
       1,
       base::BindOnce(&DecryptingDemuxerStream::OnBuffersReadFromDemuxerStream,
@@ -272,6 +274,13 @@ void DecryptingDemuxerStream::DecryptPendingBuffer() {
     return;
   }
 
+  if (HasClearLead() && !switched_clear_to_encrypted_ &&
+      pending_buffer_to_decrypt_->is_encrypted()) {
+    MEDIA_LOG(INFO, media_log_)
+        << "First switch from clear to encrypted buffers.";
+    switched_clear_to_encrypted_ = true;
+  }
+
   decryptor_->Decrypt(GetDecryptorStreamType(), pending_buffer_to_decrypt_,
                       base::BindPostTaskToCurrentDefault(base::BindOnce(
                           &DecryptingDemuxerStream::OnBufferDecrypted,
@@ -314,7 +323,7 @@ void DecryptingDemuxerStream::OnBufferDecrypted(
     std::string key_id = pending_buffer_to_decrypt_->decrypt_config()->key_id();
 
     std::string log_message =
-        "no key for key ID " + base::HexEncode(key_id.data(), key_id.size()) +
+        "no key for key ID " + base::HexEncode(key_id) +
         "; will resume decrypting after new usable key is available";
     DVLOG(1) << __func__ << ": " << log_message;
     MEDIA_LOG(INFO, media_log_) << GetDisplayName() << ": " << log_message;
@@ -339,7 +348,7 @@ void DecryptingDemuxerStream::OnBufferDecrypted(
 
   // Copy the key frame flag and duration from the encrypted to decrypted
   // buffer.
-  // TODO(crbug.com/1116263): Ensure all fields are copied by Decryptor.
+  // TODO(crbug.com/40711813): Ensure all fields are copied by Decryptor.
   decrypted_buffer->set_is_key_frame(
       pending_buffer_to_decrypt_->is_key_frame());
   decrypted_buffer->set_duration(pending_buffer_to_decrypt_->duration());
@@ -412,7 +421,6 @@ void DecryptingDemuxerStream::InitializeDecoderConfig() {
 
     default:
       NOTREACHED();
-      return;
   }
   LogMetadata();
 }

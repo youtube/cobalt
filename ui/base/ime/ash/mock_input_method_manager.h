@@ -6,6 +6,7 @@
 #define UI_BASE_IME_ASH_MOCK_INPUT_METHOD_MANAGER_H_
 
 #include "base/component_export.h"
+#include "base/containers/span.h"
 #include "base/observer_list.h"
 #include "ui/base/ime/ash/input_method_manager.h"
 #include "ui/base/ime/virtual_keyboard_controller.h"
@@ -43,6 +44,9 @@ class COMPONENT_EXPORT(UI_BASE_IME_ASH) MockInputMethodManager
     void EnableLoginLayouts(
         const std::string& language_code,
         const std::vector<std::string>& initial_layouts) override;
+    void EnableOobeInputMethods(
+        const std::string& language_code,
+        const std::vector<std::string>& initial_input_methods) override;
     void DisableNonLockScreenLayouts() override;
     void GetInputMethodExtensions(InputMethodDescriptors* result) override;
     InputMethodDescriptors GetEnabledInputMethodsSortedByLocalizedDisplayNames()
@@ -52,8 +56,8 @@ class COMPONENT_EXPORT(UI_BASE_IME_ASH) MockInputMethodManager
     const InputMethodDescriptor* GetInputMethodFromId(
         const std::string& input_method_id) const override;
     size_t GetNumEnabledInputMethods() const override;
-    void SetEnabledExtensionImes(std::vector<std::string>* ids) override;
-    void SetInputMethodLoginDefault() override;
+    void SetEnabledExtensionImes(base::span<const std::string> ids) override;
+    void SetInputMethodLoginDefault(bool is_in_oobe_context) override;
     void SetInputMethodLoginDefaultFromVPD(const std::string& locale,
                                            const std::string& layout) override;
     void SwitchToNextInputMethod() override;
@@ -107,6 +111,9 @@ class COMPONENT_EXPORT(UI_BASE_IME_ASH) MockInputMethodManager
   void ActivateInputMethodMenuItem(const std::string& key) override;
   void ConnectInputEngineManager(
       mojo::PendingReceiver<ime::mojom::InputEngineManager> receiver) override;
+  void BindInputMethodUserDataService(
+      mojo::PendingReceiver<ime::mojom::InputMethodUserDataService> receiver)
+      override;
   bool IsISOLevel5ShiftUsedByCurrentInputMethod() const override;
   bool IsAltGrUsedByCurrentInputMethod() const override;
   bool ArePositionalShortcutsUsedByCurrentInputMethod() const override;
@@ -114,7 +121,10 @@ class COMPONENT_EXPORT(UI_BASE_IME_ASH) MockInputMethodManager
   InputMethodUtil* GetInputMethodUtil() override;
   ComponentExtensionIMEManager* GetComponentExtensionIMEManager() override;
   bool IsLoginKeyboard(const std::string& layout) const override;
-  bool MigrateInputMethods(std::vector<std::string>* input_method_ids) override;
+  std::string GetMigratedInputMethodID(
+      const std::string& input_method_id) override;
+  bool GetMigratedInputMethodIDs(
+      std::vector<std::string>* input_method_ids) override;
   scoped_refptr<InputMethodManager::State> CreateNewState(
       Profile* profile) override;
   scoped_refptr<InputMethodManager::State> GetActiveIMEState() override;

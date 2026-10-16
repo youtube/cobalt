@@ -5,13 +5,14 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_AUTOFILL_POPUP_POPUP_PIXEL_TEST_H_
 #define CHROME_BROWSER_UI_VIEWS_AUTOFILL_POPUP_POPUP_PIXEL_TEST_H_
 
+#include <concepts>
 #include <string>
 #include <tuple>
-#include <type_traits>
 
 #include "base/i18n/rtl.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/strcat.h"
+#include "chrome/browser/ui/autofill/autofill_popup_view_delegate.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -25,61 +26,54 @@
 
 namespace autofill {
 
-namespace {
-using ::testing::NiceMock;
-using ::testing::Return;
-}  // namespace
-
 using TestParameterType = std::tuple<bool, bool>;
 
 // A base class to do pixel tests for classes that derive from `PopupBaseView`.
 // By default, the test class has two parameters: Dark vs light mode and RTL vs
 // LTR for the text direction of the browser language.
-template <typename View, typename Controller>
+template <std::derived_from<PopupBaseView> View,
+          std::derived_from<AutofillPopupViewDelegate> Controller,
+          typename ParameterType = TestParameterType>
 class PopupPixelTest : public UiBrowserTest,
-                       public testing::WithParamInterface<TestParameterType> {
+                       public testing::WithParamInterface<ParameterType> {
  public:
-  static_assert(std::is_base_of_v<PopupBaseView, View>);
-  static_assert(std::is_base_of_v<AutofillPopupViewDelegate, Controller>);
-
   PopupPixelTest() = default;
   ~PopupPixelTest() override = default;
 
-  static bool IsDarkModeOn(const TestParameterType& param) {
+  static bool IsDarkModeOn(const ParameterType& param) {
     return std::get<0>(param);
   }
-  static bool IsBrowserLanguageRTL(const TestParameterType& param) {
+  static bool IsBrowserLanguageRTL(const ParameterType& param) {
     return std::get<1>(param);
   }
 
   static std::string GetTestSuffix(
-      const testing::TestParamInfo<TestParameterType>& param_info) {
+      const testing::TestParamInfo<ParameterType>& param_info) {
     return base::StrCat(
         {IsDarkModeOn(param_info.param) ? "Dark" : "Light",
          IsBrowserLanguageRTL(param_info.param) ? "BrowserRTL" : "BrowserLTR"});
   }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
-    if (IsDarkModeOn(GetParam())) {
+    if (IsDarkModeOn(this->GetParam())) {
       command_line->AppendSwitch(switches::kForceDarkMode);
     }
   }
 
   void SetUpOnMainThread() override {
     UiBrowserTest::SetUpOnMainThread();
-    base::i18n::SetRTLForTesting(IsBrowserLanguageRTL(GetParam()));
+    base::i18n::SetRTLForTesting(IsBrowserLanguageRTL(this->GetParam()));
 
     content::WebContents* web_contents =
         browser()->tab_strip_model()->GetActiveWebContents();
-    ON_CALL(controller(), GetWebContents()).WillByDefault(Return(web_contents));
+    ON_CALL(controller(), GetWebContents())
+        .WillByDefault(testing::Return(web_contents));
     ON_CALL(controller(), container_view())
-        .WillByDefault(Return(web_contents->GetNativeView()));
+        .WillByDefault(testing::Return(web_contents->GetNativeView()));
   }
 
   void ShowUi(const std::string& name) override {
-    view_ = new View(controller_.GetWeakPtr(),
-                     views::Widget::GetWidgetForNativeWindow(
-                         browser()->window()->GetNativeWindow()));
+    view_ = CreateView(controller());
   }
 
   bool VerifyUi() override {
@@ -92,31 +86,26 @@ class PopupPixelTest : public UiBrowserTest,
       return false;
     }
 
-    // VerifyPixelUi works only for these platforms.
-    // TODO(crbug.com/958242): Revise this if supported platforms change.
-#if BUILDFLAG(IS_WIN) || (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS))
     auto* test_info = testing::UnitTest::GetInstance()->current_test_info();
-    return VerifyPixelUi(widget, test_info->test_case_name(),
-                         test_info->name());
-#else
-    return true;
-#endif
+    return VerifyPixelUi(widget, test_info->test_suite_name(),
+                         test_info->name()) != ui::test::ActionResult::kFailed;
   }
 
   void WaitForUserDismissal() override {}
 
   void TearDownOnMainThread() override {
-    EXPECT_CALL(controller_, ViewDestroyed());
+    EXPECT_CALL(controller_, ViewDestroyed);
     view_ = nullptr;
     UiBrowserTest::TearDownOnMainThread();
   }
 
  protected:
+  virtual View* CreateView(Controller& controlled) = 0;
   Controller& controller() { return controller_; }
   raw_ptr<View>& view() { return view_; }
 
  private:
-  NiceMock<Controller> controller_;
+  testing::NiceMock<Controller> controller_;
   raw_ptr<View> view_ = nullptr;
 };
 

@@ -4,12 +4,17 @@
 
 #include "quiche/quic/test_tools/quic_test_server.h"
 
+#include <memory>
 #include <utility>
 
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/mutex.h"
+#include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/quic_default_connection_helper.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/tools/quic_simple_crypto_server_stream_helper.h"
 #include "quiche/quic/tools/quic_simple_dispatcher.h"
 #include "quiche/quic/tools/quic_simple_server_session.h"
@@ -86,15 +91,16 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
 
   std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId id, const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address, absl::string_view /*alpn*/,
+      const QuicSocketAddress& peer_address, absl::string_view alpn,
       const ParsedQuicVersion& version,
-      const ParsedClientHello& /*parsed_chlo*/) override {
-    QuicReaderMutexLock lock(&factory_lock_);
+      const ParsedClientHello& /*parsed_chlo*/,
+      ConnectionIdGeneratorInterface& connection_id_generator) override {
+    absl::ReaderMutexLock lock(&factory_lock_);
     // The QuicServerSessionBase takes ownership of |connection| below.
     QuicConnection* connection = new QuicConnection(
         id, self_address, peer_address, helper(), alarm_factory(), writer(),
         /* owns_writer= */ false, Perspective::IS_SERVER,
-        ParsedQuicVersionVector{version}, connection_id_generator());
+        ParsedQuicVersionVector{version}, connection_id_generator);
 
     std::unique_ptr<QuicServerSessionBase> session;
     if (session_factory_ == nullptr && stream_factory_ == nullptr &&
@@ -111,10 +117,9 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
     } else {
       session = session_factory_->CreateSession(
           config(), connection, this, session_helper(), crypto_config(),
-          compressed_certs_cache(), server_backend());
+          compressed_certs_cache(), server_backend(), alpn);
     }
-    if (VersionUsesHttp3(version.transport_version) &&
-        GetQuicReloadableFlag(quic_verify_request_headers_2)) {
+    if (VersionUsesHttp3(version.transport_version)) {
       QUICHE_DCHECK(session->allow_extended_connect());
       // Do not allow extended CONNECT request if the backend doesn't support
       // it.
@@ -126,7 +131,7 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
   }
 
   void SetSessionFactory(QuicTestServer::SessionFactory* factory) {
-    QuicWriterMutexLock lock(&factory_lock_);
+    absl::WriterMutexLock lock(&factory_lock_);
     QUICHE_DCHECK(session_factory_ == nullptr);
     QUICHE_DCHECK(stream_factory_ == nullptr);
     QUICHE_DCHECK(crypto_stream_factory_ == nullptr);
@@ -134,21 +139,21 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
   }
 
   void SetStreamFactory(QuicTestServer::StreamFactory* factory) {
-    QuicWriterMutexLock lock(&factory_lock_);
+    absl::WriterMutexLock lock(&factory_lock_);
     QUICHE_DCHECK(session_factory_ == nullptr);
     QUICHE_DCHECK(stream_factory_ == nullptr);
     stream_factory_ = factory;
   }
 
   void SetCryptoStreamFactory(QuicTestServer::CryptoStreamFactory* factory) {
-    QuicWriterMutexLock lock(&factory_lock_);
+    absl::WriterMutexLock lock(&factory_lock_);
     QUICHE_DCHECK(session_factory_ == nullptr);
     QUICHE_DCHECK(crypto_stream_factory_ == nullptr);
     crypto_stream_factory_ = factory;
   }
 
  private:
-  QuicMutex factory_lock_;
+  absl::Mutex factory_lock_;
   QuicTestServer::SessionFactory* session_factory_;             // Not owned.
   QuicTestServer::StreamFactory* stream_factory_;               // Not owned.
   QuicTestServer::CryptoStreamFactory* crypto_stream_factory_;  // Not owned.

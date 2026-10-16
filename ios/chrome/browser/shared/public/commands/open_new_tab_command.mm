@@ -7,10 +7,6 @@
 #import "ios/web/public/navigation/referrer.h"
 #import "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation OpenNewTabCommand {
   GURL _URL;
   GURL _virtualURL;
@@ -20,6 +16,7 @@
 @synthesize inIncognito = _inIncognito;
 @synthesize inBackground = _inBackground;
 @synthesize originPoint = _originPoint;
+@synthesize extraHeaders = _extraHeaders;
 @synthesize fromChrome = _fromChrome;
 @synthesize appendTo = _appendTo;
 @synthesize userInitiated = _userInitiated;
@@ -56,7 +53,7 @@
                inBackground:(BOOL)inBackground
                    appendTo:(OpenPosition)append {
   return [self initWithURL:URL
-                virtualURL:GURL::EmptyGURL()
+                virtualURL:GURL()
                   referrer:referrer
                inIncognito:inIncognito
               inBackground:inBackground

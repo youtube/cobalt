@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "content/common/content_export.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
@@ -18,6 +19,7 @@
 #include "ui/accessibility/ax_mode.h"
 #include "ui/accessibility/ax_tree_id.h"
 #include "ui/accessibility/ax_tree_update.h"
+#include "ui/accessibility/mojom/ax_updates_and_events.mojom.h"
 
 namespace content {
 
@@ -63,8 +65,8 @@ class CONTENT_EXPORT RenderAccessibilityManager
   // Returns the current accessibility mode for the associated RenderFrameImpl.
   ui::AXMode GetAccessibilityMode() const;
 
-  // mojom::RenderAccessibility implementation.
-  void SetMode(const ui::AXMode& ax_mode) override;
+  // blink::mojom::RenderAccessibility implementation.
+  void SetMode(const ui::AXMode& ax_mode, uint32_t reset_token) override;
   void FatalError() override;
   void HitTest(
       const gfx::Point& point,
@@ -72,12 +74,14 @@ class CONTENT_EXPORT RenderAccessibilityManager
       int request_id,
       blink::mojom::RenderAccessibility::HitTestCallback callback) override;
   void PerformAction(const ui::AXActionData& data) override;
-  void Reset(int32_t reset_token) override;
+  void Reset(uint32_t reset_token) override;
 
-  // Communication with the browser process.
-  void HandleAccessibilityEvents(
-      blink::mojom::AXUpdatesAndEventsPtr updates_and_events,
-      int32_t reset_token,
+  // Pass-through methods that communicate with the browser process,
+  // corresponds with blink::mojom::RenderAccessibilityHost.
+  void HandleAXEvents(
+      ui::AXUpdatesAndEvents& updates_and_events,
+      ui::AXLocationAndScrollUpdates& location_and_scroll_updates,
+      uint32_t reset_token,
       blink::mojom::RenderAccessibilityHost::HandleAXEventsCallback callback);
 
   void CloseConnection();
@@ -89,7 +93,7 @@ class CONTENT_EXPORT RenderAccessibilityManager
   GetOrCreateRemoteRenderAccessibilityHost();
 
   // The RenderFrameImpl that owns us.
-  RenderFrameImpl* render_frame_;
+  raw_ptr<RenderFrameImpl> render_frame_;
 
   // Valid only while an accessibility mode including kWebContents is set.
   std::unique_ptr<RenderAccessibilityImpl> render_accessibility_;

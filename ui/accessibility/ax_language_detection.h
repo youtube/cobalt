@@ -13,7 +13,10 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
-#include "third_party/cld_3/src/src/nnet_language_identifier.h"
+#include "base/scoped_observation.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "third_party/cld_3/src/src/nnet_language_identifier.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "ui/accessibility/ax_enums.mojom-forward.h"
 #include "ui/accessibility/ax_export.h"
 #include "ui/accessibility/ax_tree_observer.h"
@@ -217,26 +220,22 @@ class AX_EXPORT AXLanguageInfoStats {
 // TODO(chrishall): Investigate the cost of using AXTreeObserver, given that it
 // has many empty virtual methods which are called for every AXTree change and
 // we are only currently interested in OnAtomicUpdateFinished.
-class AX_EXPORT AXLanguageDetectionObserver : public ui::AXTreeObserver {
+class AX_EXPORT AXLanguageDetectionObserver : public AXTreeObserver {
  public:
   // Observer constructor will register itself with the provided AXTree.
   explicit AXLanguageDetectionObserver(AXTree* tree);
-
-  // Observer destructor will remove itself as an observer from the AXTree.
   ~AXLanguageDetectionObserver() override;
-
-  // AXLanguageDetectionObserver contains a pointer so copying is non-trivial.
   AXLanguageDetectionObserver(const AXLanguageDetectionObserver&) = delete;
   AXLanguageDetectionObserver& operator=(const AXLanguageDetectionObserver&) =
       delete;
 
  private:
-  void OnAtomicUpdateFinished(ui::AXTree* tree,
+  // |ui::AXTreeObserver|
+  void OnAtomicUpdateFinished(AXTree* tree,
                               bool root_changed,
                               const std::vector<Change>& changes) override;
 
-  // Non-owning pointer to AXTree, used to de-register observer on destruction.
-  const raw_ptr<AXTree> tree_;
+  base::ScopedObservation<ui::AXTree, ui::AXTreeObserver> observation_{this};
 };
 
 // AXLanguageDetectionManager manages all of the context needed for language
@@ -297,12 +296,14 @@ class AX_EXPORT AXLanguageDetectionManager {
   // This language identifier is constructed with a default minimum byte length
   // of chrome_lang_id::NNetLanguageIdentifier::kMinNumBytesToConsider and is
   // used for detecting page-level languages.
+#if !BUILDFLAG(IS_COBALT)
   chrome_lang_id::NNetLanguageIdentifier language_identifier_;
 
   // This language identifier is constructed with a minimum byte length of
   // kShortTextIdentifierMinByteLength so it can be used for detecting languages
   // of shorter text (e.g. one character).
   chrome_lang_id::NNetLanguageIdentifier short_text_language_identifier_;
+#endif  // !BUILDFLAG(IS_COBALT)
 
   // The observer to support dynamic content language detection.
   std::unique_ptr<AXLanguageDetectionObserver> language_detection_observer_;

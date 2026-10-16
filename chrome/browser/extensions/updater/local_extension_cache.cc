@@ -4,12 +4,18 @@
 
 #include "chrome/browser/extensions/updater/local_extension_cache.h"
 
+#include <string>
+#include <string_view>
+
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
+#include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/system/sys_info.h"
 #include "base/task/sequenced_task_runner.h"
@@ -28,9 +34,12 @@ const char kCRXFileExtension[] = ".crx";
 // become ready.
 constexpr base::TimeDelta kCacheStatusPollingDelay = base::Seconds(1);
 
+constexpr std::string_view kExtensionIdDelimiter = "\n";
+
 }  // namespace
 
 const char LocalExtensionCache::kCacheReadyFlagFileName[] = ".initialized";
+const char LocalExtensionCache::kInvalidCacheIdsFileName[] = ".invalid_cache";
 
 LocalExtensionCache::LocalExtensionCache(
     const base::FilePath& cache_dir,
@@ -111,7 +120,7 @@ bool LocalExtensionCache::GetExtension(const std::string& id,
   }
 
   if (version)
-    *version = it->second.version;
+    *version = it->second.version.GetString();
 
   return true;
 }
@@ -134,12 +143,11 @@ bool LocalExtensionCache::ShouldRetryDownload(
 
 // static
 bool LocalExtensionCache::NewerOrSame(const CacheMap::iterator& entry,
-                                      const std::string& version,
+                                      const base::Version& version,
                                       const std::string& expected_hash,
                                       int* compare) {
-  base::Version new_version(version);
-  base::Version prev_version(entry->second.version);
-  int cmp = new_version.CompareTo(prev_version);
+  const base::Version& prev_version = entry->second.version;
+  int cmp = version.CompareTo(prev_version);
 
   if (compare)
     *compare = cmp;
@@ -154,15 +162,14 @@ bool LocalExtensionCache::NewerOrSame(const CacheMap::iterator& entry,
 void LocalExtensionCache::PutExtension(const std::string& id,
                                        const std::string& expected_hash,
                                        const base::FilePath& file_path,
-                                       const std::string& version,
+                                       const base::Version& version,
                                        PutExtensionCallback callback) {
   if (state_ != kReady) {
     std::move(callback).Run(file_path, true);
     return;
   }
 
-  base::Version version_validator(version);
-  if (!version_validator.IsValid()) {
+  if (!version.IsValid()) {
     LOG(ERROR) << "Extension " << id << " has bad version " << version;
     std::move(callback).Run(file_path, true);
     return;
@@ -215,6 +222,23 @@ bool LocalExtensionCache::RemoveExtension(const std::string& id,
     it = FindExtension(cached_extensions_, id, expected_hash);
   }
 
+  return true;
+}
+
+bool LocalExtensionCache::RemoveOnNextInit(const std::string& id) {
+  if (state_ != kReady) {
+    return false;
+  }
+
+  if (base::Contains(invalid_cache_ids_, id)) {
+    return true;
+  }
+
+  backend_task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&LocalExtensionCache::BackendMarkCacheInvalid,
+                     weak_ptr_factory_.GetWeakPtr(), cache_dir_, id));
+  invalid_cache_ids_.insert(id);
   return true;
 }
 
@@ -400,6 +424,7 @@ void LocalExtensionCache::BackendCheckCacheContentsInternal(
     return;
   }
 
+  std::set<std::string> invalid_cache = BackendGetInvalidCache(cache_dir);
   // Enumerate all the files in the cache |cache_dir|, including directories
   // and symlinks. Each unrecognized file will be erased.
   int types = base::FileEnumerator::FILES | base::FileEnumerator::DIRECTORIES;
@@ -418,6 +443,10 @@ void LocalExtensionCache::BackendCheckCacheContentsInternal(
     // Skip flag file that indicates that cache is ready.
     if (basename == kCacheReadyFlagFileName)
       continue;
+    // Skip file with extension ids of invalidated cache.
+    if (basename == kInvalidCacheIdsFileName) {
+      continue;
+    }
 
     // crx files in the cache are named
     // <extension-id>-<version>[-<expected_hash>].crx.
@@ -458,14 +487,27 @@ void LocalExtensionCache::BackendCheckCacheContentsInternal(
       continue;
     }
 
+    if (base::Contains(invalid_cache, id)) {
+      base::DeleteFile(path);
+      continue;
+    }
+
     VLOG(1) << "Found cached version " << version
             << " for extension id " << id;
 
     InsertCacheEntry(
         *cache_content, id,
-        CacheItemInfo(version, expected_hash, info.GetLastModifiedTime(),
-                      info.GetSize(), path),
+        CacheItemInfo(base::Version(version), expected_hash,
+                      info.GetLastModifiedTime(), info.GetSize(), path),
         true);
+  }
+
+  // Delete the invalid cache file.
+  base::FilePath invalid_cache_file =
+      cache_dir.AppendASCII(kInvalidCacheIdsFileName);
+  if (!base::DeleteFile(invalid_cache_file)) {
+    LOG(WARNING) << "Failed to delete cache invalidation file "
+                 << invalid_cache_file;
   }
 }
 
@@ -502,9 +544,10 @@ void LocalExtensionCache::BackendInstallCacheEntry(
     const std::string& id,
     const std::string& expected_hash,
     const base::FilePath& file_path,
-    const std::string& version,
+    const base::Version& version,
     PutExtensionCallback callback) {
-  std::string basename = ExtensionFileName(id, version, expected_hash);
+  std::string basename =
+      ExtensionFileName(id, version.GetString(), expected_hash);
   base::FilePath cached_crx_path = cache_dir.AppendASCII(basename);
 
   bool was_error = false;
@@ -581,6 +624,57 @@ void LocalExtensionCache::BackendRemoveCacheEntry(
 }
 
 // static
+void LocalExtensionCache::BackendMarkCacheInvalid(
+    base::WeakPtr<LocalExtensionCache> local_cache,
+    const base::FilePath& cache_dir,
+    const std::string& extension_id) {
+  base::FilePath invalid_cache_file =
+      cache_dir.AppendASCII(kInvalidCacheIdsFileName);
+  std::string contents = base::StrCat({extension_id, kExtensionIdDelimiter});
+  bool success = false;
+  if (!base::PathExists(invalid_cache_file)) {
+    success = base::WriteFile(invalid_cache_file, contents);
+  } else {
+    success = base::AppendToFile(invalid_cache_file, contents);
+  }
+
+  if (!success) {
+    static bool already_warned = false;
+    if (!already_warned) {
+      LOG(WARNING) << "Failed writing obsolete cache extension id "
+                   << extension_id << " to file " << invalid_cache_file;
+      already_warned = true;
+    }
+    content::GetUIThreadTaskRunner({})->PostTask(
+        FROM_HERE,
+        base::BindOnce(&LocalExtensionCache::OnMarkCacheInvalidFailed,
+                       local_cache, extension_id));
+    return;
+  }
+}
+
+void LocalExtensionCache::OnMarkCacheInvalidFailed(
+    const std::string& extension_id) {
+  // Erase extension id from invalid ids since it was not marked invalid
+  // successfully.
+  invalid_cache_ids_.erase(extension_id);
+}
+
+// static
+std::set<std::string> LocalExtensionCache::BackendGetInvalidCache(
+    const base::FilePath& cache_dir) {
+  base::FilePath file = cache_dir.AppendASCII(kInvalidCacheIdsFileName);
+  std::string contents;
+  base::ReadFileToString(file, &contents);
+
+  auto extension_ids =
+      base::SplitString(contents, kExtensionIdDelimiter, base::TRIM_WHITESPACE,
+                        base::SPLIT_WANT_NONEMPTY);
+  return {std::make_move_iterator(extension_ids.begin()),
+          std::make_move_iterator(extension_ids.end())};
+}
+
+// static
 bool LocalExtensionCache::CompareCacheItemsAge(const CacheMap::iterator& lhs,
                                                const CacheMap::iterator& rhs) {
   return lhs->second.last_used < rhs->second.last_used;
@@ -611,7 +705,7 @@ void LocalExtensionCache::CleanUp() {
 }
 
 LocalExtensionCache::CacheItemInfo::CacheItemInfo(
-    const std::string& version,
+    const base::Version& version,
     const std::string& expected_hash,
     const base::Time& last_used,
     uint64_t size,
@@ -625,7 +719,6 @@ LocalExtensionCache::CacheItemInfo::CacheItemInfo(
 LocalExtensionCache::CacheItemInfo::CacheItemInfo(const CacheItemInfo& other) =
     default;
 
-LocalExtensionCache::CacheItemInfo::~CacheItemInfo() {
-}
+LocalExtensionCache::CacheItemInfo::~CacheItemInfo() = default;
 
 }  // namespace extensions

@@ -29,9 +29,17 @@ function getApiPaths() {
         // - `idle.getAutoLockDelay()` (restricted to certain platforms)
         // - `power.reportActivity()` (restricted to certain platforms)
         // - `runtime.getContexts()` (restricted to MV3)
-        // TODO(https://crbug.com/921466)
-        const skipPaths = ['idle.getAutoLockDelay', 'power.reportActivity',
-                           'runtime.getContexts'];
+        // - `runtime.onUserScriptConnect()` (restricted to MV3)
+        // - `runtime.onUserScriptMessage()` (restricted to MV3)
+        // - `permissions.addHostAccessRequest()` (restricted to MV3)
+        // - `permissions.removeHostAccessRequest()` (restricted to MV3)
+        // TODO(crbug.com/40609281)
+        const skipPaths = [
+          'idle.getAutoLockDelay', 'power.reportActivity',
+          'runtime.getContexts', 'runtime.onUserScriptConnect',
+          'runtime.onUserScriptMessage', 'permissions.addHostAccessRequest',
+          'permissions.removeHostAccessRequest'
+        ];
         if (!skipPaths.includes(fullName)) {
           apiPaths.push(fullName);
         }

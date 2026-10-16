@@ -7,17 +7,17 @@
 
 #include <atomic>
 #include <map>
+#include <optional>
 #include <string>
 
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/memory/raw_ptr.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "components/policy/core/common/cloud/test/policy_builder.h"
 #include "extensions/common/extension_id.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class GURL;
 class Profile;
@@ -34,7 +34,7 @@ namespace policy {
 class MockConfigurationPolicyProvider;
 }  // namespace policy
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 
 namespace ash {
 class DeviceStateMixin;
@@ -45,7 +45,7 @@ namespace policy {
 class DevicePolicyCrosTestHelper;
 }  // namespace policy
 
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // A mixin that allows to force-install an extension/app via user or device
 // policy.
@@ -97,7 +97,7 @@ class ExtensionForceInstallMixin final : public InProcessBrowserTestMixin {
   enum class UpdateWaitMode {
     // Don't wait, and return immediately.
     kNone,
-    // TODO(crbug.com/1090941): Add other wait modes as necessary.
+    // TODO(crbug.com/40697472): Add other wait modes as necessary.
   };
 
   // The type of the server error that should be simulated.
@@ -126,7 +126,7 @@ class ExtensionForceInstallMixin final : public InProcessBrowserTestMixin {
       Profile* profile,
       policy::MockConfigurationPolicyProvider* mock_policy_provider);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   void InitWithDeviceStateMixin(Profile* profile,
                                 ash::DeviceStateMixin* device_state_mixin);
   void InitWithDevicePolicyCrosTestHelper(
@@ -138,7 +138,7 @@ class ExtensionForceInstallMixin final : public InProcessBrowserTestMixin {
       policy::UserPolicyBuilder* user_policy_builder,
       const std::string& account_id,
       const std::string& policy_type);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   // Force-installs the CRX file |crx_path|; under the hood, generates an update
   // manifest and serves it and the CRX file by the embedded test server.
@@ -161,7 +161,7 @@ class ExtensionForceInstallMixin final : public InProcessBrowserTestMixin {
   // version.
   [[nodiscard]] bool ForceInstallFromSourceDir(
       const base::FilePath& extension_dir_path,
-      const absl::optional<base::FilePath>& pem_path,
+      const std::optional<base::FilePath>& pem_path,
       WaitMode wait_mode,
       extensions::ExtensionId* extension_id = nullptr,
       base::Version* extension_version = nullptr);
@@ -218,7 +218,7 @@ class ExtensionForceInstallMixin final : public InProcessBrowserTestMixin {
   // random key otherwise) and makes the produced CRX file served by the
   // embedded test server.
   bool CreateAndServeCrx(const base::FilePath& extension_dir_path,
-                         const absl::optional<base::FilePath>& pem_path,
+                         const std::optional<base::FilePath>& pem_path,
                          const base::Version& extension_version,
                          extensions::ExtensionId* extension_id);
   // Force-installs the CRX file served by the embedded test server.
@@ -246,14 +246,13 @@ class ExtensionForceInstallMixin final : public InProcessBrowserTestMixin {
   raw_ptr<Profile, DanglingUntriaged> profile_ = nullptr;
   raw_ptr<policy::MockConfigurationPolicyProvider> mock_policy_provider_ =
       nullptr;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  raw_ptr<ash::DeviceStateMixin, ExperimentalAsh> device_state_mixin_ = nullptr;
-  raw_ptr<policy::DevicePolicyCrosTestHelper, ExperimentalAsh>
-      device_policy_cros_test_helper_ = nullptr;
-  raw_ptr<ash::EmbeddedPolicyTestServerMixin, ExperimentalAsh>
-      policy_test_server_mixin_ = nullptr;
-  raw_ptr<policy::UserPolicyBuilder, ExperimentalAsh> user_policy_builder_ =
+#if BUILDFLAG(IS_CHROMEOS)
+  raw_ptr<ash::DeviceStateMixin> device_state_mixin_ = nullptr;
+  raw_ptr<policy::DevicePolicyCrosTestHelper> device_policy_cros_test_helper_ =
       nullptr;
+  raw_ptr<ash::EmbeddedPolicyTestServerMixin> policy_test_server_mixin_ =
+      nullptr;
+  raw_ptr<policy::UserPolicyBuilder> user_policy_builder_ = nullptr;
   // |account_id_| and |policy_type_| are only used with
   // |policy_test_server_mixin_|.
   std::string account_id_;

@@ -54,9 +54,9 @@ class PartialTranslateManagerTest : public testing::Test {
   void TearDown() override {}
 
  protected:
+  std::unique_ptr<PartialTranslateManager> manager_;
   // Owned by manager_.
   raw_ptr<FakeContextualSearchDelegate> delegate_;
-  std::unique_ptr<PartialTranslateManager> manager_;
 };
 
 TEST_F(PartialTranslateManagerTest, CreateContext) {

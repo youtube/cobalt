@@ -6,10 +6,12 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <memory>
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
@@ -24,11 +26,11 @@
 #include "content/browser/renderer_host/render_widget_host_view_android.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/common/android/sync_compositor_statics.h"
+#include "content/common/features.h"
 #include "content/public/browser/android/synchronous_compositor_client.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_view_host.h"
-#include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/ipc/client/gpu_channel_host.h"
 #include "ipc/ipc_sender.h"
@@ -108,9 +110,9 @@ class SynchronousCompositorControlHost
   void ReturnFrame(
       uint32_t layer_tree_frame_sink_id,
       uint32_t metadata_version,
-      const absl::optional<viz::LocalSurfaceId>& local_surface_id,
-      absl::optional<viz::CompositorFrame> frame,
-      absl::optional<viz::HitTestRegionList> hit_test_region_list) override {
+      const std::optional<viz::LocalSurfaceId>& local_surface_id,
+      std::optional<viz::CompositorFrame> frame,
+      std::optional<viz::HitTestRegionList> hit_test_region_list) override {
     if (frame && (!local_surface_id || !local_surface_id->is_valid())) {
       bad_message::ReceivedBadMessage(
           process_id_, bad_message::SYNC_COMPOSITOR_NO_LOCAL_SURFACE_ID);
@@ -190,7 +192,7 @@ void SynchronousCompositorHost::InitMojo() {
 
   SynchronousCompositorControlHost::Create(
       host_control.InitWithNewPipeAndPassReceiver(), bridge_,
-      rwhva_->GetRenderWidgetHost()->GetProcess()->GetID());
+      rwhva_->GetRenderWidgetHost()->GetProcess()->GetDeprecatedID());
   rwhva_->host()->GetWidgetInputHandler()->AttachSynchronousCompositor(
       std::move(host_control), host_receiver_.BindNewEndpointAndPassRemote(),
       sync_compositor_.BindNewEndpointAndPassReceiver());
@@ -202,11 +204,21 @@ bool SynchronousCompositorHost::IsReadyForSynchronousCall() {
   return res;
 }
 
+void SynchronousCompositorHost::OnCompositorVisible() {
+  CompositorDependenciesAndroid::Get().OnSynchronousCompositorVisible();
+}
+
+void SynchronousCompositorHost::OnCompositorHidden() {
+  CompositorDependenciesAndroid::Get().OnSynchronousCompositorHidden();
+}
+
 scoped_refptr<SynchronousCompositor::FrameFuture>
 SynchronousCompositorHost::DemandDrawHwAsync(
     const gfx::Size& viewport_size,
     const gfx::Rect& viewport_rect_for_tile_priority,
     const gfx::Transform& transform_for_tile_priority) {
+  velocity_in_pixels_per_second_ = 0.f;
+  draw_hw_called_ = true;
   invalidate_needs_draw_ = false;
   num_invalidates_since_last_draw_ = 0u;
   scoped_refptr<FrameFuture> frame_future = new FrameFuture();
@@ -251,9 +263,9 @@ SynchronousCompositor::Frame SynchronousCompositorHost::DemandDrawHw(
 
   uint32_t layer_tree_frame_sink_id;
   uint32_t metadata_version = 0u;
-  absl::optional<viz::LocalSurfaceId> local_surface_id;
-  absl::optional<viz::CompositorFrame> compositor_frame;
-  absl::optional<viz::HitTestRegionList> hit_test_region_list;
+  std::optional<viz::LocalSurfaceId> local_surface_id;
+  std::optional<viz::CompositorFrame> compositor_frame;
+  std::optional<viz::HitTestRegionList> hit_test_region_list;
   blink::mojom::SyncCompositorCommonRendererParamsPtr common_renderer_params;
 
   {
@@ -274,7 +286,7 @@ SynchronousCompositor::Frame SynchronousCompositorHost::DemandDrawHw(
   if (compositor_frame) {
     if (!local_surface_id || !local_surface_id->is_valid()) {
       bad_message::ReceivedBadMessage(
-          rwhva_->GetRenderWidgetHost()->GetProcess()->GetID(),
+          rwhva_->GetRenderWidgetHost()->GetProcess()->GetDeprecatedID(),
           bad_message::SYNC_COMPOSITOR_NO_LOCAL_SURFACE_ID);
       return SynchronousCompositor::Frame();
     }
@@ -297,7 +309,7 @@ SynchronousCompositor::Frame SynchronousCompositorHost::DemandDrawHw(
 void SynchronousCompositorHost::UpdateFrameMetaData(
     uint32_t version,
     viz::CompositorFrameMetadata frame_metadata,
-    absl::optional<viz::LocalSurfaceId> new_local_surface_id) {
+    std::optional<viz::LocalSurfaceId> new_local_surface_id) {
   // Ignore if |frame_metadata_version_| is newer than |version|. This
   // comparison takes into account when the unsigned int wraps.
   if ((frame_metadata_version_ - version) < 0x80000000) {
@@ -331,13 +343,12 @@ bool SynchronousCompositorHost::DemandDrawSwInProc(SkCanvas* canvas) {
   base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope
       allow_base_sync_primitives;
   blink::mojom::SyncCompositorCommonRendererParamsPtr common_renderer_params;
-  absl::optional<viz::CompositorFrameMetadata> metadata;
+  std::optional<viz::CompositorFrameMetadata> metadata;
   ScopedSetSkCanvas set_sk_canvas(canvas);
   blink::mojom::SyncCompositorDemandDrawSwParamsPtr params =
       blink::mojom::SyncCompositorDemandDrawSwParams::New();  // Unused.
   uint32_t metadata_version = 0u;
   invalidate_needs_draw_ = false;
-  num_invalidates_since_last_draw_ = 0u;
   if (!IsReadyForSynchronousCall() ||
       !GetSynchronousCompositor()->DemandDrawSw(std::move(params),
                                                 &common_renderer_params,
@@ -346,7 +357,7 @@ bool SynchronousCompositorHost::DemandDrawSwInProc(SkCanvas* canvas) {
   if (!metadata)
     return false;
   UpdateState(std::move(common_renderer_params));
-  UpdateFrameMetaData(metadata_version, std::move(*metadata), absl::nullopt);
+  UpdateFrameMetaData(metadata_version, std::move(*metadata), std::nullopt);
   return true;
 }
 
@@ -377,6 +388,8 @@ struct SynchronousCompositorHost::SharedMemoryWithSize {
 
 bool SynchronousCompositorHost::DemandDrawSw(SkCanvas* canvas,
                                              bool software_canvas) {
+  velocity_in_pixels_per_second_ = 0.f;
+  num_invalidates_since_last_draw_ = 0u;
   if (use_in_process_zero_copy_software_draw_)
     return DemandDrawSwInProc(canvas);
 
@@ -402,7 +415,7 @@ bool SynchronousCompositorHost::DemandDrawSw(SkCanvas* canvas,
   if (!software_draw_shm_)
     return false;
 
-  absl::optional<viz::CompositorFrameMetadata> metadata;
+  std::optional<viz::CompositorFrameMetadata> metadata;
   uint32_t metadata_version = 0u;
   blink::mojom::SyncCompositorCommonRendererParamsPtr common_renderer_params;
   {
@@ -421,10 +434,12 @@ bool SynchronousCompositorHost::DemandDrawSw(SkCanvas* canvas,
     return false;
 
   UpdateState(std::move(common_renderer_params));
-  UpdateFrameMetaData(metadata_version, std::move(*metadata), absl::nullopt);
+  UpdateFrameMetaData(metadata_version, std::move(*metadata), std::nullopt);
 
   SkBitmap bitmap;
-  SkPixmap pixmap(info, software_draw_shm_->shared_memory.memory(), stride);
+  base::span<uint8_t> mem(software_draw_shm_->shared_memory);
+  CHECK_GE(mem.size(), info.computeByteSize(stride));
+  SkPixmap pixmap(info, mem.data(), stride);
 
   bool pixels_released = false;
   {
@@ -536,6 +551,10 @@ void SynchronousCompositorHost::SetMemoryPolicy(size_t bytes_limit) {
     compositor->SetMemoryPolicy(bytes_limit_);
 }
 
+float SynchronousCompositorHost::GetVelocityInPixelsPerSecond() {
+  return velocity_in_pixels_per_second_;
+}
+
 void SynchronousCompositorHost::DidChangeRootLayerScrollOffset(
     const gfx::PointF& root_offset) {
   if (root_scroll_offset_ == root_offset)
@@ -591,6 +610,11 @@ void SynchronousCompositorHost::SetNeedsBeginFrames(bool needs_begin_frames) {
     ClearBeginFrameRequest(PERSISTENT_BEGIN_FRAME);
 }
 
+void SynchronousCompositorHost::SetThreads(
+    const std::vector<viz::Thread>& threads) {
+  client_->SetThreads(threads);
+}
+
 void SynchronousCompositorHost::LayerTreeFrameSinkCreated() {
   bridge_->RemoteReady();
 
@@ -600,8 +624,7 @@ void SynchronousCompositorHost::LayerTreeFrameSinkCreated() {
   DCHECK(compositor);
   compositor->SetMemoryPolicy(bytes_limit_);
 
-  if (begin_frame_paused_)
-    SendBeginFramePaused();
+  SendBeginFramePaused();
 }
 
 void SynchronousCompositorHost::UpdateState(
@@ -680,6 +703,9 @@ void SynchronousCompositorHost::OnBeginFrame(const viz::BeginFrameArgs& args) {
       (outstanding_begin_frame_requests_ & BEGIN_FRAME) ||
       (outstanding_begin_frame_requests_ & PERSISTENT_BEGIN_FRAME);
 
+  last_begin_frame_time_delta_ =
+      args.frame_time - last_begin_frame_args_.frame_time;
+
   // Update |last_begin_frame_args_| before handling
   // |outstanding_begin_frame_requests_| to prevent the BeginFrameSource from
   // sending the same MISSED args in infinite recursion.
@@ -687,8 +713,21 @@ void SynchronousCompositorHost::OnBeginFrame(const viz::BeginFrameArgs& args) {
 
   ClearBeginFrameRequest(BEGIN_FRAME);
 
-  if (on_compute_scroll_called_ || !rwhva_->is_currently_scrolling_viewport()) {
+  if (on_compute_scroll_called_ ||
+      !rwhva_->GetViewRenderInputRouter()->is_currently_scrolling_viewport()) {
     rwhva_->host()->ProgressFlingIfNeeded(args.frame_time);
+  } else {
+    // Normally, `OnComputeScroll` is called after `OnBeginFrame`, but before
+    // `DemandDrawHwAsync`. So `OnBeginFrame` calls before the first draw will
+    // end up here regardless of whether `OnComputeScroll` will be called. If
+    // these frames contain fling, then don't cancel fling prematurely. Note
+    // normally fling cannot happen from user interaction this way because touch
+    // scroll happens before fling.
+    if (draw_hw_called_) {
+      // If we are not ticking flings ourselves, also reset the tracking state
+      // for fling so the first tap during / after fling is not suppressed.
+      rwhva_->host()->StopFling();
+    }
   }
 
   if (needs_begin_frame) {
@@ -750,6 +789,28 @@ void SynchronousCompositorHost::SendBeginFrame(viz::BeginFrameArgs args) {
   DCHECK(compositor);
   compositor->BeginFrame(args, timing_details_);
   timing_details_.clear();
+}
+
+void SynchronousCompositorHost::BeginFrameComplete(
+    blink::mojom::SyncCompositorCommonRendererParamsPtr params) {
+  velocity_in_pixels_per_second_ = 0.f;
+  gfx::PointF offset = root_scroll_offset_;
+  if (params) {
+    UpdateState(std::move(params));
+  }
+  // Sanity check frame time delta.
+  if (last_begin_frame_time_delta_.InMicroseconds() < 100 ||
+      last_begin_frame_time_delta_.InMicroseconds() > 1000000) {
+    return;
+  }
+  gfx::Vector2dF scroll = root_scroll_offset_ - offset;
+  float major_scroll_in_last_begin_frame =
+      std::abs(scroll.x()) > std::abs(scroll.y()) ? scroll.x() : scroll.y();
+  velocity_in_pixels_per_second_ = major_scroll_in_last_begin_frame /
+                                   last_begin_frame_time_delta_.InSecondsF();
+  TRACE_EVENT_INSTANT("cc", "SynchronousCompositorHost::BeginFrameComplete",
+                      "scroll", major_scroll_in_last_begin_frame, "delta",
+                      last_begin_frame_time_delta_.InMicroseconds());
 }
 
 void SynchronousCompositorHost::SetBeginFrameSource(

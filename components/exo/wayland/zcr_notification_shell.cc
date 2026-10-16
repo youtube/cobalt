@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/exo/wayland/zcr_notification_shell.h"
 
 #include <notification-shell-unstable-v1-server-protocol.h>
 #include <wayland-server-core.h>
 #include <wayland-server-protocol-core.h>
 
+#include <optional>
 #include <string>
 
 #include "base/atomic_sequence_num.h"
@@ -18,7 +24,6 @@
 #include "components/exo/notification_surface.h"
 #include "components/exo/notification_surface_manager.h"
 #include "components/exo/wayland/server_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace exo {
 namespace wayland {
@@ -68,13 +73,13 @@ class WaylandNotificationShellNotification {
     wl_client_flush(wl_resource_get_client(resource_));
   }
 
-  void OnClick(const absl::optional<int>& button_index) {
+  void OnClick(const std::optional<int>& button_index) {
     int32_t index = button_index ? *button_index : -1;
     zcr_notification_shell_notification_v1_send_clicked(resource_, index);
     wl_client_flush(wl_resource_get_client(resource_));
   }
 
-  const raw_ptr<wl_resource, ExperimentalAsh> resource_;
+  const raw_ptr<wl_resource> resource_;
   std::unique_ptr<Notification> notification_;
 
   base::WeakPtrFactory<WaylandNotificationShellNotification> weak_ptr_factory_{

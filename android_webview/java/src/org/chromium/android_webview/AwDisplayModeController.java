@@ -9,30 +9,34 @@ import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.view.View;
 
+import org.chromium.android_webview.common.Lifetime;
 import org.chromium.base.Log;
 import org.chromium.blink.mojom.DisplayMode;
+import org.chromium.build.annotations.NullMarked;
 
 /**
  * Display mode controller for WebView.
  *
- * Display mode will be used for display cutout controller's internal implementation since we only
- * apply display cutout to fullscreen mode. Also, display mode will be reported as CSS property.
+ * <p>Display mode will be used for display cutout controller's internal implementation since we
+ * only apply display cutout to fullscreen mode. Also, display mode will be reported as CSS
+ * property.
  */
+@Lifetime.WebView
+@NullMarked
 public class AwDisplayModeController {
     private static final boolean DEBUG = false;
     private static final String TAG = "DisplayMode";
 
-    /**
-     * This is a delegate that the embedder needs to implement.
-     */
+    /** This is a delegate that the embedder needs to implement. */
     public interface Delegate {
         /** @return The display width. */
         int getDisplayWidth();
+
         /** @return The display height. */
         int getDisplayHeight();
     }
 
-    private Delegate mDelegate;
+    private final Delegate mDelegate;
     private View mContainerView;
 
     // Reuse these structures to minimize memory impact.
@@ -68,9 +72,14 @@ public class AwDisplayModeController {
         sCachedDisplayRect.set(0, 0, displayWidth, displayHeight);
 
         if (DEBUG) {
-            Log.i(TAG,
-                    "isDisplayInFullscreen. view rect: " + sCachedViewRect + ", display rect: "
-                            + sCachedDisplayRect + ", window rect: " + sCachedWindowRect);
+            Log.i(
+                    TAG,
+                    "isDisplayInFullscreen. view rect: "
+                            + sCachedViewRect
+                            + ", display rect: "
+                            + sCachedDisplayRect
+                            + ", window rect: "
+                            + sCachedWindowRect);
         }
 
         // Display is in fullscreen only when webview is occupying the entire window and display.
@@ -96,16 +105,15 @@ public class AwDisplayModeController {
     }
 
     private static void getViewRectOnScreen(View view, Rect rect) {
-        if (view == null) {
-            rect.set(0, 0, 0, 0);
-            return;
-        }
         view.getLocationOnScreen(sCachedLocationOnScreen);
         int width = view.getMeasuredWidth();
         int height = view.getMeasuredHeight();
 
-        rect.set(sCachedLocationOnScreen[0], sCachedLocationOnScreen[1],
-                sCachedLocationOnScreen[0] + width, sCachedLocationOnScreen[1] + height);
+        rect.set(
+                sCachedLocationOnScreen[0],
+                sCachedLocationOnScreen[1],
+                sCachedLocationOnScreen[0] + width,
+                sCachedLocationOnScreen[1] + height);
     }
 
     @SuppressLint("NewApi") // need this exception since we will try using Q API in P

@@ -258,6 +258,9 @@ te{
         "America:Chihuahua"{
             ec{"చువావా"}
         }
+        "America:Ciudad_Juarez"{
+            ec{"సియుదాద్ హ్వారెజ్"}
+        }
         "America:Coral_Harbour"{
             ec{"అటికోకన్"}
         }
@@ -1944,10 +1947,6 @@ te{
         "meta:Yukon"{
             ls{"యుకోన్ సమయం"}
         }
-        fallbackFormat{"{1} ({0})"}
-        gmtFormat{"GMT{0}"}
-        gmtZeroFormat{"GMT"}
-        hourFormat{"+HH:mm;-HH:mm"}
         regionFormat{"{0} సమయం"}
         regionFormatDaylight{"{0} పగటి వెలుతురు సమయం"}
         regionFormatStandard{"{0} ప్రామాణిక సమయం"}

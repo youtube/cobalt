@@ -29,6 +29,24 @@
 #include "modules/video_capture/video_capture.h"
 #include "rtc_base/logging.h"
 
+// These defines are here to support building on kernel 3.16 which some
+// downstream projects, e.g. Firefox, use.
+// TODO(apehrson): Remove them and their undefs when no longer needed.
+#ifndef V4L2_PIX_FMT_ABGR32
+#define ABGR32_OVERRIDE 1
+#define V4L2_PIX_FMT_ABGR32 v4l2_fourcc('A', 'R', '2', '4')
+#endif
+
+#ifndef V4L2_PIX_FMT_ARGB32
+#define ARGB32_OVERRIDE 1
+#define V4L2_PIX_FMT_ARGB32 v4l2_fourcc('B', 'A', '2', '4')
+#endif
+
+#ifndef V4L2_PIX_FMT_RGBA32
+#define RGBA32_OVERRIDE 1
+#define V4L2_PIX_FMT_RGBA32 v4l2_fourcc('A', 'B', '2', '4')
+#endif
+
 namespace webrtc {
 namespace videocapturemodule {
 VideoCaptureModuleV4L2::VideoCaptureModuleV4L2()
@@ -36,14 +54,12 @@ VideoCaptureModuleV4L2::VideoCaptureModuleV4L2()
       _deviceId(-1),
       _deviceFd(-1),
       _buffersAllocatedByDevice(-1),
-      _currentWidth(-1),
-      _currentHeight(-1),
-      _currentFrameRate(-1),
       _captureStarted(false),
-      _captureVideoType(VideoType::kI420),
-      _pool(NULL) {}
+      _pool(nullptr) {}
 
 int32_t VideoCaptureModuleV4L2::Init(const char* deviceUniqueIdUTF8) {
+  RTC_DCHECK_RUN_ON(&api_checker_);
+
   int len = strlen((const char*)deviceUniqueIdUTF8);
   _deviceUniqueId = new (std::nothrow) char[len + 1];
   if (_deviceUniqueId) {
@@ -85,6 +101,9 @@ int32_t VideoCaptureModuleV4L2::Init(const char* deviceUniqueIdUTF8) {
 }
 
 VideoCaptureModuleV4L2::~VideoCaptureModuleV4L2() {
+  RTC_DCHECK_RUN_ON(&api_checker_);
+  RTC_CHECK_RUNS_SERIALIZED(&capture_checker_);
+
   StopCapture();
   if (_deviceFd != -1)
     close(_deviceFd);
@@ -92,15 +111,26 @@ VideoCaptureModuleV4L2::~VideoCaptureModuleV4L2() {
 
 int32_t VideoCaptureModuleV4L2::StartCapture(
     const VideoCaptureCapability& capability) {
+  RTC_DCHECK_RUN_ON(&api_checker_);
+
   if (_captureStarted) {
-    if (capability.width == _currentWidth &&
-        capability.height == _currentHeight &&
-        _captureVideoType == capability.videoType) {
+    if (capability == _requestedCapability) {
       return 0;
     } else {
       StopCapture();
     }
   }
+
+  // We don't want members above to be guarded by capture_checker_ as
+  // it's meant to be for members that are accessed on the API thread
+  // only when we are not capturing. The code above can be called many
+  // times while sharing instance of VideoCaptureV4L2 between websites
+  // and therefore it would not follow the requirements of this checker.
+  RTC_CHECK_RUNS_SERIALIZED(&capture_checker_);
+
+  // Set a baseline of configured parameters. It is updated here during
+  // configuration, then read from the capture thread.
+  configured_capability_ = capability;
 
   MutexLock lock(&capture_lock_);
   // first open /dev/video device
@@ -115,23 +145,24 @@ int32_t VideoCaptureModuleV4L2::StartCapture(
   // Supported video formats in preferred order.
   // If the requested resolution is larger than VGA, we prefer MJPEG. Go for
   // I420 otherwise.
-  const int nFormats = 6;
-  unsigned int fmts[nFormats];
-  if (capability.width > 640 || capability.height > 480) {
-    fmts[0] = V4L2_PIX_FMT_MJPEG;
-    fmts[1] = V4L2_PIX_FMT_YUV420;
-    fmts[2] = V4L2_PIX_FMT_YUYV;
-    fmts[3] = V4L2_PIX_FMT_UYVY;
-    fmts[4] = V4L2_PIX_FMT_NV12;
-    fmts[5] = V4L2_PIX_FMT_JPEG;
-  } else {
-    fmts[0] = V4L2_PIX_FMT_YUV420;
-    fmts[1] = V4L2_PIX_FMT_YUYV;
-    fmts[2] = V4L2_PIX_FMT_UYVY;
-    fmts[3] = V4L2_PIX_FMT_NV12;
-    fmts[4] = V4L2_PIX_FMT_MJPEG;
-    fmts[5] = V4L2_PIX_FMT_JPEG;
-  }
+  unsigned int hdFmts[] = {
+      V4L2_PIX_FMT_MJPEG,  V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_YVU420,
+      V4L2_PIX_FMT_YUYV,   V4L2_PIX_FMT_UYVY,   V4L2_PIX_FMT_NV12,
+      V4L2_PIX_FMT_ABGR32, V4L2_PIX_FMT_ARGB32, V4L2_PIX_FMT_RGBA32,
+      V4L2_PIX_FMT_BGR32,  V4L2_PIX_FMT_RGB32,  V4L2_PIX_FMT_BGR24,
+      V4L2_PIX_FMT_RGB24,  V4L2_PIX_FMT_RGB565, V4L2_PIX_FMT_JPEG,
+  };
+  unsigned int sdFmts[] = {
+      V4L2_PIX_FMT_YUV420, V4L2_PIX_FMT_YVU420, V4L2_PIX_FMT_YUYV,
+      V4L2_PIX_FMT_UYVY,   V4L2_PIX_FMT_NV12,   V4L2_PIX_FMT_ABGR32,
+      V4L2_PIX_FMT_ARGB32, V4L2_PIX_FMT_RGBA32, V4L2_PIX_FMT_BGR32,
+      V4L2_PIX_FMT_RGB32,  V4L2_PIX_FMT_BGR24,  V4L2_PIX_FMT_RGB24,
+      V4L2_PIX_FMT_RGB565, V4L2_PIX_FMT_MJPEG,  V4L2_PIX_FMT_JPEG,
+  };
+  const bool isHd = capability.width > 640 || capability.height > 480;
+  unsigned int* fmts = isHd ? hdFmts : sdFmts;
+  static_assert(sizeof(hdFmts) == sizeof(sdFmts));
+  constexpr int nFormats = sizeof(hdFmts) / sizeof(unsigned int);
 
   // Enumerate image formats.
   struct v4l2_fmtdesc fmt;
@@ -141,8 +172,7 @@ int32_t VideoCaptureModuleV4L2::StartCapture(
   fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   RTC_LOG(LS_INFO) << "Video Capture enumerats supported image formats:";
   while (ioctl(_deviceFd, VIDIOC_ENUM_FMT, &fmt) == 0) {
-    RTC_LOG(LS_INFO) << "  { pixelformat = "
-                     << cricket::GetFourccName(fmt.pixelformat)
+    RTC_LOG(LS_INFO) << "  { pixelformat = " << GetFourccName(fmt.pixelformat)
                      << ", description = '" << fmt.description << "' }";
     // Match the preferred order.
     for (int i = 0; i < nFormats; i++) {
@@ -157,8 +187,7 @@ int32_t VideoCaptureModuleV4L2::StartCapture(
     RTC_LOG(LS_INFO) << "no supporting video formats found";
     return -1;
   } else {
-    RTC_LOG(LS_INFO) << "We prefer format "
-                     << cricket::GetFourccName(fmts[fmtsIdx]);
+    RTC_LOG(LS_INFO) << "We prefer format " << GetFourccName(fmts[fmtsIdx]);
   }
 
   struct v4l2_format video_fmt;
@@ -170,16 +199,34 @@ int32_t VideoCaptureModuleV4L2::StartCapture(
   video_fmt.fmt.pix.pixelformat = fmts[fmtsIdx];
 
   if (video_fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV)
-    _captureVideoType = VideoType::kYUY2;
+    configured_capability_.videoType = VideoType::kYUY2;
   else if (video_fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_YUV420)
-    _captureVideoType = VideoType::kI420;
+    configured_capability_.videoType = VideoType::kI420;
+  else if (video_fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_YVU420)
+    configured_capability_.videoType = VideoType::kYV12;
   else if (video_fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_UYVY)
-    _captureVideoType = VideoType::kUYVY;
+    configured_capability_.videoType = VideoType::kUYVY;
   else if (video_fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12)
-    _captureVideoType = VideoType::kNV12;
+    configured_capability_.videoType = VideoType::kNV12;
+  else if (video_fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_BGR24)
+    configured_capability_.videoType = VideoType::kRGB24;
+  else if (video_fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_RGB24)
+    configured_capability_.videoType = VideoType::kBGR24;
+  else if (video_fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_RGB565)
+    configured_capability_.videoType = VideoType::kRGB565;
+  else if (video_fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_ABGR32 ||
+           video_fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_BGR32)
+    configured_capability_.videoType = VideoType::kARGB;
+  else if (video_fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_ARGB32 ||
+           video_fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_RGB32)
+    configured_capability_.videoType = VideoType::kBGRA;
+  else if (video_fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_RGBA32)
+    configured_capability_.videoType = VideoType::kABGR;
   else if (video_fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_MJPEG ||
            video_fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_JPEG)
-    _captureVideoType = VideoType::kMJPEG;
+    configured_capability_.videoType = VideoType::kMJPEG;
+  else
+    RTC_DCHECK_NOTREACHED();
 
   // set format and frame size now
   if (ioctl(_deviceFd, VIDIOC_S_FMT, &video_fmt) < 0) {
@@ -188,8 +235,8 @@ int32_t VideoCaptureModuleV4L2::StartCapture(
   }
 
   // initialize current width and height
-  _currentWidth = video_fmt.fmt.pix.width;
-  _currentHeight = video_fmt.fmt.pix.height;
+  configured_capability_.width = video_fmt.fmt.pix.width;
+  configured_capability_.height = video_fmt.fmt.pix.height;
 
   // Trying to set frame rate, before check driver capability.
   bool driver_framerate_support = true;
@@ -211,36 +258,23 @@ int32_t VideoCaptureModuleV4L2::StartCapture(
       if (ioctl(_deviceFd, VIDIOC_S_PARM, &streamparms) < 0) {
         RTC_LOG(LS_INFO) << "Failed to set the framerate. errno=" << errno;
         driver_framerate_support = false;
-      } else {
-        _currentFrameRate = capability.maxFPS;
       }
     }
   }
   // If driver doesn't support framerate control, need to hardcode.
   // Hardcoding the value based on the frame size.
   if (!driver_framerate_support) {
-    if (_currentWidth >= 800 && _captureVideoType != VideoType::kMJPEG) {
-      _currentFrameRate = 15;
+    if (configured_capability_.width >= 800 &&
+        configured_capability_.videoType != VideoType::kMJPEG) {
+      configured_capability_.maxFPS = 15;
     } else {
-      _currentFrameRate = 30;
+      configured_capability_.maxFPS = 30;
     }
   }
 
   if (!AllocateVideoBuffers()) {
     RTC_LOG(LS_INFO) << "failed to allocate video capture buffers";
     return -1;
-  }
-
-  // start capture thread;
-  if (_captureThread.empty()) {
-    quit_ = false;
-    _captureThread = rtc::PlatformThread::SpawnJoinable(
-        [this] {
-          while (CaptureProcess()) {
-          }
-        },
-        "CaptureThread",
-        rtc::ThreadAttributes().SetPriority(rtc::ThreadPriority::kHigh));
   }
 
   // Needed to start UVC camera - from the uvcview application
@@ -251,11 +285,26 @@ int32_t VideoCaptureModuleV4L2::StartCapture(
     return -1;
   }
 
+  _requestedCapability = capability;
   _captureStarted = true;
+  _streaming = true;
+
+  // start capture thread;
+  if (_captureThread.empty()) {
+    quit_ = false;
+    _captureThread = PlatformThread::SpawnJoinable(
+        [this] {
+          while (CaptureProcess()) {
+          }
+        },
+        "CaptureThread", ThreadAttributes().SetPriority(ThreadPriority::kHigh));
+  }
   return 0;
 }
 
 int32_t VideoCaptureModuleV4L2::StopCapture() {
+  RTC_DCHECK_RUN_ON(&api_checker_);
+
   if (!_captureThread.empty()) {
     {
       MutexLock lock(&capture_lock_);
@@ -265,13 +314,18 @@ int32_t VideoCaptureModuleV4L2::StopCapture() {
     _captureThread.Finalize();
   }
 
+  _captureStarted = false;
+
+  RTC_CHECK_RUNS_SERIALIZED(&capture_checker_);
   MutexLock lock(&capture_lock_);
-  if (_captureStarted) {
-    _captureStarted = false;
+  if (_streaming) {
+    _streaming = false;
 
     DeAllocateVideoBuffers();
     close(_deviceFd);
     _deviceFd = -1;
+
+    _requestedCapability = configured_capability_ = VideoCaptureCapability();
   }
 
   return 0;
@@ -280,6 +334,7 @@ int32_t VideoCaptureModuleV4L2::StopCapture() {
 // critical section protected by the caller
 
 bool VideoCaptureModuleV4L2::AllocateVideoBuffers() {
+  RTC_CHECK_RUNS_SERIALIZED(&capture_checker_);
   struct v4l2_requestbuffers rbuffer;
   memset(&rbuffer, 0, sizeof(v4l2_requestbuffers));
 
@@ -311,7 +366,7 @@ bool VideoCaptureModuleV4L2::AllocateVideoBuffers() {
       return false;
     }
 
-    _pool[i].start = mmap(NULL, buffer.length, PROT_READ | PROT_WRITE,
+    _pool[i].start = mmap(nullptr, buffer.length, PROT_READ | PROT_WRITE,
                           MAP_SHARED, _deviceFd, buffer.m.offset);
 
     if (MAP_FAILED == _pool[i].start) {
@@ -330,6 +385,7 @@ bool VideoCaptureModuleV4L2::AllocateVideoBuffers() {
 }
 
 bool VideoCaptureModuleV4L2::DeAllocateVideoBuffers() {
+  RTC_CHECK_RUNS_SERIALIZED(&capture_checker_);
   // unmap buffers
   for (int i = 0; i < _buffersAllocatedByDevice; i++)
     munmap(_pool[i].start, _pool[i].length);
@@ -347,10 +403,13 @@ bool VideoCaptureModuleV4L2::DeAllocateVideoBuffers() {
 }
 
 bool VideoCaptureModuleV4L2::CaptureStarted() {
+  RTC_DCHECK_RUN_ON(&api_checker_);
   return _captureStarted;
 }
 
 bool VideoCaptureModuleV4L2::CaptureProcess() {
+  RTC_CHECK_RUNS_SERIALIZED(&capture_checker_);
+
   int retVal = 0;
   fd_set rSet;
   struct timeval timeout;
@@ -361,7 +420,7 @@ bool VideoCaptureModuleV4L2::CaptureProcess() {
   timeout.tv_usec = 0;
 
   // _deviceFd written only in StartCapture, when this thread isn't running.
-  retVal = select(_deviceFd + 1, &rSet, NULL, NULL, &timeout);
+  retVal = select(_deviceFd + 1, &rSet, nullptr, nullptr, &timeout);
 
   {
     MutexLock lock(&capture_lock_);
@@ -381,7 +440,7 @@ bool VideoCaptureModuleV4L2::CaptureProcess() {
       return true;
     }
 
-    if (_captureStarted) {
+    if (_streaming) {
       struct v4l2_buffer buf;
       memset(&buf, 0, sizeof(struct v4l2_buffer));
       buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -394,14 +453,10 @@ bool VideoCaptureModuleV4L2::CaptureProcess() {
           return true;
         }
       }
-      VideoCaptureCapability frameInfo;
-      frameInfo.width = _currentWidth;
-      frameInfo.height = _currentHeight;
-      frameInfo.videoType = _captureVideoType;
 
       // convert to to I420 if needed
       IncomingFrame(reinterpret_cast<uint8_t*>(_pool[buf.index].start),
-                    buf.bytesused, frameInfo);
+                    buf.bytesused, configured_capability_);
       // enqueue the buffer again
       if (ioctl(_deviceFd, VIDIOC_QBUF, &buf) == -1) {
         RTC_LOG(LS_INFO) << "Failed to enqueue capture buffer";
@@ -414,12 +469,25 @@ bool VideoCaptureModuleV4L2::CaptureProcess() {
 
 int32_t VideoCaptureModuleV4L2::CaptureSettings(
     VideoCaptureCapability& settings) {
-  settings.width = _currentWidth;
-  settings.height = _currentHeight;
-  settings.maxFPS = _currentFrameRate;
-  settings.videoType = _captureVideoType;
+  RTC_DCHECK_RUN_ON(&api_checker_);
+  settings = _requestedCapability;
 
   return 0;
 }
 }  // namespace videocapturemodule
 }  // namespace webrtc
+
+#ifdef ABGR32_OVERRIDE
+#undef ABGR32_OVERRIDE
+#undef V4L2_PIX_FMT_ABGR32
+#endif
+
+#ifdef ARGB32_OVERRIDE
+#undef ARGB32_OVERRIDE
+#undef V4L2_PIX_FMT_ARGB32
+#endif
+
+#ifdef RGBA32_OVERRIDE
+#undef RGBA32_OVERRIDE
+#undef V4L2_PIX_FMT_RGBA32
+#endif

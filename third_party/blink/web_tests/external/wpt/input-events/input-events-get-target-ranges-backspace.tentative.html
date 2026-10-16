@@ -584,7 +584,20 @@ promise_test(async (t) => {
   let def = p.lastChild;
   gSelection.collapse(def, 0);
   await sendBackspaceKey();
-  checkEditorContentResultAsSubTest("<p>abc def</p>", t.name);
+
+  // If the browser does not join `Text` nodes around <img>, it's fine to
+  // convert the preceding white-space to an NBSP.
+  if (
+    gEditor.querySelector("p")?.childNodes.length == 2 &&
+    gEditor.querySelector("p").childNodes[0].length == "abc ".length
+  ) {
+    checkEditorContentResultAsSubTest([
+      "<p>abc&nbsp;def</p>",
+      "<p>abc def</p>",
+    ], t.name);
+  } else {
+    checkEditorContentResultAsSubTest("<p>abc def</p>", t.name);
+  }
   checkGetTargetRangesOfBeforeinputOnDeleteSomething({
     startContainer: p,
     startOffset: 1,
@@ -602,7 +615,19 @@ promise_test(async (t) => {
   let def = p.lastChild;
   gSelection.collapse(def, 0);
   await sendBackspaceKey();
-  checkEditorContentResultAsSubTest("<p>abc def</p>", t.name);
+  // If the browser does not join `Text` nodes around <img>, it's fine to
+  // convert the preceding white-space to an NBSP.
+  if (
+    gEditor.querySelector("p")?.childNodes.length == 2 &&
+    gEditor.querySelector("p").childNodes[0].length == "abc".length
+  ) {
+    checkEditorContentResultAsSubTest([
+      "<p>abc&nbsp;def</p>",
+      "<p>abc def</p>",
+    ], t.name);
+  } else {
+    checkEditorContentResultAsSubTest("<p>abc def</p>", t.name);
+  }
   checkGetTargetRangesOfBeforeinputOnDeleteSomething({
     startContainer: p,
     startOffset: 1,
@@ -2061,5 +2086,71 @@ promise_test(async (t) => {
   });
   checkGetTargetRangesOfInputOnDeleteSomething();
 }, 'Meta + Backspace at "<p>   abc[] def</p>"');
+
+// If editing host is nested, editing in the nested one shouldn't cause
+// target ranges extended to outside of it.
+promise_test(async t => {
+  const innerHTML = "<div contenteditable=\"false\"><div contenteditable=\"\"><p><br></p></div></div>";
+  initializeTest(innerHTML);
+  const p = gEditor.querySelector("p");
+  const innerEditingHost = p.parentNode;
+  document.activeElement?.blur();
+  p.parentNode.focus();
+  gSelection.collapse(p, 0);
+  await sendBackspaceKey();
+  if (gEditor.innerHTML == innerHTML) {
+    checkGetTargetRangesOfBeforeinputOnDeleteSomething({
+      startContainer: p,
+      startOffset: 0,
+      endContainer: p,
+      endOffset: 0,
+    });
+    checkGetTargetRangesOfInputOnDoNothing();
+  } else {
+    checkEditorContentResultAsSubTest(
+      "<div contenteditable=\"false\"><div contenteditable=\"\"><br></div></div>",
+      t.name
+    );
+    checkGetTargetRangesOfBeforeinputOnDeleteSomething({
+      startContainer: innerEditingHost,
+      startOffset: 0,
+      endContainer: p,
+      endOffset: 1,
+    });
+    checkGetTargetRangesOfInputOnDeleteSomething();
+  }
+}, 'Backspace at "<div contenteditable="false"><div contenteditable=""><p>{}<br></p></div></div>');
+
+promise_test(async t => {
+  const innerHTML = "<div contenteditable=\"false\">\n  <div contenteditable=\"\"><p><br></p></div></div>";
+  initializeTest(innerHTML);
+  const p = gEditor.querySelector("p");
+  const innerEditingHost = p.parentNode;
+  document.activeElement?.blur();
+  p.parentNode.focus();
+  gSelection.collapse(p, 0);
+  await sendBackspaceKey();
+  if (gEditor.innerHTML == innerHTML) {
+    checkGetTargetRangesOfBeforeinputOnDeleteSomething({
+      startContainer: p,
+      startOffset: 0,
+      endContainer: p,
+      endOffset: 0,
+    });
+    checkGetTargetRangesOfInputOnDoNothing();
+  } else {
+    checkEditorContentResultAsSubTest(
+      "<div contenteditable=\"false\">\n  <div contenteditable=\"\"><br></div></div>",
+      t.name
+    );
+    checkGetTargetRangesOfBeforeinputOnDeleteSomething({
+      startContainer: innerEditingHost,
+      startOffset: 0,
+      endContainer: p,
+      endOffset: 1,
+    });
+    checkGetTargetRangesOfInputOnDeleteSomething();
+  }
+}, 'Backspace at "<div contenteditable="false">\n  <div contenteditable=""><p>{}<br></p></div></div>');
 
 </script>

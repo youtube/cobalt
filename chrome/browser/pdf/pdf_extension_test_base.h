@@ -5,11 +5,14 @@
 #ifndef CHROME_BROWSER_PDF_PDF_EXTENSION_TEST_BASE_H_
 #define CHROME_BROWSER_PDF_PDF_EXTENSION_TEST_BASE_H_
 
+#include <memory>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/extensions/extension_apitest.h"
+#include "chrome/browser/pdf/test_pdf_viewer_stream_manager.h"
 #include "components/guest_view/browser/test_guest_view_manager.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
@@ -22,10 +25,6 @@ class RenderFrameHost;
 class WebContents;
 }  // namespace content
 
-namespace extensions {
-class MimeHandlerViewGuest;
-}
-
 namespace gfx {
 class Point;
 }
@@ -33,6 +32,8 @@ class Point;
 class PDFExtensionTestBase : public extensions::ExtensionApiTest {
  public:
   PDFExtensionTestBase();
+
+  ~PDFExtensionTestBase() override;
 
   // extensions::ExtensionApiTest:
   void SetUpCommandLine(base::CommandLine* command_line) override;
@@ -52,40 +53,97 @@ class PDFExtensionTestBase : public extensions::ExtensionApiTest {
   // Same as LoadPDF(), but loads into a new tab.
   testing::AssertionResult LoadPdfInNewTab(const GURL& url);
 
-  // Same as LoadPdf(), but also returns a pointer to the `MimeHandlerViewGuest`
-  // for the loaded PDF. Returns nullptr if the load fails.
-  extensions::MimeHandlerViewGuest* LoadPdfGetMimeHandlerView(const GURL& url);
+  // Same as `LoadPdf()` but loads URLs where the first child of the primary
+  // main frame should be the embedder. This is a common case where an HTML page
+  // only embeds a single PDF. For GuestView PDF viewer, the embedder must be an
+  // embed element.
+  testing::AssertionResult LoadPdfInFirstChild(const GURL& url);
 
-  // Same as LoadPdf(), but also returns a pointer to the `MimeHandlerViewGuest`
-  // for the loaded PDF in a new tab. Returns nullptr if the load fails.
-  extensions::MimeHandlerViewGuest* LoadPdfInNewTabGetMimeHandlerView(
+  // Same as `LoadPdf()` but allows the PDF embedder host to have multiple
+  // subframes. There are special cases where this can occur, such as
+  // crbug.com/40671023.
+  testing::AssertionResult LoadPdfAllowMultipleFrames(const GURL& url);
+
+  // Same as `LoadPdf()`, but also returns a pointer to the extension host for
+  // the loaded PDF. Returns nullptr if the load fails or getting the extension
+  // host fails. The test will fail if the load fails.
+  content::RenderFrameHost* LoadPdfGetExtensionHost(const GURL& url);
+
+  // Same as `LoadPdfGetExtensionHost()`, but loads the PDF into a new tab.
+  content::RenderFrameHost* LoadPdfInNewTabGetExtensionHost(const GURL& url);
+
+  // Same as `LoadPdfInFirstChild()`, but also returns a pointer to the
+  // extension host for the loaded PDF. Returns nullptr if the load fails or
+  // getting the extension host fails. The test will fail if the load fails.
+  content::RenderFrameHost* LoadPdfInFirstChildGetExtensionHost(
       const GURL& url);
 
-  void TestGetSelectedTextReply(const GURL& url, bool expect_success);
+  // Test if a page embedding a PDF can get selected text in the PDF. The test
+  // will fail if the hook for sending flush messages for every getSelectedText
+  // message fails to attach to `extension_host`. The test will fail if the
+  // result of getting selected text does not match `expect_success`.
+  void TestGetSelectedTextReply(content::RenderFrameHost* extension_host,
+                                bool expect_success);
 
   content::WebContents* GetActiveWebContents();
 
+  // For OOPIF PDF viewer, returns the active `WebContents`, as there is only a
+  // single `WebContents`. For GuestView PDF viewer, returns the embedder
+  // `WebContents`.
+  content::WebContents* GetEmbedderWebContents();
+
  protected:
-  guest_view::TestGuestViewManager* GetGuestViewManager(
-      content::BrowserContext* profile = nullptr);
+  guest_view::TestGuestViewManager* GetGuestViewManager();
+  guest_view::TestGuestViewManager* GetGuestViewManagerForProfile(
+      content::BrowserContext* profile);
 
-  content::RenderFrameHost* GetPluginFrame(
-      extensions::MimeHandlerViewGuest* guest) const;
+  pdf::TestPdfViewerStreamManager* GetTestPdfViewerStreamManager(
+      content::WebContents* contents);
 
-  int CountPDFProcesses();
+  void CreateTestPdfViewerStreamManager(content::WebContents* contents);
 
-  void SimulateMouseClickAt(extensions::MimeHandlerViewGuest* guest,
+  content::RenderFrameHost* GetOnlyPdfExtensionHostEnsureValid();
+
+  int CountPDFProcesses() const;
+
+  // Checks if the full page PDF loaded. The test will fail if it does not meet
+  // the requirements of `ValidateFrameTree()`.
+  testing::AssertionResult EnsureFullPagePDFHasLoadedWithValidFrameTree(
+      content::WebContents* contents,
+      bool allow_multiple_frames);
+
+  // Check if the PDF loaded in the first child frame of `contents`. The test
+  // will fail if it does not meet the requirements of `ValidateFrameTree()`.
+  testing::AssertionResult EnsurePDFHasLoadedInFirstChildWithValidFrameTree(
+      content::WebContents* contents);
+
+  void SimulateMouseClickAt(content::RenderFrameHost* extension_host,
+                            content::WebContents* contents,
                             int modifiers,
                             blink::WebMouseEvent::Button button,
-                            const gfx::Point& point_in_guest);
+                            const gfx::Point& point_in_extension);
+
+  // Returns true if the test should use the OOPIF PDF viewer instead of the
+  // GuestView PDF viewer.
+  // TODO(crbug.com/40268279): Remove once only OOPIF PDF viewer is used.
+  virtual bool UseOopif() const;
 
   // Hooks to set up feature flags.
-  virtual std::vector<base::test::FeatureRef> GetEnabledFeatures() const;
+  virtual std::vector<base::test::FeatureRefAndParams> GetEnabledFeatures()
+      const;
   virtual std::vector<base::test::FeatureRef> GetDisabledFeatures() const;
 
  private:
+  // The test will fail if the frame tree does not have exactly one PDF
+  // extension host and one PDF content host. For GuestView PDF viewer, the test
+  // will also fail if there is not exactly one GuestView.
+  void ValidateFrameTree(content::WebContents* contents);
+
   base::test::ScopedFeatureList feature_list_;
-  guest_view::TestGuestViewManagerFactory factory_;
+  std::variant<std::monostate,
+               std::unique_ptr<guest_view::TestGuestViewManagerFactory>,
+               std::unique_ptr<pdf::TestPdfViewerStreamManagerFactory>>
+      factory_;
 };
 
 #endif  // CHROME_BROWSER_PDF_PDF_EXTENSION_TEST_BASE_H_

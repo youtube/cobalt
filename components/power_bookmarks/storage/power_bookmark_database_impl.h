@@ -6,6 +6,7 @@
 #define COMPONENTS_POWER_BOOKMARKS_STORAGE_POWER_BOOKMARK_DATABASE_IMPL_H_
 
 #include "base/files/file_path.h"
+#include "base/gtest_prod_util.h"
 #include "components/power_bookmarks/common/power.h"
 #include "components/power_bookmarks/common/power_overview.h"
 #include "components/power_bookmarks/storage/power_bookmark_database.h"
@@ -70,8 +71,8 @@ class PowerBookmarkDatabaseImpl : public PowerBookmarkDatabase {
   bool InitSchema();
   bool CreateSchema();
 
-  absl::optional<sync_pb::PowerBookmarkSpecifics> DeserializeOrDelete(
-      const std::string& data,
+  std::optional<sync_pb::PowerBookmarkSpecifics> DeserializeOrDelete(
+      std::string_view data,
       const base::Uuid& id);
 
   std::vector<std::string> GetGUIDsForURL(

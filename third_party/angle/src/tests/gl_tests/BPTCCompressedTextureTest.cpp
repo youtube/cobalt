@@ -155,7 +155,7 @@ TEST_P(BPTCCompressedTextureTest, CompressedTexImageBC6HNoCrash)
     setupTextureParameters(texture);
 
     // This fake pixel data represents a 4x4 pixel image.
-    // TODO(http://anglebug.com/2869): Add pixel tests for these formats. These need HDR source
+    // TODO(http://anglebug.com/40096529): Add pixel tests for these formats. These need HDR source
     // images.
     std::vector<GLubyte> data;
     data.resize(16u, 0u);
@@ -412,7 +412,7 @@ TEST_P(BPTCCompressedTextureTestES3, CompressedTexSubImage3DValidation)
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_texture_compression_bptc"));
 
     GLTexture texture;
-    glBindTexture(GL_TEXTURE_2D_ARRAY, texture.get());
+    glBindTexture(GL_TEXTURE_2D_ARRAY, texture);
 
     std::vector<GLubyte> data(16 * 2 * 2);  // 2x2x1 blocks, thats 8x8x1 pixels.
 

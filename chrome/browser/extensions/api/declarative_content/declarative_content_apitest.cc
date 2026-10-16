@@ -5,6 +5,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -15,6 +16,7 @@
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -31,8 +33,10 @@
 #include "extensions/browser/browsertest_util.h"
 #include "extensions/browser/extension_action.h"
 #include "extensions/browser/extension_action_manager.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
+#include "extensions/browser/rules_registry_ids.h"
 #include "extensions/browser/test_extension_registry_observer.h"
 #include "extensions/common/api/extension_action/action_info.h"
 #include "extensions/common/api/extension_action/action_info_test_util.h"
@@ -130,7 +134,7 @@ constexpr char kBackgroundHelpers[] =
          });
        };)";
 
-using ContextType = ExtensionBrowserTest::ContextType;
+using ContextType = extensions::browser_test_util::ContextType;
 
 class DeclarativeContentApiTest : public ExtensionApiTest {
  public:
@@ -194,7 +198,7 @@ void DeclarativeContentApiTest::CheckIncognito(IncognitoMode mode,
 
   EXPECT_FALSE(incognito_action->GetIsVisible(incognito_tab_id));
 
-  // TODO(https://crbug.com/1204390): Understand why these are EXPECT_FALSE.
+  // TODO(crbug.com/40764017): Understand why these are EXPECT_FALSE.
   EXPECT_FALSE(NavigateInRenderer(incognito_tab, GURL("http://test_split/")));
   if (mode == SPLIT) {
     EXPECT_EQ(is_enabled_in_incognito,
@@ -243,7 +247,7 @@ void DeclarativeContentApiTest::CheckBookmarkEvents(bool match_is_bookmarked) {
           ->GetExtensionAction(*extension);
   ASSERT_TRUE(action);
 
-  // TODO(https://crbug.com/1204390): Understand why these are EXPECT_FALSE.
+  // TODO(crbug.com/40764017): Understand why these are EXPECT_FALSE.
   EXPECT_FALSE(NavigateInRenderer(tab, GURL("http://test1/")));
   EXPECT_FALSE(action->GetIsVisible(tab_id));
 
@@ -257,7 +261,7 @@ void DeclarativeContentApiTest::CheckBookmarkEvents(bool match_is_bookmarked) {
             ExecuteScriptInBackgroundPage(
                 extension->id(),
                 base::StringPrintf(kSetIsBookmarkedRule,
-                                   match_is_bookmarked ? "true" : "false")));
+                                   base::ToString(match_is_bookmarked))));
   EXPECT_EQ(!match_is_bookmarked, action->GetIsVisible(tab_id));
 
   // Check rule evaluation on add/remove bookmark.
@@ -267,8 +271,8 @@ void DeclarativeContentApiTest::CheckBookmarkEvents(bool match_is_bookmarked) {
       bookmark_model->other_node(), 0, u"title", GURL("http://test1/"));
   EXPECT_EQ(match_is_bookmarked, action->GetIsVisible(tab_id));
 
-  bookmark_model->Remove(node,
-                         bookmarks::metrics::BookmarkEditSource::kExtension);
+  bookmark_model->Remove(
+      node, bookmarks::metrics::BookmarkEditSource::kExtension, FROM_HERE);
   EXPECT_EQ(!match_is_bookmarked, action->GetIsVisible(tab_id));
 
   // Check rule evaluation on navigate to bookmarked and non-bookmarked URL.
@@ -298,11 +302,12 @@ class DeclarativeContentApiTestWithContextType
 INSTANTIATE_TEST_SUITE_P(PersistentBackground,
                          DeclarativeContentApiTestWithContextType,
                          ::testing::Values(ContextType::kPersistentBackground));
+// These tests use page_action, which is unavailable in MV3.
 INSTANTIATE_TEST_SUITE_P(ServiceWorker,
                          DeclarativeContentApiTestWithContextType,
-                         ::testing::Values(ContextType::kServiceWorker));
+                         ::testing::Values(ContextType::kServiceWorkerMV2));
 
-// TODO(crbug.com/1425203): Convert this to run in both modes.
+// TODO(crbug.com/40260777): Convert this to run in both modes.
 IN_PROC_BROWSER_TEST_F(DeclarativeContentApiTest, Overview) {
   ext_dir_.WriteManifest(FormatManifest(SPANNING));
   ext_dir_.WriteFile(
@@ -344,7 +349,7 @@ IN_PROC_BROWSER_TEST_F(DeclarativeContentApiTest, Overview) {
   // actual update to the page action.
   ChromeExtensionTestNotificationObserver test_observer(browser());
 
-  // TODO(https://crbug.com/1204390): Understand why these are EXPECT_FALSE.
+  // TODO(crbug.com/40764017): Understand why these are EXPECT_FALSE.
   EXPECT_FALSE(NavigateInRenderer(tab, GURL("http://test1/")));
   // The declarative API should show the page action instantly, rather
   // than waiting for the extension to run.
@@ -358,7 +363,7 @@ IN_PROC_BROWSER_TEST_F(DeclarativeContentApiTest, Overview) {
 
   // Insert a password field to make sure that's noticed.
   // Notice that we touch offsetTop to force a synchronous layout.
-  ASSERT_TRUE(content::ExecuteScript(
+  ASSERT_TRUE(content::ExecJs(
       tab, R"(document.body.innerHTML = '<input type="password">';
               document.body.offsetTop;)"));
 
@@ -368,8 +373,7 @@ IN_PROC_BROWSER_TEST_F(DeclarativeContentApiTest, Overview) {
 
   // Remove it again to make sure that reverts the action.
   // Notice that we touch offsetTop to force a synchronous layout.
-  ASSERT_TRUE(
-      content::ExecuteScript(tab, R"(document.body.innerHTML = 'Hello world';
+  ASSERT_TRUE(content::ExecJs(tab, R"(document.body.innerHTML = 'Hello world';
                                      document.body.offsetTop;)"));
 
   test_observer.WaitForPageActionVisibilityChangeTo(0);
@@ -423,7 +427,7 @@ IN_PROC_BROWSER_TEST_P(DeclarativeContentApiTestWithContextType,
   const int tab_id = ExtensionTabUtil::GetTabId(tab);
 
   // This navigation matches both rules.
-  // TODO(https://crbug.com/1204390): Understand why this is EXPECT_FALSE.
+  // TODO(crbug.com/40764017): Understand why this is EXPECT_FALSE.
   EXPECT_FALSE(NavigateInRenderer(tab, GURL("http://test1/")));
 
   EXPECT_TRUE(action->GetIsVisible(tab_id));
@@ -445,7 +449,7 @@ IN_PROC_BROWSER_TEST_P(DeclarativeContentApiTestWithContextType,
       browser()->tab_strip_model()->GetWebContentsAt(0);
   const int tab_id = ExtensionTabUtil::GetTabId(tab);
 
-  // TODO(https://crbug.com/1204390): Understand why these are EXPECT_FALSE.
+  // TODO(crbug.com/40764017): Understand why these are EXPECT_FALSE.
   EXPECT_FALSE(NavigateInRenderer(tab, GURL("http://test1/")));
 
   const std::string kAddTestRules =
@@ -499,13 +503,13 @@ class ParameterizedShowActionDeclarativeContentApiTest
   ParameterizedShowActionDeclarativeContentApiTest& operator=(
       const ParameterizedShowActionDeclarativeContentApiTest&) = delete;
 
-  ~ParameterizedShowActionDeclarativeContentApiTest() override {}
+  ~ParameterizedShowActionDeclarativeContentApiTest() override = default;
 
-  void TestShowAction(absl::optional<ActionInfo::Type> action_type);
+  void TestShowAction(std::optional<ActionInfo::Type> action_type);
 };
 
 void ParameterizedShowActionDeclarativeContentApiTest::TestShowAction(
-    absl::optional<ActionInfo::Type> action_type) {
+    std::optional<ActionInfo::Type> action_type) {
   static constexpr char kManifestTemplate[] =
       R"({
            "name": "Declarative Content Show Action",
@@ -544,8 +548,9 @@ void ParameterizedShowActionDeclarativeContentApiTest::TestShowAction(
   ASSERT_TRUE(action);
 
   // Ensure actions are hidden (so that the ShowAction() rule has an effect).
-  if (action->default_state() == ActionInfo::STATE_DISABLED)
+  if (action->default_state() == ActionInfo::DefaultState::kDisabled) {
     action->SetIsVisible(ExtensionAction::kDefaultTabId, false);
+  }
 
   // Open the tab to invoke the APIs, as well as test the action visibility.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
@@ -569,7 +574,7 @@ void ParameterizedShowActionDeclarativeContentApiTest::TestShowAction(
   // browser actions, both of these should pass.
   EXPECT_THAT(result, testing::HasSubstr(kSuccessStr));
 
-  // TODO(https://crbug.com/1204390): Understand why this is EXPECT_FALSE.
+  // TODO(crbug.com/40764017): Understand why this is EXPECT_FALSE.
   EXPECT_FALSE(NavigateInRenderer(tab, GURL("http://test/")));
 
   const int tab_id = sessions::SessionTabHelper::IdForTab(tab).id();
@@ -577,30 +582,31 @@ void ParameterizedShowActionDeclarativeContentApiTest::TestShowAction(
 
   // If an extension had no action specified in the manifest, it will get a
   // synthesized page action.
-  ActionInfo::Type expected_type = action_type.value_or(ActionInfo::TYPE_PAGE);
+  ActionInfo::Type expected_type =
+      action_type.value_or(ActionInfo::Type::kPage);
   EXPECT_EQ(expected_type, action->action_type());
-  EXPECT_EQ(expected_type == ActionInfo::TYPE_PAGE ? 1u : 0u,
-            extension_action_test_util::GetVisiblePageActionCount(tab));
+  EXPECT_EQ(expected_type == ActionInfo::Type::kPage ? 1u : 0u,
+            extension_action_test_util::GetActivePageActionCount(tab));
 }
 
 IN_PROC_BROWSER_TEST_P(ParameterizedShowActionDeclarativeContentApiTest,
                        NoActionInManifest) {
-  TestShowAction(absl::nullopt);
+  TestShowAction(std::nullopt);
 }
 
 IN_PROC_BROWSER_TEST_P(ParameterizedShowActionDeclarativeContentApiTest,
                        PageActionInManifest) {
-  TestShowAction(ActionInfo::TYPE_PAGE);
+  TestShowAction(ActionInfo::Type::kPage);
 }
 
 IN_PROC_BROWSER_TEST_P(ParameterizedShowActionDeclarativeContentApiTest,
                        BrowserActionInManifest) {
-  TestShowAction(ActionInfo::TYPE_BROWSER);
+  TestShowAction(ActionInfo::Type::kBrowser);
 }
 
 IN_PROC_BROWSER_TEST_P(ParameterizedShowActionDeclarativeContentApiTest,
                        ActionInManifest) {
-  TestShowAction(ActionInfo::TYPE_ACTION);
+  TestShowAction(ActionInfo::Type::kAction);
 }
 
 // Tests that rules from manifest are added and evaluated properly.
@@ -636,7 +642,7 @@ IN_PROC_BROWSER_TEST_P(ParameterizedShowActionDeclarativeContentApiTest,
       browser()->tab_strip_model()->GetWebContentsAt(0);
   const int tab_id = ExtensionTabUtil::GetTabId(tab);
 
-  // TODO(https://crbug.com/1204390): Understand why these are EXPECT_FALSE.
+  // TODO(crbug.com/40764017): Understand why these are EXPECT_FALSE.
   EXPECT_FALSE(NavigateInRenderer(tab, GURL("http://blank/")));
   EXPECT_FALSE(action->GetIsVisible(tab_id));
   EXPECT_FALSE(NavigateInRenderer(tab, GURL("http://test1/")));
@@ -694,7 +700,7 @@ IN_PROC_BROWSER_TEST_P(DeclarativeContentApiTestWithContextType,
       incognito_browser->tab_strip_model()->GetWebContentsAt(0);
   const int incognito_tab_id = ExtensionTabUtil::GetTabId(incognito_tab);
 
-  // TODO(https://crbug.com/1204390): Understand why this is EXPECT_FALSE.
+  // TODO(crbug.com/40764017): Understand why this is EXPECT_FALSE.
   EXPECT_FALSE(NavigateInRenderer(incognito_tab, GURL("http://test_normal/")));
 
   ext_dir_.WriteManifest(FormatManifest(SPANNING));
@@ -718,8 +724,8 @@ IN_PROC_BROWSER_TEST_P(DeclarativeContentApiTestWithContextType,
 constexpr char kRulesExtensionName[] =
     "Declarative content persistence apitest";
 
-// TODO(crbug.com/512431): Flaky on Windows release builds and on LACROS.
-#if (BUILDFLAG(IS_WIN) && defined(NDEBUG)) || BUILDFLAG(IS_CHROMEOS_LACROS)
+// TODO(crbug.com/41189874): Flaky on Windows release builds.
+#if BUILDFLAG(IS_WIN) && defined(NDEBUG)
 #define MAYBE_PRE_RulesPersistence DISABLED_PRE_RulesPersistence
 #else
 #define MAYBE_PRE_RulesPersistence PRE_RulesPersistence
@@ -743,8 +749,8 @@ IN_PROC_BROWSER_TEST_P(DeclarativeContentApiTestWithContextType,
   ASSERT_TRUE(ready_split.WaitUntilSatisfied());
 }
 
-// TODO(crbug.com/512431): Flaky on Windows release builds and on LACROS.
-#if (BUILDFLAG(IS_WIN) && defined(NDEBUG)) || BUILDFLAG(IS_CHROMEOS_LACROS)
+// TODO(crbug.com/41189874): Flaky on Windows release builds.
+#if BUILDFLAG(IS_WIN) && defined(NDEBUG)
 #define MAYBE_RulesPersistence DISABLED_RulesPersistence
 #else
 #define MAYBE_RulesPersistence RulesPersistence
@@ -773,7 +779,7 @@ IN_PROC_BROWSER_TEST_P(DeclarativeContentApiTestWithContextType,
   ASSERT_TRUE(action);
   EXPECT_FALSE(action->GetIsVisible(tab_id));
 
-  // TODO(https://crbug.com/1204390): Understand why these are EXPECT_FALSE.
+  // TODO(crbug.com/40764017): Understand why these are EXPECT_FALSE.
   EXPECT_FALSE(NavigateInRenderer(tab, GURL("http://test_normal/")));
   test_observer.WaitForPageActionVisibilityChangeTo(1);
   EXPECT_TRUE(action->GetIsVisible(tab_id));
@@ -838,12 +844,12 @@ IN_PROC_BROWSER_TEST_P(DeclarativeContentApiTestWithContextType,
       browser()->tab_strip_model()->GetWebContentsAt(0);
   const int tab_id = ExtensionTabUtil::GetTabId(tab);
 
-  // TODO(https://crbug.com/1204390): Understand why these are EXPECT_FALSE.
+  // TODO(crbug.com/40764017): Understand why these are EXPECT_FALSE.
   EXPECT_FALSE(NavigateInRenderer(tab, GURL("http://test/")));
 
   EXPECT_TRUE(action->GetIsVisible(tab_id));
   EXPECT_TRUE(WaitForPageActionVisibilityChangeTo(1));
-  EXPECT_EQ(1u, extension_action_test_util::GetVisiblePageActionCount(tab));
+  EXPECT_EQ(1u, extension_action_test_util::GetActivePageActionCount(tab));
   EXPECT_EQ(1u, extension_action_test_util::GetTotalPageActionCount(tab));
 
   ExtensionTestMessageListener reload_ready_listener("ready");
@@ -856,7 +862,7 @@ IN_PROC_BROWSER_TEST_P(DeclarativeContentApiTestWithContextType,
   // navigation.
   EXPECT_FALSE(NavigateInRenderer(tab, GURL("http://test/")));
   EXPECT_TRUE(WaitForPageActionVisibilityChangeTo(1));
-  EXPECT_EQ(1u, extension_action_test_util::GetVisiblePageActionCount(tab));
+  EXPECT_EQ(1u, extension_action_test_util::GetActivePageActionCount(tab));
   EXPECT_EQ(1u, extension_action_test_util::GetTotalPageActionCount(tab));
 
   UnloadExtension(extension_id);
@@ -864,12 +870,12 @@ IN_PROC_BROWSER_TEST_P(DeclarativeContentApiTestWithContextType,
   profile()->GetDefaultStoragePartition()->FlushNetworkInterfaceForTesting();
   EXPECT_FALSE(NavigateInRenderer(tab, GURL("http://test/")));
   EXPECT_TRUE(WaitForPageActionVisibilityChangeTo(0));
-  EXPECT_EQ(0u, extension_action_test_util::GetVisiblePageActionCount(tab));
+  EXPECT_EQ(0u, extension_action_test_util::GetActivePageActionCount(tab));
   EXPECT_EQ(0u, extension_action_test_util::GetTotalPageActionCount(tab));
 }
 
 // This tests against a renderer crash that was present during development.
-// TODO(crbug.com/1425203): Convert this to run in both modes.
+// TODO(crbug.com/40260777): Convert this to run in both modes.
 IN_PROC_BROWSER_TEST_F(DeclarativeContentApiTest,
                        AddExtensionMatchingExistingTabWithDeadFrames) {
   ext_dir_.WriteManifest(FormatManifest(SPANNING));
@@ -878,10 +884,10 @@ IN_PROC_BROWSER_TEST_F(DeclarativeContentApiTest,
       browser()->tab_strip_model()->GetWebContentsAt(0);
   const int tab_id = ExtensionTabUtil::GetTabId(tab);
 
-  ASSERT_TRUE(content::ExecuteScript(
+  ASSERT_TRUE(content::ExecJs(
       tab, R"(document.body.innerHTML = '<iframe src="http://test2">';)"));
   // Replace the iframe to destroy its WebFrame.
-  ASSERT_TRUE(content::ExecuteScript(
+  ASSERT_TRUE(content::ExecJs(
       tab, R"(document.body.innerHTML = '<span class="foo">';)"));
 
   // Observer to track page action visibility. This helps avoid flakes by
@@ -920,7 +926,7 @@ IN_PROC_BROWSER_TEST_F(DeclarativeContentApiTest,
   EXPECT_FALSE(action->GetIsVisible(tab_id));
 }
 
-// TODO(crbug.com/1425203): Convert this to run in both modes.
+// TODO(crbug.com/40260777): Convert this to run in both modes.
 IN_PROC_BROWSER_TEST_F(DeclarativeContentApiTest,
                        CanonicalizesPageStateMatcherCss) {
   ext_dir_.WriteManifest(FormatManifest(SPANNING));
@@ -1070,7 +1076,7 @@ IN_PROC_BROWSER_TEST_P(DeclarativeContentApiTestWithContextType,
   // tab.
   browser()->tab_strip_model()->DetachAndDeleteWebContentsAt(
       browser()->tab_strip_model()->GetIndexOfWebContents(tab2));
-  // TODO(https://crbug.com/1204390): Understand why this is EXPECT_FALSE.
+  // TODO(crbug.com/40764017): Understand why this is EXPECT_FALSE.
   EXPECT_FALSE(NavigateInRenderer(tab1, GURL("http://test1/")));
   EXPECT_TRUE(action->GetIsVisible(ExtensionTabUtil::GetTabId(tab1)));
 }
@@ -1094,14 +1100,10 @@ IN_PROC_BROWSER_TEST_P(DeclarativeContentApiTestWithContextType,
   EXPECT_EQ("add_rule",
             ExecuteScriptInBackgroundPage(extension->id(), kAddTestRule));
 
-  ExtensionService* extension_service = extensions::ExtensionSystem::Get(
-      browser()->profile())->extension_service();
-
   std::u16string error;
-  ASSERT_TRUE(extension_service->UninstallExtension(
-      extension->id(),
-      UNINSTALL_REASON_FOR_TESTING,
-      &error));
+  ASSERT_TRUE(extensions::ExtensionRegistrar::Get(browser()->profile())
+                  ->UninstallExtension(extension->id(),
+                                       UNINSTALL_REASON_FOR_TESTING, &error));
   ASSERT_EQ(u"", error);
 
   // Reload the extension, then add and remove a rule.
@@ -1159,7 +1161,7 @@ IN_PROC_BROWSER_TEST_P(DeclarativeContentApiTestWithContextType,
       extensions::RulesRegistryService::Get(browser()->profile());
   scoped_refptr<RulesRegistry> rules_registry =
       rules_registry_service->GetRulesRegistry(
-          RulesRegistryService::kDefaultRulesRegistryID,
+          rules_registry_ids::kDefaultRulesRegistryID,
           "declarativeContent.onPageChanged");
   DCHECK(rules_registry);
 

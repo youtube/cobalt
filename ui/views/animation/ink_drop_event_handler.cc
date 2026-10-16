@@ -5,6 +5,7 @@
 #include "ui/views/animation/ink_drop_event_handler.h"
 
 #include <memory>
+#include <string_view>
 
 #include "build/build_config.h"
 #include "ui/events/scoped_target_handler.h"
@@ -54,8 +55,9 @@ void InkDropEventHandler::AnimateToState(InkDropState state,
   // state the transition have no visual effect. The call to GetInkDrop() will
   // lazily create the ink drop when called. Avoid creating the ink drop in
   // these cases to prevent the creation of unnecessary layers.
-  if (delegate_->HasInkDrop() || InkDropStateIsVisible(state))
+  if (delegate_->HasInkDrop() || InkDropStateIsVisible(state)) {
     delegate_->GetInkDrop()->AnimateToState(state);
+  }
 }
 
 ui::LocatedEvent* InkDropEventHandler::GetLastRippleTriggeringEvent() const {
@@ -63,35 +65,36 @@ ui::LocatedEvent* InkDropEventHandler::GetLastRippleTriggeringEvent() const {
 }
 
 void InkDropEventHandler::OnGestureEvent(ui::GestureEvent* event) {
-  if (!host_view_->GetEnabled() || !delegate_->SupportsGestureEvents())
+  if (!host_view_->GetEnabled() || !delegate_->SupportsGestureEvents()) {
     return;
+  }
 
   InkDropState current_ink_drop_state =
       delegate_->GetInkDrop()->GetTargetInkDropState();
 
   InkDropState ink_drop_state = InkDropState::HIDDEN;
   switch (event->type()) {
-    case ui::ET_GESTURE_TAP_DOWN:
-      if (current_ink_drop_state == InkDropState::ACTIVATED)
+    case ui::EventType::kGestureTapDown:
+      if (current_ink_drop_state == InkDropState::ACTIVATED) {
         return;
+      }
       ink_drop_state = InkDropState::ACTION_PENDING;
-      // The ui::ET_GESTURE_TAP_DOWN event needs to be marked as handled so
-      // that subsequent events for the gesture are sent to |this|.
-      event->SetHandled();
       break;
-    case ui::ET_GESTURE_LONG_PRESS:
-      if (current_ink_drop_state == InkDropState::ACTIVATED)
+    case ui::EventType::kGestureLongPress:
+      if (current_ink_drop_state == InkDropState::ACTIVATED) {
         return;
+      }
       ink_drop_state = InkDropState::ALTERNATE_ACTION_PENDING;
       break;
-    case ui::ET_GESTURE_LONG_TAP:
+    case ui::EventType::kGestureLongTap:
       ink_drop_state = InkDropState::ALTERNATE_ACTION_TRIGGERED;
       break;
-    case ui::ET_GESTURE_END:
-    case ui::ET_GESTURE_SCROLL_BEGIN:
-    case ui::ET_GESTURE_TAP_CANCEL:
-      if (current_ink_drop_state == InkDropState::ACTIVATED)
+    case ui::EventType::kGestureEnd:
+    case ui::EventType::kGestureScrollBegin:
+    case ui::EventType::kGestureTapCancel:
+      if (current_ink_drop_state == InkDropState::ACTIVATED) {
         return;
+      }
       ink_drop_state = InkDropState::HIDDEN;
       break;
     default:
@@ -113,13 +116,13 @@ void InkDropEventHandler::OnGestureEvent(ui::GestureEvent* event) {
 
 void InkDropEventHandler::OnMouseEvent(ui::MouseEvent* event) {
   switch (event->type()) {
-    case ui::ET_MOUSE_ENTERED:
+    case ui::EventType::kMouseEntered:
       delegate_->GetInkDrop()->SetHovered(true);
       break;
-    case ui::ET_MOUSE_EXITED:
+    case ui::EventType::kMouseExited:
       delegate_->GetInkDrop()->SetHovered(false);
       break;
-    case ui::ET_MOUSE_DRAGGED:
+    case ui::EventType::kMouseDragged:
       delegate_->GetInkDrop()->SetHovered(
           host_view_->GetLocalBounds().Contains(event->location()));
       break;
@@ -128,7 +131,7 @@ void InkDropEventHandler::OnMouseEvent(ui::MouseEvent* event) {
   }
 }
 
-base::StringPiece InkDropEventHandler::GetLogContext() const {
+std::string_view InkDropEventHandler::GetLogContext() const {
   return "InkDropEventHandler";
 }
 
@@ -161,8 +164,9 @@ void InkDropEventHandler::OnViewHierarchyChanged(
 
 void InkDropEventHandler::OnViewBoundsChanged(View* observed_view) {
   DCHECK_EQ(host_view_, observed_view);
-  if (delegate_->HasInkDrop())
+  if (delegate_->HasInkDrop()) {
     delegate_->GetInkDrop()->HostSizeChanged(host_view_->size());
+  }
 }
 
 void InkDropEventHandler::OnViewFocused(View* observed_view) {
@@ -173,6 +177,15 @@ void InkDropEventHandler::OnViewFocused(View* observed_view) {
 void InkDropEventHandler::OnViewBlurred(View* observed_view) {
   DCHECK_EQ(host_view_, observed_view);
   delegate_->GetInkDrop()->SetFocused(false);
+}
+
+void InkDropEventHandler::OnViewThemeChanged(View* observed_view) {
+  CHECK_EQ(host_view_, observed_view);
+  // The call to GetInkDrop() will lazily create the ink drop when called. We do
+  // not want to create the ink drop when view theme changed.
+  if (delegate_->HasInkDrop()) {
+    delegate_->GetInkDrop()->HostViewThemeChanged();
+  }
 }
 
 }  // namespace views

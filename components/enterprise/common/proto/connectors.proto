@@ -4,9 +4,9 @@
 
 syntax = "proto2";
 
-option optimize_for = LITE_RUNTIME;
-
 package enterprise_connectors;
+
+option optimize_for = LITE_RUNTIME;
 
 // For ClientDownloadRequest.
 import "components/safe_browsing/core/common/proto/csd.proto";
@@ -71,6 +71,36 @@ message ContentMetaData {
     optional PrinterType printer_type = 2;
   }
   optional PrintMetadata print_metadata = 11;
+
+  // Password for an encrypted archive.
+  optional bytes decryption_key = 12;
+
+  // Contains copied text source details for text paste event.
+  message CopiedTextSource {
+    // Holds URL from where data was copied.
+    optional string url = 1;
+
+    enum CopiedTextSourceType {
+      UNSPECIFIED = 0;
+      INCOGNITO = 1;
+      CLIPBOARD = 2;
+      OTHER_PROFILE = 3;
+      SAME_PROFILE = 4;
+    }
+    // Holds Chrome context of copied data.
+    optional CopiedTextSourceType context = 2;
+  }
+  optional CopiedTextSource copied_text_source = 13;
+
+  repeated safe_browsing.ReferrerChainEntry referrer_chain = 14;
+
+  // The email of the currently active user in the content area. Only populated
+  // for Workspace sites.
+  optional string content_area_account_email = 15;
+
+  // The parent URL chain of the frame from which the action was triggered,
+  // ordered from current frame URL to tab URL, inclusive.
+  repeated string frame_url_chain = 16;
 }
 
 message ClientMetadata {
@@ -82,7 +112,7 @@ message ClientMetadata {
 
     // This is omitted on scans triggered at the profile level.
     optional string machine_user = 4;
-  };
+  }
   optional Browser browser = 1;
 
   // Describes the device uploading a scan request. This is omitted on scans
@@ -93,7 +123,9 @@ message ClientMetadata {
     optional string os_version = 3;
     optional string os_platform = 4;
     optional string name = 5;
-  };
+    optional string device_fqdn = 6;
+    optional string network_name = 7;
+  }
   optional Device device = 2;
 
   // Describes the profile uploading a scan request.
@@ -103,21 +135,26 @@ message ClientMetadata {
     optional string profile_path = 3;
     optional string profile_name = 4;
     optional string client_id = 5;
-  };
+
+    reserved 6;
+  }
   optional Profile profile = 3;
-};
+
+  // True if the request comes from a Managed Guest Session on ChromeOS. False
+  // in all other cases.
+  optional bool is_chrome_os_managed_guest_session = 4;
+}
 
 // Analysis request sent from chrome to backend.
 // The proto here is the source of truth; the copy in the LCAC Github repo
-// should always be in sync with it (https://github.com/chromium/content_analysis_sdk/blob/main/proto/content_analysis/sdk/analysis.proto)
+// should always be in sync with it
+// (https://github.com/chromium/content_analysis_sdk/blob/main/proto/content_analysis/sdk/analysis.proto)
 message ContentAnalysisRequest {
   // The TokenID for Enterprise-enrolled devices.  This identifies a specific
   // chrome instance.
   optional string device_token = 1;
 
-  // Firebase Cloud Messaging token used to notify this client of the verdict.
-  // This identifies a specific chrome instance.
-  optional string fcm_notification_token = 2;
+  reserved 2;
 
   // Token used to correlate requests and responses. This is different than the
   // FCM token in that it is unique for each request.
@@ -158,6 +195,42 @@ message ContentAnalysisRequest {
   // Count of analysis requests that belong to the same user action.
   optional int64 user_action_requests_count = 17;
 
+  // Indicates the exact reason the request was created, ie which user action
+  // led to a data transfer.
+  enum Reason {
+    UNKNOWN = 0;
+
+    // Only possible for the `FILE_ATTACHED` and `BULK_DATA_ENTRY` actions.
+    CLIPBOARD_PASTE = 1;
+    DRAG_AND_DROP = 2;
+
+    // Only possible for the `FILE_ATTACHED` action.
+    FILE_PICKER_DIALOG = 3;
+
+    // Only possible for the `PRINT` analysis connector.
+    PRINT_PREVIEW_PRINT = 4;
+    SYSTEM_DIALOG_PRINT = 5;
+
+    // Only possible for the `FILE_DOWNLOADED` analysis connector.
+    NORMAL_DOWNLOAD = 6;
+    SAVE_AS_DOWNLOAD = 7;
+  }
+  optional Reason reason = 19;
+
+  // Indicates whether request is blocking until verdict given.
+  optional bool blocking = 20;
+
+  // Indicates whether the request requires a metadata verdict (applicable to
+  // resumable metadata request only).
+  //
+  // The field is set to true when Chrome sends the metadata of files larger
+  // than 50MB or encrypted, because it expects a block or allow verdict from
+  // WebProtect right away, and cannot upload full content.
+  optional bool require_metadata_verdict = 21;
+
+  // Local IP addresses of the device.
+  repeated string local_ips = 22;
+
   // Reserved to make sure there is no overlap with DeepScanningClientRequest.
   reserved 3, 4, 6 to 8;
 }
@@ -181,6 +254,8 @@ message ContentAnalysisResponse {
     optional Status status = 2;
 
     message CustomMessage {
+      option deprecated = true;
+
       // An admin-provided url that should lead to a page where the user can
       // learn more about the restrictions in place in their organization.
       optional string learn_more_url = 1;
@@ -202,27 +277,57 @@ message ContentAnalysisResponse {
       optional Action action = 1;
       optional string rule_name = 2;
       optional string rule_id = 3;
+
+      // This represents text segment in a custom message defined for DLP
+      // rule. For ex: “Please learn more (here)[link] and (here)[link]"
+      // is broken into 4 segments.
+      message CustomRuleMessageSegment {
+        // Required. Text to be displayed in this segment.
+        optional string text = 1;
+
+        // Optional. Link to external resource, such as a company's
+        // communication policy. This is supposed to be hyperlink on text
+        // field above.
+        optional string link = 2;
+      }
+
+      // This represents the custom rule message defined by admins to be shown
+      // to users if the rule is triggered.
+      message CustomRuleMessage {
+        // Ordered list of text segments comprised of plain text and URLs. These
+        // combined represent the custom rule message.
+        repeated CustomRuleMessageSegment message_segments = 1;
+      }
+
       // This field contains a custom message that is specific to the rules
       // triggered by this scan, if any. This messages can be shown in addition
       // to the OU-based message found in the client-side policy or at the
       // top-level of the Result message.
-      optional CustomMessage custom_message = 4;
+      optional CustomMessage custom_message = 4 [deprecated = true];
       // Matched URL Category of the URL.
       optional string url_category = 5;
+
+      // If provided, this field contains a custom message that should be
+      // displayed instead of the default one. This is set by admins in Rule
+      // definition UI. This is set by admins in Rule definition UI.
+      optional CustomRuleMessage custom_rule_message = 6;
     }
     repeated TriggeredRule triggered_rules = 3;
+
+    reserved 4, 5, 6;
 
     // This field is meant to override the OU-based custom messages set in the
     // client-side policies. When the result requires a
     // warning, if this field has a value it's the one that will be displayed to
     // the user, otherwise the client-side policy's custom message will be used.
-    optional CustomMessage custom_message = 7;
+    // TODO(b/316008309): Cleanup code once new custom message rolled out.
+    optional CustomMessage custom_message = 7 [deprecated = true];
 
-    // TODO(crbug.com/1147036): Remove fields 4-6 once a definitive approach is
-    // agreed upon.
-    optional string malware_family = 4;
-    optional string malware_category = 5;
-    optional string evidence_locker_filepath = 6;
+    enum StatusErrorMessage {
+      STATUS_ERROR_MESSAGE_UNSPECIFIED = 0;
+      DECRYPTION_FAILED = 1;
+    }
+    optional StatusErrorMessage status_error_message = 8;
   }
   repeated Result results = 4;
 
@@ -247,7 +352,7 @@ message ContentAnalysisAcknowledgement {
     // The response from the agent was too late and Google Chrome took the
     // default action.
     TOO_LATE = 3;
-  };
+  }
   optional Status status = 2;
 
   // The final action that chrome took with this request.  This may be different
@@ -260,6 +365,6 @@ message ContentAnalysisAcknowledgement {
     REPORT_ONLY = 2;
     WARN = 3;
     BLOCK = 4;
-  };
+  }
   optional FinalAction final_action = 3;
 }

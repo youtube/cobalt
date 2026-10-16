@@ -4,10 +4,11 @@
 
 #include "components/domain_reliability/config.h"
 
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "base/json/json_reader.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/url_constants.h"
 
 namespace {
@@ -43,12 +44,12 @@ DomainReliabilityConfig::DomainReliabilityConfig()
       success_sample_rate(-1.0),
       failure_sample_rate(-1.0) {
 }
-DomainReliabilityConfig::~DomainReliabilityConfig() {}
+DomainReliabilityConfig::~DomainReliabilityConfig() = default;
 
 // static
 std::unique_ptr<const DomainReliabilityConfig>
-DomainReliabilityConfig::FromJSON(const base::StringPiece& json) {
-  absl::optional<base::Value> value = base::JSONReader::Read(json);
+DomainReliabilityConfig::FromJSON(std::string_view json) {
+  std::optional<base::Value> value = base::JSONReader::Read(json);
   if (!value)
     return nullptr;
 

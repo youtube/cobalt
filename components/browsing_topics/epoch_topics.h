@@ -6,6 +6,7 @@
 #define COMPONENTS_BROWSING_TOPICS_EPOCH_TOPICS_H_
 
 #include "base/time/time.h"
+#include "base/timer/wall_clock_timer.h"
 #include "base/values.h"
 #include "components/browsing_topics/candidate_topic.h"
 #include "components/browsing_topics/topic_and_domains.h"
@@ -19,14 +20,23 @@ namespace browsing_topics {
 // document.browsingTopics().
 class EpochTopics {
  public:
+  // Construct topics as the result of a failed calculation. It's given a null
+  // `calculator_result_status_`, implying that this is read from prefs upon
+  // browser restart.
   explicit EpochTopics(base::Time calculation_time);
 
+  // Construct topics as the result of a failed calculation.
+  EpochTopics(base::Time calculation_time,
+              CalculatorResultStatus calculator_result_status);
+
+  // Construct topics as the result of a successful calculation.
   EpochTopics(std::vector<TopicAndDomains> top_topics_and_observing_domains,
               size_t padded_top_topics_start_index,
-              size_t taxonomy_size,
+              int config_version,
               int taxonomy_version,
               int64_t model_version,
-              base::Time calculation_time);
+              base::Time calculation_time,
+              bool from_manually_triggered_calculation);
 
   EpochTopics(const EpochTopics&) = delete;
   EpochTopics& operator=(const EpochTopics&) = delete;
@@ -65,9 +75,18 @@ class EpochTopics {
   // descended from `topic`.
   void ClearTopic(Topic topic);
 
-  // Clear the domains in `top_topics_and_observing_domains_`  that match
+  // Clear the domains in `top_topics_and_observing_domains_` that match
   // `hashed_context_domain`.
   void ClearContextDomain(const HashedDomain& hashed_context_domain);
+
+  // Schedule `on_expiration_callback` to be executed after
+  // `kBrowsingTopicsEpochRetentionDuration` has elapsed since
+  // `calculation_time_`.
+  void ScheduleExpiration(base::OnceClosure on_expiration_callback);
+
+  bool HasValidVersions() const {
+    return config_version_ > 0 && taxonomy_version_ > 0 && model_version_ > 0;
+  }
 
   const std::vector<TopicAndDomains>& top_topics_and_observing_domains() const {
     return top_topics_and_observing_domains_;
@@ -77,7 +96,7 @@ class EpochTopics {
     return padded_top_topics_start_index_;
   }
 
-  size_t taxonomy_size() const { return taxonomy_size_; }
+  int config_version() const { return config_version_; }
 
   int taxonomy_version() const { return taxonomy_version_; }
 
@@ -85,16 +104,16 @@ class EpochTopics {
 
   base::Time calculation_time() const { return calculation_time_; }
 
- private:
-  absl::optional<Topic> TopicForSiteHelper(
-      const std::string& top_domain,
-      bool need_filtering,
-      bool allow_random_or_padded_topic,
-      const HashedDomain& hashed_context_domain,
-      ReadOnlyHmacKey hmac_key,
-      bool& output_is_true_topic,
-      bool& candidate_topic_filtered) const;
+  bool from_manually_triggered_calculation() const {
+    return from_manually_triggered_calculation_;
+  }
 
+  const std::optional<CalculatorResultStatus>& calculator_result_status()
+      const {
+    return calculator_result_status_;
+  }
+
+ private:
   // The top topics for this epoch, and the context domains that observed each
   // topic across
   // `kBrowsingTopicsNumberOfEpochsOfObservationDataToUseForFiltering` epochs.
@@ -112,8 +131,9 @@ class EpochTopics {
   // `top_topics_and_observing_domains_.size()`.
   size_t padded_top_topics_start_index_ = 0;
 
-  // The size of the taxonomy applicable to this epoch's topics.
-  size_t taxonomy_size_ = 0;
+  // The version of the configuration (other than taxonomy and model) applicable
+  // to this epoch's topics.
+  int config_version_ = 0;
 
   // The version of the taxonomy applicable to this epoch's topics.
   int taxonomy_version_ = 0;
@@ -127,6 +147,20 @@ class EpochTopics {
   // failed calculation, as historically this field is only set for successful
   // calculations.
   base::Time calculation_time_;
+
+  // Whether the topic calculation was manually triggered via the UI. It is used
+  // to distinguish manual calculations from scheduled calculations so that
+  // topics calculated via the UI can be immediately visible to the tester,
+  // instead of being visible only after a caller-dependant delay. The value
+  // does not persist after restarting the browser (it is not saved).
+  bool from_manually_triggered_calculation_ = false;
+
+  // The timer to to fire when this epoch expires.
+  std::unique_ptr<base::WallClockTimer> expiration_timer_;
+
+  // The calculation result (success / failure with reason). The failure status
+  // does not persist after restarting the browser (it is not saved).
+  std::optional<CalculatorResultStatus> calculator_result_status_;
 };
 
 }  // namespace browsing_topics

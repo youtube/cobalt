@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_BINDINGS_SOURCE_LOCATION_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_BINDINGS_SOURCE_LOCATION_H_
 
-#include <v8-inspector-protocol.h>
 #include <memory>
 
 #include "third_party/blink/renderer/platform/platform_export.h"
@@ -13,6 +12,7 @@
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value_forward.h"
+#include "v8/include/v8-inspector.h"
 
 namespace perfetto::protos::pbzero {
 class BlinkSourceLocation;
@@ -43,6 +43,13 @@ class PLATFORM_EXPORT SourceLocation {
   static std::unique_ptr<SourceLocation> CreateFromNonEmptyV8StackTraceInternal(
       std::unique_ptr<v8_inspector::V8StackTrace>);
 
+  SourceLocation(const String& url, int char_position);
+
+  SourceLocation(const String& url,
+                 int char_position,
+                 unsigned line_number,
+                 unsigned column_number);
+
   SourceLocation(const String& url,
                  const String& function,
                  unsigned line_number,
@@ -58,6 +65,7 @@ class PLATFORM_EXPORT SourceLocation {
   const String& Function() const { return function_; }
   unsigned LineNumber() const { return line_number_; }
   unsigned ColumnNumber() const { return column_number_; }
+  int CharPosition() const { return char_position_; }
   int ScriptId() const { return script_id_; }
   std::unique_ptr<v8_inspector::V8StackTrace> TakeStackTrace() {
     return std::move(stack_trace_);
@@ -96,6 +104,7 @@ class PLATFORM_EXPORT SourceLocation {
   String function_;
   unsigned line_number_;
   unsigned column_number_;
+  int char_position_;
   std::unique_ptr<v8_inspector::V8StackTrace> stack_trace_;
   int script_id_;
 };
@@ -115,6 +124,7 @@ PLATFORM_EXPORT std::unique_ptr<SourceLocation> CaptureSourceLocation();
 
 // Captures current stack trace from function.
 PLATFORM_EXPORT std::unique_ptr<SourceLocation> CaptureSourceLocation(
+    v8::Isolate* isolate,
     v8::Local<v8::Function>);
 
 }  // namespace blink

@@ -10,18 +10,11 @@ inputs:
   test_targets_json_file:
     description: "The path to the file the test targets are written to."
     required: true
-  upload_on_host_test_artifacts:
-    description: "Indicates if on-host test artifacts should be uploaded."
-    required: true
-  upload_on_device_test_artifacts:
-    description: "Indicates if on-device test artifacts should be uploaded."
-    required: true
-  upload_web_test_artifacts:
-    description: "Indicates if web test artifacts should be uploaded."
-    required: true
-  test_artifacts_key:
-    description: "Artifact key used to store on-host test artifacts."
-    required: true
+  enable_sccache:
+    description: Use sccache for build acceleration.
+    default: 'false'
+  sccache_gcs_key:
+    description: GCS SA key to read/write to bucket
 outputs:
   built:
     description: "Set to true when the platform build was not skipped."
@@ -29,24 +22,52 @@ outputs:
 runs:
   using: "composite"
   steps:
-      - name: GN gen
+      - name: Clean out dir from previous runner
         run: |
-          cd src
-          cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }}
+          rm -rf cobalt/src/out
         shell: bash
-      - name: List GN args
+      - name: Install sccache
+        if: inputs.enable_sccache == 'true'
+        uses: ./.github/actions/sccache
+        with:
+          sccache_gcs_key: ${{ inputs.sccache_gcs_key }}
+      - name: GN gen
+        env:
+          ENABLE_SCCACHE: ${{ inputs.enable_sccache }}
+          PLATFORM: ${{ matrix.platform }}
+          CONFIG: ${{ matrix.config }}
+        working-directory: cobalt/src
         run: |
-          cd src
-          gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
+          gn_flags=()
+          if [[ "${PLATFORM}" == *"tvos"* ]]; then
+            # TvOS does not use RBE unless it's sccache
+            gn_flags+=(--no-rbe)
+          fi
+          if [[ "${ENABLE_SCCACHE}" == "true" ]]; then
+            gn_flags+=(--use-sccache)
+          fi
+          cobalt/build/gn.py -p "${PLATFORM}" -C "${CONFIG}" "${gn_flags[@]}"
+        shell: bash
+      - name: Configure Siso Credential Helper
+        shell: bash
+        run: |
+          echo "SISO_CREDENTIAL_HELPER=gcloud" >> "${GITHUB_ENV}"
+      - name: List GN args
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          CONFIG: ${{ matrix.config }}
+        working-directory: cobalt/src
+        run: |
+          gn args --list --short --overrides-only out/"${PLATFORM}_${CONFIG}"
         shell: bash
       - name: Get list of changed files
         if: github.event_name == 'pull_request'
         id: changed-files
         env:
           CHANGED_FILES_LIST: changed_files.txt
+        working-directory: cobalt/src
         run: |
           set -x
-          cd src
           # GitHub's actions/checkout action, by default, checks out the merge commit when
           # a pull request event triggers a workflow. This merge commit represents the state
           # of the code as if the pull request had been merged into the base branch.
@@ -57,10 +78,10 @@ runs:
         shell: bash
       - name: Check platform inputs
         id: check-inputs
+        working-directory: cobalt/src
         shell: bash
         run: |
           set -ex
-          cd src
           skip="false"
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             skip=$(python3 cobalt/build/filter_platform.py \
@@ -71,111 +92,76 @@ runs:
           fi
           if [[ "${skip}" == "false" ]]; then echo "built=true" >> $GITHUB_OUTPUT; fi
       - name: Calculate test targets
-        if: steps.check-inputs.outputs.built == 'true' && matrix.config == 'devel' && (inputs.test_root_target != 'null' || inputs.upload_web_test_artifacts == 'true')
+        # TODO(b/382508397): Ignore test_root_target until test target listing is dynamic.
+        if: steps.check-inputs.outputs.built == 'true' && matrix.config == 'devel' # && inputs.test_root_target != 'null'
         id: calculate-test-targets
         env:
           CHANGED_FILES_LIST: changed_files.txt
           ROOT_TARGET: ${{ inputs.test_root_target }}
-          IS_WEB_TESTS: ${{ inputs.upload_web_test_artifacts }}
           STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
           # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
           DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
+          TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+        working-directory: cobalt/src
         run: |
           set -x
-          cd src
+
+          if [[ ! -f "${STATIC_TEST_TARGETS_JSON_FILE}" ]]; then
+            echo "Static test targets file not found at ${STATIC_TEST_TARGETS_JSON_FILE}. Skipping step."
+            echo "test_targets_count=0" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
 
           # TODO: b/382508397 - Currently, override with static test targets
-          cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${{ inputs.test_targets_json_file }}"
+          cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${TEST_TARGETS_JSON_FILE}"
 
-          # gn desc out/${{ matrix.platform }}_${{ matrix.config }}/ "*" --format=json > gn_desc.json
-          # # Trim any warning gn printed before the json (all lines above the first curly brace).
-          # sed -n '/^{/,$p' -i gn_desc.json
+          test_targets_json=$(jq -cr '[.[] | select(.target != null) | .target]' "${TEST_TARGETS_JSON_FILE}")
+          echo "test_targets_json=${test_targets_json}" >> "${GITHUB_OUTPUT}"
 
-          # changed_files_arg=""
-
-          # TODO(oxv): If this list is too it will blow out the command line. Pass list in a file to the script instead.
-          # Since the output of the script below isn't currently used the arg is disabled.
-          # if [[ -s "${CHANGED_FILES_LIST}" ]]; then
-          #   changed_files_arg="--sources $(cat ${CHANGED_FILES_LIST} | jq -cr '. | join(",")')"
-          # fi
-
-          # vpython3 cobalt/build/test_targets.py \
-          #     --root-target "${ROOT_TARGET}" \
-          #     ${changed_files_arg} \
-          #     --gn-json gn_desc.json \
-          #     --json-output > "${DYN_TEST_TARGETS_JSON_FILE}"
-
-
-          test_targets_json=$(cat ${{ inputs.test_targets_json_file }} | jq -cr '.test_targets')
-          echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
-
-          test_targets_count=$(echo ${test_targets_json} | jq -cr 'length')
-          echo "test_targets_count=${test_targets_count}" >> $GITHUB_OUTPUT
+          test_targets_count=$(echo "${test_targets_json}" | jq -cr 'length')
+          echo "test_targets_count=${test_targets_count}" >> "${GITHUB_OUTPUT}"
         shell: bash
       - name: Archive test target JSON
         if: steps.check-inputs.outputs.built == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: ${{ matrix.platform }}_test_targets_json
-          path: |
-            src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
-            src/out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
+          path: cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
       - name: Ninja build test targets
-        if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
+        if: ${{ steps.check-inputs.outputs.built == 'true' && matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
         id: build-test-targets
+        working-directory: cobalt/src
+        env:
+          TEST_TARGETS_JSON: ${{ steps.calculate-test-targets.outputs.test_targets_json }}
+          PLATFORM: ${{ matrix.platform }}
+          CONFIG: ${{ matrix.config }}
         run: |
           set -ex
-          cd src
-          test_targets=$(echo '${{ steps.calculate-test-targets.outputs.test_targets_json }}' | jq -cr 'join(" ")')
-          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
+          readarray -t test_targets < <(echo "${TEST_TARGETS_JSON:-[]}" | jq -r '.[]')
+          time autoninja -C out/"${PLATFORM}_${CONFIG}" "${test_targets[@]}"
         shell: bash
       - name: Ninja build
         if: steps.check-inputs.outputs.built == 'true'
+        working-directory: cobalt/src
         env:
           TARGETS_JSON: ${{ inputs.targets }}
+          USE_SCCACHE: ${{ inputs.enable_sccache }}
+          PLATFORM: ${{ matrix.platform }}
+          CONFIG: ${{ matrix.config }}
         run: |
           set -ex
-          cd src
-          TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
-          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
+          readarray -t targets < <(echo "${TARGETS_JSON:-[]}" | jq -r '.[]')
+          time autoninja -C out/"${PLATFORM}_${CONFIG}" "${targets[@]}"
+          if [[ "${USE_SCCACHE}" == "true" ]]; then
+            sccache --show-stats
+          fi
         shell: bash
       - name: Archive Android APKs
-        if: steps.check-inputs.outputs.built == 'true' && startsWith(matrix.platform, 'android') && matrix.config == 'qa'
-        uses: actions/upload-artifact@v4
+        if: steps.check-inputs.outputs.built == 'true' && (startsWith(matrix.platform, 'android') || contains(matrix.platform, 'aosp')) && matrix.config == 'qa'
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: ${{ matrix.platform }} APKs
           path: |
-            src/out/${{ matrix.platform }}_qa/apks/*.apk
-            src/out/${{ matrix.platform }}_qa/*_apk/*.apk
-            src/out/${{ matrix.platform }}_qa/gen/build_info.json
-      - name: Upload Test Artifacts
-        if: steps.build-test-targets.outcome == 'success'
-        uses: ./src/.github/actions/upload_test_artifacts
-        with:
-          test_artifacts_key: ${{ inputs.test_artifacts_key }}
-          upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_web_test_artifacts == 'true' }}
-          upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
-          test_targets_json_file: ${{ inputs.test_targets_json_file }}
-      - name: Run Package Script Test
-        if: ${{ steps.check-inputs.outputs.built == 'true' && (matrix.config == 'qa' || matrix.config == 'gold') && !contains(matrix.platform, 'chromium') && !contains(matrix.platform, 'evergreen') && !contains(matrix.platform, 'modular') }}
-        run: |
-          # Use the real variable from your environment
-          MATRIX_PLATFORM="${{ matrix.platform }}"
-          MATRIX_CONFIG="${{ matrix.config }}"
-          # Determine the correct build platform directory name
-          if [[ "$MATRIX_PLATFORM" == *"android"* ]]; then
-            BUILD_PLATFORM="android"
-          else
-            BUILD_PLATFORM="linux"
-            cd src/
-            cobalt/build/gn.py -p linux-x64x11-no-starboard -c $MATRIX_CONFIG
-            autoninja -C out/linux-x64x11-no-starboard_$MATRIX_CONFIG chrome/test/chromedriver
-            cp out/linux-x64x11-no-starboard_$MATRIX_CONFIG/chromedriver out/${{ matrix.platform }}_${{ matrix.config }}
-            cd ..
-          fi
-          src/cobalt/build/packager.py \
-            --name=${{ matrix.platform }}_${{ matrix.config }} \
-            --json_path=src/cobalt/build/$BUILD_PLATFORM/package.json \
-            --out_dir=src/out/${{ matrix.platform }}_${{ matrix.config }} \
-            --package_dir=src/out/test-package
-        shell: bash
+            cobalt/src/out/${{ matrix.platform }}_qa/apks/*.apk
+            cobalt/src/out/${{ matrix.platform }}_qa/*_apk/*.apk
+            cobalt/src/out/${{ matrix.platform }}_qa/gen/build_info.json

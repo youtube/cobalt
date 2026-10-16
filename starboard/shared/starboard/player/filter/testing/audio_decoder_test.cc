@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
-
 #include <unistd.h>
 
 #include <algorithm>
@@ -35,6 +33,7 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
@@ -42,7 +41,6 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/system.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -54,44 +52,41 @@ using ::testing::ValuesIn;
 
 const int64_t kWaitForNextEventTimeOut = 5'000'000;  // 5 seconds
 
-scoped_refptr<DecodedAudio> ConsolidateDecodedAudios(
-    const std::vector<scoped_refptr<DecodedAudio>>& decoded_audios) {
+DecodedAudio ConsolidateDecodedAudios(
+    const std::vector<DecodedAudio>& decoded_audios) {
   if (decoded_audios.empty()) {
-    return new DecodedAudio(2, kSbMediaAudioSampleTypeFloat32,
-                            kSbMediaAudioFrameStorageTypeInterleaved, 0, 0);
+    return DecodedAudio(2, kSbMediaAudioSampleTypeFloat32, /*timestamp=*/0,
+                        /*size_in_bytes=*/0);
   }
 
   int total_size_in_bytes = 0;
-  int channels = decoded_audios.front()->channels();
-  auto sample_type = decoded_audios.front()->sample_type();
+  int channels = decoded_audios.front().channels();
+  auto sample_type = decoded_audios.front().sample_type();
 
-  for (auto decoded_audio : decoded_audios) {
-    SB_DCHECK_EQ(decoded_audio->channels(), channels);
-    SB_DCHECK_EQ(decoded_audio->sample_type(), sample_type);
-    SB_DCHECK_EQ(decoded_audio->storage_type(),
-                 kSbMediaAudioFrameStorageTypeInterleaved);
-    total_size_in_bytes += decoded_audio->size_in_bytes();
+  for (const auto& decoded_audio : decoded_audios) {
+    SB_DCHECK_EQ(decoded_audio.channels(), channels);
+    SB_DCHECK_EQ(decoded_audio.sample_type(), sample_type);
+    total_size_in_bytes += decoded_audio.size_in_bytes();
   }
 
-  scoped_refptr<DecodedAudio> consolidated = new DecodedAudio(
-      channels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-      decoded_audios.front()->timestamp(), total_size_in_bytes);
+  DecodedAudio consolidated(channels, sample_type,
+                            decoded_audios.front().timestamp(),
+                            total_size_in_bytes);
 
   int offset_in_bytes = 0;
-  for (auto decoded_audio : decoded_audios) {
-    memcpy(consolidated->data() + offset_in_bytes, decoded_audio->data(),
-           decoded_audio->size_in_bytes());
-    offset_in_bytes += decoded_audio->size_in_bytes();
+  for (const auto& decoded_audio : decoded_audios) {
+    memcpy(consolidated.data() + offset_in_bytes, decoded_audio.data(),
+           decoded_audio.size_in_bytes());
+    offset_in_bytes += decoded_audio.size_in_bytes();
   }
 
   return consolidated;
 }
 
-int GetTotalFrames(
-    const std::vector<scoped_refptr<DecodedAudio>>& decoded_audios) {
+int GetTotalFrames(const std::vector<DecodedAudio>& decoded_audios) {
   int total_frames = 0;
-  for (auto decoded_audio : decoded_audios) {
-    total_frames += decoded_audio->frames();
+  for (const auto& decoded_audio : decoded_audios) {
+    total_frames += decoded_audio.frames();
   }
   return total_frames;
 }
@@ -108,7 +103,7 @@ class AudioDecoderTest
   }
   void SetUp() override {
     ASSERT_NE(dmp_reader_.audio_stream_info().codec, kSbMediaAudioCodecNone);
-    ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
+    ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0u);
 
     CreateComponents(dmp_reader_.audio_stream_info(), &audio_decoder_,
                      &audio_renderer_sink_);
@@ -122,8 +117,9 @@ class AudioDecoderTest
       const AudioStreamInfo& audio_stream_info,
       std::unique_ptr<AudioDecoder>* audio_decoder,
       std::unique_ptr<AudioRendererSink>* audio_renderer_sink) {
-    if (CreateAudioComponents(using_stub_decoder_, audio_stream_info,
-                              audio_decoder, audio_renderer_sink)) {
+    if (CreateAudioComponents(using_stub_decoder_, &job_queue_,
+                              audio_stream_info, audio_decoder,
+                              audio_renderer_sink)) {
       SB_CHECK(*audio_decoder);
       (*audio_decoder)
           ->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),
@@ -189,8 +185,6 @@ class AudioDecoderTest
   void WriteSingleInput(size_t index,
                         int64_t discarded_duration_from_front,
                         int64_t discarded_duration_from_back) {
-    SB_DCHECK(IsPartialAudioSupported());
-
     ASSERT_TRUE(can_accept_more_input_);
     ASSERT_LT(index, dmp_reader_.number_of_audio_buffers());
 
@@ -203,21 +197,21 @@ class AudioDecoderTest
   }
 
   // This has to be called when OnOutput() is called.
-  void ReadFromDecoder(scoped_refptr<DecodedAudio>* decoded_audio) {
-    ASSERT_TRUE(decoded_audio);
+  void ReadFromDecoder(bool* is_eos) {
+    ASSERT_TRUE(is_eos);
 
     int decoded_sample_rate;
-    scoped_refptr<DecodedAudio> local_decoded_audio =
+    std::optional<DecodedAudio> local_decoded_audio =
         audio_decoder_->Read(&decoded_sample_rate);
-    ASSERT_TRUE(local_decoded_audio);
+    ASSERT_TRUE(local_decoded_audio.has_value());
     if (!first_output_received_) {
       first_output_received_ = true;
       decoded_audio_sample_type_ = local_decoded_audio->sample_type();
       decoded_audio_sample_rate_ = decoded_sample_rate;
     }
 
-    if (local_decoded_audio->is_end_of_stream()) {
-      *decoded_audio = local_decoded_audio;
+    *is_eos = local_decoded_audio->is_end_of_stream();
+    if (*is_eos) {
       return;
     }
 
@@ -225,7 +219,7 @@ class AudioDecoderTest
     ASSERT_EQ(decoded_audio_sample_rate_, decoded_sample_rate);
 
     if (!decoded_audios_.empty()) {
-      ASSERT_LT(decoded_audios_.back()->timestamp(),
+      ASSERT_LT(decoded_audios_.back().timestamp(),
                 local_decoded_audio->timestamp());
     }
     if (!using_stub_decoder_ && invalid_inputs_.empty()) {
@@ -233,8 +227,7 @@ class AudioDecoderTest
                   written_inputs_.front()->timestamp(), 5);
       written_inputs_.pop_front();
     }
-    decoded_audios_.push_back(local_decoded_audio);
-    *decoded_audio = local_decoded_audio;
+    decoded_audios_.push_back(std::move(*local_decoded_audio));
   }
 
   void WriteMultipleInputs(size_t start_index,
@@ -266,20 +259,17 @@ class AudioDecoderTest
         return;
       }
       ASSERT_EQ(kOutput, event);
-      scoped_refptr<DecodedAudio> decoded_audio;
-      ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
-      ASSERT_TRUE(decoded_audio);
-      ASSERT_FALSE(decoded_audio->is_end_of_stream());
+      bool is_eos = false;
+      ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&is_eos));
+      ASSERT_FALSE(is_eos);
     }
   }
 
   // The start_index will be updated to the new position.
-  void WriteTimeLimitedInputs(int* start_index, int64_t time_limit) {
+  void WriteTimeLimitedInputs(size_t* start_index, int64_t time_limit) {
     SB_DCHECK(start_index);
-    SB_DCHECK_GE(*start_index, 0);
     SB_DCHECK_LT(*start_index, dmp_reader_.number_of_audio_buffers());
-    ASSERT_NO_FATAL_FAILURE(
-        WriteSingleInput(static_cast<size_t>(*start_index)));
+    ASSERT_NO_FATAL_FAILURE(WriteSingleInput(*start_index));
     SB_DCHECK(last_input_buffer_);
     int64_t last_timestamp = last_input_buffer_->timestamp();
     int64_t first_timestamp = last_timestamp;
@@ -290,18 +280,16 @@ class AudioDecoderTest
       Event event = kError;
       ASSERT_NO_FATAL_FAILURE(WaitForNextEvent(&event));
       if (event == kConsumed) {
-        ASSERT_NO_FATAL_FAILURE(
-            WriteSingleInput(static_cast<size_t>(*start_index)));
+        ASSERT_NO_FATAL_FAILURE(WriteSingleInput(*start_index));
         SB_DCHECK(last_input_buffer_);
         last_timestamp = last_input_buffer_->timestamp();
         ++(*start_index);
         continue;
       }
       ASSERT_EQ(kOutput, event);
-      scoped_refptr<DecodedAudio> decoded_audio;
-      ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
-      ASSERT_TRUE(decoded_audio);
-      ASSERT_FALSE(decoded_audio->is_end_of_stream());
+      bool is_eos = false;
+      ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&is_eos));
+      ASSERT_FALSE(is_eos);
     }
   }
 
@@ -325,10 +313,9 @@ class AudioDecoderTest
         continue;
       }
       ASSERT_EQ(kOutput, event);
-      scoped_refptr<DecodedAudio> decoded_audio;
-      ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
-      ASSERT_TRUE(decoded_audio);
-      if (decoded_audio->is_end_of_stream()) {
+      bool is_eos = false;
+      ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&is_eos));
+      if (is_eos) {
         break;
       }
     }
@@ -369,10 +356,9 @@ class AudioDecoderTest
         continue;
       }
       ASSERT_EQ(kOutput, event);
-      scoped_refptr<DecodedAudio> decoded_audio;
-      ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
-      ASSERT_TRUE(decoded_audio);
-      ASSERT_FALSE(decoded_audio->is_end_of_stream());
+      bool is_eos = false;
+      ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&is_eos));
+      ASSERT_FALSE(is_eos);
     }
   }
 
@@ -402,10 +388,9 @@ class AudioDecoderTest
         FAIL();
       }
       ASSERT_EQ(kOutput, event);
-      scoped_refptr<DecodedAudio> decoded_audio;
-      ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
-      ASSERT_TRUE(decoded_audio);
-      ASSERT_FALSE(decoded_audio->is_end_of_stream());
+      bool is_eos = false;
+      ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&is_eos));
+      ASSERT_FALSE(is_eos);
       break;
     }
   }
@@ -425,8 +410,6 @@ class AudioDecoderTest
       size_t index,
       int64_t discarded_duration_from_front,
       int64_t discarded_duration_from_back) {
-    SB_DCHECK(IsPartialAudioSupported());
-
     auto input_buffer =
         GetAudioInputBuffer(&dmp_reader_, index, discarded_duration_from_front,
                             discarded_duration_from_back);
@@ -485,7 +468,7 @@ class AudioDecoderTest
   bool can_accept_more_input_ = true;
   scoped_refptr<InputBuffer> last_input_buffer_;
   std::deque<scoped_refptr<InputBuffer>> written_inputs_;
-  std::vector<scoped_refptr<DecodedAudio>> decoded_audios_;
+  std::vector<DecodedAudio> decoded_audios_;
 
   bool eos_written_ = false;
 
@@ -701,7 +684,7 @@ TEST_P(AudioDecoderTest, LimitedInput) {
   int64_t duration = 500'000;  // 0.5 seconds
 
   ASSERT_TRUE(decoded_audios_.empty());
-  int start_index = 0;
+  size_t start_index = 0;
   ASSERT_NO_FATAL_FAILURE(WriteTimeLimitedInputs(&start_index, duration));
 
   if (start_index >= dmp_reader_.number_of_audio_buffers()) {
@@ -713,33 +696,32 @@ TEST_P(AudioDecoderTest, LimitedInput) {
 }
 
 TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
-  constexpr int kMaxAccessUnitsToDecode = 256;
+  constexpr size_t kMaxAccessUnitsToDecode = 256;
   int64_t duration = 500'000;  // 0.5 seconds
 
   int64_t start = CurrentMonotonicTime();
-  int start_index = 0;
+  size_t start_index = 0;
   Event event;
   while (true) {
     ASSERT_NO_FATAL_FAILURE(WriteTimeLimitedInputs(&start_index, duration));
-    if (start_index >= std::min<int>(dmp_reader_.number_of_audio_buffers(),
-                                     kMaxAccessUnitsToDecode)) {
+    if (start_index >= std::min<size_t>(dmp_reader_.number_of_audio_buffers(),
+                                        kMaxAccessUnitsToDecode)) {
       break;
     }
     SB_DCHECK(last_input_buffer_);
     WaitForDecodedAudio();
     ASSERT_FALSE(decoded_audios_.empty());
     while ((last_input_buffer_->timestamp() -
-            decoded_audios_.back()->timestamp()) > duration ||
+            decoded_audios_.back().timestamp()) > duration ||
            !can_accept_more_input_) {
       ASSERT_NO_FATAL_FAILURE(WaitForNextEvent(&event));
       if (event == kConsumed) {
         continue;
       }
       ASSERT_EQ(kOutput, event);
-      scoped_refptr<DecodedAudio> decoded_audio;
-      ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
-      ASSERT_TRUE(decoded_audio);
-      ASSERT_FALSE(decoded_audio->is_end_of_stream());
+      bool is_eos = false;
+      ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&is_eos));
+      ASSERT_FALSE(is_eos);
     }
   }
   WriteEndOfStream();
@@ -755,10 +737,6 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
 }
 
 TEST_P(AudioDecoderTest, PartialAudio) {
-  if (!IsPartialAudioSupported()) {
-    return;
-  }
-
   const int max_number_of_input_to_write =
       std::min(7, static_cast<int>(dmp_reader_.number_of_audio_buffers()));
 
@@ -785,9 +763,9 @@ TEST_P(AudioDecoderTest, PartialAudio) {
           break;
         }
         ASSERT_EQ(kOutput, event);
-        scoped_refptr<DecodedAudio> decoded_audio;
-        ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
-        ASSERT_TRUE(decoded_audio);
+        bool is_eos = false;
+        ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&is_eos));
+        ASSERT_FALSE(is_eos);
       }
     }
 
@@ -795,15 +773,16 @@ TEST_P(AudioDecoderTest, PartialAudio) {
     ASSERT_FALSE(decoded_audios_.empty());
     ASSERT_NO_FATAL_FAILURE(AssertOutputFormatValid());
 
-    auto reference_decoded_audio = ConsolidateDecodedAudios(decoded_audios_);
-    ASSERT_GT(reference_decoded_audio->frames(), 1);
+    DecodedAudio reference_decoded_audio =
+        ConsolidateDecodedAudios(decoded_audios_);
+    ASSERT_GT(reference_decoded_audio.frames(), 1);
 
     // Discard 1/4 of the duration from front, and back.  The resulting audio
     // will keep 1/2 of the frames in the middle. This has to be called before
     // `ResetDecoder()` as it resets `decoded_audio_sample_rate_`.
     ASSERT_GT(decoded_audio_sample_rate_, 0);
     auto frames_per_access_unit =
-        reference_decoded_audio->frames() / number_of_input_to_write;
+        reference_decoded_audio.frames() / number_of_input_to_write;
     int64_t duration_to_discard =
         AudioFramesToDuration(frames_per_access_unit,
                               decoded_audio_sample_rate_) /
@@ -830,9 +809,9 @@ TEST_P(AudioDecoderTest, PartialAudio) {
           break;
         }
         ASSERT_EQ(kOutput, event);
-        scoped_refptr<DecodedAudio> decoded_audio;
-        ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
-        ASSERT_TRUE(decoded_audio);
+        bool is_eos = false;
+        ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&is_eos));
+        ASSERT_FALSE(is_eos);
       }
     }
 
@@ -840,38 +819,36 @@ TEST_P(AudioDecoderTest, PartialAudio) {
     ASSERT_FALSE(decoded_audios_.empty());
     ASSERT_NO_FATAL_FAILURE(AssertOutputFormatValid());
 
-    auto partial_decoded_audio = ConsolidateDecodedAudios(decoded_audios_);
+    DecodedAudio partial_decoded_audio =
+        ConsolidateDecodedAudios(decoded_audios_);
 
-    ASSERT_EQ(reference_decoded_audio->sample_type(),
-              partial_decoded_audio->sample_type());
-    ASSERT_EQ(reference_decoded_audio->storage_type(),
-              partial_decoded_audio->storage_type());
-    ASSERT_GT(reference_decoded_audio->frames(),
-              partial_decoded_audio->frames());
+    ASSERT_EQ(reference_decoded_audio.sample_type(),
+              partial_decoded_audio.sample_type());
+    ASSERT_GT(reference_decoded_audio.frames(), partial_decoded_audio.frames());
 
-    auto bytes_per_frame = reference_decoded_audio->size_in_bytes() /
-                           reference_decoded_audio->frames();
+    auto bytes_per_frame = reference_decoded_audio.size_in_bytes() /
+                           reference_decoded_audio.frames();
     // |partial_decoded_audio| should contain exactly the same data as
     // |reference_decoded_audio|, begin from about 1/4 of an access unit.  We
     // search from (1/4 access unit - 1) in |reference_decoded_audio| to allow
     // for up to one frame of error during calculation.
     auto reference_search_begin =
-        reference_decoded_audio->data() +
+        reference_decoded_audio.data() +
         (frames_per_access_unit / 4 - 1) * bytes_per_frame;
-    auto reference_search_end = reference_decoded_audio->data() +
-                                reference_decoded_audio->size_in_bytes();
+    auto reference_search_end = reference_decoded_audio.data() +
+                                reference_decoded_audio.size_in_bytes();
     auto offset_index = std::search(
         reference_search_begin, reference_search_end,
-        partial_decoded_audio->data(),
-        partial_decoded_audio->data() + partial_decoded_audio->size_in_bytes());
+        partial_decoded_audio.data(),
+        partial_decoded_audio.data() + partial_decoded_audio.size_in_bytes());
     ASSERT_FALSE(offset_index == reference_search_end);
     auto offset_in_bytes = offset_index - reference_search_begin;
     auto offset_in_frames = offset_in_bytes / bytes_per_frame;
 
     constexpr int kEpsilonInFrames = 2;
     EXPECT_LE(offset_in_frames, kEpsilonInFrames);
-    EXPECT_NEAR(reference_decoded_audio->frames() - frames_per_access_unit / 2,
-                partial_decoded_audio->frames(), kEpsilonInFrames);
+    EXPECT_NEAR(reference_decoded_audio.frames() - frames_per_access_unit / 2,
+                partial_decoded_audio.frames(), kEpsilonInFrames);
   }
 }
 
@@ -963,12 +940,12 @@ TEST_P(AudioDecoderTest, ResetInRunningStateWithEndOfStream) {
   ASSERT_NO_FATAL_FAILURE(AssertOutputFormatValid());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AudioDecoderTests,
     AudioDecoderTest,
     Combine(ValuesIn(GetSupportedAudioTestFiles(kIncludeHeaac,
-                                                6,
-                                                "audiopassthrough=false")),
+                                                /*max_channels=*/6,
+                                                kExcludePassthrough)),
             Bool()),
     GetAudioDecoderTestConfigName);
 

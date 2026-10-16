@@ -6,8 +6,8 @@
 
 #include <utility>
 
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/core/dom/document.h"
@@ -40,7 +40,7 @@ MojoInterfaceInterceptor* MojoInterfaceInterceptor::Create(
   }
 
   if (scope == Scope::Enum::kContextJs &&
-      !context->use_mojo_js_interface_broker()) {
+      !context->ShouldUseMojoJSInterfaceBroker()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kNotSupportedError,
         "\"context_js\" scope interception is unavailable unless MojoJS "
@@ -82,7 +82,7 @@ void MojoInterfaceInterceptor::start(ExceptionState& exception_state) {
 
   started_ = true;
   if (scope_ == Scope::Enum::kContextJs) {
-    DCHECK(context->use_mojo_js_interface_broker());
+    DCHECK(context->ShouldUseMojoJSInterfaceBroker());
     if (!context->GetMojoJSInterfaceBroker().SetBinderForTesting(
             interface_name,
             WTF::BindRepeating(&MojoInterfaceInterceptor::OnInterfaceRequest,
@@ -123,7 +123,7 @@ void MojoInterfaceInterceptor::stop() {
   DCHECK(context);
 
   if (scope_ == Scope::Enum::kContextJs) {
-    DCHECK(context->use_mojo_js_interface_broker());
+    DCHECK(context->ShouldUseMojoJSInterfaceBroker());
     context->GetMojoJSInterfaceBroker().SetBinderForTesting(interface_name, {});
     return;
   }
@@ -132,7 +132,7 @@ void MojoInterfaceInterceptor::stop() {
 }
 
 void MojoInterfaceInterceptor::Trace(Visitor* visitor) const {
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
 }
 

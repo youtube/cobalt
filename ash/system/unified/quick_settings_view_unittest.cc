@@ -4,58 +4,22 @@
 
 #include "ash/system/unified/quick_settings_view.h"
 
-#include "ash/constants/ash_features.h"
 #include "ash/public/cpp/ash_view_ids.h"
-#include "ash/public/cpp/cast_config_controller.h"
+#include "ash/public/cpp/test/test_cast_config_controller.h"
 #include "ash/shell.h"
+#include "ash/style/pagination_view.h"
 #include "ash/system/unified/feature_tile.h"
 #include "ash/system/unified/feature_tiles_container_view.h"
-#include "ash/system/unified/page_indicator_view.h"
 #include "ash/system/unified/unified_system_tray.h"
 #include "ash/system/unified/unified_system_tray_bubble.h"
 #include "ash/test/ash_test_base.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
-#include "base/test/scoped_feature_list.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/display/screen.h"
+#include "ui/views/accessibility/view_accessibility.h"
 
 namespace ash {
-
-// `CastConfigController` must be overridden so a `cast_config_` object exists.
-// This is required to make the cast tile visible in the
-// `CastAndAutoRotateCompactTiles` unit test. Cast features will not be used.
-class TestCastConfigController : public CastConfigController {
- public:
-  TestCastConfigController() = default;
-  TestCastConfigController(const TestCastConfigController&) = delete;
-  TestCastConfigController& operator=(const TestCastConfigController&) = delete;
-  ~TestCastConfigController() override = default;
-
-  // CastConfigController:
-  void AddObserver(Observer* observer) override {}
-  void RemoveObserver(Observer* observer) override {}
-  bool HasMediaRouterForPrimaryProfile() const override {
-    return has_media_router_;
-  }
-  bool HasSinksAndRoutes() const override { return has_sinks_and_routes_; }
-  bool HasActiveRoute() const override { return false; }
-  bool AccessCodeCastingEnabled() const override {
-    return access_code_casting_enabled_;
-  }
-  void RequestDeviceRefresh() override {}
-  const std::vector<SinkAndRoute>& GetSinksAndRoutes() override {
-    return sinks_and_routes_;
-  }
-  void CastToSink(const std::string& sink_id) override {}
-  void StopCasting(const std::string& route_id) override {}
-  void FreezeRoute(const std::string& route_id) override {}
-  void UnfreezeRoute(const std::string& route_id) override {}
-
-  bool has_media_router_ = true;
-  bool has_sinks_and_routes_ = false;
-  bool access_code_casting_enabled_ = false;
-  std::vector<SinkAndRoute> sinks_and_routes_;
-};
 
 class QuickSettingsViewTest : public AshTestBase {
  public:
@@ -66,7 +30,6 @@ class QuickSettingsViewTest : public AshTestBase {
   ~QuickSettingsViewTest() override = default;
 
   void SetUp() override {
-    feature_list_.InitAndEnableFeature(features::kQsRevamp);
     AshTestBase::SetUp();
     cast_config_ = std::make_unique<TestCastConfigController>();
   }
@@ -83,11 +46,11 @@ class QuickSettingsViewTest : public AshTestBase {
         ->feature_tiles_container();
   }
 
-  PageIndicatorView* GetPageIndicatorView() {
+  PaginationView* GetPaginationView() {
     return GetPrimaryUnifiedSystemTray()
         ->bubble()
         ->quick_settings_view()
-        ->page_indicator_view_for_test();
+        ->pagination_view_for_test();
   }
 
   PaginationModel* pagination_model() {
@@ -102,9 +65,17 @@ class QuickSettingsViewTest : public AshTestBase {
     return static_cast<FeatureTile*>(tile_view);
   }
 
+  views::View* GetAccessibilityFocusHelperView() {
+    return GetPrimaryUnifiedSystemTray()
+        ->bubble()
+        ->quick_settings_view()
+        ->GetAccessibilityFocusHelperViewForTesting();
+  }
+
  private:
+  // This is required to make the cast tile visible in the
+  // `CastAndAutoRotateCompactTiles` unit test. Cast features will not be used.
   std::unique_ptr<TestCastConfigController> cast_config_;
-  base::test::ScopedFeatureList feature_list_;
 };
 
 // Tests that the cast and auto-rotate tiles are presented in their compact
@@ -116,30 +87,30 @@ TEST_F(QuickSettingsViewTest, CastAndAutoRotateCompactTiles) {
 
   // Test that the cast tile is in its primary form when in clamshell mode,
   // when the auto-rotate tile is not visible.
-  EXPECT_FALSE(tablet_mode_controller->IsInTabletMode());
+  EXPECT_FALSE(display::Screen::GetScreen()->InTabletMode());
   tray->ShowBubble();
 
-  FeatureTile* cast_tile = GetTileById(VIEW_ID_CAST_MAIN_VIEW);
+  FeatureTile* cast_tile = GetTileById(VIEW_ID_FEATURE_TILE_CAST);
   ASSERT_TRUE(cast_tile);
   EXPECT_TRUE(cast_tile->GetVisible());
   EXPECT_EQ(cast_tile->tile_type(), FeatureTile::TileType::kPrimary);
 
-  FeatureTile* autorotate_tile = GetTileById(VIEW_ID_AUTOROTATE_FEATURE_TILE);
+  FeatureTile* autorotate_tile = GetTileById(VIEW_ID_FEATURE_TILE_AUTOROTATE);
   EXPECT_FALSE(autorotate_tile->GetVisible());
 
   tray->CloseBubble();
 
   // Test that cast and auto-rotate tiles are compact in tablet mode.
   tablet_mode_controller->SetEnabledForTest(true);
-  EXPECT_TRUE(tablet_mode_controller->IsInTabletMode());
+  EXPECT_TRUE(display::Screen::GetScreen()->InTabletMode());
 
   tray->ShowBubble();
 
-  cast_tile = GetTileById(VIEW_ID_CAST_MAIN_VIEW);
+  cast_tile = GetTileById(VIEW_ID_FEATURE_TILE_CAST);
   EXPECT_TRUE(cast_tile->GetVisible());
   EXPECT_EQ(cast_tile->tile_type(), FeatureTile::TileType::kCompact);
 
-  autorotate_tile = GetTileById(VIEW_ID_AUTOROTATE_FEATURE_TILE);
+  autorotate_tile = GetTileById(VIEW_ID_FEATURE_TILE_AUTOROTATE);
   EXPECT_TRUE(autorotate_tile->GetVisible());
   EXPECT_EQ(autorotate_tile->tile_type(), FeatureTile::TileType::kCompact);
 
@@ -152,11 +123,11 @@ TEST_F(QuickSettingsViewTest, CaptureAndDNDCompactTiles) {
   auto* tray = GetPrimaryUnifiedSystemTray();
   tray->ShowBubble();
 
-  FeatureTile* capture_tile = GetTileById(VIEW_ID_SCREEN_CAPTURE_FEATURE_TILE);
+  FeatureTile* capture_tile = GetTileById(VIEW_ID_FEATURE_TILE_SCREEN_CAPTURE);
   EXPECT_TRUE(capture_tile->GetVisible());
   EXPECT_EQ(capture_tile->tile_type(), FeatureTile::TileType::kCompact);
 
-  FeatureTile* dnd_tile = GetTileById(VIEW_ID_DND_FEATURE_TILE);
+  FeatureTile* dnd_tile = GetTileById(VIEW_ID_FEATURE_TILE_DND);
   EXPECT_TRUE(dnd_tile->GetVisible());
   EXPECT_EQ(dnd_tile->tile_type(), FeatureTile::TileType::kCompact);
 
@@ -173,11 +144,11 @@ TEST_F(QuickSettingsViewTest, PageIndicatorVisibility) {
 
   // Page indicator is not visible with one page.
   pagination_model()->SetTotalPages(1);
-  EXPECT_FALSE(GetPageIndicatorView()->GetVisible());
+  EXPECT_FALSE(GetPaginationView()->GetVisible());
 
   // Page indicator is visible with two or more pages.
   pagination_model()->SetTotalPages(2);
-  EXPECT_TRUE(GetPageIndicatorView()->GetVisible());
+  EXPECT_TRUE(GetPaginationView()->GetVisible());
 
   tray->CloseBubble();
 }
@@ -195,6 +166,19 @@ TEST_F(QuickSettingsViewTest, ResetSelectedPageAfterClosingBubble) {
   GetPrimaryUnifiedSystemTray()->CloseBubble();
   GetPrimaryUnifiedSystemTray()->ShowBubble();
   EXPECT_EQ(0, pagination_model()->selected_page());
+}
+
+TEST_F(QuickSettingsViewTest,
+       AccessibilityFocusHelperViewAccessibleProperties) {
+  GetPrimaryUnifiedSystemTray()->ShowBubble();
+  ui::AXNodeData data;
+  auto* helper_view = GetAccessibilityFocusHelperView();
+
+  ASSERT_TRUE(helper_view);
+  helper_view->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_EQ(data.role, ax::mojom::Role::kListItem);
+
+  GetPrimaryUnifiedSystemTray()->CloseBubble();
 }
 
 }  // namespace ash

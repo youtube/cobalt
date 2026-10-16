@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "base/scoped_multi_source_observation.h"
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
 #include "content/browser/devtools/protocol/web_authn.h"
@@ -31,16 +32,16 @@ class WebAuthnHandler : public DevToolsDomainHandler,
   void Wire(UberDispatcher* dispatcher) override;
 
   // WebAuthn::Backend
-  CONTENT_EXPORT Response Enable(Maybe<bool> enable_ui) override;
+  CONTENT_EXPORT Response Enable(std::optional<bool> enable_ui) override;
   CONTENT_EXPORT Response Disable() override;
   Response AddVirtualAuthenticator(
       std::unique_ptr<WebAuthn::VirtualAuthenticatorOptions> options,
       String* out_authenticator_id) override;
   Response RemoveVirtualAuthenticator(const String& authenticator_id) override;
   Response SetResponseOverrideBits(const String& authenticator_id,
-                                   Maybe<bool> is_bogus_signature,
-                                   Maybe<bool> is_bad_uv,
-                                   Maybe<bool> is_bad_up) override;
+                                   std::optional<bool> is_bogus_signature,
+                                   std::optional<bool> is_bad_uv,
+                                   std::optional<bool> is_bad_up) override;
   void AddCredential(const String& authenticator_id,
                      std::unique_ptr<protocol::WebAuthn::Credential> credential,
                      std::unique_ptr<AddCredentialCallback> callback) override;
@@ -57,6 +58,10 @@ class WebAuthnHandler : public DevToolsDomainHandler,
                            bool is_user_verified) override;
   Response SetAutomaticPresenceSimulation(const String& authenticator_id,
                                           bool enabled) override;
+  Response SetCredentialProperties(const String& authenticator_id,
+                                   const Binary& credential_id,
+                                   std::optional<bool> backup_eligibility,
+                                   std::optional<bool> backup_state) override;
 
  private:
   // Finds the authenticator with the given |id|. Returns Response::OK() if
@@ -68,13 +73,18 @@ class WebAuthnHandler : public DevToolsDomainHandler,
   void OnCredentialCreated(
       VirtualAuthenticator* authenticator,
       const device::VirtualFidoDevice::Credential& credential) override;
+  void OnCredentialDeleted(VirtualAuthenticator* authenticator,
+                           base::span<const uint8_t> credential_id) override;
+  void OnCredentialUpdated(
+      VirtualAuthenticator* authenticator,
+      const device::VirtualFidoDevice::Credential& credential) override;
   void OnAssertion(
       VirtualAuthenticator* authenticator,
       const device::VirtualFidoDevice::Credential& credential) override;
   void OnAuthenticatorWillBeDestroyed(
       VirtualAuthenticator* authenticator) override;
 
-  RenderFrameHostImpl* frame_host_ = nullptr;
+  raw_ptr<RenderFrameHostImpl> frame_host_ = nullptr;
   std::unique_ptr<WebAuthn::Frontend> frontend_;
   base::ScopedMultiSourceObservation<VirtualAuthenticator,
                                      VirtualAuthenticator::Observer>

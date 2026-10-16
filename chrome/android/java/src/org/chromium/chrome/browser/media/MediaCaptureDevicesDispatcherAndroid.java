@@ -4,7 +4,8 @@
 
 package org.chromium.chrome.browser.media;
 
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.content_public.browser.WebContents;
 
 /**
@@ -22,6 +23,16 @@ public class MediaCaptureDevicesDispatcherAndroid {
         return MediaCaptureDevicesDispatcherAndroidJni.get().isCapturingVideo(webContents);
     }
 
+    public static boolean isCapturingTab(WebContents webContents) {
+        if (webContents == null) return false;
+        return MediaCaptureDevicesDispatcherAndroidJni.get().isCapturingTab(webContents);
+    }
+
+    public static boolean isCapturingWindow(WebContents webContents) {
+        if (webContents == null) return false;
+        return MediaCaptureDevicesDispatcherAndroidJni.get().isCapturingWindow(webContents);
+    }
+
     public static boolean isCapturingScreen(WebContents webContents) {
         if (webContents == null) return false;
         return MediaCaptureDevicesDispatcherAndroidJni.get().isCapturingScreen(webContents);
@@ -35,8 +46,15 @@ public class MediaCaptureDevicesDispatcherAndroid {
     @NativeMethods
     interface Natives {
         boolean isCapturingAudio(WebContents webContents);
+
         boolean isCapturingVideo(WebContents webContents);
+
+        boolean isCapturingTab(WebContents webContents);
+
+        boolean isCapturingWindow(WebContents webContents);
+
         boolean isCapturingScreen(WebContents webContents);
+
         void notifyStopped(WebContents webContents);
     }
 }

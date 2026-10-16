@@ -11,23 +11,26 @@
 #include "test/network/cross_traffic.h"
 
 #include <atomic>
-#include <memory>
-#include <utility>
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 
-#include "absl/memory/memory.h"
-#include "absl/types/optional.h"
+#include "api/test/network_emulation/cross_traffic.h"
+#include "api/test/network_emulation/network_emulation_interfaces.h"
 #include "api/test/network_emulation_manager.h"
 #include "api/test/simulated_network.h"
-#include "call/simulated_network.h"
-#include "rtc_base/event.h"
+#include "api/units/data_rate.h"
+#include "api/units/data_size.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
+#include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/network_constants.h"
-#include "test/gmock.h"
+#include "rtc_base/task_queue_for_test.h"
+#include "system_wrappers/include/clock.h"
 #include "test/gtest.h"
+#include "test/network/network_emulation.h"
 #include "test/network/network_emulation_manager.h"
 #include "test/network/traffic_route.h"
-#include "test/time_controller/simulated_time_controller.h"
 
 namespace webrtc {
 namespace test {
@@ -51,11 +54,11 @@ struct TrafficCounterFixture {
   TaskQueueForTest task_queue_;
   EmulatedEndpointImpl endpoint{EmulatedEndpointImpl::Options{
                                     /*id=*/1,
-                                    rtc::IPAddress(kTestIpAddress),
+                                    IPAddress(kTestIpAddress),
                                     EmulatedEndpointConfig(),
                                     EmulatedNetworkStatsGatheringMode::kDefault,
                                 },
-                                /*is_enabled=*/true, &task_queue_, &clock};
+                                /*is_enabled=*/true, task_queue_.Get(), &clock};
 };
 
 }  // namespace
@@ -125,12 +128,11 @@ TEST(CrossTrafficTest, RandomWalkCrossTraffic) {
 }
 
 TEST(TcpMessageRouteTest, DeliveredOnLossyNetwork) {
-  NetworkEmulationManagerImpl net(TimeMode::kSimulated,
-                                  EmulatedNetworkStatsGatheringMode::kDefault);
+  NetworkEmulationManagerImpl net({.time_mode = TimeMode::kSimulated});
   BuiltInNetworkBehaviorConfig send;
   // 800 kbps means that the 100 kB message would be delivered in ca 1 second
   // under ideal conditions and no overhead.
-  send.link_capacity_kbps = 100 * 8;
+  send.link_capacity = DataRate::KilobitsPerSec(100 * 8);
   send.loss_percent = 50;
   send.queue_delay_ms = 100;
   send.delay_standard_deviation_ms = 20;

@@ -11,11 +11,13 @@
 #include "rtc_base/numerics/safe_minmax.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <limits>
+#include <type_traits>
 
 #include "test/gtest.h"
 
-namespace rtc {
+namespace webrtc {
 
 namespace {
 
@@ -342,4 +344,4 @@ uint32_t TestClampSafe(uint32_t x, uint32_t a, uint32_t b) {
   return SafeClamp(x, a, b);
 }
 
-}  // namespace rtc
+}  // namespace webrtc

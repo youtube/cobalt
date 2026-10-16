@@ -7,6 +7,7 @@
 #include <stddef.h>
 
 #include <memory>
+#include <string_view>
 
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
@@ -30,23 +31,20 @@ namespace permissions_api_helpers {
 namespace {
 
 const char kDelimiter[] = "|";
-const char kInvalidParameter[] =
-    "Invalid argument for permission '*'.";
-const char kInvalidOrigin[] =
-    "Invalid value for origin pattern *: *";
-const char kUnknownPermissionError[] =
-    "'*' is not a recognized permission.";
+const char kInvalidParameter[] = "Invalid argument for permission '*'.";
+const char kInvalidOrigin[] = "Invalid value for origin pattern *: *";
+const char kUnknownPermissionError[] = "'*' is not a recognized permission.";
 const char kUnsupportedPermissionId[] =
     "Only the usbDevices permission supports arguments.";
 
 // Extracts an API permission that supports arguments. In practice, this is
 // restricted to the UsbDevicePermission.
 std::unique_ptr<APIPermission> UnpackPermissionWithArguments(
-    base::StringPiece permission_name,
-    base::StringPiece permission_arg,
+    std::string_view permission_name,
+    std::string_view permission_arg,
     const std::string& permission_str,
     std::string* error) {
-  absl::optional<base::Value> permission_json =
+  std::optional<base::Value> permission_json =
       base::JSONReader::Read(permission_arg);
   if (!permission_json) {
     *error = ErrorUtils::FormatErrorMessage(kInvalidParameter, permission_str);
@@ -95,12 +93,13 @@ bool UnpackAPIPermissions(const std::vector<std::string>& permissions_input,
     // http://code.google.com/p/chromium/issues/detail?id=162042
     size_t delimiter = permission_str.find(kDelimiter);
     if (delimiter != std::string::npos) {
-      base::StringPiece permission_piece(permission_str);
+      std::string_view permission_piece(permission_str);
       std::unique_ptr<APIPermission> permission = UnpackPermissionWithArguments(
           permission_piece.substr(0, delimiter),
           permission_piece.substr(delimiter + 1), permission_str, error);
-      if (!permission)
+      if (!permission) {
         return false;
+      }
 
       apis.insert(std::move(permission));
     } else {
@@ -165,16 +164,19 @@ bool UnpackOriginPermissions(const std::vector<std::string>& origins_input,
     // Note that we don't check PermissionsData::AllUrlsIncludesChromeUrls()
     // here, since that's only needed for Chromevox (which doesn't use optional
     // permissions).
-    if (pattern->scheme() != content::kChromeUIScheme)
+    if (pattern->scheme() != content::kChromeUIScheme) {
       valid_schemes &= ~URLPattern::SCHEME_CHROMEUI;
+    }
 
     // Similarly, <all_urls> should only match file:-scheme URLs if file access
     // is granted.
-    if (!allow_file_access && pattern->scheme() != url::kFileScheme)
+    if (!allow_file_access && pattern->scheme() != url::kFileScheme) {
       valid_schemes &= ~URLPattern::SCHEME_FILE;
+    }
 
-    if (valid_schemes != pattern->valid_schemes())
+    if (valid_schemes != pattern->valid_schemes()) {
       pattern->SetValidSchemes(valid_schemes);
+    }
   };
 
   for (const auto& origin_str : origins_input) {
@@ -222,8 +224,9 @@ bool UnpackOriginPermissions(const std::vector<std::string>& origins_input,
       }
     }
 
-    if (!used_origin)
+    if (!used_origin) {
       result->unlisted_hosts.AddPattern(explicit_origin);
+    }
   }
 
   return true;
@@ -254,8 +257,9 @@ std::unique_ptr<Permissions> PackPermissionSet(const PermissionSet& set) {
   // to apps/extensions via the permissions API.
 
   permissions->origins.emplace();
-  for (const URLPattern& pattern : set.effective_hosts())
+  for (const URLPattern& pattern : set.effective_hosts()) {
     permissions->origins->push_back(pattern.GetAsString());
+  }
 
   return permissions;
 }

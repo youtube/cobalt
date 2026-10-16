@@ -8,6 +8,8 @@
 #include <lib/sys/cpp/component_context.h>
 #include <lib/sys/cpp/service_directory.h>
 
+#include <optional>
+
 #include "base/base_paths.h"
 #include "base/check.h"
 #include "base/command_line.h"
@@ -38,23 +40,12 @@
 #include "fuchsia_web/webinstance_host/web_instance_host.h"
 #include "media/base/media_util.h"
 #include "media/gpu/test/video_test_helpers.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
 // Identifier for JavaScript to be injected, only relevant if injecting multiple
 // JavaScripts.
 constexpr int kAddBeforeLoadJavaScriptID = 0;
-
-void PrintUsage() {
-  std::cerr << "Usage: "
-            << base::CommandLine::ForCurrentProcess()->GetProgram().BaseName()
-            << " [--" << kRemoteDebuggingPortSwitch
-            << "=<port>] [-- [--{extra_flag1}] [--{extra_flag2}]]\n"
-            << "Setting " << kRemoteDebuggingPortSwitch << "=0"
-            << " will automatically choose an available port.\n"
-            << "Extra flags will be passed to WebEngine to be processed.\n";
-}
 
 media::VideoDecoderConfig GetDefaultVideoConfig() {
   constexpr gfx::Size kVideoSize = {1280, 720};
@@ -69,7 +60,7 @@ media::VideoDecoderConfig GetDefaultVideoConfig() {
 
 // Set up content directory and context params.
 fuchsia::web::CreateContextParams GetCreateContextParams(
-    uint16_t remote_debugging_port) {
+    std::optional<uint16_t> remote_debugging_port) {
   // Configure the fuchsia-dir://cast-streaming/ directory.
   fuchsia::web::CreateContextParams create_context_params;
   ApplyCastStreamingContextParams(&create_context_params);
@@ -82,13 +73,15 @@ fuchsia::web::CreateContextParams GetCreateContextParams(
       fuchsia::web::ContextFeatureFlags::VULKAN;
   create_context_params.set_features(features);
 
-  create_context_params.set_remote_debugging_port(remote_debugging_port);
+  if (remote_debugging_port) {
+    create_context_params.set_remote_debugging_port(*remote_debugging_port);
+  }
 
   return create_context_params;
 }
 
 // Set autoplay, enable all logging, and present fullscreen view of `frame`.
-absl::optional<fuchsia::element::GraphicalPresenterPtr> ConfigureFrame(
+std::optional<fuchsia::element::GraphicalPresenterPtr> ConfigureFrame(
     fuchsia::web::Frame* frame,
     fidl::InterfaceHandle<fuchsia::element::AnnotationController>
         annotation_controller) {
@@ -115,23 +108,20 @@ int main(int argc, char** argv) {
     return optional_exit_code.value();
   }
 
-  absl::optional<uint16_t> remote_debugging_port =
+  std::optional<uint16_t> remote_debugging_port =
       GetRemoteDebuggingPort(*command_line);
-  if (!remote_debugging_port) {
-    PrintUsage();
-    return 1;
-  }
 
   // Instantiate Web Instance Host.
-  WebInstanceHost web_instance_host(
-      *base::ComponentContextForProcess()->outgoing());
+  WebInstanceHostWithServicesFromThisComponent web_instance_host(
+      *base::ComponentContextForProcess()->outgoing(),
+      /*is_web_instance_component_in_same_package=*/false);
   fidl::InterfaceRequest<fuchsia::io::Directory> services_request;
   auto services = sys::ServiceDirectory::CreateWithRequest(&services_request);
   base::CommandLine child_command_line =
       base::CommandLine(command_line->GetArgs());
   child_command_line.AppendSwitch(switches::kEnableCastStreamingReceiver);
   zx_status_t result = web_instance_host.CreateInstanceForContextWithCopiedArgs(
-      GetCreateContextParams(remote_debugging_port.value()),
+      GetCreateContextParams(remote_debugging_port),
       std::move(services_request), child_command_line);
   if (result != ZX_OK) {
     ZX_LOG(ERROR, result) << "CreateInstanceForContextWithCopiedArgs failed";
@@ -154,7 +144,9 @@ int main(int argc, char** argv) {
 
   // Create the browser `frame`.
   fuchsia::web::CreateFrameParams frame_params;
-  frame_params.set_enable_remote_debugging(true);
+  if (remote_debugging_port) {
+    frame_params.set_enable_remote_debugging(true);
+  }
 
   fuchsia::web::FramePtr frame;
   context->CreateFrameWithParams(std::move(frame_params), frame.NewRequest());
@@ -173,7 +165,7 @@ int main(int argc, char** argv) {
       std::make_unique<fuchsia_component_support::AnnotationsManager>();
   fuchsia::element::AnnotationControllerPtr annotation_controller;
   annotations_manager->Connect(annotation_controller.NewRequest());
-  auto maybe_presenter =
+  auto presenter =
       ConfigureFrame(frame.get(), std::move(annotation_controller));
 
   // Register the MessagePort for the Cast Streaming Receiver.
@@ -223,7 +215,7 @@ int main(int argc, char** argv) {
   // Send `sender_message_port` to a Sender and start it.
   cast_streaming::CastStreamingTestSender sender;
   sender.Start(std::move(sender_message_port), net::IPAddress::IPv6Localhost(),
-               absl::nullopt, GetDefaultVideoConfig());
+               std::nullopt, GetDefaultVideoConfig());
 
   // Navigate `frame` to `receiver.html`.
   fuchsia::web::LoadUrlParams load_params;
@@ -261,15 +253,15 @@ int main(int argc, char** argv) {
   // Load video.
   base::FilePath video_file(
       pkg_path.AppendASCII("media/test/data/bear-1280x720.ivf"));
-  absl::optional<std::vector<uint8_t>> video_stream =
+  std::optional<std::vector<uint8_t>> video_stream =
       base::ReadFileToBytes(video_file);
   CHECK(video_stream.has_value());
-  media::test::EncodedDataHelper video_helper(video_stream.value(),
-                                              media::VideoCodec::kVP8);
+  auto video_helper = media::test::EncodedDataHelper::Create(
+      video_stream.value(), media::VideoCodec::kVP8);
 
   // Send first key frame.
   scoped_refptr<media::DecoderBuffer> video_decoder_buffer =
-      video_helper.GetNextBuffer();
+      video_helper->GetNextBuffer();
   video_decoder_buffer->set_timestamp(base::TimeDelta());
   video_decoder_buffer->set_is_key_frame(true);
   sender.SendVideoBuffer(video_decoder_buffer);

@@ -9,34 +9,12 @@
 // C++ string version of combined Metal default shaders.
 
 static char gDefaultMetallibSrc[] = R"(
-# 1 "temp_master_source.metal"
-# 1 "<built-in>" 1
-# 1 "<built-in>" 3
-# 477 "<built-in>" 3
-# 1 "<command line>" 1
-# 1 "<built-in>" 2
-# 1 "temp_master_source.metal" 2
-# 1 "./blit.metal" 1
-
-
-
-
-
-
-
-# 1 "./common.h" 1
-# 13 "./common.h"
 # include <simd/simd.h>
 # include <metal_stdlib>
-
-
-# 1 "./constants.h" 1
-# 11 "./constants.h"
 namespace rx
 {
 namespace mtl_shader
 {
-
 enum
 {
     kTextureType2D = 0,
@@ -46,24 +24,9 @@ enum
     kTextureType3D = 4,
     kTextureTypeCount = 5,
 };
-
-
-
-
 }
 }
-# 18 "./common.h" 2
-
-
-
-
-
-
-
 using namespace metal;
-
-
-
 constant uint32_t kNumColorOutputs [[function_constant(0)]];
 constant bool kColorOutputAvailable0 = kNumColorOutputs > 0;
 constant bool kColorOutputAvailable1 = kNumColorOutputs > 1;
@@ -73,15 +36,11 @@ constant bool kColorOutputAvailable4 = kNumColorOutputs > 4;
 constant bool kColorOutputAvailable5 = kNumColorOutputs > 5;
 constant bool kColorOutputAvailable6 = kNumColorOutputs > 6;
 constant bool kColorOutputAvailable7 = kNumColorOutputs > 7;
-
 namespace rx
 {
 namespace mtl_shader
 {
-
-
 constant float2 gCorners[3] = {float2(-1.0f, -1.0f), float2(3.0f, -1.0f), float2(-1.0f, 3.0f)};
-
 template <typename T>
 struct MultipleColorOutputs
 {
@@ -94,12 +53,10 @@ struct MultipleColorOutputs
     vec<T, 4> color6 [[color(6), function_constant(kColorOutputAvailable6)]];
     vec<T, 4> color7 [[color(7), function_constant(kColorOutputAvailable7)]];
 };
-# 69 "./common.h"
 template <typename T>
 static inline MultipleColorOutputs<T> toMultipleColorOutputs(vec<T, 4> color)
 {
     MultipleColorOutputs<T> re;
-
     do { if (kColorOutputAvailable0) { re.color0 = color; } } while (0);
     do { if (kColorOutputAvailable1) { re.color1 = color; } } while (0);
     do { if (kColorOutputAvailable2) { re.color2 = color; } } while (0);
@@ -108,10 +65,8 @@ static inline MultipleColorOutputs<T> toMultipleColorOutputs(vec<T, 4> color)
     do { if (kColorOutputAvailable5) { re.color5 = color; } } while (0);
     do { if (kColorOutputAvailable6) { re.color6 = color; } } while (0);
     do { if (kColorOutputAvailable7) { re.color7 = color; } } while (0);
-
     return re;
 }
-
 static inline float3 cubeTexcoords(float2 texcoords, int face)
 {
     texcoords = 2.0 * texcoords - 1.0;
@@ -132,71 +87,56 @@ static inline float3 cubeTexcoords(float2 texcoords, int face)
     }
     return float3(texcoords, 0);
 }
-
 template <typename T>
 static inline vec<T, 4> resolveTextureMS(texture2d_ms<T> srcTexture, uint2 coords)
 {
     uint samples = srcTexture.get_num_samples();
-
     vec<T, 4> output(0);
-
     for (uint sample = 0; sample < samples; ++sample)
     {
         output += srcTexture.read(coords, sample);
     }
-
     output = output / samples;
-
     return output;
 }
-
 static inline float4 sRGBtoLinear(float4 color)
 {
     float3 linear1 = color.rgb / 12.92;
-    float3 linear2 = pow((color.rgb + float3(0.055)) / 1.055, 2.4);
+    float3 linear2 = powr((color.rgb + float3(0.055)) / 1.055, 2.4);
     float3 factor = float3(color.rgb <= float3(0.04045));
     float4 linear = float4(factor * linear1 + float3(1.0 - factor) * linear2, color.a);
-
     return linear;
 }
-
 static inline float linearToSRGB(float color)
 {
     if (color <= 0.0f)
         return 0.0f;
-    else if (color < 0.0031308f)
+    if (color < 0.0031308f)
         return 12.92f * color;
-    else if (color < 1.0f)
-        return 1.055f * pow(color, 0.41666f) - 0.055f;
-    else
-        return 1.0f;
+    if (color < 1.0f)
+        return 1.055f * powr(color, 0.41666f) - 0.055f;
+    return 1.0f;
 }
-
 static inline float4 linearToSRGB(float4 color)
 {
     return float4(linearToSRGB(color.r), linearToSRGB(color.g), linearToSRGB(color.b), color.a);
 }
-
 template <typename Short>
-static inline Short bytesToShort(constant uchar *input, uint offset)
+static inline Short bytesToShort(const device uchar *input, uint offset)
 {
     Short inputLo = input[offset];
     Short inputHi = input[offset + 1];
-
     return inputLo | (inputHi << 8);
 }
-
 template <typename Int>
-static inline Int bytesToInt(constant uchar *input, uint offset)
+static inline Int bytesToInt(const device uchar *input, uint offset)
 {
     Int input0 = input[offset];
     Int input1 = input[offset + 1];
     Int input2 = input[offset + 2];
     Int input3 = input[offset + 3];
-
     return input0 | (input1 << 8) | (input2 << 16) | (input3 << 24);
 }
-
 template <typename Short>
 static inline void shortToBytes(Short val, uint offset, device uchar *output)
 {
@@ -204,7 +144,6 @@ static inline void shortToBytes(Short val, uint offset, device uchar *output)
     output[offset] = valUnsigned & 0xff;
     output[offset + 1] = (valUnsigned >> 8) & 0xff;
 }
-
 template <typename Int>
 static inline void intToBytes(Int val, uint offset, device uchar *output)
 {
@@ -214,19 +153,16 @@ static inline void intToBytes(Int val, uint offset, device uchar *output)
     output[offset + 2] = (valUnsigned >> 16) & 0xff;
     output[offset + 3] = (valUnsigned >> 24) & 0xff;
 }
-
 static inline void floatToBytes(float val, uint offset, device uchar *output)
 {
     intToBytes(as_type<uint>(val), offset, output);
 }
-
 static inline void int24bitToBytes(uint val, uint offset, device uchar *output)
 {
     output[offset] = val & 0xff;
     output[offset + 1] = (val >> 8) & 0xff;
     output[offset + 2] = (val >> 16) & 0xff;
 }
-
 template <unsigned int inputBitCount, unsigned int inputBitStart, typename T>
 static inline T getShiftedData(T input)
 {
@@ -235,7 +171,6 @@ static inline T getShiftedData(T input)
     const T mask = (1 << inputBitCount) - 1;
     return (input >> inputBitStart) & mask;
 }
-
 template <unsigned int inputBitCount, unsigned int inputBitStart, typename T>
 static inline T shiftData(T input)
 {
@@ -244,138 +179,107 @@ static inline T shiftData(T input)
     const T mask = (1 << inputBitCount) - 1;
     return (input & mask) << inputBitStart;
 }
-
 template <unsigned int inputBitCount, typename T>
 static inline float normalizedToFloat(T input)
 {
     static_assert(inputBitCount <= (sizeof(T) * 8),
                   "T must have more bits than or same bits as inputBitCount.");
     static_assert(inputBitCount <= 23, "Only single precision is supported");
-
     constexpr float inverseMax = 1.0f / ((1 << inputBitCount) - 1);
     return input * inverseMax;
 }
-
 template <typename T>
 static inline float normalizedToFloat(T input)
 {
     return normalizedToFloat<sizeof(T) * 8, T>(input);
 }
-
 template <>
 inline float normalizedToFloat(short input)
 {
     constexpr float inverseMax = 1.0f / 0x7fff;
     return static_cast<float>(input) * inverseMax;
 }
-
 template <>
 inline float normalizedToFloat(int input)
 {
     constexpr float inverseMax = 1.0f / 0x7fffffff;
     return static_cast<float>(input) * inverseMax;
 }
-
 template <>
 inline float normalizedToFloat(uint input)
 {
     constexpr float inverseMax = 1.0f / 0xffffffff;
     return static_cast<float>(input) * inverseMax;
 }
-
 template <unsigned int outputBitCount, typename T>
 static inline T floatToNormalized(float input)
 {
     static_assert(outputBitCount <= (sizeof(T) * 8),
                   "T must have more bits than or same bits as inputBitCount.");
-    static_assert(outputBitCount <= 23, "Only single precision is supported");
-
-    return static_cast<T>(((1 << outputBitCount) - 1) * input + 0.5f);
+    static_assert(outputBitCount > (metal::is_unsigned<T>::value ? 0 : 1),
+                  "outputBitCount must be at least 1 not counting the sign bit.");
+    constexpr unsigned int bits =
+        metal::is_unsigned<T>::value ? outputBitCount : outputBitCount - 1;
+    static_assert(bits <= 23, "Only single precision is supported");
+    return static_cast<T>(metal::round(((1 << bits) - 1) * input));
 }
-
 template <typename T>
 static inline T floatToNormalized(float input)
 {
     return floatToNormalized<sizeof(T) * 8, T>(input);
 }
-
 }
 }
-# 9 "./blit.metal" 2
 
 using namespace rx::mtl_shader;
-
-
 constant bool kPremultiplyAlpha [[function_constant(1)]];
 constant bool kUnmultiplyAlpha [[function_constant(2)]];
-constant int kSourceTextureType [[function_constant(3)]];
-constant int kSourceTexture2Type [[function_constant(4)]];
-
+constant bool kTransformLinearToSrgb [[function_constant(3)]];
+constant int kSourceTextureType [[function_constant(4)]];
+constant int kSourceTexture2Type [[function_constant(5)]];
 constant bool kSourceTextureType2D = kSourceTextureType == kTextureType2D;
 constant bool kSourceTextureType2DArray = kSourceTextureType == kTextureType2DArray;
 constant bool kSourceTextureType2DMS = kSourceTextureType == kTextureType2DMultisample;
 constant bool kSourceTextureTypeCube = kSourceTextureType == kTextureTypeCube;
 constant bool kSourceTextureType3D = kSourceTextureType == kTextureType3D;
-
 constant bool kSourceTexture2Type2D = kSourceTexture2Type == kTextureType2D;
 constant bool kSourceTexture2Type2DArray = kSourceTexture2Type == kTextureType2DArray;
 constant bool kSourceTexture2Type2DMS = kSourceTexture2Type == kTextureType2DMultisample;
 constant bool kSourceTexture2TypeCube = kSourceTexture2Type == kTextureTypeCube;
-
 struct BlitParams
 {
-
-    float2 srcTexCoords[3];
+    float4 srcTexCoords;
     int srcLevel;
     int srcLayer;
-    bool dstFlipViewportX;
-    bool dstFlipViewportY;
     bool dstLuminance;
-    uint8_t padding[13];
+    uint8_t padding[7];
 };
-
 struct BlitVSOut
 {
     float4 position [[position]];
-    float2 texCoords [[user(locn1)]];
+    float2 texCoords [[center_no_perspective, user(locn1)]];
 };
-
 vertex BlitVSOut blitVS(unsigned int vid [[vertex_id]], constant BlitParams &options [[buffer(0)]])
 {
     BlitVSOut output;
-    output.position = float4(gCorners[vid], 0.0, 1.0);
-    output.texCoords = options.srcTexCoords[vid];
-
-    if (options.dstFlipViewportX)
-    {
-        output.position.x = -output.position.x;
-    }
-    if (!options.dstFlipViewportY)
-    {
-
-
-        output.position.y = -output.position.y;
-    }
-
+    output.position.xy = select(float2(-1.0f), float2(1.0f), bool2(vid & uint2(2, 1)));
+    output.position.zw = float2(0.0, 1.0);
+    output.texCoords = select(options.srcTexCoords.xy, options.srcTexCoords.zw, bool2(vid & uint2(2, 1)));
     return output;
 }
-
 template <typename SrcTexture2d>
 static uint2 getImageCoords(SrcTexture2d srcTexture, float2 texCoords)
 {
     uint2 dimens(srcTexture.get_width(), srcTexture.get_height());
     uint2 coords = uint2(texCoords * float2(dimens));
-
     return coords;
 }
-
 template <typename T>
 static inline vec<T, 4> blitSampleTextureMS(texture2d_ms<T> srcTexture, float2 texCoords)
 {
     uint2 coords = getImageCoords(srcTexture, texCoords);
     return resolveTextureMS(srcTexture, coords);
 }
-
 template <typename T>
 static inline vec<T, 4> blitSampleTexture3D(texture3d<T> srcTexture,
                                             sampler textureSampler,
@@ -384,15 +288,12 @@ static inline vec<T, 4> blitSampleTexture3D(texture3d<T> srcTexture,
 {
     uint depth = srcTexture.get_depth(options.srcLevel);
     float zCoord = (float(options.srcLayer) + 0.5) / float(depth);
-
     return srcTexture.sample(textureSampler, float3(texCoords, zCoord), level(options.srcLevel));
 }
-# 112 "./blit.metal"
 template <typename T>
 static inline vec<T, 4> blitReadTexture(BlitVSOut input [[stage_in]], texture2d<T> srcTexture2d [[texture(0), function_constant(kSourceTextureType2D)]], texture2d_array<T> srcTexture2dArray [[texture(0), function_constant(kSourceTextureType2DArray)]], texture2d_ms<T> srcTexture2dMS [[texture(0), function_constant(kSourceTextureType2DMS)]], texturecube<T> srcTextureCube [[texture(0), function_constant(kSourceTextureTypeCube)]], texture3d<T> srcTexture3d [[texture(0), function_constant(kSourceTextureType3D)]], sampler textureSampler [[sampler(0)]], constant BlitParams &options [[buffer(0)]])
 {
     vec<T, 4> output;
-
     switch (kSourceTextureType)
     {
         case kTextureType2D:
@@ -414,35 +315,34 @@ static inline vec<T, 4> blitReadTexture(BlitVSOut input [[stage_in]], texture2d<
             output = blitSampleTexture3D(srcTexture3d, textureSampler, input.texCoords, options);
             break;
     }
-
-    if (kPremultiplyAlpha)
-    {
-        output.xyz *= output.a;
+    if (kTransformLinearToSrgb) {
+        output.x = linearToSRGB(output.x);
+        output.y = linearToSRGB(output.y);
+        output.z = linearToSRGB(output.z);
     }
-    else if (kUnmultiplyAlpha)
+    if (kUnmultiplyAlpha)
     {
         if (output.a != 0.0)
         {
             output.xyz /= output.a;
         }
     }
-
+    if (kPremultiplyAlpha)
+    {
+        output.xyz *= output.a;
+    }
     if (options.dstLuminance)
     {
         output.g = output.b = output.r;
     }
-
     return output;
 }
-
 template <typename T>
 static inline MultipleColorOutputs<T> blitFS(BlitVSOut input [[stage_in]], texture2d<T> srcTexture2d [[texture(0), function_constant(kSourceTextureType2D)]], texture2d_array<T> srcTexture2dArray [[texture(0), function_constant(kSourceTextureType2DArray)]], texture2d_ms<T> srcTexture2dMS [[texture(0), function_constant(kSourceTextureType2DMS)]], texturecube<T> srcTextureCube [[texture(0), function_constant(kSourceTextureTypeCube)]], texture3d<T> srcTexture3d [[texture(0), function_constant(kSourceTextureType3D)]], sampler textureSampler [[sampler(0)]], constant BlitParams &options [[buffer(0)]])
 {
     vec<T, 4> output = blitReadTexture(input, srcTexture2d, srcTexture2dArray, srcTexture2dMS, srcTextureCube, srcTexture3d, textureSampler, options);
-
     return toMultipleColorOutputs(output);
 }
-
 fragment MultipleColorOutputs<float> blitFloatFS(BlitVSOut input [[stage_in]], texture2d<float> srcTexture2d [[texture(0), function_constant(kSourceTextureType2D)]], texture2d_array<float> srcTexture2dArray [[texture(0), function_constant(kSourceTextureType2DArray)]], texture2d_ms<float> srcTexture2dMS [[texture(0), function_constant(kSourceTextureType2DMS)]], texturecube<float> srcTextureCube [[texture(0), function_constant(kSourceTextureTypeCube)]], texture3d<float> srcTexture3d [[texture(0), function_constant(kSourceTextureType3D)]], sampler textureSampler [[sampler(0)]], constant BlitParams &options [[buffer(0)]])
 {
     return blitFS(input, srcTexture2d, srcTexture2dArray, srcTexture2dMS, srcTextureCube, srcTexture3d, textureSampler, options);
@@ -455,21 +355,16 @@ fragment MultipleColorOutputs<uint> blitUIntFS(BlitVSOut input [[stage_in]], tex
 {
     return blitFS(input, srcTexture2d, srcTexture2dArray, srcTexture2dMS, srcTextureCube, srcTexture3d, textureSampler, options);
 }
-
 fragment MultipleColorOutputs<uint> copyTextureFloatToUIntFS(BlitVSOut input [[stage_in]], texture2d<float> srcTexture2d [[texture(0), function_constant(kSourceTextureType2D)]], texture2d_array<float> srcTexture2dArray [[texture(0), function_constant(kSourceTextureType2DArray)]], texture2d_ms<float> srcTexture2dMS [[texture(0), function_constant(kSourceTextureType2DMS)]], texturecube<float> srcTextureCube [[texture(0), function_constant(kSourceTextureTypeCube)]], texture3d<float> srcTexture3d [[texture(0), function_constant(kSourceTextureType3D)]], sampler textureSampler [[sampler(0)]], constant BlitParams &options [[buffer(0)]])
 {
     float4 inputColor = blitReadTexture<>(input, srcTexture2d, srcTexture2dArray, srcTexture2dMS, srcTextureCube, srcTexture3d, textureSampler, options);
     uint4 output = uint4(inputColor * float4(255.0));
-
     return toMultipleColorOutputs(output);
 }
-
-
 struct FragmentDepthOut
 {
     float depth [[depth(any)]];
 };
-
 static inline float sampleDepth(
     texture2d<float> srcTexture2d [[function_constant(kSourceTextureType2D)]],
     texture2d_array<float> srcTexture2dArray [[function_constant(kSourceTextureType2DArray)]],
@@ -479,9 +374,7 @@ static inline float sampleDepth(
     constant BlitParams &options)
 {
     float4 output;
-
     constexpr sampler textureSampler(mag_filter::nearest, min_filter::nearest);
-
     switch (kSourceTextureType)
     {
         case kTextureType2D:
@@ -492,7 +385,6 @@ static inline float sampleDepth(
                                               level(options.srcLevel));
             break;
         case kTextureType2DMultisample:
-
             output = srcTexture2dMS.read(getImageCoords(srcTexture2dMS, texCoords), 0);
             break;
         case kTextureTypeCube:
@@ -501,10 +393,8 @@ static inline float sampleDepth(
                                       level(options.srcLevel));
             break;
     }
-
     return output.r;
 }
-
 fragment FragmentDepthOut blitDepthFS(BlitVSOut input [[stage_in]],
                                       texture2d<float> srcTexture2d
                                       [[texture(0), function_constant(kSourceTextureType2D)]],
@@ -517,13 +407,10 @@ fragment FragmentDepthOut blitDepthFS(BlitVSOut input [[stage_in]],
                                       constant BlitParams &options [[buffer(0)]])
 {
     FragmentDepthOut re;
-
     re.depth = sampleDepth(srcTexture2d, srcTexture2dArray, srcTexture2dMS, srcTextureCube,
                            input.texCoords, options);
-
     return re;
 }
-
 static inline uint32_t sampleStencil(
     texture2d<uint32_t> srcTexture2d [[function_constant(kSourceTexture2Type2D)]],
     texture2d_array<uint32_t> srcTexture2dArray [[function_constant(kSourceTexture2Type2DArray)]],
@@ -535,7 +422,6 @@ static inline uint32_t sampleStencil(
 {
     uint4 output;
     constexpr sampler textureSampler(mag_filter::nearest, min_filter::nearest);
-
     switch (kSourceTexture2Type)
     {
         case kTextureType2D:
@@ -545,7 +431,6 @@ static inline uint32_t sampleStencil(
             output = srcTexture2dArray.sample(textureSampler, texCoords, srcLayer, level(srcLevel));
             break;
         case kTextureType2DMultisample:
-
             output = srcTexture2dMS.read(getImageCoords(srcTexture2dMS, texCoords), 0);
             break;
         case kTextureTypeCube:
@@ -553,24 +438,18 @@ static inline uint32_t sampleStencil(
                                            level(srcLevel));
             break;
     }
-
     return output.r;
 }
-
-
 struct BlitStencilToBufferParams
 {
     float2 srcStartTexCoords;
     float2 srcTexCoordSteps;
     int srcLevel;
     int srcLayer;
-
     uint2 dstSize;
     uint dstBufferRowPitch;
-
     bool resolveMS;
 };
-
 kernel void blitStencilToBufferCS(ushort2 gIndices [[thread_position_in_grid]],
                                   texture2d<uint32_t> srcTexture2d
                                   [[texture(1), function_constant(kSourceTexture2Type2D)]],
@@ -587,15 +466,12 @@ kernel void blitStencilToBufferCS(ushort2 gIndices [[thread_position_in_grid]],
     {
         return;
     }
-
     float2 srcTexCoords = options.srcStartTexCoords + float2(gIndices) * options.srcTexCoordSteps;
-
     if (kSourceTexture2Type == kTextureType2DMultisample && !options.resolveMS)
     {
         uint samples = srcTexture2dMS.get_num_samples();
         uint2 imageCoords = getImageCoords(srcTexture2dMS, srcTexCoords);
         uint bufferOffset = options.dstBufferRowPitch * gIndices.y + samples * gIndices.x;
-
         for (uint sample = 0; sample < samples; ++sample)
         {
             uint stencilPerSample = srcTexture2dMS.read(imageCoords, sample).r;
@@ -607,25 +483,19 @@ kernel void blitStencilToBufferCS(ushort2 gIndices [[thread_position_in_grid]],
         uint32_t stencil =
             sampleStencil(srcTexture2d, srcTexture2dArray, srcTexture2dMS, srcTextureCube,
                           srcTexCoords, options.srcLevel, options.srcLayer);
-
         buffer[options.dstBufferRowPitch * gIndices.y + gIndices.x] = static_cast<uchar>(stencil);
     }
 }
-
-
 #if __METAL_VERSION__ >= 210
-
 struct FragmentStencilOut
 {
     uint32_t stencil [[stencil]];
 };
-
 struct FragmentDepthStencilOut
 {
     float depth [[depth(any)]];
     uint32_t stencil [[stencil]];
 };
-
 fragment FragmentStencilOut blitStencilFS(
     BlitVSOut input [[stage_in]],
     texture2d<uint32_t> srcTexture2d [[texture(1), function_constant(kSourceTexture2Type2D)]],
@@ -637,16 +507,12 @@ fragment FragmentStencilOut blitStencilFS(
     constant BlitParams &options [[buffer(0)]])
 {
     FragmentStencilOut re;
-
     re.stencil = sampleStencil(srcTexture2d, srcTexture2dArray, srcTexture2dMS, srcTextureCube,
                                input.texCoords, options.srcLevel, options.srcLayer);
-
     return re;
 }
-
 fragment FragmentDepthStencilOut blitDepthStencilFS(
     BlitVSOut input [[stage_in]],
-
     texture2d<float> srcDepthTexture2d [[texture(0), function_constant(kSourceTextureType2D)]],
     texture2d_array<float> srcDepthTexture2dArray
     [[texture(0), function_constant(kSourceTextureType2DArray)]],
@@ -654,8 +520,6 @@ fragment FragmentDepthStencilOut blitDepthStencilFS(
     [[texture(0), function_constant(kSourceTextureType2DMS)]],
     texturecube<float> srcDepthTextureCube
     [[texture(0), function_constant(kSourceTextureTypeCube)]],
-
-
     texture2d<uint32_t> srcStencilTexture2d
     [[texture(1), function_constant(kSourceTexture2Type2D)]],
     texture2d_array<uint32_t> srcStencilTexture2dArray
@@ -664,11 +528,9 @@ fragment FragmentDepthStencilOut blitDepthStencilFS(
     [[texture(1), function_constant(kSourceTexture2Type2DMS)]],
     texturecube<uint32_t> srcStencilTextureCube
     [[texture(1), function_constant(kSourceTexture2TypeCube)]],
-
     constant BlitParams &options [[buffer(0)]])
 {
     FragmentDepthStencilOut re;
-
     re.depth = sampleDepth(srcDepthTexture2d, srcDepthTexture2dArray, srcDepthTexture2dMS,
                            srcDepthTextureCube, input.texCoords, options);
     re.stencil =
@@ -677,50 +539,30 @@ fragment FragmentDepthStencilOut blitDepthStencilFS(
     return re;
 }
 #endif
-# 2 "temp_master_source.metal" 2
-# 1 "./clear.metal" 1
-# 10 "./clear.metal"
 using namespace rx::mtl_shader;
-
 struct ClearParams
 {
     float4 clearColor;
     float clearDepth;
 };
-
 vertex float4 clearVS(unsigned int vid [[ vertex_id ]],
                       constant ClearParams &clearParams [[buffer(0)]])
 {
     return float4(gCorners[vid], clearParams.clearDepth, 1.0);
 }
-
 fragment MultipleColorOutputs<float> clearFloatFS(constant ClearParams &clearParams [[buffer(0)]])
 {
     return toMultipleColorOutputs(clearParams.clearColor);
 }
-
 fragment MultipleColorOutputs<int> clearIntFS(constant ClearParams &clearParams [[buffer(0)]])
 {
     return toMultipleColorOutputs(as_type<int4>(clearParams.clearColor));
 }
-
 fragment MultipleColorOutputs<uint> clearUIntFS(constant ClearParams &clearParams [[buffer(0)]])
 {
     return toMultipleColorOutputs(as_type<uint4>(clearParams.clearColor));
 }
-# 3 "temp_master_source.metal" 2
-# 1 "./gen_indices.metal" 1
-
-
-
-
-
-
-
-
 using namespace rx::mtl_shader;
-
-
 constant bool kSourceBufferAligned[[function_constant(100)]];
 constant bool kSourceIndexIsU8[[function_constant(200)]];
 constant bool kSourceIndexIsU16[[function_constant(300)]];
@@ -729,54 +571,45 @@ constant bool kSourceBufferUnaligned = !kSourceBufferAligned;
 constant bool kUseSourceBufferU8 = kSourceIndexIsU8 || kSourceBufferUnaligned;
 constant bool kUseSourceBufferU16 = kSourceIndexIsU16 && kSourceBufferAligned;
 constant bool kUseSourceBufferU32 = kSourceIndexIsU32 && kSourceBufferAligned;
-
 struct IndexConversionParams
 {
     uint32_t srcOffset;
     uint32_t indexCount;
     bool primitiveRestartEnabled;
 };
-
-
-
-inline ushort getIndexAligned(constant ushort *inputAligned, uint offset, uint idx)
+inline ushort getIndexAligned(const device ushort *inputAligned, uint offset, uint idx)
 {
     return inputAligned[offset / 2 + idx];
 }
-inline uint getIndexAligned(constant uint *inputAligned, uint offset, uint idx)
+inline uint getIndexAligned(const device uint *inputAligned, uint offset, uint idx)
 {
     return inputAligned[offset / 4 + idx];
 }
-inline uchar getIndexAligned(constant uchar *input, uint offset, uint idx)
+inline uchar getIndexAligned(const device uchar *input, uint offset, uint idx)
 {
     return input[offset + idx];
 }
-inline ushort getIndexUnalignedU16(constant uchar *input, uint offset, uint idx)
+inline ushort getIndexUnalignedU16(const device uchar *input, uint offset, uint idx)
 {
     ushort inputLo = input[offset + 2 * idx];
     ushort inputHi = input[offset + 2 * idx + 1];
-
     return inputLo | (inputHi << 8);
 }
-inline uint getIndexUnalignedU32(constant uchar *input, uint offset, uint idx)
+inline uint getIndexUnalignedU32(const device uchar *input, uint offset, uint idx)
 {
     uint input0 = input[offset + 4 * idx];
     uint input1 = input[offset + 4 * idx + 1];
     uint input2 = input[offset + 4 * idx + 2];
     uint input3 = input[offset + 4 * idx + 3];
-
     return input0 | (input1 << 8) | (input2 << 16) | (input3 << 24);
 }
-
 kernel void convertIndexU8ToU16(uint idx [[thread_position_in_grid]],
                                 constant IndexConversionParams &options [[buffer(0)]],
-                                constant uchar *input [[buffer(1)]],
+                                const device uchar *input [[buffer(1)]],
                                 device ushort *output [[buffer(2)]])
 {
     if (idx >= options.indexCount) { return; };
-
     uchar value = getIndexAligned(input, options.srcOffset, idx);
-
     if (options.primitiveRestartEnabled && value == 0xff)
     {
         output[idx] = 0xffff;
@@ -786,17 +619,15 @@ kernel void convertIndexU8ToU16(uint idx [[thread_position_in_grid]],
         output[idx] = value;
     }
 }
-
 kernel void convertIndexU16(uint idx [[thread_position_in_grid]],
                             constant IndexConversionParams &options [[buffer(0)]],
-                            constant uchar *input
+                            const device uchar *input
                             [[buffer(1), function_constant(kSourceBufferUnaligned)]],
-                            constant ushort *inputAligned
+                            const device ushort *inputAligned
                             [[buffer(1), function_constant(kSourceBufferAligned)]],
                             device ushort *output [[buffer(2)]])
 {
     if (idx >= options.indexCount) { return; };
-
     ushort value;
     if (kSourceBufferAligned)
     {
@@ -808,17 +639,15 @@ kernel void convertIndexU16(uint idx [[thread_position_in_grid]],
     }
     output[idx] = value;
 }
-
 kernel void convertIndexU32(uint idx [[thread_position_in_grid]],
                             constant IndexConversionParams &options [[buffer(0)]],
-                            constant uchar *input
+                            const device uchar *input
                             [[buffer(1), function_constant(kSourceBufferUnaligned)]],
-                            constant uint *inputAligned
+                            const device uint *inputAligned
                             [[buffer(1), function_constant(kSourceBufferAligned)]],
                             device uint *output [[buffer(2)]])
 {
     if (idx >= options.indexCount) { return; };
-
     uint value;
     if (kSourceBufferAligned)
     {
@@ -830,35 +659,26 @@ kernel void convertIndexU32(uint idx [[thread_position_in_grid]],
     }
     output[idx] = value;
 }
-
 struct IndexFromArrayParams
 {
     uint firstVertex;
-
     uint vertexCount;
 };
-
-
 kernel void genTriFanIndicesFromArray(uint idx [[thread_position_in_grid]],
                                       constant IndexFromArrayParams &options [[buffer(0)]],
                                       device uint *output [[buffer(2)]])
 {
     if (idx >= options.vertexCount) { return; };
-
     uint vertexIdx = options.firstVertex + 2 + idx;
-
-
-
     output[3 * idx ] = vertexIdx - 1;
     output[3 * idx + 1] = vertexIdx;
     output[3 * idx + 2] = options.firstVertex;
 }
-
 inline uint getIndexU32(uint offset,
                         uint idx,
-                        constant uchar *inputU8 [[function_constant(kUseSourceBufferU8)]],
-                        constant ushort *inputU16 [[function_constant(kUseSourceBufferU16)]],
-                        constant uint *inputU32 [[function_constant(kUseSourceBufferU32)]])
+                        const device uchar *inputU8 [[function_constant(kUseSourceBufferU8)]],
+                        const device ushort *inputU16 [[function_constant(kUseSourceBufferU16)]],
+                        const device uint *inputU32 [[function_constant(kUseSourceBufferU32)]])
 {
     if (kUseSourceBufferU8)
     {
@@ -882,79 +702,52 @@ inline uint getIndexU32(uint offset,
     }
     return 0;
 }
-
-
-
-
 kernel void genTriFanIndicesFromElements(uint idx [[thread_position_in_grid]],
                                          constant IndexConversionParams &options [[buffer(0)]],
-                                         constant uchar *inputU8
+                                         const device uchar *inputU8
                                          [[buffer(1), function_constant(kUseSourceBufferU8)]],
-                                         constant ushort *inputU16
+                                         const device ushort *inputU16
                                          [[buffer(1), function_constant(kUseSourceBufferU16)]],
-                                         constant uint *inputU32
+                                         const device uint *inputU32
                                          [[buffer(1), function_constant(kUseSourceBufferU32)]],
                                          device uint *output [[buffer(2)]])
 {
     if (idx >= options.indexCount) { return; };
-
     uint elemIdx = 2 + idx;
-
     output[3 * idx] = getIndexU32(options.srcOffset, 0, inputU8, inputU16, inputU32);
     output[3 * idx + 1] = getIndexU32(options.srcOffset, elemIdx - 1, inputU8, inputU16, inputU32);
     output[3 * idx + 2] = getIndexU32(options.srcOffset, elemIdx, inputU8, inputU16, inputU32);
 }
-
-
 kernel void genLineLoopIndicesFromArray(uint idx [[thread_position_in_grid]],
                                         constant IndexFromArrayParams &options [[buffer(0)]],
                                         device uint *output [[buffer(2)]])
 {
     uint totalIndices = options.vertexCount + 1;
     if (idx >= totalIndices) { return; };
-
     output[idx] = options.firstVertex + idx % options.vertexCount;
 }
-
-
-
 kernel void genLineLoopIndicesFromElements(uint idx [[thread_position_in_grid]],
                                            constant IndexConversionParams &options [[buffer(0)]],
-                                           constant uchar *inputU8
+                                           const device uchar *inputU8
                                            [[buffer(1), function_constant(kUseSourceBufferU8)]],
-                                           constant ushort *inputU16
+                                           const device ushort *inputU16
                                            [[buffer(1), function_constant(kUseSourceBufferU16)]],
-                                           constant uint *inputU32
+                                           const device uint *inputU32
                                            [[buffer(1), function_constant(kUseSourceBufferU32)]],
                                            device uint *output [[buffer(2)]])
 {
     uint totalTargetIndices = options.indexCount + 1;
     if (idx >= totalTargetIndices) { return; };
-
     output[idx] =
         getIndexU32(options.srcOffset, idx % options.indexCount, inputU8, inputU16, inputU32);
 }
-# 4 "temp_master_source.metal" 2
-# 1 "./gen_mipmap.metal" 1
-
-
-
-
-
-
-
-
 using namespace rx::mtl_shader;
-# 31 "./gen_mipmap.metal"
 struct GenMipParams
 {
     uint srcLevel;
     uint numMipLevelsToGen;
     bool sRGB;
 };
-
-
-
 kernel void generate3DMipmaps(uint lIndex [[thread_index_in_threadgroup]],
                               ushort3 gIndices [[thread_position_in_grid]],
                               texture3d<float> srcTexture [[texture(0)]],
@@ -966,173 +759,91 @@ kernel void generate3DMipmaps(uint lIndex [[thread_index_in_threadgroup]],
 {
     ushort3 mipSize = ushort3(dstMip1.get_width(), dstMip1.get_height(), dstMip1.get_depth());
     bool validThread = gIndices.x < mipSize.x && gIndices.y < mipSize.y && gIndices.z < mipSize.z;
-
     constexpr sampler textureSampler(mag_filter::linear, min_filter::linear, mip_filter::linear);
-
-
-
-
     threadgroup float sR[(8 * 8 * 8)];
     threadgroup float sG[(8 * 8 * 8)];
     threadgroup float sB[(8 * 8 * 8)];
     threadgroup float sA[(8 * 8 * 8)];
-
-
     float4 texel1;
     if (validThread)
     {
         float3 texCoords = (float3(gIndices) + float3(0.5, 0.5, 0.5)) / float3(mipSize);
         texel1 = srcTexture.sample(textureSampler, texCoords, level(options.srcLevel));
-
-
         dstMip1.write(texel1, gIndices);
     }
     else
     {
-
         lIndex = 0xffffffff;
     }
-
     if (options.numMipLevelsToGen == 1)
     {
         return;
     }
-
-
-
-
     if (options.sRGB)
     {
         texel1 = linearToSRGB(texel1);
     }
     sR[lIndex] = texel1.r; sG[lIndex] = texel1.g; sB[lIndex] = texel1.b; sA[lIndex] = texel1.a;;
-
     threadgroup_barrier(mem_flags::mem_threadgroup);
-
-
     if ((lIndex & 0x49) == 0)
     {
         bool3 atEdge = gIndices == (mipSize - ushort3(1));
-
-
-
         float4 texel2 = (atEdge.x) ? (texel1) : (float4(sR[lIndex + 1], sG[lIndex + 1], sB[lIndex + 1], sA[lIndex + 1]));
-
         float4 texel3 = (atEdge.y) ? (texel1) : (float4(sR[lIndex + 8], sG[lIndex + 8], sB[lIndex + 8], sA[lIndex + 8]));
-
         float4 texel4 = (atEdge.z) ? (texel1) : (float4(sR[lIndex + (8 * 8)], sG[lIndex + (8 * 8)], sB[lIndex + (8 * 8)], sA[lIndex + (8 * 8)]));
-
         float4 texel5 = (atEdge.x | atEdge.y) ? (texel2) : (float4(sR[lIndex + (8 + 1)], sG[lIndex + (8 + 1)], sB[lIndex + (8 + 1)], sA[lIndex + (8 + 1)]));
-
-
         float4 texel6 = (atEdge.x | atEdge.z) ? (texel2) : (float4(sR[lIndex + ((8 * 8) + 1)], sG[lIndex + ((8 * 8) + 1)], sB[lIndex + ((8 * 8) + 1)], sA[lIndex + ((8 * 8) + 1)]));
-
-
         float4 texel7 = (atEdge.y | atEdge.z) ? (texel3) : (float4(sR[lIndex + ((8 * 8) + 8)], sG[lIndex + ((8 * 8) + 8)], sB[lIndex + ((8 * 8) + 8)], sA[lIndex + ((8 * 8) + 8)]));
-
-
         float4 texel8 =
             (atEdge.x | atEdge.y | atEdge.z) ? (texel5) : (float4(sR[lIndex + ((8 * 8) + 8 + 1)], sG[lIndex + ((8 * 8) + 8 + 1)], sB[lIndex + ((8 * 8) + 8 + 1)], sA[lIndex + ((8 * 8) + 8 + 1)]));
-
-
         texel1 = (texel1 + texel2 + texel3 + texel4 + texel5 + texel6 + texel7 + texel8) / 8.0;
-
         dstMip2.write((options.sRGB ? sRGBtoLinear(texel1) : texel1), gIndices >> 1);
-
-
         sR[lIndex] = texel1.r; sG[lIndex] = texel1.g; sB[lIndex] = texel1.b; sA[lIndex] = texel1.a;;
     }
-
     if (options.numMipLevelsToGen == 2)
     {
         return;
     }
-
-
     threadgroup_barrier(mem_flags::mem_threadgroup);
-
-
     if ((lIndex & 0xdb) == 0)
     {
         mipSize = max(mipSize >> 1, ushort3(1));
         bool3 atEdge = (gIndices >> 1) == (mipSize - ushort3(1));
-
-
-
         float4 texel2 = (atEdge.x) ? (texel1) : (float4(sR[lIndex + 2], sG[lIndex + 2], sB[lIndex + 2], sA[lIndex + 2]));
-
         float4 texel3 =
             (atEdge.y) ? (texel1) : (float4(sR[lIndex + (2 * 8)], sG[lIndex + (2 * 8)], sB[lIndex + (2 * 8)], sA[lIndex + (2 * 8)]));
-
         float4 texel4 =
             (atEdge.z) ? (texel1) : (float4(sR[lIndex + (2 * (8 * 8))], sG[lIndex + (2 * (8 * 8))], sB[lIndex + (2 * (8 * 8))], sA[lIndex + (2 * (8 * 8))]));
-
         float4 texel5 = (atEdge.x | atEdge.y) ? (texel2) : (float4(sR[lIndex + (2 * 8 + 2)], sG[lIndex + (2 * 8 + 2)], sB[lIndex + (2 * 8 + 2)], sA[lIndex + (2 * 8 + 2)]));
-
-
         float4 texel6 = (atEdge.x | atEdge.z) ? (texel2) : (float4(sR[lIndex + (2 * (8 * 8) + 2)], sG[lIndex + (2 * (8 * 8) + 2)], sB[lIndex + (2 * (8 * 8) + 2)], sA[lIndex + (2 * (8 * 8) + 2)]));
-
-
         float4 texel7 = (atEdge.y | atEdge.z) ? (texel3) : (float4(sR[lIndex + (2 * (8 * 8) + 2 * 8)], sG[lIndex + (2 * (8 * 8) + 2 * 8)], sB[lIndex + (2 * (8 * 8) + 2 * 8)], sA[lIndex + (2 * (8 * 8) + 2 * 8)]));
-
-
-
         float4 texel8 = (atEdge.x | atEdge.y | atEdge.z) ? (texel5) : (float4(sR[lIndex + (2 * (8 * 8) + 2 * 8 + 2)], sG[lIndex + (2 * (8 * 8) + 2 * 8 + 2)], sB[lIndex + (2 * (8 * 8) + 2 * 8 + 2)], sA[lIndex + (2 * (8 * 8) + 2 * 8 + 2)]));
-
-
-
         texel1 = (texel1 + texel2 + texel3 + texel4 + texel5 + texel6 + texel7 + texel8) / 8.0;
-
         dstMip3.write((options.sRGB ? sRGBtoLinear(texel1) : texel1), gIndices >> 2);
-
-
         sR[lIndex] = texel1.r; sG[lIndex] = texel1.g; sB[lIndex] = texel1.b; sA[lIndex] = texel1.a;;
     }
-
     if (options.numMipLevelsToGen == 3)
     {
         return;
     }
-
-
     threadgroup_barrier(mem_flags::mem_threadgroup);
-
-
     if ((lIndex & 0x1ff) == 0)
     {
         mipSize = max(mipSize >> 1, ushort3(1));
         bool3 atEdge = (gIndices >> 2) == (mipSize - ushort3(1));
-
-
-
         float4 texel2 = (atEdge.x) ? (texel1) : (float4(sR[lIndex + 4], sG[lIndex + 4], sB[lIndex + 4], sA[lIndex + 4]));
-
         float4 texel3 =
             (atEdge.y) ? (texel1) : (float4(sR[lIndex + (4 * 8)], sG[lIndex + (4 * 8)], sB[lIndex + (4 * 8)], sA[lIndex + (4 * 8)]));
-
         float4 texel4 =
             (atEdge.z) ? (texel1) : (float4(sR[lIndex + (4 * (8 * 8))], sG[lIndex + (4 * (8 * 8))], sB[lIndex + (4 * (8 * 8))], sA[lIndex + (4 * (8 * 8))]));
-
         float4 texel5 = (atEdge.x | atEdge.y) ? (texel2) : (float4(sR[lIndex + (4 * 8 + 4)], sG[lIndex + (4 * 8 + 4)], sB[lIndex + (4 * 8 + 4)], sA[lIndex + (4 * 8 + 4)]));
-
-
         float4 texel6 = (atEdge.x | atEdge.z) ? (texel2) : (float4(sR[lIndex + (4 * (8 * 8) + 4)], sG[lIndex + (4 * (8 * 8) + 4)], sB[lIndex + (4 * (8 * 8) + 4)], sA[lIndex + (4 * (8 * 8) + 4)]));
-
-
         float4 texel7 = (atEdge.y | atEdge.z) ? (texel3) : (float4(sR[lIndex + (4 * (8 * 8) + 4 * 8)], sG[lIndex + (4 * (8 * 8) + 4 * 8)], sB[lIndex + (4 * (8 * 8) + 4 * 8)], sA[lIndex + (4 * (8 * 8) + 4 * 8)]));
-
-
-
         float4 texel8 = (atEdge.x | atEdge.y | atEdge.z) ? (texel5) : (float4(sR[lIndex + (4 * (8 * 8) + 4 * 8 + 4)], sG[lIndex + (4 * (8 * 8) + 4 * 8 + 4)], sB[lIndex + (4 * (8 * 8) + 4 * 8 + 4)], sA[lIndex + (4 * (8 * 8) + 4 * 8 + 4)]));
-
-
-
         texel1 = (texel1 + texel2 + texel3 + texel4 + texel5 + texel6 + texel7 + texel8) / 8.0;
-
         dstMip4.write((options.sRGB ? sRGBtoLinear(texel1) : texel1), gIndices >> 3);
     }
 }
-
 kernel void generate2DMipmaps(uint lIndex [[thread_index_in_threadgroup]],
                               ushort2 gIndices [[thread_position_in_grid]],
                               texture2d<float> srcTexture [[texture(0)]],
@@ -1146,129 +857,72 @@ kernel void generate2DMipmaps(uint lIndex [[thread_index_in_threadgroup]],
     ushort2 mipSize =
         ushort2(srcTexture.get_width(firstMipLevel), srcTexture.get_height(firstMipLevel));
     bool validThread = gIndices.x < mipSize.x && gIndices.y < mipSize.y;
-
     constexpr sampler textureSampler(mag_filter::linear, min_filter::linear, mip_filter::linear);
-
-
-
-
     threadgroup float sR[(8 * 8)];
     threadgroup float sG[(8 * 8)];
     threadgroup float sB[(8 * 8)];
     threadgroup float sA[(8 * 8)];
-
-
     float4 texel1;
     if (validThread)
     {
         float2 texCoords = (float2(gIndices) + float2(0.5, 0.5)) / float2(mipSize);
         texel1 = srcTexture.sample(textureSampler, texCoords, level(options.srcLevel));
-
-
         dstMip1.write((options.sRGB ? sRGBtoLinear(texel1) : texel1), gIndices);
     }
     else
     {
-
         lIndex = 0xffffffff;
     }
-
     if (options.numMipLevelsToGen == 1)
     {
         return;
     }
-
-
-
-
     sR[lIndex] = texel1.r; sG[lIndex] = texel1.g; sB[lIndex] = texel1.b; sA[lIndex] = texel1.a;;
-
     threadgroup_barrier(mem_flags::mem_threadgroup);
-
-
     if ((lIndex & 0x09) == 0)
     {
         bool2 atEdge = gIndices == (mipSize - ushort2(1));
-
-
-
         float4 texel2 = (atEdge.x) ? (texel1) : (float4(sR[lIndex + 1], sG[lIndex + 1], sB[lIndex + 1], sA[lIndex + 1]));
-
         float4 texel3 = (atEdge.y) ? (texel1) : (float4(sR[lIndex + 8], sG[lIndex + 8], sB[lIndex + 8], sA[lIndex + 8]));
-
         float4 texel4 = (atEdge.x | atEdge.y) ? (texel2) : (float4(sR[lIndex + (8 + 1)], sG[lIndex + (8 + 1)], sB[lIndex + (8 + 1)], sA[lIndex + (8 + 1)]));
-
-
         texel1 = (texel1 + texel2 + texel3 + texel4) / 4.0;
-
         dstMip2.write((options.sRGB ? sRGBtoLinear(texel1) : texel1), gIndices >> 1);
-
-
         sR[lIndex] = texel1.r; sG[lIndex] = texel1.g; sB[lIndex] = texel1.b; sA[lIndex] = texel1.a;;
     }
-
     if (options.numMipLevelsToGen == 2)
     {
         return;
     }
-
-
     threadgroup_barrier(mem_flags::mem_threadgroup);
-
-
     if ((lIndex & 0x1b) == 0)
     {
         mipSize = max(mipSize >> 1, ushort2(1));
         bool2 atEdge = (gIndices >> 1) == (mipSize - ushort2(1));
-
-
-
         float4 texel2 = (atEdge.x) ? (texel1) : (float4(sR[lIndex + 2], sG[lIndex + 2], sB[lIndex + 2], sA[lIndex + 2]));
-
         float4 texel3 =
             (atEdge.y) ? (texel1) : (float4(sR[lIndex + 2 * 8], sG[lIndex + 2 * 8], sB[lIndex + 2 * 8], sA[lIndex + 2 * 8]));
-
         float4 texel4 = (atEdge.x | atEdge.y) ? (texel2) : (float4(sR[lIndex + (2 * 8 + 2)], sG[lIndex + (2 * 8 + 2)], sB[lIndex + (2 * 8 + 2)], sA[lIndex + (2 * 8 + 2)]));
-
-
         texel1 = (texel1 + texel2 + texel3 + texel4) / 4.0;
-
         dstMip3.write((options.sRGB ? sRGBtoLinear(texel1) : texel1), gIndices >> 2);
-
-
         sR[lIndex] = texel1.r; sG[lIndex] = texel1.g; sB[lIndex] = texel1.b; sA[lIndex] = texel1.a;;
     }
-
     if (options.numMipLevelsToGen == 3)
     {
         return;
     }
-
-
     threadgroup_barrier(mem_flags::mem_threadgroup);
-
-
     if ((lIndex & 0x3f) == 0)
     {
         mipSize = max(mipSize >> 1, ushort2(1));
         bool2 atEdge = (gIndices >> 2) == (mipSize - ushort2(1));
-
-
-
         float4 texel2 = (atEdge.x) ? (texel1) : (float4(sR[lIndex + 4], sG[lIndex + 4], sB[lIndex + 4], sA[lIndex + 4]));
-
         float4 texel3 =
             (atEdge.y) ? (texel1) : (float4(sR[lIndex + 4 * 8], sG[lIndex + 4 * 8], sB[lIndex + 4 * 8], sA[lIndex + 4 * 8]));
-
         float4 texel4 = (atEdge.x | atEdge.y) ? (texel2) : (float4(sR[lIndex + (4 * 8 + 4)], sG[lIndex + (4 * 8 + 4)], sB[lIndex + (4 * 8 + 4)], sA[lIndex + (4 * 8 + 4)]));
-
-
         texel1 = (texel1 + texel2 + texel3 + texel4) / 4.0;
-
         dstMip4.write((options.sRGB ? sRGBtoLinear(texel1) : texel1), gIndices >> 3);
     }
 }
-
 template <typename TextureTypeR, typename TextureTypeW>
 static __attribute__((always_inline)) void generateCubeOr2DArray2ndAndMoreMipmaps(
     uint lIndex,
@@ -1287,98 +941,52 @@ static __attribute__((always_inline)) void generateCubeOr2DArray2ndAndMoreMipmap
 {
     ushort2 mipSize = mip1Size;
     float4 texel1 = mip1Texel;
-
-
-
-
     sR[lIndex] = texel1.r; sG[lIndex] = texel1.g; sB[lIndex] = texel1.b; sA[lIndex] = texel1.a;;
-
     threadgroup_barrier(mem_flags::mem_threadgroup);
-
-
     if ((lIndex & 0x09) == 0)
     {
         bool2 atEdge = gIndices.xy == (mipSize - ushort2(1));
-
-
-
         float4 texel2 = (atEdge.x) ? (texel1) : (float4(sR[lIndex + 1], sG[lIndex + 1], sB[lIndex + 1], sA[lIndex + 1]));
-
         float4 texel3 = (atEdge.y) ? (texel1) : (float4(sR[lIndex + 8], sG[lIndex + 8], sB[lIndex + 8], sA[lIndex + 8]));
-
         float4 texel4 = (atEdge.x | atEdge.y) ? (texel2) : (float4(sR[lIndex + (8 + 1)], sG[lIndex + (8 + 1)], sB[lIndex + (8 + 1)], sA[lIndex + (8 + 1)]));
-
-
         texel1 = (texel1 + texel2 + texel3 + texel4) / 4.0;
-
         dstMip2.write((options.sRGB ? sRGBtoLinear(texel1) : texel1), gIndices.xy >> 1, gIndices.z);
-
-
         sR[lIndex] = texel1.r; sG[lIndex] = texel1.g; sB[lIndex] = texel1.b; sA[lIndex] = texel1.a;;
     }
-
     if (options.numMipLevelsToGen == 2)
     {
         return;
     }
-
-
     threadgroup_barrier(mem_flags::mem_threadgroup);
-
-
     if ((lIndex & 0x1b) == 0)
     {
         mipSize = max(mipSize >> 1, ushort2(1));
         bool2 atEdge = (gIndices.xy >> 1) == (mipSize - ushort2(1));
-
-
-
         float4 texel2 = (atEdge.x) ? (texel1) : (float4(sR[lIndex + 2], sG[lIndex + 2], sB[lIndex + 2], sA[lIndex + 2]));
-
         float4 texel3 =
             (atEdge.y) ? (texel1) : (float4(sR[lIndex + 2 * 8], sG[lIndex + 2 * 8], sB[lIndex + 2 * 8], sA[lIndex + 2 * 8]));
-
         float4 texel4 = (atEdge.x | atEdge.y) ? (texel2) : (float4(sR[lIndex + (2 * 8 + 2)], sG[lIndex + (2 * 8 + 2)], sB[lIndex + (2 * 8 + 2)], sA[lIndex + (2 * 8 + 2)]));
-
-
         texel1 = (texel1 + texel2 + texel3 + texel4) / 4.0;
-
         dstMip3.write((options.sRGB ? sRGBtoLinear(texel1) : texel1), gIndices.xy >> 2, gIndices.z);
-
-
         sR[lIndex] = texel1.r; sG[lIndex] = texel1.g; sB[lIndex] = texel1.b; sA[lIndex] = texel1.a;;
     }
-
     if (options.numMipLevelsToGen == 3)
     {
         return;
     }
-
-
     threadgroup_barrier(mem_flags::mem_threadgroup);
-
-
     if ((lIndex & 0x3f) == 0)
     {
         mipSize = max(mipSize >> 1, ushort2(1));
         bool2 atEdge = (gIndices.xy >> 2) == (mipSize - ushort2(1));
-
-
-
         float4 texel2 = (atEdge.x) ? (texel1) : (float4(sR[lIndex + 4], sG[lIndex + 4], sB[lIndex + 4], sA[lIndex + 4]));
-
         float4 texel3 =
             (atEdge.y) ? (texel1) : (float4(sR[lIndex + 4 * 8], sG[lIndex + 4 * 8], sB[lIndex + 4 * 8], sA[lIndex + 4 * 8]));
-
         float4 texel4 = (atEdge.x | atEdge.y) ? (texel2) : (float4(sR[lIndex + (4 * 8 + 4)], sG[lIndex + (4 * 8 + 4)], sB[lIndex + (4 * 8 + 4)], sA[lIndex + (4 * 8 + 4)]));
-
-
         texel1 = (texel1 + texel2 + texel3 + texel4) / 4.0;
-
         dstMip4.write((options.sRGB ? sRGBtoLinear(texel1) : texel1), gIndices.xy >> 3, gIndices.z);
     }
 }
-
 kernel void generateCubeMipmaps(uint lIndex [[thread_index_in_threadgroup]],
                                 ushort3 gIndices [[thread_position_in_grid]],
                                 texturecube<float> srcTexture [[texture(0)]],
@@ -1392,41 +1000,30 @@ kernel void generateCubeMipmaps(uint lIndex [[thread_index_in_threadgroup]],
     ushort2 mip1Size =
         ushort2(srcTexture.get_width(firstMipLevel), srcTexture.get_height(firstMipLevel));
     bool validThread = gIndices.x < mip1Size.x && gIndices.y < mip1Size.y;
-
     constexpr sampler textureSampler(mag_filter::linear, min_filter::linear, mip_filter::linear);
-
-
     float4 mip1Texel;
     if (validThread)
     {
         float2 texCoords = (float2(gIndices.xy) + float2(0.5, 0.5)) / float2(mip1Size);
         mip1Texel = srcTexture.sample(textureSampler, cubeTexcoords(texCoords, int(gIndices.z)),
                                       level(options.srcLevel));
-
-
         dstMip1.write((options.sRGB ? sRGBtoLinear(mip1Texel) : mip1Texel), gIndices.xy, gIndices.z);
     }
     else
     {
-
         lIndex = 0xffffffff;
     }
-
     if (options.numMipLevelsToGen == 1)
     {
         return;
     }
-
-
     threadgroup float sR[(8 * 8)];
     threadgroup float sG[(8 * 8)];
     threadgroup float sB[(8 * 8)];
     threadgroup float sA[(8 * 8)];
-
     generateCubeOr2DArray2ndAndMoreMipmaps(lIndex, gIndices, srcTexture, dstMip2, dstMip3, dstMip4,
                                            mip1Size, mip1Texel, sR, sG, sB, sA, options);
 }
-
 kernel void generate2DArrayMipmaps(uint lIndex [[thread_index_in_threadgroup]],
                                    ushort3 gIndices [[thread_position_in_grid]],
                                    texture2d_array<float> srcTexture [[texture(0)]],
@@ -1440,55 +1037,35 @@ kernel void generate2DArrayMipmaps(uint lIndex [[thread_index_in_threadgroup]],
     ushort2 mip1Size =
         ushort2(srcTexture.get_width(firstMipLevel), srcTexture.get_height(firstMipLevel));
     bool validThread = gIndices.x < mip1Size.x && gIndices.y < mip1Size.y;
-
     constexpr sampler textureSampler(mag_filter::linear, min_filter::linear, mip_filter::linear);
-
-
     float4 mip1Texel;
     if (validThread)
     {
         float2 texCoords = (float2(gIndices.xy) + float2(0.5, 0.5)) / float2(mip1Size);
         mip1Texel =
             srcTexture.sample(textureSampler, texCoords, gIndices.z, level(options.srcLevel));
-
-
         dstMip1.write((options.sRGB ? sRGBtoLinear(mip1Texel) : mip1Texel), gIndices.xy, gIndices.z);
     }
     else
     {
-
         lIndex = 0xffffffff;
     }
-
     if (options.numMipLevelsToGen == 1)
     {
         return;
     }
-
-
     threadgroup float sR[(8 * 8)];
     threadgroup float sG[(8 * 8)];
     threadgroup float sB[(8 * 8)];
     threadgroup float sA[(8 * 8)];
-
     generateCubeOr2DArray2ndAndMoreMipmaps(lIndex, gIndices, srcTexture, dstMip2, dstMip3, dstMip4,
                                            mip1Size, mip1Texel, sR, sG, sB, sA, options);
 }
-# 5 "temp_master_source.metal" 2
-# 1 "./copy_buffer.metal" 1
-# 12 "./copy_buffer.metal"
 #include <metal_pack>
-
-
-# 1 "./format_autogen.h" 1
-
-
-
 namespace rx
 {
 namespace mtl_shader
 {
-
 namespace FormatID
 {
 enum
@@ -1568,6 +1145,7 @@ enum
     B8G8R8A8_UNORM,
     B8G8R8A8_UNORM_SRGB,
     B8G8R8X8_UNORM,
+    B8G8R8X8_UNORM_SRGB,
     BC1_RGBA_UNORM_BLOCK,
     BC1_RGBA_UNORM_SRGB_BLOCK,
     BC1_RGB_UNORM_BLOCK,
@@ -1602,6 +1180,7 @@ enum
     L16_FLOAT,
     L32A32_FLOAT,
     L32_FLOAT,
+    L4A4_UNORM,
     L8A8_UNORM,
     L8_UNORM,
     PALETTE4_R4G4B4A4_UNORM,
@@ -1629,6 +1208,7 @@ enum
     R10G10B10A2_UNORM,
     R10G10B10A2_USCALED,
     R10G10B10X2_UNORM,
+    R10X6G10X6B10X6A10X6_UNORM,
     R11G11B10_FLOAT,
     R16G16B16A16_FLOAT,
     R16G16B16A16_SINT,
@@ -1703,6 +1283,7 @@ enum
     R8G8B8A8_UNORM_SRGB,
     R8G8B8A8_USCALED,
     R8G8B8X8_UNORM,
+    R8G8B8X8_UNORM_SRGB,
     R8G8B8_SINT,
     R8G8B8_SNORM,
     R8G8B8_SSCALED,
@@ -1730,82 +1311,50 @@ enum
     X2R10G10B10_SSCALED_VERTEX,
     X2R10G10B10_UINT_VERTEX,
     X2R10G10B10_UNORM_VERTEX,
-    X2R10G10B10_USCALED_VERTEX
+    X2R10G10B10_USCALED_VERTEX,
+    EXTERNAL0,
+    EXTERNAL1,
+    EXTERNAL2,
+    EXTERNAL3,
+    EXTERNAL4,
+    EXTERNAL5,
+    EXTERNAL6,
+    EXTERNAL7
 };
-
-}
-
 }
 }
-# 16 "./copy_buffer.metal" 2
+}
 
 using namespace rx::mtl_shader;
-
 constant int kCopyFormatType [[function_constant(10)]];
-
-
 constant int kCopyTextureType [[function_constant(20)]];
 constant bool kCopyTextureType2D = kCopyTextureType == kTextureType2D;
 constant bool kCopyTextureType2DArray = kCopyTextureType == kTextureType2DArray;
 constant bool kCopyTextureType2DMS = kCopyTextureType == kTextureType2DMultisample;
 constant bool kCopyTextureTypeCube = kCopyTextureType == kTextureTypeCube;
 constant bool kCopyTextureType3D = kCopyTextureType == kTextureType3D;
-
-struct CopyPixelParams
+struct B2TParams
 {
-    uint3 copySize;
-    uint3 textureOffset;
-
     uint bufferStartOffset;
     uint pixelSize;
     uint bufferRowPitch;
     uint bufferDepthPitch;
+    uint2 textureOffset;
 };
-
-struct WritePixelParams
+struct T2BParams
 {
     uint2 copySize;
     uint2 textureOffset;
-
     uint bufferStartOffset;
-
     uint pixelSize;
     uint bufferRowPitch;
-
     uint textureLevel;
     uint textureLayer;
-
     bool reverseTextureRowOrder;
 };
-# 120 "./copy_buffer.metal"
-template <typename T>
-static inline void textureWrite(ushort3 gIndices,
-                                constant CopyPixelParams &options,
-                                vec<T, 4> color,
-                                texture2d<T, access::write> dstTexture2d [[texture(0), function_constant(kCopyTextureType2D)]], texture2d_array<T, access::write> dstTexture2dArray [[texture(0), function_constant(kCopyTextureType2DArray)]], texture3d<T, access::write> dstTexture3d [[texture(0), function_constant(kCopyTextureType3D)]], texturecube<T, access::write> dstTextureCube [[texture(0), function_constant(kCopyTextureTypeCube)]])
-{
-    uint3 writeIndices = options.textureOffset + uint3(gIndices);
-    switch (kCopyTextureType)
-    {
-        case kTextureType2D:
-            dstTexture2d.write(color, writeIndices.xy);
-            break;
-        case kTextureType2DArray:
-            dstTexture2dArray.write(color, writeIndices.xy, writeIndices.z);
-            break;
-        case kTextureType3D:
-            dstTexture3d.write(color, writeIndices);
-            break;
-        case kTextureTypeCube:
-            dstTextureCube.write(color, writeIndices.xy, writeIndices.z);
-            break;
-    }
-}
-
-
 template <typename T>
 static inline vec<T, 4> textureRead(ushort2 gIndices,
-                                    constant WritePixelParams &options,
+                                    constant T2BParams &options,
                                     texture2d<T, access::read> srcTexture2d [[texture(0), function_constant(kCopyTextureType2D)]], texture2d_array<T, access::read> srcTexture2dArray [[texture(0), function_constant(kCopyTextureType2DArray)]], texture3d<T, access::read> srcTexture3d [[texture(0), function_constant(kCopyTextureType3D)]], texturecube<T, access::read> srcTextureCube [[texture(0), function_constant(kCopyTextureTypeCube)]], texture2d_ms<T, access::read> srcTexture2dMS [[texture(0), function_constant(kCopyTextureType2DMS)]])
 {
     vec<T, 4> color;
@@ -1835,115 +1384,93 @@ static inline vec<T, 4> textureRead(ushort2 gIndices,
     }
     return color;
 }
-# 215 "./copy_buffer.metal"
-static inline float4 readR5G6B5_UNORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR5G6B5_UNORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     ushort src = bytesToShort<ushort>(buffer, bufferOffset);
-
     color.r = normalizedToFloat<5>(getShiftedData<5, 11>(src));
     color.g = normalizedToFloat<6>(getShiftedData<6, 5>(src));
     color.b = normalizedToFloat<5>(getShiftedData<5, 0>(src));
     color.a = 1.0;
     return color;
 }
-static inline void writeR5G6B5_UNORM(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR5G6B5_UNORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     ushort dst = shiftData<5, 11>(floatToNormalized<5, ushort>(color.r)) |
                  shiftData<6, 5>(floatToNormalized<6, ushort>(color.g)) |
                  shiftData<5, 0>(floatToNormalized<5, ushort>(color.b));
-
     shortToBytes(dst, bufferOffset, buffer);
 }
-
-
-static inline float4 readR4G4B4A4_UNORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR4G4B4A4_UNORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     ushort src = bytesToShort<ushort>(buffer, bufferOffset);
-
     color.r = normalizedToFloat<4>(getShiftedData<4, 12>(src));
     color.g = normalizedToFloat<4>(getShiftedData<4, 8>(src));
     color.b = normalizedToFloat<4>(getShiftedData<4, 4>(src));
     color.a = normalizedToFloat<4>(getShiftedData<4, 0>(src));
     return color;
 }
-static inline void writeR4G4B4A4_UNORM(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR4G4B4A4_UNORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     ushort dst = shiftData<4, 12>(floatToNormalized<4, ushort>(color.r)) |
                  shiftData<4, 8>(floatToNormalized<4, ushort>(color.g)) |
                  shiftData<4, 4>(floatToNormalized<4, ushort>(color.b)) |
                  shiftData<4, 0>(floatToNormalized<4, ushort>(color.a));
     ;
-
     shortToBytes(dst, bufferOffset, buffer);
 }
-
-
-static inline float4 readR5G5B5A1_UNORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR5G5B5A1_UNORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     ushort src = bytesToShort<ushort>(buffer, bufferOffset);
-
     color.r = normalizedToFloat<5>(getShiftedData<5, 11>(src));
     color.g = normalizedToFloat<5>(getShiftedData<5, 6>(src));
     color.b = normalizedToFloat<5>(getShiftedData<5, 1>(src));
     color.a = normalizedToFloat<1>(getShiftedData<1, 0>(src));
     return color;
 }
-static inline void writeR5G5B5A1_UNORM(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR5G5B5A1_UNORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     ushort dst = shiftData<5, 11>(floatToNormalized<5, ushort>(color.r)) |
                  shiftData<5, 6>(floatToNormalized<5, ushort>(color.g)) |
                  shiftData<5, 1>(floatToNormalized<5, ushort>(color.b)) |
                  shiftData<1, 0>(floatToNormalized<1, ushort>(color.a));
     ;
-
     shortToBytes(dst, bufferOffset, buffer);
 }
-
-
-static inline int4 readR10G10B10A2_SINT(uint bufferOffset, constant uchar *buffer)
+static inline int4 readR10G10B10A2_SINT(uint bufferOffset, const device uchar *buffer)
 {
     int4 color;
     int src = bytesToInt<int>(buffer, bufferOffset);
-
     constexpr int3 rgbSignMask(0x200);
     constexpr int3 negativeMask(0xfffffc00);
     constexpr int alphaSignMask = 0x2;
     constexpr int alphaNegMask = 0xfffffffc;
-
     color.r = getShiftedData<10, 0>(src);
     color.g = getShiftedData<10, 10>(src);
     color.b = getShiftedData<10, 20>(src);
-
     int3 isRgbNegative = (color.rgb & rgbSignMask) >> 9;
     color.rgb = (isRgbNegative * negativeMask) | color.rgb;
-
     color.a = getShiftedData<2, 30>(src);
     int isAlphaNegative = color.a & alphaSignMask >> 1;
     color.a = (isAlphaNegative * alphaNegMask) | color.a;
     return color;
 }
-
-static inline uint4 readR10G10B10A2_UINT(uint bufferOffset, constant uchar *buffer)
+static inline uint4 readR10G10B10A2_UINT(uint bufferOffset, const device uchar *buffer)
 {
     uint4 color;
     uint src = bytesToInt<uint>(buffer, bufferOffset);
-
     color.r = getShiftedData<10, 0>(src);
     color.g = getShiftedData<10, 10>(src);
     color.b = getShiftedData<10, 20>(src);
     color.a = getShiftedData<2, 30>(src);
     return color;
 }
-
-
-static inline float4 readR8G8B8A8(uint bufferOffset, constant uchar *buffer, bool isSRGB)
+static inline float4 readR8G8B8A8(uint bufferOffset, const device uchar *buffer, bool isSRGB)
 {
     float4 color;
     uint src = bytesToInt<uint>(buffer, bufferOffset);
-
     if (isSRGB)
     {
         color = unpack_unorm4x8_srgb_to_float(src);
@@ -1954,10 +1481,9 @@ static inline float4 readR8G8B8A8(uint bufferOffset, constant uchar *buffer, boo
     }
     return color;
 }
-static inline void writeR8G8B8A8(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer, bool isSRGB)
+static inline void writeR8G8B8A8(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer, bool isSRGB)
 {
     uint dst;
-
     if (isSRGB)
     {
         dst = pack_float_to_srgb_unorm4x8(color);
@@ -1966,29 +1492,25 @@ static inline void writeR8G8B8A8(ushort2 gIndices, constant WritePixelParams &op
     {
         dst = pack_float_to_unorm4x8(color);
     }
-
     intToBytes(dst, bufferOffset, buffer);
 }
-
-static inline float4 readR8G8B8(uint bufferOffset, constant uchar *buffer, bool isSRGB)
+static inline float4 readR8G8B8(uint bufferOffset, const device uchar *buffer, bool isSRGB)
 {
     float4 color;
     color.r = normalizedToFloat<uchar>(buffer[bufferOffset]);
     color.g = normalizedToFloat<uchar>(buffer[bufferOffset + 1]);
     color.b = normalizedToFloat<uchar>(buffer[bufferOffset + 2]);
     color.a = 1.0;
-
     if (isSRGB)
     {
         color = sRGBtoLinear(color);
     }
     return color;
 }
-static inline void writeR8G8B8(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer, bool isSRGB)
+static inline void writeR8G8B8(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer, bool isSRGB)
 {
     color.a = 1.0;
     uint dst;
-
     if (isSRGB)
     {
         dst = pack_float_to_srgb_unorm4x8(color);
@@ -1999,136 +1521,110 @@ static inline void writeR8G8B8(ushort2 gIndices, constant WritePixelParams &opti
     }
     int24bitToBytes(dst, bufferOffset, buffer);
 }
-
-
-static inline float4 readR8G8B8A8_SNORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR8G8B8A8_SNORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     uint src = bytesToInt<uint>(buffer, bufferOffset);
-
     color = unpack_snorm4x8_to_float(src);
-
     return color;
 }
-static inline void writeR8G8B8A8_SNORM(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR8G8B8A8_SNORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     uint dst = pack_float_to_snorm4x8(color);
-
     intToBytes(dst, bufferOffset, buffer);
 }
-
-
-static inline float4 readR8G8B8_SNORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR8G8B8_SNORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = normalizedToFloat<7, char>(buffer[bufferOffset]);
     color.g = normalizedToFloat<7, char>(buffer[bufferOffset + 1]);
     color.b = normalizedToFloat<7, char>(buffer[bufferOffset + 2]);
     color.a = 1.0;
-
     return color;
 }
-static inline void writeR8G8B8_SNORM(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR8G8B8_SNORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     uint dst = pack_float_to_snorm4x8(color);
-
     int24bitToBytes(dst, bufferOffset, buffer);
 }
-
-
-static inline float4 readR8G8B8A8_UNORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR8G8B8A8_UNORM(uint bufferOffset, const device uchar *buffer)
 {
     return readR8G8B8A8(bufferOffset, buffer, false);
 }
-static inline void writeR8G8B8A8_UNORM(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR8G8B8A8_UNORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     return writeR8G8B8A8(gIndices, options, bufferOffset, color, buffer, false);
 }
-
-static inline float4 readR8G8B8A8_UNORM_SRGB(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR8G8B8A8_UNORM_SRGB(uint bufferOffset, const device uchar *buffer)
 {
     return readR8G8B8A8(bufferOffset, buffer, true);
 }
-static inline void writeR8G8B8A8_UNORM_SRGB(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR8G8B8A8_UNORM_SRGB(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     return writeR8G8B8A8(gIndices, options, bufferOffset, color, buffer, true);
 }
-
-
-static inline float4 readB8G8R8A8_UNORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readB8G8R8A8_UNORM(uint bufferOffset, const device uchar *buffer)
 {
     return readR8G8B8A8(bufferOffset, buffer, false).bgra;
 }
-static inline void writeB8G8R8A8_UNORM(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeB8G8R8A8_UNORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     color.rgba = color.bgra;
     return writeR8G8B8A8(gIndices, options, bufferOffset, color, buffer, false);
 }
-
-static inline float4 readB8G8R8A8_UNORM_SRGB(uint bufferOffset, constant uchar *buffer)
+static inline float4 readB8G8R8A8_UNORM_SRGB(uint bufferOffset, const device uchar *buffer)
 {
     return readR8G8B8A8(bufferOffset, buffer, true).bgra;
 }
-static inline void writeB8G8R8A8_UNORM_SRGB(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeB8G8R8A8_UNORM_SRGB(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     color.rgba = color.bgra;
     return writeR8G8B8A8(gIndices, options, bufferOffset, color, buffer, true);
 }
-
-
-static inline float4 readR8G8B8_UNORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR8G8B8_UNORM(uint bufferOffset, const device uchar *buffer)
 {
     return readR8G8B8(bufferOffset, buffer, false);
 }
-static inline void writeR8G8B8_UNORM(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR8G8B8_UNORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     return writeR8G8B8(gIndices, options, bufferOffset, color, buffer, false);
 }
-
-static inline float4 readR8G8B8_UNORM_SRGB(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR8G8B8_UNORM_SRGB(uint bufferOffset, const device uchar *buffer)
 {
     return readR8G8B8(bufferOffset, buffer, true);
 }
-static inline void writeR8G8B8_UNORM_SRGB(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR8G8B8_UNORM_SRGB(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     return writeR8G8B8(gIndices, options, bufferOffset, color, buffer, true);
 }
-
-
-static inline float4 readL8_UNORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readL8_UNORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.rgb = float3(normalizedToFloat<uchar>(buffer[bufferOffset]));
     color.a = 1.0;
     return color;
 }
-static inline void writeL8_UNORM(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeL8_UNORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     buffer[bufferOffset] = floatToNormalized<uchar>(color.r);
 }
-
-
-static inline void writeA8_UNORM(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeA8_UNORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     buffer[bufferOffset] = floatToNormalized<uchar>(color.a);
 }
-
-
-static inline float4 readL8A8_UNORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readL8A8_UNORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.rgb = float3(normalizedToFloat<uchar>(buffer[bufferOffset]));
     color.a = normalizedToFloat<uchar>(buffer[bufferOffset + 1]);
     return color;
 }
-static inline void writeL8A8_UNORM(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeL8A8_UNORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     buffer[bufferOffset] = floatToNormalized<uchar>(color.r);
     buffer[bufferOffset + 1] = floatToNormalized<uchar>(color.a);
 }
-
-
-static inline float4 readR8_UNORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR8_UNORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = normalizedToFloat<uchar>(buffer[bufferOffset]);
@@ -2136,12 +1632,11 @@ static inline float4 readR8_UNORM(uint bufferOffset, constant uchar *buffer)
     color.a = 1.0;
     return color;
 }
-static inline void writeR8_UNORM(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR8_UNORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     buffer[bufferOffset] = floatToNormalized<uchar>(color.r);
 }
-
-static inline float4 readR8_SNORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR8_SNORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = normalizedToFloat<7, char>(buffer[bufferOffset]);
@@ -2149,13 +1644,11 @@ static inline float4 readR8_SNORM(uint bufferOffset, constant uchar *buffer)
     color.a = 1.0;
     return color;
 }
-static inline void writeR8_SNORM(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR8_SNORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
-    buffer[bufferOffset] = as_type<uchar>(floatToNormalized<7, char>(color.r));
+    buffer[bufferOffset] = as_type<uchar>(floatToNormalized<char>(color.r));
 }
-
-
-static inline int4 readR8_SINT(uint bufferOffset, constant uchar *buffer)
+static inline int4 readR8_SINT(uint bufferOffset, const device uchar *buffer)
 {
     int4 color;
     color.r = as_type<char>(buffer[bufferOffset]);
@@ -2163,13 +1656,11 @@ static inline int4 readR8_SINT(uint bufferOffset, constant uchar *buffer)
     color.a = 1;
     return color;
 }
-static inline void writeR8_SINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
+static inline void writeR8_SINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
 {
     buffer[bufferOffset] = static_cast<uchar>(color.r);
 }
-
-
-static inline uint4 readR8_UINT(uint bufferOffset, constant uchar *buffer)
+static inline uint4 readR8_UINT(uint bufferOffset, const device uchar *buffer)
 {
     uint4 color;
     color.r = as_type<uchar>(buffer[bufferOffset]);
@@ -2177,13 +1668,11 @@ static inline uint4 readR8_UINT(uint bufferOffset, constant uchar *buffer)
     color.a = 1;
     return color;
 }
-static inline void writeR8_UINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
+static inline void writeR8_UINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
 {
     buffer[bufferOffset] = static_cast<uchar>(color.r);
 }
-
-
-static inline float4 readR8G8_UNORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR8G8_UNORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = normalizedToFloat<uchar>(buffer[bufferOffset]);
@@ -2192,13 +1681,12 @@ static inline float4 readR8G8_UNORM(uint bufferOffset, constant uchar *buffer)
     color.a = 1.0;
     return color;
 }
-static inline void writeR8G8_UNORM(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR8G8_UNORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     buffer[bufferOffset] = floatToNormalized<uchar>(color.r);
     buffer[bufferOffset + 1] = floatToNormalized<uchar>(color.g);
 }
-
-static inline float4 readR8G8_SNORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR8G8_SNORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = normalizedToFloat<7, char>(buffer[bufferOffset]);
@@ -2207,14 +1695,12 @@ static inline float4 readR8G8_SNORM(uint bufferOffset, constant uchar *buffer)
     color.a = 1.0;
     return color;
 }
-static inline void writeR8G8_SNORM(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR8G8_SNORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
-    buffer[bufferOffset] = as_type<uchar>(floatToNormalized<7, char>(color.r));
-    buffer[bufferOffset + 1] = as_type<uchar>(floatToNormalized<7, char>(color.g));
+    buffer[bufferOffset] = as_type<uchar>(floatToNormalized<char>(color.r));
+    buffer[bufferOffset + 1] = as_type<uchar>(floatToNormalized<char>(color.g));
 }
-
-
-static inline int4 readR8G8_SINT(uint bufferOffset, constant uchar *buffer)
+static inline int4 readR8G8_SINT(uint bufferOffset, const device uchar *buffer)
 {
     int4 color;
     color.r = as_type<char>(buffer[bufferOffset]);
@@ -2223,14 +1709,12 @@ static inline int4 readR8G8_SINT(uint bufferOffset, constant uchar *buffer)
     color.a = 1;
     return color;
 }
-static inline void writeR8G8_SINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
+static inline void writeR8G8_SINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
 {
     buffer[bufferOffset] = static_cast<uchar>(color.r);
     buffer[bufferOffset + 1] = static_cast<uchar>(color.g);
 }
-
-
-static inline uint4 readR8G8_UINT(uint bufferOffset, constant uchar *buffer)
+static inline uint4 readR8G8_UINT(uint bufferOffset, const device uchar *buffer)
 {
     uint4 color;
     color.r = as_type<uchar>(buffer[bufferOffset]);
@@ -2239,14 +1723,12 @@ static inline uint4 readR8G8_UINT(uint bufferOffset, constant uchar *buffer)
     color.a = 1;
     return color;
 }
-static inline void writeR8G8_UINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
+static inline void writeR8G8_UINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
 {
     buffer[bufferOffset] = static_cast<uchar>(color.r);
     buffer[bufferOffset + 1] = static_cast<uchar>(color.g);
 }
-
-
-static inline int4 readR8G8B8_SINT(uint bufferOffset, constant uchar *buffer)
+static inline int4 readR8G8B8_SINT(uint bufferOffset, const device uchar *buffer)
 {
     int4 color;
     color.r = as_type<char>(buffer[bufferOffset]);
@@ -2255,9 +1737,7 @@ static inline int4 readR8G8B8_SINT(uint bufferOffset, constant uchar *buffer)
     color.a = 1;
     return color;
 }
-
-
-static inline uint4 readR8G8B8_UINT(uint bufferOffset, constant uchar *buffer)
+static inline uint4 readR8G8B8_UINT(uint bufferOffset, const device uchar *buffer)
 {
     uint4 color;
     color.r = as_type<uchar>(buffer[bufferOffset]);
@@ -2266,9 +1746,7 @@ static inline uint4 readR8G8B8_UINT(uint bufferOffset, constant uchar *buffer)
     color.a = 1;
     return color;
 }
-
-
-static inline int4 readR8G8B8A8_SINT(uint bufferOffset, constant uchar *buffer)
+static inline int4 readR8G8B8A8_SINT(uint bufferOffset, const device uchar *buffer)
 {
     int4 color;
     color.r = as_type<char>(buffer[bufferOffset]);
@@ -2277,16 +1755,14 @@ static inline int4 readR8G8B8A8_SINT(uint bufferOffset, constant uchar *buffer)
     color.a = as_type<char>(buffer[bufferOffset + 3]);
     return color;
 }
-static inline void writeR8G8B8A8_SINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
+static inline void writeR8G8B8A8_SINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
 {
     buffer[bufferOffset] = static_cast<uchar>(color.r);
     buffer[bufferOffset + 1] = static_cast<uchar>(color.g);
     buffer[bufferOffset + 2] = static_cast<uchar>(color.b);
     buffer[bufferOffset + 3] = static_cast<uchar>(color.a);
 }
-
-
-static inline uint4 readR8G8B8A8_UINT(uint bufferOffset, constant uchar *buffer)
+static inline uint4 readR8G8B8A8_UINT(uint bufferOffset, const device uchar *buffer)
 {
     uint4 color;
     color.r = as_type<uchar>(buffer[bufferOffset]);
@@ -2295,16 +1771,14 @@ static inline uint4 readR8G8B8A8_UINT(uint bufferOffset, constant uchar *buffer)
     color.a = as_type<uchar>(buffer[bufferOffset + 3]);
     return color;
 }
-static inline void writeR8G8B8A8_UINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
+static inline void writeR8G8B8A8_UINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
 {
     buffer[bufferOffset] = static_cast<uchar>(color.r);
     buffer[bufferOffset + 1] = static_cast<uchar>(color.g);
     buffer[bufferOffset + 2] = static_cast<uchar>(color.b);
     buffer[bufferOffset + 3] = static_cast<uchar>(color.a);
 }
-
-
-static inline float4 readR16_FLOAT(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR16_FLOAT(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = as_type<half>(bytesToShort<ushort>(buffer, bufferOffset));
@@ -2312,13 +1786,12 @@ static inline float4 readR16_FLOAT(uint bufferOffset, constant uchar *buffer)
     color.a = 1.0;
     return color;
 }
-static inline void writeR16_FLOAT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR16_FLOAT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     shortToBytes(as_type<ushort>(static_cast<half>(color.r)), bufferOffset, buffer);
 }
-
 template <typename ShortType>
-static inline float4 readR16_NORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR16_NORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = normalizedToFloat<ShortType>(bytesToShort<ShortType>(buffer, bufferOffset));
@@ -2326,11 +1799,12 @@ static inline float4 readR16_NORM(uint bufferOffset, constant uchar *buffer)
     color.a = 1.0;
     return color;
 }
-
-
-
-
-static inline int4 readR16_SINT(uint bufferOffset, constant uchar *buffer)
+template<typename ShortType>
+static inline void writeR16_NORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+{
+    shortToBytes(floatToNormalized<ShortType>(color.r), bufferOffset, buffer);
+}
+static inline int4 readR16_SINT(uint bufferOffset, const device uchar *buffer)
 {
     int4 color;
     color.r = bytesToShort<short>(buffer, bufferOffset);
@@ -2338,13 +1812,11 @@ static inline int4 readR16_SINT(uint bufferOffset, constant uchar *buffer)
     color.a = 1;
     return color;
 }
-static inline void writeR16_SINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
+static inline void writeR16_SINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
 {
     shortToBytes(static_cast<short>(color.r), bufferOffset, buffer);
 }
-
-
-static inline uint4 readR16_UINT(uint bufferOffset, constant uchar *buffer)
+static inline uint4 readR16_UINT(uint bufferOffset, const device uchar *buffer)
 {
     uint4 color;
     color.r = bytesToShort<ushort>(buffer, bufferOffset);
@@ -2352,53 +1824,45 @@ static inline uint4 readR16_UINT(uint bufferOffset, constant uchar *buffer)
     color.a = 1;
     return color;
 }
-static inline void writeR16_UINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
+static inline void writeR16_UINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
 {
     shortToBytes(static_cast<ushort>(color.r), bufferOffset, buffer);
 }
-
-
-static inline float4 readA16_FLOAT(uint bufferOffset, constant uchar *buffer)
+static inline float4 readA16_FLOAT(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.a = as_type<half>(bytesToShort<ushort>(buffer, bufferOffset));
     color.rgb = 0.0;
     return color;
 }
-static inline void writeA16_FLOAT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeA16_FLOAT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     shortToBytes(as_type<ushort>(static_cast<half>(color.a)), bufferOffset, buffer);
 }
-
-
-static inline float4 readL16_FLOAT(uint bufferOffset, constant uchar *buffer)
+static inline float4 readL16_FLOAT(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.rgb = as_type<half>(bytesToShort<ushort>(buffer, bufferOffset));
     color.a = 1.0;
     return color;
 }
-static inline void writeL16_FLOAT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeL16_FLOAT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     shortToBytes(as_type<ushort>(static_cast<half>(color.r)), bufferOffset, buffer);
 }
-
-
-static inline float4 readL16A16_FLOAT(uint bufferOffset, constant uchar *buffer)
+static inline float4 readL16A16_FLOAT(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.rgb = as_type<half>(bytesToShort<ushort>(buffer, bufferOffset));
     color.a = as_type<half>(bytesToShort<ushort>(buffer, bufferOffset + 2));
     return color;
 }
-static inline void writeL16A16_FLOAT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeL16A16_FLOAT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     shortToBytes(as_type<ushort>(static_cast<half>(color.r)), bufferOffset, buffer);
     shortToBytes(as_type<ushort>(static_cast<half>(color.a)), bufferOffset + 2, buffer);
 }
-
-
-static inline float4 readR16G16_FLOAT(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR16G16_FLOAT(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = as_type<half>(bytesToShort<ushort>(buffer, bufferOffset));
@@ -2407,15 +1871,13 @@ static inline float4 readR16G16_FLOAT(uint bufferOffset, constant uchar *buffer)
     color.a = 1.0;
     return color;
 }
-static inline void writeR16G16_FLOAT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR16G16_FLOAT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     shortToBytes(as_type<ushort>(static_cast<half>(color.r)), bufferOffset, buffer);
     shortToBytes(as_type<ushort>(static_cast<half>(color.g)), bufferOffset + 2, buffer);
 }
-
-
 template <typename ShortType>
-static inline float4 readR16G16_NORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR16G16_NORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = normalizedToFloat<ShortType>(bytesToShort<ShortType>(buffer, bufferOffset));
@@ -2424,11 +1886,13 @@ static inline float4 readR16G16_NORM(uint bufferOffset, constant uchar *buffer)
     color.a = 1.0;
     return color;
 }
-
-
-
-
-static inline int4 readR16G16_SINT(uint bufferOffset, constant uchar *buffer)
+template<typename ShortType>
+static inline void writeR16G16_NORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+{
+    shortToBytes(floatToNormalized<ShortType>(color.r), bufferOffset, buffer);
+    shortToBytes(floatToNormalized<ShortType>(color.g), bufferOffset + 2, buffer);
+}
+static inline int4 readR16G16_SINT(uint bufferOffset, const device uchar *buffer)
 {
     int4 color;
     color.r = bytesToShort<short>(buffer, bufferOffset);
@@ -2437,14 +1901,12 @@ static inline int4 readR16G16_SINT(uint bufferOffset, constant uchar *buffer)
     color.a = 1;
     return color;
 }
-static inline void writeR16G16_SINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
+static inline void writeR16G16_SINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
 {
     shortToBytes(static_cast<short>(color.r), bufferOffset, buffer);
     shortToBytes(static_cast<short>(color.g), bufferOffset + 2, buffer);
 }
-
-
-static inline uint4 readR16G16_UINT(uint bufferOffset, constant uchar *buffer)
+static inline uint4 readR16G16_UINT(uint bufferOffset, const device uchar *buffer)
 {
     uint4 color;
     color.r = bytesToShort<ushort>(buffer, bufferOffset);
@@ -2453,14 +1915,12 @@ static inline uint4 readR16G16_UINT(uint bufferOffset, constant uchar *buffer)
     color.a = 1;
     return color;
 }
-static inline void writeR16G16_UINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
+static inline void writeR16G16_UINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
 {
     shortToBytes(static_cast<ushort>(color.r), bufferOffset, buffer);
     shortToBytes(static_cast<ushort>(color.g), bufferOffset + 2, buffer);
 }
-
-
-static inline float4 readR16G16B16_FLOAT(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR16G16B16_FLOAT(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = as_type<half>(bytesToShort<ushort>(buffer, bufferOffset));
@@ -2469,10 +1929,8 @@ static inline float4 readR16G16B16_FLOAT(uint bufferOffset, constant uchar *buff
     color.a = 1.0;
     return color;
 }
-
-
 template <typename ShortType>
-static inline float4 readR16G16B16_NORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR16G16B16_NORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = normalizedToFloat<ShortType>(bytesToShort<ShortType>(buffer, bufferOffset));
@@ -2481,10 +1939,7 @@ static inline float4 readR16G16B16_NORM(uint bufferOffset, constant uchar *buffe
     color.a = 1.0;
     return color;
 }
-
-
-
-static inline int4 readR16G16B16_SINT(uint bufferOffset, constant uchar *buffer)
+static inline int4 readR16G16B16_SINT(uint bufferOffset, const device uchar *buffer)
 {
     int4 color;
     color.r = bytesToShort<short>(buffer, bufferOffset);
@@ -2493,9 +1948,7 @@ static inline int4 readR16G16B16_SINT(uint bufferOffset, constant uchar *buffer)
     color.a = 1;
     return color;
 }
-
-
-static inline uint4 readR16G16B16_UINT(uint bufferOffset, constant uchar *buffer)
+static inline uint4 readR16G16B16_UINT(uint bufferOffset, const device uchar *buffer)
 {
     uint4 color;
     color.r = bytesToShort<ushort>(buffer, bufferOffset);
@@ -2504,9 +1957,7 @@ static inline uint4 readR16G16B16_UINT(uint bufferOffset, constant uchar *buffer
     color.a = 1;
     return color;
 }
-
-
-static inline float4 readR16G16B16A16_FLOAT(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR16G16B16A16_FLOAT(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = as_type<half>(bytesToShort<ushort>(buffer, bufferOffset));
@@ -2515,17 +1966,15 @@ static inline float4 readR16G16B16A16_FLOAT(uint bufferOffset, constant uchar *b
     color.a = as_type<half>(bytesToShort<ushort>(buffer, bufferOffset + 6));
     return color;
 }
-static inline void writeR16G16B16A16_FLOAT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR16G16B16A16_FLOAT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     shortToBytes(as_type<ushort>(static_cast<half>(color.r)), bufferOffset, buffer);
     shortToBytes(as_type<ushort>(static_cast<half>(color.g)), bufferOffset + 2, buffer);
     shortToBytes(as_type<ushort>(static_cast<half>(color.b)), bufferOffset + 4, buffer);
     shortToBytes(as_type<ushort>(static_cast<half>(color.a)), bufferOffset + 6, buffer);
 }
-
-
 template <typename ShortType>
-static inline float4 readR16G16B16A16_NORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR16G16B16A16_NORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = normalizedToFloat<ShortType>(bytesToShort<ShortType>(buffer, bufferOffset));
@@ -2534,11 +1983,15 @@ static inline float4 readR16G16B16A16_NORM(uint bufferOffset, constant uchar *bu
     color.a = normalizedToFloat<ShortType>(bytesToShort<ShortType>(buffer, bufferOffset + 6));
     return color;
 }
-
-
-
-
-static inline int4 readR16G16B16A16_SINT(uint bufferOffset, constant uchar *buffer)
+template<typename ShortType>
+static inline void writeR16G16B16A16_NORM(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+{
+    shortToBytes(floatToNormalized<ShortType>(color.r), bufferOffset, buffer);
+    shortToBytes(floatToNormalized<ShortType>(color.g), bufferOffset + 2, buffer);
+    shortToBytes(floatToNormalized<ShortType>(color.b), bufferOffset + 4, buffer);
+    shortToBytes(floatToNormalized<ShortType>(color.a), bufferOffset + 6, buffer);
+}
+static inline int4 readR16G16B16A16_SINT(uint bufferOffset, const device uchar *buffer)
 {
     int4 color;
     color.r = bytesToShort<short>(buffer, bufferOffset);
@@ -2547,16 +2000,14 @@ static inline int4 readR16G16B16A16_SINT(uint bufferOffset, constant uchar *buff
     color.a = bytesToShort<short>(buffer, bufferOffset + 6);
     return color;
 }
-static inline void writeR16G16B16A16_SINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
+static inline void writeR16G16B16A16_SINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
 {
     shortToBytes(static_cast<short>(color.r), bufferOffset, buffer);
     shortToBytes(static_cast<short>(color.g), bufferOffset + 2, buffer);
     shortToBytes(static_cast<short>(color.b), bufferOffset + 4, buffer);
     shortToBytes(static_cast<short>(color.a), bufferOffset + 6, buffer);
 }
-
-
-static inline uint4 readR16G16B16A16_UINT(uint bufferOffset, constant uchar *buffer)
+static inline uint4 readR16G16B16A16_UINT(uint bufferOffset, const device uchar *buffer)
 {
     uint4 color;
     color.r = bytesToShort<ushort>(buffer, bufferOffset);
@@ -2565,16 +2016,14 @@ static inline uint4 readR16G16B16A16_UINT(uint bufferOffset, constant uchar *buf
     color.a = bytesToShort<ushort>(buffer, bufferOffset + 6);
     return color;
 }
-static inline void writeR16G16B16A16_UINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
+static inline void writeR16G16B16A16_UINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
 {
     shortToBytes(static_cast<ushort>(color.r), bufferOffset, buffer);
     shortToBytes(static_cast<ushort>(color.g), bufferOffset + 2, buffer);
     shortToBytes(static_cast<ushort>(color.b), bufferOffset + 4, buffer);
     shortToBytes(static_cast<ushort>(color.a), bufferOffset + 6, buffer);
 }
-
-
-static inline float4 readR32_FLOAT(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR32_FLOAT(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = as_type<float>(bytesToInt<uint>(buffer, bufferOffset));
@@ -2582,14 +2031,12 @@ static inline float4 readR32_FLOAT(uint bufferOffset, constant uchar *buffer)
     color.a = 1.0;
     return color;
 }
-static inline void writeR32_FLOAT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR32_FLOAT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     intToBytes(as_type<uint>(color.r), bufferOffset, buffer);
 }
-
-
 template <typename IntType>
-static inline float4 readR32_NORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR32_NORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = normalizedToFloat<IntType>(bytesToInt<IntType>(buffer, bufferOffset));
@@ -2597,37 +2044,29 @@ static inline float4 readR32_NORM(uint bufferOffset, constant uchar *buffer)
     color.a = 1.0;
     return color;
 }
-
-
-
-
-static inline float4 readA32_FLOAT(uint bufferOffset, constant uchar *buffer)
+static inline float4 readA32_FLOAT(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.a = as_type<float>(bytesToInt<uint>(buffer, bufferOffset));
     color.rgb = 0.0;
     return color;
 }
-static inline void writeA32_FLOAT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeA32_FLOAT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     intToBytes(as_type<uint>(color.a), bufferOffset, buffer);
 }
-
-
-static inline float4 readL32_FLOAT(uint bufferOffset, constant uchar *buffer)
+static inline float4 readL32_FLOAT(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.rgb = as_type<float>(bytesToInt<uint>(buffer, bufferOffset));
     color.a = 1.0;
     return color;
 }
-static inline void writeL32_FLOAT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeL32_FLOAT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     intToBytes(as_type<uint>(color.r), bufferOffset, buffer);
 }
-
-
-static inline int4 readR32_SINT(uint bufferOffset, constant uchar *buffer)
+static inline int4 readR32_SINT(uint bufferOffset, const device uchar *buffer)
 {
     int4 color;
     color.r = bytesToInt<int>(buffer, bufferOffset);
@@ -2635,13 +2074,11 @@ static inline int4 readR32_SINT(uint bufferOffset, constant uchar *buffer)
     color.a = 1;
     return color;
 }
-static inline void writeR32_SINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
+static inline void writeR32_SINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
 {
     intToBytes(color.r, bufferOffset, buffer);
 }
-
-
-static inline float4 readR32_FIXED(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR32_FIXED(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     constexpr float kDivisor = 1.0f / (1 << 16);
@@ -2650,9 +2087,7 @@ static inline float4 readR32_FIXED(uint bufferOffset, constant uchar *buffer)
     color.a = 1.0;
     return color;
 }
-
-
-static inline uint4 readR32_UINT(uint bufferOffset, constant uchar *buffer)
+static inline uint4 readR32_UINT(uint bufferOffset, const device uchar *buffer)
 {
     uint4 color;
     color.r = bytesToInt<uint>(buffer, bufferOffset);
@@ -2660,27 +2095,23 @@ static inline uint4 readR32_UINT(uint bufferOffset, constant uchar *buffer)
     color.a = 1;
     return color;
 }
-static inline void writeR32_UINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
+static inline void writeR32_UINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
 {
     intToBytes(color.r, bufferOffset, buffer);
 }
-
-
-static inline float4 readL32A32_FLOAT(uint bufferOffset, constant uchar *buffer)
+static inline float4 readL32A32_FLOAT(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.rgb = as_type<float>(bytesToInt<uint>(buffer, bufferOffset));
     color.a = as_type<float>(bytesToInt<uint>(buffer, bufferOffset + 4));
     return color;
 }
-static inline void writeL32A32_FLOAT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeL32A32_FLOAT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     intToBytes(as_type<uint>(color.r), bufferOffset, buffer);
     intToBytes(as_type<uint>(color.a), bufferOffset + 4, buffer);
 }
-
-
-static inline float4 readR32G32_FLOAT(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR32G32_FLOAT(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = as_type<float>(bytesToInt<uint>(buffer, bufferOffset));
@@ -2689,15 +2120,13 @@ static inline float4 readR32G32_FLOAT(uint bufferOffset, constant uchar *buffer)
     color.a = 1.0;
     return color;
 }
-static inline void writeR32G32_FLOAT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR32G32_FLOAT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     intToBytes(as_type<uint>(color.r), bufferOffset, buffer);
     intToBytes(as_type<uint>(color.g), bufferOffset + 4, buffer);
 }
-
-
 template <typename IntType>
-static inline float4 readR32G32_NORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR32G32_NORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = normalizedToFloat<IntType>(bytesToInt<IntType>(buffer, bufferOffset));
@@ -2706,11 +2135,7 @@ static inline float4 readR32G32_NORM(uint bufferOffset, constant uchar *buffer)
     color.a = 1.0;
     return color;
 }
-
-
-
-
-static inline int4 readR32G32_SINT(uint bufferOffset, constant uchar *buffer)
+static inline int4 readR32G32_SINT(uint bufferOffset, const device uchar *buffer)
 {
     int4 color;
     color.r = bytesToInt<int>(buffer, bufferOffset);
@@ -2719,14 +2144,12 @@ static inline int4 readR32G32_SINT(uint bufferOffset, constant uchar *buffer)
     color.a = 1;
     return color;
 }
-static inline void writeR32G32_SINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
+static inline void writeR32G32_SINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
 {
     intToBytes(color.r, bufferOffset, buffer);
     intToBytes(color.g, bufferOffset + 4, buffer);
 }
-
-
-static inline float4 readR32G32_FIXED(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR32G32_FIXED(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     constexpr float kDivisor = 1.0f / (1 << 16);
@@ -2736,9 +2159,7 @@ static inline float4 readR32G32_FIXED(uint bufferOffset, constant uchar *buffer)
     color.a = 1.0;
     return color;
 }
-
-
-static inline uint4 readR32G32_UINT(uint bufferOffset, constant uchar *buffer)
+static inline uint4 readR32G32_UINT(uint bufferOffset, const device uchar *buffer)
 {
     uint4 color;
     color.r = bytesToInt<uint>(buffer, bufferOffset);
@@ -2747,14 +2168,12 @@ static inline uint4 readR32G32_UINT(uint bufferOffset, constant uchar *buffer)
     color.a = 1;
     return color;
 }
-static inline void writeR32G32_UINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
+static inline void writeR32G32_UINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
 {
     intToBytes(color.r, bufferOffset, buffer);
     intToBytes(color.g, bufferOffset + 4, buffer);
 }
-
-
-static inline float4 readR32G32B32_FLOAT(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR32G32B32_FLOAT(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = as_type<float>(bytesToInt<uint>(buffer, bufferOffset));
@@ -2763,10 +2182,8 @@ static inline float4 readR32G32B32_FLOAT(uint bufferOffset, constant uchar *buff
     color.a = 1.0;
     return color;
 }
-
-
 template <typename IntType>
-static inline float4 readR32G32B32_NORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR32G32B32_NORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = normalizedToFloat<IntType>(bytesToInt<IntType>(buffer, bufferOffset));
@@ -2775,11 +2192,7 @@ static inline float4 readR32G32B32_NORM(uint bufferOffset, constant uchar *buffe
     color.a = 1.0;
     return color;
 }
-
-
-
-
-static inline int4 readR32G32B32_SINT(uint bufferOffset, constant uchar *buffer)
+static inline int4 readR32G32B32_SINT(uint bufferOffset, const device uchar *buffer)
 {
     int4 color;
     color.r = bytesToInt<int>(buffer, bufferOffset);
@@ -2788,9 +2201,7 @@ static inline int4 readR32G32B32_SINT(uint bufferOffset, constant uchar *buffer)
     color.a = 1;
     return color;
 }
-
-
-static inline float4 readR32G32B32_FIXED(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR32G32B32_FIXED(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     constexpr float kDivisor = 1.0f / (1 << 16);
@@ -2800,9 +2211,7 @@ static inline float4 readR32G32B32_FIXED(uint bufferOffset, constant uchar *buff
     color.a = 1.0;
     return color;
 }
-
-
-static inline uint4 readR32G32B32_UINT(uint bufferOffset, constant uchar *buffer)
+static inline uint4 readR32G32B32_UINT(uint bufferOffset, const device uchar *buffer)
 {
     uint4 color;
     color.r = bytesToInt<uint>(buffer, bufferOffset);
@@ -2811,9 +2220,7 @@ static inline uint4 readR32G32B32_UINT(uint bufferOffset, constant uchar *buffer
     color.a = 1;
     return color;
 }
-
-
-static inline float4 readR32G32B32A32_FLOAT(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR32G32B32A32_FLOAT(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = as_type<float>(bytesToInt<uint>(buffer, bufferOffset));
@@ -2822,17 +2229,15 @@ static inline float4 readR32G32B32A32_FLOAT(uint bufferOffset, constant uchar *b
     color.a = as_type<float>(bytesToInt<uint>(buffer, bufferOffset + 12));
     return color;
 }
-static inline void writeR32G32B32A32_FLOAT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
+static inline void writeR32G32B32A32_FLOAT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<float, 4> color, device uchar *buffer)
 {
     intToBytes(as_type<uint>(color.r), bufferOffset, buffer);
     intToBytes(as_type<uint>(color.g), bufferOffset + 4, buffer);
     intToBytes(as_type<uint>(color.b), bufferOffset + 8, buffer);
     intToBytes(as_type<uint>(color.a), bufferOffset + 12, buffer);
 }
-
-
 template <typename IntType>
-static inline float4 readR32G32B32A32_NORM(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR32G32B32A32_NORM(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     color.r = normalizedToFloat<IntType>(bytesToInt<IntType>(buffer, bufferOffset));
@@ -2841,11 +2246,7 @@ static inline float4 readR32G32B32A32_NORM(uint bufferOffset, constant uchar *bu
     color.a = normalizedToFloat<IntType>(bytesToInt<IntType>(buffer, bufferOffset + 12));
     return color;
 }
-
-
-
-
-static inline int4 readR32G32B32A32_SINT(uint bufferOffset, constant uchar *buffer)
+static inline int4 readR32G32B32A32_SINT(uint bufferOffset, const device uchar *buffer)
 {
     int4 color;
     color.r = bytesToInt<int>(buffer, bufferOffset);
@@ -2854,15 +2255,14 @@ static inline int4 readR32G32B32A32_SINT(uint bufferOffset, constant uchar *buff
     color.a = bytesToInt<int>(buffer, bufferOffset + 12);
     return color;
 }
-static inline void writeR32G32B32A32_SINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
+static inline void writeR32G32B32A32_SINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<int, 4> color, device uchar *buffer)
 {
     intToBytes(color.r, bufferOffset, buffer);
     intToBytes(color.g, bufferOffset + 4, buffer);
     intToBytes(color.b, bufferOffset + 8, buffer);
     intToBytes(color.a, bufferOffset + 12, buffer);
 }
-
-static inline float4 readR32G32B32A32_FIXED(uint bufferOffset, constant uchar *buffer)
+static inline float4 readR32G32B32A32_FIXED(uint bufferOffset, const device uchar *buffer)
 {
     float4 color;
     constexpr float kDivisor = 1.0f / (1 << 16);
@@ -2872,9 +2272,7 @@ static inline float4 readR32G32B32A32_FIXED(uint bufferOffset, constant uchar *b
     color.a = bytesToInt<int>(buffer, bufferOffset + 12) * kDivisor;
     return color;
 }
-
-
-static inline uint4 readR32G32B32A32_UINT(uint bufferOffset, constant uchar *buffer)
+static inline uint4 readR32G32B32A32_UINT(uint bufferOffset, const device uchar *buffer)
 {
     uint4 color;
     color.r = bytesToInt<uint>(buffer, bufferOffset);
@@ -2883,125 +2281,107 @@ static inline uint4 readR32G32B32A32_UINT(uint bufferOffset, constant uchar *buf
     color.a = bytesToInt<uint>(buffer, bufferOffset + 12);
     return color;
 }
-static inline void writeR32G32B32A32_UINT(ushort2 gIndices, constant WritePixelParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
+static inline void writeR32G32B32A32_UINT(ushort2 gIndices, constant T2BParams &options, uint bufferOffset, vec<uint, 4> color, device uchar *buffer)
 {
     intToBytes(color.r, bufferOffset, buffer);
     intToBytes(color.g, bufferOffset + 4, buffer);
     intToBytes(color.b, bufferOffset + 8, buffer);
     intToBytes(color.a, bufferOffset + 12, buffer);
 }
-# 1292 "./copy_buffer.metal"
-static inline int4 readR8_SSCALED(uint bufferOffset, constant uchar *buffer) { return readR8_SINT(bufferOffset, buffer); } static inline uint4 readR8_USCALED(uint bufferOffset, constant uchar *buffer) { return readR8_UINT(bufferOffset, buffer); } static inline int4 readR8G8_SSCALED(uint bufferOffset, constant uchar *buffer) { return readR8G8_SINT(bufferOffset, buffer); } static inline uint4 readR8G8_USCALED(uint bufferOffset, constant uchar *buffer) { return readR8G8_UINT(bufferOffset, buffer); } static inline int4 readR8G8B8_SSCALED(uint bufferOffset, constant uchar *buffer) { return readR8G8B8_SINT(bufferOffset, buffer); } static inline uint4 readR8G8B8_USCALED(uint bufferOffset, constant uchar *buffer) { return readR8G8B8_UINT(bufferOffset, buffer); } static inline int4 readR8G8B8A8_SSCALED(uint bufferOffset, constant uchar *buffer) { return readR8G8B8A8_SINT(bufferOffset, buffer); } static inline uint4 readR8G8B8A8_USCALED(uint bufferOffset, constant uchar *buffer) { return readR8G8B8A8_UINT(bufferOffset, buffer); }
-static inline int4 readR16_SSCALED(uint bufferOffset, constant uchar *buffer) { return readR16_SINT(bufferOffset, buffer); } static inline uint4 readR16_USCALED(uint bufferOffset, constant uchar *buffer) { return readR16_UINT(bufferOffset, buffer); } static inline int4 readR16G16_SSCALED(uint bufferOffset, constant uchar *buffer) { return readR16G16_SINT(bufferOffset, buffer); } static inline uint4 readR16G16_USCALED(uint bufferOffset, constant uchar *buffer) { return readR16G16_UINT(bufferOffset, buffer); } static inline int4 readR16G16B16_SSCALED(uint bufferOffset, constant uchar *buffer) { return readR16G16B16_SINT(bufferOffset, buffer); } static inline uint4 readR16G16B16_USCALED(uint bufferOffset, constant uchar *buffer) { return readR16G16B16_UINT(bufferOffset, buffer); } static inline int4 readR16G16B16A16_SSCALED(uint bufferOffset, constant uchar *buffer) { return readR16G16B16A16_SINT(bufferOffset, buffer); } static inline uint4 readR16G16B16A16_USCALED(uint bufferOffset, constant uchar *buffer) { return readR16G16B16A16_UINT(bufferOffset, buffer); }
-static inline int4 readR32_SSCALED(uint bufferOffset, constant uchar *buffer) { return readR32_SINT(bufferOffset, buffer); } static inline uint4 readR32_USCALED(uint bufferOffset, constant uchar *buffer) { return readR32_UINT(bufferOffset, buffer); } static inline int4 readR32G32_SSCALED(uint bufferOffset, constant uchar *buffer) { return readR32G32_SINT(bufferOffset, buffer); } static inline uint4 readR32G32_USCALED(uint bufferOffset, constant uchar *buffer) { return readR32G32_UINT(bufferOffset, buffer); } static inline int4 readR32G32B32_SSCALED(uint bufferOffset, constant uchar *buffer) { return readR32G32B32_SINT(bufferOffset, buffer); } static inline uint4 readR32G32B32_USCALED(uint bufferOffset, constant uchar *buffer) { return readR32G32B32_UINT(bufferOffset, buffer); } static inline int4 readR32G32B32A32_SSCALED(uint bufferOffset, constant uchar *buffer) { return readR32G32B32A32_SINT(bufferOffset, buffer); } static inline uint4 readR32G32B32A32_USCALED(uint bufferOffset, constant uchar *buffer) { return readR32G32B32A32_UINT(bufferOffset, buffer); }
-
-static inline int4 readR10G10B10A2_SSCALED(uint bufferOffset, constant uchar *buffer) { return readR10G10B10A2_SINT(bufferOffset, buffer); } static inline uint4 readR10G10B10A2_USCALED(uint bufferOffset, constant uchar *buffer) { return readR10G10B10A2_UINT(bufferOffset, buffer); }
-
-
-kernel void readFromBufferToFloatTexture(ushort3 gIndices [[thread_position_in_grid]], constant CopyPixelParams &options[[buffer(0)]], constant uchar *buffer [[buffer(1)]], texture2d<float, access::write> dstTexture2d [[texture(0), function_constant(kCopyTextureType2D)]], texture2d_array<float, access::write> dstTexture2dArray [[texture(0), function_constant(kCopyTextureType2DArray)]], texture3d<float, access::write> dstTexture3d [[texture(0), function_constant(kCopyTextureType3D)]], texturecube<float, access::write> dstTextureCube [[texture(0), function_constant(kCopyTextureTypeCube)]])
+static inline int4 readR8_SSCALED(uint bufferOffset, const device uchar *buffer) { return readR8_SINT(bufferOffset, buffer); } static inline uint4 readR8_USCALED(uint bufferOffset, const device uchar *buffer) { return readR8_UINT(bufferOffset, buffer); } static inline int4 readR8G8_SSCALED(uint bufferOffset, const device uchar *buffer) { return readR8G8_SINT(bufferOffset, buffer); } static inline uint4 readR8G8_USCALED(uint bufferOffset, const device uchar *buffer) { return readR8G8_UINT(bufferOffset, buffer); } static inline int4 readR8G8B8_SSCALED(uint bufferOffset, const device uchar *buffer) { return readR8G8B8_SINT(bufferOffset, buffer); } static inline uint4 readR8G8B8_USCALED(uint bufferOffset, const device uchar *buffer) { return readR8G8B8_UINT(bufferOffset, buffer); } static inline int4 readR8G8B8A8_SSCALED(uint bufferOffset, const device uchar *buffer) { return readR8G8B8A8_SINT(bufferOffset, buffer); } static inline uint4 readR8G8B8A8_USCALED(uint bufferOffset, const device uchar *buffer) { return readR8G8B8A8_UINT(bufferOffset, buffer); }
+static inline int4 readR16_SSCALED(uint bufferOffset, const device uchar *buffer) { return readR16_SINT(bufferOffset, buffer); } static inline uint4 readR16_USCALED(uint bufferOffset, const device uchar *buffer) { return readR16_UINT(bufferOffset, buffer); } static inline int4 readR16G16_SSCALED(uint bufferOffset, const device uchar *buffer) { return readR16G16_SINT(bufferOffset, buffer); } static inline uint4 readR16G16_USCALED(uint bufferOffset, const device uchar *buffer) { return readR16G16_UINT(bufferOffset, buffer); } static inline int4 readR16G16B16_SSCALED(uint bufferOffset, const device uchar *buffer) { return readR16G16B16_SINT(bufferOffset, buffer); } static inline uint4 readR16G16B16_USCALED(uint bufferOffset, const device uchar *buffer) { return readR16G16B16_UINT(bufferOffset, buffer); } static inline int4 readR16G16B16A16_SSCALED(uint bufferOffset, const device uchar *buffer) { return readR16G16B16A16_SINT(bufferOffset, buffer); } static inline uint4 readR16G16B16A16_USCALED(uint bufferOffset, const device uchar *buffer) { return readR16G16B16A16_UINT(bufferOffset, buffer); }
+static inline int4 readR32_SSCALED(uint bufferOffset, const device uchar *buffer) { return readR32_SINT(bufferOffset, buffer); } static inline uint4 readR32_USCALED(uint bufferOffset, const device uchar *buffer) { return readR32_UINT(bufferOffset, buffer); } static inline int4 readR32G32_SSCALED(uint bufferOffset, const device uchar *buffer) { return readR32G32_SINT(bufferOffset, buffer); } static inline uint4 readR32G32_USCALED(uint bufferOffset, const device uchar *buffer) { return readR32G32_UINT(bufferOffset, buffer); } static inline int4 readR32G32B32_SSCALED(uint bufferOffset, const device uchar *buffer) { return readR32G32B32_SINT(bufferOffset, buffer); } static inline uint4 readR32G32B32_USCALED(uint bufferOffset, const device uchar *buffer) { return readR32G32B32_UINT(bufferOffset, buffer); } static inline int4 readR32G32B32A32_SSCALED(uint bufferOffset, const device uchar *buffer) { return readR32G32B32A32_SINT(bufferOffset, buffer); } static inline uint4 readR32G32B32A32_USCALED(uint bufferOffset, const device uchar *buffer) { return readR32G32B32A32_UINT(bufferOffset, buffer); }
+static inline int4 readR10G10B10A2_SSCALED(uint bufferOffset, const device uchar *buffer) { return readR10G10B10A2_SINT(bufferOffset, buffer); } static inline uint4 readR10G10B10A2_USCALED(uint bufferOffset, const device uchar *buffer) { return readR10G10B10A2_UINT(bufferOffset, buffer); }
+static inline uint getB2TReadOffset(float2 position, constant B2TParams &options)
 {
-    if (gIndices.x >= options.copySize.x || gIndices.y >= options.copySize.y || gIndices.z >= options.copySize.z) { return; }
-# 1336 "./copy_buffer.metal"
-    uint bufferOffset = options.bufferStartOffset + (gIndices.z * options.bufferDepthPitch + gIndices.y * options.bufferRowPitch + gIndices.x * options.pixelSize);
-
+    uint2 iposition = static_cast<uint2>(position) - options.textureOffset;
+    return options.bufferStartOffset +
+           (iposition.y * options.bufferRowPitch + iposition.x * options.pixelSize);
+}
+vertex float4 readFromBufferToTextureVS(unsigned int vid [[vertex_id]])
+{
+    float4 output;
+    output.xy = select(float2(-1.0f), float2(1.0f), bool2(vid & uint2(2, 1)));
+    output.zw = float2(0.0, 1.0);
+    return output;
+}
+fragment float4 readFromBufferToFloatTextureFS(float4 position [[position]],
+                                               constant B2TParams &options [[buffer(0)]],
+                                               const device uchar *buffer [[buffer(1)]])
+{
+    uint bufferOffset = getB2TReadOffset(position.xy, options);
     switch (kCopyFormatType)
     {
-        case FormatID::R5G6B5_UNORM: { auto color = readR5G6B5_UNORM(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R8G8B8A8_UNORM: { auto color = readR8G8B8A8_UNORM(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R8G8B8A8_UNORM_SRGB: { auto color = readR8G8B8A8_UNORM_SRGB(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R8G8B8A8_SNORM: { auto color = readR8G8B8A8_SNORM(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::B8G8R8A8_UNORM: { auto color = readB8G8R8A8_UNORM(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::B8G8R8A8_UNORM_SRGB: { auto color = readB8G8R8A8_UNORM_SRGB(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R8G8B8_UNORM: { auto color = readR8G8B8_UNORM(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R8G8B8_UNORM_SRGB: { auto color = readR8G8B8_UNORM_SRGB(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R8G8B8_SNORM: { auto color = readR8G8B8_SNORM(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::L8_UNORM: { auto color = readL8_UNORM(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::L8A8_UNORM: { auto color = readL8A8_UNORM(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R5G5B5A1_UNORM: { auto color = readR5G5B5A1_UNORM(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R4G4B4A4_UNORM: { auto color = readR4G4B4A4_UNORM(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R8_UNORM: { auto color = readR8_UNORM(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R8_SNORM: { auto color = readR8_SNORM(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R8G8_UNORM: { auto color = readR8G8_UNORM(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R8G8_SNORM: { auto color = readR8G8_SNORM(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R16_FLOAT: { auto color = readR16_FLOAT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::A16_FLOAT: { auto color = readA16_FLOAT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::L16_FLOAT: { auto color = readL16_FLOAT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::L16A16_FLOAT: { auto color = readL16A16_FLOAT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R16G16_FLOAT: { auto color = readR16G16_FLOAT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R16G16B16_FLOAT: { auto color = readR16G16B16_FLOAT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R16G16B16A16_FLOAT: { auto color = readR16G16B16A16_FLOAT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R32_FLOAT: { auto color = readR32_FLOAT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::A32_FLOAT: { auto color = readA32_FLOAT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::L32_FLOAT: { auto color = readL32_FLOAT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::L32A32_FLOAT: { auto color = readL32A32_FLOAT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R32G32_FLOAT: { auto color = readR32G32_FLOAT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R32G32B32_FLOAT: { auto color = readR32G32B32_FLOAT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R32G32B32A32_FLOAT: { auto color = readR32G32B32A32_FLOAT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break;
+        case FormatID::R5G6B5_UNORM: { return readR5G6B5_UNORM(bufferOffset, buffer); } case FormatID::R8G8B8A8_UNORM: { return readR8G8B8A8_UNORM(bufferOffset, buffer); } case FormatID::R8G8B8A8_UNORM_SRGB: { return readR8G8B8A8_UNORM_SRGB(bufferOffset, buffer); } case FormatID::R8G8B8A8_SNORM: { return readR8G8B8A8_SNORM(bufferOffset, buffer); } case FormatID::B8G8R8A8_UNORM: { return readB8G8R8A8_UNORM(bufferOffset, buffer); } case FormatID::B8G8R8A8_UNORM_SRGB: { return readB8G8R8A8_UNORM_SRGB(bufferOffset, buffer); } case FormatID::R8G8B8_UNORM: { return readR8G8B8_UNORM(bufferOffset, buffer); } case FormatID::R8G8B8_UNORM_SRGB: { return readR8G8B8_UNORM_SRGB(bufferOffset, buffer); } case FormatID::R8G8B8_SNORM: { return readR8G8B8_SNORM(bufferOffset, buffer); } case FormatID::L8_UNORM: { return readL8_UNORM(bufferOffset, buffer); } case FormatID::L8A8_UNORM: { return readL8A8_UNORM(bufferOffset, buffer); } case FormatID::R5G5B5A1_UNORM: { return readR5G5B5A1_UNORM(bufferOffset, buffer); } case FormatID::R4G4B4A4_UNORM: { return readR4G4B4A4_UNORM(bufferOffset, buffer); } case FormatID::R8_UNORM: { return readR8_UNORM(bufferOffset, buffer); } case FormatID::R8_SNORM: { return readR8_SNORM(bufferOffset, buffer); } case FormatID::R8G8_UNORM: { return readR8G8_UNORM(bufferOffset, buffer); } case FormatID::R8G8_SNORM: { return readR8G8_SNORM(bufferOffset, buffer); } case FormatID::R16_FLOAT: { return readR16_FLOAT(bufferOffset, buffer); } case FormatID::R16_SNORM: { return readR16_NORM<short>(bufferOffset, buffer); } case FormatID::R16_UNORM: { return readR16_NORM<ushort>(bufferOffset, buffer); } case FormatID::A16_FLOAT: { return readA16_FLOAT(bufferOffset, buffer); } case FormatID::L16_FLOAT: { return readL16_FLOAT(bufferOffset, buffer); } case FormatID::L16A16_FLOAT: { return readL16A16_FLOAT(bufferOffset, buffer); } case FormatID::R16G16_FLOAT: { return readR16G16_FLOAT(bufferOffset, buffer); } case FormatID::R16G16_SNORM: { return readR16G16_NORM<short>(bufferOffset, buffer); } case FormatID::R16G16_UNORM: { return readR16G16_NORM<ushort>(bufferOffset, buffer); } case FormatID::R16G16B16_FLOAT: { return readR16G16B16_FLOAT(bufferOffset, buffer); } case FormatID::R16G16B16_SNORM: { return readR16G16B16_NORM<short>(bufferOffset, buffer); } case FormatID::R16G16B16_UNORM: { return readR16G16B16_NORM<ushort>(bufferOffset, buffer); } case FormatID::R16G16B16A16_FLOAT: { return readR16G16B16A16_FLOAT(bufferOffset, buffer); } case FormatID::R16G16B16A16_SNORM: { return readR16G16B16A16_NORM<short>(bufferOffset, buffer); } case FormatID::R16G16B16A16_UNORM: { return readR16G16B16A16_NORM<ushort>(bufferOffset, buffer); } case FormatID::R32_FLOAT: { return readR32_FLOAT(bufferOffset, buffer); } case FormatID::A32_FLOAT: { return readA32_FLOAT(bufferOffset, buffer); } case FormatID::L32_FLOAT: { return readL32_FLOAT(bufferOffset, buffer); } case FormatID::L32A32_FLOAT: { return readL32A32_FLOAT(bufferOffset, buffer); } case FormatID::R32G32_FLOAT: { return readR32G32_FLOAT(bufferOffset, buffer); } case FormatID::R32G32B32_FLOAT: { return readR32G32B32_FLOAT(bufferOffset, buffer); } case FormatID::R32G32B32A32_FLOAT: { return readR32G32B32A32_FLOAT(bufferOffset, buffer); }
     }
-
-
+    return float4(0.0);
 }
-
-kernel void readFromBufferToIntTexture(ushort3 gIndices [[thread_position_in_grid]], constant CopyPixelParams &options[[buffer(0)]], constant uchar *buffer [[buffer(1)]], texture2d<int, access::write> dstTexture2d [[texture(0), function_constant(kCopyTextureType2D)]], texture2d_array<int, access::write> dstTexture2dArray [[texture(0), function_constant(kCopyTextureType2DArray)]], texture3d<int, access::write> dstTexture3d [[texture(0), function_constant(kCopyTextureType3D)]], texturecube<int, access::write> dstTextureCube [[texture(0), function_constant(kCopyTextureTypeCube)]])
+fragment int4 readFromBufferToIntTextureFS(float4 position [[position]],
+                                           constant B2TParams &options [[buffer(0)]],
+                                           const device uchar *buffer [[buffer(1)]])
 {
-    if (gIndices.x >= options.copySize.x || gIndices.y >= options.copySize.y || gIndices.z >= options.copySize.z) { return; }
-# 1364 "./copy_buffer.metal"
-    uint bufferOffset = options.bufferStartOffset + (gIndices.z * options.bufferDepthPitch + gIndices.y * options.bufferRowPitch + gIndices.x * options.pixelSize);
-
+    uint bufferOffset = getB2TReadOffset(position.xy, options);
     switch (kCopyFormatType)
     {
-        case FormatID::R8_SINT: { auto color = readR8_SINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R8G8_SINT: { auto color = readR8G8_SINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R8G8B8_SINT: { auto color = readR8G8B8_SINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R8G8B8A8_SINT: { auto color = readR8G8B8A8_SINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R16_SINT: { auto color = readR16_SINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R16G16_SINT: { auto color = readR16G16_SINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R16G16B16_SINT: { auto color = readR16G16B16_SINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R16G16B16A16_SINT: { auto color = readR16G16B16A16_SINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R32_SINT: { auto color = readR32_SINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R32G32_SINT: { auto color = readR32G32_SINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R32G32B32_SINT: { auto color = readR32G32B32_SINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R32G32B32A32_SINT: { auto color = readR32G32B32A32_SINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break;
+        case FormatID::R8_SINT: { return readR8_SINT(bufferOffset, buffer); } case FormatID::R8G8_SINT: { return readR8G8_SINT(bufferOffset, buffer); } case FormatID::R8G8B8_SINT: { return readR8G8B8_SINT(bufferOffset, buffer); } case FormatID::R8G8B8A8_SINT: { return readR8G8B8A8_SINT(bufferOffset, buffer); } case FormatID::R16_SINT: { return readR16_SINT(bufferOffset, buffer); } case FormatID::R16G16_SINT: { return readR16G16_SINT(bufferOffset, buffer); } case FormatID::R16G16B16_SINT: { return readR16G16B16_SINT(bufferOffset, buffer); } case FormatID::R16G16B16A16_SINT: { return readR16G16B16A16_SINT(bufferOffset, buffer); } case FormatID::R32_SINT: { return readR32_SINT(bufferOffset, buffer); } case FormatID::R32G32_SINT: { return readR32G32_SINT(bufferOffset, buffer); } case FormatID::R32G32B32_SINT: { return readR32G32B32_SINT(bufferOffset, buffer); } case FormatID::R32G32B32A32_SINT: { return readR32G32B32A32_SINT(bufferOffset, buffer); }
     }
-
-
+    return int4(0);
 }
-
-kernel void readFromBufferToUIntTexture(ushort3 gIndices [[thread_position_in_grid]], constant CopyPixelParams &options[[buffer(0)]], constant uchar *buffer [[buffer(1)]], texture2d<uint, access::write> dstTexture2d [[texture(0), function_constant(kCopyTextureType2D)]], texture2d_array<uint, access::write> dstTexture2dArray [[texture(0), function_constant(kCopyTextureType2DArray)]], texture3d<uint, access::write> dstTexture3d [[texture(0), function_constant(kCopyTextureType3D)]], texturecube<uint, access::write> dstTextureCube [[texture(0), function_constant(kCopyTextureTypeCube)]])
+fragment uint4 readFromBufferToUIntTextureFS(float4 position [[position]],
+                                             constant B2TParams &options [[buffer(0)]],
+                                             const device uchar *buffer [[buffer(1)]])
 {
-    if (gIndices.x >= options.copySize.x || gIndices.y >= options.copySize.y || gIndices.z >= options.copySize.z) { return; }
-# 1392 "./copy_buffer.metal"
-    uint bufferOffset = options.bufferStartOffset + (gIndices.z * options.bufferDepthPitch + gIndices.y * options.bufferRowPitch + gIndices.x * options.pixelSize);
-
+    uint bufferOffset = getB2TReadOffset(position.xy, options);
     switch (kCopyFormatType)
     {
-        case FormatID::R8_UINT: { auto color = readR8_UINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R8G8_UINT: { auto color = readR8G8_UINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R8G8B8_UINT: { auto color = readR8G8B8_UINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R8G8B8A8_UINT: { auto color = readR8G8B8A8_UINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R16_UINT: { auto color = readR16_UINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R16G16_UINT: { auto color = readR16G16_UINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R16G16B16_UINT: { auto color = readR16G16B16_UINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R16G16B16A16_UINT: { auto color = readR16G16B16A16_UINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R32_UINT: { auto color = readR32_UINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R32G32_UINT: { auto color = readR32G32_UINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R32G32B32_UINT: { auto color = readR32G32B32_UINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break; case FormatID::R32G32B32A32_UINT: { auto color = readR32G32B32A32_UINT(bufferOffset, buffer); textureWrite(gIndices, options, color, dstTexture2d, dstTexture2dArray, dstTexture3d, dstTextureCube); } break;
+        case FormatID::R8_UINT: { return readR8_UINT(bufferOffset, buffer); } case FormatID::R8G8_UINT: { return readR8G8_UINT(bufferOffset, buffer); } case FormatID::R8G8B8_UINT: { return readR8G8B8_UINT(bufferOffset, buffer); } case FormatID::R8G8B8A8_UINT: { return readR8G8B8A8_UINT(bufferOffset, buffer); } case FormatID::R16_UINT: { return readR16_UINT(bufferOffset, buffer); } case FormatID::R16G16_UINT: { return readR16G16_UINT(bufferOffset, buffer); } case FormatID::R16G16B16_UINT: { return readR16G16B16_UINT(bufferOffset, buffer); } case FormatID::R16G16B16A16_UINT: { return readR16G16B16A16_UINT(bufferOffset, buffer); } case FormatID::R32_UINT: { return readR32_UINT(bufferOffset, buffer); } case FormatID::R32G32_UINT: { return readR32G32_UINT(bufferOffset, buffer); } case FormatID::R32G32B32_UINT: { return readR32G32B32_UINT(bufferOffset, buffer); } case FormatID::R32G32B32A32_UINT: { return readR32G32B32A32_UINT(bufferOffset, buffer); }
     }
-
-
+    return uint4(0);
 }
-
-
-kernel void writeFromFloatTextureToBuffer(ushort2 gIndices [[thread_position_in_grid]], constant WritePixelParams &options[[buffer(0)]], texture2d<float, access::read> srcTexture2d [[texture(0), function_constant(kCopyTextureType2D)]], texture2d_array<float, access::read> srcTexture2dArray [[texture(0), function_constant(kCopyTextureType2DArray)]], texture3d<float, access::read> srcTexture3d [[texture(0), function_constant(kCopyTextureType3D)]], texturecube<float, access::read> srcTextureCube [[texture(0), function_constant(kCopyTextureTypeCube)]], texture2d_ms<float, access::read> srcTexture2dMS [[texture(0), function_constant(kCopyTextureType2DMS)]], device uchar *buffer [[buffer(1)]])
+static inline uint getT2BWriteOffset(ushort2 position, constant T2BParams &options)
+{
+    return options.bufferStartOffset +
+           (position.y * options.bufferRowPitch + position.x * options.pixelSize);
+}
+kernel void writeFromFloatTextureToBufferCS(ushort2 gIndices [[thread_position_in_grid]], constant T2BParams &options[[buffer(0)]], texture2d<float, access::read> srcTexture2d [[texture(0), function_constant(kCopyTextureType2D)]], texture2d_array<float, access::read> srcTexture2dArray [[texture(0), function_constant(kCopyTextureType2DArray)]], texture3d<float, access::read> srcTexture3d [[texture(0), function_constant(kCopyTextureType3D)]], texturecube<float, access::read> srcTextureCube [[texture(0), function_constant(kCopyTextureTypeCube)]], texture2d_ms<float, access::read> srcTexture2dMS [[texture(0), function_constant(kCopyTextureType2DMS)]], device uchar *buffer [[buffer(1)]])
 {
     if (gIndices.x >= options.copySize.x || gIndices.y >= options.copySize.y) { return; }
-# 1439 "./copy_buffer.metal"
-    uint bufferOffset = options.bufferStartOffset + (gIndices.y * options.bufferRowPitch + gIndices.x * options.pixelSize);
-
+    uint bufferOffset = getT2BWriteOffset(gIndices, options);
     switch (kCopyFormatType)
     {
-        case FormatID::R5G6B5_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR5G6B5_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8B8A8_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8B8A8_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8B8A8_UNORM_SRGB: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8B8A8_UNORM_SRGB(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8B8A8_SNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8B8A8_SNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::B8G8R8A8_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeB8G8R8A8_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::B8G8R8A8_UNORM_SRGB: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeB8G8R8A8_UNORM_SRGB(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8B8_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8B8_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8B8_UNORM_SRGB: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8B8_UNORM_SRGB(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8B8_SNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8B8_SNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::L8_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeL8_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::A8_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeA8_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::L8A8_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeL8A8_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R5G5B5A1_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR5G5B5A1_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R4G4B4A4_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR4G4B4A4_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8_SNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8_SNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8_SNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8_SNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::A16_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeA16_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::L16_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeL16_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::L16A16_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeL16A16_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16G16_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16G16_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16G16B16A16_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16G16B16A16_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R32_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR32_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::A32_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeA32_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::L32_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeL32_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::L32A32_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeL32A32_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R32G32_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR32G32_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R32G32B32A32_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR32G32B32A32_FLOAT(gIndices, options, bufferOffset, color, buffer); } break;
+        case FormatID::R5G6B5_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR5G6B5_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8B8A8_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8B8A8_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8B8A8_UNORM_SRGB: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8B8A8_UNORM_SRGB(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8B8A8_SNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8B8A8_SNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::B8G8R8A8_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeB8G8R8A8_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::B8G8R8A8_UNORM_SRGB: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeB8G8R8A8_UNORM_SRGB(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8B8_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8B8_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8B8_UNORM_SRGB: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8B8_UNORM_SRGB(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8B8_SNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8B8_SNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::L8_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeL8_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::A8_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeA8_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::L8A8_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeL8A8_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R5G5B5A1_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR5G5B5A1_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R4G4B4A4_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR4G4B4A4_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8_SNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8_SNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8_UNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8_SNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8_SNORM(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16_SNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16_NORM<short>(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16_NORM<ushort>(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::A16_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeA16_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::L16_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeL16_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::L16A16_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeL16A16_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16G16_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16G16_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16G16_SNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16G16_NORM<short>(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16G16_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16G16_NORM<ushort>(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16G16B16A16_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16G16B16A16_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16G16B16A16_SNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16G16B16A16_NORM<short>(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16G16B16A16_UNORM: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16G16B16A16_NORM<ushort>(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R32_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR32_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::A32_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeA32_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::L32_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeL32_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::L32A32_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeL32A32_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R32G32_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR32G32_FLOAT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R32G32B32A32_FLOAT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR32G32B32A32_FLOAT(gIndices, options, bufferOffset, color, buffer); } break;
     }
-
-
 }
-
-kernel void writeFromIntTextureToBuffer(ushort2 gIndices [[thread_position_in_grid]], constant WritePixelParams &options[[buffer(0)]], texture2d<int, access::read> srcTexture2d [[texture(0), function_constant(kCopyTextureType2D)]], texture2d_array<int, access::read> srcTexture2dArray [[texture(0), function_constant(kCopyTextureType2DArray)]], texture3d<int, access::read> srcTexture3d [[texture(0), function_constant(kCopyTextureType3D)]], texturecube<int, access::read> srcTextureCube [[texture(0), function_constant(kCopyTextureTypeCube)]], texture2d_ms<int, access::read> srcTexture2dMS [[texture(0), function_constant(kCopyTextureType2DMS)]], device uchar *buffer [[buffer(1)]])
+kernel void writeFromIntTextureToBufferCS(ushort2 gIndices [[thread_position_in_grid]], constant T2BParams &options[[buffer(0)]], texture2d<int, access::read> srcTexture2d [[texture(0), function_constant(kCopyTextureType2D)]], texture2d_array<int, access::read> srcTexture2dArray [[texture(0), function_constant(kCopyTextureType2DArray)]], texture3d<int, access::read> srcTexture3d [[texture(0), function_constant(kCopyTextureType3D)]], texturecube<int, access::read> srcTextureCube [[texture(0), function_constant(kCopyTextureTypeCube)]], texture2d_ms<int, access::read> srcTexture2dMS [[texture(0), function_constant(kCopyTextureType2DMS)]], device uchar *buffer [[buffer(1)]])
 {
     if (gIndices.x >= options.copySize.x || gIndices.y >= options.copySize.y) { return; }
-# 1464 "./copy_buffer.metal"
-    uint bufferOffset = options.bufferStartOffset + (gIndices.y * options.bufferRowPitch + gIndices.x * options.pixelSize);
-
+    uint bufferOffset = getT2BWriteOffset(gIndices, options);
     switch (kCopyFormatType)
     {
         case FormatID::R8_SINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8_SINT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8_SINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8_SINT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8B8A8_SINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8B8A8_SINT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16_SINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16_SINT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16G16_SINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16G16_SINT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16G16B16A16_SINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16G16B16A16_SINT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R32_SINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR32_SINT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R32G32_SINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR32G32_SINT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R32G32B32A32_SINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR32G32B32A32_SINT(gIndices, options, bufferOffset, color, buffer); } break;
     }
-
-
 }
-
-kernel void writeFromUIntTextureToBuffer(ushort2 gIndices [[thread_position_in_grid]], constant WritePixelParams &options[[buffer(0)]], texture2d<uint, access::read> srcTexture2d [[texture(0), function_constant(kCopyTextureType2D)]], texture2d_array<uint, access::read> srcTexture2dArray [[texture(0), function_constant(kCopyTextureType2DArray)]], texture3d<uint, access::read> srcTexture3d [[texture(0), function_constant(kCopyTextureType3D)]], texturecube<uint, access::read> srcTextureCube [[texture(0), function_constant(kCopyTextureTypeCube)]], texture2d_ms<uint, access::read> srcTexture2dMS [[texture(0), function_constant(kCopyTextureType2DMS)]], device uchar *buffer [[buffer(1)]])
+kernel void writeFromUIntTextureToBufferCS(ushort2 gIndices [[thread_position_in_grid]], constant T2BParams &options[[buffer(0)]], texture2d<uint, access::read> srcTexture2d [[texture(0), function_constant(kCopyTextureType2D)]], texture2d_array<uint, access::read> srcTexture2dArray [[texture(0), function_constant(kCopyTextureType2DArray)]], texture3d<uint, access::read> srcTexture3d [[texture(0), function_constant(kCopyTextureType3D)]], texturecube<uint, access::read> srcTextureCube [[texture(0), function_constant(kCopyTextureTypeCube)]], texture2d_ms<uint, access::read> srcTexture2dMS [[texture(0), function_constant(kCopyTextureType2DMS)]], device uchar *buffer [[buffer(1)]])
 {
     if (gIndices.x >= options.copySize.x || gIndices.y >= options.copySize.y) { return; }
-# 1489 "./copy_buffer.metal"
-    uint bufferOffset = options.bufferStartOffset + (gIndices.y * options.bufferRowPitch + gIndices.x * options.pixelSize);
-
+    uint bufferOffset = getT2BWriteOffset(gIndices, options);
     switch (kCopyFormatType)
     {
         case FormatID::R8_UINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8_UINT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8_UINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8_UINT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R8G8B8A8_UINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR8G8B8A8_UINT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16_UINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16_UINT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16G16_UINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16G16_UINT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R16G16B16A16_UINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR16G16B16A16_UINT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R32_UINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR32_UINT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R32G32_UINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR32G32_UINT(gIndices, options, bufferOffset, color, buffer); } break; case FormatID::R32G32B32A32_UINT: { auto color = textureRead(gIndices, options, srcTexture2d, srcTexture2dArray, srcTexture3d, srcTextureCube, srcTexture2dMS); writeR32G32B32A32_UINT(gIndices, options, bufferOffset, color, buffer); } break;
     }
-
-
 }
-
-
 struct CopyVertexParams
 {
     uint srcBufferStartOffset;
     uint srcStride;
     uint srcComponentBytes;
     uint srcComponents;
-
-
-
     uchar4 srcDefaultAlphaData;
-
     uint dstBufferStartOffset;
     uint dstStride;
     uint dstComponents;
-
     uint vertexCount;
 };
-# 1539 "./copy_buffer.metal"
 template <typename IntType>
 static inline void writeFloatVertex(constant CopyVertexParams &options,
                                     uint idx,
@@ -3009,13 +2389,11 @@ static inline void writeFloatVertex(constant CopyVertexParams &options,
                                     device uchar *dst)
 {
     uint dstOffset = idx * options.dstStride + options.dstBufferStartOffset;
-
     for (uint component = 0; component < options.dstComponents; ++component, dstOffset += 4)
     {
         floatToBytes(static_cast<float>(data[component]), dstOffset, dst);
     }
 }
-
 template <>
 inline void writeFloatVertex(constant CopyVertexParams &options,
                              uint idx,
@@ -3023,58 +2401,44 @@ inline void writeFloatVertex(constant CopyVertexParams &options,
                              device uchar *dst)
 {
     uint dstOffset = idx * options.dstStride + options.dstBufferStartOffset;
-
     for (uint component = 0; component < options.dstComponents; ++component, dstOffset += 4)
     {
         floatToBytes(data[component], dstOffset, dst);
     }
 }
-
-
 static inline void convertToFloatVertexFormat(uint index,
                                               constant CopyVertexParams &options,
-                                              constant uchar *srcBuffer,
+                                              const device uchar *srcBuffer,
                                               device uchar *dstBuffer)
 {
-# 1585 "./copy_buffer.metal"
     uint bufferOffset = options.srcBufferStartOffset + options.srcStride * index;
-# 1594 "./copy_buffer.metal"
     switch (kCopyFormatType)
     {
         case FormatID::R8_UNORM: { auto data = readR8_UNORM(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8_SNORM: { auto data = readR8_SNORM(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8_UINT: { auto data = readR8_UINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8_SINT: { auto data = readR8_SINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8_USCALED: { auto data = readR8_USCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8_SSCALED: { auto data = readR8_SSCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8_UNORM: { auto data = readR8G8_UNORM(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8_SNORM: { auto data = readR8G8_SNORM(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8_UINT: { auto data = readR8G8_UINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8_SINT: { auto data = readR8G8_SINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8_USCALED: { auto data = readR8G8_USCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8_SSCALED: { auto data = readR8G8_SSCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8B8_UNORM: { auto data = readR8G8B8_UNORM(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8B8_SNORM: { auto data = readR8G8B8_SNORM(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8B8_UINT: { auto data = readR8G8B8_UINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8B8_SINT: { auto data = readR8G8B8_SINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8B8_USCALED: { auto data = readR8G8B8_USCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8B8_SSCALED: { auto data = readR8G8B8_SSCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8B8A8_UNORM: { auto data = readR8G8B8A8_UNORM(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8B8A8_SNORM: { auto data = readR8G8B8A8_SNORM(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8B8A8_UINT: { auto data = readR8G8B8A8_UINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8B8A8_SINT: { auto data = readR8G8B8A8_SINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8B8A8_USCALED: { auto data = readR8G8B8A8_USCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R8G8B8A8_SSCALED: { auto data = readR8G8B8A8_SSCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16_UNORM: { auto data = readR16_NORM<ushort>(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16_SNORM: { auto data = readR16_NORM<short>(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16_UINT: { auto data = readR16_UINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16_SINT: { auto data = readR16_SINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16_USCALED: { auto data = readR16_USCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16_SSCALED: { auto data = readR16_SSCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16_UNORM: { auto data = readR16G16_NORM<ushort>(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16_SNORM: { auto data = readR16G16_NORM<short>(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16_UINT: { auto data = readR16G16_UINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16_SINT: { auto data = readR16G16_SINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16_USCALED: { auto data = readR16G16_USCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16_SSCALED: { auto data = readR16G16_SSCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16B16_UNORM: { auto data = readR16G16B16_NORM<ushort>(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16B16_SNORM: { auto data = readR16G16B16_NORM<short>(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16B16_UINT: { auto data = readR16G16B16_UINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16B16_SINT: { auto data = readR16G16B16_SINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16B16_USCALED: { auto data = readR16G16B16_USCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16B16_SSCALED: { auto data = readR16G16B16_SSCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16B16A16_UNORM: { auto data = readR16G16B16A16_NORM<ushort>(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16B16A16_SNORM: { auto data = readR16G16B16A16_NORM<short>(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16B16A16_UINT: { auto data = readR16G16B16A16_UINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16B16A16_SINT: { auto data = readR16G16B16A16_SINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16B16A16_USCALED: { auto data = readR16G16B16A16_USCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16B16A16_SSCALED: { auto data = readR16G16B16A16_SSCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32_UNORM: { auto data = readR32_NORM<uint>(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32_SNORM: { auto data = readR32_NORM<int>(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32_UINT: { auto data = readR32_UINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32_SINT: { auto data = readR32_SINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32_USCALED: { auto data = readR32_USCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32_SSCALED: { auto data = readR32_SSCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32_UNORM: { auto data = readR32G32_NORM<uint>(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32_SNORM: { auto data = readR32G32_NORM<int>(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32_UINT: { auto data = readR32G32_UINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32_SINT: { auto data = readR32G32_SINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32_USCALED: { auto data = readR32G32_USCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32_SSCALED: { auto data = readR32G32_SSCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32B32_UNORM: { auto data = readR32G32B32_NORM<uint>(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32B32_SNORM: { auto data = readR32G32B32_NORM<int>(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32B32_UINT: { auto data = readR32G32B32_UINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32B32_SINT: { auto data = readR32G32B32_SINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32B32_USCALED: { auto data = readR32G32B32_USCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32B32_SSCALED: { auto data = readR32G32B32_SSCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32B32A32_UNORM: { auto data = readR32G32B32A32_NORM<uint>(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32B32A32_SNORM: { auto data = readR32G32B32A32_NORM<int>(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32B32A32_UINT: { auto data = readR32G32B32A32_UINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32B32A32_SINT: { auto data = readR32G32B32A32_SINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32B32A32_USCALED: { auto data = readR32G32B32A32_USCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32B32A32_SSCALED: { auto data = readR32G32B32A32_SSCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16_FLOAT: { auto data = readR16_FLOAT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16_FLOAT: { auto data = readR16G16_FLOAT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16B16_FLOAT: { auto data = readR16G16B16_FLOAT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R16G16B16A16_FLOAT: { auto data = readR16G16B16A16_FLOAT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32_FLOAT: { auto data = readR32_FLOAT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32_FLOAT: { auto data = readR32G32_FLOAT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32B32_FLOAT: { auto data = readR32G32B32_FLOAT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32B32A32_FLOAT: { auto data = readR32G32B32A32_FLOAT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32_FIXED: { auto data = readR32_FIXED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32_FIXED: { auto data = readR32G32_FIXED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32B32_FIXED: { auto data = readR32G32B32_FIXED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R32G32B32A32_FIXED: { auto data = readR32G32B32A32_FIXED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R10G10B10A2_SINT: { auto data = readR10G10B10A2_SINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R10G10B10A2_UINT: { auto data = readR10G10B10A2_UINT(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R10G10B10A2_SSCALED: { auto data = readR10G10B10A2_SSCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break; case FormatID::R10G10B10A2_USCALED: { auto data = readR10G10B10A2_USCALED(bufferOffset, srcBuffer); writeFloatVertex(options, index, data, dstBuffer); } break;
     }
-
-
 }
-
-
 kernel void convertToFloatVertexFormatCS(uint index [[thread_position_in_grid]],
                                          constant CopyVertexParams &options [[buffer(0)]],
-                                         constant uchar *srcBuffer [[buffer(1)]],
+                                         const device uchar *srcBuffer [[buffer(1)]],
                                          device uchar *dstBuffer [[buffer(2)]])
 {
     if (index >= options.vertexCount) { return; };
     convertToFloatVertexFormat(index, options, srcBuffer, dstBuffer);
 }
-
-
 vertex void convertToFloatVertexFormatVS(uint index [[vertex_id]],
                                          constant CopyVertexParams &options [[buffer(0)]],
-                                         constant uchar *srcBuffer [[buffer(1)]],
+                                         const device uchar *srcBuffer [[buffer(1)]],
                                          device uchar *dstBuffer [[buffer(2)]])
 {
     convertToFloatVertexFormat(index, options, srcBuffer, dstBuffer);
 }
-
-
 static inline void expandVertexFormatComponents(uint index,
                                                 constant CopyVertexParams &options,
-                                                constant uchar *srcBuffer,
+                                                const device uchar *srcBuffer,
                                                 device uchar *dstBuffer)
 {
     uint srcOffset = options.srcBufferStartOffset + options.srcStride * index;
     uint dstOffset = options.dstBufferStartOffset + options.dstStride * index;
-
     uint dstComponentsBeforeAlpha = min(options.dstComponents, 3u);
     uint component;
     for (component = 0; component < options.srcComponents; ++component,
@@ -3085,7 +2449,6 @@ static inline void expandVertexFormatComponents(uint index,
             dstBuffer[dstOffset + byte] = srcBuffer[srcOffset + byte];
         }
     }
-
     for (; component < dstComponentsBeforeAlpha;
          ++component, dstOffset += options.srcComponentBytes)
     {
@@ -3094,58 +2457,64 @@ static inline void expandVertexFormatComponents(uint index,
             dstBuffer[dstOffset + byte] = 0;
         }
     }
-
     if (component < options.dstComponents)
     {
-
         for (uint byte = 0; byte < options.srcComponentBytes; ++byte)
         {
             dstBuffer[dstOffset + byte] = options.srcDefaultAlphaData[byte];
         }
     }
 }
-
-
 kernel void expandVertexFormatComponentsCS(uint index [[thread_position_in_grid]],
                                            constant CopyVertexParams &options [[buffer(0)]],
-                                           constant uchar *srcBuffer [[buffer(1)]],
+                                           const device uchar *srcBuffer [[buffer(1)]],
                                            device uchar *dstBuffer [[buffer(2)]])
 {
     if (index >= options.vertexCount) { return; };
-
     expandVertexFormatComponents(index, options, srcBuffer, dstBuffer);
 }
-
-
 vertex void expandVertexFormatComponentsVS(uint index [[vertex_id]],
                                            constant CopyVertexParams &options [[buffer(0)]],
-                                           constant uchar *srcBuffer [[buffer(1)]],
+                                           const device uchar *srcBuffer [[buffer(1)]],
                                            device uchar *dstBuffer [[buffer(2)]])
 {
     expandVertexFormatComponents(index, options, srcBuffer, dstBuffer);
 }
-# 6 "temp_master_source.metal" 2
-# 1 "./visibility.metal" 1
-
-
-
-
-
-
-
-
+kernel void linearizeBlocks(ushort2 position [[thread_position_in_grid]],
+                            constant uint2 *dimensions [[buffer(0)]],
+                            const device uint2 *srcBuffer [[buffer(1)]],
+                            device uint2 *dstBuffer [[buffer(2)]])
+{
+    if (any(uint2(position) >= *dimensions))
+    {
+        return;
+    }
+    uint2 t = uint2(position);
+    t = (t | (t << 8)) & 0x00FF00FF;
+    t = (t | (t << 4)) & 0x0F0F0F0F;
+    t = (t | (t << 2)) & 0x33333333;
+    t = (t | (t << 1)) & 0x55555555;
+    dstBuffer[position.y * (*dimensions).x + position.x] = srcBuffer[(t.x << 1) | t.y];
+}
+kernel void saturateDepth(uint2 position [[thread_position_in_grid]],
+                          constant uint3 *dimensions [[buffer(0)]],
+                          const device float *srcBuffer [[buffer(1)]],
+                          device float *dstBuffer [[buffer(2)]])
+{
+    if (any(position >= (*dimensions).xy))
+    {
+        return;
+    }
+    const uint srcOffset = position.y * (*dimensions).z + position.x;
+    const uint dstOffset = position.y * (*dimensions).x + position.x;
+    dstBuffer[dstOffset] = saturate(srcBuffer[srcOffset]);
+}
 constant bool kCombineWithExistingResult [[function_constant(1000)]];
-
-
-
 struct CombineVisibilityResultOptions
 {
-
     uint startOffset;
-
     uint numOffsets;
 };
-
 kernel void combineVisibilityResult(uint idx [[thread_position_in_grid]],
                                     constant CombineVisibilityResultOptions &options [[buffer(0)]],
                                     constant ushort4 *renderpassVisibilityResult [[buffer(1)]],
@@ -3153,13 +2522,9 @@ kernel void combineVisibilityResult(uint idx [[thread_position_in_grid]],
 {
     if (idx > 0)
     {
-
-
-
         return;
     }
     ushort4 finalResult16x4;
-
     if (kCombineWithExistingResult)
     {
         finalResult16x4 = finalResults[0];
@@ -3168,24 +2533,15 @@ kernel void combineVisibilityResult(uint idx [[thread_position_in_grid]],
     {
         finalResult16x4 = ushort4(0, 0, 0, 0);
     }
-
     for (uint i = 0; i < options.numOffsets; ++i)
     {
         uint offset = options.startOffset + i;
         ushort4 renderpassResult = renderpassVisibilityResult[offset];
-
-
         finalResult16x4 = finalResult16x4 | renderpassResult;
     }
     finalResults[0] = finalResult16x4;
 }
-# 7 "temp_master_source.metal" 2
-# 1 "./rewrite_indices.metal" 1
-# 11 "./rewrite_indices.metal"
-# 1 "./rewrite_indices_shared.h" 1
-# 12 "./rewrite_indices.metal" 2
 using namespace metal;
-
 constant uint fixIndexBufferKey [[ function_constant(2000) ]];
 constant bool indexBufferIsUint16 = (((fixIndexBufferKey >> 0U) & 0x03U) == 2U);
 constant bool indexBufferIsUint32 = (((fixIndexBufferKey >> 0U) & 0x03U) == 3U);
@@ -3193,8 +2549,6 @@ constant bool outIndexBufferIsUint16 = (((fixIndexBufferKey >> 2U) & 0x03U) == 2
 constant bool outIndexBufferIsUint32 = (((fixIndexBufferKey >> 2U) & 0x03U) == 3U);
 constant bool doPrimRestart = (fixIndexBufferKey & 0x00100U);
 constant uint fixIndexBufferMode = (fixIndexBufferKey >> 4U) & 0x0FU;
-
-
 static inline uint readIdx(
                            const device ushort *indexBufferUint16,
                            const device uint *indexBufferUint32,
@@ -3229,7 +2583,6 @@ static inline uint readIdx(
     }
     return inIndex;
 }
-
 static inline void outputPrimitive(
                                    const device ushort *indexBufferUint16,
                                    const device uint *indexBufferUint32,
@@ -3245,7 +2598,6 @@ static inline void outputPrimitive(
     if(baseIndex > onIndex) return;
     bool foundRestart = false;
     uint indexThatRestartedFirst = 0;
-# 86 "./rewrite_indices.metal"
     switch(fixIndexBufferMode)
     {
         case 0x00U:
@@ -3256,7 +2608,6 @@ static inline void outputPrimitive(
                 baseIndex = indexThatRestartedFirst + 1;
                 return;
             }
-
             ({ if(outIndexBufferIsUint16) { outIndexBufferUint16[(onOutIndex)] = tmpIndex; } if(outIndexBufferIsUint32) { outIndexBufferUint32[(onOutIndex)] = tmpIndex; } onOutIndex++; });
         }
         break;
@@ -3270,7 +2621,6 @@ static inline void outputPrimitive(
                 return;
             }
             if((onIndex - baseIndex) & 1) return;
-
             if(fixIndexBufferKey & 0x00200U)
             {
                 ({ if(outIndexBufferIsUint16) { outIndexBufferUint16[(onOutIndex)] = tmpIndex1; } if(outIndexBufferIsUint32) { outIndexBufferUint32[(onOutIndex)] = tmpIndex1; } onOutIndex++; });
@@ -3292,7 +2642,6 @@ static inline void outputPrimitive(
                 baseIndex = indexThatRestartedFirst + 1;
                 return;
             }
-
             if(fixIndexBufferKey & 0x00200U)
             {
                 ({ if(outIndexBufferIsUint16) { outIndexBufferUint16[(onOutIndex)] = tmpIndex1; } if(outIndexBufferIsUint32) { outIndexBufferUint32[(onOutIndex)] = tmpIndex1; } onOutIndex++; });
@@ -3316,7 +2665,6 @@ static inline void outputPrimitive(
                 return;
             }
             if(((onIndex - baseIndex) % 3) != 0) return;
-
             if(fixIndexBufferKey & 0x00200U)
             {
                 ({ if(outIndexBufferIsUint16) { outIndexBufferUint16[(onOutIndex)] = tmpIndex2; } if(outIndexBufferIsUint32) { outIndexBufferUint32[(onOutIndex)] = tmpIndex2; } onOutIndex++; });
@@ -3342,7 +2690,6 @@ static inline void outputPrimitive(
                 baseIndex = indexThatRestartedFirst + 1;
                 return;
             }
-
             if(fixIndexBufferKey & 0x00200U)
             {
                 ({ if(outIndexBufferIsUint16) { outIndexBufferUint16[(onOutIndex)] = tmpIndex2; } if(outIndexBufferIsUint32) { outIndexBufferUint32[(onOutIndex)] = tmpIndex2; } onOutIndex++; });
@@ -3351,7 +2698,6 @@ static inline void outputPrimitive(
             }
             else
             {
-
                 if(isOdd)
                 {
                     ({ if(outIndexBufferIsUint16) { outIndexBufferUint16[(onOutIndex)] = tmpIndex1; } if(outIndexBufferIsUint32) { outIndexBufferUint32[(onOutIndex)] = tmpIndex1; } onOutIndex++; });
@@ -3365,17 +2711,12 @@ static inline void outputPrimitive(
                     ({ if(outIndexBufferIsUint16) { outIndexBufferUint16[(onOutIndex)] = tmpIndex2; } if(outIndexBufferIsUint32) { outIndexBufferUint32[(onOutIndex)] = tmpIndex2; } onOutIndex++; });
                 }
             }
-
             assert(onOutIndex <= (onIndex + 1) * 3);
             assert(onOutIndex <= (indexCount - 2) * 3);
         }
         break;
-
     }
-
-
 }
-
 kernel void fixIndexBuffer(
                            const device ushort *indexBufferUint16 [[ buffer(0), function_constant(indexBufferIsUint16) ]],
                            const device uint *indexBufferUint32 [[ buffer(0), function_constant(indexBufferIsUint32) ]],
@@ -3417,9 +2758,6 @@ kernel void fixIndexBuffer(
         outputPrimitive(indexBufferUint16, indexBufferUint32, outIndexBufferUint16, outIndexBufferUint32, restartIndex, indexCount, baseIndex, onIndex, onOutIndex);
     }
 }
-
-
-
 static inline void generatePrimitive(
                                    device ushort *outIndexBufferUint16,
                                    device uint *outIndexBufferUint32,
@@ -3432,7 +2770,6 @@ static inline void generatePrimitive(
                                    )
 {
     if(baseIndex > onIndex) return;
-# 284 "./rewrite_indices.metal"
     switch(fixIndexBufferMode)
     {
         case 0x00U:
@@ -3534,7 +2871,6 @@ static inline void generatePrimitive(
                     ({ if(outIndexBufferIsUint16) { outIndexBufferUint16[(onOutIndex)] = tmpIndex2 + firstVertex; } if(outIndexBufferIsUint32) { outIndexBufferUint32[(onOutIndex)] = tmpIndex2 + firstVertex; } onOutIndex++; });
                 }
             }
-
             assert(onOutIndex <= (onIndex + 1) * 3);
             assert(onOutIndex <= (indexCount - 2) * 3);
             break;
@@ -3544,7 +2880,6 @@ static inline void generatePrimitive(
             auto tmpIndex0 = 0;
             auto tmpIndex1 = onIndex + 1;
             auto tmpIndex2 = onIndex + 2;
-
             if(fixIndexBufferKey & 0x00200U)
             {
                 ({ if(outIndexBufferIsUint16) { outIndexBufferUint16[(onOutIndex)] = tmpIndex2 + firstVertex; } if(outIndexBufferIsUint32) { outIndexBufferUint32[(onOutIndex)] = tmpIndex2 + firstVertex; } onOutIndex++; });
@@ -3559,13 +2894,8 @@ static inline void generatePrimitive(
             }
         }
         break;
-
     }
-
 }
-
-
-
 kernel void genIndexBuffer(
                            device ushort *outIndexBufferUint16 [[ buffer(1), function_constant(outIndexBufferIsUint16) ]],
                            device uint *outIndexBufferUint32 [[ buffer(1), function_constant(outIndexBufferIsUint32) ]],
@@ -3613,7 +2943,6 @@ kernel void genIndexBuffer(
         generatePrimitive(outIndexBufferUint16, outIndexBufferUint32, firstVertex, indexCount, baseIndex, onIndex, primCount, onOutIndex);
     }
 }
-# 8 "temp_master_source.metal" 2
 
 
 )";

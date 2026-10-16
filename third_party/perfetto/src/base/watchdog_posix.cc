@@ -106,7 +106,7 @@ Watchdog::~Watchdog() {
   // wakeup from the poll() and see |enabled_| == false.
   // This code path is used only in tests. In production code the watchdog is
   // a singleton and is never destroyed.
-  struct itimerspec ts {};
+  struct itimerspec ts{};
   ts.it_value.tv_sec = 0;
   ts.it_value.tv_nsec = 1;
   timerfd_settime(*timer_fd_, /*flags=*/0, &ts, nullptr);
@@ -152,9 +152,9 @@ void Watchdog::RearmTimerFd_Locked() {
     return;
   auto it = std::min_element(timers_.begin(), timers_.end());
 
-  // We use one timerfd to handle all the oustanding |timers_|. Keep it armed
+  // We use one timerfd to handle all the outstanding |timers_|. Keep it armed
   // to the task expiring soonest.
-  struct itimerspec ts {};
+  struct itimerspec ts{};
   if (it != timers_.end()) {
     ts.it_value = ToPosixTimespec(it->deadline);
   }
@@ -259,15 +259,16 @@ void Watchdog::ThreadMain() {
     // Check if any of the timers expired.
     int tid_to_kill = 0;
     WatchdogCrashReason crash_reason{};
-    std::unique_lock<std::mutex> guard(mutex_);
-    for (const auto& timer : timers_) {
-      if (now >= timer.deadline) {
-        tid_to_kill = timer.thread_id;
-        crash_reason = timer.crash_reason;
-        break;
+    {
+      std::lock_guard<std::mutex> guard(mutex_);
+      for (const auto& timer : timers_) {
+        if (now >= timer.deadline) {
+          tid_to_kill = timer.thread_id;
+          crash_reason = timer.crash_reason;
+          break;
+        }
       }
     }
-    guard.unlock();
 
     if (tid_to_kill)
       SerializeLogsAndKillThread(tid_to_kill, crash_reason);
@@ -282,15 +283,16 @@ void Watchdog::ThreadMain() {
         static_cast<uint64_t>(stat.rss_pages) * base::GetSysPageSize();
 
     bool threshold_exceeded = false;
-    guard.lock();
-    if (CheckMemory_Locked(rss_bytes)) {
-      threshold_exceeded = true;
-      crash_reason = WatchdogCrashReason::kMemGuardrail;
-    } else if (CheckCpu_Locked(cpu_time)) {
-      threshold_exceeded = true;
-      crash_reason = WatchdogCrashReason::kCpuGuardrail;
+    {
+      std::lock_guard<std::mutex> guard(mutex_);
+      if (CheckMemory_Locked(rss_bytes) && !IsSyncMemoryTaggingEnabled()) {
+        threshold_exceeded = true;
+        crash_reason = WatchdogCrashReason::kMemGuardrail;
+      } else if (CheckCpu_Locked(cpu_time)) {
+        threshold_exceeded = true;
+        crash_reason = WatchdogCrashReason::kCpuGuardrail;
+      }
     }
-    guard.unlock();
 
     if (threshold_exceeded)
       SerializeLogsAndKillThread(getpid(), crash_reason);

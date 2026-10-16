@@ -2,41 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Destination, DestinationStore, GooglePromotedDestinationId, LocalDestinationInfo, makeRecentDestination, NativeLayerImpl,
-        // <if expr="is_chromeos">
-        PrintPreviewDestinationDialogCrosElement,
-        // </if>
-        // <if expr="not is_chromeos">
-        PrintPreviewDestinationDialogElement,
-        // </if>
-        PrintPreviewDestinationListItemElement} from 'chrome://print/print_preview.js';
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {assertEquals} from 'chrome://webui-test/chai_assert.js';
+import 'chrome://print/print_preview.js';
 
-// <if expr="is_chromeos">
-import {setNativeLayerCrosInstance} from './native_layer_cros_stub.js';
-// </if>
+import type {Destination, DestinationStore, LocalDestinationInfo, PrintPreviewDestinationDialogElement, PrintPreviewDestinationListItemElement} from 'chrome://print/print_preview.js';
+import {GooglePromotedDestinationId, makeRecentDestination, NativeLayerImpl} from 'chrome://print/print_preview.js';
+import {assertEquals} from 'chrome://webui-test/chai_assert.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {NativeLayerStub} from './native_layer_stub.js';
 import {createDestinationStore, getDestinations, getExtensionDestinations, setupTestListenerElement} from './print_preview_test_utils.js';
 
-const destination_dialog_test = {
-  suiteName: 'DestinationDialogTest',
-  TestNames: {
-    PrinterList: 'PrinterList',
-    PrinterListPreloaded: 'PrinterListPreloaded',
-  },
-};
-
-Object.assign(window, {destination_dialog_test: destination_dialog_test});
-
-suite(destination_dialog_test.suiteName, function() {
-  // <if expr="is_chromeos">
-  let dialog: PrintPreviewDestinationDialogCrosElement;
-  // </if>
-  // <if expr="not is_chromeos">
+suite('DestinationDialogTest', function() {
   let dialog: PrintPreviewDestinationDialogElement;
-  // </if>
 
   let destinationStore: DestinationStore;
 
@@ -56,9 +33,6 @@ suite(destination_dialog_test.suiteName, function() {
     // Create data classes
     nativeLayer = new NativeLayerStub();
     NativeLayerImpl.setInstance(nativeLayer);
-    // <if expr="is_chromeos">
-    setNativeLayerCrosInstance();
-    // </if>
     destinationStore = createDestinationStore();
     destinations = getDestinations(localDestinations);
     const extensionDestinationConfig = getExtensionDestinations();
@@ -69,12 +43,7 @@ suite(destination_dialog_test.suiteName, function() {
 
   function finishSetup() {
     // Set up dialog
-    // <if expr="is_chromeos">
-    dialog = document.createElement('print-preview-destination-dialog-cros');
-    // </if>
-    // <if expr="not is_chromeos">
     dialog = document.createElement('print-preview-destination-dialog');
-    // </if>
     dialog.destinationStore = destinationStore;
     document.body.appendChild(dialog);
     destinationStore.startLoadAllDestinations();
@@ -83,11 +52,11 @@ suite(destination_dialog_test.suiteName, function() {
 
   function validatePrinterList() {
     const list =
-        dialog.shadowRoot!.querySelector('print-preview-destination-list');
-    const printerItems = list!.shadowRoot!.querySelectorAll(
+        dialog.shadowRoot.querySelector('print-preview-destination-list');
+    const printerItems = list!.shadowRoot.querySelectorAll(
         'print-preview-destination-list-item');
     const getDisplayedName = (item: PrintPreviewDestinationListItemElement) =>
-        item.shadowRoot!.querySelector('.name')!.textContent;
+        item.shadowRoot.querySelector('.name')!.textContent;
     // 5 local printers + 3 extension printers + Save as PDF
     assertEquals(9, printerItems.length);
     // Save as PDF shows up first.
@@ -105,13 +74,12 @@ suite(destination_dialog_test.suiteName, function() {
   }
 
   // Test that destinations are correctly displayed in the lists.
-  test(destination_dialog_test.TestNames.PrinterList, async () => {
+  test('PrinterList', async () => {
     // Native printers are fetched at startup, since the recent printer is set
     // as native.
     let whenPrinterListReady = nativeLayer.waitForGetPrinters(1);
     destinationStore.init(
-        false /* pdfPrinterDisabled */, true /* isDriveMounted */,
-        'FooDevice' /* printerName */,
+        false /* pdfPrinterDisabled */, 'FooDevice' /* printerName */,
         '' /* serializedDefaultDestinationSelectionRulesStr */,
         [makeRecentDestination(destinations[4]!)] /* recentDestinations */);
     await whenPrinterListReady;
@@ -119,28 +87,26 @@ suite(destination_dialog_test.suiteName, function() {
     // This should trigger 1 new getPrinters() call, for extension printers.
     finishSetup();
     await whenPrinterListReady;
-    flush();
+    await microtasksFinished();
     validatePrinterList();
   });
 
   // Test that destinations are correctly displayed in the lists when all
   // printers have been preloaded before the dialog is opened. Regression test
   // for https://crbug.com/1330678.
-  test(
-      destination_dialog_test.TestNames.PrinterListPreloaded, async () => {
-        // All printers are fetched at startup since both native and extension
-        // printers are recent.
-        const whenAllPreloaded = nativeLayer.waitForGetPrinters(2);
-        destinationStore.init(
-            false /* pdfPrinterDisabled */, true /* isDriveMounted */,
-            'FooDevice' /* printerName */,
-            '' /* serializedDefaultDestinationSelectionRulesStr */, [
-              makeRecentDestination(destinations[4]!),
-              makeRecentDestination(extensionDestinations[0]!),
-            ] /* recentDestinations */);
-        await whenAllPreloaded;
-        finishSetup();
-        flush();
-        validatePrinterList();
-      });
+  test('PrinterListPreloaded', async () => {
+    // All printers are fetched at startup since both native and extension
+    // printers are recent.
+    const whenAllPreloaded = nativeLayer.waitForGetPrinters(2);
+    destinationStore.init(
+        false /* pdfPrinterDisabled */, 'FooDevice' /* printerName */,
+        '' /* serializedDefaultDestinationSelectionRulesStr */, [
+          makeRecentDestination(destinations[4]!),
+          makeRecentDestination(extensionDestinations[0]!),
+        ] /* recentDestinations */);
+    await whenAllPreloaded;
+    finishSetup();
+    await microtasksFinished();
+    validatePrinterList();
+  });
 });

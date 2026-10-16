@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 // Fuzzer for content/renderer
 
 #include <stddef.h>
@@ -14,6 +19,7 @@
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/notreached.h"
 #include "base/values.h"
 #include "content/test/fuzzer/fuzzer_support.h"
 #include "testing/libfuzzer/libfuzzer_exports.h"
@@ -115,7 +121,7 @@ class NodeList : public std::vector<std::unique_ptr<Node>> {
                                                    size_t size) {
     auto nodes = std::make_unique<NodeList>();
 
-    absl::optional<base::Value> value(base::JSONReader::Read(
+    std::optional<base::Value> value(base::JSONReader::Read(
         std::string(reinterpret_cast<const char*>(data), size)));
     if (value && value->is_list())
       nodes->ParseJsonList(value->GetList());
@@ -363,13 +369,12 @@ AttrPosition NodeList::PickRandomAttribute(Random* rnd) {
 
 std::unique_ptr<Node> Node::CreateRandom(Random* rnd) {
   switch ((*rnd)() % 2) {
-    default:
-      LOG(FATAL) << "SHOULD NOT HAPPEN";
-      return nullptr;
     case 0:
       return Element::CreateRandom(rnd);
     case 1:
       return Text::CreateRandom(rnd);
+    default:
+      NOTREACHED() << "SHOULD NOT HAPPEN";
   }
 }
 

@@ -43,7 +43,6 @@
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
-#include "third_party/blink/renderer/core/dom/node_computed_style.h"
 #include "third_party/blink/renderer/core/execution_context/agent.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
@@ -134,9 +133,11 @@ void DocumentAnimations::UpdateAnimations(
   document_->GetWorkletAnimationController().UpdateAnimationStates();
   document_->GetFrame()->ScheduleNextServiceForScrollSnapshotClients();
   for (auto& timeline : timelines_) {
-    // ScrollTimelines are already handled as ScrollSnapshotClients above.
-    if (!timeline->IsScrollTimeline())
+    // ScrollSnapshotTimelines are already handled as ScrollSnapshotClients
+    // above.
+    if (!timeline->IsScrollSnapshotTimeline()) {
       timeline->ScheduleNextService();
+    }
   }
 }
 
@@ -151,8 +152,7 @@ void DocumentAnimations::MarkPendingIfCompositorPropertyAnimationChanges(
 size_t DocumentAnimations::GetAnimationsCount() {
   wtf_size_t total_animations_count = 0;
   if (document_->View()) {
-    if (cc::AnimationHost* host =
-            document_->View()->GetCompositorAnimationHost()) {
+    if (document_->View()->GetCompositorAnimationHost()) {
       for (auto& timeline : timelines_) {
         if (timeline->HasAnimations())
           total_animations_count += timeline->AnimationsNeedingUpdateCount();
@@ -197,7 +197,7 @@ void DocumentAnimations::DetachCompositorTimelines() {
     if (cc::AnimationHost* host =
             document_->GetPage()->GetChromeClient().GetCompositorAnimationHost(
                 *document_->GetFrame())) {
-      host->RemoveAnimationTimeline(compositor_timeline);
+      host->DetachAnimationTimeline(compositor_timeline);
     }
   }
 }
@@ -217,7 +217,8 @@ void DocumentAnimations::GetAnimationsTargetingTreeScope(
       if (animation->ReplaceStateRemoved())
         continue;
       if (!animation->effect() || (!animation->effect()->IsCurrent() &&
-                                   !animation->effect()->IsInEffect())) {
+                                   !animation->effect()->IsInEffect() &&
+                                   !animation->CanBeTriggered())) {
         continue;
       }
       auto* effect = DynamicTo<KeyframeEffect>(animation->effect());
@@ -235,7 +236,7 @@ void DocumentAnimations::RemoveReplacedAnimations(
     DocumentAnimations::ReplaceableAnimationsMap* replaceable_animations_map) {
   HeapVector<Member<Animation>> animations_to_remove;
   for (auto& elem_it : *replaceable_animations_map) {
-    HeapVector<Member<Animation>>* animations = elem_it.value;
+    GCedHeapVector<Member<Animation>>* animations = elem_it.value;
 
     // Only elements with multiple animations in the replaceable state need to
     // be checked.
@@ -259,9 +260,8 @@ void DocumentAnimations::RemoveReplacedAnimations(
       // the process of iterating over properties if not removable to update
       // the set of properties being replaced.
       bool replace = (*anim_it)->ReplaceStateActive();
-      PropertyHandleSet animation_properties =
-          To<KeyframeEffect>((*anim_it)->effect())->Model()->Properties();
-      for (const auto& property : animation_properties) {
+      for (const auto& property :
+           To<KeyframeEffect>((*anim_it)->effect())->Model()->Properties()) {
         auto inserted = replaced_properties.insert(property);
         if (inserted.is_new_entry) {
           // Top-most compositor order animation affecting this property.

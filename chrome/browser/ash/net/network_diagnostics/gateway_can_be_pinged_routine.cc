@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/net/network_diagnostics/gateway_can_be_pinged_routine.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -15,7 +16,6 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/net_errors.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 namespace network_diagnostics {
@@ -41,8 +41,10 @@ constexpr base::TimeDelta kMaxAllowedLatencyMs = base::Milliseconds(1500);
 }  // namespace
 
 GatewayCanBePingedRoutine::GatewayCanBePingedRoutine(
+    chromeos::network_diagnostics::mojom::RoutineCallSource source,
     DebugDaemonClient* debug_daemon_client)
-    : debug_daemon_client_(debug_daemon_client) {
+    : NetworkDiagnosticsRoutine(source),
+      debug_daemon_client_(debug_daemon_client) {
   set_verdict(mojom::RoutineVerdict::kNotRun);
   GetNetworkConfigService(
       remote_cros_network_config_.BindNewPipeAndPassReceiver());
@@ -138,25 +140,26 @@ void GatewayCanBePingedRoutine::PingGateways() {
 bool GatewayCanBePingedRoutine::ParseICMPResult(const std::string& status,
                                                 std::string* ip,
                                                 base::TimeDelta* latency) {
-  absl::optional<base::Value> parsed_value(base::JSONReader::Read(status));
+  std::optional<base::Value> parsed_value(base::JSONReader::Read(status));
   if (!parsed_value.has_value()) {
     return false;
   }
-  if (!parsed_value->is_dict() || parsed_value->DictSize() != 1) {
+  const base::Value::Dict* parsed_value_dict = parsed_value->GetIfDict();
+  if (!parsed_value_dict || parsed_value_dict->size() != 1) {
     return false;
   }
-  auto iter = parsed_value->GetDict().begin();
+  auto iter = parsed_value_dict->begin();
   const std::string& ip_addr = iter->first;
-  const base::Value& info = iter->second;
-  if (!info.is_dict()) {
+  const base::Value::Dict* info = iter->second.GetIfDict();
+  if (!info) {
     return false;
   }
-  const absl::optional<int> recvd_value = info.GetDict().FindInt("recvd");
+  const std::optional<int> recvd_value = info->FindInt("recvd");
   if (!recvd_value || recvd_value.value() < 1) {
     return false;
   }
 
-  const absl::optional<double> avg_value = info.GetDict().FindDouble("avg");
+  const std::optional<double> avg_value = info->FindDouble("avg");
   if (!avg_value) {
     return false;
   }
@@ -198,7 +201,14 @@ void GatewayCanBePingedRoutine::OnManagedPropertiesReceived(
     if (managed_properties->ip_configs.has_value() &&
         managed_properties->ip_configs->size() != 0) {
       for (const auto& ip_config : managed_properties->ip_configs.value()) {
-        if (ip_config->gateway.has_value()) {
+        // TODO(b/277696397): Reaching a link-local address needs to specify the
+        // interface. Currently we don't have a good way to get the interface
+        // here, so skip link-local addresses instead of always reporting a
+        // failure here. Revisit this part when we can get the interface name,
+        // or ideally we should rely on the layer 2 link monitor signal for the
+        // diagnostic.
+        if (ip_config->gateway.has_value() &&
+            !ip_config->gateway->starts_with("fe80::")) {
           const std::string& gateway = ip_config->gateway.value();
           if (managed_properties->guid == default_network_guid_) {
             default_network_gateway_ = gateway;
@@ -223,7 +233,7 @@ void GatewayCanBePingedRoutine::OnManagedPropertiesReceived(
 
 void GatewayCanBePingedRoutine::OnTestICMPCompleted(
     bool is_default_network_ping_result,
-    const absl::optional<std::string> status) {
+    const std::optional<std::string> status) {
   DCHECK(gateways_remaining_ > 0);
   std::string result_ip;
   base::TimeDelta result_latency;

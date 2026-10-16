@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 
 /**
  * TODO(beccahughes): Description
@@ -40,7 +40,7 @@ export class MediaDataTable {
 
   render() {
     // Find the body of the table and clear it.
-    const body = this.table_.querySelectorAll('tbody')[0]!;
+    const body = this.table_.querySelectorAll('tbody')[0];
     (body.innerHTML as string | TrustedHTML) =
         window.trustedTypes ? window.trustedTypes.emptyHTML : '';
 
@@ -52,7 +52,7 @@ export class MediaDataTable {
                                           e.getAttribute('data-key');
     });
 
-    const currentSortCol = this.table_.querySelectorAll('.sort-column')[0]!;
+    const currentSortCol = this.table_.querySelectorAll('.sort-column')[0];
     const currentSortKey = currentSortCol.getAttribute('sort-key') || '';
     const currentSortReverse = currentSortCol.hasAttribute('sort-reverse');
 

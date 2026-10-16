@@ -16,9 +16,11 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/blob/blob.mojom-blink.h"
 #include "third_party/blink/public/mojom/blob/blob_registry.mojom-blink.h"
+#include "third_party/blink/public/mojom/blob/file_backed_blob_factory.mojom-blink.h"
 #include "third_party/blink/public/platform/file_path_conversion.h"
 #include "third_party/blink/renderer/platform/blob/blob_bytes_provider.h"
 #include "third_party/blink/renderer/platform/blob/testing/fake_blob_registry.h"
+#include "third_party/blink/renderer/platform/blob/testing/fake_file_backed_blob_factory.h"
 #include "third_party/blink/renderer/platform/testing/testing_platform_support.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/uuid.h"
@@ -32,6 +34,7 @@ using mojom::blink::DataElementBlob;
 using mojom::blink::DataElementBytes;
 using mojom::blink::DataElementFile;
 using mojom::blink::DataElementPtr;
+using mojom::blink::FileBackedBlobFactory;
 
 namespace {
 
@@ -49,7 +52,7 @@ struct ExpectedElement {
   static ExpectedElement LargeBytes(Vector<uint8_t> data) {
     uint64_t size = data.size();
     return ExpectedElement{DataElement::NewBytes(DataElementBytes::New(
-                               size, absl::nullopt, mojo::NullRemote())),
+                               size, std::nullopt, mojo::NullRemote())),
                            String(), std::move(data)};
   }
 
@@ -110,7 +113,7 @@ class BlobDataHandleTest : public testing::Test {
     empty_blob_ = BlobDataHandle::Create();
 
     auto test_data = std::make_unique<BlobData>();
-    test_data->AppendBytes(large_test_data_.data(), large_test_data_.size());
+    test_data->AppendBytes(large_test_data_);
     test_blob_ =
         BlobDataHandle::Create(std::move(test_data), large_test_data_.size());
 
@@ -139,7 +142,6 @@ class BlobDataHandleTest : public testing::Test {
     EXPECT_EQ(is_single_unknown_size_file, handle->IsSingleUnknownSizeFile());
 
     blob_registry_remote_.FlushForTesting();
-    EXPECT_EQ(0u, mock_blob_registry_.owned_receivers.size());
     ASSERT_EQ(1u, mock_blob_registry_.registrations.size());
     auto& reg = mock_blob_registry_.registrations[0];
     EXPECT_EQ(handle->Uuid(), reg.uuid);
@@ -227,7 +229,6 @@ TEST_F(BlobDataHandleTest, CreateEmpty) {
   EXPECT_FALSE(handle->IsSingleUnknownSizeFile());
 
   blob_registry_remote_.FlushForTesting();
-  EXPECT_EQ(0u, mock_blob_registry_.owned_receivers.size());
   ASSERT_EQ(1u, mock_blob_registry_.registrations.size());
   const auto& reg = mock_blob_registry_.registrations[0];
   EXPECT_EQ(handle->Uuid(), reg.uuid);
@@ -245,36 +246,48 @@ TEST_F(BlobDataHandleTest, CreateFromEmptyData) {
   TestCreateBlob(std::move(data), {});
 }
 
-TEST_F(BlobDataHandleTest, CreateFromUUID) {
-  String kUuid = WTF::CreateCanonicalUUIDString();
-  String kType = "content/type";
+TEST_F(BlobDataHandleTest, CreateFromFile) {
+  String kPath = "path";
+  uint64_t kOffset = 0;
   uint64_t kSize = 1234;
+  base::Time kModificationTime = base::Time();
+  String kType = "content/type";
+
+  FakeFileBackedBlobFactory file_factory;
+  mojo::Remote<FileBackedBlobFactory> file_factory_remote;
+  mojo::Receiver<FileBackedBlobFactory> file_factory_receiver(
+      &file_factory, file_factory_remote.BindNewPipeAndPassReceiver());
 
   scoped_refptr<BlobDataHandle> handle =
-      BlobDataHandle::Create(kUuid, kType, kSize);
-  EXPECT_EQ(kUuid, handle->Uuid());
+      BlobDataHandle::CreateForFile(file_factory_remote.get(), kPath, kOffset,
+                                    kSize, kModificationTime, kType);
+
   EXPECT_EQ(kType, handle->GetType());
   EXPECT_EQ(kSize, handle->size());
   EXPECT_FALSE(handle->IsSingleUnknownSizeFile());
 
-  blob_registry_remote_.FlushForTesting();
-  EXPECT_EQ(0u, mock_blob_registry_.registrations.size());
-  ASSERT_EQ(1u, mock_blob_registry_.owned_receivers.size());
-  EXPECT_EQ(kUuid, mock_blob_registry_.owned_receivers[0].uuid);
+  file_factory_remote.FlushForTesting();
+  EXPECT_EQ(1u, file_factory.registrations.size());
+  const auto& reg = file_factory.registrations[0];
+  EXPECT_EQ(handle->Uuid(), reg.uuid);
+  EXPECT_EQ(kType, reg.content_type);
+  EXPECT_EQ(WebStringToFilePath(kPath), reg.file->path);
+  EXPECT_EQ(kSize, reg.file->length);
+  EXPECT_EQ(kOffset, reg.file->offset);
+  EXPECT_EQ(kModificationTime, reg.file->expected_modification_time);
 }
 
 TEST_F(BlobDataHandleTest, CreateFromEmptyElements) {
   auto data = std::make_unique<BlobData>();
-  data->AppendBytes(small_test_data_.data(), 0);
+  data->AppendBytes({});
   data->AppendBlob(empty_blob_, 0, 0);
-  data->AppendFile("path", 0, 0, base::Time::UnixEpoch());
 
   TestCreateBlob(std::move(data), {});
 }
 
 TEST_F(BlobDataHandleTest, CreateFromSmallBytes) {
   auto data = std::make_unique<BlobData>();
-  data->AppendBytes(small_test_data_.data(), small_test_data_.size());
+  data->AppendBytes(small_test_data_);
 
   Vector<ExpectedElement> expected_elements;
   expected_elements.push_back(ExpectedElement::EmbeddedBytes(small_test_data_));
@@ -284,7 +297,7 @@ TEST_F(BlobDataHandleTest, CreateFromSmallBytes) {
 
 TEST_F(BlobDataHandleTest, CreateFromLargeBytes) {
   auto data = std::make_unique<BlobData>();
-  data->AppendBytes(large_test_data_.data(), large_test_data_.size());
+  data->AppendBytes(large_test_data_);
 
   Vector<ExpectedElement> expected_elements;
   expected_elements.push_back(ExpectedElement::LargeBytes(large_test_data_));
@@ -294,8 +307,8 @@ TEST_F(BlobDataHandleTest, CreateFromLargeBytes) {
 
 TEST_F(BlobDataHandleTest, CreateFromMergedBytes) {
   auto data = std::make_unique<BlobData>();
-  data->AppendBytes(medium_test_data_.data(), medium_test_data_.size());
-  data->AppendBytes(small_test_data_.data(), small_test_data_.size());
+  data->AppendBytes(medium_test_data_);
+  data->AppendBytes(small_test_data_);
   EXPECT_EQ(1u, data->ElementsForTesting().size());
 
   Vector<uint8_t> expected_data = medium_test_data_;
@@ -310,8 +323,8 @@ TEST_F(BlobDataHandleTest, CreateFromMergedBytes) {
 
 TEST_F(BlobDataHandleTest, CreateFromMergedLargeAndSmallBytes) {
   auto data = std::make_unique<BlobData>();
-  data->AppendBytes(large_test_data_.data(), large_test_data_.size());
-  data->AppendBytes(small_test_data_.data(), small_test_data_.size());
+  data->AppendBytes(large_test_data_);
+  data->AppendBytes(small_test_data_);
   EXPECT_EQ(1u, data->ElementsForTesting().size());
 
   Vector<uint8_t> expected_data = large_test_data_;
@@ -326,8 +339,8 @@ TEST_F(BlobDataHandleTest, CreateFromMergedLargeAndSmallBytes) {
 
 TEST_F(BlobDataHandleTest, CreateFromMergedSmallAndLargeBytes) {
   auto data = std::make_unique<BlobData>();
-  data->AppendBytes(small_test_data_.data(), small_test_data_.size());
-  data->AppendBytes(large_test_data_.data(), large_test_data_.size());
+  data->AppendBytes(small_test_data_);
+  data->AppendBytes(large_test_data_);
   EXPECT_EQ(1u, data->ElementsForTesting().size());
 
   Vector<uint8_t> expected_data = small_test_data_;
@@ -338,15 +351,6 @@ TEST_F(BlobDataHandleTest, CreateFromMergedSmallAndLargeBytes) {
       ExpectedElement::LargeBytes(std::move(expected_data)));
 
   TestCreateBlob(std::move(data), std::move(expected_elements));
-}
-
-TEST_F(BlobDataHandleTest, CreateFromFileWithUnknownSize) {
-  Vector<ExpectedElement> expected_elements;
-  expected_elements.push_back(
-      ExpectedElement::File("path", 0, uint64_t(-1), base::Time()));
-
-  TestCreateBlob(BlobData::CreateForFileWithUnknownSize("path"),
-                 std::move(expected_elements));
 }
 
 TEST_F(BlobDataHandleTest, CreateFromBlob) {
@@ -362,11 +366,11 @@ TEST_F(BlobDataHandleTest, CreateFromBlob) {
 TEST_F(BlobDataHandleTest, CreateFromBlobsAndBytes) {
   auto data = std::make_unique<BlobData>();
   data->AppendBlob(test_blob_, 10, 10);
-  data->AppendBytes(medium_test_data_.data(), medium_test_data_.size());
+  data->AppendBytes(medium_test_data_);
   data->AppendBlob(test_blob_, 0, 0);
-  data->AppendBytes(small_test_data_.data(), small_test_data_.size());
+  data->AppendBytes(small_test_data_);
   data->AppendBlob(test_blob_, 0, 10);
-  data->AppendBytes(large_test_data_.data(), large_test_data_.size());
+  data->AppendBytes(large_test_data_);
 
   Vector<uint8_t> expected_data = medium_test_data_;
   expected_data.AppendVector(small_test_data_);
@@ -383,9 +387,9 @@ TEST_F(BlobDataHandleTest, CreateFromBlobsAndBytes) {
 
 TEST_F(BlobDataHandleTest, CreateFromSmallBytesAfterLargeBytes) {
   auto data = std::make_unique<BlobData>();
-  data->AppendBytes(large_test_data_.data(), large_test_data_.size());
+  data->AppendBytes(large_test_data_);
   data->AppendBlob(test_blob_, 0, 10);
-  data->AppendBytes(small_test_data_.data(), small_test_data_.size());
+  data->AppendBytes(small_test_data_);
 
   Vector<ExpectedElement> expected_elements;
   expected_elements.push_back(ExpectedElement::LargeBytes(large_test_data_));
@@ -399,11 +403,11 @@ TEST_F(BlobDataHandleTest, CreateFromManyMergedBytes) {
   auto data = std::make_unique<BlobData>();
   Vector<uint8_t> merged_data;
   while (merged_data.size() <= DataElementBytes::kMaximumEmbeddedDataSize) {
-    data->AppendBytes(medium_test_data_.data(), medium_test_data_.size());
+    data->AppendBytes(medium_test_data_);
     merged_data.AppendVector(medium_test_data_);
   }
   data->AppendBlob(test_blob_, 0, 10);
-  data->AppendBytes(medium_test_data_.data(), medium_test_data_.size());
+  data->AppendBytes(medium_test_data_);
 
   Vector<ExpectedElement> expected_elements;
   expected_elements.push_back(

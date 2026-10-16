@@ -6,15 +6,16 @@
 
 #include <algorithm>
 #include <array>
+#include <optional>
 #include <utility>
 
 #include "ash/public/cpp/ambient/ambient_backend_controller.h"
 #include "ash/public/cpp/ambient/common/ambient_settings.h"
+#include "ash/webui/personalization_app/mojom/personalization_app.mojom-shared.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/task/sequenced_task_runner.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
 
@@ -22,8 +23,8 @@ namespace ash {
 
 namespace {
 
-constexpr AmbientModeTopicSource kTopicSource =
-    AmbientModeTopicSource::kGooglePhotos;
+constexpr personalization_app::mojom::TopicSource kTopicSource =
+    personalization_app::mojom::TopicSource::kGooglePhotos;
 
 constexpr AmbientModeTemperatureUnit kTemperatureUnit =
     AmbientModeTemperatureUnit::kCelsius;
@@ -32,8 +33,8 @@ constexpr char kFakeUrl[] = "chrome://ambient";
 
 constexpr char kFakeDetails[] = "fake-photo-attribution";
 
-constexpr std::array<const char*, 2> kFakeBackupPhotoUrls = {kFakeUrl,
-                                                             kFakeUrl};
+constexpr std::array<const char*, 2> kFakeBackupPhotoUrls = {
+    "http://fake-backup-photo-1.com", "http://fake-backup-photo-2.com"};
 
 AmbientSettings CreateFakeSettings() {
   AmbientSettings settings;
@@ -139,16 +140,17 @@ void FakeAmbientBackendControllerImpl::FetchPreviewImages(
 }
 
 void FakeAmbientBackendControllerImpl::UpdateSettings(
-    const AmbientSettings& settings,
+    const AmbientSettings settings,
     UpdateSettingsCallback callback) {
   // |show_weather| should always be set to true.
   DCHECK(settings.show_weather);
   current_temperature_unit_ = settings.temperature_unit;
   if (update_auto_reply_.has_value()) {
-    std::move(callback).Run(update_auto_reply_.value());
+    std::move(callback).Run(update_auto_reply_.value(), settings);
     return;
   }
   pending_update_callback_ = std::move(callback);
+  pending_settings_ = settings;
 }
 
 void FakeAmbientBackendControllerImpl::FetchSettingsAndAlbums(
@@ -160,8 +162,13 @@ void FakeAmbientBackendControllerImpl::FetchSettingsAndAlbums(
 }
 
 void FakeAmbientBackendControllerImpl::FetchWeather(
+    std::optional<std::string> weather_client_id,
     FetchWeatherCallback callback) {
-  std::move(callback).Run(weather_info_);
+  ++fetch_weather_count_;
+  weather_client_id_ = weather_client_id;
+  if (run_fetch_weather_callback_) {
+    std::move(callback).Run(weather_info_);
+  }
 }
 
 const std::array<const char*, 2>&
@@ -179,9 +186,13 @@ const char* FakeAmbientBackendControllerImpl::GetPromoBannerUrl() const {
   return kFakeUrl;
 }
 
+const char* FakeAmbientBackendControllerImpl::GetTimeOfDayProductName() const {
+  return "Product Name";
+}
+
 void FakeAmbientBackendControllerImpl::ReplyFetchSettingsAndAlbums(
     bool success,
-    const absl::optional<AmbientSettings>& settings) {
+    const std::optional<AmbientSettings>& settings) {
   if (!pending_fetch_settings_albums_callback_)
     return;
 
@@ -190,7 +201,7 @@ void FakeAmbientBackendControllerImpl::ReplyFetchSettingsAndAlbums(
         .Run(settings.value_or(CreateFakeSettings()), CreateFakeAlbums());
   } else {
     std::move(pending_fetch_settings_albums_callback_)
-        .Run(/*settings=*/absl::nullopt, PersonalAlbums());
+        .Run(/*settings=*/std::nullopt, PersonalAlbums());
   }
 }
 
@@ -208,7 +219,7 @@ void FakeAmbientBackendControllerImpl::ReplyUpdateSettings(bool success) {
   if (!pending_update_callback_)
     return;
 
-  std::move(pending_update_callback_).Run(success);
+  std::move(pending_update_callback_).Run(success, pending_settings_);
 }
 
 bool FakeAmbientBackendControllerImpl::IsUpdateSettingsPending() const {
@@ -221,7 +232,7 @@ void FakeAmbientBackendControllerImpl::EnableUpdateSettingsAutoReply(
 }
 
 void FakeAmbientBackendControllerImpl::SetWeatherInfo(
-    absl::optional<WeatherInfo> info) {
+    std::optional<WeatherInfo> info) {
   weather_info_ = std::move(info);
 }
 

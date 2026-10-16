@@ -5,9 +5,7 @@
 #ifndef CHROMEOS_ASH_COMPONENTS_PHONEHUB_PREF_NAMES_H_
 #define CHROMEOS_ASH_COMPONENTS_PHONEHUB_PREF_NAMES_H_
 
-namespace ash {
-namespace phonehub {
-namespace prefs {
+namespace ash::phonehub::prefs {
 
 extern const char kCameraRollAccessStatus[];
 extern const char kNotificationAccessStatus[];
@@ -20,8 +18,19 @@ extern const char kScreenLockStatus[];
 extern const char kRecentAppsHistory[];
 extern const char kFeatureSetupRequestSupported[];
 
-}  // namespace prefs
-}  // namespace phonehub
-}  // namespace ash
+// Connected phone information used by Phone Hub Structured Metrics
+extern const char kPhoneManufacturer[];
+extern const char kPhoneModel[];
+extern const char kPhoneLocale[];
+extern const char kPhonePseudonymousId[];
+extern const char kPhoneAndroidVersion[];
+extern const char kPhoneGmsCoreVersion[];
+extern const char kPhoneAmbientApkVersion[];
+extern const char kPhoneProfileType[];
+extern const char kPhoneInfoLastUpdatedTime[];
+extern const char kChromebookPseudonymousId[];
+extern const char kPseudonymousIdRotationDate[];
+
+}  // namespace ash::phonehub::prefs
 
 #endif  // CHROMEOS_ASH_COMPONENTS_PHONEHUB_PREF_NAMES_H_

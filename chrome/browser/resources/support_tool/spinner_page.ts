@@ -4,11 +4,12 @@
 
 import './support_tool_shared.css.js';
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import 'chrome://resources/polymer/v3_0/paper-spinner/paper-spinner-lite.js';
+import 'chrome://resources/cr_elements/cr_spinner_style.css.js';
 
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {BrowserProxy, BrowserProxyImpl} from './browser_proxy.js';
+import type {BrowserProxy} from './browser_proxy.js';
+import {BrowserProxyImpl} from './browser_proxy.js';
 import {getTemplate} from './spinner_page.html.js';
 import {SupportToolPageMixin} from './support_tool_page_mixin.js';
 
@@ -32,7 +33,7 @@ export class SpinnerPageElement extends SpinnerPageElementBase {
     };
   }
 
-  pageTitle: string;
+  declare pageTitle: string;
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
 
   private onCancelClick_() {

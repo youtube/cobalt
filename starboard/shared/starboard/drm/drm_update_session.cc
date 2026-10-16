@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/drm.h"
+// clang-format on
 
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
@@ -28,5 +30,7 @@ void SbDrmUpdateSession(SbDrmSystem drm_system,
     return;
   }
 
-  drm_system->UpdateSession(ticket, key, key_size, session_id, session_id_size);
+  drm_system->UpdateSession(
+      ticket, std::string_view(static_cast<const char*>(key), key_size),
+      std::string_view(static_cast<const char*>(session_id), session_id_size));
 }

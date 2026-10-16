@@ -22,14 +22,14 @@ TEST_F(PersistentHandlesTest, OrderOfBlocks) {
 
   Address* next;
   Address* limit;
-  Handle<String> first_empty, last_empty;
+  DirectHandle<String> first_empty, last_empty;
   std::unique_ptr<PersistentHandles> ph;
 
   {
     PersistentHandlesScope persistent_scope(isolate);
 
     // fill block
-    first_empty = handle(ReadOnlyRoots(heap).empty_string(), isolate);
+    first_empty = direct_handle(ReadOnlyRoots(heap).empty_string(), isolate);
 
     while (data->next < data->limit) {
       handle(ReadOnlyRoots(heap).empty_string(), isolate);
@@ -37,7 +37,7 @@ TEST_F(PersistentHandlesTest, OrderOfBlocks) {
 
     // add second block and two more handles on it
     handle(ReadOnlyRoots(heap).empty_string(), isolate);
-    last_empty = handle(ReadOnlyRoots(heap).empty_string(), isolate);
+    last_empty = direct_handle(ReadOnlyRoots(heap).empty_string(), isolate);
 
     // remember next and limit in second block
     next = data->next;
@@ -85,12 +85,12 @@ TEST_F(PersistentHandlesTest, Iterate) {
 
   size_t handles_in_empty_scope = count_handles(isolate);
 
-  Handle<Object> init(ReadOnlyRoots(heap).empty_string(), isolate);
+  IndirectHandle<Object> init(ReadOnlyRoots(heap).empty_string(), isolate);
   Address* old_limit = data->limit;
   CHECK_EQ(count_handles(isolate), handles_in_empty_scope + 1);
 
   std::unique_ptr<PersistentHandles> ph;
-  Handle<String> verify_handle;
+  IndirectHandle<String> verify_handle;
 
   {
     PersistentHandlesScope persistent_scope(isolate);
@@ -117,7 +117,8 @@ class PersistentHandlesThread final : public v8::base::Thread {
  public:
   PersistentHandlesThread(Heap* heap, std::vector<Handle<HeapNumber>> handles,
                           std::unique_ptr<PersistentHandles> ph,
-                          HeapNumber number, base::Semaphore* sema_started,
+                          Tagged<HeapNumber> number,
+                          base::Semaphore* sema_started,
                           base::Semaphore* sema_gc_finished)
       : v8::base::Thread(base::Thread::Options("ThreadWithLocalHeap")),
         heap_(heap),
@@ -138,12 +139,9 @@ class PersistentHandlesThread final : public v8::base::Thread {
 
     sema_started_->Signal();
 
-    {
-      ParkedScope parked_scope(&local_heap);
-      sema_gc_finished_->Wait();
-    }
+    local_heap.ExecuteWhileParked([this]() { sema_gc_finished_->Wait(); });
 
-    for (Handle<HeapNumber> handle : handles_) {
+    for (DirectHandle<HeapNumber> handle : handles_) {
       CHECK_EQ(42.0, handle->value());
     }
 
@@ -162,7 +160,7 @@ class PersistentHandlesThread final : public v8::base::Thread {
   Heap* heap_;
   std::vector<Handle<HeapNumber>> handles_;
   std::unique_ptr<PersistentHandles> ph_;
-  HeapNumber number_;
+  Tagged<HeapNumber> number_;
   base::Semaphore* sema_started_;
   base::Semaphore* sema_gc_finished_;
 };
@@ -189,7 +187,7 @@ TEST_F(PersistentHandlesTest, CreatePersistentHandles) {
 
   sema_started.Wait();
 
-  CollectAllGarbage();
+  InvokeMajorGC();
   sema_gc_finished.Signal();
 
   thread->Join();
@@ -201,7 +199,7 @@ TEST_F(PersistentHandlesTest, CreatePersistentHandles) {
 
 TEST_F(PersistentHandlesTest, DereferencePersistentHandle) {
   std::unique_ptr<PersistentHandles> phs = isolate()->NewPersistentHandles();
-  Handle<HeapNumber> ph;
+  IndirectHandle<HeapNumber> ph;
   {
     HandleScope handle_scope(isolate());
     Handle<HeapNumber> number = isolate()->factory()->NewHeapNumber(42.0);
@@ -218,9 +216,9 @@ TEST_F(PersistentHandlesTest, DereferencePersistentHandle) {
 TEST_F(PersistentHandlesTest, DereferencePersistentHandleFailsWhenDisallowed) {
   HandleScope handle_scope(isolate());
   std::unique_ptr<PersistentHandles> phs = isolate()->NewPersistentHandles();
-  Handle<HeapNumber> ph;
+  IndirectHandle<HeapNumber> ph;
   {
-    HandleScope handle_scope(isolate());
+    HandleScope inner_handle_scope(isolate());
     Handle<HeapNumber> number = isolate()->factory()->NewHeapNumber(42.0);
     ph = phs->NewHandle(number);
   }

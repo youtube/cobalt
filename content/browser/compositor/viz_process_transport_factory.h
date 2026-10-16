@@ -64,13 +64,10 @@ class VizProcessTransportFactory : public ui::ContextFactory,
   // ui::ContextFactory implementation.
   void CreateLayerTreeFrameSink(
       base::WeakPtr<ui::Compositor> compositor) override;
-  scoped_refptr<viz::ContextProvider> SharedMainThreadContextProvider()
-      override;
   scoped_refptr<viz::RasterContextProvider>
   SharedMainThreadRasterContextProvider() override;
 
   void RemoveCompositor(ui::Compositor* compositor) override;
-  gpu::GpuMemoryBufferManager* GetGpuMemoryBufferManager() override;
   cc::TaskGraphRunner* GetTaskGraphRunner() override;
   viz::FrameSinkId AllocateFrameSinkId() override;
   viz::SubtreeCaptureId AllocateSubtreeCaptureId() override;
@@ -99,6 +96,10 @@ class VizProcessTransportFactory : public ui::ContextFactory,
   // Provided as a callback when the GPU process has crashed.
   void OnGpuProcessLost();
 
+  // Esstablish GpuChannel for software compositing. If failed, it will keep
+  // retry for every 150 ms.
+  scoped_refptr<gpu::GpuChannelHost> GetGpuChannelHostForSoftwareCompositing();
+
   // Finishes creation of LayerTreeFrameSink after GPU channel has been
   // established.
   void OnEstablishedGpuChannel(
@@ -124,11 +125,9 @@ class VizProcessTransportFactory : public ui::ContextFactory,
       compositing_mode_reporter_;
 
   // ContextProvider used on worker threads for rasterization.
-  scoped_refptr<cc::RasterContextProviderWrapper>
-      worker_context_provider_wrapper_;
+  scoped_refptr<viz::RasterContextProvider> worker_context_provider_;
 
-  // ContextProvider used on the main thread. Shared by ui::Compositors and also
-  // returned from GetSharedMainThreadContextProvider().
+  // ContextProvider used on the main thread. Shared by ui::Compositors.
   scoped_refptr<viz::ContextProviderCommandBuffer> main_context_provider_;
 
   std::unique_ptr<cc::SingleThreadTaskGraphRunner> task_graph_runner_;

@@ -4,16 +4,15 @@
 
 /**
  * @fileoverview xf-select element which is ChromeOS <select>..</select>.
- * Disable type checking for closure, as it is done by the typescript compiler.
- * @suppress{missingProperties}
  */
 
-import {AnchorAlignment, CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
-import {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import type {CrActionMenuElement} from 'chrome://resources/ash/common/cr_elements/cr_action_menu/cr_action_menu.js';
+import {AnchorAlignment} from 'chrome://resources/ash/common/cr_elements/cr_action_menu/cr_action_menu.js';
+import type {CrButtonElement} from 'chrome://resources/ash/common/cr_elements/cr_button/cr_button.js';
 
-import {addCSSPrefixSelector, getCrActionMenuTop} from '../common/js/dom_utils.js';
+import {getCrActionMenuTop} from '../common/js/dom_utils.js';
 
-import {css, CSSResultGroup, customElement, html, property, query, XfBase} from './xf_base.js';
+import {css, type CSSResultGroup, customElement, html, property, query, XfBase} from './xf_base.js';
 
 /**
  * The data structure used to set the new options on the select element.
@@ -166,17 +165,22 @@ export class XfSelect extends XfBase {
   private renderDropdown_() {
     const alignment = this.menuAlignment || 'center';
     return html`<cr-action-menu>
-        ${this.options.map((option, index) => html`
-          <cr-button
-              class="dropdown-item dropdown-item-${alignment}"
-              role="menuitem"
-              @click=${() => this.onOptionSelected_(index)}
-              ?selected=${this.selectedOption_!.value === option.value}>
-            ${option.text}
-            <div class='dropdown-filler'></div>
-            <div slot='suffix-icon' class='selected-icon'></div>
-          </cr-button>`)}
-      </cr-action-menu>`;
+        ${this.options.map((option, index) => {
+      const checked = this.selectedOption_!.value === option.value;
+      return html`
+              <cr-button
+                  class="dropdown-item dropdown-item-${alignment}"
+                  role="menuitemcheckbox"
+                  aria-label="${option.text}"
+                  aria-checked="${checked}"
+                  @click=${() => this.onOptionSelected_(index)}
+                  ?selected=${checked}>
+                ${option.text}
+                <div class='dropdown-filler'></div>
+                <div slot='suffix-icon' class='selected-icon'></div>
+              </cr-button>`;
+    })}
+        </cr-action-menu>`;
   }
 
   override updated(changedProperties: Map<string, any>) {
@@ -204,7 +208,7 @@ export class XfSelect extends XfBase {
    * the one at the given index.
    */
   private updateSelectedOption_(index: number) {
-    if (index != this.selectedOption_.index) {
+    if (index !== this.selectedOption_.index) {
       if (index >= 0 && index < this.options.length) {
         this.selectedOption_ = {
           index: index,
@@ -312,79 +316,7 @@ export class XfSelect extends XfBase {
  * CSS used by the xf-select widget.
  */
 function getCSS(): CSSResultGroup {
-  const legacyStyle = css`
-    cr-button {
-      --hover-bg-color: var(--cros-ripple-color);
-      --hover-border-color: var(--cros-button-stroke-color-secondary);
-      --text-color: var(--cros-text-color-secondary);
-      --ink-color: var(--cros-ripple-color);
-    }
-    #dropdown-toggle {
-      --border-color: var(--cros-button-stroke-color-secondary);
-      --cr-button-height: 32px;
-      --ripple-opacity: 100%;
-      border-radius: 20px;
-      margin-inline: 4px;
-      min-width: auto;
-      outline: none;
-      padding: 0px 8px 0 12px;
-      white-space: nowrap;
-    }
-    .xf-select-icon {
-      height: 20px;
-      width: 20px;
-      margin-inline: 0 8px;
-    }
-    #xf-select-icon.select-location {
-      background:
-        url(/foreground/images/files/ui/select_location.svg) no-repeat;
-    }
-    #xf-select-icon.select-time {
-      background:
-        url(/foreground/images/files/ui/select_time.svg) no-repeat;
-    }
-    #xf-select-icon.select-filetype {
-      background:
-        url(/foreground/images/files/ui/select_filetype.svg) no-repeat;
-    }
-    #dropdown-icon {
-      background:
-        url(/foreground/images/files/ui/xf_select_dropdown.svg) no-repeat;
-      height: 20px;
-      width: 20px;
-      margin-inline: 8px 0;
-    }
-    cr-button.dropdown-item {
-      --focus-shadow-color: none;
-      padding: 0 16px;
-    }
-    cr-button.dropdown-item:hover {
-      background-color: var(--cros-ripple-color);
-    }
-    cr-button.dropdown-item-center {
-      justify-content: center;
-    }
-    cr-button.dropdown-item-start {
-      justify-content: start;
-    }
-    cr-button.dropdown-item-end {
-      justify-content: end;
-    }
-    div.dropdown-filler {
-      flex-grow: 1;
-    }
-    div.selected-icon {
-      background: url(/foreground/images/common/ic_selected.svg) no-repeat;
-      min-height: 20px;
-      min-width: 20px;
-      visibility: hidden;
-    }
-    cr-button[selected] div.selected-icon {
-      visibility: visible;
-    }
-  `;
-
-  const refresh23Style = css`
+  return css`
     cr-button {
       --active-bg: none;
       --hover-bg-color: var(--cros-sys-hover_on_subtle);
@@ -393,6 +325,7 @@ function getCSS(): CSSResultGroup {
       --ripple-opacity: 100%;
       --text-color: var(--cros-sys-on_surface);
       box-shadow: none;
+      font: var(--cros-button-1-font);
     }
     #dropdown-toggle {
       --border-color: var(--cros-sys-separator);
@@ -402,6 +335,9 @@ function getCSS(): CSSResultGroup {
       min-width: auto;
       padding-inline: 12px;
       white-space: nowrap;
+    }
+    :host(:first-of-type) #dropdown-toggle {
+      margin-inline-start: 0;
     }
     :host-context(.focus-outline-visible) #dropdown-toggle:focus {
       outline: 2px solid var(--cros-sys-focus_ring);
@@ -439,6 +375,8 @@ function getCSS(): CSSResultGroup {
     }
     cr-button.dropdown-item {
       --focus-shadow-color: none;
+      font: var(--cros-button-2-font);
+      height: 36px;
       padding: 0 16px;
     }
     cr-button.dropdown-item:hover {
@@ -468,9 +406,16 @@ function getCSS(): CSSResultGroup {
     cr-button[selected] div.selected-icon {
       visibility: visible;
     }
-    :host-context(.focus-outline-visible) cr-action-menu cr-button:focus {
-      outline: 2px solid var(--cros-sys-focus_ring);
-      outline-offset: -2px;
+    :host-context(.focus-outline-visible)
+        cr-action-menu cr-button:focus::after {
+      border: 2px solid var(--cros-sys-focus_ring);
+      border-radius: 8px;
+      content: '';
+      height: 32px; /* option height - 2 x border width */
+      left: 0;
+      position: absolute;
+      top: 0;
+      width: calc(100% - 4px); /* 2 x border width */
     }
     /** Reset the hover color when using keyboard to navigate the menu items. */
     :host-context(.focus-outline-visible) cr-action-menu cr-button:hover {
@@ -488,11 +433,6 @@ function getCSS(): CSSResultGroup {
       border-radius: 8px;
     }
   `;
-
-  return [
-    addCSSPrefixSelector(legacyStyle, '[theme="legacy"]'),
-    addCSSPrefixSelector(refresh23Style, '[theme="refresh23"]'),
-  ];
 }
 
 /**

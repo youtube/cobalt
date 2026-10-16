@@ -11,12 +11,19 @@
 #include "test/network/traffic_route.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <utility>
 
-#include "absl/types/optional.h"
-#include "rtc_base/logging.h"
-#include "rtc_base/numerics/safe_minmax.h"
+#include "api/test/network_emulation/network_emulation_interfaces.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/copy_on_write_buffer.h"
+#include "rtc_base/socket_address.h"
+#include "system_wrappers/include/clock.h"
+#include "test/network/network_emulation.h"
 
 namespace webrtc {
 namespace test {
@@ -32,9 +39,7 @@ class ActionReceiver : public EmulatedNetworkReceiverInterface {
   explicit ActionReceiver(std::function<void()> action) : action_(action) {}
   ~ActionReceiver() override = default;
 
-  void OnPacketReceived(EmulatedIpPacket packet) override {
-    action_();
-  }
+  void OnPacketReceived(EmulatedIpPacket packet) override { action_(); }
 
  private:
   std::function<void()> action_;
@@ -48,7 +53,7 @@ CrossTrafficRouteImpl::CrossTrafficRouteImpl(
     EmulatedEndpointImpl* endpoint)
     : clock_(clock), receiver_(receiver), endpoint_(endpoint) {
   null_receiver_ = std::make_unique<NullReceiver>();
-  absl::optional<uint16_t> port =
+  std::optional<uint16_t> port =
       endpoint_->BindReceiver(0, null_receiver_.get());
   RTC_DCHECK(port);
   null_receiver_port_ = port.value();
@@ -67,7 +72,7 @@ void CrossTrafficRouteImpl::NetworkDelayedAction(size_t packet_size,
   auto action_receiver = std::make_unique<ActionReceiver>(action);
   // BindOneShotReceiver arranges to free the port in the endpoint after the
   // action is done.
-  absl::optional<uint16_t> port =
+  std::optional<uint16_t> port =
       endpoint_->BindOneShotReceiver(0, action_receiver.get());
   RTC_DCHECK(port);
   actions_.push_back(std::move(action_receiver));
@@ -79,11 +84,11 @@ void CrossTrafficRouteImpl::SendPacket(size_t packet_size) {
 }
 
 void CrossTrafficRouteImpl::SendPacket(size_t packet_size, uint16_t dest_port) {
-  rtc::CopyOnWriteBuffer data(packet_size);
+  CopyOnWriteBuffer data(packet_size);
   std::fill_n(data.MutableData(), data.size(), 0);
   receiver_->OnPacketReceived(EmulatedIpPacket(
-      /*from=*/rtc::SocketAddress(),
-      rtc::SocketAddress(endpoint_->GetPeerLocalAddress(), dest_port), data,
+      /*from=*/SocketAddress(),
+      SocketAddress(endpoint_->GetPeerLocalAddress(), dest_port), data,
       clock_->CurrentTime()));
 }
 

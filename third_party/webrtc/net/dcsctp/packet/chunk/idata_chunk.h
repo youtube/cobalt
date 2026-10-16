@@ -42,7 +42,7 @@ class IDataChunk : public AnyDataChunk, public TLVTrait<IDataChunkConfig> {
   static constexpr size_t kHeaderSize = IDataChunkConfig::kHeaderSize;
   IDataChunk(TSN tsn,
              StreamID stream_id,
-             MID message_id,
+             MID mid,
              PPID ppid,
              FSN fsn,
              std::vector<uint8_t> payload,
@@ -50,7 +50,7 @@ class IDataChunk : public AnyDataChunk, public TLVTrait<IDataChunkConfig> {
       : AnyDataChunk(tsn,
                      stream_id,
                      SSN(0),
-                     message_id,
+                     mid,
                      fsn,
                      ppid,
                      std::move(payload),
@@ -59,7 +59,7 @@ class IDataChunk : public AnyDataChunk, public TLVTrait<IDataChunkConfig> {
   explicit IDataChunk(TSN tsn, Data&& data, bool immediate_ack)
       : AnyDataChunk(tsn, std::move(data), immediate_ack) {}
 
-  static absl::optional<IDataChunk> Parse(rtc::ArrayView<const uint8_t> data);
+  static std::optional<IDataChunk> Parse(webrtc::ArrayView<const uint8_t> data);
 
   void SerializeTo(std::vector<uint8_t>& out) const override;
   std::string ToString() const override;

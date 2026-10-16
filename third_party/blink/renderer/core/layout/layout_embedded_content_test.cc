@@ -24,13 +24,13 @@ class LayoutFreezableIFrame : public LayoutIFrame {
   }
 
  protected:
-  const absl::optional<PhysicalSize> FrozenFrameSize() const override {
+  const std::optional<PhysicalSize> FrozenFrameSize() const override {
     NOT_DESTROYED();
     return frozen_size_;
   }
 
  private:
-  absl::optional<PhysicalSize> frozen_size_;
+  std::optional<PhysicalSize> frozen_size_;
 };
 
 class HTMLFreezableIFrameElement : public HTMLIFrameElement {
@@ -56,7 +56,8 @@ class LayoutEmbeddedContentTest : public RenderingTest {};
 TEST_F(LayoutEmbeddedContentTest, FreozenSizeReplacedContentRect) {
   Document& document = GetDocument();
   auto* element = MakeGarbageCollected<HTMLFreezableIFrameElement>(document);
-  element->setAttribute(html_names::kSrcAttr, "http://example.com/");
+  element->setAttribute(html_names::kSrcAttr,
+                        AtomicString("http://example.com/"));
   element->SetInlineStyleProperty(CSSPropertyID::kObjectFit,
                                   CSSValueID::kContain);
   document.body()->AppendChild(element);
@@ -76,7 +77,8 @@ TEST_F(LayoutEmbeddedContentTest, FreozenSizeReplacedContentRect) {
 TEST_F(LayoutEmbeddedContentTest, FreozenSizeEmpty) {
   Document& document = GetDocument();
   auto* element = MakeGarbageCollected<HTMLFreezableIFrameElement>(document);
-  element->setAttribute(html_names::kSrcAttr, "http://example.com/");
+  element->setAttribute(html_names::kSrcAttr,
+                        AtomicString("http://example.com/"));
   element->SetInlineStyleProperty(CSSPropertyID::kObjectFit,
                                   CSSValueID::kContain);
   document.body()->AppendChild(element);

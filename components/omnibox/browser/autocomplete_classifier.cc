@@ -8,23 +8,27 @@
 
 #include "base/auto_reset.h"
 #include "base/feature_list.h"
-#include "base/ios/ios_util.h"
-#include "base/metrics/histogram_macros.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "components/history_embeddings/history_embeddings_features.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
-#include "components/omnibox/browser/document_provider.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
+#include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/omnibox/common/omnibox_features.h"
-#include "components/query_tiles/switches.h"
+#include "extensions/buildflags/buildflags.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 #include "url/gurl.h"
 
 #if !BUILDFLAG(IS_IOS)
-#include "components/history_clusters/core/config.h"
+#include "components/history_clusters/core/config.h"  // nogncheck
+#endif
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "extensions/common/extension_features.h"  // nogncheck
 #endif
 
 AutocompleteClassifier::AutocompleteClassifier(
@@ -44,13 +48,22 @@ void AutocompleteClassifier::Shutdown() {
 }
 
 // static
-int AutocompleteClassifier::DefaultOmniboxProviders() {
+int AutocompleteClassifier::DefaultOmniboxProviders(bool is_low_memory_device) {
   return
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
       // Custom search engines cannot be used on mobile.
-      AutocompleteProvider::TYPE_KEYWORD |
-      (OmniboxFieldTrial::IsSiteSearchStarterPackEnabled()
-           ? AutocompleteProvider::TYPE_OPEN_TAB
+      AutocompleteProvider::TYPE_KEYWORD | AutocompleteProvider::TYPE_OPEN_TAB |
+      AutocompleteProvider::TYPE_FEATURED_SEARCH |
+      // Most visited sites for desktop.
+      (omnibox_feature_configs::OmniboxUrlSuggestionsOnFocus::Get().enabled
+           ? AutocompleteProvider::TYPE_MOST_VISITED_SITES
+           : 0) |
+      (omnibox_feature_configs::OmniboxUrlSuggestionsOnFocus::Get()
+               .show_recently_closed_tabs
+           ? AutocompleteProvider::TYPE_RECENTLY_CLOSED_TABS
+           : 0) |
+      (omnibox_feature_configs::ContextualSearch::Get().show_open_lens_action
+           ? AutocompleteProvider::TYPE_CONTEXTUAL_SEARCH
            : 0) |
 #else
       AutocompleteProvider::TYPE_CLIPBOARD |
@@ -59,6 +72,12 @@ int AutocompleteClassifier::DefaultOmniboxProviders() {
 #endif
 #if BUILDFLAG(IS_ANDROID)
       AutocompleteProvider::TYPE_VOICE_SUGGEST |
+      // Only enabled for hub search.
+      AutocompleteProvider::TYPE_OPEN_TAB |
+      // Only enabled for hub search.
+      (base::FeatureList::IsEnabled(omnibox::kAndroidHubSearchTabGroups)
+           ? AutocompleteProvider::TYPE_TAB_GROUP
+           : 0) |
 #endif
 #if !BUILDFLAG(IS_IOS)
       (history_clusters::GetConfig().is_journeys_enabled_no_locale_check &&
@@ -78,9 +97,26 @@ int AutocompleteClassifier::DefaultOmniboxProviders() {
       AutocompleteProvider::TYPE_HISTORY_QUICK |
       AutocompleteProvider::TYPE_HISTORY_URL |
       AutocompleteProvider::TYPE_SEARCH | AutocompleteProvider::TYPE_SHORTCUTS |
-      (OmniboxFieldTrial::IsFuzzyUrlSuggestionsEnabled()
-           ? AutocompleteProvider::TYPE_HISTORY_FUZZY
-           : 0);
+      AutocompleteProvider::TYPE_HISTORY_FUZZY |
+      AutocompleteProvider::TYPE_CALCULATOR |
+      AutocompleteProvider::TYPE_ENTERPRISE_SEARCH_AGGREGATOR |
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+      (history_embeddings::GetFeatureParameters().omnibox_scoped ||
+               history_embeddings::GetFeatureParameters().omnibox_unscoped
+           ? AutocompleteProvider::TYPE_HISTORY_EMBEDDINGS
+           : 0) |
+#endif
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+      // `UnscopedExtensionProvider` should only be included when extensions are
+      // enabled and the `ExperimentalOmniboxLabs` feature is enabled.
+      (base::FeatureList::IsEnabled(
+           extensions_features::kExperimentalOmniboxLabs)
+           ? AutocompleteProvider::TYPE_UNSCOPED_EXTENSION
+           : 0)
+#else
+      0
+#endif
+          ;
 }
 
 void AutocompleteClassifier::Classify(
@@ -92,12 +128,6 @@ void AutocompleteClassifier::Classify(
     GURL* alternate_nav_url) {
   TRACE_EVENT1("omnibox", "AutocompleteClassifier::Classify", "text",
                base::UTF16ToUTF8(text));
-
-  // TODO(manukh): Remove this histogram when `kRedoCurrentMatch` &
-  //   `kRevertModelBeforeClosingPopup` launch or are abandoned.
-  SCOPED_UMA_HISTOGRAM_TIMER_MICROS(
-      "Omnibox.AutocompleteClassifierClassifyTime");
-
   DCHECK(!inside_classify_);
   base::AutoReset<bool> reset(&inside_classify_, true);
   AutocompleteInput input(text, page_classification, *scheme_classifier_);

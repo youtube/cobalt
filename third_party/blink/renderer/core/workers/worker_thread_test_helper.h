@@ -111,8 +111,7 @@ class FakeWorkerGlobalScope : public WorkerGlobalScope {
       std::unique_ptr<PolicyContainer> policy_container,
       const FetchClientSettingsObjectSnapshot& outside_settings_object,
       WorkerResourceTimingNotifier& outside_resource_timing_notifier,
-      network::mojom::CredentialsMode,
-      RejectCoepUnsafeNone reject_coep_unsafe_none) override {
+      network::mojom::CredentialsMode) override {
     NOTREACHED();
   }
   bool IsOffMainThreadScriptFetchDisabled() override { return true; }
@@ -146,7 +145,6 @@ class WorkerThreadForTest : public WorkerThread {
   WorkerBackingThread& GetWorkerBackingThread() override {
     return *worker_backing_thread_;
   }
-  void ClearWorkerBackingThread() override { worker_backing_thread_.reset(); }
 
   void StartWithSourceCode(const SecurityOrigin* security_origin,
                            const String& source,

@@ -4,8 +4,13 @@
 
 #include "base/android/memory_pressure_listener_android.h"
 
-#include "base/base_jni_headers/MemoryPressureListener_jni.h"
+#include "base/android/pre_freeze_background_memory_trimmer.h"
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/memory/memory_pressure_listener.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "base/memory_jni/MemoryPressureListener_jni.h"
 
 using base::android::JavaParamRef;
 
@@ -18,12 +23,43 @@ static void JNI_MemoryPressureListener_OnMemoryPressure(
           memory_pressure_level));
 }
 
-namespace base {
-namespace android {
+static void JNI_MemoryPressureListener_OnPreFreeze(JNIEnv* env) {
+  base::android::PreFreezeBackgroundMemoryTrimmer::OnPreFreeze();
+}
+
+static jboolean JNI_MemoryPressureListener_IsTrimMemoryBackgroundCritical(
+    JNIEnv* env) {
+  return base::android::PreFreezeBackgroundMemoryTrimmer::
+      IsTrimMemoryBackgroundCritical();
+}
+
+static jboolean JNI_MemoryPressureListener_IsModerateMemoryPressureEnabled(
+    JNIEnv* env) {
+#if BUILDFLAG(IS_COBALT)
+  return base::FeatureList::IsEnabled(
+      base::features::kCobaltEnableModerateMemoryPressure);
+#else
+  return false;
+#endif
+}
+
+static jint JNI_MemoryPressureListener_GetMemoryPressureCooldownSeconds(
+    JNIEnv* env) {
+#if BUILDFLAG(IS_COBALT)
+  if (!base::FeatureList::IsEnabled(
+          base::features::kCobaltMemoryPressureCooldown)) {
+    return 60;
+  }
+  return base::features::kCobaltMemoryPressureCooldownSeconds.Get();
+#else
+  return 60;
+#endif
+}
+
+namespace base::android {
 
 void MemoryPressureListenerAndroid::Initialize(JNIEnv* env) {
   Java_MemoryPressureListener_addNativeCallback(env);
 }
 
-}  // namespace android
-}  // namespace base
+}  // namespace base::android

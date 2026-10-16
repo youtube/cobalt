@@ -4,7 +4,11 @@
 
 #include "components/heap_profiling/multi_process/client_connection_manager.h"
 
+#include <utility>
+
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/no_destructor.h"
 #include "base/rand_util.h"
 #include "components/services/heap_profiling/public/cpp/controller.h"
@@ -17,8 +21,6 @@
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/child_process_host.h"
-#include "content/public/browser/notification_service.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/common/process_type.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -72,24 +74,28 @@ bool ShouldProfileNonRendererProcessType(Mode mode, int process_type) {
   }
 
   NOTREACHED();
-  return false;
 }
 
 void StartProfilingClientOnIOThread(
     base::WeakPtr<Controller> controller,
     mojo::PendingRemote<mojom::ProfilingClient> client,
     base::ProcessId pid,
-    mojom::ProcessType process_type) {
+    mojom::ProcessType process_type,
+    mojom::ProfilingService::AddProfilingClientCallback
+        started_profiling_closure) {
   DCHECK(content::BrowserThread::CurrentlyOn(content::BrowserThread::IO));
 
   if (!controller)
     return;
 
-  controller->StartProfilingClient(std::move(client), pid, process_type);
+  controller->StartProfilingClient(std::move(client), pid, process_type,
+                                   std::move(started_profiling_closure));
 }
 
 void StartProfilingBrowserProcessOnIOThread(
-    base::WeakPtr<Controller> controller) {
+    base::WeakPtr<Controller> controller,
+    mojom::ProfilingService::AddProfilingClientCallback
+        started_profiling_closure) {
   DCHECK(content::BrowserThread::CurrentlyOn(content::BrowserThread::IO));
 
   if (!controller)
@@ -99,7 +105,8 @@ void StartProfilingBrowserProcessOnIOThread(
   mojo::PendingRemote<mojom::ProfilingClient> remote;
   client->BindToInterface(remote.InitWithNewPipeAndPassReceiver());
   controller->StartProfilingClient(std::move(remote), base::GetCurrentProcId(),
-                                   mojom::ProcessType::BROWSER);
+                                   mojom::ProcessType::BROWSER,
+                                   std::move(started_profiling_closure));
 }
 
 }  // namespace
@@ -115,10 +122,6 @@ ClientConnectionManager::~ClientConnectionManager() {
 
 void ClientConnectionManager::Start() {
   Add(this);
-  registrar_.Add(this, content::NOTIFICATION_RENDERER_PROCESS_CLOSED,
-                 content::NotificationService::AllBrowserContextsAndSources());
-  registrar_.Add(this, content::NOTIFICATION_RENDERER_PROCESS_TERMINATED,
-                 content::NotificationService::AllBrowserContextsAndSources());
 
   StartProfilingExistingProcessesIfNecessary();
 }
@@ -128,7 +131,10 @@ Mode ClientConnectionManager::GetMode() {
   return mode_;
 }
 
-void ClientConnectionManager::StartProfilingProcess(base::ProcessId pid) {
+void ClientConnectionManager::StartProfilingProcess(
+    base::ProcessId pid,
+    mojom::ProfilingService::AddProfilingClientCallback
+        started_profiling_closure) {
   DCHECK(content::BrowserThread::CurrentlyOn(content::BrowserThread::UI));
 
   mode_ = Mode::kManual;
@@ -137,7 +143,8 @@ void ClientConnectionManager::StartProfilingProcess(base::ProcessId pid) {
   for (auto iter = content::RenderProcessHost::AllHostsIterator();
        !iter.IsAtEnd(); iter.Advance()) {
     if (pid == iter.GetCurrentValue()->GetProcess().Pid()) {
-      StartProfilingRenderer(iter.GetCurrentValue());
+      StartProfilingRenderer(iter.GetCurrentValue(),
+                             std::move(started_profiling_closure));
       return;
     }
   }
@@ -146,7 +153,8 @@ void ClientConnectionManager::StartProfilingProcess(base::ProcessId pid) {
   if (pid == base::GetCurrentProcId()) {
     content::GetIOThreadTaskRunner({})->PostTask(
         FROM_HERE,
-        base::BindOnce(&StartProfilingBrowserProcessOnIOThread, controller_));
+        base::BindOnce(&StartProfilingBrowserProcessOnIOThread, controller_,
+                       std::move(started_profiling_closure)));
     return;
   }
 
@@ -155,7 +163,8 @@ void ClientConnectionManager::StartProfilingProcess(base::ProcessId pid) {
        !browser_child_iter.Done(); ++browser_child_iter) {
     const content::ChildProcessData& data = browser_child_iter.GetData();
     if (data.GetProcess().Pid() == pid) {
-      StartProfilingNonRendererChild(data);
+      StartProfilingNonRendererChild(data,
+                                     std::move(started_profiling_closure));
       return;
     }
   }
@@ -182,8 +191,8 @@ void ClientConnectionManager::StartProfilingExistingProcessesIfNecessary() {
   if (ShouldProfileNonRendererProcessType(
           mode_, content::ProcessType::PROCESS_TYPE_BROWSER)) {
     content::GetIOThreadTaskRunner({})->PostTask(
-        FROM_HERE,
-        base::BindOnce(&StartProfilingBrowserProcessOnIOThread, controller_));
+        FROM_HERE, base::BindOnce(&StartProfilingBrowserProcessOnIOThread,
+                                  controller_, base::DoNothing()));
   }
 
   // Start profiling connected renderers.
@@ -192,7 +201,7 @@ void ClientConnectionManager::StartProfilingExistingProcessesIfNecessary() {
     if (ShouldProfileNewRenderer(iter.GetCurrentValue()) &&
         iter.GetCurrentValue()->GetProcess().Handle() !=
             base::kNullProcessHandle) {
-      StartProfilingRenderer(iter.GetCurrentValue());
+      StartProfilingRenderer(iter.GetCurrentValue(), base::DoNothing());
     }
   }
 
@@ -201,7 +210,7 @@ void ClientConnectionManager::StartProfilingExistingProcessesIfNecessary() {
     const content::ChildProcessData& data = browser_child_iter.GetData();
     if (ShouldProfileNonRendererProcessType(mode_, data.process_type) &&
         data.GetProcess().IsValid()) {
-      StartProfilingNonRendererChild(data);
+      StartProfilingNonRendererChild(data, base::DoNothing());
     }
   }
 }
@@ -211,17 +220,19 @@ void ClientConnectionManager::BrowserChildProcessLaunchedAndConnected(
   DCHECK(content::BrowserThread::CurrentlyOn(content::BrowserThread::UI));
 
   // Ensure this is only called for all non-renderer browser child processes
-  // so as not to collide with logic in ClientConnectionManager::Observe().
+  // so as not to collide with logic in OnRenderProcessHostCreated().
   DCHECK_NE(data.process_type, content::ProcessType::PROCESS_TYPE_RENDERER);
 
   if (!ShouldProfileNonRendererProcessType(mode_, data.process_type))
     return;
 
-  StartProfilingNonRendererChild(data);
+  StartProfilingNonRendererChild(data, base::DoNothing());
 }
 
 void ClientConnectionManager::StartProfilingNonRendererChild(
-    const content::ChildProcessData& data) {
+    const content::ChildProcessData& data,
+    mojom::ProfilingService::AddProfilingClientCallback
+        started_profiling_closure) {
   DCHECK(content::BrowserThread::CurrentlyOn(content::BrowserThread::UI));
 
   content::BrowserChildProcessHost* host =
@@ -241,33 +252,33 @@ void ClientConnectionManager::StartProfilingNonRendererChild(
   content::GetIOThreadTaskRunner({})->PostTask(
       FROM_HERE,
       base::BindOnce(&StartProfilingClientOnIOThread, controller_,
-                     std::move(client), data.GetProcess().Pid(), process_type));
+                     std::move(client), data.GetProcess().Pid(), process_type,
+                     std::move(started_profiling_closure)));
 }
 
 void ClientConnectionManager::OnRenderProcessHostCreated(
     content::RenderProcessHost* host) {
   if (ShouldProfileNewRenderer(host)) {
-    StartProfilingRenderer(host);
+    StartProfilingRenderer(host, base::DoNothing());
+    if (!host_observation_.IsObservingSource(host)) {
+      host_observation_.AddObservation(host);
+    }
   }
 }
 
-void ClientConnectionManager::Observe(
-    int type,
-    const content::NotificationSource& source,
-    const content::NotificationDetails& details) {
-  DCHECK(content::BrowserThread::CurrentlyOn(content::BrowserThread::UI));
-  content::RenderProcessHost* host =
-      content::Source<content::RenderProcessHost>(source).ptr();
+void ClientConnectionManager::RenderProcessExited(
+    content::RenderProcessHost* host,
+    const content::ChildProcessTerminationInfo& info) {
+  profiled_renderers_.erase(host);
+  host_observation_.RemoveObservation(host);
+}
 
-  // NOTIFICATION_RENDERER_PROCESS_CLOSED corresponds to death of an underlying
-  // RenderProcess. NOTIFICATION_RENDERER_PROCESS_TERMINATED corresponds to when
-  // the RenderProcessHost's lifetime is ending. Ideally, we'd only listen to
-  // the former, but if the RenderProcessHost is destroyed before the
-  // RenderProcess, then the former is never sent.
-  if ((type == content::NOTIFICATION_RENDERER_PROCESS_TERMINATED ||
-       type == content::NOTIFICATION_RENDERER_PROCESS_CLOSED)) {
-    profiled_renderers_.erase(host);
-  }
+// RenderProcessHostDestroyed() will be invoked only if RenderProcessExited()
+// was not, since we remove the observation of `host` in that function.
+void ClientConnectionManager::RenderProcessHostDestroyed(
+    content::RenderProcessHost* host) {
+  profiled_renderers_.erase(host);
+  host_observation_.RemoveObservation(host);
 }
 
 bool ClientConnectionManager::ShouldProfileNewRenderer(
@@ -290,7 +301,9 @@ bool ClientConnectionManager::ShouldProfileNewRenderer(
 }
 
 void ClientConnectionManager::StartProfilingRenderer(
-    content::RenderProcessHost* host) {
+    content::RenderProcessHost* host,
+    mojom::ProfilingService::AddProfilingClientCallback
+        started_profiling_closure) {
   DCHECK(content::BrowserThread::CurrentlyOn(content::BrowserThread::UI));
 
   profiled_renderers_.insert(host);
@@ -300,7 +313,8 @@ void ClientConnectionManager::StartProfilingRenderer(
   content::GetIOThreadTaskRunner({})->PostTask(
       FROM_HERE, base::BindOnce(&StartProfilingClientOnIOThread, controller_,
                                 std::move(client), host->GetProcess().Pid(),
-                                mojom::ProcessType::RENDERER));
+                                mojom::ProcessType::RENDERER,
+                                std::move(started_profiling_closure)));
 }
 
 }  // namespace heap_profiling

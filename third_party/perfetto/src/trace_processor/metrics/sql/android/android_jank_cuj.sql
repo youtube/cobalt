@@ -17,10 +17,6 @@
 -- found in the trace.
 SELECT RUN_METRIC('android/jank/cujs.sql');
 
--- Creates tables that store constant parameters for each CUJ - e.g. parameter
--- that describes whether Choreographer callbacks run on a dedicated thread.
-SELECT RUN_METRIC('android/jank/params.sql');
-
 -- Create tables to store each CUJs main, render, HWC release,
 -- and GPU completion threads.
 -- Also stores the (not CUJ-specific) threads of SF: main, render engine,
@@ -75,15 +71,8 @@ SELECT RUN_METRIC('android/jank/query_functions.sql');
 -- The same numbers are also reported by FrameTracker to statsd.
 SELECT RUN_METRIC('android/jank/internal/counters.sql');
 
--- Creates derived events to visualize a few of the created tables.
--- Used only for debugging so by default not used and not displayed in the UI.
--- See https://perfetto.dev/docs/contributing/common-tasks#adding-new-derived-events
--- for instructions on how to add these events to the UI.
-SELECT RUN_METRIC('android/jank/internal/derived_events.sql');
-
-
 DROP VIEW IF EXISTS android_jank_cuj_output;
-CREATE VIEW android_jank_cuj_output AS
+CREATE PERFETTO VIEW android_jank_cuj_output AS
 SELECT
   AndroidJankCujMetric(
     'cuj', (
@@ -102,6 +91,8 @@ SELECT
               'missed_app_frames', missed_app_frames,
               'missed_sf_frames', missed_sf_frames,
               'missed_frames_max_successive', missed_frames_max_successive,
+              'sf_callback_missed_frames', sf_callback_missed_frames,
+              'hwui_callback_missed_frames', hwui_callback_missed_frames,
               'frame_dur_max', frame_dur_max)
             FROM android_jank_cuj_counter_metrics cm
             WHERE cm.cuj_id = cuj.cuj_id),
@@ -111,6 +102,8 @@ SELECT
               'missed_frames', SUM(app_missed OR sf_missed),
               'missed_app_frames', SUM(app_missed),
               'missed_sf_frames', SUM(sf_missed),
+              'sf_callback_missed_frames', SUM(sf_callback_missed),
+              'hwui_callback_missed_frames', SUM(hwui_callback_missed),
               'frame_dur_max', MAX(f.dur),
               'frame_dur_avg', CAST(AVG(f.dur) AS INTEGER),
               'frame_dur_p50', CAST(PERCENTILE(f.dur, 50) AS INTEGER),
@@ -129,6 +122,8 @@ SELECT
               'missed_frames', SUM(app_missed OR sf_missed),
               'missed_app_frames', SUM(app_missed),
               'missed_sf_frames', SUM(sf_missed),
+              'sf_callback_missed_frames', SUM(sf_callback_missed),
+              'hwui_callback_missed_frames', SUM(hwui_callback_missed),
               'frame_dur_max', MAX(f.dur),
               'frame_dur_avg', CAST(AVG(f.dur) AS INTEGER),
               'frame_dur_p50', CAST(PERCENTILE(f.dur, 50) AS INTEGER),
@@ -150,7 +145,9 @@ SELECT
                 'dur', f.dur,
                 'dur_expected', f.dur_expected,
                 'app_missed', f.app_missed,
-                'sf_missed', f.sf_missed))
+                'sf_missed', f.sf_missed,
+                'sf_callback_missed', f.sf_callback_missed,
+                'hwui_callback_missed', f.hwui_callback_missed))
             FROM android_jank_cuj_frame f
             WHERE f.cuj_id = cuj.cuj_id
             ORDER BY frame_number ASC),

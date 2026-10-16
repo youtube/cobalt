@@ -9,6 +9,7 @@
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/ui_base_types.h"
 
 namespace gfx {
@@ -43,15 +44,12 @@ class ToolbarActionsBarBubbleDelegate {
     bool is_learn_more;
   };
 
-  virtual ~ToolbarActionsBarBubbleDelegate() {}
+  virtual ~ToolbarActionsBarBubbleDelegate() = default;
 
   // Returns true if the bubble should (still) be shown. Since bubbles are
   // sometimes shown asynchronously, they may be invalid by the time they would
   // be displayed.
   virtual bool ShouldShow() = 0;
-
-  // Returns true if the bubble should close on deactivation.
-  virtual bool ShouldCloseOnDeactivate() = 0;
 
   // Gets the text for the bubble's heading (title).
   virtual std::u16string GetHeadingText() = 0;
@@ -60,10 +58,6 @@ class ToolbarActionsBarBubbleDelegate {
   // |anchored_to_action| is true if the bubble is being anchored to a specific
   // action (rather than the overflow menu or the full container).
   virtual std::u16string GetBodyText(bool anchored_to_action) = 0;
-
-  // Gets the text for an optional item list to display. If this returns an
-  // empty string, no list will be added.
-  virtual std::u16string GetItemListText() = 0;
 
   // Gets the text for the main button on the bubble; this button will
   // correspond with ACTION_EXECUTE.
@@ -75,7 +69,7 @@ class ToolbarActionsBarBubbleDelegate {
   virtual std::u16string GetDismissButtonText() = 0;
 
   // Returns the button that should be set to the default.
-  virtual ui::DialogButton GetDefaultDialogButton() = 0;
+  virtual ui::mojom::DialogButton GetDefaultDialogButton() = 0;
 
   // Returns the id of the action to point to, or the empty string if the
   // bubble should point to the center of the actions container.

@@ -48,10 +48,23 @@ std::string GetServerModelCacheKeyHash(
   return client_model_cache_key_hash;
 }
 
+std::optional<proto::OptimizationTarget> ParseOptimizationTarget(
+    const std::string& optimization_target_str) {
+  int optimization_target_number;
+  if (!base::StringToInt(optimization_target_str,
+                         &optimization_target_number)) {
+    return std::nullopt;
+  }
+  if (!proto::OptimizationTarget_IsValid(optimization_target_number)) {
+    return std::nullopt;
+  }
+  return static_cast<proto::OptimizationTarget>(optimization_target_number);
+}
+
 }  // namespace
 
 // static
-absl::optional<ModelStoreMetadataEntry>
+std::optional<ModelStoreMetadataEntry>
 ModelStoreMetadataEntry::GetModelMetadataEntryIfExists(
     PrefService* local_state,
     proto::OptimizationTarget optimization_target,
@@ -61,16 +74,46 @@ ModelStoreMetadataEntry::GetModelMetadataEntryIfExists(
           .FindDict(
               base::NumberToString(static_cast<int>(optimization_target)));
   if (!metadata_target) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   auto* metadata_entry = metadata_target->FindDict(GetServerModelCacheKeyHash(
       local_state, optimization_target, model_cache_key));
   if (!metadata_entry) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return ModelStoreMetadataEntry(metadata_entry);
+}
+
+// static
+std::set<base::FilePath> ModelStoreMetadataEntry::GetValidModelDirs(
+    PrefService* local_state) {
+  std::set<base::FilePath> valid_model_dirs;
+  for (const auto optimization_target_entry :
+       local_state->GetDict(prefs::localstate::kModelStoreMetadata)) {
+    if (!optimization_target_entry.second.is_dict()) {
+      continue;
+    }
+    auto optimization_target =
+        ParseOptimizationTarget(optimization_target_entry.first);
+    if (!optimization_target) {
+      continue;
+    }
+    for (auto model_cache_key_hash :
+         optimization_target_entry.second.GetDict()) {
+      if (!model_cache_key_hash.second.is_dict()) {
+        continue;
+      }
+      auto metadata =
+          ModelStoreMetadataEntry(&model_cache_key_hash.second.GetDict());
+      auto model_base_dir = metadata.GetModelBaseDir();
+      if (model_base_dir) {
+        valid_model_dirs.insert(*model_base_dir);
+      }
+    }
+  }
+  return valid_model_dirs;
 }
 
 ModelStoreMetadataEntry::ModelStoreMetadataEntry(
@@ -79,19 +122,18 @@ ModelStoreMetadataEntry::ModelStoreMetadataEntry(
 
 ModelStoreMetadataEntry::~ModelStoreMetadataEntry() = default;
 
-absl::optional<base::FilePath> ModelStoreMetadataEntry::GetModelBaseDir()
-    const {
+std::optional<base::FilePath> ModelStoreMetadataEntry::GetModelBaseDir() const {
   return base::ValueToFilePath(metadata_entry_->Find(kKeyModelBaseDir));
 }
 
-absl::optional<int64_t> ModelStoreMetadataEntry::GetVersion() const {
+std::optional<int64_t> ModelStoreMetadataEntry::GetVersion() const {
   auto* version_str = metadata_entry_->FindString(kKeyVersion);
   if (!version_str) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   int64_t version;
   if (!base::StringToInt64(*version_str, &version)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return version;
 }
@@ -167,9 +209,17 @@ ModelStoreMetadataEntryUpdater::PurgeAllInactiveMetadata(
     PrefService* local_state) {
   ScopedDictPrefUpdate updater(local_state,
                                prefs::localstate::kModelStoreMetadata);
+  std::vector<std::pair<std::string, std::string>> entries_to_remove;
   std::vector<base::FilePath> inactive_model_dirs;
+  auto killswitch_model_versions =
+      features::GetPredictionModelVersionsInKillSwitch();
   for (auto optimization_target_entry : *updater) {
     if (!optimization_target_entry.second.is_dict()) {
+      continue;
+    }
+    auto optimization_target =
+        ParseOptimizationTarget(optimization_target_entry.first);
+    if (!optimization_target) {
       continue;
     }
     for (auto model_cache_key_hash :
@@ -187,7 +237,17 @@ ModelStoreMetadataEntryUpdater::PurgeAllInactiveMetadata(
           metadata.GetExpiryTime() <= base::Time::Now()) {
         should_remove_model = true;
         RecordPredictionModelStoreModelRemovalVersionHistogram(
+            *optimization_target,
             PredictionModelStoreModelRemovalReason::kModelExpired);
+      }
+      if (!should_remove_model && metadata.GetVersion() &&
+          IsPredictionModelVersionInKillSwitch(killswitch_model_versions,
+                                               *optimization_target,
+                                               *metadata.GetVersion())) {
+        should_remove_model = true;
+        RecordPredictionModelStoreModelRemovalVersionHistogram(
+            *optimization_target,
+            PredictionModelStoreModelRemovalReason::kModelInKillSwitchList);
       }
 
       if (should_remove_model) {
@@ -195,8 +255,13 @@ ModelStoreMetadataEntryUpdater::PurgeAllInactiveMetadata(
         if (base_model_dir) {
           inactive_model_dirs.emplace_back(*base_model_dir);
         }
-        optimization_target_entry.second.GetDict().Remove(
-            model_cache_key_hash.first);
+        entries_to_remove.emplace_back(optimization_target_entry.first,
+                                       model_cache_key_hash.first);
+      }
+    }
+    for (const auto& entry : entries_to_remove) {
+      if (auto* optimization_target_dict = updater->FindDict(entry.first)) {
+        optimization_target_dict->Remove(entry.second);
       }
     }
   }

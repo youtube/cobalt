@@ -2,11 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+
+import * as UI from 'devtools/ui/legacy/legacy.js';
+
 (async function() {
   TestRunner.addResult(`This tests that events are properly propagated through Widget hierarchy.\n`);
 
 
-  var TestWidget = class extends UI.Widget {
+  var TestWidget = class extends UI.Widget.Widget {
     constructor(widgetName) {
       super();
       this.widgetName = widgetName;
@@ -68,7 +72,7 @@
   TestRunner.runTestSuite([
     function testShowWidget(next) {
       var widget = new TestWidget('Widget');
-      widget.show(UI.inspectorView.element);
+      widget.show(UI.InspectorView.InspectorView.instance().element);
       widget.detach();
       next();
     },
@@ -149,42 +153,21 @@
       var parentWidget = new TestWidget('Parent');
       var childWidget = new TestWidget('Child');
       childWidget.setHideOnDetach();
-      parentWidget.show(UI.inspectorView.element);
+      parentWidget.show(UI.InspectorView.InspectorView.instance().element);
 
       parentWidget.doResize();
       childWidget.show(parentWidget.element);
       parentWidget.doResize();
       parentWidget.detach();
-      parentWidget.show(UI.inspectorView.element);
+      parentWidget.show(UI.InspectorView.InspectorView.instance().element);
       childWidget.detach();
       parentWidget.detach();
-      next();
-    },
-
-    function testWidgetCounter(next) {
-      var parentWidget = new TestWidget('Parent');
-      parentWidget.show(UI.inspectorView.element);
-
-      var childWidget = new TestWidget('Child');
-      childWidget.show(parentWidget.element);
-      TestRunner.addResult('  widget counter: ' + parentWidget.element.__widgetCounter);
-
-      var childWidget2 = new TestWidget('Child 2');
-      childWidget2.show(parentWidget.element);
-      TestRunner.addResult('  widget counter: ' + parentWidget.element.__widgetCounter);
-
-      childWidget.detach();
-      TestRunner.addResult('  widget counter: ' + parentWidget.element.__widgetCounter);
-
-      childWidget2.detach();
-      TestRunner.addResult('  widget counter: ' + parentWidget.element.__widgetCounter);
-
       next();
     },
 
     function testRemoveChild(next) {
       var parentWidget = new TestWidget('Parent');
-      parentWidget.show(UI.inspectorView.element);
+      parentWidget.show(UI.InspectorView.InspectorView.instance().element);
 
       var childWidget = new TestWidget('Child');
       childWidget.show(parentWidget.element);
@@ -244,7 +227,7 @@
     function testShowOnWasShown(next) {
       var parentWidget = new TestWidget('Parent');
       parentWidget.showOnWasShown = new TestWidget('Child');
-      parentWidget.show(UI.inspectorView.element);
+      parentWidget.show(UI.InspectorView.InspectorView.instance().element);
       parentWidget.detach();
       next();
     },
@@ -256,7 +239,7 @@
       middleWidget.show(topWidget.element);
       topWidget.showOnWasShown = bottomWidget;
       topWidget.showRoot = middleWidget.element;
-      topWidget.show(UI.inspectorView.element);
+      topWidget.show(UI.InspectorView.InspectorView.instance().element);
       topWidget.detach();
       next();
     },
@@ -266,7 +249,7 @@
       var childWidget = new TestWidget('Child');
       childWidget.show(parentWidget.element);
       parentWidget.detachOnWasShown = childWidget;
-      parentWidget.show(UI.inspectorView.element);
+      parentWidget.show(UI.InspectorView.InspectorView.instance().element);
       parentWidget.detach();
       next();
     },
@@ -274,7 +257,7 @@
     function testShowOnWillHide(next) {
       var parentWidget = new TestWidget('Parent');
       var childWidget = new TestWidget('Child');
-      parentWidget.show(UI.inspectorView.element);
+      parentWidget.show(UI.InspectorView.InspectorView.instance().element);
       childWidget.show(parentWidget.element);
       parentWidget.showOnWillHide = childWidget;
       parentWidget.detach();
@@ -284,7 +267,7 @@
     function testDetachOnWillHide(next) {
       var parentWidget = new TestWidget('Parent');
       var childWidget = new TestWidget('Child');
-      parentWidget.show(UI.inspectorView.element);
+      parentWidget.show(UI.InspectorView.InspectorView.instance().element);
       childWidget.show(parentWidget.element);
       parentWidget.detachOnWillHide = childWidget;
       parentWidget.detach();
@@ -295,8 +278,8 @@
       var parentWidget1 = new TestWidget('Parent1');
       var parentWidget2 = new TestWidget('Parent2');
       var childWidget = new TestWidget('Child');
-      parentWidget1.show(UI.inspectorView.element);
-      parentWidget2.show(UI.inspectorView.element);
+      parentWidget1.show(UI.InspectorView.InspectorView.instance().element);
+      parentWidget2.show(UI.InspectorView.InspectorView.instance().element);
       childWidget.show(parentWidget1.element);
       childWidget.show(parentWidget2.element);
       next();
@@ -307,14 +290,14 @@
       var childWidget = new TestWidget('Child');
       childWidget.show(parentWidget.element);
       parentWidget.resizeOnWasShown = childWidget;
-      parentWidget.show(UI.inspectorView.element);
+      parentWidget.show(UI.InspectorView.InspectorView.instance().element);
       parentWidget.detach();
       next();
     },
 
     function testReparentWithinWidget(next) {
       var parentWidget = new TestWidget('Parent');
-      parentWidget.show(UI.inspectorView.element);
+      parentWidget.show(UI.InspectorView.InspectorView.instance().element);
       var childWidget = new TestWidget('Child');
       var container1 = parentWidget.element.createChild('div');
       var container2 = parentWidget.element.createChild('div');
@@ -327,7 +310,7 @@
       var parentWidget = new TestWidget('Parent');
       var visibleChild = new TestWidget('visibleChild');
       var hiddenChild = new TestWidget('hiddenChild');
-      parentWidget.show(UI.inspectorView.element);
+      parentWidget.show(UI.InspectorView.InspectorView.instance().element);
       visibleChild.show(parentWidget.element);
       hiddenChild.show(parentWidget.element);
       hiddenChild.hideWidget();

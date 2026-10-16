@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/support_tool/screenshot_data_collector.h"
 
 #include <vector>
@@ -10,6 +15,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/strings/strcat.h"
+#include "base/strings/stringprintf.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -111,9 +117,9 @@ void ScreenshotDataCollector::ConvertDesktopFrameToBase64JPEG(
   bitmap.setImmutable();
 
   // Then encodes the image with jpeg.
-  std::vector<unsigned char> jpeg_encoded_data;
-  if (!gfx::JPEGCodec::Encode(std::move(bitmap), kDefaultQuality,
-                              &jpeg_encoded_data)) {
+  std::optional<std::vector<uint8_t>> jpeg_encoded_data =
+      gfx::JPEGCodec::Encode(std::move(bitmap), kDefaultQuality);
+  if (!jpeg_encoded_data) {
     SupportToolError error = {SupportToolErrorCode::kDataCollectorError,
                               "ScreenshotDataCollector had error: Failed to "
                               "encode frame to JPEG image."};
@@ -122,8 +128,9 @@ void ScreenshotDataCollector::ConvertDesktopFrameToBase64JPEG(
   }
 
   // Finally converts the image in a string with base64 encoding.
-  image_base64 = base::StrCat(
-      {kBase64Header, base::Base64Encode(std::move(jpeg_encoded_data))});
+  image_base64 =
+      base::StrCat({kBase64Header,
+                    base::Base64Encode(std::move(jpeg_encoded_data.value()))});
 }
 
 void ScreenshotDataCollector::CollectDataAndDetectPII(
@@ -155,7 +162,9 @@ void ScreenshotDataCollector::CollectDataAndDetectPII(
   DesktopMediaPickerController::DoneCallback callback =
       base::BindOnce(&ScreenshotDataCollector::OnSourceSelected,
                      weak_ptr_factory_.GetWeakPtr());
-  DesktopMediaPickerController::Params picker_params;
+  DesktopMediaPickerController::Params picker_params(
+      DesktopMediaPickerController::Params::RequestSource::
+          kScreenshotDataCollector);
   picker_params.web_contents = web_contents;
   picker_params.context = parent_window;
   picker_params.parent = parent_window;
@@ -186,7 +195,7 @@ void ScreenshotDataCollector::OnSourceSelected(const std::string& err,
     return;
   }
 #if BUILDFLAG(IS_CHROMEOS)
-  gfx::NativeWindow window = nullptr;
+  gfx::NativeWindow window = gfx::NativeWindow();
   switch (id.type) {
     case content::DesktopMediaID::Type::TYPE_WEB_CONTENTS: {
       window = content::RenderFrameHost::FromID(
@@ -202,11 +211,10 @@ void ScreenshotDataCollector::OnSourceSelected(const std::string& err,
     }
     default: {
       NOTREACHED();
-      break;
     }
   }
   const gfx::Rect bounds(window->bounds().width(), window->bounds().height());
-  ui::GrabWindowSnapshotAsyncJPEG(
+  ui::GrabWindowSnapshotAsJPEG(
       std::move(window), std::move(bounds),
       base::BindOnce(&ScreenshotDataCollector::OnScreenshotTaken,
                      weak_ptr_factory_.GetWeakPtr()));
@@ -262,10 +270,9 @@ void ScreenshotDataCollector::OnScreenshotTaken(
     scoped_refptr<base::RefCountedMemory> data) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (data && data.get()) {
-    screenshot_base64_ = base::StrCat(
-        {kBase64Header,
-         base::Base64Encode(base::make_span(data->data(), data->size()))});
-    std::move(data_collector_done_callback_).Run(/*error=*/absl::nullopt);
+    screenshot_base64_ =
+        base::StrCat({kBase64Header, base::Base64Encode(*data)});
+    std::move(data_collector_done_callback_).Run(/*error=*/std::nullopt);
     return;
   }
   SupportToolError error = {
@@ -276,18 +283,19 @@ void ScreenshotDataCollector::OnScreenshotTaken(
 #else
 void ScreenshotDataCollector::OnTabCaptured(const SkBitmap& bitmap) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  std::vector<unsigned char> jpeg_encoded_data;
+  std::optional<std::vector<uint8_t>> jpeg_encoded_data;
   if (bitmap.drawsNothing() ||
-      !gfx::JPEGCodec::Encode(bitmap, kDefaultQuality, &jpeg_encoded_data)) {
+      !(jpeg_encoded_data = gfx::JPEGCodec::Encode(bitmap, kDefaultQuality))) {
     SupportToolError error = {
         SupportToolErrorCode::kDataCollectorError,
         "ScreenshotDataCollector had error: Tab capture failed."};
     std::move(data_collector_done_callback_).Run(error);
     return;
   }
-  screenshot_base64_ = base::StrCat(
-      {kBase64Header, base::Base64Encode(std::move(jpeg_encoded_data))});
-  std::move(data_collector_done_callback_).Run(/*error=*/absl::nullopt);
+  screenshot_base64_ =
+      base::StrCat({kBase64Header,
+                    base::Base64Encode(std::move(jpeg_encoded_data.value()))});
+  std::move(data_collector_done_callback_).Run(/*error=*/std::nullopt);
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
@@ -304,7 +312,7 @@ void ScreenshotDataCollector::OnCaptureResult(
   }
 
   ConvertDesktopFrameToBase64JPEG(std::move(frame), screenshot_base64_);
-  std::move(data_collector_done_callback_).Run(/*error=*/absl::nullopt);
+  std::move(data_collector_done_callback_).Run(/*error=*/std::nullopt);
 }
 
 void ScreenshotDataCollector::ExportCollectedDataWithPII(
@@ -333,5 +341,5 @@ void ScreenshotDataCollector::OnScreenshotExported(bool success) {
     std::move(data_collector_done_callback_).Run(error);
     return;
   }
-  std::move(data_collector_done_callback_).Run(/*error=*/absl::nullopt);
+  std::move(data_collector_done_callback_).Run(/*error=*/std::nullopt);
 }

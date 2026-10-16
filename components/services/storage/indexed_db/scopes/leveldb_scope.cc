@@ -4,19 +4,22 @@
 
 #include "components/services/storage/indexed_db/scopes/leveldb_scope.h"
 
+#include <limits>
 #include <memory>
 #include <sstream>
+#include <utility>
 
+#include "base/check.h"
 #include "base/compiler_specific.h"
 #include "base/debug/stack_trace.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/sequence_checker.h"
 #include "components/services/storage/indexed_db/scopes/leveldb_scopes_coding.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/leveldatabase/src/include/leveldb/comparator.h"
 #include "third_party/leveldatabase/src/include/leveldb/db.h"
 
-namespace content {
+namespace content::indexed_db {
 namespace {
 
 #if DCHECK_IS_ON()
@@ -51,8 +54,9 @@ class LevelDBScope::UndoLogWriter : public leveldb::WriteBatch::Handler {
 
   void Put(const leveldb::Slice& key, const leveldb::Slice& value) override {
     DCHECK(scope_->IsUndoLogMode());
-    if (UNLIKELY(!error_.ok()))
+    if (!error_.ok()) [[unlikely]] {
       return;
+    }
     if (scope_->CanSkipWritingUndoEntry(key))
       return;
     leveldb::ReadOptions read_options;
@@ -67,7 +71,7 @@ class LevelDBScope::UndoLogWriter : public leveldb::WriteBatch::Handler {
       scope_->AddUndoDeleteTask(key.ToString());
       return;
     }
-    if (UNLIKELY(!s.ok())) {
+    if (!s.ok()) [[unlikely]] {
       error_ = std::move(s);
       return;
     }
@@ -76,8 +80,9 @@ class LevelDBScope::UndoLogWriter : public leveldb::WriteBatch::Handler {
 
   void Delete(const leveldb::Slice& key) override {
     DCHECK(scope_->IsUndoLogMode());
-    if (UNLIKELY(!error_.ok()))
+    if (!error_.ok()) [[unlikely]] {
       return;
+    }
     if (scope_->CanSkipWritingUndoEntry(key))
       return;
     leveldb::ReadOptions read_options;
@@ -90,7 +95,7 @@ class LevelDBScope::UndoLogWriter : public leveldb::WriteBatch::Handler {
     leveldb::Status s = db_->Get(read_options, key, &read_buffer_);
     if (s.IsNotFound())
       return;
-    if (UNLIKELY(!s.ok())) {
+    if (!s.ok()) [[unlikely]] {
       error_ = std::move(s);
       return;
     }
@@ -106,66 +111,31 @@ class LevelDBScope::UndoLogWriter : public leveldb::WriteBatch::Handler {
   leveldb::Status error_ = leveldb::Status::OK();
 };
 
-LevelDBScope::EmptyRangeLessThan::EmptyRangeLessThan() = default;
-LevelDBScope::EmptyRangeLessThan::EmptyRangeLessThan(
-    const leveldb::Comparator* comparator)
-    : comparator_(comparator) {}
-LevelDBScope::EmptyRangeLessThan::EmptyRangeLessThan(
-    const LevelDBScope::EmptyRangeLessThan& other) = default;
-LevelDBScope::EmptyRangeLessThan& LevelDBScope::EmptyRangeLessThan::operator=(
-    const LevelDBScope::EmptyRangeLessThan& other) = default;
-
-// The ranges are expected to be disjoint.
-bool LevelDBScope::EmptyRangeLessThan::operator()(const EmptyRange& lhs,
-                                                  const EmptyRange& rhs) const {
-  return comparator_->Compare(lhs.first, rhs.first) < 0;
-}
-
-LevelDBScope::LevelDBScope(
-    int64_t scope_id,
-    std::vector<uint8_t> prefix,
-    size_t write_batch_size,
-    scoped_refptr<LevelDBState> level_db,
-    std::vector<PartitionedLock> locks,
-    std::vector<std::pair<std::string, std::string>> empty_ranges,
-    RollbackCallback rollback_callback,
-    TearDownCallback tear_down_callback)
+LevelDBScope::LevelDBScope(int64_t scope_id,
+                           std::vector<uint8_t> prefix,
+                           size_t write_batch_size,
+                           scoped_refptr<LevelDBState> level_db,
+                           std::vector<PartitionedLock> locks,
+                           RollbackCallback rollback_callback)
     : scope_id_(scope_id),
       prefix_(std::move(prefix)),
       write_batch_size_(write_batch_size),
       level_db_(std::move(level_db)),
       locks_(std::move(locks)),
-      rollback_callback_(std::move(rollback_callback)),
-      tear_down_callback_(std::move(tear_down_callback)) {
+      rollback_callback_(std::move(rollback_callback)) {
   DCHECK(!locks_.empty());
-  std::vector<std::pair<EmptyRange, bool>> map_values;
-  map_values.reserve(empty_ranges.size());
-  for (EmptyRange& range : empty_ranges) {
-    // Moving the range here technically messes up the sorting order of
-    // empty_ranges, but it's not used again anyways so we don't mind.
-    map_values.emplace_back(std::move(range), false);
-  }
-  empty_ranges_ = base::flat_map<EmptyRange, bool, EmptyRangeLessThan>(
-      std::move(map_values), EmptyRangeLessThan(level_db_->comparator()));
-
-#if DCHECK_IS_ON()
-  ValidateEmptyRanges();
-#endif
 }
 
 LevelDBScope::~LevelDBScope() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (UNLIKELY(has_written_to_disk_ && !committed_ && rollback_callback_)) {
+  if (has_written_to_disk_ && !committed_ && rollback_callback_) [[unlikely]] {
     DCHECK(undo_sequence_number_ < std::numeric_limits<int64_t>::max() ||
            cleanup_sequence_number_ > 0)
         << "A reverting scope that has written to disk must have either an "
            "undo or cleanup task written to it. undo_sequence_number_: "
         << undo_sequence_number_
         << ", cleanup_sequence_number_: " << cleanup_sequence_number_;
-    leveldb::Status status =
-        std::move(rollback_callback_).Run(scope_id_, std::move(locks_));
-    if (!status.ok())
-      tear_down_callback_.Run(status);
+    std::move(rollback_callback_).Run(scope_id_, std::move(locks_));
   }
 }
 
@@ -216,7 +186,6 @@ leveldb::Status LevelDBScope::DeleteRange(const leveldb::Slice& begin,
   DCHECK(!committed_);
   DCHECK(!locks_.empty());
   switch (mode) {
-    case LevelDBScopeDeletionMode::kDeferred:
     case LevelDBScopeDeletionMode::kDeferredWithCompaction:
       deferred_delete_ranges_.emplace_back(begin.ToString(), end.ToString());
       break;
@@ -226,10 +195,6 @@ leveldb::Status LevelDBScope::DeleteRange(const leveldb::Slice& begin,
 #endif
   bool end_exclusive = true;
   switch (mode) {
-    case LevelDBScopeDeletionMode::kDeferred:
-      SetModeToUndoLog();
-      AddCleanupDeleteRangeTask(begin.ToString(), end.ToString());
-      return leveldb::Status::OK();
     case LevelDBScopeDeletionMode::kDeferredWithCompaction:
       SetModeToUndoLog();
       AddCleanupDeleteAndCompactRangeTask(begin.ToString(), end.ToString());
@@ -246,8 +211,9 @@ leveldb::Status LevelDBScope::DeleteRange(const leveldb::Slice& begin,
   // tasks) to start with an empty |buffer_batch_|.
   leveldb::Status s = WriteChangesAndUndoLogInternal(false);
   DCHECK(!s.IsNotFound());
-  if (UNLIKELY(!s.ok() && !s.IsNotFound()))
+  if (!s.ok() && !s.IsNotFound()) [[unlikely]] {
     return s;
+  }
   leveldb::ReadOptions options;
   options.verify_checksums = true;
   // Since these are keys that are being deleted, this should not fill the
@@ -273,12 +239,14 @@ leveldb::Status LevelDBScope::DeleteRange(const leveldb::Slice& begin,
     if (GetMemoryUsage() > write_batch_size_) {
       s = WriteBufferBatch(false);
       DCHECK(!s.IsNotFound());
-      if (UNLIKELY(!s.ok() && !s.IsNotFound()))
+      if (!s.ok() && !s.IsNotFound()) [[unlikely]] {
         return s;
+      }
     }
   }
-  if (UNLIKELY(!s.ok() && !s.IsNotFound()))
+  if (!s.ok() && !s.IsNotFound()) [[unlikely]] {
     return s;
+  }
   // This could happen if there were no keys found in the range.
   if (buffer_batch_empty_)
     return leveldb::Status::OK();
@@ -290,14 +258,14 @@ leveldb::Status LevelDBScope::WriteChangesAndUndoLog() {
   return WriteChangesAndUndoLogInternal(false);
 }
 
-leveldb::Status LevelDBScope::Rollback() {
+void LevelDBScope::Rollback() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!committed_);
   DCHECK(rollback_callback_);
   if (!has_written_to_disk_) {
     buffer_batch_.Clear();
     buffer_batch_empty_ = true;
-    return leveldb::Status::OK();
+    return;
   }
   DCHECK(undo_sequence_number_ < std::numeric_limits<int64_t>::max() ||
          cleanup_sequence_number_ > 0)
@@ -305,7 +273,7 @@ leveldb::Status LevelDBScope::Rollback() {
          "undo or cleanup task written to it. undo_sequence_number_: "
       << undo_sequence_number_
       << ", cleanup_sequence_number_: " << cleanup_sequence_number_;
-  return std::move(rollback_callback_).Run(scope_id_, std::move(locks_));
+  std::move(rollback_callback_).Run(scope_id_, std::move(locks_));
 }
 
 std::pair<leveldb::Status, LevelDBScope::Mode> LevelDBScope::Commit(
@@ -326,7 +294,6 @@ std::pair<leveldb::Status, LevelDBScope::Mode> LevelDBScope::Commit(
       break;
     default:
       NOTREACHED();
-      return {leveldb::Status::NotSupported("Unknown scopes mode."), mode_};
   }
   locks_.clear();
   committed_ = true;
@@ -383,20 +350,9 @@ void LevelDBScope::AddBufferedUndoTask() {
   undo_task_buffer_.Clear();
 }
 
-void LevelDBScope::AddCleanupDeleteRangeTask(std::string begin,
-                                             std::string end) {
-  DCHECK(cleanup_task_buffer_.operation_case() ==
-         LevelDBScopesCleanupTask::OPERATION_NOT_SET);
-  auto* const range = cleanup_task_buffer_.mutable_delete_range();
-  range->set_begin(std::move(begin));
-  range->set_end(std::move(end));
-  AddBufferedCleanupTask();
-}
-
 void LevelDBScope::AddCleanupDeleteAndCompactRangeTask(std::string begin,
                                                        std::string end) {
-  DCHECK(cleanup_task_buffer_.operation_case() ==
-         LevelDBScopesCleanupTask::OPERATION_NOT_SET);
+  DCHECK(!cleanup_task_buffer_.has_delete_range_and_compact());
   auto* const range = cleanup_task_buffer_.mutable_delete_range_and_compact();
   range->set_begin(std::move(begin));
   range->set_end(std::move(end));
@@ -433,32 +389,8 @@ void LevelDBScope::SetModeToUndoLog() {
 }
 
 bool LevelDBScope::CanSkipWritingUndoEntry(const leveldb::Slice& key) {
-  const leveldb::Comparator* const comparator = level_db_->comparator();
-  if (key.starts_with(leveldb::Slice(
-          reinterpret_cast<const char*>(prefix_.data()), prefix_.size())))
-    return true;
-  const auto it = std::upper_bound(
-      empty_ranges_.begin(), empty_ranges_.end(), key,
-      [comparator](const leveldb::Slice& key,
-                   const std::pair<EmptyRange, bool>& range) {
-        // Compare the key to the end of the range.
-        const EmptyRange& empty_range = range.first;
-        return comparator->Compare(key, empty_range.second) < 0;
-      });
-  // If the key wasn't found (iterator is at the end, or the key is before the
-  // beginning).
-  if (LIKELY(it == empty_ranges_.end() ||
-             comparator->Compare(key, it->first.first) < 0)) {
-    return false;
-  }
-
-  // The key is within an empty range.
-  if (!it->second) {
-    // Only add the delete range once.
-    AddUndoDeleteRangeTask(it->first.first, it->first.second);
-    it->second = true;
-  }
-  return true;
+  return key.starts_with(leveldb::Slice(
+      reinterpret_cast<const char*>(prefix_.data()), prefix_.size()));
 }
 
 void LevelDBScope::AddCommitPoint() {
@@ -475,7 +407,6 @@ void LevelDBScope::AddCommitPoint() {
 leveldb::Status LevelDBScope::WriteBufferBatch(bool sync) {
   leveldb::WriteOptions write_options;
   write_options.sync = sync;
-  approximate_bytes_written_ += buffer_batch_.ApproximateSize();
   leveldb::Status s = level_db_->db()->Write(write_options, &buffer_batch_);
   // We intentionally clear the write batch, even if the write fails, as this
   // class is expected to be treated as invalid after a failure and shouldn't be
@@ -487,22 +418,6 @@ leveldb::Status LevelDBScope::WriteBufferBatch(bool sync) {
 }
 
 #if DCHECK_IS_ON()
-bool LevelDBScope::IsRangeEmpty(const EmptyRange& range) {
-  leveldb::ReadOptions read_options;
-  read_options.verify_checksums = true;
-  // This is a debug-only operation, so it shouldn't fill the cache.
-  read_options.fill_cache = false;
-  const std::unique_ptr<leveldb::Iterator> it =
-      base::WrapUnique(level_db_->db()->NewIterator(read_options));
-  const leveldb::Comparator* const comparator = level_db_->comparator();
-
-  it->Seek(range.first);
-  DCHECK(!it->Valid() || it->status().ok())
-      << "leveldb::Iterator::Valid() should imply an OK status";
-  return !it->Valid() ||
-         !IsKeyBeforeEndOfRange(comparator, it->key(), range.second, true);
-}
-
 bool LevelDBScope::IsInDeferredDeletionRange(const leveldb::Slice& key) {
   const leveldb::Comparator* comparator = level_db_->comparator();
   for (const auto& range : deferred_delete_ranges_) {
@@ -518,29 +433,6 @@ bool LevelDBScope::IsInDeferredDeletionRange(const leveldb::Slice& key) {
   }
   return false;
 }
-
-void LevelDBScope::ValidateEmptyRanges() {
-  for (auto it = empty_ranges_.begin(); it != empty_ranges_.end(); ++it) {
-    auto range = it->first;
-    DCHECK(IsRangeEmpty(range))
-        << "Range [" << range.first << ", " << range.second
-        << ") was reported empty, but keys were found.";
-    auto next_it = it;
-    ++next_it;
-    if (next_it != empty_ranges_.end()) {
-      DCHECK(level_db_->comparator()->Compare(range.second,
-                                              next_it->first.first) <= 0)
-          << "The |empty_ranges| are not disjoint.";
-    }
-    auto last_it = it;
-    if (last_it != empty_ranges_.begin()) {
-      --last_it;
-      DCHECK(level_db_->comparator()->Compare(last_it->first.second,
-                                              range.first) <= 0)
-          << "The |empty_ranges| are not disjoint.";
-    }
-  }
-}
 #endif
 
-}  // namespace content
+}  // namespace content::indexed_db

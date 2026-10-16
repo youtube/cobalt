@@ -11,6 +11,7 @@
 #include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/notreached.h"
 #include "base/process/process_handle.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
@@ -85,7 +86,7 @@ class ProcessMemoryMetricsEmitterFake : public ProcessMemoryMetricsEmitter {
     }
   }
 
-  absl::optional<base::TimeDelta> GetProcessUptime(
+  std::optional<base::TimeDelta> GetProcessUptime(
       base::TimeTicks now,
       base::ProcessId pid) override {
     switch (pid) {
@@ -97,7 +98,7 @@ class ProcessMemoryMetricsEmitterFake : public ProcessMemoryMetricsEmitter {
   }
 
  private:
-  ~ProcessMemoryMetricsEmitterFake() override {}
+  ~ProcessMemoryMetricsEmitterFake() override = default;
 
   raw_ptr<ukm::UkmRecorder> ukm_recorder_;
 };
@@ -123,7 +124,10 @@ OSMemDumpPtr GetFakeOSMemDump(uint32_t resident_set_kb,
                               uint32_t shared_footprint_kb
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
                               ,
-                              uint32_t private_swap_footprint_kb
+                              uint32_t private_swap_footprint_kb,
+                              uint32_t mappings_count,
+                              uint32_t pss_kb,
+                              uint32_t swap_pss_kb
 #endif
 ) {
   using memory_instrumentation::mojom::VmRegion;
@@ -133,7 +137,7 @@ OSMemDumpPtr GetFakeOSMemDump(uint32_t resident_set_kb,
       /*is_peak_rss_resettable=*/true, private_footprint_kb, shared_footprint_kb
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
       ,
-      private_swap_footprint_kb
+      private_swap_footprint_kb, mappings_count, pss_kb, swap_pss_kb
 #endif
   );
 }
@@ -148,7 +152,14 @@ OSMemDumpPtr GetFakeOSMemDump(MetricMap& metrics_mb) {
       // modify metrics_mb to create the value, which leads
       // to expectation failures.
       ,
-      /*private_swap_footprint_kb=*/metrics_mb["PrivateSwapFootprint"] * 1024
+      /*private_swap_footprint_kb=*/metrics_mb["PrivateSwapFootprint"] * 1024,
+      /* mappings_count= */ metrics_mb.contains("MappingsCount")
+          ? metrics_mb["MappingsCount"]
+          : 0,
+      /*pss_kb=*/metrics_mb.contains("Pss") ? metrics_mb["Pss"] * 1024 : 0,
+      /*swap_pss_kb=*/metrics_mb.contains("SwapPss")
+          ? metrics_mb["SwapPss"] * 1024
+          : 0
 #endif
   );
 }
@@ -183,12 +194,15 @@ void PopulateBrowserMetrics(GlobalMemoryDumpPtr& global_dump,
 
 MetricMap GetExpectedBrowserMetrics() {
   return MetricMap({
-    {"ProcessType", static_cast<int64_t>(ProcessType::BROWSER)},
-        {"Resident", 10}, {"Malloc", 20}, {"PrivateMemoryFootprint", 30},
-        {"SharedMemoryFootprint", 35}, {"Uptime", 42},
-        {"GpuMemory", kGpuTotalMemory * 1024 * 1024},
+      {"ProcessType", static_cast<int64_t>(ProcessType::BROWSER)},
+      {"Resident", 10},
+      {"Malloc", 20},
+      {"PrivateMemoryFootprint", 30},
+      {"SharedMemoryFootprint", 35},
+      {"Uptime", 42},
+      {"GpuMemory", kGpuTotalMemory * 1024 * 1024},
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
-        {"PrivateSwapFootprint", 50},
+      {"PrivateSwapFootprint", 50},
 #endif
   });
 }
@@ -208,6 +222,9 @@ void PopulateRendererMetrics(GlobalMemoryDumpPtr& global_dump,
                          metrics_mb_or_count["PartitionAlloc"] * 1024 * 1024);
   SetAllocatorDumpMetric(pmd, "blink_gc", "effective_size",
                          metrics_mb_or_count["BlinkGC"] * 1024 * 1024);
+  SetAllocatorDumpMetric(
+      pmd, "blink_gc", "allocated_objects_size",
+      metrics_mb_or_count["BlinkGC.AllocatedObjects"] * 1024 * 1024);
   SetAllocatorDumpMetric(pmd, "v8", "effective_size",
                          metrics_mb_or_count["V8"] * 1024 * 1024);
   SetAllocatorDumpMetric(
@@ -333,6 +350,8 @@ void PopulateRendererMetrics(GlobalMemoryDumpPtr& global_dump,
 
 constexpr int kTestRendererPrivateMemoryFootprint = 130;
 constexpr int kTestRendererMalloc = 120;
+constexpr int kTestRendererBlinkGC = 150;
+constexpr int kTestRendererBlinkGCFragmentation = 10;
 constexpr int kTestRendererSharedMemoryFootprint = 135;
 constexpr int kNativeLibraryResidentMemoryFootprint = 27560;
 constexpr int kNativeLibraryResidentNotOrderedCodeFootprint = 12345;
@@ -344,39 +363,51 @@ constexpr base::ProcessId kTestRendererPid203 = 203;
 
 MetricMap GetExpectedRendererMetrics() {
   return MetricMap({
-    {"ProcessType", static_cast<int64_t>(ProcessType::RENDERER)},
-        {"Resident", kTestRendererResidentSet}, {"Malloc", kTestRendererMalloc},
-        {"PrivateMemoryFootprint", kTestRendererPrivateMemoryFootprint},
-        {"SharedMemoryFootprint", kTestRendererSharedMemoryFootprint},
-        {"PartitionAlloc", 140}, {"BlinkGC", 150}, {"V8", 160},
-        {"V8.AllocatedObjects", 70}, {"V8.Main", 100},
-        {"V8.Main.AllocatedObjects", 30}, {"V8.Main.Heap", 98},
-        {"V8.Main.GlobalHandles", 3},
-        {"V8.Main.GlobalHandles.AllocatedObjects", 2},
-        {"V8.Main.Heap.AllocatedObjects", 28}, {"V8.Main.Heap.CodeSpace", 11},
-        {"V8.Main.Heap.CodeSpace.AllocatedObjects", 1},
-        {"V8.Main.Heap.LargeObjectSpace", 12},
-        {"V8.Main.Heap.LargeObjectSpace.AllocatedObjects", 2},
-        {"V8.Main.Heap.MapSpace", 13},
-        {"V8.Main.Heap.MapSpace.AllocatedObjects", 3},
-        {"V8.Main.Heap.NewLargeObjectSpace", 14},
-        {"V8.Main.Heap.NewLargeObjectSpace.AllocatedObjects", 4},
-        {"V8.Main.Heap.NewSpace", 15},
-        {"V8.Main.Heap.NewSpace.AllocatedObjects", 5},
-        {"V8.Main.Heap.OldSpace", 16},
-        {"V8.Main.Heap.NewSpace.AllocatedObjects", 6},
-        {"V8.Main.Heap.ReadOnlySpace", 17},
-        {"V8.Main.Heap.ReadOnlySpace.AllocatedObjects", 7},
-        {"V8.Main.Malloc", 2}, {"V8.Workers", 60},
-        {"V8.Workers.AllocatedObjects", 40}, {"NumberOfExtensions", 0},
-        {"Uptime", 42},
+      {"ProcessType", static_cast<int64_t>(ProcessType::RENDERER)},
+      {"Resident", kTestRendererResidentSet},
+      {"Malloc", kTestRendererMalloc},
+      {"PrivateMemoryFootprint", kTestRendererPrivateMemoryFootprint},
+      {"SharedMemoryFootprint", kTestRendererSharedMemoryFootprint},
+      {"PartitionAlloc", 140},
+      {"BlinkGC", 150},
+      {"BlinkGC.AllocatedObjects", 140},
+      {"V8", 160},
+      {"V8.AllocatedObjects", 70},
+      {"V8.Main", 100},
+      {"V8.Main.AllocatedObjects", 30},
+      {"V8.Main.Heap", 98},
+      {"V8.Main.GlobalHandles", 3},
+      {"V8.Main.GlobalHandles.AllocatedObjects", 2},
+      {"V8.Main.Heap.AllocatedObjects", 28},
+      {"V8.Main.Heap.CodeSpace", 11},
+      {"V8.Main.Heap.CodeSpace.AllocatedObjects", 1},
+      {"V8.Main.Heap.LargeObjectSpace", 12},
+      {"V8.Main.Heap.LargeObjectSpace.AllocatedObjects", 2},
+      {"V8.Main.Heap.MapSpace", 13},
+      {"V8.Main.Heap.MapSpace.AllocatedObjects", 3},
+      {"V8.Main.Heap.NewLargeObjectSpace", 14},
+      {"V8.Main.Heap.NewLargeObjectSpace.AllocatedObjects", 4},
+      {"V8.Main.Heap.NewSpace", 15},
+      {"V8.Main.Heap.NewSpace.AllocatedObjects", 5},
+      {"V8.Main.Heap.OldSpace", 16},
+      {"V8.Main.Heap.NewSpace.AllocatedObjects", 6},
+      {"V8.Main.Heap.ReadOnlySpace", 17},
+      {"V8.Main.Heap.ReadOnlySpace.AllocatedObjects", 7},
+      {"V8.Main.Malloc", 2},
+      {"V8.Workers", 60},
+      {"V8.Workers.AllocatedObjects", 40},
+      {"NumberOfExtensions", 0},
+      {"Uptime", 42},
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
-        {"PrivateSwapFootprint", 50},
+      {"PrivateSwapFootprint", 50},
 #endif
-        {"NumberOfAdSubframes", 28}, {"NumberOfDetachedScriptStates", 11},
-        {"NumberOfDocuments", 1}, {"NumberOfFrames", 2},
-        {"NumberOfLayoutObjects", 5}, {"NumberOfNodes", 3},
-        {"PartitionAlloc.Partitions.ArrayBuffer", 10},
+      {"NumberOfAdSubframes", 28},
+      {"NumberOfDetachedScriptStates", 11},
+      {"NumberOfDocuments", 1},
+      {"NumberOfFrames", 2},
+      {"NumberOfLayoutObjects", 5},
+      {"NumberOfNodes", 3},
+      {"PartitionAlloc.Partitions.ArrayBuffer", 10},
   });
 }
 
@@ -414,19 +445,23 @@ void PopulateGpuMetrics(GlobalMemoryDumpPtr& global_dump,
 
 MetricMap GetExpectedGpuMetrics() {
   return MetricMap({
-    {"ProcessType", static_cast<int64_t>(ProcessType::GPU)}, {"Resident", 210},
-        {"Malloc", 220}, {"PrivateMemoryFootprint", 230},
-        {"SharedMemoryFootprint", 235}, {"CommandBuffer", kGpuCommandBufferMB},
-        {"Uptime", 42}, {"GpuMemory", kGpuTotalMemory * 1024 * 1024},
+      {"ProcessType", static_cast<int64_t>(ProcessType::GPU)},
+      {"Resident", 210},
+      {"Malloc", 220},
+      {"PrivateMemoryFootprint", 230},
+      {"SharedMemoryFootprint", 235},
+      {"CommandBuffer", kGpuCommandBufferMB},
+      {"Uptime", 42},
+      {"GpuMemory", kGpuTotalMemory * 1024 * 1024},
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
-        {"PrivateSwapFootprint", 50},
+      {"PrivateSwapFootprint", 50},
 #endif
   });
 }
 
 void PopulateUtilityMetrics(GlobalMemoryDumpPtr& global_dump,
                             MetricMap& metrics_mb,
-                            const absl::optional<std::string>& service_name) {
+                            const std::optional<std::string>& service_name) {
   auto pmd(memory_instrumentation::mojom::ProcessMemoryDump::New());
   pmd->process_type = ProcessType::UTILITY;
   if (service_name.has_value()) {
@@ -442,11 +477,14 @@ void PopulateUtilityMetrics(GlobalMemoryDumpPtr& global_dump,
 
 MetricMap GetExpectedAudioServiceMetrics() {
   return MetricMap({
-    {"ProcessType", static_cast<int64_t>(ProcessType::UTILITY)},
-        {"Resident", 10}, {"Malloc", 20}, {"PrivateMemoryFootprint", 30},
-        {"SharedMemoryFootprint", 35}, {"Uptime", 42},
+      {"ProcessType", static_cast<int64_t>(ProcessType::UTILITY)},
+      {"Resident", 10},
+      {"Malloc", 20},
+      {"PrivateMemoryFootprint", 30},
+      {"SharedMemoryFootprint", 35},
+      {"Uptime", 42},
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
-        {"PrivateSwapFootprint", 50},
+      {"PrivateSwapFootprint", 50},
 #endif
   });
 }
@@ -473,11 +511,12 @@ MetricMap GetExpectedMediaFoundationServiceMetrics() {
 
 MetricMap GetExpectedPaintPreviewCompositorMetrics() {
   return MetricMap({
-    {"ProcessType", static_cast<int64_t>(ProcessType::UTILITY)},
-        {"Resident", 10}, {"PrivateMemoryFootprint", 30},
-        {"SharedMemoryFootprint", 35},
+      {"ProcessType", static_cast<int64_t>(ProcessType::UTILITY)},
+      {"Resident", 10},
+      {"PrivateMemoryFootprint", 30},
+      {"SharedMemoryFootprint", 35},
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
-        {"PrivateSwapFootprint", 50},
+      {"PrivateSwapFootprint", 50},
 #endif
   });
 }
@@ -488,7 +527,7 @@ void PopulateMetrics(GlobalMemoryDumpPtr& global_dump,
   switch (ptype) {
     case HistogramProcessType::kAudioService:
       PopulateUtilityMetrics(global_dump, metrics_mb,
-                             /*service_name=*/absl::nullopt);
+                             /*service_name=*/std::nullopt);
       return;
     case HistogramProcessType::kBrowser:
       PopulateBrowserMetrics(global_dump, metrics_mb);
@@ -521,7 +560,7 @@ void PopulateMetrics(GlobalMemoryDumpPtr& global_dump,
   }
 
   // We shouldn't reach here.
-  CHECK(false);
+  NOTREACHED();
 }
 
 MetricMap GetExpectedProcessMetrics(HistogramProcessType ptype) {
@@ -549,8 +588,7 @@ MetricMap GetExpectedProcessMetrics(HistogramProcessType ptype) {
   }
 
   // We shouldn't reach here.
-  CHECK(false);
-  return MetricMap();
+  NOTREACHED();
 }
 
 ProcessInfoVector GetProcessInfo(ukm::TestUkmRecorder& ukm_recorder) {
@@ -633,7 +671,7 @@ class ProcessMemoryMetricsEmitterTest
         test_ukm_recorder_.GetEntriesByName(UkmEntry::kEntryName);
     size_t i = 0;
     size_t total_memory_entries = 0;
-    for (const auto* entry : entries) {
+    for (const ukm::mojom::UkmEntry* entry : entries) {
       if (test_ukm_recorder_.EntryHasMetric(
               entry, UkmEntry::kTotal2_PrivateMemoryFootprintName)) {
         total_memory_entries++;
@@ -788,7 +826,7 @@ TEST_F(ProcessMemoryMetricsEmitterTest, ReceiveProcessInfoFirst) {
   auto entries = test_ukm_recorder_.GetEntriesByName(UkmEntry::kEntryName);
   ASSERT_EQ(entries.size(), 2u);
   int total_memory_entries = 0;
-  for (const auto* const entry : entries) {
+  for (const ukm::mojom::UkmEntry* const entry : entries) {
     if (test_ukm_recorder_.EntryHasMetric(
             entry, UkmEntry::kTotal2_PrivateMemoryFootprintName)) {
       total_memory_entries++;
@@ -820,7 +858,7 @@ TEST_F(ProcessMemoryMetricsEmitterTest, ReceiveProcessInfoSecond) {
   auto entries = test_ukm_recorder_.GetEntriesByName(UkmEntry::kEntryName);
   ASSERT_EQ(entries.size(), 2u);
   int total_memory_entries = 0;
-  for (const auto* const entry : entries) {
+  for (const ukm::mojom::UkmEntry* const entry : entries) {
     if (test_ukm_recorder_.EntryHasMetric(
             entry, UkmEntry::kTotal2_PrivateMemoryFootprintName)) {
       total_memory_entries++;
@@ -873,7 +911,7 @@ TEST_F(ProcessMemoryMetricsEmitterTest, ProcessInfoHasTwoURLs) {
   auto entries = test_ukm_recorder_.GetEntriesByName(UkmEntry::kEntryName);
   int total_memory_entries = 0;
   int entries_with_urls = 0;
-  for (const auto* const entry : entries) {
+  for (const ukm::mojom::UkmEntry* const entry : entries) {
     if (test_ukm_recorder_.EntryHasMetric(
             entry, UkmEntry::kTotal2_PrivateMemoryFootprintName)) {
       total_memory_entries++;
@@ -899,6 +937,12 @@ TEST_F(ProcessMemoryMetricsEmitterTest, RendererAndTotalHistogramsAreRecorded) {
   global_dump->aggregated_metrics =
       memory_instrumentation::mojom::AggregatedMetrics::New();
   MetricMap expected_metrics = GetExpectedRendererMetrics();
+  constexpr size_t kTestMappingsCount = 12;
+  constexpr size_t kTestPss = 100;
+  constexpr size_t kTestSwapPss = 57;
+  expected_metrics["MappingsCount"] = kTestMappingsCount;
+  expected_metrics["Pss"] = kTestPss;
+  expected_metrics["SwapPss"] = kTestSwapPss;
   PopulateRendererMetrics(global_dump, expected_metrics, kTestRendererPid201);
   PopulateRendererMetrics(global_dump, expected_metrics, kTestRendererPid202);
 
@@ -930,6 +974,8 @@ TEST_F(ProcessMemoryMetricsEmitterTest, RendererAndTotalHistogramsAreRecorded) {
   histograms.ExpectTotalCount("Memory.Total.PrivateMemoryFootprint", 0);
   histograms.ExpectTotalCount("Memory.Total.RendererPrivateMemoryFootprint", 0);
   histograms.ExpectTotalCount("Memory.Total.RendererMalloc", 0);
+  histograms.ExpectTotalCount("Memory.Total.RendererBlinkGC", 0);
+  histograms.ExpectTotalCount("Memory.Total.RendererBlinkGC.Fragmentation", 0);
   histograms.ExpectTotalCount("Memory.Total.SharedMemoryFootprint", 0);
   histograms.ExpectTotalCount("Memory.Total.ResidentSet", 0);
   histograms.ExpectTotalCount(
@@ -969,7 +1015,12 @@ TEST_F(ProcessMemoryMetricsEmitterTest, RendererAndTotalHistogramsAreRecorded) {
                                 kTestRendererSharedMemoryFootprint, 2);
   histograms.ExpectUniqueSample("Memory.Renderer.ResidentSet",
                                 kTestRendererResidentSet, 2);
-
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+  histograms.ExpectUniqueSample("Memory.Renderer.MappingsCount",
+                                kTestMappingsCount, 2);
+  histograms.ExpectUniqueSample("Memory.Renderer.Pss", kTestPss, 2);
+  histograms.ExpectUniqueSample("Memory.Renderer.SwapPss", kTestSwapPss, 2);
+#endif
   histograms.ExpectUniqueSample("Memory.Total.HibernatedCanvas.Size", 12 + 22,
                                 1);
   histograms.ExpectUniqueSample("Memory.Total.PrivateMemoryFootprint",
@@ -978,6 +1029,10 @@ TEST_F(ProcessMemoryMetricsEmitterTest, RendererAndTotalHistogramsAreRecorded) {
                                 2 * kTestRendererPrivateMemoryFootprint, 1);
   histograms.ExpectUniqueSample("Memory.Total.RendererMalloc",
                                 2 * kTestRendererMalloc, 1);
+  histograms.ExpectUniqueSample("Memory.Total.RendererBlinkGC",
+                                2 * kTestRendererBlinkGC, 1);
+  histograms.ExpectUniqueSample("Memory.Total.RendererBlinkGC.Fragmentation",
+                                2 * kTestRendererBlinkGCFragmentation, 1);
   histograms.ExpectUniqueSample("Memory.Total.SharedMemoryFootprint",
                                 2 * kTestRendererSharedMemoryFootprint, 1);
   histograms.ExpectUniqueSample("Memory.Total.ResidentSet",
@@ -1056,7 +1111,7 @@ TEST_F(ProcessMemoryMetricsEmitterTest, MainFramePMFEmitted) {
   entries = test_ukm_recorder_.GetEntriesByName(
       ukm::builders::Memory_TabFootprint::kEntryName);
   ASSERT_EQ(entries.size(), 1u);
-  const auto* entry = entries.front();
+  const auto* entry = entries.front().get();
   ASSERT_TRUE(test_ukm_recorder_.EntryHasMetric(
       entry, ukm::builders::Memory_TabFootprint::kMainFrameProcessPMFName));
 }

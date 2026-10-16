@@ -66,12 +66,15 @@ TEST(ExtensionOmniboxTest, DescriptionStylesSimple) {
   styles_expected.push_back(ACMatchClassification(6, kDim));
   styles_expected.push_back(ACMatchClassification(9, kNone));
 
-  absl::optional<SendSuggestions::Params> params =
+  std::optional<SendSuggestions::Params> params =
       SendSuggestions::Params::Create(list);
   EXPECT_TRUE(params);
   ASSERT_FALSE(params->suggest_results.empty());
-  CompareClassification(styles_expected, StyleTypesToACMatchClassifications(
-                                             params->suggest_results[0]));
+  CompareClassification(
+      styles_expected,
+      StyleTypesToACMatchClassifications(
+          &params->suggest_results[0].description_styles.value(),
+          params->suggest_results[0].description));
 
   // Same input, but swap the order. Ensure it still works.
   base::Value::List swap_list =
@@ -89,13 +92,15 @@ TEST(ExtensionOmniboxTest, DescriptionStylesSimple) {
                                                         .Set("offset", 1)
                                                         .Set("length", 4)))));
 
-  absl::optional<SendSuggestions::Params> swapped_params =
+  std::optional<SendSuggestions::Params> swapped_params =
       SendSuggestions::Params::Create(swap_list);
   EXPECT_TRUE(swapped_params);
   ASSERT_FALSE(swapped_params->suggest_results.empty());
   CompareClassification(
       styles_expected,
-      StyleTypesToACMatchClassifications(swapped_params->suggest_results[0]));
+      StyleTypesToACMatchClassifications(
+          &swapped_params->suggest_results[0].description_styles.value(),
+          swapped_params->suggest_results[0].description));
 }
 
 //   0123456789
@@ -141,12 +146,15 @@ TEST(ExtensionOmniboxTest, DescriptionStylesCombine) {
   styles_expected.push_back(ACMatchClassification(5, kNone));
   styles_expected.push_back(ACMatchClassification(9, kMatch | kDim));
 
-  absl::optional<SendSuggestions::Params> params =
+  std::optional<SendSuggestions::Params> params =
       SendSuggestions::Params::Create(list);
   EXPECT_TRUE(params);
   ASSERT_FALSE(params->suggest_results.empty());
-  CompareClassification(styles_expected, StyleTypesToACMatchClassifications(
-                                             params->suggest_results[0]));
+  CompareClassification(
+      styles_expected,
+      StyleTypesToACMatchClassifications(
+          &params->suggest_results[0].description_styles.value(),
+          params->suggest_results[0].description));
 
   // Try moving the "dim/match" style pair at offset 9. Output should be the
   // same.
@@ -177,12 +185,15 @@ TEST(ExtensionOmniboxTest, DescriptionStylesCombine) {
                                                         .Set("offset", 1)
                                                         .Set("length", 2)))));
 
-  absl::optional<SendSuggestions::Params> moved_params =
+  std::optional<SendSuggestions::Params> moved_params =
       SendSuggestions::Params::Create(moved_list);
   EXPECT_TRUE(moved_params);
   ASSERT_FALSE(moved_params->suggest_results.empty());
-  CompareClassification(styles_expected, StyleTypesToACMatchClassifications(
-                                             moved_params->suggest_results[0]));
+  CompareClassification(
+      styles_expected,
+      StyleTypesToACMatchClassifications(
+          &moved_params->suggest_results[0].description_styles.value(),
+          moved_params->suggest_results[0].description));
 }
 
 //   0123456789
@@ -224,12 +235,15 @@ TEST(ExtensionOmniboxTest, DescriptionStylesCombine2) {
   styles_expected.push_back(ACMatchClassification(0, kUrl | kMatch | kDim));
   styles_expected.push_back(ACMatchClassification(5, kNone));
 
-  absl::optional<SendSuggestions::Params> params =
+  std::optional<SendSuggestions::Params> params =
       SendSuggestions::Params::Create(list);
   EXPECT_TRUE(params);
   ASSERT_FALSE(params->suggest_results.empty());
-  CompareClassification(styles_expected, StyleTypesToACMatchClassifications(
-                                             params->suggest_results[0]));
+  CompareClassification(
+      styles_expected,
+      StyleTypesToACMatchClassifications(
+          &params->suggest_results[0].description_styles.value(),
+          params->suggest_results[0].description));
 }
 
 //   0123456789
@@ -266,7 +280,7 @@ TEST(ExtensionOmniboxTest, DefaultSuggestResult) {
                                                     .Set("offset", 0)
                                                     .Set("length", 3))));
 
-  absl::optional<SetDefaultSuggestion::Params> params =
+  std::optional<SetDefaultSuggestion::Params> params =
       SetDefaultSuggestion::Params::Create(list);
   EXPECT_TRUE(params);
 }

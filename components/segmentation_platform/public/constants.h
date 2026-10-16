@@ -12,21 +12,11 @@
 
 namespace segmentation_platform {
 
+// SEGMENTATION_CLIENT_KEYS_BEGIN
+
 // The key to be used for adaptive toolbar feature.
 const char kAdaptiveToolbarSegmentationKey[] = "adaptive_toolbar";
 const char kAdaptiveToolbarUmaName[] = "AdaptiveToolbar";
-
-// The key is used to decide whether to show Chrome Start or not.
-const char kChromeStartAndroidSegmentationKey[] = "chrome_start_android";
-const char kChromeStartAndroidUmaName[] = "ChromeStartAndroid";
-
-// The key is used to decide how long to wait before showing Chrome Start.
-const char kChromeStartAndroidV2SegmentationKey[] = "chrome_start_android_v2";
-const char kChromeStartAndroidV2UmaName[] = "ChromeStartAndroidV2";
-
-// The key is used to decide whether to show query tiles.
-const char kQueryTilesSegmentationKey[] = "query_tiles";
-const char kQueryTilesUmaName[] = "QueryTiles";
 
 // The key is used to decide whether a user has low user engagement with chrome.
 // This is a generic model that can be used by multiple features targeting
@@ -88,9 +78,50 @@ const char kTabletProductivityUserUmaName[] = "TabletProductivityUser";
 const char kWebAppInstallationPromoKey[] = "web_app_installation_promo";
 const char kWebAppInstallationPromoUmaName[] = "WebAppInstallationPromo";
 
+const char kPasswordManagerUserKey[] = "password_manager_user";
+const char kPasswordManagerUserUmaName[] = "PasswordManagerUser";
+
 // Key for segment that tells in which tier the device used by the user belongs.
 const char kDeviceTierKey[] = "device_tier";
 const char kDeviceTierUmaName[] = "DeviceTier";
+
+const char kTabResumptionClassifierKey[] = "tab_resupmtion_classifier";
+const char kTabResumptionClassifierUmaName[] = "TabResumptionClassifier";
+
+// The key is used to rank `URLVisitAggregate` objects leveraged by UI tab
+// resumption features.
+const char kURLVisitResumptionRankerKey[] = "url_visit_resumption_ranker";
+const char kURLVisitResumptionRankerUmaName[] = "URLVisitResumptionRanker";
+
+const char kIosModuleRankerKey[] = "ios_module_ranker";
+const char kIosModuleRankerUmaName[] = "IosModuleRanker";
+
+const char kAndroidHomeModuleRankerKey[] = "android_home_module_ranker";
+const char kAndroidHomeModuleRankerUmaName[] = "AndroidHomeModuleRanker";
+
+// This key is used to decide what modules a user should see on their Desktop
+// New Tab Page.
+const char kDesktopNtpModuleKey[] = "desktop_ntp_module";
+const char kDesktopNtpModuleUmaName[] = "DesktopNtpModule";
+
+const char kOptimizationTargetSegmentationDummyKey[] = "segmentation_dummy";
+const char kOptimizationTargetSegmentationDummyUmaName[] = "SegmentationDummy";
+
+const char kComposePromotionKey[] = "compose_promotion";
+const char kComposePromotionUmaName[] = "ComposePromotion";
+
+const char kEphemeralHomeModuleBackendKey[] = "ephemeral_home_module_backend";
+
+// The key is used to decide whether the user would use FedCM.
+const char kFedCmUserKey[] = "fedcm_user";
+const char kFedCmUserUmaName[] = "FedCmUser";
+
+// SEGMENTATION_CLIENT_KEYS_END
+
+// Please keep the UMA names for keys in sync with SegmentationKey variant in
+// //tools/metrics/histograms/metadata/segmentation_platform/histograms.xml.
+// Should also update the field trials allowlist in
+// go/segmentation-field-trials-map.
 
 // Config parameter name specified in experiment configs. Any experiment config
 // or feature can include this param and segmentation will enable the config for
@@ -109,20 +140,18 @@ constexpr char kVariationsParamNameUnknownSelectionTTLDays[] =
 
 const char kSubsegmentDiscreteMappingSuffix[] = "_subsegment";
 
-// Returns an UMA display string for the given `segmentation_key`.
-const char* SegmentationKeyToUmaName(const std::string& segmentation_key);
-
 // Returns an UMA histogram variant for the given segment_id.
+// TODO(ssid): Move this to stats.cc since, no need to be in public.
 std::string SegmentIdToHistogramVariant(proto::SegmentId segment_id);
 
 // Returns Subsegment key for the given `segmentation_key`.
 std::string GetSubsegmentKey(const std::string& segmentation_key);
 
-// Returns PredictorType for the given `segmentation_key`
-proto::Predictor::PredictorTypeCase GetClassifierType(
-    const std::string& segmentation_key);
-
 // TODO(shaktisahu): Move these to a nicer location.
+
+// Legacy label used for users not in the segment for binary user segment
+// classifier.
+const char kLegacyNegativeLabel[] = "Other";
 
 // Labels for adaptive toolbar model.
 const char kAdaptiveToolbarModelLabelNewTab[] = "NewTab";
@@ -130,10 +159,24 @@ const char kAdaptiveToolbarModelLabelShare[] = "Share";
 const char kAdaptiveToolbarModelLabelVoice[] = "Voice";
 const char kAdaptiveToolbarModelLabelTranslate[] = "Translate";
 const char kAdaptiveToolbarModelLabelAddToBookmarks[] = "AddToBookmarks";
+const char kAdaptiveToolbarModelLabelReadAloud[] = "ReadAloud";
 
 // Labels for contextual page actions model.
+const char kContextualPageActionModelLabelDiscounts[] = "discounts";
 const char kContextualPageActionModelLabelPriceTracking[] = "price_tracking";
 const char kContextualPageActionModelLabelReaderMode[] = "reader_mode";
+const char kContextualPageActionModelLabelPriceInsights[] = "price_insights";
+
+// Labels for cross device segment.
+const char kNoCrossDeviceUsage[] = "NoCrossDeviceUsage";
+const char kCrossDeviceMobile[] = "CrossDeviceMobile";
+const char kCrossDeviceDesktop[] = "CrossDeviceDesktop";
+const char kCrossDeviceTablet[] = "CrossDeviceTablet";
+const char kCrossDeviceMobileAndDesktop[] = "CrossDeviceMobileAndDesktop";
+const char kCrossDeviceMobileAndTablet[] = "CrossDeviceMobileAndTablet";
+const char kCrossDeviceDesktopAndTablet[] = "CrossDeviceDesktopAndTablet";
+const char kCrossDeviceAllDeviceTypes[] = "CrossDeviceAllDeviceTypes";
+const char kCrossDeviceOther[] = "CrossDeviceOther";
 
 // Labels for search user model.
 // Any updates to these strings need to also update the field trials allowlist
@@ -145,7 +188,7 @@ const char kSearchUserModelLabelHigh[] = "High";
 
 // Labels for device tier model.
 // Any updates to these strings need to also update the field trials allowlist
-// in go/segmentation-field-trials-map.;
+// in go/segmentation-field-trials-map.
 const char kDeviceTierSegmentLabelNone[] = "None";
 const char kDeviceTierSegmentLabelLow[] = "Low";
 const char kDeviceTierSegmentLabelMedium[] = "Medium";
@@ -153,18 +196,76 @@ const char kDeviceTierSegmentLabelHigh[] = "High";
 
 // Labels for tablet productivity user model.
 // Any updates to these strings need to also update the field trials allowlist
-// in go/segmentation-field-trials-map.;
+// in go/segmentation-field-trials-map.
 const char kTabletProductivityUserModelLabelNone[] = "None";
 const char kTabletProductivityUserModelLabelMedium[] = "Medium";
 const char kTabletProductivityUserModelLabelHigh[] = "High";
 
+// Labels for Android Home modules for ranking.
+const char kSingleTab[] = "SingleTab";
+const char kPriceChange[] = "PriceChange";
+const char kSafetyHub[] = "SafetyHub";
+const char kAuxiliarySearch[] = "AuxiliarySearch";
+
+// Input Context keys for freshness for Android Home modules.
+const char kSingleTabFreshness[] = "single_tab_freshness";
+const char kPriceChangeFreshness[] = "price_change_freshness";
+const char kSafetyHubFreshness[] = "safety_hub_freshness";
+const char kAuxiliarySearchFreshness[] = "auxiliary_search_freshness";
+
+// Labels for IOS modules for ranking.
+const char kMostVisitedTiles[] = "MostVisitedTiles";
+const char kShortcuts[] = "Shortcuts";
+const char kSafetyCheck[] = "SafetyCheck";
+const char kTabResumption[] = "TabResumption";
+const char kParcelTracking[] = "ParcelTracking";
+const char kPriceTrackingPromo[] = "PriceTrackingPromo";
+const char kShopCard[] = "ShopCard";
+
+// Input Context keys for freshness for IOS modules.
+const char kMostVisitedTilesFreshness[] = "most_visited_tiles_freshness";
+const char kShortcutsFreshness[] = "shortcuts_freshness";
+const char kSafetyCheckFreshness[] = "safety_check_freshness";
+const char kTabResumptionFreshness[] = "tab_resumption_freshness";
+const char kParcelTrackingFreshness[] = "parcel_tracking_freshness";
+const char kIsShowingStartSurface[] = "is_showing_start_surface";
+const char kShopCardFreshness[] = "shop_card_freshness";
+
+// Labels for desktop new tab page drive module model.
+// Any updates to these strings need to also update the field trials allowlist
+// in go/segmentation-field-trials-map.
+const char kDesktopNtpDriveModuleLabelShow[] = "show_drive";
+const char kDesktopNtpDriveModuleLabelDontShow[] = "dont_show_drive";
+
 // Custom inputs for contextual page actions model.
 const char kContextualPageActionModelInputPriceTracking[] = "can_track_price";
 const char kContextualPageActionModelInputReaderMode[] = "has_reader_mode";
+const char kContextualPageActionModelInputPriceInsights[] =
+    "has_price_insights";
+const char kContextualPageActionModelInputDiscounts[] = "has_discounts";
+
+const char kComposePrmotionLabelShow[] = "Show";
+const char kComposePrmotionLabelDontShow[] = "DontShow";
 
 // Finch parameter key for sampling rate of the model execution results.
 constexpr char kModelExecutionSamplingRateKey[] =
     "model_execution_sampling_rate";
+
+// Finch parameter key for introducing delay(in ms) in model initialization at
+// startup.
+constexpr char kModelInitializationDelay[] = "model_initialization_delay";
+
+// Input Context keys for FedCM.
+const char kFedCmHost[] = "host";
+const char kFedCmUrl[] = "url";
+const char kFedCmPerPageLoadClickthroughRate[] =
+    "per_page_load_clickthrough_rate";
+const char kFedCmPerClientClickthroughRate[] = "per_client_clickthrough_rate";
+const char kFedCmPerImpressionClickthroughRate[] =
+    "per_impression_clickthrough_rate";
+const char kFedCmLikelyToSignin[] = "likely_to_signin";
+const char kFedCmLikelyInsufficientData[] = "likely_insufficient_data";
+
 }  // namespace segmentation_platform
 
 #endif  // COMPONENTS_SEGMENTATION_PLATFORM_PUBLIC_CONSTANTS_H_

@@ -2,10 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
+#include "net/disk_cache/blockfile/block_files.h"
+
+#include <array>
+
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
-#include "build/chromeos_buildflags.h"
-#include "net/disk_cache/blockfile/block_files.h"
+#include "build/build_config.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/disk_cache_test_base.h"
 #include "net/disk_cache/disk_cache_test_util.h"
@@ -30,7 +38,7 @@ int NumberOfFiles(const base::FilePath& path) {
 
 namespace disk_cache {
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // Flaky on ChromeOS: https://crbug.com/1156795
 #define MAYBE_BlockFiles_Grow DISABLED_BlockFiles_Grow
 #else
@@ -51,7 +59,7 @@ TEST_F(DiskCacheTest, MAYBE_BlockFiles_Grow) {
   const int kMaxSize = 35000;
   const int kNumberOfFiles = 6;
 #endif
-  Addr address[kMaxSize];
+  std::array<Addr, kMaxSize> address;
 
   // Fill up the 32-byte block file (use three files).
   for (auto& addr : address) {
@@ -100,7 +108,7 @@ TEST_F(DiskCacheTest, BlockFiles_Recover) {
   ASSERT_TRUE(files.Init(true));
 
   const int kNumEntries = 2000;
-  CacheAddr entries[kNumEntries];
+  std::array<CacheAddr, kNumEntries> entries;
 
   int seed = static_cast<int>(Time::Now().ToInternalValue());
   srand(seed);
@@ -301,7 +309,7 @@ TEST_F(DiskCacheTest, AllocationMap) {
 
   // Create a bunch of entries.
   const int kSize = 100;
-  Addr address[kSize];
+  std::array<Addr, kSize> address;
   for (int i = 0; i < kSize; i++) {
     SCOPED_TRACE(i);
     int block_size = i % 4 + 1;

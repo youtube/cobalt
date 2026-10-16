@@ -4,9 +4,11 @@
 
 #include "chrome/browser/ui/views/sharing_hub/sharing_hub_bubble_view_impl.h"
 
+#include <algorithm>
+
 #include "base/containers/adapters.h"
+#include "base/containers/to_vector.h"
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
 #include "chrome/browser/ui/sharing_hub/fake_sharing_hub_bubble_controller.h"
 #include "chrome/browser/ui/views/sharing_hub/sharing_hub_bubble_action_button.h"
 #include "chrome/test/base/testing_profile.h"
@@ -17,6 +19,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/accessibility/ax_node_data.h"
+#include "ui/gfx/vector_icon_types.h"
 #include "ui/views/accessibility/view_accessibility.h"
 
 using ::testing::Truly;
@@ -26,7 +29,7 @@ namespace {
 void EnumerateDescendants(views::View* root,
                           std::vector<views::View*>& result) {
   result.push_back(root);
-  for (auto* child : root->children()) {
+  for (views::View* child : root->children()) {
     EnumerateDescendants(child, result);
   }
 }
@@ -38,8 +41,8 @@ std::vector<views::View*> DescendantsMatchingPredicate(
   std::vector<views::View*> result;
 
   EnumerateDescendants(root, descendants);
-  base::ranges::copy_if(descendants, std::back_inserter(result),
-                        [=](views::View* view) { return predicate.Run(view); });
+  std::ranges::copy_if(descendants, std::back_inserter(result),
+                       [=](views::View* view) { return predicate.Run(view); });
   return result;
 }
 
@@ -55,19 +58,20 @@ std::string AccessibleNameForView(views::View* view) {
 
 void Click(views::Button* button) {
   button->OnMousePressed(
-      ui::MouseEvent(ui::ET_MOUSE_PRESSED, gfx::Point(1, 1), gfx::Point(0, 0),
-                     base::TimeTicks::Now(), ui::EF_LEFT_MOUSE_BUTTON,
-                     ui::EF_LEFT_MOUSE_BUTTON));
+      ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(1, 1),
+                     gfx::Point(0, 0), base::TimeTicks::Now(),
+                     ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON));
   button->OnMouseReleased(
-      ui::MouseEvent(ui::ET_MOUSE_RELEASED, gfx::Point(1, 1), gfx::Point(0, 0),
-                     base::TimeTicks::Now(), ui::EF_LEFT_MOUSE_BUTTON,
-                     ui::EF_LEFT_MOUSE_BUTTON));
+      ui::MouseEvent(ui::EventType::kMouseReleased, gfx::Point(1, 1),
+                     gfx::Point(0, 0), base::TimeTicks::Now(),
+                     ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON));
 }
 
 void SendKeyPress(views::Widget* widget, ui::KeyboardCode key_code) {
-  ui::KeyEvent press(ui::ET_KEY_PRESSED, key_code, 0, base::TimeTicks::Now());
+  ui::KeyEvent press(ui::EventType::kKeyPressed, key_code, 0,
+                     base::TimeTicks::Now());
   widget->OnKeyEvent(&press);
-  ui::KeyEvent release(ui::ET_KEY_RELEASED, key_code, 0,
+  ui::KeyEvent release(ui::EventType::kKeyReleased, key_code, 0,
                        base::TimeTicks::Now());
   widget->OnKeyEvent(&release);
 }
@@ -77,9 +81,9 @@ views::View* FocusedViewOf(views::Widget* widget) {
 }
 
 const std::vector<sharing_hub::SharingHubAction> kFirstPartyActions = {
-    {0, u"Feed to Dino", nullptr, "feed-to-dino", 0},
-    {1, u"Reverse Star", nullptr, "reverse-star", 0},
-    {2, u"Pastelify", nullptr, "pastelify", 0},
+    {0, u"Feed to Dino", &gfx::VectorIcon::EmptyIcon(), "feed-to-dino", 0},
+    {1, u"Reverse Star", &gfx::VectorIcon::EmptyIcon(), "reverse-star", 0},
+    {2, u"Pastelify", &gfx::VectorIcon::EmptyIcon(), "pastelify", 0},
 };
 
 }  // namespace
@@ -88,7 +92,8 @@ class SharingHubBubbleTest : public ChromeViewsTestBase {
  public:
   void SetUp() override {
     ChromeViewsTestBase::SetUp();
-    anchor_widget_ = CreateTestWidget();
+    anchor_widget_ =
+        CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET);
   }
 
   void TearDown() override {
@@ -105,7 +110,7 @@ class SharingHubBubbleTest : public ChromeViewsTestBase {
         &controller_);
     bubble_ = bubble.get();
     views::BubbleDialogDelegateView::CreateBubble(std::move(bubble));
-    bubble_->Show(sharing_hub::SharingHubBubbleViewImpl::USER_GESTURE);
+    bubble_->ShowForReason(sharing_hub::SharingHubBubbleViewImpl::USER_GESTURE);
     bubble_widget_ = bubble_->GetWidget();
   }
 
@@ -117,24 +122,22 @@ class SharingHubBubbleTest : public ChromeViewsTestBase {
   }
 
   std::vector<sharing_hub::SharingHubBubbleActionButton*> GetActionButtons() {
-    std::vector<views::View*> actions = DescendantsMatchingPredicate(
-        bubble(),
-        base::BindRepeating(&ViewHasClassName, "SharingHubBubbleActionButton"));
-    std::vector<sharing_hub::SharingHubBubbleActionButton*> concrete_actions;
-    base::ranges::transform(
-        actions, std::back_inserter(concrete_actions), [](views::View* view) {
+    return base::ToVector(
+        DescendantsMatchingPredicate(
+            bubble(), base::BindRepeating(&ViewHasClassName,
+                                          "SharingHubBubbleActionButton")),
+        [](views::View* view) {
           return static_cast<sharing_hub::SharingHubBubbleActionButton*>(view);
         });
-    return concrete_actions;
   }
 
  private:
-  raw_ptr<sharing_hub::SharingHubBubbleViewImpl> bubble_;
+  raw_ptr<sharing_hub::SharingHubBubbleViewImpl, DanglingUntriaged> bubble_;
   testing::NiceMock<sharing_hub::FakeSharingHubBubbleController> controller_{
       kFirstPartyActions};
 
   std::unique_ptr<views::Widget> anchor_widget_;
-  raw_ptr<views::Widget> bubble_widget_;
+  raw_ptr<views::Widget, DanglingUntriaged> bubble_widget_;
 };
 
 TEST_F(SharingHubBubbleTest, AllFirstPartyActionsAppearInOrder) {

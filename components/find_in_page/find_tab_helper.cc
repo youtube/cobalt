@@ -50,6 +50,7 @@ void FindTabHelper::StartFinding(std::u16string search_string,
   // Remove the carriage return character, which generally isn't in web content.
   const char16_t kInvalidChars[] = u"\r";
   base::RemoveChars(search_string, kInvalidChars, &search_string);
+  is_find_session_active_ = true;
 
   // Keep track of what the last search was across the tabs.
   if (delegate_)
@@ -88,7 +89,7 @@ void FindTabHelper::StartFinding(std::u16string search_string,
   options->find_match = find_match;
   options->run_synchronously_for_testing = run_synchronously_for_testing;
   GetWebContents().Find(current_find_request_id_, find_text_,
-                        std::move(options));
+                        std::move(options), /*skip_delay=*/false);
 }
 
 void FindTabHelper::StopFinding(SelectionAction selection_action) {
@@ -107,6 +108,7 @@ void FindTabHelper::StopFinding(SelectionAction selection_action) {
   find_op_aborted_ = true;
   last_search_result_ = FindNotificationDetails();
   should_find_match_ = false;
+  is_find_session_active_ = false;
 
   content::StopFindAction action;
   switch (selection_action) {
@@ -121,7 +123,6 @@ void FindTabHelper::StopFinding(SelectionAction selection_action) {
       break;
     default:
       NOTREACHED();
-      action = content::STOP_FIND_ACTION_KEEP_SELECTION;
   }
   GetWebContents().StopFinding(action);
 }

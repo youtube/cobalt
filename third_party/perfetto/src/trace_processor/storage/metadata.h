@@ -19,7 +19,6 @@
 
 #include <stddef.h>
 
-#include "src/trace_processor/containers/string_pool.h"
 #include "src/trace_processor/types/variadic.h"
 
 namespace perfetto {
@@ -29,9 +28,19 @@ namespace metadata {
 // Compile time list of metadata items.
 // clang-format off
 #define PERFETTO_TP_METADATA(F)                                               \
+  F(all_data_source_flushed_ns,        KeyType::kMulti,   Variadic::kInt),    \
   F(all_data_source_started_ns,        KeyType::kSingle,  Variadic::kInt),    \
   F(android_build_fingerprint,         KeyType::kSingle,  Variadic::kString), \
+  F(android_device_manufacturer,       KeyType::kSingle,  Variadic::kString), \
   F(android_sdk_version,               KeyType::kSingle,  Variadic::kInt),    \
+  F(android_soc_model,                 KeyType::kSingle,  Variadic::kString), \
+  F(android_guest_soc_model,           KeyType::kSingle,  Variadic::kString), \
+  F(android_hardware_revision,         KeyType::kSingle,  Variadic::kString), \
+  F(android_storage_model,             KeyType::kSingle,  Variadic::kString), \
+  F(android_ram_model,                 KeyType::kSingle,  Variadic::kString), \
+  F(android_serial_console,            KeyType::kSingle,  Variadic::kString), \
+  F(android_profile_boot_classpath,    KeyType::kSingle,  Variadic::kInt),    \
+  F(android_profile_system_server,     KeyType::kSingle,  Variadic::kInt),    \
   F(benchmark_description,             KeyType::kSingle,  Variadic::kString), \
   F(benchmark_had_failures,            KeyType::kSingle,  Variadic::kInt),    \
   F(benchmark_label,                   KeyType::kSingle,  Variadic::kString), \
@@ -42,12 +51,15 @@ namespace metadata {
   F(benchmark_story_run_time_us,       KeyType::kSingle,  Variadic::kInt),    \
   F(benchmark_story_tags,              KeyType::kMulti,   Variadic::kString), \
   F(ftrace_setup_errors,               KeyType::kMulti,   Variadic::kString), \
+  F(ftrace_latest_data_start_ns,       KeyType::kSingle,  Variadic::kInt),    \
   F(range_of_interest_start_us,        KeyType::kSingle,  Variadic::kInt),    \
+  F(slow_start_data_source,            KeyType::kMulti,   Variadic::kString), \
   F(statsd_triggering_subscription_id, KeyType::kSingle,  Variadic::kInt),    \
   F(system_machine,                    KeyType::kSingle,  Variadic::kString), \
   F(system_name,                       KeyType::kSingle,  Variadic::kString), \
   F(system_release,                    KeyType::kSingle,  Variadic::kString), \
   F(system_version,                    KeyType::kSingle,  Variadic::kString), \
+  F(timezone_off_mins,                 KeyType::kSingle,  Variadic::kInt),    \
   F(trace_config_pbtxt,                KeyType::kSingle,  Variadic::kString), \
   F(trace_size_bytes,                  KeyType::kSingle,  Variadic::kInt),    \
   F(trace_time_clock_id,               KeyType::kSingle,  Variadic::kInt),    \
@@ -56,7 +68,8 @@ namespace metadata {
   F(tracing_disabled_ns,               KeyType::kSingle,  Variadic::kInt),    \
   F(tracing_started_ns,                KeyType::kSingle,  Variadic::kInt),    \
   F(ui_state,                          KeyType::kSingle,  Variadic::kString), \
-  F(unique_session_name,               KeyType::kSingle,  Variadic::kString)
+  F(unique_session_name,               KeyType::kSingle,  Variadic::kString), \
+  F(trace_trigger,                     KeyType::kSingle,  Variadic::kString)
 // clang-format on
 
 // Compile time list of metadata items.
@@ -66,9 +79,19 @@ namespace metadata {
   F(kMulti,  "multi")
 // clang-format
 
-// Ignore GCC warning about a missing argument for a variadic macro parameter.
 #if defined(__GNUC__) || defined(__clang__)
+#if defined(__clang__)
+#pragma clang diagnostic push
+// Fix 'error: #pragma system_header ignored in main file' for clang in Google3.
+#pragma clang diagnostic ignored "-Wpragma-system-header-outside-header"
+#endif
+
+// Ignore GCC warning about a missing argument for a variadic macro parameter.
 #pragma GCC system_header
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 #endif
 
 #define PERFETTO_TP_META_TYPE_ENUM(varname, ...) varname

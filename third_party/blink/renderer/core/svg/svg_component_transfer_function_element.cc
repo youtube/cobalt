@@ -32,13 +32,13 @@ namespace blink {
 
 template <>
 const SVGEnumerationMap& GetEnumerationMap<ComponentTransferType>() {
-  static const SVGEnumerationMap::Entry enum_items[] = {
-      {FECOMPONENTTRANSFER_TYPE_IDENTITY, "identity"},
-      {FECOMPONENTTRANSFER_TYPE_TABLE, "table"},
-      {FECOMPONENTTRANSFER_TYPE_DISCRETE, "discrete"},
-      {FECOMPONENTTRANSFER_TYPE_LINEAR, "linear"},
-      {FECOMPONENTTRANSFER_TYPE_GAMMA, "gamma"},
-  };
+  static constexpr auto enum_items = std::to_array<const char* const>({
+      "identity",
+      "table",
+      "discrete",
+      "linear",
+      "gamma",
+  });
   static const SVGEnumerationMap entries(enum_items);
   return entries;
 }
@@ -71,15 +71,7 @@ SVGComponentTransferFunctionElement::SVGComponentTransferFunctionElement(
       type_(MakeGarbageCollected<SVGAnimatedEnumeration<ComponentTransferType>>(
           this,
           svg_names::kTypeAttr,
-          FECOMPONENTTRANSFER_TYPE_IDENTITY)) {
-  AddToPropertyMap(table_values_);
-  AddToPropertyMap(slope_);
-  AddToPropertyMap(intercept_);
-  AddToPropertyMap(amplitude_);
-  AddToPropertyMap(exponent_);
-  AddToPropertyMap(offset_);
-  AddToPropertyMap(type_);
-}
+          FECOMPONENTTRANSFER_TYPE_IDENTITY)) {}
 
 void SVGComponentTransferFunctionElement::Trace(Visitor* visitor) const {
   visitor->Trace(table_values_);
@@ -102,7 +94,6 @@ void SVGComponentTransferFunctionElement::SvgAttributeChanged(
       attr_name == svg_names::kAmplitudeAttr ||
       attr_name == svg_names::kExponentAttr ||
       attr_name == svg_names::kOffsetAttr) {
-    SVGElement::InvalidationGuard invalidation_guard(this);
     InvalidateFilterPrimitiveParent(*this);
     return;
   }
@@ -121,6 +112,36 @@ SVGComponentTransferFunctionElement::TransferFunction() const {
   func.offset = offset_->CurrentValue()->Value();
   func.table_values = table_values_->CurrentValue()->ToFloatVector();
   return func;
+}
+
+SVGAnimatedPropertyBase*
+SVGComponentTransferFunctionElement::PropertyFromAttribute(
+    const QualifiedName& attribute_name) const {
+  if (attribute_name == svg_names::kTableValuesAttr) {
+    return table_values_.Get();
+  } else if (attribute_name == svg_names::kSlopeAttr) {
+    return slope_.Get();
+  } else if (attribute_name == svg_names::kInterceptAttr) {
+    return intercept_.Get();
+  } else if (attribute_name == svg_names::kAmplitudeAttr) {
+    return amplitude_.Get();
+  } else if (attribute_name == svg_names::kExponentAttr) {
+    return exponent_.Get();
+  } else if (attribute_name == svg_names::kOffsetAttr) {
+    return offset_.Get();
+  } else if (attribute_name == svg_names::kTypeAttr) {
+    return type_.Get();
+  } else {
+    return SVGElement::PropertyFromAttribute(attribute_name);
+  }
+}
+
+void SVGComponentTransferFunctionElement::SynchronizeAllSVGAttributes() const {
+  SVGAnimatedPropertyBase* attrs[]{
+      table_values_.Get(), slope_.Get(),  intercept_.Get(), amplitude_.Get(),
+      exponent_.Get(),     offset_.Get(), type_.Get()};
+  SynchronizeListOfSVGAttributes(attrs);
+  SVGElement::SynchronizeAllSVGAttributes();
 }
 
 }  // namespace blink

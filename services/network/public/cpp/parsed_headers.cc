@@ -4,23 +4,35 @@
 
 #include "services/network/public/cpp/parsed_headers.h"
 
+#include <set>
+#include <string>
+#include <vector>
+
 #include "base/containers/contains.h"
+#include "base/feature_list.h"
 #include "build/build_config.h"
 #include "net/base/features.h"
+#include "net/http/http_cookie_indices.h"
 #include "net/http/http_response_headers.h"
 #include "net/reporting/reporting_header_parser.h"
+#include "net/url_request/clear_site_data.h"
+#include "services/network/public/cpp/avail_language_header_parser.h"
+#include "services/network/public/cpp/browsing_topics_parser.h"
 #include "services/network/public/cpp/client_hints.h"
 #include "services/network/public/cpp/content_language_parser.h"
 #include "services/network/public/cpp/content_security_policy/content_security_policy.h"
 #include "services/network/public/cpp/cross_origin_embedder_policy_parser.h"
 #include "services/network/public/cpp/cross_origin_opener_policy_parser.h"
+#include "services/network/public/cpp/document_isolation_policy_parser.h"
 #include "services/network/public/cpp/features.h"
+#include "services/network/public/cpp/fence_event_reporting_parser.h"
+#include "services/network/public/cpp/integrity_policy.h"
+#include "services/network/public/cpp/integrity_policy_parser.h"
 #include "services/network/public/cpp/link_header_parser.h"
 #include "services/network/public/cpp/no_vary_search_header_parser.h"
 #include "services/network/public/cpp/origin_agent_cluster_parser.h"
 #include "services/network/public/cpp/supports_loading_mode/supports_loading_mode_parser.h"
 #include "services/network/public/cpp/timing_allow_origin_parser.h"
-#include "services/network/public/cpp/variants_header_parser.h"
 #include "services/network/public/cpp/x_frame_options_parser.h"
 #include "services/network/public/mojom/supports_loading_mode.mojom.h"
 
@@ -43,28 +55,64 @@ mojom::ParsedHeadersPtr PopulateParsedHeaders(
   parsed_headers->cross_origin_opener_policy =
       ParseCrossOriginOpenerPolicy(*headers);
 
-  std::string origin_agent_cluster;
-  headers->GetNormalizedHeader("Origin-Agent-Cluster", &origin_agent_cluster);
+  parsed_headers->document_isolation_policy =
+      ParseDocumentIsolationPolicy(*headers);
+
+  if (base::FeatureList::IsEnabled(network::features::kIntegrityPolicyScript)) {
+    parsed_headers->integrity_policy = ParseIntegrityPolicyFromHeaders(
+        *headers, IntegrityPolicyHeaderType::kEnforce);
+    parsed_headers->integrity_policy_report_only =
+        ParseIntegrityPolicyFromHeaders(*headers,
+                                        IntegrityPolicyHeaderType::kReportOnly);
+  }
+
+  std::string origin_agent_cluster =
+      headers->GetNormalizedHeader("Origin-Agent-Cluster")
+          .value_or(std::string());
   parsed_headers->origin_agent_cluster =
       ParseOriginAgentCluster(origin_agent_cluster);
 
-  std::string accept_ch;
-  if (headers->GetNormalizedHeader("Accept-CH", &accept_ch))
-    parsed_headers->accept_ch = ParseClientHintsHeader(accept_ch);
+  // If the Clear-Site-Data header would clear client hints, we must not respect
+  // any Accept-CH or Critical-CH headers.
+  parsed_headers->client_hints_ignored_due_to_clear_site_data_header = false;
+  std::string clear_site_data_header =
+      headers->GetNormalizedHeader(net::kClearSiteDataHeader)
+          .value_or(std::string());
+  std::vector<std::string> clear_site_data_types =
+      net::ClearSiteDataHeaderContents(clear_site_data_header);
+  std::set<std::string> clear_site_data_set(clear_site_data_types.begin(),
+                                            clear_site_data_types.end());
+  if (clear_site_data_set.find(net::kDatatypeCache) !=
+          clear_site_data_set.end() ||
+      clear_site_data_set.find(net::kDatatypeClientHints) !=
+          clear_site_data_set.end() ||
+      clear_site_data_set.find(net::kDatatypeCookies) !=
+          clear_site_data_set.end() ||
+      clear_site_data_set.find(net::kDatatypeWildcard) !=
+          clear_site_data_set.end()) {
+    parsed_headers->client_hints_ignored_due_to_clear_site_data_header = true;
+  }
+  if (!features::ShouldBlockAcceptClientHintsFor(url::Origin::Create(url)) &&
+      !parsed_headers->client_hints_ignored_due_to_clear_site_data_header) {
+    if (std::optional<std::string> accept_ch =
+            headers->GetNormalizedHeader("Accept-CH")) {
+      parsed_headers->accept_ch = ParseClientHintsHeader(*accept_ch);
+    }
 
-  std::string critical_ch;
-  if (headers->GetNormalizedHeader("Critical-CH", &critical_ch))
-    parsed_headers->critical_ch = ParseClientHintsHeader(critical_ch);
+    if (std::optional<std::string> critical_ch =
+            headers->GetNormalizedHeader("Critical-CH")) {
+      parsed_headers->critical_ch = ParseClientHintsHeader(*critical_ch);
+    }
+  }
 
   parsed_headers->xfo = ParseXFrameOptions(*headers);
 
   parsed_headers->link_headers = ParseLinkHeaders(*headers, url);
 
-  std::string timing_allow_origin_value;
-  if (headers->GetNormalizedHeader("Timing-Allow-Origin",
-                                   &timing_allow_origin_value)) {
+  if (std::optional<std::string> timing_allow_origin_value =
+          headers->GetNormalizedHeader("Timing-Allow-Origin")) {
     parsed_headers->timing_allow_origin =
-        ParseTimingAllowOrigin(timing_allow_origin_value);
+        ParseTimingAllowOrigin(*timing_allow_origin_value);
   }
 
   network::mojom::SupportsLoadingModePtr result =
@@ -77,37 +125,39 @@ mojom::ParsedHeadersPtr PopulateParsedHeaders(
   }
 
 #if BUILDFLAG(ENABLE_REPORTING)
-  if (base::FeatureList::IsEnabled(net::features::kDocumentReporting)) {
-    std::string reporting_endpoints;
-    if (headers->GetNormalizedHeader("Reporting-Endpoints",
-                                     &reporting_endpoints)) {
-      parsed_headers->reporting_endpoints =
-          net::ParseReportingEndpoints(reporting_endpoints);
-    }
+  if (std::optional<std::string> reporting_endpoints =
+          headers->GetNormalizedHeader("Reporting-Endpoints")) {
+    parsed_headers->reporting_endpoints =
+        net::ParseReportingEndpoints(*reporting_endpoints);
   }
 #endif
 
+  if (base::FeatureList::IsEnabled(network::features::kCookieIndicesHeader)) {
+    parsed_headers->cookie_indices = net::ParseCookieIndices(*headers);
+  }
+
   if (base::FeatureList::IsEnabled(network::features::kReduceAcceptLanguage) ||
       base::FeatureList::IsEnabled(
-          network::features::kReduceAcceptLanguageOriginTrial)) {
-    std::string variants;
-    if (headers->GetNormalizedHeader("Variants", &variants)) {
-      parsed_headers->variants_headers = ParseVariantsHeaders(variants);
+          network::features::kReduceAcceptLanguageHTTP)) {
+    if (std::optional<std::string> avail_language =
+            headers->GetNormalizedHeader("Avail-Language")) {
+      parsed_headers->avail_language = ParseAvailLanguage(*avail_language);
     }
-    std::string content_language;
-    if (headers->GetNormalizedHeader("Content-Language", &content_language)) {
+    if (std::optional<std::string> content_language =
+            headers->GetNormalizedHeader("Content-Language")) {
       parsed_headers->content_language =
-          ParseContentLanguages(content_language);
+          ParseContentLanguages(*content_language);
     }
   }
 
-  // We're not checking that PrefetchNoVarySearch is enabled on the
-  // renderer side through the Origin Trial, as the network service
-  // doesn't know anything about blink.
   // The code here only parses the No-Vary-Search header if it is present.
-  if (base::FeatureList::IsEnabled(network::features::kPrefetchNoVarySearch))
-    parsed_headers->no_vary_search_with_parse_error =
-        ParseNoVarySearch(*headers);
+  parsed_headers->no_vary_search_with_parse_error = ParseNoVarySearch(*headers);
+
+  parsed_headers->observe_browsing_topics =
+      ParseObserveBrowsingTopicsFromHeader(*headers);
+
+  parsed_headers->allow_cross_origin_event_reporting =
+      ParseAllowCrossOriginEventReportingFromHeader(*headers);
 
   return parsed_headers;
 }

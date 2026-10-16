@@ -8,9 +8,9 @@
 #include <stddef.h>
 
 #include "base/time/time.h"
-#include "content/browser/service_worker/embedded_worker_status.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/service_worker_context.h"
+#include "third_party/blink/public/common/service_worker/embedded_worker_status.h"
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
 #include "ui/base/page_transition_types.h"
 
@@ -85,8 +85,9 @@ class ServiceWorkerMetrics {
     SKIP_EMPTY_FETCH_HANDLER = 38,
     BYPASS_ONLY_IF_SERVICE_WORKER_NOT_STARTED = 39,
     WARM_UP = 40,
+    STATIC_ROUTER = 41,
     // Add new events to record here.
-    kMaxValue = WARM_UP,
+    kMaxValue = STATIC_ROUTER,
   };
 
   // Not used for UMA.
@@ -160,13 +161,13 @@ class ServiceWorkerMetrics {
   // Records the running status of the worker to receive a task.
   // Usually recorded for the fetch handler.
   static void RecordRunAfterStartWorkerStatus(
-      EmbeddedWorkerStatus running_status,
+      blink::EmbeddedWorkerStatus running_status,
       EventType purpose);
 
   // Records the time taken to successfully start a worker. |is_installed|
   // indicates whether the version has been installed.
   //
-  // TODO(crbug.com/855952): Replace this with RecordStartWorkerTiming().
+  // TODO(crbug.com/40582160): Replace this with RecordStartWorkerTiming().
   static void RecordStartWorkerTime(base::TimeDelta time,
                                     bool is_installed,
                                     StartSituation start_situation,

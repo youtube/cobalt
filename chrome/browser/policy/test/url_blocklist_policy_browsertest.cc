@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
 #include <string>
 
 #include "base/containers/contains.h"
@@ -107,13 +108,13 @@ IN_PROC_BROWSER_TEST_F(UrlBlockingPolicyTest, URLBlocklist) {
 
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  const std::string kURLS[] = {
+  const auto kURLS = std::to_array<std::string>({
       embedded_test_server()->GetURL("aaa.com", "/empty.html").spec(),
       embedded_test_server()->GetURL("bbb.com", "/empty.html").spec(),
       embedded_test_server()->GetURL("sub.bbb.com", "/empty.html").spec(),
       embedded_test_server()->GetURL("bbb.com", "/policy/blank.html").spec(),
       embedded_test_server()->GetURL("bbb.com.", "/policy/blank.html").spec(),
-  };
+  });
 
   // Verify that "bbb.com" opens before applying the blocklist.
   CheckCanOpenURL(browser(), kURLS[1]);
@@ -222,13 +223,13 @@ IN_PROC_BROWSER_TEST_F(UrlBlockingPolicyTest, URLBlocklistIncognito) {
 
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  const std::string kURLS[] = {
+  const auto kURLS = std::to_array<std::string>({
       embedded_test_server()->GetURL("aaa.com", "/empty.html").spec(),
       embedded_test_server()->GetURL("bbb.com", "/empty.html").spec(),
       embedded_test_server()->GetURL("sub.bbb.com", "/empty.html").spec(),
       embedded_test_server()->GetURL("bbb.com", "/policy/blank.html").spec(),
       embedded_test_server()->GetURL("bbb.com.", "/policy/blank.html").spec(),
-  };
+  });
 
   // Verify that "bbb.com" opens before applying the blocklist.
   CheckCanOpenURL(incognito_browser, kURLS[1]);
@@ -457,7 +458,7 @@ IN_PROC_BROWSER_TEST_F(UrlBlockingPolicyTest, JavascriptBlocklistable) {
   // Without blocklist policy value is incremented properly.
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("javascript:increment()"),
-      WindowOpenDisposition::CURRENT_TAB, ui_test_utils::BROWSER_TEST_NONE);
+      WindowOpenDisposition::CURRENT_TAB, ui_test_utils::BROWSER_TEST_NO_WAIT);
 
   EXPECT_EQ(JSIncrementerFetch(contents), 2);
 
@@ -474,12 +475,12 @@ IN_PROC_BROWSER_TEST_F(UrlBlockingPolicyTest, JavascriptBlocklistable) {
   // unchanged.
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("javascript:increment()"),
-      WindowOpenDisposition::CURRENT_TAB, ui_test_utils::BROWSER_TEST_NONE);
+      WindowOpenDisposition::CURRENT_TAB, ui_test_utils::BROWSER_TEST_NO_WAIT);
   EXPECT_EQ(JSIncrementerFetch(contents), 2);
 
   // But in-page links still work even if they are javascript-links.
-  EXPECT_TRUE(content::ExecuteScript(
-      contents, "document.getElementById('link').click();"));
+  EXPECT_TRUE(
+      content::ExecJs(contents, "document.getElementById('link').click();"));
   EXPECT_EQ(JSIncrementerFetch(contents), 3);
 }
 

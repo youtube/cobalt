@@ -10,6 +10,7 @@
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/mojom/blob/blob_url_store.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/frame_replication_state.mojom-blink.h"
+#include "third_party/blink/public/web/web_local_frame_client.h"
 #include "third_party/blink/public/web/web_view.h"
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
 #include "third_party/blink/renderer/core/events/mouse_event.h"
@@ -45,14 +46,16 @@ void RemoteFrameClientImpl::Detached(FrameDetachType type) {
       web_frame_->GetFrame()->IsRemoteFrameHostRemoteBound()) {
     web_frame_->GetFrame()->GetRemoteFrameHostRemote().Detach();
   }
-  web_frame_->Close();
+  web_frame_->Close((type == FrameDetachType::kRemove)
+                        ? DetachReason::kFrameDeletion
+                        : DetachReason::kNavigation);
 
   if (web_frame_->Parent()) {
     if (type == FrameDetachType::kRemove)
       WebFrame::ToCoreFrame(*web_frame_)->DetachFromParent();
   } else if (auto* view = web_frame_->View()) {
-    // This could be a RemoteFrame that doesn't have a parent (portals
-    // or fenced frames) but not actually the `view`'s main frame.
+    // This could be a RemoteFrame that doesn't have a parent (fenced frames)
+    // but not actually the `view`'s main frame.
     if (view->MainFrame() == web_frame_) {
       // If the RemoteFrame being detached is also the main frame in the
       // renderer process, we need to notify the webview to allow it to clean
@@ -68,7 +71,7 @@ void RemoteFrameClientImpl::Detached(FrameDetachType type) {
 
 void RemoteFrameClientImpl::CreateRemoteChild(
     const RemoteFrameToken& token,
-    const absl::optional<FrameToken>& opener_frame_token,
+    const std::optional<FrameToken>& opener_frame_token,
     mojom::blink::TreeScopeType tree_scope_type,
     mojom::blink::FrameReplicationStatePtr replication_state,
     mojom::blink::FrameOwnerPropertiesPtr owner_properties,
@@ -100,7 +103,7 @@ void RemoteFrameClientImpl::CreateRemoteChildren(
 
 WebRemoteFrameImpl* RemoteFrameClientImpl::CreateRemoteChildImpl(
     const RemoteFrameToken& token,
-    const absl::optional<FrameToken>& opener_frame_token,
+    const std::optional<FrameToken>& opener_frame_token,
     mojom::blink::TreeScopeType tree_scope_type,
     mojom::blink::FrameReplicationStatePtr replication_state,
     mojom::blink::FrameOwnerPropertiesPtr owner_properties,

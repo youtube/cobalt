@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/ash/shelf/browser_shortcut_shelf_item_controller.h"
 
+#include <algorithm>
 #include <limits>
 #include <utility>
 #include <vector>
@@ -11,13 +12,13 @@
 #include "ash/public/cpp/new_window_delegate.h"
 #include "ash/public/cpp/shelf_model.h"
 #include "ash/wm/desks/desks_util.h"
+#include "ash/wm/window_animations.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ash/app_restore/full_restore_service.h"
+#include "chrome/browser/ash/app_restore/full_restore_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/ash/ash_util.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_util.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller_util.h"
@@ -54,10 +55,11 @@ constexpr int kNoTab = std::numeric_limits<int>::max();
 BrowserList::BrowserVector GetListOfActiveBrowsers(
     const ash::ShelfModel* model) {
   BrowserList::BrowserVector active_browsers;
-  for (auto* browser : *BrowserList::GetInstance()) {
+  for (Browser* browser : *BrowserList::GetInstance()) {
     // Only include browsers for the active user.
-    if (!multi_user_util::IsProfileFromActiveUser(browser->profile()))
+    if (!multi_user_util::IsProfileFromActiveUser(browser->profile())) {
       continue;
+    }
 
     // Exclude invisible non-minimized browser windows on the active desk.
     aura::Window* native_window = browser->window()->GetNativeWindow();
@@ -92,6 +94,10 @@ BrowserShortcutShelfItemController::~BrowserShortcutShelfItemController() {
   BrowserList::RemoveObserver(this);
 }
 
+// This function is responsible for handling mouse and key events that are
+// triggered when Ash is the Chrome browser and when the browser icon on the
+// shelf is clicked, or when the Alt+N accelerator is triggered for the
+// browser. For SWA and PWA please refer to AppShortcutShelfItemController.
 void BrowserShortcutShelfItemController::ItemSelected(
     std::unique_ptr<ui::Event> event,
     int64_t display_id,
@@ -99,7 +105,11 @@ void BrowserShortcutShelfItemController::ItemSelected(
     ItemSelectedCallback callback,
     const ItemFilterPredicate& filter_predicate) {
   Profile* profile = ChromeShelfController::instance()->profile();
-  ash::full_restore::FullRestoreService::MaybeCloseNotification(profile);
+  if (auto* full_restore_service =
+          ash::full_restore::FullRestoreServiceFactory::GetForProfile(
+              profile)) {
+    full_restore_service->MaybeCloseNotification();
+  }
 
   if (event && (event->flags() & ui::EF_CONTROL_DOWN)) {
     ash::NewWindowDelegate::GetInstance()->NewWindow(
@@ -114,7 +124,47 @@ void BrowserShortcutShelfItemController::ItemSelected(
 
   // In case of a keyboard event, we were called by a hotkey. In that case we
   // activate the next item in line if an item of our list is already active.
-  if (event && event->type() == ui::ET_KEY_RELEASED) {
+  //
+  // Here we check the implicit assumption that the type of the event that gets
+  // passed in is never ui::EventType::kKeyPressed. One may find it strange as
+  // usually ui::EventType::kKeyReleased comes in pair with
+  // ui::EventType::kKeyPressed, i.e, if we need to handle
+  // ui::EventType::kKeyReleased, then we probably need to handle
+  // ui::EventType::kKeyPressed too. However this is not the case here. The
+  // ui::KeyEvent that gets passed in is manufactured as an
+  // ui::EventType::kKeyReleased typed KeyEvent right before being passed in.
+  // This is similar to the situations of AppShortcutShelfItemController and
+  // BrowserAppShelfItemController.
+  //
+  // One other thing regarding the KeyEvent here that one may find confusing is
+  // that even though the code here says EventType::kKeyReleased, one only needs
+  // to conduct a press action (e.g., pressing Alt+1 on a physical device
+  // without letting go) to trigger this ItemSelected() function call. The
+  // subsequent key release action is not required. This naming disparity comes
+  // from the fact that while the key accelerator is triggered and handled by
+  // ui::AcceleratorManager::Process() with a KeyEvent instance as one of its
+  // inputs, further down the callstack, the same KeyEvent instance is not
+  // passed over into ash::Shelf::ActivateShelfItemOnDisplay(). Instead, a new
+  // KeyEvent instance is fabricated inside
+  // ash::Shelf::ActivateShelfItemOnDisplay(), with its type being
+  // EventType::kKeyReleased, to represent the original KeyEvent, whose type is
+  // EventType::kKeyPressed.
+  //
+  // The fabrication of the release typed key event was first introduced in this
+  // CL in 2013.
+  // https://chromiumcodereview.appspot.com/14551002/patch/41001/42001
+  //
+  // That said, there also exist other UX where the original KeyEvent instance
+  // gets passed down intact. And in those UX, we should still expect a
+  // EventType::kKeyPressed type. This type of UX can happen when the user keeps
+  // pressing the Tab key to move to the next icon, and then presses the Enter
+  // key to launch the app. It can also happen in a ChromeVox session, in which
+  // the Space key can be used to activate the app. More can be found in this
+  // bug. http://b/315364997.
+  //
+  // A bug is filed to track future works for fixing this confusing naming
+  // disparity. https://crbug.com/1473895
+  if (event && event->type() == ui::EventType::kKeyReleased) {
     std::move(callback).Run(ActivateOrAdvanceToNextBrowser(), std::move(items));
     return;
   }
@@ -162,15 +212,16 @@ BrowserShortcutShelfItemController::GetAppMenuItems(
   AppMenuItems items;
   bool found_tabbed_browser = false;
   ChromeShelfController* controller = ChromeShelfController::instance();
-  for (auto* browser : GetListOfActiveBrowsers(shelf_model_)) {
+  for (Browser* browser : GetListOfActiveBrowsers(shelf_model_)) {
     if (!filter_predicate.is_null() &&
         !filter_predicate.Run(browser->window()->GetNativeWindow())) {
       continue;
     }
 
     TabStripModel* tab_strip = browser->tab_strip_model();
-    if (browser->is_type_normal())
+    if (browser->is_type_normal()) {
       found_tabbed_browser = true;
+    }
     if (!(event_flags & ui::EF_SHIFT_DOWN)) {
       base::RecordAction(base::UserMetricsAction(
           "Shelf_BrowserShortcutShelfItem_ShowWindows"));
@@ -206,8 +257,9 @@ BrowserShortcutShelfItemController::GetAppMenuItems(
   }
   // If only windowed applications are open, we return an empty list to
   // enforce the creation of a new browser.
-  if (!found_tabbed_browser)
+  if (!found_tabbed_browser) {
     return AppMenuItems();
+  }
   app_menu_items_ = std::move(app_menu_items);
   return items;
 }
@@ -245,8 +297,9 @@ void BrowserShortcutShelfItemController::ExecuteCommand(bool from_context_menu,
     } else {
       multi_user_util::MoveWindowToCurrentDesktop(
           browser->window()->GetNativeWindow());
-      if (tab_index != kNoTab && tab_strip->ContainsIndex(tab_index))
+      if (tab_index != kNoTab && tab_strip->ContainsIndex(tab_index)) {
         tab_strip->ActivateTabAt(tab_index);
+      }
       browser->window()->Show();
       browser->window()->Activate();
     }
@@ -256,8 +309,9 @@ void BrowserShortcutShelfItemController::ExecuteCommand(bool from_context_menu,
 }
 
 void BrowserShortcutShelfItemController::Close() {
-  for (auto* browser : GetListOfActiveBrowsers(shelf_model_))
+  for (Browser* browser : GetListOfActiveBrowsers(shelf_model_)) {
     browser->window()->Close();
+  }
 }
 
 // static
@@ -275,8 +329,9 @@ BrowserShortcutShelfItemController::ActivateOrAdvanceToNextBrowser() {
   const BrowserList* browser_list = BrowserList::GetInstance();
   for (BrowserList::const_iterator it = browser_list->begin();
        it != browser_list->end(); ++it) {
-    if (IsBrowserRepresentedInBrowserList(*it, shelf_model_))
+    if (IsBrowserRepresentedInBrowserList(*it, shelf_model_)) {
       items.push_back(*it);
+    }
   }
   // If there are no suitable browsers we create a new one.
   if (items.empty()) {
@@ -290,7 +345,7 @@ BrowserShortcutShelfItemController::ActivateOrAdvanceToNextBrowser() {
     // If there is only one suitable browser, we can either activate it, or
     // bounce it (if it is already active).
     if (items[0]->window()->IsActive()) {
-      ash_util::BounceWindow(items[0]->window()->GetNativeWindow());
+      ash::BounceWindow(items[0]->window()->GetNativeWindow());
       return ash::SHELF_ACTION_NONE;
     }
     browser = items[0];
@@ -298,15 +353,18 @@ BrowserShortcutShelfItemController::ActivateOrAdvanceToNextBrowser() {
     // If there is more than one suitable browser, we advance to the next if
     // |browser| is already active - or - check the last used browser if it can
     // be used.
-    std::vector<Browser*>::iterator i = base::ranges::find(items, browser);
+    std::vector<Browser*>::iterator i = std::ranges::find(items, browser);
     if (i != items.end()) {
-      if (browser->window()->IsActive())
+      if (browser->window()->IsActive()) {
         browser = (++i == items.end()) ? items[0] : *i;
+      }
     } else {
       browser = chrome::FindTabbedBrowser(
           ChromeShelfController::instance()->profile(), true);
-      if (!browser || !IsBrowserRepresentedInBrowserList(browser, shelf_model_))
+      if (!browser ||
+          !IsBrowserRepresentedInBrowserList(browser, shelf_model_)) {
         browser = items[0];
+      }
     }
   }
   DCHECK(browser);
@@ -316,16 +374,19 @@ BrowserShortcutShelfItemController::ActivateOrAdvanceToNextBrowser() {
 }
 
 void BrowserShortcutShelfItemController::OnBrowserAdded(Browser* browser) {
-  if (!ShouldRecordLaunchTime(browser, shelf_model_))
+  if (!ShouldRecordLaunchTime(browser, shelf_model_)) {
     return;
+  }
 
   const BrowserList* browser_list = BrowserList::GetInstance();
   for (BrowserList::const_iterator it = browser_list->begin();
        it != browser_list->end(); ++it) {
-    if (*it == browser)
+    if (*it == browser) {
       continue;
-    if (ShouldRecordLaunchTime(*it, shelf_model_))
+    }
+    if (ShouldRecordLaunchTime(*it, shelf_model_)) {
       return;
+    }
   }
 
   extensions::ExtensionPrefs::Get(browser->profile())
@@ -336,7 +397,8 @@ void BrowserShortcutShelfItemController::OnBrowserClosing(Browser* browser) {
   DCHECK(browser);
   // Reset pointers to the closed browser, but leave menu indices intact.
   for (auto& it : app_menu_items_) {
-    if (it.first == browser)
+    if (it.first == browser) {
       it.first = nullptr;
+    }
   }
 }

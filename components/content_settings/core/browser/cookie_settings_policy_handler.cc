@@ -10,7 +10,7 @@
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/policy_constants.h"
 #include "components/prefs/pref_value_map.h"
-#include "components/privacy_sandbox/privacy_sandbox_prefs.h"
+#include "components/privacy_sandbox/tracking_protection_prefs.h"
 
 namespace content_settings {
 
@@ -23,33 +23,24 @@ CookieSettingsPolicyHandler::~CookieSettingsPolicyHandler() = default;
 void CookieSettingsPolicyHandler::ApplyPolicySettings(
     const policy::PolicyMap& policies,
     PrefValueMap* prefs) {
-  const base::Value* third_party_cookie_blocking =
-      policies.GetValue(policy_name(), base::Value::Type::BOOLEAN);
-  if (third_party_cookie_blocking) {
+  if (const base::Value* third_party_cookie_blocking =
+          policies.GetValue(policy_name(), base::Value::Type::BOOLEAN);
+      third_party_cookie_blocking) {
+    bool block_3pc = third_party_cookie_blocking->GetBool();
     prefs->SetInteger(
         prefs::kCookieControlsMode,
-        static_cast<int>(third_party_cookie_blocking->GetBool()
-                             ? CookieControlsMode::kBlockThirdParty
-                             : CookieControlsMode::kOff));
-    // Copy only the managed state of cookie controls to privacy sandbox while
-    // privacy sandbox is an experiment.
-    // TODO(crbug.com/1304044): Create a dedicated policy.
-    prefs->SetBoolean(prefs::kPrivacySandboxApisEnabled,
-                      !third_party_cookie_blocking->GetBool());
-    prefs->SetBoolean(prefs::kPrivacySandboxApisEnabledV2,
-                      !third_party_cookie_blocking->GetBool());
+        static_cast<int>(block_3pc ? CookieControlsMode::kBlockThirdParty
+                                   : CookieControlsMode::kOff));
   }
-
-  // If there is a Cookie BLOCK default content setting, then Privacy Sandbox
-  // APIs should be disabled, regardless of whether they were enabled along
-  // with third party cookies.
+  // If there is a Cookie BLOCK default content setting, then this implicitly
+  // also blocks 3PC.
   const base::Value* default_cookie_setting = policies.GetValue(
       policy::key::kDefaultCookiesSetting, base::Value::Type::INTEGER);
   if (default_cookie_setting &&
       static_cast<ContentSetting>(default_cookie_setting->GetInt()) ==
           CONTENT_SETTING_BLOCK) {
-    prefs->SetBoolean(prefs::kPrivacySandboxApisEnabled, false);
-    prefs->SetBoolean(prefs::kPrivacySandboxApisEnabledV2, false);
+    prefs->SetInteger(prefs::kCookieControlsMode,
+                      static_cast<int>(CookieControlsMode::kBlockThirdParty));
   }
 }
 

@@ -11,13 +11,13 @@
 #include "ash/keyboard/ui/keyboard_ui_controller.h"
 #include "ash/keyboard/ui/test/keyboard_test_util.h"
 #include "ash/public/cpp/keyboard/keyboard_switches.h"
-#include "ash/public/cpp/system/toast_manager.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/system/phonehub/phone_hub_tray.h"
 #include "ash/system/status_area_widget_test_helper.h"
-#include "ash/system/toast/toast_manager_impl.h"
+#include "ash/system/tray/tray_bubble_view.h"
 #include "ash/system/tray/tray_bubble_wrapper.h"
+#include "ash/system/tray/tray_utils.h"
 #include "ash/test/ash_test_base.h"
 #include "ash/test/test_ash_web_view_factory.h"
 #include "base/memory/raw_ptr.h"
@@ -27,6 +27,8 @@
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes_posix.h"
 #include "ui/gfx/image/image.h"
+#include "ui/gfx/image/image_unittest_util.h"
+#include "ui/views/accessibility/view_accessibility.h"
 
 namespace ash {
 
@@ -51,14 +53,8 @@ void ResetWebContentGoBack() {
   num_web_content_go_back_calls_ = 0;
 }
 
-SkBitmap TestBitmap() {
-  SkBitmap bitmap;
-  bitmap.allocN32Pixels(30, 30);
-  return bitmap;
-}
-
 gfx::Image CreateTestImage() {
-  gfx::ImageSkia image_skia = gfx::ImageSkia::CreateFrom1xBitmap(TestBitmap());
+  gfx::ImageSkia image_skia = gfx::test::CreateImageSkia(/*size=*/30);
   image_skia.MakeThreadSafe();
   return gfx::Image(image_skia);
 }
@@ -132,8 +128,6 @@ class EcheTrayTest : public AshTestBase {
 
     display::test::DisplayManagerTestApi(display_manager())
         .SetFirstDisplayAsInternalDisplay();
-
-    toast_manager_ = Shell::Get()->toast_manager();
   }
 
   // Performs a tap on the eche tray button.
@@ -159,16 +153,14 @@ class EcheTrayTest : public AshTestBase {
 
   EcheTray* eche_tray() { return eche_tray_; }
   PhoneHubTray* phone_hub_tray() { return phone_hub_tray_; }
-  ToastManagerImpl* toast_manager() { return toast_manager_; }
 
   base::test::ScopedFeatureList feature_list_;
 
  private:
   FakeConnectionStatusObserver fake_connection_status_observer_;
-  raw_ptr<EcheTray, ExperimentalAsh> eche_tray_ = nullptr;  // Not owned
-  raw_ptr<PhoneHubTray, ExperimentalAsh> phone_hub_tray_ =
+  raw_ptr<EcheTray, DanglingUntriaged> eche_tray_ = nullptr;  // Not owned
+  raw_ptr<PhoneHubTray, DanglingUntriaged> phone_hub_tray_ =
       nullptr;  // Not owned
-  raw_ptr<ToastManagerImpl, ExperimentalAsh> toast_manager_ = nullptr;
 
   // Calling the factory constructor is enough to set it up.
   std::unique_ptr<TestAshWebViewFactory> test_web_view_factory_ =
@@ -253,61 +245,64 @@ TEST_F(EcheTrayTest, EcheTrayIconResize) {
   EXPECT_EQ(image_width, new_image_width + 2);
 }
 
-TEST_F(EcheTrayTest, OnAnyBubbleVisibilityChanged) {
+TEST_F(EcheTrayTest, OnStatusAreaAnchoredBubbleVisibilityChanged) {
   eche_tray()->LoadBubble(
       GURL("http://google.com"), CreateTestImage(), u"app 1", u"your phone",
       eche_app::mojom::ConnectionStatus::kConnectionStatusDisconnected,
       eche_app::mojom::AppStreamLaunchEntryPoint::APPS_LIST);
   eche_tray()->ShowBubble();
 
-  EXPECT_TRUE(
-      eche_tray()->get_bubble_wrapper_for_test()->bubble_view()->GetVisible());
+  auto* bubble_view = eche_tray()->get_bubble_wrapper_for_test()->bubble_view();
+
+  EXPECT_TRUE(bubble_view->GetVisible());
 
   // When any other bubble is shown we need to hide Eche.
-  eche_tray()->OnAnyBubbleVisibilityChanged(
-      reinterpret_cast<views::Widget*>(12345L), true);
+  auto test_bubble_widget = std::make_unique<TrayBubbleView>(
+      CreateInitParamsForTrayBubble(phone_hub_tray()));
+  eche_tray()->OnStatusAreaAnchoredBubbleVisibilityChanged(
+      test_bubble_widget.get(), true);
 
-  EXPECT_FALSE(
-      eche_tray()->get_bubble_wrapper_for_test()->bubble_view()->GetVisible());
+  EXPECT_FALSE(bubble_view->GetVisible());
   EXPECT_FALSE(is_web_content_unloaded_);
 }
 
-// OnAnyBubbleVisibilityChanged() is called on the current bubble and hence
-// should be ignored.
-TEST_F(EcheTrayTest, OnAnyBubbleVisibilityChanged_SameWidget) {
+// OnStatusAreaAnchoredBubbleVisibilityChanged() is called on the current bubble
+// and hence should be ignored.
+TEST_F(EcheTrayTest, OnStatusAreaAnchoredBubbleVisibilityChanged_SameWidget) {
   eche_tray()->LoadBubble(
       GURL("http://google.com"), CreateTestImage(), u"app 1", u"your phone",
       eche_app::mojom::ConnectionStatus::kConnectionStatusDisconnected,
       eche_app::mojom::AppStreamLaunchEntryPoint::APPS_LIST);
   eche_tray()->ShowBubble();
 
-  EXPECT_TRUE(
-      eche_tray()->get_bubble_wrapper_for_test()->bubble_view()->GetVisible());
+  auto* bubble_view = eche_tray()->get_bubble_wrapper_for_test()->bubble_view();
 
-  eche_tray()->OnAnyBubbleVisibilityChanged(eche_tray()->GetBubbleWidget(),
-                                            true);
+  EXPECT_TRUE(bubble_view->GetVisible());
 
-  EXPECT_TRUE(
-      eche_tray()->get_bubble_wrapper_for_test()->bubble_view()->GetVisible());
+  eche_tray()->OnStatusAreaAnchoredBubbleVisibilityChanged(bubble_view, true);
+
+  EXPECT_TRUE(bubble_view->GetVisible());
 }
 
-// OnAnyBubbleVisibilityChanged() is called on some other bubble but the
-// visible parameter is false, hence we should not do anything.
-TEST_F(EcheTrayTest, OnAnyBubbleVisibilityChanged_NonVisible) {
+// OnStatusAreaAnchoredBubbleVisibilityChanged() is called on some other bubble
+// but the visible parameter is false, hence we should not do anything.
+TEST_F(EcheTrayTest, OnStatusAreaAnchoredBubbleVisibilityChanged_NonVisible) {
   eche_tray()->LoadBubble(
       GURL("http://google.com"), CreateTestImage(), u"app 1", u"your phone",
       eche_app::mojom::ConnectionStatus::kConnectionStatusDisconnected,
       eche_app::mojom::AppStreamLaunchEntryPoint::APPS_LIST);
   eche_tray()->ShowBubble();
 
-  EXPECT_TRUE(
-      eche_tray()->get_bubble_wrapper_for_test()->bubble_view()->GetVisible());
+  auto* bubble_view = eche_tray()->get_bubble_wrapper_for_test()->bubble_view();
 
-  eche_tray()->OnAnyBubbleVisibilityChanged(
-      reinterpret_cast<views::Widget*>(12345L), false);
+  EXPECT_TRUE(bubble_view->GetVisible());
 
-  EXPECT_TRUE(
-      eche_tray()->get_bubble_wrapper_for_test()->bubble_view()->GetVisible());
+  auto test_bubble_widget = std::make_unique<TrayBubbleView>(
+      CreateInitParamsForTrayBubble(phone_hub_tray()));
+  eche_tray()->OnStatusAreaAnchoredBubbleVisibilityChanged(
+      test_bubble_widget.get(), false);
+
+  EXPECT_TRUE(bubble_view->GetVisible());
 }
 
 TEST_F(EcheTrayTest, EcheTrayCreatesBubbleButHideFirst) {
@@ -473,66 +468,6 @@ TEST_F(EcheTrayTest, AcceleratorKeyHandled_Ctrl_W) {
   EXPECT_TRUE(is_web_content_unloaded_);
 }
 
-TEST_F(EcheTrayTest, AcceleratorKeyHandled_Ctrl_C) {
-  eche_tray()->LoadBubble(
-      GURL("http://google.com"), CreateTestImage(), u"app 1", u"your phone",
-      eche_app::mojom::ConnectionStatus::kConnectionStatusDisconnected,
-      eche_app::mojom::AppStreamLaunchEntryPoint::APPS_LIST);
-  eche_tray()->ShowBubble();
-
-  EXPECT_TRUE(
-      eche_tray()->get_bubble_wrapper_for_test()->bubble_view()->GetVisible());
-  EXPECT_FALSE(toast_manager()->IsRunning(
-      "eche_tray_toast_ids.copy_paste_not_implemented"));
-
-  // Now press the ctrl+w that closes the bubble.
-  GetEventGenerator()->PressKey(ui::KeyboardCode::VKEY_C, ui::EF_CONTROL_DOWN);
-
-  // Check to see if a toast is shown
-  EXPECT_TRUE(toast_manager()->IsRunning(
-      "eche_tray_toast_ids.copy_paste_not_implemented"));
-}
-
-TEST_F(EcheTrayTest, AcceleratorKeyHandled_Ctrl_V) {
-  eche_tray()->LoadBubble(
-      GURL("http://google.com"), CreateTestImage(), u"app 1", u"your phone",
-      eche_app::mojom::ConnectionStatus::kConnectionStatusDisconnected,
-      eche_app::mojom::AppStreamLaunchEntryPoint::APPS_LIST);
-  eche_tray()->ShowBubble();
-
-  EXPECT_TRUE(
-      eche_tray()->get_bubble_wrapper_for_test()->bubble_view()->GetVisible());
-  EXPECT_FALSE(toast_manager()->IsRunning(
-      "eche_tray_toast_ids.copy_paste_not_implemented"));
-
-  // Now press the ctrl+w that closes the bubble.
-  GetEventGenerator()->PressKey(ui::KeyboardCode::VKEY_V, ui::EF_CONTROL_DOWN);
-
-  // Check to see if a toast is shown
-  EXPECT_TRUE(toast_manager()->IsRunning(
-      "eche_tray_toast_ids.copy_paste_not_implemented"));
-}
-
-TEST_F(EcheTrayTest, AcceleratorKeyHandled_Ctrl_X) {
-  eche_tray()->LoadBubble(
-      GURL("http://google.com"), CreateTestImage(), u"app 1", u"your phone",
-      eche_app::mojom::ConnectionStatus::kConnectionStatusDisconnected,
-      eche_app::mojom::AppStreamLaunchEntryPoint::APPS_LIST);
-  eche_tray()->ShowBubble();
-
-  EXPECT_TRUE(
-      eche_tray()->get_bubble_wrapper_for_test()->bubble_view()->GetVisible());
-  EXPECT_FALSE(toast_manager()->IsRunning(
-      "eche_tray_toast_ids.copy_paste_not_implemented"));
-
-  // Now press the ctrl+w that closes the bubble.
-  GetEventGenerator()->PressKey(ui::KeyboardCode::VKEY_X, ui::EF_CONTROL_DOWN);
-
-  // Check to see if a toast is shown
-  EXPECT_TRUE(toast_manager()->IsRunning(
-      "eche_tray_toast_ids.copy_paste_not_implemented"));
-}
-
 TEST_F(EcheTrayTest, AcceleratorKeyHandled_BROWSER_BACK_KEY) {
   ResetWebContentGoBack();
   eche_tray()->SetGracefulGoBackCallback(
@@ -585,7 +520,7 @@ TEST_F(EcheTrayTest, EcheTrayOnDisplayConfigurationChanged) {
   UpdateDisplay("1024x786");
   expected_eche_size = eche_tray()->CalculateSizeForEche();
 
-  eche_tray()->OnDisplayConfigurationChanged();
+  eche_tray()->OnDidApplyDisplayChanges();
 
   EXPECT_EQ(expected_eche_size.width(),
             eche_tray()->get_bubble_wrapper_for_test()->bubble_view()->width());
@@ -611,7 +546,7 @@ TEST_F(EcheTrayTest, EcheTrayKeyboardShowHideUpdateBubbleBounds) {
   // Place a keyboard window.
   auto* keyboard_controller = keyboard::KeyboardUIController::Get();
   keyboard_controller->ShowKeyboard(/*lock=*/true);
-  ASSERT_TRUE(keyboard::WaitUntilShown());
+  ASSERT_TRUE(keyboard::test::WaitUntilShown());
 
   EXPECT_EQ(expected_eche_size.width(),
             eche_tray()->get_bubble_wrapper_for_test()->bubble_view()->width());
@@ -714,60 +649,30 @@ TEST_F(EcheTrayTest, OnConnectionStatusChanged) {
   EXPECT_TRUE(eche_tray()->get_initializer_webview_for_test());
 }
 
-TEST_F(EcheTrayTest, DISABLED_OnThemeChanged) {
-  ResetUnloadWebContent();
+TEST_F(EcheTrayTest, AccessibleNames) {
+  ASSERT_TRUE(eche_tray());
+
+  {
+    ui::AXNodeData node_data;
+    eche_tray()->GetViewAccessibility().GetAccessibleNodeData(&node_data);
+    EXPECT_EQ(node_data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+              eche_tray()->GetAccessibleName());
+  }
+
   eche_tray()->LoadBubble(
       GURL("http://google.com"), CreateTestImage(), u"app 1", u"your phone",
       eche_app::mojom::ConnectionStatus::kConnectionStatusDisconnected,
       eche_app::mojom::AppStreamLaunchEntryPoint::APPS_LIST);
   eche_tray()->ShowBubble();
+  auto* bubble_view = eche_tray()->get_bubble_wrapper_for_test()->bubble_view();
+  EXPECT_TRUE(bubble_view->GetVisible());
 
-  EXPECT_TRUE(eche_tray()->is_active());
-  EXPECT_TRUE(eche_tray()->GetArrowBackButtonForTesting());
-  EXPECT_TRUE(eche_tray()->GetMinimizeButtonForTesting());
-  EXPECT_TRUE(eche_tray()->GetCloseButtonForTesting());
-
-  eche_tray()->OnThemeChanged();
-
-  // Buttons still exist
-  eche_tray()->ShowBubble();
-  EXPECT_TRUE(eche_tray()->is_active());
-  EXPECT_TRUE(eche_tray()->GetArrowBackButtonForTesting());
-  EXPECT_TRUE(eche_tray()->GetMinimizeButtonForTesting());
-  EXPECT_TRUE(eche_tray()->GetCloseButtonForTesting());
-  EXPECT_FALSE(is_web_content_unloaded_);
-
-  eche_tray()->PurgeAndClose();
-  EXPECT_FALSE(eche_tray()->is_active());
-  EXPECT_FALSE(eche_tray()->GetArrowBackButtonForTesting());
-  EXPECT_FALSE(eche_tray()->GetMinimizeButtonForTesting());
-  EXPECT_FALSE(eche_tray()->GetCloseButtonForTesting());
-}
-
-TEST_F(EcheTrayTest, OnThemeChangedNoBubble) {
-  ResetUnloadWebContent();
-  eche_tray()->LoadBubble(
-      GURL("http://google.com"), CreateTestImage(), u"app 1", u"your phone",
-      eche_app::mojom::ConnectionStatus::kConnectionStatusDisconnected,
-      eche_app::mojom::AppStreamLaunchEntryPoint::APPS_LIST);
-
-  eche_tray()->ShowBubble();
-  EXPECT_TRUE(eche_tray()->is_active());
-  EXPECT_TRUE(eche_tray()->GetArrowBackButtonForTesting());
-  EXPECT_TRUE(eche_tray()->GetMinimizeButtonForTesting());
-  EXPECT_TRUE(eche_tray()->GetCloseButtonForTesting());
-
-  eche_tray()->PurgeAndClose();
-  EXPECT_FALSE(eche_tray()->is_active());
-  EXPECT_FALSE(eche_tray()->GetArrowBackButtonForTesting());
-  EXPECT_FALSE(eche_tray()->GetMinimizeButtonForTesting());
-  EXPECT_FALSE(eche_tray()->GetCloseButtonForTesting());
-
-  eche_tray()->OnThemeChanged();
-  EXPECT_FALSE(eche_tray()->is_active());
-  EXPECT_FALSE(eche_tray()->GetArrowBackButtonForTesting());
-  EXPECT_FALSE(eche_tray()->GetMinimizeButtonForTesting());
-  EXPECT_FALSE(eche_tray()->GetCloseButtonForTesting());
+  {
+    ui::AXNodeData node_data;
+    bubble_view->GetViewAccessibility().GetAccessibleNodeData(&node_data);
+    EXPECT_EQ(node_data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+              eche_tray()->GetAccessibleNameForBubble());
+  }
 }
 
 }  // namespace ash

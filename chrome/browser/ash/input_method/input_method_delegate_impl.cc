@@ -20,12 +20,14 @@ InputMethodDelegateImpl::InputMethodDelegateImpl() = default;
 InputMethodDelegateImpl::~InputMethodDelegateImpl() = default;
 
 std::string InputMethodDelegateImpl::GetHardwareKeyboardLayouts() const {
-  if (!g_browser_process)
+  if (!g_browser_process) {
     return "";
+  }
 
   PrefService* local_state = g_browser_process->local_state();
-  if (!local_state)
+  if (!local_state) {
     return "";
+  }
 
   return local_state->GetString(prefs::kHardwareKeyboardLayout);
 }
@@ -33,15 +35,6 @@ std::string InputMethodDelegateImpl::GetHardwareKeyboardLayouts() const {
 std::u16string InputMethodDelegateImpl::GetLocalizedString(
     int resource_id) const {
   return l10n_util::GetStringUTF16(resource_id);
-}
-
-std::u16string InputMethodDelegateImpl::GetDisplayLanguageName(
-    const std::string& language_code) const {
-  DCHECK(g_browser_process);
-  return l10n_util::GetDisplayNameForLocale(
-      language_code,
-      g_browser_process->GetApplicationLocale(),
-      true);
 }
 
 void InputMethodDelegateImpl::SetHardwareKeyboardLayoutForTesting(

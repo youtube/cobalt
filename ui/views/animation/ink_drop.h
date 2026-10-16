@@ -9,6 +9,7 @@
 
 #include "base/functional/callback.h"
 #include "base/observer_list.h"
+#include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/compositor/layer_tree_owner.h"
@@ -16,7 +17,9 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/animation/ink_drop_state.h"
+#include "ui/views/metadata/view_factory.h"
 #include "ui/views/view.h"
+#include "ui/views/view_observer.h"
 #include "ui/views/views_export.h"
 
 namespace views {
@@ -35,7 +38,8 @@ class VIEWS_EXPORT InkDrop {
 
   // TODO(pbos): Make sure what's installed here implements InkDrop so that can
   // be used as type instead of InkDropHost.
-  static void Install(View* host, std::unique_ptr<InkDropHost> ink_drop);
+  static InkDropHost* Install(View* host,
+                              std::unique_ptr<InkDropHost> ink_drop);
 
   // Removes the InkDrop from `host`.
   static void Remove(View* host);
@@ -90,6 +94,9 @@ class VIEWS_EXPORT InkDrop {
 
   // Called by ink drop hosts when their size is changed.
   virtual void HostSizeChanged(const gfx::Size& new_size) = 0;
+
+  // Called by ink drop hosts when their theme is changed.
+  virtual void HostViewThemeChanged() = 0;
 
   // Called by ink drop hosts when their transform is changed.
   virtual void HostTransformChanged(const gfx::Transform& new_transform) = 0;
@@ -154,14 +161,38 @@ class VIEWS_EXPORT InkDrop {
 // rendering enabled are painted onto a non-opaque canvas.
 // TODO(pbos): Replace with a function that returns unique_ptr<View>, this only
 // calls SetProcessEventsWithinSubtree(false) right now.
-class VIEWS_EXPORT InkDropContainerView : public View {
+class VIEWS_EXPORT InkDropContainerView : public View, public ViewObserver {
+  METADATA_HEADER(InkDropContainerView, View)
+
  public:
-  METADATA_HEADER(InkDropContainerView);
   InkDropContainerView();
+  ~InkDropContainerView() override;
   InkDropContainerView(const InkDropContainerView&) = delete;
   InkDropContainerView& operator=(const InkDropContainerView&) = delete;
+
+  bool GetAutoMatchParentBounds() const;
+  void SetAutoMatchParentBounds(bool auto_match_parent_bounds);
+
+ private:
+  // View:
+  void ViewHierarchyChanged(
+      const ViewHierarchyChangedDetails& details) override;
+
+  // ViewObserver:
+  void OnViewBoundsChanged(View* observed_view) override;
+
+  // TODO (crbug.com/345627615): Make this value true by default or remove
+  // entirely, making this behavior intrinsic.
+  bool auto_match_parent_bounds_ = false;
+  base::ScopedObservation<View, ViewObserver> observer_{this};
 };
 
+BEGIN_VIEW_BUILDER(VIEWS_EXPORT, InkDropContainerView, View)
+VIEW_BUILDER_PROPERTY(bool, AutoMatchParentBounds)
+END_VIEW_BUILDER
+
 }  // namespace views
+
+DEFINE_VIEW_BUILDER(VIEWS_EXPORT, InkDropContainerView)
 
 #endif  // UI_VIEWS_ANIMATION_INK_DROP_H_

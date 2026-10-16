@@ -7,27 +7,30 @@
 #include <algorithm>
 #include <cstring>
 #include <string>
+#include <string_view>
 
 #include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "printing/mojom/print.mojom.h"
 #include "third_party/icu/source/common/unicode/uchar.h"
 #include "ui/gfx/text_elider.h"
 
-#if BUILDFLAG(USE_CUPS) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(USE_CUPS)
 #include <unicode/ulocdata.h>
 
 #include <cmath>
 
-#include "base/strings/string_piece.h"
 #include "printing/units.h"
 #include "ui/gfx/geometry/size.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
+
+#include "printing/printing_features.h"
 #endif
 
 namespace printing {
@@ -36,7 +39,7 @@ namespace {
 
 constexpr size_t kMaxDocumentTitleLength = 80;
 
-#if BUILDFLAG(USE_CUPS) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(USE_CUPS)
 constexpr gfx::Size kIsoA4Microns = gfx::Size(210000, 297000);
 #endif
 
@@ -89,8 +92,8 @@ std::u16string FormatDocumentTitleWithOwner(const std::u16string& owner,
                                                kMaxDocumentTitleLength);
 }
 
-#if BUILDFLAG(USE_CUPS) && !BUILDFLAG(IS_CHROMEOS_ASH)
-gfx::Size GetDefaultPaperSizeFromLocaleMicrons(base::StringPiece locale) {
+#if BUILDFLAG(USE_CUPS)
+gfx::Size GetDefaultPaperSizeFromLocaleMicrons(std::string_view locale) {
   if (locale.empty())
     return kIsoA4Microns;
 
@@ -120,7 +123,7 @@ bool SizesEqualWithinEpsilon(const gfx::Size& lhs,
   return std::abs(lhs.width() - rhs.width()) <= epsilon &&
          std::abs(lhs.height() - rhs.height()) <= epsilon;
 }
-#endif  // BUILDFLAG(USE_CUPS) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(USE_CUPS)
 
 #if BUILDFLAG(IS_WIN)
 gfx::Rect GetCenteredPageContentRect(const gfx::Size& paper_size,
@@ -157,11 +160,28 @@ gfx::Rect GetPrintableAreaDeviceUnits(HDC hdc) {
 
   return printable_area_device_units;
 }
+
+DocumentDataType DetermineDocumentDataType(base::span<const uint8_t> data) {
+  if (LooksLikePdf(data)) {
+    return DocumentDataType::kPdf;
+  }
+  if (LooksLikeXps(data)) {
+    return DocumentDataType::kXps;
+  }
+  return DocumentDataType::kUnknown;
+}
+
+bool LooksLikeXps(base::span<const uint8_t> maybe_xps_data) {
+  constexpr auto kXpsStartsWith = base::span_from_cstring("PK\x03\x04");
+  return maybe_xps_data.size() >= 2000u &&
+         maybe_xps_data.first(kXpsStartsWith.size()) == kXpsStartsWith;
+}
 #endif  // BUILDFLAG(IS_WIN)
 
-bool LooksLikePdf(base::span<const char> maybe_pdf_data) {
+bool LooksLikePdf(base::span<const uint8_t> maybe_pdf_data) {
+  constexpr auto kPdfStartsWith = base::span_from_cstring("%PDF-");
   return maybe_pdf_data.size() >= 50u &&
-         std::memcmp(maybe_pdf_data.data(), "%PDF-", 5) == 0;
+         maybe_pdf_data.first(kPdfStartsWith.size()) == kPdfStartsWith;
 }
 
 }  // namespace printing

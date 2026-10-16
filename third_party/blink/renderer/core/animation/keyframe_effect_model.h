@@ -38,8 +38,10 @@
 #include "third_party/blink/renderer/core/animation/animation_effect.h"
 #include "third_party/blink/renderer/core/animation/effect_model.h"
 #include "third_party/blink/renderer/core/animation/interpolation_effect.h"
+#include "third_party/blink/renderer/core/animation/keyframe.h"
 #include "third_party/blink/renderer/core/animation/property_handle.h"
 #include "third_party/blink/renderer/core/animation/string_keyframe.h"
+#include "third_party/blink/renderer/core/animation/timeline_range.h"
 #include "third_party/blink/renderer/core/animation/transition_keyframe.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/animation/timing_function.h"
@@ -59,6 +61,45 @@ class CORE_EXPORT KeyframeEffectModelBase : public EffectModel {
 
   using PropertySpecificKeyframeVector =
       HeapVector<Member<Keyframe::PropertySpecificKeyframe>>;
+
+  class CORE_EXPORT KeyframeProperties {
+    STACK_ALLOCATED();
+
+   public:
+    struct EndIterator {};
+
+    class CORE_EXPORT Iterator {
+      STACK_ALLOCATED();
+
+     public:
+      explicit Iterator(const KeyframeEffectModelBase* model)
+          : keyframes_(model->GetFrames()) {
+        AdvanceToNextKeyframeWithProperties();
+      }
+
+      Iterator& operator++();
+      PropertyHandle operator*() const { return *current_property_.value(); }
+      bool operator==(EndIterator) const { return keyframes_.empty(); }
+
+     private:
+      void AdvanceToNextKeyframeWithProperties();
+
+      base::span<const Member<Keyframe>> keyframes_;
+      const Keyframe::IterableProperties* keyframe_properties_ = nullptr;
+      std::optional<Keyframe::PropertyIteratorWrapper> current_property_;
+    };
+
+    explicit KeyframeProperties(const KeyframeEffectModelBase* model)
+        : model_(model) {}
+    Iterator begin() const { return Iterator(model_); }
+    EndIterator end() const { return EndIterator(); }
+    bool empty() const { return begin() == end(); }
+    PropertyHandleSet UniqueProperties() const;
+
+   private:
+    const KeyframeEffectModelBase* model_;
+  };
+
   class PropertySpecificKeyframeGroup
       : public GarbageCollected<PropertySpecificKeyframeGroup> {
    public:
@@ -67,22 +108,85 @@ class CORE_EXPORT KeyframeEffectModelBase : public EffectModel {
       return keyframes_;
     }
 
+    bool IsStatic() const { return has_static_value_; }
+
     void Trace(Visitor* visitor) const { visitor->Trace(keyframes_); }
 
    private:
     void RemoveRedundantKeyframes();
+    void CheckIfStatic();
     bool AddSyntheticKeyframeIfRequired(
         scoped_refptr<TimingFunction> zero_offset_easing);
 
     PropertySpecificKeyframeVector keyframes_;
 
+    // TODO(kevers): Store CSS value if static in order to short-circuit
+    // applying the effect if set as we don't need to determine the bounding
+    // keyframes.
+    bool has_static_value_ = false;
+
     friend class KeyframeEffectModelBase;
+  };
+
+  using KeyframeGroupMap =
+      GCedHeapHashMap<PropertyHandle, Member<PropertySpecificKeyframeGroup>>;
+  class CORE_EXPORT IterableDynamicProperties {
+    STACK_ALLOCATED();
+
+   public:
+    struct EndIterator {};
+
+    class CORE_EXPORT Iterator {
+      STACK_ALLOCATED();
+
+     public:
+      explicit Iterator(const KeyframeEffectModelBase* model)
+          : model_(model),
+            current_keyframe_group_(model_->keyframe_groups_->begin()) {
+        AdvanceToNextGroup();
+      }
+
+      Iterator& operator++() {
+        current_keyframe_group_++;
+        AdvanceToNextGroup();
+        return *this;
+      }
+      PropertyHandle operator*() const { return current_keyframe_group_->key; }
+      bool operator==(EndIterator) const {
+        return current_keyframe_group_ == model_->keyframe_groups_->end();
+      }
+
+     private:
+      void AdvanceToNextGroup();
+
+      const KeyframeEffectModelBase* model_;
+      KeyframeGroupMap::const_iterator current_keyframe_group_;
+    };
+
+    explicit IterableDynamicProperties(const KeyframeEffectModelBase* model)
+        : model_(model) {}
+    Iterator begin() const { return Iterator(model_); }
+    EndIterator end() const { return EndIterator(); }
+    bool empty() const { return begin() == end(); }
+    bool Contains(const PropertyHandle& property) const;
+
+   private:
+    const KeyframeEffectModelBase* model_;
   };
 
   bool AffectedByUnderlyingAnimations() const final { return !IsReplaceOnly(); }
   bool IsReplaceOnly() const;
 
-  PropertyHandleSet Properties() const;
+  // Returns an iterable collection over the properties that are animated by
+  // keyframes in this effect. This includes duplicates of properties
+  // specified in multiple keyframes.
+  KeyframeProperties Properties() const;
+
+  // Returns an iterable collection over the properties with changing
+  // values that are animated by keyframes in this effect.
+  IterableDynamicProperties DynamicProperties() const;
+
+  bool HasStaticProperty() const;
 
   using KeyframeVector = HeapVector<Member<Keyframe>>;
   const KeyframeVector& GetFrames() const { return keyframes_; }
@@ -106,8 +210,6 @@ class CORE_EXPORT KeyframeEffectModelBase : public EffectModel {
     return &keyframe_group_iter->value->Keyframes();
   }
 
-  using KeyframeGroupMap =
-      HeapHashMap<PropertyHandle, Member<PropertySpecificKeyframeGroup>>;
   const KeyframeGroupMap& GetPropertySpecificKeyframeGroups() const {
     EnsureKeyframeGroups();
     return *keyframe_groups_;
@@ -116,6 +218,7 @@ class CORE_EXPORT KeyframeEffectModelBase : public EffectModel {
   // EffectModel implementation.
   bool Sample(int iteration,
               double fraction,
+              TimingFunction::LimitDirection,
               AnimationTimeDelta iteration_duration,
               HeapVector<Member<Interpolation>>&) const override;
 
@@ -166,21 +269,24 @@ class CORE_EXPORT KeyframeEffectModelBase : public EffectModel {
 
   // Update properties used in resolving logical properties. Returns true if
   // one or more keyframes changed as a result of the update.
-  bool SetLogicalPropertyResolutionContext(TextDirection text_direction,
-                                           WritingMode writing_mode);
+  bool SetLogicalPropertyResolutionContext(
+      WritingDirectionMode writing_direction);
 
   virtual KeyframeEffectModelBase* Clone() = 0;
-
-  void SetViewTimelineIfRequired(const ViewTimeline* timeline);
 
   // Ensure timeline offsets are properly resolved. If any of the offsets
   // changed, the keyframes are resorted and cached data is cleared. Returns
   // true if one or more offsets were affected.
-  bool ResolveTimelineOffsets(double range_start, double range_end);
+  bool ResolveTimelineOffsets(const TimelineRange&,
+                              double range_start,
+                              double range_end);
 
   void Trace(Visitor*) const override;
 
  protected:
+  friend class IterableDynamicProperties;
+  friend class IterableDynamicProperties::Iterator;
+
   KeyframeEffectModelBase(CompositeOperation composite,
                           scoped_refptr<TimingFunction> default_keyframe_easing)
       : interpolation_effect_(MakeGarbageCollected<InterpolationEffect>()),
@@ -243,7 +349,11 @@ class CORE_EXPORT KeyframeEffectModelBase : public EffectModel {
   mutable bool has_revert_ = false;
   mutable bool has_named_range_keyframes_ = false;
 
-  Member<const ViewTimeline> view_timeline_;
+  // The timeline and animation ranges last used to resolve
+  // named range offsets. (See ResolveTimelineOffsets).
+  std::optional<TimelineRange> last_timeline_range_;
+  std::optional<double> last_range_start_;
+  std::optional<double> last_range_end_;
 
   friend class KeyframeEffectModelTest;
 };

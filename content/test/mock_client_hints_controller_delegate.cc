@@ -48,19 +48,13 @@ MockClientHintsControllerDelegate::~MockClientHintsControllerDelegate() =
 
 network::NetworkQualityTracker*
 MockClientHintsControllerDelegate::GetNetworkQualityTracker() {
-  return nullptr;
+  return &network_quality_tracker_;
 }
 
 bool MockClientHintsControllerDelegate::IsJavaScriptAllowed(
     const GURL& url,
     content::RenderFrameHost* parent_rfh) {
   return true;
-}
-
-bool MockClientHintsControllerDelegate::AreThirdPartyCookiesBlocked(
-    const GURL& url,
-    content::RenderFrameHost* rfh) {
-  return false;
 }
 
 blink::UserAgentMetadata

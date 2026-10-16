@@ -14,7 +14,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -23,23 +22,16 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Feature;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.StylusWritingHandler;
 import org.chromium.ui.base.EventForwarder;
 
-/**
- * Unit tests for {@link WebContentsImpl}.
- */
+/** Unit tests for {@link WebContentsImpl}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class WebContentsImplTest {
-    @Mock
-    private NavigationController mNavigationController;
-    @Mock
-    private WebContentsImpl.Natives mWebContentsJniMock;
-    @Rule
-    public JniMocker mJniMocker = new JniMocker();
+    @Mock private NavigationController mNavigationController;
+    @Mock private WebContentsImpl.Natives mWebContentsJniMock;
 
     private WebContentsImpl mWebContentsImpl;
     private final long mNativeWebContentsAndroid = 1;
@@ -47,7 +39,7 @@ public class WebContentsImplTest {
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
-        mJniMocker.mock(WebContentsImplJni.TEST_HOOKS, mWebContentsJniMock);
+        WebContentsImplJni.setInstanceForTesting(mWebContentsJniMock);
         mWebContentsImpl = WebContentsImpl.create(mNativeWebContentsAndroid, mNavigationController);
     }
 

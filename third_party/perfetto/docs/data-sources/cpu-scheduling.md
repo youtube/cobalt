@@ -16,12 +16,7 @@ This allows to get fine grained scheduling events such as:
 
 ## UI
 
-When zoomed out, the UI shows a quantized view of CPU usage, which collapses the
-scheduling information:
-
-![](/docs/images/cpu-bar-graphs.png "Quantized view of CPU run queues")
-
-However, by zooming in, the individual scheduling events become visible:
+The UI represents individual scheduling events as slices:
 
 ![](/docs/images/cpu-zoomed.png "Detailed view of CPU run queues")
 
@@ -131,10 +126,11 @@ costly both in terms of overhead and power.
 
 NOTE: `sched_waking` and `sched_wakeup` provide nearly the same information. The
       difference lies in wakeup events across CPUs, which involve
-      inter-processor interrupts. The former is emitted on the source (wakee)
-      CPU, the latter on the destination (waked) CPU. `sched_waking` is usually
-      sufficient for latency analysis, unless you are looking into breaking down
-      latency due to inter-processor signaling.
+      inter-processor interrupts. The former is always emitted on the source (wakee)
+      CPU, the latter may be executed on either the source or the destination (waked) CPU
+      depending on several factors. `sched_waking` is usually sufficient for latency
+      analysis, unless you are looking into breaking down latency due to
+      the scheduler's wake up path, such as inter-processor signaling.
 
 When enabling `sched_waking` events, the following will appear in the UI when
 selecting a CPU slice:

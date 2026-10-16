@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #ifndef MOJO_PUBLIC_CPP_BINDINGS_LIB_NATIVE_ENUM_SERIALIZATION_H_
 #define MOJO_PUBLIC_CPP_BINDINGS_LIB_NATIVE_ENUM_SERIALIZATION_H_
 
@@ -35,8 +40,8 @@ struct NativeEnumSerializerImpl {
 
     CHECK_GE(sizeof(int32_t), pickle.payload_size());
     *output = 0;
-    memcpy(reinterpret_cast<char*>(output), pickle.payload(),
-           pickle.payload_size());
+    memcpy(reinterpret_cast<char*>(output), pickle.payload_bytes().data(),
+           pickle.payload_bytes().size());
   }
 
   struct PickleData {
@@ -47,8 +52,8 @@ struct NativeEnumSerializerImpl {
 
   static bool Deserialize(int32_t input, UserType* output) {
     PickleData data = {sizeof(int32_t), input};
-    base::Pickle pickle_view(reinterpret_cast<const char*>(&data),
-                             sizeof(PickleData));
+    base::Pickle pickle_view =
+        base::Pickle::WithUnownedBuffer(base::byte_span_from_ref(data));
     base::PickleIterator iter(pickle_view);
     return Traits::Read(&pickle_view, &iter, output);
   }

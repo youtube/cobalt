@@ -2,8 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//components/reading_list/features/reading_list.gni")
-
 source_set("core") {
   sources = [
     "dual_reading_list_model.cc",
@@ -12,6 +10,8 @@ source_set("core") {
     "offline_url_utils.h",
     "reading_list_entry.cc",
     "reading_list_entry.h",
+    "reading_list_local_data_batch_uploader.cc",
+    "reading_list_local_data_batch_uploader.h",
     "reading_list_model.h",
     "reading_list_model_impl.cc",
     "reading_list_model_impl.h",
@@ -27,7 +27,6 @@ source_set("core") {
   deps = [
     "//components/keyed_service/core",
     "//components/prefs",
-    "//components/reading_list/features:flags",
     "//components/sync",
     "//net",
     "//url",
@@ -64,6 +63,7 @@ source_set("unit_tests") {
     "dual_reading_list_model_unittest.cc",
     "offline_url_utils_unittest.cc",
     "reading_list_entry_unittest.cc",
+    "reading_list_local_data_batch_uploader_unittest.cc",
     "reading_list_model_storage_impl_unittest.cc",
     "reading_list_model_unittest.cc",
     "reading_list_sync_bridge_unittest.cc",
@@ -73,7 +73,6 @@ source_set("unit_tests") {
     ":test_support",
     "//base",
     "//base/test:test_support",
-    "//components/reading_list/features:flags",
     "//components/sync",
     "//components/sync:test_support",
     "//testing/gtest",

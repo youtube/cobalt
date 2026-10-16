@@ -59,9 +59,7 @@ class VIZ_SERVICE_EXPORT InProcessGpuMemoryBufferManager
       gfx::GpuMemoryBufferHandle buffer_handle,
       base::UnsafeSharedMemoryRegion memory_region,
       base::OnceCallback<void(bool)> callback) override;
-  bool CopyGpuMemoryBufferSync(
-      gfx::GpuMemoryBufferHandle buffer_handle,
-      base::UnsafeSharedMemoryRegion memory_region) override;
+  bool IsConnected() override;
 
   // base::trace_event::MemoryDumpProvider:
   bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
@@ -81,7 +79,7 @@ class VIZ_SERVICE_EXPORT InProcessGpuMemoryBufferManager
   const raw_ptr<gpu::SyncPointManager> sync_point_manager_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
-  base::flat_map<gfx::GpuMemoryBufferId, AllocatedBufferInfo>
+  base::flat_map<gfx::GpuMemoryBufferId, gpu::AllocatedBufferInfo>
       allocated_buffers_;
 
   base::WeakPtr<InProcessGpuMemoryBufferManager> weak_ptr_;

@@ -12,6 +12,8 @@
 // no-include-guard-because-multiply-included
 // NOLINT(build/header_guard)
 
+MOCK_METHOD2(AcquireExternalContextANGLE,
+             void(EGLDisplay dpy, EGLSurface readAndDraw));
 MOCK_METHOD1(BindAPI, EGLBoolean(EGLenum api));
 MOCK_METHOD3(BindTexImage,
              EGLBoolean(EGLDisplay dpy, EGLSurface surface, EGLint buffer));
@@ -197,6 +199,7 @@ MOCK_METHOD4(LabelObjectKHR,
                     EGLenum objectType,
                     EGLObjectKHR object,
                     EGLLabelKHR label));
+MOCK_METHOD1(LockVulkanQueueANGLE, void(EGLDisplay dpy));
 MOCK_METHOD4(MakeCurrent,
              EGLBoolean(EGLDisplay dpy,
                         EGLSurface draw,
@@ -266,6 +269,7 @@ MOCK_METHOD4(QuerySurfacePointerANGLE,
                         EGLint attribute,
                         void** value));
 MOCK_METHOD2(ReacquireHighPowerGPUANGLE, void(EGLDisplay dpy, EGLContext ctx));
+MOCK_METHOD1(ReleaseExternalContextANGLE, void(EGLDisplay dpy));
 MOCK_METHOD2(ReleaseHighPowerGPUANGLE, void(EGLDisplay dpy, EGLContext ctx));
 MOCK_METHOD3(ReleaseTexImage,
              EGLBoolean(EGLDisplay dpy, EGLSurface surface, EGLint buffer));
@@ -274,6 +278,7 @@ MOCK_METHOD3(SetBlobCacheFuncsANDROID,
              void(EGLDisplay dpy,
                   EGLSetBlobFuncANDROID set,
                   EGLGetBlobFuncANDROID get));
+MOCK_METHOD1(SetValidationEnabledANGLE, void(EGLBoolean validationState));
 MOCK_METHOD4(StreamAttribKHR,
              EGLBoolean(EGLDisplay dpy,
                         EGLStreamKHR stream,
@@ -307,6 +312,7 @@ MOCK_METHOD4(SwapBuffersWithDamageKHR,
                         EGLint n_rects));
 MOCK_METHOD2(SwapInterval, EGLBoolean(EGLDisplay dpy, EGLint interval));
 MOCK_METHOD1(Terminate, EGLBoolean(EGLDisplay dpy));
+MOCK_METHOD1(UnlockVulkanQueueANGLE, void(EGLDisplay dpy));
 MOCK_METHOD0(WaitClient, EGLBoolean());
 MOCK_METHOD0(WaitGL, EGLBoolean());
 MOCK_METHOD1(WaitNative, EGLBoolean(EGLint engine));

@@ -23,9 +23,9 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "content/public/browser/devtools_agent_host_observer.h"
 #include "content/public/browser/render_process_host_observer.h"
+#include "content/public/browser/service_worker_external_request_result.h"
 #include "content/public/browser/service_worker_external_request_timeout_type.h"
 #include "extensions/browser/activity.h"
-#include "extensions/browser/event_page_tracker.h"
 #include "extensions/browser/extension_host_observer.h"
 #include "extensions/browser/extension_registry_observer.h"
 #include "extensions/browser/service_worker/worker_id.h"
@@ -54,14 +54,43 @@ class ProcessManagerObserver;
 // track of split-mode extensions only.
 class ProcessManager : public KeyedService,
                        public ExtensionRegistryObserver,
-                       public EventPageTracker,
                        public content::DevToolsAgentHostObserver,
                        public content::RenderProcessHostObserver,
                        public ExtensionHostObserver {
  public:
-  using ExtensionHostSet = std::set<extensions::ExtensionHost*>;
+  using ExtensionHostSet =
+      std::set<raw_ptr<extensions::ExtensionHost, SetExperimental>>;
+
+  // A struct representing an active service worker keepalive.
+  struct ServiceWorkerKeepaliveData {
+    // The worker ID associated with the keepalive.
+    WorkerId worker_id;
+    // The type of activity for the keepalive.
+    Activity::Type activity_type;
+    // Any "additional data" for the keepalive; for instance, this could be
+    // the API function or event name.
+    std::string extra_data;
+    // The timeout behavior for the given request.
+    content::ServiceWorkerExternalRequestTimeoutType timeout_type;
+    // The result of trying to start an external request with the service
+    // worker layer.
+    content::ServiceWorkerExternalRequestResult start_result;
+  };
+  using ServiceWorkerKeepaliveDataMap =
+      std::map<base::Uuid, ServiceWorkerKeepaliveData>;
 
   static ProcessManager* Get(content::BrowserContext* context);
+
+  // Creates a new ProcessManager for the given `context`. This is independent
+  // from the constructor below as it may construct an incognito version of the
+  // ProcessManager.
+  // Note: Most callers should use `ProcessManager::Get()` instead to retrieve
+  // the ProcessManager for a given context.
+  static std::unique_ptr<ProcessManager> Create(
+      content::BrowserContext* context);
+
+  ProcessManager(content::BrowserContext* context,
+                 ExtensionRegistry* registry);
 
   ProcessManager(const ProcessManager&) = delete;
   ProcessManager& operator=(const ProcessManager&) = delete;
@@ -71,15 +100,17 @@ class ProcessManager : public KeyedService,
   // KeyedService support:
   void Shutdown() override;
 
-  void RegisterRenderFrameHost(content::WebContents* web_contents,
-                               content::RenderFrameHost* render_frame_host,
+  void RegisterRenderFrameHost(content::RenderFrameHost* render_frame_host,
                                const Extension* extension);
   void UnregisterRenderFrameHost(content::RenderFrameHost* render_frame_host);
 
-  // Registers or unregisters a running worker state to this process manager.
-  // Note: This does not create any Service Workers.
-  void RegisterServiceWorker(const WorkerId& worker_id);
-  void UnregisterServiceWorker(const WorkerId& worker_id);
+  // Starts tracking or stops tracking (if it's already being tracked) a running
+  // worker to this process manager. Note: This does not create any Service
+  // Workers.
+  void StartTrackingServiceWorkerRunningInstance(const WorkerId& worker_id);
+  void StopTrackingServiceWorkerRunningInstance(const WorkerId& worker_id);
+  void StopTrackingServiceWorkerRunningInstance(const ExtensionId& extension_id,
+                                                int64_t worker_version_id);
 
   // Returns the SiteInstance that the given URL belongs to.
   // NOTE: Usage of this method is potentially error-prone. An extension can
@@ -87,6 +118,7 @@ class ProcessManager : public KeyedService,
   // extension with non-cross-origin-isolated contexts).
   // TODO(aa): This only returns correct results for extensions and packaged
   // apps, not hosted apps.
+  // TODO(https://crbug.com/334991035): Remove this method.
   virtual scoped_refptr<content::SiteInstance> GetSiteInstanceForURL(
       const GURL& url);
 
@@ -96,7 +128,7 @@ class ProcessManager : public KeyedService,
   // Returns all RenderFrameHosts that are registered for the specified
   // extension.
   ProcessManager::FrameSet GetRenderFrameHostsForExtension(
-      const std::string& extension_id);
+      const ExtensionId& extension_id);
 
   bool IsRenderFrameHostRegistered(content::RenderFrameHost* render_frame_host);
 
@@ -116,17 +148,17 @@ class ProcessManager : public KeyedService,
 
   // Gets the ExtensionHost for the background page for an extension, or null if
   // the extension isn't running or doesn't have a background page.
-  ExtensionHost* GetBackgroundHostForExtension(const std::string& extension_id);
+  ExtensionHost* GetBackgroundHostForExtension(const ExtensionId& extension_id);
 
   // Returns the background page ExtensionHost for the given
-  // |render_frame_host|, if |render_frame_host| is in primary main frame and
+  // `render_frame_host`, if `render_frame_host` is in primary main frame and
   // within the extension's background.
   ExtensionHost* GetBackgroundHostForRenderFrameHost(
       content::RenderFrameHost* render_frame_host);
 
   // Returns true if the (lazy) background host for the given extension has
   // already been sent the unload event and is shutting down.
-  bool IsBackgroundHostClosing(const std::string& extension_id);
+  bool IsBackgroundHostClosing(const ExtensionId& extension_id);
 
   // Returns the extension associated with the specified RenderFrameHost,
   // or null.
@@ -134,7 +166,7 @@ class ProcessManager : public KeyedService,
       content::RenderFrameHost* render_frame_host);
 
   // Returns the extension associated with the main frame of the given
-  // |web_contents|, or null if there isn't one.
+  // `web_contents`, or null if there isn't one.
   const Extension* GetExtensionForWebContents(
       content::WebContents* web_contents);
 
@@ -142,7 +174,7 @@ class ProcessManager : public KeyedService,
   // the count of how many outstanding "things" are keeping the page alive.
   // When this reaches 0, we will begin the process of shutting down the page.
   // "Things" include pending events, resource loads, and API calls.
-  // Returns -1 if |extension| does not have a lazy background page.
+  // Returns -1 if `extension` does not have a lazy background page.
   // The calls to increment and decrement the count also accept a category
   // of activity and an extra string of data. These are kept so there is
   // more information for the counts. See the Activity struct definition
@@ -159,19 +191,19 @@ class ProcessManager : public KeyedService,
   void NotifyExtensionProcessTerminated(const Extension* extension);
 
   // Methods to increment or decrement the ref-count of a specified service
-  // worker with id |worker_id|.
+  // worker with id `worker_id`.
   // The increment method returns the guid that needs to be passed to the
   // decrement method.
-  // |timeout_type| is the SW's timeout behavior.
-  std::string IncrementServiceWorkerKeepaliveCount(
+  // `timeout_type` is the SW's timeout behavior.
+  base::Uuid IncrementServiceWorkerKeepaliveCount(
       const WorkerId& worker_id,
       content::ServiceWorkerExternalRequestTimeoutType timeout_type,
       Activity::Type activity_type,
       const std::string& extra_data);
-  // Decrements the ref-count of the specified worker with |worker_id| that
-  // had its ref-count incremented with |request_uuid|.
+  // Decrements the ref-count of the specified worker with `worker_id` that
+  // had its ref-count incremented with `request_uuid`.
   void DecrementServiceWorkerKeepaliveCount(const WorkerId& worker_id,
-                                            const std::string& request_uuid,
+                                            const base::Uuid& request_uuid,
                                             Activity::Type activity_type,
                                             const std::string& extra_data);
 
@@ -183,7 +215,7 @@ class ProcessManager : public KeyedService,
 
   // Handles a response to the ShouldSuspend message, used for lazy background
   // pages.
-  void OnShouldSuspendAck(const std::string& extension_id,
+  void OnShouldSuspendAck(const ExtensionId& extension_id,
                           uint64_t sequence_id);
 
   // Tracks network requests for a given RenderFrameHost, used to know
@@ -193,17 +225,24 @@ class ProcessManager : public KeyedService,
   void NetworkRequestDone(content::RenderFrameHost* render_frame_host,
                           uint64_t request_id);
 
-  // Prevents |extension|'s background page from being closed and sends the
+  // Prevents `extension`'s background page from being closed and sends the
   // onSuspendCanceled() event to it.
   void CancelSuspend(const Extension* extension);
 
   // Called on shutdown to close our extension hosts.
   void CloseBackgroundHosts();
 
-  // EventPageTracker implementation.
-  bool IsEventPageSuspended(const std::string& extension_id) override;
-  bool WakeEventPage(const std::string& extension_id,
-                     base::OnceCallback<void(bool)> callback) override;
+  // Wakes an extension's event page from a suspended state and calls
+  // `callback` after it is reactivated.
+  //
+  // `callback` will be passed true if the extension was reactivated
+  // successfully, or false if an error occurred.
+  //
+  // Returns true if a wake operation was scheduled successfully,
+  // or false if the event page was already awake.
+  // Callback will be run asynchronously if true, and never run if false.
+  bool WakeEventPage(const ExtensionId& extension_id,
+                     base::OnceCallback<void(bool)> callback);
 
   // Sets the time in milliseconds that an extension event page can
   // be idle before it is shut down; must be > 0.
@@ -215,18 +254,6 @@ class ProcessManager : public KeyedService,
   static void SetEventPageSuspendingTimeForTesting(
       unsigned suspending_time_msec);
 
-  // Creates a non-incognito instance for tests. |registry| allows unit tests
-  // to inject an ExtensionRegistry that is not managed by the usual
-  // BrowserContextKeyedServiceFactory system.
-  static ProcessManager* CreateForTesting(content::BrowserContext* context,
-                                          ExtensionRegistry* registry);
-
-  // Creates an incognito-context instance for tests.
-  static ProcessManager* CreateIncognitoForTesting(
-      content::BrowserContext* incognito_context,
-      content::BrowserContext* original_context,
-      ExtensionRegistry* registry);
-
   content::BrowserContext* browser_context() const { return browser_context_; }
 
   const ExtensionHostSet& background_hosts() const {
@@ -234,17 +261,25 @@ class ProcessManager : public KeyedService,
   }
 
   // Returns true if this ProcessManager has registered any worker with id
-  // |worker_id|.
+  // `worker_id`.
   bool HasServiceWorker(const WorkerId& worker_id) const;
 
   // Returns all the Service Worker infos that is active for the extension with
-  // |extension_id|.
+  // `extension_id`.
   std::vector<WorkerId> GetServiceWorkersForExtension(
       const ExtensionId& extension_id) const;
 
   // Returns the context ID for the given `worker_id`, if `worker_id` is
   // registered in the process manager. Otherwise, returns an empty base::Uuid.
   base::Uuid GetContextIdForWorker(const WorkerId& worker_id) const;
+
+  // Returns the active service worker keepalives for the given `extension_id`.
+  // Note: This should be used for debugging and metrics purposes; callers
+  // should only interact with the service worker keepalives they themselves
+  // created via IncrementServiceWorkerKeepaliveCount().
+  std::vector<ServiceWorkerKeepaliveData>
+  GetServiceWorkerKeepaliveDataForRecords(
+      const ExtensionId& extension_id) const;
 
   bool startup_background_hosts_created_for_test() const {
     return startup_background_hosts_created_;
@@ -253,22 +288,10 @@ class ProcessManager : public KeyedService,
   std::vector<WorkerId> GetAllWorkersIdsForTesting();
 
  protected:
-  static ProcessManager* Create(content::BrowserContext* context);
-
-  // |context| is incognito pass the original context as |original_context|.
-  // Otherwise pass the same context for both. Pass the ExtensionRegistry for
-  // |context| as |registry|, or override it for testing.
-  ProcessManager(content::BrowserContext* context,
-                 content::BrowserContext* original_context,
-                 ExtensionRegistry* registry);
-
   // Not owned. Also used by IncognitoProcessManager.
   raw_ptr<ExtensionRegistry> extension_registry_;
 
  private:
-  friend class ProcessManagerFactory;
-  friend class ProcessManagerTest;
-
   // ExtensionRegistryObserver:
   void OnExtensionLoaded(content::BrowserContext* browser_context,
                          const Extension* extension) override;
@@ -295,14 +318,14 @@ class ProcessManager : public KeyedService,
   // should be loaded.
   void CreateStartupBackgroundHosts();
 
-  // Called just after |host| is created so it can be registered in our lists.
+  // Called just after `host` is created so it can be registered in our lists.
   void OnBackgroundHostCreated(ExtensionHost* host);
 
   // Handles a request from a created extension host to close the contents.
   // This happens in cases such as the contents calling `window.close()`.
   void HandleCloseExtensionHost(ExtensionHost* host);
 
-  // Close the given |host| iff it's a background page.
+  // Close the given `host` iff it's a background page.
   void CloseBackgroundHost(ExtensionHost* host);
 
   // If the frame isn't keeping the lazy background page alive, increments the
@@ -316,18 +339,18 @@ class ProcessManager : public KeyedService,
       content::RenderFrameHost* render_frame_host);
 
   // Internal implementation of DecrementLazyKeepaliveCount with an
-  // |extension_id| known to have a lazy background page.
-  void DecrementLazyKeepaliveCount(const std::string& extension_id);
-  void DecrementLazyKeepaliveCount(const std::string& extension_id,
+  // `extension_id` known to have a lazy background page.
+  void DecrementLazyKeepaliveCount(const ExtensionId& extension_id);
+  void DecrementLazyKeepaliveCount(const ExtensionId& extension_id,
                                    Activity::Type activity_type,
                                    const std::string& extra_data);
 
   // These are called when the extension transitions between idle and active.
   // They control the process of closing the background page when idle.
-  void OnLazyBackgroundPageIdle(const std::string& extension_id,
+  void OnLazyBackgroundPageIdle(const ExtensionId& extension_id,
                                 uint64_t sequence_id);
-  void OnLazyBackgroundPageActive(const std::string& extension_id);
-  void CloseLazyBackgroundPageNow(const std::string& extension_id,
+  void OnLazyBackgroundPageActive(const ExtensionId& extension_id);
+  void CloseLazyBackgroundPageNow(const ExtensionId& extension_id,
                                   uint64_t sequence_id);
 
   const Extension* GetExtensionForAgentHost(
@@ -341,14 +364,14 @@ class ProcessManager : public KeyedService,
 
   // Unregister RenderFrameHosts and clear background page data for an extension
   // which has been unloaded.
-  void UnregisterExtension(const std::string& extension_id);
+  void UnregisterExtension(const ExtensionId& extension_id);
 
   // Clears background page data for this extension.
-  void ClearBackgroundPageData(const std::string& extension_id);
+  void ClearBackgroundPageData(const ExtensionId& extension_id);
 
   // Handles a response to the SuspendExtension Mojo method, used for lazy
   // background pages.
-  void OnSuspendAck(const std::string& extension_id);
+  void OnSuspendAck(const ExtensionId& extension_id);
 
   // The set of ExtensionHosts running viewless background extensions.
   ExtensionHostSet background_hosts_;
@@ -356,9 +379,11 @@ class ProcessManager : public KeyedService,
   // A SiteInstance related to the SiteInstance for all extensions in
   // this profile.  We create it in such a way that a new
   // browsing instance is created.  This controls process grouping.
+  // TODO(https://crbug.com/334991035): Remove this member. The //content
+  // layer will properly isolate new extension processes.
   scoped_refptr<content::SiteInstance> site_instance_;
 
-  // The browser context associated with the |site_instance_|.
+  // The browser context associated with the ProcessManager.
   raw_ptr<content::BrowserContext> browser_context_;
 
   // Contains all active extension-related RenderFrameHost instances for all
@@ -366,9 +391,9 @@ class ProcessManager : public KeyedService,
   // information is not accessible at registration/deregistration time.
   ExtensionRenderFrames all_extension_frames_;
 
-  // Contains all active extension Service Worker information for all
+  // Contains all active running extension Service Worker information for all
   // extensions.
-  WorkerIdSet all_extension_workers_;
+  WorkerIdSet all_running_extension_workers_;
   // Maps worker IDs to extension context IDs (as used in the runtime API) for
   // running workers.
   std::map<WorkerId, base::Uuid> worker_context_ids_;
@@ -400,7 +425,8 @@ class ProcessManager : public KeyedService,
   // extension URLRequest is constructed and then destroyed without ever
   // starting, we can receive a completion notification without a corresponding
   // start notification. In that case we want to avoid decrementing keepalive.
-  std::map<int, ExtensionHost*> pending_network_requests_;
+  std::map<int, raw_ptr<ExtensionHost, CtnExperimental>>
+      pending_network_requests_;
 
   // Observers of Service Worker RPH this ProcessManager manages.
   base::ScopedMultiSourceObservation<content::RenderProcessHost,
@@ -409,6 +435,9 @@ class ProcessManager : public KeyedService,
   // Maps render render_process_id -> extension_id for all Service Workers this
   // ProcessManager manages.
   std::map<int, std::set<ExtensionId>> worker_process_to_extension_ids_;
+
+  // A map of the active service worker keepalives.
+  ServiceWorkerKeepaliveDataMap service_worker_keepalives_;
 
   // Must be last member, see doc on WeakPtrFactory.
   base::WeakPtrFactory<ProcessManager> weak_ptr_factory_{this};

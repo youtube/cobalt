@@ -2,9 +2,20 @@
 # Copyright 2016 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+"""Unit tests for device_dependencies.py.
+
+Example usage:
+  vpython3 device_dependencies_test.py
+"""
 
 import os
 import unittest
+
+from pathlib import Path
+import sys
+
+build_android_path = Path(__file__).parents[2]
+sys.path.append(str(build_android_path))
 
 from pylib import constants
 from pylib.utils import device_dependencies
@@ -46,6 +57,33 @@ class DevicePathComponentsForTest(unittest.TestCase):
     self.assertEqual([None, 'paks', 'foo.pak'],
                      device_dependencies.DevicePathComponentsFor(
                          test_path, output_directory))
+
+
+class SubstituteDeviceRootTest(unittest.TestCase):
+
+  def testNoneDevicePath(self):
+    self.assertEqual(
+        '/fake/device/root',
+        device_dependencies.SubstituteDeviceRootSingle(None,
+                                                       '/fake/device/root'))
+
+  def testStringDevicePath(self):
+    self.assertEqual(
+        '/another/fake/device/path',
+        device_dependencies.SubstituteDeviceRootSingle(
+            '/another/fake/device/path', '/fake/device/root'))
+
+  def testListWithNoneDevicePath(self):
+    self.assertEqual(
+        '/fake/device/root/subpath',
+        device_dependencies.SubstituteDeviceRootSingle([None, 'subpath'],
+                                                       '/fake/device/root'))
+
+  def testListWithoutNoneDevicePath(self):
+    self.assertEqual(
+        '/another/fake/device/path',
+        device_dependencies.SubstituteDeviceRootSingle(
+            ['/', 'another', 'fake', 'device', 'path'], '/fake/device/root'))
 
 
 if __name__ == '__main__':

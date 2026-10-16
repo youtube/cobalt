@@ -5,7 +5,9 @@
 # This Makefile is used by debhelper, which supplies the appropriate value of
 # variables not defined here, such as DESTDIR.
 
-SRC_DIR = ../../../..
+ifndef SRC_DIR
+  SRC_DIR = ../../../..
+endif
 ifndef BUILD_DIR
   BUILD_DIR = $(SRC_DIR)/out/Release
 endif
@@ -17,9 +19,14 @@ INSTALL_DIR = $(DESTDIR)/opt/google/chrome-remote-desktop
 CHROME_NATIVE_MESSAGING_DIR = $(DESTDIR)/etc/opt/chrome/native-messaging-hosts
 FIREFOX_NATIVE_MESSAGING_DIR = $(DESTDIR)/usr/lib/mozilla/native-messaging-hosts
 SYSTEM_WIDE_DESKTOP_ENTRIES_DIR = $(DESTDIR)/usr/share/applications
+WIREPLUMBER_CONFIG_DIR = $(DESTDIR)/usr/share/wireplumber/wireplumber.conf.d
 
 CORE_LIBNAME = $(BUILD_DIR)/libremoting_core.so
 CORE_DEBUGFILE = $(CORE_LIBNAME).debug
+CRASH_UPLOADER_PROGNAME = $(BUILD_DIR)/remoting_crash_uploader
+CRASH_UPLOADER_DEBUGFILE = $(CRASH_UPLOADER_PROGNAME).debug
+CRASHPAD_DB_PROGNAME = $(BUILD_DIR)/remoting_crashpad_db
+CRASHPAD_HANDLER_PROGNAME = $(BUILD_DIR)/remoting_crashpad_handler
 ME2ME_PROGNAME = $(BUILD_DIR)/remoting_me2me_host
 ME2ME_DEBUGFILE = $(ME2ME_PROGNAME).debug
 START_PROGNAME = $(BUILD_DIR)/remoting_start_host
@@ -49,6 +56,7 @@ install:
 	install -d "$(CHROME_NATIVE_MESSAGING_DIR)"
 	install -d "$(FIREFOX_NATIVE_MESSAGING_DIR)"
 	install -d "$(SYSTEM_WIDE_DESKTOP_ENTRIES_DIR)"
+	install -d "$(WIREPLUMBER_CONFIG_DIR)"
 
 	install "$(SRC_DIR)/remoting/host/linux/linux_me2me_host.py" \
 	  "$(INSTALL_DIR)/chrome-remote-desktop"
@@ -58,6 +66,19 @@ install:
 	  "$(INSTALL_DIR)"
 	install "$(SRC_DIR)/remoting/host/linux/configure_url_forwarder.py" \
 	  "$(INSTALL_DIR)/configure-url-forwarder"
+
+	install -m 0644 \
+	  "$(SRC_DIR)/remoting/host/linux/pipewire.conf.template" \
+	  "$(INSTALL_DIR)/pipewire.conf.template"
+	install -m 0644 \
+	  "$(SRC_DIR)/remoting/host/linux/pipewire-media-session.conf.template" \
+	  "$(INSTALL_DIR)/pipewire-media-session.conf.template"
+	install -m 0644 \
+	  "$(SRC_DIR)/remoting/host/linux/pipewire-pulse.conf.template" \
+	  "$(INSTALL_DIR)/pipewire-pulse.conf.template"
+	install -m 0644 \
+	  "$(SRC_DIR)/remoting/host/linux/wireplumber.conf.template" \
+	  "$(INSTALL_DIR)/wireplumber.conf.template"
 
 	install -m 0644 \
 	  "$(BUILD_DIR)/remoting/com.google.chrome.remote_desktop.json" \
@@ -78,6 +99,19 @@ install:
 
 	install "$(CORE_LIBNAME)" "$(INSTALL_DIR)/libremoting_core.so"
 	eu-strip -f "$(CORE_DEBUGFILE)" "$(INSTALL_DIR)/libremoting_core.so"
+
+ifneq ("$(wildcard $(CRASH_UPLOADER_PROGNAME))", "")
+	install "$(CRASH_UPLOADER_PROGNAME)" "$(INSTALL_DIR)/crash-uploader"
+	eu-strip -f "$(CRASH_UPLOADER_DEBUGFILE)" "$(INSTALL_DIR)/crash-uploader"
+endif
+
+ifneq ("$(wildcard $(CRASHPAD_HANDLER_PROGNAME))", "")
+	install "$(CRASHPAD_HANDLER_PROGNAME)" "$(INSTALL_DIR)/crashpad-handler"
+endif
+
+ifneq ("$(wildcard $(CRASHPAD_DB_PROGNAME))", "")
+	install "$(CRASHPAD_DB_PROGNAME)" "$(INSTALL_DIR)/crashpad-db"
+endif
 
 	install "$(ME2ME_PROGNAME)" \
 	  "$(INSTALL_DIR)/chrome-remote-desktop-host"
@@ -132,3 +166,7 @@ install:
 
 	install -m 0644 \
           "$(BUILD_DIR)/gen/remoting/CREDITS.txt" "$(DOC_DIR)/CREDITS.txt"
+
+	install -m 0644 \
+          "$(SRC_DIR)/remoting/host/linux/wireplumber.conf.fragment" \
+	  "$(WIREPLUMBER_CONFIG_DIR)/chrome-remote-desktop.conf"

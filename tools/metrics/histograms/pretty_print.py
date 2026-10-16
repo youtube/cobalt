@@ -57,23 +57,6 @@ def canonicalizeUnits(tree):
   for child in tree:
     canonicalizeUnits(child)
 
-def fixObsoleteOrder(tree):
-  """Put obsolete tags at the beginning of histogram tags."""
-  obsoletes = []
-
-  for child in tree:
-    if child.tag == 'obsolete':
-      obsoletes.append(child)
-    else:
-      fixObsoleteOrder(child)
-
-  for obsolete in obsoletes:
-    tree.remove(obsolete)
-
-  # Only keep the first obsolete tag.
-  if obsoletes:
-    tree.insert(0, obsoletes[0])
-
 def DropNodesByTagName(tree, tag, dropped_nodes=[]):
   """Drop all nodes with named tag from the XML tree."""
   removes = []
@@ -151,7 +134,6 @@ def PrettyPrintHistogramsTree(tree):
   DropNodesByTagName(tree, 'enums')
   FixMisplacedHistogramsAndHistogramSuffixes(tree)
   canonicalizeUnits(tree)
-  fixObsoleteOrder(tree)
   return histogram_configuration_model.PrettifyTree(tree)
 
 
@@ -192,7 +174,7 @@ def main():
 
   status = 0
   if 'enums.xml' in args.filepath:
-    status = presubmit_util.DoPresubmit(sys.argv, 'enums.xml',
+    status = presubmit_util.DoPresubmit(sys.argv, args.filepath,
                                         'enums.before.pretty-print.xml',
                                         PrettyPrintEnums)
 

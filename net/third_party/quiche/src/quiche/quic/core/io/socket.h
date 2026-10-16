@@ -5,9 +5,6 @@
 #ifndef QUICHE_QUIC_CORE_IO_SOCKET_H_
 #define QUICHE_QUIC_CORE_IO_SOCKET_H_
 
-#include <functional>
-#include <string>
-
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -15,10 +12,11 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_ip_address_family.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
-#include "quiche/common/platform/api/quiche_export.h"
 
 #if defined(_WIN32)
 #include <winsock2.h>
+#else
+#include <sys/socket.h>
 #endif  // defined(_WIN32)
 
 namespace quic {
@@ -26,9 +24,11 @@ namespace quic {
 #if defined(_WIN32)
 using SocketFd = SOCKET;
 inline constexpr SocketFd kInvalidSocketFd = INVALID_SOCKET;
+inline constexpr int kSocketErrorMsgSize = WSAEMSGSIZE;
 #else
 using SocketFd = int;
 inline constexpr SocketFd kInvalidSocketFd = -1;
+inline constexpr int kSocketErrorMsgSize = EMSGSIZE;
 #endif
 
 // Low-level platform-agnostic socket operations. Closely follows the behavior
@@ -38,6 +38,7 @@ namespace socket_api {
 enum class SocketProtocol {
   kUdp,
   kTcp,
+  kRawIp,
 };
 
 inline absl::string_view GetProtocolName(SocketProtocol protocol) {
@@ -46,12 +47,14 @@ inline absl::string_view GetProtocolName(SocketProtocol protocol) {
       return "UDP";
     case SocketProtocol::kTcp:
       return "TCP";
+    case SocketProtocol::kRawIp:
+      return "RAW_IP";
   }
 
   return "unknown";
 }
 
-struct QUICHE_EXPORT AcceptResult {
+struct AcceptResult {
   // Socket for interacting with the accepted connection.
   SocketFd fd;
 
@@ -71,6 +74,12 @@ absl::Status SetSocketBlocking(SocketFd fd, bool blocking);
 // Sets buffer sizes for socket `fd` to `size` bytes.
 absl::Status SetReceiveBufferSize(SocketFd fd, QuicByteCount size);
 absl::Status SetSendBufferSize(SocketFd fd, QuicByteCount size);
+
+// Only allowed for raw IP sockets. If set, sent data buffers include the IP
+// header. If not set, sent data buffers only contain the IP packet payload, and
+// the header will be generated.
+absl::Status SetIpHeaderIncluded(SocketFd fd, IpAddressFamily address_family,
+                                 bool ip_header_included);
 
 // Connects socket `fd` to `peer_address`.  Returns a status with
 // `absl::StatusCode::kUnavailable` iff the socket is non-blocking and the
@@ -121,6 +130,12 @@ absl::StatusOr<absl::Span<char>> Receive(SocketFd fd, absl::Span<char> buffer,
 // with `absl::StatusCode::kUnavailable` iff the socket is non-blocking and the
 // send operation could not be immediately completed.
 absl::StatusOr<absl::string_view> Send(SocketFd fd, absl::string_view buffer);
+
+// Same as Send() except a specific address (`peer_address`) is specified for
+// where to send the data to. Typically used for non-connected sockets.
+absl::StatusOr<absl::string_view> SendTo(SocketFd fd,
+                                         const QuicSocketAddress& peer_address,
+                                         absl::string_view buffer);
 
 // Closes socket `fd`.
 absl::Status Close(SocketFd fd);

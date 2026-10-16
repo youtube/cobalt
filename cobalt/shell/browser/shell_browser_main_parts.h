@@ -37,7 +37,7 @@ class ShellPlatformDelegate;
 
 class ShellBrowserMainParts : public BrowserMainParts {
  public:
-  ShellBrowserMainParts();
+  explicit ShellBrowserMainParts(const std::string& deep_link, bool is_visible);
 
   ShellBrowserMainParts(const ShellBrowserMainParts&) = delete;
   ShellBrowserMainParts& operator=(const ShellBrowserMainParts&) = delete;
@@ -55,6 +55,10 @@ class ShellBrowserMainParts : public BrowserMainParts {
       std::unique_ptr<base::RunLoop>& run_loop) override;
   void PostMainMessageLoopRun() override;
   void PostDestroyThreads() override;
+
+  // Called to defer tasks (e.g. creating WebContents) until migration is
+  // finished.
+  virtual void PostOrRunIfStorageMigrationFinished(base::OnceClosure task);
 
   ShellBrowserContext* browser_context() { return browser_context_.get(); }
   ShellBrowserContext* off_the_record_browser_context() {
@@ -76,11 +80,14 @@ class ShellBrowserMainParts : public BrowserMainParts {
   }
 
  private:
+  std::string deep_link_;
+
   std::unique_ptr<ShellBrowserContext> browser_context_;
   std::unique_ptr<ShellBrowserContext> off_the_record_browser_context_;
 
   std::unique_ptr<performance_manager::PerformanceManagerLifetime>
       performance_manager_lifetime_;
+  bool is_visible_;
 #if BUILDFLAG(IS_ANDROID)
   std::unique_ptr<crash_reporter::ChildExitObserver> child_exit_observer_;
 #endif

@@ -9,15 +9,17 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.text.TextUtils;
 
-import androidx.annotation.NonNull;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
 import org.chromium.base.SysUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.UnguessableToken;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.paintpreview.browser.NativePaintPreviewServiceProvider;
 import org.chromium.url.GURL;
 
@@ -29,37 +31,62 @@ import java.util.List;
  * Preview compositor.
  */
 @JNINamespace("paint_preview")
+@NullMarked
 public class PlayerCompositorDelegateImpl implements PlayerCompositorDelegate {
     private static final int LOW_MEMORY_THRESHOLD_KB = 2048;
 
-    private CompositorListener mCompositorListener;
+    private final CompositorListener mCompositorListener;
     private long mNativePlayerCompositorDelegate;
-    private List<Runnable> mMemoryPressureListeners = new ArrayList<>();
+    private final List<Runnable> mMemoryPressureListeners = new ArrayList<>();
 
-    public PlayerCompositorDelegateImpl(NativePaintPreviewServiceProvider service,
-            long nativeCaptureResultPtr, GURL url, String directoryKey, boolean mainFrameMode,
-            @NonNull CompositorListener compositorListener,
+    public PlayerCompositorDelegateImpl(
+            NativePaintPreviewServiceProvider service,
+            long nativeCaptureResultPtr,
+            GURL url,
+            String directoryKey,
+            boolean mainFrameMode,
+            CompositorListener compositorListener,
             Callback<Integer> compositorErrorCallback) {
         mCompositorListener = compositorListener;
         if (service != null && service.getNativeBaseService() != 0) {
             TraceEvent.begin("PlayerCompositorDelegateImplJni.initialize()");
-            mNativePlayerCompositorDelegate = PlayerCompositorDelegateImplJni.get().initialize(this,
-                    service.getNativeBaseService(), nativeCaptureResultPtr, url.getSpec(),
-                    directoryKey, mainFrameMode, compositorErrorCallback,
-                    SysUtils.amountOfPhysicalMemoryKB() < LOW_MEMORY_THRESHOLD_KB);
+            mNativePlayerCompositorDelegate =
+                    PlayerCompositorDelegateImplJni.get()
+                            .initialize(
+                                    this,
+                                    service.getNativeBaseService(),
+                                    nativeCaptureResultPtr,
+                                    url.getSpec(),
+                                    directoryKey,
+                                    mainFrameMode,
+                                    compositorErrorCallback,
+                                    SysUtils.amountOfPhysicalMemoryKB() < LOW_MEMORY_THRESHOLD_KB);
             TraceEvent.end("PlayerCompositorDelegateImplJni.initialize()");
         }
-        // TODO(crbug.com/1021590): Handle initialization errors when
+        // TODO(crbug.com/40106234): Handle initialization errors when
         // mNativePlayerCompositorDelegate == 0.
     }
 
     @CalledByNative
-    void onCompositorReady(UnguessableToken rootFrameGuid, UnguessableToken[] frameGuids,
-            int[] frameContentSize, int[] scrollOffsets, int[] subFramesCount,
-            UnguessableToken[] subFrameGuids, int[] subFrameClipRects, float pageScaleFactor,
+    void onCompositorReady(
+            @JniType("base::UnguessableToken") UnguessableToken rootFrameGuid,
+            @JniType("std::vector<base::UnguessableToken>") UnguessableToken[] frameGuids,
+            @JniType("std::vector") int[] frameContentSize,
+            @JniType("std::vector") int[] scrollOffsets,
+            @JniType("std::vector") int[] subFramesCount,
+            @JniType("std::vector<base::UnguessableToken>") UnguessableToken[] subFrameGuids,
+            @JniType("std::vector") int[] subFrameClipRects,
+            float pageScaleFactor,
             long nativeAxTree) {
-        mCompositorListener.onCompositorReady(rootFrameGuid, frameGuids, frameContentSize,
-                scrollOffsets, subFramesCount, subFrameGuids, subFrameClipRects, pageScaleFactor,
+        mCompositorListener.onCompositorReady(
+                rootFrameGuid,
+                frameGuids,
+                frameContentSize,
+                scrollOffsets,
+                subFramesCount,
+                subFrameGuids,
+                subFrameClipRects,
+                pageScaleFactor,
                 nativeAxTree);
     }
 
@@ -76,19 +103,34 @@ public class PlayerCompositorDelegateImpl implements PlayerCompositorDelegate {
     }
 
     @Override
-    public int requestBitmap(UnguessableToken frameGuid, Rect clipRect, float scaleFactor,
-            Callback<Bitmap> bitmapCallback, Runnable errorCallback) {
+    public int requestBitmap(
+            @Nullable UnguessableToken frameGuid,
+            Rect clipRect,
+            float scaleFactor,
+            Callback<Bitmap> bitmapCallback,
+            Runnable errorCallback) {
         if (mNativePlayerCompositorDelegate == 0) {
             return -1;
         }
 
-        return PlayerCompositorDelegateImplJni.get().requestBitmap(mNativePlayerCompositorDelegate,
-                frameGuid, bitmapCallback, errorCallback, scaleFactor, clipRect.left, clipRect.top,
-                clipRect.width(), clipRect.height());
+        return PlayerCompositorDelegateImplJni.get()
+                .requestBitmap(
+                        mNativePlayerCompositorDelegate,
+                        frameGuid,
+                        bitmapCallback,
+                        errorCallback,
+                        scaleFactor,
+                        clipRect.left,
+                        clipRect.top,
+                        clipRect.width(),
+                        clipRect.height());
     }
 
     @Override
-    public int requestBitmap(Rect clipRect, float scaleFactor, Callback<Bitmap> bitmapCallback,
+    public int requestBitmap(
+            Rect clipRect,
+            float scaleFactor,
+            Callback<Bitmap> bitmapCallback,
             Runnable errorCallback) {
         return requestBitmap(null, clipRect, scaleFactor, bitmapCallback, errorCallback);
     }
@@ -99,8 +141,8 @@ public class PlayerCompositorDelegateImpl implements PlayerCompositorDelegate {
             return false;
         }
 
-        return PlayerCompositorDelegateImplJni.get().cancelBitmapRequest(
-                mNativePlayerCompositorDelegate, requestId);
+        return PlayerCompositorDelegateImplJni.get()
+                .cancelBitmapRequest(mNativePlayerCompositorDelegate, requestId);
     }
 
     @Override
@@ -109,18 +151,19 @@ public class PlayerCompositorDelegateImpl implements PlayerCompositorDelegate {
             return;
         }
 
-        PlayerCompositorDelegateImplJni.get().cancelAllBitmapRequests(
-                mNativePlayerCompositorDelegate);
+        PlayerCompositorDelegateImplJni.get()
+                .cancelAllBitmapRequests(mNativePlayerCompositorDelegate);
     }
 
     @Override
-    public GURL onClick(UnguessableToken frameGuid, int x, int y) {
+    public @Nullable GURL onClick(UnguessableToken frameGuid, int x, int y) {
         if (mNativePlayerCompositorDelegate == 0) {
             return null;
         }
 
-        String url = PlayerCompositorDelegateImplJni.get().onClick(
-                mNativePlayerCompositorDelegate, frameGuid, x, y);
+        String url =
+                PlayerCompositorDelegateImplJni.get()
+                        .onClick(mNativePlayerCompositorDelegate, frameGuid, x, y);
         if (TextUtils.isEmpty(url)) return null;
 
         return new GURL(url);
@@ -132,8 +175,9 @@ public class PlayerCompositorDelegateImpl implements PlayerCompositorDelegate {
             return new Point();
         }
 
-        int[] offsets = PlayerCompositorDelegateImplJni.get().getRootFrameOffsets(
-                mNativePlayerCompositorDelegate);
+        int[] offsets =
+                PlayerCompositorDelegateImplJni.get()
+                        .getRootFrameOffsets(mNativePlayerCompositorDelegate);
         return new Point(offsets[0], offsets[1]);
     }
 
@@ -143,8 +187,8 @@ public class PlayerCompositorDelegateImpl implements PlayerCompositorDelegate {
             return;
         }
 
-        PlayerCompositorDelegateImplJni.get().setCompressOnClose(
-                mNativePlayerCompositorDelegate, compressOnClose);
+        PlayerCompositorDelegateImplJni.get()
+                .setCompressOnClose(mNativePlayerCompositorDelegate, compressOnClose);
     }
 
     @Override
@@ -159,18 +203,43 @@ public class PlayerCompositorDelegateImpl implements PlayerCompositorDelegate {
 
     @NativeMethods
     interface Natives {
-        long initialize(PlayerCompositorDelegateImpl caller, long nativePaintPreviewBaseService,
-                long captureResultPtr, String urlSpec, String directoryKey, boolean mainFrameMode,
-                Callback<Integer> compositorErrorCallback, boolean isLowMemory);
+        long initialize(
+                PlayerCompositorDelegateImpl caller,
+                long nativePaintPreviewBaseService,
+                long captureResultPtr,
+                String urlSpec,
+                String directoryKey,
+                boolean mainFrameMode,
+                Callback<Integer> compositorErrorCallback,
+                boolean isLowMemory);
+
         void destroy(long nativePlayerCompositorDelegateAndroid);
-        int requestBitmap(long nativePlayerCompositorDelegateAndroid, UnguessableToken frameGuid,
-                Callback<Bitmap> bitmapCallback, Runnable errorCallback, float scaleFactor,
-                int clipX, int clipY, int clipWidth, int clipHeight);
+
+        int requestBitmap(
+                long nativePlayerCompositorDelegateAndroid,
+                @JniType("std::optional<base::UnguessableToken>")
+                        @Nullable UnguessableToken frameGuid,
+                Callback<Bitmap> bitmapCallback,
+                Runnable errorCallback,
+                float scaleFactor,
+                int clipX,
+                int clipY,
+                int clipWidth,
+                int clipHeight);
+
         boolean cancelBitmapRequest(long nativePlayerCompositorDelegateAndroid, int requestId);
+
         void cancelAllBitmapRequests(long nativePlayerCompositorDelegateAndroid);
-        String onClick(long nativePlayerCompositorDelegateAndroid, UnguessableToken frameGuid,
-                int x, int y);
+
+        String onClick(
+                long nativePlayerCompositorDelegateAndroid,
+                @JniType("std::optional<base::UnguessableToken>")
+                        @Nullable UnguessableToken frameGuid,
+                int x,
+                int y);
+
         int[] getRootFrameOffsets(long nativePlayerCompositorDelegateAndroid);
+
         void setCompressOnClose(
                 long nativePlayerCompositorDelegateAndroid, boolean compressOnClose);
     }

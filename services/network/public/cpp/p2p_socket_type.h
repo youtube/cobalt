@@ -18,9 +18,10 @@
 namespace network {
 
 enum P2PSocketOption {
-  P2P_SOCKET_OPT_RCVBUF,  // Receive buffer size.
-  P2P_SOCKET_OPT_SNDBUF,  // Send buffer size.
-  P2P_SOCKET_OPT_DSCP,    // DSCP code.
+  P2P_SOCKET_OPT_RCVBUF,    // Receive buffer size.
+  P2P_SOCKET_OPT_SNDBUF,    // Send buffer size.
+  P2P_SOCKET_OPT_DSCP,      // DSCP code.
+  P2P_SOCKET_OPT_RECV_ECN,  // Enable ECN receiving.
   P2P_SOCKET_OPT_MAX
 };
 
@@ -66,7 +67,7 @@ struct P2PSendPacketMetrics {
   int32_t rtc_packet_id = -1;
 
   // The time the packet was sent. Should be set using the webrtc clock
-  // rtc::TimeMillis()
+  // webrtc::TimeMillis()
   int64_t send_time_ms = -1;
 };
 
@@ -86,13 +87,13 @@ struct P2PPortRange {
 struct P2PPacketInfo {
   P2PPacketInfo() {}
   P2PPacketInfo(const net::IPEndPoint& destination,
-                const rtc::PacketOptions& packet_options,
+                const webrtc::AsyncSocketPacketOptions& packet_options,
                 uint64_t packet_id)
       : destination(destination),
         packet_options(packet_options),
         packet_id(packet_id) {}
   net::IPEndPoint destination;
-  rtc::PacketOptions packet_options;
+  webrtc::AsyncSocketPacketOptions packet_options;
   uint64_t packet_id;
 };
 

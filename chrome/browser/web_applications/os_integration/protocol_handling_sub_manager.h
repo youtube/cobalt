@@ -11,31 +11,31 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_sub_manager.h"
 #include "chrome/browser/web_applications/proto/web_app_os_integration_state.pb.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "components/webapps/common/web_app_id.h"
 
 namespace web_app {
 
-class WebAppRegistrar;
+class WebAppProvider;
 
 class ProtocolHandlingSubManager : public OsIntegrationSubManager {
  public:
   ProtocolHandlingSubManager(const base::FilePath& profile_path,
-                             WebAppRegistrar& registrar);
+                             WebAppProvider& provider);
   ~ProtocolHandlingSubManager() override;
-  void Configure(const AppId& app_id,
-                 proto::WebAppOsIntegrationState& desired_state,
+  void Configure(const webapps::AppId& app_id,
+                 proto::os_state::WebAppOsIntegration& desired_state,
                  base::OnceClosure configure_done) override;
-  void Execute(const AppId& app_id,
-               const absl::optional<SynchronizeOsOptions>& synchronize_options,
-               const proto::WebAppOsIntegrationState& desired_state,
-               const proto::WebAppOsIntegrationState& current_state,
+  void Execute(const webapps::AppId& app_id,
+               const std::optional<SynchronizeOsOptions>& synchronize_options,
+               const proto::os_state::WebAppOsIntegration& desired_state,
+               const proto::os_state::WebAppOsIntegration& current_state,
                base::OnceClosure callback) override;
-  void ForceUnregister(const AppId& app_id,
+  void ForceUnregister(const webapps::AppId& app_id,
                        base::OnceClosure callback) override;
 
  private:
   const base::FilePath profile_path_;
-  const raw_ref<WebAppRegistrar> registrar_;
+  const raw_ref<WebAppProvider> provider_;
 
   base::WeakPtrFactory<ProtocolHandlingSubManager> weak_ptr_factory_{this};
 };

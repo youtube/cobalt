@@ -4,6 +4,8 @@
 
 package org.chromium.components.webapps;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -12,8 +14,10 @@ import android.os.Build;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -24,6 +28,8 @@ import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogManager;
@@ -34,37 +40,47 @@ import org.chromium.ui.modelutil.PropertyModel;
  * Displays the "Add to Homescreen" dialog, which contains a (possibly editable) title, icon, and
  * possibly an origin.
  *
- * When the constructor is called, the dialog is shown immediately. A spinner is displayed if any
+ * <p>When the constructor is called, the dialog is shown immediately. A spinner is displayed if any
  * data is not yet fetched, and accepting the dialog is disabled until all data is available and in
  * its place on the screen.
  */
+@NullMarked
 public class AddToHomescreenDialogView
         implements View.OnClickListener, ModalDialogProperties.Controller {
     private PropertyModel mDialogModel;
-    private ModalDialogManager mModalDialogManager;
-    @VisibleForTesting
-    protected AddToHomescreenViewDelegate mDelegate;
+    private final ModalDialogManager mModalDialogManager;
+    @VisibleForTesting protected AddToHomescreenViewDelegate mDelegate;
 
-    private View mParentView;
+    private final View mParentView;
+
     /**
      * {@link #mShortcutTitleInput} and the {@link #mAppLayout} are mutually exclusive, depending on
      * whether the home screen item is a bookmark shortcut or a web/native app.
      */
-    private EditText mShortcutTitleInput;
-    private LinearLayout mAppLayout;
-    private TextView mAppNameView;
-    private TextView mAppOriginView;
-    private RatingBar mAppRatingBar;
-    private ImageView mPlayLogoView;
+    private final EditText mShortcutTitleInput;
 
-    private View mProgressBarView;
-    private ImageView mIconView;
+    private final LinearLayout mAppLayout;
+    private final TextView mAppNameView;
+    private final EditText mHomebrewAppNameInput;
+    private final TextView mAppOriginView;
+    private final RatingBar mAppRatingBar;
+    private final ImageView mPlayLogoView;
 
+    private final View mProgressBarView;
+    private final ImageView mIconView;
+
+    private @AppType int mAppType;
     private boolean mCanSubmit;
 
+    private final String mInstallTitleText;
+    private final String mInstallButtonText;
+    private final String mAddTitleText;
+    private final String mAddButtonText;
+
     @VisibleForTesting
-    public AddToHomescreenDialogView(Context context, ModalDialogManager modalDialogManager,
-            AppBannerManager.InstallStringPair installStrings,
+    public AddToHomescreenDialogView(
+            Context context,
+            ModalDialogManager modalDialogManager,
             AddToHomescreenViewDelegate delegate) {
         assert delegate != null;
 
@@ -74,61 +90,108 @@ public class AddToHomescreenDialogView
 
         mProgressBarView = mParentView.findViewById(R.id.spinny);
         mIconView = (ImageView) mParentView.findViewById(R.id.icon);
-        mShortcutTitleInput = mParentView.findViewById(R.id.text);
-        mAppLayout = (LinearLayout) mParentView.findViewById(R.id.app_info);
 
-        mAppNameView = (TextView) mAppLayout.findViewById(R.id.name);
+        mShortcutTitleInput = mParentView.findViewById(R.id.shortcut_name);
+        mShortcutTitleInput.setOnEditorActionListener(
+                (TextView v, int actionId, KeyEvent event) -> {
+                    if (actionId == EditorInfo.IME_ACTION_DONE) {
+                        if (!mDialogModel.get(ModalDialogProperties.POSITIVE_BUTTON_DISABLED)) {
+                            onClick(mDialogModel, ModalDialogProperties.ButtonType.POSITIVE);
+                        }
+                        return true;
+                    }
+                    return false;
+                });
+
+        mAppLayout = (LinearLayout) mParentView.findViewById(R.id.app_info);
+        mAppNameView = (TextView) mAppLayout.findViewById(R.id.app_name);
+        mHomebrewAppNameInput = mAppLayout.findViewById(R.id.homebrew_name);
         mAppOriginView = (TextView) mAppLayout.findViewById(R.id.origin);
         mAppRatingBar = (RatingBar) mAppLayout.findViewById(R.id.control_rating);
         mPlayLogoView = (ImageView) mParentView.findViewById(R.id.play_logo);
 
-        mAppNameView.setOnClickListener(this);
-        mIconView.setOnClickListener(this);
-
-        mParentView.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
-            @Override
-            public void onLayoutChange(View v, int left, int top, int right, int bottom,
-                    int oldLeft, int oldTop, int oldRight, int oldBottom) {
-                if (mProgressBarView.getMeasuredHeight() == mShortcutTitleInput.getMeasuredHeight()
-                        && mShortcutTitleInput.getBackground() != null) {
-                    // Force the text field to align better with the icon by accounting for the
-                    // padding introduced by the background drawable.
-                    mShortcutTitleInput.getLayoutParams().height =
-                            mProgressBarView.getMeasuredHeight()
-                            + mShortcutTitleInput.getPaddingBottom();
-                    ViewUtils.requestLayout(v,
-                            "AddToHomescreenDialogView.<init>.OnLayoutChangeListener.onLayoutChange");
-                    v.removeOnLayoutChangeListener(this);
-                }
-            }
-        });
+        mParentView.addOnLayoutChangeListener(
+                new View.OnLayoutChangeListener() {
+                    @Override
+                    public void onLayoutChange(
+                            View v,
+                            int left,
+                            int top,
+                            int right,
+                            int bottom,
+                            int oldLeft,
+                            int oldTop,
+                            int oldRight,
+                            int oldBottom) {
+                        if (mProgressBarView.getMeasuredHeight()
+                                        == mShortcutTitleInput.getMeasuredHeight()
+                                && mShortcutTitleInput.getBackground() != null) {
+                            // Force the text field to align better with the icon by accounting for
+                            // the padding introduced by the background drawable.
+                            mShortcutTitleInput.getLayoutParams().height =
+                                    mProgressBarView.getMeasuredHeight()
+                                            + mShortcutTitleInput.getPaddingBottom();
+                            String caller =
+                                    "AddToHomescreenDialogView.<init>."
+                                            + "OnLayoutChangeListener.onLayoutChange";
+                            ViewUtils.requestLayout(v, caller);
+                            v.removeOnLayoutChangeListener(this);
+                        }
+                    }
+                });
 
         // The "Add" button should be disabled if the dialog's text field is empty.
-        mShortcutTitleInput.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+        mShortcutTitleInput.addTextChangedListener(
+                new TextWatcher() {
+                    @Override
+                    public void onTextChanged(CharSequence s, int start, int before, int count) {}
 
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                    @Override
+                    public void beforeTextChanged(
+                            CharSequence s, int start, int count, int after) {}
 
-            @Override
-            public void afterTextChanged(Editable editableText) {
-                updateInstallButton();
-            }
-        });
+                    @Override
+                    public void afterTextChanged(Editable editableText) {
+                        updateInstallButton();
+                    }
+                });
+
+        mHomebrewAppNameInput.addTextChangedListener(
+                new TextWatcher() {
+                    @Override
+                    public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+                    @Override
+                    public void beforeTextChanged(
+                            CharSequence s, int start, int count, int after) {}
+
+                    @Override
+                    public void afterTextChanged(Editable editableText) {
+                        updateInstallButton();
+                    }
+                });
 
         Resources resources = context.getResources();
+        mInstallTitleText = resources.getString(R.string.menu_install_webapp);
+        mInstallButtonText = resources.getString(R.string.app_banner_install);
+        mAddTitleText = resources.getString(R.string.pwa_uni_install_option_shortcut);
+        mAddButtonText = resources.getString(R.string.add);
+
         mDialogModel =
                 new PropertyModel.Builder(ModalDialogProperties.ALL_KEYS)
                         .with(ModalDialogProperties.CONTROLLER, this)
-                        .with(ModalDialogProperties.TITLE, resources, installStrings.titleTextId)
-                        .with(ModalDialogProperties.POSITIVE_BUTTON_TEXT, resources,
-                                installStrings.buttonTextId)
+                        .with(ModalDialogProperties.TITLE, mAddTitleText)
+                        .with(ModalDialogProperties.POSITIVE_BUTTON_TEXT, mAddButtonText)
                         .with(ModalDialogProperties.POSITIVE_BUTTON_DISABLED, true)
-                        .with(ModalDialogProperties.NEGATIVE_BUTTON_TEXT, resources,
+                        .with(
+                                ModalDialogProperties.NEGATIVE_BUTTON_TEXT,
+                                resources,
                                 R.string.cancel)
                         .with(ModalDialogProperties.CUSTOM_VIEW, mParentView)
                         .with(ModalDialogProperties.CANCEL_ON_TOUCH_OUTSIDE, true)
+                        .with(
+                                ModalDialogProperties.BUTTON_TAP_PROTECTION_PERIOD_MS,
+                                UiUtils.PROMPT_INPUT_PROTECTION_SHORT_DELAY_MS)
                         .build();
         mModalDialogManager.showDialog(mDialogModel, ModalDialogManager.ModalDialogType.TAB);
     }
@@ -138,6 +201,9 @@ public class AddToHomescreenDialogView
     protected void setTitle(String title) {
         mAppNameView.setText(title);
         mShortcutTitleInput.setText(title);
+        mShortcutTitleInput.setSelection(mShortcutTitleInput.getText().length());
+        mHomebrewAppNameInput.setText(title);
+        mHomebrewAppNameInput.setSelection(mHomebrewAppNameInput.getText().length());
         mIconView.setContentDescription(title);
     }
 
@@ -162,21 +228,51 @@ public class AddToHomescreenDialogView
     }
 
     void setType(@AppType int type) {
-        assert (type >= AppType.NATIVE && type <= AppType.SHORTCUT);
+        mAppType = type;
+        resetAllVisibility();
+        switch (mAppType) {
+            case AppType.NATIVE:
+                mAppLayout.setVisibility(View.VISIBLE);
+                mAppNameView.setVisibility(View.VISIBLE);
+                mAppRatingBar.setVisibility(View.VISIBLE);
+                mPlayLogoView.setVisibility(View.VISIBLE);
 
-        mShortcutTitleInput.setVisibility(type == AppType.SHORTCUT ? View.VISIBLE : View.GONE);
-        mAppLayout.setVisibility(type != AppType.SHORTCUT ? View.VISIBLE : View.GONE);
-        mAppOriginView.setVisibility(type == AppType.WEBAPK ? View.VISIBLE : View.GONE);
-        mAppRatingBar.setVisibility(type == AppType.NATIVE ? View.VISIBLE : View.GONE);
-        mPlayLogoView.setVisibility(type == AppType.NATIVE ? View.VISIBLE : View.GONE);
+                mAppNameView.setOnClickListener(this);
+                mIconView.setOnClickListener(this);
+                break;
+            case AppType.SHORTCUT:
+                mShortcutTitleInput.setVisibility(View.VISIBLE);
+                break;
+            case AppType.WEBAPK:
+                mAppLayout.setVisibility(View.VISIBLE);
+                mAppNameView.setVisibility(View.VISIBLE);
+                mAppOriginView.setVisibility(View.VISIBLE);
+                break;
+            case AppType.WEBAPK_DIY:
+                mAppLayout.setVisibility(View.VISIBLE);
+                mHomebrewAppNameInput.setVisibility(View.VISIBLE);
+                mAppOriginView.setVisibility(View.VISIBLE);
+                mAppOriginView.setVisibility(View.VISIBLE);
+                break;
+        }
+
+        if (mAppType == AppType.SHORTCUT) {
+            mDialogModel.set(ModalDialogProperties.TITLE, mAddTitleText);
+            mDialogModel.set(ModalDialogProperties.POSITIVE_BUTTON_TEXT, mAddButtonText);
+        } else {
+            mDialogModel.set(ModalDialogProperties.TITLE, mInstallTitleText);
+            mDialogModel.set(ModalDialogProperties.POSITIVE_BUTTON_TEXT, mInstallButtonText);
+        }
     }
 
     void setNativeInstallButtonText(String installButtonText) {
         mDialogModel.set(ModalDialogProperties.POSITIVE_BUTTON_TEXT, installButtonText);
-        mDialogModel.set(ModalDialogProperties.POSITIVE_BUTTON_CONTENT_DESCRIPTION,
-                ContextUtils.getApplicationContext().getString(
-                        R.string.app_banner_view_native_app_install_accessibility,
-                        installButtonText));
+        mDialogModel.set(
+                ModalDialogProperties.POSITIVE_BUTTON_CONTENT_DESCRIPTION,
+                ContextUtils.getApplicationContext()
+                        .getString(
+                                R.string.app_banner_view_native_app_install_accessibility,
+                                installButtonText));
     }
 
     void setNativeAppRating(float rating) {
@@ -191,11 +287,24 @@ public class AddToHomescreenDialogView
         updateInstallButton();
     }
 
+    // Update button state for shortcut or diy app.
     private void updateInstallButton() {
-        boolean missingTitle = mShortcutTitleInput.getVisibility() == View.VISIBLE
-                && TextUtils.isEmpty(mShortcutTitleInput.getText());
+        TextView appNameView = getAppNameView();
+        boolean missingTitle =
+                appNameView.getVisibility() == View.VISIBLE
+                        && TextUtils.isEmpty(appNameView.getText());
         mDialogModel.set(
                 ModalDialogProperties.POSITIVE_BUTTON_DISABLED, !mCanSubmit || missingTitle);
+    }
+
+    private void resetAllVisibility() {
+        mShortcutTitleInput.setVisibility(View.GONE);
+        mAppLayout.setVisibility(View.GONE);
+        mHomebrewAppNameInput.setVisibility(View.GONE);
+        mAppNameView.setVisibility(View.GONE);
+        mAppOriginView.setVisibility(View.GONE);
+        mAppRatingBar.setVisibility(View.GONE);
+        mPlayLogoView.setVisibility(View.GONE);
     }
 
     /**
@@ -215,7 +324,7 @@ public class AddToHomescreenDialogView
     }
 
     /**
-     * From {@link  ModalDialogProperties.Controller}. Called when a dialog button is clicked.
+     * From {@link ModalDialogProperties.Controller}. Called when a dialog button is clicked.
      *
      * @param model The dialog model that is associated with this click event.
      * @param buttonType The type of the button.
@@ -224,7 +333,8 @@ public class AddToHomescreenDialogView
     public void onClick(PropertyModel model, int buttonType) {
         int dismissalCause = DialogDismissalCause.NEGATIVE_BUTTON_CLICKED;
         if (buttonType == ModalDialogProperties.ButtonType.POSITIVE) {
-            mDelegate.onAddToHomescreen(mShortcutTitleInput.getText().toString());
+            String title = getAppNameView().getText().toString();
+            mDelegate.onAddToHomescreen(title, mAppType);
             dismissalCause = DialogDismissalCause.POSITIVE_BUTTON_CLICKED;
         }
         mModalDialogManager.dismissDialog(mDialogModel, dismissalCause);
@@ -238,6 +348,21 @@ public class AddToHomescreenDialogView
     }
 
     @VisibleForTesting
+    TextView getAppNameView() {
+        switch (mAppType) {
+            case AppType.SHORTCUT:
+                return mShortcutTitleInput;
+            case AppType.WEBAPK_DIY:
+                return mHomebrewAppNameInput;
+            case AppType.WEBAPK:
+            case AppType.NATIVE:
+                return mAppNameView;
+            default:
+                assert false;
+                return assumeNonNull(null);
+        }
+    }
+
     View getParentViewForTest() {
         return mParentView;
     }

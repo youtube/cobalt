@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "camera_general_survey_handler.h"
+#include "chrome/browser/ash/camera/camera_general_survey_handler.h"
+
 #include <memory>
 
 #include "base/containers/flat_set.h"
@@ -29,6 +30,7 @@ class MockDelegate : public CameraGeneralSurveyHandler::Delegate {
               RemoveActiveCameraClientObserver,
               (media::CameraActiveClientObserver * observer),
               (override));
+  MOCK_METHOD(void, LoadConfig, (), (override));
   MOCK_METHOD(bool, ShouldShowSurvey, (), (const, override));
   MOCK_METHOD(void, ShowSurvey, (), (override));
 };
@@ -37,8 +39,7 @@ cros::mojom::CameraClientType kSupportedCameraTypes[] = {
     cros::mojom::CameraClientType::CHROME,
     cros::mojom::CameraClientType::ANDROID,
     cros::mojom::CameraClientType::PLUGINVM,
-    cros::mojom::CameraClientType::ASH_CHROME,
-    cros::mojom::CameraClientType::LACROS_CHROME};
+    cros::mojom::CameraClientType::ASH_CHROME};
 
 constexpr base::TimeDelta kMinCameraOpenDurationForSurveyTest =
     base::Seconds(100);
@@ -87,7 +88,7 @@ class CameraGeneralSurveyHandlerTest : public testing::Test {
 
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  raw_ptr<MockDelegate, ExperimentalAsh> delegate_ = nullptr;
+  raw_ptr<MockDelegate, DanglingUntriaged> delegate_ = nullptr;
   std::unique_ptr<CameraGeneralSurveyHandler> survey_handler_;
 };
 
@@ -99,9 +100,11 @@ class CameraGeneralSurveyHandlerInitializationTest
   void SetUp() override {
     auto delegate = std::make_unique<MockDelegate>();
     delegate_ = delegate.get();
+    const bool is_enabled = GetParam();
     EXPECT_CALL(*delegate_, AddActiveCameraClientObserver)
-        .Times(Exactly(GetParam() ? 1 : 0));
-    InitializeSurveyHandler(std::move(delegate), GetParam());
+        .Times(Exactly(is_enabled ? 1 : 0));
+    EXPECT_CALL(*delegate_, LoadConfig).Times(Exactly(is_enabled ? 1 : 0));
+    InitializeSurveyHandler(std::move(delegate), is_enabled);
   }
 
   // testing::Test:
@@ -128,6 +131,7 @@ class CameraGeneralSurveyHandlerOpenCloseTest
     auto delegate = std::make_unique<MockDelegate>();
     delegate_ = delegate.get();
     EXPECT_CALL(*delegate_, AddActiveCameraClientObserver).Times(Exactly(1));
+    EXPECT_CALL(*delegate_, LoadConfig).Times(Exactly(1));
     InitializeSurveyHandler(std::move(delegate));
   }
   void TearDown() override {

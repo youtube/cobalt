@@ -5,9 +5,12 @@
 #ifndef CONTENT_BROWSER_RENDERER_HOST_NAVIGATION_TRANSITIONS_NAVIGATION_ENTRY_SCREENSHOT_H_
 #define CONTENT_BROWSER_RENDERER_HOST_NAVIGATION_TRANSITIONS_NAVIGATION_ENTRY_SCREENSHOT_H_
 
+#include "base/functional/callback_forward.h"
 #include "base/supports_user_data.h"
 #include "cc/resources/ui_resource_bitmap.h"
 #include "cc/resources/ui_resource_client.h"
+#include "components/performance_manager/scenario_api/performance_scenario_observer.h"
+#include "content/browser/renderer_host/navigation_transitions/navigation_transition_data.h"
 #include "content/common/content_export.h"
 
 class SkBitmap;
@@ -38,18 +41,22 @@ class NavigationEntryScreenshotCache;
 //
 // If the user clears the navigation history, the screenshot is deleted when
 // its owning `NavigationEntry` is destroyed. The screenshot is never recreated
-// or cloned even when its `NavigationEntry` is cloned (tab clone / Portals) or
-// restored (i.e., by restoring the last closed tab), because
+// or cloned even when its `NavigationEntry` is cloned (tab clone) or restored
+// (i.e., by restoring the last closed tab), because
 // `base::SupportsUserData::Data::Clone()` is not implemented by
 // `NavigationEntryScreenshot`.
 class CONTENT_EXPORT NavigationEntryScreenshot
     : public cc::UIResourceClient,
-      public base::SupportsUserData::Data {
+      public base::SupportsUserData::Data,
+      public performance_scenarios::MatchingScenarioObserver {
  public:
   const static void* const kUserDataKey;
 
-  explicit NavigationEntryScreenshot(const SkBitmap& bitmap,
-                                     int navigation_entry_id);
+  static void SetDisableCompressionForTesting(bool disable);
+
+  NavigationEntryScreenshot(const SkBitmap& bitmap,
+                            NavigationTransitionData::UniqueId unique_id,
+                            bool supports_etc_non_power_of_two);
   NavigationEntryScreenshot(const NavigationEntryScreenshot&) = delete;
   NavigationEntryScreenshot& operator=(const NavigationEntryScreenshot&) =
       delete;
@@ -59,24 +66,47 @@ class CONTENT_EXPORT NavigationEntryScreenshot
   cc::UIResourceBitmap GetBitmap(cc::UIResourceId uid,
                                  bool resource_lost) override;
 
-  // When `this` is actively taken out of the `NavigationEntry` by
-  // `NavigationEntryScreenshotCache`, we set the `cache_` to null, because
-  // `NavigationEntryScreenshotCache::RemoveScreenshot` is responsible for
-  // untracking `this` and updates the metadata.
-  // Else, this remains set to the cache that tracks `this` when
-  // `NavigationEntryScreenshotCache::SetScreenshot` is called, so that when
-  // the `NavigationEntry` is destroyed, `this`'s tracking cache is notified.
-  void set_cache(NavigationEntryScreenshotCache* cache) { cache_ = cache; }
-  bool is_cached() { return cache_ != nullptr; }
+  // Sets the `cache` managing the memory for this screenshot. When set, the
+  // screenshot is stored on its associated NavigationEntry and is guaranteed to
+  // not be displayed in the UI.
+  //
+  // Returns the memory occupied by the bitmap in bytes.
+  size_t SetCache(NavigationEntryScreenshotCache* cache);
 
-  size_t SizeInBytes() const;
+  void OnScenarioMatchChanged(performance_scenarios::ScenarioScope scope,
+                              bool matches_pattern) override;
+
+  // Returns true if the screenshot is being managed by a cache. This is not the
+  // case when it's being displayed in the UI.
+  bool is_cached() const { return cache_ != nullptr; }
+
+  // Returns the bounds of the uncompressed bitmap.
+  gfx::Size dimensions_without_compression() const {
+    return dimensions_without_compression_;
+  }
+
+  NavigationTransitionData::UniqueId unique_id() const { return unique_id_; }
+
+  SkBitmap GetBitmapForTesting() const;
+  size_t CompressedSizeForTesting() const;
 
  private:
-  // TODO(https://crbug.com/1414164):
-  // - ETC1 compression on a non-UI browser thread.
-  // - Self evict after X amount of time.
-  // - Write-to-disk for entry restore and releasing memory (consult with CSA).
-  const cc::UIResourceBitmap bitmap_;
+  void OnCompressionFinished(sk_sp<SkPixelRef> compressed_bitmap);
+
+  base::OnceClosure CompressionTask(const SkBitmap& bitmap,
+                                    bool supports_etc_non_power_of_two);
+  void StartCompression();
+
+  const cc::UIResourceBitmap& GetBitmap() const;
+
+  // The uncompressed bitmap cached when navigating away from this navigation
+  // entry.
+  std::optional<cc::UIResourceBitmap> bitmap_;
+
+  // The compressed bitmap generated on a worker thread. `bitmap_` is discarded
+  // when the compressed bitmap is available and this screenshot is no longer
+  // being displayed in the UI.
+  std::optional<cc::UIResourceBitmap> compressed_bitmap_;
 
   // Set if this screenshot is being tracked by the `cache_`. The cache is
   // guaranteed to outlive the screenshot, if the screenshot is tracked.
@@ -86,9 +116,15 @@ class CONTENT_EXPORT NavigationEntryScreenshot
   // cache from a different `NavigationController`.
   raw_ptr<NavigationEntryScreenshotCache> cache_ = nullptr;
 
-  // This screenshot is cached for the navigation entry of
-  // `navigation_entry_id_`.
-  const int navigation_entry_id_;
+  // This screenshot is cached for the navigation entry, whose
+  // `navigation_transition_data()` has `unique_id_`.
+  const NavigationTransitionData::UniqueId unique_id_;
+
+  const gfx::Size dimensions_without_compression_;
+
+  base::OnceClosure compression_task_;
+
+  base::WeakPtrFactory<NavigationEntryScreenshot> weak_factory_{this};
 };
 
 }  // namespace content

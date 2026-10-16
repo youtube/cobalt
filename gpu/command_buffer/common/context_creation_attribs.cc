@@ -22,7 +22,6 @@ bool IsGLContextType(ContextType context_type) {
   }
 
   NOTREACHED();
-  return false;
 }
 
 bool IsWebGLContextType(ContextType context_type) {
@@ -39,7 +38,6 @@ bool IsWebGLContextType(ContextType context_type) {
   }
 
   NOTREACHED();
-  return false;
 }
 
 bool IsWebGL1OrES2ContextType(ContextType context_type) {
@@ -56,7 +54,6 @@ bool IsWebGL1OrES2ContextType(ContextType context_type) {
   }
 
   NOTREACHED();
-  return false;
 }
 
 bool IsWebGL2OrES3ContextType(ContextType context_type) {
@@ -73,7 +70,6 @@ bool IsWebGL2OrES3ContextType(ContextType context_type) {
   }
 
   NOTREACHED();
-  return false;
 }
 
 bool IsWebGL2OrES3OrHigherContextType(ContextType context_type) {
@@ -90,7 +86,6 @@ bool IsWebGL2OrES3OrHigherContextType(ContextType context_type) {
   }
 
   NOTREACHED();
-  return false;
 }
 
 bool IsES31ForTestingContextType(ContextType context_type) {
@@ -107,7 +102,6 @@ bool IsES31ForTestingContextType(ContextType context_type) {
   }
 
   NOTREACHED();
-  return false;
 }
 
 bool IsWebGPUContextType(ContextType context_type) {
@@ -124,7 +118,6 @@ bool IsWebGPUContextType(ContextType context_type) {
   }
 
   NOTREACHED();
-  return false;
 }
 
 const char* ContextTypeToLabel(ContextType context_type) {
@@ -145,7 +138,6 @@ const char* ContextTypeToLabel(ContextType context_type) {
   }
 
   NOTREACHED();
-  return "BadGLContext";
 }
 
 ContextCreationAttribs::ContextCreationAttribs() = default;

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/exo/wayland/zcr_gaming_input.h"
 
 #include <gaming-input-unstable-v2-server-protocol.h>
@@ -87,7 +92,7 @@ class WaylandGamepadVibratorImpl : public GamepadObserver {
   }
 
  private:
-  raw_ptr<Gamepad, ExperimentalAsh> gamepad_;
+  raw_ptr<Gamepad> gamepad_;
 };
 
 void gamepad_vibrator_vibrate(wl_client* client,
@@ -225,7 +230,7 @@ class WaylandGamepadDelegate : public GamepadDelegate {
   }
 
   // The gamepad resource associated with the gamepad.
-  raw_ptr<wl_resource, ExperimentalAsh> gamepad_resource_;
+  raw_ptr<wl_resource> gamepad_resource_;
 };
 
 void gamepad_destroy(wl_client* client, wl_resource* resource) {
@@ -279,7 +284,7 @@ class WaylandGamingSeatDelegate : public GamingSeatDelegate {
 
  private:
   // The gaming seat resource associated with the gaming seat.
-  const raw_ptr<wl_resource, ExperimentalAsh> gaming_seat_resource_;
+  const raw_ptr<wl_resource> gaming_seat_resource_;
 };
 
 void gaming_seat_destroy(wl_client* client, wl_resource* resource) {

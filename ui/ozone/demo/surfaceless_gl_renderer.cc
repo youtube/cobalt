@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "ui/ozone/demo/surfaceless_gl_renderer.h"
 
 #include <stddef.h>
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <utility>
 
@@ -68,7 +70,7 @@ OverlaySurfaceCandidate MakeOverlayCandidate(int z_order,
 
 }  // namespace
 
-SurfacelessGlRenderer::BufferWrapper::BufferWrapper() {}
+SurfacelessGlRenderer::BufferWrapper::BufferWrapper() = default;
 
 SurfacelessGlRenderer::BufferWrapper::~BufferWrapper() {
   if (gl_fb_)
@@ -223,7 +225,7 @@ void SurfacelessGlRenderer::RenderFrame() {
 
   float fraction = NextFraction();
 
-  gfx::Rect overlay_rect[kMaxLayers];
+  std::array<gfx::Rect, kMaxLayers> overlay_rect;
   const gfx::RectF unity_rect = gfx::RectF(0, 0, 1, 1);
 
   OverlayCandidatesOzone::OverlaySurfaceCandidateList overlay_list;
@@ -284,7 +286,7 @@ void SurfacelessGlRenderer::RenderFrame() {
             0, gfx::OVERLAY_TRANSFORM_NONE, gfx::RectF(primary_plane_rect_),
             unity_rect, false, gfx::Rect(buffers_[back_buffer_]->size()), 1.0f,
             gfx::OverlayPriorityHint::kNone, gfx::RRectF(),
-            gfx::ColorSpace::CreateSRGB(), absl::nullopt));
+            gfx::ColorSpace::CreateSRGB(), std::nullopt));
   }
 
   for (size_t i = 0; i < overlay_cnt_; ++i) {
@@ -296,7 +298,7 @@ void SurfacelessGlRenderer::RenderFrame() {
               unity_rect, false,
               gfx::Rect(overlay_buffers_[i][back_buffer_]->size()), 1.0f,
               gfx::OverlayPriorityHint::kNone, gfx::RRectF(),
-              gfx::ColorSpace::CreateSRGB(), absl::nullopt));
+              gfx::ColorSpace::CreateSRGB(), std::nullopt));
     }
   }
 
@@ -327,8 +329,8 @@ void SurfacelessGlRenderer::PostRenderFrameTask(
       break;
     case gfx::SwapResult::SWAP_SKIPPED:
     case gfx::SwapResult::SWAP_FAILED:
+    case gfx::SwapResult::SWAP_NON_SIMPLE_OVERLAYS_FAILED:
       LOG(FATAL) << "Failed to swap buffers";
-      break;
   }
 }
 

@@ -5,7 +5,7 @@
 #include "chrome/browser/ui/webui/ash/login/parental_handoff_screen_handler.h"
 
 #include "chrome/browser/ash/login/screens/parental_handoff_screen.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/login/localized_values_builder.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -38,6 +38,11 @@ void ParentalHandoffScreenHandler::Show(const std::u16string& username) {
   data.Set(kUsername, username);
 
   ShowInWebUI(std::move(data));
+}
+
+base::WeakPtr<ParentalHandoffScreenView>
+ParentalHandoffScreenHandler::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 }  // namespace ash

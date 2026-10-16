@@ -13,6 +13,7 @@
 #include "chrome/browser/download/download_core_service.h"
 #include "chrome/browser/download/download_core_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 
 namespace download {
 class DownloadItem;
@@ -25,15 +26,13 @@ class DownloadTestFileActivityObserver::MockDownloadManagerDelegate
     : public ChromeDownloadManagerDelegate {
  public:
   explicit MockDownloadManagerDelegate(Profile* profile)
-      : ChromeDownloadManagerDelegate(profile),
-        file_chooser_enabled_(false),
-        file_chooser_displayed_(false) {
+      : ChromeDownloadManagerDelegate(profile) {
     if (!profile->IsOffTheRecord())
       GetDownloadIdReceiverCallback().Run(download::DownloadItem::kInvalidId +
                                           1);
   }
 
-  ~MockDownloadManagerDelegate() override {}
+  ~MockDownloadManagerDelegate() override = default;
 
   void EnableFileChooser(bool enable) {
     file_chooser_enabled_ = enable;
@@ -44,6 +43,8 @@ class DownloadTestFileActivityObserver::MockDownloadManagerDelegate
     file_chooser_displayed_ = false;
     return did_show;
   }
+
+  void SetAllowOpenDownload(bool allow) { allow_open_download_ = allow; }
 
   base::WeakPtr<MockDownloadManagerDelegate> GetWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
@@ -63,14 +64,19 @@ class DownloadTestFileActivityObserver::MockDownloadManagerDelegate
             base::Unretained(this), std::move(callback),
             (file_chooser_enabled_ ? DownloadConfirmationResult::CONFIRMED
                                    : DownloadConfirmationResult::CANCELED),
-            suggested_path));
+            ui::SelectedFileInfo(suggested_path)));
   }
 
-  void OpenDownload(download::DownloadItem* item) override {}
+  void OpenDownload(download::DownloadItem* item) override {
+    if (allow_open_download_) {
+      ChromeDownloadManagerDelegate::OpenDownload(item);
+    }
+  }
 
  private:
-  bool file_chooser_enabled_;
-  bool file_chooser_displayed_;
+  bool file_chooser_enabled_ = false;
+  bool file_chooser_displayed_ = false;
+  bool allow_open_download_ = false;
   base::WeakPtrFactory<MockDownloadManagerDelegate> weak_ptr_factory_{this};
 };
 
@@ -83,8 +89,7 @@ DownloadTestFileActivityObserver::DownloadTestFileActivityObserver(
       ->SetDownloadManagerDelegateForTesting(std::move(mock_delegate));
 }
 
-DownloadTestFileActivityObserver::~DownloadTestFileActivityObserver() {
-}
+DownloadTestFileActivityObserver::~DownloadTestFileActivityObserver() = default;
 
 void DownloadTestFileActivityObserver::EnableFileChooser(bool enable) {
   if (test_delegate_.get())
@@ -94,4 +99,10 @@ void DownloadTestFileActivityObserver::EnableFileChooser(bool enable) {
 bool DownloadTestFileActivityObserver::TestAndResetDidShowFileChooser() {
   return test_delegate_.get() &&
       test_delegate_->TestAndResetDidShowFileChooser();
+}
+
+void DownloadTestFileActivityObserver::SetAllowOpenDownload(bool allow) {
+  if (test_delegate_.get()) {
+    test_delegate_->SetAllowOpenDownload(allow);
+  }
 }

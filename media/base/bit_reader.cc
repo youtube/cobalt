@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/base/bit_reader.h"
 
 namespace media {
@@ -11,7 +16,7 @@ BitReader::BitReader(const uint8_t* data, int size)
       data_(data),
       bytes_left_(size),
       bit_reader_core_(this) {
-  DCHECK(data != NULL);
+  DCHECK(data != nullptr);
   DCHECK_GE(size, 0);
 }
 

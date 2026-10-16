@@ -4,6 +4,7 @@
 
 #include "gpu/ipc/client/image_decode_accelerator_proxy.h"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -11,7 +12,6 @@
 #include "base/check_op.h"
 #include "base/containers/contains.h"
 #include "base/notreached.h"
-#include "base/ranges/algorithm.h"
 #include "cc/paint/paint_image.h"
 #include "gpu/command_buffer/common/constants.h"
 #include "gpu/config/gpu_info.h"
@@ -25,7 +25,7 @@ namespace gpu {
 
 namespace {
 
-// TODO(crbug.com/984971): for WebPs we may need to compute the coded size
+// TODO(crbug.com/41471307): for WebPs we may need to compute the coded size
 // instead and check that against the supported dimensions.
 bool IsSupportedImageSize(
     const cc::ImageHeaderMetadata* image_data,
@@ -134,8 +134,8 @@ bool ImageDecodeAcceleratorProxy::IsImageSupported(
   const std::vector<ImageDecodeAcceleratorSupportedProfile>& profiles =
       host_->gpu_info().image_decode_accelerator_supported_profiles;
   auto profile_it =
-      base::ranges::find(profiles, image_type,
-                         &ImageDecodeAcceleratorSupportedProfile::image_type);
+      std::ranges::find(profiles, image_type,
+                        &ImageDecodeAcceleratorSupportedProfile::image_type);
   if (profile_it == profiles.cend())
     return false;
 
@@ -153,7 +153,6 @@ bool ImageDecodeAcceleratorProxy::IsImageSupported(
     case ImageDecodeAcceleratorType::kUnknown:
       // Should not reach due to a check above.
       NOTREACHED();
-      break;
   }
   return false;
 }

@@ -69,10 +69,6 @@ public class VideoTrackTest {
     class FrameCounter implements VideoSink {
       private int count;
 
-      public int getCount() {
-        return count;
-      }
-
       @Override
       public void onFrame(VideoFrame frame) {
         count += 1;

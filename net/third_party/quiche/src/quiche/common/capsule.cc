@@ -4,8 +4,16 @@
 
 #include "quiche/common/capsule.h"
 
+#include <stdbool.h>
+
+#include <cstddef>
+#include <cstdint>
 #include <limits>
+#include <ostream>
+#include <string>
 #include <type_traits>
+#include <utility>
+#include <variant>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -13,13 +21,14 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "absl/types/variant.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_data_writer.h"
 #include "quiche/common/quiche_ip_address.h"
+#include "quiche/common/quiche_socket_address.h"
 #include "quiche/common/quiche_status_utils.h"
 #include "quiche/common/wire_serialization.h"
 #include "quiche/web_transport/web_transport.h"
@@ -36,6 +45,8 @@ std::string CapsuleTypeToString(CapsuleType capsule_type) {
       return "LEGACY_DATAGRAM_WITHOUT_CONTEXT";
     case CapsuleType::CLOSE_WEBTRANSPORT_SESSION:
       return "CLOSE_WEBTRANSPORT_SESSION";
+    case CapsuleType::DRAIN_WEBTRANSPORT_SESSION:
+      return "DRAIN_WEBTRANSPORT_SESSION";
     case CapsuleType::ADDRESS_REQUEST:
       return "ADDRESS_REQUEST";
     case CapsuleType::ADDRESS_ASSIGN:
@@ -56,6 +67,10 @@ std::string CapsuleTypeToString(CapsuleType capsule_type) {
       return "WT_MAX_STREAMS_BIDI";
     case CapsuleType::WT_MAX_STREAMS_UNIDI:
       return "WT_MAX_STREAMS_UNIDI";
+    case CapsuleType::COMPRESSION_ASSIGN:
+      return "COMPRESSION_ASSIGN";
+    case CapsuleType::COMPRESSION_CLOSE:
+      return "COMPRESSION_CLOSE";
   }
   return absl::StrCat("Unknown(", static_cast<uint64_t>(capsule_type), ")");
 }
@@ -100,6 +115,16 @@ Capsule Capsule::RouteAdvertisement() {
 }
 
 // static
+Capsule Capsule::CompressionAssign() {
+  return Capsule(CompressionAssignCapsule());
+}
+
+// static
+Capsule Capsule::CompressionClose() {
+  return Capsule(CompressionCloseCapsule());
+}
+
+// static
 Capsule Capsule::Unknown(uint64_t capsule_type,
                          absl::string_view unknown_capsule_data) {
   return Capsule(UnknownCapsule{capsule_type, unknown_capsule_data});
@@ -129,6 +154,10 @@ std::string CloseWebTransportSessionCapsule::ToString() const {
                       ",error_message=\"", error_message, "\")");
 }
 
+std::string DrainWebTransportSessionCapsule::ToString() const {
+  return "DRAIN_WEBTRANSPORT_SESSION()";
+}
+
 std::string AddressRequestCapsule::ToString() const {
   std::string rv = "ADDRESS_REQUEST[";
   for (auto requested_address : requested_addresses) {
@@ -147,6 +176,15 @@ std::string AddressAssignCapsule::ToString() const {
   }
   absl::StrAppend(&rv, "]");
   return rv;
+}
+
+std::string CompressionAssignCapsule::ToString() const {
+  return absl::StrCat("COMPRESSION_ASSIGN[", context_id, ", ",
+                      ip_address_port.ToString(), "]");
+}
+
+std::string CompressionCloseCapsule::ToString() const {
+  return absl::StrCat("COMPRESSION_CLOSE[", context_id, "]");
 }
 
 std::string RouteAdvertisementCapsule::ToString() const {
@@ -192,8 +230,8 @@ std::string WebTransportMaxStreamsCapsule::ToString() const {
 }
 
 std::string Capsule::ToString() const {
-  return absl::visit([](const auto& capsule) { return capsule.ToString(); },
-                     capsule_);
+  return std::visit([](const auto& capsule) { return capsule.ToString(); },
+                    capsule_);
 }
 
 std::ostream& operator<<(std::ostream& os, const Capsule& capsule) {
@@ -293,6 +331,8 @@ absl::StatusOr<quiche::QuicheBuffer> SerializeCapsuleWithStatus(
           WireUint32(capsule.close_web_transport_session_capsule().error_code),
           WireBytes(
               capsule.close_web_transport_session_capsule().error_message));
+    case CapsuleType::DRAIN_WEBTRANSPORT_SESSION:
+      return SerializeCapsuleFields(capsule.capsule_type(), allocator);
     case CapsuleType::ADDRESS_REQUEST:
       return SerializeCapsuleFields(
           capsule.capsule_type(), allocator,
@@ -335,11 +375,75 @@ absl::StatusOr<quiche::QuicheBuffer> SerializeCapsuleWithStatus(
       return SerializeCapsuleFields(
           capsule.capsule_type(), allocator,
           WireVarInt62(capsule.web_transport_max_streams().max_stream_count));
+    case CapsuleType::COMPRESSION_ASSIGN:
+      QUICHE_DCHECK(capsule.compression_assign_capsule()
+                            .ip_address_port.host()
+                            .ToPackedString()
+                            .size() == QuicheIpAddress::kIPv4AddressSize ||
+                    capsule.compression_assign_capsule()
+                            .ip_address_port.host()
+                            .ToPackedString()
+                            .size() == QuicheIpAddress::kIPv6AddressSize);
+      if (capsule.compression_assign_capsule()
+              .ip_address_port.host()
+              .address_family() != IpAddressFamily::IP_UNSPEC) {
+        return SerializeCapsuleFields(
+            capsule.capsule_type(), allocator,
+            WireVarInt62(capsule.compression_assign_capsule().context_id),
+            WireUint8(capsule.compression_assign_capsule()
+                                  .ip_address_port.host()
+                                  .AddressFamilyToInt() == AF_INET
+                          ? 4
+                          : 6),
+            WireBytes(capsule.compression_assign_capsule()
+                          .ip_address_port.host()
+                          .ToPackedString()),
+            WireUint16(
+                capsule.compression_assign_capsule().ip_address_port.port()));
+      }
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireVarInt62(capsule.compression_assign_capsule().context_id),
+          WireUint8(capsule.compression_assign_capsule()
+                                .ip_address_port.host()
+                                .AddressFamilyToInt() == AF_INET
+                        ? 4
+                        : 6));
+    case CapsuleType::COMPRESSION_CLOSE:
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireVarInt62(capsule.compression_close_capsule().context_id));
     default:
       return SerializeCapsuleFields(
           capsule.capsule_type(), allocator,
           WireBytes(capsule.unknown_capsule().payload));
   }
+}
+
+QuicheBuffer SerializeDatagramCapsuleHeader(uint64_t datagram_size,
+                                            QuicheBufferAllocator* allocator) {
+  absl::StatusOr<QuicheBuffer> buffer =
+      SerializeIntoBuffer(allocator, WireVarInt62(CapsuleType::DATAGRAM),
+                          WireVarInt62(datagram_size));
+  if (!buffer.ok()) {
+    return QuicheBuffer();
+  }
+  return *std::move(buffer);
+}
+
+QUICHE_EXPORT QuicheBuffer SerializeWebTransportStreamCapsuleHeader(
+    webtransport::StreamId stream_id, bool fin, uint64_t write_size,
+    QuicheBufferAllocator* allocator) {
+  absl::StatusOr<QuicheBuffer> buffer = SerializeIntoBuffer(
+      allocator,
+      WireVarInt62(fin ? CapsuleType::WT_STREAM_WITH_FIN
+                       : CapsuleType::WT_STREAM),
+      WireVarInt62(write_size + QuicheDataWriter::GetVarInt62Len(stream_id)),
+      WireVarInt62(stream_id));
+  if (!buffer.ok()) {
+    return QuicheBuffer();
+  }
+  return *std::move(buffer);
 }
 
 QuicheBuffer SerializeCapsule(const Capsule& capsule,
@@ -414,6 +518,8 @@ absl::StatusOr<Capsule> ParseCapsulePayload(QuicheDataReader& reader,
       capsule.error_message = reader.ReadRemainingPayload();
       return Capsule(std::move(capsule));
     }
+    case CapsuleType::DRAIN_WEBTRANSPORT_SESSION:
+      return Capsule(DrainWebTransportSessionCapsule());
     case CapsuleType::ADDRESS_REQUEST: {
       AddressRequestCapsule capsule;
       while (!reader.IsDoneReading()) {
@@ -599,6 +705,68 @@ absl::StatusOr<Capsule> ParseCapsulePayload(QuicheDataReader& reader,
       }
       return Capsule(std::move(capsule));
     }
+    case CapsuleType::COMPRESSION_ASSIGN: {
+      CompressionAssignCapsule capsule;
+      if (!reader.ReadVarInt62(&capsule.context_id)) {
+        return absl::InvalidArgumentError(
+            "Failed to parse the compression assign context ID");
+      }
+      uint8_t address_family;
+      if (!reader.ReadUInt8(&address_family)) {
+        return absl::InvalidArgumentError(
+            "Failed to parse the compression assign address family");
+      }
+      if (address_family != 0 && address_family != 4 && address_family != 6) {
+        return absl::InvalidArgumentError(
+            "Bad compression assign address family");
+      }
+      if (address_family == 0) {
+        capsule.ip_address_port = QuicheSocketAddress();
+        if (!reader.IsDoneReading()) {
+          return absl::InvalidArgumentError(
+              "Extra bytes in compression assign capsule");
+        }
+        return Capsule(std::move(capsule));
+      }
+      size_t address_size = address_family == 4
+                                ? QuicheIpAddress::kIPv4AddressSize
+                                : QuicheIpAddress::kIPv6AddressSize;
+      absl::string_view ip_address_bytes;
+      if (!reader.ReadStringPiece(&ip_address_bytes, address_size)) {
+        return absl::InvalidArgumentError(
+            "Failed to read the compression assign IP address");
+      }
+      quiche::QuicheIpAddress ip_address;
+      if (!ip_address.FromPackedString(ip_address_bytes.data(), address_size)) {
+        return absl::InvalidArgumentError(
+            "Failed to parse the compression assign IP address");
+      }
+      QUICHE_LOG(INFO) << "CompressionAssignCapsule IP: "
+                       << ip_address.ToString();
+      uint16_t port;
+      if (!reader.ReadUInt16(&port)) {
+        return absl::InvalidArgumentError(
+            "Failed to read the compression assign port");
+      }
+      capsule.ip_address_port = QuicheSocketAddress(ip_address, port);
+      if (!reader.IsDoneReading()) {
+        return absl::InvalidArgumentError(
+            "Extra bytes in compression assign capsule");
+      }
+      return Capsule(std::move(capsule));
+    }
+    case CapsuleType::COMPRESSION_CLOSE: {
+      CompressionCloseCapsule capsule;
+      if (!reader.ReadVarInt62(&capsule.context_id)) {
+        return absl::InvalidArgumentError(
+            "Failed to parse the compression close context ID");
+      }
+      if (!reader.IsDoneReading()) {
+        return absl::InvalidArgumentError(
+            "Extra bytes in compression close capsule");
+      }
+      return Capsule(std::move(capsule));
+    }
     default:
       return Capsule(UnknownCapsule{static_cast<uint64_t>(type),
                                     reader.ReadRemainingPayload()});
@@ -664,6 +832,17 @@ bool IpAddressRange::operator==(const IpAddressRange& other) const {
 
 bool AddressAssignCapsule::operator==(const AddressAssignCapsule& other) const {
   return assigned_addresses == other.assigned_addresses;
+}
+
+bool CompressionAssignCapsule::operator==(
+    const CompressionAssignCapsule& other) const {
+  return context_id == other.context_id &&
+         ip_address_port == other.ip_address_port;
+}
+
+bool CompressionCloseCapsule::operator==(
+    const CompressionCloseCapsule& other) const {
+  return context_id == other.context_id;
 }
 
 bool AddressRequestCapsule::operator==(

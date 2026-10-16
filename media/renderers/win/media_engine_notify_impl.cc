@@ -4,6 +4,10 @@
 
 #include "media/renderers/win/media_engine_notify_impl.h"
 
+#include <mferror.h>
+
+#include "base/metrics/histogram_functions.h"
+#include "base/strings/strcat.h"
 #include "media/base/win/mf_helpers.h"
 
 namespace media {
@@ -13,6 +17,19 @@ namespace {
 #define ENUM_TO_STRING(enum) \
   case enum:                 \
     return #enum
+
+std::string MediaEngineErrorToString(MF_MEDIA_ENGINE_ERR error) {
+  switch (error) {
+    ENUM_TO_STRING(MF_MEDIA_ENGINE_ERR_NOERROR);
+    ENUM_TO_STRING(MF_MEDIA_ENGINE_ERR_ABORTED);
+    ENUM_TO_STRING(MF_MEDIA_ENGINE_ERR_NETWORK);
+    ENUM_TO_STRING(MF_MEDIA_ENGINE_ERR_DECODE);
+    ENUM_TO_STRING(MF_MEDIA_ENGINE_ERR_ENCRYPTED);
+    ENUM_TO_STRING(MF_MEDIA_ENGINE_ERR_SRC_NOT_SUPPORTED);
+    default:
+      return "Unknown MF_MEDIA_ENGINE_ERR";
+  }
+}
 
 std::string MediaEngineEventToString(MF_MEDIA_ENGINE_EVENT event) {
   switch (event) {
@@ -79,7 +96,6 @@ PipelineStatus MediaEngineErrorToPipelineStatus(
       return DEMUXER_ERROR_COULD_NOT_OPEN;
     default:
       NOTREACHED();
-      return PIPELINE_ERROR_INVALID_STATE;
   }
 }
 
@@ -96,7 +112,10 @@ HRESULT MediaEngineNotifyImpl::RuntimeClassInitialize(
     CanPlayThroughCB can_play_through_cb,
     PlayingCB playing_cb,
     WaitingCB waiting_cb,
-    TimeUpdateCB time_update_cb) {
+    FrameStepCompletedCB frame_step_completed_cb,
+    TimeUpdateCB time_update_cb,
+    std::optional<VideoDecoderConfig> video_decoder_config,
+    std::optional<AudioDecoderConfig> audio_decoder_config) {
   DVLOG_FUNC(1);
 
   error_cb_ = std::move(error_cb);
@@ -106,7 +125,11 @@ HRESULT MediaEngineNotifyImpl::RuntimeClassInitialize(
   can_play_through_cb_ = std::move(can_play_through_cb);
   playing_cb_ = std::move(playing_cb);
   waiting_cb_ = std::move(waiting_cb);
+  frame_step_completed_cb_ = std::move(frame_step_completed_cb);
   time_update_cb_ = std::move(time_update_cb);
+
+  audio_decoder_config_ = std::move(audio_decoder_config);
+  video_decoder_config_ = std::move(video_decoder_config);
   return S_OK;
 }
 
@@ -131,6 +154,27 @@ HRESULT MediaEngineNotifyImpl::EventNotify(DWORD event_code,
       MF_MEDIA_ENGINE_ERR error = static_cast<MF_MEDIA_ENGINE_ERR>(param1);
       HRESULT hr = param2;
       LOG(ERROR) << __func__ << ": error=" << error << ", hr=" << PrintHr(hr);
+
+      // Report the HRESULT corresponding to certain MF_MEDIA_ENGINE_ERR
+      // TODO(crbug.com/315860185): Remove this after the investigation is done.
+      base::UmaHistogramSparse(
+          base::StrCat({"Media.MediaFoundation.MediaEngineError.",
+                        MediaEngineErrorToString(error), ".Hresult"}),
+          hr);
+
+      // Report the Video and Audio codec used when encountering the HRESULT
+      // MF_E_TOPO_CODEC_NOT_FOUND.
+      // TODO(crbug.com/315860185): Remove this after the investigation is done.
+      if (hr == MF_E_TOPO_CODEC_NOT_FOUND &&
+          audio_decoder_config_.has_value() &&
+          video_decoder_config_.has_value()) {
+        base::UmaHistogramEnumeration(
+            base::StrCat(
+                {"Media.MediaFoundation.MF_E_TOPO_CODEC_NOT_FOUND.",
+                 media::GetCodecNameForUMA(video_decoder_config_->codec())}),
+            audio_decoder_config_->codec());
+      }
+
       error_cb_.Run(MediaEngineErrorToPipelineStatus(error), hr);
       break;
     }
@@ -151,6 +195,9 @@ HRESULT MediaEngineNotifyImpl::EventNotify(DWORD event_code,
       break;
     case MF_MEDIA_ENGINE_EVENT_WAITING:
       waiting_cb_.Run();
+      break;
+    case MF_MEDIA_ENGINE_EVENT_FRAMESTEPCOMPLETED:
+      frame_step_completed_cb_.Run();
       break;
     case MF_MEDIA_ENGINE_EVENT_TIMEUPDATE:
       time_update_cb_.Run();

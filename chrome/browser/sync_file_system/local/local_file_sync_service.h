@@ -13,7 +13,7 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "chrome/browser/sync_file_system/local/local_origin_change_observer.h"
@@ -45,22 +45,20 @@ struct LocalFileSyncInfo;
 
 // Maintains local file change tracker and sync status.
 // Owned by SyncFileSystemService (which is a per-profile object).
-class LocalFileSyncService
-    : public RemoteChangeProcessor,
-      public LocalOriginChangeObserver,
-      public base::SupportsWeakPtr<LocalFileSyncService> {
+class LocalFileSyncService final : public RemoteChangeProcessor,
+                                   public LocalOriginChangeObserver {
  public:
   typedef base::RepeatingCallback<LocalChangeProcessor*(const GURL& origin)>
       GetLocalChangeProcessorCallback;
 
   class Observer {
    public:
-    Observer() {}
+    Observer() = default;
 
     Observer(const Observer&) = delete;
     Observer& operator=(const Observer&) = delete;
 
-    virtual ~Observer() {}
+    virtual ~Observer() = default;
 
     // This is called when there're one or more local changes available.
     // |pending_changes_hint| indicates the pending queue length to help sync
@@ -132,8 +130,8 @@ class LocalFileSyncService
   void PromoteDemotedChanges(base::RepeatingClosure callback);
 
   // Returns the metadata of a remote file pointed by |url|.
-  virtual void GetLocalFileMetadata(const storage::FileSystemURL& url,
-                                    SyncFileMetadataCallback callback);
+  void GetLocalFileMetadata(const storage::FileSystemURL& url,
+                            SyncFileMetadataCallback callback);
 
   // RemoteChangeProcessor overrides.
   void PrepareForProcessRemoteChange(const storage::FileSystemURL& url,
@@ -158,7 +156,8 @@ class LocalFileSyncService
   void SetOriginEnabled(const GURL& origin, bool enabled);
 
  private:
-  typedef std::map<GURL, storage::FileSystemContext*> OriginToContext;
+  typedef std::map<GURL, raw_ptr<storage::FileSystemContext, CtnExperimental>>
+      OriginToContext;
   friend class OriginChangeMapTest;
 
   class OriginChangeMap {
@@ -239,7 +238,8 @@ class LocalFileSyncService
   raw_ptr<LocalChangeProcessor> local_change_processor_;
   GetLocalChangeProcessorCallback get_local_change_processor_;
 
-  base::ObserverList<Observer>::Unchecked change_observers_;
+  base::ObserverList<Observer>::UncheckedAndDanglingUntriaged change_observers_;
+  base::WeakPtrFactory<LocalFileSyncService> weak_ptr_factory_{this};
 };
 
 }  // namespace sync_file_system

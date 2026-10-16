@@ -8,12 +8,13 @@
 #include "base/gtest_prod_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
+#include "base/unguessable_token.h"
 #include "third_party/blink/renderer/core/streams/underlying_source_base.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
 namespace webrtc {
-class TransformableFrameInterface;
+class TransformableAudioFrameInterface;
 }  // namespace webrtc
 
 namespace blink {
@@ -21,16 +22,28 @@ namespace blink {
 class MODULES_EXPORT RTCEncodedAudioUnderlyingSource
     : public UnderlyingSourceBase {
  public:
+  // If |controller_override| is provided, it won't work as an instance of
+  // |UnderlyingSourceBase| so shouldn't be used directly, only with
+  // RTCEncodedUnderlyingSourceWrapper.
+  explicit RTCEncodedAudioUnderlyingSource(
+      ScriptState*,
+      WTF::CrossThreadOnceClosure disconnect_callback);
   explicit RTCEncodedAudioUnderlyingSource(
       ScriptState*,
       WTF::CrossThreadOnceClosure disconnect_callback,
-      bool is_receiver);
+      bool enable_frame_restrictions,
+      base::UnguessableToken owner_id,
+      ReadableStreamDefaultControllerWithScriptScope* controller_override =
+          nullptr);
 
   // UnderlyingSourceBase
-  ScriptPromise pull(ScriptState*) override;
-  ScriptPromise Cancel(ScriptState*, ScriptValue reason) override;
+  ScriptPromise<IDLUndefined> Pull(ScriptState*, ExceptionState&) override;
+  ScriptPromise<IDLUndefined> Cancel(ScriptState*,
+                                     ScriptValue reason,
+                                     ExceptionState&) override;
 
-  void OnFrameFromSource(std::unique_ptr<webrtc::TransformableFrameInterface>);
+  void OnFrameFromSource(
+      std::unique_ptr<webrtc::TransformableAudioFrameInterface>);
   void Close();
 
   // Called on any thread to indicate the source is being transferred to an
@@ -44,18 +57,23 @@ class MODULES_EXPORT RTCEncodedAudioUnderlyingSource
   // context, called on the thread upon which the instance was created.
   void OnSourceTransferStartedOnTaskRunner();
 
+  // In case there is controller override, this one is returned. If not,
+  // Controller() from the underlying source base will be returned.
+  ReadableStreamDefaultControllerWithScriptScope* GetController();
+
   FRIEND_TEST_ALL_PREFIXES(RTCEncodedAudioUnderlyingSourceTest,
                            QueuedFramesAreDroppedWhenOverflow);
   static const int kMinQueueDesiredSize;
 
   const Member<ScriptState> script_state_;
   WTF::CrossThreadOnceClosure disconnect_callback_;
-  // Indicates if this source is for a receiver. Receiver sources
-  // expose CSRCs.
-  const bool is_receiver_;
+  Member<ReadableStreamDefaultControllerWithScriptScope> override_controller_;
   // Count of frames dropped due to the queue being full, for logging.
   int dropped_frames_ = 0;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  const bool enable_frame_restrictions_;
+  const base::UnguessableToken owner_id_;
+  int64_t last_enqueued_frame_counter_ = 0;
 };
 
 }  // namespace blink

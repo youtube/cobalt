@@ -10,6 +10,14 @@
 
 #include "modules/rtp_rtcp/source/rtp_video_header.h"
 
+#include <optional>
+
+#include "api/video/video_codec_type.h"
+#include "api/video/video_frame_metadata.h"
+#include "modules/video_coding/codecs/h264/include/h264_globals.h"
+#include "modules/video_coding/codecs/vp8/include/vp8_globals.h"
+#include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
+
 namespace webrtc {
 
 RTPVideoHeader::GenericDescriptorInfo::GenericDescriptorInfo() = default;
@@ -49,18 +57,20 @@ VideoFrameMetadata RTPVideoHeader::GetAsMetadata() const {
   switch (codec) {
     case VideoCodecType::kVideoCodecVP8:
       metadata.SetRTPVideoHeaderCodecSpecifics(
-          absl::get<RTPVideoHeaderVP8>(video_type_header));
+          std::get<RTPVideoHeaderVP8>(video_type_header));
       break;
     case VideoCodecType::kVideoCodecVP9:
       metadata.SetRTPVideoHeaderCodecSpecifics(
-          absl::get<RTPVideoHeaderVP9>(video_type_header));
+          std::get<RTPVideoHeaderVP9>(video_type_header));
       break;
     case VideoCodecType::kVideoCodecH264:
       metadata.SetRTPVideoHeaderCodecSpecifics(
-          absl::get<RTPVideoHeaderH264>(video_type_header));
+          std::get<RTPVideoHeaderH264>(video_type_header));
       break;
-    default:
-      // Codec-specifics are not supported for this codec.
+    // These codec types do not have codec-specifics.
+    case VideoCodecType::kVideoCodecH265:
+    case VideoCodecType::kVideoCodecAV1:
+    case VideoCodecType::kVideoCodecGeneric:
       break;
   }
   return metadata;
@@ -73,7 +83,7 @@ void RTPVideoHeader::SetFromMetadata(const VideoFrameMetadata& metadata) {
   rotation = metadata.GetRotation();
   content_type = metadata.GetContentType();
   if (!metadata.GetFrameId().has_value()) {
-    generic = absl::nullopt;
+    generic = std::nullopt;
   } else {
     generic.emplace();
     generic->frame_id = metadata.GetFrameId().value();
@@ -90,15 +100,15 @@ void RTPVideoHeader::SetFromMetadata(const VideoFrameMetadata& metadata) {
   codec = metadata.GetCodec();
   switch (codec) {
     case VideoCodecType::kVideoCodecVP8:
-      video_type_header = absl::get<RTPVideoHeaderVP8>(
+      video_type_header = std::get<RTPVideoHeaderVP8>(
           metadata.GetRTPVideoHeaderCodecSpecifics());
       break;
     case VideoCodecType::kVideoCodecVP9:
-      video_type_header = absl::get<RTPVideoHeaderVP9>(
+      video_type_header = std::get<RTPVideoHeaderVP9>(
           metadata.GetRTPVideoHeaderCodecSpecifics());
       break;
     case VideoCodecType::kVideoCodecH264:
-      video_type_header = absl::get<RTPVideoHeaderH264>(
+      video_type_header = std::get<RTPVideoHeaderH264>(
           metadata.GetRTPVideoHeaderCodecSpecifics());
       break;
     default:

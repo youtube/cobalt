@@ -19,12 +19,12 @@
 
 namespace content {
 
-ShellContentTestClient::ShellContentTestClient() {}
+ShellContentTestClient::ShellContentTestClient() = default;
 
-ShellContentTestClient::~ShellContentTestClient() {}
+ShellContentTestClient::~ShellContentTestClient() = default;
 
 std::u16string ShellContentTestClient::GetLocalizedString(int message_id) {
-  if (test_switches::IsRunWebTestsSwitchPresent()) {
+  if (switches::IsRunWebTestsSwitchPresent()) {
     switch (message_id) {
       case IDS_FORM_OTHER_DATE_LABEL:
         return u"<<OtherDate>>";

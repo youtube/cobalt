@@ -1,11 +1,16 @@
-/*
- * Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
- *
- * Licensed under the OpenSSL license (the "License").  You may not use
- * this file except in compliance with the License.  You can obtain a copy
- * in the file LICENSE in the source distribution or at
- * https://www.openssl.org/source/license.html
- */
+// Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Tests for X509 time functions.
 
@@ -16,6 +21,9 @@
 
 #include <gtest/gtest.h>
 #include <openssl/asn1.h>
+
+
+namespace {
 
 struct TestData {
   const char *data;
@@ -296,14 +304,11 @@ TEST(X509TimeTest, TestCmpTime) {
   for (auto &test : kX509CmpTests) {
     SCOPED_TRACE(test.data);
 
-    ASN1_TIME t;
+    bssl::UniquePtr<ASN1_STRING> t(ASN1_STRING_type_new(test.type));
+    ASSERT_TRUE(t);
+    ASSERT_TRUE(ASN1_STRING_set(t.get(), test.data, strlen(test.data)));
 
-    memset(&t, 0, sizeof(t));
-    t.type = test.type;
-    t.data = (unsigned char*) test.data;
-    t.length = strlen(test.data);
-
-    EXPECT_EQ(test.expected, X509_cmp_time_posix(&t, test.cmp_time));
+    EXPECT_EQ(test.expected, X509_cmp_time_posix(t.get(), test.cmp_time));
   }
 }
 
@@ -316,3 +321,5 @@ TEST(X509TimeTest, TestCmpTimeCurrent) {
   ASSERT_EQ(-1, X509_cmp_time(asn1_before.get(), NULL));
   ASSERT_EQ(1, X509_cmp_time(asn1_after.get(), NULL));
 }
+
+}  // namespace

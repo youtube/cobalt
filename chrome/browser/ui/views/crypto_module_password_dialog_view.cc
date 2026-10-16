@@ -10,7 +10,10 @@
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/events/event.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/layout/box_layout.h"
@@ -27,27 +30,26 @@ CryptoModulePasswordDialogView::CryptoModulePasswordDialogView(
     CryptoModulePasswordCallback callback)
     : callback_(std::move(callback)) {
   SetButtonLabel(
-      ui::DIALOG_BUTTON_OK,
+      ui::mojom::DialogButton::kOk,
       l10n_util::GetStringUTF16(IDS_CRYPTO_MODULE_AUTH_DIALOG_OK_BUTTON_LABEL));
-  SetAcceptCallback(base::BindOnce(
-      [](CryptoModulePasswordDialogView* dialog) {
-        std::move(dialog->callback_)
-            .Run(base::UTF16ToUTF8(dialog->password_entry_->GetText()));
-      },
-      base::Unretained(this)));
-  SetCancelCallback(base::BindOnce(
-      [](CryptoModulePasswordDialogView* dialog) {
-        std::move(dialog->callback_).Run(std::string());
-      },
-      base::Unretained(this)));
-  SetModalType(ui::MODAL_TYPE_WINDOW);
+  constexpr bool kAccepted = true;
+  constexpr bool kCancelled = false;
+  SetAcceptCallback(
+      base::BindOnce(&CryptoModulePasswordDialogView::DialogAcceptedOrCancelled,
+                     base::Unretained(this), kAccepted));
+  SetCancelCallback(
+      base::BindOnce(&CryptoModulePasswordDialogView::DialogAcceptedOrCancelled,
+                     base::Unretained(this), kCancelled));
+  SetCloseCallback(
+      base::BindOnce(&CryptoModulePasswordDialogView::DialogAcceptedOrCancelled,
+                     base::Unretained(this), kCancelled));
+  SetModalType(ui::mojom::ModalType::kWindow);
   set_margins(ChromeLayoutProvider::Get()->GetDialogInsetsForContentType(
       views::DialogContentType::kText, views::DialogContentType::kControl));
   Init(hostname, slot_name, reason);
 }
 
-CryptoModulePasswordDialogView::~CryptoModulePasswordDialogView() {
-}
+CryptoModulePasswordDialogView::~CryptoModulePasswordDialogView() = default;
 
 ////////////////////////////////////////////////////////////////////////////////
 // CryptoModulePasswordDialogView, private:
@@ -80,8 +82,7 @@ void CryptoModulePasswordDialogView::Init(const std::string& hostname,
   switch (reason) {
     case kCryptoModulePasswordCertEnrollment:
       text = l10n_util::GetStringFUTF8(
-          IDS_CRYPTO_MODULE_AUTH_DIALOG_TEXT_CERT_ENROLLMENT,
-          slot16,
+          IDS_CRYPTO_MODULE_AUTH_DIALOG_TEXT_CERT_ENROLLMENT, slot16,
           hostname16);
       break;
     case kCryptoModulePasswordClientAuth:
@@ -101,7 +102,7 @@ void CryptoModulePasswordDialogView::Init(const std::string& hostname,
           IDS_CRYPTO_MODULE_AUTH_DIALOG_TEXT_CERT_EXPORT, slot16);
       break;
     default:
-      NOTREACHED_NORETURN();
+      NOTREACHED();
   }
 
   ChromeLayoutProvider* provider = ChromeLayoutProvider::Get();
@@ -125,11 +126,19 @@ void CryptoModulePasswordDialogView::Init(const std::string& hostname,
       password_container->AddChildView(std::make_unique<views::Textfield>());
   password_entry_->SetTextInputType(ui::TEXT_INPUT_TYPE_PASSWORD);
   password_entry_->set_controller(this);
-  password_entry_->SetAccessibleName(password_label_);
+  password_entry_->GetViewAccessibility().SetName(*password_label_);
   password_container->SetFlexForView(password_entry_, 1);
 }
 
-BEGIN_METADATA(CryptoModulePasswordDialogView, views::DialogDelegateView)
+void CryptoModulePasswordDialogView::DialogAcceptedOrCancelled(bool accepted) {
+  CHECK(callback_);
+
+  std::string result =
+      accepted ? base::UTF16ToUTF8(password_entry_->GetText()) : std::string();
+  std::move(callback_).Run(result);
+}
+
+BEGIN_METADATA(CryptoModulePasswordDialogView)
 END_METADATA
 
 void ShowCryptoModulePasswordDialog(const std::string& slot_name,

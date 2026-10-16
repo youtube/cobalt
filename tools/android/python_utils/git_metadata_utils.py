@@ -6,6 +6,7 @@
 
 import datetime as dt
 import functools
+import os
 import pathlib
 import sys
 from typing import Optional, Union
@@ -20,18 +21,19 @@ PathStr = Union[pathlib.Path, str]
 
 @functools.lru_cache(maxsize=1)
 def get_chromium_src_path() -> pathlib.Path:
-    """Returns the root 'src' absolute path of this Chromium Git checkout.
+    """Returns the root 'src' absolute path of this Chromium checkout.
 
     Example Path: /home/username/git/chromium/src
 
     Returns:
-        The absolute path to the 'src' root directory of the Chromium Git
-        checkout containing this file.
+        The absolute path to the 'src' root directory of the Chromium checkout
+        containing this file.
     """
     _CHROMIUM_SRC_ROOT = pathlib.Path(__file__).resolve(strict=True).parents[3]
-    if _CHROMIUM_SRC_ROOT.name != 'src':
-        raise AssertionError(
-            f'_CHROMIUM_SRC_ROOT "{_CHROMIUM_SRC_ROOT}" should end in "src".')
+
+    # .git directory does not exist on cog.
+    if os.getcwd().startswith('/google/cog/cloud'):
+        return _CHROMIUM_SRC_ROOT
 
     try:
         _assert_git_repository(_CHROMIUM_SRC_ROOT)

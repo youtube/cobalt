@@ -6,14 +6,21 @@
 #define QUICHE_QUIC_LOAD_BALANCER_LOAD_BALANCER_SERVER_ID_H_
 
 #include <array>
+#include <cstdint>
+#include <string>
 
-#include "quiche/quic/core/quic_types.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {
 
 // The maximum number of bytes in a LoadBalancerServerId.
 inline constexpr uint8_t kLoadBalancerMaxServerIdLen = 15;
+// Regardless of key length, the AES block size is always 16 Bytes.
+inline constexpr uint8_t kLoadBalancerBlockSize = 16;
+static_assert(kLoadBalancerMaxServerIdLen <= kLoadBalancerBlockSize,
+              "LoadBalancerServerId array not large enough to hold Server ID");
 
 // LoadBalancerServerId is the globally understood identifier for a given pool
 // member. It is unique to any given QUIC-LB configuration. See
@@ -24,15 +31,12 @@ inline constexpr uint8_t kLoadBalancerMaxServerIdLen = 15;
 // (LoadBalancerServerId).
 class QUIC_EXPORT_PRIVATE LoadBalancerServerId {
  public:
-  // Copies all the bytes from |data| into a new LoadBalancerServerId.
-  static absl::optional<LoadBalancerServerId> Create(
-      absl::Span<const uint8_t> data);
+  // Creates an empty/invalid server id.
+  LoadBalancerServerId() : length_(0) {}
 
-  // For callers with a string_view at hand.
-  static absl::optional<LoadBalancerServerId> Create(absl::string_view data) {
-    return Create(absl::MakeSpan(reinterpret_cast<const uint8_t*>(data.data()),
-                                 data.length()));
-  }
+  // Copies all the bytes from |data| into a new LoadBalancerServerId.
+  explicit LoadBalancerServerId(absl::Span<const uint8_t> data);
+  explicit LoadBalancerServerId(absl::string_view data);
 
   // Server IDs are opaque bytes, but defining these operators allows us to sort
   // them into a tree and define ranges.
@@ -53,16 +57,21 @@ class QUIC_EXPORT_PRIVATE LoadBalancerServerId {
   absl::Span<const uint8_t> data() const {
     return absl::MakeConstSpan(data_.data(), length_);
   }
+  uint8_t* mutable_data() { return data_.data(); }
+
   uint8_t length() const { return length_; }
+  void set_length(uint8_t length);
 
   // Returns the server ID in hex format.
   std::string ToString() const;
 
- private:
-  // The constructor is private because it can't validate the input.
-  LoadBalancerServerId(const absl::Span<const uint8_t> data);
+  // Returns true if this is a valid server id.
+  bool IsValid() { return length_ != 0; }
 
-  std::array<uint8_t, kLoadBalancerMaxServerIdLen> data_;
+ private:
+  // Make the array large enough to hold an entire decrypt result, to save a
+  // copy from the decrypt result into LoadBalancerServerId.
+  std::array<uint8_t, kLoadBalancerBlockSize> data_;
   uint8_t length_;
 };
 

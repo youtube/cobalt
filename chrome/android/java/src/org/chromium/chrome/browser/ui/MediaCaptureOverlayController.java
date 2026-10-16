@@ -33,7 +33,7 @@ public class MediaCaptureOverlayController implements UnownedUserData {
     private final CaptureOverlayTabObserver mTabObserver = new CaptureOverlayTabObserver();
 
     private View mOverlayView;
-    private SparseArray<Tab> mCapturedTabs = new SparseArray<Tab>();
+    private final SparseArray<Tab> mCapturedTabs = new SparseArray<Tab>();
     private Tab mVisibleTab;
 
     private class CaptureOverlayTabObserver extends EmptyTabObserver {
@@ -56,8 +56,12 @@ public class MediaCaptureOverlayController implements UnownedUserData {
         }
 
         @Override
-        public void onBrowserControlsOffsetChanged(Tab tab, int topControlsOffsetY,
-                int bottomControlsOffsetY, int contentOffsetY, int topControlsMinHeightOffsetY,
+        public void onBrowserControlsOffsetChanged(
+                Tab tab,
+                int topControlsOffsetY,
+                int bottomControlsOffsetY,
+                int contentOffsetY,
+                int topControlsMinHeightOffsetY,
                 int bottomControlsMinHeightOffsetY) {
             if (tab == mVisibleTab) updateMargins();
         }
@@ -81,17 +85,14 @@ public class MediaCaptureOverlayController implements UnownedUserData {
 
     /**
      * Make this instance of MediaCaptureOverlayController available through the activity's window.
+     *
      * @param window A {@link WindowAndroid} to attach to.
-     * @param manager The {@link MediaCaptureOverlayController} to attach.
      */
     private static void attach(WindowAndroid window, MediaCaptureOverlayController overlay) {
         KEY.attachToHost(window.getUnownedUserDataHost(), overlay);
     }
 
-    /**
-     * Detach the provided MediaCaptureOverlayController from any host it is associated with.
-     * @param manager The {@link MediaCaptureOverlayController} to detach.
-     */
+    /** Detach the provided MediaCaptureOverlayController from any host it is associated with. */
     private static void detach(MediaCaptureOverlayController overlay) {
         KEY.detachFromAllHosts(overlay);
     }
@@ -144,9 +145,7 @@ public class MediaCaptureOverlayController implements UnownedUserData {
         mOverlayView.setVisibility(View.VISIBLE);
     }
 
-    /**
-     * Mark that the current visible tab is no longer visible and immediately hide the overlay.
-     */
+    /** Mark that the current visible tab is no longer visible and immediately hide the overlay. */
     private void clearVisibleTab() {
         mOverlayView.setVisibility(View.GONE);
         mVisibleTab = null;

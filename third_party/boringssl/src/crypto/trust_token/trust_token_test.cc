@@ -1,16 +1,16 @@
-/* Copyright (c) 2020, Google Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
+// Copyright 2020 The BoringSSL Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <assert.h>
 #include <stdio.h>
@@ -34,7 +34,7 @@
 #include <openssl/sha.h>
 #include <openssl/trust_token.h>
 
-#include "../ec_extra/internal.h"
+#include "../ec/internal.h"
 #include "../fipsmodule/ec/internal.h"
 #include "../internal.h"
 #include "../test/test_util.h"
@@ -250,9 +250,7 @@ TEST(TrustTokenTest, KeyGenExp2PMB) {
 
 // Test that H in |TRUST_TOKEN_experiment_v1| was computed correctly.
 TEST(TrustTokenTest, HExp1) {
-  const EC_GROUP *group = EC_GROUP_new_by_curve_name(NID_secp384r1);
-  ASSERT_TRUE(group);
-
+  const EC_GROUP *group = EC_group_p384();
   const uint8_t kHGen[] = "generator";
   const uint8_t kHLabel[] = "PMBTokens Experiment V1 HashH";
 
@@ -272,9 +270,7 @@ TEST(TrustTokenTest, HExp1) {
 
 // Test that H in |TRUST_TOKEN_experiment_v2_pmb| was computed correctly.
 TEST(TrustTokenTest, HExp2) {
-  const EC_GROUP *group = EC_GROUP_new_by_curve_name(NID_secp384r1);
-  ASSERT_TRUE(group);
-
+  const EC_GROUP *group = EC_group_p384();
   const uint8_t kHGen[] = "generator";
   const uint8_t kHLabel[] = "PMBTokens Experiment V2 HashH";
 
@@ -1080,15 +1076,14 @@ TEST_P(TrustTokenMetadataTest, TruncatedProof) {
   ASSERT_TRUE(CBS_get_u32(&real_response, &parsed_public_metadata));
   ASSERT_TRUE(CBB_add_u32(bad_response.get(), parsed_public_metadata));
 
-  const EC_GROUP *group = EC_GROUP_new_by_curve_name(NID_secp384r1);
-  size_t token_length =
-      TRUST_TOKEN_NONCE_SIZE + 2 * (1 + 2 * BN_num_bytes(&group->field));
+  const size_t kP384PointLen = 1 + 2 * (384 / 8);
+  size_t token_length = TRUST_TOKEN_NONCE_SIZE + 2 * kP384PointLen;
   if (method() == TRUST_TOKEN_experiment_v1()) {
     token_length += 4;
   }
   if (method() == TRUST_TOKEN_experiment_v2_voprf() ||
       method() == TRUST_TOKEN_pst_v1_voprf()) {
-    token_length = 1 + 2 * BN_num_bytes(&group->field);
+    token_length = kP384PointLen;
   }
   for (size_t i = 0; i < count; i++) {
     ASSERT_TRUE(CBB_add_bytes(bad_response.get(), CBS_data(&real_response),
@@ -1149,15 +1144,14 @@ TEST_P(TrustTokenMetadataTest, ExcessDataProof) {
   ASSERT_TRUE(CBS_get_u32(&real_response, &parsed_public_metadata));
   ASSERT_TRUE(CBB_add_u32(bad_response.get(), parsed_public_metadata));
 
-  const EC_GROUP *group = EC_GROUP_new_by_curve_name(NID_secp384r1);
-  size_t token_length =
-      TRUST_TOKEN_NONCE_SIZE + 2 * (1 + 2 * BN_num_bytes(&group->field));
+  const size_t kP384PointLen = 1 + 2 * (384 / 8);
+  size_t token_length = TRUST_TOKEN_NONCE_SIZE + 2 * kP384PointLen;
   if (method() == TRUST_TOKEN_experiment_v1()) {
     token_length += 4;
   }
   if (method() == TRUST_TOKEN_experiment_v2_voprf() ||
       method() == TRUST_TOKEN_pst_v1_voprf()) {
-    token_length = 1 + 2 * BN_num_bytes(&group->field);
+    token_length = kP384PointLen;
   }
   for (size_t i = 0; i < count; i++) {
     ASSERT_TRUE(CBB_add_bytes(bad_response.get(), CBS_data(&real_response),

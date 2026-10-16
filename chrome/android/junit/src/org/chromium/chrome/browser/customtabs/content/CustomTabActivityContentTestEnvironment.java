@@ -6,11 +6,14 @@ package org.chromium.chrome.browser.customtabs.content;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.view.View;
 
 import androidx.browser.customtabs.CustomTabsSessionToken;
@@ -24,45 +27,53 @@ import org.mockito.MockitoAnnotations;
 
 import org.chromium.base.Callback;
 import org.chromium.base.IntentUtils;
+import org.chromium.base.Promise;
 import org.chromium.base.UserDataHost;
+import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.WarmupManager;
-import org.chromium.chrome.browser.WebContentsFactory;
-import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.app.tab_activity_glue.ReparentingTask;
+import org.chromium.chrome.browser.app.tabmodel.AsyncTabParamsManagerSingleton;
 import org.chromium.chrome.browser.app.tabmodel.CustomTabsTabModelOrchestrator;
 import org.chromium.chrome.browser.browserservices.intents.ColorProvider;
+import org.chromium.chrome.browser.browserservices.intents.SessionHolder;
+import org.chromium.chrome.browser.browserservices.ui.controller.CurrentPageVerifier;
+import org.chromium.chrome.browser.browserservices.ui.controller.Verifier;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
+import org.chromium.chrome.browser.content.WebContentsFactory;
+import org.chromium.chrome.browser.content.WebContentsFactoryJni;
+import org.chromium.chrome.browser.crypto.CipherFactory;
+import org.chromium.chrome.browser.customtabs.BaseCustomTabActivity;
 import org.chromium.chrome.browser.customtabs.CloseButtonNavigator;
+import org.chromium.chrome.browser.customtabs.CustomTabAuthUrlHeuristics;
+import org.chromium.chrome.browser.customtabs.CustomTabAuthUrlHeuristicsJni;
 import org.chromium.chrome.browser.customtabs.CustomTabDelegateFactory;
-import org.chromium.chrome.browser.customtabs.CustomTabIncognitoManager;
 import org.chromium.chrome.browser.customtabs.CustomTabIntentDataProvider;
 import org.chromium.chrome.browser.customtabs.CustomTabNavigationEventObserver;
 import org.chromium.chrome.browser.customtabs.CustomTabObserver;
 import org.chromium.chrome.browser.customtabs.CustomTabTabPersistencePolicy;
 import org.chromium.chrome.browser.customtabs.CustomTabsConnection;
-import org.chromium.chrome.browser.customtabs.DefaultBrowserProviderImpl;
-import org.chromium.chrome.browser.customtabs.ReparentingTaskProvider;
-import org.chromium.chrome.browser.customtabs.features.sessionrestore.SessionRestoreMessageController;
+import org.chromium.chrome.browser.customtabs.features.minimizedcustomtab.CustomTabMinimizationManagerHolder;
 import org.chromium.chrome.browser.customtabs.shadows.ShadowExternalNavigationDelegateImpl;
 import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.init.ChromeBrowserInitializer;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
-import org.chromium.chrome.browser.password_manager.PasswordChangeSuccessTrackerBridge;
+import org.chromium.chrome.browser.preloading.PreloadingDataBridge;
+import org.chromium.chrome.browser.preloading.PreloadingDataBridgeJni;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tab.TabImpl;
 import org.chromium.chrome.browser.tabmodel.AsyncTabCreationParams;
-import org.chromium.chrome.browser.tabmodel.AsyncTabParamsManager;
-import org.chromium.chrome.browser.tabmodel.AsyncTabParamsManagerFactory;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelInitializer;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorImpl;
+import org.chromium.chrome.browser.tabmodel.TabReparentingParams;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.url.GURL;
+import org.chromium.content_public.browser.test.mock.MockWebContents;
 import org.chromium.url.JUnitTestGURLs;
 
 /**
@@ -70,15 +81,15 @@ import org.chromium.url.JUnitTestGURLs;
  * to the content layer of Custom Tabs code.
  */
 public class CustomTabActivityContentTestEnvironment extends TestWatcher {
-    public static final String INITIAL_URL = JUnitTestGURLs.INITIAL_URL;
-    public static final String SPECULATED_URL = JUnitTestGURLs.SPECULATED_URL;
-    public static final String OTHER_URL = JUnitTestGURLs.EXAMPLE_URL;
+    public static final String INITIAL_URL = JUnitTestGURLs.INITIAL_URL.getSpec();
+    public static final String SPECULATED_URL = "https://speculated.com";
+    public static final String OTHER_URL = JUnitTestGURLs.EXAMPLE_URL.getSpec();
+    public static final String CONTENT_URI = "content://com.a.b.c/a";
 
     public final Intent mIntent = new Intent();
 
-    // clang-format off
+    @Mock public BaseCustomTabActivity activity;
     @Mock public CustomTabDelegateFactory customTabDelegateFactory;
-    @Mock public ChromeActivity activity;
     @Mock public CustomTabsConnection connection;
     @Mock public ColorProvider colorProvider;
     @Mock public CustomTabIntentDataProvider intentDataProvider;
@@ -89,44 +100,54 @@ public class CustomTabActivityContentTestEnvironment extends TestWatcher {
     @Mock public CustomTabActivityTabFactory tabFactory;
     @Mock public CustomTabsTabModelOrchestrator tabModelOrchestrator;
     @Mock public CustomTabObserver customTabObserver;
-    @Mock public WebContentsFactory webContentsFactory;
     @Mock public ActivityTabProvider activityTabProvider;
     @Mock public ActivityLifecycleDispatcher lifecycleDispatcher;
-    @Mock public CustomTabsSessionToken session;
+    @Mock public SessionHolder<CustomTabsSessionToken> session;
     @Mock public TabModelSelectorImpl tabModelSelector;
     @Mock public TabModel tabModel;
-    @Mock public ReparentingTaskProvider reparentingTaskProvider;
     @Mock public ReparentingTask reparentingTask;
     @Mock public CustomTabNavigationEventObserver navigationEventObserver;
     @Mock public CloseButtonNavigator closeButtonNavigator;
     @Mock public ToolbarManager toolbarManager;
     @Mock public ChromeBrowserInitializer browserInitializer;
-    @Mock public CustomTabIncognitoManager customTabIncognitoManager;
     @Mock public TabModelInitializer tabModelInitializer;
-    @Mock public SessionRestoreMessageController sessionRestoreMessageController;
-    // clang-format on
-    public AsyncTabParamsManager realAsyncTabParamsManager =
-            AsyncTabParamsManagerFactory.createAsyncTabParamsManager();
+    @Mock public MockWebContents webContents;
+    @Mock public CustomTabMinimizationManagerHolder mMinimizationManagerHolder;
+    @Mock public ProfileProvider profileProvider;
+    @Mock public CipherFactory cipherFactory;
+    @Mock public PowerManager powerManager;
+    @Mock private Profile mProfile;
+    @Mock private Profile mIncognitoProfile;
+    @Mock CustomTabAuthUrlHeuristics.Natives mCustomTabAuthUrlHeuristicsJniMock;
+    @Mock WebContentsFactory.Natives mWebContentsFactoryJni;
+    @Mock public Verifier verifier;
+    @Mock public CurrentPageVerifier currentPageVerifier;
+    @Mock PreloadingDataBridge.Natives mPreloadingDataBridgeMock;
+    @Mock WebAppLaunchHandler.Natives mWebAppLaunchHandlerJniMock;
 
-    public final CustomTabActivityTabProvider tabProvider = new CustomTabActivityTabProvider();
+    public final CustomTabActivityTabProvider tabProvider =
+            new CustomTabActivityTabProvider(SPECULATED_URL);
 
-    @Captor
-    public ArgumentCaptor<Callback<Tab>> activityTabObserverCaptor;
+    @Captor public ArgumentCaptor<Callback<Tab>> activityTabObserverCaptor;
 
     // Captures the WebContents with which tabFromFactory is initialized
     @Captor public ArgumentCaptor<WebContents> webContentsCaptor;
 
     public Tab tabFromFactory;
 
-    public boolean isIncognito;
+    public boolean isOffTheRecord;
 
     @Override
     protected void starting(Description description) {
         MockitoAnnotations.initMocks(this);
 
-        // There are a number of places that call CustomTabsConnection.getInstance(), which would
-        // otherwise result in a real CustomTabsConnection being created.
         CustomTabsConnection.setInstanceForTesting(connection);
+        ChromeBrowserInitializer.setForTesting(browserInitializer);
+        WarmupManager.setInstanceForTesting(warmupManager);
+        CustomTabAuthUrlHeuristicsJni.setInstanceForTesting(mCustomTabAuthUrlHeuristicsJniMock);
+        WebContentsFactoryJni.setInstanceForTesting(mWebContentsFactoryJni);
+        PreloadingDataBridgeJni.setInstanceForTesting(mPreloadingDataBridgeMock);
+        WebAppLaunchHandlerJni.setInstanceForTesting(mWebAppLaunchHandlerJniMock);
 
         tabFromFactory = prepareTab();
 
@@ -141,70 +162,84 @@ public class CustomTabActivityContentTestEnvironment extends TestWatcher {
         when(tabModelOrchestrator.getTabModelSelector()).thenReturn(tabModelSelector);
         when(tabModelSelector.getModel(anyBoolean())).thenReturn(tabModel);
         when(tabModelSelector.getCurrentModel()).thenReturn(tabModel);
-        when(connection.getSpeculatedUrl(any())).thenReturn(SPECULATED_URL);
         when(browserInitializer.isFullBrowserInitialized()).thenReturn(true);
         // Default setup is toolbarManager doesn't consume back press event.
         when(toolbarManager.back()).thenReturn(false);
 
-        when(reparentingTaskProvider.get(any())).thenReturn(reparentingTask);
         when(activityTabProvider.addObserver(activityTabObserverCaptor.capture())).thenReturn(null);
         when(intentDataProvider.getColorProvider()).thenReturn(colorProvider);
+
+        when(activity.getSystemService(Context.POWER_SERVICE)).thenReturn(powerManager);
+        when(powerManager.isInteractive()).thenReturn(true);
+
+        when(profileProvider.getOriginalProfile()).thenReturn(mProfile);
+        when(profileProvider.getOffTheRecordProfile(eq(true))).thenReturn(mIncognitoProfile);
+        when(mIncognitoProfile.isOffTheRecord()).thenReturn(true);
+        when(verifier.verify(any())).thenReturn(Promise.fulfilled(true));
+        when(currentPageVerifier.getState())
+                .thenReturn(
+                        new CurrentPageVerifier.VerificationState(
+                                "", "", CurrentPageVerifier.VerificationStatus.SUCCESS));
     }
 
     @Override
     protected void finished(Description description) {
-        realAsyncTabParamsManager.getAsyncTabParams().clear();
+        AsyncTabParamsManagerSingleton.getInstance().getAsyncTabParams().clear();
         ShadowExternalNavigationDelegateImpl.setWillChromeHandleIntent(false);
     }
 
-    /**
-     * Set an extra that triggers notifying the PasswordChangeSuccessTracker during initial intent
-     * handling.
-     * @param username The username to set as the extra parameter.
-     */
-    public void setPasswordChangeUsername(String username) {
-        mIntent.putExtra(
-                PasswordChangeSuccessTrackerBridge.EXTRA_MANUAL_CHANGE_USERNAME_KEY, username);
-    }
-
-    // clang-format off
     public CustomTabActivityTabController createTabController() {
-        return new CustomTabActivityTabController(activity, () -> customTabDelegateFactory,
-                connection, intentDataProvider, activityTabProvider, tabObserverRegistrar,
-                () -> compositorViewHolder, lifecycleDispatcher, warmupManager,
-                tabPersistencePolicy, tabFactory, () -> customTabObserver, webContentsFactory,
-                navigationEventObserver, tabProvider, reparentingTaskProvider,
-                () -> customTabIncognitoManager, () -> realAsyncTabParamsManager,
-                () -> activity.getSavedInstanceState(), activity.getWindowAndroid(),
-                tabModelInitializer, sessionRestoreMessageController);
+        OneshotSupplierImpl<ProfileProvider> profileProviderSupplier = new OneshotSupplierImpl<>();
+        profileProviderSupplier.set(profileProvider);
+
+        return new CustomTabActivityTabController(
+                activity,
+                profileProviderSupplier,
+                customTabDelegateFactory,
+                intentDataProvider,
+                tabObserverRegistrar,
+                () -> compositorViewHolder,
+                tabPersistencePolicy,
+                tabFactory,
+                customTabObserver,
+                navigationEventObserver,
+                activityTabProvider,
+                tabProvider,
+                () -> activity.getSavedInstanceState(),
+                activity.getWindowAndroid(),
+                tabModelInitializer,
+                cipherFactory,
+                lifecycleDispatcher);
     }
-    // clang-format on
 
     public CustomTabActivityNavigationController createNavigationController(
             CustomTabActivityTabController tabController) {
         CustomTabActivityNavigationController controller =
-                new CustomTabActivityNavigationController(tabController, tabProvider,
-                        intentDataProvider, connection,
-                        ()
-                                -> customTabObserver,
-                        closeButtonNavigator, browserInitializer, activity, lifecycleDispatcher,
-                        new DefaultBrowserProviderImpl());
-        controller.onToolbarInitialized(toolbarManager);
+                new CustomTabActivityNavigationController(
+                        tabController,
+                        tabProvider,
+                        intentDataProvider,
+                        customTabObserver,
+                        closeButtonNavigator,
+                        activity,
+                        lifecycleDispatcher);
         return controller;
     }
 
     public CustomTabIntentHandler createIntentHandler(
             CustomTabActivityNavigationController navigationController) {
-        CustomTabIntentHandlingStrategy strategy = new DefaultCustomTabIntentHandlingStrategy(
-                tabProvider, navigationController, navigationEventObserver,
-                () -> customTabObserver) {
-            @Override
-            public GURL getGurlForUrl(String url) {
-                return JUnitTestGURLs.getGURL(url);
-            }
-        };
         return new CustomTabIntentHandler(
-                tabProvider, intentDataProvider, strategy, (intent) -> false, activity);
+                tabProvider,
+                intentDataProvider,
+                new DefaultCustomTabIntentHandlingStrategy(
+                        tabProvider,
+                        navigationController,
+                        customTabObserver,
+                        verifier,
+                        currentPageVerifier,
+                        activity),
+                activity,
+                mMinimizationManagerHolder);
     }
 
     public void warmUp() {
@@ -224,18 +259,11 @@ public class CustomTabActivityContentTestEnvironment extends TestWatcher {
         when(tabModelSelector.getCurrentTab()).thenReturn(tab);
     }
 
-    // Dispatches lifecycle events up to native init.
-    public void reachNativeInit(CustomTabActivityTabController tabController) {
-        tabController.onPreInflationStartup();
-        tabController.onPostInflationStartup();
-        tabController.finishNativeInitialization();
-    }
-
     public WebContents prepareTransferredWebcontents() {
         int tabId = 1;
         WebContents webContents = mock(WebContents.class);
-        realAsyncTabParamsManager.add(
-                tabId, new AsyncTabCreationParams(mock(LoadUrlParams.class), webContents));
+        AsyncTabParamsManagerSingleton.getInstance()
+                .add(tabId, new AsyncTabCreationParams(mock(LoadUrlParams.class), webContents));
         IntentHandler.setTabId(mIntent, tabId);
         IntentUtils.setForceIsTrustedIntentForTesting(true);
         return webContents;
@@ -243,28 +271,43 @@ public class CustomTabActivityContentTestEnvironment extends TestWatcher {
 
     public WebContents prepareSpareWebcontents() {
         WebContents webContents = mock(WebContents.class);
-        when(warmupManager.takeSpareWebContents(anyBoolean(), anyBoolean()))
+        when(warmupManager.takeSpareWebContents(
+                        /* incognito= */ anyBoolean(),
+                        /* initiallyHidden= */ anyBoolean(),
+                        /* targetsNetwork= */ anyBoolean()))
                 .thenReturn(webContents);
         return webContents;
     }
 
-    public TabImpl prepareHiddenTab() {
+    public Tab prepareHiddenTab() {
         warmUp();
-        TabImpl hiddenTab = prepareTab();
-        when(connection.takeHiddenTab(any(), any(), any())).thenReturn(hiddenTab);
+        Tab hiddenTab = prepareTab();
         return hiddenTab;
     }
 
-    public TabImpl prepareTab() {
-        TabImpl tab = mock(TabImpl.class);
+    public Tab prepareTransferredTab() {
+        int tabId = 1;
+        Tab tab = prepareTab();
+        when(tab.getId()).thenReturn(tabId);
+        AsyncTabParamsManagerSingleton.getInstance()
+                .add(tabId, new TabReparentingParams(tab, null));
+        IntentHandler.setTabId(mIntent, tabId);
+        IntentUtils.setForceIsTrustedIntentForTesting(true);
+        return tab;
+    }
+
+    public Tab prepareTab() {
+        Tab tab = mock(Tab.class);
         when(tab.getView()).thenReturn(mock(View.class));
-        UserDataHost host = new UserDataHost();
-        when(tab.getUserDataHost()).thenReturn(host);
-        WebContents webContents = mock(WebContents.class);
+        when(tab.getUserDataHost()).thenReturn(new UserDataHost());
         when(tab.getWebContents()).thenReturn(webContents);
         NavigationController navigationController = mock(NavigationController.class);
         when(webContents.getNavigationController()).thenReturn(navigationController);
-        when(tab.isIncognito()).thenAnswer((mock) -> isIncognito);
+        when(tab.isIncognito()).thenAnswer((mock) -> isOffTheRecord);
+        when(tab.isOffTheRecord()).thenAnswer((mock) -> isOffTheRecord);
+        when(tab.isIncognitoBranded()).thenAnswer((mock) -> isOffTheRecord);
+        when(intentDataProvider.isOffTheRecord()).thenReturn(isOffTheRecord);
+        tab.getUserDataHost().setUserData(ReparentingTask.class, reparentingTask);
         return tab;
     }
 }

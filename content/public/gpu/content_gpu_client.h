@@ -7,12 +7,23 @@
 
 #include "base/metrics/field_trial.h"
 #include "base/task/single_thread_task_runner.h"
+#include "build/buildflag.h"
 #include "content/common/content_export.h"
 #include "content/public/common/content_client.h"
+#include "gpu/command_buffer/service/shared_context_state.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace cobalt::media {
+class VideoGeometrySetterService;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace gpu {
 struct GpuPreferences;
+#if BUILDFLAG(IS_COBALT)
+class GpuChannelManager;
+#endif  // BUILDFLAG(IS_COBALT)
 class GpuDriverBugWorkarounds;
 class Scheduler;
 class SharedImageManager;
@@ -32,6 +43,9 @@ class CONTENT_EXPORT ContentGpuClient {
 
   // Called during initialization once the GpuService has been initialized.
   virtual void GpuServiceInitialized() {}
+#if BUILDFLAG(IS_COBALT)
+  virtual void GpuServiceInitialized(gpu::GpuChannelManager* channel_manager) {}
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Registers Mojo interface binders that can handle interface requests from
   // the browser. Binders registered here will never run until the GPU process
@@ -49,12 +63,20 @@ class CONTENT_EXPORT ContentGpuClient {
   virtual void PostCompositorThreadCreated(
       base::SingleThreadTaskRunner* task_runner) {}
 
+#if BUILDFLAG(IS_ANDROID)
   // Allows client to supply these object instances instead of having content
   // internally create one.
   virtual gpu::SyncPointManager* GetSyncPointManager();
   virtual gpu::SharedImageManager* GetSharedImageManager();
   virtual gpu::Scheduler* GetScheduler();
   virtual viz::VizCompositorThreadRunner* GetVizCompositorThreadRunner();
+  virtual const gpu::SharedContextState::GrContextOptionsProvider*
+  GetGrContextOptionsProvider();
+#endif
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual cobalt::media::VideoGeometrySetterService* GetVideoGeometrySetterService();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace content

@@ -2,11 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/354829279): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/gfx/font_fallback_skia_impl.h"
 
 #include <set>
 #include <string>
+#include <string_view>
 
+#include "skia/ext/font_utils.h"
 #include "third_party/icu/source/common/unicode/normalizer2.h"
 #include "third_party/icu/source/common/unicode/uchar.h"
 #include "third_party/icu/source/common/unicode/utf16.h"
@@ -35,7 +42,7 @@ bool UnicodeDecomposeCodepoint(UChar32 codepoint, icu::UnicodeString* output) {
 
 // Extracts every codepoint and its decomposed codepoints from unicode
 // decomposition. Inserts in |codepoints| the set of codepoints in |text|.
-void RetrieveCodepointsAndDecomposedCodepoints(base::StringPiece16 text,
+void RetrieveCodepointsAndDecomposedCodepoints(std::u16string_view text,
                                                std::set<UChar32>* codepoints) {
   size_t offset = 0;
   while (offset < text.length()) {
@@ -57,7 +64,7 @@ void RetrieveCodepointsAndDecomposedCodepoints(base::StringPiece16 text,
 // Returns the amount of codepoint in |text| without a glyph representation in
 // |typeface|. A codepoint is present if there is a corresponding glyph in
 // typeface, or if there are glyphs for each of its decomposed codepoints.
-size_t ComputeMissingGlyphsForGivenTypeface(base::StringPiece16 text,
+size_t ComputeMissingGlyphsForGivenTypeface(std::u16string_view text,
                                             sk_sp<SkTypeface> typeface) {
   // Validate that every character has a known glyph in the font.
   size_t missing_glyphs = 0;
@@ -105,11 +112,11 @@ size_t ComputeMissingGlyphsForGivenTypeface(base::StringPiece16 text,
 
 sk_sp<SkTypeface> GetSkiaFallbackTypeface(const Font& template_font,
                                           const std::string& locale,
-                                          base::StringPiece16 text) {
+                                          std::u16string_view text) {
   if (text.empty())
     return nullptr;
 
-  sk_sp<SkFontMgr> font_mgr(SkFontMgr::RefDefault());
+  sk_sp<SkFontMgr> font_mgr(skia::DefaultFontMgr());
 
   const char* bcp47_locales[] = {locale.c_str()};
   int num_locales = locale.empty() ? 0 : 1;
@@ -123,7 +130,7 @@ sk_sp<SkTypeface> GetSkiaFallbackTypeface(const Font& template_font,
       font_weight, SkFontStyle::kNormal_Width,
       italic ? SkFontStyle::kItalic_Slant : SkFontStyle::kUpright_Slant);
 
-  std::set<SkFontID> tested_typeface;
+  std::set<SkTypefaceID> tested_typeface;
   sk_sp<SkTypeface> fallback_typeface;
   size_t fewest_missing_glyphs = text.length() + 1;
 

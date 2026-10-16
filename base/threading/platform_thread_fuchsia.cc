@@ -4,15 +4,15 @@
 
 #include "base/threading/platform_thread.h"
 
+#include <fidl/fuchsia.media/cpp/fidl.h>
+#include <lib/fdio/directory.h>
+#include <lib/sys/cpp/component_context.h>
 #include <pthread.h>
 #include <sched.h>
 #include <zircon/syscalls.h>
 
 #include <mutex>
-
-#include <fidl/fuchsia.media/cpp/fidl.h>
-#include <lib/fdio/directory.h>
-#include <lib/sys/cpp/component_context.h>
+#include <string_view>
 
 #include "base/fuchsia/fuchsia_component_connect.h"
 #include "base/fuchsia/fuchsia_logging.h"
@@ -39,9 +39,9 @@ fidl::SyncClient<fuchsia_media::ProfileProvider> ConnectProfileProvider() {
 // Sets the current thread to the given scheduling role, optionally including
 // hints about the workload period and max CPU runtime (capacity * period) in
 // that period.
-// TODO(crbug.com/1365682): Migrate to the new fuchsia.scheduler.ProfileProvider
-// API when available.
-void SetThreadRole(StringPiece role_name,
+// TODO(crbug.com/42050523): Migrate to the new
+// fuchsia.scheduler.ProfileProvider API when available.
+void SetThreadRole(std::string_view role_name,
                    TimeDelta period = {},
                    float capacity = 0.0f) {
   DCHECK_GE(capacity, 0.0);
@@ -85,11 +85,11 @@ size_t GetDefaultThreadStackSize(const pthread_attr_t& attributes) {
 
 // static
 void PlatformThread::SetName(const std::string& name) {
-  zx_status_t status = zx_object_set_property(CurrentId(), ZX_PROP_NAME,
-                                              name.data(), name.size());
+  zx_status_t status =
+      zx::thread::self()->set_property(ZX_PROP_NAME, name.data(), name.size());
   DCHECK_EQ(status, ZX_OK);
 
-  ThreadIdNameManager::GetInstance()->SetName(name);
+  SetNameCommon(name);
 }
 
 // static
@@ -116,15 +116,6 @@ void SetCurrentThreadTypeImpl(ThreadType thread_type,
       SetThreadRole("chromium.base.threading.utility");
       break;
 
-    case ThreadType::kResourceEfficient:
-      SetThreadRole("chromium.base.threading.resource-efficient");
-      break;
-
-    case ThreadType::kCompositing:
-      SetThreadRole("chromium.base.threading.compositing",
-                    kDisplaySchedulingPeriod, kDisplaySchedulingCapacity);
-      break;
-
     case ThreadType::kDisplayCritical:
       SetThreadRole("chromium.base.threading.display", kDisplaySchedulingPeriod,
                     kDisplaySchedulingCapacity);
@@ -147,9 +138,7 @@ ThreadPriorityForTest PlatformThread::GetCurrentThreadPriorityForTest() {
   switch (thread_type) {
     case ThreadType::kBackground:
     case ThreadType::kUtility:
-    case ThreadType::kResourceEfficient:
     case ThreadType::kDefault:
-    case ThreadType::kCompositing:
       return ThreadPriorityForTest::kNormal;
     case ThreadType::kDisplayCritical:
       return ThreadPriorityForTest::kDisplay;

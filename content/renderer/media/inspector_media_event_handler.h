@@ -5,8 +5,16 @@
 #ifndef CONTENT_RENDERER_MEDIA_INSPECTOR_MEDIA_EVENT_HANDLER_H_
 #define CONTENT_RENDERER_MEDIA_INSPECTOR_MEDIA_EVENT_HANDLER_H_
 
+#include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "content/renderer/media/cobalt/inspector_media_event_handler_stub.h"
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "content/common/content_export.h"
 #include "content/renderer/media/batching_media_log.h"
 #include "third_party/blink/public/web/web_media_inspector.h"
@@ -25,11 +33,13 @@ class CONTENT_EXPORT InspectorMediaEventHandler
   void OnWebMediaPlayerDestroyed() override;
 
  private:
-  blink::MediaInspectorContext* inspector_context_;
+  raw_ptr<blink::MediaInspectorContext, DanglingUntriaged> inspector_context_;
   blink::WebString player_id_;
   bool video_player_destroyed_ = false;
 };
 
 }  // namespace content
+
+#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_RENDERER_MEDIA_INSPECTOR_MEDIA_EVENT_HANDLER_H_

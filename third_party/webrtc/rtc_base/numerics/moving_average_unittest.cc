@@ -10,26 +10,28 @@
 
 #include "rtc_base/numerics/moving_average.h"
 
+#include <optional>
+
 #include "test/gtest.h"
 
 namespace test {
 
 TEST(MovingAverageTest, EmptyAverage) {
-  rtc::MovingAverage moving_average(1);
+  webrtc::MovingAverage moving_average(1);
   EXPECT_EQ(0u, moving_average.Size());
-  EXPECT_EQ(absl::nullopt, moving_average.GetAverageRoundedDown());
+  EXPECT_EQ(std::nullopt, moving_average.GetAverageRoundedDown());
 }
 
 // Test single value.
 TEST(MovingAverageTest, OneElement) {
-  rtc::MovingAverage moving_average(1);
+  webrtc::MovingAverage moving_average(1);
   moving_average.AddSample(3);
   EXPECT_EQ(1u, moving_average.Size());
   EXPECT_EQ(3, *moving_average.GetAverageRoundedDown());
 }
 
 TEST(MovingAverageTest, GetAverage) {
-  rtc::MovingAverage moving_average(1024);
+  webrtc::MovingAverage moving_average(1024);
   moving_average.AddSample(1);
   moving_average.AddSample(1);
   moving_average.AddSample(3);
@@ -39,7 +41,7 @@ TEST(MovingAverageTest, GetAverage) {
 }
 
 TEST(MovingAverageTest, GetAverageRoundedDownRounds) {
-  rtc::MovingAverage moving_average(1024);
+  webrtc::MovingAverage moving_average(1024);
   moving_average.AddSample(1);
   moving_average.AddSample(2);
   moving_average.AddSample(2);
@@ -48,7 +50,7 @@ TEST(MovingAverageTest, GetAverageRoundedDownRounds) {
 }
 
 TEST(MovingAverageTest, GetAverageRoundedToClosestRounds) {
-  rtc::MovingAverage moving_average(1024);
+  webrtc::MovingAverage moving_average(1024);
   moving_average.AddSample(1);
   moving_average.AddSample(2);
   moving_average.AddSample(2);
@@ -57,7 +59,7 @@ TEST(MovingAverageTest, GetAverageRoundedToClosestRounds) {
 }
 
 TEST(MovingAverageTest, Reset) {
-  rtc::MovingAverage moving_average(5);
+  webrtc::MovingAverage moving_average(5);
   moving_average.AddSample(1);
   EXPECT_EQ(1, *moving_average.GetAverageRoundedDown());
   EXPECT_EQ(1, *moving_average.GetAverageRoundedToClosest());
@@ -71,7 +73,7 @@ TEST(MovingAverageTest, Reset) {
 }
 
 TEST(MovingAverageTest, ManySamples) {
-  rtc::MovingAverage moving_average(10);
+  webrtc::MovingAverage moving_average(10);
   for (int i = 1; i < 11; i++) {
     moving_average.AddSample(i);
   }

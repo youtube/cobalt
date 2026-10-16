@@ -32,7 +32,6 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "content/public/browser/browser_accessibility_state.h"
 #include "content/public/browser/plugin_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
@@ -40,8 +39,10 @@
 #include "content/public/common/webplugininfo.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/scoped_accessibility_mode_override.h"
 #include "content/public/test/test_utils.h"
 #include "ipc/ipc_message_macros.h"
+#include "ui/accessibility/ax_mode.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/ui_base_switches.h"
 #include "url/gurl.h"
@@ -138,14 +139,15 @@ class PrintPreviewDialogControllerBrowserTest : public InProcessBrowserTest {
 
   std::unique_ptr<printing::TestPrintPreviewDialogClonedObserver>
       cloned_tab_observer_;
-  raw_ptr<printing::TestPrintViewManagerForRequestPreview, DanglingUntriaged>
+  raw_ptr<printing::TestPrintViewManagerForRequestPreview,
+          AcrossTasksDanglingUntriaged>
       test_print_view_manager_;
-  raw_ptr<WebContents, DanglingUntriaged> initiator_ = nullptr;
+  raw_ptr<WebContents, AcrossTasksDanglingUntriaged> initiator_ = nullptr;
 };
 
 // Test to verify that when a initiator navigates, we can create a new preview
 // dialog for the new tab contents.
-// TODO(crbug.com/1403898): Test is flaky on Mac
+// TODO(crbug.com/40251696): Test is flaky on Mac
 #if BUILDFLAG(IS_MAC)
 #define MAYBE_NavigateFromInitiatorTab DISABLED_NavigateFromInitiatorTab
 #else
@@ -186,7 +188,7 @@ IN_PROC_BROWSER_TEST_F(PrintPreviewDialogControllerBrowserTest,
 
 // Test to verify that after reloading the initiator, it creates a new print
 // preview dialog.
-// TODO(crbug.com/1403898): Test is flaky on Mac
+// TODO(crbug.com/40251696): Test is flaky on Mac
 #if BUILDFLAG(IS_MAC)
 #define MAYBE_ReloadInitiatorTab DISABLED_ReloadInitiatorTab
 #else
@@ -230,7 +232,7 @@ IN_PROC_BROWSER_TEST_F(PrintPreviewDialogControllerBrowserTest,
 
 // Test to verify that after print preview works even when the PDF plugin is
 // disabled for webpages.
-// TODO(crbug.com/1401532): Flaky on Mac12 Test.
+// TODO(crbug.com/40884297): Flaky on Mac12 Test.
 #if BUILDFLAG(IS_MAC)
 #define MAYBE_PdfPluginDisabled DISABLED_PdfPluginDisabled
 #else
@@ -297,13 +299,14 @@ std::u16string GetExpectedPrefix() {
                                     std::u16string());
 }
 
-const std::vector<task_manager::WebContentsTag*>& GetTrackedTags() {
+const std::vector<raw_ptr<task_manager::WebContentsTag, VectorExperimental>>&
+GetTrackedTags() {
   return task_manager::WebContentsTagsManager::GetInstance()->tracked_tags();
 }
 
 }  // namespace
 
-// TODO(crbug.com/1385142): Flaky on macos12 builds.
+// TODO(crbug.com/40879071): Flaky on macos12 builds.
 #if BUILDFLAG(IS_MAC)
 #define MAYBE_TaskManagementTest DISABLED_TaskManagementTest
 #else
@@ -356,12 +359,17 @@ IN_PROC_BROWSER_TEST_F(PrintPreviewDialogControllerBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(PrintPreviewDialogControllerBrowserTest,
                        PrintPreviewPdfAccessibility) {
-  content::BrowserAccessibilityState::GetInstance()->EnableAccessibility();
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
-                                           GURL("data:text/html,HelloWorld")));
+  content::ScopedAccessibilityModeOverride mode_override(ui::kAXModeComplete);
+  // Put a DIV after the text we're going to search for. The last node in the
+  // tree will not have a newline appended, but all the others will. Avoid
+  // making assumptions about whether it's the last node or not. There may be
+  // nodes for headers and footers following the document contents.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("data:text/html,HelloWorld<div>next</div>")));
   PrintPreview();
   WebContents* preview_dialog = GetPrintPreviewDialog();
-  WaitForAccessibilityTreeToContainNodeWithName(preview_dialog, "HelloWorld");
+  WaitForAccessibilityTreeToContainNodeWithName(preview_dialog,
+                                                "HelloWorld\r\n");
 
   PrintPreviewDone();
 }

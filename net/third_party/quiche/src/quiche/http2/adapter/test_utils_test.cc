@@ -1,7 +1,11 @@
 #include "quiche/http2/adapter/test_utils.h"
 
+#include <optional>
+#include <string>
+#include <utility>
+
+#include "quiche/http2/core/spdy_framer.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/spdy/core/spdy_framer.h"
 
 namespace http2 {
 namespace adapter {
@@ -35,20 +39,20 @@ TEST(EqualsFrames, SingleFrameWithoutLength) {
 
   spdy::SpdyRstStreamIR rst_stream{7, spdy::ERROR_CODE_REFUSED_STREAM};
   EXPECT_THAT(framer.SerializeFrame(rst_stream),
-              EqualsFrames({{spdy::SpdyFrameType::RST_STREAM, absl::nullopt}}));
+              EqualsFrames({{spdy::SpdyFrameType::RST_STREAM, std::nullopt}}));
 
   spdy::SpdyGoAwayIR goaway{13, spdy::ERROR_CODE_ENHANCE_YOUR_CALM,
                             "Consider taking some deep breaths."};
   EXPECT_THAT(framer.SerializeFrame(goaway),
-              EqualsFrames({{spdy::SpdyFrameType::GOAWAY, absl::nullopt}}));
+              EqualsFrames({{spdy::SpdyFrameType::GOAWAY, std::nullopt}}));
 
-  spdy::Http2HeaderBlock block;
+  quiche::HttpHeaderBlock block;
   block[":method"] = "GET";
   block[":path"] = "/example";
   block[":authority"] = "example.com";
   spdy::SpdyHeadersIR headers{17, std::move(block)};
   EXPECT_THAT(framer.SerializeFrame(headers),
-              EqualsFrames({{spdy::SpdyFrameType::HEADERS, absl::nullopt}}));
+              EqualsFrames({{spdy::SpdyFrameType::HEADERS, std::nullopt}}));
 }
 
 TEST(EqualsFrames, MultipleFrames) {
@@ -60,7 +64,7 @@ TEST(EqualsFrames, MultipleFrames) {
   spdy::SpdyRstStreamIR rst_stream{7, spdy::ERROR_CODE_REFUSED_STREAM};
   spdy::SpdyGoAwayIR goaway{13, spdy::ERROR_CODE_ENHANCE_YOUR_CALM,
                             "Consider taking some deep breaths."};
-  spdy::Http2HeaderBlock block;
+  quiche::HttpHeaderBlock block;
   block[":method"] = "GET";
   block[":path"] = "/example";
   block[":authority"] = "example.com";
@@ -75,17 +79,17 @@ TEST(EqualsFrames, MultipleFrames) {
                    absl::string_view(framer.SerializeFrame(headers)));
   absl::string_view frame_sequence_view = frame_sequence;
   EXPECT_THAT(frame_sequence,
-              EqualsFrames({{spdy::SpdyFrameType::PING, absl::nullopt},
-                            {spdy::SpdyFrameType::WINDOW_UPDATE, absl::nullopt},
+              EqualsFrames({{spdy::SpdyFrameType::PING, std::nullopt},
+                            {spdy::SpdyFrameType::WINDOW_UPDATE, std::nullopt},
                             {spdy::SpdyFrameType::DATA, 25},
-                            {spdy::SpdyFrameType::RST_STREAM, absl::nullopt},
+                            {spdy::SpdyFrameType::RST_STREAM, std::nullopt},
                             {spdy::SpdyFrameType::GOAWAY, 42},
                             {spdy::SpdyFrameType::HEADERS, 19}}));
   EXPECT_THAT(frame_sequence_view,
-              EqualsFrames({{spdy::SpdyFrameType::PING, absl::nullopt},
-                            {spdy::SpdyFrameType::WINDOW_UPDATE, absl::nullopt},
+              EqualsFrames({{spdy::SpdyFrameType::PING, std::nullopt},
+                            {spdy::SpdyFrameType::WINDOW_UPDATE, std::nullopt},
                             {spdy::SpdyFrameType::DATA, 25},
-                            {spdy::SpdyFrameType::RST_STREAM, absl::nullopt},
+                            {spdy::SpdyFrameType::RST_STREAM, std::nullopt},
                             {spdy::SpdyFrameType::GOAWAY, 42},
                             {spdy::SpdyFrameType::HEADERS, 19}}));
   EXPECT_THAT(

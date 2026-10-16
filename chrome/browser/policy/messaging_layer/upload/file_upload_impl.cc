@@ -1,31 +1,38 @@
-
 // Copyright 2023 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/policy/messaging_layer/upload/file_upload_impl.h"
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/memory/ptr_util.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/sequence_checker.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/thread_annotations.h"
+#include "base/types/expected.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/device_identity/device_oauth2_token_service.h"
 #include "chrome/browser/device_identity/device_oauth2_token_service_factory.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/policy/messaging_layer/upload/file_upload_job.h"
 #include "components/reporting/resources/resource_manager.h"
+#include "components/reporting/util/reporting_errors.h"
 #include "components/reporting/util/status.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -67,26 +74,39 @@ StatusOr<std::string> CheckResponseAndGetStatus(
     const std::unique_ptr<::network::SimpleURLLoader> url_loader,
     const scoped_refptr<::net::HttpResponseHeaders> headers) {
   if (!headers) {
-    return Status(error::DATA_LOSS,
-                  base::StrCat({"Network error=",
-                                ::net::ErrorToString(url_loader->NetError())}));
+    base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                  DataLossErrorReason::NO_HEADERS_FOUND,
+                                  DataLossErrorReason::MAX_VALUE);
+    return base::unexpected(
+        Status(error::DATA_LOSS,
+               base::StrCat({"Network error=",
+                             ::net::ErrorToString(url_loader->NetError())})));
   }
 
   if (headers->response_code() == net::HTTP_OK) {
     // Successful upload, retrieve and return upload status.
-    std::string upload_status;
-    if (!headers->GetNormalizedHeader(kUploadStatusHeader, &upload_status)) {
-      return Status(error::DATA_LOSS,
-                    base::StrCat({"Unexpected upload status=", upload_status}));
+    std::optional<std::string> upload_status =
+        headers->GetNormalizedHeader(kUploadStatusHeader);
+    if (!upload_status) {
+      base::UmaHistogramEnumeration(
+          reporting::kUmaDataLossErrorReason,
+          DataLossErrorReason::UNEXPECTED_UPLOAD_STATUS,
+          DataLossErrorReason::MAX_VALUE);
+      return base::unexpected(
+          Status(error::DATA_LOSS, "Unexpected upload status="));
     }
-    return upload_status;
+    return *upload_status;
   } else if (headers->response_code() == net::HTTP_UNAUTHORIZED) {
-    return Status(error::UNAUTHENTICATED, "Authentication error");
+    return base::unexpected(
+        Status(error::UNAUTHENTICATED, "Authentication error"));
   } else {
-    return Status(
-        error::DATA_LOSS,
-        base::StrCat({"POST request failed with HTTP status code ",
-                      base::NumberToString(headers->response_code())}));
+    base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                  DataLossErrorReason::POST_REQUEST_FAILED,
+                                  DataLossErrorReason::MAX_VALUE);
+    return base::unexpected(
+        Status(error::DATA_LOSS,
+               base::StrCat({"POST request failed with HTTP status code ",
+                             base::NumberToString(headers->response_code())})));
   }
 }
 
@@ -94,15 +114,23 @@ StatusOr<std::string> CheckResponseAndGetStatus(
 StatusOr<int64_t> GetChunkGranularity(
     const scoped_refptr<::net::HttpResponseHeaders> headers) {
   int64_t upload_granularity = -1;
-  std::string upload_granularity_string;
-  if (!headers->GetNormalizedHeader(kUploadChunkGranularityHeader,
-                                    &upload_granularity_string)) {
-    return Status(error::DATA_LOSS, "No granularity returned");
+  std::optional<std::string> upload_granularity_string =
+      headers->GetNormalizedHeader(kUploadChunkGranularityHeader);
+  if (!upload_granularity_string) {
+    base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                  DataLossErrorReason::NO_GRANULARITTY_RETURNED,
+                                  DataLossErrorReason::MAX_VALUE);
+    return base::unexpected(
+        Status(error::DATA_LOSS, "No granularity returned"));
   }
-  if (!base::StringToInt64(upload_granularity_string, &upload_granularity) ||
+  if (!base::StringToInt64(*upload_granularity_string, &upload_granularity) ||
       upload_granularity <= 0L) {
-    return Status(error::DATA_LOSS, base::StrCat({"Unexpected granularity=",
-                                                  upload_granularity_string}));
+    base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                  DataLossErrorReason::UNEXPECTED_GRANULARITY,
+                                  DataLossErrorReason::MAX_VALUE);
+    return base::unexpected(Status(
+        error::DATA_LOSS,
+        base::StrCat({"Unexpected granularity=", *upload_granularity_string})));
   }
   return upload_granularity;
 }
@@ -115,7 +143,7 @@ class ActionContext {
   ActionContext& operator=(const ActionContext& other) = delete;
   virtual ~ActionContext() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    DCHECK(!result_cb_) << "Destruct before callback";
+    CHECK(!result_cb_) << "Destruct before callback";
   }
 
  protected:
@@ -130,7 +158,7 @@ class ActionContext {
   // does not need weak pointers.
   void Complete(R result) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    DCHECK(result_cb_) << "Already completed";
+    CHECK(result_cb_) << "Already completed";
     std::move(result_cb_).Run(std::move(result));
     delete this;
   }
@@ -159,11 +187,16 @@ class FileUploadDelegate::AccessTokenRetriever
   void RequestAccessToken() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     if (!delegate()) {
-      Complete(Status(error::UNAVAILABLE, "Delegate is unavailable"));
+      Complete(base::unexpected(
+          Status(error::UNAVAILABLE, "Delegate is unavailable")));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::FILE_UPLOAD_DELEGATE_IS_NULL,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
 
-    DCHECK(!access_token_request_);
+    CHECK(!access_token_request_);
     DVLOG(1) << "Requesting access token.";
 
     access_token_request_ = delegate()->StartOAuth2Request(this);
@@ -175,7 +208,7 @@ class FileUploadDelegate::AccessTokenRetriever
       const OAuth2AccessTokenManager::Request* request,
       const OAuth2AccessTokenConsumer::TokenResponse& token_response) override {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    DCHECK_EQ(access_token_request_.get(), request);
+    CHECK_EQ(access_token_request_.get(), request);
     access_token_request_.reset();
     DVLOG(1) << "Token successfully acquired.";
     Complete(token_response.access_token);
@@ -184,10 +217,11 @@ class FileUploadDelegate::AccessTokenRetriever
   void OnGetTokenFailure(const OAuth2AccessTokenManager::Request* request,
                          const GoogleServiceAuthError& error) override {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    DCHECK_EQ(access_token_request_.get(), request);
+    CHECK_EQ(access_token_request_.get(), request);
     access_token_request_.reset();
     LOG(ERROR) << "Token request failed: " << error.ToString();
-    Complete(Status(error::UNAUTHENTICATED, error.ToString()));
+    Complete(
+        base::unexpected(Status(error::UNAUTHENTICATED, error.ToString())));
   }
 
   // The OAuth request to receive the access token.
@@ -201,9 +235,9 @@ class FileUploadDelegate::InitContext
           std::pair<int64_t /*total*/, std::string /*session_token*/>>> {
  public:
   InitContext(
-      base::StringPiece origin_path,
-      base::StringPiece upload_parameters,
-      base::StringPiece access_token,
+      std::string_view origin_path,
+      std::string_view upload_parameters,
+      std::string_view access_token,
       base::WeakPtr<FileUploadDelegate> delegate,
       base::OnceCallback<
           void(StatusOr<std::pair<int64_t /*total*/,
@@ -216,7 +250,12 @@ class FileUploadDelegate::InitContext
   void Run() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     if (!delegate()) {
-      Complete(Status(error::UNAVAILABLE, "Delegate is unavailable"));
+      Complete(base::unexpected(
+          Status(error::UNAVAILABLE, "Delegate is unavailable")));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::FILE_UPLOAD_DELEGATE_IS_NULL,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
 
@@ -231,17 +270,22 @@ class FileUploadDelegate::InitContext
   void FileOpened(StatusOr<int64_t> total_result) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     if (!delegate()) {
-      Complete(Status(error::UNAVAILABLE, "Delegate is unavailable"));
+      Complete(base::unexpected(
+          Status(error::UNAVAILABLE, "Delegate is unavailable")));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::FILE_UPLOAD_DELEGATE_IS_NULL,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
 
-    if (!total_result.ok()) {
-      Complete(total_result.status());
+    if (!total_result.has_value()) {
+      Complete(base::unexpected(total_result.error()));
       return;
     }
 
     // Record total size of the file.
-    total_ = total_result.ValueOrDie();
+    total_ = total_result.value();
 
     // Initiate upload.
     DVLOG(1) << "Starting URL fetcher.";
@@ -276,9 +320,10 @@ class FileUploadDelegate::InitContext
     // with the last line indicating content type.
     const auto pos = upload_parameters_.find_last_of("\n");
     if (pos == std::string::npos || pos + 1u >= upload_parameters_.size()) {
-      Complete(Status(error::INVALID_ARGUMENT,
-                      base::StrCat({"Cannot parse upload_parameters=`",
-                                    upload_parameters_, "`"})));
+      Complete(base::unexpected(
+          Status(error::INVALID_ARGUMENT,
+                 base::StrCat({"Cannot parse upload_parameters=`",
+                               upload_parameters_, "`"}))));
       return;
     }
     const std::string metadata_contents_type =
@@ -299,34 +344,43 @@ class FileUploadDelegate::InitContext
 
     auto status_result =
         CheckResponseAndGetStatus(std::move(url_loader_), headers);
-    if (!status_result.ok()) {
-      Complete(status_result.status());
+    if (!status_result.has_value()) {
+      Complete(base::unexpected(std::move(status_result).error()));
       return;
     }
 
-    const std::string upload_status = status_result.ValueOrDie();
+    const std::string upload_status = status_result.value();
     if (!base::EqualsCaseInsensitiveASCII(upload_status, "active")) {
-      Complete(
+      base::UmaHistogramEnumeration(
+          reporting::kUmaDataLossErrorReason,
+          DataLossErrorReason::UNEXPECTED_UPLOAD_STATUS,
+          DataLossErrorReason::MAX_VALUE);
+      Complete(base::unexpected(
           Status(error::DATA_LOSS,
-                 base::StrCat({"Unexpected upload status=", upload_status})));
+                 base::StrCat({"Unexpected upload status=", upload_status}))));
       return;
     }
 
     // Just make sure granulatiy is returned, do not use it here.
     auto upload_granularity_result = GetChunkGranularity(headers);
-    if (!upload_granularity_result.ok()) {
-      Complete(upload_granularity_result.status());
+    if (!upload_granularity_result.has_value()) {
+      Complete(base::unexpected(std::move(upload_granularity_result).error()));
       return;
     }
 
-    std::string upload_url;
-    if (!headers->GetNormalizedHeader(kUploadUrlHeader, &upload_url)) {
-      Complete(Status(error::DATA_LOSS, "No upload URL returned"));
+    std::optional<std::string> upload_url =
+        headers->GetNormalizedHeader(kUploadUrlHeader);
+    if (!upload_url) {
+      base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                    DataLossErrorReason::NO_UPLOAD_URL_RETURNED,
+                                    DataLossErrorReason::MAX_VALUE);
+      Complete(
+          base::unexpected(Status(error::DATA_LOSS, "No upload URL returned")));
       return;
     }
 
-    Complete(
-        std::make_pair(total_, base::StrCat({origin_path_, "\n", upload_url})));
+    Complete(std::make_pair(total_,
+                            base::StrCat({origin_path_, "\n", *upload_url})));
   }
 
   static StatusOr<int64_t> InitFile(const std::string origin_path) {
@@ -334,10 +388,14 @@ class FileUploadDelegate::InitContext
         base::FilePath(origin_path),
         base::File::FLAG_OPEN | base::File::FLAG_READ);
     if (!handle->IsValid()) {
-      return Status(
+      base::UmaHistogramEnumeration(
+          reporting::kUmaDataLossErrorReason,
+          DataLossErrorReason::FAILED_TO_OPEN_UPLOAD_FILE,
+          DataLossErrorReason::MAX_VALUE);
+      return base::unexpected(Status(
           error::DATA_LOSS,
           base::StrCat({"Cannot open file=", origin_path, " error=",
-                        base::File::ErrorToString(handle->error_details())}));
+                        base::File::ErrorToString(handle->error_details())})));
     }
 
     // Calculate total size of the file.
@@ -365,7 +423,7 @@ class FileUploadDelegate::NextStepContext
   NextStepContext(
       int64_t total,
       int64_t uploaded,
-      base::StringPiece session_token,
+      std::string_view session_token,
       ScopedReservation scoped_reservation,
       base::WeakPtr<FileUploadDelegate> delegate,
       base::OnceCallback<
@@ -380,7 +438,12 @@ class FileUploadDelegate::NextStepContext
   void Run() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     if (!delegate()) {
-      Complete(Status(error::UNAVAILABLE, "Delegate is unavailable"));
+      Complete(base::unexpected(
+          Status(error::UNAVAILABLE, "Delegate is unavailable")));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::FILE_UPLOAD_DELEGATE_IS_NULL,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
 
@@ -388,16 +451,17 @@ class FileUploadDelegate::NextStepContext
     const auto tokens = base::SplitStringPiece(
         session_token_, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
     if (tokens.size() != 2 || tokens[0].empty() || tokens[1].empty()) {
-      Complete(Status(error::DATA_LOSS, base::StrCat({"Corrupt session token `",
-                                                      session_token_, "`"})));
+      Complete(base::unexpected(Status(
+          error::DATA_LOSS,
+          base::StrCat({"Corrupt session token `", session_token_, "`"}))));
       return;
     }
     origin_path_ = tokens[0];
     resumable_upload_url_ = GURL(tokens[1]);
     if (!resumable_upload_url_.is_valid()) {
-      Complete(
+      Complete(base::unexpected(
           Status(error::DATA_LOSS,
-                 base::StrCat({"Corrupt resumable upload URL=", tokens[1]})));
+                 base::StrCat({"Corrupt resumable upload URL=", tokens[1]}))));
       return;
     }
 
@@ -420,44 +484,50 @@ class FileUploadDelegate::NextStepContext
       scoped_refptr<::net::HttpResponseHeaders> headers) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     if (!delegate()) {
-      Complete(Status(error::UNAVAILABLE, "Delegate is unavailable"));
+      Complete(base::unexpected(
+          Status(error::UNAVAILABLE, "Delegate is unavailable")));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::FILE_UPLOAD_DELEGATE_IS_NULL,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
 
     auto status_result =
         CheckResponseAndGetStatus(std::move(url_loader_), headers);
-    if (!status_result.ok()) {
-      Complete(status_result.status());
+    if (!status_result.has_value()) {
+      Complete(base::unexpected(std::move(status_result).error()));
       return;
     }
 
-    const std::string upload_status = status_result.ValueOrDie();
+    const std::string upload_status = status_result.value();
     if (base::EqualsCaseInsensitiveASCII(upload_status, "final")) {
       // Already done.
       Complete(std::make_pair(total_, session_token_));
       return;
     }
     if (!base::EqualsCaseInsensitiveASCII(upload_status, "active")) {
-      Complete(
+      Complete(base::unexpected(
           Status(error::DATA_LOSS,
-                 base::StrCat({"Unexpected upload status=", upload_status})));
+                 base::StrCat({"Unexpected upload status=", upload_status}))));
       return;
     }
 
     int64_t upload_received = -1;
     {
-      std::string upload_received_string;
-      if (!headers->GetNormalizedHeader(kUploadSizeReceivedHeader,
-                                        &upload_received_string)) {
-        Complete(Status(error::DATA_LOSS, "No upload size returned"));
+      std::optional<std::string> upload_received_string =
+          headers->GetNormalizedHeader(kUploadSizeReceivedHeader);
+      if (!upload_received_string) {
+        Complete(base::unexpected(
+            Status(error::DATA_LOSS, "No upload size returned")));
         return;
       }
-      if (!base::StringToInt64(upload_received_string, &upload_received) ||
+      if (!base::StringToInt64(*upload_received_string, &upload_received) ||
           upload_received < 0 || uploaded_ > upload_received) {
-        Complete(Status(
+        Complete(base::unexpected(Status(
             error::DATA_LOSS,
-            base::StrCat({"Unexpected received=", upload_received_string,
-                          ", expected=", base::NumberToString(uploaded_)})));
+            base::StrCat({"Unexpected received=", *upload_received_string,
+                          ", expected=", base::NumberToString(uploaded_)}))));
         return;
       }
     }
@@ -468,11 +538,11 @@ class FileUploadDelegate::NextStepContext
     }
 
     auto upload_granularity_result = GetChunkGranularity(headers);
-    if (!upload_granularity_result.ok()) {
-      Complete(upload_granularity_result.status());
+    if (!upload_granularity_result.has_value()) {
+      Complete(base::unexpected(std::move(upload_granularity_result).error()));
       return;
     }
-    auto upload_granularity = upload_granularity_result.ValueOrDie();
+    auto upload_granularity = upload_granularity_result.value();
 
     // Determine maximum buffer size, rounded down to upload_granularity.
     DCHECK_CALLED_ON_VALID_SEQUENCE(delegate()->sequence_checker_);
@@ -527,18 +597,23 @@ class FileUploadDelegate::NextStepContext
       StatusOr<std::string> buffer_result) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     if (!delegate()) {
-      Complete(Status(error::UNAVAILABLE, "Delegate is unavailable"));
+      Complete(base::unexpected(
+          Status(error::UNAVAILABLE, "Delegate is unavailable")));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::FILE_UPLOAD_DELEGATE_IS_NULL,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
 
-    if (!buffer_result.ok()) {
-      Complete(buffer_result.status());
+    if (!buffer_result.has_value()) {
+      Complete(base::unexpected(std::move(buffer_result).error()));
       return;
     }
 
     url_loader_ = delegate()->CreatePostLoader(std::move(resource_request));
     url_loader_->AttachStringForUpload(
-        buffer_result.ValueOrDie(),  // owned by caller!
+        buffer_result.value(),  // owned by caller!
         "application/octet-stream");
 
     // Make a call and get response headers.
@@ -559,21 +634,21 @@ class FileUploadDelegate::NextStepContext
 
     auto status_result =
         CheckResponseAndGetStatus(std::move(url_loader_), headers);
-    if (!status_result.ok()) {
-      Complete(status_result.status());
+    if (!status_result.has_value()) {
+      Complete(base::unexpected(status_result.error()));
       return;
     }
 
-    const std::string upload_status = status_result.ValueOrDie();
+    const std::string upload_status = status_result.value();
     if (base::EqualsCaseInsensitiveASCII(upload_status, "final")) {
       // Already done.
       Complete(std::make_pair(total_, session_token_));
       return;
     }
     if (!base::EqualsCaseInsensitiveASCII(upload_status, "active")) {
-      Complete(
+      Complete(base::unexpected(
           Status(error::DATA_LOSS,
-                 base::StrCat({"Unexpected upload status=", upload_status})));
+                 base::StrCat({"Unexpected upload status=", upload_status}))));
       return;
     }
 
@@ -594,18 +669,26 @@ class FileUploadDelegate::NextStepContext
         base::FilePath(origin_path),
         base::File::FLAG_OPEN | base::File::FLAG_READ);
     if (!handle->IsValid()) {
-      return Status(
+      base::UmaHistogramEnumeration(
+          reporting::kUmaDataLossErrorReason,
+          DataLossErrorReason::FAILED_TO_OPEN_UPLOAD_FILE,
+          DataLossErrorReason::MAX_VALUE);
+      return base::unexpected(Status(
           error::DATA_LOSS,
           base::StrCat({"Cannot open file=", origin_path, " error=",
-                        base::File::ErrorToString(handle->error_details())}));
+                        base::File::ErrorToString(handle->error_details())})));
     }
 
     // Verify total size of the file.
     if (total != handle->GetLength()) {
-      return Status(error::DATA_LOSS,
-                    base::StrCat({"File=", origin_path, " changed size ",
-                                  " from ", base::NumberToString(total), " to ",
-                                  base::NumberToString(handle->GetLength())}));
+      base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                    DataLossErrorReason::FILE_SIZE_MISMATCH,
+                                    DataLossErrorReason::MAX_VALUE);
+      return base::unexpected(
+          Status(error::DATA_LOSS,
+                 base::StrCat({"File=", origin_path, " changed size ", " from ",
+                               base::NumberToString(total), " to ",
+                               base::NumberToString(handle->GetLength())})));
     }
 
     // Load into buffer.
@@ -613,17 +696,24 @@ class FileUploadDelegate::NextStepContext
         size);  // Initialization is redundant, but std::string mandates it.
     const int read_size = handle->Read(offset, buffer.data(), size);
     if (read_size < 0) {
-      return Status(
+      base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                    DataLossErrorReason::CANNOT_READ_FILE,
+                                    DataLossErrorReason::MAX_VALUE);
+      return base::unexpected(Status(
           error::DATA_LOSS,
           base::StrCat({"Cannot read file=", origin_path, " error=",
-                        base::File::ErrorToString(handle->error_details())}));
+                        base::File::ErrorToString(handle->error_details())})));
     }
     if (read_size != size) {
-      return Status(error::DATA_LOSS,
-                    base::StrCat({"Failed to read file=", origin_path,
-                                  " offset=", base::NumberToString(offset),
-                                  " size=", base::NumberToString(size),
-                                  " read=", base::NumberToString(read_size)}));
+      base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                    DataLossErrorReason::CANNOT_READ_FILE,
+                                    DataLossErrorReason::MAX_VALUE);
+      return base::unexpected(
+          Status(error::DATA_LOSS,
+                 base::StrCat({"Failed to read file=", origin_path,
+                               " offset=", base::NumberToString(offset),
+                               " size=", base::NumberToString(size),
+                               " read=", base::NumberToString(read_size)})));
     }
     return buffer;
   }
@@ -634,7 +724,7 @@ class FileUploadDelegate::NextStepContext
   const std::string session_token_;
 
   // Session token components.
-  base::StringPiece origin_path_ GUARDED_BY_CONTEXT(sequence_checker_);
+  std::string_view origin_path_ GUARDED_BY_CONTEXT(sequence_checker_);
   GURL resumable_upload_url_ GUARDED_BY_CONTEXT(sequence_checker_);
 
   // Helper to upload the data.
@@ -650,7 +740,7 @@ class FileUploadDelegate::FinalContext
     : public ActionContext<StatusOr<std::string /*access_parameters*/>> {
  public:
   FinalContext(
-      base::StringPiece session_token,
+      std::string_view session_token,
       base::WeakPtr<FileUploadDelegate> delegate,
       base::OnceCallback<void(StatusOr<std::string /*access_parameters*/>)>
           result_cb)
@@ -660,7 +750,12 @@ class FileUploadDelegate::FinalContext
   void Run() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     if (!delegate()) {
-      Complete(Status(error::UNAVAILABLE, "Delegate is unavailable"));
+      Complete(base::unexpected(
+          Status(error::UNAVAILABLE, "Delegate is unavailable")));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::FILE_UPLOAD_DELEGATE_IS_NULL,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
 
@@ -668,16 +763,24 @@ class FileUploadDelegate::FinalContext
     const auto tokens = base::SplitStringPiece(
         session_token_, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
     if (tokens.size() != 2 || tokens[0].empty() || tokens[1].empty()) {
-      Complete(Status(error::DATA_LOSS, base::StrCat({"Corrupt session token `",
-                                                      session_token_, "`"})));
+      base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                    DataLossErrorReason::CORRUPT_SESSION_TOKEN,
+                                    DataLossErrorReason::MAX_VALUE);
+      Complete(base::unexpected(Status(
+          error::DATA_LOSS,
+          base::StrCat({"Corrupt session token `", session_token_, "`"}))));
       return;
     }
     origin_path_ = tokens[0];
     resumable_upload_url_ = GURL(tokens[1]);
     if (!resumable_upload_url_.is_valid()) {
-      Complete(
+      base::UmaHistogramEnumeration(
+          reporting::kUmaDataLossErrorReason,
+          DataLossErrorReason::CORRUPT_RESUMABLE_UPLOAD_URL,
+          DataLossErrorReason::MAX_VALUE);
+      Complete(base::unexpected(
           Status(error::DATA_LOSS,
-                 base::StrCat({"Corrupt resumable upload URL=", tokens[1]})));
+                 base::StrCat({"Corrupt resumable upload URL=", tokens[1]}))));
       return;
     }
 
@@ -686,6 +789,7 @@ class FileUploadDelegate::FinalContext
     auto resource_request = std::make_unique<::network::ResourceRequest>();
     resource_request->url = resumable_upload_url_;
     resource_request->headers.SetHeader(kUploadCommandHeader, "query");
+    resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
 
     url_loader_ = delegate()->CreatePostLoader(std::move(resource_request));
 
@@ -699,43 +803,61 @@ class FileUploadDelegate::FinalContext
       scoped_refptr<::net::HttpResponseHeaders> headers) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     if (!delegate()) {
-      Complete(Status(error::UNAVAILABLE, "Delegate is unavailable"));
+      Complete(base::unexpected(
+          Status(error::UNAVAILABLE, "Delegate is unavailable")));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::FILE_UPLOAD_DELEGATE_IS_NULL,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
 
     auto status_result =
         CheckResponseAndGetStatus(std::move(url_loader_), headers);
-    if (!status_result.ok()) {
-      Complete(status_result.status());
+    if (!status_result.has_value()) {
+      Complete(base::unexpected(std::move(status_result).error()));
       return;
     }
 
-    const std::string upload_status = status_result.ValueOrDie();
+    const std::string& upload_status = status_result.value();
     if (base::EqualsCaseInsensitiveASCII(upload_status, "final")) {
       // All done.
       RespondOnFinal(headers);
       return;
     }
     if (!base::EqualsCaseInsensitiveASCII(upload_status, "active")) {
-      Complete(
+      Complete(base::unexpected(
           Status(error::DATA_LOSS,
-                 base::StrCat({"Unexpected upload status=", upload_status})));
+                 base::StrCat({"Unexpected upload status=", upload_status}))));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaDataLossErrorReason,
+          DataLossErrorReason::UNEXPECTED_UPLOAD_STATUS,
+          DataLossErrorReason::MAX_VALUE);
       return;
     }
 
     int64_t upload_received = -1;
     {
-      std::string upload_received_string;
-      if (!headers->GetNormalizedHeader(kUploadSizeReceivedHeader,
-                                        &upload_received_string)) {
-        Complete(Status(error::DATA_LOSS, "No upload size returned"));
+      std::optional<std::string> upload_received_string =
+          headers->GetNormalizedHeader(kUploadSizeReceivedHeader);
+      if (!upload_received_string) {
+        Complete(base::unexpected(
+            Status(error::DATA_LOSS, "No upload size returned")));
+        base::UmaHistogramEnumeration(
+            reporting::kUmaDataLossErrorReason,
+            DataLossErrorReason::NO_UPLOAD_SIZE_RETURNED,
+            DataLossErrorReason::MAX_VALUE);
         return;
       }
-      if (!base::StringToInt64(upload_received_string, &upload_received) ||
+      if (!base::StringToInt64(*upload_received_string, &upload_received) ||
           upload_received < 0) {
-        Complete(Status(
+        Complete(base::unexpected(Status(
             error::DATA_LOSS,
-            base::StrCat({"Unexpected received=", upload_received_string})));
+            base::StrCat({"Unexpected received=", *upload_received_string}))));
+        base::UmaHistogramEnumeration(
+            reporting::kUmaDataLossErrorReason,
+            DataLossErrorReason::UNEXPECTED_UPLOAD_RECEIVED_CODE,
+            DataLossErrorReason::MAX_VALUE);
         return;
       }
     }
@@ -761,16 +883,20 @@ class FileUploadDelegate::FinalContext
 
     auto status_result =
         CheckResponseAndGetStatus(std::move(url_loader_), headers);
-    if (!status_result.ok()) {
-      Complete(status_result.status());
+    if (!status_result.has_value()) {
+      Complete(base::unexpected(std::move(status_result).error()));
       return;
     }
 
-    const std::string upload_status = status_result.ValueOrDie();
+    const std::string upload_status = status_result.value();
     if (!base::EqualsCaseInsensitiveASCII(upload_status, "final")) {
-      Complete(
+      Complete(base::unexpected(
           Status(error::DATA_LOSS,
-                 base::StrCat({"Unexpected upload status=", upload_status})));
+                 base::StrCat({"Unexpected upload status=", upload_status}))));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaDataLossErrorReason,
+          DataLossErrorReason::UNEXPECTED_UPLOAD_STATUS,
+          DataLossErrorReason::MAX_VALUE);
       return;
     }
 
@@ -781,10 +907,14 @@ class FileUploadDelegate::FinalContext
   void RespondOnFinal(scoped_refptr<::net::HttpResponseHeaders> headers) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-    std::string upload_id;
-    if (!headers->GetNormalizedHeader(kUploadIdHeader, &upload_id) ||
-        upload_id.empty()) {
-      Complete(Status(error::DATA_LOSS, "No upload ID returned"));
+    std::string upload_id =
+        headers->GetNormalizedHeader(kUploadIdHeader).value_or(std::string());
+    if (upload_id.empty()) {
+      Complete(
+          base::unexpected(Status(error::DATA_LOSS, "No upload ID returned")));
+      base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                    DataLossErrorReason::NO_UPLOAD_ID_RETURNED,
+                                    DataLossErrorReason::MAX_VALUE);
       return;
     }
 
@@ -794,7 +924,7 @@ class FileUploadDelegate::FinalContext
   const std::string session_token_;
 
   // Session token components.
-  base::StringPiece origin_path_ GUARDED_BY_CONTEXT(sequence_checker_);
+  std::string_view origin_path_ GUARDED_BY_CONTEXT(sequence_checker_);
   GURL resumable_upload_url_ GUARDED_BY_CONTEXT(sequence_checker_);
 
   // Helper to upload the data.
@@ -807,28 +937,27 @@ FileUploadDelegate::FileUploadDelegate() {
 }
 
 FileUploadDelegate::~FileUploadDelegate() {
+  DCHECK_CURRENTLY_ON(::content::BrowserThread::UI);
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
 void FileUploadDelegate::InitializeOnce() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK_CURRENTLY_ON(::content::BrowserThread::UI);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (url_loader_factory_) {
     return;  // Already initialized.
   }
 
-  static constexpr char kLogUploadUrlTail[] = "/upload";
-  upload_url_ = GURL(
-      g_browser_process->browser_policy_connector()->GetDeviceManagementUrl() +
-      kLogUploadUrlTail);
-  DCHECK(upload_url_.is_valid());
+  upload_url_ = GURL(g_browser_process->browser_policy_connector()
+                         ->GetFileStorageServerUploadUrl());
+  CHECK(upload_url_.is_valid());
 
   account_id_ = DeviceOAuth2TokenServiceFactory::Get()->GetRobotAccountId();
   access_token_manager_ =
       DeviceOAuth2TokenServiceFactory::Get()->GetAccessTokenManager();
-  DCHECK(access_token_manager_);
+  CHECK(access_token_manager_);
   url_loader_factory_ = g_browser_process->shared_url_loader_factory();
-  DCHECK(url_loader_factory_);
+  CHECK(url_loader_factory_);
   traffic_annotation_ = std::make_unique<::net::NetworkTrafficAnnotationTag>(
       ::net::DefineNetworkTrafficAnnotation("chrome_support_tool_file_upload",
                                             R"(
@@ -907,17 +1036,18 @@ void FileUploadDelegate::SendAndGetResponse(
 
 // static
 void FileUploadDelegate::DoInitiate(
-    base::StringPiece origin_path,
-    base::StringPiece upload_parameters,
+    std::string_view origin_path,
+    std::string_view upload_parameters,
     base::OnceCallback<void(
         StatusOr<std::pair<int64_t /*total*/, std::string /*session_token*/>>)>
         result_cb) {
   if (!::content::BrowserThread::CurrentlyOn(::content::BrowserThread::UI)) {
     ::content::GetUIThreadTaskRunner({})->PostTask(
         FROM_HERE,
-        base::BindOnce(&FileUploadDelegate::DoInitiate, GetWeakPtr(),
-                       std::string(origin_path), std::string(upload_parameters),
-                       std::move(result_cb)));
+        base::BindOnce(
+            &FileUploadDelegate::DoInitiate, GetWeakPtr(),
+            std::string(origin_path), std::string(upload_parameters),
+            base::BindPostTaskToCurrentDefault(std::move(result_cb))));
     return;
   }
 
@@ -935,29 +1065,29 @@ void FileUploadDelegate::DoInitiate(
 }
 
 void FileUploadDelegate::OnAccessTokenResult(
-    base::StringPiece origin_path,
-    base::StringPiece upload_parameters,
+    std::string_view origin_path,
+    std::string_view upload_parameters,
     base::OnceCallback<void(
         StatusOr<std::pair<int64_t /*total*/, std::string /*session_token*/>>)>
         result_cb,
     StatusOr<std::string> access_token_result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!access_token_result.ok()) {
-    std::move(result_cb).Run(access_token_result.status());
+  if (!access_token_result.has_value()) {
+    std::move(result_cb).Run(
+        base::unexpected(std::move(access_token_result).error()));
     return;
   }
 
   // Measure file size and store it in total.
-  (new InitContext(origin_path, upload_parameters,
-                   access_token_result.ValueOrDie(), GetWeakPtr(),
-                   std::move(result_cb)))
+  (new InitContext(origin_path, upload_parameters, access_token_result.value(),
+                   GetWeakPtr(), std::move(result_cb)))
       ->Run();
 }
 
 void FileUploadDelegate::DoNextStep(
     int64_t total,
     int64_t uploaded,
-    base::StringPiece session_token,
+    std::string_view session_token,
     ScopedReservation scoped_reservation,
     base::OnceCallback<void(StatusOr<std::pair<int64_t /*uploaded*/,
                                                std::string /*session_token*/>>)>
@@ -965,9 +1095,10 @@ void FileUploadDelegate::DoNextStep(
   if (!::content::BrowserThread::CurrentlyOn(::content::BrowserThread::UI)) {
     ::content::GetUIThreadTaskRunner({})->PostTask(
         FROM_HERE,
-        base::BindOnce(&FileUploadDelegate::DoNextStep, GetWeakPtr(), total,
-                       uploaded, std::string(session_token),
-                       std::move(scoped_reservation), std::move(result_cb)));
+        base::BindOnce(
+            &FileUploadDelegate::DoNextStep, GetWeakPtr(), total, uploaded,
+            std::string(session_token), std::move(scoped_reservation),
+            base::BindPostTaskToCurrentDefault(std::move(result_cb))));
     return;
   }
 
@@ -980,14 +1111,15 @@ void FileUploadDelegate::DoNextStep(
 }
 
 void FileUploadDelegate::DoFinalize(
-    base::StringPiece session_token,
+    std::string_view session_token,
     base::OnceCallback<void(StatusOr<std::string /*access_parameters*/>)>
         result_cb) {
   if (!::content::BrowserThread::CurrentlyOn(::content::BrowserThread::UI)) {
     ::content::GetUIThreadTaskRunner({})->PostTask(
-        FROM_HERE,
-        base::BindOnce(&FileUploadDelegate::DoFinalize, GetWeakPtr(),
-                       std::string(session_token), std::move(result_cb)));
+        FROM_HERE, base::BindOnce(&FileUploadDelegate::DoFinalize, GetWeakPtr(),
+                                  std::string(session_token),
+                                  base::BindPostTaskToCurrentDefault(
+                                      std::move(result_cb))));
     return;
   }
 
@@ -996,7 +1128,7 @@ void FileUploadDelegate::DoFinalize(
   (new FinalContext(session_token, GetWeakPtr(), std::move(result_cb)))->Run();
 }
 
-void FileUploadDelegate::DoDeleteFile(base::StringPiece origin_path) {
+void FileUploadDelegate::DoDeleteFile(std::string_view origin_path) {
   const auto delete_result = base::DeleteFile(base::FilePath(origin_path));
   if (!delete_result) {
     LOG(WARNING) << "Failed to delete file=" << origin_path;
@@ -1004,6 +1136,7 @@ void FileUploadDelegate::DoDeleteFile(base::StringPiece origin_path) {
 }
 
 base::WeakPtr<FileUploadDelegate> FileUploadDelegate::GetWeakPtr() {
-  return weak_ptr_factory_.GetWeakPtr();
+  CHECK(weak_ptr_factory_) << "Factory already invalidated.";
+  return weak_ptr_factory_->GetWeakPtr();
 }
 }  // namespace reporting

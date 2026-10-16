@@ -4,6 +4,8 @@
 
 #include "components/value_store/lazy_leveldb.h"
 
+#include <string_view>
+
 #include "base/json/json_reader.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
@@ -12,8 +14,6 @@
 #include "third_party/leveldatabase/env_chromium.h"
 #include "third_party/leveldatabase/src/include/leveldb/iterator.h"
 #include "third_party/leveldatabase/src/include/leveldb/write_batch.h"
-
-using base::StringPiece;
 
 namespace value_store {
 
@@ -67,27 +67,19 @@ LazyLevelDb::LazyLevelDb(const std::string& uma_client_name,
 
   read_options_.verify_checksums = true;
 
-  // TODO(crbug.com/1226956): Remove reference to extensions.
+  // TODO(crbug.com/40189032): Remove reference to extensions.
   // Used in lieu of UMA_HISTOGRAM_ENUMERATION because the histogram name is
   // not a constant.
   open_histogram_ = base::LinearHistogram::FactoryGet(
       "Extensions.Database.Open." + uma_client_name, 1,
       leveldb_env::LEVELDB_STATUS_MAX, leveldb_env::LEVELDB_STATUS_MAX + 1,
       base::Histogram::kUmaTargetedHistogramFlag);
-  db_restore_histogram_ = base::LinearHistogram::FactoryGet(
-      "Extensions.Database.Database.Restore." + uma_client_name, 1,
-      LEVELDB_DB_RESTORE_MAX, LEVELDB_DB_RESTORE_MAX + 1,
-      base::Histogram::kUmaTargetedHistogramFlag);
-  value_restore_histogram_ = base::LinearHistogram::FactoryGet(
-      "Extensions.Database.Value.Restore." + uma_client_name, 1,
-      LEVELDB_VALUE_RESTORE_MAX, LEVELDB_VALUE_RESTORE_MAX + 1,
-      base::Histogram::kUmaTargetedHistogramFlag);
 }
 
 LazyLevelDb::~LazyLevelDb() = default;
 
 ValueStore::Status LazyLevelDb::Read(const std::string& key,
-                                     absl::optional<base::Value>* value) {
+                                     std::optional<base::Value>* value) {
   DCHECK(value);
 
   std::string value_as_json;
@@ -102,8 +94,7 @@ ValueStore::Status LazyLevelDb::Read(const std::string& key,
   if (!s.ok())
     return ToValueStoreError(s);
 
-  absl::optional<base::Value> read_value =
-      base::JSONReader::Read(value_as_json);
+  std::optional<base::Value> read_value = base::JSONReader::Read(value_as_json);
   if (!read_value) {
     return ValueStore::Status(ValueStore::CORRUPTION, FixCorruption(&key),
                               kInvalidJson);
@@ -120,31 +111,6 @@ ValueStore::Status LazyLevelDb::Delete(const std::string& key) {
   return ToValueStoreError(DeleteValue(db_.get(), key));
 }
 
-ValueStore::BackingStoreRestoreStatus LazyLevelDb::LogRestoreStatus(
-    ValueStore::BackingStoreRestoreStatus restore_status) const {
-  switch (restore_status) {
-    case ValueStore::RESTORE_NONE:
-      NOTREACHED();
-      break;
-    case ValueStore::DB_RESTORE_DELETE_SUCCESS:
-      db_restore_histogram_->Add(LEVELDB_DB_RESTORE_DELETE_SUCCESS);
-      break;
-    case ValueStore::DB_RESTORE_DELETE_FAILURE:
-      db_restore_histogram_->Add(LEVELDB_DB_RESTORE_DELETE_FAILURE);
-      break;
-    case ValueStore::DB_RESTORE_REPAIR_SUCCESS:
-      db_restore_histogram_->Add(LEVELDB_DB_RESTORE_REPAIR_SUCCESS);
-      break;
-    case ValueStore::VALUE_RESTORE_DELETE_SUCCESS:
-      value_restore_histogram_->Add(LEVELDB_VALUE_RESTORE_DELETE_SUCCESS);
-      break;
-    case ValueStore::VALUE_RESTORE_DELETE_FAILURE:
-      value_restore_histogram_->Add(LEVELDB_VALUE_RESTORE_DELETE_FAILURE);
-      break;
-  }
-  return restore_status;
-}
-
 ValueStore::BackingStoreRestoreStatus LazyLevelDb::FixCorruption(
     const std::string* key) {
   leveldb::Status s;
@@ -153,9 +119,9 @@ ValueStore::BackingStoreRestoreStatus LazyLevelDb::FixCorruption(
     // Deleting involves writing to the log, so it's possible to have a
     // perfectly OK database but still have a delete fail.
     if (s.ok())
-      return LogRestoreStatus(ValueStore::VALUE_RESTORE_DELETE_SUCCESS);
+      return ValueStore::VALUE_RESTORE_DELETE_SUCCESS;
     else if (s.IsIOError())
-      return LogRestoreStatus(ValueStore::VALUE_RESTORE_DELETE_FAILURE);
+      return ValueStore::VALUE_RESTORE_DELETE_FAILURE;
     // Any other kind of failure triggers a db repair.
   }
 
@@ -204,9 +170,6 @@ ValueStore::BackingStoreRestoreStatus LazyLevelDb::FixCorruption(
       restore_status = ValueStore::DB_RESTORE_DELETE_FAILURE;
     }
   }
-
-  // Only log for the final and most extreme form of database restoration.
-  LogRestoreStatus(restore_status);
 
   return restore_status;
 }

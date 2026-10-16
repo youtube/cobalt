@@ -9,10 +9,6 @@
 #import "ui/base/page_transition_types.h"
 #import "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 
 namespace {
@@ -31,7 +27,7 @@ FakeNavigationContext::FakeNavigationContext()
 FakeNavigationContext::~FakeNavigationContext() = default;
 
 WebState* FakeNavigationContext::GetWebState() {
-  return web_state_.get();
+  return web_state_;
 }
 
 int64_t FakeNavigationContext::GetNavigationId() const {
@@ -82,8 +78,8 @@ web::HttpsUpgradeType FakeNavigationContext::GetFailedHttpsUpgradeType() const {
   return web::HttpsUpgradeType::kNone;
 }
 
-void FakeNavigationContext::SetWebState(std::unique_ptr<WebState> web_state) {
-  web_state_ = std::move(web_state);
+void FakeNavigationContext::SetWebState(WebState* web_state) {
+  web_state_ = web_state;
 }
 
 void FakeNavigationContext::SetUrl(const GURL& url) {

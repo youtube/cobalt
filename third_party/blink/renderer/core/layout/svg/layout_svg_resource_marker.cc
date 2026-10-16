@@ -22,35 +22,37 @@
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_resource_marker.h"
 
 #include "base/auto_reset.h"
+#include "third_party/blink/renderer/core/layout/svg/svg_layout_info.h"
 #include "third_party/blink/renderer/core/layout/svg/svg_marker_data.h"
 #include "third_party/blink/renderer/core/layout/svg/transform_helper.h"
 #include "third_party/blink/renderer/core/svg/svg_animated_angle.h"
 #include "third_party/blink/renderer/core/svg/svg_animated_length.h"
 #include "third_party/blink/renderer/core/svg/svg_animated_rect.h"
+#include "third_party/blink/renderer/core/svg/svg_length_context.h"
 
 namespace blink {
 
 LayoutSVGResourceMarker::LayoutSVGResourceMarker(SVGMarkerElement* node)
-    : LayoutSVGResourceContainer(node),
-      needs_transform_update_(true),
-      is_in_layout_(false) {}
+    : LayoutSVGResourceContainer(node), is_in_layout_(false) {}
 
 LayoutSVGResourceMarker::~LayoutSVGResourceMarker() = default;
 
-void LayoutSVGResourceMarker::UpdateLayout() {
+SVGLayoutResult LayoutSVGResourceMarker::UpdateSVGLayout(
+    const SVGLayoutInfo& layout_info) {
   NOT_DESTROYED();
   DCHECK(NeedsLayout());
-  if (is_in_layout_)
-    return;
+  if (is_in_layout_) {
+    return SVGLayoutResult(/*bounds_changed=*/false,
+                           /*has_viewport_dependence=*/false);
+  }
 
   base::AutoReset<bool> in_layout_change(&is_in_layout_, true);
 
-  // LayoutSVGHiddenContainer overrides UpdateLayout(). We need the
+  ClearInvalidationMask();
+  // LayoutSVGHiddenContainer overrides UpdateSVGLayout(). We need the
   // LayoutSVGContainer behavior for calculating local transformations and paint
   // invalidation.
-  LayoutSVGContainer::UpdateLayout();
-
-  ClearInvalidationMask();
+  return LayoutSVGContainer::UpdateSVGLayout(layout_info);
 }
 
 bool LayoutSVGResourceMarker::FindCycleFromSelf() const {
@@ -145,18 +147,12 @@ bool LayoutSVGResourceMarker::ShouldPaint() const {
 
 void LayoutSVGResourceMarker::SetNeedsTransformUpdate() {
   NOT_DESTROYED();
-  // The transform paint property relies on the SVG transform being up-to-date
-  // (see: PaintPropertyTreeBuilder::updateTransformForNonRootSVG).
-  SetNeedsPaintPropertyUpdate();
-  needs_transform_update_ = true;
+  LayoutSVGContainer::SetNeedsTransformUpdate();
 }
 
-SVGTransformChange LayoutSVGResourceMarker::CalculateLocalTransform(
-    bool bounds_changed) {
+SVGTransformChange LayoutSVGResourceMarker::UpdateLocalTransform(
+    const gfx::RectF& reference_box) {
   NOT_DESTROYED();
-  if (!needs_transform_update_)
-    return SVGTransformChange::kNone;
-
   auto* marker = To<SVGMarkerElement>(GetElement());
   DCHECK(marker);
 
@@ -167,8 +163,6 @@ SVGTransformChange LayoutSVGResourceMarker::CalculateLocalTransform(
 
   SVGTransformChangeDetector change_detector(local_to_parent_transform_);
   local_to_parent_transform_ = marker->ViewBoxToViewTransform(viewport_size_);
-
-  needs_transform_update_ = false;
   return change_detector.ComputeChange(local_to_parent_transform_);
 }
 

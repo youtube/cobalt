@@ -14,12 +14,13 @@
 #include "base/test/test_suite.h"
 #include "mojo/core/embedder/embedder.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
+#include "pdf/buildflags.h"
+#include "pdf/test/test_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/scheduler/test/renderer_scheduler_test_support.h"
 #include "third_party/blink/public/platform/scheduler/web_thread_scheduler.h"
 #include "third_party/blink/public/web/blink.h"
-#include "third_party/skia/include/core/SkGraphics.h"
 #include "tools/v8_context_snapshot/buildflags.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/base/ui_base_paths.h"
@@ -28,6 +29,10 @@
 #if defined(V8_USE_EXTERNAL_STARTUP_DATA)
 #include "gin/v8_initializer.h"
 #endif
+
+#if BUILDFLAG(ENABLE_PDF_INK2)
+#include "pdf/test/pdf_ink_test_helpers.h"
+#endif  // BUILDFLAG(ENABLE_PDF_INK2)
 
 namespace {
 
@@ -42,17 +47,27 @@ constexpr gin::V8SnapshotFileType kSnapshotType =
 
 class BlinkPlatformForTesting : public blink::Platform {
  public:
-  BlinkPlatformForTesting() = default;
+  BlinkPlatformForTesting() {
+#if BUILDFLAG(ENABLE_PDF_INK2)
+    chrome_pdf::SetPdfTestTaskEnvironment(&task_environment_);
+#endif  // BUILDFLAG(ENABLE_PDF_INK2)
+  }
   BlinkPlatformForTesting(const BlinkPlatformForTesting&) = delete;
   BlinkPlatformForTesting& operator=(const BlinkPlatformForTesting&) = delete;
-  ~BlinkPlatformForTesting() override { main_thread_scheduler_->Shutdown(); }
+  ~BlinkPlatformForTesting() override {
+    main_thread_scheduler_->Shutdown();
+#if BUILDFLAG(ENABLE_PDF_INK2)
+    chrome_pdf::SetPdfTestTaskEnvironment(nullptr);
+#endif  // BUILDFLAG(ENABLE_PDF_INK2)
+  }
 
   blink::scheduler::WebThreadScheduler* GetMainThreadScheduler() {
     return main_thread_scheduler_.get();
   }
 
  private:
-  base::test::TaskEnvironment task_environment_;
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   std::unique_ptr<blink::scheduler::WebThreadScheduler> main_thread_scheduler_ =
       blink::scheduler::CreateWebMainThreadSchedulerForTests();
 };
@@ -77,15 +92,15 @@ class PdfTestSuite final : public base::TestSuite {
     platform_ = std::make_unique<BlinkPlatformForTesting>();
 
     mojo::BinderMap binders;
-    blink::Initialize(platform_.get(), &binders,
-                      platform_->GetMainThreadScheduler());
-
+    blink::InitializeWithoutIsolateForTesting(
+        platform_.get(), &binders, platform_->GetMainThreadScheduler());
+    v8::Isolate* isolate = blink::CreateMainThreadIsolate();
+    chrome_pdf::SetBlinkIsolate(isolate);
     InitializeResourceBundle();
-
-    SkGraphics::SetPathAnalyticAADecider([](const SkPath&) { return true; });
   }
 
   void Shutdown() override {
+    chrome_pdf::SetBlinkIsolate(nullptr);
     platform_.reset();
     ui::ResourceBundle::CleanupSharedInstance();
     base::TestSuite::Shutdown();
@@ -94,12 +109,12 @@ class PdfTestSuite final : public base::TestSuite {
  private:
   void InitializeResourceBundle() {
     ui::RegisterPathProvider();
-    base::FilePath ui_test_pak_path;
-    ASSERT_TRUE(base::PathService::Get(ui::UI_TEST_PAK, &ui_test_pak_path));
+    base::FilePath ui_test_pak_path =
+        base::PathService::CheckedGet(ui::UI_TEST_PAK);
     ui::ResourceBundle::InitSharedInstanceWithPakPath(ui_test_pak_path);
 
-    base::FilePath pdf_tests_pak_path;
-    ASSERT_TRUE(base::PathService::Get(base::DIR_ASSETS, &pdf_tests_pak_path));
+    base::FilePath pdf_tests_pak_path =
+        base::PathService::CheckedGet(base::DIR_ASSETS);
     pdf_tests_pak_path =
         pdf_tests_pak_path.AppendASCII("pdf_tests_resources.pak");
     ui::ResourceBundle::GetSharedInstance().AddDataPackFromPath(

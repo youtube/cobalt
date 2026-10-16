@@ -63,13 +63,14 @@ class GlobalFeaturesTest : public testing::Test {
     ASSERT_NE(instance_, nullptr);
     auto experiment_config = instance_->experiment_config();
     experiment_config->ClearPref(kExperimentConfig);
+    experiment_config->ClearPref(kExperimentConfigActiveConfigData);
     experiment_config->ClearPref(kExperimentConfigFeatures);
     experiment_config->ClearPref(kExperimentConfigFeatureParams);
-    experiment_config->ClearPref(kExperimentConfigExpIds);
     experiment_config->ClearPref(kSafeConfig);
+    experiment_config->ClearPref(kSafeConfigActiveConfigData);
     experiment_config->ClearPref(kSafeConfigFeatures);
     experiment_config->ClearPref(kSafeConfigFeatureParams);
-    experiment_config->ClearPref(kSafeConfigExpIds);
+    instance_->InitializeActiveConfigData(ExperimentConfigType::kEmptyConfig);
     // auto metrics_local_state = instance_->metrics_local_state();
   }
 
@@ -114,29 +115,78 @@ TEST_F(GlobalFeaturesTest, RegisterPrefsRegistersExpectedPrefs) {
   GlobalFeatures::RegisterPrefs(pref_service.registry());
 
   EXPECT_TRUE(pref_service.FindPreference(kExperimentConfig));
+  EXPECT_TRUE(pref_service.FindPreference(kExperimentConfigActiveConfigData));
   EXPECT_TRUE(pref_service.FindPreference(kExperimentConfigFeatures));
   EXPECT_TRUE(pref_service.FindPreference(kExperimentConfigFeatureParams));
-  EXPECT_TRUE(pref_service.FindPreference(kExperimentConfigExpIds));
   EXPECT_TRUE(pref_service.FindPreference(kSafeConfig));
+  EXPECT_TRUE(pref_service.FindPreference(kSafeConfigActiveConfigData));
   EXPECT_TRUE(pref_service.FindPreference(kSafeConfigFeatures));
   EXPECT_TRUE(pref_service.FindPreference(kSafeConfigFeatureParams));
-  EXPECT_TRUE(pref_service.FindPreference(kSafeConfigExpIds));
 }
 
-TEST_F(GlobalFeaturesTest, ActiveExperimentIdsUnchangedAfterInitialization) {
+TEST_F(GlobalFeaturesTest,
+       InitializedActiveConfigDataUnchangedAfterChangeToStoredData) {
   ASSERT_NE(instance_, nullptr);
-  auto active_experiment_ids = instance_->active_experiment_ids();
-  EXPECT_TRUE(active_experiment_ids.empty());
+  auto* experiment_config = instance_->experiment_config();
+  experiment_config->SetString(kExperimentConfigActiveConfigData,
+                               "initial_data");
 
-  base::FilePath config_file =
-      temp_dir_->GetPath().Append(FILE_PATH_LITERAL("Experiment Config"));
-  base::WriteFile(config_file,
-                  R"({"features": {"feature_a": true},
-                     "feature_params": {"param1": "value1"},
-                     "exp_ids": [1234]})");
+  instance_->InitializeActiveConfigData(ExperimentConfigType::kRegularConfig);
+  EXPECT_EQ(instance_->active_config_data(), "initial_data");
 
-  active_experiment_ids = instance_->active_experiment_ids();
-  EXPECT_TRUE(active_experiment_ids.empty());
+  experiment_config->SetString(kExperimentConfigActiveConfigData,
+                               "modified_data");
+
+  // Active config data in memory should remain the same.
+  EXPECT_EQ(instance_->active_config_data(), "initial_data");
+}
+
+TEST_F(GlobalFeaturesTest, InitializedActiveConfigDataClearedOnEmptyConfig) {
+  ASSERT_NE(instance_, nullptr);
+  auto* experiment_config = instance_->experiment_config();
+  experiment_config->SetString(kExperimentConfigActiveConfigData,
+                               "initial_data");
+
+  instance_->InitializeActiveConfigData(ExperimentConfigType::kRegularConfig);
+  EXPECT_EQ(instance_->active_config_data(), "initial_data");
+
+  instance_->InitializeActiveConfigData(ExperimentConfigType::kEmptyConfig);
+  EXPECT_TRUE(instance_->active_config_data().empty());
+}
+
+TEST_F(GlobalFeaturesTest, InitializedActiveConfigDataSnapshotsSafeConfig) {
+  ASSERT_NE(instance_, nullptr);
+  auto* experiment_config = instance_->experiment_config();
+  experiment_config->SetString(kSafeConfigActiveConfigData, "safe_data");
+
+  instance_->InitializeActiveConfigData(ExperimentConfigType::kSafeConfig);
+  EXPECT_EQ(instance_->active_config_data(), "safe_data");
+}
+
+TEST_F(GlobalFeaturesTest, SetAndGetSettingInt) {
+  ASSERT_NE(instance_, nullptr);
+  instance_->SetSettings("test_int", int64_t(42));
+  auto opt_val = instance_->GetSetting("test_int");
+  ASSERT_TRUE(opt_val.has_value());
+  const int64_t* val = std::get_if<int64_t>(&opt_val.value());
+  ASSERT_NE(val, nullptr);
+  EXPECT_EQ(*val, 42);
+}
+
+TEST_F(GlobalFeaturesTest, SetAndGetSettingString) {
+  ASSERT_NE(instance_, nullptr);
+  instance_->SetSettings("test_str", std::string("hello"));
+  auto opt_val = instance_->GetSetting("test_str");
+  ASSERT_TRUE(opt_val.has_value());
+  const std::string* val = std::get_if<std::string>(&opt_val.value());
+  ASSERT_NE(val, nullptr);
+  EXPECT_EQ(*val, "hello");
+}
+
+TEST_F(GlobalFeaturesTest, GetSettingNotFound) {
+  ASSERT_NE(instance_, nullptr);
+  auto opt_val = instance_->GetSetting("non_existent_key");
+  EXPECT_FALSE(opt_val.has_value());
 }
 
 }  // namespace cobalt

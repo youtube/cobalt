@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/strings/string_number_conversions.h"
+#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "cc/layers/picture_layer.h"
 #include "cc/layers/solid_color_layer.h"
@@ -14,6 +15,7 @@
 #include "cc/test/layer_tree_pixel_test.h"
 #include "cc/test/pixel_comparator.h"
 #include "cc/test/solid_color_content_layer_client.h"
+#include "components/viz/common/features.h"
 
 #if !BUILDFLAG(IS_ANDROID)
 
@@ -36,7 +38,8 @@ class LayerTreeHostFiltersPixelTest
         return "skia_gl";
       case viz::RendererType::kSkiaVk:
         return "skia_vk";
-      case viz::RendererType::kSkiaGraphite:
+      case viz::RendererType::kSkiaGraphiteDawn:
+      case viz::RendererType::kSkiaGraphiteMetal:
         return "skia_graphite";
       case viz::RendererType::kSoftware:
         return "sw";
@@ -62,7 +65,7 @@ class LayerTreeHostFiltersPixelTest
     PaintFilter::CropRect cropRect(
         SkRect::MakeXYWH(-40000, -40000, 80000, 80000));
     filters.Append(FilterOperation::CreateReferenceFilter(
-        sk_make_sp<ColorFilterPaintFilter>(SkColorFilters::Matrix(matrix),
+        sk_make_sp<ColorFilterPaintFilter>(ColorFilter::MakeMatrix(matrix),
                                            nullptr, &cropRect)));
     filter_layer->SetFilters(filters);
     background->SetMasksToBounds(masks_to_bounds);
@@ -91,6 +94,11 @@ INSTANTIATE_TEST_SUITE_P(All,
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(LayerTreeHostFiltersPixelTestGPU);
 
 TEST_P(LayerTreeHostFiltersPixelTest, BackdropFilterBlurRect) {
+#if defined(MEMORY_SANITIZER)
+  if (renderer_type() == viz::RendererType::kSkiaVk) {
+    GTEST_SKIP() << "TODO(crbug.com/40839215): Uninitialized data error";
+  }
+#endif
   scoped_refptr<SolidColorLayer> background = CreateSolidColorLayer(
       gfx::Rect(200, 200), SK_ColorWHITE);
 
@@ -106,8 +114,8 @@ TEST_P(LayerTreeHostFiltersPixelTest, BackdropFilterBlurRect) {
   FilterOperations filters;
   filters.Append(FilterOperation::CreateBlurFilter(2.f, SkTileMode::kClamp));
   blur->SetBackdropFilters(filters);
-  gfx::RRectF backdrop_filter_bounds(gfx::RectF(gfx::SizeF(blur->bounds())), 0);
-  blur->SetBackdropFilterBounds(backdrop_filter_bounds);
+  blur->SetBackdropFilterBounds(SkPath::Rect(
+      SkRect::MakeWH(blur->bounds().width(), blur->bounds().height())));
 
 #if BUILDFLAG(IS_WIN) || defined(ARCH_CPU_ARM64)
   // Windows and ARM64 have 436 pixels off by 1: crbug.com/259915
@@ -143,7 +151,7 @@ TEST_P(LayerTreeHostFiltersPixelTest, BackdropFilterInvalid) {
       base::FilePath(FILE_PATH_LITERAL("backdrop_filter_invalid.png")));
 }
 
-// TODO(crbug.com/1416306): currently do not pass on iOS.
+// TODO(crbug.com/40256786): currently do not pass on iOS.
 #if BUILDFLAG(IS_IOS)
 #define MAYBE_BackdropFilterBlurRadius DISABLED_BackdropFilterBlurRadius
 #else
@@ -152,11 +160,11 @@ TEST_P(LayerTreeHostFiltersPixelTest, BackdropFilterInvalid) {
 TEST_P(LayerTreeHostFiltersPixelTest, MAYBE_BackdropFilterBlurRadius) {
 #if defined(MEMORY_SANITIZER)
   if (renderer_type() == viz::RendererType::kSkiaVk) {
-    GTEST_SKIP() << "TODO(crbug.com/1324336): Uninitialized data error";
+    GTEST_SKIP() << "TODO(crbug.com/40839215): Uninitialized data error";
   }
 #endif
   if (use_software_renderer()) {
-    // TODO(989238): Software renderer does not support/implement
+    // TODO(crbug.com/40036319): Software renderer does not support/implement
     // kClamp_TileMode.
     return;
   }
@@ -195,6 +203,11 @@ TEST_P(LayerTreeHostFiltersPixelTest, MAYBE_BackdropFilterBlurRadius) {
 }
 
 TEST_P(LayerTreeHostFiltersPixelTest, BackdropFilterBlurRounded) {
+#if defined(MEMORY_SANITIZER)
+  if (renderer_type() == viz::RendererType::kSkiaVk) {
+    GTEST_SKIP() << "TODO(crbug.com/40839215): Uninitialized data error";
+  }
+#endif
   scoped_refptr<SolidColorLayer> background =
       CreateSolidColorLayer(gfx::Rect(200, 200), SK_ColorWHITE);
 
@@ -244,7 +257,7 @@ TEST_P(LayerTreeHostFiltersPixelTest, BackdropFilterBlurRounded) {
 TEST_P(LayerTreeHostFiltersPixelTest, BackdropFilterBlurOutsets) {
 #if defined(MEMORY_SANITIZER)
   if (renderer_type() == viz::RendererType::kSkiaVk) {
-    GTEST_SKIP() << "TODO(crbug.com/1324336): Uninitialized data error";
+    GTEST_SKIP() << "TODO(crbug.com/40839215): Uninitialized data error";
   }
 #endif
   scoped_refptr<SolidColorLayer> background = CreateSolidColorLayer(
@@ -289,6 +302,78 @@ TEST_P(LayerTreeHostFiltersPixelTest, BackdropFilterBlurOutsets) {
   RunPixelTest(
       background,
       base::FilePath(FILE_PATH_LITERAL("backdrop_filter_blur_outsets.png")));
+}
+
+TEST_P(LayerTreeHostFiltersPixelTest, BackdropFilterQuality_0_33) {
+#if defined(MEMORY_SANITIZER)
+  if (renderer_type() == viz::RendererType::kSkiaVk) {
+    GTEST_SKIP() << "TODO(crbug.com/40839215): Uninitialized data error";
+  }
+#endif
+  scoped_refptr<SolidColorLayer> background =
+      CreateSolidColorLayer(gfx::Rect(200, 200), SK_ColorWHITE);
+
+  scoped_refptr<SolidColorLayer> green =
+      CreateSolidColorLayer(gfx::Rect(50, 50, 100, 100), kCSSGreen);
+  scoped_refptr<SolidColorLayer> blur =
+      CreateSolidColorLayer(gfx::Rect(200, 200), SK_ColorTRANSPARENT);
+  background->AddChild(green);
+  background->AddChild(blur);
+
+  FilterOperations filters;
+  filters.Append(FilterOperation::CreateBlurFilter(30.0f, SkTileMode::kClamp));
+  blur->SetBackdropFilters(filters);
+  blur->SetBackdropFilterQuality(0.33);
+
+#if BUILDFLAG(IS_WIN) || defined(ARCH_CPU_ARM64)
+  // Windows and ARM64 have 436 pixels off by 1: crbug.com/259915
+  pixel_comparator_ = std::make_unique<FuzzyPixelComparator>(
+      FuzzyPixelComparator()
+          .DiscardAlpha()
+          .SetErrorPixelsPercentageLimit(1.09f)  // 436px / (200*200)
+          .SetAbsErrorLimit(1));
+#endif
+
+  RunPixelTest(
+      background,
+      base::FilePath(FILE_PATH_LITERAL("backdrop_filter_quality_0_33.png"))
+          .InsertBeforeExtensionASCII(GetRendererSuffix()));
+}
+
+TEST_P(LayerTreeHostFiltersPixelTest, BackdropFilterQuality_1_0) {
+#if defined(MEMORY_SANITIZER)
+  if (renderer_type() == viz::RendererType::kSkiaVk) {
+    GTEST_SKIP() << "TODO(crbug.com/40839215): Uninitialized data error";
+  }
+#endif
+  scoped_refptr<SolidColorLayer> background =
+      CreateSolidColorLayer(gfx::Rect(200, 200), SK_ColorWHITE);
+
+  scoped_refptr<SolidColorLayer> green =
+      CreateSolidColorLayer(gfx::Rect(50, 50, 100, 100), kCSSGreen);
+  scoped_refptr<SolidColorLayer> blur =
+      CreateSolidColorLayer(gfx::Rect(200, 200), SK_ColorTRANSPARENT);
+  background->AddChild(green);
+  background->AddChild(blur);
+
+  FilterOperations filters;
+  filters.Append(FilterOperation::CreateBlurFilter(30.0f, SkTileMode::kClamp));
+  blur->SetBackdropFilters(filters);
+  blur->SetBackdropFilterQuality(1.0);
+
+#if BUILDFLAG(IS_WIN) || defined(ARCH_CPU_ARM64)
+  // Windows and ARM64 have 436 pixels off by 1: crbug.com/259915
+  pixel_comparator_ = std::make_unique<FuzzyPixelComparator>(
+      FuzzyPixelComparator()
+          .DiscardAlpha()
+          .SetErrorPixelsPercentageLimit(1.09f)  // 436px / (200*200)
+          .SetAbsErrorLimit(1));
+#endif
+
+  RunPixelTest(
+      background,
+      base::FilePath(FILE_PATH_LITERAL("backdrop_filter_quality_1_0.png"))
+          .InsertBeforeExtensionASCII(GetRendererSuffix()));
 }
 
 class LayerTreeHostBlurFiltersPixelTestGPULayerList
@@ -347,9 +432,8 @@ class LayerTreeHostBlurFiltersPixelTestGPULayerList
         RenderSurfaceReason::kBackdropFilter;
     blur_effect_node.closest_ancestor_with_copy_request_id = 1;
 
-    // TODO(916311): We should be able to set the bounds like this, but the
-    // resulting output is clipped incorrectly.
-    // gfx::RRectF
+    // TODO(crbug.com/41432457): We should be able to set the bounds like this,
+    // but the resulting output is clipped incorrectly. gfx::RRectF
     // backdrop_filter_bounds(gfx::RectF(gfx::SizeF(blur->bounds())),0);
     // blur_effect_node.backdrop_filter_bounds.emplace(backdrop_filter_bounds);
 
@@ -454,8 +538,7 @@ class LayerTreeHostFiltersScaledPixelTest
     FilterOperation::ShapeRects alpha_shape;
     alpha_shape.emplace_back(half_content, half_content, content_size,
                              content_size);
-    filters.Append(
-        FilterOperation::CreateAlphaThresholdFilter(alpha_shape, 1.f, 0.f));
+    filters.Append(FilterOperation::CreateAlphaThresholdFilter(alpha_shape));
     foreground->SetFilters(filters);
 
     device_scale_factor_ = device_scale_factor;
@@ -519,7 +602,7 @@ TEST_P(LayerTreeHostFiltersPixelTest, ImageFilterClipped) {
       CreateSolidColorLayer(gfx::Rect(200, 200), SK_ColorRED);
   background->AddChild(foreground);
 
-  float matrix[20] = {0};
+  float matrix[20] = {};
   // This filter does a red-blue swap, so the foreground becomes blue.
   matrix[2] = matrix[6] = matrix[10] = matrix[18] = 1.0f;
   // We filter only the bottom 200x100 pixels of the foreground.
@@ -527,7 +610,7 @@ TEST_P(LayerTreeHostFiltersPixelTest, ImageFilterClipped) {
   FilterOperations filters;
   filters.Append(
       FilterOperation::CreateReferenceFilter(sk_make_sp<ColorFilterPaintFilter>(
-          SkColorFilters::Matrix(matrix), nullptr, &crop_rect)));
+          ColorFilter::MakeMatrix(matrix), nullptr, &crop_rect)));
 
   // Make the foreground layer's render surface be clipped by the background
   // layer.
@@ -546,7 +629,7 @@ TEST_P(LayerTreeHostFiltersPixelTest, ImageFilterClipped) {
                base::FilePath(FILE_PATH_LITERAL("blue_yellow.png")));
 }
 
-// TODO(crbug.com/1416306): currently do not pass on iOS.
+// TODO(crbug.com/40256786): currently do not pass on iOS.
 #if BUILDFLAG(IS_IOS)
 #define MAYBE_ImageFilterScaled DISABLED_ImageFilterScaled
 #else
@@ -627,15 +710,19 @@ TEST_P(LayerTreeHostFiltersPixelTest, MAYBE_ImageFilterScaled) {
           .InsertBeforeExtensionASCII(GetRendererSuffix()));
 }
 
-// TODO(crbug.com/1416306): currently do not pass on iOS.
-#if BUILDFLAG(IS_IOS)
+// TODO(crbug.com/40256786): currently do not pass on iOS.
+// TODO(crbug.com/401029604): Times out in arm64 windows and linux TSAN.
+#if BUILDFLAG(IS_IOS) ||                                        \
+    (defined(ARCH_CPU_ARM_FAMILY) && defined(ARCH_CPU_ARM64) && \
+     BUILDFLAG(IS_WIN)) ||                                      \
+    (defined(THREAD_SANITIZER) && BUILDFLAG(IS_LINUX))
 #define MAYBE_BackdropFilterRotated DISABLED_BackdropFilterRotated
 #else
 #define MAYBE_BackdropFilterRotated BackdropFilterRotated
 #endif  // BUILDFLAG(IS_IOS)
 TEST_P(LayerTreeHostFiltersPixelTest, MAYBE_BackdropFilterRotated) {
   if (renderer_type() == viz::RendererType::kSkiaVk) {
-    // TODO(crbug.com/1354678): The vulkan expected image requires rebasing
+    // TODO(crbug.com/40859233): The vulkan expected image requires rebasing
     // after Skia roll, so skip this test until then.
     return;
   }
@@ -683,14 +770,14 @@ TEST_P(LayerTreeHostFiltersPixelTest, MAYBE_BackdropFilterRotated) {
       FuzzyPixelComparator()
           .DiscardAlpha()
           .SetErrorPixelsPercentageLimit(5.f)
-          .SetAbsErrorLimit(2));
+          .SetAbsErrorLimit(3));
 
   RunPixelTest(background,
                base::FilePath(FILE_PATH_LITERAL("backdrop_filter_rotated_.png"))
                    .InsertBeforeExtensionASCII(GetRendererSuffix()));
 }
 
-// TODO(crbug.com/1416306): currently do not pass on iOS.
+// TODO(crbug.com/40256786): currently do not pass on iOS.
 #if BUILDFLAG(IS_IOS)
 #define MAYBE_ImageRenderSurfaceScaled DISABLED_ImageRenderSurfaceScaled
 #else
@@ -736,6 +823,13 @@ TEST_P(LayerTreeHostFiltersPixelTest, MAYBE_ImageRenderSurfaceScaled) {
     average_error_allowed_in_bad_pixels = 16.f;
     error_allowed = 17;
   }
+  if (use_skia_graphite()) {
+    // Skia-Graphite has some minor differences in the AA'd pixels on the
+    // different trybots. See crbug.com/1482558.
+    percentage_pixels_error = 0.02f;
+    average_error_allowed_in_bad_pixels = 2.f;
+    error_allowed = 2;
+  }
   pixel_comparator_ = std::make_unique<FuzzyPixelComparator>(
       FuzzyPixelComparator()
           .DiscardAlpha()
@@ -749,13 +843,17 @@ TEST_P(LayerTreeHostFiltersPixelTest, MAYBE_ImageRenderSurfaceScaled) {
           .InsertBeforeExtensionASCII(GetRendererSuffix()));
 }
 
-// TODO(crbug.com/1416306): currently does not pass on iOS.
+// TODO(crbug.com/40256786): currently does not pass on iOS.
 #if BUILDFLAG(IS_IOS)
 #define MAYBE_ZoomFilter DISABLED_ZoomFilter
 #else
 #define MAYBE_ZoomFilter ZoomFilter
 #endif  // BUILDFLAG(IS_IOS)
 TEST_P(LayerTreeHostFiltersPixelTest, MAYBE_ZoomFilter) {
+  // ZOOM_FILTER is unsupported by software_renderer (crbug.com/1451898)
+  if (use_software_renderer()) {
+    return;
+  }
   scoped_refptr<SolidColorLayer> root =
       CreateSolidColorLayer(gfx::Rect(300, 300), SK_ColorWHITE);
 
@@ -859,7 +957,7 @@ TEST_P(LayerTreeHostFiltersPixelTest, MAYBE_ZoomFilter) {
                    .InsertBeforeExtensionASCII(GetRendererSuffix()));
 }
 
-// TODO(crbug.com/1416306): currently do not pass on iOS.
+// TODO(crbug.com/40256786): currently do not pass on iOS.
 #if BUILDFLAG(IS_IOS)
 #define MAYBE_RotatedFilter DISABLED_RotatedFilter
 #else
@@ -948,9 +1046,16 @@ TEST_P(LayerTreeHostFiltersPixelTest, RotatedDropShadowFilter) {
     defined(ARCH_CPU_ARM64) || BUILDFLAG(IS_OZONE)
 #if defined(ARCH_CPU_ARM64) && \
     (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_APPLE))
+
   // Windows, macOS, and Fuchsia on ARM64 has some pixels difference.
   // crbug.com/1029728, crbug.com/1128443
+#if !BUILDFLAG(IS_IOS)
   float percentage_pixels_error = 0.89f;
+#else
+  // iOS on ARM64 has some more differing pixels.
+  float percentage_pixels_error = 0.96f;
+#endif
+
   float average_error_allowed_in_bad_pixels = 5.f;
   int error_allowed = 17;
 #elif BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OZONE)
@@ -1052,8 +1157,7 @@ TEST_P(LayerTreeHostFiltersPixelTest, EnlargedTextureWithAlphaThresholdFilter) {
   rect2.Inset(-5);
   FilterOperation::ShapeRects alpha_shape = {rect1, rect2};
   FilterOperations filters;
-  filters.Append(
-      FilterOperation::CreateAlphaThresholdFilter(alpha_shape, 0.f, 0.f));
+  filters.Append(FilterOperation::CreateAlphaThresholdFilter(alpha_shape));
   filter_layer->SetFilters(filters);
 
   background->AddChild(filter_layer);
@@ -1061,9 +1165,12 @@ TEST_P(LayerTreeHostFiltersPixelTest, EnlargedTextureWithAlphaThresholdFilter) {
   // Force the allocation a larger textures.
   set_enlarge_texture_amount(gfx::Size(50, 50));
 
-  RunPixelTest(
-      background,
-      base::FilePath(FILE_PATH_LITERAL("enlarged_texture_on_threshold.png")));
+  base::FilePath expected_result =
+      base::FilePath(FILE_PATH_LITERAL("enlarged_texture_on_threshold.png"));
+  if (use_skia_graphite()) {
+    expected_result = expected_result.InsertBeforeExtensionASCII("_graphite");
+  }
+  RunPixelTest(background, expected_result);
 }
 
 TEST_P(LayerTreeHostFiltersPixelTest, EnlargedTextureWithCropOffsetFilter) {
@@ -1099,9 +1206,12 @@ TEST_P(LayerTreeHostFiltersPixelTest, EnlargedTextureWithCropOffsetFilter) {
   // Force the allocation a larger textures.
   set_enlarge_texture_amount(gfx::Size(50, 50));
 
-  RunPixelTest(
-      background,
-      base::FilePath(FILE_PATH_LITERAL("enlarged_texture_on_crop_offset.png")));
+  base::FilePath expected_result =
+      base::FilePath(FILE_PATH_LITERAL("enlarged_texture_on_crop_offset.png"));
+  if (use_skia_graphite()) {
+    expected_result = expected_result.InsertBeforeExtensionASCII("_graphite");
+  }
+  RunPixelTest(background, expected_result);
 }
 
 TEST_P(LayerTreeHostFiltersPixelTest, BlurFilterWithClip) {
@@ -1164,38 +1274,39 @@ TEST_P(LayerTreeHostFiltersPixelTestGPU, FilterWithGiantCropRectNoClip) {
 
 class BackdropFilterOffsetTest : public LayerTreeHostFiltersPixelTest {
  protected:
-  void RunPixelTestType(int device_scale_factor) {
+  void RunPixelTestType(float device_scale_factor) {
+    feature_list_.InitAndEnableFeature(features::kBackdropFilterMirrorEdgeMode);
     scoped_refptr<Layer> root =
         CreateSolidColorLayer(gfx::Rect(200, 200), SK_ColorWHITE);
     scoped_refptr<SolidColorLayer> background =
-        CreateSolidColorLayer(gfx::Rect(100, 120), SK_ColorBLACK);
+        CreateSolidColorLayer(gfx::Rect(100, 125), SK_ColorBLACK);
     root->AddChild(background);
     scoped_refptr<SolidColorLayer> filtered = CreateSolidColorLayer(
         gfx::Rect(0, 100, 200, 100), SkColorSetA(SK_ColorGREEN, 127));
     FilterOperations filters;
-    // TODO(989329): This test actually also tests how the OffsetPaintFilter
-    // handles the edge condition. Because the OffsetPaintFilter is pulling
-    // content from outside the filter region (just the bottom 200x100 square),
-    // it must create content for all but the bottom 20px of the filter rect.
-    // The GPU implementation of OffsetPaintFilter effectively clamps to the
-    // edge pixels and copies them into the top 80px of the image. The CPU
-    // implementation, on the other hand, pulls in transparent pixels for those
-    // 80px. The behavior is basically unspecified, though for blur filters the
-    // explicitly specified behavior is edgemode:duplicate, as seen in [1]. And
-    // the default for svg filters, including feOffset, is also duplicate.
-    // [1] https://drafts.fxtf.org/filter-effects-2/#backdrop-filter-operation
-    // [2] https://www.w3.org/TR/SVG11/filters.html#feConvolveMatrixElementEdgeModeAttribute
+    // TODO(crbug.com/41473761): This test actually also tests how the
+    // OffsetPaintFilter handles the edge condition. Because the
+    // OffsetPaintFilter is pulling content from outside the filter region (just
+    // the bottom 200x100 square), it must create content for all but the bottom
+    // 25px of the filter rect. After [1], backdrop filters [2] apply the
+    // reflect/mirror edge mode to sample pixels outside of their bounds. This
+    // is supported in SkiaRenderer but not the software compositor. The
+    // expected behavior with reflection is that the 25px dark green (from the
+    // overlap with the black background) is mirrored to a 50px square and then
+    // translated 75px down to the bottom. [1]
+    // https://github.com/w3c/fxtf-drafts/issues/374 [2]
+    // https://drafts.fxtf.org/filter-effects-2/#backdrop-filter-operation
     filters.Append(FilterOperation::CreateReferenceFilter(
-        sk_make_sp<OffsetPaintFilter>(0, 80, nullptr)));
+        sk_make_sp<OffsetPaintFilter>(0, 75, nullptr)));
     filtered->SetBackdropFilters(filters);
     filtered->ClearBackdropFilterBounds();
     root->AddChild(filtered);
     // This should appear as a grid of 4 100x100 squares which are:
-    // BLACK       WHITE
-    // DARK GREEN*  LIGHT GREEN
+    // BLACK    WHITE
+    //   **     LIGHT GREEN
     //
-    // *except for software (see crbug.com/989329) which will be a
-    // dark-light-dark horizontal sandwich.
+    // ** = Top half light green and bottom half dark green for GPU rendering,
+    // but incorrectly is a dark-light-dark horizontal sandwich for software.
     device_scale_factor_ = device_scale_factor;
 
     base::FilePath expected_result =
@@ -1215,6 +1326,7 @@ class BackdropFilterOffsetTest : public LayerTreeHostFiltersPixelTest {
     LayerTreeHostFiltersPixelTest::SetupTree();
   }
 
+  base::test::ScopedFeatureList feature_list_;
   float device_scale_factor_ = 1;
 };
 
@@ -1236,7 +1348,7 @@ TEST_P(BackdropFilterOffsetTest, HiDpi) {
 
 class BackdropFilterInvertTest : public LayerTreeHostFiltersPixelTest {
  protected:
-  void RunPixelTestType(int device_scale_factor) {
+  void RunPixelTestType(float device_scale_factor) {
     scoped_refptr<Layer> root =
         CreateSolidColorLayer(gfx::Rect(200, 200), SK_ColorGREEN);
     scoped_refptr<SolidColorLayer> filtered =
@@ -1255,6 +1367,9 @@ class BackdropFilterInvertTest : public LayerTreeHostFiltersPixelTest {
         base::NumberToString(device_scale_factor) + "x");
     if (use_software_renderer()) {
       expected_result = expected_result.InsertBeforeExtensionASCII("_sw");
+    }
+    if (use_skia_graphite()) {
+      expected_result = expected_result.InsertBeforeExtensionASCII("_graphite");
     }
     RunPixelTest(std::move(root), expected_result);
   }
@@ -1281,13 +1396,105 @@ TEST_P(BackdropFilterInvertTest, StandardDpi) {
   RunPixelTestType(1.f);
 }
 
-// TODO(crbug.com/1416306): currently do not pass on iOS.
+// TODO(crbug.com/40256786): currently do not pass on iOS.
 #if BUILDFLAG(IS_IOS)
 #define MAYBE_HiDpi DISABLED_HiDpi
 #else
 #define MAYBE_HiDpi HiDpi
 #endif  // BUILDFLAG(IS_IOS)
 TEST_P(BackdropFilterInvertTest, MAYBE_HiDpi) {
+  RunPixelTestType(2.f);
+}
+
+// Combines backdrop and forward filters on a single layer.
+class MixedFilterZoomAndOffsetTest : public LayerTreeHostFiltersPixelTest {
+ protected:
+  void RunPixelTestType(float device_scale_factor) {
+    scoped_refptr<Layer> root =
+        CreateSolidColorLayer(gfx::Rect(110, 200), SK_ColorGREEN);
+
+    const gfx::Rect zoom_rect{20, 110, 70, 70};
+
+    gfx::Rect backdrop_content_rect = zoom_rect;
+    root->AddChild(CreateSolidColorLayer(backdrop_content_rect, SK_ColorBLACK));
+    backdrop_content_rect.Inset(10);
+    root->AddChild(CreateSolidColorLayer(backdrop_content_rect, SK_ColorGRAY));
+    backdrop_content_rect.Inset(10);
+    root->AddChild(CreateSolidColorLayer(backdrop_content_rect, SK_ColorWHITE));
+
+    // Placed above 'background_content' to filter using the ZOOM backdrop
+    // effect, but then its regular OFFSET filter operation moves it to the
+    // upper half of the root layer.
+    scoped_refptr<SolidColorLayer> filtered =
+        CreateSolidColorLayer(zoom_rect, SK_ColorTRANSPARENT);
+
+    FilterOperations backdrop_filters;
+    backdrop_filters.Append(FilterOperation::CreateZoomFilter(2.5f, 5.f));
+    filtered->SetBackdropFilters(backdrop_filters);
+    FilterOperations filters;
+    filters.Append(FilterOperation::CreateOffsetFilter({0, -90}));
+    filtered->SetFilters(filters);
+
+    // This should be applied to the ZOOM output *before* the OFFSET moves
+    // everything above the white layer.
+    gfx::RRectF backdrop_filter_bounds(
+        gfx::RectF(gfx::SizeF(filtered->bounds())), 10);
+    filtered->SetBackdropFilterBounds(backdrop_filter_bounds);
+    root->AddChild(filtered);
+
+    device_scale_factor_ = device_scale_factor;
+
+    base::FilePath expected_result =
+        base::FilePath(FILE_PATH_LITERAL("mixed_filters_zoom_offset_.png"));
+    expected_result = expected_result.InsertBeforeExtensionASCII(
+        base::NumberToString(device_scale_factor) + "x");
+
+    // Different OSes and GL vs. Vulkan produce slightly different outputs.
+    float error_percent = 0.02f;
+    float avg_error = 1.f;
+    float max_error = 1.f;
+    if (use_skia_graphite()) {
+      // Graphite's round rect clipping differs in AA from Ganesh, so increase
+      // the allowed differences (vs. a ganesh-rendered image).
+      error_percent = 0.28f;
+      avg_error = 26.1f;
+      max_error = 61.f;
+    }
+
+    pixel_comparator_ = std::make_unique<FuzzyPixelComparator>(
+        FuzzyPixelComparator()
+            .SetErrorPixelsPercentageLimit(error_percent)
+            .SetAvgAbsErrorLimit(avg_error)
+            .SetAbsErrorLimit(max_error));
+    RunPixelTest(std::move(root), expected_result);
+  }
+
+ private:
+  // LayerTreePixelTest overrides
+  void SetupTree() override {
+    SetInitialDeviceScaleFactor(device_scale_factor_);
+    LayerTreeHostFiltersPixelTest::SetupTree();
+  }
+
+  float device_scale_factor_ = 1;
+};
+
+// TODO(crbug.com/41473761): SW renderer does not handle simultaneous filters,
+// so the zoomed offset layer does not show up in its expected image. For now
+// only run on SkiaRenderer-based compositors.
+INSTANTIATE_TEST_SUITE_P(,
+                         MixedFilterZoomAndOffsetTest,
+                         ::testing::ValuesIn(viz::GetGpuRendererTypes()),
+                         ::testing::PrintToStringParamName());
+
+// viz::GetGpuRendererTypes() can return an empty list on some platforms.
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MixedFilterZoomAndOffsetTest);
+
+TEST_P(MixedFilterZoomAndOffsetTest, StandardDpi) {
+  RunPixelTestType(1.f);
+}
+
+TEST_P(MixedFilterZoomAndOffsetTest, HiDpi) {
   RunPixelTestType(2.f);
 }
 

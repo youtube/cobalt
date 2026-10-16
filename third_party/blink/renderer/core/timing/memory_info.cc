@@ -34,6 +34,7 @@
 
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
@@ -47,10 +48,19 @@ static constexpr base::TimeDelta kFiftyMs = base::Milliseconds(50);
 static void GetHeapSize(HeapInfo& info) {
   v8::HeapStatistics heap_statistics;
   v8::Isolate::GetCurrent()->GetHeapStatistics(&heap_statistics);
+#if BUILDFLAG(IS_COBALT)
+  // TODO - b/457773763: Chromium upstream calculates `used_js_heap_size` and
+  // `total_js_heap_size` to include `external_memory`. This is not backwards
+  // compatible with previous versions of Cobalt. For now, remove
+  // `external_memory`. Introduce a separate API to include it.
+  info.used_js_heap_size = heap_statistics.used_heap_size();
+  info.total_js_heap_size = heap_statistics.total_physical_size();
+#else
   info.used_js_heap_size =
       heap_statistics.used_heap_size() + heap_statistics.external_memory();
   info.total_js_heap_size =
       heap_statistics.total_physical_size() + heap_statistics.external_memory();
+#endif
   info.js_heap_size_limit = heap_statistics.heap_size_limit();
 }
 
@@ -73,7 +83,7 @@ class HeapSizeCache {
   }
 
   void SetTickClockForTesting(const base::TickClock* clock) { clock_ = clock; }
-  void ResetLastUpdateTimeForTesting() { last_update_time_ = absl::nullopt; }
+  void ResetLastUpdateTimeForTesting() { last_update_time_ = std::nullopt; }
 
  private:
   void MaybeUpdate(MemoryInfo::Precision precision) {
@@ -102,7 +112,7 @@ class HeapSizeCache {
     info_.js_heap_size_limit = QuantizeMemorySize(info_.js_heap_size_limit);
   }
 
-  absl::optional<base::TimeTicks> last_update_time_;
+  std::optional<base::TimeTicks> last_update_time_;
   const base::TickClock* clock_;
 
   HeapInfo info_;

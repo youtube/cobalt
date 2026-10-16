@@ -7,15 +7,16 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/containers/flat_map.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "components/component_updater/update_scheduler.h"
 #include "components/update_client/persisted_data.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class TimeTicks;
@@ -58,9 +59,11 @@ class CrxUpdateService : public ComponentUpdateService,
   bool GetComponentDetails(const std::string& id,
                            CrxUpdateItem* item) const override;
   base::Version GetRegisteredVersion(const std::string& app_id) override;
+  base::Version GetMaxPreviousProductVersion(
+      const std::string& app_id) override;
 
   // Overrides for Observer.
-  void OnEvent(Events event, const std::string& id) override;
+  void OnEvent(const CrxUpdateItem& item) override;
 
   // Overrides for OnDemandUpdater.
   void OnDemandUpdate(const std::string& id,
@@ -82,13 +85,15 @@ class CrxUpdateService : public ComponentUpdateService,
 
   CrxComponent ToCrxComponent(const ComponentRegistration& component) const;
 
-  absl::optional<ComponentRegistration> GetComponent(
+  std::optional<ComponentRegistration> GetComponent(
       const std::string& id) const;
 
   const CrxUpdateItem* GetComponentState(const std::string& id) const;
 
-  std::vector<absl::optional<CrxComponent>> GetCrxComponents(
-      const std::vector<std::string>& ids);
+  void GetCrxComponents(
+      const std::vector<std::string>& ids,
+      base::OnceCallback<void(const std::vector<std::optional<CrxComponent>>&)>
+          callback);
   void OnUpdateComplete(Callback callback,
                         const base::TimeTicks& start_time,
                         update_client::Error error);
@@ -130,6 +135,8 @@ class CrxUpdateService : public ComponentUpdateService,
   // for that media type. Only the most recently-registered component is
   // tracked. May include the IDs of un-registered components.
   std::map<std::string, std::string> component_ids_by_mime_type_;
+
+  base::WeakPtrFactory<CrxUpdateService> weak_ptr_factory_{this};
 };
 
 }  // namespace component_updater

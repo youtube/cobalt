@@ -4,15 +4,25 @@
 
 #include "device/fido/fido_device_authenticator.h"
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
+#include "base/check.h"
+#include "base/check_op.h"
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/rand_util.h"
-#include "base/ranges/algorithm.h"
 #include "base/test/bind.h"
-#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "device/fido/authenticator_get_assertion_response.h"
 #include "device/fido/ctap_get_assertion_request.h"
 #include "device/fido/fido_constants.h"
@@ -20,29 +30,22 @@
 #include "device/fido/fido_types.h"
 #include "device/fido/large_blob.h"
 #include "device/fido/pin.h"
-#include "device/fido/test_callback_receiver.h"
 #include "device/fido/virtual_ctap2_device.h"
 #include "device/fido/virtual_fido_device.h"
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
-#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace device {
 
 namespace {
 
-using GetAssertionCallback = device::test::StatusAndValueCallbackReceiver<
-    CtapDeviceResponseCode,
-    std::vector<AuthenticatorGetAssertionResponse>>;
-using PinCallback = device::test::StatusAndValueCallbackReceiver<
-    CtapDeviceResponseCode,
-    absl::optional<pin::TokenResponse>>;
-using GarbageCollectionCallback =
-    device::test::ValueCallbackReceiver<CtapDeviceResponseCode>;
-using TouchCallback = device::test::TestCallbackReceiver<>;
-using LargeBlobKeyWriteResult =
-    FidoDeviceAuthenticator::LargeBlobKeyWriteResult;
+using GetAssertionFuture =
+    base::test::TestFuture<GetAssertionStatus,
+                           std::vector<AuthenticatorGetAssertionResponse>>;
+using PinFuture = base::test::TestFuture<CtapDeviceResponseCode,
+                                         std::optional<pin::TokenResponse>>;
+using GarbageCollectionFuture = base::test::TestFuture<CtapDeviceResponseCode>;
+using TouchFuture = base::test::TestFuture<void>;
 
 const std::string kRpId = "galaxy.example.com";
 const std::vector<uint8_t> kCredentialId1{1, 1, 1, 1};
@@ -56,8 +59,6 @@ const std::vector<uint8_t> kSmallBlob2{'l', 'u', 'm', 'a'};
 const std::vector<uint8_t> kSmallBlob3{'s', 't', 'a', 'r'};
 constexpr size_t kLargeBlobStorageSize = 4096;
 constexpr char kPin[] = "1234";
-constexpr char kLargeBlobWriteResultHistogram[] =
-    "WebAuthentication.LargeBlobKey.WriteResult";
 
 class FidoDeviceAuthenticatorTest : public testing::Test {
  protected:
@@ -89,9 +90,9 @@ class FidoDeviceAuthenticatorTest : public testing::Test {
     authenticator_ =
         std::make_unique<FidoDeviceAuthenticator>(std::move(virtual_device));
 
-    device::test::TestCallbackReceiver<> callback;
-    authenticator_->InitializeAuthenticator(callback.callback());
-    callback.WaitForCallback();
+    base::test::TestFuture<void> future;
+    authenticator_->InitializeAuthenticator(future.GetCallback());
+    EXPECT_TRUE(future.Wait());
   }
 
   cbor::Value::ArrayValue GetLargeBlobArray() {
@@ -104,14 +105,14 @@ class FidoDeviceAuthenticatorTest : public testing::Test {
   // further large blob operations will require the token.
   pin::TokenResponse GetPINToken() {
     virtual_device_->SetPin(kPin);
-    PinCallback pin_callback;
+    PinFuture pin_future;
     authenticator_->GetPINToken(
         kPin,
         {pin::Permissions::kLargeBlobWrite, pin::Permissions::kGetAssertion},
-        kRpId, pin_callback.callback());
-    pin_callback.WaitForCallback();
-    DCHECK_EQ(pin_callback.status(), CtapDeviceResponseCode::kSuccess);
-    return *pin_callback.value();
+        kRpId, pin_future.GetCallback());
+    EXPECT_TRUE(pin_future.Wait());
+    DCHECK_EQ(std::get<0>(pin_future.Get()), CtapDeviceResponseCode::kSuccess);
+    return *std::get<1>(pin_future.Get());
   }
 
   std::vector<AuthenticatorGetAssertionResponse> GetAssertion(
@@ -122,15 +123,15 @@ class FidoDeviceAuthenticatorTest : public testing::Test {
       request.allow_list.emplace_back(CredentialType::kPublicKey,
                                       credential_id);
     }
-    GetAssertionCallback callback;
+    GetAssertionFuture future;
     authenticator_->GetAssertion(std::move(request), std::move(options),
-                                 callback.callback());
-    callback.WaitForCallback();
-    CHECK_EQ(callback.status(), CtapDeviceResponseCode::kSuccess)
+                                 future.GetCallback());
+    EXPECT_TRUE(future.Wait());
+    CHECK_EQ(std::get<0>(future.Get()), GetAssertionStatus::kSuccess)
         << " get assertion returned "
-        << static_cast<unsigned>(callback.status());
+        << static_cast<unsigned>(std::get<0>(future.Get()));
     std::vector<AuthenticatorGetAssertionResponse> response =
-        callback.TakeValue();
+        std::get<1>(future.Take());
     return response;
   }
 
@@ -142,10 +143,10 @@ class FidoDeviceAuthenticatorTest : public testing::Test {
   }
 
   AuthenticatorGetAssertionResponse GetAssertionForWrite(
-      const std::vector<uint8_t>& blob,
+      base::span<const uint8_t> blob,
       std::vector<uint8_t> credential_id = kCredentialId1) {
     CtapGetAssertionOptions options;
-    options.large_blob_write = std::move(blob);
+    options.large_blob_write.emplace(blob.begin(), blob.end());
     std::vector<std::vector<uint8_t>> credential_ids;
     credential_ids.push_back(std::move(credential_id));
     std::vector<AuthenticatorGetAssertionResponse> responses =
@@ -180,13 +181,10 @@ TEST_F(FidoDeviceAuthenticatorTest, TestReadInvalidLargeBlob) {
 
 // Test reading and writing a blob that fits in a single fragment.
 TEST_F(FidoDeviceAuthenticatorTest, TestWriteSmallBlob) {
-  base::HistogramTester histograms;
   AuthenticatorGetAssertionResponse write = GetAssertionForWrite(kSmallBlob1);
   EXPECT_TRUE(write.large_blob_written);
   std::vector<AuthenticatorGetAssertionResponse> read = GetAssertionForRead();
   EXPECT_EQ(read.at(0).large_blob, kSmallBlob1);
-  histograms.ExpectUniqueSample(kLargeBlobWriteResultHistogram,
-                                LargeBlobKeyWriteResult::kSuccess, 1);
 }
 
 // Tests that attempting to write a large blob overwrites the entire array if it
@@ -215,14 +213,13 @@ TEST_F(FidoDeviceAuthenticatorTest,
 
 // Test reading and writing a blob that must fit in multiple fragments.
 TEST_F(FidoDeviceAuthenticatorTest, TestWriteLargeBlob) {
-  std::vector<uint8_t> large_blob;
-  large_blob.resize(2048);
-  base::RandBytes(large_blob.data(), large_blob.size());
+  std::array<uint8_t, 2048> large_blob;
+  base::RandBytes(large_blob);
   AuthenticatorGetAssertionResponse write = GetAssertionForWrite(large_blob);
   EXPECT_TRUE(write.large_blob_written);
 
   std::vector<AuthenticatorGetAssertionResponse> read = GetAssertionForRead();
-  EXPECT_EQ(read.at(0).large_blob, large_blob);
+  EXPECT_EQ(base::span(*read.at(0).large_blob), large_blob);
 }
 
 // Test reading and writing a blob using a PinUvAuthToken.
@@ -279,13 +276,13 @@ TEST_F(FidoDeviceAuthenticatorTest, TestUpdateLargeBlob) {
       GetAssertionForRead(/*credential_ids=*/{});
 
   ASSERT_EQ(read.size(), 2u);
-  auto first = base::ranges::find_if(read, [&](const auto& response) {
+  auto first = std::ranges::find_if(read, [&](const auto& response) {
     return response.credential->id == kCredentialId1;
   });
   ASSERT_NE(first, read.end());
   EXPECT_EQ(first->large_blob, kSmallBlob3);
 
-  auto second = base::ranges::find_if(read, [&](const auto& response) {
+  auto second = std::ranges::find_if(read, [&](const auto& response) {
     return response.credential->id == kCredentialId2;
   });
   ASSERT_NE(second, read.end());
@@ -303,10 +300,9 @@ TEST_F(FidoDeviceAuthenticatorTest, TestWriteLargeBlobTooLarge) {
 
   // Then, attempt writing a blob that is too large. The blob will be
   // compressed, so fill it with random data so it doesn't shrink.
-  base::HistogramTester histograms;
   std::vector<uint8_t> large_blob;
   large_blob.resize(kLargeBlobStorageSize * 2);
-  base::RandBytes(large_blob.data(), large_blob.size());
+  base::RandBytes(large_blob);
   AuthenticatorGetAssertionResponse write =
       GetAssertionForWrite(std::move(large_blob));
   EXPECT_FALSE(write.large_blob_written);
@@ -316,29 +312,21 @@ TEST_F(FidoDeviceAuthenticatorTest, TestWriteLargeBlobTooLarge) {
       GetAssertionForRead(/*credential_ids=*/{});
   ASSERT_EQ(read.size(), 1u);
   EXPECT_EQ(read.at(0).large_blob, kSmallBlob1);
-  histograms.ExpectUniqueSample(kLargeBlobWriteResultHistogram,
-                                LargeBlobKeyWriteResult::kNotEnoughSpace, 1);
 }
 
 // Tests writing a large blob for a credential that does not have a large blob
 // key set.
 TEST_F(FidoDeviceAuthenticatorTest, TestWriteLargeBlobNoLargeBlobKey) {
-  base::HistogramTester histograms;
   for (auto& registration : virtual_device_->mutable_state()->registrations) {
-    registration.second.large_blob_key = absl::nullopt;
+    registration.second.large_blob_key = std::nullopt;
   }
   AuthenticatorGetAssertionResponse write = GetAssertionForWrite(kSmallBlob1);
   EXPECT_FALSE(write.large_blob_written);
-  histograms.ExpectUniqueSample(
-      kLargeBlobWriteResultHistogram,
-      LargeBlobKeyWriteResult::kCredentialHasNoLargeBlobKey, 1);
 }
 
 // Tests that a CTAP error returned while writing a large blob does not fail the
 // entire assertion.
 TEST_F(FidoDeviceAuthenticatorTest, TestWriteLargeBlobCtapError) {
-  base::HistogramTester histograms;
-
   VirtualCtap2Device::Config config;
   config.pin_support = true;
   config.large_blob_support = true;
@@ -352,8 +340,6 @@ TEST_F(FidoDeviceAuthenticatorTest, TestWriteLargeBlobCtapError) {
 
   AuthenticatorGetAssertionResponse write = GetAssertionForWrite(kSmallBlob1);
   EXPECT_FALSE(write.large_blob_written);
-  histograms.ExpectUniqueSample(kLargeBlobWriteResultHistogram,
-                                LargeBlobKeyWriteResult::kCtapError, 1);
 }
 
 // Tests garbage collecting a large blob.
@@ -385,12 +371,11 @@ TEST_F(FidoDeviceAuthenticatorTest, TestGarbageCollectLargeBlob) {
   ASSERT_EQ(large_blob_array.at(2).GetString(), "comet observatory");
 
   // Perform garbage collection.
-  GarbageCollectionCallback garbage_collection_callback;
+  GarbageCollectionFuture garbage_collection_future;
   authenticator_->GarbageCollectLargeBlob(
-      GetPINToken(), garbage_collection_callback.callback());
-  garbage_collection_callback.WaitForCallback();
-  EXPECT_EQ(garbage_collection_callback.value(),
-            CtapDeviceResponseCode::kSuccess);
+      GetPINToken(), garbage_collection_future.GetCallback());
+  EXPECT_TRUE(garbage_collection_future.Wait());
+  EXPECT_EQ(garbage_collection_future.Get(), CtapDeviceResponseCode::kSuccess);
 
   // The second blob, which was orphaned, should have been deleted.
   large_blob_array = GetLargeBlobArray();
@@ -412,12 +397,11 @@ TEST_F(FidoDeviceAuthenticatorTest, TestGarbageCollectLargeBlobNoChanges) {
   }
 
   // Perform garbage collection.
-  GarbageCollectionCallback gabarge_collection_callback;
+  GarbageCollectionFuture gabarge_collection_future;
   authenticator_->GarbageCollectLargeBlob(
-      GetPINToken(), gabarge_collection_callback.callback());
-  gabarge_collection_callback.WaitForCallback();
-  EXPECT_EQ(gabarge_collection_callback.value(),
-            CtapDeviceResponseCode::kSuccess);
+      GetPINToken(), gabarge_collection_future.GetCallback());
+  EXPECT_TRUE(gabarge_collection_future.Wait());
+  EXPECT_EQ(gabarge_collection_future.Get(), CtapDeviceResponseCode::kSuccess);
 
   // The blob should still be there.
   std::vector<AuthenticatorGetAssertionResponse> read = GetAssertionForRead();
@@ -434,12 +418,11 @@ TEST_F(FidoDeviceAuthenticatorTest, TestGarbageCollectLargeBlobInvalid) {
   authenticator_state_->large_blob[0] += 1;
 
   // Perform garbage collection.
-  GarbageCollectionCallback gabarge_collection_callback;
+  GarbageCollectionFuture gabarge_collection_future;
   authenticator_->GarbageCollectLargeBlob(
-      GetPINToken(), gabarge_collection_callback.callback());
-  gabarge_collection_callback.WaitForCallback();
-  EXPECT_EQ(gabarge_collection_callback.value(),
-            CtapDeviceResponseCode::kSuccess);
+      GetPINToken(), gabarge_collection_future.GetCallback());
+  EXPECT_TRUE(gabarge_collection_future.Wait());
+  EXPECT_EQ(gabarge_collection_future.Get(), CtapDeviceResponseCode::kSuccess);
 
   // The blob should now be valid again.
   EXPECT_EQ(authenticator_state_->large_blob, empty_large_blob);
@@ -459,12 +442,11 @@ TEST_F(FidoDeviceAuthenticatorTest, TestGarbageCollectLargeBlobNoCredentials) {
   ASSERT_EQ(large_blob_array.size(), 1u);
 
   // Perform garbage collection.
-  GarbageCollectionCallback garbage_collection_callback;
+  GarbageCollectionFuture garbage_collection_future;
   authenticator_->GarbageCollectLargeBlob(
-      GetPINToken(), garbage_collection_callback.callback());
-  garbage_collection_callback.WaitForCallback();
-  EXPECT_EQ(garbage_collection_callback.value(),
-            CtapDeviceResponseCode::kSuccess);
+      GetPINToken(), garbage_collection_future.GetCallback());
+  EXPECT_TRUE(garbage_collection_future.Wait());
+  EXPECT_EQ(garbage_collection_future.Get(), CtapDeviceResponseCode::kSuccess);
 
   // The large blob array should now be empty.
   large_blob_array = GetLargeBlobArray();
@@ -481,15 +463,15 @@ TEST_F(FidoDeviceAuthenticatorTest, TestGetTouch) {
     config.ctap2_versions = {version};
     SetUpAuthenticator(std::move(config));
 
-    TouchCallback callback;
+    TouchFuture future;
     bool touch_pressed = false;
     authenticator_state_->simulate_press_callback =
         base::BindLambdaForTesting([&](VirtualFidoDevice* device) {
           touch_pressed = true;
           return true;
         });
-    authenticator_->GetTouch(callback.callback());
-    callback.WaitForCallback();
+    authenticator_->GetTouch(future.GetCallback());
+    EXPECT_TRUE(future.Wait());
     EXPECT_TRUE(touch_pressed);
   }
 }

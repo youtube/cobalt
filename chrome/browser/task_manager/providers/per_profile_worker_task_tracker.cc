@@ -62,7 +62,8 @@ PerProfileWorkerTaskTracker::~PerProfileWorkerTaskTracker() {
 void PerProfileWorkerTaskTracker::OnWorkerCreated(
     const blink::DedicatedWorkerToken& worker_token,
     int worker_process_id,
-    content::GlobalRenderFrameHostId ancestor_render_frame_host_id) {
+    const url::Origin& security_origin,
+    content::DedicatedWorkerCreator creator) {
   auto* worker_process_host =
       content::RenderProcessHost::FromID(worker_process_id);
   DCHECK(worker_process_host);
@@ -72,7 +73,7 @@ void PerProfileWorkerTaskTracker::OnWorkerCreated(
 
 void PerProfileWorkerTaskTracker::OnBeforeWorkerDestroyed(
     const blink::DedicatedWorkerToken& worker_token,
-    content::GlobalRenderFrameHostId ancestor_render_frame_host_id) {
+    content::DedicatedWorkerCreator creator) {
   DeleteWorkerTask(worker_token, &dedicated_worker_tasks_);
 }
 
@@ -85,6 +86,7 @@ void PerProfileWorkerTaskTracker::OnFinalResponseURLDetermined(
 void PerProfileWorkerTaskTracker::OnWorkerCreated(
     const blink::SharedWorkerToken& shared_worker_token,
     int worker_process_id,
+    const url::Origin& security_origin,
     const base::UnguessableToken& dev_tools_token) {
   auto* worker_process_host =
       content::RenderProcessHost::FromID(worker_process_id);
@@ -145,9 +147,9 @@ void PerProfileWorkerTaskTracker::CreateWorkerTask(
     base::flat_map<WorkerId, std::unique_ptr<WorkerTask>>* out_worker_tasks) {
   DCHECK(worker_process_host);
   auto insertion_result = out_worker_tasks->emplace(
-      worker_id,
-      std::make_unique<WorkerTask>(worker_process_host->GetProcess().Handle(),
-                                   task_type, worker_process_host->GetID()));
+      worker_id, std::make_unique<WorkerTask>(
+                     worker_process_host->GetProcess().Handle(), task_type,
+                     worker_process_host->GetDeprecatedID()));
   DCHECK(insertion_result.second);
   worker_task_provider_->OnWorkerTaskAdded(
       insertion_result.first->second.get());
@@ -158,7 +160,7 @@ void PerProfileWorkerTaskTracker::DeleteWorkerTask(
     const WorkerId& worker_id,
     base::flat_map<WorkerId, std::unique_ptr<WorkerTask>>* out_worker_tasks) {
   auto it = out_worker_tasks->find(worker_id);
-  DCHECK(it != out_worker_tasks->end());
+  CHECK(it != out_worker_tasks->end());
   worker_task_provider_->OnWorkerTaskRemoved(it->second.get());
   out_worker_tasks->erase(it);
 }
@@ -169,7 +171,7 @@ void PerProfileWorkerTaskTracker::SetWorkerTaskScriptUrl(
     const GURL& script_url,
     base::flat_map<WorkerId, std::unique_ptr<WorkerTask>>* out_worker_tasks) {
   auto it = out_worker_tasks->find(worker_id);
-  DCHECK(it != out_worker_tasks->end());
+  CHECK(it != out_worker_tasks->end());
   it->second->SetScriptUrl(script_url);
 }
 

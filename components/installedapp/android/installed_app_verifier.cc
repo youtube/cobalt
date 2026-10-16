@@ -9,12 +9,14 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "components/content_relationship_verification/digital_asset_links_handler.h"
-#include "components/installedapp/android/jni_headers/InstalledAppProviderImpl_jni.h"
 #include "content/public/browser/android/browser_context_handle.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/storage_partition.h"
 #include "url/gurl.h"
 #include "url/origin.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/installedapp/android/jni_headers/InstalledAppProviderImpl_jni.h"
 
 namespace {
 
@@ -41,8 +43,10 @@ void JNI_InstalledAppProviderImpl_CheckDigitalAssetLinksRelationshipForWebApk(
   content::BrowserContext* browser_context =
       content::BrowserContextFromJavaHandle(jhandle);
 
-  std::string web_domain = ConvertJavaStringToUTF8(env, jwebDomain);
-  std::string manifest_url = ConvertJavaStringToUTF8(env, jmanifestUrl);
+  std::string web_domain =
+      base::android::ConvertJavaStringToUTF8(env, jwebDomain);
+  std::string manifest_url =
+      base::android::ConvertJavaStringToUTF8(env, jmanifestUrl);
   auto callback =
       base::BindOnce(&base::android::RunBooleanCallbackAndroid,
                      base::android::ScopedJavaGlobalRef<jobject>(jcallback));

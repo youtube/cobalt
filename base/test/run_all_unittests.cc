@@ -13,6 +13,10 @@
 #include "base/win/com_init_util.h"
 #endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#include "base/process/set_process_title_linux.h"
+#endif
+
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "base/test/allow_check_is_test_for_testing.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
@@ -87,6 +91,11 @@ int main(int argc, char** argv) {
 #endif  // !SB_IS(EVERGREEN)
 #else
 int main(int argc, char** argv) {
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+  // For setproctitle unit tests.
+  setproctitle_init(const_cast<const char**>(argv));
+#endif
+
   base::BaseUnittestSuite test_suite(argc, argv);
   return base::LaunchUnitTests(
       argc, argv,

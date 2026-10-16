@@ -1,2 +1,0 @@
-Tests shared storage event tracking & fetching of entries/metadata.
-

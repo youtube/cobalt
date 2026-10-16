@@ -5,6 +5,7 @@
 #include "chrome/common/chromeos/extensions/chromeos_system_extensions_api_provider.h"
 
 #include <memory>
+#include <string_view>
 
 #include "base/logging.h"
 #include "chrome/common/chromeos/extensions/api/api_features.h"
@@ -17,6 +18,7 @@
 #include "extensions/common/features/feature_provider.h"
 #include "extensions/common/features/json_feature_provider_source.h"
 #include "extensions/common/manifest_handler.h"
+#include "extensions/common/manifest_handler_registry.h"
 #include "extensions/common/permissions/permissions_info.h"
 
 namespace chromeos {
@@ -57,7 +59,7 @@ bool ChromeOSSystemExtensionsAPIProvider::IsAPISchemaGenerated(
   return api::ChromeOSGeneratedSchemas::IsGenerated(name);
 }
 
-base::StringPiece ChromeOSSystemExtensionsAPIProvider::GetAPISchema(
+std::string_view ChromeOSSystemExtensionsAPIProvider::GetAPISchema(
     const std::string& name) {
   return api::ChromeOSGeneratedSchemas::Get(name);
 }

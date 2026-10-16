@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/test/mock_callback.h"
 #include "base/time/time.h"
-#include "build/chromeos_buildflags.h"
-#include "chrome/browser/sharing/features.h"
-#include "chrome/browser/sharing/sharing_message_bridge.h"
+#include "build/build_config.h"
 #include "chrome/browser/sharing/sharing_message_bridge_factory.h"
 #include "chrome/browser/sync/test/integration/single_client_status_change_checker.h"
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
 #include "chrome/browser/sync/test/integration/sync_test.h"
-#include "components/sync/driver/sync_token_status.h"
+#include "components/sharing_message/features.h"
+#include "components/sharing_message/sharing_message_bridge.h"
+#include "components/sync/service/sync_token_status.h"
 #include "components/sync/test/fake_server_http_post_provider.h"
 #include "content/public/test/browser_test.h"
 
@@ -102,7 +102,7 @@ class SharingMessageEqualityChecker : public SingleClientStatusChangeChecker {
   bool IsExitConditionSatisfied(std::ostream* os) override {
     *os << "Waiting server side SHARING_MESSAGE to match expected.";
     std::vector<sync_pb::SyncEntity> entities =
-        fake_server_->GetSyncEntitiesByModelType(syncer::SHARING_MESSAGE);
+        fake_server_->GetSyncEntitiesByDataType(syncer::SHARING_MESSAGE);
 
     // |entities.size()| is only going to grow, if |entities.size()| ever
     // becomes bigger then all hope is lost of passing, stop now.
@@ -113,7 +113,7 @@ class SharingMessageEqualityChecker : public SingleClientStatusChangeChecker {
     }
 
     for (const SharingMessageSpecifics& specifics : expected_specifics_) {
-      auto iter = base::ranges::find(
+      auto iter = std::ranges::find(
           entities, specifics.payload(), [](const sync_pb::SyncEntity& entity) {
             return entity.specifics().sharing_message().payload();
           });
@@ -164,7 +164,7 @@ class SharingMessageCallbackChecker : public SingleClientStatusChangeChecker {
   }
 
   const sync_pb::SharingMessageCommitError::ErrorCode expected_error_code_;
-  absl::optional<sync_pb::SharingMessageCommitError> last_error_code_;
+  std::optional<sync_pb::SharingMessageCommitError> last_error_code_;
 
   base::WeakPtrFactory<SharingMessageCallbackChecker> weak_ptr_factory_{this};
 };
@@ -187,7 +187,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientSharingMessageSyncTest, ShouldSubmit) {
       GetSyncService(0), sync_pb::SharingMessageCommitError::NONE);
 
   ASSERT_EQ(0u, GetFakeServer()
-                    ->GetSyncEntitiesByModelType(syncer::SHARING_MESSAGE)
+                    ->GetSyncEntitiesByDataType(syncer::SHARING_MESSAGE)
                     .size());
 
   SharingMessageBridge* sharing_message_bridge =
@@ -204,7 +204,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientSharingMessageSyncTest, ShouldSubmit) {
 
 // ChromeOS does not support late signin after profile creation, so the test
 // below does not apply, at least in the current form.
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(SingleClientSharingMessageSyncTest,
                        ShouldSubmitInTransportMode) {
   // We avoid calling SetupSync(), because we don't want to turn on full sync,
@@ -234,7 +234,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientSharingMessageSyncTest,
   EXPECT_TRUE(WaitForSharingMessage({specifics}));
   EXPECT_TRUE(callback_checker.Wait());
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 IN_PROC_BROWSER_TEST_F(SingleClientSharingMessageSyncTest,
                        ShouldPropagateCommitFailure) {
@@ -255,8 +255,10 @@ IN_PROC_BROWSER_TEST_F(SingleClientSharingMessageSyncTest,
   EXPECT_TRUE(callback_checker.Wait());
 }
 
+// ChromeOS does not support signing out of a primary account.
+#if !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(SingleClientSharingMessageSyncTest,
-                       ShouldCleanPendingMessagesAfterSyncPaused) {
+                       ShouldCleanPendingMessagesUponSignout) {
   ASSERT_TRUE(SetupSync());
   SharingMessageCallbackChecker callback_checker(
       GetSyncService(0), sync_pb::SharingMessageCommitError::SYNC_TURNED_OFF);
@@ -269,14 +271,15 @@ IN_PROC_BROWSER_TEST_F(SingleClientSharingMessageSyncTest,
       std::make_unique<SharingMessageSpecifics>(specifics),
       callback_checker.GetCommitFinishedCallback());
 
-  GetClient(0)->StopSyncServiceAndClearData();
-  GetClient(0)->EnableSyncFeature();
+  GetClient(0)->SignOutPrimaryAccount();
+  ASSERT_TRUE(GetClient(0)->SetupSync());
 
   EXPECT_TRUE(callback_checker.Wait());
   EXPECT_TRUE(GetFakeServer()
-                  ->GetSyncEntitiesByModelType(syncer::SHARING_MESSAGE)
+                  ->GetSyncEntitiesByDataType(syncer::SHARING_MESSAGE)
                   .empty());
 }
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 IN_PROC_BROWSER_TEST_F(
     SingleClientSharingMessageSyncTest,

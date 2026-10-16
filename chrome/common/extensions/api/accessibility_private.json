@@ -6,7 +6,7 @@
   {
     "namespace": "accessibilityPrivate",
     "compiler_options": {
-      "implemented_in": "chrome/browser/accessibility/accessibility_extension_api_chromeos.h"
+      "implemented_in": "chrome/browser/accessibility/accessibility_extension_api_ash.h"
     },
     "description": "none",
     "platforms": ["chromeos"],
@@ -89,7 +89,7 @@
       {
         "id": "SwitchAccessMenuAction",
         "type": "string",
-        "enum": [ "copy", "cut", "decrement", "dictation", "endTextSelection", "increment", "itemScan", "jumpToBeginningOfText", "jumpToEndOfText", "keyboard", "leftClick", "moveBackwardOneCharOfText", "moveBackwardOneWordOfText", "moveCursor", "moveDownOneLineOfText", "moveForwardOneCharOfText", "moveForwardOneWordOfText", "moveUpOneLineOfText", "paste", "pointScan", "rightClick", "scrollDown", "scrollLeft", "scrollRight", "scrollUp", "select", "settings", "startTextSelection" ],
+        "enum": [ "copy", "cut", "decrement", "dictation", "drillDown", "endTextSelection", "increment", "itemScan", "jumpToBeginningOfText", "jumpToEndOfText", "keyboard", "leftClick", "moveBackwardOneCharOfText", "moveBackwardOneWordOfText", "moveCursor", "moveDownOneLineOfText", "moveForwardOneCharOfText", "moveForwardOneWordOfText", "moveUpOneLineOfText", "paste", "pointScan", "rightClick", "scrollDown", "scrollLeft", "scrollRight", "scrollUp", "select", "settings", "startTextSelection" ],
         "description": "Available actions to be shown in the Switch Access menu. Must be kept in sync with the strings in ash/system/accessibility/switch_access/switch_access_menu_view.cc"
       },
       {
@@ -165,6 +165,26 @@
             "$ref": "SyntheticMouseEventButton",
             "description": "The default mouse button is set to left if mouseButton is not specified.",
             "optional": true
+          },
+          "isDoubleClick": {
+            "type": "boolean",
+            "description": "True if the double click flag should be set.",
+            "optional": true
+          },
+          "isTripleClick": {
+            "type": "boolean",
+            "description": "True if the triple click flag should be set.",
+            "optional": true
+          },
+          "useRewriters": {
+            "type": "boolean",
+            "description": "If true, uses rewriters for the mouse event; only allowed if used from FaceGaze. Otherwise indicates that rewriters should be skipped.",
+            "optional": true
+          },
+          "forceNotSynthetic": {
+            "type": "boolean",
+            "description": "If true, forces mouse event to appear as a real mouse event; only allowed if used from FaceGaze. Otherwise indicates that this mouse event should be marked as synthetic.",
+            "optional": true
           }
         }
       },
@@ -185,6 +205,12 @@
         "type": "string",
         "description": "Whether to stack focus rings above or below accessibility bubble panels. Note: focus rings will be stacked above most other UI in either case",
         "enum": ["aboveAccessibilityBubbles", "belowAccessibilityBubbles"]
+      },
+      {
+        "id": "AssistiveTechnologyType",
+        "type": "string",
+        "description": "The assistive technology type of this extension.",
+        "enum": ["chromeVox", "selectToSpeak", "switchAccess", "autoClick", "magnifier", "dictation"]
       },
       {
         "id": "FocusRingInfo",
@@ -234,7 +260,7 @@
       {
         "id": "AccessibilityFeature",
         "type": "string",
-        "enum": [ "googleTtsLanguagePacks", "dictationContextChecking", "chromevoxTabsDeprecation", "chromevoxSettingsMigration"],
+        "enum": ["dictationContextChecking", "faceGaze", "googleTtsHighQualityVoices", "captionsOnBrailleDisplay"],
         "description": "Subset of accessibility features."
       },
       {
@@ -287,6 +313,14 @@
         }
       },
       {
+        "id": "ToastType",
+        "type": "string",
+        "enum": [
+          "dictationNoFocusedTextField",
+          "dictationMicMuted"
+        ]
+      },
+      {
         "id": "DlcType",
         "type": "string",
         "enum": [
@@ -315,6 +349,7 @@
           "ttsNlNl",
           "ttsPlPl",
           "ttsPtBr",
+          "ttsPtPt",
           "ttsSiLk",
           "ttsSkSk",
           "ttsSvSe",
@@ -325,6 +360,15 @@
           "ttsYueHk"
         ],
         "description": "Types of accessibility-specific DLCs."
+      },
+      {
+        "id": "TtsVariant",
+        "type": "string",
+        "enum": [
+          "lite",
+          "standard"
+        ],
+        "description": "Variants of TTS voices."
       },
       {
         "id": "PumpkinData",
@@ -381,6 +425,64 @@
           "es_es_pumpkin_config_binarypb": {
             "type": "binary",
             "description": "The contents of the file as a Uint8Array."
+          }
+        }
+      },
+      {
+        "id": "FaceGazeAssets",
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "binary",
+            "description": "The contents of the FaceLandmarker model as a Uint8Array."
+          },
+          "wasm": {
+            "type": "binary",
+            "description": "The contents of the vision_wasm_internal.wasm file as a Uint8Array."
+          }
+        }
+      },
+      {
+        "id": "ScrollDirection",
+        "type": "string",
+        "enum": [ "up", "down", "left", "right" ],
+        "description": "The four directions for scrolling."
+      },
+      {
+        "id": "FacialGesture",
+        "type": "string",
+        "description": "The facial gestures supported by FaceGaze. Keep this in sync with facial_gestures.ts, FacialGesturesToMediapipeGestures in facegaze/gesture_detector.ts, and ConvertFacialGestureType in accessibility_extension_api_ash.cc.",
+        "enum": ["browInnerUp",
+            "browsDown",
+            "eyeSquintLeft",
+            "eyeSquintRight",
+            "eyesBlink",
+            "eyesLookDown",
+            "eyesLookLeft",
+            "eyesLookRight",
+            "eyesLookUp",
+            "jawLeft",
+            "jawOpen",
+            "jawRight",
+            "mouthFunnel",
+            "mouthLeft",
+            "mouthPucker",
+            "mouthRight",
+            "mouthSmile",
+            "mouthUpperUp"]
+      },
+      {
+        "id": "GestureInfo",
+        "type": "object",
+        "description": "Information about a detected facial gesture.",
+        "properties": {
+          "gesture": {
+            "$ref": "FacialGesture",
+            "description": "The detected facial gesture."
+          },
+          "confidence": {
+            "type": "number",
+            "description": "The confidence value."
           }
         }
       }
@@ -446,6 +548,22 @@
         }
       },
       {
+        "name": "installFaceGazeAssets",
+        "type": "function",
+        "description": "Called to request an install of the FaceGaze assets DLC, which contains files (e.g. the FaceLandmarker model) required for FaceGaze to work.",
+        "parameters": [],
+        "returns_async": {
+          "name": "callback",
+          "description": "Runs when the DLC download finishes.",
+          "parameters": [
+            {
+              "name": "assets",
+              "$ref": "FaceGazeAssets"
+            }
+          ]
+        }
+      },
+      {
         "name": "setNativeAccessibilityEnabled",
         "type": "function",
         "description": "Enables or disables native accessibility support. Once disabled, it is up to the calling extension to provide accessibility for web contents.",
@@ -467,6 +585,11 @@
             "type": "array",
             "items": { "$ref": "FocusRingInfo" },
             "description": "Array of focus rings to draw."
+          },
+          {
+            "name": "atType",
+            "$ref": "AssistiveTechnologyType",
+            "description": "Associates these focus rings with this feature type."
           }
         ]
       },
@@ -485,6 +608,30 @@
             "name": "color",
             "type": "string",
             "description": "CSS-style hex color string beginning with # like #FF9982 or #EEE."
+          }
+        ]
+      },
+      {
+        "name": "setChromeVoxFocus",
+        "type": "function",
+        "description": "Informs the system where Chrome Vox's focus is in screen coordinates when Magnifier is enabled. No-op when Magnifier is not enabled. Causes chrome.accessibilityPrivate.onChromeVoxFocusChanged to be fired within the AccessibilityCommon component extension.",
+        "parameters": [
+          {
+            "name": "bounds",
+            "$ref": "ScreenRect",
+            "description": "Bounds of current ChromeVox focus ring."
+          }
+        ]
+      },
+      {
+        "name": "setSelectToSpeakFocus",
+        "type": "function",
+        "description": "Informs the system where Select to Speak's reading focus is in screen coordinates when Magnifier is enabled. No-op when Magnifier is not enabled. Causes chrome.accessibilityPrivate.onSelectToSpeakFocusChanged to be fired within the AccessibilityCommon component extension.",
+        "parameters": [
+          {
+            "name": "bounds",
+            "$ref": "ScreenRect",
+            "description": "Bounds of currently spoken word (if available) or node (if the spoken node is not a text node)."
           }
         ]
       },
@@ -512,7 +659,7 @@
         "parameters": [
           {
             "type": "boolean",
-            "name": "enabled",
+            "name": "darken",
             "description": "True to darken screen; false to undarken screen."
           }
         ]
@@ -581,17 +728,17 @@
             "description": "True for ChromeVox (native), false for TalkBack."
           }
         ],
-	"returns_async": {
-	  "name": "callback",
-	  "desctiprion": "Callback function.",
-	  "parameters": [
+        "returns_async": {
+          "name": "callback",
+          "description": "Callback function.",
+          "parameters": [
             {
-	      "name": "response",
-	      "$ref": "SetNativeChromeVoxResponse",
-	      "description": "Return Success if successfully toggled. Return error description otherwise."
-	    }
-	  ]
-	}
+              "name": "response",
+              "$ref": "SetNativeChromeVoxResponse",
+              "description": "Return Success if successfully toggled. Return error description otherwise."
+            }
+          ]
+        }
       },
       {
         "name": "sendSyntheticKeyEvent",
@@ -606,7 +753,13 @@
           {
             "name": "useRewriters",
             "type": "boolean",
-            "description": "If true, uses rewriters for the key event; only allowed if used from Dictation. Otherwise indicates that rewriters should be skipped.",
+            "description": "If true, uses rewriters for the key event; only allowed if used from Dictation or FaceGaze. Otherwise indicates that rewriters should be skipped.",
+            "optional": true
+          },
+          {
+            "name": "isRepeat",
+            "type": "boolean",
+            "description": "If true, sets the key event to repeat, which should occur if the key event should be held. Otherwise, the key event should not repeat.",
             "optional": true
           }
         ]
@@ -620,6 +773,35 @@
             "name": "enabled",
             "type": "boolean",
             "description": "True if accessibility component extensions should receive mouse events."
+          }
+        ]
+      },
+      {
+        "name": "enableLiveCaption",
+        "type": "function",
+        "description": "Enables or disables live captioning",
+        "parameters": [
+          {
+            "name": "enabled",
+            "type": "boolean",
+            "description": "True if live caption should be turned on."
+          }
+        ],
+        "returns_async": {
+          "name": "callback",
+          "parameters": [],
+          "optional": true
+        }
+      },
+      {
+        "name": "setCursorPosition",
+        "type": "function",
+        "description": "Sets the cursor position on the screen in absolute screen coordinates.",
+        "parameters": [
+          {
+            "name": "point",
+            "$ref": "ScreenPoint",
+            "description": "The screen point at which to put the cursor."
           }
         ]
       },
@@ -784,6 +966,12 @@
             "name": "description",
             "type": "string",
             "description": "The description to show within the confirmation dialog."
+          },
+          {
+            "name": "cancelName",
+            "type": "string",
+            "description": "The human-readable name of the cancel button.",
+            "optional": true
           }
         ],
         "returns_async": {
@@ -862,21 +1050,118 @@
         }
       },
       {
-        "name": "isLacrosPrimary",
+        "name": "getTtsDlcContents",
         "type": "function",
-        "description": "Gets whether new browser windows and tabs should be in Lacros browser.",
+        "description": "Returns the contents of a TTS DLC.",
+        "parameters": [
+          {
+            "name": "dlc",
+            "$ref": "DlcType",
+            "description": "The DLC of interest."
+          },
+          {
+            "name": "variant",
+            "$ref": "TtsVariant",
+            "description": "The TTS voice variant."
+          }
+        ],
+        "returns_async": {
+          "name": "callback",
+          "description": "A callback that is run when the contents are returned.",
+          "parameters": [
+            {
+              "name": "contents",
+              "type": "binary",
+              "description": "The contents of the DLC as a Uint8Array."
+            }
+          ]
+        }
+      },
+      {
+        "name": "getDisplayBounds",
+        "type": "function",
+        "description": "Returns the bounds of the displays in density-independent pixels in screen coordinates.",
         "parameters": [],
         "returns_async": {
           "name": "callback",
           "description": "A callback that is run when the result is returned.",
           "parameters": [
             {
-              "type": "boolean",
-              "name": "useLacros",
-              "description": "True if new browser windows and tabs should be in Lacros."
+              "type": "array",
+              "items": { "$ref": "ScreenRect" },
+              "name": "rects",
+              "description": "Array of rects represeting the display bounds in screen coordinates for all displays."
             }
           ]
         }
+      },
+      {
+        "name": "showToast",
+        "type": "function",
+        "description": "Displays an accessibility-related toast.",
+        "parameters": [{
+          "name": "type",
+          "$ref": "ToastType",
+          "description": "The type of toast to show."
+        }]
+      },
+      {
+        "name": "scrollAtPoint",
+        "type": "function",
+        "description": "Scrolls at the target location in the specified direction.",
+        "parameters": [
+          {
+            "name": "target",
+            "$ref": "ScreenPoint"
+          },
+          {
+            "name": "direction",
+            "$ref": "ScrollDirection"
+          }
+        ]
+      },
+      {
+        "name": "sendGestureInfoToSettings",
+        "type": "function",
+        "description": "Fired when FaceGaze processes a video frame, detects facial gestures from the frame, then sends information about the recognized facial gesture to the settings.",
+        "parameters": [
+          {
+            "name": "gestureInfo",
+            "type": "array",
+            "items": { "$ref": "GestureInfo" },
+            "description": "The recognized facial gestures and their associated confidence values."
+          }
+        ]
+      },
+      {
+        "name": "updateFaceGazeBubble",
+        "type": "function",
+        "description": "Updates FaceGaze's bubble UI.",
+        "parameters": [
+          {
+            "name": "text",
+            "type": "string",
+            "description": "The text to be displayed in the bubble UI."
+          },
+          {
+            "name": "isWarning",
+            "type": "boolean",
+            "description": "True if the bubble UI contains a warning about state.",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "name": "enableDragEventRewriter",
+        "type": "function",
+        "description": "Turns on/off the DragEventRewriter, which rewrites kMouseMoved events into kMouseDragged events.",
+        "parameters": [
+          {
+            "name": "enabled",
+            "type": "boolean",
+            "description": "Whether or not the DragEventRewriter should be enabled."
+          }
+        ]
       }
     ],
     "events": [
@@ -884,6 +1169,18 @@
         "name": "onIntroduceChromeVox",
         "type": "function",
         "description": "Fired whenever ChromeVox should output introduction."
+      },
+      {
+        "name": "onChromeVoxFocusChanged",
+        "type": "function",
+        "description": "Fired when the ChromeVox focus changes and Magnifier is enabled.",
+        "parameters": [
+          {
+            "name": "bounds",
+            "$ref": "ScreenRect",
+            "description": "ChromeVox's focus bounds in global screen coordinates."
+          }
+        ]
       },
       {
         "name": "onAccessibilityGesture",
@@ -905,16 +1202,22 @@
         ]
       },
       {
-        "name": "onTwoFingerTouchStart",
+        "name": "onSelectToSpeakContextMenuClicked",
         "type": "function",
-        "description": "Fired when we first detect two fingers are held down, which can be used to toggle spoken feedback on some touch-only devices.",
+        "description": "Fired when the Select to Speak context menu is clicked from outside the context of the Select to Speak extension.",
         "parameters": []
       },
       {
-        "name": "onTwoFingerTouchStop",
+        "name": "onSelectToSpeakFocusChanged",
         "type": "function",
-        "description": "Fired when the user is no longer holding down two fingers (including releasing one, holding down three, or moving them).",
-        "parameters": []
+        "description": "Fired when the Select to Speak reading focus changes and Magnifier is enabled.",
+        "parameters": [
+          {
+            "name": "bounds",
+            "$ref": "ScreenRect",
+            "description": "Select to Speak's focus bounds in global screen coordinates."
+          }
+        ]
       },
       {
         "name": "onSelectToSpeakStateChangeRequested",
@@ -1075,6 +1378,18 @@
             "name": "activated",
             "type": "boolean",
             "description": "True if Dictation was activated, false if it was deactivated."
+          }
+        ]
+      },
+      {
+        "name": "onToggleGestureInfoForSettings",
+        "type": "function",
+        "description": "Fired only from the FaceGaze settings when the settings page requests to receive or stop receiving gesture detection information from FaceGaze.",
+        "parameters": [
+          {
+            "name": "enabled",
+            "type": "boolean",
+            "description": "True if FaceGaze should start sending gesture detection information, false if FaceGaze should stop."
           }
         ]
       }

@@ -11,8 +11,10 @@
 #include "modules/rtp_rtcp/source/video_rtp_depacketizer_raw.h"
 
 #include <cstdint>
+#include <optional>
 
-#include "absl/types/optional.h"
+#include "api/video/video_codec_type.h"
+#include "modules/rtp_rtcp/source/video_rtp_depacketizer.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "test/gtest.h"
 
@@ -21,10 +23,10 @@ namespace {
 
 TEST(VideoRtpDepacketizerRaw, PassRtpPayloadAsVideoPayload) {
   const uint8_t kPayload[] = {0x05, 0x25, 0x52};
-  rtc::CopyOnWriteBuffer rtp_payload(kPayload);
+  CopyOnWriteBuffer rtp_payload(kPayload);
 
   VideoRtpDepacketizerRaw depacketizer;
-  absl::optional<VideoRtpDepacketizer::ParsedRtpPayload> parsed =
+  std::optional<VideoRtpDepacketizer::ParsedRtpPayload> parsed =
       depacketizer.Parse(rtp_payload);
 
   ASSERT_TRUE(parsed);
@@ -36,10 +38,10 @@ TEST(VideoRtpDepacketizerRaw, PassRtpPayloadAsVideoPayload) {
 
 TEST(VideoRtpDepacketizerRaw, UsesDefaultValuesForVideoHeader) {
   const uint8_t kPayload[] = {0x05, 0x25, 0x52};
-  rtc::CopyOnWriteBuffer rtp_payload(kPayload);
+  CopyOnWriteBuffer rtp_payload(kPayload);
 
   VideoRtpDepacketizerRaw depacketizer;
-  absl::optional<VideoRtpDepacketizer::ParsedRtpPayload> parsed =
+  std::optional<VideoRtpDepacketizer::ParsedRtpPayload> parsed =
       depacketizer.Parse(rtp_payload);
 
   ASSERT_TRUE(parsed);

@@ -6,6 +6,7 @@
 #define CC_SLIM_FRAME_SINK_IMPL_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -22,17 +23,19 @@
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "components/viz/common/frame_timing_details_map.h"
 #include "components/viz/common/gpu/context_lost_observer.h"
-#include "components/viz/common/gpu/context_provider.h"
+#include "components/viz/common/gpu/raster_context_provider.h"
 #include "components/viz/common/hit_test/hit_test_region_list.h"
 #include "components/viz/common/surfaces/local_surface_id.h"
-#include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/sync_token.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "services/viz/public/mojom/compositing/compositor_frame_sink.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+
+namespace gpu {
+class ClientSharedImage;
+}
 
 namespace cc::slim {
 
@@ -43,7 +46,7 @@ class TestFrameSinkImpl;
 // Slim implementation of FrameSink.
 // * Owns mojo interfaces to viz and responsible for submitting frames and
 //   issuing BeginFrame to client.
-// * Owns ContextProvider.
+// * Owns context provider.
 // * Listen and respond to context loss or GPU process crashes.
 // * Manage uploading UIResource.
 class COMPONENT_EXPORT(CC_SLIM) FrameSinkImpl
@@ -54,7 +57,7 @@ class COMPONENT_EXPORT(CC_SLIM) FrameSinkImpl
  public:
   ~FrameSinkImpl() override;
 
-  viz::ContextProvider* context_provider() const {
+  viz::RasterContextProvider* context_provider() const {
     return context_provider_.get();
   }
   void SetLocalSurfaceId(const viz::LocalSurfaceId& local_surface_id);
@@ -84,9 +87,9 @@ class COMPONENT_EXPORT(CC_SLIM) FrameSinkImpl
   void ReclaimResources(std::vector<viz::ReturnedResource> resources) override;
   void OnCompositorFrameTransitionDirectiveProcessed(
       uint32_t sequence_id) override {}
+  void OnSurfaceEvicted(const viz::LocalSurfaceId& local_surface_id) override {}
   void OnBeginFrame(const viz::BeginFrameArgs& begin_frame_args,
                     const viz::FrameTimingDetailsMap& timing_details,
-                    bool frame_ack,
                     std::vector<viz::ReturnedResource> resources) override;
 
   // SchedulerClient:
@@ -104,7 +107,7 @@ class COMPONENT_EXPORT(CC_SLIM) FrameSinkImpl
     UploadedUIResource(const UploadedUIResource&);
     UploadedUIResource& operator=(const UploadedUIResource&);
 
-    gpu::Mailbox mailbox;
+    scoped_refptr<gpu::ClientSharedImage> shared_image;
     gfx::Size size;
     bool is_opaque = true;
     viz::ResourceId viz_resource_id;
@@ -115,7 +118,7 @@ class COMPONENT_EXPORT(CC_SLIM) FrameSinkImpl
                     compositor_frame_sink_associated_remote,
                 mojo::PendingReceiver<viz::mojom::CompositorFrameSinkClient>
                     client_receiver,
-                scoped_refptr<viz::ContextProvider> context_provider,
+                scoped_refptr<viz::RasterContextProvider> context_provider,
                 base::PlatformThreadId io_thread_id,
                 std::unique_ptr<Scheduler> scheduler);
 
@@ -135,16 +138,17 @@ class COMPONENT_EXPORT(CC_SLIM) FrameSinkImpl
 
   mojo::AssociatedRemote<viz::mojom::CompositorFrameSink> frame_sink_remote_;
   // Separate from AssociatedRemote above for testing.
-  raw_ptr<viz::mojom::CompositorFrameSink> frame_sink_ = nullptr;
+  raw_ptr<viz::mojom::CompositorFrameSink, DanglingUntriaged> frame_sink_ =
+      nullptr;
   mojo::Receiver<viz::mojom::CompositorFrameSinkClient> client_receiver_{this};
-  scoped_refptr<viz::ContextProvider> context_provider_;
+  scoped_refptr<viz::RasterContextProvider> context_provider_;
   raw_ptr<FrameSinkImplClient> client_ = nullptr;
   viz::LocalSurfaceId local_surface_id_;
 
   UploadedResourceMap uploaded_resources_;
   viz::ClientResourceProvider resource_provider_;
   // Last `HitTestRegionList` sent to viz.
-  absl::optional<viz::HitTestRegionList> hit_test_region_list_;
+  std::optional<viz::HitTestRegionList> hit_test_region_list_;
   base::PlatformThreadId io_thread_id_;
 
   viz::LocalSurfaceId last_submitted_local_surface_id_;

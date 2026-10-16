@@ -13,7 +13,6 @@
 #include "base/files/file.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -36,12 +35,19 @@ class OperationRequestManager : public RequestManager {
   // multiple instances per provider.
   OperationRequestManager(Profile* profile,
                           const std::string& provider_id,
-                          NotificationManagerInterface* notification_manager);
+                          NotificationManagerInterface* notification_manager,
+                          base::TimeDelta timeout);
 
-  explicit OperationRequestManager(const RequestManager&) = delete;
-  OperationRequestManager& operator=(const RequestManager&) = delete;
-
+  OperationRequestManager(const OperationRequestManager&) = delete;
+  OperationRequestManager& operator=(const OperationRequestManager&) = delete;
   ~OperationRequestManager() override;
+
+  // Indicate start/end of an operation that involves user interaction. As long
+  // as least one interaction is active, "unresponsive operation" notifications
+  // won't be shown. Not intended to be called directly, but via
+  // `ProvidedFileSystem::StartUserInteraction` instead.
+  void StartUserInteraction() { current_user_interactions_++; }
+  void EndUserInteraction() { current_user_interactions_--; }
 
  private:
   // Called when a request with |request_id| times out.
@@ -52,6 +58,7 @@ class OperationRequestManager : public RequestManager {
   bool IsInteractingWithUser() const;
 
   std::string provider_id_;
+  int current_user_interactions_ = 0;
 };
 
 }  // namespace ash::file_system_provider

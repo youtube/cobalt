@@ -29,7 +29,7 @@ namespace cast_receiver {
 class ContentBrowserClientMixinsImpl : public ContentBrowserClientMixins {
  public:
   explicit ContentBrowserClientMixinsImpl(
-      NetworkContextGetter network_context_getter);
+      network::NetworkContextGetter network_context_getter);
   ~ContentBrowserClientMixinsImpl() override;
 
   // ContentBrowserClientMixins implementation.
@@ -44,7 +44,7 @@ class ContentBrowserClientMixinsImpl : public ContentBrowserClientMixins {
   std::vector<std::unique_ptr<blink::URLLoaderThrottle>>
   CreateURLLoaderThrottles(
       const base::RepeatingCallback<content::WebContents*()>& wc_getter,
-      int frame_tree_node_id,
+      content::FrameTreeNodeId frame_tree_node_id,
       CorsExemptHeaderCallback is_cors_exempt_header_cb) override;
   ApplicationClient& GetApplicationClient() override;
 

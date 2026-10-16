@@ -15,24 +15,25 @@
 #include "extensions/browser/api/declarative/rules_registry_service.h"
 #include "extensions/browser/api/declarative/test_rules_registry.h"
 #include "extensions/browser/api_test_utils.h"
+#include "extensions/browser/rules_registry_ids.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace extensions {
+
 namespace {
 const char kExtensionId[] = "foobar";
 const char kRuleId[] = "foo";
-const int key = extensions::RulesRegistryService::kDefaultRulesRegistryID;
+const int key = rules_registry_ids::kDefaultRulesRegistryID;
 }  // namespace
-
-namespace extensions {
 
 TEST(RulesRegistryTest, FillOptionalIdentifiers) {
   content::BrowserTaskEnvironment task_environment;
 
   std::string error;
   scoped_refptr<RulesRegistry> registry =
-      new TestRulesRegistry(content::BrowserThread::UI, "" /*event_name*/, key);
+      new TestRulesRegistry("" /*event_name*/, key);
 
   // Add rules and check that their identifiers are filled and unique.
 
@@ -154,7 +155,7 @@ TEST(RulesRegistryTest, FillOptionalPriority) {
 
   std::string error;
   scoped_refptr<RulesRegistry> registry =
-      new TestRulesRegistry(content::BrowserThread::UI, "" /*event_name*/, key);
+      new TestRulesRegistry("" /*event_name*/, key);
 
   // Add rules and check that their priorities are filled if they are empty.
 
@@ -228,8 +229,8 @@ TEST(RulesRegistryTest, TwoRulesInManifest) {
           .SetID(kExtensionId)
           .Build();
 
-  scoped_refptr<RulesRegistry> registry = new TestRulesRegistry(
-      content::BrowserThread::UI, "declarativeContent.onPageChanged", key);
+  scoped_refptr<RulesRegistry> registry =
+      new TestRulesRegistry("declarativeContent.onPageChanged", key);
   // Simulate what RulesRegistryService would do on extension load.
   registry->OnExtensionLoaded(extension.get());
 
@@ -296,8 +297,8 @@ TEST(RulesRegistryTest, DeleteRuleInManifest) {
           .SetID(kExtensionId)
           .Build();
 
-  scoped_refptr<RulesRegistry> registry = new TestRulesRegistry(
-      content::BrowserThread::UI, "declarativeContent.onPageChanged", key);
+  scoped_refptr<RulesRegistry> registry =
+      new TestRulesRegistry("declarativeContent.onPageChanged", key);
   // Simulate what RulesRegistryService would do on extension load.
   registry->OnExtensionLoaded(extension.get());
 

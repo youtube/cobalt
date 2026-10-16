@@ -8,8 +8,8 @@
 #include <string>
 
 #include "base/functional/callback.h"
-#include "components/autofill/core/browser/autofill_client.h"
-#include "components/autofill/core/browser/payments/payments_client.h"
+#include "components/autofill/core/browser/payments/payments_autofill_client.h"
+#include "components/autofill/core/browser/payments/payments_request_details.h"
 #include "components/autofill/core/browser/payments/payments_requests/payments_request.h"
 
 namespace base {
@@ -21,10 +21,9 @@ namespace autofill::payments {
 class OptChangeRequest : public PaymentsRequest {
  public:
   OptChangeRequest(
-      const PaymentsClient::OptChangeRequestDetails& request_details,
-      base::OnceCallback<void(AutofillClient::PaymentsRpcResult,
-                              PaymentsClient::OptChangeResponseDetails&)>
-          callback,
+      const OptChangeRequestDetails& request_details,
+      base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult,
+                              OptChangeResponseDetails&)> callback,
       const bool full_sync_enabled);
   OptChangeRequest(const OptChangeRequest&) = delete;
   OptChangeRequest& operator=(const OptChangeRequest&) = delete;
@@ -36,15 +35,16 @@ class OptChangeRequest : public PaymentsRequest {
   std::string GetRequestContent() override;
   void ParseResponse(const base::Value::Dict& response) override;
   bool IsResponseComplete() override;
-  void RespondToDelegate(AutofillClient::PaymentsRpcResult result) override;
+  void RespondToDelegate(
+      PaymentsAutofillClient::PaymentsRpcResult result) override;
 
  private:
-  PaymentsClient::OptChangeRequestDetails request_details_;
-  base::OnceCallback<void(AutofillClient::PaymentsRpcResult,
-                          PaymentsClient::OptChangeResponseDetails&)>
+  OptChangeRequestDetails request_details_;
+  base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult,
+                          OptChangeResponseDetails&)>
       callback_;
   const bool full_sync_enabled_;
-  PaymentsClient::OptChangeResponseDetails response_details_;
+  OptChangeResponseDetails response_details_;
 };
 
 }  // namespace autofill::payments

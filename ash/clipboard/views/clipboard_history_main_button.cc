@@ -4,12 +4,10 @@
 
 #include "ash/clipboard/views/clipboard_history_main_button.h"
 
-#include "ash/clipboard/clipboard_history_util.h"
 #include "ash/clipboard/views/clipboard_history_item_view.h"
 #include "ash/style/ash_color_id.h"
 #include "ash/style/style_util.h"
 #include "base/functional/bind.h"
-#include "chromeos/constants/chromeos_features.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/color/color_provider.h"
@@ -30,12 +28,11 @@ ClipboardHistoryMainButton::ClipboardHistoryMainButton(
       container_(container) {
   SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
   views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::ON);
-  SetID(clipboard_history_util::kMainButtonViewID);
 
   // Let the parent handle accessibility features.
-  GetViewAccessibility().OverrideIsIgnored(/*value=*/true);
+  GetViewAccessibility().SetIsIgnored(true);
 
-  // TODO(crbug.com/1205227): Revisit if this comment makes sense still. It was
+  // TODO(crbug.com/40764470): Revisit if this comment makes sense still. It was
   // attached to CreateInkDrop() but sounds more about talking about a null
   // CreateInkDropHighlight(), but at the time of writing the class inherited
   // from Button and had no other InkDrop-related override than CreateInkDrop().
@@ -54,18 +51,6 @@ ClipboardHistoryMainButton::ClipboardHistoryMainButton(
 }
 
 ClipboardHistoryMainButton::~ClipboardHistoryMainButton() = default;
-
-void ClipboardHistoryMainButton::OnHostPseudoFocusUpdated() {
-  SetShouldHighlight(container_->IsMainButtonPseudoFocused());
-}
-
-void ClipboardHistoryMainButton::SetShouldHighlight(bool should_highlight) {
-  if (should_highlight_ == should_highlight)
-    return;
-
-  should_highlight_ = should_highlight;
-  SchedulePaint();
-}
 
 void ClipboardHistoryMainButton::OnClickCanceled(const ui::Event& event) {
   DCHECK(event.IsMouseEvent());
@@ -95,23 +80,21 @@ void ClipboardHistoryMainButton::OnGestureEvent(ui::GestureEvent* event) {
 }
 
 void ClipboardHistoryMainButton::PaintButtonContents(gfx::Canvas* canvas) {
-  if (!should_highlight_)
+  // Only paint a highlight when the button has pseudo focus.
+  if (!container_->IsMainButtonPseudoFocused()) {
     return;
+  }
 
   // Highlight the background when the menu item is selected or pressed.
   cc::PaintFlags flags;
   flags.setAntiAlias(true);
 
-  const auto color_id =
-      chromeos::features::IsJellyEnabled()
-          ? static_cast<ui::ColorId>(cros_tokens::kCrosSysHoverOnSubtle)
-          : kColorAshInkDrop;
-  flags.setColor(GetColorProvider()->GetColor(color_id));
+  flags.setColor(GetColorProvider()->GetColor(cros_tokens::kCrosSysHoverOnSubtle));
   flags.setStyle(cc::PaintFlags::kFill_Style);
   canvas->DrawRect(GetLocalBounds(), flags);
 }
 
-BEGIN_METADATA(ClipboardHistoryMainButton, views::Button)
+BEGIN_METADATA(ClipboardHistoryMainButton)
 END_METADATA
 
 }  // namespace ash

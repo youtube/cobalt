@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_CPU_X86_WEBGL_IMAGE_CONVERSION_SSE_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_CPU_X86_WEBGL_IMAGE_CONVERSION_SSE_H_
 
@@ -166,11 +171,10 @@ ALWAYS_INLINE void PackOneRowOfRGBA8LittleToR8(const uint8_t*& source,
   pixels_per_row -= pixels_per_row_trunc;
 }
 
-// This function deliberately doesn't mutate the incoming source, destination,
-// or pixelsPerRow arguments, since it always handles the full row.
-ALWAYS_INLINE void PackOneRowOfRGBA8LittleToRGBA8(const uint8_t* source,
-                                                  uint8_t* destination,
-                                                  unsigned pixels_per_row) {
+// This function always handles the full row.
+ALWAYS_INLINE void PackOneRowOfRGBA8LittleToRGBA8(const uint8_t*& source,
+                                                  uint8_t*& destination,
+                                                  unsigned& pixels_per_row) {
   float tmp[4];
   float scale;
 
@@ -190,6 +194,7 @@ ALWAYS_INLINE void PackOneRowOfRGBA8LittleToRGBA8(const uint8_t* source,
     source += 4;
     destination += 4;
   }
+  pixels_per_row = 0;
 }
 
 }  // namespace simd

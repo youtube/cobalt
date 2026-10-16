@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <vector>
 
 #include "base/component_export.h"
@@ -28,7 +29,6 @@ class COMPONENT_EXPORT(UI_BASE_IME_ASH) MockIMEEngineHandler
   // TextInputMethod:
   void Focus(const InputContext& input_context) override;
   void Blur() override;
-  void OnTouch(ui::EventPointerType pointerType) override;
   void Enable(const std::string& component_id) override;
   void Disable() override;
   void Reset() override;

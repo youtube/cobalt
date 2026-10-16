@@ -6,9 +6,10 @@
 
 #include <string>
 
-#include "chrome/browser/extensions/site_permissions_helper.h"
+#include "chrome/browser/extensions/permissions/site_permissions_helper.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_view_delegate.h"
 #include "ui/base/models/image_model.h"
+#include "ui/gfx/native_widget_types.h"
 
 TestToolbarActionViewController::TestToolbarActionViewController(
     const std::string& id)
@@ -17,8 +18,7 @@ TestToolbarActionViewController::TestToolbarActionViewController(
   SetAccessibleName(u"Default name");
 }
 
-TestToolbarActionViewController::~TestToolbarActionViewController() {
-}
+TestToolbarActionViewController::~TestToolbarActionViewController() = default;
 
 std::string TestToolbarActionViewController::GetId() const {
   return id_;
@@ -37,6 +37,11 @@ ui::ImageModel TestToolbarActionViewController::GetIcon(
 
 std::u16string TestToolbarActionViewController::GetActionName() const {
   return action_name_;
+}
+
+std::u16string TestToolbarActionViewController::GetActionTitle(
+    content::WebContents* web_contents) const {
+  return action_title_;
 }
 
 std::u16string TestToolbarActionViewController::GetAccessibleName(
@@ -69,18 +74,13 @@ bool TestToolbarActionViewController::IsShowingPopup() const {
   return popup_showing_;
 }
 
-bool TestToolbarActionViewController::ShouldShowSiteAccessRequestInToolbar(
-    content::WebContents* web_contents) const {
-  return false;
-}
-
 void TestToolbarActionViewController::HidePopup() {
   popup_showing_ = false;
   delegate_->OnPopupClosed();
 }
 
 gfx::NativeView TestToolbarActionViewController::GetPopupNativeView() {
-  return nullptr;
+  return gfx::NativeView();
 }
 
 ui::MenuModel* TestToolbarActionViewController::GetContextMenu(
@@ -118,6 +118,12 @@ void TestToolbarActionViewController::SetActionName(
   UpdateDelegate();
 }
 
+void TestToolbarActionViewController::SetActionTitle(
+    const std::u16string& title) {
+  action_title_ = title;
+  UpdateDelegate();
+}
+
 void TestToolbarActionViewController::SetAccessibleName(
     const std::u16string& name) {
   accessible_name_ = name;
@@ -136,6 +142,7 @@ void TestToolbarActionViewController::SetEnabled(bool is_enabled) {
 }
 
 void TestToolbarActionViewController::UpdateDelegate() {
-  if (delegate_)
+  if (delegate_) {
     delegate_->UpdateState();
+  }
 }

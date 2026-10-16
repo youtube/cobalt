@@ -5,6 +5,9 @@
   },
 
   data: [
+    "back-forward-cache-restoration",
+    "cobalt-frame",
+    "container",
     "element",
     "event",
     "first-input",
@@ -20,7 +23,8 @@
     "script",
     "soft-navigation",
     "taskattribution",
+    "unknown",
     "visibility-state",
-    "back-forward-cache-restoration",
+    "window",
   ],
 }

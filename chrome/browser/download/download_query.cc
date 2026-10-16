@@ -18,12 +18,12 @@
 #include "base/functional/callback.h"
 #include "base/i18n/case_conversion.h"
 #include "base/i18n/string_search.h"
+#include "base/i18n/time_formatting.h"
 #include "base/memory/raw_ref.h"
 #include "base/notreached.h"
 #include "base/strings/string_split.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
-#include "base/time/time_to_iso8601.h"
 #include "base/values.h"
 #include "components/download/public/common/download_item.h"
 #include "components/url_formatter/url_formatter.h"
@@ -48,7 +48,7 @@ template<> bool GetAs(const base::Value& in, bool* out) {
 template <>
 bool GetAs(const base::Value& in, double* out) {
   // `GetIfDouble()` incapsulates type verification logic.
-  const absl::optional<double> maybe_value = in.GetIfDouble();
+  const std::optional<double> maybe_value = in.GetIfDouble();
   if (maybe_value.has_value()) {
     *out = maybe_value.value();
     return true;
@@ -95,11 +95,11 @@ int64_t GetEndTimeMsEpoch(const DownloadItem& item) {
 }
 
 std::string GetStartTime(const DownloadItem& item) {
-  return base::TimeToISO8601(item.GetStartTime());
+  return base::TimeFormatAsIso8601(item.GetStartTime());
 }
 
 std::string GetEndTime(const DownloadItem& item) {
-  return base::TimeToISO8601(item.GetEndTime());
+  return base::TimeFormatAsIso8601(item.GetEndTime());
 }
 
 bool GetDangerAccepted(const DownloadItem& item) {
@@ -171,7 +171,6 @@ bool FieldMatches(
     case GT: return accessor.Run(item) > value;
   }
   NOTREACHED();
-  return false;
 }
 
 // Helper for building a Callback to FieldMatches<>().
@@ -279,7 +278,7 @@ bool DownloadQuery::DownloadComparator::operator()(const DownloadItem* left,
         break;  // break the switch but not the loop
     }
   }
-  CHECK_NE(left->GetId(), right->GetId());
+  CHECK(left == right || left->GetId() != right->GetId());
   return left->GetId() < right->GetId();
 }
 
@@ -321,7 +320,7 @@ bool DownloadQuery::MatchesQuery(const std::vector<std::u16string>& query_terms,
 }
 
 DownloadQuery::DownloadQuery() : limit_(std::numeric_limits<uint32_t>::max()) {}
-DownloadQuery::~DownloadQuery() {}
+DownloadQuery::~DownloadQuery() = default;
 
 // AddFilter() pushes a new FilterCallback to filters_. Most FilterCallbacks are
 // Callbacks to FieldMatches<>(). Search() iterates over given DownloadItems,
@@ -365,7 +364,8 @@ bool DownloadQuery::AddFilter(DownloadQuery::FilterType type,
       std::vector<std::u16string> query_terms;
       return GetAs(value, &query_terms) &&
              (query_terms.empty() ||
-              AddFilter(base::BindRepeating(&MatchesQuery, query_terms)));
+              AddFilter(
+                  base::BindRepeating(&MatchesQuery, std::move(query_terms))));
     }
     case FILTER_ENDED_AFTER:
       return AddFilter(BuildFilter<std::string>(value, GT, &GetEndTime));

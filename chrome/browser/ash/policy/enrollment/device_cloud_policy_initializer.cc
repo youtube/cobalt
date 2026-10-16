@@ -7,12 +7,12 @@
 #include <memory>
 #include <utility>
 
-#include "ash/constants/ash_switches.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "chrome/browser/ash/policy/core/device_cloud_policy_client_factory_ash.h"
 #include "chrome/browser/ash/policy/core/device_cloud_policy_manager_ash.h"
 #include "chrome/browser/ash/policy/core/device_cloud_policy_store_ash.h"
+#include "chrome/browser/ash/policy/enrollment/auto_enrollment_type_checker.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/common/chrome_content_client.h"
@@ -52,11 +52,22 @@ void DeviceCloudPolicyInitializer::Init() {
   DCHECK(!is_initialized_);
 
   is_initialized_ = true;
+
   policy_store_->AddObserver(this);
-  state_keys_update_subscription_ = state_keys_broker_->RegisterUpdateCallback(
-      base::BindRepeating(&DeviceCloudPolicyInitializer::TryToStartConnection,
-                          base::Unretained(this)));
   policy_manager_observer_.Observe(policy_manager_.get());
+
+  // If state keys are supported but not available, we need to obtain them
+  // before proceeding.
+  // Background: `DeviceCloudPolicyManagerAsh::StartConnection` expects state
+  // keys to be present if they are supported).
+  if (AutoEnrollmentTypeChecker::AreFREStateKeysSupported() &&
+      !state_keys_broker_->available()) {
+    state_keys_update_subscription_ =
+        state_keys_broker_->RegisterUpdateCallback(base::BindRepeating(
+            &DeviceCloudPolicyInitializer::TryToStartConnection,
+            base::Unretained(this)));
+    return;
+  }
 
   TryToStartConnection();
 }
@@ -102,11 +113,6 @@ std::unique_ptr<CloudPolicyClient> DeviceCloudPolicyInitializer::CreateClient(
 }
 
 void DeviceCloudPolicyInitializer::TryToStartConnection() {
-  if (install_attributes_->IsActiveDirectoryManaged()) {
-    // This will go away once ChromeAd deprecation is completed.
-    return;
-  }
-
   if (!policy_store_->is_initialized() || !policy_store_->has_policy()) {
     return;
   }
@@ -116,8 +122,6 @@ void DeviceCloudPolicyInitializer::TryToStartConnection() {
     policy_manager_->OnPolicyStoreReady(install_attributes_);
   }
 
-  // TODO(crbug.com/1304636): Move this and all other checks from here to a
-  // separate method.
   if (!policy_manager_->HasSchemaRegistry()) {
     // crbug.com/1295871: `policy_manager_` might not have schema registry on
     // start connection attempt. This may happen on chrome restart when
@@ -127,15 +131,8 @@ void DeviceCloudPolicyInitializer::TryToStartConnection() {
     return;
   }
 
-  // Currently reven devices don't support sever-backed state keys, but they
-  // also don't support FRE/AutoRE so don't block initialization of device
-  // policy on state keys being available on reven.
-  // TODO(b/208705225): Remove this special case when reven supports state keys.
-  const bool allow_init_without_state_keys = ash::switches::IsRevenBranding();
-
-  // TODO(b/181140445): If we had a separate state keys upload request to DM
-  // Server we could drop the `state_keys_broker_->available()` requirement.
-  if (allow_init_without_state_keys || state_keys_broker_->available()) {
+  if (state_keys_broker_->available() ||
+      !AutoEnrollmentTypeChecker::AreFREStateKeysSupported()) {
     StartConnection(CreateClient(enterprise_service_));
   }
 }

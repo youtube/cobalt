@@ -8,7 +8,12 @@ import "ui/gfx/geometry/mojom/geometry.mojom";
 
 // Corresponds to display::DisplayMode
 struct DisplayMode {
+  // Display size of the mode.
   gfx.mojom.Size size;
+  // True if the mode is interlaced.
   bool is_interlaced;
+  // Precise refresh rate of the mode in Hz.
   float refresh_rate;
+  // Precise minimum vsync rate achievable by this mode in Hz.
+  float? vsync_rate_min;
 };

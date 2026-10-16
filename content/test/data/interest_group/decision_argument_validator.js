@@ -29,7 +29,9 @@ function reportResult(auctionConfig, browserSignals, directFromSellerSignals) {
 function validateAdMetadata(adMetadata) {
   const adMetadataJSON = JSON.stringify(adMetadata);
   if (adMetadataJSON !==
-      '{"renderUrl":"https://example.com/render","metadata":{"ad":"metadata","here":[1,2,3]}}')
+      '{"renderURL":"https://example.com/render",' +
+      '"renderUrl":"https://example.com/render",' +
+      '"metadata":{"ad":"metadata","here":[1,2,3]}}')
     throw 'Wrong adMetadata ' + adMetadataJSON;
 }
 
@@ -39,7 +41,7 @@ function validateBid(bid) {
 }
 
 function validateAuctionConfig(auctionConfig) {
-  if (Object.keys(auctionConfig).length !== 13) {
+  if (Object.keys(auctionConfig).length !== 18) {
     throw 'Wrong number of auctionConfig fields ' +
         JSON.stringify(auctionConfig);
   }
@@ -47,9 +49,9 @@ function validateAuctionConfig(auctionConfig) {
   if (!auctionConfig.seller.includes('b.test'))
     throw 'Wrong seller ' + auctionConfig.seller;
 
-  if (auctionConfig.decisionLogicUrl !==
+  if (auctionConfig.decisionLogicURL !==
       auctionConfig.seller + '/interest_group/decision_argument_validator.js') {
-    throw 'Wrong decisionLogicUrl ' + auctionConfig.decisionLogicUrl;
+    throw 'Wrong decisionLogicURL ' + auctionConfig.decisionLogicURL;
   }
 
   if (auctionConfig.trustedScoringSignalsUrl !==
@@ -58,8 +60,13 @@ function validateAuctionConfig(auctionConfig) {
         auctionConfig.trustedScoringSignalsUrl;
   }
 
-  // TODO(crbug.com/1186444): Consider validating URL fields like
-  // auctionConfig.decisionLogicUrl once we decide what to do about URL
+  if (auctionConfig.executionMode !== 'compatibility') {
+    throw 'Wrong executionMode ' +
+    auctionConfig.executionMode;
+  }
+
+  // TODO(crbug.com/40172488): Consider validating URL fields like
+  // auctionConfig.decisionLogicURL once we decide what to do about URL
   // normalization.
 
   if (auctionConfig.interestGroupBuyers.length !== 2 ||
@@ -83,7 +90,7 @@ function validateAuctionConfig(auctionConfig) {
   const sellerSignalsJSON = JSON.stringify(auctionConfig.sellerSignals);
   if (sellerSignalsJSON !== '{"signals":"from","the":["seller"]}')
     throw 'Wrong sellerSignals ' + auctionConfig.sellerSignalsJSON;
-  if (auctionConfig.sellerTimeout !== 200)
+  if (auctionConfig.sellerTimeout !== 20000)
     throw 'Wrong sellerTimeout ' + auctionConfig.sellerTimeout;
 
   if (JSON.stringify(auctionConfig.perBuyerSignals[buyerAOrigin]) !==
@@ -92,9 +99,9 @@ function validateAuctionConfig(auctionConfig) {
         JSON.stringify(auctionConfig.perBuyerSignals);
   }
 
-  if (auctionConfig.perBuyerTimeouts[buyerAOrigin] !== 110 ||
-      auctionConfig.perBuyerTimeouts[buyerBOrigin] !== 120 ||
-      auctionConfig.perBuyerTimeouts['*'] !== 150) {
+  if (auctionConfig.perBuyerTimeouts[buyerAOrigin] !== 11000 ||
+      auctionConfig.perBuyerTimeouts[buyerBOrigin] !== 12000 ||
+      auctionConfig.perBuyerTimeouts['*'] !== 15000) {
     throw 'Wrong perBuyerTimeouts ' +
         JSON.stringify(auctionConfig.perBuyerTimeouts);
   }
@@ -105,6 +112,9 @@ function validateAuctionConfig(auctionConfig) {
     throw 'Wrong perBuyerCumulativeTimeouts ' +
         JSON.stringify(auctionConfig.perBuyerCumulativeTimeouts);
   }
+
+  if (auctionConfig.reportingTimeout !== 2000)
+    throw 'Wrong reportingTimeout ' + auctionConfig.reportingTimeout;
 
   if (auctionConfig.perBuyerCurrencies[buyerAOrigin] !== 'USD' ||
       auctionConfig.perBuyerCurrencies[buyerBOrigin] !== 'CAD' ||
@@ -127,6 +137,11 @@ function validateAuctionConfig(auctionConfig) {
         JSON.stringify(perBuyerPrioritySignals);
   }
 
+  if (auctionConfig.sendCreativeScanningMetadata !== true) {
+    throw 'Wrong sendCreativeScanningMetadata ' +
+        JSON.stringify(auctionConfig.sendCreativeScanningMetadata);
+  }
+
   if ('componentAuctions' in auctionConfig) {
     throw 'Unexpected componentAuctions ' +
         JSON.stringify(auctionConfig.componentAuctions);
@@ -134,6 +149,15 @@ function validateAuctionConfig(auctionConfig) {
 }
 
 function validateTrustedScoringSignals(signals) {
+  if (signals.renderURL["https://example.com/render"] !== "foo") {
+    throw 'Wrong trustedScoringSignals.renderURL ' +
+        signals.renderURL["https://example.com/render"];
+  }
+  if (signals.adComponentRenderURLs["https://example.com/render-component"] !==
+      1) {
+    throw 'Wrong trustedScoringSignals.adComponentRenderURLs ' +
+        signals.adComponentRenderURLs["https://example.com/render-component"];
+  }
   if (signals.renderUrl["https://example.com/render"] !== "foo") {
     throw 'Wrong trustedScoringSignals.renderUrl ' +
         signals.renderUrl["https://example.com/render"];
@@ -155,34 +179,43 @@ function validateBrowserSignals(browserSignals, isScoreAd) {
     throw 'Wrong componentSeller ' + browserSignals.componentSeller;
   if (!browserSignals.interestGroupOwner.startsWith('https://a.test'))
     throw 'Wrong interestGroupOwner ' + browserSignals.interestGroupOwner;
+  if (browserSignals.renderURL !== "https://example.com/render")
+    throw 'Wrong renderURL ' + browserSignals.renderURL;
   if (browserSignals.renderUrl !== "https://example.com/render")
     throw 'Wrong renderUrl ' + browserSignals.renderUrl;
   if (browserSignals.dataVersion !== 1234)
     throw 'Wrong dataVersion ' + browserSignals.dataVersion;
+  if (browserSignals.bidCurrency !== 'USD')
+    throw 'Wrong bidCurrency ' + browserSignals.bidCurrency;
 
   // Fields that vary by method.
   if (isScoreAd) {
-    if (Object.keys(browserSignals).length !== 7) {
+    if (Object.keys(browserSignals).length !== 11) {
       throw 'Wrong number of browser signals fields ' +
           JSON.stringify(browserSignals);
     }
     const adComponentsJSON = JSON.stringify(browserSignals.adComponents);
     if (adComponentsJSON !== '["https://example.com/render-component"]')
       throw 'Wrong adComponents ' + browserSignals.adComponents;
+    const componentsCreativeScanningMetadata =
+        JSON.stringify(browserSignals.adComponentsCreativeScanningMetadata);
+    if (componentsCreativeScanningMetadata !== '[null]')
+      throw 'Wrong adComponentsCreativeScanningMetadata ' +
+          componentsCreativeScanningMetadata;
     if (browserSignals.biddingDurationMsec < 0)
       throw 'Wrong biddingDurationMsec ' + browserSignals.biddingDurationMsec;
-    if (browserSignals.bidCurrency !== 'USD')
-      throw 'Wrong bidCurrency ' + browserSignals.bidCurrency;
+    if (browserSignals.forDebuggingOnlyInCooldownOrLockout)
+      throw 'Wrong forDebuggingOnlyInCooldownOrLockout ' +
+          browserSignals.forDebuggingOnlyInCooldownOrLockout;
+    if (browserSignals.forDebuggingOnlySampling)
+      throw 'Wrong forDebuggingOnlySampling ' +
+          browserSignals.forDebuggingOnlySampling;
   } else {
-    if (Object.keys(browserSignals).length !== 9) {
+    if (Object.keys(browserSignals).length !== 10) {
       throw 'Wrong number of browser signals fields ' +
           JSON.stringify(browserSignals);
     }
-    // Test configures sellerCurrency to EUR, and our scoreAd provides
-    // conversion, so bid should be in euros.
-    if (browserSignals.bidCurrency !== 'EUR')
-      throw 'Wrong bidCurrency ' + browserSignals.bidCurrency;
-    validateBid(browserSignals.bid / 0.91);
+    validateBid(browserSignals.bid);
 
     if (browserSignals.desirability !== 2)
       throw 'Wrong desireability ' + browserSignals.desirability;
@@ -206,7 +239,8 @@ function validateDirectFromSellerSignals(directFromSellerSignals) {
   }
   const auctionSignalsJSON =
       JSON.stringify(directFromSellerSignals.auctionSignals);
-  if (auctionSignalsJSON !== '{"json":"for","all":["parties"]}') {
+  if (auctionSignalsJSON !== '{"json":"for","all":["parties"]}' &&
+      auctionSignalsJSON !== '{"all":["parties"],"json":"for"}') {
     throw 'Wrong directFromSellerSignals.auctionSignals ' +
         auctionSignalsJSON;
   }

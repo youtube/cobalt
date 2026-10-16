@@ -24,19 +24,24 @@ SELECT RUN_METRIC('android/global_counter_span_view.sql',
 
 -- RSS of GCA.
 DROP VIEW IF EXISTS rss_gca;
-CREATE VIEW rss_gca AS
+CREATE PERFETTO VIEW rss_gca AS
 SELECT ts, dur, rss_val AS gca_rss_val
 FROM rss_and_swap_span
 JOIN (
-  SELECT max(start_ts), upid
+  SELECT max(rss), upid
   FROM process
-  WHERE name GLOB '*GoogleCamera*'
+  JOIN (
+    SELECT max(rss_val) as rss, upid FROM rss_and_swap_span GROUP BY upid
+  ) USING (upid)
+  WHERE name GLOB '*GoogleCamera'
+    OR name GLOB '*googlecamera.fishfood'
+    OR name GLOB '*GoogleCameraEng'
   LIMIT 1
 ) AS gca USING (upid);
 
 -- RSS of camera HAL.
 DROP VIEW IF EXISTS rss_camera_hal;
-CREATE VIEW rss_camera_hal AS
+CREATE PERFETTO VIEW rss_camera_hal AS
 SELECT ts, dur, rss_val AS hal_rss_val
 FROM rss_and_swap_span
 JOIN (
@@ -48,13 +53,13 @@ JOIN (
 
 -- RSS of cameraserver.
 DROP VIEW IF EXISTS rss_cameraserver;
-CREATE VIEW rss_cameraserver AS
+CREATE PERFETTO VIEW rss_cameraserver AS
 SELECT ts, dur, rss_val AS cameraserver_rss_val
 FROM rss_and_swap_span
 JOIN (
   SELECT max(start_ts), upid
   FROM process
-  WHERE name = 'cameraserver'
+  WHERE name GLOB '*cameraserver'
   LIMIT 1
 ) AS cameraserver USING (upid);
 
@@ -74,10 +79,14 @@ CREATE VIRTUAL TABLE rss_and_dma_all_camera_join
 USING SPAN_OUTER_JOIN(dma_span, rss_all_camera);
 
 DROP VIEW IF EXISTS rss_and_dma_all_camera_span;
-CREATE VIEW rss_and_dma_all_camera_span AS
+CREATE PERFETTO VIEW rss_and_dma_all_camera_span AS
 SELECT
   ts,
   dur,
+  IFNULL(gca_rss_val, 0) as gca_rss_val,
+  IFNULL(hal_rss_val, 0) as hal_rss_val,
+  IFNULL(cameraserver_rss_val, 0) as cameraserver_rss_val,
+  IFNULL(dma_val, 0) as dma_val,
   CAST(
     IFNULL(gca_rss_val, 0)
     + IFNULL(hal_rss_val, 0)
@@ -88,24 +97,15 @@ FROM rss_and_dma_all_camera_join;
 -- we are dividing and casting to real when calculating avg_value
 -- to avoid issues such as the one in b/203613535
 DROP VIEW IF EXISTS rss_and_dma_all_camera_stats;
-CREATE VIEW rss_and_dma_all_camera_stats AS
+CREATE PERFETTO VIEW rss_and_dma_all_camera_stats AS
 SELECT
   MIN(rss_and_dma_val) AS min_value,
   MAX(rss_and_dma_val) AS max_value,
   SUM(rss_and_dma_val * dur / 1e3) / SUM(dur / 1e3) AS avg_value
 FROM rss_and_dma_all_camera_span;
 
-DROP VIEW IF EXISTS android_camera_event;
-CREATE VIEW android_camera_event AS
-SELECT
-  'counter' AS track_type,
-  'Camera Memory' AS track_name,
-  ts,
-  rss_and_dma_val AS value
-FROM rss_and_dma_all_camera_span;
-
 DROP VIEW IF EXISTS android_camera_output;
-CREATE VIEW android_camera_output AS
+CREATE PERFETTO VIEW android_camera_output AS
 SELECT
   AndroidCameraMetric(
     'gc_rss_and_dma', AndroidCameraMetric_Counter(

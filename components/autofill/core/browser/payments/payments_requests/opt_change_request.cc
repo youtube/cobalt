@@ -16,10 +16,9 @@ const char kOptChangeRequestPath[] =
 }  // namespace
 
 OptChangeRequest::OptChangeRequest(
-    const PaymentsClient::OptChangeRequestDetails& request_details,
-    base::OnceCallback<void(AutofillClient::PaymentsRpcResult,
-                            PaymentsClient::OptChangeResponseDetails&)>
-        callback,
+    const OptChangeRequestDetails& request_details,
+    base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult,
+                            OptChangeResponseDetails&)> callback,
     const bool full_sync_enabled)
     : request_details_(request_details),
       callback_(std::move(callback)),
@@ -39,7 +38,7 @@ std::string OptChangeRequest::GetRequestContent() {
   base::Value::Dict request_dict;
   base::Value::Dict context;
   context.Set("language_code", request_details_.app_locale);
-  context.Set("billable_service", kUnmaskCardBillableServiceNumber);
+  context.Set("billable_service", kUnmaskPaymentMethodBillableServiceNumber);
   request_dict.Set("context", std::move(context));
 
   base::Value::Dict chrome_user_context;
@@ -48,18 +47,17 @@ std::string OptChangeRequest::GetRequestContent() {
 
   std::string reason;
   switch (request_details_.reason) {
-    case PaymentsClient::OptChangeRequestDetails::ENABLE_FIDO_AUTH:
+    case OptChangeRequestDetails::ENABLE_FIDO_AUTH:
       reason = "ENABLE_FIDO_AUTH";
       break;
-    case PaymentsClient::OptChangeRequestDetails::DISABLE_FIDO_AUTH:
+    case OptChangeRequestDetails::DISABLE_FIDO_AUTH:
       reason = "DISABLE_FIDO_AUTH";
       break;
-    case PaymentsClient::OptChangeRequestDetails::ADD_CARD_FOR_FIDO_AUTH:
+    case OptChangeRequestDetails::ADD_CARD_FOR_FIDO_AUTH:
       reason = "ADD_CARD_FOR_FIDO_AUTH";
       break;
     default:
       NOTREACHED();
-      break;
   }
   request_dict.Set("reason", std::move(reason));
 
@@ -81,7 +79,7 @@ std::string OptChangeRequest::GetRequestContent() {
 
   std::string request_content;
   base::JSONWriter::Write(request_dict, &request_content);
-  VLOG(3) << "updateautofilluserpreference request body: " << request_content;
+  DVLOG(3) << "updateautofilluserpreference request body: " << request_content;
   return request_content;
 }
 
@@ -111,7 +109,7 @@ bool OptChangeRequest::IsResponseComplete() {
 }
 
 void OptChangeRequest::RespondToDelegate(
-    AutofillClient::PaymentsRpcResult result) {
+    PaymentsAutofillClient::PaymentsRpcResult result) {
   std::move(callback_).Run(result, response_details_);
 }
 

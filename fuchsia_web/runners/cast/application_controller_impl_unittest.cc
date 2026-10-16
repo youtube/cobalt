@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <chromium/cast/cpp/fidl.h>
+#include <fidl/chromium.cast/cpp/test_base.h>
 #include <fuchsia/web/cpp/fidl.h>
 #include <fuchsia/web/cpp/fidl_test_base.h>
 #include <lib/async/default.h>
@@ -22,9 +23,9 @@ using testing::InvokeWithoutArgs;
 
 namespace {
 
-class MockFrame : public fuchsia::web::testing::Frame_TestBase {
+class MockFrame final : public fuchsia::web::testing::Frame_TestBase {
  public:
-  void NotImplemented_(const std::string& name) final {
+  void NotImplemented_(const std::string& name) override {
     LOG(FATAL) << "No mock defined for " << name;
   }
 
@@ -39,7 +40,7 @@ class MockFrame : public fuchsia::web::testing::Frame_TestBase {
 };
 
 class ApplicationControllerImplTest
-    : public fidl::Server<chromium_cast::ApplicationContext>,
+    : public fidl::testing::TestBase<chromium_cast::ApplicationContext>,
       public testing::Test {
  public:
   ApplicationControllerImplTest() {
@@ -53,7 +54,7 @@ class ApplicationControllerImplTest
         [](fidl::UnbindInfo info) { ADD_FAILURE(); });
     application_context_.Bind(std::move(application_context_endpoints->client),
                               async_get_default_dispatcher());
-    application_.emplace(&frame_, application_context_);
+    application_.emplace(&frame_, application_context_, /*trace_flow_id=*/0);
     base::RunLoop run_loop;
     wait_for_controller_callback_ = run_loop.QuitClosure();
     run_loop.Run();
@@ -66,14 +67,16 @@ class ApplicationControllerImplTest
   ~ApplicationControllerImplTest() override = default;
 
  protected:
+  void NotImplemented_(const std::string& name,
+                       ::fidl::CompleterBase& completer) override {}
+
   // chromium_cast::ApplicationContext implementation.
-  void GetMediaSessionId(GetMediaSessionIdCompleter::Sync& completer) final {
+  void GetMediaSessionId(GetMediaSessionIdCompleter::Sync& completer) override {
     NOTREACHED();
-    completer.Reply({});
   }
   void SetApplicationController(
       SetApplicationControllerRequest& request,
-      SetApplicationControllerCompleter::Sync& ignored_completer) final {
+      SetApplicationControllerCompleter::Sync& ignored_completer) override {
     EXPECT_TRUE(wait_for_controller_callback_);
 
     application_client_.Bind(std::move(request.controller()),
@@ -85,10 +88,10 @@ class ApplicationControllerImplTest
       base::test::SingleThreadTaskEnvironment::MainThreadType::IO};
 
   MockFrame frame_;
-  absl::optional<fidl::ServerBinding<chromium_cast::ApplicationContext>>
+  std::optional<fidl::ServerBinding<chromium_cast::ApplicationContext>>
       application_context_binding_;
   fidl::Client<chromium_cast::ApplicationContext> application_context_;
-  absl::optional<ApplicationControllerImpl> application_;
+  std::optional<ApplicationControllerImpl> application_;
 
   fidl::Client<chromium_cast::ApplicationController> application_client_;
   base::OnceClosure wait_for_controller_callback_;

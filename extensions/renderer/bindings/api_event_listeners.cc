@@ -4,10 +4,10 @@
 
 #include "extensions/renderer/bindings/api_event_listeners.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "base/containers/contains.h"
-#include "base/ranges/algorithm.h"
 #include "content/public/renderer/v8_value_converter.h"
 #include "extensions/common/event_matcher.h"
 #include "extensions/common/mojom/event_dispatcher.mojom.h"
@@ -140,9 +140,24 @@ bool UnfilteredEventListeners::AddListener(v8::Local<v8::Function> listener,
 
 void UnfilteredEventListeners::RemoveListener(v8::Local<v8::Function> listener,
                                               v8::Local<v8::Context> context) {
-  auto iter = base::ranges::find(listeners_, listener);
-  if (iter == listeners_.end())
+  // Can't just use `find(listeners_, listener)` here and below because
+  // `v8::Global<T>` and `v8::Local<T>` do not have a common reference type and
+  // thus do not satisfy `std::equality_comparable_with<>`. We could project
+  // using `v8::Global<T>::Get()`, but that's less efficient.
+  auto iter = std::ranges::find_if(listeners_,
+                                   [&listener](const auto& global_listener) {
+                                     // Note that we only consider the listener
+                                     // function here and below, and not the
+                                     // filter. This implies that it's invalid
+                                     // to try and add the same function for
+                                     // multiple filters.
+                                     // TODO(devlin): It's always been this
+                                     // way, but should it be?
+                                     return global_listener == listener;
+                                   });
+  if (iter == listeners_.end()) {
     return;
+  }
 
   listeners_.erase(iter);
   if (listeners_.empty()) {
@@ -152,17 +167,20 @@ void UnfilteredEventListeners::RemoveListener(v8::Local<v8::Function> listener,
 }
 
 bool UnfilteredEventListeners::HasListener(v8::Local<v8::Function> listener) {
-  return base::Contains(listeners_, listener);
+  return std::ranges::find_if(listeners_,
+                              [listener](const auto& global_listener) {
+                                return global_listener == listener;
+                              }) != listeners_.end();
 }
 
 size_t UnfilteredEventListeners::GetNumListeners() {
   return listeners_.size();
 }
 
-std::vector<v8::Local<v8::Function>> UnfilteredEventListeners::GetListeners(
+v8::LocalVector<v8::Function> UnfilteredEventListeners::GetListeners(
     mojom::EventFilteringInfoPtr filter,
     v8::Local<v8::Context> context) {
-  std::vector<v8::Local<v8::Function>> listeners;
+  v8::LocalVector<v8::Function> listeners(context->GetIsolate());
   listeners.reserve(listeners_.size());
   for (const auto& listener : listeners_)
     listeners.push_back(listener.Get(context->GetIsolate()));
@@ -214,14 +232,6 @@ void UnfilteredEventListeners::NotifyListenersEmpty(
 }
 
 struct FilteredEventListeners::ListenerData {
-  bool operator==(v8::Local<v8::Function> other_function) const {
-    // Note that we only consider the listener function here, and not the
-    // filter. This implies that it's invalid to try and add the same
-    // function for multiple filters.
-    // TODO(devlin): It's always been this way, but should it be?
-    return function == other_function;
-  }
-
   v8::Global<v8::Function> function;
   int filter_id;
 };
@@ -290,9 +300,15 @@ bool FilteredEventListeners::AddListener(v8::Local<v8::Function> listener,
 
 void FilteredEventListeners::RemoveListener(v8::Local<v8::Function> listener,
                                             v8::Local<v8::Context> context) {
-  auto iter = base::ranges::find(listeners_, listener);
-  if (iter == listeners_.end())
+  auto iter = std::ranges::find_if(
+      listeners_,
+      [listener](const auto& global_listener) {
+        return global_listener == listener;
+      },
+      &ListenerData::function);
+  if (iter == listeners_.end()) {
     return;
+  }
 
   ListenerData data = std::move(*iter);
   listeners_.erase(iter);
@@ -301,14 +317,19 @@ void FilteredEventListeners::RemoveListener(v8::Local<v8::Function> listener,
 }
 
 bool FilteredEventListeners::HasListener(v8::Local<v8::Function> listener) {
-  return base::Contains(listeners_, listener);
+  return std::ranges::find_if(
+             listeners_,
+             [listener](const auto& global_listener) {
+               return global_listener == listener;
+             },
+             &ListenerData::function) != listeners_.end();
 }
 
 size_t FilteredEventListeners::GetNumListeners() {
   return listeners_.size();
 }
 
-std::vector<v8::Local<v8::Function>> FilteredEventListeners::GetListeners(
+v8::LocalVector<v8::Function> FilteredEventListeners::GetListeners(
     mojom::EventFilteringInfoPtr filter,
     v8::Local<v8::Context> context) {
   std::set<int> ids = listener_tracker_->GetMatchingFilteredListeners(
@@ -316,7 +337,7 @@ std::vector<v8::Local<v8::Function>> FilteredEventListeners::GetListeners(
       filter ? std::move(filter) : mojom::EventFilteringInfo::New(),
       kIgnoreRoutingId);
 
-  std::vector<v8::Local<v8::Function>> listeners;
+  v8::LocalVector<v8::Function> listeners(context->GetIsolate());
   listeners.reserve(ids.size());
   for (const auto& listener : listeners_) {
     if (ids.count(listener.filter_id))

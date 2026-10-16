@@ -10,7 +10,6 @@
 
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
-#include "base/strings/string_piece_forward.h"
 #include "base/version.h"
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
 
@@ -79,7 +78,7 @@ class TestSystemWebAppManagerCreator {
   ~TestSystemWebAppManagerCreator();
 
  private:
-  void OnWillCreateBrowserContextServices(content::BrowserContext* context);
+  void SetUpBrowserContextKeyedServices(content::BrowserContext* context);
   std::unique_ptr<KeyedService> CreateSystemWebAppManager(
       content::BrowserContext* context);
 

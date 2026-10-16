@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <map>
 #include <string>
 
@@ -42,13 +48,15 @@ TEST_F(DirectoryImplTest, Read) {
   base::File::Error error;
 
   // Make some files.
-  const struct {
+  struct FilesToCreate {
     const char* name;
     uint32_t open_flags;
-  } files_to_create[] = {
+  };
+  const auto files_to_create = std::to_array<FilesToCreate>({
       {"my_file1", mojom::kFlagRead | mojom::kFlagWrite | mojom::kFlagCreate},
       {"my_file2", mojom::kFlagWrite | mojom::kFlagCreate},
-      {"my_file3", mojom::kFlagAppend | mojom::kFlagCreate}};
+      {"my_file3", mojom::kFlagAppend | mojom::kFlagCreate},
+  });
   for (size_t i = 0; i < std::size(files_to_create); i++) {
     error = base::File::Error::FILE_ERROR_FAILED;
     base::File tmp_base_file;
@@ -68,7 +76,7 @@ TEST_F(DirectoryImplTest, Read) {
   EXPECT_EQ(base::File::Error::FILE_OK, error);
 
   error = base::File::Error::FILE_ERROR_FAILED;
-  absl::optional<std::vector<mojom::DirectoryEntryPtr>> directory_contents;
+  std::optional<std::vector<mojom::DirectoryEntryPtr>> directory_contents;
   handled = directory->Read(&error, &directory_contents);
   ASSERT_TRUE(handled);
   EXPECT_EQ(base::File::Error::FILE_OK, error);

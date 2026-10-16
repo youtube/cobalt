@@ -12,10 +12,15 @@ import android.view.ViewGroup.LayoutParams;
 
 import androidx.test.filters.SmallTest;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
+import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.params.BaseJUnit4RunnerDelegate;
 import org.chromium.base.test.params.ParameterAnnotations.ClassParameter;
 import org.chromium.base.test.params.ParameterAnnotations.UseRunnerDelegate;
@@ -25,23 +30,26 @@ import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.components.browser_ui.widget.PromoDialog.DialogParams;
 import org.chromium.components.browser_ui.widget.test.R;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
-import org.chromium.ui.test.util.BlankUiTestActivityTestCase;
+import org.chromium.ui.test.util.BlankUiTestActivity;
 import org.chromium.ui.test.util.NightModeTestUtils;
 import org.chromium.ui.test.util.RenderTestRule;
 
 import java.util.List;
 
-/**
- * Render tests for {@link PromoDialog}.
- */
+/** Render tests for {@link PromoDialog}. */
 @RunWith(ParameterizedRunner.class)
 @UseRunnerDelegate(BaseJUnit4RunnerDelegate.class)
 @Batch(Batch.UNIT_TESTS)
-public class PromoDialogRenderTest extends BlankUiTestActivityTestCase {
+public class PromoDialogRenderTest {
     @ClassParameter
-    private static List<ParameterSet> sClassParams =
+    private static final List<ParameterSet> sClassParams =
             new NightModeTestUtils.NightModeParams().getParameters();
+
+    @ClassRule
+    public static final BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
+            new BaseActivityTestRule<>(BlankUiTestActivity.class);
+
+    private static Activity sActivity;
 
     @Rule
     public RenderTestRule mRenderTestRule =
@@ -49,31 +57,48 @@ public class PromoDialogRenderTest extends BlankUiTestActivityTestCase {
                     .setBugComponent(RenderTestRule.Component.UI_BROWSER_MOBILE)
                     .build();
 
-    private static final String LONG_STRING = "A very very very very very very very very very"
-            + "very very very very long string";
+    private static final String LONG_STRING =
+            "A very very very very very very very very very" + "very very very very long string";
 
     public PromoDialogRenderTest(boolean nightModeEnabled) {
         NightModeTestUtils.setUpNightModeForBlankUiTestActivity(nightModeEnabled);
         mRenderTestRule.setNightModeEnabled(nightModeEnabled);
     }
 
-    private View getDialogLayout(DialogParams dialogParams) throws Exception {
-        Activity activity = getActivity();
-        PromoDialog dialog = TestThreadUtils.runOnUiThreadBlocking(() -> {
-            PromoDialog testDialog = new PromoDialog(activity) {
-                @Override
-                protected DialogParams getDialogParams() {
-                    return dialogParams;
-                }
+    @BeforeClass
+    public static void setupSuite() {
+        sActivity = sActivityTestRule.launchActivity(null);
+    }
 
-                @Override
-                public void onDismiss(DialogInterface dialog) {}
-            };
-            testDialog.onCreate(null);
-            return testDialog;
-        });
-        View dialogLayout = TestThreadUtils.runOnUiThreadBlocking(
-                () -> dialog.getWindow().getDecorView().findViewById(R.id.promo_dialog_layout));
+    @AfterClass
+    public static void tearDownSuite() {
+        NightModeTestUtils.tearDownNightModeForBlankUiTestActivity();
+    }
+
+    private View getDialogLayout(DialogParams dialogParams) throws Exception {
+        PromoDialog dialog =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            PromoDialog testDialog =
+                                    new PromoDialog(
+                                            sActivity, /* shouldPadForWindowInsets= */ true) {
+                                        @Override
+                                        protected DialogParams getDialogParams() {
+                                            return dialogParams;
+                                        }
+
+                                        @Override
+                                        public void onDismiss(DialogInterface dialog) {}
+                                    };
+                            testDialog.onCreate(null);
+                            return testDialog;
+                        });
+        View dialogLayout =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () ->
+                                dialog.getWindow()
+                                        .getDecorView()
+                                        .findViewById(R.id.promo_dialog_layout));
         return dialogLayout;
     }
 
@@ -89,10 +114,11 @@ public class PromoDialogRenderTest extends BlankUiTestActivityTestCase {
         params.secondaryButtonStringResource = R.string.promo_dialog_test_secondary_button;
         params.footerStringResource = R.string.promo_dialog_test_footer;
         View layout = getDialogLayout(params);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            ((ViewGroup) (layout.getParent())).removeView(layout);
-            getActivity().setContentView(layout);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ((ViewGroup) layout.getParent()).removeView(layout);
+                    sActivity.setContentView(layout);
+                });
         mRenderTestRule.render(layout, "promo_dialog_basic");
     }
 
@@ -104,15 +130,17 @@ public class PromoDialogRenderTest extends BlankUiTestActivityTestCase {
         params.vectorDrawableResource = R.drawable.promo_dialog_test_vector;
         params.headerStringResource = R.string.promo_dialog_test_header;
         params.subheaderStringResource = R.string.promo_dialog_test_subheader;
-        params.primaryButtonCharSequence = "A very very very very very very very very very"
-                + "very very very very long string";
+        params.primaryButtonCharSequence =
+                "A very very very very very very very very very"
+                        + "very very very very long string";
         params.secondaryButtonStringResource = R.string.promo_dialog_test_secondary_button;
         params.footerStringResource = R.string.promo_dialog_test_footer;
         View layout = getDialogLayout(params);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            ((ViewGroup) (layout.getParent())).removeView(layout);
-            getActivity().setContentView(layout);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ((ViewGroup) layout.getParent()).removeView(layout);
+                    sActivity.setContentView(layout);
+                });
         mRenderTestRule.render(layout, "promo_dialog_basic_stack_button");
     }
 
@@ -128,10 +156,11 @@ public class PromoDialogRenderTest extends BlankUiTestActivityTestCase {
         params.secondaryButtonStringResource = R.string.promo_dialog_test_secondary_button;
         params.footerStringResource = R.string.promo_dialog_test_footer;
         View layout = getDialogLayout(params);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            ((ViewGroup) (layout.getParent())).removeView(layout);
-            getActivity().setContentView(layout, new LayoutParams(1600, 1000));
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ((ViewGroup) layout.getParent()).removeView(layout);
+                    sActivity.setContentView(layout, new LayoutParams(1600, 1000));
+                });
 
         mRenderTestRule.render(layout, "promo_dialog_basic_landscape");
     }
@@ -148,10 +177,11 @@ public class PromoDialogRenderTest extends BlankUiTestActivityTestCase {
         params.secondaryButtonStringResource = R.string.promo_dialog_test_secondary_button;
         params.footerStringResource = R.string.promo_dialog_test_footer;
         View layout = getDialogLayout(params);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            ((ViewGroup) (layout.getParent())).removeView(layout);
-            getActivity().setContentView(layout, new LayoutParams(1600, 1000));
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ((ViewGroup) layout.getParent()).removeView(layout);
+                    sActivity.setContentView(layout, new LayoutParams(1600, 1000));
+                });
 
         mRenderTestRule.render(layout, "promo_dialog_basic_stack_button_landscape");
     }

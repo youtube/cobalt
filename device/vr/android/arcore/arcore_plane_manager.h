@@ -6,6 +6,7 @@
 #define DEVICE_VR_ANDROID_ARCORE_ARCORE_PLANE_MANAGER_H_
 
 #include <map>
+#include <optional>
 
 #include "base/memory/raw_ptr.h"
 #include "base/types/id_type.h"
@@ -14,7 +15,6 @@
 #include "device/vr/android/arcore/arcore_sdk.h"
 #include "device/vr/android/arcore/scoped_arcore_objects.h"
 #include "device/vr/public/mojom/vr_service.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace device {
 
@@ -50,11 +50,11 @@ class ArCorePlaneManager {
 
   bool PlaneExists(PlaneId id) const;
 
-  // Returns absl::nullopt if plane with the given address does not exist.
-  absl::optional<PlaneId> GetPlaneId(void* plane_address) const;
+  // Returns std::nullopt if plane with the given address does not exist.
+  std::optional<PlaneId> GetPlaneId(void* plane_address) const;
 
-  // Returns absl::nullopt if plane with the given id does not exist.
-  absl::optional<gfx::Transform> GetMojoFromPlane(PlaneId id) const;
+  // Returns std::nullopt if plane with the given id does not exist.
+  std::optional<gfx::Transform> GetMojoFromPlane(PlaneId id) const;
 
   // Creates Anchor object given a plane ID. This is needed since Plane objects
   // are managed by this class in its entirety and are not accessible outside
@@ -110,7 +110,7 @@ class ArCorePlaneManager {
   // to track if |Update()| was called twice in a row w/o a call to
   // |GetDetectedPlanesData()| in between. Initially true since we expect the
   // call to |Update()| to happen next.
-  // TODO(https://crbug.com/1192844): remove the assumption that the calls to
+  // TODO(crbug.com/40757459): remove the assumption that the calls to
   // |Update()| will always be followed by at least one call to
   // |GetDetectedPlanesData()| before the next call to |Update()| happens.
   mutable bool was_plane_data_retrieved_in_current_frame_ = true;

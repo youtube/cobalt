@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/printing/oauth2/authorization_zone_impl.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -16,10 +17,10 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/types/expected.h"
+#include "base/types/expected_macros.h"
 #include "chrome/browser/ash/printing/oauth2/authorization_server_session.h"
 #include "chrome/browser/ash/printing/oauth2/client_ids_database.h"
 #include "chrome/browser/ash/printing/oauth2/constants.h"
@@ -44,9 +45,7 @@ template <size_t length>
 std::string RandBase64String() {
   static_assert(length % 4 == 0);
   static_assert(length > 3);
-  std::vector<uint8_t> bytes(length * 3 / 4);
-  crypto::RandBytes(bytes);
-  return base::Base64Encode(bytes);
+  return base::Base64Encode(crypto::RandBytesAsVector(length * 3 / 4));
 }
 
 // The code challenge created with the algorithm S256 (see RFC7636-4.2).
@@ -58,9 +57,7 @@ std::string RandBase64String() {
 std::string CodeChallengeS256(const std::string& code_verifier) {
   DCHECK_GE(code_verifier.size(), 43u);
   DCHECK_LE(code_verifier.size(), 128u);
-  std::string output;
-  base::Base64Encode(crypto::SHA256HashString(code_verifier), &output);
-  return output;
+  return base::Base64Encode(crypto::SHA256HashString(code_verifier));
 }
 
 // Builds and returns URL for Authorization Request (see RFC6749-4.1) with
@@ -191,14 +188,12 @@ void AuthorizationZoneImpl::FinishAuthorization(const GURL& redirect_url,
   const auto query = uri.GetQueryAsMap();
 
   // Extract the parameter "state".
-  base::expected<std::string, std::string> val_or_err =
-      ExtractParameter(query, "state");
-  if (!val_or_err.has_value()) {
-    std::move(callback).Run(StatusCode::kInvalidResponse,
-                            "Authorization Request: " + val_or_err.error());
-    return;
-  }
-  const std::string state = std::move(val_or_err.value());
+  ASSIGN_OR_RETURN(const std::string state, ExtractParameter(query, "state"),
+                   [&](std::string error) {
+                     std::move(callback).Run(
+                         StatusCode::kInvalidResponse,
+                         "Authorization Request: " + std::move(error));
+                   });
 
   // Use `state` to match pending authorization.
   base::flat_set<std::string> scopes;
@@ -212,13 +207,12 @@ void AuthorizationZoneImpl::FinishAuthorization(const GURL& redirect_url,
   // Check if the parameter "error" is present. If yes, try to extract the error
   // message.
   if (query.contains("error")) {
-    val_or_err = ExtractParameter(query, "error");
-    if (!val_or_err.has_value()) {
-      std::move(callback).Run(StatusCode::kInvalidResponse,
-                              "Authorization Request: " + val_or_err.error());
-      return;
-    }
-    const std::string error = std::move(val_or_err.value());
+    ASSIGN_OR_RETURN(const std::string error, ExtractParameter(query, "error"),
+                     [&](std::string error) {
+                       std::move(callback).Run(
+                           StatusCode::kInvalidResponse,
+                           "Authorization Request: " + std::move(error));
+                     });
 
     StatusCode status;
     if (error == "server_error") {
@@ -233,13 +227,12 @@ void AuthorizationZoneImpl::FinishAuthorization(const GURL& redirect_url,
   }
 
   // Extract the parameter "code".
-  val_or_err = ExtractParameter(query, "code");
-  if (!val_or_err.has_value()) {
-    std::move(callback).Run(StatusCode::kInvalidResponse,
-                            "Authorization Request: " + val_or_err.error());
-    return;
-  }
-  const std::string code = std::move(val_or_err.value());
+  ASSIGN_OR_RETURN(const std::string code, ExtractParameter(query, "code"),
+                   [&](std::string error) {
+                     std::move(callback).Run(
+                         StatusCode::kInvalidResponse,
+                         "Authorization Request: " + std::move(error));
+                   });
 
   // Create and add a new session.
   if (sessions_.size() == kMaxNumberOfSessions) {
@@ -378,7 +371,7 @@ void AuthorizationZoneImpl::OnSendTokenRequestCallback(
     StatusCode status,
     std::string data) {
   // Find the session for which the request was completed.
-  auto it_session = base::ranges::find(
+  auto it_session = std::ranges::find(
       sessions_, session, &std::unique_ptr<AuthorizationServerSession>::get);
   DCHECK(it_session != sessions_.end());
 
@@ -530,7 +523,7 @@ bool AuthorizationZoneImpl::FindAndRemovePendingAuthorization(
     const std::string& state,
     base::flat_set<std::string>& scopes,
     std::string& code_verifier) {
-  std::list<PendingAuthorization>::iterator it = base::ranges::find(
+  std::list<PendingAuthorization>::iterator it = std::ranges::find(
       pending_authorizations_, state, &PendingAuthorization::state);
   if (it == pending_authorizations_.end()) {
     return false;

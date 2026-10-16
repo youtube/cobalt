@@ -88,7 +88,7 @@ class LayerTreeHostReadbackPixelTest
   std::unique_ptr<TestLayerTreeFrameSink> CreateLayerTreeFrameSink(
       const viz::RendererSettings& renderer_settings,
       double refresh_rate,
-      scoped_refptr<viz::ContextProvider> compositor_context_provider,
+      scoped_refptr<viz::RasterContextProvider> compositor_context_provider,
       scoped_refptr<viz::RasterContextProvider> worker_context_provider)
       override {
     auto frame_sink = LayerTreePixelTest::CreateLayerTreeFrameSink(
@@ -133,16 +133,11 @@ class LayerTreeHostReadbackPixelTest
 
   SkBitmap CopyMailboxToBitmap(const gfx::Size& size,
                                const gpu::Mailbox& mailbox,
-                               const gpu::SyncToken& sync_token,
                                const gfx::ColorSpace& color_space) {
     DCHECK(context_provider_);
     viz::RasterContextProvider::ScopedRasterContextLock lock(
         context_provider_.get());
     auto* ri = context_provider_->RasterInterface();
-
-    if (sync_token.HasData()) {
-      ri->WaitSyncTokenCHROMIUM(sync_token.GetConstData());
-    }
 
     SkBitmap bitmap;
     bitmap.allocPixels(SkImageInfo::MakeN32Premul(
@@ -162,18 +157,15 @@ class LayerTreeHostReadbackPixelTest
     ASSERT_EQ(result->destination(),
               viz::CopyOutputResult::Destination::kNativeTextures);
 
-    gpu::Mailbox mailbox = result->GetTextureResult()->planes[0].mailbox;
-    gpu::SyncToken sync_token =
-        result->GetTextureResult()->planes[0].sync_token;
+    gpu::Mailbox mailbox = result->GetTextureResult()->mailbox;
     gfx::ColorSpace color_space = result->GetTextureResult()->color_space;
-    EXPECT_EQ(result->GetTextureResult()->color_space, output_color_space_);
+    EXPECT_EQ(color_space, output_color_space_);
 
     viz::CopyOutputResult::ReleaseCallbacks release_callbacks =
         result->TakeTextureOwnership();
     EXPECT_EQ(1u, release_callbacks.size());
 
-    SkBitmap bitmap =
-        CopyMailboxToBitmap(result->size(), mailbox, sync_token, color_space);
+    SkBitmap bitmap = CopyMailboxToBitmap(result->size(), mailbox, color_space);
     std::move(release_callbacks[0]).Run(gpu::SyncToken(), false);
 
     ReadbackResultAsBitmap(std::make_unique<viz::CopyOutputSkBitmapResult>(
@@ -478,7 +470,7 @@ TEST_P(LayerTreeHostReadbackPixelTest, MultipleReadbacksOnLayer) {
       base::FilePath(FILE_PATH_LITERAL("green.png")));
 }
 
-// TODO(crbug.com/971257): Enable these tests for Skia Vulkan using texture
+// TODO(crbug.com/41463412): Enable these tests for Skia Vulkan using texture
 // readback.
 ReadbackTestConfig const kTestConfigs[] = {
     ReadbackTestConfig{viz::RendererType::kSoftware, TestReadBackType::kBitmap},
@@ -491,8 +483,12 @@ ReadbackTestConfig const kTestConfigs[] = {
     ReadbackTestConfig{viz::RendererType::kSkiaVk, TestReadBackType::kTexture},
 #endif  // BUILDFLAG(ENABLE_VULKAN_BACKEND_TESTS)
 #if BUILDFLAG(ENABLE_SKIA_GRAPHITE_TESTS)
-    ReadbackTestConfig{viz::RendererType::kSkiaGraphite,
+    ReadbackTestConfig{viz::RendererType::kSkiaGraphiteDawn,
                        TestReadBackType::kBitmap},
+#if BUILDFLAG(IS_IOS)
+    ReadbackTestConfig{viz::RendererType::kSkiaGraphiteMetal,
+                       TestReadBackType::kBitmap},
+#endif  // BUILDFLAG(IS_IOS)
 #endif  // BUILDFLAG(ENABLE_SKIA_GRAPHITE_TESTS)
 };
 
@@ -597,7 +593,7 @@ class LayerTreeHostReadbackColorSpacePixelTest
   std::unique_ptr<TestLayerTreeFrameSink> CreateLayerTreeFrameSink(
       const viz::RendererSettings& renderer_settings,
       double refresh_rate,
-      scoped_refptr<viz::ContextProvider> compositor_context_provider,
+      scoped_refptr<viz::RasterContextProvider> compositor_context_provider,
       scoped_refptr<viz::RasterContextProvider> worker_context_provider)
       override {
     std::unique_ptr<TestLayerTreeFrameSink> frame_sink =

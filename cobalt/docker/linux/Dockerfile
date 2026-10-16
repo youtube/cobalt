@@ -9,8 +9,10 @@ FROM marketplace.gcr.io/google/debian12@${BASE_IMAGE_SHA}
 RUN apt-get update && apt-get install -y \
     curl \
     python3-dev \
+    python3-pip \
     git \
     xz-utils \
+    zstd \
     pkgconf \
     libglib2.0-0 \
     libnss3 \
@@ -29,6 +31,7 @@ RUN apt-get update && apt-get install -y \
     gcc-multilib \
     bzip2 \
     jq \
+    fuse-overlayfs \
     && rm -rf /var/lib/apt/lists/*
 
 ARG GCLOUD=google-cloud-cli-linux-x86_64.tar.gz
@@ -37,10 +40,3 @@ RUN cd /tmp \
     && tar xf "${GCLOUD}" -C /usr/local --strip-components=1 google-cloud-sdk/bin google-cloud-sdk/lib \
     && rm "${GCLOUD}" \
     && gcloud --version
-
-# binutils* needed for evergreen
-RUN apt update -qqy \
-    && apt install -qqy --no-install-recommends \
-        binutils-aarch64-linux-gnu \
-        binutils-arm-linux-gnueabi \
-    && rm -rf /var/lib/apt/lists/*

@@ -4,16 +4,14 @@
 
 #include "ui/ozone/platform/wayland/host/wayland_output_manager.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <string>
 
-#include "base/ranges/algorithm.h"
 #include "ui/ozone/platform/wayland/host/wayland_connection.h"
 #include "ui/ozone/platform/wayland/host/wayland_output.h"
 #include "ui/ozone/platform/wayland/host/wayland_window.h"
-#include "ui/ozone/platform/wayland/host/wayland_zaura_output_manager.h"
-#include "ui/ozone/platform/wayland/host/wayland_zaura_shell.h"
 
 namespace ui {
 
@@ -47,22 +45,10 @@ void WaylandOutputManager::AddWaylandOutput(WaylandOutput::Id output_id,
   // geometry and the scaling factor from the Wayland Compositor.
   wayland_output->Initialize(this);
 
-  // If supported, the zaura_output_manager will have have been bound by this
-  // client before the any wl_output objects. zaura_output_manager subsumes the
-  // responsibilities of xdg_output and aura_output, so avoid unnecessarily
-  // creating the output extensions if present.
-  if (!connection_->zaura_output_manager()) {
-    if (connection_->xdg_output_manager_v1()) {
-      wayland_output->InitializeXdgOutput(connection_->xdg_output_manager_v1());
-    }
-    if (connection_->zaura_shell()) {
-      wayland_output->InitializeZAuraOutput(
-          connection_->zaura_shell()->wl_object());
-    }
+  if (connection_->xdg_output_manager_v1()) {
+    wayland_output->InitializeXdgOutput(connection_->xdg_output_manager_v1());
   }
 
-  // TODO(tluk): Update zaura_output_manager to support the capabilities of
-  // zcr_color_management_output.
   if (connection_->zcr_color_manager()) {
     wayland_output->InitializeColorManagementOutput(
         connection_->zcr_color_manager());
@@ -80,8 +66,7 @@ void WaylandOutputManager::RemoveWaylandOutput(WaylandOutput::Id output_id) {
   // Remove WaylandOutput in following order :
   // 1. from `WaylandSurface::entered_outputs_`
   // 2. from `WaylandScreen::display_list_`
-  // 3. from `WaylandZAuraOutputManager::output_metrics_map_`
-  // 4. from `WaylandOutputManager::output_list_`
+  // 3. from `WaylandOutputManager::output_list_`
   auto* wayland_window_manager = connection_->window_manager();
   for (auto* window : wayland_window_manager->GetAllWindows())
     window->RemoveEnteredOutput(output_id);
@@ -90,11 +75,6 @@ void WaylandOutputManager::RemoveWaylandOutput(WaylandOutput::Id output_id) {
     wayland_screen_->OnOutputRemoved(output_id);
   DCHECK(output_list_.find(output_id) != output_list_.end());
 
-  if (auto* output_manager = connection_->zaura_output_manager()) {
-    output_manager->RemoveOutputMetrics(output_id);
-    DCHECK(!output_manager->GetOutputMetrics(output_id));
-  }
-
   output_list_.erase(output_id);
 }
 
@@ -102,14 +82,6 @@ void WaylandOutputManager::InitializeAllXdgOutputs() {
   DCHECK(connection_->xdg_output_manager_v1());
   for (const auto& output : output_list_)
     output.second->InitializeXdgOutput(connection_->xdg_output_manager_v1());
-}
-
-void WaylandOutputManager::InitializeAllZAuraOutputs() {
-  DCHECK(connection_->zaura_shell());
-  for (const auto& output : output_list_) {
-    output.second->InitializeZAuraOutput(
-        connection_->zaura_shell()->wl_object());
-  }
 }
 
 void WaylandOutputManager::InitializeAllColorManagementOutputs() {
@@ -144,7 +116,7 @@ void WaylandOutputManager::InitWaylandScreen(WaylandScreen* screen) {
 
 WaylandOutput::Id WaylandOutputManager::GetOutputId(
     wl_output* output_resource) const {
-  auto it = base::ranges::find(
+  auto it = std::ranges::find(
       output_list_, output_resource,
       [](const auto& pair) { return pair.second->get_output(); });
   return it == output_list_.end() ? 0 : it->second->output_id();
@@ -172,6 +144,19 @@ const WaylandOutputManager::OutputList& WaylandOutputManager::GetAllOutputs()
   return output_list_;
 }
 
+void WaylandOutputManager::DumpState(std::ostream& out) const {
+  out << "WaylandOutputManager:" << std::endl;
+  if (wayland_screen_) {
+    wayland_screen_->DumpState(out);
+    out << std::endl;
+  }
+  for (const auto& output : output_list_) {
+    out << "  output[" << output.first << "]:";
+    output.second->DumpState(out);
+    out << std::endl;
+  }
+}
+
 void WaylandOutputManager::OnOutputHandleMetrics(
     const WaylandOutput::Metrics& metrics) {
   if (wayland_screen_) {
@@ -187,8 +172,10 @@ void WaylandOutputManager::OnOutputHandleMetrics(
       metrics.display_id == wayland_screen_->GetPrimaryDisplay().id();
   for (auto* window : connection_->window_manager()->GetAllWindows()) {
     auto entered_output = window->GetPreferredEnteredOutputId();
-    if (entered_output == metrics.output_id || (!entered_output && is_primary))
-      window->UpdateWindowScale(true);
+    if (entered_output == metrics.output_id ||
+        (!entered_output && is_primary)) {
+      window->OnEnteredOutputScaleChanged();
+    }
   }
 }
 

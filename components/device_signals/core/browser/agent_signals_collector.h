@@ -7,12 +7,12 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "components/device_signals/core/browser/base_signals_collector.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class TimeTicks;
@@ -41,7 +41,8 @@ class AgentSignalsCollector : public BaseSignalsCollector {
   // agent signal does not require parameters. `response` will be passed along
   // and the signal values will be set on it when available. `done_closure` will
   // be invoked when signal collection is complete.
-  void GetAgentSignal(const SignalsAggregationRequest& request,
+  void GetAgentSignal(UserPermission permission,
+                      const SignalsAggregationRequest& request,
                       SignalsAggregationResponse& response,
                       base::OnceClosure done_closure);
 
@@ -53,8 +54,8 @@ class AgentSignalsCollector : public BaseSignalsCollector {
       base::TimeTicks start_time,
       SignalsAggregationResponse& response,
       base::OnceClosure done_closure,
-      absl::optional<CrowdStrikeSignals> agent_signals,
-      absl::optional<SignalCollectionError> error);
+      std::optional<CrowdStrikeSignals> agent_signals,
+      std::optional<SignalCollectionError> error);
 
   // Instance used to collect signals from a CrowdStrike agent.
   std::unique_ptr<CrowdStrikeClient> crowdstrike_client_;

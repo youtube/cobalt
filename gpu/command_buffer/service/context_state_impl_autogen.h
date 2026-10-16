@@ -8,6 +8,11 @@
 //    clang-format -i -style=chromium filename
 // DO NOT EDIT!
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 // It is included by context_state.cc
 #ifndef GPU_COMMAND_BUFFER_SERVICE_CONTEXT_STATE_IMPL_AUTOGEN_H_
 #define GPU_COMMAND_BUFFER_SERVICE_CONTEXT_STATE_IMPL_AUTOGEN_H_
@@ -76,7 +81,6 @@ void ContextState::Initialize() {
   front_face = GL_CCW;
   hint_generate_mipmap = GL_DONT_CARE;
   hint_fragment_shader_derivative = GL_DONT_CARE;
-  hint_texture_filtering = GL_NICEST;
   line_width = 1.0f;
   pack_alignment = 4;
   unpack_alignment = 4;
@@ -255,22 +259,14 @@ void ContextState::InitState(const ContextState* prev_state) const {
       api()->glDepthRangeFn(z_near, z_far);
     if ((front_face != prev_state->front_face))
       api()->glFrontFaceFn(front_face);
-    if (!feature_info_->gl_version_info().is_desktop_core_profile) {
-      if (prev_state->hint_generate_mipmap != hint_generate_mipmap) {
-        api()->glHintFn(GL_GENERATE_MIPMAP_HINT, hint_generate_mipmap);
-      }
+    if (prev_state->hint_generate_mipmap != hint_generate_mipmap) {
+      api()->glHintFn(GL_GENERATE_MIPMAP_HINT, hint_generate_mipmap);
     }
     if (feature_info_->feature_flags().oes_standard_derivatives) {
       if (prev_state->hint_fragment_shader_derivative !=
           hint_fragment_shader_derivative) {
         api()->glHintFn(GL_FRAGMENT_SHADER_DERIVATIVE_HINT_OES,
                         hint_fragment_shader_derivative);
-      }
-    }
-    if (feature_info_->feature_flags().chromium_texture_filtering_hint) {
-      if (prev_state->hint_texture_filtering != hint_texture_filtering) {
-        api()->glHintFn(GL_TEXTURE_FILTERING_HINT_CHROMIUM,
-                        hint_texture_filtering);
       }
     }
     if ((line_width != prev_state->line_width))
@@ -343,16 +339,10 @@ void ContextState::InitState(const ContextState* prev_state) const {
     api()->glDepthMaskFn(cached_depth_mask);
     api()->glDepthRangeFn(z_near, z_far);
     api()->glFrontFaceFn(front_face);
-    if (!feature_info_->gl_version_info().is_desktop_core_profile) {
-      api()->glHintFn(GL_GENERATE_MIPMAP_HINT, hint_generate_mipmap);
-    }
+    api()->glHintFn(GL_GENERATE_MIPMAP_HINT, hint_generate_mipmap);
     if (feature_info_->feature_flags().oes_standard_derivatives) {
       api()->glHintFn(GL_FRAGMENT_SHADER_DERIVATIVE_HINT_OES,
                       hint_fragment_shader_derivative);
-    }
-    if (feature_info_->feature_flags().chromium_texture_filtering_hint) {
-      api()->glHintFn(GL_TEXTURE_FILTERING_HINT_CHROMIUM,
-                      hint_texture_filtering);
     }
     DoLineWidth(line_width);
     api()->glPixelStoreiFn(GL_PACK_ALIGNMENT, pack_alignment);
@@ -409,7 +399,6 @@ bool ContextState::GetEnabled(GLenum cap) const {
       return enable_flags.sample_alpha_to_one_ext;
     default:
       NOTREACHED();
-      return false;
   }
 }
 
@@ -533,12 +522,6 @@ bool ContextState::GetStateAsGLint(GLenum pname,
       *num_written = 1;
       if (params) {
         params[0] = static_cast<GLint>(hint_fragment_shader_derivative);
-      }
-      return true;
-    case GL_TEXTURE_FILTERING_HINT_CHROMIUM:
-      *num_written = 1;
-      if (params) {
-        params[0] = static_cast<GLint>(hint_texture_filtering);
       }
       return true;
     case GL_LINE_WIDTH:
@@ -955,12 +938,6 @@ bool ContextState::GetStateAsGLfloat(GLenum pname,
       *num_written = 1;
       if (params) {
         params[0] = static_cast<GLfloat>(hint_fragment_shader_derivative);
-      }
-      return true;
-    case GL_TEXTURE_FILTERING_HINT_CHROMIUM:
-      *num_written = 1;
-      if (params) {
-        params[0] = static_cast<GLfloat>(hint_texture_filtering);
       }
       return true;
     case GL_LINE_WIDTH:

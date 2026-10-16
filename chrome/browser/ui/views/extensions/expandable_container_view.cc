@@ -41,8 +41,9 @@ ExpandableContainerView::DetailsView::DetailsView(
 }
 
 void ExpandableContainerView::DetailsView::SetExpanded(bool expanded) {
-  if (expanded == expanded_)
+  if (expanded == expanded_) {
     return;
+  }
   expanded_ = expanded;
   SetVisible(expanded_);
   OnPropertyChanged(&expanded_, views::kPropertyEffectsPaint);
@@ -52,7 +53,7 @@ bool ExpandableContainerView::DetailsView::GetExpanded() const {
   return expanded_;
 }
 
-BEGIN_METADATA(ExpandableContainerView, DetailsView, views::View)
+BEGIN_METADATA(ExpandableContainerView, DetailsView)
 ADD_PROPERTY_METADATA(bool, Expanded)
 END_METADATA
 
@@ -87,5 +88,5 @@ void ExpandableContainerView::ToggleDetailLevel() {
       expanded ? IDS_EXTENSIONS_SHOW_DETAILS : IDS_EXTENSIONS_HIDE_DETAILS));
 }
 
-BEGIN_METADATA(ExpandableContainerView, views::View)
+BEGIN_METADATA(ExpandableContainerView)
 END_METADATA

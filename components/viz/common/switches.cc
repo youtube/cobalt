@@ -10,8 +10,6 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
-#include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/viz/common/constants.h"
 
 namespace switches {
@@ -21,11 +19,20 @@ namespace switches {
 const char kDeadlineToSynchronizeSurfaces[] =
     "deadline-to-synchronize-surfaces";
 
+// Force the use of a Delegated Ink renderer as specified by
+// the command line argument, rather than using system details. Acceptable
+// values are: skia, system, none. Default to skia.
+const char kDelegatedInkRenderer[] = "delegated-ink-renderer";
+
 // Disables reporting of frame timing via ADPF, even if supported on the device.
 const char kDisableAdpf[] = "disable-adpf";
 
 // Disables begin frame limiting in both cc scheduler and display scheduler.
 // Also implies --disable-gpu-vsync (see //ui/gl/gl_switches.h).
+// TODO(ananta/jonross/sunnyps)
+// http://crbug.com/346931323
+// We should remove or change this once VRR support is implemented for
+// Windows and other platforms potentially.
 const char kDisableFrameRateLimit[] = "disable-frame-rate-limit";
 
 // Sets the number of max pending frames in the GL buffer queue to 1.
@@ -36,14 +43,6 @@ const char kDoubleBufferCompositing[] = "double-buffer-compositing";
 // Setting the flag to "single-fullscreen" will try to promote a single
 // fullscreen overlay and use it as main framebuffer where possible.
 const char kEnableHardwareOverlays[] = "enable-hardware-overlays";
-
-#if BUILDFLAG(IS_CHROMEOS)
-// ChromeOS uses one of two VideoDecoder implementations based on SoC/board
-// specific configurations that are signalled via this command line flag.
-// TODO(b/159825227): remove when the "old" video decoder is fully launched.
-const char kPlatformDisallowsChromeOSDirectVideoDecoder[] =
-    "platform-disallows-chromeos-direct-video-decoder";
-#endif
 
 // Effectively disables pipelining of compositor frame production stages by
 // waiting for each stage to finish before completing a frame.
@@ -67,11 +66,11 @@ const char kTintCompositedContentModulate[] =
 // The debug borders are offset from the layer rect by a few pixels for clarity.
 const char kShowDCLayerDebugBorders[] = "show-dc-layer-debug-borders";
 
-absl::optional<uint32_t> GetDeadlineToSynchronizeSurfaces() {
+std::optional<uint32_t> GetDeadlineToSynchronizeSurfaces() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kRunAllCompositorStagesBeforeDraw)) {
     // In full-pipeline mode, surface deadlines should always be unlimited.
-    return absl::nullopt;
+    return std::nullopt;
   }
   std::string deadline_to_synchronize_surfaces_string =
       command_line->GetSwitchValueASCII(
@@ -82,9 +81,29 @@ absl::optional<uint32_t> GetDeadlineToSynchronizeSurfaces() {
   uint32_t activation_deadline_in_frames;
   if (!base::StringToUint(deadline_to_synchronize_surfaces_string,
                           &activation_deadline_in_frames)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return activation_deadline_in_frames;
+}
+
+std::optional<DelegatedInkRendererMode> GetDelegatedInkRendererMode() {
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (!command_line->HasSwitch(switches::kDelegatedInkRenderer)) {
+    return std::nullopt;
+  }
+  std::string mode =
+      command_line->GetSwitchValueASCII(switches::kDelegatedInkRenderer);
+  if (mode == "system") {
+    return DelegatedInkRendererMode::kSystem;
+  }
+  if (mode == "none") {
+    return DelegatedInkRendererMode::kNone;
+  }
+  if (mode == "skia") {
+    return DelegatedInkRendererMode::kSkia;
+  }
+  // Default to system.
+  return DelegatedInkRendererMode::kSystem;
 }
 
 }  // namespace switches

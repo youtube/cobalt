@@ -4,11 +4,8 @@
 
 #include "base/android/java_handler_thread.h"
 
-#include <jni.h>
-
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
-#include "base/base_jni_headers/JavaHandlerThread_jni.h"
 #include "base/functional/bind.h"
 #include "base/message_loop/message_pump.h"
 #include "base/message_loop/message_pump_type.h"
@@ -18,6 +15,9 @@
 #include "base/threading/platform_thread_internal_posix.h"
 #include "base/threading/thread_id_name_manager.h"
 #include "base/threading/thread_restrictions.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "base/base_jni/JavaHandlerThread_jni.h"
 
 using base::android::AttachCurrentThread;
 
@@ -31,7 +31,7 @@ JavaHandlerThread::JavaHandlerThread(const char* name,
           name,
           Java_JavaHandlerThread_create(
               AttachCurrentThread(),
-              ConvertUTF8ToJavaString(AttachCurrentThread(), name),
+              name,
               base::internal::ThreadTypeToNiceValue(thread_type))) {}
 
 JavaHandlerThread::JavaHandlerThread(
@@ -81,14 +81,14 @@ void JavaHandlerThread::Stop() {
   Java_JavaHandlerThread_joinThread(env, java_thread_);
 }
 
-void JavaHandlerThread::InitializeThread(JNIEnv* env,
-                                         jlong event) {
+void JavaHandlerThread::InitializeThread(JNIEnv* env, jlong event) {
   base::ThreadIdNameManager::GetInstance()->RegisterThread(
       base::PlatformThread::CurrentHandle().platform_handle(),
       base::PlatformThread::CurrentId());
 
-  if (name_)
+  if (name_) {
     PlatformThread::SetName(name_);
+  }
 
   thread_id_ = base::PlatformThread::CurrentId();
   state_ = std::make_unique<State>();
@@ -178,5 +178,5 @@ JavaHandlerThread::State::State()
 
 JavaHandlerThread::State::~State() = default;
 
-} // namespace android
-} // namespace base
+}  // namespace android
+}  // namespace base

@@ -5,12 +5,12 @@
 #ifndef CHROME_BROWSER_UI_BOOKMARKS_BOOKMARK_STATS_H_
 #define CHROME_BROWSER_UI_BOOKMARKS_BOOKMARK_STATS_H_
 
+#include "base/time/time.h"
 #include "components/profile_metrics/browser_profile_type.h"
 
 class Profile;
 
 namespace bookmarks {
-class BookmarkNode;
 struct BookmarkNodeData;
 }  // namespace bookmarks
 
@@ -64,6 +64,17 @@ enum class BookmarkLaunchLocation {
   kMaxValue = kSidePanelContextMenu
 };
 
+// Captures information related to a bookmark's launch event. Used for metrics
+// collection.
+struct BookmarkLaunchAction {
+  // The location of the open action.
+  BookmarkLaunchLocation location = BookmarkLaunchLocation::kNone;
+
+  // The time at which the launch action was initiated.
+  base::TimeTicks action_time = base::TimeTicks::Now();
+};
+std::ostream& operator<<(std::ostream& out, const BookmarkLaunchAction& action);
+
 // Records the launch of a bookmark for UMA purposes.
 void RecordBookmarkLaunch(BookmarkLaunchLocation location,
                           profile_metrics::BrowserProfileType profile_type);
@@ -95,8 +106,10 @@ void RecordBookmarkAllTabsWithTabsCount(const Profile* profile, int count);
 
 // Records that a bookmark or bookmarks were dropped. Determines the type of
 // drop operation based on the data and parent node.
+// TODO(crbug.com/410798420): This metric does not record the drop location
+// accurately. Either remove it or update it.
 void RecordBookmarkDropped(const bookmarks::BookmarkNodeData& data,
-                           const bookmarks::BookmarkNode* parent_node,
+                           bool is_permanent_parent_node,
                            bool is_reorder);
 
 #endif  // CHROME_BROWSER_UI_BOOKMARKS_BOOKMARK_STATS_H_

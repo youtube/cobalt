@@ -11,15 +11,15 @@
 #ifndef COMPONENTS_POWER_METRICS_RESOURCE_COALITION_MAC_H_
 #define COMPONENTS_POWER_METRICS_RESOURCE_COALITION_MAC_H_
 
-#include <stdint.h>
-#include <memory>
-
 #include <mach/mach_time.h>
+#include <stdint.h>
+
+#include <memory>
+#include <optional>
 
 #include "base/process/process_handle.h"
 #include "base/time/time.h"
 #include "components/power_metrics/resource_coalition_internal_types_mac.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace power_metrics {
 
@@ -27,7 +27,7 @@ struct EnergyImpactCoefficients;
 
 // Returns the coalition id for the process identified by |pid| or nullopt if
 // not available.
-absl::optional<uint64_t> GetProcessCoalitionId(base::ProcessId pid);
+std::optional<uint64_t> GetProcessCoalitionId(base::ProcessId pid);
 
 // Returns resource usage data for the coalition identified by |coalition_id|,
 // or nullptr if not available (e.g. if `coalition_id` is invalid or if the
@@ -36,7 +36,7 @@ std::unique_ptr<coalition_resource_usage> GetCoalitionResourceUsage(
     int64_t coalition_id);
 
 // Returns a `coalition_resource_usage` in which each member is the result of
-// substracting the corresponding fields in `left` and `right`.
+// subtracting the corresponding fields in `left` and `right`.
 coalition_resource_usage GetCoalitionResourceUsageDifference(
     const coalition_resource_usage& left,
     const coalition_resource_usage& right);
@@ -50,7 +50,7 @@ struct CoalitionResourceUsageRate {
   double byteswritten_per_second;
   double gpu_time_per_second;
   // Only makes sense on Intel macs, not computed on M1 macs.
-  absl::optional<double> energy_impact_per_second;
+  std::optional<double> energy_impact_per_second;
   // Only available on M1 macs as of September 2021.
   double power_nw;
 
@@ -59,13 +59,13 @@ struct CoalitionResourceUsageRate {
 
 // Returns rate of resource usage for a coalition, given the usage at
 // the beginning and end of an interval and the duration of the interval.
-absl::optional<CoalitionResourceUsageRate> GetCoalitionResourceUsageRate(
+std::optional<CoalitionResourceUsageRate> GetCoalitionResourceUsageRate(
     const coalition_resource_usage& begin,
     const coalition_resource_usage& end,
     base::TimeDelta interval_duration,
     mach_timebase_info_data_t timebase,
-    absl::optional<EnergyImpactCoefficients> energy_impact_coefficients);
+    std::optional<EnergyImpactCoefficients> energy_impact_coefficients);
 
 }  // namespace power_metrics
 
-#endif  // COMPONENTS_PPOWER_METRICS_RESOURCE_COALITION_MAC_H_
+#endif  // COMPONENTS_POWER_METRICS_RESOURCE_COALITION_MAC_H_

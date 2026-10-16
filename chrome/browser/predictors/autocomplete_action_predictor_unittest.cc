@@ -6,6 +6,8 @@
 
 #include <stddef.h>
 
+#include <algorithm>
+#include <array>
 #include <string>
 #include <vector>
 
@@ -14,7 +16,6 @@
 #include "base/containers/contains.h"
 #include "base/memory/ref_counted.h"
 #include "base/no_destructor.h"
-#include "base/ranges/algorithm.h"
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -62,20 +63,29 @@ struct TestUrlInfo {
   AutocompleteActionPredictor::Action expected_action;
 };
 
+AutocompleteActionPredictor::Action ExpectedActionBasedOnConfidenceOnly(
+    int number_of_hits,
+    int number_of_misses) {
+  int total = number_of_hits + number_of_misses;
+  EXPECT_GT(total, 0);
+  double confidence = number_of_hits / (double)total;
+  return AutocompleteActionPredictor::DecideActionByConfidence(confidence);
+}
+
 const std::vector<TestUrlInfo>& TestUrlDb() {
   static base::NoDestructor<std::vector<TestUrlInfo>> db{
       {{GURL("http://www.testsite.com/a.html"), u"Test - site - just a test", 1,
-        u"j", 5, 0, AutocompleteActionPredictor::ACTION_PRERENDER},
+        u"j", 5, 0, ExpectedActionBasedOnConfidenceOnly(5, 0)},
        {GURL("http://www.testsite.com/b.html"), u"Test - site - just a test", 1,
-        u"ju", 3, 0, AutocompleteActionPredictor::ACTION_PRERENDER},
+        u"ju", 3, 0, ExpectedActionBasedOnConfidenceOnly(3, 0)},
        {GURL("http://www.testsite.com/c.html"), u"Test - site - just a test", 5,
-        u"just", 3, 1, AutocompleteActionPredictor::ACTION_PRECONNECT},
+        u"just", 3, 1, ExpectedActionBasedOnConfidenceOnly(3, 1)},
        {GURL("http://www.testsite.com/d.html"), u"Test - site - just a test", 5,
-        u"just", 3, 0, AutocompleteActionPredictor::ACTION_PRERENDER},
+        u"just", 3, 0, ExpectedActionBasedOnConfidenceOnly(3, 0)},
        {GURL("http://www.testsite.com/e.html"), u"Test - site - just a test", 8,
-        u"just", 3, 1, AutocompleteActionPredictor::ACTION_PRECONNECT},
+        u"just", 3, 1, ExpectedActionBasedOnConfidenceOnly(3, 1)},
        {GURL("http://www.testsite.com/f.html"), u"Test - site - just a test", 8,
-        u"just", 3, 0, AutocompleteActionPredictor::ACTION_PRERENDER},
+        u"just", 3, 0, ExpectedActionBasedOnConfidenceOnly(3, 0)},
        {GURL("http://www.testsite.com/g.html"), u"Test - site - just a test",
         12, std::u16string(), 5, 0, AutocompleteActionPredictor::ACTION_NONE},
        {GURL("http://www.testsite.com/h.html"), u"Test - site - just a test",
@@ -125,7 +135,6 @@ class AutocompleteActionPredictorTest : public testing::Test {
         std::make_unique<content::test::PreloadingPredictionUkmEntryBuilder>(
             chrome_preloading_predictor::kOmniboxDirectURLInput);
     test_ukm_recorder_ = std::make_unique<ukm::TestAutoSetUkmRecorder>();
-    test_timer_ = std::make_unique<base::ScopedMockElapsedTimersForTest>();
 
     predictor_ = std::make_unique<AutocompleteActionPredictor>(profile_.get());
     profile_->BlockUntilHistoryProcessesPendingRequests();
@@ -241,10 +250,10 @@ class AutocompleteActionPredictorTest : public testing::Test {
             profile_.get(), ServiceAccessType::EXPLICIT_ACCESS);
     ASSERT_TRUE(history_service);
 
-    predictor_->OnURLsDeleted(
+    predictor_->OnHistoryDeletions(
         history_service,
         history::DeletionInfo(history::DeletionTimeRange::Invalid(), expired,
-                              rows, std::set<GURL>(), absl::nullopt));
+                              rows, std::set<GURL>(), std::nullopt));
 
     EXPECT_EQ(expected.size(), db_cache()->size());
     EXPECT_EQ(expected.size(), db_id_cache()->size());
@@ -326,7 +335,7 @@ class AutocompleteActionPredictorTest : public testing::Test {
   std::unique_ptr<WebContents> web_contents_;
   content::RenderViewHostTestEnabler rvh_test_enabler_;
   std::unique_ptr<ukm::TestAutoSetUkmRecorder> test_ukm_recorder_;
-  std::unique_ptr<base::ScopedMockElapsedTimersForTest> test_timer_;
+  base::ScopedMockElapsedTimersForTest test_timer_;
 };
 
 
@@ -538,10 +547,9 @@ TEST_F(AutocompleteActionPredictorTest, RecommendActionURL) {
 
   // Calculate confidence_interval for the first entry to cross-check with
   // metrics.
-  bool is_in_db = false;
   match.destination_url = GURL(TestUrlDb()[0].url);
-  double confidence = predictor()->CalculateConfidence(TestUrlDb()[0].user_text,
-                                                       match, &is_in_db);
+  double confidence =
+      predictor()->CalculateConfidence(TestUrlDb()[0].user_text, match);
 
   // Set the first url in the database as the destination url to cross-check the
   // metrics for the first Preloading.Prediction UKM.
@@ -591,7 +599,9 @@ TEST_F(AutocompleteActionPredictorTest,
   auto test = [this](const std::u16string& user_text,
                      bool should_be_registered) {
     predictor()->RegisterTransitionalMatches(user_text, AutocompleteResult());
-    bool registered = base::Contains(*transitional_matches(), user_text);
+    bool registered = base::Contains(
+        *transitional_matches(), user_text,
+        &AutocompleteActionPredictor::TransitionalMatch::user_text);
     EXPECT_EQ(registered, should_be_registered);
   };
 
@@ -618,9 +628,12 @@ TEST_F(AutocompleteActionPredictorTest,
     const std::string kPrefix = "http://b/";
     return GURL(kPrefix + std::string(size - kPrefix.size(), 'c'));
   };
-  GURL urls[] = {test_url(10), test_url(maximum_string_length()),
-                 test_url(maximum_string_length() + 1),
-                 test_url(maximum_string_length() * 10)};
+  auto urls = std::to_array<GURL>({
+      test_url(10),
+      test_url(maximum_string_length()),
+      test_url(maximum_string_length() + 1),
+      test_url(maximum_string_length() * 10),
+  });
   ACMatches matches;
   for (const auto& url : urls) {
     AutocompleteMatch match;
@@ -631,7 +644,9 @@ TEST_F(AutocompleteActionPredictorTest,
   result.AppendMatches(matches);
   std::u16string user_text = u"google";
   predictor()->RegisterTransitionalMatches(user_text, result);
-  auto it = base::ranges::find(*transitional_matches(), user_text);
+  auto it = std::ranges::find(
+      *transitional_matches(), user_text,
+      &AutocompleteActionPredictor::TransitionalMatch::user_text);
   ASSERT_NE(it, transitional_matches()->end());
   EXPECT_THAT(it->urls, ::testing::ElementsAre(urls[0], urls[1]));
 }

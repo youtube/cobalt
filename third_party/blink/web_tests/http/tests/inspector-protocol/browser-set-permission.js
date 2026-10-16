@@ -1,4 +1,4 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {page, session, dp} = await testRunner.startBlank(
       `Test that permissions can be changed`);
 
@@ -73,6 +73,16 @@
   // Test "camera" permission panTiltZoom=true is supported.
   await set({name: 'camera', panTiltZoom: true}, 'granted');
   await waitPermission({name: 'camera', panTiltZoom: true}, 'granted');
+  await dp.Browser.resetPermissions();
+
+  // Test "fullscreen" permission allowWithoutGesture=true is supported.
+  await set({name: 'fullscreen', allowWithoutGesture: true}, 'granted');
+  await waitPermission({name: 'fullscreen', allowWithoutGesture: true}, 'granted');
+  await dp.Browser.resetPermissions();
+
+  // Test unsupported "fullscreen" permission descriptor options.
+  await set({name: 'fullscreen', allowWithoutGesture: false}, 'granted');
+  await set({name: 'fullscreen'}, 'granted');
   await dp.Browser.resetPermissions();
 
   // Cross-origin test.

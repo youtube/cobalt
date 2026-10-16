@@ -5,6 +5,7 @@
 module network.mojom;
 
 import "components/content_settings/core/common/content_settings.mojom";
+import "components/content_settings/core/common/content_settings_types.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "sandbox/policy/mojom/context.mojom";
 import "services/network/public/mojom/cookie_partition_key.mojom";
@@ -17,8 +18,16 @@ struct CookieManagerParams {
   // Whether or not third party cookies should be blocked.
   bool block_third_party_cookies = false;
 
-  // Content settings for cookies.
-  array<content_settings.mojom.ContentSettingPatternSource> settings;
+  // Whether tracking protection for 3PCD (prefs + UX) is enabled.
+  bool tracking_protection_enabled_for_3pcd = false;
+
+  // Whether Third Party Cookie Deprecation mitigations efforts such as Third
+  // Party Cookie Deprecation Metadata grants are permitted.
+  bool mitigations_enabled_for_3pcd = false;
+
+  // Content settings for CookieManager.
+  map<content_settings.mojom.ContentSettingsType,
+    array<content_settings.mojom.ContentSettingPatternSource>> content_settings;
 
   // Schemes that unconditionally allow cookies from secure origins.
   array<string> secure_origin_cookies_allowed_schemes;
@@ -32,22 +41,6 @@ struct CookieManagerParams {
   // Whether or not to allow cookies for file:// URLs. Can be overridden by
   // CookieManager.AllowFileSchemeCookies().
   bool allow_file_scheme_cookies = false;
-
-  // Content settings for which domains are allowed to use legacy cookie
-  // access rules.
-  array<content_settings.mojom.ContentSettingPatternSource>
-      settings_for_legacy_cookie_access;
-
-  // Content settings for which storage access grants have been set using
-  // the Storage Access API.
-  array<content_settings.mojom.ContentSettingPatternSource>
-      settings_for_storage_access;
-  // Much like the Storage Access API, but applicable at the page-level instead
-  // of per-frame. The two permissions are being separated; some duplication
-  // will be present until that process completes. TODO(crbug.com/1385156):
-  // consolidate as much as possible.
-  array<content_settings.mojom.ContentSettingPatternSource>
-      settings_for_top_level_storage_access;
 
   // The type of CookieAccessDelegate to pass to the underlying CookieStore.
   // If these params are not present, CookieManager defaults to using
@@ -98,6 +91,21 @@ enum CookieEffectiveSameSite {
   kUndefined = 4,
 };
 
+// Defined in net::CookieInclusionStatus::ExemptionReason.
+enum CookieExemptionReason {
+    kNone = 0,
+    kUserSetting = 1,
+    k3PCDMetadata = 2,
+    k3PCDDeprecationTrial = 3,
+    kTopLevel3PCDDeprecationTrial = 4,
+    k3PCDHeuristics = 5,
+    kEnterprisePolicy = 6,
+    kStorageAccess = 7,
+    kTopLevelStorageAccess = 8,
+    kScheme = 9,
+    kSameSiteNoneCookiesInSandbox = 10,
+};
+
 enum ContextType {
   CROSS_SITE,
   SAME_SITE_LAX_METHOD_UNSAFE,
@@ -110,6 +118,13 @@ enum CookieSameSiteContextMetadataDowngradeType {
   kStrictToLax,
   kStrictToCross,
   kLaxToCross,
+};
+
+enum CookieSourceType {
+  kUnknown,
+  kHTTP,
+  kScript,
+  kOther,
 };
 
 enum ContextRedirectTypeBug1221316 {
@@ -138,7 +153,6 @@ enum HttpMethod {
 struct CookieSameSiteContextMetadata {
   CookieSameSiteContextMetadataDowngradeType cross_site_redirect_downgrade = kNoDowngrade;
   ContextRedirectTypeBug1221316 redirect_type_bug_1221316 = kUnset;
-  HttpMethod http_method_bug_1221316 = kUnset;
 };
 
 // Keep defaults here in sync with net/cookies/cookie_options.h.
@@ -158,18 +172,21 @@ enum CookieAccessSemantics {
   LEGACY,
 };
 
+// Keep in sync with net/cookies/cookie_constants.h.
+// LINT.IfChange(CookieScopeSemanticsMojom)
+enum CookieScopeSemantics {
+  UNKNOWN = -1,
+  NONLEGACY = 0,
+  LEGACY = 1,
+};
+// LINT.ThenChange(/net/cookies/cookie_constants.h:CookieScopeSemantics)
+
 // Keep defaults here in sync with net/cookies/cookie_options.cc.
 struct CookieOptions {
   bool exclude_httponly = true;
   CookieSameSiteContext same_site_cookie_context;
   bool update_access_time = true;
   bool return_excluded_cookies = false;
-  SamePartyContext same_party_context;
-  // The size of the isolation_info.party_context plus the top-frame site for
-  // logging purposes.
-  uint32 full_party_context_size = 0;
-  // Whether the site is a member of a nontrivial First-Party Set.
-  bool is_in_nontrivial_first_party_set = false;
 };
 
 // See net/cookies/canonical_cookie.{h,cc} for documentation.
@@ -188,23 +205,33 @@ struct CanonicalCookie {
   CookieSameSite site_restrictions = NO_RESTRICTION;
   CookiePriority priority = MEDIUM;
   CookieSourceScheme source_scheme = kUnset;
-  bool same_party = false;
   CookiePartitionKey? partition_key;
   // -1 because of url::PORT_UNSPECIFIED
   // url/third_party/mozilla/url_parse.h
   int32 source_port = -1;
+  CookieSourceType source_type = kUnknown;
+};
+
+struct ExclusionReasons {
+  // Bitfield. Is defined in
+  // net::CookieInclusionStatus::ExclusionReason.
+  uint64 exclusions_bitmask;
+};
+
+struct WarningReasons {
+  // Bitfield. Is defined in
+  // net::CookieInclusionStatus::WarningReason.
+  uint64 warnings_bitmask;
 };
 
 // Indicates reasons why a cookie may be excluded in a get or set
 // operation and if it should be warned about.
-// TODO(crbug.com/1310444): Improve serialization validation comments.
+// TODO(crbug.com/40219875): Improve serialization validation comments.
 struct CookieInclusionStatus {
-  // Bitfield. Is defined in
-  // net::CookieInclusionStatus::ExclusionReason.
-  uint32 exclusion_reasons;
-  // Bitfield. Is defined in
-  // net::CookieInclusionStatus::WarningReason.
-  uint32 warning_reasons;
+  ExclusionReasons exclusion_reasons;
+  WarningReasons warning_reasons;
+
+  CookieExemptionReason exemption_reason;
 };
 
 struct CookieAndLineWithAccessResult {
@@ -227,6 +254,7 @@ struct CookieOrLineWithAccessResult {
 struct CookieAccessResult {
   CookieEffectiveSameSite effective_same_site;
   CookieAccessSemantics access_semantics;
+  CookieScopeSemantics scope_semantics;
   CookieInclusionStatus status;
   bool is_allowed_to_access_secure_cookies;
 };
@@ -252,7 +280,10 @@ enum CookieChangeCause {
   // The cookie was automatically evicted during garbage collection.
   EVICTED,
   // The cookie was overwritten with an already-expired expiration date.
-  EXPIRED_OVERWRITE
+  EXPIRED_OVERWRITE,
+  // The cookie was inserted but resulted in an overwrite with no change
+  // that is observable to the site.
+  INSERTED_NO_CHANGE_OVERWRITE
 };
 
 struct CookieChangeInfo {
@@ -342,6 +373,9 @@ struct CookieDeletionFilter {
   bool partitioned_state_only;
 };
 
+// Interface used to register event listeners in processes like the Browser and
+// privileged Renderer processes to receive synchronous cookie change
+// notifications from the Network Service's CookieStore.
 interface CookieChangeListener {
   // TODO(rdsmith): Should this be made a batch interface?
   OnCookieChange(CookieChangeInfo change);
@@ -414,6 +448,16 @@ interface CookieManager {
   // Returns the number of cookies deleted.
   DeleteSessionOnlyCookies() => (uint32 num_deleted);
 
+  // Delete cookies marked as session-only in cookie settings that are stale
+  // (haven't been accessed or updated in 7 days).
+  // Returns the number of cookies deleted.
+  // See crbug.com/40285083 for more info.
+  //
+  // If there is a more general use case for filtering cookie deletion on
+  // the last access time, consider replacing this with a call to DeleteCookies
+  // by adding a last_accessed time range to CookieDeletionFilter.
+  DeleteStaleSessionOnlyCookies() => (uint32 num_deleted);
+
   // Subscribes the given listener to changes to a cookie.
   //
   // The subscription is canceled by closing the CookieChangeListener's pipe.
@@ -460,9 +504,11 @@ interface CookieManager {
   AllowFileSchemeCookies(bool allow) => (bool success);
 
   // Sets content settings for cookies. These are used to determine cookie
-  // access and cookie deletion behavior.
+  // access and cookie deletion behavior. Will
+  // ack the caller with a callback when settings have been updated.
   SetContentSettings(
-      array<content_settings.mojom.ContentSettingPatternSource> settings);
+      content_settings.mojom.ContentSettingsType content_settings_type,
+      array<content_settings.mojom.ContentSettingPatternSource> settings) => ();
 
   // Instructs the cookie store to not discard session only cookies on shutdown.
   SetForceKeepSessionState();
@@ -470,19 +516,14 @@ interface CookieManager {
   // Enables/Disables blocking of third-party cookies.
   BlockThirdPartyCookies(bool block);
 
-  // Sets content settings for which domains are allowed to use legacy cookie
-  // access rules.
-  SetContentSettingsForLegacyCookieAccess(
-      array<content_settings.mojom.ContentSettingPatternSource> settings);
+  // Enables/Disables mitigations for third-party cookies deprecation.
+  SetMitigationsEnabledFor3pcd(bool enable);
 
-  // Sets content settings for which storage access grants exist. Will ack
-  // the caller with a callback when settings have been updated.
-  SetStorageAccessGrantSettings(
-      array<content_settings.mojom.ContentSettingPatternSource> settings) => ();
+  // Enables/Disables tracking protection for 3PCD (prefs + UX).
+  SetTrackingProtectionEnabledFor3pcd(bool enable);
 
-  // Sets content settings for both flavors of storage access grants. Will
-  // ack the caller with a callback when settings have been updated.
-  SetAllStorageAccessSettings(
-      array<content_settings.mojom.ContentSettingPatternSource> standard_settings,
-      array<content_settings.mojom.ContentSettingPatternSource> top_level_settings) => ();
+  // Adds a pre-commit delay to the cookie database sqlite persistent store.
+  // This delay occurs before every commit and blocks the background task
+  // runner.
+  SetPreCommitCallbackDelayForTesting(mojo_base.mojom.TimeDelta delay);
 };

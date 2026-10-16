@@ -21,7 +21,8 @@
 
 namespace starboard {
 
-FdkAacAudioDecoder::FdkAacAudioDecoder() {
+FdkAacAudioDecoder::FdkAacAudioDecoder(JobQueue* job_queue)
+    : JobOwner(job_queue) {
   static_assert(sizeof(INT_PCM) == sizeof(int16_t),
                 "sizeof(INT_PCM) has to be the same as sizeof(int16_t).");
   InitializeCodec();
@@ -33,7 +34,7 @@ FdkAacAudioDecoder::~FdkAacAudioDecoder() {
 
 void FdkAacAudioDecoder::Initialize(const OutputCB& output_cb,
                                     const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
   SB_DCHECK(error_cb);
@@ -45,7 +46,7 @@ void FdkAacAudioDecoder::Initialize(const OutputCB& output_cb,
 
 void FdkAacAudioDecoder::Decode(const InputBuffers& input_buffers,
                                 const ConsumedCB& consumed_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(output_cb_);
@@ -69,14 +70,14 @@ void FdkAacAudioDecoder::Decode(const InputBuffers& input_buffers,
   ReadFromFdkDecoder(kDecodeModeDoNotFlush);
 }
 
-scoped_refptr<DecodedAudio> FdkAacAudioDecoder::Read(int* samples_per_second) {
-  SB_DCHECK(BelongsToCurrentThread());
+std::optional<DecodedAudio> FdkAacAudioDecoder::Read(int* samples_per_second) {
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
 
-  scoped_refptr<DecodedAudio> result;
+  std::optional<DecodedAudio> result;
   if (!decoded_audios_.empty()) {
-    result = decoded_audios_.front();
+    result = std::move(decoded_audios_.front());
     decoded_audios_.pop();
   }
   *samples_per_second = samples_per_second_;
@@ -85,14 +86,14 @@ scoped_refptr<DecodedAudio> FdkAacAudioDecoder::Read(int* samples_per_second) {
 
 void FdkAacAudioDecoder::Reset() {
   SB_DCHECK(decoder_);
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   TeardownCodec();
   InitializeCodec();
 
   stream_ended_ = false;
-  decoded_audios_ = std::queue<scoped_refptr<DecodedAudio>>();  // clear
-  partially_decoded_audio_ = nullptr;
+  decoded_audios_ = std::queue<DecodedAudio>();  // clear
+  partially_decoded_audio_ = std::nullopt;
   partially_decoded_audio_data_in_bytes_ = 0;
   decoding_input_buffers_ = decltype(decoding_input_buffers_)();  // clear
   // Clean up stream information and deduced results.
@@ -106,7 +107,7 @@ void FdkAacAudioDecoder::Reset() {
 
 void FdkAacAudioDecoder::WriteEndOfStream() {
   SB_DCHECK(decoder_);
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
   while (!decoding_input_buffers_.empty()) {
@@ -116,7 +117,7 @@ void FdkAacAudioDecoder::WriteEndOfStream() {
   }
   stream_ended_ = true;
   // Put EOS into the queue.
-  decoded_audios_.push(new DecodedAudio);
+  decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
   Schedule(output_cb_);
 }
 
@@ -142,7 +143,7 @@ void FdkAacAudioDecoder::TeardownCodec() {
 
 bool FdkAacAudioDecoder::WriteToFdkDecoder(
     const scoped_refptr<InputBuffer>& input_buffer) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
 
   unsigned char* data = const_cast<unsigned char*>(input_buffer->data());
@@ -211,17 +212,16 @@ void FdkAacAudioDecoder::TryToUpdateStreamInfo() {
 
 void FdkAacAudioDecoder::TryToOutputDecodedAudio(const uint8_t* data,
                                                  int size_in_bytes) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(has_stream_info_);
 
   while (size_in_bytes > 0 && !decoding_input_buffers_.empty()) {
     if (!partially_decoded_audio_) {
       SB_DCHECK_EQ(partially_decoded_audio_data_in_bytes_, 0);
-      partially_decoded_audio_ = new DecodedAudio(
-          num_channels_, kSbMediaAudioSampleTypeInt16Deprecated,
-          kSbMediaAudioFrameStorageTypeInterleaved,
-          decoding_input_buffers_.front()->timestamp(),
-          decoded_audio_size_in_bytes_);
+      partially_decoded_audio_ =
+          DecodedAudio(num_channels_, kSbMediaAudioSampleTypeInt16Deprecated,
+                       decoding_input_buffers_.front()->timestamp(),
+                       decoded_audio_size_in_bytes_);
     }
     int freespace =
         static_cast<int>(partially_decoded_audio_->size_in_bytes()) -
@@ -241,9 +241,9 @@ void FdkAacAudioDecoder::TryToOutputDecodedAudio(const uint8_t* data,
           samples_per_second_, sample_info.discarded_duration_from_front,
           sample_info.discarded_duration_from_back);
       decoding_input_buffers_.pop();
-      decoded_audios_.push(partially_decoded_audio_);
+      decoded_audios_.push(std::move(*partially_decoded_audio_));
       Schedule(output_cb_);
-      partially_decoded_audio_ = nullptr;
+      partially_decoded_audio_ = std::nullopt;
       partially_decoded_audio_data_in_bytes_ = 0;
       continue;
     }

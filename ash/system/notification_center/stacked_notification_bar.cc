@@ -4,33 +4,31 @@
 
 #include "ash/system/notification_center/stacked_notification_bar.h"
 
-#include "ash/constants/ash_features.h"
+#include <algorithm>
+
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/style/ash_color_provider.h"
 #include "ash/style/pill_button.h"
 #include "ash/style/style_util.h"
 #include "ash/style/typography.h"
-#include "ash/system/message_center/message_center_constants.h"
-#include "ash/system/message_center/message_center_style.h"
+#include "ash/system/notification_center/message_center_constants.h"
+#include "ash/system/notification_center/views/notification_center_view.h"
 #include "ash/system/tray/tray_constants.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
-#include "chromeos/constants/chromeos_features.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
-#include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animation_observer.h"
 #include "ui/compositor/layer_animation_sequence.h"
 #include "ui/compositor/layer_animator.h"
-#include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/gfx/interpolated_transform.h"
 #include "ui/message_center/message_center.h"
-#include "ui/message_center/public/cpp/message_center_constants.h"
 #include "ui/message_center/vector_icons.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
 
@@ -38,23 +36,21 @@ namespace ash {
 
 namespace {
 
-// The label button in the stacked notification bar, can be either a "Clear all"
-// or "See all notifications" button.
+// The label button in the stacked notification bar, used for the "Clear All"
+// button.
 class StackingBarLabelButton : public PillButton {
- public:
-  METADATA_HEADER(StackingBarLabelButton);
+  METADATA_HEADER(StackingBarLabelButton, PillButton)
 
+ public:
   StackingBarLabelButton(PressedCallback callback,
                          const std::u16string& text,
                          NotificationCenterView* notification_center_view)
       : PillButton(std::move(callback),
                    text,
-                   chromeos::features::IsJellyEnabled()
-                       ? PillButton::Type::kFloatingWithoutIcon
-                       : PillButton::Type::kAccentFloatingWithoutIcon,
+                   PillButton::Type::kFloatingWithoutIcon,
                    /*icon=*/nullptr,
-                   kNotificationPillButtonHorizontalSpacing),
-        notification_center_view_(notification_center_view) {
+                   kNotificationPillButtonHorizontalSpacing) {
+    SetEnabled(false);
     StyleUtil::SetUpInkDropForButton(this, gfx::Insets(),
                                      /*highlight_on_hover=*/true,
                                      /*highlight_on_focus=*/true);
@@ -64,18 +60,9 @@ class StackingBarLabelButton : public PillButton {
   StackingBarLabelButton& operator=(const StackingBarLabelButton&) = delete;
 
   ~StackingBarLabelButton() override = default;
-
-  // PillButton:
-  void AboutToRequestFocusFromTabTraversal(bool reverse) override {
-    if (notification_center_view_->collapsed() && HasFocus())
-      notification_center_view_->FocusOut(reverse);
-  }
-
- private:
-  raw_ptr<NotificationCenterView, ExperimentalAsh> notification_center_view_;
 };
 
-BEGIN_METADATA(StackingBarLabelButton, PillButton)
+BEGIN_METADATA(StackingBarLabelButton)
 END_METADATA
 
 }  // namespace
@@ -83,9 +70,10 @@ END_METADATA
 class StackedNotificationBar::StackedNotificationBarIcon
     : public views::ImageView,
       public ui::LayerAnimationObserver {
+  METADATA_HEADER(StackedNotificationBarIcon, views::ImageView)
+
  public:
-  explicit StackedNotificationBarIcon(const std::string& id)
-      : views::ImageView(), id_(id) {
+  explicit StackedNotificationBarIcon(const std::string& id) : id_(id) {
     SetPaintToLayer();
     layer()->SetFillsBoundsOpaquely(false);
   }
@@ -107,20 +95,17 @@ class StackedNotificationBar::StackedNotificationBarIcon
       return;
 
     SkColor accent_color =
-        chromeos::features::IsJellyEnabled()
-            ? GetColorProvider()->GetColor(cros_tokens::kCrosSysOnSurface)
-            : AshColorProvider::Get()->GetContentLayerColor(
-                  AshColorProvider::ContentLayerType::kIconColorPrimary);
+        GetColorProvider()->GetColor(cros_tokens::kCrosSysOnSurface);
     gfx::Image masked_small_icon = notification->GenerateMaskedSmallIcon(
         kStackedNotificationIconSize, accent_color, SK_ColorTRANSPARENT,
         accent_color);
 
     if (masked_small_icon.IsEmpty()) {
-      SetImage(gfx::CreateVectorIcon(message_center::kProductIcon,
-                                     kStackedNotificationIconSize,
-                                     accent_color));
+      SetImage(ui::ImageModel::FromVectorIcon(message_center::kProductIcon,
+                                              accent_color,
+                                              kStackedNotificationIconSize));
     } else {
-      SetImage(masked_small_icon.AsImageSkia());
+      SetImage(ui::ImageModel::FromImage(masked_small_icon));
     }
   }
 
@@ -227,6 +212,9 @@ class StackedNotificationBar::StackedNotificationBarIcon
   AnimationCompleteCallback animation_complete_callback_;
 };
 
+BEGIN_METADATA(StackedNotificationBar, StackedNotificationBarIcon)
+END_METADATA
+
 StackedNotificationBar::StackedNotificationBar(
     NotificationCenterView* notification_center_view)
     : notification_center_view_(notification_center_view),
@@ -239,12 +227,6 @@ StackedNotificationBar::StackedNotificationBar(
                               base::Unretained(notification_center_view_)),
           l10n_util::GetStringUTF16(
               IDS_ASH_MESSAGE_CENTER_CLEAR_ALL_BUTTON_LABEL),
-          notification_center_view))),
-      expand_all_button_(AddChildView(std::make_unique<StackingBarLabelButton>(
-          base::BindRepeating(&NotificationCenterView::ExpandMessageCenter,
-                              base::Unretained(notification_center_view_)),
-          l10n_util::GetStringUTF16(
-              IDS_ASH_MESSAGE_CENTER_EXPAND_ALL_NOTIFICATIONS_BUTTON_LABEL),
           notification_center_view))),
       layout_manager_(SetLayoutManager(std::make_unique<views::BoxLayout>(
           views::BoxLayout::Orientation::kHorizontal,
@@ -260,23 +242,14 @@ StackedNotificationBar::StackedNotificationBar(
 
   message_center::MessageCenter::Get()->AddObserver(this);
 
-  if (chromeos::features::IsJellyEnabled()) {
-    count_label_->SetEnabledColorId(cros_tokens::kCrosSysOnSurface);
-    TypographyProvider::Get()->StyleLabel(TypographyToken::kCrosAnnotation1,
-                                          *count_label_);
-  } else {
-    count_label_->SetEnabledColor(AshColorProvider::Get()->GetContentLayerColor(
-        AshColorProvider::ContentLayerType::kIconColorPrimary));
-    count_label_->SetFontList(views::Label::GetDefaultFontList().Derive(
-        1, gfx::Font::NORMAL, gfx::Font::Weight::MEDIUM));
-  }
+  count_label_->SetEnabledColor(cros_tokens::kCrosSysOnSurface);
+  TypographyProvider::Get()->StyleLabel(TypographyToken::kCrosAnnotation1,
+                                        *count_label_);
 
   layout_manager_->SetFlexForView(spacer_, 1);
 
   clear_all_button_->SetTooltipText(l10n_util::GetStringUTF16(
       IDS_ASH_MESSAGE_CENTER_CLEAR_ALL_BUTTON_TOOLTIP));
-
-  expand_all_button_->SetVisible(false);
 }
 
 StackedNotificationBar::~StackedNotificationBar() {
@@ -289,7 +262,8 @@ StackedNotificationBar::~StackedNotificationBar() {
 bool StackedNotificationBar::Update(
     int total_notification_count,
     int pinned_notification_count,
-    std::vector<message_center::Notification*> stacked_notifications) {
+    std::vector<raw_ptr<message_center::Notification, VectorExperimental>>
+        stacked_notifications) {
   int stacked_notification_count = stacked_notifications.size();
   if (total_notification_count == total_notification_count_ &&
       pinned_notification_count == pinned_notification_count_ &&
@@ -309,29 +283,10 @@ bool StackedNotificationBar::Update(
       IDS_ASH_MESSAGE_CENTER_STACKING_BAR_CLEAR_ALL_BUTTON_TOOLTIP,
       unpinned_count);
   clear_all_button_->SetTooltipText(tooltip);
-  clear_all_button_->SetAccessibleName(tooltip);
-  clear_all_button_->SetEnabled(unpinned_count != 0);
+  clear_all_button_->GetViewAccessibility().SetName(tooltip);
+  clear_all_button_->SetEnabled(unpinned_count > 0);
 
   return true;
-}
-
-void StackedNotificationBar::SetAnimationState(
-    NotificationCenterAnimationState animation_state) {
-  animation_state_ = animation_state;
-}
-
-void StackedNotificationBar::SetCollapsed() {
-  layout_manager_->set_inside_border_insets(gfx::Insets());
-
-  clear_all_button_->SetVisible(false);
-  expand_all_button_->SetVisible(true);
-}
-
-void StackedNotificationBar::SetExpanded() {
-  layout_manager_->set_inside_border_insets(kNotificationBarPadding);
-
-  clear_all_button_->SetVisible(true);
-  expand_all_button_->SetVisible(false);
 }
 
 void StackedNotificationBar::AddNotificationIcon(
@@ -357,14 +312,14 @@ void StackedNotificationBar::OnIconAnimatedOut(std::string notification_id,
   if (notification)
     AddNotificationIcon(notification, /*at_front=*/false);
 
-  Layout();
+  DeprecatedLayoutImmediately();
 }
 
 StackedNotificationBar::StackedNotificationBarIcon*
 StackedNotificationBar::GetFrontIcon(bool animating_out) {
-  const auto i = base::ranges::find(
+  const auto i = std::ranges::find(
       notification_icons_container_->children(), animating_out,
-      [](const auto* v) {
+      [](const views::View* v) {
         return static_cast<const StackedNotificationBarIcon*>(v)
             ->is_animating_out();
       });
@@ -376,7 +331,7 @@ StackedNotificationBar::GetFrontIcon(bool animating_out) {
 
 const StackedNotificationBar::StackedNotificationBarIcon*
 StackedNotificationBar::GetIconFromId(const std::string& id) const {
-  for (auto* v : notification_icons_container_->children()) {
+  for (views::View* v : notification_icons_container_->children()) {
     const StackedNotificationBarIcon* icon =
         static_cast<const StackedNotificationBarIcon*>(v);
     if (icon->id() == id)
@@ -386,7 +341,8 @@ StackedNotificationBar::GetIconFromId(const std::string& id) const {
 }
 
 void StackedNotificationBar::ShiftIconsLeft(
-    std::vector<message_center::Notification*> stacked_notifications) {
+    std::vector<raw_ptr<message_center::Notification, VectorExperimental>>
+        stacked_notifications) {
   auto* front_animating_out_icon = GetFrontIcon(/*animating_out=*/true);
   bool is_already_animating_a_left_shift = front_animating_out_icon != nullptr;
   // If we need to animate a second icon, the scroll is faster than the icon can
@@ -441,7 +397,8 @@ void StackedNotificationBar::ShiftIconsLeft(
 }
 
 void StackedNotificationBar::ShiftIconsRight(
-    std::vector<message_center::Notification*> stacked_notifications) {
+    std::vector<raw_ptr<message_center::Notification, VectorExperimental>>
+        stacked_notifications) {
   int new_stacked_notification_count = stacked_notifications.size();
 
   while (stacked_notification_count_ < new_stacked_notification_count) {
@@ -462,7 +419,8 @@ void StackedNotificationBar::ShiftIconsRight(
 }
 
 void StackedNotificationBar::UpdateStackedNotifications(
-    std::vector<message_center::Notification*> stacked_notifications) {
+    std::vector<raw_ptr<message_center::Notification, VectorExperimental>>
+        stacked_notifications) {
   int stacked_notification_count = stacked_notifications.size();
   int notification_overflow_count = 0;
 
@@ -485,10 +443,6 @@ void StackedNotificationBar::UpdateStackedNotifications(
   }
 }
 
-const char* StackedNotificationBar::GetClassName() const {
-  return "StackedNotificationBar";
-}
-
 void StackedNotificationBar::OnNotificationAdded(const std::string& id) {
   // Reset the stacked icons bar if a notification is added since we don't
   // know the position where it may have been added.
@@ -508,5 +462,8 @@ void StackedNotificationBar::OnNotificationRemoved(const std::string& id,
 }
 
 void StackedNotificationBar::OnNotificationUpdated(const std::string& id) {}
+
+BEGIN_METADATA(StackedNotificationBar)
+END_METADATA
 
 }  // namespace ash

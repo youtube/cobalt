@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "build/build_config.h"
+#include "ui/views/examples/actions_example.h"
 #include "ui/views/examples/animated_image_view_example.h"
 #include "ui/views/examples/animation_example.h"
 #include "ui/views/examples/ax_example.h"
@@ -45,18 +46,16 @@
 #include "ui/views/examples/throbber_example.h"
 #include "ui/views/examples/toggle_button_example.h"
 #include "ui/views/examples/tree_view_example.h"
+#include "ui/views/examples/typography_example.h"
 #include "ui/views/examples/vector_example.h"
 #include "ui/views/examples/widget_example.h"
-
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_FUCHSIA)
-#include "ui/views/examples/color_chooser_example.h"
-#endif
 
 namespace views::examples {
 
 // Creates the default set of examples.
 ExampleVector CreateExamples(ExampleVector extra_examples) {
   ExampleVector examples = std::move(extra_examples);
+  examples.push_back(std::make_unique<ActionsExample>());
   examples.push_back(std::make_unique<AnimatedImageViewExample>());
   examples.push_back(std::make_unique<AnimationExample>());
   examples.push_back(std::make_unique<AxExample>());
@@ -66,9 +65,6 @@ ExampleVector CreateExamples(ExampleVector extra_examples) {
   examples.push_back(std::make_unique<ButtonExample>());
   examples.push_back(std::make_unique<ButtonStickerSheet>());
   examples.push_back(std::make_unique<CheckboxExample>());
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_FUCHSIA)
-  examples.push_back(std::make_unique<ColorChooserExample>());
-#endif
   examples.push_back(std::make_unique<ColoredDialogExample>());
   examples.push_back(std::make_unique<ColorsExample>());
   examples.push_back(std::make_unique<ComboboxExample>());
@@ -97,6 +93,7 @@ ExampleVector CreateExamples(ExampleVector extra_examples) {
   examples.push_back(std::make_unique<ToggleButtonExample>());
   examples.push_back(std::make_unique<ThrobberExample>());
   examples.push_back(std::make_unique<TreeViewExample>());
+  examples.push_back(std::make_unique<TypographyExample>());
   examples.push_back(std::make_unique<VectorExample>());
   examples.push_back(std::make_unique<WidgetExample>());
   return examples;

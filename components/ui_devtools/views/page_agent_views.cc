@@ -7,18 +7,19 @@
 #include <unordered_set>
 
 #include "base/command_line.h"
+#include "base/memory/raw_ptr.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "components/ui_devtools/agent_util.h"
 #include "components/ui_devtools/ui_element.h"
-#include "ui/views/bubble/bubble_dialog_delegate_view.h"
-#include "ui/views/views_switches.h"
 
 namespace ui_devtools {
 
 namespace {
 
-void PaintRectVector(std::vector<UIElement*> child_elements) {
-  for (auto* element : child_elements) {
+void PaintRectVector(
+    std::vector<raw_ptr<UIElement, VectorExperimental>> child_elements) {
+  for (ui_devtools::UIElement* element : child_elements) {
     if (element->type() == UIElementType::VIEW) {
       element->PaintRect();
     }
@@ -33,7 +34,7 @@ std::unordered_set<std::string> GetSources(UIElement* root) {
     ret.insert(source.path_ + "?l=" + base::NumberToString(source.line_));
   }
 
-  for (auto* child : root->children()) {
+  for (ui_devtools::UIElement* child : root->children()) {
     for (auto& child_source : GetSources(child)) {
       ret.insert(child_source);
     }
@@ -60,49 +61,9 @@ void AddFrameResources(
 
 PageAgentViews::PageAgentViews(DOMAgent* dom_agent) : PageAgent(dom_agent) {}
 
-PageAgentViews::~PageAgentViews() {}
+PageAgentViews::~PageAgentViews() = default;
 
 protocol::Response PageAgentViews::disable() {
-  // Don't disable widget activation handling any more.
-  views::Widget::SetDisableActivationChangeHandling(
-      views::Widget::DisableActivationChangeHandlingType::kNone);
-
-  // Remove debug bounds rects if enabled.
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          views::switches::kDrawViewBoundsRects)) {
-    base::CommandLine::ForCurrentProcess()->InitFromArgv(
-        base::CommandLine::ForCurrentProcess()->argv());
-    PaintRectVector(dom_agent_->element_root()->children());
-  }
-  return protocol::Response::Success();
-}
-
-protocol::Response PageAgentViews::reload(protocol::Maybe<bool> bypass_cache) {
-  if (!bypass_cache.isJust())
-    return protocol::Response::Success();
-
-  bool shift_pressed = bypass_cache.fromMaybe(false);
-
-  // Ctrl+Shift+R called to toggle widget lock.
-  if (shift_pressed) {
-    views::Widget::SetDisableActivationChangeHandling(
-        views::Widget::GetDisableActivationChangeHandling() ==
-                views::Widget::DisableActivationChangeHandlingType::kNone
-            ? views::Widget::DisableActivationChangeHandlingType::
-                  kIgnoreDeactivationOnly
-            : views::Widget::DisableActivationChangeHandlingType::kNone);
-  } else {
-    // Ctrl+R called to toggle debug bounds rectangles.
-    if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-            views::switches::kDrawViewBoundsRects)) {
-      base::CommandLine::ForCurrentProcess()->InitFromArgv(
-          base::CommandLine::ForCurrentProcess()->argv());
-    } else {
-      base::CommandLine::ForCurrentProcess()->AppendSwitch(
-          views::switches::kDrawViewBoundsRects);
-    }
-    PaintRectVector(dom_agent_->element_root()->children());
-  }
   return protocol::Response::Success();
 }
 
@@ -155,12 +116,6 @@ protocol::Response PageAgentViews::getResourceContent(
     return protocol::Response::Success();
   else
     return protocol::Response::ServerError("Could not read source file");
-}
-
-bool PageAgentViews::GetDevtoolsDismissOverrideForTesting() const {
-  return views::Widget::GetDisableActivationChangeHandling() ==
-         views::Widget::DisableActivationChangeHandlingType::
-             kIgnoreDeactivationOnly;
 }
 
 }  // namespace ui_devtools

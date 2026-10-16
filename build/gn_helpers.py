@@ -23,13 +23,16 @@ file to the build directory.
 import json
 import os
 import re
+import shutil
 import sys
 
 
-_CHROMIUM_ROOT = os.path.join(os.path.dirname(__file__), os.pardir)
+_CHROMIUM_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), os.pardir))
 
+ARGS_GN_FILENAME = 'args.gn'
 BUILD_VARS_FILENAME = 'build_vars.json'
-IMPORT_RE = re.compile(r'^import\("//(\S+)"\)')
+IMPORT_RE = re.compile(r'^import\("(\S+)"\)')
 
 
 class GNError(Exception):
@@ -284,7 +287,20 @@ class GNValueParser(object):
       regex_match = IMPORT_RE.match(line)
       if not regex_match:
         raise GNError('Not a valid import string: %s' % line)
-      import_path = os.path.join(self.checkout_root, regex_match.group(1))
+      import_path = regex_match.group(1)
+
+      if import_path.startswith("//"):
+        import_path = os.path.join(self.checkout_root, import_path[2:])
+      elif sys.platform.startswith('win32'):
+        if import_path.startswith("/"):
+          # gn users '/C:/path/to/foo.gn', not 'C:/path/to/foo.gn' on windows
+          import_path = import_path[1:]
+        else:
+          raise GNError('Need /-prefix for an absolute path: %s' % import_path)
+
+      if not os.path.isabs(import_path):
+        raise GNError('Unable to use relative path in import path: %s' %
+                      import_path)
       with open(import_path) as f:
         imported_args = f.read()
       self.input = self.input.replace(line, imported_args)
@@ -540,3 +556,47 @@ def ReadBuildVars(output_directory):
   """Parses $output_directory/build_vars.json into a dict."""
   with open(os.path.join(output_directory, BUILD_VARS_FILENAME)) as f:
     return json.load(f)
+
+
+def ReadArgsGN(output_directory):
+  """Parses $output_directory/args.gn into a dict."""
+  fname = os.path.join(output_directory, ARGS_GN_FILENAME)
+  if not os.path.exists(fname):
+    return {}
+  with open(fname) as f:
+    return FromGNArgs(f.read())
+
+
+def CreateBuildCommand(output_directory):
+  """Returns [cmd, -C, output_directory].
+
+  Where |cmd| is one of: siso ninja, ninja, or autoninja.
+  """
+  suffix = '.bat' if sys.platform.startswith('win32') else ''
+  # Prefer the version on PATH, but fallback to known version if PATH doesn't
+  # have one (e.g. on bots).
+  if not shutil.which(f'autoninja{suffix}'):
+    third_party_prefix = os.path.join(_CHROMIUM_ROOT, 'third_party')
+    ninja_prefix = os.path.join(third_party_prefix, 'ninja', '')
+    siso_prefix = os.path.join(third_party_prefix, 'siso', 'cipd', '')
+    # Also - bots configure reclient manually, and so do not use the "auto"
+    # wrappers.
+    ninja_cmd = [f'{ninja_prefix}ninja{suffix}']
+    siso_cmd = [f'{siso_prefix}siso{suffix}', 'ninja']
+  else:
+    ninja_cmd = [f'autoninja{suffix}']
+    siso_cmd = list(ninja_cmd)
+
+  if output_directory and os.path.abspath(output_directory) != os.path.abspath(
+      os.curdir):
+    ninja_cmd += ['-C', output_directory]
+    siso_cmd += ['-C', output_directory]
+  siso_deps = os.path.exists(os.path.join(output_directory, '.siso_deps'))
+  ninja_deps = os.path.exists(os.path.join(output_directory, '.ninja_deps'))
+  if siso_deps and ninja_deps:
+    raise Exception('Found both .siso_deps and .ninja_deps in '
+                    f'{output_directory}. Not sure which build tool to use. '
+                    'Please delete one, or better, run "gn clean".')
+  if siso_deps:
+    return siso_cmd
+  return ninja_cmd

@@ -11,10 +11,11 @@
 #include "chrome/browser/ui/uninstall_browser_prompt.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/common/chrome_result_codes.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/installer/util/shell_util.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/views/accessibility/accessibility_paint_checks.h"
 #include "ui/views/controls/button/checkbox.h"
 #include "ui/views/controls/combobox/combobox.h"
@@ -37,20 +38,20 @@ UninstallView::~UninstallView() {
 
 void UninstallView::SetupControls() {
   ChromeLayoutProvider* provider = ChromeLayoutProvider::Get();
-  const int checkbox_indent = provider->GetDistanceMetric(
-      DISTANCE_SUBSECTION_HORIZONTAL_INDENT);
+  const int checkbox_indent =
+      provider->GetDistanceMetric(DISTANCE_SUBSECTION_HORIZONTAL_INDENT);
   const int unrelated_vertical_spacing =
       provider->GetDistanceMetric(views::DISTANCE_UNRELATED_CONTROL_VERTICAL);
-  const int related_vertical_spacing = provider->GetDistanceMetric(
-      views::DISTANCE_RELATED_CONTROL_VERTICAL);
-  const int related_horizontal_spacing = provider->GetDistanceMetric(
-      views::DISTANCE_RELATED_CONTROL_HORIZONTAL);
-  const int related_vertical_small = provider->GetDistanceMetric(
-      DISTANCE_RELATED_CONTROL_VERTICAL_SMALL);
+  const int related_vertical_spacing =
+      provider->GetDistanceMetric(views::DISTANCE_RELATED_CONTROL_VERTICAL);
+  const int related_horizontal_spacing =
+      provider->GetDistanceMetric(views::DISTANCE_RELATED_CONTROL_HORIZONTAL);
+  const int related_vertical_small =
+      provider->GetDistanceMetric(DISTANCE_RELATED_CONTROL_VERTICAL_SMALL);
 
   auto builder =
       views::Builder<UninstallView>(this)
-          .SetButtonLabel(ui::DIALOG_BUTTON_OK,
+          .SetButtonLabel(ui::mojom::DialogButton::kOk,
                           l10n_util::GetStringUTF16(IDS_UNINSTALL_BUTTON_TEXT))
           .SetTitle(IDS_UNINSTALL_CHROME)
           .SetAcceptCallback(base::BindOnce(&UninstallView::OnDialogAccepted,
@@ -124,8 +125,9 @@ void UninstallView::SetupControls() {
 
 void UninstallView::OnDialogAccepted() {
   *user_selection_ = content::RESULT_CODE_NORMAL_EXIT;
-  if (delete_profile_->GetChecked())
-    *user_selection_ = chrome::RESULT_CODE_UNINSTALL_DELETE_PROFILE;
+  if (delete_profile_->GetChecked()) {
+    *user_selection_ = CHROME_RESULT_CODE_UNINSTALL_DELETE_PROFILE;
+  }
   if (change_default_browser_ && change_default_browser_->GetChecked()) {
     BrowsersMap::const_iterator i = browsers_->begin();
     std::advance(i, browsers_combo_->GetSelectedIndex().value());
@@ -136,7 +138,7 @@ void UninstallView::OnDialogAccepted() {
 }
 
 void UninstallView::OnDialogCancelled() {
-  *user_selection_ = chrome::RESULT_CODE_UNINSTALL_USER_CANCEL;
+  *user_selection_ = CHROME_RESULT_CODE_UNINSTALL_USER_CANCEL;
 }
 
 size_t UninstallView::GetItemCount() const {
@@ -151,7 +153,7 @@ std::u16string UninstallView::GetItemAt(size_t index) const {
   return base::WideToUTF16(i->first);
 }
 
-BEGIN_METADATA(UninstallView, views::DialogDelegateView)
+BEGIN_METADATA(UninstallView)
 END_METADATA
 
 namespace chrome {
@@ -161,8 +163,7 @@ int ShowUninstallBrowserPrompt() {
   int result = content::RESULT_CODE_NORMAL_EXIT;
 
   base::RunLoop run_loop;
-  UninstallView* view = new UninstallView(&result,
-                                          run_loop.QuitClosure());
+  UninstallView* view = new UninstallView(&result, run_loop.QuitClosure());
   views::DialogDelegate::CreateDialogWidget(view, NULL, NULL)->Show();
   run_loop.Run();
   return result;

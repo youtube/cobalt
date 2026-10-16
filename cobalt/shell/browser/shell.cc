@@ -16,72 +16,249 @@
 
 #include <stddef.h>
 
+#include <cstdio>
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/no_destructor.h"
 #include "base/run_loop.h"
+#include "base/strings/escape.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/bind_post_task.h"
 #include "build/build_config.h"
-#include "cobalt/shell/app/resource.h"
+#include "cobalt/browser/features.h"
+#include "cobalt/browser/switches.h"
+#include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
+#include "cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
+#endif
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/shell/common/url_constants.h"
+#include "cobalt/shell/embedded_resources/embedded_js.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
-
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/devtools_agent_host.h"
-#include "content/public/browser/file_select_listener.h"
+#include "content/public/browser/document_picture_in_picture_window_controller.h"
+#include "content/public/browser/media_capture_devices.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/overlay_window.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/presentation_receiver_flags.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/renderer_preferences_util.h"
+#include "content/public/browser/video_picture_in_picture_window_controller.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_delegate.h"
 #include "content/public/common/content_switches.h"
 #include "media/media_buildflags.h"
+#include "net/base/url_util.h"
 #include "third_party/blink/public/common/peerconnection/webrtc_ip_handling_policy.h"
 #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
-#include "third_party/blink/public/mojom/choosers/file_chooser.mojom-forward.h"
+#include "third_party/blink/public/mojom/mediastream/media_stream.mojom-shared.h"
+#include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
+
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/updater/updater_module.h"  //nogncheck
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/android/shared/audio_permission_requester.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+#include "starboard/android/shared/starboard_bridge.h"
+
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
+
+using ::starboard::StarboardBridge;
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/android/oom_intervention/oom_intervention_tab_helper.h"
+#endif
+
+#include "starboard/system.h"
 
 namespace content {
 
 namespace {
+
+constexpr char kMusicTopic[] = "music";
+
+// Helper function to check if a URL is a valid deep link for a specific topic.
+// It requires both a "launch" parameter and a matching "topic" parameter.
+bool IsDeepLinkTopic(const GURL& link_url, std::string_view target_topic) {
+  if (!link_url.is_valid()) {
+    return false;
+  }
+
+  // Helper lambda to check a query string
+  auto check_query_string = [&](std::string_view query_str) {
+    std::string unescaped_query = base::UnescapeURLComponent(
+        query_str,
+        base::UnescapeRule::REPLACE_PLUS_WITH_SPACE |
+            base::UnescapeRule::URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS);
+
+    // Use GURL::Replacements to safely set the query string without worrying
+    // about special characters like '#' truncating the query.
+    GURL dummy_url("http://dummy/");
+    GURL::Replacements replacements;
+    replacements.SetQueryStr(unescaped_query);
+    dummy_url = dummy_url.ReplaceComponents(replacements);
+
+    bool has_launch = false;
+    bool has_target_topic = false;
+
+    for (net::QueryIterator it(dummy_url); !it.IsAtEnd(); it.Advance()) {
+      if (!has_launch && it.GetKey() == "launch") {
+        has_launch = true;
+      } else if (!has_target_topic && it.GetKey() == "topic" &&
+                 it.GetUnescapedValue() == target_topic) {
+        has_target_topic = true;
+      }
+
+      if (has_launch && has_target_topic) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // 1. Check the standard query part
+  if (link_url.has_query() && check_query_string(link_url.query())) {
+    return true;
+  }
+
+  // 2. Check the fragment part if it looks like a query (starts with '?')
+  if (link_url.has_ref()) {
+    std::string ref = link_url.ref();
+    if (!ref.empty() && ref[0] == '?') {
+      // Skip the leading '?'
+      if (check_query_string(std::string_view(ref).substr(1))) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 // Null until/unless the default main message loop is running.
 base::OnceClosure& GetMainMessageLoopQuitClosure() {
   static base::NoDestructor<base::OnceClosure> closure;
   return *closure;
 }
 
+bool RequestRecordAudioPermission() {
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  JNIEnv* env = AttachCurrentThread();
+  return starboard::RequestRecordAudioPermission(env);
+#else
+  // It is expected that all 3P will have system-level permissions.
+  return true;
+#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+}
+
+const blink::MediaStreamDevice* GetRequestedDeviceOrDefault(
+    const blink::MediaStreamDevices& devices,
+    const std::vector<std::string>& requested_device_ids) {
+  for (const auto& requested_device_id : requested_device_ids) {
+    if (requested_device_id.empty()) {
+      continue;
+    }
+
+    auto it = std::ranges::find(devices, requested_device_id,
+                                &blink::MediaStreamDevice::id);
+    if (it != devices.end()) {
+      return &(*it);
+    }
+  }
+
+  if (!devices.empty()) {
+    return &devices[0];
+  }
+
+  return nullptr;
+}
+
 constexpr int kDefaultTestWindowWidthDip = 800;
 constexpr int kDefaultTestWindowHeightDip = 600;
+
+// Returns the URL to load as the splash screen: the SplashScreenConfig "url"
+// feature param if it's set to a valid URL (non-gold builds only), or the
+// built-in splash screen otherwise.
+// See cobalt::features::kSplashScreenUrlParam.
+GURL GetSplashScreenURL() {
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  const std::string url_param = cobalt::features::kSplashScreenUrlParam.Get();
+  if (!url_param.empty()) {
+    GURL url(url_param);
+    if (url.is_valid()) {
+      return url;
+    }
+    LOG(WARNING) << "NativeSplash: Ignoring invalid splash screen URL: "
+                 << url_param;
+  }
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  return GURL(switches::kSplashScreenURL);
+}
 
 // Owning pointer. We can not use unique_ptr as a global. That introduces a
 // static constructor/destructor.
 // Acquired in Shell::Init(), released in Shell::Shutdown().
-ShellPlatformDelegate* g_platform;
+ShellPlatformDelegate* g_platform = nullptr;
 }  // namespace
 
 std::vector<Shell*> Shell::windows_;
 base::OnceCallback<void(Shell*)> Shell::shell_created_callback_;
+std::atomic<bool> Shell::has_hidden_system_splash_screen_{false};
+
+void Shell::MaybeHideSystemSplashScreen() {
+  if (!has_hidden_system_splash_screen_.exchange(true)) {
+    SbSystemHideSplashScreen();
+  }
+}
+
+void Shell::ResetSystemSplashScreenForTesting() {
+  has_hidden_system_splash_screen_.store(false);
+}
 
 Shell::Shell(std::unique_ptr<WebContents> web_contents,
-             bool should_set_delegate)
+             std::unique_ptr<WebContents> splash_screen_web_contents,
+             bool should_set_delegate,
+             const std::string& topic,
+             bool skip_for_testing)
     : WebContentsObserver(web_contents.get()),
-      web_contents_(std::move(web_contents)) {
+      web_contents_(std::move(web_contents)),
+      splash_screen_web_contents_(std::move(splash_screen_web_contents)),
+      splash_state_(STATE_SPLASH_SCREEN_UNINITIALIZED),
+      splash_topic_(topic),
+      skip_for_testing_(skip_for_testing),
+      is_video_splash_screen_(base::FeatureList::IsEnabled(
+          cobalt::features::kForceVideoSplashScreen)) {
   if (should_set_delegate) {
     web_contents_->SetDelegate(this);
   }
@@ -91,12 +268,49 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
 
   windows_.push_back(this);
 
+  // Create browser-side mojo service component
+  js_communication_host_ =
+      std::make_unique<js_injection::JsCommunicationHost>(web_contents_.get());
+
+  if (!skip_for_testing_) {
+    RegisterInjectedJavaScript();
+  }
+
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (OomInterventionTabHelper::IsEnabled()) {
+    OomInterventionTabHelper::CreateForWebContents(web_contents_.get());
+  }
+#endif
+
+  if (splash_screen_web_contents_) {
+    splash_state_ = STATE_SPLASH_SCREEN_INITIALIZED;
+    splash_screen_web_contents_observer_ =
+        std::make_unique<SplashScreenWebContentsObserver>(
+            splash_screen_web_contents_.get(),
+            base::BindOnce(&Shell::OnSplashScreenLoadComplete,
+                           weak_factory_.GetWeakPtr()));
+    splash_screen_web_contents_delegate_ =
+        std::make_unique<SplashScreenWebContentsDelegate>(
+            base::BindPostTaskToCurrentDefault(
+                base::BindOnce(&Shell::ClosingSplashScreenWebContents,
+                               weak_factory_.GetWeakPtr())));
+    splash_screen_web_contents_->SetDelegate(
+        splash_screen_web_contents_delegate_.get());
+  }
+
+  if (!GetPlatform()->IsVisible()) {
+    // Notify the WebContents that it is starting in a hidden state so that it
+    // can optimize resource usage (e.g. by lowering its process priority).
+    web_contents_->WasHidden();
+  }
+
   if (shell_created_callback_) {
     std::move(shell_created_callback_).Run(this);
   }
 }
 
 Shell::~Shell() {
+  CHECK(g_platform);
   g_platform->CleanUp(this);
 
   for (size_t i = 0; i < windows_.size(); ++i) {
@@ -119,13 +333,63 @@ ShellPlatformDelegate* Shell::GetPlatform() {
   return g_platform;
 }
 
+// static
+void Shell::OnBlur() {
+  CHECK(g_platform);
+  if (g_platform->IsVisible()) {
+    g_platform->OnBlur();
+  }
+}
+
+// static
+void Shell::OnFocus() {
+  CHECK(g_platform);
+  if (g_platform->IsVisible()) {
+    g_platform->OnFocus();
+  }
+}
+
+// static
+void Shell::OnConceal() {
+  CHECK(g_platform);
+  if (g_platform->IsVisible()) {
+    g_platform->OnConceal();
+  }
+}
+
+// static
+void Shell::OnReveal() {
+  CHECK(g_platform);
+  if (!g_platform->IsVisible()) {
+    g_platform->OnReveal();
+  }
+}
+
+// static
+void Shell::OnFreeze() {
+  CHECK(g_platform);
+  g_platform->OnFreeze();
+}
+
+// static
+void Shell::OnUnfreeze() {
+  CHECK(g_platform);
+  g_platform->OnUnfreeze();
+}
+
+// static
+void Shell::OnStop() {
+  CHECK(g_platform);
+  g_platform->OnStop();
+}
+
 void Shell::FinishShellInitialization(Shell* shell) {
   WebContents* raw_web_contents = shell->web_contents();
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kForceWebRtcIPHandlingPolicy)) {
     raw_web_contents->GetMutableRendererPrefs()->webrtc_ip_handling_policy =
-        command_line->GetSwitchValueASCII(
-            switches::kForceWebRtcIPHandlingPolicy);
+        blink::ToWebRTCIPHandlingPolicy(command_line->GetSwitchValueASCII(
+            switches::kForceWebRtcIPHandlingPolicy));
   }
 
   GetPlatform()->SetContents(shell);
@@ -141,15 +405,23 @@ void Shell::FinishShellInitialization(Shell* shell) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_ANDROID)
   // TODO(b/390021478): Revisit this when decoupling from content_shell.
-  GetPlatform()->SetOverlayMode(shell, true);
+  if (!shell->skip_for_testing()) {
+    GetPlatform()->SetOverlayMode(shell, true);
+  }
+  GetPlatform()->SetSkipForTesting(shell->skip_for_testing());
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
-Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
-                          const gfx::Size& initial_size,
-                          bool should_set_delegate) {
-  Shell* shell = new Shell(std::move(web_contents), should_set_delegate);
+Shell* Shell::CreateShell(
+    std::unique_ptr<WebContents> web_contents,
+    std::unique_ptr<WebContents> splash_screen_web_contents,
+    const gfx::Size& initial_size,
+    bool should_set_delegate,
+    const std::string& topic) {
+  Shell* shell =
+      new Shell(std::move(web_contents), std::move(splash_screen_web_contents),
+                should_set_delegate, topic);
   GetPlatform()->CreatePlatformWindow(shell, initial_size);
   FinishShellInitialization(shell);
   return shell;
@@ -176,12 +448,6 @@ void Shell::SetShellCreatedCallback(
 }
 
 // static
-bool Shell::ShouldHideToolbar() {
-  return base::CommandLine::ForCurrentProcess()->HasSwitch(
-      switches::kContentShellHideToolbar);
-}
-
-// static
 Shell* Shell::FromWebContents(WebContents* web_contents) {
   for (Shell* window : windows_) {
     if (window->web_contents() && window->web_contents() == web_contents) {
@@ -192,10 +458,11 @@ Shell* Shell::FromWebContents(WebContents* web_contents) {
 }
 
 // static
-void Shell::Initialize(std::unique_ptr<ShellPlatformDelegate> platform) {
+void Shell::Initialize(std::unique_ptr<ShellPlatformDelegate> platform,
+                       bool is_visible) {
   DCHECK(!g_platform);
   g_platform = platform.release();
-  g_platform->Initialize(GetShellDefaultSize());
+  g_platform->Initialize(GetShellDefaultSize(), is_visible);
 }
 
 // static
@@ -239,17 +506,54 @@ gfx::Size Shell::AdjustWindowSize(const gfx::Size& initial_size) {
 Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const GURL& url,
                               const scoped_refptr<SiteInstance>& site_instance,
-                              const gfx::Size& initial_size) {
+                              const gfx::Size& initial_size,
+                              const bool create_splash_screen_web_contents,
+                              const std::string& deep_link) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (create_splash_screen_web_contents) {
+    starboard::StarboardBridge::GetInstance()->SetStartupMilestone(19);
+  } else {
+    starboard::StarboardBridge::GetInstance()->SetStartupMilestone(18);
+  }
+#endif
   WebContents::CreateParams create_params(browser_context, site_instance);
+  bool is_visible = GetPlatform()->IsVisible();
+  create_params.initially_hidden = !is_visible;
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {
     create_params.starting_sandbox_flags = kPresentationReceiverSandboxFlags;
   }
   std::unique_ptr<WebContents> web_contents =
       WebContents::Create(create_params);
-  Shell* shell =
-      CreateShell(std::move(web_contents), AdjustWindowSize(initial_size),
-                  true /* should_set_delegate */);
+  std::unique_ptr<WebContents> splash_screen_web_contents;
+  if (create_splash_screen_web_contents && is_visible) {
+    // Create splash screen WebContents. ATV creates splash screen WebContents
+    // in JNI_ShellManager_LaunchShell(), whereas other platforms create it in
+    // ShellBrowserMainParts::InitializeMessageLoopContext().
+    WebContents::CreateParams splash_screen_create_params(browser_context,
+                                                          nullptr);
+    splash_screen_create_params.main_frame_name = kCobaltSplashMainFrameName;
+    splash_screen_web_contents =
+        WebContents::Create(splash_screen_create_params);
+  }
+  // Handle deeplink from url on all devices.
+  std::string topic;
+  GURL link_url;
+  if (!deep_link.empty()) {
+    link_url = GURL(deep_link);
+  } else if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+                 cobalt::switches::kInitialURL)) {
+    link_url = GURL(base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+        cobalt::switches::kInitialURL));
+  }
+  if (link_url.is_valid()) {
+    if (IsDeepLinkTopic(link_url, kMusicTopic)) {
+      topic = kMusicTopic;
+    }
+  }
+  Shell* shell = CreateShell(
+      std::move(web_contents), std::move(splash_screen_web_contents),
+      AdjustWindowSize(initial_size), true /* should_set_delegate */, topic);
 
   if (!url.is_empty()) {
     shell->LoadURL(url);
@@ -259,7 +563,149 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
 
 void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
   if (frame_host == web_contents_->GetPrimaryMainFrame()) {
+#if BUILDFLAG(IS_ANDROIDTV)
+    starboard::StarboardBridge::GetInstance()->SetStartupMilestone(20);
+#endif
     g_platform->MainFrameCreated(this);
+  }
+}
+
+void Shell::PrimaryMainDocumentElementAvailable() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(27);
+#endif
+#if BUILDFLAG(USE_EVERGREEN)
+  cobalt::updater::UpdaterModule* updater_module =
+      cobalt::updater::UpdaterModule::GetInstance();
+  if (updater_module) {
+    LOG(INFO) << "Mark the current installation as successful after the "
+                 "PrimaryMainDocumentElement is available.";
+    updater_module->MarkSuccessful();
+  }
+#endif
+}
+
+void Shell::DidFirstVisuallyNonEmptyPaint() {
+  MaybeHideSystemSplashScreen();
+}
+
+void Shell::DidFinishLoad(RenderFrameHost* render_frame_host,
+                          const GURL& validated_url) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(31);
+#endif
+}
+
+void Shell::DidStartNavigation(NavigationHandle* navigation_handle) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    if (navigation_handle->GetURL() ==
+        "https://www.youtube.com/tv") {  // Splash
+      starboard::StarboardBridge::GetInstance()->SetStartupMilestone(22);
+    } else {
+      starboard::StarboardBridge::GetInstance()->SetStartupMilestone(29);
+    }
+  }
+#endif
+}
+
+void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    if (navigation_handle->GetURL() ==
+        "https://www.youtube.com/tv") {  // Splash
+      starboard::StarboardBridge::GetInstance()->SetStartupMilestone(26);
+    } else {
+      starboard::StarboardBridge::GetInstance()->SetStartupMilestone(30);
+    }
+  }
+#endif
+  LOG(INFO) << "Navigated to " << navigation_handle->GetURL();
+}
+
+void Shell::DidStartLoading() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  starboard::StarboardBridge::GetInstance()->SetStartupMilestone(21);
+#endif
+}
+
+void Shell::DidStopLoading() {
+  if (!is_main_frame_loaded_ &&
+      splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
+    VLOG(1) << "NativeSplash: Main frame WebContents DidStopLoading.";
+    is_main_frame_loaded_ = true;
+
+    if (splash_state_ < STATE_SPLASH_SCREEN_STARTED) {
+      return;
+    }
+
+    if (splash_state_ >= STATE_SPLASH_SCREEN_ENDED) {
+      SwitchToMainWebContents();
+    } else {
+      ScheduleSwitchToMainWebContents();
+    }
+  }
+}
+
+void Shell::RegisterInjectedJavaScript() {
+  // Get the embedded header resource
+  GeneratedResourceMap resource_map;
+  CobaltJavaScriptPolyfill::GenerateMap(resource_map);
+
+  for (const auto& [file_name, file_contents] : resource_map) {
+    LOG(INFO) << "JS injection for filename: " << file_name;
+    std::string js(reinterpret_cast<const char*>(file_contents.data),
+                   file_contents.size);
+
+    // Inject a script at document start for all origins
+    const std::u16string script(base::UTF8ToUTF16(js));
+    const std::vector<std::string> allowed_origins({"*"});
+    auto result = js_communication_host_->AddDocumentStartJavaScript(
+        script, allowed_origins);
+
+    if (result.error_message.has_value()) {
+      // error_message contains a value
+      LOG(WARNING) << "Failed to register JS injection for:" << file_name
+                   << ", error message: " << result.error_message.value();
+    }
+  }
+}
+
+void Shell::LoadSplashScreenWebContents() {
+  if (splash_screen_web_contents_) {
+    // Display splash screen.
+    VLOG(1) << "NativeSplash: Loading splash screen WebContents.";
+    splash_state_ = STATE_SPLASH_SCREEN_STARTED;
+    GetPlatform()->LoadSplashScreenContents(this);
+
+    GURL splash_screen_url = GetSplashScreenURL();
+    if (!is_video_splash_screen_) {
+      splash_screen_url =
+          net::AppendQueryParameter(splash_screen_url, "force_image", "true");
+    }
+    if (!splash_topic_.empty()) {
+      splash_screen_url =
+          net::AppendQueryParameter(splash_screen_url, "cache", splash_topic_);
+    }
+    if (base::FeatureList::IsEnabled(cobalt::features::kSplashScreenConfig)) {
+      // Lets the splash screen stay up until the timeout, instead of closing
+      // when its animation ends.
+      splash_screen_url = net::AppendQueryParameter(
+          splash_screen_url, "timeout",
+          base::NumberToString(cobalt::features::kSplashScreenTimeoutParam.Get()
+                                   .InMilliseconds()));
+    }
+    NavigationController::LoadURLParams params(splash_screen_url);
+    params.frame_name = std::string();
+    params.transition_type = ui::PageTransitionFromInt(
+        ui::PAGE_TRANSITION_TYPED | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
+    splash_screen_web_contents_->GetController().LoadURLWithParams(params);
+
+    if (is_main_frame_loaded_) {
+      // Main frame loaded before splash screen started.
+      VLOG(1) << "NativeSplash: Main frame loaded before splash start.";
+      ScheduleSwitchToMainWebContents();
+    }
   }
 }
 
@@ -268,6 +714,11 @@ void Shell::LoadURL(const GURL& url) {
       url, std::string(),
       ui::PageTransitionFromInt(ui::PAGE_TRANSITION_TYPED |
                                 ui::PAGE_TRANSITION_FROM_ADDRESS_BAR));
+#if !BUILDFLAG(IS_ANDROID)
+  // Load splash screen on linux/3p/tvOS platforms. On ATV, it is called by
+  // JNI_Shell_LoadSplashScreenWebContents().
+  LoadSplashScreenWebContents();
+#endif
 }
 
 void Shell::LoadURLForFrame(const GURL& url,
@@ -303,7 +754,7 @@ void Shell::LoadDataWithBaseURLInternal(const GURL& url,
   DCHECK(!load_as_string);  // Only supported on Android.
 #endif
 
-  NavigationController::LoadURLParams params(GURL::EmptyGURL());
+  NavigationController::LoadURLParams params{GURL()};
   const std::string data_url_header = "data:text/html;charset=utf-8,";
   if (load_as_string) {
     params.url = GURL(data_url_header);
@@ -318,21 +769,37 @@ void Shell::LoadDataWithBaseURLInternal(const GURL& url,
 
   params.load_type = NavigationController::LOAD_TYPE_DATA;
   params.base_url_for_data_url = base_url;
-  params.virtual_url_for_data_url = url;
+  params.virtual_url_for_special_cases = url;
   params.override_user_agent = NavigationController::UA_OVERRIDE_FALSE;
   web_contents_->GetController().LoadURLWithParams(params);
 }
 
-void Shell::AddNewContents(WebContents* source,
-                           std::unique_ptr<WebContents> new_contents,
-                           const GURL& target_url,
-                           WindowOpenDisposition disposition,
-                           const blink::mojom::WindowFeatures& window_features,
-                           bool user_gesture,
-                           bool* was_blocked) {
+WebContents* Shell::AddNewContents(
+    WebContents* source,
+    std::unique_ptr<WebContents> new_contents,
+    const GURL& target_url,
+    WindowOpenDisposition disposition,
+    const blink::mojom::WindowFeatures& window_features,
+    bool user_gesture,
+    bool* was_blocked) {
+#if !BUILDFLAG(IS_ANDROID)
+  // If the shell is opening a document picture-in-picture window, it needs to
+  // inform the DocumentPictureInPictureWindowController.
+  if (disposition == WindowOpenDisposition::NEW_PICTURE_IN_PICTURE) {
+    DocumentPictureInPictureWindowController* controller =
+        PictureInPictureWindowController::
+            GetOrCreateDocumentPictureInPictureController(source);
+    controller->SetChildWebContents(new_contents.get());
+    controller->Show();
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+  WebContents* result = new_contents.get();
   CreateShell(
-      std::move(new_contents), AdjustWindowSize(window_features.bounds.size()),
+      std::move(new_contents), nullptr /* splash_screen_web_contents */,
+      AdjustWindowSize(window_features.bounds.size()),
       !delay_popup_contents_delegate_for_testing_ /* should_set_delegate */);
+  return result;
 }
 
 void Shell::GoBackOrForward(int offset) {
@@ -351,34 +818,25 @@ void Shell::Stop() {
   web_contents_->Stop();
 }
 
-void Shell::UpdateNavigationControls(bool should_show_loading_ui) {
-  int current_index = web_contents_->GetController().GetCurrentEntryIndex();
-  int max_index = web_contents_->GetController().GetEntryCount() - 1;
-
-  g_platform->EnableUIControl(this, ShellPlatformDelegate::BACK_BUTTON,
-                              current_index > 0);
-  g_platform->EnableUIControl(this, ShellPlatformDelegate::FORWARD_BUTTON,
-                              current_index < max_index);
-  g_platform->EnableUIControl(
-      this, ShellPlatformDelegate::STOP_BUTTON,
-      should_show_loading_ui && web_contents_->IsLoading());
-}
-
 void Shell::ShowDevTools() {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (!devtools_frontend_) {
     auto* devtools_frontend = ShellDevToolsFrontend::Show(web_contents());
     devtools_frontend_ = devtools_frontend->GetWeakPtr();
   }
 
   devtools_frontend_->Activate();
+#endif
 }
 
 void Shell::CloseDevTools() {
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   if (!devtools_frontend_) {
     return;
   }
   devtools_frontend_->Close();
   devtools_frontend_ = nullptr;
+#endif
 }
 
 void Shell::ResizeWebContentForTests(const gfx::Size& content_size) {
@@ -387,7 +845,7 @@ void Shell::ResizeWebContentForTests(const gfx::Size& content_size) {
 
 gfx::NativeView Shell::GetContentView() {
   if (!web_contents_) {
-    return nullptr;
+    return gfx::NativeView();
   }
   return web_contents_->GetNativeView();
 }
@@ -398,8 +856,11 @@ gfx::NativeWindow Shell::window() {
 }
 #endif
 
-WebContents* Shell::OpenURLFromTab(WebContents* source,
-                                   const OpenURLParams& params) {
+WebContents* Shell::OpenURLFromTab(
+    WebContents* source,
+    const OpenURLParams& params,
+    base::OnceCallback<void(content::NavigationHandle&)>
+        navigation_handle_callback) {
   WebContents* target = nullptr;
   switch (params.disposition) {
     case WindowOpenDisposition::CURRENT_TAB:
@@ -442,22 +903,16 @@ WebContents* Shell::OpenURLFromTab(WebContents* source,
       return nullptr;
   }
 
-  target->GetController().LoadURLWithParams(
-      NavigationController::LoadURLParams(params));
+  base::WeakPtr<NavigationHandle> navigation_handle =
+      target->GetController().LoadURLWithParams(
+          NavigationController::LoadURLParams(params));
+
+  if (navigation_handle_callback && navigation_handle) {
+    std::move(navigation_handle_callback).Run(*navigation_handle);
+  }
+
   return target;
 }
-
-void Shell::LoadingStateChanged(WebContents* source,
-                                bool should_show_loading_ui) {
-  UpdateNavigationControls(should_show_loading_ui);
-  g_platform->SetIsLoading(this, source->IsLoading());
-}
-
-#if BUILDFLAG(IS_ANDROID)
-void Shell::SetOverlayMode(bool use_overlay_mode) {
-  g_platform->SetOverlayMode(this, use_overlay_mode);
-}
-#endif
 
 void Shell::EnterFullscreenModeForTab(
     RenderFrameHost* requesting_frame,
@@ -502,14 +957,14 @@ blink::mojom::DisplayMode Shell::GetDisplayMode(
              : blink::mojom::DisplayMode::kBrowser;
 }
 
-void Shell::RequestToLockMouse(WebContents* web_contents,
+void Shell::RequestPointerLock(WebContents* web_contents,
                                bool user_gesture,
                                bool last_unlocked_by_target) {
   // Give the platform a chance to handle the lock request, if it doesn't
   // indicate it handled it, allow the request.
-  if (!g_platform->HandleRequestToLockMouse(this, web_contents, user_gesture,
+  if (!g_platform->HandlePointerLockRequest(this, web_contents, user_gesture,
                                             last_unlocked_by_target)) {
-    web_contents->GotResponseToLockMouseRequest(
+    web_contents->GotResponseToPointerLockRequest(
         blink::mojom::PointerLockResult::kSuccess);
   }
 }
@@ -517,12 +972,18 @@ void Shell::RequestToLockMouse(WebContents* web_contents,
 void Shell::Close() {
   // Shell is "self-owned" and destroys itself. The ShellPlatformDelegate
   // has the chance to co-opt this and do its own destruction.
+  CHECK(g_platform);
   if (!g_platform->DestroyShell(this)) {
     delete this;
   }
 }
 
 void Shell::CloseContents(WebContents* source) {
+#if BUILDFLAG(IS_ANDROID)
+  JNIEnv* env = AttachCurrentThread();
+  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+  starboard_bridge->CloseApp(env);
+#endif
   Close();
 }
 
@@ -532,13 +993,6 @@ bool Shell::CanOverscrollContent() {
 #else
   return false;
 #endif
-}
-
-void Shell::NavigationStateChanged(WebContents* source,
-                                   InvalidateTypes changed_flags) {
-  if (changed_flags & INVALIDATE_TYPE_URL) {
-    g_platform->SetAddressBarURL(this, source->GetVisibleURL());
-  }
 }
 
 JavaScriptDialogManager* Shell::GetJavaScriptDialogManager(
@@ -560,10 +1014,6 @@ bool Shell::DidAddMessageToConsole(WebContents* source,
   return false;
 }
 
-void Shell::PortalWebContentsCreated(WebContents* portal_web_contents) {
-  g_platform->DidCreateOrAttachWebContents(this, portal_web_contents);
-}
-
 void Shell::RendererUnresponsive(
     WebContents* source,
     RenderWidgetHost* render_widget_host,
@@ -572,35 +1022,15 @@ void Shell::RendererUnresponsive(
 }
 
 void Shell::ActivateContents(WebContents* contents) {
-  // TODO(danakj): Move this to ShellPlatformDelegate.
-  contents->Focus();
+  if (!g_platform->IsWaitingForRevealAck()) {
+    contents->GetPrimaryMainFrame()->GetRenderWidgetHost()->Focus();
+  }
 }
 
-void Shell::RunFileChooser(RenderFrameHost* render_frame_host,
-                           scoped_refptr<FileSelectListener> listener,
-                           const blink::mojom::FileChooserParams& params) {
-  g_platform->RunFileChooser(render_frame_host, std::move(listener), params);
-}
-
-bool Shell::IsBackForwardCacheSupported() {
-  return true;
-}
-
-PreloadingEligibility Shell::IsPrerender2Supported(WebContents& web_contents) {
+PreloadingEligibility Shell::IsPrerender2Supported(
+    WebContents& web_contents,
+    PreloadingTriggerType trigger_type) {
   return PreloadingEligibility::kEligible;
-}
-
-std::unique_ptr<WebContents> Shell::ActivatePortalWebContents(
-    WebContents* predecessor_contents,
-    std::unique_ptr<WebContents> portal_contents) {
-  DCHECK_EQ(predecessor_contents, web_contents_.get());
-  portal_contents->SetDelegate(this);
-  web_contents_->SetDelegate(nullptr);
-  std::swap(web_contents_, portal_contents);
-  g_platform->SetContents(this);
-  g_platform->SetAddressBarURL(this, web_contents_->GetVisibleURL());
-  LoadingStateChanged(web_contents_.get(), true);
-  return portal_contents;
 }
 
 namespace {
@@ -616,19 +1046,6 @@ class PendingCallback : public base::RefCounted<PendingCallback> {
 };
 }  // namespace
 
-void Shell::UpdateInspectedWebContentsIfNecessary(
-    WebContents* old_contents,
-    WebContents* new_contents,
-    base::OnceCallback<void()> callback) {
-  scoped_refptr<PendingCallback> pending_callback =
-      base::MakeRefCounted<PendingCallback>(std::move(callback));
-  for (auto* shell_devtools_bindings :
-       ShellDevToolsBindings::GetInstancesForWebContents(old_contents)) {
-    shell_devtools_bindings->UpdateInspectedWebContents(
-        new_contents, base::DoNothingWithBoundArgs(pending_callback));
-  }
-}
-
 bool Shell::ShouldAllowRunningInsecureContent(WebContents* web_contents,
                                               bool allowed_per_prefs,
                                               const url::Origin& origin,
@@ -641,7 +1058,20 @@ bool Shell::ShouldAllowRunningInsecureContent(WebContents* web_contents,
 }
 
 PictureInPictureResult Shell::EnterPictureInPicture(WebContents* web_contents) {
-  return PictureInPictureResult::kNotSupported;
+  if (!base::FeatureList::IsEnabled(
+          cobalt::features::kEnablePictureInPicture)) {
+    return PictureInPictureResult::kNotSupported;
+  }
+  return PictureInPictureWindowManager::GetInstance()
+      .EnterVideoPictureInPicture(web_contents);
+}
+
+void Shell::ExitPictureInPicture() {
+  if (!base::FeatureList::IsEnabled(
+          cobalt::features::kEnablePictureInPicture)) {
+    return;
+  }
+  PictureInPictureWindowManager::GetInstance().ExitPictureInPicture();
 }
 
 bool Shell::ShouldResumeRequestsForCreatedWindow() {
@@ -650,6 +1080,54 @@ bool Shell::ShouldResumeRequestsForCreatedWindow() {
 
 void Shell::SetContentsBounds(WebContents* source, const gfx::Rect& bounds) {
   DCHECK(source == web_contents());  // There's only one WebContents per Shell.
+}
+
+void Shell::RequestMediaAccessPermission(WebContents* web_contents,
+                                         const MediaStreamRequest& request,
+                                         MediaResponseCallback callback) {
+  if (request.audio_type !=
+      blink::mojom::MediaStreamType::DEVICE_AUDIO_CAPTURE) {
+    std::move(callback).Run(
+        blink::mojom::StreamDevicesSet(),
+        blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED,
+        /*ui=*/nullptr);
+    return;
+  }
+  bool can_record_audio = RequestRecordAudioPermission();
+  if (!can_record_audio) {
+    std::move(callback).Run(
+        blink::mojom::StreamDevicesSet(),
+        blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED,
+        /*ui=*/nullptr);
+    return;
+  }
+  auto audio_devices =
+      MediaCaptureDevices::GetInstance()->GetAudioCaptureDevices();
+  const blink::MediaStreamDevice* device = GetRequestedDeviceOrDefault(
+      audio_devices, request.requested_audio_device_ids);
+  if (!device) {
+    std::move(callback).Run(blink::mojom::StreamDevicesSet(),
+                            blink::mojom::MediaStreamRequestResult::NO_HARDWARE,
+                            /*ui=*/nullptr);
+    return;
+  }
+  blink::mojom::StreamDevicesSet stream_devices_set;
+  stream_devices_set.stream_devices.emplace_back(
+      blink::mojom::StreamDevices::New());
+  stream_devices_set.stream_devices[0]->audio_device = *device;
+  std::move(callback).Run(stream_devices_set,
+                          blink::mojom::MediaStreamRequestResult::OK,
+                          std::unique_ptr<MediaStreamUI>());
+}
+
+bool Shell::CheckMediaAccessPermission(RenderFrameHost*,
+                                       const url::Origin&,
+                                       blink::mojom::MediaStreamType) {
+  return true;
+}
+
+bool Shell::ShouldFocusPageAfterCrash(WebContents* source) {
+  return !g_platform->IsWaitingForRevealAck();
 }
 
 gfx::Size Shell::GetShellDefaultSize() {
@@ -680,15 +1158,154 @@ gfx::Size Shell::GetShellDefaultSize() {
   return default_shell_size;
 }
 
-#if BUILDFLAG(IS_ANDROID)
-void Shell::LoadProgressChanged(double progress) {
-  g_platform->LoadProgressChanged(this, progress);
+void Shell::Focus() {
+  // Aura silently ignores focus requests for hidden windows. If the shell is
+  // not yet visible (e.g. during a rapid Reveal -> Focus sequence), we defer
+  // the focus until the WebContents signals it has become visible.
+  if (web_contents_->GetVisibility() == Visibility::VISIBLE) {
+    web_contents_->Focus();
+    pending_focus_ = false;
+  } else {
+    pending_focus_ = true;
+  }
 }
+
+void Shell::OnVisibilityChanged(Visibility visibility) {
+  if (visibility == Visibility::VISIBLE && pending_focus_) {
+    // Retry the pending focus now that the window is visible in Aura.
+    Focus();
+  }
+
+  // When the OS backgrounds the app (resulting in Visibility::HIDDEN state),
+  // tearing down the PiP session from here ensures the
+  // VideoPictureInPictureWindowController pauses the video and destroys the UI
+  // overlay window.
+  // See: b/532272209
+  if (base::FeatureList::IsEnabled(cobalt::features::kEnablePictureInPicture) &&
+      visibility == content::Visibility::HIDDEN && web_contents() &&
+      web_contents()->HasPictureInPictureVideo()) {
+    content::PictureInPictureWindowController::
+        GetOrCreateVideoPictureInPictureController(web_contents())
+            ->Close(/*should_pause_video=*/true);
+  }
+}
+
+void Shell::LoadProgressChanged(double progress) {
+#if BUILDFLAG(IS_ANDROID)
+  if (!skip_for_testing_) {
+    g_platform->LoadProgressChanged(this, progress);
+  }
 #endif
+  if (progress >= 1.0 && !is_main_frame_loaded_ &&
+      splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
+    is_main_frame_loaded_ = true;
+
+    // If splash screen hasn't started yet, we don't need to do anything here.
+    // The switch logic will be handled in LoadSplashScreenWebContents().
+    if (splash_state_ < STATE_SPLASH_SCREEN_STARTED) {
+      return;
+    }
+
+    if (splash_state_ >= STATE_SPLASH_SCREEN_ENDED) {
+      VLOG(1) << "NativeSplash: Main frame WebContents is loaded.";
+      SwitchToMainWebContents();
+    } else {
+      ScheduleSwitchToMainWebContents();
+    }
+  }
+}
+
+#if BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+base::WeakPtr<on_screen_keyboard::PlatformOnScreenKeyboard>
+Shell::GetPlatformOnScreenKeyboard() {
+  return g_platform->GetOrCreatePlatformOnScreenKeyboard(this);
+}
+#endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+
+void Shell::ScheduleSwitchToMainWebContents() {
+  if (splash_screen_start_time_.is_null()) {
+    LOG(INFO) << "NativeSplash: Splash screen not loaded yet, waiting.";
+    return;
+  }
+  base::TimeDelta splash_screen_elapsed =
+      base::TimeTicks::Now() - splash_screen_start_time_;
+
+  base::TimeDelta min_splash_screen_duration =
+      cobalt::features::kSplashScreenTimeoutParam.Get();
+  base::TimeDelta remaining_delay =
+      min_splash_screen_duration - splash_screen_elapsed;
+
+  if (remaining_delay.is_negative()) {
+    // No more delay needed
+    remaining_delay = base::TimeDelta();
+  }
+
+  VLOG(1) << "NativeSplash: Main frame WebContents is loaded, splash "
+             "screen elapsed: "
+          << splash_screen_elapsed.InMilliseconds()
+          << "ms, remaining delay: " << remaining_delay.InMilliseconds()
+          << "ms.";
+  if (web_contents_) {
+    if (is_video_splash_screen_) {
+      // Send hidden event to WebApp if it's video-based splash screen.
+      web_contents_->WasHidden();
+    }
+    content::GetUIThreadTaskRunner({})->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&Shell::SwitchToMainWebContents,
+                       weak_factory_.GetWeakPtr()),
+        remaining_delay);
+  }
+}
 
 void Shell::TitleWasSet(NavigationEntry* entry) {
   if (entry) {
     g_platform->SetTitle(this, entry->GetTitle());
+  }
+}
+
+void Shell::SwitchToMainWebContents() {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  // It is safe to use |has_switched_to_main_frame_|
+  // instead of a lock due to it is on a single thread.
+  // This could be called multiple times.
+  if (!has_switched_to_main_frame_) {
+    VLOG(1) << "NativeSplash: Switching to main frame WebContents.";
+    has_switched_to_main_frame_ = true;
+    if (web_contents_) {
+      CHECK(GetPlatform());
+      GetPlatform()->UpdateContents(this);
+      if (GetPlatform()->IsVisible() || is_video_splash_screen_) {
+        web_contents_->WasShown();
+      }
+      if (web_contents()->GetRenderWidgetHostView()) {
+        web_contents()->GetRenderWidgetHostView()->Focus();
+      }
+    }
+    if (splash_screen_web_contents_) {
+      splash_screen_web_contents_.reset();
+      splash_screen_web_contents_observer_.reset();
+      splash_screen_web_contents_delegate_.reset();
+    }
+  }
+}
+
+void Shell::OnSplashScreenLoadComplete() {
+  if (splash_state_ >= STATE_SPLASH_SCREEN_STARTED &&
+      splash_screen_start_time_.is_null()) {
+    splash_screen_start_time_ = base::TimeTicks::Now();
+    if (is_main_frame_loaded_) {
+      ScheduleSwitchToMainWebContents();
+    }
+  }
+}
+
+void Shell::ClosingSplashScreenWebContents() {
+  VLOG(1) << "NativeSplash: Closing splash screen WebContents.";
+  splash_state_ = STATE_SPLASH_SCREEN_ENDED;
+  if (is_main_frame_loaded_) {
+    // If main frame WebContents is loaded, switch to it.
+    SwitchToMainWebContents();
   }
 }
 

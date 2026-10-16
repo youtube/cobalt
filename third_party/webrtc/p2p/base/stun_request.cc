@@ -11,20 +11,28 @@
 #include "p2p/base/stun_request.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/memory/memory.h"
+#include "api/array_view.h"
+#include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
+#include "api/task_queue/task_queue_base.h"
+#include "api/transport/stun.h"
+#include "api/units/time_delta.h"
+#include "rtc_base/byte_buffer.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/helpers.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/time_utils.h"  // For TimeMillis
 
-namespace cricket {
-using ::webrtc::SafeTask;
+namespace webrtc {
 
 // RFC 5389 says SHOULD be 500ms.
 // For years, this was 100ms, but for networks that
@@ -35,7 +43,7 @@ const int STUN_INITIAL_RTO = 250;  // milliseconds
 // The timeout doubles each retransmission, up to this many times
 // RFC 5389 says SHOULD retransmit 7 times.
 // This has been 8 for years (not sure why).
-const int STUN_MAX_RETRANSMISSIONS = 8;           // Total sends: 9
+const int STUN_MAX_RETRANSMISSIONS = 8;  // Total sends: 9
 
 // We also cap the doubling, even though the standard doesn't say to.
 // This has been 1.6 seconds for years, but for networks that
@@ -44,7 +52,7 @@ const int STUN_MAX_RETRANSMISSIONS = 8;           // Total sends: 9
 const int STUN_MAX_RTO = 8000;  // milliseconds, or 5 doublings
 
 StunRequestManager::StunRequestManager(
-    webrtc::TaskQueueBase* thread,
+    TaskQueueBase* thread,
     std::function<void(const void*, size_t, StunRequest*)> send_packet)
     : thread_(thread), send_packet_(std::move(send_packet)) {}
 
@@ -57,10 +65,14 @@ void StunRequestManager::Send(StunRequest* request) {
 void StunRequestManager::SendDelayed(StunRequest* request, int delay) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK_EQ(this, request->manager());
+  RTC_DCHECK(!request->AuthenticationRequired() ||
+             request->msg()->integrity() !=
+                 StunMessage::IntegrityStatus::kNotSet)
+      << "Sending request w/o integrity!";
   auto [iter, was_inserted] =
       requests_.emplace(request->id(), absl::WrapUnique(request));
   RTC_DCHECK(was_inserted);
-  request->Send(webrtc::TimeDelta::Millis(delay));
+  request->Send(TimeDelta::Millis(delay));
 }
 
 void StunRequestManager::FlushForTest(int msg_type) {
@@ -74,7 +86,7 @@ void StunRequestManager::FlushForTest(int msg_type) {
       // of canceling any outstanding tasks and prepare a new flag for
       // operations related to this call to `Send`.
       request->ResetTasksForTest();
-      request->Send(webrtc::TimeDelta::Zero());
+      request->Send(TimeDelta::Zero());
     }
   }
 }
@@ -104,15 +116,23 @@ bool StunRequestManager::CheckResponse(StunMessage* msg) {
   StunRequest* request = iter->second.get();
 
   // Now that we know the request, we can see if the response is
-  // integrity-protected or not.
-  // For some tests, the message integrity is not set in the request.
-  // Complain, and then don't check.
+  // integrity-protected or not. Some requests explicitly disables
+  // integrity checks using SetAuthenticationRequired.
+  // TODO(chromium:1177125): Remove below!
+  // And we suspect that for some tests, the message integrity is not set in the
+  // request. Complain, and then don't check.
   bool skip_integrity_checking =
       (request->msg()->integrity() == StunMessage::IntegrityStatus::kNotSet);
-  if (skip_integrity_checking) {
+  if (!request->AuthenticationRequired()) {
+    // This is a STUN_BINDING to from stun_port.cc or
+    // the initial (unauthenticated) TURN_ALLOCATE_REQUEST.
+  } else if (skip_integrity_checking) {
+    // TODO(chromium:1177125): Remove below!
     // This indicates lazy test writing (not adding integrity attribute).
     // Complain, but only in debug mode (while developing).
-    RTC_DLOG(LS_ERROR)
+    RTC_LOG(LS_ERROR)
+        << "CheckResponse called on a passwordless request. Fix test!";
+    RTC_DCHECK(false)
         << "CheckResponse called on a passwordless request. Fix test!";
   } else {
     if (msg->integrity() == StunMessage::IntegrityStatus::kNotSet) {
@@ -133,31 +153,39 @@ bool StunRequestManager::CheckResponse(StunMessage* msg) {
     }
   }
 
-  bool success = true;
-
   if (!msg->GetNonComprehendedAttributes().empty()) {
     // If a response contains unknown comprehension-required attributes, it's
     // simply discarded and the transaction is considered failed. See RFC5389
     // sections 7.3.3 and 7.3.4.
     RTC_LOG(LS_ERROR) << ": Discarding response due to unknown "
                          "comprehension-required attribute.";
-    success = false;
+    requests_.erase(iter);
+    return false;
   } else if (msg->type() == GetStunSuccessResponseType(request->type())) {
     if (!msg->IntegrityOk() && !skip_integrity_checking) {
       return false;
     }
-    request->OnResponse(msg);
+    // Erase element from hash before calling callback. This ensures
+    // that the callback can modify the StunRequestManager any way it
+    // sees fit.
+    std::unique_ptr<StunRequest> owned_request = std::move(iter->second);
+    requests_.erase(iter);
+    owned_request->OnResponse(msg);
+    return true;
   } else if (msg->type() == GetStunErrorResponseType(request->type())) {
-    request->OnErrorResponse(msg);
+    // Erase element from hash before calling callback. This ensures
+    // that the callback can modify the StunRequestManager any way it
+    // sees fit.
+    std::unique_ptr<StunRequest> owned_request = std::move(iter->second);
+    requests_.erase(iter);
+    owned_request->OnErrorResponse(msg);
+    return true;
   } else {
     RTC_LOG(LS_ERROR) << "Received response with wrong type: " << msg->type()
                       << " (expecting "
                       << GetStunSuccessResponseType(request->type()) << ")";
     return false;
   }
-
-  requests_.erase(iter);
-  return success;
 }
 
 bool StunRequestManager::empty() const {
@@ -182,11 +210,11 @@ bool StunRequestManager::CheckResponse(const char* data, size_t size) {
 
   // Parse the STUN message and continue processing as usual.
 
-  rtc::ByteBufferReader buf(data, size);
+  ByteBufferReader buf(
+      MakeArrayView(reinterpret_cast<const uint8_t*>(data), size));
   std::unique_ptr<StunMessage> response(iter->second->msg_->CreateNew());
   if (!response->Read(&buf)) {
-    RTC_LOG(LS_WARNING) << "Failed to read STUN response "
-                        << rtc::hex_encode(id);
+    RTC_LOG(LS_WARNING) << "Failed to read STUN response " << hex_encode(id);
     return false;
   }
 
@@ -228,7 +256,7 @@ StunRequest::StunRequest(StunRequestManager& manager,
 StunRequest::~StunRequest() {}
 
 int StunRequest::type() {
-  RTC_DCHECK(msg_ != NULL);
+  RTC_DCHECK(msg_ != nullptr);
   return msg_->type();
 }
 
@@ -238,7 +266,7 @@ const StunMessage* StunRequest::msg() const {
 
 int StunRequest::Elapsed() const {
   RTC_DCHECK_RUN_ON(network_thread());
-  return static_cast<int>(rtc::TimeMillis() - tstamp_);
+  return static_cast<int>(TimeMillis() - tstamp_);
 }
 
 void StunRequest::SendInternal() {
@@ -249,22 +277,22 @@ void StunRequest::SendInternal() {
     return;
   }
 
-  tstamp_ = rtc::TimeMillis();
+  tstamp_ = TimeMillis();
 
-  rtc::ByteBufferWriter buf;
+  ByteBufferWriter buf;
   msg_->Write(&buf);
   manager_.SendPacket(buf.Data(), buf.Length(), this);
 
   OnSent();
-  SendDelayed(webrtc::TimeDelta::Millis(resend_delay()));
+  SendDelayed(TimeDelta::Millis(resend_delay()));
 }
 
-void StunRequest::SendDelayed(webrtc::TimeDelta delay) {
+void StunRequest::SendDelayed(TimeDelta delay) {
   network_thread()->PostDelayedTask(
       SafeTask(task_safety_.flag(), [this]() { SendInternal(); }), delay);
 }
 
-void StunRequest::Send(webrtc::TimeDelta delay) {
+void StunRequest::Send(TimeDelta delay) {
   RTC_DCHECK_RUN_ON(network_thread());
   RTC_DCHECK_GE(delay.ms(), 0);
 
@@ -276,7 +304,7 @@ void StunRequest::Send(webrtc::TimeDelta delay) {
 
 void StunRequest::ResetTasksForTest() {
   RTC_DCHECK_RUN_ON(network_thread());
-  task_safety_.reset(webrtc::PendingTaskSafetyFlag::CreateDetachedInactive());
+  task_safety_.reset(PendingTaskSafetyFlag::CreateDetachedInactive());
   count_ = 0;
   RTC_DCHECK(!timeout_);
 }
@@ -307,4 +335,4 @@ void StunRequest::set_timed_out() {
   timeout_ = true;
 }
 
-}  // namespace cricket
+}  // namespace webrtc

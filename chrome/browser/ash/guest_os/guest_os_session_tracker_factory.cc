@@ -28,18 +28,19 @@ GuestOsSessionTrackerFactory::GuestOsSessionTrackerFactory()
     : ProfileKeyedServiceFactory(
           "GuestOsSessionTracker",
           ProfileSelections::Builder()
-              .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
-              // Guest mode.
-              .WithGuest(ProfileSelection::kOriginalOnly)
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              .WithGuest(ProfileSelection::kNone)
+              .WithAshInternals(ProfileSelection::kNone)
+              .WithSystem(ProfileSelection::kNone)
               .Build()) {}
 
 GuestOsSessionTrackerFactory::~GuestOsSessionTrackerFactory() = default;
 
-KeyedService* GuestOsSessionTrackerFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+GuestOsSessionTrackerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
-  return new GuestOsSessionTracker(
+  return std::make_unique<GuestOsSessionTracker>(
       ash::ProfileHelper::GetUserIdHashFromProfile(profile));
 }
 

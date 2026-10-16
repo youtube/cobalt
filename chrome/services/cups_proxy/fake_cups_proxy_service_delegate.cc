@@ -16,9 +16,9 @@ std::vector<chromeos::Printer> FakeCupsProxyServiceDelegate::GetPrinters(
   return {};
 }
 
-absl::optional<chromeos::Printer> FakeCupsProxyServiceDelegate::GetPrinter(
+std::optional<chromeos::Printer> FakeCupsProxyServiceDelegate::GetPrinter(
     const std::string& id) {
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 std::vector<std::string>
@@ -30,9 +30,6 @@ bool FakeCupsProxyServiceDelegate::IsPrinterInstalled(
     const chromeos::Printer& printer) {
   return false;
 }
-
-void FakeCupsProxyServiceDelegate::PrinterInstalled(
-    const chromeos::Printer& printer) {}
 
 scoped_refptr<base::SingleThreadTaskRunner>
 FakeCupsProxyServiceDelegate::GetIOTaskRunner() {

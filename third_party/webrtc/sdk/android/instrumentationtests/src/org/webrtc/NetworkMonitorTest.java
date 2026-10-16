@@ -128,18 +128,6 @@ public class NetworkMonitorTest {
     public void setNetworkType(int networkType) {
       this.networkType = networkType;
     }
-
-    public void setNetworkSubtype(int networkSubtype) {
-      this.networkSubtype = networkSubtype;
-    }
-
-    public void setUnderlyingNetworkType(int underlyingNetworkTypeForVpn) {
-      this.underlyingNetworkTypeForVpn = underlyingNetworkTypeForVpn;
-    }
-
-    public void setUnderlyingNetworkSubype(int underlyingNetworkSubtypeForVpn) {
-      this.underlyingNetworkSubtypeForVpn = underlyingNetworkSubtypeForVpn;
-    }
   }
 
   /**
@@ -217,11 +205,6 @@ public class NetworkMonitorTest {
     wifiDelegate = new MockWifiManagerDelegate();
     receiver.setWifiManagerDelegateForTests(wifiDelegate);
     wifiDelegate.setWifiSSID("foo");
-  }
-
-  private NetworkMonitorAutoDetect.ConnectionType getCurrentConnectionType() {
-    final NetworkMonitorAutoDetect.NetworkState networkState = receiver.getCurrentNetworkState();
-    return NetworkMonitorAutoDetect.getConnectionType(networkState);
   }
 
   @Before
@@ -354,7 +337,8 @@ public class NetworkMonitorTest {
   @Test
   @SmallTest
   public void testConnectivityManager_includeOtherUidNetworks_disabled() {
-    NetworkRequest request = getNetworkRequestForFieldTrials("includeOtherUidNetworks:false");
+    NetworkRequest request = getNetworkRequestForFieldTrials(
+        "requestVPN:false,includeOtherUidNetworks:false");
     assertTrue(request.equals(new NetworkRequest.Builder()
                                   .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                                   .build()));
@@ -363,7 +347,8 @@ public class NetworkMonitorTest {
   @Test
   @SmallTest
   public void testConnectivityManager_includeOtherUidNetworks_enabled() {
-    NetworkRequest request = getNetworkRequestForFieldTrials("includeOtherUidNetworks:true");
+    NetworkRequest request = getNetworkRequestForFieldTrials(
+        "requestVPN:false,includeOtherUidNetworks:true");
     NetworkRequest.Builder builder =
         new NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

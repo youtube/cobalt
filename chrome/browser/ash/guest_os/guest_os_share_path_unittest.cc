@@ -4,9 +4,6 @@
 
 #include "chrome/browser/ash/guest_os/guest_os_share_path.h"
 
-#include "ash/components/arc/arc_util.h"
-#include "ash/components/arc/session/arc_session_runner.h"
-#include "ash/components/arc/test/fake_arc_session.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -17,17 +14,17 @@
 #include "chrome/browser/ash/arc/test/test_arc_session_manager.h"
 #include "chrome/browser/ash/crostini/crostini_manager.h"
 #include "chrome/browser/ash/crostini/crostini_util.h"
-#include "chrome/browser/ash/file_manager/fake_disk_mount_manager.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/file_manager/volume_manager.h"
 #include "chrome/browser/ash/file_manager/volume_manager_factory.h"
 #include "chrome/browser/ash/guest_os/guest_os_pref_names.h"
 #include "chrome/browser/ash/guest_os/guest_os_session_tracker.h"
+#include "chrome/browser/ash/guest_os/guest_os_session_tracker_factory.h"
+#include "chrome/browser/ash/guest_os/guest_os_share_path_factory.h"
 #include "chrome/browser/ash/guest_os/public/guest_os_service.h"
 #include "chrome/browser/ash/guest_os/public/types.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/plugin_vm/plugin_vm_util.h"
-#include "chrome/browser/component_updater/fake_cros_component_manager.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/browser_process_platform_part_test_api_chromeos.h"
 #include "chrome/test/base/scoped_testing_local_state.h"
@@ -44,12 +41,18 @@
 #include "chromeos/ash/components/dbus/seneschal/seneschal_service.pb.h"
 #include "chromeos/ash/components/dbus/vm_plugin_dispatcher/vm_plugin_dispatcher_client.h"
 #include "chromeos/ash/components/disks/disk_mount_manager.h"
+#include "chromeos/ash/components/disks/fake_disk_mount_manager.h"
+#include "chromeos/ash/experiences/arc/arc_util.h"
+#include "chromeos/ash/experiences/arc/session/arc_session_runner.h"
+#include "chromeos/ash/experiences/arc/test/fake_arc_session.h"
 #include "components/account_id/account_id.h"
+#include "components/component_updater/ash/fake_component_manager_ash.h"
 #include "components/drive/drive_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "content/public/test/browser_task_environment.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -245,34 +248,34 @@ class GuestOsSharePathTest : public testing::Test {
 
   void SetUp() override {
     component_manager_ =
-        base::MakeRefCounted<component_updater::FakeCrOSComponentManager>();
+        base::MakeRefCounted<component_updater::FakeComponentManagerAsh>();
     component_manager_->set_supported_components({"cros-termina"});
     component_manager_->ResetComponentState(
         "cros-termina",
-        component_updater::FakeCrOSComponentManager::ComponentInfo(
-            component_updater::CrOSComponentManager::Error::NONE,
+        component_updater::FakeComponentManagerAsh::ComponentInfo(
+            component_updater::ComponentManagerAsh::Error::NONE,
             base::FilePath("/install/path"), base::FilePath("/mount/path")));
-    browser_part_.InitializeCrosComponentManager(component_manager_);
+    browser_part_.InitializeComponentManager(component_manager_);
     ash::DlcserviceClient::InitializeFake();
 
     run_loop_ = std::make_unique<base::RunLoop>();
     profile_ = std::make_unique<TestingProfile>();
-    guest_os_share_path_ = GuestOsSharePath::GetForProfile(profile());
+    guest_os_share_path_ = GuestOsSharePathFactory::GetForProfile(profile());
 
     // Setup for DriveFS.
     scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
         std::make_unique<ash::FakeChromeUserManager>());
     account_id_ = AccountId::FromUserEmailGaiaId(
-        profile()->GetProfileUserName(), "12345");
+        profile()->GetProfileUserName(), GaiaId("12345"));
     GetFakeUserManager()->AddUser(account_id_);
     profile()->GetPrefs()->SetString(drive::prefs::kDriveFsProfileSalt, "a");
     drivefs_ =
         base::FilePath("/media/fuse/drivefs-84675c855b63e12f384d45f033826980");
 
-    guest_os::GuestOsSessionTracker::GetForProfile(profile())
+    guest_os::GuestOsSessionTrackerFactory::GetForProfile(profile())
         ->AddGuestForTesting(guest_os::GuestId{guest_os::VmType::UNKNOWN,
                                                "vm-running", "unused"});
-    guest_os::GuestOsSessionTracker::GetForProfile(profile())
+    guest_os::GuestOsSessionTrackerFactory::GetForProfile(profile())
         ->AddGuestForTesting(guest_os::GuestId{guest_os::VmType::TERMINA,
                                                crostini::kCrostiniDefaultVmName,
                                                "unused"});
@@ -280,7 +283,7 @@ class GuestOsSharePathTest : public testing::Test {
     g_browser_process->platform_part()
         ->InitializeSchedulerConfigurationManager();
     ash::disks::DiskMountManager::InitializeForTesting(
-        new file_manager::FakeDiskMountManager);
+        new ash::disks::FakeDiskMountManager);
     file_manager::VolumeManagerFactory::GetInstance()->SetTestingFactory(
         profile(), base::BindRepeating(&BuildVolumeManager));
     root_ = file_manager::util::GetMyFilesFolderForProfile(profile());
@@ -305,7 +308,7 @@ class GuestOsSharePathTest : public testing::Test {
     profile_.reset();
     ash::disks::DiskMountManager::Shutdown();
     ash::DlcserviceClient::Shutdown();
-    browser_part_.ShutdownCrosComponentManager();
+    browser_part_.ShutdownComponentManager();
     component_manager_.reset();
   }
 
@@ -323,13 +326,13 @@ class GuestOsSharePathTest : public testing::Test {
   base::FilePath drivefs_;
   std::unique_ptr<file_manager::Volume> volume_downloads_;
 
-  raw_ptr<ash::FakeSeneschalClient, ExperimentalAsh> fake_seneschal_client_;
-  raw_ptr<ash::FakeConciergeClient, ExperimentalAsh> fake_concierge_client_;
+  raw_ptr<ash::FakeSeneschalClient, DanglingUntriaged> fake_seneschal_client_;
+  raw_ptr<ash::FakeConciergeClient, DanglingUntriaged> fake_concierge_client_;
 
   content::BrowserTaskEnvironment task_environment_;
   std::unique_ptr<base::RunLoop> run_loop_;
   std::unique_ptr<TestingProfile> profile_;
-  raw_ptr<GuestOsSharePath, ExperimentalAsh> guest_os_share_path_;
+  raw_ptr<GuestOsSharePath, DanglingUntriaged> guest_os_share_path_;
   base::test::ScopedFeatureList features_;
   std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
   AccountId account_id_;
@@ -337,7 +340,7 @@ class GuestOsSharePathTest : public testing::Test {
 
  private:
   std::unique_ptr<ScopedTestingLocalState> local_state_;
-  scoped_refptr<component_updater::FakeCrOSComponentManager> component_manager_;
+  scoped_refptr<component_updater::FakeComponentManagerAsh> component_manager_;
   BrowserProcessPlatformPartTestApi browser_part_;
 };
 
@@ -419,7 +422,7 @@ TEST_F(GuestOsSharePathTest, SuccessDriveFsTeamDrives) {
   run_loop()->Run();
 }
 
-// TODO(crbug.com/917920): Enable when DriveFS enforces allowed write paths.
+// TODO(crbug.com/40607763): Enable when DriveFS enforces allowed write paths.
 TEST_F(GuestOsSharePathTest, DISABLED_SuccessDriveFsComputersGrandRoot) {
   guest_os_share_path_->SharePath(
       "vm-running", 0, drivefs_.Append("Computers"),
@@ -431,7 +434,7 @@ TEST_F(GuestOsSharePathTest, DISABLED_SuccessDriveFsComputersGrandRoot) {
   run_loop()->Run();
 }
 
-// TODO(crbug.com/917920): Remove when DriveFS enforces allowed write paths.
+// TODO(crbug.com/40607763): Remove when DriveFS enforces allowed write paths.
 TEST_F(GuestOsSharePathTest, Bug917920DriveFsComputersGrandRoot) {
   guest_os_share_path_->SharePath(
       "vm-running", 0, drivefs_.Append("Computers"),
@@ -442,7 +445,7 @@ TEST_F(GuestOsSharePathTest, Bug917920DriveFsComputersGrandRoot) {
   run_loop()->Run();
 }
 
-// TODO(crbug.com/917920): Enable when DriveFS enforces allowed write paths.
+// TODO(crbug.com/40607763): Enable when DriveFS enforces allowed write paths.
 TEST_F(GuestOsSharePathTest, DISABLED_SuccessDriveFsComputerRoot) {
   guest_os_share_path_->SharePath(
       "vm-running", 0, drivefs_.Append("Computers").Append("pc"),
@@ -454,7 +457,7 @@ TEST_F(GuestOsSharePathTest, DISABLED_SuccessDriveFsComputerRoot) {
   run_loop()->Run();
 }
 
-// TODO(crbug.com/917920): Remove when DriveFS enforces allowed write paths.
+// TODO(crbug.com/40607763): Remove when DriveFS enforces allowed write paths.
 TEST_F(GuestOsSharePathTest, Bug917920DriveFsComputerRoot) {
   guest_os_share_path_->SharePath(
       "vm-running", 0, drivefs_.Append("Computers").Append("pc"),
@@ -555,6 +558,27 @@ TEST_F(GuestOsSharePathTest, SuccessGuestOs) {
                      SeneschalClientCalled::YES,
                      &vm_tools::seneschal::SharePathRequest::GUEST_OS_FILES, "",
                      Success::YES, ""));
+  run_loop()->Run();
+}
+
+TEST_F(GuestOsSharePathTest, SuccessFusebox) {
+  guest_os_share_path_->SharePath(
+      "vm-running", 0, base::FilePath("/media/fuse/fusebox/subdir"),
+      base::BindOnce(&GuestOsSharePathTest::SharePathCallback,
+                     base::Unretained(this), "vm-running",
+                     SeneschalClientCalled::YES,
+                     &vm_tools::seneschal::SharePathRequest::FUSEBOX, "subdir",
+                     Success::YES, ""));
+  run_loop()->Run();
+}
+
+TEST_F(GuestOsSharePathTest, FailFuseboxRoot) {
+  guest_os_share_path_->SharePath(
+      "vm-running", 0, base::FilePath("/media/fuse/fusebox"),
+      base::BindOnce(&GuestOsSharePathTest::SharePathCallback,
+                     base::Unretained(this), "vm-running",
+                     SeneschalClientCalled::NO, nullptr, "", Success::NO,
+                     "Path is not allowed"));
   run_loop()->Run();
 }
 

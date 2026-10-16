@@ -11,6 +11,10 @@
 #ifndef MODULES_RTP_RTCP_SOURCE_PACKET_SEQUENCER_H_
 #define MODULES_RTP_RTCP_SOURCE_PACKET_SEQUENCER_H_
 
+#include <cstdint>
+#include <optional>
+
+#include "api/units/timestamp.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "system_wrappers/include/clock.h"
@@ -28,7 +32,7 @@ class PacketSequencer {
   // last packets of a video frame).
   // Packets with unknown SSRCs will be ignored.
   PacketSequencer(uint32_t media_ssrc,
-                  absl::optional<uint32_t> rtx_ssrc,
+                  std::optional<uint32_t> rtx_ssrc,
                   bool require_marker_before_media_padding,
                   Clock* clock);
 
@@ -58,7 +62,7 @@ class PacketSequencer {
   void PopulatePaddingFields(RtpPacketToSend& packet);
 
   const uint32_t media_ssrc_;
-  const absl::optional<uint32_t> rtx_ssrc_;
+  const std::optional<uint32_t> rtx_ssrc_;
   const bool require_marker_before_media_padding_;
   Clock* const clock_;
 
@@ -67,8 +71,8 @@ class PacketSequencer {
 
   int8_t last_payload_type_;
   uint32_t last_rtp_timestamp_;
-  int64_t last_capture_time_ms_;
-  int64_t last_timestamp_time_ms_;
+  Timestamp last_capture_time_ = Timestamp::MinusInfinity();
+  Timestamp last_timestamp_time_ = Timestamp::MinusInfinity();
   bool last_packet_marker_bit_;
 };
 

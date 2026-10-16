@@ -7,9 +7,10 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/memory/raw_ptr.h"
-#include "base/strings/string_piece.h"
+#include "net/server/web_socket_parse_result.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/websockets/websocket_frame.h"
 
@@ -22,24 +23,12 @@ class WebSocketEncoder;
 
 class WebSocket final {
  public:
-  enum ParseResult {
-    // Final frame of a text message or compressed frame.
-    FRAME_OK_FINAL,
-    // Other frame of a text message.
-    FRAME_OK_MIDDLE,
-    FRAME_PING,
-    FRAME_PONG,
-    FRAME_INCOMPLETE,
-    FRAME_CLOSE,
-    FRAME_ERROR
-  };
-
   WebSocket(HttpServer* server, HttpConnection* connection);
 
   void Accept(const HttpServerRequestInfo& request,
               const NetworkTrafficAnnotationTag traffic_annotation);
-  ParseResult Read(std::string* message);
-  void Send(base::StringPiece message,
+  WebSocketParseResult Read(std::string* message);
+  void Send(std::string_view message,
             WebSocketFrameHeader::OpCodeEnum op_code,
             const NetworkTrafficAnnotationTag traffic_annotation);
 

@@ -16,12 +16,13 @@
 
 #include <unistd.h>
 
+#include "build/build_config.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/extension/enhanced_audio.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/mime_type.h"
+#include "starboard/shared/starboard/media/resolutions.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
@@ -40,8 +41,7 @@ void StubDeallocateSampleFunc(SbPlayer player,
                               void* context,
                               const void* sample_buffer) {}
 
-std::string GetContentTypeFromAudioCodec(SbMediaAudioCodec audio_codec,
-                                         const char* mime_attributes) {
+std::string GetContentTypeFromAudioCodec(SbMediaAudioCodec audio_codec) {
   SB_DCHECK_NE(audio_codec, kSbMediaAudioCodecNone);
 
   std::string content_type;
@@ -64,14 +64,13 @@ std::string GetContentTypeFromAudioCodec(SbMediaAudioCodec audio_codec,
     default:
       SB_NOTREACHED();
   }
-  return strlen(mime_attributes) > 0 ? content_type + "; " + mime_attributes
-                                     : content_type;
+  return content_type;
 }
 
 std::vector<const char*> GetSupportedAudioTestFiles(
     HeaacOption heaac_option,
     int max_channels,
-    const char* extra_mime_attributes) {
+    PassthroughOption passthrough_option) {
   // beneath_the_canopy_aac_stereo.dmp
   //   codec: kSbMediaAudioCodecAac
   //   sampling rate: 44.1k
@@ -133,11 +132,22 @@ std::vector<const char*> GetSupportedAudioTestFiles(
       continue;
     }
 
+#if BUILDFLAG(IS_ANDROID)
+    // On Android, AC3 and E-AC3 are supported exclusively via audio
+    // passthrough and do not have an audio decoder.
+    if (passthrough_option == kExcludePassthrough &&
+        (audio_file_info.audio_codec == kSbMediaAudioCodecAc3 ||
+         audio_file_info.audio_codec == kSbMediaAudioCodecEac3)) {
+      continue;
+    }
+#endif
+
     // Filter files of unsupported codec.
-    const std::string audio_mime = GetContentTypeFromAudioCodec(
-        audio_file_info.audio_codec, extra_mime_attributes);
-    const MimeType audio_mime_type(audio_mime.c_str());
-    if (!MediaIsAudioSupported(audio_file_info.audio_codec, &audio_mime_type,
+    const std::string audio_mime =
+        GetContentTypeFromAudioCodec(audio_file_info.audio_codec);
+    auto audio_mime_type = MimeType::Create(audio_mime);
+    if (!audio_mime_type ||
+        !MediaIsAudioSupported(audio_file_info.audio_codec, &*audio_mime_type,
                                audio_file_info.bitrate)) {
       continue;
     }
@@ -179,7 +189,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
 
       const auto& video_stream_info = dmp_reader.video_stream_info();
       const std::string video_mime = dmp_reader.video_mime_type();
-      const MimeType video_mime_type(video_mime.c_str());
+      auto video_mime_type = MimeType::Create(video_mime);
       // MediaIsVideoSupported may return false for gpu based decoder that in
       // fact supports av1 or/and vp9 because the system can make async
       // initialization at startup.
@@ -191,8 +201,8 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
                                      video_codec == kSbMediaVideoCodecVp9;
       do {
         if (MediaIsVideoSupported(
-                video_codec, video_mime.size() > 0 ? &video_mime_type : nullptr,
-                -1, -1, 8, kSbMediaPrimaryIdUnspecified,
+                video_codec, video_mime_type ? &*video_mime_type : nullptr, -1,
+                -1, 8, kSbMediaPrimaryIdUnspecified,
                 kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
                 video_stream_info.frame_size.width,
                 video_stream_info.frame_size.height, dmp_reader.video_bitrate(),
@@ -217,6 +227,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
 
 bool CreateAudioComponents(
     bool using_stub_decoder,
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     std::unique_ptr<AudioDecoder>* audio_decoder,
     std::unique_ptr<AudioRendererSink>* audio_renderer_sink) {
@@ -227,7 +238,7 @@ bool CreateAudioComponents(
   audio_decoder->reset();
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
-      audio_stream_info);
+      audio_stream_info, job_queue);
 
   std::unique_ptr<PlayerComponents::Factory> factory;
   if (using_stub_decoder) {
@@ -235,10 +246,10 @@ bool CreateAudioComponents(
   } else {
     factory = PlayerComponents::Factory::Create();
   }
-  std::string error_message;
-  if (factory->CreateSubComponents(creation_parameters, audio_decoder,
-                                   audio_renderer_sink, nullptr, nullptr,
-                                   nullptr, &error_message)) {
+  auto sub_components = factory->CreateSubComponents(creation_parameters);
+  if (sub_components) {
+    *audio_decoder = std::move(sub_components->audio.decoder);
+    *audio_renderer_sink = std::move(sub_components->audio.renderer_sink);
     SB_CHECK(*audio_decoder);
     return true;
   }
@@ -270,13 +281,9 @@ VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
   video_stream_info.color_metadata.matrix = kSbMediaMatrixIdBt709;
   video_stream_info.color_metadata.range = kSbMediaRangeIdLimited;
 
-  video_stream_info.frame_size = {1920, 1080};
+  video_stream_info.frame_size = Resolution::k1080p;
 
   return video_stream_info;
-}
-
-bool IsPartialAudioSupported() {
-  return true;
 }
 
 scoped_refptr<InputBuffer> GetAudioInputBuffer(VideoDmpReader* dmp_reader,

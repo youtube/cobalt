@@ -14,18 +14,20 @@
 -- limitations under the License.
 --
 
-SELECT IMPORT('android.monitor_contention');
+INCLUDE PERFETTO MODULE android.monitor_contention;
 
 DROP VIEW IF EXISTS android_monitor_contention_output;
-CREATE VIEW android_monitor_contention_output AS
+CREATE PERFETTO VIEW android_monitor_contention_output AS
 SELECT AndroidMonitorContentionMetric(
   'node', (
     SELECT RepeatedField(
       AndroidMonitorContentionMetric_Node(
         'node_parent_id', parent_id,
+        'node_child_id', child_id,
         'node_id', id,
         'ts', ts,
         'dur', dur,
+        'monotonic_dur', monotonic_dur,
         'blocking_method', blocking_method,
         'blocked_method', blocked_method,
         'short_blocking_method', short_blocking_method,
@@ -35,7 +37,10 @@ SELECT AndroidMonitorContentionMetric(
         'waiter_count', waiter_count,
         'blocking_thread_name', blocking_thread_name,
         'blocked_thread_name', blocked_thread_name,
+        'blocked_thread_tid', blocked_thread_tid,
+        'blocking_thread_tid', blocking_thread_tid,
         'process_name', process_name,
+        'pid', pid,
         'is_blocked_thread_main', is_blocked_thread_main,
         'is_blocking_thread_main', is_blocking_thread_main,
         'binder_reply_ts', binder_reply_ts,

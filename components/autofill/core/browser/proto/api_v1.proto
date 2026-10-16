@@ -26,18 +26,13 @@ message AutofillPageResourceQueryRequest {
 // see this as batched form requests.
 // Next ID: 4
 message AutofillPageQueryRequest {
-  // Next ID: 3
+  // Next ID: 5
   message Form {
-    // Next ID: 4
+    // Next ID: 5
     message Field {
       // Signature made of the field |name| and |control_type|.
       optional fixed32 signature = 1;
-      // Name of the field (e.g., "First Name").
-      optional string name = 2;
-      // Type of the control (e.g., "email").
-      optional string control_type = 3;
-      // Metadata around the field.
-      optional AutofillRandomizedFieldMetadata metadata = 4;
+      reserved 2, 3, 4;
     };
     // Signature of the form that is made of:
     //  - URL scheme (e.g., "http")
@@ -47,8 +42,14 @@ message AutofillPageQueryRequest {
     optional fixed64 signature = 1;
     // Fields of the form for which we want suggestions.
     repeated Field fields = 2;
-    // Metadata around the form.
-    optional AutofillRandomizedFormMetadata metadata = 3;
+    reserved 3;
+    // Alternative signature of the form that is made of:
+    //  - URL scheme (e.g., "http")
+    //  - URL domain page (e.g., "google.com")
+    //  - Concatenated fields' form control types (e.g., "text", "password")
+    //  - For forms with 1-2 fields, one of the following non-empty elements
+    //  ordered by preference: path, reference, or query.
+    optional fixed64 alternative_signature = 4;
   };
   // Version of the client. Do not use, deprecated.
   optional string client_version = 1 [deprecated = true];
@@ -63,12 +64,12 @@ message AutofillPageQueryRequest {
 // as in the request that gave the response.
 // Next ID: 2
 message AutofillQueryResponse {
-  // Next ID: 2
+  // Next ID: 3
   message FormSuggestion {
-    // Next ID: 7
+    // Next ID: 9
     message FieldSuggestion {
       // Prediction made on a field.
-      // Next ID: 4
+      // Next ID: 5
       message FieldPrediction {
         // This lists all the different ways predictions can be provided,
         // including some experiments.
@@ -88,6 +89,17 @@ message AutofillQueryResponse {
           // The autofill prediction came from the experiment which considers
           // fields ranks.
           SOURCE_FIELD_RANKS = 5;
+          // The prediction was specified as a command line override (used for
+          // testing purposes only).
+          SOURCE_MANUAL_OVERRIDE = 6;
+          // The autofill prediction came from the experiment which considers
+          // combined types of addresses.
+          SOURCE_AUTOFILL_COMBINED_TYPES = 7 [deprecated = true];
+          // The prediction is a (cached) Autofill AI model prediction.
+          SOURCE_AUTOFILL_AI = 8;
+          // The prediction is a crowdsourced Autofill AI prediction based on
+          // client type votes.
+          SOURCE_AUTOFILL_AI_CROWDSOURCING = 9;
         }
 
         // The predicted field type.
@@ -99,6 +111,7 @@ message AutofillQueryResponse {
         // The source of the prediction. E.g. which pipeline, which experiment,
         // etc.
         optional Source source = 3;
+        reserved 4;  // repeated .autofill.AlternativeType alternative_types
       }
       // Signature identifying the field that is the same as in the request.
       optional fixed32 field_signature = 1;
@@ -106,16 +119,19 @@ message AutofillQueryResponse {
       // Detailed list of all possible predictions. Contains an autofill and/or
       // a password manager prediction.
       repeated FieldPrediction predictions = 3;
-      // Whether the server-side classification believes that the field
-      // may be pre-filled with a placeholder in the value attribute.
-      optional bool may_use_prefilled_placeholder = 4;
+      reserved 4;  // optional bool may_use_prefilled_placeholder
       // For fields of type NEW_PASSWORD and ACCOUNT_CREATION_PASSWORD, this may
       // specify requirements for the generation of passwords.
       optional .autofill.PasswordRequirementsSpec password_requirements = 5;
       reserved 6;  // optional bool primary_type_prediction_is_override
+      reserved 7;  // optional string format_string = 7;
+      optional FormatString format_string = 8;
     };
     // Suggestions on the fields in the same form.
     repeated FieldSuggestion field_suggestions = 1;
+
+    // Indicates whether the client may run the AutofillAI model on this form.
+    optional bool run_autofill_ai_model = 2;
   };
   // Suggestions for forms in the same page.
   repeated FormSuggestion form_suggestions = 1;

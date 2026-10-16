@@ -9,11 +9,14 @@
 #include <vector>
 
 #include "base/functional/callback_forward.h"
-#include "chrome/common/importer/importer_data_types.h"
 #include "components/favicon_base/favicon_usage_data.h"
+#include "components/user_data_importer/common/importer_data_types.h"
 
 class GURL;
+
+namespace user_data_importer {
 struct ImportedBookmarkEntry;
+}  // namespace user_data_importer
 
 namespace base {
 class FilePath;
@@ -46,8 +49,8 @@ void ImportBookmarksFile(
     base::RepeatingCallback<bool(void)> cancellation_callback,
     base::RepeatingCallback<bool(const GURL&)> valid_url_callback,
     const base::FilePath& file_path,
-    std::vector<ImportedBookmarkEntry>* bookmarks,
-    std::vector<importer::SearchEngineInfo>* search_engines,
+    std::vector<user_data_importer::ImportedBookmarkEntry>* bookmarks,
+    std::vector<user_data_importer::SearchEngineInfo>* search_engines,
     favicon_base::FaviconUsageDataList* favicons);
 
 // Returns true if |url| should be imported as a search engine, i.e. because it

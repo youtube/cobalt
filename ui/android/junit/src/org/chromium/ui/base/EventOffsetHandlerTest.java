@@ -17,14 +17,12 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 
-/**
- * Unit tests for the EventOffsetHandler.
- */
+/** Unit tests for the EventOffsetHandler. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class EventOffsetHandlerTest {
     private EventOffsetHandler mHandler;
-    private EventOffsetHandler.EventOffsetHandlerDelegate mDelegate =
+    private final EventOffsetHandler.EventOffsetHandlerDelegate mDelegate =
             new EventOffsetHandler.EventOffsetHandlerDelegate() {
                 @Override
                 public float getTop() {
@@ -63,12 +61,12 @@ public class EventOffsetHandlerTest {
         assertOffsets(-200);
 
         MotionEvent motionStart = MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 100, 100, 0);
-        mHandler.onInterceptTouchEvent(motionStart);
+        mHandler.onInterceptTouchDownEvent(motionStart);
 
         assertOffsets(-200);
 
         MotionEvent motionEnd = MotionEvent.obtain(0, 0, MotionEvent.ACTION_UP, 100, 100, 0);
-        mHandler.onInterceptTouchEvent(motionStart);
+        mHandler.onInterceptTouchDownEvent(motionStart);
 
         assertOffsets(-200);
 

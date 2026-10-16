@@ -6,7 +6,9 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_arraybuffer_arraybufferview.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_credential_instrument.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_currency_amount.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_details_modifier.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_method_data.h"
@@ -218,6 +220,7 @@ payments::mojom::blink::PaymentAddressPtr BuildPaymentAddressForTest() {
 PaymentRequestV8TestingScope::PaymentRequestV8TestingScope()
     : V8TestingScope(KURL("https://www.example.com/")) {}
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 SecurePaymentConfirmationRequest* CreateSecurePaymentConfirmationRequest(
     const V8TestingScope& scope,
     const bool include_payee_name) {
@@ -227,16 +230,12 @@ SecurePaymentConfirmationRequest* CreateSecurePaymentConfirmationRequest(
   HeapVector<Member<V8UnionArrayBufferOrArrayBufferView>> credentialIds;
   credentialIds.push_back(
       MakeGarbageCollected<V8UnionArrayBufferOrArrayBufferView>(
-          DOMArrayBuffer::Create(
-              kSecurePaymentConfirmationCredentialId,
-              std::size(kSecurePaymentConfirmationCredentialId))));
+          DOMArrayBuffer::Create(kSecurePaymentConfirmationCredentialId)));
   request->setCredentialIds(credentialIds);
 
   request->setChallenge(
       MakeGarbageCollected<V8UnionArrayBufferOrArrayBufferView>(
-          DOMArrayBuffer::Create(
-              kSecurePaymentConfirmationChallenge,
-              std::size(kSecurePaymentConfirmationChallenge))));
+          DOMArrayBuffer::Create(kSecurePaymentConfirmationChallenge)));
 
   PaymentCredentialInstrument* instrument =
       PaymentCredentialInstrument::Create(scope.GetIsolate());
@@ -261,10 +260,11 @@ BuildSecurePaymentConfirmationMethodDataForTest(const V8TestingScope& scope) {
   HeapVector<Member<PaymentMethodData>> method_data(
       1, PaymentMethodData::Create());
   method_data[0]->setSupportedMethod("secure-payment-confirmation");
-  method_data[0]->setData(ScriptValue(
-      scope.GetIsolate(), spc_request->ToV8Value(scope.GetScriptState())));
+  method_data[0]->setData(ScriptObject(
+      scope.GetIsolate(), spc_request->ToV8(scope.GetScriptState())));
 
   return method_data;
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 }  // namespace blink

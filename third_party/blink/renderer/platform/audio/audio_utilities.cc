@@ -113,6 +113,12 @@ size_t TimeToSampleFrame(double time,
   return static_cast<size_t>(frame);
 }
 
+base::TimeDelta FramesToTime(int64_t frames, float sample_rate) {
+  CHECK_GT(sample_rate, 0.f);
+  return base::Microseconds(static_cast<int64_t>(
+      frames * base::Time::kMicrosecondsPerSecond / sample_rate));
+}
+
 bool IsValidAudioBufferSampleRate(float sample_rate) {
   return sample_rate >= MinAudioBufferSampleRate() &&
          sample_rate <= MaxAudioBufferSampleRate();
@@ -127,13 +133,6 @@ float MaxAudioBufferSampleRate() {
   // <video> tags support sample rates up 768 kHz so audio context
   // should too.
   return 768000;
-}
-
-bool IsPowerOfTwo(size_t x) {
-  // From Hacker's Delight.  x & (x - 1) turns off (zeroes) the
-  // rightmost 1-bit in the word x.  If x is a power of two, then the
-  // result is, of course, 0.
-  return x > 0 && ((x & (x - 1)) == 0);
 }
 
 const std::string GetSinkIdForTracing(

@@ -1,14 +1,14 @@
 # UseCounter Wiki
 
-UseCounter measures the usage of HTML and JavaScript features across all
-channels and platforms in the wild. Feature usage is recorded per page load and
-is anonymously aggregated. Note measurements only take place on HTTP/HTTPS
-pages. Usages on new tab page, data URL, or file URL are not. Usages on
-extensions is measured on a separate histogram.
+UseCounter can measure the usage of HTML, CSS, and JavaScript (etc) features
+across all channels and platforms in the wild. Feature usage is recorded per
+page load and is anonymously aggregated. Note, measurements are only recorded
+for HTTP/HTTPS pages. Usage on the new tab page, on data URLs or file URLs are
+not. Usages in extensions is measured on a separate histogram.
 
 UseCounter data can be biased against scenarios where user metrics analysis is
 not enabled (e.g., enterprises). However, UseCounter data is essential for
-[web compat decision making](https://www.chromium.org/blink/platform-predictability/compat-tools)
+understanding adoption of [new and existing features](https://webstatus.dev/), [web compat decision making](https://www.chromium.org/blink/platform-predictability/compat-tools)
 and [the blink process for breaking changes](https://sites.google.com/a/chromium.org/dev/blink/removing-features), as it reflects the real Chrome usage with a wide fraction of coverage.
 The results are publicly available on https://chromestatus.com/ and internally
 (for Google employees) on [UMA dashboard](https://goto.google.com/uma-usecounter)
@@ -21,13 +21,32 @@ break-downs.
 UseCounter measures feature usage via UMA histogram and UKM. To add your
 feature to UseCounter, simply:
 + Add your feature to the
-  [blink::mojom::WebFeature enum](https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom);
-+ Usage can be measured via:
-    * MeasureAs=\<enum value\> in the feature's IDL definition; Or
-    * blink::UseCounter::Count() for blink side features; Or
-    * content::ContentBrowserClient::LogWebFeatureForCurrentPage() for browser side features.
+  [blink::mojom::WebDXFeature enum](https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom)
+  or to the [blink::mojom::WebFeature enum](https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom);
++ Usage can be recorded via:
+    * \[[MeasureAs="WebDXFeature::\<enum value\>"]\] in the feature's IDL definition; Or
+    * \[[MeasureAs=\<WebFeature enum value\>]\] in the feature's IDL definition for WebFeature use counters; Or
+    * \[[Measure]\] in the feature's IDL definition for WebFeature use counters with an appropriately named use counter; Or
+    * `blink::UseCounter::CountWebDXFeature()` or `blink::UseCounter::Count()` for blink side features; Or
+    * `content::ContentBrowserClient::LogWeb[DX]FeatureForCurrentPage()` for browser side features.
++ Run [`update_use_counter_feature_enum.py`] to update the UMA mappings.
 
 Example:
+```c++
+enum WebDXFeature {
+  ...
+  kMyFeature = N,
+  ...
+}
+```
+```
+interface MyInterface {
+  ...
+  [MeasureAs="WebDXFeature::kMyFeature"] myIdlAttribute;
+  ...
+}
+```
+OR
 ```c++
 enum WebFeature {
   ...
@@ -46,6 +65,14 @@ OR
 ```c++
   MyInterface::MyBlinkSideFunction() {
     ...
+    UseCounter::CountWebDXFeature(context, WebDXFeature::kMyFeature);
+    ...
+  }
+```
+OR
+```c++
+  MyInterface::MyBlinkSideFunction() {
+    ...
     UseCounter::Count(context, WebFeature::kMyFeature);
     ...
   }
@@ -54,28 +81,57 @@ OR
 ```c++
   MyBrowserSideFunction() {
     ...
-    GetContentClient()->browser()->LogWebFeatureForCurrentPage(
-      render_frame_host, blink::mojom::WebFeature::kMyFeature);
+    GetContentClient()->browser()->LogWeb[DX]FeatureForCurrentPage(
+      render_frame_host, blink::mojom::Web[DX]Feature::kMyFeature);
     ...
   }
 ```
 
-Not all features collect URL-keyed metrics. To opt in your feature to UKM,
-simply add your feature to
+All WebDXFeature use counters automatically get URL-keyed metrics collected for
+them. But WebFeature and other types of counters do not collect URL-keyed
+metrics by default. To opt your non-WebDXFeature feature use counter in to UKM
+metrics collection, add your feature to
 [UseCounterPageLoadMetricsObserver::GetAllowedUkmFeatures()](https://cs.chromium.org/chromium/src/components/page_load_metrics/browser/observers/use_counter/ukm_features.cc)
-and get approval from one of the privacy owners.
+and get approval from the privacy/metrics owners.
 
 You can quickly verify that your feature is added to UMA histograms and UKM by
-checking chrome://histograms/Blink.UseCounter.Features and chrome://ukm in your
-local build.
+checking chrome://histograms/Blink.UseCounter.WebDXFeatures,
+chrome://histograms/Blink.UseCounter.Features and chrome://ukm in your local
+build.
+
+To add a test for a use counter, there are several options:
+ + For use counters recorded from the renderer,
+   [internal WPTs](https://chromium.googlesource.com/chromium/src/+/HEAD/third_party/blink/web_tests/wpt_internal/README.md)
+   expose the `internals.isUseCounted` and `internals.clearUseCounter`
+   functions for testing use counters recorded for a given document.
+
+ + Chrome browser tests can verify that use counters were recorded by using a
+   `base::HistogramTester` to check whether the "Blink.UseCounter.Features"
+   histogram was emitted to for the bucket corresponding to the new WebFeature.
+   If the use counter is recorded from the renderer,
+   `content::FetchHistogramsFromChildProcesses()` can be used to make this
+   use counter activity visible to the browser process.
+
+ + For use counters recorded from the browser process (e.g. by calling
+   `GetContentClient()->browser()->LogWebFeatureForCurrentPage()`), a content
+   browser test can be used by creating a subclass of
+   `ContentBrowserTestContentBrowserClient` that implements
+   `LogWebFeatureForCurrentPage`, creating an instance of it in
+   `SetUpOnMainThread`, and checking whether the instance's
+   `LogWebFeatureForCurrentPage` is called. One way to implement this is to
+   have `LogWebFeatureForCurrentPage` be defined as a `MOCK_METHOD` and then
+   use `EXPECT_CALL` to ensure that the method is called as expected with
+   the new WebFeature value. Note that the
+   `ContentBrowserTestContentBrowserClient` instance should be destroyed in
+   `TearDownOnMainThread`.
 
 ## Analyze UseCounter Histogram Data
 
 ### Public Data on https://chromestatus.com
 
-Usage of JavaScript and HTML features is available
+Usage of JavaScript and HTML features is publicly available
 [here](https://chromestatus.com/metrics/feature/popularity).
-Usage of CSS properties is available
+Usage of CSS properties is publicly available
 [here](https://chromestatus.com/metrics/css/popularity).
 
 The data reflects features' daily usage (count of feature hits / count of total
@@ -85,91 +141,58 @@ page visits):
 + For the most dominant milestone.
 
 
-### UMA Timeline with Formula
+### Internal UMA tools
 
-Internally (sorry, Google employees only) you can query the usage of a feature
-with break-downs on platforms, channels, etc on the
-[UMA Timeline dashboard](https://goto.google.com/uma-usecounter).
+See (https://goto.google.com/uma-usecounter) for internal tooling.
 
-To create break-downs, select filters on the top of the dashboard, for example,
-"Platform", and set the `operation` to "split by". Note that you can also see
-data usage within Android Webview by setting a filter on "Platform".
-
-Select Metric:
-+ "Blink.UseCounter.Features" for HTML and JavaScript features.
+Some metrics of interest:
++ "Blink.UseCounter.WebDXFeatures" for web platform features as defined in the
+  [web platform dx repository](https://github.com/web-platform-dx/web-features/).
++ "Blink.UseCounter.Features" for generic Web Platform use counters (some of which are mapped to WebDXFeature use counters).
 + "Blink.UseCounter.CSSProperties" for CSS properties.
 + "Blink.UseCounter.AnimatedCSSProperties" for animated CSS properties.
 + "Blink.UseCounter.Extensions.Features" for HTML and JacaScript features on
   extensions.
 
-In the metric panel, select "Formula" in the left-most drop-down. Then Click
-"ADD NEW FORMULA" with:
-```
-"MyFeature" / "PageVisits" * 100
-```
-
-This provides timeline data for your feature usage (per page load) with
-break-downs, which should more or less reflects the results on chromestatus.com.
-
-
 ### UseCounter Feature in HTTP Archive
 
-HTTP Archive crawls the top 10K sites on the web and records everything from
+HTTP Archive crawls the top sites on the web and records everything from
 request and response headers. The data is available on Google BigQuery.
 
-You can find pages that trigger a particular UseCounter using the following
-script:
+You can find usage and sample pages that trigger a particular UseCounter using
+the following script:
 
 ```sql
 SELECT
-  DATE(yyyymmdd) AS date,
+  date,
   client AS platform,
-  num_url AS url_count,
-  pct_urls AS urls_percentile,
+  num_urls AS url_count,
+  pct_urls AS urls_percent,
   sample_urls AS url
-FROM [httparchive:blink_features.usage]
-WHERE feature = 'MyFeature'
-ORDER BY url_percentile DESC
+FROM `httparchive.blink_features.usage`
+WHERE
+  feature = 'MyFeature' AND
+  date = (SELECT MAX(date) FROM `httparchive.blink_features.usage`)
+ORDER BY date DESC
 ```
-OR
+
+
+Or to see or filter my more data available in the HTTP Archive you can query the main `httparchive.crawl.pages` table like this:
 
 ```sql
-SELECT
-  url
-FROM [httparchive:pages.yyyy_mm_dd_mobile]
+SELECT DISTINCT
+  client,
+  page,
+  rank
+FROM
+  `httparchive.crawl.pages`,
+  UNNEST (features) As feats
 WHERE
-  JSON_EXTRACT(payload, '$._blinkFeatureFirstUsed.Features.MyFeature') IS NOT
-  NULL
-LIMIT 500
+  date = '2024-11-01' AND     -- update date to latest month
+  feats.feature = 'MyFeature' -- update feature
+ORDER BY
+  rank
 ```
-
-You can also find pages that trigger a particular CSS property (during parsing):
-
-```sql
-SELECT
-  url
-FROM [httparchive:pages.yyyy_mm_dd_mobile]
-WHERE
-  JSON_EXTRACT(payload, '$._blinkFeatureFirstUsed.CSSFeatures.MyCSSProperty')
-  IS NOT NULL
-LIMIT 500
-```
-
-To find pages that trigger a UseCounter and sort by page rank:
-
-```sql
-SELECT
-  IFNULL(runs.rank, 1000000) AS rank,
-  har.url AS url,
-FROM [httparchive:latest.pages_desktop] AS har
-LEFT JOIN [httparchive:runs.latest_pages] AS runs
-  ON har.url = runs.url
-WHERE
-  JSON_EXTRACT(payload, '$._blinkFeatureFirstUsed.Features.MyFeature') IS NOT
-  NULL
-ORDER BY rank;
-```
-
 
 ### UMA Usage on Fraction of Users
 You may also see the fraction of users that trigger your feature at lease once a
@@ -178,7 +201,5 @@ day on [UMA Usage dashboard](https://goto.google.com/uma-usecounter-peruser).
 
 ## Analyze UseCounter UKM Data
 For privacy concerns, UKM data is available for Google employees only.
-
-### UKM Dashboard
-UKM dashboard is accessible to Google employees only. Please see [this internal
-wiki](https://goto.google.com/usecounter-ukm-wiki) for details.
+Please see [this internal
+documentation](https://goto.google.com/ukm-blink-usecounter) for details.

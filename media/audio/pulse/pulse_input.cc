@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/audio/pulse/pulse_input.h"
 
 #include <stdint.h>
@@ -23,14 +28,14 @@ const int kNumberOfBlocksBufferInFifo = 2;
 
 PulseAudioInputStream::PulseAudioInputStream(
     AudioManagerPulse* audio_manager,
-    const std::string& device_name,
+    const std::string& source_name,
     const AudioParameters& params,
     pa_threaded_mainloop* mainloop,
     pa_context* context,
     AudioManager::LogCallback log_callback)
     : audio_manager_(audio_manager),
       callback_(nullptr),
-      device_name_(device_name),
+      source_name_(source_name),
       params_(params),
       channels_(0),
       volume_(0.0),
@@ -43,14 +48,20 @@ PulseAudioInputStream::PulseAudioInputStream(
       pa_context_(context),
       log_callback_(std::move(log_callback)),
       handle_(nullptr),
-      peak_detector_(base::BindRepeating(&AudioManager::TraceAmplitudePeak,
-                                         base::Unretained(audio_manager_),
-                                         /*trace_start=*/true)) {
+      peak_detector_(
+          audio_manager ? base::BindRepeating(&AudioManager::TraceAmplitudePeak,
+                                              base::Unretained(audio_manager_),
+                                              /*trace_start=*/true)
+                        : base::RepeatingClosure()) {
   DCHECK(mainloop);
   DCHECK(context);
   CHECK(params_.IsValid());
   SendLogMessage("%s({device_id=%s}, {params=[%s]})", __func__,
-                 device_name.c_str(), params.AsHumanReadableString().c_str());
+                 source_name.c_str(), params.AsHumanReadableString().c_str());
+  // TODO(crbug.com/40281249): PulseLoopbackAudioStream gives
+  // PulseAudioInputStream a nullptr for `audio_manager`, which is risky.
+  // Refactor such that this is not the case, or separate the
+  // AudioManager-independent logic into a "PulseUnmanagedAudioInputStream".
 }
 
 PulseAudioInputStream::~PulseAudioInputStream() {
@@ -62,15 +73,15 @@ PulseAudioInputStream::~PulseAudioInputStream() {
 AudioInputStream::OpenOutcome PulseAudioInputStream::Open() {
   DCHECK(thread_checker_.CalledOnValidThread());
   SendLogMessage("%s()", __func__);
-  if (device_name_ == AudioDeviceDescription::kDefaultDeviceId &&
-      audio_manager_->DefaultSourceIsMonitor()) {
+  if (source_name_ == AudioDeviceDescription::kDefaultDeviceId &&
+      audio_manager_ && audio_manager_->DefaultSourceIsMonitor()) {
     SendLogMessage("%s => (ERROR: can't open monitor device)", __func__);
     return OpenOutcome::kFailed;
   }
 
   AutoPulseLock auto_lock(pa_mainloop_);
   if (!pulse::CreateInputStream(pa_mainloop_, pa_context_, &handle_, params_,
-                                device_name_, &StreamNotifyCallback, this)) {
+                                source_name_, &StreamNotifyCallback, this)) {
     SendLogMessage("%s => (ERROR: failed to open PA stream)", __func__);
     return OpenOutcome::kFailed;
   }
@@ -159,14 +170,18 @@ void PulseAudioInputStream::Close() {
         pa_stream_disconnect(handle_);
 
       // Release PulseAudio structures.
-      pa_stream_unref(handle_);
+      pa_stream_unref(handle_.ExtractAsDangling());
       handle_ = nullptr;
     }
   }
 
-  // Signal to the manager that we're closed and can be removed.
-  // This should be the last call in the function as it deletes "this".
-  audio_manager_->ReleaseInputStream(this);
+  // If the stream is not managed by AudioManager, the owner is responsible to
+  // destroy the object.
+  if (audio_manager_) {
+    // Signal to the manager that we're closed and can be removed.
+    // This should be the last call in the function as it deletes `this`.
+    audio_manager_->ReleaseInputStream(this);
+  }
 }
 
 double PulseAudioInputStream::GetMaxVolume() {
@@ -326,14 +341,6 @@ void PulseAudioInputStream::ReadData() {
   GetAgcVolume(&normalized_volume);
   normalized_volume = volume_ / GetMaxVolume();
 
-  // Compensate the audio delay caused by the FIFO.
-  // TODO(dalecurtis): This should probably use pa_stream_get_time() so we can
-  // get the capture time directly.
-  base::TimeTicks capture_time =
-      base::TimeTicks::Now() -
-      (pulse::GetHardwareLatency(handle_) +
-       AudioTimestampHelper::FramesToTime(fifo_.GetAvailableFrames(),
-                                          params_.sample_rate()));
   do {
     size_t length = 0;
     const void* data = nullptr;
@@ -364,21 +371,20 @@ void PulseAudioInputStream::ReadData() {
     pa_stream_drop(handle_);
   } while (pa_stream_readable_size(handle_) > 0);
 
+  const base::TimeTicks capture_time_base =
+      base::TimeTicks::Now() - pulse::GetHardwareLatency(handle_);
   while (fifo_.available_blocks()) {
+    // Compensate the audio delay caused by the FIFO.
+    // TODO(dalecurtis): This should probably use pa_stream_get_time() so we can
+    // get the capture time directly.
+    const base::TimeTicks capture_time =
+        capture_time_base -
+        AudioTimestampHelper::FramesToTime(fifo_.GetAvailableFrames(),
+                                           params_.sample_rate());
     const AudioBus* audio_bus = fifo_.Consume();
 
     callback_->OnData(audio_bus, capture_time, normalized_volume, {});
 
-    // Move the capture time forward for each vended block.
-    capture_time += AudioTimestampHelper::FramesToTime(audio_bus->frames(),
-                                                       params_.sample_rate());
-
-    // Sleep 5ms to wait until render consumes the data in order to avoid
-    // back to back OnData() method.
-    // TODO(dalecurtis): Delete all this. It shouldn't be necessary now that we
-    // have a ring buffer and FIFO on the actual shared memory.,
-    if (fifo_.available_blocks())
-      base::PlatformThread::Sleep(base::Milliseconds(5));
   }
 
   pa_threaded_mainloop_signal(pa_mainloop_, 0);

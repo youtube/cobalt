@@ -29,8 +29,8 @@ class GestureEvent;
 namespace ash {
 class PresentationTimeRecorder;
 
-// WindowResizer is used by ToplevelWindowEventFilter to handle dragging, moving
-// or resizing a window. All coordinates passed to this are in the parent
+// WindowResizer is used by ToplevelWindowEventHandler to handle dragging,
+// moving or resizing a window. All coordinates passed to this are in the parent
 // windows coordinates.
 class ASH_EXPORT WindowResizer {
  public:
@@ -51,16 +51,21 @@ class ASH_EXPORT WindowResizer {
 
   virtual ~WindowResizer();
 
-  // Returns a bitmask of the kBoundsChange_ values.
+  // Returns a bitmask of the `kBoundsChange_*` values.
   static int GetBoundsChangeForWindowComponent(int component);
 
-  // Returns a bitmask of the kBoundsChange_ values.
+  // Returns a bitmask of the `kBoundsChangeDirection_*` values.
   static int GetPositionChangeDirectionForWindowComponent(int window_component);
 
   // Invoked to drag/move/resize the window. |location| is in the coordinates
   // of the window supplied to the constructor. |event_flags| is the event
   // flags from the event.
   virtual void Drag(const gfx::PointF& location, int event_flags) = 0;
+
+  // Invoked during pinch to move and resize the window. `location` is in the
+  // coordinates of the window supplied to the constructor. `scale` is the
+  // the scale change since last gesture event.
+  virtual void Pinch(const gfx::PointF& location, float scale) {}
 
   // Invoked to complete the drag.
   virtual void CompleteDrag() = 0;
@@ -89,11 +94,15 @@ class ASH_EXPORT WindowResizer {
   // should not be called as the result of a revert.
   void SetBoundsDuringResize(const gfx::Rect& bounds);
 
+  // Called during an active resize to change the transform of the
+  // window.
+  void SetTransformDuringResize(const gfx::Transform& transform);
+
   void SetPresentationTimeRecorder(
       std::unique_ptr<PresentationTimeRecorder> recorder);
 
   // WindowState of the drag target.
-  raw_ptr<WindowState, ExperimentalAsh> window_state_;
+  raw_ptr<WindowState> window_state_;
 
  private:
   // In case of touch resizing, adjusts deltas so that the border is positioned
@@ -108,13 +117,13 @@ class ASH_EXPORT WindowResizer {
                               const gfx::PointF& event_location);
 
   // Returns the size of the window for the drag.
-  gfx::Size GetSizeForDrag(int* delta_x, int* delta_y);
+  gfx::Size GetSizeForDrag(int* delta_x, int* delta_y) const;
 
-  // Returns the width of the window.
-  int GetWidthForDrag(int min_width, int* delta_x);
+  // Called by `GetSizeForDrag` to get the width of the window for the drag.
+  int GetWidthForDrag(int min_width, int* delta_x) const;
 
-  // Returns the height of the drag.
-  int GetHeightForDrag(int min_height, int* delta_y);
+  // Called by `GetSizeForDrag` to get the height of the window for the drag.
+  int GetHeightForDrag(int min_height, int* delta_y) const;
 
   // Updates |new_bounds| to adhere to the aspect ratio.
   void CalculateBoundsWithAspectRatio(float aspect_ratio,

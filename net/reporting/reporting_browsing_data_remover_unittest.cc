@@ -8,11 +8,13 @@
 #include <string>
 
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/reporting/reporting_cache.h"
 #include "net/reporting/reporting_context.h"
 #include "net/reporting/reporting_report.h"
+#include "net/reporting/reporting_target_type.h"
 #include "net/reporting/reporting_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -41,17 +43,19 @@ class ReportingBrowsingDataRemoverTest : public ReportingTestBase {
     }
   }
 
-  // TODO(chlily): Take NIK.
+  // TODO(chlily): Take NAK.
   void AddReport(const GURL& url) {
-    cache()->AddReport(absl::nullopt, NetworkAnonymizationKey(), url,
+    cache()->AddReport(std::nullopt, NetworkAnonymizationKey(), url,
                        kUserAgent_, kGroup_, kType_, base::Value::Dict(), 0,
-                       tick_clock()->NowTicks(), 0);
+                       tick_clock()->NowTicks(),
+                       ReportingTargetType::kDeveloper);
   }
 
-  // TODO(chlily): Take NIK.
+  // TODO(chlily): Take NAK.
   void SetEndpoint(const url::Origin& origin) {
     SetEndpointInCache(
-        ReportingEndpointGroupKey(NetworkAnonymizationKey(), origin, kGroup_),
+        ReportingEndpointGroupKey(NetworkAnonymizationKey(), origin, kGroup_,
+                                  ReportingTargetType::kDeveloper),
         kEndpoint_, base::Time::Now() + base::Days(7));
   }
 
@@ -60,7 +64,7 @@ class ReportingBrowsingDataRemoverTest : public ReportingTestBase {
   }
 
   size_t report_count() {
-    std::vector<const ReportingReport*> reports;
+    std::vector<raw_ptr<const ReportingReport, VectorExperimental>> reports;
     cache()->GetReports(&reports);
     return reports.size();
   }
@@ -138,7 +142,7 @@ TEST_F(ReportingBrowsingDataRemoverTest, RemoveSomeReports) {
                      /* host= */ kUrl1_.host());
   EXPECT_EQ(2u, cache()->GetEndpointCount());
 
-  std::vector<const ReportingReport*> reports;
+  std::vector<raw_ptr<const ReportingReport, VectorExperimental>> reports;
   cache()->GetReports(&reports);
   ASSERT_EQ(1u, reports.size());
   EXPECT_EQ(kUrl2_, reports[0]->url);
@@ -155,10 +159,12 @@ TEST_F(ReportingBrowsingDataRemoverTest, RemoveSomeClients) {
                      /* host= */ kUrl1_.host());
   EXPECT_EQ(2u, report_count());
   EXPECT_FALSE(FindEndpointInCache(
-      ReportingEndpointGroupKey(NetworkAnonymizationKey(), kOrigin1_, kGroup_),
+      ReportingEndpointGroupKey(NetworkAnonymizationKey(), kOrigin1_, kGroup_,
+                                ReportingTargetType::kDeveloper),
       kEndpoint_));
   EXPECT_TRUE(FindEndpointInCache(
-      ReportingEndpointGroupKey(NetworkAnonymizationKey(), kOrigin2_, kGroup_),
+      ReportingEndpointGroupKey(NetworkAnonymizationKey(), kOrigin2_, kGroup_,
+                                ReportingTargetType::kDeveloper),
       kEndpoint_));
 }
 

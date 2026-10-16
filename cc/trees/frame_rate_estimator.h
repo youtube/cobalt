@@ -5,6 +5,8 @@
 #ifndef CC_TREES_FRAME_RATE_ESTIMATOR_H_
 #define CC_TREES_FRAME_RATE_ESTIMATOR_H_
 
+#include <cstdint>
+
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -13,6 +15,20 @@
 
 namespace cc {
 
+// The class is used to decide the preferred begin frame rate which related
+// compositor frame sink should send based on video conference mode,
+// NotifyInputEvent, WillDraw and DidNotProduceFrame. It will enter
+// InputPriorityMode in the next 250ms(kInputPriorityDelay) if
+// NotifyInputEvent() is called and exit after the delay. Throttling is
+// disabled in InputPriorityMode despite other conditions.
+// * In video conference mode:
+// The frame rate will be throttled to half of the default when：
+//   Video conference mode is set and
+//   the last drawn consecutive_frames_with_min_delta_ <
+//   4(kMinNumOfFramesWithMinDelta).
+// The throttling will be stopped when:
+//   Video conference mode is unset or
+//   the last drawn consecutive_frames_with_min_delta_ >= 4.
 class CC_EXPORT FrameRateEstimator {
  public:
   explicit FrameRateEstimator(base::SequencedTaskRunner* task_runner);
@@ -23,21 +39,23 @@ class CC_EXPORT FrameRateEstimator {
   void NotifyInputEvent();
   base::TimeDelta GetPreferredInterval() const;
   bool input_priority_mode() const { return input_priority_mode_; }
+  void DidNotProduceFrame();
 
  private:
   void OnExitInputPriorityMode();
 
-  // Set if an estimated frame rate should be used or we should assume the
-  // highest frame rate available.
-  bool assumes_video_conference_mode_ = false;
+  // Whether videoconference mode is enabled. In this mode, frame rate is
+  // reduced when there is no recent input and many frames with a small
+  // interval were produced.
+  bool in_video_conference_mode_ = false;
 
-  // The frame time for the last drawn frame since frame estimation was
-  // enabled.
-  base::TimeTicks last_draw_time_;
+  // Time of the last draw while in videoconference mode. Reset when exiting
+  // videoconference mode.
+  base::TimeTicks last_draw_time_in_video_conference_mode_;
 
-  // The number of consecutive frames drawn within the time delta required to
-  // lower the frame rate.
-  size_t num_of_consecutive_frames_with_min_delta_ = 0u;
+  // Number of consecutive frames drawn in videoconference mode with an interval
+  // lower than twice the default interval.
+  uint64_t num_of_consecutive_frames_with_min_delta_ = 0u;
 
   // We conservatively switch to high frame rate after an input event to lower
   // the input latency for a minimum duration. This tracks when we are in this

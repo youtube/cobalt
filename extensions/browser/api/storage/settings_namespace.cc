@@ -28,7 +28,6 @@ std::string ToString(Namespace settings_namespace) {
       break;
   }
   NOTREACHED();
-  return std::string();
 }
 
 }  // namespace settings_namespace

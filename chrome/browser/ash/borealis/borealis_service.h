@@ -7,37 +7,34 @@
 
 #include "components/keyed_service/core/keyed_service.h"
 
-class Profile;
-
 namespace borealis {
 
 class BorealisAppLauncher;
 class BorealisAppUninstaller;
 class BorealisContextManager;
-class BorealisDiskManagerDispatcher;
 class BorealisFeatures;
 class BorealisInstaller;
+class BorealisInstallUrlHandler;
 class BorealisLaunchOptions;
 class BorealisShutdownMonitor;
 class BorealisWindowManager;
+class BorealisSurveyHandler;
 
 // A common location for all the interdependant components of borealis.
 class BorealisService : public KeyedService {
  public:
-  // Helper method to get the service instance for the given profile.
-  static BorealisService* GetForProfile(Profile* profile);
-
   ~BorealisService() override = default;
 
   virtual BorealisAppLauncher& AppLauncher() = 0;
   virtual BorealisAppUninstaller& AppUninstaller() = 0;
   virtual BorealisContextManager& ContextManager() = 0;
-  virtual BorealisDiskManagerDispatcher& DiskManagerDispatcher() = 0;
   virtual BorealisFeatures& Features() = 0;
   virtual BorealisInstaller& Installer() = 0;
+  virtual BorealisInstallUrlHandler& InstallUrlHandler() = 0;
   virtual BorealisLaunchOptions& LaunchOptions() = 0;
   virtual BorealisShutdownMonitor& ShutdownMonitor() = 0;
   virtual BorealisWindowManager& WindowManager() = 0;
+  virtual BorealisSurveyHandler& SurveyHandler() = 0;
 };
 
 }  // namespace borealis

@@ -4,6 +4,8 @@
 
 package org.chromium.android_webview.test.devui.util;
 
+import static org.chromium.android_webview.test.OnlyRunIn.ProcessMode.EITHER_PROCESS;
+
 import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
@@ -15,27 +17,28 @@ import org.junit.runner.RunWith;
 import org.chromium.android_webview.devui.util.ComponentInfo;
 import org.chromium.android_webview.devui.util.ComponentsInfoLoader;
 import org.chromium.android_webview.test.AwJUnit4ClassRunner;
+import org.chromium.android_webview.test.OnlyRunIn;
 import org.chromium.base.test.util.Batch;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
-/**
- * Unit tests for ComponentsInfoLoader.
- */
+/** Unit tests for ComponentsInfoLoader. */
 @RunWith(AwJUnit4ClassRunner.class)
+@OnlyRunIn(EITHER_PROCESS) // These are unit tests
 @Batch(Batch.UNIT_TESTS)
 public class ComponentsInfoLoaderTest {
-    @Rule
-    public TemporaryFolder mTempDir = new TemporaryFolder();
+    @Rule public TemporaryFolder mTempDir = new TemporaryFolder();
 
     @Test
     @SmallTest
     public void testMultipleComponents_withOneVersionSubDirectory() throws IOException {
         ComponentInfo[] expectedList =
-                new ComponentInfo[] {new ComponentInfo("MockComponent A", "1.0.2.1"),
-                        new ComponentInfo("MockComponent B", "2021.1.2.1")};
+                new ComponentInfo[] {
+                    new ComponentInfo("MockComponent A", "1.0.2.1"),
+                    new ComponentInfo("MockComponent B", "2021.1.2.1")
+                };
 
         for (ComponentInfo mockComponent : expectedList) {
             mTempDir.newFolder(

@@ -20,6 +20,7 @@
 #include "rtc_base/socket_address.h"
 #include "test/logging/file_log_writer.h"
 #include "test/network/network_emulation.h"
+#include "test/network/network_emulation_manager.h"
 #include "test/scenario/video_stream.h"
 #include "test/testsupport/file_utils.h"
 
@@ -66,8 +67,8 @@ Scenario::Scenario(
     std::unique_ptr<LogWriterFactoryInterface> log_writer_factory,
     bool real_time)
     : log_writer_factory_(std::move(log_writer_factory)),
-      network_manager_(real_time ? TimeMode::kRealTime : TimeMode::kSimulated,
-                       EmulatedNetworkStatsGatheringMode::kDefault),
+      network_manager_({.time_mode = real_time ? TimeMode::kRealTime
+                                               : TimeMode::kSimulated}),
       clock_(network_manager_.time_controller()->GetClock()),
       audio_decoder_factory_(CreateBuiltinAudioDecoderFactory()),
       audio_encoder_factory_(CreateBuiltinAudioEncoderFactory()),
@@ -88,7 +89,7 @@ Scenario::~Scenario() {
 ColumnPrinter Scenario::TimePrinter() {
   return ColumnPrinter::Lambda(
       "time",
-      [this](rtc::SimpleStringBuilder& sb) {
+      [this](SimpleStringBuilder& sb) {
         sb.AppendFormat("%.3lf", Now().seconds<double>());
       },
       32);
@@ -163,7 +164,7 @@ void Scenario::ChangeRoute(std::pair<CallClient*, CallClient*> clients,
                            DataSize overhead) {
   EmulatedRoute* route = network_manager_.CreateRoute(over_nodes);
   uint16_t port = clients.second->Bind(route->to);
-  auto addr = rtc::SocketAddress(route->to->GetPeerLocalAddress(), port);
+  auto addr = SocketAddress(route->to->GetPeerLocalAddress(), port);
   clients.first->transport_->Connect(route->from, addr, overhead);
 }
 

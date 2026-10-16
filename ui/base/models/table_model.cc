@@ -17,25 +17,22 @@ namespace ui {
 
 TableColumn::TableColumn()
     : id(0),
-      title(),
-      alignment(LEFT),
       width(-1),
       percent(),
       min_visible_width(0),
+      alignment(LEFT),
       sortable(false),
-      initial_sort_is_ascending(true) {
-}
+      initial_sort_is_ascending(true) {}
 
 TableColumn::TableColumn(int id, Alignment alignment, int width, float percent)
-    : id(id),
-      title(l10n_util::GetStringUTF16(id)),
-      alignment(alignment),
+    : title(l10n_util::GetStringUTF16(id)),
+      id(id),
       width(width),
       percent(percent),
       min_visible_width(0),
+      alignment(alignment),
       sortable(false),
-      initial_sort_is_ascending(true) {
-}
+      initial_sort_is_ascending(true) {}
 
 TableColumn::TableColumn(const TableColumn& other) = default;
 
@@ -54,6 +51,26 @@ std::u16string TableModel::GetTooltip(size_t row) {
   return std::u16string();
 }
 
+std::u16string TableModel::GetAXNameForHeader(
+    const std::vector<std::u16string>& visible_column_titles,
+    const std::vector<std::u16string>& visible_column_sortable) {
+  return std::u16string();
+}
+
+std::u16string TableModel::GetAXNameForHeaderCell(
+    const std::u16string& visible_column_title,
+    const std::u16string& visible_column_sortable) {
+  return visible_column_title;
+}
+
+std::u16string TableModel::GetAXNameForRow(
+    size_t row,
+    const std::vector<int>& visible_column_ids) {
+  DCHECK_LT(row, RowCount());
+  DCHECK(!visible_column_ids.empty());
+  return GetText(row, visible_column_ids[0]);
+}
+
 int TableModel::CompareValues(size_t row1, size_t row2, int column_id) {
   DCHECK_LT(row1, RowCount());
   DCHECK_LT(row2, RowCount());
@@ -62,11 +79,8 @@ int TableModel::CompareValues(size_t row1, size_t row2, int column_id) {
   std::u16string value2 = GetText(row2, column_id);
   icu::Collator* collator = GetCollator();
 
-  if (collator)
-    return base::i18n::CompareString16WithCollator(*collator, value1, value2);
-
-  NOTREACHED();
-  return 0;
+  CHECK(collator);
+  return base::i18n::CompareString16WithCollator(*collator, value1, value2);
 }
 
 void TableModel::ClearCollator() {
@@ -80,10 +94,7 @@ icu::Collator* TableModel::GetCollator() {
   if (!g_collator) {
     UErrorCode create_status = U_ZERO_ERROR;
     g_collator = icu::Collator::createInstance(create_status);
-    if (!U_SUCCESS(create_status)) {
-      g_collator = nullptr;
-      NOTREACHED();
-    }
+    CHECK(U_SUCCESS(create_status));
   }
   return g_collator;
 }

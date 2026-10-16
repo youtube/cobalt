@@ -4,10 +4,11 @@
 
 #include "media/audio/win/audio_low_latency_output_win.h"
 
+#include <objbase.h>
+
 #include <Functiondiscoverykeys_devpkey.h>
 #include <audiopolicy.h>
 #include <inttypes.h>
-#include <objbase.h>
 
 #include <climits>
 #include <memory>
@@ -22,7 +23,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
-#include "base/trace_event/trace_event.h"
+#include "base/trace_event/base_tracing.h"
 #include "base/win/scoped_propvariant.h"
 #include "media/audio/audio_device_description.h"
 #include "media/audio/win/audio_manager_win.h"
@@ -32,6 +33,7 @@
 #include "media/base/amplitude_peak_detector.h"
 #include "media/base/audio_glitch_info.h"
 #include "media/base/audio_sample_types.h"
+#include "media/base/audio_timestamp_helper.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
 
@@ -125,60 +127,21 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(
   if (!avrt_init)
     SendLogMessage("%s => (WARNING: failed to load Avrt.dll)", __func__);
 
+  // The param passed in may not be for audio offload, and we need to force
+  // disable audio offload if the param is not preferred for it.
   audio_bus_ = AudioBus::Create(params);
-
-  // Set up the desired render format specified by the client. We use the
-  // WAVE_FORMAT_EXTENSIBLE structure to ensure that multiple channel ordering
-  // and high precision data can be supported.
-
-  // Begin with the WAVEFORMATEX structure that specifies the basic format.
-  WAVEFORMATEX* format = &format_.Format;
-  format->wFormatTag = WAVE_FORMAT_EXTENSIBLE;
-  format->nChannels = params.channels();
-  format->nSamplesPerSec = params.sample_rate();
-  format->wBitsPerSample = sizeof(float) * 8;
-  format->nBlockAlign = (format->wBitsPerSample / 8) * format->nChannels;
-  format->nAvgBytesPerSec = format->nSamplesPerSec * format->nBlockAlign;
-  format->cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
-
-  // Add the parts which are unique to WAVE_FORMAT_EXTENSIBLE.
-  format_.Samples.wValidBitsPerSample = format->wBitsPerSample;
-  format_.dwChannelMask = CoreAudioUtil::GetChannelConfig(device_id, eRender);
-  format_.SubFormat = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
-
-  // Store size (in different units) of audio packets which we expect to
-  // get from the audio endpoint device in each render event.
-  packet_size_frames_ = params.frames_per_buffer();
-  packet_size_bytes_ = params.GetBytesPerBuffer(kSampleFormatF32);
-
-#if BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
-  if (params.format() == AudioParameters::AUDIO_BITSTREAM_DTS) {
-    format_.SubFormat = KSDATAFORMAT_SUBTYPE_IEC61937_DTS;
-    format->wBitsPerSample = 16;
-    format->nChannels = 2;
-    format_.dwChannelMask = KSAUDIO_SPEAKER_STEREO;
-    format_.Samples.wValidBitsPerSample = format->wBitsPerSample;
-    format->nBlockAlign = (format->wBitsPerSample / 8) * format->nChannels;
-    format->nAvgBytesPerSec = format->nSamplesPerSec * format->nBlockAlign;
-    packet_size_frames_ = 512;
-    packet_size_bytes_ = params.GetBytesPerBuffer(kSampleFormatS16);
-  }
-#endif  // BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
-  SendLogMessage("%s => (audio engine format=[%s])", __func__,
-                 CoreAudioUtil::WaveFormatToString(&format_).c_str());
-
-  SendLogMessage("%s => (packet size=[%zu bytes/%zu audio frames/%.3f ms])",
-                 __func__, packet_size_bytes_, packet_size_frames_,
-                 params.GetBufferDuration().InMillisecondsF());
 
   AudioParameters::HardwareCapabilities hardware_capabilities =
       params.hardware_capabilities().value_or(
           AudioParameters::HardwareCapabilities());
 
-  // Only request an explicit buffer size if we are requesting the minimum
-  // supported by the hardware, everything else uses the older IAudioClient API.
-  if (params.frames_per_buffer() ==
-      hardware_capabilities.min_frames_per_buffer) {
+  // Only request an explicit buffer size if we are requesting the non-default
+  // and the minimum supported by the hardware, everything else uses the older
+  // IAudioClient API.
+  if (params.frames_per_buffer() !=
+          hardware_capabilities.default_frames_per_buffer &&
+      params.frames_per_buffer() ==
+          hardware_capabilities.min_frames_per_buffer) {
     requested_iaudioclient3_buffer_size_ =
         hardware_capabilities.min_frames_per_buffer;
   }
@@ -196,19 +159,34 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(
 }
 
 WASAPIAudioOutputStream::~WASAPIAudioOutputStream() {
-  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
+  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_.raw());
 
   StopAudioSessionEventListener();
 }
 
 bool WASAPIAudioOutputStream::Open() {
-  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
+  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_.raw());
   SendLogMessage("%s([opened=%s])", __func__, opened_ ? "true" : "false");
   if (opened_)
     return true;
 
   DCHECK(!audio_client_.Get());
   DCHECK(!audio_render_client_.Get());
+
+  enable_audio_offload_ = params_.RequireOffload();
+  if (enable_audio_offload_ &&
+      (params_.latency_tag() != AudioLatency::Type::kPlayback ||
+       params_.IsBitstreamFormat())) {
+    // Fail fast for audio offload request on latency-senstive streams, so
+    // they can switch to non-offload mode immediately. Also we must avoid
+    // audio offload for bitstream formats. AudioRendererImpl has already
+    // guaranteed this, the check here is just for extra safety.
+    SendLogMessage(
+        "%s => (INFO: Not enrolling into audio offload for stream without "
+        "latency tag set to kPlayback, or the stream is in bitstream format.",
+        __func__);
+    return false;
+  }
 
   const bool communications_device =
       device_id_.empty() ? (device_role_ == eCommunications) : false;
@@ -221,6 +199,22 @@ bool WASAPIAudioOutputStream::Open() {
     return false;
   }
 
+  HRESULT hr = S_FALSE;
+
+  if (share_mode_ == AUDCLNT_SHAREMODE_SHARED && enable_audio_offload_) {
+    enable_audio_offload_ =
+        CoreAudioUtil::EnableOffloadForClient(audio_client.Get());
+    if (!enable_audio_offload_) {
+      SendLogMessage("%s => (INFO: Not enrolling into audio offload.",
+                     __func__);
+      // Return here to allow falling back to non-offload mode.
+      return false;
+    }
+  }
+
+  // Setup wave format after possible audio offload enabling.
+  SetupWaveFormat();
+
   // Extra sanity to ensure that the provided device format is still valid.
   if (!CoreAudioUtil::IsFormatSupported(audio_client.Get(), share_mode_,
                                         &format_)) {
@@ -229,18 +223,22 @@ bool WASAPIAudioOutputStream::Open() {
     return false;
   }
 
-  HRESULT hr = S_FALSE;
   if (share_mode_ == AUDCLNT_SHAREMODE_SHARED) {
     // Initialize the audio stream between the client and the device in shared
     // mode and using event-driven buffer handling.
     hr = CoreAudioUtil::SharedModeInitialize(
         audio_client.Get(), &format_, audio_samples_render_event_.Get(),
         requested_iaudioclient3_buffer_size_, &endpoint_buffer_size_frames_,
-        communications_device ? &kCommunicationsSessionId : nullptr);
+        communications_device ? &kCommunicationsSessionId : nullptr,
+        enable_audio_offload_);
     if (FAILED(hr)) {
       RecordAudioFailure(kOpenFailureHistogram, hr);
       SendLogMessage("%s => (ERROR: IAudioClient::SharedModeInitialize=[%s])",
                      __func__, ErrorToString(hr).c_str());
+      // With audio offload requested, initialization may fail if resource for
+      // audio offload is limited. For low latency output, audio output
+      // resampler will fallback to non-offload mode first; If still fails to
+      // initialize, will then fallback to linear PCM.
       return false;
     }
 
@@ -251,11 +249,29 @@ bool WASAPIAudioOutputStream::Open() {
       return false;
     }
 
-    const int preferred_frames_per_buffer = static_cast<int>(
-        format_.Format.nSamplesPerSec *
-            CoreAudioUtil::ReferenceTimeToTimeDelta(device_period)
-                .InSecondsF() +
-        0.5);
+    UINT32 preferred_frames_per_buffer = 0;
+    if (enable_audio_offload_) {
+      audio_client->GetBufferSize(&preferred_frames_per_buffer);
+
+      // TODO(crbug.com/348468130) : Consider reinitializing `audio_bus_` and
+      // handling mismatch of `packet_size_frames_` and
+      // `preferred_frames_per_buffer`.
+      // If `packet_size_frames_` doesn't match the preferred size, fallback to
+      // not offloading. This might happen after a device change.
+      if (packet_size_frames_ != preferred_frames_per_buffer) {
+        SendLogMessage(
+            "%s => (INFO: Requested buffer size in frames mismatch. "
+            "Disable audio offload for the stream.",
+            __func__);
+        // Return here to allow falling back to non-offload mode.
+        return false;
+      }
+    } else {
+      preferred_frames_per_buffer = AudioTimestampHelper::TimeToFrames(
+          CoreAudioUtil::ReferenceTimeToTimeDelta(device_period),
+          format_.Format.nSamplesPerSec);
+    }
+
     SendLogMessage("%s => (preferred_frames_per_buffer=[%d audio frames])",
                    __func__, preferred_frames_per_buffer);
 
@@ -335,7 +351,7 @@ bool WASAPIAudioOutputStream::Open() {
 
 void WASAPIAudioOutputStream::Start(AudioSourceCallback* callback) {
   DVLOG(1) << "WASAPIAudioOutputStream::Start()";
-  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
+  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_.raw());
   CHECK(callback);
   CHECK(opened_);
   SendLogMessage("%s([opened=%s, started=%s])", __func__,
@@ -388,7 +404,7 @@ void WASAPIAudioOutputStream::Start(AudioSourceCallback* callback) {
   last_position_ = 0;
   last_qpc_position_ = 0;
 
-  // Recreate `peak_detector_` everytime we create a new `render_thread_`, to
+  // Recreate `peak_detector_` every time we create a new `render_thread_`, to
   // avoid ThreadChecker DCHECKs.
   peak_detector_ = std::make_unique<AmplitudePeakDetector>(base::BindRepeating(
       &AudioManager::TraceAmplitudePeak, base::Unretained(manager_),
@@ -422,7 +438,7 @@ void WASAPIAudioOutputStream::Start(AudioSourceCallback* callback) {
 
 void WASAPIAudioOutputStream::Stop() {
   DVLOG(1) << "WASAPIAudioOutputStream::Stop()";
-  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
+  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_.raw());
   SendLogMessage("%s([started=%s])", __func__,
                  render_thread_ ? "true" : "false");
 
@@ -470,7 +486,7 @@ void WASAPIAudioOutputStream::Stop() {
 
 void WASAPIAudioOutputStream::Close() {
   DVLOG(1) << "WASAPIAudioOutputStream::Close()";
-  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
+  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_.raw());
   SendLogMessage("%s()", __func__);
 
   StopAudioSessionEventListener();
@@ -599,8 +615,17 @@ void WASAPIAudioOutputStream::Run() {
 }
 
 bool WASAPIAudioOutputStream::RenderAudioFromSource(UINT64 device_frequency) {
-  TRACE_EVENT0("audio", "RenderAudioFromSource");
+  TRACE_EVENT(
+      "audio", "RenderAudioFromSource", [&](perfetto::EventContext ctx) {
+        auto* event = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>();
+        auto* data = event->set_win_render_audio_from_source();
+        data->set_iaudioclock_device_frequency(device_frequency);
+        data->set_iaudioclient_buffer_size_frames(endpoint_buffer_size_frames_);
+      });
 
+  const base::TimeDelta buffer_duration =
+      media::AudioTimestampHelper::FramesToTime(packet_size_frames_,
+                                                format_.Format.nSamplesPerSec);
   HRESULT hr = S_FALSE;
   UINT32 num_queued_frames = 0;
   uint8_t* audio_data = nullptr;
@@ -608,13 +633,12 @@ bool WASAPIAudioOutputStream::RenderAudioFromSource(UINT64 device_frequency) {
   // Contains how much new data we can write to the buffer without
   // the risk of overwriting previously written data that the audio
   // engine has not yet read from the buffer.
-  size_t num_available_frames = 0;
+  UINT32 num_available_frames = 0;
 
   if (share_mode_ == AUDCLNT_SHAREMODE_SHARED) {
     // Get the padding value which represents the amount of rendering
     // data that is queued up to play in the endpoint buffer.
     hr = audio_client_->GetCurrentPadding(&num_queued_frames);
-    num_available_frames = endpoint_buffer_size_frames_ - num_queued_frames;
     if (FAILED(hr)) {
       RecordAudioFailure(kRenderFailureHistogram, hr);
       LOG(ERROR) << "WAOS::" << __func__
@@ -622,6 +646,13 @@ bool WASAPIAudioOutputStream::RenderAudioFromSource(UINT64 device_frequency) {
                  << ErrorToString(hr).c_str() << "])";
       return false;
     }
+    TRACE_COUNTER_ID1(TRACE_DISABLED_BY_DEFAULT("audio"),
+                      "IAudioClient_queued_frames", this, num_queued_frames);
+    if (!num_queued_frames) {
+      TRACE_EVENT_INSTANT0(TRACE_DISABLED_BY_DEFAULT("audio"), "buffer empty",
+                           TRACE_EVENT_SCOPE_THREAD);
+    }
+    num_available_frames = endpoint_buffer_size_frames_ - num_queued_frames;
   } else {
     // While the stream is running, the system alternately sends one
     // buffer or the other to the client. This form of double buffering
@@ -634,6 +665,14 @@ bool WASAPIAudioOutputStream::RenderAudioFromSource(UINT64 device_frequency) {
     // directly on the buffer size.
     num_available_frames = endpoint_buffer_size_frames_;
   }
+
+  TRACE_EVENT(
+      TRACE_DISABLED_BY_DEFAULT("audio"), "IAudioClient frames",
+      [&](perfetto::EventContext ctx) {
+        auto* event = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>();
+        auto* data = event->set_win_render_audio_from_source();
+        data->set_iaudioclient_buffer_unfilled_frames(num_available_frames);
+      });
 
   // Check if there is enough available space to fit the packet size
   // specified by the client.  If not, wait until a future callback.
@@ -657,6 +696,13 @@ bool WASAPIAudioOutputStream::RenderAudioFromSource(UINT64 device_frequency) {
   // See http://crbug.com/524947.
   const size_t num_packets = num_available_frames / packet_size_frames_;
   for (size_t n = 0; n < num_packets; ++n) {
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("audio"), "Write packet",
+                [&](perfetto::EventContext ctx) {
+                  auto* event =
+                      ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>();
+                  auto* data = event->set_win_render_audio_from_source();
+                  data->set_packet_size_frames(packet_size_frames_);
+                });
     // Grab all available space in the rendering endpoint buffer
     // into which the client can write a data packet.
     hr = audio_render_client_->GetBuffer(packet_size_frames_, &audio_data);
@@ -668,73 +714,143 @@ bool WASAPIAudioOutputStream::RenderAudioFromSource(UINT64 device_frequency) {
       return false;
     }
 
-    // Derive the audio delay which corresponds to the delay between
-    // a render event and the time when the first audio sample in a
-    // packet is played out through the speaker. This delay value
-    // can typically be utilized by an acoustic echo-control (AEC)
-    // unit at the render side.
-    UINT64 position = 0;
-    UINT64 qpc_position = 0;
-    base::TimeDelta delay;
-    base::TimeTicks delay_timestamp;
     // Stores glitch info to be passed on to OnMoreData().
     AudioGlitchInfo::Accumulator glitch_info_accumulator;
+    base::TimeDelta delay;
+    base::TimeTicks delay_timestamp;
+    UINT64 position = 0;
+    UINT64 qpc_position = 0;
+    // TODO(http://crbug.com/1453566): avoid using IAudioClock::GetPosition() on
+    // a RT thread.
     hr = audio_clock_->GetPosition(&position, &qpc_position);
     if (SUCCEEDED(hr)) {
-      // Number of frames already played out through the speaker.
-      const uint64_t played_out_frames =
-          format_.Format.nSamplesPerSec * position / device_frequency;
-
+      TRACE_EVENT_BEGIN(
+          TRACE_DISABLED_BY_DEFAULT("audio"), "IAudioClock position",
+          [&](perfetto::EventContext ctx) {
+            auto* event =
+                ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>();
+            auto* data = event->set_win_render_audio_from_source();
+            data->set_iaudioclock_stream_position(position);
+            data->set_iaudioclock_qpc_position(qpc_position);
+            data->set_num_written_frames(num_written_frames_);
+          });
       // Check for glitches. Records a glitch whenever the stream's position has
       // moved forward significantly less than the performance counter has. The
       // threshold is set to half the buffer size, to limit false positives.
-      if (last_qpc_position_ != 0) {
-        const int64_t buffer_duration_us = packet_size_frames_ *
-                                           base::Time::kMicrosecondsPerSecond /
-                                           format_.Format.nSamplesPerSec;
+      // When a stream begins running, its device position might remain 0
+      // until the audio data has propagated from the endpoint buffer to the
+      // rendering device. The device position changes to a nonzero value when
+      // the data begins playing through the device.
+      if (last_position_ != 0) {
+        CHECK(last_qpc_position_);
 
-        const int64_t position_us =
-            position * base::Time::kMicrosecondsPerSecond / device_frequency;
-        const int64_t last_position_us = last_position_ *
-                                         base::Time::kMicrosecondsPerSecond /
-                                         device_frequency;
-        // The QPC values are in 100 ns units.
-        const int64_t qpc_position_us = qpc_position / 10;
-        const int64_t last_qpc_position_us = last_qpc_position_ / 10;
+        // The device position is the offset from the start of the stream to the
+        // current position in the stream. The units in which this offset is
+        // expressed are undefined, the value has meaning only in relation to
+        // the frequency reported by the IAudioClock::GetFrequency() method,
+        // passed  as |device_frequency| here. It's expected to monotonically
+        // non-decrease. It won't advance if we make the render client starve by
+        // not providing frames to render. Note: WASAPIAudioOutputStream::Run()
+        // assumes that the frequency is constant throughout the stream
+        // lifetime. CoreAudio documentation is not exactly clear on that: it
+        // only says that the device frequency reported by successive calls to
+        // GetFrequency never changes during the lifetime of a stream "in
+        // Windows Vista".
+        if (position < last_position_) {
+          // http://crbug.com/1473580: according to MS documentation |position|
+          // is monotonic, but in practice it's not always so.
+          TRACE_EVENT_INSTANT0(TRACE_DISABLED_BY_DEFAULT("audio"),
+                               "position decrease", TRACE_EVENT_SCOPE_THREAD);
+        }
+        // If |position_time_increase| is negative, it means we are likely to
+        // have a larger |gap_duration| and to register a glitch. In reality,
+        // it's unclear if there's a glitch in such "it should never happen"
+        // case or not.
+        base::TimeDelta position_time_increase =
+            media::AudioTimestampHelper::FramesToTime(position - last_position_,
+                                                      device_frequency);
 
-        const int64_t position_diff_us = position_us - last_position_us;
-        const int64_t qpc_position_diff_us =
-            qpc_position_us - last_qpc_position_us;
+        // The QPC values are in 100 ns units, according to
+        // IAudioClock::GetPosition() documentation. Presumably monotonically
+        // increasing, but there are known cases when it can jump backward due
+        // to driver bugs, etc.
+        base::TimeDelta qpc_position_time_increase =
+            qpc_position < last_qpc_position_
+                ? base::TimeDelta()
+                : base::Microseconds((qpc_position - last_qpc_position_) / 10);
 
-        const int64_t gap_duration_us = qpc_position_diff_us - position_diff_us;
+        TRACE_EVENT(
+            TRACE_DISABLED_BY_DEFAULT("audio"), "gap estimation",
+            [&](perfetto::EventContext ctx) {
+              auto* event =
+                  ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>();
+              auto* data = event->set_win_render_audio_from_source();
+              data->set_iaudioclock_stream_position_increase_ms(
+                  position_time_increase.InMilliseconds());
+              data->set_iaudioclock_qpc_position_increase_ms(
+                  qpc_position_time_increase.InMilliseconds());
+            });
+        // We probably should not trust qpc_position being reported in 100 ns
+        // intervals in some cases, in a remote desktop situation, for example.
+        // Let's see how qpc-based time compares to base::TimeTicks. Even if we
+        // are using a low resolution timers (~15 ms precision), the difference
+        // between the two should be well under 40 ms. But let's be
+        // concervative.
+        // |gap_duration| can be positive or negative. Negative means a bigger
+        // chunk of the buffer was consumed. Too big (how big?) positive means
+        // no audio was played for a while, which potentially resulted in a
+        // glitch.
+        base::TimeDelta gap_duration =
+            qpc_position_time_increase - position_time_increase;
 
-        // TODO(crbug.com/1417946): Investigate precisely what gap duration
+        // TODO(crbug.com/40257462): Investigate precisely what gap duration
         // should be counted as a glitch.
-        bool is_glitch = gap_duration_us > buffer_duration_us / 2;
-        glitch_reporter_.UpdateStats(is_glitch
-                                         ? base::Microseconds(gap_duration_us)
-                                         : base::TimeDelta());
+        bool is_glitch = gap_duration > buffer_duration / 2;
+        glitch_reporter_.UpdateStats(is_glitch ? gap_duration
+                                               : base::TimeDelta());
         if (is_glitch) {
+          TRACE_EVENT_INSTANT0(TRACE_DISABLED_BY_DEFAULT("audio"), "glitch",
+                               TRACE_EVENT_SCOPE_THREAD);
           glitch_info_accumulator.Add(
-              {.duration = base::Microseconds(gap_duration_us), .count = 1});
+              AudioGlitchInfo::SingleBoundedSystemGlitch(
+                  gap_duration, AudioGlitchInfo::Direction::kRender));
         }
       }
 
       last_position_ = position;
       last_qpc_position_ = qpc_position;
 
+      // Number of frames already played out through the speaker (estimation).
+      const uint64_t played_out_frames =
+          format_.Format.nSamplesPerSec * position / device_frequency;
+
       // Number of frames that have been written to the buffer but not yet
-      // played out.
-      const uint64_t delay_frames = num_written_frames_ - played_out_frames;
+      // played out. Should theoretically be non-negative, but since
+      // |played_out_frames| is an approximation, we don't trust this fact
+      // entirely.
+      const uint64_t delay_frames =
+          num_written_frames_ > played_out_frames
+              ? num_written_frames_ - played_out_frames
+              : 0;
 
       // Convert the delay from frames to time.
-      delay =
-          base::Microseconds(delay_frames * base::Time::kMicrosecondsPerSecond /
-                             format_.Format.nSamplesPerSec);
+      delay = media::AudioTimestampHelper::FramesToTime(
+          delay_frames, format_.Format.nSamplesPerSec);
+
       // Note: the obtained |qpc_position| value is in 100ns intervals and from
       // the same time origin as QPC. We can simply convert it into us dividing
       // by 10.0 since 10x100ns = 1us.
       delay_timestamp += base::Microseconds(qpc_position * 0.1);
+      TRACE_EVENT_END(
+          TRACE_DISABLED_BY_DEFAULT("audio"),
+          //  "IAudioClock position",
+          [&](perfetto::EventContext ctx) {
+            auto* event =
+                ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>();
+            auto* data = event->set_win_render_audio_from_source();
+            data->set_num_played_out_frames(played_out_frames);
+            data->set_playout_delay_ms(delay.InMilliseconds());
+          });
     } else {
       RecordAudioFailure(kRenderFailureHistogram, hr);
       LOG(ERROR) << "WAOS::" << __func__
@@ -743,6 +859,9 @@ bool WASAPIAudioOutputStream::RenderAudioFromSource(UINT64 device_frequency) {
       // Use a delay of zero.
       delay_timestamp = base::TimeTicks::Now();
     }
+
+    UMA_HISTOGRAM_COUNTS_1000("Media.Audio.Render.SystemDelay",
+                              delay.InMilliseconds());
 
     // Read a data packet from the registered client source and
     // deliver a delay estimate in the same callback to the client.
@@ -753,8 +872,8 @@ bool WASAPIAudioOutputStream::RenderAudioFromSource(UINT64 device_frequency) {
           AudioBus::WrapMemory(params_, audio_data));
       audio_bus_->set_is_bitstream_format(true);
       int frames_filled = source_->OnMoreData(
-          delay, delay_timestamp, glitch_info_accumulator.GetAndReset(),
-          audio_bus.get());
+          BoundedDelay(delay), delay_timestamp,
+          glitch_info_accumulator.GetAndReset(), audio_bus.get());
 
       // During pause/seek, keep the pipeline filled with zero'ed frames.
       if (!frames_filled) {
@@ -771,15 +890,20 @@ bool WASAPIAudioOutputStream::RenderAudioFromSource(UINT64 device_frequency) {
     }
 #endif  // BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
     int frames_filled = source_->OnMoreData(
-        delay, delay_timestamp, glitch_info_accumulator.GetAndReset(),
-        audio_bus_.get());
+        BoundedDelay(delay), delay_timestamp,
+        glitch_info_accumulator.GetAndReset(), audio_bus_.get());
     uint32_t num_filled_bytes = frames_filled * format_.Format.nBlockAlign;
     DCHECK_LE(num_filled_bytes, packet_size_bytes_);
     audio_bus_->Scale(volume_);
 
-    // We skip clipping since that occurs at the shared memory boundary.
-    audio_bus_->ToInterleaved<Float32SampleTypeTraitsNoClip>(
-        frames_filled, reinterpret_cast<float*>(audio_data));
+    if (enable_audio_offload_) {
+      audio_bus_->ToInterleaved<SignedInt16SampleTypeTraits>(
+          frames_filled, reinterpret_cast<short*>(audio_data));
+    } else {
+      // We skip clipping since that occurs at the shared memory boundary.
+      audio_bus_->ToInterleaved<Float32SampleTypeTraitsNoClip>(
+          frames_filled, reinterpret_cast<float*>(audio_data));
+    }
 
     peak_detector_->FindPeak(audio_bus_.get());
 
@@ -905,7 +1029,7 @@ void WASAPIAudioOutputStream::ReportAndResetStats() {
 }
 
 void WASAPIAudioOutputStream::StartAudioSessionEventListener() {
-  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
+  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_.raw());
 
   if (session_listener_) {
     // Already started listening!
@@ -933,7 +1057,7 @@ void WASAPIAudioOutputStream::StartAudioSessionEventListener() {
 }
 
 void WASAPIAudioOutputStream::StopAudioSessionEventListener() {
-  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
+  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_.raw());
 
   if (!session_listener_) {
     // Already stopped listening!
@@ -952,11 +1076,63 @@ void WASAPIAudioOutputStream::StopAudioSessionEventListener() {
 }
 
 void WASAPIAudioOutputStream::OnDeviceChanged() {
-  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_);
+  DCHECK_EQ(GetCurrentThreadId(), creating_thread_id_.raw());
 
   device_changed_ = true;
   if (source_)
     source_->OnError(AudioSourceCallback::ErrorType::kDeviceChange);
+}
+
+void WASAPIAudioOutputStream::SetupWaveFormat() {
+  // We use the WAVE_FORMAT_EXTENSIBLE structure to ensure that multiple
+  // channel ordering
+  // and high precision data can be supported.
+  // Begin with the WAVEFORMATEX structure that specifies the basic format.
+  WAVEFORMATEX* format = &format_.Format;
+  // Override for audio offload.
+  if (enable_audio_offload_) {
+    format_.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
+    format->wBitsPerSample = 16;
+    packet_size_bytes_ = params_.GetBytesPerBuffer(kSampleFormatS16);
+  } else {
+    format->wBitsPerSample = sizeof(float) * 8;
+    format_.SubFormat = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
+    packet_size_bytes_ = params_.GetBytesPerBuffer(kSampleFormatF32);
+  }
+  format->wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+  format->nChannels = params_.channels();
+  format->nSamplesPerSec = params_.sample_rate();
+  format->nBlockAlign = (format->wBitsPerSample / 8) * format->nChannels;
+  format->nAvgBytesPerSec = format->nSamplesPerSec * format->nBlockAlign;
+  format->cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
+
+  // Add the parts which are unique to WAVE_FORMAT_EXTENSIBLE.
+  format_.Samples.wValidBitsPerSample = format->wBitsPerSample;
+  format_.dwChannelMask = CoreAudioUtil::GetChannelConfig(device_id_, eRender);
+
+  // Store size (in different units) of audio packets which we expect to
+  // get from the audio endpoint device in each render event.
+  packet_size_frames_ = params_.frames_per_buffer();
+
+#if BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
+  if (params_.format() == AudioParameters::AUDIO_BITSTREAM_DTS) {
+    format_.SubFormat = KSDATAFORMAT_SUBTYPE_IEC61937_DTS;
+    format->wBitsPerSample = 16;
+    format->nChannels = 2;
+    format_.dwChannelMask = KSAUDIO_SPEAKER_STEREO;
+    format_.Samples.wValidBitsPerSample = format->wBitsPerSample;
+    format->nBlockAlign = (format->wBitsPerSample / 8) * format->nChannels;
+    format->nAvgBytesPerSec = format->nSamplesPerSec * format->nBlockAlign;
+    packet_size_frames_ = 512;
+    packet_size_bytes_ = params_.GetBytesPerBuffer(kSampleFormatS16);
+  }
+#endif  // BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
+  SendLogMessage("%s => (audio engine format=[%s])", __func__,
+                 CoreAudioUtil::WaveFormatToString(&format_).c_str());
+
+  SendLogMessage("%s => (packet size=[%zu bytes/%zu audio frames/%.3f ms])",
+                 __func__, packet_size_bytes_, packet_size_frames_,
+                 params_.GetBufferDuration().InMillisecondsF());
 }
 
 }  // namespace media

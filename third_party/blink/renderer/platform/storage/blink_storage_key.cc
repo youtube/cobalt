@@ -112,7 +112,7 @@ bool BlinkStorageKey::FromWire(
     scoped_refptr<const SecurityOrigin> origin,
     const BlinkSchemefulSite& top_level_site,
     const BlinkSchemefulSite& top_level_site_if_third_party_enabled,
-    const absl::optional<base::UnguessableToken>& nonce,
+    const std::optional<base::UnguessableToken>& nonce,
     mojom::blink::AncestorChainBit ancestor_chain_bit,
     mojom::blink::AncestorChainBit ancestor_chain_bit_if_third_party_enabled,
     BlinkStorageKey& out) {
@@ -201,20 +201,6 @@ bool BlinkStorageKey::ExactMatchForTesting(const BlinkStorageKey& other) const {
              other.ancestor_chain_bit_if_third_party_enabled_ &&
          this->top_level_site_if_third_party_enabled_ ==
              other.top_level_site_if_third_party_enabled_;
-}
-
-bool operator==(const BlinkStorageKey& lhs, const BlinkStorageKey& rhs) {
-  DCHECK(lhs.origin_);
-  DCHECK(rhs.origin_);
-
-  return lhs.origin_->IsSameOriginWith(rhs.origin_.get()) &&
-         lhs.nonce_ == rhs.nonce_ &&
-         lhs.top_level_site_ == rhs.top_level_site_ &&
-         lhs.ancestor_chain_bit_ == rhs.ancestor_chain_bit_;
-}
-
-bool operator!=(const BlinkStorageKey& lhs, const BlinkStorageKey& rhs) {
-  return !(lhs == rhs);
 }
 
 std::ostream& operator<<(std::ostream& ostream, const BlinkStorageKey& key) {

@@ -5,22 +5,36 @@
 #ifndef QUICHE_QUIC_CORE_HTTP_WEB_TRANSPORT_STREAM_ADAPTER_H_
 #define QUICHE_QUIC_CORE_HTTP_WEB_TRANSPORT_STREAM_ADAPTER_H_
 
+#include <cstddef>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+
+#include "absl/base/attributes.h"
+#include "absl/status/status.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_stream.h"
+#include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_stream_sequencer.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/web_transport_interface.h"
+#include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_stream.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace quic {
 
 // Converts WebTransportStream API calls into QuicStream API calls.  The users
 // of this class can either subclass it, or wrap around it.
-class QUIC_EXPORT_PRIVATE WebTransportStreamAdapter
-    : public WebTransportStream {
+class QUICHE_EXPORT WebTransportStreamAdapter : public webtransport::Stream {
  public:
   WebTransportStreamAdapter(QuicSession* session, QuicStream* stream,
-                            QuicStreamSequencer* sequencer);
+                            QuicStreamSequencer* sequencer,
+                            std::optional<QuicStreamId> session_id);
 
   // WebTransportStream implementation.
   ABSL_MUST_USE_RESULT ReadResult Read(absl::Span<char> output) override;
@@ -30,6 +44,8 @@ class QUIC_EXPORT_PRIVATE WebTransportStreamAdapter
   bool CanWrite() const override;
   void AbruptlyTerminate(absl::Status error) override;
   size_t ReadableBytes() const override;
+  PeekResult PeekNextReadableRegion() const override;
+  bool SkipBytes(size_t bytes) override;
   void SetVisitor(std::unique_ptr<WebTransportStreamVisitor> visitor) override {
     visitor_ = std::move(visitor);
   }
@@ -47,11 +63,15 @@ class QUIC_EXPORT_PRIVATE WebTransportStreamAdapter
     stream_->Reset(QUIC_STREAM_CANCELLED);
   }
 
+  void SetPriority(const webtransport::StreamPriority& priority) override;
+
   WebTransportStreamVisitor* visitor() override { return visitor_.get(); }
 
   // Calls that need to be passed from the corresponding QuicStream methods.
   void OnDataAvailable();
   void OnCanWriteNewData();
+
+  void SetSessionId(QuicStreamId id);
 
  private:
   absl::Status CheckBeforeStreamWrite() const;
@@ -60,6 +80,7 @@ class QUIC_EXPORT_PRIVATE WebTransportStreamAdapter
   QuicStream* stream_;              // Unowned.
   QuicStreamSequencer* sequencer_;  // Unowned.
   std::unique_ptr<WebTransportStreamVisitor> visitor_;
+  std::optional<QuicStreamId> session_id_;
   bool fin_read_ = false;
 };
 

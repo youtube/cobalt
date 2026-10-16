@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "third_party/blink/renderer/platform/testing/blink_perf_test_suite.h"
-
 #include "gin/array_buffer.h"
 #include "gin/public/isolate_holder.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
+#include "third_party/blink/renderer/platform/testing/blink_perf_test_suite.h"
 
 static int InitAndRunAllTests(int argc, char** argv) {
   gin::IsolateHolder::Initialize(gin::IsolateHolder::kStrictMode,

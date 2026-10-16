@@ -5,10 +5,12 @@
 #ifndef ASH_APP_LIST_APP_LIST_METRICS_H_
 #define ASH_APP_LIST_APP_LIST_METRICS_H_
 
+#include <map>
+#include <optional>
+
 #include "ash/ash_export.h"
 #include "ash/public/cpp/app_list/app_list_types.h"
 #include "base/time/time.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/events/event.h"
 
 namespace ash {
@@ -34,10 +36,20 @@ ASH_EXPORT extern const char kTabletDragReorderAnimationSmoothnessHistogram[];
 // needed in tests.
 ASH_EXPORT extern const char kContinueSectionFilesRemovedInSessionHistogram[];
 
+// UMA histograms that records the number of times that the search category
+// filter menu is opened. Exposed in this header because it is needed in tests.
+extern const char kSearchCategoryFilterMenuOpened[];
+
+// UMA histograms that records the enable state for each search category when
+// filter menu is closed and the search is retriggered. Note that there must be
+// a category string appended to this header to form a complete histogram name.
+// Exposed in this header because it is needed in tests.
+extern const char kSearchCategoriesEnableStateHeader[];
+
 // These are used in histograms, do not remove/renumber entries. If you're
 // adding to this enum with the intention that it will be logged, update the
-// AppListResultRemovalConfirmation enum listing in
-// tools/metrics/histograms/enums.xml.
+// `AppListResultRemovalConfirmation` enum listed in
+// tools/metrics/histograms/metadata/apps/enums.xml.
 enum class SearchResultRemovalConfirmation {
   kRemovalConfirmed = 0,
   kRemovalCanceled = 1,
@@ -148,8 +160,42 @@ enum class AppListUserAction {
   // User opened a suggestion chip shown in the app list UI.
   DEPRECATED_kOpenSuggestionChip = 5,
 
-  kMaxValue = DEPRECATED_kOpenSuggestionChip,
+  // User navigated to the bottom of the app list UI.
+  kNavigatedToBottomOfAppList = 6,
+
+  // User launched an app from list of apps collections UI.
+  kAppLauncherFromAppsCollections = 7,
+
+  kMaxValue = kAppLauncherFromAppsCollections,
 };
+
+// The possible states for a search control category. The values should match
+// the AppListSearchCategoryState enum in enums.xml and should not be changed.
+enum class SearchCategoryEnableState {
+  // The search category is not available for users to toggle and the results
+  // that belong to the category will not be shown.
+  kNotAvailable = 0,
+
+  // The search category is enabled and the results that belong to the category
+  // will be shown if there is one. This is the default value for an available
+  // category.
+  kEnabled = 1,
+
+  // The search category is manually disabled by users and the results that
+  // belong to the category will not be shown.
+  kDisabled = 2,
+
+  kMaxValue = kDisabled,
+};
+
+enum class AppEntity {
+  kDefaultApp = 0,
+  kThirdPartyApp = 1,
+  kMaxValue = kThirdPartyApp,
+};
+
+using CategoryEnableStateMap =
+    std::map<AppListSearchControlCategory, SearchCategoryEnableState>;
 
 // Whether and how user-entered search box text matches up with the first search
 // result. These values are persisted to logs. Entries should not be renumbered
@@ -183,7 +229,8 @@ struct AppLaunchedMetricParams {
   AppListViewState app_list_view_state = AppListViewState::kClosed;
   bool is_tablet_mode = false;
   bool app_list_shown = false;
-  absl::optional<base::TimeTicks> launcher_show_timestamp;
+  bool is_apps_collections_page = false;
+  std::optional<base::TimeTicks> launcher_show_timestamp;
 };
 
 void AppListRecordPageSwitcherSourceByEventType(ui::EventType type);
@@ -199,6 +246,10 @@ void RecordAppListUserJourneyTime(AppListShowSource source,
 // Records metrics periodically (see interval in UserMetricsRecorder).
 void RecordPeriodicAppListMetrics();
 
+ASH_EXPORT void RecordAppListByCollectionLaunched(
+    AppCollection collection,
+    bool is_apps_collections_page);
+
 ASH_EXPORT void RecordAppListAppLaunched(AppListLaunchedFrom launched_from,
                                          AppListViewState app_list_state,
                                          bool is_tablet_mode,
@@ -207,7 +258,7 @@ ASH_EXPORT void RecordAppListAppLaunched(AppListLaunchedFrom launched_from,
 ASH_EXPORT void RecordLauncherWorkflowMetrics(
     AppListUserAction action,
     bool is_tablet_mode,
-    absl::optional<base::TimeTicks> launcher_show_time);
+    std::optional<base::TimeTicks> launcher_show_time);
 
 ASH_EXPORT bool IsCommandIdAnAppLaunch(int command_id);
 
@@ -237,6 +288,13 @@ void ResetContinueSectionFileRemovedCountForTest();
 
 // Records a metric for whether the user has hidden the continue section.
 void RecordHideContinueSectionMetric();
+
+// Records the number of times that the search category filter menu is opened.
+void RecordSearchCategoryFilterMenuOpened();
+
+// Records the metrics for the enable state of each search category.
+void RecordSearchCategoryEnableState(
+    const CategoryEnableStateMap& category_to_state);
 
 }  // namespace ash
 

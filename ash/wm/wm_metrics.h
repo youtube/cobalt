@@ -5,30 +5,45 @@
 #ifndef ASH_WM_WM_METRICS_H_
 #define ASH_WM_WM_METRICS_H_
 
+#include <ostream>
+
+#include "ash/ash_export.h"
+
 namespace ash {
 
 // Used to record different ways to snap a window. Note this should be kept in
-// sync with WindowSnapActionSource enum in tools/metrics/histograms/enums.xml.
+// sync with `WindowSnapActionSource` enum in
+// tools/metrics/histograms/metadata/ash/enums.xml.
 enum class WindowSnapActionSource {
-  kDragWindowToEdgeToSnap,
-  kUseCaptionButtonToSnap,
-  kKeyboardShortcutToSnap,
-  kDragOrSelectOverviewWindowToSnap,
-  kLongPressOverviewButtonToSnap,
-  kDragUpFromShelfToSnap,
-  kDragDownFromTopToSnap,
-  kDragTabToSnap,
-  kAutoSnapBySplitview,
-  kSnapByWindowStateRestore,
-  kOthers,  // This can include any actions that's not covered above, e.g.,
-            // window snap by full restore, desk template, desk switch or user
-            // switch, etc
-  kMaxValue = kOthers,
+  // Default value for any snap action actions that's not covered below.
+  kNotSpecified = 0,
+  kDragWindowToEdgeToSnap = 1,
+  kLongPressCaptionButtonToSnap = 2,
+  kKeyboardShortcutToSnap = 3,
+  kDragOrSelectOverviewWindowToSnap = 4,
+  kLongPressOverviewButtonToSnap = 5,
+  kDragUpFromShelfToSnap = 6,
+  kDragDownFromTopToSnap = 7,
+  kDragTabToSnap = 8,
+  kAutoSnapInSplitView = 9,
+  kSnapByWindowStateRestore = 10,
+  kSnapByWindowLayoutMenu = 11,
+  kSnapByFullRestoreOrDeskTemplateOrSavedDesk = 12,
+  kSnapByClamshellTabletTransition = 13,
+  kSnapByDeskOrSessionChange = 14,
+  kSnapGroupWindowUpdate = 15,
+  kTest = 16,
+  // 17 was removed.
+  kSnapBySwapWindowsInSnapGroup = 18,
+  kMaxValue = kSnapBySwapWindowsInSnapGroup,
 };
+
+ASH_EXPORT std::ostream& operator<<(std::ostream& out,
+                                    WindowSnapActionSource source);
 
 // Used to save histogram metrics about how the user initiates window snapping.
 constexpr char kWindowSnapActionSourceHistogram[] =
-    "Ash.Wm.WindowSnapActionSource";
+    "Ash.Wm.WindowSnapActionSource2";
 
 // Used to record the user action on initiating the multi-window resizer.
 constexpr char kMultiWindowResizerShow[] = "MultiWindowResizerShow";
@@ -63,6 +78,37 @@ constexpr char kMultiWindowResizerClickHistogramName[] =
 // when two windows are snapped.
 constexpr char kMultiWindowResizerClickTwoWindowsSnappedHistogramName[] =
     "Ash.Wm.MultiWindowResizerClickTwoWindowsSnapped";
+
+// Enum histogram metric for the number of times a window drag results in a
+// window split compared to other outcomes. Enum values from
+// `ash::WindowSplitter::DragType`.
+constexpr char kWindowSplittingDragTypeHistogramName[] =
+    "Ash.Wm.WindowSplitting.DragType";
+
+// Enum histogram metric for the window region where a window is split.
+// Enum values from `ash::WindowSplitter::SplitRegion`.
+constexpr char kWindowSplittingSplitRegionHistogramName[] =
+    "Ash.Wm.WindowSplitting.SplitRegion";
+
+// Time histogram metric for the time duration a user spends dragging when a
+// window is split.
+constexpr char kWindowSplittingDragDurationPerSplitHistogramName[] =
+    "Ash.Wm.WindowSplitting.DragDuration.PerSplit";
+
+// Time histogram metric for the time duration a user spends dragging when a
+// window is not split.
+constexpr char kWindowSplittingDragDurationPerNoSplitHistogramName[] =
+    "Ash.Wm.WindowSplitting.DragDuration.PerNoSplit";
+
+// Count histogram metric for the number of times the preview is shown when a
+// window is split.
+constexpr char kWindowSplittingPreviewsShownCountPerSplitDragHistogramName[] =
+    "Ash.Wm.WindowSplitting.PreviewsShownCount.PerSplit";
+
+// Count histogram metric for the number of times the preview is shown when a
+// window is not split.
+constexpr char kWindowSplittingPreviewsShownCountPerNoSplitDragHistogramName[] =
+    "Ash.Wm.WindowSplitting.PreviewsShownCount.PerNoSplit";
 
 }  // namespace ash
 

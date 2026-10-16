@@ -5,16 +5,17 @@
 #ifndef MEDIA_FORMATS_HLS_TEST_UTIL_H_
 #define MEDIA_FORMATS_HLS_TEST_UTIL_H_
 
-#include "base/strings/string_piece.h"
+#include <optional>
+#include <string_view>
+
 #include "base/time/time.h"
 #include "media/formats/hls/source_string.h"
 #include "media/formats/hls/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media::hls {
 
-inline types::VariableName CreateVarName(base::StringPiece name) {
+inline types::VariableName CreateVarName(std::string_view name) {
   return types::VariableName::Parse(SourceString::CreateForTesting(name))
       .value();
 }
@@ -39,17 +40,17 @@ inline testing::AssertionResult RoughlyEqual(
 }
 
 inline testing::AssertionResult RoughlyEqual(
-    absl::optional<base::TimeDelta> lhs,
-    absl::optional<base::TimeDelta> rhs,
+    std::optional<base::TimeDelta> lhs,
+    std::optional<base::TimeDelta> rhs,
     base::TimeDelta epsilon = base::Milliseconds(1)) {
   if (!lhs.has_value() && !rhs.has_value()) {
     return testing::AssertionSuccess();
   }
   if (lhs.has_value() && !rhs.has_value()) {
-    return testing::AssertionFailure() << lhs.value() << " != absl::nullopt";
+    return testing::AssertionFailure() << lhs.value() << " != std::nullopt";
   }
   if (!lhs.has_value() && rhs.has_value()) {
-    return testing::AssertionFailure() << "absl::nullopt != " << rhs.value();
+    return testing::AssertionFailure() << "std::nullopt != " << rhs.value();
   }
 
   return RoughlyEqual(lhs.value(), rhs.value(), epsilon);
@@ -57,4 +58,4 @@ inline testing::AssertionResult RoughlyEqual(
 
 }  // namespace media::hls
 
-#endif
+#endif  // MEDIA_FORMATS_HLS_TEST_UTIL_H_

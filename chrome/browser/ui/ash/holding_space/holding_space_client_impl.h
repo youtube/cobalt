@@ -37,13 +37,14 @@ class HoldingSpaceClientImpl : public HoldingSpaceClient {
   void OpenMyFiles(SuccessCallback callback) override;
   void PinFiles(const std::vector<base::FilePath>& file_paths) override;
   void PinItems(const std::vector<const HoldingSpaceItem*>& items) override;
-  void RemoveFileSuggestions(
+  void RefreshSuggestions() override;
+  void RemoveSuggestions(
       const std::vector<base::FilePath>& absolute_file_paths) override;
-  void ShowItemInFolder(const HoldingSpaceItem&, SuccessCallback) override;
+  void ShowItemInFolder(const HoldingSpaceItem& item, SuccessCallback) override;
   void UnpinItems(const std::vector<const HoldingSpaceItem*>& items) override;
 
  private:
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
+  const raw_ptr<Profile> profile_;
 
   base::WeakPtrFactory<HoldingSpaceClientImpl> weak_factory_{this};
 };

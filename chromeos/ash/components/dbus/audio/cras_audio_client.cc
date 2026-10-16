@@ -8,17 +8,18 @@
 
 #include <utility>
 
-#include "base/format_macros.h"
+#include "ash/constants/ash_switches.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "chromeos/ash/components/dbus/audio/fake_cras_audio_client.h"
+#include "chromeos/ash/components/dbus/audio/voice_isolation_ui_appearance.h"
 #include "dbus/bus.h"
 #include "dbus/message.h"
 #include "dbus/object_path.h"
 #include "dbus/object_proxy.h"
-#include "third_party/cros_system_api/dbus/service_constants.h"
+#include "third_party/cros_system_api/dbus/audio/dbus-constants.h"
 
 namespace ash {
 
@@ -156,10 +157,54 @@ class CrasAudioClientImpl : public CrasAudioClient {
                        weak_ptr_factory_.GetWeakPtr()));
 
     cras_proxy_->ConnectToSignal(
+        cras::kCrasControlInterface, "EwmaPowerReported",
+        base::BindRepeating(&CrasAudioClientImpl::EwmaPowerReportedReceived,
+                            weak_ptr_factory_.GetWeakPtr()),
+        base::BindOnce(&CrasAudioClientImpl::SignalConnected,
+                       weak_ptr_factory_.GetWeakPtr()));
+
+    cras_proxy_->ConnectToSignal(
         cras::kCrasControlInterface,
         cras::kNumberOfNonChromeOutputStreamsChanged,
         base::BindRepeating(
             &CrasAudioClientImpl::NumberOfNonChromeOutputStreamsChangedReceived,
+            weak_ptr_factory_.GetWeakPtr()),
+        base::BindOnce(&CrasAudioClientImpl::SignalConnected,
+                       weak_ptr_factory_.GetWeakPtr()));
+
+    // Monitor the D-Bus signal for is any stream ignore ui gains changed.
+    cras_proxy_->ConnectToSignal(
+        cras::kCrasControlInterface, cras::kNumStreamIgnoreUiGainsChanged,
+        base::BindRepeating(
+            &CrasAudioClientImpl::NumStreamIgnoreUiGainsReceived,
+            weak_ptr_factory_.GetWeakPtr()),
+        base::BindOnce(&CrasAudioClientImpl::SignalConnected,
+                       weak_ptr_factory_.GetWeakPtr()));
+
+    // Monitor the D-Bus signal for number of ARC streams changed.
+    cras_proxy_->ConnectToSignal(
+        cras::kCrasControlInterface, cras::kNumberOfArcStreamsChanged,
+        base::BindRepeating(
+            &CrasAudioClientImpl::NumberOfArcStreamsChangedReceived,
+            weak_ptr_factory_.GetWeakPtr()),
+        base::BindOnce(&CrasAudioClientImpl::SignalConnected,
+                       weak_ptr_factory_.GetWeakPtr()));
+
+    // Monitor the D-Bus signal for sidetone supported.
+    cras_proxy_->ConnectToSignal(
+        cras::kCrasControlInterface,
+        "SidetoneSupportedChanged",  // TODO: Change to variable
+        base::BindRepeating(
+            &CrasAudioClientImpl::SidetoneSupportedChangedReceived,
+            weak_ptr_factory_.GetWeakPtr()),
+        base::BindOnce(&CrasAudioClientImpl::SignalConnected,
+                       weak_ptr_factory_.GetWeakPtr()));
+
+    // Monitor the D-Bus signal for audio effect ui appearance.
+    cras_proxy_->ConnectToSignal(
+        cras::kCrasControlInterface, "AudioEffectUIAppearanceChanged",
+        base::BindRepeating(
+            &CrasAudioClientImpl::AudioEffectUIAppearanceChangedReceived,
             weak_ptr_factory_.GetWeakPtr()),
         base::BindOnce(&CrasAudioClientImpl::SignalConnected,
                        weak_ptr_factory_.GetWeakPtr()));
@@ -274,16 +319,6 @@ class CrasAudioClientImpl : public CrasAudioClient {
             weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
   }
 
-  void GetDeprioritizeBtWbsMic(
-      chromeos::DBusMethodCallback<bool> callback) override {
-    dbus::MethodCall method_call(cras::kCrasControlInterface,
-                                 cras::kGetDeprioritizeBtWbsMic);
-    cras_proxy_->CallMethod(
-        &method_call, dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
-        base::BindOnce(&CrasAudioClientImpl::OnGetDeprioritizeBtWbsMic,
-                       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
-  }
-
   void GetNumberOfNonChromeOutputStreams(
       chromeos::DBusMethodCallback<int32_t> callback) override {
     dbus::MethodCall method_call(cras::kCrasControlInterface,
@@ -347,6 +382,46 @@ class CrasAudioClientImpl : public CrasAudioClient {
                             base::DoNothing());
   }
 
+  void GetVoiceIsolationUIAppearance(
+      chromeos::DBusMethodCallback<VoiceIsolationUIAppearance> callback)
+      override {
+    VLOG(1) << "cras_audio_client: Requesting voice isolation UI appearance.";
+    // TODO(hunghsienchen): Use cras::kGetVoiceIsolationUIAppearance after
+    // dbus-constants.h is updated.
+    dbus::MethodCall method_call(cras::kCrasControlInterface,
+                                 "GetVoiceIsolationUIAppearance");
+    cras_proxy_->CallMethod(
+        &method_call, dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+        base::BindOnce(&CrasAudioClientImpl::OnGetVoiceIsolationUIAppearance,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+  }
+
+  void SetVoiceIsolationUIEnabled(bool voice_isolation_on) override {
+    VLOG(1) << "cras_audio_client: Setting voice isolation state: "
+            << voice_isolation_on;
+    // TODO(hunghsienchen): Use cras::kSetVoiceIsolationUIEnabled after
+    // dbus-constants.h is updated.
+    dbus::MethodCall method_call(cras::kCrasControlInterface,
+                                 "SetVoiceIsolationUIEnabled");
+    dbus::MessageWriter writer(&method_call);
+    writer.AppendBool(voice_isolation_on);
+    cras_proxy_->CallMethod(&method_call,
+                            dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+                            base::DoNothing());
+  }
+
+  void SetVoiceIsolationUIPreferredEffect(uint32_t effect_mode) override {
+    VLOG(1) << "cras_audio_client: Setting voice isolation preferred effect: "
+            << effect_mode;
+    dbus::MethodCall method_call(cras::kCrasControlInterface,
+                                 "SetVoiceIsolationUIPreferredEffect");
+    dbus::MessageWriter writer(&method_call);
+    writer.AppendUint32(effect_mode);
+    cras_proxy_->CallMethod(&method_call,
+                            dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+                            base::DoNothing());
+  }
+
   void SetNoiseCancellationEnabled(bool noise_cancellation_on) override {
     VLOG(1) << "cras_audio_client: Setting noise cancellation state: "
             << noise_cancellation_on;
@@ -359,6 +434,17 @@ class CrasAudioClientImpl : public CrasAudioClient {
                             base::DoNothing());
   }
 
+  void GetAudioEffectDlcs(
+      chromeos::DBusMethodCallback<std::string> callback) override {
+    VLOG(1) << "cras_audio_client: Requesting getting audio effect dlcs.";
+    dbus::MethodCall method_call(cras::kCrasControlInterface,
+                                 cras::kGetAudioEffectDlcs);
+    cras_proxy_->CallMethod(
+        &method_call, dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+        base::BindOnce(&CrasAudioClientImpl::OnGetAudioEffectDlcs,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+  }
+
   void GetNoiseCancellationSupported(
       chromeos::DBusMethodCallback<bool> callback) override {
     VLOG(1) << "cras_audio_client: Requesting noise cancellation support.";
@@ -367,6 +453,52 @@ class CrasAudioClientImpl : public CrasAudioClient {
     cras_proxy_->CallMethod(
         &method_call, dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
         base::BindOnce(&CrasAudioClientImpl::OnGetNoiseCancellationSupported,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+  }
+
+  void SetStyleTransferEnabled(bool style_transfer_on) override {
+    VLOG(1) << "cras_audio_client: Setting style transfer state: "
+            << style_transfer_on;
+    dbus::MethodCall method_call(cras::kCrasControlInterface,
+                                 cras::kSetStyleTransferEnabled);
+
+    dbus::MessageWriter writer(&method_call);
+    writer.AppendBool(style_transfer_on);
+    cras_proxy_->CallMethod(&method_call,
+                            dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+                            base::DoNothing());
+  }
+
+  void GetStyleTransferSupported(
+      chromeos::DBusMethodCallback<bool> callback) override {
+    VLOG(1) << "cras_audio_client: Requesting style transfer support.";
+    dbus::MethodCall method_call(cras::kCrasControlInterface,
+                                 cras::kIsStyleTransferSupported);
+    cras_proxy_->CallMethod(
+        &method_call, dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+        base::BindOnce(&CrasAudioClientImpl::OnGetStyleTransferSupported,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+  }
+
+  void SetHfpMicSrEnabled(bool hfp_mic_sr_on) override {
+    VLOG(1) << "cras_audio_client: Setting hfp_mic_sr state: " << hfp_mic_sr_on;
+    dbus::MethodCall method_call(cras::kCrasControlInterface,
+                                 cras::kSetHfpMicSrEnabled);
+    dbus::MessageWriter writer(&method_call);
+    writer.AppendBool(hfp_mic_sr_on);
+    cras_proxy_->CallMethod(&method_call,
+                            dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+                            base::DoNothing());
+  }
+
+  void GetHfpMicSrSupported(
+      chromeos::DBusMethodCallback<bool> callback) override {
+    VLOG(1) << "cras_audio_client: Requesting hfp_mic_sr support.";
+    dbus::MethodCall method_call(cras::kCrasControlInterface,
+                                 cras::kIsHfpMicSrSupported);
+    cras_proxy_->CallMethod(
+        &method_call, dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+        base::BindOnce(&CrasAudioClientImpl::OnGetHfpMicSrSupported,
                        weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
   }
 
@@ -432,6 +564,39 @@ class CrasAudioClientImpl : public CrasAudioClient {
     cras_proxy_->CallMethod(&method_call,
                             dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
                             base::DoNothing());
+  }
+
+  void SetEwmaPowerReportEnabled(bool enabled) override {
+    dbus::MethodCall method_call(
+        cras::kCrasControlInterface,
+        "SetEwmaPowerReportEnabled");  // TODO change to variable;
+    dbus::MessageWriter writer(&method_call);
+    writer.AppendBool(enabled);
+    cras_proxy_->CallMethod(&method_call,
+                            dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+                            base::DoNothing());
+  }
+
+  void SetSidetoneEnabled(bool enabled) override {
+    dbus::MethodCall method_call(
+        cras::kCrasControlInterface,
+        "SetSidetoneEnabled");  // TODO change to variable;
+    dbus::MessageWriter writer(&method_call);
+    writer.AppendBool(enabled);
+    cras_proxy_->CallMethod(&method_call,
+                            dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+                            base::DoNothing());
+  }
+
+  void GetSidetoneSupported(
+      chromeos::DBusMethodCallback<bool> callback) override {
+    dbus::MethodCall method_call(
+        cras::kCrasControlInterface,
+        "GetSidetoneSupported");  // TODO: Change to variable
+    cras_proxy_->CallMethod(
+        &method_call, dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+        base::BindOnce(&CrasAudioClientImpl::OnGetSidetoneSupported,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
   }
 
   void AddActiveInputNode(uint64_t node_id) override {
@@ -503,7 +668,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
                                  cras::kSetGlobalOutputChannelRemix);
     dbus::MessageWriter writer(&method_call);
     writer.AppendInt32(channels);
-    writer.AppendArrayOfDoubles(mixer.data(), mixer.size());
+    writer.AppendArrayOfDoubles(mixer);
     cras_proxy_->CallMethod(&method_call,
                             dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
                             base::DoNothing());
@@ -593,6 +758,59 @@ class CrasAudioClientImpl : public CrasAudioClient {
   void WaitForServiceToBeAvailable(
       chromeos::WaitForServiceToBeAvailableCallback callback) override {
     cras_proxy_->WaitForServiceToBeAvailable(std::move(callback));
+  }
+
+  void SetForceRespectUiGains(bool force_respect_ui_gains) override {
+    VLOG(1) << "cras_audio_client: Setting force_respect_ui_gains state: "
+            << force_respect_ui_gains;
+    dbus::MethodCall method_call(cras::kCrasControlInterface,
+                                 cras::kSetForceRespectUiGains);
+    dbus::MessageWriter writer(&method_call);
+    writer.AppendBool(force_respect_ui_gains);
+    cras_proxy_->CallMethod(&method_call,
+                            dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+                            base::DoNothing());
+  }
+
+  void GetNumStreamIgnoreUiGains(
+      chromeos::DBusMethodCallback<int32_t> callback) override {
+    dbus::MethodCall method_call(cras::kCrasControlInterface,
+                                 cras::kGetNumStreamIgnoreUiGains);
+    cras_proxy_->CallMethod(
+        &method_call, dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+        base::BindOnce(&CrasAudioClientImpl::OnGetNumStreamIgnoreUiGains,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+  }
+
+  void GetNumberOfArcStreams(
+      chromeos::DBusMethodCallback<int32_t> callback) override {
+    dbus::MethodCall method_call(cras::kCrasControlInterface,
+                                 cras::kGetNumberOfArcStreams);
+    cras_proxy_->CallMethod(
+        &method_call, dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+        base::BindOnce(&CrasAudioClientImpl::OnGetNumberOfArcStreams,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+  }
+
+  void SetSpatialAudio(bool spatial_audio) override {
+    dbus::MethodCall method_call(cras::kCrasControlInterface,
+                                 cras::kSetSpatialAudio);
+    dbus::MessageWriter writer(&method_call);
+    writer.AppendBool(spatial_audio);
+    cras_proxy_->CallMethod(&method_call,
+                            dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+                            base::DoNothing());
+  }
+
+  void GetSpatialAudioSupported(
+      chromeos::DBusMethodCallback<bool> callback) override {
+    VLOG(1) << "cras_audio_client: Requesting spatial audio support.";
+    dbus::MethodCall method_call(cras::kCrasControlInterface,
+                                 cras::kIsSpatialAudioSupported);
+    cras_proxy_->CallMethod(
+        &method_call, dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+        base::BindOnce(&CrasAudioClientImpl::OnGetSpatialAudioSupported,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
   }
 
  private:
@@ -771,7 +989,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
                         dbus::Response* response) {
     if (!response) {
       LOG(ERROR) << "Error calling " << cras::kGetVolumeState;
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
 
@@ -784,7 +1002,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
         !reader.PopBool(&volume_state.output_user_mute)) {
       LOG(ERROR) << "Error reading response from cras: "
                  << response->ToString();
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
 
@@ -848,9 +1066,59 @@ class CrasAudioClientImpl : public CrasAudioClient {
     }
   }
 
+  void EwmaPowerReportedReceived(dbus::Signal* signal) {
+    dbus::MessageReader reader(signal);
+    double power;
+    if (!reader.PopDouble(&power)) {
+      LOG(ERROR) << "Error reading signal from cras: " << signal->ToString();
+    }
+    for (auto& observer : observers_) {
+      observer.EwmaPowerReported(power);
+    }
+  }
+
   void NumberOfNonChromeOutputStreamsChangedReceived(dbus::Signal* signal) {
     for (auto& observer : observers_) {
       observer.NumberOfNonChromeOutputStreamsChanged();
+    }
+  }
+
+  void NumStreamIgnoreUiGainsReceived(dbus::Signal* signal) {
+    dbus::MessageReader reader(signal);
+    int32_t num;
+    if (!reader.PopInt32(&num)) {
+      LOG(ERROR) << "Error reading signal from cras:" << signal->ToString();
+    }
+    for (auto& observer : observers_) {
+      observer.NumStreamIgnoreUiGains(num);
+    }
+  }
+
+  void NumberOfArcStreamsChangedReceived(dbus::Signal* signal) {
+    for (auto& observer : observers_) {
+      observer.NumberOfArcStreamsChanged();
+    }
+  }
+
+  void SidetoneSupportedChangedReceived(dbus::Signal* signal) {
+    dbus::MessageReader reader(signal);
+    bool supported;
+    if (!reader.PopBool(&supported)) {
+      LOG(ERROR) << "Error reading signal from cras: " << signal->ToString();
+    }
+    for (auto& observer : observers_) {
+      observer.SidetoneSupportedChanged(supported);
+    }
+  }
+
+  void AudioEffectUIAppearanceChangedReceived(dbus::Signal* signal) {
+    dbus::MessageReader reader(signal);
+    VoiceIsolationUIAppearance appearance;
+    if (!ReadVoiceIsolationUIAppearanceFromDBus(signal, appearance)) {
+      return;
+    }
+    for (auto& observer : observers_) {
+      observer.AudioEffectUIAppearanceChanged(appearance);
     }
   }
 
@@ -858,7 +1126,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
                                     dbus::Response* response) {
     if (!response) {
       LOG(ERROR) << "Error calling " << cras::kGetDefaultOutputBufferSize;
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
     int32_t buffer_size = 0;
@@ -866,7 +1134,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
     if (!reader.PopInt32(&buffer_size)) {
       LOG(ERROR) << "Error reading response from cras: "
                  << response->ToString();
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
 
@@ -877,7 +1145,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
                                dbus::Response* response) {
     if (!response) {
       LOG(ERROR) << "Error calling " << cras::kGetSystemAecSupported;
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
     bool system_aec_supported = 0;
@@ -885,7 +1153,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
     if (!reader.PopBool(&system_aec_supported)) {
       LOG(ERROR) << "Error reading response from cras: "
                  << response->ToString();
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
 
@@ -896,7 +1164,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
                              dbus::Response* response) {
     if (!response) {
       LOG(ERROR) << "Error calling " << cras::kGetSystemAecGroupId;
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
     int32_t system_aec_group_id = 0;
@@ -904,7 +1172,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
     if (!reader.PopInt32(&system_aec_group_id)) {
       LOG(ERROR) << "Error reading response from cras: "
                  << response->ToString();
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
 
@@ -915,7 +1183,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
                               dbus::Response* response) {
     if (!response) {
       LOG(ERROR) << "Error calling " << cras::kGetSystemNsSupported;
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
     bool system_ns_supported = 0;
@@ -923,7 +1191,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
     if (!reader.PopBool(&system_ns_supported)) {
       LOG(ERROR) << "Error reading response from cras: "
                  << response->ToString();
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
 
@@ -934,7 +1202,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
                                dbus::Response* response) {
     if (!response) {
       LOG(ERROR) << "Error calling " << cras::kGetSystemAgcSupported;
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
     bool system_agc_supported = 0;
@@ -942,7 +1210,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
     if (!reader.PopBool(&system_agc_supported)) {
       LOG(ERROR) << "Error reading response from cras: "
                  << response->ToString();
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
 
@@ -952,7 +1220,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
   void OnGetNodes(chromeos::DBusMethodCallback<AudioNodeList> callback,
                   dbus::Response* response) {
     if (!response) {
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
 
@@ -963,7 +1231,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
       if (!response_reader.PopArray(&array_reader)) {
         LOG(ERROR) << "Error reading response from cras: "
                    << response->ToString();
-        std::move(callback).Run(absl::nullopt);
+        std::move(callback).Run(std::nullopt);
         return;
       }
 
@@ -971,7 +1239,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
       if (!GetAudioNode(response, &array_reader, &node)) {
         LOG(WARNING) << "Error reading audio node data from cras: "
                      << response->ToString();
-        std::move(callback).Run(absl::nullopt);
+        std::move(callback).Run(std::nullopt);
         return;
       }
 
@@ -984,13 +1252,31 @@ class CrasAudioClientImpl : public CrasAudioClient {
     std::move(callback).Run(std::move(node_list));
   }
 
+  void OnGetSidetoneSupported(chromeos::DBusMethodCallback<bool> callback,
+                              dbus::Response* response) {
+    if (!response) {
+      LOG(ERROR) << "Error calling GetSidetoneSupported";
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    bool available = false;
+    dbus::MessageReader reader(response);
+    if (!reader.PopBool(&available)) {
+      LOG(ERROR) << "Error reading response from cras: "
+                 << response->ToString();
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    std::move(callback).Run(available);
+  }
+
   void OnGetNumberOfNonChromeOutputStreams(
       chromeos::DBusMethodCallback<int32_t> callback,
       dbus::Response* response) {
     if (!response) {
       LOG(ERROR) << "Error calling "
                  << cras::kGetNumberOfNonChromeOutputStreams;
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
     int32_t num_active_streams = 0;
@@ -998,7 +1284,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
     if (!reader.PopInt32(&num_active_streams)) {
       LOG(ERROR) << "Error reading response from cras: "
                  << response->ToString();
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
     std::move(callback).Run(num_active_streams);
@@ -1009,7 +1295,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
       dbus::Response* response) {
     if (!response) {
       LOG(ERROR) << "Error calling " << cras::kGetNumberOfActiveOutputStreams;
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
     int32_t num_active_streams = 0;
@@ -1017,7 +1303,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
     if (!reader.PopInt32(&num_active_streams)) {
       LOG(ERROR) << "Error reading response from cras: "
                  << response->ToString();
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
 
@@ -1057,7 +1343,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
     if (!response) {
       LOG(ERROR) << "Error calling "
                  << cras::kGetNumberOfInputStreamsWithPermission;
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
     dbus::MessageReader response_reader(response);
@@ -1067,7 +1353,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
       if (!response_reader.PopArray(&array_reader)) {
         LOG(ERROR) << "Error reading response from cras: "
                    << response->ToString();
-        std::move(callback).Run(absl::nullopt);
+        std::move(callback).Run(std::nullopt);
         return;
       }
       std::string client_type;
@@ -1076,32 +1362,13 @@ class CrasAudioClientImpl : public CrasAudioClient {
                                 &num_input_streams)) {
         LOG(ERROR) << "Error reading number of input streams from cras: "
                    << response->ToString();
-        std::move(callback).Run(absl::nullopt);
+        std::move(callback).Run(std::nullopt);
         return;
       }
       res[client_type] = num_input_streams;
     }
 
     std::move(callback).Run(std::move(res));
-  }
-
-  void OnGetDeprioritizeBtWbsMic(chromeos::DBusMethodCallback<bool> callback,
-                                 dbus::Response* response) {
-    if (!response) {
-      LOG(ERROR) << "Error calling "
-                 << "GetDeprioritizeBtWbsMic";
-      std::move(callback).Run(absl::nullopt);
-      return;
-    }
-    bool deprioritize_bt_wbs_mic = 0;
-    dbus::MessageReader reader(response);
-    if (!reader.PopBool(&deprioritize_bt_wbs_mic)) {
-      LOG(ERROR) << "Error reading response from cras: "
-                 << response->ToString();
-      std::move(callback).Run(absl::nullopt);
-      return;
-    }
-    std::move(callback).Run(deprioritize_bt_wbs_mic);
   }
 
   void OnSetHotwordModel(chromeos::VoidDBusMethodCallback callback,
@@ -1129,13 +1396,72 @@ class CrasAudioClientImpl : public CrasAudioClient {
     std::move(callback).Run(true);
   }
 
+  void OnGetAudioEffectDlcs(chromeos::DBusMethodCallback<std::string> callback,
+                            dbus::Response* response) {
+    if (!response) {
+      LOG(ERROR) << "Error calling GetAudioEffectDlcs";
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    std::string audio_effect_dlcs;
+    dbus::MessageReader reader(response);
+    if (!reader.PopString(&audio_effect_dlcs)) {
+      LOG(ERROR) << "Error reading response from cras: "
+                 << response->ToString();
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    std::move(callback).Run(audio_effect_dlcs);
+    VLOG(1) << "cras_audio_client: Retrieved audio effect dlcs: "
+            << audio_effect_dlcs;
+  }
+
+  bool ReadVoiceIsolationUIAppearanceFromDBus(
+      dbus::Message* message,
+      VoiceIsolationUIAppearance& appearance) {
+    uint32_t toggle_type = 0;
+    uint32_t effect_mode_options = 0;
+    bool show_effect_fallback_message = false;
+    dbus::MessageReader reader(message);
+    if (!reader.PopUint32(&toggle_type) ||
+        !reader.PopUint32(&effect_mode_options) ||
+        !reader.PopBool(&show_effect_fallback_message)) {
+      LOG(ERROR) << "Error reading message from cras: " << message->ToString();
+      return false;
+    }
+    appearance.toggle_type = static_cast<cras::AudioEffectType>(toggle_type);
+    appearance.effect_mode_options = effect_mode_options;
+    appearance.show_effect_fallback_message = show_effect_fallback_message;
+    return true;
+  }
+
+  void OnGetVoiceIsolationUIAppearance(
+      chromeos::DBusMethodCallback<VoiceIsolationUIAppearance> callback,
+      dbus::Response* response) {
+    if (!response) {
+      LOG(ERROR) << "Error calling " << "GetVoiceIsolationUIAppearance";
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+
+    VoiceIsolationUIAppearance appearance;
+    if (!ReadVoiceIsolationUIAppearanceFromDBus(response, appearance)) {
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+
+    VLOG(1) << "cras_audio_client: Retrieved voice isolation appearance: "
+            << appearance.ToString();
+    std::move(callback).Run(std::move(appearance));
+  }
+
   void OnGetNoiseCancellationSupported(
       chromeos::DBusMethodCallback<bool> callback,
       dbus::Response* response) {
     if (!response) {
       LOG(ERROR) << "Error calling "
                  << "GetNoiseCancellationSupported";
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
     bool is_noise_cancellation_supported = 0;
@@ -1143,12 +1469,73 @@ class CrasAudioClientImpl : public CrasAudioClient {
     if (!reader.PopBool(&is_noise_cancellation_supported)) {
       LOG(ERROR) << "Error reading response from cras: "
                  << response->ToString();
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
     std::move(callback).Run(is_noise_cancellation_supported);
     VLOG(1) << "cras_audio_client: Retrieved noise cancellation support: "
             << is_noise_cancellation_supported;
+  }
+
+  void OnGetStyleTransferSupported(chromeos::DBusMethodCallback<bool> callback,
+                                   dbus::Response* response) {
+    if (!response) {
+      LOG(ERROR) << "Error calling GetStyleTransferSupported";
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    bool is_style_transfer_supported = 0;
+    dbus::MessageReader reader(response);
+    if (!reader.PopBool(&is_style_transfer_supported)) {
+      LOG(ERROR) << "Error reading response from cras: "
+                 << response->ToString();
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    std::move(callback).Run(is_style_transfer_supported);
+    VLOG(1) << "cras_audio_client: Retrieved style transfer support: "
+            << is_style_transfer_supported;
+  }
+
+  void OnGetHfpMicSrSupported(chromeos::DBusMethodCallback<bool> callback,
+                              dbus::Response* response) {
+    if (!response) {
+      LOG(ERROR) << "Error calling "
+                 << "IsHfpMicSrSupported";
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    bool is_hfp_mic_sr_supported = 0;
+    dbus::MessageReader reader(response);
+    if (!reader.PopBool(&is_hfp_mic_sr_supported)) {
+      LOG(ERROR) << "Error reading response from cras: "
+                 << response->ToString();
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    std::move(callback).Run(is_hfp_mic_sr_supported);
+    VLOG(1) << "cras_audio_client: Retrieved hfp_mic_sr support: "
+            << is_hfp_mic_sr_supported;
+  }
+
+  void OnGetSpatialAudioSupported(chromeos::DBusMethodCallback<bool> callback,
+                                  dbus::Response* response) {
+    if (!response) {
+      LOG(ERROR) << "Error calling " << "IsSpatialAudioSupported";
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    bool is_spatial_audio_supported = 0;
+    dbus::MessageReader reader(response);
+    if (!reader.PopBool(&is_spatial_audio_supported)) {
+      LOG(ERROR) << "Error reading response from cras: "
+                 << response->ToString();
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    std::move(callback).Run(is_spatial_audio_supported);
+    VLOG(1) << "cras_audio_client: Retrieved spatial_audio support: "
+            << is_spatial_audio_supported;
   }
 
   bool GetAudioNode(dbus::Response* response,
@@ -1225,7 +1612,7 @@ class CrasAudioClientImpl : public CrasAudioClient {
     if (!response) {
       LOG(ERROR) << "Error calling "
                  << "GetSpeakOnMuteDetectionEnabled";
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
     bool speak_on_mute_detection_enabled = false;
@@ -1233,13 +1620,50 @@ class CrasAudioClientImpl : public CrasAudioClient {
     if (!reader.PopBool(&speak_on_mute_detection_enabled)) {
       LOG(ERROR) << "Error reading response from cras: "
                  << response->ToString();
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
     std::move(callback).Run(speak_on_mute_detection_enabled);
   }
 
-  raw_ptr<dbus::ObjectProxy, ExperimentalAsh> cras_proxy_ = nullptr;
+  void OnGetNumStreamIgnoreUiGains(
+      chromeos::DBusMethodCallback<int32_t> callback,
+      dbus::Response* response) {
+    if (!response) {
+      LOG(ERROR) << "Error calling " << cras::kGetNumStreamIgnoreUiGains;
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    int32_t num_stream_ignore_ui_gains = 0;
+    dbus::MessageReader reader(response);
+    if (!reader.PopInt32(&num_stream_ignore_ui_gains)) {
+      LOG(ERROR) << "Error reading response from cras: "
+                 << response->ToString();
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    std::move(callback).Run(num_stream_ignore_ui_gains);
+  }
+
+  void OnGetNumberOfArcStreams(chromeos::DBusMethodCallback<int32_t> callback,
+                               dbus::Response* response) {
+    if (!response) {
+      LOG(ERROR) << "Error calling " << cras::kGetNumberOfArcStreams;
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    int32_t num_arc_streams = 0;
+    dbus::MessageReader reader(response);
+    if (!reader.PopInt32(&num_arc_streams)) {
+      LOG(ERROR) << "Error reading response from cras: "
+                 << response->ToString();
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    std::move(callback).Run(num_arc_streams);
+  }
+
+  raw_ptr<dbus::ObjectProxy> cras_proxy_ = nullptr;
   base::ObserverList<Observer>::Unchecked observers_;
 
   // Note: This should remain the last member so it'll be destroyed and
@@ -1286,7 +1710,18 @@ void CrasAudioClient::Observer::SurveyTriggered(
 
 void CrasAudioClient::Observer::SpeakOnMuteDetected() {}
 
+void CrasAudioClient::Observer::EwmaPowerReported(double power) {}
+
 void CrasAudioClient::Observer::NumberOfNonChromeOutputStreamsChanged() {}
+
+void CrasAudioClient::Observer::NumStreamIgnoreUiGains(int32_t num) {}
+
+void CrasAudioClient::Observer::NumberOfArcStreamsChanged() {}
+
+void CrasAudioClient::Observer::SidetoneSupportedChanged(bool supported) {}
+
+void CrasAudioClient::Observer::AudioEffectUIAppearanceChanged(
+    VoiceIsolationUIAppearance appearance) {}
 
 CrasAudioClient::CrasAudioClient() {
   DCHECK(!g_instance);
@@ -1301,7 +1736,13 @@ CrasAudioClient::~CrasAudioClient() {
 // static
 void CrasAudioClient::Initialize(dbus::Bus* bus) {
   DCHECK(bus);
-  new CrasAudioClientImpl(bus);
+  if (ash::switches::UseFakeCrasAudioClientForDBus()) {
+    LOG(WARNING) << "Using FakeCrasAudioClient due to switch: "
+                 << ash::switches::kUseFakeCrasAudioClientForDBus;
+    InitializeFake();
+  } else {
+    new CrasAudioClientImpl(bus);
+  }
 }
 
 // static

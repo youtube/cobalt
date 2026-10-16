@@ -16,11 +16,17 @@
 
 namespace enterprise_signals {
 
+using SettingValue = device_signals::SettingValue;
+
 namespace {
 
 // When true, will force DeviceInfoFetcher::CreateInstance to return a stubbed
 // instance. Used for testing.
 bool force_stub_for_testing = false;
+
+// When true, will force DeviceInfoFetcher to return duplicate mac addresses in
+// the signal.
+bool force_duplicate_mac_addresses = false;
 
 // Stub implementation of DeviceInfoFetcher.
 class StubDeviceFetcher : public DeviceInfoFetcher {
@@ -43,6 +49,9 @@ class StubDeviceFetcher : public DeviceInfoFetcher {
     device_info.screen_lock_secured = SettingValue::ENABLED;
     device_info.disk_encrypted = SettingValue::DISABLED;
     device_info.mac_addresses.push_back("00:00:00:00:00:00");
+    if (force_duplicate_mac_addresses) {
+      device_info.mac_addresses.push_back("00:00:00:00:00:00");
+    }
     device_info.windows_machine_domain = "MACHINE_DOMAIN";
     device_info.windows_user_domain = "USER_DOMAIN";
     return device_info;
@@ -64,19 +73,16 @@ std::unique_ptr<DeviceInfoFetcher> DeviceInfoFetcher::CreateInstance() {
   if (force_stub_for_testing) {
     return std::make_unique<StubDeviceFetcher>();
   }
-
-// TODO(pastarmovj): Instead of the if-defs implement the CreateInstance
-// function in the platform specific classes.
-#if BUILDFLAG(IS_MAC)
-  return std::make_unique<DeviceInfoFetcherMac>();
-#elif BUILDFLAG(IS_WIN)
-  return std::make_unique<DeviceInfoFetcherWin>();
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-  return std::make_unique<DeviceInfoFetcherLinux>();
-#else
-  return std::make_unique<StubDeviceFetcher>();
-#endif
+  return CreateInstanceInternal();
 }
+
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_WIN) && \
+    !(BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
+// static
+std::unique_ptr<DeviceInfoFetcher> DeviceInfoFetcher::CreateInstanceInternal() {
+  return std::make_unique<StubDeviceFetcher>();
+}
+#endif
 
 // static
 std::unique_ptr<DeviceInfoFetcher>
@@ -87,6 +93,12 @@ DeviceInfoFetcher::CreateStubInstanceForTesting() {
 // static
 void DeviceInfoFetcher::SetForceStubForTesting(bool should_force) {
   force_stub_for_testing = should_force;
+}
+
+// static
+void DeviceInfoFetcher::SetForceDuplicateMacAddressesForTesting(
+    bool should_force) {
+  force_duplicate_mac_addresses = should_force;
 }
 
 }  // namespace enterprise_signals

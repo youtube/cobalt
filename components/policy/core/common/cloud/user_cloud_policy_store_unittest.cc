@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/command_line.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/run_loop.h"
@@ -18,6 +19,7 @@
 #include "components/policy/core/common/cloud/test/policy_builder.h"
 #include "components/policy/core/common/policy_switches.h"
 #include "components/policy/policy_constants.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -76,6 +78,14 @@ class UserCloudPolicyStoreTest : public testing::Test {
     // the stored/loaded policy blob succeeds (it looks like a new key
     // provision).
     policy_.SetDefaultInitialSigningKey();
+
+    // This will change the verification key to be used by the
+    // CloudPolicyValidator. It will allow for the policy provided by the
+    // PolicyBuilder to pass the signature validation.
+    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+    command_line->AppendSwitchASCII(
+        switches::kPolicyVerificationKey,
+        PolicyBuilder::GetEncodedPolicyVerificationKey());
 
     InitPolicyPayload(&policy_.payload());
 
@@ -416,8 +426,8 @@ TEST_F(UserCloudPolicyStoreTest, StoreUnsigned) {
 }
 
 TEST_F(UserCloudPolicyStoreTest, LoadValidationError) {
-  AccountId other_account_id =
-      AccountId::FromUserEmailGaiaId("foobar@foobar.com", "another-gaia-id");
+  AccountId other_account_id = AccountId::FromUserEmailGaiaId(
+      "foobar@foobar.com", GaiaId("another-gaia-id"));
   // Force a validation error by changing the account id after policy is stored.
   StorePolicyAndEnsureLoaded(policy_.policy());
 

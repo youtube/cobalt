@@ -1,11 +1,15 @@
 include_rules = [
+  "+components/miracle_parameter",
+  "+components/network_time/time_tracker",
   "+crypto",
   "+net/net_jni_headers",
   "+third_party/apple_apsl",
   "+third_party/boringssl/src/include",
+  "+third_party/boringssl/src/pki",
   "+third_party/nss",
   "+third_party/protobuf/src/google/protobuf",
   "+third_party/zlib",
+  "+third_party/simdutf",
 
   # Most of net should not depend on icu, and brotli to keep size down when
   # built as a library.
@@ -54,10 +58,30 @@ specific_include_rules = {
     "+base/i18n",
   ],
 
+  "zstd_source_stream\.cc": [
+    "+third_party/zstd",
+  ],
+
+  "cookie_partition_key\.(cc|h)": [
+    "+mojo/public/cpp/bindings/default_construct_tag.h",
+  ],
+
+  "proxy_config_service_linux.cc": [
+    "+ui/base/glib",
+  ],
+
   # Dependencies specific for fuzz targets and other fuzzing-related code.
   ".*fuzz.*": [
+    "+third_party/fuzztest",
+    "+third_party/googletest",
     "+third_party/libprotobuf-mutator",  # This is needed for LPM-based fuzzers.
-  ]
+    "+third_party/icu/fuzzers/fuzzer_utils.h"
+  ],
+
+  # Fuzzers may also be included in unit tests.
+  ".*test\.cc": [
+    "+third_party/fuzztest",
+  ],
 }
 
 skip_child_includes = [

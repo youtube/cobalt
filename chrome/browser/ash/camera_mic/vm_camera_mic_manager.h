@@ -73,6 +73,9 @@ class VmCameraMicManager : public media::CameraActiveClientObserver,
   // Return true if any of the VMs is using the device. Note that if the camera
   // privacy switch is on, this always returns false for `kCamera`.
   bool IsDeviceActive(DeviceType device) const;
+  // Return true if the selected VM is using the device. Note that if the camera
+  // privacy switch is on, this always returns false for `kCamera`.
+  bool IsDeviceActive(VmType vm, DeviceType device) const;
   // Return true if any of the VMs is displaying the `notification`.
   bool IsNotificationActive(NotificationType notification) const;
 
@@ -108,7 +111,7 @@ class VmCameraMicManager : public media::CameraActiveClientObserver,
   void UpdateVmInfo(VmType vm, void (VmInfo::*updator)(bool), bool value);
   void NotifyActiveChanged();
 
-  raw_ptr<Profile, ExperimentalAsh> primary_profile_ = nullptr;
+  raw_ptr<Profile, LeakedDanglingUntriaged> primary_profile_ = nullptr;
   std::map<VmType, VmInfo> vm_info_map_;
 
   base::ObserverList<Observer> observers_;

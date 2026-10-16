@@ -28,12 +28,18 @@ function getPropertyPath(path, length)
 
 function emitExpectedResult(path, expected)
 {
-    if (path[0] == 'clientInformation' // Just an alias for navigator.
-        || path[0] == 'testRunner' // Skip testRunner since they are only for testing.
-        || path[0] == 'eventSender'// Skip eventSender since they are only for testing.
-        || path[1] == 'gpuBenchmarking') { // Skip gpuBenchmarking since they're only for testing.
-        return;
-    }
+  if (path[0] == 'clientInformation'  // Just an alias for navigator.
+      || path[0] ==
+          'testRunner'  // Skip testRunner since they are only for testing.
+      || path[0] ==
+          'eventSender'  // Skip eventSender since they are only for testing.
+      || path[0] == 'navigator' &&
+          path[1] == 'clipboard'  // crbug.com/417636704 Clipboardchange event
+                                  // is not enabled on all platforms.
+      || path[1] == 'gpuBenchmarking') {  // Skip gpuBenchmarking since they're
+                                          // only for testing.
+    return;
+  }
 
     // Skip the properties which are hard to expect a stable result.
     if (path[0] == 'accessibilityController' // we can hardly estimate the states of the cached WebAXObjects.
@@ -60,7 +66,7 @@ function emitExpectedResult(path, expected)
     // Special cases where the properties might return something other than the
     // "expected" default (e.g. bool property defaulting to false). Please do
     // not add exceptions to this list without documenting them.
-    var propertyPath = path.join('.');
+    var propertyPath = getPropertyPath(path, path.length);
 
     // Properties that are skipped because they are unstable due to dependency
     // on system global state that is variable between test runs.
@@ -70,6 +76,8 @@ function emitExpectedResult(path, expected)
     case "navigator.connection.downlink":
     // performance.timeOrigin depends on when the page is loaded and is variable.
     case "performance.timeOrigin":
+    // It's expected that performance.eventCounts.size is non-zero.
+    case "performance.eventCounts.size":
         return;
     }
 
@@ -84,12 +92,15 @@ function emitExpectedResult(path, expected)
     case 'navigator.connection.rtt':
     case "navigator.deviceMemory":
     case "navigator.devicePosture.type":
+    case "navigator.gpu.wgslLanguageFeatures.size":
     case "navigator.hardwareConcurrency":
     case "navigator.language":
     case "navigator.onLine":
     case "navigator.platform":
     case "navigator.product":
     case "navigator.productSub":
+    case "navigator.userAgentData.brands[0].brand":
+    case "navigator.userAgentData.brands[0].version":
     case "navigator.vendor":
     case "screen.orientation.type":
         expected = "window." + propertyPath;
@@ -106,21 +117,31 @@ function emitExpectedResult(path, expected)
         expected = "'unsafe-none'";
         break;
 
-    // TODO(dcheng): Figure out why these become undefined...
-    case "location.hash":
-    case "location.host":
-    case "location.hostname":
+    // location's url is left intact on detach. The location getters will
+    // provide the appropriate components of our test url (about:blank).
     case "location.href":
-    case "location.origin":
-    case "location.pathname":
-    case "location.port":
-    case "location.protocol":
-    case "location.search":
-        expected = "undefined";
+        expected = "'about:blank'";
         break;
+    case "location.origin":
+        expected = "'null'";
+        break;
+    case "location.pathname":
+        expected = "'blank'";
+        break;
+    case "location.protocol":
+        expected = "'about:'";
+        break;
+
     case "navigator.mediaSession.playbackState":
         expected = "'none'";
         break;
+
+    // https://drafts.csswg.org/cssom-view/#dom-screen-colordepth
+    case "screen.colorDepth":
+    case "screen.pixelDepth":
+        expected = "24";
+        break;
+
     // Web tests are loaded from the local filesystem.
     case "origin":
         expected = "'file://'";

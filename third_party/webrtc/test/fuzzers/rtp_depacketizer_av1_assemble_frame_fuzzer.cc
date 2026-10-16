@@ -7,22 +7,21 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
-#include "modules/rtp_rtcp/source/video_rtp_depacketizer_av1.h"
-
 #include <stddef.h>
 #include <stdint.h>
 
 #include <vector>
 
 #include "api/array_view.h"
+#include "modules/rtp_rtcp/source/video_rtp_depacketizer_av1.h"
 #include "test/fuzzers/fuzz_data_helper.h"
 
 namespace webrtc {
 void FuzzOneInput(const uint8_t* data, size_t size) {
-  std::vector<rtc::ArrayView<const uint8_t>> rtp_payloads;
+  std::vector<webrtc::ArrayView<const uint8_t>> rtp_payloads;
 
   // Convert plain array of bytes into array of array bytes.
-  test::FuzzDataHelper fuzz_input(rtc::MakeArrayView(data, size));
+  test::FuzzDataHelper fuzz_input(webrtc::MakeArrayView(data, size));
   while (fuzz_input.CanReadBytes(sizeof(uint16_t))) {
     // In practice one rtp payload can be up to ~1200 - 1500 bytes. Majority
     // of the payload is just copied. To make fuzzing more efficient limit the

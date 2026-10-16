@@ -15,7 +15,7 @@
 ChromeSupervisedUserWebContentHandlerBase::
     ChromeSupervisedUserWebContentHandlerBase(
         content::WebContents* web_contents,
-        int frame_id,
+        content::FrameTreeNodeId frame_id,
         int64_t interstitial_navigation_id)
     : web_contents_(web_contents),
       frame_id_(frame_id),
@@ -52,9 +52,9 @@ void ChromeSupervisedUserWebContentHandlerBase::CleanUpInfoBarOnMainFrame() {
     details.previous_main_frame_url =
         controller.GetLastCommittedEntry()->GetURL();
   }
-  for (int i = manager->infobar_count() - 1; i >= 0; --i) {
-    infobars::InfoBar* infobar = manager->infobar_at(i);
-
+  // Copy the infobars to allow safe iteration while removing elements.
+  const auto infobars = manager->infobars();
+  for (infobars::InfoBar* infobar : infobars) {
     if (infobar->delegate()->ShouldExpire(
             infobars::ContentInfoBarManager::
                 NavigationDetailsFromLoadCommittedDetails(details))) {
@@ -76,6 +76,8 @@ void ChromeSupervisedUserWebContentHandlerBase::GoBack() {
   }
   OnInterstitialDone();
 }
+
+void ChromeSupervisedUserWebContentHandlerBase::MaybeCloseLocalApproval() {}
 
 bool ChromeSupervisedUserWebContentHandlerBase::
     AttemptMoveAwayFromCurrentFrameURL() {

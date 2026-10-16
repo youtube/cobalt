@@ -7,11 +7,9 @@
 #include <utility>
 
 #include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "components/sync/base/report_unrecoverable_error.h"
-#include "components/sync/model/client_tag_based_model_type_processor.h"
+#include "components/sync/model/client_tag_based_data_type_processor.h"
 #include "components/sync_sessions/session_sync_bridge.h"
-#include "components/sync_sessions/session_sync_prefs.h"
 #include "components/sync_sessions/sync_sessions_client.h"
 
 namespace sync_sessions {
@@ -26,7 +24,7 @@ SessionSyncServiceImpl::SessionSyncServiceImpl(
       base::BindRepeating(&SessionSyncServiceImpl::NotifyForeignSessionUpdated,
                           base::Unretained(this)),
       sessions_client_.get(),
-      std::make_unique<syncer::ClientTagBasedModelTypeProcessor>(
+      std::make_unique<syncer::ClientTagBasedDataTypeProcessor>(
           syncer::SESSIONS,
           base::BindRepeating(&syncer::ReportUnrecoverableError, channel)));
 }
@@ -38,9 +36,6 @@ syncer::GlobalIdMapper* SessionSyncServiceImpl::GetGlobalIdMapper() const {
 }
 
 OpenTabsUIDelegate* SessionSyncServiceImpl::GetOpenTabsUIDelegate() {
-  if (!proxy_tabs_running_) {
-    return nullptr;
-  }
   return bridge_->GetOpenTabsUIDelegate();
 }
 
@@ -50,23 +45,9 @@ SessionSyncServiceImpl::SubscribeToForeignSessionsChanged(
   return foreign_sessions_changed_closure_list_.Add(cb);
 }
 
-base::WeakPtr<syncer::ModelTypeControllerDelegate>
+base::WeakPtr<syncer::DataTypeControllerDelegate>
 SessionSyncServiceImpl::GetControllerDelegate() {
   return bridge_->change_processor()->GetControllerDelegate();
-}
-
-void SessionSyncServiceImpl::ProxyTabsStateChanged(
-    syncer::DataTypeController::State state) {
-  const bool was_proxy_tabs_running = proxy_tabs_running_;
-  proxy_tabs_running_ = (state == syncer::DataTypeController::RUNNING);
-  if (proxy_tabs_running_ != was_proxy_tabs_running) {
-    NotifyForeignSessionUpdated();
-  }
-}
-
-OpenTabsUIDelegate*
-SessionSyncServiceImpl::GetUnderlyingOpenTabsUIDelegateForTest() {
-  return bridge_->GetOpenTabsUIDelegate();
 }
 
 void SessionSyncServiceImpl::NotifyForeignSessionUpdated() {

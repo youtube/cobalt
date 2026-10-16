@@ -9,6 +9,7 @@
 #import "base/command_line.h"
 #import "base/debug/alias.h"
 #import "base/functional/bind.h"
+#import "base/memory/raw_ptr.h"
 #import "base/memory/ref_counted.h"
 #import "base/memory/ref_counted_memory.h"
 #import "base/memory/weak_ptr.h"
@@ -25,6 +26,7 @@
 #import "net/base/io_buffer.h"
 #import "net/base/net_errors.h"
 #import "net/filter/source_stream.h"
+#import "net/filter/source_stream_type.h"
 #import "net/http/http_response_headers.h"
 #import "net/http/http_status_code.h"
 #import "net/url_request/url_request.h"
@@ -34,10 +36,6 @@
 #import "ui/base/template_expressions.h"
 #import "ui/base/webui/i18n_source_stream.h"
 #import "url/url_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using web::WebThread;
 
@@ -63,7 +61,6 @@ bool CheckURLIsValid(const GURL& url) {
 
   if (!url.is_valid()) {
     NOTREACHED();
-    return false;
   }
 
   return true;
@@ -77,8 +74,9 @@ void URLToRequestPath(const GURL& url, std::string* path) {
   // + 1 to skip the slash at the beginning of the path.
   int offset = parsed.CountCharactersBefore(url::Parsed::PATH, false) + 1;
 
-  if (offset < static_cast<int>(spec.size()))
+  if (offset < static_cast<int>(spec.size())) {
     path->assign(spec.substr(offset));
+  }
 }
 
 // Checks for webui resources path inside the given `url` and return a
@@ -210,11 +208,11 @@ class URLRequestChromeJob : public net::URLRequestJob {
   const bool is_incognito_;
 
   // The BrowserState with which this job is associated.
-  BrowserState* browser_state_;
+  raw_ptr<BrowserState> browser_state_;
 
   // The backend is owned by the BrowserState and always outlives us. It is
   // obtained from the BrowserState on the IO thread.
-  URLDataManagerIOSBackend* backend_;
+  raw_ptr<URLDataManagerIOSBackend> backend_;
 
   base::WeakPtrFactory<URLRequestChromeJob> weak_factory_;
 };
@@ -233,7 +231,7 @@ URLRequestChromeJob::URLRequestChromeJob(net::URLRequest* request,
       send_content_type_header_(false),
       is_incognito_(is_incognito),
       browser_state_(browser_state),
-      backend_(NULL),
+      backend_(nullptr),
       weak_factory_(this) {
   DCHECK(browser_state_);
 }
@@ -249,8 +247,9 @@ void URLRequestChromeJob::Start() {
                                     TRACE_ID_LOCAL(this), "URL",
                                     request_->url().possibly_invalid_spec());
 
-  if (!request_)
+  if (!request_) {
     return;
+  }
   DCHECK(browser_state_);
 
   // Obtain the URLDataManagerIOSBackend instance that is associated with
@@ -267,8 +266,9 @@ void URLRequestChromeJob::Start() {
 
 void URLRequestChromeJob::Kill() {
   weak_factory_.InvalidateWeakPtrs();
-  if (backend_)
+  if (backend_) {
     backend_->RemoveRequest(this);
+  }
   URLRequestJob::Kill();
 }
 
@@ -295,14 +295,17 @@ void URLRequestChromeJob::GetResponseInfo(net::HttpResponseInfo* info) {
     info->headers->AddHeader(kContentSecurityPolicy, base);
   }
 
-  if (deny_xframe_options_)
+  if (deny_xframe_options_) {
     info->headers->AddHeader(kXFrameOptions, kChromeURLXFrameOptionsHeader);
+  }
 
-  if (!allow_caching_)
+  if (!allow_caching_) {
     info->headers->AddHeader("Cache-Control", "no-cache");
+  }
 
-  if (send_content_type_header_ && !mime_type_.empty())
+  if (send_content_type_header_ && !mime_type_.empty()) {
     info->headers->AddHeader(net::HttpRequestHeaders::kContentType, mime_type_);
+  }
 }
 
 std::unique_ptr<net::SourceStream> URLRequestChromeJob::SetUpSourceStream() {
@@ -313,8 +316,9 @@ std::unique_ptr<net::SourceStream> URLRequestChromeJob::SetUpSourceStream() {
   // same parent URLRequest, thus it is safe to pass the replacements via a raw
   // pointer.
   const ui::TemplateReplacements* replacements = nullptr;
-  if (source_)
+  if (source_) {
     replacements = source_->GetReplacements();
+  }
   if (replacements) {
     // It is safe to pass the raw replacements directly to the source stream, as
     // both this URLRequestChromeJob and the I18nSourceStream are owned by the
@@ -322,7 +326,7 @@ std::unique_ptr<net::SourceStream> URLRequestChromeJob::SetUpSourceStream() {
     // which we keep alive via `source_`, ensuring its lifetime is also bound
     // to the safe URLRequest.
     source_stream = ui::I18nSourceStream::Create(
-        std::move(source_stream), net::SourceStream::TYPE_NONE, replacements);
+        std::move(source_stream), net::SourceStreamType::kNone, replacements);
   }
 
   return source_stream;
@@ -377,8 +381,9 @@ int URLRequestChromeJob::CompleteRead(net::IOBuffer* buf, int buf_size) {
   base::debug::Alias(url_buf);
 
   int remaining = data_->size() - data_offset_;
-  if (buf_size > remaining)
+  if (buf_size > remaining) {
     buf_size = remaining;
+  }
   if (buf_size > 0) {
     memcpy(buf->data(), data_->front() + data_offset_, buf_size);
     data_offset_ += buf_size;
@@ -435,7 +440,7 @@ class ChromeProtocolHandler
   }
 
  private:
-  BrowserState* browser_state_;
+  raw_ptr<BrowserState> browser_state_;
 
   // True when generated from an incognito profile.
   const bool is_incognito_;
@@ -453,7 +458,7 @@ URLDataManagerIOSBackend::URLDataManagerIOSBackend() : next_request_id_(0) {
 URLDataManagerIOSBackend::~URLDataManagerIOSBackend() {
   for (DataSourceMap::iterator i = data_sources_.begin();
        i != data_sources_.end(); ++i) {
-    i->second->backend_ = NULL;
+    i->second->backend_ = nullptr;
   }
   data_sources_.clear();
 }
@@ -470,9 +475,10 @@ void URLDataManagerIOSBackend::AddDataSource(URLDataSourceIOSImpl* source) {
   DCHECK_CURRENTLY_ON(WebThread::IO);
   DataSourceMap::iterator i = data_sources_.find(source->source_name());
   if (i != data_sources_.end()) {
-    if (!source->source()->ShouldReplaceExistingSource())
+    if (!source->source()->ShouldReplaceExistingSource()) {
       return;
-    i->second->backend_ = NULL;
+    }
+    i->second->backend_ = nullptr;
   }
   data_sources_[source->source_name()] = source;
   source->backend_ = this;
@@ -481,25 +487,29 @@ void URLDataManagerIOSBackend::AddDataSource(URLDataSourceIOSImpl* source) {
 bool URLDataManagerIOSBackend::HasPendingJob(URLRequestChromeJob* job) const {
   for (PendingRequestMap::const_iterator i = pending_requests_.begin();
        i != pending_requests_.end(); ++i) {
-    if (i->second == job)
+    if (i->second == job) {
       return true;
+    }
   }
   return false;
 }
 
 bool URLDataManagerIOSBackend::StartRequest(const net::URLRequest* request,
                                             URLRequestChromeJob* job) {
-  if (!CheckURLIsValid(request->url()))
+  if (!CheckURLIsValid(request->url())) {
     return false;
+  }
 
   GURL url = RedirectWebUIResources(request->url());
 
   URLDataSourceIOSImpl* source = GetDataSourceFromURL(url);
-  if (!source)
+  if (!source) {
     return false;
+  }
 
-  if (!source->source()->ShouldServiceRequest(url))
+  if (!source->source()->ShouldServiceRequest(url)) {
     return false;
+  }
 
   std::string path;
   URLToRequestPath(url, &path);
@@ -539,14 +549,16 @@ URLDataSourceIOSImpl* URLDataManagerIOSBackend::GetDataSourceFromURL(
   // The input usually looks like: chrome://source_name/extra_bits?foo
   // so do a lookup using the host of the URL.
   DataSourceMap::iterator i = data_sources_.find(url.host());
-  if (i != data_sources_.end())
+  if (i != data_sources_.end()) {
     return i->second.get();
+  }
 
   // No match using the host of the URL, so do a lookup using the scheme for
   // URLs on the form source_name://extra_bits/foo .
   i = data_sources_.find(url.scheme() + "://");
-  if (i != data_sources_.end())
+  if (i != data_sources_.end()) {
     return i->second.get();
+  }
 
   // No matches found, so give up.
   return NULL;

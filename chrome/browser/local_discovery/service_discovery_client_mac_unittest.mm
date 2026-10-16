@@ -2,17 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/local_discovery/service_discovery_client.h"
+
 #import <Cocoa/Cocoa.h>
 #include <stdint.h>
 
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/mac/scoped_nsobject.h"
 #include "base/run_loop.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/threading/thread.h"
-#include "chrome/browser/local_discovery/service_discovery_client.h"
 #include "chrome/browser/local_discovery/service_discovery_client_mac.h"
+#include "chrome/browser/local_discovery/service_discovery_client_mac_util.h"
 #import "chrome/browser/ui/cocoa/test/cocoa_test_helper.h"
 #include "content/public/test/browser_task_environment.h"
 #include "net/base/ip_endpoint.h"
@@ -21,8 +23,8 @@
 
 @interface TestNSNetService : NSNetService {
  @private
-  base::scoped_nsobject<NSData> _data;
-  base::scoped_nsobject<NSArray> _addresses;
+  NSData* __strong _data;
+  NSArray* __strong _addresses;
 }
 - (instancetype)initWithData:(NSData*)data;
 - (void)setAddresses:(NSArray*)addresses;
@@ -32,13 +34,13 @@
 
 - (instancetype)initWithData:(NSData*)data {
   if ((self = [super initWithDomain:@"" type:@"_tcp." name:@"Test.123"])) {
-    _data.reset([data retain]);
+    _data = data;
   }
   return self;
 }
 
 - (void)setAddresses:(NSArray*)addresses {
-  _addresses.reset([addresses copy]);
+  _addresses = [addresses copy];
 }
 
 - (NSArray*)addresses {
@@ -144,9 +146,9 @@ TEST_F(ServiceDiscoveryClientMacTest, DeleteResolverAfterStart) {
 
 TEST_F(ServiceDiscoveryClientMacTest, ParseServiceRecord) {
   const uint8_t record_bytes[] = {2, 'a', 'b', 3, 'd', '=', 'e'};
-  base::scoped_nsobject<TestNSNetService> test_service([[TestNSNetService alloc]
+  TestNSNetService* test_service = [[TestNSNetService alloc]
       initWithData:[NSData dataWithBytes:record_bytes
-                                  length:std::size(record_bytes)]]);
+                                  length:std::size(record_bytes)]];
 
   const std::string kIp = "2001:4860:4860::8844";
   const uint16_t kPort = 4321;
@@ -154,14 +156,14 @@ TEST_F(ServiceDiscoveryClientMacTest, ParseServiceRecord) {
   ASSERT_TRUE(ip_address.AssignFromIPLiteral(kIp));
   net::IPEndPoint endpoint(ip_address, kPort);
   net::SockaddrStorage storage;
-  ASSERT_TRUE(endpoint.ToSockAddr(storage.addr, &storage.addr_len));
-  NSData* discoveryHost =
-      [NSData dataWithBytes:storage.addr length:storage.addr_len];
+  ASSERT_TRUE(endpoint.ToSockAddr(storage.addr(), &storage.addr_len));
+  NSData* discoveryHost = [NSData dataWithBytes:storage.addr()
+                                         length:storage.addr_len];
   NSArray* addresses = @[ discoveryHost ];
   [test_service setAddresses:addresses];
 
   ServiceDescription description;
-  ParseNetService(test_service.get(), description);
+  ParseNetService(test_service, description);
 
   const std::vector<std::string>& metadata = description.metadata;
   EXPECT_EQ(2u, metadata.size());
@@ -182,9 +184,9 @@ TEST_F(ServiceDiscoveryClientMacTest, ParseInvalidUnicodeRecord) {
     9, 'n', 'a', 'm', 'e', '=', 0x9F, 0xF0, 0x92, 0xA9,
     5, 'c', 'd', '=', 'e', '9',
   };
-  base::scoped_nsobject<TestNSNetService> test_service([[TestNSNetService alloc]
+  TestNSNetService* test_service = [[TestNSNetService alloc]
       initWithData:[NSData dataWithBytes:record_bytes
-                                  length:std::size(record_bytes)]]);
+                                  length:std::size(record_bytes)]];
 
   const std::string kIp = "2001:4860:4860::8844";
   const uint16_t kPort = 4321;
@@ -192,14 +194,14 @@ TEST_F(ServiceDiscoveryClientMacTest, ParseInvalidUnicodeRecord) {
   ASSERT_TRUE(ip_address.AssignFromIPLiteral(kIp));
   net::IPEndPoint endpoint(ip_address, kPort);
   net::SockaddrStorage storage;
-  ASSERT_TRUE(endpoint.ToSockAddr(storage.addr, &storage.addr_len));
-  NSData* discovery_host =
-      [NSData dataWithBytes:storage.addr length:storage.addr_len];
+  ASSERT_TRUE(endpoint.ToSockAddr(storage.addr(), &storage.addr_len));
+  NSData* discovery_host = [NSData dataWithBytes:storage.addr()
+                                          length:storage.addr_len];
   NSArray* addresses = @[ discovery_host ];
   [test_service setAddresses:addresses];
 
   ServiceDescription description;
-  ParseNetService(test_service.get(), description);
+  ParseNetService(test_service, description);
 
   const std::vector<std::string>& metadata = description.metadata;
   EXPECT_EQ(2u, metadata.size());
@@ -235,6 +237,20 @@ TEST_F(ServiceDiscoveryClientMacTest, ResolveInvalidServiceName) {
 
   EXPECT_EQ(1, num_resolves_);
   EXPECT_EQ(ServiceResolver::STATUS_KNOWN_NONEXISTENT, last_status_);
+}
+
+TEST_F(ServiceDiscoveryClientMacTest, RecordPermissionStateMetrics) {
+  base::HistogramTester histograms;
+  auto watcher_impl = std::make_unique<ServiceWatcherImplMac>(
+      "service_type", base::DoNothing(),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
+
+  watcher_impl->RecordPermissionState(/*permission_granted*/ false);
+  histograms.ExpectUniqueSample(
+      "MediaRouter.Discovery.LocalNetworkAccessPermissionGranted", false, 1);
+  watcher_impl->RecordPermissionState(/*permission_granted*/ false);
+  histograms.ExpectUniqueSample(
+      "MediaRouter.Discovery.LocalNetworkAccessPermissionGranted", false, 1);
 }
 
 }  // namespace local_discovery

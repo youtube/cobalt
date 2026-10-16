@@ -10,31 +10,31 @@
 
 #include "rtc_base/platform_thread.h"
 
-#include "absl/types/optional.h"
+#include <optional>
+
 #include "rtc_base/event.h"
-#include "system_wrappers/include/sleep.h"
 #include "test/gmock.h"
 
-namespace rtc {
+namespace webrtc {
 
 TEST(PlatformThreadTest, DefaultConstructedIsEmpty) {
   PlatformThread thread;
-  EXPECT_EQ(thread.GetHandle(), absl::nullopt);
+  EXPECT_EQ(thread.GetHandle(), std::nullopt);
   EXPECT_TRUE(thread.empty());
 }
 
 TEST(PlatformThreadTest, StartFinalize) {
   PlatformThread thread = PlatformThread::SpawnJoinable([] {}, "1");
-  EXPECT_NE(thread.GetHandle(), absl::nullopt);
+  EXPECT_NE(thread.GetHandle(), std::nullopt);
   EXPECT_FALSE(thread.empty());
   thread.Finalize();
   EXPECT_TRUE(thread.empty());
-  rtc::Event done;
+  Event done;
   thread = PlatformThread::SpawnDetached([&] { done.Set(); }, "2");
   EXPECT_FALSE(thread.empty());
   thread.Finalize();
   EXPECT_TRUE(thread.empty());
-  done.Wait(webrtc::TimeDelta::Seconds(30));
+  done.Wait(TimeDelta::Seconds(30));
 }
 
 TEST(PlatformThreadTest, MovesEmpty) {
@@ -49,12 +49,12 @@ TEST(PlatformThreadTest, MovesHandles) {
   PlatformThread thread2 = std::move(thread1);
   EXPECT_TRUE(thread1.empty());
   EXPECT_FALSE(thread2.empty());
-  rtc::Event done;
+  Event done;
   thread1 = PlatformThread::SpawnDetached([&] { done.Set(); }, "2");
   thread2 = std::move(thread1);
   EXPECT_TRUE(thread1.empty());
   EXPECT_FALSE(thread2.empty());
-  done.Wait(webrtc::TimeDelta::Seconds(30));
+  done.Wait(TimeDelta::Seconds(30));
 }
 
 TEST(PlatformThreadTest,
@@ -79,18 +79,18 @@ TEST(PlatformThreadTest, RunFunctionIsCalled) {
 
 TEST(PlatformThreadTest, JoinsThread) {
   // This test flakes if there are problems with the join implementation.
-  rtc::Event event;
+  Event event;
   PlatformThread::SpawnJoinable([&] { event.Set(); }, "T");
-  EXPECT_TRUE(event.Wait(/*give_up_after=*/webrtc::TimeDelta::Zero()));
+  EXPECT_TRUE(event.Wait(/*give_up_after=*/TimeDelta::Zero()));
 }
 
 TEST(PlatformThreadTest, StopsBeforeDetachedThreadExits) {
   // This test flakes if there are problems with the detached thread
   // implementation.
   bool flag = false;
-  rtc::Event thread_started;
-  rtc::Event thread_continue;
-  rtc::Event thread_exiting;
+  Event thread_started;
+  Event thread_continue;
+  Event thread_exiting;
   PlatformThread::SpawnDetached(
       [&] {
         thread_started.Set();
@@ -106,4 +106,4 @@ TEST(PlatformThreadTest, StopsBeforeDetachedThreadExits) {
   EXPECT_TRUE(flag);
 }
 
-}  // namespace rtc
+}  // namespace webrtc

@@ -156,7 +156,12 @@ def print_options(parser):
 
 
 def main(argv):
-  parser = argparse.ArgumentParser()
+  parser = argparse.ArgumentParser(
+      description="""Collect a heap profile
+
+  The PERFETTO_PROGUARD_MAP=packagename=map_filename.txt[:packagename=map_filename.txt...] environment variable can be used to pass proguard deobfuscation maps for different packages""",
+      formatter_class=argparse.RawDescriptionHelpFormatter)
+
   parser.add_argument(
       "-i",
       "--interval",
@@ -195,7 +200,7 @@ def main(argv):
       default=0)
   parser.add_argument(
       "--heaps",
-      help="Comma-separated list of heaps to collect, e.g: malloc,art. "
+      help="Comma-separated list of heaps to collect, e.g: libc.malloc,com.android.art. "
       "Requires Android 12.",
       metavar="HEAPS")
   parser.add_argument(
@@ -491,7 +496,7 @@ def main(argv):
     if binary_path is None:
       binary_path = product_out_symbols
     elif product_out_symbols is not None:
-      binary_path += ":" + product_out_symbols
+      binary_path += os.pathsep + product_out_symbols
 
   trace_file = os.path.join(profile_target, 'raw-trace')
   concat_files = [trace_file]

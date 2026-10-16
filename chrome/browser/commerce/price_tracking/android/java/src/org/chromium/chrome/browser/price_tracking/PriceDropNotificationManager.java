@@ -7,32 +7,37 @@ package org.chromium.chrome.browser.price_tracking;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.content.Intent;
-import android.os.Build;
 
-import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.notifications.NotificationUmaTracker;
 import org.chromium.chrome.browser.notifications.NotificationUmaTracker.SystemNotificationType;
 
 /** Manage price drop notifications. */
+@NullMarked
 public interface PriceDropNotificationManager {
     /**
      * @return Whether the price drop notification type is enabled. For now it is used in downstream
-     *         which could influence the Chime registration.
+     *     which could influence the Chime registration.
      */
     boolean isEnabled();
 
     /**
-     * @return Whether price drop notifications can be posted.
+     * Check whether price drop notifications can be posted.
+     *
+     * @param callback Callback to be invoked on whether notification can be posted.
      */
-    boolean canPostNotification();
+    void canPostNotification(Callback<Boolean> callback);
 
     /**
-     * @return Whether price drop notifications can be posted and record user opt-in metrics.
+     * Check whether price drop notifications can be posted and record user opt-in metrics.
+     *
+     * @param callback Callback to be invoked on the result of the check.
      */
-    boolean canPostNotificationWithMetricsRecorded();
+    void canPostNotificationWithMetricsRecorded(Callback<Boolean> callback);
 
     /**
      * Record UMAs after posting price drop notifications.
@@ -71,8 +76,12 @@ public interface PriceDropNotificationManager {
      * @param recordMetrics Whether to record metrics using {@link NotificationUmaTracker}. Only
      *         Chime notification code path should set this to true.
      */
-    void onNotificationActionClicked(String actionId, String url, @Nullable String offerId,
-            @Nullable String clusterId, boolean recordMetrics);
+    void onNotificationActionClicked(
+            String actionId,
+            String url,
+            @Nullable String offerId,
+            @Nullable String clusterId,
+            boolean recordMetrics);
 
     @Deprecated
     Intent getNotificationClickIntent(String url);
@@ -110,15 +119,10 @@ public interface PriceDropNotificationManager {
      */
     boolean areAppNotificationsEnabled();
 
-    /**
-     * Create the notification channel for price drop notifications.
-     */
-    @RequiresApi(Build.VERSION_CODES.O)
+    /** Create the notification channel for price drop notifications. */
     void createNotificationChannel();
 
-    /**
-     * Send users to notification settings so they can manage price drop notifications.
-     */
+    /** Send users to notification settings so they can manage price drop notifications. */
     void launchNotificationSettings();
 
     /**
@@ -128,27 +132,21 @@ public interface PriceDropNotificationManager {
     Intent getNotificationSettingsIntent();
 
     /**
-     * @return The price drop notification channel.
+     * Gets the price drop notification channel.
+     *
+     * @param callback Callback to be invoked with the notification channel if available, or null
+     *     otherwise.
      */
     @VisibleForTesting
-    @RequiresApi(Build.VERSION_CODES.O)
-    NotificationChannel getNotificationChannel();
+    void getNotificationChannel(Callback<NotificationChannel> callback);
 
-    /**
-     * Delete price drop notification channel for testing.
-     */
-    @VisibleForTesting
-    @RequiresApi(Build.VERSION_CODES.O)
+    /** Delete price drop notification channel for testing. */
     void deleteChannelForTesting();
 
-    /**
-     * Record how many notifications are shown in the given window per management type.
-     */
+    /** Record how many notifications are shown in the given window per management type. */
     void recordMetricsForNotificationCounts();
 
-    /**
-     * Check if the shown notifications in given window have reached the max allowed number.
-     */
+    /** Check if the shown notifications in given window have reached the max allowed number. */
     boolean hasReachedMaxAllowedNotificationNumber(@SystemNotificationType int type);
 
     /**

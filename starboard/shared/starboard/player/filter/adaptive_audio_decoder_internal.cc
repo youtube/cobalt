@@ -33,11 +33,13 @@ T ResetAndReturn(T* t) {
 }
 
 AdaptiveAudioDecoder::AdaptiveAudioDecoder(
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system,
     const AudioDecoderCreator& audio_decoder_creator,
     const OutputFormatAdjustmentCallback& output_adjustment_callback)
-    : initial_samples_per_second_(audio_stream_info.samples_per_second),
+    : JobOwner(job_queue),
+      initial_samples_per_second_(audio_stream_info.samples_per_second),
       drm_system_(drm_system),
       audio_decoder_creator_(audio_decoder_creator),
       output_adjustment_callback_(output_adjustment_callback),
@@ -46,12 +48,14 @@ AdaptiveAudioDecoder::AdaptiveAudioDecoder(
 }
 
 AdaptiveAudioDecoder::AdaptiveAudioDecoder(
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system,
     const AudioDecoderCreator& audio_decoder_creator,
     bool enable_reset_audio_decoder,
     const OutputFormatAdjustmentCallback& output_adjustment_callback)
-    : AdaptiveAudioDecoder(audio_stream_info,
+    : AdaptiveAudioDecoder(job_queue,
+                           audio_stream_info,
                            drm_system,
                            audio_decoder_creator,
                            output_adjustment_callback) {
@@ -59,7 +63,7 @@ AdaptiveAudioDecoder::AdaptiveAudioDecoder(
 }
 
 AdaptiveAudioDecoder::~AdaptiveAudioDecoder() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (audio_decoder_) {
     TeardownAudioDecoder();
@@ -69,7 +73,7 @@ AdaptiveAudioDecoder::~AdaptiveAudioDecoder() {
 
 void AdaptiveAudioDecoder::Initialize(const OutputCB& output_cb,
                                       const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
   SB_DCHECK(error_cb);
@@ -83,7 +87,7 @@ void AdaptiveAudioDecoder::Initialize(const OutputCB& output_cb,
 
 void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
                                   const ConsumedCB& consumed_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!stream_ended_);
   SB_DCHECK(output_cb_);
   SB_DCHECK(error_cb_);
@@ -128,7 +132,7 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
 }
 
 void AdaptiveAudioDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!stream_ended_);
   SB_DCHECK(output_cb_);
   SB_DCHECK(error_cb_);
@@ -139,23 +143,24 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
   if (first_input_written_) {
     audio_decoder_->WriteEndOfStream();
   } else {
-    decoded_audios_.push(new DecodedAudio);
+    decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
     Schedule(output_cb_);
   }
 }
 
-scoped_refptr<DecodedAudio> AdaptiveAudioDecoder::Read(
+std::optional<DecodedAudio> AdaptiveAudioDecoder::Read(
     int* samples_per_second) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!decoded_audios_.empty());
+  if (decoded_audios_.empty()) {
+    return std::nullopt;
+  }
 
-  scoped_refptr<DecodedAudio> ret = decoded_audios_.front();
+  std::optional<DecodedAudio> ret = std::move(decoded_audios_.front());
   decoded_audios_.pop();
 
   SB_DCHECK(ret->is_end_of_stream() ||
             ret->sample_type() == output_sample_type_);
-  SB_DCHECK(ret->is_end_of_stream() ||
-            ret->storage_type() == output_storage_type_);
   SB_DCHECK(ret->is_end_of_stream() ||
             ret->channels() == output_number_of_channels_);
 
@@ -166,7 +171,7 @@ scoped_refptr<DecodedAudio> AdaptiveAudioDecoder::Read(
 }
 
 void AdaptiveAudioDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (audio_decoder_) {
     if (enable_reset_audio_decoder_) {
@@ -208,31 +213,19 @@ void AdaptiveAudioDecoder::TeardownAudioDecoder() {
   first_input_written_ = false;
 }
 
-void AdaptiveAudioDecoder::ResetInternal() {
-  CancelPendingJobs();
-  while (!decoded_audios_.empty()) {
-    decoded_audios_.pop();
-  }
-  pending_input_buffers_.clear();
-  pending_consumed_cb_ = nullptr;
-  flushing_ = false;
-  stream_ended_ = false;
-  first_output_received_ = false;
-  first_input_written_ = false;
-  output_format_checked_ = false;
-}
-
 void AdaptiveAudioDecoder::OnDecoderOutput() {
   if (!BelongsToCurrentThread()) {
     Schedule(std::bind(&AdaptiveAudioDecoder::OnDecoderOutput, this));
     return;
   }
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
   int decoded_sample_rate;
-  scoped_refptr<DecodedAudio> decoded_audio =
+  std::optional<DecodedAudio> decoded_audio =
       audio_decoder_->Read(&decoded_sample_rate);
+
+  SB_DCHECK(decoded_audio.has_value());
 
   if (!decoded_audio->is_end_of_stream() && !decoded_audio->frames()) {
     // Empty output doesn't need further process.
@@ -242,10 +235,9 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
   if (!first_output_received_) {
     first_output_received_ = true;
     output_sample_type_ = decoded_audio->sample_type();
-    output_storage_type_ = decoded_audio->storage_type();
     output_samples_per_second_ = decoded_sample_rate;
     if (output_adjustment_callback_) {
-      output_adjustment_callback_(&output_sample_type_, &output_storage_type_,
+      output_adjustment_callback_(&output_sample_type_,
                                   &output_samples_per_second_,
                                   &output_number_of_channels_);
     }
@@ -254,13 +246,13 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
   if (decoded_audio->is_end_of_stream()) {
     // Flush resampler.
     if (resampler_) {
-      scoped_refptr<DecodedAudio> resampler_output =
+      std::optional<DecodedAudio> resampler_output =
           resampler_->WriteEndOfStream();
       if (resampler_output && resampler_output->size_in_bytes() > 0) {
         if (channel_mixer_) {
-          resampler_output = channel_mixer_->Mix(resampler_output);
+          resampler_output = channel_mixer_->Mix(std::move(*resampler_output));
         }
-        decoded_audios_.push(resampler_output);
+        decoded_audios_.push(std::move(*resampler_output));
         Schedule(output_cb_);
       }
     }
@@ -272,7 +264,7 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
       Decode(input_buffers, ResetAndReturn(&pending_consumed_cb_));
     } else {
       SB_DCHECK(stream_ended_);
-      decoded_audios_.push(decoded_audio);
+      decoded_audios_.push(std::move(*decoded_audio));
       Schedule(output_cb_);
     }
     return;
@@ -285,23 +277,20 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     SB_DCHECK(!channel_mixer_);
     output_format_checked_ = true;
     if (output_sample_type_ != decoded_audio->sample_type() ||
-        output_storage_type_ != decoded_audio->storage_type() ||
         output_samples_per_second_ != decoded_sample_rate) {
       resampler_ = AudioResampler::Create(
-          decoded_audio->sample_type(), decoded_audio->storage_type(),
-          decoded_sample_rate, output_sample_type_, output_storage_type_,
-          output_samples_per_second_,
+          decoded_audio->sample_type(), decoded_sample_rate,
+          output_sample_type_, output_samples_per_second_,
           input_audio_stream_info_.number_of_channels);
     }
     if (input_audio_stream_info_.number_of_channels !=
         output_number_of_channels_) {
       channel_mixer_ = AudioChannelLayoutMixer::Create(
-          output_sample_type_, output_storage_type_,
-          output_number_of_channels_);
+          output_sample_type_, output_number_of_channels_);
     }
   }
   if (resampler_) {
-    decoded_audio = resampler_->Resample(decoded_audio);
+    decoded_audio = resampler_->Resample(std::move(*decoded_audio));
   } else {
     // If |resampler_| is NULL, |output_samples_per_second_| should be the same
     // as |decoded_sample_rate|.
@@ -309,11 +298,25 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
   }
   if (decoded_audio && decoded_audio->size_in_bytes() > 0) {
     if (channel_mixer_) {
-      decoded_audio = channel_mixer_->Mix(decoded_audio);
+      decoded_audio = channel_mixer_->Mix(std::move(*decoded_audio));
     }
-    decoded_audios_.push(decoded_audio);
+    decoded_audios_.push(std::move(*decoded_audio));
     Schedule(output_cb_);
   }
+}
+
+void AdaptiveAudioDecoder::ResetInternal() {
+  CancelPendingJobs();
+  while (!decoded_audios_.empty()) {
+    decoded_audios_.pop();
+  }
+  pending_input_buffers_.clear();
+  pending_consumed_cb_ = nullptr;
+  flushing_ = false;
+  stream_ended_ = false;
+  first_output_received_ = false;
+  first_input_written_ = false;
+  output_format_checked_ = false;
 }
 
 }  // namespace starboard

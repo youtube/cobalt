@@ -4,6 +4,8 @@
 
 #include "ash/wm/window_positioner.h"
 
+#include <algorithm>
+
 #include "ash/screen_util.h"
 #include "ash/shell.h"
 #include "ash/shell_delegate.h"
@@ -12,8 +14,7 @@
 #include "ash/wm/window_positioning_utils.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_util.h"
-#include "base/ranges/algorithm.h"
-#include "chromeos/ui/wm/features.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/display/display.h"
@@ -86,7 +87,7 @@ void SetBoundsAndOffsetTransientChildren(aura::Window* window,
                                          const gfx::Rect& work_area,
                                          const gfx::Vector2d& offset) {
   aura::Window::Windows transient_children = ::wm::GetTransientChildren(window);
-  for (auto* transient_child : transient_children) {
+  for (aura::Window* transient_child : transient_children) {
     gfx::Rect child_bounds = transient_child->bounds();
     gfx::Rect new_child_bounds = child_bounds + offset;
     if ((child_bounds.x() <= work_area.x() &&
@@ -130,11 +131,12 @@ void SetBoundsAnimated(aura::Window* window,
 void AutoPlaceSingleWindow(aura::Window* window, bool animated) {
   gfx::Rect work_area = screen_util::GetDisplayWorkAreaBoundsInParent(window);
   gfx::Rect bounds = window->bounds();
-  const absl::optional<gfx::Rect> user_defined_area =
+  const std::optional<gfx::Rect> user_defined_area =
       WindowState::Get(window)->pre_auto_manage_window_bounds();
   if (user_defined_area) {
     bounds = *user_defined_area;
-    AdjustBoundsToEnsureMinimumWindowVisibility(work_area, &bounds);
+    AdjustBoundsToEnsureMinimumWindowVisibility(
+        work_area, /*client_controlled=*/false, &bounds);
   } else {
     // Center the window (only in x).
     bounds.set_x(work_area.x() + (work_area.width() - bounds.width()) / 2);
@@ -169,7 +171,7 @@ aura::Window* GetReferenceWindow(const aura::Window* root_window,
   int index = 0;
   // Find the index of the current active window.
   if (active)
-    index = base::ranges::find(windows, active) - windows.begin();
+    index = std::ranges::find(windows, active) - windows.begin();
 
   // Scan the cycle list backwards to see which is the second topmost window
   // (and so on). Note that we might cycle a few indices twice if there is no
@@ -204,10 +206,11 @@ aura::Window* GetReferenceWindow(const aura::Window* root_window,
 
 }  // namespace
 
-void GetBoundsAndShowStateForNewWindow(bool is_saved_bounds,
-                                       ui::WindowShowState show_state_in,
-                                       gfx::Rect* bounds_in_out,
-                                       ui::WindowShowState* show_state_out) {
+void GetBoundsAndShowStateForNewWindow(
+    bool is_saved_bounds,
+    ui::mojom::WindowShowState show_state_in,
+    gfx::Rect* bounds_in_out,
+    ui::mojom::WindowShowState* show_state_out) {
   aura::Window* root_window = Shell::GetRootWindowForNewWindows();
   aura::Window* top_window = GetReferenceWindow(
       root_window, nullptr, /*on_hide_remove=*/false, nullptr);
@@ -225,9 +228,9 @@ void GetBoundsAndShowStateForNewWindow(bool is_saved_bounds,
   bool maximized = top_window_state->IsMaximized();
   // We ignore the saved show state, but look instead for the top level
   // window's show state.
-  if (show_state_in == ui::SHOW_STATE_DEFAULT) {
-    *show_state_out =
-        maximized ? ui::SHOW_STATE_MAXIMIZED : ui::SHOW_STATE_DEFAULT;
+  if (show_state_in == ui::mojom::WindowShowState::kDefault) {
+    *show_state_out = maximized ? ui::mojom::WindowShowState::kMaximized
+                                : ui::mojom::WindowShowState::kDefault;
   }
 
   if (maximized || top_window_state->IsFullscreen()) {
@@ -325,15 +328,15 @@ void RearrangeVisibleWindowOnShow(aura::Window* added_window) {
   if (single_window) {
     // When going from one to two windows both windows loose their
     // "positioned by user" flags.
-    added_window_state->set_bounds_changed_by_user(false);
+    added_window_state->SetBoundsChangedByUser(false);
     WindowState* other_window_state = WindowState::Get(other_shown_window);
-    other_window_state->set_bounds_changed_by_user(false);
+    other_window_state->SetBoundsChangedByUser(false);
 
     if (WindowPositionCanBeManaged(other_shown_window)) {
       // Don't override pre auto managed bounds as the current bounds
       // may not be original.
       if (!other_window_state->pre_auto_manage_window_bounds())
-        other_window_state->SetPreAutoManageWindowBounds(other_bounds);
+        other_window_state->set_pre_auto_manage_window_bounds(other_bounds);
 
       // Push away the other window after remembering its current position.
       if (MoveRectToOneSide(work_area, move_other_right, &other_bounds))
@@ -346,7 +349,7 @@ void RearrangeVisibleWindowOnShow(aura::Window* added_window) {
   // being shown, we do not need to animate it.
   gfx::Rect added_bounds = added_window->bounds();
   if (!added_window_state->pre_auto_manage_window_bounds())
-    added_window_state->SetPreAutoManageWindowBounds(added_bounds);
+    added_window_state->set_pre_auto_manage_window_bounds(added_bounds);
   if (MoveRectToOneSide(work_area, !move_other_right, &added_bounds))
     added_window->SetBounds(added_bounds);
 }

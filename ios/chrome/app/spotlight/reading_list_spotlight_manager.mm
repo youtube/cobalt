@@ -5,22 +5,21 @@
 #import "ios/chrome/app/spotlight/reading_list_spotlight_manager.h"
 
 #import <CoreSpotlight/CoreSpotlight.h>
+
 #import <memory>
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "base/metrics/histogram_macros.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/timer/elapsed_timer.h"
 #import "components/reading_list/core/reading_list_model.h"
 #import "components/reading_list/ios/reading_list_model_bridge_observer.h"
 #import "ios/chrome/app/spotlight/reading_list_spotlight_manager.mm"
+#import "ios/chrome/app/spotlight/searchable_item_factory.h"
 #import "ios/chrome/app/spotlight/spotlight_interface.h"
 #import "ios/chrome/app/spotlight/spotlight_logger.h"
-#import "ios/chrome/browser/favicon/ios_chrome_large_icon_service_factory.h"
-#import "ios/chrome/browser/reading_list/reading_list_model_factory.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/browser/favicon/model/ios_chrome_large_icon_service_factory.h"
+#import "ios/chrome/browser/reading_list/model/reading_list_model_factory.h"
 
 // Called from the BrowserBookmarkModelBridge from C++ -> ObjC.
 @interface ReadingListSpotlightManager () <ReadingListModelBridgeObserver> {
@@ -38,27 +37,44 @@
 /// model is not in batch updates mode and vice versa.
 @property(nonatomic, assign) NSInteger modelUpdateDepth;
 
+/// Tracks if a clear and reindex operation is pending e.g. while the app is
+/// backgrounded.
+@property(nonatomic, assign) BOOL needsClearAndReindex;
+/// Tracks if a clear and reindex operation is pending e.g. while the app is
+/// backgrounded.
+@property(nonatomic, assign) BOOL needsFullIndex;
+
 @end
 
 @implementation ReadingListSpotlightManager
 
-+ (ReadingListSpotlightManager*)readingListSpotlightManagerWithBrowserState:
-    (ChromeBrowserState*)browserState {
++ (ReadingListSpotlightManager*)readingListSpotlightManagerWithProfile:
+    (ProfileIOS*)profile {
+  favicon::LargeIconService* largeIconService =
+      IOSChromeLargeIconServiceFactory::GetForProfile(profile);
+
   return [[ReadingListSpotlightManager alloc]
-      initWithLargeIconService:IOSChromeLargeIconServiceFactory::
-                                   GetForBrowserState(browserState)
+      initWithLargeIconService:largeIconService
               readingListModel:ReadingListModelFactory::GetInstance()
-                                   ->GetForBrowserState(browserState)
-            spotlightInterface:[SpotlightInterface defaultInterface]];
+                                   ->GetForProfile(profile)
+            spotlightInterface:[SpotlightInterface defaultInterface]
+         searchableItemFactory:
+             [[SearchableItemFactory alloc]
+                 initWithLargeIconService:largeIconService
+                                   domain:spotlight::DOMAIN_READING_LIST
+                    useTitleInIdentifiers:NO]];
 }
+
+#pragma mark - lifecycle
 
 - (instancetype)
     initWithLargeIconService:(favicon::LargeIconService*)largeIconService
             readingListModel:(ReadingListModel*)model
-          spotlightInterface:(SpotlightInterface*)spotlightInterface {
-  self = [super initWithLargeIconService:largeIconService
-                                  domain:spotlight::DOMAIN_READING_LIST
-                      spotlightInterface:spotlightInterface];
+          spotlightInterface:(SpotlightInterface*)spotlightInterface
+       searchableItemFactory:(SearchableItemFactory*)searchableItemFactory {
+  self = [super initWithSpotlightInterface:spotlightInterface
+                     searchableItemFactory:searchableItemFactory];
+
   if (self) {
     _model = model;
     _modelBridge.reset(new ReadingListModelBridge(self, model));
@@ -72,59 +88,110 @@
 }
 
 - (void)shutdown {
-  [self detachModel];
   [super shutdown];
+  [self detachModel];
 }
 
-- (NSString*)spotlightIDForURL:(const GURL&)URL {
-  return [self spotlightIDForURL:URL title:nil];
+- (void)appWillEnterForeground {
+  [super appWillEnterForeground];
+
+  [self clearAndReindexIfNeeded];
+  [self indexAllItemsIfNeeded];
 }
 
-- (NSString*)spotlightIDForURL:(const GURL&)URL title:(NSString*)title {
-  // In Spotlight model, URLs are unique keys.
-  return [super spotlightIDForURL:URL title:@""];
-}
+#pragma mark - public
 
-- (void)clearAndReindexReadingListWithCompletionBlock:
-    (void (^)(NSError* error))completionHandler {
+- (void)clearAndReindexReadingList {
   if (!self.model || !self.model->loaded()) {
-    completionHandler(
-        [ReadingListSpotlightManager modelNotReadyOrShutDownError]);
+    [SpotlightLogger logSpotlightError:[ReadingListSpotlightManager
+                                           modelNotReadyOrShutDownError]];
+    return;
+  }
+
+  self.needsClearAndReindex = YES;
+  [self clearAndReindexIfNeeded];
+}
+
+- (void)clearAndReindexIfNeeded {
+  if (!self.needsClearAndReindex) {
+    return;
+  }
+
+  if (self.isAppInBackground) {
     return;
   }
 
   __weak ReadingListSpotlightManager* weakSelf = self;
-  [self clearAllSpotlightItems:^(NSError* error) {
-    if (error) {
-      if (completionHandler) {
-        completionHandler(error);
-      }
-      return;
-    }
-    [weakSelf indexAllReadingListItemsWithCompletionBlock:completionHandler];
-  }];
+  [self.searchableItemFactory cancelItemsGeneration];
+  [self.spotlightInterface
+      deleteSearchableItemsWithDomainIdentifiers:@[
+        spotlight::StringFromSpotlightDomain(spotlight::DOMAIN_READING_LIST)
+      ]
+                               completionHandler:^(NSError* error) {
+                                 if (error) {
+                                   [SpotlightLogger logSpotlightError:error];
+                                   return;
+                                 }
+                                 weakSelf.needsClearAndReindex = NO;
+                                 [weakSelf indexAllReadingListItems];
+                               }];
 }
 
-- (void)indexAllReadingListItemsWithCompletionBlock:
-    (void (^)(NSError* error))completionHandler {
+- (void)indexAllReadingListItems {
   if (!self.model || !self.model->loaded()) {
-    completionHandler(
-        [ReadingListSpotlightManager modelNotReadyOrShutDownError]);
+    [SpotlightLogger logSpotlightError:[ReadingListSpotlightManager
+                                           modelNotReadyOrShutDownError]];
     return;
   }
 
+  if (self.isShuttingDown) {
+    return;
+  }
+
+  self.needsFullIndex = YES;
+  [self indexAllItemsIfNeeded];
+}
+
+- (void)indexAllItemsIfNeeded {
+  if (!self.needsFullIndex) {
+    return;
+  }
+
+  // If a clear and reindex is required, don't index before clearing.
+  if (self.needsClearAndReindex) {
+    return;
+  }
+
+  if (self.isAppInBackground) {
+    return;
+  }
+
+  const base::ElapsedTimer timer;
+
+  __weak ReadingListSpotlightManager* weakSelf = self;
   for (const auto& url : self.model->GetKeys()) {
     scoped_refptr<const ReadingListEntry> entry =
         self.model->GetEntryByURL(url).get();
     DCHECK(entry);
     NSString* title = base::SysUTF8ToNSString(entry->Title());
-    [self refreshItemsWithURL:entry->URL() title:title];
+    [self.searchableItemFactory
+        generateSearchableItem:entry->URL()
+                         title:title
+            additionalKeywords:@[]
+             completionHandler:^(CSSearchableItem* item) {
+               [weakSelf.spotlightInterface indexSearchableItems:@[ item ]];
+             }];
   }
 
-  if (completionHandler) {
-    completionHandler(nil);
-  }
+  UMA_HISTOGRAM_TIMES("IOS.Spotlight.ReadingListIndexingDuration",
+                      timer.Elapsed());
+  UMA_HISTOGRAM_COUNTS_1000("IOS.Spotlight.ReadingListIndexSize",
+                            self.model->size());
+
+  self.needsFullIndex = NO;
 }
+
+#pragma mark - private
 
 + (NSError*)modelNotReadyOrShutDownError {
   return [NSError
@@ -135,73 +202,6 @@
                    @"Reading list model isn't initialized or already shut down"
              }];
 }
-
-#pragma mark - ReadingListModelBridgeObserver
-
-- (void)readingListModelLoaded:(const ReadingListModel*)model {
-  [self clearAndReindexReadingListWithCompletionBlock:nil];
-}
-
-- (void)readingListModelDidApplyChanges:(const ReadingListModel*)model {
-}
-
-- (void)readingListModel:(const ReadingListModel*)model
-         willRemoveEntry:(const GURL&)url {
-  [self removeReadingListEntryFromSpotlight:url];
-}
-
-- (void)readingListModel:(const ReadingListModel*)model
-             didAddEntry:(const GURL&)url
-             entrySource:(reading_list::EntrySource)source {
-  [self addReadingListEntryToSpotlight:url];
-}
-
-- (void)readingListModel:(const ReadingListModel*)model
-         willUpdateEntry:(const GURL&)url {
-  /// Since it's unknown what will be updated, remove the existing entry and
-  /// re-add the updated one in `readingListModel:didUpdateEntry:` below
-  [self removeReadingListEntryFromSpotlight:url];
-}
-
-- (void)readingListModel:(const ReadingListModel*)model
-          didUpdateEntry:(const GURL&)url {
-  /// See comment in `willUpdateEntry`.
-  [self addReadingListEntryToSpotlight:url];
-}
-
-- (void)readingListModelBeganBatchUpdates:(const ReadingListModel*)model {
-  self.modelUpdateDepth += 1;
-}
-
-- (void)readingListModelCompletedBatchUpdates:(const ReadingListModel*)model {
-  self.modelUpdateDepth -= 1;
-  if (self.modelUpdateDepth != 0) {
-    return;
-  }
-
-  // Apply batch updates:
-  // For entries to add, just add them. No need to batch this, because they need
-  // to fetch a favicon, which is already queued and async. For entries to
-  // delete, build a list to batch remove them from the index.
-  NSMutableArray<NSString*>* entriesToRemove = [[NSMutableArray alloc] init];
-  for (auto p : _batch_update_log) {
-    if (p.second) {
-      [self addReadingListEntryToSpotlight:p.first];
-    } else {
-      [entriesToRemove addObject:[self spotlightIDForURL:p.first]];
-    }
-  }
-
-  if (entriesToRemove.count > 0) {
-    [self.spotlightInterface
-        deleteSearchableItemsWithIdentifiers:entriesToRemove
-                           completionHandler:nil];
-  }
-
-  _batch_update_log.clear();
-}
-
-#pragma mark - private
 
 - (void)addReadingListEntryToSpotlight:(const GURL&)url {
   if (self.modelUpdateDepth > 0) {
@@ -214,7 +214,14 @@
       self.model->GetEntryByURL(url).get();
   DCHECK(entry);
   NSString* title = base::SysUTF8ToNSString(entry->Title());
-  [self refreshItemsWithURL:entry->URL() title:title];
+  __weak ReadingListSpotlightManager* weakSelf = self;
+  [self.searchableItemFactory
+      generateSearchableItem:entry->URL()
+                       title:title
+          additionalKeywords:@[]
+           completionHandler:^(CSSearchableItem* item) {
+             [weakSelf.spotlightInterface indexSearchableItems:@[ item ]];
+           }];
 }
 
 - (void)removeReadingListEntryFromSpotlight:(const GURL&)url {
@@ -234,11 +241,111 @@
   scoped_refptr<const ReadingListEntry> entry =
       self.model->GetEntryByURL(url).get();
   DCHECK(entry);
-  NSString* spotlightID =
-      [self spotlightIDForURL:url
-                        title:base::SysUTF8ToNSString(entry->Title())];
+  NSString* spotlightID = [self.searchableItemFactory spotlightIDForURL:url];
   [self.spotlightInterface deleteSearchableItemsWithIdentifiers:@[ spotlightID ]
                                               completionHandler:nil];
+}
+
+#pragma mark - ReadingListModelBridgeObserver
+
+- (void)readingListModelLoaded:(const ReadingListModel*)model {
+  [self clearAndReindexReadingList];
+}
+
+- (void)readingListModelDidApplyChanges:(const ReadingListModel*)model {
+}
+
+- (void)readingListModel:(const ReadingListModel*)model
+         willRemoveEntry:(const GURL&)url {
+  if (self.isAppInBackground) {
+    // Model updates shouldn't normally happen while the app is in background.
+    // If they do, mark the entire index as dirty for rebuilding it when
+    // foregrounded.
+    self.needsClearAndReindex = YES;
+    return;
+  }
+  [self removeReadingListEntryFromSpotlight:url];
+}
+
+- (void)readingListModel:(const ReadingListModel*)model
+             didAddEntry:(const GURL&)url
+             entrySource:(reading_list::EntrySource)source {
+  if (self.isAppInBackground) {
+    // Model updates shouldn't normally happen while the app is in background.
+    // If they do, mark the entire index as dirty for rebuilding it when
+    // foregrounded.
+    self.needsClearAndReindex = YES;
+    return;
+  }
+  [self addReadingListEntryToSpotlight:url];
+}
+
+- (void)readingListModel:(const ReadingListModel*)model
+         willUpdateEntry:(const GURL&)url {
+  if (self.isAppInBackground) {
+    // Model updates shouldn't normally happen while the app is in background.
+    // If they do, mark the entire index as dirty for rebuilding it when
+    // foregrounded.
+    self.needsClearAndReindex = YES;
+    return;
+  }
+  /// Since it's unknown what will be updated, remove the existing entry and
+  /// re-add the updated one in `readingListModel:didUpdateEntry:` below
+  [self removeReadingListEntryFromSpotlight:url];
+}
+
+- (void)readingListModel:(const ReadingListModel*)model
+          didUpdateEntry:(const GURL&)url {
+  if (self.isAppInBackground) {
+    // Model updates shouldn't normally happen while the app is in background.
+    // If they do, mark the entire index as dirty for rebuilding it when
+    // foregrounded.
+    self.needsClearAndReindex = YES;
+    return;
+  }
+  /// See comment in `willUpdateEntry`.
+  [self addReadingListEntryToSpotlight:url];
+}
+
+- (void)readingListModelBeganBatchUpdates:(const ReadingListModel*)model {
+  self.modelUpdateDepth += 1;
+}
+
+- (void)readingListModelCompletedBatchUpdates:(const ReadingListModel*)model {
+  self.modelUpdateDepth -= 1;
+  if (self.modelUpdateDepth != 0) {
+    return;
+  }
+
+  if (self.isAppInBackground) {
+    // Model updates shouldn't normally happen while the app is in background.
+    // If they do, mark the entire index as dirty for rebuilding it when
+    // foregrounded.
+    self.needsClearAndReindex = YES;
+    return;
+  }
+
+  // Apply batch updates:
+  // For entries to add, just add them. No need to batch this, because they need
+  // to fetch a favicon, which is already queued and async. For entries to
+  // delete, build a list to batch remove them from the index.
+  NSMutableArray<NSString*>* entriesToRemove = [[NSMutableArray alloc] init];
+  for (auto p : _batch_update_log) {
+    if (p.second) {
+      [self addReadingListEntryToSpotlight:p.first];
+    } else {
+      [entriesToRemove
+          addObject:[self.searchableItemFactory spotlightIDForURL:p.first]];
+    }
+  }
+
+  if (entriesToRemove.count > 0) {
+    [self.spotlightInterface
+        deleteSearchableItemsWithIdentifiers:entriesToRemove
+                           completionHandler:nil];
+  }
+
+  _batch_update_log.clear();
 }
 
 @end

@@ -6,9 +6,12 @@
 #define CHROME_BROWSER_PRINTING_PDF_TO_EMF_CONVERTER_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/ref_counted_memory.h"
+
+class GURL;
 
 namespace printing {
 
@@ -29,6 +32,8 @@ class PdfConverter {
   static std::unique_ptr<PdfConverter> StartPdfConverter(
       scoped_refptr<base::RefCountedMemory> data,
       const PdfRenderSettings& conversion_settings,
+      const std::optional<bool>& use_skia,
+      const GURL& url,
       StartCallback start_callback);
 
   // Requests conversion of the page. `page_index` is 0-base page index for the

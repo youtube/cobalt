@@ -8,11 +8,11 @@
 
 namespace bookmarks {
 
-// If enabled, there will be two different BookmarkModel instances per profile:
-// one instance for "profile" bookmarks and another instance for "account"
-// bookmarks. See https://crbug.com/1404250 for details.
-BASE_FEATURE(kEnableBookmarksAccountStorage,
-             "EnableBookmarksAccountStorage",
+// This feature controls the default visibility for permanent folders when
+// empty. It effectively swaps in "other bookmarks" as the default-visible
+// empty folder on mobile. This flag has no effect for desktop.
+BASE_FEATURE(kAllBookmarksBaselineFolderVisibility,
+             "AllBookmarksBaselineFolderVisibility",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace bookmarks

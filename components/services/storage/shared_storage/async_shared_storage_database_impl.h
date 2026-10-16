@@ -6,7 +6,6 @@
 #define COMPONENTS_SERVICES_STORAGE_SHARED_STORAGE_ASYNC_SHARED_STORAGE_DATABASE_IMPL_H_
 
 #include <memory>
-#include <queue>
 #include <string>
 #include <vector>
 
@@ -38,11 +37,13 @@ class AsyncSharedStorageDatabaseImpl : public AsyncSharedStorageDatabase {
   using InitStatus = SharedStorageDatabase::InitStatus;
   using SetBehavior = SharedStorageDatabase::SetBehavior;
   using OperationResult = SharedStorageDatabase::OperationResult;
+  using BatchUpdateResult = SharedStorageDatabase::BatchUpdateResult;
   using GetResult = SharedStorageDatabase::GetResult;
   using BudgetResult = SharedStorageDatabase::BudgetResult;
   using TimeResult = SharedStorageDatabase::TimeResult;
   using MetadataResult = SharedStorageDatabase::MetadataResult;
   using EntriesResult = SharedStorageDatabase::EntriesResult;
+  using DataClearSource = SharedStorageDatabase::DataClearSource;
 
   // A callback type to check if a given StorageKey matches a storage policy.
   // Can be passed empty/null where used, which means the StorageKey will always
@@ -95,7 +96,13 @@ class AsyncSharedStorageDatabaseImpl : public AsyncSharedStorageDatabase {
               std::u16string key,
               base::OnceCallback<void(OperationResult)> callback) override;
   void Clear(url::Origin context_origin,
-             base::OnceCallback<void(OperationResult)> callback) override;
+             base::OnceCallback<void(OperationResult)> callback,
+             DataClearSource source) override;
+  void BatchUpdate(
+      url::Origin context_origin,
+      std::vector<network::mojom::SharedStorageModifierMethodWithOptionsPtr>
+          methods_with_options,
+      base::OnceCallback<void(BatchUpdateResult)> callback) override;
   void Length(url::Origin context_origin,
               base::OnceCallback<void(int)> callback) override;
   void Keys(url::Origin context_origin,
@@ -106,6 +113,8 @@ class AsyncSharedStorageDatabaseImpl : public AsyncSharedStorageDatabase {
                mojo::PendingRemote<blink::mojom::SharedStorageEntriesListener>
                    pending_listener,
                base::OnceCallback<void(OperationResult)> callback) override;
+  void BytesUsed(url::Origin context_origin,
+                 base::OnceCallback<void(int)> callback) override;
   void PurgeMatchingOrigins(StorageKeyPolicyMatcherFunction storage_key_matcher,
                             base::Time begin,
                             base::Time end,
@@ -116,11 +125,11 @@ class AsyncSharedStorageDatabaseImpl : public AsyncSharedStorageDatabase {
       base::OnceCallback<void(std::vector<mojom::StorageUsageInfoPtr>)>
           callback) override;
   void MakeBudgetWithdrawal(
-      url::Origin context_origin,
+      net::SchemefulSite context_site,
       double bits_debit,
       base::OnceCallback<void(OperationResult)> callback) override;
   void GetRemainingBudget(
-      url::Origin context_origin,
+      net::SchemefulSite context_site,
       base::OnceCallback<void(BudgetResult)> callback) override;
   void GetCreationTime(url::Origin context_origin,
                        base::OnceCallback<void(TimeResult)> callback) override;
@@ -163,9 +172,9 @@ class AsyncSharedStorageDatabaseImpl : public AsyncSharedStorageDatabase {
   void OverrideClockForTesting(base::Clock* clock, base::OnceClosure callback);
 
   // Calls `callback` with the number of entries (including stale entries) in
-  // the table `budget_mapping` for `context_origin`, or with -1 in case of
+  // the table `budget_mapping` for `context_site`, or with -1 in case of
   // database initialization failure or SQL error.
-  void GetNumBudgetEntriesForTesting(url::Origin context_origin,
+  void GetNumBudgetEntriesForTesting(net::SchemefulSite context_site,
                                      base::OnceCallback<void(int)> callback);
 
   // Calls `callback` with the total number of entries in the table for all

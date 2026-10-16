@@ -14,7 +14,11 @@
 
 config("sabi_flags") {
   cflags = [
-    "-march=arm64v8a",
+    # We rely on the target triple to establish the baseline arm64v8a ABI.
+    # Explicitly specifying "-march=arm64v8a" here would cause GN to place it
+    # after target-specific cflags on the compiler command line, overriding
+    # advanced micro-architecture flags (e.g. dotprod, sve) in third_party
+    # dependencies like libvpx and libyuv.
     "-target",
     "arm64v8a-unknown-linux-elf",
 
@@ -31,10 +35,9 @@ config("platform_configuration") {
     "//starboard/evergreen/shared/platform_configuration",
   ]
 
+  # Enforce 64-bit ARM ELF emulation mode for the linker.
   ldflags = [
     "-Wl,-m",
     "-Wl,aarch64elf",
   ]
-  cflags = [ "-isystem" +
-             rebase_path("//third_party/musl/arch/aarch64", root_build_dir) ]
 }

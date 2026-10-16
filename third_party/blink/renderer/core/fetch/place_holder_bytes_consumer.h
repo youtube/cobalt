@@ -16,7 +16,7 @@ namespace blink {
 class CORE_EXPORT PlaceHolderBytesConsumer final : public BytesConsumer {
  public:
   // BytesConsumer implementation
-  Result BeginRead(const char** buffer, size_t* available) override;
+  Result BeginRead(base::span<const char>& buffer) override;
   Result EndRead(size_t read_size) override;
   scoped_refptr<BlobDataHandle> DrainAsBlobDataHandle(
       BlobSizePolicy policy) override;
@@ -27,7 +27,7 @@ class CORE_EXPORT PlaceHolderBytesConsumer final : public BytesConsumer {
   void Cancel() override;
   PublicState GetPublicState() const override;
   Error GetError() const override;
-  String DebugName() const override { return "PlaceHolderBytesConsumer"; }
+  String DebugName() const override;
 
   // This function can be called at most once.
   void Update(BytesConsumer* consumer);
@@ -38,6 +38,7 @@ class CORE_EXPORT PlaceHolderBytesConsumer final : public BytesConsumer {
   Member<BytesConsumer> underlying_;
   Member<Client> client_;
   bool is_cancelled_ = false;
+  SEQUENCE_CHECKER(sequence_checker_);
 };
 
 }  // namespace blink

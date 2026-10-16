@@ -5,10 +5,14 @@
 // This file tests that Service Workers (a Content feature) work in the Chromium
 // embedder.
 
+#include <optional>
+#include <string_view>
+
 #include "base/command_line.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
+#include "base/json/json_reader.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
@@ -21,6 +25,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/page_load_metrics/observers/service_worker_page_load_metrics_observer.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -38,6 +43,7 @@
 #include "components/favicon/core/favicon_driver_observer.h"
 #include "components/metrics/content/subprocess_metrics_provider.h"
 #include "components/nacl/common/buildflags.h"
+#include "components/page_load_metrics/browser/page_load_metrics_test_waiter.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -52,6 +58,7 @@
 #include "content/public/browser/webui_config.h"
 #include "content/public/browser/webui_config_map.h"
 #include "content/public/common/content_features.h"
+#include "content/public/common/isolated_world_ids.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -62,13 +69,14 @@
 #include "net/test/embedded_test_server/http_response.h"
 #include "ppapi/shared_impl/ppapi_switches.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/messaging/string_message_codec.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration_options.mojom.h"
 #include "url/origin.h"
+
+using PageLoadMetricsTestWaiter = page_load_metrics::PageLoadMetricsTestWaiter;
 
 namespace chrome_service_worker_browser_test {
 
@@ -121,10 +129,10 @@ class ChromeServiceWorkerTest : public InProcessBrowserTest {
         service_worker_dir_.GetPath().Append(
             FILE_PATH_LITERAL("scope")), nullptr));
   }
-  ~ChromeServiceWorkerTest() override {}
+  ~ChromeServiceWorkerTest() override = default;
 
   void WriteFile(const base::FilePath::StringType& filename,
-                 base::StringPiece contents) {
+                 std::string_view contents) {
     base::ScopedAllowBlockingForTesting allow_blocking;
     EXPECT_TRUE(base::WriteFile(service_worker_dir_.GetPath().Append(filename),
                                 contents));
@@ -208,6 +216,12 @@ class ChromeServiceWorkerTest : public InProcessBrowserTest {
         base::BindRepeating(&ExpectResultAndRun<bool>, true,
                             run_loop.QuitClosure()));
     run_loop.Run();
+  }
+
+  std::unique_ptr<PageLoadMetricsTestWaiter> CreatePageLoadMetricsTestWaiter() {
+    content::WebContents* web_contents =
+        browser()->tab_strip_model()->GetActiveWebContents();
+    return std::make_unique<PageLoadMetricsTestWaiter>(web_contents);
   }
 
   base::ScopedTempDir service_worker_dir_;
@@ -321,14 +335,7 @@ IN_PROC_BROWSER_TEST_F(ChromeServiceWorkerTest,
       kInstallAndWaitForActivatedPageWithModuleScript);
 }
 
-// TODO(crbug.com/1395715): The test is flaky. Re-enable it.
-#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS_LACROS)
-#define MAYBE_SubresourceCountUKM DISABLED_SubresourceCountUKM
-#else
-#define MAYBE_SubresourceCountUKM SubresourceCountUKM
-#endif
-IN_PROC_BROWSER_TEST_F(ChromeServiceWorkerTest, MAYBE_SubresourceCountUKM) {
+IN_PROC_BROWSER_TEST_F(ChromeServiceWorkerTest, SubresourceCountUKM) {
   base::RunLoop ukm_loop;
   ukm::TestAutoSetUkmRecorder test_recorder;
   test_recorder.SetOnAddEntryCallback(
@@ -393,21 +400,17 @@ IN_PROC_BROWSER_TEST_F(ChromeServiceWorkerTest, MAYBE_SubresourceCountUKM) {
 
   {
     // Navigate to the service worker controlled page.
-    content::TestFrameNavigationObserver observer(
-        browser()->tab_strip_model()->GetActiveWebContents());
+    auto waiter = CreatePageLoadMetricsTestWaiter();
+    waiter->AddPageExpectation(
+        PageLoadMetricsTestWaiter::TimingField::kLoadEvent);
     ASSERT_TRUE(ui_test_utils::NavigateToURL(
         browser(), embedded_test_server()->GetURL("/subresources.html")));
-    observer.WaitForCommit();
+    waiter->Wait();
   }
 
-  {
-    // Navigate away to record metrics.
-    content::TestFrameNavigationObserver observer(
-        browser()->tab_strip_model()->GetActiveWebContents());
-    ASSERT_TRUE(
-        ui_test_utils::NavigateToURL(browser(), GURL(url::kAboutBlankURL)));
-    observer.WaitForCommit();
-  }
+  // Navigate away to record metrics.
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), GURL(url::kAboutBlankURL)));
 
   // Wait until the UKM record has enough entries.
   ukm_loop.Run();
@@ -448,8 +451,80 @@ IN_PROC_BROWSER_TEST_F(ChromeServiceWorkerTest, MAYBE_SubresourceCountUKM) {
       entries[0], ukm::builders::ServiceWorker_OnLoad::kImageHandledName, 0);
 }
 
-// TODO(crbug.com/1395715): The test is flaky. Re-enable it.
-#if BUILDFLAG(IS_FUCHSIA)
+// TODO(crbug.com/355104619): The test is flaky. Re-enable it.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#define MAYBE_StaticRoutingAPISubresourceHistogramTest \
+  DISABLED_StaticRoutingAPISubresourceHistogramTest
+#else
+#define MAYBE_StaticRoutingAPISubresourceHistogramTest \
+  StaticRoutingAPISubresourceHistogramTest
+#endif
+IN_PROC_BROWSER_TEST_F(ChromeServiceWorkerTest,
+                       MAYBE_StaticRoutingAPISubresourceHistogramTest) {
+  base::HistogramTester histogram_tester;
+  WriteFile(FILE_PATH_LITERAL("scope/fallback.css"), "");
+  WriteFile(FILE_PATH_LITERAL("scope/nofallback.css"), "");
+  WriteFile(FILE_PATH_LITERAL("scope/subresources.html"),
+            "<link href='./fallback.css' rel='stylesheet'>"
+            "<link href='./nofallback.css' rel='stylesheet'>");
+  WriteFile(FILE_PATH_LITERAL("sw.js"),
+            R"( this.onactivate = function(event) {
+                  event.waitUntil(self.clients.claim());
+                };
+                this.addEventListener('install', e => {
+                  e.addRoutes([{
+                    condition: {
+                      urlPattern: new URLPattern()
+                    },
+                    source: 'fetch-event',
+                  },
+                  ]);
+                });
+                this.onfetch = function(event) {
+                  if (event.request.url.endsWith('/fallback.css')) {
+                    return;
+                  }
+                  event.respondWith(fetch(event.request));
+                };)");
+
+  WriteFile(FILE_PATH_LITERAL("test.html"), kInstallAndWaitForActivatedPage);
+
+  InitializeServer();
+
+  {
+    // The message "READY" will be sent when the service worker is activated.
+    const std::u16string expected_title = u"READY";
+    content::TitleWatcher title_watcher(
+        browser()->tab_strip_model()->GetActiveWebContents(), expected_title);
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(
+        browser(), embedded_test_server()->GetURL("/test.html")));
+    EXPECT_EQ(expected_title, title_watcher.WaitAndGetTitle());
+  }
+
+  {
+    // Navigate to the service worker controlled page.
+    content::TestFrameNavigationObserver observer(
+        browser()->tab_strip_model()->GetActiveWebContents());
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(
+        browser(), embedded_test_server()->GetURL("/scope/subresources.html")));
+    observer.WaitForCommit();
+  }
+
+  {
+    // Navigate away to record metrics.
+    content::TestFrameNavigationObserver observer(
+        browser()->tab_strip_model()->GetActiveWebContents());
+    ASSERT_TRUE(
+        ui_test_utils::NavigateToURL(browser(), GURL(url::kAboutBlankURL)));
+    observer.WaitForCommit();
+  }
+
+  histogram_tester.ExpectTotalCount(
+      internal::kHistogramServiceWorkerSubresourceTotalRouterEvaluationTime, 1);
+}
+
+// TODO(crbug.com/360158408): The test is flaky on mac bots.
+#if BUILDFLAG(IS_MAC)
 #define MAYBE_SubresourceCountUMA DISABLED_SubresourceCountUMA
 #else
 #define MAYBE_SubresourceCountUMA SubresourceCountUMA
@@ -500,8 +575,12 @@ IN_PROC_BROWSER_TEST_F(ChromeServiceWorkerTest, MAYBE_SubresourceCountUMA) {
   }
 
   // Navigate to the service worker controlled page.
+  auto waiter = CreatePageLoadMetricsTestWaiter();
+  waiter->AddPageExpectation(
+      PageLoadMetricsTestWaiter::TimingField::kLoadEvent);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("/subresources.html")));
+  waiter->Wait();
 
   // Navigate away to record metrics.
   ASSERT_TRUE(
@@ -526,13 +605,16 @@ class ChromeServiceWorkerFetchTest : public ChromeServiceWorkerTest {
       delete;
 
  protected:
-  ChromeServiceWorkerFetchTest() {}
-  ~ChromeServiceWorkerFetchTest() override {}
+  ChromeServiceWorkerFetchTest() = default;
+  ~ChromeServiceWorkerFetchTest() override = default;
 
   void SetUpOnMainThread() override {
     WriteServiceWorkerFetchTestFiles();
     embedded_test_server()->ServeFilesFromDirectory(
         service_worker_dir_.GetPath());
+    base::FilePath test_data_dir;
+    ASSERT_TRUE(base::PathService::Get(chrome::DIR_TEST_DATA, &test_data_dir));
+    embedded_test_server()->ServeFilesFromDirectory(test_data_dir);
     ASSERT_TRUE(embedded_test_server()->Start());
     InitializeServiceWorkerFetchTestPage();
   }
@@ -580,36 +662,39 @@ class ChromeServiceWorkerFetchTest : public ChromeServiceWorkerTest {
         "          return fetch(event.request);"
         "        }));"
         "};");
-    WriteFile(FILE_PATH_LITERAL("test.html"),
-              "<script>"
-              "navigator.serviceWorker.register('./sw.js', {scope: './'})"
-              "  .then(function(reg) {"
-              "      reg.addEventListener('updatefound', function() {"
-              "          var worker = reg.installing;"
-              "          worker.addEventListener('statechange', function() {"
-              "              if (worker.state == 'activated')"
-              "                document.title = 'READY';"
-              "            });"
-              "        });"
-              "    });"
-              "var reportOnFetch = true;"
-              "var issuedRequests = [];"
-              "function reportRequests() {"
-              "  var str = '';"
-              "  issuedRequests.forEach(function(data) {"
-              "      str += data + '\\n';"
-              "    });"
-              "  window.domAutomationController.send(str);"
-              "}"
-              "navigator.serviceWorker.addEventListener("
-              "    'message',"
-              "    function(event) {"
-              "      issuedRequests.push(event.data);"
-              "      if (reportOnFetch) {"
-              "        reportRequests();"
-              "      }"
-              "    }, false);"
-              "</script>");
+    WriteFile(FILE_PATH_LITERAL("test.html"), R"(
+              <script src='/result_queue.js'></script>
+              <script>
+              navigator.serviceWorker.register('./sw.js', {scope: './'})
+                .then(function(reg) {
+                    reg.addEventListener('updatefound', function() {
+                        var worker = reg.installing;
+                        worker.addEventListener('statechange', function() {
+                            if (worker.state == 'activated')
+                              document.title = 'READY';
+                          });
+                      });
+                  });
+              var reportOnFetch = true;
+              var issuedRequests = [];
+              var reports = new ResultQueue();
+              function reportRequests() {
+                var str = '';
+                issuedRequests.forEach(function(data) {
+                  str += data + '\n';
+                });
+                reports.push(str);
+              }
+              navigator.serviceWorker.addEventListener(
+                  'message',
+                  function(event) {
+                    issuedRequests.push(event.data);
+                    if (reportOnFetch) {
+                      reportRequests();
+                    }
+                  }, false);
+              </script>
+              )");
   }
 
   void InitializeServiceWorkerFetchTestPage() {
@@ -670,8 +755,8 @@ class ChromeServiceWorkerLinkFetchTest : public ChromeServiceWorkerFetchTest {
       const ChromeServiceWorkerLinkFetchTest&) = delete;
 
  protected:
-  ChromeServiceWorkerLinkFetchTest() {}
-  ~ChromeServiceWorkerLinkFetchTest() override {}
+  ChromeServiceWorkerLinkFetchTest() = default;
+  ~ChromeServiceWorkerLinkFetchTest() override = default;
   void SetUpOnMainThread() override {
     // Map all hosts to localhost and setup the EmbeddedTestServer for
     // redirects.
@@ -708,7 +793,7 @@ class ChromeServiceWorkerLinkFetchTest : public ChromeServiceWorkerFetchTest {
     ExecuteJavaScriptForTests(js);
     waiter.Wait();
     return EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
-                  "reportRequests();", content::EXECUTE_SCRIPT_USE_MANUAL_REPLY)
+                  "reportRequests(); reports.pop();")
         .ExtractString();
   }
 
@@ -733,7 +818,8 @@ class ChromeServiceWorkerLinkFetchTest : public ChromeServiceWorkerFetchTest {
                 [](base::OnceClosure quit_callback, base::Value result) {
                   std::move(quit_callback).Run();
                 },
-                run_loop.QuitClosure()));
+                run_loop.QuitClosure()),
+            content::ISOLATED_WORLD_ID_GLOBAL);
     run_loop.Run();
   }
 
@@ -748,12 +834,13 @@ class ChromeServiceWorkerLinkFetchTest : public ChromeServiceWorkerFetchTest {
     run_loop.Run();
     return EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
                   "if (issuedRequests.length != 0) reportRequests();"
-                  "else reportOnFetch = true;",
-                  content::EXECUTE_SCRIPT_USE_MANUAL_REPLY)
+                  "else reportOnFetch = true;"
+                  "reports.pop();")
         .ExtractString();
   }
 
   static void ManifestCallbackAndRun(base::OnceClosure continuation,
+                                     blink::mojom::ManifestRequestResult,
                                      const GURL&,
                                      blink::mojom::ManifestPtr) {
     std::move(continuation).Run();
@@ -825,8 +912,8 @@ class ChromeServiceWorkerFetchPPAPITest : public ChromeServiceWorkerFetchTest {
       const ChromeServiceWorkerFetchPPAPITest&) = delete;
 
  protected:
-  ChromeServiceWorkerFetchPPAPITest() {}
-  ~ChromeServiceWorkerFetchPPAPITest() override {}
+  ChromeServiceWorkerFetchPPAPITest() = default;
+  ~ChromeServiceWorkerFetchPPAPITest() override = default;
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     ChromeServiceWorkerFetchTest::SetUpCommandLine(command_line);
@@ -850,17 +937,23 @@ class ChromeServiceWorkerFetchPPAPITest : public ChromeServiceWorkerFetchTest {
   }
 
   std::string ExecutePNACLUrlLoaderTest(const std::string& mode) {
-    std::string result(
-        EvalJs(
-            browser()->tab_strip_model()->GetActiveWebContents(),
-            base::StringPrintf("reportOnFetch = false;"
-                               "var iframe = document.createElement('iframe');"
-                               "iframe.src='%s#%s';"
-                               "document.body.appendChild(iframe);",
-                               test_page_url_.c_str(), mode.c_str()),
-            content::EXECUTE_SCRIPT_USE_MANUAL_REPLY)
-            .ExtractString());
-    EXPECT_EQ(base::StringPrintf("OnOpen%s", mode.c_str()), result);
+    content::DOMMessageQueue message_queue;
+    EXPECT_TRUE(content::ExecJs(
+        browser()->tab_strip_model()->GetActiveWebContents(),
+        base::StringPrintf("reportOnFetch = false;"
+                           "var iframe = document.createElement('iframe');"
+                           "iframe.src='%s#%s';"
+                           "document.body.appendChild(iframe);",
+                           test_page_url_.c_str(), mode.c_str())));
+
+    std::string json;
+    EXPECT_TRUE(message_queue.WaitForMessage(&json));
+
+    base::Value result =
+        base::JSONReader::Read(json, base::JSON_ALLOW_TRAILING_COMMAS).value();
+
+    EXPECT_TRUE(result.is_string());
+    EXPECT_EQ(base::StringPrintf("OnOpen%s", mode.c_str()), result.GetString());
     return EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
                   "reportRequests();")
         .ExtractString();
@@ -1075,7 +1168,7 @@ class StaticWebUIController : public content::WebUIController {
 
 class TestWebUIConfig : public content::WebUIConfig {
  public:
-  explicit TestWebUIConfig(base::StringPiece scheme, base::StringPiece host)
+  explicit TestWebUIConfig(std::string_view scheme, std::string_view host)
       : content::WebUIConfig(scheme, host) {
     data_source_key_ = this->host();
     if (this->scheme() == "chrome-untrusted") {
@@ -1121,7 +1214,7 @@ class ChromeWebUIServiceWorkerTest : public ChromeServiceWorkerTest {
     // Try to register the service worker.
     const GURL service_worker_url = base_url.Resolve("sw.js");
     base::RunLoop run_loop;
-    absl::optional<blink::ServiceWorkerStatusCode> result;
+    std::optional<blink::ServiceWorkerStatusCode> result;
     blink::mojom::ServiceWorkerRegistrationOptions options(
         base_url, blink::mojom::ScriptType::kClassic,
         blink::mojom::ServiceWorkerUpdateViaCache::kNone);
@@ -1413,7 +1506,7 @@ class ChromeServiceWorkerNavigationPreloadTest : public InProcessBrowserTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 
   // The request that hit the "test" endpoint.
-  absl::optional<net::test_server::HttpRequest> received_request_;
+  std::optional<net::test_server::HttpRequest> received_request_;
 };
 
 // Tests navigation preload during a navigation in the top-level frame

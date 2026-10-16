@@ -18,6 +18,9 @@ enum WebViewPermissionType {
 
   WEB_VIEW_PERMISSION_TYPE_GEOLOCATION,
 
+  // Permission to request access to Human Interface Devices.
+  WEB_VIEW_PERMISSION_TYPE_HID,
+
   // JavaScript Dialogs: prompt, alert, confirm
   // Note: Even through dialogs do not use the permission API, the dialog API
   // is sufficiently similiar that it's convenient to consider it a permission
@@ -35,7 +38,10 @@ enum WebViewPermissionType {
   // permission type for code reuse.
   WEB_VIEW_PERMISSION_TYPE_NEW_WINDOW,
 
-  WEB_VIEW_PERMISSION_TYPE_POINTER_LOCK
+  WEB_VIEW_PERMISSION_TYPE_POINTER_LOCK,
+
+  WEB_VIEW_PERMISSION_TYPE_MAX_VALUE = WEB_VIEW_PERMISSION_TYPE_POINTER_LOCK,
+  WEB_VIEW_PERMISSION_TYPE_MIN_VALUE = WEB_VIEW_PERMISSION_TYPE_UNKNOWN,
 };
 
 #endif  // EXTENSIONS_BROWSER_GUEST_VIEW_WEB_VIEW_WEB_VIEW_PERMISSION_TYPES_H_

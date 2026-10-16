@@ -9,11 +9,14 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.util.Size;
 
+import org.chromium.build.annotations.NullMarked;
+
 /**
  * Used to represent the viewport for a frame in the paint preview player. There should be one of
  * these objects per player frame and it should be shared between various classes that manipulated
  * the location. Should only be accessed on the UI thread to avoid the need for locks.
  */
+@NullMarked
 public class PlayerFrameViewport {
     // Enforce a max tile size to avoid giant bitmaps. Most high-DPI displays are < 2500px in any
     // dimension so this is a reasonable upper bound. Alternatively, this could use screensize, but
@@ -22,29 +25,31 @@ public class PlayerFrameViewport {
 
     /** The size of the viewport. */
     private Size mViewportSize = new Size(0, 0);
+
     /** A 3x3 affine transformation matrix to track scale and translation. */
     private final Matrix mViewportTransform = new Matrix();
+
     /** The visible region of the viewport. */
     private final Rect mVisibleRegion = new Rect();
+
     /** The offset of the visible region of the viewport relative to the frame's origin. */
     private final Point mOffset = new Point();
+
     private boolean mTileSizeOverridden;
     private Size mTileSize = new Size(0, 0);
+
     /** Transient storage objects to avoid allocations. */
     private final Rect mViewportRect = new Rect();
+
     private final float[] mMatrixValues = new float[9];
     private final Rect mVisibleViewport = new Rect();
 
-    /**
-     * @return the width of the viewport.
-     */
+    /** @return the width of the viewport. */
     public int getWidth() {
         return mViewportSize.getWidth();
     }
 
-    /**
-     * @return the height of the viewport.
-     */
+    /** @return the height of the viewport. */
     public int getHeight() {
         return mViewportSize.getHeight();
     }
@@ -79,8 +84,9 @@ public class PlayerFrameViewport {
     /**
      * Returns the current viewport position as a rect. Use cautiously as this is an instantaneous
      * snapshot and is not continually updated.
+     *
      * @return a rect of the current viewport.
-     * */
+     */
     public Rect asRect() {
         mViewportTransform.getValues(mMatrixValues);
         final int left = Math.round(mMatrixValues[Matrix.MTRANS_X]);
@@ -167,9 +173,7 @@ public class PlayerFrameViewport {
         return !mVisibleRegion.isEmpty();
     }
 
-    /**
-     * Offset of the visible portion of the viewport relative to the frame's origin.
-     */
+    /** Offset of the visible portion of the viewport relative to the frame's origin. */
     Point getOffset() {
         return mOffset;
     }
@@ -191,16 +195,12 @@ public class PlayerFrameViewport {
         return mVisibleViewport;
     }
 
-    /**
-     * @return bitmap tile size.
-     */
+    /** @return bitmap tile size. */
     Size getBitmapTileSize() {
         return mTileSize;
     }
 
-    /**
-     * Overrides the tile size.
-     */
+    /** Overrides the tile size. */
     void overrideTileSize(int width, int height) {
         setTileSize(width, height);
         mTileSizeOverridden = true;

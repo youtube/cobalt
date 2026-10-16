@@ -4,14 +4,15 @@
 
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/check.h"
-#include "base/ranges/algorithm.h"
 #include "components/back_forward_cache/back_forward_cache_disable.h"
 #include "components/web_modal/web_contents_modal_dialog_manager_delegate.h"
 #include "content/public/browser/back_forward_cache.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 
@@ -38,6 +39,7 @@ void WebContentsModalDialogManager::SetDelegate(
 void WebContentsModalDialogManager::ShowDialogWithManager(
     gfx::NativeWindow dialog,
     std::unique_ptr<SingleWebContentsDialogManager> manager) {
+  observer_list_.Notify(&Observer::OnWillShow);
   if (delegate_)
     manager->HostChanged(delegate_->GetWebContentsModalDialogHost());
   child_dialogs_.emplace_back(dialog, std::move(manager));
@@ -58,12 +60,20 @@ void WebContentsModalDialogManager::FocusTopmostDialog() const {
   child_dialogs_.front().manager->Focus();
 }
 
+void WebContentsModalDialogManager::AddObserver(Observer* observer) {
+  observer_list_.AddObserver(observer);
+}
+
+void WebContentsModalDialogManager::RemoveObserver(Observer* observer) {
+  observer_list_.RemoveObserver(observer);
+}
+
 content::WebContents* WebContentsModalDialogManager::GetWebContents() const {
   return web_contents();
 }
 
 void WebContentsModalDialogManager::WillClose(gfx::NativeWindow dialog) {
-  auto dlg = base::ranges::find(child_dialogs_, dialog, &DialogState::dialog);
+  auto dlg = std::ranges::find(child_dialogs_, dialog, &DialogState::dialog);
 
   // The Views tab contents modal dialog calls WillClose twice.  Ignore the
   // second invocation.
@@ -86,8 +96,7 @@ WebContentsModalDialogManager::WebContentsModalDialogManager(
     : content::WebContentsObserver(web_contents),
       content::WebContentsUserData<WebContentsModalDialogManager>(
           *web_contents),
-      web_contents_is_hidden_(web_contents->GetVisibility() ==
-                              content::Visibility::HIDDEN) {}
+      web_contents_visibility_(web_contents->GetVisibility()) {}
 
 WebContentsModalDialogManager::DialogState::DialogState(
     gfx::NativeWindow dialog,
@@ -110,7 +119,11 @@ void WebContentsModalDialogManager::BlockWebContentsInteraction(bool blocked) {
     return;
   }
 
-  contents->SetIgnoreInputEvents(blocked);
+  if (blocked) {
+    scoped_ignore_input_events_ = contents->IgnoreInputEvents(std::nullopt);
+  } else {
+    scoped_ignore_input_events_.reset();
+  }
   if (delegate_)
     delegate_->SetWebContentsBlocked(contents, blocked);
 }
@@ -148,8 +161,10 @@ void WebContentsModalDialogManager::DidFinishNavigation(
   if (!net::registry_controlled_domains::SameDomainOrHost(
           navigation_handle->GetPreviousPrimaryMainFrameURL(),
           navigation_handle->GetURL(),
-          net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES))
+          net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES)) {
+    observer_list_.Notify(&Observer::OnWillCloseOnNavigation);
     CloseAllDialogs();
+  }
 }
 
 void WebContentsModalDialogManager::DidGetIgnoredUIEvent() {
@@ -160,19 +175,30 @@ void WebContentsModalDialogManager::DidGetIgnoredUIEvent() {
 
 void WebContentsModalDialogManager::OnVisibilityChanged(
     content::Visibility visibility) {
-  const bool web_contents_was_hidden = web_contents_is_hidden_;
-  web_contents_is_hidden_ = visibility == content::Visibility::HIDDEN;
-
-  // Avoid reshowing on transitions between VISIBLE and OCCLUDED.
-  if (child_dialogs_.empty() ||
-      web_contents_is_hidden_ == web_contents_was_hidden) {
+  const content::Visibility previous_web_contents_visibility =
+      web_contents_visibility_;
+  web_contents_visibility_ = visibility;
+  if (child_dialogs_.empty()) {
     return;
   }
 
-  if (web_contents_is_hidden_)
+  // Hide the dialog if the web contents are newly hidden.
+  if (previous_web_contents_visibility != content::Visibility::HIDDEN &&
+      web_contents_visibility_ == content::Visibility::HIDDEN) {
     child_dialogs_.front().manager->Hide();
-  else
+    return;
+  }
+
+  // Show the dialog if it transitioned from HIDDEN to VISIBLE or OCCLUDED.
+  if ((previous_web_contents_visibility == content::Visibility::HIDDEN &&
+       web_contents_visibility_ != content::Visibility::HIDDEN) ||
+      // Or from OCCLUDED to VISIBLE if the dialog is no longer active.
+      (previous_web_contents_visibility == content::Visibility::OCCLUDED &&
+       web_contents_visibility_ == content::Visibility::VISIBLE &&
+       !child_dialogs_.front().manager->IsActive())) {
+    // TODO(crbug.com/40283251): Add an interaction test for this.
     child_dialogs_.front().manager->Show();
+  }
 }
 
 void WebContentsModalDialogManager::WebContentsDestroyed() {

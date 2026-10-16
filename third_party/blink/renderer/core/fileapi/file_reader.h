@@ -52,7 +52,7 @@ class ExecutionContext;
 class V8UnionArrayBufferOrString;
 enum class FileErrorCode;
 
-class CORE_EXPORT FileReader final : public EventTargetWithInlineData,
+class CORE_EXPORT FileReader final : public EventTarget,
                                      public ActiveScriptWrappable<FileReader>,
                                      public ExecutionContextLifecycleObserver,
                                      public FileReaderAccumulator {
@@ -74,7 +74,7 @@ class CORE_EXPORT FileReader final : public EventTargetWithInlineData,
   void abort();
 
   ReadyState getReadyState() const { return state_; }
-  DOMException* error() { return error_; }
+  DOMException* error() { return error_.Get(); }
   V8UnionArrayBufferOrString* result() const;
   probe::AsyncTaskContext* async_task_context() { return &async_task_context_; }
 
@@ -136,7 +136,7 @@ class CORE_EXPORT FileReader final : public EventTargetWithInlineData,
   Member<FileReaderLoader> loader_;
   Member<V8UnionArrayBufferOrString> result_ = nullptr;
   Member<DOMException> error_;
-  absl::optional<base::ElapsedTimer> last_progress_notification_time_;
+  std::optional<base::ElapsedTimer> last_progress_notification_time_;
 };
 
 }  // namespace blink

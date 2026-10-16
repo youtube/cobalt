@@ -3,12 +3,9 @@
 // found in the LICENSE file.
 
 #import "ios/web/public/annotations/annotations_text_manager.h"
+
 #import "ios/web/annotations/annotations_java_script_feature.h"
 #import "ios/web/annotations/annotations_text_manager_impl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace web {
 

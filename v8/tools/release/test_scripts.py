@@ -35,7 +35,6 @@ import unittest
 
 import auto_push
 from auto_push import LastReleaseBailout
-import auto_roll
 import common_includes
 from common_includes import *
 import create_release
@@ -467,7 +466,7 @@ test_tag
           cb=self.WriteFakeVersionFile),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
-      Cmd("git cl upload --send-mail --no-python2-post-upload-hooks "
+      Cmd("git cl upload --send-mail "
           "-f --set-bot-commit --bypass-hooks --no-autocc --message-file "
           "\"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       Cmd("git cl land --bypass-hooks -f", ""),
@@ -502,139 +501,6 @@ test_tag
     ],
 """
     self.assertEqual(watchlists_content, expected_watchlists_content)
-
-  C_V8_22624_LOG = """V8 CL.
-
-git-svn-id: https://v8.googlecode.com/svn/branches/bleeding_edge@22624 123
-
-"""
-
-  C_V8_123455_LOG = """V8 CL.
-
-git-svn-id: https://v8.googlecode.com/svn/branches/bleeding_edge@123455 123
-
-"""
-
-  C_V8_123456_LOG = """V8 CL.
-
-git-svn-id: https://v8.googlecode.com/svn/branches/bleeding_edge@123456 123
-
-"""
-
-  ROLL_HASH = "1234567890123456789012345678901234567890"
-  HASH_ALT_1 = "9999999999999999999999999999999999999999"
-  ROLL_COMMIT_MSG = f"""Update V8 to version 3.22.4.
-
-Summary of changes available at:
-https://chromium.googlesource.com/v8/v8/+log/last_rol..{ROLL_HASH[:8]}
-
-Please follow these instructions for assigning/CC'ing issues:
-https://v8.dev/docs/triage-issues
-
-Please close rolling in case of a roll revert:
-https://v8-roll.appspot.com/
-This only works with a Google account.
-
-CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux-blink-rel
-CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux_optional_gpu_tests_rel
-CQ_INCLUDE_TRYBOTS=luci.chromium.try:mac_optional_gpu_tests_rel
-CQ_INCLUDE_TRYBOTS=luci.chromium.try:win_optional_gpu_tests_rel
-CQ_INCLUDE_TRYBOTS=luci.chromium.try:android_optional_gpu_tests_rel
-
-R=reviewer@chromium.org"""
-
-  # Snippet from the original DEPS file.
-  FAKE_DEPS = """
-vars = {
-  "v8_revision": "last_roll_hsh",
-}
-deps = {
-  "src/v8":
-    (Var("googlecode_url") % "v8") + "/" + Var("v8_branch") + "@" +
-    Var("v8_revision"),
-}
-"""
-
-  def testChromiumRollUpToDate(self):
-    TEST_CONFIG["CHROMIUM"] = self.MakeEmptyTempDirectory()
-    json_output_file = os.path.join(TEST_CONFIG["CHROMIUM"], "out.json")
-    TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG["CHROMIUM"], "DEPS"))
-    chrome_dir = TEST_CONFIG["CHROMIUM"]
-    self.Expect([
-      Cmd("git fetch origin", ""),
-      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
-      Cmd("gclient getdep -r src/v8", "last_roll_hsh", cwd=chrome_dir),
-      Cmd("git tag --points-at last_roll_hsh", "3.22.4\n3.22.4-pgo"),
-      Cmd((
-          "git for-each-ref --count=80 --sort=-committerdate --format "
-          "'%(refname) %(objectname)' 'refs/tags/*-pgo'"
-      ), "\n".join([
-          f"refs/tags/3.22.4-pgo {self.ROLL_HASH}",
-          f"refs/tags/3.22.3-pgo {self.HASH_ALT_1}",
-      ])),
-    ])
-
-    result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
-        AUTO_PUSH_ARGS + [
-          "-c", TEST_CONFIG["CHROMIUM"],
-          "--json-output", json_output_file])
-    self.assertEquals(0, result)
-
-
-  def testChromiumRoll(self):
-    # Setup fake directory structures.
-    TEST_CONFIG["CHROMIUM"] = self.MakeEmptyTempDirectory()
-    json_output_file = os.path.join(TEST_CONFIG["CHROMIUM"], "out.json")
-    TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG["CHROMIUM"], "DEPS"))
-    TextToFile("", os.path.join(TEST_CONFIG["CHROMIUM"], ".git"))
-    chrome_dir = TEST_CONFIG["CHROMIUM"]
-    os.makedirs(os.path.join(chrome_dir, "v8"))
-
-    def WriteDeps():
-      TextToFile("Some line\n   \"v8_revision\": \"22624\",\n  some line",
-                 os.path.join(chrome_dir, "DEPS"))
-
-    expectations = [
-      Cmd("git fetch origin", ""),
-      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
-      Cmd("gclient getdep -r src/v8", "last_roll_hsh", cwd=chrome_dir),
-      Cmd("git tag --points-at last_roll_hsh", "3.22.3.1\n22.3.1-pgo"),
-      Cmd((
-          "git for-each-ref --count=80 --sort=-committerdate --format "
-          "'%(refname) %(objectname)' 'refs/tags/*-pgo'"
-      ), "\n".join([
-          f"refs/tags/3.22.4-pgo {self.ROLL_HASH}",
-          f"refs/tags/3.22.3-pgo {self.HASH_ALT_1}",
-      ])),
-      Cmd(f"git log -1 --format=%s {self.ROLL_HASH}", "Version 3.22.4\n"),
-      Cmd(f"git tag --points-at {self.ROLL_HASH}", "3.22.4\n3.22.4-pgo"),
-      Cmd("git tag --points-at last_roll_hsh", "3.22.2.1\n22.2.1-pgo"),
-      Cmd("git status -s -uno", "", cwd=chrome_dir),
-      Cmd("git checkout -f main", "", cwd=chrome_dir),
-      Cmd("git branch", "", cwd=chrome_dir),
-      Cmd("git pull", "", cwd=chrome_dir),
-      Cmd("git fetch origin", ""),
-      Cmd("git new-branch work-branch", "", cwd=chrome_dir),
-      Cmd(f"gclient setdep -r src/v8@{self.ROLL_HASH}", "", cb=WriteDeps,
-          cwd=chrome_dir),
-      Cmd(("git commit -am \"%s\" "
-           "--author \"author@chromium.org <author@chromium.org>\"" %
-           self.ROLL_COMMIT_MSG),
-          "", cwd=chrome_dir),
-      Cmd("git cl upload --send-mail --no-python2-post-upload-hooks -f "
-          "--cq-dry-run --set-bot-commit --bypass-hooks", "",
-          cwd=chrome_dir),
-      Cmd("git checkout -f main", "", cwd=chrome_dir),
-      Cmd("git branch -D work-branch", "", cwd=chrome_dir),
-    ]
-    self.Expect(expectations)
-
-    args = ["-a", "author@chromium.org", "-c", chrome_dir,
-            "-r", "reviewer@chromium.org", "--json-output", json_output_file]
-    auto_roll.AutoRoll(TEST_CONFIG, self).Run(args)
-
-    deps = FileToText(os.path.join(chrome_dir, "DEPS"))
-    self.assertTrue(re.search("\"v8_revision\": \"22624\"", deps))
 
   def testCheckLastPushRecently(self):
     self.Expect([
@@ -770,7 +636,7 @@ BUG=123,234,345,456,567,v8:123
       RL("Y"),  # Automatically increment patch level?
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       RL("reviewer@chromium.org"),  # V8 reviewer.
-      Cmd("git cl upload --send-mail --no-python2-post-upload-hooks "
+      Cmd("git cl upload --send-mail "
           "-r \"reviewer@chromium.org\" --bypass-hooks", ""),
       Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
       RL("LGTM"),  # Enter LGTM for V8 CL.
@@ -841,9 +707,6 @@ Merged: Revert \"Something\"
 Revision: ab56789
 
 BUG=123,234,345,456,567,v8:123
-NOTRY=true
-NOPRESUBMIT=true
-NOTREECHECKS=true
 """
 
     def VerifyLand():
@@ -906,7 +769,7 @@ NOTREECHECKS=true
       Cmd("git apply --index --reject \"%s\"" % extra_patch, ""),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       RL("reviewer@chromium.org"),  # V8 reviewer.
-      Cmd("git cl upload --send-mail --no-python2-post-upload-hooks "
+      Cmd("git cl upload --send-mail "
           "-r \"reviewer@chromium.org\" --bypass-hooks", ""),
       Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
       RL("LGTM"),  # Enter LGTM for V8 CL.

@@ -22,13 +22,13 @@ namespace {
 
 // Controller for the credit card scanner UI. The controller deletes itself
 // after the view is dismissed.
-class Controller : public CreditCardScannerViewDelegate,
-                   public base::SupportsWeakPtr<Controller> {
+class Controller final : public CreditCardScannerViewDelegate {
  public:
   Controller(content::WebContents* web_contents,
-             AutofillClient::CreditCardScanCallback callback)
-      : view_(CreditCardScannerView::Create(AsWeakPtr(), web_contents)),
-        callback_(std::move(callback)) {
+             payments::PaymentsAutofillClient::CreditCardScanCallback callback)
+      : callback_(std::move(callback)) {
+    view_ = CreditCardScannerView::Create(weak_ptr_factory_.GetWeakPtr(),
+                                          web_contents);
     DCHECK(view_);
   }
   Controller(const Controller&) = delete;
@@ -62,10 +62,12 @@ class Controller : public CreditCardScannerViewDelegate,
   std::unique_ptr<CreditCardScannerView> view_;
 
   // The callback to be invoked when scanning completes successfully.
-  AutofillClient::CreditCardScanCallback callback_;
+  payments::PaymentsAutofillClient::CreditCardScanCallback callback_;
 
   // The time when the UI was shown.
   base::TimeTicks show_time_;
+
+  base::WeakPtrFactory<Controller> weak_ptr_factory_{this};
 };
 
 }  // namespace
@@ -79,7 +81,7 @@ bool CreditCardScannerController::HasCreditCardScanFeature() {
 // static
 void CreditCardScannerController::ScanCreditCard(
     content::WebContents* web_contents,
-    AutofillClient::CreditCardScanCallback callback) {
+    payments::PaymentsAutofillClient::CreditCardScanCallback callback) {
   (new Controller(web_contents, std::move(callback)))->Show();
 }
 

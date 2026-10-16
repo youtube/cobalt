@@ -3,69 +3,14 @@
 // found in the LICENSE file.
 
 // clang-format off
-import {afterNextRender, dedupingMixin, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
-import {FocusRow, FocusRowDelegate} from 'chrome://resources/js/focus_row.js';
+import type { PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {afterNextRender, dedupingMixin} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {assert} from '//resources/js/assert.js';
+import {focusWithoutInk} from '//resources/js/focus_without_ink.js';
+import {FocusRow, VirtualFocusRow} from '//resources/js/focus_row.js';
+
+import {FocusRowMixinDelegate} from './focus_row_mixin_delegate.js';
 // clang-format on
-
-interface ListItem {
-  lastFocused: object;
-  overrideCustomEquivalent?: boolean;
-  getCustomEquivalent?: (el: HTMLElement) => HTMLElement | null;
-}
-
-class FocusRowMixinDelegate implements FocusRowDelegate {
-  private listItem_: ListItem;
-
-  constructor(listItem: ListItem) {
-    this.listItem_ = listItem;
-  }
-
-  /**
-   * This function gets called when the [focus-row-control] element receives
-   * the focus event.
-   */
-  onFocus(_row: FocusRow, e: Event) {
-    const element = e.composedPath()[0]! as HTMLElement;
-    const focusableElement = FocusRow.getFocusableElement(element);
-    if (element !== focusableElement) {
-      focusableElement.focus();
-    }
-    this.listItem_.lastFocused = focusableElement;
-  }
-
-  /**
-   * @param row The row that detected a keydown.
-   * @return Whether the event was handled.
-   */
-  onKeydown(_row: FocusRow, e: KeyboardEvent): boolean {
-    // Prevent iron-list from changing the focus on enter.
-    if (e.key === 'Enter') {
-      e.stopPropagation();
-    }
-
-    return false;
-  }
-
-  getCustomEquivalent(sampleElement: HTMLElement): HTMLElement|null {
-    return this.listItem_.overrideCustomEquivalent ?
-        this.listItem_.getCustomEquivalent!(sampleElement) :
-        null;
-  }
-}
-
-class VirtualFocusRow extends FocusRow {
-  constructor(root: HTMLElement, delegate: FocusRowDelegate) {
-    super(root, /* boundary */ null, delegate);
-  }
-
-  override getCustomEquivalent(sampleElement: HTMLElement) {
-    const equivalent =
-        this.delegate ? this.delegate.getCustomEquivalent(sampleElement) : null;
-    return equivalent || super.getCustomEquivalent(sampleElement);
-  }
-}
 
 /**
  * Any element that is being used as an iron-list row item can extend this
@@ -89,48 +34,64 @@ export const FocusRowMixin = dedupingMixin(
       class FocusRowMixin extends superClass implements FocusRowMixinInterface {
         static get properties() {
           return {
-            row_: Object,
-            mouseFocused_: Boolean,
+            row_: {
+              type: Object,
+              value: null,
+            },
+
+            mouseFocused_: {
+              type: Boolean,
+              value: false,
+            },
+
+            // Will be updated when |index| is set, unless specified elsewhere.
             id: {
               type: String,
               reflectToAttribute: true,
             },
+
             isFocused: {
               type: Boolean,
               notify: true,
+              value: false,
             },
+
             focusRowIndex: {
               type: Number,
               observer: 'focusRowIndexChanged',
             },
+
             lastFocused: {
               type: Object,
               notify: true,
+              value: null,
             },
+
             ironListTabIndex: {
               type: Number,
               observer: 'ironListTabIndexChanged_',
             },
+
             listBlurred: {
               type: Boolean,
               notify: true,
+              value: false,
             },
           };
         }
 
-        private row_: VirtualFocusRow;
-        private mouseFocused_: boolean;
+        declare private row_: VirtualFocusRow|null;
+        declare private mouseFocused_: boolean;
 
-        // Will be updated when |index| is set, unless specified elsewhere.
-        override id: string;
+        declare id: string;
 
         // For notifying when the row is in focus.
-        isFocused: boolean;
+        declare isFocused: boolean;
 
         // Should be bound to the index of the item from the iron-list.
-        focusRowIndex: number;
+        declare focusRowIndex?: number;
 
-        lastFocused: HTMLElement;
+        declare lastFocused: HTMLElement|null;
 
         /**
          * This is different from tabIndex, since the template only does a
@@ -138,8 +99,8 @@ export const FocusRowMixin = dedupingMixin(
          * use of this fact. For example, when a control within a row is
          * focused, it will have tabIndex = -1 and ironListTabIndex = 0.
          */
-        ironListTabIndex: number;
-        listBlurred: boolean;
+        declare ironListTabIndex?: number;
+        declare listBlurred: boolean;
 
         private firstControl_: HTMLElement|null = null;
         private controlObservers_: MutationObserver[] = [];
@@ -212,6 +173,7 @@ export const FocusRowMixin = dedupingMixin(
         }
 
         private updateFirstControl_() {
+          assert(this.row_);
           const newFirstControl = this.row_.getFirstFocusable();
           if (newFirstControl === this.firstControl_) {
             return;
@@ -248,6 +210,7 @@ export const FocusRowMixin = dedupingMixin(
 
             controls.forEach(control => {
               assert(control);
+              assert(this.row_);
               this.row_.addItem(
                   control.getAttribute('focus-type')!,
                   FocusRow.getFocusableElement(control));
@@ -320,6 +283,7 @@ export const FocusRowMixin = dedupingMixin(
               this.listBlurred && e.composedPath()[0] === this;
 
           if (this.lastFocused && !restoreFocusToFirst) {
+            assert(this.row_);
             focusWithoutInk(this.row_.getEquivalentElement(this.lastFocused));
           } else {
             assert(this.firstControl_);
@@ -373,9 +337,9 @@ export const FocusRowMixin = dedupingMixin(
 export interface FocusRowMixinInterface {
   id: string;
   isFocused: boolean;
-  focusRowIndex: number;
+  focusRowIndex?: number;
   lastFocused: HTMLElement|null;
-  ironListTabIndex: number;
+  ironListTabIndex?: number;
   listBlurred: boolean;
   overrideCustomEquivalent?: boolean;
 

@@ -3,16 +3,22 @@
 // found in the LICENSE file.
 
 #include "ash/login/ui/login_pin_input_view.h"
+
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
+
 #include "ash/login/ui/login_test_base.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/strcat.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/utf_string_conversions.h"
 #include "ui/accessibility/ax_enums.mojom-shared.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/events/test/event_generator.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/widget/widget.h"
 
 namespace ash {
@@ -43,12 +49,12 @@ class LoginPinInputViewTest
     SetWidget(CreateWidgetWithContent(view_));
   }
 
-  void OnPinSubmit(const std::u16string& pin) {
-    submitted_pin_ = absl::make_optional(pin);
+  void OnPinSubmit(std::u16string_view pin) {
+    submitted_pin_ = std::make_optional(std::u16string(pin));
   }
 
   void OnPinChanged(const bool is_empty) {
-    is_empty_ = absl::make_optional(is_empty);
+    is_empty_ = std::make_optional(is_empty);
   }
 
   void PressKeyHelper(ui::KeyboardCode key) {
@@ -60,25 +66,29 @@ class LoginPinInputViewTest
   void ExpectAttribute(const std::string& value,
                        ax::mojom::StringAttribute attribute) {
     LoginPinInputView::TestApi test_api(view_);
-    ui::AXNodeData ax_node_data;
-    test_api.code_input()->GetAccessibleNodeData(&ax_node_data);
-    EXPECT_EQ(value, ax_node_data.GetStringAttribute(attribute));
+    ui::AXNodeData node_data;
+    test_api.code_input()->GetViewAccessibility().GetAccessibleNodeData(
+        &node_data);
+    EXPECT_EQ(value, node_data.GetStringAttribute(attribute));
   }
 
   void ExpectDescription(const std::string& value) {
-    ExpectAttribute(value, ax::mojom::StringAttribute::kDescription);
+    LoginPinInputView::TestApi test_api(view_);
+    EXPECT_EQ(
+        base::UTF8ToUTF16(value),
+        test_api.code_input()->GetViewAccessibility().GetCachedDescription());
   }
 
   void ExpectTextValue(const std::string& value) {
     ExpectAttribute(value, ax::mojom::StringAttribute::kValue);
   }
 
-  raw_ptr<LoginPinInputView, ExperimentalAsh> view_ = nullptr;
+  raw_ptr<LoginPinInputView, DanglingUntriaged> view_ = nullptr;
   int length_ = 0;
 
   // Generated during the callback response.
-  absl::optional<std::u16string> submitted_pin_;
-  absl::optional<bool> is_empty_;
+  std::optional<std::u16string> submitted_pin_;
+  std::optional<bool> is_empty_;
 };
 
 // Verifies that pressing 'Return' on the PIN input field triggers an

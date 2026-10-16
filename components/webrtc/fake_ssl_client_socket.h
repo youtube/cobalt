@@ -20,10 +20,10 @@
 
 #include <cstddef>
 #include <memory>
+#include <string_view>
 
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/strings/string_piece.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_errors.h"
 #include "net/socket/stream_socket.h"
@@ -44,8 +44,8 @@ class FakeSSLClientSocket : public net::StreamSocket {
   ~FakeSSLClientSocket() override;
 
   // Exposed for testing.
-  static base::StringPiece GetSslClientHello();
-  static base::StringPiece GetSslServerHello();
+  static std::string_view GetSslClientHello();
+  static std::string_view GetSslServerHello();
 
   // net::StreamSocket implementation.
   int Read(net::IOBuffer* buf,
@@ -70,7 +70,6 @@ class FakeSSLClientSocket : public net::StreamSocket {
   int GetLocalAddress(net::IPEndPoint* address) const override;
   const net::NetLogWithSource& NetLog() const override;
   bool WasEverUsed() const override;
-  bool WasAlpnNegotiated() const override;
   net::NextProto GetNegotiatedProtocol() const override;
   bool GetSSLInfo(net::SSLInfo* ssl_info) override;
   int64_t GetTotalReceivedBytes() const override;
@@ -112,8 +111,8 @@ class FakeSSLClientSocket : public net::StreamSocket {
   // The callback passed to Connect().
   net::CompletionOnceCallback user_connect_callback_;
 
-  scoped_refptr<net::DrainableIOBuffer> write_buf_;
-  scoped_refptr<net::DrainableIOBuffer> read_buf_;
+  ::scoped_refptr<net::DrainableIOBuffer> write_buf_;
+  ::scoped_refptr<net::DrainableIOBuffer> read_buf_;
 };
 
 }  // namespace webrtc

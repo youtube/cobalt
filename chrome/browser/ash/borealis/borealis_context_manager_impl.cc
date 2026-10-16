@@ -114,7 +114,7 @@ void BorealisContextManagerImpl::ShutDownBorealisIfRunning() {
       std::move(request),
       base::BindOnce(
           [](base::WeakPtr<BorealisContextManagerImpl> weak_this,
-             absl::optional<vm_tools::concierge::GetVmInfoResponse> reply) {
+             std::optional<vm_tools::concierge::GetVmInfoResponse> reply) {
             if (reply.has_value() && reply->success() && weak_this) {
               weak_this->SendShutdownRequest(base::DoNothing(),
                                              kBorealisVmName);
@@ -136,7 +136,8 @@ void BorealisContextManagerImpl::SendShutdownRequest(
       base::BindOnce(
           [](base::OnceCallback<void(BorealisShutdownResult)>
                  on_shutdown_callback,
-             absl::optional<vm_tools::concierge::StopVmResponse> response) {
+             std::optional<vm_tools::concierge::SuccessFailureResponse>
+                 response) {
             // We don't have a good way to deal with a vm failing to stop (and
             // this would be a very rare occurrence anyway). We log an error if
             // it actually wasn't successful.
@@ -206,10 +207,8 @@ BorealisContextManagerImpl::GetTasks() {
   task_queue.push(std::make_unique<MountDlc>());
   task_queue.push(std::make_unique<CreateDiskImage>());
   task_queue.push(std::make_unique<StartBorealisVm>());
-  task_queue.push(
-      std::make_unique<AwaitBorealisStartup>(profile_, kBorealisVmName));
+  task_queue.push(std::make_unique<AwaitBorealisStartup>());
   task_queue.push(std::make_unique<UpdateChromeFlags>(profile_));
-  task_queue.push(std::make_unique<SyncBorealisDisk>());
   return task_queue;
 }
 
@@ -222,23 +221,17 @@ void BorealisContextManagerImpl::Complete(Startup::Result completion_result) {
   DCHECK(in_progress_startup_);
   in_progress_startup_.reset();
 
-  BorealisContextManager::ContextOrFailure completion_result_for_clients =
-      completion_result.Handle(
-          base::BindOnce(
-              [](std::unique_ptr<BorealisContext>* out_context,
-                 std::unique_ptr<BorealisContext>& success) {
-                std::swap(*out_context, success);
-                return BorealisContextManager::ContextOrFailure(
-                    out_context->get());
-              },
-              &context_),
-          base::BindOnce([](Described<BorealisStartupResult>& failure) {
-            LOG(ERROR) << "Startup failed: failure=" << failure.error()
-                       << " message=" << failure.description();
-            return BorealisContextManager::ContextOrFailure::Unexpected(
-                Described<BorealisStartupResult>{failure.error(),
-                                                 failure.description()});
-          }));
+  BorealisContextManager::ContextOrFailure completion_result_for_clients;
+
+  if (completion_result.has_value()) {
+    context_ = std::move(completion_result).value();
+    completion_result_for_clients = base::ok(context_.get());
+  } else {
+    LOG(ERROR) << "Startup failed: failure="
+               << completion_result.error().error()
+               << " message=" << completion_result.error().description();
+    completion_result_for_clients = base::unexpected(completion_result.error());
+  }
 
   while (!callback_queue_.empty()) {
     ResultCallback callback = std::move(callback_queue_.front());

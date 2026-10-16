@@ -35,6 +35,8 @@ class CaptureModeSettingsTestApi {
   CaptureModeMenuGroup* GetAudioInputMenuGroup();
   views::View* GetMicrophoneOption();
   views::View* GetAudioOffOption();
+  views::View* GetSystemAudioOption();
+  views::View* GetSystemAndMicrophoneAudioOption();
 
   // Returns the save-to settings menu group and the views for its options.
   CaptureModeMenuGroup* GetSaveToMenuGroup();
@@ -47,6 +49,7 @@ class CaptureModeSettingsTestApi {
 
   CaptureModeMenuGroup* GetCameraMenuGroup();
   views::View* GetCameraOption(int option_id);
+  views::View* GetCameraMenuHeader();
 
   // Sets a callback that will be triggered once the settings menu is refreshed.
   void SetOnSettingsMenuRefreshedCallback(base::OnceClosure callback);
@@ -57,7 +60,7 @@ class CaptureModeSettingsTestApi {
 
  private:
   // Valid only while the settings menu is shown.
-  const raw_ptr<CaptureModeSettingsView, ExperimentalAsh> settings_view_;
+  const raw_ptr<CaptureModeSettingsView, DanglingUntriaged> settings_view_;
 };
 
 }  // namespace ash

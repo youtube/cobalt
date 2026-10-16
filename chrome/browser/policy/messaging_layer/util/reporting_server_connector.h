@@ -6,33 +6,45 @@
 #define CHROME_BROWSER_POLICY_MESSAGING_LAYER_UTIL_REPORTING_SERVER_CONNECTOR_H_
 
 #include <memory>
+#include <vector>
 
 #include "base/feature_list.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
-#include "base/timer/timer.h"
-#include "base/values.h"
+#include "chrome/browser/policy/messaging_layer/upload/encrypted_reporting_client.h"
+#include "chrome/browser/policy/messaging_layer/util/upload_declarations.h"
+#include "chrome/browser/policy/messaging_layer/util/upload_response_parser.h"
 #include "components/policy/core/common/cloud/cloud_policy_client.h"
 #include "components/policy/core/common/cloud/cloud_policy_core.h"
 #include "components/policy/core/common/cloud/cloud_policy_manager.h"
+#include "components/reporting/proto/synced/record.pb.h"
+#include "components/reporting/proto/synced/record_constants.pb.h"
+#include "components/reporting/resources/resource_manager.h"
 #include "components/reporting/util/status.h"
 #include "components/reporting/util/statusor.h"
 
 namespace reporting {
 
-class EncryptedReportingClient;
+BASE_DECLARE_FEATURE(kEnableReportingFromUnmanagedDevices);
 
-BASE_DECLARE_FEATURE(kEnableEncryptedReportingClientForUpload);
-
-// Singleton wrapper of a client used for uploading events to the reporting
-// server. Enables safe access to the client with an ability to detect when it
-// is disconnected. Currently implemented with ::policy::CloudPolicyClient;
-// later on we will switch it to a dedicated reporting client.
+// Singleton wrapper of a reporting server client used when uploading events
+// to the reporting server. Enables safe access to the cloud policy client with
+// an ability to detect when it is disconnected. Actual upload is implemented
+// with a dedicated reporting client.
 class ReportingServerConnector : public ::policy::CloudPolicyCore::Observer {
  public:
-  using ResponseCallback =
-      base::OnceCallback<void(StatusOr<base::Value::Dict>)>;
+  using ResponseCallback = EncryptedReportingClient::ResponseCallback;
+
+  class Observer {
+   public:
+    virtual ~Observer() = default;
+    virtual void OnConnected() = 0;
+    virtual void OnDisconnected() = 0;
+
+   protected:
+    Observer() = default;
+  };
 
   // RAII class for testing ReportingServerConnector - substitutes cloud policy
   // client instead of getting it from the cloud policy core. Resets client when
@@ -44,64 +56,26 @@ class ReportingServerConnector : public ::policy::CloudPolicyCore::Observer {
       delete;
   ~ReportingServerConnector() override;
 
-  // Accesses singleton ReportingServerConnector instance.
+  // Accesses singleton `ReportingServerConnector` instance.
   static ReportingServerConnector* GetInstance();
 
   // Uploads a report containing `merging_payload` (merged into the default
   // payload of the job). The client must be in a registered state (otherwise
   // the upload fails). The `callback` will be called when the operation
   // completes or fails.
-  static void UploadEncryptedReport(base::Value::Dict merging_payload,
+  static void UploadEncryptedReport(bool need_encryption_key,
+                                    int config_file_version,
+                                    std::vector<EncryptedRecord> records,
+                                    ScopedReservation scoped_reservation,
+                                    UploadEnqueuedCallback enqueued_cb,
                                     ResponseCallback callback);
 
+  // Adds/removes observer to the Connector.
+  void AddObserver(Observer* observer);
+  void RemoveObserver(Observer* observer);
+
  private:
-  using ResponseCallbackInternal =
-      base::OnceCallback<void(absl::optional<base::Value::Dict>)>;
-
   friend struct base::DefaultSingletonTraits<ReportingServerConnector>;
-
-  // Manages reporting accumulated payload sizes per hour via UMA.
-  class PayloadSizePerHourUmaReporter {
-   public:
-    PayloadSizePerHourUmaReporter();
-    ~PayloadSizePerHourUmaReporter();
-    PayloadSizePerHourUmaReporter(const PayloadSizePerHourUmaReporter&) =
-        delete;
-    PayloadSizePerHourUmaReporter& operator=(
-        const PayloadSizePerHourUmaReporter&) = delete;
-
-    // Adds request paylaod size to the accumulated request payload size.
-    void RecordRequestPayloadSize(int payload_size);
-
-    // Adds response paylaod size to the accumulated response payload size.
-    void RecordResponsePayloadSize(int payload_size);
-
-    // Gets the weak pointer.
-    base::WeakPtr<PayloadSizePerHourUmaReporter> GetWeakPtr();
-
-   private:
-    // Reporting interval.
-    static constexpr base::TimeDelta kReportingInterval = base::Hours(1);
-
-    // Converts bytes to KiB.
-    static int ConvertBytesToKiB(int bytes);
-
-    // Reports the data to UMA.
-    void Report();
-
-    // Accumulated request payload size since last report.
-    int request_payload_size_ GUARDED_BY_CONTEXT(sequence_checker_) = 0;
-
-    // Accumulated response payload size since last report.
-    int response_payload_size_ GUARDED_BY_CONTEXT(sequence_checker_) = 0;
-
-    // Timer that controls when network usage is reported.
-    base::RepeatingTimer timer_;
-
-    SEQUENCE_CHECKER(sequence_checker_);
-
-    base::WeakPtrFactory<PayloadSizePerHourUmaReporter> weak_factory_{this};
-  };
 
   // Constructor to be used by singleton only.
   ReportingServerConnector();
@@ -124,12 +98,13 @@ class ReportingServerConnector : public ::policy::CloudPolicyCore::Observer {
   void OnCoreDisconnecting(::policy::CloudPolicyCore* core) override;
   void OnCoreDestruction(::policy::CloudPolicyCore* core) override;
 
-  void UploadEncryptedReportInternal(base::Value::Dict merging_payload,
-                                     absl::optional<base::Value::Dict> context,
-                                     ResponseCallbackInternal callback);
-
-  // Manages reporting accumulated payload sizes per hour via UMA.
-  PayloadSizePerHourUmaReporter payload_size_per_hour_uma_reporter_;
+  // Presets uploads and forwards the data.
+  void UploadEncryptedReportInternal(bool need_encryption_key,
+                                     int config_file_version,
+                                     std::vector<EncryptedRecord> records,
+                                     ScopedReservation scoped_reservation,
+                                     UploadEnqueuedCallback enqueued_cb,
+                                     ResponseCallback callback);
 
   // Onwed by CloudPolicyManager. Cached here (only on UI task runner).
   raw_ptr<::policy::CloudPolicyCore> core_ = nullptr;
@@ -139,6 +114,9 @@ class ReportingServerConnector : public ::policy::CloudPolicyCore::Observer {
   raw_ptr<::policy::CloudPolicyClient> client_ = nullptr;
 
   std::unique_ptr<EncryptedReportingClient> encrypted_reporting_client_;
+
+  // Active observers list (to be updated on UI task runner only).
+  std::vector<raw_ptr<Observer>> observers_;
 };
 }  // namespace reporting
 

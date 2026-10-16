@@ -6,11 +6,13 @@
 
 #include <algorithm>
 #include <memory>
+#include <utility>
 
 #include "ash/frame_sink/frame_sink_host.h"
 #include "ash/frame_sink/ui_resource_manager.h"
 #include "base/check.h"
 #include "base/task/single_thread_task_runner.h"
+#include "cc/scheduler/scheduler.h"
 #include "cc/trees/layer_tree_frame_sink.h"
 #include "components/viz/common/frame_sinks/begin_frame_source.h"
 #include "components/viz/common/frame_timing_details.h"
@@ -19,12 +21,22 @@
 #include "ui/aura/window.h"
 
 namespace ash {
+namespace {
+
+constexpr int32_t kPauseBeginFrameThreshold = 5;
+
+}  // namespace
 
 FrameSinkHolder::FrameSinkHolder(
     std::unique_ptr<cc::LayerTreeFrameSink> frame_sink,
-    const GetCompositorFrameCallback callback)
+    GetCompositorFrameCallback get_compositor_frame_callback,
+    OnFirstFrameRequestedCallback on_first_frame_requested_callback,
+    OnFrameSinkLost on_frame_sink_lost_callback)
     : frame_sink_(std::move(frame_sink)),
-      get_compositor_frame_callback_(std::move(callback)) {
+      get_compositor_frame_callback_(std::move(get_compositor_frame_callback)),
+      on_first_frame_requested_callback_(
+          std::move(on_first_frame_requested_callback)),
+      on_frame_sink_lost_callback_(std::move(on_frame_sink_lost_callback)) {
   frame_sink_->BindToClient(this);
 }
 
@@ -32,15 +44,17 @@ FrameSinkHolder::~FrameSinkHolder() {
   if (frame_sink_) {
     frame_sink_->DetachFromClient();
   }
-  if (root_window_for_deletion_) {
-    root_window_for_deletion_->RemoveObserver(this);
-  }
 }
 
 // static.
 bool FrameSinkHolder::DeleteWhenLastResourceHasBeenReclaimed(
     std::unique_ptr<FrameSinkHolder> frame_sink_holder,
     aura::Window* host_window) {
+  // Delete immediately if LayerTreeFrameSink was already lost.
+  if (frame_sink_holder->is_frame_sink_lost_) {
+    return true;
+  }
+
   UiResourceManager& resource_manager = frame_sink_holder->resource_manager();
   if (frame_sink_holder->last_frame_size_in_pixels_.IsEmpty()) {
     // Delete sink holder immediately if no frame has been submitted.
@@ -100,8 +114,18 @@ void FrameSinkHolder::SetRootWindowForDeletion(aura::Window* root_window) {
   // The holder will delete itself when the root window is removed or when all
   // exported resources have been reclaimed.
   DCHECK(root_window);
-  root_window_for_deletion_ = root_window;
-  root_window->AddObserver(this);
+  root_window_observation_.Observe(root_window);
+}
+
+void FrameSinkHolder::SetAutoUpdateMode(bool mode) {
+  if (auto_update_ == mode) {
+    return;
+  }
+
+  auto_update_ = mode;
+  if (auto_update_) {
+    ObserveBeginFrameSource(/*start=*/true);
+  }
 }
 
 void FrameSinkHolder::SubmitCompositorFrame(bool synchronous_draw) {
@@ -116,6 +140,8 @@ void FrameSinkHolder::SubmitCompositorFrame(bool synchronous_draw) {
     return;
   }
 
+  ObserveBeginFrameSource(/*start=*/true);
+
   // If we are already submitted a frame we cannot submit a new frame until we
   // get an acknowledgement from display compositor and we fall back to
   // asynchronous drawing.
@@ -124,7 +150,7 @@ void FrameSinkHolder::SubmitCompositorFrame(bool synchronous_draw) {
   // compositor asks for the first frame therefore we fall to asynchronous
   // drawing till signaled.
   if (!synchronous_draw || pending_compositor_frame_ack_ ||
-      !first_frame_requested_) {
+      !first_frame_requested()) {
     pending_compositor_frame_ = true;
     return;
   }
@@ -144,6 +170,8 @@ void FrameSinkHolder::SubmitCompositorFrame(bool synchronous_draw) {
 
 void FrameSinkHolder::SubmitCompositorFrameInternal(
     std::unique_ptr<viz::CompositorFrame> frame) {
+  consecutive_begin_frames_produced_no_frame_count_ = 0;
+
   pending_compositor_frame_ = false;
   pending_compositor_frame_ack_ = true;
 
@@ -165,17 +193,18 @@ bool FrameSinkHolder::OnBeginFrameDerivedImpl(const viz::BeginFrameArgs& args) {
     return false;
   }
 
-  viz::BeginFrameAck current_begin_frame_ack(args, false);
+  if (!first_frame_requested()) {
+    std::move(on_first_frame_requested_callback_).Run();
+  }
 
-  first_frame_requested_ = true;
+  viz::BeginFrameAck current_begin_frame_ack(args, false);
 
   if (pending_compositor_frame_ack_ ||
       !(pending_compositor_frame_ || auto_update_)) {
-    cc::FrameSkippedReason reason = pending_compositor_frame_ack_
-                                        ? cc::FrameSkippedReason::kWaitingOnMain
-                                        : cc::FrameSkippedReason::kNoDamage;
-
-    frame_sink_->DidNotProduceFrame(current_begin_frame_ack, reason);
+    const cc::FrameSkippedReason reason =
+        pending_compositor_frame_ack_ ? cc::FrameSkippedReason::kWaitingOnMain
+                                      : cc::FrameSkippedReason::kNoDamage;
+    DidNotProduceFrame(std::move(current_begin_frame_ack), reason);
     return false;
   }
 
@@ -186,8 +215,8 @@ bool FrameSinkHolder::OnBeginFrameDerivedImpl(const viz::BeginFrameArgs& args) {
 
   if (!frame) {
     // Failure to produce a frame is treated as if there was no damage.
-    frame_sink_->DidNotProduceFrame(current_begin_frame_ack,
-                                    cc::FrameSkippedReason::kNoDamage);
+    DidNotProduceFrame(std::move(current_begin_frame_ack),
+                       cc::FrameSkippedReason::kNoDamage);
     return false;
   }
 
@@ -197,22 +226,42 @@ bool FrameSinkHolder::OnBeginFrameDerivedImpl(const viz::BeginFrameArgs& args) {
 }
 
 void FrameSinkHolder::SetBeginFrameSource(viz::BeginFrameSource* source) {
-  if (source == begin_frame_source_) {
+  ObserveBeginFrameSource(/*start=*/false);
+  begin_frame_source_ = source;
+  ObserveBeginFrameSource(/*start=*/true);
+}
+
+void FrameSinkHolder::ObserveBeginFrameSource(bool start) {
+  if (begin_frame_observation_.IsObserving() == start) {
     return;
   }
 
   if (begin_frame_source_) {
-    begin_frame_source_->RemoveObserver(this);
-  }
-
-  begin_frame_source_ = source;
-  if (begin_frame_source_) {
-    begin_frame_source_->AddObserver(this);
+    consecutive_begin_frames_produced_no_frame_count_ = 0;
+    if (start) {
+      begin_frame_observation_.Observe(begin_frame_source_);
+    } else {
+      begin_frame_observation_.Reset();
+    }
   }
 }
 
-absl::optional<viz::HitTestRegionList> FrameSinkHolder::BuildHitTestData() {
-  return absl::nullopt;
+void FrameSinkHolder::MaybeStopObservingBeingFrameSource() {
+  if (!auto_update_ && consecutive_begin_frames_produced_no_frame_count_ >=
+                           kPauseBeginFrameThreshold) {
+    ObserveBeginFrameSource(/*start=*/false);
+  }
+}
+
+void FrameSinkHolder::DidNotProduceFrame(viz::BeginFrameAck&& begin_frame_ack,
+                                         cc::FrameSkippedReason reason) {
+  frame_sink_->DidNotProduceFrame(begin_frame_ack, reason);
+  ++consecutive_begin_frames_produced_no_frame_count_;
+  MaybeStopObservingBeingFrameSource();
+}
+
+std::optional<viz::HitTestRegionList> FrameSinkHolder::BuildHitTestData() {
+  return std::nullopt;
 }
 
 void FrameSinkHolder::ReclaimResources(
@@ -246,8 +295,12 @@ void FrameSinkHolder::DidPresentCompositorFrame(
 
 void FrameSinkHolder::DidLoseLayerTreeFrameSink() {
   resource_manager().LostExportedResources();
+  is_frame_sink_lost_ = true;
+
   if (WaitingToScheduleDelete()) {
     ScheduleDelete();
+  } else {
+    std::move(on_frame_sink_lost_callback_).Run();
   }
 }
 
@@ -263,13 +316,11 @@ void FrameSinkHolder::SetExternalTilePriorityConstraints(
     const gfx::Transform& transform) {}
 
 void FrameSinkHolder::OnWindowDestroying(aura::Window* window) {
-  // Since we are destroying the root_window_for_deletion_ via which we were
-  // extending the lifetime of the layer_sink_holder, after this point we cannot
-  // recover the exported resources therefore just mark the exported resources
-  // as lost.
+  // Since we are destroying the root_window via which we were extending the
+  // lifetime of the layer_sink_holder, after this point we cannot recover the
+  // exported resources therefore just mark the exported resources as lost.
   resources_manager_.LostExportedResources();
-  root_window_for_deletion_->RemoveObserver(this);
-  root_window_for_deletion_ = nullptr;
+  root_window_observation_.Reset();
   // Detaching client from `frame_sink_` ensures that display_compositor does
   // not call methods on `this` after we have scheduled the deletion of this
   // holder.
@@ -288,11 +339,11 @@ void FrameSinkHolder::ScheduleDelete() {
 }
 
 bool FrameSinkHolder::WaitingToScheduleDelete() const {
-  // We only set root_window_for_deletion_, after calling
-  // FrameSinkHolder::DeleteWhenLastResourceHasBeenReclaimed. Non-null
-  // root_window_for_deletion_ means that we are waiting for all the exported
+  // We only start observing the root window after calling
+  // FrameSinkHolder::DeleteWhenLastResourceHasBeenReclaimed. An observing
+  // root_window_observation_ means that we are waiting for all the exported
   // resources to be returned before we can delete `this` frame sink holder.
-  return root_window_for_deletion_;
+  return root_window_observation_.IsObserving();
 }
 
 }  // namespace ash

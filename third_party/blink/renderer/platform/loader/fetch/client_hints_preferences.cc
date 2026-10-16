@@ -12,7 +12,6 @@
 #include "third_party/blink/public/common/switches.h"
 #include "third_party/blink/renderer/platform/network/http_names.h"
 #include "third_party/blink/renderer/platform/network/http_parsers.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "url/origin.h"
 
@@ -61,8 +60,8 @@ bool ClientHintsPreferences::UpdateFromMetaCH(const String& header_value,
   switch (type) {
     case network::MetaCHType::HttpEquivAcceptCH: {
       // Note: .Ascii() would convert tab to ?, which is undesirable.
-      absl::optional<std::vector<network::mojom::WebClientHintsType>>
-          parsed_ch = network::ParseClientHintsHeader(header_value.Latin1());
+      std::optional<std::vector<network::mojom::WebClientHintsType>> parsed_ch =
+          network::ParseClientHintsHeader(header_value.Latin1());
 
       if (!parsed_ch.has_value())
         return false;

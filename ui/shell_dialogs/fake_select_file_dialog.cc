@@ -4,7 +4,10 @@
 
 #include "ui/shell_dialogs/fake_select_file_dialog.h"
 
+#include <string_view>
+
 #include "ui/shell_dialogs/select_file_policy.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 #include "url/gurl.h"
 
 namespace ui {
@@ -32,9 +35,10 @@ void FakeSelectFileDialog::Factory::SetOpenCallback(
 
 // static
 FakeSelectFileDialog::Factory* FakeSelectFileDialog::RegisterFactory() {
-  Factory* factory = new Factory;
-  ui::SelectFileDialog::SetFactory(factory);
-  return factory;
+  auto factory = std::make_unique<Factory>();
+  Factory* result = factory.get();
+  ui::SelectFileDialog::SetFactory(std::move(factory));
+  return result;
 }
 
 FakeSelectFileDialog::FakeSelectFileDialog(
@@ -61,10 +65,8 @@ void FakeSelectFileDialog::SelectFileImpl(
     int file_type_index,
     const base::FilePath::StringType& default_extension,
     gfx::NativeWindow owning_window,
-    void* params,
     const GURL* caller) {
   title_ = title;
-  params_ = params;
   if (file_types)
     file_types_ = *file_types;
   default_extension_ = base::FilePath(default_extension).MaybeAsASCII();
@@ -73,13 +75,13 @@ void FakeSelectFileDialog::SelectFileImpl(
 }
 
 bool FakeSelectFileDialog::CallFileSelected(const base::FilePath& file_path,
-                                            base::StringPiece filter_text) {
+                                            std::string_view filter_text) {
   for (size_t index = 0; index < file_types_.extensions.size(); ++index) {
     for (const base::FilePath::StringType& ext :
          file_types_.extensions[index]) {
       if (base::FilePath(ext).MaybeAsASCII() == filter_text) {
         // FileSelected accepts a 1-based index.
-        listener_->FileSelected(file_path, index + 1, params_);
+        listener_->FileSelected(SelectedFileInfo(file_path), index + 1);
         return true;
       }
     }
@@ -89,7 +91,15 @@ bool FakeSelectFileDialog::CallFileSelected(const base::FilePath& file_path,
 
 void FakeSelectFileDialog::CallMultiFilesSelected(
     const std::vector<base::FilePath>& files) {
-  listener_->MultiFilesSelected(files, params_);
+  listener_->MultiFilesSelected(FilePathListToSelectedFileInfoList(files));
+}
+
+void FakeSelectFileDialog::CallFileSelectionCanceled() {
+  listener_->FileSelectionCanceled();
+}
+
+void FakeSelectFileDialog::ListenerDestroyed() {
+  listener_ = nullptr;
 }
 
 }  // namespace ui

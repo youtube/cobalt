@@ -5,17 +5,17 @@
 #include "components/trusted_vault/securebox.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/check_op.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
-#include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
 #include "crypto/hkdf.h"
 #include "crypto/openssl_util.h"
 #include "crypto/random.h"
@@ -43,8 +43,8 @@ const char kHkdfInfoWithPublicKey[] = "P256 HKDF-SHA-256 AES-128-GCM";
 const char kHkdfInfoWithoutPublicKey[] = "SHARED HKDF-SHA-256 AES-128-GCM";
 
 // Returns bytes representation of |str| (without trailing \0).
-base::span<const uint8_t> StringToBytes(base::StringPiece str) {
-  return base::as_bytes(base::make_span(str));
+base::span<const uint8_t> StringToBytes(std::string_view str) {
+  return base::as_byte_span(str);
 }
 
 // Concatenates spans in |bytes_spans|.
@@ -58,16 +58,21 @@ std::vector<uint8_t> ConcatBytes(
   std::vector<uint8_t> result(total_size);
   auto output_it = result.begin();
   for (const base::span<const uint8_t>& span : bytes_spans) {
-    output_it = base::ranges::copy(span, output_it);
+    output_it = std::ranges::copy(span, output_it).out;
   }
   return result;
 }
 
-// Creates public EC_KEY from |public_key_bytes|. |public_key_bytes| must be
-// a X9.62 formatted NIST P-256 point.
+// Creates public EC_KEY from |public_key_bytes|. Returns nullptr if
+// |public_key_bytes| does not represent a X9.62 formatted NIST P-256 point.
 bssl::UniquePtr<EC_KEY> ECPublicKeyFromBytes(
     base::span<const uint8_t> public_key_bytes,
     const crypto::OpenSSLErrStackTracer& err_tracer) {
+  if (public_key_bytes.size() != kECPointLength) {
+    // |public_key_bytes| doesn't represent a valid NIST P-256 point.
+    return nullptr;
+  }
+
   bssl::UniquePtr<EC_KEY> ec_key(
       EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
   DCHECK(ec_key);
@@ -115,7 +120,7 @@ bssl::UniquePtr<EC_KEY> GenerateECKey(
 // computes the EC-DH secret. Appends the |shared_secret|, and computes HKDF of
 // that. |public_key| and |private_key| might be null, but if either of them is
 // not null, other must be not null as well. |shared_secret| may be empty.
-std::vector<uint8_t> SecureBoxComputeSecret(
+std::array<uint8_t, kAES128KeyLength> SecureBoxComputeSecret(
     const EC_KEY* private_key,
     const EC_POINT* public_key,
     base::span<const uint8_t> shared_secret,
@@ -135,8 +140,8 @@ std::vector<uint8_t> SecureBoxComputeSecret(
   }
 
   std::vector<uint8_t> key_material = ConcatBytes({dh_secret, shared_secret});
-  return crypto::HkdfSha256(key_material, kHkdfSalt, StringToBytes(hkdf_info),
-                            kAES128KeyLength);
+  return crypto::HkdfSha256<kAES128KeyLength>(key_material, kHkdfSalt,
+                                              StringToBytes(hkdf_info));
 }
 
 // This function implements AES-GCM, using AES-128, a 96-bit nonce, and 128-bit
@@ -174,7 +179,7 @@ std::vector<uint8_t> SecureBoxAesGcmEncrypt(
 }
 
 // Decrypts using AES-GCM.
-absl::optional<std::vector<uint8_t>> SecureBoxAesGcmDecrypt(
+std::optional<std::vector<uint8_t>> SecureBoxAesGcmDecrypt(
     base::span<const uint8_t> secret_key,
     base::span<const uint8_t> nonce,
     base::span<const uint8_t> ciphertext,
@@ -195,7 +200,7 @@ absl::optional<std::vector<uint8_t>> SecureBoxAesGcmDecrypt(
                          ciphertext.data(), ciphertext.size(),
                          associated_data.data(), associated_data.size())) {
     // |ciphertext| can't be decrypted with given parameters.
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   DCHECK_LE(output_length, max_output_length);
@@ -248,12 +253,10 @@ std::vector<uint8_t> SecureBoxEncryptImpl(
     base::span<const uint8_t> payload,
     const crypto::OpenSSLErrStackTracer& err_tracer) {
   DCHECK_EQ(!!our_key_pair, !!their_public_key);
-  std::vector<uint8_t> secret = SecureBoxComputeSecret(
+  std::array<uint8_t, kAES128KeyLength> secret = SecureBoxComputeSecret(
       our_key_pair, their_public_key, shared_secret, err_tracer);
 
-  std::vector<uint8_t> nonce(kNonceLength);
-  crypto::RandBytes(nonce.data(), kNonceLength);
-
+  std::vector<uint8_t> nonce = crypto::RandBytesAsVector(kNonceLength);
   std::vector<uint8_t> ciphertext =
       SecureBoxAesGcmEncrypt(secret, nonce, payload, header, err_tracer);
 
@@ -268,7 +271,7 @@ std::vector<uint8_t> SecureBoxEncryptImpl(
 
 // |our_private_key| may be null. |shared_secret|, |header| and |payload| may be
 // empty. Returns nullopt if decryption failed.
-absl::optional<std::vector<uint8_t>> SecureBoxDecryptImpl(
+std::optional<std::vector<uint8_t>> SecureBoxDecryptImpl(
     const EC_KEY* our_private_key,
     base::span<const uint8_t> shared_secret,
     base::span<const uint8_t> header,
@@ -283,7 +286,7 @@ absl::optional<std::vector<uint8_t>> SecureBoxDecryptImpl(
   if (encrypted_payload.size() < min_payload_size ||
       encrypted_payload[0] != kSecureBoxVersion[0] ||
       encrypted_payload[1] != kSecureBoxVersion[1]) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   size_t offset = kVersionLength;
@@ -293,14 +296,14 @@ absl::optional<std::vector<uint8_t>> SecureBoxDecryptImpl(
     their_ec_public_key = ECPublicKeyFromBytes(
         encrypted_payload.subspan(offset, kECPointLength), err_tracer);
     if (!their_ec_public_key) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     their_ec_public_key_point =
         EC_KEY_get0_public_key(their_ec_public_key.get());
     offset += kECPointLength;
   }
 
-  std::vector<uint8_t> secret_key = SecureBoxComputeSecret(
+  std::array<uint8_t, kAES128KeyLength> secret_key = SecureBoxComputeSecret(
       our_private_key, their_ec_public_key_point, shared_secret, err_tracer);
 
   base::span<const uint8_t> nonce =
@@ -325,7 +328,7 @@ std::vector<uint8_t> SecureBoxSymmetricEncrypt(
                               header, payload, err_tracer);
 }
 
-absl::optional<std::vector<uint8_t>> SecureBoxSymmetricDecrypt(
+std::optional<std::vector<uint8_t>> SecureBoxSymmetricDecrypt(
     base::span<const uint8_t> shared_secret,
     base::span<const uint8_t> header,
     base::span<const uint8_t> encrypted_payload) {
@@ -424,7 +427,7 @@ std::vector<uint8_t> SecureBoxPrivateKey::ExportToBytes() const {
   return result;
 }
 
-absl::optional<std::vector<uint8_t>> SecureBoxPrivateKey::Decrypt(
+std::optional<std::vector<uint8_t>> SecureBoxPrivateKey::Decrypt(
     base::span<const uint8_t> shared_secret,
     base::span<const uint8_t> header,
     base::span<const uint8_t> encrypted_payload) const {

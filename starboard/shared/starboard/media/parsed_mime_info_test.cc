@@ -23,63 +23,72 @@ namespace {
 const bool kCheckAc3Audio = true;
 
 TEST(ParsedMimeInfoTest, ParsesAacLowComplexityCodec) {
-  ParsedMimeInfo mime_info("audio/mp4; codecs=\"mp4a.40.2\"");
-  ASSERT_TRUE(mime_info.has_audio_info());
-  EXPECT_EQ(mime_info.audio_info().codec, kSbMediaAudioCodecAac);
+  auto mime_info = ParsedMimeInfo::Create("audio/mp4; codecs=\"mp4a.40.2\"");
+  ASSERT_TRUE(mime_info);
+  ASSERT_TRUE(mime_info->has_audio_info());
+  EXPECT_EQ(mime_info->audio_info().codec, kSbMediaAudioCodecAac);
 }
 
 TEST(ParsedMimeInfoTest, ParsesAacHighEfficiencyCodec) {
-  ParsedMimeInfo mime_info("audio/mp4; codecs=\"mp4a.40.5\"");
-  ASSERT_TRUE(mime_info.has_audio_info());
-  EXPECT_EQ(mime_info.audio_info().codec, kSbMediaAudioCodecAac);
+  auto mime_info = ParsedMimeInfo::Create("audio/mp4; codecs=\"mp4a.40.5\"");
+  ASSERT_TRUE(mime_info);
+  ASSERT_TRUE(mime_info->has_audio_info());
+  EXPECT_EQ(mime_info->audio_info().codec, kSbMediaAudioCodecAac);
 }
 
 TEST(ParsedMimeInfoTest, ParsesAc3Codec) {
-  ParsedMimeInfo mime_info("audio/mp4; codecs=\"ac-3\"");
-  ASSERT_EQ(mime_info.has_audio_info(), kCheckAc3Audio);
+  auto mime_info = ParsedMimeInfo::Create("audio/mp4; codecs=\"ac-3\"");
+  ASSERT_TRUE(mime_info);
+  ASSERT_EQ(mime_info->has_audio_info(), kCheckAc3Audio);
 
   if (kCheckAc3Audio) {
-    EXPECT_EQ(mime_info.audio_info().codec, kSbMediaAudioCodecAc3);
+    EXPECT_EQ(mime_info->audio_info().codec, kSbMediaAudioCodecAc3);
   }
 }
 
 TEST(ParsedMimeInfoTest, ParsesEac3Codec) {
-  ParsedMimeInfo mime_info("audio/mp4; codecs=\"ec-3\"");
-  ASSERT_EQ(mime_info.has_audio_info(), kCheckAc3Audio);
+  auto mime_info = ParsedMimeInfo::Create("audio/mp4; codecs=\"ec-3\"");
+  ASSERT_TRUE(mime_info);
+  ASSERT_EQ(mime_info->has_audio_info(), kCheckAc3Audio);
 
   if (kCheckAc3Audio) {
-    EXPECT_EQ(mime_info.audio_info().codec, kSbMediaAudioCodecEac3);
+    EXPECT_EQ(mime_info->audio_info().codec, kSbMediaAudioCodecEac3);
   }
 }
 
 TEST(ParsedMimeInfoTest, ParsesOpusCodec) {
-  ParsedMimeInfo mime_info("audio/webm; codecs=\"opus\"");
-  ASSERT_TRUE(mime_info.has_audio_info());
-  EXPECT_EQ(mime_info.audio_info().codec, kSbMediaAudioCodecOpus);
+  auto mime_info = ParsedMimeInfo::Create("audio/webm; codecs=\"opus\"");
+  ASSERT_TRUE(mime_info);
+  ASSERT_TRUE(mime_info->has_audio_info());
+  EXPECT_EQ(mime_info->audio_info().codec, kSbMediaAudioCodecOpus);
 }
 
 TEST(ParsedMimeInfoTest, ParsesVorbisCodec) {
-  ParsedMimeInfo mime_info("audio/webm; codecs=\"vorbis\"");
-  ASSERT_TRUE(mime_info.has_audio_info());
-  EXPECT_EQ(mime_info.audio_info().codec, kSbMediaAudioCodecVorbis);
+  auto mime_info = ParsedMimeInfo::Create("audio/webm; codecs=\"vorbis\"");
+  ASSERT_TRUE(mime_info);
+  ASSERT_TRUE(mime_info->has_audio_info());
+  EXPECT_EQ(mime_info->audio_info().codec, kSbMediaAudioCodecVorbis);
 }
 
 TEST(ParsedMimeInfoTest, ParsesMp3Codec) {
-  ParsedMimeInfo mime_info("audio/mpeg; codecs=\"mp3\"");
-  ASSERT_TRUE(mime_info.has_audio_info());
-  EXPECT_EQ(mime_info.audio_info().codec, kSbMediaAudioCodecMp3);
+  auto mime_info = ParsedMimeInfo::Create("audio/mpeg; codecs=\"mp3\"");
+  ASSERT_TRUE(mime_info);
+  ASSERT_TRUE(mime_info->has_audio_info());
+  EXPECT_EQ(mime_info->audio_info().codec, kSbMediaAudioCodecMp3);
 }
 
 TEST(ParsedMimeInfoTest, ParsesFlacCodec) {
-  ParsedMimeInfo mime_info("audio/ogg; codecs=\"flac\"");
-  ASSERT_TRUE(mime_info.has_audio_info());
-  EXPECT_EQ(mime_info.audio_info().codec, kSbMediaAudioCodecFlac);
+  auto mime_info = ParsedMimeInfo::Create("audio/ogg; codecs=\"flac\"");
+  ASSERT_TRUE(mime_info);
+  ASSERT_TRUE(mime_info->has_audio_info());
+  EXPECT_EQ(mime_info->audio_info().codec, kSbMediaAudioCodecFlac);
 }
 
 TEST(ParsedMimeInfoTest, ParsesPcmCodec) {
-  ParsedMimeInfo mime_info("audio/wav; codecs=\"1\"");
-  ASSERT_TRUE(mime_info.has_audio_info());
-  EXPECT_EQ(mime_info.audio_info().codec, kSbMediaAudioCodecPcm);
+  auto mime_info = ParsedMimeInfo::Create("audio/wav; codecs=\"1\"");
+  ASSERT_TRUE(mime_info);
+  ASSERT_TRUE(mime_info->has_audio_info());
+  EXPECT_EQ(mime_info->audio_info().codec, kSbMediaAudioCodecPcm);
 }
 
 }  // namespace

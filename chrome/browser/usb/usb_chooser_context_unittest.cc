@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/usb/usb_chooser_context.h"
+
 #include <vector>
 
 #include "base/containers/flat_map.h"
@@ -13,14 +15,13 @@
 #include "base/test/test_future.h"
 #include "base/test/values_test_util.h"
 #include "base/values.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
-#include "chrome/browser/usb/usb_chooser_context.h"
 #include "chrome/browser/usb/usb_chooser_context_factory.h"
 #include "chrome/browser/usb/usb_chooser_context_mock_device_observer.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/permissions/test/object_permission_context_base_mock_permission_observer.h"
 #include "components/prefs/pref_service.h"
@@ -32,19 +33,14 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
 #include "chrome/browser/ash/settings/stub_cros_settings_provider.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/crosapi/mojom/crosapi.mojom.h"
-#include "chromeos/crosapi/mojom/device_settings_service.mojom.h"
-#include "chromeos/startup/browser_init_params.h"
-#endif
-
 using ::base::test::TestFuture;
+using ::content_settings::SettingSource;
 using ::device::mojom::UsbDeviceInfoPtr;
 using ::testing::_;
 using ::testing::AnyNumber;
@@ -62,10 +58,10 @@ constexpr int kDeviceIdWildcard = -1;
 class UsbChooserContextTest : public testing::Test {
  public:
   UsbChooserContextTest() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     profile_.ScopedCrosSettingsTestHelper()
         ->ReplaceDeviceSettingsProviderWithStub();
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
   }
 
   ~UsbChooserContextTest() override {
@@ -83,10 +79,10 @@ class UsbChooserContextTest : public testing::Test {
       EXPECT_CALL(*entry.second, OnObjectPermissionChanged).Times(AnyNumber());
     }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     profile_.ScopedCrosSettingsTestHelper()
         ->RestoreRealDeviceSettingsProvider();
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
   }
 
  protected:
@@ -152,16 +148,16 @@ TEST_F(UsbChooserContextTest, CheckGrantAndRevokePermission) {
       device_manager_.CreateAndAddDevice(0, 0, "Google", "Gizmo", "123ABC");
   UsbChooserContext* store = GetChooserContext(profile());
 
-  base::Value object(base::Value::Type::DICT);
-  object.SetStringKey(kDeviceNameKey, "Gizmo");
-  object.SetIntKey(kVendorIdKey, 0);
-  object.SetIntKey(kProductIdKey, 0);
-  object.SetStringKey(kSerialNumberKey, "123ABC");
+  auto object = base::Value(base::Value::Dict()
+                                .Set(kDeviceNameKey, "Gizmo")
+                                .Set(kVendorIdKey, 0)
+                                .Set(kProductIdKey, 0)
+                                .Set(kSerialNumberKey, "123ABC"));
 
   EXPECT_FALSE(store->HasDevicePermission(origin, *device_info));
   EXPECT_CALL(*mock_permission_observers_[profile()],
               OnObjectPermissionChanged(
-                  absl::make_optional(ContentSettingsType::USB_GUARD),
+                  std::make_optional(ContentSettingsType::USB_GUARD),
                   ContentSettingsType::USB_CHOOSER_DATA));
 
   store->GrantDevicePermission(origin, *device_info);
@@ -180,7 +176,7 @@ TEST_F(UsbChooserContextTest, CheckGrantAndRevokePermission) {
 
   EXPECT_CALL(*mock_permission_observers_[profile()],
               OnObjectPermissionChanged(
-                  absl::make_optional(ContentSettingsType::USB_GUARD),
+                  std::make_optional(ContentSettingsType::USB_GUARD),
                   ContentSettingsType::USB_CHOOSER_DATA));
   EXPECT_CALL(*mock_permission_observers_[profile()],
               OnPermissionRevoked(origin));
@@ -205,16 +201,17 @@ TEST_F(UsbChooserContextTest, CheckGrantAndRevokeEphemeralPermission) {
 
   UsbChooserContext* store = GetChooserContext(profile());
 
-  base::Value object(base::Value::Type::DICT);
-  object.SetStringKey(kDeviceNameKey, "Gizmo");
-  object.SetStringKey(kGuidKey, device_info->guid);
-  object.SetIntKey(kVendorIdKey, device_info->vendor_id);
-  object.SetIntKey(kProductIdKey, device_info->product_id);
+  auto object = base::Value(
+      base::Value::Dict()
+          .Set(kDeviceNameKey, "Gizmo")
+          .Set(kGuidKey, device_info->guid)
+          .Set(kVendorIdKey, static_cast<int>(device_info->vendor_id))
+          .Set(kProductIdKey, static_cast<int>(device_info->product_id)));
 
   EXPECT_FALSE(store->HasDevicePermission(origin, *device_info));
   EXPECT_CALL(*mock_permission_observers_[profile()],
               OnObjectPermissionChanged(
-                  absl::make_optional(ContentSettingsType::USB_GUARD),
+                  std::make_optional(ContentSettingsType::USB_GUARD),
                   ContentSettingsType::USB_CHOOSER_DATA));
 
   store->GrantDevicePermission(origin, *device_info);
@@ -235,7 +232,7 @@ TEST_F(UsbChooserContextTest, CheckGrantAndRevokeEphemeralPermission) {
 
   EXPECT_CALL(*mock_permission_observers_[profile()],
               OnObjectPermissionChanged(
-                  absl::make_optional(ContentSettingsType::USB_GUARD),
+                  std::make_optional(ContentSettingsType::USB_GUARD),
                   ContentSettingsType::USB_CHOOSER_DATA));
   EXPECT_CALL(*mock_permission_observers_[profile()],
               OnPermissionRevoked(origin));
@@ -260,7 +257,7 @@ TEST_F(UsbChooserContextTest, DisconnectDeviceWithPermission) {
   EXPECT_FALSE(store->HasDevicePermission(origin, *device_info));
   EXPECT_CALL(*mock_permission_observers_[profile()],
               OnObjectPermissionChanged(
-                  absl::make_optional(ContentSettingsType::USB_GUARD),
+                  std::make_optional(ContentSettingsType::USB_GUARD),
                   ContentSettingsType::USB_CHOOSER_DATA));
 
   store->GrantDevicePermission(origin, *device_info);
@@ -305,7 +302,7 @@ TEST_F(UsbChooserContextTest, DisconnectDeviceWithEphemeralPermission) {
   EXPECT_FALSE(store->HasDevicePermission(origin, *device_info));
   EXPECT_CALL(*mock_permission_observers_[profile()],
               OnObjectPermissionChanged(
-                  absl::make_optional(ContentSettingsType::USB_GUARD),
+                  std::make_optional(ContentSettingsType::USB_GUARD),
                   ContentSettingsType::USB_CHOOSER_DATA));
 
   store->GrantDevicePermission(origin, *device_info);
@@ -321,7 +318,7 @@ TEST_F(UsbChooserContextTest, DisconnectDeviceWithEphemeralPermission) {
 
   EXPECT_CALL(*mock_permission_observers_[profile()],
               OnObjectPermissionChanged(
-                  absl::make_optional(ContentSettingsType::USB_GUARD),
+                  std::make_optional(ContentSettingsType::USB_GUARD),
                   ContentSettingsType::USB_CHOOSER_DATA));
   EXPECT_CALL(*mock_device_observers_[profile()], OnDeviceRemoved(_));
   device_manager_.RemoveDevice(device_info->guid);
@@ -357,7 +354,7 @@ TEST_F(UsbChooserContextTest, GrantPermissionInIncognito) {
 
   EXPECT_CALL(*mock_permission_observers_[profile()],
               OnObjectPermissionChanged(
-                  absl::make_optional(ContentSettingsType::USB_GUARD),
+                  std::make_optional(ContentSettingsType::USB_GUARD),
                   ContentSettingsType::USB_CHOOSER_DATA));
 
   store->GrantDevicePermission(origin, *device_info_1);
@@ -366,7 +363,7 @@ TEST_F(UsbChooserContextTest, GrantPermissionInIncognito) {
 
   EXPECT_CALL(*mock_permission_observers_[otr_profile],
               OnObjectPermissionChanged(
-                  absl::make_optional(ContentSettingsType::USB_GUARD),
+                  std::make_optional(ContentSettingsType::USB_GUARD),
                   ContentSettingsType::USB_CHOOSER_DATA));
 
   incognito_store->GrantDevicePermission(origin, *device_info_2);
@@ -412,7 +409,7 @@ TEST_F(UsbChooserContextTest, UsbGuardPermission) {
   auto* store = GetChooserContext(profile());
   EXPECT_CALL(*mock_permission_observers_[profile()],
               OnObjectPermissionChanged(
-                  absl::make_optional(ContentSettingsType::USB_GUARD),
+                  std::make_optional(ContentSettingsType::USB_GUARD),
                   ContentSettingsType::USB_CHOOSER_DATA))
       .Times(4);
   store->GrantDevicePermission(kFooOrigin, *device_info);
@@ -717,7 +714,7 @@ TEST_F(UsbChooserContextTest,
   EXPECT_TRUE(store->HasDevicePermission(kCoolOrigin, *unrelated_device_info));
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 
 class DeviceLoginScreenWebUsbChooserContextTest : public UsbChooserContextTest {
  public:
@@ -726,7 +723,7 @@ class DeviceLoginScreenWebUsbChooserContextTest : public UsbChooserContextTest {
     builder.SetPath(base::FilePath(FILE_PATH_LITERAL(chrome::kInitialProfile)));
     signin_profile_ = builder.Build();
   }
-  ~DeviceLoginScreenWebUsbChooserContextTest() override {}
+  ~DeviceLoginScreenWebUsbChooserContextTest() override = default;
 
  protected:
   Profile* GetSigninProfile() { return signin_profile_.get(); }
@@ -788,31 +785,30 @@ TEST_F(DeviceLoginScreenWebUsbChooserContextTest,
                            *specific_device_info);
 }
 
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace {
 
-void ExpectDeviceObjectInfo(const base::Value& actual,
+void ExpectDeviceObjectInfo(const base::Value::Dict& actual,
                             int vendor_id,
                             int product_id,
                             const std::string& name) {
-  const absl::optional<int> actual_vendor_id = actual.FindIntKey(kVendorIdKey);
+  const std::optional<int> actual_vendor_id = actual.FindInt(kVendorIdKey);
   ASSERT_TRUE(actual_vendor_id);
   EXPECT_EQ(*actual_vendor_id, vendor_id);
 
-  const absl::optional<int> actual_product_id =
-      actual.FindIntKey(kProductIdKey);
+  const std::optional<int> actual_product_id = actual.FindInt(kProductIdKey);
   ASSERT_TRUE(actual_product_id);
   EXPECT_EQ(*actual_product_id, product_id);
 
-  const std::string* actual_device_name = actual.FindStringKey(kDeviceNameKey);
+  const std::string* actual_device_name = actual.FindString(kDeviceNameKey);
   ASSERT_TRUE(actual_device_name);
   EXPECT_EQ(*actual_device_name, name);
 }
 
 void ExpectChooserObjectInfo(const UsbChooserContext::Object* actual,
                              const GURL& origin,
-                             content_settings::SettingSource source,
+                             SettingSource source,
                              bool incognito,
                              int vendor_id,
                              int product_id,
@@ -837,7 +833,7 @@ TEST_F(UsbChooserContextTest, GetGrantedObjectsWithOnlyPolicyAllowedDevices) {
 
   ExpectChooserObjectInfo(objects[0].get(),
                           /*origin=*/GURL(kVendorUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6353,
                           /*product_id=*/kDeviceIdWildcard,
@@ -871,21 +867,21 @@ TEST_F(UsbChooserContextTest,
   // represented by a value of -1, so they appear first.
   ExpectChooserObjectInfo(objects[0].get(),
                           /*origin=*/GURL(kVendorUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_USER,
+                          /*source=*/SettingSource::kUser,
                           /*incognito=*/false,
                           /*vendor_id=*/1000,
                           /*product_id=*/1,
                           /*name=*/"Gizmo");
   ExpectChooserObjectInfo(objects[1].get(),
                           /*origin=*/GURL(kVendorUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_USER,
+                          /*source=*/SettingSource::kUser,
                           /*incognito=*/false,
                           /*vendor_id=*/1000,
                           /*product_id=*/2,
                           /*name=*/"Gadget");
   ExpectChooserObjectInfo(objects[2].get(),
                           /*origin=*/GURL(kVendorUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6353,
                           /*product_id=*/kDeviceIdWildcard,
@@ -913,7 +909,7 @@ TEST_F(UsbChooserContextTest,
   // still retain the name of the device.
   ExpectChooserObjectInfo(objects[0].get(),
                           /*origin=*/GURL(kProductVendorUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6353,
                           /*product_id=*/5678,
@@ -939,7 +935,7 @@ TEST_F(UsbChooserContextTest,
   // device policy will be replaced by the policy permission.
   ExpectChooserObjectInfo(objects[0].get(),
                           /*origin=*/GURL(kVendorUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6353,
                           /*product_id=*/kDeviceIdWildcard,
@@ -965,7 +961,7 @@ TEST_F(UsbChooserContextTest,
   // vendor policy will be replaced by the policy permission.
   ExpectChooserObjectInfo(objects[0].get(),
                           /*origin=*/GURL(kAnyDeviceUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/kDeviceIdWildcard,
                           /*product_id=*/kDeviceIdWildcard,
@@ -986,28 +982,28 @@ TEST_F(UsbChooserContextTest,
   // Wildcard IDs are represented by a value of -1, so they appear first.
   ExpectChooserObjectInfo(objects[0].get(),
                           /*origin=*/GURL(kAnyDeviceUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/kDeviceIdWildcard,
                           /*product_id=*/kDeviceIdWildcard,
                           /*name=*/"Devices from any vendor");
   ExpectChooserObjectInfo(objects[1].get(),
                           /*origin=*/GURL(kVendorUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6353,
                           /*product_id=*/kDeviceIdWildcard,
                           /*name=*/"Devices from Google Inc.");
   ExpectChooserObjectInfo(objects[2].get(),
                           /*origin=*/GURL(kProductVendorUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6353,
                           /*product_id=*/5678,
                           /*name=*/"Unknown product 0x162E from Google Inc.");
   ExpectChooserObjectInfo(objects[3].get(),
                           /*origin=*/GURL(kCoolUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6354,
                           /*product_id=*/1357,
@@ -1030,7 +1026,7 @@ TEST_F(UsbChooserContextTest,
 
   EXPECT_CALL(*mock_permission_observers_[profile()],
               OnObjectPermissionChanged(
-                  absl::make_optional(ContentSettingsType::USB_GUARD),
+                  std::make_optional(ContentSettingsType::USB_GUARD),
                   ContentSettingsType::USB_CHOOSER_DATA))
       .Times(2);
   store->GrantDevicePermission(kGoogleOrigin, *persistent_device_info);
@@ -1048,42 +1044,42 @@ TEST_F(UsbChooserContextTest,
   // are added to the vector before ephemeral device permissions.
   ExpectChooserObjectInfo(objects[0].get(),
                           /*origin=*/kGoogleUrl,
-                          /*source=*/content_settings::SETTING_SOURCE_USER,
+                          /*source=*/SettingSource::kUser,
                           /*incognito=*/false,
                           /*vendor_id=*/1000,
                           /*product_id=*/1,
                           /*name=*/"Gizmo");
   ExpectChooserObjectInfo(objects[1].get(),
                           /*origin=*/kGoogleUrl,
-                          /*source=*/content_settings::SETTING_SOURCE_USER,
+                          /*source=*/SettingSource::kUser,
                           /*incognito=*/false,
                           /*vendor_id=*/1000,
                           /*product_id=*/2,
                           /*name=*/"Gadget");
   ExpectChooserObjectInfo(objects[2].get(),
                           /*origin=*/GURL(kAnyDeviceUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/kDeviceIdWildcard,
                           /*product_id=*/kDeviceIdWildcard,
                           /*name=*/"Devices from any vendor");
   ExpectChooserObjectInfo(objects[3].get(),
                           /*origin=*/GURL(kVendorUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6353,
                           /*product_id=*/kDeviceIdWildcard,
                           /*name=*/"Devices from Google Inc.");
   ExpectChooserObjectInfo(objects[4].get(),
                           /*origin=*/GURL(kProductVendorUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6353,
                           /*product_id=*/5678,
                           /*name=*/"Unknown product 0x162E from Google Inc.");
   ExpectChooserObjectInfo(objects[5].get(),
                           /*origin=*/GURL(kCoolUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6354,
                           /*product_id=*/1357,
@@ -1101,7 +1097,7 @@ TEST_F(UsbChooserContextTest,
 
   EXPECT_CALL(*mock_permission_observers_[profile()],
               OnObjectPermissionChanged(
-                  absl::make_optional(ContentSettingsType::USB_GUARD),
+                  std::make_optional(ContentSettingsType::USB_GUARD),
                   ContentSettingsType::USB_CHOOSER_DATA));
   const auto kProductVendorOrigin =
       url::Origin::Create(GURL(kProductVendorUrl));
@@ -1116,28 +1112,28 @@ TEST_F(UsbChooserContextTest,
 
   ExpectChooserObjectInfo(objects[0].get(),
                           /*origin=*/GURL(kAnyDeviceUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/kDeviceIdWildcard,
                           /*product_id=*/kDeviceIdWildcard,
                           /*name=*/"Devices from any vendor");
   ExpectChooserObjectInfo(objects[1].get(),
                           /*origin=*/GURL(kVendorUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6353,
                           /*product_id=*/kDeviceIdWildcard,
                           /*name=*/"Devices from Google Inc.");
   ExpectChooserObjectInfo(objects[2].get(),
                           /*origin=*/GURL(kProductVendorUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6353,
                           /*product_id=*/5678,
                           /*name=*/"Product");
   ExpectChooserObjectInfo(objects[3].get(),
                           /*origin=*/GURL(kCoolUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6354,
                           /*product_id=*/1357,
@@ -1158,7 +1154,7 @@ TEST_F(UsbChooserContextTest,
 
   EXPECT_CALL(*mock_permission_observers_[profile()],
               OnObjectPermissionChanged(
-                  absl::make_optional(ContentSettingsType::USB_GUARD),
+                  std::make_optional(ContentSettingsType::USB_GUARD),
                   ContentSettingsType::USB_CHOOSER_DATA));
   const auto kVendorOrigin = url::Origin::Create(GURL(kVendorUrl));
   store->GrantDevicePermission(kVendorOrigin, *persistent_device_info);
@@ -1172,28 +1168,28 @@ TEST_F(UsbChooserContextTest,
 
   ExpectChooserObjectInfo(objects[0].get(),
                           /*origin=*/GURL(kAnyDeviceUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/kDeviceIdWildcard,
                           /*product_id=*/kDeviceIdWildcard,
                           /*name=*/"Devices from any vendor");
   ExpectChooserObjectInfo(objects[1].get(),
                           /*origin=*/GURL(kVendorUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6353,
                           /*product_id=*/kDeviceIdWildcard,
                           /*name=*/"Devices from Google Inc.");
   ExpectChooserObjectInfo(objects[2].get(),
                           /*origin=*/GURL(kProductVendorUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6353,
                           /*product_id=*/5678,
                           /*name=*/"Unknown product 0x162E from Google Inc.");
   ExpectChooserObjectInfo(objects[3].get(),
                           /*origin=*/GURL(kCoolUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6354,
                           /*product_id=*/1357,
@@ -1211,7 +1207,7 @@ TEST_F(UsbChooserContextTest,
 
   EXPECT_CALL(*mock_permission_observers_[profile()],
               OnObjectPermissionChanged(
-                  absl::make_optional(ContentSettingsType::USB_GUARD),
+                  std::make_optional(ContentSettingsType::USB_GUARD),
                   ContentSettingsType::USB_CHOOSER_DATA));
   const auto kAnyDeviceOrigin = url::Origin::Create(GURL(kAnyDeviceUrl));
   store->GrantDevicePermission(kAnyDeviceOrigin, *persistent_device_info);
@@ -1225,28 +1221,28 @@ TEST_F(UsbChooserContextTest,
 
   ExpectChooserObjectInfo(objects[0].get(),
                           /*origin=*/GURL(kAnyDeviceUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/kDeviceIdWildcard,
                           /*product_id=*/kDeviceIdWildcard,
                           /*name=*/"Devices from any vendor");
   ExpectChooserObjectInfo(objects[1].get(),
                           /*origin=*/GURL(kVendorUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6353,
                           /*product_id=*/kDeviceIdWildcard,
                           /*name=*/"Devices from Google Inc.");
   ExpectChooserObjectInfo(objects[2].get(),
                           /*origin=*/GURL(kProductVendorUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6353,
                           /*product_id=*/5678,
                           /*name=*/"Unknown product 0x162E from Google Inc.");
   ExpectChooserObjectInfo(objects[3].get(),
                           /*origin=*/GURL(kCoolUrl),
-                          /*source=*/content_settings::SETTING_SOURCE_POLICY,
+                          /*source=*/SettingSource::kPolicy,
                           /*incognito=*/false,
                           /*vendor_id=*/6354,
                           /*product_id=*/1357,
@@ -1288,7 +1284,6 @@ TEST_F(UsbChooserContextTest, MassStorageHidden) {
 
 #if BUILDFLAG(IS_CHROMEOS)
 TEST_F(UsbChooserContextTest, MassStorageShownWhenDetachable) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
   base::Value::List allowlist;
   base::Value::Dict ids;
   ids.Set(ash::kUsbDetachableAllowlistKeyVid, 1234);
@@ -1297,22 +1292,6 @@ TEST_F(UsbChooserContextTest, MassStorageShownWhenDetachable) {
 
   profile()->ScopedCrosSettingsTestHelper()->GetStubbedProvider()->Set(
       ash::kUsbDetachableAllowlist, base::Value(std::move(allowlist)));
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  auto allowlist = crosapi::mojom::UsbDetachableAllowlist::New();
-  auto device_id = crosapi::mojom::UsbDeviceId::New();
-  device_id->has_vendor_id = true;
-  device_id->vendor_id = 1234;
-  device_id->has_product_id = true;
-  device_id->product_id = 1;
-  allowlist->usb_device_ids.push_back(std::move(device_id));
-
-  auto params = crosapi::mojom::BrowserInitParams::New();
-  params->device_settings = crosapi::mojom::DeviceSettings::New();
-  params->device_settings->usb_detachable_allow_list = std::move(allowlist);
-  chromeos::BrowserInitParams::SetInitParamsForTests(std::move(params));
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
   GURL kUrl("https://www.google.com");
   const auto origin = url::Origin::Create(kUrl);
@@ -1345,7 +1324,7 @@ TEST_F(UsbChooserContextTest, MassStorageShownWhenDetachable) {
       }));
   loop.Run();
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 TEST_F(UsbChooserContextTest, DeviceWithNoInterfaceVisible) {
   GURL url("https://www.google.com");

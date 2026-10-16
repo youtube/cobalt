@@ -11,7 +11,7 @@
 
 #include "base/json/json_reader.h"
 #include "base/values.h"
-#include "chrome/browser/extensions/permissions_test_util.h"
+#include "chrome/browser/extensions/permissions/permissions_test_util.h"
 #include "chrome/common/extensions/api/permissions.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/permissions/permission_set.h"
@@ -33,7 +33,7 @@ using extensions::permissions_test_util::GetPatternsAsStrings;
 namespace extensions {
 
 // Tests that we can convert PermissionSets to the generated types.
-TEST(ExtensionPermissionsAPIHelpers, Pack) {
+TEST(PermissionsApiHelpersTest, Pack) {
   APIPermissionSet apis;
   apis.insert(APIPermissionID::kTab);
 
@@ -60,7 +60,7 @@ TEST(ExtensionPermissionsAPIHelpers, Pack) {
 
 // Tests various error conditions and edge cases when unpacking Dicts
 // into PermissionSets.
-TEST(ExtensionPermissionsAPIHelpers, Unpack_Basic) {
+TEST(PermissionsApiHelpersTest, Unpack_Basic) {
   base::Value::List apis;
   apis.Append("tabs");
   base::Value::List origins;
@@ -79,13 +79,13 @@ TEST(ExtensionPermissionsAPIHelpers, Unpack_Basic) {
 
   // Origins shouldn't have to be present.
   {
-    Permissions permissions_object;
     base::Value::Dict dict;
     dict.Set("permissions", apis.Clone());
-    EXPECT_TRUE(Permissions::Populate(dict, permissions_object));
+    auto permissions_object = Permissions::FromValue(dict);
+    EXPECT_TRUE(permissions_object);
 
     std::unique_ptr<UnpackPermissionSetResult> unpack_result =
-        UnpackPermissionSet(permissions_object, PermissionSet(),
+        UnpackPermissionSet(*permissions_object, PermissionSet(),
                             optional_permissions, true, &error);
 
     ASSERT_TRUE(unpack_result);
@@ -97,13 +97,13 @@ TEST(ExtensionPermissionsAPIHelpers, Unpack_Basic) {
 
   // The api permissions don't need to be present either.
   {
-    Permissions permissions_object;
     base::Value::Dict dict;
     dict.Set("origins", origins.Clone());
-    EXPECT_TRUE(Permissions::Populate(dict, permissions_object));
+    auto permissions_object = Permissions::FromValue(dict);
+    EXPECT_TRUE(permissions_object);
 
     std::unique_ptr<UnpackPermissionSetResult> unpack_result =
-        UnpackPermissionSet(permissions_object, PermissionSet(),
+        UnpackPermissionSet(*permissions_object, PermissionSet(),
                             optional_permissions, true, &error);
     ASSERT_TRUE(unpack_result);
     EXPECT_TRUE(error.empty());
@@ -114,49 +114,49 @@ TEST(ExtensionPermissionsAPIHelpers, Unpack_Basic) {
 
   // Throw errors for non-string API permissions.
   {
-    Permissions permissions_object;
     base::Value::Dict dict;
     base::Value::List invalid_apis = apis.Clone();
     invalid_apis.Append(3);
     dict.Set("permissions", std::move(invalid_apis));
-    EXPECT_FALSE(Permissions::Populate(dict, permissions_object));
+    auto permissions_object = Permissions::FromValue(dict);
+    EXPECT_FALSE(permissions_object);
   }
 
   // Throw errors for non-string origins.
   {
-    Permissions permissions_object;
     base::Value::Dict dict;
     base::Value::List invalid_origins = origins.Clone();
     invalid_origins.Append(3);
     dict.Set("origins", std::move(invalid_origins));
-    EXPECT_FALSE(Permissions::Populate(dict, permissions_object));
+    auto permissions_object = Permissions::FromValue(dict);
+    EXPECT_FALSE(permissions_object);
   }
 
   // Throw errors when "origins" or "permissions" are not list values.
   {
-    Permissions permissions_object;
     base::Value::Dict dict;
     dict.Set("origins", 2);
-    EXPECT_FALSE(Permissions::Populate(dict, permissions_object));
+    auto permissions_object = Permissions::FromValue(dict);
+    EXPECT_FALSE(permissions_object);
   }
 
   {
-    Permissions permissions_object;
     base::Value::Dict dict;
     dict.Set("permissions", 2);
-    EXPECT_FALSE(Permissions::Populate(dict, permissions_object));
+    auto permissions_object = Permissions::FromValue(dict);
+    EXPECT_FALSE(permissions_object);
   }
 
   // Additional fields should be allowed.
   {
-    Permissions permissions_object;
     base::Value::Dict dict;
     dict.Set("origins", origins.Clone());
     dict.Set("random", 3);
-    EXPECT_TRUE(Permissions::Populate(dict, permissions_object));
+    auto permissions_object = Permissions::FromValue(dict);
+    EXPECT_TRUE(permissions_object);
 
     std::unique_ptr<UnpackPermissionSetResult> unpack_result =
-        UnpackPermissionSet(permissions_object, PermissionSet(),
+        UnpackPermissionSet(*permissions_object, PermissionSet(),
                             optional_permissions, true, &error);
     ASSERT_TRUE(unpack_result);
     EXPECT_TRUE(error.empty());
@@ -167,14 +167,14 @@ TEST(ExtensionPermissionsAPIHelpers, Unpack_Basic) {
 
   // Unknown permissions should throw an error.
   {
-    Permissions permissions_object;
     base::Value::Dict dict;
     base::Value::List invalid_apis = apis.Clone();
     invalid_apis.Append("unknown_permission");
     dict.Set("permissions", std::move(invalid_apis));
-    EXPECT_TRUE(Permissions::Populate(dict, permissions_object));
+    auto permissions_object = Permissions::FromValue(dict);
+    EXPECT_TRUE(permissions_object);
 
-    EXPECT_FALSE(UnpackPermissionSet(permissions_object, PermissionSet(),
+    EXPECT_FALSE(UnpackPermissionSet(*permissions_object, PermissionSet(),
                                      optional_permissions, true, &error));
     EXPECT_EQ(error, "'unknown_permission' is not a recognized permission.");
   }
@@ -182,7 +182,7 @@ TEST(ExtensionPermissionsAPIHelpers, Unpack_Basic) {
 
 // Tests that host permissions are properly partitioned according to the
 // required/optional permission sets.
-TEST(ExtensionPermissionsAPIHelpers, Unpack_HostSeparation) {
+TEST(PermissionsApiHelpersTest, Unpack_HostSeparation) {
   auto explicit_url_pattern = [](const char* pattern) {
     return URLPattern(Extension::kValidHostPermissionSchemes, pattern);
   };
@@ -263,7 +263,7 @@ TEST(ExtensionPermissionsAPIHelpers, Unpack_HostSeparation) {
 
 // Tests that host permissions are properly partitioned according to the
 // required/optional permission sets.
-TEST(ExtensionPermissionsAPIHelpers, Unpack_APISeparation) {
+TEST(PermissionsApiHelpersTest, Unpack_APISeparation) {
   constexpr APIPermissionID kRequired1 = APIPermissionID::kTab;
   constexpr APIPermissionID kRequired2 = APIPermissionID::kStorage;
   constexpr APIPermissionID kOptional1 = APIPermissionID::kCookie;
@@ -306,7 +306,7 @@ TEST(ExtensionPermissionsAPIHelpers, Unpack_APISeparation) {
 
 // Tests that unpacking works correctly with wildcard schemes (which are
 // interesting, because they only match http | https, and not all schemes).
-TEST(ExtensionPermissionsAPIHelpers, Unpack_WildcardSchemes) {
+TEST(PermissionsApiHelpersTest, Unpack_WildcardSchemes) {
   constexpr char kWildcardSchemePattern[] = "*://*/*";
 
   PermissionSet optional_permissions(
@@ -329,7 +329,7 @@ TEST(ExtensionPermissionsAPIHelpers, Unpack_WildcardSchemes) {
 }
 
 // Tests that unpacking <all_urls> correctly includes or omits the file:-scheme.
-TEST(ExtensionPermissionsAPIHelpers, Unpack_FileSchemes_AllUrls) {
+TEST(PermissionsApiHelpersTest, Unpack_FileSchemes_AllUrls) {
   // Without file access, <all_urls> should be parsed, but the resulting pattern
   // should not include file:-scheme access.
   {
@@ -394,7 +394,7 @@ TEST(ExtensionPermissionsAPIHelpers, Unpack_FileSchemes_AllUrls) {
 
 // Tests that unpacking a pattern that explicitly specifies the file:-scheme is
 // properly placed into the |restricted_file_scheme_patterns| set.
-TEST(ExtensionPermissionsAPIHelpers, Unpack_FileSchemes_Specific) {
+TEST(PermissionsApiHelpersTest, Unpack_FileSchemes_Specific) {
   constexpr char kFilePattern[] = "file:///*";
 
   // Without file access, the file:-scheme pattern should be populated into
@@ -458,7 +458,7 @@ TEST(ExtensionPermissionsAPIHelpers, Unpack_FileSchemes_Specific) {
 
 // Tests that unpacking a UsbDevicePermission with a list of USB device IDs
 // preserves the device list in the result object.
-TEST(ExtensionPermissionsAPIHelpers, Unpack_UsbDevicePermission) {
+TEST(PermissionsApiHelpersTest, Unpack_UsbDevicePermission) {
   constexpr char kDeviceListJson[] = R"([{"productId":2,"vendorId":1}])";
   constexpr char kUsbDevicesPermissionJson[] =
       R"(usbDevices|[{"productId":2,"vendorId":1}])";

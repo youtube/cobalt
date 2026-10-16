@@ -33,19 +33,22 @@ public class FullScreenView extends FrameLayout {
 
     private AwViewMethods mAwViewMethods;
     private final AwContents mAwContents;
-    private InternalAccessAdapter mInternalAccessAdapter;
-    private OnBackInvokedCallback mOnBackInvokedCallback;
+    private final InternalAccessAdapter mInternalAccessAdapter;
+    private final OnBackInvokedCallback mOnBackInvokedCallback;
 
     public FullScreenView(Context context, AwViewMethods awViewMethods, AwContents awContents) {
         super(context);
         setAwViewMethods(awViewMethods);
         mAwContents = awContents;
         mInternalAccessAdapter = new InternalAccessAdapter();
-        mOnBackInvokedCallback = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ? () -> {
-            if (mAwContents.isFullScreen()) {
-                mAwContents.requestExitFullscreen();
-            }
-        } : null;
+        mOnBackInvokedCallback =
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                        ? () -> {
+                            if (mAwContents.isFullScreen()) {
+                                mAwContents.requestExitFullscreen();
+                            }
+                        }
+                        : null;
     }
 
     public InternalAccessAdapter getInternalAccessAdapter() {
@@ -91,8 +94,8 @@ public class FullScreenView extends FrameLayout {
     @Override
     public boolean dispatchKeyEvent(final KeyEvent event) {
         // We didn't add the sdk check here as as the developer may not add the flag so we fallback
-        // to the old way it's confirmed that only one back mechanism will be triggered here or the
-        // dispatchCallback
+        // to the old way. It's confirmed that only one back mechanism will be triggered here or the
+        // dispatchCallback.
         if (event.getKeyCode() == KeyEvent.KEYCODE_BACK
                 && event.getAction() == KeyEvent.ACTION_UP
                 && mAwContents.isFullScreen()) {
@@ -127,8 +130,10 @@ public class FullScreenView extends FrameLayout {
         super.onAttachedToWindow();
         Activity hostActivity = ContextUtils.activityFromContext(getContext());
         if (hostActivity != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            hostActivity.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
-                    OnBackInvokedDispatcher.PRIORITY_DEFAULT, mOnBackInvokedCallback);
+            hostActivity
+                    .getOnBackInvokedDispatcher()
+                    .registerOnBackInvokedCallback(
+                            OnBackInvokedDispatcher.PRIORITY_DEFAULT, mOnBackInvokedCallback);
         }
         mAwViewMethods.onAttachedToWindow();
     }
@@ -138,10 +143,10 @@ public class FullScreenView extends FrameLayout {
         super.onDetachedFromWindow();
         Activity hostActivity = ContextUtils.activityFromContext(getContext());
         if (hostActivity != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            hostActivity.getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(
-                    mOnBackInvokedCallback);
+            hostActivity
+                    .getOnBackInvokedDispatcher()
+                    .unregisterOnBackInvokedCallback(mOnBackInvokedCallback);
         }
-        mOnBackInvokedCallback = null;
         mAwViewMethods.onDetachedFromWindow();
     }
 
@@ -259,7 +264,7 @@ public class FullScreenView extends FrameLayout {
         public void super_startActivityForResult(Intent intent, int requestCode) {
             throw new RuntimeException(
                     "FullScreenView InternalAccessAdapter shouldn't call startActivityForResult. "
-                    + "See AwContents#startActivityForResult");
+                            + "See AwContents#startActivityForResult");
         }
 
         @Override
@@ -268,10 +273,26 @@ public class FullScreenView extends FrameLayout {
         }
 
         @Override
-        public void overScrollBy(int deltaX, int deltaY, int scrollX, int scrollY, int scrollRangeX,
-                int scrollRangeY, int maxOverScrollX, int maxOverScrollY, boolean isTouchEvent) {
-            FullScreenView.this.overScrollBy(deltaX, deltaY, scrollX, scrollY, scrollRangeX,
-                    scrollRangeY, maxOverScrollX, maxOverScrollY, isTouchEvent);
+        public void overScrollBy(
+                int deltaX,
+                int deltaY,
+                int scrollX,
+                int scrollY,
+                int scrollRangeX,
+                int scrollRangeY,
+                int maxOverScrollX,
+                int maxOverScrollY,
+                boolean isTouchEvent) {
+            FullScreenView.this.overScrollBy(
+                    deltaX,
+                    deltaY,
+                    scrollX,
+                    scrollY,
+                    scrollRangeX,
+                    scrollRangeY,
+                    maxOverScrollX,
+                    maxOverScrollY,
+                    isTouchEvent);
         }
 
         @Override

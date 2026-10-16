@@ -107,6 +107,8 @@ class CONTENT_EXPORT ImeAdapterAndroid : public RenderWidgetHostConnector {
       int,
       blink::mojom::HandwritingGestureResult);
 
+  void SetImeRenderWidgetHost();
+
   // RendetWidgetHostConnector implementation.
   void UpdateRenderProcessConnection(
       RenderWidgetHostViewAndroid* old_rwhva,
@@ -121,9 +123,8 @@ class CONTENT_EXPORT ImeAdapterAndroid : public RenderWidgetHostConnector {
   void CancelComposition();
   void FocusedNodeChanged(bool is_editable_node,
                           const gfx::Rect& node_bounds_in_screen);
-  void SetCharacterBounds(const std::vector<gfx::RectF>& rects);
-  // Requests to start stylus writing and returns true if successful.
-  bool RequestStartStylusWriting();
+  // Check if stylus writing can be started.
+  bool ShouldInitiateStylusWriting();
 
   void OnEditElementFocusedForStylusWriting(
       const gfx::Rect& focused_edit_bounds,

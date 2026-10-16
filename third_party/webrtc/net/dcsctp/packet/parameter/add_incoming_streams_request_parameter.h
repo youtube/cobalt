@@ -42,8 +42,8 @@ class AddIncomingStreamsRequestParameter
       : request_sequence_number_(request_sequence_number),
         nbr_of_new_streams_(nbr_of_new_streams) {}
 
-  static absl::optional<AddIncomingStreamsRequestParameter> Parse(
-      rtc::ArrayView<const uint8_t> data);
+  static std::optional<AddIncomingStreamsRequestParameter> Parse(
+      webrtc::ArrayView<const uint8_t> data);
 
   void SerializeTo(std::vector<uint8_t>& out) const override;
   std::string ToString() const override;

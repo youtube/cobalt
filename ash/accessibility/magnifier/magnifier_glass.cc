@@ -6,7 +6,6 @@
 
 #include "ash/shell.h"
 #include "base/check_op.h"
-#include "third_party/skia/include/core/SkDrawLooper.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/paint_recorder.h"
 #include "ui/gfx/shadow_value.h"
@@ -177,6 +176,7 @@ void MagnifierGlass::CreateMagnifierWindow(aura::Window* root_window,
 
   host_widget_ = new views::Widget;
   views::Widget::InitParams params(
+      views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET,
       views::Widget::InitParams::TYPE_WINDOW_FRAMELESS);
   params.activatable = views::Widget::InitParams::Activatable::kNo;
   params.accept_events = false;
@@ -196,7 +196,6 @@ void MagnifierGlass::CreateMagnifierWindow(aura::Window* root_window,
   zoom_layer_ = std::make_unique<ui::Layer>(ui::LAYER_SOLID_COLOR);
   zoom_layer_->SetBounds(window_bounds);
   zoom_layer_->SetBackgroundZoom(params_.scale, kZoomInset);
-  zoom_layer_->SetFillsBoundsOpaquely(false);
   root_layer->Add(zoom_layer_.get());
 
   // Create a rounded rect clip, so that only we see a circle of the zoomed

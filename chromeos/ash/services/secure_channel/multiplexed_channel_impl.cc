@@ -43,9 +43,8 @@ std::unique_ptr<MultiplexedChannel> MultiplexedChannelImpl::Factory::Create(
     bool success =
         channel->AddClientToChannel(std::move(client_connection_parameters));
     if (!success) {
-      PA_LOG(ERROR) << "MultiplexedChannelImpl::Factory::Create(): "
-                    << "Failed to add initial client.";
-      NOTREACHED();
+      NOTREACHED() << "MultiplexedChannelImpl::Factory::Create(): "
+                   << "Failed to add initial client.";
     }
   }
 
@@ -107,6 +106,14 @@ void MultiplexedChannelImpl::OnMessageReceived(const std::string& feature,
     proxy_entry.second->HandleReceivedMessage(feature, payload);
 }
 
+void MultiplexedChannelImpl::OnNearbyConnectionStateChanged(
+    mojom::NearbyConnectionStep step,
+    mojom::NearbyConnectionStepResult result) {
+  for (auto& proxy_entry : id_to_proxy_map_) {
+    proxy_entry.second->HandleNearbyConnectionStateChanged(step, result);
+  }
+}
+
 void MultiplexedChannelImpl::OnSendMessageRequested(
     const std::string& message_feaure,
     const std::string& message_payload,
@@ -135,9 +142,8 @@ void MultiplexedChannelImpl::OnClientDisconnected(
     const base::UnguessableToken& proxy_id) {
   size_t num_entries_deleted = id_to_proxy_map_.erase(proxy_id);
   if (num_entries_deleted != 1u) {
-    PA_LOG(ERROR) << "MultiplexedChannelImpl::OnClientDisconnected(): Client "
-                  << "disconnected, but no entry in the map existed.";
-    NOTREACHED();
+    NOTREACHED() << "MultiplexedChannelImpl::OnClientDisconnected(): Client "
+                 << "disconnected, but no entry in the map existed.";
   }
 
   if (!id_to_proxy_map_.empty())

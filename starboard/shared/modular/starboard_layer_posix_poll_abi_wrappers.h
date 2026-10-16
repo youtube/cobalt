@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_POLL_ABI_WRAPPERS_H_
+#define STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_POLL_ABI_WRAPPERS_H_
+
 #include <poll.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -41,3 +44,5 @@ SB_EXPORT int __abi_wrap_poll(struct musl_pollfd*, musl_nfds_t, int32_t);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
+
+#endif  // STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_POLL_ABI_WRAPPERS_H_

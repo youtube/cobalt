@@ -7,24 +7,28 @@
 #include <memory>
 #include <utility>
 
+#include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "base/test/bind.h"
 #include "chrome/browser/apps/platform_apps/app_browsertest_util.h"
 #include "chrome/browser/extensions/extension_service.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync_file_system/drive_backend/sync_engine.h"
 #include "chrome/browser/sync_file_system/local/local_file_sync_service.h"
 #include "chrome/browser/sync_file_system/sync_file_system_service.h"
 #include "chrome/browser/sync_file_system/sync_file_system_service_factory.h"
+#include "chrome/browser/ui/browser.h"
 #include "components/drive/service/fake_drive_service.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "content/public/test/browser_test.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
-#include "extensions/browser/extension_system.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/result_catcher.h"
 #include "storage/browser/quota/quota_manager.h"
@@ -81,39 +85,34 @@ class SyncFileSystemTest : public extensions::PlatformAppBrowserTest,
     extensions::PlatformAppBrowserTest::SetUpOnMainThread();
     ASSERT_TRUE(base_dir_.CreateUniqueTempDir());
 
-    SyncFileSystemServiceFactory* factory =
-        SyncFileSystemServiceFactory::GetInstance();
-
-    content::BrowserContext* context = browser()->profile();
-    extensions::ExtensionServiceInterface* extension_service =
-        extensions::ExtensionSystem::Get(context)->extension_service();
-    extensions::ExtensionRegistry* extension_registry =
-        extensions::ExtensionRegistry::Get(context);
-
-    std::unique_ptr<drive_backend::SyncEngine::DriveServiceFactory>
-        drive_service_factory(new FakeDriveServiceFactory(this));
-
     identity_test_env_ = std::make_unique<signin::IdentityTestEnvironment>();
 
-    remote_service_ = new drive_backend::SyncEngine(
-        base::SingleThreadTaskRunner::GetCurrentDefault(),  // ui_task_runner
-        MakeSequencedTaskRunner(), MakeSequencedTaskRunner(),
-        base_dir_.GetPath(),
-        nullptr,  // task_logger
-        nullptr,  // notification_manager
-        extension_service, extension_registry,
-        identity_test_env_->identity_manager(),  // identity_manager
-        nullptr,                                 // url_loader_factory
-        std::move(drive_service_factory), in_memory_env_.get());
-    remote_service_->SetSyncEnabled(true);
-    factory->set_mock_remote_file_service(
-        std::unique_ptr<RemoteFileSyncService>(remote_service_));
+    // Override factory to inject a test RemoteFileSyncService.
+    SyncFileSystemServiceFactory::GetInstance()->SetTestingFactory(
+        profile(),
+        base::BindLambdaForTesting([this](content::BrowserContext* context)
+                                       -> std::unique_ptr<KeyedService> {
+          auto remote_service = base::WrapUnique(new drive_backend::SyncEngine(
+              base::SingleThreadTaskRunner::GetCurrentDefault(),
+              MakeSequencedTaskRunner(), MakeSequencedTaskRunner(),
+              base_dir_.GetPath(),
+              /*task_logger=*/nullptr,
+              extensions::ExtensionRegistrar::Get(context),
+              extensions::ExtensionRegistry::Get(context),
+              identity_test_env_->identity_manager(),
+              /*url_loader_factory=*/nullptr,
+              std::make_unique<FakeDriveServiceFactory>(this),
+              in_memory_env_.get()));
+          remote_service->SetSyncEnabled(true);
+
+          return SyncFileSystemServiceFactory::
+              BuildWithRemoteFileSyncServiceForTest(context,
+                                                    std::move(remote_service));
+        }));
   }
 
   // drive::FakeDriveService::ChangeObserver override.
-  void OnNewChangeAvailable() override {
-    sync_engine()->OnNotificationTimerFired();
-  }
+  void OnNewChangeAvailable() override {}
 
   SyncFileSystemService* sync_file_system_service() {
     return SyncFileSystemServiceFactory::GetForProfile(browser()->profile());
@@ -151,9 +150,6 @@ class SyncFileSystemTest : public extensions::PlatformAppBrowserTest,
   std::unique_ptr<leveldb::Env> in_memory_env_;
 
   std::unique_ptr<signin::IdentityTestEnvironment> identity_test_env_;
-
-  raw_ptr<drive_backend::SyncEngine, DanglingUntriaged> remote_service_ =
-      nullptr;
 };
 
 IN_PROC_BROWSER_TEST_F(SyncFileSystemTest, AuthorizationTest) {
@@ -188,7 +184,8 @@ IN_PROC_BROWSER_TEST_F(SyncFileSystemTest, AuthorizationTest) {
                                     identity_manager()->GetPrimaryAccountInfo(
                                         signin::ConsentLevel::kSync),
                                     signin::ConsentLevel::kSync),
-                                PrimaryAccountChangeEvent::State()));
+                                PrimaryAccountChangeEvent::State(),
+                                signin_metrics::ProfileSignout::kTest));
   foo_created.Reply("resume");
 
   ASSERT_TRUE(bar_created.WaitUntilSatisfied());
@@ -206,7 +203,8 @@ IN_PROC_BROWSER_TEST_F(SyncFileSystemTest, AuthorizationTest) {
                                 PrimaryAccountChangeEvent::State(
                                     identity_manager()->GetPrimaryAccountInfo(
                                         signin::ConsentLevel::kSync),
-                                    signin::ConsentLevel::kSync)));
+                                    signin::ConsentLevel::kSync),
+                                signin_metrics::AccessPoint::kUnknown));
   WaitUntilIdle();
 
   bar_created.Reply("resume");

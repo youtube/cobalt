@@ -5,29 +5,55 @@
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
 
 #include <ostream>
-#include "third_party/blink/renderer/platform/wtf/text/text_stream.h"
+
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
-String LayoutUnit::ToString() const {
-  if (value_ == LayoutUnit::Max().RawValue())
-    return "LayoutUnit::max(" + String::Number(ToDouble()) + ")";
-  if (value_ == LayoutUnit::Min().RawValue())
-    return "LayoutUnit::min(" + String::Number(ToDouble()) + ")";
-  if (value_ == LayoutUnit::NearlyMax().RawValue())
-    return "LayoutUnit::nearlyMax(" + String::Number(ToDouble()) + ")";
-  if (value_ == LayoutUnit::NearlyMin().RawValue())
-    return "LayoutUnit::nearlyMin(" + String::Number(ToDouble()) + ")";
-  return String::Number(ToDouble());
+namespace {
+
+template <unsigned fractional_bits, typename Storage>
+String FromLayoutUnit(FixedPoint<fractional_bits, Storage> value) {
+  // Request full precision, avoid scientific notation. 14 is just enough for a
+  // LayoutUnit (8 for the integer part (we can represent just above 30
+  // million), plus 6 for the fractional part (1/64)).
+  return String::Number(value.ToDouble(), 14);
 }
 
-std::ostream& operator<<(std::ostream& stream, const LayoutUnit& value) {
-  return stream << value.ToString();
+}  // anonymous namespace
+
+template <unsigned fractional_bits, typename Storage>
+String FixedPoint<fractional_bits, Storage>::ToString() const {
+  if (value_ == Max().RawValue()) {
+    return WTF::StrCat({"Max(", FromLayoutUnit(*this), ")"});
+  }
+  if (value_ == Min().RawValue()) {
+    return WTF::StrCat({"Min(", FromLayoutUnit(*this), ")"});
+  }
+  if (value_ == NearlyMax().RawValue()) {
+    return WTF::StrCat({"NearlyMax(", FromLayoutUnit(*this), ")"});
+  }
+  if (value_ == NearlyMin().RawValue()) {
+    return WTF::StrCat({"NearlyMin(", FromLayoutUnit(*this), ")"});
+  }
+  return FromLayoutUnit(*this);
 }
 
-WTF::TextStream& operator<<(WTF::TextStream& ts, const LayoutUnit& unit) {
-  return ts << WTF::TextStream::FormatNumberRespectingIntegers(unit.ToDouble());
+template <unsigned fractional_bits, typename Storage>
+std::ostream& operator<<(std::ostream& stream,
+                         const FixedPoint<fractional_bits, Storage>& value) {
+  return stream << value.ToString().Utf8();
 }
+
+// Explicit instantiations.
+#define INSTANTIATE(fractional_bits, Storage)          \
+  template class FixedPoint<fractional_bits, Storage>; \
+  template std::ostream& operator<<(                   \
+      std::ostream&, const FixedPoint<fractional_bits, Storage>&)
+
+INSTANTIATE(6, int32_t);
+INSTANTIATE(16, int32_t);
+INSTANTIATE(16, int64_t);
 
 }  // namespace blink

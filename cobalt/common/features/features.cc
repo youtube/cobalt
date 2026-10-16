@@ -22,17 +22,6 @@
 
 #include "cobalt/common/features/features.h"
 
-namespace {
-// This macro exists in Chromium version m134, which we currently are not using.
-// To make the code consistent for when we do rebase to m134, we will define the
-// macro ourselves. Once the rebase happens, we should be able to delete this
-// macro.
-// TODO: (cobalt b/434023340) Delete this macro once Cobalt rebases to m138.
-#define BASE_FEATURE_PARAM(T, feature_object_name, feature, name, \
-                           default_value)                         \
-  const base::FeatureParam<T> feature_object_name{feature, name, default_value};
-}  // namespace
-
 #define STARBOARD_FEATURE(feature, name, default_state)                 \
   BASE_FEATURE(feature, name,                                           \
                default_state == true ? base::FEATURE_ENABLED_BY_DEFAULT \
@@ -41,7 +30,7 @@ namespace {
 #define STARBOARD_FEATURE_PARAM(T, param_object_name, feature_object_name,   \
                                 param_name, default_value)                   \
   BASE_FEATURE_PARAM(T, param_object_name, &feature_object_name, param_name, \
-                     default_value)
+                     default_value);
 
 #define FEATURE_LIST_START namespace cobalt::features {
 #define FEATURE_LIST_END }

@@ -10,10 +10,12 @@
 
 #include "call/receive_time_calculator.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
-#include <type_traits>
 
+#include "api/field_trials_view.h"
+#include "api/units/time_delta.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/numerics/safe_minmax.h"
 
@@ -55,7 +57,7 @@ int64_t ReceiveTimeCalculator::ReconcileReceiveTimes(int64_t packet_time_us,
                                                      int64_t safe_time_us) {
   int64_t stall_time_us = system_time_us - packet_time_us;
   if (total_system_time_passed_us_ < config_.stall_threshold->us()) {
-    stall_time_us = rtc::SafeMin(stall_time_us, config_.max_stall->us());
+    stall_time_us = SafeMin(stall_time_us, config_.max_stall->us());
   }
   int64_t corrected_time_us = safe_time_us - stall_time_us;
 
@@ -105,8 +107,8 @@ int64_t ReceiveTimeCalculator::ReconcileReceiveTimes(int64_t packet_time_us,
     if (forward_clock_reset || obvious_backward_clock_reset ||
         small_reset_during_stall_) {
       corrected_time_us = last_corrected_time_us_ +
-                          rtc::SafeClamp(packet_time_delta_us, 0,
-                                         config_.max_packet_time_repair->us());
+                          SafeClamp(packet_time_delta_us, 0,
+                                    config_.max_packet_time_repair->us());
     }
   }
 

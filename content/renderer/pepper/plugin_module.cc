@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/342213636): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "content/renderer/pepper/plugin_module.h"
 
 #include <stddef.h>
@@ -33,7 +38,6 @@
 #include "content/renderer/pepper/ppb_image_data_impl.h"
 #include "content/renderer/pepper/ppb_proxy_impl.h"
 #include "content/renderer/pepper/ppb_var_deprecated_impl.h"
-#include "content/renderer/pepper/ppb_video_decoder_impl.h"
 #include "content/renderer/pepper/renderer_ppapi_host_impl.h"
 #include "content/renderer/render_frame_impl.h"
 #include "content/renderer/render_thread_impl.h"
@@ -214,11 +218,11 @@ PP_Bool ReadImageData(PP_Resource device_context_2d,
 }
 
 void RunMessageLoop(PP_Instance instance) {
-  base::RunLoop(base::RunLoop::Type::kNestableTasksAllowed).Run();
+  HostGlobals::Get()->RunMsgLoop();
 }
 
 void QuitMessageLoop(PP_Instance instance) {
-  base::RunLoop::QuitCurrentDeprecated();
+  HostGlobals::Get()->QuitMsgLoop();
 }
 
 uint32_t GetLiveObjectsForInstance(PP_Instance instance_id) {
@@ -526,7 +530,8 @@ PepperPluginInstanceImpl* PluginModule::CreateInstance(
     blink::WebPluginContainer* container,
     const GURL& plugin_url) {
   PepperPluginInstanceImpl* instance = PepperPluginInstanceImpl::Create(
-      render_frame, this, container, plugin_url);
+      render_frame, this, container, plugin_url,
+      render_frame->GetWebFrame()->GetAgentGroupScheduler()->Isolate());
   if (!instance) {
     LOG(WARNING) << "Plugin doesn't support instance interface, failing.";
     return nullptr;
@@ -660,7 +665,7 @@ bool PluginModule::InitializeModule(
 scoped_refptr<PluginModule> PluginModule::Create(
     RenderFrameImpl* render_frame,
     const WebPluginInfo& webplugin_info,
-    const absl::optional<url::Origin>& origin_lock,
+    const std::optional<url::Origin>& origin_lock,
     bool* pepper_plugin_was_registered,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner) {
   *pepper_plugin_was_registered = true;

@@ -3,6 +3,8 @@
 <head>
 <script src="/resources/testharness.js"></script>
 <script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
 </head>
 <body>
 <script type="module">
@@ -18,10 +20,10 @@ promise_test(async _ => {
 }, 'sysex permission grants are properly handled');
 
 promise_test(async t => {
-  await setMidiPermission({}, 'granted');
-  await setMidiPermission({sysex: true}, 'denied');
+  await test_driver.set_permission({name: 'midi'}, 'granted');
+  await test_driver.set_permission({name: 'midi', sysex: true}, 'denied');
 
-  return promise_rejects_dom(t, 'SecurityError',
+  return promise_rejects_dom(t, 'NotAllowedError',
       navigator.requestMIDIAccess({sysex: true}));
 }, 'sysex permission rejections are properly handled');
 

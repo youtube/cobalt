@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "remoting/host/security_key/security_key_socket.h"
 
 #include <memory>
@@ -60,12 +65,11 @@ void SecurityKeySocket::SendResponse(const std::string& response_data) {
   DCHECK(!write_buffer_);
 
   std::string response_length_string = GetResponseLengthAsBytes(response_data);
-  int response_len = response_length_string.size() + response_data.size();
-  std::unique_ptr<std::string> response(
-      new std::string(response_length_string + response_data));
+  std::string response = response_length_string + response_data;
+  const size_t response_size = response.size();
   write_buffer_ = base::MakeRefCounted<net::DrainableIOBuffer>(
       base::MakeRefCounted<net::StringIOBuffer>(std::move(response)),
-      response_len);
+      response_size);
 
   DCHECK(write_buffer_->BytesRemaining());
   DoWrite();

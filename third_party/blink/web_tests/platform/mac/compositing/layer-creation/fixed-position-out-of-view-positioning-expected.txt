@@ -8,13 +8,13 @@ BEFORE:
 {
   "layers": [
     {
-      "name": "Scrolling background of LayoutNGView #document",
+      "name": "Scrolling background of LayoutView #document",
       "bounds": [2008, 2016],
       "contentsOpaque": true,
       "backgroundColor": "#FFFFFF"
     },
     {
-      "name": "LayoutNGBlockFlow (positioned) DIV class='positionedAndTransformed fixed'",
+      "name": "LayoutBlockFlow (positioned) DIV class='positionedAndTransformed fixed'",
       "position": [0, 100],
       "bounds": [50, 50],
       "contentsOpaque": true,
@@ -34,7 +34,7 @@ BEFORE:
       "contentsOpaque": true
     },
     {
-      "name": "Scroll corner of LayoutNGView #document",
+      "name": "Scroll corner of LayoutView #document",
       "position": [785, 585],
       "bounds": [15, 15]
     }
@@ -56,14 +56,14 @@ AFTER:
 {
   "layers": [
     {
-      "name": "Scrolling background of LayoutNGView #document",
+      "name": "Scrolling background of LayoutView #document",
       "bounds": [2008, 2016],
       "contentsOpaque": true,
       "backgroundColor": "#FFFFFF",
       "transform": 1
     },
     {
-      "name": "LayoutNGBlockFlow (positioned) DIV class='positionedAndTransformed fixed'",
+      "name": "LayoutBlockFlow (positioned) DIV class='positionedAndTransformed fixed'",
       "position": [0, 100],
       "bounds": [50, 50],
       "contentsOpaque": true,
@@ -83,7 +83,7 @@ AFTER:
       "contentsOpaque": true
     },
     {
-      "name": "Scroll corner of LayoutNGView #document",
+      "name": "Scroll corner of LayoutView #document",
       "position": [785, 585],
       "bounds": [15, 15]
     }

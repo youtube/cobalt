@@ -14,6 +14,7 @@
 #include "chromeos/ash/components/network/client_cert_util.h"
 #include "chromeos/ash/components/network/network_handler.h"
 #include "chromeos/ash/components/network/network_handler_callbacks.h"
+#include "chromeos/ash/components/network/text_message_suppression_state.h"
 #include "components/onc/onc_constants.h"
 
 namespace base {
@@ -59,6 +60,9 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) ManagedNetworkConfigurationHandler {
   enum class PolicyType {
     // Original ONC policy as provided by cloud policy.
     kOriginal,
+    // ONC policy with variables expanded (but the certificates are not
+    // resolved).
+    kWithVariablesExpanded,
     // ONC policy with runtime values set, i.e. variables can be expanded and a
     // resolved client certificate set.
     kWithRuntimeValues,
@@ -98,6 +102,13 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) ManagedNetworkConfigurationHandler {
                              const base::Value::Dict& user_settings,
                              base::OnceClosure callback,
                              network_handler::ErrorCallback error_callback) = 0;
+
+  // Clears Shill properties in |names| of a network with |service_path|.
+  virtual void ClearShillProperties(
+      const std::string& service_path,
+      const std::vector<std::string>& names,
+      base::OnceClosure callback,
+      network_handler::ErrorCallback error_callback) = 0;
 
   // Initially configures an unconfigured network with the given user settings
   // and returns the new identifier to |callback| if successful. Fails if the
@@ -175,6 +186,11 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) ManagedNetworkConfigurationHandler {
       const std::string& guid,
       ::onc::ONCSource* onc_source) const = 0;
 
+  // Calls GetProperties and runs ResetDNSPropertiesCallback as the primary
+  // callback, changes the NameServersConfigType ONC property to be
+  // automatically set by DHCP and applies it to a specific network device.
+  virtual void ResetDNSProperties(const std::string& service_path) = 0;
+
   // Returns true if the user policy for |userhash| or device policy if
   // |userhash| is empty has any policy-configured network.
   // Returns false if |userhash| does not map to any known network profile.
@@ -217,8 +233,18 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) ManagedNetworkConfigurationHandler {
   // installed from policy. The network list should be updated at this point.
   virtual void OnCellularPoliciesApplied(const NetworkProfile& profile) = 0;
 
+  // Triggers performing tasks to wipe network configuration elements marked as
+  // ephemeral by device policy.
+  virtual void TriggerEphemeralNetworkConfigActions() = 0;
+
+  // Return true if AllowAPNModification policy is enabled.
+  virtual bool AllowApnModification() const = 0;
+
   // Return true if AllowCellularSimLock policy is enabled.
   virtual bool AllowCellularSimLock() const = 0;
+
+  // Return true if AllowCellularHotspot policy is enabled.
+  virtual bool AllowCellularHotspot() const = 0;
 
   // Return true if AllowOnlyPolicyCellularNetworks policy is enabled.
   virtual bool AllowOnlyPolicyCellularNetworks() const = 0;
@@ -233,8 +259,28 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) ManagedNetworkConfigurationHandler {
   // Return true if the AllowOnlyPolicyNetworksToAutoconnect policy is enabled.
   virtual bool AllowOnlyPolicyNetworksToAutoconnect() const = 0;
 
+  // Return true if the RecommendedValuesAreEphemeral policy is enabled.
+  virtual bool RecommendedValuesAreEphemeral() const = 0;
+
+  // Return true if the UserCreatedNetworkConfigurationsAreEphemeral policy is
+  // enabled.
+  virtual bool UserCreatedNetworkConfigurationsAreEphemeral() const = 0;
+
+  // Return true if the following user prefs exist and meet the following
+  // conditions: `arc::prefs::kAlwaysOnVpnPackage` is non-empty,
+  // `arc::prefs::kAlwaysOnVpnLockdown` is true, and `prefs::kVpnConfigAllowed`
+  // is false.
+  virtual bool IsProhibitedFromConfiguringVpn() const = 0;
+
+  // Returns the value for the AllowTextMessages policy.
+  virtual PolicyTextMessageSuppressionState GetAllowTextMessages() const = 0;
+
   // Return the list of blocked WiFi networks (identified by HexSSIDs).
   virtual std::vector<std::string> GetBlockedHexSSIDs() const = 0;
+
+  // Called after either secure DNS status or deviceReportXDREvents policy is
+  // updated.
+  virtual void OnEnterpriseMonitoredWebPoliciesApplied() const = 0;
 
   // Called just before destruction to give observers a chance to remove
   // themselves and disable any networking.

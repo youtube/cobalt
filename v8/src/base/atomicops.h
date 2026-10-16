@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BASE_ATOMICOPS_H_
+#define V8_BASE_ATOMICOPS_H_
+
 // The routines exported by this module are subtle.  If you use them, even if
 // you get the code right, it will depend on careful reasoning about atomicity
 // and memory ordering; it will be less readable, and harder to maintain.  If
@@ -21,9 +24,6 @@
 // Although there are currently no compiler enforcement, you are encouraged
 // to use these.
 //
-
-#ifndef V8_BASE_ATOMICOPS_H_
-#define V8_BASE_ATOMICOPS_H_
 
 #include <stdint.h>
 
@@ -165,6 +165,14 @@ inline Atomic32 AcquireRelease_CompareAndSwap(volatile Atomic32* ptr,
   return old_value;
 }
 
+inline Atomic32 SeqCst_CompareAndSwap(volatile Atomic32* ptr,
+                                      Atomic32 old_value, Atomic32 new_value) {
+  atomic_compare_exchange_strong_explicit(
+      helper::to_std_atomic(ptr), &old_value, new_value,
+      std::memory_order_seq_cst, std::memory_order_seq_cst);
+  return old_value;
+}
+
 inline void Relaxed_Store(volatile Atomic8* ptr, Atomic8 value) {
   std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
                              std::memory_order_relaxed);
@@ -296,6 +304,14 @@ inline Atomic64 AcquireRelease_CompareAndSwap(volatile Atomic64* ptr,
   std::atomic_compare_exchange_strong_explicit(
       helper::to_std_atomic(ptr), &old_value, new_value,
       std::memory_order_acq_rel, std::memory_order_acquire);
+  return old_value;
+}
+
+inline Atomic64 SeqCst_CompareAndSwap(volatile Atomic64* ptr,
+                                      Atomic64 old_value, Atomic64 new_value) {
+  std::atomic_compare_exchange_strong_explicit(
+      helper::to_std_atomic(ptr), &old_value, new_value,
+      std::memory_order_seq_cst, std::memory_order_seq_cst);
   return old_value;
 }
 

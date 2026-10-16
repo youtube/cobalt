@@ -8,7 +8,7 @@
 
 #include <memory>
 
-#include "base/mac/scoped_cftyperef.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/values.h"
 #include "components/policy/core/common/policy_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -61,9 +61,10 @@ TEST(PolicyMacUtilTest, ValueToPropertyRoundTrip) {
 
   const base::Value root_val(std::move(root));
   // base::Value -> property list -> base::Value.
-  base::ScopedCFTypeRef<CFPropertyListRef> property(ValueToProperty(root_val));
+  base::apple::ScopedCFTypeRef<CFPropertyListRef> property =
+      ValueToProperty(root_val);
   ASSERT_TRUE(property);
-  std::unique_ptr<base::Value> value = PropertyToValue(property);
+  std::unique_ptr<base::Value> value = PropertyToValue(property.get());
   ASSERT_TRUE(value);
   EXPECT_EQ(root_val, *value);
 }

@@ -74,7 +74,6 @@ SavePageResult ArchiverResultToSavePageResult(ArchiverResult archiver_result) {
       return SavePageResult::DIGEST_CALCULATION_FAILED;
   }
   NOTREACHED();
-  return SavePageResult::CONTENT_UNAVAILABLE;
 }
 
 SavePageResult AddPageResultToSavePageResult(AddPageResult add_page_result) {
@@ -87,16 +86,6 @@ SavePageResult AddPageResultToSavePageResult(AddPageResult add_page_result) {
       return SavePageResult::STORE_FAILURE;
   }
   NOTREACHED();
-  return SavePageResult::STORE_FAILURE;
-}
-
-void ReportPageHistogramAfterSuccessfulSaving(
-    const OfflinePageItem& offline_page,
-    base::Time save_time) {
-  base::UmaHistogramCustomCounts(
-      model_utils::AddHistogramSuffix(offline_page.client_id.name_space,
-                                      "OfflinePages.PageSize"),
-      offline_page.file_size / 1024, 1, 10000, 50);
 }
 
 void ReportSavedPagesCount(MultipleOfflinePageItemCallback callback,
@@ -188,7 +177,7 @@ void OfflinePageModelTaskified::SavePage(
 
   // Save directly to public location if on-the-fly enabled.
   //
-  // TODO(crbug.com/999247): We would like to skip renaming the file if
+  // TODO(crbug.com/40642718): We would like to skip renaming the file if
   // streaming the file directly to it's end location. Knowing the file path or
   // name before calling the archiver would make this possible.
   base::FilePath save_file_dir =
@@ -472,9 +461,6 @@ void OfflinePageModelTaskified::OnAddPageForSavePageDone(
   InformSavePageDone(std::move(callback), save_page_result,
                      page_attempted.client_id, offline_id);
   if (save_page_result == SavePageResult::SUCCESS) {
-    base::Time successful_finish_time = OfflineTimeNow();
-    ReportPageHistogramAfterSuccessfulSaving(page_attempted,
-                                             successful_finish_time);
     // TODO(romax): Just keep the same with logic in OPMImpl (which was wrong).
     // This should be fixed once we have the new strategy for clearing pages.
     if (GetPolicy(page_attempted.client_id.name_space).pages_allowed_per_url !=
@@ -588,7 +574,7 @@ void OfflinePageModelTaskified::RunMaintenanceTasks(base::Time now,
         store_.get(), OfflineTimeNow(), base::DoNothing()));
   }
 
-  // TODO(https://crbug.com/834902) This might need a better execution plan.
+  // TODO(crbug.com/40572659) This might need a better execution plan.
   task_queue_.AddTask(std::make_unique<PersistentPageConsistencyCheckTask>(
       store_.get(), archive_manager_.get(), now,
       base::BindOnce(

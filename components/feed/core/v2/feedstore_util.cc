@@ -4,6 +4,8 @@
 
 #include "components/feed/core/v2/feedstore_util.h"
 
+#include <string_view>
+
 #include "base/base64url.h"
 #include "base/hash/hash.h"
 #include "base/strings/strcat.h"
@@ -40,19 +42,23 @@ std::string StreamKey(const StreamType& stream_type) {
   }
 }
 
-base::StringPiece StreamPrefix(feed::StreamKind stream_kind) {
-  if (stream_kind == feed::StreamKind::kForYou)
-    return kForYouStreamKey;
-  if (stream_kind == feed::StreamKind::kFollowing)
-    return kFollowStreamKey;
-  DCHECK(stream_kind == feed::StreamKind::kSingleWebFeed);
-  return kSingleWebFeedStreamKeyPrefix;
+std::string_view StreamPrefix(feed::StreamKind stream_kind) {
+  switch (stream_kind) {
+    case feed::StreamKind::kForYou:
+      return kForYouStreamKey;
+    case feed::StreamKind::kFollowing:
+      return kFollowStreamKey;
+    case feed::StreamKind::kSingleWebFeed:
+      return kSingleWebFeedStreamKeyPrefix;
+    case feed::StreamKind::kUnknown:
+      NOTREACHED();
+  }
 }
 
 StreamType DecodeSingleWebFeedKeySuffix(
-    base::StringPiece suffix,
+    std::string_view suffix,
     feed::SingleWebFeedEntryPoint entry_point,
-    base::StringPiece prefix) {
+    std::string_view prefix) {
   if (base::StartsWith(suffix, prefix, base::CompareCase::SENSITIVE)) {
     suffix.remove_prefix(prefix.size());
     std::string single_web_feed_key;
@@ -66,7 +72,7 @@ StreamType DecodeSingleWebFeedKeySuffix(
   return {};
 }
 
-StreamType StreamTypeFromKey(base::StringPiece id) {
+StreamType StreamTypeFromKey(std::string_view id) {
   if (id == kForYouStreamKey)
     return StreamType(feed::StreamKind::kForYou);
   if (id == kFollowStreamKey)
@@ -78,7 +84,7 @@ StreamType StreamTypeFromKey(base::StringPiece id) {
       return {};
     }
     // add  +1 to account for the '/' separating the c/[mo]/webid
-    base::StringPiece substr =
+    std::string_view substr =
         id.substr(kSingleWebFeedStreamKeyPrefix.size() + 1);
     StreamType result = DecodeSingleWebFeedKeySuffix(
         substr, feed::SingleWebFeedEntryPoint::kMenu,
@@ -94,7 +100,7 @@ StreamType StreamTypeFromKey(base::StringPiece id) {
 }
 
 int64_t ToTimestampMillis(base::Time t) {
-  return (t - base::Time::UnixEpoch()).InMilliseconds();
+  return t.is_null() ? 0L : (t - base::Time::UnixEpoch()).InMilliseconds();
 }
 
 base::Time FromTimestampMillis(int64_t millis) {
@@ -102,7 +108,7 @@ base::Time FromTimestampMillis(int64_t millis) {
 }
 
 int64_t ToTimestampNanos(base::Time t) {
-  return (t - base::Time::UnixEpoch()).InNanoseconds();
+  return t.is_null() ? 0L : (t - base::Time::UnixEpoch()).InNanoseconds();
 }
 
 base::Time FromTimestampMicros(int64_t micros) {
@@ -141,7 +147,7 @@ void SetContentLifetime(
 }
 
 void MaybeUpdateSessionId(Metadata& metadata,
-                          absl::optional<std::string> token) {
+                          std::optional<std::string> token) {
   if (token && metadata.session_id().token() != *token) {
     base::Time expiry_time =
         token->empty()
@@ -151,7 +157,7 @@ void MaybeUpdateSessionId(Metadata& metadata,
   }
 }
 
-absl::optional<Metadata> MaybeUpdateConsistencyToken(
+std::optional<Metadata> MaybeUpdateConsistencyToken(
     const feedstore::Metadata& metadata,
     const feedwire::ConsistencyToken& token) {
   if (token.has_token() && metadata.consistency_token() != token.token()) {
@@ -159,7 +165,7 @@ absl::optional<Metadata> MaybeUpdateConsistencyToken(
     metadata_copy.set_consistency_token(token.token());
     return metadata_copy;
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 LocalActionId GetNextActionId(Metadata& metadata) {
@@ -232,11 +238,18 @@ feedstore::Metadata MakeMetadata(const std::string& gaia) {
   return md;
 }
 
-absl::optional<Metadata> SetStreamViewContentHashes(
+feedstore::DocView CreateDocView(uint64_t docid, base::Time timestamp) {
+  feedstore::DocView doc_view;
+  doc_view.set_docid(docid);
+  doc_view.set_view_time_millis(feedstore::ToTimestampMillis(timestamp));
+  return doc_view;
+}
+
+std::optional<Metadata> SetStreamViewContentHashes(
     const Metadata& metadata,
     const StreamType& stream_type,
     const feed::ContentHashSet& content_hashes) {
-  absl::optional<Metadata> result;
+  std::optional<Metadata> result;
   if (!(GetViewContentIds(metadata, stream_type) == content_hashes)) {
     result = metadata;
     SetStreamViewContentHashes(*result, stream_type, content_hashes);

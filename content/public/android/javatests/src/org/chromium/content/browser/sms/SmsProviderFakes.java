@@ -18,19 +18,16 @@ import com.google.android.gms.common.api.Status;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNIAdditionalImport;
-import org.chromium.base.annotations.JNINamespace;
 
 @JNINamespace("content")
-@JNIAdditionalImport(Wrappers.class)
 class SmsProviderFakes {
     private static final String TAG = "WebOTPService";
 
-    /**
-     * Fakes com.google.android.gms.auth.api.phone.SmsRetrieverClient.
-     **/
+    /** Fakes com.google.android.gms.auth.api.phone.SmsRetrieverClient. */
     static class FakeSmsRetrieverClient extends Wrappers.SmsRetrieverClientWrapper {
         @CalledByNative("FakeSmsRetrieverClient")
         private static FakeSmsRetrieverClient create() {
@@ -72,7 +69,8 @@ class SmsProviderFakes {
             try {
                 receiver.onConsentResult(Activity.RESULT_OK, intent);
             } catch (ClassCastException e) {
-                Log.v(TAG,
+                Log.v(
+                        TAG,
                         "FakeSmsUserConsentRetrieverClient.triggerUserConsentSms failed: "
                                 + "receiver must be an instance of SmsUserConsentReceiver");
             }
@@ -119,7 +117,8 @@ class SmsProviderFakes {
         private void triggerUserGrantsPermission(boolean isLocalRequest) {
             Wrappers.WebOTPServiceContext context = super.getContext();
             if (context == null) {
-                Log.v(TAG,
+                Log.v(
+                        TAG,
                         "FakeSmsRetrieverClient.triggerUserGrantsPermission failed: "
                                 + "no context was set");
                 return;
@@ -148,9 +147,11 @@ class SmsProviderFakes {
             } else if (type.equals("USER_PERMISSION_REQUIRED")) {
                 code = SmsRetrieverStatusCodes.USER_PERMISSION_REQUIRED;
             } else {
-                Log.v(TAG,
+                Log.v(
+                        TAG,
                         "FakeSmsRetrieverClient.triggerFailure failed:"
-                                + "invalid failure type " + type);
+                                + "invalid failure type "
+                                + type);
                 return;
             }
 

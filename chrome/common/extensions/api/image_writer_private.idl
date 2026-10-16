@@ -4,9 +4,6 @@
 
 // Use the <code>chrome.image_writer</code> API to write images to
 // removable media.
-//
-// See the design doc for a detailed description of this API.
-// https://goo.gl/KzMEFq
 namespace imageWriterPrivate {
   // The different stages of a write call.
   //
@@ -79,10 +76,11 @@ namespace imageWriterPrivate {
     // temporary directory is desired
     // |callback|: The callback which signifies that the write operation has
     // been started by the system and provides a unique ID for this operation.
-    static void writeFromUrl(DOMString storageUnitId,
-                             DOMString imageUrl,
-                             optional UrlWriteOptions options,
-                             WriteImageCallback callback);
+    static void writeFromUrl(
+        DOMString storageUnitId,
+        DOMString imageUrl,
+        optional UrlWriteOptions options,
+        WriteImageCallback callback);
 
     // Write an image to the disk, prompting the user to supply the image from
     // a local file.  The callback will be called when the entire operation
@@ -92,9 +90,10 @@ namespace imageWriterPrivate {
     // |fileEntry|: The FileEntry object of the image to be burned.
     // |callback|: The callback which signifies that the write operation has
     // been started by the system and provides a unique ID for this operation.
-    static void writeFromFile(DOMString storageUnitId,
-                              [instanceOf=FileEntry] object fileEntry,
-                              WriteImageCallback callback);
+    static void writeFromFile(
+        DOMString storageUnitId,
+        [instanceOf=FileEntry] object fileEntry,
+        WriteImageCallback callback);
 
     // Cancel a current write operation.
     //
@@ -110,8 +109,9 @@ namespace imageWriterPrivate {
     // |storageUnitId|: The identifier of the storage unit to wipe
     // |callback|: A callback that triggers when the operation has been
     // successfully started.
-    static void destroyPartitions(DOMString storageUnitId,
-                                  DestroyPartitionsCallback callback);
+    static void destroyPartitions(
+        DOMString storageUnitId,
+        DestroyPartitionsCallback callback);
 
     // List all the removable block devices currently attached to the system.
     // |callback|: A callback called with a list of removable storage devices
@@ -140,4 +140,3 @@ namespace imageWriterPrivate {
   };
 
 };
-

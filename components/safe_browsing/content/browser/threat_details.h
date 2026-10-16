@@ -12,6 +12,7 @@
 // is shown (SafeBrowsingBlockingPage).
 
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -23,8 +24,11 @@
 #include "components/safe_browsing/content/browser/web_contents_key.h"
 #include "components/safe_browsing/content/common/safe_browsing.mojom.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
+#include "components/security_interstitials/core/base_safe_browsing_error_ui.h"
+#include "components/security_interstitials/core/controller_client.h"
 #include "components/security_interstitials/core/unsafe_resource.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/frame_tree_node_id.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
@@ -64,12 +68,13 @@ using ElementMap =
 
 // Maps the key of an iframe element to the FrameTreeNode ID of the frame that
 // rendered the contents of the iframe.
-using KeyToFrameTreeIdMap = std::unordered_map<std::string, int>;
+using KeyToFrameTreeIdMap =
+    std::unordered_map<std::string, content::FrameTreeNodeId>;
 
 // Maps a FrameTreeNode ID of a frame to a set of child IDs. The child IDs are
 // the Element IDs of the top-level HTML Elements in this frame.
 using FrameTreeIdToChildIdsMap =
-    std::unordered_map<int, std::unordered_set<int>>;
+    std::unordered_map<content::FrameTreeNodeId, std::unordered_set<int>>;
 
 // Callback used to notify a caller that ThreatDetails has finished creating and
 // sending a report.
@@ -107,9 +112,22 @@ class ThreatDetails {
   // in UI thread; then do cache collection back in IO thread. We also record
   // if the user did proceed with the warning page, and how many times user
   // visited this page before. When we are done, we send the report.
-  virtual void FinishCollection(bool did_proceed, int num_visits);
+  virtual void FinishCollection(
+      bool did_proceed,
+      int num_visits,
+      std::unique_ptr<security_interstitials::InterstitialInteractionMap>
+          interstitial_interactions,
+      std::optional<int64_t> warning_shown_ts = std::nullopt);
 
   void OnCacheCollectionReady();
+
+  void SetIsHatsCandidate(bool is_hats_candidate) {
+    is_hats_candidate_ = is_hats_candidate;
+  }
+
+  void SetShouldSendReport(bool should_send_report) {
+    should_send_report_ = should_send_report;
+  }
 
   // Overridden during tests
   virtual void OnRedirectionCollectionReady();
@@ -134,7 +152,7 @@ class ThreatDetails {
   // Default constructor for testing only.
   ThreatDetails();
 
-  virtual void AddDOMDetails(const int frame_tree_node_id,
+  virtual void AddDOMDetails(const content::FrameTreeNodeId frame_tree_node_id,
                              std::vector<mojom::ThreatDOMDetailsNodePtr> params,
                              const KeyToFrameTreeIdMap& child_frame_tree_map);
 
@@ -185,18 +203,35 @@ class ThreatDetails {
   // frame. |attributes| contains the names and values of the element's
   // attributes. |inner_html| is set if the element contains inline JavaScript.
   // |resource| is set if this element is a resource.
-  void AddDomElement(const int frame_tree_node_id,
-                     const int element_node_id,
+  void AddDomElement(const content::FrameTreeNodeId frame_tree_node_id,
+                     const content::FrameTreeNodeId element_node_id,
                      const std::string& tag_name,
-                     const int parent_element_node_id,
+                     const content::FrameTreeNodeId parent_element_node_id,
                      const std::vector<mojom::AttributeNameValuePtr> attributes,
                      const std::string& inner_html,
                      const ClientSafeBrowsingReportRequest::Resource* resource);
 
-  // Populates the referrer chain data in |report_|. This may be skipped if the
-  // referrer chain provider isn't available, or the type of report doesn't
-  // include the referrer chain.
-  void MaybeFillReferrerChain();
+  // Indicates whether the ReferrerChain should be populated for being sent to
+  // Safe Browsing.
+  bool ShouldFillReferrerChain();
+
+  // Populates the referrer chain data in |out_referrer_chain|.
+  void FillReferrerChain(google::protobuf::RepeatedPtrField<ReferrerChainEntry>*
+                             out_referrer_chain);
+
+  // Indicates whether the InterstitialInteractions should be populated for
+  // being sent to Safe Browsing.
+  bool ShouldFillInterstitialInteractions();
+
+  // Populates interstitial interactions in |out_interstitial_interactions|.
+  void FillInterstitialInteractions(
+      google::protobuf::RepeatedPtrField<
+          ClientSafeBrowsingReportRequest::InterstitialInteraction>*
+          out_interstitial_interactions);
+
+  // Populates CSBRR fields to be included as Product Specific Data for
+  // a HaTS survey response if the user is a HaTS candidate.
+  void MaybeAttachThreatDetailsAndLaunchSurvey();
 
   // Called when the report is complete. Runs |done_callback_|.
   void AllDone();
@@ -245,6 +280,13 @@ class ThreatDetails {
   // How many times this user has visited this page before.
   int num_visits_;
 
+  // Interactions the user had with the interstitial.
+  std::unique_ptr<security_interstitials::InterstitialInteractionMap>
+      interstitial_interactions_;
+
+  // Timestamp of when the warning was shown to the user.
+  std::optional<int64_t> warning_shown_ts_;
+
   // Whether this report should be trimmed down to only ad tags, not the entire
   // page contents. Used for sampling ads.
   bool trim_to_ad_tags_;
@@ -275,6 +317,13 @@ class ThreatDetails {
   // Whether the |done_callback_| has been invoked.
   bool is_all_done_;
 
+  // Whether this ThreatDetails should be included as Product Specific Data as
+  // part of a HaTS survey response.
+  bool is_hats_candidate_;
+
+  // Whether ThreatDetails should be sent to Safe Browsing.
+  bool should_send_report_;
+
   // Used for references to |this| bound in callbacks.
   base::WeakPtrFactory<ThreatDetails> weak_factory_{this};
 
@@ -294,7 +343,7 @@ class ThreatDetails {
 // Factory for creating ThreatDetails.  Useful for tests.
 class ThreatDetailsFactory {
  public:
-  virtual ~ThreatDetailsFactory() {}
+  virtual ~ThreatDetailsFactory() = default;
 
   virtual std::unique_ptr<ThreatDetails> CreateThreatDetails(
       BaseUIManager* ui_manager,

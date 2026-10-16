@@ -61,10 +61,12 @@ class CodeGenContext(object):
     # void (*)(v8::Local<v8::Name>, v8::Local<v8::Value>,
     #          const v8::PropertyCallbackInfo<void>&)
     V8_ACCESSOR_NAME_SETTER_CALLBACK = "v8::AccessorNameSetterCallback"
-    # void (*)(v8::Local<v8::Name>, v8::Local<v8::Value>,
-    #          const v8::PropertyCallbackInfo<v8::Value>&)
-    V8_GENERIC_NAMED_PROPERTY_SETTER_CALLBACK = (
-        "v8::GenericNamedPropertySetterCallback")
+    # v8::Intercepted (*)(v8::Local<v8::Name>,
+    #                     const v8::PropertyCallbackInfo<v8::Value>&)
+    V8_NAMED_PROPERTY_GETTER_CALLBACK = "v8::NamedPropertyGetterCallback"
+    # v8::Intercepted (*)(v8::Local<v8::Name>, v8::Local<v8::Value>,
+    #                     const v8::PropertyCallbackInfo<void>&)
+    V8_NAMED_PROPERTY_SETTER_CALLBACK = "v8::NamedPropertySetterCallback"
     # Others
     V8_OTHER_CALLBACK = "other callback type"
 
@@ -78,6 +80,7 @@ class CodeGenContext(object):
         #   attribute name: default value
         cls._context_attrs = {
             # Top-level definition
+            "async_iterator": None,
             "callback_function": None,
             "callback_interface": None,
             "dictionary": None,
@@ -98,14 +101,16 @@ class CodeGenContext(object):
             "constructor_group": None,
             "dict_member": None,
             "exposed_construct": None,
-            "is_named_constructor": False,
+            "is_legacy_factory_function": False,
             "legacy_window_alias": None,
             "operation": None,
             "operation_group": None,
 
             # Special member-ish definition
+            "indexed_interceptor_kind": None,
             "indexed_property_getter": None,
             "indexed_property_setter": None,
+            "named_interceptor_kind": None,
             "named_property_getter": None,
             "named_property_setter": None,
             "named_property_deleter": None,
@@ -132,9 +137,6 @@ class CodeGenContext(object):
 
             # True when generating a callback of [NoAllocDirectCall].
             "no_alloc_direct_call": False,
-            # True when generating a (fake) callback of [NoAllocDirectCall] for
-            # testing.
-            "no_alloc_direct_call_for_testing": False,
 
             # Type of V8 callback function which implements IDL attribute,
             # IDL operation, etc.
@@ -230,8 +232,9 @@ class CodeGenContext(object):
 
     @property
     def class_like(self):
-        return (self.callback_interface or self.dictionary or self.interface
-                or self.namespace or self.sync_iterator)
+        return (self.async_iterator or self.callback_interface
+                or self.dictionary or self.interface or self.namespace
+                or self.sync_iterator)
 
     @property
     def does_override_idl_return_type(self):
@@ -285,6 +288,17 @@ class CodeGenContext(object):
         if self.operation_group:
             return self.operation_group[0].return_type.unwrap().is_promise
         return False
+
+    @property
+    def is_interceptor_returning_v8intercepted(self):
+        return bool((self.indexed_interceptor_kind
+                     and self.indexed_interceptor_kind != "Enumerator")
+                    or (self.named_interceptor_kind
+                        and self.named_interceptor_kind != "Enumerator")
+                    or (self.v8_callback_type
+                        == CodeGenContext.V8_NAMED_PROPERTY_GETTER_CALLBACK)
+                    or (self.v8_callback_type
+                        == CodeGenContext.V8_NAMED_PROPERTY_SETTER_CALLBACK))
 
     @property
     def logging_target(self):

@@ -1,2 +1,2 @@
-android.webkit.WebView focusable focused scrollable
-++android.widget.TextView name='content'
+android.webkit.WebView focusable focused
+++android.widget.TextView interesting name='content'

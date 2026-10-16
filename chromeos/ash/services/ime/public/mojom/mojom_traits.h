@@ -5,6 +5,10 @@
 #ifndef CHROMEOS_ASH_SERVICES_IME_PUBLIC_MOJOM_MOJOM_TRAITS_H_
 #define CHROMEOS_ASH_SERVICES_IME_PUBLIC_MOJOM_MOJOM_TRAITS_H_
 
+#include <string_view>
+
+#include "base/metrics/histogram.h"
+#include "base/notreached.h"
 #include "chromeos/ash/services/ime/public/cpp/assistive_suggestions.h"
 #include "chromeos/ash/services/ime/public/cpp/autocorrect.h"
 #include "chromeos/ash/services/ime/public/mojom/input_method_host.mojom-shared.h"
@@ -58,6 +62,26 @@ struct StructTraits<ash::ime::mojom::SuggestionCandidateDataView,
 
   static bool Read(SuggestionCandidateDataView input,
                    AssistiveSuggestion* output);
+};
+
+template <>
+struct StructTraits<ash::ime::mojom::SuggestionsTextContextDataView,
+                    ash::ime::SuggestionsTextContext> {
+  using SuggestionsTextContextDataView =
+      ::ash::ime::mojom::SuggestionsTextContextDataView;
+  using SuggestionsTextContext = ::ash::ime::SuggestionsTextContext;
+
+  static const std::string& last_n_chars(
+      const SuggestionsTextContext& context) {
+    return context.last_n_chars;
+  }
+
+  static size_t surrounding_text_length(const SuggestionsTextContext& context) {
+    return context.surrounding_text_length;
+  }
+
+  static bool Read(SuggestionsTextContextDataView input,
+                   SuggestionsTextContext* output);
 };
 
 template <>

@@ -7,14 +7,14 @@
 
 #include "base/memory/raw_ptr.h"
 #include "ui/base/glib/glib_integers.h"
-#include "ui/base/glib/glib_signal.h"
+#include "ui/base/glib/scoped_gsignal.h"
 #include "ui/gtk/gtk_compat.h"
 
 namespace gtk {
 
 class GtkEventLoopX11 {
  public:
-  explicit GtkEventLoopX11(GtkWidget* widget);
+  GtkEventLoopX11();
   ~GtkEventLoopX11();
 
   GtkEventLoopX11(const GtkEventLoopX11&) = delete;
@@ -22,14 +22,13 @@ class GtkEventLoopX11 {
 
  private:
   // This state is only used on GTK4.
-  raw_ptr<GdkSurface> surface_ = nullptr;
-  gulong signal_id_ = 0;
+  ScopedGSignal signal_;
 
   // Only called on GTK3.
   static void DispatchGdkEvent(GdkEvent* gdk_event, gpointer);
 
   // Only called on GTK4.
-  CHROMEG_CALLBACK_0(GtkEventLoopX11, gboolean, OnEvent, GdkEvent*);
+  gboolean OnEvent(GdkSurface* surface, GdkEvent* event);
 };
 
 }  // namespace gtk

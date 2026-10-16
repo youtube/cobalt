@@ -4,17 +4,20 @@
 
 #include "chrome/browser/ash/file_suggest/local_file_suggestion_provider.h"
 
+#include <algorithm>
+#include <optional>
 #include <vector>
 
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/app_list/search/files/justifications.h"
 #include "chrome/browser/ash/app_list/search/ranking/util.h"
 #include "chrome/browser/ash/app_list/search/util/mrfu_cache.h"
+#include "chrome/browser/ash/file_manager/file_tasks_notifier_factory.h"
+#include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/file_manager/trash_common_util.h"
 #include "chrome/browser/ash/file_suggest/file_suggest_util.h"
 #include "chrome/browser/ash/file_suggest/file_suggestion_provider.h"
@@ -50,10 +53,10 @@ ValidateFiles(const std::vector<std::pair<std::string, float>>& ranker_results,
     const auto& path = base::FilePath::FromUTF8Unsafe(path_score.first);
 
     // Exclude any paths that are parented at an enabled trash location.
-    if (base::ranges::any_of(trash_paths,
-                             [&path](const base::FilePath& trash_path) {
-                               return trash_path.IsParent(path);
-                             })) {
+    if (std::ranges::any_of(trash_paths,
+                            [&path](const base::FilePath& trash_path) {
+                              return trash_path.IsParent(path);
+                            })) {
       invalid_results.emplace_back(path);
       continue;
     }
@@ -77,7 +80,7 @@ LocalFileSuggestionProvider::LocalFileSuggestionProvider(
     base::RepeatingCallback<void(FileSuggestionType)> notify_update_callback)
     : FileSuggestionProvider(notify_update_callback),
       profile_(profile),
-      max_last_modified_time_(base::Days(kDefaultMaxLastModifiedTimeInDays)) {
+      max_last_modified_time_(GetMaxFileSuggestionRecency()) {
   DCHECK(profile_);
 
   task_runner_ = base::ThreadPool::CreateSequencedTaskRunner(
@@ -85,7 +88,8 @@ LocalFileSuggestionProvider::LocalFileSuggestionProvider(
        base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
 
   auto* notifier =
-      file_manager::file_tasks::FileTasksNotifier::GetForProfile(profile);
+      file_manager::file_tasks::FileTasksNotifierFactory::GetForProfile(
+          profile);
 
   if (notifier) {
     file_tasks_observer_.Observe(notifier);
@@ -99,9 +103,13 @@ LocalFileSuggestionProvider::LocalFileSuggestionProvider(
         app_list::RankerStateDirectory(profile).AppendASCII(
             "zero_state_local_files.pb"),
         kSaveDelay);
-    proto.RegisterOnRead(
+
+    // `proto` is owned by `files_ranker_` which is a class member so it is safe
+    // to call `RegisterOnInitUnsafe()`.
+    proto.RegisterOnInitUnsafe(
         base::BindOnce(&LocalFileSuggestionProvider::OnProtoInitialized,
                        base::Unretained(this)));
+
     files_ranker_ =
         std::make_unique<app_list::MrfuCache>(std::move(proto), params);
   }
@@ -116,7 +124,7 @@ bool LocalFileSuggestionProvider::IsInitialized() const {
 void LocalFileSuggestionProvider::GetSuggestFileData(
     GetSuggestFileDataCallback callback) {
   if (!files_ranker_ || !files_ranker_->initialized()) {
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
     return;
   }
 
@@ -131,8 +139,7 @@ void LocalFileSuggestionProvider::GetSuggestFileData(
   // to enable unit tests to mock out the trash paths appropriately.
   if (trash_paths_.empty()) {
     auto enabled_trash_locations =
-        file_manager::trash::GenerateEnabledTrashLocationsForProfile(
-            profile_, /*base_path=*/base::FilePath());
+        file_manager::trash::GenerateEnabledTrashLocationsForProfile(profile_);
     for (const auto& it : enabled_trash_locations) {
       trash_paths_.emplace_back(
           it.first.Append(it.second.relative_folder_path));
@@ -148,6 +155,11 @@ void LocalFileSuggestionProvider::GetSuggestFileData(
                           : std::vector<base::FilePath>())),
       base::BindOnce(&LocalFileSuggestionProvider::OnValidationComplete,
                      weak_factory_.GetWeakPtr()));
+}
+
+void LocalFileSuggestionProvider::MaybeUpdateItemSuggestCache(
+    base::PassKey<FileSuggestKeyedService>) {
+  NOTREACHED();
 }
 
 void LocalFileSuggestionProvider::OnFilesOpened(
@@ -168,7 +180,11 @@ void LocalFileSuggestionProvider::OnFilesOpened(
     // 2. The open relates to a Drive file, which is handled by another
     // provider. Filter this out by checking if the file resides in the user's
     // cryptohome.
-    if (!profile_path.AppendRelativePath(file_open.path, nullptr)) {
+    if (!profile_path.IsParent(file_open.path) &&
+        !file_manager::util::GetMyFilesFolderForProfile(profile_).IsParent(
+            file_open.path) &&
+        !file_manager::util::GetDownloadsFolderForProfile(profile_).IsParent(
+            file_open.path)) {
       continue;
     }
 
@@ -184,13 +200,7 @@ void LocalFileSuggestionProvider::OnFilesOpened(
   }
 }
 
-bool LocalFileSuggestionProvider::HasPendingLocalSuggestionFetchForTest()
-    const {
-  return !on_validation_complete_callback_list_.empty();
-}
-
-void LocalFileSuggestionProvider::OnProtoInitialized(
-    app_list::ReadStatus status) {
+void LocalFileSuggestionProvider::OnProtoInitialized() {
   NotifySuggestionUpdate(FileSuggestionType::kLocalFile);
 }
 
@@ -204,11 +214,25 @@ void LocalFileSuggestionProvider::OnValidationComplete(
 
   std::vector<FileSuggestData> final_results;
   for (auto& result : results.first) {
-    final_results.emplace_back(
-        FileSuggestionType::kLocalFile, result.path,
-        app_list::GetJustificationString(result.info.last_accessed,
-                                         result.info.last_modified),
-        result.score);
+    std::optional<std::u16string> justification_string;
+    if (result.info.last_accessed > result.info.last_modified) {
+      justification_string = app_list::GetJustificationString(
+          FileSuggestionJustificationType::kViewed, result.info.last_accessed,
+          /*user_name=*/"");
+    } else {
+      justification_string = app_list::GetJustificationString(
+          FileSuggestionJustificationType::kModifiedByCurrentUser,
+          result.info.last_modified,
+          /*user_name=*/"");
+    }
+
+    final_results.emplace_back(FileSuggestionType::kLocalFile, result.path,
+                               /*title=*/std::nullopt, justification_string,
+                               /*modified_time=*/result.info.last_modified,
+                               /*viewed_time=*/result.info.last_accessed,
+                               /*shared_time=*/std::nullopt, result.score,
+                               /*drive_file_id=*/std::nullopt,
+                               /*icon_url=*/std::nullopt);
   }
 
   // Sort valid results high-to-low by score.

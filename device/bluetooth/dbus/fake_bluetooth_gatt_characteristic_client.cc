@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "device/bluetooth/dbus/fake_bluetooth_gatt_characteristic_client.h"
 
 #include <memory>
 
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -170,8 +176,7 @@ void FakeBluetoothGattCharacteristicClient::ReadValue(
     return;
   }
 
-  if (action_extra_requests_.find("ReadValue") !=
-      action_extra_requests_.end()) {
+  if (base::Contains(action_extra_requests_, "ReadValue")) {
     DelayedCallback* delayed = action_extra_requests_["ReadValue"];
     delayed->delay_--;
     std::move(error_callback)
@@ -208,8 +213,8 @@ void FakeBluetoothGattCharacteristicClient::ReadValue(
 
 void FakeBluetoothGattCharacteristicClient::WriteValue(
     const dbus::ObjectPath& object_path,
-    const std::vector<uint8_t>& value,
-    base::StringPiece type_option,
+    base::span<const uint8_t> value,
+    std::string_view type_option,
     base::OnceClosure callback,
     ErrorCallback error_callback) {
   if (!authenticated_) {
@@ -244,8 +249,7 @@ void FakeBluetoothGattCharacteristicClient::WriteValue(
   }
 
   DCHECK(heart_rate_control_point_properties_.get());
-  if (action_extra_requests_.find("WriteValue") !=
-      action_extra_requests_.end()) {
+  if (base::Contains(action_extra_requests_, "WriteValue")) {
     DelayedCallback* delayed = action_extra_requests_["WriteValue"];
     delayed->delay_--;
     std::move(error_callback)
@@ -285,7 +289,7 @@ void FakeBluetoothGattCharacteristicClient::WriteValue(
 
 void FakeBluetoothGattCharacteristicClient::PrepareWriteValue(
     const dbus::ObjectPath& object_path,
-    const std::vector<uint8_t>& value,
+    base::span<const uint8_t> value,
     base::OnceClosure callback,
     ErrorCallback error_callback) {
   if (!authenticated_) {
@@ -573,7 +577,7 @@ void FakeBluetoothGattCharacteristicClient::DelayedReadValueCallback(
   DCHECK(properties);
 
   properties->value.ReplaceValue(value);
-  std::move(callback).Run(/*error_code=*/absl::nullopt, value);
+  std::move(callback).Run(/*error_code=*/std::nullopt, value);
 }
 
 std::vector<uint8_t>

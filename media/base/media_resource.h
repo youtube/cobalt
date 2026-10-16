@@ -7,26 +7,25 @@
 
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_export.h"
-#include "media/base/media_url_params.h"
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/eme_constants.h"
+#include "url/gurl.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
 
 // Abstract class that defines how to retrieve "media resources" in
-// DemuxerStream form (for most cases) or URL form (for the MediaPlayerRenderer
-// case).
+// DemuxerStream form.
 //
 // The derived classes must return a non-null value for the getter method
 // associated with their type, and return a null/empty value for other getters.
 class MEDIA_EXPORT MediaResource {
  public:
-  enum Type {
-    STREAM,  // Indicates GetAllStreams() or GetFirstStream() should be used
-    URL,     // Indicates GetUrl() should be used
-  };
-
   MediaResource();
 
   MediaResource(const MediaResource&) = delete;
@@ -34,9 +33,6 @@ class MEDIA_EXPORT MediaResource {
 
   virtual ~MediaResource();
 
-  virtual MediaResource::Type GetType() const;
-
-  // For Type::STREAM:
   // Returns a collection of available DemuxerStream objects.
   //   NOTE: Once a DemuxerStream pointer is returned from GetStream it is
   //   guaranteed to stay valid for as long as the Demuxer/MediaResource
@@ -51,19 +47,22 @@ class MEDIA_EXPORT MediaResource {
   // exists or a null pointer if there is no streams of that type.
   DemuxerStream* GetFirstStream(DemuxerStream::Type type);
 
-  // For Type::URL:
-  //   Returns the URL parameters of the media to play. Empty URLs are legal,
-  //   and should be handled appropriately by the caller.
-  // Other types:
-  //   Should not be called.
-  virtual const MediaUrlParams& GetMediaUrlParams() const;
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Returns the media URL for URL player.
+  virtual GURL GetMediaUrl() const;
 
-  // This method is only used with the MediaUrlDemuxer, to propagate duration
-  // changes coming from the MediaPlayerRendereClient.
-  //
-  // This method could be refactored if WMPI was aware of the concrete type of
-  // Demuxer* it is dealing with.
+  // Forwards duration change to DemuxerHost.
   virtual void ForwardDurationChangeToDemuxerHost(base::TimeDelta duration);
+
+  // Forwards buffered ranges to DemuxerHost.
+  virtual void ForwardBufferedTimeRangesToDemuxerHost(base::TimeDelta start,
+                                                      base::TimeDelta length);
+
+  // Forwards encrypted init data to fire the EME `encrypted` event.
+  virtual void ForwardEncryptedMediaInitData(
+      EmeInitDataType init_data_type,
+      const std::vector<uint8_t>& init_data);
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

@@ -25,7 +25,6 @@ struct EnumTraits<gl::mojom::GpuPreference, gl::GpuPreference> {
         return gl::mojom::GpuPreference::kHighPerformance;
     }
     NOTREACHED();
-    return gl::mojom::GpuPreference::kDefault;
   }
 
   static bool FromMojom(gl::mojom::GpuPreference input,
@@ -45,7 +44,6 @@ struct EnumTraits<gl::mojom::GpuPreference, gl::GpuPreference> {
         return true;
     }
     NOTREACHED();
-    return false;
   }
 };
 

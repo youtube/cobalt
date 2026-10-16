@@ -77,9 +77,8 @@ void RemoveUnderAnonThreshold(uint32_t min_size_kb, std::set<pid_t>* pids) {
       rss_and_swap = GetRssAnonAndSwap(*status);
 
     if (rss_and_swap && rss_and_swap < min_size_kb) {
-      PERFETTO_LOG("Removing pid %d from profiled set (anon: %d kB < %" PRIu32
-                   ")",
-                   pid, *rss_and_swap, min_size_kb);
+      PERFETTO_LOG("Removing pid %d from profiled set (anon: %u kB < %u)", pid,
+                   *rss_and_swap, min_size_kb);
       it = pids->erase(it);
     } else {
       ++it;
@@ -168,7 +167,7 @@ std::optional<std::vector<std::string>> NormalizeCmdlines(
 }
 
 // This is mostly the same as GetHeapprofdProgramProperty in
-// https://android.googlesource.com/platform/bionic/+/master/libc/bionic/malloc_common.cpp
+// https://android.googlesource.com/platform/bionic/+/main/libc/bionic/malloc_common.cpp
 // This should give the same result as GetHeapprofdProgramProperty.
 bool GetCmdlineForPID(pid_t pid, std::string* name) {
   std::string filename = "/proc/" + std::to_string(pid) + "/cmdline";

@@ -23,6 +23,7 @@ package build.android.unused_resources;
 
 import static com.android.ide.common.symbols.SymbolIo.readFromAapt;
 import static com.android.utils.SdkUtils.endsWithIgnoreCase;
+
 import static com.google.common.base.Charsets.UTF_8;
 
 import com.android.ide.common.resources.usage.ResourceUsageModel;
@@ -39,6 +40,7 @@ import com.android.tools.r8.ResourceShrinker.Command;
 import com.android.tools.r8.ResourceShrinker.ReferenceChecker;
 import com.android.tools.r8.origin.PathOrigin;
 import com.android.utils.XmlUtils;
+
 import com.google.common.base.Charsets;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteStreams;
@@ -194,6 +196,11 @@ public class UnusedResources {
         StringBuilder sb = new StringBuilder();
         Collections.sort(mUnused);
         for (Resource resource : mUnused) {
+            if (resource.type.isSynthetic()) {
+                // Ignore synthetic resources like overlayable or macro that are
+                // not actually listed in the ResourceTable.
+                continue;
+            }
             sb.append(resource.type + "/" + resource.name + "#remove\n");
         }
         Files.asCharSink(destinationFile, UTF_8).write(sb.toString());
@@ -202,6 +209,12 @@ public class UnusedResources {
     private void dumpReferences() {
         if (mDebugPrinter != null) {
             mDebugPrinter.print(mModel.dumpReferences());
+        }
+    }
+
+    private void dumpModel() {
+        if (mDebugPrinter != null) {
+            mDebugPrinter.print(mModel.dumpResourceModel());
         }
     }
 
@@ -300,7 +313,8 @@ public class UnusedResources {
                         || line.startsWith("android.support.v7.widget.ResourcesWrapper ")
                         || (mResourcesWrapper == null // Recently wrapper moved
                                 && line.startsWith(
-                                        "android.support.v7.widget.TintContextWrapper$TintResources "))) {
+                                        "android.support.v7.widget.TintContextWrapper$TintResources"
+                                                + " "))) {
                     mResourcesWrapper =
                             line.substring(line.indexOf(arrowString) + arrowString.length(),
                                         line.indexOf(':') != -1 ? line.indexOf(':') : line.length())
@@ -567,6 +581,12 @@ public class UnusedResources {
         }
     }
 
+    private static List<File> parsePathsFromFile(String path) throws IOException {
+        return java.nio.file.Files.readAllLines(new File(path).toPath()).stream()
+                .map(File::new)
+                .collect(Collectors.toList());
+    }
+
     public static void main(String[] args) throws Exception {
         List<File> rTxtFiles = null; // R.txt files
         List<File> classes = null; // Dex/jar w dex
@@ -583,22 +603,16 @@ public class UnusedResources {
                                         .collect(Collectors.toList());
                     break;
                 case "--dexes":
-                    classes = Arrays.stream(args[i + 1].split(":"))
-                                      .map(s -> new File(s))
-                                      .collect(Collectors.toList());
+                    classes = parsePathsFromFile(args[i + 1]);
                     break;
                 case "--manifests":
-                    manifests = Arrays.stream(args[i + 1].split(":"))
-                                        .map(s -> new File(s))
-                                        .collect(Collectors.toList());
+                    manifests = parsePathsFromFile(args[i + 1]);
                     break;
                 case "--mapping":
                     mapping = new File(args[i + 1]);
                     break;
                 case "--resourceDirs":
-                    resources = Arrays.stream(args[i + 1].split(":"))
-                                        .map(s -> new File(s))
-                                        .collect(Collectors.toList());
+                    resources = parsePathsFromFile(args[i + 1]);
                     break;
                 case "--log":
                     log = new File(args[i + 1]);

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/spellchecker/spellcheck_service.h"
 
+#include <optional>
 #include <ostream>
 
 #include "base/command_line.h"
@@ -26,7 +27,6 @@
 #include "components/user_prefs/user_prefs.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 struct TestCase {
   TestCase(
@@ -47,7 +47,7 @@ struct TestCase {
     }
   }
 
-  ~TestCase() {}
+  ~TestCase() = default;
 
   std::string accept_languages;
   std::vector<std::string> spellcheck_dictionaries;

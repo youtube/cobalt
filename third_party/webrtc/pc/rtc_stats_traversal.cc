@@ -11,10 +11,14 @@
 #include "pc/rtc_stats_traversal.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "api/scoped_refptr.h"
+#include "api/stats/rtc_stats.h"
+#include "api/stats/rtc_stats_report.h"
 #include "api/stats/rtcstats_objects.h"
 #include "rtc_base/checks.h"
 
@@ -42,26 +46,18 @@ void TraverseAndTakeVisitedStats(RTCStatsReport* report,
   }
 }
 
-void AddIdIfDefined(const RTCStatsMember<std::string>& id,
+void AddIdIfDefined(const std::optional<std::string>& id,
                     std::vector<const std::string*>* neighbor_ids) {
-  if (id.is_defined())
+  if (id.has_value())
     neighbor_ids->push_back(&(*id));
-}
-
-void AddIdsIfDefined(const RTCStatsMember<std::vector<std::string>>& ids,
-                     std::vector<const std::string*>* neighbor_ids) {
-  if (ids.is_defined()) {
-    for (const std::string& id : *ids)
-      neighbor_ids->push_back(&id);
-  }
 }
 
 }  // namespace
 
-rtc::scoped_refptr<RTCStatsReport> TakeReferencedStats(
-    rtc::scoped_refptr<RTCStatsReport> report,
+scoped_refptr<RTCStatsReport> TakeReferencedStats(
+    scoped_refptr<RTCStatsReport> report,
     const std::vector<std::string>& ids) {
-  rtc::scoped_refptr<RTCStatsReport> result =
+  scoped_refptr<RTCStatsReport> result =
       RTCStatsReport::Create(report->timestamp());
   for (const auto& id : ids) {
     TraverseAndTakeVisitedStats(report.get(), result.get(), id);
@@ -91,21 +87,12 @@ std::vector<const std::string*> GetStatsReferencedIds(const RTCStats& stats) {
     const auto& local_or_remote_candidate =
         static_cast<const RTCIceCandidateStats&>(stats);
     AddIdIfDefined(local_or_remote_candidate.transport_id, &neighbor_ids);
-  } else if (type == DEPRECATED_RTCMediaStreamStats::kType) {
-    const auto& stream =
-        static_cast<const DEPRECATED_RTCMediaStreamStats&>(stats);
-    AddIdsIfDefined(stream.track_ids, &neighbor_ids);
-  } else if (type == DEPRECATED_RTCMediaStreamTrackStats::kType) {
-    const auto& track =
-        static_cast<const DEPRECATED_RTCMediaStreamTrackStats&>(stats);
-    AddIdIfDefined(track.media_source_id, &neighbor_ids);
   } else if (type == RTCPeerConnectionStats::kType) {
     // RTCPeerConnectionStats does not have any neighbor references.
   } else if (type == RTCInboundRtpStreamStats::kType) {
     const auto& inbound_rtp =
         static_cast<const RTCInboundRtpStreamStats&>(stats);
     AddIdIfDefined(inbound_rtp.remote_id, &neighbor_ids);
-    AddIdIfDefined(inbound_rtp.track_id, &neighbor_ids);
     AddIdIfDefined(inbound_rtp.transport_id, &neighbor_ids);
     AddIdIfDefined(inbound_rtp.codec_id, &neighbor_ids);
     AddIdIfDefined(inbound_rtp.playout_id, &neighbor_ids);
@@ -113,7 +100,6 @@ std::vector<const std::string*> GetStatsReferencedIds(const RTCStats& stats) {
     const auto& outbound_rtp =
         static_cast<const RTCOutboundRtpStreamStats&>(stats);
     AddIdIfDefined(outbound_rtp.remote_id, &neighbor_ids);
-    AddIdIfDefined(outbound_rtp.track_id, &neighbor_ids);
     AddIdIfDefined(outbound_rtp.transport_id, &neighbor_ids);
     AddIdIfDefined(outbound_rtp.codec_id, &neighbor_ids);
     AddIdIfDefined(outbound_rtp.media_source_id, &neighbor_ids);
@@ -127,7 +113,6 @@ std::vector<const std::string*> GetStatsReferencedIds(const RTCStats& stats) {
     const auto& remote_outbound_rtp =
         static_cast<const RTCRemoteOutboundRtpStreamStats&>(stats);
     // Inherited from `RTCRTPStreamStats`.
-    AddIdIfDefined(remote_outbound_rtp.track_id, &neighbor_ids);
     AddIdIfDefined(remote_outbound_rtp.transport_id, &neighbor_ids);
     AddIdIfDefined(remote_outbound_rtp.codec_id, &neighbor_ids);
     // Direct members of `RTCRemoteOutboundRtpStreamStats`.

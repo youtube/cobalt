@@ -3,8 +3,13 @@
   "platforms": [
     "evergreen-arm64"
   ],
+  "test_package": true,
   "targets": [
-    "cobalt"
+    "cobalt",
+    "cobalt_loaded_content",
+    "crash_sandbox_loaded_content",
+    "noop_sandbox_loaded_content",
+    "one_app_only_sandbox_loaded_content"
   ],
   "build_configs": [
     "debug",
@@ -15,8 +20,7 @@
   "includes": [
     {
       "name": "arm64",
-      "platform": "evergreen-arm64",
-      "sb_api_version": 17
+      "platform": "evergreen-arm64"
     }
   ]
 }

@@ -7,28 +7,126 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
-#include "components/content_settings/core/browser/content_settings_observer.h"
-#include "components/content_settings/core/browser/content_settings_type_set.h"
-#include "components/content_settings/core/browser/host_content_settings_map.h"
-#include "components/content_settings/core/common/content_settings_pattern.h"
-#include "components/content_settings/core/common/content_settings_types.h"
 #include "components/performance_manager/public/decorators/page_live_state_decorator.h"
 #include "components/performance_manager/public/performance_manager.h"
 #include "components/permissions/permissions_client.h"
 #include "content/public/browser/web_contents_observer.h"
 
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
+#include <memory>
+
+#include "base/check.h"
+#include "base/feature_list.h"
+#include "base/not_fatal_until.h"
+#include "base/sequence_checker.h"
+#include "chrome/browser/android/tab_android.h"
+#include "chrome/browser/flags/android/chrome_feature_list.h"
+#include "chrome/browser/ui/android/tab_model/tab_model.h"
+#include "chrome/browser/ui/android/tab_model/tab_model_list.h"
+#include "chrome/browser/ui/android/tab_model/tab_model_list_observer.h"
+#include "chrome/browser/ui/android/tab_model/tab_model_observer.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+#else
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_list_observer.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace performance_manager {
 namespace {
 
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
+class ActiveTabTracker : public TabModelObserver {
+ public:
+  ActiveTabTracker() = default;
+  ActiveTabTracker(const ActiveTabTracker&) = delete;
+  ActiveTabTracker& operator=(const ActiveTabTracker&) = delete;
+  ~ActiveTabTracker() override = default;
+
+  void DidSelectTab(TabAndroid* tab, TabModel::TabSelectionType type) override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    if (tab == active_tab_) {
+      return;
+    }
+    if (active_tab_ && active_tab_->web_contents()) {
+      PageLiveStateDecorator::SetIsActiveTab(active_tab_->web_contents(),
+                                             false);
+    }
+    if (tab && tab->web_contents()) {
+      PageLiveStateDecorator::SetIsActiveTab(tab->web_contents(), true);
+    }
+    active_tab_ = tab;
+  }
+
+  // OnFinishingTabClosure is not triggered when the tab model goes away. But it
+  // does not cause holding a dead tab in active_tab_ because `ActiveTabTracker`
+  // itself is removed anyway at `ActiveTabObserver::OnTabModelRemoved()`.
+  void OnFinishingTabClosure(TabAndroid* tab) override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    if (tab == active_tab_) {
+      active_tab_ = nullptr;
+    }
+  }
+
+  // This is triggered when a tab is removed from a tab model (e.g. tab is moved
+  // to another window).
+  void TabRemoved(TabAndroid* tab) override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    if (tab == active_tab_) {
+      if (tab && tab->web_contents()) {
+        PageLiveStateDecorator::SetIsActiveTab(tab->web_contents(), false);
+      }
+      active_tab_ = nullptr;
+    }
+  }
+
+ private:
+  // The cached TabAndroid* is cleared on OnFinishingTabClosure() or
+  // TabRemoved() so that no obsolete pointer is left.
+  raw_ptr<TabAndroid> active_tab_ GUARDED_BY_CONTEXT(sequence_checker_) =
+      nullptr;
+
+  SEQUENCE_CHECKER(sequence_checker_);
+};
+
+// Encapsulates all of the "Active tab" tracking logic, which uses
+// `ActiveTabTracker` with `TabModelObserver` on Android.
+class ActiveTabObserver : public TabModelListObserver {
+ public:
+  ActiveTabObserver() { TabModelList::AddObserver(this); }
+  ~ActiveTabObserver() override { TabModelList::RemoveObserver(this); }
+
+ private:
+  void OnTabModelAdded(TabModel* tab_model) override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    std::unique_ptr<ActiveTabTracker> tracker =
+        std::make_unique<ActiveTabTracker>();
+    tab_model->AddObserver(tracker.get());
+    tracker_map_[tab_model] = std::move(tracker);
+  }
+
+  void OnTabModelRemoved(TabModel* tab_model) override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    auto tracker_iter = tracker_map_.find(tab_model);
+    CHECK(tracker_iter != tracker_map_.end(), base::NotFatalUntil::M140)
+        << "Untracked TabModel by ActiveTabObserver is removed";
+    if (tracker_iter == tracker_map_.end()) {
+      return;
+    }
+    tab_model->RemoveObserver(tracker_iter->second.get());
+    tracker_map_.erase(tab_model);
+  }
+
+  absl::flat_hash_map<const TabModel*, std::unique_ptr<ActiveTabTracker>>
+      tracker_map_ GUARDED_BY_CONTEXT(sequence_checker_);
+
+  SEQUENCE_CHECKER(sequence_checker_);
+};
+
+#else
+
 // Encapsulates all of the "Active tab" tracking logic, which uses `BrowserList`
 // and is therefore not available on Android. This class keeps track of existing
 // Browsers and their tab strips, and updates PageLiveState data with whether
@@ -38,7 +136,7 @@ class ActiveTabObserver : public TabStripModelObserver,
  public:
   ActiveTabObserver() {
     BrowserList::AddObserver(this);
-    for (auto* browser : *BrowserList::GetInstance()) {
+    for (Browser* browser : *BrowserList::GetInstance()) {
       AddBrowserTabStripObservation(browser);
     }
   }
@@ -73,6 +171,13 @@ class ActiveTabObserver : public TabStripModelObserver,
         PageLiveStateDecorator::SetIsPinnedTab(
             tab.contents, tab_strip_model->IsTabPinned(tab.index));
       }
+    } else if (change.type() == TabStripModelChange::kReplaced) {
+      auto* replace = change.GetReplace();
+      if (replace->new_contents) {
+        PageLiveStateDecorator::SetIsPinnedTab(
+            replace->new_contents,
+            tab_strip_model->IsTabPinned(replace->index));
+      }
     }
   }
 
@@ -95,15 +200,14 @@ class ActiveTabObserver : public TabStripModelObserver,
 
   SEQUENCE_CHECKER(sequence_checker_);
 };
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 // Listens to content::WebContentsObserver notifications for a given WebContents
 // and updates the PageLiveStateDecorator accordingly. Destroys itself when the
 // WebContents it observes is destroyed.
 class PageLiveStateDecoratorHelper::WebContentsObserver
-    : public content::WebContentsObserver,
-      public content_settings::Observer {
+    : public content::WebContentsObserver {
  public:
   explicit WebContentsObserver(content::WebContents* web_contents,
                                PageLiveStateDecoratorHelper* outer)
@@ -117,14 +221,6 @@ class PageLiveStateDecoratorHelper::WebContentsObserver
       next_->prev_ = this;
     }
     outer_->first_web_contents_observer_ = this;
-
-    // The service might not be constructed for irregular profiles, e.g. the
-    // System Profile.
-    if (HostContentSettingsMap* service =
-            permissions::PermissionsClient::Get()->GetSettingsMap(
-                web_contents->GetBrowserContext())) {
-      content_settings_observation_.Observe(service);
-    }
   }
 
   WebContentsObserver(const WebContentsObserver&) = delete;
@@ -134,41 +230,13 @@ class PageLiveStateDecoratorHelper::WebContentsObserver
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   }
 
-  // content_settings::Observer:
-  void OnContentSettingChanged(
-      const ContentSettingsPattern& primary_pattern,
-      const ContentSettingsPattern& secondary_pattern,
-      ContentSettingsTypeSet content_type_set) override {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    GURL url = web_contents()->GetLastCommittedURL();
-    if (content_type_set.Contains(ContentSettingsType::NOTIFICATIONS) &&
-        primary_pattern.Matches(url)) {
-      // This web contents is affected by this content settings change, get the
-      // latest value and send it over to the PageLiveStateDecorator so it can
-      // be attached to the corresponding PageNode.
-      ContentSetting setting =
-          permissions::PermissionsClient::Get()
-              ->GetSettingsMap(web_contents()->GetBrowserContext())
-              ->GetContentSetting(url, url, ContentSettingsType::NOTIFICATIONS);
-
-      PageLiveStateDecorator::SetContentSettings(
-          web_contents(), {{ContentSettingsType::NOTIFICATIONS, setting}});
-    }
-  }
-
   // content::WebContentsObserver:
-  void OnIsConnectedToBluetoothDeviceChanged(
-      bool is_connected_to_bluetooth_device) override {
+  void OnCapabilityTypesChanged(
+      content::WebContentsCapabilityType capability_type,
+      bool used) override {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    PageLiveStateDecorator::OnIsConnectedToBluetoothDeviceChanged(
-        web_contents(), is_connected_to_bluetooth_device);
-  }
-
-  void OnIsConnectedToUsbDeviceChanged(
-      bool is_connected_to_usb_device) override {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    PageLiveStateDecorator::OnIsConnectedToUSBDeviceChanged(
-        web_contents(), is_connected_to_usb_device);
+    PageLiveStateDecorator::OnCapabilityTypesChanged(web_contents(),
+                                                     capability_type, used);
   }
 
   void WebContentsDestroyed() override {
@@ -199,9 +267,6 @@ class PageLiveStateDecoratorHelper::WebContentsObserver
   raw_ptr<WebContentsObserver> prev_;
   raw_ptr<WebContentsObserver> next_;
 
-  base::ScopedObservation<HostContentSettingsMap, content_settings::Observer>
-      content_settings_observation_{this};
-
   SEQUENCE_CHECKER(sequence_checker_);
 };
 
@@ -212,9 +277,14 @@ PageLiveStateDecoratorHelper::PageLiveStateDecoratorHelper() {
       ->GetMediaStreamCaptureIndicator()
       ->AddObserver(this);
 
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(
+          chrome::android::kProcessRankPolicyAndroid)) {
+    active_tab_observer_ = std::make_unique<ActiveTabObserver>();
+  }
+#else
   active_tab_observer_ = std::make_unique<ActiveTabObserver>();
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID)
 
   content::DevToolsAgentHost::AddObserver(this);
 }
@@ -257,6 +327,15 @@ void PageLiveStateDecoratorHelper::OnIsBeingMirroredChanged(
     bool is_being_mirrored) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   PageLiveStateDecorator::OnIsBeingMirroredChanged(contents, is_being_mirrored);
+}
+
+void PageLiveStateDecoratorHelper::OnIsCapturingTabChanged(
+    content::WebContents* contents,
+    bool is_capturing_tab) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // Treat tab capturing the same as window capturing here.
+  PageLiveStateDecorator::OnIsCapturingWindowChanged(contents,
+                                                     is_capturing_tab);
 }
 
 void PageLiveStateDecoratorHelper::OnIsCapturingWindowChanged(
@@ -302,8 +381,6 @@ void PageLiveStateDecoratorHelper::OnPageNodeCreatedForWebContents(
   // Start observing the WebContents. See comment on
   // |first_web_contents_observer_| for lifetime management details.
   new WebContentsObserver(web_contents, this);
-  PageLiveStateDecorator::SetWasDiscarded(web_contents,
-                                          web_contents->WasDiscarded());
 }
 
 }  // namespace performance_manager

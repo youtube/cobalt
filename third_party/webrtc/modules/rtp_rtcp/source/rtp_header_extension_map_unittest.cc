@@ -11,7 +11,7 @@
 
 #include <vector>
 
-#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
+#include "api/rtp_parameters.h"
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "test/gtest.h"
 
@@ -85,8 +85,8 @@ TEST(RtpHeaderExtensionTest, NonUniqueId) {
   RtpHeaderExtensionMap map;
   EXPECT_TRUE(map.Register<TransmissionOffset>(3));
 
-  EXPECT_FALSE(map.Register<AudioLevel>(3));
-  EXPECT_TRUE(map.Register<AudioLevel>(4));
+  EXPECT_FALSE(map.Register<AudioLevelExtension>(3));
+  EXPECT_TRUE(map.Register<AudioLevelExtension>(4));
 }
 
 TEST(RtpHeaderExtensionTest, GetType) {

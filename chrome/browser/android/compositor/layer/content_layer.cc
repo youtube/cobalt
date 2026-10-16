@@ -91,14 +91,14 @@ void ContentLayer::SetProperties(int id,
   if (live_layer.get()) {
     live_layer->SetMasksToBounds(should_clip);
     live_layer->SetBounds(clip.size());
-    SetOpacityOnLeaf(live_layer, content_opacity);
+    // Don't override the opacity for layers internal to the WebContents.
+    live_layer->SetOpacity(content_opacity);
 
     layer_->AddChild(live_layer);
   }
 
   if (static_opacity > 0) {
-    ThumbnailLayer* static_layer =
-        tab_content_manager_->GetOrCreateStaticLayer(id, !live_layer_draws);
+    ThumbnailLayer* static_layer = tab_content_manager_->GetStaticLayer(id);
     if (static_layer) {
       static_layer->layer()->SetIsDrawable(true);
       if (should_clip) {
@@ -106,6 +106,9 @@ void ContentLayer::SetProperties(int id,
       } else {
         static_layer->ClearClip();
       }
+      // TOOD(liuwilliam): The opacity should only need to be set on the static
+      // layer, instead of all its children. The recursive setting was a
+      // workaround for some old CC bug.
       SetOpacityOnLeaf(static_layer->layer(), static_opacity);
 
       std::vector<cc::slim::Filter> filters;

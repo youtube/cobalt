@@ -2,22 +2,16 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromecast_build.gni")
+import("//build/config/cast.gni")
 import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/linux/pkg_config.gni")
 import("//build/config/logging.gni")
 import("//build/config/ozone.gni")
 import("//gpu/vulkan/features.gni")
 import("//testing/test.gni")
+import("//ui/gl/features.gni")
 
 visibility = [ "//ui/ozone/*" ]
-
-declare_args() {
-  # Enables commiting of CRTC properties on page flip events.
-  # This is not enabled by default because of a bug on Intel:
-  # https://crbug.com/854753
-  drm_commit_properties_on_page_flip = false
-}
 
 source_set("gbm") {
   sources = [
@@ -28,8 +22,11 @@ source_set("gbm") {
     "common/drm_util.h",
     "common/drm_wrapper.cc",
     "common/drm_wrapper.h",
+    "common/hardware_display_controller_info.cc",
+    "common/hardware_display_controller_info.h",
     "common/scoped_drm_types.cc",
     "common/scoped_drm_types.h",
+    "common/tile_property.h",
     "gpu/crtc_commit_request.cc",
     "gpu/crtc_commit_request.h",
     "gpu/crtc_controller.cc",
@@ -124,7 +121,6 @@ source_set("gbm") {
 
   deps = [
     "//base",
-    "//build:chromeos_buildflags",
     "//build/config/linux/libdrm",
     "//gpu/vulkan:buildflags",
     "//ipc",
@@ -132,6 +128,8 @@ source_set("gbm") {
     "//mojo/public/cpp/system",
     "//services/service_manager/public/cpp",
     "//skia",
+    "//skia:skcms",
+    "//third_party/angle:includes",
     "//third_party/libsync",
     "//third_party/minigbm",
     "//ui/base",
@@ -158,15 +156,18 @@ source_set("gbm") {
     "//ui/platform_window",
   ]
 
-  if (!is_castos) {
+  if (!is_castos && !use_static_angle) {
     data_deps = [
       "//third_party/angle:libEGL",
       "//third_party/angle:libGLESv2",
     ]
   }
 
-  if (is_chromeos_ash) {
-    deps += [ "//ui/base/ime/ash" ]
+  if (is_chromeos) {
+    deps += [
+      "//ash/constants",
+      "//ui/base/ime/ash",
+    ]
   }
 
   if (enable_vulkan) {
@@ -177,36 +178,36 @@ source_set("gbm") {
     deps += [ "//gpu/vulkan" ]
   }
 
-  public_configs = [ "//third_party/khronos:khronos_headers" ]
+  defines = [
+    "OZONE_IMPLEMENTATION",
 
-  defines = [ "OZONE_IMPLEMENTATION" ]
-
-  if (drm_commit_properties_on_page_flip) {
-    defines += [ "COMMIT_PROPERTIES_ON_PAGE_FLIP" ]
-  }
-
-  if (!use_runtime_vlog) {
-    # Enable VLOG(1) when using build time VLOG.
-    defines += [ "ENABLED_VLOG_LEVEL=1" ]
-  }
+    # Enable VLOG(1) so that they are included in field feedbacks.
+    "ENABLED_VLOG_LEVEL=1",
+  ]
 }
 
 source_set("gbm_unittests") {
   testonly = true
   sources = [
     "common/drm_util_unittest.cc",
+    "common/hardware_display_controller_info_unittest.cc",
     "gpu/drm_display_unittest.cc",
     "gpu/drm_gpu_display_manager_unittest.cc",
+    "gpu/drm_gpu_util_unittest.cc",
     "gpu/drm_overlay_manager_unittest.cc",
     "gpu/drm_overlay_validator_unittest.cc",
     "gpu/drm_thread_unittest.cc",
     "gpu/drm_window_unittest.cc",
+    "gpu/fake_drm_device.cc",
+    "gpu/fake_drm_device.h",
     "gpu/fake_drm_device_generator.cc",
     "gpu/fake_drm_device_generator.h",
     "gpu/hardware_display_controller_unittest.cc",
     "gpu/hardware_display_plane_manager_unittest.cc",
     "gpu/mock_drm_device.cc",
     "gpu/mock_drm_device.h",
+    "gpu/mock_drm_modifiers_filter.cc",
+    "gpu/mock_drm_modifiers_filter.h",
     "gpu/proxy_helpers_unittest.cc",
     "gpu/screen_manager_unittest.cc",
   ]
@@ -222,7 +223,7 @@ source_set("gbm_unittests") {
     # the system.
     "//third_party/libdrm",
     "//ui/base/ime",
-    "//ui/display/fake:fake",
+    "//ui/display:test_support",
     "//ui/gfx",
     "//ui/gfx/linux:drm",
     "//ui/gfx/linux:gbm",
@@ -230,10 +231,6 @@ source_set("gbm_unittests") {
     "//ui/ozone:platform",
     "//ui/ozone/common",
   ]
-
-  if (drm_commit_properties_on_page_flip) {
-    defines = [ "COMMIT_PROPERTIES_ON_PAGE_FLIP" ]
-  }
 }
 
 source_set("drm_integration_tests") {
@@ -256,4 +253,23 @@ source_set("drm_integration_tests") {
     "//ui/ozone:platform",
     "//ui/ozone/common",
   ]
+}
+
+source_set("ui_controls") {
+  testonly = true
+
+  sources = [
+    "test/ui_controls_system_input_injector.cc",
+    "test/ui_controls_system_input_injector.h",
+  ]
+
+  deps = [
+    "//base/test:test_support",
+    "//ui/aura:test_support",
+    "//ui/base:test_support",
+    "//ui/ozone:platform",
+    "//ui/ozone/common",
+  ]
+
+  visibility += [ "//chrome/test:test_support" ]
 }

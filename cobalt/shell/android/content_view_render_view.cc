@@ -3,10 +3,12 @@
 // found in the LICENSE file.
 
 #include "cobalt/shell/android/content_view_render_view.h"
+
 #include <android/bitmap.h>
 
 #include <memory>
 
+#include "base/android/build_info.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
@@ -16,8 +18,10 @@
 #include "cobalt/shell/android/cobalt_shell_jni_headers/ContentViewRenderView_jni.h"
 #include "content/public/browser/android/compositor.h"
 #include "content/public/browser/web_contents.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "ui/android/view_android.h"
 #include "ui/android/window_android.h"
+#include "ui/gfx/android/android_surface_control_compat.h"
 #include "ui/gfx/android/java_bitmap.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -45,6 +49,16 @@ static jlong JNI_ContentViewRenderView_Init(
   ContentViewRenderView* content_view_render_view =
       new ContentViewRenderView(env, obj, root_window);
   return reinterpret_cast<intptr_t>(content_view_render_view);
+}
+
+// static
+// Whether Java should create the window SurfaceControl (Android 14+). When
+// passed to SurfaceChanged(), CompositorImpl::SetSurface() uses it instead of
+// the window surface.
+static jboolean JNI_ContentViewRenderView_ShouldUseWindowSurfaceControl(
+    JNIEnv* env) {
+  return features::IsAndroidSurfaceControlEnabled() &&
+         gfx::SurfaceControl::SupportsSurfacelessControl();
 }
 
 void ContentViewRenderView::Destroy(JNIEnv* env,
@@ -90,7 +104,8 @@ void ContentViewRenderView::SurfaceDestroyed(JNIEnv* env,
   // detached and freed by OS.
   compositor_->PreserveChildSurfaceControls();
 
-  compositor_->SetSurface(nullptr, false);
+  compositor_->SetSurface(nullptr, false, nullptr);
+  compositor_->SetWindowSurfaceControl(nullptr);
   current_surface_format_ = 0;
 }
 
@@ -100,11 +115,22 @@ void ContentViewRenderView::SurfaceChanged(
     jint format,
     jint width,
     jint height,
-    const JavaParamRef<jobject>& surface) {
+    const JavaParamRef<jobject>& surface,
+    const JavaParamRef<jobject>& surface_control,
+    const JavaParamRef<jobject>& host_input_token) {
   if (current_surface_format_ != format) {
     current_surface_format_ = format;
-    compositor_->SetSurface(surface,
-                            true /* can_be_used_with_surface_control */);
+    // Non-null only on Android 14+ (see ShouldUseWindowSurfaceControl()).
+    compositor_->SetWindowSurfaceControl(surface_control);
+    const int sdk_int = base::android::BuildInfo::GetInstance()->sdk_int();
+    // Whether |surface| itself can be used to create SurfaceControls
+    // (createFromWindow()): true only on Android 10-11. Android 14+ uses
+    // |surface_control| instead, and SetSurface() ignores this flag then.
+    const bool can_be_used_with_surface_control =
+        base::android::SDK_VERSION_Q <= sdk_int &&
+        sdk_int <= base::android::SDK_VERSION_R;
+    compositor_->SetSurface(surface, can_be_used_with_surface_control,
+                            host_input_token);
   }
   compositor_->SetWindowBounds(gfx::Size(width, height));
 }
@@ -124,14 +150,14 @@ void ContentViewRenderView::UpdateLayerTreeHost() {
   // Compositor related classes.
 }
 
-void ContentViewRenderView::DidSwapFrame(int pending_frames) {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  cobalt::Java_ContentViewRenderView_didSwapFrame(env, java_obj_);
-}
-
 void ContentViewRenderView::InitCompositor() {
   if (!compositor_) {
     compositor_.reset(content::Compositor::Create(this, root_window_));
+    // The cc::slim compositor defaults to an opaque white background. We set it
+    // to transparent here so that the underlying Android window background
+    // (which automatically respects light/dark mode) shows through before the
+    // WebContents has finished loading and painting its own background.
+    compositor_->SetBackgroundColor(SK_ColorTRANSPARENT);
   }
 }
 

@@ -115,7 +115,9 @@ class UnsupportedConsumerEndpoint : public ConsumerEndpoint {
   void StartTracing() override {}
   void DisableTracing() override {}
 
-  void Flush(uint32_t /*timeout_ms*/, FlushCallback callback) override {
+  void Flush(uint32_t /*timeout_ms*/,
+             FlushCallback callback,
+             FlushFlags) override {
     callback(/*success=*/false);
   }
 
@@ -127,11 +129,12 @@ class UnsupportedConsumerEndpoint : public ConsumerEndpoint {
 
   void GetTraceStats() override {}
   void ObserveEvents(uint32_t /*events_mask*/) override {}
-  void QueryServiceState(QueryServiceStateCallback) override {}
+  void QueryServiceState(QueryServiceStateArgs,
+                         QueryServiceStateCallback) override {}
   void QueryCapabilities(QueryCapabilitiesCallback) override {}
 
   void SaveTraceForBugreport(SaveTraceForBugreportCallback) override {}
-  void CloneSession(TracingSessionID) override {}
+  void CloneSession(CloneSessionArgs) override {}
 
  private:
   Consumer* const consumer_;

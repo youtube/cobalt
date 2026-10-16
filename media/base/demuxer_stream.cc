@@ -24,8 +24,6 @@ const char* DemuxerStream::GetTypeName(Type type) {
       return "audio";
     case DemuxerStream::VIDEO:
       return "video";
-    case DemuxerStream::TEXT:
-      return "text";
     case DemuxerStream::UNKNOWN:
       return "unknown";
   }
@@ -46,12 +44,6 @@ const char* DemuxerStream::GetStatusName(Status status) {
 }
 
 DemuxerStream::~DemuxerStream() = default;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-std::string DemuxerStream::mime_type() const {
-  return "";
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // Most DemuxerStream implementations don't specify liveness. Returns unknown
 // liveness by default.

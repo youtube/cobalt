@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/events/types/event_type.h"
 #include "ui/views/view.h"
 
@@ -15,6 +16,8 @@ namespace views {
 
 // A view that requests a set amount of space.
 class StaticSizedView : public View {
+  METADATA_HEADER(StaticSizedView, View)
+
  public:
   explicit StaticSizedView(const gfx::Size& preferred_size = gfx::Size());
 
@@ -34,7 +37,8 @@ class StaticSizedView : public View {
   }
 
   // View overrides:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const SizeBounds& /*available_size*/) const override;
   gfx::Size GetMinimumSize() const override;
   gfx::Size GetMaximumSize() const override;
 
@@ -46,6 +50,8 @@ class StaticSizedView : public View {
 
 // A view that accomodates testing layouts that use GetHeightForWidth.
 class ProportionallySizedView : public View {
+  METADATA_HEADER(ProportionallySizedView, View)
+
  public:
   explicit ProportionallySizedView(int factor);
 
@@ -56,8 +62,8 @@ class ProportionallySizedView : public View {
 
   void SetPreferredWidth(int width);
 
-  int GetHeightForWidth(int w) const override;
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const SizeBounds& available_size) const override;
 
  private:
   // The multiplicative factor between width and height, i.e.
@@ -71,6 +77,8 @@ class ProportionallySizedView : public View {
 // Class that closes the widget (which ends up deleting it immediately) when the
 // appropriate event is received.
 class CloseWidgetView : public View {
+  METADATA_HEADER(CloseWidgetView, View)
+
  public:
   explicit CloseWidgetView(ui::EventType event_type);
 
@@ -86,11 +94,13 @@ class CloseWidgetView : public View {
 
 // A view that keeps track of the events it receives, optionally consuming them.
 class EventCountView : public View {
+  METADATA_HEADER(EventCountView, View)
+
  public:
   // Whether to call SetHandled() on events as they are received. For some event
   // types, this will allow EventCountView to receives future events in the
   // event sequence, such as a drag.
-  enum HandleMode { PROPAGATE_EVENTS, CONSUME_EVENTS };
+  enum class HandleMode { kPropagateEvents, kConsumeEvents };
 
   EventCountView();
 
@@ -121,12 +131,14 @@ class EventCountView : public View {
 
   std::map<ui::EventType, int> event_count_;
   int last_flags_ = 0;
-  HandleMode handle_mode_ = PROPAGATE_EVENTS;
+  HandleMode handle_mode_ = HandleMode::kPropagateEvents;
 };
 
-// A view which reacts to PreferredSizeChanged() from its children and calls
-// Layout().
+// A view which reacts to PreferredSizeChanged() from its children by doing
+// layout.
 class ResizeAwareParentView : public View {
+  METADATA_HEADER(ResizeAwareParentView, View)
+
  public:
   ResizeAwareParentView();
 

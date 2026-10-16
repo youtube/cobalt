@@ -13,6 +13,7 @@
 #include "media/base/audio_timestamp_helper.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/webrtc/webrtc_source.h"
 #include "third_party/webrtc/rtc_base/ref_counted_object.h"
 
@@ -74,7 +75,7 @@ class WebRtcAudioDeviceImplTest : public testing::Test {
  public:
   WebRtcAudioDeviceImplTest()
       : audio_device_(
-            new rtc::RefCountedObject<blink::WebRtcAudioDeviceImpl>()),
+            new webrtc::RefCountedObject<blink::WebRtcAudioDeviceImpl>()),
         audio_transport_(new MockAudioTransport()) {
     audio_device_module()->Init();
     audio_device_module()->RegisterAudioCallback(audio_transport_.get());
@@ -87,6 +88,7 @@ class WebRtcAudioDeviceImplTest : public testing::Test {
     return static_cast<webrtc::AudioDeviceModule*>(audio_device_.get());
   }
 
+  test::TaskEnvironment task_environment_;
   scoped_refptr<blink::WebRtcAudioDeviceImpl> audio_device_;
   std::unique_ptr<MockAudioTransport> audio_transport_;
 };

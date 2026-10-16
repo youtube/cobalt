@@ -18,11 +18,15 @@ class SafeBrowsingClient;
 
 namespace base {
 class FilePath;
-}
+}  // namespace base
 
 namespace network {
 class SharedURLLoaderFactory;
-}
+
+namespace mojom {
+class NetworkContext;
+}  // namespace mojom
+}  // namespace network
 
 namespace safe_browsing {
 class SafeBrowsingDatabaseManager;
@@ -45,10 +49,17 @@ class SafeBrowsingService
   SafeBrowsingService& operator=(const SafeBrowsingService&) = delete;
 
   // Called on the UI thread to initialize the service.
-  virtual void Initialize(PrefService* prefs,
-                          const base::FilePath& user_data_path,
-                          safe_browsing::SafeBrowsingMetricsCollector*
-                              safe_browsing_metrics_collector) = 0;
+  virtual void Initialize(const base::FilePath& user_data_path) = 0;
+
+  // Called on the UI thread when a new BrowserState is created with the
+  // BrowserState's associated `prefs` and `metrics_collector`.
+  virtual void OnBrowserStateCreated(
+      PrefService* prefs,
+      safe_browsing::SafeBrowsingMetricsCollector* metrics_collector) = 0;
+
+  // Called on the UI thread when a BrowserState is destroyed with the
+  // BrowserState's associated `prefs`.
+  virtual void OnBrowserStateDestroyed(PrefService* prefs) = 0;
 
   // Called on the UI thread to terminate the service. This must be called
   // before the IO thread is torn down.
@@ -61,6 +72,23 @@ class SafeBrowsingService
                    web::WebState* web_state,
                    SafeBrowsingClient* client) = 0;
 
+  // Creates a SafeBrowsingUrlCheckerImpl that can be used for async checks.
+  virtual std::unique_ptr<safe_browsing::SafeBrowsingUrlCheckerImpl>
+  CreateAsyncChecker(network::mojom::RequestDestination request_destination,
+                     web::WebState* web_state,
+                     SafeBrowsingClient* client) = 0;
+
+  // Creates a SafeBrowsingUrlCheckerImpl that can be used for sync checks which
+  // handles checks not related to real time.
+  virtual std::unique_ptr<safe_browsing::SafeBrowsingUrlCheckerImpl>
+  CreateSyncChecker(network::mojom::RequestDestination request_destination,
+                    web::WebState* web_state,
+                    SafeBrowsingClient* client) = 0;
+
+  // Checks if async check should be created.
+  virtual bool ShouldCreateAsyncChecker(web::WebState* web_state,
+                                        SafeBrowsingClient* client) = 0;
+
   // Returns true if `url` has a scheme that is handled by Safe Browsing.
   virtual bool CanCheckUrl(const GURL& url) const = 0;
 
@@ -71,6 +99,9 @@ class SafeBrowsingService
   // Returns the SafeBrowsingDatabaseManager owned by this service.
   virtual scoped_refptr<safe_browsing::SafeBrowsingDatabaseManager>
   GetDatabaseManager() = 0;
+
+  // Returns the network context owned by this service.
+  virtual network::mojom::NetworkContext* GetNetworkContext() = 0;
 
   // Clears cookies if the given deletion time range is for "all time". Calls
   // the given `callback` once deletion is complete.

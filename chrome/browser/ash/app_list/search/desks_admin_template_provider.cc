@@ -12,6 +12,7 @@
 #include "ash/wm/desks/templates/saved_desk_controller.h"
 #include "chrome/browser/ash/app_list/app_list_controller_delegate.h"
 #include "chrome/browser/ash/app_list/search/common/icon_constants.h"
+#include "chrome/browser/ash/app_list/search/search_provider.h"
 #include "chrome/browser/ash/app_list/search/types.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chromeos/constants/chromeos_features.h"
@@ -45,9 +46,7 @@ DesksAdminTemplateResult::DesksAdminTemplateResult(
   SetResultType(ResultType::kDesksAdminTemplate);
   SetDisplayType(DisplayType::kContinue);
   SetMetricsType(ash::DESKS_ADMIN_TEMPLATE);
-
-  // TODO(b/278271038): Change to use `SetIcon` here instead of `SetBadgeIcon`.
-  SetBadgeIcon(icon);
+  SetIcon(IconInfo(icon, kSystemIconDimension));
 }
 
 DesksAdminTemplateResult::~DesksAdminTemplateResult() = default;
@@ -60,7 +59,9 @@ void DesksAdminTemplateResult::Open(int event_flags) {
 DesksAdminTemplateProvider::DesksAdminTemplateProvider(
     Profile* profile,
     AppListControllerDelegate* list_controller)
-    : profile_(profile), list_controller_(list_controller) {
+    : SearchProvider(SearchCategory::kDesksAdmin),
+      profile_(profile),
+      list_controller_(list_controller) {
   DCHECK(profile_);
 }
 
@@ -71,16 +72,12 @@ void DesksAdminTemplateProvider::StartZeroState() {
 
   auto* controller = ash::SavedDeskController::Get();
 
-  ui::ColorId color_id =
-      chromeos::features::IsJellyEnabled()
-          ? cros_tokens::kCrosSysTertiary
-          : static_cast<ui::ColorId>(cros_tokens::kIconColorPrimary);
+  ui::ColorId color_id = cros_tokens::kCrosSysTertiary;
   ui::ImageModel icon = ui::ImageModel::FromVectorIcon(
       ash::kDesksTemplatesIcon, color_id, kSystemIconDimension);
 
   for (const auto& metadata : controller->GetAdminTemplateMetadata()) {
-    // With productivity launcher enabled, release notes are shown in continue
-    // section.
+    // Release notes are shown in the Continue section.
     search_results.emplace_back(std::make_unique<DesksAdminTemplateResult>(
         profile_, list_controller_, metadata.uuid, metadata.name, icon));
   }

@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "extensions/common/frame_context_data.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 
@@ -30,9 +31,8 @@ class RendererFrameContextData : public FrameContextData {
 
   ~RendererFrameContextData() override = default;
 
-  std::unique_ptr<ContextData> Clone() const override;
   std::unique_ptr<FrameContextData> CloneFrameContextData() const override;
-  bool IsIsolatedApplication() const override;
+  bool HasControlledFrameCapability() const override;
 
   std::unique_ptr<FrameContextData> GetLocalParentOrOpener() const override;
 
@@ -45,7 +45,7 @@ class RendererFrameContextData : public FrameContextData {
   uintptr_t GetId() const override;
 
  private:
-  const blink::WebLocalFrame* const frame_;
+  const raw_ptr<const blink::WebLocalFrame> frame_;
 };
 
 }  // namespace extensions

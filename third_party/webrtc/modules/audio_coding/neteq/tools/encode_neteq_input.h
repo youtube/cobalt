@@ -11,9 +11,14 @@
 #ifndef MODULES_AUDIO_CODING_NETEQ_TOOLS_ENCODE_NETEQ_INPUT_H_
 #define MODULES_AUDIO_CODING_NETEQ_TOOLS_ENCODE_NETEQ_INPUT_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 
+#include "api/array_view.h"
 #include "api/audio_codecs/audio_encoder.h"
+#include "api/rtp_headers.h"
 #include "modules/audio_coding/neteq/tools/neteq_input.h"
 
 namespace webrtc {
@@ -28,7 +33,7 @@ class EncodeNetEqInput : public NetEqInput {
    public:
     virtual ~Generator() = default;
     // Returns the next num_samples values from the signal generator.
-    virtual rtc::ArrayView<const int16_t> Generate(size_t num_samples) = 0;
+    virtual ArrayView<const int16_t> Generate(size_t num_samples) = 0;
   };
 
   // The source will end after the given input duration.
@@ -37,12 +42,12 @@ class EncodeNetEqInput : public NetEqInput {
                    int64_t input_duration_ms);
   ~EncodeNetEqInput() override;
 
-  absl::optional<int64_t> NextPacketTime() const override;
+  std::optional<int64_t> NextPacketTime() const override;
 
-  absl::optional<int64_t> NextOutputEventTime() const override;
+  std::optional<int64_t> NextOutputEventTime() const override;
 
-  absl::optional<SetMinimumDelayInfo> NextSetMinimumDelayInfo() const override {
-    return absl::nullopt;
+  std::optional<SetMinimumDelayInfo> NextSetMinimumDelayInfo() const override {
+    return std::nullopt;
   }
 
   std::unique_ptr<PacketData> PopPacket() override;
@@ -53,7 +58,7 @@ class EncodeNetEqInput : public NetEqInput {
 
   bool ended() const override;
 
-  absl::optional<RTPHeader> NextHeader() const override;
+  std::optional<RTPHeader> NextHeader() const override;
 
  private:
   static constexpr int64_t kOutputPeriodMs = 10;

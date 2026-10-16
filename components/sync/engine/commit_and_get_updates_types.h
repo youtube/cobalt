@@ -11,8 +11,8 @@
 #include <string>
 #include <vector>
 
-#include "base/time/time.h"
 #include "components/sync/base/client_tag_hash.h"
+#include "components/sync/base/unique_position.h"
 #include "components/sync/protocol/entity_data.h"
 #include "components/sync/protocol/sync.pb.h"
 
@@ -39,6 +39,11 @@ struct CommitRequestData {
   std::unique_ptr<EntityData> entity;
   int64_t base_version = 0;
 
+  // Fields sent to the sync server for backward-compatibility. The fields will
+  // be removed once a corresponding field in SyncEntity is removed.
+  bool deprecated_bookmark_folder = false;
+  UniquePosition deprecated_bookmark_unique_position;
+
   // Fields not sent to the sync server. However, they are kept to be sent back
   // to the processor in the response.
 
@@ -47,7 +52,6 @@ struct CommitRequestData {
   // that make use of this struct.
   int64_t sequence_number = 0;
   std::string specifics_hash;
-  base::Time unsynced_time;
 };
 
 // Represents a successfully committed item.
@@ -64,7 +68,6 @@ struct CommitResponseData {
   int64_t sequence_number = 0;
   int64_t response_version = 0;
   std::string specifics_hash;
-  base::Time unsynced_time;
 };
 
 // Represents an item, which wasn't committed due to an error.

@@ -5,7 +5,6 @@
 #ifndef CHROME_BROWSER_ANDROID_LOCALE_LOCALE_MANAGER_H_
 #define CHROME_BROWSER_ANDROID_LOCALE_LOCALE_MANAGER_H_
 
-#include <jni.h>
 #include <string>
 
 // Provides access to the locale specific customizations on Android.
@@ -17,7 +16,6 @@ class LocaleManager {
 
   static std::string GetYandexReferralID();
   static std::string GetMailRUReferralID();
-  static void RecordUserTypeMetrics();
 };
 
 #endif  // CHROME_BROWSER_ANDROID_LOCALE_LOCALE_MANAGER_H_

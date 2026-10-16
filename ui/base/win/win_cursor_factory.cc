@@ -6,6 +6,7 @@
 
 #include <windows.h>
 
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -14,7 +15,6 @@
 #include "base/notreached.h"
 #include "base/win/scoped_gdi_object.h"
 #include "base/win/windows_types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/cursor/cursor.h"
 #include "ui/base/cursor/mojom/cursor_type.mojom-shared.h"
@@ -122,10 +122,8 @@ const wchar_t* GetCursorId(mojom::CursorType type) {
     case mojom::CursorType::kNone:
     case mojom::CursorType::kCustom:
       NOTREACHED();
-      return IDC_ARROW;
   }
   NOTREACHED();
-  return IDC_ARROW;
 }
 
 }  // namespace
@@ -156,20 +154,20 @@ scoped_refptr<PlatformCursor> WinCursorFactory::GetDefaultCursor(
   return default_cursors_[type];
 }
 
-absl::optional<CursorData> WinCursorFactory::GetCursorData(
+std::optional<CursorData> WinCursorFactory::GetCursorData(
     mojom::CursorType type) {
   DCHECK_NE(type, mojom::CursorType::kNone);
   DCHECK_NE(type, mojom::CursorType::kCustom);
 
   auto cursor = GetDefaultCursor(type);
   if (!cursor) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   HCURSOR hcursor = WinCursor::FromPlatformCursor(cursor)->hcursor();
   SkBitmap bitmap = IconUtil::CreateSkBitmapFromHICON(hcursor);
   if (bitmap.isNull()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return ui::CursorData({std::move(bitmap)},
@@ -179,7 +177,8 @@ absl::optional<CursorData> WinCursorFactory::GetCursorData(
 scoped_refptr<PlatformCursor> WinCursorFactory::CreateImageCursor(
     mojom::CursorType type,
     const SkBitmap& bitmap,
-    const gfx::Point& hotspot) {
+    const gfx::Point& hotspot,
+    float scale) {
   return base::MakeRefCounted<WinCursor>(
       IconUtil::CreateCursorFromSkBitmap(bitmap, hotspot).release(),
       /*should_destroy=*/true);

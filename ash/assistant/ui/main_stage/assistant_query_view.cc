@@ -17,6 +17,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/accessibility/ax_enums.mojom.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/chromeos/styles/cros_styles.h"
 #include "ui/color/color_provider.h"
 #include "ui/views/accessibility/view_accessibility.h"
@@ -50,21 +51,14 @@ std::unique_ptr<views::Label> CreateLabel() {
 AssistantQueryView::AssistantQueryView() {
   SetID(AssistantViewID::kQueryView);
   InitLayout();
-  GetViewAccessibility().OverrideRole(ax::mojom::Role::kHeading);
+  GetViewAccessibility().SetRole(ax::mojom::Role::kHeading);
 }
 
 AssistantQueryView::~AssistantQueryView() = default;
 
-const char* AssistantQueryView::GetClassName() const {
-  return "AssistantQueryView";
-}
-
-gfx::Size AssistantQueryView::CalculatePreferredSize() const {
-  return gfx::Size(kMaxWidthDip, GetHeightForWidth(kMaxWidthDip));
-}
-
-int AssistantQueryView::GetHeightForWidth(int width) const {
-  return kHeightDip;
+gfx::Size AssistantQueryView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
+  return gfx::Size(kMaxWidthDip, kHeightDip);
 }
 
 void AssistantQueryView::OnThemeChanged() {
@@ -138,5 +132,8 @@ void AssistantQueryView::SetText(const std::string& high_confidence_text,
 
   low_confidence_label_->SetText(low_confidence_text_16);
 }
+
+BEGIN_METADATA(AssistantQueryView)
+END_METADATA
 
 }  // namespace ash

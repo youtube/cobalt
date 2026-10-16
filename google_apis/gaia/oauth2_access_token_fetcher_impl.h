@@ -6,6 +6,7 @@
 #define GOOGLE_APIS_GAIA_OAUTH2_ACCESS_TOKEN_FETCHER_IMPL_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -14,6 +15,7 @@
 #include "base/memory/ref_counted.h"
 #include "google_apis/gaia/oauth2_access_token_consumer.h"
 #include "google_apis/gaia/oauth2_access_token_fetcher.h"
+#include "google_apis/gaia/oauth2_response.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "url/gurl.h"
 
@@ -43,26 +45,6 @@ class SharedURLLoaderFactory;
 class COMPONENT_EXPORT(GOOGLE_APIS) OAuth2AccessTokenFetcherImpl
     : public OAuth2AccessTokenFetcher {
  public:
-  // Enumerated constants of server responses, matching RFC 6749.
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-  enum OAuth2Response {
-    kUnknownError = 0,
-    kOk = 1,
-    kOkUnexpectedFormat = 2,
-    kErrorUnexpectedFormat = 3,
-    kInvalidRequest = 4,
-    kInvalidClient = 5,
-    kInvalidGrant = 6,
-    kUnauthorizedClient = 7,
-    kUnsuportedGrantType = 8,
-    kInvalidScope = 9,
-    kRestrictedClient = 10,
-    kRateLimitExceeded = 11,
-    kInternalFailure = 12,
-    kMaxValue = kInternalFailure,
-  };
-
   OAuth2AccessTokenFetcherImpl(
       OAuth2AccessTokenConsumer* consumer,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
@@ -101,11 +83,11 @@ class COMPONENT_EXPORT(GOOGLE_APIS) OAuth2AccessTokenFetcherImpl
   // Derived classes must specify a network annotation for the fetcher.
   virtual net::NetworkTrafficAnnotationTag GetTrafficAnnotationTag() const = 0;
 
-  void OnURLLoadComplete(std::unique_ptr<std::string> response_body);
+  void OnURLLoadComplete(std::optional<std::string> response_body);
 
   // Helper methods for the flow.
   void StartGetAccessToken();
-  void EndGetAccessToken(std::unique_ptr<std::string> response_body);
+  void EndGetAccessToken(std::optional<std::string> response_body);
 
   // Helper mehtods for reporting back results.
   void OnGetTokenSuccess(
@@ -123,9 +105,15 @@ class COMPONENT_EXPORT(GOOGLE_APIS) OAuth2AccessTokenFetcherImpl
       const std::string& response_body,
       OAuth2AccessTokenConsumer::TokenResponse* token_response);
 
+  // Parses `response_body` as JSON and populates the corresponding output
+  // pointers. Returns true if parsing was successful, false otherwise. Note:
+  // `error_subtype` and `error_description` are optional fields - an empty
+  // string is returned if they are not present in `response_body`.
   static bool ParseGetAccessTokenFailureResponse(
       const std::string& response_body,
-      std::string* error);
+      std::string* error,
+      std::string* error_subtype,
+      std::string* error_description);
 
   // State that is set during construction.
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
@@ -158,6 +146,10 @@ class COMPONENT_EXPORT(GOOGLE_APIS) OAuth2AccessTokenFetcherImpl
                            ParseGetAccessTokenFailure);
   FRIEND_TEST_ALL_PREFIXES(OAuth2AccessTokenFetcherImplTest,
                            ParseGetAccessTokenFailureInvalidError);
+  FRIEND_TEST_ALL_PREFIXES(OAuth2AccessTokenFetcherImplTest,
+                           ParseGetAccessTokenFailureForMissingRaptError);
+  FRIEND_TEST_ALL_PREFIXES(OAuth2AccessTokenFetcherImplTest,
+                           ParseGetAccessTokenFailureForInvalidRaptError);
 };
 
 #endif  // GOOGLE_APIS_GAIA_OAUTH2_ACCESS_TOKEN_FETCHER_IMPL_H_

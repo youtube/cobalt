@@ -13,10 +13,14 @@ namespace net {
 class HttpRequestHeaders;
 }
 
+#include "build/buildflag.h"
+
 namespace network {
 
 class NetworkContext;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 class TrustTokenStatusOrRequestHelper;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 // Handles the request based on the OHTTP specification:
 // https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html
@@ -56,6 +60,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) ObliviousHttpRequestHandler {
  private:
   class RequestState;
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // Callback from TrustTokenRequestHelperFactory during HandleRequest. Verifies
   // trust token helper was created correctly and calls Begin() on it to start
   // the trust token operation with headers stored in the RequestState.
@@ -67,13 +72,14 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) ObliviousHttpRequestHandler {
   // operation started successfully and then calls ContinueHandlingRequest.
   void OnDoneBeginningTrustTokenOperation(
       mojo::RemoteSetElementId id,
-      absl::optional<net::HttpRequestHeaders> headers,
+      std::optional<net::HttpRequestHeaders> headers,
       mojom::TrustTokenOperationStatus status);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   // Constructs the binary HTTP request including any trust token headers in the
   // RequestState, encrypts the request, and starts the outer request's
   // SimpleURLLoader.
-  void ContinueHandlingRequest(absl::optional<net::HttpRequestHeaders> headers,
+  void ContinueHandlingRequest(std::optional<net::HttpRequestHeaders> headers,
                                mojo::RemoteSetElementId id);
 
   // Calls the completed event with the specified net error code and HTTP
@@ -81,13 +87,14 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) ObliviousHttpRequestHandler {
   // specified id must be in the `clients_` set and the `client_state_` map.
   void RespondWithError(mojo::RemoteSetElementId id,
                         int error_code,
-                        absl::optional<int> outer_response_error_code);
+                        std::optional<int> outer_response_error_code);
 
   // Called by the SimpleURLLoader when the outer request has completed.
   // Performs steps 5 and 6 of the OHTTP request procedure above.
   void OnRequestComplete(mojo::RemoteSetElementId id,
                          std::unique_ptr<std::string> response);
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // Callback from TrustTokenRequestHelper::Finalize. Checks that the trust
   // token operation completed successfully and calls the client with the
   // result.
@@ -97,6 +104,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) ObliviousHttpRequestHandler {
       scoped_refptr<net::HttpResponseHeaders> headers,
       std::string body,
       mojom::TrustTokenOperationStatus status);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   // Notifies the client that the request completed successfully with the
   // provided response headers and body.

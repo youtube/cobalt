@@ -1,3 +1,1 @@
-monorail: {
-  component: "UI>Browser>WebUI"
-}
+mixins: "//ui/webui/COMMON_METADATA"

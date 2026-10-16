@@ -10,12 +10,13 @@ import android.view.MenuItem;
 import androidx.annotation.VisibleForTesting;
 import androidx.lifecycle.LifecycleObserver;
 
-import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncher;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherFactory;
 import org.chromium.chrome.browser.password_check.helper.PasswordCheckChangePasswordHelper;
 import org.chromium.chrome.browser.password_check.helper.PasswordCheckIconHelper;
 import org.chromium.chrome.browser.password_manager.settings.PasswordAccessReauthenticationHelper;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.components.browser_ui.settings.SettingsLauncher;
 import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
@@ -24,17 +25,15 @@ import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
  * Creates the PasswordCheckComponentUi. This class is responsible for managing the UI for the check
  * of the leaked password.
  */
+@NullMarked
 class PasswordCheckCoordinator implements PasswordCheckComponentUi, LifecycleObserver {
-    private HelpAndFeedbackLauncher mHelpAndFeedbackLauncher;
+    private final Profile mProfile;
     private final PasswordCheckFragmentView mFragmentView;
-    private final SettingsLauncher mSettingsLauncher;
     private final PasswordAccessReauthenticationHelper mReauthenticationHelper;
     private final PasswordCheckMediator mMediator;
     private PropertyModel mModel;
 
-    /**
-     * Blueprint for a class that handles interactions with credentials.
-     */
+    /** Blueprint for a class that handles interactions with credentials. */
     interface CredentialEventHandler {
         /**
          * Edits the given Credential in the password store.
@@ -62,46 +61,54 @@ class PasswordCheckCoordinator implements PasswordCheckComponentUi, LifecycleObs
         void onChangePasswordButtonClick(CompromisedCredential credential);
     }
 
-    PasswordCheckCoordinator(PasswordCheckFragmentView fragmentView,
-            HelpAndFeedbackLauncher helpAndFeedbackLauncher, SettingsLauncher settingsLauncher,
-            PasswordCheckComponentUi.CustomTabIntentHelper customTabIntentHelper,
-            PasswordCheckComponentUi.TrustedIntentHelper trustedIntentHelper) {
-        mHelpAndFeedbackLauncher = helpAndFeedbackLauncher;
+    PasswordCheckCoordinator(
+            PasswordCheckFragmentView fragmentView,
+            CustomTabIntentHelper customTabIntentHelper,
+            TrustedIntentHelper trustedIntentHelper,
+            Profile profile) {
+        mProfile = profile;
         mFragmentView = fragmentView;
-        mSettingsLauncher = settingsLauncher;
-        // TODO(crbug.com/1101256): If help is part of the view, make mediator the delegate.
+        // TODO(crbug.com/40138266): If help is part of the view, make mediator the delegate.
         mFragmentView.setComponentDelegate(this);
 
-        // TODO(crbug.com/1178519): Ideally, the following replaces the lifecycle event forwarding.
+        // TODO(crbug.com/40749164): Ideally, the following replaces the lifecycle event forwarding.
         //  Figure out why it isn't working and use the following lifecycle observer once it does:
         // mFragmentView.getLifecycle().addObserver(this);
 
-        mReauthenticationHelper = new PasswordAccessReauthenticationHelper(
-                mFragmentView.getActivity(), mFragmentView.getParentFragmentManager());
+        mReauthenticationHelper =
+                new PasswordAccessReauthenticationHelper(
+                        mFragmentView.getActivity(), mFragmentView.getParentFragmentManager());
 
         PasswordCheckChangePasswordHelper changePasswordHelper =
-                new PasswordCheckChangePasswordHelper(mFragmentView.getActivity(),
-                        mSettingsLauncher, customTabIntentHelper, trustedIntentHelper);
-        PasswordCheckIconHelper iconHelper = new PasswordCheckIconHelper(
-                new LargeIconBridge(Profile.getLastUsedRegularProfile()),
-                mFragmentView.getResources().getDimensionPixelSize(R.dimen.default_favicon_size));
-        mMediator = new PasswordCheckMediator(
-                changePasswordHelper, mReauthenticationHelper, mSettingsLauncher, iconHelper);
+                new PasswordCheckChangePasswordHelper(
+                        mFragmentView.getActivity(), customTabIntentHelper, trustedIntentHelper);
+        PasswordCheckIconHelper iconHelper =
+                new PasswordCheckIconHelper(
+                        new LargeIconBridge(profile),
+                        mFragmentView
+                                .getResources()
+                                .getDimensionPixelSize(R.dimen.default_favicon_size));
+        mMediator =
+                new PasswordCheckMediator(
+                        changePasswordHelper, mReauthenticationHelper, iconHelper);
     }
 
     private void launchCheckupInAccount() {
-        PasswordCheckFactory.getOrCreate(mSettingsLauncher)
-                .launchCheckupInAccount(mFragmentView.getActivity());
+        PasswordCheckFactory.getOrCreate().launchCheckupInAccount(mFragmentView.getActivity());
     }
 
     @Override
+    @Initializer
     public void onStartFragment() {
         // In the rare case of a restarted activity, don't recreate the model and mediator.
         if (mModel == null) {
             mModel = PasswordCheckProperties.createDefaultModel();
             PasswordCheckCoordinator.setUpModelChangeProcessors(mModel, mFragmentView);
-            mMediator.initialize(mModel, PasswordCheckFactory.getOrCreate(mSettingsLauncher),
-                    mFragmentView.getReferrer(), this::launchCheckupInAccount);
+            mMediator.initialize(
+                    mModel,
+                    PasswordCheckFactory.getOrCreate(),
+                    mFragmentView.getReferrer(),
+                    this::launchCheckupInAccount);
         }
     }
 
@@ -112,6 +119,7 @@ class PasswordCheckCoordinator implements PasswordCheckComponentUi, LifecycleObs
     }
 
     @Override
+    @SuppressWarnings("NullAway")
     public void onDestroyFragment() {
         mMediator.stopCheck();
         if (mFragmentView.getActivity() == null || mFragmentView.getActivity().isFinishing()) {
@@ -122,13 +130,17 @@ class PasswordCheckCoordinator implements PasswordCheckComponentUi, LifecycleObs
         }
     }
 
-    // TODO(crbug.com/1101256): Move to view code.
+    // TODO(crbug.com/40138266): Move to view code.
     @Override
     public boolean handleHelp(MenuItem item) {
         if (item.getItemId() == R.id.menu_id_targeted_help) {
-            mHelpAndFeedbackLauncher.show(mFragmentView.getActivity(),
-                    mFragmentView.getActivity().getString(R.string.help_context_check_passwords),
-                    null);
+            HelpAndFeedbackLauncherFactory.getForProfile(mProfile)
+                    .show(
+                            mFragmentView.getActivity(),
+                            mFragmentView
+                                    .getActivity()
+                                    .getString(R.string.help_context_check_passwords),
+                            null);
             return true;
         }
         return false;

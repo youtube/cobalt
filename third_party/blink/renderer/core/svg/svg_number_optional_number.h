@@ -47,7 +47,6 @@ class SVGNumberOptionalNumber final : public SVGPropertyBase {
   SVGNumberOptionalNumber(SVGNumber* first_number, SVGNumber* second_number);
 
   SVGNumberOptionalNumber* Clone() const;
-  SVGPropertyBase* CloneForAnimation(const String&) const override;
 
   String ValueAsString() const override;
   SVGParsingError SetValueAsString(const String&);
@@ -71,8 +70,8 @@ class SVGNumberOptionalNumber final : public SVGPropertyBase {
   }
   AnimatedPropertyType GetType() const override { return ClassType(); }
 
-  SVGNumber* FirstNumber() const { return first_number_; }
-  SVGNumber* SecondNumber() const { return second_number_; }
+  SVGNumber* FirstNumber() const { return first_number_.Get(); }
+  SVGNumber* SecondNumber() const { return second_number_.Get(); }
 
   void Trace(Visitor*) const override;
 

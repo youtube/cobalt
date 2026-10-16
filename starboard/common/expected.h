@@ -67,9 +67,29 @@ class Unexpected {
 template <typename T, typename E>
 class Expected {
  public:
+  // Provides a constrained templated constructor for copying the success value.
+  // This is implemented as a template with `std::enable_if` to ensure it is
+  // only instantiated for copy-constructible types. This is the C++17
+  // standard-compliant way to prevent compilation errors when `Expected` is
+  // used with move-only types like `std::unique_ptr`.
+  template <typename U = T,
+            std::enable_if_t<std::is_copy_constructible<U>::value, int> = 0>
+  Expected(const T& value) : has_value_(true) {
+    new (&storage_.value_) T(value);
+  }
+
+  // Explicitly provides a non-templated move constructor for the success value
+  // T. This is the best match for rvalue arguments (e.g., 'return T{};' or
+  // 'return std::move(value);'), guaranteeing an efficient move construction of
+  // the stored value.
+  Expected(T&& value) : has_value_(true) {
+    new (&storage_.value_) T(std::move(value));
+  }
+
   template <typename U,
             typename = std::enable_if_t<
                 std::is_convertible<U, T>::value &&
+                !std::is_same<std::decay_t<U>, T>::value &&
                 !std::is_same<std::decay_t<U>, Unexpected<E>>::value &&
                 !std::is_same<std::decay_t<U>, Expected<T, E>>::value>>
   Expected(U&& value) : has_value_(true) {

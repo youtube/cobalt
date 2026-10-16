@@ -8,7 +8,7 @@
                 "gen/build_info.json",
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",
-                "starboard/libstarboard.so.17"
+                "starboard/libstarboard.so.18"
             ],
             "dirs": [
                 "ssl"
@@ -31,8 +31,8 @@
                     "to_file": "licenses_cobalt.txt"
                 },
                 {
-                    "from_file": "starboard/libstarboard.so.17",
-                    "to_file": "libstarboard.so.17"
+                    "from_file": "starboard/libstarboard.so.18",
+                    "to_file": "libstarboard.so.18"
                 }
             ],
             "archive_type": "ARCHIVE_TYPE_ZIP"

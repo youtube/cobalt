@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 /** @fileoverview Definitions for chrome.bookmarks API. */
-// TODO(crbug.com/1203307): Auto-generate this file.
+// TODO(crbug.com/40179454): Auto-generate this file.
 
 import {ChromeEvent} from './chrome_event.js';
 
@@ -11,6 +11,13 @@ declare global {
   export namespace chrome {
     export namespace bookmarks {
       export enum BookmarkTreeNodeUnmodifiable {
+        MANAGED = 'managed',
+      }
+
+      export enum FolderType {
+        BOOKMARKS_BAR = 'bookmarks-bar',
+        OTHER = 'other',
+        MOBILE = 'mobile',
         MANAGED = 'managed',
       }
 
@@ -25,6 +32,8 @@ declare global {
         dateGroupModified?: number;
         unmodifiable?: BookmarkTreeNodeUnmodifiable;
         children?: BookmarkTreeNode[];
+        folderType?: FolderType;
+        syncing?: boolean;  // TODO: make mandatory
       }
 
       export interface CreateDetails {

@@ -7,6 +7,7 @@
 
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_one_block_arena.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_export.h"
@@ -23,9 +24,9 @@ class QuicIdleNetworkDetectorTestPeer;
 // Handshake timeout detection is disabled after handshake completes. Idle
 // network deadline is extended by network activity (e.g., sending or receiving
 // packets).
-class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
+class QUICHE_EXPORT QuicIdleNetworkDetector {
  public:
-  class QUIC_EXPORT_PRIVATE Delegate {
+  class QUICHE_EXPORT Delegate {
    public:
     virtual ~Delegate() {}
 
@@ -34,15 +35,10 @@ class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
 
     // Called when idle network has been detected.
     virtual void OnIdleNetworkDetected() = 0;
-
-    // Called when bandwidth update alarms.
-    virtual void OnBandwidthUpdateTimeout() = 0;
   };
 
   QuicIdleNetworkDetector(Delegate* delegate, QuicTime now,
-                          QuicConnectionArena* arena,
-                          QuicAlarmFactory* alarm_factory,
-                          QuicConnectionContext* context);
+                          QuicAlarmProxy alarm);
 
   void OnAlarm();
 
@@ -75,10 +71,6 @@ class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
   }
 
   QuicTime::Delta idle_network_timeout() const { return idle_network_timeout_; }
-
-  QuicTime::Delta bandwidth_update_timeout() const {
-    return bandwidth_update_timeout_;
-  }
 
   QuicTime GetIdleNetworkDeadline() const;
 
@@ -114,10 +106,7 @@ class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
   // Idle network timeout. Infinite means no idle network timeout.
   QuicTime::Delta idle_network_timeout_;
 
-  // Bandwidth update timeout. Infinite means no bandwidth update timeout.
-  QuicTime::Delta bandwidth_update_timeout_;
-
-  QuicArenaScopedPtr<QuicAlarm> alarm_;
+  QuicAlarmProxy alarm_;
 
   bool shorter_idle_timeout_on_sent_packet_ = false;
 

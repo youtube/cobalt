@@ -24,7 +24,7 @@ bool Animation::ScrollAnimationsEnabledBySystem() {
 
   bool enabled = false;
   id value = nil;
-  value = [[NSUserDefaults standardUserDefaults]
+  value = [NSUserDefaults.standardUserDefaults
       objectForKey:@"NSScrollAnimationEnabled"];
   if (value)
     enabled = [value boolValue];
@@ -34,10 +34,11 @@ bool Animation::ScrollAnimationsEnabledBySystem() {
 // static
 void Animation::UpdatePrefersReducedMotion() {
   // prefers_reduced_motion_ should only be modified on the UI thread.
-  // TODO(crbug.com/927163): DCHECK this assertion once tests are well-behaved.
+  // TODO(crbug.com/40611878): DCHECK this assertion once tests are
+  // well-behaved.
 
   prefers_reduced_motion_ =
-      [[NSWorkspace sharedWorkspace] accessibilityDisplayShouldReduceMotion];
+      NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion;
 }
 
 } // namespace gfx

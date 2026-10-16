@@ -6,17 +6,18 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
-#include "components/password_manager/core/browser/form_parsing/form_parser.h"
+#include "components/password_manager/core/browser/form_parsing/form_data_parser.h"
 #include "components/password_manager/core/browser/leak_detection_dialog_utils.h"
-#include "components/password_manager/core/browser/mock_password_store_interface.h"
 #include "components/password_manager/core/browser/password_form.h"
-#include "components/password_manager/core/browser/test_password_store.h"
+#include "components/password_manager/core/browser/password_store/mock_password_store_interface.h"
+#include "components/password_manager/core/browser/password_store/test_password_store.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -42,9 +43,9 @@ constexpr char kLeakedOrigin[] = "https://www.leaked_origin.de/login";
 constexpr char kOtherOrigin[] = "https://www.other_origin.de/login";
 
 // Creates a |PasswordForm| with the supplied |origin|, |username|, |password|.
-PasswordForm CreateForm(base::StringPiece origin,
-                        base::StringPiece16 username,
-                        base::StringPiece16 password = kLeakedPassword) {
+PasswordForm CreateForm(std::string_view origin,
+                        std::u16string_view username,
+                        std::u16string_view password = kLeakedPassword) {
   PasswordForm form;
   form.url = GURL(origin);
   form.username_value = std::u16string(username);
@@ -73,6 +74,7 @@ class LeakDetectionDelegateHelperTestBase {
       std::vector<GURL> all_urls_with_leaked_credentials = {}) {
     EXPECT_CALL(callback_, Run(in_stores, is_reused, GURL(kLeakedOrigin),
                                std::u16string(kLeakedUsername),
+                               std::u16string(kLeakedPassword),
                                all_urls_with_leaked_credentials))
         .Times(1);
   }
@@ -108,13 +110,8 @@ class LeakDetectionDelegateHelperTest
         .WillOnce(testing::WithArg<0>(
             [password_forms, store = store_.get()](
                 base::WeakPtr<PasswordStoreConsumer> consumer) {
-              std::vector<std::unique_ptr<PasswordForm>> results;
-              for (auto& form : password_forms) {
-                results.push_back(
-                    std::make_unique<PasswordForm>(std::move(form)));
-              }
               consumer->OnGetPasswordStoreResultsOrErrorFrom(
-                  store, std::move(results));
+                  store, std::move(password_forms));
             }));
   }
 

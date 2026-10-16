@@ -4,17 +4,16 @@
 
 #include "base/cpu.h"
 
-#include <inttypes.h>
-#include <limits.h>
-#include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <algorithm>
-#include <sstream>
+#include <string>
+#include <string_view>
 #include <utility>
 
-#include "base/no_destructor.h"
+#include "base/containers/span.h"
+#include "base/containers/span_writer.h"
+#include "base/memory/protected_memory.h"
 #include "build/build_config.h"
 
 #if defined(ARCH_CPU_ARM_FAMILY) && \
@@ -22,9 +21,10 @@
 #include <asm/hwcap.h>
 #include <sys/auxv.h>
 
+#include <algorithm>
+
 #include "base/files/file_util.h"
 #include "base/numerics/checked_math.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -35,18 +35,12 @@
 #define HWCAP2_MTE (1 << 18)
 #define HWCAP2_BTI (1 << 17)
 #endif
-
-struct ProcCpuInfo {
-  std::string brand;
-  uint8_t implementer = 0;
-  uint32_t part_number = 0;
-};
 #endif
 
 #if defined(ARCH_CPU_X86_FAMILY)
 #if defined(COMPILER_MSVC)
-#include <intrin.h>
 #include <immintrin.h>  // For _xgetbv()
+#include <intrin.h>
 #endif
 #endif
 
@@ -91,10 +85,10 @@ X86ModelInfo ComputeX86FamilyAndModel(const std::string& vendor,
 }  // namespace internal
 #endif  // defined(ARCH_CPU_X86_FAMILY)
 
-CPU::CPU(bool require_branding) {
-  Initialize(require_branding);
+CPU::CPU() {
+  Initialize();
 }
-CPU::CPU() : CPU(true) {}
+
 CPU::CPU(CPU&&) = default;
 
 namespace {
@@ -104,23 +98,35 @@ namespace {
 
 #if defined(__pic__) && defined(__i386__)
 
+// Requests extended feature information via |ecx|.
+void __cpuidex(int cpu_info[4], int eax, int ecx) {
+  // SAFETY: `cpu_info` has length 4 and therefore all accesses below are valid.
+  UNSAFE_BUFFERS(
+      __asm__ volatile("mov %%ebx, %%edi\n"
+                       "cpuid\n"
+                       "xchg %%edi, %%ebx\n"
+                       : "=a"(cpu_info[0]), "=D"(cpu_info[1]),
+                         "=c"(cpu_info[2]), "=d"(cpu_info[3])
+                       : "a"(eax), "c"(ecx)));
+}
+
 void __cpuid(int cpu_info[4], int info_type) {
-  __asm__ volatile(
-      "mov %%ebx, %%edi\n"
-      "cpuid\n"
-      "xchg %%edi, %%ebx\n"
-      : "=a"(cpu_info[0]), "=D"(cpu_info[1]), "=c"(cpu_info[2]),
-        "=d"(cpu_info[3])
-      : "a"(info_type), "c"(0));
+  __cpuidex(cpu_info, info_type, /*ecx=*/0);
 }
 
 #else
 
+// Requests extended feature information via |ecx|.
+void __cpuidex(int cpu_info[4], int eax, int ecx) {
+  // SAFETY: `cpu_info` has length 4 and therefore all accesses below are valid.
+  UNSAFE_BUFFERS(__asm__ volatile("cpuid\n"
+                                  : "=a"(cpu_info[0]), "=b"(cpu_info[1]),
+                                    "=c"(cpu_info[2]), "=d"(cpu_info[3])
+                                  : "a"(eax), "c"(ecx)));
+}
+
 void __cpuid(int cpu_info[4], int info_type) {
-  __asm__ volatile("cpuid\n"
-                   : "=a"(cpu_info[0]), "=b"(cpu_info[1]), "=c"(cpu_info[2]),
-                     "=d"(cpu_info[3])
-                   : "a"(info_type), "c"(0));
+  __cpuidex(cpu_info, info_type, /*ecx=*/0);
 }
 
 #endif
@@ -134,92 +140,20 @@ uint64_t xgetbv(uint32_t xcr) {
 #else
   uint32_t eax, edx;
 
-  __asm__ volatile (
-    "xgetbv" : "=a"(eax), "=d"(edx) : "c"(xcr));
+  __asm__ volatile("xgetbv" : "=a"(eax), "=d"(edx) : "c"(xcr));
   return (static_cast<uint64_t>(edx) << 32) | eax;
 #endif  // defined(COMPILER_MSVC)
 }
 
 #endif  // ARCH_CPU_X86_FAMILY
 
-#if defined(ARCH_CPU_ARM_FAMILY) && \
-    (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
-StringPairs::const_iterator FindFirstProcCpuKey(const StringPairs& pairs,
-                                                StringPiece key) {
-  return ranges::find_if(pairs, [key](const StringPairs::value_type& pair) {
-    return TrimWhitespaceASCII(pair.first, base::TRIM_ALL) == key;
-  });
-}
-
-// Parses information about the ARM processor. Note that depending on the CPU
-// package, processor configuration, and/or kernel version, this may only
-// report information about the processor on which this thread is running. This
-// can happen on heterogeneous-processor SoCs like Snapdragon 808, which has 4
-// Cortex-A53 and 2 Cortex-A57. Unfortunately there is not a universally
-// reliable way to examine the CPU part information for all cores.
-const ProcCpuInfo& ParseProcCpu() {
-  static const NoDestructor<ProcCpuInfo> info([]() {
-    // This function finds the value from /proc/cpuinfo under the key "model
-    // name" or "Processor". "model name" is used in Linux 3.8 and later (3.7
-    // and later for arm64) and is shown once per CPU. "Processor" is used in
-    // earler versions and is shown only once at the top of /proc/cpuinfo
-    // regardless of the number CPUs.
-    const char kModelNamePrefix[] = "model name";
-    const char kProcessorPrefix[] = "Processor";
-
-    std::string cpuinfo;
-    ReadFileToString(FilePath("/proc/cpuinfo"), &cpuinfo);
-    DCHECK(!cpuinfo.empty());
-
-    ProcCpuInfo info;
-
-    StringPairs pairs;
-    if (!SplitStringIntoKeyValuePairs(cpuinfo, ':', '\n', &pairs)) {
-      NOTREACHED();
-      return info;
-    }
-
-    auto model_name = FindFirstProcCpuKey(pairs, kModelNamePrefix);
-    if (model_name == pairs.end())
-      model_name = FindFirstProcCpuKey(pairs, kProcessorPrefix);
-    if (model_name != pairs.end()) {
-      info.brand =
-          std::string(TrimWhitespaceASCII(model_name->second, TRIM_ALL));
-    }
-
-    auto implementer_string = FindFirstProcCpuKey(pairs, "CPU implementer");
-    if (implementer_string != pairs.end()) {
-      // HexStringToUInt() handles the leading whitespace on the value.
-      uint32_t implementer;
-      HexStringToUInt(implementer_string->second, &implementer);
-      if (!CheckedNumeric<uint32_t>(implementer)
-               .AssignIfValid(&info.implementer)) {
-        info.implementer = 0;
-      }
-    }
-
-    auto part_number_string = FindFirstProcCpuKey(pairs, "CPU part");
-    if (part_number_string != pairs.end())
-      HexStringToUInt(part_number_string->second, &info.part_number);
-
-    return info;
-  }());
-
-  return *info;
-}
-#endif  // defined(ARCH_CPU_ARM_FAMILY) && (BUILDFLAG(IS_ANDROID) ||
-        // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
+DEFINE_PROTECTED_DATA base::ProtectedMemory<CPU> g_cpu_instance;
 
 }  // namespace
 
-void CPU::Initialize(bool require_branding) {
+void CPU::Initialize() {
 #if defined(ARCH_CPU_X86_FAMILY)
-  int cpu_info[4] = {-1};
-  // This array is used to temporarily hold the vendor name and then the brand
-  // name. Thus it has to be big enough for both use cases. There are
-  // static_asserts below for each of the use cases to make sure this array is
-  // big enough.
-  char cpu_string[sizeof(cpu_info) * 3 + 1];
+  int cpu_info[4] = {-1, 0, 0, 0};
 
   // __cpuid with an InfoType argument of 0 returns the number of
   // valid Ids in CPUInfo[0] and the CPU identification string in
@@ -227,23 +161,26 @@ void CPU::Initialize(bool require_branding) {
   // not in linear order. The code below arranges the information
   // in a human readable form. The human readable order is CPUInfo[1] |
   // CPUInfo[3] | CPUInfo[2]. CPUInfo[2] and CPUInfo[3] are swapped
-  // before using memcpy() to copy these three array elements to |cpu_string|.
+  // before copying these three array elements to |cpu_vendor_|.
   __cpuid(cpu_info, 0);
   int num_ids = cpu_info[0];
   std::swap(cpu_info[2], cpu_info[3]);
-  static constexpr size_t kVendorNameSize = 3 * sizeof(cpu_info[1]);
-  static_assert(kVendorNameSize < std::size(cpu_string),
-                "cpu_string too small");
-  memcpy(cpu_string, &cpu_info[1], kVendorNameSize);
-  cpu_string[kVendorNameSize] = '\0';
-  cpu_vendor_ = cpu_string;
+  {
+    SpanWriter writer{span(cpu_vendor_)};
+    writer.Write(as_chars(span(cpu_info)).last<kVendorNameSize>());
+    writer.Write('\0');
+  }
 
   // Interpret CPU feature information.
   if (num_ids > 0) {
-    int cpu_info7[4] = {0};
+    int cpu_info7[4] = {};
+    int cpu_einfo7[4] = {};
     __cpuid(cpu_info, 1);
     if (num_ids >= 7) {
       __cpuid(cpu_info7, 7);
+      if (cpu_info7[0] >= 1) {
+        __cpuidex(cpu_einfo7, 7, 1);
+      }
     }
     signature_ = cpu_info[0];
     stepping_ = cpu_info[0] & 0xf;
@@ -254,10 +191,10 @@ void CPU::Initialize(bool require_branding) {
     model_ = results.model;
     ext_family_ = results.ext_family;
     ext_model_ = results.ext_model;
-    has_mmx_ =   (cpu_info[3] & 0x00800000) != 0;
-    has_sse_ =   (cpu_info[3] & 0x02000000) != 0;
-    has_sse2_ =  (cpu_info[3] & 0x04000000) != 0;
-    has_sse3_ =  (cpu_info[2] & 0x00000001) != 0;
+    has_mmx_ = (cpu_info[3] & 0x00800000) != 0;
+    has_sse_ = (cpu_info[3] & 0x02000000) != 0;
+    has_sse2_ = (cpu_info[3] & 0x04000000) != 0;
+    has_sse3_ = (cpu_info[2] & 0x00000001) != 0;
     has_ssse3_ = (cpu_info[2] & 0x00000200) != 0;
     has_sse41_ = (cpu_info[2] & 0x00080000) != 0;
     has_sse42_ = (cpu_info[2] & 0x00100000) != 0;
@@ -280,16 +217,25 @@ void CPU::Initialize(bool require_branding) {
     // even after following Intel's example code. (See crbug.com/375968.)
     // Because of that, we also test the XSAVE bit because its description in
     // the CPUID documentation suggests that it signals xgetbv support.
-    has_avx_ =
-        (cpu_info[2] & 0x10000000) != 0 &&
-        (cpu_info[2] & 0x04000000) != 0 /* XSAVE */ &&
-        (cpu_info[2] & 0x08000000) != 0 /* OSXSAVE */ &&
-        (xgetbv(0) & 6) == 6 /* XSAVE enabled by kernel */;
+    has_avx_ = (cpu_info[2] & 0x10000000) != 0 &&
+               (cpu_info[2] & 0x04000000) != 0 /* XSAVE */ &&
+               (cpu_info[2] & 0x08000000) != 0 /* OSXSAVE */ &&
+               (xgetbv(0) & 6) == 6 /* XSAVE enabled by kernel */;
     has_aesni_ = (cpu_info[2] & 0x02000000) != 0;
     has_fma3_ = (cpu_info[2] & 0x00001000) != 0;
-    has_avx2_ = has_avx_ && (cpu_info7[1] & 0x00000020) != 0;
+    if (has_avx_) {
+      has_avx2_ = (cpu_info7[1] & 0x00000020) != 0;
+      has_avx_vnni_ = (cpu_einfo7[0] & 0x00000010) != 0;
+      // Check AVX-512 state, bits 5-7.
+      if ((xgetbv(0) & 0xe0) == 0xe0) {
+        has_avx512_f_ = (cpu_info7[1] & 0x00010000) != 0;
+        has_avx512_bw_ = (cpu_info7[1] & 0x40000000) != 0;
+        has_avx512_vnni_ = (cpu_info7[2] & 0x00000800) != 0;
+      }
+    }
 
     has_pku_ = (cpu_info7[2] & 0x00000010) != 0;
+    has_pclmul_ = (cpu_info[2] & 0x00000002) != 0;
   }
 
   // Get the brand string of the cpu.
@@ -300,19 +246,17 @@ void CPU::Initialize(bool require_branding) {
   static constexpr uint32_t kParameterEnd = 0x80000004;
   static constexpr uint32_t kParameterSize =
       kParameterEnd - kParameterStart + 1;
-  static_assert(kParameterSize * sizeof(cpu_info) + 1 == std::size(cpu_string),
-                "cpu_string has wrong size");
+  static_assert(kParameterSize * sizeof(cpu_info) == kBrandNameSize,
+                "cpu_brand_ has wrong size");
 
   if (max_parameter >= kParameterEnd) {
-    size_t i = 0;
+    SpanWriter writer{span(cpu_brand_)};
     for (uint32_t parameter = kParameterStart; parameter <= kParameterEnd;
          ++parameter) {
       __cpuid(cpu_info, static_cast<int>(parameter));
-      memcpy(&cpu_string[i], cpu_info, sizeof(cpu_info));
-      i += sizeof(cpu_info);
+      writer.Write(as_chars(span(cpu_info)));
     }
-    cpu_string[i] = '\0';
-    cpu_brand_ = cpu_string;
+    writer.Write('\0');
   }
 
   static constexpr uint32_t kParameterContainingNonStopTimeStampCounter =
@@ -340,21 +284,12 @@ void CPU::Initialize(bool require_branding) {
     }
   }
 #elif defined(ARCH_CPU_ARM_FAMILY)
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-  if (require_branding) {
-    const ProcCpuInfo& info = ParseProcCpu();
-    cpu_brand_ = info.brand;
-    implementer_ = info.implementer;
-    part_number_ = info.part_number;
-  }
-
-#if defined(ARCH_CPU_ARM64)
+#if defined(ARCH_CPU_ARM64) && \
+    (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
   // Check for Armv8.5-A BTI/MTE support, exposed via HWCAP2
   unsigned long hwcap2 = getauxval(AT_HWCAP2);
   has_mte_ = hwcap2 & HWCAP2_MTE;
   has_bti_ = hwcap2 & HWCAP2_BTI;
-#endif
-
 #elif BUILDFLAG(IS_WIN)
   // Windows makes high-resolution thread timing information available in
   // user-space.
@@ -365,23 +300,53 @@ void CPU::Initialize(bool require_branding) {
 
 #if defined(ARCH_CPU_X86_FAMILY)
 CPU::IntelMicroArchitecture CPU::GetIntelMicroArchitecture() const {
-  if (has_avx2()) return AVX2;
-  if (has_fma3()) return FMA3;
-  if (has_avx()) return AVX;
-  if (has_sse42()) return SSE42;
-  if (has_sse41()) return SSE41;
-  if (has_ssse3()) return SSSE3;
-  if (has_sse3()) return SSE3;
-  if (has_sse2()) return SSE2;
-  if (has_sse()) return SSE;
+  if (has_avx512_vnni()) {
+    return AVX512_VNNI;
+  }
+  if (has_avx512_bw()) {
+    return AVX512BW;
+  }
+  if (has_avx512_f()) {
+    return AVX512F;
+  }
+  if (has_avx_vnni()) {
+    return AVX_VNNI;
+  }
+  if (has_avx2()) {
+    return AVX2;
+  }
+  if (has_fma3()) {
+    return FMA3;
+  }
+  if (has_avx()) {
+    return AVX;
+  }
+  if (has_sse42()) {
+    return SSE42;
+  }
+  if (has_sse41()) {
+    return SSE41;
+  }
+  if (has_ssse3()) {
+    return SSSE3;
+  }
+  if (has_sse3()) {
+    return SSE3;
+  }
+  if (has_sse2()) {
+    return SSE2;
+  }
+  if (has_sse()) {
+    return SSE;
+  }
   return PENTIUM;
 }
 #endif
 
 const CPU& CPU::GetInstanceNoAllocation() {
-  static const base::NoDestructor<const CPU> cpu(CPU(false));
+  static ProtectedMemoryInitializer cpu_initializer(g_cpu_instance, CPU());
 
-  return *cpu;
+  return *g_cpu_instance;
 }
 
 }  // namespace base

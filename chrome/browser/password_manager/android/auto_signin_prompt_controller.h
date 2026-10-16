@@ -5,10 +5,7 @@
 #ifndef CHROME_BROWSER_PASSWORD_MANAGER_ANDROID_AUTO_SIGNIN_PROMPT_CONTROLLER_H_
 #define CHROME_BROWSER_PASSWORD_MANAGER_ANDROID_AUTO_SIGNIN_PROMPT_CONTROLLER_H_
 
-#include <jni.h>
-
 #include <string>
-
 
 namespace content {
 class WebContents;

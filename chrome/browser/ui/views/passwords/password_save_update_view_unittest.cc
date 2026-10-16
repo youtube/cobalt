@@ -5,24 +5,30 @@
 #include "chrome/browser/ui/views/passwords/password_save_update_view.h"
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/password_manager/password_store_factory.h"
+#include "base/test/scoped_feature_list.h"
+#include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/passwords/password_bubble_view_test_base.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/password_manager/core/browser/mock_password_feature_manager.h"
-#include "components/password_manager/core/browser/mock_password_store_interface.h"
+#include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_test_utils.h"
+#include "components/password_manager/core/browser/password_store/mock_password_store_interface.h"
 #include "components/sync/test/test_sync_service.h"
 #include "content/public/test/navigation_simulator.h"
-#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/views/controls/combobox/combobox.h"
+#include "ui/views/controls/editable_combobox/editable_password_combobox.h"
+#include "ui/views/interaction/interaction_test_util_views.h"
 
 using ::testing::Return;
 using ::testing::ReturnRef;
@@ -45,29 +51,37 @@ class PasswordSaveUpdateViewTest : public PasswordBubbleViewTestBase {
   void SimulateSignIn();
 
   void TearDown() override {
-    view_->GetWidget()->CloseWithReason(
-        views::Widget::ClosedReason::kCloseButtonClicked);
+    std::exchange(view_, nullptr)
+        ->GetWidget()
+        ->CloseWithReason(views::Widget::ClosedReason::kCloseButtonClicked);
 
     PasswordBubbleViewTestBase::TearDown();
   }
 
   PasswordSaveUpdateView* view() { return view_; }
-  views::Combobox* account_picker() {
-    return view_->DestinationDropdownForTesting();
-  }
 
  protected:
+  static std::u16string SaveButtonCaption() {
+    return l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_SAVE_BUTTON);
+  }
+  static std::u16string NeverButtonCaption() {
+    return l10n_util::GetStringUTF16(
+        IDS_PASSWORD_MANAGER_BUBBLE_BLOCKLIST_BUTTON);
+  }
+  static std::u16string NotNowButtonCaption() {
+    return l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_CANCEL_BUTTON);
+  }
+
   password_manager::PasswordForm pending_password_;
 
  private:
-  raw_ptr<PasswordSaveUpdateView> view_;
+  raw_ptr<PasswordSaveUpdateView> view_ = nullptr;
   std::vector<std::unique_ptr<password_manager::PasswordForm>> current_forms_;
 };
 
 PasswordSaveUpdateViewTest::PasswordSaveUpdateViewTest() {
-  ON_CALL(*feature_manager_mock(), GetDefaultPasswordStore)
-      .WillByDefault(
-          Return(password_manager::PasswordForm::Store::kAccountStore));
+  ON_CALL(*feature_manager_mock(), IsAccountStorageEnabled)
+      .WillByDefault(Return(true));
   ON_CALL(*model_delegate_mock(), GetOrigin)
       .WillByDefault(Return(url::Origin::Create(pending_password_.url)));
   ON_CALL(*model_delegate_mock(), GetState)
@@ -77,7 +91,7 @@ PasswordSaveUpdateViewTest::PasswordSaveUpdateViewTest() {
   ON_CALL(*model_delegate_mock(), GetCurrentForms)
       .WillByDefault(ReturnRef(current_forms_));
 
-  PasswordStoreFactory::GetInstance()->SetTestingFactoryAndUse(
+  ProfilePasswordStoreFactory::GetInstance()->SetTestingFactoryAndUse(
       profile(),
       base::BindRepeating(&password_manager::BuildPasswordStoreInterface<
                           content::BrowserContext,
@@ -105,59 +119,34 @@ void PasswordSaveUpdateViewTest::SimulateSignIn() {
 TEST_F(PasswordSaveUpdateViewTest, HasTitleAndTwoButtons) {
   CreateViewAndShow();
   EXPECT_TRUE(view()->ShouldShowWindowTitle());
-  EXPECT_TRUE(view()->GetOkButton());
-  EXPECT_TRUE(view()->GetCancelButton());
+  ASSERT_TRUE(view()->GetOkButton());
+  EXPECT_EQ(view()->GetOkButton()->GetText(), SaveButtonCaption());
+  ASSERT_TRUE(view()->GetCancelButton());
+  EXPECT_EQ(view()->GetCancelButton()->GetText(), NeverButtonCaption());
+  EXPECT_FALSE(view()->extra_view_for_testing());
 }
 
-TEST_F(PasswordSaveUpdateViewTest, ShouldNotShowAccountPicker) {
-  ON_CALL(*feature_manager_mock(), ShouldShowAccountStorageBubbleUi)
-      .WillByDefault(Return(false));
+TEST_F(PasswordSaveUpdateViewTest, NeverButtonClicked) {
   CreateViewAndShow();
-  EXPECT_FALSE(account_picker());
-}
-
-TEST_F(PasswordSaveUpdateViewTest, ShouldShowAccountPicker) {
-  ON_CALL(*feature_manager_mock(), ShouldShowAccountStorageBubbleUi)
-      .WillByDefault(Return(true));
-  SimulateSignIn();
-  CreateViewAndShow();
-  ASSERT_TRUE(account_picker());
-  EXPECT_EQ(0u, account_picker()->GetSelectedIndex());
+  EXPECT_CALL(*model_delegate_mock(), NeverSavePassword);
+  views::test::InteractionTestUtilSimulatorViews::PressButton(
+      view()->GetCancelButton());
 }
 
 TEST_F(PasswordSaveUpdateViewTest, ShouldSelectAccountStoreByDefault) {
-  ON_CALL(*feature_manager_mock(), ShouldShowAccountStorageBubbleUi)
+  ON_CALL(*feature_manager_mock(), IsAccountStorageEnabled)
       .WillByDefault(Return(true));
-  ON_CALL(*feature_manager_mock(), GetDefaultPasswordStore)
-      .WillByDefault(
-          Return(password_manager::PasswordForm::Store::kAccountStore));
 
   SimulateSignIn();
-
   CreateViewAndShow();
-
-  ASSERT_TRUE(account_picker());
-  EXPECT_EQ(0u, account_picker()->GetSelectedIndex());
-  EXPECT_EQ(l10n_util::GetStringUTF16(
-                IDS_PASSWORD_MANAGER_DESTINATION_DROPDOWN_SAVE_TO_ACCOUNT),
-            account_picker()->GetTextForRow(
-                account_picker()->GetSelectedIndex().value()));
 }
 
 TEST_F(PasswordSaveUpdateViewTest, ShouldSelectProfileStoreByDefault) {
-  ON_CALL(*feature_manager_mock(), ShouldShowAccountStorageBubbleUi)
-      .WillByDefault(Return(true));
-  ON_CALL(*feature_manager_mock(), GetDefaultPasswordStore)
-      .WillByDefault(
-          Return(password_manager::PasswordForm::Store::kProfileStore));
+  ON_CALL(*feature_manager_mock(), IsAccountStorageEnabled)
+      .WillByDefault(Return(false));
+
   SimulateSignIn();
   CreateViewAndShow();
-  ASSERT_TRUE(account_picker());
-  EXPECT_EQ(1u, account_picker()->GetSelectedIndex());
-  EXPECT_EQ(l10n_util::GetStringUTF16(
-                IDS_PASSWORD_MANAGER_DESTINATION_DROPDOWN_SAVE_TO_DEVICE),
-            account_picker()->GetTextForRow(
-                account_picker()->GetSelectedIndex().value()));
 }
 
 // This is a regression test for crbug.com/1093290
@@ -170,7 +159,69 @@ TEST_F(PasswordSaveUpdateViewTest,
       kURL, web_contents()->GetPrimaryMainFrame());
 
   // Set the federation_origin to force a Federated Credentials bubble.
-  pending_password_.federation_origin = kOrigin;
-
+  pending_password_.federation_origin = url::SchemeHostPort(kURL);
+  pending_password_.match_type =
+      password_manager::PasswordForm::MatchType::kExact;
   CreateViewAndShow();
+}
+
+// This is a regression test for crbug.com/1475021
+TEST_F(PasswordSaveUpdateViewTest, SaveButtonIsDisabledWhenPasswordIsEmpty) {
+  CreateViewAndShow();
+  const PasswordSaveUpdateView* save_bubble =
+      static_cast<const PasswordSaveUpdateView*>(view());
+  const views::DialogDelegate* dialog_delegate = view();
+
+  save_bubble->password_dropdown_for_testing()->SetText(u"password");
+  EXPECT_TRUE(
+      dialog_delegate->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
+
+  save_bubble->password_dropdown_for_testing()->SetText(u"");
+  EXPECT_FALSE(
+      dialog_delegate->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
+
+  save_bubble->password_dropdown_for_testing()->SetText(u"pass");
+  EXPECT_TRUE(
+      dialog_delegate->IsDialogButtonEnabled(ui::mojom::DialogButton::kOk));
+}
+
+class PasswordSaveThreeButtonDialogViewTest
+    : public PasswordSaveUpdateViewTest {
+ public:
+  PasswordSaveThreeButtonDialogViewTest();
+  ~PasswordSaveThreeButtonDialogViewTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+PasswordSaveThreeButtonDialogViewTest::PasswordSaveThreeButtonDialogViewTest() {
+  // Enable an experiment to have the Cancel button simply dismiss the dialog,
+  // and have a third button to explicitly never save the password.
+  scoped_feature_list_.InitWithFeatureState(
+      features::kThreeButtonPasswordSaveDialog, true);
+}
+
+TEST_F(PasswordSaveThreeButtonDialogViewTest, ThreeButtonLayout) {
+  CreateViewAndShow();
+  ASSERT_TRUE(view()->GetOkButton());
+  EXPECT_EQ(view()->GetOkButton()->GetText(), SaveButtonCaption());
+  ASSERT_TRUE(view()->GetCancelButton());
+  EXPECT_EQ(view()->GetCancelButton()->GetText(), NotNowButtonCaption());
+  ASSERT_TRUE(view()->extra_view_for_testing());
+  EXPECT_EQ(view()->extra_view_for_testing()->GetText(), NeverButtonCaption());
+}
+
+TEST_F(PasswordSaveThreeButtonDialogViewTest, ThreeButtonLayoutNotNowClicked) {
+  CreateViewAndShow();
+  EXPECT_CALL(*model_delegate_mock(), OnNotNowClicked);
+  views::test::InteractionTestUtilSimulatorViews::PressButton(
+      view()->GetCancelButton());
+}
+
+TEST_F(PasswordSaveThreeButtonDialogViewTest, ThreeButtonLayoutNeverClicked) {
+  CreateViewAndShow();
+  EXPECT_CALL(*model_delegate_mock(), NeverSavePassword);
+  views::test::InteractionTestUtilSimulatorViews::PressButton(
+      view()->extra_view_for_testing());
 }

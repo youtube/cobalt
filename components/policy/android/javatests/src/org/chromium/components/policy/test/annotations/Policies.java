@@ -12,12 +12,12 @@ import androidx.annotation.VisibleForTesting;
 import org.junit.Assert;
 import org.junit.runners.model.FrameworkMethod;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.test.BaseJUnit4ClassRunner.TestHook;
 import org.chromium.components.policy.AbstractAppRestrictionsProvider;
 import org.chromium.components.policy.CombinedPolicyProvider;
 import org.chromium.components.policy.test.PolicyData;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Inherited;
@@ -117,9 +117,10 @@ public final class Policies {
 
     @VisibleForTesting
     static Map<String, PolicyData> getPolicies(AnnotatedElement element) {
-        AnnotatedElement parent = (element instanceof Method)
-                ? ((Method) element).getDeclaringClass()
-                : ((Class<?>) element).getSuperclass();
+        AnnotatedElement parent =
+                (element instanceof Method)
+                        ? ((Method) element).getDeclaringClass()
+                        : ((Class<?>) element).getSuperclass();
         Map<String, PolicyData> flags =
                 (parent == null) ? new HashMap<String, PolicyData>() : getPolicies(parent);
 
@@ -128,8 +129,10 @@ public final class Policies {
         }
 
         if (element.isAnnotationPresent(Policies.Remove.class)) {
-            flags.keySet().removeAll(
-                    fromItems(element.getAnnotation(Policies.Remove.class).value()).keySet());
+            flags.keySet()
+                    .removeAll(
+                            fromItems(element.getAnnotation(Policies.Remove.class).value())
+                                    .keySet());
         }
 
         return flags;
@@ -151,8 +154,7 @@ public final class Policies {
             }
             if (LibraryLoader.getInstance().isInitialized()) {
                 // Policy refresh required to apply annotations for batched tests.
-                TestThreadUtils.runOnUiThreadBlocking(
-                        CombinedPolicyProvider.get()::refreshPolicies);
+                ThreadUtils.runOnUiThreadBlocking(CombinedPolicyProvider.get()::refreshPolicies);
             }
         }
     }

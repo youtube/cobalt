@@ -3,30 +3,30 @@
 # found in the LICENSE file.
 
 import("//build/config/zip.gni")
-import("//chrome/installer/mac/mac_signing_sources.gni")
 import("//remoting/build/config/remoting_build.gni")
+import("//remoting/host/installer/credits.gni")
+
+remoting_credits("credits") {
+  gn_target = "//remoting/host/installer/mac:remoting_me2me_host_archive"
+}
 
 action("remoting_me2me_host_archive") {
   _installer_mac_files = [
     "app-entitlements.plist",
     "do_signing.sh",
     "do_signing.props",
+    "me2me-entitlements.plist",
     "ChromotingHost.pkgproj",
     "ChromotingHostService.pkgproj",
     "ChromotingHostUninstaller.pkgproj",
     "LaunchAgents/org.chromium.chromoting.plist",
+    "LaunchDaemons/org.chromium.chromoting.broker.plist",
     "Scripts/keystone_install.sh",
     "Scripts/remoting_postflight.sh",
     "Scripts/remoting_preflight.sh",
     "Keystone/GoogleSoftwareUpdate.pkg",
     "//chrome/installer/mac/pkg-dmg",
-    "//chrome/installer/mac/notarize_thing.py",
   ]
-
-  # Chrome's signing/notarization Python module.
-  _mac_signing_files =
-      rebase_path(mac_signing_sources, ".", "//chrome/installer/mac")
-  _installer_mac_files += _mac_signing_files
 
   inputs = _installer_mac_files
 
@@ -56,6 +56,7 @@ action("remoting_me2me_host_archive") {
            "remoting_host_uninstaller.app",
            "remoting/com.google.chrome.remote_desktop.json",
            "remoting/com.google.chrome.remote_assistance.json",
+           "remoting/com.google.chrome.remote_webauthn.json",
            "remoting/com.google.chrome.remote_desktop-firefox.json",
            "remoting/com.google.chrome.remote_assistance-firefox.json",
            "--generated-files-dst",
@@ -65,8 +66,14 @@ action("remoting_me2me_host_archive") {
            "Applications/$host_uninstaller_name.app",
            "Config/com.google.chrome.remote_desktop.json",
            "Config/com.google.chrome.remote_assistance.json",
+           "Config/com.google.chrome.remote_webauthn.json",
            "Config/Firefox/com.google.chrome.remote_desktop.json",
            "Config/Firefox/com.google.chrome.remote_assistance.json",
+           "--removed-files",
+
+           # These icudtl.dat files will be symlinked to the one in the parent bundle by remoting_postflight.sh.
+           "PrivilegedHelperTools/$me2me_host_bundle_name/Contents/MacOS/$native_messaging_host_bundle_name/Contents/Resources/icudtl.dat",
+           "PrivilegedHelperTools/$me2me_host_bundle_name/Contents/MacOS/$remote_assistance_host_bundle_name/Contents/Resources/icudtl.dat",
            "--defs",
            "VERSION=$chrome_version_full",
            "VERSION_SHORT=$chrome_version_major.$chrome_version_minor.$chrome_version_build",
@@ -115,7 +122,7 @@ mac_app_bundle("remoting_host_uninstaller") {
     "BUNDLE_ID=$uninstaller_bundle_id",
     "VERSION_FULL=$remoting_version_full",
     "VERSION_SHORT=$remoting_version_short",
-    "MACOSX_DEPLOYMENT_TARGET=10.10",
+    "MACOSX_DEPLOYMENT_TARGET=10.15",
   ]
 
   sources = [

@@ -4,16 +4,16 @@
 
 package org.chromium.chrome.browser.share.send_tab_to_self;
 
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
-/**
- * Class that captures all the metrics needed for Send Tab To Self on Android.
- */
+import org.chromium.base.metrics.RecordUserAction;
+
+/** Class that captures all the metrics needed for Send Tab To Self on Android. */
 @JNINamespace("send_tab_to_self")
 class MetricsRecorder {
-    public static void recordSendingEvent(@SendingEvent int sendingEvent) {
-        MetricsRecorderJni.get().recordSendingEvent(sendingEvent);
+    public static void recordCrossDeviceTabJourney() {
+        RecordUserAction.record("MobileCrossDeviceTabJourney");
     }
 
     public static void recordNotificationShown() {
@@ -21,6 +21,7 @@ class MetricsRecorder {
     }
 
     public static void recordNotificationOpened() {
+        RecordUserAction.record("MobileCrossDeviceTabJourney");
         MetricsRecorderJni.get().recordNotificationOpened();
     }
 
@@ -34,10 +35,12 @@ class MetricsRecorder {
 
     @NativeMethods
     interface Natives {
-        void recordSendingEvent(int sendingEvent);
         void recordNotificationShown();
+
         void recordNotificationOpened();
+
         void recordNotificationDismissed();
+
         void recordNotificationTimedOut();
     }
 }

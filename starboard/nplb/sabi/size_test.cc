@@ -12,34 +12,53 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cinttypes>
+#include <climits>
+#include <cwchar>
+
 #include "starboard/configuration.h"
 
 namespace nplb {
 namespace {
 
-SB_COMPILE_ASSERT(sizeof(char) == SB_SIZE_OF_CHAR,
-                  SB_SIZE_OF_CHAR_is_inconsistent_with_sizeof_char);
+static_assert(sizeof(char) == SB_SIZE_OF_CHAR);
+static_assert(sizeof(double) == SB_SIZE_OF_DOUBLE);
+static_assert(sizeof(float) == SB_SIZE_OF_FLOAT);
+static_assert(sizeof(int) == SB_SIZE_OF_INT);
+static_assert(sizeof(int*) == SB_SIZE_OF_POINTER);
+static_assert(sizeof(long) == SB_SIZE_OF_LONG);        // NOLINT(runtime/int)
+static_assert(sizeof(long long) == SB_SIZE_OF_LLONG);  // NOLINT(runtime/int)
+static_assert(sizeof(short) == SB_SIZE_OF_SHORT);      // NOLINT(runtime/int)
 
-SB_COMPILE_ASSERT(sizeof(double) == SB_SIZE_OF_DOUBLE,
-                  SB_SIZE_OF_DOUBLE_is_inconsistent_with_sizeof_double);
+// --- Standard Include Emulation Audits ---------------------------------------
 
-SB_COMPILE_ASSERT(sizeof(float) == SB_SIZE_OF_FLOAT,
-                  SB_SIZE_OF_FLOAT_is_inconsistent_with_sizeof_float);
+#if (UINT_MIN + 1 == UINT_MAX - 1) || (INT_MIN + 1 == INT_MAX - 1) || \
+    (LONG_MIN + 1 == LONG_MAX - 1)
+// This should always evaluate to false, but ensures that the limits macros can
+// be used arithmetically in the preprocessor.
+#endif
 
-SB_COMPILE_ASSERT(sizeof(int) == SB_SIZE_OF_INT,
-                  SB_SIZE_OF_INT_is_inconsistent_with_sizeof_int);
+#if !defined(PRId32)
+#error "inttypes.h should provide the portable formatting macros."
+#endif
 
-SB_COMPILE_ASSERT(sizeof(int*) == SB_SIZE_OF_POINTER,
-                  SB_SIZE_OF_POINTER_is_inconsistent_with_sizeof_intptr_t);
+// --- Standard Type Audits ----------------------------------------------------
 
-SB_COMPILE_ASSERT(sizeof(long) == SB_SIZE_OF_LONG,  // NOLINT(runtime/int)
-                  SB_SIZE_OF_LONG_is_inconsistent_with_sizeof_long);
+#if SB_IS(WCHAR_T_UTF16)
+static_assert(sizeof(wchar_t) == 2);
+#endif
 
-SB_COMPILE_ASSERT(sizeof(long long) == SB_SIZE_OF_LLONG,  // NOLINT(runtime/int)
-                  SB_SIZE_OF_LONG_is_inconsistent_with_sizeof_llong);
+#if SB_IS(WCHAR_T_UTF32)
+static_assert(sizeof(wchar_t) == 4);
+#endif
 
-SB_COMPILE_ASSERT(sizeof(short) == SB_SIZE_OF_SHORT,  // NOLINT(runtime/int)
-                  SB_SIZE_OF_SHORT_is_inconsistent_with_sizeof_short);
+#if SB_IS(WCHAR_T_SIGNED)
+static_assert((wchar_t)(-1) < 0);
+#endif
+
+#if SB_IS(WCHAR_T_UNSIGNED)
+static_assert((wchar_t)(-1) > 0);
+#endif
 
 }  // namespace
 }  // namespace nplb

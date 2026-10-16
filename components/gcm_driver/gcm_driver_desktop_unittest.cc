@@ -247,8 +247,7 @@ void GCMDriverTest::CreateDriver() {
       std::unique_ptr<GCMClientFactory>(new FakeGCMClientFactory(
           base::SingleThreadTaskRunner::GetCurrentDefault(),
           io_thread_.task_runner())),
-      chrome_build_info, &prefs_, temp_dir_.GetPath(),
-      /*remove_account_mappings_with_email_key=*/true, base::DoNothing(),
+      chrome_build_info, &prefs_, temp_dir_.GetPath(), base::DoNothing(),
       base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
           &test_url_loader_factory_),
       network::TestNetworkConnectionTracker::GetInstance(),
@@ -632,7 +631,7 @@ TEST_F(GCMDriverFunctionalTest, UnregisterExplicitly) {
   EXPECT_EQ(GCMClient::SUCCESS, unregistration_result());
 }
 
-// TODO(crbug.com/1009185): Test is failing on ASan build.
+// TODO(crbug.com/40650420): Test is failing on ASan build.
 #if defined(ADDRESS_SANITIZER)
 TEST_F(GCMDriverFunctionalTest, DISABLED_UnregisterRemovesEncryptionInfo) {
 #else

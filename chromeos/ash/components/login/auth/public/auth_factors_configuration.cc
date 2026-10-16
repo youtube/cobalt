@@ -1,17 +1,16 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "chromeos/ash/components/login/auth/public/auth_factors_configuration.h"
 
 #include <algorithm>
+#include <optional>
 
 #include "base/check_op.h"
-#include "base/ranges/algorithm.h"
 #include "chromeos/ash/components/cryptohome/auth_factor.h"
 #include "chromeos/ash/components/cryptohome/common_types.h"
 #include "chromeos/ash/components/cryptohome/cryptohome_parameters.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -45,7 +44,7 @@ bool AuthFactorsConfiguration::HasConfiguredFactor(
 
 const cryptohome::AuthFactor* AuthFactorsConfiguration::FindFactorByType(
     cryptohome::AuthFactorType type) const {
-  const auto& result = base::ranges::find_if(
+  const auto& result = std::ranges::find_if(
       configured_factors_, [type](auto& f) { return f.ref().type() == type; });
   if (result == configured_factors_.end())
     return nullptr;

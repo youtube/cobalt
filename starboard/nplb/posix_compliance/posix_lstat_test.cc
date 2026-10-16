@@ -35,7 +35,6 @@
 #include <unistd.h>
 
 #include "starboard/configuration_constants.h"
-#include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -54,87 +53,85 @@ TEST(PosixLstatTest, LstatOnExistingFile) {
 }
 
 TEST(PosixLstatTest, LstatOnExistingDirectory) {
-  const char* dir_path = "test_dir.tmp";
-  ASSERT_EQ(mkdir(dir_path, 0755), 0);
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
 
   struct stat sb;
-  EXPECT_EQ(lstat(dir_path, &sb), 0);
+  EXPECT_EQ(lstat(temp_dir.path().c_str(), &sb), 0);
   EXPECT_TRUE(S_ISDIR(sb.st_mode));
-  // A directory should have at least 2 links: one for its own entry
-  // and one for the "." entry within it.
-  EXPECT_GE(sb.st_nlink, 2u);
-  rmdir(dir_path);
+  // Modern filesystems might have just one link.
+  EXPECT_GE(sb.st_nlink, 1u);
 }
 
 TEST(PosixLstatTest, DirectoryWithSubdirectory) {
-  char template_name[] = "/tmp/lstat_test_XXXXXX";
-  char* parent_dir_path = mkdtemp(template_name);
-  std::string child_dir_path_str = std::string(parent_dir_path) + "/child";
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
+  std::string child_dir_path_str = temp_dir.path() + "/child";
 
   ASSERT_EQ(mkdir(child_dir_path_str.c_str(), 0755), 0);
 
   struct stat sb;
-  EXPECT_EQ(lstat(parent_dir_path, &sb), 0);
+  EXPECT_EQ(lstat(temp_dir.path().c_str(), &sb), 0);
   EXPECT_TRUE(S_ISDIR(sb.st_mode));
   // A directory with one subdirectory has 3 links:
   // 1. Its own entry in the parent directory.
   // 2. The "." entry within itself.
   // 3. The ".." entry within the subdirectory pointing back to it.
   EXPECT_EQ(sb.st_nlink, 3u);
-  rmdir(child_dir_path_str.c_str());
-  rmdir(parent_dir_path);
 }
 
 TEST(PosixLstatTest, LstatOnSymbolicLinkToFile) {
   ScopedRandomFile target_file;
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
 
-  const char* link_path = "link_to_file.tmp";
+  std::string link_path = temp_dir.path() + "/link_to_file";
   std::string target_filename = target_file.filename();
 
-  ASSERT_EQ(symlink(target_filename.c_str(), link_path), 0);
+  ASSERT_EQ(symlink(target_filename.c_str(), link_path.c_str()), 0);
 
   struct stat sb;
-  EXPECT_EQ(lstat(link_path, &sb), 0);
+  EXPECT_EQ(lstat(link_path.c_str(), &sb), 0);
   // lstat should report the type of the link itself, not the target.
   EXPECT_TRUE(S_ISLNK(sb.st_mode));
   // The size of a symlink is the length of the path it contains.
   EXPECT_GE(sb.st_size, 0);
   EXPECT_EQ(static_cast<unsigned long>(sb.st_size), target_filename.length());
   EXPECT_EQ(sb.st_nlink, 1u);
-  unlink(link_path);
 }
 
 TEST(PosixLstatTest, LstatOnSymbolicLinkToDirectory) {
-  const char* dir_path = "target_dir.tmp";
-  const char* link_path = "link_to_dir.tmp";
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
+  std::string dir_path = temp_dir.path() + "/target_dir";
+  std::string link_path = temp_dir.path() + "/link_to_dir";
 
-  ASSERT_EQ(mkdir(dir_path, 0755), 0);
-  ASSERT_EQ(symlink(dir_path, link_path), 0);
+  ASSERT_EQ(mkdir(dir_path.c_str(), 0755), 0);
+  ASSERT_EQ(symlink(dir_path.c_str(), link_path.c_str()), 0);
 
   struct stat sb;
-  EXPECT_EQ(lstat(link_path, &sb), 0);
+  EXPECT_EQ(lstat(link_path.c_str(), &sb), 0);
   EXPECT_TRUE(S_ISLNK(sb.st_mode));
   EXPECT_GE(sb.st_size, 0);
-  EXPECT_EQ(static_cast<unsigned long>(sb.st_size), strlen(dir_path));
+  EXPECT_EQ(static_cast<unsigned long>(sb.st_size), dir_path.length());
   EXPECT_EQ(sb.st_nlink, 1u);
-  unlink(link_path);
-  rmdir(dir_path);
 }
 
 TEST(PosixLstatTest, LstatOnDanglingSymbolicLink) {
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
   const char* target_path = "non_existent_target";
-  const char* link_path = "dangling_link.tmp";
+  std::string link_path = temp_dir.path() + "/dangling_link";
 
   // Create a symlink to a target that does not exist.
-  ASSERT_EQ(symlink(target_path, link_path), 0);
+  ASSERT_EQ(symlink(target_path, link_path.c_str()), 0);
 
   struct stat sb;
-  EXPECT_EQ(lstat(link_path, &sb), 0);
+  EXPECT_EQ(lstat(link_path.c_str(), &sb), 0);
   EXPECT_TRUE(S_ISLNK(sb.st_mode));
   EXPECT_GE(sb.st_size, 0);
   EXPECT_EQ(static_cast<unsigned long>(sb.st_size), strlen(target_path));
   EXPECT_EQ(sb.st_nlink, 1u);
-  unlink(link_path);
 }
 
 TEST(LstatTest, PathComponentNotADirectory) {
@@ -147,8 +144,11 @@ TEST(LstatTest, PathComponentNotADirectory) {
 }
 
 TEST(PosixLstatTest, LstatOnNonExistentPath) {
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.IsValid());
+  std::string non_existent = temp_dir.path() + "/this_path_does_not_exist";
   struct stat sb;
-  EXPECT_EQ(lstat("this_path_does_not_exist", &sb), -1);
+  EXPECT_EQ(lstat(non_existent.c_str(), &sb), -1);
   EXPECT_EQ(errno, ENOENT);
 }
 

@@ -11,12 +11,14 @@
 
 @protocol ApplicationCommands;
 class Browser;
-class ChromeBrowserState;
+@protocol CountryCodePickerCommands;
+@protocol DriveFilePickerCommands;
 @class MainController;
-@class NewTabPageController;
+class ProfileIOS;
 @class SceneController;
 @class SceneState;
 @class UIViewController;
+@protocol UnitConversionCommands;
 
 namespace chrome_test_util {
 
@@ -32,14 +34,17 @@ SceneController* GetForegroundActiveSceneController();
 // Returns the number of regular Browsers for the default profile.
 NSUInteger RegularBrowserCount();
 
-// Returns the current, non-incognito ChromeBrowserState.
-ChromeBrowserState* GetOriginalBrowserState();
+// Returns the current, non-incognito Profile.
+ProfileIOS* GetOriginalProfile();
 
-// Returns the current incognito ChromeBrowserState
-ChromeBrowserState* GetCurrentIncognitoBrowserState();
+// Returns the current incognito Profile
+ProfileIOS* GetCurrentIncognitoProfile();
 
 // Returns the browser for the main interface.
 Browser* GetMainBrowser();
+
+// Returns the current browser from the foreground active scene.
+Browser* GetCurrentBrowser();
 
 // Returns the active view controller.
 // NOTE: It is preferred to not directly access the active view controller if
@@ -47,7 +52,12 @@ Browser* GetMainBrowser();
 UIViewController* GetActiveViewController();
 
 // Returns the dispatcher for the active Browser.
-id<ApplicationCommands, BrowserCommands, BrowserCoordinatorCommands>
+id<ApplicationCommands,
+   BrowserCommands,
+   BrowserCoordinatorCommands,
+   UnitConversionCommands,
+   CountryCodePickerCommands,
+   DriveFilePickerCommands>
 HandlerForActiveBrowser();
 
 // Removes all presented infobars.
@@ -62,18 +72,14 @@ void ClearPresentedState(ProceduralBlock completion);
 void PresentSignInAccountsViewControllerIfNecessary();
 
 // Sets the value of a boolean local state pref.
-// TODO(crbug.com/647022): Clean up other tests that use this helper function.
+// TODO(crbug.com/41275546): Clean up other tests that use this helper function.
 void SetBooleanLocalStatePref(const char* pref_name, bool value);
 
-// Sets the value of a boolean user pref in the given browser state.
-void SetBooleanUserPref(ChromeBrowserState* browser_state,
-                        const char* pref_name,
-                        bool value);
+// Sets the value of a boolean user pref in the given profile.
+void SetBooleanUserPref(ProfileIOS* profile, const char* pref_name, bool value);
 
-// Sets the value of an integer user pref in the given browser state.
-void SetIntegerUserPref(ChromeBrowserState* browser_state,
-                        const char* pref_name,
-                        int value);
+// Sets the value of an integer user pref in the given profile.
+void SetIntegerUserPref(ProfileIOS* profile, const char* pref_name, int value);
 
 // Checks whether metrics recording is enabled or not.
 bool IsMetricsRecordingEnabled();

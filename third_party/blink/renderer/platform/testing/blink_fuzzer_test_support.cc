@@ -25,15 +25,12 @@ BlinkFuzzerTestSupport::BlinkFuzzerTestSupport(int argc, char** argv) {
 
   TestTimeouts::Initialize();
 
-  content::SetUpBlinkTestEnvironment();
+  test_environment_ = std::make_unique<content::BlinkTestEnvironment>();
+  test_environment_->SetUp();
 }
 
 BlinkFuzzerTestSupport::~BlinkFuzzerTestSupport() {
-#if defined(ADDRESS_SANITIZER)
-  // LSAN needs unreachable objects to be released to avoid reporting them
-  // incorrectly as a memory leak.
-  blink::ThreadState::Current()->CollectAllGarbageForTesting();
-#endif  // defined(ADDRESS_SANITIZER)
+  test_environment_->TearDown();
 }
 
 }  // namespace blink

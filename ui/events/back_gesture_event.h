@@ -5,18 +5,15 @@
 #ifndef UI_EVENTS_BACK_GESTURE_EVENT_H_
 #define UI_EVENTS_BACK_GESTURE_EVENT_H_
 
+#include "base/time/time.h"
 #include "ui/events/events_export.h"
-#include "ui/gfx/geometry/point_conversions.h"
-
-namespace gfx {
-class PointF;
-}
+#include "ui/gfx/geometry/point_f.h"
 
 namespace ui {
 
 // Indicates the edge of the screen where the gesture started.
 // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.ui.base
-enum BackGestureEventSwipeEdge { LEFT, RIGHT };
+enum class BackGestureEventSwipeEdge { LEFT, RIGHT };
 
 // This event provides information about gestures which start at the edge of a
 // browser window and should trigger a back/forward navigation on the associated
@@ -24,23 +21,20 @@ enum BackGestureEventSwipeEdge { LEFT, RIGHT };
 // navigation.
 class EVENTS_EXPORT BackGestureEvent {
  public:
-  BackGestureEvent(const gfx::PointF& location,
-                   float progress,
-                   BackGestureEventSwipeEdge edge);
+  explicit BackGestureEvent(float progress);
+  BackGestureEvent(float progress, base::TimeTicks time);
 
-  BackGestureEvent(const BackGestureEvent&) = delete;
-  BackGestureEvent& operator=(const BackGestureEvent&) = delete;
+  BackGestureEvent(const BackGestureEvent&) = default;
+  BackGestureEvent& operator=(const BackGestureEvent&) = default;
 
   ~BackGestureEvent() = default;
 
-  const gfx::PointF& location() const { return location_; }
   float progress() const { return progress_; }
-  BackGestureEventSwipeEdge edge() const { return edge_; }
+  base::TimeTicks time() const { return time_; }
 
  private:
-  gfx::PointF location_;
   float progress_;
-  BackGestureEventSwipeEdge edge_;
+  base::TimeTicks time_;
 };
 
 }  // namespace ui

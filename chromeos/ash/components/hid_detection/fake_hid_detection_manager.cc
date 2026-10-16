@@ -47,9 +47,13 @@ void FakeHidDetectionManager::SetHidStatusKeyboardMetadata(
 }
 
 void FakeHidDetectionManager::SetPairingState(
-    absl::optional<BluetoothHidPairingState> pairing_state) {
+    std::optional<BluetoothHidPairingState> pairing_state) {
   pairing_state_ = std::move(pairing_state);
   NotifyHidDetectionStatusChanged();
+}
+
+base::WeakPtr<FakeHidDetectionManager> FakeHidDetectionManager::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 void FakeHidDetectionManager::GetIsHidDetectionRequired(
@@ -71,7 +75,7 @@ void FakeHidDetectionManager::PerformStopHidDetection() {
 
 HidDetectionManager::HidDetectionStatus
 FakeHidDetectionManager::ComputeHidDetectionStatus() const {
-  absl::optional<BluetoothHidPairingState> pairing_state;
+  std::optional<BluetoothHidPairingState> pairing_state;
   if (pairing_state_.has_value()) {
     pairing_state = BluetoothHidPairingState{
         pairing_state_.value().code, pairing_state_.value().num_keys_entered};

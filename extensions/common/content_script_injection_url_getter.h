@@ -6,7 +6,7 @@
 #define EXTENSIONS_COMMON_CONTENT_SCRIPT_INJECTION_URL_GETTER_H_
 
 #include "extensions/common/frame_context_data.h"
-#include "extensions/common/script_constants.h"
+#include "extensions/common/mojom/match_origin_as_fallback.mojom-forward.h"
 #include "url/gurl.h"
 
 namespace extensions {
@@ -16,7 +16,7 @@ namespace extensions {
 // script options) possibly looking at the parent-or-opener document instead,
 // looking at the precursor origin of data: documents, etc.
 //
-// TODO(https://crbug.com/1186321): Content script injection assumes that
+// TODO(crbug.com/40753677): Content script injection assumes that
 // about:blank inherits origin from the parent.  This can return the incorrect
 // result, e.g.  if a parent frame navigates a grandchild frame to about:blank.
 class ContentScriptInjectionUrlGetter {
@@ -26,7 +26,7 @@ class ContentScriptInjectionUrlGetter {
 
   static GURL Get(const FrameContextData& context_data,
                   const GURL& document_url,
-                  MatchOriginAsFallbackBehavior match_origin_as_fallback,
+                  mojom::MatchOriginAsFallbackBehavior match_origin_as_fallback,
                   bool allow_inaccessible_parents);
 };
 

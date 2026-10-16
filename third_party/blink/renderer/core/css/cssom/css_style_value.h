@@ -19,6 +19,7 @@ enum class SecureContextMode;
 
 class CSSStyleValue;
 using CSSStyleValueVector = HeapVector<Member<CSSStyleValue>>;
+using GCedCSSStyleValueVector = GCedHeapVector<Member<CSSStyleValue>>;
 
 // The base class for all CSS values returned by the Typed OM.
 // See CSSStyleValue.idl for additional documentation about this class.
@@ -71,6 +72,7 @@ class CORE_EXPORT CSSStyleValue : public ScriptWrappable {
   virtual const CSSValue* ToCSSValueWithProperty(CSSPropertyID) const {
     return ToCSSValue();
   }
+  // https://drafts.css-houdini.org/css-typed-om/#stylevalue-serialization
   virtual String toString() const;
 
   // TODO(801935): Actually use this for serialization in subclasses.

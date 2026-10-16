@@ -8,13 +8,14 @@
 
 import("../../webrtc.gni")
 
-rtc_source_set("resource_adaptation_api") {
+rtc_library("resource_adaptation_api") {
   visibility = [ "*" ]
   sources = [
     "resource.cc",
     "resource.h",
   ]
   deps = [
+    "..:ref_count",
     "../../api:scoped_refptr",
     "../../rtc_base:checks",
     "../../rtc_base:refcount",

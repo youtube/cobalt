@@ -19,6 +19,7 @@
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/view.h"
@@ -77,7 +78,7 @@ std::unique_ptr<AssistantButton> AssistantButton::Create(
   DCHECK(params.accessible_name_id.has_value());
 
   auto button = std::make_unique<AssistantButton>(listener, button_id);
-  button->SetAccessibleName(
+  button->GetViewAccessibility().SetName(
       l10n_util::GetStringUTF16(params.accessible_name_id.value()));
 
   if (params.tooltip_id) {
@@ -102,12 +103,10 @@ std::unique_ptr<AssistantButton> AssistantButton::Create(
     return button;
   }
 
-  // `icon_color` does not change so we can set the color and icon for the
-  // button now.
-  icon_description.color = params.icon_color;
-
-  button->SetImage(views::Button::STATE_NORMAL,
-                   gfx::CreateVectorIcon(icon_description));
+  button->SetImageModel(
+      views::Button::STATE_NORMAL,
+      ui::ImageModel::FromVectorIcon(*icon_description.icon, params.icon_color,
+                                     icon_description.dip_size));
   return button;
 }
 
@@ -162,8 +161,10 @@ void AssistantButton::OnThemeChanged() {
   // This might be the first time the image is rendered since `icon_color_type_`
   // may not resolvable until now.
   icon_description_->color = GetColorProvider()->GetColor(*icon_color_type_);
-  SetImage(views::Button::STATE_NORMAL,
-           gfx::CreateVectorIcon(icon_description_.value()));
+  SetImageModel(views::Button::STATE_NORMAL,
+                ui::ImageModel::FromVectorIcon(*icon_description_->icon,
+                                               icon_description_->color,
+                                               icon_description_->dip_size));
 }
 
 void AssistantButton::OnButtonPressed() {
@@ -171,7 +172,7 @@ void AssistantButton::OnButtonPressed() {
   listener_->OnButtonPressed(id_);
 }
 
-BEGIN_METADATA(AssistantButton, views::ImageButton)
+BEGIN_METADATA(AssistantButton)
 END_METADATA
 
 }  // namespace ash

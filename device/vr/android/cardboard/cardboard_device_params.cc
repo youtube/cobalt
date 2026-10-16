@@ -5,21 +5,77 @@
 #include "device/vr/android/cardboard/cardboard_device_params.h"
 
 #include <stdint.h>
+
 #include <cstdint>
 #include <utility>
+#include <variant>
 
 #include "base/notreached.h"
 #include "third_party/cardboard/src/sdk/include/cardboard.h"
 
 namespace device {
-// static
-CardboardDeviceParams CardboardDeviceParams::GetV1DeviceParams() {
-  CardboardDeviceParams params;
-  uint8_t* device_params = nullptr;
-  CardboardQrCode_getCardboardV1DeviceParams(&device_params, &params.size_);
 
-  params.encoded_device_params_ = device_params;
+// static
+bool CardboardDeviceParams::use_cardboard_v1_device_params_for_testing_ = false;
+
+// static
+CardboardDeviceParams CardboardDeviceParams::GetDeviceParams() {
+  if (use_cardboard_v1_device_params_for_testing_) {
+    return GetCardboardV1DeviceParams();
+  }
+
+  CardboardDeviceParams params = GetSavedDeviceParams();
+
+  // If no saved device params were returned, use the default V1 device
+  // parameters as a fallback.
+  if (!params.IsValid()) {
+    params = GetCardboardV1DeviceParams();
+  }
+
   return params;
+}
+
+// static
+CardboardDeviceParams CardboardDeviceParams::GetSavedDeviceParams() {
+  if (use_cardboard_v1_device_params_for_testing_) {
+    return GetCardboardV1DeviceParams();
+  }
+
+  // Check if any device parameters have been saved.
+  uint8_t* device_params = nullptr;
+  int size = 0;
+  CardboardQrCode_getSavedDeviceParams(&device_params, &size);
+  if (size != 0) {
+    // If saved device params were returned, store them as owned parameters so
+    // them get cleaned up properly.
+    CardboardDeviceParams params;
+    params.encoded_device_params_ = OwnedCardboardParams(device_params);
+    params.size_ = size;
+    return params;
+  }
+
+  // If no saved device params were returned, return an empty object.
+  return CardboardDeviceParams();
+}
+
+// static
+CardboardDeviceParams CardboardDeviceParams::GetCardboardV1DeviceParams() {
+  uint8_t* device_params = nullptr;
+  int size = 0;
+  CardboardQrCode_getCardboardV1DeviceParams(&device_params, &size);
+
+  // Cardboard Viewer v1 device parameters don't need to be cleaned up (they are
+  // statically allocated in memory).
+  CardboardDeviceParams params;
+  params.encoded_device_params_ = device_params;
+  params.size_ = size;
+  return params;
+}
+
+// static
+void CardboardDeviceParams::set_use_cardboard_v1_device_params_for_testing(
+    bool value) {
+  use_cardboard_v1_device_params_for_testing_ = value;
 }
 
 CardboardDeviceParams::CardboardDeviceParams() = default;
@@ -44,13 +100,13 @@ bool CardboardDeviceParams::IsValid() {
 }
 
 const uint8_t* CardboardDeviceParams::encoded_device_params() {
-  if (absl::holds_alternative<uint8_t*>(encoded_device_params_)) {
-    return absl::get<uint8_t*>(encoded_device_params_);
-  } else if (absl::holds_alternative<OwnedCardboardParams>(
+  if (std::holds_alternative<uint8_t*>(encoded_device_params_)) {
+    return std::get<uint8_t*>(encoded_device_params_);
+  } else if (std::holds_alternative<OwnedCardboardParams>(
                  encoded_device_params_)) {
-    return absl::get<OwnedCardboardParams>(encoded_device_params_).get();
+    return std::get<OwnedCardboardParams>(encoded_device_params_).get();
   }
 
-  NOTREACHED_NORETURN();
+  NOTREACHED();
 }
 }  // namespace device

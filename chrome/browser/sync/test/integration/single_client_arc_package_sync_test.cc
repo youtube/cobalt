@@ -11,10 +11,10 @@
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
 #include "chrome/browser/sync/test/integration/sync_test.h"
 #include "chrome/browser/sync/test/integration/updated_progress_marker_checker.h"
-#include "components/sync/base/model_type.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/protocol/arc_package_specifics.pb.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
+#include "components/sync/service/sync_service.h"
 #include "components/sync/test/fake_server.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -45,7 +45,7 @@ class ArcPackagesCountChecker : public SingleClientStatusChangeChecker {
   }
 
  private:
-  const base::raw_ptr<Profile> profile_;
+  const raw_ptr<Profile> profile_;
   const size_t expected_count_;
 };
 
@@ -61,7 +61,7 @@ class FakeServerArcPackageMatchChecker
     *os << "Waiting for server-side Arc packages to match expected.";
 
     std::vector<sync_pb::SyncEntity> server_entities =
-        fake_server()->GetSyncEntitiesByModelType(syncer::ARC_PACKAGE);
+        fake_server()->GetSyncEntitiesByDataType(syncer::ARC_PACKAGE);
     if (server_entities.size() != expected_entities_.size()) {
       return false;
     }

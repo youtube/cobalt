@@ -2,16 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/metrics/file_metrics_provider.h"
 
+#include <array>
 #include <memory>
 
+#include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/memory_mapped_file.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_base.h"
@@ -23,10 +29,11 @@
 #include "base/metrics/statistics_recorder.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
-#include "base/task/single_thread_task_runner.h"
+#include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/test_simple_task_runner.h"
+#include "base/test/task_environment.h"
 #include "base/time/time.h"
+#include "components/metrics/metrics_log.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/persistent_system_profile.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -46,11 +53,13 @@ void WriteSystemProfileToAllocator(
     base::PersistentHistogramAllocator* allocator) {
   metrics::SystemProfileProto profile_proto;
   // Add a field trial to verify that FileMetricsProvider will produce an
-  // independent log with the written system profile.
+  // independent log with the written system profile. Similarly for the session
+  // hash.
   metrics::SystemProfileProto::FieldTrial* trial =
       profile_proto.add_field_trial();
   trial->set_name_id(123);
   trial->set_group_id(456);
+  profile_proto.set_session_hash(789);
   metrics::PersistentSystemProfile persistent_profile;
   persistent_profile.RegisterPersistentAllocator(allocator->memory_allocator());
   persistent_profile.SetSystemProfile(profile_proto, /*complete=*/true);
@@ -71,8 +80,9 @@ class HistogramFlattenerDeltaRecorder : public base::HistogramFlattener {
   void RecordDelta(const base::HistogramBase& histogram,
                    const base::HistogramSamples& snapshot) override {
     // Only remember locally created histograms; they have exactly 2 chars.
-    if (strlen(histogram.histogram_name()) == 2)
-      recorded_delta_histogram_names_.push_back(histogram.histogram_name());
+    if (histogram.histogram_name().length() == 2) {
+      recorded_delta_histogram_names_.emplace_back(histogram.histogram_name());
+    }
   }
 
   std::vector<std::string> GetRecordedDeltaHistogramNames() {
@@ -83,6 +93,38 @@ class HistogramFlattenerDeltaRecorder : public base::HistogramFlattener {
   std::vector<std::string> recorded_delta_histogram_names_;
 };
 
+// Exactly the same as FileMetricsProvider, but provides a way to "hook" into
+// RecordSourcesChecked() and run a callback each time it is called so that it
+// is easier to individually verify the sources being merged.
+class TestFileMetricsProvider : public FileMetricsProvider {
+ public:
+  using FileMetricsProvider::FileMetricsProvider;
+
+  TestFileMetricsProvider(const TestFileMetricsProvider&) = delete;
+  TestFileMetricsProvider& operator=(const TestFileMetricsProvider&) = delete;
+
+  ~TestFileMetricsProvider() override = default;
+
+  // Sets the callback to run after RecordSourcesChecked() is called. Used to
+  // individually verify the sources being merged.
+  void SetSourcesCheckedCallback(base::RepeatingClosure callback) {
+    callback_ = std::move(callback);
+  }
+
+ private:
+  // FileMetricsProvider:
+  void RecordSourcesChecked(SourceInfoList* checked,
+                            std::vector<size_t> samples_counts) override {
+    if (!callback_.is_null()) {
+      callback_.Run();
+    }
+
+    FileMetricsProvider::RecordSourcesChecked(checked, samples_counts);
+  }
+
+  // A callback to run after a call to RecordSourcesChecked().
+  base::RepeatingClosure callback_;
+};
 
 class FileMetricsProviderTest : public testing::TestWithParam<bool> {
  public:
@@ -97,20 +139,16 @@ class FileMetricsProviderTest : public testing::TestWithParam<bool> {
 
   FileMetricsProviderTest()
       : create_large_files_(GetParam()),
-        task_runner_(new base::TestSimpleTaskRunner()),
-        thread_task_runner_current_default_handle_(task_runner_),
         statistics_recorder_(
             base::StatisticsRecorder::CreateTemporaryForTesting()),
         prefs_(new TestingPrefServiceSimple) {
     EXPECT_TRUE(temp_dir_.CreateUniqueTempDir());
     FileMetricsProvider::RegisterSourcePrefs(prefs_->registry(), kMetricsName);
-    FileMetricsProvider::SetTaskRunnerForTesting(task_runner_);
   }
 
   ~FileMetricsProviderTest() override {
     // Clear out any final remaining tasks.
-    task_runner_->RunUntilIdle();
-    FileMetricsProvider::SetTaskRunnerForTesting(nullptr);
+    task_environment_.RunUntilIdle();
     DCHECK_EQ(0U, filter_actions_remaining_);
     // If a global histogram allocator exists at this point then it likely
     // acquired histograms that will continue to point to the released
@@ -118,15 +156,16 @@ class FileMetricsProviderTest : public testing::TestWithParam<bool> {
     DCHECK(!base::GlobalHistogramAllocator::Get());
   }
 
+  base::test::TaskEnvironment* task_environment() { return &task_environment_; }
   TestingPrefServiceSimple* prefs() { return prefs_.get(); }
   base::FilePath temp_dir() { return temp_dir_.GetPath(); }
   base::FilePath metrics_file() {
     return temp_dir_.GetPath().AppendASCII(kMetricsFilename);
   }
 
-  FileMetricsProvider* provider() {
+  TestFileMetricsProvider* provider() {
     if (!provider_)
-      provider_ = std::make_unique<FileMetricsProvider>(prefs());
+      provider_ = std::make_unique<TestFileMetricsProvider>(prefs());
     return provider_.get();
   }
 
@@ -137,7 +176,8 @@ class FileMetricsProviderTest : public testing::TestWithParam<bool> {
   bool HasPreviousSessionData() { return provider()->HasPreviousSessionData(); }
 
   void MergeHistogramDeltas() {
-    provider()->MergeHistogramDeltas();
+    provider()->MergeHistogramDeltas(/*async=*/false,
+                                     /*done_callback=*/base::DoNothing());
   }
 
   bool HasIndependentMetrics() { return provider()->HasIndependentMetrics(); }
@@ -148,6 +188,7 @@ class FileMetricsProviderTest : public testing::TestWithParam<bool> {
     bool success = false;
     bool success_set = false;
     provider()->ProvideIndependentMetrics(
+        base::DoNothing(),
         base::BindOnce(
             [](bool* success_ptr, bool* set_ptr, bool s) {
               *success_ptr = s;
@@ -156,7 +197,7 @@ class FileMetricsProviderTest : public testing::TestWithParam<bool> {
             &success, &success_set),
         uma_proto, snapshot_manager);
 
-    RunTasks();
+    task_environment()->RunUntilIdle();
     CHECK(success_set);
     return success;
   }
@@ -168,7 +209,7 @@ class FileMetricsProviderTest : public testing::TestWithParam<bool> {
 
   size_t GetSnapshotHistogramCount() {
     // Merge the data from the allocator into the StatisticsRecorder.
-    provider()->MergeHistogramDeltas();
+    MergeHistogramDeltas();
 
     // Flatten what is known to see what has changed since the last time.
     HistogramFlattenerDeltaRecorder flattener;
@@ -184,10 +225,11 @@ class FileMetricsProviderTest : public testing::TestWithParam<bool> {
     HistogramFlattenerDeltaRecorder flattener;
     base::HistogramSnapshotManager snapshot_manager(&flattener);
     ChromeUserMetricsExtension uma_proto;
-    provider()->ProvideIndependentMetrics(base::BindOnce([](bool success) {}),
+    provider()->ProvideIndependentMetrics(base::DoNothing(),
+                                          base::BindOnce([](bool success) {}),
                                           &uma_proto, &snapshot_manager);
 
-    RunTasks();
+    task_environment()->RunUntilIdle();
     return flattener.GetRecordedDeltaHistogramNames().size();
   }
 
@@ -209,19 +251,12 @@ class FileMetricsProviderTest : public testing::TestWithParam<bool> {
     }
   }
 
-  void RunTasks() {
-    // Run pending tasks twice: Once for IPC calls, once for replies. Don't
-    // use RunUntilIdle() because that can do more work than desired.
-    task_runner_->RunPendingTasks();
-    task_runner_->RunPendingTasks();
-  }
-
   void WriteMetricsFile(const base::FilePath& path,
                         base::PersistentHistogramAllocator* metrics) {
     base::File writer(path,
                       base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
     // Use DCHECK so the stack-trace will indicate where this was called.
-    DCHECK(writer.IsValid()) << path.value();
+    DCHECK(writer.IsValid()) << path;
     size_t file_size = create_large_files_ ? metrics->size() : metrics->used();
     int written = writer.Write(0, (const char*)metrics->data(), file_size);
     DCHECK_EQ(static_cast<int>(file_size), written);
@@ -234,8 +269,7 @@ class FileMetricsProviderTest : public testing::TestWithParam<bool> {
     base::TouchFile(path, write_time, write_time);
   }
 
-  std::unique_ptr<base::PersistentHistogramAllocator>
-  CreateMetricsFileWithHistograms(
+  base::GlobalHistogramAllocator* CreateMetricsFileWithHistograms(
       const base::FilePath& file_path,
       base::Time write_time,
       int histogram_count,
@@ -246,16 +280,21 @@ class FileMetricsProviderTest : public testing::TestWithParam<bool> {
 
     CreateGlobalHistograms(histogram_count);
 
-    std::unique_ptr<base::PersistentHistogramAllocator> histogram_allocator =
+    base::GlobalHistogramAllocator* histogram_allocator =
         base::GlobalHistogramAllocator::ReleaseForTesting();
-    std::move(callback).Run(histogram_allocator.get());
+    std::move(callback).Run(histogram_allocator);
 
-    WriteMetricsFileAtTime(file_path, histogram_allocator.get(), write_time);
+    WriteMetricsFileAtTime(file_path, histogram_allocator, write_time);
     return histogram_allocator;
   }
 
-  std::unique_ptr<base::PersistentHistogramAllocator>
-  CreateMetricsFileWithHistograms(int histogram_count) {
+  void CreateEmptyFile(const base::FilePath& file_path) {
+    base::File empty(file_path,
+                     base::File::FLAG_CREATE | base::File::FLAG_WRITE);
+  }
+
+  base::GlobalHistogramAllocator* CreateMetricsFileWithHistograms(
+      int histogram_count) {
     return CreateMetricsFileWithHistograms(
         metrics_file(), base::Time::Now(), histogram_count,
         base::BindOnce([](base::PersistentHistogramAllocator* allocator) {}));
@@ -285,15 +324,12 @@ class FileMetricsProviderTest : public testing::TestWithParam<bool> {
     return *filter_actions_++;
   }
 
-  scoped_refptr<base::TestSimpleTaskRunner> task_runner_;
-  base::SingleThreadTaskRunner::CurrentDefaultHandle
-      thread_task_runner_current_default_handle_;
-
+  base::test::TaskEnvironment task_environment_;
   std::unique_ptr<base::StatisticsRecorder> statistics_recorder_;
   base::ScopedTempDir temp_dir_;
   std::unique_ptr<TestingPrefServiceSimple> prefs_;
-  std::unique_ptr<FileMetricsProvider> provider_;
-  base::HistogramBase* created_histograms_[kMaxCreateHistograms];
+  std::unique_ptr<TestFileMetricsProvider> provider_;
+  std::array<base::HistogramBase*, kMaxCreateHistograms> created_histograms_;
 
   raw_ptr<const FileMetricsProvider::FilterAction, AllowPtrArithmetic>
       filter_actions_ = nullptr;
@@ -310,21 +346,23 @@ TEST_P(FileMetricsProviderTest, AccessMetrics) {
   base::HistogramTester histogram_tester;
 
   base::Time metrics_time = base::Time::Now() - base::Minutes(5);
-  std::unique_ptr<base::PersistentHistogramAllocator> histogram_allocator =
+  base::GlobalHistogramAllocator* histogram_allocator =
       CreateMetricsFileWithHistograms(2);
   ASSERT_TRUE(PathExists(metrics_file()));
   base::TouchFile(metrics_file(), metrics_time, metrics_time);
 
   // Register the file and allow the "checker" task to run.
-  provider()->RegisterSource(FileMetricsProvider::Params(
-      metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
-      FileMetricsProvider::ASSOCIATE_CURRENT_RUN, kMetricsName));
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
+          FileMetricsProvider::ASSOCIATE_CURRENT_RUN, kMetricsName),
+      /*metrics_reporting_enabled=*/true);
   histogram_tester.ExpectTotalCount(kMergedCountHistogramName,
                                     /*expected_count=*/0);
 
   // Record embedded snapshots via snapshot-manager.
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(2U, GetSnapshotHistogramCount());
   histogram_tester.ExpectUniqueSample(kMergedCountHistogramName, /*sample=*/2,
                                       /*expected_bucket_count=*/1);
@@ -332,17 +370,16 @@ TEST_P(FileMetricsProviderTest, AccessMetrics) {
 
   // Make sure a second call to the snapshot-recorder doesn't break anything.
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(0U, GetSnapshotHistogramCount());
 
   // File should have been deleted but recreate it to test behavior should
-  // the file not be deleteable by this process.
-  WriteMetricsFileAtTime(metrics_file(), histogram_allocator.get(),
-                         metrics_time);
+  // the file not be deletable by this process.
+  WriteMetricsFileAtTime(metrics_file(), histogram_allocator, metrics_time);
 
   // Second full run on the same file should produce nothing.
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(0U, GetSnapshotHistogramCount());
   histogram_tester.ExpectUniqueSample(kMergedCountHistogramName, /*sample=*/2,
                                       /*expected_bucket_count=*/1);
@@ -350,12 +387,11 @@ TEST_P(FileMetricsProviderTest, AccessMetrics) {
 
   // Recreate the file to indicate that it is "new" and must be recorded.
   metrics_time = metrics_time + base::Minutes(1);
-  WriteMetricsFileAtTime(metrics_file(), histogram_allocator.get(),
-                         metrics_time);
+  WriteMetricsFileAtTime(metrics_file(), histogram_allocator, metrics_time);
 
   // This run should again have "new" histograms.
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(2U, GetSnapshotHistogramCount());
   histogram_tester.ExpectUniqueSample(kMergedCountHistogramName, /*sample=*/2,
                                       /*expected_bucket_count=*/2);
@@ -366,8 +402,7 @@ TEST_P(FileMetricsProviderTest, AccessTimeLimitedFile) {
   ASSERT_FALSE(PathExists(metrics_file()));
 
   base::Time metrics_time = base::Time::Now() - base::Hours(5);
-  std::unique_ptr<base::PersistentHistogramAllocator> histogram_allocator =
-      CreateMetricsFileWithHistograms(2);
+  CreateMetricsFileWithHistograms(2);
   ASSERT_TRUE(PathExists(metrics_file()));
   base::TouchFile(metrics_file(), metrics_time, metrics_time);
 
@@ -376,11 +411,11 @@ TEST_P(FileMetricsProviderTest, AccessTimeLimitedFile) {
       metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
       FileMetricsProvider::ASSOCIATE_CURRENT_RUN, kMetricsName);
   params.max_age = base::Hours(1);
-  provider()->RegisterSource(params);
+  provider()->RegisterSource(params, /*metrics_reporting_enabled=*/true);
 
   // Attempt to access the file should return nothing.
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(0U, GetSnapshotHistogramCount());
   EXPECT_FALSE(base::PathExists(metrics_file()));
 }
@@ -390,8 +425,7 @@ TEST_P(FileMetricsProviderTest, FilterDelaysFile) {
 
   base::Time now_time = base::Time::Now();
   base::Time metrics_time = now_time - base::Minutes(5);
-  std::unique_ptr<base::PersistentHistogramAllocator> histogram_allocator =
-      CreateMetricsFileWithHistograms(2);
+  CreateMetricsFileWithHistograms(2);
   ASSERT_TRUE(PathExists(metrics_file()));
   base::TouchFile(metrics_file(), metrics_time, metrics_time);
   base::File::Info fileinfo;
@@ -406,12 +440,12 @@ TEST_P(FileMetricsProviderTest, FilterDelaysFile) {
       FileMetricsProvider::FILTER_TRY_LATER,
       FileMetricsProvider::FILTER_PROCESS_FILE};
   SetFilterActions(&params, actions, std::size(actions));
-  provider()->RegisterSource(params);
+  provider()->RegisterSource(params, /*metrics_reporting_enabled=*/true);
 
   // Processing the file should touch it but yield no results. File timestamp
   // accuracy is limited so compare the touched time to a couple seconds past.
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(0U, GetSnapshotHistogramCount());
   EXPECT_TRUE(base::PathExists(metrics_file()));
   ASSERT_TRUE(base::GetFileInfo(metrics_file(), &fileinfo));
@@ -420,7 +454,7 @@ TEST_P(FileMetricsProviderTest, FilterDelaysFile) {
 
   // Second full run on the same file should process the file.
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(2U, GetSnapshotHistogramCount());
   EXPECT_FALSE(base::PathExists(metrics_file()));
 }
@@ -430,8 +464,7 @@ TEST_P(FileMetricsProviderTest, FilterSkipsFile) {
 
   base::Time now_time = base::Time::Now();
   base::Time metrics_time = now_time - base::Minutes(5);
-  std::unique_ptr<base::PersistentHistogramAllocator> histogram_allocator =
-      CreateMetricsFileWithHistograms(2);
+  CreateMetricsFileWithHistograms(2);
   ASSERT_TRUE(PathExists(metrics_file()));
   base::TouchFile(metrics_file(), metrics_time, metrics_time);
   base::File::Info fileinfo;
@@ -445,11 +478,11 @@ TEST_P(FileMetricsProviderTest, FilterSkipsFile) {
   const FileMetricsProvider::FilterAction actions[] = {
       FileMetricsProvider::FILTER_SKIP_FILE};
   SetFilterActions(&params, actions, std::size(actions));
-  provider()->RegisterSource(params);
+  provider()->RegisterSource(params, /*metrics_reporting_enabled=*/true);
 
   // Processing the file should delete it.
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(0U, GetSnapshotHistogramCount());
   EXPECT_FALSE(base::PathExists(metrics_file()));
 }
@@ -507,20 +540,24 @@ TEST_P(FileMetricsProviderTest, AccessDirectory) {
   base::GlobalHistogramAllocator::ReleaseForTesting();
 
   // Register the file and allow the "checker" task to run.
-  provider()->RegisterSource(FileMetricsProvider::Params(
-      metrics_files.GetPath(),
-      FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_DIR,
-      FileMetricsProvider::ASSOCIATE_CURRENT_RUN, kMetricsName));
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          metrics_files.GetPath(),
+          FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_DIR,
+          FileMetricsProvider::ASSOCIATE_CURRENT_RUN, kMetricsName),
+      /*metrics_reporting_enabled=*/true);
 
-  // Files could come out in the order: a1, c2, d4, b3. They are recognizeable
-  // by the number of histograms contained within each.
-  const uint32_t expect_order[] = {1, 2, 4, 3, 0};
-  for (size_t i = 0; i < std::size(expect_order); ++i) {
-    // Record embedded snapshots via snapshot-manager.
-    OnDidCreateMetricsLog();
-    RunTasks();
-    EXPECT_EQ(expect_order[i], GetSnapshotHistogramCount()) << i;
-  }
+  // Record embedded snapshots via snapshot-manager.
+  std::vector<uint32_t> actual_order;
+  provider()->SetSourcesCheckedCallback(base::BindLambdaForTesting(
+      [&] { actual_order.push_back(GetSnapshotHistogramCount()); }));
+  OnDidCreateMetricsLog();
+  task_environment()->RunUntilIdle();
+
+  // Files could come out in the order: a1, c2, d4, b3. They are recognizable by
+  // the number of histograms contained within each. The "0" is the last merge
+  // done, which detects that there are no more files to merge.
+  EXPECT_THAT(actual_order, testing::ElementsAre(1, 2, 4, 3, 0));
 
   EXPECT_FALSE(base::PathExists(metrics_files.GetPath().AppendASCII("a1.pma")));
   EXPECT_FALSE(base::PathExists(metrics_files.GetPath().AppendASCII("c2.pma")));
@@ -541,9 +578,10 @@ TEST_P(FileMetricsProviderTest, AccessDirectoryWithInvalidFiles) {
 
   base::ScopedTempDir metrics_files;
   EXPECT_TRUE(metrics_files.CreateUniqueTempDir());
+  base::FilePath dir = metrics_files.GetPath();
 
   CreateMetricsFileWithHistograms(
-      metrics_files.GetPath().AppendASCII("h1.pma"),
+      dir.AppendASCII("h1.pma"),
       base_time + base::Minutes(1), 1,
       base::BindOnce([](base::PersistentHistogramAllocator* allocator) {
         allocator->memory_allocator()->SetMemoryState(
@@ -551,57 +589,56 @@ TEST_P(FileMetricsProviderTest, AccessDirectoryWithInvalidFiles) {
       }));
 
   CreateMetricsFileWithHistograms(
-      metrics_files.GetPath().AppendASCII("h2.pma"),
+      dir.AppendASCII("h2.pma"),
       base_time + base::Minutes(2), 2,
       base::BindOnce(&WriteSystemProfileToAllocator));
 
   CreateMetricsFileWithHistograms(
-      metrics_files.GetPath().AppendASCII("h3.pma"),
+      dir.AppendASCII("h3.pma"),
       base_time + base::Minutes(3), 3,
       base::BindOnce([](base::PersistentHistogramAllocator* allocator) {
         allocator->memory_allocator()->SetMemoryState(
             base::PersistentMemoryAllocator::MEMORY_DELETED);
       }));
 
-  {
-    base::File empty(metrics_files.GetPath().AppendASCII("h4.pma"),
-                     base::File::FLAG_CREATE | base::File::FLAG_WRITE);
-  }
-  base::TouchFile(metrics_files.GetPath().AppendASCII("h4.pma"),
+  CreateEmptyFile(dir.AppendASCII("h4.pma"));
+  base::TouchFile(dir.AppendASCII("h4.pma"),
                   base_time + base::Minutes(4), base_time + base::Minutes(4));
 
   // Register the file and allow the "checker" task to run.
-  provider()->RegisterSource(FileMetricsProvider::Params(
-      metrics_files.GetPath(),
-      FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_DIR,
-      FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE, kMetricsName));
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          dir,
+          FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_DIR,
+          FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE, kMetricsName),
+      /*metrics_reporting_enabled=*/true);
 
   // No files yet.
   EXPECT_EQ(0U, GetIndependentHistogramCount());
-  EXPECT_TRUE(base::PathExists(metrics_files.GetPath().AppendASCII("h1.pma")));
-  EXPECT_TRUE(base::PathExists(metrics_files.GetPath().AppendASCII("h2.pma")));
-  EXPECT_TRUE(base::PathExists(metrics_files.GetPath().AppendASCII("h3.pma")));
-  EXPECT_TRUE(base::PathExists(metrics_files.GetPath().AppendASCII("h4.pma")));
+  EXPECT_TRUE(base::PathExists(dir.AppendASCII("h1.pma")));
+  EXPECT_TRUE(base::PathExists(dir.AppendASCII("h2.pma")));
+  EXPECT_TRUE(base::PathExists(dir.AppendASCII("h3.pma")));
+  EXPECT_TRUE(base::PathExists(dir.AppendASCII("h4.pma")));
 
   // H1 should be skipped and H2 available.
   OnDidCreateMetricsLog();
-  RunTasks();
-  EXPECT_FALSE(base::PathExists(metrics_files.GetPath().AppendASCII("h1.pma")));
-  EXPECT_TRUE(base::PathExists(metrics_files.GetPath().AppendASCII("h2.pma")));
-  EXPECT_TRUE(base::PathExists(metrics_files.GetPath().AppendASCII("h3.pma")));
-  EXPECT_TRUE(base::PathExists(metrics_files.GetPath().AppendASCII("h4.pma")));
+  task_environment()->RunUntilIdle();
+  EXPECT_FALSE(base::PathExists(dir.AppendASCII("h1.pma")));
+  EXPECT_TRUE(base::PathExists(dir.AppendASCII("h2.pma")));
+  EXPECT_TRUE(base::PathExists(dir.AppendASCII("h3.pma")));
+  EXPECT_TRUE(base::PathExists(dir.AppendASCII("h4.pma")));
 
   // H2 should be read and the file deleted.
   EXPECT_EQ(2U, GetIndependentHistogramCount());
-  RunTasks();
-  EXPECT_FALSE(base::PathExists(metrics_files.GetPath().AppendASCII("h2.pma")));
+  task_environment()->RunUntilIdle();
+  EXPECT_FALSE(base::PathExists(dir.AppendASCII("h2.pma")));
 
   // Nothing else should be found but the last (valid but empty) file will
   // stick around to be processed later (should it get expanded).
   EXPECT_EQ(0U, GetIndependentHistogramCount());
-  RunTasks();
-  EXPECT_FALSE(base::PathExists(metrics_files.GetPath().AppendASCII("h3.pma")));
-  EXPECT_TRUE(base::PathExists(metrics_files.GetPath().AppendASCII("h4.pma")));
+  task_environment()->RunUntilIdle();
+  EXPECT_FALSE(base::PathExists(dir.AppendASCII("h3.pma")));
+  EXPECT_TRUE(base::PathExists(dir.AppendASCII("h4.pma")));
 }
 
 TEST_P(FileMetricsProviderTest, AccessTimeLimitedDirectory) {
@@ -638,14 +675,14 @@ TEST_P(FileMetricsProviderTest, AccessTimeLimitedDirectory) {
       FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_DIR,
       FileMetricsProvider::ASSOCIATE_CURRENT_RUN, kMetricsName);
   params.max_age = base::Minutes(30);
-  provider()->RegisterSource(params);
+  provider()->RegisterSource(params, /*metrics_reporting_enabled=*/true);
 
   // Only b2, with 2 histograms, should be read.
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(2U, GetSnapshotHistogramCount());
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(0U, GetSnapshotHistogramCount());
 
   EXPECT_FALSE(base::PathExists(metrics_files.GetPath().AppendASCII("a1.pma")));
@@ -686,14 +723,14 @@ TEST_P(FileMetricsProviderTest, AccessCountLimitedDirectory) {
       FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_DIR,
       FileMetricsProvider::ASSOCIATE_CURRENT_RUN, kMetricsName);
   params.max_dir_files = 1;
-  provider()->RegisterSource(params);
+  provider()->RegisterSource(params, /*metrics_reporting_enabled=*/true);
 
   // Only b2, with 2 histograms, should be read.
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(2U, GetSnapshotHistogramCount());
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(0U, GetSnapshotHistogramCount());
 
   EXPECT_FALSE(base::PathExists(metrics_files.GetPath().AppendASCII("a1.pma")));
@@ -739,14 +776,14 @@ TEST_P(FileMetricsProviderTest, AccessSizeLimitedDirectory) {
       FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_DIR,
       FileMetricsProvider::ASSOCIATE_CURRENT_RUN, kMetricsName);
   params.max_dir_kib = file_size_kib + 1;
-  provider()->RegisterSource(params);
+  provider()->RegisterSource(params, /*metrics_reporting_enabled=*/true);
 
   // Only b2, with 2 histograms, should be read.
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(2U, GetSnapshotHistogramCount());
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(0U, GetSnapshotHistogramCount());
 
   EXPECT_FALSE(base::PathExists(metrics_files.GetPath().AppendASCII("a1.pma")));
@@ -810,17 +847,19 @@ TEST_P(FileMetricsProviderTest, AccessFilteredDirectory) {
       FileMetricsProvider::FILTER_PROCESS_FILE,   // b3
       FileMetricsProvider::FILTER_PROCESS_FILE};  // c2 (again)
   SetFilterActions(&params, actions, std::size(actions));
-  provider()->RegisterSource(params);
+  provider()->RegisterSource(params, /*metrics_reporting_enabled=*/true);
 
-  // Files could come out in the order: a1, b3, c2. They are recognizeable
-  // by the number of histograms contained within each.
-  const uint32_t expect_order[] = {1, 3, 2, 0};
-  for (size_t i = 0; i < std::size(expect_order); ++i) {
-    // Record embedded snapshots via snapshot-manager.
-    OnDidCreateMetricsLog();
-    RunTasks();
-    EXPECT_EQ(expect_order[i], GetSnapshotHistogramCount()) << i;
-  }
+  // Record embedded snapshots via snapshot-manager.
+  std::vector<uint32_t> actual_order;
+  provider()->SetSourcesCheckedCallback(base::BindLambdaForTesting(
+      [&] { actual_order.push_back(GetSnapshotHistogramCount()); }));
+  OnDidCreateMetricsLog();
+  task_environment()->RunUntilIdle();
+
+  // Files could come out in the order: a1, b3, c2. They are recognizable by the
+  // number of histograms contained within each. The "0" is the last merge done,
+  // which detects that there are no more files to merge.
+  EXPECT_THAT(actual_order, testing::ElementsAre(1, 3, 2, 0));
 
   EXPECT_FALSE(base::PathExists(metrics_files.GetPath().AppendASCII("a1.pma")));
   EXPECT_FALSE(base::PathExists(metrics_files.GetPath().AppendASCII("c2.pma")));
@@ -841,23 +880,24 @@ TEST_P(FileMetricsProviderTest, AccessReadWriteMetrics) {
   base::HistogramBase* h1 = GetCreatedHistogram(1);
   DCHECK(h0);
   DCHECK(h1);
-  std::unique_ptr<base::PersistentHistogramAllocator> histogram_allocator =
-      base::GlobalHistogramAllocator::ReleaseForTesting();
+  base::GlobalHistogramAllocator::ReleaseForTesting();
 
   // Register the file and allow the "checker" task to run.
-  provider()->RegisterSource(FileMetricsProvider::Params(
-      metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ACTIVE_FILE,
-      FileMetricsProvider::ASSOCIATE_CURRENT_RUN));
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ACTIVE_FILE,
+          FileMetricsProvider::ASSOCIATE_CURRENT_RUN),
+      /*metrics_reporting_enabled=*/true);
 
   // Record embedded snapshots via snapshot-manager.
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(2U, GetSnapshotHistogramCount());
   EXPECT_TRUE(base::PathExists(metrics_file()));
 
   // Make sure a second call to the snapshot-recorder doesn't break anything.
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(0U, GetSnapshotHistogramCount());
   EXPECT_TRUE(base::PathExists(metrics_file()));
 
@@ -878,13 +918,15 @@ TEST_P(FileMetricsProviderTest, AccessInitialMetrics) {
 
   // Register the file and allow the "checker" task to run.
   ASSERT_TRUE(PathExists(metrics_file()));
-  provider()->RegisterSource(FileMetricsProvider::Params(
-      metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
-      FileMetricsProvider::ASSOCIATE_PREVIOUS_RUN, kMetricsName));
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
+          FileMetricsProvider::ASSOCIATE_PREVIOUS_RUN, kMetricsName),
+      /*metrics_reporting_enabled=*/true);
 
   // Record embedded snapshots via snapshot-manager.
   ASSERT_TRUE(HasPreviousSessionData());
-  RunTasks();
+  task_environment()->RunUntilIdle();
   {
     HistogramFlattenerDeltaRecorder flattener;
     base::HistogramSnapshotManager snapshot_manager(&flattener);
@@ -893,17 +935,17 @@ TEST_P(FileMetricsProviderTest, AccessInitialMetrics) {
   }
   EXPECT_TRUE(base::PathExists(metrics_file()));
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_FALSE(base::PathExists(metrics_file()));
 
   // A run for normal histograms should produce nothing.
   CreateMetricsFileWithHistograms(2);
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_EQ(0U, GetSnapshotHistogramCount());
   EXPECT_TRUE(base::PathExists(metrics_file()));
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_TRUE(base::PathExists(metrics_file()));
 }
 
@@ -913,13 +955,15 @@ TEST_P(FileMetricsProviderTest, AccessEmbeddedProfileMetricsWithoutProfile) {
 
   // Register the file and allow the "checker" task to run.
   ASSERT_TRUE(PathExists(metrics_file()));
-  provider()->RegisterSource(FileMetricsProvider::Params(
-      metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
-      FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE, kMetricsName));
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
+          FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE, kMetricsName),
+      /*metrics_reporting_enabled=*/true);
 
   // Record embedded snapshots via snapshot-manager.
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   {
     HistogramFlattenerDeltaRecorder flattener;
     base::HistogramSnapshotManager snapshot_manager(&flattener);
@@ -931,7 +975,7 @@ TEST_P(FileMetricsProviderTest, AccessEmbeddedProfileMetricsWithoutProfile) {
   }
   EXPECT_TRUE(base::PathExists(metrics_file()));
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_FALSE(base::PathExists(metrics_file()));
 }
 
@@ -943,13 +987,15 @@ TEST_P(FileMetricsProviderTest, AccessEmbeddedProfileMetricsWithProfile) {
 
   // Register the file and allow the "checker" task to run.
   ASSERT_TRUE(PathExists(metrics_file()));
-  provider()->RegisterSource(FileMetricsProvider::Params(
-      metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
-      FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE, kMetricsName));
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
+          FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE, kMetricsName),
+      /*metrics_reporting_enabled=*/true);
 
   // Record embedded snapshots via snapshot-manager.
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   {
     HistogramFlattenerDeltaRecorder flattener;
     base::HistogramSnapshotManager snapshot_manager(&flattener);
@@ -965,10 +1011,11 @@ TEST_P(FileMetricsProviderTest, AccessEmbeddedProfileMetricsWithProfile) {
     ASSERT_EQ(1, uma_proto.system_profile().field_trial_size());
     EXPECT_EQ(123U, uma_proto.system_profile().field_trial(0).name_id());
     EXPECT_EQ(456U, uma_proto.system_profile().field_trial(0).group_id());
+    EXPECT_EQ(789U, uma_proto.system_profile().session_hash());
     EXPECT_FALSE(HasIndependentMetrics());
     EXPECT_FALSE(ProvideIndependentMetrics(&uma_proto, &snapshot_manager));
   }
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_FALSE(base::PathExists(metrics_file()));
 }
 
@@ -978,14 +1025,16 @@ TEST_P(FileMetricsProviderTest, AccessEmbeddedFallbackMetricsWithoutProfile) {
 
   // Register the file and allow the "checker" task to run.
   ASSERT_TRUE(PathExists(metrics_file()));
-  provider()->RegisterSource(FileMetricsProvider::Params(
-      metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
-      FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE_OR_PREVIOUS_RUN,
-      kMetricsName));
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
+          FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE_OR_PREVIOUS_RUN,
+          kMetricsName),
+      /*metrics_reporting_enabled=*/true);
 
   // Record embedded snapshots via snapshot-manager.
   ASSERT_TRUE(HasPreviousSessionData());
-  RunTasks();
+  task_environment()->RunUntilIdle();
   {
     HistogramFlattenerDeltaRecorder flattener;
     base::HistogramSnapshotManager snapshot_manager(&flattener);
@@ -999,7 +1048,7 @@ TEST_P(FileMetricsProviderTest, AccessEmbeddedFallbackMetricsWithoutProfile) {
   }
   EXPECT_TRUE(base::PathExists(metrics_file()));
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_FALSE(base::PathExists(metrics_file()));
 }
 
@@ -1011,14 +1060,16 @@ TEST_P(FileMetricsProviderTest, AccessEmbeddedFallbackMetricsWithProfile) {
 
   // Register the file and allow the "checker" task to run.
   ASSERT_TRUE(PathExists(metrics_file()));
-  provider()->RegisterSource(FileMetricsProvider::Params(
-      metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
-      FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE_OR_PREVIOUS_RUN,
-      kMetricsName));
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
+          FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE_OR_PREVIOUS_RUN,
+          kMetricsName),
+      /*metrics_reporting_enabled=*/true);
 
   // Record embedded snapshots via snapshot-manager.
   EXPECT_FALSE(HasPreviousSessionData());
-  RunTasks();
+  task_environment()->RunUntilIdle();
   {
     HistogramFlattenerDeltaRecorder flattener;
     base::HistogramSnapshotManager snapshot_manager(&flattener);
@@ -1032,7 +1083,7 @@ TEST_P(FileMetricsProviderTest, AccessEmbeddedFallbackMetricsWithProfile) {
     EXPECT_FALSE(HasIndependentMetrics());
     EXPECT_FALSE(ProvideIndependentMetrics(&uma_proto, &snapshot_manager));
   }
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_FALSE(base::PathExists(metrics_file()));
 }
 
@@ -1056,12 +1107,14 @@ TEST_P(FileMetricsProviderTest, AccessEmbeddedProfileMetricsFromDir) {
   }
 
   // Register the file and allow the "checker" task to run.
-  provider()->RegisterSource(FileMetricsProvider::Params(
-      temp_dir(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_DIR,
-      FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE));
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          temp_dir(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_DIR,
+          FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE),
+      /*metrics_reporting_enabled=*/true);
 
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
 
   // A read of metrics with internal profiles should return one result.
   HistogramFlattenerDeltaRecorder flattener;
@@ -1070,13 +1123,13 @@ TEST_P(FileMetricsProviderTest, AccessEmbeddedProfileMetricsFromDir) {
   for (int i = 0; i < file_count; ++i) {
     EXPECT_TRUE(HasIndependentMetrics()) << i;
     EXPECT_TRUE(ProvideIndependentMetrics(&uma_proto, &snapshot_manager)) << i;
-    RunTasks();
+    task_environment()->RunUntilIdle();
   }
   EXPECT_FALSE(HasIndependentMetrics());
   EXPECT_FALSE(ProvideIndependentMetrics(&uma_proto, &snapshot_manager));
 
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   for (const auto& file_name : file_names)
     EXPECT_FALSE(base::PathExists(file_name));
 }
@@ -1103,18 +1156,20 @@ TEST_P(FileMetricsProviderTest,
       "h3", 1, 100, 10,
       /*flags=*/base::HistogramBase::Flags::kUmaTargetedHistogramFlag);
   h3->Add(0);
-  std::unique_ptr<base::PersistentHistogramAllocator> histogram_allocator =
+  base::GlobalHistogramAllocator* histogram_allocator =
       base::GlobalHistogramAllocator::ReleaseForTesting();
-  WriteMetricsFileAtTime(metrics_file(), histogram_allocator.get(),
+  WriteMetricsFileAtTime(metrics_file(), histogram_allocator,
                          base::Time::Now());
   ASSERT_TRUE(PathExists(metrics_file()));
 
   // Register the file and allow the "checker" task to run.
-  provider()->RegisterSource(FileMetricsProvider::Params(
-      metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
-      FileMetricsProvider::ASSOCIATE_PREVIOUS_RUN, kMetricsName));
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
+          FileMetricsProvider::ASSOCIATE_PREVIOUS_RUN, kMetricsName),
+      /*metrics_reporting_enabled=*/true);
   ASSERT_TRUE(HasPreviousSessionData());
-  RunTasks();
+  task_environment()->RunUntilIdle();
 
   // Record embedded snapshots via snapshot-manager.
   HistogramFlattenerDeltaRecorder flattener;
@@ -1128,7 +1183,7 @@ TEST_P(FileMetricsProviderTest,
   // The metrics file should eventually be deleted.
   EXPECT_TRUE(base::PathExists(metrics_file()));
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_FALSE(base::PathExists(metrics_file()));
 }
 
@@ -1152,21 +1207,23 @@ TEST_P(FileMetricsProviderTest, IndependentLogContainsUmaHistograms) {
       "h3", 1, 100, 10,
       /*flags=*/base::HistogramBase::Flags::kNoFlags);
   h3->Add(0);
-  std::unique_ptr<base::PersistentHistogramAllocator> histogram_allocator =
+  base::GlobalHistogramAllocator* histogram_allocator =
       base::GlobalHistogramAllocator::ReleaseForTesting();
   // Write a system profile so that an independent log can successfully be
   // created from the metrics file.
-  WriteSystemProfileToAllocator(histogram_allocator.get());
-  WriteMetricsFileAtTime(metrics_file(), histogram_allocator.get(),
+  WriteSystemProfileToAllocator(histogram_allocator);
+  WriteMetricsFileAtTime(metrics_file(), histogram_allocator,
                          base::Time::Now());
   ASSERT_TRUE(PathExists(metrics_file()));
 
   // Register the file and allow the "checker" task to run.
-  provider()->RegisterSource(FileMetricsProvider::Params(
-      metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
-      FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE, kMetricsName));
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
+          FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE, kMetricsName),
+      /*metrics_reporting_enabled=*/true);
   OnDidCreateMetricsLog();
-  RunTasks();
+  task_environment()->RunUntilIdle();
 
   // Verify that the independent log provided only contains UMA histograms (both
   // stability and non-stability).
@@ -1179,8 +1236,150 @@ TEST_P(FileMetricsProviderTest, IndependentLogContainsUmaHistograms) {
               testing::ElementsAre("h0", "h2"));
 
   // The metrics file should eventually be deleted.
-  RunTasks();
+  task_environment()->RunUntilIdle();
   EXPECT_FALSE(base::PathExists(metrics_file()));
+}
+
+// Verifies that if the embedded system profile in the file does not contain
+// a client UUID, the generated independent log's client ID is not overwritten.
+TEST_P(FileMetricsProviderTest, EmbeddedProfileWithoutClientUuid) {
+  ASSERT_FALSE(PathExists(metrics_file()));
+  CreateMetricsFileWithHistograms(
+      metrics_file(), base::Time::Now(), 2,
+      base::BindOnce(&WriteSystemProfileToAllocator));
+
+  // Register the file and allow the "checker" task to run.
+  ASSERT_TRUE(PathExists(metrics_file()));
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
+          FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE, kMetricsName),
+      /*metrics_reporting_enabled=*/true);
+
+  // Record embedded snapshots via snapshot-manager.
+  OnDidCreateMetricsLog();
+  task_environment()->RunUntilIdle();
+  {
+    HistogramFlattenerDeltaRecorder flattener;
+    base::HistogramSnapshotManager snapshot_manager(&flattener);
+
+    // Since the embedded system profile has no client_uuid set (see
+    // WriteSystemProfileToAllocator()), the client ID written in |uma_proto|
+    // should be kept.
+    ChromeUserMetricsExtension uma_proto;
+    uma_proto.set_client_id(1);
+    EXPECT_TRUE(HasIndependentMetrics());
+    EXPECT_TRUE(ProvideIndependentMetrics(&uma_proto, &snapshot_manager));
+    EXPECT_EQ(uma_proto.client_id(), 1U);
+  }
+  task_environment()->RunUntilIdle();
+  EXPECT_FALSE(base::PathExists(metrics_file()));
+}
+
+// Verifies that if the embedded system profile in the file contains a client
+// UUID, it is used as the generated independent log's client ID.
+TEST_P(FileMetricsProviderTest, EmbeddedProfileWithClientUuid) {
+  ASSERT_FALSE(PathExists(metrics_file()));
+  static constexpr char kProfileClientUuid[] = "abc";
+  CreateMetricsFileWithHistograms(
+      metrics_file(), base::Time::Now(), 2,
+      base::BindOnce([](base::PersistentHistogramAllocator* allocator) {
+        metrics::SystemProfileProto profile_proto;
+        profile_proto.set_client_uuid(kProfileClientUuid);
+
+        metrics::PersistentSystemProfile persistent_profile;
+        persistent_profile.RegisterPersistentAllocator(
+            allocator->memory_allocator());
+        persistent_profile.SetSystemProfile(profile_proto, /*complete=*/true);
+      }));
+
+  // Register the file and allow the "checker" task to run.
+  ASSERT_TRUE(PathExists(metrics_file()));
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
+          FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE, kMetricsName),
+      /*metrics_reporting_enabled=*/true);
+
+  // Record embedded snapshots via snapshot-manager.
+  OnDidCreateMetricsLog();
+  task_environment()->RunUntilIdle();
+  {
+    HistogramFlattenerDeltaRecorder flattener;
+    base::HistogramSnapshotManager snapshot_manager(&flattener);
+
+    // Since the embedded system profile contains a client_uuid, the client ID
+    // in |uma_proto| should be overwritten.
+    ChromeUserMetricsExtension uma_proto;
+    uma_proto.set_client_id(1);
+    EXPECT_TRUE(HasIndependentMetrics());
+    EXPECT_TRUE(ProvideIndependentMetrics(&uma_proto, &snapshot_manager));
+    EXPECT_NE(uma_proto.client_id(), 1U);
+    EXPECT_EQ(uma_proto.client_id(), MetricsLog::Hash(kProfileClientUuid));
+  }
+  task_environment()->RunUntilIdle();
+  EXPECT_FALSE(base::PathExists(metrics_file()));
+}
+
+TEST_P(FileMetricsProviderTest, MetricsDisabledRegisterAtomicFile) {
+  ASSERT_FALSE(PathExists(metrics_file()));
+  CreateMetricsFileWithHistograms(
+      metrics_file(), base::Time::Now() - base::Minutes(10), 1,
+      base::BindOnce(&WriteSystemProfileToAllocator));
+  EXPECT_TRUE(base::PathExists(metrics_file()));
+
+  EXPECT_TRUE(base::PathExists(metrics_file()));
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_FILE,
+          FileMetricsProvider::ASSOCIATE_CURRENT_RUN, kMetricsName),
+      /*metrics_reporting_enabled=*/false);
+
+  task_environment()->RunUntilIdle();
+  EXPECT_FALSE(base::PathExists(metrics_file()));
+}
+
+TEST_P(FileMetricsProviderTest, MetricsDisabledRegisterAtomicDir) {
+  base::ScopedTempDir metrics_files;
+  EXPECT_TRUE(metrics_files.CreateUniqueTempDir());
+  base::FilePath dir = metrics_files.GetPath();
+
+  CreateMetricsFileWithHistograms(
+      dir.AppendASCII("h1.pma"), base::Time::Now() - base::Minutes(10), 1,
+      base::BindOnce(&WriteSystemProfileToAllocator));
+  // Also create an empty file there to test the multiple-files in dir case.
+  CreateEmptyFile(dir.AppendASCII("h2.pma"));
+
+  EXPECT_TRUE(base::PathExists(dir));
+  EXPECT_TRUE(base::PathExists(dir.AppendASCII("h1.pma")));
+  EXPECT_TRUE(base::PathExists(dir.AppendASCII("h2.pma")));
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          metrics_files.GetPath(),
+          FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_DIR,
+          FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE, kMetricsName),
+      /*metrics_reporting_enabled=*/false);
+
+  task_environment()->RunUntilIdle();
+  EXPECT_FALSE(base::PathExists(dir));
+}
+
+TEST_P(FileMetricsProviderTest, MetricsDisabledRegisterActiveFile) {
+  ASSERT_FALSE(PathExists(metrics_file()));
+  CreateMetricsFileWithHistograms(
+      metrics_file(), base::Time::Now() - base::Minutes(10), 1,
+      base::BindOnce(&WriteSystemProfileToAllocator));
+  EXPECT_TRUE(base::PathExists(metrics_file()));
+
+  provider()->RegisterSource(
+      FileMetricsProvider::Params(
+          metrics_file(), FileMetricsProvider::SOURCE_HISTOGRAMS_ACTIVE_FILE,
+          FileMetricsProvider::ASSOCIATE_CURRENT_RUN, kMetricsName),
+      /*metrics_reporting_enabled=*/false);
+
+  task_environment()->RunUntilIdle();
+  // Active file should not be deleted.
+  EXPECT_TRUE(base::PathExists(metrics_file()));
 }
 
 }  // namespace metrics

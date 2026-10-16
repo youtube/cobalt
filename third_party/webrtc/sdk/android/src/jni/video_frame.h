@@ -20,7 +20,7 @@
 namespace webrtc {
 namespace jni {
 
-rtc::scoped_refptr<VideoFrameBuffer> JavaToNativeFrameBuffer(
+scoped_refptr<VideoFrameBuffer> JavaToNativeFrameBuffer(
     JNIEnv* jni,
     const JavaRef<jobject>& j_video_frame_buffer);
 

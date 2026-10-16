@@ -13,7 +13,13 @@ from requests.exceptions import RequestException
 from blinkpy.common import exit_codes
 from blinkpy.common.net.rpc import Build
 from blinkpy.common.net.web import Web
-from blinkpy.common.net.git_cl import BuildStatuses, GitCL, TryJobStatus
+from blinkpy.common.net.git_cl import (
+    BuildStatus,
+    BuildStatuses,
+    CLRevisionID,
+    GitCL,
+)
+from blinkpy.tool.grammar import pluralize
 
 _log = logging.getLogger(__name__)
 
@@ -31,14 +37,6 @@ class BuildResolver:
 
     This resolver fetches build information from Buildbucket.
     """
-    # Pseudo-status to indicate a build was triggered by this command run.
-    # More specific than the 'SCHEDULED' Buildbucket status.
-    TRIGGERED = TryJobStatus('TRIGGERED', None)
-
-    # Pseudo-status to indicate a try builder is missing a build and cannot
-    # get one from triggering a job.
-    MISSING = TryJobStatus('MISSING', None)
-
     # Build fields required by `_build_statuses_from_responses`.
     _build_fields = [
         'id',
@@ -46,6 +44,7 @@ class BuildResolver:
         'builder.builder',
         'builder.bucket',
         'status',
+        'output.properties',
         'steps.*.name',
         'steps.*.logs.*.name',
         'steps.*.logs.*.view_url',
@@ -117,8 +116,8 @@ class BuildResolver:
             build_statuses.update(try_build_statuses)
             # Re-request completed try builds so that the resolver can check
             # for interrupted steps.
-            for build, (status, _) in try_build_statuses.items():
-                if build.build_number and status == 'COMPLETED':
+            for build, status in try_build_statuses.items():
+                if build.build_number and status in BuildStatus.COMPLETED:
                     self._git_cl.bb_client.add_get_build_req(
                         build, build_fields=self._build_fields)
         # Find explicit or CI builds.
@@ -127,34 +126,52 @@ class BuildResolver:
                 self._git_cl.bb_client.execute_batch()))
         if build_statuses:
             self.log_builds(build_statuses)
-        if self.TRIGGERED in build_statuses.values():
+        if BuildStatus.TRIGGERED in build_statuses.values():
             raise UnresolvedBuildException(
                 'Once all pending try jobs have finished, '
                 'please re-run the tool to fetch new results.')
         return build_statuses
 
-    def _status_if_interrupted(self, raw_build) -> TryJobStatus:
+    def _status_if_interrupted(self, raw_build) -> BuildStatus:
         """Map non-browser-related failures to an infrastructue failure status.
 
         Such failures include shard-level timeouts and early exits caused by
         exceeding the failure threshold. These failures are opaque to LUCI, but
         can be discovered from `run_web_tests.py` exit code conventions.
         """
-        # TODO(crbug.com/1123077): After the switch to wptrunner, stop checking
-        # the `blink_wpt_tests` step.
+        # TODO(crbug.com/352762538):
+        #  1. Fetch shard exit codes separately for each suite.
+        #  2. Instead of coercing bad shards to `INFRA_FAILURE`, they should be
+        #     interpreted to populate `WebTestResults.incomplete_reason`
+        #     directly.
         run_web_tests_pattern = re.compile(
-            r'[\w_-]*blink_(web|wpt)_tests.*\(with patch\)[^|]*')
+            r'[\w_-]*(webdriver|blink_(web|wpt))_tests.*\(with patch\)[^|]*')
+        status = BuildStatus[raw_build['status']]
+        if status is BuildStatus.FAILURE:
+            output_props = raw_build.get('output', {}).get('properties', {})
+            # Buildbucket's `FAILURE` status encompasses both normal test
+            # failures (i.e., needs rebaseline) and unrelated compile or
+            # result merge failures. To distinguish them, look at the failure
+            # reason yielded by the recipe.
+            failure_type = output_props.get('failure_type')
+            try:
+                status = BuildStatus[failure_type]
+            except KeyError:
+                status = BuildStatus.OTHER_FAILURE
         for step in raw_build.get('steps', []):
             if run_web_tests_pattern.fullmatch(step['name']):
                 summary = self._fetch_swarming_summary(step)
                 shards = (summary or {}).get('shards', [])
                 if any(map(_shard_interrupted, shards)):
-                    return TryJobStatus.from_bb_status('INFRA_FAILURE')
-        return TryJobStatus.from_bb_status(raw_build['status'])
+                    return BuildStatus.INFRA_FAILURE
+        return status
 
     def _fetch_swarming_summary(self,
                                 step,
                                 log_name: str = 'chromium_swarming.summary'):
+        # TODO(crbug.com/342409114): Use swarming v2 API to fetch shard status
+        # and exit codes, not the potentially unstable
+        # `chromium_swarming.summary` log.
         for log in step.get('logs', []):
             if log['name'] == log_name:
                 with contextlib.suppress(RequestException):
@@ -179,10 +196,15 @@ class BuildResolver:
             UnresolvedBuildException: If the CL issue number is not set or no
                 try jobs are available but try jobs cannot be triggered.
         """
-        if not self._git_cl.get_issue_number().isdigit():
+        issue_number = self._git_cl.get_issue_number()
+        if not issue_number.isdigit():
             raise UnresolvedBuildException(
                 'No issue number for current branch.')
-        build_statuses = self._git_cl.latest_try_jobs(builder_names=builders,
+        cl = CLRevisionID(int(issue_number), patchset)
+        _log.info(f'Fetching status for {pluralize("build", len(builders))} '
+                  f'from {cl}.')
+        build_statuses = self._git_cl.latest_try_jobs(issue_number,
+                                                      builder_names=builders,
                                                       patchset=patchset)
         if not build_statuses and not self._can_trigger_jobs:
             raise UnresolvedBuildException(
@@ -193,21 +215,20 @@ class BuildResolver:
             build.builder_name
             for build in build_statuses
         }
-        placeholder_status = self.MISSING
+        placeholder_status = BuildStatus.MISSING
         if self._can_trigger_jobs and builders_without_results:
             self._git_cl.trigger_try_jobs(builders_without_results)
-            placeholder_status = self.TRIGGERED
+            placeholder_status = BuildStatus.TRIGGERED
         for builder in builders_without_results:
             build_statuses[Build(builder)] = placeholder_status
         return build_statuses
 
     def log_builds(self, build_statuses: BuildStatuses):
         """Log builds in a tabular format."""
-        self._warn_about_infra_failures(build_statuses)
         finished_builds = {
-            build: result or '--'
-            for build, (status, result) in build_statuses.items()
-            if status == 'COMPLETED'
+            build: status
+            for build, status in build_statuses.items()
+            if status in BuildStatus.COMPLETED
         }
         if len(finished_builds) == len(build_statuses):
             _log.info('All builds finished.')
@@ -219,39 +240,28 @@ class BuildResolver:
             _log.info('No finished builds.')
         unfinished_builds = {
             build: status
-            for build, (status, _) in build_statuses.items()
-            if build not in finished_builds and status != 'MISSING'
+            for build, status in build_statuses.items() if
+            build not in finished_builds and status is not BuildStatus.MISSING
         }
         if unfinished_builds:
             _log.info('Scheduled or started builds:')
             self._log_build_statuses(unfinished_builds)
 
-    def _warn_about_infra_failures(self, build_statuses: BuildStatuses):
-        builds_with_infra_failures = GitCL.filter_infra_failed(build_statuses)
-        if builds_with_infra_failures:
-            _log.warning('Some builds have infrastructure failures:')
-            for build in sorted(builds_with_infra_failures,
-                                key=_build_sort_key):
-                _log.warning('  "%s" build %s', build.builder_name,
-                             str(build.build_number or '--'))
-            _log.warning('Examples of infrastructure failures include:')
-            _log.warning('  * Shard terminated the harness after timing out.')
-            _log.warning('  * Harness exited early due to '
-                         'excessive unexpected failures.')
-            _log.warning('  * Build failed on a non-test step.')
-            _log.warning('Please consider retrying the failed builders or '
-                         'giving the builders more shards.')
-            _log.warning(
-                'See https://chromium.googlesource.com/chromium/src/+/HEAD/'
-                'docs/testing/web_test_expectations.md#handle-bot-timeouts')
-
     def _log_build_statuses(self, build_statuses: BuildStatuses):
-        template = '  %-20s %-7s %-9s %-6s'
+        assert build_statuses
+        builder_names = [build.builder_name for build in build_statuses]
+        # Clamp to a minimum width to visually separate the `BUILDER` and
+        # `NUMBER` columns.
+        name_column_width = max(20, *map(len, builder_names))
+        status_column_width = max(
+            len(status.name) for status in build_statuses.values())
+        template = (f'  %-{name_column_width}s %-7s '
+                    f'%-{status_column_width}s %-6s')
         _log.info(template, 'BUILDER', 'NUMBER', 'STATUS', 'BUCKET')
         for build in sorted(build_statuses, key=_build_sort_key):
             _log.info(template, build.builder_name,
-                      str(build.build_number or '--'), build_statuses[build],
-                      build.bucket)
+                      str(build.build_number or '--'),
+                      build_statuses[build].name, build.bucket)
 
 
 def _build_sort_key(build: Build) -> Tuple[str, int]:
@@ -259,4 +269,6 @@ def _build_sort_key(build: Build) -> Tuple[str, int]:
 
 
 def _shard_interrupted(shard) -> bool:
+    if shard.get('state') not in {'COMPLETED', 'DEDUPED'}:
+        return True
     return int(shard.get('exit_code', 0)) in exit_codes.ERROR_CODES

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {CrPolicyStringsType} from 'chrome://resources/cr_elements/policy/cr_policy_indicator_mixin.js';
+import type {CrPolicyStringsType} from 'chrome://resources/cr_elements/policy/cr_policy_types.js';
 
 /** @fileoverview Sets up strings used by policy indicator elements. */
 export const CrPolicyStrings: CrPolicyStringsType = {
@@ -11,13 +11,13 @@ export const CrPolicyStrings: CrPolicyStringsType = {
   controlledSettingPolicy: 'policy',
   controlledSettingRecommendedMatches: 'matches',
   controlledSettingRecommendedDiffers: 'differs',
+  controlledSettingParent: 'parent',
+  controlledSettingChildRestriction: 'Restricted for child',
 
-  // <if expr="chromeos_ash">
+  // <if expr="is_chromeos">
   controlledSettingShared: 'shared: $1',
   controlledSettingWithOwner: 'owner: $1',
   controlledSettingNoOwner: 'owner',
-  controlledSettingParent: 'parent',
-  controlledSettingChildRestriction: 'Restricted for child',
   // </if>
 };
 

@@ -20,13 +20,15 @@ import static org.mockito.Mockito.when;
 import android.app.Activity;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 import org.robolectric.annotation.Config;
 
@@ -37,14 +39,13 @@ import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.app.ChromeActivity;
-import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabHidingType;
-import org.chromium.chrome.browser.tab.TabImpl;
 import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab.TabViewManager;
 import org.chromium.chrome.browser.tab.TabViewProvider;
+import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.GURL;
@@ -56,42 +57,31 @@ import java.lang.ref.WeakReference;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public final class PageViewObserverTest {
-    private static final GURL STARTING_URL = JUnitTestGURLs.getGURL(JUnitTestGURLs.URL_1);
-    private static final GURL STARTING_URL_WITH_PATH =
-            JUnitTestGURLs.getGURL(JUnitTestGURLs.URL_1_WITH_PATH);
-    private static final GURL DIFFERENT_URL = JUnitTestGURLs.getGURL(JUnitTestGURLs.URL_2);
+    private static final GURL STARTING_URL = JUnitTestGURLs.URL_1;
+    private static final GURL STARTING_URL_WITH_PATH = JUnitTestGURLs.URL_1_WITH_PATH;
+    private static final GURL DIFFERENT_URL = JUnitTestGURLs.URL_2;
     private static final String STARTING_FQDN = "www.one.com";
     private static final String DIFFERENT_FQDN = "www.two.com";
 
-    @Mock
-    private Activity mActivity;
-    @Mock
-    private ObservableSupplier<Tab> mTabSupplier;
-    @Mock
-    private TabImpl mTab;
-    @Mock
-    private TabImpl mTab2;
-    @Mock
-    private EventTracker mEventTracker;
-    @Mock
-    private TokenTracker mTokenTracker;
-    @Mock
-    private SuspensionTracker mSuspensionTracker;
-    @Mock
-    private WindowAndroid mWindowAndroid;
-    @Mock
-    private ChromeActivity mChromeActivity;
-    @Mock
-    private Supplier<TabContentManager> mTabContentManagerSupplier;
-    @Captor
-    private ArgumentCaptor<Callback<Tab>> mTabSupplierCaptor;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private Activity mActivity;
+    @Mock private ObservableSupplier<Tab> mTabSupplier;
+    @Mock private Tab mTab;
+    @Mock private Tab mTab2;
+    @Mock private EventTracker mEventTracker;
+    @Mock private TokenTracker mTokenTracker;
+    @Mock private SuspensionTracker mSuspensionTracker;
+    @Mock private WindowAndroid mWindowAndroid;
+    @Mock private ChromeActivity mChromeActivity;
+    @Mock private Supplier<TabContentManager> mTabContentManagerSupplier;
+    @Captor private ArgumentCaptor<Callback<Tab>> mTabSupplierCaptor;
 
     private UserDataHost mUserDataHost;
     private UserDataHost mUserDataHostTab2;
     private UserDataHost mDestroyedUserDataHost;
     private WeakReference<Activity> mActivityRef;
 
-    private class MockTabViewManager implements TabViewManager {
+    private static class MockTabViewManager implements TabViewManager {
         private TabViewProvider mTabViewProvider;
 
         @Override
@@ -112,7 +102,6 @@ public final class PageViewObserverTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
 
         mUserDataHost = new UserDataHost();
         mUserDataHostTab2 = new UserDataHost();
@@ -299,7 +288,7 @@ public final class PageViewObserverTest {
         doReturn(true).when(mSuspensionTracker).isWebsiteSuspended(STARTING_FQDN);
         changeTab(mTab2);
 
-        assertEquals(SuspendedTab.from(mTab2, mTabContentManagerSupplier).getFqdn(), STARTING_FQDN);
+        assertEquals(STARTING_FQDN, SuspendedTab.from(mTab2, mTabContentManagerSupplier).getFqdn());
     }
 
     // TODO(pnoland): add test for platform reporting once the System API is available in Q.
@@ -326,7 +315,7 @@ public final class PageViewObserverTest {
         updateUrl(mTab, DIFFERENT_URL, observer);
 
         SuspendedTab suspendedTab = SuspendedTab.from(mTab, mTabContentManagerSupplier);
-        assertEquals(suspendedTab.getFqdn(), DIFFERENT_FQDN);
+        assertEquals(DIFFERENT_FQDN, suspendedTab.getFqdn());
     }
 
     @Test
@@ -496,8 +485,14 @@ public final class PageViewObserverTest {
     }
 
     private PageViewObserver createPageViewObserver() {
-        PageViewObserver observer = new PageViewObserver(mActivity, mTabSupplier, mEventTracker,
-                mTokenTracker, mSuspensionTracker, mTabContentManagerSupplier);
+        PageViewObserver observer =
+                new PageViewObserver(
+                        mActivity,
+                        mTabSupplier,
+                        mEventTracker,
+                        mTokenTracker,
+                        mSuspensionTracker,
+                        mTabContentManagerSupplier);
         verify(mTabSupplier, times(1)).addObserver(mTabSupplierCaptor.capture());
         Tab tab = mTabSupplier.get();
         mTabSupplierCaptor.getValue().onResult(tab);
@@ -508,26 +503,25 @@ public final class PageViewObserverTest {
         return observer;
     }
 
-    private void updateUrl(TabImpl tab, GURL url, TabObserver tabObserver) {
+    private void updateUrl(Tab tab, GURL url, TabObserver tabObserver) {
         updateUrlNoPaint(tab, url, tabObserver);
         reportPaint(tab, url, tabObserver);
     }
 
-    private void updateUrlNoPaint(TabImpl tab, GURL url, TabObserver tabObserver) {
+    private void updateUrlNoPaint(Tab tab, GURL url, TabObserver tabObserver) {
         tabObserver.onUpdateUrl(tab, url);
     }
 
-    private void reportPaint(TabImpl tab, GURL url, TabObserver tabObserver) {
+    private void reportPaint(Tab tab, GURL url, TabObserver tabObserver) {
         doReturn(url).when(tab).getUrl();
         tabObserver.didFirstVisuallyNonEmptyPaint(tab);
     }
 
-    private void onHidden(TabImpl tab, @TabHidingType int hidingType, TabObserver tabObserver) {
+    private void onHidden(Tab tab, @TabHidingType int hidingType, TabObserver tabObserver) {
         tabObserver.onHidden(tab, hidingType);
     }
 
-    private void onShown(
-            TabImpl tab, @TabSelectionType int selectionType, TabObserver tabObserver) {
+    private void onShown(Tab tab, @TabSelectionType int selectionType, TabObserver tabObserver) {
         tabObserver.onShown(tab, selectionType);
     }
 

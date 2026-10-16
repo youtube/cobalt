@@ -6,20 +6,18 @@
  * @fileoverview
  * `settings-toggle-button` is a toggle that controls a supplied preference.
  */
+import '//resources/cr_elements/cr_actionable_row_style.css.js';
 import '//resources/cr_elements/cr_shared_style.css.js';
 import '//resources/cr_elements/cr_shared_vars.css.js';
 import '//resources/cr_elements/action_link.css.js';
 import '//resources/cr_elements/cr_toggle/cr_toggle.js';
-import '//resources/cr_elements/policy/cr_policy_pref_indicator.js';
-import '//resources/polymer/v3_0/iron-flex-layout/iron-flex-layout-classes.js';
-// <if expr='chromeos_ash'>
-import '//resources/cr_elements/chromeos/cros_color_overrides.css.js';
+import '/shared/settings/controls/cr_policy_pref_indicator.js';
+import '//resources/cr_elements/cr_icon/cr_icon.js';
 
-// </if>
-
-import {CrToggleElement} from '//resources/cr_elements/cr_toggle/cr_toggle.js';
+import type {CrToggleElement} from '//resources/cr_elements/cr_toggle/cr_toggle.js';
 import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {SettingsBooleanControlMixin} from '/shared/settings/controls/settings_boolean_control_mixin.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {sanitizeInnerHtml} from 'chrome://resources/js/parse_html_subset.js';
 
 import {getTemplate} from './settings_toggle_button.html.js';
@@ -81,9 +79,12 @@ export class SettingsToggleButtonElement extends
         reflectToAttribute: true,
       },
 
-      // <if expr="chromeos_ash">
+      learnMoreAriaLabel: {
+        type: String,
+        value: '',
+      },
+
       icon: String,
-      // </if>
 
       subLabelIcon: String,
     };
@@ -95,16 +96,15 @@ export class SettingsToggleButtonElement extends
     ];
   }
 
-  override ariaLabel: string;
-  ariaShowLabel: boolean;
-  ariaShowSublabel: boolean;
-  elideLabel: boolean;
-  // <if expr="chromeos_ash">
-  icon: string;
-  // </if>
-  learnMoreUrl: string;
-  subLabelWithLink: string;
-  subLabelIcon: string;
+  declare ariaLabel: string;
+  declare ariaShowLabel: boolean;
+  declare ariaShowSublabel: boolean;
+  declare elideLabel: boolean;
+  declare icon: string;
+  declare learnMoreAriaLabel: string;
+  declare learnMoreUrl: string;
+  declare subLabelWithLink: string;
+  declare subLabelIcon: string;
 
   override ready() {
     super.ready();
@@ -136,6 +136,17 @@ export class SettingsToggleButtonElement extends
     return this.ariaLabel || this.label;
   }
 
+  private getLearnMoreAriaLabelledBy_(): string {
+    return this.learnMoreAriaLabel ? 'learn-more-aria-label' :
+                                     'sub-label-text learn-more';
+  }
+
+  getBubbleAnchor() {
+    const anchor = this.shadowRoot!.querySelector<HTMLElement>('#control');
+    assert(anchor);
+    return anchor;
+  }
+
   private onDisableOrPrefChange_() {
     this.toggleAttribute('effectively-disabled_', this.controlDisabled());
   }
@@ -149,10 +160,7 @@ export class SettingsToggleButtonElement extends
     if (this.controlDisabled()) {
       return;
     }
-
-    this.checked = !this.checked;
-    this.notifyChangedByUserInteraction();
-    this.fire_('change');
+    this.updateCheckedAndNotify_(!this.checked);
   }
 
   private onLearnMoreClick_(e: CustomEvent<boolean>) {
@@ -168,6 +176,7 @@ export class SettingsToggleButtonElement extends
       attrs: [
         'id',
         'is',
+        'aria-description',
         'aria-hidden',
         'aria-label',
         'aria-labelledby',
@@ -186,8 +195,16 @@ export class SettingsToggleButtonElement extends
   }
 
   private onChange_(e: CustomEvent<boolean>) {
-    this.checked = e.detail;
+    // Prevent cr-toggle's change event from propagating to the parent since
+    // this element fires its own 'change' event.
+    e.stopPropagation();
+    this.updateCheckedAndNotify_(e.detail);
+  }
+
+  private updateCheckedAndNotify_(checked: boolean) {
+    this.checked = checked;
     this.notifyChangedByUserInteraction();
+    this.fire_('change', this.checked);
   }
 }
 

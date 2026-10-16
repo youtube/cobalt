@@ -56,16 +56,16 @@ class LoginPublicAccountUserViewTest : public LoginTestBase {
     auto* container = new views::View();
     container->SetLayoutManager(std::make_unique<views::BoxLayout>(
         views::BoxLayout::Orientation::kVertical));
-    container->AddChildView(public_account_view_.get());
-    container->AddChildView(focusable_view_.get());
+    container->AddChildViewRaw(public_account_view_.get());
+    container->AddChildViewRaw(focusable_view_.get());
     SetWidget(CreateWidgetWithContent(container));
   }
 
   LoginUserInfo user_;
 
-  raw_ptr<LoginPublicAccountUserView, ExperimentalAsh> public_account_view_ =
+  raw_ptr<LoginPublicAccountUserView, DanglingUntriaged> public_account_view_ =
       nullptr;
-  raw_ptr<views::View, ExperimentalAsh> focusable_view_ = nullptr;
+  raw_ptr<views::View, DanglingUntriaged> focusable_view_ = nullptr;
 
   int user_view_tap_count_ = 0;
   int public_account_tap_count_ = 0;

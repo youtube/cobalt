@@ -14,27 +14,30 @@
 #include "components/security_interstitials/content/security_interstitial_tab_helper.h"
 #include "components/security_interstitials/core/unsafe_resource.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/navigation_throttle_registry.h"
 
 namespace android_webview {
 
 using safe_browsing::ThreatSeverity;
 
 // static
-std::unique_ptr<AwSafeBrowsingNavigationThrottle>
-AwSafeBrowsingNavigationThrottle::MaybeCreateThrottleFor(
-    content::NavigationHandle* handle) {
+void AwSafeBrowsingNavigationThrottle::MaybeCreateAndAdd(
+    content::NavigationThrottleRegistry& registry) {
   // Only outer-most main frames show the interstitial through the navigation
   // throttle. In other cases, the interstitial is shown via
   // BaseUIManager::DisplayBlockingPage.
-  if (!handle->IsInPrimaryMainFrame() && !handle->IsInPrerenderedMainFrame())
-    return nullptr;
+  if (!registry.GetNavigationHandle().IsInPrimaryMainFrame() &&
+      !registry.GetNavigationHandle().IsInPrerenderedMainFrame()) {
+    return;
+  }
 
-  return base::WrapUnique(new AwSafeBrowsingNavigationThrottle(handle));
+  registry.AddThrottle(
+      base::WrapUnique(new AwSafeBrowsingNavigationThrottle(registry)));
 }
 
 AwSafeBrowsingNavigationThrottle::AwSafeBrowsingNavigationThrottle(
-    content::NavigationHandle* handle)
-    : content::NavigationThrottle(handle) {}
+    content::NavigationThrottleRegistry& registry)
+    : content::NavigationThrottle(registry) {}
 
 const char* AwSafeBrowsingNavigationThrottle::GetNameForLogging() {
   return "AwSafeBrowsingNavigationThrottle";
@@ -65,10 +68,14 @@ AwSafeBrowsingNavigationThrottle::WillFailRequest() {
               /*is_in_outermost_main_frame=*/true, handle->HasUserGesture(),
               handle->GetRequestHeaders());
       request->is_renderer_initiated = handle->IsRendererInitiated();
+      // blocked_page_shown_timestamp is set to nullopt because this blocking
+      // page is triggered through navigation throttle, so the blocked page is
+      // never shown.
       AwSafeBrowsingBlockingPage* blocking_page =
           AwSafeBrowsingBlockingPage::CreateBlockingPage(
               manager, handle->GetWebContents(), handle->GetURL(), resource,
-              std::move(request));
+              std::move(request),
+              /*blocked_page_shown_timestamp=*/std::nullopt);
       std::string error_page_content = blocking_page->GetHTMLContents();
       security_interstitials::SecurityInterstitialTabHelper::
           AssociateBlockingPage(handle, base::WrapUnique(blocking_page));

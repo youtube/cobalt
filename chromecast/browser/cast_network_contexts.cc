@@ -46,7 +46,8 @@ ContentSettingPatternSource CreateContentSetting(
   return ContentSettingPatternSource(
       ContentSettingsPattern::FromString(primary_pattern),
       ContentSettingsPattern::FromString(secondary_pattern),
-      base::Value(setting), std::string(), /*incognito=*/false);
+      base::Value(setting), content_settings::ProviderType::kNone,
+      /*incognito=*/false);
 }
 
 }  // namespace
@@ -147,7 +148,7 @@ CastNetworkContexts::GetSystemURLLoaderFactory() {
   network::mojom::URLLoaderFactoryParamsPtr params =
       network::mojom::URLLoaderFactoryParams::New();
   params->process_id = network::mojom::kBrowserProcessId;
-  params->is_corb_enabled = false;
+  params->is_orb_enabled = false;
   params->is_trusted = true;
   GetSystemContext()->CreateURLLoaderFactory(
       system_url_loader_factory_.BindNewPipeAndPassReceiver(),
@@ -286,8 +287,8 @@ CastNetworkContexts::CreateCookieManagerParams() {
     settings_for_storage_access.push_back(
         std::move(allow_storage_access_setting));
 
-    // TODO(crbug.com/1385156): Consolidate this with the regular STORAGE_ACCESS
-    // setting as usage becomes better-defined.
+    // TODO(crbug.com/40246640): Consolidate this with the regular
+    // STORAGE_ACCESS setting as usage becomes better-defined.
     auto allow_top_level_storage_access_setting = CreateContentSetting(
         /*primary_pattern=*/base::StrCat({"[*.]", domain}),
         /*secondary_pattern=*/"*", ContentSetting::CONTENT_SETTING_ALLOW);
@@ -308,9 +309,10 @@ CastNetworkContexts::CreateCookieManagerParams() {
   settings_for_top_level_storage_access.push_back(CreateContentSetting(
       /*primary_pattern=*/"*",
       /*secondary_pattern=*/"*", ContentSetting::CONTENT_SETTING_BLOCK));
-  params->settings = std::move(settings);
-  params->settings_for_storage_access = std::move(settings_for_storage_access);
-  params->settings_for_top_level_storage_access =
+  params->content_settings[ContentSettingsType::COOKIES] = std::move(settings);
+  params->content_settings[ContentSettingsType::STORAGE_ACCESS] =
+      std::move(settings_for_storage_access);
+  params->content_settings[ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS] =
       std::move(settings_for_top_level_storage_access);
 
   return params;
@@ -359,7 +361,6 @@ void CastNetworkContexts::OnProxyConfigChanged(
         break;
       case net::ProxyConfigService::CONFIG_PENDING:
         NOTREACHED();
-        break;
     }
   }
 }

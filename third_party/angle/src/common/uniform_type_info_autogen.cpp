@@ -16,9 +16,7 @@ using namespace angle;
 namespace gl
 {
 
-namespace
-{
-constexpr std::array<UniformTypeInfo, 77> kInfoTable = {
+extern const std::array<UniformTypeInfo, 77> kUniformInfoTable = {
     {{GL_NONE, GL_NONE, GL_NONE, GL_NONE, GL_NONE, SamplerFormat::InvalidEnum, 0, 0, 0, 0, 0 * 0,
       0 * 0, false, false, false},
      {GL_BOOL, GL_BOOL, GL_NONE, GL_NONE, GL_NONE, SamplerFormat::InvalidEnum, 1, 1, 1,
@@ -204,7 +202,9 @@ constexpr std::array<UniformTypeInfo, 77> kInfoTable = {
      {GL_SAMPLER_EXTERNAL_2D_Y2Y_EXT, GL_INT, GL_NONE, GL_NONE, GL_NONE, SamplerFormat::Float, 1, 1,
       1, sizeof(GLint), sizeof(GLint) * 4, sizeof(GLint) * 1, true, false, false}}};
 
-size_t GetTypeInfoIndex(GLenum uniformType)
+namespace
+{
+uint16_t GetIndex(GLenum uniformType)
 {
     switch (uniformType)
     {
@@ -369,10 +369,15 @@ size_t GetTypeInfoIndex(GLenum uniformType)
 }
 }  // anonymous namespace
 
+UniformTypeIndex GetUniformTypeIndex(GLenum uniformType)
+{
+    return UniformTypeIndex{GetIndex(uniformType)};
+}
+
 const UniformTypeInfo &GetUniformTypeInfo(GLenum uniformType)
 {
-    ASSERT(kInfoTable[GetTypeInfoIndex(uniformType)].type == uniformType);
-    return kInfoTable[GetTypeInfoIndex(uniformType)];
+    ASSERT(kUniformInfoTable[GetIndex(uniformType)].type == uniformType);
+    return kUniformInfoTable[GetIndex(uniformType)];
 }
 
 }  // namespace gl

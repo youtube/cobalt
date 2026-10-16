@@ -1,4 +1,4 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   var {page, session, dp} = await testRunner.startHTML(`
     <style>
     body.done .tests {
@@ -58,6 +58,8 @@
         <title>svg1-title</title>
       </svg>
     </div>
+
+    <img data-dump title="title" alt="" src='resources/cake.png'>
   `, 'Tests name sources in images and figures.');
 
   var dumpAccessibilityNodesBySelectorAndCompleteTest =

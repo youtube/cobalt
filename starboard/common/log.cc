@@ -24,11 +24,11 @@
 #include <map>
 #include <sstream>
 
+#include "starboard/common/gettid.h"
 #include "starboard/common/string.h"
 #include "starboard/system.h"
-#include "starboard/thread.h"
 
-#if defined(ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 #include <sys/prctl.h>
 #endif
 
@@ -110,8 +110,10 @@ std::ostream& operator<<(std::ostream& out, const Stack& stack_token) {
   // Skip over DumpStack's stack frame, plus any more requested by the caller.
   for (int i = 1 + skip_frames; i < count; ++i) {
     char symbol[512];
-    bool result =
-        SbSystemSymbolize(stack[i], symbol, SB_ARRAY_SIZE_INT(symbol));
+    // Subtract one as return address of function may be in the next function
+    // when a function is annotated as noreturn.
+    const void* call = static_cast<const char*>(stack[i]) - 1;
+    bool result = SbSystemSymbolize(call, symbol, SB_ARRAY_SIZE_INT(symbol));
     out << "\t";
     if (result) {
       out << symbol;
@@ -143,10 +145,6 @@ std::ostream& operator<<(std::ostream& out, const wchar_t* wstr) {
 
 std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
   return out << wstr.c_str();
-}
-
-std::string_view to_string(bool val) {
-  return val ? "true" : "false";
 }
 
 LogMessage::LogMessage(const char* file, int line, SbLogPriority priority)
@@ -192,7 +190,7 @@ void LogMessage::Init(const char* file, int line) {
   pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
 #endif  // __ANDROID_API__ < 26
   stream_ << '[';
-  stream_ << name << '/' << SbThreadGetId() << ':';
+  stream_ << name << '/' << gettid() << ':';
   struct timeval tv;
   gettimeofday(&tv, NULL);
   struct tm tm_time = {0};

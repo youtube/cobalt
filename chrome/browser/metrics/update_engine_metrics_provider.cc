@@ -5,16 +5,17 @@
 #include "chrome/browser/metrics/update_engine_metrics_provider.h"
 
 #include "base/metrics/histogram_macros.h"
-#include "chrome/browser/ash/login/users/chrome_user_manager.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/dbus/update_engine/update_engine_client.h"
+#include "chromeos/ash/components/install_attributes/install_attributes.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/tribool.h"
 #include "components/user_manager/user_manager.h"
+#include "google_apis/gaia/gaia_id.h"
 
 void UpdateEngineMetricsProvider::ProvideCurrentSessionData(
     metrics::ChromeUserMetricsExtension* uma_proto_unused) {
@@ -27,10 +28,14 @@ void UpdateEngineMetricsProvider::ProvideCurrentSessionData(
 }
 
 bool UpdateEngineMetricsProvider::IsConsumerAutoUpdateToggleEligible() {
-  const ash::ChromeUserManager* user_manager = ash::ChromeUserManager::Get();
-  if (!user_manager || user_manager->IsEnterpriseManaged() ||
-      !user_manager->IsCurrentUserOwner())
+  if (ash::InstallAttributes::Get()->IsEnterpriseManaged()) {
     return false;
+  }
+
+  const auto* user_manager = user_manager::UserManager::Get();
+  if (!user_manager || !user_manager->IsCurrentUserOwner()) {
+    return false;
+  }
 
   Profile* profile = ProfileManager::GetActiveUserProfile();
   signin::IdentityManager* identity_manager =
@@ -38,7 +43,7 @@ bool UpdateEngineMetricsProvider::IsConsumerAutoUpdateToggleEligible() {
   if (!identity_manager)
     return false;
 
-  const std::string& gaia_id =
+  const GaiaId& gaia_id =
       user_manager->GetActiveUser()->GetAccountId().GetGaiaId();
   const AccountInfo account_info =
       identity_manager->FindExtendedAccountInfoByGaiaId(gaia_id);

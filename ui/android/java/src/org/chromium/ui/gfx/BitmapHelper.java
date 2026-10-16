@@ -6,19 +6,21 @@ package org.chromium.ui.gfx;
 
 import android.graphics.Bitmap;
 
-import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
-/**
- * Helper class to decode and sample down bitmap resources.
- */
+import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
+/** Helper class to decode and sample down bitmap resources. */
 @JNINamespace("gfx")
+@NullMarked
 public class BitmapHelper {
     private static final String TAG = "BitmapHelper";
 
     @CalledByNative
-    private static Bitmap createBitmap(
+    private static @Nullable Bitmap createBitmap(
             int width, int height, int bitmapFormatValue, boolean catchOom) {
         Bitmap.Config bitmapConfig = getBitmapConfigForFormat(bitmapFormatValue);
         try {

@@ -58,6 +58,8 @@
 #include "third_party/blink/renderer/core/svg/svg_ellipse_element.h"
 #include "third_party/blink/renderer/core/svg/svg_enumeration_map.h"
 #include "third_party/blink/renderer/core/svg/svg_filter_element.h"
+#include "third_party/blink/renderer/core/svg/svg_length_context.h"
+#include "third_party/blink/renderer/core/svg/svg_length_functions.h"
 #include "third_party/blink/renderer/core/svg/svg_line_element.h"
 #include "third_party/blink/renderer/core/svg/svg_linear_gradient_element.h"
 #include "third_party/blink/renderer/core/svg/svg_path_element.h"
@@ -67,10 +69,9 @@
 #include "third_party/blink/renderer/core/svg/svg_poly_element.h"
 #include "third_party/blink/renderer/core/svg/svg_radial_gradient_element.h"
 #include "third_party/blink/renderer/core/svg/svg_rect_element.h"
-#include "third_party/blink/renderer/platform/graphics/dash_array.h"
+#include "third_party/blink/renderer/platform/geometry/dash_array.h"
 #include "third_party/blink/renderer/platform/graphics/filters/filter.h"
 #include "third_party/blink/renderer/platform/graphics/filters/source_graphic.h"
-#include "third_party/blink/renderer/platform/graphics/graphics_types.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 
 namespace blink {
@@ -86,13 +87,13 @@ class TextStreamSeparator {
       : separator_(s), need_to_separate_(false) {}
 
  private:
-  friend WTF::TextStream& operator<<(WTF::TextStream&, TextStreamSeparator&);
+  friend StringBuilder& operator<<(StringBuilder&, TextStreamSeparator&);
 
   String separator_;
   bool need_to_separate_;
 };
 
-WTF::TextStream& operator<<(WTF::TextStream& ts, TextStreamSeparator& sep) {
+StringBuilder& operator<<(StringBuilder& ts, TextStreamSeparator& sep) {
   if (sep.need_to_separate_)
     ts << sep.separator_;
   else
@@ -101,13 +102,13 @@ WTF::TextStream& operator<<(WTF::TextStream& ts, TextStreamSeparator& sep) {
 }
 
 template <typename ValueType>
-static void WriteNameValuePair(WTF::TextStream& ts,
+static void WriteNameValuePair(StringBuilder& ts,
                                const char* name,
-                               ValueType value) {
+                               const ValueType& value) {
   ts << " [" << name << "=" << value << "]";
 }
 
-static void WriteSVGResourceIfNotNull(WTF::TextStream& ts,
+static void WriteSVGResourceIfNotNull(StringBuilder& ts,
                                       const char* name,
                                       const StyleSVGResource* value,
                                       TreeScope& tree_scope) {
@@ -119,14 +120,14 @@ static void WriteSVGResourceIfNotNull(WTF::TextStream& ts,
 }
 
 template <typename ValueType>
-static void WriteNameAndQuotedValue(WTF::TextStream& ts,
+static void WriteNameAndQuotedValue(StringBuilder& ts,
                                     const char* name,
                                     ValueType value) {
   ts << " [" << name << "=\"" << value << "\"]";
 }
 
 template <typename ValueType>
-static void WriteIfNotDefault(WTF::TextStream& ts,
+static void WriteIfNotDefault(StringBuilder& ts,
                               const char* name,
                               ValueType value,
                               ValueType default_value) {
@@ -134,8 +135,7 @@ static void WriteIfNotDefault(WTF::TextStream& ts,
     WriteNameValuePair(ts, name, value);
 }
 
-WTF::TextStream& operator<<(WTF::TextStream& ts,
-                            const AffineTransform& transform) {
+StringBuilder& operator<<(StringBuilder& ts, const AffineTransform& transform) {
   if (transform.IsIdentity()) {
     ts << "identity";
   } else {
@@ -147,7 +147,7 @@ WTF::TextStream& operator<<(WTF::TextStream& ts,
   return ts;
 }
 
-static WTF::TextStream& operator<<(WTF::TextStream& ts, const WindRule rule) {
+static StringBuilder& operator<<(StringBuilder& ts, const WindRule rule) {
   switch (rule) {
     case RULE_NONZERO:
       ts << "NON-ZERO";
@@ -160,26 +160,26 @@ static WTF::TextStream& operator<<(WTF::TextStream& ts, const WindRule rule) {
   return ts;
 }
 
-static WTF::TextStream& operator<<(WTF::TextStream& ts,
-                                   const SVGUnitTypes::SVGUnitType& unit_type) {
+static StringBuilder& operator<<(StringBuilder& ts,
+                                 const SVGUnitTypes::SVGUnitType& unit_type) {
   ts << GetEnumerationMap<SVGUnitTypes::SVGUnitType>().NameFromValue(unit_type);
   return ts;
 }
 
-static WTF::TextStream& operator<<(WTF::TextStream& ts,
-                                   const SVGMarkerUnitsType& marker_unit) {
+static StringBuilder& operator<<(StringBuilder& ts,
+                                 const SVGMarkerUnitsType& marker_unit) {
   ts << GetEnumerationMap<SVGMarkerUnitsType>().NameFromValue(marker_unit);
   return ts;
 }
 
-static WTF::TextStream& operator<<(WTF::TextStream& ts,
-                                   const SVGMarkerOrientType& orient_type) {
+static StringBuilder& operator<<(StringBuilder& ts,
+                                 const SVGMarkerOrientType& orient_type) {
   ts << GetEnumerationMap<SVGMarkerOrientType>().NameFromValue(orient_type);
   return ts;
 }
 
 // FIXME: Maybe this should be in platform/graphics/graphics_types.cc
-static WTF::TextStream& operator<<(WTF::TextStream& ts, LineCap style) {
+static StringBuilder& operator<<(StringBuilder& ts, LineCap style) {
   switch (style) {
     case kButtCap:
       ts << "BUTT";
@@ -195,7 +195,7 @@ static WTF::TextStream& operator<<(WTF::TextStream& ts, LineCap style) {
 }
 
 // FIXME: Maybe this should be in platform/graphics/graphics_types.cc
-static WTF::TextStream& operator<<(WTF::TextStream& ts, LineJoin style) {
+static StringBuilder& operator<<(StringBuilder& ts, LineJoin style) {
   switch (style) {
     case kMiterJoin:
       ts << "MITER";
@@ -210,14 +210,14 @@ static WTF::TextStream& operator<<(WTF::TextStream& ts, LineJoin style) {
   return ts;
 }
 
-static WTF::TextStream& operator<<(WTF::TextStream& ts,
-                                   const SVGSpreadMethodType& type) {
+static StringBuilder& operator<<(StringBuilder& ts,
+                                 const SVGSpreadMethodType& type) {
   auto* name = GetEnumerationMap<SVGSpreadMethodType>().NameFromValue(type);
   ts << String(name).UpperASCII();
   return ts;
 }
 
-static void WriteSVGPaintingResource(WTF::TextStream& ts,
+static void WriteSVGPaintingResource(StringBuilder& ts,
                                      const SVGResource& resource) {
   const LayoutSVGResourceContainer* container =
       resource.ResourceContainerNoCycleCheck();
@@ -234,12 +234,11 @@ static void WriteSVGPaintingResource(WTF::TextStream& ts,
       break;
     default:
       NOTREACHED();
-      break;
   }
   ts << " [id=\"" << resource.Target()->GetIdAttribute() << "\"]";
 }
 
-static bool WriteSVGPaint(WTF::TextStream& ts,
+static bool WriteSVGPaint(StringBuilder& ts,
                           const LayoutObject& object,
                           const SVGPaint& paint,
                           const Longhand& property,
@@ -262,10 +261,20 @@ static bool WriteSVGPaint(WTF::TextStream& ts,
     ts << "[type=SOLID] [color=" << color << "]";
     return true;
   }
+  if (paint.type == SVGPaintType::kContextFill) {
+    ts << " [" << paint_name << "={" << s;
+    ts << "[type=CONTEXT-FILL]";
+    return true;
+  }
+  if (paint.type == SVGPaintType::kContextStroke) {
+    ts << " [" << paint_name << "={" << s;
+    ts << "[type=CONTEXT-STROKE]";
+    return true;
+  }
   return false;
 }
 
-static void WriteStyle(WTF::TextStream& ts, const LayoutObject& object) {
+static void WriteStyle(StringBuilder& ts, const LayoutObject& object) {
   const ComputedStyle& style = object.StyleRef();
 
   if (!object.LocalSVGTransform().IsIdentity())
@@ -278,14 +287,13 @@ static void WriteStyle(WTF::TextStream& ts, const LayoutObject& object) {
   if (object.IsSVGShape()) {
     if (WriteSVGPaint(ts, object, style.StrokePaint(), GetCSSPropertyStroke(),
                       "stroke")) {
-      const LayoutSVGShape& shape = static_cast<const LayoutSVGShape&>(object);
-      DCHECK(shape.GetElement());
-      SVGLengthContext length_context(shape.GetElement());
+      const SVGViewportResolver viewport_resolver(object);
       double dash_offset =
-          length_context.ValueForLength(style.StrokeDashOffset(), style);
-      double stroke_width = length_context.ValueForLength(style.StrokeWidth());
+          ValueForLength(style.StrokeDashOffset(), viewport_resolver, style);
+      double stroke_width =
+          ValueForLength(style.StrokeWidth(), viewport_resolver);
       DashArray dash_array = SVGLayoutSupport::ResolveSVGDashArray(
-          *style.StrokeDashArray(), style, length_context);
+          *style.StrokeDashArray(), style, viewport_resolver);
 
       WriteIfNotDefault(ts, "opacity", style.StrokeOpacity(), 1.0f);
       WriteIfNotDefault(ts, "stroke width", stroke_width, 1.0);
@@ -317,36 +325,37 @@ static void WriteStyle(WTF::TextStream& ts, const LayoutObject& object) {
                             tree_scope);
 }
 
-static WTF::TextStream& WritePositionAndStyle(WTF::TextStream& ts,
-                                              const LayoutObject& object) {
+static StringBuilder& WritePositionAndStyle(StringBuilder& ts,
+                                            const LayoutObject& object) {
   ts << " " << object.ObjectBoundingBox();
   WriteStyle(ts, object);
   return ts;
 }
 
-static WTF::TextStream& operator<<(WTF::TextStream& ts,
-                                   const LayoutSVGShape& shape) {
+static StringBuilder& operator<<(StringBuilder& ts,
+                                 const LayoutSVGShape& shape) {
   WritePositionAndStyle(ts, shape);
 
   SVGElement* svg_element = shape.GetElement();
   DCHECK(svg_element);
-  SVGLengthContext length_context(svg_element);
+  const SVGViewportResolver viewport_resolver(shape);
   const ComputedStyle& style = shape.StyleRef();
 
   if (IsA<SVGRectElement>(*svg_element)) {
-    WriteNameValuePair(
-        ts, "x",
-        length_context.ValueForLength(style.X(), style, SVGLengthMode::kWidth));
+    WriteNameValuePair(ts, "x",
+                       ValueForLength(style.X(), viewport_resolver, style,
+                                      SVGLengthMode::kWidth));
     WriteNameValuePair(ts, "y",
-                       length_context.ValueForLength(style.Y(), style,
-                                                     SVGLengthMode::kHeight));
+                       ValueForLength(style.Y(), viewport_resolver, style,
+                                      SVGLengthMode::kHeight));
     WriteNameValuePair(ts, "width",
-                       length_context.ValueForLength(style.UsedWidth(), style,
-                                                     SVGLengthMode::kWidth));
+                       ValueForLength(style.Width(), viewport_resolver, style,
+                                      SVGLengthMode::kWidth));
     WriteNameValuePair(ts, "height",
-                       length_context.ValueForLength(style.UsedHeight(), style,
-                                                     SVGLengthMode::kHeight));
+                       ValueForLength(style.Height(), viewport_resolver, style,
+                                      SVGLengthMode::kHeight));
   } else if (auto* element = DynamicTo<SVGLineElement>(*svg_element)) {
+    const SVGLengthContext length_context(svg_element);
     WriteNameValuePair(ts, "x1",
                        element->x1()->CurrentValue()->Value(length_context));
     WriteNameValuePair(ts, "y1",
@@ -357,27 +366,27 @@ static WTF::TextStream& operator<<(WTF::TextStream& ts,
                        element->y2()->CurrentValue()->Value(length_context));
   } else if (IsA<SVGEllipseElement>(*svg_element)) {
     WriteNameValuePair(ts, "cx",
-                       length_context.ValueForLength(style.Cx(), style,
-                                                     SVGLengthMode::kWidth));
+                       ValueForLength(style.Cx(), viewport_resolver, style,
+                                      SVGLengthMode::kWidth));
     WriteNameValuePair(ts, "cy",
-                       length_context.ValueForLength(style.Cy(), style,
-                                                     SVGLengthMode::kHeight));
+                       ValueForLength(style.Cy(), viewport_resolver, style,
+                                      SVGLengthMode::kHeight));
     WriteNameValuePair(ts, "rx",
-                       length_context.ValueForLength(style.Rx(), style,
-                                                     SVGLengthMode::kWidth));
+                       ValueForLength(style.Rx(), viewport_resolver, style,
+                                      SVGLengthMode::kWidth));
     WriteNameValuePair(ts, "ry",
-                       length_context.ValueForLength(style.Ry(), style,
-                                                     SVGLengthMode::kHeight));
+                       ValueForLength(style.Ry(), viewport_resolver, style,
+                                      SVGLengthMode::kHeight));
   } else if (IsA<SVGCircleElement>(*svg_element)) {
     WriteNameValuePair(ts, "cx",
-                       length_context.ValueForLength(style.Cx(), style,
-                                                     SVGLengthMode::kWidth));
+                       ValueForLength(style.Cx(), viewport_resolver, style,
+                                      SVGLengthMode::kWidth));
     WriteNameValuePair(ts, "cy",
-                       length_context.ValueForLength(style.Cy(), style,
-                                                     SVGLengthMode::kHeight));
-    WriteNameValuePair(
-        ts, "r",
-        length_context.ValueForLength(style.R(), style, SVGLengthMode::kOther));
+                       ValueForLength(style.Cy(), viewport_resolver, style,
+                                      SVGLengthMode::kHeight));
+    WriteNameValuePair(ts, "r",
+                       ValueForLength(style.R(), viewport_resolver, style,
+                                      SVGLengthMode::kOther));
   } else if (auto* svg_poly_element = DynamicTo<SVGPolyElement>(svg_element)) {
     WriteNameAndQuotedValue(
         ts, "points",
@@ -393,16 +402,15 @@ static WTF::TextStream& operator<<(WTF::TextStream& ts,
   return ts;
 }
 
-static WTF::TextStream& operator<<(WTF::TextStream& ts,
-                                   const LayoutSVGRoot& root) {
-  ts << " " << root.FrameRect();
+static StringBuilder& operator<<(StringBuilder& ts, const LayoutSVGRoot& root) {
+  ts << " " << PhysicalRect(root.PhysicalLocation(), root.Size());
   WriteStyle(ts, root);
   return ts;
 }
 
-static void WriteStandardPrefix(WTF::TextStream& ts,
+static void WriteStandardPrefix(StringBuilder& ts,
                                 const LayoutObject& object,
-                                int indent) {
+                                wtf_size_t indent) {
   WriteIndent(ts, indent);
   ts << object.DecoratedName();
 
@@ -410,16 +418,16 @@ static void WriteStandardPrefix(WTF::TextStream& ts,
     ts << " {" << object.GetNode()->nodeName() << "}";
 }
 
-static void WriteChildren(WTF::TextStream& ts,
+static void WriteChildren(StringBuilder& ts,
                           const LayoutObject& object,
-                          int indent) {
+                          wtf_size_t indent) {
   for (LayoutObject* child = object.SlowFirstChild(); child;
        child = child->NextSibling())
     Write(ts, *child, indent + 1);
 }
 
 static inline void WriteCommonGradientProperties(
-    WTF::TextStream& ts,
+    StringBuilder& ts,
     const GradientAttributes& attrs) {
   WriteNameValuePair(ts, "gradientUnits", attrs.GradientUnits());
 
@@ -437,9 +445,9 @@ static inline void WriteCommonGradientProperties(
   }
 }
 
-void WriteSVGResourceContainer(WTF::TextStream& ts,
+void WriteSVGResourceContainer(StringBuilder& ts,
                                const LayoutObject& object,
-                               int indent) {
+                               wtf_size_t indent) {
   WriteStandardPrefix(ts, object, indent);
 
   auto* element = To<Element>(object.GetNode());
@@ -541,9 +549,9 @@ void WriteSVGResourceContainer(WTF::TextStream& ts,
   WriteChildren(ts, object, indent);
 }
 
-void WriteSVGContainer(WTF::TextStream& ts,
+void WriteSVGContainer(StringBuilder& ts,
                        const LayoutObject& container,
-                       int indent) {
+                       wtf_size_t indent) {
   WriteStandardPrefix(ts, container, indent);
   WritePositionAndStyle(ts, container);
   ts << "\n";
@@ -551,15 +559,15 @@ void WriteSVGContainer(WTF::TextStream& ts,
   WriteChildren(ts, container, indent);
 }
 
-void Write(WTF::TextStream& ts, const LayoutSVGRoot& root, int indent) {
+void Write(StringBuilder& ts, const LayoutSVGRoot& root, wtf_size_t indent) {
   WriteStandardPrefix(ts, root, indent);
   ts << root << "\n";
   WriteChildren(ts, root, indent);
 }
 
-void WriteSVGInline(WTF::TextStream& ts,
+void WriteSVGInline(StringBuilder& ts,
                     const LayoutSVGInline& text,
-                    int indent) {
+                    wtf_size_t indent) {
   WriteStandardPrefix(ts, text, indent);
   WritePositionAndStyle(ts, text);
   ts << "\n";
@@ -567,24 +575,24 @@ void WriteSVGInline(WTF::TextStream& ts,
   WriteChildren(ts, text, indent);
 }
 
-void WriteSVGInlineText(WTF::TextStream& ts,
+void WriteSVGInlineText(StringBuilder& ts,
                         const LayoutSVGInlineText& text,
-                        int indent) {
+                        wtf_size_t indent) {
   WriteStandardPrefix(ts, text, indent);
   WritePositionAndStyle(ts, text);
   ts << "\n";
 }
 
-void WriteSVGImage(WTF::TextStream& ts,
+void WriteSVGImage(StringBuilder& ts,
                    const LayoutSVGImage& image,
-                   int indent) {
+                   wtf_size_t indent) {
   WriteStandardPrefix(ts, image, indent);
   WritePositionAndStyle(ts, image);
   ts << "\n";
   WriteResources(ts, image, indent);
 }
 
-void Write(WTF::TextStream& ts, const LayoutSVGShape& shape, int indent) {
+void Write(StringBuilder& ts, const LayoutSVGShape& shape, wtf_size_t indent) {
   WriteStandardPrefix(ts, shape, indent);
   ts << shape << "\n";
   WriteResources(ts, shape, indent);
@@ -609,12 +617,12 @@ static LayoutSVGResourceFilter* GetFilterResourceForSVG(
 }
 
 static void WriteSVGResourceReferencePrefix(
-    WTF::TextStream& ts,
+    StringBuilder& ts,
     const char* resource_name,
     const LayoutSVGResourceContainer* resource_object,
     const AtomicString& url,
     const TreeScope& tree_scope,
-    int indent) {
+    wtf_size_t indent) {
   AtomicString id =
       SVGURIReference::FragmentIdentifierFromIRIString(url, tree_scope);
   WriteIndent(ts, indent);
@@ -624,22 +632,15 @@ static void WriteSVGResourceReferencePrefix(
   WriteStandardPrefix(ts, *resource_object, 0);
 }
 
-void WriteResources(WTF::TextStream& ts,
+void WriteResources(StringBuilder& ts,
                     const LayoutObject& object,
-                    int indent) {
+                    wtf_size_t indent) {
   const gfx::RectF reference_box = object.ObjectBoundingBox();
   const ComputedStyle& style = object.StyleRef();
   TreeScope& tree_scope = object.GetDocument();
   SVGResourceClient* client = SVGResources::GetClient(object);
   if (!client)
     return;
-  if (auto* masker = GetSVGResourceAsType<LayoutSVGResourceMasker>(
-          *client, style.MaskerResource())) {
-    WriteSVGResourceReferencePrefix(ts, "masker", masker,
-                                    style.MaskerResource()->Url(), tree_scope,
-                                    indent);
-    ts << " " << masker->ResourceBoundingBox(reference_box, 1) << "\n";
-  }
   if (const ClipPathOperation* clip_path = style.ClipPath()) {
     if (LayoutSVGResourceClipper* clipper =
             GetSVGResourceAsType(*client, clip_path)) {

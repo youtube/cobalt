@@ -44,10 +44,8 @@ ContextLostReason GetContextLostReason(gpu::error::Error error,
     case gpu::error::kNoError:
     case gpu::error::kLostContext:
       NOTREACHED();
-      return CONTEXT_LOST_UNKNOWN;
   }
   NOTREACHED();
-  return CONTEXT_LOST_UNKNOWN;
 }
 
 }  // namespace viz

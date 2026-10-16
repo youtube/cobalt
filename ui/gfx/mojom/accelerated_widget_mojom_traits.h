@@ -22,7 +22,6 @@ struct StructTraits<gfx::mojom::AcceleratedWidgetDataView,
     return static_cast<uint64_t>(widget);
 #else
     NOTREACHED();
-    return 0;
 #endif
   }
 
@@ -36,7 +35,6 @@ struct StructTraits<gfx::mojom::AcceleratedWidgetDataView,
     return true;
 #else
     NOTREACHED();
-    return false;
 #endif
   }
 };

@@ -6,15 +6,14 @@
 
 #include <memory>
 
-#include "ash/accessibility/accessibility_controller_impl.h"
+#include "ash/accessibility/accessibility_controller.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
+#include "ash/wm/desks/desk_bar_view_base.h"
 #include "ash/wm/desks/desk_mini_view.h"
-#include "ash/wm/desks/legacy_desk_bar_view.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
-#include "ui/gfx/text_elider.h"
-#include "ui/views/focus/focus_manager.h"
+#include "ui/views/accessibility/view_accessibility.h"
 
 namespace ash {
 
@@ -31,6 +30,9 @@ DeskNameView::DeskNameView(DeskMiniView* mini_view)
           gfx::Insets::VH(0, kDeskNameViewHorizontalPadding)))
       .SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_CENTER)
       .BuildChildren();
+
+  GetViewAccessibility().SetName(
+      l10n_util::GetStringUTF16(IDS_ASH_DESKS_DESK_NAME));
 }
 
 DeskNameView::~DeskNameView() = default;
@@ -42,22 +44,7 @@ void DeskNameView::OnFocus() {
   mini_view_->owner_bar()->ScrollToShowViewIfNecessary(mini_view_);
 }
 
-void DeskNameView::OnViewHighlighted() {
-  if (!HasFocus()) {
-    // When the highlight is the result of tabbing, as opposed to clicking or
-    // chromevoxing, the name view will not have focus, so the user should be
-    // told how to focus and edit the field.
-    Shell::Get()
-        ->accessibility_controller()
-        ->TriggerAccessibilityAlertWithMessage(l10n_util::GetStringUTF8(
-            IDS_ASH_DESKS_NAME_HIGHLIGHT_NOTIFICATION));
-  }
-
-  DeskTextfield::OnViewHighlighted();
-  mini_view_->owner_bar()->ScrollToShowViewIfNecessary(mini_view_);
-}
-
-BEGIN_METADATA(DeskNameView, DeskTextfield)
+BEGIN_METADATA(DeskNameView)
 END_METADATA
 
 }  // namespace ash

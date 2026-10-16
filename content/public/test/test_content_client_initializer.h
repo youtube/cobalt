@@ -13,10 +13,10 @@ class TestNetworkConnectionTracker;
 
 namespace content {
 
+class BrowserAccessibilityStateImpl;
 class ContentClient;
 class MockAgentSchedulingGroupHostFactory;
 class MockRenderProcessHostFactory;
-class NotificationServiceImpl;
 class TestContentBrowserClient;
 class TestRenderViewHostFactory;
 
@@ -44,12 +44,12 @@ class TestContentClientInitializer {
  private:
   std::unique_ptr<network::TestNetworkConnectionTracker>
       test_network_connection_tracker_;
-  std::unique_ptr<NotificationServiceImpl> notification_service_;
   std::unique_ptr<ContentClient> content_client_;
   std::unique_ptr<TestContentBrowserClient> content_browser_client_;
   std::unique_ptr<MockRenderProcessHostFactory> rph_factory_;
   std::unique_ptr<MockAgentSchedulingGroupHostFactory> asgh_factory_;
   std::unique_ptr<TestRenderViewHostFactory> test_render_view_host_factory_;
+  std::unique_ptr<BrowserAccessibilityStateImpl> browser_accessibility_state_;
 };
 
 }  // namespace content

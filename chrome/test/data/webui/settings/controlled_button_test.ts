@@ -6,7 +6,7 @@
 import 'chrome://settings/lazy_load.js';
 
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {ControlledButtonElement} from 'chrome://settings/lazy_load.js';
+import type {ControlledButtonElement} from 'chrome://settings/lazy_load.js';
 import {assertEquals, assertFalse, assertGT, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 // clang-format on
@@ -65,7 +65,7 @@ suite('controlled button', function() {
     const indicator =
         controlledButton.shadowRoot!.querySelector('cr-policy-pref-indicator');
     assertTrue(!!indicator);
-    assertGT(indicator!.clientHeight, 0);
+    assertGT(indicator.clientHeight, 0);
 
     controlledButton.pref = uncontrolledPref;
     flush();

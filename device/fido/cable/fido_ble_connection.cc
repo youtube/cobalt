@@ -50,7 +50,6 @@ constexpr const char* ToString(BluetoothDevice::ConnectErrorCode error_code) {
       return "ERROR_UNSUPPORTED_DEVICE";
     default:
       NOTREACHED();
-      return "";
   }
 }
 
@@ -74,7 +73,6 @@ constexpr const char* ToString(BluetoothGattService::GattErrorCode error_code) {
       return "GATT_ERROR_NOT_SUPPORTED";
     default:
       NOTREACHED();
-      return "";
   }
 }
 
@@ -90,7 +88,6 @@ std::ostream& operator<<(std::ostream& os,
   }
 
   NOTREACHED();
-  return os;
 }
 
 void OnWriteRemoteCharacteristic(FidoBleConnection::WriteCallback callback) {
@@ -108,7 +105,7 @@ void OnWriteRemoteCharacteristicError(
 
 void OnReadServiceRevisionBitfield(
     ServiceRevisionsCallback callback,
-    absl::optional<device::BluetoothGattService::GattErrorCode> error_code,
+    std::optional<device::BluetoothGattService::GattErrorCode> error_code,
     const std::vector<uint8_t>& value) {
   if (error_code.has_value()) {
     FIDO_LOG(ERROR) << "Error while reading Service Revision Bitfield: "
@@ -196,14 +193,14 @@ void FidoBleConnection::ReadControlPointLength(
   const auto* fido_service = GetFidoService();
   if (!fido_service) {
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+        FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
     return;
   }
 
   if (!control_point_length_id_) {
     FIDO_LOG(ERROR) << "Failed to get Control Point Length.";
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+        FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
     return;
   }
 
@@ -212,7 +209,7 @@ void FidoBleConnection::ReadControlPointLength(
   if (!control_point_length) {
     FIDO_LOG(ERROR) << "No Control Point Length characteristic present.";
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+        FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
     return;
   }
 
@@ -267,7 +264,7 @@ void FidoBleConnection::WriteControlPoint(const std::vector<uint8_t>& data,
 
 void FidoBleConnection::OnCreateGattConnection(
     std::unique_ptr<BluetoothGattConnection> connection,
-    absl::optional<BluetoothDevice::ConnectErrorCode> error_code) {
+    std::optional<BluetoothDevice::ConnectErrorCode> error_code) {
   FIDO_LOG(DEBUG) << "GATT connection created";
   DCHECK(pending_connection_callback_);
   if (error_code.has_value()) {
@@ -386,7 +383,7 @@ void FidoBleConnection::OnReadServiceRevisions(
   // characteristic. Note that this information is currently not used in another
   // way, as we will still attempt a CTAP GetInfo() command, even if only U2F is
   // supported.
-  // TODO(https://crbug.com/780078): Consider short circuiting to the
+  // TODO(crbug.com/40547449): Consider short circuiting to the
   // U2F logic if FIDO2 is not supported.
   DCHECK_EQ(
       *std::min_element(service_revisions.begin(), service_revisions.end()),
@@ -409,7 +406,7 @@ void FidoBleConnection::WriteServiceRevision(ServiceRevision service_revision) {
   DCHECK(service_revision_bitfield_id_);
   fido_service->GetCharacteristic(*service_revision_bitfield_id_)
       ->WriteRemoteCharacteristic(
-          {static_cast<uint8_t>(service_revision)},
+          base::byte_span_from_ref(static_cast<uint8_t>(service_revision)),
           BluetoothRemoteGattCharacteristic::WriteType::kWithResponse,
           base::BindOnce(OnWriteRemoteCharacteristic,
                          std::move(split_callback.first)),
@@ -514,18 +511,18 @@ const BluetoothRemoteGattService* FidoBleConnection::GetFidoService() {
 // static
 void FidoBleConnection::OnReadControlPointLength(
     ControlPointLengthCallback callback,
-    absl::optional<device::BluetoothGattService::GattErrorCode> error_code,
+    std::optional<device::BluetoothGattService::GattErrorCode> error_code,
     const std::vector<uint8_t>& value) {
   if (error_code.has_value()) {
     FIDO_LOG(ERROR) << "Error reading Control Point Length: "
                     << ToString(error_code.value());
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
     return;
   }
   if (value.size() != 2) {
     FIDO_LOG(ERROR) << "Wrong Control Point Length: " << value.size()
                     << " bytes";
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
     return;
   }
 

@@ -18,8 +18,9 @@ class ImageSkia;
 
 // A view to display a tab favicon or a throbber.
 class TabIconView : public views::MenuButton {
+  METADATA_HEADER(TabIconView, views::MenuButton)
+
  public:
-  METADATA_HEADER(TabIconView);
   TabIconView();
   TabIconView(const TabIconView&) = delete;
   TabIconView& operator=(const TabIconView&) = delete;
@@ -32,7 +33,8 @@ class TabIconView : public views::MenuButton {
 
  private:
   // views::MenuButton:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
   void PaintButtonContents(gfx::Canvas* canvas) override;
 
   void PaintThrobber(gfx::Canvas* canvas);

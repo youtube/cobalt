@@ -155,4 +155,27 @@ enum DeviceType {
   // in by some car manufacturers (e.g. BMW). Sees go/fastpair-android-auto for
   // more details.
   ANDROID_AUTO = 9;
+  GLASS = 10;
+  LOCATOR_TAG = 11;
+  CHROME_OS = 12;
+  ANDROID_PHONE = 13;
+  STYLUS = 14;
+  ANDROID_TV = 15;
+  BT_PORTABLE_PRINTER = 16;
+  MOUSE = 17;
+}
+
+// Status types available for each device.
+// PUBLISHED is the only state that shows notifications to the public.
+enum StatusType {
+  // Unknown status.
+  TYPE_UNSPECIFIED = 0;
+  // Drafted device.
+  DRAFT = 1;
+  // Submitted and waiting for approval.
+  SUBMITTED = 2;
+  // Fully approved and available for end users.
+  PUBLISHED = 3;
+  // Rejected and not available for end users.
+  REJECTED = 4;
 }

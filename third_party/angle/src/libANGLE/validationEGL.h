@@ -10,6 +10,7 @@
 #define LIBANGLE_VALIDATIONEGL_H_
 
 #include "common/PackedEnums.h"
+#include "libANGLE/Display.h"
 #include "libANGLE/Error.h"
 #include "libANGLE/Thread.h"
 
@@ -70,6 +71,7 @@ const Surface *GetSurfaceIfValid(const Display *display, SurfaceID surfaceID);
 const Image *GetImageIfValid(const Display *display, ImageID imageID);
 const Stream *GetStreamIfValid(const Display *display, const Stream *stream);
 const gl::Context *GetContextIfValid(const Display *display, gl::ContextID contextID);
+gl::Context *GetContextIfValid(Display *display, gl::ContextID contextID);
 const Device *GetDeviceIfValid(const Device *device);
 const Sync *GetSyncIfValid(const Display *display, SyncID sync);
 const LabeledObject *GetLabeledObjectIfValid(Thread *thread,
@@ -96,6 +98,13 @@ ANGLE_INLINE EGLint
 GetDefaultReturnValue<angle::EntryPoint::EGLLabelObjectKHR, EGLint>(Thread *thread)
 {
     return thread->getError();
+}
+
+template <>
+ANGLE_INLINE EGLint
+GetDefaultReturnValue<angle::EntryPoint::EGLDupNativeFenceFDANDROID, EGLint>(Thread *thread)
+{
+    return EGL_NO_NATIVE_FENCE_FD_ANDROID;
 }
 
 template <angle::EntryPoint EP, typename ReturnType>
@@ -199,6 +208,14 @@ typename std::remove_reference<PackedT>::type PackParam(FromT from)
             return RETVAL;                                                \
         }                                                                 \
     } while (0)
+
+#if ANGLE_USE_DISPLAY_PREPARE_FOR_CALL
+#    define ANGLE_EGL_TRY_PREPARE_FOR_CALL_RETURN ANGLE_EGL_TRY_RETURN
+#    define ANGLE_EGL_TRY_PREPARE_FOR_CALL ANGLE_EGL_TRY
+#else
+#    define ANGLE_EGL_TRY_PREPARE_FOR_CALL_RETURN(...)
+#    define ANGLE_EGL_TRY_PREPARE_FOR_CALL(...)
+#endif
 
 #define ANGLE_EGLBOOLEAN_TRY(EXPR)           \
     do                                       \

@@ -17,10 +17,9 @@ class MockCompositorFrameSinkClient
   // mojom::blink::CompositorFrameSinkClient implementation:
   MOCK_METHOD1(DidReceiveCompositorFrameAck,
                void(WTF::Vector<viz::ReturnedResource>));
-  MOCK_METHOD4(OnBeginFrame,
+  MOCK_METHOD3(OnBeginFrame,
                void(const viz::BeginFrameArgs&,
                     const WTF::HashMap<uint32_t, viz::FrameTimingDetails>&,
-                    bool frame_ack,
                     WTF::Vector<viz::ReturnedResource>));
   MOCK_METHOD1(ReclaimResources, void(WTF::Vector<viz::ReturnedResource>));
   MOCK_METHOD2(WillDrawSurface,
@@ -28,6 +27,7 @@ class MockCompositorFrameSinkClient
   MOCK_METHOD1(OnBeginFramePausedChanged, void(bool paused));
   MOCK_METHOD1(OnCompositorFrameTransitionDirectiveProcessed,
                void(uint32_t sequence_id));
+  MOCK_METHOD1(OnSurfaceEvicted, void(const viz::LocalSurfaceId&));
 
  private:
   mojo::Receiver<viz::mojom::blink::CompositorFrameSinkClient> receiver_{this};

@@ -19,8 +19,17 @@
 
 namespace elf_loader {
 
-// File path suffix for compressed binaries.
-extern const char kCompressionSuffix[];
+enum class CompressionType {
+  kNone = 0,
+  kLz4,
+  kZstd,
+};
+
+// File path suffix for LZ4 compressed binaries.
+extern const char kLz4Suffix[];
+
+// File path suffix for Zstd compressed binaries.
+extern const char kZstdSuffix[];
 
 // Command line flag to specify the library path.
 extern const char kEvergreenLibrary[];

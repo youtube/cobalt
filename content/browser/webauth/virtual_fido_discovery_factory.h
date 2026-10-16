@@ -9,7 +9,9 @@
 #include <set>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "build/build_config.h"
 #include "content/browser/webauth/virtual_authenticator_manager_impl.h"
 #include "device/fido/fido_discovery_factory.h"
 #include "device/fido/virtual_fido_device.h"
@@ -47,6 +49,10 @@ class VirtualFidoDiscoveryFactory
   std::vector<std::unique_ptr<::device::FidoDiscoveryBase>> Create(
       device::FidoTransportProtocol transport) override;
   bool IsTestOverride() override;
+#if BUILDFLAG(IS_WIN)
+  std::unique_ptr<device::FidoDiscoveryBase>
+  MaybeCreateWinWebAuthnApiDiscovery() override;
+#endif
 
  private:
   // VirtualAuthenticatorManagerImpl::Observer:
@@ -61,7 +67,7 @@ class VirtualFidoDiscoveryFactory
   base::WeakPtr<VirtualAuthenticatorManagerImpl> weak_authenticator_manager_;
 
   // Individual discoveries are owned by the FidoRequestHandler.
-  std::set<VirtualFidoDiscovery*> discoveries_;
+  std::set<raw_ptr<VirtualFidoDiscovery, SetExperimental>> discoveries_;
 };
 
 }  // namespace content

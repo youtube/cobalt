@@ -4,10 +4,13 @@
 
 package org.chromium.chrome.browser.search_engines;
 
-import androidx.annotation.VisibleForTesting;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
 
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.search_engines.TemplateUrlService;
 
@@ -15,8 +18,9 @@ import org.chromium.components.search_engines.TemplateUrlService;
  * This factory links the native TemplateURLService for the current Profile to create and hold a
  * {@link TemplateUrlService} singleton.
  */
+@NullMarked
 public class TemplateUrlServiceFactory {
-    private static TemplateUrlService sTemplateUrlServiceForTesting;
+    private static @Nullable TemplateUrlService sTemplateUrlServiceForTesting;
 
     private TemplateUrlServiceFactory() {}
 
@@ -31,15 +35,15 @@ public class TemplateUrlServiceFactory {
         return TemplateUrlServiceFactoryJni.get().getTemplateUrlService(profile);
     }
 
-    @VisibleForTesting
     public static void setInstanceForTesting(TemplateUrlService service) {
         sTemplateUrlServiceForTesting = service;
+        ResettersForTesting.register(() -> sTemplateUrlServiceForTesting = null);
     }
 
     // Natives interface is public to allow mocking in tests outside of
     // org.chromium.chrome.browser.search_engines package.
     @NativeMethods
     public interface Natives {
-        TemplateUrlService getTemplateUrlService(Profile profile);
+        TemplateUrlService getTemplateUrlService(@JniType("Profile*") Profile profile);
     }
 }

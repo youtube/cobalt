@@ -8,6 +8,8 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/tab_ui_helper.h"
+#include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "components/tabs/public/tab_interface.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_provider.h"
 #include "ui/compositor/layer.h"
@@ -55,15 +57,17 @@ void LoadingBarView::Show(double loading_progress) {
 }
 
 void LoadingBarView::FinishLoading() {
-  if (!is_shown_when_not_animating_)
+  if (!is_shown_when_not_animating_) {
     return;
+  }
   SetLoadingProgress(1.0);
   is_shown_when_not_animating_ = false;
 }
 
 void LoadingBarView::SetLoadingProgress(double loading_progress) {
-  if (loading_progress <= target_loading_progress_)
+  if (loading_progress <= target_loading_progress_) {
     return;
+  }
   start_loading_progress_ = GetDisplayedLoadingProgress();
   target_loading_progress_ = loading_progress;
   animation_.SetCurrentValue(0.0);
@@ -93,7 +97,7 @@ void LoadingBarView::AnimationProgressed(const gfx::Animation* animation) {
   SchedulePaint();
 }
 
-BEGIN_METADATA(LoadingBarView, views::View)
+BEGIN_METADATA(LoadingBarView)
 END_METADATA
 
 TopContainerLoadingBar::TopContainerLoadingBar(Browser* browser)
@@ -127,8 +131,10 @@ void TopContainerLoadingBar::UpdateLoadingProgress() {
     return;
   }
 
+  tabs::TabInterface* const tab_interface =
+      tabs::TabInterface::GetFromContents(web_contents());
   TabUIHelper* const tab_ui_helper =
-      TabUIHelper::FromWebContents(web_contents());
+      tab_interface->GetTabFeatures()->tab_ui_helper();
   if (tab_ui_helper->ShouldHideThrobber()) {
     HideImmediately();
     return;
@@ -169,6 +175,6 @@ void TopContainerLoadingBar::LoadProgressChanged(double progress) {
   UpdateLoadingProgress();
 }
 
-BEGIN_METADATA(TopContainerLoadingBar, LoadingBarView)
+BEGIN_METADATA(TopContainerLoadingBar)
 ADD_READONLY_PROPERTY_METADATA(double, LoadingProgress)
 END_METADATA

@@ -8,6 +8,7 @@
 #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/dummy_schedulers.h"
 #include "third_party/blink/renderer/platform/scheduler/public/page_scheduler.h"
+#include "third_party/blink/renderer/platform/scheduler/public/widget_scheduler.h"
 
 namespace blink {
 namespace scheduler {
@@ -56,6 +57,7 @@ class FakePageScheduler : public PageScheduler {
   // PageScheduler implementation:
   void OnTitleOrFaviconUpdated() override {}
   void SetPageVisible(bool is_page_visible) override {}
+  bool IsPageVisible() const override { return true; }
   void SetPageFrozen(bool is_page_frozen) override {}
   void SetPageBackForwardCached(bool) override {}
   bool IsMainFrameLocal() const override { return true; }
@@ -80,7 +82,8 @@ class FakePageScheduler : public PageScheduler {
   VirtualTimeController* GetVirtualTimeController() override { return nullptr; }
   bool IsInBackForwardCache() const override { return false; }
 
-  scoped_refptr<WidgetScheduler> CreateWidgetScheduler() override {
+  scoped_refptr<WidgetScheduler> CreateWidgetScheduler(
+      WidgetScheduler::Delegate*) override {
     return nullptr;
   }
 

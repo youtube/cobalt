@@ -25,11 +25,13 @@ import android.view.SurfaceView;
 import android.widget.FrameLayout;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
@@ -44,15 +46,13 @@ import org.chromium.base.test.util.Feature;
 
 import java.util.Set;
 
-/**
- * Unit tests for the CompositorSurfaceManagerImpl.
- */
+/** Unit tests for the CompositorSurfaceManagerImpl. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 @LooperMode(LooperMode.Mode.LEGACY)
 public class CompositorSurfaceManagerImplTest {
-    @Mock
-    private CompositorSurfaceManager.SurfaceManagerCallbackTarget mCallback;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private CompositorSurfaceManager.SurfaceManagerCallbackTarget mCallback;
 
     private CompositorSurfaceManager mManager;
 
@@ -71,13 +71,9 @@ public class CompositorSurfaceManagerImplTest {
     public static class MyShadowSurfaceView extends ShadowSurfaceView {
         private final MyFakeSurfaceHolder mHolder = new MyFakeSurfaceHolder();
 
-        /**
-         * Robolectric's FakeSurfaceHolder doesn't keep track of the format, etc.
-         */
+        /** Robolectric's FakeSurfaceHolder doesn't keep track of the format, etc. */
         public static class MyFakeSurfaceHolder extends ShadowSurfaceView.FakeSurfaceHolder {
-            /**
-             * Fake surface that lets us control whether it's valid or not.
-             */
+            /** Fake surface that lets us control whether it's valid or not. */
             public static class MyFakeSurface extends Surface {
                 public boolean valid;
 
@@ -131,7 +127,6 @@ public class CompositorSurfaceManagerImplTest {
 
     @Before
     public void beforeTest() {
-        MockitoAnnotations.initMocks(this);
         Activity activity = Robolectric.buildActivity(Activity.class).setup().get();
         mLayout = new FrameLayout(activity);
         mManager = new CompositorSurfaceManagerImpl(mLayout, mCallback);
@@ -141,9 +136,7 @@ public class CompositorSurfaceManagerImplTest {
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
     }
 
-    /**
-     * Return the callback for |view|, or null.  Will get mad if there's more than one.
-     */
+    /** Return the callback for |view|, or null.  Will get mad if there's more than one. */
     private SurfaceHolder.Callback callbackFor(SurfaceView view) {
         MyShadowSurfaceView viewShadow = (MyShadowSurfaceView) Shadows.shadowOf(view);
         ShadowSurfaceView.FakeSurfaceHolder viewHolder = viewShadow.getFakeSurfaceHolder();
@@ -165,9 +158,7 @@ public class CompositorSurfaceManagerImplTest {
         fakeHolderFor(view).getFakeSurface().valid = valid;
     }
 
-    /**
-     * Find and return the SurfaceView with format |format|.
-     */
+    /** Find and return the SurfaceView with format |format|. */
     private SurfaceView findSurface(int format) {
         final int childCount = mLayout.getChildCount();
         for (int i = 0; i < childCount; i++) {
@@ -203,9 +194,7 @@ public class CompositorSurfaceManagerImplTest {
         return view;
     }
 
-    /**
-     * Send a surfaceChanged event with the given parameters.
-     */
+    /** Send a surfaceChanged event with the given parameters. */
     private void sendSurfaceChanged(SurfaceView view, int format, int width, int height) {
         mActualFormat =
                 (format == PixelFormat.OPAQUE) ? PixelFormat.RGB_565 : PixelFormat.RGBA_8888;
@@ -238,7 +227,10 @@ public class CompositorSurfaceManagerImplTest {
         sendSurfaceChanged(opaque, PixelFormat.OPAQUE, 320, 240);
         verify(mCallback, times(1)).surfaceCreated(eq(opaque.getHolder().getSurface()));
         verify(mCallback, times(1))
-                .surfaceChanged(eq(opaque.getHolder().getSurface()), eq(mActualFormat), eq(mWidth),
+                .surfaceChanged(
+                        eq(opaque.getHolder().getSurface()),
+                        eq(mActualFormat),
+                        eq(mWidth),
                         eq(mHeight));
         verify(mCallback, times(0)).surfaceDestroyed(any(), anyBoolean());
 
@@ -291,7 +283,10 @@ public class CompositorSurfaceManagerImplTest {
         assertEquals(opaque, requestSurface(PixelFormat.OPAQUE));
         verify(mCallback, times(2)).surfaceCreated(opaque.getHolder().getSurface());
         verify(mCallback, times(2))
-                .surfaceChanged(eq(opaque.getHolder().getSurface()), eq(mActualFormat), eq(mWidth),
+                .surfaceChanged(
+                        eq(opaque.getHolder().getSurface()),
+                        eq(mActualFormat),
+                        eq(mWidth),
                         eq(mHeight));
         verify(mCallback, times(1)).surfaceDestroyed(opaque.getHolder().getSurface(), false);
         assertEquals(1, mLayout.getChildCount());
@@ -324,7 +319,10 @@ public class CompositorSurfaceManagerImplTest {
 
         sendSurfaceChanged(opaque, PixelFormat.RGB_565, 320, 240);
         verify(mCallback, times(1))
-                .surfaceChanged(eq(opaque.getHolder().getSurface()), eq(mActualFormat), eq(mWidth),
+                .surfaceChanged(
+                        eq(opaque.getHolder().getSurface()),
+                        eq(mActualFormat),
+                        eq(mWidth),
                         eq(mHeight));
         verify(mCallback, times(0)).surfaceDestroyed(any(), anyBoolean());
     }
@@ -387,7 +385,10 @@ public class CompositorSurfaceManagerImplTest {
         // Send 'changed', and expect that we'll receive it.
         sendSurfaceChanged(opaque, PixelFormat.OPAQUE, 320, 240);
         verify(mCallback, times(1))
-                .surfaceChanged(eq(opaque.getHolder().getSurface()), eq(mActualFormat), eq(mWidth),
+                .surfaceChanged(
+                        eq(opaque.getHolder().getSurface()),
+                        eq(mActualFormat),
+                        eq(mWidth),
                         eq(mHeight));
     }
 

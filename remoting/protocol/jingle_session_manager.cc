@@ -4,13 +4,16 @@
 
 #include "remoting/protocol/jingle_session_manager.h"
 
+#include <string>
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/location.h"
 #include "remoting/protocol/authenticator.h"
 #include "remoting/protocol/content_description.h"
 #include "remoting/protocol/jingle_messages.h"
 #include "remoting/protocol/jingle_session.h"
+#include "remoting/protocol/session_observer.h"
 #include "remoting/protocol/transport.h"
 #include "remoting/signaling/iq_sender.h"
 #include "remoting/signaling/signal_strategy.h"
@@ -59,6 +62,17 @@ void JingleSessionManager::set_authenticator_factory(
   authenticator_factory_ = std::move(authenticator_factory);
 }
 
+SessionObserver::Subscription JingleSessionManager::AddSessionObserver(
+    SessionObserver* observer) {
+  observers_.AddObserver(observer);
+  return SessionObserver::Subscription(
+      base::BindOnce(&JingleSessionManager::RemoveSessionObserver,
+                     weak_factory_.GetWeakPtr(), observer));
+}
+void JingleSessionManager::RemoveSessionObserver(SessionObserver* observer) {
+  observers_.RemoveObserver(observer);
+}
+
 void JingleSessionManager::OnSignalStrategyStateChange(
     SignalStrategy::State state) {}
 
@@ -100,8 +114,11 @@ bool JingleSessionManager::OnSignalStrategyIncomingStanza(
     }
 
     IncomingSessionResponse response = SessionManager::DECLINE;
+    std::string rejection_reason;
+    base::Location rejection_location;
     if (!incoming_session_callback_.is_null()) {
-      incoming_session_callback_.Run(session, &response);
+      incoming_session_callback_.Run(session, &response, &rejection_reason,
+                                     &rejection_location);
     }
 
     if (response == SessionManager::ACCEPT) {
@@ -110,19 +127,18 @@ bool JingleSessionManager::OnSignalStrategyIncomingStanza(
       ErrorCode error;
       switch (response) {
         case OVERLOAD:
-          error = HOST_OVERLOAD;
+          error = ErrorCode::HOST_OVERLOAD;
           break;
 
         case DECLINE:
-          error = SESSION_REJECTED;
+          error = ErrorCode::SESSION_REJECTED;
           break;
 
         default:
           NOTREACHED();
-          error = SESSION_REJECTED;
       }
 
-      session->Close(error);
+      session->Close(error, rejection_reason, rejection_location);
       delete session;
       DCHECK(sessions_.find(message->sid) == sessions_.end());
     }

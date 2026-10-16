@@ -125,7 +125,8 @@
     var events = this.findEvents(name, ph, condition);
     if (events.length)
       return events[0];
-    throw new Error("Couldn't find event " + name + " / " + ph + "\n\n in " + JSON.stringify(this._devtoolsEvents, null, 2));
+    this._testRunner.log("Couldn't find event " + name + " / " + ph + ".");
+    return null;
   }
 
   filterEvents(callback) {
@@ -144,7 +145,7 @@
     return JSON.stringify(formattedEvents, null, 2);
   }
 
-  logEventShape(evt, excludedProperties = []) {
+  logEventShape(evt, excludedProperties = [], exposeProperties = []) {
     // The tts, scope, and tdur fields in trace events are optional, and as
     // such we omit them to prevent flakiness as it may or not be included
     // on each occasion an event is dispatched.
@@ -183,7 +184,8 @@
           logObject(`${prefix}\t`, key, value)
           continue;
         }
-        this._testRunner.log(`${prefix}\t${key}: ${typeof value}`);
+        const valueOut = exposeProperties.includes(key) ? value : typeof value;
+        this._testRunner.log(`${prefix}\t${key}: ${valueOut}`);
       }
       this._testRunner.log(`${prefix}}`);
     };

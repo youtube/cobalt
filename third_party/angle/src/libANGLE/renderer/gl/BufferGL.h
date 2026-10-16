@@ -12,6 +12,8 @@
 #include "common/MemoryBuffer.h"
 #include "libANGLE/renderer/BufferImpl.h"
 
+#include <optional>
+
 namespace rx
 {
 
@@ -30,24 +32,33 @@ class BufferGL : public BufferImpl
                           gl::BufferBinding target,
                           const void *data,
                           size_t size,
-                          gl::BufferUsage usage) override;
+                          gl::BufferUsage usage,
+                          BufferFeedback *feedback) override;
     angle::Result setSubData(const gl::Context *context,
                              gl::BufferBinding target,
                              const void *data,
                              size_t size,
-                             size_t offset) override;
+                             size_t offset,
+                             BufferFeedback *feedback) override;
     angle::Result copySubData(const gl::Context *context,
                               BufferImpl *source,
                               GLintptr sourceOffset,
                               GLintptr destOffset,
-                              GLsizeiptr size) override;
-    angle::Result map(const gl::Context *context, GLenum access, void **mapPtr) override;
+                              GLsizeiptr size,
+                              BufferFeedback *feedback) override;
+    angle::Result map(const gl::Context *context,
+                      GLenum access,
+                      void **mapPtr,
+                      BufferFeedback *feedback) override;
     angle::Result mapRange(const gl::Context *context,
                            size_t offset,
                            size_t length,
                            GLbitfield access,
-                           void **mapPtr) override;
-    angle::Result unmap(const gl::Context *context, GLboolean *result) override;
+                           void **mapPtr,
+                           BufferFeedback *feedback) override;
+    angle::Result unmap(const gl::Context *context,
+                        GLboolean *result,
+                        BufferFeedback *feedback) override;
 
     angle::Result getIndexRange(const gl::Context *context,
                                 gl::DrawElementsType type,
@@ -64,7 +75,7 @@ class BufferGL : public BufferImpl
     size_t mMapOffset;
     size_t mMapSize;
 
-    angle::MemoryBuffer mShadowCopy;
+    std::optional<angle::MemoryBuffer> mShadowCopy;
 
     size_t mBufferSize;
 

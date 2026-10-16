@@ -5,7 +5,7 @@
 #include "quiche/http2/decoder/http2_structure_decoder.h"
 
 // Tests decoding all of the fixed size HTTP/2 structures (i.e. those defined in
-// quiche/http2/http2_structures.h) using Http2StructureDecoder, which
+// quiche/http2/core/http2_structures.h) using Http2StructureDecoder, which
 // handles buffering of structures split across input buffer boundaries, and in
 // turn uses DoDecode when it has all of a structure in a contiguous buffer.
 
@@ -22,11 +22,12 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/http2_constants.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/decode_status.h"
-#include "quiche/http2/http2_constants.h"
 #include "quiche/http2/test_tools/http2_frame_builder.h"
 #include "quiche/http2/test_tools/http2_structures_test_util.h"
 #include "quiche/http2/test_tools/random_decoder_test_base.h"
@@ -109,7 +110,7 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
 
     // Before that, validate that decoding is done and that we've advanced
     // the cursor the expected amount.
-    validator = ValidateDoneAndOffset(S::EncodedSize(), validator);
+    validator = ValidateDoneAndOffset(S::EncodedSize(), std::move(validator));
 
     // Decode several times, with several segmentations of the input buffer.
     fast_decode_count_ = 0;

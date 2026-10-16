@@ -31,9 +31,10 @@ ExternalLogoutDoneEventHandlerFactory::ExternalLogoutDoneEventHandlerFactory()
           "ExternalLogoutDoneEventHandler",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
-              // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {
   DependsOn(EventRouterFactory::GetInstance());
 }
@@ -41,9 +42,10 @@ ExternalLogoutDoneEventHandlerFactory::ExternalLogoutDoneEventHandlerFactory()
 ExternalLogoutDoneEventHandlerFactory::
     ~ExternalLogoutDoneEventHandlerFactory() = default;
 
-KeyedService* ExternalLogoutDoneEventHandlerFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ExternalLogoutDoneEventHandlerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* browser_context) const {
-  return new ExternalLogoutDoneEventHandler(browser_context);
+  return std::make_unique<ExternalLogoutDoneEventHandler>(browser_context);
 }
 
 bool ExternalLogoutDoneEventHandlerFactory::ServiceIsNULLWhileTesting() const {

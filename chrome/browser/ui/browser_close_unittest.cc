@@ -7,9 +7,9 @@
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/download/chrome_download_manager_delegate.h"
 #include "chrome/browser/download/download_core_service.h"
 #include "chrome/browser/download/download_core_service_factory.h"
@@ -27,13 +27,13 @@
 
 class TestingDownloadCoreService : public DownloadCoreService {
  public:
-  TestingDownloadCoreService() : download_count_(0) {}
+  TestingDownloadCoreService() = default;
 
   TestingDownloadCoreService(const TestingDownloadCoreService&) = delete;
   TestingDownloadCoreService& operator=(const TestingDownloadCoreService&) =
       delete;
 
-  ~TestingDownloadCoreService() override {}
+  ~TestingDownloadCoreService() override = default;
 
   // All methods that aren't expected to be called in the execution of
   // this unit test are marked to result in test failure.  Using a simple
@@ -70,9 +70,9 @@ class TestingDownloadCoreService : public DownloadCoreService {
 #endif
   bool HasCreatedDownloadManager() override { return true; }
 
-  int NonMaliciousDownloadCount() const override { return download_count_; }
+  int BlockingShutdownCount() const override { return download_count_; }
 
-  void CancelDownloads() override {}
+  void CancelDownloads(DownloadCoreService::CancelDownloadsTrigger) override {}
 
   void SetDownloadManagerDelegateForTesting(
       std::unique_ptr<ChromeDownloadManagerDelegate> delegate) override {
@@ -85,7 +85,7 @@ class TestingDownloadCoreService : public DownloadCoreService {
   void Shutdown() override {}
 
  private:
-  int download_count_;
+  int download_count_ = 0;
 };
 
 static std::unique_ptr<KeyedService> CreateTestingDownloadCoreService(
@@ -95,12 +95,11 @@ static std::unique_ptr<KeyedService> CreateTestingDownloadCoreService(
 
 class BrowserCloseTest : public testing::Test {
  public:
-  BrowserCloseTest()
-      : profile_manager_(TestingBrowserProcess::GetGlobal()), name_index_(0) {
+  BrowserCloseTest() : profile_manager_(TestingBrowserProcess::GetGlobal()) {
     base::CommandLine::ForCurrentProcess()->AppendSwitch(switches::kNoFirstRun);
   }
 
-  ~BrowserCloseTest() override {}
+  ~BrowserCloseTest() override = default;
 
   void SetUp() override { ASSERT_TRUE(profile_manager_.SetUp()); }
 
@@ -174,8 +173,8 @@ class BrowserCloseTest : public testing::Test {
     CHECK(browser_windows_.end() == browser_windows_.find(profile));
     CHECK(browsers_.end() == browsers_.find(profile));
 
-    std::vector<TestBrowserWindow*> windows;
-    std::vector<Browser*> browsers;
+    std::vector<raw_ptr<TestBrowserWindow, VectorExperimental>> windows;
+    std::vector<raw_ptr<Browser, VectorExperimental>> browsers;
     for (int i = 0; i < num_windows; ++i) {
       TestBrowserWindow* window = new TestBrowserWindow();
       Browser::CreateParams params(profile, true);
@@ -193,12 +192,15 @@ class BrowserCloseTest : public testing::Test {
 
   // Note that the vector elements are all owned by this class and must be
   // cleaned up.
-  std::map<Profile*, std::vector<TestBrowserWindow*>> browser_windows_;
-  std::map<Profile*, std::vector<Browser*>> browsers_;
+  std::map<Profile*,
+           std::vector<raw_ptr<TestBrowserWindow, VectorExperimental>>>
+      browser_windows_;
+  std::map<Profile*, std::vector<raw_ptr<Browser, VectorExperimental>>>
+      browsers_;
 
   content::BrowserTaskEnvironment task_environment_;
   TestingProfileManager profile_manager_;
-  int name_index_;
+  int name_index_ = 0;
 };
 
 // Last window close (incognito window) will trigger warning.
@@ -283,7 +285,7 @@ TEST_F(BrowserCloseTest, LastRegular) {
   EXPECT_EQ(Browser::DownloadCloseType::kBrowserShutdown,
             browser->OkToCloseWithInProgressDownloads(&num_downloads_blocking));
   EXPECT_EQ(num_downloads_blocking, 1);
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
   EXPECT_EQ(true, browser->CanCloseWithInProgressDownloads());
 #else
   EXPECT_EQ(false, browser->CanCloseWithInProgressDownloads());

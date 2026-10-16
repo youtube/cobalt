@@ -48,6 +48,9 @@ typedef NS_ENUM(NSInteger, TableViewTextEditItemIconType) {
 // If set the String will be used as the identifyingIcon button A11y label.
 @property(nonatomic, copy) NSString* identifyingIconAccessibilityLabel;
 
+// Accessibility label override for the cell.
+@property(nonatomic, copy) NSString* cellAccessibilityLabel;
+
 // Whether to hide or display the trailing icon.
 // Changing this value can change the text color for the text field.
 @property(nonatomic, assign) BOOL hideIcon;
@@ -78,8 +81,14 @@ typedef NS_ENUM(NSInteger, TableViewTextEditItemIconType) {
 // cellBackgroundColor will be used as background.
 @property(nonatomic, strong) UIColor* textFieldBackgroundColor;
 
+// Custom textfield accessibility identifier.
+@property(nonatomic, copy) NSString* customTextfieldAccessibilityIdentifier;
+
 // Whether the aspect of the cell should mark the text as valid.
 - (void)setHasValidText:(BOOL)hasValidText;
+
+// Updates the text field value and refreshes the cell.
+- (void)updateTextFieldValue:(NSString*)textFieldValue;
 
 @end
 
@@ -102,6 +111,9 @@ typedef NS_ENUM(NSInteger, TableViewTextEditItemIconType) {
 
 // UIImageView containing the icon indicating that `textField` is editable.
 @property(nonatomic, strong) UIImageView* iconView;
+
+// Accessibility label override for the cell.
+@property(nonatomic, copy) NSString* accessibilityLabelValue;
 
 // Sets `self.identifyingIconButton` icon.
 - (void)setIdentifyingIcon:(UIImage*)icon;

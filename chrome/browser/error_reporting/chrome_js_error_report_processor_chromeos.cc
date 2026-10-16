@@ -8,6 +8,7 @@
 
 #include <algorithm>
 
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_file.h"
@@ -119,7 +120,7 @@ ChromeJsErrorReportProcessor::GetCrashReporterArgvStart() {
 
 std::string ChromeJsErrorReportProcessor::ParamsToCrashReporterString(
     const ParameterMap& params,
-    const absl::optional<std::string>& stack_trace) {
+    const std::optional<std::string>& stack_trace) {
   std::string result;
   for (const auto& param : params) {
     std::string key = param.first;
@@ -141,7 +142,7 @@ std::string ChromeJsErrorReportProcessor::ParamsToCrashReporterString(
 
 void ChromeJsErrorReportProcessor::SendReportViaCrashReporter(
     ParameterMap params,
-    absl::optional<std::string> stack_trace,
+    std::optional<std::string> stack_trace,
     base::ScopedClosureRunner callback_runner) {
   base::ScopedClosureRunner cleanup;
   base::File output(GetMemfdOrTempFile(cleanup, force_non_memfd_for_test_));
@@ -151,9 +152,7 @@ void ChromeJsErrorReportProcessor::SendReportViaCrashReporter(
 
   std::string string_to_write =
       ParamsToCrashReporterString(params, stack_trace);
-  if (output.WriteAtCurrentPos(string_to_write.data(),
-                               string_to_write.length()) !=
-      static_cast<int>(string_to_write.length())) {
+  if (!output.WriteAtCurrentPosAndCheck(base::as_byte_span(string_to_write))) {
     PLOG(ERROR) << "Failed to write to crash_reporter pipe";
     return;
   }
@@ -195,7 +194,7 @@ void ChromeJsErrorReportProcessor::SendReportViaCrashReporter(
 
 void ChromeJsErrorReportProcessor::SendReport(
     ParameterMap params,
-    absl::optional<std::string> stack_trace,
+    std::optional<std::string> stack_trace,
     bool send_to_production_servers,
     base::ScopedClosureRunner callback_runner,
     base::Time report_time,

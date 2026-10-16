@@ -4,12 +4,15 @@
 
 #include "gpu/ipc/host/gpu_disk_cache.h"
 
+#include "base/debug/leak_annotations.h"
+#include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/callback_helpers.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "net/base/test_completion_callback.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace gpu {
@@ -24,7 +27,15 @@ const char kCacheValue2[] = "cached value2";
 
 class GpuDiskCacheTest : public testing::Test {
  protected:
-  GpuDiskCacheTest() = default;
+  GpuDiskCacheTest() {
+    // Leak the factory on purpose. In production, the factory is a singleton,
+    // and when a GpuDiskCache object is created, a second reference to it is
+    // added to a globally held Backend object. These instances may leak, by
+    // design, and must have a valid reference to the factory, otherwise raw_ptr
+    // checks will fail. See https://crbug.com/1486674
+    factory_ = new GpuDiskCacheFactory;
+    ANNOTATE_LEAKING_OBJECT_PTR(factory_);
+  }
 
   GpuDiskCacheTest(const GpuDiskCacheTest&) = delete;
   GpuDiskCacheTest& operator=(const GpuDiskCacheTest&) = delete;
@@ -36,10 +47,10 @@ class GpuDiskCacheTest : public testing::Test {
   void InitCache() {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     handle_ =
-        factory_.GetCacheHandle(GpuDiskCacheType::kGlShaders, cache_path());
+        factory_->GetCacheHandle(GpuDiskCacheType::kGlShaders, cache_path());
   }
 
-  GpuDiskCacheFactory* factory() { return &factory_; }
+  GpuDiskCacheFactory* factory() { return factory_.get(); }
 
   void TearDown() override {
     // Run all pending tasks before destroying TaskEnvironment. Otherwise,
@@ -50,7 +61,7 @@ class GpuDiskCacheTest : public testing::Test {
 
   base::test::TaskEnvironment task_environment_;
   base::ScopedTempDir temp_dir_;
-  GpuDiskCacheFactory factory_;
+  raw_ptr<GpuDiskCacheFactory> factory_;
   GpuDiskCacheHandle handle_;
 };
 
@@ -96,6 +107,20 @@ TEST_F(GpuDiskCacheTest, ClearByPathWithEmptyPathTriggersCallback) {
       base::FilePath(), base::Time(), base::Time::Max(),
       base::BindLambdaForTesting([&]() { test_callback.callback().Run(1); }));
   ASSERT_TRUE(test_callback.WaitForResult());
+}
+
+TEST_F(GpuDiskCacheTest, ClearByPathWithNoExistingCache) {
+  // Create a dir but not creating a gpu cache under it.
+  ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+
+  net::TestCompletionCallback test_callback;
+  factory()->ClearByPath(
+      cache_path(), base::Time(), base::Time::Max(),
+      base::BindLambdaForTesting([&]() { test_callback.callback().Run(1); }));
+  ASSERT_TRUE(test_callback.WaitForResult());
+
+  // No files should be written to the cache path.
+  EXPECT_EQ(0, base::ComputeDirectorySize(cache_path()));
 }
 
 // For https://crbug.com/663589.
@@ -157,6 +182,63 @@ TEST_F(GpuDiskCacheTest, MultipleLoaderCallbacks) {
   int rv2 = cache->SetAvailableCallback(available_cb2.callback());
   ASSERT_EQ(net::OK, available_cb2.GetResult(rv2));
   EXPECT_EQ(count, loaded_calls);
+}
+
+TEST_F(GpuDiskCacheTest, ModifyExistingKey) {
+  InitCache();
+
+  scoped_refptr<GpuDiskCache> cache = factory()->Create(handle_);
+  ASSERT_TRUE(cache.get() != nullptr);
+
+  {
+    net::TestCompletionCallback available_cb;
+    int rv = cache->SetAvailableCallback(available_cb.callback());
+    ASSERT_EQ(net::OK, available_cb.GetResult(rv));
+  }
+  EXPECT_EQ(0, cache->Size());
+
+  cache->Cache(kCacheKey, kCacheValue2);
+
+  {
+    net::TestCompletionCallback complete_cb;
+    int rv = cache->SetCacheCompleteCallback(complete_cb.callback());
+    ASSERT_EQ(net::OK, complete_cb.GetResult(rv));
+  }
+  EXPECT_EQ(1, cache->Size());
+
+  // Cache a different value to the same key. The new value should be smaller
+  // than old value to ensure the old value is fully removed from cache.
+  cache->Cache(kCacheKey, kCacheValue);
+  ASSERT_LT(std::string_view(kCacheKey).size(),
+            std::string_view(kCacheKey2).size());
+
+  {
+    net::TestCompletionCallback complete_cb;
+    int rv = cache->SetCacheCompleteCallback(complete_cb.callback());
+    ASSERT_EQ(net::OK, complete_cb.GetResult(rv));
+  }
+  EXPECT_EQ(1, cache->Size());
+
+  // Close, re-open, and verify that the second Cache() modified the value on
+  // disk.
+  cache = nullptr;
+  std::vector<std::pair<std::string, std::string>> loaded_data;
+  cache = factory()->Create(
+      handle_,
+      base::BindLambdaForTesting(
+          [&loaded_data](const GpuDiskCacheHandle& handle,
+                         const std::string& key, const std::string& value) {
+            loaded_data.emplace_back(key, value);
+          }));
+  ASSERT_TRUE(cache.get() != nullptr);
+
+  {
+    net::TestCompletionCallback available_cb;
+    int rv = cache->SetAvailableCallback(available_cb.callback());
+    ASSERT_EQ(net::OK, available_cb.GetResult(rv));
+  }
+  EXPECT_THAT(loaded_data,
+              testing::ElementsAre(std::pair(kCacheKey, kCacheValue)));
 }
 
 TEST_F(GpuDiskCacheTest, ReleasedCacheHandle) {

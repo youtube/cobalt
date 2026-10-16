@@ -4,19 +4,22 @@
 
 package org.chromium.chrome.browser.tabmodel;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabAttributeKeys;
 import org.chromium.chrome.browser.tab.TabAttributes;
 import org.chromium.chrome.browser.tab.TabLaunchType;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
 
 /**
  * Implementation of the TabModelOrderController based off of tab_strip_model_order_controller.cc
  * and tab_strip_model.cc
  *
- * TODO(crbug.com/1138005): Move to chrome/browser/tabmodel/internal when all usages are
+ * <p>TODO(crbug.com/40152902): Move to chrome/browser/tabmodel/internal when all usages are
  * modularized.
  */
+@NullMarked
 class TabModelOrderControllerImpl implements TabModelOrderController {
     private static final int NO_TAB = -1;
     private final TabModelSelector mTabModelSelector;
@@ -30,21 +33,22 @@ class TabModelOrderControllerImpl implements TabModelOrderController {
         if (type == TabLaunchType.FROM_BROWSER_ACTIONS || type == TabLaunchType.FROM_RECENT_TABS) {
             return -1;
         }
-        if (linkClicked(type)) {
+        if (mightBeAdjacent(type)) {
             position = determineInsertionIndex(type, newTab);
         }
 
-        if (willOpenInForeground(type, newTab.isIncognito())) {
+        if (willOpenInForeground(type, newTab.isIncognitoBranded())) {
             // Forget any existing relationships, we don't want to make things
             // too confusing by having multiple groups active at the same time.
             forgetAllOpeners();
         }
 
-        // TODO(crbug/1383067): This is a bandaid fix to ensure tab groups are contiguous such that
-        // no tabs within a group are separate from one another and that no tab that is not part of
-        // a group can be added in-between members of a group. This doesn't address the issue of
-        // moving tabs to be between members of a group, however when a group is moved it is moved
-        // tab-by-tab so it is difficult to enforce anything there without significant refactoring.
+        // TODO(crbug.com/40877620): This is a bandaid fix to ensure tab groups are contiguous such
+        // that no tabs within a group are separate from one another and that no tab that is not
+        // part of a group can be added in-between members of a group. This doesn't address the
+        // issue of moving tabs to be between members of a group, however when a group is moved it
+        // is moved tab-by-tab so it is difficult to enforce anything there without significant
+        // refactoring.
         position = getValidPositionConsideringRelatedTabs(newTab, position);
 
         return position;
@@ -67,8 +71,7 @@ class TabModelOrderControllerImpl implements TabModelOrderController {
                 // If the tab was opened in the foreground, insert it adjacent to its parent tab if
                 // that exists and that tab is not the current selected tab, else insert the tab
                 // adjacent to the current tab that opened that link.
-                Tab parentTab = TabModelUtils.getTabById(
-                        currentModel, CriticalPersistedTabData.from(newTab).getParentId());
+                Tab parentTab = currentModel.getTabById(newTab.getParentId());
                 if (parentTab != null && currentTab != parentTab) {
                     int parentTabIndex =
                             TabModelUtils.getTabIndexById(currentModel, parentTab.getId());
@@ -105,9 +108,11 @@ class TabModelOrderControllerImpl implements TabModelOrderController {
         TabModel currentModel = mTabModelSelector.getCurrentModel();
         int count = currentModel.getCount();
         for (int i = count - 1; i >= startIndex; i--) {
-            Tab tab = currentModel.getTabAt(i);
-            if (CriticalPersistedTabData.from(tab).getParentId() == openerId
-                    && TabAttributes.from(tab).get(TabAttributeKeys.GROUPED_WITH_PARENT, true)) {
+            Tab tab = currentModel.getTabAtChecked(i);
+            if (tab.getParentId() == openerId
+                    && assumeNonNull(
+                            TabAttributes.from(tab)
+                                    .get(TabAttributeKeys.GROUPED_WITH_PARENT, true))) {
                 return i;
             }
         }
@@ -115,44 +120,59 @@ class TabModelOrderControllerImpl implements TabModelOrderController {
     }
 
     private int getValidPositionConsideringRelatedTabs(Tab newTab, int position) {
-        TabModelFilter filter = mTabModelSelector.getTabModelFilterProvider().getTabModelFilter(
-                newTab.isIncognito());
+        TabGroupModelFilter filter =
+                mTabModelSelector
+                        .getTabGroupModelFilterProvider()
+                        .getTabGroupModelFilter(newTab.isIncognito());
+        assumeNonNull(filter);
         return filter.getValidPosition(newTab, position);
     }
 
-    /**
-     * Clear the opener attribute on all tabs in the model.
-     */
+    /** Clear the opener attribute on all tabs in the model. */
     void forgetAllOpeners() {
         TabModel currentModel = mTabModelSelector.getCurrentModel();
         int count = currentModel.getCount();
         for (int i = 0; i < count; i++) {
-            TabAttributes.from(currentModel.getTabAt(i))
+            TabAttributes.from(currentModel.getTabAtChecked(i))
                     .set(TabAttributeKeys.GROUPED_WITH_PARENT, false);
         }
     }
 
-    /**
-     * Determine if a launch type is the result of linked being clicked.
-     */
-    static boolean linkClicked(@TabLaunchType int type) {
-        return type == TabLaunchType.FROM_LINK || type == TabLaunchType.FROM_LONGPRESS_FOREGROUND
+    /** Determine if a launch type requires calculation to determine the position of the new tab. */
+    static boolean mightBeAdjacent(@TabLaunchType int type) {
+        return type == TabLaunchType.FROM_LINK
+                || type == TabLaunchType.FROM_LONGPRESS_FOREGROUND
+                || type == TabLaunchType.FROM_LONGPRESS_FOREGROUND_IN_GROUP
                 || type == TabLaunchType.FROM_LONGPRESS_BACKGROUND
                 || type == TabLaunchType.FROM_LONGPRESS_BACKGROUND_IN_GROUP
-                || type == TabLaunchType.FROM_LONGPRESS_INCOGNITO;
+                || type == TabLaunchType.FROM_LONGPRESS_INCOGNITO
+                || type == TabLaunchType.FROM_HISTORY_NAVIGATION_BACKGROUND
+                || type == TabLaunchType.FROM_HISTORY_NAVIGATION_FOREGROUND;
     }
 
     @Override
-    public boolean willOpenInForeground(@TabLaunchType int type, boolean isNewTabIncognito) {
+    public boolean willOpenInForeground(@TabLaunchType int type, boolean isNewTabIncognitoBranded) {
         // Restore is handling the active index by itself.
-        if (type == TabLaunchType.FROM_RESTORE || type == TabLaunchType.FROM_BROWSER_ACTIONS
+        if (type == TabLaunchType.FROM_RESTORE
+                || type == TabLaunchType.FROM_BROWSER_ACTIONS
                 || type == TabLaunchType.FROM_RESTORE_TABS_UI) {
             return false;
         }
-        return type != TabLaunchType.FROM_LONGPRESS_BACKGROUND
-                && type != TabLaunchType.FROM_LONGPRESS_BACKGROUND_IN_GROUP
-                && type != TabLaunchType.FROM_RECENT_TABS
-                || (!mTabModelSelector.isIncognitoSelected() && isNewTabIncognito);
+        return (type != TabLaunchType.FROM_LONGPRESS_BACKGROUND
+                        && type != TabLaunchType.FROM_LONGPRESS_BACKGROUND_IN_GROUP
+                        && type != TabLaunchType.FROM_RECENT_TABS
+                        && type != TabLaunchType.FROM_SYNC_BACKGROUND
+                        && type != TabLaunchType.FROM_COLLABORATION_BACKGROUND_IN_GROUP
+                        && type != TabLaunchType.FROM_BOOKMARK_BAR_BACKGROUND
+                        && type != TabLaunchType.FROM_REPARENTING_BACKGROUND
+                        && type != TabLaunchType.FROM_HISTORY_NAVIGATION_BACKGROUND)
+                || isDifferentModel(isNewTabIncognitoBranded);
+    }
+
+    private boolean isDifferentModel(boolean isNewTabIncognitoBranded) {
+        return mTabModelSelector.isIncognitoBrandedModelSelected()
+                ? !isNewTabIncognitoBranded
+                : isNewTabIncognitoBranded;
     }
 
     /**

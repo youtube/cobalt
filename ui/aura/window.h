@@ -9,6 +9,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -25,7 +26,6 @@
 #include "components/viz/common/surfaces/scoped_surface_id_allocator.h"
 #include "components/viz/common/surfaces/subtree_capture_id.h"
 #include "components/viz/host/host_frame_sink_client.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkRegion.h"
 #include "ui/aura/aura_export.h"
 #include "ui/aura/client/window_types.h"
@@ -60,7 +60,7 @@ class Transform;
 }
 
 namespace ui {
-enum class DomCode;
+enum class DomCode : uint32_t;
 class Layer;
 }  // namespace ui
 
@@ -150,7 +150,7 @@ class AURA_EXPORT Window : public ui::LayerDelegate,
     kMaxValue = HIDDEN,
   };
 
-  using Windows = std::vector<Window*>;
+  using Windows = std::vector<raw_ptr<Window, VectorExperimental>>;
 
   explicit Window(WindowDelegate* delegate,
                   client::WindowType type = client::WINDOW_TYPE_UNKNOWN);
@@ -187,12 +187,14 @@ class AURA_EXPORT Window : public ui::LayerDelegate,
 
   bool GetTransparent() const;
 
-  // Note: Setting a window transparent has significant performance impact,
-  // especially on low-end Chrome OS devices. Please ensure you are not
+  // Note: Must be called after initializing the window.
+  // Additionally, setting a window transparent has significant performance
+  // impact, especially on low-end Chrome OS devices. Please ensure you are not
   // adding unnecessary overdraw. When in doubt, talk to the graphics team.
   void SetTransparent(bool transparent);
 
   // See description in Layer::SetFillsBoundsCompletely.
+  // Note: Must be called after initializing the window.
   void SetFillsBoundsCompletely(bool fills_bounds);
 
   WindowDelegate* delegate() { return delegate_; }
@@ -216,10 +218,16 @@ class AURA_EXPORT Window : public ui::LayerDelegate,
   bool IsRootWindow() const { return !!host_; }
 
   // Changes the visibility of the window.
+  // Note: Must be called after initializing the window.
   void Show();
+
+  // Note: Must be called after initializing the window.
   void Hide();
+
   // Returns true if this window and all its ancestors are visible.
+  // Note: Must be called after initializing the window.
   bool IsVisible() const;
+
   // Returns the visibility requested by this window. IsVisible() takes into
   // account the visibility of the layer and ancestors, where as this tracks
   // whether Show() without a Hide() has been invoked.
@@ -291,6 +299,7 @@ class AURA_EXPORT Window : public ui::LayerDelegate,
   // this function returns the same value as `GetBoundsInScreen()`.
   gfx::Rect GetActualBoundsInScreen() const;
 
+  // Note: Must be called after initializing the window.
   void SetTransform(const gfx::Transform& transform);
   const gfx::Transform& transform() const;
 
@@ -314,10 +323,12 @@ class AURA_EXPORT Window : public ui::LayerDelegate,
 
   // Changes the bounds of the window. If present, the window's parent's
   // LayoutManager may adjust the bounds.
+  // Note: Must be called after initializing the window.
   void SetBounds(const gfx::Rect& new_bounds);
 
   // Changes the bounds of the window in the screen coordinates.
   // If present, the window's parent's LayoutManager may adjust the bounds.
+  // Note: Must be called after initializing the window.
   void SetBoundsInScreen(const gfx::Rect& new_bounds_in_screen_coords,
                          const display::Display& dst_display);
 
@@ -326,9 +337,11 @@ class AURA_EXPORT Window : public ui::LayerDelegate,
   gfx::Rect GetTargetBounds() const;
 
   // Forwards directly to the layer. See Layer::ScheduleDraw() for details.
+  // Note: Must be called after initializing the window.
   void ScheduleDraw();
 
   // Marks the a portion of window as needing to be painted.
+  // Note: Must be called after initializing the window.
   void SchedulePaintInRect(const gfx::Rect& rect);
 
   // Stacks the specified child of this Window at the front of the z-order.
@@ -396,6 +409,7 @@ class AURA_EXPORT Window : public ui::LayerDelegate,
   void RemoveObserver(WindowObserver* observer);
   bool HasObserver(const WindowObserver* observer) const;
 
+  // Note: Must be called after initializing the window.
   void SetEventTargetingPolicy(EventTargetingPolicy policy);
   EventTargetingPolicy event_targeting_policy() const {
     return event_targeting_policy_;
@@ -442,7 +456,7 @@ class AURA_EXPORT Window : public ui::LayerDelegate,
   // intercepted.  Returns a ScopedKeyboardHook instance which stops capturing
   // system key events when destroyed.
   std::unique_ptr<ScopedKeyboardHook> CaptureSystemKeyEvents(
-      absl::optional<base::flat_set<ui::DomCode>> codes);
+      std::optional<base::flat_set<ui::DomCode>> codes);
 
   // NativeWidget::[GS]etNativeWindowProperty use strings as keys, and this is
   // difficult to change while retaining compatibility with other platforms.
@@ -463,9 +477,12 @@ class AURA_EXPORT Window : public ui::LayerDelegate,
   std::unique_ptr<ui::Layer> RecreateLayer() override;
   void SetLayer(std::unique_ptr<ui::Layer> layer) override;
 
+  void GetDebugInfo(const aura::Window* active_window,
+                    const aura::Window* focused_window,
+                    const aura::Window* capture_window,
+                    std::ostringstream* out) const;
 #if DCHECK_IS_ON()
   // These methods are useful when debugging.
-  std::string GetDebugInfo() const;
   std::string GetWindowHierarchy(int depth) const;
   void PrintWindowHierarchy(int depth) const;
 #endif
@@ -491,13 +508,13 @@ class AURA_EXPORT Window : public ui::LayerDelegate,
 
   // Marks the current viz::LocalSurfaceId as invalid. AllocateLocalSurfaceId
   // must be called before submitting new CompositorFrames.
-  void InvalidateLocalSurfaceId();
+  void InvalidateLocalSurfaceId(bool also_invalidate_allocation_group = false);
 
   // Sets the current viz::LocalSurfaceId, in cases where the embedded client
   // has allocated one. Also sets child sequence number component of the
   // viz::LocalSurfaceId allocator.
   void UpdateLocalSurfaceIdFromEmbeddedClient(
-      const absl::optional<viz::LocalSurfaceId>& local_surface_id);
+      const std::optional<viz::LocalSurfaceId>& local_surface_id);
 
   // Returns the FrameSinkId. In LOCAL mode, this returns a valid FrameSinkId
   // only if a LayerTreeFrameSink has been created. In MUS mode, this always
@@ -515,11 +532,17 @@ class AURA_EXPORT Window : public ui::LayerDelegate,
   void NotifyResizeLoopStarted();
   void NotifyResizeLoopEnded();
 
+  // Notifies observers of the state of a move loop.
+  void NotifyMoveLoopStarted();
+  void NotifyMoveLoopEnded();
+
   // ui::GestureConsumer:
   bool RequiresDoubleTapGestureEvents() const override;
 
   // Returns |state| as a string. This is generally only useful for debugging.
   static const std::u16string OcclusionStateToString(OcclusionState state);
+  // Returns |type| as a string. This is generally only useful for debugging.
+  static std::string_view WindowTypeToString(client::WindowType type);
 
   // Sets the regions of this window to consider opaque when computing the
   // occlusion of underneath windows. Opaque regions can only be set for a
@@ -558,6 +581,11 @@ class AURA_EXPORT Window : public ui::LayerDelegate,
   // Overrides from ui::PropertyHandler
   void AfterPropertyChange(const void* key, int64_t old_value) override;
 
+  // viz::HostFrameSinkClient:
+  void OnFirstSurfaceActivation(const viz::SurfaceInfo& surface_info) override;
+  void OnFrameTokenChanged(uint32_t frame_token,
+                           base::TimeTicks activation_time) override;
+
  private:
   friend class DefaultWindowOcclusionChangeBuilder;
   friend class HitTestDataProviderAura;
@@ -567,6 +595,7 @@ class AURA_EXPORT Window : public ui::LayerDelegate,
   friend class ScopedWindowEventTargetingBlocker;
   friend class WindowTargeter;
   friend class test::WindowTestApi;
+  friend class TestScreen;
 
   // Handles registering FrameSinkId hierarchy for SetEmbedFrameSinkId() and
   // CreateLayerTreeFrameSink().
@@ -671,11 +700,6 @@ class AURA_EXPORT Window : public ui::LayerDelegate,
                             ui::LocatedEvent* event) const override;
   gfx::PointF GetScreenLocationF(const ui::LocatedEvent& event) const override;
 
-  // viz::HostFrameSinkClient:
-  void OnFirstSurfaceActivation(const viz::SurfaceInfo& surface_info) override;
-  void OnFrameTokenChanged(uint32_t frame_token,
-                           base::TimeTicks activation_time) override;
-
   // Updates the layer name based on the window's name and id.
   void UpdateLayerName();
 
@@ -733,7 +757,7 @@ class AURA_EXPORT Window : public ui::LayerDelegate,
   // parent during its parents destruction.
   bool owned_by_parent_ = true;
 
-  raw_ptr<WindowDelegate, DanglingUntriaged> delegate_;
+  raw_ptr<WindowDelegate, AcrossTasksDanglingUntriaged> delegate_;
 
   // The Window's parent.
   raw_ptr<Window> parent_ = nullptr;
@@ -749,12 +773,12 @@ class AURA_EXPORT Window : public ui::LayerDelegate,
   // Occlusion state of the window.
   OcclusionState occlusion_state_ = OcclusionState::UNKNOWN;
 
-  // Occluded region of the window in the root window coordiantes.
+  // Occluded region of the window in the root window coordinates.
   SkRegion occluded_region_in_root_;
 
   int id_ = kInitialId;
 
-  // Whether layer is initialized as non-opaque. Defaults to false.
+  // If true, window's layer is marked as non-opaque. Defaults to false.
   bool transparent_ = false;
 
   // Whether it's in a process of CleanupGestureState() or not.

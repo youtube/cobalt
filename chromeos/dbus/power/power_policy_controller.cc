@@ -65,7 +65,6 @@ power_manager::PowerManagementPolicy_Action GetProtoAction(
       return power_manager::PowerManagementPolicy_Action_DO_NOTHING;
     default:
       NOTREACHED() << "Unhandled action " << action;
-      return power_manager::PowerManagementPolicy_Action_DO_NOTHING;
   }
 }
 
@@ -162,17 +161,17 @@ bool PowerPolicyController::GetPeakShiftDayConfigs(
     }
 
     const std::string* week_day_value = item_dict->FindString("day");
-    absl::optional<int> start_time_hour =
+    std::optional<int> start_time_hour =
         item_dict->FindIntByDottedPath("start_time.hour");
-    absl::optional<int> start_time_minute =
+    std::optional<int> start_time_minute =
         item_dict->FindIntByDottedPath("start_time.minute");
-    absl::optional<int> end_time_hour =
+    std::optional<int> end_time_hour =
         item_dict->FindIntByDottedPath("end_time.hour");
-    absl::optional<int> end_time_minute =
+    std::optional<int> end_time_minute =
         item_dict->FindIntByDottedPath("end_time.minute");
-    absl::optional<int> charge_start_time_hour =
+    std::optional<int> charge_start_time_hour =
         item_dict->FindIntByDottedPath("charge_start_time.hour");
-    absl::optional<int> charge_start_time_minute =
+    std::optional<int> charge_start_time_minute =
         item_dict->FindIntByDottedPath("charge_start_time.minute");
 
     power_manager::PowerManagementPolicy::WeekDay week_day_enum;
@@ -221,13 +220,13 @@ bool PowerPolicyController::GetAdvancedBatteryChargeModeDayConfigs(
     }
 
     const std::string* week_day_value = item_dict->FindString("day");
-    absl::optional<int> charge_start_time_hour =
+    std::optional<int> charge_start_time_hour =
         item_dict->FindIntByDottedPath("charge_start_time.hour");
-    absl::optional<int> charge_start_time_minute =
+    std::optional<int> charge_start_time_minute =
         item_dict->FindIntByDottedPath("charge_start_time.minute");
-    absl::optional<int> charge_end_time_hour =
+    std::optional<int> charge_end_time_hour =
         item_dict->FindIntByDottedPath("charge_end_time.hour");
-    absl::optional<int> charge_end_time_minute =
+    std::optional<int> charge_end_time_minute =
         item_dict->FindIntByDottedPath("charge_end_time.minute");
 
     power_manager::PowerManagementPolicy::WeekDay week_day_enum;
@@ -367,8 +366,9 @@ std::string PowerPolicyController::GetPolicyDebugString(
                   policy.send_feedback_if_undimmed());
   }
 
-  if (policy.has_reason())
+  if (policy.has_reason()) {
     StringAppendF(&str, "reason=\"%s\" ", policy.reason().c_str());
+  }
   base::TrimWhitespaceASCII(str, base::TRIM_TRAILING, &str);
   return str;
 }
@@ -568,7 +568,17 @@ void PowerPolicyController::ApplyPrefs(const PrefValues& values) {
           values.adaptive_charging_min_probability);
       prefs_policy_.set_adaptive_charging_hold_percent(
           values.adaptive_charging_hold_percent);
+      prefs_policy_.set_adaptive_charging_max_delay_percentile(
+          values.adaptive_charging_max_delay_percentile);
+      prefs_policy_.set_adaptive_charging_min_days_history(
+          values.adaptive_charging_min_days_history);
+      prefs_policy_.set_adaptive_charging_min_full_on_ac_ratio(
+          values.adaptive_charging_min_full_on_ac_ratio);
     }
+  }
+
+  if (values.charge_limit_enabled.has_value()) {
+    prefs_policy_.set_charge_limit_enabled(values.charge_limit_enabled.value());
   }
 
   prefs_were_set_ = true;
@@ -625,6 +635,14 @@ void PowerPolicyController::NotifyChromeIsExiting() {
   if (chrome_is_exiting_)
     return;
   chrome_is_exiting_ = true;
+  SendCurrentPolicy();
+}
+
+void PowerPolicyController::SetShouldDoNothingWhenIdleInDemoMode() {
+  if (should_do_nothing_when_idle_in_demo_mode_) {
+    return;
+  }
+  should_do_nothing_when_idle_in_demo_mode_ = true;
   SendCurrentPolicy();
 }
 
@@ -739,6 +757,18 @@ void PowerPolicyController::SendCurrentPolicy() {
         power_manager::PowerManagementPolicy_Action_SUSPEND);
     causes +=
         std::string((causes.empty() ? "" : ", ")) + "encryption migration";
+  }
+
+  if (should_do_nothing_when_idle_in_demo_mode_ &&
+      (policy.ac_idle_action() !=
+           power_manager::PowerManagementPolicy_Action_DO_NOTHING ||
+       policy.battery_idle_action() !=
+           power_manager::PowerManagementPolicy_Action_DO_NOTHING)) {
+    LOG(WARNING) << "Idle action is overriden to DO_NOTHING by demo mode.";
+    policy.set_ac_idle_action(
+        power_manager::PowerManagementPolicy_Action_DO_NOTHING);
+    policy.set_battery_idle_action(
+        power_manager::PowerManagementPolicy_Action_DO_NOTHING);
   }
 
   // To avoid a race in the case where the user asks Chrome to sign out

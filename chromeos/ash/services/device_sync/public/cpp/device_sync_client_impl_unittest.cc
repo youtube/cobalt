@@ -5,6 +5,7 @@
 #include "chromeos/ash/services/device_sync/public/cpp/device_sync_client_impl.h"
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -29,14 +30,15 @@
 #include "chromeos/ash/services/device_sync/proto/cryptauth_common.pb.h"
 #include "chromeos/ash/services/device_sync/public/cpp/device_sync_prefs.h"
 #include "chromeos/ash/services/device_sync/public/cpp/fake_client_app_metadata_provider.h"
-#include "chromeos/ash/services/device_sync/public/cpp/fake_gcm_device_info_provider.h"
 #include "chromeos/ash/services/device_sync/public/mojom/device_sync.mojom.h"
 #include "components/gcm_driver/fake_gcm_driver.h"
+#include "components/gcm_driver/instance_id/instance_id.h"
+#include "components/gcm_driver/instance_id/instance_id_driver.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -45,18 +47,22 @@ namespace device_sync {
 namespace {
 
 const char kTestEmail[] = "example@gmail.com";
-const char kTestGcmDeviceInfoLongDeviceId[] = "longDeviceId";
 const size_t kNumTestDevices = 5u;
 
-const cryptauth::GcmDeviceInfo& GetTestGcmDeviceInfo() {
-  static const base::NoDestructor<cryptauth::GcmDeviceInfo> gcm_device_info([] {
-    cryptauth::GcmDeviceInfo gcm_device_info;
-    gcm_device_info.set_long_device_id(kTestGcmDeviceInfoLongDeviceId);
-    return gcm_device_info;
-  }());
-
-  return *gcm_device_info;
-}
+class MockInstanceIDDriver : public instance_id::InstanceIDDriver {
+ public:
+  MockInstanceIDDriver() : InstanceIDDriver(/*gcm_driver=*/nullptr) {}
+  ~MockInstanceIDDriver() override = default;
+  MOCK_METHOD(instance_id::InstanceID*,
+              GetInstanceID,
+              (const std::string& app_id),
+              (override));
+  MOCK_METHOD(void, RemoveInstanceID, (const std::string& app_id), (override));
+  MOCK_METHOD(bool,
+              ExistsInstanceID,
+              (const std::string& app_id),
+              (const override));
+};
 
 class FakeDeviceSyncImplFactory : public DeviceSyncImpl::Factory {
  public:
@@ -70,8 +76,8 @@ class FakeDeviceSyncImplFactory : public DeviceSyncImpl::Factory {
   std::unique_ptr<DeviceSyncBase> CreateInstance(
       signin::IdentityManager* identity_manager,
       gcm::GCMDriver* gcm_driver,
+      instance_id::InstanceIDDriver* instance_id_driver,
       PrefService* profile_prefs,
-      const GcmDeviceInfoProvider* gcm_device_info_provider,
       ClientAppMetadataProvider* client_app_metadata_provider,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       std::unique_ptr<base::OneShotTimer> timer,
@@ -159,8 +165,6 @@ class DeviceSyncClientImplTest : public testing::Test {
   // testing::Test:
   void SetUp() override {
     fake_gcm_driver_ = std::make_unique<gcm::FakeGCMDriver>();
-    fake_gcm_device_info_provider_ =
-        std::make_unique<FakeGcmDeviceInfoProvider>(GetTestGcmDeviceInfo());
     fake_client_app_metadata_provider_ =
         std::make_unique<FakeClientAppMetadataProvider>();
 
@@ -191,7 +195,7 @@ class DeviceSyncClientImplTest : public testing::Test {
 
     device_sync_ = DeviceSyncImpl::Factory::Create(
         identity_test_environment_->identity_manager(), fake_gcm_driver_.get(),
-        test_pref_service_.get(), fake_gcm_device_info_provider_.get(),
+        &fake_instance_id_driver_, test_pref_service_.get(),
         fake_client_app_metadata_provider_.get(), shared_url_loader_factory,
         std::make_unique<base::OneShotTimer>(),
         base::BindRepeating(
@@ -368,7 +372,7 @@ class DeviceSyncClientImplTest : public testing::Test {
 
   void CallSetFeatureStatus(
       mojom::NetworkRequestResult expected_result_code,
-      const absl::optional<std::string> invalid_instance_id = absl::nullopt) {
+      const std::optional<std::string> invalid_instance_id = std::nullopt) {
     base::RunLoop run_loop;
 
     std::string instance_id = invalid_instance_id.value_or(
@@ -422,8 +426,8 @@ class DeviceSyncClientImplTest : public testing::Test {
   }
 
   void CallNotifyDevices(mojom::NetworkRequestResult expected_result_code,
-                         const absl::optional<std::vector<std::string>>&
-                             invalid_instance_ids = absl::nullopt) {
+                         const std::optional<std::vector<std::string>>&
+                             invalid_instance_ids = std::nullopt) {
     base::RunLoop run_loop;
 
     std::vector<std::string> instance_ids =
@@ -450,7 +454,7 @@ class DeviceSyncClientImplTest : public testing::Test {
 
   void CallGetDevicesActivityStatus(
       mojom::NetworkRequestResult expected_result_code,
-      absl::optional<std::vector<mojom::DeviceActivityStatusPtr>>
+      std::optional<std::vector<mojom::DeviceActivityStatusPtr>>
           expected_activity_statuses) {
     base::RunLoop run_loop;
 
@@ -460,9 +464,9 @@ class DeviceSyncClientImplTest : public testing::Test {
 
     SendPendingMojoMessages();
 
-    absl::optional<std::vector<mojom::DeviceActivityStatusPtr>>
+    std::optional<std::vector<mojom::DeviceActivityStatusPtr>>
         device_activity_statuses_optional;
-    if (expected_activity_statuses != absl::nullopt) {
+    if (expected_activity_statuses != std::nullopt) {
       std::vector<mojom::DeviceActivityStatusPtr> device_activity_statuses;
       for (const mojom::DeviceActivityStatusPtr& device_activity_status :
            *expected_activity_statuses) {
@@ -473,7 +477,7 @@ class DeviceSyncClientImplTest : public testing::Test {
             device_activity_status->last_update_time));
       }
       device_activity_statuses_optional =
-          absl::make_optional(std::move(device_activity_statuses));
+          std::make_optional(std::move(device_activity_statuses));
     }
     fake_device_sync_->InvokePendingGetDevicesActivityStatusCallback(
         expected_result_code, std::move(device_activity_statuses_optional));
@@ -542,7 +546,7 @@ class DeviceSyncClientImplTest : public testing::Test {
     for (auto device : remote_device_ref_list)
       ref_public_keys.push_back(device.public_key());
     std::sort(ref_public_keys.begin(), ref_public_keys.end(),
-              [](auto public_key_1, auto public_key_2) {
+              [](const auto& public_key_1, const auto& public_key_2) {
                 return public_key_1 < public_key_2;
               });
 
@@ -550,7 +554,7 @@ class DeviceSyncClientImplTest : public testing::Test {
     for (auto device : remote_device_list)
       public_keys.push_back(device.public_key);
     std::sort(public_keys.begin(), public_keys.end(),
-              [](auto public_key_1, auto public_key_2) {
+              [](const auto& public_key_1, const auto& public_key_2) {
                 return public_key_1 < public_key_2;
               });
 
@@ -563,10 +567,10 @@ class DeviceSyncClientImplTest : public testing::Test {
 
   std::unique_ptr<signin::IdentityTestEnvironment> identity_test_environment_;
   std::unique_ptr<gcm::FakeGCMDriver> fake_gcm_driver_;
-  std::unique_ptr<FakeGcmDeviceInfoProvider> fake_gcm_device_info_provider_;
+  testing::NiceMock<MockInstanceIDDriver> fake_instance_id_driver_;
   std::unique_ptr<FakeClientAppMetadataProvider>
       fake_client_app_metadata_provider_;
-  raw_ptr<FakeDeviceSync, ExperimentalAsh> fake_device_sync_;
+  raw_ptr<FakeDeviceSync, DanglingUntriaged> fake_device_sync_;
   std::unique_ptr<FakeDeviceSyncImplFactory> fake_device_sync_impl_factory_;
   std::unique_ptr<TestingPrefServiceSimple> test_pref_service_;
   std::unique_ptr<DeviceSyncBase> device_sync_;
@@ -577,21 +581,21 @@ class DeviceSyncClientImplTest : public testing::Test {
   multidevice::RemoteDeviceList test_remote_device_list_;
   const multidevice::RemoteDeviceRefList test_remote_device_ref_list_;
 
-  absl::optional<bool> force_enrollment_now_completed_success_;
-  absl::optional<bool> force_sync_now_completed_success_;
-  absl::optional<mojom::NetworkRequestResult>
+  std::optional<bool> force_enrollment_now_completed_success_;
+  std::optional<bool> force_sync_now_completed_success_;
+  std::optional<mojom::NetworkRequestResult>
       set_software_feature_state_result_code_;
-  absl::optional<mojom::NetworkRequestResult> set_feature_status_result_code_;
+  std::optional<mojom::NetworkRequestResult> set_feature_status_result_code_;
   std::tuple<mojom::NetworkRequestResult,
              multidevice::RemoteDeviceRefList,
              multidevice::RemoteDeviceRefList>
       find_eligible_devices_error_code_and_response_;
-  absl::optional<mojom::NetworkRequestResult> notify_devices_result_code_;
+  std::optional<mojom::NetworkRequestResult> notify_devices_result_code_;
   std::tuple<mojom::NetworkRequestResult,
-             absl::optional<std::vector<mojom::DeviceActivityStatusPtr>>>
+             std::optional<std::vector<mojom::DeviceActivityStatusPtr>>>
       get_devices_activity_status_code_and_response_;
-  absl::optional<GroupPrivateKeyStatus> get_group_private_key_status_response_;
-  absl::optional<BetterTogetherMetadataStatus>
+  std::optional<GroupPrivateKeyStatus> get_group_private_key_status_response_;
+  std::optional<BetterTogetherMetadataStatus>
       get_better_together_metadata_status_response_;
   bool debug_info_received_ = false;
 
@@ -639,7 +643,7 @@ class DeviceSyncClientImplTest : public testing::Test {
   void OnGetDevicesActivityStatus(
       base::OnceClosure callback,
       mojom::NetworkRequestResult result_code,
-      absl::optional<std::vector<mojom::DeviceActivityStatusPtr>>
+      std::optional<std::vector<mojom::DeviceActivityStatusPtr>>
           device_activity_status) {
     get_devices_activity_status_code_and_response_ =
         std::make_tuple(result_code, std::move(device_activity_status));
@@ -685,7 +689,7 @@ TEST_F(
   // Simulate local device metadata not being ready. It will be ready once
   // synced devices are returned, at which point |client_| should call
   // GetLocalMetadata() again.
-  fake_device_sync_->InvokePendingGetLocalDeviceMetadataCallback(absl::nullopt);
+  fake_device_sync_->InvokePendingGetLocalDeviceMetadataCallback(std::nullopt);
   fake_device_sync_->InvokePendingGetSyncedDevicesCallback(
       test_remote_device_list_);
 
@@ -918,7 +922,7 @@ TEST_F(DeviceSyncClientImplTest, TestGetDevicesActivityStatus_ErrorCode) {
   SetupClient();
 
   CallGetDevicesActivityStatus(mojom::NetworkRequestResult::kEndpointNotFound,
-                               absl::nullopt);
+                               std::nullopt);
 }
 
 TEST_F(DeviceSyncClientImplTest, TestGetDebugInfo) {

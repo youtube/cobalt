@@ -14,83 +14,34 @@
 
 #include "starboard/shared/starboard/player/job_queue.h"
 
-#include <pthread.h>
-
+#include <atomic>
 #include <chrono>
-#include <limits>
-#include <mutex>
-#include <utility>
 
-#include "starboard/common/check_op.h"
-#include "starboard/common/log.h"
 #include "starboard/system.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 
-namespace {
+const JobQueue::JobToken JobQueue::JobToken::kUnscheduled =
+    JobQueue::JobToken();
 
-pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-pthread_key_t s_thread_local_key = 0;
-
-void InitThreadLocalKey() {
-  [[maybe_unused]] int res = pthread_key_create(&s_thread_local_key, NULL);
-  SB_DCHECK_EQ(res, 0);
+JobQueue::JobToken JobQueue::JobToken::Generate() {
+  static std::atomic<int64_t> s_current_token{0};
+  return JobToken(s_current_token.fetch_add(1, std::memory_order_relaxed) + 1);
 }
 
-void EnsureThreadLocalKeyInited() {
-  pthread_once(&s_once_flag, InitThreadLocalKey);
-}
-
-JobQueue* GetCurrentThreadJobQueue() {
-  EnsureThreadLocalKeyInited();
-  return static_cast<JobQueue*>(pthread_getspecific(s_thread_local_key));
-}
-
-void SetCurrentThreadJobQueue(JobQueue* job_queue) {
-  SB_DCHECK(job_queue);
-  SB_DCHECK_EQ(GetCurrentThreadJobQueue(), nullptr);
-
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, job_queue);
-}
-
-void ResetCurrentThreadJobQueue() {
-  SB_DCHECK(GetCurrentThreadJobQueue());
-
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, NULL);
-}
-
-}  // namespace
-
-JobQueue::JobQueue() : thread_id_(SbThreadGetId()) {
-  SB_DCHECK(SbThreadIsValidId(thread_id_));
-  SetCurrentThreadJobQueue(this);
-}
+JobQueue::JobQueue() = default;
 
 JobQueue::~JobQueue() {
-  SB_DCHECK(BelongsToCurrentThread());
   StopSoon();
-  ResetCurrentThreadJobQueue();
 }
 
-JobQueue::JobToken JobQueue::Schedule(const Job& job,
-                                      int64_t delay_usec /*= 0*/) {
-  return Schedule(job, NULL, delay_usec);
+JobQueue::JobToken JobQueue::Schedule(Job job, int64_t delay_usec /*= 0*/) {
+  return Schedule(std::move(job), /*owner=*/nullptr, delay_usec);
 }
 
-JobQueue::JobToken JobQueue::Schedule(Job&& job, int64_t delay_usec /*= 0*/) {
-  return Schedule(std::move(job), NULL, delay_usec);
-}
-
-void JobQueue::ScheduleAndWait(const Job& job) {
-  ScheduleAndWait(Job(job));
-}
-
-void JobQueue::ScheduleAndWait(Job&& job) {
+void JobQueue::ScheduleAndWait(Job job) {
   // TODO: Allow calling from the JobQueue thread.
-  SB_DCHECK(!BelongsToCurrentThread());
+  SB_CHECK(!BelongsToCurrentThread());
 
   Schedule(std::move(job));
 
@@ -108,21 +59,24 @@ void JobQueue::ScheduleAndWait(Job&& job) {
   condition_.wait(lock, [&] { return job_finished || stopped_; });
 }
 
-void JobQueue::RemoveJobByToken(JobToken job_token) {
-  SB_DCHECK(BelongsToCurrentThread());
+void JobQueue::RemoveJobByToken(JobToken* job_token) {
+  SB_CHECK(BelongsToCurrentThread());
 
-  if (!job_token.is_valid()) {
+  if (!*job_token) {
     return;
   }
 
-  std::lock_guard lock(mutex_);
-  for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
-       iter != time_to_job_record_map_.end(); ++iter) {
-    if (iter->second.job_token == job_token) {
-      time_to_job_record_map_.erase(iter);
-      return;
+  {
+    std::lock_guard lock(mutex_);
+    for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
+         iter != time_to_job_record_map_.end(); ++iter) {
+      if (iter->second.job_token == *job_token) {
+        time_to_job_record_map_.erase(iter);
+        break;
+      }
     }
   }
+  job_token->Reset();
 }
 
 void JobQueue::StopSoon() {
@@ -135,7 +89,7 @@ void JobQueue::StopSoon() {
 }
 
 void JobQueue::RunUntilStopped() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   for (;;) {
     {
@@ -149,31 +103,17 @@ void JobQueue::RunUntilStopped() {
 }
 
 void JobQueue::RunUntilIdle() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   while (TryToRunOneJob(/*wait_for_next_job =*/false)) {
   }
 }
 
 bool JobQueue::BelongsToCurrentThread() const {
-  // The ctor already ensures that the current JobQueue is the only JobQueue of
-  // the thread, checking for thread id is more light-weighted then calling
-  // JobQueue::current() and compare the result with |this|.
-  return thread_id_ == SbThreadGetId();
+  return thread_checker_.CalledOnValidThread();
 }
 
-// static
-JobQueue* JobQueue::current() {
-  return GetCurrentThreadJobQueue();
-}
-
-JobQueue::JobToken JobQueue::Schedule(const Job& job,
-                                      JobOwner* owner,
-                                      int64_t delay_usec) {
-  return Schedule(Job(job), owner, delay_usec);
-}
-
-JobQueue::JobToken JobQueue::Schedule(Job&& job,
+JobQueue::JobToken JobQueue::Schedule(Job job,
                                       JobOwner* owner,
                                       int64_t delay_usec) {
   SB_DCHECK(job);
@@ -181,12 +121,10 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
 
   std::lock_guard lock(mutex_);
   if (stopped_) {
-    return JobToken();
+    return JobToken::kUnscheduled;
   }
 
-  ++current_job_token_;
-
-  JobToken job_token(current_job_token_);
+  JobToken job_token = JobToken::Generate();
   JobRecord job_record = {job_token, std::move(job), owner};
 #if ENABLE_JOB_QUEUE_PROFILING
   if (kProfileStackDepth > 0) {
@@ -207,7 +145,7 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
 }
 
 void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(owner);
 
   std::lock_guard lock(mutex_);
@@ -222,7 +160,7 @@ void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
 }
 
 bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   JobRecord job_record;
 
@@ -299,7 +237,10 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
                  << ", max job takes " << max_job_interval_;
     for (int i = 0; i < job_record.stack_size; ++i) {
       char function_name[1024];
-      if (SbSystemSymbolize(job_record.stack[i], function_name,
+      // Subtract one as return address of function may be in the next function
+      // when a function is annotated as noreturn.
+      const void* call = static_cast<const char*>(job_record.stack[i]) - 1;
+      if (SbSystemSymbolize(call, function_name,
                             SB_ARRAY_SIZE_INT(function_name))) {
         SB_LOG(INFO) << "    " << function_name;
       } else {

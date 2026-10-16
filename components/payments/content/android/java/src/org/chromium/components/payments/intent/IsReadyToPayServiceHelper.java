@@ -14,26 +14,32 @@ import android.os.RemoteException;
 
 import org.chromium.IsReadyToPayService;
 import org.chromium.IsReadyToPayServiceCallback;
-import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.components.payments.PrePurchaseQuery;
+import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /** A helper to query the payment app's IsReadyToPay service. */
-public class IsReadyToPayServiceHelper
-        extends IsReadyToPayServiceCallback.Stub implements ServiceConnection {
+@NullMarked
+public class IsReadyToPayServiceHelper extends IsReadyToPayServiceCallback.Stub
+        implements ServiceConnection {
+    private static final String TAG = "IsReadyToPayService";
+
     /** The maximum number of milliseconds to wait for a response from a READY_TO_PAY service. */
-    private static final long READY_TO_PAY_TIMEOUT_MS = 400;
+    private long mReadyToPayTimeoutMs = 2000;
+
     /** The maximum number of milliseconds to wait for a connection to READY_TO_PAY service. */
-    private static final long SERVICE_CONNECTION_TIMEOUT_MS = 1000;
+    private long mServiceConnectionTimeoutMs = 5000;
 
     private final Context mContext;
 
     // This callback can be used only once, set to null after that.
-    private ResultHandler mResultHandler;
+    private @Nullable ResultHandler mResultHandler;
 
     private boolean mIsServiceBindingInitiated;
-    private boolean mIsReadyToPayQueried;
-    private Handler mHandler;
-    private Intent mIsReadyToPayIntent;
+    private boolean mIsServiceConnected;
+    private final Handler mHandler;
+    private final Intent mIsReadyToPayIntent;
+    private final String mServiceName;
 
     /** The callback that returns the result (success or error) to the helper's caller. */
     public interface ResultHandler {
@@ -63,6 +69,10 @@ public class IsReadyToPayServiceHelper
         mResultHandler = resultHandler;
         mHandler = new Handler();
         mIsReadyToPayIntent = isReadyToPayIntent;
+        mServiceName =
+                mIsReadyToPayIntent != null && mIsReadyToPayIntent.getComponent() != null
+                        ? mIsReadyToPayIntent.getComponent().getClassName()
+                        : "";
     }
 
     /**
@@ -70,6 +80,7 @@ public class IsReadyToPayServiceHelper
      * asynchronously. Note that resultHandler would be invoked only once.
      */
     public void query() {
+        Log.i(TAG, "Connecting to \"%s\".", mServiceName);
         try {
             // This method returns "true if the system is in the process of bringing up a
             // service that your client has permission to bind to; false if the system couldn't
@@ -77,9 +88,16 @@ public class IsReadyToPayServiceHelper
             // value is true, you should later call unbindService(ServiceConnection) to release
             // the connection."
             // https://developer.android.com/reference/android/content/Context.html#bindService(android.content.Intent,%20android.content.ServiceConnection,%20int)
-            mIsServiceBindingInitiated = mContext.bindService(
-                    mIsReadyToPayIntent, /*serviceConnection=*/this, Context.BIND_AUTO_CREATE);
+            mIsServiceBindingInitiated =
+                    mContext.bindService(
+                            mIsReadyToPayIntent,
+                            /* serviceConnection= */ this,
+                            Context.BIND_AUTO_CREATE);
+            if (!mIsServiceBindingInitiated) {
+                Log.e(TAG, "Could not find \"%s\" or no permission to connect.", mServiceName);
+            }
         } catch (SecurityException e) {
+            Log.e(TAG, "Error connecting to \"%s\": %s", mServiceName, e.getMessage());
             // Intentionally blank, so mIsServiceBindingInitiated is false.
         }
 
@@ -88,9 +106,14 @@ public class IsReadyToPayServiceHelper
             return;
         }
 
-        mHandler.postDelayed(() -> {
-            if (!mIsReadyToPayQueried) reportError();
-        }, SERVICE_CONNECTION_TIMEOUT_MS);
+        mHandler.postDelayed(
+                () -> {
+                    if (!mIsServiceConnected) {
+                        Log.e(TAG, "Timeout connecting to \"%s\".", mServiceName);
+                        reportError();
+                    }
+                },
+                mServiceConnectionTimeoutMs);
     }
 
     // ServiceConnection:
@@ -99,24 +122,26 @@ public class IsReadyToPayServiceHelper
         // Timeout could cause the null.
         if (mResultHandler == null) return;
 
+        mIsServiceConnected = true;
+
         IsReadyToPayService isReadyToPayService = IsReadyToPayService.Stub.asInterface(service);
         if (isReadyToPayService == null) {
+            Log.e(TAG, "Interface mismatch in \"%s\".", mServiceName);
             reportError();
             return;
         }
 
-        RecordHistogram.recordEnumeratedHistogram("PaymentRequest.PrePurchaseQuery",
-                PrePurchaseQuery.ANDROID_INTENT, PrePurchaseQuery.MAX_VALUE);
-        mIsReadyToPayQueried = true;
+        Log.i(TAG, "Querying \"%s\".", mServiceName);
         try {
-            isReadyToPayService.isReadyToPay(/*callback=*/this);
+            isReadyToPayService.isReadyToPay(/* callback= */ this);
         } catch (Throwable e) {
             // Many undocumented exceptions are not caught in the remote Service but passed on
             // to the Service caller, see writeException in Parcel.java.
+            Log.e(TAG, "Error in remote service \"%s\": %s.", mServiceName, e.getMessage());
             reportError();
             return;
         }
-        mHandler.postDelayed(this::reportError, READY_TO_PAY_TIMEOUT_MS);
+        mHandler.postDelayed(this::reportError, mReadyToPayTimeoutMs);
     }
 
     // "Called when a connection to the Service has been lost. This typically happens
@@ -128,6 +153,7 @@ public class IsReadyToPayServiceHelper
     @Override
     public void onServiceDisconnected(ComponentName name) {
         // Do not wait for the service to restart.
+        Log.i(TAG, "\"%s\" disconnected.", mServiceName);
         reportError();
     }
 
@@ -135,8 +161,11 @@ public class IsReadyToPayServiceHelper
     @Override
     public void handleIsReadyToPay(boolean isReadyToPay) throws RemoteException {
         if (mResultHandler == null) return;
-        RecordHistogram.recordBooleanHistogram(
-                "PaymentRequest.EventResponse.IsReadyToPay", isReadyToPay);
+        if (isReadyToPay) {
+            Log.i(TAG, "\"%s\": Ready to pay.", mServiceName);
+        } else {
+            Log.e(TAG, "\"%s\": Not ready to pay.", mServiceName);
+        }
         mResultHandler.onIsReadyToPayServiceResponse(isReadyToPay);
         mResultHandler = null;
         destroy();
@@ -154,9 +183,18 @@ public class IsReadyToPayServiceHelper
         if (mIsServiceBindingInitiated) {
             // ServiceConnection "parameter must not be null."
             // https://developer.android.com/reference/android/content/Context.html#unbindService(android.content.ServiceConnection)
-            mContext.unbindService(/*serviceConnection=*/this);
+            Log.i(TAG, "Terminating connection to \"%s\".", mServiceName);
+            mContext.unbindService(/* serviceConnection= */ this);
             mIsServiceBindingInitiated = false;
         }
         mHandler.removeCallbacksAndMessages(null);
+    }
+
+    /**
+     * @param timeoutForTest The number of milliseconds to use for timeouts in tests.
+     */
+    public void setTimeoutsMsForTesting(long timeoutForTesting) {
+        mServiceConnectionTimeoutMs = timeoutForTesting;
+        mReadyToPayTimeoutMs = timeoutForTesting;
     }
 }

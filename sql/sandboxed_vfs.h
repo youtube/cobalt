@@ -5,18 +5,29 @@
 #ifndef SQL_SANDBOXED_VFS_H_
 #define SQL_SANDBOXED_VFS_H_
 
-#include <stdint.h>
-
 #include <memory>
+#include <optional>
 
 #include "base/component_export.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/time/time.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "sql/sandboxed_vfs_file.h"
 #include "third_party/sqlite/sqlite3.h"
 
 namespace sql {
+
+// The file types associated with a SQLite database.
+enum class SandboxedVfsFileType {
+  // The main file, which stores the database pages.
+  kDatabase,
+  // The transaction rollback journal file. Used when WAL is off.
+  // This file has the same path as the database, plus the "-journal" suffix.
+  kJournal,
+  // The Write-Ahead Log (WAL) file.
+  // This file has the same path as the database, plus the "-wal" suffix.
+  kWal,
+};
 
 // SQLite VFS file implementation that works in a sandboxed process.
 //
@@ -38,6 +49,17 @@ class COMPONENT_EXPORT(SQL) SandboxedVfs {
    public:
     virtual ~Delegate() = default;
 
+    // Retrieve a sandboxed file associated to `file`.
+    //
+    // Returns the sandboxed file for a given file. Do not take ownership of the
+    // returned instance. The VFS is responsible for the liveness of this
+    // object.
+    virtual SandboxedVfsFile* RetrieveSandboxedVfsFile(
+        base::File file,
+        base::FilePath file_path,
+        SandboxedVfsFileType file_type,
+        SandboxedVfs* vfs) = 0;
+
     // Opens a file.
     //
     // `file_path` is the parsed version of a path passed by SQLite to Open().
@@ -58,25 +80,8 @@ class COMPONENT_EXPORT(SQL) SandboxedVfs {
 
     // Queries path access information for `file_path`. Returns null if the
     // given path does not exist.
-    virtual absl::optional<PathAccessInfo> GetPathAccess(
+    virtual std::optional<PathAccessInfo> GetPathAccess(
         const base::FilePath& file_path) = 0;
-
-    // Resizes a file.
-    //
-    // `file` is the result of a previous call to Delegate::OpenFile() with
-    // `file_path`. `size` is the new desired size in bytes, and may be smaller
-    // or larger than the current file size. Returns true if successful and
-    // false otherwise.
-    //
-    // Implementations can modify `file` directly, or operate on the filesystem
-    // via `file_path`.
-    //
-    // This is only called after the direct approach of base::File::SetLength()
-    // fails. So, the implementation should not bother trying to call
-    // SetLength() on `file`. This currently only happens on macOS < 10.15.
-    virtual bool SetFileLength(const base::FilePath& file_path,
-                               base::File& file,
-                               size_t size) = 0;
   };
 
   // We don't allow SandboxedVfs instances to be destroyed. Once created, they

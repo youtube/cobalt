@@ -8,6 +8,7 @@
 #include <time.h>
 
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -16,11 +17,11 @@
 #include "build/chromeos_buildflags.h"
 
 #if BUILDFLAG(IS_APPLE)
-#include "base/mac/scoped_mach_port.h"
+#include "base/apple/scoped_mach_port.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
-#include <windows.h>
+#include "base/win/windows_types.h"
 #endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -29,6 +30,8 @@
 
 #if BUILDFLAG(IS_IOS)
 #include "base/containers/span.h"
+#include "third_party/crashpad/crashpad/client/simple_address_range_bag.h"
+#include "third_party/crashpad/crashpad/handler/user_stream_data_source.h"  // nogncheck
 #endif
 
 namespace base {
@@ -41,10 +44,6 @@ class CrashReportDatabase;
 }  // namespace crashpad
 
 namespace crash_reporter {
-
-#if BUILDFLAG(IS_CHROMEOS)
-bool IsCrashpadEnabled();
-#endif
 
 // Initializes Crashpad in a way that is appropriate for initial_client and
 // process_type.
@@ -107,11 +106,20 @@ bool InitializeCrashpadWithDllEmbeddedHandler(
 
 // Returns the CrashpadClient for this process. This will lazily create it if
 // it does not already exist. This is called as part of InitializeCrashpad.
+// This code is not MT-safe
 crashpad::CrashpadClient& GetCrashpadClient();
+
+// In case GetCrashpadClient() was called and so constructed a new
+// CrashpadClient instance then calling this method destroys that object,
+// otherwise it does nothing.
+// This method is useful when the CrashpadClient need to be explicitly removed,
+// like when the crashpad is being used from a dynamically loaded DLL.
+// This code is not MT-safe
+void DestroyCrashpadClient();
 
 // ChromeOS has its own, OS-level consent system; Chrome does not maintain a
 // separate Upload Consent on ChromeOS.
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 
 // Enables or disables crash report upload, taking the given consent to upload
 // into account. Consent may be ignored, uploads may not be enabled even with
@@ -123,7 +131,7 @@ crashpad::CrashpadClient& GetCrashpadClient();
 // running.
 void SetUploadConsent(bool consent);
 
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 enum class ReportUploadState {
   NotUploaded,
@@ -166,17 +174,42 @@ bool ProcessExternalDump(
     const std::string& source_name,
     base::span<const uint8_t> dump_data,
     const std::map<std::string, std::string>& override_annotations = {});
-#endif
+
+// "platform", used to determine device_model, can be overridden.
+void OverridePlatformValue(const std::string& platform_value);
+
+// The simple extra memory ranges SimpleAddressRangeBag object.
+crashpad::SimpleAddressRangeBag* ExtraMemoryRanges();
+
+// Sets the bag of extra memory ranges to be included in the snapshot.
+void SetExtraMemoryRanges(crashpad::SimpleAddressRangeBag* address_range_bag);
+
+// The extra memory ranges SimpleAddressRangeBag object stored in the snapshot
+// but not the minidump.
+crashpad::SimpleAddressRangeBag* IntermediateDumpExtraMemoryRanges();
+
+// Sets the bag of extra memory ranges to be included in the snapshot but not
+// the minidump.
+void SetIntermediateDumpExtraMemoryRanges(
+    crashpad::SimpleAddressRangeBag* address_range_bag);
+#endif  // BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 // Logs message and immediately crashes the current process without triggering a
 // crash dump.
+#if BUILDFLAG(IS_COBALT)
 void CrashWithoutDumping(const std::string& message);
+#else
+[[noreturn]] void CrashWithoutDumping(const std::string& message);
+#endif
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
 
-// Returns the Crashpad database path, only valid in the browser.
-base::FilePath GetCrashpadDatabasePath();
+// Returns the Crashpad database path, only valid in the browser. This will
+// return std::nullopt if crashpad has not yet been initialized. On Windows,
+// this will also return std::nullopt if running as part of browser_tests, as
+// there is no crash reporting in that configuration.
+std::optional<base::FilePath> GetCrashpadDatabasePath();
 
 // Deletes any reports that were recorded or uploaded within the time range.
 void ClearReportsBetween(const base::Time& begin, const base::Time& end);
@@ -193,6 +226,21 @@ base::FilePath::StringType::const_pointer GetCrashpadDatabasePathImpl();
 // The implementation function for ClearReportsBetween.
 void ClearReportsBetweenImpl(time_t begin, time_t end);
 
+#if BUILDFLAG(IS_CHROMEOS_DEVICE)
+// Called late in shutdown to remove the file that tells ChromeOS's
+// crash_reporter "This browser process has crashpad initialized; you don't
+// need to handle the crash reports coming from the kernel".
+//
+// Since crash_reporter will do a lot of unnecessary work if there is a
+// crash after this file is removed, this function should be called as late
+// as possible in the shutdown process, ideally after any code that might crash
+// has executed.
+//
+// Only needed in the browser process; calls in other processes will be
+// ignored. Multiple calls will be ignored as well.
+void DeleteCrashpadIsReadyFile();
+#endif
+
 #if BUILDFLAG(IS_MAC)
 // Captures a minidump for the process named by its |task_port| and stores it
 // in the current crash report database.
@@ -205,7 +253,8 @@ void DumpProcessWithoutCrashing(task_t task_port);
 // merge with any process annotations. These are useful for adding annotations
 // detected on the next run after a crash but before upload.
 void ProcessIntermediateDumps(
-    const std::map<std::string, std::string>& annotations = {});
+    const std::map<std::string, std::string>& annotations = {},
+    const crashpad::UserStreamDataSources* user_stream_sources = nullptr);
 
 // Convert a single intermediate dump at |file| into a minidump and
 // trigger an upload if StartProcessingPendingReports() has been called.

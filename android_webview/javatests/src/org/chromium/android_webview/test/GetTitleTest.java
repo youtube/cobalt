@@ -11,18 +11,18 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.UseParametersRunnerFactory;
 
 import org.chromium.android_webview.AwContents;
 import org.chromium.base.test.util.Feature;
 import org.chromium.net.test.util.TestWebServer;
 
-/**
- * A test suite for ContentView.getTitle().
- */
-@RunWith(AwJUnit4ClassRunner.class)
-public class GetTitleTest {
-    @Rule
-    public AwActivityTestRule mActivityTestRule = new AwActivityTestRule();
+/** A test suite for ContentView.getTitle(). */
+@RunWith(Parameterized.class)
+@UseParametersRunnerFactory(AwJUnit4ClassRunnerWithParameters.Factory.class)
+public class GetTitleTest extends AwParameterizedTest {
+    @Rule public AwActivityTestRule mActivityTestRule;
 
     private static final String TITLE = "TITLE";
 
@@ -41,6 +41,10 @@ public class GetTitleTest {
             mTitle = title;
             mUrl = url;
         }
+    }
+
+    public GetTitleTest(AwSettingsMutation param) {
+        this.mActivityTestRule = new AwActivityTestRule(param.getMutation());
     }
 
     @Before
@@ -73,17 +77,15 @@ public class GetTitleTest {
             final String url = webServer.setResponse(filename, html, null);
             mActivityTestRule.loadUrlSync(
                     mAwContents, mContentsClient.getOnPageFinishedHelper(), url);
-            return new PageInfo(mActivityTestRule.getTitleOnUiThread(mAwContents),
+            return new PageInfo(
+                    mActivityTestRule.getTitleOnUiThread(mAwContents),
                     url.replaceAll("http:\\/\\/", ""));
         } finally {
             webServer.shutdown();
         }
     }
 
-    /**
-     * When the data has title info, the page title is set to it.
-     * @throws Throwable
-     */
+    /** When the data has title info, the page title is set to it. */
     @Test
     @SmallTest
     @Feature({"AndroidWebView", "Main"})
@@ -92,10 +94,7 @@ public class GetTitleTest {
         Assert.assertEquals("Title should be " + TITLE, TITLE, title);
     }
 
-    /**
-     * When the data has empty title, the page title is set to the loaded content.
-     * @throws Throwable
-     */
+    /** When the data has empty title, the page title is set to the loaded content. */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -107,10 +106,7 @@ public class GetTitleTest {
                 "Title should be set to the loaded data:text/html content", expectedTitle, title);
     }
 
-    /**
-     * When the data has no title, the page title is set to the loaded content.
-     * @throws Throwable
-     */
+    /** When the data has no title, the page title is set to the loaded content. */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -122,10 +118,7 @@ public class GetTitleTest {
                 "Title should be set to the data:text/html content", expectedTitle, title);
     }
 
-    /**
-     * When url-file has the title info, the page title is set to it.
-     * @throws Throwable
-     */
+    /** When url-file has the title info, the page title is set to it. */
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
@@ -135,9 +128,8 @@ public class GetTitleTest {
     }
 
     /**
-     * When the loaded file has empty title, the page title is set to the url it loads from.
-     * It also contains: hostName, portNumber information if it's part of the loaded URL.
-     * @throws Throwable
+     * When the loaded file has empty title, the page title is set to the url it loads from. It also
+     * contains: hostName, portNumber information if it's part of the loaded URL.
      */
     @Test
     @SmallTest
@@ -148,9 +140,8 @@ public class GetTitleTest {
     }
 
     /**
-     * When the loaded file has no title, the page title is set to the urk it loads from.
-     * It also contains: hostName, portNumber information if it's part of the loaded URL.
-     * @throws Throwable
+     * When the loaded file has no title, the page title is set to the urk it loads from. It also
+     * contains: hostName, portNumber information if it's part of the loaded URL.
      */
     @Test
     @SmallTest
@@ -167,9 +158,11 @@ public class GetTitleTest {
         final String expectedTitle = "Expected";
         final String page =
                 "<html><head>"
-                + "<script>document.title=\"" + expectedTitle + "\"</script>"
-                + "</head><body>"
-                + "</body></html>";
+                        + "<script>document.title=\""
+                        + expectedTitle
+                        + "\"</script>"
+                        + "</head><body>"
+                        + "</body></html>";
         mActivityTestRule.getAwSettingsOnUiThread(mAwContents).setJavaScriptEnabled(true);
         final String title = loadFromDataAndGetTitle(page);
         Assert.assertEquals("Incorrect title :: ", expectedTitle, title);

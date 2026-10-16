@@ -4,26 +4,27 @@
 
 #include "chrome/browser/enterprise/util/android_enterprise_info.h"
 
+#include <optional>
+
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class AndroidEnterpriseInfoTest : public ::testing::Test {
  protected:
   AndroidEnterpriseInfoTest() {
-    instance_ = chrome::enterprise_util::AndroidEnterpriseInfo::GetInstance();
+    instance_ = enterprise_util::AndroidEnterpriseInfo::GetInstance();
     // Java side isn't running, so we need to skip the call to it.
     instance_->set_skip_jni_call_for_testing(true);
   }
 
-  raw_ptr<chrome::enterprise_util::AndroidEnterpriseInfo> instance_;
+  raw_ptr<enterprise_util::AndroidEnterpriseInfo> instance_;
 };
 
 class EnterpriseInfoCallbackHelper {
  public:
-  absl::optional<bool> is_profile_owned, is_device_owned;
+  std::optional<bool> is_profile_owned, is_device_owned;
   int num_times_called = 0;
 
   void OnResult(bool profile_owned, bool device_owned) {
@@ -130,7 +131,7 @@ TEST_F(AndroidEnterpriseInfoTest, ReentrantCallback) {
 
   // Insert 4 callbacks into the instance, the 2nd callback will attempt to
   // insert another callback when it's serviced.
-  chrome::enterprise_util::AndroidEnterpriseInfo::EnterpriseInfoCallback
+  enterprise_util::AndroidEnterpriseInfo::EnterpriseInfoCallback
       reentrant_callback =
           base::BindLambdaForTesting([&](bool one, bool two) -> void {
             // Do nothing with the arguments, just enter the function again.

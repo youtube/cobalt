@@ -10,18 +10,16 @@
 
 #include "ash/ash_export.h"
 #include "ash/public/cpp/session/session_observer.h"
-#include "ash/system/privacy_hub/privacy_hub_notification.h"
+#include "base/memory/raw_ptr.h"
+#include "base/sequence_checker.h"
 #include "base/supports_user_data.h"
+#include "base/time/time.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "media/capture/video/chromeos/camera_hal_dispatcher_impl.h"
 
 namespace ash {
 
-// The ID for a notification shown when the user enables camera via a HW switch
-// but it is still disabled in PrivacyHub.
-inline constexpr char
-    kPrivacyHubHWCameraSwitchOffSWCameraSwitchOnNotificationId[] =
-        "ash.media.privacy_hub.want_to_turn_off_camera";
+class PrivacyHubDelegate;
 
 // Enumeration of camera switch states.
 enum class CameraSWPrivacySwitchSetting { kDisabled, kEnabled };
@@ -45,35 +43,44 @@ class ASH_EXPORT CameraPrivacySwitchController
       public base::SupportsUserData {
  public:
   CameraPrivacySwitchController();
-
   CameraPrivacySwitchController(const CameraPrivacySwitchController&) = delete;
   CameraPrivacySwitchController& operator=(
       const CameraPrivacySwitchController&) = delete;
-
   ~CameraPrivacySwitchController() override;
 
   // SessionObserver:
   void OnActiveUserPrefServiceChanged(PrefService* pref_service) override;
 
   // media::CameraPrivacySwitchObserver:
-  void OnCameraHWPrivacySwitchStateChanged(
-      const std::string& device_id,
-      cros::mojom::CameraPrivacySwitchState state) override;
   void OnCameraSWPrivacySwitchStateChanged(
       cros::mojom::CameraPrivacySwitchState state) override;
 
-  // Handles user toggling the camera switch on Privacy Hub UI.
+  // Handles changes in the user pref ( e.g. toggling the camera switch on
+  // Privacy Hub UI).
   void OnPreferenceChanged(const std::string& pref_name);
 
-  // Handles the change in the number of cameras
-  void OnCameraCountChanged(int new_camera_count);
+  // Retrieves the current value of the user pref.
+  CameraSWPrivacySwitchSetting GetUserSwitchPreference() const;
 
   // Sets Privacy switch API for testing.
   void SetCameraPrivacySwitchAPIForTest(
       std::unique_ptr<CameraPrivacySwitchAPI> switch_api);
 
-  // Retrieves the current value of the user pref.
-  CameraSWPrivacySwitchSetting GetUserSwitchPreference();
+  // Sets/unsets the UI frontend delegate.
+  void SetFrontend(PrivacyHubDelegate* frontend);
+
+  // Disable camera access, and prevent the user from re-enabling it by graying
+  // out the switch in the UI.
+  // Used to prevent a remote Chrome Remote Desktop admin from turning on the
+  // camera to spy on a local user.
+  void SetForceDisableCameraAccess(bool value);
+  bool IsCameraAccessForceDisabled() const;
+
+  // Gets the instance from Shell.
+  static CameraPrivacySwitchController* Get();
+
+  // Handles the change in the number of cameras.
+  void OnCameraCountChanged(int new_camera_count);
 
   // This is called when the set of applications accessing the camera changes.
   // `application_added` being true means a new applications has started
@@ -81,14 +88,49 @@ class ASH_EXPORT CameraPrivacySwitchController
   // active applications has stopped accessing the camera.
   void ActiveApplicationsChanged(bool application_added);
 
+  // Checks if we use the fallback solution for the camera LED.
+  // (go/privacy-hub:camera-led-fallback).
+  // TODO(b/289510726): remove when all cameras fully support the software
+  // switch.
+  bool UsingCameraLEDFallback();
+
+  // Returns false if the camera is globally blocked by the OS level switch.
+  bool IsCameraUsageAllowed() const;
+
  private:
+  // Sets the value of the global camera permission in the camera backend.
+  void SetCameraSWPrivacySwitch(CameraSWPrivacySwitchSetting value);
+
+  // Sets the value of the user pref in the pref service.
+  void SetUserSwitchPreference(CameraSWPrivacySwitchSetting value);
+
+  PrefService& prefs();
+  const PrefService& prefs() const;
+  void RestorePreviousPrefValueMaybe();
+  void StorePreviousPrefValue();
+
+  void ShowNotification() VALID_CONTEXT_REQUIRED(sequence_checker_);
+  void RemoveNotification() VALID_CONTEXT_REQUIRED(sequence_checker_);
+  void UpdateNotification() VALID_CONTEXT_REQUIRED(sequence_checker_);
+  void ScheduleNotificationRemoval() VALID_CONTEXT_REQUIRED(sequence_checker_);
+  bool InNotificationExtensionPeriod()
+      VALID_CONTEXT_REQUIRED(sequence_checker_);
+
+  raw_ptr<PrivacyHubDelegate> frontend_ = nullptr;
   std::unique_ptr<PrefChangeRegistrar> pref_change_registrar_;
   std::unique_ptr<CameraPrivacySwitchAPI> switch_api_;
-  int active_applications_using_camera_count_ = 0;
   bool is_camera_observer_added_ = false;
+  bool force_disable_camera_access_ = false;
+
+  SEQUENCE_CHECKER(sequence_checker_);
+
+  int GUARDED_BY_CONTEXT(sequence_checker_)
+      active_applications_using_camera_count_ = 0;
   int camera_count_ = -1;
-  bool camera_used_while_deactivated_ = false;
-  PrivacyHubNotification turn_sw_switch_on_notification_;
+  base::Time GUARDED_BY_CONTEXT(sequence_checker_)
+      last_active_notification_update_time_;
+
+  base::WeakPtrFactory<CameraPrivacySwitchController> weak_ptr_factory_{this};
 };
 
 }  // namespace ash

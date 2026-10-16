@@ -9,8 +9,12 @@
 
 #include <stddef.h>
 
+#include <ios>
 #include <iterator>
+#include <limits>
 #include <set>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
@@ -68,7 +72,7 @@ class HpackVarintRoundTripTest : public RandomDecoderTest {
 
     // First validate that decoding is done and that we've advanced the cursor
     // the expected amount.
-    validator = ValidateDoneAndOffset(expected_offset, validator);
+    validator = ValidateDoneAndOffset(expected_offset, std::move(validator));
 
     // StartDecoding, above, requires the DecodeBuffer be non-empty so that it
     // can call Start with the prefix byte.

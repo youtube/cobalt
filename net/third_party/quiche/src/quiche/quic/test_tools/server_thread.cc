@@ -4,11 +4,17 @@
 
 #include "quiche/quic/test_tools/server_thread.h"
 
+#include <memory>
+#include <utility>
+
+#include "absl/synchronization/mutex.h"
+#include "absl/synchronization/notification.h"
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_dispatcher.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/quic_dispatcher_peer.h"
 #include "quiche/quic/test_tools/quic_server_peer.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
 namespace test {
@@ -32,7 +38,7 @@ void ServerThread::Initialize() {
     return;
   }
 
-  QuicWriterMutexLock lock(&port_lock_);
+  absl::WriterMutexLock lock(&port_lock_);
   port_ = server_->port();
 
   initialized_ = true;
@@ -57,26 +63,37 @@ void ServerThread::Run() {
 }
 
 int ServerThread::GetPort() {
-  QuicReaderMutexLock lock(&port_lock_);
+  absl::ReaderMutexLock lock(&port_lock_);
   int rc = port_;
   return rc;
 }
 
-void ServerThread::Schedule(std::function<void()> action) {
+void ServerThread::Schedule(quiche::SingleUseCallback<void()> action) {
   QUICHE_DCHECK(!quit_.HasBeenNotified());
-  QuicWriterMutexLock lock(&scheduled_actions_lock_);
+  absl::WriterMutexLock lock(&scheduled_actions_lock_);
   scheduled_actions_.push_back(std::move(action));
+}
+
+void ServerThread::ScheduleAndWaitForCompletion(
+    quiche::SingleUseCallback<void()> action) {
+  absl::Notification action_done;
+  Schedule([&] {
+    std::move(action)();
+    action_done.Notify();
+  });
+  action_done.WaitForNotification();
 }
 
 void ServerThread::WaitForCryptoHandshakeConfirmed() {
   confirmed_.WaitForNotification();
 }
 
-bool ServerThread::WaitUntil(std::function<bool()> termination_predicate,
-                             QuicTime::Delta timeout) {
+bool ServerThread::WaitUntil(
+    quiche::UnretainedCallback<bool()> termination_predicate,
+    QuicTime::Delta timeout) {
   const QuicTime deadline = clock_->Now() + timeout;
   while (clock_->Now() < deadline) {
-    QuicNotification done_checking;
+    absl::Notification done_checking;
     bool should_terminate = false;
     Schedule([&] {
       should_terminate = termination_predicate();
@@ -128,13 +145,13 @@ void ServerThread::MaybeNotifyOfHandshakeConfirmation() {
 }
 
 void ServerThread::ExecuteScheduledActions() {
-  quiche::QuicheCircularDeque<std::function<void()>> actions;
+  quiche::QuicheCircularDeque<quiche::SingleUseCallback<void()>> actions;
   {
-    QuicWriterMutexLock lock(&scheduled_actions_lock_);
+    absl::WriterMutexLock lock(&scheduled_actions_lock_);
     actions.swap(scheduled_actions_);
   }
   while (!actions.empty()) {
-    actions.front()();
+    std::move(actions.front())();
     actions.pop_front();
   }
 }

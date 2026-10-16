@@ -6,17 +6,18 @@
 
 #include <windows.h>
 
-#include "content/public/browser/native_web_keyboard_event.h"
+#include "components/input/native_web_keyboard_event.h"
 #include "ui/events/event.h"
 
 namespace views {
 
 // static
 bool UnhandledKeyboardEventHandler::HandleNativeKeyboardEvent(
-    const content::NativeWebKeyboardEvent& event,
+    const input::NativeWebKeyboardEvent& event,
     FocusManager* focus_manager) {
-  if (event.skip_in_browser)
+  if (event.skip_if_unhandled) {
     return false;
+  }
 
   // Any unhandled keyboard/character messages should be defproced.
   // This allows stuff like F10, etc to work correctly.

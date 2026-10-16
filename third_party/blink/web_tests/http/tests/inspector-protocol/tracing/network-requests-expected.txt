@@ -1,7 +1,10 @@
 Tests the data of Network request lifecycle trace events
 Recording started
 Tracing complete
-Got ResourceWillSendRequest event:
+
+Trace events for index.html request
+
+======= ResourceWillSendRequest ======
 Object: {
 	args: {
 		data: {
@@ -9,41 +12,48 @@ Object: {
 		}
 	}
 	cat: string
-	name: string
+	name: ResourceWillSendRequest
 	ph: string
 	pid: number
 	s: string
 	tid: number
 	ts: number
 }
-Got ResourceSendRequest event:
+
+======= ResourceSendRequest ======
 Object: {
 	args: {
 		data: {
+			fetchPriorityHint: auto
 			frame: string
 			priority: string
 			requestId: string
 			requestMethod: string
+			resourceType: Document
 			url: string
 		}
 	}
 	cat: string
-	name: string
+	name: ResourceSendRequest
 	ph: string
 	pid: number
 	s: string
 	tid: number
 	ts: number
 }
-Got ResourceReceiveResponse event:
+
+======= ResourceReceiveResponse ======
 Object: {
 	args: {
 		data: {
+			connectionId: number
+			connectionReused: boolean
 			encodedDataLength: number
 			frame: string
 			fromCache: boolean
 			fromServiceWorker: boolean
 			mimeType: string
+			protocol: http/1.1
 			requestId: string
 			responseTime: number
 			statusCode: number
@@ -57,6 +67,7 @@ Object: {
 				pushEnd: number
 				pushStart: number
 				receiveHeadersEnd: number
+				receiveHeadersStart: number
 				requestTime: number
 				sendEnd: number
 				sendStart: number
@@ -68,14 +79,16 @@ Object: {
 		}
 	}
 	cat: string
-	name: string
+	name: ResourceReceiveResponse
 	ph: string
 	pid: number
 	s: string
 	tid: number
 	ts: number
 }
-Got ResourceReceivedData event:
+ResourceReceiveResponse has args.data.headers
+
+======= ResourceReceivedData ======
 Object: {
 	args: {
 		data: {
@@ -85,14 +98,15 @@ Object: {
 		}
 	}
 	cat: string
-	name: string
+	name: ResourceReceivedData
 	ph: string
 	pid: number
 	s: string
 	tid: number
 	ts: number
 }
-Got ResourceFinish event:
+
+======= ResourceFinish ======
 Object: {
 	args: {
 		data: {
@@ -104,7 +118,7 @@ Object: {
 		}
 	}
 	cat: string
-	name: string
+	name: ResourceFinish
 	ph: string
 	pid: number
 	s: string

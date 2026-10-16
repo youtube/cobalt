@@ -6,10 +6,12 @@
 #define IOS_WEB_TEST_FAKES_FAKE_JAVA_SCRIPT_FEATURE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/functional/callback.h"
+#import "base/memory/raw_ptr.h"
 #include "base/values.h"
 #import "ios/web/public/js_messaging/java_script_feature.h"
 #include "ios/web/public/js_messaging/script_message.h"
@@ -41,12 +43,7 @@ class FakeJavaScriptFeature : public JavaScriptFeature {
   // Executes `kJavaScriptFeatureTestScriptReplyWithPostMessage` with
   // `parameters` in `web_frame`.
   void ReplyWithPostMessage(WebFrame* web_frame,
-                            const std::vector<base::Value>& parameters);
-
-  // Executes `kJavaScriptFeatureTestScriptReplyWithPostMessage` with
-  // `parameters` in `web_frame` using __gCrWeb.common.sendWebKitMessage.
-  void ReplyWithPostMessageCommonJS(WebFrame* web_frame,
-                                    const std::vector<base::Value>& parameters);
+                            const base::Value::List& parameters);
 
   // Returns the number of errors received
   void GetErrorCount(WebFrame* web_frame,
@@ -60,11 +57,11 @@ class FakeJavaScriptFeature : public JavaScriptFeature {
 
  private:
   // JavaScriptFeature:
-  absl::optional<std::string> GetScriptMessageHandlerName() const override;
+  std::optional<std::string> GetScriptMessageHandlerName() const override;
   void ScriptMessageReceived(WebState* web_state,
                              const ScriptMessage& message) override;
 
-  WebState* last_received_web_state_ = nullptr;
+  raw_ptr<WebState> last_received_web_state_ = nullptr;
   std::unique_ptr<const ScriptMessage> last_received_message_;
 };
 

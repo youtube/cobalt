@@ -27,7 +27,8 @@ struct AutocompleteMatchType {
   // //tools/metrics/histograms/enums.xml.
   //
   // Any changes to this enum also requires an update to:
-  //  - `AutocompleteMatch::AsOmniboxEventResultType()`
+  //  - `AutocompleteMatch::GetOmniboxEventResultType()`
+  //  - `AutocompleteMatch::GetVectorIcon()`
   //  - `GetClientSummarizedResultType()`
   //  - `AutocompleteMatchType::ToString()`
   //  - `AutocompleteMatchType::GetAccessibilityBaseLabel()`
@@ -73,9 +74,7 @@ struct AutocompleteMatchType {
     TAB_SEARCH_DEPRECATED       = 23,  // A suggested open tab, based on its
                                        // URL or title, via HQP (deprecated).
     DOCUMENT_SUGGESTION         = 24,  // A suggested document.
-    PEDAL_DEPRECATED            = 25,  // An omnibox pedal match (deprecated).
-                                       // Pedals are now just action buttons
-                                       // attached to search matches.
+    PEDAL                       = 25,  // An omnibox pedal match.
     CLIPBOARD_TEXT              = 26,  // Text based on the clipboard.
     CLIPBOARD_IMAGE             = 27,  // An image based on the clipboard.
     TILE_SUGGESTION             = 28,  // A suggestion containing query tiles.
@@ -88,6 +87,18 @@ struct AutocompleteMatchType {
                                        // cannot be opened or acted upon.
     STARTER_PACK                = 33,  // A URL suggestion that a starter pack
                                        // keyword mode chip attaches to.
+    TILE_MOST_VISITED_SITE      = 34,  // Most Visited Site, shown in a
+                                       // Horizontal Render Group.
+                                       // Different from TILE_NAVSUGGEST which
+                                       // is an aggregate type by itself.
+    TILE_REPEATABLE_QUERY       = 35,  // Organic Repeatable Query, shown in a
+                                       // Horizontal Render Group.
+    HISTORY_EMBEDDINGS          = 36,  // A past page whose contents have
+                                       // similar embeddings to the query.
+    FEATURED_ENTERPRISE_SEARCH  = 37,  // Site search engines featured by
+                                       // Enterprise policy.
+    HISTORY_EMBEDDINGS_ANSWER   = 38,
+    TAB_GROUP                   = 39,  // A tab group match.
     NUM_TYPES,
   };
   // clang-format on
@@ -120,6 +131,7 @@ struct AutocompleteMatchType {
   // like it could replace |match_text|. Investigate this.
   static std::u16string ToAccessibilityLabel(
       const AutocompleteMatch& match,
+      const std::u16string& header_text,
       const std::u16string& match_text,
       size_t match_index = 0,
       size_t total_matches = 0,

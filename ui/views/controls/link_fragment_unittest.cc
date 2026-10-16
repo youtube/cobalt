@@ -37,6 +37,11 @@ class LinkFragmentTest : public test::BaseControlTestWidget {
         GetContext(), widget()->GetNativeWindow());
   }
 
+  void TearDown() override {
+    fragments_.fill(nullptr);
+    test::BaseControlTestWidget::TearDown();
+  }
+
  protected:
   void CreateWidgetContent(View* container) override {
     // Fragment 0 is stand-alone.

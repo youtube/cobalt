@@ -4,10 +4,12 @@
 
 #include "services/device/geolocation/position_cache_impl.h"
 
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+
 #include "base/strings/utf_string_conversions.h"
 #include "components/device_event_log/device_event_log.h"
 #include "services/device/geolocation/wifi_data.h"
+#include "services/device/public/mojom/geolocation_internals.mojom.h"
 #include "services/device/public/mojom/geoposition.mojom.h"
 
 namespace device {
@@ -32,10 +34,10 @@ PositionCacheImpl::CacheEntry& PositionCacheImpl::CacheEntry::operator=(
 // static
 PositionCacheImpl::Hash PositionCacheImpl::MakeKey(const WifiData& wifi_data) {
   // Currently we use only WiFi data and base the key only on the MAC addresses.
-  std::u16string key;
+  std::string key;
   const size_t kCharsPerMacAddress = 6 * 3 + 1;  // e.g. "11:22:33:44:55:66|"
   key.reserve(wifi_data.access_point_data.size() * kCharsPerMacAddress);
-  const std::u16string separator(u"|");
+  const std::string separator("|");
   for (const auto& access_point_data : wifi_data.access_point_data) {
     key += separator;
     key += access_point_data.mac_address;
@@ -75,10 +77,18 @@ void PositionCacheImpl::CachePosition(const WifiData& wifi_data,
 }
 
 const mojom::Geoposition* PositionCacheImpl::FindPosition(
-    const WifiData& wifi_data) const {
+    const WifiData& wifi_data) {
   const Hash key = MakeKey(wifi_data);
-  auto it = base::ranges::find(data_, key);
-  return it == data_.end() ? nullptr : (it->position());
+  auto it = std::ranges::find_if(
+      data_, [key](const CacheEntry& entry) { return entry == key; });
+  if (it == data_.end()) {
+    ++miss_count_;
+    last_miss_ = base::Time::Now();
+    return nullptr;
+  }
+  ++hit_count_;
+  last_hit_ = base::Time::Now();
+  return it->position();
 }
 
 size_t PositionCacheImpl::GetPositionCacheSize() const {
@@ -96,6 +106,24 @@ void PositionCacheImpl::SetLastUsedNetworkPosition(
   last_used_result_ = result.Clone();
 }
 
+void PositionCacheImpl::FillDiagnostics(
+    mojom::PositionCacheDiagnostics& diagnostics) {
+  diagnostics.cache_size = data_.size();
+  if (last_hit_) {
+    diagnostics.last_hit = *last_hit_;
+  }
+  if (last_miss_) {
+    diagnostics.last_miss = *last_miss_;
+  }
+  if (hit_count_ || miss_count_) {
+    diagnostics.hit_rate =
+        static_cast<double>(hit_count_) / (hit_count_ + miss_count_);
+  }
+  if (last_used_result_) {
+    diagnostics.last_network_result = last_used_result_.Clone();
+  }
+}
+
 void PositionCacheImpl::OnNetworkChanged(
     net::NetworkChangeNotifier::ConnectionType) {
   GEOLOCATION_LOG(DEBUG) << "Network changed";
@@ -108,7 +136,7 @@ void PositionCacheImpl::OnNetworkChanged(
 }
 
 void PositionCacheImpl::EvictEntry(const Hash& hash) {
-  data_.erase(std::remove(data_.begin(), data_.end(), hash), data_.end());
+  std::erase(data_, hash);
 }
 
 }  // namespace device

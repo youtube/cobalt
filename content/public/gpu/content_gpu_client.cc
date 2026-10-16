@@ -6,6 +6,7 @@
 
 namespace content {
 
+#if BUILDFLAG(IS_ANDROID)
 gpu::SyncPointManager* ContentGpuClient::GetSyncPointManager() {
   return nullptr;
 }
@@ -22,5 +23,18 @@ viz::VizCompositorThreadRunner*
 ContentGpuClient::GetVizCompositorThreadRunner() {
   return nullptr;
 }
+
+const gpu::SharedContextState::GrContextOptionsProvider*
+ContentGpuClient::GetGrContextOptionsProvider() {
+  return nullptr;
+}
+#endif
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+cobalt::media::VideoGeometrySetterService*
+ContentGpuClient::GetVideoGeometrySetterService() {
+  return nullptr;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace content

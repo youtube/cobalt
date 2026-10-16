@@ -13,7 +13,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "chrome/services/keymanagement/public/mojom/cert_store_types.mojom.h"
+#include "chromeos/ash/services/keymanagement/public/mojom/cert_store_types.mojom.h"
 #include "components/policy/core/common/remote_commands/remote_command_job.h"
 #include "components/policy/core/common/remote_commands/remote_commands_queue.h"
 #include "crypto/rsa_private_key.h"
@@ -97,7 +97,7 @@ class ArcCertInstaller : public policy::RemoteCommandsQueue::Observer {
   void OnJobStarted(policy::RemoteCommandJob* command) override {}
   void OnJobFinished(policy::RemoteCommandJob* command) override;
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;  // not owned
+  raw_ptr<Profile> profile_;  // not owned
 
   // A valid callback when the caller of |InstallArcCerts| method is awaiting
   // for a response.

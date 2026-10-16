@@ -3,17 +3,17 @@
 // found in the LICENSE file.
 
 #include "content/browser/media/capture/aura_window_video_capture_device.h"
-#include "base/memory/raw_ptr.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
-#include "build/chromeos_buildflags.h"
 #include "content/browser/media/capture/mouse_cursor_overlay_controller.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -21,7 +21,6 @@
 #include "content/public/common/content_features.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_observer.h"
 #include "ui/aura/window_occlusion_tracker.h"
@@ -32,9 +31,7 @@ namespace content {
 // Threading note: This is constructed on the device thread, while the
 // destructor and the rest of the class will run exclusively on the UI thread.
 class AuraWindowVideoCaptureDevice::WindowTracker final
-    : public aura::WindowObserver,
-      public base::SupportsWeakPtr<
-          AuraWindowVideoCaptureDevice::WindowTracker> {
+    : public aura::WindowObserver {
  public:
   WindowTracker(base::WeakPtr<AuraWindowVideoCaptureDevice> device,
                 MouseCursorOverlayController* cursor_controller,
@@ -47,8 +44,8 @@ class AuraWindowVideoCaptureDevice::WindowTracker final
     DCHECK(cursor_controller_);
 
     GetUIThreadTaskRunner({})->PostTask(
-        FROM_HERE,
-        base::BindOnce(&WindowTracker::ResolveTarget, AsWeakPtr(), source_id));
+        FROM_HERE, base::BindOnce(&WindowTracker::ResolveTarget,
+                                  weak_ptr_factory_.GetWeakPtr(), source_id));
   }
 
   WindowTracker(const WindowTracker&) = delete;
@@ -81,39 +78,40 @@ class AuraWindowVideoCaptureDevice::WindowTracker final
     DCHECK(!target_window_);
 
     target_window_ = DesktopMediaID::GetNativeWindowById(source_id);
-    if (target_window_ &&
-        target_window_->GetRootWindow()->GetFrameSinkId().is_valid()) {
-      target_ = viz::VideoCaptureTarget(
-          target_window_->GetRootWindow()->GetFrameSinkId());
-      if (!target_window_->IsRootWindow()) {
-        capture_request_ = target_window_->MakeWindowCapturable();
-        target_->sub_target = capture_request_.GetCaptureId();
-      }
-    } else {
-      target_ = absl::nullopt;
-    }
-
-    if (target_) {
-      video_capture_lock_ = target_window_->GetHost()->CreateVideoCaptureLock();
-#if BUILDFLAG(IS_CHROMEOS)
-      force_visible_.emplace(target_window_);
-#endif
-      target_window_->AddObserver(this);
-      device_task_runner_->PostTask(
-          FROM_HERE,
-          base::BindOnce(&FrameSinkVideoCaptureDevice::OnTargetChanged, device_,
-                         target_, /*crop_version=*/0));
-      // Note: The MouseCursorOverlayController runs on the UI thread. It's also
-      // important that SetTargetView() be called in the current stack while
-      // |target_window_| is known to be a valid pointer.
-      // http://crbug.com/818679
-      cursor_controller_->SetTargetView(target_window_);
-    } else {
+    aura::Window* const root_window =
+        target_window_ ? target_window_->GetRootWindow() : nullptr;
+    if (!target_window_ || !root_window->GetFrameSinkId().is_valid()) {
       device_task_runner_->PostTask(
           FROM_HERE,
           base::BindOnce(&FrameSinkVideoCaptureDevice::OnTargetPermanentlyLost,
                          device_));
+      return;
     }
+
+    target_ = viz::VideoCaptureTarget(root_window->GetFrameSinkId());
+    if (!target_window_->IsRootWindow()) {
+      capture_request_ = target_window_->MakeWindowCapturable();
+      target_->sub_target = capture_request_.GetCaptureId();
+    }
+
+    video_capture_lock_ = target_window_->GetHost()->CreateVideoCaptureLock();
+#if BUILDFLAG(IS_CHROMEOS)
+    force_visible_.emplace(target_window_);
+#endif
+    target_window_->AddObserver(this);
+    device_task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&FrameSinkVideoCaptureDevice::OnTargetChanged, device_,
+                       target_, /*sub_capture_target_version=*/0));
+
+    // Note: The MouseCursorOverlayController runs on the UI thread. It's also
+    // important that SetTargetView() be called in the current stack while
+    // |target_window_| is known to be a valid pointer.
+    // http://crbug.com/818679
+    //
+    // NOTE: for Aura capture, the cursor controller's view should always be
+    // the root compositor frame sink.
+    cursor_controller_->SetTargetView(root_window);
   }
 
   // aura::WindowObserver override.
@@ -152,7 +150,7 @@ class AuraWindowVideoCaptureDevice::WindowTracker final
       device_task_runner_->PostTask(
           FROM_HERE,
           base::BindOnce(&FrameSinkVideoCaptureDevice::OnTargetChanged, device_,
-                         target_.value(), /*crop_version=*/0));
+                         target_.value(), /*sub_capture_target_version=*/0));
     }
   }
 #endif
@@ -171,19 +169,22 @@ class AuraWindowVideoCaptureDevice::WindowTracker final
 
   raw_ptr<aura::Window> target_window_ = nullptr;
 #if BUILDFLAG(IS_CHROMEOS)
-  absl::optional<aura::WindowOcclusionTracker::ScopedForceVisible>
+  std::optional<aura::WindowOcclusionTracker::ScopedForceVisible>
       force_visible_;
 #endif
 
   aura::ScopedWindowCaptureRequest capture_request_;
-  absl::optional<viz::VideoCaptureTarget> target_;
+  std::optional<viz::VideoCaptureTarget> target_;
 
   std::unique_ptr<aura::WindowTreeHost::VideoCaptureLock> video_capture_lock_;
+  base::WeakPtrFactory<AuraWindowVideoCaptureDevice::WindowTracker>
+      weak_ptr_factory_{this};
 };
 
 AuraWindowVideoCaptureDevice::AuraWindowVideoCaptureDevice(
-    const DesktopMediaID& source_id)
-    : tracker_(new WindowTracker(AsWeakPtr(), cursor_controller(), source_id)) {
+    const DesktopMediaID& source_id) {
+  tracker_.reset(new WindowTracker(weak_ptr_factory_.GetWeakPtr(),
+                                   cursor_controller(), source_id));
 }
 
 AuraWindowVideoCaptureDevice::~AuraWindowVideoCaptureDevice() = default;

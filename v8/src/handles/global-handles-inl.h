@@ -6,23 +6,26 @@
 #define V8_HANDLES_GLOBAL_HANDLES_INL_H_
 
 #include "src/handles/global-handles.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/handles/handles-inl.h"
 #include "src/objects/heap-object-inl.h"
+#include "src/objects/tagged.h"
 
 namespace v8 {
 namespace internal {
 
 template <typename T>
-Handle<T> GlobalHandles::Create(T value) {
-  static_assert(std::is_base_of<Object, T>::value, "static type violation");
+IndirectHandle<T> GlobalHandles::Create(Tagged<T> value) {
+  static_assert(is_subtype_v<T, Object>, "static type violation");
   // The compiler should only pick this method if T is not Object.
-  static_assert(!std::is_same<Object, T>::value, "compiler error");
-  return Handle<T>::cast(Create(Object(value)));
+  static_assert(!std::is_same_v<Object, T>, "compiler error");
+  return Cast<T>(Create(Tagged<Object>(value)));
 }
 
 template <typename T>
-T GlobalHandleVector<T>::Pop() {
-  T obj = T::cast(Object(locations_.back()));
+Tagged<T> GlobalHandleVector<T>::Pop() {
+  Tagged<T> obj = Cast<T>(Tagged<Object>(locations_.back()));
   locations_.pop_back();
   return obj;
 }
@@ -33,7 +36,7 @@ GlobalHandleVector<T>::GlobalHandleVector(LocalHeap* local_heap)
 
 template <typename T>
 GlobalHandleVector<T>::GlobalHandleVector(Heap* heap)
-    : locations_(StrongRootBlockAllocator(heap)) {}
+    : locations_(StrongRootAllocator<Address>(heap)) {}
 
 }  // namespace internal
 }  // namespace v8

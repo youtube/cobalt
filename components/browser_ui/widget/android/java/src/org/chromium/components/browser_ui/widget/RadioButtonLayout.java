@@ -10,7 +10,8 @@ import android.view.LayoutInflater;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 
-import androidx.annotation.Nullable;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.List;
 
@@ -22,6 +23,7 @@ import java.util.List;
  * | O | MESSAGE #N                                |
  * -------------------------------------------------
  */
+@NullMarked
 public final class RadioButtonLayout extends RadioGroup {
     public static final int INVALID_INDEX = -1;
 
@@ -29,7 +31,7 @@ public final class RadioButtonLayout extends RadioGroup {
         this(context, null);
     }
 
-    public RadioButtonLayout(Context context, AttributeSet attrs) {
+    public RadioButtonLayout(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
     }
 
@@ -43,8 +45,10 @@ public final class RadioButtonLayout extends RadioGroup {
         if (tags != null) assert tags.size() == messages.size();
 
         for (int i = 0; i < messages.size(); i++) {
-            RadioButton button = (RadioButton) LayoutInflater.from(getContext())
-                                         .inflate(R.layout.radio_button_layout_element, null);
+            RadioButton button =
+                    (RadioButton)
+                            LayoutInflater.from(getContext())
+                                    .inflate(R.layout.radio_button_layout_element, null);
             button.setText(messages.get(i));
             if (tags != null) button.setTag(tags.get(i));
 

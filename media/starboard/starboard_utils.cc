@@ -21,6 +21,7 @@
 #include "base/strings/string_util.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decrypt_config.h"
+#include "media/starboard/buildflags.h"
 #include "starboard/common/media.h"
 #include "starboard/configuration.h"
 
@@ -70,10 +71,8 @@ SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
       return kSbMediaAudioCodecFlac;
     case AudioCodec::kPCM:
       return kSbMediaAudioCodecPcm;
-#if COBALT_MEDIA_ENABLE_IAMF_SUPPORT
     case AudioCodec::kIAMF:
       return kSbMediaAudioCodecIamf;
-#endif  // COBALT_MEDIA_ENABLE_IAMF_SUPPORT
     default:
       // Cobalt only supports a subset of audio codecs defined by Chromium.
       LOG(ERROR) << "Unsupported audio codec " << GetCodecName(codec);
@@ -99,6 +98,10 @@ SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
       return kSbMediaVideoCodecH265;
     case VideoCodec::kAV1:
       return kSbMediaVideoCodecAv1;
+#if BUILDFLAG(COBALT_MEDIA_ENABLE_AV2_SUPPORT)
+    case VideoCodec::kAV2:
+      return kSbMediaVideoCodecAv2;
+#endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_AV2_SUPPORT)
     default:
       // Cobalt only supports a subset of video codecs defined by Chromium.
       LOG(ERROR) << "Unsupported video codec " << GetCodecName(codec);
@@ -123,9 +126,7 @@ SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
   audio_stream_info.bits_per_sample =
       audio_decoder_config.bytes_per_channel() * 8;
 
-  const auto& extra_data = audio_stream_info.codec == kSbMediaAudioCodecAac
-                               ? audio_decoder_config.aac_extra_data()
-                               : audio_decoder_config.extra_data();
+  const auto& extra_data = audio_decoder_config.extra_data();
   audio_stream_info.audio_specific_config_size =
       static_cast<uint16_t>(extra_data.size());
   if (audio_stream_info.audio_specific_config_size == 0) {
@@ -205,7 +206,7 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
     drm_info->subsample_count = 1;
     drm_info->subsample_mapping = subsample_mapping;
     subsample_mapping->clear_byte_count = 0;
-    subsample_mapping->encrypted_byte_count = buffer->data_size();
+    subsample_mapping->encrypted_byte_count = buffer->size();
   }
 
   if (buffer->decrypt_config()->HasPattern()) {
@@ -288,7 +289,7 @@ ENUM_EQ(kSbMediaRangeIdDerived, gfx::ColorSpace::RangeID::DERIVED);
 
 SbMediaColorMetadata MediaToSbMediaColorMetadata(
     const VideoColorSpace& color_space,
-    const absl::optional<gfx::HDRMetadata>& hdr_metadata,
+    const std::optional<gfx::HDRMetadata>& hdr_metadata,
     const std::string& mime_type) {
   SbMediaColorMetadata sb_media_color_metadata = {};
 
@@ -308,37 +309,42 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
   SbMediaMasteringMetadata sb_media_mastering_metadata = {};
 
   if (hdr_metadata) {
-    const auto& color_volume_metadata = hdr_metadata->color_volume_metadata;
+    if (hdr_metadata->smpte_st_2086) {
+      const auto& mastering_metadata = *hdr_metadata->smpte_st_2086;
+      sb_media_mastering_metadata.primary_r_chromaticity_x =
+          mastering_metadata.primaries.fRX;
+      sb_media_mastering_metadata.primary_r_chromaticity_y =
+          mastering_metadata.primaries.fRY;
 
-    sb_media_mastering_metadata.primary_r_chromaticity_x =
-        color_volume_metadata.primaries.fRX;
-    sb_media_mastering_metadata.primary_r_chromaticity_y =
-        color_volume_metadata.primaries.fRY;
+      sb_media_mastering_metadata.primary_g_chromaticity_x =
+          mastering_metadata.primaries.fGX;
+      sb_media_mastering_metadata.primary_g_chromaticity_y =
+          mastering_metadata.primaries.fGY;
 
-    sb_media_mastering_metadata.primary_g_chromaticity_x =
-        color_volume_metadata.primaries.fGX;
-    sb_media_mastering_metadata.primary_g_chromaticity_y =
-        color_volume_metadata.primaries.fGY;
+      sb_media_mastering_metadata.primary_b_chromaticity_x =
+          mastering_metadata.primaries.fBX;
+      sb_media_mastering_metadata.primary_b_chromaticity_y =
+          mastering_metadata.primaries.fBY;
 
-    sb_media_mastering_metadata.primary_b_chromaticity_x =
-        color_volume_metadata.primaries.fBX;
-    sb_media_mastering_metadata.primary_b_chromaticity_y =
-        color_volume_metadata.primaries.fBY;
+      sb_media_mastering_metadata.white_point_chromaticity_x =
+          mastering_metadata.primaries.fWX;
+      sb_media_mastering_metadata.white_point_chromaticity_y =
+          mastering_metadata.primaries.fWY;
 
-    sb_media_mastering_metadata.white_point_chromaticity_x =
-        color_volume_metadata.primaries.fWX;
-    sb_media_mastering_metadata.white_point_chromaticity_y =
-        color_volume_metadata.primaries.fWX;
-
-    sb_media_mastering_metadata.luminance_max =
-        color_volume_metadata.luminance_max;
-    sb_media_mastering_metadata.luminance_min =
-        color_volume_metadata.luminance_min;
+      sb_media_mastering_metadata.luminance_max =
+          mastering_metadata.luminance_max;
+      sb_media_mastering_metadata.luminance_min =
+          mastering_metadata.luminance_min;
+    }
 
     sb_media_color_metadata.mastering_metadata = sb_media_mastering_metadata;
-    sb_media_color_metadata.max_cll = hdr_metadata->max_content_light_level;
-    sb_media_color_metadata.max_fall =
-        hdr_metadata->max_frame_average_light_level;
+
+    if (hdr_metadata->cta_861_3) {
+      sb_media_color_metadata.max_cll =
+          hdr_metadata->cta_861_3->max_content_light_level;
+      sb_media_color_metadata.max_fall =
+          hdr_metadata->cta_861_3->max_frame_average_light_level;
+    }
   }
 
   // Copy the color space below.

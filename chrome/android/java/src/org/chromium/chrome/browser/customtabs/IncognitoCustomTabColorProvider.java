@@ -7,14 +7,13 @@ package org.chromium.chrome.browser.customtabs;
 import android.content.Context;
 import android.graphics.Color;
 
-import androidx.annotation.Nullable;
-
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browserservices.intents.ColorProvider;
-import org.chromium.components.browser_ui.styles.ChromeColors;
+import org.chromium.chrome.browser.theme.SurfaceColorUpdateUtils;
 
-/**
- * ColorProvider implementation used for incognito profiles.
- */
+/** ColorProvider implementation used for incognito profiles. */
+@NullMarked
 public final class IncognitoCustomTabColorProvider implements ColorProvider {
     private final int mToolbarColor;
     private final int mBottomBarColor;
@@ -22,8 +21,11 @@ public final class IncognitoCustomTabColorProvider implements ColorProvider {
 
     public IncognitoCustomTabColorProvider(Context context) {
         assert context != null;
-        mToolbarColor = mBottomBarColor = mNavigationBarColor =
-                ChromeColors.getDefaultThemeColor(context, /*forceDarkBgColor*/ true);
+        mToolbarColor =
+                mBottomBarColor =
+                        mNavigationBarColor =
+                                SurfaceColorUpdateUtils.getDefaultThemeColor(
+                                        context, /* isIncognito= */ true);
     }
 
     @Override
@@ -37,14 +39,12 @@ public final class IncognitoCustomTabColorProvider implements ColorProvider {
     }
 
     @Override
-    @Nullable
-    public Integer getNavigationBarColor() {
+    public @Nullable Integer getNavigationBarColor() {
         return mNavigationBarColor;
     }
 
     @Override
-    @Nullable
-    public Integer getNavigationBarDividerColor() {
+    public @Nullable Integer getNavigationBarDividerColor() {
         return null;
     }
 

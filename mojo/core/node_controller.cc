@@ -2,19 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "mojo/core/node_controller.h"
 
+#include <algorithm>
 #include <limits>
-#include <vector>
 
+#include "base/containers/contains.h"
 #include "base/containers/queue.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/process/process_handle.h"
 #include "base/rand_util.h"
-#include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
 #include "base/task/current_thread.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
@@ -28,14 +32,9 @@
 #include "mojo/public/cpp/platform/named_platform_channel.h"
 #include "mojo/public/cpp/platform/platform_channel.h"
 #include "mojo/public/cpp/platform/platform_channel_server.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
-#endif
-
-#if !BUILDFLAG(IS_NACL)
-#include "crypto/random.h"
 #endif
 
 namespace mojo {
@@ -43,17 +42,10 @@ namespace core {
 
 namespace {
 
-#if BUILDFLAG(IS_NACL)
 template <typename T>
 void GenerateRandomName(T* out) {
-  base::RandBytes(out, sizeof(T));
+  base::RandBytes(base::byte_span_from_ref(*out));
 }
-#else
-template <typename T>
-void GenerateRandomName(T* out) {
-  crypto::RandBytes(out, sizeof(T));
-}
-#endif
 
 ports::NodeName GetRandomNodeName() {
   ports::NodeName name;
@@ -150,7 +142,7 @@ class ThreadDestructionObserver
 };
 
 #if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_FUCHSIA)
-absl::optional<ConnectionParams> CreateSyncNodeConnectionParams(
+std::optional<ConnectionParams> CreateSyncNodeConnectionParams(
     const base::Process& target_process,
     ConnectionParams connection_params,
     const ProcessErrorCallback& process_error_callback,
@@ -171,7 +163,7 @@ absl::optional<ConnectionParams> CreateSyncNodeConnectionParams(
   node_connection_params.set_is_untrusted_process(is_untrusted_process);
   if (!broker_host->SendChannel(
           node_channel.TakeRemoteEndpoint().TakePlatformHandle())) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return node_connection_params;
@@ -224,7 +216,7 @@ void NodeController::SendBrokerClientInvitation(
 
 void NodeController::AcceptBrokerClientInvitation(
     ConnectionParams connection_params) {
-  absl::optional<PlatformHandle> broker_host_handle;
+  std::optional<PlatformHandle> broker_host_handle;
   DCHECK(!GetConfiguration().is_broker_process);
 #if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_FUCHSIA)
   if (!connection_params.is_async()) {
@@ -274,7 +266,7 @@ void NodeController::AcceptBrokerClientInvitation(
 
 void NodeController::ConnectIsolated(ConnectionParams connection_params,
                                      const ports::PortRef& port,
-                                     base::StringPiece connection_name) {
+                                     std::string_view connection_name) {
   io_task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&NodeController::ConnectIsolatedOnIOThread,
@@ -336,7 +328,8 @@ int NodeController::MergeLocalPorts(const ports::PortRef& port0,
 
 base::WritableSharedMemoryRegion NodeController::CreateSharedBuffer(
     size_t num_bytes) {
-#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_FUCHSIA) && \
+    !BUILDFLAG(IS_ANDROID)
   // Shared buffer creation failure is fatal, so always use the broker when we
   // have one; unless of course the embedder forces us not to.
   if (!GetConfiguration().force_direct_shared_memory_allocation && broker_)
@@ -390,7 +383,7 @@ void NodeController::DeserializeRawBytesAsEventForFuzzer(
   void* payload;
   auto message = NodeChannel::CreateEventMessage(0, data.size(), &payload, 0);
   DCHECK(message);
-  base::ranges::copy(data, static_cast<unsigned char*>(payload));
+  std::ranges::copy(data, static_cast<unsigned char*>(payload));
   DeserializeEventMessage(ports::NodeName(), std::move(message));
 }
 
@@ -462,7 +455,7 @@ void NodeController::SendBrokerClientInvitationOnIOThread(
     }
 #endif
 
-    absl::optional<ConnectionParams> params = CreateSyncNodeConnectionParams(
+    std::optional<ConnectionParams> params = CreateSyncNodeConnectionParams(
         target_process, std::move(connection_params), process_error_callback,
         handle_policy);
     if (!params) {
@@ -512,7 +505,7 @@ void NodeController::FinishSendBrokerClientInvitationOnIOThread(
 
 void NodeController::AcceptBrokerClientInvitationOnIOThread(
     ConnectionParams connection_params,
-    absl::optional<PlatformHandle> broker_host_handle) {
+    std::optional<PlatformHandle> broker_host_handle) {
   DCHECK(io_task_runner_->RunsTasksInCurrentSequence());
 
   {
@@ -644,7 +637,7 @@ void NodeController::AddPeer(const ports::NodeName& name,
   OutgoingMessageQueue pending_messages;
   {
     base::AutoLock lock(peers_lock_);
-    if (peers_.find(name) != peers_.end()) {
+    if (base::Contains(peers_, name)) {
       // This can happen normally if two nodes race to be introduced to each
       // other. The losing pipe will be silently closed and introduction should
       // not be affected.
@@ -1177,7 +1170,7 @@ void NodeController::OnRequestPortMerge(
   {
     base::AutoLock lock(reserved_ports_lock_);
     auto it = reserved_ports_.find(from_node);
-    // TODO(https://crbug.com/822034): We should send a notification back to the
+    // TODO(crbug.com/40567118): We should send a notification back to the
     // requestor so they can clean up their dangling port in this failure case.
     // This requires changes to the internal protocol, which can't be made yet.
     // Until this is done, pipes from |MojoExtractMessagePipeFromInvitation()|
@@ -1492,7 +1485,7 @@ NodeController::IsolatedConnection::IsolatedConnection(
 NodeController::IsolatedConnection::IsolatedConnection(
     scoped_refptr<NodeChannel> channel,
     const ports::PortRef& local_port,
-    base::StringPiece name)
+    std::string_view name)
     : channel(std::move(channel)), local_port(local_port), name(name) {}
 
 NodeController::IsolatedConnection::~IsolatedConnection() = default;
@@ -1517,10 +1510,12 @@ void BoundedPeerSet::Insert(const ports::NodeName& name) {
 }
 
 bool BoundedPeerSet::Contains(const ports::NodeName& name) {
-  if (old_set_.find(name) != old_set_.end())
+  if (base::Contains(old_set_, name)) {
     return true;
-  if (new_set_.find(name) != new_set_.end())
+  }
+  if (base::Contains(new_set_, name)) {
     return true;
+  }
   return false;
 }
 

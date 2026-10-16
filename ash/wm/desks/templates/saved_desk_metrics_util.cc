@@ -3,14 +3,27 @@
 // found in the LICENSE file.
 
 #include "ash/wm/desks/templates/saved_desk_metrics_util.h"
-#include "ash/public/cpp/desk_template.h"
+
+#include <tuple>
+
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
-#include "components/app_constants/constants.h"
+#include "components/app_restore/app_restore_utils.h"
 #include "components/app_restore/restore_data.h"
-#include "components/desks_storage/core/desk_model.h"
 
 namespace ash {
+
+namespace {
+
+std::tuple<int, int, int> GetWindowAndTabCount(
+    const DeskTemplate& desk_template) {
+  const app_restore::RestoreData* restore_data =
+      desk_template.desk_restore_data();
+  DCHECK(restore_data);
+  return app_restore::GetWindowAndTabCount(*restore_data);
+}
+
+}  // namespace
 
 enum class MetricsAction {
   kDelete = 0,
@@ -77,6 +90,7 @@ const char* GetHistogramName(DeskTemplateType type,
         default:
           return nullptr;
       }
+    case DeskTemplateType::kCoral:
     case DeskTemplateType::kUnknown:
       return nullptr;
   }
@@ -132,6 +146,7 @@ void RecordUserSavedDeskCountHistogram(DeskTemplateType type,
                                  entry_count, max_entry_count);
 
       break;
+    case DeskTemplateType::kCoral:
     case DeskTemplateType::kFloatingWorkspace:
     case DeskTemplateType::kUnknown:
       break;
@@ -139,35 +154,8 @@ void RecordUserSavedDeskCountHistogram(DeskTemplateType type,
 }
 
 void RecordWindowAndTabCountHistogram(const DeskTemplate& desk_template) {
-  const app_restore::RestoreData* restore_data =
-      desk_template.desk_restore_data();
-  DCHECK(restore_data);
-
-  int window_count = 0;
-  int tab_count = 0;
-  int total_count = 0;
-
-  const auto& launch_list = restore_data->app_id_to_launch_list();
-  for (const auto& iter : launch_list) {
-    // Since apps aren't guaranteed to have the url field set up correctly, this
-    // is necessary to ensure things are not double-counted.
-    if (iter.first != app_constants::kChromeAppId) {
-      ++window_count;
-      ++total_count;
-      continue;
-    }
-
-    for (const auto& window_iter : iter.second) {
-      const absl::optional<std::vector<GURL>>& urls = window_iter.second->urls;
-      if (!urls || urls->empty())
-        continue;
-
-      ++window_count;
-      tab_count += urls->size();
-      total_count += urls->size();
-    }
-  }
-
+  auto [window_count, tab_count, total_count] =
+      GetWindowAndTabCount(desk_template);
   if (const char* window_count_metrics_name =
           GetHistogramName(desk_template.type(), MetricsAction::kWindowCount)) {
     base::UmaHistogramCounts100(window_count_metrics_name, window_count);
@@ -204,6 +192,20 @@ void RecordTimeBetweenSaveAndRecall(base::TimeDelta duration) {
       base::HistogramBase::kUmaTargetedHistogramFlag);
 
   histogram->Add(duration.InSeconds());
+}
+
+void RecordAdminTemplateWindowAndTabCountHistogram(
+    const DeskTemplate& desk_template) {
+  auto [window_count, tab_count, total_count] =
+      GetWindowAndTabCount(desk_template);
+
+  base::UmaHistogramCounts100(kAdminTemplateWindowCountHistogramName,
+                              window_count);
+  base::UmaHistogramCounts100(kAdminTemplateTabCountHistogramName, tab_count);
+}
+
+void RecordLaunchAdminTemplateHistogram() {
+  base::UmaHistogramBoolean(kLaunchAdminTemplateHistogramName, true);
 }
 
 }  // namespace ash

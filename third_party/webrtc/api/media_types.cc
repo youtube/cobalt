@@ -10,9 +10,11 @@
 
 #include "api/media_types.h"
 
+#include <string>
+
 #include "rtc_base/checks.h"
 
-namespace cricket {
+namespace webrtc {
 
 const char kMediaTypeVideo[] = "video";
 const char kMediaTypeAudio[] = "audio";
@@ -20,13 +22,13 @@ const char kMediaTypeData[] = "data";
 
 std::string MediaTypeToString(MediaType type) {
   switch (type) {
-    case MEDIA_TYPE_AUDIO:
+    case MediaType::AUDIO:
       return kMediaTypeAudio;
-    case MEDIA_TYPE_VIDEO:
+    case MediaType::VIDEO:
       return kMediaTypeVideo;
-    case MEDIA_TYPE_DATA:
+    case MediaType::DATA:
       return kMediaTypeData;
-    case MEDIA_TYPE_UNSUPPORTED:
+    default:
       // Unsupported media stores the m=<mediatype> differently.
       RTC_DCHECK_NOTREACHED();
       return "";
@@ -34,4 +36,4 @@ std::string MediaTypeToString(MediaType type) {
   RTC_CHECK_NOTREACHED();
 }
 
-}  // namespace cricket
+}  // namespace webrtc

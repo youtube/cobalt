@@ -10,11 +10,22 @@
 #include "base/component_export.h"
 #include "base/memory/scoped_refptr.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/cursor/mojom/cursor_type.mojom-shared.h"
 #include "ui/base/cursor/platform_cursor.h"
 #include "ui/gfx/geometry/point.h"
 
+namespace gfx {
+class Size;
+}
+
 namespace ui {
+
+inline constexpr SkColor kDefaultCursorColor = SK_ColorBLACK;
+
+inline constexpr int kDefaultLargeCursorSize = 64;
+inline constexpr int kMinLargeCursorSize = 25;
+inline constexpr int kMaxLargeCursorSize = 128;
 
 struct COMPONENT_EXPORT(UI_BASE_CURSOR) CursorData {
  public:
@@ -39,9 +50,8 @@ struct COMPONENT_EXPORT(UI_BASE_CURSOR) CursorData {
 // Ref-counted cursor that supports both default and custom cursors.
 class COMPONENT_EXPORT(UI_BASE_CURSOR) Cursor {
  public:
-  // Creates a custom cursor with the provided parameters. `bitmap` dimensions
-  // and `image_scale_factor` are DCHECKed to avoid integer overflow when
-  // calculating the final cursor image size.
+  // Creates a custom cursor with the provided parameters. `hotspot` is
+  // clamped to `bitmap` dimensions. `image_scale_factor` cannot be 0.
   static Cursor NewCustom(SkBitmap bitmap,
                           gfx::Point hotspot,
                           float image_scale_factor = 1.0f);
@@ -63,10 +73,14 @@ class COMPONENT_EXPORT(UI_BASE_CURSOR) Cursor {
 
   // Note: custom cursor comparison may perform expensive pixel equality checks!
   bool operator==(const Cursor& cursor) const;
-  bool operator!=(const Cursor& cursor) const { return !(*this == cursor); }
 
   bool operator==(mojom::CursorType type) const { return type_ == type; }
-  bool operator!=(mojom::CursorType type) const { return type_ != type; }
+
+  // Limit the size of cursors so that they cannot be used to cover UI
+  // elements in chrome.
+  // `size` is the size of the cursor in physical pixels.
+  static bool AreDimensionsValidForWeb(const gfx::Size& size,
+                                       float scale_factor);
 
  private:
   // Custom cursor constructor.

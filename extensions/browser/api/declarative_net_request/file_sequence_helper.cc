@@ -4,14 +4,15 @@
 
 #include "extensions/browser/api/declarative_net_request/file_sequence_helper.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <set>
 #include <utility>
+#include <vector>
 
 #include "base/barrier_closure.h"
 #include "base/check_op.h"
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/files/file_util.h"
 #include "base/files/important_file_writer.h"
 #include "base/functional/bind.h"
@@ -19,28 +20,27 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "extensions/browser/api/declarative_net_request/constants.h"
 #include "extensions/browser/api/declarative_net_request/parse_info.h"
-#include "extensions/browser/api/declarative_net_request/rules_count_pair.h"
+#include "extensions/browser/api/declarative_net_request/rule_counts.h"
 #include "extensions/browser/api/declarative_net_request/utils.h"
 #include "extensions/browser/extension_file_task_runner.h"
 #include "extensions/common/api/declarative_net_request.h"
 #include "extensions/common/error_utils.h"
+#include "extensions/common/extension_features.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
 
-namespace extensions {
-namespace declarative_net_request {
+namespace extensions::declarative_net_request {
 
 namespace {
 
 namespace dnr_api = extensions::api::declarative_net_request;
 
 // A class to help in indexing multiple rulesets.
-// TODO(crbug.com/1254680): Look into unifying this with the InstallIndexHelper
+// TODO(crbug.com/40794487): Look into unifying this with the InstallIndexHelper
 //                          class, moving any differing logic to the clients.
 class IndexHelper : public base::RefCountedThreadSafe<IndexHelper> {
  public:
@@ -52,13 +52,17 @@ class IndexHelper : public base::RefCountedThreadSafe<IndexHelper> {
   IndexHelper& operator=(const IndexHelper&) = delete;
 
   // Starts indexing rulesets. Must be called on the extension file task runner.
+  // TODO(crbug.com/380434972): Kick off content verification job to guard
+  // against the possibility that the extension's ruleset JSON files were
+  // corrupted.
   void Start(uint8_t parse_flags) {
     DCHECK(GetExtensionFileTaskRunner()->RunsTasksInCurrentSequence());
 
     std::vector<RulesetInfo*> rulesets_to_index;
     for (auto& ruleset : data_.rulesets) {
-      if (ruleset.did_load_successfully())
+      if (ruleset.did_load_successfully()) {
         continue;
+      }
 
       rulesets_to_index.push_back(&ruleset);
     }
@@ -101,11 +105,17 @@ class IndexHelper : public base::RefCountedThreadSafe<IndexHelper> {
     bool indexing_success = result.status == IndexStatus::kSuccess;
     bool is_reindexing = ruleset->expected_checksum().has_value();
     if (indexing_success) {
-      // If this is the first time that the ruleset is being indexed, or if the
-      // ruleset's version has updated, then take note of the new checksum.
-      bool update_checksum =
-          !is_reindexing || ruleset->load_ruleset_result() ==
-                                LoadRulesetResult::kErrorVersionMismatch;
+      // Update the checksum if either:
+      // - this is the first time that the ruleset is being indexed and there's
+      //   no expected checksum.
+      // - there is a checksum mismatch between indexing and what's in prefs.
+      //   Use the checksum that was just derived from reindexing.
+      // - the ruleset's version has updated, so the old checksum is invalid
+      bool update_checksum = !is_reindexing ||
+                             ruleset->load_ruleset_result() ==
+                                 LoadRulesetResult::kErrorChecksumMismatch ||
+                             ruleset->load_ruleset_result() ==
+                                 LoadRulesetResult::kErrorVersionMismatch;
       if (update_checksum) {
         ruleset->set_new_checksum(result.ruleset_checksum);
 
@@ -161,7 +171,6 @@ UpdateDynamicRulesStatus GetUpdateDynamicRuleStatus(LoadRulesetResult result) {
   }
 
   NOTREACHED();
-  return UpdateDynamicRulesStatus::kSuccess;
 }
 
 // Helper to create the new list of dynamic rules. Returns false on failure and
@@ -169,7 +178,7 @@ UpdateDynamicRulesStatus GetUpdateDynamicRuleStatus(LoadRulesetResult result) {
 bool GetNewDynamicRules(const FileBackedRulesetSource& source,
                         std::vector<int> rule_ids_to_remove,
                         std::vector<dnr_api::Rule> rules_to_add,
-                        const RulesCountPair& rule_limit,
+                        const RuleCounts& rule_limit,
                         std::vector<dnr_api::Rule>* new_rules,
                         std::string* error,
                         UpdateDynamicRulesStatus* status) {
@@ -201,7 +210,7 @@ bool GetNewDynamicRules(const FileBackedRulesetSource& source,
 
   // Remove old rules
   std::set<int> ids_to_remove(rule_ids_to_remove.begin(), rule_ids_to_remove.end());
-  base::EraseIf(*new_rules, [&ids_to_remove](const dnr_api::Rule& rule) {
+  std::erase_if(*new_rules, [&ids_to_remove](const dnr_api::Rule& rule) {
     return base::Contains(ids_to_remove, rule.id);
   });
 
@@ -216,7 +225,19 @@ bool GetNewDynamicRules(const FileBackedRulesetSource& source,
     return false;
   }
 
-  size_t regex_rule_count = base::ranges::count_if(
+  if (base::FeatureList::IsEnabled(
+          extensions_features::kDeclarativeNetRequestSafeRuleLimits)) {
+    size_t unsafe_rule_count = std::ranges::count_if(
+        *new_rules,
+        [](const dnr_api::Rule& rule) { return !IsRuleSafe(rule); });
+    if (unsafe_rule_count > rule_limit.unsafe_rule_count) {
+      *status = UpdateDynamicRulesStatus::kErrorUnsafeRuleCountExceeded;
+      *error = kDynamicUnsafeRuleCountExceeded;
+      return false;
+    }
+  }
+
+  size_t regex_rule_count = std::ranges::count_if(
       *new_rules,
       [](const dnr_api::Rule& rule) { return !!rule.condition.regex_filter; });
   if (regex_rule_count > rule_limit.regex_rule_count) {
@@ -233,7 +254,7 @@ bool GetNewDynamicRules(const FileBackedRulesetSource& source,
 bool UpdateAndIndexDynamicRules(const FileBackedRulesetSource& source,
                                 std::vector<int> rule_ids_to_remove,
                                 std::vector<dnr_api::Rule> rules_to_add,
-                                const RulesCountPair& rule_limit,
+                                const RuleCounts& rule_limit,
                                 int* ruleset_checksum,
                                 std::string* error,
                                 UpdateDynamicRulesStatus* status) {
@@ -246,8 +267,9 @@ bool UpdateAndIndexDynamicRules(const FileBackedRulesetSource& source,
   DCHECK_EQ(source.indexed_path().DirName(), source.json_path().DirName());
 
   std::set<int> rule_ids_to_add;
-  for (const dnr_api::Rule& rule : rules_to_add)
+  for (const dnr_api::Rule& rule : rules_to_add) {
     rule_ids_to_add.insert(rule.id);
+  }
 
   std::vector<dnr_api::Rule> new_rules;
   if (!GetNewDynamicRules(source, std::move(rule_ids_to_remove),
@@ -277,11 +299,11 @@ bool UpdateAndIndexDynamicRules(const FileBackedRulesetSource& source,
 
   // Treat rules which exceed the regex memory limit as errors if these are new
   // rules. Just surface an error for the first such rule.
-  for (auto warning : info.rule_ignored_warnings()) {
+  for (const auto& warning : info.rule_ignored_warnings()) {
     if (!base::Contains(rule_ids_to_add, warning.rule_id)) {
       // Any rule added earlier which is ignored now (say due to exceeding the
       // regex memory limit), will be silently ignored.
-      // TODO(crbug.com/1050780): Notify the extension about the same.
+      // TODO(crbug.com/40118204): Notify the extension about the same.
       continue;
     }
 
@@ -347,7 +369,7 @@ std::unique_ptr<RulesetMatcher> RulesetInfo::TakeMatcher() {
   return std::move(matcher_);
 }
 
-const absl::optional<LoadRulesetResult>& RulesetInfo::load_ruleset_result()
+const std::optional<LoadRulesetResult>& RulesetInfo::load_ruleset_result()
     const {
   // |matcher_| is valid only on success.
   DCHECK_EQ(load_ruleset_result_ == LoadRulesetResult::kSuccess, !!matcher_);
@@ -366,8 +388,12 @@ void RulesetInfo::CreateVerifiedMatcher() {
       source_.CreateVerifiedMatcher(*expected_checksum_, &matcher_);
 }
 
-LoadRequestData::LoadRequestData(ExtensionId extension_id)
-    : extension_id(std::move(extension_id)) {}
+LoadRequestData::LoadRequestData(ExtensionId extension_id,
+                                 base::Version extension_version,
+                                 LoadRulesetRequestSource request_source)
+    : extension_id(std::move(extension_id)),
+      extension_version(std::move(extension_version)),
+      request_source(request_source) {}
 LoadRequestData::~LoadRequestData() = default;
 LoadRequestData::LoadRequestData(LoadRequestData&&) = default;
 LoadRequestData& LoadRequestData::operator=(LoadRequestData&&) = default;
@@ -425,7 +451,7 @@ void FileSequenceHelper::UpdateDynamicRules(
     LoadRequestData load_data,
     std::vector<int> rule_ids_to_remove,
     std::vector<api::declarative_net_request::Rule> rules_to_add,
-    const RulesCountPair& rule_limit,
+    const RuleCounts& rule_limit,
     UpdateDynamicRulesUICallback ui_callback) const {
   DCHECK(GetExtensionFileTaskRunner()->RunsTasksInCurrentSequence());
   DCHECK_EQ(1u, load_data.rulesets.size());
@@ -434,7 +460,7 @@ void FileSequenceHelper::UpdateDynamicRules(
   DCHECK(!dynamic_ruleset.expected_checksum());
 
   auto log_status_and_dispatch_callback = [&ui_callback, &load_data](
-                                              absl::optional<std::string> error,
+                                              std::optional<std::string> error,
                                               UpdateDynamicRulesStatus status) {
     base::UmaHistogramEnumeration(kUpdateDynamicRulesStatusHistogram, status);
 
@@ -471,7 +497,7 @@ void FileSequenceHelper::UpdateDynamicRules(
   }
 
   // Success.
-  log_status_and_dispatch_callback(absl::nullopt, status);
+  log_status_and_dispatch_callback(std::nullopt, status);
 }
 
 void FileSequenceHelper::OnRulesetsIndexed(LoadRulesetsUICallback ui_callback,
@@ -494,5 +520,4 @@ void FileSequenceHelper::OnRulesetsIndexed(LoadRulesetsUICallback ui_callback,
                  base::BindOnce(std::move(ui_callback), std::move(load_data)));
 }
 
-}  // namespace declarative_net_request
-}  // namespace extensions
+}  // namespace extensions::declarative_net_request

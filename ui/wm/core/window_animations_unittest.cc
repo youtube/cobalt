@@ -4,10 +4,10 @@
 
 #include "ui/wm/core/window_animations.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "base/containers/contains.h"
-#include "base/ranges/algorithm.h"
 #include "base/time/time.h"
 #include "ui/aura/test/aura_test_base.h"
 #include "ui/aura/test/test_windows.h"
@@ -30,9 +30,10 @@ namespace {
 
 template<typename T>int GetZPosition(const T* child) {
   const T* parent = child->parent();
-  const std::vector<T*> children = parent->children();
-  auto iter = base::ranges::find(children, child);
-  DCHECK(iter != children.end());
+  const std::vector<raw_ptr<T, VectorExperimental>> children =
+      parent->children();
+  auto iter = std::ranges::find(children, child);
+  CHECK(iter != children.end());
   return iter - children.begin();
 }
 

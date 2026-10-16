@@ -16,6 +16,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/service_worker_context.h"
 #include "content/public/test/background_sync_test_util.h"
+#include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test_utils.h"
 #include "content/shell/browser/shell.h"
 #include "content/test/mock_background_sync_controller.h"
@@ -23,8 +24,8 @@
 
 namespace content {
 
-BackgroundSyncBaseBrowserTest::BackgroundSyncBaseBrowserTest() {}
-BackgroundSyncBaseBrowserTest::~BackgroundSyncBaseBrowserTest() {}
+BackgroundSyncBaseBrowserTest::BackgroundSyncBaseBrowserTest() = default;
+BackgroundSyncBaseBrowserTest::~BackgroundSyncBaseBrowserTest() = default;
 
 std::string BackgroundSyncBaseBrowserTest::BuildScriptString(
     const std::string& function,
@@ -64,9 +65,9 @@ bool BackgroundSyncBaseBrowserTest::RegistrationPending(
   return is_pending;
 }
 
-bool BackgroundSyncBaseBrowserTest::CompleteDelayedSyncEvent() {
-  std::string script_result = RunScript("completeDelayedSyncEvent()");
-  return script_result == BuildExpectedResult("delay", "completing");
+void BackgroundSyncBaseBrowserTest::CompleteDelayedSyncEvent() {
+  ASSERT_EQ(BuildExpectedResult("delay", "completing"),
+            EvalJs(web_contents(), "completeDelayedSyncEvent()"));
 }
 
 void BackgroundSyncBaseBrowserTest::RegistrationPendingCallback(
@@ -171,7 +172,7 @@ void BackgroundSyncBaseBrowserTest::SetUpOnMainThread() {
 
   SetIncognitoMode(false);
   background_sync_test_util::SetOnline(web_contents(), true);
-  ASSERT_TRUE(LoadTestPage(kDefaultTestURL));
+  LoadTestPage(kDefaultTestURL);
 
   ContentBrowserTest::SetUpOnMainThread();
 }
@@ -180,13 +181,8 @@ void BackgroundSyncBaseBrowserTest::TearDownOnMainThread() {
   https_server_.reset();
 }
 
-bool BackgroundSyncBaseBrowserTest::LoadTestPage(const std::string& path) {
-  return NavigateToURL(shell_, https_server_->GetURL(path));
-}
-
-std::string BackgroundSyncBaseBrowserTest::RunScript(
-    const std::string& script) {
-  return EvalJs(web_contents(), script).ExtractString();
+void BackgroundSyncBaseBrowserTest::LoadTestPage(const std::string& path) {
+  ASSERT_TRUE(NavigateToURL(shell_, https_server_->GetURL(path)));
 }
 
 void BackgroundSyncBaseBrowserTest::SetTestClock(base::SimpleTestClock* clock) {
@@ -221,19 +217,13 @@ void BackgroundSyncBaseBrowserTest::ClearStoragePartitionData() {
   run_loop.Run();
 }
 
-std::string BackgroundSyncBaseBrowserTest::PopConsoleString() {
-  return RunScript("resultQueue.pop()");
+EvalJsResult BackgroundSyncBaseBrowserTest::PopConsoleString() {
+  return EvalJs(web_contents(), "resultQueue.pop()");
 }
 
-bool BackgroundSyncBaseBrowserTest::PopConsole(
-    const std::string& expected_msg) {
-  std::string script_result = PopConsoleString();
-  return script_result == expected_msg;
-}
-
-bool BackgroundSyncBaseBrowserTest::RegisterServiceWorker() {
-  std::string script_result = RunScript("registerServiceWorker()");
-  return script_result == BuildExpectedResult("service worker", "registered");
+void BackgroundSyncBaseBrowserTest::RegisterServiceWorker() {
+  ASSERT_EQ(BuildExpectedResult("service worker", "registered"),
+            EvalJs(web_contents(), "registerServiceWorker()"));
 }
 
 }  // namespace content

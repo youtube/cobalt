@@ -7,41 +7,48 @@
 #include "base/test/bind.h"
 #include "base/test/test_timeouts.h"
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
+#include "chrome/browser/privacy_sandbox/privacy_sandbox_attestations/privacy_sandbox_attestations_mixin.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_settings_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/content_settings/core/browser/cookie_settings.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/prefs/pref_service.h"
-#include "components/privacy_sandbox/privacy_sandbox_features.h"
+#include "components/privacy_sandbox/privacy_sandbox_attestations/privacy_sandbox_attestations.h"
 #include "components/privacy_sandbox/privacy_sandbox_settings.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "services/network/public/cpp/features.h"
 #include "third_party/blink/public/common/features.h"
 
 namespace interest_group {
 
-class InterestGroupPermissionsBrowserTest : public InProcessBrowserTest {
+class InterestGroupPermissionsBrowserTest
+    : public MixinBasedInProcessBrowserTest {
  public:
   InterestGroupPermissionsBrowserTest() {
     scoped_feature_list_.InitWithFeatures(
         /*enabled_features=*/
-        {blink::features::kInterestGroupStorage,
+        {network::features::kInterestGroupStorage,
          blink::features::kAdInterestGroupAPI, blink::features::kFledge,
-         features::kPrivacySandboxAdsAPIsOverride,
-         privacy_sandbox::kPrivacySandboxSettings4},
+         features::kPrivacySandboxAdsAPIsOverride},
         /*disabled_features=*/
         {blink::features::kFencedFrames,
-         privacy_sandbox::kPrivacySandboxSettings3});
+         blink::features::kFledgeEnforceKAnonymity});
   }
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
+    // Mark all Privacy Sandbox APIs as attested since the test cases are
+    // testing behaviors not related to attestations.
+    privacy_sandbox::PrivacySandboxAttestations::GetInstance()
+        ->SetAllPrivacySandboxAttestedForTesting(true);
     host_resolver()->AddRule("*", "127.0.0.1");
     https_server_ = std::make_unique<net::EmbeddedTestServer>(
         net::test_server::EmbeddedTestServer::TYPE_HTTPS);
@@ -127,11 +134,11 @@ class InterestGroupPermissionsBrowserTest : public InProcessBrowserTest {
               name: 'cars',
               owner: $1,
               biddingLogicUrl: $2,
-              trustedBiddingSignalsUrl: $3,
+              trustedBiddingSignalsURL: $3,
               trustedBiddingSignalsKeys: ['key1'],
               userBiddingSignals: {some: 'json', data: {here: [1, 2, 3]}},
               ads: [{
-                renderUrl: $4,
+                renderURL: $4,
                 metadata: {ad: 'metadata', here: [1, 2, 3]},
               }],
             },
@@ -158,7 +165,7 @@ class InterestGroupPermissionsBrowserTest : public InProcessBrowserTest {
 (async function() {
   return await navigator.runAdAuction({
     seller: $1,
-    decisionLogicUrl: $2,
+    decisionLogicURL: $2,
     interestGroupBuyers: [$1],
     auctionSignals: {x: 1},
     sellerSignals: {yet: 'more', info: 1},
@@ -201,15 +208,17 @@ class InterestGroupPermissionsBrowserTest : public InProcessBrowserTest {
   GURL render_url() { return GURL("https://example.com/render"); }
 
  protected:
-  base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<net::EmbeddedTestServer> https_server_;
+  privacy_sandbox::PrivacySandboxAttestationsMixin
+      privacy_sandbox_attestations_mixin_{&mixin_host_};
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 class InterestGroupOffBrowserTest : public InterestGroupPermissionsBrowserTest {
  public:
   InterestGroupOffBrowserTest() {
     scoped_feature_list_.InitWithFeatures(
-        {blink::features::kInterestGroupStorage},
+        {network::features::kInterestGroupStorage},
         {blink::features::kAdInterestGroupAPI, blink::features::kFledge,
          blink::features::kParakeet, features::kPrivacySandboxAdsAPIsOverride});
   }
@@ -231,7 +240,7 @@ class InterestGroupFledgeOnBrowserTest
  public:
   InterestGroupFledgeOnBrowserTest() {
     scoped_feature_list_.InitWithFeatures(
-        {blink::features::kInterestGroupStorage, blink::features::kFledge,
+        {network::features::kInterestGroupStorage, blink::features::kFledge,
          features::kPrivacySandboxAdsAPIsOverride},
         {blink::features::kAdInterestGroupAPI, blink::features::kParakeet});
   }
@@ -254,7 +263,7 @@ class InterestGroupParakeetOnBrowserTest
  public:
   InterestGroupParakeetOnBrowserTest() {
     scoped_feature_list_.InitWithFeatures(
-        {blink::features::kInterestGroupStorage, blink::features::kParakeet},
+        {network::features::kInterestGroupStorage, blink::features::kParakeet},
         {blink::features::kAdInterestGroupAPI, blink::features::kFledge,
          features::kPrivacySandboxAdsAPIsOverride});
   }
@@ -278,7 +287,7 @@ class InterestGroupAPIOnBrowserTest
  public:
   InterestGroupAPIOnBrowserTest() {
     scoped_feature_list_.InitWithFeatures(
-        {blink::features::kInterestGroupStorage,
+        {network::features::kInterestGroupStorage,
          blink::features::kAdInterestGroupAPI},
         {blink::features::kParakeet, blink::features::kFledge,
          features::kPrivacySandboxAdsAPIsOverride});
@@ -367,40 +376,13 @@ IN_PROC_BROWSER_TEST_F(InterestGroupPermissionsBrowserTest,
   EXPECT_FALSE(CanRunAuction(web_contents()));
 }
 
-class InterestGroupPermissionsPrivacySandbox3BrowserTest
-    : public InterestGroupPermissionsBrowserTest {
- public:
-  InterestGroupPermissionsPrivacySandbox3BrowserTest() {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/
-        {blink::features::kInterestGroupStorage,
-         blink::features::kAdInterestGroupAPI, blink::features::kFledge,
-         features::kPrivacySandboxAdsAPIsOverride,
-         privacy_sandbox::kPrivacySandboxSettings3},
-        /*disabled_features=*/
-        {blink::features::kFencedFrames,
-         privacy_sandbox::kPrivacySandboxSettings4});
-  }
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(InterestGroupPermissionsPrivacySandbox3BrowserTest,
-                       ThirdPartyCookiesBlocked) {
-  // With no cookies, API does nothing.
-  SetAllowThirdPartyCookies(false);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_url()));
-
-  ASSERT_TRUE(HasInterestGroupApi(web_contents()));
-  EXPECT_FALSE(CanRunAuction(web_contents()));
-}
-
 class FledgePermissionBrowserTestBaseFeatureDisabled
     : public InterestGroupPermissionsBrowserTest {
  public:
   FledgePermissionBrowserTestBaseFeatureDisabled() {
     scoped_feature_list_.Reset();
     scoped_feature_list_.InitAndDisableFeature(
-        blink::features::kInterestGroupStorage);
+        network::features::kInterestGroupStorage);
   }
 };
 

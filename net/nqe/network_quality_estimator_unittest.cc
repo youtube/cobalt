@@ -2,14 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "net/nqe/network_quality_estimator.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <cmath>
 #include <limits>
 #include <map>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -26,7 +29,6 @@
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "net/base/load_flags.h"
 #include "net/base/network_change_notifier.h"
 #include "net/http/http_response_headers.h"
@@ -49,7 +51,6 @@
 #include "net/url_request/url_request_context_builder.h"
 #include "net/url_request/url_request_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace {
@@ -510,10 +511,10 @@ TEST_F(NetworkQualityEstimatorTest, QuicObservations) {
   TestNetworkQualityEstimator estimator(variation_params);
   estimator.OnUpdatedTransportRTTAvailable(
       SocketPerformanceWatcherFactory::PROTOCOL_TCP, base::Milliseconds(10),
-      absl::nullopt);
+      std::nullopt);
   estimator.OnUpdatedTransportRTTAvailable(
       SocketPerformanceWatcherFactory::PROTOCOL_QUIC, base::Milliseconds(10),
-      absl::nullopt);
+      std::nullopt);
   histogram_tester.ExpectBucketCount("NQE.RTT.ObservationSource",
                                      NETWORK_QUALITY_OBSERVATION_SOURCE_TCP, 1);
   histogram_tester.ExpectBucketCount(
@@ -536,7 +537,7 @@ TEST_F(NetworkQualityEstimatorTest,
   TestNetworkQualityEstimator estimator(variation_params);
   estimator.OnUpdatedTransportRTTAvailable(
       SocketPerformanceWatcherFactory::PROTOCOL_QUIC, base::Milliseconds(10),
-      absl::nullopt);
+      std::nullopt);
   histogram_tester.ExpectBucketCount(
       "NQE.RTT.ObservationSource", NETWORK_QUALITY_OBSERVATION_SOURCE_QUIC, 1);
   histogram_tester.ExpectTotalCount("NQE.RTT.ObservationSource", 1);
@@ -946,8 +947,8 @@ TEST_F(NetworkQualityEstimatorTest, ObtainThresholdsOnlyRTT) {
 }
 
 TEST_F(NetworkQualityEstimatorTest, ClampKbpsBasedOnEct) {
-  const int32_t kTypicalDownlinkKbpsEffectiveConnectionType
-      [net::EFFECTIVE_CONNECTION_TYPE_LAST] = {0, 0, 40, 75, 400, 1600};
+  const std::array<int32_t, net::EFFECTIVE_CONNECTION_TYPE_LAST>
+      kTypicalDownlinkKbpsEffectiveConnectionType = {0, 0, 40, 75, 400, 1600};
 
   const struct {
     std::string upper_bound_typical_kbps_multiplier;
@@ -1931,11 +1932,7 @@ TEST_F(NetworkQualityEstimatorTest, TestGlobalSocketWatcherThrottle) {
 // TestTCPSocketRTT requires kernel support for tcp_info struct, and so it is
 // enabled only on certain platforms.
 // ChromeOS is disabled due to crbug.com/986904
-// TODO(crbug.com/1052397): Revisit once build flag switch of lacros-chrome is
-// complete.
-#if (defined(TCP_INFO) ||                                      \
-     (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)) || \
-     BUILDFLAG(IS_ANDROID)) &&                                 \
+#if (defined(TCP_INFO) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)) && \
     !BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_TestTCPSocketRTT TestTCPSocketRTT
 #else
@@ -2253,7 +2250,6 @@ TEST_F(NetworkQualityEstimatorTest, TypicalNetworkQualities) {
 
 // Verify that the cached network qualities from the prefs are correctly used.
 TEST_F(NetworkQualityEstimatorTest, OnPrefsRead) {
-  base::HistogramTester histogram_tester;
 
   // Construct the read prefs.
   std::map<nqe::internal::NetworkID, nqe::internal::CachedNetworkQuality>
@@ -2296,8 +2292,6 @@ TEST_F(NetworkQualityEstimatorTest, OnPrefsRead) {
 
   // Simulate reading of prefs.
   estimator.OnPrefsRead(read_prefs);
-  histogram_tester.ExpectUniqueSample("NQE.Prefs.ReadSize", read_prefs.size(),
-                                      1);
 
   // Taken from network_quality_estimator_params.cc.
   EXPECT_EQ(base::Milliseconds(1800),
@@ -2358,7 +2352,6 @@ TEST_F(NetworkQualityEstimatorTest, OnPrefsRead) {
 // Verify that the cached network qualities from the prefs are not used if the
 // reading of the network quality prefs is not enabled..
 TEST_F(NetworkQualityEstimatorTest, OnPrefsReadWithReadingDisabled) {
-  base::HistogramTester histogram_tester;
 
   // Construct the read prefs.
   std::map<nqe::internal::NetworkID, nqe::internal::CachedNetworkQuality>
@@ -2402,8 +2395,6 @@ TEST_F(NetworkQualityEstimatorTest, OnPrefsReadWithReadingDisabled) {
 
   // Simulate reading of prefs.
   estimator.OnPrefsRead(read_prefs);
-  histogram_tester.ExpectUniqueSample("NQE.Prefs.ReadSize", read_prefs.size(),
-                                      1);
 
   // Force read the network quality store from the store to verify that store
   // gets populated even if reading of prefs is not enabled.
@@ -2454,7 +2445,6 @@ TEST_F(NetworkQualityEstimatorTest, OnPrefsReadWithReadingDisabled) {
 // used.
 TEST_F(NetworkQualityEstimatorTest,
        ObservationDiscardedIfCachedEstimateAvailable) {
-  base::HistogramTester histogram_tester;
 
   // Construct the read prefs.
   std::map<nqe::internal::NetworkID, nqe::internal::CachedNetworkQuality>
@@ -2491,8 +2481,6 @@ TEST_F(NetworkQualityEstimatorTest,
 
   // Simulate reading of prefs.
   estimator.OnPrefsRead(read_prefs);
-  histogram_tester.ExpectUniqueSample("NQE.Prefs.ReadSize", read_prefs.size(),
-                                      1);
 
   // Taken from network_quality_estimator_params.cc.
   EXPECT_EQ(base::Milliseconds(1800),

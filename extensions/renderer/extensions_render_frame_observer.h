@@ -33,6 +33,7 @@ class ExtensionsRenderFrameObserver : public content::RenderFrameObserver,
   // Toggles visual muting of the render view area. This is on when a
   // constrained window is showing.
   void SetVisuallyDeemphasized(bool deemphasized) override;
+  void SetSupportsDraggableRegions(bool supports_draggable_regions) override;
 
   // RenderFrameObserver implementation.
   void DetailedConsoleMessageAdded(

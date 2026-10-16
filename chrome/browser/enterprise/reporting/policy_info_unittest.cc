@@ -8,7 +8,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/policy/chrome_policy_conversions_client.h"
 #include "chrome/common/chrome_constants.h"
@@ -16,8 +15,10 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/policy/core/browser/policy_conversions.h"
+#include "components/policy/core/common/cloud/machine_level_user_cloud_policy_manager.h"
 #include "components/policy/core/common/mock_policy_service.h"
 #include "components/policy/core/common/policy_map.h"
+#include "components/policy/core/common/policy_types.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "components/sync_preferences/pref_service_syncable.h"
 #include "content/public/test/browser_task_environment.h"
@@ -43,7 +44,7 @@ constexpr char kExtensionId2[] = "abcdefghijklmnoabcdefghijklmnoac";
 using ::testing::_;
 using ::testing::Eq;
 
-// TODO(crbug.com/1096499): Get rid of chrome/browser dependencies and then
+// TODO(crbug.com/40700771): Get rid of chrome/browser dependencies and then
 // move this file to components/enterprise/browser.
 class PolicyInfoTest : public ::testing::Test {
  public:
@@ -57,7 +58,7 @@ class PolicyInfoTest : public ::testing::Test {
         std::unique_ptr<sync_preferences::PrefServiceSyncable>(),
         base::UTF8ToUTF16(test_profile_name), 0,
         TestingProfile::TestingFactories(), /*is_supervised_profile=*/false,
-        absl::optional<bool>(), GetPolicyService());
+        std::optional<bool>(), GetPolicyService());
     profile_manager_->CreateTestingProfile(chrome::kInitialProfile);
   }
 
@@ -107,10 +108,9 @@ TEST_F(PolicyInfoTest, ChromePolicy) {
 
   EXPECT_CALL(*policy_service(), GetPolicies(_));
 
-  auto client =
-      std::make_unique<policy::ChromePolicyConversionsClient>(profile());
   AppendChromePolicyInfoIntoProfileReport(
-      policy::DictionaryPolicyConversions(std::move(client))
+      policy::PolicyConversions(
+          std::make_unique<policy::ChromePolicyConversionsClient>(profile()))
           .EnableConvertTypes(false)
           .EnablePrettyPrint(false)
           .ToValueDict(),
@@ -132,6 +132,49 @@ TEST_F(PolicyInfoTest, ChromePolicy) {
   EXPECT_EQ(em::Policy_PolicyScope_SCOPE_MACHINE, policy2.scope());
   EXPECT_EQ(em::Policy_PolicySource_SOURCE_MERGED, policy2.source());
   EXPECT_NE("", policy2.error());
+}
+
+TEST_F(PolicyInfoTest, ConflictPolicy) {
+  policy::PolicyMap::Entry policy_entry(
+      policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_MACHINE,
+      policy::POLICY_SOURCE_CLOUD, base::Value(true),
+      /*external_data_fetcher=*/nullptr);
+
+  policy_entry.AddConflictingPolicy(
+      {policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+       policy::POLICY_SOURCE_CLOUD, base::Value(false),
+       /*external_data_fetcher=*/nullptr});
+  policy_entry.AddConflictingPolicy(
+      {policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_MACHINE,
+       policy::POLICY_SOURCE_PLATFORM, base::Value(true),
+       /*external_data_fetcher=*/nullptr});
+
+  policy_map()->Set(kPolicyName1, std::move(policy_entry));
+
+  em::ChromeUserProfileInfo profile_info;
+
+  EXPECT_CALL(*policy_service(), GetPolicies(_));
+
+  AppendChromePolicyInfoIntoProfileReport(
+      policy::PolicyConversions(
+          std::make_unique<policy::ChromePolicyConversionsClient>(profile()))
+          .EnableConvertTypes(false)
+          .EnablePrettyPrint(false)
+          .ToValueDict(),
+      &profile_info);
+
+  auto policy_info = profile_info.chrome_policies(0);
+
+  ASSERT_EQ(2, policy_info.conflicts_size());
+  auto conflict1 = policy_info.conflicts(0);
+  EXPECT_EQ(em::Policy_PolicyLevel_LEVEL_MANDATORY, conflict1.level());
+  EXPECT_EQ(em::Policy_PolicyScope_SCOPE_USER, conflict1.scope());
+  EXPECT_EQ(em::Policy_PolicySource_SOURCE_CLOUD, conflict1.source());
+
+  auto conflict2 = policy_info.conflicts(1);
+  EXPECT_EQ(em::Policy_PolicyLevel_LEVEL_MANDATORY, conflict2.level());
+  EXPECT_EQ(em::Policy_PolicyScope_SCOPE_MACHINE, conflict2.scope());
+  EXPECT_EQ(em::Policy_PolicySource_SOURCE_PLATFORM, conflict2.source());
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -156,10 +199,9 @@ TEST_F(PolicyInfoTest, ExtensionPolicy) {
                               policy::POLICY_SOURCE_PLATFORM, base::Value(3),
                               nullptr);
   em::ChromeUserProfileInfo profile_info;
-  auto client =
-      std::make_unique<policy::ChromePolicyConversionsClient>(profile());
   AppendExtensionPolicyInfoIntoProfileReport(
-      policy::DictionaryPolicyConversions(std::move(client))
+      policy::PolicyConversions(
+          std::make_unique<policy::ChromePolicyConversionsClient>(profile()))
           .EnableConvertTypes(false)
           .EnablePrettyPrint(false)
           .ToValueDict(),
@@ -181,11 +223,11 @@ TEST_F(PolicyInfoTest, ExtensionPolicy) {
 
 TEST_F(PolicyInfoTest, MachineLevelUserCloudPolicyFetchTimestamp) {
   em::ChromeUserProfileInfo profile_info;
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-  AppendMachineLevelUserCloudPolicyFetchTimestamp(
+#if !BUILDFLAG(IS_CHROMEOS)
+  AppendCloudPolicyFetchTimestamp(
       &profile_info, g_browser_process->browser_policy_connector()
                          ->machine_level_user_cloud_policy_manager());
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
   EXPECT_EQ(0, profile_info.policy_fetched_timestamps_size());
 }
 

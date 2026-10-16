@@ -5,13 +5,14 @@
 #include "media/base/pipeline_impl.h"
 
 #include <stddef.h>
+
 #include <memory>
 #include <utility>
 #include <vector>
 
 #include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
@@ -21,12 +22,9 @@
 #include "base/threading/simple_thread.h"
 #include "base/time/clock.h"
 #include "base/time/time.h"
-#include "media/base/fake_text_track_stream.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
 #include "media/base/test_helpers.h"
-#include "media/base/text_renderer.h"
-#include "media/base/text_track_config.h"
 #include "media/base/time_delta_interpolator.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/size.h"
@@ -186,7 +184,8 @@ class PipelineImplTest : public ::testing::Test {
   void SetRendererPostStartExpectations() {
     EXPECT_CALL(*renderer_, SetPlaybackRate(0.0));
     EXPECT_CALL(*renderer_, SetVolume(1.0f));
-    EXPECT_CALL(*renderer_, SetWasPlayedWithUserActivation(false));
+    EXPECT_CALL(*renderer_,
+                SetWasPlayedWithUserActivationAndHighMediaEngagement(false));
     EXPECT_CALL(*renderer_, StartPlayingFrom(start_time_))
         .WillOnce(SetBufferingState(&renderer_client_, BUFFERING_HAVE_ENOUGH,
                                     BUFFERING_CHANGE_REASON_UNKNOWN));
@@ -296,7 +295,7 @@ class PipelineImplTest : public ::testing::Test {
   }
 
   std::unique_ptr<Renderer> TakeRenderer(
-      absl::optional<RendererType> /* renderer_type */) {
+      std::optional<RendererType> /* renderer_type */) {
     return std::move(scoped_renderer_);
   }
 
@@ -313,7 +312,8 @@ class PipelineImplTest : public ::testing::Test {
         .WillOnce(RunOnceCallback<1>(PIPELINE_OK));
     EXPECT_CALL(*renderer_, SetPlaybackRate(_));
     EXPECT_CALL(*renderer_, SetVolume(_));
-    EXPECT_CALL(*renderer_, SetWasPlayedWithUserActivation(false));
+    EXPECT_CALL(*renderer_,
+                SetWasPlayedWithUserActivationAndHighMediaEngagement(false));
     EXPECT_CALL(*renderer_, StartPlayingFrom(seek_time))
         .WillOnce(SetBufferingState(&renderer_client_, BUFFERING_HAVE_ENOUGH,
                                     BUFFERING_CHANGE_REASON_UNKNOWN));
@@ -359,17 +359,13 @@ class PipelineImplTest : public ::testing::Test {
   NiceMock<MockCdmContext> cdm_context_;
 
   std::unique_ptr<StrictMock<MockDemuxer>> demuxer_;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION DemuxerHost* demuxer_host_ = nullptr;
+  raw_ptr<DemuxerHost, DanglingUntriaged> demuxer_host_ = nullptr;
   std::unique_ptr<StrictMock<MockRenderer>> scoped_renderer_;
   base::WeakPtr<MockRenderer> renderer_;
   std::unique_ptr<StrictMock<MockDemuxerStream>> audio_stream_;
   std::unique_ptr<StrictMock<MockDemuxerStream>> video_stream_;
   std::vector<DemuxerStream*> streams_;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION RendererClient* renderer_client_ = nullptr;
+  raw_ptr<RendererClient, DanglingUntriaged> renderer_client_ = nullptr;
   VideoDecoderConfig video_decoder_config_;
   PipelineMetadata metadata_;
   base::TimeDelta start_time_;
@@ -649,7 +645,8 @@ TEST_F(PipelineImplTest, SetVolumeDuringStartup) {
   // The audio renderer should receive two calls to SetVolume().
   float expected = 0.5f;
   EXPECT_CALL(*renderer_, SetVolume(expected)).Times(2);
-  EXPECT_CALL(*renderer_, SetWasPlayedWithUserActivation(false));
+  EXPECT_CALL(*renderer_,
+              SetWasPlayedWithUserActivationAndHighMediaEngagement(false));
   EXPECT_CALL(callbacks_, OnStart(HasStatusCode(PIPELINE_OK)));
   EXPECT_CALL(callbacks_, OnMetadata(_))
       .WillOnce(RunOnceClosure(base::BindOnce(&PipelineImpl::SetVolume,
@@ -894,7 +891,7 @@ TEST_F(PipelineImplTest, GetMediaTime) {
   EXPECT_EQ(kMediaTime, pipeline_->GetMediaTime());
 
   // Media time should not go backwards even if the renderer returns an
-  // errorneous value. PipelineImpl should clamp it to last reported value.
+  // erroneous value. PipelineImpl should clamp it to last reported value.
   EXPECT_CALL(*renderer_, GetMediaTime())
       .WillRepeatedly(Return(base::Seconds(1)));
   EXPECT_EQ(kMediaTime, pipeline_->GetMediaTime());
@@ -1054,7 +1051,8 @@ class PipelineTeardownTest : public PipelineImplTest {
     CreateVideoStream();
     SetDemuxerExpectations(base::Seconds(3000));
     EXPECT_CALL(*renderer_, SetVolume(1.0f));
-    EXPECT_CALL(*renderer_, SetWasPlayedWithUserActivation(false));
+    EXPECT_CALL(*renderer_,
+                SetWasPlayedWithUserActivationAndHighMediaEngagement(false));
 
     if (state == kInitRenderer) {
       if (stop_or_error == kStop) {

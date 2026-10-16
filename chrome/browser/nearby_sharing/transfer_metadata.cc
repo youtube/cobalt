@@ -4,7 +4,6 @@
 
 #include <utility>
 
-#include "chrome/browser/nearby_sharing/logging/logging.h"
 #include "chrome/browser/nearby_sharing/transfer_metadata.h"
 
 // static
@@ -206,7 +205,6 @@ nearby_share::mojom::TransferStatus TransferMetadata::StatusToMojo(
     case Status::kExternalProviderLaunched:
       // These statuses are not used anywhere.
       NOTREACHED();
-      return nearby_share::mojom::TransferStatus::kUnknown;
   }
   NOTREACHED();
 }
@@ -223,7 +221,7 @@ nearby_share::mojom::TransferMetadataPtr TransferMetadata::ToMojo() const {
 
 TransferMetadata::TransferMetadata(Status status,
                                    float progress,
-                                   absl::optional<std::string> token,
+                                   std::optional<std::string> token,
                                    bool is_original,
                                    bool is_final_status)
     : status_(status),

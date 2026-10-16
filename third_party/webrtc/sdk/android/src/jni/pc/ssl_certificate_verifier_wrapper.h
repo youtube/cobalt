@@ -23,14 +23,14 @@ namespace jni {
 
 // Wrapper for Java SSLCertifiacteVerifier class. Delegates method calls through
 // JNI and wraps the encoder inside SSLCertificateVerifierWrapper.
-class SSLCertificateVerifierWrapper : public rtc::SSLCertificateVerifier {
+class SSLCertificateVerifierWrapper : public SSLCertificateVerifier {
  public:
   SSLCertificateVerifierWrapper(
       JNIEnv* jni,
       const JavaRef<jobject>& ssl_certificate_verifier);
   ~SSLCertificateVerifierWrapper() override;
 
-  bool Verify(const rtc::SSLCertificate& certificate) override;
+  bool Verify(const SSLCertificate& certificate) override;
 
  private:
   const ScopedJavaGlobalRef<jobject> ssl_certificate_verifier_;

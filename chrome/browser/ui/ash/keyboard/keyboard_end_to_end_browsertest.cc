@@ -41,8 +41,9 @@ class KeyboardVisibleWaiter : public ChromeKeyboardControllerClient::Observer {
 
   // ChromeKeyboardControllerClient::Observer
   void OnKeyboardVisibilityChanged(bool visible) override {
-    if (visible == visible_)
+    if (visible == visible_) {
       run_loop_.QuitWhenIdle();
+    }
   }
 
  private:
@@ -101,11 +102,11 @@ class KeyboardEndToEndTest : public InProcessBrowserTest {
 
  protected:
   // Initialized in |SetUpOnMainThread|.
-  raw_ptr<content::WebContents, ExperimentalAsh> web_contents_;
+  raw_ptr<content::WebContents, DanglingUntriaged> web_contents_;
 
   explicit KeyboardEndToEndTest(const base::FilePath& test_file)
       : test_file_(test_file) {}
-  ~KeyboardEndToEndTest() override {}
+  ~KeyboardEndToEndTest() override = default;
 
   // Get the value of the attribute attribute |attribute| on the DOM element
   // with the given |id|.
@@ -158,7 +159,7 @@ class KeyboardEndToEndFormTest : public KeyboardEndToEndTest {
   KeyboardEndToEndFormTest(const KeyboardEndToEndFormTest&) = delete;
   KeyboardEndToEndFormTest& operator=(const KeyboardEndToEndFormTest&) = delete;
 
-  ~KeyboardEndToEndFormTest() override {}
+  ~KeyboardEndToEndFormTest() override = default;
 
  protected:
 };
@@ -264,7 +265,7 @@ class KeyboardEndToEndFocusTest : public KeyboardEndToEndTest {
   KeyboardEndToEndFocusTest& operator=(const KeyboardEndToEndFocusTest&) =
       delete;
 
-  ~KeyboardEndToEndFocusTest() override {}
+  ~KeyboardEndToEndFocusTest() override = default;
 
  protected:
 };
@@ -320,7 +321,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(WaitUntilHidden());
 
   // Wait until the transient blur threshold (3500ms) passes.
-  // TODO(https://crbug.com/849995): Find a way to accelerate the clock without
+  // TODO(crbug.com/41392988): Find a way to accelerate the clock without
   // actually waiting in real time.
   base::PlatformThread::Sleep(base::Milliseconds(3501));
 
@@ -339,7 +340,7 @@ class KeyboardEndToEndOverscrollTest : public KeyboardEndToEndTest {
   KeyboardEndToEndOverscrollTest& operator=(
       const KeyboardEndToEndOverscrollTest&) = delete;
 
-  ~KeyboardEndToEndOverscrollTest() override {}
+  ~KeyboardEndToEndOverscrollTest() override = default;
 
   void FocusAndShowKeyboard() { ClickElementWithId(web_contents_, "username"); }
 

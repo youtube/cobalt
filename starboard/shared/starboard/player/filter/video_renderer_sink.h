@@ -15,13 +15,14 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_SINK_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_SINK_H_
 
+#include <cstdint>
 #include <functional>
 
+#include "starboard/common/rect.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
-#include "starboard/types.h"
 
 namespace starboard {
 
@@ -44,8 +45,10 @@ class VideoRendererSink : public RefCountedThreadSafe<VideoRendererSink> {
 
   virtual ~VideoRendererSink() {}
 
+  virtual void SetPlaybackRate(double playback_rate) {}
+
   virtual void SetRenderCB(RenderCB render_cb) = 0;
-  virtual void SetBounds(int z_index, int x, int y, int width, int height) = 0;
+  virtual void SetBounds(int z_index, const Rect& rect) = 0;
 };
 
 }  // namespace starboard

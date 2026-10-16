@@ -6,13 +6,16 @@
 #define COMPONENTS_PERMISSIONS_ANDROID_PERMISSION_PROMPT_PERMISSION_PROMPT_ANDROID_H_
 
 #include <memory>
-#include <string>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "components/content_settings/core/common/content_settings_types.h"
+#include "components/permissions/android/permission_prompt/permission_dialog_delegate.h"
+#include "components/permissions/embedded_permission_prompt_flow_model.h"
 #include "components/permissions/permission_prompt.h"
 #include "components/permissions/permission_uma_util.h"
 #include "components/permissions/permissions_client.h"
+#include "ui/gfx/geometry/rect.h"
 
 namespace content {
 class WebContents;
@@ -40,25 +43,75 @@ class PermissionPromptAndroid : public PermissionPrompt {
   // PermissionPrompt:
   bool UpdateAnchor() override;
   TabSwitchingBehavior GetTabSwitchingBehavior() override;
+  std::optional<gfx::Rect> GetViewBoundsInScreen() const override;
+  bool ShouldFinalizeRequestAfterDecided() const override;
+  std::vector<permissions::ElementAnchoredBubbleVariant> GetPromptVariants()
+      const override;
+  bool IsAskPrompt() const override;
+  std::optional<permissions::feature_params::PermissionElementPromptPosition>
+  GetPromptPosition() const override;
 
-  void Closing();
-  void Accept();
-  void Deny();
+  virtual EmbeddedPermissionPromptFlowModel::Variant GetEmbeddedPromptVariant()
+      const;
+  virtual void Closing();
+  virtual void Accept();
+  virtual void AcceptThisTime();
+  virtual void Acknowledge() {}
+  virtual void Deny();
+  virtual void Resumed() {}
+  virtual void SystemSettingsShown() {}
+  virtual void SystemPermissionResolved(bool accepted) {}
   void SetManageClicked();
   void SetLearnMoreClicked();
-  bool ShouldCurrentRequestUseQuietUI();
-  absl::optional<PermissionUiSelector::QuietUiReason> ReasonForUsingQuietUi()
-      const;
+  virtual bool ShouldCurrentRequestUseQuietUI();
+  virtual std::optional<PermissionUiSelector::QuietUiReason>
+  ReasonForUsingQuietUi() const;
+  virtual base::android::ScopedJavaLocalRef<jstring> GetPositiveButtonText(
+      JNIEnv* env,
+      bool is_one_time) const;
+  virtual base::android::ScopedJavaLocalRef<jstring> GetNegativeButtonText(
+      JNIEnv* env,
+      bool is_one_time) const;
+  virtual base::android::ScopedJavaLocalRef<jstring>
+  GetPositiveEphemeralButtonText(JNIEnv* env, bool is_one_time) const;
+  virtual base::android::ScopedJavaLocalRef<jobjectArray> GetRadioButtonTexts(
+      JNIEnv* env,
+      bool is_one_time) const;
 
   // We show one permission at a time except for grouped mic+camera, for which
   // we still have a single icon and message text.
   size_t PermissionCount() const;
   ContentSettingsType GetContentSettingType(size_t position) const;
-  int GetIconId() const;
-  std::u16string GetTitleText() const;
-  std::u16string GetMessageText() const;
+  virtual int GetIconId() const;
+  virtual PermissionRequest::AnnotatedMessageText GetAnnotatedMessageText()
+      const;
+  virtual bool ShouldUseRequestingOriginFavicon() const;
+  virtual const std::vector<base::WeakPtr<permissions::PermissionRequest>>&
+  Requests() const;
+  GURL GetRequestingOrigin() const;
+  content::WebContents* web_contents() const { return web_contents_; }
+  PermissionDialogDelegate* permission_dialog_delegate() const {
+    return permission_dialog_delegate_.get();
+  }
+  void ClearPermissionDialogDelegate() { permission_dialog_delegate_.reset(); }
 
-  content::WebContents* web_contents() { return web_contents_; }
+  base::android::ScopedJavaLocalRef<jintArray> GetContentSettingTypes(
+      JNIEnv* env) const;
+  base::android::ScopedJavaLocalRef<jintArray> GetBoldRanges(JNIEnv* env) const;
+
+  bool IsShowing() const { return this == delegate()->GetCurrentPrompt(); }
+
+ protected:
+  Delegate* delegate() const { return delegate_; }
+
+  void CreatePermissionDialogDelegate() {
+    permission_dialog_delegate_ =
+        PermissionDialogDelegate::Create(web_contents_, this);
+  }
+
+  // Check if grouped permission requests can only be Mic+Camera, Camera+Mic.
+  void CheckValidRequestGroup(
+      const std::vector<base::WeakPtr<PermissionRequest>>& requests) const;
 
  private:
   // PermissionPromptAndroid is owned by PermissionRequestManager, so it should
@@ -68,6 +121,11 @@ class PermissionPromptAndroid : public PermissionPrompt {
 
   // |delegate_| is the PermissionRequestManager, which owns this object.
   const raw_ptr<Delegate> delegate_;
+
+  std::vector<base::WeakPtr<PermissionRequest>> requests_;
+
+  // Owns a `PermissionDialogDelegate` object.
+  std::unique_ptr<PermissionDialogDelegate> permission_dialog_delegate_;
 };
 
 }  // namespace permissions

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <memory>
+#include <string_view>
 
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
@@ -17,8 +18,6 @@
 #include "net/base/isolation_info.h"
 #include "net/base/load_timing_info.h"
 #include "net/base/network_delegate.h"
-#include "net/cert/ct_policy_enforcer.h"
-#include "net/cert/ct_policy_status.h"
 #include "net/cert/mock_cert_verifier.h"
 #include "net/dns/mapped_host_resolver.h"
 #include "net/dns/mock_host_resolver.h"
@@ -58,32 +57,6 @@ const char kHelloPath[] = "/hello.txt";
 const char kHelloBodyValue[] = "Hello from QUIC Server";
 const int kHelloStatus = 200;
 
-// Used as a simple pushed response from the server.
-const char kKittenPath[] = "/kitten-1.jpg";
-const char kKittenBodyValue[] = "Kitten image";
-
-// Used as a simple pushed response from the server.
-const char kFaviconPath[] = "/favicon.ico";
-const char kFaviconBodyValue[] = "Favion";
-
-// Used as a simple pushed response from the server.
-const char kIndexPath[] = "/index2.html";
-const char kIndexBodyValue[] = "Hello from QUIC Server";
-const int kIndexStatus = 200;
-
-class MockCTPolicyEnforcerNonCompliant : public CTPolicyEnforcer {
- public:
-  MockCTPolicyEnforcerNonCompliant() = default;
-  ~MockCTPolicyEnforcerNonCompliant() override = default;
-
-  ct::CTPolicyCompliance CheckCompliance(
-      X509Certificate* cert,
-      const ct::SCTList& verified_scts,
-      const NetLogWithSource& net_log) override {
-    return ct::CTPolicyCompliance::CT_POLICY_NOT_DIVERSE_SCTS;
-  }
-};
-
 class URLRequestQuicTest
     : public TestWithTaskEnvironment,
       public ::testing::WithParamInterface<quic::ParsedQuicVersion> {
@@ -108,7 +81,6 @@ class URLRequestQuicTest
         HostPortPair(kTestServerHost, 443));
     context_builder_->set_quic_context(std::move(quic_context));
     params.enable_quic = true;
-    params.enable_server_push_cancellation = true;
     context_builder_->set_host_resolver(std::move(host_resolver_));
     context_builder_->set_http_network_session_params(params);
     context_builder_->SetCertVerifier(std::move(cert_verifier));
@@ -143,23 +115,6 @@ class URLRequestQuicTest
         ->GetRstErrorCount(error_code);
   }
 
-  static const NetLogSource FindPushUrlSource(
-      const std::vector<NetLogEntry>& entries,
-      const std::string& push_url) {
-    for (const auto& entry : entries) {
-      if (entry.phase == NetLogEventPhase::BEGIN &&
-          entry.source.type ==
-              NetLogSourceType::SERVER_PUSH_LOOKUP_TRANSACTION) {
-        auto entry_push_url =
-            GetOptionalStringValueFromParams(entry, "push_url");
-        if (entry_push_url && *entry_push_url == push_url) {
-          return entry.source;
-        }
-      }
-    }
-    return NetLogSource();
-  }
-
   static const NetLogEntry* FindEndBySource(
       const std::vector<NetLogEntry>& entries,
       const NetLogSource& source) {
@@ -175,13 +130,13 @@ class URLRequestQuicTest
 
  protected:
   // Returns a fully-qualified URL for |path| on the test server.
-  std::string UrlFromPath(base::StringPiece path) {
+  std::string UrlFromPath(std::string_view path) {
     return std::string("https://") + std::string(kTestServerHost) +
            std::string(path);
   }
 
-  void SetDelay(absl::string_view host,
-                absl::string_view path,
+  void SetDelay(std::string_view host,
+                std::string_view path,
                 base::TimeDelta delay) {
     memory_cache_backend_.SetResponseDelay(
         host, path,
@@ -196,16 +151,6 @@ class URLRequestQuicTest
     memory_cache_backend_.AddSimpleResponse(kTestServerHost, kHelloPath,
                                             kHelloStatus, kHelloBodyValue);
 
-    // Now set up index so that it pushes kitten and favicon.
-    quic::QuicBackendResponse::ServerPushInfo push_info1(
-        quic::QuicUrl(UrlFromPath(kKittenPath)), spdy::Http2HeaderBlock(),
-        spdy::kV3LowestPriority, kKittenBodyValue);
-    quic::QuicBackendResponse::ServerPushInfo push_info2(
-        quic::QuicUrl(UrlFromPath(kFaviconPath)), spdy::Http2HeaderBlock(),
-        spdy::kV3LowestPriority, kFaviconBodyValue);
-    memory_cache_backend_.AddSimpleResponseWithServerPushResources(
-        kTestServerHost, kIndexPath, kIndexStatus, kIndexBodyValue,
-        {push_info1, push_info2});
     quic::QuicConfig config;
     // Set up server certs.
     server_ = std::make_unique<QuicSimpleServer>(
@@ -225,15 +170,6 @@ class URLRequestQuicTest
         "MAP test.example.com test.example.com:" +
         base::NumberToString(server_->server_address().port());
     EXPECT_TRUE(host_resolver_->AddRuleFromString(map_rule));
-  }
-
-  std::string ServerPushCacheDirectory() {
-    base::FilePath path;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
-    path = path.AppendASCII("net").AppendASCII("data").AppendASCII(
-        "quic_http_response_cache_data_with_push");
-    // The file path is known to be an ascii string.
-    return path.MaybeAsASCII();
   }
 
   std::unique_ptr<MappedHostResolver> host_resolver_;

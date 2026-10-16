@@ -6,7 +6,6 @@
 #include "base/location.h"
 #include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_view_host_impl.h"
@@ -35,9 +34,8 @@ class PageLifecycleStateManagerBrowserTest : public ContentBrowserTest {
   }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
-    ContentBrowserTest::SetUpCommandLine(command_line);
-    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
-        switches::kEnableBlinkFeatures, "VisibilityStateEntry");
+    command_line->AppendSwitchASCII(switches::kEnableBlinkFeatures,
+                                    "VisibilityStateEntry");
   }
 
   WebContentsImpl* web_contents() const {
@@ -143,8 +141,8 @@ IN_PROC_BROWSER_TEST_F(PageLifecycleStateManagerBrowserTest, SetVisibility) {
             EvalJs(rfh, "window.performanceObserverEntries"));
 }
 
-// TODO(crbug.com/1241814): Test is flaky on Win and Lacros
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS_LACROS)
+// TODO(crbug.com/40786254): Test is flaky on Win
+#if BUILDFLAG(IS_WIN)
 #define MAYBE_CrossProcessIframeHiddenAnFrozen \
   DISABLED_CrossProcessIframeHiddenAnFrozen
 #else

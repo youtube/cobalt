@@ -127,10 +127,9 @@ void ObjectBackedNativeHandler::Router(
   v8::ReturnValue<v8::Value> ret = args.GetReturnValue();
   v8::Local<v8::Value> ret_value = ret.Get();
   if (ret_value->IsObject() && !ret_value->IsNull() &&
-      !ContextCanAccessObject(context, v8::Local<v8::Object>::Cast(ret_value),
-                              true)) {
+      !ContextCanAccessObject(isolate, context,
+                              v8::Local<v8::Object>::Cast(ret_value), true)) {
     NOTREACHED() << "Insecure return value";
-    ret.SetUndefined();
   }
 }
 
@@ -147,7 +146,7 @@ void ObjectBackedNativeHandler::RouteHandlerFunction(
   DCHECK_EQ(init_state_, kInitializingRoutes)
       << "RouteHandlerFunction() can only be called from AddRoutes()!";
 
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = GetIsolate();
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(context_->v8_context());
 
@@ -201,6 +200,7 @@ void ObjectBackedNativeHandler::Invalidate() {
 
 // static
 bool ObjectBackedNativeHandler::ContextCanAccessObject(
+    v8::Isolate* isolate,
     const v8::Local<v8::Context>& context,
     const v8::Local<v8::Object>& object,
     bool allow_null_context) {
@@ -217,7 +217,8 @@ bool ObjectBackedNativeHandler::ContextCanAccessObject(
   if (!other_script_context || !other_script_context->web_frame())
     return allow_null_context;
 
-  return blink::WebFrame::ScriptCanAccess(other_script_context->web_frame());
+  return blink::WebFrame::ScriptCanAccess(other_script_context->isolate(),
+                                          other_script_context->web_frame());
 }
 
 bool ObjectBackedNativeHandler::SetPrivate(v8::Local<v8::Object> obj,
